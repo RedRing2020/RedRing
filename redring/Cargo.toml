@@ -1,0 +1,12 @@
+[package]
+name = "redring"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wgpu = "0.19"
+winit = "0.29"      # ウィンドウ管理
+pollster = "0.3"    # 非同期初期化でよく使う
+
+viewmodel = { path = "../viewmodel" }
+model = { path = "../model" }
