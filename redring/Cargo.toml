@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+winit = "0.30"
 wgpu = "26.0.1"
-winit = "0.30.12"      # ウィンドウ管理
-pollster = "0.4.0"    # 非同期初期化でよく使う
-
+pollster = "0.4.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
 viewmodel = { path = "../viewmodel" }
 model = { path = "../model" }
+render = { path = "../render" }

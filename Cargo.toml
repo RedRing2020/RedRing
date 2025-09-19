@@ -2,6 +2,8 @@
 members = [
     "model",
     "viewmodel",
-    "redring"
+    "render",
+    "redring"  # メインクレート
+
 ]
 resolver = "3"
