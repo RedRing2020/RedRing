@@ -4,6 +4,7 @@ use wgpu::{
     PrimitiveState, MultisampleState,
 };
 
+#[allow(dead_code)]
 pub struct PipelineBundle {
     pub pipeline: RenderPipeline,
     pub layout: PipelineLayout,

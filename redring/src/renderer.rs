@@ -7,6 +7,7 @@ pub struct Renderer<'a> {
     pub queue: Queue,
     pub surface: &'a Surface<'a>,
     pub config: SurfaceConfiguration,
+    #[allow(dead_code)]
     pub pipeline: PipelineBundle,
 }
 
