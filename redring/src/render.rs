@@ -6,7 +6,11 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let shader = device.create_shader_module(include_wgsl!("shader.wgsl"));
+        let shader_source = include_str!("../shaders/triangle.wgsl");
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("Triangle Shader"),
+            source: ShaderSource::Wgsl(shader_source.into()),
+        });
 
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Pipeline Layout"),
@@ -48,7 +52,7 @@ impl Renderer {
         device: &Device,
         queue: &Queue,
         surface: &Surface,
-        config: &SurfaceConfiguration,
+        _config: &SurfaceConfiguration,
     ) {
         let frame = match surface.get_current_texture() {
             Ok(frame) => frame,
