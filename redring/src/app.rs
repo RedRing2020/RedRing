@@ -9,35 +9,40 @@ use winit::{
 
 use crate::device::GpuContext;
 use crate::graphic::Graphic;
+use crate::render::Renderer;
 use render::surface::create_surface;
 
-/// アプリケーションの状態を保持する構造体
 pub struct App<'a> {
     pub graphic: Graphic<'a>,
+    pub renderer: Renderer,
     pub window: &'a Window,
 }
 
 impl<'a> App<'a> {
-    /// 初期化処理
     pub async fn new(window: &'a Window) -> Self {
-        // 'static に昇格した GPU インスタンスとサーフェス
         let instance = Box::leak(Box::new(Instance::default()));
         let surface = Box::leak(Box::new(create_surface(instance, window)));
-
-        // GPU コンテキストの初期化
         let gpu = GpuContext::new(instance, surface);
 
-        // SurfaceConfiguration の構築と適用
         let config = Self::create_surface_config(surface, window, &gpu.adapter);
         surface.configure(&gpu.device, &config);
 
-        // Graphic の初期化
-        let graphic = Graphic::new(gpu.device, gpu.queue, surface, config);
+        let graphic = Graphic {
+            device: gpu.device,
+            queue: gpu.queue,
+            surface,
+            config,
+        };
 
-        Self { graphic, window }
+        let renderer = Renderer::new(&graphic.device, &graphic.config);
+
+        Self {
+            graphic,
+            renderer,
+            window,
+        }
     }
 
-    /// SurfaceConfiguration を構築
     fn create_surface_config(
         surface: &wgpu::Surface<'_>,
         window: &Window,
@@ -58,7 +63,6 @@ impl<'a> App<'a> {
         }
     }
 
-    /// ウィンドウサイズ変更時の処理
     fn resize_surface(&mut self, size: PhysicalSize<u32>) {
         self.graphic.config.width = size.width;
         self.graphic.config.height = size.height;
@@ -82,7 +86,14 @@ impl<'a> ApplicationHandler<()> for App<'a> {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => self.resize_surface(size),
-            WindowEvent::RedrawRequested => self.graphic.render_frame(),
+            WindowEvent::RedrawRequested => {
+                self.renderer.render_frame(
+                    &self.graphic.device,
+                    &self.graphic.queue,
+                    self.graphic.surface,
+                    &self.graphic.config,
+                );
+            }
             _ => {}
         }
     }
