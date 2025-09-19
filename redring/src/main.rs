@@ -1,93 +1,19 @@
-mod window;
+mod app;
 mod device;
-mod renderer;
-mod pipeline;
+mod graphic;
 
-use window::create_window;
-use device::{request_adapter, request_device};
-use renderer::Renderer;
-
-use winit::application::ApplicationHandler;
-use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::event::WindowEvent;
-
-use wgpu::SurfaceConfiguration;
-
-// render クレートから create_surface を使う場合
-use render::surface::create_surface;
-
-struct RedRingApp<'a> {
-    renderer: Option<Renderer<'a>>,
-    window: Option<&'static winit::window::Window>,
-}
-
-impl<'a> ApplicationHandler<()> for RedRingApp<'a> {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = create_window(event_loop);
-        let instance: &'static wgpu::Instance = Box::leak(Box::new(wgpu::Instance::default()));
-        let surface = Box::leak(Box::new(create_surface(instance, window)));
-
-        let adapter = request_adapter(&instance, surface);
-        let (device, queue) = request_device(&adapter);
-
-        let size = window.inner_size();
-        let config = SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_capabilities(&adapter).formats[0],
-            width: size.width,
-            height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-        surface.configure(&device, &config);
-
-        self.renderer = Some(Renderer::new(device, queue, surface, config));
-        self.window = Some(window);
-    }
-
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(window) = &self.window {
-            window.request_redraw();
-        }
-    }
-
-    fn window_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _window_id: winit::window::WindowId,
-        event: WindowEvent,
-    ) {
-        match event {
-            WindowEvent::CloseRequested => {
-                _event_loop.exit();
-            }
-            WindowEvent::Resized(new_size) => {
-                if let Some(renderer) = &mut self.renderer {
-                    renderer.config.width = new_size.width;
-                    renderer.config.height = new_size.height;
-                    renderer.surface.configure(&renderer.device, &renderer.config);
-                }
-            }
-            WindowEvent::RedrawRequested => {
-                if let Some(renderer) = &self.renderer {
-                    renderer.render_frame();
-                }
-            }
-            _ => {}
-        }
-    }
-}
+use app::App;
+use winit::event_loop::EventLoop;
 
 fn main() {
     tracing_subscriber::fmt::init();
 
     let event_loop = EventLoop::new().expect("Failed to create event loop");
-    let mut app = RedRingApp {
-        renderer: None,
-        window: None,
-    };
 
+    let window = Box::leak(Box::new(
+        event_loop.create_window(Default::default()).expect("Failed to create window"),
+    ));
+
+    let mut app = pollster::block_on(App::new(window));
     event_loop.run_app(&mut app).expect("Failed to run app");
 }
