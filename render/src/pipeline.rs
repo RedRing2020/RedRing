@@ -1,0 +1,66 @@
+use wgpu::{
+    Device, ShaderModule, RenderPipeline, PipelineLayout, BindGroupLayout, TextureFormat,
+    PipelineLayoutDescriptor, RenderPipelineDescriptor, VertexState, FragmentState,
+    PrimitiveState, MultisampleState,
+};
+
+pub struct PipelineBundle {
+    pub pipeline: RenderPipeline,
+    pub layout: PipelineLayout,
+}
+
+pub fn create_pipeline(
+    device: &Device,
+    shader: &ShaderModule,
+    bind_group_layout: &BindGroupLayout,
+    format: TextureFormat,
+) -> PipelineBundle {
+    let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        label: Some("Pipeline Layout"),
+        bind_group_layouts: &[bind_group_layout],
+        push_constant_ranges: &[],
+    });
+
+    let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        label: Some("Render Pipeline"),
+        layout: Some(&pipeline_layout),
+        vertex: VertexState {
+            module: shader,
+            entry_point: Some("vs_main"),
+            buffers: &[],
+            compilation_options: Default::default(),
+        },
+        fragment: Some(FragmentState {
+            module: shader,
+            entry_point: Some("fs_main"),
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend: Some(wgpu::BlendState::REPLACE),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: Default::default(),
+        }),
+        primitive: PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            unclipped_depth: false,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        multiview: None,
+        cache: None,
+    });
+
+    PipelineBundle {
+        pipeline,
+        layout: pipeline_layout,
+    }
+}
