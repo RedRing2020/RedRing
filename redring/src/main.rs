@@ -1,11 +1,15 @@
+mod surface;
+mod device;
+mod renderer;
+mod pipeline;
+
+use renderer::Renderer;
 use winit::{
     event::WindowEvent,
     event_loop::{EventLoop, ActiveEventLoop},
-    window::WindowAttributes,
     application::ApplicationHandler,
 };
 use wgpu::SurfaceConfiguration;
-use render::renderer::Renderer;
 
 struct RedRingApp<'a> {
     renderer: Option<Renderer<'a>>,
@@ -14,33 +18,12 @@ struct RedRingApp<'a> {
 
 impl<'a> ApplicationHandler<()> for RedRingApp<'a> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = Box::leak(Box::new(
-            event_loop.create_window(WindowAttributes::default())
-                .expect("Failed to create window"),
-        )) as &'static winit::window::Window;
+        let window = surface::create_window(event_loop);
+        let instance: &'static wgpu::Instance = Box::leak(Box::new(wgpu::Instance::default()));
+        let surface = Box::leak(surface::create_surface(&instance, window));
 
-        let instance = wgpu::Instance::default();
-
-        let surface = instance.create_surface(window).expect("Failed to create surface");
-        let surface = Box::leak(Box::new(surface)); // &'static Surface<'static>
-
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        }))
-        .expect("Failed to find adapter");
-
-        let device_descriptor = wgpu::DeviceDescriptor {
-            label: Some("RedRing Device"),
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-            memory_hints: wgpu::MemoryHints::default(),
-            trace: wgpu::Trace::default(),
-        };
-
-        let (device, queue) = pollster::block_on(adapter.request_device(&device_descriptor))
-            .expect("Failed to create device");
+        let adapter = device::request_adapter(&instance, surface);
+        let (device, queue) = device::request_device(&adapter);
 
         let size = window.inner_size();
         let config = SurfaceConfiguration {

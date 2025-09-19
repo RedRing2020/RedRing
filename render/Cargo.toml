@@ -5,5 +5,4 @@ edition = "2024"
 
 [dependencies]
 wgpu = "26.0.1"
-winit = "0.30.12"
 tracing = "0.1"
