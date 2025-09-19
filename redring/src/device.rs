@@ -1,21 +1,13 @@
-use wgpu::{Instance, Adapter, Device, Queue, RequestAdapterOptions, DeviceDescriptor};
+use wgpu::{Adapter, Device, Instance, Queue, Surface};
 
-pub fn request_adapter(instance: &Instance, surface: &wgpu::Surface) -> Adapter {
-    pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
+pub fn request_adapter(instance: &Instance, surface: &Surface) -> Adapter {
+    pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         compatible_surface: Some(surface),
-        force_fallback_adapter: false,
-    })).expect("Failed to find adapter")
+        ..Default::default()
+    })).expect("No suitable adapter found")
 }
 
 pub fn request_device(adapter: &Adapter) -> (Device, Queue) {
-    let descriptor = DeviceDescriptor {
-        label: Some("RedRing Device"),
-        required_features: wgpu::Features::empty(),
-        required_limits: wgpu::Limits::default(),
-        memory_hints: wgpu::MemoryHints::default(),
-        trace: wgpu::Trace::default(),
-    };
-    pollster::block_on(adapter.request_device(&descriptor))
-        .expect("Failed to create device")
+    pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
+        .expect("Device creation failed")
 }

@@ -13,12 +13,11 @@ pub struct Renderer<'a> {
 
 impl<'a> Renderer<'a> {
     pub fn new(
-        device: Device,
-        queue: Queue,
-        surface: &'a Surface<'a>,
-        config: SurfaceConfiguration,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+        surface: &'a wgpu::Surface,
+        config: wgpu::SurfaceConfiguration,
     ) -> Self {
-
         // WGSLシェーダーの読み込み（埋め込み例）
         let shader_source = ShaderSource::Wgsl(include_str!("shader.wgsl").into());
         let shader_module = device.create_shader_module(ShaderModuleDescriptor {
@@ -45,6 +44,8 @@ impl<'a> Renderer<'a> {
 
         // パイプラインの作成
         let pipeline = create_pipeline(&device, &shader_module, &bind_group_layout, config.format);
+
+        surface.configure(&device, &config);
 
         Self {
             device,
