@@ -1,6 +1,7 @@
 mod app;
 mod device;
 mod graphic;
+mod render;
 
 use app::App;
 use winit::event_loop::EventLoop;
