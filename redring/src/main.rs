@@ -7,12 +7,12 @@ use winit::{
 use wgpu::SurfaceConfiguration;
 use render::renderer::Renderer;
 
-struct RedRingApp {
-    renderer: Option<Renderer>,
+struct RedRingApp<'a> {
+    renderer: Option<Renderer<'a>>,
     window: Option<&'static winit::window::Window>,
 }
 
-impl ApplicationHandler<()> for RedRingApp {
+impl<'a> ApplicationHandler<()> for RedRingApp<'a> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Box::leak(Box::new(
             event_loop.create_window(WindowAttributes::default())
@@ -55,7 +55,7 @@ impl ApplicationHandler<()> for RedRingApp {
         };
         surface.configure(&device, &config);
 
-        self.renderer = Some(Renderer::new(&device, &queue, &config));
+        self.renderer = Some(Renderer::new(device, queue, surface, config));
         self.window = Some(window);
     }
 
@@ -74,6 +74,13 @@ impl ApplicationHandler<()> for RedRingApp {
         match event {
             WindowEvent::CloseRequested => {
                 _event_loop.exit();
+            }
+            WindowEvent::Resized(new_size) => {
+                if let Some(renderer) = &mut self.renderer {
+                    renderer.config.width = new_size.width;
+                    renderer.config.height = new_size.height;
+                    renderer.surface.configure(&renderer.device, &renderer.config);
+                }
             }
             WindowEvent::RedrawRequested => {
                 if let Some(renderer) = &self.renderer {
