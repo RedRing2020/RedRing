@@ -1,6 +1,7 @@
 use wgpu::{Adapter, Device, Instance, Queue, Surface};
 
 pub struct GpuContext<'a> {
+    #[allow(dead_code)]
     pub surface: &'a Surface<'a>,
     pub adapter: Adapter,
     pub device: Device,
