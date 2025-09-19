@@ -1,15 +1,20 @@
-mod surface;
+mod window;
 mod device;
 mod renderer;
 mod pipeline;
 
+use window::create_window;
+use device::{request_adapter, request_device};
 use renderer::Renderer;
-use winit::{
-    event::WindowEvent,
-    event_loop::{EventLoop, ActiveEventLoop},
-    application::ApplicationHandler,
-};
+
+use winit::application::ApplicationHandler;
+use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::event::WindowEvent;
+
 use wgpu::SurfaceConfiguration;
+
+// render クレートから create_surface を使う場合
+use render::surface::create_surface;
 
 struct RedRingApp<'a> {
     renderer: Option<Renderer<'a>>,
@@ -18,12 +23,12 @@ struct RedRingApp<'a> {
 
 impl<'a> ApplicationHandler<()> for RedRingApp<'a> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = surface::create_window(event_loop);
+        let window = create_window(event_loop);
         let instance: &'static wgpu::Instance = Box::leak(Box::new(wgpu::Instance::default()));
-        let surface = Box::leak(surface::create_surface(&instance, window));
+        let surface = Box::leak(Box::new(create_surface(instance, window)));
 
-        let adapter = device::request_adapter(&instance, surface);
-        let (device, queue) = device::request_device(&adapter);
+        let adapter = request_adapter(&instance, surface);
+        let (device, queue) = request_device(&adapter);
 
         let size = window.inner_size();
         let config = SurfaceConfiguration {
