@@ -9,7 +9,7 @@ use winit::{
 
 use crate::device::GpuContext;
 use crate::graphic::Graphic;
-use crate::render::Renderer;
+use render::renderer::Renderer;
 use render::surface::create_surface;
 
 pub struct App<'a> {
