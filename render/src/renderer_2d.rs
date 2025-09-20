@@ -1,30 +1,42 @@
 use wgpu::*;
+use wgpu::util::{DeviceExt, BufferInitDescriptor};
+use crate::vertex::{Vertex, VERTICES};
 
-pub struct Renderer {
+pub struct Renderer2D {
     pipeline: RenderPipeline,
+    vertex_buffer: Buffer,
+    vertex_count: u32,
 }
 
-impl Renderer {
+impl Renderer2D {
     pub fn new(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let shader_source = include_str!("../shaders/triangle.wgsl");
+        let shader_source = include_str!("../shaders/triangle_2d.wgsl");
         let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: Some("Triangle Shader"),
+            label: Some("2D Shader"),
             source: ShaderSource::Wgsl(shader_source.into()),
         });
 
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("2D Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: BufferUsages::VERTEX,
+        });
+
+        let vertex_count = VERTICES.len() as u32;
+
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Pipeline Layout"),
+            label: Some("2D Pipeline Layout"),
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
+            label: Some("2D Render Pipeline"),
             layout: Some(&layout),
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[Vertex::desc()],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
@@ -44,20 +56,18 @@ impl Renderer {
             cache: Default::default(),
         });
 
-        Self { pipeline }
+        Self {
+            pipeline,
+            vertex_buffer,
+            vertex_count,
+        }
     }
 
-    pub fn render_frame(
-        &self,
-        device: &Device,
-        queue: &Queue,
-        surface: &Surface,
-        _config: &SurfaceConfiguration,
-    ) {
+    pub fn render(&self, device: &Device, queue: &Queue, surface: &Surface) {
         let frame = match surface.get_current_texture() {
             Ok(frame) => frame,
             Err(e) => {
-                eprintln!("Failed to acquire frame: {:?}", e);
+                eprintln!("2D: Failed to acquire frame: {:?}", e);
                 return;
             }
         };
@@ -67,7 +77,7 @@ impl Renderer {
 
         {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: Some("2D Render Pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -83,7 +93,8 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.draw(0..self.vertex_count, 0..1);
         }
 
         queue.submit(Some(encoder.finish()));
