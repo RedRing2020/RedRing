@@ -8,7 +8,8 @@ pub struct Graphic<'a> {
     pub config: SurfaceConfiguration,
 }
 
-pub fn init_wgpu(_window: &Window) -> (wgpu::Device, wgpu::Queue, wgpu::Surface, SurfaceConfiguration) {
+pub fn init_wgpu(_window: &Window) -> (wgpu::Device, wgpu::Queue, wgpu::Surface<'_>, SurfaceConfiguration)
+ {
     // wgpu初期化処理を書く（略）
     todo!()
 }
