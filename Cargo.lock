@@ -1300,7 +1300,6 @@ name = "redring"
 version = "0.1.0"
 dependencies = [
  "model",
- "pollster",
  "render",
  "tracing",
  "tracing-subscriber",
@@ -1314,6 +1313,7 @@ name = "render"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "pollster",
  "tracing",
  "wgpu",
  "winit",
