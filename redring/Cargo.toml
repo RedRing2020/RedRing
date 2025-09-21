@@ -11,3 +11,4 @@ tracing-subscriber.workspace = true
 viewmodel = { path = "../viewmodel" }
 model = { path = "../model" }
 render = { path = "../render" }
+stage = { path = "../stage" }
