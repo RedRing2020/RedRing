@@ -1,22 +1,55 @@
-use wgpu::{CommandEncoder, TextureView};
-use crate::render_stage::RenderStage;
-use render::pipeline; // render クレートの pipeline モジュールを参照
+use wgpu::{
+    CommandEncoder, TextureView,
+    LoadOp, StoreOp, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor,
+};
 
-/// ワイヤーフレーム描画ステージ
+use crate::render_stage::RenderStage;
+use render::wireframe::{WireframeResources, draw_wireframe};
+
 pub struct WireframeStage {
-    // 将来的に vertex_buffer, pipeline, camera_state などを保持可能
+    resources: WireframeResources,
 }
 
 impl WireframeStage {
-    pub fn new() -> Self {
-        Self {
-            // 初期化処理（必要なら）
-        }
+    pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
+        let resources = render::wireframe::create_wireframe_resources(device, format);
+        Self { resources }
     }
 }
 
 impl RenderStage for WireframeStage {
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
-        pipeline::draw_wireframe(encoder, view);
+        let color_attachment = RenderPassColorAttachment {
+            view,
+            resolve_target: None,
+            depth_slice: Some(0),
+            ops: Operations {
+                load: LoadOp::Clear(wgpu::Color {
+                    r: 0.1,
+                    g: 0.1,
+                    b: 0.1,
+                    a: 1.0,
+                }),
+                store: StoreOp::Store,
+            },
+        };
+
+        let render_pass_desc = RenderPassDescriptor {
+            label: Some("Wireframe Render Pass"),
+            color_attachments: &[Some(color_attachment)],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+        };
+
+        let mut render_pass = encoder.begin_render_pass(&render_pass_desc);
+
+        draw_wireframe(
+            &mut render_pass,
+            &self.resources.pipeline,
+            &self.resources.vertex_buffer,
+            self.resources.vertex_count,
+        );
     }
 }

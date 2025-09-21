@@ -71,24 +71,13 @@ pub fn create_pipeline(
     }
 }
 
-pub fn draw_wireframe(encoder: &mut CommandEncoder, view: &TextureView) {
-    let color_attachment = RenderPassColorAttachment {
-        view,
-        resolve_target: None,
-        depth_slice: Some(0),
-        ops: Operations {
-            load: LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }),
-            store: StoreOp::Store,
-        },
-    };
-
-    let render_pass_desc = RenderPassDescriptor {
-        label: Some("Wireframe Render Pass"),
-        color_attachments: &[Some(color_attachment)],
-        depth_stencil_attachment: None,
-        occlusion_query_set: None,
-        timestamp_writes: None,
-    };
-
-    let _render_pass = encoder.begin_render_pass(&render_pass_desc);
+pub fn draw_wireframe<'a>(
+    render_pass: &mut wgpu::RenderPass<'a>,
+    pipeline: &'a wgpu::RenderPipeline,
+    vertex_buffer: &'a wgpu::Buffer,
+    vertex_count: u32,
+) {
+    render_pass.set_pipeline(pipeline);
+    render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+    render_pass.draw(0..vertex_count, 0..1);
 }
