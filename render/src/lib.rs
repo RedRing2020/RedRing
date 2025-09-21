@@ -1,3 +1,5 @@
+pub mod device;
+pub mod pipeline;
 pub mod renderer;
 pub mod renderer_2d;
 pub mod surface;
