@@ -1,40 +1,35 @@
-use wgpu::{Device, Queue, Surface, SurfaceConfiguration};
-use render::renderer_2d::Renderer2D;
-
-pub enum RenderStage {
-    TwoD,
-    ThreeD,
-}
+use wgpu::{Device, SurfaceConfiguration, CommandEncoder, TextureView};
+use stage::{RenderStage, Render2DStage, WireframeStage};
 
 pub struct AppRenderer {
-    stage: RenderStage,
-    renderer_2d: Option<Renderer2D>,
-    // renderer_3d: Option<Renderer3D>, ← 後で追加
+    stage: Box<dyn RenderStage>,
 }
 
 impl AppRenderer {
-    pub fn new(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let renderer_2d = Renderer2D::new(device, config);
-        Self {
-            stage: RenderStage::TwoD,
-            renderer_2d: Some(renderer_2d),
-            // renderer_3d: None,
-        }
+    /// 初期化：2Dステージを生成
+    pub fn new_2d(device: &Device, config: &SurfaceConfiguration) -> Self {
+        let stage = Box::new(Render2DStage::new(device, config.format));
+        Self { stage }
     }
 
-    pub fn render(&mut self, device: &Device, queue: &Queue, surface: &Surface, config: &SurfaceConfiguration) {
-        match self.stage {
-            RenderStage::TwoD => {
-                if let Some(r2d) = &self.renderer_2d {
-                    r2d.render(device, queue, surface, config);
-                }
-            }
-            _ => {}
-        }
+    /// 初期化：ワイヤーフレームステージを生成
+    pub fn new_wireframe(device: &Device, config: &SurfaceConfiguration) -> Self {
+        let stage = Box::new(WireframeStage::new(device, config.format));
+        Self { stage }
     }
 
-    pub fn set_stage(&mut self, stage: RenderStage) {
+    /// ステージ切り替え（将来的なイベント駆動対応）
+    pub fn set_stage(&mut self, stage: Box<dyn RenderStage>) {
         self.stage = stage;
+    }
+
+    /// 描画処理：現在のステージに委譲
+    pub fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
+        self.stage.render(encoder, view);
+    }
+    
+    pub fn update(&mut self) {
+        self.stage.update();
     }
 
 }
