@@ -1,7 +1,12 @@
 use wgpu::{
+    // パイプライン構築関連
     Device, ShaderModule, RenderPipeline, PipelineLayout, BindGroupLayout, TextureFormat,
     PipelineLayoutDescriptor, RenderPipelineDescriptor, VertexState, FragmentState,
     PrimitiveState, MultisampleState,
+
+    // 描画処理関連
+    CommandEncoder, TextureView, LoadOp, StoreOp, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor,
 };
 
 #[allow(dead_code)]
@@ -64,4 +69,26 @@ pub fn create_pipeline(
         pipeline,
         layout: pipeline_layout,
     }
+}
+
+pub fn draw_wireframe(encoder: &mut CommandEncoder, view: &TextureView) {
+    let color_attachment = RenderPassColorAttachment {
+        view,
+        resolve_target: None,
+        depth_slice: Some(0),
+        ops: Operations {
+            load: LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }),
+            store: StoreOp::Store,
+        },
+    };
+
+    let render_pass_desc = RenderPassDescriptor {
+        label: Some("Wireframe Render Pass"),
+        color_attachments: &[Some(color_attachment)],
+        depth_stencil_attachment: None,
+        occlusion_query_set: None,
+        timestamp_writes: None,
+    };
+
+    let _render_pass = encoder.begin_render_pass(&render_pass_desc);
 }

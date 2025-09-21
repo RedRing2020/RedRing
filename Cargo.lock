@@ -1301,6 +1301,7 @@ version = "0.1.0"
 dependencies = [
  "model",
  "render",
+ "stage",
  "tracing",
  "tracing-subscriber",
  "viewmodel",
@@ -1504,6 +1505,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eda41003dc44290527a59b13432d4a0379379fa074b70174882adfbdfd917844"
 dependencies = [
  "bitflags 2.9.4",
+]
+
+[[package]]
+name = "stage"
+version = "0.1.0"
+dependencies = [
+ "render",
+ "wgpu",
 ]
 
 [[package]]
