@@ -4,7 +4,7 @@ use winit::error::EventLoopError;
 use winit::window::{Window, WindowAttributes};
 
 mod app_renderer;
-use crate::app_renderer::{AppRenderer, RenderStage};
+use crate::app_renderer::AppRenderer;
 
 mod graphic;
 use crate::graphic::init_wgpu;
@@ -25,8 +25,7 @@ impl winit::application::ApplicationHandler for App {
         );
 
         let (device, _queue, _surface, config) = init_wgpu(&window);
-        let mut _renderer = AppRenderer::new(&device, &config);
-        _renderer.set_stage(RenderStage::TwoD);
+        let mut _renderer = AppRenderer::new_2d(&device, &config);
 
         self.window = Some(window.clone());
         self.renderer = Some(_renderer);
@@ -46,6 +45,10 @@ impl winit::application::ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(renderer) = &mut self.renderer {
+            renderer.update(); // ← 毎フレームの状態更新
+        }
+
         if let Some(window) = &self.window {
             window.request_redraw();
         }
