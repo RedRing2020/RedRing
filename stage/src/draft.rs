@@ -14,17 +14,17 @@ use wgpu::util::DeviceExt;
 use crate::render_stage::RenderStage;
 
 // 外部クレート（render）
-use render::render_2d::{Render2DResources, draw_render_2d};
+use render::draft::{DraftResources, draw_draft};
 use render::vertex_2d::Vertex2D;
 
-pub struct Render2DStage {
-    resources: Render2DResources,
+pub struct DraftStage {
+    resources: DraftResources,
     frame_count: u64,
 }
 
-impl Render2DStage {
+impl DraftStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let resources = render::render_2d::create_render_2d_resources(&Arc::new(device.clone()), format);
+        let resources = render::draft::create_draft_resources(&Arc::new(device.clone()), format);
         Self {
             resources,
             frame_count: 0,
@@ -32,7 +32,7 @@ impl Render2DStage {
     }
 }
 
-impl RenderStage for Render2DStage {
+impl RenderStage for DraftStage {
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
         let color_attachment = RenderPassColorAttachment {
             view,
@@ -50,7 +50,7 @@ impl RenderStage for Render2DStage {
         };
 
         let render_pass_desc = RenderPassDescriptor {
-            label: Some("2D Render Pass"),
+            label: Some("Draft Pass"),
             color_attachments: &[Some(color_attachment)],
             depth_stencil_attachment: None,
             occlusion_query_set: None,
@@ -59,7 +59,7 @@ impl RenderStage for Render2DStage {
 
         let mut render_pass = encoder.begin_render_pass(&render_pass_desc);
 
-        draw_render_2d(
+        draw_draft(
             &mut render_pass,
             &self.resources.pipeline,
             &self.resources.vertex_buffer,

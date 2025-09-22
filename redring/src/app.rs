@@ -44,8 +44,8 @@ impl ApplicationHandler for App {
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     match &event.logical_key {
-                        Key::Character(c) if c.as_str() == "1" => state.set_stage_2d(),
-                        Key::Character(c) if c.as_str() == "2" => state.set_stage_wireframe(),
+                        Key::Character(c) if c.as_str() == "1" => state.set_stage_draft(),
+                        Key::Character(c) if c.as_str() == "2" => state.set_stage_outline(),
                         Key::Named(NamedKey::Escape) => {
                             self.should_exit = true;
                             event_loop.exit();
