@@ -14,17 +14,17 @@ use wgpu::util::DeviceExt;
 use crate::render_stage::RenderStage;
 
 // 外部クレート（render）
-use render::draft::{DraftResources, draw_draft};
+use render::render_2d::{Render2dResources, draw_render_2d};
 use render::vertex_2d::Vertex2D;
 
 pub struct DraftStage {
-    resources: DraftResources,
+    resources: Render2dResources,
     frame_count: u64,
 }
 
 impl DraftStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let resources = render::draft::create_draft_resources(&Arc::new(device.clone()), format);
+        let resources = render::render_2d::create_render_2d_resources(&Arc::new(device.clone()), format);
         Self {
             resources,
             frame_count: 0,
@@ -59,7 +59,7 @@ impl RenderStage for DraftStage {
 
         let mut render_pass = encoder.begin_render_pass(&render_pass_desc);
 
-        draw_draft(
+        draw_render_2d(
             &mut render_pass,
             &self.resources.pipeline,
             &self.resources.vertex_buffer,

@@ -1,14 +1,14 @@
 use wgpu::{Device, RenderPipeline, Buffer};
 use wgpu::util::DeviceExt;
-use crate::shader::outline_shader;
+use crate::shader::wireframe_shader;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct VertexOutline {
+pub struct VertexWireframe {
     pub position: [f32; 3],
 }
 
-impl VertexOutline {
+impl VertexWireframe {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as u64,
@@ -22,13 +22,13 @@ impl VertexOutline {
     }
 }
 
-pub struct OutlineResources {
+pub struct WireframeResources {
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
     pub vertex_count: u32,
 }
 
-pub fn create_outline_resources(device: &Device, format: wgpu::TextureFormat) -> OutlineResources {
+pub fn create_wireframe_resources(device: &Device, format: wgpu::TextureFormat) -> WireframeResources {
     let vertices: &[f32] = &[
         -0.5, 0.0, 0.0,
          0.5, 0.0, 0.0,
@@ -37,21 +37,21 @@ pub fn create_outline_resources(device: &Device, format: wgpu::TextureFormat) ->
     ];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Outline Vertex Buffer"),
+        label: Some("Wireframe Vertex Buffer"),
         contents: bytemuck::cast_slice(vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
 
-    let shader = outline_shader(device);
+    let shader = wireframe_shader(device);
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Outline Pipeline Layout"),
+        label: Some("Wireframe Pipeline Layout"),
         bind_group_layouts: &[],
         push_constant_ranges: &[],
     });
 
     let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Outline Pipeline"),
+        label: Some("Wireframe Pipeline"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
@@ -89,14 +89,14 @@ pub fn create_outline_resources(device: &Device, format: wgpu::TextureFormat) ->
 
     let vertex_count = (vertices.len() / 3) as u32;
 
-    OutlineResources {
+    WireframeResources {
         pipeline,
         vertex_buffer,
         vertex_count,
     }
 }
 
-pub fn draw_outline<'a>(
+pub fn draw_wireframe<'a>(
     pass: &mut wgpu::RenderPass<'a>,
     pipeline: &'a RenderPipeline,
     vertex_buffer: &'a Buffer,
