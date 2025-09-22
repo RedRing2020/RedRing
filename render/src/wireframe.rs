@@ -1,4 +1,4 @@
-use wgpu::{Device, RenderPipeline, Buffer, ShaderModule};
+use wgpu::{Device, RenderPipeline, Buffer};
 use wgpu::util::DeviceExt;
 use crate::shader::wireframe_shader;
 

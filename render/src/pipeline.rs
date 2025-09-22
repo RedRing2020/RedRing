@@ -1,12 +1,7 @@
 use wgpu::{
-    // パイプライン構築関連
     Device, ShaderModule, RenderPipeline, PipelineLayout, BindGroupLayout, TextureFormat,
     PipelineLayoutDescriptor, RenderPipelineDescriptor, VertexState, FragmentState,
     PrimitiveState, MultisampleState,
-
-    // 描画処理関連
-    CommandEncoder, TextureView, LoadOp, StoreOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor,
 };
 
 #[allow(dead_code)]

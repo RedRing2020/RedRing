@@ -1300,6 +1300,7 @@ name = "redring"
 version = "0.1.0"
 dependencies = [
  "model",
+ "pollster",
  "render",
  "stage",
  "tracing",
@@ -1511,6 +1512,7 @@ dependencies = [
 name = "stage"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "render",
  "wgpu",
 ]
