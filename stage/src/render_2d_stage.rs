@@ -1,32 +1,43 @@
+// 標準ライブラリ
+use std::sync::Arc;
+
+// 外部クレート
+use bytemuck;
 use wgpu::{
     CommandEncoder, TextureView,
     LoadOp, StoreOp, Operations,
     RenderPassColorAttachment, RenderPassDescriptor,
 };
+use wgpu::util::DeviceExt;
 
+// 自クレート（stage）
 use crate::render_stage::RenderStage;
-use render::render_2d::{Render2DResources, draw_render_2d};
 
-/// 2D描画ステージ（高レイヤー抽象）
+// 外部クレート（render）
+use render::render_2d::{Render2DResources, draw_render_2d};
+use render::vertex_2d::Vertex2D;
+
 pub struct Render2DStage {
     resources: Render2DResources,
+    frame_count: u64,
 }
 
 impl Render2DStage {
-    /// 初期化：低レイヤーのリソースを構築して保持
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let resources = render::render_2d::create_render_2d_resources(device, format);
-        Self { resources }
+        let resources = render::render_2d::create_render_2d_resources(&Arc::new(device.clone()), format);
+        Self {
+            resources,
+            frame_count: 0,
+        }
     }
 }
 
 impl RenderStage for Render2DStage {
-    /// 描画処理：RenderPass を構築し、描画命令を発行
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
         let color_attachment = RenderPassColorAttachment {
             view,
             resolve_target: None,
-            depth_slice: Some(0),
+            depth_slice: None,
             ops: Operations {
                 load: LoadOp::Clear(wgpu::Color {
                     r: 0.2,
@@ -57,6 +68,22 @@ impl RenderStage for Render2DStage {
     }
     
     fn update(&mut self) {
-        // 2Dステージでの状態更新（例：頂点アニメーション）
+        self.frame_count += 1;
+        let t = self.frame_count as f32 * 0.02;
+
+        let animated_vertices = [
+            Vertex2D { position: [t.sin() * 0.5, -0.5] },
+            Vertex2D { position: [0.5, t.cos() * 0.5] },
+            Vertex2D { position: [0.0, 0.5] },
+        ];
+
+        let device = &self.resources.device;
+        self.resources.vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Animated Vertex Buffer"),
+            contents: bytemuck::cast_slice(&animated_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        self.resources.vertex_count = animated_vertices.len() as u32;
     }
 }

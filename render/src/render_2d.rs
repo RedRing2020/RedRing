@@ -1,16 +1,20 @@
-use wgpu::{Device, RenderPipeline, Buffer, TextureFormat};
+use wgpu::{RenderPipeline, Buffer};
 use wgpu::util::DeviceExt;
-
+use std::sync::Arc;
 use crate::shader::render_2d_shader;
 use crate::vertex_2d::Vertex2D;
 
 pub struct Render2DResources {
-    pub pipeline: RenderPipeline,
-    pub vertex_buffer: Buffer,
+    pub device: Arc<wgpu::Device>,
+    pub pipeline: wgpu::RenderPipeline,
+    pub vertex_buffer: wgpu::Buffer,
     pub vertex_count: u32,
 }
 
-pub fn create_render_2d_resources(device: &Device, format: TextureFormat) -> Render2DResources {
+pub fn create_render_2d_resources(
+    device: &Arc<wgpu::Device>,
+    format: wgpu::TextureFormat,
+) -> Render2DResources {
     let vertices: &[Vertex2D] = &[
         Vertex2D { position: [-0.5, -0.5] },
         Vertex2D { position: [ 0.5, -0.5] },
@@ -63,6 +67,7 @@ pub fn create_render_2d_resources(device: &Device, format: TextureFormat) -> Ren
     let vertex_count = vertices.len() as u32;
 
     Render2DResources {
+        device: device.clone(),
         pipeline,
         vertex_buffer,
         vertex_count,

@@ -1,6 +1,3 @@
-use wgpu::{CommandEncoder, TextureView};
-
-/// 描画ステージの共通インターフェース
 pub trait RenderStage {
     fn render(&mut self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView);
 
