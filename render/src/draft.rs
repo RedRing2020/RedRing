@@ -1,70 +1,47 @@
-use wgpu::{Device, RenderPipeline, Buffer};
+use wgpu::{RenderPipeline, Buffer};
 use wgpu::util::DeviceExt;
-use crate::shader::wireframe_shader;
+use std::sync::Arc;
+use crate::shader::draft_shader;
+use crate::vertex_2d::Vertex2D;
 
-#[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct VertexWireframe {
-    pub position: [f32; 3],
-}
-
-impl VertexWireframe {
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as u64,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x3,
-                offset: 0,
-                shader_location: 0,
-            }],
-        }
-    }
-}
-
-pub struct WireframeResources {
+pub struct DraftResources {
+    pub device: Arc<wgpu::Device>,
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
     pub vertex_count: u32,
 }
 
-pub fn create_wireframe_resources(device: &Device, format: wgpu::TextureFormat) -> WireframeResources {
-    let vertices: &[f32] = &[
-        -0.5, 0.0, 0.0,
-         0.5, 0.0, 0.0,
-         0.0, -0.5, 0.0,
-         0.0,  0.5, 0.0,
+pub fn create_draft_resources(
+    device: &Arc<wgpu::Device>,
+    format: wgpu::TextureFormat,
+) -> DraftResources {
+    let vertices: &[Vertex2D] = &[
+        Vertex2D { position: [-0.5, -0.5] },
+        Vertex2D { position: [ 0.5, -0.5] },
+        Vertex2D { position: [ 0.0,  0.5] },
     ];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Wireframe Vertex Buffer"),
+        label: Some("Draft Vertex Buffer"),
         contents: bytemuck::cast_slice(vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
 
-    let shader = wireframe_shader(device);
+    let shader = draft_shader(device);
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Wireframe Pipeline Layout"),
+        label: Some("Draft Pipeline Layout"),
         bind_group_layouts: &[],
         push_constant_ranges: &[],
     });
 
     let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Wireframe Pipeline"),
+        label: Some("Draft Render Pipeline"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
             entry_point: Some("vs_main"),
-            buffers: &[wgpu::VertexBufferLayout {
-                array_stride: std::mem::size_of::<[f32; 3]>() as u64,
-                step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: &[wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
-                    offset: 0,
-                    shader_location: 0,
-                }],
-            }],
+            buffers: &[Vertex2D::desc()],
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         },
         fragment: Some(wgpu::FragmentState {
@@ -78,7 +55,7 @@ pub fn create_wireframe_resources(device: &Device, format: wgpu::TextureFormat) 
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         }),
         primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::LineList,
+            topology: wgpu::PrimitiveTopology::TriangleList,
             ..Default::default()
         },
         depth_stencil: None,
@@ -87,16 +64,17 @@ pub fn create_wireframe_resources(device: &Device, format: wgpu::TextureFormat) 
         cache: None,
     });
 
-    let vertex_count = (vertices.len() / 3) as u32;
+    let vertex_count = vertices.len() as u32;
 
-    WireframeResources {
+    DraftResources {
+        device: device.clone(),
         pipeline,
         vertex_buffer,
         vertex_count,
     }
 }
 
-pub fn draw_wireframe<'a>(
+pub fn draw_draft<'a>(
     pass: &mut wgpu::RenderPass<'a>,
     pipeline: &'a RenderPipeline,
     vertex_buffer: &'a Buffer,
