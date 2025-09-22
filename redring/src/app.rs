@@ -46,6 +46,7 @@ impl ApplicationHandler for App {
                     match &event.logical_key {
                         Key::Character(c) if c.as_str() == "1" => state.set_stage_draft(),
                         Key::Character(c) if c.as_str() == "2" => state.set_stage_outline(),
+                        Key::Character(c) if c.as_str() == "3" => state.set_stage_shading(),
                         Key::Named(NamedKey::Escape) => {
                             self.should_exit = true;
                             event_loop.exit();

@@ -1,5 +1,5 @@
 use wgpu::{Device, SurfaceConfiguration, CommandEncoder, TextureView};
-use stage::{RenderStage, DraftStage, OutlineStage};
+use stage::{RenderStage, DraftStage, OutlineStage, ShadingStage};
 
 pub struct AppRenderer {
     stage: Box<dyn RenderStage>,
@@ -15,6 +15,12 @@ impl AppRenderer {
     /// 初期化：Outlineステージを生成
     pub fn new_outline(device: &Device, config: &SurfaceConfiguration) -> Self {
         let stage = Box::new(OutlineStage::new(device, config.format));
+        Self { stage }
+    }
+    
+    /// 初期化：Shadingステージを生成
+    pub fn new_shading(device: &Device, config: &SurfaceConfiguration) -> Self {
+        let stage = Box::new(ShadingStage::new(device, config.format));
         Self { stage }
     }
 

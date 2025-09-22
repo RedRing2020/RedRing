@@ -2,7 +2,7 @@ use std::sync::Arc;
 use winit::window::Window;
 use crate::graphic::{Graphic, init_graphic};
 use crate::app_renderer::AppRenderer;
-use stage::{DraftStage, OutlineStage};
+use stage::{DraftStage, OutlineStage, ShadingStage};
 
 pub struct AppState {
     pub window: Arc<Window>,
@@ -39,6 +39,11 @@ impl AppState {
 
     pub fn set_stage_outline(&mut self) {
         let stage = Box::new(OutlineStage::new(&self.graphic.device, self.graphic.config.format));
+        self.renderer.set_stage(stage);
+    }
+
+    pub fn set_stage_shading(&mut self) {
+        let stage = Box::new(ShadingStage::new(&self.graphic.device, self.graphic.config.format));
         self.renderer.set_stage(stage);
     }
 }

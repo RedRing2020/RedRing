@@ -5,7 +5,6 @@ pub struct Vertex2D {
 }
 
 impl Vertex2D {
-    /// 頂点バッファレイアウト定義（wgpu用）
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as u64,

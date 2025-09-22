@@ -1,7 +1,5 @@
-// 標準ライブラリ
 use std::sync::Arc;
 
-// 外部クレート
 use bytemuck;
 use wgpu::{
     CommandEncoder, TextureView,
@@ -10,10 +8,8 @@ use wgpu::{
 };
 use wgpu::util::DeviceExt;
 
-// 自クレート（stage）
 use crate::render_stage::RenderStage;
 
-// 外部クレート（render）
 use render::render_2d::{Render2dResources, draw_render_2d};
 use render::vertex_2d::Vertex2D;
 
