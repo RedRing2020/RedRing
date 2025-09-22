@@ -5,15 +5,15 @@ use wgpu::{
 };
 
 use crate::render_stage::RenderStage;
-use render::outline::{OutlineResources, draw_outline};
+use render::wireframe::{WireframeResources, draw_wireframe};
 
 pub struct OutlineStage {
-    resources: OutlineResources,
+    resources: WireframeResources,
 }
 
 impl OutlineStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let resources = render::outline::create_outline_resources(device, format);
+        let resources = render::wireframe::create_wireframe_resources(device, format);
         Self { resources }
     }
 }
@@ -45,7 +45,7 @@ impl RenderStage for OutlineStage {
 
         let mut render_pass = encoder.begin_render_pass(&render_pass_desc);
 
-        draw_outline(
+        draw_wireframe(
             &mut render_pass,
             &self.resources.pipeline,
             &self.resources.vertex_buffer,

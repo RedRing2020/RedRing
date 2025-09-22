@@ -1,20 +1,20 @@
 use wgpu::{RenderPipeline, Buffer};
 use wgpu::util::DeviceExt;
 use std::sync::Arc;
-use crate::shader::draft_shader;
+use crate::shader::render_2d_shader;
 use crate::vertex_2d::Vertex2D;
 
-pub struct DraftResources {
+pub struct Render2dResources {
     pub device: Arc<wgpu::Device>,
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
     pub vertex_count: u32,
 }
 
-pub fn create_draft_resources(
+pub fn create_render_2d_resources(
     device: &Arc<wgpu::Device>,
     format: wgpu::TextureFormat,
-) -> DraftResources {
+) -> Render2dResources {
     let vertices: &[Vertex2D] = &[
         Vertex2D { position: [-0.5, -0.5] },
         Vertex2D { position: [ 0.5, -0.5] },
@@ -22,21 +22,21 @@ pub fn create_draft_resources(
     ];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Draft Vertex Buffer"),
+        label: Some("Render 2D Vertex Buffer"),
         contents: bytemuck::cast_slice(vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
 
-    let shader = draft_shader(device);
+    let shader = render_2d_shader(device);
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Draft Pipeline Layout"),
+        label: Some("Render 2D Pipeline Layout"),
         bind_group_layouts: &[],
         push_constant_ranges: &[],
     });
 
     let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Draft Render Pipeline"),
+        label: Some("Render 2D Render Pipeline"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
@@ -66,7 +66,7 @@ pub fn create_draft_resources(
 
     let vertex_count = vertices.len() as u32;
 
-    DraftResources {
+    Render2dResources {
         device: device.clone(),
         pipeline,
         vertex_buffer,
@@ -74,7 +74,7 @@ pub fn create_draft_resources(
     }
 }
 
-pub fn draw_draft<'a>(
+pub fn draw_render_2d<'a>(
     pass: &mut wgpu::RenderPass<'a>,
     pipeline: &'a RenderPipeline,
     vertex_buffer: &'a Buffer,
