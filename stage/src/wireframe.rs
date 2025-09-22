@@ -23,7 +23,7 @@ impl RenderStage for WireframeStage {
         let color_attachment = RenderPassColorAttachment {
             view,
             resolve_target: None,
-            depth_slice: Some(0),
+            depth_slice: None,
             ops: Operations {
                 load: LoadOp::Clear(wgpu::Color {
                     r: 0.1,

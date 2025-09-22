@@ -62,8 +62,10 @@ impl Graphic {
     pub fn render(&mut self, renderer: &mut AppRenderer) {
         match self.surface.get_current_texture() {
             Ok(frame) => {
-                self.surface_texture = Some(frame);
-                let view = self.surface_texture.as_ref().unwrap().texture.create_view(&wgpu::TextureViewDescriptor::default());
+                let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
+                    dimension: Some(wgpu::TextureViewDimension::D2),
+                    ..Default::default()
+                });
 
                 let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Render Encoder"),
@@ -71,11 +73,8 @@ impl Graphic {
 
                 renderer.render(&mut encoder, &view);
                 self.queue.submit(std::iter::once(encoder.finish()));
-
-                // 所有権を move して present
-                if let Some(frame) = self.surface_texture.take() {
-                    frame.present();
-                }
+                frame.present();
+                self.surface_texture = None;
             }
             Err(e) => {
                 eprintln!("Failed to acquire surface texture: {:?}", e);
