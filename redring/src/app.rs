@@ -5,6 +5,7 @@ use winit::{
     event_loop::ActiveEventLoop,
     window::{WindowId, WindowAttributes},
 };
+use winit::keyboard::{Key, NamedKey};
 
 use crate::app_state::AppState;
 
@@ -41,6 +42,17 @@ impl ApplicationHandler for App {
                 }
                 WindowEvent::Resized(size) => state.resize(size),
                 WindowEvent::RedrawRequested => state.render(),
+                WindowEvent::KeyboardInput { event, .. } => {
+                    match &event.logical_key {
+                        Key::Character(c) if c.as_str() == "1" => state.set_stage_2d(),
+                        Key::Character(c) if c.as_str() == "2" => state.set_stage_wireframe(),
+                        Key::Named(NamedKey::Escape) => {
+                            self.should_exit = true;
+                            event_loop.exit();
+                        }
+                        _ => {}
+                    }
+                }
                 _ => {}
             }
         }
