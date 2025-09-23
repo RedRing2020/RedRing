@@ -105,6 +105,7 @@ impl NurbsCurve2D {
             kind,
             points: pts,
             parameters: params,
+            tolerance_used: EPSILON,
         }
     }
 

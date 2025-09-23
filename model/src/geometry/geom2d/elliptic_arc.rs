@@ -1,8 +1,15 @@
-use super::{ellipse::Ellipse2D, point::Point2D};
+use crate::model::geometry::geom2d::{
+    ellipse::Ellipse2D,
+    point::Point2D,
+    line::Line2D,
+    ray::Ray2D,
+    intersection_result::{IntersectionResult2D, IntersectionKind2D},
+};
 
-use crate::model::analysis::sampling2d::sample_intersections;
-use crate::model::analysis::consts::EPSILON;
-use crate::model::geometry::geom2d::{point::Point2D, line::Line2D};
+use crate::model::analysis::{
+    sampling2d::sample_intersections,
+    consts::EPSILON,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipticArc2D {
@@ -38,7 +45,7 @@ impl EllipticArc2D {
         self.evaluate(0.5)
     }
 
-    pub fn intersection_with_line(&self, line: &Line2D) -> Vec<Point2D> {
+    pub fn intersection_with_line(&self, line: &Line2D) -> IntersectionResult2D {
         let candidates = sample_intersections(
             |theta| self.ellipse.evaluate(theta),
             line,
@@ -46,13 +53,28 @@ impl EllipticArc2D {
             EPSILON,
         );
 
-        candidates
+        let mut pts = candidates
             .into_iter()
             .filter(|pt| {
                 let theta = self.ellipse.angle_of(pt);
                 self.contains_angle(theta)
             })
-            .collect()
+            .collect::<Vec<_>>();
+
+        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+
+        let kind = match pts.len() {
+            0 => IntersectionKind2D::None,
+            1 => IntersectionKind2D::Tangent,
+            _ => IntersectionKind2D::Point,
+        };
+
+        IntersectionResult2D {
+            kind,
+            points: pts,
+            parameters: vec![],
+            tolerance_used: EPSILON,
+        }
     }
 
     /// 楕円弧の角度範囲に含まれるか（方向付き）
@@ -73,6 +95,39 @@ impl EllipticArc2D {
         };
 
         rel >= -EPSILON && rel <= sweep + EPSILON
+    }
+
+    /// 半無限直線との交差点を求める
+    pub fn intersection_with_ray(&self, ray: &Ray2D) -> IntersectionResult2D {
+        let candidates = sample_intersections(
+            |theta| self.ellipse.evaluate(theta),
+            &ray.to_line(),
+            360,
+            EPSILON,
+        );
+
+        let mut pts = candidates
+            .into_iter()
+            .filter(|pt| {
+                let theta = self.ellipse.angle_of(pt);
+                self.contains_angle(theta) && ray.is_forward(pt)
+            })
+            .collect::<Vec<_>>();
+
+        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+
+        let kind = match pts.len() {
+            0 => IntersectionKind2D::None,
+            1 => IntersectionKind2D::Tangent,
+            _ => IntersectionKind2D::Point,
+        };
+
+        IntersectionResult2D {
+            kind,
+            points: pts,
+            parameters: vec![],
+            tolerance_used: EPSILON,
+        }
     }
 }
 
