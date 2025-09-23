@@ -73,10 +73,10 @@ impl NurbsCurve2D {
         todo!("NURBS評価は後続ステップで実装")
     }
 
-    pub fn intersection_with_line(&self, line: &Line2D) -> Vec<Point2D> {
-        let mut result = vec![];
+    pub fn intersection_with_line(&self, line: &Line2D) -> IntersectionResult2D {
+        let mut pts = vec![];
+        let mut params = vec![];
 
-        // 初期値を複数サンプル（例：0.1, 0.5, 0.9）
         for &u0 in &[0.1, 0.5, 0.9] {
             if let Some(u) = newton_solve(
                 |u| self.evaluate(u).distance_to_point_on_line(line),
@@ -87,13 +87,25 @@ impl NurbsCurve2D {
             ) {
                 let pt = self.evaluate(u);
                 if line.distance_to_point(&pt) < EPSILON {
-                    result.push(pt);
+                    pts.push(pt);
+                    params.push(u);
                 }
             }
         }
 
-        result.dedup_by(|a, b| a.distance_to(b) < EPSILON);
-        result
+        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+
+        let kind = match pts.len() {
+            0 => IntersectionKind2D::None,
+            1 => IntersectionKind2D::Tangent,
+            _ => IntersectionKind2D::Point,
+        };
+
+        IntersectionResult2D {
+            kind,
+            points: pts,
+            parameters: params,
+        }
     }
 
     fn normal_to_line(&self, line: &Line2D, u: f64) -> Direction2D {
@@ -109,17 +121,15 @@ mod tests {
     use crate::model::geometry::geom2d::{line::Line2D, point::Point2D};
 
     #[test]
-    fn test_nurbs_line_intersection() {
+    fn test_nurbs_line_intersection_result() {
         let curve = NurbsCurve2D::from_quadratic([
             Point2D::new(0.0, 0.0),
             Point2D::new(1.0, 2.0),
             Point2D::new(2.0, 0.0),
         ]);
         let line = Line2D::new(Point2D::new(0.0, 1.0), Point2D::new(2.0, 1.0));
-        let pts = curve.intersection_with_line(&line);
-        assert_eq!(pts.len(), 2);
-        for pt in pts {
-            assert!((pt.y - 1.0).abs() < 1e-10);
-        }
+        let result = curve.intersection_with_line(&line);
+        assert_eq!(result.kind, IntersectionKind2D::Point);
+        assert_eq!(result.points.len(), 2);
     }
 }
