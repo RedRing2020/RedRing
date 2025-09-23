@@ -34,6 +34,11 @@ impl Point2D {
     pub fn from_array(arr: [f64; 2]) -> Self {
         Self { x: arr[0], y: arr[1] }
     }
+
+    /// 線分上の点までの距離を計算
+    pub fn distance_to_point_on_line(&self, line: &Line2D) -> f64 {
+        line.distance_to_point(self)
+    }
 }
 
 #[cfg(test)]
