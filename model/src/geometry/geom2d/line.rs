@@ -45,33 +45,58 @@ impl Line2D {
         self.intersection_with_line(other, epsilon).len() > 0
     }
 
-    pub fn intersection_with_line(&self, other: &Line2D, epsilon: f64) -> Vec<Point2D> {
-        let p1 = self.start;
-        let p2 = self.end;
-        let p3 = other.start;
-        let p4 = other.end;
+    pub fn intersection_with_line(&self, other: &Line2D) -> IntersectionResult2D {
+        let ab = self.end.sub(&self.start);
+        let cd = other.end.sub(&other.start);
+        let det = ab.cross(&cd);
 
-        let d1 = p2.sub(&p1);
-        let d2 = p4.sub(&p3);
-
-        let det = d1.x * d2.y - d1.y * d2.x;
-        if det.abs() < epsilon {
-            return vec![]; // 平行または一致
+        if det.abs() < EPSILON {
+            // 平行または一致
+            if self.contains_point(&other.start) && self.contains_point(&other.end) {
+                return IntersectionResult2D {
+                    kind: IntersectionKind2D::Overlap,
+                    points: vec![],
+                    parameters: vec![],
+                    tolerance_used: EPSILON,
+                };
+            } else {
+                return IntersectionResult2D {
+                    kind: IntersectionKind2D::None,
+                    points: vec![],
+                    parameters: vec![],
+                    tolerance_used: EPSILON,
+                };
+            }
         }
 
-        let dx = p3.x - p1.x;
-        let dy = p3.y - p1.y;
+        // 線分交差判定（2D線形代数）
+        let t = (other.start.sub(&self.start)).cross(&cd) / det;
+        let u = (other.start.sub(&self.start)).cross(&ab) / det;
 
-        let t = (dx * d2.y - dy * d2.x) / det;
-        let u = (dx * d1.y - dy * d1.x) / det;
-
-        if t < -epsilon || t > 1.0 + epsilon || u < -epsilon || u > 1.0 + epsilon {
-            return vec![]; // 線分範囲外
+        if t >= -EPSILON && t <= 1.0 + EPSILON && u >= -EPSILON && u <= 1.0 + EPSILON {
+            let pt = Point2D::new(
+                self.start.x + t * ab.x,
+                self.start.y + t * ab.y,
+            );
+            let kind = if t.abs() < EPSILON || (1.0 - t).abs() < EPSILON || u.abs() < EPSILON || (1.0 - u).abs() < EPSILON {
+                IntersectionKind2D::Tangent
+            } else {
+                IntersectionKind2D::Point
+            };
+            return IntersectionResult2D {
+                kind,
+                points: vec![pt],
+                parameters: vec![t],
+                tolerance_used: EPSILON,
+            };
         }
 
-        let ix = p1.x + t * d1.x;
-        let iy = p1.y + t * d1.y;
-        vec![Point2D::new(ix, iy)]
+        IntersectionResult2D {
+            kind: IntersectionKind2D::None,
+            points: vec![],
+            parameters: vec![],
+            tolerance_used: EPSILON,
+        }
     }
 
     pub fn intersects_circle(&self, circle: &Circle2D, epsilon: f64) -> bool {
@@ -201,5 +226,22 @@ mod tests {
         let pts = line.intersection_with_circle(&circle, 1e-10);
         assert_eq!(pts.len(), 1);
         assert!((pts[0].y - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_line_line_intersection_point() {
+        let a = Line2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 2.0));
+        let b = Line2D::new(Point2D::new(0.0, 2.0), Point2D::new(2.0, 0.0));
+        let result = a.intersection_with_line(&b);
+        assert_eq!(result.kind, IntersectionKind2D::Point);
+        assert_eq!(result.points.len(), 1);
+    }
+
+    #[test]
+    fn test_line_line_overlap() {
+        let a = Line2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 2.0));
+        let b = Line2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 3.0));
+        let result = a.intersection_with_line(&b);
+        assert_eq!(result.kind, IntersectionKind2D::Overlap);
     }
 }

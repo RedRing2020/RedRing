@@ -1,4 +1,9 @@
-use super::{point::Point2D, direction::Direction2D, line::Line2D, circle::Circle2D, geometry_kind::GeometryKind2D, intersect::Intersect2D};
+use crate::model::geometry::geom2d::{
+    intersection_result::{IntersectionResult2D, IntersectionKind2D},
+    point::Point2D,
+    ray::Ray2D,
+    line::Line2D,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arc2D {
@@ -97,6 +102,58 @@ impl Arc2D {
     pub fn to_circle(&self) -> Circle2D {
         Circle2D::new(self.center.clone(), self.radius, self.direction.clone())
     }
+
+    /// 線分との交差点を求める
+    pub fn intersection_with_line(&self, line: &Line2D) -> IntersectionResult2D {
+        let circle = &self.circle;
+        let candidates = line.intersection_with_circle(circle);
+
+        let mut pts = candidates
+            .into_iter()
+            .filter(|pt| self.contains_point(pt))
+            .collect::<Vec<_>>();
+
+        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+
+        let kind = match pts.len() {
+            0 => IntersectionKind2D::None,
+            1 => IntersectionKind2D::Tangent,
+            _ => IntersectionKind2D::Point,
+        };
+
+        IntersectionResult2D {
+            kind,
+            points: pts,
+            parameters: vec![], // Arc2D はパラメータ不要
+            tolerance_used: EPSILON,
+        }
+    }
+
+    /// レイとの交差点を求める
+    pub fn intersection_with_ray(&self, ray: &Ray2D) -> IntersectionResult2D {
+        let line = Line2D::new(ray.origin, ray.origin.add(&ray.direction.to_vector()));
+        let candidates = line.intersection_with_circle(&self.circle);
+
+        let mut pts = candidates
+            .into_iter()
+            .filter(|pt| self.contains_point(pt) && ray.is_forward(pt))
+            .collect::<Vec<_>>();
+
+        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+
+        let kind = match pts.len() {
+            0 => IntersectionKind2D::None,
+            1 => IntersectionKind2D::Tangent,
+            _ => IntersectionKind2D::Point,
+        };
+
+        IntersectionResult2D {
+            kind,
+            points: pts,
+            parameters: vec![],
+            tolerance_used: EPSILON,
+        }
+    }
 }
 
 impl Intersect2D for Arc2D {
@@ -167,5 +224,24 @@ mod tests {
         let line = Line2D::new(Point2D::new(0.0, 0.0), Point2D::new(5.0, 5.0));
         let pts = arc.intersection_with_line(&line, 1e-10);
         assert_eq!(pts.len(), 0);
+    }
+
+    #[test]
+    fn test_arc_ray_intersection_forward() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0, Direction2D::new(1.0, 0.0));
+        let arc = Arc2D::new(circle, 0.0, std::f64::consts::FRAC_PI_2); // 0〜90度
+        let ray = Ray2D::new(Point2D::new(-10.0, -10.0), Direction2D::new(1.0, 1.0));
+        let result = arc.intersection_with_ray(&ray);
+        assert_eq!(result.kind, IntersectionKind2D::Point);
+        assert_eq!(result.points.len(), 1);
+    }
+
+    #[test]
+    fn test_arc_ray_intersection_behind() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0, Direction2D::new(1.0, 0.0));
+        let arc = Arc2D::new(circle, 0.0, std::f64::consts::FRAC_PI_2); // 0〜90度
+        let ray = Ray2D::new(Point2D::new(10.0, 10.0), Direction2D::new(-1.0, -1.0));
+        let result = arc.intersection_with_ray(&ray);
+        assert_eq!(result.kind, IntersectionKind2D::None);
     }
 }

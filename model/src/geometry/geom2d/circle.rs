@@ -44,6 +44,22 @@ impl Circle2D {
     pub fn normal(&self, theta: f64) -> Direction2D {
         Direction2D::new(theta.cos(), theta.sin())
     }
+
+    /// 線分との交差点を求める
+    pub fn intersection_with_line(&self, line: &Line2D) -> IntersectionResult2D {
+        let pts = line.intersection_with_circle(self);
+        let kind = match pts.len() {
+            0 => IntersectionKind2D::None,
+            1 => IntersectionKind2D::Tangent,
+            _ => IntersectionKind2D::Point,
+        };
+        IntersectionResult2D {
+            kind,
+            points: pts,
+            parameters: vec![],
+            tolerance_used: EPSILON,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,7 +1,5 @@
-use super::{point::Point2D, direction::Direction2D};
-
-use crate::model::analysis::sampling2d::sample_intersections;
-use crate::model::analysis::consts::EPSILON;
+use crate::model::geometry::geom2d::{point::Point2D, direction::Direction2D};
+use crate::model::analysis::{sampling2d::sample_intersections, consts::EPSILON};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ellipse2D {
@@ -81,7 +79,7 @@ mod tests {
         let n = ellipse.normal(0.0);
         assert_eq!(n, Direction2D::new(1.0, 0.0));
     }
-    
+
     #[test]
     fn test_ellipse_line_intersection_two_points() {
         let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), Direction2D::new(1.0, 0.0), 5.0, 3.0);
