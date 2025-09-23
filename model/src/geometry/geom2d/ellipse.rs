@@ -1,5 +1,8 @@
 use super::{point::Point2D, direction::Direction2D};
 
+use crate::model::analysis::sampling2d::sample_intersections;
+use crate::model::analysis::consts::EPSILON;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ellipse2D {
     center: Point2D,
@@ -43,6 +46,11 @@ impl Ellipse2D {
         let p = self.evaluate(theta);
         Direction2D::new(p.x - self.center.x, p.y - self.center.y)
     }
+
+    /// 線分との交差点を離散近似で求める
+    pub fn intersection_with_line(&self, line: &Line2D) -> Vec<Point2D> {
+        sample_intersections(|theta| self.evaluate(theta), line, 360, EPSILON)
+    }
 }
 
 #[cfg(test)]
@@ -72,5 +80,13 @@ mod tests {
 
         let n = ellipse.normal(0.0);
         assert_eq!(n, Direction2D::new(1.0, 0.0));
+    }
+    
+    #[test]
+    fn test_ellipse_line_intersection_two_points() {
+        let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), Direction2D::new(1.0, 0.0), 5.0, 3.0);
+        let line = Line2D::new(Point2D::new(-6.0, 0.0), Point2D::new(6.0, 0.0));
+        let pts = ellipse.intersection_with_line(&line);
+        assert_eq!(pts.len(), 2);
     }
 }

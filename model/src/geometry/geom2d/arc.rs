@@ -1,4 +1,4 @@
-use super::{point::Point2D, direction::Direction2D};
+use super::{point::Point2D, direction::Direction2D, line::Line2D, circle::Circle2D, geometry_kind::GeometryKind2D, intersect::Intersect2D};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arc2D {
@@ -99,6 +99,19 @@ impl Arc2D {
     }
 }
 
+impl Intersect2D for Arc2D {
+    fn intersects_with(&self, other: &GeometryKind2D, epsilon: f64) -> bool {
+        self.intersection_points(other, epsilon).len() > 0
+    }
+
+    fn intersection_points(&self, other: &GeometryKind2D, epsilon: f64) -> Vec<Point2D> {
+        match other {
+            GeometryKind2D::Line(line) => self.intersection_with_line(line, epsilon),
+            _ => vec![],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,5 +149,23 @@ mod tests {
 
         arc.reverse();
         assert!((arc.start_point().x + 3.5355).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_arc_line_intersection_inside_range() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0, Direction2D::new(1.0, 0.0));
+        let arc = Arc2D::new(circle, 0.0, std::f64::consts::FRAC_PI_2); // 0〜90度
+        let line = Line2D::new(Point2D::new(0.0, 0.0), Point2D::new(5.0, 5.0));
+        let pts = arc.intersection_with_line(&line, 1e-10);
+        assert_eq!(pts.len(), 1);
+    }
+
+    #[test]
+    fn test_arc_line_intersection_outside_range() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0, Direction2D::new(1.0, 0.0));
+        let arc = Arc2D::new(circle, std::f64::consts::PI, std::f64::consts::PI * 1.5); // 180〜270度
+        let line = Line2D::new(Point2D::new(0.0, 0.0), Point2D::new(5.0, 5.0));
+        let pts = arc.intersection_with_line(&line, 1e-10);
+        assert_eq!(pts.len(), 0);
     }
 }
