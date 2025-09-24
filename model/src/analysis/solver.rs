@@ -1,4 +1,4 @@
-use crate::model::analysis::consts::{EPSILON, DERIVATIVE_ZERO_THRESHOLD};
+﻿use crate::model::analysis::consts::{EPSILON, DERIVATIVE_ZERO_THRESHOLD};
 
 pub fn newton_solve<F, G>(
     f: F,

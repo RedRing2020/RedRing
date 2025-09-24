@@ -1,13 +1,13 @@
-use super::point::Point2D;
-use super::line::Line2D;
+﻿use super::point::Point2;
+use super::line::Line2;
 
-pub enum GeometryKind2D {
-    Line(Line2D),
-    Ray(Ray2D),
-    InfiniteLine(InfiniteLine2D),
-    Circle(Circle2D),
-    Arc(Arc2D),
-    Ellipse(Ellipse2D),
-    EllipticArc(EllipticArc2D),
-    Nurbs(NurbsCurve2D),
+pub enum GeometryKind2 {
+    Line(Line2),
+    Ray(Ray2),
+    InfiniteLine(InfiniteLine2),
+    Circle(Circle2),
+    Arc(Arc2),
+    Ellipse(Ellipse2),
+    EllipticArc(EllipticArc2),
+    Nurbs(NurbsCurve2),
 }
