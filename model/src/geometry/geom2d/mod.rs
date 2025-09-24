@@ -10,6 +10,13 @@ pub mod kind;
 pub mod intersect;
 pub mod intersection_result;
 
-pub use point::Point2;
-pub use line::Line2;
-pub use kind::GeometryKind2;
+pub use point::Point;
+pub use line::Line;
+pub use InfiniteLine::InfiniteLine;
+pub use ray::Ray;
+pub use circle::Circle;
+pub use arc::Arc;
+pub use ellipse::Ellipse;
+pub use nurbs_curve::NurbsCurve;
+pub use kind::CurveKind2;
+pub use intersect::Intersect;

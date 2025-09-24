@@ -1,12 +1,16 @@
-﻿use super::point::Point2;
+﻿use super::point::Point;
+use super::direction::Direction;
+use super::kind::{CurveKind2};
+use super::intersect::{IntersectionResult, IntersectionKind};
+use super::curve::curve_trait::Curve2;
 
 use crate::model::analysis::solver::newton_solve;
 use crate::model::analysis::consts::{EPSILON};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NurbsCurve2 {
+pub struct NurbsCurve {
     degree: usize,
-    control_points: Vec<Point2>,
+    control_points: Vec<Point>,
     weights: Vec<f64>,
     knots: Vec<f64>,
     domain: (f64, f64),
@@ -15,7 +19,14 @@ pub struct NurbsCurve2 {
     is_uniform: bool,  // ノットが一様かどうか
 }
 
-impl NurbsCurve2 {
+impl Curve2 for NurbsCurve {
+    fn kind(&self) -> CurveKind2 {
+        CurveKind2::NurbsCurve
+    }
+}
+
+
+impl NurbsCurve {
     pub fn new(degree: usize, control_points: Vec<Point2>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
         assert_eq!(control_points.len(), weights.len(), "制御点と重みの数が一致しません");
         assert!(knots.len() >= control_points.len() + degree + 1, "ノットベクトルが不足しています");

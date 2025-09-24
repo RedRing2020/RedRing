@@ -1,7 +1,7 @@
-﻿use super::point::Point2;
+﻿use super::point::Point;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum IntersectionKind2 {
+pub enum IntersectionKind {
     Point,
     Tangent,
     Overlap,
@@ -10,9 +10,9 @@ pub enum IntersectionKind2 {
 
 /// 交差結果（意味論 + 交点 + パラメータ + 使用した誤差許容値）
 #[derive(Debug, Clone)]
-pub struct IntersectionResult2 {
-    pub kind: IntersectionKind2,
-    pub points: Vec<Point2>,
+pub struct IntersectionResult {
+    pub kind: IntersectionKind,
+    pub points: Vec<Point>,
     pub parameters: Vec<f64>,
     pub tolerance_used: f64,
 }

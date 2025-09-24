@@ -1,10 +1,10 @@
 ﻿#[derive(Debug, Clone, PartialEq)]
-pub struct Direction2 {
+pub struct Direction {
     x: f64,
     y: f64,
 }
 
-impl Direction2 {
+impl Direction {
     /// 正規化された方向ベクトルを生成
     pub fn new(x: f64, y: f64) -> Self {
         let mag = (x.powi(2) + y.powi(2)).sqrt();
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_normalization() {
-        let dir = Direction2::new(3.0, 4.0);
+        let dir = Direction::new(3.0, 4.0);
         let mag = (dir.x.powi(2) + dir.y.powi(2)).sqrt();
         assert!((mag - 1.0).abs() < 1e-10);
         assert!((dir.x - 0.6).abs() < 1e-10);
@@ -67,39 +67,39 @@ mod tests {
 
     #[test]
     fn test_zero_vector() {
-        let dir = Direction2::new(0.0, 0.0);
+        let dir = Direction::new(0.0, 0.0);
         assert_eq!(dir.x, 0.0);
         assert_eq!(dir.y, 0.0);
     }
 
     #[test]
     fn test_to_array() {
-        let dir = Direction2::new(1.0, 0.0);
+        let dir = Direction::new(1.0, 0.0);
         assert_eq!(dir.to_array(), [1.0, 0.0]);
     }
 
     #[test]
     fn test_normal_vector() {
-        let dir = Direction2::new(1.0, 0.0);
+        let dir = Direction::new(1.0, 0.0);
         let normal = dir.normal();
-        assert_eq!(normal, Direction2::new(0.0, 1.0));
+        assert_eq!(normal, Direction::new(0.0, 1.0));
     }
 
     #[test]
     fn test_dot_product() {
-        let a = Direction2::new(1.0, 0.0);
-        let b = Direction2::new(0.0, 1.0);
+        let a = Direction::new(1.0, 0.0);
+        let b = Direction::new(0.0, 1.0);
         assert_eq!(a.dot(&b), 0.0);
 
-        let c = Direction2::new(1.0, 0.0);
-        let d = Direction2::new(1.0, 0.0);
+        let c = Direction::new(1.0, 0.0);
+        let d = Direction::new(1.0, 0.0);
         assert!((c.dot(&d) - 1.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_angle_to() {
-        let a = Direction2::new(1.0, 0.0);
-        let b = Direction2::new(0.0, 1.0);
+        let a = Direction::new(1.0, 0.0);
+        let b = Direction::new(0.0, 1.0);
         let angle = a.angle_to(&b);
         assert!((angle - std::f64::consts::FRAC_PI_2).abs() < 1e-10);
     }
