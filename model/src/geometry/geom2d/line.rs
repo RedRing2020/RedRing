@@ -1,23 +1,33 @@
-﻿use super::{point::Point2, direction::Direction2, geometry_kind::GeometryKind2, intersect::Intersect2D};
+﻿use super::{point::Point, direction::Direction, intersect::Intersect};
+use crate::model::geometry::geom2d::curve::curve_trait::Curve2;
+use crate::model::geometry::geom2d::{circle::Circle2};
+use crate::model::geometry::geom2d::intersect::{IntersectionResult, IntersectionKind, EPSILON};
+use crate::model::geometry::geom2d::kind::CurveKind2;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Line2 {
-    origin: Point2,
-    direction: Direction2,
+pub struct Line {
+    origin: Point,
+    direction: Direction,
     length: f64,
 }
 
+impl Curve2 for Line {
+    fn kind(&self) -> CurveKind2 {
+        CurveKind2::Line
+    }
+}
+
 // 公開APIは必要最小限に限定
-impl Line2 {
-    pub fn new(origin: Point2, direction: Direction2, length: f64) -> Self {
+impl Line {
+    pub fn new(origin: Point, direction: Direction, length: f64) -> Self {
         Self { origin, direction, length }
     }
 
-    pub fn origin(&self) -> &Point2 {
+    pub fn origin(&self) -> &Point {
         &self.origin
     }
 
-    pub fn direction(&self) -> &Direction2 {
+    pub fn direction(&self) -> &Direction {
         &self.direction
     }
 
@@ -29,23 +39,23 @@ impl Line2 {
         self.length = new_length.max(0.0);
     }
 
-    pub fn evaluate(&self, t: f64) -> Point2 {
+    pub fn evaluate(&self, t: f64) -> Point {
         self.origin.add(self.direction.x * self.length * t, self.direction.y * self.length * t)
     }
 
-    pub fn end_point(&self) -> Point2 {
+    pub fn end_point(&self) -> Point {
         self.evaluate(1.0)
     }
 
-    pub fn midpoint(&self) -> Point2 {
+    pub fn midpoint(&self) -> Point {
         self.evaluate(0.5)
     }
 
-    pub fn intersects_line(&self, other: &Line2, epsilon: f64) -> bool {
+    pub fn intersects_line(&self, other: &Line, epsilon: f64) -> bool {
         self.intersection_with_line(other, epsilon).len() > 0
     }
 
-    pub fn intersection_with_line(&self, other: &Line2) -> IntersectionResult2 {
+    pub fn intersection_with_line(&self, other: &Line) -> IntersectionResult {
         let ab = self.end.sub(&self.start);
         let cd = other.end.sub(&other.start);
         let det = ab.cross(&cd);
@@ -53,15 +63,15 @@ impl Line2 {
         if det.abs() < EPSILON {
             // 平行または一致
             if self.contains_point(&other.start) && self.contains_point(&other.end) {
-                return IntersectionResult2 {
-                    kind: IntersectionKind2::Overlap,
+                return IntersectionResult {
+                    kind: IntersectionKind::Overlap,
                     points: vec![],
                     parameters: vec![],
                     tolerance_used: EPSILON,
                 };
             } else {
-                return IntersectionResult2 {
-                    kind: IntersectionKind2::None,
+                return IntersectionResult {
+                    kind: IntersectionKind::None,
                     points: vec![],
                     parameters: vec![],
                     tolerance_used: EPSILON,
@@ -74,16 +84,16 @@ impl Line2 {
         let u = (other.start.sub(&self.start)).cross(&ab) / det;
 
         if t >= -EPSILON && t <= 1.0 + EPSILON && u >= -EPSILON && u <= 1.0 + EPSILON {
-            let pt = Point2::new(
+            let pt = Point::new(
                 self.start.x + t * ab.x,
                 self.start.y + t * ab.y,
             );
             let kind = if t.abs() < EPSILON || (1.0 - t).abs() < EPSILON || u.abs() < EPSILON || (1.0 - u).abs() < EPSILON {
-                IntersectionKind2::Tangent
+                IntersectionKind::Tangent
             } else {
-                IntersectionKind2::Point
+                IntersectionKind::Point
             };
-            return IntersectionResult2 {
+            return IntersectionResult {
                 kind,
                 points: vec![pt],
                 parameters: vec![t],
@@ -91,8 +101,8 @@ impl Line2 {
             };
         }
 
-        IntersectionResult2 {
-            kind: IntersectionKind2::None,
+        IntersectionResult {
+            kind: IntersectionKind::None,
             points: vec![],
             parameters: vec![],
             tolerance_used: EPSILON,
@@ -103,7 +113,7 @@ impl Line2 {
         self.intersection_with_circle(circle, epsilon).len() > 0
     }
 
-    pub fn intersection_with_circle(&self, circle: &Circle2, epsilon: f64) -> Vec<Point2> {
+    pub fn intersection_with_circle(&self, circle: &Circle2, epsilon: f64) -> Vec<Point> {
         let p1 = self.start;
         let p2 = self.end;
         let c = circle.center;
@@ -130,7 +140,7 @@ impl Line2 {
             if t >= -epsilon && t <= 1.0 + epsilon {
                 let ix = p1.x + t * d.x;
                 let iy = p1.y + t * d.y;
-                result.push(Point2::new(ix, iy));
+                result.push(Point::new(ix, iy));
             }
         }
 
@@ -138,20 +148,20 @@ impl Line2 {
     }
 }
 
-impl Intersect2D for Line2 {
-    fn intersects_with(&self, other: &GeometryKind2, epsilon: f64) -> bool {
+impl Intersect for Line {
+    fn intersects_with(&self, other: &CurveKind2, epsilon: f64) -> bool {
         match other {
-            GeometryKind2::Line(line2) => self.intersects_line(line2, epsilon),
-            GeometryKind2::Circle(circle) => self.intersects_circle(circle, epsilon),
+            CurveKind2::Line(line2) => self.intersects_line(line2, epsilon),
+            CurveKind2::Circle(circle) => self.intersects_circle(circle, epsilon),
             // 他の形状は後続で追加
             _ => false,
         }
     }
 
-    fn intersection_points(&self, other: &GeometryKind2, epsilon: f64) -> Vec<Point2> {
+    fn intersection_points(&self, other: &CurveKind2, epsilon: f64) -> Vec<Point> {
         match other {
-            GeometryKind2::Line(line2) => self.intersection_with_line(line2, epsilon),
-            GeometryKind2::Circle(circle) => self.intersection_with_circle(circle, epsilon),
+            CurveKind2::Line(line2) => self.intersection_with_line(line2, epsilon),
+            CurveKind2::Circle(circle) => self.intersection_with_circle(circle, epsilon),
             _ => vec![],
         }
     }
@@ -160,50 +170,50 @@ impl Intersect2D for Line2 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::geometry::geom2d::{point::Point2, direction::Direction2};
+    use crate::model::geometry::geom2d::{point::Point, direction::Direction};
 
     #[test]
     fn test_evaluate() {
-        let origin = Point2::new(0.0, 0.0);
-        let dir = Direction2::new(1.0, 0.0);
-        let line = Line2::new(origin, dir, 10.0);
+        let origin = Point::new(0.0, 0.0);
+        let dir = Direction::new(1.0, 0.0);
+        let line = Line::new(origin, dir, 10.0);
         let p = line.evaluate(0.5);
-        assert_eq!(p, Point2::new(5.0, 0.0));
+        assert_eq!(p, Point::new(5.0, 0.0));
     }
 
     #[test]
     fn test_end_point() {
-        let origin = Point2::new(1.0, 2.0);
-        let dir = Direction2::new(0.0, 1.0);
-        let line = Line2::new(origin, dir, 3.0);
+        let origin = Point::new(1.0, 2.0);
+        let dir = Direction::new(0.0, 1.0);
+        let line = Line::new(origin, dir, 3.0);
         let end = line.end_point();
-        assert_eq!(end, Point2::new(1.0, 5.0));
+        assert_eq!(end, Point::new(1.0, 5.0));
     }
 
     #[test]
     fn test_midpoint() {
-        let origin = Point2::new(0.0, 0.0);
-        let dir = Direction2::new(1.0, 0.0);
-        let line = Line2::new(origin, dir, 10.0);
+        let origin = Point::new(0.0, 0.0);
+        let dir = Direction::new(1.0, 0.0);
+        let line = Line::new(origin, dir, 10.0);
         let mid = line.midpoint();
-        assert_eq!(mid, Point2::new(5.0, 0.0));
+        assert_eq!(mid, Point::new(5.0, 0.0));
     }
 
     #[test]
     fn test_from_points() {
-        let start = Point2::new(2.0, 2.0);
-        let end = Point2::new(6.0, 2.0);
-        let line = Line2::from_points(start, end);
+        let start = Point::new(2.0, 2.0);
+        let end = Point::new(6.0, 2.0);
+        let line = Line::from_points(start, end);
         assert_eq!(line.origin, start);
         assert_eq!(line.end_point(), end);
         assert_eq!(line.length, 4.0);
-        assert_eq!(line.direction, Direction2::new(1.0, 0.0));
+        assert_eq!(line.direction, Direction::new(1.0, 0.0));
     }
 
     #[test]
     fn test_line_intersection_at_center() {
-        let a = Line2::new(Point2::new(0.0, 0.0), Point2::new(2.0, 2.0));
-        let b = Line2::new(Point2::new(0.0, 2.0), Point2::new(2.0, 0.0));
+        let a = Line::new(Point::new(0.0, 0.0), Point::new(2.0, 2.0));
+        let b = Line::new(Point::new(0.0, 2.0), Point::new(2.0, 0.0));
         let pts = a.intersection_with_line(&b, 1e-10);
         assert_eq!(pts.len(), 1);
         assert!((pts[0].x - 1.0).abs() < 1e-10);
@@ -212,8 +222,8 @@ mod tests {
     
     #[test]
     fn test_line_circle_two_points() {
-        let line = Line2::new(Point2::new(-5.0, 0.0), Point2::new(5.0, 0.0));
-        let circle = Circle2::new(Point2::new(0.0, 0.0), 3.0, Direction2::new(0.0, 1.0));
+        let line = Line::new(Point::new(-5.0, 0.0), Point::new(5.0, 0.0));
+        let circle = Circle2::new(Point::new(0.0, 0.0), 3.0, Direction::new(0.0, 1.0));
         let pts = line.intersection_with_circle(&circle, 1e-10);
         assert_eq!(pts.len(), 2);
         assert!((pts[0].x + 3.0).abs() < 1e-10 || (pts[0].x - 3.0).abs() < 1e-10);
@@ -221,8 +231,8 @@ mod tests {
 
     #[test]
     fn test_line_circle_tangent() {
-        let line = Line2::new(Point2::new(-3.0, 3.0), Point2::new(3.0, 3.0));
-        let circle = Circle2::new(Point2::new(0.0, 0.0), 3.0, Direction2::new(0.0, 1.0));
+        let line = Line::new(Point::new(-3.0, 3.0), Point::new(3.0, 3.0));
+        let circle = Circle2::new(Point::new(0.0, 0.0), 3.0, Direction::new(0.0, 1.0));
         let pts = line.intersection_with_circle(&circle, 1e-10);
         assert_eq!(pts.len(), 1);
         assert!((pts[0].y - 3.0).abs() < 1e-10);
@@ -230,18 +240,18 @@ mod tests {
 
     #[test]
     fn test_line_line_intersection_point() {
-        let a = Line2::new(Point2::new(0.0, 0.0), Point2::new(2.0, 2.0));
-        let b = Line2::new(Point2::new(0.0, 2.0), Point2::new(2.0, 0.0));
+        let a = Line::new(Point::new(0.0, 0.0), Point::new(2.0, 2.0));
+        let b = Line::new(Point::new(0.0, 2.0), Point::new(2.0, 0.0));
         let result = a.intersection_with_line(&b);
-        assert_eq!(result.kind, IntersectionKind2::Point);
+        assert_eq!(result.kind, IntersectionKind::Point);
         assert_eq!(result.points.len(), 1);
     }
 
     #[test]
     fn test_line_line_overlap() {
-        let a = Line2::new(Point2::new(0.0, 0.0), Point2::new(2.0, 2.0));
-        let b = Line2::new(Point2::new(1.0, 1.0), Point2::new(3.0, 3.0));
+        let a = Line::new(Point::new(0.0, 0.0), Point::new(2.0, 2.0));
+        let b = Line::new(Point::new(1.0, 1.0), Point::new(3.0, 3.0));
         let result = a.intersection_with_line(&b);
-        assert_eq!(result.kind, IntersectionKind2::Overlap);
+        assert_eq!(result.kind, IntersectionKind::Overlap);
     }
 }

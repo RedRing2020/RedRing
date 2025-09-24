@@ -1,42 +1,42 @@
 ﻿use crate::model::geometry::geom2d::{
-    point::Point2,
-    direction::Direction2,
-    line::Line2,
-    intersection_result::{IntersectionResult2, IntersectionKind2},
+    point::Point,
+    direction::Direction,
+    line::Line,
+    intersection_result::{IntersectionResult, IntersectionKind},
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Ray2 {
-    origin: Point2,
-    direction: Direction2,
+pub struct Ray {
+    origin: Point,
+    direction: Direction,
 }
 
-impl Ray2 {
-    pub fn new(origin: Point2, direction: Direction2) -> Self {
+impl Ray {
+    pub fn new(origin: Point, direction: Direction) -> Self {
         Self { origin, direction }
     }
 
-    pub fn origin(&self) -> &Point2 {
+    pub fn origin(&self) -> &Point {
         &self.origin
     }
 
-    pub fn direction(&self) -> &Direction2 {
+    pub fn direction(&self) -> &Direction {
         &self.direction
     }
 
-    pub fn evaluate(&self, t: f64) -> Point2 {
+    pub fn evaluate(&self, t: f64) -> Point {
         self.origin.add(self.direction.x * t, self.direction.y * t)
     }
 
-    pub fn normal(&self) -> Direction2 {
+    pub fn normal(&self) -> Direction {
         self.direction.normal()
     }
 
-    pub fn intersection_with_line(&self, line: &Line2) -> IntersectionResult2 {
-        let line_result = line.intersection_with_line(&Line2::new(self.origin, self.origin.add(&self.direction.to_vector())));
-        if line_result.kind == IntersectionKind2::None {
-            return IntersectionResult2 {
-                kind: IntersectionKind2::None,
+    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
+        let line_result = line.intersection_with_line(&Line::new(self.origin, self.origin.add(&self.direction.to_vector())));
+        if line_result.kind == IntersectionKind::None {
+            return IntersectionResult {
+                kind: IntersectionKind::None,
                 points: vec![],
                 parameters: vec![],
                 tolerance_used: EPSILON,
@@ -49,8 +49,8 @@ impl Ray2 {
 
         if dot < -EPSILON {
             // 交点が Ray の逆方向にある
-            return IntersectionResult2 {
-                kind: IntersectionKind2::None,
+            return IntersectionResult {
+                kind: IntersectionKind::None,
                 points: vec![],
                 parameters: vec![],
                 tolerance_used: EPSILON,
@@ -58,12 +58,12 @@ impl Ray2 {
         }
 
         let kind = if dot.abs() < EPSILON {
-            IntersectionKind2::Tangent
+            IntersectionKind::Tangent
         } else {
-            IntersectionKind2::Point
+            IntersectionKind::Point
         };
 
-        IntersectionResult2 {
+        IntersectionResult {
             kind,
             points: vec![*pt],
             parameters: vec![],
@@ -71,7 +71,7 @@ impl Ray2 {
         }
     }
 
-    pub fn is_forward(&self, pt: &Point2) -> bool {
+    pub fn is_forward(&self, pt: &Point) -> bool {
         let v = pt.sub(&self.origin);
         v.dot(&self.direction.to_vector()) >= -EPSILON
     }
@@ -80,40 +80,40 @@ impl Ray2 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::geometry::geom2d::{point::Point2, direction::Direction2};
+    use crate::model::geometry::geom2d::{point::Point, direction::Direction};
 
     #[test]
     fn test_evaluate() {
-        let origin = Point2::new(0.0, 0.0);
-        let dir = Direction2::new(1.0, 0.0);
-        let ray = Ray2::new(origin, dir);
+        let origin = Point::new(0.0, 0.0);
+        let dir = Direction::new(1.0, 0.0);
+        let ray = Ray::new(origin, dir);
         let p = ray.evaluate(5.0);
-        assert_eq!(p, Point2::new(5.0, 0.0));
+        assert_eq!(p, Point::new(5.0, 0.0));
     }
 
     #[test]
     fn test_normal() {
-        let dir = Direction2::new(1.0, 0.0);
-        let ray = Ray2::new(Point2::new(0.0, 0.0), dir);
+        let dir = Direction::new(1.0, 0.0);
+        let ray = Ray::new(Point::new(0.0, 0.0), dir);
         let normal = ray.normal();
-        assert_eq!(normal, Direction2::new(0.0, 1.0));
+        assert_eq!(normal, Direction::new(0.0, 1.0));
     }
 
     #[test]
     fn test_ray_line_intersection_forward() {
-        let ray = Ray2::new(Point2::new(0.0, 0.0), Direction2::new(1.0, 0.0));
-        let line = Line2::new(Point2::new(1.0, -1.0), Point2::new(1.0, 1.0));
+        let ray = Ray::new(Point::new(0.0, 0.0), Direction::new(1.0, 0.0));
+        let line = Line::new(Point::new(1.0, -1.0), Point::new(1.0, 1.0));
         let result = ray.intersection_with_line(&line);
-        assert_eq!(result.kind, IntersectionKind2::Point);
+        assert_eq!(result.kind, IntersectionKind::Point);
         assert_eq!(result.points.len(), 1);
         assert!((result.points[0].x - 1.0).abs() < EPSILON);
     }
 
     #[test]
     fn test_ray_line_intersection_behind() {
-        let ray = Ray2::new(Point2::new(0.0, 0.0), Direction2::new(1.0, 0.0));
-        let line = Line2::new(Point2::new(-1.0, -1.0), Point2::new(-1.0, 1.0));
+        let ray = Ray::new(Point::new(0.0, 0.0), Direction::new(1.0, 0.0));
+        let line = Line::new(Point::new(-1.0, -1.0), Point::new(-1.0, 1.0));
         let result = ray.intersection_with_line(&line);
-        assert_eq!(result.kind, IntersectionKind2::None);
+        assert_eq!(result.kind, IntersectionKind::None);
     }
 }
