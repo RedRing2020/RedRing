@@ -1,12 +1,12 @@
-use super::point::Point2D;
+﻿use super::point::Point2;
 
 use crate::model::analysis::solver::newton_solve;
 use crate::model::analysis::consts::{EPSILON};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct NurbsCurve2D {
+pub struct NurbsCurve2 {
     degree: usize,
-    control_points: Vec<Point2D>,
+    control_points: Vec<Point2>,
     weights: Vec<f64>,
     knots: Vec<f64>,
     domain: (f64, f64),
@@ -15,8 +15,8 @@ pub struct NurbsCurve2D {
     is_uniform: bool,  // ノットが一様かどうか
 }
 
-impl NurbsCurve2D {
-    pub fn new(degree: usize, control_points: Vec<Point2D>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
+impl NurbsCurve2 {
+    pub fn new(degree: usize, control_points: Vec<Point2>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
         assert_eq!(control_points.len(), weights.len(), "制御点と重みの数が一致しません");
         assert!(knots.len() >= control_points.len() + degree + 1, "ノットベクトルが不足しています");
 
@@ -56,7 +56,7 @@ impl NurbsCurve2D {
         self.degree
     }
 
-    pub fn control_points(&self) -> &[Point2D] {
+    pub fn control_points(&self) -> &[Point2] {
         &self.control_points
     }
 
@@ -68,12 +68,12 @@ impl NurbsCurve2D {
         &self.knots
     }
 
-    pub fn evaluate(&self, u: f64) -> Point2D {
+    pub fn evaluate(&self, u: f64) -> Point2 {
         // De Boor の rational 拡張は後続で実装
         todo!("NURBS評価は後続ステップで実装")
     }
 
-    pub fn intersection_with_line(&self, line: &Line2D) -> IntersectionResult2D {
+    pub fn intersection_with_line(&self, line: &Line2) -> IntersectionResult2 {
         let mut pts = vec![];
         let mut params = vec![];
 
@@ -96,12 +96,12 @@ impl NurbsCurve2D {
         pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
 
         let kind = match pts.len() {
-            0 => IntersectionKind2D::None,
-            1 => IntersectionKind2D::Tangent,
-            _ => IntersectionKind2D::Point,
+            0 => IntersectionKind2::None,
+            1 => IntersectionKind2::Tangent,
+            _ => IntersectionKind2::Point,
         };
 
-        IntersectionResult2D {
+        IntersectionResult2 {
             kind,
             points: pts,
             parameters: params,
@@ -109,7 +109,7 @@ impl NurbsCurve2D {
         }
     }
 
-    fn normal_to_line(&self, line: &Line2D, u: f64) -> Direction2D {
+    fn normal_to_line(&self, line: &Line2, u: f64) -> Direction2 {
         let pt = self.evaluate(u);
         let proj = line.project_point(&pt);
         pt.sub(&proj).normalize()
@@ -119,18 +119,18 @@ impl NurbsCurve2D {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::geometry::geom2d::{line::Line2D, point::Point2D};
+    use crate::model::geometry::geom2d::{line::Line2, point::Point2};
 
     #[test]
     fn test_nurbs_line_intersection_result() {
-        let curve = NurbsCurve2D::from_quadratic([
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 2.0),
-            Point2D::new(2.0, 0.0),
+        let curve = NurbsCurve2::from_quadratic([
+            Point2::new(0.0, 0.0),
+            Point2::new(1.0, 2.0),
+            Point2::new(2.0, 0.0),
         ]);
-        let line = Line2D::new(Point2D::new(0.0, 1.0), Point2D::new(2.0, 1.0));
+        let line = Line2::new(Point2::new(0.0, 1.0), Point2::new(2.0, 1.0));
         let result = curve.intersection_with_line(&line);
-        assert_eq!(result.kind, IntersectionKind2D::Point);
+        assert_eq!(result.kind, IntersectionKind2::Point);
         assert_eq!(result.points.len(), 2);
     }
 }
