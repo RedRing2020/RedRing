@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",           // Rust 補完と構文解析
+    "esbenp.prettier-vscode",            // Markdown / JSON 整形
+    "yzhang.markdown-all-in-one",        // Markdown 見出し・リンク補助
+    "streetsidesoftware.code-spell-checker", // 英語スペルチェック
+    "ms-vscode.powershell",              // PowerShell スクリプト補完
+    "bierner.markdown-mermaid",          // Mermaid 図のプレビュー（将来的に）
+    "shd101wyy.markdown-preview-enhanced" // 高度な Markdown プレビュー
+  ]
+}
