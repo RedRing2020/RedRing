@@ -1,0 +1,21 @@
+# 改行コードの統一（LF）
+* text=auto eol=lf
+
+# Markdown ファイルは UTF-8 で扱う
+*.md text encoding=UTF-8
+
+# Rust ソースコードも UTF-8（将来的な kernel 拡張に備えて）
+*.rs text encoding=UTF-8
+
+# PowerShell スクリプトも UTF-8（構成管理用）
+*.ps1 text encoding=UTF-8
+
+# TOML 設定ファイル（mdBook, Cargo など）
+*.toml text encoding=UTF-8
+
+# JSON ファイル（設定や国際化対応）
+*.json text encoding=UTF-8
+
+# YAML ファイル（GitHub Actions 用）
+*.yml text encoding=UTF-8
+*.yaml text encoding=UTF-8
