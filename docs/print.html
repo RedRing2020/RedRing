@@ -207,7 +207,73 @@ RedRing は、Rust の型安全性と責務分離を活かし、<strong>明示�
 </ul>
 <hr />
 <p>このドキュメントは、RedRing の設計思想と構造を体系的に整理し、国際的な技術発信の基盤となることを目的としています。</p>
-<div style="break-before: page; page-break-before: always;"></div><div style="break-before: page; page-break-before: always;"></div><div style="break-before: page; page-break-before: always;"></div>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="モジュール構成--module-structure"><a class="header" href="#モジュール構成--module-structure">モジュール構成 / Module Structure</a></h1>
+<p>RedRing の幾何学カーネルは、責務分離と拡張性を重視したモジュール設計に基づいて構成されています。以下は主要なモジュール群の概要です。</p>
+<h2 id="幾何学モジュール"><a class="header" href="#幾何学モジュール">幾何学モジュール</a></h2>
+<ul>
+<li><code>geometry2d</code>：2次元幾何要素（点、線、円、矩形など）</li>
+<li><code>geometry3d</code>：3次元幾何要素（ベクトル、面、空間曲線など）</li>
+</ul>
+<h2 id="型分類モジュール"><a class="header" href="#型分類モジュール">型分類モジュール</a></h2>
+<ul>
+<li><code>curve_kind</code>：曲線の分類（直線、円弧、スプラインなど）</li>
+<li><code>surface_kind</code>：面の分類（平面、球面、トーラスなど）</li>
+</ul>
+<h2 id="共通ユーティリティ"><a class="header" href="#共通ユーティリティ">共通ユーティリティ</a></h2>
+<ul>
+<li><code>math</code>：ベクトル演算、行列、数値補助</li>
+<li><code>traits</code>：抽象化のためのトレイト群（例：<code>Surface</code>, <code>Curve</code>）</li>
+</ul>
+<h2 id="構造設計の方針"><a class="header" href="#構造設計の方針">構造設計の方針</a></h2>
+<ul>
+<li>モジュール名は語義的に明確で、国際開発者にも直感的に理解可能</li>
+<li>拡張性を重視し、将来的な NURBS や STEP 対応も視野に入れて設計</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="型分類--curvekind--surfacekind"><a class="header" href="#型分類--curvekind--surfacekind">型分類 / CurveKind &amp; SurfaceKind</a></h1>
+<p>RedRing では、幾何学要素の分類を明示的な enum 型で定義することで、型安全性と構造的明快さを両立しています。</p>
+<h2 id="curvekind"><a class="header" href="#curvekind">CurveKind</a></h2>
+<ul>
+<li><code>Line</code>：直線</li>
+<li><code>Circle</code>：円</li>
+<li><code>Ellipse</code>：楕円</li>
+<li><code>Spline</code>：スプライン（将来的に NURBS 対応予定）</li>
+</ul>
+<h2 id="surfacekind"><a class="header" href="#surfacekind">SurfaceKind</a></h2>
+<ul>
+<li><code>Plane</code>：平面</li>
+<li><code>Sphere</code>：球面</li>
+<li><code>Torus</code>：トーラス</li>
+<li><code>Ellipsoid</code>：楕円体</li>
+<li><code>Cylinder</code>：円柱</li>
+<li><code>Cone</code>：円錐</li>
+</ul>
+<h2 id="設計意図"><a class="header" href="#設計意図">設計意図</a></h2>
+<ul>
+<li>型分類は API の明示性と拡張性を高めるために導入</li>
+<li><code>SurfaceKind</code> は <code>Surface</code> トレイトと連携し、動的な型判定にも対応</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="設計思想--design-philosophy"><a class="header" href="#設計思想--design-philosophy">設計思想 / Design Philosophy</a></h1>
+<p>RedRing の設計は、以下の原則に基づいて構築されています。</p>
+<h2 id="1-責務分離と語義整合"><a class="header" href="#1-責務分離と語義整合">1. 責務分離と語義整合</a></h2>
+<ul>
+<li>モジュール・型・関数の命名は、語義的に明確であることを最優先</li>
+<li>表現と実装の責務を分離し、保守性と拡張性を両立</li>
+</ul>
+<h2 id="2-型安全性と抽象化"><a class="header" href="#2-型安全性と抽象化">2. 型安全性と抽象化</a></h2>
+<ul>
+<li>Rust の型システムを活用し、誤用を防ぐ API 設計</li>
+<li>トレイトによる抽象化で、汎用性と柔軟性を確保</li>
+</ul>
+<h2 id="3-国際化と可読性"><a class="header" href="#3-国際化と可読性">3. 国際化と可読性</a></h2>
+<ul>
+<li>英語圏の開発者にも直感的に理解できる命名と構成</li>
+<li>ドキュメントは日本語と英語の併記を基本とし、国際貢献を促進</li>
+</ul>
+<h2 id="4-将来拡張への備え"><a class="header" href="#4-将来拡張への備え">4. 将来拡張への備え</a></h2>
+<ul>
+<li>STEP 対応、NURBS 実装、mdBook 多言語化などを視野に入れた構造設計</li>
+</ul>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

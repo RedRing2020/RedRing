@@ -175,7 +175,30 @@
 
                 <div id="content" class="content">
                     <main>
-                        
+                        <h1 id="型分類--curvekind--surfacekind"><a class="header" href="#型分類--curvekind--surfacekind">型分類 / CurveKind &amp; SurfaceKind</a></h1>
+<p>RedRing では、幾何学要素の分類を明示的な enum 型で定義することで、型安全性と構造的明快さを両立しています。</p>
+<h2 id="curvekind"><a class="header" href="#curvekind">CurveKind</a></h2>
+<ul>
+<li><code>Line</code>：直線</li>
+<li><code>Circle</code>：円</li>
+<li><code>Ellipse</code>：楕円</li>
+<li><code>Spline</code>：スプライン（将来的に NURBS 対応予定）</li>
+</ul>
+<h2 id="surfacekind"><a class="header" href="#surfacekind">SurfaceKind</a></h2>
+<ul>
+<li><code>Plane</code>：平面</li>
+<li><code>Sphere</code>：球面</li>
+<li><code>Torus</code>：トーラス</li>
+<li><code>Ellipsoid</code>：楕円体</li>
+<li><code>Cylinder</code>：円柱</li>
+<li><code>Cone</code>：円錐</li>
+</ul>
+<h2 id="設計意図"><a class="header" href="#設計意図">設計意図</a></h2>
+<ul>
+<li>型分類は API の明示性と拡張性を高めるために導入</li>
+<li><code>SurfaceKind</code> は <code>Surface</code> トレイトと連携し、動的な型判定にも対応</li>
+</ul>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
