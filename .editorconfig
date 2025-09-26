@@ -1,0 +1,37 @@
+# EditorConfig is awesome: https://editorconfig.org
+
+root = true
+
+# 全ファイル共通設定
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown
+[*.md]
+indent_style = space
+indent_size = 2
+
+# Rust
+[*.rs]
+indent_style = space
+indent_size = 4
+
+# PowerShell
+[*.ps1]
+indent_style = space
+indent_size = 4
+
+# TOML
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# YAML / JSON
+[*.yml]
+[*.yaml]
+[*.json]
+indent_style = space
+indent_size = 2
