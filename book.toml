@@ -1,5 +1,8 @@
-[book]
+﻿[book]
 authors = ["RedRing"]
 language = "en"
-src = "src"
+src = "manual"
 title = "RedRing"
+
+[build]
+build-dir = "docs"
