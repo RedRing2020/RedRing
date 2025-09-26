@@ -175,7 +175,29 @@
 
                 <div id="content" class="content">
                     <main>
-                        
+                        <h1 id="モジュール構成--module-structure"><a class="header" href="#モジュール構成--module-structure">モジュール構成 / Module Structure</a></h1>
+<p>RedRing の幾何学カーネルは、責務分離と拡張性を重視したモジュール設計に基づいて構成されています。以下は主要なモジュール群の概要です。</p>
+<h2 id="幾何学モジュール"><a class="header" href="#幾何学モジュール">幾何学モジュール</a></h2>
+<ul>
+<li><code>geometry2d</code>：2次元幾何要素（点、線、円、矩形など）</li>
+<li><code>geometry3d</code>：3次元幾何要素（ベクトル、面、空間曲線など）</li>
+</ul>
+<h2 id="型分類モジュール"><a class="header" href="#型分類モジュール">型分類モジュール</a></h2>
+<ul>
+<li><code>curve_kind</code>：曲線の分類（直線、円弧、スプラインなど）</li>
+<li><code>surface_kind</code>：面の分類（平面、球面、トーラスなど）</li>
+</ul>
+<h2 id="共通ユーティリティ"><a class="header" href="#共通ユーティリティ">共通ユーティリティ</a></h2>
+<ul>
+<li><code>math</code>：ベクトル演算、行列、数値補助</li>
+<li><code>traits</code>：抽象化のためのトレイト群（例：<code>Surface</code>, <code>Curve</code>）</li>
+</ul>
+<h2 id="構造設計の方針"><a class="header" href="#構造設計の方針">構造設計の方針</a></h2>
+<ul>
+<li>モジュール名は語義的に明確で、国際開発者にも直感的に理解可能</li>
+<li>拡張性を重視し、将来的な NURBS や STEP 対応も視野に入れて設計</li>
+</ul>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

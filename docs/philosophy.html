@@ -175,7 +175,28 @@
 
                 <div id="content" class="content">
                     <main>
-                        
+                        <h1 id="設計思想--design-philosophy"><a class="header" href="#設計思想--design-philosophy">設計思想 / Design Philosophy</a></h1>
+<p>RedRing の設計は、以下の原則に基づいて構築されています。</p>
+<h2 id="1-責務分離と語義整合"><a class="header" href="#1-責務分離と語義整合">1. 責務分離と語義整合</a></h2>
+<ul>
+<li>モジュール・型・関数の命名は、語義的に明確であることを最優先</li>
+<li>表現と実装の責務を分離し、保守性と拡張性を両立</li>
+</ul>
+<h2 id="2-型安全性と抽象化"><a class="header" href="#2-型安全性と抽象化">2. 型安全性と抽象化</a></h2>
+<ul>
+<li>Rust の型システムを活用し、誤用を防ぐ API 設計</li>
+<li>トレイトによる抽象化で、汎用性と柔軟性を確保</li>
+</ul>
+<h2 id="3-国際化と可読性"><a class="header" href="#3-国際化と可読性">3. 国際化と可読性</a></h2>
+<ul>
+<li>英語圏の開発者にも直感的に理解できる命名と構成</li>
+<li>ドキュメントは日本語と英語の併記を基本とし、国際貢献を促進</li>
+</ul>
+<h2 id="4-将来拡張への備え"><a class="header" href="#4-将来拡張への備え">4. 将来拡張への備え</a></h2>
+<ul>
+<li>STEP 対応、NURBS 実装、mdBook 多言語化などを視野に入れた構造設計</li>
+</ul>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
