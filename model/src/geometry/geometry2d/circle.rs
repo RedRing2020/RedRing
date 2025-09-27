@@ -43,13 +43,6 @@ impl Circle {
         &self.direction
     }
 
-    /// θ ∈ [0, 2π) における点を評価
-    pub fn evaluate(&self, theta: f64) -> Point {
-        let dx = self.radius * theta.cos();
-        let dy = self.radius * theta.sin();
-        self.center.add(dx, dy)
-    }
-
     /// θ ∈ [0, 2π) における接線方向（右手系）
     pub fn tangent(&self, theta: f64) -> Direction {
         Direction::new(-theta.sin(), theta.cos())
@@ -186,7 +179,14 @@ impl Circle {
 }
 
 impl Curve2 for Circle {
-    fn kind(&self) -> CurveKind2 {
-        CurveKind2::Circle
+    fn kind(&self) -> CurveKind2D {
+        CurveKind2D::Circle
+    }
+
+    /// θ ∈ [0, 2π) における点を評価
+    fn evaluate(&self, theta: f64) -> Point {
+        let dx = self.radius * theta.cos();
+        let dy = self.radius * theta.sin();
+        self.center.add(dx, dy)
     }
 }

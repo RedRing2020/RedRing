@@ -10,13 +10,13 @@ use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
 use crate::model::geometry::geometry2d::{
     point::Point,
     direction::Direction,
-    line::Line,
+    infinite_line::InfiniteLine,
     ray::Ray,
-    arc::Arc,
+    line::Line,
     circle::Circle,
+    arc::Arc,
     ellipse::Ellipse,
     ellipse_arc::EllipseArc,
-    infinite_line::InfiniteLine,
 };
 
 use crate::model::analysis::consts::EPSILON;
@@ -49,8 +49,11 @@ impl Intersect2D for InfiniteLine {
     }
 
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
+        if let Some(infinit_line) = other.as_any().downcast_ref::<InfiniteLine>() {
+            return self.intersection_with_infinite_line(infinit_line, epsilon);
+        }
         if let Some(line) = other.as_any().downcast_ref::<Line>() {
-            return self.intersection_with_infinite_line(&line.to_infinite(), epsilon);
+            return self.intersection_with_line(line, epsilon);
         }
         if let Some(circle) = other.as_any().downcast_ref::<Circle>() {
             return circle.intersection_with_infinite_line(self, epsilon);
@@ -117,8 +120,12 @@ impl Intersect2D for Line {
     }
 
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
-        if let Some(line2) = other.as_any().downcast_ref::<Line>() {
-            return self.intersection_with_line(line2, epsilon);
+        /// InfiniteLineに委譲した交差判定
+        if let Some(line) = other.as_any().downcast_ref::<Line>() {
+            return infinit_line.intersection_with_line(line, epsilon);
+        }
+        if let Some(line) = other.as_any().downcast_ref::<Line>() {
+            return self.intersection_with_line(line, epsilon);
         }
         if let Some(circle) = other.as_any().downcast_ref::<Circle>() {
             return circle.intersection_with_line(self, epsilon);
@@ -174,17 +181,6 @@ impl Intersect2D for Circle {
         (d - self.radius).abs()
     }
 }
-
-use crate::model::geometry_trait::intersect2d::Intersect2D;
-use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::model::geometry::geometry2d::{
-    point::Point,
-    line::Line,
-    arc::Arc,
-    ellipse_arc::EllipseArc,
-    circle::Circle,
-    ray::Ray,
-};
 
 impl Intersect2D for Arc {
     fn intersects_with(&self, other: &dyn Curve2D, epsilon: f64) -> bool {

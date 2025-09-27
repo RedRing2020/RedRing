@@ -60,6 +60,19 @@ impl InfiniteLine {
 
         IntersectionResult::point(pt, t, epsilon)
     }
+
+    pub fn intersection_with_line(&self, line: &Line, epsilon: f64) -> IntersectionResult<Point> {
+        let result = self.intersection_with_infinite_line(&line.to_infinite(), epsilon);
+        if let Some(pt) = result.points.first() {
+            if line.contains_point(pt, epsilon) {
+                result
+            } else {
+                IntersectionResult::none(epsilon)
+            }
+        } else {
+            result
+        }
+    }
 }
 
 impl Curve2D for InfiniteLine {

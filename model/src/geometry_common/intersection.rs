@@ -48,6 +48,16 @@ impl<P> IntersectionResult<P> {
         }
     }
 
+    /// 複数交差点の結果を構築
+    pub fn points(pts: Vec<P>, ts: Vec<f64>, epsilon: f64) -> Self {
+        Self {
+            kind: IntersectionKind::Point,
+            points: pts,
+            parameters: ts,
+            tolerance_used: epsilon,
+        }
+    }
+
     /// 接線交差の結果を構築
     pub fn tangent(pt: P, t: f64, epsilon: f64) -> Self {
         Self {
@@ -66,5 +76,17 @@ impl<P> IntersectionResult<P> {
             parameters: vec![],
             tolerance_used: epsilon,
         }
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.kind == IntersectionKind::None
+    }
+
+    pub fn is_tangent(&self) -> bool {
+        self.kind == IntersectionKind::Tangent
+    }
+
+    pub fn is_overlap(&self) -> bool {
+        self.kind == IntersectionKind::Overlap
     }
 }
