@@ -4,7 +4,7 @@ use crate::model::geometry_trait::{curve2d::Curve2D, intersect2d::Intersect2D};
 use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
 use crate::model::geometry_kind::CurveKind2D;
 
-use crate::model::geometry::geom2d::{
+use crate::model::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     line::Line,

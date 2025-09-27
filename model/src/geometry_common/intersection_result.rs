@@ -1,4 +1,4 @@
-﻿use super::point::Point;
+﻿use crate::geometry::geometry2d::point::Point;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntersectionKind {

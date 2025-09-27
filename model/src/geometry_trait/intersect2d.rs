@@ -7,7 +7,7 @@ use std::any::Any;
 use crate::model::geometry_trait::Curve2D;
 use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
 
-use crate::model::geometry::geom2d::{
+use crate::model::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     line::Line,
@@ -177,7 +177,7 @@ impl Intersect2D for Circle {
 
 use crate::model::geometry_trait::intersect2d::Intersect2D;
 use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::model::geometry::geom2d::{
+use crate::model::geometry::geometry2d::{
     point::Point,
     line::Line,
     arc::Arc,

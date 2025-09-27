@@ -1,6 +1,6 @@
 use std::any::Any;
 use crate::geometry_kind::CurveKind2D;
-use crate::geometry::geom2d::{point::Point, direction::Direction};
+use crate::geometry::geometry2d::{point::Point, direction::Direction};
 
 /// Curve2D: 2次元曲線の抽象トレイト
 ///
