@@ -79,11 +79,6 @@ impl NurbsCurve {
         &self.knots
     }
 
-    pub fn evaluate(&self, u: f64) -> Point {
-        // De Boor の rational 拡張は後続で実装
-        todo!("NURBS評価は後続ステップで実装")
-    }
-
     pub fn evaluate_derivative(&self, u: f64) -> Direction {
         let n = self.control_points.len() - 1;
         let p = self.degree;
@@ -198,5 +193,10 @@ impl NurbsCurve {
 impl Curve2D for NurbsCurve {
     fn kind(&self) -> CurveKind2D {
         CurveKind2D::NurbsCurve
+    }
+
+    fn evaluate(&self, u: f64) -> Point {
+        // De Boor の rational 拡張は後続で実装
+        todo!("NURBS評価は後続ステップで実装")
     }
 }

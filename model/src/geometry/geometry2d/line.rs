@@ -40,24 +40,9 @@ impl Line {
         )
     }
 
-    /// 長さを返す
-    pub fn length(&self) -> f64 {
-        self.length
-    }
-
     /// 無限直線としての表現を返す
     pub fn to_infinite(&self) -> &InfiniteLine {
         &self.base
-    }
-
-    /// パラメータ t に対応する点を返す（t ∈ [0, 1]）
-    pub fn evaluate(&self, t: f64) -> Point {
-        self.base.evaluate(t * self.length)
-    }
-
-    /// 接線ベクトル（方向 × 長さ）
-    pub fn derivative(&self) -> Point {
-        Point::new(self.base.direction().x * self.length, self.base.direction().y * self.length)
     }
 
     /// 他の InfiniteLine との交差判定（語義 + 点 + パラメータ + 誤差）
@@ -130,15 +115,18 @@ impl Curve2D for Line {
         CurveKind2D::Line
     }
 
+    /// パラメータ t に対応する点を返す（t ∈ [0, 1]）
     fn evaluate(&self, t: f64) -> Point {
-        self.evaluate(t)
+        self.base.evaluate(t * self.length)
     }
 
-    fn derivative(&self, _: f64) -> Direction {
-        self.base.direction()
+    /// 接線ベクトル（方向 × 長さ）
+    fn derivative(&self) -> Point {
+        Point::new(self.base.direction().x * self.length, self.base.direction().y * self.length)
     }
 
+    /// 長さを返す
     fn length(&self) -> f64 {
-        self.length()
+        self.length
     }
 }
