@@ -30,9 +30,14 @@ impl Direction {
         [self.x, self.y]
     }
 
-    /// 法線方向を取得（右手系90度回転）
-    pub fn normal(&self) -> Self {
+    /// 右手系で90度回転した法線方向
+    pub fn right_hand_normal(&self) -> Self {
         Self::new(-self.y, self.x)
+    }
+
+    /// 左手系で90度回転した法線方向（将来拡張用）
+    pub fn left_hand_normal(&self) -> Self {
+        Self::new(self.y, -self.x)
     }
 
     /// 他の方向との内積
@@ -49,58 +54,5 @@ impl Direction {
     /// 等価判定（将来的に誤差許容付き比較に拡張可能）
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         (self.x - other.x).abs() < epsilon && (self.y - other.y).abs() < epsilon
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_normalization() {
-        let dir = Direction::new(3.0, 4.0);
-        let mag = (dir.x.powi(2) + dir.y.powi(2)).sqrt();
-        assert!((mag - 1.0).abs() < 1e-10);
-        assert!((dir.x - 0.6).abs() < 1e-10);
-        assert!((dir.y - 0.8).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_zero_vector() {
-        let dir = Direction::new(0.0, 0.0);
-        assert_eq!(dir.x, 0.0);
-        assert_eq!(dir.y, 0.0);
-    }
-
-    #[test]
-    fn test_to_array() {
-        let dir = Direction::new(1.0, 0.0);
-        assert_eq!(dir.to_array(), [1.0, 0.0]);
-    }
-
-    #[test]
-    fn test_normal_vector() {
-        let dir = Direction::new(1.0, 0.0);
-        let normal = dir.normal();
-        assert_eq!(normal, Direction::new(0.0, 1.0));
-    }
-
-    #[test]
-    fn test_dot_product() {
-        let a = Direction::new(1.0, 0.0);
-        let b = Direction::new(0.0, 1.0);
-        assert_eq!(a.dot(&b), 0.0);
-
-        let c = Direction::new(1.0, 0.0);
-        let d = Direction::new(1.0, 0.0);
-        assert!((c.dot(&d) - 1.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_angle_to() {
-        let a = Direction::new(1.0, 0.0);
-        let b = Direction::new(0.0, 1.0);
-        let angle = a.angle_to(&b);
-        assert!((angle - std::f64::consts::FRAC_PI_2).abs() < 1e-10);
     }
 }

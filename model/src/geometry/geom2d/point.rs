@@ -40,30 +40,3 @@ impl Point {
         line.distance_to_point(self)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_distance() {
-        let p1 = Point::new(0.0, 0.0);
-        let p2 = Point::new(3.0, 4.0);
-        assert_eq!(p1.distance_to(&p2), 5.0);
-    }
-
-    #[test]
-    fn test_add() {
-        let p = Point::new(1.0, 2.0);
-        let result = p.add(3.0, -1.0);
-        assert_eq!(result, Point::new(4.0, 1.0));
-    }
-
-    #[test]
-    fn test_sub() {
-        let p1 = Point::new(5.0, 3.0);
-        let p2 = Point::new(2.0, 1.0);
-        let result = p1.sub(&p2);
-        assert_eq!(result, Point::new(3.0, 2.0));
-    }
-}

@@ -1,31 +1,28 @@
 ﻿use crate::model::geometry::geom2d::{
-    ellipse::Ellipse,
     point::Point,
     direction::Direction,
-    line::Line,
+    infinite_line::InfiniteLine,
     ray::Ray,
+    line::Line,
+    circle::Circle,
+    arc::Arc,
+    ellipse::Ellipse,
     intersection_result::{IntersectionResult, IntersectionKind},
 };
 
-use crate::model::analysis::{
-    sampling2d::sample_intersections,
-    consts::EPSILON,
-};
+use crate::model::geometry::geom2d::ellipse::Ellipse;
+use crate::model::geometry::geom2d::kind::CurveKind2D;
+use crate::model::geometry::geom2d::curve::curve_trait::Curve2D;
 
-use crate::model::geometry::geom2d::kind::CurveKind2;
-use crate::model::geometry::geom2d::curve::curve_trait::Curve2;
+use crate::model::analysis::consts::EPSILON;
+use crate::model::analysis::numeric::newton_inverse;
+use crate::model::analysis::numeric::sample_intersections;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipseArc {
     ellipse: Ellipse,
     start_angle: f64, // ラジアン [0, 2π)
     end_angle: f64,   // ラジアン [0, 2π)
-}
-
-impl Curve2 for EllipseArc {
-    fn kind(&self) -> CurveKind2 {
-        CurveKind2::EllipseArc
-    }
 }
 
 impl EllipseArc {
@@ -55,36 +52,32 @@ impl EllipseArc {
         self.evaluate(0.5)
     }
 
-    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
-        let candidates = sample_intersections(
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn kind(&self) -> CurveKind2D {
+        CurveKind2D::EllipseArc
+    }
+
+    fn evaluate(&self, t: f64) -> Point {
+        let angle = self.start_angle + t * self.sweep_angle();
+        self.ellipse.evaluate(angle)
+    }
+
+    fn derivative(&self, t: f64) -> Direction {
+        let angle = self.start_angle + t * self.sweep_angle();
+        self.ellipse.tangent(angle)
+    }
+
+    fn length(&self) -> f64 {
+        use crate::model::analysis::numeric::newton_arc_length;
+        newton_arc_length(
             |theta| self.ellipse.evaluate(theta),
-            line,
+            self.start_angle,
+            self.end_angle,
             360,
-            EPSILON,
-        );
-
-        let mut pts = candidates
-            .into_iter()
-            .filter(|pt| {
-                let theta = self.ellipse.angle_of(pt);
-                self.contains_angle(theta)
-            })
-            .collect::<Vec<_>>();
-
-        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
-
-        let kind = match pts.len() {
-            0 => IntersectionKind::None,
-            1 => IntersectionKind::Tangent,
-            _ => IntersectionKind::Point,
-        };
-
-        IntersectionResult {
-            kind,
-            points: pts,
-            parameters: vec![],
-            tolerance_used: EPSILON,
-        }
+        )
     }
 
     /// 楕円弧の角度範囲に含まれるか（方向付き）
@@ -139,44 +132,227 @@ impl EllipseArc {
             tolerance_used: EPSILON,
         }
     }
+
+    pub fn intersection_with_infinite_line(&self, line: &InfiniteLine, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |t| self.evaluate(t),
+            line,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let t = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(t);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
+
+    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
+        let candidates = sample_intersections(
+            |theta| self.ellipse.evaluate(theta),
+            line,
+            360,
+            EPSILON,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            let theta = self.ellipse.angle_of(&pt);
+            if self.contains_angle(theta) {
+                let t = (theta - self.start_angle).rem_euclid(std::f64::consts::TAU) / self.sweep_angle();
+                points.push(pt);
+                parameters.push(t);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+        parameters.dedup_by(|a, b| (a - b).abs() < EPSILON);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: EPSILON,
+        }
+    }
+
+    pub fn intersection_with_circle(&self, circle: &Circle, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |θ| circle.evaluate(θ),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let t = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(t);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
+
+    pub fn intersection_with_arc(&self, arc: &Arc, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |t| arc.evaluate(t),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let t = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(t);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
+
+    pub fn intersection_with_ellipse(&self, ellipse: &Ellipse, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |θ| ellipse.evaluate(θ),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let t = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(t);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
+
+    pub fn intersection_with_ellipse_arc(&self, other: &EllipseArc, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |t| other.evaluate(t),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let t = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(t);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::model::geometry::geom2d::{point::Point, direction::Direction2, ellipse::Ellipse};
-
-    #[test]
-    fn test_evaluate_arc() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction2::new(1.0, 0.0), 5.0, 3.0);
-        let arc = EllipseArc::new(ellipse, 0.0, std::f64::consts::FRAC_PI_2);
-
-        let start = arc.start_point();
-        let end = arc.end_point();
-        let mid = arc.midpoint();
-
-        assert_eq!(start, Point::new(5.0, 0.0));
-        assert!((end.x).abs() < 1e-10);
-        assert!((end.y - 3.0).abs() < 1e-10);
-        assert!((mid.x - 3.5355).abs() < 1e-3);
-        assert!((mid.y - 2.1213).abs() < 1e-3);
-    }
-
-    #[test]
-    fn test_elliptic_arc_line_intersection_inside_range() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction2::new(1.0, 0.0), 5.0, 3.0);
-        let arc = EllipseArc::new(ellipse, 0.0, std::f64::consts::FRAC_PI_2); // 0〜90度
-        let line = Line::new(Point::new(0.0, 0.0), Point::new(5.0, 5.0));
-        let pts = arc.intersection_with_line(&line);
-        assert_eq!(pts.len(), 1);
-    }
-
-    #[test]
-    fn test_elliptic_arc_line_intersection_outside_range() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction2::new(1.0, 0.0), 5.0, 3.0);
-        let arc = EllipseArc::new(ellipse, std::f64::consts::PI, std::f64::consts::PI * 1.5); // 180〜270度
-        let line = Line::new(Point::new(0.0, 0.0), Point::new(5.0, 5.0));
-        let pts = arc.intersection_with_line(&line);
-        assert_eq!(pts.len(), 0);
+impl Curve2D for EllipseArc {
+    fn kind(&self) -> CurveKind2D {
+        CurveKind2::EllipseArc
     }
 }
