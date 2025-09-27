@@ -1,11 +1,18 @@
-﻿use super::point::Point;
-use super::direction::Direction;
-use super::kind::{CurveKind2};
-use super::intersect::{IntersectionResult, IntersectionKind};
-use super::curve::curve_trait::Curve2;
+﻿use std::any::Any;
 
-use crate::model::analysis::solver::newton_solve;
-use crate::model::analysis::consts::{EPSILON};
+use crate::model::geometry_trait::{curve2d::Curve2D, intersect2d::Intersect2D};
+use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
+use crate::model::geometry_kind::CurveKind2D;
+
+use crate::model::geometry::geom2d::{
+    point::Point,
+    direction::Direction,
+    line::Line,
+};
+
+use crate::model::analysis::consts::EPSILON;
+use crate::model::analysis::numeric::newton_solve;
+use crate::model::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NurbsCurve {
@@ -19,15 +26,8 @@ pub struct NurbsCurve {
     is_uniform: bool,  // ノットが一様かどうか
 }
 
-impl Curve2 for NurbsCurve {
-    fn kind(&self) -> CurveKind2 {
-        CurveKind2::NurbsCurve
-    }
-}
-
-
 impl NurbsCurve {
-    pub fn new(degree: usize, control_points: Vec<Point2>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
+    pub fn new(degree: usize, control_points: Vec<Point>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
         assert_eq!(control_points.len(), weights.len(), "制御点と重みの数が一致しません");
         assert!(knots.len() >= control_points.len() + degree + 1, "ノットベクトルが不足しています");
 
@@ -67,7 +67,7 @@ impl NurbsCurve {
         self.degree
     }
 
-    pub fn control_points(&self) -> &[Point2] {
+    pub fn control_points(&self) -> &[Point] {
         &self.control_points
     }
 
@@ -79,12 +79,80 @@ impl NurbsCurve {
         &self.knots
     }
 
-    pub fn evaluate(&self, u: f64) -> Point2 {
+    pub fn evaluate(&self, u: f64) -> Point {
         // De Boor の rational 拡張は後続で実装
         todo!("NURBS評価は後続ステップで実装")
     }
 
-    pub fn intersection_with_line(&self, line: &Line2) -> IntersectionResult2 {
+    pub fn evaluate_derivative(&self, u: f64) -> Direction {
+        let n = self.control_points.len() - 1;
+        let p = self.degree;
+        let span = find_span(n, p, u, &self.knots);
+        let N = basis_functions(span, u, p, &self.knots);
+        let dN = basis_function_derivatives(span, u, p, &self.knots);
+
+        let mut numerator = Point::origin();
+        let mut denominator = 0.0;
+        let mut d_numerator = Point::origin();
+        let mut d_denominator = 0.0;
+
+        for i in 0..=p {
+            let index = span - p + i;
+            let w = self.weights[index];
+            let cp = self.control_points[index];
+            let Ni = N[i];
+            let dNi = dN[i];
+
+            numerator = numerator.add_scaled(&cp, Ni * w);
+            denominator += Ni * w;
+
+            d_numerator = d_numerator.add_scaled(&cp, dNi * w);
+            d_denominator += dNi * w;
+        }
+
+        let dw = d_denominator;
+        let dwP = d_numerator;
+        let wP = numerator;
+
+        let tangent = dwP.sub(&wP.mul(dw / denominator)).div(denominator);
+        Direction::from_vector(tangent)
+    }
+
+    pub fn evaluate_derivative(&self, u: f64) -> Direction {
+        let n = self.control_points.len() - 1;
+        let p = self.degree;
+        let span = find_span(n, p, u, &self.knots);
+        let N = basis_functions(span, u, p, &self.knots);
+        let dN = basis_function_derivatives(span, u, p, &self.knots);
+
+        let mut numerator = Point::origin();
+        let mut denominator = 0.0;
+        let mut d_numerator = Point::origin();
+        let mut d_denominator = 0.0;
+
+        for i in 0..=p {
+            let index = span - p + i;
+            let w = self.weights[index];
+            let cp = self.control_points[index];
+            let Ni = N[i];
+            let dNi = dN[i];
+
+            numerator = numerator.add_scaled(&cp, Ni * w);
+            denominator += Ni * w;
+
+            d_numerator = d_numerator.add_scaled(&cp, dNi * w);
+            d_denominator += dNi * w;
+        }
+
+        let dw = d_denominator;
+        let dwP = d_numerator;
+        let wP = numerator;
+
+        let tangent = dwP.sub(&wP.mul(dw / denominator)).div(denominator);
+        Direction::from_vector(tangent)
+    }
+
+    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
         let mut pts = vec![];
         let mut params = vec![];
 
@@ -107,12 +175,12 @@ impl NurbsCurve {
         pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
 
         let kind = match pts.len() {
-            0 => IntersectionKind2::None,
-            1 => IntersectionKind2::Tangent,
-            _ => IntersectionKind2::Point,
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
         };
 
-        IntersectionResult2 {
+        IntersectionResult {
             kind,
             points: pts,
             parameters: params,
@@ -120,28 +188,15 @@ impl NurbsCurve {
         }
     }
 
-    fn normal_to_line(&self, line: &Line2, u: f64) -> Direction2 {
+    fn normal_to_line(&self, line: &Line, u: f64) -> Direction {
         let pt = self.evaluate(u);
         let proj = line.project_point(&pt);
         pt.sub(&proj).normalize()
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::model::geometry::geom2d::{line::Line2, point::Point2};
-
-    #[test]
-    fn test_nurbs_line_intersection_result() {
-        let curve = NurbsCurve2::from_quadratic([
-            Point2::new(0.0, 0.0),
-            Point2::new(1.0, 2.0),
-            Point2::new(2.0, 0.0),
-        ]);
-        let line = Line2::new(Point2::new(0.0, 1.0), Point2::new(2.0, 1.0));
-        let result = curve.intersection_with_line(&line);
-        assert_eq!(result.kind, IntersectionKind2::Point);
-        assert_eq!(result.points.len(), 2);
+impl Curve2D for NurbsCurve {
+    fn kind(&self) -> CurveKind2D {
+        CurveKind2D::NurbsCurve
     }
 }

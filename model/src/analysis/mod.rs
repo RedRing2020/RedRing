@@ -1,2 +1,2 @@
-﻿pub mod solver;
+﻿pub mod numeric;
 pub mod sampling2d;

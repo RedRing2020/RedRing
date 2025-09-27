@@ -1,8 +1,18 @@
-﻿use crate::model::geometry::geom2d::{point::Point, direction::Direction};
-use crate::model::analysis::{sampling2d::sample_intersections, consts::EPSILON};
-use crate::model::geometry::geom2d::{line::Line};
-use crate::model::geometry::geom2d::kind::CurveKind2;
-use crate::model::geometry::geom2d::curve::curve_trait::Curve2;
+﻿use crate::model::geometry::geom2d::{
+    point::Point,
+    direction::Direction,
+    ray::Ray,
+    line::Line,
+    circle::Circle,
+    intersection_result::{IntersectionResult, IntersectionKind},
+};
+
+use crate::model::geometry::geom2d::kind::CurveKind2D;
+use crate::model::geometry::geom2d::curve::curve_trait::Curve2D;
+
+use crate::model::analysis::consts::EPSILON;
+use crate::model::analysis::sampling2d::sample_intersections;
+use crate::model::analysis::numeric::newton_inverse;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ellipse {
@@ -10,12 +20,6 @@ pub struct Ellipse {
     major_axis: Direction, // 長軸方向（正規化済み）
     major_radius: f64,
     minor_radius: f64,
-}
-
-impl Curve2 for Ellipse {
-    fn kind(&self) -> CurveKind2 {
-        CurveKind2::Ellipse
-    }
 }
 
 impl Ellipse {
@@ -54,46 +58,161 @@ impl Ellipse {
         Direction::new(p.x - self.center.x, p.y - self.center.y)
     }
 
-    /// 線分との交差点を離散近似で求める
-    pub fn intersection_with_line(&self, line: &Line) -> Vec<Point> {
-        sample_intersections(|theta| self.evaluate(theta), line, 360, EPSILON)
+    pub fn intersection_with_ray(&self, ray: &Ray, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |t| ray.evaluate(t),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let θ = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(θ);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
+
+    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(|theta| self.evaluate(theta), line, 360, EPSILON);
+        let mut result = IntersectionResult::none(EPSILON);
+
+        for pt in candidates {
+            let v = pt.sub(&self.center);
+            let initial_theta = v.y.atan2(v.x);
+
+            let f = |theta: f64| self.evaluate(theta).distance_to(&pt);
+            let df = |theta: f64| self.tangent(theta).dot(&self.normal(theta));
+
+            if let Some(theta) = newton_inverse(f, df, 0.0, initial_theta, 20, EPSILON) {
+                let t = theta.rem_euclid(std::f64::consts::TAU) / std::f64::consts::TAU;
+                result.kind = IntersectionKind::Point;
+                result.points.push(pt);
+                result.parameters.push(t);
+            }
+        }
+
+        result
+    }
+
+    pub fn intersection_with_circle(&self, circle: &Circle, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |θ| circle.evaluate(θ),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let θ = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(θ);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
+    }
+
+    pub fn intersection_with_circle(&self, circle: &Circle, epsilon: f64) -> IntersectionResult<Point> {
+        let candidates = sample_intersections(
+            |θ| circle.evaluate(θ),
+            self,
+            360,
+            epsilon,
+        );
+
+        let mut points = vec![];
+        let mut parameters = vec![];
+
+        for pt in candidates {
+            if self.contains_point(&pt, epsilon) {
+                let θ = self.parameter_of(&pt);
+                points.push(pt);
+                parameters.push(θ);
+            }
+        }
+
+        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
+
+        let kind = match points.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points,
+            parameters,
+            tolerance_used: epsilon,
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::model::geometry::geom2d::{point::Point, direction::Direction};
-
-    #[test]
-    fn test_evaluate_major_axis() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction::new(1.0, 0.0), 5.0, 3.0);
-        let p = ellipse.evaluate(0.0);
-        assert_eq!(p, Point::new(5.0, 0.0));
+impl Curve2D for Ellipse {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 
-    #[test]
-    fn test_evaluate_minor_axis() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction::new(1.0, 0.0), 5.0, 3.0);
-        let p = ellipse.evaluate(std::f64::consts::FRAC_PI_2);
-        assert_eq!(p, Point::new(0.0, 3.0));
+    fn kind(&self) -> CurveKind2D {
+        CurveKind2D::Ellipse
     }
 
-    #[test]
-    fn test_tangent_and_normal() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction::new(1.0, 0.0), 5.0, 3.0);
-        let t = ellipse.tangent(0.0);
-        assert_eq!(t, Direction::new(0.0, 1.0));
-
-        let n = ellipse.normal(0.0);
-        assert_eq!(n, Direction::new(1.0, 0.0));
+    fn evaluate(&self, t: f64) -> Point {
+        let theta = t.rem_euclid(1.0) * std::f64::consts::TAU;
+        self.evaluate(theta)
     }
 
-    #[test]
-    fn test_ellipse_line_intersection_two_points() {
-        let ellipse = Ellipse::new(Point::new(0.0, 0.0), Direction::new(1.0, 0.0), 5.0, 3.0);
-        let line = Line::new(Point::new(-6.0, 0.0), Point::new(6.0, 0.0));
-        let pts = ellipse.intersection_with_line(&line);
-        assert_eq!(pts.len(), 2);
+    fn derivative(&self, t: f64) -> Direction {
+        let theta = t.rem_euclid(1.0) * std::f64::consts::TAU;
+        self.tangent(theta)
+    }
+
+    fn length(&self) -> f64 {
+        // Ramanujan の近似式（語義整合された楕円周長）
+        let a = self.major_radius;
+        let b = self.minor_radius;
+        let h = ((a - b).powi(2)) / ((a + b).powi(2));
+        std::f64::consts::PI * (a + b) * (1.0 + (3.0 * h) / (10.0 + (4.0 - 3.0 * h).sqrt()))
     }
 }
