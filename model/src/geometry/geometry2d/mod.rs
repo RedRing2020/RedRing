@@ -8,7 +8,6 @@ pub mod arc;
 pub mod ellipse;
 pub mod ellipse_arc;
 pub mod nurbs;
-pub mod intersection_result;
 
 pub use point::Point;
 pub use direction::Direction;
@@ -20,4 +19,3 @@ pub use arc::Arc;
 pub use ellipse::Ellipse;
 pub use ellipse_arc::EllipseArc;
 pub use nurbs::NurbsCurve;
-pub use intersection_result::IntersectionResult;

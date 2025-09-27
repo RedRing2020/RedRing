@@ -56,10 +56,6 @@ impl EllipseArc {
         self
     }
 
-    fn kind(&self) -> CurveKind2D {
-        CurveKind2D::EllipseArc
-    }
-
     fn evaluate(&self, t: f64) -> Point {
         let angle = self.start_angle + t * self.sweep_angle();
         self.ellipse.evaluate(angle)
@@ -353,6 +349,6 @@ impl EllipseArc {
 
 impl Curve2D for EllipseArc {
     fn kind(&self) -> CurveKind2D {
-        CurveKind2::EllipseArc
+        CurveKind2D::EllipseArc
     }
 }
