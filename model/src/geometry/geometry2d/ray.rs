@@ -30,12 +30,13 @@ impl Ray {
         &self.direction
     }
 
-    pub fn evaluate(&self, t: f64) -> Point {
-        self.origin.add(self.direction.x * t, self.direction.y * t)
-    }
-
     pub fn normal(&self) -> Direction {
         self.direction.normal()
+    }
+
+    pub fn is_forward(&self, pt: &Point) -> bool {
+        let v = pt.sub(&self.origin);
+        v.dot(&self.direction.to_vector()) >= -EPSILON
     }
 
     pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
@@ -75,11 +76,6 @@ impl Ray {
             parameters: vec![],
             tolerance_used: EPSILON,
         }
-    }
-
-    pub fn is_forward(&self, pt: &Point) -> bool {
-        let v = pt.sub(&self.origin);
-        v.dot(&self.direction.to_vector()) >= -EPSILON
     }
 
     pub fn intersection_with_ellipse(&self, ellipse: &Ellipse, epsilon: f64) -> IntersectionResult<Point> {

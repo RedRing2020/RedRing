@@ -52,30 +52,6 @@ impl EllipseArc {
         self.evaluate(0.5)
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn evaluate(&self, t: f64) -> Point {
-        let angle = self.start_angle + t * self.sweep_angle();
-        self.ellipse.evaluate(angle)
-    }
-
-    fn derivative(&self, t: f64) -> Direction {
-        let angle = self.start_angle + t * self.sweep_angle();
-        self.ellipse.tangent(angle)
-    }
-
-    fn length(&self) -> f64 {
-        use crate::model::analysis::numeric::newton_arc_length;
-        newton_arc_length(
-            |theta| self.ellipse.evaluate(theta),
-            self.start_angle,
-            self.end_angle,
-            360,
-        )
-    }
-
     /// 楕円弧の角度範囲に含まれるか（方向付き）
     pub fn contains_angle(&self, theta: f64) -> bool {
         let start = self.start_angle;
@@ -94,39 +70,6 @@ impl EllipseArc {
         };
 
         rel >= -EPSILON && rel <= sweep + EPSILON
-    }
-
-    /// 半無限直線との交差点を求める
-    pub fn intersection_with_ray(&self, ray: &Ray) -> IntersectionResult {
-        let candidates = sample_intersections(
-            |theta| self.ellipse.evaluate(theta),
-            &ray.to_line(),
-            360,
-            EPSILON,
-        );
-
-        let mut pts = candidates
-            .into_iter()
-            .filter(|pt| {
-                let theta = self.ellipse.angle_of(pt);
-                self.contains_angle(theta) && ray.is_forward(pt)
-            })
-            .collect::<Vec<_>>();
-
-        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
-
-        let kind = match pts.len() {
-            0 => IntersectionKind::None,
-            1 => IntersectionKind::Tangent,
-            _ => IntersectionKind::Point,
-        };
-
-        IntersectionResult {
-            kind,
-            points: pts,
-            parameters: vec![],
-            tolerance_used: EPSILON,
-        }
     }
 
     pub fn intersection_with_infinite_line(&self, line: &InfiniteLine, epsilon: f64) -> IntersectionResult<Point> {
@@ -162,6 +105,39 @@ impl EllipseArc {
             points,
             parameters,
             tolerance_used: epsilon,
+        }
+    }
+
+    /// 半無限直線との交差点を求める
+    pub fn intersection_with_ray(&self, ray: &Ray) -> IntersectionResult {
+        let candidates = sample_intersections(
+            |theta| self.ellipse.evaluate(theta),
+            &ray.to_line(),
+            360,
+            EPSILON,
+        );
+
+        let mut pts = candidates
+            .into_iter()
+            .filter(|pt| {
+                let theta = self.ellipse.angle_of(pt);
+                self.contains_angle(theta) && ray.is_forward(pt)
+            })
+            .collect::<Vec<_>>();
+
+        pts.dedup_by(|a, b| a.distance_to(b) < EPSILON);
+
+        let kind = match pts.len() {
+            0 => IntersectionKind::None,
+            1 => IntersectionKind::Tangent,
+            _ => IntersectionKind::Point,
+        };
+
+        IntersectionResult {
+            kind,
+            points: pts,
+            parameters: vec![],
+            tolerance_used: EPSILON,
         }
     }
 
@@ -350,5 +326,29 @@ impl EllipseArc {
 impl Curve2D for EllipseArc {
     fn kind(&self) -> CurveKind2D {
         CurveKind2D::EllipseArc
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn evaluate(&self, t: f64) -> Point {
+        let angle = self.start_angle + t * self.sweep_angle();
+        self.ellipse.evaluate(angle)
+    }
+
+    fn derivative(&self, t: f64) -> Direction {
+        let angle = self.start_angle + t * self.sweep_angle();
+        self.ellipse.tangent(angle)
+    }
+
+    fn length(&self) -> f64 {
+        use crate::model::analysis::numeric::newton_arc_length;
+        newton_arc_length(
+            |theta| self.ellipse.evaluate(theta),
+            self.start_angle,
+            self.end_angle,
+            360,
+        )
     }
 }

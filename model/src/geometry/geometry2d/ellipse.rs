@@ -151,42 +151,6 @@ impl Ellipse {
             tolerance_used: epsilon,
         }
     }
-
-    pub fn intersection_with_circle(&self, circle: &Circle, epsilon: f64) -> IntersectionResult<Point> {
-        let candidates = sample_intersections(
-            |θ| circle.evaluate(θ),
-            self,
-            360,
-            epsilon,
-        );
-
-        let mut points = vec![];
-        let mut parameters = vec![];
-
-        for pt in candidates {
-            if self.contains_point(&pt, epsilon) {
-                let θ = self.parameter_of(&pt);
-                points.push(pt);
-                parameters.push(θ);
-            }
-        }
-
-        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
-        parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
-
-        let kind = match points.len() {
-            0 => IntersectionKind::None,
-            1 => IntersectionKind::Tangent,
-            _ => IntersectionKind::Point,
-        };
-
-        IntersectionResult {
-            kind,
-            points,
-            parameters,
-            tolerance_used: epsilon,
-        }
-    }
 }
 
 impl Curve2D for Ellipse {
