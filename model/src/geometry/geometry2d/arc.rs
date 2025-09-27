@@ -4,7 +4,7 @@ use crate::model::geometry_trait::{Curve2D, Intersect2D};
 use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
 use crate::model::geometry_kind::CurveKind2D;
 
-use crate::model::geometry::geom2d::{
+use crate::model::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     infinite_line::InfiniteLine,

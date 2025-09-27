@@ -1,4 +1,4 @@
-﻿use crate::model::geometry::geom2d::{
+﻿use crate::model::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     ray::Ray,
@@ -7,8 +7,8 @@
     intersection_result::{IntersectionResult, IntersectionKind},
 };
 
-use crate::model::geometry::geom2d::kind::CurveKind2D;
-use crate::model::geometry::geom2d::curve::curve_trait::Curve2D;
+use crate::model::geometry::geometry2d::kind::CurveKind2D;
+use crate::model::geometry::geometry2d::curve::curve_trait::Curve2D;
 
 use crate::model::analysis::consts::EPSILON;
 use crate::model::analysis::sampling2d::sample_intersections;

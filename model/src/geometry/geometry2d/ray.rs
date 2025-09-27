@@ -1,4 +1,4 @@
-﻿use crate::model::geometry::geom2d::{
+﻿use crate::model::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     line::Line,
