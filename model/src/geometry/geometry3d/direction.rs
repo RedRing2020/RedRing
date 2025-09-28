@@ -1,3 +1,5 @@
+use crate::geometry_trait::Normalize;
+
 use super::vector::Vector;
 
 #[derive(Debug, Clone, Copy, PartialEq)]

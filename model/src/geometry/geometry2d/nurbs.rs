@@ -1,18 +1,16 @@
-﻿use std::any::Any;
+﻿use crate::geometry_trait::{curve2d::Curve2D, intersect2d::Intersect2D};
+use crate::geometry_common::{IntersectionResult, IntersectionKind};
+use crate::geometry_kind::CurveKind2D;
 
-use crate::model::geometry_trait::{curve2d::Curve2D, intersect2d::Intersect2D};
-use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::model::geometry_kind::CurveKind2D;
-
-use crate::model::geometry::geometry2d::{
+use crate::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     line::Line,
 };
 
-use crate::model::analysis::consts::EPSILON;
-use crate::model::analysis::numeric::newton_solve;
-use crate::model::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
+use crate::analysis::consts::EPSILON;
+use crate::analysis::numeric::newton_solve;
+use crate::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NurbsCurve {

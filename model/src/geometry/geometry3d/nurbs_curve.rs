@@ -1,6 +1,6 @@
 use super::point::Point;
-use crate::geom3::kind::CurveKind3;
-use crate::geom3::curve::curve_trait::Curve3;
+use crate::geometry_kind::curve3d::CurveKind3D;
+use crate::geometry_trait::curve3d::Curve3D;
 
 /// Represents a trimmed NURBS curve in 3D space.
 /// Designed for internal use in RedRing, not strictly STEP-compliant.
@@ -14,12 +14,6 @@ pub struct NurbsCurve {
     is_uniform: bool,                 // Whether the knot vector is uniform
     start_param: f64,                 // Trim start parameter
     end_param: f64,                   // Trim end parameter
-}
-
-impl Curve3 for NurbsCurve {
-    fn kind(&self) -> CurveKind3 {
-        CurveKind3::NurbsCurve
-    }
 }
 
 impl NurbsCurve {
@@ -106,5 +100,11 @@ impl NurbsCurve {
 
     pub fn num_control_points(&self) -> usize {
         self.control_points.len()
+    }
+}
+
+impl Curve3D for NurbsCurve {
+    fn kind(&self) -> CurveKind3D {
+        CurveKind3D::NurbsCurve
     }
 }

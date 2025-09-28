@@ -1,8 +1,8 @@
 use super::point::Point;
 use super::direction::Direction;
 use super::vector::Vector;
-use crate::geom3::kind::CurveKind;
-use crate::geom3::curve::curve_trait::Curve3;
+use crate::geometry_kind::curve3d::CurveKind3D;
+use crate::geometry_trait::curve3d::Curve3D;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Line {
@@ -10,12 +10,6 @@ pub struct Line {
     direction: Direction,
     start: Point,
     end: Point,
-}
-
-impl Curve3 for Line {
-    fn kind(&self) -> CurveKind3 {
-        CurveKind3::Line
-    }
 }
 
 impl Line {
@@ -62,5 +56,11 @@ impl Line {
 
     pub fn is_trimmed(&self) -> bool {
         self.start != self.origin || self.end != self.origin
+    }
+}
+
+impl Curve3D for Line {
+    fn kind(&self) -> CurveKind3D {
+        CurveKind3D::Line
     }
 }

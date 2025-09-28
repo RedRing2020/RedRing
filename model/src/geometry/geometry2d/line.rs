@@ -1,4 +1,6 @@
-﻿use super::{point::Point, direction::Direction, infinit_line::InfiniteLine};
+﻿use std::any::Any;
+
+use super::{point::Point, direction::Direction, infinite_line::InfiniteLine};
 use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::Curve2D;
 use crate::geometry_common::{IntersectionResult, IntersectionKind};
@@ -115,17 +117,18 @@ impl Curve2D for Line {
         CurveKind2D::Line
     }
 
-    /// パラメータ t に対応する点を返す（t ∈ [0, 1]）
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn evaluate(&self, t: f64) -> Point {
         self.base.evaluate(t * self.length)
     }
 
-    /// 接線ベクトル（方向 × 長さ）
-    fn derivative(&self) -> Point {
-        Point::new(self.base.direction().x * self.length, self.base.direction().y * self.length)
+    fn derivative(&self, _t: f64) -> Vector {
+        Vector::new(self.base.direction().x * self.length, self.base.direction().y * self.length)
     }
 
-    /// 長さを返す
     fn length(&self) -> f64 {
         self.length
     }

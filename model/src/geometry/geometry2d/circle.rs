@@ -1,19 +1,21 @@
 ﻿use std::any::Any;
 
-use crate::model::geometry_trait::curve2d::Curve2D;
-use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::model::geometry_kind::CurveKind2D;
+use crate::geometry_trait::curve2d::Curve2D;
+use crate::geometry_common::{IntersectionResult, IntersectionKind};
+use crate::geometry_kind::CurveKind2D;
 
-use crate::model::geometry::geometry2d::{
+use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
+    infinite_line::InfiniteLine,
     line::Line,
     arc::Arc,
     ellipse::Ellipse,
 };
 
-use crate::model::analysis::consts::EPSILON;
-use crate::model::analysis::sampling2d::sample_intersections;
+use crate::analysis::consts::EPSILON;
+use crate::analysis::sampling2d::sample_intersections;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circle {
@@ -44,13 +46,13 @@ impl Circle {
     }
 
     /// θ ∈ [0, 2π) における接線方向（右手系）
-    pub fn tangent(&self, theta: f64) -> Direction {
-        Direction::new(-theta.sin(), theta.cos())
+    pub fn tangent(&self, theta: f64) -> Vector {
+        Vector::new(-theta.sin(), theta.cos())
     }
 
     /// θ ∈ [0, 2π) における法線方向（中心から外向き）
-    pub fn normal(&self, theta: f64) -> Direction {
-        Direction::new(theta.cos(), theta.sin())
+    pub fn normal(&self, theta: f64) -> Vector {
+        Vector::new(theta.cos(), theta.sin())
     }
 
     /// 無限直線との交差点を求める
@@ -178,9 +180,21 @@ impl Circle {
     }
 }
 
-impl Curve2 for Circle {
+impl Curve2D for Circle {
     fn kind(&self) -> CurveKind2D {
         CurveKind2D::Circle
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn derivative(&self, t: f64) -> Vector {
+        self.tangent(t)
+    }
+
+    fn length(&self) -> f64 {
+        std::f64::consts::TAU * self.radius()
     }
 
     /// θ ∈ [0, 2π) における点を評価

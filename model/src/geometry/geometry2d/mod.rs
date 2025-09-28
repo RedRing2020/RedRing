@@ -1,6 +1,7 @@
 ﻿pub mod point;
+pub mod vector;
 pub mod direction;
-pub mod InfiniteLine;
+pub mod infinite_line;
 pub mod ray;
 pub mod line;
 pub mod circle;
@@ -10,8 +11,9 @@ pub mod ellipse_arc;
 pub mod nurbs;
 
 pub use point::Point;
+pub use vector::Vector;
 pub use direction::Direction;
-pub use InfiniteLine::InfiniteLine;
+pub use infinite_line::InfiniteLine;
 pub use ray::Ray;
 pub use line::Line;
 pub use circle::Circle;
