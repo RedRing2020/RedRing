@@ -1,4 +1,8 @@
-﻿#[derive(Debug, Clone, Copy, PartialEq)]
+﻿use crate::geometry::geometry2d::line::Line;
+use crate::geometry::geometry2d;
+use crate::geometry_trait::point_ops::PointOps;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
@@ -38,5 +42,19 @@ impl Point {
     /// 線分上の点までの距離を計算
     pub fn distance_to_point_on_line(&self, line: &Line) -> f64 {
         line.distance_to_point(self)
+    }
+}
+
+impl PointOps for geometry2d::point::Point {
+    fn origin() -> Self {
+        Self::new(0.0, 0.0)
+    }
+
+    fn add_scaled(&self, other: &Self, scale: f64) -> Self {
+        Self::new(self.x + other.x * scale, self.y + other.y * scale)
+    }
+
+    fn div(&self, scalar: f64) -> Self {
+        Self::new(self.x / scalar, self.y / scalar)
     }
 }

@@ -1,6 +1,7 @@
-﻿use crate::model::analysis::consts::{EPSILON, DERIVATIVE_ZERO_THRESHOLD};
+﻿use crate::analysis::consts::DERIVATIVE_ZERO_THRESHOLD;
 
-use crate::model::geometry::geom2d::point::Point;
+use crate::geometry_trait::normed::Normed;
+use crate::geometry_trait::point_ops::PointOps;
 
 pub fn newton_solve<F, G>(
     f: F,
@@ -55,7 +56,7 @@ where
     G: Fn(f64) -> f64,
 {
     let g = |x: f64| f(x) - target;
-    crate::model::analysis::numeric::newton_solve(g, df, initial, max_iter, tol)
+    crate::analysis::numeric::newton_solve(g, df, initial, max_iter, tol)
 }
 
 pub fn find_span(n: usize, degree: usize, u: f64, knots: &[f64]) -> usize {
@@ -105,17 +106,17 @@ pub fn basis_functions(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec
     N
 }
 
-pub fn evaluate_bspline(
+pub fn evaluate_bspline<P: PointOps>(
     u: f64,
     degree: usize,
-    control_points: &[Point],
+    control_points: &[P],
     knots: &[f64],
-) -> Point {
+) -> P {
     let n = control_points.len() - 1;
     let span = find_span(n, degree, u, knots);
     let N = basis_functions(span, u, degree, knots);
 
-    let mut result = Point::origin();
+    let mut result = P::origin();
     for i in 0..=degree {
         let index = span - degree + i;
         result = result.add_scaled(&control_points[index], N[i]);
@@ -124,84 +125,18 @@ pub fn evaluate_bspline(
     result
 }
 
-pub fn find_span(n: usize, degree: usize, u: f64, knots: &[f64]) -> usize {
-    if u >= knots[n + 1] {
-        return n;
-    }
-    if u <= knots[degree] {
-        return degree;
-    }
-
-    let mut low = degree;
-    let mut high = n + 1;
-    let mut mid = (low + high) / 2;
-
-    while u < knots[mid] || u >= knots[mid + 1] {
-        if u < knots[mid] {
-            high = mid;
-        } else {
-            low = mid;
-        }
-        mid = (low + high) / 2;
-    }
-
-    mid
-}
-
-pub fn basis_functions(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec<f64> {
-    let mut N = vec![0.0; degree + 1];
-    let mut left = vec![0.0; degree + 1];
-    let mut right = vec![0.0; degree + 1];
-
-    N[0] = 1.0;
-
-    for j in 1..=degree {
-        left[j] = u - knots[span + 1 - j];
-        right[j] = knots[span + j] - u;
-        let mut saved = 0.0;
-
-        for r in 0..j {
-            let temp = N[r] / (right[r + 1] + left[j - r]);
-            N[r] = saved + right[r + 1] * temp;
-            saved = left[j - r] * temp;
-        }
-        N[j] = saved;
-    }
-
-    N
-}
-
-pub fn evaluate_bspline(
+pub fn evaluate_nurbs<P: PointOps>(
     u: f64,
     degree: usize,
-    control_points: &[Point],
-    knots: &[f64],
-) -> Point {
-    let n = control_points.len() - 1;
-    let span = find_span(n, degree, u, knots);
-    let N = basis_functions(span, u, degree, knots);
-
-    let mut result = Point::origin();
-    for i in 0..=degree {
-        let index = span - degree + i;
-        result = result.add_scaled(&control_points[index], N[i]);
-    }
-
-    result
-}
-
-pub fn evaluate_nurbs(
-    u: f64,
-    degree: usize,
-    control_points: &[Point],
+    control_points: &[P],
     weights: &[f64],
     knots: &[f64],
-) -> Point {
+) -> P {
     let n = control_points.len() - 1;
     let span = find_span(n, degree, u, knots);
     let N = basis_functions(span, u, degree, knots);
 
-    let mut numerator = Point::origin();
+    let mut numerator = P::origin();
     let mut denominator = 0.0;
 
     for i in 0..=degree {
@@ -252,4 +187,26 @@ pub fn basis_function_derivatives(
     }
 
     ders
+}
+
+/// 楕円弧の長さを数値積分で近似する関数
+pub fn newton_arc_length<F, V>(evaluate: F, start: f64, end: f64, steps: usize) -> f64
+where
+    F: Fn(f64) -> V,
+    V: Normed,
+{
+    let mut length = 0.0;
+    let dt = (end - start) / steps as f64;
+
+    for i in 0..steps {
+        let t0 = start + i as f64 * dt;
+        let t1 = t0 + dt;
+
+        let v0 = evaluate(t0);
+        let v1 = evaluate(t1);
+
+        length += 0.5 * (v0.norm() + v1.norm()) * dt;
+    }
+
+    length
 }

@@ -1,9 +1,14 @@
-﻿use crate::geometry::geometry2d::{
+﻿use std::any::Any;
+use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
+    line::Line,
 };
-use crate::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::analysis::consts::EPSILON;
+use crate::geometry_common::IntersectionResult;
+
+use crate::geometry_kind::CurveKind2D;
+use crate::geometry_trait::curve2d::Curve2D;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InfiniteLine {
@@ -88,7 +93,7 @@ impl Curve2D for InfiniteLine {
         self.evaluate(t)
     }
 
-    fn derivative(&self, _: f64) -> Direction {
+    fn derivative(&self, _: f64) -> Vector {
         self.direction.clone()
     }
 

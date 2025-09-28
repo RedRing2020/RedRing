@@ -2,12 +2,11 @@
 //!
 //! Curve2D を実装する構造体が交差判定を提供するための抽象インターフェース。
 //! 誤差判定は `analysis::consts` に準拠。
-use std::any::Any;
+use crate::geometry_kind::CurveKind2D;
+use crate::geometry_trait::Curve2D;
+use crate::geometry_common::{IntersectionResult, IntersectionKind};
 
-use crate::model::geometry_trait::Curve2D;
-use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
-
-use crate::model::geometry::geometry2d::{
+use crate::geometry::geometry2d::{
     point::Point,
     direction::Direction,
     infinite_line::InfiniteLine,
@@ -17,10 +16,10 @@ use crate::model::geometry::geometry2d::{
     arc::Arc,
     ellipse::Ellipse,
     ellipse_arc::EllipseArc,
+    nurbs::NurbsCurve,
 };
 
-use crate::model::analysis::consts::EPSILON;
-use crate::model::analysis::numeric::newton_project;
+use crate::analysis::consts::EPSILON;
 
 pub trait Intersect2D {
     /// 他の曲線との交差判定（結果の有無）
@@ -51,8 +50,8 @@ impl Intersect2D for InfiniteLine {
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             CurveKind2D::InfiniteLine => {
-                other.as_any().downcast_ref::<InfiniteLine>().unwrap();
-                self.intersection_with_infinite_line(infinit_line, epsilon);
+                let infinite_line = other.as_any().downcast_ref::<InfiniteLine>().unwrap();
+                self.intersection_with_infinite_line(infinite_line, epsilon);
             }
             // Lineに委譲
             CurveKind2D::Line => {
@@ -62,7 +61,7 @@ impl Intersect2D for InfiniteLine {
             // Circleに委譲
             CurveKind2D::Circle => {
                 let circle = other.as_any().downcast_ref::<Circle>().unwrap();
-                circle.intersection_with_line(self, epsilon)
+                circle.intersection_with_line(self)
             }
             // Arcに委譲
             CurveKind2D::Arc => {
@@ -115,12 +114,12 @@ impl Intersect2D for Ray {
             }
             CurveKind2D::Line => {
                 let line = other.as_any().downcast_ref::<Line>().unwrap();
-                self.intersection_with_line(line, epsilon)
+                self.intersection_with_line(line)
             }
             // Circleに委譲
             CurveKind2D::Circle => {
-                let arc = other.as_any().downcast_ref::<Circle>().unwrap();
-                Circle.intersection_with_ray(self, epsilon);
+                let circle = other.as_any().downcast_ref::<Circle>().unwrap();
+                circle.intersection_with_ray(self, epsilon);
             }
             // Arcに委譲
             CurveKind2D::Arc => {
@@ -134,7 +133,7 @@ impl Intersect2D for Ray {
             // EllipseArcに委譲
             CurveKind2D::EllipseArc => {
                 let ellipse_arc = other.as_any().downcast_ref::<EllipseArc>().unwrap();
-                ellipse_arc.intersection_with_ray(self, epsilon);
+                ellipse_arc.intersection_with_ray(self);
             }
 
             _ => IntersectionResult::none(epsilon),
@@ -175,7 +174,7 @@ impl Intersect2D for Line {
             // Rayに委譲
             CurveKind2D::Ray => {
                 let ray = other.as_any().downcast_ref::<Ray>().unwrap();
-                ray.intersection_with_line(self, epsilon)
+                ray.intersection_with_line(self)
             }
             CurveKind2D::Line => {
                 let line = other.as_any().downcast_ref::<Line>().unwrap();
@@ -184,7 +183,7 @@ impl Intersect2D for Line {
             // Circleに委譲
             CurveKind2D::Circle => {
                 let circle = other.as_any().downcast_ref::<Circle>().unwrap();
-                circle.intersection_with_line(self, epsilon);
+                circle.intersection_with_line(self);
             }
             // Arcに委譲
             CurveKind2D::Arc => {
@@ -194,12 +193,12 @@ impl Intersect2D for Line {
             // Ellipseに委譲
             CurveKind2D::Ellipse => {
                 let ellipse = other.as_any().downcast_ref::<Ellipse>().unwrap();
-                ellipse.intersection_with_line(self, epsilon)
+                ellipse.intersection_with_line(self)
             }
             // EllipseArcに委譲
             CurveKind2D::EllipseArc => {
                 let ellipse_arc = other.as_any().downcast_ref::<EllipseArc>().unwrap();
-                ellipse_arc.intersection_with_line(self, epsilon);
+                ellipse_arc.intersection_with_line(self);
             }
 
             _ => IntersectionResult::none(epsilon),
@@ -231,7 +230,7 @@ impl Intersect2D for Circle {
         match other.kind() {
             // InfiniteLineに委譲
             CurveKind2D::InfiniteLine => {
-                let infinit_line = other.as_any().downcast_ref::<InfiniteLine>().unwrap();
+                let infinite_line = other.as_any().downcast_ref::<InfiniteLine>().unwrap();
                 infinite_line.intersection_with_infinite_circle(self, epsilon);
             }
             // Rayに委譲
@@ -241,7 +240,7 @@ impl Intersect2D for Circle {
             }
             CurveKind2D::Line => {
                 let line = other.as_any().downcast_ref::<Line>().unwrap();
-                self.intersection_with_line(line, epsilon)
+                self.intersection_with_line(line)
             }
             CurveKind2D::Circle => {
                 let circle = other.as_any().downcast_ref::<Circle>().unwrap();
@@ -259,7 +258,7 @@ impl Intersect2D for Circle {
             // EllipseArcに委譲
             CurveKind2D::EllipseArc => {
                 let ellipse_arc = other.as_any().downcast_ref::<EllipseArc>().unwrap();
-                ellipse_arc.intersection_with_line(self, epsilon);
+                ellipse_arc.intersection_with_line(self);
             }
 
             _ => IntersectionResult::none(epsilon),
@@ -357,7 +356,7 @@ impl Intersect2D for Ellipse {
             }
             CurveKind2D::Line => {
                 let line = other.as_any().downcast_ref::<Line>().unwrap();
-                self.intersection_with_line(line, epsilon)
+                self.intersection_with_line(line)
             }
             CurveKind2D::Circle => {
                 let circle = other.as_any().downcast_ref::<Circle>().unwrap();
@@ -408,16 +407,16 @@ impl Intersect2D for EllipseArc {
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult<Point> {
         match other.kind() {
             CurveKind2D::InfiniteLine => {
-                let infinit_line = other.as_any().downcast_ref::<InfiniteLine>().unwrap();
+                let infinite_line = other.as_any().downcast_ref::<InfiniteLine>().unwrap();
                 self.intersection_with_infinit_line(infinite_line, epsilon);
             }
             CurveKind2D::Ray => {
                 let ray = other.as_any().downcast_ref::<Ray>().unwrap();
-                self.intersection_with_ray(ray, epsilon)
+                self.intersection_with_ray(ray)
             }
             CurveKind2D::Line => {
                 let line = other.as_any().downcast_ref::<Line>().unwrap();
-                self.intersection_with_line(line, epsilon)
+                self.intersection_with_line(line)
             }
             CurveKind2D::Circle => {
                 let circle = other.as_any().downcast_ref::<Circle>().unwrap();

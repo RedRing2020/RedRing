@@ -1,8 +1,7 @@
 use super::point::Point;
 use super::direction::Direction;
 use super::vector::Vector;
-use crate::geometry3d::kind::SurfaceKind;
-use crate::geometry3d::surface::surface_trait::Surface;
+use crate::geometry_kind::SurfaceKind;
 
 /// Represents an analytic plane in 3D space.
 /// Defined by a point and a normal direction.
@@ -10,12 +9,6 @@ use crate::geometry3d::surface::surface_trait::Surface;
 pub struct Plane {
     point: Point,           // A point on the plane
     normal: Direction,      // Unit normal vector
-}
-
-impl Surface for Plane {
-    fn kind(&self) -> SurfaceKind {
-        SurfaceKind::Plane
-    }
 }
 
 impl Plane {
@@ -57,3 +50,4 @@ impl Plane {
         self.distance_to(target) <= tolerance
     }
 }
+

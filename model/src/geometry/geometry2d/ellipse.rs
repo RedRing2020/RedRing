@@ -1,18 +1,19 @@
-﻿use crate::model::geometry::geometry2d::{
+﻿use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
     ray::Ray,
     line::Line,
     circle::Circle,
-    intersection_result::{IntersectionResult, IntersectionKind},
 };
 
-use crate::model::geometry::geometry2d::kind::CurveKind2D;
-use crate::model::geometry::geometry2d::curve::curve_trait::Curve2D;
+use crate::geometry_common::intersection::{IntersectionResult, IntersectionKind};
+use crate::geometry_kind::CurveKind2D;
+use crate::geometry_trait::curve2d::Curve2D;
 
-use crate::model::analysis::consts::EPSILON;
-use crate::model::analysis::sampling2d::sample_intersections;
-use crate::model::analysis::numeric::newton_inverse;
+use crate::analysis::consts::EPSILON;
+use crate::analysis::sampling2d::sample_intersections;
+use crate::analysis::numeric::newton_inverse;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ellipse {
@@ -167,7 +168,7 @@ impl Curve2D for Ellipse {
         self.evaluate(theta)
     }
 
-    fn derivative(&self, t: f64) -> Direction {
+    fn derivative(&self, t: f64) -> Vector {
         let theta = t.rem_euclid(1.0) * std::f64::consts::TAU;
         self.tangent(theta)
     }

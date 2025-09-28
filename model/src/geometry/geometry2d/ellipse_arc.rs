@@ -1,5 +1,6 @@
-﻿use crate::model::geometry::geometry2d::{
+﻿use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
     infinite_line::InfiniteLine,
     ray::Ray,
@@ -7,16 +8,15 @@
     circle::Circle,
     arc::Arc,
     ellipse::Ellipse,
-    intersection_result::{IntersectionResult, IntersectionKind},
 };
 
-use crate::model::geometry::geometry2d::ellipse::Ellipse;
-use crate::model::geometry::geometry2d::kind::CurveKind2D;
-use crate::model::geometry::geometry2d::curve::curve_trait::Curve2D;
+use crate::geometry_common::intersection::{IntersectionResult, IntersectionKind};
+use crate::geometry_kind::CurveKind2D;
+use crate::geometry_trait::curve2d::Curve2D;
 
-use crate::model::analysis::consts::EPSILON;
-use crate::model::analysis::numeric::newton_inverse;
-use crate::model::analysis::numeric::sample_intersections;
+use crate::analysis::consts::EPSILON;
+use crate::analysis::sampling2d::sample_intersections;
+use crate::analysis::numeric::newton_arc_length;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipseArc {
@@ -337,13 +337,12 @@ impl Curve2D for EllipseArc {
         self.ellipse.evaluate(angle)
     }
 
-    fn derivative(&self, t: f64) -> Direction {
+    fn derivative(&self, t: f64) -> Vector {
         let angle = self.start_angle + t * self.sweep_angle();
         self.ellipse.tangent(angle)
     }
 
     fn length(&self) -> f64 {
-        use crate::model::analysis::numeric::newton_arc_length;
         newton_arc_length(
             |theta| self.ellipse.evaluate(theta),
             self.start_angle,

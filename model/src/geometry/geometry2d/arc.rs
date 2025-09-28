@@ -1,24 +1,22 @@
 ﻿use std::any::Any;
 
-use crate::model::geometry_trait::{Curve2D, Intersect2D};
-use crate::model::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::model::geometry_kind::CurveKind2D;
+use crate::geometry_trait::{Curve2D, Intersect2D};
+use crate::geometry_common::{IntersectionResult, IntersectionKind};
+use crate::geometry_kind::CurveKind2D;
 
-use crate::model::geometry::geometry2d::{
+use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
     infinite_line::InfiniteLine,
     ray::Ray,
     line::Line,
     circle::Circle,
-    arc::Arc,
     ellipse::Ellipse,
     ellipse_arc::EllipseArc,
 };
 
-use crate::model::analysis::consts::EPSILON;
-use crate::model::analysis::sampling2d::sample_intersections;
-use crate::model::analysis::numeric::newton_inverse;
+use crate::analysis::sampling2d::sample_intersections;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arc {
@@ -353,7 +351,7 @@ impl Curve2D for Arc {
         self.circle.evaluate(angle % std::f64::consts::TAU)
     }
 
-    fn derivative(&self, t: f64) -> Direction {
+    fn derivative(&self, t: f64) -> Vector {
         self.tangent(t)
     }
 

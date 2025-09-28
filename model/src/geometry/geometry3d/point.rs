@@ -1,4 +1,6 @@
 use super::vector::Vector;
+use crate::geometry::geometry3d;
+use crate::geometry_trait::point_ops::PointOps;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
@@ -46,5 +48,19 @@ impl Point {
             y: self.y + v.y(),
             z: self.z + v.z(),
         }
+    }
+}
+
+impl PointOps for geometry3d::point::Point {
+    fn origin() -> Self {
+        Self::new(0.0, 0.0, 0.0)
+    }
+
+    fn add_scaled(&self, other: &Self, scale: f64) -> Self {
+        Self::new(self.x + other.x * scale, self.y + other.y * scale, self.z + other.z * scale)
+    }
+
+    fn div(&self, scalar: f64) -> Self {
+        Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
     }
 }
