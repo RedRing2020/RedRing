@@ -1,20 +1,11 @@
 ﻿use crate::geometry::geometry2d::{
     point::Point,
-    vector::Vector,
     direction::Direction,
-    ray::Ray,
-    line::Line,
-    circle::Circle,
 };
 
-use crate::geometry_common::intersection::{IntersectionResult, IntersectionKind};
-use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::curve2d::Curve2D;
 use crate::geometry_trait::point_ops::PointOps;
 
-use crate::analysis::consts::EPSILON;
-use crate::analysis::sampling2d::sample_intersections;
-use crate::analysis::numeric::newton_inverse;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ellipse {
