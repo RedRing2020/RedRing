@@ -1,6 +1,6 @@
 ﻿use std::any::Any;
 
-use super::{point::Point, direction::Direction, infinite_line::InfiniteLine};
+use super::{point::Point, vector::Vector, direction::Direction, infinite_line::InfiniteLine};
 use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::Curve2D;
 use crate::geometry_common::{IntersectionResult, IntersectionKind};
@@ -16,8 +16,8 @@ pub struct Line {
 impl Line {
     /// 始点と終点から Line を構築
     pub fn new(start: Point, end: Point) -> Self {
-        let dx = end.x - start.x;
-        let dy = end.y - start.y;
+        let dx = end.x() - start.x();
+        let dy = end.y() - start.y();
         let length = (dx * dx + dy * dy).sqrt();
         let direction = Direction::new(dx / length, dy / length);
         let base = InfiniteLine::new(start.clone(), direction);
@@ -25,20 +25,19 @@ impl Line {
     }
 
     /// 始点を返す
-    pub fn start(&self) -> &Point {
-        &self.start
-    }
+    pub fn start(&self) -> Point { self.start }
 
     /// 終点を返す
-    pub fn end(&self) -> &Point {
-        &self.end
-    }
+    pub fn end(&self) -> Point { self.end }
+
+    /// 長さを返す
+    pub fn length(&self) -> f64 { self.length }
 
     /// 中点を返す
     pub fn midpoint(&self) -> Point {
         Point::new(
-            (self.start.x + self.end.x) * 0.5,
-            (self.start.y + self.end.y) * 0.5,
+            (self.start.x() + self.end.x()) * 0.5,
+            (self.start.y() + self.end.y()) * 0.5,
         )
     }
 
@@ -47,8 +46,35 @@ impl Line {
         &self.base
     }
 
+    /// 点が線分上にあるかどうか（誤差 ε を考慮）
+    pub fn contains_point(&self, pt: &Point, epsilon: f64) -> bool { false }
+
+    /// 線分上の最近点を返す
+    fn closest_point(&self, pt: &Point) -> Point {
+        let dx = self.end.x() - self.start.x();
+        let dy = self.end.y() - self.start.y();
+        let len_sq = dx * dx + dy * dy;
+        if len_sq == 0.0 {
+            return self.start;
+        }
+        let t = ((pt.x() - self.start.x()) * dx + (pt.y() - self.start.y()) * dy) / len_sq;
+        let t_clamped = t.clamp(0.0, 1.0);
+        Point::new(
+            self.start.x() + t_clamped * dx,
+            self.start.y() + t_clamped * dy,
+        )
+    }
+
+    /// 点ptから線分への距離
+    pub fn distance_to_point(&self, pt: &Point) -> f64 {
+        let closest = self.closest_point(pt);
+        let dx = pt.x() - closest.x();
+        let dy = pt.y() - closest.y();
+        (dx * dx + dy * dy).sqrt()
+    }
+/*
     /// 他の InfiniteLine との交差判定（語義 + 点 + パラメータ + 誤差）
-    pub fn intersection_with_infinite_line(&self, other: &InfiniteLine, epsilon: f64) -> IntersectionResult {
+    pub fn intersection_with_infinite_line(&self, other: &InfiniteLine, epsilon: f64) -> IntersectionResult<Point> {
         let result = self.to_infinite().intersection_with_infinite_line(other, epsilon);
 
         let pts = result.points
@@ -110,8 +136,37 @@ impl Line {
 
         IntersectionResult::none(epsilon)
     }
-}
 
+    /// 点ptから線分Lineへの距離
+    pub fn distance_to_point(&self, pt: &Point) -> f64 {
+        // 線分のベクトル
+        let dx = self.end.x - self.start.x;
+        let dy = self.end.y - self.start.y;
+
+        // 始点からptへのベクトル
+        let px = pt.x() - self.start.x();
+        let py = pt.y() - self.start.y();
+
+        // 線分上の最近点のパラメータt（0 <= t <= 1）
+        let len_sq = dx * dx + dy * dy;
+        let t = if len_sq == 0.0 {
+            0.0
+        } else {
+            ((px * dx + py * dy) / len_sq).clamp(0.0, 1.0)
+        };
+
+        // 最近点座標
+        let closest_x = self.start.x() + t * dx;
+        let closest_y = self.start.y() + t * dy;
+
+        // ptと最近点の距離
+        let dist_x = pt.x() - closest_x();
+        let dist_y = pt.y() - closest_y();
+        (dist_x * dist_x + dist_y * dist_y).sqrt()
+    }
+*/
+}
+/*
 impl Curve2D for Line {
     fn kind(&self) -> CurveKind2D {
         CurveKind2D::Line
@@ -126,10 +181,11 @@ impl Curve2D for Line {
     }
 
     fn derivative(&self, _t: f64) -> Vector {
-        Vector::new(self.base.direction().x * self.length, self.base.direction().y * self.length)
+        Vector::new(self.base.direction().x() * self.length, self.base.direction().y() * self.length)
     }
 
     fn length(&self) -> f64 {
         self.length
     }
 }
+*/

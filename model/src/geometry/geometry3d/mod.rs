@@ -1,4 +1,4 @@
-pub mod point;
+/*pub mod point;
 pub mod vector;
 pub mod direction;
 pub mod infinite_line;
@@ -23,3 +23,4 @@ pub use ellipse_arc::EllipseArc;
 pub use nurbs_curve::NurbsCurve;
 pub use plane::Plane;
 pub use curve::Curve3;
+*/

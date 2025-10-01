@@ -1,6 +1,7 @@
 ﻿use std::any::Any;
 use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
     line::Line,
     ellipse::Ellipse,
@@ -9,6 +10,8 @@ use crate::geometry::geometry2d::{
 use crate::geometry_common::{IntersectionResult, IntersectionKind};
 use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::curve2d::Curve2D;
+use crate::geometry_trait::point_ops::PointOps;
+use crate::geometry_trait::normalize::Normalize;
 
 use crate::analysis::{consts::EPSILON, sampling2d::sample_intersections};
 
@@ -30,43 +33,44 @@ impl Ray {
 
     pub fn direction(&self) -> &Direction {
         &self.direction
-    }
+    }pub fn contains_point(&self, pt: &Point, epsilon: f64) -> bool { false }
 
-    pub fn normal(&self) -> Direction {
-        self.direction.normal()
-    }
+    pub fn parameter_of(&self, pt: &Point) -> f64 { 0.0 }
 
-    pub fn is_forward(&self, pt: &Point) -> bool {
+    pub fn is_forward(&self, pt: &Point, epsilon: f64) -> bool {
         let v = pt.sub(&self.origin);
-        v.dot(&self.direction.to_vector()) >= -EPSILON
+        v.to_vector().dot(&self.direction.to_vector()) >= -epsilon
     }
+/*
+    pub fn intersection_with_line(&self, line: &Line, epsilon: f64) -> IntersectionResult<Point> {
+        // Rayの方向に十分伸ばした線分を作る
+        let ray_end = self.origin().add(self.direction().to_point());
+        let ray_line = Line::new(self.origin, ray_end);
 
-    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
-        let line_result = line.intersection_with_line(&Line::new(self.origin, self.origin.add(&self.direction.to_vector())));
+        // Line同士の交点を計算
+        let line_result = line.intersection_with_line(&ray_line, epsilon);
+
         if line_result.kind == IntersectionKind::None {
             return IntersectionResult {
                 kind: IntersectionKind::None,
                 points: vec![],
                 parameters: vec![],
-                tolerance_used: EPSILON,
+                tolerance_used: epsilon,
             };
         }
 
         let pt = &line_result.points[0];
-        let v = pt.sub(&self.origin);
-        let dot = v.dot(&self.direction.to_vector());
-
-        if dot < -EPSILON {
-            // 交点が Ray の逆方向にある
+        if !self.is_forward(pt, epsilon) {
+            // 交点がRayの逆方向
             return IntersectionResult {
                 kind: IntersectionKind::None,
                 points: vec![],
                 parameters: vec![],
-                tolerance_used: EPSILON,
+                tolerance_used: epsilon,
             };
         }
 
-        let kind = if dot.abs() < EPSILON {
+        let kind = if (pt.sub(&self.origin).to_vector().dot(&self.direction.to_vector())).abs() < epsilon {
             IntersectionKind::Tangent
         } else {
             IntersectionKind::Point
@@ -76,13 +80,13 @@ impl Ray {
             kind,
             points: vec![*pt],
             parameters: vec![],
-            tolerance_used: EPSILON,
+            tolerance_used: epsilon,
         }
     }
 
     pub fn intersection_with_ellipse(&self, ellipse: &Ellipse, epsilon: f64) -> IntersectionResult<Point> {
         let candidates = sample_intersections(
-            |θ| ellipse.evaluate(θ),
+            |t| ellipse.evaluate(t),
             self,
             360,
             epsilon,
@@ -99,7 +103,7 @@ impl Ray {
             }
         }
 
-        points.dedup_by(|a, b| a.distance_to(b) < epsilon);
+        points.dedup_by(|a, b| *a.distance_to(*b) < epsilon);
         parameters.dedup_by(|a, b| (a - b).abs() < epsilon);
 
         let kind = match points.len() {
@@ -115,8 +119,9 @@ impl Ray {
             tolerance_used: epsilon,
         }
     }
+*/
 }
-
+/*
 impl Curve2D for Ray {
     fn as_any(&self) -> &dyn Any {
         self
@@ -127,14 +132,15 @@ impl Curve2D for Ray {
     }
 
     fn evaluate(&self, t: f64) -> Point {
-        self.origin.add(self.direction.x * t, self.direction.y * t)
+        self.origin.add(self.direction.x() * t, self.direction.y() * t)
     }
 
-    fn derivative(&self, _: f64) -> Direction {
-        self.direction.clone()
+    fn derivative(&self, _: f64) -> Vector {
+        self.direction.to_vector()
     }
 
     fn length(&self) -> f64 {
         f64::INFINITY
     }
 }
+*/

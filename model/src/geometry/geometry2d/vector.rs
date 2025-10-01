@@ -1,5 +1,6 @@
 use std::ops::{Add, Sub, Mul, Neg};
 use crate::geometry::geometry2d;
+use crate::geometry::geometry2d::direction::Direction;
 use crate::geometry_trait::normed::Normed;
 use crate::geometry_trait::normalize::Normalize;
 
@@ -36,6 +37,10 @@ impl Vector {
     /// 方向ベクトルから角度（ラジアン）を取得
     pub fn angle(&self) -> f64 {
         self.y.atan2(self.x)
+    }
+
+    pub fn to_direction(&self) -> Direction {
+        Direction::new(self.x, self.y)
     }
 }
 

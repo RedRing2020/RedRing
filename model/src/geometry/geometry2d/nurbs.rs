@@ -1,12 +1,16 @@
-﻿use crate::geometry_trait::{curve2d::Curve2D, intersect2d::Intersect2D};
-use crate::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::geometry_kind::CurveKind2D;
+﻿use std::any::Any;
 
 use crate::geometry::geometry2d::{
     point::Point,
+    vector::Vector,
     direction::Direction,
     line::Line,
 };
+
+use crate::geometry_trait::{curve2d::Curve2D, /*intersect2d::Intersect2D*/};
+use crate::geometry_common::{IntersectionResult, IntersectionKind};
+use crate::geometry_trait::point_ops::PointOps;
+use crate::geometry_kind::CurveKind2D;
 
 use crate::analysis::consts::EPSILON;
 use crate::analysis::numeric::newton_solve;
@@ -49,6 +53,16 @@ impl NurbsCurve {
         }
     }
 
+    pub fn degree(&self) -> usize { self.degree }
+
+    pub fn control_points(self) -> Vec<Point> { self.control_points }
+
+    pub fn weights(self) -> Vec<f64> { self.weights }
+
+    pub fn knots(self) -> Vec<f64> { self.knots }
+
+    pub fn domain(&self) -> (f64, f64) { self.domain }
+
     pub fn is_rational(&self) -> bool {
         self.is_rational
     }
@@ -57,36 +71,16 @@ impl NurbsCurve {
         self.is_uniform
     }
 
-    pub fn domain(&self) -> (f64, f64) {
-        self.domain
-    }
-
-    pub fn degree(&self) -> usize {
-        self.degree
-    }
-
-    pub fn control_points(&self) -> &[Point] {
-        &self.control_points
-    }
-
-    pub fn weights(&self) -> &[f64] {
-        &self.weights
-    }
-
-    pub fn knots(&self) -> &[f64] {
-        &self.knots
-    }
-
-    pub fn evaluate_derivative(&self, u: f64) -> Direction {
+    pub fn evaluate_derivative(&self, u: f64) -> Vector {
         let n = self.control_points.len() - 1;
         let p = self.degree;
         let span = find_span(n, p, u, &self.knots);
         let N = basis_functions(span, u, p, &self.knots);
         let dN = basis_function_derivatives(span, u, p, &self.knots);
 
-        let mut numerator = Point::origin();
+        let mut numerator = Point::ORIGIN;
         let mut denominator = 0.0;
-        let mut d_numerator = Point::origin();
+        let mut d_numerator = Point::ORIGIN;
         let mut d_denominator = 0.0;
 
         for i in 0..=p {
@@ -108,44 +102,10 @@ impl NurbsCurve {
         let wP = numerator;
 
         let tangent = dwP.sub(&wP.mul(dw / denominator)).div(denominator);
-        Direction::from_vector(tangent)
+        Vector::new(tangent.x(), tangent.y())
     }
-
-    pub fn evaluate_derivative(&self, u: f64) -> Direction {
-        let n = self.control_points.len() - 1;
-        let p = self.degree;
-        let span = find_span(n, p, u, &self.knots);
-        let N = basis_functions(span, u, p, &self.knots);
-        let dN = basis_function_derivatives(span, u, p, &self.knots);
-
-        let mut numerator = Point::origin();
-        let mut denominator = 0.0;
-        let mut d_numerator = Point::origin();
-        let mut d_denominator = 0.0;
-
-        for i in 0..=p {
-            let index = span - p + i;
-            let w = self.weights[index];
-            let cp = self.control_points[index];
-            let Ni = N[i];
-            let dNi = dN[i];
-
-            numerator = numerator.add_scaled(&cp, Ni * w);
-            denominator += Ni * w;
-
-            d_numerator = d_numerator.add_scaled(&cp, dNi * w);
-            d_denominator += dNi * w;
-        }
-
-        let dw = d_denominator;
-        let dwP = d_numerator;
-        let wP = numerator;
-
-        let tangent = dwP.sub(&wP.mul(dw / denominator)).div(denominator);
-        Direction::from_vector(tangent)
-    }
-
-    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult {
+/*
+    pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult<Point> {
         let mut pts = vec![];
         let mut params = vec![];
 
@@ -186,9 +146,14 @@ impl NurbsCurve {
         let proj = line.project_point(&pt);
         pt.sub(&proj).normalize()
     }
+*/
 }
-
+/*
 impl Curve2D for NurbsCurve {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn kind(&self) -> CurveKind2D {
         CurveKind2D::NurbsCurve
     }
@@ -197,4 +162,13 @@ impl Curve2D for NurbsCurve {
         // De Boor の rational 拡張は後続で実装
         todo!("NURBS評価は後続ステップで実装")
     }
+
+    fn derivative(&self, _: f64) -> Vector {
+        todo!("NURBSの導関数は後続ステップで実装")
+    }
+
+    fn length(&self) -> f64 {
+        todo!("NURBSの長さ計算は後続ステップで実装")
+    }
 }
+*/

@@ -1,4 +1,6 @@
-﻿#[derive(Debug, Clone, PartialEq)]
+﻿use crate::geometry::geometry2d::Vector;
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Direction {
     x: f64,
     y: f64,
@@ -40,6 +42,12 @@ impl Direction {
         Self::new(self.y, -self.x)
     }
 
+    /// 方向ベクトルが反時計回り（CCW）か判定
+    pub fn is_ccw(&self) -> bool {
+        // y成分が正ならCCWとみなす（x軸基準）
+        self.y() > 0.0
+    }
+
     /// 他の方向との内積
     pub fn dot(&self, other: &Self) -> f64 {
         self.x * other.x + self.y * other.y
@@ -54,5 +62,15 @@ impl Direction {
     /// 等価判定（将来的に誤差許容付き比較に拡張可能）
     pub fn approx_eq(&self, other: &Self, epsilon: f64) -> bool {
         (self.x - other.x).abs() < epsilon && (self.y - other.y).abs() < epsilon
+    }
+
+    /// Vector型への変換
+    pub fn to_vector(&self) -> Vector {
+        Vector { x: self.x, y: self.y }
+    }
+
+    /// 方向ベクトルを反転
+    pub fn reverse(&self) -> Self {
+        Self::new(-self.x(), -self.y())
     }
 }

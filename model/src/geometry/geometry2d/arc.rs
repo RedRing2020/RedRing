@@ -1,6 +1,6 @@
 ﻿use std::any::Any;
 
-use crate::geometry_trait::{Curve2D, Intersect2D};
+use crate::geometry_trait::{Curve2D, /*Intersect2D*/};
 use crate::geometry_common::{IntersectionResult, IntersectionKind};
 use crate::geometry_kind::CurveKind2D;
 
@@ -55,6 +55,16 @@ impl Arc {
         }
     }
 
+    /// パラメータt（0.0～1.0）に対応する円弧上の点を返す
+    pub fn evaluate(&self, t: f64) -> Point {
+        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
+        let center = self.circle.center();
+        let radius = self.circle.radius();
+        let x = center.x() + radius * angle.cos();
+        let y = center.y() + radius * angle.sin();
+        Point::new(x, y)
+    }
+
     pub fn start_point(&self) -> Point {
         self.evaluate(0.0)
     }
@@ -87,8 +97,8 @@ impl Arc {
         if !self.circle.contains_point(point, epsilon) {
             return false;
         }
-        let dx = point.x - self.center().x;
-        let dy = point.y - self.center().y;
+        let dx = &point.x() - self.center().x();
+        let dy = &point.y() - self.center().y();
         let theta = dy.atan2(dx);
         self.contains_angle(theta, epsilon)
     }
@@ -104,7 +114,7 @@ impl Arc {
         std::mem::swap(&mut self.start_angle, &mut self.end_angle);
         self.circle.reverse_direction();
     }
-
+/*
     pub fn intersection_with_infinite_line(&self, line: &InfiniteLine, epsilon: f64) -> IntersectionResult<Point> {
         let result = self.circle.intersection_with_infinite_line(line, epsilon);
 
@@ -136,8 +146,8 @@ impl Arc {
         }
     }
 
-    pub fn intersection_with_ray(&self, ray: &Ray, epsilon: f64) -> IntersectionResult {
-        let line = Line::new(ray.origin, ray.origin.add(&ray.direction.to_vector()));
+    pub fn intersection_with_ray(&self, ray: &Ray, epsilon: f64) -> IntersectionResult<Point> {
+        let line = Line::new(ray.origin(), ray.origin().add(&ray.direction().to_vector()));
         let candidates = line.intersection_with_circle(&self.circle, epsilon);
         let pts = candidates
             .into_iter()
@@ -334,9 +344,9 @@ impl Arc {
             parameters,
             tolerance_used: epsilon,
         }
-    }
+    } */
 }
-
+/*
 impl Curve2D for Arc {
     fn as_any(&self) -> &dyn Any {
         self
@@ -359,3 +369,4 @@ impl Curve2D for Arc {
         self.sweep_angle() * self.radius()
     }
 }
+ */
