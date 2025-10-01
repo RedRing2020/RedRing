@@ -30,6 +30,13 @@ impl EllipseArc {
         Self { ellipse, start_angle, end_angle }
     }
 
+    pub fn ellipse(&self) -> &Ellipse { &self.ellipse }
+
+    pub fn start_angle(&self) -> &f64 { &self.start_angle }
+
+    pub fn end_angle(&self) -> &f64 { &self.end_angle }
+
+
     pub fn sweep_angle(&self) -> f64 {
         let raw = self.end_angle - self.start_angle;
         if raw >= 0.0 { raw } else { raw + std::f64::consts::TAU }
@@ -71,7 +78,7 @@ impl EllipseArc {
 
         rel >= -EPSILON && rel <= sweep + EPSILON
     }
-
+/*
     pub fn intersection_with_infinite_line(&self, line: &InfiniteLine, epsilon: f64) -> IntersectionResult<Point> {
         let candidates = sample_intersections(
             |t| self.evaluate(t),
@@ -180,7 +187,7 @@ impl EllipseArc {
 
     pub fn intersection_with_circle(&self, circle: &Circle, epsilon: f64) -> IntersectionResult<Point> {
         let candidates = sample_intersections(
-            |θ| circle.evaluate(θ),
+            |t| circle.evaluate(t),
             self,
             360,
             epsilon,
@@ -252,7 +259,7 @@ impl EllipseArc {
 
     pub fn intersection_with_ellipse(&self, ellipse: &Ellipse, epsilon: f64) -> IntersectionResult<Point> {
         let candidates = sample_intersections(
-            |θ| ellipse.evaluate(θ),
+            |t| ellipse.evaluate(t),
             self,
             360,
             epsilon,
@@ -321,8 +328,9 @@ impl EllipseArc {
             tolerance_used: epsilon,
         }
     }
+*/
 }
-
+/*
 impl Curve2D for EllipseArc {
     fn kind(&self) -> CurveKind2D {
         CurveKind2D::EllipseArc
@@ -351,3 +359,4 @@ impl Curve2D for EllipseArc {
         )
     }
 }
+*/

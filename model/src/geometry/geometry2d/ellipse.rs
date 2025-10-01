@@ -10,6 +10,7 @@
 use crate::geometry_common::intersection::{IntersectionResult, IntersectionKind};
 use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::curve2d::Curve2D;
+use crate::geometry_trait::point_ops::PointOps;
 
 use crate::analysis::consts::EPSILON;
 use crate::analysis::sampling2d::sample_intersections;
@@ -33,6 +34,14 @@ impl Ellipse {
         }
     }
 
+    pub fn center(self) -> Point { self.center }
+
+    pub fn major_axis(self) -> Direction { self.major_axis }
+
+    pub fn major_radius(self) -> f64 { self.major_radius }
+
+    pub fn minor_radius(self) -> f64 { self.minor_radius }
+
     /// θ ∈ [0, 2π) における点を評価
     pub fn evaluate(&self, theta: f64) -> Point {
         let cos = theta.cos();
@@ -41,7 +50,7 @@ impl Ellipse {
                - self.major_axis.y() * self.minor_radius * sin;
         let dy = self.major_axis.y() * self.major_radius * cos
                + self.major_axis.x() * self.minor_radius * sin;
-        self.center.add(dx, dy)
+        self.center.add(&Point::new(dx, dy))
     }
 
     /// 接線方向（θにおける微分ベクトル）
@@ -56,9 +65,9 @@ impl Ellipse {
     /// 法線方向（中心から外向き）
     pub fn normal(&self, theta: f64) -> Direction {
         let p = self.evaluate(theta);
-        Direction::new(p.x - self.center.x, p.y - self.center.y)
+        Direction::new(p.x() - self.center.x(), p.y() - self.center.y())
     }
-
+/*
     pub fn intersection_with_ray(&self, ray: &Ray, epsilon: f64) -> IntersectionResult<Point> {
         let candidates = sample_intersections(
             |t| ray.evaluate(t),
@@ -72,9 +81,9 @@ impl Ellipse {
 
         for pt in candidates {
             if self.contains_point(&pt, epsilon) {
-                let θ = self.parameter_of(&pt);
+                let t = self.parameter_of(&pt);
                 points.push(pt);
-                parameters.push(θ);
+                parameters.push(t);
             }
         }
 
@@ -119,7 +128,7 @@ impl Ellipse {
 
     pub fn intersection_with_circle(&self, circle: &Circle, epsilon: f64) -> IntersectionResult<Point> {
         let candidates = sample_intersections(
-            |θ| circle.evaluate(θ),
+            |t| circle.evaluate(t),
             self,
             360,
             epsilon,
@@ -130,9 +139,9 @@ impl Ellipse {
 
         for pt in candidates {
             if self.contains_point(&pt, epsilon) {
-                let θ = self.parameter_of(&pt);
+                let t = self.parameter_of(&pt);
                 points.push(pt);
-                parameters.push(θ);
+                parameters.push(t);
             }
         }
 
@@ -152,8 +161,9 @@ impl Ellipse {
             tolerance_used: epsilon,
         }
     }
+*/
 }
-
+/*
 impl Curve2D for Ellipse {
     fn as_any(&self) -> &dyn std::any::Any {
         self
@@ -181,3 +191,4 @@ impl Curve2D for Ellipse {
         std::f64::consts::PI * (a + b) * (1.0 + (3.0 * h) / (10.0 + (4.0 - 3.0 * h).sqrt()))
     }
 }
+*/

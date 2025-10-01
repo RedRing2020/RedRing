@@ -46,7 +46,7 @@ impl Intersect2D for InfiniteLine {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             CurveKind2D::InfiniteLine => {
@@ -82,7 +82,7 @@ impl Intersect2D for InfiniteLine {
             _ => IntersectionResult::none(epsilon),
         }
     }
-
+ */
     fn contains_point(&self, point: &Point, epsilon: f64) -> bool {
         InfiniteLine::contains_point(self, point, epsilon)
     }
@@ -100,7 +100,7 @@ impl Intersect2D for Ray {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             // InfiniteLineに委譲
@@ -141,7 +141,7 @@ impl Intersect2D for Ray {
 
         IntersectionResult::none(epsilon)
     }
-
+*/
     fn contains_point(&self, pt: &Point, epsilon: f64) -> bool {
         self.contains_point(pt, epsilon)
     }
@@ -164,7 +164,7 @@ impl Intersect2D for Line {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             CurveKind2D::InfiniteLine => {
@@ -204,7 +204,7 @@ impl Intersect2D for Line {
             _ => IntersectionResult::none(epsilon),
         }
     }
-
+ */
     fn contains_point(&self, point: &Point, epsilon: f64) -> bool {
         let on_line = self.to_infinite().contains_point(point, epsilon);
         let d1 = self.start.distance_to(point);
@@ -225,7 +225,7 @@ impl Intersect2D for Circle {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             // InfiniteLineに委譲
@@ -264,7 +264,7 @@ impl Intersect2D for Circle {
             _ => IntersectionResult::none(epsilon),
         }
     }
-
+ */
     fn contains_point(&self, pt: &Point, epsilon: f64) -> bool {
         let d = self.center.distance_to(pt);
         (d - self.radius).abs() < epsilon
@@ -284,7 +284,7 @@ impl Intersect2D for Arc {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             CurveKind2D::InfiniteLine => {
@@ -319,7 +319,7 @@ impl Intersect2D for Arc {
             _ => IntersectionResult::none(epsilon),
         }
     }
-
+ */
     fn contains_point(&self, point: &Point, epsilon: f64) -> bool {
         self.contains_point(point, epsilon)
     }
@@ -342,7 +342,7 @@ impl Intersect2D for Ellipse {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult {
         match other.kind() {
             // InfineteLineに委譲
@@ -380,7 +380,7 @@ impl Intersect2D for Ellipse {
             _ => IntersectionResult::none(epsilon),
         }
     }
-
+ */
     fn contains_point(&self, pt: &Point, epsilon: f64) -> bool {
         self.contains_point(pt, epsilon)
     }
@@ -403,7 +403,7 @@ impl Intersect2D for EllipseArc {
     fn intersection_points(&self, other: &dyn Curve2D, epsilon: f64) -> Vec<Point> {
         self.intersection_result(other, epsilon).points
     }
-
+/*
     fn intersection_result(&self, other: &dyn Curve2D, epsilon: f64) -> IntersectionResult<Point> {
         match other.kind() {
             CurveKind2D::InfiniteLine => {
@@ -438,7 +438,7 @@ impl Intersect2D for EllipseArc {
             _ => IntersectionResult::none(epsilon),
         }
     }
-
+ */
     fn contains_point(&self, pt: &Point, epsilon: f64) -> bool {
         let theta = self.ellipse.angle_of(pt);
         if !self.contains_angle(theta) {
@@ -487,7 +487,7 @@ impl Intersect2D for NurbsCurve {
 
     fn distance_to_point(&self, pt: &Point) -> f64 {
         let initial = 0.5 * (self.domain.0 + self.domain.1);
-        if let Some(p) = newton_project(|u| self.evaluate(u), pt, initial, EPSILON) {
+        if let Some(p) = newton_solve(|u| self.evaluate(u), pt, initial, EPSILON) {
             p.distance_to(pt)
         } else {
             f64::INFINITY

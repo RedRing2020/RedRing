@@ -9,6 +9,7 @@ use crate::geometry_common::IntersectionResult;
 
 use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::curve2d::Curve2D;
+use crate::geometry_trait::point_ops::PointOps;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct InfiniteLine {
@@ -30,27 +31,28 @@ impl InfiniteLine {
     }
 
     pub fn evaluate(&self, t: f64) -> Point {
-        self.origin.add(self.direction.x * t, self.direction.y * t)
+        let offset = Point::new(self.direction.x() * t, self.direction.y() * t);
+        self.origin.add(&offset)
     }
 
     pub fn distance_to_point(&self, point: &Point) -> f64 {
-        let v = [point.x - self.origin.x, point.y - self.origin.y];
+        let v = [point.x() - self.origin.x(), point.y() - self.origin.y()];
         let normal = self.direction.right_hand_normal();
-        let dot = v[0] * normal.x + v[1] * normal.y;
+        let dot = v[0] * normal.x() + v[1] * normal.y();
         dot.abs()
     }
 
     pub fn contains_point(&self, point: &Point, epsilon: f64) -> bool {
-        let v = [point.x - self.origin.x, point.y - self.origin.y];
-        let cross = v[0] * self.direction.y - v[1] * self.direction.x;
+        let v = [point.x() - self.origin.x(), point.y() - self.origin.y()];
+        let cross = v[0] * self.direction.y() - v[1] * self.direction.x();
         cross.abs() < epsilon
     }
-
+/*
     pub fn intersection_with_infinite_line(&self, other: &InfiniteLine, epsilon: f64) -> IntersectionResult<Point> {
         let dx = other.origin.x - self.origin.x;
         let dy = other.origin.y - self.origin.y;
 
-        let det = self.direction.x * other.direction.y - self.direction.y * other.direction.x;
+        let det = self.direction.x() * other.direction.y() - self.direction.y() * other.direction.x();
 
         if det.abs() < epsilon {
             if self.contains_point(&other.origin, epsilon) {
@@ -60,7 +62,7 @@ impl InfiniteLine {
             }
         }
 
-        let t = (dx * other.direction.y - dy * other.direction.x) / det;
+        let t = (dx * other.direction.y() - dy * other.direction.x()) / det;
         let pt = self.evaluate(t);
 
         IntersectionResult::point(pt, t, epsilon)
@@ -78,8 +80,9 @@ impl InfiniteLine {
             result
         }
     }
+*/
 }
-
+/*
 impl Curve2D for InfiniteLine {
     fn as_any(&self) -> &dyn Any {
         self
@@ -94,10 +97,11 @@ impl Curve2D for InfiniteLine {
     }
 
     fn derivative(&self, _: f64) -> Vector {
-        self.direction.clone()
+        self.direction.to_vector()
     }
 
     fn length(&self) -> f64 {
         f64::INFINITY // 無限長
     }
 }
+*/

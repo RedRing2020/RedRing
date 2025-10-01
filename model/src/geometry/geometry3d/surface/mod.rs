@@ -1,4 +1,4 @@
-pub mod sphere;
+/*pub mod sphere;
 pub mod cone;
 pub mod cylinder;
 pub mod ellipsoid;
@@ -13,3 +13,4 @@ pub use ellipsoid::Ellipsoid;
 pub use torus::Torus;
 pub use nurbs_surface::NurbsSurface;
 pub use surface_trait::Surface;
+*/
