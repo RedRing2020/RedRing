@@ -7,7 +7,12 @@ pub struct Direction(Vector);
 
 impl Direction {
     pub fn from_vector(v: Vector) -> Option<Self> {
-        v.normalize().map(Direction)
+        let len = v.norm();
+        if len == 0.0 {
+            None
+        } else {
+            Some(Direction(v.normalize()))
+        }
     }
 
     pub fn as_vector(&self) -> Vector {
