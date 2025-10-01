@@ -1,5 +1,4 @@
 ﻿
-use crate::geometry_trait::{Curve2D, /*Intersect2D*/};
 
 use crate::geometry::geometry2d::{
     point::Point,

@@ -3,7 +3,6 @@
     direction::Direction,
 };
 
-use crate::geometry_trait::curve2d::Curve2D;
 use crate::geometry_trait::point_ops::PointOps;
 
 
