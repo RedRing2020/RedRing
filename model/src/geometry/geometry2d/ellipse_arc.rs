@@ -3,8 +3,6 @@
     ellipse::Ellipse,
 };
 
-use crate::geometry_trait::curve2d::Curve2D;
-
 use crate::analysis::consts::EPSILON;
 
 #[derive(Debug, Clone, PartialEq)]

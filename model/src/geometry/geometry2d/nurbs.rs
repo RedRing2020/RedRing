@@ -4,7 +4,6 @@ use crate::geometry::geometry2d::{
     vector::Vector,
 };
 
-use crate::geometry_trait::{curve2d::Curve2D, /*intersect2d::Intersect2D*/};
 use crate::geometry_trait::point_ops::PointOps;
 
 use crate::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};

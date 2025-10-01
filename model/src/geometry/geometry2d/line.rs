@@ -1,6 +1,5 @@
 ﻿
 use super::{point::Point, direction::Direction, infinite_line::InfiniteLine};
-use crate::geometry_trait::Curve2D;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Line {
