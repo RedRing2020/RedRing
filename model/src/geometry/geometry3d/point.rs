@@ -1,3 +1,4 @@
+use std::ops::{Add, Sub};
 use super::vector::Vector;
 use crate::geometry::geometry3d;
 use crate::geometry_trait::point_ops::PointOps;
@@ -56,11 +57,35 @@ impl PointOps for geometry3d::point::Point {
         Self::new(0.0, 0.0, 0.0)
     }
 
-    fn add_scaled(&self, other: &Self, scale: f64) -> Self {
-        Self::new(self.x + other.x * scale, self.y + other.y * scale, self.z + other.z * scale)
+    fn add(&self, other: &Self) -> Self {
+        Self::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    }
+    fn sub(&self, other: &Self) -> Self {
+        Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
+    }
+    fn mul(&self, scalar: f64) -> Self {
+        Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
     }
 
     fn div(&self, scalar: f64) -> Self {
         Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
+    }
+
+    fn add_scaled(&self, other: &Self, scale: f64) -> Self {
+        Self::new(self.x + other.x * scale, self.y + other.y * scale, self.z + other.z * scale)
+    }
+}
+
+impl Add<Vector> for Point {
+    type Output = Point;
+    fn add(self, rhs: Vector) -> Point {
+        Point::new(self.x + rhs.x(), self.y + rhs.y(), self.z + rhs.z())
+    }
+}
+
+impl Sub for Point {
+    type Output = Vector;
+    fn sub(self, rhs: Point) -> Vector {
+        Vector::new(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
     }
 }

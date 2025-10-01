@@ -19,7 +19,7 @@ pub enum CurveKind2D {
     Ellipse,
     /// 楕円弧
     EllipseArc,
-    /// 非均一有理 B スプライン
+    /// NURBS曲線
     NurbsCurve,
     /// 未分類・不明な曲線
     Unknown,

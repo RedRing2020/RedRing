@@ -1,5 +1,6 @@
 use std::ops::{Add, Sub, Mul, Neg};
 use crate::geometry::geometry3d;
+use crate::geometry::geometry3d::point::Point;
 use crate::geometry_trait::normed::Normed;
 use crate::geometry_trait::normalize::Normalize;
 
@@ -43,6 +44,10 @@ impl Vector {
             y: self.y * factor,
             z: self.z * factor,
         }
+    }
+
+    pub fn between(a: &Point, b: &Point) -> Self {
+        Self::new(b.x() - a.x(), b.y() - a.y(), b.z() - a.z())
     }
 }
 
