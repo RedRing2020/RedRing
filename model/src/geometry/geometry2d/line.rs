@@ -1,9 +1,6 @@
-﻿use std::any::Any;
-
-use super::{point::Point, vector::Vector, direction::Direction, infinite_line::InfiniteLine};
-use crate::geometry_kind::CurveKind2D;
+﻿
+use super::{point::Point, direction::Direction, infinite_line::InfiniteLine};
 use crate::geometry_trait::Curve2D;
-use crate::geometry_common::{IntersectionResult, IntersectionKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Line {
