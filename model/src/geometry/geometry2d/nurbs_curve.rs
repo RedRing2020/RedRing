@@ -148,7 +148,7 @@ impl NurbsCurve {
     }
 */
 }
-/*
+
 impl Curve2D for NurbsCurve {
     fn as_any(&self) -> &dyn Any {
         self
@@ -171,4 +171,3 @@ impl Curve2D for NurbsCurve {
         todo!("NURBSの長さ計算は後続ステップで実装")
     }
 }
-*/
