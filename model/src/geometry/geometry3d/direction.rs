@@ -6,17 +6,44 @@ use super::vector::Vector;
 pub struct Direction(Vector);
 
 impl Direction {
+    /// Create a Direction from a Vector. Returns None if the vector is zero or near-zero.
     pub fn from_vector(v: Vector) -> Option<Self> {
-        v.normalize().map(Direction)
-    }
-
-    pub fn normalize(&self) -> Option<Self> {
-        let len = self.length();
-        if len > 0.0 {
-            Some(Self::new(self.x() / len, self.y() / len, self.z() / len))
+        let normalized = v.normalize();
+        if normalized.norm() > 1e-10 {
+            Some(Direction(normalized))
         } else {
             None
         }
+    }
+
+    /// Create a new Direction from components. Returns None if the vector is zero or near-zero.
+    pub fn new(x: f64, y: f64, z: f64) -> Option<Self> {
+        Self::from_vector(Vector::new(x, y, z))
+    }
+
+    /// Get the x component of the direction
+    pub fn x(&self) -> f64 {
+        self.0.x()
+    }
+
+    /// Get the y component of the direction
+    pub fn y(&self) -> f64 {
+        self.0.y()
+    }
+
+    /// Get the z component of the direction
+    pub fn z(&self) -> f64 {
+        self.0.z()
+    }
+
+    /// Get the length (norm) of the direction vector (should be ~1.0)
+    pub fn length(&self) -> f64 {
+        self.0.norm()
+    }
+
+    /// Normalize the direction (should already be normalized, but ensures it)
+    pub fn normalize(&self) -> Option<Self> {
+        Self::from_vector(self.0)
     }
 
     pub fn as_vector(&self) -> Vector {
