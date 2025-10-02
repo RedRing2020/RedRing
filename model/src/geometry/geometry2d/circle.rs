@@ -1,21 +1,11 @@
-﻿use std::any::Any;
-
-use crate::geometry_trait::{Curve2D, /*Intersect2D*/};
-use crate::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::geometry_kind::CurveKind2D;
+﻿
 
 use crate::geometry::geometry2d::{
     point::Point,
     vector::Vector,
     direction::Direction,
-    infinite_line::InfiniteLine,
-    line::Line,
-    arc::Arc,
-    ellipse::Ellipse,
 };
 
-use crate::analysis::consts::EPSILON;
-use crate::analysis::sampling2d::sample_intersections;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circle {

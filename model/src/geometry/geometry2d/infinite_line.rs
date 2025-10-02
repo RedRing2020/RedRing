@@ -1,14 +1,8 @@
-﻿use std::any::Any;
-use crate::geometry::geometry2d::{
+﻿use crate::geometry::geometry2d::{
     point::Point,
-    vector::Vector,
     direction::Direction,
-    line::Line,
 };
-use crate::geometry_common::IntersectionResult;
 
-use crate::geometry_kind::CurveKind2D;
-use crate::geometry_trait::curve2d::Curve2D;
 use crate::geometry_trait::point_ops::PointOps;
 
 #[derive(Debug, Clone, PartialEq)]
