@@ -22,6 +22,13 @@ RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームで
 - **シェーダローダー**: `shader.rs` で `include_str!` を使ったコンパイル時埋め込み
 - **レンダリングパイプライン**: `render_2d.rs`, `render_3d.rs`, `wireframe.rs` で用途別に分離
 
+## シーン管理 (`stage/`)
+
+- **RenderStage トレイト**: すべてのステージが実装する共通インターフェース
+- **ステージ種別**: `DraftStage` (2D描画), `OutlineStage` (ワイヤフレーム), `ShadingStage` (3Dシェーディング)
+- **切り替え機構**: `AppState::set_stage_*()` でステージを動的に変更
+- **例**: `stage/src/draft.rs` で `RenderStage` トレイトを実装し、`render()` と `update()` を定義
+
 ## 開発ワークフロー
 
 ```powershell
@@ -46,8 +53,27 @@ mdbook build  # manual/ -> docs/ に生成
 - **モジュール公開**: 各クレートの `lib.rs` で `pub use` によるフラットな公開 API
 - **WGSL 統合**: シェーダファイルは独立管理、Rust から `include_str!` で参照
 
+## ViewModel パターン (`viewmodel/`)
+
+- **現在のステータス**: プレースホルダーとして存在、本格実装は未着手
+- **今後の役割**: カメラ制御、ビュー変換、ユーザー入力の変換などを担当予定
+
+## プロジェクトの現状と制約
+
+- **実装済み**: 描画基盤 (wgpu/winit)、基本的な幾何要素、ステージ切り替え機構
+- **未実装**: NURBS、プリミティブ形状、CAM パス生成、切削シミュレーション
+- **WebAssembly 対応**: 依存関係に記載はあるが、本格対応は今後の開発予定
+- **ビルド状態**: `model` クレートに未実装トレイトメソッドによるコンパイルエラーあり（開発途上）
+
+## テスト戦略
+
+- **個別クレートテスト**: `cargo test -p <crate_name>` で各クレート単位でテスト
+- **現状**: 基本的なプレースホルダーテスト（`viewmodel` など）のみ存在
+- **推奨**: 幾何演算の正確性検証、GPU リソース管理の妥当性検証を今後追加
+
 ## デバッグ・開発支援
 
 - `tracing` + `tracing-subscriber` をワークスペース共通依存として使用
 - 進捗・設計詳細は GitHub Issues/Projects で管理
 - ドキュメントは `manual/` (mdbook) で技術詳細を記録
+- ビルドエラーは開発途上の状態を反映（未実装機能による警告・エラーは既知の課題）
