@@ -8,7 +8,7 @@ pub mod circle;
 pub mod arc;
 pub mod ellipse;
 pub mod ellipse_arc;
-pub mod nurbs_curve;
+pub mod nurbs;
 
 pub use point::Point;
 pub use vector::Vector;
@@ -20,4 +20,3 @@ pub use circle::Circle;
 pub use arc::Arc;
 pub use ellipse::Ellipse;
 pub use ellipse_arc::EllipseArc;
-pub use nurbs_curve::NurbsCurve;

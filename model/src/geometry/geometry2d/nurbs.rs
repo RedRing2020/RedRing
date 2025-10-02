@@ -1,10 +1,13 @@
 ﻿
+use std::any::Any;
 use crate::geometry::geometry2d::{
     point::Point,
     vector::Vector,
 };
 
+use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::point_ops::PointOps;
+use crate::geometry_trait::Curve2D;
 
 use crate::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
 
