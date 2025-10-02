@@ -1,19 +1,10 @@
-﻿use std::any::Any;
-use crate::geometry::geometry2d::{
+﻿use crate::geometry::geometry2d::{
     point::Point,
-    vector::Vector,
     direction::Direction,
-    line::Line,
-    ellipse::Ellipse,
 };
 
-use crate::geometry_common::{IntersectionResult, IntersectionKind};
-use crate::geometry_kind::CurveKind2D;
-use crate::geometry_trait::curve2d::Curve2D;
 use crate::geometry_trait::point_ops::PointOps;
-use crate::geometry_trait::normalize::Normalize;
 
-use crate::analysis::{consts::EPSILON, sampling2d::sample_intersections};
 
 
 #[derive(Debug, Clone, PartialEq)]
