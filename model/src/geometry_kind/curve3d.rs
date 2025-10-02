@@ -4,12 +4,17 @@
 //! 実装との整合性、語義的明快さ、将来的な拡張性を考慮。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurveKind3D {
+    InfiniteLine,
+    Ray,
     Line,
     Circle,
     Arc,
     Ellipse,
-    EllipticArc,
+    EllipseArc,
     NurbsCurve,
+    Helix,
+    Parabola,
+    Hyperbola,
     CompositeCurve,
     TrimmedCurve,
     Unknown,
