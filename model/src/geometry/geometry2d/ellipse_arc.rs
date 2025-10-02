@@ -1,22 +1,9 @@
 ﻿use crate::geometry::geometry2d::{
     point::Point,
-    vector::Vector,
-    direction::Direction,
-    infinite_line::InfiniteLine,
-    ray::Ray,
-    line::Line,
-    circle::Circle,
-    arc::Arc,
     ellipse::Ellipse,
 };
 
-use crate::geometry_common::intersection::{IntersectionResult, IntersectionKind};
-use crate::geometry_kind::CurveKind2D;
-use crate::geometry_trait::curve2d::Curve2D;
-
 use crate::analysis::consts::EPSILON;
-use crate::analysis::sampling2d::sample_intersections;
-use crate::analysis::numeric::newton_arc_length;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipseArc {

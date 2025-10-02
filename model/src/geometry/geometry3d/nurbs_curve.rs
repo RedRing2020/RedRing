@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use super::{point::Point, vector::Vector};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;

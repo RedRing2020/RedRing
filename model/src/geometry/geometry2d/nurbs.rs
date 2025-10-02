@@ -1,19 +1,11 @@
-﻿use std::any::Any;
-
+﻿
 use crate::geometry::geometry2d::{
     point::Point,
     vector::Vector,
-    direction::Direction,
-    line::Line,
 };
 
-use crate::geometry_trait::{curve2d::Curve2D, /*intersect2d::Intersect2D*/};
-use crate::geometry_common::{IntersectionResult, IntersectionKind};
 use crate::geometry_trait::point_ops::PointOps;
-use crate::geometry_kind::CurveKind2D;
 
-use crate::analysis::consts::EPSILON;
-use crate::analysis::numeric::newton_solve;
 use crate::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
 
 #[derive(Debug, Clone, PartialEq)]
