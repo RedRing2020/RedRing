@@ -6,6 +6,10 @@ use super::vector::Vector;
 pub struct Direction(Vector);
 
 impl Direction {
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Direction(Vector::new(x, y, z))
+    }
+
     pub fn from_vector(v: Vector) -> Option<Self> {
         let len = v.norm();
         if len == 0.0 {
@@ -13,6 +17,22 @@ impl Direction {
         } else {
             Some(Direction(v.normalize()))
         }
+    }
+
+    pub fn x(&self) -> f64 {
+        self.0.x()
+    }
+
+    pub fn y(&self) -> f64 {
+        self.0.y()
+    }
+
+    pub fn z(&self) -> f64 {
+        self.0.z()
+    }
+
+    pub fn length(&self) -> f64 {
+        self.0.norm()
     }
 
     pub fn normalize(&self) -> Option<Self> {
