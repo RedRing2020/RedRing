@@ -107,6 +107,15 @@ pub trait RenderStage {
 - `ShadingStage`: 3D描画（将来的にカメラ制御追加予定）
 - `OutlineStage`: アウトライン描画
 
+## シーン管理システム (`stage/`)
+
+- **RenderStage トレイト**: 各描画ステージの統一インターフェース（`render()` + `update()`）
+- **実装例**:
+  - `OutlineStage`: ワイヤーフレーム描画（編集時のエッジ表示用）
+  - `DraftStage`: 2D プレビュー描画（アニメーション更新機能付き）
+  - `ShadingStage`: 3D シェーディング描画（将来的にカメラ制御を追加予定）
+- **パターン**: 各ステージは独自の `resources` を保持し、`update()` でフレーム毎の状態更新を実装
+
 ## 開発ワークフロー
 
 ### ビルドとテスト
@@ -137,6 +146,12 @@ mdbook build  # manual/ -> docs/ に出力
 # src = "manual"
 # build-dir = "docs"
 ```
+
+### 現在の状態と制約
+
+- **ビルドエラー**: `model` クレートに未実装トレイトメソッドあり（開発中）
+- **テスト**: 現在は `viewmodel/src/lib.rs` のみに基本テストあり
+- **WebAssembly**: 将来対応予定（README記載）だが、現状は native のみ
 
 ## 重要な設計原則
 
