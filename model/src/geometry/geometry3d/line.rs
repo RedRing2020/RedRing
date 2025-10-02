@@ -60,7 +60,19 @@ impl Line {
 }
 
 impl Curve3D for Line {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn evaluate(&self, t: f64) -> Point {
+        self.start + (self.end - self.start) * t
+    }
+    fn derivative(&self, _t: f64) -> Vector {
+        self.end - self.start
+    }
     fn kind(&self) -> CurveKind3D {
         CurveKind3D::Line
+    }
+    fn length(&self) -> f64 {
+        self.start.distance_to(&self.end)
     }
 }

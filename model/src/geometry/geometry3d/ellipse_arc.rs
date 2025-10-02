@@ -1,3 +1,4 @@
+use crate::analysis::numeric::newton_arc_length;
 use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
@@ -24,7 +25,7 @@ impl EllipseArc {
         end_angle: f64,
     ) -> Option<Self> {
         let epsilon = 1e-10;
-        if major_axis.dot(minor_axis).abs() > epsilon {
+        if major_axis.dot(&minor_axis).abs() > epsilon {
             return None; // 軸が直交していない
         }
         if end_angle <= start_angle {
@@ -51,6 +52,10 @@ impl EllipseArc {
 }
 
 impl Curve3D for EllipseArc {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     fn evaluate(&self, t: f64) -> Point {
         let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
         let x = self.major_radius * angle.cos();
@@ -67,6 +72,26 @@ impl Curve3D for EllipseArc {
     }
 
     fn kind(&self) -> CurveKind3D {
-        CurveKind3D::EllipticArc
+        CurveKind3D::EllipseArc
+    }
+
+    /// 3D楕円弧の長さを数値積分で近似
+    fn length(&self) -> f64 {
+        let major = self.major_axis;
+        let minor = self.minor_axis;
+        let a = self.major_radius;
+        let b = self.minor_radius;
+        let start = self.start_angle;
+        let end = self.end_angle;
+        let steps = 360; // 内部変数として分割数を固定
+
+        // 速度ベクトル関数
+        let evaluate = |theta: f64| {
+            let dx = -a * theta.sin();
+            let dy =  b * theta.cos();
+            major * dx + minor * dy
+        };
+
+        newton_arc_length(evaluate, start, end, steps)
     }
 }
