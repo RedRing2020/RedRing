@@ -1,5 +1,5 @@
 /// Phase 1: 最小限のアダプター実装
-/// 
+///
 /// まずは基本的なLineSegment3Dアダプターのみを実装し、
 /// 既存のCurve3D traitとの互換性を確保
 
@@ -61,7 +61,7 @@ impl SimpleAdaptedLine {
     pub fn new(start: Point, end: Point) -> Self {
         let geo_start = TypeConverter::point_to_geo(&start);
         let geo_end = TypeConverter::point_to_geo(&end);
-        
+
         Self {
             inner: GeoLineSegment3D::new(geo_start, geo_end),
             tolerance: ToleranceContext::standard(),
@@ -116,12 +116,12 @@ impl Curve3D for SimpleAdaptedLine {
         let end = self.end();
         let line_vec = Vector::new(end.x() - start.x(), end.y() - start.y(), end.z() - start.z());
         let point_vec = Vector::new(pt.x() - start.x(), pt.y() - start.y(), pt.z() - start.z());
-        
+
         let line_length_sq = line_vec.dot(&line_vec);
         if line_length_sq < 1e-12 {
             return 0.0;
         }
-        
+
         let t = point_vec.dot(&line_vec) / line_length_sq;
         t.clamp(0.0, 1.0)
     }
@@ -152,7 +152,7 @@ mod tests {
 
         // Curve3D trait のテスト
         assert_eq!(line.kind(), CurveKind3D::Line);
-        
+
         let mid_point = line.evaluate(0.5);
         assert!((mid_point.x() - 0.5).abs() < 1e-10);
         assert!((mid_point.y() - 0.0).abs() < 1e-10);

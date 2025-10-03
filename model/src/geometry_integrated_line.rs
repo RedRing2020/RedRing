@@ -1,5 +1,5 @@
 /// 階層統合設計によるLine統合実装例
-/// 
+///
 /// geo_coreのLineSegment3Dを数値計算基盤として内包し、
 /// modelのCAD概念（無限直線、トリミング）を保持する設計
 
@@ -94,7 +94,7 @@ impl IntegratedLine {
     pub fn from_points(start: Point3D, end: Point3D) -> Self {
         let geo_start = start.as_geo_core().clone();
         let geo_end = end.as_geo_core().clone();
-        
+
         Self {
             core_segment: GeoLineSegment3D::new(geo_start, geo_end),
             trimming_info: TrimmingInfo::new_untrimmed(),
@@ -110,15 +110,15 @@ impl IntegratedLine {
     ) -> Self {
         let start = infinite_line.at(parameter_start);
         let end = infinite_line.at(parameter_end);
-        
+
         let geo_start = start.as_geo_core().clone();
         let geo_end = end.as_geo_core().clone();
-        
+
         Self {
             core_segment: GeoLineSegment3D::new(geo_start, geo_end),
             trimming_info: TrimmingInfo::new_trimmed(
-                parameter_start, 
-                parameter_end, 
+                parameter_start,
+                parameter_end,
                 infinite_line
             ),
             tolerance: ToleranceContext::standard(),
@@ -133,11 +133,11 @@ impl IntegratedLine {
         end: Point3D
     ) -> Self {
         let infinite_line = InfiniteLineInfo::new(origin, direction);
-        
+
         // 無限直線上でのstart/endパラメータを計算
         let start_param = Self::calculate_parameter_on_infinite_line(&infinite_line, &start);
         let end_param = Self::calculate_parameter_on_infinite_line(&infinite_line, &end);
-        
+
         Self::from_infinite_line_trimmed(infinite_line, start_param, end_param)
     }
 
@@ -152,7 +152,7 @@ impl IntegratedLine {
             point.z() - infinite_line.origin().z()
         );
         let direction_vec = infinite_line.direction().to_vector();
-        
+
         // 方向ベクトルとの内積でパラメータを求める
         origin_to_point.dot(&direction_vec) / direction_vec.dot(&direction_vec)
     }
@@ -178,7 +178,7 @@ impl IntegratedLine {
         if let Some(infinite_line) = self.trimming_info.infinite_line() {
             let segment_direction = self.direction().normalize();
             let infinite_direction = infinite_line.direction().to_vector().normalize();
-            
+
             // 許容誤差内での方向一致判定
             let dot_product = segment_direction.dot(&infinite_direction).abs();
             (dot_product - 1.0).abs() < self.tolerance.angular
@@ -270,7 +270,7 @@ mod tests {
 
         assert_eq!(line.kind(), CurveKind3D::Line);
         assert!((line.length() - 1.0).abs() < 1e-10);
-        
+
         let mid_point = line.evaluate(0.5);
         assert!((mid_point.x() - 0.5).abs() < 1e-10);
     }
@@ -283,10 +283,10 @@ mod tests {
         let end = Point3D::new(5.0, 0.0, 0.0);
 
         let line = IntegratedLine::from_model_line(origin, direction, start, end);
-        
+
         assert!(line.trimming_info().is_trimmed());
         assert!(line.is_aligned());
-        
+
         let (param_start, param_end) = line.trimming_info().parameter_range();
         assert!((param_start - 2.0).abs() < 1e-10);
         assert!((param_end - 5.0).abs() < 1e-10);
