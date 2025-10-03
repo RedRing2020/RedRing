@@ -3,6 +3,9 @@
 /// geo_core数学基礎処理を利用して、点・線分・円・平面・
 /// 多角形・三角形メッシュ等のプリミティブ形状を定義して分類分けを行う
 
+/// 幾何計算ユーティリティ
+pub mod geometry_utils;
+
 /// 3Dバウンディングボックス
 #[derive(Debug, Clone)]
 pub struct BoundingBox {
@@ -52,43 +55,49 @@ pub trait GeometricPrimitive {
 pub mod classification;
 pub use classification::{PrimitiveKind, GeometryClassification, ComplexityLevel};
 
-// CAD統合層（model からの移植）
-pub mod cad_primitives;
-pub use cad_primitives::{CadPoint, CadVector, CadDirection};
+// CAD統合層（model からの移植）- 構造体別ファイル分割
+pub mod cad_point;
+pub use cad_point::CadPoint;
 
-pub mod cad_shapes;
-pub use cad_shapes::{CadCircle, CadEllipse, CadEllipseArc};
+pub mod cad_vector;
+pub use cad_vector::CadVector;
 
-// 2Dプリミティブ
-pub mod point;
-pub use point::{Point2D, Point3D};
+pub mod cad_direction;
+pub use cad_direction::CadDirection;
 
-pub mod line;
-pub use line::{LineSegment2D, LineSegment3D};
+pub mod cad_circle;
+pub use cad_circle::CadCircle;
 
-pub mod circle;
-pub use circle::{Circle2D, Circle3D};
+pub mod cad_ellipse;
+pub use cad_ellipse::CadEllipse;
+
+pub mod cad_ellipse_arc;
+pub use cad_ellipse_arc::CadEllipseArc;
+
+// 2Dプリミティブ（削除済み - geo_coreの基本構造体を使用）
 
 pub mod triangle;
 pub use triangle::{Triangle2D, Triangle3D};
 
 // 3Dプリミティブ
 pub mod plane;
-pub use plane::Plane3D;
+pub use plane::Plane;
 
 pub mod polygon;
 pub use polygon::{Polygon2D, Polygon3D};
 
 pub mod mesh;
-pub use mesh::{TriangleMesh3D, VertexIndex, Face};
+pub use mesh::TriangleMesh;
 
 // 名前空間の整理
 pub mod primitives_2d {
-    pub use crate::{Point2D, LineSegment2D, Circle2D, Triangle2D, Polygon2D};
+    pub use geo_core::{Point2D, LineSegment2D};
+    pub use crate::{Triangle2D, Polygon2D};
 }
 
 pub mod primitives_3d {
-    pub use crate::{Point3D, LineSegment3D, Circle3D, Triangle3D, Plane3D, Polygon3D, TriangleMesh3D};
+    pub use geo_core::{Point3D, Sphere};
+    pub use crate::{Triangle3D, Plane, Polygon3D, TriangleMesh};
 }
 
 /// 便利な再エクスポート
@@ -99,13 +108,10 @@ pub mod prelude {
         CadPoint, CadVector, CadDirection,
         CadCircle, CadEllipse, CadEllipseArc,
         // 2D/3Dプリミティブ
-        Point2D, Point3D,
-        LineSegment2D, LineSegment3D,
-        Circle2D, Circle3D,
         Triangle2D, Triangle3D,
-        Plane3D,
+        Plane,
         Polygon2D, Polygon3D,
-        TriangleMesh3D, VertexIndex, Face,
+        TriangleMesh,
     };
 }
 

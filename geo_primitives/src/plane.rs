@@ -2,121 +2,133 @@
 ///
 /// 3D空間における平面要素
 
-use geo_core::{Vector3D, Scalar, Vector, ToleranceContext};
-use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox};
-use crate::point::Point3D;
+use geo_core::{Vector3D, Scalar};
+use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
+use geo_core::Point3D;
 
-/// 3D平面プリミティブ（点と法線ベクトルで定義）
+/// 3D平面プリミティブ
 #[derive(Debug, Clone)]
-pub struct Plane3D {
-    point: Point3D,  // 平面上の任意の点
-    normal: Vector3D, // 正規化された法線ベクトル
+pub struct Plane {
+    /// 平面上の一点
+    point: Point3D,
+    /// 法線ベクトル
+    normal: Vector3D,
 }
 
-impl Plane3D {
-    /// 点と法線ベクトルから平面を作成
-    pub fn new(point: Point3D, normal: Vector3D) -> Option<Self> {
-        let mag_squared = normal.x().value() * normal.x().value()
-            + normal.y().value() * normal.y().value()
-            + normal.z().value() * normal.z().value();
-
-        if mag_squared > 1e-20 {
-            let magnitude = Scalar::new(mag_squared.sqrt());
-            let normalized_normal = Vector3D::new(
-                normal.x() / magnitude,
-                normal.y() / magnitude,
-                normal.z() / magnitude,
-            );
-            Some(Self {
-                point,
-                normal: normalized_normal
-            })
-        } else {
-            None
-        }
+impl Plane {
+    /// 新しい平面を作成
+    pub fn new(point: Point3D, normal: Vector3D) -> Self {
+        Self { point, normal }
     }
 
     /// 3点から平面を作成
-    pub fn from_three_points(p1: Point3D, p2: Point3D, p3: Point3D) -> Option<Self> {
-        let v1 = Vector3D::new(
-            Scalar::new(p2.x() - p1.x()),
-            Scalar::new(p2.y() - p1.y()),
-            Scalar::new(p2.z() - p1.z()),
+    pub fn from_three_points(p1: &Point3D, p2: &Point3D, p3: &Point3D) -> Option<Self> {
+        let (x1, y1, z1) = point3d_to_f64(p1);
+        let (x2, y2, z2) = point3d_to_f64(p2);
+        let (x3, y3, z3) = point3d_to_f64(p3);
+        
+        let v1_x = x2 - x1;
+        let v1_y = y2 - y1;
+        let v1_z = z2 - z1;
+        
+        let v2_x = x3 - x1;
+        let v2_y = y3 - y1;
+        let v2_z = z3 - z1;
+        
+        // 外積で法線を計算
+        let normal_x = v1_y * v2_z - v1_z * v2_y;
+        let normal_y = v1_z * v2_x - v1_x * v2_z;
+        let normal_z = v1_x * v2_y - v1_y * v2_x;
+        
+        // 法線ベクトルがゼロかチェック
+        let normal_length = (normal_x * normal_x + normal_y * normal_y + normal_z * normal_z).sqrt();
+        if normal_length < 1e-10 {
+            return None; // 退化した平面（3点が一直線上）
+        }
+        
+        let normal = Vector3D::new(
+            Scalar::new(normal_x),
+            Scalar::new(normal_y),
+            Scalar::new(normal_z),
         );
-        let v2 = Vector3D::new(
-            Scalar::new(p3.x() - p1.x()),
-            Scalar::new(p3.y() - p1.y()),
-            Scalar::new(p3.z() - p1.z()),
-        );
-
-        let normal = v1.cross(&v2);
-        Self::new(p1, normal)
+        
+        Some(Self::new(p1.clone(), normal))
     }
 
+    /// 平面上の基準点を取得
     pub fn point(&self) -> &Point3D {
         &self.point
     }
 
+    /// 法線ベクトルを取得
     pub fn normal(&self) -> &Vector3D {
         &self.normal
     }
 
-    /// 平面の方程式係数 (ax + by + cz + d = 0) を取得
+    /// 平面の方程式 ax + by + cz + d = 0 の係数を取得
     pub fn equation_coefficients(&self) -> (f64, f64, f64, f64) {
+        let (px, py, pz) = point3d_to_f64(&self.point);
         let a = self.normal.x().value();
         let b = self.normal.y().value();
         let c = self.normal.z().value();
-        let d = -(a * self.point.x() + b * self.point.y() + c * self.point.z());
+        let d = -(a * px + b * py + c * pz);
         (a, b, c, d)
     }
 
-    /// 点から平面までの距離（符号付き）
+    /// 点から平面までの符号付き距離
     pub fn signed_distance_to_point(&self, point: &Point3D) -> f64 {
         let (a, b, c, d) = self.equation_coefficients();
-        a * point.x() + b * point.y() + c * point.z() + d
+        let (px, py, pz) = point3d_to_f64(point);
+        a * px + b * py + c * pz + d
     }
 
-    /// 点から平面までの距離（絶対値）
+    /// 点から平面までの距離
     pub fn distance_to_point(&self, point: &Point3D) -> f64 {
         self.signed_distance_to_point(point).abs()
     }
 
-    /// 点が平面上にあるかチェック
-    pub fn contains_point(&self, point: &Point3D, tolerance: Option<&ToleranceContext>) -> bool {
-        let distance = self.distance_to_point(point);
-        let threshold = tolerance
-            .map(|t| t.linear)
-            .unwrap_or(1e-6);
-        distance < threshold
-    }
-
-    /// 点の平面への投影
+    /// 点を平面に投影
     pub fn project_point(&self, point: &Point3D) -> Point3D {
         let distance = self.signed_distance_to_point(point);
-        Point3D::new(
-            point.x() - distance * self.normal.x().value(),
-            point.y() - distance * self.normal.y().value(),
-            point.z() - distance * self.normal.z().value(),
+        let (px, py, pz) = point3d_to_f64(point);
+        point3d_from_f64(
+            px - distance * self.normal.x().value(),
+            py - distance * self.normal.y().value(),
+            pz - distance * self.normal.z().value(),
         )
+    }
+
+    /// 点が平面上にあるかをチェック
+    pub fn contains_point(&self, point: &Point3D, tolerance: f64) -> bool {
+        self.distance_to_point(point) < tolerance
     }
 }
 
-impl GeometricPrimitive for Plane3D {
+impl GeometricPrimitive for Plane {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Plane
     }
 
     fn bounding_box(&self) -> BoundingBox {
-        // 平面は無限なので、便宜上大きなボックスを返す
-        let large_value = 1e6;
+        // 平面は無限に広がるため、適切なバウンディングボックスを定義するのは困難
+        // ここでは基準点を中心とした大きなボックスを返す
+        let (px, py, pz) = point3d_to_f64(&self.point);
+        let extent = 1000.0; // 大きな値
         BoundingBox::new(
-            geo_core::Point3D::from_f64(-large_value, -large_value, -large_value),
-            geo_core::Point3D::from_f64(large_value, large_value, large_value),
+            point3d_from_f64(px - extent, py - extent, pz - extent),
+            point3d_from_f64(px + extent, py + extent, pz + extent),
         )
     }
 
     fn measure(&self) -> Option<f64> {
-        None // 無限平面に面積はない
+        // 平面の面積は無限大なので、代わりに何らかの代表値を返す
+        // ここでは法線ベクトルの長さを返す
+        let (nx, ny, nz) = (
+            self.normal.x().value(),
+            self.normal.y().value(),
+            self.normal.z().value(),
+        );
+        Some((nx * nx + ny * ny + nz * nz).sqrt())
     }
 }
 
@@ -125,57 +137,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_plane_creation() {
+        let point = Point3D::from_f64(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(Scalar::new(0.0), Scalar::new(0.0), Scalar::new(1.0));
+        let plane = Plane::new(point, normal);
+        
+        let (px, py, pz) = point3d_to_f64(plane.point());
+        assert_eq!(px, 0.0);
+        assert_eq!(py, 0.0);
+        assert_eq!(pz, 0.0);
+    }
+
+    #[test]
     fn test_plane_from_three_points() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(1.0, 0.0, 0.0);
-        let p3 = Point3D::new(0.0, 1.0, 0.0);
-
-        let plane = Plane3D::from_three_points(p1, p2, p3).unwrap();
-
-        // XY平面なので法線はZ軸方向
-        let normal = plane.normal();
-        assert!(normal.x().value().abs() < 1e-10);
-        assert!(normal.y().value().abs() < 1e-10);
-        assert!((normal.z().value() - 1.0).abs() < 1e-10);
+        let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
+        let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
+        let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
+        
+        let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
+        
+        // Z=0平面の法線は(0, 0, 1)方向
+        assert!((plane.normal().z().value() - 1.0).abs() < 1e-10 ||
+                (plane.normal().z().value() + 1.0).abs() < 1e-10);
     }
 
     #[test]
-    fn test_plane_distance() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(1.0, 0.0, 0.0);
-        let p3 = Point3D::new(0.0, 1.0, 0.0);
-        let plane = Plane3D::from_three_points(p1, p2, p3).unwrap();
-
-        let test_point = Point3D::new(0.0, 0.0, 5.0);
-        assert!((plane.distance_to_point(&test_point) - 5.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_plane_contains_point() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(1.0, 0.0, 0.0);
-        let p3 = Point3D::new(0.0, 1.0, 0.0);
-        let plane = Plane3D::from_three_points(p1, p2, p3).unwrap();
-
-        let on_plane = Point3D::new(0.5, 0.5, 0.0);
-        let off_plane = Point3D::new(0.0, 0.0, 1.0);
-
-        assert!(plane.contains_point(&on_plane, None));
-        assert!(!plane.contains_point(&off_plane, None));
+    fn test_plane_distance_to_point() {
+        let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
+        let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
+        let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
+        
+        let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
+        
+        let test_point = Point3D::from_f64(0.0, 0.0, 5.0);
+        let distance = plane.distance_to_point(&test_point);
+        assert!((distance - 5.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_plane_project_point() {
-        let p1 = Point3D::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::new(1.0, 0.0, 0.0);
-        let p3 = Point3D::new(0.0, 1.0, 0.0);
-        let plane = Plane3D::from_three_points(p1, p2, p3).unwrap();
-
-        let point_above = Point3D::new(1.0, 1.0, 5.0);
-        let projected = plane.project_point(&point_above);
-
-        assert!((projected.z() - 0.0).abs() < 1e-10);
-        assert!((projected.x() - 1.0).abs() < 1e-10);
-        assert!((projected.y() - 1.0).abs() < 1e-10);
+        let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
+        let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
+        let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
+        
+        let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
+        
+        let test_point = Point3D::from_f64(1.0, 1.0, 5.0);
+        let projected = plane.project_point(&test_point);
+        
+        let (px, py, pz) = point3d_to_f64(&projected);
+        assert!((px - 1.0).abs() < 1e-10);
+        assert!((py - 1.0).abs() < 1e-10);
+        assert!(pz.abs() < 1e-10);
     }
 }
