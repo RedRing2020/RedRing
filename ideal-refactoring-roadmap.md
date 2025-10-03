@@ -1,8 +1,9 @@
 # RedRing 理想的リファクタリング手順計画
 
-## 🎯 3段階の理想的アーキテクチャ
+## 🎯 3 段階の理想的アーキテクチャ
 
 ### 最終目標構成
+
 ```
 ┌─────────────────┐
 │     model       │ ← CAD業務ロジック・高次機能
@@ -17,7 +18,7 @@
          │
          ▼
 ┌─────────────────┐
-│   geo_nurbs     │ ← NURBS専門クレート  
+│   geo_nurbs     │ ← NURBS専門クレート
 │ (Scalar基礎)    │   - NurbsCurve, NurbsSurface
 └─────────────────┘   - Knot Vector, Control Points
          │             - NURBS専門アルゴリズム
@@ -30,9 +31,10 @@
 
 ## 📋 段階的実装手順
 
-### 🔥 Phase 1: model(Scalar基礎＋CAD設計)
+### 🔥 Phase 1: model(Scalar 基礎＋ CAD 設計)
 
-#### 1.1 基礎型のScalar移植
+#### 1.1 基礎型の Scalar 移植
+
 ```rust
 // model/geometry/geometry3d/point.rs (Before)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -60,12 +62,12 @@ impl Point {
             z: Scalar::new(z),
         }
     }
-    
+
     // 既存API100%維持
     pub fn x(&self) -> f64 { self.x.value() }
     pub fn y(&self) -> f64 { self.y.value() }
     pub fn z(&self) -> f64 { self.z.value() }
-    
+
     // トレラント比較対応（新機能）
     pub fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
         self.x.tolerant_eq(&other.x, context) &&
@@ -75,7 +77,8 @@ impl Point {
 }
 ```
 
-#### 1.2 高次構造のScalar移植
+#### 1.2 高次構造の Scalar 移植
+
 ```rust
 // model/geometry/geometry3d/circle.rs
 pub struct Circle {
@@ -84,7 +87,7 @@ pub struct Circle {
     normal: Vector,   // ← 既にScalar化
 }
 
-// model/geometry/geometry3d/line.rs  
+// model/geometry/geometry3d/line.rs
 pub struct Line {
     start: Point,     // ← 既にScalar化
     end: Point,       // ← 既にScalar化
@@ -93,6 +96,7 @@ pub struct Line {
 ```
 
 #### 1.3 トレイト実装の更新
+
 ```rust
 // model/geometry_trait/curve3d.rs
 impl Curve3D for Circle {
@@ -101,7 +105,7 @@ impl Curve3D for Circle {
         let angle = Scalar::new(t * 2.0 * std::f64::consts::PI);
         // 高精度三角関数計算
     }
-    
+
     fn length(&self) -> f64 {
         // Scalar精度でのPI計算
         (Scalar::new(2.0) * Scalar::new(std::f64::consts::PI) * self.radius.clone()).value()
@@ -109,9 +113,10 @@ impl Curve3D for Circle {
 }
 ```
 
-### 🚀 Phase 2: geo_primitives移行（基本プリミティブ）
+### 🚀 Phase 2: geo_primitives 移行（基本プリミティブ）
 
-#### 2.1 プリミティブ形状をmodel→geo_primitivesに移動
+#### 2.1 プリミティブ形状を model→geo_primitives に移動
+
 ```rust
 // geo_primitives/src/point.rs (modelから移植)
 use geo_core::{Scalar, ToleranceContext, TolerantEq};
@@ -122,7 +127,7 @@ pub struct Point2D {
     y: Scalar,
 }
 
-#[derive(Debug, Clone)]  
+#[derive(Debug, Clone)]
 pub struct Point3D {
     x: Scalar, y: Scalar, z: Scalar,
 }
@@ -131,32 +136,34 @@ pub struct Point3D {
 pub struct LineSegment2D { start: Point2D, end: Point2D }
 pub struct LineSegment3D { start: Point3D, end: Point3D }
 
-// geo_primitives/src/circle.rs (modelから移植) 
+// geo_primitives/src/circle.rs (modelから移植)
 pub struct Circle2D { center: Point2D, radius: Scalar }
 pub struct Circle3D { center: Point3D, radius: Scalar, normal: Vector3D }
 ```
 
 #### 2.2 統一インターフェース設計
+
 ```rust
 // geo_primitives/src/lib.rs
 pub trait GeometricPrimitive {
     fn primitive_kind(&self) -> PrimitiveKind;
     fn bounding_box(&self) -> BoundingBox;
     fn measure(&self) -> Option<f64>;  // 長さ・面積・体積
-    
+
     // トレラント比較対応
     fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PrimitiveKind {
-    Point, Line, Circle, Ellipse, Triangle, 
+    Point, Line, Circle, Ellipse, Triangle,
     Polygon, Plane, Sphere, Cylinder,
     // NURBSは含まない（geo_nurbsが担当）
 }
 ```
 
-#### 2.3 modelからの参照更新
+#### 2.3 model からの参照更新
+
 ```rust
 // model/src/lib.rs
 pub use geo_primitives::{
@@ -167,13 +174,14 @@ pub use geo_primitives::{
 
 // model内の高次機能は継続
 pub mod geometry_trait;  // Curve3D, Surface trait
-pub mod geometry_kind;   // CurveKind3D, SurfaceKind  
+pub mod geometry_kind;   // CurveKind3D, SurfaceKind
 pub mod geometry_common; // IntersectionResult等
 ```
 
-### 🌟 Phase 3: geo_nurbsクレート（NURBS専門）
+### 🌟 Phase 3: geo_nurbs クレート（NURBS 専門）
 
-#### 3.1 geo_nurbsクレート作成
+#### 3.1 geo_nurbs クレート作成
+
 ```toml
 # geo_nurbs/Cargo.toml
 [package]
@@ -190,7 +198,8 @@ default = ["serde"]
 serde = ["geo_core/serde"]
 ```
 
-#### 3.2 NURBS構造の移植
+#### 3.2 NURBS 構造の移植
+
 ```rust
 // geo_nurbs/src/nurbs_curve.rs (modelから移植)
 use geo_core::{Scalar, Vector3D, ToleranceContext};
@@ -210,7 +219,7 @@ impl NurbsCurve {
         // 高精度NURBS演算
         self.evaluate_scalar(param)
     }
-    
+
     fn evaluate_scalar(&self, t: Scalar) -> Point3D {
         // de Boor algorithm with Scalar precision
         // B-spline基底関数をScalar精度で計算
@@ -227,7 +236,8 @@ pub struct NurbsSurface {
 }
 ```
 
-#### 3.3 NURBS専門アルゴリズム
+#### 3.3 NURBS 専門アルゴリズム
+
 ```rust
 // geo_nurbs/src/algorithms/
 pub mod basis_functions;      // B-spline基底関数
@@ -250,18 +260,20 @@ pub fn basis_function_derivatives(
 
 ## 🔧 実装上の考慮事項
 
-### 3.1 API互換性の保証
+### 3.1 API 互換性の保証
+
 ```rust
 // model継続使用のためのAPI保持
 // model/src/compatibility.rs
 #[deprecated(note = "Use geo_primitives::Point3D")]
 pub type Point = geo_primitives::Point3D;
 
-#[deprecated(note = "Use geo_nurbs::NurbsCurve")]  
+#[deprecated(note = "Use geo_nurbs::NurbsCurve")]
 pub type NurbsCurve = geo_nurbs::NurbsCurve;
 ```
 
 ### 3.2 段階的移行サポート
+
 ```rust
 // 各Phaseでフィーチャーフラグ使用
 #[cfg(feature = "phase1_scalar")]
@@ -271,6 +283,7 @@ type CoordType = f64;
 ```
 
 ### 3.3 依存関係管理
+
 ```
 geo_core (数学基盤)
     ↑
@@ -284,18 +297,21 @@ model (CAD業務ロジック)
 ## 🎁 期待される効果
 
 ### 責務分離の明確化
+
 - **geo_core**: 数学計算・精度管理
-- **geo_primitives**: 基本幾何形状・統一API
-- **geo_nurbs**: NURBS専門・高度アルゴリズム  
-- **model**: CAD業務ロジック・トレイト設計
+- **geo_primitives**: 基本幾何形状・統一 API
+- **geo_nurbs**: NURBS 専門・高度アルゴリズム
+- **model**: CAD 業務ロジック・トレイト設計
 
 ### 保守性の向上
+
 - 各クレートが独立してテスト可能
-- NURBS機能の独立更新
+- NURBS 機能の独立更新
 - プリミティブ形状の再利用促進
 
 ### 性能の最適化
-- Scalar精度による数値安定性
+
+- Scalar 精度による数値安定性
 - 専門クレートでの最適化実装
 - 必要な機能のみの選択的利用
 

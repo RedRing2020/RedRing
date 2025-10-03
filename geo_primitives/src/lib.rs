@@ -1,5 +1,5 @@
 /// 幾何プリミティブクレート
-/// 
+///
 /// geo_core数学基礎処理を利用して、点・線分・円・平面・
 /// 多角形・三角形メッシュ等のプリミティブ形状を定義して分類分けを行う
 
@@ -14,7 +14,7 @@ impl BoundingBox {
     pub fn new(min: geo_core::Point3D, max: geo_core::Point3D) -> Self {
         Self { min, max }
     }
-    
+
     /// 2D点から3Dバウンディングボックスを作成（Z=0）
     pub fn from_2d(min: geo_core::Point2D, max: geo_core::Point2D) -> Self {
         Self {
@@ -22,15 +22,15 @@ impl BoundingBox {
             max: geo_core::Point3D::new(*max.x(), *max.y(), geo_core::Scalar::new(0.0)),
         }
     }
-    
+
     pub fn width(&self) -> f64 {
         self.max.x().value() - self.min.x().value()
     }
-    
+
     pub fn height(&self) -> f64 {
         self.max.y().value() - self.min.y().value()
     }
-    
+
     pub fn depth(&self) -> f64 {
         self.max.z().value() - self.min.z().value()
     }
@@ -40,10 +40,10 @@ impl BoundingBox {
 pub trait GeometricPrimitive {
     /// プリミティブの種類を返す
     fn primitive_kind(&self) -> PrimitiveKind;
-    
+
     /// バウンディングボックスを返す
     fn bounding_box(&self) -> BoundingBox;
-    
+
     /// プリミティブの測定値（長さ、面積、体積など）を返す
     fn measure(&self) -> Option<f64>;
 }
@@ -115,9 +115,9 @@ mod tests {
             Scalar::new(3.0),
             Scalar::new(4.0),
         );
-        
+
         let bbox = BoundingBox::new(min, max);
-        
+
         assert!((bbox.width() - 2.0).abs() < 1e-10);
         assert!((bbox.height() - 3.0).abs() < 1e-10);
         assert!((bbox.depth() - 4.0).abs() < 1e-10);
@@ -127,9 +127,9 @@ mod tests {
     fn test_from_2d_bounding_box() {
         let min_2d = geo_core::Point2D::from_f64(1.0, 2.0);
         let max_2d = geo_core::Point2D::from_f64(3.0, 4.0);
-        
+
         let bbox = BoundingBox::from_2d(min_2d, max_2d);
-        
+
         assert!((bbox.width() - 2.0).abs() < 1e-10);
         assert!((bbox.height() - 2.0).abs() < 1e-10);
         assert!((bbox.depth() - 0.0).abs() < 1e-10);

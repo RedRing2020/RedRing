@@ -45,22 +45,22 @@ impl Point {
     pub fn translate(&self, v: &Vector) -> Self {
         Self::new(self.x() + v.x(), self.y() + v.y(), self.z() + v.z())
     }
-    
+
     /// トレラント比較（geo_coreの数値堅牢性を活用）
     pub fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
         self.inner.tolerant_eq(&other.inner, context)
     }
-    
+
     /// 原点からの点を作成（便利メソッド）
     pub fn origin() -> Self {
         Self::new(0.0, 0.0, 0.0)
     }
-    
+
     /// geo_coreへの内部アクセス（高度な数値演算用）
     pub fn as_geo_core(&self) -> &GeoPoint3D {
         &self.inner
     }
-    
+
     /// geo_coreからの変換
     pub fn from_geo_core(inner: GeoPoint3D) -> Self {
         Self { inner }
@@ -75,11 +75,11 @@ impl PointOps for geometry3d::point::Point {
     fn add(&self, other: &Self) -> Self {
         Self::new(self.x() + other.x(), self.y() + other.y(), self.z() + other.z())
     }
-    
+
     fn sub(&self, other: &Self) -> Self {
         Self::new(self.x() - other.x(), self.y() - other.y(), self.z() - other.z())
     }
-    
+
     fn mul(&self, scalar: f64) -> Self {
         Self::new(self.x() * scalar, self.y() * scalar, self.z() * scalar)
     }

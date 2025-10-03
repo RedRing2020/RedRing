@@ -3,6 +3,7 @@
 ## 🎯 設計哲学の根本的違い
 
 ### geo_core: 統合数学ライブラリ設計
+
 ```rust
 // 型レベルでの次元区別
 pub struct Point2D { x: Scalar, y: Scalar }
@@ -18,12 +19,14 @@ pub mod primitives {
 ```
 
 **特徴**:
+
 - ✅ **型名での次元表現**: Point2D, Point3D
 - ✅ **フラットな構造**: primitives2d.rs, primitives3d.rs
 - ✅ **統合再エクスポート**: primitives.rs
-- ✅ **数値堅牢性中心**: Scalarベース、TolerantEq統一
+- ✅ **数値堅牢性中心**: Scalar ベース、TolerantEq 統一
 
-### model: CAD業務抽象化設計
+### model: CAD 業務抽象化設計
+
 ```rust
 // ネームスペースでの次元区別
 pub mod geometry2d {
@@ -44,14 +47,16 @@ pub mod geometry_trait {
 ```
 
 **特徴**:
+
 - ✅ **ネームスペースでの次元表現**: geometry2d::Point, geometry3d::Point
 - ✅ **階層化された構造**: geometry/geometry2d/, geometry/geometry3d/
-- ✅ **CAD業務ロジック**: Curve3D, Surface トレイト
+- ✅ **CAD 業務ロジック**: Curve3D, Surface トレイト
 - ✅ **意味論的分類**: geometry_kind, geometry_common
 
 ## 🚨 統合の互換性問題
 
-### 問題1: 命名規則の衝突
+### 問題 1: 命名規則の衝突
+
 ```rust
 // geo_core期待
 use geo_core::{Point2D, Point3D};
@@ -61,7 +66,8 @@ use crate::geometry::{geometry2d::Point, geometry3d::Point};
 //                    ^^^^^^^^^^^^^^^ 同じ名前Point！
 ```
 
-### 問題2: APIシグネチャの違い
+### 問題 2: API シグネチャの違い
+
 ```rust
 // geo_core設計
 impl Point3D {
@@ -76,7 +82,8 @@ impl Point {
 }
 ```
 
-### 問題3: トレイト境界の違い
+### 問題 3: トレイト境界の違い
+
 ```rust
 // geo_core: Copy削除、TolerantEq実装
 #[derive(Debug, Clone)]
@@ -89,18 +96,20 @@ pub struct Point { x: Scalar, y: Scalar, z: Scalar }
 
 ## 🎯 統合戦略の選択肢
 
-### 選択肢A: geo_core完全統合
+### 選択肢 A: geo_core 完全統合
+
 ```rust
 // model/src/geometry/geometry3d/point.rs
 pub use geo_core::Point3D as Point;
 
-// 課題: 
+// 課題:
 // - 27個のコンパイルエラー修正が必要
 // - Copy期待箇所の大幅修正
 // - APIシグネチャの変更影響
 ```
 
-### 選択肢B: model独自実装継続 + geo_core参照
+### 選択肢 B: model 独自実装継続 + geo_core 参照
+
 ```rust
 // model独自実装は維持
 pub struct Point { x: Scalar, y: Scalar, z: Scalar }
@@ -112,7 +121,8 @@ impl Point {
 }
 ```
 
-### 選択肢C: ハイブリッド統合（推奨）
+### 選択肢 C: ハイブリッド統合（推奨）
+
 ```rust
 // 内部でgeo_coreを使用、APIは既存維持
 pub struct Point {
@@ -123,9 +133,9 @@ impl Point {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { inner: geo_core::Point3D::from_f64(x, y, z) }
     }
-    
+
     pub fn x(&self) -> f64 { self.inner.x().value() }  // API維持
-    
+
     // geo_coreの数値堅牢性活用
     pub fn tolerant_eq(&self, other: &Self, ctx: &ToleranceContext) -> bool {
         self.inner.tolerant_eq(&other.inner, ctx)
@@ -133,15 +143,17 @@ impl Point {
 }
 ```
 
-## 📊 推奨: 選択肢C (ハイブリッド統合)
+## 📊 推奨: 選択肢 C (ハイブリッド統合)
 
 ### 利点
-- ✅ **既存API100%維持**: 破壊的変更なし
-- ✅ **geo_coreの数値堅牢性活用**: 内部でScalar使用
+
+- ✅ **既存 API100%維持**: 破壊的変更なし
+- ✅ **geo_core の数値堅牢性活用**: 内部で Scalar 使用
 - ✅ **段階的移行可能**: 既存コードそのまま動作
-- ✅ **Copy/PartialEq解決**: 適切なトレイト実装
+- ✅ **Copy/PartialEq 解決**: 適切なトレイト実装
 
 ### 実装例
+
 ```rust
 use geo_core::{Point3D as GeoPoint3D, Scalar, ToleranceContext, TolerantEq};
 
@@ -154,16 +166,16 @@ impl Point {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { inner: GeoPoint3D::from_f64(x, y, z) }
     }
-    
+
     // 既存API完全維持
     pub fn x(&self) -> f64 { self.inner.x().value() }
     pub fn y(&self) -> f64 { self.inner.y().value() }
     pub fn z(&self) -> f64 { self.inner.z().value() }
-    
+
     pub fn distance_to(&self, other: &Self) -> f64 {
         self.inner.distance_to(&other.inner).value()
     }
-    
+
     // geo_coreの新機能活用
     pub fn tolerant_eq(&self, other: &Self, ctx: &ToleranceContext) -> bool {
         self.inner.tolerant_eq(&other.inner, ctx)
@@ -183,4 +195,4 @@ impl PartialEq for Point {
 }
 ```
 
-この方式により、**既存のmodelの設計思想を完全保持**しながら、**geo_coreの数値堅牢性を100%活用**できます。
+この方式により、**既存の model の設計思想を完全保持**しながら、**geo_core の数値堅牢性を 100%活用**できます。

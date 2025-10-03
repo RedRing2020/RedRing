@@ -1,5 +1,5 @@
 /// 幾何プリミティブの分類システム
-/// 
+///
 /// すべてのプリミティブ形状を階層的に分類し、
 /// 型安全な識別と処理を可能にする
 
@@ -7,20 +7,20 @@
 pub enum PrimitiveKind {
     // 0次元: 点
     Point,
-    
+
     // 1次元: 線形要素
     LineSegment,
     PolyLine,
     BezierCurve,
     NurbsCurve,
-    
+
     // 2次元: 面要素
     Circle,
     Ellipse,
     Rectangle,
     Polygon,
     Triangle,
-    
+
     // 3次元: 立体要素
     Sphere,
     Cylinder,
@@ -28,7 +28,7 @@ pub enum PrimitiveKind {
     Cube,
     Plane,
     TriangleMesh,
-    
+
     // 複合要素
     Composite,
     Unknown,
@@ -39,58 +39,58 @@ impl PrimitiveKind {
     pub fn dimension(&self) -> u8 {
         match self {
             PrimitiveKind::Point => 0,
-            
-            PrimitiveKind::LineSegment 
-            | PrimitiveKind::PolyLine 
-            | PrimitiveKind::BezierCurve 
+
+            PrimitiveKind::LineSegment
+            | PrimitiveKind::PolyLine
+            | PrimitiveKind::BezierCurve
             | PrimitiveKind::NurbsCurve => 1,
-            
-            PrimitiveKind::Circle 
-            | PrimitiveKind::Ellipse 
-            | PrimitiveKind::Rectangle 
-            | PrimitiveKind::Polygon 
-            | PrimitiveKind::Triangle 
+
+            PrimitiveKind::Circle
+            | PrimitiveKind::Ellipse
+            | PrimitiveKind::Rectangle
+            | PrimitiveKind::Polygon
+            | PrimitiveKind::Triangle
             | PrimitiveKind::Plane => 2,
-            
-            PrimitiveKind::Sphere 
-            | PrimitiveKind::Cylinder 
-            | PrimitiveKind::Cone 
-            | PrimitiveKind::Cube 
+
+            PrimitiveKind::Sphere
+            | PrimitiveKind::Cylinder
+            | PrimitiveKind::Cone
+            | PrimitiveKind::Cube
             | PrimitiveKind::TriangleMesh => 3,
-            
-            PrimitiveKind::Composite 
+
+            PrimitiveKind::Composite
             | PrimitiveKind::Unknown => 255, // 特殊値
         }
     }
-    
+
     /// プリミティブが閉じた形状かどうか
     pub fn is_closed(&self) -> bool {
         match self {
-            PrimitiveKind::Circle 
-            | PrimitiveKind::Ellipse 
-            | PrimitiveKind::Rectangle 
-            | PrimitiveKind::Polygon 
-            | PrimitiveKind::Triangle 
-            | PrimitiveKind::Sphere 
-            | PrimitiveKind::Cylinder 
-            | PrimitiveKind::Cone 
+            PrimitiveKind::Circle
+            | PrimitiveKind::Ellipse
+            | PrimitiveKind::Rectangle
+            | PrimitiveKind::Polygon
+            | PrimitiveKind::Triangle
+            | PrimitiveKind::Sphere
+            | PrimitiveKind::Cylinder
+            | PrimitiveKind::Cone
             | PrimitiveKind::Cube => true,
-            
+
             _ => false,
         }
     }
-    
+
     /// プリミティブがパラメトリック曲線/曲面かどうか
     pub fn is_parametric(&self) -> bool {
         match self {
-            PrimitiveKind::BezierCurve 
-            | PrimitiveKind::NurbsCurve 
-            | PrimitiveKind::Circle 
-            | PrimitiveKind::Ellipse 
-            | PrimitiveKind::Sphere 
-            | PrimitiveKind::Cylinder 
+            PrimitiveKind::BezierCurve
+            | PrimitiveKind::NurbsCurve
+            | PrimitiveKind::Circle
+            | PrimitiveKind::Ellipse
+            | PrimitiveKind::Sphere
+            | PrimitiveKind::Cylinder
             | PrimitiveKind::Cone => true,
-            
+
             _ => false,
         }
     }
@@ -134,27 +134,27 @@ pub enum ComplexityLevel {
 impl ComplexityLevel {
     fn from_kind(kind: &PrimitiveKind) -> Self {
         match kind {
-            PrimitiveKind::Point 
-            | PrimitiveKind::LineSegment 
-            | PrimitiveKind::Circle 
-            | PrimitiveKind::Rectangle 
-            | PrimitiveKind::Triangle 
-            | PrimitiveKind::Sphere 
-            | PrimitiveKind::Cube 
+            PrimitiveKind::Point
+            | PrimitiveKind::LineSegment
+            | PrimitiveKind::Circle
+            | PrimitiveKind::Rectangle
+            | PrimitiveKind::Triangle
+            | PrimitiveKind::Sphere
+            | PrimitiveKind::Cube
             | PrimitiveKind::Plane => ComplexityLevel::Basic,
-            
-            PrimitiveKind::PolyLine 
-            | PrimitiveKind::Ellipse 
-            | PrimitiveKind::Polygon 
-            | PrimitiveKind::Cylinder 
+
+            PrimitiveKind::PolyLine
+            | PrimitiveKind::Ellipse
+            | PrimitiveKind::Polygon
+            | PrimitiveKind::Cylinder
             | PrimitiveKind::Cone => ComplexityLevel::Intermediate,
-            
-            PrimitiveKind::BezierCurve 
-            | PrimitiveKind::NurbsCurve 
+
+            PrimitiveKind::BezierCurve
+            | PrimitiveKind::NurbsCurve
             | PrimitiveKind::TriangleMesh => ComplexityLevel::Complex,
-            
+
             PrimitiveKind::Composite => ComplexityLevel::Composite,
-            
+
             PrimitiveKind::Unknown => ComplexityLevel::Complex,
         }
     }
