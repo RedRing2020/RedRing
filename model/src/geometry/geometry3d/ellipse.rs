@@ -3,6 +3,7 @@ use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 
 use crate::analysis::numeric::newton_arc_length;
+use crate::analysis::consts::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct Ellipse {
@@ -22,10 +23,9 @@ impl Ellipse {
         major_radius: f64,
         minor_radius: f64,
     ) -> Option<Self> {
-        let epsilon = 1e-10;
         let dot = major_axis.dot(&minor_axis);
 
-        if dot.abs() > epsilon {
+        if dot.abs() > EPSILON {
             return None; // Axes are not orthogonal
         }
 
