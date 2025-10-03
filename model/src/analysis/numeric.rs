@@ -1,11 +1,8 @@
-/// 幾何特化数値計算モジュール
-///
-/// NURBS曲線、弧長計算など、幾何形状に特化した数値計算関数を提供する。
-/// 元々model/src/analysis/numeric.rsにあった関数群を独立化。
+﻿use analysis::DERIVATIVE_ZERO_THRESHOLD;
 
-use crate::DERIVATIVE_ZERO_THRESHOLD;
+use crate::geometry_trait::normed::Normed;
+use crate::geometry_trait::point_ops::PointOps;
 
-/// ニュートン法による方程式求解
 pub fn newton_solve<F, G>(
     f: F,
     df: G,
@@ -34,6 +31,18 @@ where
 }
 
 /// 単調関数 f(x) = y に対する逆関数 x をニュートン法で求める
+///
+/// # 引数
+/// - `f`: 元の関数 f(x)
+/// - `df`: f(x) の導関数（df/dx）
+/// - `target`: 求めたい y 値
+/// - `initial`: 初期値（x の推定値）
+/// - `max_iter`: 最大反復回数
+/// - `tol`: 収束判定の許容誤差
+///
+/// # 戻り値
+/// - `Some(x)`：f(x) ≈ target を満たす x
+/// - `None`：収束しない場合
 pub fn newton_inverse<F, G>(
     f: F,
     df: G,
@@ -47,10 +56,9 @@ where
     G: Fn(f64) -> f64,
 {
     let g = |x: f64| f(x) - target;
-    newton_solve(g, df, initial, max_iter, tol)
+    crate::analysis::numeric::newton_solve(g, df, initial, max_iter, tol)
 }
 
-/// NURBS/B-splineノットベクトルからスパンインデックスを検索
 pub fn find_span(n: usize, degree: usize, u: f64, knots: &[f64]) -> usize {
     if u >= knots[n + 1] {
         return n;
@@ -75,13 +83,12 @@ pub fn find_span(n: usize, degree: usize, u: f64, knots: &[f64]) -> usize {
     mid
 }
 
-/// B-spline基底関数Nᵢₚ(u)の値を計算
 pub fn basis_functions(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec<f64> {
-    let mut n = vec![0.0; degree + 1];
+    let mut N = vec![0.0; degree + 1];
     let mut left = vec![0.0; degree + 1];
     let mut right = vec![0.0; degree + 1];
 
-    n[0] = 1.0;
+    N[0] = 1.0;
 
     for j in 1..=degree {
         left[j] = u - knots[span + 1 - j];
@@ -89,17 +96,61 @@ pub fn basis_functions(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec
         let mut saved = 0.0;
 
         for r in 0..j {
-            let temp = n[r] / (right[r + 1] + left[j - r]);
-            n[r] = saved + right[r + 1] * temp;
+            let temp = N[r] / (right[r + 1] + left[j - r]);
+            N[r] = saved + right[r + 1] * temp;
             saved = left[j - r] * temp;
         }
-        n[j] = saved;
+        N[j] = saved;
     }
 
-    n
+    N
 }
 
-/// B-spline基底関数の一階導関数 Nᵢₚ′(u) を計算
+pub fn evaluate_bspline<P: PointOps>(
+    u: f64,
+    degree: usize,
+    control_points: &[P],
+    knots: &[f64],
+) -> P {
+    let n = control_points.len() - 1;
+    let span = find_span(n, degree, u, knots);
+    let N = basis_functions(span, u, degree, knots);
+
+    let mut result = P::origin();
+    for i in 0..=degree {
+        let index = span - degree + i;
+        result = result.add_scaled(&control_points[index], N[i]);
+    }
+
+    result
+}
+
+pub fn evaluate_nurbs<P: PointOps>(
+    u: f64,
+    degree: usize,
+    control_points: &[P],
+    weights: &[f64],
+    knots: &[f64],
+) -> P {
+    let n = control_points.len() - 1;
+    let span = find_span(n, degree, u, knots);
+    let N = basis_functions(span, u, degree, knots);
+
+    let mut numerator = P::origin();
+    let mut denominator = 0.0;
+
+    for i in 0..=degree {
+        let index = span - degree + i;
+        let w = weights[index];
+        let coeff = N[i] * w;
+        numerator = numerator.add_scaled(&control_points[index], coeff);
+        denominator += coeff;
+    }
+
+    numerator.div(denominator)
+}
+
+/// B-spline基底関数の一階導関数 Nᵢₚ′(u) を返す
 pub fn basis_function_derivatives(
     span: usize,
     u: f64,
@@ -138,11 +189,11 @@ pub fn basis_function_derivatives(
     ders
 }
 
-/// 曲線の弧長を数値積分で近似計算（model::geometry::Vector向け）
+/// 楕円弧の長さを数値積分で近似する関数
 pub fn newton_arc_length<F, V>(evaluate: F, start: f64, end: f64, steps: usize) -> f64
 where
     F: Fn(f64) -> V,
-    V: NormedVector,
+    V: Normed,
 {
     let mut length = 0.0;
     let dt = (end - start) / steps as f64;
@@ -154,14 +205,8 @@ where
         let v0 = evaluate(t0);
         let v1 = evaluate(t1);
 
-        // ベクトルの大きさを計算
         length += 0.5 * (v0.norm() + v1.norm()) * dt;
     }
 
     length
-}
-
-/// 弧長計算で使用するベクトルの共通インターフェース
-pub trait NormedVector {
-    fn norm(&self) -> f64;
 }

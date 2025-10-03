@@ -7,18 +7,18 @@ use super::kind::SurfaceKind;
 /// Control points are stored in a flattened 1D array (row-major: u + v * u_count).
 #[derive(Debug, Clone)]
 pub struct NurbsSurface {
-    pub control_points: Vec<Point>,
-    pub weights: Option<Vec<f64>>,
-    pub u_count: usize,
-    pub v_count: usize,
-    pub u_knots: Vec<f64>,
-    pub v_knots: Vec<f64>,
-    pub u_multiplicities: Vec<usize>,
-    pub v_multiplicities: Vec<usize>,
-    pub u_degree: usize,
-    pub v_degree: usize,
-    pub is_uniform_u: bool,
-    pub is_uniform_v: bool,
+    control_points: Vec<Point>,
+    weights: Option<Vec<f64>>,
+    u_count: usize,
+    v_count: usize,
+    u_knots: Vec<f64>,
+    v_knots: Vec<f64>,
+    u_multiplicities: Vec<usize>,
+    v_multiplicities: Vec<usize>,
+    u_degree: usize,
+    v_degree: usize,
+    is_uniform_u: bool,
+    is_uniform_v: bool,
 }
 
 impl Surface for NurbsSurface {
@@ -69,6 +69,66 @@ impl NurbsSurface {
             is_uniform_u,
             is_uniform_v,
         })
+    }
+
+    /// 制御点配列を取得
+    pub fn control_points(&self) -> &Vec<Point> {
+        &self.control_points
+    }
+
+    /// 重み配列を取得
+    pub fn weights(&self) -> &Option<Vec<f64>> {
+        &self.weights
+    }
+
+    /// U方向の制御点数を取得
+    pub fn u_count(&self) -> usize {
+        self.u_count
+    }
+
+    /// V方向の制御点数を取得
+    pub fn v_count(&self) -> usize {
+        self.v_count
+    }
+
+    /// U方向のノットベクトルを取得
+    pub fn u_knots(&self) -> &Vec<f64> {
+        &self.u_knots
+    }
+
+    /// V方向のノットベクトルを取得
+    pub fn v_knots(&self) -> &Vec<f64> {
+        &self.v_knots
+    }
+
+    /// U方向の多重度を取得
+    pub fn u_multiplicities(&self) -> &Vec<usize> {
+        &self.u_multiplicities
+    }
+
+    /// V方向の多重度を取得
+    pub fn v_multiplicities(&self) -> &Vec<usize> {
+        &self.v_multiplicities
+    }
+
+    /// U方向の次数を取得
+    pub fn u_degree(&self) -> usize {
+        self.u_degree
+    }
+
+    /// V方向の次数を取得
+    pub fn v_degree(&self) -> usize {
+        self.v_degree
+    }
+
+    /// U方向が均等ノットかどうかを取得
+    pub fn is_uniform_u(&self) -> bool {
+        self.is_uniform_u
+    }
+
+    /// V方向が均等ノットかどうかを取得
+    pub fn is_uniform_v(&self) -> bool {
+        self.is_uniform_v
     }
 
     /// Returns control point at (u_index, v_index)

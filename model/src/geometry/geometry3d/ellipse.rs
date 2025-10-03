@@ -7,11 +7,11 @@ use analysis::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct Ellipse {
-    pub center: Point,
-    pub major_axis: Vector,
-    pub minor_axis: Vector,
-    pub major_radius: f64,
-    pub minor_radius: f64,
+    center: Point,
+    major_axis: Vector,
+    minor_axis: Vector,
+    major_radius: f64,
+    minor_radius: f64,
 }
 
 impl Ellipse {
@@ -36,6 +36,31 @@ impl Ellipse {
             major_radius,
             minor_radius,
         })
+    }
+
+    /// 中心点を取得
+    pub fn center(&self) -> Point {
+        self.center
+    }
+
+    /// 長軸ベクトルを取得
+    pub fn major_axis(&self) -> Vector {
+        self.major_axis
+    }
+
+    /// 短軸ベクトルを取得
+    pub fn minor_axis(&self) -> Vector {
+        self.minor_axis
+    }
+
+    /// 長軸半径を取得
+    pub fn major_radius(&self) -> f64 {
+        self.major_radius
+    }
+
+    /// 短軸半径を取得
+    pub fn minor_radius(&self) -> f64 {
+        self.minor_radius
     }
 
     fn parameter_range(&self) -> (f64, f64) {

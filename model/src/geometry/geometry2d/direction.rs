@@ -66,7 +66,7 @@ impl Direction {
 
     /// Vector型への変換
     pub fn to_vector(&self) -> Vector {
-        Vector { x: self.x, y: self.y }
+        Vector::new(self.x, self.y)
     }
 
     /// 方向ベクトルを反転

@@ -6,8 +6,25 @@ use super::kind::SurfaceKind;
 /// A sphere surface defined by center and radius
 #[derive(Debug, Clone)]
 pub struct Sphere {
-    pub center: Point,
-    pub radius: f64,
+    center: Point,
+    radius: f64,
+}
+
+impl Sphere {
+    /// 新しい球を作成
+    pub fn new(center: Point, radius: f64) -> Self {
+        Self { center, radius }
+    }
+
+    /// 中心点を取得
+    pub fn center(&self) -> Point {
+        self.center
+    }
+
+    /// 半径を取得
+    pub fn radius(&self) -> f64 {
+        self.radius
+    }
 }
 
 impl Surface for Sphere {

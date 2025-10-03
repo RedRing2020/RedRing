@@ -6,14 +6,24 @@ use crate::geometry_trait::normalize::Normalize;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
-    pub x: f64,
-    pub y: f64,
+    x: f64,
+    y: f64,
 }
 
 impl Vector {
     /// x成分とy成分からベクトルを構築
     pub fn new(x: f64, y: f64) -> Self {
         Self { x, y }
+    }
+
+    /// X成分を取得
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    /// Y成分を取得
+    pub fn y(&self) -> f64 {
+        self.y
     }
 
     /// 原点ベクトル
