@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 winit = "0.30"
-wgpu = "26.0.1"
+wgpu = "27.0.1"
 smol_str = "0.3.2"
 pollster.workspace = true
 tracing.workspace = true
