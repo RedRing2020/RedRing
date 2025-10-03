@@ -1,5 +1,4 @@
-﻿
-use std::any::Any;
+﻿use std::any::Any;
 
 use crate::geometry::geometry2d::{
     point::Point,
