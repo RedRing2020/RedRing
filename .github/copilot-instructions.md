@@ -2,6 +2,23 @@
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。現在は描画基盤と幾何要素の設計段階にあり、NURBS やCAM機能は未実装です。
 
+## クイックリファレンス
+
+**⚠️ 重要な制約**:
+- `cargo build` は現在エラーで失敗（model クレートの未実装メソッドあり）
+- `render` と `stage` は独立してビルド可能（model に依存しない）
+- 新規コード追加時は既存のトレイト設計と責務分離を尊重すること
+
+**よく使うコマンド**:
+```bash
+cargo build                 # 全体ビルド（現在 model で失敗）
+cargo run                   # メイン実行（現在 model で失敗）
+cargo test -p render        # render テスト（ビルド成功、テストなし）
+cargo test -p stage         # stage テスト（ビルド成功、テストなし）
+cargo tree --depth 1        # クレート間依存確認
+mdbook build                # ドキュメント生成（manual/ -> docs/）
+```
+
 ## アーキテクチャ
 
 ### Workspace 構成
@@ -19,6 +36,16 @@ redring → viewmodel → model
 **重要**: `render` は `model` に依存しない（GPU層と幾何データ層の分離）
 
 ## 幾何データの設計パターン (`model/`)
+
+### モジュール構成
+```rust
+// model/src/lib.rs
+pub mod analysis;         // 幾何解析ユーティリティ
+pub mod geometry;         // 基本幾何要素（geometry2d/, geometry3d/）
+pub mod geometry_common;  // 共通定義
+pub mod geometry_kind;    // 型分類（CurveKind, SurfaceKind）
+pub mod geometry_trait;   // トレイト定義（Curve2D, Curve3D, Surface など）
+```
 
 ### 階層構造
 - `geometry/geometry3d/`: `Point`, `Vector`, `Direction`, `Line`, `Circle`, `Ellipse`, `NurbsCurve` など
@@ -50,6 +77,20 @@ pub trait Curve3D: Any {
 ```
 
 ## GPU 描画システム (`render/`)
+
+### モジュール構成
+```rust
+// render/src/lib.rs
+pub mod device;      // wgpu Device 管理
+pub mod pipeline;    // レンダリングパイプライン構築
+pub mod shader;      // シェーダモジュール生成関数
+pub mod wireframe;   // ワイヤーフレーム描画リソース
+pub mod render_2d;   // 2D 描画リソース
+pub mod render_3d;   // 3D 描画リソース
+pub mod surface;     // サーフェス管理
+pub mod vertex_2d;   // 2D 頂点型
+pub mod vertex_3d;   // 3D 頂点型
+```
 
 ### シェーダ管理
 ```rust
@@ -87,12 +128,40 @@ pub trait RenderStage {
 
 ## シーン管理システム (`stage/`)
 
-- **RenderStage トレイト**: 各描画ステージの統一インターフェース（`render()` + `update()`）
-- **実装例**:
-  - `OutlineStage`: ワイヤーフレーム描画（編集時のエッジ表示用）
-  - `DraftStage`: 2D プレビュー描画（アニメーション更新機能付き）
-  - `ShadingStage`: 3D シェーディング描画（将来的にカメラ制御を追加予定）
-- **パターン**: 各ステージは独自の `resources` を保持し、`update()` でフレーム毎の状態更新を実装
+### RenderStage トレイト
+各描画ステージの統一インターフェース（`render()` + `update()`）
+
+### 実装例と具体的なパターン
+```rust
+// OutlineStage: ワイヤーフレーム描画（編集時のエッジ表示用）
+pub struct OutlineStage {
+    resources: WireframeResources,  // render クレートの wireframe モジュールから
+}
+impl RenderStage for OutlineStage {
+    fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
+        // RenderPass を作成し、wireframe パイプラインで描画
+    }
+    // update() はデフォルト実装を使用（アニメーションなし）
+}
+
+// DraftStage: 2D プレビュー描画（アニメーション更新機能付き）
+pub struct DraftStage {
+    resources: Render2dResources,
+    frame_count: u64,  // アニメーション用のフレームカウンタ
+}
+impl RenderStage for DraftStage {
+    fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) { /* ... */ }
+    fn update(&mut self) {
+        self.frame_count += 1;
+        // 頂点バッファを動的に更新してアニメーション
+    }
+}
+```
+
+### 共通パターン
+- 各ステージは `render` クレートのリソース型（`WireframeResources`, `Render2dResources` など）を保持
+- `new()` で device と format を受け取り、リソースを初期化
+- `update()` の実装はオプション（静的な描画のみなら不要）
 
 ## 開発ワークフロー
 
@@ -117,7 +186,11 @@ cargo tree --depth 1
 ### 現在の状態と制約
 
 - **ビルドエラー**: `model` クレートに未実装トレイトメソッドあり（開発中）
-- **テスト**: 現在は `viewmodel/src/lib.rs` のみに基本テストあり
+  - `Direction::new()` が未定義（`from_vector()` を使用すべき）
+  - `Direction` の `x()`, `y()`, `z()` メソッドが未実装（`self.0.x()` 等でアクセス可能）
+- **テスト**: `render` と `stage` はビルド可能（テストコードは未実装）
+  - `viewmodel` は model への依存でビルド失敗
+  - `model` 自体がビルドエラーで実行不可
 - **WebAssembly**: 将来対応予定（README記載）だが、現状は native のみ
 
 ## 重要な設計原則
@@ -148,10 +221,12 @@ pub mod geometry_kind;
 
 ## ドキュメント管理
 
-- **技術ドキュメント**: `manual/` (mdbook) → `docs/` に生成
-- **構造**: `intro.md`, `modules.md`, `kinds.md`, `philosophy.md`
+- **技術ドキュメント**: `manual/` (mdbook ソース) → `book.toml` で `docs/` に生成
+  - `book/` ディレクトリも存在するが、これは古い出力先の可能性あり
+- **構造**: `intro.md`, `modules.md`, `kinds.md`, `philosophy.md`, `SUMMARY.md`
 - **設計方針**: 責務分離、型安全性、国際化対応（英語中心）
 - **README.md**: 安定機能のみ記載、詳細は Issues/Projects 参照
+- **生成コマンド**: `mdbook build` で `manual/` → `docs/` へビルド
 
 ## デバッグ・トレース
 
@@ -162,8 +237,20 @@ pub mod geometry_kind;
 ## 現在の状態と制約
 
 - **ビルド状況**: 一部のトレイト実装が未完成で現在ビルドエラーあり
+  - `cargo build` は model クレートで失敗
+  - `cargo run` も同様にビルドエラー
+  - 個別クレートも model への依存があるため影響を受ける
 - **未実装機能**: NURBS の完全実装、CAM パス生成、切削シミュレーション
 - **WebAssembly**: 将来対応予定（現在は wgpu のネイティブバックエンドのみ）
 - **viewmodel**: 現在は最小実装（今後の拡張予定）
+  - 現状はサンプルの `add()` 関数のみ
+  - ビュー変換やカメラ制御は未実装
+
+## テスト戦略
+
+- **現状**: `render` と `stage` はビルド可能だがテストコードなし
+- **実行方法**: `cargo test -p <crate_name>` で個別クレートのテスト実行
+- **制約**: model のビルドエラーにより、`viewmodel` と `redring` はビルド不可
+- **推奨**: 新機能追加時は独立したユニットテストを追加（特に render/stage は model に依存しないため追加しやすい）
 
 コードを変更する際は、既存のトレイト設計と責務分離を尊重し、型安全性を保つことを優先してください。
