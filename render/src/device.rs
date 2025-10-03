@@ -23,7 +23,6 @@ impl<'a> GpuContext<'a> {
             required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::default(),
             memory_hints: wgpu::MemoryHints::default(),
-            experimental_features: wgpu::ExperimentalFeatures::default(),
             trace: wgpu::Trace::default(),
             experimental_features: wgpu::ExperimentalFeatures::default(),
         };

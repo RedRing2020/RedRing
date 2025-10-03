@@ -18,12 +18,12 @@ impl InfiniteLine {
 
     /// Returns the origin point of the line.
     pub fn origin(&self) -> Point {
-        self.origin
+        self.origin.clone()
     }
 
     /// Returns the direction of the line.
     pub fn direction(&self) -> Direction {
-        self.direction
+        self.direction.clone()
     }
 
     /// Returns a point on the line at parameter t ∈ ℝ.

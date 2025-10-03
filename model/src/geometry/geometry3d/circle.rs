@@ -17,7 +17,7 @@ impl Circle {
 
     /// 中心点を取得
     pub fn center(&self) -> Point {
-        self.center
+        self.center.clone()
     }
 
     /// 半径を取得
@@ -27,7 +27,7 @@ impl Circle {
 
     /// 法線ベクトルを取得
     pub fn normal(&self) -> Direction {
-        self.normal
+        self.normal.clone()
     }
 
     fn parameter_range(&self) -> (f64, f64) {
@@ -49,14 +49,14 @@ impl Curve3D for Circle {
     }
 
     fn evaluate(&self, t: f64) -> Point {
-        // t: [0, 1] → θ: [0, 2π]
         let theta = t * 2.0 * std::f64::consts::PI;
-        // 3D円の座標計算
-        // normalから直交基底(u, v)を生成
-        let (u, v) = self.normal.orthonormal_basis();
-        let x = self.radius * theta.cos();
-        let y = self.radius * theta.sin();
-        self.center + u * x + v * y
+        let (u_vec, v_vec) = self.normal.orthonormal_basis();
+        
+        // パラメトリック円の評価
+        let u = self.radius * theta.cos();
+        let v = self.radius * theta.sin();
+        
+        self.center.clone() + u_vec * u + v_vec * v
     }
 
     fn derivative(&self, t: f64) -> Vector {
@@ -74,13 +74,15 @@ impl Curve3D for Circle {
     fn parameter_hint(&self, pt: &Point) -> f64 {
         // 円周上の点へのパラメータ初期値推定
         let (u, v) = self.normal.orthonormal_basis();
-        let rel = *pt - self.center;
+        let rel = pt.clone() - self.center.clone();
         let x = rel.dot(&u);
         let y = rel.dot(&v);
         let theta = y.atan2(x);
         // [0, 2π] → [0, 1]
         (theta.rem_euclid(2.0 * std::f64::consts::PI)) / (2.0 * std::f64::consts::PI)
     }
+
+
 
     fn domain(&self) -> (f64, f64) {
         (0.0, 1.0)
