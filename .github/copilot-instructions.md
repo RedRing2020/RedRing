@@ -60,8 +60,18 @@ pub struct Direction(Vector);
 
 impl Direction {
     pub fn from_vector(v: Vector) -> Option<Self> {
-        v.normalize().map(Direction)  // normalize() は Option<Vector> を返す
+        let len = v.norm();
+        if len == 0.0 {
+            None
+        } else {
+            Some(Direction(v.normalize()))
+        }
     }
+    
+    // アクセサメソッド
+    pub fn x(&self) -> f64 { self.0.x() }
+    pub fn y(&self) -> f64 { self.0.y() }
+    pub fn z(&self) -> f64 { self.0.z() }
 }
 ```
 
@@ -166,7 +176,7 @@ impl RenderStage for DraftStage {
 ## 開発ワークフロー
 
 ```bash
-# 全体ビルド（現在ビルドエラーあり - 設計段階のため）
+# 全体ビルド
 cargo build
 
 # メインアプリ実行
@@ -185,21 +195,20 @@ cargo tree --depth 1
 
 ### 現在の状態と制約
 
-- **ビルドエラー**: `model` クレートに未実装トレイトメソッドあり（開発中）
-  - `Direction::new()` が未定義（`from_vector()` を使用すべき）
-  - `Direction` の `x()`, `y()`, `z()` メソッドが未実装（`self.0.x()` 等でアクセス可能）
-- **テスト**: `render` と `stage` はビルド可能（テストコードは未実装）
-  - `viewmodel` は model への依存でビルド失敗
-  - `model` 自体がビルドエラーで実行不可
+- **ビルド状況**: ビルド成功（警告のみ、主にコードスタイル関連）
+- **テスト**: 現在は `viewmodel/src/lib.rs` のみに基本テストあり
 - **WebAssembly**: 将来対応予定（README記載）だが、現状は native のみ
 
 ## 重要な設計原則
 
 ### 1. Option/Result による失敗の明示化
 ```rust
-Direction::from_vector(v)  // Option<Direction> を返す
-v.normalize()               // Option<Vector> を返す（ゼロベクトルは None）
+Direction::from_vector(v)  // Option<Direction> を返す（ゼロベクトルは None）
+v.normalize()               // Vector を返す（ゼロベクトルは Vector::ZERO）
 ```
+
+**重要**: `Normalize` トレイトの `normalize()` は `Self` を返し、ゼロベクトルの場合は `Vector::ZERO` を返す。
+`Direction::from_vector()` は内部で長さチェックを行い、ゼロベクトルの場合は `None` を返すことで型安全性を保証する。
 
 ### 2. トレイト境界による抽象化
 - `Normalize` トレイト: 正規化可能な型を抽象化
@@ -236,10 +245,7 @@ pub mod geometry_kind;
 
 ## 現在の状態と制約
 
-- **ビルド状況**: 一部のトレイト実装が未完成で現在ビルドエラーあり
-  - `cargo build` は model クレートで失敗
-  - `cargo run` も同様にビルドエラー
-  - 個別クレートも model への依存があるため影響を受ける
+- **ビルド状況**: ビルド成功、実行可能（警告はコードスタイル関連のみ）
 - **未実装機能**: NURBS の完全実装、CAM パス生成、切削シミュレーション
 - **WebAssembly**: 将来対応予定（現在は wgpu のネイティブバックエンドのみ）
 - **viewmodel**: 現在は最小実装（今後の拡張予定）
