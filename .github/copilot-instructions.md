@@ -5,16 +5,17 @@ RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームで
 ## クイックリファレンス
 
 **⚠️ 重要な制約**:
-- `cargo build` は現在エラーで失敗（model クレートの未実装メソッドあり）
+- プロジェクトは正常にビルド・実行可能（警告のみ、主にコードスタイル関連）
 - `render` と `stage` は独立してビルド可能（model に依存しない）
 - 新規コード追加時は既存のトレイト設計と責務分離を尊重すること
 
 **よく使うコマンド**:
 ```bash
-cargo build                 # 全体ビルド（現在 model で失敗）
-cargo run                   # メイン実行（現在 model で失敗）
+cargo build                 # 全体ビルド（成功）
+cargo run                   # メイン実行（GUI環境が必要）
 cargo test -p render        # render テスト（ビルド成功、テストなし）
 cargo test -p stage         # stage テスト（ビルド成功、テストなし）
+cargo test --workspace      # 全体テスト実行
 cargo tree --depth 1        # クレート間依存確認
 mdbook build                # ドキュメント生成（manual/ -> docs/）
 ```
@@ -195,8 +196,9 @@ cargo tree --depth 1
 
 ### 現在の状態と制約
 
-- **ビルド状況**: ビルド成功（警告のみ、主にコードスタイル関連）
+- **ビルド状況**: ビルド成功、実行可能（警告はコードスタイル関連のみ）
 - **テスト**: 現在は `viewmodel/src/lib.rs` のみに基本テストあり
+- **wgpu バージョン**: 27.0.1 に統一済み
 - **WebAssembly**: 将来対応予定（README記載）だが、現状は native のみ
 
 ## 重要な設計原則
@@ -247,6 +249,7 @@ pub mod geometry_kind;
 
 - **ビルド状況**: ビルド成功、実行可能（警告はコードスタイル関連のみ）
 - **未実装機能**: NURBS の完全実装、CAM パス生成、切削シミュレーション
+- **wgpu バージョン**: 27.0.1 に統一済み（2025年）
 - **WebAssembly**: 将来対応予定（現在は wgpu のネイティブバックエンドのみ）
 - **viewmodel**: 現在は最小実装（今後の拡張予定）
   - 現状はサンプルの `add()` 関数のみ
@@ -254,9 +257,23 @@ pub mod geometry_kind;
 
 ## テスト戦略
 
-- **現状**: `render` と `stage` はビルド可能だがテストコードなし
-- **実行方法**: `cargo test -p <crate_name>` で個別クレートのテスト実行
-- **制約**: model のビルドエラーにより、`viewmodel` と `redring` はビルド不可
+- **現状**: `render` と `stage` はビルド可能だがテストコードなし、`viewmodel` に基本テストあり
+- **実行方法**: `cargo test -p <crate_name>` で個別クレートのテスト実行、`cargo test --workspace` で全体実行
 - **推奨**: 新機能追加時は独立したユニットテストを追加（特に render/stage は model に依存しないため追加しやすい）
+
+## wgpu 27.0.1 への対応
+
+- **主な変更点**: `DeviceDescriptor` に `experimental_features` フィールドが追加
+  ```rust
+  wgpu::DeviceDescriptor {
+      label: Some("Device"),
+      required_features: wgpu::Features::empty(),
+      required_limits: wgpu::Limits::default(),
+      memory_hints: Default::default(),
+      trace: wgpu::Trace::default(),
+      experimental_features: wgpu::ExperimentalFeatures::default(), // 追加
+  }
+  ```
+- **影響範囲**: `render/src/device.rs` と `redring/src/graphic.rs`
 
 コードを変更する際は、既存のトレイト設計と責務分離を尊重し、型安全性を保つことを優先してください。

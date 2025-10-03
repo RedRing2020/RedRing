@@ -25,6 +25,7 @@ impl<'a> GpuContext<'a> {
             memory_hints: wgpu::MemoryHints::default(),
             experimental_features: wgpu::ExperimentalFeatures::default(),
             trace: wgpu::Trace::default(),
+            experimental_features: wgpu::ExperimentalFeatures::default(),
         };
 
         let (device, queue) = pollster::block_on(adapter.request_device(&descriptor))
