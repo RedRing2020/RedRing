@@ -6,10 +6,11 @@ use crate::geometry::geometry2d::{
 };
 
 use crate::geometry_trait::point_ops::PointOps;
-use crate::geometry_trait::curve2d::Curve2D;
-use crate::geometry_kind::CurveKind2D;
 
+use crate::analysis::consts::EPSILON;
 use crate::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
+use crate::geometry_kind::CurveKind2D;
+use crate::geometry_trait::Curve2D;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NurbsCurve {
@@ -33,9 +34,9 @@ impl NurbsCurve {
             knots[knots.len() - degree - 1],
         );
 
-        let is_rational = weights.iter().any(|w| (w - 1.0).abs() > 1e-10);
+        let is_rational = weights.iter().any(|w| (w - 1.0).abs() > EPSILON);
         let uniform_step = knots[1] - knots[0];
-        let is_uniform = knots.windows(2).all(|w| (w[1] - w[0] - uniform_step).abs() < 1e-10);
+        let is_uniform = knots.windows(2).all(|w| (w[1] - w[0] - uniform_step).abs() < EPSILON);
 
         Self {
             degree,

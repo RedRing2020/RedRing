@@ -20,14 +20,23 @@ impl Direction {
         Direction(Vector::new(x, y, z))
     }
 
-    /// VectorからDirectionを作成、零ベクトルの場合はNoneを返す。
     pub fn from_vector(v: Vector) -> Option<Self> {
-        let len = v.norm();
-        if len == 0.0 {
+        // 元のベクトルが零ベクトルかチェック
+        if v.norm() == 0.0 {
             None
         } else {
-            Some(Direction(v.normalize()))
+            let direction = Direction(v.normalize());
+            // 念のため、作成された Direction の長さをチェック
+            if direction.length() > 0.0 {
+                Some(direction)
+            } else {
+                None
+            }
         }
+    }
+
+    pub fn length(&self) -> f64 {
+        self.0.norm()
     }
 
     pub fn x(&self) -> f64 {
@@ -42,15 +51,10 @@ impl Direction {
         self.0.z()
     }
 
-    /// 方向ベクトルの長さを返す（正規化された方向では常に1.0のはず）
-    pub fn length(&self) -> f64 {
-        self.0.norm()
-    }
-
-    /// 数値誤差に対処するためDirectionを再正規化。
-    /// ベクトルが零になった場合はNoneを返す（有効なDirectionでは発生しないはず）。
     pub fn normalize(&self) -> Option<Self> {
-        Self::from_vector(self.0)
+        // Direction は既に正規化されたベクトルなので、selfを返す
+        // ただし、数値誤差により長さが1でない可能性があるため、再正規化
+        Direction::from_vector(self.0)
     }
 
     pub fn as_vector(&self) -> Vector {
