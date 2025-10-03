@@ -6,7 +6,17 @@ use super::vector::Vector;
 pub struct Direction(Vector);
 
 impl Direction {
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+    /// 安全に正規化されたDirectionを生成、零ベクトルの場合はNoneを返す。
+    /// 成分からDirectionを作成する推奨方法。
+    pub fn new(x: f64, y: f64, z: f64) -> Option<Self> {
+        let v = Vector::new(x, y, z);
+        Self::from_vector(v)
+    }
+
+    /// 正規化チェックなしでDirectionを作成（不安全、呼び出し側が単位長を保証必要）。
+    /// 入力が既に正規化済みであることが確実な場合のみ使用。
+    /// 外部で正規化が保証されているパフォーマンス重視コード用。
+    pub fn new_unchecked(x: f64, y: f64, z: f64) -> Self {
         Direction(Vector::new(x, y, z))
     }
 
