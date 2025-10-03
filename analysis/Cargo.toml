@@ -1,0 +1,16 @@
+[package]
+name = "analysis"
+version = "0.1.0"
+edition = "2021"
+description = "Numerical analysis and geometric sampling for RedRing CAD/CAM"
+license = "MIT"
+
+[dependencies]
+geo_core = { path = "../geo_core" }
+
+[dev-dependencies]
+approx = "0.5"
+
+[features]
+default = []
+simd = ["geo_core/simd"]

@@ -1,11 +1,13 @@
 [workspace]
 members = [
+    "geo_core",        # 新規：幾何計算基盤
+    "analysis",        # 新規：数値解析クレート
     "model",
     "viewmodel",
     "render",
-    "redring"  # メインクレート
-
-, "stage"]
+    "redring",         # メインクレート
+    "stage"
+]
 resolver = "3"
 
 [workspace.dependencies]
