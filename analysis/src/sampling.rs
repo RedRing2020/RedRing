@@ -59,11 +59,11 @@ impl AdaptiveSampler {
     {
         let mut points = Vec::new();
         let mut parameters = Vec::new();
-        
+
         self.sample_recursive(&evaluator, &curvature_fn, start, end, 0, &mut points, &mut parameters);
-        
+
         let quality = self.calculate_quality_metrics(&points, &parameters);
-        
+
         SamplingResult {
             points,
             parameter_values: parameters,
@@ -90,9 +90,9 @@ impl AdaptiveSampler {
 
         let mid = (start + end) * 0.5;
         let curvature = curvature_fn(mid);
-        
+
         // 高曲率領域では細かくサンプリング
-        let should_subdivide = curvature.abs() > self.tolerance.curvature || 
+        let should_subdivide = curvature.abs() > self.tolerance.curvature ||
                                (end - start) > self.tolerance.parametric;
 
         if should_subdivide && points.len() < 1000 { // 最大点数制限
@@ -140,7 +140,7 @@ impl AdaptiveSampler {
 }
 
 /// Monte Carlo サンプリング
-/// 
+///
 /// 注意: 座標値と距離はmm単位で処理される
 pub struct MonteCarloSampler {
     seed: u64,
@@ -242,7 +242,7 @@ impl PoissonDiskSampler {
             for _ in 0..self.k {
                 let angle = rng.next_f64() * 2.0 * std::f64::consts::PI;
                 let distance = self.radius * (1.0 + rng.next_f64());
-                
+
                 let new_x = point.x().value() + distance * angle.cos();
                 let new_y = point.y().value() + distance * angle.sin();
                 let new_point = Point2D::from_f64(new_x, new_y);

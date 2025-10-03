@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 geo_core = { path = "../geo_core" }
+analysis = { path = "../analysis" }
 
 [features]
 default = []

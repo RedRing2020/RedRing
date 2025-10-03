@@ -1,8 +1,8 @@
-use crate::analysis::numeric::newton_arc_length;
+use analysis::newton_arc_length;
 use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
-use crate::analysis::consts::EPSILON;
+use analysis::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct EllipseArc {

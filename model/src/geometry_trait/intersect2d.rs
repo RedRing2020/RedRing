@@ -19,7 +19,7 @@ use crate::geometry::geometry2d::{
     nurbs::NurbsCurve,
 };
 
-use crate::analysis::consts::EPSILON;
+use analysis::EPSILON;
 
 pub trait Intersect2D {
     /// 他の曲線との交差判定（結果の有無）

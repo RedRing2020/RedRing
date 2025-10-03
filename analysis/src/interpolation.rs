@@ -37,7 +37,7 @@ impl LinearInterpolator {
         // セグメント長さの累積
         let mut lengths = vec![0.0];
         let mut total_length = 0.0;
-        
+
         for i in 1..points.len() {
             let dist = points[i-1].distance_to(&points[i]).value();
             total_length += dist;
@@ -45,17 +45,17 @@ impl LinearInterpolator {
         }
 
         let target_length = t * total_length;
-        
+
         // 対象セグメントを見つける
         for i in 1..lengths.len() {
             if target_length <= lengths[i] {
                 let segment_start = lengths[i-1];
                 let segment_length = lengths[i] - segment_start;
-                
+
                 if segment_length < self.tolerance.linear {
                     return Some(points[i-1]);
                 }
-                
+
                 let local_t = (target_length - segment_start) / segment_length;
                 return Some(self.interpolate(&points[i-1], &points[i], local_t));
             }
@@ -121,12 +121,12 @@ impl CubicBezier {
     /// 曲線を指定した分割数でサンプリング
     pub fn sample(&self, divisions: usize) -> Vec<Point2D> {
         let mut points = Vec::with_capacity(divisions + 1);
-        
+
         for i in 0..=divisions {
             let t = i as f64 / divisions as f64;
             points.push(self.evaluate(t));
         }
-        
+
         points
     }
 }
@@ -185,14 +185,14 @@ impl CatmullRomSpline {
     /// スプライン曲線を均等にサンプリング
     pub fn sample(&self, divisions: usize) -> Vec<Point2D> {
         let mut result = Vec::with_capacity(divisions + 1);
-        
+
         for i in 0..=divisions {
             let t = i as f64 / divisions as f64;
             if let Some(point) = self.evaluate(t) {
                 result.push(point);
             }
         }
-        
+
         result
     }
 }
