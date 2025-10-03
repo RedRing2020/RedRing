@@ -5,14 +5,29 @@ use crate::geometry_trait::curve3d::Curve3D;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circle {
-    pub center: Point,
-    pub radius: f64,
-    pub normal: Direction,
+    center: Point,
+    radius: f64,
+    normal: Direction,
 }
 
 impl Circle {
     pub fn new(center: Point, radius: f64, normal: Direction) -> Self {
         Self { center, radius, normal }
+    }
+
+    /// 中心点を取得
+    pub fn center(&self) -> Point {
+        self.center
+    }
+
+    /// 半径を取得
+    pub fn radius(&self) -> f64 {
+        self.radius
+    }
+
+    /// 法線ベクトルを取得
+    pub fn normal(&self) -> Direction {
+        self.normal
     }
 
     fn parameter_range(&self) -> (f64, f64) {

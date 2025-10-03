@@ -6,13 +6,13 @@ use analysis::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct EllipseArc {
-    pub center: Point,
-    pub major_axis: Vector,
-    pub minor_axis: Vector,
-    pub major_radius: f64,
-    pub minor_radius: f64,
-    pub start_angle: f64, // in radians
-    pub end_angle: f64,   // in radians
+    center: Point,
+    major_axis: Vector,
+    minor_axis: Vector,
+    major_radius: f64,
+    minor_radius: f64,
+    start_angle: f64, // in radians
+    end_angle: f64,   // in radians
 }
 
 impl EllipseArc {
@@ -40,6 +40,41 @@ impl EllipseArc {
             start_angle,
             end_angle,
         })
+    }
+
+    /// 中心点を取得
+    pub fn center(&self) -> Point {
+        self.center
+    }
+
+    /// 長軸ベクトルを取得
+    pub fn major_axis(&self) -> Vector {
+        self.major_axis
+    }
+
+    /// 短軸ベクトルを取得
+    pub fn minor_axis(&self) -> Vector {
+        self.minor_axis
+    }
+
+    /// 長軸半径を取得
+    pub fn major_radius(&self) -> f64 {
+        self.major_radius
+    }
+
+    /// 短軸半径を取得
+    pub fn minor_radius(&self) -> f64 {
+        self.minor_radius
+    }
+
+    /// 開始角度を取得（ラジアン）
+    pub fn start_angle(&self) -> f64 {
+        self.start_angle
+    }
+
+    /// 終了角度を取得（ラジアン）
+    pub fn end_angle(&self) -> f64 {
+        self.end_angle
     }
 
     fn parameter_range(&self) -> (f64, f64) {

@@ -10,11 +10,13 @@ use geo_core::{
     Point3D as GeoPoint3D,
     Direction3D as GeoDirection3D,
     Scalar,
-    ToleranceContext
+    ToleranceContext,
+    Vector, // trait
+    ParametricCurve3D, // trait
 };
 
 /// 2D Vector アダプター（model/geometry2d/vector.rs の代替）
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Vector2D {
     inner: GeoVector2D,
 }
@@ -86,7 +88,7 @@ impl std::ops::Neg for Vector2D {
 }
 
 /// 3D Vector アダプター（model/geometry3d/vector.rs の代替）
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Vector3D {
     inner: GeoVector3D,
 }
@@ -199,7 +201,7 @@ impl Point2D {
 }
 
 /// 3D Point アダプター
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Point3D {
     inner: GeoPoint3D,
 }
@@ -234,7 +236,7 @@ impl Point3D {
 }
 
 /// 3D Direction アダプター
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Direction3D {
     inner: Option<GeoDirection3D>,
 }
