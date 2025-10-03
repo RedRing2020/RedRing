@@ -52,6 +52,13 @@ pub trait GeometricPrimitive {
 pub mod classification;
 pub use classification::{PrimitiveKind, GeometryClassification, ComplexityLevel};
 
+// CAD統合層（model からの移植）
+pub mod cad_primitives;
+pub use cad_primitives::{CadPoint, CadVector, CadDirection};
+
+pub mod cad_shapes;
+pub use cad_shapes::{CadCircle, CadEllipse, CadEllipseArc};
+
 // 2Dプリミティブ
 pub mod point;
 pub use point::{Point2D, Point3D};
@@ -88,6 +95,10 @@ pub mod primitives_3d {
 pub mod prelude {
     pub use crate::{
         GeometricPrimitive, PrimitiveKind, BoundingBox,
+        // CAD統合層
+        CadPoint, CadVector, CadDirection,
+        CadCircle, CadEllipse, CadEllipseArc,
+        // 2D/3Dプリミティブ
         Point2D, Point3D,
         LineSegment2D, LineSegment3D,
         Circle2D, Circle3D,
