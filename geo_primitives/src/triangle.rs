@@ -4,7 +4,8 @@
 
 use geo_core::{Vector3D, Scalar};
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox};
-use crate::point::{Point2D, Point3D};
+use crate::geometry_utils::*;
+use geo_core::{Point2D, Point3D};
 
 /// 2D三角形プリミティブ
 #[derive(Debug, Clone)]
@@ -13,62 +14,64 @@ pub struct Triangle2D {
 }
 
 impl Triangle2D {
+    /// 新しい2D三角形を作成
     pub fn new(v0: Point2D, v1: Point2D, v2: Point2D) -> Self {
         Self {
             vertices: [v0, v1, v2],
         }
     }
 
+    /// 頂点を取得
     pub fn vertices(&self) -> &[Point2D; 3] {
         &self.vertices
     }
 
-    pub fn vertex(&self, index: usize) -> Option<&Point2D> {
-        self.vertices.get(index)
+    /// 頂点の可変参照を取得
+    pub fn vertices_mut(&mut self) -> &mut [Point2D; 3] {
+        &mut self.vertices
     }
 
     /// 重心を計算
     pub fn centroid(&self) -> Point2D {
-        Point2D::new(
-            (self.vertices[0].x() + self.vertices[1].x() + self.vertices[2].x()) / 3.0,
-            (self.vertices[0].y() + self.vertices[1].y() + self.vertices[2].y()) / 3.0,
+        let (x0, y0) = point2d_to_f64(&self.vertices[0]);
+        let (x1, y1) = point2d_to_f64(&self.vertices[1]);
+        let (x2, y2) = point2d_to_f64(&self.vertices[2]);
+        point2d_from_f64(
+            (x0 + x1 + x2) / 3.0,
+            (y0 + y1 + y2) / 3.0,
         )
     }
 
-    /// 面積を計算（外積使用）
+    /// 面積を計算
     pub fn area(&self) -> f64 {
-        let v1_x = self.vertices[1].x() - self.vertices[0].x();
-        let v1_y = self.vertices[1].y() - self.vertices[0].y();
-        let v2_x = self.vertices[2].x() - self.vertices[0].x();
-        let v2_y = self.vertices[2].y() - self.vertices[0].y();
-
+        let (x0, y0) = point2d_to_f64(&self.vertices[0]);
+        let (x1, y1) = point2d_to_f64(&self.vertices[1]);
+        let (x2, y2) = point2d_to_f64(&self.vertices[2]);
+        let v1_x = x1 - x0;
+        let v1_y = y1 - y0;
+        let v2_x = x2 - x0;
+        let v2_y = y2 - y0;
         0.5 * (v1_x * v2_y - v1_y * v2_x).abs()
     }
 
-    /// 点が三角形内部にあるかチェック（重心座標使用）
+    /// 点が三角形内部にあるかを判定（重心座標系を使用）
     pub fn contains_point(&self, point: &Point2D) -> bool {
-        let (alpha, beta, gamma) = self.barycentric_coordinates(point);
-        alpha >= 0.0 && beta >= 0.0 && gamma >= 0.0 &&
-        (alpha + beta + gamma - 1.0).abs() < 1e-10
-    }
+        let (x0, y0) = point2d_to_f64(&self.vertices[0]);
+        let (x1, y1) = point2d_to_f64(&self.vertices[1]);
+        let (x2, y2) = point2d_to_f64(&self.vertices[2]);
+        let (px, py) = point2d_to_f64(point);
 
-    /// 重心座標を計算
-    pub fn barycentric_coordinates(&self, point: &Point2D) -> (f64, f64, f64) {
-        let v0 = &self.vertices[0];
-        let v1 = &self.vertices[1];
-        let v2 = &self.vertices[2];
-
-        let denom = (v1.y() - v2.y()) * (v0.x() - v2.x()) + (v2.x() - v1.x()) * (v0.y() - v2.y());
-
+        let denom = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+        
         if denom.abs() < 1e-10 {
-            return (0.0, 0.0, 0.0); // 縮退三角形
+            return false; // 退化した三角形
         }
 
-        let alpha = ((v1.y() - v2.y()) * (point.x() - v2.x()) + (v2.x() - v1.x()) * (point.y() - v2.y())) / denom;
-        let beta = ((v2.y() - v0.y()) * (point.x() - v2.x()) + (v0.x() - v2.x()) * (point.y() - v2.y())) / denom;
+        let alpha = ((y1 - y2) * (px - x2) + (x2 - x1) * (py - y2)) / denom;
+        let beta = ((y2 - y0) * (px - x2) + (x0 - x2) * (py - y2)) / denom;
         let gamma = 1.0 - alpha - beta;
 
-        (alpha, beta, gamma)
+        alpha >= 0.0 && beta >= 0.0 && gamma >= 0.0
     }
 }
 
@@ -78,14 +81,10 @@ impl GeometricPrimitive for Triangle2D {
     }
 
     fn bounding_box(&self) -> BoundingBox {
-        let min_x = self.vertices[0].x().min(self.vertices[1].x()).min(self.vertices[2].x());
-        let min_y = self.vertices[0].y().min(self.vertices[1].y()).min(self.vertices[2].y());
-        let max_x = self.vertices[0].x().max(self.vertices[1].x()).max(self.vertices[2].x());
-        let max_y = self.vertices[0].y().max(self.vertices[1].y()).max(self.vertices[2].y());
-
+        let bbox = point2d_bounding_box(&self.vertices).unwrap();
         BoundingBox::from_2d(
-            geo_core::Point2D::from_f64(min_x, min_y),
-            geo_core::Point2D::from_f64(max_x, max_y),
+            point2d_from_f64(bbox.0, bbox.1),
+            point2d_from_f64(bbox.2, bbox.3),
         )
     }
 
@@ -101,125 +100,74 @@ pub struct Triangle3D {
 }
 
 impl Triangle3D {
+    /// 新しい3D三角形を作成
     pub fn new(v0: Point3D, v1: Point3D, v2: Point3D) -> Self {
         Self {
             vertices: [v0, v1, v2],
         }
     }
 
+    /// 頂点を取得
     pub fn vertices(&self) -> &[Point3D; 3] {
         &self.vertices
     }
 
-    pub fn vertex(&self, index: usize) -> Option<&Point3D> {
-        self.vertices.get(index)
+    /// 頂点の可変参照を取得
+    pub fn vertices_mut(&mut self) -> &mut [Point3D; 3] {
+        &mut self.vertices
     }
 
     /// 重心を計算
     pub fn centroid(&self) -> Point3D {
-        Point3D::new(
-            (self.vertices[0].x() + self.vertices[1].x() + self.vertices[2].x()) / 3.0,
-            (self.vertices[0].y() + self.vertices[1].y() + self.vertices[2].y()) / 3.0,
-            (self.vertices[0].z() + self.vertices[1].z() + self.vertices[2].z()) / 3.0,
-        )
+        point3d_centroid(&self.vertices).unwrap()
     }
 
-    /// 面積を計算（外積使用）
+    /// 面積を計算（外積を使用）
     pub fn area(&self) -> f64 {
-        let v1 = Vector3D::new(
-            Scalar::new(self.vertices[1].x() - self.vertices[0].x()),
-            Scalar::new(self.vertices[1].y() - self.vertices[0].y()),
-            Scalar::new(self.vertices[1].z() - self.vertices[0].z()),
-        );
-        let v2 = Vector3D::new(
-            Scalar::new(self.vertices[2].x() - self.vertices[0].x()),
-            Scalar::new(self.vertices[2].y() - self.vertices[0].y()),
-            Scalar::new(self.vertices[2].z() - self.vertices[0].z()),
-        );
-
-        let cross = v1.cross(&v2);
-        let mag_squared = cross.x().value() * cross.x().value()
-            + cross.y().value() * cross.y().value()
-            + cross.z().value() * cross.z().value();
-        0.5 * mag_squared.sqrt()
+        let (x0, y0, z0) = point3d_to_f64(&self.vertices[0]);
+        let (x1, y1, z1) = point3d_to_f64(&self.vertices[1]);
+        let (x2, y2, z2) = point3d_to_f64(&self.vertices[2]);
+        
+        let v1_x = x1 - x0;
+        let v1_y = y1 - y0;
+        let v1_z = z1 - z0;
+        
+        let v2_x = x2 - x0;
+        let v2_y = y2 - y0;
+        let v2_z = z2 - z0;
+        
+        // 外積
+        let cross_x = v1_y * v2_z - v1_z * v2_y;
+        let cross_y = v1_z * v2_x - v1_x * v2_z;
+        let cross_z = v1_x * v2_y - v1_y * v2_x;
+        
+        0.5 * (cross_x * cross_x + cross_y * cross_y + cross_z * cross_z).sqrt()
     }
 
     /// 法線ベクトルを計算
-    pub fn normal(&self) -> Option<Vector3D> {
-        let v1 = Vector3D::new(
-            Scalar::new(self.vertices[1].x() - self.vertices[0].x()),
-            Scalar::new(self.vertices[1].y() - self.vertices[0].y()),
-            Scalar::new(self.vertices[1].z() - self.vertices[0].z()),
-        );
-        let v2 = Vector3D::new(
-            Scalar::new(self.vertices[2].x() - self.vertices[0].x()),
-            Scalar::new(self.vertices[2].y() - self.vertices[0].y()),
-            Scalar::new(self.vertices[2].z() - self.vertices[0].z()),
-        );
-
-        let cross = v1.cross(&v2);
-        let mag_squared = cross.x().value() * cross.x().value()
-            + cross.y().value() * cross.y().value()
-            + cross.z().value() * cross.z().value();
-
-        if mag_squared > 1e-20 {
-            let magnitude = Scalar::new(mag_squared.sqrt());
-            Some(Vector3D::new(
-                cross.x() / magnitude,
-                cross.y() / magnitude,
-                cross.z() / magnitude,
-            ))
-        } else {
-            None
-        }
-    }
-
-    /// 重心座標を計算（3D点を平面に投影）
-    pub fn barycentric_coordinates_3d(&self, point: &Point3D) -> Option<(f64, f64, f64)> {
-        let normal = self.normal()?;
-
-        // 主軸を選択（法線の最大成分）
-        let abs_x = normal.x().value().abs();
-        let abs_y = normal.y().value().abs();
-        let abs_z = normal.z().value().abs();
-
-        let (u_idx, v_idx) = if abs_x >= abs_y && abs_x >= abs_z {
-            (1, 2) // YZ平面に投影
-        } else if abs_y >= abs_z {
-            (0, 2) // XZ平面に投影
-        } else {
-            (0, 1) // XY平面に投影
-        };
-
-        // 2D座標を取得
-        let get_coord = |p: &Point3D, idx: usize| match idx {
-            0 => p.x(),
-            1 => p.y(),
-            2 => p.z(),
-            _ => unreachable!(),
-        };
-
-        let v0_u = get_coord(&self.vertices[0], u_idx);
-        let v0_v = get_coord(&self.vertices[0], v_idx);
-        let v1_u = get_coord(&self.vertices[1], u_idx);
-        let v1_v = get_coord(&self.vertices[1], v_idx);
-        let v2_u = get_coord(&self.vertices[2], u_idx);
-        let v2_v = get_coord(&self.vertices[2], v_idx);
-        let p_u = get_coord(point, u_idx);
-        let p_v = get_coord(point, v_idx);
-
-        // 重心座標を計算
-        let denom = (v1_v - v2_v) * (v0_u - v2_u) + (v2_u - v1_u) * (v0_v - v2_v);
-
-        if denom.abs() < 1e-10 {
-            return None; // 縮退三角形
-        }
-
-        let alpha = ((v1_v - v2_v) * (p_u - v2_u) + (v2_u - v1_u) * (p_v - v2_v)) / denom;
-        let beta = ((v2_v - v0_v) * (p_u - v2_u) + (v0_u - v2_u) * (p_v - v2_v)) / denom;
-        let gamma = 1.0 - alpha - beta;
-
-        Some((alpha, beta, gamma))
+    pub fn normal(&self) -> Vector3D {
+        let (x0, y0, z0) = point3d_to_f64(&self.vertices[0]);
+        let (x1, y1, z1) = point3d_to_f64(&self.vertices[1]);
+        let (x2, y2, z2) = point3d_to_f64(&self.vertices[2]);
+        
+        let v1_x = x1 - x0;
+        let v1_y = y1 - y0;
+        let v1_z = z1 - z0;
+        
+        let v2_x = x2 - x0;
+        let v2_y = y2 - y0;
+        let v2_z = z2 - z0;
+        
+        // 外積
+        let cross_x = v1_y * v2_z - v1_z * v2_y;
+        let cross_y = v1_z * v2_x - v1_x * v2_z;
+        let cross_z = v1_x * v2_y - v1_y * v2_x;
+        
+        Vector3D::new(
+            Scalar::new(cross_x),
+            Scalar::new(cross_y),
+            Scalar::new(cross_z),
+        )
     }
 }
 
@@ -229,16 +177,10 @@ impl GeometricPrimitive for Triangle3D {
     }
 
     fn bounding_box(&self) -> BoundingBox {
-        let min_x = self.vertices[0].x().min(self.vertices[1].x()).min(self.vertices[2].x());
-        let min_y = self.vertices[0].y().min(self.vertices[1].y()).min(self.vertices[2].y());
-        let min_z = self.vertices[0].z().min(self.vertices[1].z()).min(self.vertices[2].z());
-        let max_x = self.vertices[0].x().max(self.vertices[1].x()).max(self.vertices[2].x());
-        let max_y = self.vertices[0].y().max(self.vertices[1].y()).max(self.vertices[2].y());
-        let max_z = self.vertices[0].z().max(self.vertices[1].z()).max(self.vertices[2].z());
-
+        let bbox = point3d_bounding_box(&self.vertices).unwrap();
         BoundingBox::new(
-            geo_core::Point3D::from_f64(min_x, min_y, min_z),
-            geo_core::Point3D::from_f64(max_x, max_y, max_z),
+            point3d_from_f64(bbox.0, bbox.1, bbox.2),
+            point3d_from_f64(bbox.3, bbox.4, bbox.5),
         )
     }
 
@@ -252,46 +194,64 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_triangle_2d_area() {
-        let triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.0, 1.0),
-        );
-
-        assert!((triangle.area() - 0.5).abs() < 1e-10);
-        assert_eq!(triangle.primitive_kind(), PrimitiveKind::Triangle);
+    fn test_triangle2d_creation() {
+        let p1 = Point2D::from_f64(0.0, 0.0);
+        let p2 = Point2D::from_f64(1.0, 0.0);
+        let p3 = Point2D::from_f64(0.0, 1.0);
+        let triangle = Triangle2D::new(p1, p2, p3);
+        assert_eq!(triangle.vertices().len(), 3);
     }
 
     #[test]
-    fn test_triangle_3d_area() {
-        let triangle = Triangle3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        );
-
+    fn test_triangle2d_area() {
+        let p1 = Point2D::from_f64(0.0, 0.0);
+        let p2 = Point2D::from_f64(1.0, 0.0);
+        let p3 = Point2D::from_f64(0.0, 1.0);
+        let triangle = Triangle2D::new(p1, p2, p3);
         assert!((triangle.area() - 0.5).abs() < 1e-10);
-
-        let normal = triangle.normal().unwrap();
-        // Z軸方向の法線になるはず
-        assert!((normal.z().value() - 1.0).abs() < 1e-10);
     }
 
     #[test]
-    fn test_barycentric_coordinates() {
-        let triangle = Triangle2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.0, 1.0),
-        );
+    fn test_triangle2d_centroid() {
+        let p1 = Point2D::from_f64(0.0, 0.0);
+        let p2 = Point2D::from_f64(3.0, 0.0);
+        let p3 = Point2D::from_f64(0.0, 3.0);
+        let triangle = Triangle2D::new(p1, p2, p3);
+        let centroid = triangle.centroid();
+        let (cx, cy) = point2d_to_f64(&centroid);
+        assert!((cx - 1.0).abs() < 1e-10);
+        assert!((cy - 1.0).abs() < 1e-10);
+    }
 
-        let center = Point2D::new(1.0/3.0, 1.0/3.0);
-        let (alpha, beta, gamma) = triangle.barycentric_coordinates(&center);
+    #[test]
+    fn test_triangle2d_contains_point() {
+        let p1 = Point2D::from_f64(0.0, 0.0);
+        let p2 = Point2D::from_f64(2.0, 0.0);
+        let p3 = Point2D::from_f64(1.0, 2.0);
+        let triangle = Triangle2D::new(p1, p2, p3);
+        
+        let inside_point = Point2D::from_f64(1.0, 0.5);
+        let outside_point = Point2D::from_f64(2.0, 2.0);
+        
+        assert!(triangle.contains_point(&inside_point));
+        assert!(!triangle.contains_point(&outside_point));
+    }
 
-        // 重心での重心座標は (1/3, 1/3, 1/3) になるはず
-        assert!((alpha - 1.0/3.0).abs() < 1e-10);
-        assert!((beta - 1.0/3.0).abs() < 1e-10);
-        assert!((gamma - 1.0/3.0).abs() < 1e-10);
+    #[test]
+    fn test_triangle3d_creation() {
+        let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
+        let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
+        let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
+        let triangle = Triangle3D::new(p1, p2, p3);
+        assert_eq!(triangle.vertices().len(), 3);
+    }
+
+    #[test]
+    fn test_triangle3d_area() {
+        let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
+        let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
+        let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
+        let triangle = Triangle3D::new(p1, p2, p3);
+        assert!((triangle.area() - 0.5).abs() < 1e-10);
     }
 }

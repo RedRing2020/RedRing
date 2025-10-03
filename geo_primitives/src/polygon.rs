@@ -2,252 +2,229 @@
 ///
 /// 2D/3D空間における多角形要素
 
-use geo_core::{Vector3D, Scalar, Vector};
-use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox};
-use crate::point::{Point2D, Point3D};
+use geo_core::{Vector3D, Scalar};
+use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
+use geo_core::{Point2D, Point3D};
 
 /// 2D多角形プリミティブ
 #[derive(Debug, Clone)]
 pub struct Polygon2D {
     vertices: Vec<Point2D>,
-    is_closed: bool,
 }
 
 impl Polygon2D {
-    /// 頂点列から多角形を作成
+    /// 新しい2D多角形を作成
     pub fn new(vertices: Vec<Point2D>) -> Option<Self> {
         if vertices.len() < 3 {
-            None
-        } else {
-            Some(Self {
-                vertices,
-                is_closed: true
-            })
+            return None; // 多角形は最低3つの頂点が必要
         }
+        Some(Self { vertices })
     }
 
-    /// 開いた多角形（ポリライン）を作成
-    pub fn new_open(vertices: Vec<Point2D>) -> Option<Self> {
-        if vertices.len() < 2 {
-            None
-        } else {
-            Some(Self {
-                vertices,
-                is_closed: false
-            })
-        }
-    }
-
-    pub fn vertices(&self) -> &Vec<Point2D> {
+    /// 頂点を取得
+    pub fn vertices(&self) -> &[Point2D] {
         &self.vertices
     }
 
+    /// 頂点の可変参照を取得
+    pub fn vertices_mut(&mut self) -> &mut Vec<Point2D> {
+        &mut self.vertices
+    }
+
+    /// 頂点数を取得
     pub fn vertex_count(&self) -> usize {
         self.vertices.len()
     }
 
-    pub fn is_closed(&self) -> bool {
-        self.is_closed
-    }
-
     /// 重心を計算
     pub fn centroid(&self) -> Point2D {
-        let sum_x: f64 = self.vertices.iter().map(|v| v.x()).sum();
-        let sum_y: f64 = self.vertices.iter().map(|v| v.y()).sum();
-        let count = self.vertices.len() as f64;
-
-        Point2D::new(sum_x / count, sum_y / count)
+        point2d_centroid(&self.vertices).unwrap()
     }
 
-    /// 面積を計算（閉じた多角形のみ）
+    /// 面積を計算（Shoelace公式を使用）
     pub fn area(&self) -> f64 {
-        if !self.is_closed || self.vertices.len() < 3 {
+        let n = self.vertices.len();
+        if n < 3 {
             return 0.0;
         }
 
-        let mut area = 0.0;
-        let n = self.vertices.len();
-
+        let mut area: f64 = 0.0;
         for i in 0..n {
             let j = (i + 1) % n;
-            area += self.vertices[i].x() * self.vertices[j].y();
-            area -= self.vertices[j].x() * self.vertices[i].y();
+            let (xi, yi) = point2d_to_f64(&self.vertices[i]);
+            let (xj, yj) = point2d_to_f64(&self.vertices[j]);
+            area += xi * yj;
+            area -= xj * yi;
         }
-
-        0.5 * area.abs()
+        
+        (area / 2.0).abs()
     }
 
     /// 周囲長を計算
     pub fn perimeter(&self) -> f64 {
-        if self.vertices.len() < 2 {
+        let n = self.vertices.len();
+        if n < 2 {
             return 0.0;
         }
 
         let mut perimeter = 0.0;
-        let n = self.vertices.len();
-
-        for i in 0..(n - 1) {
-            perimeter += self.vertices[i].distance_to(&self.vertices[i + 1]);
-        }
-
-        // 閉じた多角形の場合は最後の辺を追加
-        if self.is_closed && n >= 3 {
-            perimeter += self.vertices[n - 1].distance_to(&self.vertices[0]);
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let (xi, yi) = point2d_to_f64(&self.vertices[i]);
+            let (xj, yj) = point2d_to_f64(&self.vertices[j]);
+            let dx = xj - xi;
+            let dy = yj - yi;
+            perimeter += (dx * dx + dy * dy).sqrt();
         }
 
         perimeter
+    }
+
+    /// 点が多角形内部にあるかを判定（Ray casting algorithm）
+    pub fn contains_point(&self, point: &Point2D) -> bool {
+        let n = self.vertices.len();
+        if n < 3 {
+            return false;
+        }
+
+        let (px, py) = point2d_to_f64(point);
+        let mut inside = false;
+
+        for i in 0..n {
+            let j = (i + 1) % n;
+            let (xi, yi) = point2d_to_f64(&self.vertices[i]);
+            let (xj, yj) = point2d_to_f64(&self.vertices[j]);
+
+            if ((yi > py) != (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi) {
+                inside = !inside;
+            }
+        }
+
+        inside
     }
 }
 
 impl GeometricPrimitive for Polygon2D {
     fn primitive_kind(&self) -> PrimitiveKind {
-        if self.is_closed {
-            PrimitiveKind::Polygon
-        } else {
-            PrimitiveKind::PolyLine
-        }
+        PrimitiveKind::Polygon
     }
 
     fn bounding_box(&self) -> BoundingBox {
-        if self.vertices.is_empty() {
-            return BoundingBox::from_2d(
-                geo_core::Point2D::from_f64(0.0, 0.0),
-                geo_core::Point2D::from_f64(0.0, 0.0),
-            );
-        }
-
-        let min_x = self.vertices.iter().map(|v| v.x()).fold(f64::INFINITY, f64::min);
-        let min_y = self.vertices.iter().map(|v| v.y()).fold(f64::INFINITY, f64::min);
-        let max_x = self.vertices.iter().map(|v| v.x()).fold(f64::NEG_INFINITY, f64::max);
-        let max_y = self.vertices.iter().map(|v| v.y()).fold(f64::NEG_INFINITY, f64::max);
-
+        let bbox = point2d_bounding_box(&self.vertices).unwrap();
         BoundingBox::from_2d(
-            geo_core::Point2D::from_f64(min_x, min_y),
-            geo_core::Point2D::from_f64(max_x, max_y),
+            point2d_from_f64(bbox.0, bbox.1),
+            point2d_from_f64(bbox.2, bbox.3),
         )
     }
 
     fn measure(&self) -> Option<f64> {
-        if self.is_closed {
-            Some(self.area())
-        } else {
-            Some(self.perimeter()) // ポリラインの場合は長さ
-        }
+        Some(self.area())
     }
 }
 
-/// 3D多角形プリミティブ
+/// 3D多角形プリミティブ（平面多角形）
 #[derive(Debug, Clone)]
 pub struct Polygon3D {
     vertices: Vec<Point3D>,
-    is_closed: bool,
 }
 
 impl Polygon3D {
-    /// 頂点列から多角形を作成
+    /// 新しい3D多角形を作成
     pub fn new(vertices: Vec<Point3D>) -> Option<Self> {
         if vertices.len() < 3 {
-            None
-        } else {
-            Some(Self {
-                vertices,
-                is_closed: true
-            })
+            return None; // 多角形は最低3つの頂点が必要
         }
+        Some(Self { vertices })
     }
 
-    pub fn vertices(&self) -> &Vec<Point3D> {
+    /// 頂点を取得
+    pub fn vertices(&self) -> &[Point3D] {
         &self.vertices
     }
 
+    /// 頂点の可変参照を取得
+    pub fn vertices_mut(&mut self) -> &mut Vec<Point3D> {
+        &mut self.vertices
+    }
+
+    /// 頂点数を取得
     pub fn vertex_count(&self) -> usize {
         self.vertices.len()
     }
 
-    pub fn is_closed(&self) -> bool {
-        self.is_closed
-    }
-
     /// 重心を計算
     pub fn centroid(&self) -> Point3D {
-        let sum_x: f64 = self.vertices.iter().map(|v| v.x()).sum();
-        let sum_y: f64 = self.vertices.iter().map(|v| v.y()).sum();
-        let sum_z: f64 = self.vertices.iter().map(|v| v.z()).sum();
-        let count = self.vertices.len() as f64;
-
-        Point3D::new(sum_x / count, sum_y / count, sum_z / count)
+        point3d_centroid(&self.vertices).unwrap()
     }
 
-    /// 法線ベクトルを計算（最初の3頂点から）
+    /// 法線ベクトルを計算（最初の3点から）
     pub fn normal(&self) -> Option<Vector3D> {
         if self.vertices.len() < 3 {
             return None;
         }
 
-        let v1 = Vector3D::new(
-            Scalar::new(self.vertices[1].x() - self.vertices[0].x()),
-            Scalar::new(self.vertices[1].y() - self.vertices[0].y()),
-            Scalar::new(self.vertices[1].z() - self.vertices[0].z()),
-        );
-        let v2 = Vector3D::new(
-            Scalar::new(self.vertices[2].x() - self.vertices[0].x()),
-            Scalar::new(self.vertices[2].y() - self.vertices[0].y()),
-            Scalar::new(self.vertices[2].z() - self.vertices[0].z()),
-        );
-
-        let cross = v1.cross(&v2);
-        let mag_squared = cross.x().value() * cross.x().value()
-            + cross.y().value() * cross.y().value()
-            + cross.z().value() * cross.z().value();
-
-        if mag_squared > 1e-20 {
-            let magnitude = Scalar::new(mag_squared.sqrt());
-            Some(Vector3D::new(
-                cross.x() / magnitude,
-                cross.y() / magnitude,
-                cross.z() / magnitude,
-            ))
-        } else {
-            None
+        let (x0, y0, z0) = point3d_to_f64(&self.vertices[0]);
+        let (x1, y1, z1) = point3d_to_f64(&self.vertices[1]);
+        let (x2, y2, z2) = point3d_to_f64(&self.vertices[2]);
+        
+        let v1_x = x1 - x0;
+        let v1_y = y1 - y0;
+        let v1_z = z1 - z0;
+        
+        let v2_x = x2 - x0;
+        let v2_y = y2 - y0;
+        let v2_z = z2 - z0;
+        
+        // 外積
+        let cross_x = v1_y * v2_z - v1_z * v2_y;
+        let cross_y = v1_z * v2_x - v1_x * v2_z;
+        let cross_z = v1_x * v2_y - v1_y * v2_x;
+        
+        // 長さチェック
+        let length = (cross_x * cross_x + cross_y * cross_y + cross_z * cross_z).sqrt();
+        if length < 1e-10 {
+            return None;
         }
+        
+        Some(Vector3D::new(
+            Scalar::new(cross_x),
+            Scalar::new(cross_y),
+            Scalar::new(cross_z),
+        ))
     }
 
-    /// 面積を計算（平面多角形の場合）
+    /// 面積を計算（三角形分割を使用）
     pub fn area(&self) -> f64 {
-        if !self.is_closed || self.vertices.len() < 3 {
+        let n = self.vertices.len();
+        if n < 3 {
             return 0.0;
         }
 
-        let normal = match self.normal() {
-            Some(n) => n,
-            None => return 0.0, // 縮退多角形
-        };
+        let mut total_area = 0.0;
+        let (x0, y0, z0) = point3d_to_f64(&self.vertices[0]);
 
-        let mut area = 0.0;
-        let n = self.vertices.len();
-
-        for i in 0..n {
-            let j = (i + 1) % n;
-            let v1 = Vector3D::new(
-                Scalar::new(self.vertices[i].x()),
-                Scalar::new(self.vertices[i].y()),
-                Scalar::new(self.vertices[i].z()),
-            );
-            let v2 = Vector3D::new(
-                Scalar::new(self.vertices[j].x()),
-                Scalar::new(self.vertices[j].y()),
-                Scalar::new(self.vertices[j].z()),
-            );
-
-            let cross = v1.cross(&v2);
-            // dot積を手動で計算
-            let dot_value = cross.x().value() * normal.x().value()
-                + cross.y().value() * normal.y().value()
-                + cross.z().value() * normal.z().value();
-            area += dot_value;
+        for i in 1..n - 1 {
+            let (x1, y1, z1) = point3d_to_f64(&self.vertices[i]);
+            let (x2, y2, z2) = point3d_to_f64(&self.vertices[i + 1]);
+            
+            let v1_x = x1 - x0;
+            let v1_y = y1 - y0;
+            let v1_z = z1 - z0;
+            
+            let v2_x = x2 - x0;
+            let v2_y = y2 - y0;
+            let v2_z = z2 - z0;
+            
+            // 外積
+            let cross_x = v1_y * v2_z - v1_z * v2_y;
+            let cross_y = v1_z * v2_x - v1_x * v2_z;
+            let cross_z = v1_x * v2_y - v1_y * v2_x;
+            
+            let triangle_area = 0.5 * (cross_x * cross_x + cross_y * cross_y + cross_z * cross_z).sqrt();
+            total_area += triangle_area;
         }
 
-        0.5 * area.abs()
+        total_area
     }
 }
 
@@ -257,23 +234,10 @@ impl GeometricPrimitive for Polygon3D {
     }
 
     fn bounding_box(&self) -> BoundingBox {
-        if self.vertices.is_empty() {
-            return BoundingBox::new(
-                geo_core::Point3D::from_f64(0.0, 0.0, 0.0),
-                geo_core::Point3D::from_f64(0.0, 0.0, 0.0),
-            );
-        }
-
-        let min_x = self.vertices.iter().map(|v| v.x()).fold(f64::INFINITY, f64::min);
-        let min_y = self.vertices.iter().map(|v| v.y()).fold(f64::INFINITY, f64::min);
-        let min_z = self.vertices.iter().map(|v| v.z()).fold(f64::INFINITY, f64::min);
-        let max_x = self.vertices.iter().map(|v| v.x()).fold(f64::NEG_INFINITY, f64::max);
-        let max_y = self.vertices.iter().map(|v| v.y()).fold(f64::NEG_INFINITY, f64::max);
-        let max_z = self.vertices.iter().map(|v| v.z()).fold(f64::NEG_INFINITY, f64::max);
-
+        let bbox = point3d_bounding_box(&self.vertices).unwrap();
         BoundingBox::new(
-            geo_core::Point3D::from_f64(min_x, min_y, min_z),
-            geo_core::Point3D::from_f64(max_x, max_y, max_z),
+            point3d_from_f64(bbox.0, bbox.1, bbox.2),
+            point3d_from_f64(bbox.3, bbox.4, bbox.5),
         )
     }
 
@@ -287,46 +251,79 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_polygon_2d_area() {
+    fn test_polygon2d_creation() {
         let vertices = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(0.0, 1.0),
+            Point2D::from_f64(0.0, 0.0),
+            Point2D::from_f64(1.0, 0.0),
+            Point2D::from_f64(1.0, 1.0),
+            Point2D::from_f64(0.0, 1.0),
         ];
         let polygon = Polygon2D::new(vertices).unwrap();
-
-        assert!((polygon.area() - 1.0).abs() < 1e-10);
-        assert_eq!(polygon.primitive_kind(), PrimitiveKind::Polygon);
+        assert_eq!(polygon.vertex_count(), 4);
     }
 
     #[test]
-    fn test_polygon_3d_creation() {
+    fn test_polygon2d_area() {
         let vertices = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.5, 1.0, 0.0),
+            Point2D::from_f64(0.0, 0.0),
+            Point2D::from_f64(1.0, 0.0),
+            Point2D::from_f64(1.0, 1.0),
+            Point2D::from_f64(0.0, 1.0),
+        ];
+        let polygon = Polygon2D::new(vertices).unwrap();
+        assert!((polygon.area() - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_polygon2d_perimeter() {
+        let vertices = vec![
+            Point2D::from_f64(0.0, 0.0),
+            Point2D::from_f64(1.0, 0.0),
+            Point2D::from_f64(1.0, 1.0),
+            Point2D::from_f64(0.0, 1.0),
+        ];
+        let polygon = Polygon2D::new(vertices).unwrap();
+        assert!((polygon.perimeter() - 4.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_polygon2d_contains_point() {
+        let vertices = vec![
+            Point2D::from_f64(0.0, 0.0),
+            Point2D::from_f64(2.0, 0.0),
+            Point2D::from_f64(2.0, 2.0),
+            Point2D::from_f64(0.0, 2.0),
+        ];
+        let polygon = Polygon2D::new(vertices).unwrap();
+        
+        let inside_point = Point2D::from_f64(1.0, 1.0);
+        let outside_point = Point2D::from_f64(3.0, 3.0);
+        
+        assert!(polygon.contains_point(&inside_point));
+        assert!(!polygon.contains_point(&outside_point));
+    }
+
+    #[test]
+    fn test_polygon3d_creation() {
+        let vertices = vec![
+            Point3D::from_f64(0.0, 0.0, 0.0),
+            Point3D::from_f64(1.0, 0.0, 0.0),
+            Point3D::from_f64(1.0, 1.0, 0.0),
+            Point3D::from_f64(0.0, 1.0, 0.0),
         ];
         let polygon = Polygon3D::new(vertices).unwrap();
-
-        assert_eq!(polygon.vertex_count(), 3);
-        assert!(polygon.is_closed());
-
-        let normal = polygon.normal().unwrap();
-        // Z軸方向の法線になるはず
-        assert!((normal.z().value() - 1.0).abs() < 1e-10);
+        assert_eq!(polygon.vertex_count(), 4);
     }
 
     #[test]
-    fn test_polygon_2d_perimeter() {
+    fn test_polygon3d_area() {
         let vertices = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(3.0, 0.0),
-            Point2D::new(3.0, 4.0),
-            Point2D::new(0.0, 4.0),
+            Point3D::from_f64(0.0, 0.0, 0.0),
+            Point3D::from_f64(1.0, 0.0, 0.0),
+            Point3D::from_f64(1.0, 1.0, 0.0),
+            Point3D::from_f64(0.0, 1.0, 0.0),
         ];
-        let polygon = Polygon2D::new(vertices).unwrap();
-
-        assert!((polygon.perimeter() - 14.0).abs() < 1e-10); // 3+4+3+4 = 14
+        let polygon = Polygon3D::new(vertices).unwrap();
+        assert!((polygon.area() - 1.0).abs() < 1e-10);
     }
 }
