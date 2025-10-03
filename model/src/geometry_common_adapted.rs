@@ -1,5 +1,5 @@
 /// geometry_common/intersection.rs の geo_core 統合版
-/// 
+///
 /// IntersectionResult<P> をgeo_coreのToleranceContextと統合し、
 /// 既存のジェネリック設計を保持しつつ数値的堅牢性を向上
 
@@ -115,8 +115,8 @@ pub mod intersection_utils {
 
     /// 2つの点が許容誤差内で一致するかチェック
     pub fn points_are_coincident(
-        p1: &Point3D, 
-        p2: &Point3D, 
+        p1: &Point3D,
+        p2: &Point3D,
         tolerance: &ToleranceContext
     ) -> bool {
         let geo_p1 = p1.as_geo_core();
@@ -141,10 +141,10 @@ pub mod intersection_utils {
     ) -> bool {
         let geo_v1 = v1.as_geo_core();
         let geo_v2 = v2.as_geo_core();
-        
+
         let cross = geo_v1.cross(geo_v2);
         let cross_magnitude = cross.magnitude();
-        
+
         cross_magnitude.value() <= tolerance.linear
     }
 
@@ -156,7 +156,7 @@ pub mod intersection_utils {
     ) -> bool {
         let geo_v1 = v1.as_geo_core();
         let geo_v2 = v2.as_geo_core();
-        
+
         let dot = geo_v1.dot(geo_v2);
         dot.value().abs() <= tolerance.linear
     }
@@ -226,9 +226,9 @@ mod tests {
     fn test_intersection_result_creation() {
         let tolerance = ToleranceContext::standard();
         let pt = Point3D::new(1.0, 2.0, 3.0);
-        
+
         let result = IntersectionResult::point(pt, 0.5, tolerance.clone());
-        
+
         assert_eq!(result.kind, IntersectionKind::Point);
         assert_eq!(result.points.len(), 1);
         assert_eq!(result.parameters.len(), 1);
@@ -240,7 +240,7 @@ mod tests {
     fn test_intersection_context() {
         let context = IntersectionContext::standard();
         assert_eq!(context.max_iterations(), 100);
-        
+
         let high_prec = IntersectionContext::high_precision();
         assert_eq!(high_prec.max_iterations(), 1000);
         assert!(high_prec.tolerance().linear < context.tolerance().linear);
@@ -250,7 +250,7 @@ mod tests {
     fn test_tolerance_compatibility() {
         let tolerance = ToleranceContext::standard();
         let result = IntersectionResult::<Point3D>::none(tolerance.clone());
-        
+
         // 後方互換性テスト
         assert_eq!(result.tolerance_used(), tolerance.linear);
         assert_eq!(result.angular_tolerance(), tolerance.angular);

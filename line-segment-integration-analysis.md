@@ -3,6 +3,7 @@
 ## 現在の構造比較
 
 ### geo_core::LineSegment3D
+
 ```rust
 pub struct LineSegment3D {
     start: Point3D,     // Scalar型によるトレラント座標
@@ -18,6 +19,7 @@ pub struct LineSegment3D {
 ```
 
 ### model::geometry3d::Line
+
 ```rust
 pub struct Line {
     origin: Point,      // f64型座標
@@ -34,7 +36,8 @@ pub struct Line {
 // - パラメータ t ∈ [0,1]（実際はstart-end区間）
 ```
 
-### model関連構造
+### model 関連構造
+
 ```rust
 // InfiniteLine: 無限直線
 pub struct InfiniteLine {
@@ -52,20 +55,23 @@ pub struct Ray {
 ## 意味的差異分析
 
 ### 1. 概念的違い
-- **geo_core::LineSegment3D**: **純粋な線分**（2点間の最短パス）
+
+- **geo_core::LineSegment3D**: **純粋な線分**（2 点間の最短パス）
 - **model::Line**: **直線の一部を切り取った区間**（無限直線の概念を持つ）
 
 ### 2. データ構造の違い
+
 - **geo_core**: `start + end` のみ（ミニマル設計）
 - **model**: `origin + direction + start + end`（豊富な情報）
 
 ### 3. 用途の違い
+
 - **geo_core**: 数値計算基盤（線形補間、距離計算）
-- **model**: CAD幾何要素（直線概念、トリミング状態）
+- **model**: CAD 幾何要素（直線概念、トリミング状態）
 
 ## 統合設計案
 
-### 案1: 階層統合設計（推奨）
+### 案 1: 階層統合設計（推奨）
 
 ```rust
 // geo_core: 数値計算基盤
@@ -93,7 +99,7 @@ pub struct TrimmingInfo {
 }
 ```
 
-### 案2: アダプターベース統合
+### 案 2: アダプターベース統合
 
 ```rust
 // geometry_adapter_line.rs
@@ -118,7 +124,7 @@ impl Curve3D for AdaptedLine {
 }
 ```
 
-### 案3: 統一プリミティブ設計
+### 案 3: 統一プリミティブ設計
 
 ```rust
 // 統一された線分概念
@@ -144,23 +150,27 @@ pub enum LineSemanticType {
 ## 推奨統合方針
 
 ### Phase 1: アダプターパターン導入
+
 1. 既存の `model::Line` を保持
 2. `AdaptedLine` で geo_core との橋渡し
 3. 段階的にパフォーマンス改善
 
 ### Phase 2: 階層統合への移行
+
 1. `LineSegment3D` を数値計算エンジンとして内包
 2. `Line` を高レベル幾何抽象として再設計
-3. CAD固有の概念（トリミング、無限性）を保持
+3. CAD 固有の概念（トリミング、無限性）を保持
 
 ### Phase 3: 意味論的統一
+
 1. 線分、直線、射線の関係を明確化
 2. パラメータ化の一貫性確保
-3. CAM用途への最適化
+3. CAM 用途への最適化
 
 ## 実装上の注意点
 
 ### 1. 型変換の一貫性
+
 ```rust
 impl From<model::Line> for geo_core::LineSegment3D {
     fn from(line: model::Line) -> Self {
@@ -173,11 +183,13 @@ impl From<model::Line> for geo_core::LineSegment3D {
 ```
 
 ### 2. パラメータ化の統一
+
 - geo_core: t ∈ [0,1]（線形補間）
-- model: t ∈ [0,1]（start-end区間）
+- model: t ∈ [0,1]（start-end 区間）
 - 両者の意味論的一致を保証
 
 ### 3. 許容誤差の統合
+
 ```rust
 impl Line {
     pub fn is_aligned_tolerant(&self, tolerance: &ToleranceContext) -> bool {
@@ -190,7 +202,7 @@ impl Line {
 
 **geo_core::LineSegment3D** と **model::Line** は**似て非なる概念**です：
 
-- **LineSegment3D**: 純粋な数値計算対象（2点間の線形補間）
-- **Line**: CAD幾何要素（直線概念 + トリミング状態）
+- **LineSegment3D**: 純粋な数値計算対象（2 点間の線形補間）
+- **Line**: CAD 幾何要素（直線概念 + トリミング状態）
 
-**推奨**: **階層統合設計**により、geo_coreの数値堅牢性を活用しつつ、modelのCAD概念を保持する統合アーキテクチャを構築。
+**推奨**: **階層統合設計**により、geo_core の数値堅牢性を活用しつつ、model の CAD 概念を保持する統合アーキテクチャを構築。

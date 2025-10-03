@@ -1,5 +1,5 @@
 /// geometry_adapter.rs の Curve3D trait 統合拡張
-/// 
+///
 /// 既存のCurve3D trait設計を保持しつつ、geo_coreの数値基盤を活用
 
 use std::any::Any;
@@ -78,7 +78,7 @@ impl AdaptedArc {
     pub fn new(center: Point3D, radius: f64, start_angle: f64, end_angle: f64, normal: Vector3D) -> Self {
         let geo_center = center.as_geo_core().clone();
         let geo_normal = normal.as_geo_core().clone();
-        
+
         Self {
             inner: GeoArc3D::new(
                 geo_center,
@@ -205,7 +205,7 @@ mod tests {
 
         // Curve3D trait のテスト
         assert_eq!(line.kind(), CurveKind3D::Line);
-        
+
         let mid_point = line.evaluate(0.5);
         assert!((mid_point.x() - 0.5).abs() < 1e-10);
         assert!((mid_point.y() - 0.5).abs() < 1e-10);
