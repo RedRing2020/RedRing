@@ -62,7 +62,7 @@ impl RenderStage for DraftStage {
             self.resources.vertex_count,
         );
     }
-    
+
     fn update(&mut self) {
         self.frame_count += 1;
         let t = self.frame_count as f32 * 0.02;

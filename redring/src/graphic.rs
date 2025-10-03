@@ -30,6 +30,7 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
             required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::default(),
             memory_hints: Default::default(),
+            experimental_features: wgpu::ExperimentalFeatures::default(),
             trace: wgpu::Trace::default(),
         },
     ))
