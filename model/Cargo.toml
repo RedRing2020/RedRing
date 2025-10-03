@@ -1,6 +1,11 @@
 [package]
 name = "model"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+geo_core = { path = "../geo_core" }
+
+[features]
+default = []
+use_geo_core = []  # geo_core統合を有効化

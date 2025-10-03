@@ -1,0 +1,37 @@
+[package]
+name = "geo_core"
+version = "0.1.0"
+edition = "2021"
+description = "Tolerant geometric modeling foundation for RedRing CAD/CAM"
+license = "MIT"
+
+[dependencies]
+# 数値計算の安定性
+num-traits = "0.2"
+approx = "0.5"  # 許容誤差ベース比較
+
+# パフォーマンス（オプション）
+nalgebra = { version = "0.34.1", optional = true }
+simba = { version = "0.9.1", optional = true }
+
+# シリアル化サポート（オプション）
+serde = { version = "1.0", optional = true, features = ["derive"] }
+
+# テスト用
+[dev-dependencies]
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+criterion = "0.7.0"
+
+[features]
+default = []
+simd = ["nalgebra", "simba"]
+serde-support = ["dep:serde"]
+
+[lib]
+name = "geo_core"
+path = "src/lib.rs"
+
+# [[bench]]
+# name = "vector_ops"
+# harness = false
