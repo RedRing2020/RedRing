@@ -2,7 +2,7 @@ use crate::geometry_trait::Normalize;
 
 use super::vector::Vector;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Direction(Vector);
 
 impl Direction {
@@ -40,7 +40,7 @@ impl Direction {
     }
 
     pub fn x(&self) -> f64 {
-        self.0.x()
+        self.0.clone().x()
     }
 
     pub fn y(&self) -> f64 {
@@ -51,18 +51,16 @@ impl Direction {
         self.0.z()
     }
 
-    pub fn normalize(&self) -> Option<Self> {
-        // Direction は既に正規化されたベクトルなので、selfを返す
-        // ただし、数値誤差により長さが1でない可能性があるため、再正規化
-        Direction::from_vector(self.0)
+    pub fn normalize(&self) -> Direction {
+        Direction::from_vector(self.0.clone()).unwrap()
     }
 
     pub fn as_vector(&self) -> Vector {
-        self.0
+        self.0.clone()
     }
 
     pub fn to_vector(&self) -> Vector {
-        self.0
+        self.0.clone()
     }
 
     pub fn dot(&self, other: &Self) -> f64 {

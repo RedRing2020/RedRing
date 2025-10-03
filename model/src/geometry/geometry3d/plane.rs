@@ -19,12 +19,12 @@ impl Plane {
 
     /// Returns the reference point on the plane.
     pub fn point(&self) -> Point {
-        self.point
+        self.point.clone()
     }
 
     /// Returns the unit normal direction of the plane.
     pub fn normal(&self) -> Direction {
-        self.normal
+        self.normal.clone()
     }
 
     /// Computes the signed distance from a point to the plane.

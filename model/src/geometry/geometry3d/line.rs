@@ -18,19 +18,19 @@ impl Line {
     }
 
     pub fn origin(&self) -> Point {
-        self.origin
+        self.origin.clone()
     }
 
     pub fn direction(&self) -> Direction {
-        self.direction
+        self.direction.clone()
     }
 
     pub fn start(&self) -> Point {
-        self.start
+        self.start.clone()
     }
 
     pub fn end(&self) -> Point {
-        self.end
+        self.end.clone()
     }
 
     pub fn length(&self) -> f64 {
@@ -64,10 +64,10 @@ impl Curve3D for Line {
         self
     }
     fn evaluate(&self, t: f64) -> Point {
-        self.start + (self.end - self.start) * t
+        self.start.clone() + (self.end.clone() - self.start.clone()) * t
     }
     fn derivative(&self, _t: f64) -> Vector {
-        self.end - self.start
+        self.end.clone() - self.start.clone()
     }
     fn kind(&self) -> CurveKind3D {
         CurveKind3D::Line

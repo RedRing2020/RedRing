@@ -40,17 +40,17 @@ impl Ellipse {
 
     /// 中心点を取得
     pub fn center(&self) -> Point {
-        self.center
+        self.center.clone()
     }
 
     /// 長軸ベクトルを取得
     pub fn major_axis(&self) -> Vector {
-        self.major_axis
+        self.major_axis.clone()
     }
 
     /// 短軸ベクトルを取得
     pub fn minor_axis(&self) -> Vector {
-        self.minor_axis
+        self.minor_axis.clone()
     }
 
     /// 長軸半径を取得
@@ -77,16 +77,17 @@ impl Curve3D for Ellipse {
         self
     }
     fn evaluate(&self, t: f64) -> Point {
-        let angle = t * 2.0 * std::f64::consts::PI;
-        let x = self.major_radius * angle.cos();
-        let y = self.minor_radius * angle.sin();
-        self.center + self.major_axis * x + self.minor_axis * y
+        let theta = t * 2.0 * std::f64::consts::PI;
+        let x = theta.cos();
+        let y = theta.sin();
+        
+        self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
     fn derivative(&self, t: f64) -> Vector {
         let angle = t * 2.0 * std::f64::consts::PI;
         let dx = -self.major_radius * angle.sin() * 2.0 * std::f64::consts::PI;
         let dy =  self.minor_radius * angle.cos() * 2.0 * std::f64::consts::PI;
-        self.major_axis * dx + self.minor_axis * dy
+        self.major_axis.clone() * dx + self.minor_axis.clone() * dy
     }
     fn kind(&self) -> CurveKind3D {
         CurveKind3D::Ellipse
@@ -96,15 +97,15 @@ impl Curve3D for Ellipse {
     fn length(&self) -> f64 {
         let a = self.major_radius;
         let b = self.minor_radius;
-        let major = self.major_axis;
-        let minor = self.minor_axis;
+        let major = self.major_axis.clone();
+        let minor = self.minor_axis.clone();
         let steps = 360;
 
         // 速度ベクトル関数
         let evaluate = |theta: f64| {
-            let dx = -a * theta.sin();
-            let dy =  b * theta.cos();
-            major * dx + minor * dy
+            let dx = -theta.sin();
+            let dy = theta.cos();
+            major.clone() * dx + minor.clone() * dy
         };
 
         newton_arc_length(evaluate, 0.0, 2.0 * std::f64::consts::PI, steps)

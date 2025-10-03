@@ -44,17 +44,17 @@ impl EllipseArc {
 
     /// 中心点を取得
     pub fn center(&self) -> Point {
-        self.center
+        self.center.clone()
     }
 
     /// 長軸ベクトルを取得
     pub fn major_axis(&self) -> Vector {
-        self.major_axis
+        self.major_axis.clone()
     }
 
     /// 短軸ベクトルを取得
     pub fn minor_axis(&self) -> Vector {
-        self.minor_axis
+        self.minor_axis.clone()
     }
 
     /// 長軸半径を取得
@@ -92,10 +92,11 @@ impl Curve3D for EllipseArc {
     }
 
     fn evaluate(&self, t: f64) -> Point {
-        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
-        let x = self.major_radius * angle.cos();
-        let y = self.minor_radius * angle.sin();
-        self.center + self.major_axis * x + self.minor_axis * y
+        let theta = self.start_angle + t * (self.end_angle - self.start_angle);
+        let x = theta.cos();
+        let y = theta.sin();
+        
+        self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
 
     fn derivative(&self, t: f64) -> Vector {
@@ -103,7 +104,7 @@ impl Curve3D for EllipseArc {
         let d_angle = self.end_angle - self.start_angle;
         let dx = -self.major_radius * angle.sin() * d_angle;
         let dy = self.minor_radius * angle.cos() * d_angle;
-        self.major_axis * dx + self.minor_axis * dy
+        self.major_axis.clone() * dx + self.minor_axis.clone() * dy
     }
 
     fn kind(&self) -> CurveKind3D {
@@ -112,8 +113,8 @@ impl Curve3D for EllipseArc {
 
     /// 3D楕円弧の長さを数値積分で近似
     fn length(&self) -> f64 {
-        let major = self.major_axis;
-        let minor = self.minor_axis;
+        let major = self.major_axis.clone();
+        let minor = self.minor_axis.clone();
         let a = self.major_radius;
         let b = self.minor_radius;
         let start = self.start_angle;
@@ -122,9 +123,9 @@ impl Curve3D for EllipseArc {
 
         // 速度ベクトル関数
         let evaluate = |theta: f64| {
-            let dx = -a * theta.sin();
-            let dy =  b * theta.cos();
-            major * dx + minor * dy
+            let dx = -theta.sin();
+            let dy = theta.cos();
+            major.clone() * dx + minor.clone() * dy
         };
 
         newton_arc_length(evaluate, start, end, steps)
