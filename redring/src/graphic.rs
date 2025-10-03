@@ -32,6 +32,7 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
             memory_hints: Default::default(),
             experimental_features: wgpu::ExperimentalFeatures::default(),
             trace: wgpu::Trace::default(),
+            experimental_features: wgpu::ExperimentalFeatures::default(),
         },
     ))
     .expect("Device creation failed");
