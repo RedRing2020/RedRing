@@ -2,6 +2,7 @@ use crate::analysis::numeric::newton_arc_length;
 use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
+use crate::analysis::consts::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct EllipseArc {
@@ -24,8 +25,7 @@ impl EllipseArc {
         start_angle: f64,
         end_angle: f64,
     ) -> Option<Self> {
-        let epsilon = 1e-10;
-        if major_axis.dot(&minor_axis).abs() > epsilon {
+        if major_axis.dot(&minor_axis).abs() > EPSILON {
             return None; // 軸が直交していない
         }
         if end_angle <= start_angle {
