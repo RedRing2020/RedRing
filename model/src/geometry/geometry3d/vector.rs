@@ -14,8 +14,8 @@ pub struct Vector {
 
 impl Vector {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { 
-            inner: GeoVector3D::from_f64(x, y, z) 
+        Self {
+            inner: GeoVector3D::from_f64(x, y, z)
         }
     }
 
@@ -24,7 +24,7 @@ impl Vector {
     pub fn z(&self) -> f64 { self.inner.z().value() }
 
     pub fn zero() -> Self {
-        Self::new(0.0, 0.0, 0.0) 
+        Self::new(0.0, 0.0, 0.0)
     }
 
 

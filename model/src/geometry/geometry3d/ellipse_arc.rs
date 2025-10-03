@@ -2,6 +2,7 @@ use analysis::newton_arc_length;
 use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
+use geo_core::Scalar;
 use analysis::EPSILON;
 
 #[derive(Debug, Clone)]
@@ -9,8 +10,8 @@ pub struct EllipseArc {
     center: Point,
     major_axis: Vector,
     minor_axis: Vector,
-    major_radius: f64,
-    minor_radius: f64,
+    major_radius: Scalar,
+    minor_radius: Scalar,
     start_angle: f64, // in radians
     end_angle: f64,   // in radians
 }
@@ -35,8 +36,8 @@ impl EllipseArc {
             center,
             major_axis,
             minor_axis,
-            major_radius,
-            minor_radius,
+            major_radius: Scalar::new(major_radius),
+            minor_radius: Scalar::new(minor_radius),
             start_angle,
             end_angle,
         })
@@ -59,12 +60,12 @@ impl EllipseArc {
 
     /// 長軸半径を取得
     pub fn major_radius(&self) -> f64 {
-        self.major_radius
+        self.major_radius.value()
     }
 
     /// 短軸半径を取得
     pub fn minor_radius(&self) -> f64 {
-        self.minor_radius
+        self.minor_radius.value()
     }
 
     /// 開始角度を取得（ラジアン）
@@ -95,15 +96,16 @@ impl Curve3D for EllipseArc {
         let theta = self.start_angle + t * (self.end_angle - self.start_angle);
         let x = theta.cos();
         let y = theta.sin();
-        
+
         self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
 
     fn derivative(&self, t: f64) -> Vector {
-        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
+        let angle = self.start_angle + t * (self.end_angle - self.start_angle);
         let d_angle = self.end_angle - self.start_angle;
-        let dx = -self.major_radius * angle.sin() * d_angle;
-        let dy = self.minor_radius * angle.cos() * d_angle;
+
+        let dx = (-self.major_radius * Scalar::new(angle.sin()) * Scalar::new(d_angle)).value();
+        let dy = (self.minor_radius * Scalar::new(angle.cos()) * Scalar::new(d_angle)).value();
         self.major_axis.clone() * dx + self.minor_axis.clone() * dy
     }
 
@@ -115,8 +117,6 @@ impl Curve3D for EllipseArc {
     fn length(&self) -> f64 {
         let major = self.major_axis.clone();
         let minor = self.minor_axis.clone();
-        let a = self.major_radius;
-        let b = self.minor_radius;
         let start = self.start_angle;
         let end = self.end_angle;
         let steps = 360; // 内部変数として分割数を固定

@@ -1,6 +1,7 @@
 use crate::geometry::geometry3d::{point::Point, vector::Vector};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
+use geo_core::Scalar;
 
 use analysis::newton_arc_length;
 use analysis::EPSILON;
@@ -10,8 +11,8 @@ pub struct Ellipse {
     center: Point,
     major_axis: Vector,
     minor_axis: Vector,
-    major_radius: f64,
-    minor_radius: f64,
+    major_radius: Scalar,
+    minor_radius: Scalar,
 }
 
 impl Ellipse {
@@ -33,8 +34,8 @@ impl Ellipse {
             center,
             major_axis,
             minor_axis,
-            major_radius,
-            minor_radius,
+            major_radius: Scalar::new(major_radius),
+            minor_radius: Scalar::new(minor_radius),
         })
     }
 
@@ -55,12 +56,12 @@ impl Ellipse {
 
     /// 長軸半径を取得
     pub fn major_radius(&self) -> f64 {
-        self.major_radius
+        self.major_radius.value()
     }
 
     /// 短軸半径を取得
     pub fn minor_radius(&self) -> f64 {
-        self.minor_radius
+        self.minor_radius.value()
     }
 
     fn parameter_range(&self) -> (f64, f64) {
@@ -80,13 +81,14 @@ impl Curve3D for Ellipse {
         let theta = t * 2.0 * std::f64::consts::PI;
         let x = theta.cos();
         let y = theta.sin();
-        
+
         self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
     fn derivative(&self, t: f64) -> Vector {
         let angle = t * 2.0 * std::f64::consts::PI;
-        let dx = -self.major_radius * angle.sin() * 2.0 * std::f64::consts::PI;
-        let dy =  self.minor_radius * angle.cos() * 2.0 * std::f64::consts::PI;
+        let two_pi = Scalar::new(2.0 * std::f64::consts::PI);
+        let dx = (-self.major_radius * Scalar::new(angle.sin()) * two_pi).value();
+        let dy = (self.minor_radius * Scalar::new(angle.cos()) * two_pi).value();
         self.major_axis.clone() * dx + self.minor_axis.clone() * dy
     }
     fn kind(&self) -> CurveKind3D {
@@ -95,8 +97,6 @@ impl Curve3D for Ellipse {
 
     /// 楕円の周長（数値積分による近似）
     fn length(&self) -> f64 {
-        let a = self.major_radius;
-        let b = self.minor_radius;
         let major = self.major_axis.clone();
         let minor = self.minor_axis.clone();
         let steps = 360;
