@@ -95,3 +95,10 @@ impl Normalize for geometry3d::vector::Vector {
         }
     }
 }
+
+// analysis クレートとの互換性のためのトレイト実装
+impl analysis::NormedVector for Vector {
+    fn norm(&self) -> f64 {
+        self.norm()
+    }
+}

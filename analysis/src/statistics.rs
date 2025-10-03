@@ -87,7 +87,7 @@ impl PointCloudStats {
             let distances: Vec<f64> = points.iter()
                 .map(|p| centroid.distance_to(p).value())
                 .collect();
-            
+
             BasicStats::from_f64_slice(&distances).variance
         } else {
             0.0
@@ -101,7 +101,7 @@ impl PointCloudStats {
         }
 
         let centroid = self.centroid(points)?;
-        
+
         // 共分散行列の計算
         let mut cxx = 0.0;
         let mut cyy = 0.0;

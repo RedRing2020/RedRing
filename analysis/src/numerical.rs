@@ -92,7 +92,7 @@ impl NewtonSolver {
 
         for i in 0..self.max_iterations {
             let (f1, f2, jacobian) = system(x, y);
-            
+
             // ヤコビ行列の逆行列を計算
             let det = jacobian[0][0] * jacobian[1][1] - jacobian[0][1] * jacobian[1][0];
             if det.abs() < self.tolerance.parametric {
@@ -148,7 +148,7 @@ impl CurveIntersection {
         F2: Fn(f64) -> Point2D + Clone,
     {
         let mut candidates = Vec::new();
-        
+
         // グリッドベースの粗い検索
         let grid_size = 20;
         let step1 = (t1_range.1 - t1_range.0) / grid_size as f64;
@@ -189,18 +189,18 @@ impl CurveIntersection {
     {
         // 数値微分による勾配計算
         let h = 1e-8;
-        
+
         let system = |t1: f64, t2: f64| {
             let p1 = curve1(t1);
             let p2 = curve2(t2);
-            
+
             let f1 = p1.x().value() - p2.x().value();
             let f2 = p1.y().value() - p2.y().value();
 
             // ヤコビ行列（数値微分）
             let p1_dt = curve1(t1 + h);
             let p2_dt = curve2(t2 + h);
-            
+
             let df1_dt1 = (p1_dt.x().value() - p1.x().value()) / h;
             let df1_dt2 = -(p2_dt.x().value() - p2.x().value()) / h;
             let df2_dt1 = (p1_dt.y().value() - p1.y().value()) / h;
@@ -234,7 +234,7 @@ impl CurveIntersection {
 
     fn remove_duplicate_candidates(&self, mut candidates: Vec<IntersectionCandidate>) -> Vec<IntersectionCandidate> {
         candidates.sort_by(|a, b| a.parameter.partial_cmp(&b.parameter).unwrap());
-        
+
         let mut unique = Vec::new();
         for candidate in candidates {
             let is_duplicate = unique.iter().any(|existing: &IntersectionCandidate| {
@@ -252,7 +252,7 @@ impl CurveIntersection {
 }
 
 /// 最小二乗フィッティング
-/// 
+///
 /// 注意: 座標値と距離はmm単位で処理される
 pub struct LeastSquaresFitter {
     tolerance: ToleranceContext,

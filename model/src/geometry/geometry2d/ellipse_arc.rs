@@ -3,7 +3,7 @@
     ellipse::Ellipse,
 };
 
-use crate::analysis::consts::EPSILON;
+use analysis::EPSILON;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipseArc {

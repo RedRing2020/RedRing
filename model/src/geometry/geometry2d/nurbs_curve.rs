@@ -7,8 +7,8 @@ use crate::geometry::geometry2d::{
 
 use crate::geometry_trait::point_ops::PointOps;
 
-use crate::analysis::consts::EPSILON;
-use crate::analysis::numeric::{find_span, basis_functions, basis_function_derivatives};
+use analysis::EPSILON;
+use analysis::{find_span, basis_functions, basis_function_derivatives};
 use crate::geometry_kind::CurveKind2D;
 use crate::geometry_trait::Curve2D;
 
