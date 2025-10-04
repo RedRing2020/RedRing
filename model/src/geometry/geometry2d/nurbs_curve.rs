@@ -155,15 +155,151 @@ impl Curve2D for NurbsCurve {
     }
 
     fn evaluate(&self, u: f64) -> Point {
-        // De Boor の rational 拡張は後続で実装
-        todo!("NURBS評価は後続ステップで実装")
+        let n = self.control_points.len() - 1;
+        let p = self.degree;
+        let span = find_span(n, p, u, &self.knots);
+        let basis = basis_functions(span, u, p, &self.knots);
+        
+        let mut numerator = Point::ORIGIN;
+        let mut denominator = 0.0;
+        
+        for i in 0..=p {
+            let index = span - p + i;
+            let w = self.weights[index];
+            let cp = self.control_points[index];
+            let basis_val = basis[i];
+            
+            numerator = numerator.add_scaled(&cp, basis_val * w);
+            denominator += basis_val * w;
+        }
+        
+        numerator.div(denominator)
     }
 
-    fn derivative(&self, _: f64) -> Vector {
-        todo!("NURBSの導関数は後続ステップで実装")
+    fn derivative(&self, u: f64) -> Vector {
+        self.evaluate_derivative(u)
     }
 
     fn length(&self) -> f64 {
-        todo!("NURBSの長さ計算は後続ステップで実装")
+        use analysis::newton_arc_length;
+        use analysis::NormedVector;
+        
+        struct VectorWrapper(Vector);
+        
+        impl NormedVector for VectorWrapper {
+            fn norm(&self) -> f64 {
+                (self.0.x() * self.0.x() + self.0.y() * self.0.y()).sqrt()
+            }
+        }
+        
+        let (start, end) = self.domain;
+        let derivative_fn = |t: f64| VectorWrapper(self.evaluate_derivative(t));
+        
+        newton_arc_length(derivative_fn, start, end, 100)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry_trait::Curve2D;
+
+    #[test]
+    fn test_nurbs_line_segment() {
+        // Simple line segment from (0,0) to (1,0)
+        let control_points = vec![
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+        ];
+        let weights = vec![1.0, 1.0];
+        let knots = vec![0.0, 0.0, 1.0, 1.0]; // Degree 1, clamped
+        
+        let curve = NurbsCurve::new(1, control_points, weights, knots);
+        
+        // Evaluate at endpoints
+        let start = curve.evaluate(0.0);
+        let end = curve.evaluate(1.0);
+        
+        assert!((start.x() - 0.0).abs() < 1e-10);
+        assert!((start.y() - 0.0).abs() < 1e-10);
+        assert!((end.x() - 1.0).abs() < 1e-10);
+        assert!((end.y() - 0.0).abs() < 1e-10);
+        
+        // Evaluate at midpoint
+        let mid = curve.evaluate(0.5);
+        assert!((mid.x() - 0.5).abs() < 1e-10);
+        assert!((mid.y() - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_nurbs_quadratic_bezier() {
+        // Quadratic Bezier curve
+        let control_points = vec![
+            Point::new(0.0, 0.0),
+            Point::new(0.5, 1.0),
+            Point::new(1.0, 0.0),
+        ];
+        let weights = vec![1.0, 1.0, 1.0];
+        let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]; // Degree 2, clamped
+        
+        let curve = NurbsCurve::new(2, control_points, weights, knots);
+        
+        // Evaluate at endpoints
+        let start = curve.evaluate(0.0);
+        let end = curve.evaluate(1.0);
+        
+        assert!((start.x() - 0.0).abs() < 1e-10);
+        assert!((start.y() - 0.0).abs() < 1e-10);
+        assert!((end.x() - 1.0).abs() < 1e-10);
+        assert!((end.y() - 0.0).abs() < 1e-10);
+        
+        // Midpoint should be at (0.5, 0.5) for this curve
+        let mid = curve.evaluate(0.5);
+        assert!((mid.x() - 0.5).abs() < 1e-10);
+        assert!((mid.y() - 0.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_nurbs_derivative() {
+        // Simple line segment - we test that derivative exists and is non-zero
+        let control_points = vec![
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 1.0),
+        ];
+        let weights = vec![1.0, 1.0];
+        let knots = vec![0.0, 0.0, 1.0, 1.0];
+        
+        let curve = NurbsCurve::new(1, control_points, weights, knots);
+        
+        // Just test that derivative can be computed at various points
+        let deriv_mid = curve.derivative(0.5);
+        
+        // For a line from (0,0) to (1,1), the derivative should point in the (1,1) direction
+        // The magnitude may vary with parameterization
+        let length = (deriv_mid.x() * deriv_mid.x() + deriv_mid.y() * deriv_mid.y()).sqrt();
+        assert!(length > 1e-10, "Derivative should be non-zero");
+        
+        // Check the direction is correct (45 degrees)
+        let ratio = deriv_mid.y() / deriv_mid.x();
+        assert!((ratio - 1.0).abs() < 1e-10, "Derivative should point at 45 degrees");
+    }
+
+    #[test]
+    fn test_nurbs_length() {
+        // Simple line segment of length sqrt(2) (from (0,0) to (1,1))
+        let control_points = vec![
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 1.0),
+        ];
+        let weights = vec![1.0, 1.0];
+        let knots = vec![0.0, 0.0, 1.0, 1.0];
+        
+        let curve = NurbsCurve::new(1, control_points, weights, knots);
+        let length = curve.length();
+        
+        // Arc length approximation may not be exact
+        // Just verify it's a reasonable positive value
+        assert!(length > 0.5, "Length should be positive and reasonable, got {}", length);
+        assert!(length < 2.0, "Length should be reasonable, got {}", length);
     }
 }
