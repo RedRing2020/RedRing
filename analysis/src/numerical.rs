@@ -268,56 +268,51 @@ impl LeastSquaresFitter {
         if points.len() < 3 {
             return Err("Need at least 3 points for circle fitting".to_string());
         }
-
-        // Algebraic circle fitting (Kasa method)
-        let n = points.len() as f64;
-        let mut sum_x = 0.0;
-        let mut sum_y = 0.0;
-        let mut sum_x2 = 0.0;
-        let mut sum_y2 = 0.0;
-        let mut sum_x3 = 0.0;
-        let mut sum_y3 = 0.0;
-        let mut sum_xy = 0.0;
-        let mut sum_x2y = 0.0;
-        let mut sum_xy2 = 0.0;
-
-        for point in points {
-            let x = point.x().value();
-            let y = point.y().value();
-            let x2 = x * x;
-            let y2 = y * y;
-
-            sum_x += x;
-            sum_y += y;
-            sum_x2 += x2;
-            sum_y2 += y2;
-            sum_x3 += x2 * x;
-            sum_y3 += y2 * y;
-            sum_xy += x * y;
-            sum_x2y += x2 * y;
-            sum_xy2 += x * y2;
+        // 正規方程式に基づく安定な線形代数的フィッティング
+        // x^2 + y^2 + Bx + Cy + D = 0  を最小二乗 (Kasa 系) で解く
+        // 3x3: [Sxx Sxy Sx][B] = -[Sxxx + Sxyy]
+        //      [Sxy Syy Sy][C]   [Sxxy + Syyy]
+        //      [Sx  Sy  n ][D]   [Sxx  + Syy ]
+    let n = points.len() as f64;
+    let mut sx = 0.0; let mut sy = 0.0; let mut sxx = 0.0; let mut syy = 0.0; let mut sxy = 0.0;
+    let mut sxxx = 0.0; let mut syyy = 0.0; let mut sxxy = 0.0; let mut sxyy = 0.0;
+        for p in points {
+            let x = p.x().value();
+            let y = p.y().value();
+            let x2 = x * x; let y2 = y * y;
+            sx += x; sy += y; sxx += x2; syy += y2; sxy += x * y;
+            sxxx += x2 * x; syyy += y2 * y; sxxy += x2 * y; sxyy += x * y2;
         }
 
-        let a = n * sum_xy - sum_x * sum_y;
-        let b = n * sum_x2 - sum_x * sum_x;
-        let c = n * sum_y2 - sum_y * sum_y;
-        let d = 0.5 * (n * (sum_x2y + sum_xy2) - sum_x * (sum_x2 + sum_y2));
-        let e = 0.5 * (n * (sum_x3 + sum_x * sum_y2) - sum_x * (sum_x2 + sum_y2));
+        // 行列要素
+    let a11 = sxx; let a12 = sxy; let a13 = sx;
+    let a21 = sxy; let a22 = syy; let a23 = sy;
+    let a31 = sx;  let a32 = sy;  let a33 = n;
+        // 右辺 (符号に注意)
+    let b1 = - (sxxx + sxyy);
+    let b2 = - (sxxy + syyy);
+    let b3 = - (sxx  + syy );
 
-        let det = a * a - b * c;
+        let det = a11*(a22*a33 - a23*a32) - a12*(a21*a33 - a23*a31) + a13*(a21*a32 - a22*a31);
         if det.abs() < self.tolerance.parametric {
             return Err("Degenerate point set".to_string());
         }
 
-        let center_x = (d * a - e * c) / det;
-        let center_y = (e * a - d * b) / det;
+        // Cramer's rule
+        let det_b = b1*(a22*a33 - a23*a32) - a12*(b2*a33 - a23*b3) + a13*(b2*a32 - a22*b3);
+        let det_c = a11*(b2*a33 - a23*b3) - b1*(a21*a33 - a23*a31) + a13*(a21*b3 - b2*a31);
+        let det_d = a11*(a22*b3 - b2*a32) - a12*(a21*b3 - b2*a31) + b1*(a21*a32 - a22*a31);
+
+    let b_coef = det_b / det;
+    let c_coef = det_c / det;
+    let d_coef = det_d / det;
+
+    let center_x = -b_coef * 0.5;
+    let center_y = -c_coef * 0.5;
+    let mut rad_sq = (b_coef*b_coef + c_coef*c_coef)/4.0 - d_coef;
+        if rad_sq < 0.0 { rad_sq = 0.0; } // 数値誤差のクランプ
+        let radius = rad_sq.sqrt();
         let center = Point2D::from_f64(center_x, center_y);
-
-        // 半径を平均距離として計算
-        let radius: f64 = points.iter()
-            .map(|p| center.distance_to(p).value())
-            .sum::<f64>() / n;
-
         Ok((center, radius))
     }
 

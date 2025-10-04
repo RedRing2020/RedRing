@@ -42,27 +42,40 @@ impl Circle3D {
 
     /// 法線ベクトルから局所座標系を構築
     fn build_local_axes(normal: &Direction3D) -> Option<(Direction3D, Direction3D)> {
-        // ワールドX軸またはY軸との外積で局所U軸を作成
-        let world_x = Direction3D::unit_x();
-        let world_y = Direction3D::unit_y();
+        // 1. 特殊ケース: normal が ±Z に近い場合は決定的基底を返す
+        const EPS: f64 = 1e-9;
+        if (normal.z() - 1.0).abs() < EPS || (normal.z() + 1.0).abs() < EPS {
+            // u = +X, v = normal × u で右手系 / 一貫性確保
+            let u = Direction3D::unit_x();
+            let v_vec = normal.cross(&u); // ここは Vector3D
+            let v = Direction3D::from_vector(&v_vec)?; // normal=+Z -> v=+Y, normal=-Z -> v=-Y
+            return Some((u, v));
+        }
 
-        // dot は f64 を返すので .value() は不要
-        let u_axis = if normal.dot(&world_x).abs() < 0.9 {
-            // 法線がX軸と平行でない場合、X軸との外積を使用
-            let cross_vec = normal.cross(&world_x);
-            Direction3D::from_vector(&cross_vec)?
-        } else {
-            // 法線がX軸とほぼ平行な場合、Z軸と法線の外積を使用
-            let world_z = Direction3D::unit_z();
-            let cross_vec = world_z.cross(normal);
-            Direction3D::from_vector(&cross_vec)?
-        };
+        // 2. 一般ケース: normal と十分非平行な参照軸を選択
+        // normal が Z 方向にあまり寄っていなければ ref=Z、そうでなければ X を使う
+        let ref_axis = if normal.z().abs() < 0.9 { Direction3D::unit_z() } else { Direction3D::unit_x() };
 
-        // V軸 = 法線 × U軸（右手系）
-        let cross_vec = normal.cross(&u_axis);
-        let v_axis = Direction3D::from_vector(&cross_vec)?;
+        // 3. u = normalize(normal × ref_axis)
+        let raw_u_vec = normal.cross(&ref_axis); // Vector3D
+        // クロスの長さが極端に小さい場合は別軸をフォールバック
+        let cross_len_sq = raw_u_vec.x().value()*raw_u_vec.x().value() + raw_u_vec.y().value()*raw_u_vec.y().value() + raw_u_vec.z().value()*raw_u_vec.z().value();
+        if cross_len_sq < 1e-24 {
+            // ref を別の軸に切り替えて再試行（Z -> X -> Y の順）
+            let alt_ref = if ref_axis.x() == 1.0 { Direction3D::unit_y() } else { Direction3D::unit_x() };
+            let alt_vec = normal.cross(&alt_ref);
+            let u = Direction3D::from_vector(&alt_vec)?;
+            let v_vec = normal.cross(&u);
+            let v = Direction3D::from_vector(&v_vec)?;
+            return Some((u, v));
+        }
+        let u = Direction3D::from_vector(&raw_u_vec)?;
 
-        Some((u_axis, v_axis))
+        // 4. v = normal × u （右手系）
+        let v_vec = normal.cross(&u);
+        let v = Direction3D::from_vector(&v_vec)?;
+
+        Some((u, v))
     }
 
     /// 中心点を取得

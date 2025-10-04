@@ -130,9 +130,9 @@ fn test_vector3d_vector_triple_product() {
     let c = Vector3D::from_f64(0.0, 0.0, 1.0);
 
     let result = a.vector_triple_product(&b, &c);
-    // a×(b×c) = a×(-1,0,0) = (0,-1,0)
+    // a×(b×c) = b(a·c) - c(a·b) = 0 (a·c = a·b = 0)
     assert_eq!(result.x().value(), 0.0);
-    assert_eq!(result.y().value(), -1.0);
+    assert_eq!(result.y().value(), 0.0);
     assert_eq!(result.z().value(), 0.0);
 }
 

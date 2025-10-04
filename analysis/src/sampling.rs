@@ -85,6 +85,10 @@ impl AdaptiveSampler {
         G: Fn(f64) -> f64,
     {
         if depth >= self.max_recursion {
+            // 末端で何も追加されていない場合のフォールバックとして中点を追加
+            let mid = (start + end) * 0.5;
+            points.push(evaluator(mid));
+            parameters.push(mid);
             return;
         }
 
