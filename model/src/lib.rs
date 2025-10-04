@@ -1,4 +1,4 @@
-﻿pub mod geometry;
+﻿// geometry module removed after migration to geo_primitives / geo_core.
 pub mod geometry_common;
 pub mod geometry_kind;
 pub mod geometry_trait;

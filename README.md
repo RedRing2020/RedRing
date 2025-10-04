@@ -3,6 +3,12 @@
 Rust製 CAD/CAM 研究用プラットフォーム  
 現在は描画基盤と構造設計の準備段階です。CAM処理は未実装です。
 
+**Documentation Languages / ドキュメント言語:**
+| Geometry Abstraction | Link |
+|----------------------|------|
+| English (placeholder) | `model/GEOMETRY_README.md` |
+| 日本語 (詳細) | `model/GEOMETRY_README.ja.md` |
+
 ---
 
 ## 🔍 概要
