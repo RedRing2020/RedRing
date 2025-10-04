@@ -73,47 +73,49 @@ impl Torus {
     /// パラメトリック評価 (u: [0, 2π], v: [0, 2π])
     /// u: 主円周角、v: 副円周角
     pub fn evaluate(&self, u: f64, v: f64) -> Point3D {
+        let tolerance = ToleranceContext::default();
         // 軸に垂直な2つの単位ベクトルを計算
-        let temp = if self.axis.x().abs() < 0.9 {
-            Vector3D::unit_x()
+        let temp = if self.axis.x().value().abs() < 0.9 {
+            Vector3D::x_axis()
         } else {
-            Vector3D::unit_y()
+            Vector3D::y_axis()
         };
 
-        let u_vec = self.axis.cross(&temp).normalize().unwrap();
-        let v_vec = self.axis.cross(&u_vec).normalize().unwrap();
+        let u_vec = self.axis.cross(&temp).normalize(&tolerance).unwrap();
+        let v_vec = self.axis.cross(&u_vec).normalize(&tolerance).unwrap();
 
         // 主円上の点（チューブの中心線）
-        let major_circle_point = u_vec.clone() * (self.major_radius * u.cos()) + v_vec.clone() * (self.major_radius * u.sin());
+        let major_circle_point = u_vec.clone() * Scalar::from_f64(self.major_radius * u.cos()) + v_vec.clone() * Scalar::from_f64(self.major_radius * u.sin());
 
         // チューブの半径方向
-        let tube_radial = u_vec * (u.cos() * v.cos()) + v_vec * (u.sin() * v.cos()) + self.axis.clone() * v.sin();
+        let tube_radial = u_vec * Scalar::from_f64(u.cos() * v.cos()) + v_vec * Scalar::from_f64(u.sin() * v.cos()) + self.axis.clone() * Scalar::from_f64(v.sin());
 
-        let final_point = major_circle_point + tube_radial * self.minor_radius;
+        let final_point = major_circle_point + tube_radial * Scalar::from_f64(self.minor_radius);
 
         Point3D::new(
-            self.center.x() + final_point.x(),
-            self.center.y() + final_point.y(),
-            self.center.z() + final_point.z(),
+            self.center.x() + final_point.x().value(),
+            self.center.y() + final_point.y().value(),
+            self.center.z() + final_point.z().value(),
         )
     }
 
     /// 指定パラメータでの法線ベクトル
     pub fn normal(&self, u: f64, v: f64) -> Vector3D {
+        let tolerance = ToleranceContext::default();
         // 軸に垂直な2つの単位ベクトルを計算
-        let temp = if self.axis.x().abs() < 0.9 {
-            Vector3D::unit_x()
+        let temp = if self.axis.x().value().abs() < 0.9 {
+            Vector3D::x_axis()
         } else {
-            Vector3D::unit_y()
+            Vector3D::y_axis()
         };
 
-        let u_vec = self.axis.cross(&temp).normalize().unwrap();
-        let v_vec = self.axis.cross(&u_vec).normalize().unwrap();
+        let u_vec = self.axis.cross(&temp).normalize(&tolerance).unwrap();
+        let v_vec = self.axis.cross(&u_vec).normalize(&tolerance).unwrap();
 
         // チューブの半径方向が法線方向
-        let normal = u_vec * (u.cos() * v.cos()) + v_vec * (u.sin() * v.cos()) + self.axis.clone() * v.sin();
+        let normal = u_vec * Scalar::from_f64(u.cos() * v.cos()) + v_vec * Scalar::from_f64(u.sin() * v.cos()) + self.axis.clone() * Scalar::from_f64(v.sin());
 
-        normal.normalize_default().unwrap_or(Vector3D::z_axis())
+        normal.normalize(&tolerance).unwrap_or(Vector3D::z_axis())
     }
 
     /// トーラスの表面積
@@ -131,11 +133,11 @@ impl Torus {
         let to_point = self.center.vector_to(point);
 
         // 軸への投影
-        let axis_projection = to_point.dot(&self.axis);
+        let axis_projection = to_point.dot(&self.axis).value();
 
         // 軸に垂直な成分
-        let perpendicular = to_point - self.axis.clone() * axis_projection;
-        let distance_from_axis = perpendicular.norm();
+        let perpendicular = to_point - self.axis.clone() * Scalar::from_f64(axis_projection);
+        let distance_from_axis = perpendicular.norm().value();
 
         // 主円からの距離
         let distance_from_major_circle = (distance_from_axis - self.major_radius).abs();
@@ -151,11 +153,11 @@ impl Torus {
         let to_point = self.center.vector_to(point);
 
         // 軸への投影
-        let axis_projection = to_point.dot(&self.axis);
+        let axis_projection = to_point.dot(&self.axis).value();
 
         // 軸に垂直な成分
-        let perpendicular = to_point - self.axis.clone() * axis_projection;
-        let distance_from_axis = perpendicular.norm();
+        let perpendicular = to_point - self.axis.clone() * Scalar::from_f64(axis_projection);
+        let distance_from_axis = perpendicular.norm().value();
 
         // 主円からの距離が主半径より小さい場合は中央のホール部分
         if distance_from_axis <= self.major_radius - self.minor_radius {
@@ -272,7 +274,7 @@ mod tests {
         let torus = Torus::new_z_axis(center, 3.0, 1.0).unwrap();
         assert_eq!(torus.major_radius(), 3.0);
         assert_eq!(torus.minor_radius(), 1.0);
-        assert_eq!(torus.axis(), &Vector3D::unit_z());
+        assert_eq!(torus.axis(), &Vector3D::z_axis());
     }
 
     #[test]
@@ -358,10 +360,10 @@ mod tests {
     #[test]
     fn test_torus_custom_axis() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let axis = Vector3D::unit_x();
+        let axis = Vector3D::x_axis();
         let torus = Torus::new(center, 3.0, 1.0, axis).unwrap();
 
-        assert_eq!(torus.axis(), &Vector3D::unit_x());
+        assert_eq!(torus.axis(), &Vector3D::x_axis());
         assert_eq!(torus.major_radius(), 3.0);
         assert_eq!(torus.minor_radius(), 1.0);
     }

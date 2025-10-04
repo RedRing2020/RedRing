@@ -48,7 +48,8 @@ impl Cone {
 
     /// 軸方向の単位ベクトル
     pub fn axis_direction(&self) -> Vector3D {
-        self.axis_vector().normalize_default().unwrap_or(Vector3D::z_axis())
+        let tolerance = ToleranceContext::default();
+        self.axis_vector().normalize(&tolerance).unwrap_or(Vector3D::z_axis())
     }
 
     /// 円錐の高さ
@@ -60,6 +61,7 @@ impl Cone {
     /// v=0で底面、v=1で頂点
     pub fn evaluate(&self, u: f64, v: f64) -> Point3D {
         let axis = self.axis_vector();
+        let tolerance = ToleranceContext::default();
 
         // v=1の場合は頂点
         if v >= 1.0 - 1e-10 {
@@ -67,28 +69,28 @@ impl Cone {
         }
 
         // 軸に垂直な2つのベクトルを計算（任意の直交基底）
-        let temp = if axis.x().abs() < 0.9 {
-            Vector3D::unit_x()
+        let temp = if axis.x().value().abs() < 0.9 {
+            Vector3D::x_axis()
         } else {
-            Vector3D::unit_y()
+            Vector3D::y_axis()
         };
 
-        let u_vec = axis.cross(&temp).normalize().unwrap();
-        let v_vec = axis.cross(&u_vec).normalize().unwrap();
+        let u_vec = axis.cross(&temp).normalize(&tolerance).unwrap();
+        let v_vec = axis.cross(&u_vec).normalize(&tolerance).unwrap();
 
         // v位置での半径（線形補間）
         let current_radius = self.radius * (1.0 - v);
 
         // 円形断面上の点
-        let circle_point = u_vec * (current_radius * u.cos()) + v_vec * (current_radius * u.sin());
+        let circle_point = u_vec * Scalar::from_f64(current_radius * u.cos()) + v_vec * Scalar::from_f64(current_radius * u.sin());
 
         // 軸方向に移動
-        let height_offset = axis * v;
+        let height_offset = axis * Scalar::from_f64(v);
 
         Point3D::new(
-            self.base.x() + circle_point.x() + height_offset.x(),
-            self.base.y() + circle_point.y() + height_offset.y(),
-            self.base.z() + circle_point.z() + height_offset.z(),
+            self.base.x() + circle_point.x().value() + height_offset.x().value(),
+            self.base.y() + circle_point.y().value() + height_offset.y().value(),
+            self.base.z() + circle_point.z().value() + height_offset.z().value(),
         )
     }
 
@@ -96,25 +98,26 @@ impl Cone {
     pub fn normal(&self, u: f64, _v: f64) -> Vector3D {
         let axis = self.axis_vector();
         let height = self.height();
+        let tolerance = ToleranceContext::default();
 
         // 軸に垂直な2つのベクトルを計算
-        let temp = if axis.x().abs() < 0.9 {
-            Vector3D::unit_x()
+        let temp = if axis.x().value().abs() < 0.9 {
+            Vector3D::x_axis()
         } else {
-            Vector3D::unit_y()
+            Vector3D::y_axis()
         };
 
-        let u_vec = axis.cross(&temp).normalize().unwrap();
-        let v_vec = axis.cross(&u_vec).normalize().unwrap();
+        let u_vec = axis.cross(&temp).normalize(&tolerance).unwrap();
+        let v_vec = axis.cross(&u_vec).normalize(&tolerance).unwrap();
 
         // 半径方向単位ベクトル
-        let radial = u_vec * u.cos() + v_vec * u.sin();
+        let radial = u_vec * Scalar::from_f64(u.cos()) + v_vec * Scalar::from_f64(u.sin());
 
         // 円錐の斜面角度を考慮した法線
         let slope = self.radius / height;
-        let normal = radial * slope + axis.normalize().unwrap() * (1.0 - slope);
+        let normal = radial * Scalar::from_f64(slope) + axis.normalize(&tolerance).unwrap() * Scalar::from_f64(1.0 - slope);
 
-        normal.normalize().unwrap_or(Vector3D::unit_z())
+        normal.normalize(&tolerance).unwrap_or(Vector3D::z_axis())
     }
 
     /// 円錐の表面積（底面含む）
@@ -143,7 +146,7 @@ impl Cone {
         // 軸への投影を計算
         let axis = self.axis_direction();
         let to_point = self.base.vector_to(point);
-        let projection_length = to_point.dot(&axis);
+        let projection_length = to_point.dot(&axis).value();
 
         // 高さの範囲内か確認
         if projection_length < -tolerance || projection_length > self.height() + tolerance {
@@ -155,9 +158,9 @@ impl Cone {
         let expected_radius = self.radius * (1.0 - v);
 
         // 軸からの距離を計算
-        let projection = axis * projection_length;
+        let projection = axis * Scalar::from_f64(projection_length);
         let radial_vector = to_point - projection;
-        let radial_distance = radial_vector.norm();
+        let radial_distance = radial_vector.norm().value();
 
         (radial_distance - expected_radius).abs() < tolerance
     }
@@ -167,7 +170,7 @@ impl Cone {
         // 軸への投影を計算
         let axis = self.axis_direction();
         let to_point = self.base.vector_to(point);
-        let projection_length = to_point.dot(&axis);
+        let projection_length = to_point.dot(&axis).value();
 
         // 高さの範囲内か確認
         if projection_length < 0.0 || projection_length > self.height() {
@@ -179,9 +182,9 @@ impl Cone {
         let max_radius = self.radius * (1.0 - v);
 
         // 軸からの距離を計算
-        let projection = axis * projection_length;
+        let projection = axis * Scalar::from_f64(projection_length);
         let radial_vector = to_point - projection;
-        let radial_distance = radial_vector.norm();
+        let radial_distance = radial_vector.norm().value();
 
         radial_distance < max_radius
     }
