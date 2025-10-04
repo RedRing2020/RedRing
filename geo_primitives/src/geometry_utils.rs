@@ -5,14 +5,10 @@
 use geo_core::{Point2D, Point3D, Scalar};
 
 /// Point2DをScalarベースからf64ベースに変換
-pub fn point2d_to_f64(point: &Point2D) -> (f64, f64) {
-    (point.x().value(), point.y().value())
-}
+pub fn point2d_to_f64(point: &Point2D) -> (f64, f64) { (point.x(), point.y()) }
 
 /// Point3DをScalarベースからf64ベースに変換
-pub fn point3d_to_f64(point: &Point3D) -> (f64, f64, f64) {
-    (point.x().value(), point.y().value(), point.z().value())
-}
+pub fn point3d_to_f64(point: &Point3D) -> (f64, f64, f64) { (point.x(), point.y(), point.z()) }
 
 /// f64から新しいPoint2Dを作成
 pub fn point2d_from_f64(x: f64, y: f64) -> Point2D {

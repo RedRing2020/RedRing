@@ -171,3 +171,114 @@ Backward Compatibility:
 
 ---
 For questions or to propose additional helpers for migration, open an issue referencing this file.
+
+---
+
+## Point f64 Big Bang Migration (2025-10-05)
+
+### Summary
+`Point2D` / `Point3D` (geo_core) internal storage migrated from `Scalar` fields to plain `[f64; N]`. Wrapper primitives in `geo_primitives::geometry2d` updated (Batch A) to construct points via `Point2D::new(x, y)` directly. No transitional constructors maintained; this is an intentional breaking change to simplify downstream usage and remove pervasive `.value()` chains.
+
+### Goals
+1. Eliminate boilerplate `Scalar::new(x)` at every construction site.
+2. Make point coordinate access symmetrical with vectors (both now yield raw `f64`).
+3. Preserve unit / dimensional semantics only on returned metric quantities (distances, lengths) via `Scalar` wrapper, keeping algebraic positions as raw `f64`.
+
+### Breaking API Changes
+| Before | After | Notes |
+|--------|-------|-------|
+| `Point2D::new(Scalar::new(x), Scalar::new(y))` | `Point2D::new(x, y)` | New signature expects raw `f64`.
+| `p.x().value()` | `p.x()` | Accessor now returns `f64`.
+| `p.y().value()` | `p.y()` | Same as above.
+| (geo_primitives) tests using `.value()` for points | Remove `.value()` | Mechanical removal.
+| Mixed patterns `Vector2D::new(p.x().value(), p.y().value())` | `Vector2D::new(p.x(), p.y())` | Consistent f64 flow.
+
+### Non-Breaking (Preserved) Semantics
+| Aspect | Status | Reason |
+|--------|--------|--------|
+| Distance / length return type | `Scalar` | Maintain explicit unit semantics and tolerance logic coupling. |
+| Angle representation in `Arc2D` | Still `Scalar` | Angular tolerance + future unit tagging. |
+| Deprecated Scalar param methods (e.g. `evaluate(Scalar)`) | Temporarily retained | Gradual removal scheduling; callers migrate to `*_f64`. |
+
+### Mechanical Migration Guide (External Code)
+1. Grep for `Point2D::new(Scalar::new(` and replace with `Point2D::new(` using raw numbers.
+2. Replace every `p.x().value()` / `p.y().value()` with `p.x()` / `p.y()`.
+3. Update pattern matches or trait impls that assumed `x(): Scalar` to use raw `f64` (adjust generic bounds if any).
+4. Adjust serialization / deserialization: if previously unwrapping `.value()`, remove the unwrap layer.
+5. Re-run tests; compile errors will precisely point at any remaining `.value()` misuse.
+6. Keep using `Scalar` for distances; do NOT pre-emptively refactor those unless moving to a pure `f64` metric design (not planned yet).
+
+### Rationale
+- Reduces allocation and wrapper churn in geometry-heavy loops and tessellation.
+- Aligns point ergonomics with vectors after earlier vector refactor.
+- Enables clearer future introduction of unit-tagged wrapper types selectively (e.g., `Length`, `Angle`) without blanket wrapping all coordinates.
+
+### Risks & Mitigations
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Silent logic changes if `.value()` removed incorrectly in arithmetic expecting `Scalar` | Potential type inference drift or different trait impl resolution | Compiler errors surface most cases; add targeted tests for critical algorithms. |
+| Downstream crates expecting `Point2D::new(Scalar,Scalar)` fail | Hard compile break | Provide concise migration note & search/replace script. |
+| Mixing old and new patterns in partially migrated branches | Inconsistent style / confusion | Enforce workspace-wide grep CI step (future) ensuring no `Point2D::new(Scalar::new` remain. |
+| Overuse of raw `f64` leading to accidental unit confusion | Subtle correctness bugs | Keep metric-return functions using `Scalar`; consider future `#[must_use]` wrappers or type aliases for distances. |
+
+### Test Strategy Update
+- Geometry2D batch adapted: `line`, `ray`, `infinite_line`, `circle`, `point`, `arc` tests rewritten to directly assert on `f64` point accessors.
+- Distance / radius / angle assertions still use `.value()` because those remain `Scalar` typed.
+- Added reverse-mul vector tests previously; reused tolerance contexts unchanged (tolerance compares raw `f64`).
+- Next planned phase: Geometry3D primitives (mirror mechanical changes). Add a smoke test validating cross-2D/3D API consistency (compile-time generic code if any).
+
+### Transitional Helpers / Cleanup
+- Verified no alternative legacy `Point2D::from_scalar` or similar constructors remain.
+- Deprecated methods for Scalar params (e.g., `translate(Scalar,Scalar)`) intentionally kept; removal ticket to be opened post 0.N+1 pre-release.
+- Add CI lint idea: deny `Scalar::new(` usage inside `Point2D::new(` call arguments (pattern no longer valid but future guard).
+
+### Example Before / After (Line2D snippet)
+```rust
+// Before
+let start = Point2D::new(Scalar::new(0.0), Scalar::new(0.0));
+let end   = Point2D::new(Scalar::new(2.0), Scalar::new(4.0));
+let line = Line2D::new(start, end);
+let mid = line.midpoint();
+assert_eq!(mid.x().value(), 1.0);
+
+// After
+let line = Line2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 4.0));
+let mid = line.midpoint();
+assert_eq!(mid.x(), 1.0);
+```
+
+### Workspace Status (Post Batch A)
+| Area | Status |
+|------|--------|
+| geo_core Point2D/Point3D | Migrated to `[f64; N]` |
+| geo_primitives geometry2d | Updated (all primary primitives) |
+| geometry3d | Pending next batch |
+| Distances/Angles | Still `Scalar` |
+| Deprecated Scalar param methods | Present | 
+
+### Follow-Up Tasks
+- [ ] Batch B: geometry3d primitives & tests.
+- [ ] Batch C: surface / higher-order primitives.
+- [ ] Remove deprecated Scalar parameter overloads (schedule).
+- [ ] Introduce compile-time detection (clippy lint / custom script) for obsolete patterns.
+
+### Changelog Entry (Draft)
+```
+BREAKING: Point2D / Point3D constructors now take raw f64. Accessors return f64 (remove .value()). Distances still return Scalar. Update all call sites accordingly.
+```
+
+---
+
+## Migration Quick Reference Table
+
+| Pattern (Old) | Replacement | Notes |
+|---------------|-------------|-------|
+| `Point2D::new(Scalar::new(x), Scalar::new(y))` | `Point2D::new(x, y)` | Mandatory |
+| `pt.x().value()` | `pt.x()` | Mandatory |
+| `distance.value()` (where distance: Scalar) | `distance.value()` | No change (intentional) |
+| `Vector2D::new(pt.x().value(), pt.y().value())` | `Vector2D::new(pt.x(), pt.y())` | Cleanup |
+| `f64 * vector` | (same) | Newly supported reverse mul (already documented) |
+
+---
+
+End of Point Big Bang section.

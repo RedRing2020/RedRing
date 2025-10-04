@@ -74,8 +74,8 @@ impl PointCloudStats {
             return None;
         }
 
-        let sum_x: f64 = points.iter().map(|p| p.x().value()).sum();
-        let sum_y: f64 = points.iter().map(|p| p.y().value()).sum();
+    let sum_x: f64 = points.iter().map(|p| p.x()).sum();
+    let sum_y: f64 = points.iter().map(|p| p.y()).sum();
         let count = points.len() as f64;
 
         Some(Point2D::from_f64(sum_x / count, sum_y / count))
@@ -108,8 +108,8 @@ impl PointCloudStats {
         let mut cxy = 0.0;
 
         for point in points {
-            let dx = point.x().value() - centroid.x().value();
-            let dy = point.y().value() - centroid.y().value();
+            let dx = point.x() - centroid.x();
+            let dy = point.y() - centroid.y();
             cxx += dx * dx;
             cyy += dy * dy;
             cxy += dx * dy;
@@ -129,8 +129,8 @@ impl PointCloudStats {
             return None;
         }
 
-        let lambda1 = (trace + discriminant.sqrt()) / 2.0;
-        let lambda2 = (trace - discriminant.sqrt()) / 2.0;
+    let lambda1 = (trace + discriminant.sqrt()) / 2.0;
+    let _lambda2 = (trace - discriminant.sqrt()) / 2.0; // 2つ目の固有値（現状未使用: 主成分の寄与率などに利用予定）
 
         // 第1主成分方向
         let direction = if cxy.abs() > self.tolerance.linear {

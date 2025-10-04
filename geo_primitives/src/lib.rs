@@ -21,21 +21,21 @@ impl BoundingBox {
     /// 2D点から3Dバウンディングボックスを作成（Z=0）
     pub fn from_2d(min: geo_core::Point2D, max: geo_core::Point2D) -> Self {
         Self {
-            min: geo_core::Point3D::new(*min.x(), *min.y(), geo_core::Scalar::new(0.0)),
-            max: geo_core::Point3D::new(*max.x(), *max.y(), geo_core::Scalar::new(0.0)),
+            min: geo_core::Point3D::new(min.x(), min.y(), 0.0),
+            max: geo_core::Point3D::new(max.x(), max.y(), 0.0),
         }
     }
 
     pub fn width(&self) -> f64 {
-        self.max.x().value() - self.min.x().value()
+        self.max.x() - self.min.x()
     }
 
     pub fn height(&self) -> f64 {
-        self.max.y().value() - self.min.y().value()
+        self.max.y() - self.min.y()
     }
 
     pub fn depth(&self) -> f64 {
-        self.max.z().value() - self.min.z().value()
+        self.max.z() - self.min.z()
     }
 }
 
@@ -122,20 +122,12 @@ pub mod prelude {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_core::Scalar;
+    use geo_core::Point3D;
 
     #[test]
     fn test_bounding_box_dimensions() {
-        let min = geo_core::Point3D::new(
-            Scalar::new(0.0),
-            Scalar::new(0.0),
-            Scalar::new(0.0),
-        );
-        let max = geo_core::Point3D::new(
-            Scalar::new(2.0),
-            Scalar::new(3.0),
-            Scalar::new(4.0),
-        );
+        let min = Point3D::new(0.0,0.0,0.0);
+        let max = Point3D::new(2.0,3.0,4.0);
 
         let bbox = BoundingBox::new(min, max);
 
