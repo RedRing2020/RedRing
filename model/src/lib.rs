@@ -1,4 +1,5 @@
-﻿pub mod geometry;
+﻿// Temporarily disabled for removal dry-run. If no external references break, this module can be deleted.
+// pub mod geometry;
 pub mod geometry_common;
 pub mod geometry_kind;
 pub mod geometry_trait;
