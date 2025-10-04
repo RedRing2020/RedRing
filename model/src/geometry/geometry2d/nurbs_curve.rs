@@ -71,8 +71,8 @@ impl NurbsCurve {
         let n = self.control_points.len() - 1;
         let p = self.degree;
         let span = find_span(n, p, u, &self.knots);
-        let N = basis_functions(span, u, p, &self.knots);
-        let dN = basis_function_derivatives(span, u, p, &self.knots);
+    let basis = basis_functions(span, u, p, &self.knots);
+    let basis_derivs = basis_function_derivatives(span, u, p, &self.knots);
 
         let mut numerator = Point::ORIGIN;
         let mut denominator = 0.0;
@@ -83,21 +83,23 @@ impl NurbsCurve {
             let index = span - p + i;
             let w = self.weights[index];
             let cp = self.control_points[index];
-            let Ni = N[i];
-            let dNi = dN[i];
+            let b = basis[i];
+            let db = basis_derivs[i];
 
-            numerator = numerator.add_scaled(&cp, Ni * w);
-            denominator += Ni * w;
+            numerator = numerator.add_scaled(&cp, b * w);
+            denominator += b * w;
 
-            d_numerator = d_numerator.add_scaled(&cp, dNi * w);
-            d_denominator += dNi * w;
+            d_numerator = d_numerator.add_scaled(&cp, db * w);
+            d_denominator += db * w;
         }
 
-        let dw = d_denominator;
-        let dwP = d_numerator;
-        let wP = numerator;
+        let weight_derivative = d_denominator; // dw
+        let curve_point_weighted = numerator;   // wP
+        let curve_point_derivative_weighted = d_numerator; // dwP
 
-        let tangent = dwP.sub(&wP.mul(dw / denominator)).div(denominator);
+        let tangent = curve_point_derivative_weighted
+            .sub(&curve_point_weighted.mul(weight_derivative / denominator))
+            .div(denominator);
         Vector::new(tangent.x(), tangent.y())
     }
 /*
