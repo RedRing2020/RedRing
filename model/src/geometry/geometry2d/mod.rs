@@ -21,3 +21,8 @@ pub use arc::Arc;
 pub use ellipse::Ellipse;
 pub use ellipse_arc::EllipseArc;
 pub use nurbs_curve::NurbsCurve;
+
+// Type aliases for dimensional clarity
+pub type Point2D = Point;
+pub type Vector2D = Vector;
+pub type Direction2D = Direction;

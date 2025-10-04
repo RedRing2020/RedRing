@@ -1,23 +1,23 @@
 use std::any::Any;
-use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
+use crate::geometry::geometry3d::{Point3D, Vector3D, Direction3D};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use geo_core::Scalar;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circle {
-    center: Point,
+    center: Point3D,
     radius: Scalar,
-    normal: Direction,
+    normal: Direction3D,
 }
 
 impl Circle {
-    pub fn new(center: Point, radius: f64, normal: Direction) -> Self {
+    pub fn new(center: Point3D, radius: f64, normal: Direction3D) -> Self {
         Self { center, radius: Scalar::new(radius), normal }
     }
 
     /// 中心点を取得
-    pub fn center(&self) -> Point {
+    pub fn center(&self) -> Point3D {
         self.center.clone()
     }
 
@@ -27,7 +27,7 @@ impl Circle {
     }
 
     /// 法線ベクトルを取得
-    pub fn normal(&self) -> Direction {
+    pub fn normal(&self) -> Direction3D {
         self.normal.clone()
     }
 
@@ -49,7 +49,7 @@ impl Curve3D for Circle {
         CurveKind3D::Circle
     }
 
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, t: f64) -> Point3D {
         let theta = t * 2.0 * std::f64::consts::PI;
         let (u_vec, v_vec) = self.normal.orthonormal_basis();
 
@@ -60,7 +60,7 @@ impl Curve3D for Circle {
         self.center.clone() + u_vec * u + v_vec * v
     }
 
-    fn derivative(&self, t: f64) -> Vector {
+    fn derivative(&self, t: f64) -> Vector3D {
         let theta = t * 2.0 * std::f64::consts::PI;
         let (u, v) = self.normal.orthonormal_basis();
         let two_pi = Scalar::new(2.0 * std::f64::consts::PI);
@@ -73,7 +73,7 @@ impl Curve3D for Circle {
         (Scalar::new(2.0 * std::f64::consts::PI) * self.radius).value()
     }
 
-    fn parameter_hint(&self, pt: &Point) -> f64 {
+    fn parameter_hint(&self, pt: &Point3D) -> f64 {
         // 円周上の点へのパラメータ初期値推定
         let (u, v) = self.normal.orthonormal_basis();
         let rel = pt.clone() - self.center.clone();

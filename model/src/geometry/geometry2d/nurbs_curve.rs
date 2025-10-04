@@ -1,8 +1,8 @@
 ﻿use std::any::Any;
 
 use crate::geometry::geometry2d::{
-    point::Point,
-    vector::Vector,
+    Point2D,
+    Vector2D,
 };
 
 use crate::geometry_trait::point_ops::PointOps;
@@ -15,7 +15,7 @@ use crate::geometry_trait::Curve2D;
 #[derive(Debug, Clone, PartialEq)]
 pub struct NurbsCurve {
     degree: usize,
-    control_points: Vec<Point>,
+    control_points: Vec<Point2D>,
     weights: Vec<f64>,
     knots: Vec<f64>,
     domain: (f64, f64),
@@ -25,7 +25,7 @@ pub struct NurbsCurve {
 }
 
 impl NurbsCurve {
-    pub fn new(degree: usize, control_points: Vec<Point>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
+    pub fn new(degree: usize, control_points: Vec<Point2D>, weights: Vec<f64>, knots: Vec<f64>) -> Self {
         assert_eq!(control_points.len(), weights.len(), "制御点と重みの数が一致しません");
         assert!(knots.len() >= control_points.len() + degree + 1, "ノットベクトルが不足しています");
 
@@ -51,7 +51,7 @@ impl NurbsCurve {
 
     pub fn degree(&self) -> usize { self.degree }
 
-    pub fn control_points(self) -> Vec<Point> { self.control_points }
+    pub fn control_points(self) -> Vec<Point2D> { self.control_points }
 
     pub fn weights(self) -> Vec<f64> { self.weights }
 
@@ -67,38 +67,38 @@ impl NurbsCurve {
         self.is_uniform
     }
 
-    pub fn evaluate_derivative(&self, u: f64) -> Vector {
+    pub fn evaluate_derivative(&self, u: f64) -> Vector2D {
         let n = self.control_points.len() - 1;
         let p = self.degree;
         let span = find_span(n, p, u, &self.knots);
-        let N = basis_functions(span, u, p, &self.knots);
-        let dN = basis_function_derivatives(span, u, p, &self.knots);
+        let n = basis_functions(span, u, p, &self.knots);
+        let d_n = basis_function_derivatives(span, u, p, &self.knots);
 
-        let mut numerator = Point::ORIGIN;
+        let mut numerator = Point2D::ORIGIN;
         let mut denominator = 0.0;
-        let mut d_numerator = Point::ORIGIN;
+        let mut d_numerator = Point2D::ORIGIN;
         let mut d_denominator = 0.0;
 
         for i in 0..=p {
             let index = span - p + i;
             let w = self.weights[index];
             let cp = self.control_points[index];
-            let Ni = N[i];
-            let dNi = dN[i];
+            let ni = n[i];
+            let d_ni = d_n[i];
 
-            numerator = numerator.add_scaled(&cp, Ni * w);
-            denominator += Ni * w;
+            numerator = numerator.add_scaled(&cp, ni * w);
+            denominator += ni * w;
 
-            d_numerator = d_numerator.add_scaled(&cp, dNi * w);
-            d_denominator += dNi * w;
+            d_numerator = d_numerator.add_scaled(&cp, d_ni * w);
+            d_denominator += d_ni * w;
         }
 
         let dw = d_denominator;
-        let dwP = d_numerator;
-        let wP = numerator;
+        let dw_p = d_numerator;
+        let w_p = numerator;
 
-        let tangent = dwP.sub(&wP.mul(dw / denominator)).div(denominator);
-        Vector::new(tangent.x(), tangent.y())
+        let tangent = dw_p.sub(&w_p.mul(dw / denominator)).div(denominator);
+        Vector2D::new(tangent.x(), tangent.y())
     }
 /*
     pub fn intersection_with_line(&self, line: &Line) -> IntersectionResult<Point> {
@@ -154,12 +154,12 @@ impl Curve2D for NurbsCurve {
         CurveKind2D::NurbsCurve
     }
 
-    fn evaluate(&self, u: f64) -> Point {
+    fn evaluate(&self, _u: f64) -> Point2D {
         // De Boor の rational 拡張は後続で実装
         todo!("NURBS評価は後続ステップで実装")
     }
 
-    fn derivative(&self, _: f64) -> Vector {
+    fn derivative(&self, _: f64) -> Vector2D {
         todo!("NURBSの導関数は後続ステップで実装")
     }
 

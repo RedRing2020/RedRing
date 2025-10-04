@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use super::{point::Point, vector::Vector};
+use super::{Point3D, Vector3D};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 
@@ -9,7 +9,7 @@ use crate::geometry_trait::curve3d::Curve3D;
 #[derive(Debug, Clone, PartialEq)]
 pub struct NurbsCurve {
     degree: usize,                     // Degree of the curve
-    control_points: Vec<Point>,      // Control points
+    control_points: Vec<Point3D>,      // Control points
     weights: Option<Vec<f64>>,        // Optional weights (None = non-rational)
     knots: Vec<f64>,                  // Knot vector
     multiplicities: Vec<usize>,       // Knot multiplicities
@@ -22,7 +22,7 @@ impl NurbsCurve {
     /// Creates a new trimmed NURBS curve.
     pub fn new(
         degree: usize,
-        control_points: Vec<Point>,
+        control_points: Vec<Point3D>,
         weights: Option<Vec<f64>>,
         knots: Vec<f64>,
         multiplicities: Vec<usize>,
@@ -58,7 +58,7 @@ impl NurbsCurve {
         self.degree
     }
 
-    pub fn control_points(&self) -> &[Point] {
+    pub fn control_points(&self) -> &[Point3D] {
         &self.control_points
     }
 
@@ -109,10 +109,10 @@ impl Curve3D for NurbsCurve {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, _t: f64) -> Point3D {
         todo!("Implement NURBS evaluation")
     }
-    fn derivative(&self, _t: f64) -> Vector {
+    fn derivative(&self, _t: f64) -> Vector3D {
         todo!("Implement NURBS derivative")
     }
     fn kind(&self) -> CurveKind3D {

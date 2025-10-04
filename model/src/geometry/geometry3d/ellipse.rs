@@ -1,4 +1,4 @@
-use crate::geometry::geometry3d::{point::Point, vector::Vector};
+use crate::geometry::geometry3d::{Point3D, Vector3D};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use geo_core::Scalar;
@@ -8,9 +8,9 @@ use analysis::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct Ellipse {
-    center: Point,
-    major_axis: Vector,
-    minor_axis: Vector,
+    center: Point3D,
+    major_axis: Vector3D,
+    minor_axis: Vector3D,
     major_radius: Scalar,
     minor_radius: Scalar,
 }
@@ -18,9 +18,9 @@ pub struct Ellipse {
 impl Ellipse {
     /// Constructs a new Ellipse, validating that major and minor axes are orthogonal.
     pub fn new(
-        center: Point,
-        major_axis: Vector,
-        minor_axis: Vector,
+        center: Point3D,
+        major_axis: Vector3D,
+        minor_axis: Vector3D,
         major_radius: f64,
         minor_radius: f64,
     ) -> Option<Self> {
@@ -40,17 +40,17 @@ impl Ellipse {
     }
 
     /// 中心点を取得
-    pub fn center(&self) -> Point {
+    pub fn center(&self) -> Point3D {
         self.center.clone()
     }
 
     /// 長軸ベクトルを取得
-    pub fn major_axis(&self) -> Vector {
+    pub fn major_axis(&self) -> Vector3D {
         self.major_axis.clone()
     }
 
     /// 短軸ベクトルを取得
-    pub fn minor_axis(&self) -> Vector {
+    pub fn minor_axis(&self) -> Vector3D {
         self.minor_axis.clone()
     }
 
@@ -77,14 +77,14 @@ impl Curve3D for Ellipse {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, t: f64) -> Point3D {
         let theta = t * 2.0 * std::f64::consts::PI;
         let x = theta.cos();
         let y = theta.sin();
 
         self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
-    fn derivative(&self, t: f64) -> Vector {
+    fn derivative(&self, t: f64) -> Vector3D {
         let angle = t * 2.0 * std::f64::consts::PI;
         let two_pi = Scalar::new(2.0 * std::f64::consts::PI);
         let dx = (-self.major_radius * Scalar::new(angle.sin()) * two_pi).value();

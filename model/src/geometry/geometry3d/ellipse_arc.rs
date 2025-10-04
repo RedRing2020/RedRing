@@ -1,5 +1,5 @@
 use analysis::newton_arc_length;
-use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
+use crate::geometry::geometry3d::{Point3D, Vector3D, Direction3D};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use geo_core::Scalar;
@@ -7,9 +7,9 @@ use analysis::EPSILON;
 
 #[derive(Debug, Clone)]
 pub struct EllipseArc {
-    center: Point,
-    major_axis: Vector,
-    minor_axis: Vector,
+    center: Point3D,
+    major_axis: Vector3D,
+    minor_axis: Vector3D,
     major_radius: Scalar,
     minor_radius: Scalar,
     start_angle: f64, // in radians
@@ -18,9 +18,9 @@ pub struct EllipseArc {
 
 impl EllipseArc {
     pub fn new(
-        center: Point,
-        major_axis: Vector,
-        minor_axis: Vector,
+        center: Point3D,
+        major_axis: Vector3D,
+        minor_axis: Vector3D,
         major_radius: f64,
         minor_radius: f64,
         start_angle: f64,
@@ -44,17 +44,17 @@ impl EllipseArc {
     }
 
     /// 中心点を取得
-    pub fn center(&self) -> Point {
+    pub fn center(&self) -> Point3D {
         self.center.clone()
     }
 
     /// 長軸ベクトルを取得
-    pub fn major_axis(&self) -> Vector {
+    pub fn major_axis(&self) -> Vector3D {
         self.major_axis.clone()
     }
 
     /// 短軸ベクトルを取得
-    pub fn minor_axis(&self) -> Vector {
+    pub fn minor_axis(&self) -> Vector3D {
         self.minor_axis.clone()
     }
 
@@ -92,7 +92,7 @@ impl Curve3D for EllipseArc {
         self
     }
 
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, t: f64) -> Point3D {
         let theta = self.start_angle + t * (self.end_angle - self.start_angle);
         let x = theta.cos();
         let y = theta.sin();
@@ -100,7 +100,7 @@ impl Curve3D for EllipseArc {
         self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
 
-    fn derivative(&self, t: f64) -> Vector {
+    fn derivative(&self, t: f64) -> Vector3D {
         let angle = self.start_angle + t * (self.end_angle - self.start_angle);
         let d_angle = self.end_angle - self.start_angle;
 
