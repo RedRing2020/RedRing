@@ -130,9 +130,9 @@ fn test_vector3d_vector_triple_product() {
     let c = Vector3D::from_f64(0.0, 0.0, 1.0);
 
     let result = a.vector_triple_product(&b, &c);
-    // a×(b×c) = a×(-1,0,0) = (0,-1,0)
+    // a×(b×c) = b(a·c) - c(a·b) = 0 (a·c = a·b = 0)
     assert_eq!(result.x().value(), 0.0);
-    assert_eq!(result.y().value(), -1.0);
+    assert_eq!(result.y().value(), 0.0);
     assert_eq!(result.z().value(), 0.0);
 }
 
@@ -178,12 +178,12 @@ fn test_direction3d_orthonormal_basis() {
     let dir = Direction3D::new(1.0, 0.0, 0.0, &context).unwrap();
 
     let (u, v) = dir.orthonormal_basis(&context);
-    
+
     // uとvは互いに直交し、dirとも直交している
     assert!(dir.as_vector().is_perpendicular_to(&u, &context));
     assert!(dir.as_vector().is_perpendicular_to(&v, &context));
     assert!(u.is_perpendicular_to(&v, &context));
-    
+
     // uとvは単位ベクトル
     assert!(u.is_unit(&context));
     assert!(v.is_unit(&context));

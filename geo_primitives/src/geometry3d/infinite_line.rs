@@ -1,6 +1,5 @@
 use geo_core::{Point3D, Vector3D, Scalar, ToleranceContext, TolerantEq, Vector};
 use crate::geometry3d::direction::Direction3D;
-use crate::geometry_utils::*;
 
 /// 3D無限直線
 ///

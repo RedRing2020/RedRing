@@ -2,6 +2,8 @@
 /// 正規化された3次元方向ベクトルを表現
 
 use geo_core::{Vector3D, Scalar};
+use crate::util::axis_angle::rodrigues_f64;
+use geo_core::{ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]
 pub struct Direction3D {
@@ -65,9 +67,7 @@ impl Direction3D {
     }
 
     /// 内積
-    pub fn dot(&self, other: &Self) -> f64 {
-        self.x * other.x + self.y * other.y + self.z * other.z
-    }
+    pub fn dot(&self, other: &Self) -> f64 { self.x * other.x + self.y * other.y + self.z * other.z }
 
     /// 外積
     pub fn cross(&self, other: &Self) -> Vector3D {
@@ -76,5 +76,30 @@ impl Direction3D {
             Scalar::new(self.z * other.x - self.x * other.z),
             Scalar::new(self.x * other.y - self.y * other.x),
         )
+    }
+
+    /// (x,y,z) タプルを取得（回転ユーティリティとの橋渡し用）
+    pub fn as_tuple(&self) -> (f64,f64,f64) { (self.x, self.y, self.z) }
+
+    /// 任意軸 (axis) 回りに angle (rad) だけ回転した新しい方向を返す。
+    /// axis は非ゼロである必要がある（内部で正規化）。
+    pub fn rotate_around_axis(&self, axis: &Direction3D, angle: f64) -> Self {
+        // Rodrigues を f64 ドメインで実行
+        let (rx, ry, rz) = rodrigues_f64(axis.as_tuple(), self.as_tuple(), angle);
+        // 正規化（数値誤差吸収）
+        if let Some(dir) = Direction3D::from_f64(rx, ry, rz) {
+            dir
+        } else {
+            // 角度が 0 や 2π の数値丸めでゼロに近づいた等の場合は self を返す
+            self.clone()
+        }
+    }
+}
+
+impl TolerantEq for Direction3D {
+    fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
+        (self.x - other.x).abs() < context.linear &&
+        (self.y - other.y).abs() < context.linear &&
+        (self.z - other.z).abs() < context.linear
     }
 }

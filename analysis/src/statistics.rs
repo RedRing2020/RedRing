@@ -130,7 +130,7 @@ impl PointCloudStats {
         }
 
         let lambda1 = (trace + discriminant.sqrt()) / 2.0;
-        let lambda2 = (trace - discriminant.sqrt()) / 2.0;
+    let _lambda2 = (trace - discriminant.sqrt()) / 2.0; // currently unused
 
         // 第1主成分方向
         let direction = if cxy.abs() > self.tolerance.linear {

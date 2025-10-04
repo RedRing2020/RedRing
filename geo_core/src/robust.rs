@@ -3,7 +3,7 @@
 /// 数値的に安定した幾何述語と適応精度演算を提供する。
 
 use crate::tolerance::ToleranceContext;
-use crate::vector::{Vector2D, Vector3D};
+use crate::vector::Vector2D;
 
 /// 幾何述語の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,12 +77,12 @@ pub mod adaptive {
 
 /// ロバストソルバー
 pub struct RobustSolver {
-    context: ToleranceContext,
+    _context: ToleranceContext,
 }
 
 impl RobustSolver {
     pub fn new(context: ToleranceContext) -> Self {
-        Self { context }
+    Self { _context: context }
     }
 
     /// 許容誤差を考慮したニュートン法
@@ -102,12 +102,12 @@ impl RobustSolver {
             let fx = f(x);
             let dfx = df(x);
 
-            if dfx.abs() < self.context.parametric {
+            if dfx.abs() < self._context.parametric {
                 return None; // 微分がゼロに近い
             }
 
             let next = x - fx / dfx;
-            if (next - x).abs() < self.context.parametric {
+            if (next - x).abs() < self._context.parametric {
                 return Some(next);
             }
             x = next;
@@ -117,18 +117,18 @@ impl RobustSolver {
 
     /// 2次方程式の解
     pub fn solve_quadratic(&self, a: f64, b: f64, c: f64) -> Vec<f64> {
-        if a.abs() < self.context.linear {
+    if a.abs() < self._context.linear {
             // 線形方程式
-            if b.abs() < self.context.linear {
+            if b.abs() < self._context.linear {
                 return vec![]; // 解なし
             }
             return vec![-c / b];
         }
 
         let discriminant = b * b - 4.0 * a * c;
-        if discriminant < -self.context.linear * self.context.linear {
+    if discriminant < -self._context.linear * self._context.linear {
             vec![] // 実解なし
-        } else if discriminant.abs() < self.context.linear * self.context.linear {
+    } else if discriminant.abs() < self._context.linear * self._context.linear {
             vec![-b / (2.0 * a)] // 重解
         } else {
             let sqrt_d = discriminant.sqrt();

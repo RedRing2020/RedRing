@@ -23,7 +23,7 @@ pub trait Curve3D: Any {
     fn length(&self) -> f64;
 
     /// 指定点に対するパラメータ初期推定（数値解析用）
-    fn parameter_hint(&self, pt: &Point) -> f64 {
+    fn parameter_hint(&self, _pt: &Point) -> f64 {
         0.5
     }
 

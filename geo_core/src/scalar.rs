@@ -139,6 +139,65 @@ impl Scalar {
         }
     }
 
+    /// 整数べき乗
+    pub fn powi(&self, exponent: i32) -> Self {
+        let pow_val = self.value.powi(exponent);
+        Self {
+            value: pow_val,
+            // 誤差伝播: δ(x^n) ≈ n * x^(n-1) * δx
+            tolerance: self.tolerance.map(|t| {
+                if self.value == 0.0 && exponent > 1 {
+                    0.0
+                } else {
+                    (exponent as f64) * self.value.powi(exponent - 1).abs() * t
+                }
+            }),
+        }
+    }
+
+    /// 2引数逆正接（atan2）
+    pub fn atan2(&self, other: Self) -> Self {
+        Self {
+            value: self.value.atan2(other.value),
+            // 誤差伝播: δ(atan2(y,x)) ≈ √((x*δy)² + (y*δx)²) / (x² + y²)
+            tolerance: match (self.tolerance, other.tolerance) {
+                (Some(dy), Some(dx)) => {
+                    let x = other.value;
+                    let y = self.value;
+                    let denom = x * x + y * y;
+                    if denom > 1e-15 {
+                        let term1 = x * dy;
+                        let term2 = y * dx;
+                        Some((term1 * term1 + term2 * term2).sqrt() / denom)
+                    } else {
+                        Some(std::f64::consts::PI) // 大きな誤差を設定
+                    }
+                },
+                (Some(dy), None) => {
+                    let x = other.value;
+                    let y = self.value;
+                    let denom = x * x + y * y;
+                    if denom > 1e-15 {
+                        Some((x * dy).abs() / denom)
+                    } else {
+                        Some(std::f64::consts::PI)
+                    }
+                },
+                (None, Some(dx)) => {
+                    let x = other.value;
+                    let y = self.value;
+                    let denom = x * x + y * y;
+                    if denom > 1e-15 {
+                        Some((y * dx).abs() / denom)
+                    } else {
+                        Some(std::f64::consts::PI)
+                    }
+                },
+                (None, None) => None,
+            },
+        }
+    }
+
     /// 安全な除算（ゼロ除算チェック付き）
     pub fn safe_div(&self, other: &Self, context: &ToleranceContext) -> Option<Self> {
         let other_tolerance = other.effective_tolerance(context);

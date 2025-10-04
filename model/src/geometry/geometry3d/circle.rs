@@ -1,5 +1,5 @@
 use std::any::Any;
-use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
+use crate::geometry::geometry3d::{point::Point, direction::Direction};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use geo_core::Scalar;
@@ -31,11 +31,11 @@ impl Circle {
         self.normal.clone()
     }
 
-    fn parameter_range(&self) -> (f64, f64) {
+    fn _parameter_range(&self) -> (f64, f64) {
         (0.0, 2.0 * std::f64::consts::PI)
     }
 
-    fn is_closed(&self) -> bool {
+    fn _is_closed(&self) -> bool {
         true
     }
 }
