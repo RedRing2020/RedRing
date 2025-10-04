@@ -92,23 +92,21 @@ impl Curve3D for EllipseArc {
         self
     }
 
-    fn evaluate(&self, t: f64) -> geo_core::Point3D {
+    fn evaluate(&self, t: f64) -> Point {
         let theta = self.start_angle + t * (self.end_angle - self.start_angle);
         let x = theta.cos();
         let y = theta.sin();
 
-        let result = self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y;
-        result.as_geo_core().clone()
+        self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
     }
 
-    fn derivative(&self, t: f64) -> geo_core::Vector3D {
+    fn derivative(&self, t: f64) -> Vector {
         let angle = self.start_angle + t * (self.end_angle - self.start_angle);
         let d_angle = self.end_angle - self.start_angle;
 
         let dx = (-self.major_radius * Scalar::new(angle.sin()) * Scalar::new(d_angle)).value();
         let dy = (self.minor_radius * Scalar::new(angle.cos()) * Scalar::new(d_angle)).value();
-        let result = self.major_axis.clone() * dx + self.minor_axis.clone() * dy;
-        result.as_geo_core().clone()
+        self.major_axis.clone() * dx + self.minor_axis.clone() * dy
     }
 
     fn kind(&self) -> CurveKind3D {

@@ -1,6 +1,9 @@
 use std::any::Any;
 use crate::geometry_kind::CurveKind2D;
-use geo_core::{Point2D as Point, Vector2D as Vector};
+use crate::geometry::geometry2d::{
+    point::Point,
+    vector::Vector,
+};
 
 /// Curve2D: 2次元曲線の抽象トレイト
 ///

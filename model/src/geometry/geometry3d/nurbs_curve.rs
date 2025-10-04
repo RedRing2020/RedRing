@@ -107,10 +107,10 @@ impl Curve3D for NurbsCurve {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn evaluate(&self, _t: f64) -> geo_core::Point3D {
+    fn evaluate(&self, _t: f64) -> Point {
         todo!("Implement NURBS evaluation")
     }
-    fn derivative(&self, _t: f64) -> geo_core::Vector3D {
+    fn derivative(&self, _t: f64) -> Vector {
         todo!("Implement NURBS derivative")
     }
     fn kind(&self) -> CurveKind3D {
