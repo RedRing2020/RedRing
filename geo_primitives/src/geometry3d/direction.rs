@@ -77,4 +77,33 @@ impl Direction3D {
             Scalar::new(self.x * other.y - self.y * other.x),
         )
     }
+
+    /// 指定軸周りで回転
+    pub fn rotate_around_axis(&self, axis: &Self, angle: f64) -> Self {
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        let one_minus_cos = 1.0 - cos_angle;
+
+        let k_dot_v = axis.x * self.x + axis.y * self.y + axis.z * self.z;
+
+        let rotated_x = self.x * cos_angle + 
+                       (axis.y * self.z - axis.z * self.y) * sin_angle + 
+                       axis.x * k_dot_v * one_minus_cos;
+        let rotated_y = self.y * cos_angle + 
+                       (axis.z * self.x - axis.x * self.z) * sin_angle + 
+                       axis.y * k_dot_v * one_minus_cos;
+        let rotated_z = self.z * cos_angle + 
+                       (axis.x * self.y - axis.y * self.x) * sin_angle + 
+                       axis.z * k_dot_v * one_minus_cos;
+
+        Self::from_f64(rotated_x, rotated_y, rotated_z).expect("Rotation should preserve unit length")
+    }
+
+    /// 許容誤差を考慮した等価比較
+    pub fn tolerant_eq(&self, other: &Self, tolerance: &geo_core::ToleranceContext) -> bool {
+        let dx = (self.x - other.x).abs();
+        let dy = (self.y - other.y).abs();
+        let dz = (self.z - other.z).abs();
+        dx < tolerance.linear && dy < tolerance.linear && dz < tolerance.linear
+    }
 }

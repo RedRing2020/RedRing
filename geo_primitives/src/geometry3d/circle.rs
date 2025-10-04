@@ -45,17 +45,19 @@ impl Circle3D {
         let world_x = Direction3D::unit_x();
         let world_y = Direction3D::unit_y();
 
-        let u_axis = if normal.dot(&world_x).value().abs() < 0.9 {
-            // 法線がX軸と平行でない場合、X軸との外積を使用
-            let cross_vec = normal.cross(&world_x);
+        let u_axis = if normal.dot(&world_x).abs() < 0.9 {
+            // 法線がX軸と平行でない場合、Y軸と法線の外積を使用
+            // Y × N で法線とY軸の両方に垂直なベクトル（右手系でX方向）
+            let cross_vec = world_y.cross(normal);
             Direction3D::from_vector(&cross_vec)?
         } else {
-            // 法線がX軸とほぼ平行な場合、Y軸との外積を使用
-            let cross_vec = normal.cross(&world_y);
+            // 法線がX軸とほぼ平行な場合、Z軸と法線の外積を使用
+            let world_z = Direction3D::unit_z();
+            let cross_vec = world_z.cross(normal);
             Direction3D::from_vector(&cross_vec)?
         };
 
-        // V軸 = 法線 × U軸
+        // V軸 = 法線 × U軸（右手系）
         let cross_vec = normal.cross(&u_axis);
         let v_axis = Direction3D::from_vector(&cross_vec)?;
 
@@ -111,9 +113,9 @@ impl Circle3D {
         let sin_theta = theta.sin();
 
         Vector3D::new(
-            -sin_theta * self.u_axis.x() + cos_theta * self.v_axis.x(),
-            -sin_theta * self.u_axis.y() + cos_theta * self.v_axis.y(),
-            -sin_theta * self.u_axis.z() + cos_theta * self.v_axis.z(),
+            (-sin_theta * self.u_axis.x() + cos_theta * self.v_axis.x()).into(),
+            (-sin_theta * self.u_axis.y() + cos_theta * self.v_axis.y()).into(),
+            (-sin_theta * self.u_axis.z() + cos_theta * self.v_axis.z()).into(),
         )
     }
 
@@ -121,17 +123,17 @@ impl Circle3D {
     pub fn contains_point(&self, point: &Point3D, tolerance: &ToleranceContext) -> bool {
         // まず円の平面上にあるかチェック
         let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
+            (point.x() - self.center.x()).into(),
+            (point.y() - self.center.y()).into(),
+            (point.z() - self.center.z()).into(),
         );
 
         // 法線との内積で平面上にあるかチェック
-        let plane_distance = to_point.x() * self.normal.x() +
-                           to_point.y() * self.normal.y() +
-                           to_point.z() * self.normal.z();
+        let plane_distance = to_point.x() * Scalar::from_f64(self.normal.x()) +
+                           to_point.y() * Scalar::from_f64(self.normal.y()) +
+                           to_point.z() * Scalar::from_f64(self.normal.z());
 
-        if plane_distance.abs() > tolerance.linear {
+        if plane_distance.abs().value() > tolerance.linear {
             return false;
         }
 
@@ -139,18 +141,18 @@ impl Circle3D {
         let distance_sq = to_point.x() * to_point.x() +
                          to_point.y() * to_point.y() +
                          to_point.z() * to_point.z();
-        let radius_sq = self.radius.value() * self.radius.value();
+        let radius_sq = self.radius * self.radius;
 
-        (distance_sq - radius_sq).abs() < tolerance.linear
+        (distance_sq - radius_sq).abs().value() < tolerance.linear
     }
 
     /// 円を平行移動
     pub fn translate(&self, translation: &Vector3D) -> Self {
         Self {
             center: Point3D::new(
-                self.center.x() + translation.x(),
-                self.center.y() + translation.y(),
-                self.center.z() + translation.z(),
+                self.center.x() + translation.x().value(),
+                self.center.y() + translation.y().value(),
+                self.center.z() + translation.z().value(),
             ),
             radius: self.radius,
             normal: self.normal.clone(),
@@ -177,45 +179,58 @@ impl Circle3D {
     /// 指定軸周りで回転
     pub fn rotate_around_axis(&self, axis: &Direction3D, angle: f64, origin: &Point3D) -> Self {
         // 簡易実装：ロドリゲスの回転公式を使用
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
-        let one_minus_cos = 1.0 - cos_angle;
+        let cos_angle = Scalar::from_f64(angle.cos());
+        let sin_angle = Scalar::from_f64(angle.sin());
+        let one_minus_cos = Scalar::from_f64(1.0 - angle.cos());
 
         // 中心点の回転
         let to_center = Vector3D::new(
-            self.center.x() - origin.x(),
-            self.center.y() - origin.y(),
-            self.center.z() - origin.z(),
+            (self.center.x() - origin.x()).into(),
+            (self.center.y() - origin.y()).into(),
+            (self.center.z() - origin.z()).into(),
         );
 
         let rotated_center = Self::rodrigues_rotation(&to_center, axis, cos_angle, sin_angle, one_minus_cos);
         let new_center = Point3D::new(
-            origin.x() + rotated_center.x(),
-            origin.y() + rotated_center.y(),
-            origin.z() + rotated_center.z(),
+            origin.x() + rotated_center.x().value(),
+            origin.y() + rotated_center.y().value(),
+            origin.z() + rotated_center.z().value(),
         );
 
         // 法線ベクトルの回転
-        let normal_vec = Vector3D::new(self.normal.x(), self.normal.y(), self.normal.z());
+        let normal_vec = Vector3D::new(
+            Scalar::from_f64(self.normal.x()),
+            Scalar::from_f64(self.normal.y()),
+            Scalar::from_f64(self.normal.z())
+        );
         let rotated_normal_vec = Self::rodrigues_rotation(&normal_vec, axis, cos_angle, sin_angle, one_minus_cos);
-        let new_normal = Direction3D::from_f64(rotated_normal_vec.x(), rotated_normal_vec.y(), rotated_normal_vec.z()).unwrap();
+        let new_normal = Direction3D::from_f64(
+            rotated_normal_vec.x().value(),
+            rotated_normal_vec.y().value(),
+            rotated_normal_vec.z().value()
+        ).unwrap();
 
         Self::new(new_center, self.radius, new_normal).unwrap()
     }
 
     /// ロドリゲスの回転公式
-    fn rodrigues_rotation(v: &Vector3D, k: &Direction3D, cos_angle: f64, sin_angle: f64, one_minus_cos: f64) -> Vector3D {
-        let k_dot_v = k.x() * v.x() + k.y() * v.y() + k.z() * v.z();
+    fn rodrigues_rotation(v: &Vector3D, k: &Direction3D, cos_angle: Scalar, sin_angle: Scalar, one_minus_cos: Scalar) -> Vector3D {
+        let k_vec = Vector3D::new(
+            Scalar::from_f64(k.x()),
+            Scalar::from_f64(k.y()),
+            Scalar::from_f64(k.z())
+        );
+        let k_dot_v = k_vec.x() * v.x() + k_vec.y() * v.y() + k_vec.z() * v.z();
         let k_cross_v = Vector3D::new(
-            k.y() * v.z() - k.z() * v.y(),
-            k.z() * v.x() - k.x() * v.z(),
-            k.x() * v.y() - k.y() * v.x(),
+            k_vec.y() * v.z() - k_vec.z() * v.y(),
+            k_vec.z() * v.x() - k_vec.x() * v.z(),
+            k_vec.x() * v.y() - k_vec.y() * v.x(),
         );
 
         Vector3D::new(
-            v.x() * cos_angle + k_cross_v.x() * sin_angle + k.x() * k_dot_v * one_minus_cos,
-            v.y() * cos_angle + k_cross_v.y() * sin_angle + k.y() * k_dot_v * one_minus_cos,
-            v.z() * cos_angle + k_cross_v.z() * sin_angle + k.z() * k_dot_v * one_minus_cos,
+            v.x() * cos_angle + k_cross_v.x() * sin_angle + k_vec.x() * k_dot_v * one_minus_cos,
+            v.y() * cos_angle + k_cross_v.y() * sin_angle + k_vec.y() * k_dot_v * one_minus_cos,
+            v.z() * cos_angle + k_cross_v.z() * sin_angle + k_vec.z() * k_dot_v * one_minus_cos,
         )
     }
 }

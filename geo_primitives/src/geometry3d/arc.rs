@@ -58,14 +58,14 @@ impl Arc3D {
     pub fn from_three_points(start: Point3D, mid: Point3D, end: Point3D) -> Option<Self> {
         // 3点を通る円の中心と法線を計算
         let v1 = Vector3D::new(
-            mid.x() - start.x(),
-            mid.y() - start.y(),
-            mid.z() - start.z(),
+            (mid.x() - start.x()).into(),
+            (mid.y() - start.y()).into(),
+            (mid.z() - start.z()).into(),
         );
         let v2 = Vector3D::new(
-            end.x() - start.x(),
-            end.y() - start.y(),
-            end.z() - start.z(),
+            (end.x() - start.x()).into(),
+            (end.y() - start.y()).into(),
+            (end.z() - start.z()).into(),
         );
 
         // 法線ベクトル = v1 × v2
@@ -75,7 +75,7 @@ impl Arc3D {
             v1.x() * v2.y() - v1.y() * v2.x(),
         );
 
-        let normal = Direction3D::from_vector(&normal_vec.to_geo_core())?;
+        let normal = Direction3D::from_vector(&normal_vec)?;
 
         // 3点を通る円の中心を計算（外心計算）
         let center = Self::circumcenter(&start, &mid, &end)?;
@@ -95,8 +95,16 @@ impl Arc3D {
 
     /// 3点の外心を計算
     fn circumcenter(p1: &Point3D, p2: &Point3D, p3: &Point3D) -> Option<Point3D> {
-        let a = Vector3D::new(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
-        let b = Vector3D::new(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
+        let a = Vector3D::new(
+            (p2.x() - p1.x()).into(),
+            (p2.y() - p1.y()).into(),
+            (p2.z() - p1.z()).into()
+        );
+        let b = Vector3D::new(
+            (p3.x() - p1.x()).into(),
+            (p3.y() - p1.y()).into(),
+            (p3.z() - p1.z()).into()
+        );
 
         let cross = Vector3D::new(
             a.y() * b.z() - a.z() * b.y(),
@@ -105,39 +113,54 @@ impl Arc3D {
         );
 
         let cross_mag_sq = cross.x() * cross.x() + cross.y() * cross.y() + cross.z() * cross.z();
-        if cross_mag_sq < 1e-10 {
+        if cross_mag_sq.value() < 1e-10 {
             return None; // 3点が一直線上
         }
 
         let a_mag_sq = a.x() * a.x() + a.y() * a.y() + a.z() * a.z();
         let b_mag_sq = b.x() * b.x() + b.y() * b.y() + b.z() * b.z();
 
-        let alpha = b_mag_sq * (a.x() * a.x() + a.y() * a.y() + a.z() * a.z()) / (2.0 * cross_mag_sq);
-        let beta = a_mag_sq * (b.x() * b.x() + b.y() * b.y() + b.z() * b.z()) / (2.0 * cross_mag_sq);
+        // 外心公式: O = P1 + (|b|²(a×(a×b)) - |a|²(b×(a×b))) / (2|a×b|²)
+        // これを簡略化: O = P1 + (|b|²a - |a|²b) × (a×b) / (2|a×b|²)
+        let alpha = b_mag_sq / (Scalar::from_f64(2.0) * cross_mag_sq);
+        let beta = -a_mag_sq / (Scalar::from_f64(2.0) * cross_mag_sq);
+
+        // cross × a と cross × b を計算
+        let cross_a = Vector3D::new(
+            cross.y() * a.z() - cross.z() * a.y(),
+            cross.z() * a.x() - cross.x() * a.z(),
+            cross.x() * a.y() - cross.y() * a.x(),
+        );
+        
+        let cross_b = Vector3D::new(
+            cross.y() * b.z() - cross.z() * b.y(),
+            cross.z() * b.x() - cross.x() * b.z(),
+            cross.x() * b.y() - cross.y() * b.x(),
+        );
 
         Some(Point3D::new(
-            p1.x() + alpha * cross.x() + beta * cross.y(),
-            p1.y() + alpha * cross.y() + beta * cross.z(),
-            p1.z() + alpha * cross.z() + beta * cross.x(),
+            p1.x() + (alpha * cross_a.x() + beta * cross_b.x()).value(),
+            p1.y() + (alpha * cross_a.y() + beta * cross_b.y()).value(),
+            p1.z() + (alpha * cross_a.z() + beta * cross_b.z()).value(),
         ))
     }
 
     /// 円上の点から角度を計算
     fn calculate_angle(circle: &Circle3D, point: &Point3D) -> Scalar {
         let to_point = Vector3D::new(
-            point.x() - circle.center().x(),
-            point.y() - circle.center().y(),
-            point.z() - circle.center().z(),
+            (point.x() - circle.center().x()).into(),
+            (point.y() - circle.center().y()).into(),
+            (point.z() - circle.center().z()).into(),
         );
 
-        let u_proj = to_point.x() * circle.u_axis().x() +
-                    to_point.y() * circle.u_axis().y() +
-                    to_point.z() * circle.u_axis().z();
-        let v_proj = to_point.x() * circle.v_axis().x() +
-                    to_point.y() * circle.v_axis().y() +
-                    to_point.z() * circle.v_axis().z();
+        let u_proj = to_point.x() * Scalar::from_f64(circle.u_axis().x()) +
+                    to_point.y() * Scalar::from_f64(circle.u_axis().y()) +
+                    to_point.z() * Scalar::from_f64(circle.u_axis().z());
+        let v_proj = to_point.x() * Scalar::from_f64(circle.v_axis().x()) +
+                    to_point.y() * Scalar::from_f64(circle.v_axis().y()) +
+                    to_point.z() * Scalar::from_f64(circle.v_axis().z());
 
-        Scalar::new(v_proj.atan2(u_proj))
+        v_proj.atan2(u_proj)
     }
 
     /// 点から中心への角度を計算
