@@ -2,20 +2,24 @@
 /// 
 /// Scalar基礎計算を使用した高精度円演算を提供
 
-use geo_core::Scalar;
-use crate::{CadPoint, CadVector, CadDirection};
+use geo_core::Vector3D;
+use crate::{CadPoint, CadDirection};
 
 /// CAD Circle（modelからの移植）
 #[derive(Debug, Clone)]
 pub struct CadCircle {
     center: CadPoint,
-    radius: Scalar,
+    radius: f64,               // f64 中心化
     normal: CadDirection,
+    // 評価用直交基底 (normal に依存) をキャッシュ
+    basis_u: Vector3D,
+    basis_v: Vector3D,
 }
 
 impl CadCircle {
     pub fn new(center: CadPoint, radius: f64, normal: CadDirection) -> Self {
-        Self { center, radius: Scalar::new(radius), normal }
+    let (u, v) = normal.orthonormal_basis_vec3();
+        Self { center, radius, normal, basis_u: u, basis_v: v }
     }
 
     /// 中心点を取得
@@ -24,9 +28,7 @@ impl CadCircle {
     }
 
     /// 半径を取得
-    pub fn radius(&self) -> f64 {
-        self.radius.value()
-    }
+    pub fn radius(&self) -> f64 { self.radius }
 
     /// 法線ベクトルを取得
     pub fn normal(&self) -> CadDirection {
@@ -34,31 +36,33 @@ impl CadCircle {
     }
 
     /// パラメトリック評価
-    pub fn evaluate(&self, t: f64) -> CadPoint {
-        let theta = t * 2.0 * std::f64::consts::PI;
-        let (u_vec, v_vec) = self.normal.orthonormal_basis();
+    pub fn evaluate(&self, t: f64) -> CadPoint { self.evaluate_f64(t) }
 
-        // パラメトリック円の評価
-        let u = (self.radius * Scalar::new(theta.cos())).value();
-        let v = (self.radius * Scalar::new(theta.sin())).value();
-
-        self.center.clone() + u_vec * u + v_vec * v
+    pub fn evaluate_f64(&self, t: f64) -> CadPoint {
+        let theta = t * std::f64::consts::TAU; // 2πt
+        let (s, c) = theta.sin_cos();
+    // CadPoint + Vector3D サポートが無いので一旦 f64 で構築
+    let p = self.center.clone();
+    let nx = p.x() + self.basis_u.x_val() * (self.radius * c) + self.basis_v.x_val() * (self.radius * s);
+    let ny = p.y() + self.basis_u.y_val() * (self.radius * c) + self.basis_v.y_val() * (self.radius * s);
+    let nz = p.z() + self.basis_u.z_val() * (self.radius * c) + self.basis_v.z_val() * (self.radius * s);
+    CadPoint::new(nx, ny, nz)
     }
 
     /// 導関数計算
-    pub fn derivative(&self, t: f64) -> CadVector {
-        let theta = t * 2.0 * std::f64::consts::PI;
-        let (u, v) = self.normal.orthonormal_basis();
-        let two_pi = Scalar::new(2.0 * std::f64::consts::PI);
-        let dx = (-self.radius * Scalar::new(theta.sin()) * two_pi).value();
-        let dy = (self.radius * Scalar::new(theta.cos()) * two_pi).value();
-        u * dx + v * dy
+    pub fn derivative(&self, t: f64) -> Vector3D { self.derivative_f64(t) }
+
+    pub fn derivative_f64(&self, t: f64) -> Vector3D {
+        let theta = t * std::f64::consts::TAU;
+        let (s, c) = theta.sin_cos();
+        // d/dt (radius * (c,u) + s,v) with θ=2πt => dθ/dt = 2π
+        let dtheta = std::f64::consts::TAU;
+        // 位置: r(c u + s v) → 微分: r * dθ * (-s u + c v)
+        self.basis_u.clone() * (-self.radius * s * dtheta) + self.basis_v.clone() * (self.radius * c * dtheta)
     }
 
     /// 円周長
-    pub fn length(&self) -> f64 {
-        (Scalar::new(2.0 * std::f64::consts::PI) * self.radius).value()
-    }
+    pub fn length(&self) -> f64 { std::f64::consts::TAU * self.radius }
 
     /// ドメイン
     pub fn domain(&self) -> (f64, f64) {
@@ -73,7 +77,7 @@ mod tests {
     #[test]
     fn test_cad_circle_basic() {
         let center = CadPoint::new(0.0, 0.0, 0.0);
-        let normal = CadDirection::from_vector(CadVector::new(0.0, 0.0, 1.0)).unwrap();
+    let normal = CadDirection::from_vector_vec3(Vector3D::from_f64(0.0, 0.0, 1.0)).unwrap();
         let circle = CadCircle::new(center, 1.0, normal);
 
         assert_eq!(circle.radius(), 1.0);
@@ -83,7 +87,7 @@ mod tests {
     #[test]
     fn test_cad_circle_evaluation() {
         let center = CadPoint::new(0.0, 0.0, 0.0);
-        let normal = CadDirection::from_vector(CadVector::new(0.0, 0.0, 1.0)).unwrap();
+    let normal = CadDirection::from_vector_vec3(Vector3D::from_f64(0.0, 0.0, 1.0)).unwrap();
         let circle = CadCircle::new(center, 1.0, normal);
 
         let point = circle.evaluate(0.0); // t=0の点

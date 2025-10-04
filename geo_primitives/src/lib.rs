@@ -74,6 +74,10 @@ pub use cad_ellipse::CadEllipse;
 pub mod cad_ellipse_arc;
 pub use cad_ellipse_arc::CadEllipseArc;
 
+// geometry2d (Circle2D etc.)
+pub mod geometry2d;
+pub use geometry2d::Circle2D;
+
 // 2Dプリミティブ（削除済み - geo_coreの基本構造体を使用）
 
 pub mod triangle;
@@ -106,7 +110,7 @@ pub mod prelude {
         GeometricPrimitive, PrimitiveKind, BoundingBox,
         // CAD統合層
         CadPoint, CadVector, CadDirection,
-        CadCircle, CadEllipse, CadEllipseArc,
+    CadCircle, CadEllipse, CadEllipseArc, Circle2D,
         // 2D/3Dプリミティブ
         Triangle2D, Triangle3D,
         Plane,

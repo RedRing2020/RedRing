@@ -4,6 +4,7 @@
 
 use crate::tolerance::{ToleranceContext, TolerantEq};
 use crate::scalar::Scalar;
+use crate::angle::Angle;
 use crate::vector::{Vector, Vector2D};
 
 /// パラメトリック曲線トレイト（2D）
@@ -48,9 +49,7 @@ impl Point2D {
         (dx.clone() * dx + dy.clone() * dy).sqrt()
     }
 
-    pub fn to_vector(&self) -> Vector2D {
-        Vector2D::new(self.x.clone(), self.y.clone())
-    }
+    pub fn to_vector(&self) -> Vector2D { Vector2D::from_f64(self.x.value(), self.y.value()) }
 
     pub fn midpoint(&self, other: &Self) -> Self {
         let two = Scalar::new(2.0);
@@ -82,12 +81,7 @@ impl LineSegment2D {
     pub fn start(&self) -> &Point2D { &self.start }
     pub fn end(&self) -> &Point2D { &self.end }
 
-    pub fn direction(&self) -> Vector2D {
-        Vector2D::new(
-            self.end.x.clone() - self.start.x.clone(),
-            self.end.y.clone() - self.start.y.clone(),
-        )
-    }
+    pub fn direction(&self) -> Vector2D { Vector2D::from_f64((self.end.x.clone() - self.start.x.clone()).value(), (self.end.y.clone() - self.start.y.clone()).value()) }
 
     pub fn midpoint(&self) -> Point2D {
         self.start.midpoint(&self.end)
@@ -96,25 +90,15 @@ impl LineSegment2D {
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point2D) -> Scalar {
         let v = self.direction();
-        let w = Vector2D::new(
-            point.x.clone() - self.start.x.clone(),
-            point.y.clone() - self.start.y.clone(),
-        );
-
-        let c1 = v.dot(&w);
-        if c1.value() <= 0.0 {
-            return self.start.distance_to(point);
-        }
-
-        let c2 = v.dot(&v);
-        if c1.value() >= c2.value() {
-            return self.end.distance_to(point);
-        }
-
-        let b = c1 / c2;
+        let w = Vector2D::from_f64((point.x.clone() - self.start.x.clone()).value(), (point.y.clone() - self.start.y.clone()).value());
+        let c1 = v.dot(&w); // f64
+        if c1 <= 0.0 { return self.start.distance_to(point); }
+        let c2 = v.dot(&v); // f64
+        if c1 >= c2 { return self.end.distance_to(point); }
+        let b = Scalar::new(c1 / c2);
         let pb = Point2D::new(
-            self.start.x.clone() + b.clone() * v.x(),
-            self.start.y.clone() + b * v.y(),
+            self.start.x.clone() + b.clone() * Scalar::new(v.x()),
+            self.start.y.clone() + b * Scalar::new(v.y()),
         );
         point.distance_to(&pb)
     }
@@ -146,58 +130,60 @@ impl ParametricCurve2D for LineSegment2D {
 #[derive(Debug, Clone)]
 pub struct Arc2D {
     center: Point2D,
-    radius: Scalar,
-    start_angle: Scalar,
-    end_angle: Scalar,
+    radius: f64,
+    start: Angle,
+    end: Angle,
 }
 
 impl Arc2D {
+    /// 新しい f64/Angle ベース円弧。角度は内部で (-π, π] 正規化される。
+    pub fn new_f64(center: Point2D, radius: f64, start: Angle, end: Angle) -> Self {
+        Self { center, radius, start: start.normalized(), end: end.normalized() }
+    }
+
+    /// 旧 Scalar ベース API (移行期間用)
+    #[deprecated(note = "Use new_f64 with Angle instead of Scalar angles")] 
     pub fn new(center: Point2D, radius: Scalar, start_angle: Scalar, end_angle: Scalar) -> Self {
-        Self { center, radius, start_angle, end_angle }
+        Self::new_f64(center, radius.value(), Angle::from_radians(start_angle.value()), Angle::from_radians(end_angle.value()))
     }
 
     pub fn center(&self) -> &Point2D { &self.center }
-    pub fn radius(&self) -> &Scalar { &self.radius }
-    pub fn start_angle(&self) -> &Scalar { &self.start_angle }
-    pub fn end_angle(&self) -> &Scalar { &self.end_angle }
+    pub fn radius_f64(&self) -> f64 { self.radius }
+    pub fn start_angle(&self) -> Angle { self.start }
+    pub fn end_angle(&self) -> Angle { self.end }
 
-    /// 円弧の角度範囲
-    pub fn angle_span(&self) -> Scalar {
-        self.end_angle.clone() - self.start_angle.clone()
-    }
+    #[deprecated(note = "Use radius_f64() instead")] 
+    pub fn radius(&self) -> Scalar { Scalar::new(self.radius) }
+    #[deprecated(note = "Use start_angle() returning Angle")] 
+    pub fn start_angle_scalar(&self) -> Scalar { Scalar::new(self.start.radians()) }
+    #[deprecated(note = "Use end_angle() returning Angle")] 
+    pub fn end_angle_scalar(&self) -> Scalar { Scalar::new(self.end.radians()) }
 
-    /// 中点での角度
-    pub fn mid_angle(&self) -> Scalar {
-        let two = Scalar::new(2.0);
-        (self.start_angle.clone() + self.end_angle.clone()) / two
-    }
+    pub fn angle_span_f64(&self) -> f64 { (self.end.delta(self.start)).radians().abs() }
+    pub fn mid_angle(&self) -> Angle { Angle::lerp(self.start, self.end, 0.5) }
 }
 
 impl ParametricCurve2D for Arc2D {
     fn evaluate(&self, t: Scalar) -> Point2D {
-        let angle = self.start_angle.clone() + t * (self.end_angle.clone() - self.start_angle.clone());
-        Point2D::new(
-            self.center.x.clone() + self.radius.clone() * angle.cos(),
-            self.center.y.clone() + self.radius.clone() * angle.sin(),
+        // t in [0,1] map to start..end along shortest path
+        let span = self.end.delta(self.start); // (-π, π]
+    let theta = self.start.radians() + span.radians() * t.value();
+        let (s, c) = theta.sin_cos();
+        Point2D::from_f64(
+            self.center.x().value() + self.radius * c,
+            self.center.y().value() + self.radius * s,
         )
     }
-
     fn derivative(&self, t: Scalar) -> Vector2D {
-        let angle = self.start_angle.clone() + t * (self.end_angle.clone() - self.start_angle.clone());
-        let angle_derivative = self.end_angle.clone() - self.start_angle.clone();
-        Vector2D::new(
-            -self.radius.clone() * angle.sin() * angle_derivative.clone(),
-            self.radius.clone() * angle.cos() * angle_derivative,
-        )
+        let span = self.end.delta(self.start);
+    let theta = self.start.radians() + span.radians() * t.value();
+        let (s, c) = theta.sin_cos();
+        let dtheta_dt = span.radians();
+        // d/dt (r(c,s)) = r * dθ/dt * (-s, c)
+        Vector2D::from_f64(-self.radius * s * dtheta_dt, self.radius * c * dtheta_dt)
     }
-
-    fn parameter_bounds(&self) -> (Scalar, Scalar) {
-        (Scalar::new(0.0), Scalar::new(1.0))
-    }
-
-    fn length(&self) -> Scalar {
-        self.radius.clone() * (self.end_angle.clone() - self.start_angle.clone()).abs()
-    }
+    fn parameter_bounds(&self) -> (Scalar, Scalar) { (Scalar::new(0.0), Scalar::new(1.0)) }
+    fn length(&self) -> Scalar { Scalar::new(self.angle_span_f64() * self.radius) }
 }
 
 /// 2D多角形

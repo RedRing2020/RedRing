@@ -3,7 +3,6 @@
 /// 統合された2D/3Dベクトル演算を提供し、許容誤差を考慮した
 /// 堅牢な幾何計算を実現する。
 
-use crate::scalar::Scalar;
 use crate::tolerance::{ToleranceContext, TolerantEq};
 use std::fmt;
 use std::ops::{Add, Sub, Mul, Index, IndexMut};
@@ -11,29 +10,29 @@ use std::ops::{Add, Sub, Mul, Index, IndexMut};
 /// 汎用ベクトルトレイト
 pub trait Vector<const D: usize>:
     Clone + PartialEq + fmt::Debug + fmt::Display
-    + Add<Output = Self> + Sub<Output = Self> + Mul<Scalar, Output = Self>
-    + TolerantEq + Index<usize, Output = Scalar> + IndexMut<usize>
+    + Add<Output = Self> + Sub<Output = Self> + Mul<f64, Output = Self>
+    + TolerantEq + Index<usize, Output = f64> + IndexMut<usize>
 {
     /// 成分から新しいベクトルを作成
-    fn new(components: [Scalar; D]) -> Self;
+    fn new(components: [f64; D]) -> Self;
 
     /// 成分配列への参照を取得
-    fn components(&self) -> &[Scalar; D];
+    fn components(&self) -> &[f64; D];
 
     /// 可変成分配列への参照を取得
-    fn components_mut(&mut self) -> &mut [Scalar; D];
+    fn components_mut(&mut self) -> &mut [f64; D];
 
     /// 次元数を取得
     fn dimension() -> usize { D }
 
     /// 内積
-    fn dot(&self, other: &Self) -> Scalar;
+    fn dot(&self, other: &Self) -> f64;
 
     /// ノルム（長さ）
-    fn norm(&self) -> Scalar;
+    fn norm(&self) -> f64;
 
     /// ノルムの2乗（計算効率化のため）
-    fn norm_squared(&self) -> Scalar {
+    fn norm_squared(&self) -> f64 {
         self.dot(self)
     }
 
@@ -42,12 +41,12 @@ pub trait Vector<const D: usize>:
 
     /// ゼロベクトルかどうかの判定
     fn is_zero(&self, context: &ToleranceContext) -> bool {
-        self.norm().value() < context.linear
+        self.norm() < context.linear
     }
 
     /// 単位ベクトルかどうかの判定
     fn is_unit(&self, context: &ToleranceContext) -> bool {
-        (self.norm().value() - 1.0).abs() < context.linear
+        (self.norm() - 1.0).abs() < context.linear
     }
 
     /// 他のベクトルと平行かどうかの判定
@@ -55,7 +54,7 @@ pub trait Vector<const D: usize>:
 
     /// 他のベクトルと垂直かどうかの判定
     fn is_perpendicular_to(&self, other: &Self, context: &ToleranceContext) -> bool {
-        self.dot(other).tolerant_eq(&Scalar::new(0.0), context)
+        self.dot(other).abs() < context.linear
     }
 
     /// 成分ごとの最小値

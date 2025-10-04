@@ -1,0 +1,10 @@
+[package]
+name = "geo_algorithms"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+geo_core = { path = "../geo_core" }
+
+[dev-dependencies]
+# ここで特別なものが必要になれば追加

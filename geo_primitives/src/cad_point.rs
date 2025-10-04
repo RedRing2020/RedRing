@@ -3,7 +3,7 @@
 /// ハイブリッド統合: geo_core::Point3Dをベースにmodel CAD API互換性を提供
 
 use std::ops::{Add, Sub};
-use geo_core::{Point3D as GeoPoint3D, ToleranceContext, TolerantEq};
+use geo_core::{Point3D as GeoPoint3D, ToleranceContext, TolerantEq, Vector3D};
 
 /// CAD用3D点（modelからの移植）
 /// ハイブリッド統合: geo_core::Point3Dをベースにmodel CAD API互換性を提供
@@ -40,11 +40,11 @@ impl CadPoint {
         (dx * dx + dy * dy + dz * dz).sqrt()
     }
 
-    pub fn translate(&self, vector: &crate::CadVector) -> Self {
+    pub fn translate_vec3(&self, v: &Vector3D) -> Self {
         Self::new(
-            self.x() + vector.x(),
-            self.y() + vector.y(),
-            self.z() + vector.z()
+            self.x() + v.x_val(),
+            self.y() + v.y_val(),
+            self.z() + v.z_val(),
         )
     }
 
@@ -64,17 +64,15 @@ impl CadPoint {
     }
 }
 
-impl Add<crate::CadVector> for CadPoint {
+impl Add<Vector3D> for CadPoint {
     type Output = CadPoint;
-    fn add(self, rhs: crate::CadVector) -> CadPoint {
-        self.translate(&rhs)
-    }
+    fn add(self, rhs: Vector3D) -> CadPoint { self.translate_vec3(&rhs) }
 }
 
 impl Sub<CadPoint> for CadPoint {
-    type Output = crate::CadVector;
-    fn sub(self, rhs: CadPoint) -> crate::CadVector {
-        crate::CadVector::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
+    type Output = Vector3D;
+    fn sub(self, rhs: CadPoint) -> Vector3D {
+        Vector3D::from_f64(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
     }
 }
 

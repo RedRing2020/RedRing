@@ -8,8 +8,8 @@ use crate::tolerance::ToleranceContext;
 fn test_vector2d_creation() {
     let v2 = Vector2D::from_f64(1.0, 2.0);
 
-    assert_eq!(v2.x().value(), 1.0);
-    assert_eq!(v2.y().value(), 2.0);
+    assert_eq!(v2.x(), 1.0);
+    assert_eq!(v2.y(), 2.0);
 }
 
 #[test]
@@ -18,7 +18,7 @@ fn test_vector2d_cross_product() {
     let v2 = Vector2D::from_f64(0.0, 1.0);
 
     let cross = v1.cross_2d(&v2);
-    assert_eq!(cross.value(), 1.0);
+    assert_eq!(cross, 1.0);
 }
 
 #[test]
@@ -27,7 +27,7 @@ fn test_vector2d_dot_product() {
     let v2 = Vector2D::from_f64(3.0, 4.0);
 
     let dot = v1.dot(&v2);
-    assert_eq!(dot.value(), 11.0); // 1*3 + 2*4 = 11
+    assert_eq!(dot, 11.0); // 1*3 + 2*4 = 11
 }
 
 #[test]
@@ -36,9 +36,9 @@ fn test_vector2d_normalization() {
     let v = Vector2D::from_f64(3.0, 4.0);
 
     let normalized = v.normalize(&context).unwrap();
-    assert!((normalized.norm().value() - 1.0).abs() < context.linear);
-    assert_eq!(normalized.x().value(), 0.6);
-    assert_eq!(normalized.y().value(), 0.8);
+    assert!((normalized.norm() - 1.0).abs() < context.linear);
+    assert!((normalized.x() - 0.6).abs() < 1e-12);
+    assert!((normalized.y() - 0.8).abs() < 1e-12);
 }
 
 #[test]
@@ -46,18 +46,18 @@ fn test_vector2d_perpendicular() {
     let v = Vector2D::from_f64(1.0, 0.0);
     let perp = v.perpendicular();
 
-    assert_eq!(perp.x().value(), 0.0);
-    assert_eq!(perp.y().value(), 1.0);
+    assert_eq!(perp.x(), 0.0);
+    assert_eq!(perp.y(), 1.0);
 }
 
 #[test]
 fn test_vector2d_rotation() {
     use std::f64::consts::PI;
     let v = Vector2D::from_f64(1.0, 0.0);
-    let rotated = v.rotate(crate::scalar::Scalar::new(PI / 2.0));
+    let rotated = v.rotate(PI / 2.0);
 
-    assert!((rotated.x().value()).abs() < 1e-10); // ほぼ0
-    assert!((rotated.y().value() - 1.0).abs() < 1e-10); // ほぼ1
+    assert!(rotated.x().abs() < 1e-10); // ほぼ0
+    assert!((rotated.y() - 1.0).abs() < 1e-10); // ほぼ1
 }
 
 #[test]
@@ -72,14 +72,41 @@ fn test_vector2d_parallel_perpendicular() {
     assert!(!v1.is_parallel_to(&v3, &context));
 }
 
+#[test]
+fn test_vector2d_reverse_scalar_mul_owned() {
+    let v = Vector2D::from_f64(2.0, -3.0);
+    let left = 2.5 * v.clone();
+    let right = v.clone() * 2.5;
+    assert_eq!(left, right);
+    assert_eq!(left.x(), 5.0);
+    assert_eq!(left.y(), -7.5);
+}
+
+#[test]
+fn test_vector2d_reverse_scalar_mul_ref() {
+    let v = Vector2D::from_f64(-1.0, 4.0);
+    let left = 3.0 * &v; // reverse impl with reference
+    let right = v.clone() * 3.0; // forward impl
+    assert_eq!(left, right);
+}
+
+#[test]
+fn test_vector2d_reverse_scalar_mul_zero_vector() {
+    let v = Vector2D::from_f64(0.0, 0.0);
+    let scaled_left = 10.0 * v.clone();
+    let scaled_right = v.clone() * 10.0;
+    assert_eq!(scaled_left, Vector2D::from_f64(0.0, 0.0));
+    assert_eq!(scaled_left, scaled_right);
+}
+
 // Vector3D テスト
 #[test]
 fn test_vector3d_creation() {
     let v3 = Vector3D::from_f64(1.0, 2.0, 3.0);
 
-    assert_eq!(v3.x().value(), 1.0);
-    assert_eq!(v3.y().value(), 2.0);
-    assert_eq!(v3.z().value(), 3.0);
+    assert_eq!(v3.x(), 1.0);
+    assert_eq!(v3.y(), 2.0);
+    assert_eq!(v3.z(), 3.0);
 }
 
 #[test]
@@ -88,9 +115,9 @@ fn test_vector3d_cross_product() {
     let v2 = Vector3D::from_f64(0.0, 1.0, 0.0);
 
     let cross = v1.cross(&v2);
-    assert_eq!(cross.x().value(), 0.0);
-    assert_eq!(cross.y().value(), 0.0);
-    assert_eq!(cross.z().value(), 1.0);
+    assert_eq!(cross.x(), 0.0);
+    assert_eq!(cross.y(), 0.0);
+    assert_eq!(cross.z(), 1.0);
 }
 
 #[test]
@@ -99,7 +126,7 @@ fn test_vector3d_dot_product() {
     let v2 = Vector3D::from_f64(0.0, 1.0, 0.0);
 
     let dot = v1.dot(&v2);
-    assert_eq!(dot.value(), 0.0);
+    assert_eq!(dot, 0.0);
 }
 
 #[test]
@@ -108,9 +135,9 @@ fn test_vector3d_normalization() {
     let v = Vector3D::from_f64(3.0, 4.0, 0.0);
 
     let normalized = v.normalize(&context).unwrap();
-    assert!((normalized.norm().value() - 1.0).abs() < context.linear);
-    assert_eq!(normalized.x().value(), 0.6);
-    assert_eq!(normalized.y().value(), 0.8);
+    assert!((normalized.norm() - 1.0).abs() < context.linear);
+    assert!((normalized.x() - 0.6).abs() < 1e-12);
+    assert!((normalized.y() - 0.8).abs() < 1e-12);
 }
 
 #[test]
@@ -120,7 +147,7 @@ fn test_vector3d_scalar_triple_product() {
     let c = Vector3D::from_f64(0.0, 0.0, 1.0);
 
     let result = a.scalar_triple_product(&b, &c);
-    assert_eq!(result.value(), 1.0);
+    assert_eq!(result, 1.0);
 }
 
 #[test]
@@ -130,10 +157,51 @@ fn test_vector3d_vector_triple_product() {
     let c = Vector3D::from_f64(0.0, 0.0, 1.0);
 
     let result = a.vector_triple_product(&b, &c);
-    // a×(b×c) = a×(-1,0,0) = (0,-1,0)
-    assert_eq!(result.x().value(), 0.0);
-    assert_eq!(result.y().value(), -1.0);
-    assert_eq!(result.z().value(), 0.0);
+    // b×c = (1,0,0) => a×(b×c)= a×(1,0,0)=0
+    // 公式 b(a·c)-c(a·b): a·c=0, a·b=0 => 0
+    assert_eq!(result.x(), 0.0);
+    assert_eq!(result.y(), 0.0);
+    assert_eq!(result.z(), 0.0);
+}
+
+#[test]
+fn test_vector3d_parallel_perpendicular() {
+    let context = ToleranceContext::standard();
+    let v1 = Vector3D::from_f64(1.0, 0.0, 0.0);
+    let v2 = Vector3D::from_f64(2.0, 0.0, 0.0);
+    let v3 = Vector3D::from_f64(0.0, 1.0, 0.0);
+
+    assert!(v1.is_parallel_to(&v2, &context));
+    assert!(v1.is_perpendicular_to(&v3, &context));
+    assert!(!v1.is_parallel_to(&v3, &context));
+}
+
+#[test]
+fn test_vector3d_reverse_scalar_mul_owned() {
+    let v = Vector3D::from_f64(1.0, -2.0, 3.0);
+    let left = 4.0 * v.clone();
+    let right = v.clone() * 4.0;
+    assert_eq!(left, right);
+    assert_eq!(left.x(), 4.0);
+    assert_eq!(left.y(), -8.0);
+    assert_eq!(left.z(), 12.0);
+}
+
+#[test]
+fn test_vector3d_reverse_scalar_mul_ref() {
+    let v = Vector3D::from_f64(-2.0, 5.0, 0.5);
+    let left = 0.5 * &v;
+    let right = v.clone() * 0.5;
+    assert_eq!(left, right);
+}
+
+#[test]
+fn test_vector3d_reverse_scalar_mul_zero_vector() {
+    let v = Vector3D::from_f64(0.0, 0.0, 0.0);
+    let scaled_left = 7.0 * v.clone();
+    let scaled_right = v.clone() * 7.0;
+    assert_eq!(scaled_left, Vector3D::from_f64(0.0, 0.0, 0.0));
+    assert_eq!(scaled_left, scaled_right);
 }
 
 // Direction3D テスト
@@ -143,9 +211,9 @@ fn test_direction3d_creation() {
     let dir = Direction3D::new(1.0, 0.0, 0.0, &context).unwrap();
 
     assert!(dir.as_vector().is_unit(&context));
-    assert_eq!(dir.x().value(), 1.0);
-    assert_eq!(dir.y().value(), 0.0);
-    assert_eq!(dir.z().value(), 0.0);
+    assert_eq!(dir.x(), 1.0);
+    assert_eq!(dir.y(), 0.0);
+    assert_eq!(dir.z(), 0.0);
 }
 
 #[test]
@@ -155,9 +223,9 @@ fn test_direction3d_from_vector() {
     let dir = Direction3D::from_vector(v, &context).unwrap();
 
     assert!(dir.as_vector().is_unit(&context));
-    assert_eq!(dir.x().value(), 1.0);
-    assert_eq!(dir.y().value(), 0.0);
-    assert_eq!(dir.z().value(), 0.0);
+    assert_eq!(dir.x(), 1.0);
+    assert_eq!(dir.y(), 0.0);
+    assert_eq!(dir.z(), 0.0);
 }
 
 #[test]
@@ -167,9 +235,9 @@ fn test_direction3d_cross_product() {
     let dir2 = Direction3D::new(0.0, 1.0, 0.0, &context).unwrap();
 
     let cross = dir1.cross(&dir2, &context).unwrap();
-    assert_eq!(cross.x().value(), 0.0);
-    assert_eq!(cross.y().value(), 0.0);
-    assert_eq!(cross.z().value(), 1.0);
+    assert_eq!(cross.x(), 0.0);
+    assert_eq!(cross.y(), 0.0);
+    assert_eq!(cross.z(), 1.0);
 }
 
 #[test]
@@ -187,16 +255,4 @@ fn test_direction3d_orthonormal_basis() {
     // uとvは単位ベクトル
     assert!(u.is_unit(&context));
     assert!(v.is_unit(&context));
-}
-
-#[test]
-fn test_vector3d_parallel_perpendicular() {
-    let context = ToleranceContext::standard();
-    let v1 = Vector3D::from_f64(1.0, 0.0, 0.0);
-    let v2 = Vector3D::from_f64(2.0, 0.0, 0.0);
-    let v3 = Vector3D::from_f64(0.0, 1.0, 0.0);
-
-    assert!(v1.is_parallel_to(&v2, &context));
-    assert!(v1.is_perpendicular_to(&v3, &context));
-    assert!(!v1.is_parallel_to(&v3, &context));
 }

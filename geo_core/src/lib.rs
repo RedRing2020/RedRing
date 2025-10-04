@@ -10,6 +10,7 @@ pub mod robust;
 pub mod primitives;
 pub mod primitives2d;
 pub mod primitives3d;
+pub mod angle; // 角度型抽象
 
 // テストモジュール
 #[cfg(test)]
@@ -18,6 +19,7 @@ mod unit_tests;
 // 主要な型の再エクスポート
 pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd};
 pub use scalar::Scalar;
+pub use angle::Angle;
 pub use vector::{Vector, Vector2D, Vector3D, Direction3D};
 pub use primitives::{
     Point2D, Point3D, LineSegment2D, LineSegment3D,

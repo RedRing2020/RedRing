@@ -2,7 +2,7 @@
 ///
 /// 2D/3D空間における三角形要素
 
-use geo_core::{Vector3D, Scalar};
+use geo_core::Vector3D;
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox};
 use crate::geometry_utils::*;
 use geo_core::{Point2D, Point3D};
@@ -163,11 +163,7 @@ impl Triangle3D {
         let cross_y = v1_z * v2_x - v1_x * v2_z;
         let cross_z = v1_x * v2_y - v1_y * v2_x;
         
-        Vector3D::new(
-            Scalar::new(cross_x),
-            Scalar::new(cross_y),
-            Scalar::new(cross_z),
-        )
+        Vector3D::from_f64(cross_x, cross_y, cross_z)
     }
 }
 

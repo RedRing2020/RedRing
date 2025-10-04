@@ -2,6 +2,7 @@
 
 use crate::primitives2d::{Point2D, LineSegment2D, Arc2D, Polygon2D, ParametricCurve2D};
 use crate::scalar::Scalar;
+use crate::angle::Angle;
 
 #[test]
 fn test_point_distance() {
@@ -25,16 +26,16 @@ fn test_line_segment_evaluation() {
 #[test]
 fn test_arc_evaluation() {
     let center = Point2D::from_f64(0.0, 0.0);
-    let radius = Scalar::new(1.0);
-    let arc = Arc2D::new(
+    let radius = 1.0;
+    let arc = Arc2D::new_f64(
         center,
         radius,
-        Scalar::new(0.0),
-        Scalar::new(std::f64::consts::PI / 2.0),
+        Angle::from_radians(0.0),
+        Angle::from_radians(std::f64::consts::PI / 2.0),
     );
 
     let start_point = arc.evaluate(Scalar::new(0.0));
-    assert!((start_point.x().value() - 1.0).abs() < 1e-10);
+    assert!((start_point.x().value() - 1.0).abs() < 1e-10); // Point2D.x() still Scalar
     assert!((start_point.y().value() - 0.0).abs() < 1e-10);
 
     let end_point = arc.evaluate(Scalar::new(1.0));

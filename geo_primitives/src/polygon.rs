@@ -2,7 +2,7 @@
 ///
 /// 2D/3D空間における多角形要素
 
-use geo_core::{Vector3D, Scalar};
+use geo_core::Vector3D;
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
 use geo_core::{Point2D, Point3D};
 
@@ -186,11 +186,7 @@ impl Polygon3D {
             return None;
         }
         
-        Some(Vector3D::new(
-            Scalar::new(cross_x),
-            Scalar::new(cross_y),
-            Scalar::new(cross_z),
-        ))
+        Some(Vector3D::from_f64(cross_x, cross_y, cross_z))
     }
 
     /// 面積を計算（三角形分割を使用）

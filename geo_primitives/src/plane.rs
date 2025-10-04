@@ -2,7 +2,7 @@
 ///
 /// 3D空間における平面要素
 
-use geo_core::{Vector3D, Scalar};
+use geo_core::Vector3D;
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
 use geo_core::Point3D;
 
@@ -46,11 +46,7 @@ impl Plane {
             return None; // 退化した平面（3点が一直線上）
         }
         
-        let normal = Vector3D::new(
-            Scalar::new(normal_x),
-            Scalar::new(normal_y),
-            Scalar::new(normal_z),
-        );
+        let normal = Vector3D::from_f64(normal_x, normal_y, normal_z);
         
         Some(Self::new(p1.clone(), normal))
     }
@@ -68,9 +64,9 @@ impl Plane {
     /// 平面の方程式 ax + by + cz + d = 0 の係数を取得
     pub fn equation_coefficients(&self) -> (f64, f64, f64, f64) {
         let (px, py, pz) = point3d_to_f64(&self.point);
-        let a = self.normal.x().value();
-        let b = self.normal.y().value();
-        let c = self.normal.z().value();
+    let a = self.normal.x();
+    let b = self.normal.y();
+    let c = self.normal.z();
         let d = -(a * px + b * py + c * pz);
         (a, b, c, d)
     }
@@ -92,9 +88,9 @@ impl Plane {
         let distance = self.signed_distance_to_point(point);
         let (px, py, pz) = point3d_to_f64(point);
         point3d_from_f64(
-            px - distance * self.normal.x().value(),
-            py - distance * self.normal.y().value(),
-            pz - distance * self.normal.z().value(),
+            px - distance * self.normal.x(),
+            py - distance * self.normal.y(),
+            pz - distance * self.normal.z(),
         )
     }
 
@@ -123,11 +119,7 @@ impl GeometricPrimitive for Plane {
     fn measure(&self) -> Option<f64> {
         // 平面の面積は無限大なので、代わりに何らかの代表値を返す
         // ここでは法線ベクトルの長さを返す
-        let (nx, ny, nz) = (
-            self.normal.x().value(),
-            self.normal.y().value(),
-            self.normal.z().value(),
-        );
+        let (nx, ny, nz) = (self.normal.x(), self.normal.y(), self.normal.z());
         Some((nx * nx + ny * ny + nz * nz).sqrt())
     }
 }
@@ -139,7 +131,7 @@ mod tests {
     #[test]
     fn test_plane_creation() {
         let point = Point3D::from_f64(0.0, 0.0, 0.0);
-        let normal = Vector3D::new(Scalar::new(0.0), Scalar::new(0.0), Scalar::new(1.0));
+    let normal = Vector3D::from_f64(0.0, 0.0, 1.0);
         let plane = Plane::new(point, normal);
         
         let (px, py, pz) = point3d_to_f64(plane.point());
@@ -157,8 +149,7 @@ mod tests {
         let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
         
         // Z=0平面の法線は(0, 0, 1)方向
-        assert!((plane.normal().z().value() - 1.0).abs() < 1e-10 ||
-                (plane.normal().z().value() + 1.0).abs() < 1e-10);
+    assert!((plane.normal().z() - 1.0).abs() < 1e-10 || (plane.normal().z() + 1.0).abs() < 1e-10);
     }
 
     #[test]

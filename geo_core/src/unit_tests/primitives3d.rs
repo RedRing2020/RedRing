@@ -1,7 +1,7 @@
 /// 3Dプリミティブのユニットテスト
 
-use crate::primitives3d::{Point3D, LineSegment3D, Plane, Sphere};
-use crate::scalar::Scalar;
+use crate::primitives3d::{Point3D, LineSegment3D, Plane, Sphere, ParametricCurve3D, Circle3D};
+use crate::{scalar::Scalar, vector::Direction3D, tolerance::ToleranceContext};
 
 #[test]
 fn test_point_distance_3d() {
@@ -20,7 +20,7 @@ fn test_plane_from_three_points() {
     let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
 
     // Z軸方向が法線になるはず
-    assert!((plane.normal().z().value() - 1.0).abs() < 1e-10);
+    assert!((plane.normal().z() - 1.0).abs() < 1e-10);
 }
 
 #[test]
@@ -42,4 +42,27 @@ fn test_line_segment_distance_to_point() {
     let point = Point3D::from_f64(0.5, 1.0, 0.0);
     let distance = line.distance_to_point(&point);
     assert!((distance.value() - 1.0).abs() < 1e-10);
+}
+
+#[test]
+fn test_circle3d_basic() {
+    let center = Point3D::origin();
+    let ctx = ToleranceContext::standard();
+    let normal = Direction3D::new(0.0, 0.0, 1.0, &ctx).unwrap();
+    let circle = Circle3D::new(center.clone(), 2.0, normal);
+    // t=0 -> (r,0,0)
+    let p0 = circle.evaluate(Scalar::new(0.0));
+    assert!((p0.x().value() - 2.0).abs() < 1e-10);
+    assert!(p0.y().value().abs() < 1e-10);
+    // 半周 t=0.5 -> (-r,0,0)
+    let p_half = circle.evaluate(Scalar::new(0.5));
+    assert!((p_half.x().value() + 2.0).abs() < 1e-10);
+    assert!(p_half.y().value().abs() < 1e-10);
+    // 長さ
+    let len = circle.length();
+    assert!((len.value() - 2.0 * std::f64::consts::PI * 2.0).abs() < 1e-10);
+    // 導関数 t=0 -> (0, 2πr, 0)
+    let d0 = circle.derivative(Scalar::new(0.0));
+    assert!(d0.x().abs() < 1e-10);
+    assert!((d0.y() - (std::f64::consts::TAU * 2.0)).abs() < 1e-10);
 }

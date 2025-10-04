@@ -3,7 +3,7 @@
 /// 数値的に安定した幾何述語と適応精度演算を提供する。
 
 use crate::tolerance::ToleranceContext;
-use crate::vector::{Vector2D, Vector3D};
+use crate::vector::Vector2D;
 
 /// 幾何述語の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,8 +19,9 @@ pub mod predicates {
 
     /// 2D点の向き判定
     pub fn orient_2d(a: &Vector2D, b: &Vector2D, c: &Vector2D) -> Orientation {
-        let det = (b.x().value() - a.x().value()) * (c.y().value() - a.y().value()) -
-                  (b.y().value() - a.y().value()) * (c.x().value() - a.x().value());
+        // f64 ベース Vector2D に合わせて .value() 呼び出しを除去
+        let det = (b.x() - a.x()) * (c.y() - a.y()) -
+                  (b.y() - a.y()) * (c.x() - a.x());
 
         if det > 0.0 {
             Orientation::CounterClockwise
@@ -35,18 +36,18 @@ pub mod predicates {
     pub fn in_circle(a: &Vector2D, b: &Vector2D, c: &Vector2D, d: &Vector2D) -> bool {
         // TODO: 適応精度での実装
         // 現在は単純な実装
-        let ax = a.x().value();
-        let ay = a.y().value();
-        let bx = b.x().value();
-        let by = b.y().value();
-        let cx = c.x().value();
-        let cy = c.y().value();
-        let dx = d.x().value();
-        let dy = d.y().value();
+        let ax = a.x();
+        let ay = a.y();
+        let bx = b.x();
+        let by = b.y();
+        let cx = c.x();
+        let cy = c.y();
+        let dx = d.x();
+        let dy = d.y();
 
-        let det = (ax - dx) * ((by - dy) * (cx - dx) - (bx - dx) * (cy - dy))
-                - (ay - dy) * ((bx - dx) * (cx - dx) - (by - dy) * (cx - dx))
-                + (ax * ax + ay * ay - dx * dx - dy * dy) * ((bx - dx) * (cy - dy) - (by - dy) * (cx - dx));
+    let det = (ax - dx) * ((by - dy) * (cx - dx) - (bx - dx) * (cy - dy))
+        - (ay - dy) * ((bx - dx) * (cx - dx) - (by - dy) * (cx - dx))
+        + (ax * ax + ay * ay - dx * dx - dy * dy) * ((bx - dx) * (cy - dy) - (by - dy) * (cx - dx));
 
         det > 0.0
     }

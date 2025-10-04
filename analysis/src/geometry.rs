@@ -165,3 +165,10 @@ where
 pub trait NormedVector {
     fn norm(&self) -> f64;
 }
+
+// Vector3D への実装（楕円/楕円弧の弧長計算最適化用）
+impl NormedVector for geo_core::Vector3D {
+    fn norm(&self) -> f64 {
+        geo_core::Vector::norm(self)
+    }
+}

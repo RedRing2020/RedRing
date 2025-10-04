@@ -198,6 +198,12 @@ pub trait TolerantGeometry: ToleranceProvider {
 }
 
 /// 位相的一貫性チェッカー（将来の B-rep モデリング用）
+///
+/// NOTE:
+/// - 現在は Euler 特性といくつかの将来用スタブのみを提供する軽量スタブです。
+/// - 実際の多様体 / 境界向き / エッジ使用回数検証ロジックは別トレイト `TopologyStructure` を通じて段階的に導入予定。
+/// - 未使用警告を抑制するため `#[allow(dead_code)]` を付与しています。
+#[allow(dead_code)]
 pub struct TopologyChecker {
     context: ToleranceContext,
 }
@@ -223,6 +229,28 @@ impl TopologyChecker {
     pub fn verify_manifold_property(&self, _entity: &dyn TopologicalEntity) -> bool {
         // TODO: 将来の実装で多様体性をチェック
         true
+    }
+}
+
+/// 位相全体（例: メッシュ / B-rep シェル）を表す軽量トレイト。
+/// 将来これを拡張して詳細な検証 (非多様体エッジ, 孤立要素, 退化フェイス) を追加する。
+#[allow(dead_code)]
+pub trait TopologyStructure {
+    /// 頂点数
+    fn vertex_count(&self) -> usize;
+    /// エッジ数
+    fn edge_count(&self) -> usize;
+    /// 面数
+    fn face_count(&self) -> usize;
+
+    /// 基本的な Euler 特性確認 (閉じた多様体を期待)。
+    fn basic_topology_ok(&self) -> bool {
+        let checker = TopologyChecker::new(ToleranceContext::standard());
+        checker.verify_euler_characteristic(
+            self.vertex_count(),
+            self.edge_count(),
+            self.face_count(),
+        )
     }
 }
 

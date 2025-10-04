@@ -2,7 +2,7 @@
 ///
 /// 3D三角形メッシュ要素
 
-use geo_core::{Vector3D, Scalar};
+use geo_core::Vector3D;
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
 use geo_core::Point3D;
 
@@ -101,11 +101,7 @@ impl TriangleMesh {
             return None; // 退化した三角形
         }
         
-        Some(Vector3D::new(
-            Scalar::new(cross_x),
-            Scalar::new(cross_y),
-            Scalar::new(cross_z),
-        ))
+        Some(Vector3D::from_f64(cross_x, cross_y, cross_z))
     }
 
     /// 指定された三角形の面積を計算
