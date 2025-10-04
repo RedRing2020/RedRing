@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use super::{point::Point, vector::Vector};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
@@ -109,10 +107,10 @@ impl Curve3D for NurbsCurve {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, _t: f64) -> geo_core::Point3D {
         todo!("Implement NURBS evaluation")
     }
-    fn derivative(&self, _t: f64) -> Vector {
+    fn derivative(&self, _t: f64) -> geo_core::Vector3D {
         todo!("Implement NURBS derivative")
     }
     fn kind(&self) -> CurveKind3D {

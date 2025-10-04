@@ -154,12 +154,12 @@ impl Curve2D for NurbsCurve {
         CurveKind2D::NurbsCurve
     }
 
-    fn evaluate(&self, u: f64) -> Point {
+    fn evaluate(&self, _u: f64) -> geo_core::Point2D {
         // De Boor の rational 拡張は後続で実装
         todo!("NURBS評価は後続ステップで実装")
     }
 
-    fn derivative(&self, _: f64) -> Vector {
+    fn derivative(&self, _: f64) -> geo_core::Vector2D {
         todo!("NURBSの導関数は後続ステップで実装")
     }
 

@@ -47,6 +47,16 @@ impl Point {
     pub fn distance_to_point_on_line(&self, line: &Line) -> f64 {
         line.distance_to_point(self)
     }
+
+    /// geo_coreへの変換
+    pub fn as_geo_core(&self) -> geo_core::Point2D {
+        geo_core::Point2D::from_f64(self.x, self.y)
+    }
+
+    /// geo_coreからの変換
+    pub fn from_geo_core(pt: geo_core::Point2D) -> Self {
+        Self::new(pt.x().value(), pt.y().value())
+    }
 }
 
 impl PointOps for geometry2d::point::Point {

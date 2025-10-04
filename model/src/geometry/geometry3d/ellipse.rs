@@ -77,19 +77,21 @@ impl Curve3D for Ellipse {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, t: f64) -> geo_core::Point3D {
         let theta = t * 2.0 * std::f64::consts::PI;
         let x = theta.cos();
         let y = theta.sin();
 
-        self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
+        let result = self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y;
+        result.as_geo_core().clone()
     }
-    fn derivative(&self, t: f64) -> Vector {
+    fn derivative(&self, t: f64) -> geo_core::Vector3D {
         let angle = t * 2.0 * std::f64::consts::PI;
         let two_pi = Scalar::new(2.0 * std::f64::consts::PI);
         let dx = (-self.major_radius * Scalar::new(angle.sin()) * two_pi).value();
         let dy = (self.minor_radius * Scalar::new(angle.cos()) * two_pi).value();
-        self.major_axis.clone() * dx + self.minor_axis.clone() * dy
+        let result = self.major_axis.clone() * dx + self.minor_axis.clone() * dy;
+        result.as_geo_core().clone()
     }
     fn kind(&self) -> CurveKind3D {
         CurveKind3D::Ellipse

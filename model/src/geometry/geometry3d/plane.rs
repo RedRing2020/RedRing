@@ -1,7 +1,6 @@
 use super::point::Point;
 use super::direction::Direction;
 use super::vector::Vector;
-use crate::geometry_kind::SurfaceKind;
 
 /// Represents an analytic plane in 3D space.
 /// Defined by a point and a normal direction.

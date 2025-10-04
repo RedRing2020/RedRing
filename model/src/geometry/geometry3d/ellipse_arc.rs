@@ -1,5 +1,5 @@
 use analysis::newton_arc_length;
-use crate::geometry::geometry3d::{point::Point, vector::Vector, direction::Direction};
+use crate::geometry::geometry3d::{point::Point, vector::Vector};
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use geo_core::Scalar;
@@ -92,21 +92,23 @@ impl Curve3D for EllipseArc {
         self
     }
 
-    fn evaluate(&self, t: f64) -> Point {
+    fn evaluate(&self, t: f64) -> geo_core::Point3D {
         let theta = self.start_angle + t * (self.end_angle - self.start_angle);
         let x = theta.cos();
         let y = theta.sin();
 
-        self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y
+        let result = self.center.clone() + self.major_axis.clone() * x + self.minor_axis.clone() * y;
+        result.as_geo_core().clone()
     }
 
-    fn derivative(&self, t: f64) -> Vector {
+    fn derivative(&self, t: f64) -> geo_core::Vector3D {
         let angle = self.start_angle + t * (self.end_angle - self.start_angle);
         let d_angle = self.end_angle - self.start_angle;
 
         let dx = (-self.major_radius * Scalar::new(angle.sin()) * Scalar::new(d_angle)).value();
         let dy = (self.minor_radius * Scalar::new(angle.cos()) * Scalar::new(d_angle)).value();
-        self.major_axis.clone() * dx + self.minor_axis.clone() * dy
+        let result = self.major_axis.clone() * dx + self.minor_axis.clone() * dy;
+        result.as_geo_core().clone()
     }
 
     fn kind(&self) -> CurveKind3D {

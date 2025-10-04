@@ -43,7 +43,7 @@ impl Line {
     }
 
     /// 点が線分上にあるかどうか（誤差 ε を考慮）
-    pub fn contains_point(&self, pt: &Point, epsilon: f64) -> bool { false }
+    pub fn contains_point(&self, _pt: &Point, _epsilon: f64) -> bool { false }
 
     /// 線分上の最近点を返す
     fn closest_point(&self, pt: &Point) -> Point {

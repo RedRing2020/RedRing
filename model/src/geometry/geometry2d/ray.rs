@@ -24,9 +24,11 @@ impl Ray {
 
     pub fn direction(&self) -> &Direction {
         &self.direction
-    }pub fn contains_point(&self, pt: &Point, epsilon: f64) -> bool { false }
+    }
+    
+    pub fn contains_point(&self, _pt: &Point, _epsilon: f64) -> bool { false }
 
-    pub fn parameter_of(&self, pt: &Point) -> f64 { 0.0 }
+    pub fn parameter_of(&self, _pt: &Point) -> f64 { 0.0 }
 
     pub fn is_forward(&self, pt: &Point, epsilon: f64) -> bool {
         let v = pt.sub(&self.origin);

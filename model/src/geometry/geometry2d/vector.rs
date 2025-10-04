@@ -49,6 +49,16 @@ impl Vector {
         self.y.atan2(self.x)
     }
 
+    /// geo_coreへの変換
+    pub fn as_geo_core(&self) -> geo_core::Vector2D {
+        geo_core::Vector2D::from_f64(self.x, self.y)
+    }
+
+    /// geo_coreからの変換
+    pub fn from_geo_core(vec: geo_core::Vector2D) -> Self {
+        Self::new(vec.x().value(), vec.y().value())
+    }
+
     pub fn to_direction(&self) -> Direction {
         Direction::new(self.x, self.y)
     }
