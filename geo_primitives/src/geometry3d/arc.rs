@@ -99,31 +99,37 @@ impl Arc3D {
 
     /// 3点の外心を計算
     fn circumcenter(p1: &Point3D, p2: &Point3D, p3: &Point3D) -> Option<Point3D> {
+        // 標準的な外心計算: a = p2-p1, b = p3-p1
         let a = Vector3D::from_f64(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
         let b = Vector3D::from_f64(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
 
-        let cross = Vector3D::from_f64(
-            a.y().value() * b.z().value() - a.z().value() * b.y().value(),
-            a.z().value() * b.x().value() - a.x().value() * b.z().value(),
-            a.x().value() * b.y().value() - a.y().value() * b.x().value(),
-        );
+        let ax = a.x().value(); let ay = a.y().value(); let az = a.z().value();
+        let bx = b.x().value(); let by = b.y().value(); let bz = b.z().value();
 
-        let cross_mag_sq = cross.x().value()*cross.x().value() + cross.y().value()*cross.y().value() + cross.z().value()*cross.z().value();
-        if cross_mag_sq < 1e-10 {
-            return None; // 3点が一直線上
-        }
+        // n = a × b
+        let nx = ay * bz - az * by;
+        let ny = az * bx - ax * bz;
+        let nz = ax * by - ay * bx;
+        let n_sq = nx*nx + ny*ny + nz*nz;
+        if n_sq < 1e-14 { return None; }
 
-        let a_mag_sq = a.x().value()*a.x().value() + a.y().value()*a.y().value() + a.z().value()*a.z().value();
-        let b_mag_sq = b.x().value()*b.x().value() + b.y().value()*b.y().value() + b.z().value()*b.z().value();
+        let a_sq = ax*ax + ay*ay + az*az;
+        let b_sq = bx*bx + by*by + bz*bz;
 
-        let alpha = b_mag_sq * a_mag_sq / (2.0 * cross_mag_sq);
-        let beta = a_mag_sq * b_mag_sq / (2.0 * cross_mag_sq);
+        // (a·a)(b×n) + (b·b)(n×a)
+        let bxn_x = by * nz - bz * ny;
+        let bxn_y = bz * nx - bx * nz;
+        let bxn_z = bx * ny - by * nx;
 
-        Some(Point3D::new(
-            p1.x() + alpha * cross.x().value() + beta * cross.y().value(),
-            p1.y() + alpha * cross.y().value() + beta * cross.z().value(),
-            p1.z() + alpha * cross.z().value() + beta * cross.x().value(),
-        ))
+        let nxa_x = ny * az - nz * ay;
+        let nxa_y = nz * ax - nx * az;
+        let nxa_z = nx * ay - ny * ax;
+
+        let cx = p1.x() + (a_sq * bxn_x + b_sq * nxa_x) / (2.0 * n_sq);
+        let cy = p1.y() + (a_sq * bxn_y + b_sq * nxa_y) / (2.0 * n_sq);
+        let cz = p1.z() + (a_sq * bxn_z + b_sq * nxa_z) / (2.0 * n_sq);
+
+        Some(Point3D::new(cx, cy, cz))
     }
 
     /// 円上の点から角度を計算

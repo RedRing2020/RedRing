@@ -1,7 +1,7 @@
 /// 2D方向ベクトル
 /// 正規化された2次元方向ベクトルを表現
 
-use geo_core::{Vector2D, Scalar, ToleranceContext, TolerantEq};
+use geo_core::{Vector2D, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]
 pub struct Direction2D {

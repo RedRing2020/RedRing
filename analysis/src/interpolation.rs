@@ -2,7 +2,7 @@
 ///
 /// 線形補間、スプライン補間、ベジエ曲線補間を提供する
 
-use geo_core::{Point2D, Vector2D, Scalar, ToleranceContext};
+use geo_core::{Point2D, Vector2D, ToleranceContext};
 
 /// 線形補間器
 pub struct LinearInterpolator {

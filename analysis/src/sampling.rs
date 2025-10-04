@@ -2,7 +2,7 @@
 ///
 /// 2D/3D幾何要素のサンプリング、交差検出、パターン抽出機能
 
-use geo_core::{Point2D, Point3D, Vector2D, Vector3D, Scalar, ToleranceContext};
+use geo_core::{Point2D, ToleranceContext};
 
 /// サンプリング結果
 #[derive(Debug, Clone)]

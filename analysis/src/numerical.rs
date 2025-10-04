@@ -2,9 +2,9 @@
 ///
 /// 交差検出、近似、最適化問題の解法を提供
 
-use geo_core::{Point2D, Point3D, Vector2D, Vector3D, Scalar, ToleranceContext};
-use geo_core::vector::Vector;
-use crate::sampling::{IntersectionCandidate, SamplingResult};
+use geo_core::{Point2D, Vector2D, ToleranceContext};
+use geo_core::vector::Vector; // needed for normalize()
+use crate::sampling::IntersectionCandidate;
 
 /// 数値解法の収束情報
 #[derive(Debug, Clone)]

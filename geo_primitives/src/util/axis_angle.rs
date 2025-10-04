@@ -1,7 +1,7 @@
 //! Rodrigues 回転および軸回り回転の共通ユーティリティ
 //! f64 ドメインで計算し、必要に応じて Scalar/Vector へ写像する。
 
-use geo_core::{Scalar, Vector3D};
+use geo_core::Vector3D;
 use geo_core::tolerance::ToleranceContext;
 use geo_core::vector::Vector; // dot 用
 

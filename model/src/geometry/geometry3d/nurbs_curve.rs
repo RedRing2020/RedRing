@@ -1,4 +1,4 @@
-use super::{point::Point, vector::Vector};
+use super::point::Point;
 use crate::geometry_kind::curve3d::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 
