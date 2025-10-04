@@ -1,5 +1,5 @@
 /// ベクトル演算システム
-/// 
+///
 /// 統合された2D/3Dベクトル演算を提供し、許容誤差を考慮した
 /// 堅牢な幾何計算を実現する。
 
@@ -66,6 +66,23 @@ pub trait Vector<const D: usize>:
 
     /// 成分ごとの絶対値
     fn abs(&self) -> Self;
+
+    /// デフォルト許容誤差での正規化（便利メソッド）
+    ///
+    /// 標準的な許容誤差を使用してベクトルを正規化する。
+    /// 具体的な許容誤差制御が必要な場合は`normalize(&context)`を使用する。
+    fn normalize_default(&self) -> Option<Self> where Self: Sized {
+        use crate::tolerance::ToleranceContext;
+        let default_context = ToleranceContext::standard();
+        self.normalize(&default_context)
+    }
+
+    /// デフォルト許容誤差でのゼロベクトル判定（便利メソッド）
+    fn is_zero_default(&self) -> bool {
+        use crate::tolerance::ToleranceContext;
+        let default_context = ToleranceContext::standard();
+        self.is_zero(&default_context)
+    }
 }
 
 // サブモジュールをインクルード

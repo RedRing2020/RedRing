@@ -1,6 +1,6 @@
 use std::any::Any;
 use crate::geometry_kind::CurveKind3D;
-use crate::geometry::geometry3d::{point::Point, vector::Vector};
+use geo_core::{Point3D as Point, Vector3D as Vector};
 
 /// Curve3D: 3次元曲線の抽象トレイト
 ///

@@ -1,5 +1,5 @@
 /// 3次元ベクトル実装
-/// 
+///
 /// 座標値はmm単位で格納される
 
 use crate::scalar::Scalar;
@@ -9,7 +9,7 @@ use std::fmt;
 use std::ops::{Add, Sub, Mul, Neg, Index, IndexMut};
 
 /// 3次元ベクトル
-/// 
+///
 /// 座標値はmm単位で格納される
 #[derive(Debug, Clone)]
 pub struct Vector3D {
@@ -19,7 +19,7 @@ pub struct Vector3D {
 
 impl PartialEq for Vector3D {
     fn eq(&self, other: &Self) -> bool {
-        self.components[0] == other.components[0] && 
+        self.components[0] == other.components[0] &&
         self.components[1] == other.components[1] &&
         self.components[2] == other.components[2]
     }
@@ -94,6 +94,23 @@ impl Vector3D {
     /// Z軸方向の単位ベクトル
     pub fn z_axis() -> Self {
         Self::from_f64(0.0, 0.0, 1.0)
+    }
+
+    /// デフォルト許容誤差での正規化
+    ///
+    /// 標準的な線形許容誤差（1e-6）を使用してベクトルを正規化する。
+    /// より細かい制御が必要な場合は、`normalize(&context)`を使用する。
+    pub fn normalize_default(&self) -> Option<Self> {
+        use crate::tolerance::ToleranceContext;
+        let default_context = ToleranceContext::standard();
+        self.normalize(&default_context)
+    }
+
+    /// デフォルト許容誤差でのゼロベクトル判定
+    pub fn is_zero_default(&self) -> bool {
+        use crate::tolerance::ToleranceContext;
+        let default_context = ToleranceContext::standard();
+        self.is_zero(&default_context)
     }
 }
 

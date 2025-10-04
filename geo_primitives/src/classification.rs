@@ -5,26 +5,28 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveKind {
-    // 0次元: 点
-    Point,
-
-    // 1次元: 線形要素
+    // 2次元空間要素 (geometry2d)
+    Point2D,
     LineSegment,
+    InfiniteLine,
+    Ray,
+    Arc,
     PolyLine,
     BezierCurve,
     NurbsCurve,
-
-    // 2次元: 面要素
     Circle,
     Ellipse,
     Rectangle,
     Polygon,
     Triangle,
 
-    // 3次元: 立体要素
+    // 3次元空間要素 (geometry3d + surface)
+    Point3D,
     Sphere,
     Cylinder,
     Cone,
+    Ellipsoid,
+    Torus,
     Cube,
     Plane,
     TriangleMesh,
@@ -35,26 +37,33 @@ pub enum PrimitiveKind {
 }
 
 impl PrimitiveKind {
-    /// プリミティブの次元を返す
+    /// プリミティブの空間次元を返す
+    /// (geometry2d=2次元, geometry3d/surface=3次元)
     pub fn dimension(&self) -> u8 {
         match self {
-            PrimitiveKind::Point => 0,
-
-            PrimitiveKind::LineSegment
+            // 2次元空間要素 (geometry2d)
+            PrimitiveKind::Point2D
+            | PrimitiveKind::LineSegment
+            | PrimitiveKind::InfiniteLine
+            | PrimitiveKind::Ray
+            | PrimitiveKind::Arc
             | PrimitiveKind::PolyLine
             | PrimitiveKind::BezierCurve
-            | PrimitiveKind::NurbsCurve => 1,
-
-            PrimitiveKind::Circle
+            | PrimitiveKind::NurbsCurve
+            | PrimitiveKind::Circle
             | PrimitiveKind::Ellipse
             | PrimitiveKind::Rectangle
             | PrimitiveKind::Polygon
-            | PrimitiveKind::Triangle
-            | PrimitiveKind::Plane => 2,
+            | PrimitiveKind::Triangle => 2,
 
-            PrimitiveKind::Sphere
+            // 3次元空間要素 (geometry3d + surface)
+            PrimitiveKind::Point3D
+            | PrimitiveKind::Plane
+            | PrimitiveKind::Sphere
             | PrimitiveKind::Cylinder
             | PrimitiveKind::Cone
+            | PrimitiveKind::Ellipsoid
+            | PrimitiveKind::Torus
             | PrimitiveKind::Cube
             | PrimitiveKind::TriangleMesh => 3,
 
@@ -74,7 +83,13 @@ impl PrimitiveKind {
             | PrimitiveKind::Sphere
             | PrimitiveKind::Cylinder
             | PrimitiveKind::Cone
+            | PrimitiveKind::Ellipsoid
+            | PrimitiveKind::Torus
             | PrimitiveKind::Cube => true,
+
+            // Point は開閉の概念がない
+            PrimitiveKind::Point2D
+            | PrimitiveKind::Point3D => false,
 
             _ => false,
         }
@@ -89,7 +104,9 @@ impl PrimitiveKind {
             | PrimitiveKind::Ellipse
             | PrimitiveKind::Sphere
             | PrimitiveKind::Cylinder
-            | PrimitiveKind::Cone => true,
+            | PrimitiveKind::Cone
+            | PrimitiveKind::Ellipsoid
+            | PrimitiveKind::Torus => true,
 
             _ => false,
         }
@@ -134,8 +151,12 @@ pub enum ComplexityLevel {
 impl ComplexityLevel {
     fn from_kind(kind: &PrimitiveKind) -> Self {
         match kind {
-            PrimitiveKind::Point
+            PrimitiveKind::Point2D
+            | PrimitiveKind::Point3D
             | PrimitiveKind::LineSegment
+            | PrimitiveKind::InfiniteLine
+            | PrimitiveKind::Ray
+            | PrimitiveKind::Arc
             | PrimitiveKind::Circle
             | PrimitiveKind::Rectangle
             | PrimitiveKind::Triangle
@@ -147,7 +168,9 @@ impl ComplexityLevel {
             | PrimitiveKind::Ellipse
             | PrimitiveKind::Polygon
             | PrimitiveKind::Cylinder
-            | PrimitiveKind::Cone => ComplexityLevel::Intermediate,
+            | PrimitiveKind::Cone
+            | PrimitiveKind::Ellipsoid
+            | PrimitiveKind::Torus => ComplexityLevel::Intermediate,
 
             PrimitiveKind::BezierCurve
             | PrimitiveKind::NurbsCurve
@@ -166,10 +189,16 @@ mod tests {
 
     #[test]
     fn test_primitive_kind_dimension() {
-        assert_eq!(PrimitiveKind::Point.dimension(), 0);
-        assert_eq!(PrimitiveKind::LineSegment.dimension(), 1);
+        // 2次元空間要素
+        assert_eq!(PrimitiveKind::Point2D.dimension(), 2);
+        assert_eq!(PrimitiveKind::LineSegment.dimension(), 2);
         assert_eq!(PrimitiveKind::Circle.dimension(), 2);
+
+        // 3次元空間要素
+        assert_eq!(PrimitiveKind::Point3D.dimension(), 3);
         assert_eq!(PrimitiveKind::Sphere.dimension(), 3);
+        assert_eq!(PrimitiveKind::Ellipsoid.dimension(), 3);
+        assert_eq!(PrimitiveKind::Torus.dimension(), 3);
     }
 
     #[test]
@@ -178,6 +207,8 @@ mod tests {
         assert!(!PrimitiveKind::LineSegment.is_closed());
         assert!(PrimitiveKind::NurbsCurve.is_parametric());
         assert!(!PrimitiveKind::Triangle.is_parametric());
+        assert!(PrimitiveKind::Ellipsoid.is_closed());
+        assert!(PrimitiveKind::Torus.is_parametric());
     }
 
     #[test]
@@ -188,5 +219,20 @@ mod tests {
         assert!(classification.is_closed);
         assert!(classification.is_parametric);
         assert_eq!(classification.complexity, ComplexityLevel::Basic);
+    }
+
+    #[test]
+    fn test_surface_primitives_classification() {
+        let ellipsoid_class = GeometryClassification::new(PrimitiveKind::Ellipsoid);
+        assert_eq!(ellipsoid_class.dimension, 3);
+        assert!(ellipsoid_class.is_closed);
+        assert!(ellipsoid_class.is_parametric);
+        assert_eq!(ellipsoid_class.complexity, ComplexityLevel::Intermediate);
+
+        let torus_class = GeometryClassification::new(PrimitiveKind::Torus);
+        assert_eq!(torus_class.dimension, 3);
+        assert!(torus_class.is_closed);
+        assert!(torus_class.is_parametric);
+        assert_eq!(torus_class.complexity, ComplexityLevel::Intermediate);
     }
 }

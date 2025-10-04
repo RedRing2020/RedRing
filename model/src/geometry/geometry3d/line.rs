@@ -63,11 +63,15 @@ impl Curve3D for Line {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    fn evaluate(&self, t: f64) -> Point {
-        self.start.clone() + (self.end.clone() - self.start.clone()) * t
+    fn evaluate(&self, t: f64) -> geo_core::Point3D {
+        // 内部型からgeo_core型に変換
+        let result = self.start.clone() + (self.end.clone() - self.start.clone()) * t;
+        geo_core::Point3D::from_f64(result.x(), result.y(), result.z())
     }
-    fn derivative(&self, _t: f64) -> Vector {
-        self.end.clone() - self.start.clone()
+    fn derivative(&self, _t: f64) -> geo_core::Vector3D {
+        // 内部型からgeo_core型に変換
+        let result = self.end.clone() - self.start.clone();
+        geo_core::Vector3D::from_f64(result.x(), result.y(), result.z())
     }
     fn kind(&self) -> CurveKind3D {
         CurveKind3D::Line

@@ -55,39 +55,18 @@ pub trait GeometricPrimitive {
 pub mod classification;
 pub use classification::{PrimitiveKind, GeometryClassification, ComplexityLevel};
 
-// CAD統合層（model からの移植）- 構造体別ファイル分割
-pub mod cad_point;
-pub use cad_point::CadPoint;
+// 基本幾何プリミティブ（CAD統合層は削除済み）
 
-pub mod cad_vector;
-pub use cad_vector::CadVector;
+// 2D/3D幾何プリミティブ（フォルダ別に分離）
+pub mod geometry2d;
+pub use geometry2d::{Triangle2D, Polygon2D};
 
-pub mod cad_direction;
-pub use cad_direction::CadDirection;
+pub mod geometry3d;
+pub use geometry3d::{Point3D, Vector3D, Triangle3D, Polygon3D, Plane, TriangleMesh};
 
-pub mod cad_circle;
-pub use cad_circle::CadCircle;
-
-pub mod cad_ellipse;
-pub use cad_ellipse::CadEllipse;
-
-pub mod cad_ellipse_arc;
-pub use cad_ellipse_arc::CadEllipseArc;
-
-// 2Dプリミティブ（削除済み - geo_coreの基本構造体を使用）
-
-pub mod triangle;
-pub use triangle::{Triangle2D, Triangle3D};
-
-// 3Dプリミティブ
-pub mod plane;
-pub use plane::Plane;
-
-pub mod polygon;
-pub use polygon::{Polygon2D, Polygon3D};
-
-pub mod mesh;
-pub use mesh::TriangleMesh;
+// サーフェスプリミティブ
+pub mod surface;
+pub use surface::{Sphere, Cylinder, Cone, Ellipsoid, Torus, TorusType};
 
 // 名前空間の整理
 pub mod primitives_2d {
@@ -104,14 +83,12 @@ pub mod primitives_3d {
 pub mod prelude {
     pub use crate::{
         GeometricPrimitive, PrimitiveKind, BoundingBox,
-        // CAD統合層
-        CadPoint, CadVector, CadDirection,
-        CadCircle, CadEllipse, CadEllipseArc,
-        // 2D/3Dプリミティブ
-        Triangle2D, Triangle3D,
-        Plane,
-        Polygon2D, Polygon3D,
-        TriangleMesh,
+        // 2D基本プリミティブ
+        geometry2d::{Point2D, Circle2D, Triangle2D, Polygon2D, InfiniteLine2D, Ray2D, Line2D, Arc2D},
+        // 3D基本プリミティブ
+        geometry3d::{Point3D, Vector3D, Triangle3D, Polygon3D, Plane, TriangleMesh, InfiniteLine3D, Ray3D, Line3D, Arc3D},
+        // サーフェスプリミティブ
+        surface::{Sphere, Cylinder, Cone, Ellipsoid, Torus, TorusType},
     };
 }
 
