@@ -16,8 +16,8 @@ pub struct Line2D {
 impl Line2D {
     /// 開始点と終了点から線分を作成
     pub fn new(start: Point2D, end: Point2D) -> Self {
-        let dx = end.x().value() - start.x().value();
-        let dy = end.y().value() - start.y().value();
+        let dx = end.x() - start.x();
+        let dy = end.y() - start.y();
         let direction_vector = Vector2D::new(dx, dy);
         let base = if let Some(direction) = Direction2D::from_vector(&direction_vector) {
             InfiniteLine2D::new(start.clone(), direction)
@@ -29,8 +29,8 @@ impl Line2D {
 
     /// f64座標から線分を作成
     pub fn from_f64(start_x: f64, start_y: f64, end_x: f64, end_y: f64) -> Self {
-        let start = Point2D::new(Scalar::new(start_x), Scalar::new(start_y));
-        let end = Point2D::new(Scalar::new(end_x), Scalar::new(end_y));
+        let start = Point2D::new(start_x, start_y);
+        let end = Point2D::new(end_x, end_y);
         Self::new(start, end)
     }
 
@@ -47,8 +47,8 @@ impl Line2D {
     /// 線分の方向ベクトルを取得
     pub fn direction_vector(&self) -> Vector2D {
         Vector2D::new(
-            self.end.x().value() - self.start.x().value(),
-            self.end.y().value() - self.start.y().value(),
+            self.end.x() - self.start.x(),
+            self.end.y() - self.start.y(),
         )
     }
 
@@ -60,8 +60,8 @@ impl Line2D {
     /// 線分の長さを取得
     pub fn length(&self) -> Scalar { Scalar::new(self.length_f64()) }
     pub fn length_f64(&self) -> f64 {
-        let dx = self.end.x().value() - self.start.x().value();
-        let dy = self.end.y().value() - self.start.y().value();
+        let dx = self.end.x() - self.start.x();
+        let dy = self.end.y() - self.start.y();
         (dx * dx + dy * dy).sqrt()
     }
 
@@ -72,21 +72,21 @@ impl Line2D {
 
     /// 線分の中点を取得
     pub fn midpoint(&self) -> Point2D {
-        let mx = (self.start.x().value() + self.end.x().value()) * 0.5;
-        let my = (self.start.y().value() + self.end.y().value()) * 0.5;
-        Point2D::new(Scalar::new(mx), Scalar::new(my))
+        let mx = (self.start.x() + self.end.x()) * 0.5;
+        let my = (self.start.y() + self.end.y()) * 0.5;
+        Point2D::new(mx, my)
     }
 
     /// f64パラメータでの点を評価（コア実装）
     pub fn evaluate_f64(&self, t: f64) -> Option<Point2D> {
         if !(0.0..=1.0).contains(&t) { return None; }
-        let sx = self.start.x().value();
-        let sy = self.start.y().value();
-        let ex = self.end.x().value();
-        let ey = self.end.y().value();
+    let sx = self.start.x();
+    let sy = self.start.y();
+    let ex = self.end.x();
+    let ey = self.end.y();
         let x = sx + (ex - sx) * t;
         let y = sy + (ey - sy) * t;
-        Some(Point2D::new(Scalar::new(x), Scalar::new(y)))
+    Some(Point2D::new(x, y))
     }
 
     /// 旧 API: Scalar パラメータでの点を評価（後方互換用）
@@ -97,8 +97,8 @@ impl Line2D {
     pub fn contains_point(&self, point: &Point2D, tolerance: &ToleranceContext) -> bool {
         // まず無限直線上にあるかチェック
         let to_point = Vector2D::new(
-            point.x().value() - self.start.x().value(),
-            point.y().value() - self.start.y().value(),
+            point.x() - self.start.x(),
+            point.y() - self.start.y(),
         );
 
         let direction_vec = self.direction_vector();
@@ -131,12 +131,12 @@ impl Line2D {
     /// 点から線分までの距離
     /// f64での点から線分までの距離（コア実装）
     pub fn distance_to_point_f64(&self, point: &Point2D) -> f64 {
-        let sx = self.start.x().value();
-        let sy = self.start.y().value();
-        let ex = self.end.x().value();
-        let ey = self.end.y().value();
-        let px = point.x().value();
-        let py = point.y().value();
+    let sx = self.start.x();
+    let sy = self.start.y();
+    let ex = self.end.x();
+    let ey = self.end.y();
+    let px = point.x();
+    let py = point.y();
 
         let dx = ex - sx;
         let dy = ey - sy;
@@ -166,15 +166,15 @@ impl Line2D {
     /// f64 での線分パラメータ取得（存在し線分上であれば [0,1]）
     pub fn parameter_of_point_f64(&self, point: &Point2D, tolerance: &ToleranceContext) -> Option<f64> {
         if !self.contains_point(point, tolerance) { return None; }
-        let sx = self.start.x().value();
-        let sy = self.start.y().value();
-        let ex = self.end.x().value();
-        let ey = self.end.y().value();
+    let sx = self.start.x();
+    let sy = self.start.y();
+    let ex = self.end.x();
+    let ey = self.end.y();
         let dx = ex - sx; let dy = ey - sy;
         let len_sq = dx * dx + dy * dy;
         if len_sq < tolerance.linear * tolerance.linear { return Some(0.0); }
-        let px = point.x().value();
-        let py = point.y().value();
+    let px = point.x();
+    let py = point.y();
         let param = ((px - sx) * dx + (py - sy) * dy) / len_sq;
         Some(param.clamp(0.0, 1.0))
     }
@@ -188,14 +188,11 @@ impl Line2D {
     /// 線分を移動
     /// f64での線分を移動（コア実装）
     pub fn translate_f64(&self, dx: f64, dy: f64) -> Line2D {
-        let sx = self.start.x().value() + dx;
-        let sy = self.start.y().value() + dy;
-        let ex = self.end.x().value() + dx;
-        let ey = self.end.y().value() + dy;
-        Line2D::new(
-            Point2D::new(Scalar::new(sx), Scalar::new(sy)),
-            Point2D::new(Scalar::new(ex), Scalar::new(ey)),
-        )
+        let sx = self.start.x() + dx;
+        let sy = self.start.y() + dy;
+        let ex = self.end.x() + dx;
+        let ey = self.end.y() + dy;
+        Line2D::new(Point2D::new(sx, sy), Point2D::new(ex, ey))
     }
 
     /// 旧 API: Scalar 版（後方互換）
@@ -206,16 +203,13 @@ impl Line2D {
     /// f64での線分を回転（原点中心）
     pub fn rotate_f64(&self, angle: f64) -> Line2D {
         let (sin_angle, cos_angle) = angle.sin_cos();
-        let (sx, sy) = (self.start.x().value(), self.start.y().value());
-        let (ex, ey) = (self.end.x().value(), self.end.y().value());
+    let (sx, sy) = (self.start.x(), self.start.y());
+    let (ex, ey) = (self.end.x(), self.end.y());
         let rsx = sx * cos_angle - sy * sin_angle;
         let rsy = sx * sin_angle + sy * cos_angle;
         let rex = ex * cos_angle - ey * sin_angle;
         let rey = ex * sin_angle + ey * cos_angle;
-        Line2D::new(
-            Point2D::new(Scalar::new(rsx), Scalar::new(rsy)),
-            Point2D::new(Scalar::new(rex), Scalar::new(rey)),
-        )
+        Line2D::new(Point2D::new(rsx, rsy), Point2D::new(rex, rey))
     }
 
     /// 旧 API: Scalar 版（後方互換）
@@ -230,27 +224,10 @@ impl Line2D {
 
     /// 線分の境界ボックスを取得
     pub fn bounding_box(&self) -> (Point2D, Point2D) {
-        let min_x = if self.start.x().value() < self.end.x().value() {
-            self.start.x().clone()
-        } else {
-            self.end.x().clone()
-        };
-        let min_y = if self.start.y().value() < self.end.y().value() {
-            self.start.y().clone()
-        } else {
-            self.end.y().clone()
-        };
-        let max_x = if self.start.x().value() > self.end.x().value() {
-            self.start.x().clone()
-        } else {
-            self.end.x().clone()
-        };
-        let max_y = if self.start.y().value() > self.end.y().value() {
-            self.start.y().clone()
-        } else {
-            self.end.y().clone()
-        };
-
+        let min_x = self.start.x().min(self.end.x());
+        let min_y = self.start.y().min(self.end.y());
+        let max_x = self.start.x().max(self.end.x());
+        let max_y = self.start.y().max(self.end.y());
         (Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
     }
 }
@@ -261,24 +238,24 @@ mod tests {
 
     #[test]
     fn test_line_creation() {
-        let start = Point2D::new(Scalar::new(0.0), Scalar::new(0.0));
-        let end = Point2D::new(Scalar::new(1.0), Scalar::new(1.0));
+    let start = Point2D::new(0.0, 0.0);
+    let end = Point2D::new(1.0, 1.0);
         let line = Line2D::new(start.clone(), end.clone());
 
-        assert_eq!(line.start().x().value(), 0.0);
-        assert_eq!(line.start().y().value(), 0.0);
-        assert_eq!(line.end().x().value(), 1.0);
-        assert_eq!(line.end().y().value(), 1.0);
+    assert_eq!(line.start().x(), 0.0);
+    assert_eq!(line.start().y(), 0.0);
+    assert_eq!(line.end().x(), 1.0);
+    assert_eq!(line.end().y(), 1.0);
     }
 
     #[test]
     fn test_line_from_f64() {
         let line = Line2D::from_f64(0.0, 0.0, 3.0, 4.0);
 
-        assert_eq!(line.start().x().value(), 0.0);
-        assert_eq!(line.start().y().value(), 0.0);
-        assert_eq!(line.end().x().value(), 3.0);
-        assert_eq!(line.end().y().value(), 4.0);
+    assert_eq!(line.start().x(), 0.0);
+    assert_eq!(line.start().y(), 0.0);
+    assert_eq!(line.end().x(), 3.0);
+    assert_eq!(line.end().y(), 4.0);
     }
 
     #[test]
@@ -294,8 +271,8 @@ mod tests {
         let line = Line2D::from_f64(0.0, 0.0, 2.0, 4.0);
         let midpoint = line.midpoint();
 
-        assert_eq!(midpoint.x().value(), 1.0);
-        assert_eq!(midpoint.y().value(), 2.0);
+    assert_eq!(midpoint.x(), 1.0);
+    assert_eq!(midpoint.y(), 2.0);
     }
 
     #[test]
@@ -304,18 +281,18 @@ mod tests {
 
         // t = 0.0で開始点
         let point = line.evaluate_f64(0.0).unwrap();
-        assert_eq!(point.x().value(), 0.0);
-        assert_eq!(point.y().value(), 0.0);
+    assert_eq!(point.x(), 0.0);
+    assert_eq!(point.y(), 0.0);
 
         // t = 1.0で終了点
         let point = line.evaluate_f64(1.0).unwrap();
-        assert_eq!(point.x().value(), 2.0);
-        assert_eq!(point.y().value(), 4.0);
+    assert_eq!(point.x(), 2.0);
+    assert_eq!(point.y(), 4.0);
 
         // t = 0.5で中点
         let point = line.evaluate_f64(0.5).unwrap();
-        assert_eq!(point.x().value(), 1.0);
-        assert_eq!(point.y().value(), 2.0);
+    assert_eq!(point.x(), 1.0);
+    assert_eq!(point.y(), 2.0);
 
         // 範囲外
         assert!(line.evaluate_f64(-0.1).is_none());
@@ -328,23 +305,23 @@ mod tests {
         let tolerance = ToleranceContext::standard();
 
         // 線分上の点
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(2.0));
+    let point = Point2D::new(1.0, 2.0);
         assert!(line.contains_point(&point, &tolerance));
 
         // 開始点
-        let point = Point2D::new(Scalar::new(0.0), Scalar::new(0.0));
+    let point = Point2D::new(0.0, 0.0);
         assert!(line.contains_point(&point, &tolerance));
 
         // 終了点
-        let point = Point2D::new(Scalar::new(2.0), Scalar::new(4.0));
+    let point = Point2D::new(2.0, 4.0);
         assert!(line.contains_point(&point, &tolerance));
 
         // 線分上にない点
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(3.0));
+    let point = Point2D::new(1.0, 3.0);
         assert!(!line.contains_point(&point, &tolerance));
 
         // 直線の延長上にある点
-        let point = Point2D::new(Scalar::new(-1.0), Scalar::new(-2.0));
+    let point = Point2D::new(-1.0, -2.0);
         assert!(!line.contains_point(&point, &tolerance));
     }
 
@@ -353,19 +330,19 @@ mod tests {
         let line = Line2D::from_f64(0.0, 0.0, 2.0, 0.0); // 水平線
 
         // 線分上の点
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(0.0));
+    let point = Point2D::new(1.0, 0.0);
     assert!(line.distance_to_point_f64(&point) < 1e-10);
 
         // 線分に垂直な点
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(1.0));
+    let point = Point2D::new(1.0, 1.0);
     assert!((line.distance_to_point_f64(&point) - 1.0).abs() < 1e-10);
 
         // 開始点の延長上
-        let point = Point2D::new(Scalar::new(-1.0), Scalar::new(0.0));
+    let point = Point2D::new(-1.0, 0.0);
     assert!((line.distance_to_point_f64(&point) - 1.0).abs() < 1e-10);
 
         // 終了点の延長上
-        let point = Point2D::new(Scalar::new(3.0), Scalar::new(0.0));
+    let point = Point2D::new(3.0, 0.0);
         assert!((line.distance_to_point_f64(&point) - 1.0).abs() < 1e-10);
     }
 
@@ -375,22 +352,22 @@ mod tests {
         let tolerance = ToleranceContext::standard();
 
         // 開始点
-        let point = Point2D::new(Scalar::new(0.0), Scalar::new(0.0));
+    let point = Point2D::new(0.0, 0.0);
     let param = line.parameter_of_point_f64(&point, &tolerance).unwrap();
     assert!((param - 0.0).abs() < 1e-10);
 
         // 終了点
-        let point = Point2D::new(Scalar::new(2.0), Scalar::new(4.0));
+    let point = Point2D::new(2.0, 4.0);
     let param = line.parameter_of_point_f64(&point, &tolerance).unwrap();
     assert!((param - 1.0).abs() < 1e-10);
 
         // 中点
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(2.0));
+    let point = Point2D::new(1.0, 2.0);
     let param = line.parameter_of_point_f64(&point, &tolerance).unwrap();
     assert!((param - 0.5).abs() < 1e-10);
 
         // 線分上にない点
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(3.0));
+    let point = Point2D::new(1.0, 3.0);
         assert!(line.parameter_of_point_f64(&point, &tolerance).is_none());
     }
 
@@ -399,10 +376,10 @@ mod tests {
         let line = Line2D::from_f64(0.0, 0.0, 1.0, 1.0);
     let translated = line.translate_f64(2.0, 3.0);
 
-        assert_eq!(translated.start().x().value(), 2.0);
-        assert_eq!(translated.start().y().value(), 3.0);
-        assert_eq!(translated.end().x().value(), 3.0);
-        assert_eq!(translated.end().y().value(), 4.0);
+    assert_eq!(translated.start().x(), 2.0);
+    assert_eq!(translated.start().y(), 3.0);
+    assert_eq!(translated.end().x(), 3.0);
+    assert_eq!(translated.end().y(), 4.0);
     }
 
     #[test]
@@ -410,10 +387,10 @@ mod tests {
         let line = Line2D::from_f64(1.0, 0.0, 2.0, 0.0);
     let rotated = line.rotate_f64(std::f64::consts::PI / 2.0); // 90度回転
 
-        assert!((rotated.start().x().value() - 0.0).abs() < 1e-10);
-        assert!((rotated.start().y().value() - 1.0).abs() < 1e-10);
-        assert!((rotated.end().x().value() - 0.0).abs() < 1e-10);
-        assert!((rotated.end().y().value() - 2.0).abs() < 1e-10);
+    assert!((rotated.start().x() - 0.0).abs() < 1e-10);
+    assert!((rotated.start().y() - 1.0).abs() < 1e-10);
+    assert!((rotated.end().x() - 0.0).abs() < 1e-10);
+    assert!((rotated.end().y() - 2.0).abs() < 1e-10);
     }
 
     #[test]
@@ -435,10 +412,10 @@ mod tests {
         let line = Line2D::from_f64(1.0, 3.0, 2.0, 1.0);
         let (min_point, max_point) = line.bounding_box();
 
-        assert_eq!(min_point.x().value(), 1.0);
-        assert_eq!(min_point.y().value(), 1.0);
-        assert_eq!(max_point.x().value(), 2.0);
-        assert_eq!(max_point.y().value(), 3.0);
+    assert_eq!(min_point.x(), 1.0);
+    assert_eq!(min_point.y(), 1.0);
+    assert_eq!(max_point.x(), 2.0);
+    assert_eq!(max_point.y(), 3.0);
     }
 
     #[test]
@@ -449,10 +426,10 @@ mod tests {
 
         assert_eq!(line.length().value(), 0.0);
 
-        let point = Point2D::new(Scalar::new(1.0), Scalar::new(2.0));
+    let point = Point2D::new(1.0, 2.0);
         assert!(line.contains_point(&point, &tolerance));
 
-        let other_point = Point2D::new(Scalar::new(2.0), Scalar::new(3.0));
+    let other_point = Point2D::new(2.0, 3.0);
         assert!(!line.contains_point(&other_point, &tolerance));
     }
 

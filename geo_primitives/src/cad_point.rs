@@ -25,9 +25,9 @@ impl CadPoint {
         }
     }
 
-    pub fn x(&self) -> f64 { self.inner.x().value() }
-    pub fn y(&self) -> f64 { self.inner.y().value() }  
-    pub fn z(&self) -> f64 { self.inner.z().value() }
+    pub fn x(&self) -> f64 { self.inner.x() }
+    pub fn y(&self) -> f64 { self.inner.y() }  
+    pub fn z(&self) -> f64 { self.inner.z() }
 
     pub fn zero() -> Self {
         Self::new(0.0, 0.0, 0.0)

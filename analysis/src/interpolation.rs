@@ -2,7 +2,7 @@
 ///
 /// 線形補間、スプライン補間、ベジエ曲線補間を提供する
 
-use geo_core::{Point2D, Vector2D, Scalar, ToleranceContext};
+use geo_core::{Point2D, Vector2D, ToleranceContext};
 
 /// 線形補間器
 pub struct LinearInterpolator {
@@ -16,9 +16,9 @@ impl LinearInterpolator {
 
     /// 2点間の線形補間
     pub fn interpolate(&self, p0: &Point2D, p1: &Point2D, t: f64) -> Point2D {
-        let x = p0.x().value() * (1.0 - t) + p1.x().value() * t;
-        let y = p0.y().value() * (1.0 - t) + p1.y().value() * t;
-        Point2D::from_f64(x, y)
+    let x = p0.x() * (1.0 - t) + p1.x() * t;
+    let y = p0.y() * (1.0 - t) + p1.y() * t;
+    Point2D::from_f64(x, y)
     }
 
     /// 点列の区分線形補間
@@ -86,15 +86,15 @@ impl CubicBezier {
         let uuu = uu * u;
         let ttt = tt * t;
 
-        let x = uuu * self.p0.x().value() +
-                3.0 * uu * t * self.p1.x().value() +
-                3.0 * u * tt * self.p2.x().value() +
-                ttt * self.p3.x().value();
+    let x = uuu * self.p0.x() +
+        3.0 * uu * t * self.p1.x() +
+        3.0 * u * tt * self.p2.x() +
+        ttt * self.p3.x();
 
-        let y = uuu * self.p0.y().value() +
-                3.0 * uu * t * self.p1.y().value() +
-                3.0 * u * tt * self.p2.y().value() +
-                ttt * self.p3.y().value();
+    let y = uuu * self.p0.y() +
+        3.0 * uu * t * self.p1.y() +
+        3.0 * u * tt * self.p2.y() +
+        ttt * self.p3.y();
 
         Point2D::from_f64(x, y)
     }
@@ -105,15 +105,15 @@ impl CubicBezier {
         let uu = u * u;
         let tt = t * t;
 
-        let dx = -3.0 * uu * self.p0.x().value() +
-                 3.0 * (uu - 2.0 * u * t) * self.p1.x().value() +
-                 3.0 * (2.0 * u * t - tt) * self.p2.x().value() +
-                 3.0 * tt * self.p3.x().value();
+    let dx = -3.0 * uu * self.p0.x() +
+         3.0 * (uu - 2.0 * u * t) * self.p1.x() +
+         3.0 * (2.0 * u * t - tt) * self.p2.x() +
+         3.0 * tt * self.p3.x();
 
-        let dy = -3.0 * uu * self.p0.y().value() +
-                 3.0 * (uu - 2.0 * u * t) * self.p1.y().value() +
-                 3.0 * (2.0 * u * t - tt) * self.p2.y().value() +
-                 3.0 * tt * self.p3.y().value();
+    let dy = -3.0 * uu * self.p0.y() +
+         3.0 * (uu - 2.0 * u * t) * self.p1.y() +
+         3.0 * (2.0 * u * t - tt) * self.p2.y() +
+         3.0 * tt * self.p3.y();
 
         Vector2D::from_f64(dx, dy)
     }
@@ -134,12 +134,12 @@ impl CubicBezier {
 /// カットマル・ロム・スプライン
 pub struct CatmullRomSpline {
     points: Vec<Point2D>,
-    tension: f64, // 張力パラメータ（0.0 = カットマル・ロム、0.5 = Centripetal）
+    _tension: f64, // 張力パラメータ（現在未使用。将来の減衰/カーディナルトランジション実装用に保持）
 }
 
 impl CatmullRomSpline {
     pub fn new(points: Vec<Point2D>, tension: f64) -> Self {
-        Self { points, tension }
+        Self { points, _tension: tension }
     }
 
     /// スプライン曲線上の点を評価
@@ -169,15 +169,15 @@ impl CatmullRomSpline {
         let t2 = t * t;
         let t3 = t2 * t;
 
-        let x = 0.5 * ((2.0 * p1.x().value()) +
-                       (-p0.x().value() + p2.x().value()) * t +
-                       (2.0 * p0.x().value() - 5.0 * p1.x().value() + 4.0 * p2.x().value() - p3.x().value()) * t2 +
-                       (-p0.x().value() + 3.0 * p1.x().value() - 3.0 * p2.x().value() + p3.x().value()) * t3);
+    let x = 0.5 * ((2.0 * p1.x()) +
+               (-p0.x() + p2.x()) * t +
+               (2.0 * p0.x() - 5.0 * p1.x() + 4.0 * p2.x() - p3.x()) * t2 +
+               (-p0.x() + 3.0 * p1.x() - 3.0 * p2.x() + p3.x()) * t3);
 
-        let y = 0.5 * ((2.0 * p1.y().value()) +
-                       (-p0.y().value() + p2.y().value()) * t +
-                       (2.0 * p0.y().value() - 5.0 * p1.y().value() + 4.0 * p2.y().value() - p3.y().value()) * t2 +
-                       (-p0.y().value() + 3.0 * p1.y().value() - 3.0 * p2.y().value() + p3.y().value()) * t3);
+    let y = 0.5 * ((2.0 * p1.y()) +
+               (-p0.y() + p2.y()) * t +
+               (2.0 * p0.y() - 5.0 * p1.y() + 4.0 * p2.y() - p3.y()) * t2 +
+               (-p0.y() + 3.0 * p1.y() - 3.0 * p2.y() + p3.y()) * t3);
 
         Point2D::from_f64(x, y)
     }

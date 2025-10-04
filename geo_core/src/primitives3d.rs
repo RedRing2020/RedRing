@@ -215,7 +215,11 @@ impl Plane {
 
     /// 点の平面上への投影
     pub fn project_point(&self, point: &Point3D) -> Point3D {
-        let to_point = Vector3D::from_f64((point.x.clone()-self.origin.x.clone()).value(), (point.y.clone()-self.origin.y.clone()).value(), (point.z.clone()-self.origin.z.clone()).value());
+        let to_point = Vector3D::from_f64(
+            point.x() - self.origin.x(),
+            point.y() - self.origin.y(),
+            point.z() - self.origin.z(),
+        );
         let distance = to_point.dot(self.normal.as_vector());
         Point3D::new(
             point.x() - distance * self.normal.x(),

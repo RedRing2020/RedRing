@@ -15,54 +15,28 @@ pub trait ParametricCurve2D {
     fn length(&self) -> Scalar;
 }
 
-/// 2D点
-/// 
-/// 座標値はmm単位で格納される
-#[derive(Debug, Clone, Copy)]
-pub struct Point2D {
-    x: Scalar,
-    y: Scalar,
-}
+/// 2D点 (f64 内部表現)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Point2D { coords: [f64;2] }
 
 impl Point2D {
-    pub fn new(x: Scalar, y: Scalar) -> Self {
-        Self { x, y }
+    pub fn new(x: f64, y: f64) -> Self { Self { coords: [x,y] } }
+    pub fn from_f64(x:f64,y:f64)->Self { Self::new(x,y) }
+    pub fn origin() -> Self { Self::new(0.0,0.0) }
+    pub fn x(&self)->f64 { self.coords[0] }
+    pub fn y(&self)->f64 { self.coords[1] }
+    pub fn distance_to(&self, other:&Self)->Scalar {
+        let dx = self.x()-other.x();
+        let dy = self.y()-other.y();
+        Scalar::new((dx*dx + dy*dy).sqrt())
     }
-
-    pub fn from_f64(x: f64, y: f64) -> Self {
-        Self {
-            x: Scalar::new(x),
-            y: Scalar::new(y),
-        }
-    }
-
-    pub fn origin() -> Self {
-        Self::from_f64(0.0, 0.0)
-    }
-
-    pub fn x(&self) -> &Scalar { &self.x }
-    pub fn y(&self) -> &Scalar { &self.y }
-
-    pub fn distance_to(&self, other: &Self) -> Scalar {
-        let dx = self.x.clone() - other.x.clone();
-        let dy = self.y.clone() - other.y.clone();
-        (dx.clone() * dx + dy.clone() * dy).sqrt()
-    }
-
-    pub fn to_vector(&self) -> Vector2D { Vector2D::from_f64(self.x.value(), self.y.value()) }
-
-    pub fn midpoint(&self, other: &Self) -> Self {
-        let two = Scalar::new(2.0);
-        Self::new(
-            (self.x.clone() + other.x.clone()) / two.clone(),
-            (self.y.clone() + other.y.clone()) / two,
-        )
-    }
+    pub fn to_vector(&self)->Vector2D { Vector2D::from_f64(self.x(), self.y()) }
+    pub fn midpoint(&self, other:&Self)->Self { Self::new((self.x()+other.x())*0.5,(self.y()+other.y())*0.5) }
 }
 
 impl TolerantEq for Point2D {
-    fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
-        self.x.tolerant_eq(&other.x, context) && self.y.tolerant_eq(&other.y, context)
+    fn tolerant_eq(&self, other:&Self, context:&ToleranceContext)->bool {
+        (self.x()-other.x()).abs() <= context.linear && (self.y()-other.y()).abs() <= context.linear
     }
 }
 
@@ -81,7 +55,7 @@ impl LineSegment2D {
     pub fn start(&self) -> &Point2D { &self.start }
     pub fn end(&self) -> &Point2D { &self.end }
 
-    pub fn direction(&self) -> Vector2D { Vector2D::from_f64((self.end.x.clone() - self.start.x.clone()).value(), (self.end.y.clone() - self.start.y.clone()).value()) }
+    pub fn direction(&self) -> Vector2D { Vector2D::from_f64(self.end.x()-self.start.x(), self.end.y()-self.start.y()) }
 
     pub fn midpoint(&self) -> Point2D {
         self.start.midpoint(&self.end)
@@ -90,15 +64,15 @@ impl LineSegment2D {
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point2D) -> Scalar {
         let v = self.direction();
-        let w = Vector2D::from_f64((point.x.clone() - self.start.x.clone()).value(), (point.y.clone() - self.start.y.clone()).value());
+    let w = Vector2D::from_f64(point.x()-self.start.x(), point.y()-self.start.y());
         let c1 = v.dot(&w); // f64
         if c1 <= 0.0 { return self.start.distance_to(point); }
         let c2 = v.dot(&v); // f64
         if c1 >= c2 { return self.end.distance_to(point); }
-        let b = Scalar::new(c1 / c2);
+        let t = c1 / c2; // 0..1
         let pb = Point2D::new(
-            self.start.x.clone() + b.clone() * Scalar::new(v.x()),
-            self.start.y.clone() + b * Scalar::new(v.y()),
+            self.start.x() + t * (self.end.x()-self.start.x()),
+            self.start.y() + t * (self.end.y()-self.start.y()),
         );
         point.distance_to(&pb)
     }
@@ -108,8 +82,8 @@ impl ParametricCurve2D for LineSegment2D {
     fn evaluate(&self, t: Scalar) -> Point2D {
         let one_minus_t = Scalar::new(1.0) - t.clone();
         Point2D::new(
-            one_minus_t.clone() * self.start.x.clone() + t.clone() * self.end.x.clone(),
-            one_minus_t * self.start.y.clone() + t * self.end.y.clone(),
+            (one_minus_t.clone()*Scalar::new(self.start.x()) + t.clone()*Scalar::new(self.end.x())).value(),
+            (one_minus_t*Scalar::new(self.start.y()) + t*Scalar::new(self.end.y())).value(),
         )
     }
 
@@ -169,9 +143,9 @@ impl ParametricCurve2D for Arc2D {
         let span = self.end.delta(self.start); // (-π, π]
     let theta = self.start.radians() + span.radians() * t.value();
         let (s, c) = theta.sin_cos();
-        Point2D::from_f64(
-            self.center.x().value() + self.radius * c,
-            self.center.y().value() + self.radius * s,
+        Point2D::new(
+            self.center.x() + self.radius * c,
+            self.center.y() + self.radius * s,
         )
     }
     fn derivative(&self, t: Scalar) -> Vector2D {
@@ -211,16 +185,16 @@ impl Polygon2D {
             return (Point2D::origin(), Point2D::origin());
         }
 
-        let mut min_x = self.vertices[0].x.clone();
-        let mut max_x = self.vertices[0].x.clone();
-        let mut min_y = self.vertices[0].y.clone();
-        let mut max_y = self.vertices[0].y.clone();
+    let mut min_x = self.vertices[0].x();
+    let mut max_x = self.vertices[0].x();
+    let mut min_y = self.vertices[0].y();
+    let mut max_y = self.vertices[0].y();
 
         for vertex in &self.vertices[1..] {
-            if vertex.x.value() < min_x.value() { min_x = vertex.x.clone(); }
-            if vertex.x.value() > max_x.value() { max_x = vertex.x.clone(); }
-            if vertex.y.value() < min_y.value() { min_y = vertex.y.clone(); }
-            if vertex.y.value() > max_y.value() { max_y = vertex.y.clone(); }
+            if vertex.x() < min_x { min_x = vertex.x(); }
+            if vertex.x() > max_x { max_x = vertex.x(); }
+            if vertex.y() < min_y { min_y = vertex.y(); }
+            if vertex.y() > max_y { max_y = vertex.y(); }
         }
 
         (Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
@@ -232,21 +206,19 @@ impl Polygon2D {
             return Scalar::new(0.0);
         }
 
-        let mut area = Scalar::new(0.0);
+    let mut area_acc = 0.0f64;
         let n = self.vertices.len();
 
         for i in 0..n {
             let j = (i + 1) % n;
-            area = area + (self.vertices[i].x.clone() * self.vertices[j].y.clone() -
-                          self.vertices[j].x.clone() * self.vertices[i].y.clone());
+            area_acc += self.vertices[i].x()*self.vertices[j].y() - self.vertices[j].x()*self.vertices[i].y();
         }
-
-        area / Scalar::new(2.0)
+        Scalar::new(area_acc / 2.0)
     }
 
     /// 面積（絶対値）
     pub fn area(&self) -> Scalar {
-        self.signed_area().abs()
+        Scalar::new(self.signed_area().value().abs())
     }
 }
 

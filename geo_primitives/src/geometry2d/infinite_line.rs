@@ -18,9 +18,8 @@ impl InfiniteLine2D {
 
     /// f64座標から無限直線を作成
     pub fn from_f64(origin_x: f64, origin_y: f64, direction_x: f64, direction_y: f64) -> Option<Self> {
-        let origin = Point2D::new(Scalar::new(origin_x), Scalar::new(origin_y));
-        // 直接 f64 ベクトルを構築
-        let dir_vec = Vector2D::new(direction_x, direction_y);
+        let origin = Point2D::new(origin_x, origin_y);
+        let dir_vec = Vector2D::new(direction_x, direction_y); // 直接 f64 ベクトルを構築
         let direction = Direction2D::from_vector(&dir_vec)?;
         Some(Self { origin, direction })
     }
@@ -28,8 +27,8 @@ impl InfiniteLine2D {
     /// 2つの点を通る無限直線を作成
     pub fn from_points(p1: &Point2D, p2: &Point2D) -> Option<Self> {
         let direction_vector = Vector2D::new(
-            p2.x().value() - p1.x().value(),
-            p2.y().value() - p1.y().value(),
+              p2.x() - p1.x(),
+              p2.y() - p1.y(),
         );
         let direction = Direction2D::from_vector(&direction_vector)?;
         Some(Self { origin: p1.clone(), direction })
@@ -47,11 +46,11 @@ impl InfiniteLine2D {
 
     /// f64パラメータでの点を評価（コア）
     pub fn evaluate_f64(&self, t: f64) -> Point2D {
-        let ox = self.origin.x().value();
-        let oy = self.origin.y().value();
+        let ox = self.origin.x();
+        let oy = self.origin.y();
         let dx = self.direction.x();
         let dy = self.direction.y();
-        Point2D::new(Scalar::new(ox + dx * t), Scalar::new(oy + dy * t))
+        Point2D::new(ox + dx * t, oy + dy * t)
     }
 
     #[deprecated(note = "Use evaluate_f64(t: f64) instead")]
@@ -59,8 +58,8 @@ impl InfiniteLine2D {
 
     /// 点から直線までの距離
     pub fn distance_to_point_f64(&self, point: &Point2D) -> f64 {
-        let ox = self.origin.x().value(); let oy = self.origin.y().value();
-        let px = point.x().value(); let py = point.y().value();
+        let ox = self.origin.x(); let oy = self.origin.y();
+        let px = point.x(); let py = point.y();
         let dx = self.direction.x(); let dy = self.direction.y();
         let vx = px - ox; let vy = py - oy;
         (vx * dy - vy * dx).abs()
@@ -94,8 +93,8 @@ impl InfiniteLine2D {
         if cross.abs() <= tolerance.linear {
             if self.contains_point(&other.origin, tolerance) { Some(self.origin.clone()) } else { None }
         } else {
-            let ox1 = self.origin.x().value(); let oy1 = self.origin.y().value();
-            let ox2 = other.origin.x().value(); let oy2 = other.origin.y().value();
+                let ox1 = self.origin.x(); let oy1 = self.origin.y();
+                let ox2 = other.origin.x(); let oy2 = other.origin.y();
             let dx = ox2 - ox1; let dy = oy2 - oy1;
             let t = (dx * dy2 - dy * dx2) / cross;
             Some(self.evaluate_f64(t))
@@ -110,13 +109,7 @@ impl InfiniteLine2D {
 
     /// 直線を移動
     pub fn translate_f64(&self, dx: f64, dy: f64) -> InfiniteLine2D {
-        InfiniteLine2D {
-            origin: Point2D::new(
-                Scalar::new(self.origin.x().value() + dx),
-                Scalar::new(self.origin.y().value() + dy),
-            ),
-            direction: self.direction.clone(),
-        }
+        InfiniteLine2D { origin: Point2D::new(self.origin.x() + dx, self.origin.y() + dy), direction: self.direction.clone() }
     }
 
     #[deprecated(note = "Use translate_f64(dx, dy) instead")]
@@ -140,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_infinite_line_creation() {
-        let origin = Point2D::new(Scalar::new(1.0), Scalar::new(2.0));
+    let origin = Point2D::new(1.0, 2.0);
     let direction = Direction2D::from_vector(&Vector2D::new(1.0, 0.0)).unwrap();
         let line = InfiniteLine2D::new(origin.clone(), direction.clone());
 
@@ -152,16 +145,16 @@ mod tests {
     fn test_infinite_line_from_f64() {
     let line = InfiniteLine2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
 
-        assert_eq!(line.origin().x().value(), 1.0);
-        assert_eq!(line.origin().y().value(), 2.0);
+    assert_eq!(line.origin().x(), 1.0);
+    assert_eq!(line.origin().y(), 2.0);
         assert_eq!(line.direction().x(), 1.0);
         assert_eq!(line.direction().y(), 0.0);
     }
 
     #[test]
     fn test_infinite_line_from_points() {
-    let p1 = Point2D::new(Scalar::new(0.0), Scalar::new(0.0));
-    let p2 = Point2D::new(Scalar::new(3.0), Scalar::new(4.0));
+    let p1 = Point2D::new(0.0, 0.0);
+    let p2 = Point2D::new(3.0, 4.0);
         let line = InfiniteLine2D::from_points(&p1, &p2).unwrap();
 
         // 方向ベクトルが正規化されていることを確認
@@ -175,15 +168,15 @@ mod tests {
         let line = InfiniteLine2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
         let point = line.evaluate_f64(3.0);
 
-        assert_eq!(point.x().value(), 4.0);
-        assert_eq!(point.y().value(), 2.0);
+    assert_eq!(point.x(), 4.0);
+    assert_eq!(point.y(), 2.0);
     }
 
     #[test]
     fn test_distance_to_point() {
         // y = 0の直線
         let line = InfiniteLine2D::from_f64(0.0, 0.0, 1.0, 0.0).unwrap();
-        let point = Point2D::new(Scalar::new(5.0), Scalar::new(3.0));
+    let point = Point2D::new(5.0, 3.0);
 
         let distance = line.distance_to_point_f64(&point);
         assert_eq!(distance, 3.0);
@@ -192,8 +185,8 @@ mod tests {
     #[test]
     fn test_contains_point() {
         let line = InfiniteLine2D::from_f64(0.0, 0.0, 1.0, 1.0).unwrap(); // y = x
-        let point_on_line = Point2D::new(Scalar::new(5.0), Scalar::new(5.0));
-        let point_off_line = Point2D::new(Scalar::new(5.0), Scalar::new(3.0));
+    let point_on_line = Point2D::new(5.0, 5.0);
+    let point_off_line = Point2D::new(5.0, 3.0);
 
         assert!(line.contains_point_f64(&point_on_line, 1e-10));
         assert!(!line.contains_point_f64(&point_off_line, 1e-10));
@@ -233,8 +226,8 @@ mod tests {
         let line2 = InfiniteLine2D::from_f64(0.0, 0.0, 0.0, 1.0).unwrap(); // x = 0
 
         let intersection = line1.intersection_with_infinite_line_f64(&line2, 1e-10).unwrap();
-        assert_eq!(intersection.x().value(), 0.0);
-        assert_eq!(intersection.y().value(), 0.0);
+    assert_eq!(intersection.x(), 0.0);
+    assert_eq!(intersection.y(), 0.0);
     }
 
     #[test]
@@ -242,8 +235,8 @@ mod tests {
         let line = InfiniteLine2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
         let translated = line.translate_f64(3.0, 4.0);
 
-        assert_eq!(translated.origin().x().value(), 4.0);
-        assert_eq!(translated.origin().y().value(), 6.0);
+    assert_eq!(translated.origin().x(), 4.0);
+    assert_eq!(translated.origin().y(), 6.0);
         assert_eq!(translated.direction().x(), line.direction().x());
         assert_eq!(translated.direction().y(), line.direction().y());
     }

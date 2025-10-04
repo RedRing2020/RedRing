@@ -18,7 +18,7 @@ impl Ray2D {
 
     /// f64座標から半直線を作成
     pub fn from_f64(origin_x: f64, origin_y: f64, direction_x: f64, direction_y: f64) -> Option<Self> {
-        let origin = Point2D::new(Scalar::new(origin_x), Scalar::new(origin_y));
+        let origin = Point2D::new(origin_x, origin_y);
         let direction = Direction2D::from_f64(direction_x, direction_y)?;
         Some(Self { origin, direction })
     }
@@ -26,8 +26,8 @@ impl Ray2D {
     /// 2つの点を通る半直線を作成（第一点が原点、第二点への方向）
     pub fn from_points(start: &Point2D, through: &Point2D) -> Option<Self> {
         let direction_vector = Vector2D::new(
-            through.x().value() - start.x().value(),
-            through.y().value() - start.y().value(),
+            through.x() - start.x(),
+            through.y() - start.y(),
         );
         let direction = Direction2D::from_vector(&direction_vector)?;
         Some(Self {
@@ -49,11 +49,11 @@ impl Ray2D {
     /// パラメータt (t >= 0) での点を評価
     pub fn evaluate_f64(&self, t: f64) -> Option<Point2D> {
         if t < 0.0 { return None; }
-        let ox = self.origin.x().value();
-        let oy = self.origin.y().value();
+    let ox = self.origin.x();
+    let oy = self.origin.y();
         let dx = self.direction.x();
         let dy = self.direction.y();
-        Some(Point2D::new(Scalar::new(ox + dx * t), Scalar::new(oy + dy * t)))
+        Some(Point2D::new(ox + dx * t, oy + dy * t))
     }
 
     #[deprecated(note = "Use evaluate_f64(t: f64) instead")]
@@ -61,10 +61,10 @@ impl Ray2D {
 
     /// 点が半直線上にあるか判定
     pub fn contains_point(&self, point: &Point2D, tolerance: &ToleranceContext) -> bool {
-        let ox = self.origin.x().value();
-        let oy = self.origin.y().value();
-        let px = point.x().value();
-        let py = point.y().value();
+    let ox = self.origin.x();
+    let oy = self.origin.y();
+    let px = point.x();
+    let py = point.y();
         let dx = self.direction.x();
         let dy = self.direction.y();
         let vx = px - ox;
@@ -84,10 +84,10 @@ impl Ray2D {
 
     /// 点が半直線の前方向にあるか判定
     pub fn is_forward(&self, point: &Point2D, tolerance: &ToleranceContext) -> bool {
-        let ox = self.origin.x().value();
-        let oy = self.origin.y().value();
-        let px = point.x().value();
-        let py = point.y().value();
+    let ox = self.origin.x();
+    let oy = self.origin.y();
+    let px = point.x();
+    let py = point.y();
         let dx = self.direction.x();
         let dy = self.direction.y();
         let vx = px - ox; let vy = py - oy;
@@ -102,10 +102,10 @@ impl Ray2D {
 
     /// 点から半直線までの距離
     pub fn distance_to_point_f64(&self, point: &Point2D) -> f64 {
-        let ox = self.origin.x().value();
-        let oy = self.origin.y().value();
-        let px = point.x().value();
-        let py = point.y().value();
+    let ox = self.origin.x();
+    let oy = self.origin.y();
+    let px = point.x();
+    let py = point.y();
         let dx = self.direction.x();
         let dy = self.direction.y();
         let vx = px - ox; let vy = py - oy;
@@ -122,8 +122,8 @@ impl Ray2D {
     /// 半直線上での点のパラメータを取得
     pub fn parameter_of_point_f64(&self, point: &Point2D, tolerance: &ToleranceContext) -> Option<f64> {
         if !self.contains_point(point, tolerance) { return None; }
-        let ox = self.origin.x().value(); let oy = self.origin.y().value();
-        let px = point.x().value(); let py = point.y().value();
+    let ox = self.origin.x(); let oy = self.origin.y();
+    let px = point.x(); let py = point.y();
         let dx = self.direction.x(); let dy = self.direction.y();
         let vx = px - ox; let vy = py - oy; let param = vx * dx + vy * dy; // d は単位
         if param >= -tolerance.linear { Some(param) } else { None }
@@ -136,9 +136,9 @@ impl Ray2D {
 
     /// 半直線を移動
     pub fn translate_f64(&self, dx: f64, dy: f64) -> Ray2D {
-        let ox = self.origin.x().value() + dx;
-        let oy = self.origin.y().value() + dy;
-        Ray2D { origin: Point2D::new(Scalar::new(ox), Scalar::new(oy)), direction: self.direction.clone() }
+        let ox = self.origin.x() + dx;
+        let oy = self.origin.y() + dy;
+        Ray2D { origin: Point2D::new(ox, oy), direction: self.direction.clone() }
     }
 
     #[deprecated(note = "Use translate_f64(dx, dy) instead")]
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_ray_creation() {
-        let origin = Point2D::new(Scalar::new(1.0), Scalar::new(2.0));
+    let origin = Point2D::new(1.0, 2.0);
         let direction = Direction2D::unit_x();
         let ray = Ray2D::new(origin.clone(), direction.clone());
 
@@ -185,16 +185,16 @@ mod tests {
     fn test_ray_from_f64() {
         let ray = Ray2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
 
-        assert_eq!(ray.origin().x().value(), 1.0);
-        assert_eq!(ray.origin().y().value(), 2.0);
+    assert_eq!(ray.origin().x(), 1.0);
+    assert_eq!(ray.origin().y(), 2.0);
         assert_eq!(ray.direction().x(), 1.0);
         assert_eq!(ray.direction().y(), 0.0);
     }
 
     #[test]
     fn test_ray_from_points() {
-        let start = Point2D::new(Scalar::new(0.0), Scalar::new(0.0));
-        let through = Point2D::new(Scalar::new(3.0), Scalar::new(4.0));
+    let start = Point2D::new(0.0, 0.0);
+    let through = Point2D::new(3.0, 4.0);
         let ray = Ray2D::from_points(&start, &through).unwrap();
 
         // 方向ベクトルが正規化されていることを確認
@@ -208,8 +208,8 @@ mod tests {
         let ray = Ray2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
 
         let point = ray.evaluate_f64(3.0).unwrap();
-        assert_eq!(point.x().value(), 4.0);
-        assert_eq!(point.y().value(), 2.0);
+    assert_eq!(point.x(), 4.0);
+    assert_eq!(point.y(), 2.0);
 
         // 負のパラメータは無効
         assert!(ray.evaluate_f64(-1.0).is_none());
@@ -219,9 +219,9 @@ mod tests {
     fn test_contains_point() {
         let ray = Ray2D::from_f64(0.0, 0.0, 1.0, 1.0).unwrap(); // 45度方向
 
-        let point_on_ray = Point2D::new(Scalar::new(2.0), Scalar::new(2.0));
-        let point_behind = Point2D::new(Scalar::new(-1.0), Scalar::new(-1.0));
-        let point_off_ray = Point2D::new(Scalar::new(2.0), Scalar::new(3.0));
+    let point_on_ray = Point2D::new(2.0, 2.0);
+    let point_behind = Point2D::new(-1.0, -1.0);
+    let point_off_ray = Point2D::new(2.0, 3.0);
 
         assert!(ray.contains_point_f64(&point_on_ray, 1e-10));
         assert!(!ray.contains_point_f64(&point_behind, 1e-10)); // 後方
@@ -232,8 +232,8 @@ mod tests {
     fn test_is_forward() {
         let ray = Ray2D::from_f64(0.0, 0.0, 1.0, 0.0).unwrap(); // X軸方向
 
-        let forward_point = Point2D::new(Scalar::new(5.0), Scalar::new(3.0));
-        let backward_point = Point2D::new(Scalar::new(-2.0), Scalar::new(1.0));
+    let forward_point = Point2D::new(5.0, 3.0);
+    let backward_point = Point2D::new(-2.0, 1.0);
 
         assert!(ray.is_forward_f64(&forward_point, 1e-10));
         assert!(!ray.is_forward_f64(&backward_point, 1e-10));
@@ -244,22 +244,22 @@ mod tests {
         let ray = Ray2D::from_f64(0.0, 0.0, 1.0, 0.0).unwrap(); // X軸方向
 
         // 半直線上の点
-        let on_ray = Point2D::new(Scalar::new(5.0), Scalar::new(0.0));
+    let on_ray = Point2D::new(5.0, 0.0);
         assert!((ray.distance_to_point_f64(&on_ray) - 0.0).abs() < 1e-10);
 
         // 原点より後方の点
-        let behind = Point2D::new(Scalar::new(-3.0), Scalar::new(4.0));
+    let behind = Point2D::new(-3.0, 4.0);
         assert!((ray.distance_to_point_f64(&behind) - 5.0).abs() < 1e-10); // 原点までの距離
 
         // 半直線の前方、横の点
-        let side = Point2D::new(Scalar::new(5.0), Scalar::new(3.0));
+    let side = Point2D::new(5.0, 3.0);
         assert!((ray.distance_to_point_f64(&side) - 3.0).abs() < 1e-10); // 垂直距離
     }
 
     #[test]
     fn test_parameter_of_point() {
         let ray = Ray2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
-        let point = Point2D::new(Scalar::new(6.0), Scalar::new(2.0));
+    let point = Point2D::new(6.0, 2.0);
 
         let tolerance = ToleranceContext::standard();
         let param = ray.parameter_of_point(&point, &tolerance).unwrap();
@@ -271,8 +271,8 @@ mod tests {
         let ray = Ray2D::from_f64(1.0, 2.0, 1.0, 0.0).unwrap();
         let translated = ray.translate_f64(3.0, 4.0);
 
-        assert_eq!(translated.origin().x().value(), 4.0);
-        assert_eq!(translated.origin().y().value(), 6.0);
+    assert_eq!(translated.origin().x(), 4.0);
+    assert_eq!(translated.origin().y(), 6.0);
         assert_eq!(translated.direction().x(), ray.direction().x());
         assert_eq!(translated.direction().y(), ray.direction().y());
     }

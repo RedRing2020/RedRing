@@ -28,11 +28,11 @@ impl CurveIntersection {
         let h = 1e-8;
         let system = |t1:f64, t2:f64| {
             let p1 = curve1(t1); let p2 = curve2(t2);
-            let f1 = p1.x().value() - p2.x().value();
-            let f2 = p1.y().value() - p2.y().value();
+            let f1 = p1.x() - p2.x();
+            let f2 = p1.y() - p2.y();
             let p1_dt = curve1(t1 + h); let p2_dt = curve2(t2 + h);
-            let df1_dt1 = (p1_dt.x().value() - p1.x().value())/h; let df1_dt2 = -(p2_dt.x().value() - p2.x().value())/h;
-            let df2_dt1 = (p1_dt.y().value() - p1.y().value())/h; let df2_dt2 = -(p2_dt.y().value() - p2.y().value())/h;
+            let df1_dt1 = (p1_dt.x() - p1.x())/h; let df1_dt2 = -(p2_dt.x() - p2.x())/h;
+            let df2_dt1 = (p1_dt.y() - p1.y())/h; let df2_dt2 = -(p2_dt.y() - p2.y())/h;
             (f1, f2, [[df1_dt1, df1_dt2],[df2_dt1, df2_dt2]])
         };
         if let Ok(((t1,t2), conv)) = self.newton_solver.solve_2d(system, (initial_t1, initial_t2)) { if conv.converged { let inter = curve1(t1); let ver = curve2(t2); let distance = inter.distance_to(&ver).value(); return Some(IntersectionCandidate { point: inter, parameter: t1, distance, confidence: 1.0/(1.0+conv.final_error)}); } }
