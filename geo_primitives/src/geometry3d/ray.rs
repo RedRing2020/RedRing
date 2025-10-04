@@ -1,6 +1,6 @@
 use geo_core::{Point3D, Vector3D, Scalar, ToleranceContext, TolerantEq};
+use geo_core::vector::Vector; // bring dot() trait into scope
 use crate::geometry3d::direction::Direction3D;
-use crate::geometry_utils::*;
 
 /// 3D半直線（レイ）
 ///
@@ -51,20 +51,14 @@ impl Ray3D {
 
     /// パラメータt (t >= 0) での点を評価
     pub fn evaluate(&self, t: Scalar) -> Option<Point3D> {
-        if t.value() < 0.0 {
-            None
-        } else {
-            let offset = Vector3D::new(
-                self.direction.to_vector().x().clone() * t.clone(),
-                self.direction.to_vector().y().clone() * t.clone(),
-                self.direction.to_vector().z().clone() * t,
-            );
-            Some(Point3D::new(
-                self.origin.x().clone() + offset.x(),
-                self.origin.y().clone() + offset.y(),
-                self.origin.z().clone() + offset.z(),
-            ))
-        }
+        if t.value() < 0.0 { return None; }
+        let dir = self.direction.to_vector();
+        let offset = dir.clone() * t;
+        Some(Point3D::new(
+            Scalar::new(self.origin.x().value() + offset.x().value()),
+            Scalar::new(self.origin.y().value() + offset.y().value()),
+            Scalar::new(self.origin.z().value() + offset.z().value()),
+        ))
     }
 
     /// f64パラメータでの点を評価
@@ -74,33 +68,18 @@ impl Ray3D {
 
     /// 点が半直線上にあるか判定
     pub fn contains_point(&self, point: &Point3D, tolerance: &ToleranceContext) -> bool {
-        let to_point = Vector3D::new(
-            point.x().clone() - self.origin.x().clone(),
-            point.y().clone() - self.origin.y().clone(),
-            point.z().clone() - self.origin.z().clone(),
+        let to_point = Vector3D::from_f64(
+            point.x().value() - self.origin.x().value(),
+            point.y().value() - self.origin.y().value(),
+            point.z().value() - self.origin.z().value(),
         );
-
         let direction_vec = self.direction.to_vector();
-
-        // 外積で直線からの距離をチェック
-        let cross = Vector3D::new(
-            to_point.y().clone() * direction_vec.z().clone() - to_point.z().clone() * direction_vec.y().clone(),
-            to_point.z().clone() * direction_vec.x().clone() - to_point.x().clone() * direction_vec.z().clone(),
-            to_point.x().clone() * direction_vec.y().clone() - to_point.y().clone() * direction_vec.x().clone(),
-        );
-
-        let cross_magnitude = (cross.x().value() * cross.x().value() +
-                              cross.y().value() * cross.y().value() +
-                              cross.z().value() * cross.z().value()).sqrt();
-
-        if cross_magnitude >= tolerance.linear {
-            return false;
-        }
-
-        // 方向チェック（前方かどうか）
-        let dot = to_point.x().clone() * direction_vec.x().clone() +
-                  to_point.y().clone() * direction_vec.y().clone() +
-                  to_point.z().clone() * direction_vec.z().clone();
+        let cross = to_point.cross(&direction_vec);
+        let cross_magnitude_sq = cross.x().value().powi(2)
+            + cross.y().value().powi(2)
+            + cross.z().value().powi(2);
+        if cross_magnitude_sq.sqrt() >= tolerance.linear { return false; }
+        let dot = to_point.dot(&direction_vec);
         dot.value() >= -tolerance.linear
     }
 
@@ -112,18 +91,13 @@ impl Ray3D {
 
     /// 点が半直線の前方向にあるか判定
     pub fn is_forward(&self, point: &Point3D, tolerance: &ToleranceContext) -> bool {
-        let to_point = Vector3D::new(
-            point.x().clone() - self.origin.x().clone(),
-            point.y().clone() - self.origin.y().clone(),
-            point.z().clone() - self.origin.z().clone(),
+        let to_point = Vector3D::from_f64(
+            point.x().value() - self.origin.x().value(),
+            point.y().value() - self.origin.y().value(),
+            point.z().value() - self.origin.z().value(),
         );
-
         let direction_vec = self.direction.to_vector();
-        let dot = to_point.x().clone() * direction_vec.x().clone() +
-                  to_point.y().clone() * direction_vec.y().clone() +
-                  to_point.z().clone() * direction_vec.z().clone();
-
-        dot.value() >= -tolerance.linear
+        to_point.dot(&direction_vec).value() >= -tolerance.linear
     }
 
     /// f64での点が半直線の前方向にあるか判定
@@ -134,39 +108,28 @@ impl Ray3D {
 
     /// 点から半直線までの距離
     pub fn distance_to_point(&self, point: &Point3D) -> Scalar {
-        let to_point = Vector3D::new(
-            point.x().clone() - self.origin.x().clone(),
-            point.y().clone() - self.origin.y().clone(),
-            point.z().clone() - self.origin.z().clone(),
+        let to_point = Vector3D::from_f64(
+            point.x().value() - self.origin.x().value(),
+            point.y().value() - self.origin.y().value(),
+            point.z().value() - self.origin.z().value(),
         );
-
         let direction_vec = self.direction.to_vector();
-        let projection_length = to_point.x().clone() * direction_vec.x().clone() +
-                               to_point.y().clone() * direction_vec.y().clone() +
-                               to_point.z().clone() * direction_vec.z().clone();
-
+        let projection_length = to_point.dot(&direction_vec);
         if projection_length.value() <= 0.0 {
-            // 点が原点より後ろにある場合、原点までの距離
-            let dx = point.x().clone() - self.origin.x().clone();
-            let dy = point.y().clone() - self.origin.y().clone();
-            let dz = point.z().clone() - self.origin.z().clone();
-            Scalar::new((dx.value() * dx.value() +
-                        dy.value() * dy.value() +
-                        dz.value() * dz.value()).sqrt())
+            let dx = point.x().value() - self.origin.x().value();
+            let dy = point.y().value() - self.origin.y().value();
+            let dz = point.z().value() - self.origin.z().value();
+            Scalar::new((dx*dx + dy*dy + dz*dz).sqrt())
         } else {
-            // 点を直線に投影した点までの距離
             let closest_on_line = Point3D::new(
-                self.origin.x().clone() + direction_vec.x().clone() * projection_length.clone(),
-                self.origin.y().clone() + direction_vec.y().clone() * projection_length.clone(),
-                self.origin.z().clone() + direction_vec.z().clone() * projection_length,
+                Scalar::new(self.origin.x().value() + direction_vec.x().value() * projection_length.value()),
+                Scalar::new(self.origin.y().value() + direction_vec.y().value() * projection_length.value()),
+                Scalar::new(self.origin.z().value() + direction_vec.z().value() * projection_length.value()),
             );
-
-            let dx = point.x().clone() - closest_on_line.x().clone();
-            let dy = point.y().clone() - closest_on_line.y().clone();
-            let dz = point.z().clone() - closest_on_line.z().clone();
-            Scalar::new((dx.value() * dx.value() +
-                        dy.value() * dy.value() +
-                        dz.value() * dz.value()).sqrt())
+            let dx = point.x().value() - closest_on_line.x().value();
+            let dy = point.y().value() - closest_on_line.y().value();
+            let dz = point.z().value() - closest_on_line.z().value();
+            Scalar::new((dx*dx + dy*dy + dz*dz).sqrt())
         }
     }
 
@@ -181,53 +144,35 @@ impl Ray3D {
             return None;
         }
 
-        let to_point = Vector3D::new(
-            point.x().clone() - self.origin.x().clone(),
-            point.y().clone() - self.origin.y().clone(),
-            point.z().clone() - self.origin.z().clone(),
+        let to_point = Vector3D::from_f64(
+            point.x().value() - self.origin.x().value(),
+            point.y().value() - self.origin.y().value(),
+            point.z().value() - self.origin.z().value(),
         );
-
         let direction_vec = self.direction.to_vector();
-        let param = to_point.x().clone() * direction_vec.x().clone() +
-                   to_point.y().clone() * direction_vec.y().clone() +
-                   to_point.z().clone() * direction_vec.z().clone();
-
-        if param.value() >= -tolerance.linear {
-            Some(param)
-        } else {
-            None
-        }
+        let param = to_point.dot(&direction_vec);
+        if param.value() >= -tolerance.linear { Some(param) } else { None }
     }
 
     /// 半直線上で点に最も近い点を求める
     pub fn closest_point_on_ray(&self, point: &Point3D) -> Point3D {
-        let to_point = Vector3D::new(
-            point.x().clone() - self.origin.x().clone(),
-            point.y().clone() - self.origin.y().clone(),
-            point.z().clone() - self.origin.z().clone(),
+        let to_point = Vector3D::from_f64(
+            point.x().value() - self.origin.x().value(),
+            point.y().value() - self.origin.y().value(),
+            point.z().value() - self.origin.z().value(),
         );
-
         let direction_vec = self.direction.to_vector();
-        let projection_length = to_point.x().clone() * direction_vec.x().clone() +
-                               to_point.y().clone() * direction_vec.y().clone() +
-                               to_point.z().clone() * direction_vec.z().clone();
-
-        if projection_length.value() <= 0.0 {
-            // 投影が原点より後ろの場合、原点が最近点
-            self.origin.clone()
-        } else {
-            // 投影点が最近点
-            self.evaluate(projection_length).unwrap()
-        }
+        let projection_length = to_point.dot(&direction_vec);
+        if projection_length.value() <= 0.0 { self.origin.clone() } else { self.evaluate(projection_length).unwrap() }
     }
 
     /// 半直線を移動
     pub fn translate(&self, dx: Scalar, dy: Scalar, dz: Scalar) -> Ray3D {
         Self {
             origin: Point3D::new(
-                self.origin.x().clone() + dx,
-                self.origin.y().clone() + dy,
-                self.origin.z().clone() + dz,
+                Scalar::new(self.origin.x().value() + dx.value()),
+                Scalar::new(self.origin.y().value() + dy.value()),
+                Scalar::new(self.origin.z().value() + dz.value()),
             ),
             direction: self.direction.clone(),
         }
