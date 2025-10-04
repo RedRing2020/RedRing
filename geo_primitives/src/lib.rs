@@ -68,6 +68,9 @@ pub use geometry3d::{Point3D, Vector3D, Triangle3D, Polygon3D, Plane, TriangleMe
 pub mod surface;
 pub use surface::{Sphere, Cylinder, Cone, Ellipsoid, Torus, TorusType};
 
+// 共有ユーティリティ
+pub mod util;
+
 // 名前空間の整理
 pub mod primitives_2d {
     pub use geo_core::{Point2D, LineSegment2D};
