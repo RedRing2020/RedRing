@@ -47,17 +47,18 @@ impl Circle3D {
         let world_y = Direction3D::unit_y();
 
         // dot は f64 を返すので .value() は不要
-    let u_axis = if normal.dot(&world_x).abs() < 0.9 {
+        let u_axis = if normal.dot(&world_x).abs() < 0.9 {
             // 法線がX軸と平行でない場合、X軸との外積を使用
             let cross_vec = normal.cross(&world_x);
             Direction3D::from_vector(&cross_vec)?
         } else {
-            // 法線がX軸とほぼ平行な場合、Y軸との外積を使用
-            let cross_vec = normal.cross(&world_y);
+            // 法線がX軸とほぼ平行な場合、Z軸と法線の外積を使用
+            let world_z = Direction3D::unit_z();
+            let cross_vec = world_z.cross(normal);
             Direction3D::from_vector(&cross_vec)?
         };
 
-        // V軸 = 法線 × U軸
+        // V軸 = 法線 × U軸（右手系）
         let cross_vec = normal.cross(&u_axis);
         let v_axis = Direction3D::from_vector(&cross_vec)?;
 
@@ -128,18 +129,18 @@ impl Circle3D {
         );
 
         // 法線との内積で平面上にあるかチェック
-    let plane_distance = to_point.x().value() * self.normal.x() +
-               to_point.y().value() * self.normal.y() +
-               to_point.z().value() * self.normal.z();
+        let plane_distance = to_point.x().value() * self.normal.x() +
+                              to_point.y().value() * self.normal.y() +
+                              to_point.z().value() * self.normal.z();
 
         if plane_distance.abs() > tolerance.linear {
             return false;
         }
 
         // 中心からの距離が半径と等しいかチェック
-    let distance_sq = to_point.x().value() * to_point.x().value() +
-             to_point.y().value() * to_point.y().value() +
-             to_point.z().value() * to_point.z().value();
+        let distance_sq = to_point.x().value() * to_point.x().value() +
+                           to_point.y().value() * to_point.y().value() +
+                           to_point.z().value() * to_point.z().value();
         let radius_sq = self.radius.value() * self.radius.value();
 
         (distance_sq - radius_sq).abs() < tolerance.linear

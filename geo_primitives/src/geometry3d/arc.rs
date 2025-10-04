@@ -99,8 +99,8 @@ impl Arc3D {
 
     /// 3点の外心を計算
     fn circumcenter(p1: &Point3D, p2: &Point3D, p3: &Point3D) -> Option<Point3D> {
-    let a = Vector3D::from_f64(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
-    let b = Vector3D::from_f64(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
+        let a = Vector3D::from_f64(p2.x() - p1.x(), p2.y() - p1.y(), p2.z() - p1.z());
+        let b = Vector3D::from_f64(p3.x() - p1.x(), p3.y() - p1.y(), p3.z() - p1.z());
 
         let cross = Vector3D::from_f64(
             a.y().value() * b.z().value() - a.z().value() * b.y().value(),
@@ -116,8 +116,8 @@ impl Arc3D {
         let a_mag_sq = a.x().value()*a.x().value() + a.y().value()*a.y().value() + a.z().value()*a.z().value();
         let b_mag_sq = b.x().value()*b.x().value() + b.y().value()*b.y().value() + b.z().value()*b.z().value();
 
-    let alpha = b_mag_sq * a_mag_sq / (2.0 * cross_mag_sq);
-    let beta = a_mag_sq * b_mag_sq / (2.0 * cross_mag_sq);
+        let alpha = b_mag_sq * a_mag_sq / (2.0 * cross_mag_sq);
+        let beta = a_mag_sq * b_mag_sq / (2.0 * cross_mag_sq);
 
         Some(Point3D::new(
             p1.x() + alpha * cross.x().value() + beta * cross.y().value(),
@@ -141,7 +141,7 @@ impl Arc3D {
                      to_point.y().value() * circle.v_axis().y() +
                      to_point.z().value() * circle.v_axis().z();
 
-        Scalar::new(v_proj.atan2(u_proj))
+    Scalar::new(v_proj.atan2(u_proj))
     }
 
     /// 点から中心への角度を計算
