@@ -24,83 +24,40 @@ pub trait ParametricSurface {
     fn normal(&self, u: Scalar, v: Scalar) -> Option<Direction3D>;
 }
 
-/// 3D点
-#[derive(Debug, Clone)]
-pub struct Point3D {
-    x: Scalar,
-    y: Scalar,
-    z: Scalar,
-}
+/// 3D点 (f64 内部表現)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Point3D { coords: [f64;3] }
 
 impl Point3D {
-    pub fn new(x: Scalar, y: Scalar, z: Scalar) -> Self {
-        Self { x, y, z }
+    pub fn new(x: f64, y: f64, z: f64) -> Self { Self { coords: [x,y,z] } }
+    pub fn from_f64(x:f64,y:f64,z:f64)->Self { Self::new(x,y,z) }
+    pub fn origin() -> Self { Self::new(0.0,0.0,0.0) }
+    pub fn x(&self)->f64 { self.coords[0] }
+    pub fn y(&self)->f64 { self.coords[1] }
+    pub fn z(&self)->f64 { self.coords[2] }
+    pub fn to_vector(&self)->Vector3D { Vector3D::from_f64(self.x(), self.y(), self.z()) }
+
+    pub fn distance_to(&self, other:&Self)->Scalar {
+        let dx = self.x()-other.x();
+        let dy = self.y()-other.y();
+        let dz = self.z()-other.z();
+        Scalar::new((dx*dx + dy*dy + dz*dz).sqrt())
     }
 
-    pub fn from_f64(x: f64, y: f64, z: f64) -> Self {
-        Self {
-            x: Scalar::new(x),
-            y: Scalar::new(y),
-            z: Scalar::new(z),
-        }
-    }
+    pub fn midpoint(&self, other:&Self)->Self { Self::new((self.x()+other.x())*0.5,(self.y()+other.y())*0.5,(self.z()+other.z())*0.5) }
 
-    pub fn origin() -> Self {
-        Self::from_f64(0.0, 0.0, 0.0)
-    }
-
-    pub fn x(&self) -> &Scalar { &self.x }
-    pub fn y(&self) -> &Scalar { &self.y }
-    pub fn z(&self) -> &Scalar { &self.z }
-
-    pub fn distance_to(&self, other: &Self) -> Scalar {
-        let dx = self.x.clone() - other.x.clone();
-        let dy = self.y.clone() - other.y.clone();
-        let dz = self.z.clone() - other.z.clone();
-        (dx.clone() * dx + dy.clone() * dy + dz.clone() * dz).sqrt()
-    }
-
-    pub fn to_vector(&self) -> Vector3D { Vector3D::from_f64(self.x.value(), self.y.value(), self.z.value()) }
-
-    pub fn midpoint(&self, other: &Self) -> Self {
-        let two = Scalar::new(2.0);
-        Self::new(
-            (self.x.clone() + other.x.clone()) / two.clone(),
-            (self.y.clone() + other.y.clone()) / two.clone(),
-            (self.z.clone() + other.z.clone()) / two,
-        )
-    }
-
-    /// 重心計算
-    pub fn centroid(points: &[Self]) -> Option<Self> {
-        if points.is_empty() {
-            return None;
-        }
-
-        let mut sum_x = Scalar::new(0.0);
-        let mut sum_y = Scalar::new(0.0);
-        let mut sum_z = Scalar::new(0.0);
-
-        for point in points {
-            sum_x = sum_x + point.x.clone();
-            sum_y = sum_y + point.y.clone();
-            sum_z = sum_z + point.z.clone();
-        }
-
-        let count = Scalar::new(points.len() as f64);
-        Some(Self::new(
-            sum_x / count.clone(),
-            sum_y / count.clone(),
-            sum_z / count,
-        ))
+    pub fn centroid(points:&[Self])->Option<Self> {
+        if points.is_empty() { return None; }
+        let mut sx=0.0; let mut sy=0.0; let mut sz=0.0;
+        for p in points { sx+=p.x(); sy+=p.y(); sz+=p.z(); }
+        let inv = 1.0 / points.len() as f64;
+        Some(Self::new(sx*inv, sy*inv, sz*inv))
     }
 }
 
 impl TolerantEq for Point3D {
-    fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
-        self.x.tolerant_eq(&other.x, context)
-            && self.y.tolerant_eq(&other.y, context)
-            && self.z.tolerant_eq(&other.z, context)
+    fn tolerant_eq(&self, other:&Self, ctx:&ToleranceContext)->bool {
+        (self.x()-other.x()).abs() <= ctx.linear && (self.y()-other.y()).abs() <= ctx.linear && (self.z()-other.z()).abs() <= ctx.linear
     }
 }
 
@@ -119,7 +76,7 @@ impl LineSegment3D {
     pub fn start(&self) -> &Point3D { &self.start }
     pub fn end(&self) -> &Point3D { &self.end }
 
-    pub fn direction(&self) -> Vector3D { Vector3D::from_f64((self.end.x.clone()-self.start.x.clone()).value(), (self.end.y.clone()-self.start.y.clone()).value(), (self.end.z.clone()-self.start.z.clone()).value()) }
+    pub fn direction(&self) -> Vector3D { Vector3D::from_f64(self.end.x()-self.start.x(), self.end.y()-self.start.y(), self.end.z()-self.start.z()) }
 
     pub fn midpoint(&self) -> Point3D {
         self.start.midpoint(&self.end)
@@ -128,7 +85,7 @@ impl LineSegment3D {
     /// 最接近点への距離
     pub fn distance_to_point(&self, point: &Point3D) -> Scalar {
         let direction = self.direction();
-        let to_point = Vector3D::from_f64((point.x.clone()-self.start.x.clone()).value(), (point.y.clone()-self.start.y.clone()).value(), (point.z.clone()-self.start.z.clone()).value());
+    let to_point = Vector3D::from_f64(point.x()-self.start.x(), point.y()-self.start.y(), point.z()-self.start.z());
         let length_sq = direction.dot(&direction); // f64
         if length_sq.abs() < 1e-12 { return self.start.distance_to(point); }
         let t = to_point.dot(&direction) / length_sq; // f64
@@ -143,9 +100,9 @@ impl ParametricCurve3D for LineSegment3D {
     fn evaluate(&self, t: Scalar) -> Point3D {
         let one_minus_t = Scalar::new(1.0) - t.clone();
         Point3D::new(
-            one_minus_t.clone() * self.start.x.clone() + t.clone() * self.end.x.clone(),
-            one_minus_t.clone() * self.start.y.clone() + t.clone() * self.end.y.clone(),
-            one_minus_t * self.start.z.clone() + t * self.end.z.clone(),
+            (one_minus_t.clone()*Scalar::new(self.start.x()) + t.clone()*Scalar::new(self.end.x())).value(),
+            (one_minus_t.clone()*Scalar::new(self.start.y()) + t.clone()*Scalar::new(self.end.y())).value(),
+            (one_minus_t*Scalar::new(self.start.z()) + t*Scalar::new(self.end.z())).value(),
         )
     }
 
@@ -193,10 +150,10 @@ impl Circle3D {
     /// f64 パラメトリック評価 (t in [0,1])
     pub fn evaluate_f64(&self, t: f64) -> Point3D {
         let theta = t * std::f64::consts::TAU; let (s,c)=theta.sin_cos();
-        Point3D::from_f64(
-            self.center.x().value() + self.radius * c * self.basis_u.x() + self.radius * s * self.basis_v.x(),
-            self.center.y().value() + self.radius * c * self.basis_u.y() + self.radius * s * self.basis_v.y(),
-            self.center.z().value() + self.radius * c * self.basis_u.z() + self.radius * s * self.basis_v.z(),
+        Point3D::new(
+            self.center.x() + self.radius * c * self.basis_u.x() + self.radius * s * self.basis_v.x(),
+            self.center.y() + self.radius * c * self.basis_u.y() + self.radius * s * self.basis_v.y(),
+            self.center.z() + self.radius * c * self.basis_u.z() + self.radius * s * self.basis_v.z(),
         )
     }
 
@@ -240,8 +197,8 @@ impl Plane {
     }
 
     pub fn from_three_points(p1: &Point3D, p2: &Point3D, p3: &Point3D) -> Option<Self> {
-        let u_axis = Vector3D::from_f64((p2.x.clone()-p1.x.clone()).value(), (p2.y.clone()-p1.y.clone()).value(), (p2.z.clone()-p1.z.clone()).value());
-        let v_axis = Vector3D::from_f64((p3.x.clone()-p1.x.clone()).value(), (p3.y.clone()-p1.y.clone()).value(), (p3.z.clone()-p1.z.clone()).value());
+        let u_axis = Vector3D::from_f64(p2.x()-p1.x(), p2.y()-p1.y(), p2.z()-p1.z());
+        let v_axis = Vector3D::from_f64(p3.x()-p1.x(), p3.y()-p1.y(), p3.z()-p1.z());
         Self::new(p1.clone(), u_axis, v_axis)
     }
 
@@ -252,8 +209,8 @@ impl Plane {
 
     /// 点から平面への距離
     pub fn distance_to_point(&self, point: &Point3D) -> Scalar {
-        let to_point = Vector3D::from_f64((point.x.clone()-self.origin.x.clone()).value(), (point.y.clone()-self.origin.y.clone()).value(), (point.z.clone()-self.origin.z.clone()).value());
-        Scalar::new(to_point.dot(self.normal.as_vector()).abs())
+    let to_point = Vector3D::from_f64(point.x()-self.origin.x(), point.y()-self.origin.y(), point.z()-self.origin.z());
+    Scalar::new(to_point.dot(self.normal.as_vector()).abs())
     }
 
     /// 点の平面上への投影
@@ -261,9 +218,9 @@ impl Plane {
         let to_point = Vector3D::from_f64((point.x.clone()-self.origin.x.clone()).value(), (point.y.clone()-self.origin.y.clone()).value(), (point.z.clone()-self.origin.z.clone()).value());
         let distance = to_point.dot(self.normal.as_vector());
         Point3D::new(
-            point.x.clone() - Scalar::new(distance * self.normal.x()),
-            point.y.clone() - Scalar::new(distance * self.normal.y()),
-            point.z.clone() - Scalar::new(distance * self.normal.z()),
+            point.x() - distance * self.normal.x(),
+            point.y() - distance * self.normal.y(),
+            point.z() - distance * self.normal.z(),
         )
     }
 }
@@ -271,9 +228,9 @@ impl Plane {
 impl ParametricSurface for Plane {
     fn evaluate(&self, u: Scalar, v: Scalar) -> Point3D {
         Point3D::new(
-            self.origin.x.clone() + u.clone() * Scalar::new(self.u_axis.x()) + v.clone() * Scalar::new(self.v_axis.x()),
-            self.origin.y.clone() + u.clone() * Scalar::new(self.u_axis.y()) + v.clone() * Scalar::new(self.v_axis.y()),
-            self.origin.z.clone() + u * Scalar::new(self.u_axis.z()) + v * Scalar::new(self.v_axis.z()),
+            (Scalar::new(self.origin.x()) + u.clone()*Scalar::new(self.u_axis.x()) + v.clone()*Scalar::new(self.v_axis.x())).value(),
+            (Scalar::new(self.origin.y()) + u.clone()*Scalar::new(self.u_axis.y()) + v.clone()*Scalar::new(self.v_axis.y())).value(),
+            (Scalar::new(self.origin.z()) + u*Scalar::new(self.u_axis.z()) + v*Scalar::new(self.v_axis.z())).value(),
         )
     }
 
@@ -335,9 +292,9 @@ impl ParametricSurface for Sphere {
         let cos_v = v.cos();
 
         Point3D::new(
-            self.center.x.clone() + self.radius.clone() * sin_u.clone() * cos_v,
-            self.center.y.clone() + self.radius.clone() * sin_u * sin_v,
-            self.center.z.clone() + self.radius.clone() * cos_u,
+            (Scalar::new(self.center.x()) + self.radius.clone() * sin_u.clone() * cos_v).value(),
+            (Scalar::new(self.center.y()) + self.radius.clone() * sin_u * sin_v).value(),
+            (Scalar::new(self.center.z()) + self.radius.clone() * cos_u).value(),
         )
     }
 
@@ -368,7 +325,7 @@ impl ParametricSurface for Sphere {
 
     fn normal(&self, u: Scalar, v: Scalar) -> Option<Direction3D> {
         let point = self.evaluate(u, v);
-        let direction = Vector3D::from_f64((point.x.clone()-self.center.x.clone()).value(), (point.y.clone()-self.center.y.clone()).value(), (point.z.clone()-self.center.z.clone()).value());
+        let direction = Vector3D::from_f64(point.x()-self.center.x(), point.y()-self.center.y(), point.z()-self.center.z());
         let context = ToleranceContext::standard();
         Direction3D::from_vector(direction, &context)
     }
