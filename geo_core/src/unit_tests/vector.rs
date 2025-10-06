@@ -1,6 +1,8 @@
 /// ベクトル演算のユニットテスト
 
-use crate::vector::{Vector2D, Vector3D, Direction3D, Vector};
+use crate::vector::{Vector2D, Vector3D, Vector};
+#[cfg(feature = "legacy-primitives3d")]
+use crate::vector::Direction3D;
 use crate::tolerance::ToleranceContext;
 
 // Vector2D テスト
@@ -137,6 +139,7 @@ fn test_vector3d_vector_triple_product() {
 }
 
 // Direction3D テスト
+#[cfg(feature = "legacy-primitives3d")]
 #[test]
 fn test_direction3d_creation() {
     let context = ToleranceContext::standard();
@@ -148,6 +151,7 @@ fn test_direction3d_creation() {
     assert_eq!(dir.z().value(), 0.0);
 }
 
+#[cfg(feature = "legacy-primitives3d")]
 #[test]
 fn test_direction3d_from_vector() {
     let context = ToleranceContext::standard();
@@ -160,6 +164,7 @@ fn test_direction3d_from_vector() {
     assert_eq!(dir.z().value(), 0.0);
 }
 
+#[cfg(feature = "legacy-primitives3d")]
 #[test]
 fn test_direction3d_cross_product() {
     let context = ToleranceContext::standard();
@@ -172,6 +177,7 @@ fn test_direction3d_cross_product() {
     assert_eq!(cross.z().value(), 1.0);
 }
 
+#[cfg(feature = "legacy-primitives3d")]
 #[test]
 fn test_direction3d_orthonormal_basis() {
     let context = ToleranceContext::standard();
