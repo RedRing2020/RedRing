@@ -27,7 +27,7 @@
 #[deprecated(note = "Use geo_primitives::Point2D instead")]
 pub use crate::primitives2d::Point2D;
 
-#[deprecated(note = "Use geo_primitives::Point3D instead")]  
+#[deprecated(note = "Use geo_primitives::Point3D instead")]
 pub use crate::point3d::Point3D;
 
 #[deprecated(note = "Use geo_primitives instead")]

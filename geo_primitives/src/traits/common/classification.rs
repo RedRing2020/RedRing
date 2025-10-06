@@ -39,7 +39,7 @@ pub enum PrimitiveKind {
 pub enum DimensionClass {
     Zero,    // Point
     One,     // Curve
-    Two,     // Surface  
+    Two,     // Surface
     Three,   // Solid
     Complex, // Group/Assembly
 }
@@ -49,12 +49,12 @@ impl PrimitiveKind {
     pub fn dimension(&self) -> DimensionClass {
         match self {
             PrimitiveKind::Point => DimensionClass::Zero,
-            
+
             PrimitiveKind::LineSegment |
             PrimitiveKind::PolyLine |
             PrimitiveKind::BezierCurve |
             PrimitiveKind::NurbsCurve => DimensionClass::One,
-            
+
             PrimitiveKind::Circle |
             PrimitiveKind::Ellipse |
             PrimitiveKind::Rectangle |
@@ -62,13 +62,13 @@ impl PrimitiveKind {
             PrimitiveKind::Triangle |
             PrimitiveKind::Plane |
             PrimitiveKind::NurbsSurface => DimensionClass::Two,
-            
+
             PrimitiveKind::Sphere |
             PrimitiveKind::Cylinder |
             PrimitiveKind::Cone |
             PrimitiveKind::Cube |
             PrimitiveKind::TriangleMesh => DimensionClass::Three,
-            
+
             PrimitiveKind::Group |
             PrimitiveKind::Assembly => DimensionClass::Complex,
         }
@@ -91,7 +91,7 @@ impl PrimitiveKind {
 
     /// パラメトリック形状かどうか
     pub fn is_parametric(&self) -> bool {
-        matches!(self, 
+        matches!(self,
             PrimitiveKind::BezierCurve |
             PrimitiveKind::NurbsCurve |
             PrimitiveKind::NurbsSurface
@@ -110,7 +110,7 @@ impl PrimitiveKind {
         )
     }
 
-    /// 多角形/メッシュ系かどうか  
+    /// 多角形/メッシュ系かどうか
     pub fn is_mesh(&self) -> bool {
         matches!(self,
             PrimitiveKind::Polygon |
@@ -124,7 +124,7 @@ impl PrimitiveKind {
 pub trait GeometryPrimitive {
     /// プリミティブの種類を返す
     fn kind(&self) -> PrimitiveKind;
-    
+
     /// 次元を返す
     fn dimension(&self) -> DimensionClass {
         self.kind().dimension()

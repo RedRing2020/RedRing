@@ -74,7 +74,7 @@ pub const DEFAULT_TOLERANCE: ToleranceContext = ToleranceContext {
     volume: 1e-18,     // 体積許容誤差
 };
 
-/// プリファクトリ：よく使用される値の作成  
+/// プリファクトリ：よく使用される値の作成
 pub mod prelude {
     pub use crate::{
         Vector2D, Vector3D,

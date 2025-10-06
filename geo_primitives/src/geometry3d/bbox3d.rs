@@ -1,5 +1,5 @@
 /// 3D Bounding Box - 衝突判定と形状処理のための3次元境界ボックス
-/// 
+///
 /// geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
 use crate::traits::bbox_trait::{BoundingBoxOps, CollisionBounds};
@@ -107,21 +107,21 @@ impl CollisionBounds<3> for BBox3D {
         }
 
         let mut max_separation = 0.0f64;
-        
+
         // X軸での分離距離
         if self.max.x() < other.min.x() {
             max_separation = max_separation.max(other.min.x() - self.max.x());
         } else if other.max.x() < self.min.x() {
             max_separation = max_separation.max(self.min.x() - other.max.x());
         }
-        
+
         // Y軸での分離距離
         if self.max.y() < other.min.y() {
             max_separation = max_separation.max(other.min.y() - self.max.y());
         } else if other.max.y() < self.min.y() {
             max_separation = max_separation.max(self.min.y() - other.max.y());
         }
-        
+
         // Z軸での分離距離
         if self.max.z() < other.min.z() {
             max_separation = max_separation.max(other.min.z() - self.max.z());
@@ -268,7 +268,7 @@ mod tests {
             Point3D::new(-1.0, 5.0, 1.0),
             Point3D::new(3.0, 0.0, 4.0),
         ];
-        
+
         let bbox = BBox3D::from_points(&points).unwrap();
         assert_eq!(bbox.min, Point3D::new(-1.0, 0.0, 1.0));
         assert_eq!(bbox.max, Point3D::new(3.0, 5.0, 4.0));
@@ -279,16 +279,16 @@ mod tests {
         let bbox1 = BBox3D::new((0.0, 0.0, 0.0), (2.0, 2.0, 2.0));
         let bbox2 = BBox3D::new((1.0, 1.0, 1.0), (3.0, 3.0, 3.0));
         let bbox3 = BBox3D::new((3.0, 3.0, 3.0), (4.0, 4.0, 4.0));
-        
+
         // 高速重複テスト
         assert!(bbox1.fast_overlaps(&bbox2));
         assert!(!bbox1.fast_overlaps(&bbox3));
-        
+
         // 分離距離
         assert!(bbox1.separation_distance(&bbox2).is_none()); // 重複している
         let sep_dist = bbox1.separation_distance(&bbox3).unwrap();
         assert_eq!(sep_dist, 1.0); // (3.0 - 2.0) = 1.0
-        
+
         // 最近点
         let closest = bbox1.closest_point_on_surface([5.0, 1.0, 1.0]);
         assert_eq!(closest, [2.0, 1.0, 1.0]); // X軸でクランプ
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn test_generic_trait_implementation() {
         let bbox = BBox3D::new((0.0, 0.0, 0.0), (2.0, 3.0, 4.0));
-        
+
         // BoundingBoxトレイト
         assert_eq!(bbox.min(), [0.0, 0.0, 0.0]);
         assert_eq!(bbox.max(), [2.0, 3.0, 4.0]);
@@ -305,12 +305,12 @@ mod tests {
         assert_eq!(bbox.extent(1), 3.0);
         assert_eq!(bbox.extent(2), 4.0);
         assert_eq!(bbox.center(), [1.0, 1.5, 2.0]);
-        
+
         // BoundingBoxOpsトレイト
         assert!(bbox.contains_point([1.0, 1.5, 2.0]));
         assert!(!bbox.contains_point([3.0, 1.0, 1.0]));
         assert!(bbox.is_valid());
-        
+
         let expanded = bbox.expand(0.5);
         assert_eq!(expanded.min, Point3D::new(-0.5, -0.5, -0.5));
         assert_eq!(expanded.max, Point3D::new(2.5, 3.5, 4.5));

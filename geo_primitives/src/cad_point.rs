@@ -15,9 +15,7 @@ pub struct CadPoint {
 
 impl PartialEq for CadPoint {
     fn eq(&self, other: &Self) -> bool {
-        let mut context = ToleranceContext::default();
-        context.linear = 1e-10;
-        self.tolerant_eq(other, &context)
+        self.tolerant_eq(other, 1e-10)
     }
 }
 
@@ -51,58 +49,52 @@ impl CadPoint {
         )
     }
 
-    /// f64タプルから作成
-    pub fn from_tuple(coord: (f64, f64, f64)) -> Self {
-        Self::new(coord.0, coord.1, coord.2)
+    // geo_core統合メソッド
+    pub fn as_geo_core(&self) -> &GeoPoint3D {
+        &self.inner
     }
 
-    /// f64タプルに変換
-    pub fn to_tuple(&self) -> (f64, f64, f64) {
-        (self.x(), self.y(), self.z())
+    pub fn from_geo_core(geo_point: GeoPoint3D) -> Self {
+        Self { inner: geo_point }
     }
-}
 
-impl TolerantEq for CadPoint {
-    fn tolerant_eq(&self, other: &Self, tolerance: &ToleranceContext) -> bool {
-        let dx = self.x() - other.x();
-        let dy = self.y() - other.y();
-        let dz = self.z() - other.z();
-        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
-        distance <= tolerance.linear
-    }
-}
-
-// geo-core互換レイヤー
-use crate::geometry3d::Point3D as GeoPoint3D;
-
-impl From<GeoPoint3D> for CadPoint {
-    fn from(point: GeoPoint3D) -> Self {
-        Self { inner: point }
-    }
-}
-
-impl From<CadPoint> for GeoPoint3D {
-    fn from(cad_point: CadPoint) -> Self {
-        cad_point.inner
+    pub fn tolerant_eq(&self, other: &Self, tolerance: f64) -> bool {
+        let mut context = ToleranceContext::default();
+        context.linear = tolerance;
+        TolerantEq::tolerant_eq(&self.inner, &other.inner, &context)
     }
 }
 
 impl Add<crate::CadVector> for CadPoint {
-    type Output = Self;
-
-    fn add(self, vector: crate::CadVector) -> Self::Output {
-        self.translate(&vector)
+    type Output = CadPoint;
+    fn add(self, rhs: crate::CadVector) -> CadPoint {
+        self.translate(&rhs)
     }
 }
 
-impl Sub for CadPoint {
+impl Sub<CadPoint> for CadPoint {
     type Output = crate::CadVector;
+    fn sub(self, rhs: CadPoint) -> crate::CadVector {
+        crate::CadVector::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
+    }
+}
 
-    fn sub(self, other: Self) -> Self::Output {
-        crate::CadVector::new(
-            self.x() - other.x(),
-            self.y() - other.y(),
-            self.z() - other.z()
-        )
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cad_point_basic() {
+        let p = CadPoint::new(1.0, 2.0, 3.0);
+        assert_eq!(p.x(), 1.0);
+        assert_eq!(p.y(), 2.0);
+        assert_eq!(p.z(), 3.0);
+    }
+
+    #[test]
+    fn test_cad_point_distance() {
+        let p1 = CadPoint::new(0.0, 0.0, 0.0);
+        let p2 = CadPoint::new(3.0, 4.0, 0.0);
+        assert!((p1.distance_to(&p2) - 5.0).abs() < 1e-10);
     }
 }

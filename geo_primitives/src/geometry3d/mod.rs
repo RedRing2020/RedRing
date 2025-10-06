@@ -1,4 +1,4 @@
-﻿/// 3D Geometry Module  
+﻿/// 3D Geometry Module
 /// 3次元幾何プリミティブ（f64ベース）
 
 pub mod vector3d;
