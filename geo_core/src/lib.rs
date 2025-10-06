@@ -61,7 +61,7 @@ pub mod point3d; // always-on Point3D
 mod unit_tests;
 
 // 主要な型の再エクスポート
-pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd};
+pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use scalar::Scalar;
 pub use vector::{Vector, Vector2D, Vector3D};
 // Direction3D is deprecated in core; only export when legacy 3D primitives are enabled

@@ -25,9 +25,8 @@ impl CadEllipse {
         minor_radius: f64,
     ) -> Option<Self> {
         let dot = major_axis.dot(&minor_axis);
-        const EPSILON: f64 = 1e-10;
 
-        if dot.abs() > EPSILON {
+        if dot.abs() > geo_core::GEOMETRIC_TOLERANCE {
             return None; // 軸が直交していない
         }
 

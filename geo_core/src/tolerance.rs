@@ -5,6 +5,16 @@
 
 use std::fmt;
 
+/// 幾何学的計算での実用的な許容誤差
+/// 機械精度よりも大きく、CAD/CAM用途に適した値
+/// 
+/// この値は以下の用途で使用される：
+/// - 点の一致判定
+/// - 線分の交差判定  
+/// - 面の共面判定
+/// - 幾何学的な近似計算
+pub const GEOMETRIC_TOLERANCE: f64 = 1e-10;
+
 /// 許容誤差コンテキスト - 各種許容誤差の統合管理
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ToleranceContext {

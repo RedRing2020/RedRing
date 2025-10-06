@@ -27,8 +27,7 @@ impl CadEllipseArc {
         start_angle: f64,
         end_angle: f64,
     ) -> Option<Self> {
-        const EPSILON: f64 = 1e-10;
-        if major_axis.dot(&minor_axis).abs() > EPSILON {
+        if major_axis.dot(&minor_axis).abs() > geo_core::GEOMETRIC_TOLERANCE {
             return None; // 軸が直交していない
         }
         if end_angle <= start_angle {

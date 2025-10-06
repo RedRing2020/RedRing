@@ -20,7 +20,8 @@ mod unit_tests;
 pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D, Scalar, ToleranceContext};
 
 // 定数の再エクスポート
-pub use consts::{EPSILON, DERIVATIVE_ZERO_THRESHOLD};
+pub use consts::DERIVATIVE_ZERO_THRESHOLD;
+pub use geo_core::GEOMETRIC_TOLERANCE;
 
 // 幾何数値関数の再エクスポート
 pub use geometry::{
