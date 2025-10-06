@@ -62,12 +62,12 @@ fn test_fixed_size_vectors_f32() {
 fn test_vector4_homogeneous_coords() {
     let v3 = Vector3::<f64>::new(1.0, 2.0, 3.0);
     let v4 = Vector4::from_euclidean(v3);
-    
+
     assert_eq!(v4.x(), 1.0);
     assert_eq!(v4.y(), 2.0);
     assert_eq!(v4.z(), 3.0);
     assert_eq!(v4.w(), 1.0);
-    
+
     let v3_back = v4.to_euclidean().unwrap();
     assert_eq!(v3_back.x(), 1.0);
     assert_eq!(v3_back.y(), 2.0);
@@ -78,9 +78,9 @@ fn test_vector4_homogeneous_coords() {
 fn test_type_aliases() {
     // 型エイリアスのテスト
     use crate::linalg::{Vec3f, Vec3d};
-    
+
     let v_f32 = Vec3f::new(1.0, 2.0, 3.0);
     let v_f64 = Vec3d::new(1.0, 2.0, 3.0);
-    
+
     assert_eq!(v_f32.norm(), v_f64.norm() as f32);
 }

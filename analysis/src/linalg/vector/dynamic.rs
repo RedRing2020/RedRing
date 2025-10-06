@@ -1,5 +1,5 @@
 /// 動的サイズベクトル
-/// 
+///
 /// 任意次元のベクトル演算を効率的に処理
 /// 大規模数値計算や機械学習用途に適している
 
@@ -72,7 +72,7 @@ impl<T: Scalar> Vector<T> {
         if self.len() != other.len() {
             return Err("Vector dimensions mismatch".to_string());
         }
-        
+
         Ok(self.data.iter()
             .zip(other.data.iter())
             .map(|(a, b)| *a * *b)
@@ -117,7 +117,7 @@ impl<T: Scalar> Vector<T> {
         if self.len() != other.len() {
             return Err("Vector dimensions mismatch".to_string());
         }
-        
+
         Ok(Self {
             data: self.data.iter()
                 .zip(other.data.iter())
@@ -155,12 +155,12 @@ impl<T: Scalar> Vector<T> {
 // 演算子オーバーロード
 impl<T: Scalar> Add for Vector<T> {
     type Output = Result<Self, String>;
-    
+
     fn add(self, other: Self) -> Self::Output {
         if self.len() != other.len() {
             return Err("Vector dimensions mismatch".to_string());
         }
-        
+
         Ok(Self {
             data: self.data.iter()
                 .zip(other.data.iter())
@@ -172,12 +172,12 @@ impl<T: Scalar> Add for Vector<T> {
 
 impl<T: Scalar> Sub for Vector<T> {
     type Output = Result<Self, String>;
-    
+
     fn sub(self, other: Self) -> Self::Output {
         if self.len() != other.len() {
             return Err("Vector dimensions mismatch".to_string());
         }
-        
+
         Ok(Self {
             data: self.data.iter()
                 .zip(other.data.iter())
@@ -189,7 +189,7 @@ impl<T: Scalar> Sub for Vector<T> {
 
 impl<T: Scalar> Mul<T> for Vector<T> {
     type Output = Self;
-    
+
     fn mul(self, scalar: T) -> Self::Output {
         self.scale(scalar)
     }
@@ -197,7 +197,7 @@ impl<T: Scalar> Mul<T> for Vector<T> {
 
 impl<T: Scalar> Index<usize> for Vector<T> {
     type Output = T;
-    
+
     fn index(&self, index: usize) -> &Self::Output {
         &self.data[index]
     }
@@ -230,10 +230,10 @@ mod tests {
     fn test_vector_operations() {
         let v1 = Vector::new(vec![1.0, 2.0, 3.0]);
         let v2 = Vector::new(vec![4.0, 5.0, 6.0]);
-        
+
         let dot = v1.dot(&v2).unwrap();
         assert_eq!(dot, 32.0); // 1*4 + 2*5 + 3*6 = 32
-        
+
         let norm = v1.norm();
         assert!((norm - (14.0_f64).sqrt()).abs() < 1e-10);
     }
@@ -242,7 +242,7 @@ mod tests {
     fn test_vector_normalize() {
         let v = Vector::new(vec![3.0, 4.0]);
         let normalized = v.normalize().unwrap();
-        
+
         assert!((normalized.norm() - 1.0).abs() < 1e-10);
         assert!((normalized.get(0) - 0.6).abs() < 1e-10);
         assert!((normalized.get(1) - 0.8).abs() < 1e-10);

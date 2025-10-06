@@ -1,5 +1,5 @@
 /// ガウス消去法による連立方程式ソルバー
-/// 
+///
 /// 部分ピボット選択付きガウス消去法を実装
 /// 数値安定性を考慮した一般的な直接法
 
@@ -31,13 +31,13 @@ impl<T: Scalar> GaussianSolver<T> {
     fn create_augmented_matrix(&self, matrix: &[Vec<T>], rhs: &[T]) -> Vec<Vec<T>> {
         let n = matrix.len();
         let mut aug_matrix = Vec::with_capacity(n);
-        
+
         for i in 0..n {
             let mut row = matrix[i].clone();
             row.push(rhs[i]);
             aug_matrix.push(row);
         }
-        
+
         aug_matrix
     }
 
@@ -84,7 +84,7 @@ impl<T: Scalar> GaussianSolver<T> {
             // 前進消去
             for i in (k + 1)..n {
                 let factor = aug_matrix[i][k] / aug_matrix[k][k];
-                
+
                 for j in k..=n {
                     aug_matrix[i][j] = aug_matrix[i][j] - factor * aug_matrix[k][j];
                 }
@@ -133,7 +133,7 @@ impl<T: Scalar> GaussianSolver<T> {
 impl<T: Scalar> LinearSolver<T> for GaussianSolver<T> {
     fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
         let n = matrix.len();
-        
+
         // 入力検証
         if n == 0 || matrix[0].len() != n || rhs.len() != n {
             return Err("Invalid matrix dimensions".to_string());

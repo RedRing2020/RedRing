@@ -1,5 +1,5 @@
 /// Cramerの公式による連立方程式ソルバー
-/// 
+///
 /// 小規模システム（2x2, 3x3）専用の直接解法
 /// 行列式を直接計算して解を求める
 
@@ -34,7 +34,7 @@ impl<T: Scalar> CramerSolver<T> {
             rhs.x(), matrix.get(0, 1),
             rhs.y(), matrix.get(1, 1)
         ).determinant();
-        
+
         let det_y = Matrix2x2::new(
             matrix.get(0, 0), rhs.x(),
             matrix.get(1, 0), rhs.y()
@@ -60,13 +60,13 @@ impl<T: Scalar> CramerSolver<T> {
             rhs.y(), matrix.get(1, 1), matrix.get(1, 2),
             rhs.z(), matrix.get(2, 1), matrix.get(2, 2)
         ).determinant();
-        
+
         let det_y = Matrix3x3::new(
             matrix.get(0, 0), rhs.x(), matrix.get(0, 2),
             matrix.get(1, 0), rhs.y(), matrix.get(1, 2),
             matrix.get(2, 0), rhs.z(), matrix.get(2, 2)
         ).determinant();
-        
+
         let det_z = Matrix3x3::new(
             matrix.get(0, 0), matrix.get(0, 1), rhs.x(),
             matrix.get(1, 0), matrix.get(1, 1), rhs.y(),
@@ -80,7 +80,7 @@ impl<T: Scalar> CramerSolver<T> {
 impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
     fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
         let n = matrix.len();
-        
+
         match n {
             2 => {
                 // 2x2の場合
@@ -89,10 +89,10 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
                     matrix[1][0], matrix[1][1]
                 );
                 let rhs_2x2 = Vector2::new(rhs[0], rhs[1]);
-                
+
                 let solution_vec = self.solve_2x2(&matrix_2x2, &rhs_2x2)?;
                 let solution = vec![solution_vec.x(), solution_vec.y()];
-                
+
                 // 残差計算
                 let residual = self.calculate_residual(matrix, rhs, &solution);
                 Ok(SolutionInfo::direct(solution, residual))
@@ -105,10 +105,10 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
                     matrix[2][0], matrix[2][1], matrix[2][2]
                 );
                 let rhs_3x3 = Vector3::new(rhs[0], rhs[1], rhs[2]);
-                
+
                 let solution_vec = self.solve_3x3(&matrix_3x3, &rhs_3x3)?;
                 let solution = vec![solution_vec.x(), solution_vec.y(), solution_vec.z()];
-                
+
                 // 残差計算
                 let residual = self.calculate_residual(matrix, rhs, &solution);
                 Ok(SolutionInfo::direct(solution, residual))

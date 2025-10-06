@@ -1,5 +1,5 @@
 /// LU分解による連立方程式ソルバー
-/// 
+///
 /// Doolittle法によるLU分解を実装
 /// 部分ピボット選択付きで数値安定性を確保
 
@@ -38,7 +38,7 @@ impl<T: Scalar> LUSolver<T> {
     /// LU分解を実行（Doolittle法）
     pub fn decompose(&self, matrix: &[Vec<T>]) -> Result<LUDecomposition<T>, String> {
         let n = matrix.len();
-        
+
         // 入力検証
         if n == 0 || matrix[0].len() != n {
             return Err("Matrix must be square".to_string());
@@ -156,11 +156,11 @@ impl<T: Scalar> LUSolver<T> {
     /// 行列式を計算
     pub fn determinant(&self, lu_decomp: &LUDecomposition<T>) -> T {
         let mut det = T::from_f64(lu_decomp.determinant_sign as f64);
-        
+
         for i in 0..lu_decomp.lu_matrix.len() {
             det = det * lu_decomp.lu_matrix[i][i];
         }
-        
+
         det
     }
 
@@ -186,13 +186,13 @@ impl<T: Scalar> LinearSolver<T> for LUSolver<T> {
     fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
         // LU分解を実行
         let lu_decomp = self.decompose(matrix)?;
-        
+
         // 連立方程式を解く
         let solution = self.solve_with_decomposition(&lu_decomp, rhs)?;
-        
+
         // 残差計算
         let residual = self.calculate_residual(matrix, rhs, &solution);
-        
+
         Ok(SolutionInfo::direct(solution, residual))
     }
 }
