@@ -1,5 +1,5 @@
 /// CAD Ellipse - modelからの楕円構造体移植
-/// 
+///
 /// Scalar基礎計算を使用した高精度楕円演算を提供
 
 use geo_core::Scalar;
