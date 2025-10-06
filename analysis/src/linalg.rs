@@ -8,6 +8,7 @@
 pub mod scalar;
 pub mod vector;
 pub mod matrix;      // 固定サイズ・動的サイズ行列
+pub mod quaternion;  // クォータニオン（四元数）
 pub mod solver;
 
 #[cfg(test)]
@@ -17,6 +18,7 @@ pub mod unit_tests;
 pub use scalar::*;
 pub use vector::*;
 pub use matrix::{Matrix2x2, Matrix3x3, Matrix4x4};
+pub use quaternion::{Quaternion, Quaternionf, Quaterniond};
 pub use solver::*;
 
 // 便利な型エイリアス（ベクトル）

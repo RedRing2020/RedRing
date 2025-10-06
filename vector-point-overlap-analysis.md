@@ -1,24 +1,24 @@
-# model と geo_core の Vector/Point 重複分析
+# analysis と geo_primitives の Vector/Point 重複分析
 
 ## 📊 重複機能分析結果
 
-### model Vector/Point の特徴
+### analysis Vector/Point の特徴
 
 ```rust
-// model/geometry3d/vector.rs
+// geo_primitives/geometry3d/vector.rs
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
     x: f64, y: f64, z: f64,  // 直接f64型
 }
 
-// model/geometry3d/point.rs
+// geo_primitives/geometry3d/point.rs
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
     x: f64, y: f64, z: f64,  // 直接f64型
 }
 ```
 
-**用途**: CAD 業務ロジック、高レベル計算
+**用途**: CAD 幾何形状、高レベル計算
 **特徴**:
 
 - ✅ Copy trait 実装（軽量）
@@ -26,17 +26,17 @@ pub struct Point {
 - ✅ CAD 操作向け（translate, distance_to, between 等）
 - ✅ 既存 Curve3D trait との統合
 
-### geo_core Vector/Point の特徴
+### analysis Vector/Point の特徴
 
 ```rust
-// geo_core/vector3d.rs
+// analysis/vector/vector3d.rs
 #[derive(Debug, Clone)]  // Copy なし
 pub struct Vector3D {
     components: [Scalar; 3],           // Scalar でラップ
     tolerance_context: ToleranceContext, // 許容誤差管理
 }
 
-// geo_core/primitives3d.rs
+// analysis/point3d.rs
 #[derive(Debug, Clone)]  // Copy なし
 pub struct Point3D {
     x: Scalar, y: Scalar, z: Scalar,  // Scalar 型
@@ -46,7 +46,7 @@ pub struct Point3D {
 **用途**: 数値計算基盤、高精度演算
 **特徴**:
 
-- ✅ Scalar 型による高精度計算
+- ✅ 直接的な f64 操作
 - ✅ ToleranceContext 統合
 - ✅ TolerantEq による許容誤差比較
 - ✅ mm 単位での座標管理
@@ -63,11 +63,11 @@ pub struct Point3D {
 
 ### 🔄 部分重複の機能
 
-1. **正規化**: model は `normalize()` trait、geo_core は `Direction3D`
-2. **ベクトル変換**: model は `to_vector()`、geo_core は異なる API
+1. **正規化**: model は `normalize()` trait、geo_primitives は `Direction3D`
+2. **ベクトル変換**: model は `to_vector()`、geo_primitives は異なる API
 3. **コンストラクタ**: 異なる型システム（f64 vs Scalar）
 
-### ⭐ geo_core 独自機能
+### ⭐ geo_primitives 独自機能
 
 1. **許容誤差処理**: `TolerantEq`, `ToleranceContext`
 2. **高精度計算**: `Scalar` 型による数値安定性
@@ -92,16 +92,16 @@ pub struct Point3D {
 ### 役割分担の推奨
 
 ```
-┌─────────────────┐
-│   model層       │ ← CAD業務ロジック、軽量操作
-│  Vector/Point   │
-└─────────────────┘
+┌────────────────────┐
+│   geo_primitives層 │ ← CAD業務ロジック、軽量操作
+│  Vector/Point      │
+└────────────────────┘
          │ 変換
          ▼
-┌─────────────────┐
-│  geo_core層     │ ← 数値計算基盤、高精度演算
-│  Vector3D/Point3D│
-└─────────────────┘
+┌────────────────────┐
+│  analysis層        │ ← 数値計算基盤、高精度演算
+│  Vector3D/Point3D  │
+└────────────────────┘
 ```
 
 ### 統合方針

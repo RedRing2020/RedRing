@@ -6,3 +6,4 @@ pub mod scalar;
 pub mod solver;
 pub mod vector;
 pub mod matrix;
+pub mod quaternion;
