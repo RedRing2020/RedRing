@@ -3,8 +3,7 @@
 /// 3D空間における平面要素
 
 use geo_core::{Vector3D, Scalar};
-use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
-use geo_core::Point3D;
+use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*, Point3D};
 
 /// 3D平面プリミティブ
 #[derive(Debug, Clone)]
