@@ -13,30 +13,42 @@ pub struct Vector2<T: Scalar> {
 }
 
 impl<T: Scalar> Vector2<T> {
+    /// X軸単位ベクトル定数
+    pub const X_AXIS: Vector2<f64> = Vector2 { data: [1.0, 0.0] };
+
+    /// Y軸単位ベクトル定数
+    pub const Y_AXIS: Vector2<f64> = Vector2 { data: [0.0, 1.0] };
+
+    /// ゼロベクトル定数
+    pub const ZERO: Vector2<f64> = Vector2 { data: [0.0, 0.0] };
+
     /// 新しい2Dベクトルを作成
     pub fn new(x: T, y: T) -> Self {
         Self { data: [x, y] }
     }
 
-    /// ゼロベクトル
+    /// ゼロベクトル - ZERO定数のエイリアス
     pub fn zero() -> Self {
-        Self::new(T::ZERO, T::ZERO)
-    }
-
-    /// 単位ベクトル（1, 0）
-    pub fn unit_x() -> Self {
-        Self::new(T::ONE, T::ZERO)
-    }
-
-    /// 単位ベクトル（0, 1）
-    pub fn unit_y() -> Self {
-        Self::new(T::ZERO, T::ONE)
+        // 型変換を通じてZERO定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(0.0))
     }
 
     /// 単位ベクトル（1, 1）正規化済み
     pub fn one() -> Self {
         let sqrt2_inv = T::ONE / (T::ONE + T::ONE).sqrt();
         Self::new(sqrt2_inv, sqrt2_inv)
+    }
+
+    /// X軸方向の単位ベクトル（1, 0）- X_AXIS定数のエイリアス
+    pub fn x_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(1.0), T::from_f64(0.0))
+    }
+
+    /// Y軸方向の単位ベクトル（0, 1）- Y_AXIS定数のエイリアス
+    pub fn y_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(1.0))
     }
 
     /// X成分にアクセス
@@ -211,21 +223,21 @@ mod tests {
 
     #[test]
     fn test_vector2_creation() {
-        let v = Vector2::new(3.0, 4.0);
-        assert_eq!(v.x(), 3.0);
-        assert_eq!(v.y(), 4.0);
+        let v = Vector2::new(1.0, 2.0);
+        assert_eq!(v.x(), 1.0);
+        assert_eq!(v.y(), 2.0);
     }
 
     #[test]
     fn test_vector2_operations() {
-        let v1 = Vector2::new(3.0, 4.0);
-        let v2 = Vector2::new(1.0, 2.0);
+        let v1 = Vector2::new(1.0, 2.0);
+        let v2 = Vector2::new(3.0, 4.0);
 
         let dot = v1.dot(&v2);
-        assert_eq!(dot, 11.0); // 3*1 + 4*2 = 11
+        assert_eq!(dot, 11.0); // 1*3 + 2*4 = 11
 
-        let cross = v1.cross(&v2);
-        assert_eq!(cross, 2.0); // 3*2 - 4*1 = 2
+        let lerp = v1.lerp(&v2, 0.5);
+        assert_eq!(lerp, Vector2::new(2.0, 3.0));
     }
 
     #[test]
@@ -257,5 +269,41 @@ mod tests {
 
         let scaled = v1 * 2.0;
         assert_eq!(scaled, Vector2::new(2.0, 4.0));
+    }
+
+    #[test]
+    fn test_vector2_axis_constants() {
+        // 定数テスト（f64型）
+        let x_axis = Vector2::<f64>::X_AXIS;
+        let y_axis = Vector2::<f64>::Y_AXIS;
+        let zero = Vector2::<f64>::ZERO;
+        assert_eq!(x_axis.x(), 1.0);
+        assert_eq!(x_axis.y(), 0.0);
+        assert_eq!(y_axis.x(), 0.0);
+        assert_eq!(y_axis.y(), 1.0);
+        assert_eq!(zero.x(), 0.0);
+        assert_eq!(zero.y(), 0.0);
+
+        // メソッドテスト（エイリアス機能）
+        let x_axis = Vector2::<f64>::x_axis();
+        let y_axis = Vector2::<f64>::y_axis();
+        let zero = Vector2::<f64>::zero();
+        assert_eq!(x_axis.x(), 1.0);
+        assert_eq!(x_axis.y(), 0.0);
+        assert_eq!(y_axis.x(), 0.0);
+        assert_eq!(y_axis.y(), 1.0);
+        assert_eq!(zero.x(), 0.0);
+        assert_eq!(zero.y(), 0.0);
+
+        // エイリアスはf32型でも動作することを確認
+        let x_axis_f32 = Vector2::<f32>::x_axis();
+        let y_axis_f32 = Vector2::<f32>::y_axis();
+        let zero_f32 = Vector2::<f32>::zero();
+        assert_eq!(x_axis_f32.x(), 1.0f32);
+        assert_eq!(x_axis_f32.y(), 0.0f32);
+        assert_eq!(y_axis_f32.x(), 0.0f32);
+        assert_eq!(y_axis_f32.y(), 1.0f32);
+        assert_eq!(zero_f32.x(), 0.0f32);
+        assert_eq!(zero_f32.y(), 0.0f32);
     }
 }

@@ -13,35 +13,51 @@ pub struct Vector3<T: Scalar> {
 }
 
 impl<T: Scalar> Vector3<T> {
+    /// X軸単位ベクトル定数
+    pub const X_AXIS: Vector3<f64> = Vector3 { data: [1.0, 0.0, 0.0] };
+
+    /// Y軸単位ベクトル定数
+    pub const Y_AXIS: Vector3<f64> = Vector3 { data: [0.0, 1.0, 0.0] };
+
+    /// Z軸単位ベクトル定数
+    pub const Z_AXIS: Vector3<f64> = Vector3 { data: [0.0, 0.0, 1.0] };
+
+    /// ゼロベクトル定数
+    pub const ZERO: Vector3<f64> = Vector3 { data: [0.0, 0.0, 0.0] };
+
     /// 新しい3Dベクトルを作成
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { data: [x, y, z] }
     }
 
-    /// ゼロベクトル
+    /// ゼロベクトル - ZERO定数のエイリアス
     pub fn zero() -> Self {
-        Self::new(T::ZERO, T::ZERO, T::ZERO)
-    }
-
-    /// X軸単位ベクトル（1, 0, 0）
-    pub fn unit_x() -> Self {
-        Self::new(T::ONE, T::ZERO, T::ZERO)
-    }
-
-    /// Y軸単位ベクトル（0, 1, 0）
-    pub fn unit_y() -> Self {
-        Self::new(T::ZERO, T::ONE, T::ZERO)
-    }
-
-    /// Z軸単位ベクトル（0, 0, 1）
-    pub fn unit_z() -> Self {
-        Self::new(T::ZERO, T::ZERO, T::ONE)
+        // 型変換を通じてZERO定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0))
     }
 
     /// 全成分が1のベクトル（正規化済み）
     pub fn one() -> Self {
         let sqrt3_inv = T::ONE / (T::ONE + T::ONE + T::ONE).sqrt();
         Self::new(sqrt3_inv, sqrt3_inv, sqrt3_inv)
+    }
+
+    /// X軸方向の単位ベクトル（1, 0, 0）- X_AXIS定数のエイリアス
+    pub fn x_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(1.0), T::from_f64(0.0), T::from_f64(0.0))
+    }
+
+    /// Y軸方向の単位ベクトル（0, 1, 0）- Y_AXIS定数のエイリアス
+    pub fn y_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(1.0), T::from_f64(0.0))
+    }
+
+    /// Z軸方向の単位ベクトル（0, 0, 1）- Z_AXIS定数のエイリアス
+    pub fn z_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(1.0))
     }
 
     /// X成分にアクセス
@@ -281,7 +297,6 @@ pub type Vector3d = Vector3<f64>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::f64::consts::PI;
 
     #[test]
     fn test_vector3_creation() {
@@ -302,19 +317,19 @@ mod tests {
 
     #[test]
     fn test_vector3_norm() {
-        let v = Vector3::new(2.0, 3.0, 6.0);
-        assert_eq!(v.norm(), 7.0); // √(4 + 9 + 36) = 7
+        let v = Vector3::new(1.0, 2.0, 2.0);
+        assert_eq!(v.norm(), 3.0); // sqrt(1 + 4 + 4) = 3
+        assert_eq!(v.norm_squared(), 9.0);
     }
 
     #[test]
     fn test_vector3_normalize() {
         let v = Vector3::new(3.0, 4.0, 0.0);
         let normalized = v.normalize().unwrap();
-
         assert!((normalized.norm() - 1.0).abs() < 1e-10);
         assert!((normalized.x() - 0.6).abs() < 1e-10);
         assert!((normalized.y() - 0.8).abs() < 1e-10);
-        assert!((normalized.z() - 0.0).abs() < 1e-10);
+        assert_eq!(normalized.z(), 0.0);
     }
 
     #[test]
@@ -331,4 +346,54 @@ mod tests {
         let scaled = v1 * 2.0;
         assert_eq!(scaled, Vector3::new(2.0, 4.0, 6.0));
     }
+
+    #[test]
+    fn test_vector3_axis_constants() {
+        // 定数テスト（f64型）
+        let x_axis = Vector3::<f64>::X_AXIS;
+        let y_axis = Vector3::<f64>::Y_AXIS;
+        let z_axis = Vector3::<f64>::Z_AXIS;
+        let zero = Vector3::<f64>::ZERO;
+        assert_eq!(x_axis.x(), 1.0);
+        assert_eq!(x_axis.y(), 0.0);
+        assert_eq!(x_axis.z(), 0.0);
+        assert_eq!(y_axis.x(), 0.0);
+        assert_eq!(y_axis.y(), 1.0);
+        assert_eq!(y_axis.z(), 0.0);
+        assert_eq!(z_axis.x(), 0.0);
+        assert_eq!(z_axis.y(), 0.0);
+        assert_eq!(z_axis.z(), 1.0);
+        assert_eq!(zero.x(), 0.0);
+        assert_eq!(zero.y(), 0.0);
+        assert_eq!(zero.z(), 0.0);
+
+        // メソッドテスト（エイリアス機能）
+        let x_axis = Vector3::<f64>::x_axis();
+        let y_axis = Vector3::<f64>::y_axis();
+        let z_axis = Vector3::<f64>::z_axis();
+        let zero = Vector3::<f64>::zero();
+        assert_eq!(x_axis.x(), 1.0);
+        assert_eq!(x_axis.y(), 0.0);
+        assert_eq!(x_axis.z(), 0.0);
+        assert_eq!(y_axis.x(), 0.0);
+        assert_eq!(y_axis.y(), 1.0);
+        assert_eq!(y_axis.z(), 0.0);
+        assert_eq!(z_axis.x(), 0.0);
+        assert_eq!(z_axis.y(), 0.0);
+        assert_eq!(z_axis.z(), 1.0);
+        assert_eq!(zero.x(), 0.0);
+        assert_eq!(zero.y(), 0.0);
+        assert_eq!(zero.z(), 0.0);
+
+        // エイリアスはf32型でも動作することを確認
+        let x_axis_f32 = Vector3::<f32>::x_axis();
+        let zero_f32 = Vector3::<f32>::zero();
+        assert_eq!(x_axis_f32.x(), 1.0f32);
+        assert_eq!(x_axis_f32.y(), 0.0f32);
+        assert_eq!(x_axis_f32.z(), 0.0f32);
+        assert_eq!(zero_f32.x(), 0.0f32);
+        assert_eq!(zero_f32.y(), 0.0f32);
+        assert_eq!(zero_f32.z(), 0.0f32);
+    }
 }
+

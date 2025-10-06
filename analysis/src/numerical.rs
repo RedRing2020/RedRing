@@ -2,9 +2,9 @@
 ///
 /// 交差検出、近似、最適化問題の解法を提供
 
-use geo_core::{Point2D, Point3D, Vector2D, Vector3D, Scalar, ToleranceContext};
-use geo_core::vector::Vector;
-use crate::sampling::{IntersectionCandidate, SamplingResult};
+use geo_core::{Point2D, ToleranceContext};
+use crate::linalg::{Vector2};
+use crate::sampling::{IntersectionCandidate};
 
 /// 数値解法の収束情報
 #[derive(Debug, Clone)]
@@ -343,7 +343,7 @@ impl LeastSquaresFitter {
     }
 
     /// 直線フィッティング
-    pub fn fit_line(&self, points: &[Point2D]) -> Result<(Point2D, Vector2D), String> {
+    pub fn fit_line(&self, points: &[Point2D]) -> Result<(Point2D, Vector2<f64>), String> {
         if points.len() < 2 {
             return Err("Need at least 2 points for line fitting".to_string());
         }
@@ -370,7 +370,7 @@ impl LeastSquaresFitter {
             let avg_y = sum_y / n;
             return Ok((
                 Point2D::from_f64(avg_x, avg_y),
-                Vector2D::from_f64(0.0, 1.0)
+                Vector2::y_axis()
             ));
         }
 
@@ -378,9 +378,8 @@ impl LeastSquaresFitter {
         let intercept = (sum_y - slope * sum_x) / n;
 
         let point = Point2D::from_f64(0.0, intercept);
-        let direction = Vector2D::from_f64(1.0, slope);
-        let tolerance_ctx = ToleranceContext::standard();
-        let direction = direction.normalize(&tolerance_ctx).unwrap_or(Vector2D::from_f64(1.0, 0.0));
+        let direction = Vector2::new(1.0, slope);
+        let direction = direction.normalize().unwrap_or(Vector2::x_axis());
 
         Ok((point, direction))
     }

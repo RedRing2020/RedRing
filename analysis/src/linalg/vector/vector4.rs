@@ -13,14 +13,30 @@ pub struct Vector4<T: Scalar> {
 }
 
 impl<T: Scalar> Vector4<T> {
+    /// X軸単位ベクトル定数
+    pub const X_AXIS: Vector4<f64> = Vector4 { data: [1.0, 0.0, 0.0, 0.0] };
+
+    /// Y軸単位ベクトル定数
+    pub const Y_AXIS: Vector4<f64> = Vector4 { data: [0.0, 1.0, 0.0, 0.0] };
+
+    /// Z軸単位ベクトル定数
+    pub const Z_AXIS: Vector4<f64> = Vector4 { data: [0.0, 0.0, 1.0, 0.0] };
+
+    /// W軸単位ベクトル定数
+    pub const W_AXIS: Vector4<f64> = Vector4 { data: [0.0, 0.0, 0.0, 1.0] };
+
+    /// ゼロベクトル定数
+    pub const ZERO: Vector4<f64> = Vector4 { data: [0.0, 0.0, 0.0, 0.0] };
+
     /// 新しい4Dベクトルを作成
     pub fn new(x: T, y: T, z: T, w: T) -> Self {
         Self { data: [x, y, z, w] }
     }
 
-    /// ゼロベクトル
+    /// ゼロベクトル - ZERO定数のエイリアス
     pub fn zero() -> Self {
-        Self::new(T::ZERO, T::ZERO, T::ZERO, T::ZERO)
+        // 型変換を通じてZERO定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0))
     }
 
     /// 3D点から同次座標へ変換（w=1）
@@ -33,9 +49,30 @@ impl<T: Scalar> Vector4<T> {
         Self::new(x, y, z, T::ZERO)
     }
 
-    /// 同次座標の単位ベクトル（0, 0, 0, 1）
-    pub fn unit_w() -> Self {
-        Self::new(T::ZERO, T::ZERO, T::ZERO, T::ONE)
+
+
+    /// X軸方向の単位ベクトル（1, 0, 0, 0）- X_AXIS定数のエイリアス
+    pub fn x_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(1.0), T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0))
+    }
+
+    /// Y軸方向の単位ベクトル（0, 1, 0, 0）- Y_AXIS定数のエイリアス
+    pub fn y_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(1.0), T::from_f64(0.0), T::from_f64(0.0))
+    }
+
+    /// Z軸方向の単位ベクトル（0, 0, 1, 0）- Z_AXIS定数のエイリアス
+    pub fn z_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(1.0), T::from_f64(0.0))
+    }
+
+    /// W軸方向の単位ベクトル（0, 0, 0, 1）- W_AXIS定数のエイリアス
+    pub fn w_axis() -> Self {
+        // 型変換を通じて定数を任意のScalar型で利用可能にする
+        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0), T::from_f64(1.0))
     }
 
     /// X成分にアクセス
@@ -344,5 +381,74 @@ mod tests {
 
         let dot = v1.dot(&v2);
         assert_eq!(dot, 70.0); // 1*5 + 2*6 + 3*7 + 4*8 = 70
+    }
+
+    #[test]
+    fn test_vector4_axis_constants() {
+        // 定数テスト（f64型）
+        let x_axis = Vector4::<f64>::X_AXIS;
+        let y_axis = Vector4::<f64>::Y_AXIS;
+        let z_axis = Vector4::<f64>::Z_AXIS;
+        let w_axis = Vector4::<f64>::W_AXIS;
+        let zero = Vector4::<f64>::ZERO;
+        assert_eq!(x_axis.x(), 1.0);
+        assert_eq!(x_axis.y(), 0.0);
+        assert_eq!(x_axis.z(), 0.0);
+        assert_eq!(x_axis.w(), 0.0);
+        assert_eq!(y_axis.x(), 0.0);
+        assert_eq!(y_axis.y(), 1.0);
+        assert_eq!(y_axis.z(), 0.0);
+        assert_eq!(y_axis.w(), 0.0);
+        assert_eq!(z_axis.x(), 0.0);
+        assert_eq!(z_axis.y(), 0.0);
+        assert_eq!(z_axis.z(), 1.0);
+        assert_eq!(z_axis.w(), 0.0);
+        assert_eq!(w_axis.x(), 0.0);
+        assert_eq!(w_axis.y(), 0.0);
+        assert_eq!(w_axis.z(), 0.0);
+        assert_eq!(w_axis.w(), 1.0);
+        assert_eq!(zero.x(), 0.0);
+        assert_eq!(zero.y(), 0.0);
+        assert_eq!(zero.z(), 0.0);
+        assert_eq!(zero.w(), 0.0);
+
+        // メソッドテスト（エイリアス機能）
+        let x_axis = Vector4::<f64>::x_axis();
+        let y_axis = Vector4::<f64>::y_axis();
+        let z_axis = Vector4::<f64>::z_axis();
+        let w_axis = Vector4::<f64>::w_axis();
+        let zero = Vector4::<f64>::zero();
+        assert_eq!(x_axis.x(), 1.0);
+        assert_eq!(x_axis.y(), 0.0);
+        assert_eq!(x_axis.z(), 0.0);
+        assert_eq!(x_axis.w(), 0.0);
+        assert_eq!(y_axis.x(), 0.0);
+        assert_eq!(y_axis.y(), 1.0);
+        assert_eq!(y_axis.z(), 0.0);
+        assert_eq!(y_axis.w(), 0.0);
+        assert_eq!(z_axis.x(), 0.0);
+        assert_eq!(z_axis.y(), 0.0);
+        assert_eq!(z_axis.z(), 1.0);
+        assert_eq!(z_axis.w(), 0.0);
+        assert_eq!(w_axis.x(), 0.0);
+        assert_eq!(w_axis.y(), 0.0);
+        assert_eq!(w_axis.z(), 0.0);
+        assert_eq!(w_axis.w(), 1.0);
+        assert_eq!(zero.x(), 0.0);
+        assert_eq!(zero.y(), 0.0);
+        assert_eq!(zero.z(), 0.0);
+        assert_eq!(zero.w(), 0.0);
+
+        // エイリアスのf32型でも動作することを確認
+        let x_axis_f32 = Vector4::<f32>::x_axis();
+        let zero_f32 = Vector4::<f32>::zero();
+        assert_eq!(x_axis_f32.x(), 1.0f32);
+        assert_eq!(x_axis_f32.y(), 0.0f32);
+        assert_eq!(x_axis_f32.z(), 0.0f32);
+        assert_eq!(x_axis_f32.w(), 0.0f32);
+        assert_eq!(zero_f32.x(), 0.0f32);
+        assert_eq!(zero_f32.y(), 0.0f32);
+        assert_eq!(zero_f32.z(), 0.0f32);
+        assert_eq!(zero_f32.w(), 0.0f32);
     }
 }
