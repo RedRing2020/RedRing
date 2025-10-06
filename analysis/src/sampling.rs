@@ -84,7 +84,16 @@ impl AdaptiveSampler {
         F: Fn(f64) -> Point2D,
         G: Fn(f64) -> f64,
     {
+        // 常に開始点を追加（初回のみ）
+        if points.is_empty() {
+            points.push(evaluator(start));
+            parameters.push(start);
+        }
+
         if depth >= self.max_recursion {
+            // 最終点を追加
+            points.push(evaluator(end));
+            parameters.push(end);
             return;
         }
 
@@ -92,15 +101,21 @@ impl AdaptiveSampler {
         let curvature = curvature_fn(mid);
 
         // 高曲率領域では細かくサンプリング
-        let should_subdivide = curvature.abs() > self.tolerance.curvature ||
-                               (end - start) > self.tolerance.parametric;
+        // 許容誤差を調整：曲率の逆数を使用してより実用的な閾値にする
+        let curvature_threshold = 1.0 / self.tolerance.curvature; // 1000.0 相当
+        let parametric_threshold = (end - start) > (2.0 * std::f64::consts::PI / 10.0); // パラメータ範囲の1/10
+
+        let should_subdivide = curvature.abs() > curvature_threshold || parametric_threshold;
 
         if should_subdivide && points.len() < 1000 { // 最大点数制限
             self.sample_recursive(evaluator, curvature_fn, start, mid, depth + 1, points, parameters);
             self.sample_recursive(evaluator, curvature_fn, mid, end, depth + 1, points, parameters);
         } else {
+            // 中間点と終点を追加
             points.push(evaluator(mid));
             parameters.push(mid);
+            points.push(evaluator(end));
+            parameters.push(end);
         }
     }
 
