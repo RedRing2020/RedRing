@@ -55,23 +55,35 @@ pub trait GeometricPrimitive {
 pub mod classification;
 pub use classification::{PrimitiveKind, GeometryClassification, ComplexityLevel};
 
-// CAD統合層（model からの移植）- 構造体別ファイル分割
+// CAD統合層（legacy adapter）: 将来的に削除予定
+#[cfg(feature = "cad-legacy")]
 pub mod cad_point;
+#[cfg(feature = "cad-legacy")]
 pub use cad_point::CadPoint;
 
+#[cfg(feature = "cad-legacy")]
 pub mod cad_vector;
+#[cfg(feature = "cad-legacy")]
 pub use cad_vector::CadVector;
 
+#[cfg(feature = "cad-legacy")]
 pub mod cad_direction;
+#[cfg(feature = "cad-legacy")]
 pub use cad_direction::CadDirection;
 
+#[cfg(feature = "cad-legacy")]
 pub mod cad_circle;
+#[cfg(feature = "cad-legacy")]
 pub use cad_circle::CadCircle;
 
+#[cfg(feature = "cad-legacy")]
 pub mod cad_ellipse;
+#[cfg(feature = "cad-legacy")]
 pub use cad_ellipse::CadEllipse;
 
+#[cfg(feature = "cad-legacy")]
 pub mod cad_ellipse_arc;
+#[cfg(feature = "cad-legacy")]
 pub use cad_ellipse_arc::CadEllipseArc;
 
 // 2Dプリミティブ（削除済み - geo_coreの基本構造体を使用）
@@ -79,9 +91,36 @@ pub use cad_ellipse_arc::CadEllipseArc;
 pub mod triangle;
 pub use triangle::{Triangle2D, Triangle3D};
 
-// 3Dプリミティブ
-pub mod plane;
-pub use plane::Plane;
+// 3Dプリミティブ / geometry3d 統合
+pub mod geometry3d; // legacy (Scalar-based, will be removed)
+
+// Alias layer: expose canonical f64 implementations under old names (no deprecation yet)
+pub mod aliases {
+    pub use crate::f64geom::{
+        FLineSegment3 as LineSegment3D,
+        FPlane as Plane,
+        FCircle3 as Circle3D,
+        FDirection3 as Direction3D,
+    };
+}
+pub use aliases::{LineSegment3D, Plane, Circle3D, Direction3D};
+
+// 新しい f64 ベース幾何カーネル (移行中)
+pub mod f64geom {
+    pub mod vector3; // FVector3
+    pub mod point3;  // FPoint3
+    pub mod direction3; // FDirection3
+    pub mod line_segment3; // FLineSegment3
+    pub mod plane; // FPlane
+    pub mod circle3; // FCircle3
+
+    pub use vector3::FVector3;
+    pub use point3::FPoint3;
+    pub use direction3::FDirection3;
+    pub use line_segment3::FLineSegment3;
+    pub use plane::FPlane;
+    pub use circle3::FCircle3;
+}
 
 pub mod polygon;
 pub use polygon::{Polygon2D, Polygon3D};
@@ -96,7 +135,7 @@ pub mod primitives_2d {
 }
 
 pub mod primitives_3d {
-    pub use geo_core::{Point3D, Sphere};
+    pub use geo_core::Point3D;
     pub use crate::{Triangle3D, Plane, Polygon3D, TriangleMesh};
 }
 
@@ -104,14 +143,21 @@ pub mod primitives_3d {
 pub mod prelude {
     pub use crate::{
         GeometricPrimitive, PrimitiveKind, BoundingBox,
-        // CAD統合層
-        CadPoint, CadVector, CadDirection,
-        CadCircle, CadEllipse, CadEllipseArc,
         // 2D/3Dプリミティブ
         Triangle2D, Triangle3D,
-        Plane,
+    Plane, LineSegment3D, Circle3D, Direction3D,
+    // f64canonical (移行中)
+    f64geom::FVector3, f64geom::FPoint3, f64geom::FDirection3,
+    f64geom::FLineSegment3, f64geom::FPlane, f64geom::FCircle3,
         Polygon2D, Polygon3D,
         TriangleMesh,
+    };
+
+    // CAD統合層 (legacy / gated)
+    #[cfg(feature = "cad-legacy")]
+    pub use crate::{
+        CadPoint, CadVector, CadDirection,
+        CadCircle, CadEllipse, CadEllipseArc,
     };
 }
 

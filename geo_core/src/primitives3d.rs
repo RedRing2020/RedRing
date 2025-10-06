@@ -24,103 +24,21 @@ pub trait ParametricSurface {
     fn normal(&self, u: Scalar, v: Scalar) -> Option<Direction3D>;
 }
 
-/// 3D点
-#[derive(Debug, Clone)]
-pub struct Point3D {
-    x: Scalar,
-    y: Scalar,
-    z: Scalar,
-}
+// Point3D now lives in point3d.rs (always-on); keep ParametricCurve3D signatures unchanged.
 
-impl Point3D {
-    pub fn new(x: Scalar, y: Scalar, z: Scalar) -> Self {
-        Self { x, y, z }
-    }
-
-    pub fn from_f64(x: f64, y: f64, z: f64) -> Self {
-        Self {
-            x: Scalar::new(x),
-            y: Scalar::new(y),
-            z: Scalar::new(z),
-        }
-    }
-
-    pub fn origin() -> Self {
-        Self::from_f64(0.0, 0.0, 0.0)
-    }
-
-    pub fn x(&self) -> &Scalar { &self.x }
-    pub fn y(&self) -> &Scalar { &self.y }
-    pub fn z(&self) -> &Scalar { &self.z }
-
-    pub fn distance_to(&self, other: &Self) -> Scalar {
-        let dx = self.x.clone() - other.x.clone();
-        let dy = self.y.clone() - other.y.clone();
-        let dz = self.z.clone() - other.z.clone();
-        (dx.clone() * dx + dy.clone() * dy + dz.clone() * dz).sqrt()
-    }
-
-    pub fn to_vector(&self) -> Vector3D {
-        Vector3D::new(self.x.clone(), self.y.clone(), self.z.clone())
-    }
-
-    pub fn midpoint(&self, other: &Self) -> Self {
-        let two = Scalar::new(2.0);
-        Self::new(
-            (self.x.clone() + other.x.clone()) / two.clone(),
-            (self.y.clone() + other.y.clone()) / two.clone(),
-            (self.z.clone() + other.z.clone()) / two,
-        )
-    }
-
-    /// 重心計算
-    pub fn centroid(points: &[Self]) -> Option<Self> {
-        if points.is_empty() {
-            return None;
-        }
-
-        let mut sum_x = Scalar::new(0.0);
-        let mut sum_y = Scalar::new(0.0);
-        let mut sum_z = Scalar::new(0.0);
-
-        for point in points {
-            sum_x = sum_x + point.x.clone();
-            sum_y = sum_y + point.y.clone();
-            sum_z = sum_z + point.z.clone();
-        }
-
-        let count = Scalar::new(points.len() as f64);
-        Some(Self::new(
-            sum_x / count.clone(),
-            sum_y / count.clone(),
-            sum_z / count,
-        ))
-    }
-}
-
-impl TolerantEq for Point3D {
-    fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
-        self.x.tolerant_eq(&other.x, context)
-            && self.y.tolerant_eq(&other.y, context)
-            && self.z.tolerant_eq(&other.z, context)
-    }
-}
-
-/// 3D線分
+/// 3D線分 (deprecated: move to geo_primitives::geometry3d::LineSegment3D)
+#[deprecated(note = "Use geo_primitives::geometry3d::LineSegment3D; this core copy will be removed")]
 #[derive(Debug, Clone)]
 pub struct LineSegment3D {
     start: Point3D,
     end: Point3D,
 }
 
+#[allow(deprecated)]
 impl LineSegment3D {
-    pub fn new(start: Point3D, end: Point3D) -> Self {
-        Self { start, end }
-    }
-
+    pub fn new(start: Point3D, end: Point3D) -> Self { Self { start, end } }
     pub fn start(&self) -> &Point3D { &self.start }
     pub fn end(&self) -> &Point3D { &self.end }
-
     pub fn direction(&self) -> Vector3D {
         Vector3D::new(
             self.end.x.clone() - self.start.x.clone(),
@@ -128,12 +46,7 @@ impl LineSegment3D {
             self.end.z.clone() - self.start.z.clone(),
         )
     }
-
-    pub fn midpoint(&self) -> Point3D {
-        self.start.midpoint(&self.end)
-    }
-
-    /// 最接近点への距離
+    pub fn midpoint(&self) -> Point3D { self.start.midpoint(&self.end) }
     pub fn distance_to_point(&self, point: &Point3D) -> Scalar {
         let direction = self.direction();
         let to_point = Vector3D::new(
@@ -141,27 +54,16 @@ impl LineSegment3D {
             point.y.clone() - self.start.y.clone(),
             point.z.clone() - self.start.z.clone(),
         );
-
         let length_sq = direction.dot(&direction);
-        if length_sq.value().abs() < 1e-12 {
-            // 線分が点の場合
-            return self.start.distance_to(point);
-        }
-
+        if length_sq.value().abs() < 1e-12 { return self.start.distance_to(point); }
         let t = to_point.dot(&direction) / length_sq;
-        let t_clamped = if t.value() < 0.0 {
-            Scalar::new(0.0)
-        } else if t.value() > 1.0 {
-            Scalar::new(1.0)
-        } else {
-            t
-        };
-
+        let t_clamped = if t.value() < 0.0 { Scalar::new(0.0) } else if t.value() > 1.0 { Scalar::new(1.0) } else { t };
         let closest = self.evaluate(t_clamped);
         closest.distance_to(point)
     }
 }
 
+#[allow(deprecated)]
 impl ParametricCurve3D for LineSegment3D {
     fn evaluate(&self, t: Scalar) -> Point3D {
         let one_minus_t = Scalar::new(1.0) - t.clone();
@@ -171,21 +73,13 @@ impl ParametricCurve3D for LineSegment3D {
             one_minus_t * self.start.z.clone() + t * self.end.z.clone(),
         )
     }
-
-    fn derivative(&self, _t: Scalar) -> Vector3D {
-        self.direction()
-    }
-
-    fn parameter_bounds(&self) -> (Scalar, Scalar) {
-        (Scalar::new(0.0), Scalar::new(1.0))
-    }
-
-    fn length(&self) -> Scalar {
-        self.start.distance_to(&self.end)
-    }
+    fn derivative(&self, _t: Scalar) -> Vector3D { self.direction() }
+    fn parameter_bounds(&self) -> (Scalar, Scalar) { (Scalar::new(0.0), Scalar::new(1.0)) }
+    fn length(&self) -> Scalar { self.start.distance_to(&self.end) }
 }
 
-/// 平面
+/// 平面 (deprecated: move to geo_primitives::geometry3d::Plane)
+#[deprecated(note = "Use geo_primitives::geometry3d::Plane; this core copy will be removed")]
 #[derive(Debug, Clone)]
 pub struct Plane {
     origin: Point3D,
@@ -194,21 +88,19 @@ pub struct Plane {
     normal: Direction3D,
 }
 
+#[allow(deprecated)]
 impl Plane {
     pub fn new(origin: Point3D, u_axis: Vector3D, v_axis: Vector3D) -> Option<Self> {
         let context = ToleranceContext::standard();
         let normal = Direction3D::from_vector(u_axis.cross(&v_axis), &context)?;
         Some(Self { origin, u_axis, v_axis, normal })
     }
-
     pub fn from_point_and_normal(origin: Point3D, normal: Direction3D) -> Self {
-        // 適当な直交基底を生成
         let context = ToleranceContext::standard();
         let (u_axis, v_axis) = normal.orthonormal_basis(&context);
         Self { origin, u_axis, v_axis, normal }
     }
-
-    pub fn from_three_points(p1: &Point3D, p2: &Point3D, p3: &Point3D) -> Option<Self> {
+    pub fn from_three_points(p1:&Point3D,p2:&Point3D,p3:&Point3D)->Option<Self>{
         let u_axis = Vector3D::new(
             p2.x.clone() - p1.x.clone(),
             p2.y.clone() - p1.y.clone(),
@@ -221,14 +113,11 @@ impl Plane {
         );
         Self::new(p1.clone(), u_axis, v_axis)
     }
-
-    pub fn origin(&self) -> &Point3D { &self.origin }
-    pub fn normal(&self) -> &Direction3D { &self.normal }
-    pub fn u_axis(&self) -> &Vector3D { &self.u_axis }
-    pub fn v_axis(&self) -> &Vector3D { &self.v_axis }
-
-    /// 点から平面への距離
-    pub fn distance_to_point(&self, point: &Point3D) -> Scalar {
+    pub fn origin(&self)->&Point3D { &self.origin }
+    pub fn normal(&self)->&Direction3D { &self.normal }
+    pub fn u_axis(&self)->&Vector3D { &self.u_axis }
+    pub fn v_axis(&self)->&Vector3D { &self.v_axis }
+    pub fn distance_to_point(&self, point:&Point3D)->Scalar {
         let to_point = Vector3D::new(
             point.x.clone() - self.origin.x.clone(),
             point.y.clone() - self.origin.y.clone(),
@@ -236,9 +125,7 @@ impl Plane {
         );
         to_point.dot(self.normal.as_vector()).abs()
     }
-
-    /// 点の平面上への投影
-    pub fn project_point(&self, point: &Point3D) -> Point3D {
+    pub fn project_point(&self, point:&Point3D)->Point3D {
         let to_point = Vector3D::new(
             point.x.clone() - self.origin.x.clone(),
             point.y.clone() - self.origin.y.clone(),
@@ -246,9 +133,9 @@ impl Plane {
         );
         let distance = to_point.dot(self.normal.as_vector());
         Point3D::new(
-            point.x.clone() - distance.clone() * self.normal.x().clone(),
-            point.y.clone() - distance.clone() * self.normal.y().clone(),
-            point.z.clone() - distance * self.normal.z().clone(),
+            point.x.clone() - distance.clone()*self.normal.x().clone(),
+            point.y.clone() - distance.clone()*self.normal.y().clone(),
+            point.z.clone() - distance*self.normal.z().clone(),
         )
     }
 }

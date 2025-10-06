@@ -5,12 +5,13 @@ edition = "2021"
 
 [dependencies]
 geo_core = { path = "../geo_core" }
-model = { path = "../model" }
-analysis = { path = "../analysis" }
+analysis = { path = "../analysis", optional = true }
 
 [features]
 default = []
 serde = ["dep:serde"]
+# Enable legacy CAD_* adapter layer until primitive parity completed
+cad-legacy = ["analysis"]
 
 [dependencies.serde]
 version = "1.0"
