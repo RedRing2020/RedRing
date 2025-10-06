@@ -72,5 +72,25 @@ pub trait Vector<const D: usize>:
     fn zero() -> Self;
 }
 
+/// 2Dベクトル専用のトレイト拡張
+pub trait Vector2DExt: Vector<2> {
+    /// 90度回転（反時計回り）
+    fn perpendicular(&self) -> Self;
+
+    /// 2D外積（スカラー値）
+    fn cross_2d(&self, other: &Self) -> f64;
+}
+
+/// 3Dベクトル専用のトレイト拡張
+pub trait Vector3DExt: Vector<3> {
+    /// 外積
+    fn cross(&self, other: &Self) -> Self;
+
+    /// 2Dへの投影
+    fn to_2d_xy(&self) -> crate::geometry2d::Vector2D;
+    fn to_2d_xz(&self) -> crate::geometry2d::Vector2D;
+    fn to_2d_yz(&self) -> crate::geometry2d::Vector2D;
+}
+
 /// デフォルトの許容誤差
 pub const DEFAULT_VECTOR_TOLERANCE: f64 = 1e-10;
