@@ -127,15 +127,19 @@ fn test_vector3d_scalar_triple_product() {
 
 #[test]
 fn test_vector3d_vector_triple_product() {
+    // より分かりやすいテストケース: a = (1,0,0), b = (1,1,0), c = (0,1,1)
     let a = Vector3D::from_f64(1.0, 0.0, 0.0);
-    let b = Vector3D::from_f64(0.0, 1.0, 0.0);
-    let c = Vector3D::from_f64(0.0, 0.0, 1.0);
+    let b = Vector3D::from_f64(1.0, 1.0, 0.0);
+    let c = Vector3D::from_f64(0.0, 1.0, 1.0);
 
     let result = a.vector_triple_product(&b, &c);
-    // a×(b×c) = a×(-1,0,0) = (0,-1,0)
+    // a×(b×c) = b(a·c) - c(a·b)
+    // a·c = 1*0 + 0*1 + 0*1 = 0
+    // a·b = 1*1 + 0*1 + 0*0 = 1
+    // 結果: b*0 - c*1 = (0,0,0) - (0,1,1) = (0,-1,-1)
     assert_eq!(result.x().value(), 0.0);
     assert_eq!(result.y().value(), -1.0);
-    assert_eq!(result.z().value(), 0.0);
+    assert_eq!(result.z().value(), -1.0);
 }
 
 // Direction3D テスト
