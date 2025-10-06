@@ -188,12 +188,12 @@ fn test_direction3d_orthonormal_basis() {
     let dir = Direction3D::new(1.0, 0.0, 0.0, &context).unwrap();
 
     let (u, v) = dir.orthonormal_basis(&context);
-    
+
     // uとvは互いに直交し、dirとも直交している
     assert!(dir.as_vector().is_perpendicular_to(&u, &context));
     assert!(dir.as_vector().is_perpendicular_to(&v, &context));
     assert!(u.is_perpendicular_to(&v, &context));
-    
+
     // uとvは単位ベクトル
     assert!(u.is_unit(&context));
     assert!(v.is_unit(&context));

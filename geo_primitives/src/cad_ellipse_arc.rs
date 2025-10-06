@@ -1,5 +1,5 @@
 /// CAD EllipseArc - modelからの楕円弧構造体移植
-/// 
+///
 /// Scalar基礎計算を使用した高精度楕円弧演算を提供
 
 use geo_core::Scalar;
