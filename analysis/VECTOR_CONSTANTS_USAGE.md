@@ -36,7 +36,7 @@ let y_axis_f64 = Vector3::<f64>::y_axis(); // (0.0, 1.0, 0.0)
 let z_axis_f64 = Vector3::<f64>::z_axis(); // (0.0, 0.0, 1.0)
 ```
 
-### Vector4（.NET準拠）
+### Vector4（.NET 準拠）
 
 ```rust
 use analysis::linalg::Vector4;
@@ -97,7 +97,7 @@ let right = Vector3::<f64>::X_AXIS;    // X軸を右方向とする
 let rotation_around_y = some_matrix.rotate_around_axis(&Vector3::y_axis(), angle);
 ```
 
-### 4D ベクトルの実用例（.NET準拠）
+### 4D ベクトルの実用例（.NET 準拠）
 
 ```rust
 use analysis::linalg::Vector4;
