@@ -47,6 +47,7 @@ dependencies = [
  "approx",
  "geo_algorithms",
  "geo_core",
+ "geo_primitives",
 ]
 
 [[package]]

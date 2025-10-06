@@ -3,185 +3,92 @@
 /// geo_core数学基礎処理を利用して、点・線分・円・平面・
 /// 多角形・三角形メッシュ等のプリミティブ形状を定義して分類分けを行う
 
-/// 幾何計算ユーティリティ
-pub mod geometry_utils;
+/// トレイト定義群（再構成済み）
+pub mod traits;
 
-/// 3Dバウンディングボックス
-#[derive(Debug, Clone)]
-pub struct BoundingBox {
-    pub min: geo_core::Point3D,
-    pub max: geo_core::Point3D,
-}
+/// ユニットテスト群
+#[cfg(test)]
+mod unit_tests;
 
-impl BoundingBox {
-    pub fn new(min: geo_core::Point3D, max: geo_core::Point3D) -> Self {
-        Self { min, max }
-    }
+/// 2D幾何プリミティブ
+pub mod geometry2d;
 
-    /// 2D点から3Dバウンディングボックスを作成（Z=0）
-    pub fn from_2d(min: geo_core::Point2D, max: geo_core::Point2D) -> Self {
-        Self {
-            min: geo_core::Point3D::new(*min.x(), *min.y(), geo_core::Scalar::new(0.0)),
-            max: geo_core::Point3D::new(*max.x(), *max.y(), geo_core::Scalar::new(0.0)),
-        }
-    }
+/// 3D幾何プリミティブ (f64ベース)
+pub mod geometry3d;
 
-    pub fn width(&self) -> f64 {
-        self.max.x().value() - self.min.x().value()
-    }
 
-    pub fn height(&self) -> f64 {
-        self.max.y().value() - self.min.y().value()
-    }
 
-    pub fn depth(&self) -> f64 {
-        self.max.z().value() - self.min.z().value()
-    }
-}
 
-/// 全ての幾何プリミティブが実装する共通トレイト
-pub trait GeometricPrimitive {
-    /// プリミティブの種類を返す
-    fn primitive_kind(&self) -> PrimitiveKind;
 
-    /// バウンディングボックスを返す
-    fn bounding_box(&self) -> BoundingBox;
+// 分類システム、プリミティブトレイト（traitsモジュールから）
+pub use traits::common::{
+    PrimitiveKind, DimensionClass, GeometryPrimitive,
+    GeometricPrimitive, TransformablePrimitive, MeasurablePrimitive, PrimitiveCollection
+};
 
-    /// プリミティブの測定値（長さ、面積、体積など）を返す
-    fn measure(&self) -> Option<f64>;
-}
+// バウンディングボックス（geometryモジュールから）
+pub use geometry2d::BBox2D;
+pub use geometry3d::BBox3D;
 
-// 分類システム
-pub mod classification;
-pub use classification::{PrimitiveKind, GeometryClassification, ComplexityLevel};
+// バウンディングボックストレイト
+pub use traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
-// CAD統合層: analysisからの依存を解決して常時利用可能に
-pub mod cad_point;
-pub use cad_point::CadPoint;
+// CAD統合層（traitsモジュールから）
+pub use traits::geometry::{CadPoint, CadVector};
 
-pub mod cad_vector;
-pub use cad_vector::CadVector;
-
+// 残りのCAD構造体（独立）
 pub mod cad_direction;
-pub use cad_direction::CadDirection;
-
 pub mod cad_circle;
-pub use cad_circle::CadCircle;
-
 pub mod cad_ellipse;
-pub use cad_ellipse::CadEllipse;
-
 pub mod cad_ellipse_arc;
+
+pub use cad_direction::CadDirection;
+pub use cad_circle::CadCircle;
+pub use cad_ellipse::CadEllipse;
 pub use cad_ellipse_arc::CadEllipseArc;
 
 // 2Dプリミティブ（削除済み - geo_coreの基本構造体を使用）
-
-pub mod triangle;
-pub use triangle::{Triangle2D, Triangle3D};
+// Triangle modules removed - use f64geom or create minimal implementations if needed
 
 // 3Dプリミティブ / geometry3d 統合
 // pub mod geometry3d; // legacy (Scalar-based) - removed, use f64geom instead
 
-// Alias layer: expose canonical f64 implementations under old names (no deprecation yet)
-pub mod aliases {
-    pub use crate::f64geom::{
-        FLineSegment3 as LineSegment3D,
-        FPlane as Plane,
-        FCircle3 as Circle3D,
-        FDirection3 as Direction3D,
-    };
-}
-pub use aliases::{LineSegment3D, Plane, Circle3D, Direction3D};
+// 正準f64幾何プリミティブの公開（最小構成）
+pub use geometry2d::{Point2D, Vector2D};
+pub use geometry3d::{Vector3D, Point3D};
 
-// 新しい f64 ベース幾何カーネル (移行中)
-pub mod f64geom {
-    pub mod vector3; // FVector3
-    pub mod point3;  // FPoint3
-    pub mod direction3; // FDirection3
-    pub mod line_segment3; // FLineSegment3
-    pub mod plane; // FPlane
-    pub mod circle3; // FCircle3
+// Polygon module removed - use f64geom or create minimal implementations if needed
 
-    pub use vector3::FVector3;
-    pub use point3::FPoint3;
-    pub use direction3::FDirection3;
-    pub use line_segment3::FLineSegment3;
-    pub use plane::FPlane;
-    pub use circle3::FCircle3;
-}
-
-pub mod polygon;
-pub use polygon::{Polygon2D, Polygon3D};
-
-pub mod mesh;
-pub use mesh::TriangleMesh;
+// pub mod mesh;  // 一時的にコメントアウト (Point3D依存のため)
+// pub use mesh::TriangleMesh;
 
 // 名前空間の整理
 pub mod primitives_2d {
-    pub use geo_core::{Point2D, LineSegment2D};
-    pub use crate::{Triangle2D, Polygon2D};
+    pub use crate::Point2D;
+    // Triangle2D, Polygon2D removed - use f64geom implementations if needed
+    // LineSegment2D - TODO: implement f64 version
 }
 
 pub mod primitives_3d {
-    pub use geo_core::Point3D;
-    pub use crate::{Triangle3D, Plane, Polygon3D, TriangleMesh};
+    // All primitives temporarily commented out - minimal implementation
 }
 
 /// 便利な再エクスポート
 pub mod prelude {
     pub use crate::{
-        GeometricPrimitive, PrimitiveKind, BoundingBox,
+        GeometricPrimitive, TransformablePrimitive, MeasurablePrimitive, PrimitiveCollection,
+        PrimitiveKind, DimensionClass,
+        // バウンディングボックス
+        BBox2D, BBox3D, BoundingBox, BoundingBoxOps, CollisionBounds,
         // 2D/3Dプリミティブ
-        Triangle2D, Triangle3D,
-    Plane, LineSegment3D, Circle3D, Direction3D,
-    // f64canonical (移行中)
-    f64geom::FVector3, f64geom::FPoint3, f64geom::FDirection3,
-    f64geom::FLineSegment3, f64geom::FPlane, f64geom::FCircle3,
-        Polygon2D, Polygon3D,
-        TriangleMesh,
-    };
-
-    // CAD統合層 (analysis依存を削除済み)
-    pub use crate::{
+        Point2D, Vector2D, Point3D, Vector3D,
+        // CAD統合層
         CadPoint, CadVector, CadDirection,
         CadCircle, CadEllipse, CadEllipseArc,
     };
+
+    // ベクトルトレイト
+    pub use crate::traits::{Vector, Vector2DExt, Vector3DExt, Normalizable};
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use geo_core::Scalar;
 
-    #[test]
-    fn test_bounding_box_dimensions() {
-        let min = geo_core::Point3D::new(
-            Scalar::new(0.0),
-            Scalar::new(0.0),
-            Scalar::new(0.0),
-        );
-        let max = geo_core::Point3D::new(
-            Scalar::new(2.0),
-            Scalar::new(3.0),
-            Scalar::new(4.0),
-        );
-
-        let bbox = BoundingBox::new(min, max);
-
-        assert!((bbox.width() - 2.0).abs() < 1e-10);
-        assert!((bbox.height() - 3.0).abs() < 1e-10);
-        assert!((bbox.depth() - 4.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_from_2d_bounding_box() {
-        let min_2d = geo_core::Point2D::from_f64(1.0, 2.0);
-        let max_2d = geo_core::Point2D::from_f64(3.0, 4.0);
-
-        let bbox = BoundingBox::from_2d(min_2d, max_2d);
-
-        assert!((bbox.width() - 2.0).abs() < 1e-10);
-        assert!((bbox.height() - 2.0).abs() < 1e-10);
-        assert!((bbox.depth() - 0.0).abs() < 1e-10);
-    }
-}

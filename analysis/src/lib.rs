@@ -12,13 +12,14 @@ pub mod geometry;    // 幾何特化数値計算
 #[cfg(test)]
 mod unit_tests;
 
-// geo_algorithmsからの再エクスポート
+// geo_algorithmsからの再エクスポート (一時的にコメントアウト)
 pub use geo_algorithms::{
-    Point2D, Point3D, Vector2D, Vector3D, Scalar, ToleranceContext, GEOMETRIC_TOLERANCE,
-    NewtonSolver, ConvergenceInfo,
-    BasicStats, PointCluster, RegressionResult,
-    SamplingResult, QualityMetrics, IntersectionCandidate,
-    LinearInterpolator, BezierCurve, CatmullRomSpline,
+    Point2D, Vector2D, Vector3D, Scalar, ToleranceContext,
+    // Point3D, GEOMETRIC_TOLERANCE,  // 一時的にコメントアウト
+    // NewtonSolver, ConvergenceInfo,
+    // BasicStats, PointCluster, RegressionResult,
+    // SamplingResult, QualityMetrics, IntersectionCandidate,
+    // LinearInterpolator, BezierCurve, CatmullRomSpline,
 };
 
 // 定数の再エクスポート

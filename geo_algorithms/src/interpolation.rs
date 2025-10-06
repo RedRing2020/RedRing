@@ -1,8 +1,8 @@
-/// 補間・近似機能
-///
-/// 線形補間、スプライン補間、ベジエ曲線補間を提供する
+/// 補間、曲線近似用関数群
+/// 線形、ベジェ、Catmull-Rom、NURBS風の補間、近似
 
-use geo_core::{Point2D, Vector2D, ToleranceContext};
+use geo_core::{Vector2D, ToleranceContext};
+// use geo_primitives::Point2D;  // 一時的にコメントアウト
 
 /// 線形補間器
 pub struct LinearInterpolator {

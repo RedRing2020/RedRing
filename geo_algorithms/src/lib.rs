@@ -31,16 +31,18 @@
 //! - `sampling`: サンプリング手法 (適応サンプリング、パターン解析)
 //! - `interpolation`: 補間・近似 (スプライン、ベジエ、NURBS基盤)
 
-pub mod numerical;
-pub mod statistics; 
-pub mod sampling;
-pub mod interpolation;
+// Point2D API互換性問題により一時的にコメントアウト
+// pub mod numerical;
+// pub mod statistics;
+// pub mod sampling;
+// pub mod interpolation;// 主要な型とトレイトの再エクスポート
+// Point2D API互換性問題により一時的にコメントアウト
+// pub use numerical::{NewtonSolver, ConvergenceInfo};
+// pub use statistics::{BasicStats, PointCluster, RegressionResult};
+// pub use sampling::{SamplingResult, QualityMetrics, IntersectionCandidate};
+// pub use interpolation::{LinearInterpolator, BezierCurve, CatmullRomSpline};
 
-// 主要な型とトレイトの再エクスポート
-pub use numerical::{NewtonSolver, ConvergenceInfo};
-pub use statistics::{BasicStats, PointCluster, RegressionResult};
-pub use sampling::{SamplingResult, QualityMetrics, IntersectionCandidate};
-pub use interpolation::{LinearInterpolator, BezierCurve, CatmullRomSpline};
-
-// geo_coreからの基本型の再エクスポート
-pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D, Scalar, ToleranceContext, GEOMETRIC_TOLERANCE};
+// geo_coreからの基本型の再エクスポート  
+pub use geo_core::{Vector2D, Vector3D, Scalar, ToleranceContext}; 
+pub use geo_primitives::Point2D;
+// pub use geo_primitives::Point3D;  // Point3D は一時的にコメントアウト

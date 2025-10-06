@@ -4,7 +4,7 @@
 
 use geo_core::{Vector3D, Scalar};
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
-use geo_core::Point3D;
+// Point3D removed - using tuple-based coordinate
 
 /// 3D三角形メッシュプリミティブ
 #[derive(Debug, Clone)]

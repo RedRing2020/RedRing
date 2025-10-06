@@ -7,5 +7,4 @@ pub mod scalar;
 pub mod tolerance;
 pub mod vector;
 pub mod robust;
-pub mod primitives2d;
-pub mod primitives3d;
+// Primitives tests removed - use geo_primitives instead

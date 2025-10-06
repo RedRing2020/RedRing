@@ -1,12 +1,16 @@
-/// 2次元幾何プリミティブ
-///
-/// 2D空間での基本的な幾何要素（点、曲線）の定義と実装。
+//! # 2次元幾何プリミティブ - 廃止予定
+//!
+//! **⚠️ このモジュールは廃止予定です。`geo_primitives` クレートをご利用ください。**
+//!
+//! geo_coreは数値計算・許容誤差・ロバスト判定に特化し、
+//! 幾何プリミティブはgeo_primitivesに統合されました。
 
 use crate::tolerance::{ToleranceContext, TolerantEq};
 use crate::scalar::Scalar;
 use crate::vector::{Vector, Vector2D};
 
 /// パラメトリック曲線トレイト（2D）
+#[deprecated(note = "Use geo_primitives instead")]
 pub trait ParametricCurve2D {
     fn evaluate(&self, t: Scalar) -> Point2D;
     fn derivative(&self, t: Scalar) -> Vector2D;
@@ -18,6 +22,7 @@ pub trait ParametricCurve2D {
 /// 
 /// 座標値はmm単位で格納される
 #[derive(Debug, Clone, Copy)]
+#[deprecated(note = "Use geo_primitives::Point2D instead")]
 pub struct Point2D {
     x: Scalar,
     y: Scalar,
@@ -69,6 +74,7 @@ impl TolerantEq for Point2D {
 
 /// 2D線分
 #[derive(Debug, Clone)]
+#[deprecated(note = "Use geo_primitives::LineSegment2D instead")]
 pub struct LineSegment2D {
     start: Point2D,
     end: Point2D,
@@ -144,6 +150,7 @@ impl ParametricCurve2D for LineSegment2D {
 
 /// 円弧（2D）
 #[derive(Debug, Clone)]
+#[deprecated(note = "Use geo_primitives::Arc2D instead")]
 pub struct Arc2D {
     center: Point2D,
     radius: Scalar,
@@ -202,6 +209,7 @@ impl ParametricCurve2D for Arc2D {
 
 /// 2D多角形
 #[derive(Debug, Clone)]
+#[deprecated(note = "Use geo_primitives::Polygon2D instead")]
 pub struct Polygon2D {
     vertices: Vec<Point2D>,
 }

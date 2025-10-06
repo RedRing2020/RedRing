@@ -7,9 +7,9 @@
 //!
 //! ## 役割境界 (Target Architecture)
 //! ```text
-//! +----------------------+  上位アルゴリズム / 解析 (model, analysis)
-//! |   model / analysis   |
-//! +-----------+----------+
+//! +----------------------+  許容誤差 / ロバスト判定 / 基本数値ユーティリティ
+//! |       geo_core        |
+//! +----------------------+
 //!             |
 //!             v
 //! +----------------------+  f64 ベース幾何プリミティブ (点 / ベクトル / 方向 / 面 / 曲線 ...)
@@ -17,9 +17,9 @@
 //! +-----------+----------+
 //!             |
 //!             v
-//! +----------------------+  許容誤差 / ロバスト判定 / 基本数値ユーティリティ
-//! |       geo_core        |
-//! +----------------------+
+//! +----------------------+  数値解析 / 線形代数 / 微積分
+//! |   model / analysis   |
+//! +-----------+----------+
 //! ```
 //!
 //! ## 今後の縮小計画 (Roadmap Snapshot)
@@ -49,10 +49,7 @@ pub mod scalar;
 pub mod vector;
 pub mod tolerance;
 pub mod robust;
-pub mod primitives;
-pub mod primitives2d;
-// 3D primitives (deprecated) - removed, use geo_primitives instead
-pub mod point3d; // always-on Point3D
+// Primitives modules removed - use geo_primitives instead
 
 // テストモジュール
 #[cfg(test)]
@@ -62,13 +59,7 @@ mod unit_tests;
 pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use scalar::Scalar;
 pub use vector::{Vector, Vector2D, Vector3D};
-// Direction3D is deprecated in core - removed, use geo_primitives::Direction3D instead
-pub use primitives::{
-    Point2D, LineSegment2D,
-    Arc2D, Polygon2D,
-    ParametricCurve2D,
-};
-pub use point3d::Point3D;
+// Primitives re-exports removed - use geo_primitives instead
 
 // Re-export deprecated 3D items - removed, use geo_primitives instead
 pub use robust::{Orientation, RobustSolver};
@@ -83,14 +74,12 @@ pub const DEFAULT_TOLERANCE: ToleranceContext = ToleranceContext {
     volume: 1e-18,     // 体積許容誤差
 };
 
-/// プリファクトリ：よく使用される値の作成
+/// プリファクトリ：よく使用される値の作成  
 pub mod prelude {
     pub use crate::{
-        Point2D, Point3D, Vector2D, Vector3D,
+        Vector2D, Vector3D,
         ToleranceContext, TolerantEq, TolerantOrd,
         DEFAULT_TOLERANCE,
     };
-    // Legacy 3D primitives removed - use geo_primitives instead
+    // Primitives removed - use geo_primitives::prelude instead
 }
-
-

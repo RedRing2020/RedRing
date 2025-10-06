@@ -11,6 +11,6 @@ default = []
 serde = ["dep:serde"]
 
 [dependencies.serde]
-version = "1.0"
+version = "1.0.228"
 features = ["derive"]
 optional = true
