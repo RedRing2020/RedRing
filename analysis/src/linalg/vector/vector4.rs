@@ -1,0 +1,348 @@
+/// 4次元ベクトル（同次座標系）
+/// 
+/// 4x4変換行列との演算、同次座標系での3D変換に使用
+/// 透視投影やアフィン変換での座標計算に最適化
+
+use crate::linalg::scalar::Scalar;
+use std::ops::{Add, Sub, Mul, Neg};
+
+/// 4次元固定サイズベクトル（同次座標系）
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vector4<T: Scalar> {
+    pub data: [T; 4],
+}
+
+impl<T: Scalar> Vector4<T> {
+    /// 新しい4Dベクトルを作成
+    pub fn new(x: T, y: T, z: T, w: T) -> Self {
+        Self { data: [x, y, z, w] }
+    }
+
+    /// ゼロベクトル
+    pub fn zero() -> Self {
+        Self::new(T::ZERO, T::ZERO, T::ZERO, T::ZERO)
+    }
+
+    /// 3D点から同次座標へ変換（w=1）
+    pub fn from_point(x: T, y: T, z: T) -> Self {
+        Self::new(x, y, z, T::ONE)
+    }
+
+    /// 3D方向ベクトルから同次座標へ変換（w=0）
+    pub fn from_direction(x: T, y: T, z: T) -> Self {
+        Self::new(x, y, z, T::ZERO)
+    }
+
+    /// 同次座標の単位ベクトル（0, 0, 0, 1）
+    pub fn unit_w() -> Self {
+        Self::new(T::ZERO, T::ZERO, T::ZERO, T::ONE)
+    }
+
+    /// X成分にアクセス
+    pub fn x(&self) -> T { 
+        self.data[0] 
+    }
+
+    /// Y成分にアクセス
+    pub fn y(&self) -> T { 
+        self.data[1] 
+    }
+
+    /// Z成分にアクセス
+    pub fn z(&self) -> T { 
+        self.data[2] 
+    }
+
+    /// W成分にアクセス
+    pub fn w(&self) -> T { 
+        self.data[3] 
+    }
+
+    /// 成分を設定
+    pub fn set_x(&mut self, x: T) {
+        self.data[0] = x;
+    }
+
+    pub fn set_y(&mut self, y: T) {
+        self.data[1] = y;
+    }
+
+    pub fn set_z(&mut self, z: T) {
+        self.data[2] = z;
+    }
+
+    pub fn set_w(&mut self, w: T) {
+        self.data[3] = w;
+    }
+
+    /// 内積
+    pub fn dot(&self, other: &Self) -> T {
+        self.data[0] * other.data[0] + 
+        self.data[1] * other.data[1] + 
+        self.data[2] * other.data[2] +
+        self.data[3] * other.data[3]
+    }
+
+    /// ユークリッドノルム
+    pub fn norm(&self) -> T {
+        (self.data[0] * self.data[0] + 
+         self.data[1] * self.data[1] + 
+         self.data[2] * self.data[2] +
+         self.data[3] * self.data[3]).sqrt()
+    }
+
+    /// ノルムの2乗（平方根計算を避ける）
+    pub fn norm_squared(&self) -> T {
+        self.data[0] * self.data[0] + 
+        self.data[1] * self.data[1] + 
+        self.data[2] * self.data[2] +
+        self.data[3] * self.data[3]
+    }
+
+    /// 正規化（単位ベクトル化）
+    pub fn normalize(&self) -> Result<Self, String> {
+        let norm = self.norm();
+        if norm.is_zero() {
+            return Err("Cannot normalize zero vector".to_string());
+        }
+        Ok(Self::new(
+            self.data[0] / norm,
+            self.data[1] / norm,
+            self.data[2] / norm,
+            self.data[3] / norm
+        ))
+    }
+
+    /// 同次座標からユークリッド座標への変換（w除法）
+    pub fn to_euclidean(&self) -> Result<super::vector3::Vector3<T>, String> {
+        if self.data[3].is_zero() {
+            return Err("Cannot convert to euclidean: w component is zero".to_string());
+        }
+        Ok(super::vector3::Vector3::new(
+            self.data[0] / self.data[3],
+            self.data[1] / self.data[3],
+            self.data[2] / self.data[3]
+        ))
+    }
+
+    /// ユークリッド座標から同次座標への変換（静的メソッド）
+    pub fn from_euclidean(v: super::vector3::Vector3<T>) -> Self {
+        Self::new(v.x(), v.y(), v.z(), T::ONE)
+    }
+
+    /// 3次元部分を取得（w成分を無視）
+    pub fn xyz(&self) -> super::vector3::Vector3<T> {
+        super::vector3::Vector3::new(self.data[0], self.data[1], self.data[2])
+    }
+
+    /// 同次座標が点を表すかチェック（w != 0）
+    pub fn is_point(&self) -> bool {
+        !self.data[3].is_zero()
+    }
+
+    /// 同次座標が方向ベクトルを表すかチェック（w == 0）
+    pub fn is_direction(&self) -> bool {
+        self.data[3].is_zero()
+    }
+
+    /// 透視除法後の有効性をチェック
+    pub fn is_valid_homogeneous(&self) -> bool {
+        // w が非常に小さい場合は無効とみなす
+        self.data[3].abs() > T::EPSILON
+    }
+
+    /// 線形補間
+    pub fn lerp(&self, other: &Self, t: T) -> Self {
+        *self * (T::ONE - t) + *other * t
+    }
+
+    /// スカラー倍
+    pub fn scale(&self, scalar: T) -> Self {
+        Self::new(
+            self.data[0] * scalar,
+            self.data[1] * scalar,
+            self.data[2] * scalar,
+            self.data[3] * scalar
+        )
+    }
+
+    /// 要素ごとの積（Hadamard積）
+    pub fn hadamard(&self, other: &Self) -> Self {
+        Self::new(
+            self.data[0] * other.data[0],
+            self.data[1] * other.data[1],
+            self.data[2] * other.data[2],
+            self.data[3] * other.data[3]
+        )
+    }
+
+    /// 要素ごとの最小値
+    pub fn min(&self, other: &Self) -> Self {
+        Self::new(
+            self.data[0].min(other.data[0]),
+            self.data[1].min(other.data[1]),
+            self.data[2].min(other.data[2]),
+            self.data[3].min(other.data[3])
+        )
+    }
+
+    /// 要素ごとの最大値
+    pub fn max(&self, other: &Self) -> Self {
+        Self::new(
+            self.data[0].max(other.data[0]),
+            self.data[1].max(other.data[1]),
+            self.data[2].max(other.data[2]),
+            self.data[3].max(other.data[3])
+        )
+    }
+
+    /// 絶対値
+    pub fn abs(&self) -> Self {
+        Self::new(
+            self.data[0].abs(),
+            self.data[1].abs(),
+            self.data[2].abs(),
+            self.data[3].abs()
+        )
+    }
+
+    /// クリッピング座標系での深度値を取得
+    pub fn depth(&self) -> T {
+        if self.data[3].is_zero() {
+            T::ZERO
+        } else {
+            self.data[2] / self.data[3]
+        }
+    }
+
+    /// NDC（正規化デバイス座標）への変換
+    pub fn to_ndc(&self) -> Result<super::vector3::Vector3<T>, String> {
+        if self.data[3].is_zero() {
+            return Err("Cannot convert to NDC: w component is zero".to_string());
+        }
+        let w_inv = T::ONE / self.data[3];
+        Ok(super::vector3::Vector3::new(
+            self.data[0] * w_inv,
+            self.data[1] * w_inv,
+            self.data[2] * w_inv
+        ))
+    }
+}
+
+// 演算子オーバーロード
+impl<T: Scalar> Add for Vector4<T> {
+    type Output = Self;
+    fn add(self, other: Self) -> Self::Output {
+        Self::new(
+            self.data[0] + other.data[0],
+            self.data[1] + other.data[1],
+            self.data[2] + other.data[2],
+            self.data[3] + other.data[3]
+        )
+    }
+}
+
+impl<T: Scalar> Sub for Vector4<T> {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self::Output {
+        Self::new(
+            self.data[0] - other.data[0],
+            self.data[1] - other.data[1],
+            self.data[2] - other.data[2],
+            self.data[3] - other.data[3]
+        )
+    }
+}
+
+impl<T: Scalar> Mul<T> for Vector4<T> {
+    type Output = Self;
+    fn mul(self, scalar: T) -> Self::Output {
+        Self::new(
+            self.data[0] * scalar,
+            self.data[1] * scalar,
+            self.data[2] * scalar,
+            self.data[3] * scalar
+        )
+    }
+}
+
+impl<T: Scalar> Neg for Vector4<T> {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self::new(-self.data[0], -self.data[1], -self.data[2], -self.data[3])
+    }
+}
+
+/// 型エイリアス
+pub type Vector4f = Vector4<f32>;
+pub type Vector4d = Vector4<f64>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vector4_creation() {
+        let v = Vector4::new(1.0, 2.0, 3.0, 4.0);
+        assert_eq!(v.x(), 1.0);
+        assert_eq!(v.y(), 2.0);
+        assert_eq!(v.z(), 3.0);
+        assert_eq!(v.w(), 4.0);
+    }
+
+    #[test]
+    fn test_vector4_homogeneous_conversion() {
+        let point = Vector4::from_point(2.0, 4.0, 6.0);
+        let euclidean = point.to_euclidean().unwrap();
+        
+        assert_eq!(euclidean.x(), 2.0);
+        assert_eq!(euclidean.y(), 4.0);
+        assert_eq!(euclidean.z(), 6.0);
+    }
+
+    #[test]
+    fn test_vector4_perspective_division() {
+        let v = Vector4::new(4.0, 8.0, 12.0, 2.0);
+        let euclidean = v.to_euclidean().unwrap();
+        
+        assert_eq!(euclidean.x(), 2.0);
+        assert_eq!(euclidean.y(), 4.0);
+        assert_eq!(euclidean.z(), 6.0);
+    }
+
+    #[test]
+    fn test_vector4_point_direction_check() {
+        let point = Vector4::from_point(1.0, 2.0, 3.0);
+        let direction = Vector4::from_direction(1.0, 2.0, 3.0);
+        
+        assert!(point.is_point());
+        assert!(!point.is_direction());
+        
+        assert!(!direction.is_point());
+        assert!(direction.is_direction());
+    }
+
+    #[test]
+    fn test_vector4_arithmetic() {
+        let v1 = Vector4::new(1.0, 2.0, 3.0, 4.0);
+        let v2 = Vector4::new(5.0, 6.0, 7.0, 8.0);
+        
+        let sum = v1 + v2;
+        assert_eq!(sum, Vector4::new(6.0, 8.0, 10.0, 12.0));
+        
+        let diff = v2 - v1;
+        assert_eq!(diff, Vector4::new(4.0, 4.0, 4.0, 4.0));
+        
+        let scaled = v1 * 2.0;
+        assert_eq!(scaled, Vector4::new(2.0, 4.0, 6.0, 8.0));
+    }
+
+    #[test]
+    fn test_vector4_dot_product() {
+        let v1 = Vector4::new(1.0, 2.0, 3.0, 4.0);
+        let v2 = Vector4::new(5.0, 6.0, 7.0, 8.0);
+        
+        let dot = v1.dot(&v2);
+        assert_eq!(dot, 70.0); // 1*5 + 2*6 + 3*7 + 4*8 = 70
+    }
+}

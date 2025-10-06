@@ -5,6 +5,7 @@
 
 pub mod consts;
 // pub mod numeric;     // 一時的に無効化
+pub mod linalg;      // 高速線形代数モジュール（数値解析専用）
 pub mod sampling;
 pub mod sampling2d;  // 既存の2Dサンプリング
 pub mod numerical;   // 新しい数値解法モジュール
