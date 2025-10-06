@@ -1,8 +1,9 @@
 [workspace]
 members = [
+    "analysis",        # 新規：数値解析クレート
     "geo_core",        # 新規：幾何計算基盤
     "geo_primitives",  # 新規：幾何プリミティブクレート
-    "analysis",        # 新規：数値解析クレート
+    "geo_algorithms",  # 新規：幾何アルゴリズムクレート
     "model",
     "viewmodel",
     "render",

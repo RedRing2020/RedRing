@@ -2,7 +2,8 @@
 ///
 /// 基本統計量の計算、分布解析、回帰分析を提供する
 
-use geo_core::{Point2D, Scalar, ToleranceContext};
+use geo_core::{Scalar, ToleranceContext};
+use geo_primitives::Point2D;
 
 /// 基本統計量
 #[derive(Debug, Clone)]

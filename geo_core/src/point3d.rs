@@ -1,9 +1,21 @@
-//! Always-on Point3D (extracted from primitives3d) so that 3D point is available without legacy 3D primitives.
+//! # Point3D - 廃止予定
+//!
+//! **⚠️ このモジュールは廃止予定です。`geo_primitives::Point3D` をご利用ください。**
+//!
+//! ## 移行例
+//! ```rust
+//! // 旧:
+//! // use geo_core::Point3D;
+//!
+//! // 新:
+//! use geo_primitives::Point3D;
+//! ```
 use crate::scalar::Scalar;
 use crate::tolerance::{ToleranceContext, TolerantEq};
 use crate::vector::Vector3D;
 
 #[derive(Debug, Clone)]
+#[deprecated(note = "Use geo_primitives::Point3D instead")]
 pub struct Point3D {
     x: Scalar,
     y: Scalar,
