@@ -2,7 +2,7 @@
 ///
 /// 線形補間、スプライン補間、ベジエ曲線補間を提供する
 
-use geo_core::{Point2D, Vector2D, Scalar, ToleranceContext};
+use geo_core::{Point2D, Vector2D, ToleranceContext};
 
 /// 線形補間器
 pub struct LinearInterpolator {
@@ -66,14 +66,14 @@ impl LinearInterpolator {
 }
 
 /// 3次ベジエ曲線
-pub struct CubicBezier {
+pub struct BezierCurve {
     p0: Point2D,
     p1: Point2D,
     p2: Point2D,
     p3: Point2D,
 }
 
-impl CubicBezier {
+impl BezierCurve {
     pub fn new(p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D) -> Self {
         Self { p0, p1, p2, p3 }
     }
@@ -196,4 +196,3 @@ impl CatmullRomSpline {
         result
     }
 }
-

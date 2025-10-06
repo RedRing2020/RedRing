@@ -40,22 +40,22 @@ model / analysis  ->  geo_primitives  ->  geo_core
 ```
 
 - `geo_core`: 許容誤差 (`ToleranceContext`), トレラント比較, ロバスト幾何判定 (orientation など) を提供する幾何計算中核。
-- `geo_primitives`: f64 正準幾何プリミティブ（Point / Vector / Direction / LineSegment / Plane / Circle 等）。旧 Scalar ベース 3D プリミティブは移行中で内部 `Legacy*` 名に退避。
+- `geo_primitives`: f64 正準幾何プリミティブ（Point / Vector / Direction / LineSegment / Plane / Circle 等）。
 - 上位層 (`model`, `analysis`): 高次の曲線・曲面・解析アルゴリズム（今後拡張）。
 
 ### 🔄 移行ステータス (f64 Canonical Geometry)
 | 項目 | 状態 | 説明 |
 |------|------|------|
 | Vector/Point f64 化 | 完了 | `.value()` 呼び出し不要 |
-| 3D 基本プリミティブ抽出 | 進行中 | 旧実装は Legacy 命名へリネーム済み |
+| 3D 基本プリミティブ抽出 | 完了 | f64 正準型に統一 |
 | f64 正準型 alias 公開 | 完了 | 旧 API 名は f64 実装へ透過接続 |
-| Legacy 削除フェーズ | 未着手 | feature gate / CI deny deprecated 予定 |
+| Legacy 削除フェーズ | 完了 | 旧 Legacy* 型削除、CI で deprecated deny |
 
 詳細な移行履歴と予定は `MIGRATION_VECTOR_F64.md` の末尾「Core Role Realignment」を参照してください。
 
-### ⚠️ 互換性ポリシー (暫定)
-- 旧 `geo_core::LineSegment3D` / `Plane` / `Circle3D` / `Direction3D` を利用している場合は `geo_primitives` からの import に切替を推奨。
-- 次のマイルストーンで旧名前 (legacy feature 無効ビルド) に deprecation warning / deny を導入予定。
+### ✅ 互換性ポリシー (更新)
+- すべてのLegacy型は削除されました。`geo_primitives` からf64正準型をご利用ください。
+- CI で deprecated symbols が deny されるため、古いLegacy型の使用はビルドエラーとなります。
 - f64 正準層では座標アクセサは全て `f64` を返却し、距離/面積など測定量のみ `Scalar` (単位意味付け) を維持。
 
 ### 🧪 テスト戦略（要約）

@@ -84,18 +84,15 @@ impl CadEllipse {
 
     /// 楕円の周長（数値積分による近似）
     pub fn length(&self) -> f64 {
-        let major = self.major_axis.clone();
-        let minor = self.minor_axis.clone();
-        let steps = 360;
+        // Analysis dependency removed - using direct approximation
 
-        // 速度ベクトル関数
-        let evaluate = |theta: f64| {
-            let dx = -theta.sin();
-            let dy = theta.cos();
-            major.clone() * dx + minor.clone() * dy
-        };
-
-        analysis::newton_arc_length(evaluate, 0.0, 2.0 * std::f64::consts::PI, steps)
+        // TODO: arc length calculation needs to be moved to geo_algorithms
+        // For now, use Ramanujan's approximation for ellipse perimeter
+        let three = Scalar::new(3.0);
+        let pi = Scalar::new(std::f64::consts::PI);
+        let perimeter_approx = pi * (three * (self.major_radius + self.minor_radius) - 
+            ((three * self.major_radius + self.minor_radius) * (self.major_radius + three * self.minor_radius)).sqrt());
+        perimeter_approx.value()
     }
 
     /// ドメイン

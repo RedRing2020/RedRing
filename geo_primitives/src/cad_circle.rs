@@ -89,5 +89,6 @@ mod tests {
         let point = circle.evaluate(0.0); // t=0の点
         assert!((point.x() - 1.0).abs() < 1e-10);
         assert!(point.y().abs() < 1e-10);
+        assert!(point.z().abs() < 1e-10);
     }
 }

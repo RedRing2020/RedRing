@@ -45,6 +45,7 @@ name = "analysis"
 version = "0.1.0"
 dependencies = [
  "approx",
+ "geo_algorithms",
  "geo_core",
 ]
 
@@ -616,6 +617,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
+name = "geo_algorithms"
+version = "0.1.0"
+dependencies = [
+ "geo_core",
+ "geo_primitives",
+]
+
+[[package]]
 name = "geo_core"
 version = "0.1.0"
 dependencies = [
@@ -633,7 +642,6 @@ dependencies = [
 name = "geo_primitives"
 version = "0.1.0"
 dependencies = [
- "analysis",
  "geo_core",
  "serde",
 ]

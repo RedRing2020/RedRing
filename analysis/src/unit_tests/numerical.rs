@@ -1,4 +1,4 @@
-use crate::numerical::*;
+use geo_algorithms::numerical::*;
 use geo_core::{Point2D, ToleranceContext};
 
 #[test]

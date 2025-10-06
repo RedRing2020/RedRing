@@ -8,13 +8,13 @@
 // geo_primitives/geometry3d/vector.rs
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
-    x: f64, y: f64, z: f64,  // 直接f64型
+    x: F64, y: F64, z: F64,  // 直接f64型のType別名
 }
 
 // geo_primitives/geometry3d/point.rs
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point {
-    x: f64, y: f64, z: f64,  // 直接f64型
+    x: f64, y: f64, z: f64,  // 直接f64型のType別名
 }
 ```
 
@@ -32,21 +32,20 @@ pub struct Point {
 // analysis/vector/vector3d.rs
 #[derive(Debug, Clone)]  // Copy なし
 pub struct Vector3D {
-    components: [Scalar; 3],           // Scalar でラップ
-    tolerance_context: ToleranceContext, // 許容誤差管理
+    components: [F64; 3],           // F64 でラップ
 }
 
 // analysis/point3d.rs
 #[derive(Debug, Clone)]  // Copy なし
 pub struct Point3D {
-    x: Scalar, y: Scalar, z: Scalar,  // Scalar 型
+    x: F64, y: F64, z: F64,  // F64 型
 }
 ```
 
 **用途**: 数値計算基盤、高精度演算
 **特徴**:
 
-- ✅ 直接的な f64 操作
+- ✅ 直接的な F64 操作
 - ✅ ToleranceContext 統合
 - ✅ TolerantEq による許容誤差比較
 - ✅ mm 単位での座標管理
@@ -69,10 +68,9 @@ pub struct Point3D {
 
 ### ⭐ geo_primitives 独自機能
 
-1. **許容誤差処理**: `TolerantEq`, `ToleranceContext`
-2. **高精度計算**: `Scalar` 型による数値安定性
-3. **単位管理**: mm 単位の座標系統一
-4. **堅牢性**: 数値誤差に対する堅牢な演算
+1. **許容誤差処理**: グローバルトレランスによる誤差安定性
+2. **単位管理**: mm 単位の座標系統一
+3. **堅牢性**: 幾何操作での誤差影響を最小限にしたデータ構造設計
 
 ### ⭐ model 独自機能
 

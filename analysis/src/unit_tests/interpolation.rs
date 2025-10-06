@@ -1,4 +1,4 @@
-use crate::interpolation::*;
+use geo_algorithms::interpolation::*;
 use geo_core::{Point2D, ToleranceContext};
 
 #[test]
@@ -21,7 +21,7 @@ fn test_bezier_curve() {
     let p2 = Point2D::from_f64(2.0, 1.0);
     let p3 = Point2D::from_f64(3.0, 0.0);
     
-    let bezier = CubicBezier::new(p0, p1, p2, p3);
+    let bezier = BezierCurve::new(p0, p1, p2, p3);
     
     let start = bezier.evaluate(0.0);
     let end = bezier.evaluate(1.0);
