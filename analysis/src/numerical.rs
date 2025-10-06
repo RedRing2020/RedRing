@@ -269,7 +269,7 @@ impl LeastSquaresFitter {
             return Err("Need at least 3 points for circle fitting".to_string());
         }
 
-        // Algebraic circle fitting (Kasa method)
+        // Kasa method implementation for circle fitting
         let n = points.len() as f64;
         let mut sum_x = 0.0;
         let mut sum_y = 0.0;
@@ -291,32 +291,53 @@ impl LeastSquaresFitter {
             sum_y += y;
             sum_x2 += x2;
             sum_y2 += y2;
-            sum_x3 += x2 * x;
-            sum_y3 += y2 * y;
+            sum_x3 += x * x2;
+            sum_y3 += y * y2;
             sum_xy += x * y;
             sum_x2y += x2 * y;
             sum_xy2 += x * y2;
         }
 
-        let a = n * sum_xy - sum_x * sum_y;
-        let b = n * sum_x2 - sum_x * sum_x;
-        let c = n * sum_y2 - sum_y * sum_y;
-        let d = 0.5 * (n * (sum_x2y + sum_xy2) - sum_x * (sum_x2 + sum_y2));
-        let e = 0.5 * (n * (sum_x3 + sum_x * sum_y2) - sum_x * (sum_x2 + sum_y2));
+        // システム行列の構築
+        // [sum_x2  sum_xy  sum_x] [a]   [sum_x3 + sum_xy2]
+        // [sum_xy  sum_y2  sum_y] [b] = [sum_x2y + sum_y3]
+        // [sum_x   sum_y   n    ] [c]   [sum_x2 + sum_y2 ]
 
-        let det = a * a - b * c;
+        let a11 = sum_x2;
+        let a12 = sum_xy;
+        let a13 = sum_x;
+        let a21 = sum_xy;
+        let a22 = sum_y2;
+        let a23 = sum_y;
+        let a31 = sum_x;
+        let a32 = sum_y;
+        let a33 = n;
+
+        let b1 = sum_x3 + sum_xy2;
+        let b2 = sum_x2y + sum_y3;
+        let b3 = sum_x2 + sum_y2;
+
+        // 3x3 連立方程式を解く (Cramerの公式)
+        let det = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
+
         if det.abs() < self.tolerance.parametric {
-            return Err("Degenerate point set".to_string());
+            return Err("Degenerate point set - singular matrix".to_string());
         }
 
-        let center_x = (d * a - e * c) / det;
-        let center_y = (e * a - d * b) / det;
+        let det_a = b1 * (a22 * a33 - a23 * a32) - a12 * (b2 * a33 - a23 * b3) + a13 * (b2 * a32 - a22 * b3);
+        let det_b = a11 * (b2 * a33 - a23 * b3) - b1 * (a21 * a33 - a23 * a31) + a13 * (a21 * b3 - b2 * a31);
+        let det_c = a11 * (a22 * b3 - b2 * a32) - a12 * (a21 * b3 - b2 * a31) + b1 * (a21 * a32 - a22 * a31);
+
+        let a = det_a / det;
+        let b = det_b / det;
+        let c = det_c / det;
+
+        // 円の中心と半径を計算
+        let center_x = a / 2.0;
+        let center_y = b / 2.0;
         let center = Point2D::from_f64(center_x, center_y);
 
-        // 半径を平均距離として計算
-        let radius: f64 = points.iter()
-            .map(|p| center.distance_to(p).value())
-            .sum::<f64>() / n;
+        let radius = ((a * a + b * b) / 4.0 + c).sqrt();
 
         Ok((center, radius))
     }
