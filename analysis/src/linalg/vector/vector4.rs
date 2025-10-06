@@ -1,5 +1,5 @@
 /// 4次元ベクトル（同次座標系）
-/// 
+///
 /// 4x4変換行列との演算、同次座標系での3D変換に使用
 /// 透視投影やアフィン変換での座標計算に最適化
 
@@ -39,23 +39,23 @@ impl<T: Scalar> Vector4<T> {
     }
 
     /// X成分にアクセス
-    pub fn x(&self) -> T { 
-        self.data[0] 
+    pub fn x(&self) -> T {
+        self.data[0]
     }
 
     /// Y成分にアクセス
-    pub fn y(&self) -> T { 
-        self.data[1] 
+    pub fn y(&self) -> T {
+        self.data[1]
     }
 
     /// Z成分にアクセス
-    pub fn z(&self) -> T { 
-        self.data[2] 
+    pub fn z(&self) -> T {
+        self.data[2]
     }
 
     /// W成分にアクセス
-    pub fn w(&self) -> T { 
-        self.data[3] 
+    pub fn w(&self) -> T {
+        self.data[3]
     }
 
     /// 成分を設定
@@ -77,24 +77,24 @@ impl<T: Scalar> Vector4<T> {
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
-        self.data[0] * other.data[0] + 
-        self.data[1] * other.data[1] + 
+        self.data[0] * other.data[0] +
+        self.data[1] * other.data[1] +
         self.data[2] * other.data[2] +
         self.data[3] * other.data[3]
     }
 
     /// ユークリッドノルム
     pub fn norm(&self) -> T {
-        (self.data[0] * self.data[0] + 
-         self.data[1] * self.data[1] + 
+        (self.data[0] * self.data[0] +
+         self.data[1] * self.data[1] +
          self.data[2] * self.data[2] +
          self.data[3] * self.data[3]).sqrt()
     }
 
     /// ノルムの2乗（平方根計算を避ける）
     pub fn norm_squared(&self) -> T {
-        self.data[0] * self.data[0] + 
-        self.data[1] * self.data[1] + 
+        self.data[0] * self.data[0] +
+        self.data[1] * self.data[1] +
         self.data[2] * self.data[2] +
         self.data[3] * self.data[3]
     }
@@ -294,7 +294,7 @@ mod tests {
     fn test_vector4_homogeneous_conversion() {
         let point = Vector4::from_point(2.0, 4.0, 6.0);
         let euclidean = point.to_euclidean().unwrap();
-        
+
         assert_eq!(euclidean.x(), 2.0);
         assert_eq!(euclidean.y(), 4.0);
         assert_eq!(euclidean.z(), 6.0);
@@ -304,7 +304,7 @@ mod tests {
     fn test_vector4_perspective_division() {
         let v = Vector4::new(4.0, 8.0, 12.0, 2.0);
         let euclidean = v.to_euclidean().unwrap();
-        
+
         assert_eq!(euclidean.x(), 2.0);
         assert_eq!(euclidean.y(), 4.0);
         assert_eq!(euclidean.z(), 6.0);
@@ -314,10 +314,10 @@ mod tests {
     fn test_vector4_point_direction_check() {
         let point = Vector4::from_point(1.0, 2.0, 3.0);
         let direction = Vector4::from_direction(1.0, 2.0, 3.0);
-        
+
         assert!(point.is_point());
         assert!(!point.is_direction());
-        
+
         assert!(!direction.is_point());
         assert!(direction.is_direction());
     }
@@ -326,13 +326,13 @@ mod tests {
     fn test_vector4_arithmetic() {
         let v1 = Vector4::new(1.0, 2.0, 3.0, 4.0);
         let v2 = Vector4::new(5.0, 6.0, 7.0, 8.0);
-        
+
         let sum = v1 + v2;
         assert_eq!(sum, Vector4::new(6.0, 8.0, 10.0, 12.0));
-        
+
         let diff = v2 - v1;
         assert_eq!(diff, Vector4::new(4.0, 4.0, 4.0, 4.0));
-        
+
         let scaled = v1 * 2.0;
         assert_eq!(scaled, Vector4::new(2.0, 4.0, 6.0, 8.0));
     }
@@ -341,7 +341,7 @@ mod tests {
     fn test_vector4_dot_product() {
         let v1 = Vector4::new(1.0, 2.0, 3.0, 4.0);
         let v2 = Vector4::new(5.0, 6.0, 7.0, 8.0);
-        
+
         let dot = v1.dot(&v2);
         assert_eq!(dot, 70.0); // 1*5 + 2*6 + 3*7 + 4*8 = 70
     }

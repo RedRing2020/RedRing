@@ -1,5 +1,5 @@
 /// 2次元ベクトル
-/// 
+///
 /// 2D幾何計算、グラフィックス、UI座標に最適化
 /// 高速な演算のためコンパイル時サイズ確定
 
@@ -40,13 +40,13 @@ impl<T: Scalar> Vector2<T> {
     }
 
     /// X成分にアクセス
-    pub fn x(&self) -> T { 
-        self.data[0] 
+    pub fn x(&self) -> T {
+        self.data[0]
     }
 
     /// Y成分にアクセス
-    pub fn y(&self) -> T { 
-        self.data[1] 
+    pub fn y(&self) -> T {
+        self.data[1]
     }
 
     /// 成分を設定
@@ -220,10 +220,10 @@ mod tests {
     fn test_vector2_operations() {
         let v1 = Vector2::new(3.0, 4.0);
         let v2 = Vector2::new(1.0, 2.0);
-        
+
         let dot = v1.dot(&v2);
         assert_eq!(dot, 11.0); // 3*1 + 4*2 = 11
-        
+
         let cross = v1.cross(&v2);
         assert_eq!(cross, 2.0); // 3*2 - 4*1 = 2
     }
@@ -239,7 +239,7 @@ mod tests {
     fn test_vector2_rotation() {
         let v = Vector2::new(1.0, 0.0);
         let rotated = v.rotate(PI / 2.0);
-        
+
         assert!((rotated.x() - 0.0).abs() < 1e-10);
         assert!((rotated.y() - 1.0).abs() < 1e-10);
     }
@@ -248,13 +248,13 @@ mod tests {
     fn test_vector2_arithmetic() {
         let v1 = Vector2::new(1.0, 2.0);
         let v2 = Vector2::new(3.0, 4.0);
-        
+
         let sum = v1 + v2;
         assert_eq!(sum, Vector2::new(4.0, 6.0));
-        
+
         let diff = v2 - v1;
         assert_eq!(diff, Vector2::new(2.0, 2.0));
-        
+
         let scaled = v1 * 2.0;
         assert_eq!(scaled, Vector2::new(2.0, 4.0));
     }

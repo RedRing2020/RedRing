@@ -1,12 +1,12 @@
 /// 数値型の抽象化トレイト
-/// 
+///
 /// f32（グラフィックス用）とf64（高精度計算用）を統一的に扱うための抽象化
 
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Sub, Mul, Div, Neg};
 
 /// 数値計算で使用可能なスカラー型の抽象化
-pub trait Scalar: 
+pub trait Scalar:
     Copy + Clone + Debug + Display + PartialEq + PartialOrd +
     Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> + Neg<Output = Self>
 {

@@ -1,5 +1,5 @@
 /// 3次元ベクトル
-/// 
+///
 /// 3D幾何計算、物理シミュレーション、3Dグラフィックスに最適化
 /// CAD/CAMの座標変換や法線ベクトル計算に使用
 
@@ -45,18 +45,18 @@ impl<T: Scalar> Vector3<T> {
     }
 
     /// X成分にアクセス
-    pub fn x(&self) -> T { 
-        self.data[0] 
+    pub fn x(&self) -> T {
+        self.data[0]
     }
 
     /// Y成分にアクセス
-    pub fn y(&self) -> T { 
-        self.data[1] 
+    pub fn y(&self) -> T {
+        self.data[1]
     }
 
     /// Z成分にアクセス
-    pub fn z(&self) -> T { 
-        self.data[2] 
+    pub fn z(&self) -> T {
+        self.data[2]
     }
 
     /// 成分を設定
@@ -74,8 +74,8 @@ impl<T: Scalar> Vector3<T> {
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
-        self.data[0] * other.data[0] + 
-        self.data[1] * other.data[1] + 
+        self.data[0] * other.data[0] +
+        self.data[1] * other.data[1] +
         self.data[2] * other.data[2]
     }
 
@@ -90,15 +90,15 @@ impl<T: Scalar> Vector3<T> {
 
     /// ユークリッドノルム
     pub fn norm(&self) -> T {
-        (self.data[0] * self.data[0] + 
-         self.data[1] * self.data[1] + 
+        (self.data[0] * self.data[0] +
+         self.data[1] * self.data[1] +
          self.data[2] * self.data[2]).sqrt()
     }
 
     /// ノルムの2乗（平方根計算を避ける）
     pub fn norm_squared(&self) -> T {
-        self.data[0] * self.data[0] + 
-        self.data[1] * self.data[1] + 
+        self.data[0] * self.data[0] +
+        self.data[1] * self.data[1] +
         self.data[2] * self.data[2]
     }
 
@@ -150,16 +150,16 @@ impl<T: Scalar> Vector3<T> {
     pub fn slerp(&self, other: &Self, t: T) -> Result<Self, String> {
         let dot = self.dot(other);
         let theta = dot.acos();
-        
+
         if theta.abs() < T::EPSILON {
             // ベクトルがほぼ同じ場合は線形補間
             return Ok(self.lerp(other, t));
         }
-        
+
         let sin_theta = theta.sin();
         let a = ((T::ONE - t) * theta).sin() / sin_theta;
         let b = (t * theta).sin() / sin_theta;
-        
+
         Ok(*self * a + *other * b)
     }
 
@@ -168,12 +168,12 @@ impl<T: Scalar> Vector3<T> {
         let axis_normalized = axis.normalize()?;
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
-        
+
         let dot_product = self.dot(&axis_normalized);
         let cross_product = axis_normalized.cross(self);
-        
-        Ok(*self * cos_angle + 
-           cross_product * sin_angle + 
+
+        Ok(*self * cos_angle +
+           cross_product * sin_angle +
            axis_normalized * dot_product * (T::ONE - cos_angle))
     }
 
@@ -296,7 +296,7 @@ mod tests {
         let v1 = Vector3::new(1.0, 0.0, 0.0);
         let v2 = Vector3::new(0.0, 1.0, 0.0);
         let cross = v1.cross(&v2);
-        
+
         assert_eq!(cross, Vector3::new(0.0, 0.0, 1.0));
     }
 
@@ -310,7 +310,7 @@ mod tests {
     fn test_vector3_normalize() {
         let v = Vector3::new(3.0, 4.0, 0.0);
         let normalized = v.normalize().unwrap();
-        
+
         assert!((normalized.norm() - 1.0).abs() < 1e-10);
         assert!((normalized.x() - 0.6).abs() < 1e-10);
         assert!((normalized.y() - 0.8).abs() < 1e-10);
@@ -321,13 +321,13 @@ mod tests {
     fn test_vector3_arithmetic() {
         let v1 = Vector3::new(1.0, 2.0, 3.0);
         let v2 = Vector3::new(4.0, 5.0, 6.0);
-        
+
         let sum = v1 + v2;
         assert_eq!(sum, Vector3::new(5.0, 7.0, 9.0));
-        
+
         let diff = v2 - v1;
         assert_eq!(diff, Vector3::new(3.0, 3.0, 3.0));
-        
+
         let scaled = v1 * 2.0;
         assert_eq!(scaled, Vector3::new(2.0, 4.0, 6.0));
     }

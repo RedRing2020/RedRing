@@ -178,27 +178,27 @@ impl<T: Scalar> Matrix4x4<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         let one_minus_cos = T::ONE - cos_a;
-        
+
         let x = axis.x();
         let y = axis.y();
         let z = axis.z();
-        
+
         Self::new(
             cos_a + x * x * one_minus_cos,
             x * y * one_minus_cos - z * sin_a,
             x * z * one_minus_cos + y * sin_a,
             T::ZERO,
-            
+
             y * x * one_minus_cos + z * sin_a,
             cos_a + y * y * one_minus_cos,
             y * z * one_minus_cos - x * sin_a,
             T::ZERO,
-            
+
             z * x * one_minus_cos - y * sin_a,
             z * y * one_minus_cos + x * sin_a,
             cos_a + z * z * one_minus_cos,
             T::ZERO,
-            
+
             T::ZERO, T::ZERO, T::ZERO, T::ONE
         )
     }
@@ -221,7 +221,7 @@ impl<T: Scalar> Matrix4x4<T> {
     pub fn perspective(fovy: T, aspect: T, near: T, far: T) -> Self {
         let f = T::ONE / (fovy / (T::ONE + T::ONE)).tan();
         let range_inv = T::ONE / (near - far);
-        
+
         Self::new(
             f / aspect, T::ZERO, T::ZERO, T::ZERO,
             T::ZERO, f, T::ZERO, T::ZERO,
@@ -234,7 +234,7 @@ impl<T: Scalar> Matrix4x4<T> {
     pub fn perspective_rh_01(fovy: T, aspect: T, near: T, far: T) -> Self {
         let f = T::ONE / (fovy / (T::ONE + T::ONE)).tan();
         let range_inv = T::ONE / (near - far);
-        
+
         Self::new(
             f / aspect, T::ZERO, T::ZERO, T::ZERO,
             T::ZERO, f, T::ZERO, T::ZERO,
@@ -249,7 +249,7 @@ impl<T: Scalar> Matrix4x4<T> {
         let tb_inv = T::ONE / (top - bottom);
         let fn_inv = T::ONE / (far - near);
         let two = T::ONE + T::ONE;
-        
+
         Self::new(
             two * rl_inv, T::ZERO, T::ZERO, -(right + left) * rl_inv,
             T::ZERO, two * tb_inv, T::ZERO, -(top + bottom) * tb_inv,
@@ -262,7 +262,7 @@ impl<T: Scalar> Matrix4x4<T> {
     pub fn viewport(x: T, y: T, width: T, height: T) -> Self {
         let half_width = width / (T::ONE + T::ONE);
         let half_height = height / (T::ONE + T::ONE);
-        
+
         Self::new(
             half_width, T::ZERO, T::ZERO, x + half_width,
             T::ZERO, -half_height, T::ZERO, y + half_height,
@@ -284,18 +284,18 @@ impl<T: Scalar> Matrix4x4<T> {
             [self.data[1][0], self.data[1][1], self.data[1][2]],
             [self.data[2][0], self.data[2][1], self.data[2][2]],
         ];
-        
+
         // 3x3逆行列の計算（行列式による）
         let det = m3x3[0][0] * (m3x3[1][1] * m3x3[2][2] - m3x3[1][2] * m3x3[2][1])
                 - m3x3[0][1] * (m3x3[1][0] * m3x3[2][2] - m3x3[1][2] * m3x3[2][0])
                 + m3x3[0][2] * (m3x3[1][0] * m3x3[2][1] - m3x3[1][1] * m3x3[2][0]);
-        
+
         if det.is_zero() {
             return Err("Upper 3x3 matrix is singular".to_string());
         }
-        
+
         let inv_det = T::ONE / det;
-        
+
         // 転置逆行列を計算
         Ok([
             [

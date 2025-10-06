@@ -55,8 +55,8 @@ impl<T: Scalar> Matrix3x3<T> {
         let a32 = self.data[2][1];
         let a33 = self.data[2][2];
 
-        a11 * (a22 * a33 - a23 * a32) 
-        - a12 * (a21 * a33 - a23 * a31) 
+        a11 * (a22 * a33 - a23 * a32)
+        - a12 * (a21 * a33 - a23 * a31)
         + a13 * (a21 * a32 - a22 * a31)
     }
 
@@ -80,16 +80,16 @@ impl<T: Scalar> Matrix3x3<T> {
 
         // Adjugate matrix / determinant
         let inv_det = T::ONE / det;
-        
+
         Ok(Self::new(
             (self.data[1][1] * self.data[2][2] - self.data[1][2] * self.data[2][1]) * inv_det,
             (self.data[0][2] * self.data[2][1] - self.data[0][1] * self.data[2][2]) * inv_det,
             (self.data[0][1] * self.data[1][2] - self.data[0][2] * self.data[1][1]) * inv_det,
-            
+
             (self.data[1][2] * self.data[2][0] - self.data[1][0] * self.data[2][2]) * inv_det,
             (self.data[0][0] * self.data[2][2] - self.data[0][2] * self.data[2][0]) * inv_det,
             (self.data[0][2] * self.data[1][0] - self.data[0][0] * self.data[1][2]) * inv_det,
-            
+
             (self.data[1][0] * self.data[2][1] - self.data[1][1] * self.data[2][0]) * inv_det,
             (self.data[0][1] * self.data[2][0] - self.data[0][0] * self.data[2][1]) * inv_det,
             (self.data[0][0] * self.data[1][1] - self.data[0][1] * self.data[1][0]) * inv_det
