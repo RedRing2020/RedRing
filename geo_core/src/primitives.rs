@@ -9,16 +9,7 @@ pub use crate::primitives2d::{
 };
 pub use crate::point3d::Point3D; // always-on 3D point
 
-// 3D primitives are only available with legacy feature
-#[cfg(feature = "legacy-primitives3d")]
-pub use crate::primitives3d::{
-    LineSegment3D, Plane, Sphere,
-    ParametricCurve3D, ParametricSurface,
-};
+// 3D primitives removed - use geo_primitives instead
 
-// Provide Point3D always (needed by downstream), duplicating minimal struct when legacy feature off.
-// (Point3D is always exported from point3d module now)
-
-// 後方互換性のために、3Dトレイトを再エクスポート
-#[cfg(feature = "legacy-primitives3d")]
-pub use ParametricCurve3D as ParametricCurve;
+// Point3D is always available (needed by downstream)
+// Other 3D primitives have been moved to geo_primitives

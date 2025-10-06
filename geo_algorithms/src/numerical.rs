@@ -3,8 +3,37 @@
 /// 交差検出、近似、最適化問題の解法を提供
 
 use geo_core::{Point2D, ToleranceContext};
-use crate::linalg::{Vector2};
-use crate::sampling::{IntersectionCandidate};
+use crate::sampling::IntersectionCandidate;
+
+/// 2次元ベクトル（analysisのlinalgから独立）
+#[derive(Debug, Clone, Copy)]
+pub struct Vector2 {
+    pub x: f64,
+    pub y: f64,
+}
+
+impl Vector2 {
+    pub fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+
+    pub fn x_axis() -> Self {
+        Self { x: 1.0, y: 0.0 }
+    }
+
+    pub fn y_axis() -> Self {
+        Self { x: 0.0, y: 1.0 }
+    }
+
+    pub fn normalize(&self) -> Option<Self> {
+        let len = (self.x * self.x + self.y * self.y).sqrt();
+        if len > 1e-10 {
+            Some(Self { x: self.x / len, y: self.y / len })
+        } else {
+            None
+        }
+    }
+}
 
 /// 数値解法の収束情報
 #[derive(Debug, Clone)]
@@ -343,7 +372,7 @@ impl LeastSquaresFitter {
     }
 
     /// 直線フィッティング
-    pub fn fit_line(&self, points: &[Point2D]) -> Result<(Point2D, Vector2<f64>), String> {
+    pub fn fit_line(&self, points: &[Point2D]) -> Result<(Point2D, Vector2), String> {
         if points.len() < 2 {
             return Err("Need at least 2 points for line fitting".to_string());
         }
@@ -384,4 +413,3 @@ impl LeastSquaresFitter {
         Ok((point, direction))
     }
 }
-

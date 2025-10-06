@@ -1,4 +1,4 @@
-use crate::sampling::*;
+use geo_algorithms::sampling::*;
 use geo_core::{Point2D, ToleranceContext};
 
 #[test]

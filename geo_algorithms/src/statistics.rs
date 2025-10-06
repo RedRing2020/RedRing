@@ -59,11 +59,11 @@ impl BasicStats {
 }
 
 /// 2D点群の統計解析
-pub struct PointCloudStats {
+pub struct PointCluster {
     tolerance: ToleranceContext,
 }
 
-impl PointCloudStats {
+impl PointCluster {
     pub fn new(tolerance: ToleranceContext) -> Self {
         Self { tolerance }
     }
@@ -130,7 +130,7 @@ impl PointCloudStats {
         }
 
         let lambda1 = (trace + discriminant.sqrt()) / 2.0;
-        let lambda2 = (trace - discriminant.sqrt()) / 2.0;
+        let _lambda2 = (trace - discriminant.sqrt()) / 2.0;
 
         // 第1主成分方向
         let direction = if cxy.abs() > self.tolerance.linear {
@@ -146,3 +146,10 @@ impl PointCloudStats {
     }
 }
 
+/// 回帰分析結果
+#[derive(Debug, Clone)]
+pub struct RegressionResult {
+    pub coefficients: Vec<f64>,
+    pub r_squared: f64,
+    pub residual_sum_squares: f64,
+}

@@ -111,11 +111,12 @@ impl Neg for CadVector {
 }
 
 // analysis クレートとの互換性のためのトレイト実装
-impl analysis::NormedVector for CadVector {
-    fn norm(&self) -> f64 {
-        self.norm()
-    }
-}
+// TODO: NormedVector trait needs to be moved to geo_algorithms or geo_core
+// impl analysis::NormedVector for CadVector {
+//     fn norm(&self) -> f64 {
+//         self.norm()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

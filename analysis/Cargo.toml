@@ -7,10 +7,10 @@ license = "MIT"
 
 [dependencies]
 geo_core = { path = "../geo_core" }
+geo_algorithms = { path = "../geo_algorithms" }
 
 [dev-dependencies]
 approx = "0.5"
 
 [features]
 default = []
-simd = ["geo_core/simd"]

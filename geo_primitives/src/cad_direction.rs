@@ -47,11 +47,23 @@ impl CadDirection {
     }
 
     /// 直交正規基底を計算（円の評価で使用）
+    /// 標準的な円のパラメータ化に合わせて、適切な基底ベクトルを返す
     pub fn orthonormal_basis(&self) -> (crate::CadVector, crate::CadVector) {
         let n = &self.0;
         
-        // 最も小さい成分を見つけて直交ベクトルを作成
-        let u = if n.x().abs() < n.y().abs() && n.x().abs() < n.z().abs() {
+        // Z軸上向きの法線の場合の特別処理
+        if (n.z().abs() - 1.0).abs() < 1e-10 {
+            if n.z() > 0.0 {
+                // 上向きZ軸: (1,0,0)と(0,1,0)を基底とする
+                return (crate::CadVector::new(1.0, 0.0, 0.0), crate::CadVector::new(0.0, 1.0, 0.0));
+            } else {
+                // 下向きZ軸: 右手系を維持
+                return (crate::CadVector::new(-1.0, 0.0, 0.0), crate::CadVector::new(0.0, 1.0, 0.0));
+            }
+        }
+        
+        // 一般的な場合: Gram-Schmidt過程を使用
+        let reference = if n.x().abs() < n.y().abs() && n.x().abs() < n.z().abs() {
             crate::CadVector::new(1.0, 0.0, 0.0)
         } else if n.y().abs() < n.z().abs() {
             crate::CadVector::new(0.0, 1.0, 0.0)
@@ -59,7 +71,7 @@ impl CadDirection {
             crate::CadVector::new(0.0, 0.0, 1.0)
         };
         
-        let v1 = n.cross(&u).normalize();
+        let v1 = reference.cross(n).normalize();
         let v2 = n.cross(&v1).normalize();
         
         (v1, v2)

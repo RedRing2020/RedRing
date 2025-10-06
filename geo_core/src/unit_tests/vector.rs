@@ -1,8 +1,7 @@
 /// ベクトル演算のユニットテスト
 
 use crate::vector::{Vector2D, Vector3D, Vector};
-#[cfg(feature = "legacy-primitives3d")]
-use crate::vector::Direction3D;
+// Direction3D removed - use geo_primitives::Direction3D instead
 use crate::tolerance::ToleranceContext;
 
 // Vector2D テスト
@@ -142,62 +141,7 @@ fn test_vector3d_vector_triple_product() {
     assert_eq!(result.z().value(), -1.0);
 }
 
-// Direction3D テスト
-#[cfg(feature = "legacy-primitives3d")]
-#[test]
-fn test_direction3d_creation() {
-    let context = ToleranceContext::standard();
-    let dir = Direction3D::new(1.0, 0.0, 0.0, &context).unwrap();
-
-    assert!(dir.as_vector().is_unit(&context));
-    assert_eq!(dir.x().value(), 1.0);
-    assert_eq!(dir.y().value(), 0.0);
-    assert_eq!(dir.z().value(), 0.0);
-}
-
-#[cfg(feature = "legacy-primitives3d")]
-#[test]
-fn test_direction3d_from_vector() {
-    let context = ToleranceContext::standard();
-    let v = Vector3D::from_f64(2.0, 0.0, 0.0);
-    let dir = Direction3D::from_vector(v, &context).unwrap();
-
-    assert!(dir.as_vector().is_unit(&context));
-    assert_eq!(dir.x().value(), 1.0);
-    assert_eq!(dir.y().value(), 0.0);
-    assert_eq!(dir.z().value(), 0.0);
-}
-
-#[cfg(feature = "legacy-primitives3d")]
-#[test]
-fn test_direction3d_cross_product() {
-    let context = ToleranceContext::standard();
-    let dir1 = Direction3D::new(1.0, 0.0, 0.0, &context).unwrap();
-    let dir2 = Direction3D::new(0.0, 1.0, 0.0, &context).unwrap();
-
-    let cross = dir1.cross(&dir2, &context).unwrap();
-    assert_eq!(cross.x().value(), 0.0);
-    assert_eq!(cross.y().value(), 0.0);
-    assert_eq!(cross.z().value(), 1.0);
-}
-
-#[cfg(feature = "legacy-primitives3d")]
-#[test]
-fn test_direction3d_orthonormal_basis() {
-    let context = ToleranceContext::standard();
-    let dir = Direction3D::new(1.0, 0.0, 0.0, &context).unwrap();
-
-    let (u, v) = dir.orthonormal_basis(&context);
-
-    // uとvは互いに直交し、dirとも直交している
-    assert!(dir.as_vector().is_perpendicular_to(&u, &context));
-    assert!(dir.as_vector().is_perpendicular_to(&v, &context));
-    assert!(u.is_perpendicular_to(&v, &context));
-
-    // uとvは単位ベクトル
-    assert!(u.is_unit(&context));
-    assert!(v.is_unit(&context));
-}
+// Direction3D テスト - removed, use geo_primitives::Direction3D instead
 
 #[test]
 fn test_vector3d_parallel_perpendicular() {

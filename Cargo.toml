@@ -8,7 +8,7 @@ members = [
     "render",
     "redring",         # メインクレート
     "stage"
-]
+, "geo_algorithms"]
 resolver = "3"
 
 [workspace.dependencies]

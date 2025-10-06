@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        feature-set: [default, legacy, strict]
+        feature-set: [default, strict]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust
@@ -26,17 +26,14 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Build
         run: |
-          if [ "${{ matrix.feature-set }}" = "legacy" ]; then
-            cargo build --workspace --all-targets --features geo_core/legacy-primitives3d
-          elif [ "${{ matrix.feature-set }}" = "strict" ]; then
+          if [ "${{ matrix.feature-set }}" = "strict" ]; then
             # Deny deprecated symbols globally
             export RUSTFLAGS="-D deprecated"
             cargo build --workspace --all-targets
           else
             cargo build --workspace --all-targets
           fi
-      - name: Clippy (deny warnings; default & strict)
-        if: matrix.feature-set != 'legacy'
+      - name: Clippy (deny warnings)
         run: |
           if [ "${{ matrix.feature-set }}" = "strict" ]; then
             export RUSTFLAGS="-D deprecated"
@@ -44,9 +41,7 @@ jobs:
           cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: |
-          if [ "${{ matrix.feature-set }}" = "legacy" ]; then
-            cargo test --workspace --features geo_core/legacy-primitives3d
-          elif [ "${{ matrix.feature-set }}" = "strict" ]; then
+          if [ "${{ matrix.feature-set }}" = "strict" ]; then
             export RUSTFLAGS="-D deprecated"
             cargo test --workspace
           else

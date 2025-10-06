@@ -100,20 +100,19 @@ impl CadEllipseArc {
 
     /// 3D楕円弧の長さを数値積分で近似
     pub fn length(&self) -> f64 {
-        let major = self.major_axis.clone();
-        let minor = self.minor_axis.clone();
+        // Analysis dependency removed - using direct Ramanujan approximation
         let start = self.start_angle;
         let end = self.end_angle;
-        let steps = 360; // 内部変数として分割数を固定
+        // Analysis dependency removed - using direct Ramanujan approximation
 
-        // 速度ベクトル関数
-        let evaluate = |theta: f64| {
-            let dx = -theta.sin();
-            let dy = theta.cos();
-            major.clone() * dx + minor.clone() * dy
-        };
-
-        analysis::newton_arc_length(evaluate, start, end, steps)
+        // TODO: arc length calculation needs to be moved to geo_algorithms
+        // For now, use Ramanujan's approximation for ellipse perimeter
+        let arc_fraction = (end - start) / (2.0 * std::f64::consts::PI);
+        let three = Scalar::new(3.0);
+        let pi = Scalar::new(std::f64::consts::PI);
+        let full_perimeter = pi * (three * (self.major_radius + self.minor_radius) - 
+            ((three * self.major_radius + self.minor_radius) * (self.major_radius + three * self.minor_radius)).sqrt());
+        (full_perimeter * Scalar::new(arc_fraction)).value()
     }
 
     /// ドメイン

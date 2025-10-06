@@ -1,6 +1,6 @@
 //! RedRing 幾何計算中核 (Geometry Computational Core)
 //!
-//! このクレートは **許容誤差 (tolerance)** と **ロバスト幾何判定** を中心とした
+//! このクレートは// Direction3D is deprecated in core - removed, use geo_primitives::Direction3D instead許容誤差 (tolerance)** と **ロバスト幾何判定** を中心とした
 //! 最小構成の計算インフラを提供します。形状プリミティブ（線分 / 平面 / 円など）の
 //! 正準定義は `geo_primitives` クレートへ段階的に移管され、`geo_core` は
 //! 「数値安定性・比較ロジック・低レベル補助」のみに収束していきます。
@@ -51,9 +51,7 @@ pub mod tolerance;
 pub mod robust;
 pub mod primitives;
 pub mod primitives2d;
-// 3D primitives (deprecated) are now optional: enable with feature "legacy-primitives3d"
-#[cfg(feature = "legacy-primitives3d")]
-pub mod primitives3d;
+// 3D primitives (deprecated) - removed, use geo_primitives instead
 pub mod point3d; // always-on Point3D
 
 // テストモジュール
@@ -64,9 +62,7 @@ mod unit_tests;
 pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use scalar::Scalar;
 pub use vector::{Vector, Vector2D, Vector3D};
-// Direction3D is deprecated in core; only export when legacy 3D primitives are enabled
-#[cfg(feature = "legacy-primitives3d")]
-pub use vector::Direction3D;
+// Direction3D is deprecated in core - removed, use geo_primitives::Direction3D instead
 pub use primitives::{
     Point2D, LineSegment2D,
     Arc2D, Polygon2D,
@@ -74,11 +70,7 @@ pub use primitives::{
 };
 pub use point3d::Point3D;
 
-// Re-export deprecated 3D items only when legacy feature is on
-#[cfg(feature = "legacy-primitives3d")]
-pub use primitives3d::{
-    LineSegment3D, Plane, Sphere, ParametricCurve3D, ParametricSurface
-};
+// Re-export deprecated 3D items - removed, use geo_primitives instead
 pub use robust::{Orientation, RobustSolver};
 
 /// 標準的な許容誤差コンテキスト
@@ -98,10 +90,7 @@ pub mod prelude {
         ToleranceContext, TolerantEq, TolerantOrd,
         DEFAULT_TOLERANCE,
     };
-    #[cfg(feature = "legacy-primitives3d")]
-    pub use crate::Direction3D;
-    #[cfg(feature = "legacy-primitives3d")]
-    pub use crate::{LineSegment3D, Plane, Sphere, ParametricCurve3D, ParametricSurface};
+    // Legacy 3D primitives removed - use geo_primitives instead
 }
 
 

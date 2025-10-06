@@ -55,35 +55,23 @@ pub trait GeometricPrimitive {
 pub mod classification;
 pub use classification::{PrimitiveKind, GeometryClassification, ComplexityLevel};
 
-// CAD統合層（legacy adapter）: 将来的に削除予定
-#[cfg(feature = "cad-legacy")]
+// CAD統合層: analysisからの依存を解決して常時利用可能に
 pub mod cad_point;
-#[cfg(feature = "cad-legacy")]
 pub use cad_point::CadPoint;
 
-#[cfg(feature = "cad-legacy")]
 pub mod cad_vector;
-#[cfg(feature = "cad-legacy")]
 pub use cad_vector::CadVector;
 
-#[cfg(feature = "cad-legacy")]
 pub mod cad_direction;
-#[cfg(feature = "cad-legacy")]
 pub use cad_direction::CadDirection;
 
-#[cfg(feature = "cad-legacy")]
 pub mod cad_circle;
-#[cfg(feature = "cad-legacy")]
 pub use cad_circle::CadCircle;
 
-#[cfg(feature = "cad-legacy")]
 pub mod cad_ellipse;
-#[cfg(feature = "cad-legacy")]
 pub use cad_ellipse::CadEllipse;
 
-#[cfg(feature = "cad-legacy")]
 pub mod cad_ellipse_arc;
-#[cfg(feature = "cad-legacy")]
 pub use cad_ellipse_arc::CadEllipseArc;
 
 // 2Dプリミティブ（削除済み - geo_coreの基本構造体を使用）
@@ -92,7 +80,7 @@ pub mod triangle;
 pub use triangle::{Triangle2D, Triangle3D};
 
 // 3Dプリミティブ / geometry3d 統合
-pub mod geometry3d; // legacy (Scalar-based, will be removed)
+// pub mod geometry3d; // legacy (Scalar-based) - removed, use f64geom instead
 
 // Alias layer: expose canonical f64 implementations under old names (no deprecation yet)
 pub mod aliases {
@@ -153,8 +141,7 @@ pub mod prelude {
         TriangleMesh,
     };
 
-    // CAD統合層 (legacy / gated)
-    #[cfg(feature = "cad-legacy")]
+    // CAD統合層 (analysis依存を削除済み)
     pub use crate::{
         CadPoint, CadVector, CadDirection,
         CadCircle, CadEllipse, CadEllipseArc,

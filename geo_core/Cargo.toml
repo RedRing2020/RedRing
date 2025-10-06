@@ -27,8 +27,6 @@ criterion = "0.7.0"
 default = []
 simd = ["nalgebra", "simba"]
 serde-support = ["dep:serde"]
-# Keep deprecated 3D primitives (LineSegment3D, Plane, Sphere, ParametricCurve3D, ParametricSurface, Direction3D re-export)
-legacy-primitives3d = []
 
 [lib]
 name = "geo_core"

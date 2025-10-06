@@ -1,5 +1,5 @@
-/// 3Dプリミティブのユニットテスト (feature = "legacy-primitives3d")
-#[cfg(feature = "legacy-primitives3d")]
+/// 3Dプリミティブのユニットテスト - removed, use geo_primitives tests instead
+#[cfg(not(any()))] // disabled - legacy 3D primitives removed
 mod legacy_tests {
     use crate::primitives3d::{Point3D, LineSegment3D, Plane, Sphere};
     use crate::scalar::Scalar;
