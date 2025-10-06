@@ -21,10 +21,10 @@ pub struct Quaternion<T: Scalar> {
 
 impl<T: Scalar> Quaternion<T> {
     // === 定数 ===
-    
+
     /// 単位クォータニオン（回転なし）
     pub const IDENTITY: Quaternion<f64> = Quaternion { data: [0.0, 0.0, 0.0, 1.0] };
-    
+
     /// ゼロクォータニオン
     pub const ZERO: Quaternion<f64> = Quaternion { data: [0.0, 0.0, 0.0, 0.0] };
 
@@ -52,7 +52,7 @@ impl<T: Scalar> Quaternion<T> {
         let half_angle = angle / T::from_f64(2.0);
         let sin_half = half_angle.sin();
         let cos_half = half_angle.cos();
-        
+
         Self::new(
             axis.x() * sin_half,
             axis.y() * sin_half,
@@ -87,14 +87,14 @@ impl<T: Scalar> Quaternion<T> {
     pub fn from_to_rotation(from: &Vector3<T>, to: &Vector3<T>) -> Result<Self, String> {
         let from_normalized = from.normalize()?;
         let to_normalized = to.normalize()?;
-        
+
         let dot = from_normalized.dot(&to_normalized);
-        
+
         // ベクトルが同じ方向の場合
         if dot >= T::ONE - T::EPSILON {
             return Ok(Self::identity());
         }
-        
+
         // ベクトルが反対方向の場合
         if dot <= -T::ONE + T::EPSILON {
             // 垂直なベクトルを見つける
@@ -106,10 +106,10 @@ impl<T: Scalar> Quaternion<T> {
             let normalized_axis = axis.normalize()?;
             return Ok(Self::from_axis_angle(&normalized_axis, T::PI));
         }
-        
+
         let cross = from_normalized.cross(&to_normalized);
         let w = T::ONE + dot;
-        
+
         Self::new(cross.x(), cross.y(), cross.z(), w).normalize()
     }
 
@@ -230,27 +230,27 @@ impl<T: Scalar> Quaternion<T> {
         let normalized = self.normalize()?;
         let w = normalized.w().clamp(-T::ONE, T::ONE);
         let angle = T::from_f64(2.0) * w.acos();
-        
+
         let sin_half_angle = (T::ONE - w * w).sqrt();
-        
+
         if sin_half_angle < T::EPSILON {
             // 回転角が0に近い場合
             return Ok((Vector3::new(T::ONE, T::ZERO, T::ZERO), T::ZERO));
         }
-        
+
         let axis = Vector3::new(
             normalized.x() / sin_half_angle,
             normalized.y() / sin_half_angle,
             normalized.z() / sin_half_angle
         );
-        
+
         Ok((axis, angle))
     }
 
     /// オイラー角に変換（XYZ順）
     pub fn to_euler_angles(&self) -> (T, T, T) {
         let normalized = self.normalize().unwrap_or(*self);
-        
+
         let x = normalized.x();
         let y = normalized.y();
         let z = normalized.z();
@@ -288,7 +288,7 @@ impl<T: Scalar> Quaternion<T> {
     /// 球面線形補間（SLERP）
     pub fn slerp(&self, other: &Self, t: T) -> Result<Self, String> {
         let mut dot = self.dot(other);
-        
+
         // 最短経路を選択
         let other = if dot < T::ZERO {
             dot = -dot;
@@ -296,22 +296,22 @@ impl<T: Scalar> Quaternion<T> {
         } else {
             *other
         };
-        
+
         // 角度が小さい場合は線形補間
         if dot > T::from_f64(0.9995) {
             return Ok(self.lerp(&other, t));
         }
-        
+
         let theta = dot.clamp(-T::ONE, T::ONE).acos();
         let sin_theta = theta.sin();
-        
+
         if sin_theta.abs() < T::EPSILON {
             return Ok(*self);
         }
-        
+
         let s0 = ((T::ONE - t) * theta).sin() / sin_theta;
         let s1 = (t * theta).sin() / sin_theta;
-        
+
         Ok(*self * s0 + other * s1)
     }
 
@@ -384,16 +384,16 @@ impl<T: Scalar> Mul for Quaternion<T> {
     fn mul(self, other: Self) -> Self::Output {
         // クォータニオンの積 (Hamilton product)
         Self::new(
-            self.data[3] * other.data[0] + self.data[0] * other.data[3] + 
+            self.data[3] * other.data[0] + self.data[0] * other.data[3] +
             self.data[1] * other.data[2] - self.data[2] * other.data[1],
-            
-            self.data[3] * other.data[1] - self.data[0] * other.data[2] + 
+
+            self.data[3] * other.data[1] - self.data[0] * other.data[2] +
             self.data[1] * other.data[3] + self.data[2] * other.data[0],
-            
-            self.data[3] * other.data[2] + self.data[0] * other.data[1] - 
+
+            self.data[3] * other.data[2] + self.data[0] * other.data[1] -
             self.data[1] * other.data[0] + self.data[2] * other.data[3],
-            
-            self.data[3] * other.data[3] - self.data[0] * other.data[0] - 
+
+            self.data[3] * other.data[3] - self.data[0] * other.data[0] -
             self.data[1] * other.data[1] - self.data[2] * other.data[2]
         )
     }
@@ -439,11 +439,11 @@ mod tests {
         let axis = Vector3::new(0.0, 0.0, 1.0);
         let angle = PI / 2.0; // 90度
         let q = Quaternion::from_axis_angle(&axis, angle);
-        
+
         // X軸のベクトルを90度Z軸周りに回転するとY軸になる
         let x_axis = Vector3::new(1.0, 0.0, 0.0);
         let rotated = q.rotate_vector(&x_axis);
-        
+
         assert!((rotated.x() - 0.0).abs() < 1e-10);
         assert!((rotated.y() - 1.0).abs() < 1e-10);
         assert!((rotated.z() - 0.0).abs() < 1e-10);
@@ -454,7 +454,7 @@ mod tests {
         let q1 = Quaternion::new(1.0, 0.0, 0.0, 0.0);
         let q2 = Quaternion::new(0.0, 1.0, 0.0, 0.0);
         let result = q1 * q2;
-        
+
         // i * j = k
         assert_eq!(result.x(), 0.0);
         assert_eq!(result.y(), 0.0);
@@ -466,7 +466,7 @@ mod tests {
     fn test_quaternion_conjugate() {
         let q = Quaternion::new(1.0, 2.0, 3.0, 4.0);
         let conj = q.conjugate();
-        
+
         assert_eq!(conj.x(), -1.0);
         assert_eq!(conj.y(), -2.0);
         assert_eq!(conj.z(), -3.0);
@@ -477,7 +477,7 @@ mod tests {
     fn test_quaternion_normalize() {
         let q = Quaternion::new(1.0, 2.0, 3.0, 4.0);
         let normalized = q.normalize().unwrap();
-        
+
         assert!((normalized.norm() - 1.0).abs() < 1e-10);
     }
 
@@ -486,10 +486,10 @@ mod tests {
         let q1 = Quaternion::<f64>::identity();
         let axis = Vector3::new(0.0, 0.0, 1.0);
         let q2 = Quaternion::from_axis_angle(&axis, PI / 2.0);
-        
+
         let interpolated = q1.slerp(&q2, 0.5).unwrap();
         let expected_angle = PI / 4.0; // 45度
-        
+
         assert!((interpolated.angle() - expected_angle).abs() < 1e-10);
     }
 
@@ -498,10 +498,10 @@ mod tests {
         let pitch = PI / 6.0; // 30度
         let yaw = PI / 4.0;    // 45度
         let roll = PI / 3.0;   // 60度
-        
+
         let q = Quaternion::from_euler_angles(pitch, yaw, roll);
         let (recovered_pitch, recovered_yaw, recovered_roll) = q.to_euler_angles();
-        
+
         assert!((pitch - recovered_pitch).abs() < 1e-10);
         assert!((yaw - recovered_yaw).abs() < 1e-10);
         assert!((roll - recovered_roll).abs() < 1e-10);
@@ -511,10 +511,10 @@ mod tests {
     fn test_quaternion_from_to_rotation() {
         let from = Vector3::new(1.0, 0.0, 0.0);
         let to = Vector3::new(0.0, 1.0, 0.0);
-        
+
         let q = Quaternion::from_to_rotation(&from, &to).unwrap();
         let rotated = q.rotate_vector(&from);
-        
+
         assert!((rotated.x() - to.x()).abs() < 1e-10);
         assert!((rotated.y() - to.y()).abs() < 1e-10);
         assert!((rotated.z() - to.z()).abs() < 1e-10);
