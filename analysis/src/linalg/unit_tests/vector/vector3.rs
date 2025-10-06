@@ -3,6 +3,56 @@ use crate::linalg::vector::Vector3;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_vector3_creation() {
+        let v = Vector3::new(1.0, 2.0, 3.0);
+        assert_eq!(v.x(), 1.0);
+        assert_eq!(v.y(), 2.0);
+        assert_eq!(v.z(), 3.0);
+    }
+
+    #[test]
+    fn test_vector3_cross_product() {
+        let v1 = Vector3::new(1.0, 0.0, 0.0);
+        let v2 = Vector3::new(0.0, 1.0, 0.0);
+        let cross = v1.cross(&v2);
+
+        assert_eq!(cross, Vector3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn test_vector3_norm() {
+        let v = Vector3::new(1.0, 2.0, 2.0);
+        assert_eq!(v.norm(), 3.0); // sqrt(1 + 4 + 4) = 3
+        assert_eq!(v.norm_squared(), 9.0);
+    }
+
+    #[test]
+    fn test_vector3_normalize() {
+        let v = Vector3::<f64>::new(3.0, 4.0, 0.0);
+        let normalized = v.normalize().unwrap();
+        assert!((normalized.norm() - 1.0_f64).abs() < 1e-10);
+        assert!((normalized.x() - 0.6_f64).abs() < 1e-10);
+        assert!((normalized.y() - 0.8_f64).abs() < 1e-10);
+        assert_eq!(normalized.z(), 0.0);
+    }
+
+    #[test]
+    fn test_vector3_arithmetic() {
+        let v1 = Vector3::new(1.0, 2.0, 3.0);
+        let v2 = Vector3::new(4.0, 5.0, 6.0);
+
+        let sum = v1 + v2;
+        assert_eq!(sum, Vector3::new(5.0, 7.0, 9.0));
+
+        let diff = v2 - v1;
+        assert_eq!(diff, Vector3::new(3.0, 3.0, 3.0));
+
+        let scaled = v1 * 2.0;
+        assert_eq!(scaled, Vector3::new(2.0, 4.0, 6.0));
+    }
+
     #[test]
     fn test_vector3_axis_constants() {
         // 定数テスト（f64型）
@@ -41,7 +91,7 @@ mod tests {
         assert_eq!(zero.y(), 0.0);
         assert_eq!(zero.z(), 0.0);
 
-        // エイリアスのf32型でも動作することを確認
+        // エイリアスはf32型でも動作することを確認
         let x_axis_f32 = Vector3::<f32>::x_axis();
         let zero_f32 = Vector3::<f32>::zero();
         assert_eq!(x_axis_f32.x(), 1.0f32);
