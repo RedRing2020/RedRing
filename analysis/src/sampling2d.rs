@@ -19,7 +19,7 @@
 //             result.push(pt);
 //         }
 //     }
-// 
+//
 //     result.dedup_by(|a, b| a.distance_to(b).value() < epsilon);
 //     result
 // }

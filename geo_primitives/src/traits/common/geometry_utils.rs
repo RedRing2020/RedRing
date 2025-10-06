@@ -46,13 +46,13 @@ pub fn point2d_bounding_box(points: &[Point2D]) -> Option<(f64, f64, f64, f64)> 
     if points.is_empty() {
         return None;
     }
-    
+
     let first = point2d_to_f64(&points[0]);
     let mut min_x = first.0;
     let mut min_y = first.1;
     let mut max_x = first.0;
     let mut max_y = first.1;
-    
+
     for point in points.iter().skip(1) {
         let (x, y) = point2d_to_f64(point);
         min_x = f64_min(min_x, x);
@@ -60,7 +60,7 @@ pub fn point2d_bounding_box(points: &[Point2D]) -> Option<(f64, f64, f64, f64)> 
         max_x = f64_max(max_x, x);
         max_y = f64_max(max_y, y);
     }
-    
+
     Some((min_x, min_y, max_x, max_y))
 }
 
@@ -69,7 +69,7 @@ pub fn point3d_bounding_box(points: &[Point3D]) -> Option<(f64, f64, f64, f64, f
     if points.is_empty() {
         return None;
     }
-    
+
     let first = point3d_to_f64(&points[0]);
     let mut min_x = first.0;
     let mut min_y = first.1;
@@ -77,7 +77,7 @@ pub fn point3d_bounding_box(points: &[Point3D]) -> Option<(f64, f64, f64, f64, f
     let mut max_x = first.0;
     let mut max_y = first.1;
     let mut max_z = first.2;
-    
+
     for point in points.iter().skip(1) {
         let (x, y, z) = point3d_to_f64(point);
         min_x = f64_min(min_x, x);
@@ -87,7 +87,7 @@ pub fn point3d_bounding_box(points: &[Point3D]) -> Option<(f64, f64, f64, f64, f
         max_y = f64_max(max_y, y);
         max_z = f64_max(max_z, z);
     }
-    
+
     Some((min_x, min_y, min_z, max_x, max_y, max_z))
 }
 
@@ -96,16 +96,16 @@ pub fn point2d_centroid(points: &[Point2D]) -> Option<Point2D> {
     if points.is_empty() {
         return None;
     }
-    
+
     let mut sum_x = 0.0;
     let mut sum_y = 0.0;
-    
+
     for point in points {
         let (x, y) = point2d_to_f64(point);
         sum_x += x;
         sum_y += y;
     }
-    
+
     let count = points.len() as f64;
     Some(point2d_from_f64(sum_x / count, sum_y / count))
 }
@@ -115,18 +115,18 @@ pub fn point3d_centroid(points: &[Point3D]) -> Option<Point3D> {
     if points.is_empty() {
         return None;
     }
-    
+
     let mut sum_x = 0.0;
     let mut sum_y = 0.0;
     let mut sum_z = 0.0;
-    
+
     for point in points {
         let (x, y, z) = point3d_to_f64(point);
         sum_x += x;
         sum_y += y;
         sum_z += z;
     }
-    
+
     let count = points.len() as f64;
     Some(point3d_from_f64(sum_x / count, sum_y / count, sum_z / count))
 }
@@ -141,7 +141,7 @@ mod tests {
         let (x, y) = point2d_to_f64(&point);
         assert_eq!(x, 1.5);
         assert_eq!(y, 2.5);
-        
+
         let restored = point2d_from_f64(x, y);
         assert_eq!(restored.x(), 1.5);
         assert_eq!(restored.y(), 2.5);
@@ -154,7 +154,7 @@ mod tests {
         assert_eq!(x, 1.5);
         assert_eq!(y, 2.5);
         assert_eq!(z, 3.5);
-        
+
         let restored = point3d_from_f64(x, y, z);
         assert_eq!(restored.x(), 1.5);
         assert_eq!(restored.y(), 2.5);
@@ -168,7 +168,7 @@ mod tests {
             Point2D::new(2.0, 1.0),
             Point2D::new(1.0, 3.0),
         ];
-        
+
         let bbox = point2d_bounding_box(&points).unwrap();
         assert_eq!(bbox, (0.0, 0.0, 2.0, 3.0));
     }
@@ -180,7 +180,7 @@ mod tests {
             Point2D::new(2.0, 0.0),
             Point2D::new(1.0, 2.0),
         ];
-        
+
         let centroid = point2d_centroid(&points).unwrap();
         assert_eq!(centroid.x(), 1.0);
         assert_eq!(centroid.y(), 2.0 / 3.0);

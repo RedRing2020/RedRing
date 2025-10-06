@@ -19,7 +19,7 @@ pub trait ParametricCurve2D {
 }
 
 /// 2D点
-/// 
+///
 /// 座標値はmm単位で格納される
 #[derive(Debug, Clone, Copy)]
 #[deprecated(note = "Use geo_primitives::Point2D instead")]

@@ -1,5 +1,5 @@
 /// CAD Vector - modelからの基本ベクトル構造体移植
-/// 
+///
 /// ハイブリッド統合: geo_core::Vector3Dをベースにmodel CAD API互換性を提供
 
 use std::ops::{Add, Sub, Mul, Neg};
@@ -20,8 +20,8 @@ impl PartialEq for CadVector {
 
 impl CadVector {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { 
-            inner: GeoVector3D::from_f64(x, y, z) 
+        Self {
+            inner: GeoVector3D::from_f64(x, y, z)
         }
     }
 
@@ -30,7 +30,7 @@ impl CadVector {
     pub fn z(&self) -> f64 { self.inner.z().value() }
 
     pub fn zero() -> Self {
-        Self::new(0.0, 0.0, 0.0) 
+        Self::new(0.0, 0.0, 0.0)
     }
 
     pub fn norm(&self) -> f64 {
@@ -118,10 +118,10 @@ mod tests {
     fn test_cad_vector_operations() {
         let v1 = CadVector::new(1.0, 0.0, 0.0);
         let v2 = CadVector::new(0.0, 1.0, 0.0);
-        
+
         let cross = v1.cross(&v2);
         assert!((cross.z() - 1.0).abs() < 1e-10);
-        
+
         let dot = v1.dot(&v2);
         assert!(dot.abs() < 1e-10);
     }
