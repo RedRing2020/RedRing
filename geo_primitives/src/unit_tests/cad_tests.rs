@@ -38,7 +38,7 @@ mod cad_tests {
         assert_eq!(vector.x(), 1.0);
         assert_eq!(vector.y(), 2.0);
         assert_eq!(vector.z(), 3.0);
-        
+
         let length = vector.length();
         assert!((length - (1.0 + 4.0 + 9.0_f64).sqrt()).abs() < 1e-10);
     }
@@ -47,7 +47,7 @@ mod cad_tests {
     fn test_cad_direction_creation() {
         let vector = CadVector::new(3.0, 4.0, 0.0);
         let direction = CadDirection::from_vector(vector);
-        
+
         assert!(direction.is_some());
         let dir = direction.unwrap();
         assert!((dir.length() - 1.0).abs() < 1e-10); // 正規化されている

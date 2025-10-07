@@ -111,7 +111,7 @@ impl CadEllipseArc {
         let arc_fraction = (end - start) / (2.0 * std::f64::consts::PI);
         let three = 3.0;
         let pi = std::f64::consts::PI;
-        let full_perimeter = pi * (three * (self.major_radius + self.minor_radius) - 
+        let full_perimeter = pi * (three * (self.major_radius + self.minor_radius) -
             ((three * self.major_radius + self.minor_radius) * (self.major_radius + three * self.minor_radius)).sqrt());
         full_perimeter * arc_fraction
     }

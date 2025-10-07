@@ -90,7 +90,7 @@ impl CadEllipse {
         // For now, use Ramanujan's approximation for ellipse perimeter
         let three = Scalar::new(3.0);
         let pi = Scalar::new(std::f64::consts::PI);
-        let perimeter_approx = pi * (three * (self.major_radius + self.minor_radius) - 
+        let perimeter_approx = pi * (three * (self.major_radius + self.minor_radius) -
             ((three * self.major_radius + self.minor_radius) * (self.major_radius + three * self.minor_radius)).sqrt());
         perimeter_approx.value()
     }

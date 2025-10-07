@@ -231,8 +231,8 @@ impl fmt::Display for Vector3D {
     }
 }
 
-impl fmt::Display for Direction3D { 
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { 
-        write!(f, "Direction3D({:.6}, {:.6}, {:.6})", self.x(), self.y(), self.z()) 
-    } 
+impl fmt::Display for Direction3D {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Direction3D({:.6}, {:.6}, {:.6})", self.x(), self.y(), self.z())
+    }
 }

@@ -96,7 +96,7 @@ impl Vector2D {
     pub fn rotate(&self, angle: f64) -> Self {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
-        
+
         Self::new(
             self.x * cos_a - self.y * sin_a,
             self.x * sin_a + self.y * cos_a,

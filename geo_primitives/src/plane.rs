@@ -25,32 +25,32 @@ impl Plane {
         let (x1, y1, z1) = point3d_to_f64(p1);
         let (x2, y2, z2) = point3d_to_f64(p2);
         let (x3, y3, z3) = point3d_to_f64(p3);
-        
+
         let v1_x = x2 - x1;
         let v1_y = y2 - y1;
         let v1_z = z2 - z1;
-        
+
         let v2_x = x3 - x1;
         let v2_y = y3 - y1;
         let v2_z = z3 - z1;
-        
+
         // 外積で法線を計算
         let normal_x = v1_y * v2_z - v1_z * v2_y;
         let normal_y = v1_z * v2_x - v1_x * v2_z;
         let normal_z = v1_x * v2_y - v1_y * v2_x;
-        
+
         // 法線ベクトルがゼロかチェック
         let normal_length = (normal_x * normal_x + normal_y * normal_y + normal_z * normal_z).sqrt();
         if normal_length < 1e-10 {
             return None; // 退化した平面（3点が一直線上）
         }
-        
+
         let normal = Vector3D::new(
             Scalar::new(normal_x),
             Scalar::new(normal_y),
             Scalar::new(normal_z),
         );
-        
+
         Some(Self::new(p1.clone(), normal))
     }
 
@@ -140,7 +140,7 @@ mod tests {
         let point = Point3D::from_f64(0.0, 0.0, 0.0);
         let normal = Vector3D::new(Scalar::new(0.0), Scalar::new(0.0), Scalar::new(1.0));
         let plane = Plane::new(point, normal);
-        
+
         let (px, py, pz) = point3d_to_f64(plane.point());
         assert_eq!(px, 0.0);
         assert_eq!(py, 0.0);
@@ -152,9 +152,9 @@ mod tests {
         let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
         let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
         let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
-        
+
         let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
-        
+
         // Z=0平面の法線は(0, 0, 1)方向
         assert!((plane.normal().z().value() - 1.0).abs() < 1e-10 ||
                 (plane.normal().z().value() + 1.0).abs() < 1e-10);
@@ -165,9 +165,9 @@ mod tests {
         let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
         let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
         let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
-        
+
         let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
-        
+
         let test_point = Point3D::from_f64(0.0, 0.0, 5.0);
         let distance = plane.distance_to_point(&test_point);
         assert!((distance - 5.0).abs() < 1e-10);
@@ -178,12 +178,12 @@ mod tests {
         let p1 = Point3D::from_f64(0.0, 0.0, 0.0);
         let p2 = Point3D::from_f64(1.0, 0.0, 0.0);
         let p3 = Point3D::from_f64(0.0, 1.0, 0.0);
-        
+
         let plane = Plane::from_three_points(&p1, &p2, &p3).unwrap();
-        
+
         let test_point = Point3D::from_f64(1.0, 1.0, 5.0);
         let projected = plane.project_point(&test_point);
-        
+
         let (px, py, pz) = point3d_to_f64(&projected);
         assert!((px - 1.0).abs() < 1e-10);
         assert!((py - 1.0).abs() < 1e-10);
