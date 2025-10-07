@@ -6,11 +6,6 @@ pub mod vector;
 pub mod point;
 pub mod bbox;
 
-// Keep old module names for compatibility during transition
-pub mod vector3d;
-pub mod point3d;
-pub mod bbox3d;
-
 pub use direction::Direction3D;
 pub use vector::Vector;
 pub use point::Point;
