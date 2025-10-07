@@ -1,7 +1,7 @@
 #[cfg(test)]
 use crate::geometry2d::{BBox2D, Point2D};
 use crate::geometry3d::Point3D;
-    use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
+    use crate::traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
     #[test]
     fn test_bbox2d_creation() {

@@ -1,8 +1,10 @@
+//! トレイトと共通ユーティリティのテスト
+//! classification, geometry_utils, BoundingBoxトレイトのテスト
 #[cfg(test)]
 use crate::traits::common::classification::{PrimitiveKind, DimensionClass};
 use crate::traits::common::primitive_trait::GeometricPrimitive;
 use crate::traits::common::geometry_utils::*;
-use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps};
+use crate::traits::{BoundingBox, BoundingBoxOps};
 use crate::geometry2d::Point2D;
 use crate::geometry3d::{Point3D, BBox3D};
 
@@ -156,19 +158,19 @@ use crate::geometry3d::{Point3D, BBox3D};
     impl<const D: usize> BoundingBox<D> for MockBBox<D> {
         type Coord = f64;
 
-        fn min(&self) -> [Self::Coord; D] {
+        fn min(&self) -> [f64; D] {
             self.min
         }
 
-        fn max(&self) -> [Self::Coord; D] {
+        fn max(&self) -> [f64; D] {
             self.max
         }
 
-        fn new(min: [Self::Coord; D], max: [Self::Coord; D]) -> Self {
+        fn new(min: [f64; D], max: [f64; D]) -> Self {
             Self { min, max }
         }
 
-        fn extent(&self, dim: usize) -> Self::Coord {
+        fn extent(&self, dim: usize) -> f64 {
             if dim < D {
                 self.max[dim] - self.min[dim]
             } else {
@@ -176,7 +178,7 @@ use crate::geometry3d::{Point3D, BBox3D};
             }
         }
 
-        fn volume(&self) -> Self::Coord {
+        fn volume(&self) -> f64 {
             let mut vol = 1.0;
             for i in 0..D {
                 vol *= self.extent(i);
@@ -184,7 +186,7 @@ use crate::geometry3d::{Point3D, BBox3D};
             vol
         }
 
-        fn center(&self) -> [Self::Coord; D] {
+        fn center(&self) -> [f64; D] {
             let mut center = [0.0; D];
             for (i, center_item) in center.iter_mut().enumerate().take(D) {
                 *center_item = (self.min[i] + self.max[i]) / 2.0;
@@ -194,7 +196,7 @@ use crate::geometry3d::{Point3D, BBox3D};
     }
 
     impl<const D: usize> BoundingBoxOps<D> for MockBBox<D> {
-        fn contains_point(&self, point: [Self::Coord; D]) -> bool {
+        fn contains_point(&self, point: [f64; D]) -> bool {
             for (i, &point_item) in point.iter().enumerate().take(D) {
                 if point_item < self.min[i] || point_item > self.max[i] {
                     return false;
@@ -222,7 +224,7 @@ use crate::geometry3d::{Point3D, BBox3D};
             Self::new(min, max)
         }
 
-        fn expand(&self, amount: Self::Coord) -> Self {
+        fn expand(&self, amount: f64) -> Self {
             let mut min = self.min;
             let mut max = self.max;
             for i in 0..D {

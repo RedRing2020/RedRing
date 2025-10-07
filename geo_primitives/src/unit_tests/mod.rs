@@ -1,15 +1,12 @@
-//! Unit tests module
+﻿//! Unit tests module
 //! テストケースの整理されたモジュール構成
-mod vector_traits;
-mod geometry;
-mod common;
 mod geometry_bbox;
 
-// 分離されたテストモジュール
-mod direction_tests;
-mod vector2d_tests;
-mod vector3d_tests;
-mod point3d_tests;
-mod bbox2d_tests;
-mod bbox3d_tests;
-mod traits_tests;
+// 個別テストモジュール
+mod direction;
+mod vector2d;
+mod vector3d;
+mod point3d;
+mod bbox2d;
+mod bbox3d;
+mod traits;

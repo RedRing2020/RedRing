@@ -1,6 +1,6 @@
 #[cfg(test)]
 use crate::geometry3d::{BBox3D, Point3D};
-use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use crate::traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
     #[test]
     fn test_bbox3d_creation() {
