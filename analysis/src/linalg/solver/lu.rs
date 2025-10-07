@@ -1,8 +1,7 @@
-/// LU分解による連立方程式ソルバー
-///
-/// Doolittle法によるLU分解を実装
-/// 部分ピボット選択付きで数値安定性を確保
-
+//! LU分解による連立方程式ソルバー
+//!
+//! Doolittle法によるLU分解を実装
+//! 部分ピボット選択付きで数値安定性を確保
 use super::{LinearSolver, SolutionInfo};
 use crate::linalg::scalar::Scalar;
 
@@ -99,6 +98,7 @@ impl<T: Scalar> LUSolver<T> {
         let mut max_row = k;
         let mut max_val = lu_matrix[k][k].abs();
 
+        #[allow(clippy::needless_range_loop)]
         for i in (k + 1)..n {
             let val = lu_matrix[i][k].abs();
             if val > max_val {
@@ -171,6 +171,7 @@ impl<T: Scalar> LUSolver<T> {
 
         for i in 0..n {
             let mut sum = T::ZERO;
+            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
                 sum = sum + matrix[i][j] * solution[j];
             }

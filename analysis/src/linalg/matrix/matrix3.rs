@@ -1,8 +1,7 @@
-/// 3x3行列（高速演算用）
-///
-/// 3D変換、回転、投影に特化した固定サイズ行列
-/// CAD計算とグラフィックス処理の両方に対応
-
+//! 3x3行列（高速演算用）
+//!
+//! 3D変換、回転、投影に特化した固定サイズ行列
+//! CAD計算とグラフィックス処理の両方に対応
 use crate::linalg::scalar::Scalar;
 use crate::linalg::vector::Vector3;
 use std::ops::{Add, Mul};
@@ -14,6 +13,7 @@ pub struct Matrix3x3<T: Scalar> {
 }
 
 impl<T: Scalar> Matrix3x3<T> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         a11: T, a12: T, a13: T,
         a21: T, a22: T, a23: T,

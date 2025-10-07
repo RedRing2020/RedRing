@@ -1,8 +1,7 @@
-/// 4x4行列（3D変換・プロジェクション用）
-///
-/// 3D変換、射影変換、カメラ変換のための専用行列
-/// OpenGL/DirectX互換の行列演算を提供
-
+//! 4x4行列（3D変換・プロジェクション用）
+//!
+//! 3D変換、射影変換、カメラ変換のための専用行列
+//! OpenGL/DirectX互換の行列演算を提供
 use crate::linalg::scalar::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
 use std::ops::{Add, Mul};
@@ -14,6 +13,7 @@ pub struct Matrix4x4<T: Scalar> {
 }
 
 impl<T: Scalar> Matrix4x4<T> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         a11: T, a12: T, a13: T, a14: T,
         a21: T, a22: T, a23: T, a24: T,

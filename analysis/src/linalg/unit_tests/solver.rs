@@ -1,7 +1,6 @@
-/// ソルバーテスト
-///
-/// 各種連立方程式ソルバーの統合テスト
-
+//! ソルバーテスト
+//!
+//! 各種連立方程式ソルバーの統合テスト
 use crate::linalg::solver::{GaussianSolver, LUSolver, CramerSolver, LinearSolver};
 
 /// 共通テストデータ
@@ -76,6 +75,7 @@ fn test_solver_comparison_3x3() {
     let cramer_result = cramer_solver.solve(&matrix, &rhs).unwrap();
 
     // 全て同じ解を得ることを確認
+    #[allow(clippy::needless_range_loop)]
     for i in 0..3 {
         assert!((gaussian_result.solution[i] - expected[i]).abs() < 1e-10);
         assert!((lu_result.solution[i] - expected[i]).abs() < 1e-10);
