@@ -1,5 +1,5 @@
 /// Direction3D - 3D方向ベクトルの実装
-/// 
+///
 /// STEP互換のDirection3D実装。常に正規化されたベクトルとして管理され、
 /// CAD操作に必要な方向性を持つ要素を表現する。
 
@@ -8,7 +8,7 @@ use crate::traits::geometry::{Direction, Direction3D as Direction3DTrait, StepCo
 use std::f64::consts::PI;
 
 /// 3D方向ベクトル
-/// 
+///
 /// 常に長さが1に正規化されたベクトルを表現する。
 /// STEPのDIRECTIONエンティティに対応。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -106,11 +106,11 @@ impl Direction3DTrait for Direction3D {
         let sin_theta = angle.sin();
         let axis_vec = axis.to_vector();
         let dot_product = self.dot(axis);
-        
+
         let rotated = self.vector * cos_theta
             + axis_vec.cross(&self.vector) * sin_theta
             + axis_vec * dot_product * (1.0 - cos_theta);
-            
+
         Self::from_normalized_vector(rotated)
     }
 
@@ -119,7 +119,7 @@ impl Direction3DTrait for Direction3D {
         let abs_x = self.x().abs();
         let abs_y = self.y().abs();
         let abs_z = self.z().abs();
-        
+
         let reference = if abs_x <= abs_y && abs_x <= abs_z {
             Vector3D::new(1.0, 0.0, 0.0)
         } else if abs_y <= abs_z {
@@ -127,7 +127,7 @@ impl Direction3DTrait for Direction3D {
         } else {
             Vector3D::new(0.0, 0.0, 1.0)
         };
-        
+
         let cross = self.vector.cross(&reference);
         Self::from_normalized_vector(cross)
     }
@@ -137,7 +137,7 @@ impl Direction3DTrait for Direction3D {
         let u = self.any_perpendicular(); // X軸
         let v_vec = w.vector.cross(&u.vector); // Y軸
         let v = Self::from_normalized_vector(v_vec);
-        
+
         (u, v, w)
     }
 

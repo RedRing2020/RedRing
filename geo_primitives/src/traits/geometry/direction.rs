@@ -1,5 +1,5 @@
 /// Direction trait - STEP形式に倣った方向ベクトルの抽象化
-/// 
+///
 /// STEPにおけるDIRECTIONエンティティの抽象化。
 /// 正規化されたベクトルとして表現され、CAD形状処理に適した操作を提供する。
 
@@ -7,21 +7,21 @@
 use std::fmt::Debug;
 
 /// 方向ベクトルの抽象化トレイト
-/// 
+///
 /// STEPのDIRECTIONエンティティに対応し、常に正規化された（長さ=1）ベクトルを表現する。
 /// CAD操作における方向性を持つ要素（軸、法線、切線など）に使用される。
 pub trait Direction: Debug + Clone + PartialEq {
     /// 関連するベクトル型
     type Vector: Clone + Debug;
-    
+
     /// 関連するスカラー型（通常はf64）
     type Scalar: Clone + Debug + PartialEq;
 
     /// ベクトルから方向を作成
-    /// 
+    ///
     /// # Arguments
     /// * `vector` - 元となるベクトル（ゼロベクトルの場合はNoneを返す）
-    /// 
+    ///
     /// # Returns
     /// 正規化された方向ベクトル、またはゼロベクトルの場合はNone
     fn from_vector(vector: Self::Vector) -> Option<Self>;
@@ -101,7 +101,7 @@ pub trait Direction3D: Direction {
 }
 
 /// STEP互換性のためのマーカートレイト
-/// 
+///
 /// STEPファイルとの相互運用性を示すマーカー。
 /// 将来的なSTEPエクスポート/インポート機能で使用予定。
 pub trait StepCompatible {
