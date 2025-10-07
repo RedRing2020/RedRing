@@ -24,7 +24,8 @@ pub use normalizable::Normalizable;
 pub use bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 // Re-export geometry structures
-pub use geometry::{CadPoint, CadVector};
+pub use geometry::Point;
+pub use geometry::Vector as GeometryVector;
 
 // Re-export common utilities
 pub use common::{PrimitiveKind, DimensionClass, GeometryPrimitive, GeometryUnion};
