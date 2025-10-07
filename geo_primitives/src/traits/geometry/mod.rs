@@ -1,5 +1,5 @@
-/// Geometry structures module
-/// CAD関連の基本幾何構造体
+//! Geometry structures module
+//! CAD関連の基本幾何構造体
 
 pub mod direction;
 pub mod point;

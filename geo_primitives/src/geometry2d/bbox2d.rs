@@ -1,6 +1,6 @@
-/// 2D Bounding Box - 2次元境界ボックス
-///
-/// 2D形状処理と衝突判定のための2次元境界ボックス
+//! 2D Bounding Box - 2次元境界ボックス
+//!
+//! 2D形状処理と衝突判定のための2次元境界ボックス
 
 use crate::traits::bbox_trait::{BoundingBoxOps, CollisionBounds};
 use crate::geometry2d::Point2D;

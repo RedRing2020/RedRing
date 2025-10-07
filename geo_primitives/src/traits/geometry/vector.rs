@@ -1,4 +1,4 @@
-﻿/// Vector - 基本ベクトル構造体
+﻿//! Vector - 基本ベクトル構造体
 
 use crate::geometry3d::Vector3D as GeoVector3D;
 

@@ -1,5 +1,5 @@
-/// Common utilities and classification
-/// 共通ユーティリティと分類システム
+//! Common utilities and classification
+//! 共通ユーティリティと分類システム
 
 pub mod classification;
 pub mod geometry_utils;
