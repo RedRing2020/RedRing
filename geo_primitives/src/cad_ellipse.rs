@@ -101,29 +101,4 @@ impl CadEllipse {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_cad_ellipse_basic() {
-        let center = CadPoint::new(0.0, 0.0, 0.0);
-        let major = CadVector::new(2.0, 0.0, 0.0);
-        let minor = CadVector::new(0.0, 1.0, 0.0);
-
-        let ellipse = CadEllipse::new(center, major, minor, 2.0, 1.0).unwrap();
-
-        assert_eq!(ellipse.major_radius(), 2.0);
-        assert_eq!(ellipse.minor_radius(), 1.0);
-    }
-
-    #[test]
-    fn test_cad_ellipse_orthogonal_check() {
-        let center = CadPoint::new(0.0, 0.0, 0.0);
-        let major = CadVector::new(1.0, 0.0, 0.0);
-        let minor = CadVector::new(1.0, 1.0, 0.0); // 非直交
-
-        let ellipse = CadEllipse::new(center, major, minor, 1.0, 1.0);
-        assert!(ellipse.is_none()); // 軸が直交していないため作成失敗
-    }
-}

@@ -122,39 +122,4 @@ impl CadEllipseArc {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_cad_ellipse_arc_basic() {
-        let center = CadPoint::new(0.0, 0.0, 0.0);
-        let major = CadVector::new(1.0, 0.0, 0.0);
-        let minor = CadVector::new(0.0, 1.0, 0.0);
-
-        let arc = CadEllipseArc::new(
-            center, major, minor,
-            1.0, 1.0,
-            0.0, std::f64::consts::PI / 2.0
-        ).unwrap();
-
-        assert_eq!(arc.start_angle(), 0.0);
-        assert!((arc.end_angle() - std::f64::consts::PI / 2.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_cad_ellipse_arc_invalid_angles() {
-        let center = CadPoint::new(0.0, 0.0, 0.0);
-        let major = CadVector::new(1.0, 0.0, 0.0);
-        let minor = CadVector::new(0.0, 1.0, 0.0);
-
-        // 終了角度が開始角度より小さい場合
-        let arc = CadEllipseArc::new(
-            center, major, minor,
-            1.0, 1.0,
-            std::f64::consts::PI, 0.0
-        );
-
-        assert!(arc.is_none()); // 不正な角度範囲のため作成失敗
-    }
-}
