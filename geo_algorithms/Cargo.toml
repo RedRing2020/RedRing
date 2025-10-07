@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-geo_core = { path = "../geo_core" }
+geo_foundation = { path = "../geo_foundation" }
 geo_primitives = { path = "../geo_primitives" }

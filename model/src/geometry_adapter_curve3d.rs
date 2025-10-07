@@ -6,11 +6,12 @@ use std::any::Any;
 use crate::geometry_kind::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use super::{Vector3D, Point3D};
-use geo_core::{
-    primitives3d::{LineSegment3D as GeoLineSegment3D, ParametricCurve3D},
+use geo_foundation::{
     ToleranceContext,
     Scalar
 };
+// FIXME: geo_core primitives3d dependency needs replacement
+// use geo_core::primitives3d::{LineSegment3D as GeoLineSegment3D, ParametricCurve3D};
 
 /// geo_core LineSegment3D のアダプター実装
 pub struct AdaptedLine {

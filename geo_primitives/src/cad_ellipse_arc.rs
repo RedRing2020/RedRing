@@ -62,12 +62,12 @@ impl CadEllipseArc {
 
     /// 長軸半径を取得
     pub fn major_radius(&self) -> f64 {
-        self.major_radius.value()
+        self.major_radius
     }
 
     /// 短軸半径を取得
     pub fn minor_radius(&self) -> f64 {
-        self.minor_radius.value()
+        self.minor_radius
     }
 
     /// 開始角度を取得

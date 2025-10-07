@@ -2,8 +2,9 @@
 ///
 /// Scalar基礎計算を使用した高精度円演算を提供
 
-// geo_core参照を削除 - f64を直接使用
+// geo_foundation参照を使用 - Scalarを抽象化
 use crate::{CadPoint, CadVector, CadDirection};
+use geo_foundation::Scalar;
 
 /// CAD Circle（modelからの移植）
 #[derive(Debug, Clone)]

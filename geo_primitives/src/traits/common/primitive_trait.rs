@@ -2,7 +2,7 @@
 ///
 /// 全ての幾何プリミティブが実装すべき基本的なインターフェース
 
-use crate::geometry3d::{BBox3D, Point3D};
+use crate::geometry3d::BBox3D;
 use super::classification::PrimitiveKind;
 
 /// 全ての幾何プリミティブが実装する共通トレイト

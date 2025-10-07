@@ -3,7 +3,8 @@
 /// ハイブリッド統合: geo_core::Point3Dをベースにmodel CAD API互換性を提供
 
 use std::ops::{Add, Sub};
-use geo_core::{ToleranceContext, TolerantEq};
+use geo_foundation::{ToleranceContext, TolerantEq};
+use crate::geometry3d::Point3D as GeoPoint3D;
 // Point3D removed - using tuple-based coordinate
 
 /// CAD用3D点（modelからの移植）

@@ -2,9 +2,10 @@
 ///
 /// f64ベース幾何プリミティブ間の変換とヘルパー関数を提供
 
-// geo_core参照を削除 - f64を直接使用
+// geo_foundation参照を使用 - Scalarを抽象化
 use crate::geometry2d::Point2D;
 use crate::geometry3d::Point3D;
+use geo_foundation::Scalar;
 
 /// Point2Dからf64タプルに変換
 pub fn point2d_to_f64(point: &Point2D) -> (f64, f64) {

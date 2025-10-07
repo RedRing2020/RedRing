@@ -68,13 +68,4 @@ pub trait Vector<const D: usize>:
     fn abs(&self) -> Self;
 }
 
-// サブモジュールをインクルード
-#[path = "vector2d.rs"]
-pub mod vector2d;
-
-#[path = "vector3d.rs"]
-pub mod vector3d;
-
-// 型の再エクスポート
-pub use vector2d::Vector2D;
-pub use vector3d::{Vector3D, Direction3D};
+// Vector2D, Vector3D サブモジュール削除済み - geo_primitives を使用してください

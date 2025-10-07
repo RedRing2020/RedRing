@@ -2,10 +2,11 @@
 ///
 /// 2D/3D空間における三角形要素
 
-// geo_core参照を削除 - ローカルVector3Dを使用
+// geo_foundation参照を使用 - Scalarを抽象化
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox};
 use crate::geometry_utils::*;
 use crate::{Point2D, Point3D};
+use geo_foundation::Scalar;
 
 /// 2D三角形プリミティチE#[derive(Debug, Clone)]
 pub struct Triangle2D {

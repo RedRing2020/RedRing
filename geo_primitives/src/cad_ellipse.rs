@@ -2,8 +2,10 @@
 ///
 /// Scalar基礎計算を使用した高精度楕円演算を提供
 
-// geo_core参照を削除 - f64を直接使用
+// geo_foundation参照を使用 - Scalarを抽象化
 use crate::{CadPoint, CadVector};
+use geo_foundation::Scalar;
+use geo_foundation::constants::GEOMETRIC_TOLERANCE;
 
 /// CAD Ellipse（modelからの移植）
 #[derive(Debug, Clone)]
@@ -26,7 +28,7 @@ impl CadEllipse {
     ) -> Option<Self> {
         let dot = major_axis.dot(&minor_axis);
 
-        if dot.abs() > geo_core::GEOMETRIC_TOLERANCE {
+        if dot.abs() > GEOMETRIC_TOLERANCE {
             return None; // 軸が直交していない
         }
 

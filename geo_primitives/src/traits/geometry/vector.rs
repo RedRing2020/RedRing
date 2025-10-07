@@ -3,7 +3,8 @@
 /// ハイブリッド統合: geo_core::Vector3Dをベースにmodel CAD API互換性を提供
 
 use std::ops::{Add, Sub, Mul, Neg};
-use geo_core::{Vector3D as GeoVector3D, Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::ToleranceContext;
+use crate::geometry3d::Vector3D as GeoVector3D;
 
 /// CAD用3Dベクトル（modelからの移植）
 /// ハイブリッド統合: geo_core::Vector3Dをベースにmodel CAD API互換性を提供
@@ -21,24 +22,24 @@ impl PartialEq for CadVector {
 impl CadVector {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self {
-            inner: GeoVector3D::from_f64(x, y, z)
+            inner: GeoVector3D::new(x, y, z)
         }
     }
 
-    pub fn x(&self) -> f64 { self.inner.x().value() }
-    pub fn y(&self) -> f64 { self.inner.y().value() }
-    pub fn z(&self) -> f64 { self.inner.z().value() }
+    pub fn x(&self) -> f64 { self.inner.x() }
+    pub fn y(&self) -> f64 { self.inner.y() }
+    pub fn z(&self) -> f64 { self.inner.z() }
 
     pub fn zero() -> Self {
         Self::new(0.0, 0.0, 0.0)
     }
 
     pub fn norm(&self) -> f64 {
-        geo_core::Vector::norm(&self.inner).value()
+        self.inner.norm()
     }
 
     pub fn dot(&self, other: &Self) -> f64 {
-        geo_core::Vector::dot(&self.inner, &other.inner).value()
+        self.inner.dot(&other.inner)
     }
 
     pub fn cross(&self, other: &Self) -> Self {
@@ -49,7 +50,7 @@ impl CadVector {
 
     pub fn scale(&self, factor: f64) -> Self {
         Self {
-            inner: self.inner.clone() * Scalar::new(factor)
+            inner: self.inner * factor
         }
     }
 
@@ -67,9 +68,11 @@ impl CadVector {
     }
 
     pub fn tolerant_eq(&self, other: &Self, tolerance: f64) -> bool {
-        let mut context = ToleranceContext::default();
-        context.linear = tolerance;
-        TolerantEq::tolerant_eq(&self.inner, &other.inner, &context)
+        let context = ToleranceContext::new(tolerance);
+        // Vector3DのTolerantEq実装がないため、直接比較
+        (self.inner.x() - other.inner.x()).abs() < context.tolerance() &&
+        (self.inner.y() - other.inner.y()).abs() < context.tolerance() &&
+        (self.inner.z() - other.inner.z()).abs() < context.tolerance()
     }
 
     pub fn normalize(&self) -> Self {
@@ -99,7 +102,7 @@ impl Sub for CadVector {
 impl Mul<f64> for CadVector {
     type Output = CadVector;
     fn mul(self, scalar: f64) -> CadVector {
-        CadVector::from_geo_core(self.inner * Scalar::new(scalar))
+        CadVector::from_geo_core(self.inner * scalar)
     }
 }
 
