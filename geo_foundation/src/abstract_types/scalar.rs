@@ -2,7 +2,6 @@
 /// 
 /// 幾何計算において、浮動小数点数の精度や許容誤差を
 /// 統一的に扱うための抽象型
-
 use std::fmt;
 use std::ops::{Add, Sub, Mul, Div, Neg};
 
