@@ -1,4 +1,6 @@
-﻿/// f64ベース3Dベクトル
+﻿
+
+/// f64ベース3Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
     x: f64,
@@ -127,78 +129,122 @@ impl Default for Vector {
     }
 }
 
-// Vector トレイトの実装
+// geo_foundation Vector トレイトの実装
 impl crate::traits::Vector<3> for Vector {
-    fn new(components: [f64; 3]) -> Self {
+    type Scalar = f64;
+
+    fn from_components(components: [Self::Scalar; 3]) -> Self {
         Self::new(components[0], components[1], components[2])
     }
 
-    fn components(&self) -> &[f64; 3] {
-        unsafe {
-            std::mem::transmute::<&Vector, &[f64; 3]>(self)
-        }
-    }
-
-    fn components_mut(&mut self) -> &mut [f64; 3] {
-        unsafe {
-            std::mem::transmute::<&mut Vector, &mut [f64; 3]>(self)
-        }
-    }
-
-    fn dot(&self, other: &Self) -> f64 {
-        self.dot(other)
-    }
-
-    fn norm(&self) -> f64 {
-        self.length()
-    }
-
-    fn normalize(&self) -> Option<Self> {
-        self.normalize()
-    }
-
-    fn is_parallel_to(&self, other: &Self, tolerance: f64) -> bool {
-        let cross = self.cross(other);
-        cross.length() < tolerance
-    }
-
-    fn component_min(&self, other: &Self) -> Self {
-        Self::new(self.x.min(other.x), self.y.min(other.y), self.z.min(other.z))
-    }
-
-    fn component_max(&self, other: &Self) -> Self {
-        Self::new(self.x.max(other.x), self.y.max(other.y), self.z.max(other.z))
-    }
-
-    fn abs(&self) -> Self {
-        Self::new(self.x.abs(), self.y.abs(), self.z.abs())
-    }
-
-    fn scale(&self, scalar: f64) -> Self {
-        *self * scalar
+    fn components(&self) -> [Self::Scalar; 3] {
+        [self.x, self.y, self.z]
     }
 
     fn zero() -> Self {
         Self::zero()
     }
+
+    fn dot(&self, other: &Self) -> Self::Scalar {
+        Vector::dot(self, other)
+    }
+
+    fn length(&self) -> Self::Scalar {
+        Vector::length(self)
+    }
+
+    fn normalize(&self) -> Option<Self> {
+        Vector::normalize(self)
+    }
+
+    fn is_zero(&self, tolerance: Self::Scalar) -> bool {
+        self.length() < tolerance
+    }
+
+    fn is_unit(&self, tolerance: Self::Scalar) -> bool {
+        (self.length() - 1.0).abs() < tolerance
+    }
+
+    fn is_parallel_to(&self, other: &Self, tolerance: Self::Scalar) -> bool {
+        let cross = self.cross(other);
+        cross.length() < tolerance
+    }
+
+    fn is_perpendicular_to(&self, other: &Self, tolerance: Self::Scalar) -> bool {
+        let dot = self.dot(other);
+        dot.abs() < tolerance
+    }
 }
 
-// VectorExt トレイトの実装
-impl crate::traits::Vector3DExt for Vector {
+// geo_foundation Vector3D トレイトの実装（Vector<3> を前提とする）
+impl crate::traits::Vector3D for Vector {
+    fn x(&self) -> Self::Scalar {
+        self.x
+    }
+
+    fn y(&self) -> Self::Scalar {
+        self.y
+    }
+
+    fn z(&self) -> Self::Scalar {
+        self.z
+    }
+
+    fn new(x: Self::Scalar, y: Self::Scalar, z: Self::Scalar) -> Self {
+        Vector::new(x, y, z)
+    }
+
     fn cross(&self, other: &Self) -> Self {
-        self.cross(other)
+        Vector::cross(self, other)
     }
 
-    fn to_2d_xy(&self) -> crate::geometry2d::Vector2D {
-        crate::geometry2d::Vector2D::new(self.x, self.y)
+    fn unit_x() -> Self {
+        Vector::unit_x()
     }
 
-    fn to_2d_xz(&self) -> crate::geometry2d::Vector2D {
-        crate::geometry2d::Vector2D::new(self.x, self.z)
+    fn unit_y() -> Self {
+        Vector::unit_y()
     }
 
-    fn to_2d_yz(&self) -> crate::geometry2d::Vector2D {
-        crate::geometry2d::Vector2D::new(self.y, self.z)
+    fn unit_z() -> Self {
+        Vector::unit_z()
+    }
+}
+
+impl crate::traits::Vector3DExt for Vector {
+    fn rotate_around_axis(&self, axis: &Self, angle: Self::Scalar) -> Self {
+        // ロドリゲスの回転公式を実装
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        let axis = match axis.normalize() {
+            Some(normalized) => normalized,
+            None => return *self, // 軸がゼロベクトルの場合は回転しない
+        };
+
+        let dot_product = self.dot(&axis);
+        let cross_product = axis.cross(self);
+
+        *self * cos_angle + cross_product * sin_angle + axis * dot_product * (1.0 - cos_angle)
+    }
+
+    fn any_perpendicular(&self) -> Self {
+        if self.x.abs() > self.z.abs() {
+            Self::new(-self.y, self.x, 0.0).normalize().unwrap_or(Self::unit_z())
+        } else {
+            Self::new(0.0, -self.z, self.y).normalize().unwrap_or(Self::unit_x())
+        }
+    }
+
+    fn build_orthonormal_basis(&self) -> (Self, Self, Self) {
+        let normalized = match self.normalize() {
+            Some(n) => n,
+            None => return (Self::unit_x(), Self::unit_y(), Self::unit_z()),
+        };
+        
+        let u = normalized.any_perpendicular();
+        let v = normalized.cross(&u);
+        
+        (u, v, normalized)
     }
 }
 
@@ -295,5 +341,9 @@ impl std::ops::Neg for Vector {
 }
 
 // Display実装は別クレートで実装
+
+
+
+
 
 // テストコードはunit_tests/Vector_tests.rsに移動

@@ -13,7 +13,7 @@ pub mod common;
 pub use abstract_types::{Scalar, ToleranceContext, TolerantEq};
 
 // 共通機能を再エクスポート
-pub use common::{constants, error, traits};
+pub use common::{constants, error};
 
 // テストモジュール
 #[cfg(test)]
@@ -24,5 +24,4 @@ pub mod prelude {
     pub use crate::abstract_types::{Scalar, ToleranceContext, TolerantEq};
     pub use crate::common::constants::*;
     pub use crate::common::error::GeometryError;
-    pub use crate::common::traits::*;
 }

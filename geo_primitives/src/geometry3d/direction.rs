@@ -4,7 +4,7 @@
 //! CAD操作に必要な方向性を持つ要素を表現する。
 
 use crate::geometry3d::Vector3D;
-use crate::traits::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
+use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
 
 /// 3D方向ベクトル
 ///
