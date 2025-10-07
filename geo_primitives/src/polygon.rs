@@ -2,7 +2,7 @@
 ///
 /// 2D/3D空間における多角形要素
 
-use geo_core::{Vector3D, Scalar};
+// geo_core参照を削除 - ローカルVector3Dを使用
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
 use crate::{Point2D, Point3D};
 

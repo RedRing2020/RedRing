@@ -7,8 +7,18 @@
 //!
 //! ## 役割境界 (Target Architecture)
 //! ```text
-//! +----------------------+  許容誤差 / ロバスト判定 / 基本数値ユーティリティ
+//! +----------------------+  許容誤差 / ロバスト判定
 //! |       geo_core        |
+//! +----------------------+
+//!             |
+//!             v
+//! +----------------------+  総合幾何演算 / 交差判定 / 衝突判定
+//! |    geo_algorithms    |
+//! +----------------------+
+//!             |
+//!             v
+//! +----------------------+  NURBS曲線・曲面定義 / NURBS基本計算
+//! |       geo_nurbs      |
 //! +----------------------+
 //!             |
 //!             v
@@ -18,7 +28,7 @@
 //!             |
 //!             v
 //! +----------------------+  数値解析 / 線形代数 / 微積分
-//! |   model / analysis   |
+//! |       analysis       |
 //! +-----------+----------+
 //! ```
 //!
@@ -58,7 +68,8 @@ mod unit_tests;
 // 主要な型の再エクスポート
 pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use scalar::Scalar;
-pub use vector::{Vector, Vector2D, Vector3D};
+pub use vector::Vector;
+// Vector2D, Vector3D は geo_primitives から使用
 // Primitives re-exports removed - use geo_primitives instead
 
 // Re-export deprecated 3D items - removed, use geo_primitives instead

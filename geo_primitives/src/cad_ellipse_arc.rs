@@ -2,7 +2,7 @@
 ///
 /// Scalar基礎計算を使用した高精度楕円弧演算を提供
 
-use geo_core::Scalar;
+// geo_core参照を削除 - f64を直接使用
 use crate::{CadPoint, CadVector};
 
 /// CAD EllipseArc（modelからの移植）
@@ -11,8 +11,8 @@ pub struct CadEllipseArc {
     center: CadPoint,
     major_axis: CadVector,
     minor_axis: CadVector,
-    major_radius: Scalar,
-    minor_radius: Scalar,
+    major_radius: f64,
+    minor_radius: f64,
     start_angle: f64, // in radians
     end_angle: f64,   // in radians
 }
@@ -27,7 +27,8 @@ impl CadEllipseArc {
         start_angle: f64,
         end_angle: f64,
     ) -> Option<Self> {
-        if major_axis.dot(&minor_axis).abs() > geo_core::GEOMETRIC_TOLERANCE {
+        const GEOMETRIC_TOLERANCE: f64 = 1e-6;
+        if major_axis.dot(&minor_axis).abs() > GEOMETRIC_TOLERANCE {
             return None; // 軸が直交していない
         }
         if end_angle <= start_angle {
@@ -37,8 +38,8 @@ impl CadEllipseArc {
             center,
             major_axis,
             minor_axis,
-            major_radius: Scalar::new(major_radius),
-            minor_radius: Scalar::new(minor_radius),
+            major_radius,
+            minor_radius,
             start_angle,
             end_angle,
         })
@@ -93,8 +94,8 @@ impl CadEllipseArc {
         let angle = self.start_angle + t * (self.end_angle - self.start_angle);
         let d_angle = self.end_angle - self.start_angle;
 
-        let dx = (-self.major_radius * Scalar::new(angle.sin()) * Scalar::new(d_angle)).value();
-        let dy = (self.minor_radius * Scalar::new(angle.cos()) * Scalar::new(d_angle)).value();
+        let dx = -self.major_radius * angle.sin() * d_angle;
+        let dy = self.minor_radius * angle.cos() * d_angle;
         self.major_axis.clone() * dx + self.minor_axis.clone() * dy
     }
 
@@ -108,11 +109,11 @@ impl CadEllipseArc {
         // TODO: arc length calculation needs to be moved to geo_algorithms
         // For now, use Ramanujan's approximation for ellipse perimeter
         let arc_fraction = (end - start) / (2.0 * std::f64::consts::PI);
-        let three = Scalar::new(3.0);
-        let pi = Scalar::new(std::f64::consts::PI);
+        let three = 3.0;
+        let pi = std::f64::consts::PI;
         let full_perimeter = pi * (three * (self.major_radius + self.minor_radius) - 
             ((three * self.major_radius + self.minor_radius) * (self.major_radius + three * self.minor_radius)).sqrt());
-        (full_perimeter * Scalar::new(arc_fraction)).value()
+        full_perimeter * arc_fraction
     }
 
     /// ドメイン

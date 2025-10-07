@@ -643,7 +643,6 @@ dependencies = [
 name = "geo_primitives"
 version = "0.1.0"
 dependencies = [
- "geo_core",
  "serde",
 ]
 
