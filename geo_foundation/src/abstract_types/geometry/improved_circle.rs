@@ -5,7 +5,7 @@
 use super::angle::{Angle, Scalar};
 
 /// 統一されたCircleトレイト
-/// 
+///
 /// # 特徴
 /// - ジェネリック設計でf32/f64両対応
 /// - 2D/3D共通のインターフェース
@@ -49,7 +49,7 @@ pub trait Circle<T: Scalar> {
     fn on_circumference(&self, point: &Self::Point, tolerance: T) -> bool;
 
     /// 円周上の指定された角度での点を取得
-    /// 
+    ///
     /// # Arguments
     /// * `angle` - 角度（0度で+X軸方向、反時計回り）
     fn point_at_angle(&self, angle: Angle<T>) -> Self::Point;
@@ -64,13 +64,17 @@ pub trait Circle<T: Scalar> {
     fn bounding_box(&self) -> Self::BoundingBox;
 
     /// 円を指定倍率で拡大縮小
-    /// 
+    ///
     /// # Arguments
     /// * `factor` - 拡大縮小係数（正の値）
-    fn scale(&self, factor: T) -> Self where Self: Sized;
+    fn scale(&self, factor: T) -> Self
+    where
+        Self: Sized;
 
     /// 円を指定ベクトルで平行移動
-    fn translate(&self, vector: &Self::Vector) -> Self where Self: Sized;
+    fn translate(&self, vector: &Self::Vector) -> Self
+    where
+        Self: Sized;
 
     /// 円が退化しているか（半径が0またはそれに近い）を判定
     fn is_degenerate(&self, tolerance: T) -> bool {
@@ -78,7 +82,7 @@ pub trait Circle<T: Scalar> {
     }
 
     /// 指定された点までの符号付き距離を取得
-    /// 
+    ///
     /// # Returns
     /// - 正の値: 円の外部の点までの距離
     /// - 負の値: 円の内部の点までの距離（絶対値が円周までの距離）
@@ -89,7 +93,7 @@ pub trait Circle<T: Scalar> {
 /// 2D円専用の追加機能
 pub trait Circle2D<T: Scalar>: Circle<T> {
     /// 2つの円の交点を計算
-    /// 
+    ///
     /// # Returns
     /// - 0個: 交差しない/同心円
     /// - 1個: 接する
@@ -97,10 +101,10 @@ pub trait Circle2D<T: Scalar>: Circle<T> {
     fn intersection_points(&self, other: &impl Circle2D<T>) -> Vec<Self::Point>;
 
     /// 点から円への接線を計算
-    /// 
+    ///
     /// # Arguments
     /// * `point` - 外部の点
-    /// 
+    ///
     /// # Returns
     /// 接線の角度ペア（通常2本）
     fn tangent_angles_from_point(&self, point: &Self::Point) -> Vec<Angle<T>>;
@@ -117,7 +121,7 @@ pub trait Circle3D<T: Scalar>: Circle<T> {
     /// 円の局所X軸（0度方向）を取得
     fn u_axis(&self) -> Self::Vector;
 
-    /// 円の局所Y軸（90度方向）を取得  
+    /// 円の局所Y軸（90度方向）を取得
     fn v_axis(&self) -> Self::Vector;
 
     /// 指定された点が円の平面上にあるかを判定
@@ -218,9 +222,9 @@ pub trait CircleBuilder<T: Scalar> {
 
     /// 3点を通る円を作成
     fn from_three_points(
-        p1: Self::Point, 
-        p2: Self::Point, 
-        p3: Self::Point
+        p1: Self::Point,
+        p2: Self::Point,
+        p3: Self::Point,
     ) -> Result<Self::Circle, CircleError>;
 
     /// 直径の両端点から円を作成
@@ -243,7 +247,7 @@ pub trait CircleAnalysis<T: Scalar> {
 
     /// 円の重心（中心）を取得
     fn centroid(&self) -> <Self as Circle<T>>::Point
-    where 
+    where
         Self: Circle<T>;
 }
 
@@ -254,61 +258,63 @@ pub type Angle64 = Angle<f64>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // テスト用のモック実装（実際の使用例のデモンストレーション）
-    
+
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct MockPoint2D<T: Scalar> {
         x: T,
         y: T,
     }
-    
+
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct MockVector2D<T: Scalar> {
         x: T,
         y: T,
     }
-    
+
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct MockBBox2D<T: Scalar> {
         min: MockPoint2D<T>,
         max: MockPoint2D<T>,
     }
-    
+
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct MockCircle2D<T: Scalar> {
         center: MockPoint2D<T>,
         radius: T,
     }
-    
+
     impl<T: Scalar> Circle<T> for MockCircle2D<T> {
         type Point = MockPoint2D<T>;
         type Vector = MockVector2D<T>;
         type BoundingBox = MockBBox2D<T>;
-        
-        fn dimension() -> usize { 2 }
-        
+
+        fn dimension() -> usize {
+            2
+        }
+
         fn center(&self) -> Self::Point {
             self.center
         }
-        
+
         fn radius(&self) -> T {
             self.radius
         }
-        
+
         fn contains_point(&self, point: &Self::Point) -> bool {
             let dx = point.x - self.center.x;
             let dy = point.y - self.center.y;
             dx * dx + dy * dy <= self.radius * self.radius
         }
-        
+
         fn on_circumference(&self, point: &Self::Point, tolerance: T) -> bool {
             let dx = point.x - self.center.x;
             let dy = point.y - self.center.y;
             let distance = (dx * dx + dy * dy).sqrt();
             (distance - self.radius).abs() <= tolerance
         }
-        
+
         fn point_at_angle(&self, angle: Angle<T>) -> Self::Point {
             let rad = angle.radians();
             MockPoint2D {
@@ -316,12 +322,15 @@ mod tests {
                 y: self.center.y + self.radius * rad.sin(),
             }
         }
-        
+
         fn tangent_at_point(&self, _point: &Self::Point) -> Option<Self::Vector> {
             // 簡略化実装
-            Some(MockVector2D { x: T::zero(), y: T::one() })
+            Some(MockVector2D {
+                x: T::zero(),
+                y: T::one(),
+            })
         }
-        
+
         fn tangent_at_angle(&self, angle: Angle<T>) -> Self::Vector {
             let rad = angle.radians();
             MockVector2D {
@@ -329,7 +338,7 @@ mod tests {
                 y: self.radius * rad.cos(),
             }
         }
-        
+
         fn bounding_box(&self) -> Self::BoundingBox {
             MockBBox2D {
                 min: MockPoint2D {
@@ -342,14 +351,14 @@ mod tests {
                 },
             }
         }
-        
+
         fn scale(&self, factor: T) -> Self {
             MockCircle2D {
                 center: self.center,
                 radius: self.radius * factor,
             }
         }
-        
+
         fn translate(&self, vector: &Self::Vector) -> Self {
             MockCircle2D {
                 center: MockPoint2D {
@@ -359,7 +368,7 @@ mod tests {
                 radius: self.radius,
             }
         }
-        
+
         fn signed_distance_to_point(&self, point: &Self::Point) -> T {
             let dx = point.x - self.center.x;
             let dy = point.y - self.center.y;
@@ -367,39 +376,39 @@ mod tests {
             distance - self.radius
         }
     }
-    
+
     #[test]
     fn test_circle_interface() {
         let circle = MockCircle2D {
             center: MockPoint2D { x: 0.0, y: 0.0 },
             radius: 5.0,
         };
-        
+
         assert_eq!(circle.radius(), 5.0);
         assert!((circle.area() - (std::f64::consts::PI * 25.0)).abs() < 1e-10);
         assert!((circle.circumference() - (std::f64::consts::TAU * 5.0)).abs() < 1e-10);
-        
+
         let point = MockPoint2D { x: 3.0, y: 4.0 };
         assert!(circle.contains_point(&point));
-        
+
         let angle = Angle::from_degrees(90.0);
         let point_at_90 = circle.point_at_angle(angle);
         assert!((point_at_90.x - 0.0).abs() < 1e-10);
         assert!((point_at_90.y - 5.0).abs() < 1e-10);
     }
-    
+
     #[test]
     fn test_circle_operations() {
         let circle = MockCircle2D {
             center: MockPoint2D { x: 1.0, y: 2.0 },
             radius: 3.0,
         };
-        
+
         let scaled = circle.scale(2.0);
         assert_eq!(scaled.radius(), 6.0);
         assert_eq!(scaled.center().x, 1.0);
         assert_eq!(scaled.center().y, 2.0);
-        
+
         let vector = MockVector2D { x: 5.0, y: -3.0 };
         let translated = circle.translate(&vector);
         assert_eq!(translated.radius(), 3.0);

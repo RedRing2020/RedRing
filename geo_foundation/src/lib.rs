@@ -19,7 +19,12 @@ pub use abstract_types::{Scalar, ToleranceContext, TolerantEq};
 pub use common::{constants, error};
 
 // 幾何型を再エクスポート
-pub use geometry::{Angle, Circle, Circle2D, Circle3D, Circle2DImpl, Point2D, Point3D, Vector2D, Vector3D};
+pub use geometry::{
+    Angle, Point2D, Point3D, Vector2D, Vector3D, BoundingBox2D, BoundingBox3D,
+    Circle, Circle2D, Circle3D, Circle2DImpl, Circle3DImpl,
+    Arc2D, Arc3D, Arc2DImpl, Arc3DImpl,
+    Ellipse, Ellipse2D, Ellipse3D, Ellipse2DImpl, Ellipse3DImpl, EllipseError,
+};
 
 // テストモジュール
 #[cfg(test)]

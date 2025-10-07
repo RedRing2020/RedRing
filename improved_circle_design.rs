@@ -5,13 +5,17 @@
 use crate::common::constants::{PI, TAU};
 
 /// 数値型の制約を定義するトレイト
-pub trait Scalar: Copy + Clone + PartialEq + PartialOrd + 
-    std::ops::Add<Output = Self> + 
-    std::ops::Sub<Output = Self> + 
-    std::ops::Mul<Output = Self> + 
-    std::ops::Div<Output = Self> +
-    std::fmt::Debug + 
-    'static
+pub trait Scalar:
+    Copy
+    + Clone
+    + PartialEq
+    + PartialOrd
+    + std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::Div<Output = Self>
+    + std::fmt::Debug
+    + 'static
 {
     /// π定数
     fn pi() -> Self;
@@ -36,29 +40,69 @@ pub trait Scalar: Copy + Clone + PartialEq + PartialOrd +
 }
 
 impl Scalar for f32 {
-    fn pi() -> Self { std::f32::consts::PI }
-    fn tau() -> Self { std::f32::consts::TAU }
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn is_finite(self) -> bool { self.is_finite() }
+    fn pi() -> Self {
+        std::f32::consts::PI
+    }
+    fn tau() -> Self {
+        std::f32::consts::TAU
+    }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+    fn two() -> Self {
+        2.0
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
 }
 
 impl Scalar for f64 {
-    fn pi() -> Self { std::f64::consts::PI }
-    fn tau() -> Self { std::f64::consts::TAU }
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn is_finite(self) -> bool { self.is_finite() }
+    fn pi() -> Self {
+        std::f64::consts::PI
+    }
+    fn tau() -> Self {
+        std::f64::consts::TAU
+    }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+    fn two() -> Self {
+        2.0
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
 }
 
 /// 統一されたCircleトレイト（2D/3D対応、f32/f64対応）
@@ -142,7 +186,8 @@ impl<T: Scalar> Angle<T> {
 
     /// 度数から角度を作成
     pub fn from_degrees(degrees: T) -> Self {
-        let radians = degrees * T::pi() / (T::one() + T::one() + T::one() + T::one() + T::one() + T::one()); // 180.0を表現
+        let radians =
+            degrees * T::pi() / (T::one() + T::one() + T::one() + T::one() + T::one() + T::one()); // 180.0を表現
         Self { radians }
     }
 
@@ -153,7 +198,8 @@ impl<T: Scalar> Angle<T> {
 
     /// 度数値を取得
     pub fn degrees(&self) -> T {
-        self.radians * (T::one() + T::one() + T::one() + T::one() + T::one() + T::one()) / T::pi() // 180.0を表現
+        self.radians * (T::one() + T::one() + T::one() + T::one() + T::one() + T::one()) / T::pi()
+        // 180.0を表現
     }
 
     /// 正規化（0-2π範囲）
@@ -166,7 +212,9 @@ impl<T: Scalar> Angle<T> {
         while normalized >= tau {
             normalized = normalized - tau;
         }
-        Self { radians: normalized }
+        Self {
+            radians: normalized,
+        }
     }
 
     /// 角度の差を計算（最短経路）
@@ -174,11 +222,15 @@ impl<T: Scalar> Angle<T> {
         let diff = other.radians - self.radians;
         let tau = T::tau();
         let half_tau = tau / T::two();
-        
+
         if diff > half_tau {
-            Self { radians: diff - tau }
+            Self {
+                radians: diff - tau,
+            }
         } else if diff < -half_tau {
-            Self { radians: diff + tau }
+            Self {
+                radians: diff + tau,
+            }
         } else {
             Self { radians: diff }
         }
@@ -187,7 +239,9 @@ impl<T: Scalar> Angle<T> {
     /// 角度の補間
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         let diff = self.difference(other);
-        Self { radians: self.radians + diff.radians * t }
+        Self {
+            radians: self.radians + diff.radians * t,
+        }
     }
 }
 

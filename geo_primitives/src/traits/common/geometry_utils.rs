@@ -34,12 +34,20 @@ pub fn scalar_distance<T: Scalar>(a: T, b: T) -> T {
 
 /// 2つのf64値の最小値
 pub fn f64_min(a: f64, b: f64) -> f64 {
-    if a < b { a } else { b }
+    if a < b {
+        a
+    } else {
+        b
+    }
 }
 
 /// 2つのf64値の最大値
 pub fn f64_max(a: f64, b: f64) -> f64 {
-    if a > b { a } else { b }
+    if a > b {
+        a
+    } else {
+        b
+    }
 }
 
 /// Point2Dのf64値でのbounding box計算
@@ -129,7 +137,9 @@ pub fn point3d_centroid(points: &[Point3D]) -> Option<Point3D> {
     }
 
     let count = points.len() as f64;
-    Some(point3d_from_f64(sum_x / count, sum_y / count, sum_z / count))
+    Some(point3d_from_f64(
+        sum_x / count,
+        sum_y / count,
+        sum_z / count,
+    ))
 }
-
-

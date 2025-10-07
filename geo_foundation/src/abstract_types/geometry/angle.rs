@@ -3,20 +3,26 @@
 //! 型安全な角度表現と角度計算のためのモジュール
 
 use std::fmt;
-use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// 数値型制約トレイト
-pub trait Scalar: 
-    Copy + Clone + PartialEq + PartialOrd + 
-    Add<Output = Self> + Sub<Output = Self> + 
-    Mul<Output = Self> + Div<Output = Self> +
-    Neg<Output = Self> +
-    fmt::Debug + fmt::Display +
-    'static
+pub trait Scalar:
+    Copy
+    + Clone
+    + PartialEq
+    + PartialOrd
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + Neg<Output = Self>
+    + fmt::Debug
+    + fmt::Display
+    + 'static
 {
     /// π定数
     fn pi() -> Self;
-    /// 2π定数 
+    /// 2π定数
     fn tau() -> Self;
     /// ゼロ値
     fn zero() -> Self;
@@ -49,45 +55,109 @@ pub trait Scalar:
 }
 
 impl Scalar for f64 {
-    fn pi() -> Self { std::f64::consts::PI }
-    fn tau() -> Self { std::f64::consts::TAU }
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn one_hundred_eighty() -> Self { 180.0 }
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn tan(self) -> Self { self.tan() }
-    fn asin(self) -> Self { self.asin() }
-    fn acos(self) -> Self { self.acos() }
-    fn atan2(self, x: Self) -> Self { self.atan2(x) }
-    fn is_finite(self) -> Self { self.is_finite() }
-    fn from_f64(value: f64) -> Self { value }
+    fn pi() -> Self {
+        std::f64::consts::PI
+    }
+    fn tau() -> Self {
+        std::f64::consts::TAU
+    }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+    fn two() -> Self {
+        2.0
+    }
+    fn one_hundred_eighty() -> Self {
+        180.0
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn tan(self) -> Self {
+        self.tan()
+    }
+    fn asin(self) -> Self {
+        self.asin()
+    }
+    fn acos(self) -> Self {
+        self.acos()
+    }
+    fn atan2(self, x: Self) -> Self {
+        self.atan2(x)
+    }
+    fn is_finite(self) -> Self {
+        self.is_finite()
+    }
+    fn from_f64(value: f64) -> Self {
+        value
+    }
 }
 
 impl Scalar for f32 {
-    fn pi() -> Self { std::f32::consts::PI }
-    fn tau() -> Self { std::f32::consts::TAU }
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn one_hundred_eighty() -> Self { 180.0 }
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn tan(self) -> Self { self.tan() }
-    fn asin(self) -> Self { self.asin() }
-    fn acos(self) -> Self { self.acos() }
-    fn atan2(self, x: Self) -> Self { self.atan2(x) }
-    fn is_finite(self) -> Self { self.is_finite() }
-    fn from_f64(value: f64) -> Self { value as f32 }
+    fn pi() -> Self {
+        std::f32::consts::PI
+    }
+    fn tau() -> Self {
+        std::f32::consts::TAU
+    }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+    fn two() -> Self {
+        2.0
+    }
+    fn one_hundred_eighty() -> Self {
+        180.0
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn tan(self) -> Self {
+        self.tan()
+    }
+    fn asin(self) -> Self {
+        self.asin()
+    }
+    fn acos(self) -> Self {
+        self.acos()
+    }
+    fn atan2(self, x: Self) -> Self {
+        self.atan2(x)
+    }
+    fn is_finite(self) -> Self {
+        self.is_finite()
+    }
+    fn from_f64(value: f64) -> Self {
+        value as f32
+    }
 }
 
 /// 型安全な角度を表現する構造体
-/// 
+///
 /// # 特徴
 /// - ラジアン/度数の混在エラーを防止
 /// - 角度の正規化と演算をサポート
@@ -99,10 +169,10 @@ pub struct Angle<T: Scalar> {
 
 impl<T: Scalar> Angle<T> {
     /// ラジアンから角度を作成
-    /// 
+    ///
     /// # Arguments
     /// * `radians` - ラジアン値
-    /// 
+    ///
     /// # Examples
     /// ```
     /// use geo_foundation::Angle;
@@ -114,12 +184,14 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 度数から角度を作成
-    /// 
+    ///
     /// # Arguments
     /// * `degrees` - 度数値
     pub fn from_degrees(degrees: T) -> Self {
         let deg_to_rad = T::pi() / T::one_hundred_eighty();
-        Self { radians: degrees * deg_to_rad }
+        Self {
+            radians: degrees * deg_to_rad,
+        }
     }
 
     /// ラジアン値を取得
@@ -134,35 +206,37 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 角度を正規化（0-2π範囲）
-    /// 
+    ///
     /// # Returns
     /// 0 ≤ θ < 2π の範囲に正規化された角度
     pub fn normalize(&self) -> Self {
         let tau = T::tau();
         let mut normalized = self.radians;
-        
+
         // 負の角度を正の角度に変換
         while normalized < T::zero() {
             normalized = normalized + tau;
         }
-        
+
         // 2π以上の角度を0-2π範囲に変換
         while normalized >= tau {
             normalized = normalized - tau;
         }
-        
-        Self { radians: normalized }
+
+        Self {
+            radians: normalized,
+        }
     }
 
     /// 角度を±π範囲に正規化
-    /// 
+    ///
     /// # Returns
     /// -π ≤ θ < π の範囲に正規化された角度
     pub fn normalize_signed(&self) -> Self {
         let pi = T::pi();
         let tau = T::tau();
         let mut normalized = self.radians;
-        
+
         // 2π周期で正規化
         while normalized >= pi {
             normalized = normalized - tau;
@@ -170,15 +244,17 @@ impl<T: Scalar> Angle<T> {
         while normalized < -pi {
             normalized = normalized + tau;
         }
-        
-        Self { radians: normalized }
+
+        Self {
+            radians: normalized,
+        }
     }
 
     /// 2つの角度の差を計算（最短経路）
-    /// 
+    ///
     /// # Arguments
     /// * `other` - 目標角度
-    /// 
+    ///
     /// # Returns
     /// この角度から目標角度への最短回転角度
     pub fn difference(&self, other: &Self) -> Self {
@@ -187,11 +263,11 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 角度の線形補間
-    /// 
+    ///
     /// # Arguments
     /// * `other` - 目標角度
     /// * `t` - 補間パラメータ（0.0〜1.0）
-    /// 
+    ///
     /// # Returns
     /// 補間された角度
     pub fn lerp(&self, other: &Self, t: T) -> Self {
@@ -200,7 +276,7 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 角度の球面線形補間（最短経路）
-    /// 
+    ///
     /// # Arguments
     /// * `other` - 目標角度
     /// * `t` - 補間パラメータ（0.0〜1.0）
@@ -210,26 +286,26 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 角度が指定範囲内にあるかを判定
-    /// 
+    ///
     /// # Arguments
     /// * `start` - 開始角度
     /// * `end` - 終了角度
-    /// 
+    ///
     /// # Returns
     /// 角度が範囲内にある場合true
     pub fn is_within_range(&self, start: &Self, end: &Self) -> bool {
         let normalized_self = self.normalize();
         let normalized_start = start.normalize();
         let normalized_end = end.normalize();
-        
+
         if normalized_start.radians <= normalized_end.radians {
             // 通常の範囲（0度から180度など）
-            normalized_self.radians >= normalized_start.radians && 
-            normalized_self.radians <= normalized_end.radians
+            normalized_self.radians >= normalized_start.radians
+                && normalized_self.radians <= normalized_end.radians
         } else {
             // 跨ぎ範囲（300度から60度など）
-            normalized_self.radians >= normalized_start.radians || 
-            normalized_self.radians <= normalized_end.radians
+            normalized_self.radians >= normalized_start.radians
+                || normalized_self.radians <= normalized_end.radians
         }
     }
 
@@ -257,7 +333,7 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 角度がほぼ等しいかを判定
-    /// 
+    ///
     /// # Arguments
     /// * `other` - 比較対象の角度
     /// * `tolerance` - 許容誤差（ラジアン）
@@ -269,7 +345,7 @@ impl<T: Scalar> Angle<T> {
 // 演算子オーバーロード
 impl<T: Scalar> Add for Angle<T> {
     type Output = Self;
-    
+
     fn add(self, rhs: Self) -> Self::Output {
         Self::from_radians(self.radians + rhs.radians)
     }
@@ -277,7 +353,7 @@ impl<T: Scalar> Add for Angle<T> {
 
 impl<T: Scalar> Sub for Angle<T> {
     type Output = Self;
-    
+
     fn sub(self, rhs: Self) -> Self::Output {
         Self::from_radians(self.radians - rhs.radians)
     }
@@ -285,7 +361,7 @@ impl<T: Scalar> Sub for Angle<T> {
 
 impl<T: Scalar> Mul<T> for Angle<T> {
     type Output = Self;
-    
+
     fn mul(self, rhs: T) -> Self::Output {
         Self::from_radians(self.radians * rhs)
     }
@@ -293,7 +369,7 @@ impl<T: Scalar> Mul<T> for Angle<T> {
 
 impl<T: Scalar> Div<T> for Angle<T> {
     type Output = Self;
-    
+
     fn div(self, rhs: T) -> Self::Output {
         Self::from_radians(self.radians / rhs)
     }
@@ -301,7 +377,7 @@ impl<T: Scalar> Div<T> for Angle<T> {
 
 impl<T: Scalar> Neg for Angle<T> {
     type Output = Self;
-    
+
     fn neg(self) -> Self::Output {
         Self::from_radians(-self.radians)
     }
@@ -349,7 +425,7 @@ mod tests {
     fn test_angle_creation() {
         let angle_deg = Angle64::from_degrees(90.0);
         let angle_rad = Angle64::from_radians(std::f64::consts::PI / 2.0);
-        
+
         assert!((angle_deg.radians() - angle_rad.radians()).abs() < 1e-10);
         assert!((angle_deg.degrees() - 90.0).abs() < 1e-10);
     }
@@ -358,7 +434,7 @@ mod tests {
     fn test_angle_normalization() {
         let angle = Angle64::from_degrees(450.0); // 450度 = 90度
         let normalized = angle.normalize();
-        
+
         assert!((normalized.degrees() - 90.0).abs() < 1e-10);
     }
 
@@ -367,7 +443,7 @@ mod tests {
         let a1 = Angle64::from_degrees(10.0);
         let a2 = Angle64::from_degrees(350.0);
         let diff = a1.difference(&a2);
-        
+
         // 最短経路は-20度（または340度）
         assert!((diff.degrees() + 20.0).abs() < 1e-10);
     }
@@ -377,7 +453,7 @@ mod tests {
         let start = Angle64::from_degrees(0.0);
         let end = Angle64::from_degrees(90.0);
         let mid = start.lerp(&end, 0.5);
-        
+
         assert!((mid.degrees() - 45.0).abs() < 1e-10);
     }
 
@@ -385,13 +461,13 @@ mod tests {
     fn test_angle_operations() {
         let a1 = Angle64::from_degrees(30.0);
         let a2 = Angle64::from_degrees(60.0);
-        
+
         let sum = a1 + a2;
         assert!((sum.degrees() - 90.0).abs() < 1e-10);
-        
+
         let diff = a2 - a1;
         assert!((diff.degrees() - 30.0).abs() < 1e-10);
-        
+
         let scaled = a1 * 2.0;
         assert!((scaled.degrees() - 60.0).abs() < 1e-10);
     }
@@ -401,9 +477,9 @@ mod tests {
         let angle = Angle64::from_degrees(45.0);
         let start = Angle64::from_degrees(0.0);
         let end = Angle64::from_degrees(90.0);
-        
+
         assert!(angle.is_within_range(&start, &end));
-        
+
         let outside = Angle64::from_degrees(120.0);
         assert!(!outside.is_within_range(&start, &end));
     }
@@ -413,9 +489,9 @@ mod tests {
         let angle = Angle64::from_degrees(30.0);
         let start = Angle64::from_degrees(300.0);
         let end = Angle64::from_degrees(60.0);
-        
+
         assert!(angle.is_within_range(&start, &end));
-        
+
         let angle2 = Angle64::from_degrees(330.0);
         assert!(angle2.is_within_range(&start, &end));
     }
