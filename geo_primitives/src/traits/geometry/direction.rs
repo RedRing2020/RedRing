@@ -1,4 +1,9 @@
-/// Direction trait - STEP形式に倣った方向ベクトルの抽象化
+//! Direction trait - STEP形式に倖った方向ベクトルの抽象化
+//!
+//! STEPにおけるDIRECTIONエンティティの抽象化。
+//! 正規化されたベクトルとして表現され、CAD形状処理に適した操作を提供する。
+
+// use crate::traits::Normalizable;rection trait - STEP形式に倣った方向ベクトルの抽象化
 ///
 /// STEPにおけるDIRECTIONエンティティの抽象化。
 /// 正規化されたベクトルとして表現され、CAD形状処理に適した操作を提供する。

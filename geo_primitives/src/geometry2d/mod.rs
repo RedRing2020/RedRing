@@ -1,5 +1,5 @@
-/// 2D Geometry Module
-/// 2次元幾何プリミティブと関連構造体
+//! 2D Geometry Module
+//! 2次元幾何プリミティブと関連構造体
 
 pub mod direction;
 pub mod point2d;

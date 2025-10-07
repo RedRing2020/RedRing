@@ -1,5 +1,5 @@
-/// Traits module organization
-/// トレイトとユーティリティの整理されたモジュール構成
+//! Traits module organization
+//! トレイトとユーティリティの整理されたモジュール構成
 
 // Vector traits - ベクトル操作のためのトレイト定義
 pub mod vector_traits;

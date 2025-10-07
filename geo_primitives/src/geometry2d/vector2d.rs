@@ -49,7 +49,7 @@ impl Vector2D {
 
     /// 正規化（ゼロベクトルの場合はゼロベクトルを返す）
     pub fn normalize_or_zero(&self) -> Self {
-        self.normalize().unwrap_or(Self::zero())
+        self.normalize().unwrap_or_default()
     }
 
     /// 内積

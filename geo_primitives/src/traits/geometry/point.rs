@@ -1,4 +1,4 @@
-﻿/// Point - 基本点構造体
+﻿//! Point - 基本点構造体
 
 use crate::geometry3d::Point3D as GeoPoint3D;
 

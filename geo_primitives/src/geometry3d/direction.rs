@@ -1,7 +1,7 @@
-/// Direction3D - 3D方向ベクトルの実装
-///
-/// STEP互換のDirection3D実装。常に正規化されたベクトルとして管理され、
-/// CAD操作に必要な方向性を持つ要素を表現する。
+//! Direction3D - 3D方向ベクトルの実装
+//!
+//! STEP互換のDirection3D実装。常に正規化されたベクトルとして管理され、
+//! CAD操作に必要な方向性を持つ要素を表現する。
 
 use crate::geometry3d::Vector3D;
 use crate::traits::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
