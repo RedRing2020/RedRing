@@ -1,5 +1,4 @@
-/// Direction2D and Direction3D のユニットテスト
-
+//! Direction2D and Direction3D のユニットテスト
 #[cfg(test)]
 mod direction2d_tests {
     use crate::geometry2d::Direction2D;

@@ -1,6 +1,5 @@
-/// 共通ユーティリティと分類システムのテスト
-/// classification, geometry_utilsのテスト
-
+//! 共通ユーティリティと分類システムのテスト
+//! classification, geometry_utilsのテスト
 use crate::traits::common::{PrimitiveKind, DimensionClass};
 use crate::traits::common::geometry_utils::*;
 use crate::geometry2d::Point2D;

@@ -1,8 +1,5 @@
 #[cfg(test)]
-mod point3d_tests {
-    use crate::geometry3d::{Point3D, Vector3D};
-
-    #[test]
+use crate::geometry3d::{Point3D, Vector3D};    #[test]
     fn test_point3d_creation() {
         let p = Point3D::new(1.0, 2.0, 3.0);
         assert_eq!(p.x(), 1.0);
@@ -46,4 +43,3 @@ mod point3d_tests {
         let sub = p2 - p1;
         assert_eq!(sub, Vector3D::new(3.0, 3.0, 3.0));
     }
-}

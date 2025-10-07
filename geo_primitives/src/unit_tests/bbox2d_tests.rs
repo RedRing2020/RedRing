@@ -1,7 +1,6 @@
 #[cfg(test)]
-mod bbox2d_tests {
-    use crate::geometry2d::{BBox2D, Point2D};
-    use crate::geometry3d::Point3D;
+use crate::geometry2d::{BBox2D, Point2D};
+use crate::geometry3d::Point3D;
     use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
     #[test]
@@ -104,4 +103,3 @@ mod bbox2d_tests {
         assert_eq!(bbox3d.max, Point3D::new(3.0, 4.0, 0.0));
         assert_eq!(bbox3d.depth(), 0.0);
     }
-}

@@ -12,8 +12,8 @@ mod tests {
         // Vector トレイトのテスト
         assert_eq!(v1.norm(), 5.0);
         assert_eq!(v1.dot(&v2), 3.0);
-        assert!(v1.is_unit(1e-10) == false);
-        assert!(v2.is_unit(1e-10) == true);
+    assert!(!v1.is_unit(1e-10));
+    assert!(v2.is_unit(1e-10));
 
         // 成分アクセス
         assert_eq!(v1[0], 3.0);
