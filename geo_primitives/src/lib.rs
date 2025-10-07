@@ -52,23 +52,21 @@ pub mod primitives_3d {
 pub mod prelude {
     // 基本幾何プリミティブ
     pub use crate::{Point2D, Vector2D, Point3D, Vector3D};
-    
+
     // バウンディングボックス
     pub use crate::{BBox2D, BBox3D, BoundingBox, BoundingBoxOps, CollisionBounds};
-    
+
     // プリミティブトレイトと分類
     pub use crate::{
         GeometricPrimitive, TransformablePrimitive, MeasurablePrimitive, PrimitiveCollection,
         PrimitiveKind, DimensionClass
     };
-    
+
     // CAD統合層
     pub use crate::traits::geometry::Point;
     pub use crate::geometry2d::Direction2D;
     pub use crate::geometry3d::Direction3D;
-    
+
     // ベクトルトレイト
     pub use crate::traits::{Vector, Vector2DExt, Vector3DExt, Normalizable};
 }
-
-

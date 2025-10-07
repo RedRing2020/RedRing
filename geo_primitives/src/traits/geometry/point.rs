@@ -13,6 +13,6 @@ impl Point {
     }
 
     pub fn x(&self) -> f64 { self.inner.x() }
-    pub fn y(&self) -> f64 { self.inner.y() } 
+    pub fn y(&self) -> f64 { self.inner.y() }
     pub fn z(&self) -> f64 { self.inner.z() }
 }

@@ -1,5 +1,5 @@
 /// Direction2D - 2D方向ベクトルの実装
-/// 
+///
 /// STEP互換のDirection2D実装。常に正規化されたベクトルとして管理され、
 /// CAD操作に必要な方向性を持つ要素を表現する。
 
@@ -8,7 +8,7 @@ use crate::traits::geometry::{Direction, Direction2D as Direction2DTrait, StepCo
 use std::f64::consts::PI;
 
 /// 2D方向ベクトル
-/// 
+///
 /// 常に長さが1に正規化されたベクトルを表現する。
 /// STEPのDIRECTIONエンティティに対応。
 #[derive(Debug, Clone, Copy, PartialEq)]
