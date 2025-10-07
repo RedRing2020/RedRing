@@ -1,5 +1,5 @@
 /// CAD Direction - modelからの正規化方向ベクトル構造体移植
-/// 
+///
 /// 正規化されたベクトルを表現し、CAD計算での方向性を保証
 
 /// CAD用正規化方向ベクトル（modelからの移植）
@@ -50,7 +50,7 @@ impl CadDirection {
     /// 標準的な円のパラメータ化に合わせて、適切な基底ベクトルを返す
     pub fn orthonormal_basis(&self) -> (crate::CadVector, crate::CadVector) {
         let n = &self.0;
-        
+
         // Z軸上向きの法線の場合の特別処理
         if (n.z().abs() - 1.0).abs() < 1e-10 {
             if n.z() > 0.0 {
@@ -61,7 +61,7 @@ impl CadDirection {
                 return (crate::CadVector::new(-1.0, 0.0, 0.0), crate::CadVector::new(0.0, 1.0, 0.0));
             }
         }
-        
+
         // 一般的な場合: Gram-Schmidt過程を使用
         let reference = if n.x().abs() < n.y().abs() && n.x().abs() < n.z().abs() {
             crate::CadVector::new(1.0, 0.0, 0.0)
@@ -70,10 +70,10 @@ impl CadDirection {
         } else {
             crate::CadVector::new(0.0, 0.0, 1.0)
         };
-        
+
         let v1 = reference.cross(n).normalize();
         let v2 = n.cross(&v1).normalize();
-        
+
         (v1, v2)
     }
 }
