@@ -1,11 +1,38 @@
 {
   "recommendations": [
-    "rust-lang.rust-analyzer",           // Rust 補完と構文解析
-    "esbenp.prettier-vscode",            // Markdown / JSON 整形
-    "yzhang.markdown-all-in-one",        // Markdown 見出し・リンク補助
-    "streetsidesoftware.code-spell-checker", // 英語スペルチェック
-    "ms-vscode.powershell",              // PowerShell スクリプト補完
-    "bierner.markdown-mermaid",          // Mermaid 図のプレビュー（将来的に）
-    "shd101wyy.markdown-preview-enhanced" // 高度な Markdown プレビュー
+    // === Core Rust Development ===
+    "rust-lang.rust-analyzer",           // Rust language server and analysis
+    "vadimcn.vscode-lldb",               // Rust debugging support
+    "serayuzgur.crates",                 // Cargo.toml dependency management
+    
+    // === Code Quality ===
+    "streetsidesoftware.code-spell-checker", // English spell checker
+    "usernamehw.errorlens",              // Inline error highlighting
+    "gruntfuggly.todo-tree",            // TODO/FIXME comment tracking
+    
+    // === Documentation & Markdown ===
+    "yzhang.markdown-all-in-one",        // Markdown editing support
+    "shd101wyy.markdown-preview-enhanced", // Advanced Markdown preview
+    "bierner.markdown-mermaid",          // Mermaid diagram support
+    "davidanson.vscode-markdownlint",    // Markdown linting
+    
+    // === Development Tools ===
+    "ms-vscode.powershell",              // PowerShell scripting
+    "esbenp.prettier-vscode",            // JSON/YAML formatting
+    "tamasfe.even-better-toml",          // TOML file support
+    "redhat.vscode-yaml",                // YAML support
+    
+    // === Git & Version Control ===
+    "eamodio.gitlens",                   // Enhanced Git capabilities
+    "mhutchie.git-graph",                // Git commit graph visualization
+    
+    // === Productivity ===
+    "ms-vscode.vscode-json",             // JSON language support
+    "ms-vscode-remote.remote-wsl",       // WSL support (if needed)
+    "christian-kohler.path-intellisense", // File path autocompletion
+    
+    // === Math & CAD Support ===
+    "james-yu.latex-workshop",           // LaTeX support for documentation
+    "goessner.mdmath"                    // Math expression support in Markdown
   ]
 }
