@@ -1,8 +1,7 @@
-/// RedRing Analysis Crate
-///
-/// 数値解析、幾何サンプリング、統計解析機能を提供する独立クレート。
-/// geo_coreの高精度型を使用して堅牢な数値計算を実現する。
-
+//! RedRing Analysis Crate
+//!
+//! 数値解析、幾何サンプリング、統計解析機能を提供する独立クレート。
+//! geo_coreの高精度型を使用して堅牢な数値計算を実現する。
 pub mod consts;
 // pub mod numeric;     // 一時的に無効化
 pub mod linalg;      // 高速線形代数モジュール（数値解析専用）

@@ -13,7 +13,7 @@
 
 - **ファイル**: `geometry_adapter_curve3d.rs`
 - **実装内容**:
-  - `AdaptedLine`: geo_core LineSegment3D のアダプター
+  - `AdaptedLine`: geo_primitives LineSegment3D のアダプター
   - `AdaptedArc`: geo_core Arc3D のアダプター
   - `AdaptedParametricCurve3D`: ジェネリック曲線アダプター
   - `curve_factory`: ファクトリーパターン実装

@@ -1,8 +1,7 @@
-/// Cramerの公式による連立方程式ソルバー
-///
-/// 小規模システム（2x2, 3x3）専用の直接解法
-/// 行列式を直接計算して解を求める
-
+//! Cramerの公式による連立方程式ソルバー
+//!
+//! 小規模システム（2x2, 3x3）専用の直接解法
+//! 行列式を直接計算して解を求める
 use super::{LinearSolver, SolutionInfo};
 use crate::linalg::{Matrix2x2, Matrix3x3, Vector2, Vector3};
 use crate::linalg::scalar::Scalar;
@@ -126,6 +125,7 @@ impl<T: Scalar> CramerSolver<T> {
 
         for i in 0..n {
             let mut sum = T::ZERO;
+            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
                 sum = sum + matrix[i][j] * solution[j];
             }

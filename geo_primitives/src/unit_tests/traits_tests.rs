@@ -1,11 +1,10 @@
 #[cfg(test)]
-mod traits_tests {
-    use crate::traits::common::classification::{PrimitiveKind, DimensionClass, GeometryUnion, GeometryPrimitive};
-    use crate::traits::common::primitive_trait::{GeometricPrimitive, TransformablePrimitive, MeasurablePrimitive};
-    use crate::traits::common::geometry_utils::*;
-    use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps};
-    use crate::geometry2d::Point2D;
-    use crate::geometry3d::{Point3D, BBox3D};
+use crate::traits::common::classification::{PrimitiveKind, DimensionClass};
+use crate::traits::common::primitive_trait::GeometricPrimitive;
+use crate::traits::common::geometry_utils::*;
+use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps};
+use crate::geometry2d::Point2D;
+use crate::geometry3d::{Point3D, BBox3D};
 
     // Classification tests
     #[test]
@@ -187,8 +186,8 @@ mod traits_tests {
 
         fn center(&self) -> [Self::Coord; D] {
             let mut center = [0.0; D];
-            for i in 0..D {
-                center[i] = (self.min[i] + self.max[i]) / 2.0;
+            for (i, center_item) in center.iter_mut().enumerate().take(D) {
+                *center_item = (self.min[i] + self.max[i]) / 2.0;
             }
             center
         }
@@ -196,8 +195,8 @@ mod traits_tests {
 
     impl<const D: usize> BoundingBoxOps<D> for MockBBox<D> {
         fn contains_point(&self, point: [Self::Coord; D]) -> bool {
-            for i in 0..D {
-                if point[i] < self.min[i] || point[i] > self.max[i] {
+            for (i, &point_item) in point.iter().enumerate().take(D) {
+                if point_item < self.min[i] || point_item > self.max[i] {
                     return false;
                 }
             }
@@ -283,4 +282,3 @@ mod traits_tests {
         assert_eq!(expanded.min(), [-0.5, -0.5, -0.5]);
         assert_eq!(expanded.max(), [2.5, 2.5, 2.5]);
     }
-}

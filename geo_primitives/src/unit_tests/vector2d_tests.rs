@@ -1,8 +1,5 @@
 #[cfg(test)]
-mod vector2d_tests {
-    use crate::geometry2d::Vector2D;
-
-    #[test]
+use crate::geometry2d::Vector2D;    #[test]
     fn test_vector2d_creation() {
         let v = Vector2D::new(1.0, 2.0);
         assert_eq!(v.x(), 1.0);
@@ -93,4 +90,3 @@ mod vector2d_tests {
         let result = v1.add_scaled(&v2, 2.0);
         assert_eq!(result, Vector2D::new(7.0, 10.0)); // (1,2) + 2*(3,4) = (7,10)
     }
-}

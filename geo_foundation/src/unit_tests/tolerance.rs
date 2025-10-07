@@ -1,5 +1,4 @@
-﻿/// ToleranceContext型のユニットテスト
-
+﻿//! ToleranceContext型のユニットテスト
 use crate::abstract_types::{ToleranceContext, TolerantEq};
 
 #[test]

@@ -1,6 +1,5 @@
-/// 2D/3D Bounding Box統合テスト
-/// BBox2D, BBox3D両方のテストとジェネリックトレイトテスト
-
+//! 2D/3D Bounding Box統合テスト
+//! BBox2D, BBox3D両方のテストとジェネリックトレイトテスト
 use crate::geometry2d::{Point2D, BBox2D};
 use crate::geometry3d::{Point3D, BBox3D};
 use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
@@ -106,7 +105,7 @@ fn test_bbox3d_from_points() {
         Point3D::new(3.0, 0.0, 4.0),
     ];
 
-    let bbox = BBox3D::from_points(&points).unwrap();
+    let bbox = BBox3D::from_point_array(&points).unwrap();
     assert_eq!(bbox.min, Point3D::new(-1.0, 0.0, 1.0));
     assert_eq!(bbox.max, Point3D::new(3.0, 5.0, 4.0));
     assert_eq!(bbox.width(), 4.0);

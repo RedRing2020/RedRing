@@ -1,7 +1,7 @@
-/// Scalar - 数値の抽象化型
-/// 
-/// 幾何計算において、浮動小数点数の精度や許容誤差を
-/// 統一的に扱うための抽象型
+//! Scalar - 数値の抽象化型
+//!
+//! 幾何計算において、浮動小数点数の精度や許容誤差を
+//! 統一的に扱うための抽象型
 
 use std::fmt;
 use std::ops::{Add, Sub, Mul, Div, Neg};
@@ -25,7 +25,7 @@ impl Scalar {
 
     /// ゼロ値
     pub const ZERO: Self = Self { value: 0.0 };
-    
+
     /// 単位値
     pub const ONE: Self = Self { value: 1.0 };
 

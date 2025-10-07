@@ -1,6 +1,6 @@
-/// 3D Bounding Box - 衝突判定と形状処理のための3次元境界ボックス
-///
-/// geometry3d配下に配置し、衝突判定のラフチェック対象として使用
+//! 3D Bounding Box - 衝突判定と形状処理のための3次元境界ボックス
+//!
+//! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
 use crate::traits::bbox_trait::{BoundingBoxOps, CollisionBounds};
 use crate::geometry2d::Point2D;

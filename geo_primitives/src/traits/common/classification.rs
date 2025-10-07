@@ -136,8 +136,8 @@ pub trait GeometryPrimitive {
 pub enum GeometryUnion {
     Point(crate::geometry3d::Point3D),
     Vector(crate::geometry3d::Vector3D),
-    Circle(crate::CadCircle),
-    Ellipse(crate::CadEllipse),
+    //Circle(crate::CadCircle),
+    //Ellipse(crate::CadEllipse),
     // 他の型は必要に応じて追加
 }
 
@@ -146,8 +146,8 @@ impl GeometryPrimitive for GeometryUnion {
         match self {
             GeometryUnion::Point(_) => PrimitiveKind::Point,
             GeometryUnion::Vector(_) => PrimitiveKind::LineSegment, // ベクトルは線分として扱う
-            GeometryUnion::Circle(_) => PrimitiveKind::Circle,
-            GeometryUnion::Ellipse(_) => PrimitiveKind::Ellipse,
+            //GeometryUnion::Circle(_) => PrimitiveKind::Circle,
+            //GeometryUnion::Ellipse(_) => PrimitiveKind::Ellipse,
         }
     }
 }

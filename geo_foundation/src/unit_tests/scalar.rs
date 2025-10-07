@@ -1,13 +1,13 @@
-﻿/// Scalar型のユニットテスト
-
-use crate::abstract_types::{Scalar, ToleranceContext, TolerantEq};
+﻿//! Scalar型のユニットテスト
+use crate::abstract_types::Scalar;
+use std::f64::consts::PI;
 
 #[test]
 fn test_scalar_creation() {
-    let s1 = Scalar::new(3.14);
+    let s1 = Scalar::new(PI);
     let s2 = Scalar::new(2.71);
 
-    assert_eq!(s1.value(), 3.14);
+    assert_eq!(s1.value(), PI);
     assert_eq!(s2.value(), 2.71);
 }
 

@@ -1,8 +1,8 @@
-# geo_core LineSegment3D vs model Line 構造分析と統合設計案
+# geo_primitives LineSegment3D vs model Line 構造分析と統合設計案
 
-## 現在の構造比較
+#- **LineSegment3D (from geo_primitives)**: **純粹な線分**（２ 点間の最短パス） 現在の構造比較
 
-### geo_core::LineSegment3D
+### LineSegment3D from geo_primitives
 
 ```rust
 pub struct LineSegment3D {
@@ -56,7 +56,7 @@ pub struct Ray {
 
 ### 1. 概念的違い
 
-- **geo_core::LineSegment3D**: **純粋な線分**（2 点間の最短パス）
+- **LineSegment3D (from geo_core)**: **純粋な線分**（2 点間の最短パス）
 - **model::Line**: **直線の一部を切り取った区間**（無限直線の概念を持つ）
 
 ### 2. データ構造の違い
@@ -82,7 +82,7 @@ pub struct LineSegment3D {
 
 // model: 高レベル幾何抽象化
 pub struct Line {
-    segment: LineSegment3D,        // geo_coreの数値基盤を内包
+    segment: LineSegment3D,        // geo_primitivesの数値基盤を内包
     infinite_line: InfiniteLine,   // 無限直線情報
     trimming_info: TrimmingInfo,   // トリミング状態
 }
@@ -104,7 +104,7 @@ pub struct TrimmingInfo {
 ```rust
 // geometry_adapter_line.rs
 pub struct AdaptedLine {
-    core_segment: geo_core::LineSegment3D,
+    core_segment: LineSegment3D, // from geo_primitives
     geometric_context: LineGeometricContext,
     tolerance: ToleranceContext,
 }
@@ -172,7 +172,7 @@ pub enum LineSemanticType {
 ### 1. 型変換の一貫性
 
 ```rust
-impl From<model::Line> for geo_core::LineSegment3D {
+impl From<model::Line> for LineSegment3D { // geo_primitives version
     fn from(line: model::Line) -> Self {
         Self::new(
             Point3D::from_model(line.start()),
@@ -200,7 +200,7 @@ impl Line {
 
 ## 結論
 
-**geo_core::LineSegment3D** と **model::Line** は**似て非なる概念**です：
+**LineSegment3D (geo_primitives)** と **model::Line** は**似て非なる概念**です：
 
 - **LineSegment3D**: 純粋な数値計算対象（2 点間の線形補間）
 - **Line**: CAD 幾何要素（直線概念 + トリミング状態）
