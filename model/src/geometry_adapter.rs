@@ -3,17 +3,20 @@
 /// このモジュールは、
 /// geo_core の高精度実装を背景で使用するアダプター
 
-use geo_core::{
-    Vector2D as GeoVector2D,
-    Vector3D as GeoVector3D,
-    Point2D as GeoPoint2D,
-    Point3D as GeoPoint3D,
-    Direction3D as GeoDirection3D,
+use geo_foundation::{
     Scalar,
     ToleranceContext,
-    Vector, // trait
-    ParametricCurve3D, // trait
 };
+// FIXME: geo_core dependency needs replacement
+// use geo_core::{
+//     Vector2D as GeoVector2D,
+//     Vector3D as GeoVector3D,
+//     Point2D as GeoPoint2D,
+//     Point3D as GeoPoint3D,
+//     Direction3D as GeoDirection3D,
+//     Vector, // trait
+//     ParametricCurve3D, // trait
+// };
 
 /// 2D Vector アダプター（model/geometry2d/vector.rs の代替）
 #[derive(Debug, Clone, PartialEq)]

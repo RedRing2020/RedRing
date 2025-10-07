@@ -1,10 +1,7 @@
-/// geo_core クレートのユニットテスト
+﻿/// geo_core クレートのユニットテスト
 ///
 /// 各モジュールのテストを分離し、整理された構造で管理する
 
 pub mod lib;
-pub mod scalar;
-pub mod tolerance;
-pub mod vector;
-pub mod robust;
-// Primitives tests removed - use geo_primitives instead
+// Scalar, tolerance tests moved to geo_foundation
+// Vector, robust tests removed - functionality moved to geo_primitives

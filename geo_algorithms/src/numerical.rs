@@ -2,7 +2,7 @@
 ///
 /// 交差検出、近似、最適化問題の解法を提供
 
-use geo_core::ToleranceContext;
+use geo_foundation::ToleranceContext;
 use geo_primitives::Point2D;
 use crate::sampling::IntersectionCandidate;
 

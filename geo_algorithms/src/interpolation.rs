@@ -1,7 +1,8 @@
 /// 補間、曲線近似用関数群
 /// 線形、ベジェ、Catmull-Rom、NURBS風の補間、近似
 
-use geo_core::{Vector2D, ToleranceContext};
+use geo_foundation::ToleranceContext;
+use geo_primitives::Vector2D;
 // use geo_primitives::Point2D;  // 一時的にコメントアウト
 
 /// 線形補間器

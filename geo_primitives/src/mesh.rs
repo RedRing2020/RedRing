@@ -2,8 +2,10 @@
 ///
 /// 3D三角形メッシュ要素
 
-// geo_core参照を削除 - ローカルVector3Dを使用
-use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*};
+// geo_foundation参照を使用 - Scalarを抽象化
+use crate::geometry3d::{Point3D, Vector3D};
+use crate::utils::{point3d_from_f64, point3d_to_f64};
+use geo_foundation::Scalar;
 // Point3D removed - using tuple-based coordinate
 
 /// 3D三角形メッシュプリミティブ

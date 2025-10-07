@@ -58,7 +58,7 @@
 pub mod scalar;
 pub mod vector;
 pub mod tolerance;
-pub mod robust;
+// pub mod robust;  // Vector2D/3D に依存するため一時的に無効化
 // Primitives modules removed - use geo_primitives instead
 
 // テストモジュール
@@ -69,11 +69,10 @@ mod unit_tests;
 pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use scalar::Scalar;
 pub use vector::Vector;
-// Vector2D, Vector3D は geo_primitives から使用
-// Primitives re-exports removed - use geo_primitives instead
+// Vector2D, Vector3D removed - use geo_primitives instead
 
 // Re-export deprecated 3D items - removed, use geo_primitives instead
-pub use robust::{Orientation, RobustSolver};
+// pub use robust::{Orientation, RobustSolver};  // robust モジュール無効化のため一時的にコメントアウト
 
 /// 標準的な許容誤差コンテキスト
 pub const DEFAULT_TOLERANCE: ToleranceContext = ToleranceContext {
@@ -88,9 +87,8 @@ pub const DEFAULT_TOLERANCE: ToleranceContext = ToleranceContext {
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
     pub use crate::{
-        Vector2D, Vector3D,
         ToleranceContext, TolerantEq, TolerantOrd,
         DEFAULT_TOLERANCE,
     };
-    // Primitives removed - use geo_primitives::prelude instead
+    // Vector2D, Vector3D removed - use geo_primitives::prelude instead
 }

@@ -3,7 +3,7 @@
 /// IntersectionResult<P> をgeo_coreのToleranceContextと統合し、
 /// 既存のジェネリック設計を保持しつつ数値的堅牢性を向上
 
-use geo_core::{ToleranceContext, TolerantEq};
+use geo_foundation::{ToleranceContext, TolerantEq};
 
 /// 交差の意味論的分類（既存設計を保持）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

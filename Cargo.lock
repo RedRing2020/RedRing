@@ -621,7 +621,7 @@ checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 name = "geo_algorithms"
 version = "0.1.0"
 dependencies = [
- "geo_core",
+ "geo_foundation",
  "geo_primitives",
 ]
 
@@ -640,9 +640,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "geo_foundation"
+version = "0.1.0"
+
+[[package]]
 name = "geo_primitives"
 version = "0.1.0"
 dependencies = [
+ "geo_foundation",
  "serde",
 ]
 
@@ -1110,7 +1115,7 @@ name = "model"
 version = "0.1.0"
 dependencies = [
  "analysis",
- "geo_core",
+ "geo_foundation",
 ]
 
 [[package]]

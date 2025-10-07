@@ -3,7 +3,8 @@
 /// 数値的に安定した幾何述語と適応精度演算を提供する。
 
 use crate::tolerance::ToleranceContext;
-use crate::vector::{Vector2D, Vector3D};
+// FIXME: Vector2D, Vector3D 参照を geo_primitives または generic に置き換える必要があります
+// use crate::vector::{Vector2D, Vector3D};
 
 /// 幾何述語の結果
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

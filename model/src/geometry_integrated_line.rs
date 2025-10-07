@@ -7,8 +7,7 @@ use std::any::Any;
 use crate::geometry_kind::CurveKind3D;
 use crate::geometry_trait::curve3d::Curve3D;
 use super::{Vector3D, Point3D, Direction3D};
-use geo_core::{
-    LineSegment3D as GeoLineSegment3D,
+use geo_foundation::{
     ToleranceContext,
     Scalar
 };
