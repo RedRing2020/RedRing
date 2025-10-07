@@ -165,7 +165,7 @@ assert_eq!(v.x().value(), 1.0);
 
 - 猶予: 2 イテレーション (または次 minor) 後に削除 PR- [ ] Swap `v * Scalar::new(k)` to `v * k`
 
-- CI TODO: 追加で `geo_core::(LineSegment3D|Plane|Direction3D)` を grep し失敗させる lint スクリプト導入予定- [ ] Adjust trait bounds expecting `Mul<Scalar>`
+- CI TODO: 追加で `geo_primitives::(LineSegment3D|Plane|Direction3D)` を grep し失敗させる lint スクリプト導入予定- [ ] Adjust trait bounds expecting `Mul<Scalar>`
 
 - [ ] Update normalization & dot product assertions
 

@@ -1,6 +1,6 @@
 /// 階層統合設計によるLine統合実装例
 ///
-/// geo_coreのLineSegment3Dを数値計算基盤として内包し、
+/// geo_primitivesのLineSegment3Dを数値計算基盤として内包し、
 /// modelのCAD概念（無限直線、トリミング）を保持する設計
 
 use std::any::Any;
