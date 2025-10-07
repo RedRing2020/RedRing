@@ -2,7 +2,10 @@
 ///
 /// Scalar trait、Angle、Circle、Arc、Ellipse実装の統合動作確認を行います。
 /// f32/f64両方での動作と相互運用性をテストします。
-use crate::{Angle, BoundingBox2D, BoundingBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar, Vector2D, Vector3D};
+use crate::{
+    Angle, BoundingBox2D, BoundingBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar,
+    Vector2D, Vector3D,
+};
 
 #[cfg(test)]
 mod integration_tests {
@@ -23,7 +26,7 @@ mod integration_tests {
         assert!((hypotenuse_f64 - 5.0f64).abs() < f64::TOLERANCE);
 
         // 型変換テスト
-        let f32_val = 3.141592f32;
+        let f32_val = 3.141592_f32;
         let converted_to_f64 = f32_val.to_f64();
         let back_to_f32 = f32::from_f64(converted_to_f64);
         assert!((f32_val - back_to_f32).abs() < f32::TOLERANCE);
@@ -31,32 +34,32 @@ mod integration_tests {
 
     #[test]
     fn test_angle_f32_operations() {
-        let angle1 = Angle::<f32>::from_degrees(30.0);
-        let angle2 = Angle::<f32>::from_degrees(60.0);
+        let angle1 = Angle::<f32>::from_degrees(30.0_f32);
+        let angle2 = Angle::<f32>::from_degrees(60.0_f32);
 
         // 加算
         let sum = angle1 + angle2;
-        assert!((sum.to_degrees() - 90.0).abs() < 1e-5);
+        assert!((sum.to_degrees() - 90.0_f32).abs() < 1e-5_f32);
 
         // 減算
         let diff = angle2 - angle1;
-        assert!((diff.to_degrees() - 30.0).abs() < 1e-5);
+        assert!((diff.to_degrees() - 30.0_f32).abs() < 1e-5_f32);
 
         // 正規化
-        let large_angle = Angle::<f32>::from_degrees(450.0);
+        let large_angle = Angle::<f32>::from_degrees(450.0_f32);
         let normalized = large_angle.normalize_0_2pi();
         let normalized_degrees = normalized.to_degrees();
         eprintln!("450° normalized to 0-2π: {}°", normalized_degrees);
         assert!(
-            (normalized_degrees - 90.0).abs() < 1e-4,
+            (normalized_degrees - 90.0_f32).abs() < 1e-4_f32,
             "Expected ~90°, got {}°",
             normalized_degrees
         );
 
         // 三角関数
-        let right_angle = Angle::<f32>::from_degrees(90.0);
-        assert!((right_angle.sin() - 1.0).abs() < 1e-5);
-        assert!(right_angle.cos().abs() < 1e-5);
+        let right_angle = Angle::<f32>::from_degrees(90.0_f32);
+        assert!((right_angle.sin() - 1.0_f32).abs() < 1e-5_f32);
+        assert!(right_angle.cos().abs() < 1e-5_f32);
     }
 
     #[test]
@@ -81,25 +84,26 @@ mod integration_tests {
 
     #[test]
     fn test_circle2d_f32_basic_operations() {
-        let circle = Circle2DImpl::<f32>::new(Point2D::new(0.0, 0.0), 5.0);
+        let circle = Circle2DImpl::<f32>::new(Point2D::new(0.0_f32, 0.0_f32), 5.0_f32);
 
         // 基本プロパティ
-        assert_eq!(circle.center(), Point2D::new(0.0, 0.0));
-        assert_eq!(circle.radius(), 5.0);
+        assert_eq!(circle.center(), Point2D::new(0.0_f32, 0.0_f32));
+        assert_eq!(circle.radius(), 5.0_f32);
         assert!(circle.is_valid());
 
         // 面積と円周
-        let expected_area = f32::PI * 25.0;
-        assert!((circle.area() - expected_area).abs() < 1e-5);
+        let expected_area = f32::PI * 25.0_f32;
+        assert!((circle.area() - expected_area).abs() < 1e-5_f32);
 
-        let expected_circumference = f32::TAU * 5.0;
-        assert!((circle.circumference() - expected_circumference).abs() < 1e-5);
+        let expected_circumference = f32::TAU * 5.0_f32;
+        assert!((circle.circumference() - expected_circumference).abs() < 1e-5_f32);
 
         // 点の包含判定
-        assert!(circle.contains_point(&Point2D::new(0.0, 0.0))); // 中心
-        assert!(circle.contains_point(&Point2D::new(3.0, 4.0))); // 内部 (3-4-5三角形)
-        assert!(!circle.contains_point(&Point2D::new(6.0, 0.0))); // 外部
-        assert!(circle.point_on_circumference(&Point2D::new(5.0, 0.0))); // 円周上
+        assert!(circle.contains_point(&Point2D::new(0.0_f32, 0.0_f32))); // 中心
+        assert!(circle.contains_point(&Point2D::new(3.0_f32, 4.0_f32))); // 内部 (3-4-5三角形)
+        assert!(!circle.contains_point(&Point2D::new(6.0_f32, 0.0_f32))); // 外部
+        assert!(circle.point_on_circumference(&Point2D::new(5.0_f32, 0.0_f32)));
+        // 円周上
     }
 
     #[test]
@@ -441,7 +445,7 @@ mod integration_tests {
     #[test]
     fn test_bbox_point_vector_integration() {
         // BoundingBoxとPoint、Vectorの統合動作テスト
-        
+
         // 複数の点から境界ボックスを作成
         let points = vec![
             Point2D::new(1.0, 2.0),
@@ -449,23 +453,23 @@ mod integration_tests {
             Point2D::new(3.0, 6.0),
             Point2D::new(2.0, 4.0),
         ];
-        
+
         let bbox = BoundingBox2D::from_points(&points).unwrap();
-        
+
         // 境界ボックスの中心点
         let center = bbox.center();
         assert_eq!(center, Point2D::new(3.0, 3.5));
-        
+
         // すべての点が境界ボックス内にあることを確認
         for &point in &points {
             assert!(bbox.contains_point(point));
         }
-        
+
         // サイズベクトル
         let size_vector = bbox.size();
         assert_eq!(size_vector.x(), 4.0); // width
         assert_eq!(size_vector.y(), 5.0); // height
-        
+
         // ベクトル移動
         let offset = Vector2D::new(2.0, -1.0);
         let translated = bbox.translate(offset);
@@ -476,26 +480,26 @@ mod integration_tests {
     #[test]
     fn test_bbox_circle_integration() {
         // BoundingBoxとCircleの統合動作テスト
-        
+
         let circle = Circle2DImpl::<f64>::new(Point2D::new(3.0, 2.0), 2.0);
-        
+
         // 円の境界ボックスを手動作成
         let circle_bbox = BoundingBox2D::from_coords(1.0, 0.0, 5.0, 4.0);
-        
+
         // 円の中心点が境界ボックス内にあることを確認
         assert!(circle_bbox.contains_point(circle.center()));
-        
+
         // 円周上の点を生成して境界ボックステスト
         let angle_0 = Angle::<f64>::from_degrees(0.0);
         let angle_90 = Angle::<f64>::from_degrees(90.0);
         let angle_180 = Angle::<f64>::from_degrees(180.0);
         let angle_270 = Angle::<f64>::from_degrees(270.0);
-        
-        let point_0 = circle.point_at_angle(angle_0);   // 右端
+
+        let point_0 = circle.point_at_angle(angle_0); // 右端
         let point_90 = circle.point_at_angle(angle_90); // 上端
         let point_180 = circle.point_at_angle(angle_180); // 左端
         let point_270 = circle.point_at_angle(angle_270); // 下端
-        
+
         // 各端点が境界ボックス上にあることを確認
         assert!(circle_bbox.contains_point(point_0));
         assert!(circle_bbox.contains_point(point_90));
@@ -506,33 +510,33 @@ mod integration_tests {
     #[test]
     fn test_bbox_3d_integration() {
         // 3D BoundingBoxの統合動作テスト
-        
+
         let points_3d = vec![
             Point3D::new(1.0, 2.0, 1.0),
             Point3D::new(4.0, 1.0, 3.0),
             Point3D::new(2.0, 5.0, 2.0),
             Point3D::new(3.0, 3.0, 4.0),
         ];
-        
+
         let bbox_3d = BoundingBox3D::from_points(&points_3d).unwrap();
-        
+
         // 3D→2D投影テスト
         let bbox_2d = bbox_3d.to_2d();
         assert_eq!(bbox_2d.min(), Point2D::new(1.0, 1.0));
         assert_eq!(bbox_2d.max(), Point2D::new(4.0, 5.0));
-        
+
         // 3Dベクトルとの統合
         let _center_3d = bbox_3d.center();
         let size_3d = bbox_3d.size();
-        
+
         let volume = bbox_3d.volume();
         let expected_volume = size_3d.x() * size_3d.y() * size_3d.z();
         assert_eq!(volume, expected_volume);
-        
+
         // 3D境界ボックスの8つの角
         let corners = bbox_3d.corners();
         assert_eq!(corners.len(), 8);
-        
+
         // すべての角が境界ボックス内にあることを確認
         for &corner in &corners {
             assert!(bbox_3d.contains_point(corner));
@@ -542,50 +546,53 @@ mod integration_tests {
     #[test]
     fn test_bbox_precision_compatibility() {
         // f32/f64精度での境界ボックス動作テスト
-        
+
         let bbox_f32 = BoundingBox2D::<f32>::from_coords(1.0, 2.0, 5.0, 6.0);
         let bbox_f64 = bbox_f32.to_f64();
-        
+
         // 基本プロパティの比較
         assert!((bbox_f32.area() as f64 - bbox_f64.area()).abs() < 1e-6);
         assert!((bbox_f32.perimeter() as f64 - bbox_f64.perimeter()).abs() < 1e-6);
-        
+
         // 中心点の比較
         let center_f32 = bbox_f32.center();
         let center_f64 = bbox_f64.center();
         assert!((center_f32.x() as f64 - center_f64.x()).abs() < 1e-6);
         assert!((center_f32.y() as f64 - center_f64.y()).abs() < 1e-6);
-        
+
         // 交差判定の一貫性
         let other_f32 = BoundingBox2D::<f32>::from_coords(3.0, 4.0, 7.0, 8.0);
         let other_f64 = other_f32.to_f64();
-        
-        assert_eq!(bbox_f32.intersects(&other_f32), bbox_f64.intersects(&other_f64));
+
+        assert_eq!(
+            bbox_f32.intersects(&other_f32),
+            bbox_f64.intersects(&other_f64)
+        );
     }
 
     #[test]
     fn test_bbox_union_intersection_complex() {
         // 複数境界ボックスの和集合・積集合テスト
-        
+
         let bbox1 = BoundingBox2D::from_coords(0.0, 0.0, 4.0, 3.0);
         let bbox2 = BoundingBox2D::from_coords(2.0, 1.0, 6.0, 5.0);
         let bbox3 = BoundingBox2D::from_coords(1.0, 2.0, 3.0, 4.0);
-        
+
         // 2つの境界ボックスの和集合
         let union12 = bbox1.union(&bbox2);
         assert_eq!(union12.min(), Point2D::new(0.0, 0.0));
         assert_eq!(union12.max(), Point2D::new(6.0, 5.0));
-        
+
         // 3つの境界ボックスの和集合（段階的）
         let union_all = union12.union(&bbox3);
         assert_eq!(union_all.min(), Point2D::new(0.0, 0.0));
         assert_eq!(union_all.max(), Point2D::new(6.0, 5.0));
-        
+
         // 積集合
         let intersection12 = bbox1.intersection(&bbox2).unwrap();
         assert_eq!(intersection12.min(), Point2D::new(2.0, 1.0));
         assert_eq!(intersection12.max(), Point2D::new(4.0, 3.0));
-        
+
         // 積集合が存在しない場合
         let bbox_disjoint = BoundingBox2D::from_coords(7.0, 6.0, 9.0, 8.0);
         assert!(bbox1.intersection(&bbox_disjoint).is_none());
@@ -594,29 +601,28 @@ mod integration_tests {
     // Arc/Ellipse統合テスト（新規追加）
     #[test]
     fn test_arc_circle_integration() {
-        use crate::{Arc2DImpl, Arc2D, Circle2DImpl};
-        
+        use crate::{Arc2D, Arc2DImpl, Circle2DImpl};
+
         // 円から円弧を作成
         let circle = Circle2DImpl::<f64>::new(Point2D::new(0.0, 0.0), 2.0);
         let start_angle = Angle::<f64>::from_degrees(0.0);
         let end_angle = Angle::<f64>::from_degrees(90.0);
-        
-        let arc = Arc2DImpl::new(circle, start_angle, end_angle)
-            .expect("円弧作成に失敗");
-        
+
+        let arc = Arc2DImpl::new(circle, start_angle, end_angle).expect("円弧作成に失敗");
+
         // 円弧と元の円の関係
         assert_eq!(arc.center(), Point2D::new(0.0, 0.0));
         assert_eq!(arc.radius(), 2.0);
-        
+
         // 円弧の端点が正しいかチェック
         let start_point = arc.start_point();
         let end_point = arc.end_point();
-        
+
         assert!((start_point.x() - 2.0).abs() < 1e-10);
         assert!(start_point.y().abs() < 1e-10);
         assert!(end_point.x().abs() < 1e-10);
         assert!((end_point.y() - 2.0).abs() < 1e-10);
-        
+
         // 弧長計算（90度の弧 = 1/4円）
         let expected_arc_length = 2.0 * std::f64::consts::PI * 2.0 / 4.0; // quarter circle: 2πr/4
         assert!((arc.arc_length() - expected_arc_length).abs() < 1e-10);
@@ -624,37 +630,32 @@ mod integration_tests {
 
     #[test]
     fn test_arc_point_containment_integration() {
-        use crate::{Arc2DImpl, Arc2D, Circle2DImpl};
-        
+        use crate::{Arc2D, Arc2DImpl, Circle2DImpl};
+
         let circle = Circle2DImpl::<f64>::new(Point2D::new(0.0, 0.0), 3.0);
         let arc = Arc2DImpl::new(
             circle,
             Angle::<f64>::from_degrees(30.0),
-            Angle::<f64>::from_degrees(120.0)
-        ).expect("円弧作成に失敗");
-        
+            Angle::<f64>::from_degrees(120.0),
+        )
+        .expect("円弧作成に失敗");
+
         let tolerance = 1e-10;
-        
+
         // 円弧上の点（角度範囲内）
         let angle_60 = Angle::<f64>::from_degrees(60.0);
-        let point_on_arc = Point2D::new(
-            3.0 * angle_60.cos(),
-            3.0 * angle_60.sin()
-        );
+        let point_on_arc = Point2D::new(3.0 * angle_60.cos(), 3.0 * angle_60.sin());
         assert!(arc.contains_point(&point_on_arc, tolerance));
-        
+
         // 円周上だが角度範囲外の点
         let angle_0 = Angle::<f64>::from_degrees(0.0);
-        let point_outside_arc = Point2D::new(
-            3.0 * angle_0.cos(),
-            3.0 * angle_0.sin()
-        );
+        let point_outside_arc = Point2D::new(3.0 * angle_0.cos(), 3.0 * angle_0.sin());
         assert!(!arc.contains_point(&point_outside_arc, tolerance));
-        
+
         // 円弧への最短距離
         let far_point = Point2D::new(10.0, 0.0);
         let distance = arc.distance_to_point(&far_point);
-        
+
         // 端点からの距離が最短のはず
         let start_point = arc.start_point();
         let expected_distance = far_point.distance_to(start_point);
@@ -663,92 +664,99 @@ mod integration_tests {
 
     #[test]
     fn test_arc_circle_intersection() {
-        use crate::{Arc2DImpl, Arc2D, Circle2DImpl};
-        
+        use crate::{Arc2D, Arc2DImpl, Circle2DImpl};
+
         let arc = Arc2DImpl::from_center_radius_angles(
             Point2D::new(0.0, 0.0),
             2.0,
             Angle::<f64>::from_degrees(0.0),
-            Angle::<f64>::from_degrees(180.0)
-        ).expect("円弧作成に失敗");
-        
+            Angle::<f64>::from_degrees(180.0),
+        )
+        .expect("円弧作成に失敗");
+
         // 交差する円
         let intersecting_circle = Circle2DImpl::new(Point2D::new(1.0, 0.0), 1.5);
         assert!(arc.intersects_with_circle(&intersecting_circle));
-        
+
         // 交差しない円
         let far_circle = Circle2DImpl::new(Point2D::new(10.0, 10.0), 1.0);
         assert!(!arc.intersects_with_circle(&far_circle));
-        
+
         // 円弧同士の交差
         let other_arc = Arc2DImpl::from_center_radius_angles(
             Point2D::new(0.0, 0.0),
             2.0,
             Angle::<f64>::from_degrees(90.0),
-            Angle::<f64>::from_degrees(270.0)
-        ).expect("他の円弧作成に失敗");
-        
+            Angle::<f64>::from_degrees(270.0),
+        )
+        .expect("他の円弧作成に失敗");
+
         assert!(arc.intersects_with_arc(&other_arc));
     }
 
     #[test]
     fn test_ellipse_creation_integration() {
-        use crate::{Ellipse2DImpl, Ellipse, EllipseError};
-        
+        use crate::{Ellipse, Ellipse2DImpl, EllipseError};
+
         // 軸平行楕円の作成
         let ellipse = Ellipse2DImpl::axis_aligned(
             Point2D::new(1.0, 2.0),
             3.0, // major radius
-            2.0  // minor radius
-        ).expect("楕円作成に失敗");
-        
+            2.0, // minor radius
+        )
+        .expect("楕円作成に失敗");
+
         assert_eq!(ellipse.center(), Point2D::new(1.0, 2.0));
         assert_eq!(ellipse.major_radius(), 3.0);
         assert_eq!(ellipse.minor_radius(), 2.0);
-        
+
         // 面積計算
         let expected_area = std::f64::consts::PI * 3.0 * 2.0;
         assert!((ellipse.area() - expected_area).abs() < 1e-10);
-        
+
         // 離心率計算
         let expected_eccentricity = (1.0 - (2.0 * 2.0) / (3.0 * 3.0)).sqrt();
         assert!((ellipse.eccentricity() - expected_eccentricity).abs() < 1e-10);
-        
+
         // エラーケースのテスト
         let invalid_result = Ellipse2DImpl::axis_aligned(
             Point2D::new(0.0, 0.0),
             1.0, // minor radius
-            2.0  // major radius（長軸 < 短軸）
+            2.0, // major radius（長軸 < 短軸）
         );
-        assert!(matches!(invalid_result, Err(EllipseError::InvalidAxisOrder)));
+        assert!(matches!(
+            invalid_result,
+            Err(EllipseError::InvalidAxisOrder)
+        ));
     }
 
     #[test]
     fn test_ellipse_point_operations() {
-        use crate::{Ellipse2DImpl, Ellipse, Ellipse2D};
-        
+        use crate::{Ellipse, Ellipse2D, Ellipse2DImpl};
+
         let ellipse = Ellipse2DImpl::axis_aligned(
             Point2D::new(0.0, 0.0),
             4.0, // major radius
-            3.0  // minor radius
-        ).expect("楕円作成に失敗");
-        
+            3.0, // minor radius
+        )
+        .expect("楕円作成に失敗");
+
         // 角度による点計算
         let angle_0 = Angle::<f64>::from_degrees(0.0);
         let point_0 = ellipse.point_at_angle(angle_0);
         assert!((point_0.x() - 4.0).abs() < 1e-10);
         assert!(point_0.y().abs() < 1e-10);
-        
+
         let angle_90 = Angle::<f64>::from_degrees(90.0);
         let point_90 = ellipse.point_at_angle(angle_90);
         assert!(point_90.x().abs() < 1e-10);
         assert!((point_90.y() - 3.0).abs() < 1e-10);
-        
+
         // 包含判定
         assert!(ellipse.contains_point(&Point2D::new(0.0, 0.0))); // 中心
         assert!(ellipse.contains_point(&Point2D::new(2.0, 2.0))); // 内部
         assert!(!ellipse.contains_point(&Point2D::new(5.0, 0.0))); // 外部
-        
+
         // 焦点計算
         let (f1, f2) = ellipse.foci();
         let c = (4.0 * 4.0 - 3.0 * 3.0).sqrt(); // focal distance
@@ -760,77 +768,80 @@ mod integration_tests {
 
     #[test]
     fn test_ellipse_3d_integration() {
-        use crate::{Ellipse3DImpl, Ellipse, Ellipse3D};
-        
+        use crate::{Ellipse, Ellipse3D, Ellipse3DImpl};
+
         // XY平面上の3D楕円
         let ellipse_3d = Ellipse3DImpl::from_radii_xy(
             Point3D::new(0.0, 0.0, 0.0),
             3.0, // major radius
             2.0, // minor radius
-            Angle::<f64>::from_degrees(45.0)
-        ).expect("3D楕円作成に失敗");
-        
+            Angle::<f64>::from_degrees(45.0),
+        )
+        .expect("3D楕円作成に失敗");
+
         assert_eq!(ellipse_3d.center(), Point3D::new(0.0, 0.0, 0.0));
         assert!((ellipse_3d.major_radius() - 3.0).abs() < 1e-10);
         assert!((ellipse_3d.minor_radius() - 2.0).abs() < 1e-10);
-        
+
         // 法線ベクトル（Z軸方向）
         let normal = ellipse_3d.normal();
         assert!(normal.x().abs() < 1e-10);
         assert!(normal.y().abs() < 1e-10);
         assert!((normal.z() - 1.0).abs() < 1e-10);
-        
+
         // 局所座標系
         let (x_axis, y_axis, z_axis) = ellipse_3d.local_coordinate_system();
-        
+
         // 直交性チェック
         assert!(x_axis.dot(&y_axis).abs() < 1e-10);
         assert!(y_axis.dot(&z_axis).abs() < 1e-10);
         assert!(z_axis.dot(&x_axis).abs() < 1e-10);
-        
+
         // 平面上判定
         let point_on_plane = Point3D::new(1.0, 1.0, 0.0);
         assert!(ellipse_3d.point_on_plane(&point_on_plane, 1e-10));
-        
+
         let point_off_plane = Point3D::new(1.0, 1.0, 1.0);
         assert!(!ellipse_3d.point_on_plane(&point_off_plane, 1e-10));
     }
 
     #[test]
     fn test_bbox_arc_ellipse_integration() {
-        use crate::{Arc2DImpl, Arc2D, Ellipse2DImpl, Ellipse};
-        
+        use crate::{Arc2D, Arc2DImpl, Ellipse, Ellipse2DImpl};
+
         // 円弧の境界ボックス（概算）
         let arc = Arc2DImpl::from_center_radius_angles(
             Point2D::new(0.0, 0.0),
             2.0,
             Angle::<f64>::from_degrees(0.0),
-            Angle::<f64>::from_degrees(90.0)
-        ).expect("円弧作成に失敗");
-        
+            Angle::<f64>::from_degrees(90.0),
+        )
+        .expect("円弧作成に失敗");
+
         // 円弧の端点とその周辺
         let start_point = arc.start_point();
         let end_point = arc.end_point();
         let mid_point = arc.midpoint();
-        
+
         // これらの点を包含する境界ボックス
         let points = [start_point, end_point, mid_point];
         let bbox = BoundingBox2D::from_points(&points).unwrap();
-        
+
         // すべての点が境界ボックス内にあることを確認
         for &point in &points {
             assert!(bbox.contains_point(point));
         }
-        
+
         // 楕円の境界ボックス
         let ellipse = Ellipse2DImpl::axis_aligned(
             Point2D::new(0.0, 0.0),
             3.0, // major radius
-            2.0  // minor radius
-        ).expect("楕円作成に失敗");
-        
+            2.0, // minor radius
+        )
+        .expect("楕円作成に失敗");
+
         let ellipse_bbox = ellipse.bounding_box();
-        
+
         // 楕円の特徴点が境界ボックス内にあることを確認
         assert!(ellipse_bbox.contains_point(ellipse.center()));
         assert!(ellipse_bbox.contains_point(Point2D::new(3.0, 0.0))); // right
@@ -841,107 +852,107 @@ mod integration_tests {
 
     #[test]
     fn test_mixed_geometry_workflow() {
-        use crate::{Arc2DImpl, Arc2D, Circle2DImpl, Ellipse2DImpl, Ellipse};
-        
+        use crate::{Arc2D, Arc2DImpl, Circle2DImpl, Ellipse, Ellipse2DImpl};
+
         // 複合的な幾何ワークフロー
-        
+
         // 1. 円から始める
         let circle = Circle2DImpl::<f64>::new(Point2D::new(2.0, 3.0), 4.0);
         let circle_center = circle.center();
         let circle_radius = circle.radius();
-        
+
         // 2. 円から円弧を作成
         let arc = Arc2DImpl::new(
             circle,
             Angle::<f64>::from_degrees(0.0),
-            Angle::<f64>::from_degrees(180.0)
-        ).expect("円弧作成に失敗");
-        
+            Angle::<f64>::from_degrees(180.0),
+        )
+        .expect("円弧作成に失敗");
+
         // 3. 楕円を作成（同じ中心、異なる軸長）
         // 円の半径は4.0なので、楕円の両軸を円より大きくする
         let ellipse = Ellipse2DImpl::axis_aligned(
             arc.center(),
             6.0, // major radius - 円の半径4.0より大きい
-            5.0  // minor radius - 円の半径4.0より大きい
-        ).expect("楕円作成に失敗");
-        
+            5.0, // minor radius - 円の半径4.0より大きい
+        )
+        .expect("楕円作成に失敗");
+
         // 4. 各形状の関係性チェック
-        
+
         // 共通中心
         assert_eq!(circle_center, arc.center());
         assert_eq!(arc.center(), ellipse.center());
-        
+
         // 円弧の端点が楕円内にあるかチェック
         let start_point = arc.start_point();
         let end_point = arc.end_point();
-        
+
         // 楕円が円より大きいので、円弧の端点は楕円内にある
         assert!(ellipse.contains_point(&start_point));
         assert!(ellipse.contains_point(&end_point));
-        
+
         // 面積比較
         let circle_area = std::f64::consts::PI * circle_radius * circle_radius;
         let ellipse_area = ellipse.area();
         let arc_length = arc.arc_length();
-        
+
         // 楕円の面積が円より大きい（長軸が円の半径より大きいため）
         assert!(ellipse_area > circle_area);
-        
+
         // 半円の弧長はπr
         let expected_arc_length = std::f64::consts::PI * circle_radius;
         assert!((arc_length - expected_arc_length).abs() < 1e-10);
-        
+
         // 5. 境界ボックスの統合
         let circle_bbox = BoundingBox2D::from_coords(
             circle_center.x() - circle_radius,
             circle_center.y() - circle_radius,
             circle_center.x() + circle_radius,
-            circle_center.y() + circle_radius
+            circle_center.y() + circle_radius,
         );
         let ellipse_bbox = ellipse.bounding_box();
-        
+
         // 楕円の境界ボックスが円の境界ボックスを包含
         assert!(ellipse_bbox.contains_bbox(&circle_bbox));
     }
 
     #[test]
     fn test_precision_consistency_across_geometries() {
-        use crate::{Arc2DImpl, Arc2D, Circle2DImpl, Ellipse2DImpl, Ellipse};
-        
+        use crate::{Arc2D, Arc2DImpl, Circle2DImpl, Ellipse, Ellipse2DImpl};
+
         // f32とf64での一貫性テスト
-        
+
         // Circle
         let circle_f32 = Circle2DImpl::<f32>::new(Point2D::new(1.0, 2.0), 3.0);
         let circle_f64 = Circle2DImpl::<f64>::new(Point2D::new(1.0, 2.0), 3.0);
-        
+
         let angle = Angle::<f64>::from_degrees(45.0);
         let angle_f32 = Angle::<f32>::from_degrees(45.0);
-        
+
         let point_f32 = circle_f32.point_at_angle(angle_f32);
         let point_f64 = circle_f64.point_at_angle(angle);
-        
+
         // 精度を考慮した比較
         assert!((point_f32.x() as f64 - point_f64.x()).abs() < 1e-6);
         assert!((point_f32.y() as f64 - point_f64.y()).abs() < 1e-6);
-        
+
         // Arc
         let arc_f64 = Arc2DImpl::new(
             circle_f64,
             Angle::<f64>::from_degrees(0.0),
-            Angle::<f64>::from_degrees(90.0)
-        ).expect("f64円弧作成に失敗");
-        
+            Angle::<f64>::from_degrees(90.0),
+        )
+        .expect("f64円弧作成に失敗");
+
         let arc_length_f64 = arc_f64.arc_length();
         let expected_length = 3.0 * std::f64::consts::PI / 2.0;
         assert!((arc_length_f64 - expected_length).abs() < 1e-10);
-        
+
         // Ellipse
-        let ellipse_f64 = Ellipse2DImpl::axis_aligned(
-            Point2D::new(1.0, 2.0),
-            4.0,
-            3.0
-        ).expect("楕円作成に失敗");
-        
+        let ellipse_f64 =
+            Ellipse2DImpl::axis_aligned(Point2D::new(1.0, 2.0), 4.0, 3.0).expect("楕円作成に失敗");
+
         let ellipse_area = ellipse_f64.area();
         let expected_area = std::f64::consts::PI * 4.0 * 3.0;
         assert!((ellipse_area - expected_area).abs() < 1e-10);

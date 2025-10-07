@@ -13,26 +13,7 @@ use crate::abstract_types::Scalar;
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
-/// 2D点の汎用実装
-///
-/// x, y座標を持つ2次元点。
-/// f32/f64の数値型に対応。
-///
-/// # 例
-///
-/// ```rust
-/// use geo_foundation::geometry::Point2D;
-///
-/// // f64での高精度計算
-/// let p1 = Point2D::<f64>::new(1.0, 2.0);
-/// let p2 = Point2D::<f64>::new(4.0, 6.0);
-/// let distance = p1.distance_to(p2);
-///
-/// // f32での高速計算
-/// let p3 = Point2D::<f32>::new(0.0, 0.0);
-/// let p4 = Point2D::<f32>::origin();
-/// assert_eq!(p3, p4);
-/// ```
+/// 2次元空間の点を表す構造体
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point2D<T: Scalar> {
     x: T,
@@ -415,71 +396,71 @@ mod tests {
 
     #[test]
     fn test_point2d_creation() {
-        let p = Point2D::<f64>::new(3.0, 4.0);
-        assert_eq!(p.x(), 3.0);
-        assert_eq!(p.y(), 4.0);
-        assert_eq!(p.coords(), (3.0, 4.0));
+        let p = Point2D::<f64>::new(3.0_f64, 4.0_f64);
+        assert_eq!(p.x(), 3.0_f64);
+        assert_eq!(p.y(), 4.0_f64);
+        assert_eq!(p.coords(), (3.0_f64, 4.0_f64));
     }
 
     #[test]
     fn test_point2d_distance() {
-        let p1 = Point2D::<f64>::new(0.0, 0.0);
-        let p2 = Point2D::<f64>::new(3.0, 4.0);
-        assert!((p1.distance_to(p2) - 5.0).abs() < 1e-10);
+        let p1 = Point2D::<f64>::new(0.0_f64, 0.0_f64);
+        let p2 = Point2D::<f64>::new(3.0_f64, 4.0_f64);
+        assert!((p1.distance_to(p2) - 5.0_f64).abs() < 1e-10_f64);
     }
 
     #[test]
     fn test_point2d_operations() {
-        let p1 = Point2D::<f32>::new(1.0, 2.0);
-        let p2 = Point2D::<f32>::new(3.0, 4.0);
+        let p1 = Point2D::<f32>::new(1.0_f32, 2.0_f32);
+        let p2 = Point2D::<f32>::new(3.0_f32, 4.0_f32);
 
         let sum = p1 + p2;
-        assert_eq!(sum.coords(), (4.0, 6.0));
+        assert_eq!(sum.coords(), (4.0_f32, 6.0_f32));
 
         let diff = p2 - p1;
-        assert_eq!(diff.coords(), (2.0, 2.0));
+        assert_eq!(diff.coords(), (2.0_f32, 2.0_f32));
 
-        let scaled = p1 * 2.0;
-        assert_eq!(scaled.coords(), (2.0, 4.0));
+        let scaled = p1 * 2.0_f32;
+        assert_eq!(scaled.coords(), (2.0_f32, 4.0_f32));
     }
 
     #[test]
     fn test_point3d_creation() {
-        let p = Point3D::<f64>::new(1.0, 2.0, 3.0);
-        assert_eq!(p.coords(), (1.0, 2.0, 3.0));
+        let p = Point3D::<f64>::new(1.0_f64, 2.0_f64, 3.0_f64);
+        assert_eq!(p.coords(), (1.0_f64, 2.0_f64, 3.0_f64));
     }
 
     #[test]
     fn test_point3d_distance() {
-        let p1 = Point3D::<f64>::new(0.0, 0.0, 0.0);
-        let p2 = Point3D::<f64>::new(1.0, 2.0, 2.0);
-        assert!((p1.distance_to(p2) - 3.0).abs() < 1e-10);
+        let p1 = Point3D::<f64>::new(0.0_f64, 0.0_f64, 0.0_f64);
+        let p2 = Point3D::<f64>::new(1.0_f64, 2.0_f64, 2.0_f64);
+        assert!((p1.distance_to(p2) - 3.0_f64).abs() < 1e-10_f64);
     }
 
     #[test]
     fn test_2d_3d_conversion() {
-        let p2d = Point2D::<f64>::new(3.0, 4.0);
+        let p2d = Point2D::<f64>::new(3.0_f64, 4.0_f64);
         let p3d = p2d.to_3d();
-        assert_eq!(p3d.coords(), (3.0, 4.0, 0.0));
+        assert_eq!(p3d.coords(), (3.0_f64, 4.0_f64, 0.0_f64));
 
         let back_to_2d = p3d.to_2d();
-        assert_eq!(back_to_2d.coords(), (3.0, 4.0));
+        assert_eq!(back_to_2d.coords(), (3.0_f64, 4.0_f64));
     }
 
     #[test]
     fn test_type_casting() {
-        let p_f64 = Point2D::<f64>::new(3.14159, 2.71828);
+        let p_f64 = Point2D::<f64>::new(3.14159_f64, 2.71828_f64);
         let p_f32 = p_f64.cast::<f32>();
 
-        assert!((p_f32.x() - 3.14159f32).abs() < 1e-5);
-        assert!((p_f32.y() - 2.71828f32).abs() < 1e-5);
+        assert!((p_f32.x() - 3.14159_f32).abs() < 1e-5_f32);
+        assert!((p_f32.y() - 2.71828_f32).abs() < 1e-5_f32);
     }
 
     #[test]
     fn test_normalization() {
-        let p = Point2D::<f64>::new(3.0, 4.0);
+        let p = Point2D::<f64>::new(3.0_f64, 4.0_f64);
         let normalized = p.normalize().unwrap();
-        assert!((normalized.magnitude() - 1.0).abs() < 1e-10);
+        assert!((normalized.magnitude() - 1.0_f64).abs() < 1e-10_f64);
 
         let zero = Point2D::<f64>::origin();
         assert!(zero.normalize().is_none());
@@ -487,9 +468,9 @@ mod tests {
 
     #[test]
     fn test_cross_product_3d() {
-        let i = Point3D::<f64>::new(1.0, 0.0, 0.0);
-        let j = Point3D::<f64>::new(0.0, 1.0, 0.0);
+        let i = Point3D::<f64>::new(1.0_f64, 0.0_f64, 0.0_f64);
+        let j = Point3D::<f64>::new(0.0_f64, 1.0_f64, 0.0_f64);
         let k = i.cross(j);
-        assert!(k.approx_eq(Point3D::new(0.0, 0.0, 1.0)));
+        assert!(k.approx_eq(Point3D::new(0.0_f64, 0.0_f64, 1.0_f64)));
     }
 }
