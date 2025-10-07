@@ -1,16 +1,20 @@
 //! 改善されたCircle実装
 //! ジェネリック、角度構造体、Arc簡素化を適用
 
-use crate::common::constants::{PI, TAU, GEOMETRIC_TOLERANCE};
+use crate::common::constants::{GEOMETRIC_TOLERANCE, PI, TAU};
 
 /// 数値型制約
-pub trait Scalar: Copy + Clone + PartialEq + PartialOrd + 
-    std::ops::Add<Output = Self> + 
-    std::ops::Sub<Output = Self> + 
-    std::ops::Mul<Output = Self> + 
-    std::ops::Div<Output = Self> +
-    std::fmt::Debug + 
-    'static
+pub trait Scalar:
+    Copy
+    + Clone
+    + PartialEq
+    + PartialOrd
+    + std::ops::Add<Output = Self>
+    + std::ops::Sub<Output = Self>
+    + std::ops::Mul<Output = Self>
+    + std::ops::Div<Output = Self>
+    + std::fmt::Debug
+    + 'static
 {
     fn pi() -> Self;
     fn tau() -> Self;
@@ -26,31 +30,75 @@ pub trait Scalar: Copy + Clone + PartialEq + PartialOrd +
 }
 
 impl Scalar for f64 {
-    fn pi() -> Self { std::f64::consts::PI }
-    fn tau() -> Self { std::f64::consts::TAU }
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn from_f64(value: f64) -> Self { value }
+    fn pi() -> Self {
+        std::f64::consts::PI
+    }
+    fn tau() -> Self {
+        std::f64::consts::TAU
+    }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+    fn two() -> Self {
+        2.0
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn from_f64(value: f64) -> Self {
+        value
+    }
 }
 
 impl Scalar for f32 {
-    fn pi() -> Self { std::f32::consts::PI }
-    fn tau() -> Self { std::f32::consts::TAU }
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
-    fn two() -> Self { 2.0 }
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn from_f64(value: f64) -> Self { value as f32 }
+    fn pi() -> Self {
+        std::f32::consts::PI
+    }
+    fn tau() -> Self {
+        std::f32::consts::TAU
+    }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+    fn two() -> Self {
+        2.0
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn from_f64(value: f64) -> Self {
+        value as f32
+    }
 }
 
 /// 角度構造体
@@ -66,7 +114,9 @@ impl<T: Scalar> Angle<T> {
 
     pub fn from_degrees(degrees: T) -> Self {
         let deg_to_rad = T::pi() / T::from_f64(180.0);
-        Self { radians: degrees * deg_to_rad }
+        Self {
+            radians: degrees * deg_to_rad,
+        }
     }
 
     pub fn radians(&self) -> T {
@@ -87,18 +137,24 @@ impl<T: Scalar> Angle<T> {
         while normalized >= tau {
             normalized = normalized - tau;
         }
-        Self { radians: normalized }
+        Self {
+            radians: normalized,
+        }
     }
 
     pub fn difference(&self, other: &Self) -> Self {
         let diff = other.radians - self.radians;
         let tau = T::tau();
         let half_tau = tau / T::two();
-        
+
         if diff > half_tau {
-            Self { radians: diff - tau }
+            Self {
+                radians: diff - tau,
+            }
         } else if diff < -half_tau {
-            Self { radians: diff + tau }
+            Self {
+                radians: diff + tau,
+            }
         } else {
             Self { radians: diff }
         }
@@ -106,7 +162,9 @@ impl<T: Scalar> Angle<T> {
 
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         let diff = self.difference(other);
-        Self { radians: self.radians + diff.radians * t }
+        Self {
+            radians: self.radians + diff.radians * t,
+        }
     }
 }
 
@@ -230,7 +288,7 @@ impl<T: Scalar> Circle<T> for Circle2D<T> {
         if !self.on_circumference(point, T::from_f64(1e-10)) {
             return None;
         }
-        
+
         let dx = point.0 - self.center.0;
         let dy = point.1 - self.center.1;
         // 接線は法線に垂直
@@ -259,7 +317,11 @@ pub struct Arc2D<T: Scalar> {
 
 impl<T: Scalar> Arc2D<T> {
     pub fn new(circle: Circle2D<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
-        Self { circle, start_angle, end_angle }
+        Self {
+            circle,
+            start_angle,
+            end_angle,
+        }
     }
 }
 
@@ -288,7 +350,7 @@ impl<T: Scalar> Arc<T> for Arc2D<T> {
         let dx = point.0 - self.circle.center.0;
         let dy = point.1 - self.circle.center.1;
         let point_angle = Angle::from_radians(dy.atan2(dx));
-        
+
         let start = self.start_angle.normalize();
         let end = self.end_angle.normalize();
         let point_norm = point_angle.normalize();
@@ -329,7 +391,7 @@ mod tests {
         let start = Angle::from_degrees(0.0);
         let end = Angle::from_degrees(90.0);
         let arc = Arc2D::new(circle, start, end);
-        
+
         assert_eq!(arc.circle().radius(), 1.0);
         assert!((arc.arc_length() - std::f64::consts::PI / 2.0).abs() < 1e-10);
     }

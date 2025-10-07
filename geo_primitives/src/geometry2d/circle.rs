@@ -2,8 +2,8 @@
 //!
 //! 2次元平面における円の具体的な実装
 
-use crate::geometry2d::{Point2D, Vector2D, BBox2D};
-use crate::traits::{Circle2D};
+use crate::geometry2d::{BBox2D, Point2D, Vector2D};
+use crate::traits::Circle2D;
 use geo_foundation::common::constants::{precision, GEOMETRIC_TOLERANCE};
 
 /// 2D平面上の円を表現する構造体
@@ -15,20 +15,23 @@ pub struct Circle {
 
 impl Circle {
     /// 新しい円を作成
-    /// 
+    ///
     /// # Arguments
     /// * `center` - 円の中心点
     /// * `radius` - 円の半径（正の値）
-    /// 
+    ///
     /// # Panics
     /// 半径が負の値またはNaNの場合にパニックする
     pub fn new(center: Point2D, radius: f64) -> Self {
-        assert!(radius >= 0.0 && radius.is_finite(), "半径は非負の有限値である必要があります");
+        assert!(
+            radius >= 0.0 && radius.is_finite(),
+            "半径は非負の有限値である必要があります"
+        );
         Self { center, radius }
     }
 
     /// 原点を中心とする円を作成
-    /// 
+    ///
     /// # Arguments
     /// * `radius` - 円の半径（正の値）
     pub fn origin_circle(radius: f64) -> Self {
@@ -41,17 +44,17 @@ impl Circle {
     }
 
     /// 3点を通る円を作成
-    /// 
+    ///
     /// # Arguments
     /// * `p1`, `p2`, `p3` - 円周上の3点
-    /// 
+    ///
     /// # Returns
     /// 3点を通る円、または3点が一直線上にある場合は`None`
     pub fn from_three_points(p1: Point2D, p2: Point2D, p3: Point2D) -> Option<Self> {
         // 3点が一直線上にないかチェック
         let v1 = Vector2D::new(p2.x() - p1.x(), p2.y() - p1.y());
         let v2 = Vector2D::new(p3.x() - p1.x(), p3.y() - p1.y());
-        
+
         let cross = v1.cross_2d(&v2);
         if cross.abs() < GEOMETRIC_TOLERANCE {
             return None; // 3点が一直線上にある
@@ -61,10 +64,10 @@ impl Circle {
         let d = 2.0 * cross;
         let ux = (v2.y() * v1.length_squared() - v1.y() * v2.length_squared()) / d;
         let uy = (v1.x() * v2.length_squared() - v2.x() * v1.length_squared()) / d;
-        
+
         let center = Point2D::new(p1.x() + ux, p1.y() + uy);
         let radius = center.distance_to(&p1);
-        
+
         Some(Self::new(center, radius))
     }
 
@@ -82,17 +85,42 @@ impl Circle {
 
     /// 円を指定倍率で拡大縮小
     pub fn scale(&self, factor: f64) -> Self {
-        assert!(factor >= 0.0 && factor.is_finite(), "拡大縮小係数は非負の有限値である必要があります");
+        assert!(
+            factor >= 0.0 && factor.is_finite(),
+            "拡大縮小係数は非負の有限値である必要があります"
+        );
         Self::new(self.center, self.radius * factor)
     }
 
     /// 円を指定ベクトルで平行移動
     pub fn translate(&self, vector: &Vector2D) -> Self {
-        let new_center = Point2D::new(
-            self.center.x() + vector.x(),
-            self.center.y() + vector.y()
-        );
+        let new_center = Point2D::new(self.center.x() + vector.x(), self.center.y() + vector.y());
         Self::new(new_center, self.radius)
+    }
+
+    /// 境界上の点を含む点の包含判定（許容誤差付き）
+    pub fn contains_point_on_boundary(&self, point: &Point2D, tolerance: f64) -> bool {
+        let distance = self.distance_to_point(point).abs();
+        distance <= tolerance
+    }
+
+    /// 他の円との交差判定
+    pub fn intersects_with_circle(&self, other: &Circle) -> bool {
+        let distance = self.center.distance_to(&other.center);
+        let sum_radii = self.radius + other.radius;
+        let diff_radii = (self.radius - other.radius).abs();
+        
+        distance <= sum_radii && distance >= diff_radii
+    }
+
+    /// 中心点を取得
+    pub fn center(&self) -> Point2D {
+        self.center
+    }
+
+    /// 半径を取得
+    pub fn radius(&self) -> f64 {
+        self.radius
     }
 }
 
@@ -109,8 +137,8 @@ impl Circle2D for Circle {
     }
 
     fn contains_point(&self, point: &Self::Point) -> bool {
-        let distance_squared = (point.x() - self.center.x()).powi(2) 
-                             + (point.y() - self.center.y()).powi(2);
+        let distance_squared =
+            (point.x() - self.center.x()).powi(2) + (point.y() - self.center.y()).powi(2);
         distance_squared <= self.radius.powi(2) + GEOMETRIC_TOLERANCE
     }
 
@@ -131,10 +159,7 @@ impl Circle2D for Circle {
         }
 
         // 中心から点への方向ベクトル
-        let radial = Vector2D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y()
-        );
+        let radial = Vector2D::new(point.x() - self.center.x(), point.y() - self.center.y());
 
         // 接線ベクトルは法線ベクトルに垂直
         Some(radial.perpendicular())
@@ -146,14 +171,8 @@ impl Circle2D for Circle {
     }
 
     fn bounding_box(&self) -> (Self::Point, Self::Point) {
-        let min_point = Point2D::new(
-            self.center.x() - self.radius,
-            self.center.y() - self.radius
-        );
-        let max_point = Point2D::new(
-            self.center.x() + self.radius,
-            self.center.y() + self.radius
-        );
+        let min_point = Point2D::new(self.center.x() - self.radius, self.center.y() - self.radius);
+        let max_point = Point2D::new(self.center.x() + self.radius, self.center.y() + self.radius);
         (min_point, max_point)
     }
 }
@@ -173,7 +192,7 @@ mod tests {
     fn test_circle_creation() {
         let center = Point2D::new(1.0, 2.0);
         let circle = Circle::new(center, 3.0);
-        
+
         assert_eq!(circle.center(), center);
         assert_eq!(circle.radius(), 3.0);
         assert_eq!(circle.area(), precision::PI * 9.0);
@@ -183,7 +202,7 @@ mod tests {
     #[test]
     fn test_unit_circle() {
         let circle = Circle::unit_circle();
-        
+
         assert_eq!(circle.center(), Point2D::new(0.0, 0.0));
         assert_eq!(circle.radius(), 1.0);
         assert_eq!(circle.area(), precision::PI);
@@ -193,7 +212,7 @@ mod tests {
     #[test]
     fn test_contains_point() {
         let circle = Circle::new(Point2D::new(0.0, 0.0), 5.0);
-        
+
         assert!(circle.contains_point(&Point2D::new(0.0, 0.0))); // 中心
         assert!(circle.contains_point(&Point2D::new(3.0, 4.0))); // 内部
         assert!(circle.contains_point(&Point2D::new(5.0, 0.0))); // 円周上
@@ -203,11 +222,11 @@ mod tests {
     #[test]
     fn test_point_at_angle() {
         let circle = Circle::new(Point2D::new(0.0, 0.0), 2.0);
-        
+
         let point = circle.point_at_angle(0.0);
         assert!((point.x() - 2.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        
+
         let point = circle.point_at_angle(precision::PI / 2.0);
         assert!((point.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
@@ -217,7 +236,7 @@ mod tests {
     fn test_bounding_box() {
         let circle = Circle::new(Point2D::new(1.0, 2.0), 3.0);
         let (min, max) = circle.bounding_box();
-        
+
         assert_eq!(min, Point2D::new(-2.0, -1.0));
         assert_eq!(max, Point2D::new(4.0, 5.0));
     }
@@ -227,9 +246,9 @@ mod tests {
         let p1 = Point2D::new(1.0, 0.0);
         let p2 = Point2D::new(0.0, 1.0);
         let p3 = Point2D::new(-1.0, 0.0);
-        
+
         let circle = Circle::from_three_points(p1, p2, p3).unwrap();
-        
+
         // 原点中心の半径1の円になるはず
         assert!((circle.center().x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((circle.center().y() - 0.0).abs() < GEOMETRIC_TOLERANCE);

@@ -5,7 +5,9 @@
 
 use crate::abstract_types::Scalar;
 use std::fmt::{Debug, Display};
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
+};
 
 /// 2次元ベクトル
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -335,9 +337,7 @@ impl<T: Scalar> Vector3D<T> {
         let one_minus_cos = T::ONE - cos_theta;
 
         // ロドリゲスの回転公式
-        *self * cos_theta
-            + axis.cross(self) * sin_theta
-            + axis * (axis.dot(self) * one_minus_cos)
+        *self * cos_theta + axis.cross(self) * sin_theta + axis * (axis.dot(self) * one_minus_cos)
     }
 
     /// 任意の軸に対する垂直ベクトルを生成
@@ -656,13 +656,13 @@ mod tests {
     fn test_vector2d_operations() {
         let v1 = Vector2D::new(1.0, 2.0);
         let v2 = Vector2D::new(3.0, 4.0);
-        
+
         let sum = v1 + v2;
         assert_eq!(sum, Vector2D::new(4.0, 6.0));
-        
+
         let diff = v2 - v1;
         assert_eq!(diff, Vector2D::new(2.0, 2.0));
-        
+
         let scaled = v1 * 2.0;
         assert_eq!(scaled, Vector2D::new(2.0, 4.0));
     }
@@ -672,7 +672,7 @@ mod tests {
         let v1 = Vector2D::new(1.0, 0.0);
         let v2 = Vector2D::new(0.0, 1.0);
         assert_eq!(v1.dot(&v2), 0.0);
-        
+
         let v3 = Vector2D::new(3.0, 4.0);
         let v4 = Vector2D::new(1.0, 0.0);
         assert_eq!(v3.dot(&v4), 3.0);
@@ -742,10 +742,10 @@ mod tests {
     fn test_vector_constants() {
         let zero2d = Vector2D::<f64>::zero();
         assert!(zero2d.is_zero());
-        
+
         let unit_x = Vector2D::<f64>::unit_x();
         assert_eq!(unit_x.length(), 1.0);
-        
+
         let unit_y = Vector2D::<f64>::unit_y();
         assert_eq!(unit_y.length(), 1.0);
     }
@@ -753,11 +753,11 @@ mod tests {
     #[test]
     fn test_angle_operations() {
         use std::f64::consts::PI;
-        
+
         let v = Vector2D::from_angle(PI / 4.0); // 45度
         assert!((v.x() - v.y()).abs() < 1e-10); // x ≈ y
         assert!((v.length() - 1.0).abs() < 1e-10); // 単位ベクトル
-        
+
         let angle = v.angle();
         assert!((angle - PI / 4.0).abs() < 1e-10);
     }
@@ -765,12 +765,12 @@ mod tests {
     #[test]
     fn test_point_vector_conversion() {
         use crate::geometry::Point2D;
-        
+
         let point = Point2D::new(3.0, 4.0);
         let vector: Vector2D<f64> = point.into();
         assert_eq!(vector.x(), 3.0);
         assert_eq!(vector.y(), 4.0);
-        
+
         let back_to_point: Point2D<f64> = vector.into();
         assert_eq!(back_to_point.x(), 3.0);
         assert_eq!(back_to_point.y(), 4.0);
