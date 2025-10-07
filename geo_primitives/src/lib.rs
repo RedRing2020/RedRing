@@ -8,11 +8,11 @@ pub mod traits;
 pub mod geometry2d;
 pub mod geometry3d;
 
-// CADプリミティブ
-pub mod cad_direction;
-pub mod cad_circle;
-pub mod cad_ellipse;
-pub mod cad_ellipse_arc;
+// CADプリミティブ（一時的にコメントアウト）
+// pub mod cad_direction;
+// pub mod cad_circle;
+// pub mod cad_ellipse;
+// pub mod cad_ellipse_arc;
 
 // テストモジュール
 #[cfg(test)]
@@ -30,11 +30,11 @@ pub use geometry3d::BBox3D;
 pub use traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 // CAD統合層
-pub use traits::geometry::{CadPoint, CadVector};
-pub use cad_direction::CadDirection;
-pub use cad_circle::CadCircle;
-pub use cad_ellipse::CadEllipse;
-pub use cad_ellipse_arc::CadEllipseArc;
+pub use traits::geometry::{Point, Vector};
+// pub use cad_direction::CadDirection;
+// pub use cad_circle::CadCircle;
+// pub use cad_ellipse::CadEllipse;
+// pub use cad_ellipse_arc::CadEllipseArc;
 // 基本幾何プリミティブ
 pub use geometry2d::{Point2D, Vector2D};
 pub use geometry3d::{Point3D, Vector3D};
@@ -63,10 +63,9 @@ pub mod prelude {
     };
     
     // CAD統合層
-    pub use crate::{
-        CadPoint, CadVector, CadDirection,
-        CadCircle, CadEllipse, CadEllipseArc
-    };
+    pub use crate::traits::geometry::Point;
+    pub use crate::geometry2d::Direction2D;
+    pub use crate::geometry3d::Direction3D;
     
     // ベクトルトレイト
     pub use crate::traits::{Vector, Vector2DExt, Vector3DExt, Normalizable};

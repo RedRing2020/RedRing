@@ -7,6 +7,7 @@ mod common;
 mod geometry_bbox;
 
 // 分離されたテストモジュール
+mod direction_tests;
 mod vector2d_tests;
 mod vector3d_tests;
 mod point3d_tests;
