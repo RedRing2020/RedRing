@@ -39,7 +39,7 @@
 ### SimpleAdaptedLine の特徴
 
 - **Curve3D trait 完全実装**: 既存 API との 100%互換性
-- **geo_core 数値基盤活用**: LineSegment3D による Scalar 型・ToleranceContext 統合
+- **geo_primitives 数値基盤活用**: LineSegment3D による Scalar 型・ToleranceContext 統合
 - **型安全変換**: TypeConverter による model↔geo_core seamless 変換
 - **パフォーマンス**: 既存実装との性能差 10 倍以内を確認
 
@@ -55,7 +55,7 @@ impl TypeConverter {
 
 // geo_core統合アダプター
 pub struct SimpleAdaptedLine {
-    inner: GeoLineSegment3D,  // geo_coreの数値基盤
+    inner: GeoLineSegment3D,  // geo_primitivesの数値基盤
     tolerance: ToleranceContext,
 }
 

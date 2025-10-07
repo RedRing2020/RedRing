@@ -14,7 +14,7 @@ use geo_foundation::{
 // use geo_primitives::{LineSegment3D as GeoLineSegment3D};
 // use geo_core::primitives3d::{ParametricCurve3D};
 
-/// geo_core LineSegment3D のアダプター実装
+/// geo_primitives LineSegment3D のアダプター実装
 pub struct AdaptedLine {
     inner: GeoLineSegment3D,
     tolerance: ToleranceContext,
