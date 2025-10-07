@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod traits_tests {
-    use crate::traits::common::classification::{PrimitiveKind, DimensionClass, GeometryUnion, GeometryPrimitive};
-    use crate::traits::common::primitive_trait::{GeometricPrimitive, TransformablePrimitive, MeasurablePrimitive};
+    use crate::traits::common::classification::{PrimitiveKind, DimensionClass};
+    use crate::traits::common::primitive_trait::GeometricPrimitive;
     use crate::traits::common::geometry_utils::*;
     use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps};
     use crate::geometry2d::Point2D;
