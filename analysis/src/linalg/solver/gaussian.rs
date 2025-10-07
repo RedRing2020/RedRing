@@ -1,8 +1,7 @@
-/// ガウス消去法による連立方程式ソルバー
-///
-/// 部分ピボット選択付きガウス消去法を実装
-/// 数値安定性を考慮した一般的な直接法
-
+//! ガウス消去法による連立方程式ソルバー
+//!
+//! 部分ピボット選択付きガウス消去法を実装
+//! 数値安定性を考慮した一般的な直接法
 use super::{LinearSolver, SolutionInfo};
 use crate::linalg::scalar::Scalar;
 
@@ -48,6 +47,7 @@ impl<T: Scalar> GaussianSolver<T> {
         let mut max_val = aug_matrix[k][k].abs();
 
         // k列目で最大の絶対値を持つ行を探す
+        #[allow(clippy::needless_range_loop)]
         for i in (k + 1)..n {
             let val = aug_matrix[i][k].abs();
             if val > max_val {
@@ -82,6 +82,7 @@ impl<T: Scalar> GaussianSolver<T> {
             }
 
             // 前進消去
+            #[allow(clippy::needless_range_loop)]
             for i in (k + 1)..n {
                 let factor = aug_matrix[i][k] / aug_matrix[k][k];
 
@@ -119,6 +120,7 @@ impl<T: Scalar> GaussianSolver<T> {
 
         for i in 0..n {
             let mut sum = T::ZERO;
+            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
                 sum = sum + matrix[i][j] * solution[j];
             }

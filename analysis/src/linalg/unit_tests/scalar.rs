@@ -1,4 +1,5 @@
 use crate::linalg::scalar::*;
+use std::f64::consts::PI;
 
 #[test]
 fn test_scalar_trait_f64() {
@@ -24,10 +25,10 @@ fn test_scalar_trait_f32() {
 
 #[test]
 fn test_type_conversion() {
-    let a: f64 = 3.14159265359;
+    let a: f64 = PI;
     let b: f32 = F32::from_f64(a);
     let c: f64 = F64::from_f32(b);
     
     // f32の精度でクランプされることを確認
-    assert!((c - 3.1415927).abs() < 1e-6);
+    assert!((c - (PI as f32) as f64).abs() < 1e-6);
 }

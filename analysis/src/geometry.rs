@@ -1,8 +1,7 @@
-/// 幾何特化数値計算モジュール
-///
-/// NURBS曲線、弧長計算など、幾何形状に特化した数値計算関数を提供する。
-/// 元々model/src/analysis/numeric.rsにあった関数群を独立化。
-
+//! 幾何特化数値計算モジュール
+//!
+//! NURBS曲線、弧長計算など、幾何形状に特化した数値計算関数を提供する。
+//! 元々model/src/analysis/numeric.rsにあった関数群を独立化。
 use crate::DERIVATIVE_ZERO_THRESHOLD;
 
 /// ニュートン法による方程式求解
@@ -126,6 +125,7 @@ pub fn basis_function_derivatives(
         ndu[j][j] = saved;
     }
 
+    #[allow(clippy::needless_range_loop)]
     for j in 0..=degree {
         ders[j] = 0.0;
     }
