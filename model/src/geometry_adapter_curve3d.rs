@@ -1,6 +1,6 @@
 /// geometry_adapter.rs の Curve3D trait 統合拡張
 ///
-/// 既存のCurve3D trait設計を保持しつつ、geo_coreの数値基盤を活用
+/// 既存のCurve3D trait設計を保持しつつ、geo_primitivesの数値基盤を活用
 
 use std::any::Any;
 use crate::geometry_kind::CurveKind3D;
@@ -10,9 +10,69 @@ use geo_foundation::{
     ToleranceContext,
     Scalar
 };
-// FIXME: geo_core primitives3d dependency needs replacement
-// use geo_primitives::{LineSegment3D as GeoLineSegment3D};
-// use geo_core::primitives3d::{ParametricCurve3D};
+/// geometry_adapter.rs の Curve3D trait 統合拡張
+///
+/// 既存のCurve3D trait設計を保持しつつ、geo_primitivesの数値基盤を活用
+
+use std::any::Any;
+use crate::geometry_kind::CurveKind3D;
+use crate::geometry_trait::curve3d::Curve3D;
+use super::{Vector3D, Point3D};
+use geo_foundation::{
+    ToleranceContext,
+    Scalar
+};
+// TODO: geo_primitives LineSegment3D への移行は今後実装予定
+
+/// TODO: 仮実装 - 将来geo_primitives LineSegment3D に置き換え予定
+pub struct MockLineSegment3D {
+    start: Point3D,
+    end: Point3D,
+}
+
+impl MockLineSegment3D {
+    pub fn new(start: Point3D, end: Point3D) -> Self {
+        Self { start, end }
+    }
+
+    pub fn evaluate(&self, t: f64) -> Point3D {
+        let x = self.start.x() + t * (self.end.x() - self.start.x());
+        let y = self.start.y() + t * (self.end.y() - self.start.y());
+        let z = self.start.z() + t * (self.end.z() - self.start.z());
+        Point3D::new(x, y, z)
+    }
+
+    pub fn direction(&self) -> Vector3D {
+        Vector3D::new(
+            self.end.x() - self.start.x(),
+            self.end.y() - self.start.y(),
+            self.end.z() - self.start.z(),
+        )
+    }
+
+    pub fn length(&self) -> f64 {
+        self.direction().norm()
+    }
+
+    pub fn closest_parameter(&self, _pt: &Point3D, _tolerance: &ToleranceContext) -> f64 {
+        0.5 // 仮実装
+    }
+}
+
+/// geo_primitives LineSegment3D のアダプター実装（仮実装）
+pub struct AdaptedLine {
+    inner: MockLineSegment3D,
+    tolerance: ToleranceContext,
+}
+
+impl AdaptedLine {
+    pub fn new(start: Point3D, end: Point3D) -> Self {
+        Self {
+            inner: MockLineSegment3D::new(start, end),
+            tolerance: ToleranceContext::standard(),
+        }
+    }
+}
 
 /// geo_primitives LineSegment3D のアダプター実装
 pub struct AdaptedLine {
@@ -45,136 +105,25 @@ impl Curve3D for AdaptedLine {
     }
 
     fn evaluate(&self, t: f64) -> Point3D {
-        let geo_point = self.inner.evaluate(Scalar::new(t));
-        Point3D::from_geo_core(geo_point)
+        self.inner.evaluate(t)
     }
 
     fn derivative(&self, _t: f64) -> Vector3D {
         // 直線の微分は定ベクトル
-        let direction = self.inner.direction();
-        Vector3D::from_geo_core(direction.to_vector())
+        self.inner.direction()
     }
 
     fn length(&self) -> f64 {
-        self.inner.length().value()
+        self.inner.length()
     }
 
     fn parameter_hint(&self, pt: &Point3D) -> f64 {
-        // 最近点のパラメータを計算
-        let geo_pt = pt.as_geo_core();
-        self.inner.closest_parameter(geo_pt, &self.tolerance).value()
+        // 最近点のパラメータを計算（仮実装）
+        self.inner.closest_parameter(pt, &self.tolerance)
     }
 
     fn domain(&self) -> (f64, f64) {
         (0.0, 1.0)
-    }
-}
-
-/// geo_core Arc3D のアダプター実装
-pub struct AdaptedArc {
-    inner: GeoArc3D,
-    tolerance: ToleranceContext,
-}
-
-impl AdaptedArc {
-    pub fn new(center: Point3D, radius: f64, start_angle: f64, end_angle: f64, normal: Vector3D) -> Self {
-        let geo_center = center.as_geo_core().clone();
-        let geo_normal = normal.as_geo_core().clone();
-
-        Self {
-            inner: GeoArc3D::new(
-                geo_center,
-                Scalar::new(radius),
-                Scalar::new(start_angle),
-                Scalar::new(end_angle),
-                geo_normal
-            ),
-            tolerance: ToleranceContext::standard(),
-        }
-    }
-}
-
-impl Curve3D for AdaptedArc {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn kind(&self) -> CurveKind3D {
-        CurveKind3D::Arc
-    }
-
-    fn evaluate(&self, t: f64) -> Point3D {
-        let geo_point = self.inner.evaluate(Scalar::new(t));
-        Point3D::from_geo_core(geo_point)
-    }
-
-    fn derivative(&self, t: f64) -> Vector3D {
-        let geo_tangent = self.inner.derivative(Scalar::new(t));
-        Vector3D::from_geo_core(geo_tangent)
-    }
-
-    fn length(&self) -> f64 {
-        self.inner.length().value()
-    }
-
-    fn parameter_hint(&self, pt: &Point3D) -> f64 {
-        let geo_pt = pt.as_geo_core();
-        self.inner.closest_parameter(geo_pt, &self.tolerance).value()
-    }
-
-    fn domain(&self) -> (f64, f64) {
-        (0.0, 1.0)
-    }
-}
-
-/// ジェネリックパラメトリック曲線アダプター
-pub struct AdaptedParametricCurve3D {
-    inner: GeoParametricCurve3D,
-    curve_kind: CurveKind3D,
-    tolerance: ToleranceContext,
-}
-
-impl AdaptedParametricCurve3D {
-    pub fn new(inner: GeoParametricCurve3D, curve_kind: CurveKind3D) -> Self {
-        Self {
-            inner,
-            curve_kind,
-            tolerance: ToleranceContext::standard(),
-        }
-    }
-}
-
-impl Curve3D for AdaptedParametricCurve3D {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn kind(&self) -> CurveKind3D {
-        self.curve_kind
-    }
-
-    fn evaluate(&self, t: f64) -> Point3D {
-        let geo_point = self.inner.evaluate(Scalar::new(t));
-        Point3D::from_geo_core(geo_point)
-    }
-
-    fn derivative(&self, t: f64) -> Vector3D {
-        let geo_tangent = self.inner.derivative(Scalar::new(t));
-        Vector3D::from_geo_core(geo_tangent)
-    }
-
-    fn length(&self) -> f64 {
-        self.inner.length().value()
-    }
-
-    fn parameter_hint(&self, pt: &Point3D) -> f64 {
-        let geo_pt = pt.as_geo_core();
-        self.inner.closest_parameter(geo_pt, &self.tolerance).value()
-    }
-
-    fn domain(&self) -> (f64, f64) {
-        let (start, end) = self.inner.domain();
-        (start.value(), end.value())
     }
 }
 
@@ -184,14 +133,6 @@ pub mod curve_factory {
 
     pub fn create_line(start: Point3D, end: Point3D) -> Box<dyn Curve3D> {
         Box::new(AdaptedLine::new(start, end))
-    }
-
-    pub fn create_arc(center: Point3D, radius: f64, start_angle: f64, end_angle: f64, normal: Vector3D) -> Box<dyn Curve3D> {
-        Box::new(AdaptedArc::new(center, radius, start_angle, end_angle, normal))
-    }
-
-    pub fn create_parametric_curve(inner: GeoParametricCurve3D, kind: CurveKind3D) -> Box<dyn Curve3D> {
-        Box::new(AdaptedParametricCurve3D::new(inner, kind))
     }
 }
 
