@@ -5,7 +5,6 @@
 
 use crate::geometry3d::Vector3D;
 use crate::traits::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
-use std::f64::consts::PI;
 
 /// 3D方向ベクトル
 ///

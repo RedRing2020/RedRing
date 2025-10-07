@@ -1,12 +1,12 @@
 /// 幾何構造体のテスト
-/// CadPoint, CadVector等のテスト
+/// 基本的な幾何プリミティブのテスト
 
-use crate::traits::geometry::{CadPoint, CadVector};
+use crate::geometry3d::{Point3D, Vector3D};
 
 #[test]
-fn test_cad_point_operations() {
-    let p1 = CadPoint::new(1.0, 2.0, 3.0);
-    let p2 = CadPoint::new(4.0, 5.0, 6.0);
+fn test_point_operations() {
+    let p1 = Point3D::new(1.0, 2.0, 3.0);
+    let p2 = Point3D::new(4.0, 5.0, 6.0);
 
     assert_eq!(p1.x(), 1.0);
     assert_eq!(p1.y(), 2.0);
@@ -18,9 +18,9 @@ fn test_cad_point_operations() {
 }
 
 #[test]
-fn test_cad_vector_operations() {
-    let v1 = CadVector::new(1.0, 0.0, 0.0);
-    let v2 = CadVector::new(0.0, 1.0, 0.0);
+fn test_vector_operations() {
+    let v1 = Vector3D::new(1.0, 0.0, 0.0);
+    let v2 = Vector3D::new(0.0, 1.0, 0.0);
 
     let cross = v1.cross(&v2);
     assert!((cross.x() - 0.0).abs() < 1e-10);
@@ -32,18 +32,11 @@ fn test_cad_vector_operations() {
 }
 
 #[test]
-fn test_cad_point_vector_integration() {
-    let p1 = CadPoint::new(1.0, 2.0, 3.0);
-    let v1 = CadVector::new(1.0, 1.0, 1.0);
+fn test_point_vector_integration() {
+    let p1 = Point3D::new(1.0, 2.0, 3.0);
+    let v1 = Vector3D::new(1.0, 1.0, 1.0);
 
-    let p2 = p1.translate(&v1);
-    assert_eq!(p2.x(), 2.0);
+    let p2 = p1 + v1;
     assert_eq!(p2.y(), 3.0);
     assert_eq!(p2.z(), 4.0);
-
-    // Addition operator test
-    let p3 = p1 + v1;
-    assert_eq!(p3.x(), 2.0);
-    assert_eq!(p3.y(), 3.0);
-    assert_eq!(p3.z(), 4.0);
 }

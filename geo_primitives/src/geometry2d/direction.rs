@@ -5,7 +5,6 @@
 
 use crate::geometry2d::Vector2D;
 use crate::traits::geometry::{Direction, Direction2D as Direction2DTrait, StepCompatible};
-use std::f64::consts::PI;
 
 /// 2D方向ベクトル
 ///

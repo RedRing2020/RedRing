@@ -8,11 +8,7 @@ pub mod traits;
 pub mod geometry2d;
 pub mod geometry3d;
 
-// CADプリミティブ（一時的にコメントアウト）
-// pub mod cad_direction;
-// pub mod cad_circle;
-// pub mod cad_ellipse;
-// pub mod cad_ellipse_arc;
+
 
 // テストモジュール
 #[cfg(test)]
@@ -31,10 +27,8 @@ pub use traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 // CAD統合層
 pub use traits::geometry::{Point, Vector};
-// pub use cad_direction::CadDirection;
-// pub use cad_circle::CadCircle;
-// pub use cad_ellipse::CadEllipse;
-// pub use cad_ellipse_arc::CadEllipseArc;
+
+// 基本幾何プリミティブ
 // 基本幾何プリミティブ
 pub use geometry2d::{Point2D, Vector2D};
 pub use geometry3d::{Point3D, Vector3D};

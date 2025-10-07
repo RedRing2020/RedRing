@@ -132,15 +132,12 @@ assert_eq!(v.x().value(), 1.0);
 
 ### Import Mapping
 
-| Old (deprecated) | New Canonical |## Downstream Effects
-
-|------------------|--------------|- Any crate depending on previous `Scalar` returns must be recompiled and updated.
-
-| `use geo_core::LineSegment3D` | `use geo_primitives::LineSegment3D` |- Generic code relying on `Mul<Scalar>` will need a bound change or conversion to `Mul<f64>`.
-
-| `use geo_core::Plane`         | `use geo_primitives::Plane`         |- Reverse multiplication simplifies generic numeric expressions (e.g., scalars on left produced by literals or function returns).
-
-| `use geo_core::Direction3D`   | `use geo_primitives::Direction3D`   |
+| Old (deprecated) | New Canonical | Downstream Effects |
+|------------------|---------------|-------------------|
+| Legacy geo_core imports | Use geo_primitives instead | Any crate depending on previous `Scalar` returns must be recompiled and updated. |
+| LineSegment3D from geo_core | LineSegment3D from geo_primitives | Generic code relying on `Mul<Scalar>` will need a bound change or conversion to `Mul<f64>`. |
+| Plane from geo_core | Plane from geo_primitives | Reverse multiplication simplifies generic numeric expressions (e.g., scalars on left produced by literals or function returns). |
+| Direction3D from geo_core | Direction3D from geo_primitives | Direction is now implemented with proper normalization guarantees. |
 
 ## Direction & Future Cleanup
 
@@ -435,7 +432,7 @@ model / analysis  ->  geo_primitives  ->  geo_core
 | P4 | Point/Vector 最終配置 & trait 抽象判断 | 予定 |
 
 ### Migration Guidance
-旧 `geo_core::LineSegment3D` 等を利用している場合:
+旧 geo_core からの LineSegment3D 等を利用している場合:
 1. import を `geo_primitives::LineSegment3D` に変更
 2. f64 アクセサ (x(), y(), z()) に `.value()` を付けない
 3. tolerance 利用箇所はそのまま `geo_core::ToleranceContext`
