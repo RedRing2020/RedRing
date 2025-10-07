@@ -14,7 +14,7 @@ use std::ops::{Add, Sub, Mul, Neg, Index, IndexMut};use crate::tolerance::{Toler
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 
-pub struct Vector2D {use std::ops::{Add, Sub, Mul, Neg, Index, IndexMut};use crate::tolerance::{ToleranceContext, TolerantEq, ToleranceProvider};/// /// 
+pub struct Vector2D {use std::ops::{Add, Sub, Mul, Neg, Index, IndexMut};use crate::tolerance::{ToleranceContext, TolerantEq, ToleranceProvider};/// ///
 
     x: f64,
 
@@ -88,7 +88,7 @@ impl Vector2D {
 
         let sin_a = angle.sin();    }}
 
-        
+
 
         Self::new(
 
@@ -158,7 +158,7 @@ impl Vector2D {
 
         let len = self.length();
 
-        if len == 0.0 {    pub fn from_f64(x: f64, y: f64) -> Self {/// 座標値はmm単位で格納される/// 
+        if len == 0.0 {    pub fn from_f64(x: f64, y: f64) -> Self {/// 座標値はmm単位で格納される///
 
             None
 
@@ -178,7 +178,7 @@ impl Vector2D {
 
         Self::new(0.0, 0.0)
 
-    }        
+    }
 
 
 
@@ -192,7 +192,7 @@ impl Vector2D {
 
             self.x * sin_a + self.y * cos_a,    /// X成分を取得pub struct Vector2D {#[derive(Debug, Clone, Copy, PartialEq)]
 
-    /// Y軸単位ベクトル  
+    /// Y軸単位ベクトル
 
     pub fn y_axis() -> Self {        )
 
@@ -358,7 +358,7 @@ impl Index<usize> for Vector2D {
 
             1 => &self.y,
 
-            _ => panic!("Index out of bounds for Vector2D"),    }        
+            _ => panic!("Index out of bounds for Vector2D"),    }
 
         }
 
@@ -386,7 +386,7 @@ impl IndexMut<usize> for Vector2D {
 
 }
 
-    /// Y軸単位ベクトル  
+    /// Y軸単位ベクトル
 
 // 表示
 
@@ -586,7 +586,7 @@ impl fmt::Display for Vector2D {        let sin_a = angle.sin();
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        write!(f, "Vector2D({:.6}, {:.6})", self.x, self.y)    /// Y軸単位ベクトル  
+        write!(f, "Vector2D({:.6}, {:.6})", self.x, self.y)    /// Y軸単位ベクトル
 
     }
 
