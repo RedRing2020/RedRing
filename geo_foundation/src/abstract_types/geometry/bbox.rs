@@ -78,8 +78,8 @@ pub trait CollisionBounds<const D: usize>: BoundingBoxOps<D> {
         Self::Coord: PartialOrd + Copy;
 }
 
-/// 次元別のヘルパー型エイリアス
-pub type BBox2D = crate::geometry2d::BBox2D;
-pub type BBox3D = crate::geometry3d::BBox3D;
+// 注意: 具体的な型エイリアスはgeo_primitivesで定義される
+// pub type BBox2D = geo_primitives::geometry2d::BBox2D;
+// pub type BBox3D = geo_primitives::geometry3d::BBox3D;
 
 

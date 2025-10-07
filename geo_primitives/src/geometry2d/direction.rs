@@ -4,7 +4,7 @@
 //! CAD操作に必要な方向性を持つ要素を表現する。
 
 use crate::geometry2d::Vector2D;
-use crate::traits::geometry::{Direction, Direction2D as Direction2DTrait, StepCompatible};
+use geo_foundation::abstract_types::geometry::{Direction, Direction2D as Direction2DTrait, StepCompatible};
 
 /// 2D方向ベクトル
 ///

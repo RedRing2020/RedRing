@@ -2,7 +2,7 @@
 //!
 //! 2D形状処理と衝突判定のための2次元境界ボックス
 
-use crate::traits::bbox_trait::{BoundingBoxOps, CollisionBounds};
+use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 use crate::geometry2d::Point;
 
 /// 2D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
@@ -12,7 +12,7 @@ pub struct BBox {
     pub max: Point,
 }
 
-impl crate::traits::bbox_trait::BoundingBox<2> for BBox {
+impl BoundingBox<2> for BBox {
     type Coord = f64;
 
     fn min(&self) -> [Self::Coord; 2] {

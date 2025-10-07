@@ -2,7 +2,7 @@
 //!
 //! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
-use crate::traits::bbox_trait::{BoundingBoxOps, CollisionBounds};
+use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 use crate::geometry2d::Point2D;
 use crate::geometry3d::Point;
 
@@ -13,7 +13,7 @@ pub struct BBox {
     pub max: Point,
 }
 
-impl crate::traits::bbox_trait::BoundingBox<3> for BBox {
+impl BoundingBox<3> for BBox {
     type Coord = f64;
 
     fn min(&self) -> [Self::Coord; 3] {

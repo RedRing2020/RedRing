@@ -7,7 +7,6 @@ pub mod direction;
 pub mod normalizable;
 pub mod point;
 pub mod vector;
-pub mod vector_ext;
 
 // 基本トレイトをエクスポート
 pub use bbox::*;
@@ -15,4 +14,3 @@ pub use direction::*;
 pub use normalizable::*;
 pub use point::*;
 pub use vector::*;
-pub use vector_ext::*;
