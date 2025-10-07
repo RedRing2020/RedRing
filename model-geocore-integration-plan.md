@@ -70,7 +70,7 @@ impl From<geo_core::Point3D> for model::Point { ... }
 impl Curve3D for AdaptedLine {
     fn kind(&self) -> CurveKind3D { CurveKind3D::Line }
     fn evaluate(&self, t: f64) -> Point {
-        // 内部でgeo_core::LineSegment3Dを使用
+        // 内部で LineSegment3D (from geo_core) を使用
     }
 }
 ```
