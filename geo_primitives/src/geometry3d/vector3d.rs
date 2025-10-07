@@ -294,10 +294,6 @@ impl std::ops::Neg for Vector3D {
     }
 }
 
-impl std::fmt::Display for Vector3D {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Vector3D({:.3}, {:.3}, {:.3})", self.x, self.y, self.z)
-    }
-}
+// Display実装は別クレートで実装
 
 // テストコードはunit_tests/vector3d_tests.rsに移動

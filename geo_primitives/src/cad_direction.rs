@@ -78,29 +78,3 @@ impl CadDirection {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cad_direction() {
-        let v = crate::CadVector::new(3.0, 4.0, 0.0);
-        let dir = CadDirection::from_vector(v).unwrap();
-        
-        // 正規化されているか確認
-        let norm = (dir.x() * dir.x() + dir.y() * dir.y() + dir.z() * dir.z()).sqrt();
-        assert!((norm - 1.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_orthonormal_basis() {
-        let dir = CadDirection::from_vector(crate::CadVector::new(0.0, 0.0, 1.0)).unwrap();
-        let (u, v) = dir.orthonormal_basis();
-        
-        // 直交性確認
-        assert!(u.dot(&v).abs() < 1e-10);
-        // 正規化確認
-        assert!((u.norm() - 1.0).abs() < 1e-10);
-        assert!((v.norm() - 1.0).abs() < 1e-10);
-    }
-}

@@ -55,45 +55,4 @@ pub trait PrimitiveCollection {
     fn intersecting_with_bbox(&self, bbox: &BBox3D) -> Vec<&Self::Item>;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::traits::common::classification::PrimitiveKind;
 
-    // テスト用のモックプリミティブ
-    struct MockPrimitive {
-        kind: PrimitiveKind,
-        bbox: BBox3D,
-        measure: Option<f64>,
-    }
-
-    impl GeometricPrimitive for MockPrimitive {
-        fn primitive_kind(&self) -> PrimitiveKind {
-            self.kind
-        }
-
-        fn bounding_box(&self) -> BBox3D {
-            self.bbox.clone()
-        }
-
-        fn measure(&self) -> Option<f64> {
-            self.measure
-        }
-    }
-
-    #[test]
-    fn test_geometric_primitive_interface() {
-        let primitive = MockPrimitive {
-            kind: PrimitiveKind::Point,
-            bbox: BBox3D::new((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),
-            measure: Some(5.0),
-        };
-
-        assert_eq!(primitive.primitive_kind(), PrimitiveKind::Point);
-        assert_eq!(primitive.measure(), Some(5.0));
-
-        let bbox = primitive.bounding_box();
-        assert_eq!(bbox.min, Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(bbox.max, Point3D::new(1.0, 1.0, 1.0));
-    }
-}

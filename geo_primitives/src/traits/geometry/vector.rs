@@ -110,25 +110,4 @@ impl Neg for CadVector {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_cad_vector_operations() {
-        let v1 = CadVector::new(1.0, 0.0, 0.0);
-        let v2 = CadVector::new(0.0, 1.0, 0.0);
-
-        let cross = v1.cross(&v2);
-        assert!((cross.z() - 1.0).abs() < 1e-10);
-
-        let dot = v1.dot(&v2);
-        assert!(dot.abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_cad_vector_norm() {
-        let v = CadVector::new(3.0, 4.0, 0.0);
-        assert!((v.norm() - 5.0).abs() < 1e-10);
-    }
-}

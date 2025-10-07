@@ -11,4 +11,7 @@ mod vector2d_tests;
 mod vector3d_tests;
 mod point3d_tests;
 mod bbox2d_tests;
+mod bbox3d_tests;
+
 mod cad_tests;
+mod traits_tests;

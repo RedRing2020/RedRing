@@ -8,7 +8,7 @@ use std::ops::{Add, Sub, Mul, Index, IndexMut};
 
 /// 汎用ベクトルトレイト（f64ベース）
 pub trait Vector<const D: usize>:
-    Clone + PartialEq + fmt::Debug + fmt::Display
+    Clone + PartialEq + fmt::Debug
     + Add<Output = Self> + Sub<Output = Self> + Mul<f64, Output = Self>
     + Index<usize, Output = f64> + IndexMut<usize>
 {
