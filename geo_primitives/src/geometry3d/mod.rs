@@ -1,17 +1,20 @@
 ﻿//! 3D Geometry Module
 //! 3次元幾何プリミティブ（f64ベース）
 
-pub mod direction;
-pub mod vector;
-pub mod point;
 pub mod bbox;
+pub mod circle;
+pub mod direction;
+pub mod point;
+pub mod vector;
 
-pub use direction::Direction3D;
-pub use vector::Vector;
-pub use point::Point;
+// Re-export with consistent naming
 pub use bbox::BBox;
+pub use circle::Circle;
+pub use direction::Direction3D;
+pub use point::Point;
+pub use vector::Vector;
 
-// Re-export with old names for compatibility
-pub use vector::Vector as Vector3D;
-pub use point::Point as Point3D;
+// Type aliases for external compatibility
 pub use bbox::BBox as BBox3D;
+pub use point::Point as Point3D;
+pub use vector::Vector as Vector3D;

@@ -1,37 +1,51 @@
-﻿//! Scalar型のユニットテスト
-use crate::abstract_types::Scalar;
-use std::f64::consts::PI;
+﻿//! Scalar traitのユニットテスト（新実装用）
+//! f32/f64に対するScalar traitの基本機能テスト
+
+use crate::Scalar;
 
 #[test]
-fn test_scalar_creation() {
-    let s1 = Scalar::new(PI);
-    let s2 = Scalar::new(2.71);
-
-    assert_eq!(s1.value(), PI);
-    assert_eq!(s2.value(), 2.71);
-}
-
-#[test]
-fn test_arithmetic_operations() {
-    let a = Scalar::new(1.0);
-    let b = Scalar::new(2.0);
-
-    let sum = a + b;
-    let diff = a - b;
-    let product = a * b;
-    let quotient = b / a;
-
-    assert_eq!(sum.value(), 3.0);
-    assert_eq!(diff.value(), -1.0);
-    assert_eq!(product.value(), 2.0);
-    assert_eq!(quotient.value(), 2.0);
-}
-
-#[test]
-fn test_scalar_constants() {
-    let zero = Scalar::ZERO;
-    let one = Scalar::ONE;
+fn test_scalar_trait_f32() {
+    let a = 3.0f32;
+    let b = 4.0f32;
     
-    assert_eq!(zero.value(), 0.0);
-    assert_eq!(one.value(), 1.0);
+    // 基本演算
+    let sum = a + b;
+    assert_eq!(sum, 7.0f32);
+    
+    // Scalar trait メソッド
+    let hypotenuse = (a * a + b * b).sqrt();
+    assert_eq!(hypotenuse, 5.0f32);
+    
+    // 定数アクセス
+    assert_eq!(f32::ZERO, 0.0f32);
+    assert_eq!(f32::ONE, 1.0f32);
+    assert!((f32::PI - std::f32::consts::PI).abs() < f32::TOLERANCE);
+}
+
+#[test]
+fn test_scalar_trait_f64() {
+    let a = 3.0f64;
+    let b = 4.0f64;
+    
+    // 基本演算
+    let sum = a + b;
+    assert_eq!(sum, 7.0f64);
+    
+    // Scalar trait メソッド
+    let hypotenuse = (a * a + b * b).sqrt();
+    assert_eq!(hypotenuse, 5.0f64);
+    
+    // 定数アクセス
+    assert_eq!(f64::ZERO, 0.0f64);
+    assert_eq!(f64::ONE, 1.0f64);
+    assert!((f64::PI - std::f64::consts::PI).abs() < f64::TOLERANCE);
+}
+
+#[test]
+fn test_type_conversion() {
+    let f32_val = 3.14159f32;
+    let f64_val = f32_val.to_f64();
+    let back_to_f32 = f32::from_f64(f64_val);
+    
+    assert!((f32_val - back_to_f32).abs() < f32::TOLERANCE);
 }
