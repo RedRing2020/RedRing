@@ -1,8 +1,5 @@
 #[cfg(test)]
-mod vector3d_tests {
-    use crate::geometry3d::Vector3D;
-
-    #[test]
+use crate::geometry3d::Vector3D;    #[test]
     fn test_vector3d_creation() {
         let v = Vector3D::new(1.0, 2.0, 3.0);
         assert_eq!(v.x(), 1.0);
@@ -103,4 +100,3 @@ mod vector3d_tests {
         // a × (b × c) = b(a·c) - c(a·b) = b*0 - c*0 = (0,0,0)
         assert_eq!(result, Vector3D::zero());
     }
-}

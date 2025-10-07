@@ -1,7 +1,6 @@
 #[cfg(test)]
-mod bbox3d_tests {
-    use crate::geometry3d::{BBox3D, Point3D};
-    use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use crate::geometry3d::{BBox3D, Point3D};
+use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
     #[test]
     fn test_bbox3d_creation() {
@@ -89,4 +88,3 @@ mod bbox3d_tests {
         assert_eq!(point.depth(), 0.0);
         assert_eq!(point.volume(), 0.0);
     }
-}

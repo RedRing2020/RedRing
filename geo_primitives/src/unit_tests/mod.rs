@@ -1,6 +1,5 @@
-/// Unit tests module
-/// テストケースの整理されたモジュール構成
-
+//! Unit tests module
+//! テストケースの整理されたモジュール構成
 mod vector_traits;
 mod geometry;
 mod common;
