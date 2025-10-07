@@ -11,7 +11,8 @@ use geo_foundation::{
     Scalar
 };
 // FIXME: geo_core primitives3d dependency needs replacement
-// use geo_core::primitives3d::{LineSegment3D as GeoLineSegment3D, ParametricCurve3D};
+// use geo_primitives::{LineSegment3D as GeoLineSegment3D};
+// use geo_core::primitives3d::{ParametricCurve3D};
 
 /// geo_core LineSegment3D のアダプター実装
 pub struct AdaptedLine {
