@@ -3,10 +3,10 @@
 mod geometry_bbox;
 
 // 個別テストモジュール
-mod direction;
-mod vector2d;
-mod vector3d;
-mod point3d;
 mod bbox2d;
 mod bbox3d;
+mod direction;
+mod point3d;
 mod traits;
+mod vector2d;
+mod vector3d;

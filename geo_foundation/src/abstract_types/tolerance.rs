@@ -21,7 +21,9 @@ impl ToleranceContext {
 
 impl Default for ToleranceContext {
     fn default() -> Self {
-        Self { tolerance: GEOMETRIC_TOLERANCE }
+        Self {
+            tolerance: GEOMETRIC_TOLERANCE,
+        }
     }
 }
 
@@ -36,16 +38,9 @@ pub trait TolerantEq {
     }
 }
 
-// f64に対する実装
-impl TolerantEq for f64 {
-    fn tolerant_eq(&self, other: &f64, context: &ToleranceContext) -> bool {
-        (self - other).abs() < context.tolerance()
-    }
-}
-
-// Scalarに対する実装
-impl TolerantEq for crate::Scalar {
+// Scalarトレイトを実装する型に対する汎用実装
+impl<T: crate::Scalar> TolerantEq for T {
     fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
-        self.value().tolerant_eq(&other.value(), context)
+        (*self - *other).abs() < T::from_f64(context.tolerance())
     }
 }

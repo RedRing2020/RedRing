@@ -1,19 +1,23 @@
-//! Scalar - 数値の抽象化型
-//!
-//! 幾何計算において、f32/f64の両方をサポートし、
-//! 数値型の統一インターフェースを提供
-
+/// 幾何計算で使用する数値型の共通トレイト
+/// 
+/// f32/f64の両方をサポートし、角度計算、円弧計算などで使用される
+/// 数値型の統一インターフェースを提供します。
+/// 
+/// # 用途
+/// 
+/// - **f32**: ゲーム開発、リアルタイム描画、GPUコンピューティング
+/// - **f64**: CAD/CAM、科学技術計算、高精度数値解析
+/// 
+/// # 設計方針
+/// 
+/// このトレイトは将来的に `analysis` クレートに移動される予定です。
+/// 線形代数演算や数値解析の統一基盤として活用されます。
 use std::fmt::{Debug, Display};
 
 /// 幾何計算用の汎用数値型トレイト
 /// 
 /// 角度、座標、距離など幾何要素で使用される数値型の
 /// 共通操作を定義します。
-/// 
-/// # 用途
-/// 
-/// - **f32**: ゲーム開発、リアルタイム描画、GPUコンピューティング
-/// - **f64**: CAD/CAM、科学技術計算、高精度数値解析
 pub trait Scalar: 
     Copy + Clone + Debug + Display + PartialEq + PartialOrd + 
     std::ops::Add<Output = Self> + 
@@ -234,57 +238,6 @@ impl Scalar for f64 {
     fn from_f64(value: f64) -> Self { value }
 }
 
-/// 旧バージョンとの互換性のためのスカラー構造体（非推奨）
-#[deprecated(note = "Use f32 or f64 with Scalar trait instead")]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct LegacyScalar {
-    value: f64,
-}
-
-#[allow(deprecated)]
-impl LegacyScalar {
-    /// 新しいScalarを作成
-    pub fn new(value: f64) -> Self {
-        Self { value }
-    }
-
-    /// 値を取得
-    pub fn value(&self) -> f64 {
-        self.value
-    }
-
-    /// ゼロ値
-    pub const ZERO: Self = Self { value: 0.0 };
-
-    /// 単位値
-    pub const ONE: Self = Self { value: 1.0 };
-
-    /// 絶対値
-    pub fn abs(&self) -> Self {
-        Self::new(self.value.abs())
-    }
-
-    /// 平方根
-    pub fn sqrt(&self) -> Self {
-        Self::new(self.value.sqrt())
-    }
-
-    /// 正弦
-    pub fn sin(&self) -> Self {
-        Self::new(self.value.sin())
-    }
-
-    /// 余弦
-    pub fn cos(&self) -> Self {
-        Self::new(self.value.cos())
-    }
-}
-
-/// 旧バージョンとの互換性のための型エイリアス
-#[deprecated(note = "Use f32 or f64 with Scalar trait instead")]
-#[allow(deprecated)]
-pub type OldScalar = LegacyScalar;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,14 +288,5 @@ mod tests {
         
         let c = 1.0f32 + f32::TOLERANCE * 10.0;
         assert!(!a.approx_eq(c));
-    }
-
-    #[test]
-    fn test_type_conversion() {
-        let f32_val = 3.14f32;
-        let f64_val = f32_val.to_f64();
-        let back_to_f32 = f32::from_f64(f64_val);
-        
-        assert!((f32_val - back_to_f32).abs() < f32::TOLERANCE);
     }
 }

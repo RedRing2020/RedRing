@@ -24,9 +24,8 @@ pub use geometry3d::BBox3D;
 pub use traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 // 基本幾何プリミティブ
-// 基本幾何プリミティブ
-pub use geometry2d::{Direction2D, Point2D, Vector2D};
-pub use geometry3d::{Direction3D, Point3D, Vector3D};
+pub use geometry2d::{Circle as Circle2D, Direction2D, Point2D, Vector2D};
+pub use geometry3d::{Circle as Circle3D, Direction3D, Point3D, Vector3D};
 
 // 名前空間の整理
 pub mod primitives_2d {

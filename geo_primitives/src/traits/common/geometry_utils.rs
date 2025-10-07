@@ -28,8 +28,8 @@ pub fn point3d_from_f64(x: f64, y: f64, z: f64) -> Point3D {
 }
 
 /// 2つのScalar値の距離（f64として計算）
-pub fn scalar_distance(a: &Scalar, b: &Scalar) -> f64 {
-    (a.value() - b.value()).abs()
+pub fn scalar_distance<T: Scalar>(a: T, b: T) -> T {
+    (a - b).abs()
 }
 
 /// 2つのf64値の最小値
