@@ -14,14 +14,15 @@ impl ToleranceContext {
         Self { tolerance }
     }
 
-    /// デフォルトの許容誤差コンテキスト
-    pub fn default() -> Self {
-        Self { tolerance: GEOMETRIC_TOLERANCE }
-    }
-
     /// 許容誤差値を取得
     pub fn tolerance(&self) -> f64 {
         self.tolerance
+    }
+}
+
+impl Default for ToleranceContext {
+    fn default() -> Self {
+        Self { tolerance: GEOMETRIC_TOLERANCE }
     }
 }
 
