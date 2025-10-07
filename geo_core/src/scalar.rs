@@ -1,7 +1,6 @@
-/// スカラー値と許容誤差を統合した型システム
-///
-/// 数値計算の精度を保証し、単位系の安全性を提供する。
-
+//! スカラー値と許容誤差を統合した型システム
+//!
+//! 数値計算の精度を保証し、単位系の安全性を提供する。
 use crate::tolerance::{ToleranceContext, TolerantEq, TolerantOrd};
 use std::fmt;
 use std::ops::{Add, Sub, Mul, Div, Neg};
@@ -145,7 +144,7 @@ impl Scalar {
         if other.value.abs() <= other_tolerance {
             None // ゼロ除算の可能性
         } else {
-            Some(self.clone() / other.clone())
+            Some(*self / *other)
         }
     }
 }

@@ -1,8 +1,7 @@
-/// ベクトル演算システム
-/// 
-/// 統合された2D/3Dベクトル演算を提供し、許容誤差を考慮した
-/// 堅牢な幾何計算を実現する。
-
+//! ベクトル演算システム
+//! 
+//! 統合された2D/3Dベクトル演算を提供し、許容誤差を考慮した
+//! 堅牢な幾何計算を実現する。
 use crate::scalar::Scalar;
 use crate::tolerance::{ToleranceContext, TolerantEq};
 use std::fmt;
