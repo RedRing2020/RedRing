@@ -4,7 +4,9 @@
 //! CAD操作に必要な方向性を持つ要素を表現する。
 
 use crate::geometry3d::Vector3D;
-use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
+use geo_foundation::abstract_types::geometry::{
+    Direction, Direction3D as Direction3DTrait, StepCompatible,
+};
 
 /// 3D方向ベクトル
 ///
@@ -155,7 +157,12 @@ impl Direction3DTrait for Direction3D {
 
 impl StepCompatible for Direction3D {
     fn to_step_string(&self) -> String {
-        format!("DIRECTION('',({:.6},{:.6},{:.6}))", self.x(), self.y(), self.z())
+        format!(
+            "DIRECTION('',({:.6},{:.6},{:.6}))",
+            self.x(),
+            self.y(),
+            self.z()
+        )
     }
 
     fn from_step_string(_step_str: &str) -> Result<Self, String> {
@@ -166,7 +173,13 @@ impl StepCompatible for Direction3D {
 
 impl std::fmt::Display for Direction3D {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Direction3D({:.3}, {:.3}, {:.3})", self.x(), self.y(), self.z())
+        write!(
+            f,
+            "Direction3D({:.3}, {:.3}, {:.3})",
+            self.x(),
+            self.y(),
+            self.z()
+        )
     }
 }
 

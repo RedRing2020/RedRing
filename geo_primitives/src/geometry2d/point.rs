@@ -1,6 +1,6 @@
-use geo_foundation::abstract_types::{TolerantEq, ToleranceContext};
-use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
 use crate::geometry2d::Vector2D;
+use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
+use geo_foundation::abstract_types::{ToleranceContext, TolerantEq};
 
 /// A 2D point represented by x and y coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,8 +19,12 @@ impl Point {
         Self::new(0.0, 0.0)
     }
 
-    pub fn x(&self) -> f64 { self.x }
-    pub fn y(&self) -> f64 { self.y }
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+    pub fn y(&self) -> f64 {
+        self.y
+    }
 
     pub fn distance_to(&self, other: &Self) -> f64 {
         let dx = self.x - other.x;
