@@ -25,7 +25,7 @@ impl Scalar {
 
     /// ゼロ値
     pub const ZERO: Self = Self { value: 0.0 };
-    
+
     /// 単位値
     pub const ONE: Self = Self { value: 1.0 };
 
