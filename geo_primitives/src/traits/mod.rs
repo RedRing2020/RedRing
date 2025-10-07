@@ -6,9 +6,9 @@ pub mod common;
 
 // Re-export traits directly from geo_foundation
 pub use geo_foundation::abstract_types::geometry::{
-    Vector, Vector2D, Vector3D, Vector2DExt, Vector3DExt, Normalizable,
-    BoundingBox, BoundingBoxOps, CollisionBounds
+    BoundingBox, BoundingBoxOps, CollisionBounds, Normalizable, Vector, Vector2D, Vector2DExt,
+    Vector3D, Vector3DExt,
 };
 
 // Re-export common utilities
-pub use common::{PrimitiveKind, DimensionClass, GeometryPrimitive, GeometryUnion};
+pub use common::{DimensionClass, GeometryPrimitive, GeometryUnion, PrimitiveKind};

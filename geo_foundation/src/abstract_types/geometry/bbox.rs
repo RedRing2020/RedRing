@@ -29,7 +29,8 @@ pub trait BoundingBox<const D: usize> {
     /// 中心点を取得
     fn center(&self) -> [Self::Coord; D]
     where
-        Self::Coord: std::ops::Add<Output = Self::Coord> + std::ops::Div<f64, Output = Self::Coord> + Copy;
+        Self::Coord:
+            std::ops::Add<Output = Self::Coord> + std::ops::Div<f64, Output = Self::Coord> + Copy;
 }
 
 /// バウンディングボックスの高度な操作を定義するトレイト
@@ -52,7 +53,8 @@ pub trait BoundingBoxOps<const D: usize>: BoundingBox<D> {
     /// 境界ボックスを指定量だけ拡張
     fn expand(&self, amount: Self::Coord) -> Self
     where
-        Self::Coord: std::ops::Add<Output = Self::Coord> + std::ops::Sub<Output = Self::Coord> + Copy;
+        Self::Coord:
+            std::ops::Add<Output = Self::Coord> + std::ops::Sub<Output = Self::Coord> + Copy;
 
     /// 境界ボックスが有効かチェック（min <= max）
     fn is_valid(&self) -> bool
@@ -81,5 +83,3 @@ pub trait CollisionBounds<const D: usize>: BoundingBoxOps<D> {
 // 注意: 具体的な型エイリアスはgeo_primitivesで定義される
 // pub type BBox2D = geo_primitives::geometry2d::BBox2D;
 // pub type BBox3D = geo_primitives::geometry3d::BBox3D;
-
-

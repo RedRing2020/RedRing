@@ -1,6 +1,4 @@
-﻿
-
-/// f64ベース3Dベクトル
+﻿/// f64ベース3Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
     x: f64,
@@ -19,19 +17,37 @@ impl Vector {
     }
 
     /// 単位ベクトル（各軸）
-    pub fn unit_x() -> Self { Self::new(1.0, 0.0, 0.0) }
-    pub fn unit_y() -> Self { Self::new(0.0, 1.0, 0.0) }
-    pub fn unit_z() -> Self { Self::new(0.0, 0.0, 1.0) }
+    pub fn unit_x() -> Self {
+        Self::new(1.0, 0.0, 0.0)
+    }
+    pub fn unit_y() -> Self {
+        Self::new(0.0, 1.0, 0.0)
+    }
+    pub fn unit_z() -> Self {
+        Self::new(0.0, 0.0, 1.0)
+    }
 
     /// 成分アクセス
-    pub fn x(&self) -> f64 { self.x }
-    pub fn y(&self) -> f64 { self.y }
-    pub fn z(&self) -> f64 { self.z }
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+    pub fn y(&self) -> f64 {
+        self.y
+    }
+    pub fn z(&self) -> f64 {
+        self.z
+    }
 
     /// 成分設定（geo_core互換）
-    pub fn set_x(&mut self, x: f64) { self.x = x; }
-    pub fn set_y(&mut self, y: f64) { self.y = y; }
-    pub fn set_z(&mut self, z: f64) { self.z = z; }
+    pub fn set_x(&mut self, x: f64) {
+        self.x = x;
+    }
+    pub fn set_y(&mut self, y: f64) {
+        self.y = y;
+    }
+    pub fn set_z(&mut self, z: f64) {
+        self.z = z;
+    }
 
     /// ベクトルの長さ（ノルム）
     pub fn length(&self) -> f64 {
@@ -87,9 +103,15 @@ impl Vector {
     }
 
     /// 軸エイリアス（geo_core互換）
-    pub fn x_axis() -> Self { Self::unit_x() }
-    pub fn y_axis() -> Self { Self::unit_y() }
-    pub fn z_axis() -> Self { Self::unit_z() }
+    pub fn x_axis() -> Self {
+        Self::unit_x()
+    }
+    pub fn y_axis() -> Self {
+        Self::unit_y()
+    }
+    pub fn z_axis() -> Self {
+        Self::unit_z()
+    }
 
     /// スカラー三重積 (scalar triple product)
     pub fn scalar_triple_product(&self, b: &Self, c: &Self) -> f64 {
@@ -229,9 +251,13 @@ impl crate::traits::Vector3DExt for Vector {
 
     fn any_perpendicular(&self) -> Self {
         if self.x.abs() > self.z.abs() {
-            Self::new(-self.y, self.x, 0.0).normalize().unwrap_or(Self::unit_z())
+            Self::new(-self.y, self.x, 0.0)
+                .normalize()
+                .unwrap_or(Self::unit_z())
         } else {
-            Self::new(0.0, -self.z, self.y).normalize().unwrap_or(Self::unit_x())
+            Self::new(0.0, -self.z, self.y)
+                .normalize()
+                .unwrap_or(Self::unit_x())
         }
     }
 
@@ -240,10 +266,10 @@ impl crate::traits::Vector3DExt for Vector {
             Some(n) => n,
             None => return (Self::unit_x(), Self::unit_y(), Self::unit_z()),
         };
-        
+
         let u = normalized.any_perpendicular();
         let v = normalized.cross(&u);
-        
+
         (u, v, normalized)
     }
 }
@@ -341,9 +367,5 @@ impl std::ops::Neg for Vector {
 }
 
 // Display実装は別クレートで実装
-
-
-
-
 
 // テストコードはunit_tests/Vector_tests.rsに移動

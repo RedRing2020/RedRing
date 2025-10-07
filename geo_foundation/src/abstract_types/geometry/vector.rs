@@ -3,16 +3,21 @@
 //! CAD/CAM システムで使用されるベクトルの抽象化インターフェース
 
 use std::fmt::Debug;
-use std::ops::{Add, Sub, Mul, Index, IndexMut};
+use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
 /// N次元ベクトルの抽象化トレイト
 ///
 /// 次元数をコンパイル時定数として指定し、
 /// 基本的なベクトル操作を抽象化する
-pub trait Vector<const DIM: usize>: 
-    Clone + Debug + PartialEq +
-    Add<Output = Self> + Sub<Output = Self> + Mul<Self::Scalar, Output = Self> +
-    Index<usize, Output = Self::Scalar> + IndexMut<usize>
+pub trait Vector<const DIM: usize>:
+    Clone
+    + Debug
+    + PartialEq
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Self::Scalar, Output = Self>
+    + Index<usize, Output = Self::Scalar>
+    + IndexMut<usize>
 {
     /// スカラー型（ベクトル成分の型）
     type Scalar: Copy + Debug + PartialEq + PartialOrd;
@@ -63,10 +68,10 @@ pub trait Vector<const DIM: usize>:
 pub trait Vector2D: Vector<2> {
     /// X成分を取得
     fn x(&self) -> Self::Scalar;
-    
+
     /// Y成分を取得
     fn y(&self) -> Self::Scalar;
-    
+
     /// 成分から2Dベクトルを作成
     fn new(x: Self::Scalar, y: Self::Scalar) -> Self
     where
@@ -93,13 +98,13 @@ pub trait Vector2D: Vector<2> {
 pub trait Vector3D: Vector<3> {
     /// X成分を取得
     fn x(&self) -> Self::Scalar;
-    
+
     /// Y成分を取得
     fn y(&self) -> Self::Scalar;
-    
+
     /// Z成分を取得
     fn z(&self) -> Self::Scalar;
-    
+
     /// 成分から3Dベクトルを作成
     fn new(x: Self::Scalar, y: Self::Scalar, z: Self::Scalar) -> Self
     where

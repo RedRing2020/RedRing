@@ -1,6 +1,6 @@
-﻿use geo_foundation::abstract_types::{TolerantEq, ToleranceContext};
+﻿use crate::geometry3d::Vector3D;
 use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point3D as Point3DTrait};
-use crate::geometry3d::Vector3D;
+use geo_foundation::abstract_types::{ToleranceContext, TolerantEq};
 
 /// f64ベース3D点
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -19,9 +19,15 @@ impl Point {
         Self::new(0.0, 0.0, 0.0)
     }
 
-    pub fn x(&self) -> f64 { self.x }
-    pub fn y(&self) -> f64 { self.y }
-    pub fn z(&self) -> f64 { self.z }
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+    pub fn y(&self) -> f64 {
+        self.y
+    }
+    pub fn z(&self) -> f64 {
+        self.z
+    }
 
     pub fn distance_to(&self, other: &Self) -> f64 {
         let dx = self.x - other.x;
@@ -54,7 +60,11 @@ impl std::ops::Add<crate::geometry3d::Vector3D> for Point {
     type Output = Point;
 
     fn add(self, vector: crate::geometry3d::Vector3D) -> Self::Output {
-        Point::new(self.x + vector.x(), self.y + vector.y(), self.z + vector.z())
+        Point::new(
+            self.x + vector.x(),
+            self.y + vector.y(),
+            self.z + vector.z(),
+        )
     }
 }
 
@@ -87,7 +97,11 @@ impl PointTrait<3> for Point {
     }
 
     fn translate(&self, vector: &Self::Vector) -> Self {
-        Self::new(self.x + vector.x(), self.y + vector.y(), self.z + vector.z())
+        Self::new(
+            self.x + vector.x(),
+            self.y + vector.y(),
+            self.z + vector.z(),
+        )
     }
 
     fn vector_to(&self, other: &Self) -> Self::Vector {

@@ -2,9 +2,9 @@
 //!
 //! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
-use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 use crate::geometry2d::Point2D;
 use crate::geometry3d::Point;
+use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 /// 3D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
 #[derive(Debug, Clone, PartialEq)]
@@ -55,15 +55,21 @@ impl BoundingBox<3> for BBox {
 
 impl BoundingBoxOps<3> for BBox {
     fn contains_point(&self, point: [Self::Coord; 3]) -> bool {
-        point[0] >= self.min.x() && point[0] <= self.max.x() &&
-        point[1] >= self.min.y() && point[1] <= self.max.y() &&
-        point[2] >= self.min.z() && point[2] <= self.max.z()
+        point[0] >= self.min.x()
+            && point[0] <= self.max.x()
+            && point[1] >= self.min.y()
+            && point[1] <= self.max.y()
+            && point[2] >= self.min.z()
+            && point[2] <= self.max.z()
     }
 
     fn intersects(&self, other: &Self) -> bool {
-        self.max.x() >= other.min.x() && self.min.x() <= other.max.x() &&
-        self.max.y() >= other.min.y() && self.min.y() <= other.max.y() &&
-        self.max.z() >= other.min.z() && self.min.z() <= other.max.z()
+        self.max.x() >= other.min.x()
+            && self.min.x() <= other.max.x()
+            && self.max.y() >= other.min.y()
+            && self.min.y() <= other.max.y()
+            && self.max.z() >= other.min.z()
+            && self.min.z() <= other.max.z()
     }
 
     fn union(&self, other: &Self) -> Self {
@@ -83,8 +89,16 @@ impl BoundingBoxOps<3> for BBox {
 
     fn expand(&self, amount: Self::Coord) -> Self {
         Self {
-            min: Point::new(self.min.x() - amount, self.min.y() - amount, self.min.z() - amount),
-            max: Point::new(self.max.x() + amount, self.max.y() + amount, self.max.z() + amount),
+            min: Point::new(
+                self.min.x() - amount,
+                self.min.y() - amount,
+                self.min.z() - amount,
+            ),
+            max: Point::new(
+                self.max.x() + amount,
+                self.max.y() + amount,
+                self.max.z() + amount,
+            ),
         }
     }
 
@@ -96,9 +110,12 @@ impl BoundingBoxOps<3> for BBox {
 impl CollisionBounds<3> for BBox {
     fn fast_overlaps(&self, other: &Self) -> bool {
         // 軸平行境界ボックス特化の高速重複テスト
-        !(self.max.x() < other.min.x() || other.max.x() < self.min.x() ||
-          self.max.y() < other.min.y() || other.max.y() < self.min.y() ||
-          self.max.z() < other.min.z() || other.max.z() < self.min.z())
+        !(self.max.x() < other.min.x()
+            || other.max.x() < self.min.x()
+            || self.max.y() < other.min.y()
+            || other.max.y() < self.min.y()
+            || self.max.z() < other.min.z()
+            || other.max.z() < self.min.z())
     }
 
     fn separation_distance(&self, other: &Self) -> Option<Self::Coord> {
@@ -246,5 +263,3 @@ impl BBox {
 // 旧BoundingBoxとの互換性のためのtype alias
 #[deprecated(note = "Use BBox instead")]
 pub type LegacyBoundingBox = BBox;
-
-

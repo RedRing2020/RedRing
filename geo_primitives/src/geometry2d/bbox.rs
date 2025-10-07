@@ -2,8 +2,8 @@
 //!
 //! 2D形状処理と衝突判定のための2次元境界ボックス
 
-use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 use crate::geometry2d::Point;
+use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 /// 2D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
 #[derive(Debug, Clone, PartialEq)]
@@ -53,13 +53,17 @@ impl BoundingBox<2> for BBox {
 
 impl BoundingBoxOps<2> for BBox {
     fn contains_point(&self, point: [Self::Coord; 2]) -> bool {
-        point[0] >= self.min.x() && point[0] <= self.max.x() &&
-        point[1] >= self.min.y() && point[1] <= self.max.y()
+        point[0] >= self.min.x()
+            && point[0] <= self.max.x()
+            && point[1] >= self.min.y()
+            && point[1] <= self.max.y()
     }
 
     fn intersects(&self, other: &Self) -> bool {
-        self.max.x() >= other.min.x() && self.min.x() <= other.max.x() &&
-        self.max.y() >= other.min.y() && self.min.y() <= other.max.y()
+        self.max.x() >= other.min.x()
+            && self.min.x() <= other.max.x()
+            && self.max.y() >= other.min.y()
+            && self.min.y() <= other.max.y()
     }
 
     fn union(&self, other: &Self) -> Self {
@@ -90,8 +94,10 @@ impl BoundingBoxOps<2> for BBox {
 impl CollisionBounds<2> for BBox {
     fn fast_overlaps(&self, other: &Self) -> bool {
         // 軸平行境界ボックス特化の高速重複テスト
-        !(self.max.x() < other.min.x() || other.max.x() < self.min.x() ||
-          self.max.y() < other.min.y() || other.max.y() < self.min.y())
+        !(self.max.x() < other.min.x()
+            || other.max.x() < self.min.x()
+            || self.max.y() < other.min.y()
+            || other.max.y() < self.min.y())
     }
 
     fn separation_distance(&self, other: &Self) -> Option<Self::Coord> {
@@ -151,14 +157,8 @@ impl BBox {
         let mut max = *first;
 
         for point in points.iter().skip(1) {
-            min = Point::new(
-                min.x().min(point.x()),
-                min.y().min(point.y()),
-            );
-            max = Point::new(
-                max.x().max(point.x()),
-                max.y().max(point.y()),
-            );
+            min = Point::new(min.x().min(point.x()), min.y().min(point.y()));
+            max = Point::new(max.x().max(point.x()), max.y().max(point.y()));
         }
 
         Some(Self::from_points(min, max))

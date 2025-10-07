@@ -1,6 +1,4 @@
-﻿
-
-/// f64ベース2Dベクトル
+﻿/// f64ベース2Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector {
     x: f64,
@@ -18,16 +16,28 @@ impl Vector {
     }
 
     /// 単位ベクトル（各軸）
-    pub fn unit_x() -> Self { Self::new(1.0, 0.0) }
-    pub fn unit_y() -> Self { Self::new(0.0, 1.0) }
+    pub fn unit_x() -> Self {
+        Self::new(1.0, 0.0)
+    }
+    pub fn unit_y() -> Self {
+        Self::new(0.0, 1.0)
+    }
 
     /// 成分アクセス
-    pub fn x(&self) -> f64 { self.x }
-    pub fn y(&self) -> f64 { self.y }
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+    pub fn y(&self) -> f64 {
+        self.y
+    }
 
     /// 成分設定（geo_core互換）
-    pub fn set_x(&mut self, x: f64) { self.x = x; }
-    pub fn set_y(&mut self, y: f64) { self.y = y; }
+    pub fn set_x(&mut self, x: f64) {
+        self.x = x;
+    }
+    pub fn set_y(&mut self, y: f64) {
+        self.y = y;
+    }
 
     /// ベクトルの長さ（ノルム）
     pub fn length(&self) -> f64 {
@@ -88,10 +98,7 @@ impl Vector {
 
     /// スカラー加算（スケール加算）- modelトレイト互換
     pub fn add_scaled(&self, other: &Self, scale: f64) -> Self {
-        Self::new(
-            self.x + other.x * scale,
-            self.y + other.y * scale,
-        )
+        Self::new(self.x + other.x * scale, self.y + other.y * scale)
     }
 
     /// 角度による回転
@@ -298,9 +305,5 @@ impl std::ops::Neg for Vector {
 }
 
 // Display実装は別クレートで実装
-
-
-
-
 
 // テストコードはunit_tests/Vector_tests.rsに移動
