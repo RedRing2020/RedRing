@@ -2,7 +2,7 @@
 /// 
 /// Scalar基礎計算を使用した高精度円演算を提供
 
-use geo_core::Scalar;
+// geo_core参照を削除 - f64を直接使用
 use crate::{CadPoint, CadVector, CadDirection};
 
 /// CAD Circle（modelからの移植）
@@ -66,29 +66,4 @@ impl CadCircle {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cad_circle_basic() {
-        let center = CadPoint::new(0.0, 0.0, 0.0);
-        let normal = CadDirection::from_vector(CadVector::new(0.0, 0.0, 1.0)).unwrap();
-        let circle = CadCircle::new(center, 1.0, normal);
-
-        assert_eq!(circle.radius(), 1.0);
-        assert!((circle.length() - 2.0 * std::f64::consts::PI).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_cad_circle_evaluation() {
-        let center = CadPoint::new(0.0, 0.0, 0.0);
-        let normal = CadDirection::from_vector(CadVector::new(0.0, 0.0, 1.0)).unwrap();
-        let circle = CadCircle::new(center, 1.0, normal);
-
-        let point = circle.evaluate(0.0); // t=0の点
-        assert!((point.x() - 1.0).abs() < 1e-10);
-        assert!(point.y().abs() < 1e-10);
-        assert!(point.z().abs() < 1e-10);
-    }
-}
+// テストコードはunit_tests/cad_tests.rsに移動

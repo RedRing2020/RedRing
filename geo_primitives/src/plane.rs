@@ -2,7 +2,7 @@
 ///
 /// 3D空間における平面要素
 
-use geo_core::{Vector3D, Scalar};
+// geo_core参照を削除 - ローカルVector3Dを使用
 use crate::{GeometricPrimitive, PrimitiveKind, BoundingBox, geometry_utils::*, Point3D};
 
 /// 3D平面プリミティブ

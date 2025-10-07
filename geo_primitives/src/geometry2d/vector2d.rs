@@ -23,6 +23,10 @@ impl Vector2D {
     pub fn x(&self) -> f64 { self.x }
     pub fn y(&self) -> f64 { self.y }
 
+    /// 成分設定（geo_core互換）
+    pub fn set_x(&mut self, x: f64) { self.x = x; }
+    pub fn set_y(&mut self, y: f64) { self.y = y; }
+
     /// ベクトルの長さ（ノルム）
     pub fn length(&self) -> f64 {
         (self.x * self.x + self.y * self.y).sqrt()
@@ -58,10 +62,7 @@ impl Vector2D {
         Self::new(-self.y, self.x)
     }
 
-    /// スカラー倍
-    pub fn scale(&self, scalar: f64) -> Self {
-        Self::new(self.x * scalar, self.y * scalar)
-    }
+    // scaleメソッドを削除 - *演算子を使用
 
     /// 2点間のベクトル
     pub fn from_points(from: &crate::geometry2d::Point2D, to: &crate::geometry2d::Point2D) -> Self {
@@ -76,6 +77,30 @@ impl Vector2D {
     /// 2D外積（スカラー値）
     pub fn cross_2d(&self, other: &Self) -> f64 {
         self.x * other.y - self.y * other.x
+    }
+
+    /// ノルム（長さ）- modelトレイト互換
+    pub fn norm(&self) -> f64 {
+        self.length()
+    }
+
+    /// スカラー加算（スケール加算）- modelトレイト互換
+    pub fn add_scaled(&self, other: &Self, scale: f64) -> Self {
+        Self::new(
+            self.x + other.x * scale,
+            self.y + other.y * scale,
+        )
+    }
+
+    /// 角度による回転
+    pub fn rotate(&self, angle: f64) -> Self {
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        
+        Self::new(
+            self.x * cos_a - self.y * sin_a,
+            self.x * sin_a + self.y * cos_a,
+        )
     }
 }
 
@@ -134,7 +159,7 @@ impl crate::traits::Vector<2> for Vector2D {
     }
 
     fn scale(&self, scalar: f64) -> Self {
-        self.scale(scalar)
+        *self * scalar
     }
 
     fn zero() -> Self {
@@ -215,7 +240,7 @@ impl std::ops::Mul<f64> for Vector2D {
     type Output = Vector2D;
 
     fn mul(self, scalar: f64) -> Self::Output {
-        self.scale(scalar)
+        Self::new(self.x * scalar, self.y * scalar)
     }
 }
 
@@ -223,7 +248,7 @@ impl std::ops::Mul<Vector2D> for f64 {
     type Output = Vector2D;
 
     fn mul(self, vector: Vector2D) -> Self::Output {
-        vector.scale(self)
+        Vector2D::new(vector.x * self, vector.y * self)
     }
 }
 
@@ -249,75 +274,4 @@ impl std::fmt::Display for Vector2D {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_vector2d_creation() {
-        let v = Vector2D::new(1.0, 2.0);
-        assert_eq!(v.x(), 1.0);
-        assert_eq!(v.y(), 2.0);
-    }
-
-    #[test]
-    fn test_vector2d_constants() {
-        let zero = Vector2D::zero();
-        assert_eq!(zero.x(), 0.0);
-        assert_eq!(zero.y(), 0.0);
-
-        let unit_x = Vector2D::unit_x();
-        assert_eq!(unit_x.x(), 1.0);
-        assert_eq!(unit_x.y(), 0.0);
-    }
-
-    #[test]
-    fn test_vector2d_length() {
-        let v = Vector2D::new(3.0, 4.0);
-        assert!((v.length() - 5.0).abs() < 1e-10);
-        assert!((v.length_squared() - 25.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_vector2d_normalize() {
-        let v = Vector2D::new(3.0, 4.0);
-        let normalized = v.normalize().unwrap();
-        assert!((normalized.length() - 1.0).abs() < 1e-10);
-
-        let zero = Vector2D::zero();
-        assert!(zero.normalize().is_none());
-    }
-
-    #[test]
-    fn test_vector2d_dot_product() {
-        let v1 = Vector2D::new(1.0, 2.0);
-        let v2 = Vector2D::new(3.0, 4.0);
-        let dot = v1.dot(&v2);
-        assert_eq!(dot, 11.0); // 1*3 + 2*4 = 11
-    }
-
-    #[test]
-    fn test_vector2d_perpendicular() {
-        let v = Vector2D::new(1.0, 0.0);
-        let perp = v.perpendicular();
-        assert_eq!(perp, Vector2D::new(0.0, 1.0));
-    }
-
-    #[test]
-    fn test_vector2d_arithmetic() {
-        let v1 = Vector2D::new(1.0, 2.0);
-        let v2 = Vector2D::new(3.0, 4.0);
-
-        let add = v1 + v2;
-        assert_eq!(add, Vector2D::new(4.0, 6.0));
-
-        let sub = v2 - v1;
-        assert_eq!(sub, Vector2D::new(2.0, 2.0));
-
-        let mul = v1 * 2.0;
-        assert_eq!(mul, Vector2D::new(2.0, 4.0));
-
-        let neg = -v1;
-        assert_eq!(neg, Vector2D::new(-1.0, -2.0));
-    }
-}
+// テストコードはunit_tests/vector2d_tests.rsに移動

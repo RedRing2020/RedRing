@@ -6,7 +6,6 @@
 //! 幾何プリミティブはgeo_primitivesに統合されました。
 
 use crate::tolerance::{ToleranceContext, TolerantEq};
-use crate::scalar::Scalar;
 use crate::vector::{Vector, Vector2D};
 
 /// パラメトリック曲線トレイト（2D）
@@ -24,51 +23,47 @@ pub trait ParametricCurve2D {
 #[derive(Debug, Clone, Copy)]
 #[deprecated(note = "Use geo_primitives::Point2D instead")]
 pub struct Point2D {
-    x: Scalar,
-    y: Scalar,
+    x: f64,
+    y: f64,
 }
 
 impl Point2D {
-    pub fn new(x: Scalar, y: Scalar) -> Self {
+    pub fn new(x: f64, y: f64) -> Self {
         Self { x, y }
     }
 
     pub fn from_f64(x: f64, y: f64) -> Self {
-        Self {
-            x: Scalar::new(x),
-            y: Scalar::new(y),
-        }
+        Self { x, y }
     }
 
     pub fn origin() -> Self {
         Self::from_f64(0.0, 0.0)
     }
 
-    pub fn x(&self) -> &Scalar { &self.x }
-    pub fn y(&self) -> &Scalar { &self.y }
+    pub fn x(&self) -> f64 { self.x }
+    pub fn y(&self) -> f64 { self.y }
 
-    pub fn distance_to(&self, other: &Self) -> Scalar {
-        let dx = self.x.clone() - other.x.clone();
-        let dy = self.y.clone() - other.y.clone();
-        (dx.clone() * dx + dy.clone() * dy).sqrt()
+    pub fn distance_to(&self, other: &Self) -> f64 {
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        (dx * dx + dy * dy).sqrt()
     }
 
     pub fn to_vector(&self) -> Vector2D {
-        Vector2D::new(self.x.clone(), self.y.clone())
+        Vector2D::from_f64(self.x, self.y)
     }
 
     pub fn midpoint(&self, other: &Self) -> Self {
-        let two = Scalar::new(2.0);
         Self::new(
-            (self.x.clone() + other.x.clone()) / two.clone(),
-            (self.y.clone() + other.y.clone()) / two,
+            (self.x + other.x) / 2.0,
+            (self.y + other.y) / 2.0,
         )
     }
 }
 
 impl TolerantEq for Point2D {
     fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
-        self.x.tolerant_eq(&other.x, context) && self.y.tolerant_eq(&other.y, context)
+        (self.x - other.x).abs() <= context.linear && (self.y - other.y).abs() <= context.linear
     }
 }
 

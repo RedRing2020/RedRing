@@ -79,22 +79,4 @@ impl Sub<CadPoint> for CadPoint {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cad_point_basic() {
-        let p = CadPoint::new(1.0, 2.0, 3.0);
-        assert_eq!(p.x(), 1.0);
-        assert_eq!(p.y(), 2.0);
-        assert_eq!(p.z(), 3.0);
-    }
-
-    #[test]
-    fn test_cad_point_distance() {
-        let p1 = CadPoint::new(0.0, 0.0, 0.0);
-        let p2 = CadPoint::new(3.0, 4.0, 0.0);
-        assert!((p1.distance_to(&p2) - 5.0).abs() < 1e-10);
-    }
-}
+// テストコードはunit_tests/cad_tests.rsに移動

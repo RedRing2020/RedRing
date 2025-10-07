@@ -2,7 +2,7 @@
 ///
 /// f64ベース幾何プリミティブ間の変換とヘルパー関数を提供
 
-use geo_core::Scalar;
+// geo_core参照を削除 - f64を直接使用
 use crate::geometry2d::Point2D;
 use crate::geometry3d::Point3D;
 

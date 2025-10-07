@@ -7,7 +7,7 @@ pub mod consts;
 // pub mod numeric;     // 一時的に無効化
 pub mod linalg;      // 高速線形代数モジュール（数値解析専用）
 pub mod sampling2d;  // 既存の2Dサンプリング（後で整理）
-pub mod geometry;    // 幾何特化数値計算
+pub mod geometry;    // 幾何特化数値計算（後で整理）
 
 #[cfg(test)]
 mod unit_tests;

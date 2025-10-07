@@ -26,6 +26,11 @@ impl Vector3D {
     pub fn y(&self) -> f64 { self.y }
     pub fn z(&self) -> f64 { self.z }
 
+    /// 成分設定（geo_core互換）
+    pub fn set_x(&mut self, x: f64) { self.x = x; }
+    pub fn set_y(&mut self, y: f64) { self.y = y; }
+    pub fn set_z(&mut self, z: f64) { self.z = z; }
+
     /// ベクトルの長さ（ノルム）
     pub fn length(&self) -> f64 {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
@@ -65,10 +70,40 @@ impl Vector3D {
         )
     }
 
-    /// スカラー倍
-    pub fn scale(&self, scalar: f64) -> Self {
-        Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
+    /// ノルム（長さ）- modelトレイト互換
+    pub fn norm(&self) -> f64 {
+        self.length()
     }
+
+    /// スカラー加算（スケール加算）- modelトレイト互換
+    pub fn add_scaled(&self, other: &Self, scale: f64) -> Self {
+        Self::new(
+            self.x + other.x * scale,
+            self.y + other.y * scale,
+            self.z + other.z * scale,
+        )
+    }
+
+    /// 軸エイリアス（geo_core互換）
+    pub fn x_axis() -> Self { Self::unit_x() }
+    pub fn y_axis() -> Self { Self::unit_y() }
+    pub fn z_axis() -> Self { Self::unit_z() }
+
+    /// スカラー三重積 (scalar triple product)
+    pub fn scalar_triple_product(&self, b: &Self, c: &Self) -> f64 {
+        let cross = b.cross(c);
+        self.dot(&cross)
+    }
+
+    /// ベクトル三重積 (vector triple product)
+    pub fn vector_triple_product(&self, b: &Self, c: &Self) -> Self {
+        // a × (b × c) = b (a·c) - c (a·b)
+        let a_dot_c = self.dot(c);
+        let a_dot_b = self.dot(b);
+        *b * a_dot_c - *c * a_dot_b
+    }
+
+    // scaleメソッドを削除 - *演算子を使用
 
     /// 2点間のベクトル
     pub fn from_points(from: &crate::geometry3d::Point3D, to: &crate::geometry3d::Point3D) -> Self {
@@ -140,7 +175,7 @@ impl crate::traits::Vector<3> for Vector3D {
     }
 
     fn scale(&self, scalar: f64) -> Self {
-        self.scale(scalar)
+        *self * scalar
     }
 
     fn zero() -> Self {
@@ -231,7 +266,7 @@ impl std::ops::Mul<f64> for Vector3D {
     type Output = Vector3D;
 
     fn mul(self, scalar: f64) -> Self::Output {
-        self.scale(scalar)
+        Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
     }
 }
 
@@ -239,7 +274,7 @@ impl std::ops::Mul<Vector3D> for f64 {
     type Output = Vector3D;
 
     fn mul(self, vector: Vector3D) -> Self::Output {
-        vector.scale(self)
+        Vector3D::new(vector.x * self, vector.y * self, vector.z * self)
     }
 }
 
@@ -265,82 +300,4 @@ impl std::fmt::Display for Vector3D {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_vector3d_creation() {
-        let v = Vector3D::new(1.0, 2.0, 3.0);
-        assert_eq!(v.x(), 1.0);
-        assert_eq!(v.y(), 2.0);
-        assert_eq!(v.z(), 3.0);
-    }
-
-    #[test]
-    fn test_vector3d_constants() {
-        let zero = Vector3D::zero();
-        assert_eq!(zero.x(), 0.0);
-        assert_eq!(zero.y(), 0.0);
-        assert_eq!(zero.z(), 0.0);
-
-        let unit_x = Vector3D::unit_x();
-        assert_eq!(unit_x.x(), 1.0);
-        assert_eq!(unit_x.y(), 0.0);
-        assert_eq!(unit_x.z(), 0.0);
-    }
-
-    #[test]
-    fn test_vector3d_length() {
-        let v = Vector3D::new(3.0, 4.0, 0.0);
-        assert!((v.length() - 5.0).abs() < 1e-10);
-        assert!((v.length_squared() - 25.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_vector3d_normalize() {
-        let v = Vector3D::new(3.0, 4.0, 0.0);
-        let normalized = v.normalize().unwrap();
-        assert!((normalized.length() - 1.0).abs() < 1e-10);
-
-        let zero = Vector3D::zero();
-        assert!(zero.normalize().is_none());
-    }
-
-    #[test]
-    fn test_vector3d_dot_product() {
-        let v1 = Vector3D::new(1.0, 2.0, 3.0);
-        let v2 = Vector3D::new(4.0, 5.0, 6.0);
-        let dot = v1.dot(&v2);
-        assert_eq!(dot, 32.0); // 1*4 + 2*5 + 3*6 = 32
-    }
-
-    #[test]
-    fn test_vector3d_cross_product() {
-        let v1 = Vector3D::unit_x();
-        let v2 = Vector3D::unit_y();
-        let cross = v1.cross(&v2);
-        let unit_z = Vector3D::unit_z();
-        assert!((cross.x() - unit_z.x()).abs() < 1e-10);
-        assert!((cross.y() - unit_z.y()).abs() < 1e-10);
-        assert!((cross.z() - unit_z.z()).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_vector3d_arithmetic() {
-        let v1 = Vector3D::new(1.0, 2.0, 3.0);
-        let v2 = Vector3D::new(4.0, 5.0, 6.0);
-
-        let add = v1 + v2;
-        assert_eq!(add, Vector3D::new(5.0, 7.0, 9.0));
-
-        let sub = v2 - v1;
-        assert_eq!(sub, Vector3D::new(3.0, 3.0, 3.0));
-
-        let mul = v1 * 2.0;
-        assert_eq!(mul, Vector3D::new(2.0, 4.0, 6.0));
-
-        let neg = -v1;
-        assert_eq!(neg, Vector3D::new(-1.0, -2.0, -3.0));
-    }
-}
+// テストコードはunit_tests/vector3d_tests.rsに移動

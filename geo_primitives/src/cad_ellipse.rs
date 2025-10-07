@@ -2,7 +2,7 @@
 ///
 /// Scalar基礎計算を使用した高精度楕円演算を提供
 
-use geo_core::Scalar;
+// geo_core参照を削除 - f64を直接使用
 use crate::{CadPoint, CadVector};
 
 /// CAD Ellipse（modelからの移植）
