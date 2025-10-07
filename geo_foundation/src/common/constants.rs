@@ -1,5 +1,4 @@
 /// 幾何計算で使用される定数
-
 /// 幾何計算用のデフォルト許容誤差
 pub const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 

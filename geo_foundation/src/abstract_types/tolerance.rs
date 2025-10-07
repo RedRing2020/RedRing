@@ -1,5 +1,4 @@
 /// 許容誤差に関する抽象型とトレイト
-
 use crate::common::constants::GEOMETRIC_TOLERANCE;
 
 /// 許容誤差コンテキスト
