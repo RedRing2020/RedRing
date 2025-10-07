@@ -1,8 +1,7 @@
-/// トレラントモデリングにおける許容誤差管理
-///
-/// CAD/CAMシステムにおける数値的堅牢性を保証するため、
-/// 様々な種類の許容誤差を構造化して管理する。
-
+//! トレラントモデリングにおける許容誤差管理
+//!
+//! CAD/CAMシステムにおける数値的堅牢性を保証するため、
+//! 様々な種類の許容誤差を構造化して管理する。
 use std::fmt;
 
 /// 幾何学的計算での実用的な許容誤差
@@ -209,6 +208,7 @@ pub trait TolerantGeometry: ToleranceProvider {
 
 /// 位相的一貫性チェッカー（将来の B-rep モデリング用）
 pub struct TopologyChecker {
+    #[allow(dead_code)] // 将来のB-repモデリング実装で使用予定
     context: ToleranceContext,
 }
 
