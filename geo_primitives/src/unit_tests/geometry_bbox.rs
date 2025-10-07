@@ -1,8 +1,8 @@
 //! 2D/3D Bounding Box統合テスト
 //! BBox2D, BBox3D両方のテストとジェネリックトレイトテスト
-use crate::geometry2d::{Point2D, BBox2D};
-use crate::geometry3d::{Point3D, BBox3D};
-use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use crate::geometry2d::{BBox2D, Point2D};
+use crate::geometry3d::{BBox3D, Point3D};
+use crate::traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 // =============================================================================
 // BBox2D Tests

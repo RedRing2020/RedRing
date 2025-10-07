@@ -43,3 +43,28 @@ use crate::geometry3d::{Point3D, Vector3D};    #[test]
         let sub = p2 - p1;
         assert_eq!(sub, Vector3D::new(3.0, 3.0, 3.0));
     }
+
+    // geometry.rsから移動したテスト
+    #[test]
+    fn test_point_operations_extended() {
+        let p1 = Point3D::new(1.0, 2.0, 3.0);
+        let p2 = Point3D::new(4.0, 5.0, 6.0);
+
+        assert_eq!(p1.x(), 1.0);
+        assert_eq!(p1.y(), 2.0);
+        assert_eq!(p1.z(), 3.0);
+
+        let distance = p1.distance_to(&p2);
+        let expected = ((4.0f64-1.0)*(4.0-1.0) + (5.0-2.0)*(5.0-2.0) + (6.0-3.0)*(6.0-3.0)).sqrt();
+        assert!((distance - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_point_vector_integration() {
+        let p1 = Point3D::new(1.0, 2.0, 3.0);
+        let v1 = Vector3D::new(1.0, 1.0, 1.0);
+
+        let p2 = p1 + v1;
+        assert_eq!(p2.y(), 3.0);
+        assert_eq!(p2.z(), 4.0);
+    }

@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod direction2d_tests {
     use crate::geometry2d::Direction2D;
-    use crate::traits::geometry::{Direction, Direction2D as Direction2DTrait, StepCompatible};
+    use crate::traits::{Direction, Direction2D as Direction2DTrait, StepCompatible};
     use std::f64::consts::PI;
 
     #[test]
@@ -113,7 +113,7 @@ mod direction2d_tests {
 #[cfg(test)]
 mod direction3d_tests {
     use crate::geometry3d::Direction3D;
-    use crate::traits::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
+    use crate::traits::{Direction, Direction3D as Direction3DTrait, StepCompatible};
     use std::f64::consts::PI;
 
     #[test]
