@@ -1,0 +1,53 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug RedRing",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=redring",
+          "--package=redring"
+        ],
+        "filter": {
+          "name": "redring",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Current Package",
+      "cargo": {
+        "args": [
+          "build",
+          "--package=${fileBasenameNoExtension}"
+        ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Test Current Package",
+      "cargo": {
+        "args": [
+          "test",
+          "--package=${fileBasenameNoExtension}",
+          "--no-run"
+        ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,22 +1,107 @@
 {
+  // === File Encoding & Line Endings ===
   "files.encoding": "utf8",
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
+  "files.autoSave": "onFocusChange",
+  
+  // === Editor General Settings ===
   "editor.tabSize": 2,
   "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
   "editor.renderWhitespace": "boundary",
-  "editor.rulers": [80, 120],
+  "editor.rulers": [80, 100, 120],
   "editor.wordWrap": "on",
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[markdown]": {
-    "editor.tabSize": 2
+  "editor.formatOnPaste": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "explicit"
   },
+  
+  // === Language-Specific Settings ===
   "[rust]": {
-    "editor.tabSize": 4
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.semanticHighlighting.enabled": true
+  },
+  "[toml]": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true
+  },
+  "[markdown]": {
+    "editor.tabSize": 2,
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    }
+  },
+  "[json]": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true
   },
   "[powershell]": {
     "editor.tabSize": 4
-  }
+  },
+  "[yaml]": {
+    "editor.tabSize": 2
+  },
+  
+  // === Rust-Analyzer Settings ===
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.allTargets": true,
+  "rust-analyzer.diagnostics.enable": true,
+  "rust-analyzer.completion.autoimport.enable": true,
+  "rust-analyzer.inlayHints.typeHints.enable": true,
+  "rust-analyzer.inlayHints.parameterHints.enable": true,
+  "rust-analyzer.inlayHints.chainingHints.enable": true,
+  "rust-analyzer.lens.enable": true,
+  "rust-analyzer.lens.methodReferences": true,
+  "rust-analyzer.lens.references": true,
+  
+  // === Search & Explorer ===
+  "search.exclude": {
+    "**/target": true,
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/book": true,
+    "**/docs": true
+  },
+  "files.exclude": {
+    "**/target": true,
+    "**/.git": true,
+    "**/Cargo.lock": false
+  },
+  "files.watcherExclude": {
+    "**/target/**": true
+  },
+  
+  // === Terminal Settings ===
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.scrollback": 10000,
+  
+  // === Git Settings ===
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  
+  // === Workspace-Specific Settings ===
+  "workbench.colorTheme": "Default Dark+",
+  "workbench.iconTheme": "vs-seti",
+  "breadcrumbs.enabled": true,
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  
+  // === Performance Settings ===
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "extensions.ignoreRecommendations": false
 }
