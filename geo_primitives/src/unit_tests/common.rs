@@ -1,7 +1,7 @@
 /// 共通ユーティリティと分類システムのテスト
 /// classification, geometry_utilsのテスト
 
-use crate::traits::common::{PrimitiveKind, DimensionClass, GeometryPrimitive};
+use crate::traits::common::{PrimitiveKind, DimensionClass};
 use crate::traits::common::geometry_utils::*;
 use crate::geometry2d::Point2D;
 use crate::geometry3d::Point3D;
@@ -28,7 +28,7 @@ fn test_primitive_kind_properties() {
 #[test]
 fn test_point2d_utilities() {
     let p1 = Point2D::new(1.0, 2.0);
-    let p2 = Point2D::new(3.0, 4.0);
+    let _p2 = Point2D::new(3.0, 4.0);
 
     // Conversion test
     let (x, y) = point2d_to_f64(&p1);
@@ -43,7 +43,7 @@ fn test_point2d_utilities() {
 #[test]
 fn test_point3d_utilities() {
     let p1 = Point3D::new(1.0, 2.0, 3.0);
-    let p2 = Point3D::new(4.0, 5.0, 6.0);
+    let _p2 = Point3D::new(4.0, 5.0, 6.0);
 
     // Conversion test
     let (x, y, z) = point3d_to_f64(&p1);
