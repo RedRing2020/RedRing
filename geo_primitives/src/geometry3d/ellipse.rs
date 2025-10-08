@@ -3,7 +3,6 @@
 //! 3次元楕円の基本実装
 
 use crate::geometry3d::{Circle, Point3D, Vector3D, BBox3D, Direction3D};
-use geo_foundation::abstract_types::geometry::angle::Angle;
 use geo_foundation::abstract_types::geometry::Direction;
 use std::f64::consts::PI;
 
@@ -239,8 +238,8 @@ impl Ellipse {
     /// 楕円のバウンディングボックスを計算
     pub fn bounding_box(&self) -> BBox3D {
         // 楕円の軸方向での最大範囲を計算
-        let u_vec = self.u_axis.to_vector() * self.major_radius;
-        let v_vec = self.v_axis().to_vector() * self.minor_radius;
+        let _u_vec = self.u_axis.to_vector() * self.major_radius;
+        let _v_vec = self.v_axis().to_vector() * self.minor_radius;
 
         // 楕円上の8つの主要な点を計算（簡易版）
         let mut points = Vec::new();
