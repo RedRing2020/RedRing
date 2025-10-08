@@ -78,10 +78,10 @@ impl<T: Scalar> Angle<T> {
         let tau = T::TAU;
         let mut rad = self.radians;
         while rad < T::ZERO {
-            rad = rad + tau;
+            rad += tau;
         }
         while rad >= tau {
-            rad = rad - tau;
+            rad -= tau;
         }
         Self { radians: rad }
     }
