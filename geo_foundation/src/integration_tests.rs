@@ -3,7 +3,7 @@
 /// Scalar trait、Angle、Circle、Arc、Ellipse実装の統合動作確認を行います。
 /// f32/f64両方での動作と相互運用性をテストします。
 use crate::{
-    Angle, BoundingBox2D, BoundingBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar,
+    Angle, BBox2D, BBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar,
     Vector2D, Vector3D,
 };
 
@@ -444,7 +444,7 @@ mod integration_tests {
 
     #[test]
     fn test_bbox_point_vector_integration() {
-        // BoundingBoxとPoint、Vectorの統合動作テスト
+        // BBoxとPoint、Vectorの統合動作テスト
 
         // 複数の点から境界ボックスを作成
         let points = vec![
@@ -454,7 +454,7 @@ mod integration_tests {
             Point2D::new(2.0, 4.0),
         ];
 
-        let bbox = BoundingBox2D::from_points(&points).unwrap();
+        let bbox = BBox2D::from_points(&points).unwrap();
 
         // 境界ボックスの中心点
         let center = bbox.center();
@@ -479,12 +479,12 @@ mod integration_tests {
 
     #[test]
     fn test_bbox_circle_integration() {
-        // BoundingBoxとCircleの統合動作テスト
+        // BBoxとCircleの統合動作テスト
 
         let circle = Circle2DImpl::<f64>::new(Point2D::new(3.0, 2.0), 2.0);
 
         // 円の境界ボックスを手動作成
-        let circle_bbox = BoundingBox2D::from_coords(1.0, 0.0, 5.0, 4.0);
+        let circle_bbox = BBox2D::from_coords(1.0, 0.0, 5.0, 4.0);
 
         // 円の中心点が境界ボックス内にあることを確認
         assert!(circle_bbox.contains_point(circle.center()));
@@ -509,7 +509,7 @@ mod integration_tests {
 
     #[test]
     fn test_bbox_3d_integration() {
-        // 3D BoundingBoxの統合動作テスト
+        // 3D BBoxの統合動作テスト
 
         let points_3d = vec![
             Point3D::new(1.0, 2.0, 1.0),
@@ -518,7 +518,7 @@ mod integration_tests {
             Point3D::new(3.0, 3.0, 4.0),
         ];
 
-        let bbox_3d = BoundingBox3D::from_points(&points_3d).unwrap();
+        let bbox_3d = BBox3D::from_points(&points_3d).unwrap();
 
         // 3D→2D投影テスト
         let bbox_2d = bbox_3d.to_2d();
@@ -547,7 +547,7 @@ mod integration_tests {
     fn test_bbox_precision_compatibility() {
         // f32/f64精度での境界ボックス動作テスト
 
-        let bbox_f32 = BoundingBox2D::<f32>::from_coords(1.0, 2.0, 5.0, 6.0);
+        let bbox_f32 = BBox2D::<f32>::from_coords(1.0, 2.0, 5.0, 6.0);
         let bbox_f64 = bbox_f32.to_f64();
 
         // 基本プロパティの比較
@@ -561,7 +561,7 @@ mod integration_tests {
         assert!((center_f32.y() as f64 - center_f64.y()).abs() < 1e-6);
 
         // 交差判定の一貫性
-        let other_f32 = BoundingBox2D::<f32>::from_coords(3.0, 4.0, 7.0, 8.0);
+        let other_f32 = BBox2D::<f32>::from_coords(3.0, 4.0, 7.0, 8.0);
         let other_f64 = other_f32.to_f64();
 
         assert_eq!(
@@ -574,9 +574,9 @@ mod integration_tests {
     fn test_bbox_union_intersection_complex() {
         // 複数境界ボックスの和集合・積集合テスト
 
-        let bbox1 = BoundingBox2D::from_coords(0.0, 0.0, 4.0, 3.0);
-        let bbox2 = BoundingBox2D::from_coords(2.0, 1.0, 6.0, 5.0);
-        let bbox3 = BoundingBox2D::from_coords(1.0, 2.0, 3.0, 4.0);
+        let bbox1 = BBox2D::from_coords(0.0, 0.0, 4.0, 3.0);
+        let bbox2 = BBox2D::from_coords(2.0, 1.0, 6.0, 5.0);
+        let bbox3 = BBox2D::from_coords(1.0, 2.0, 3.0, 4.0);
 
         // 2つの境界ボックスの和集合
         let union12 = bbox1.union(&bbox2);
@@ -594,7 +594,7 @@ mod integration_tests {
         assert_eq!(intersection12.max(), Point2D::new(4.0, 3.0));
 
         // 積集合が存在しない場合
-        let bbox_disjoint = BoundingBox2D::from_coords(7.0, 6.0, 9.0, 8.0);
+        let bbox_disjoint = BBox2D::from_coords(7.0, 6.0, 9.0, 8.0);
         assert!(bbox1.intersection(&bbox_disjoint).is_none());
     }
 
@@ -825,7 +825,7 @@ mod integration_tests {
 
         // これらの点を包含する境界ボックス
         let points = [start_point, end_point, mid_point];
-        let bbox = BoundingBox2D::from_points(&points).unwrap();
+        let bbox = BBox2D::from_points(&points).unwrap();
 
         // すべての点が境界ボックス内にあることを確認
         for &point in &points {
@@ -905,7 +905,7 @@ mod integration_tests {
         assert!((arc_length - expected_arc_length).abs() < 1e-10);
 
         // 5. 境界ボックスの統合
-        let circle_bbox = BoundingBox2D::from_coords(
+        let circle_bbox = BBox2D::from_coords(
             circle_center.x() - circle_radius,
             circle_center.y() - circle_radius,
             circle_center.x() + circle_radius,

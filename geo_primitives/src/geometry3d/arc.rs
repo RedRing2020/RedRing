@@ -4,7 +4,8 @@
 
 use crate::geometry3d::{Circle, Point3D, Vector3D};
 use crate::traits::Circle3D;
-use geo_foundation::abstract_types::Angle;
+use geo_foundation::abstract_types::{geometry::Arc3D as Arc3DTrait, Angle};
+use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
 /// 円弧の種類を表現する列挙型
@@ -19,9 +20,6 @@ pub enum ArcKind {
     /// 完全な円（2π）
     FullCircle,
 }
-
-/// 幾何計算用の許容誤差
-const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 
 /// 3D空間上の円弧を表現する構造体
 #[derive(Debug, Clone)]
@@ -304,6 +302,72 @@ impl PartialEq for Arc {
                 < GEOMETRIC_TOLERANCE
     }
 }
+
+// Arc3Dトレイトの実装（geo_foundation::geometry::circle::Arc3D）
+impl Arc3DTrait for Arc {
+    type Point = Point3D;
+    type Vector = Vector3D;
+
+    fn center(&self) -> Self::Point {
+        self.center()
+    }
+
+    fn radius(&self) -> f64 {
+        self.radius()
+    }
+
+    fn normal(&self) -> Self::Vector {
+        self.normal()
+    }
+
+    fn start_angle(&self) -> f64 {
+        self.start_angle().to_radians()
+    }
+
+    fn end_angle(&self) -> f64 {
+        self.end_angle().to_radians()
+    }
+
+    fn start_point(&self) -> Self::Point {
+        self.start_point()
+    }
+
+    fn end_point(&self) -> Self::Point {
+        self.end_point()
+    }
+
+    fn point_at_parameter(&self, t: f64) -> Self::Point {
+        let angle = self.start_angle().to_radians() + t * self.angle_span().to_radians();
+        self.point_at_angle(angle)
+    }
+
+    fn contains_point(&self, point: &Self::Point, _tolerance: f64) -> bool {
+        self.contains_point(*point) // 現在の実装は内部で許容誤差を使用
+    }
+
+    #[allow(refining_impl_trait_reachable)]
+    fn to_2d(&self) -> crate::geometry2d::Arc {
+        use crate::geometry2d;
+
+        // 3D円弧をXY平面に投影する簡易実装
+        // TODO: より正確な平面投影の実装が必要
+        let center_2d = geometry2d::Point2D::new(self.center().x(), self.center().y());
+        let circle_2d = geometry2d::Circle::new(center_2d, self.radius());
+
+        geometry2d::Arc::from_radians(
+            circle_2d,
+            self.start_angle().to_radians(),
+            self.end_angle().to_radians(),
+        )
+    }
+}
+
+// 型エイリアス：他の形状実装との統一を目指したパターン
+pub type Arc3DF64 = Arc; // f64版（現在の実装）
+pub type Arc3D = Arc3DF64; // デフォルトはf64版
+
+// 注意：Arc3DF32は将来の型パラメータ化で実装予定
+// pub type Arc3DF32 = Arc<f32>; // 将来実装
 
 #[cfg(test)]
 mod tests {

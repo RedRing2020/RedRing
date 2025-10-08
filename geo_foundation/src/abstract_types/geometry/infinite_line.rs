@@ -229,19 +229,20 @@ mod tests {
     fn test_infinite_line_trait_compilation() {
         // トレイト定義のコンパイルテスト
         // 実際の実装は具象型で行われる
+        assert!(true);
     }
 
     #[test]
     fn test_trait_bounds() {
         // トレイト境界のテスト
-        #[allow(dead_code)]
         fn check_2d_line<T: Scalar, L: InfiniteLine2D<T>>(_line: &L) {
             // このテストはコンパイル時にトレイト境界を確認
         }
 
-        #[allow(dead_code)]
         fn check_3d_line<T: Scalar, L: InfiniteLine3D<T>>(_line: &L) {
             // このテストはコンパイル時にトレイト境界を確認
         }
+
+        assert!(true);
     }
 }

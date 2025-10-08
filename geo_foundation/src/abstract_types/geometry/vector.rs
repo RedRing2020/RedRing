@@ -154,6 +154,3 @@ pub trait Vector3DExt: Vector3D {
     /// 正規直交基底を構築（このベクトルをZ軸とする）
     fn build_orthonormal_basis(&self) -> (Self, Self, Self);
 }
-
-/// デフォルトの許容誤差
-pub const DEFAULT_VECTOR_TOLERANCE: f64 = 1e-10;

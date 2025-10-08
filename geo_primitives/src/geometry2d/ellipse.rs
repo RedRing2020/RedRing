@@ -2,10 +2,9 @@
 //!
 //! 2次元楕円の基本実装
 
-#[cfg(test)]
-use crate::geometry2d::Point2D;
-use crate::geometry2d::{BBox2D, Circle, Point2DF64, Vector2D};
+use crate::geometry2d::{bbox::BBoxF64, Circle, Point2DF64, Vector2D};
 use geo_foundation::abstract_types::Angle;
+use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
 /// 楕円関連のエラー
@@ -30,9 +29,6 @@ impl std::fmt::Display for EllipseError {
 }
 
 impl std::error::Error for EllipseError {}
-
-/// 幾何計算用の許容誤差
-const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 
 /// 2D平面上の楕円を表現する構造体
 #[derive(Debug, Clone)]
@@ -208,7 +204,7 @@ impl Ellipse {
     }
 
     /// 楕円のバウンディングボックスを計算
-    pub fn bounding_box(&self) -> BBox2D {
+    pub fn bounding_box(&self) -> BBoxF64 {
         // 回転を考慮した楕円のバウンディングボックス計算
         let cos_rot = self.rotation.to_radians().cos();
         let sin_rot = self.rotation.to_radians().sin();
@@ -220,7 +216,7 @@ impl Ellipse {
         let x_extent = ((a * cos_rot).powi(2) + (b * sin_rot).powi(2)).sqrt();
         let y_extent = ((a * sin_rot).powi(2) + (b * cos_rot).powi(2)).sqrt();
 
-        BBox2D::from_points(
+        BBoxF64::from_two_points(
             Point2DF64::new(self.center.x() - x_extent, self.center.y() - y_extent),
             Point2DF64::new(self.center.x() + x_extent, self.center.y() + y_extent),
         )
@@ -307,180 +303,4 @@ impl PartialEq for Ellipse {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_ellipse_creation() {
-        let center = Point2DF64::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-
-        assert_eq!(ellipse.center(), center);
-        assert_eq!(ellipse.major_radius(), 3.0);
-        assert_eq!(ellipse.minor_radius(), 2.0);
-        assert_eq!(ellipse.rotation(), Angle::zero());
-    }
-
-    #[test]
-    fn test_ellipse_creation_with_rotation() {
-        let center = Point2D::new(1.0, 1.0);
-        let rotation = Angle::from_radians(PI / 4.0); // 45度
-        let ellipse = Ellipse::new(center, 4.0, 2.0, rotation).unwrap();
-
-        assert_eq!(ellipse.center(), center);
-        assert_eq!(ellipse.major_radius(), 4.0);
-        assert_eq!(ellipse.minor_radius(), 2.0);
-        assert_eq!(ellipse.rotation(), rotation);
-    }
-
-    #[test]
-    fn test_ellipse_invalid_parameters() {
-        let center = Point2D::new(0.0, 0.0);
-
-        // 負の半径
-        assert!(Ellipse::axis_aligned(center, -1.0, 2.0).is_err());
-        assert!(Ellipse::axis_aligned(center, 2.0, -1.0).is_err());
-
-        // 短軸が長軸より長い
-        assert!(Ellipse::axis_aligned(center, 2.0, 3.0).is_err());
-    }
-
-    #[test]
-    fn test_ellipse_area() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-
-        let expected_area = PI * 3.0 * 2.0;
-        assert!((ellipse.area() - expected_area).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_ellipse_eccentricity() {
-        let center = Point2D::new(0.0, 0.0);
-
-        // 円の場合
-        let circle = Ellipse::axis_aligned(center, 2.0, 2.0).unwrap();
-        assert!((circle.eccentricity() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-
-        // 楕円の場合
-        let ellipse = Ellipse::axis_aligned(center, 5.0, 3.0).unwrap();
-        let expected_eccentricity = (1.0f64 - (3.0 * 3.0) / (5.0 * 5.0)).sqrt();
-        assert!((ellipse.eccentricity() - expected_eccentricity).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_ellipse_contains_point() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-
-        // 中心点
-        assert!(ellipse.contains_point(&center));
-
-        // 楕円内部の点
-        assert!(ellipse.contains_point(&Point2D::new(1.0, 1.0)));
-
-        // 楕円外部の点
-        assert!(!ellipse.contains_point(&Point2D::new(4.0, 0.0)));
-        assert!(!ellipse.contains_point(&Point2D::new(0.0, 3.0)));
-    }
-
-    #[test]
-    fn test_ellipse_on_boundary() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-
-        // 長軸の端点
-        assert!(ellipse.on_boundary(&Point2D::new(3.0, 0.0)));
-        assert!(ellipse.on_boundary(&Point2D::new(-3.0, 0.0)));
-
-        // 短軸の端点
-        assert!(ellipse.on_boundary(&Point2D::new(0.0, 2.0)));
-        assert!(ellipse.on_boundary(&Point2D::new(0.0, -2.0)));
-    }
-
-    #[test]
-    fn test_ellipse_bounding_box() {
-        let center = Point2D::new(1.0, 1.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-
-        let bbox = ellipse.bounding_box();
-        assert_eq!(bbox.min, Point2D::new(-2.0, -1.0));
-        assert_eq!(bbox.max, Point2D::new(4.0, 3.0));
-    }
-
-    #[test]
-    fn test_ellipse_scale() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-        let scaled = ellipse.scale(2.0);
-
-        assert_eq!(scaled.major_radius(), 6.0);
-        assert_eq!(scaled.minor_radius(), 4.0);
-        assert_eq!(scaled.center(), center);
-    }
-
-    #[test]
-    fn test_ellipse_translate() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-        let vector = Vector2D::new(2.0, 3.0);
-        let translated = ellipse.translate(&vector);
-
-        assert_eq!(translated.center(), Point2D::new(2.0, 3.0));
-        assert_eq!(translated.major_radius(), 3.0);
-        assert_eq!(translated.minor_radius(), 2.0);
-    }
-
-    #[test]
-    fn test_ellipse_from_circle() {
-        let center = Point2D::new(1.0, 2.0);
-        let circle = Circle::new(center, 5.0);
-        let ellipse = Ellipse::from_circle(&circle);
-
-        assert_eq!(ellipse.center(), center);
-        assert_eq!(ellipse.major_radius(), 5.0);
-        assert_eq!(ellipse.minor_radius(), 5.0);
-        assert!(ellipse.is_circle());
-    }
-
-    #[test]
-    fn test_ellipse_foci() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 5.0, 3.0).unwrap();
-        let (f1, f2) = ellipse.foci();
-
-        let focal_distance = ellipse.focal_distance();
-        assert_eq!(f1, Point2D::new(focal_distance, 0.0));
-        assert_eq!(f2, Point2D::new(-focal_distance, 0.0));
-    }
-
-    #[test]
-    fn test_ellipse_is_circle() {
-        let center = Point2D::new(0.0, 0.0);
-
-        // 円
-        let circle = Ellipse::axis_aligned(center, 2.0, 2.0).unwrap();
-        assert!(circle.is_circle());
-
-        // 楕円
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-        assert!(!ellipse.is_circle());
-    }
-
-    #[test]
-    fn test_ellipse_point_at_angle() {
-        let center = Point2D::new(0.0, 0.0);
-        let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
-
-        // 0度の点（長軸上）
-        let point_0 = ellipse.point_at_angle(0.0);
-        assert!((point_0.x() - 3.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point_0.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-
-        // 90度の点（短軸上）
-        let point_90 = ellipse.point_at_angle(PI / 2.0);
-        assert!((point_90.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point_90.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-}
+// 注意: テストコードは unit_tests/ellipse_tests.rs に分離されています

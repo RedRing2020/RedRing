@@ -22,7 +22,7 @@ pub use traits::common::{
 // バウンディングボックス
 pub use geometry2d::BBox2D;
 pub use geometry3d::BBox3D;
-pub use traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
+pub use traits::{BBox, BBoxOps, CollisionBBox};
 
 // 基本幾何プリミティブ
 pub use geometry2d::{
@@ -33,7 +33,7 @@ pub use geometry3d::{
 };
 
 // 曲面プリミティブ
-pub use surface::{Sphere, Sphere3D};
+pub use surface::{Sphere, Sphere3D, SphereF32, SphereF64};
 
 // 名前空間の整理
 pub mod primitives_2d {
@@ -41,7 +41,7 @@ pub mod primitives_2d {
 }
 
 pub mod primitives_3d {
-    pub use crate::{BBox3D, Direction3D, InfiniteLine3D, Point3D, Sphere3D, Vector3D};
+    pub use crate::{BBox3D, Direction3D, InfiniteLine3D, Point3D, Sphere, Vector3D};
 }
 
 /// 便利な再エクスポート
@@ -53,7 +53,7 @@ pub mod prelude {
     };
 
     // バウンディングボックス
-    pub use crate::{BBox2D, BBox3D, BoundingBox, BoundingBoxOps, CollisionBounds};
+    pub use crate::{BBox, BBox2D, BBox3D, BBoxOps, CollisionBBox};
 
     // プリミティブトレイトと分類
     pub use crate::{

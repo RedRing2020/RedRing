@@ -15,7 +15,7 @@ pub trait Ellipse2D<T: Scalar> {
     /// 角度の型（通常は Angle）
     type Angle: Copy + AngleType<Scalar = T>;
     /// 境界ボックスの型（通常は BBox2D）
-    type BoundingBox;
+    type BBox;
     /// 楕円弧の型
     type EllipseArc;
 
@@ -73,7 +73,7 @@ pub trait Ellipse2D<T: Scalar> {
     fn foci(&self) -> (Self::Point, Self::Point);
 
     /// 楕円の境界ボックスを計算
-    fn bounding_box(&self) -> Self::BoundingBox;
+    fn bounding_box(&self) -> Self::BBox;
 
     /// 指定された角度での楕円周上の点を取得
     /// angle: 楕円のローカル座標系でのラジアン（長軸方向が0度）
@@ -119,7 +119,7 @@ pub trait Ellipse3D<T: Scalar> {
     /// 角度の型（通常は Angle）
     type Angle: Copy + AngleType<Scalar = T>;
     /// 境界ボックスの型（通常は BBox3D）
-    type BoundingBox;
+    type BBox;
     /// 2D楕円の型（投影用）
     type Ellipse2D;
     /// 楕円弧の型
@@ -184,7 +184,7 @@ pub trait Ellipse3D<T: Scalar> {
     fn foci(&self) -> (Self::Point, Self::Point);
 
     /// 楕円の境界ボックスを計算
-    fn bounding_box(&self) -> Self::BoundingBox;
+    fn bounding_box(&self) -> Self::BBox;
 
     /// 指定された角度での楕円周上の点を取得
     fn point_at_angle(&self, angle: Self::Angle) -> Self::Point;

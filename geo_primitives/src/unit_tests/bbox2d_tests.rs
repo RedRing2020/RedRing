@@ -1,7 +1,7 @@
 #[cfg(test)]
 use crate::geometry2d::{BBox2D, Point2D};
 use crate::geometry3d::Point3D;
-use crate::traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use crate::traits::{BBox, BBoxOps, CollisionBBox};
 
 #[test]
 fn test_bbox2d_creation() {
@@ -17,7 +17,7 @@ fn test_bbox2d_dimensions() {
     assert_eq!(bbox.height(), 3.0);
     assert_eq!(bbox.area(), 6.0);
     assert_eq!(bbox.perimeter(), 10.0);
-    assert_eq!(bbox.aspect_ratio(), 2.0 / 3.0);
+    assert_eq!(bbox.aspect_ratio(), Some(2.0 / 3.0));
 }
 
 #[test]
@@ -57,14 +57,14 @@ fn test_collision_bounds_interface() {
 fn test_generic_trait_implementation() {
     let bbox = BBox2D::new((0.0, 0.0), (2.0, 3.0));
 
-    // BoundingBoxトレイト
+    // BBoxトレイト
     assert_eq!(bbox.min(), [0.0, 0.0]);
     assert_eq!(bbox.max(), [2.0, 3.0]);
     assert_eq!(bbox.extent(0), 2.0);
     assert_eq!(bbox.extent(1), 3.0);
     assert_eq!(bbox.center(), [1.0, 1.5]);
 
-    // BoundingBoxOpsトレイト
+    // BBoxOpsトレイト
     assert!(bbox.contains_point([1.0, 1.5]));
     assert!(!bbox.contains_point([3.0, 1.0]));
     assert!(bbox.is_valid());
@@ -79,13 +79,13 @@ fn test_special_cases() {
     // 正方形テスト
     let square = BBox2D::new((0.0, 0.0), (2.0, 2.0));
     assert!(square.is_square(1e-10));
-    assert_eq!(square.aspect_ratio(), 1.0);
+    assert_eq!(square.aspect_ratio(), Some(1.0));
 
     // 線分（高さ0）
     let line = BBox2D::new((0.0, 1.0), (2.0, 1.0));
     assert_eq!(line.height(), 0.0);
     assert_eq!(line.area(), 0.0);
-    assert_eq!(line.aspect_ratio(), f64::INFINITY);
+    assert_eq!(line.aspect_ratio(), None);
 
     // 点（サイズ0）
     let point = BBox2D::new((1.0, 1.0), (1.0, 1.0));

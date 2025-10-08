@@ -5,4 +5,4 @@
 pub mod sphere;
 
 // 主要な型を再エクスポート
-pub use sphere::{Sphere, Sphere3D};
+pub use sphere::{Sphere, Sphere3D, SphereF32, SphereF64};

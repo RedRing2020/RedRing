@@ -92,3 +92,20 @@ pub const PI_6: f64 = precision::PI_6;
 pub const DEG_TO_RAD: f64 = precision::DEG_TO_RAD;
 pub const RAD_TO_DEG: f64 = precision::RAD_TO_DEG;
 pub const GEOMETRIC_TOLERANCE: f64 = precision::GEOMETRIC_TOLERANCE;
+
+/// 型に応じた適切な許容誤差を取得するトレイト
+///
+/// f32とf64それぞれの精度に適した許容誤差を提供します。
+/// 型パラメータ化された幾何計算で使用されます。
+pub trait GeometricTolerance {
+    /// その型に適した幾何計算用の許容誤差
+    const TOLERANCE: Self;
+}
+
+impl GeometricTolerance for f32 {
+    const TOLERANCE: f32 = game::GEOMETRIC_TOLERANCE;
+}
+
+impl GeometricTolerance for f64 {
+    const TOLERANCE: f64 = precision::GEOMETRIC_TOLERANCE;
+}

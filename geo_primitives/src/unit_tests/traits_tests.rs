@@ -1,12 +1,12 @@
 //! トレイトと共通ユーティリティのテスト
-//! classification, geometry_utils, BoundingBoxトレイトのテスト
+//! classification, geometry_utils, BBoxトレイトのテスト
 use crate::geometry2d::Point2D;
 use crate::geometry3d::{BBox3D, Point3D};
 #[cfg(test)]
 use crate::traits::common::classification::{DimensionClass, PrimitiveKind};
 use crate::traits::common::geometry_utils::*;
 use crate::traits::common::primitive_trait::GeometricPrimitive;
-use crate::traits::{BoundingBox, BoundingBoxOps};
+use crate::traits::{BBox, BBoxOps};
 
 // Classification tests
 #[test]
@@ -155,7 +155,7 @@ struct MockBBox<const D: usize> {
     max: [f64; D],
 }
 
-impl<const D: usize> BoundingBox<D> for MockBBox<D> {
+impl<const D: usize> BBox<D> for MockBBox<D> {
     type Coord = f64;
 
     fn min(&self) -> [f64; D] {
@@ -195,7 +195,7 @@ impl<const D: usize> BoundingBox<D> for MockBBox<D> {
     }
 }
 
-impl<const D: usize> BoundingBoxOps<D> for MockBBox<D> {
+impl<const D: usize> BBoxOps<D> for MockBBox<D> {
     fn contains_point(&self, point: [f64; D]) -> bool {
         for (i, &point_item) in point.iter().enumerate().take(D) {
             if point_item < self.min[i] || point_item > self.max[i] {

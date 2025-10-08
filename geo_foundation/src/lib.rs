@@ -13,6 +13,7 @@ pub mod common;
 pub use abstract_types::{Scalar, ToleranceContext, TolerantEq};
 
 // 共通機能を再エクスポート
+pub use common::constants::GeometricTolerance;
 pub use common::{constants, error};
 
 // 抽象型の幾何トレイトを再エクスポート

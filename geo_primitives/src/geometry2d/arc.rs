@@ -5,7 +5,8 @@
 #[cfg(test)]
 use crate::geometry2d::Point2D;
 use crate::geometry2d::{Circle, Vector2D};
-use geo_foundation::abstract_types::Angle;
+use geo_foundation::abstract_types::{geometry::Arc2D as Arc2DTrait, Angle};
+use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
 /// 円弧の種類を表現する列挙型
@@ -20,9 +21,6 @@ pub enum ArcKind {
     /// 完全な円（2π）
     FullCircle,
 }
-
-/// 幾何計算用の許容誤差
-const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 
 /// 2D平面上の円弧を表現する構造体
 #[derive(Debug, Clone)]
@@ -442,3 +440,49 @@ mod tests {
         assert!((last_point.y() - 1.0).abs() < GEOMETRIC_TOLERANCE);
     }
 }
+
+// Arc2Dトレイトの実装（geo_foundation::geometry::circle::Arc2D）
+impl Arc2DTrait for Arc {
+    type Point = crate::geometry2d::Point2DF64;
+    type Vector = Vector2D;
+
+    fn center(&self) -> Self::Point {
+        self.center()
+    }
+
+    fn radius(&self) -> f64 {
+        self.radius()
+    }
+
+    fn start_angle(&self) -> f64 {
+        self.start_angle().to_radians()
+    }
+
+    fn end_angle(&self) -> f64 {
+        self.end_angle().to_radians()
+    }
+
+    fn start_point(&self) -> Self::Point {
+        self.start_point()
+    }
+
+    fn end_point(&self) -> Self::Point {
+        self.end_point()
+    }
+
+    fn point_at_parameter(&self, t: f64) -> Self::Point {
+        let angle = self.start_angle().to_radians() + t * self.angle_span().to_radians();
+        self.point_at_angle(angle)
+    }
+
+    fn contains_point(&self, point: &Self::Point, _tolerance: f64) -> bool {
+        self.contains_point(*point) // 現在の実装は内部で許容誤差を使用
+    }
+}
+
+// 型エイリアス：他の形状実装との統一を目指したパターン
+pub type Arc2DF64 = Arc; // f64版（現在の実装）
+pub type Arc2D = Arc2DF64; // デフォルトはf64版
+
+// 注意：Arc2DF32は将来の型パラメータ化で実装予定
+// pub type Arc2DF32 = Arc<f32>; // 将来実装

@@ -1,68 +1,70 @@
-﻿/// f64ベース3Dベクトル
+﻿use geo_foundation::abstract_types::Scalar;
+
+/// 型パラメータ化された3Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Vector {
-    x: f64,
-    y: f64,
-    z: f64,
+pub struct Vector<T: Scalar> {
+    x: T,
+    y: T,
+    z: T,
 }
 
-impl Vector {
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+impl<T: Scalar> Vector<T> {
+    pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
 
     /// ゼロベクトル
     pub fn zero() -> Self {
-        Self::new(0.0, 0.0, 0.0)
+        Self::new(T::ZERO, T::ZERO, T::ZERO)
     }
 
     /// 単位ベクトル（各軸）
     pub fn unit_x() -> Self {
-        Self::new(1.0, 0.0, 0.0)
+        Self::new(T::ONE, T::ZERO, T::ZERO)
     }
     pub fn unit_y() -> Self {
-        Self::new(0.0, 1.0, 0.0)
+        Self::new(T::ZERO, T::ONE, T::ZERO)
     }
     pub fn unit_z() -> Self {
-        Self::new(0.0, 0.0, 1.0)
+        Self::new(T::ZERO, T::ZERO, T::ONE)
     }
 
     /// 成分アクセス
-    pub fn x(&self) -> f64 {
+    pub fn x(&self) -> T {
         self.x
     }
-    pub fn y(&self) -> f64 {
+    pub fn y(&self) -> T {
         self.y
     }
-    pub fn z(&self) -> f64 {
+    pub fn z(&self) -> T {
         self.z
     }
 
     /// 成分設定（geo_core互換）
-    pub fn set_x(&mut self, x: f64) {
+    pub fn set_x(&mut self, x: T) {
         self.x = x;
     }
-    pub fn set_y(&mut self, y: f64) {
+    pub fn set_y(&mut self, y: T) {
         self.y = y;
     }
-    pub fn set_z(&mut self, z: f64) {
+    pub fn set_z(&mut self, z: T) {
         self.z = z;
     }
 
     /// ベクトルの長さ（ノルム）
-    pub fn length(&self) -> f64 {
+    pub fn length(&self) -> T {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
 
     /// ベクトルの長さの二乗
-    pub fn length_squared(&self) -> f64 {
+    pub fn length_squared(&self) -> T {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
     /// 正規化（単位ベクトル化）
     pub fn normalize(&self) -> Option<Self> {
         let len = self.length();
-        if len == 0.0 {
+        if len == T::ZERO {
             None
         } else {
             Some(Self::new(self.x / len, self.y / len, self.z / len))
@@ -75,7 +77,7 @@ impl Vector {
     }
 
     /// 内積
-    pub fn dot(&self, other: &Self) -> f64 {
+    pub fn dot(&self, other: &Self) -> T {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
@@ -89,12 +91,12 @@ impl Vector {
     }
 
     /// ノルム（長さ）- modelトレイト互換
-    pub fn norm(&self) -> f64 {
+    pub fn norm(&self) -> T {
         self.length()
     }
 
     /// スカラー加算（スケール加算）- modelトレイト互換
-    pub fn add_scaled(&self, other: &Self, scale: f64) -> Self {
+    pub fn add_scaled(&self, other: &Self, scale: T) -> Self {
         Self::new(
             self.x + other.x * scale,
             self.y + other.y * scale,
@@ -114,7 +116,7 @@ impl Vector {
     }
 
     /// スカラー三重積 (scalar triple product)
-    pub fn scalar_triple_product(&self, b: &Self, c: &Self) -> f64 {
+    pub fn scalar_triple_product(&self, b: &Self, c: &Self) -> T {
         let cross = b.cross(c);
         self.dot(&cross)
     }
@@ -130,30 +132,37 @@ impl Vector {
     // scaleメソッドを削除 - *演算子を使用
 
     /// 2点間のベクトル
-    pub fn from_points(from: &crate::geometry3d::Point3D, to: &crate::geometry3d::Point3D) -> Self {
-        Self::new(to.x() - from.x(), to.y() - from.y(), to.z() - from.z())
+    pub fn from_points(from: &crate::geometry3d::Point3D, to: &crate::geometry3d::Point3D) -> Self
+    where
+        T: From<f64>,
+    {
+        Self::new(
+            T::from(to.x() - from.x()),
+            T::from(to.y() - from.y()),
+            T::from(to.z() - from.z()),
+        )
     }
 
     /// 2Dベクトルへの投影（Z成分を無視）
-    pub fn to_vector2d(&self) -> crate::geometry2d::Vector2D {
-        crate::geometry2d::Vector2D::new(self.x, self.y)
+    pub fn to_vector2d(&self) -> crate::geometry2d::Vector<T> {
+        crate::geometry2d::Vector::new(self.x, self.y)
     }
 
     /// 配列として取得
-    pub fn to_array(&self) -> [f64; 3] {
+    pub fn to_array(&self) -> [T; 3] {
         [self.x, self.y, self.z]
     }
 }
 
-impl Default for Vector {
+impl<T: Scalar> Default for Vector<T> {
     fn default() -> Self {
         Self::zero()
     }
 }
 
 // geo_foundation Vector トレイトの実装
-impl crate::traits::Vector<3> for Vector {
-    type Scalar = f64;
+impl<T: Scalar> crate::traits::Vector<3> for Vector<T> {
+    type Scalar = T;
 
     fn from_components(components: [Self::Scalar; 3]) -> Self {
         Self::new(components[0], components[1], components[2])
@@ -184,7 +193,7 @@ impl crate::traits::Vector<3> for Vector {
     }
 
     fn is_unit(&self, tolerance: Self::Scalar) -> bool {
-        (self.length() - 1.0).abs() < tolerance
+        (self.length() - T::ONE).abs() < tolerance
     }
 
     fn is_parallel_to(&self, other: &Self, tolerance: Self::Scalar) -> bool {
@@ -199,7 +208,7 @@ impl crate::traits::Vector<3> for Vector {
 }
 
 // geo_foundation Vector3D トレイトの実装（Vector<3> を前提とする）
-impl crate::traits::Vector3D for Vector {
+impl<T: Scalar> crate::traits::Vector3D for Vector<T> {
     fn x(&self) -> Self::Scalar {
         self.x
     }
@@ -233,7 +242,7 @@ impl crate::traits::Vector3D for Vector {
     }
 }
 
-impl crate::traits::Vector3DExt for Vector {
+impl<T: Scalar> crate::traits::Vector3DExt for Vector<T> {
     fn rotate_around_axis(&self, axis: &Self, angle: Self::Scalar) -> Self {
         // ロドリゲスの回転公式を実装
         let cos_angle = angle.cos();
@@ -246,16 +255,16 @@ impl crate::traits::Vector3DExt for Vector {
         let dot_product = self.dot(&axis);
         let cross_product = axis.cross(self);
 
-        *self * cos_angle + cross_product * sin_angle + axis * dot_product * (1.0 - cos_angle)
+        *self * cos_angle + cross_product * sin_angle + axis * dot_product * (T::ONE - cos_angle)
     }
 
     fn any_perpendicular(&self) -> Self {
         if self.x.abs() > self.z.abs() {
-            Self::new(-self.y, self.x, 0.0)
+            Self::new(-self.y, self.x, T::ZERO)
                 .normalize()
                 .unwrap_or(Self::unit_z())
         } else {
-            Self::new(0.0, -self.z, self.y)
+            Self::new(T::ZERO, -self.z, self.y)
                 .normalize()
                 .unwrap_or(Self::unit_x())
         }
@@ -275,8 +284,8 @@ impl crate::traits::Vector3DExt for Vector {
 }
 
 // Normalizable トレイトの実装
-impl crate::traits::Normalizable for Vector {
-    type Output = Vector;
+impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
+    type Output = Vector<T>;
 
     fn normalize(&self) -> Option<Self::Output> {
         self.normalize()
@@ -287,13 +296,13 @@ impl crate::traits::Normalizable for Vector {
     }
 
     fn can_normalize(&self, tolerance: f64) -> bool {
-        self.length() > tolerance
+        self.length().to_f64() > tolerance
     }
 }
 
 // Index トレイトの実装
-impl std::ops::Index<usize> for Vector {
-    type Output = f64;
+impl<T: Scalar> std::ops::Index<usize> for Vector<T> {
+    type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
         match index {
@@ -306,7 +315,7 @@ impl std::ops::Index<usize> for Vector {
 }
 
 // IndexMut トレイトの実装
-impl std::ops::IndexMut<usize> for Vector {
+impl<T: Scalar> std::ops::IndexMut<usize> for Vector<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         match index {
             0 => &mut self.x,
@@ -318,48 +327,40 @@ impl std::ops::IndexMut<usize> for Vector {
 }
 
 // 算術演算の実装
-impl std::ops::Add for Vector {
-    type Output = Vector;
+impl<T: Scalar> std::ops::Add for Vector<T> {
+    type Output = Vector<T>;
 
-    fn add(self, other: Vector) -> Self::Output {
+    fn add(self, other: Vector<T>) -> Self::Output {
         Vector::new(self.x + other.x, self.y + other.y, self.z + other.z)
     }
 }
 
-impl std::ops::Sub for Vector {
-    type Output = Vector;
+impl<T: Scalar> std::ops::Sub for Vector<T> {
+    type Output = Vector<T>;
 
-    fn sub(self, other: Vector) -> Self::Output {
+    fn sub(self, other: Vector<T>) -> Self::Output {
         Vector::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 }
 
-impl std::ops::Mul<f64> for Vector {
-    type Output = Vector;
+impl<T: Scalar> std::ops::Mul<T> for Vector<T> {
+    type Output = Vector<T>;
 
-    fn mul(self, scalar: f64) -> Self::Output {
+    fn mul(self, scalar: T) -> Self::Output {
         Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
     }
 }
 
-impl std::ops::Mul<Vector> for f64 {
-    type Output = Vector;
+impl<T: Scalar> std::ops::Div<T> for Vector<T> {
+    type Output = Vector<T>;
 
-    fn mul(self, vector: Vector) -> Self::Output {
-        Vector::new(vector.x * self, vector.y * self, vector.z * self)
-    }
-}
-
-impl std::ops::Div<f64> for Vector {
-    type Output = Vector;
-
-    fn div(self, scalar: f64) -> Self::Output {
+    fn div(self, scalar: T) -> Self::Output {
         Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
     }
 }
 
-impl std::ops::Neg for Vector {
-    type Output = Vector;
+impl<T: Scalar> std::ops::Neg for Vector<T> {
+    type Output = Vector<T>;
 
     fn neg(self) -> Self::Output {
         Vector::new(-self.x, -self.y, -self.z)
@@ -369,3 +370,10 @@ impl std::ops::Neg for Vector {
 // Display実装は別クレートで実装
 
 // テストコードはunit_tests/Vector_tests.rsに移動
+
+// 型エイリアス（2Dと統一）
+/// f64版の3D Vector（デフォルト）
+pub type Vector3D = Vector<f64>;
+
+/// f32版の3D Vector（高速演算用）
+pub type Vector3Df = Vector<f32>;

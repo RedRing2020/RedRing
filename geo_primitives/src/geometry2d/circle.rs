@@ -2,7 +2,7 @@
 //!
 //! 2次元平面における円の具体的な実装
 
-use crate::geometry2d::{BBox2D, Point, Point2D, Vector, Vector2D};
+use crate::geometry2d::{bbox::BBoxF64, Point, Point2D, Vector, Vector2D};
 use crate::traits::Circle2D;
 use geo_foundation::abstract_types::Scalar;
 use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
@@ -177,10 +177,10 @@ impl Circle2D for Circle<f64> {
     }
 }
 
-impl From<Circle<f64>> for BBox2D {
+impl From<Circle<f64>> for BBoxF64 {
     fn from(circle: Circle<f64>) -> Self {
         let (min, max) = circle.bounding_box();
-        BBox2D::new((min.x(), min.y()), (max.x(), max.y()))
+        BBoxF64::new_from_tuples((min.x(), min.y()), (max.x(), max.y()))
     }
 }
 

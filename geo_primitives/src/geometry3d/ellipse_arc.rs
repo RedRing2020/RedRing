@@ -4,6 +4,7 @@
 
 use crate::geometry3d::{BBox3D, Ellipse, Point3D, Vector3D};
 use geo_foundation::abstract_types::geometry::Direction;
+use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
 /// 楕円弧関連のエラー
@@ -25,9 +26,6 @@ impl std::fmt::Display for EllipseArcError {
 }
 
 impl std::error::Error for EllipseArcError {}
-
-/// 幾何計算用の許容誤差
-const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 
 /// 3D空間上の楕円弧を表現する構造体
 #[derive(Debug, Clone)]
@@ -184,7 +182,7 @@ impl EllipseArc {
         }
 
         BBox3D::from_point_array(&points)
-            .unwrap_or_else(|| BBox3D::from_3d_points(self.center(), self.center()))
+            .unwrap_or_else(|| BBox3D::from_two_points(self.center(), self.center()))
     }
 
     /// 点が楕円弧上にあるかを判定
