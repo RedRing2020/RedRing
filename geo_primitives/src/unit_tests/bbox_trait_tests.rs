@@ -1,8 +1,8 @@
 //! BBoxトレイトとBBoxOpsトレイトのテスト
 //! 汎用バウンディングボックス操作のテスト
 
-use crate::traits::BBox;
 use crate::geometry3d::Point3D;
+use crate::traits::BBox;
 
 // テスト用のモック実装（テスト専用）
 #[derive(Debug, Clone, PartialEq)]
@@ -35,24 +35,19 @@ impl BBox<f64> for MockBBox {
     }
 
     fn volume(&self) -> f64 {
-        (self.max.x() - self.min.x()) * 
-        (self.max.y() - self.min.y()) * 
-        (self.max.z() - self.min.z())
+        (self.max.x() - self.min.x())
+            * (self.max.y() - self.min.y())
+            * (self.max.z() - self.min.z())
     }
 
     fn is_valid(&self) -> bool {
-        self.min.x() <= self.max.x() &&
-        self.min.y() <= self.max.y() &&
-        self.min.z() <= self.max.z()
+        self.min.x() <= self.max.x() && self.min.y() <= self.max.y() && self.min.z() <= self.max.z()
     }
 }
 
 #[test]
 fn test_basic_bbox_operations() {
-    let bbox = MockBBox::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(2.0, 3.0, 4.0)
-    );
+    let bbox = MockBBox::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 3.0, 4.0));
 
     assert_eq!(bbox.min(), Point3D::new(0.0, 0.0, 0.0));
     assert_eq!(bbox.max(), Point3D::new(2.0, 3.0, 4.0));
@@ -63,10 +58,7 @@ fn test_basic_bbox_operations() {
 
 #[test]
 fn test_invalid_bbox() {
-    let invalid_bbox = MockBBox::new(
-        Point3D::new(2.0, 3.0, 4.0),
-        Point3D::new(0.0, 0.0, 0.0)
-    );
+    let invalid_bbox = MockBBox::new(Point3D::new(2.0, 3.0, 4.0), Point3D::new(0.0, 0.0, 0.0));
 
     assert!(!invalid_bbox.is_valid());
 }

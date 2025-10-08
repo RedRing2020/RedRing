@@ -3,9 +3,9 @@
 //! 常に正規化されたベクトルとして管理され、型パラメータTをサポート
 
 use crate::geometry2d::Vector;
+use crate::traits::StepCompatible;
 use geo_foundation::abstract_types::geometry::{Direction, Direction2D as Direction2DTrait};
 use geo_foundation::abstract_types::Scalar;
-use crate::traits::StepCompatible;
 
 /// ジェネリック2D方向ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -67,9 +67,9 @@ impl<T: Scalar> Direction<T> for Direction2D<T> {
     where
         Self: Sized,
     {
-        vector.normalize().map(|normalized| Self {
-            vector: normalized,
-        })
+        vector
+            .normalize()
+            .map(|normalized| Self { vector: normalized })
     }
 
     fn to_vector(&self) -> Self::Vector {
@@ -146,7 +146,11 @@ impl<T: Scalar> Direction2DTrait<T> for Direction2D<T> {
 
 impl<T: Scalar> StepCompatible for Direction2D<T> {
     fn to_step_string(&self) -> String {
-        format!("DIRECTION(({:.6},{:.6}))", self.x().to_f64(), self.y().to_f64())
+        format!(
+            "DIRECTION(({:.6},{:.6}))",
+            self.x().to_f64(),
+            self.y().to_f64()
+        )
     }
 
     fn from_step_string(_step_str: &str) -> Result<Self, String>
@@ -159,7 +163,12 @@ impl<T: Scalar> StepCompatible for Direction2D<T> {
 
 impl<T: Scalar> std::fmt::Display for Direction2D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Direction2D({:.3}, {:.3})", self.x().to_f64(), self.y().to_f64())
+        write!(
+            f,
+            "Direction2D({:.3}, {:.3})",
+            self.x().to_f64(),
+            self.y().to_f64()
+        )
     }
 }
 

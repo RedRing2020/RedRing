@@ -3,7 +3,7 @@
 //! Arc3D型の機能テスト
 
 use crate::geometry3d::{Arc, ArcKind, Circle, Direction3D, Point3D, Vector3D};
-use geo_foundation::abstract_types::{Angle, geometry::Direction};
+use geo_foundation::abstract_types::{geometry::Direction, Angle};
 use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 

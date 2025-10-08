@@ -3,7 +3,7 @@
 //! 3次元楕円の基本実装
 
 use crate::geometry3d::{BBox3D, Circle, Direction3D, Point3D, Vector};
-use geo_foundation::abstract_types::{Scalar, geometry::Direction};
+use geo_foundation::abstract_types::{geometry::Direction, Scalar};
 use std::f64::consts::PI;
 
 /// 楕円関連のエラー
@@ -142,8 +142,8 @@ impl<T: Scalar> Ellipse<T> {
         if self.major_radius <= self.minor_radius {
             T::ZERO
         } else {
-            (T::ONE - (self.minor_radius * self.minor_radius)
-                / (self.major_radius * self.major_radius))
+            (T::ONE
+                - (self.minor_radius * self.minor_radius) / (self.major_radius * self.major_radius))
                 .sqrt()
         }
     }

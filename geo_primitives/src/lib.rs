@@ -27,11 +27,13 @@ pub use traits::{BBox, BBoxOps, CollisionBBox};
 // 基本幾何プリミティブ
 pub use geometry2d::{
     // Arc as Arc2D, Circle as Circle2D, Direction2D, InfiniteLine2D, Point2D, Vector2D,  // 一時的にコメントアウト（Direction2D整理中）
-    Point2D, Vector2D,
+    Point2D,
+    Vector2D,
 };
 pub use geometry3d::{
     // Arc as Arc3D, Circle as Circle3D, Direction3D, InfiniteLine3D, Point3D, Vector3D,  // 一時的にコメントアウト（Direction3D整理中）
-    Point3D, Vector3D,
+    Point3D,
+    Vector3D,
 };
 
 // 曲面プリミティブ
@@ -45,7 +47,7 @@ pub mod primitives_2d {
 
 pub mod primitives_3d {
     // pub use crate::{BBox3D, Direction3D, InfiniteLine3D, Point3D, Sphere, Vector3D};  // 一時的にコメントアウト（Direction整理中）
-    pub use crate::{BBox3D, Point3D, Vector3D};  // Sphereは一時的にコメントアウト
+    pub use crate::{BBox3D, Point3D, Vector3D}; // Sphereは一時的にコメントアウト
 }
 
 /// 便利な再エクスポート
@@ -53,7 +55,9 @@ pub mod prelude {
     // 基本幾何プリミティブ
     pub use crate::{
         // Direction2D, Direction3D, InfiniteLine2D, InfiniteLine3D, Point2D, Point3D, Vector2D,  // 一時的にコメントアウト（Direction整理中）
-        Point2D, Point3D, Vector2D,
+        Point2D,
+        Point3D,
+        Vector2D,
         Vector3D,
     };
 

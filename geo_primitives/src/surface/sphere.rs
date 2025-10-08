@@ -2,7 +2,7 @@
 //!
 //! 3次元空間における球面および球体の実装を提供する。
 
-use crate::geometry3d::point::{Point3DF64, Point3DF32};
+use crate::geometry3d::point::{Point3DF32, Point3DF64};
 use geo_foundation::Sphere as SphereTrait;
 use geo_foundation::{SphereKind, SphericalCoordinates};
 use std::fmt;

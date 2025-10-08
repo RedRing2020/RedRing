@@ -15,7 +15,7 @@
 use crate::abstract_types::Scalar;
 
 /// レイ（半無限直線）の基本操作を定義する共通トレイト
-/// 
+///
 /// 2D/3Dの両方に共通する基本的なレイ操作を提供します。
 /// 次元固有の操作は Ray2D/Ray3D トレイトで拡張されます。
 pub trait Ray<T: Scalar> {

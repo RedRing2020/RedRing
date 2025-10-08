@@ -46,7 +46,7 @@ impl<T: Scalar> Point3D<T> {
         Self::new(
             self.x + vector.x(),
             self.y + vector.y(),
-            self.z + vector.z()
+            self.z + vector.z(),
         )
     }
 
@@ -103,7 +103,7 @@ impl<T: Scalar> std::ops::Sub<Vector<T>> for Point3D<T> {
         Self::new(
             self.x - vector.x(),
             self.y - vector.y(),
-            self.z - vector.z()
+            self.z - vector.z(),
         )
     }
 }

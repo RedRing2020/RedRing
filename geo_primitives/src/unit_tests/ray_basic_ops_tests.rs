@@ -1,5 +1,5 @@
 //! Ray型の基礎動作テスト
-//! 
+//!
 //! Ray2D<T>, Ray3D<T>の基本操作（起点、方向、点の計算など）の動作確認
 
 #[cfg(test)]
@@ -13,7 +13,7 @@ mod tests {
     fn test_ray2d_basic_operations_f64() {
         let origin = Point2D::<f64>::new(1.0, 2.0);
         let direction_vec = Vector2D::new(1.0, 0.0);
-        
+
         let ray = Ray2D::from_origin_and_vector(origin, direction_vec).unwrap();
 
         // 基本プロパティ
@@ -80,7 +80,7 @@ mod tests {
         assert!((param_at_origin - 0.0).abs() < f64::TOLERANCE);
 
         // 方向に5進んだ点（正規化されているので実際には長さ1のベクトル）
-        let forward_point = Point2D::new(1.0 + 3.0/5.0, 1.0 + 4.0/5.0);
+        let forward_point = Point2D::new(1.0 + 3.0 / 5.0, 1.0 + 4.0 / 5.0);
         let param_forward = ray.parameter_at_point(&forward_point);
         assert!((param_forward - 1.0).abs() < f64::TOLERANCE);
     }
@@ -97,7 +97,7 @@ mod tests {
 
         // 同一性テスト
         assert!(!ray1.is_coincident_with(&ray2, f64::TOLERANCE)); // 平行だが別の直線
-        assert!(ray1.is_coincident_with(&ray3, f64::TOLERANCE));  // 同一直線上
+        assert!(ray1.is_coincident_with(&ray3, f64::TOLERANCE)); // 同一直線上
     }
 
     #[test]
@@ -125,7 +125,7 @@ mod tests {
     fn test_ray3d_basic_operations_f64() {
         let origin = Point3D::<f64>::new(1.0, 2.0, 3.0);
         let direction = Vector3D::new(1.0, 0.0, 0.0);
-        
+
         let ray = Ray3D::new(origin, direction).unwrap();
 
         // 基本プロパティ
@@ -177,7 +177,7 @@ mod tests {
 
         // 平行レイ
         assert!(ray1.is_parallel_to(&ray2, f64::TOLERANCE));
-        
+
         // 非平行レイ
         assert!(!ray1.is_parallel_to(&ray3, f64::TOLERANCE));
     }
@@ -190,7 +190,7 @@ mod tests {
         // X軸周り90度回転
         let ninety_degrees = Angle::from_degrees(90.0);
         let rotated_x = ray.rotate_x(ninety_degrees);
-        
+
         // 方向ベクトルはX軸方向のまま（X軸周り回転なので）
         assert!((rotated_x.direction_vector().x() - 1.0).abs() < f64::TOLERANCE);
         assert!((rotated_x.direction_vector().y() - 0.0).abs() < f64::TOLERANCE);
@@ -207,7 +207,7 @@ mod tests {
         let euler_rotated = ray.rotate_euler(
             Angle::from_degrees(30.0),
             Angle::from_degrees(45.0),
-            Angle::from_degrees(60.0)
+            Angle::from_degrees(60.0),
         );
         // 複数回転後も正規化された方向ベクトルのまま
         let length = euler_rotated.direction_vector().length();
@@ -219,7 +219,7 @@ mod tests {
         // f32とf64両方でコンパイルできることを確認
         let _ray2d_f32 = Ray2D::<f32>::x_axis(Point2D::origin());
         let _ray2d_f64 = Ray2D::<f64>::x_axis(Point2D::origin());
-        
+
         let _ray3d_f32 = Ray3D::<f32>::x_axis(Point3D::origin());
         let _ray3d_f64 = Ray3D::<f64>::x_axis(Point3D::origin());
     }

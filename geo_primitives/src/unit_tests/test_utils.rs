@@ -11,8 +11,12 @@
 // 2D 幾何要素のテスト用エイリアス
 pub use crate::geometry2d::{
     // Arc, BBox2D, Circle, Direction2D, Ellipse, EllipseArc, InfiniteLine2D, Point2D, Point2DF32,  // 一時的にコメントアウト（Direction2D整理中）
-    BBox2D, Point2D, Point2DF32,
-    Point2DF64, Vector, Vector2D,
+    BBox2D,
+    Point2D,
+    Point2DF32,
+    Point2DF64,
+    Vector,
+    Vector2D,
 };
 
 // 3D 幾何要素のテスト用エイリアス（将来の拡張用）
