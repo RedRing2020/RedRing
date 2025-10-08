@@ -60,6 +60,6 @@ jobs:
         run: |
           set -e
           # forbid new direct core 3D primitive imports outside geo_core
-          ! grep -R "use geo_core::LineSegment3D" -n --exclude-dir target --exclude-dir geo_core || (echo "Forbidden geo_core::LineSegment3D import" && exit 1)
-          ! grep -R "use geo_core::Plane" -n --exclude-dir target --exclude-dir geo_core || (echo "Forbidden geo_core::Plane import" && exit 1)
-          ! grep -R "use geo_core::Direction3D" -n --exclude-dir target --exclude-dir geo_core || (echo "Forbidden geo_core::Direction3D import" && exit 1)
+          ! grep -R "use geo_core::LineSegment3D" -n --exclude-dir target --exclude-dir geo_core --exclude-dir .github || (echo "Forbidden geo_core::LineSegment3D import" && exit 1)
+          ! grep -R "use geo_core::Plane" -n --exclude-dir target --exclude-dir geo_core --exclude-dir .github || (echo "Forbidden geo_core::Plane import" && exit 1)
+          ! grep -R "use geo_core::Direction3D" -n --exclude-dir target --exclude-dir geo_core --exclude-dir .github || (echo "Forbidden geo_core::Direction3D import" && exit 1)
