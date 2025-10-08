@@ -3,8 +3,8 @@
 /// Scalar trait、Angle、Circle、Arc、Ellipse実装の統合動作確認を行います。
 /// f32/f64両方での動作と相互運用性をテストします。
 use crate::{
-    Angle, BBox2D, BBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar,
-    Vector2D, Vector3D,
+    Angle, BBox2D, BBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar, Vector2D,
+    Vector3D,
 };
 
 #[cfg(test)]
