@@ -44,7 +44,7 @@ impl<T: Scalar> Angle<T> {
 
     /// 度数から角度を作成
     pub fn from_degrees(degrees: T) -> Self {
-        let radians = degrees * T::PI / (T::ONE + T::ONE);
+        let radians = degrees * T::DEG_TO_RAD;
         Self { radians }
     }
 
@@ -55,7 +55,7 @@ impl<T: Scalar> Angle<T> {
 
     /// 角度を度数として取得
     pub fn to_degrees(self) -> T {
-        self.radians * (T::ONE + T::ONE) / T::PI
+        self.radians * T::RAD_TO_DEG
     }
 
     /// 正弦値を計算
