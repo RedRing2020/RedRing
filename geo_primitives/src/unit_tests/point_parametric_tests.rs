@@ -76,22 +76,19 @@ pub mod tests {
     fn test_type_conversion() {
         // f64からf32への変換（精度の損失に注意）
         let point_f64: Point<f64> = Point::new(std::f64::consts::PI, std::f64::consts::E);
-        let point_f32: Point<f32> = Point::new(
-            point_f64.x() as f32,
-            point_f64.y() as f32
-        );
+        let point_f32: Point<f32> = Point::new(point_f64.x() as f32, point_f64.y() as f32);
 
         // 精度の違いを考慮した比較
         assert!((point_f32.x() - std::f32::consts::PI).abs() < 1e-6);
         assert!((point_f32.y() - std::f32::consts::E).abs() < 1e-6);
     }
 
-    #[test] 
+    #[test]
     fn test_point_parametric_interoperability() {
         // Point<f64> と Point<f32> の相互運用性テスト
         let p_f64: Point<f64> = Point::new(1.5, 2.5);
         let p_f32: Point<f32> = Point::new(1.5f32, 2.5f32);
-        
+
         // 型変換による比較
         let converted_f32 = Point::<f32>::new(p_f64.x() as f32, p_f64.y() as f32);
         assert!((converted_f32.x() - p_f32.x()).abs() < f32::EPSILON);
