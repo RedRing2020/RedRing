@@ -1,13 +1,29 @@
-//! GeometryKind モジュール
+//! GeometryKind module
 //!
-//! 幾何学要素の分類を責務ごとに分離し、CurveKind2D / CurveKind3D / SurfaceKind を提供する。
-//! 各 enum は語義的に明確で、国際開発者にも直感的に理解可能な構成となっている。
-pub mod geometry_kind;
+//! Provides geometric element classification with CurveKind2D / CurveKind3D / SurfaceKind.
+//! Each enum is semantically clear and intuitive for international developers.
+
 pub mod curve2d;
 pub mod curve3d;
 pub mod surface;
 
-pub use geometry_kind::GeometryKind;
+// Re-export the sub-module types
 pub use curve2d::CurveKind2D;
 pub use curve3d::CurveKind3D;
 pub use surface::SurfaceKind;
+
+/// GeometryKind: Top-level classification of geometric elements
+///
+/// Abstract classification encompassing CurveKind2D, CurveKind3D, SurfaceKind, etc.
+/// Emphasizes consistency with geometry2d, geometry3d, surface modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GeometryKind {
+    /// 2D curve
+    Curve2D(CurveKind2D),
+    /// 3D curve
+    Curve3D(CurveKind3D),
+    /// Surface
+    Surface(SurfaceKind),
+    /// Unclassified/unknown geometric element
+    Unknown,
+}

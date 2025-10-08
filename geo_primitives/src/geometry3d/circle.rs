@@ -5,7 +5,7 @@
 use crate::geometry2d;
 use crate::geometry3d::{BBox3D, Direction3D, Point3D, Vector3D};
 use crate::traits::{Circle2D, Circle3D, Direction};
-use geo_foundation::common::constants::{precision, GEOMETRIC_TOLERANCE};
+use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する
@@ -366,6 +366,7 @@ impl From<Circle> for BBox3D {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::{PI, TAU};
 
     #[test]
     fn test_xy_plane_circle() {
@@ -374,8 +375,8 @@ mod tests {
 
         assert_eq!(circle.center(), center);
         assert_eq!(circle.radius(), 5.0);
-        assert_eq!(circle.area(), precision::PI * 25.0);
-        assert_eq!(circle.circumference(), precision::TAU * 5.0);
+        assert_eq!(circle.area(), PI * 25.0);
+        assert_eq!(circle.circumference(), TAU * 5.0);
 
         // 法線がZ軸方向であることを確認
         let normal = circle.normal();
@@ -390,8 +391,8 @@ mod tests {
 
         assert_eq!(circle.center(), Point3D::origin());
         assert_eq!(circle.radius(), 1.0);
-        assert_eq!(circle.area(), precision::PI);
-        assert_eq!(circle.circumference(), precision::TAU);
+        assert_eq!(circle.area(), PI);
+        assert_eq!(circle.circumference(), TAU);
     }
 
     #[test]
@@ -414,7 +415,7 @@ mod tests {
         assert!((point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
 
-        let point = circle.point_at_angle(precision::PI / 2.0);
+        let point = circle.point_at_angle(PI / 2.0);
         assert!((point.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
@@ -440,7 +441,7 @@ mod tests {
 
         // 基本的なプロパティの確認
         assert_eq!(circle_2d.radius(), 4.0);
-        assert_eq!(circle_2d.area(), precision::PI * 16.0);
-        assert_eq!(circle_2d.circumference(), precision::TAU * 4.0);
+        assert_eq!(circle_2d.area(), PI * 16.0);
+        assert_eq!(circle_2d.circumference(), TAU * 4.0);
     }
 }

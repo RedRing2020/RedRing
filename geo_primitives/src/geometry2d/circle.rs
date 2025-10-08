@@ -4,7 +4,7 @@
 
 use crate::geometry2d::{BBox2D, Point2D, Vector2D};
 use crate::traits::Circle2D;
-use geo_foundation::common::constants::{precision, GEOMETRIC_TOLERANCE};
+use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
 
 /// 2D平面上の円を表現する構造体
 #[derive(Debug, Clone, PartialEq)]
@@ -187,6 +187,7 @@ impl From<Circle> for BBox2D {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::{PI, TAU};
 
     #[test]
     fn test_circle_creation() {
@@ -195,8 +196,8 @@ mod tests {
 
         assert_eq!(circle.center(), center);
         assert_eq!(circle.radius(), 3.0);
-        assert_eq!(circle.area(), precision::PI * 9.0);
-        assert_eq!(circle.circumference(), precision::TAU * 3.0);
+        assert_eq!(circle.area(), PI * 9.0);
+        assert_eq!(circle.circumference(), TAU * 3.0);
     }
 
     #[test]
@@ -205,8 +206,8 @@ mod tests {
 
         assert_eq!(circle.center(), Point2D::new(0.0, 0.0));
         assert_eq!(circle.radius(), 1.0);
-        assert_eq!(circle.area(), precision::PI);
-        assert_eq!(circle.circumference(), precision::TAU);
+        assert_eq!(circle.area(), PI);
+        assert_eq!(circle.circumference(), TAU);
     }
 
     #[test]
@@ -227,7 +228,7 @@ mod tests {
         assert!((point.x() - 2.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
 
-        let point = circle.point_at_angle(precision::PI / 2.0);
+        let point = circle.point_at_angle(PI / 2.0);
         assert!((point.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((point.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
     }

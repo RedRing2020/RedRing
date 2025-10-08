@@ -9,18 +9,10 @@ use winit::keyboard::{Key, NamedKey};
 
 use crate::app_state::AppState;
 
+#[derive(Default)]
 pub struct App {
     pub state: Option<AppState>,
     pub should_exit: bool,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            state: None,
-            should_exit: false,
-        }
-    }
 }
 
 impl ApplicationHandler for App {
