@@ -1,3 +1,3 @@
 //! geo_foundation ユニットテストモジュール
-pub mod scalar;
-pub mod tolerance;
+pub mod scalar_tests;
+pub mod tolerance_tests;

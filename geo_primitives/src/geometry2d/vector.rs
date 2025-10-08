@@ -79,7 +79,10 @@ impl<T: Scalar> Vector<T> {
     // scaleメソッドを削除 - *演算子を使用
 
     /// 2点間のベクトル
-    pub fn from_points(from: &crate::geometry2d::Point<T>, to: &crate::geometry2d::Point<T>) -> Self {
+    pub fn from_points(
+        from: &crate::geometry2d::Point<T>,
+        to: &crate::geometry2d::Point<T>,
+    ) -> Self {
         Self::new(to.x() - from.x(), to.y() - from.y())
     }
 
