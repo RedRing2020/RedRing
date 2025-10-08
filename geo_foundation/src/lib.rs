@@ -9,22 +9,14 @@ pub mod abstract_types;
 // 共通機能モジュール
 pub mod common;
 
-// 幾何型モジュール
-pub mod geometry;
-
 // 主要な抽象型を再エクスポート
 pub use abstract_types::{Scalar, ToleranceContext, TolerantEq};
 
 // 共通機能を再エクスポート
 pub use common::{constants, error};
 
-// 幾何型を再エクスポート
-pub use geometry::{
-    Angle, Point2D, Point3D, Vector2D, Vector3D, BoundingBox2D, BoundingBox3D,
-    Circle, Circle2D, Circle3D, Circle2DImpl, Circle3DImpl,
-    Arc2D, Arc3D, Arc2DImpl, Arc3DImpl,
-    Ellipse, Ellipse2D, Ellipse3D, Ellipse2DImpl, Ellipse3DImpl, EllipseError,
-};
+// 抽象型の幾何トレイトを再エクスポート
+pub use abstract_types::geometry::*;
 
 // テストモジュール
 #[cfg(test)]

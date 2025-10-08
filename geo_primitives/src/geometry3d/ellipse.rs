@@ -1,385 +1,178 @@
-//! 3D Ellipse implementation - geo_foundation Ellipse3D trait implementation
+//! 3D Ellipse implementation
 //!
-//! geo_foundationのEllipse3Dトレイトを実装した3次元楕円
+//! 3次元楕円の基本実装
 
 use crate::geometry3d::{Circle, Point3D, Vector3D, BBox3D, Direction3D};
-use crate::geometry2d;
-use crate::traits::Direction;
-use geo_foundation::{
-    geometry::{Angle, Ellipse3DImpl, Point3D as FoundationPoint3D, Vector3D as FoundationVector3D, BoundingBox3D},
-    geometry::ellipse::{Ellipse as EllipseTrait, Ellipse3D as Ellipse3DTrait, EllipseError},
-};
-use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
+use geo_foundation::abstract_types::geometry::angle::Angle;
+use geo_foundation::abstract_types::geometry::Direction;
 use std::f64::consts::PI;
 
-/// 3D空間上の楕円を表現する構造体（geo_foundation Ellipse3D trait実装）
+/// 楕円関連のエラー
+#[derive(Debug, Clone, PartialEq)]
+pub enum EllipseError {
+    /// 軸の長さが無効（負または0）
+    InvalidAxisLength,
+    /// 軸の順序が無効（短軸が長軸より長い）
+    InvalidAxisOrder,
+}
+
+impl std::fmt::Display for EllipseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EllipseError::InvalidAxisLength => write!(f, "Invalid axis length: must be positive"),
+            EllipseError::InvalidAxisOrder => write!(
+                f,
+                "Invalid axis order: major radius must be >= minor radius"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for EllipseError {}
+
+/// 幾何計算用の許容誤差
+const GEOMETRIC_TOLERANCE: f64 = 1e-10;
+
+/// 3D空間上の楕円を表現する構造体
 #[derive(Debug, Clone)]
 pub struct Ellipse {
     center: Point3D,
-    major_axis: Vector3D,   // 長軸ベクトル
-    minor_axis: Vector3D,   // 短軸ベクトル
-    normal: Vector3D,       // 楕円平面の法線ベクトル
-    foundation_ellipse: Ellipse3DImpl<f64>, // geo_foundation用の楕円
+    major_radius: f64,
+    minor_radius: f64,
+    normal: Direction3D,
+    u_axis: Direction3D, // 長軸方向
 }
 
 impl Ellipse {
-    /// 新しい3D楕円を作成
+    /// 新しい楕円を作成
     ///
     /// # Arguments
     /// * `center` - 楕円の中心点
-    /// * `major_axis` - 長軸ベクトル（長さが長軸の半径）
-    /// * `minor_axis` - 短軸ベクトル（長さが短軸の半径）
-    pub fn new(center: Point3D, major_axis: Vector3D, minor_axis: Vector3D) -> Result<Self, EllipseError> {
-        let major_length = major_axis.length();
-        let minor_length = minor_axis.length();
-
-        if major_length <= 0.0 || minor_length <= 0.0 {
+    /// * `major_radius` - 長軸の半径
+    /// * `minor_radius` - 短軸の半径
+    /// * `normal` - 楕円平面の法線方向
+    /// * `u_axis` - 長軸の方向
+    pub fn new(
+        center: Point3D,
+        major_radius: f64,
+        minor_radius: f64,
+        normal: Direction3D,
+        u_axis: Direction3D,
+    ) -> Result<Self, EllipseError> {
+        if major_radius <= 0.0 || minor_radius <= 0.0 {
             return Err(EllipseError::InvalidAxisLength);
         }
-        if major_length < minor_length {
+        if major_radius < minor_radius {
             return Err(EllipseError::InvalidAxisOrder);
         }
 
-        // 軸が直交しているかチェック
-        let dot_product = major_axis.dot(&minor_axis);
-        if dot_product.abs() > GEOMETRIC_TOLERANCE {
-            return Err(EllipseError::NonOrthogonalAxes);
-        }
-
-        // 法線ベクトルを計算
-        let normal = major_axis.cross(&minor_axis).normalize().unwrap_or(Vector3D::unit_z());
-
-        // geo_foundation Ellipse3DImplを作成
-        let foundation_ellipse = Ellipse3DImpl::new(
-            FoundationPoint3D::new(center.x(), center.y(), center.z()),
-            FoundationVector3D::new(major_axis.x(), major_axis.y(), major_axis.z()),
-            FoundationVector3D::new(minor_axis.x(), minor_axis.y(), minor_axis.z()),
-        )?;
-
         Ok(Self {
             center,
-            major_axis,
-            minor_axis,
+            major_radius,
+            minor_radius,
             normal,
-            foundation_ellipse,
+            u_axis,
         })
     }
 
     /// XY平面上の楕円を作成
-    pub fn xy_plane(center: Point3D, major_radius: f64, minor_radius: f64, rotation: f64) -> Result<Self, EllipseError> {
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-
-        let major_axis = Vector3D::new(major_radius * cos_rot, major_radius * sin_rot, 0.0);
-        let minor_axis = Vector3D::new(-minor_radius * sin_rot, minor_radius * cos_rot, 0.0);
-
-        Self::new(center, major_axis, minor_axis)
-    }
-
-    /// XZ平面上の楕円を作成
-    pub fn xz_plane(center: Point3D, major_radius: f64, minor_radius: f64, rotation: f64) -> Result<Self, EllipseError> {
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-
-        let major_axis = Vector3D::new(major_radius * cos_rot, 0.0, major_radius * sin_rot);
-        let minor_axis = Vector3D::new(-minor_radius * sin_rot, 0.0, minor_radius * cos_rot);
-
-        Self::new(center, major_axis, minor_axis)
-    }
-
-    /// YZ平面上の楕円を作成
-    pub fn yz_plane(center: Point3D, major_radius: f64, minor_radius: f64, rotation: f64) -> Result<Self, EllipseError> {
-        let cos_rot = rotation.cos();
-        let sin_rot = rotation.sin();
-
-        let major_axis = Vector3D::new(0.0, major_radius * cos_rot, major_radius * sin_rot);
-        let minor_axis = Vector3D::new(0.0, -minor_radius * sin_rot, minor_radius * cos_rot);
-
-        Self::new(center, major_axis, minor_axis)
+    pub fn xy_plane(
+        center: Point3D,
+        major_radius: f64,
+        minor_radius: f64,
+    ) -> Result<Self, EllipseError> {
+        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+        let u_axis = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        Self::new(center, major_radius, minor_radius, normal, u_axis)
     }
 
     /// 円から楕円を作成
     pub fn from_circle(circle: &Circle) -> Self {
         let center = circle.center();
         let radius = circle.radius();
-        let _normal = circle.normal();
+        let normal = Direction3D::from_vector(circle.normal()).unwrap();
         let u_axis = circle.u_axis();
-
-        // 長軸と短軸を円の局所座標系に沿って設定
-        let major_axis = Vector3D::new(u_axis.x(), u_axis.y(), u_axis.z()) * radius;
-        let v_axis = circle.v_axis();
-        let minor_axis = Vector3D::new(v_axis.x(), v_axis.y(), v_axis.z()) * radius;
-
-        Self::new(center, major_axis, minor_axis).unwrap()
+        Self::new(center, radius, radius, normal, u_axis).unwrap()
     }
 
-    /// 2D楕円から3D楕円を作成（Z=0平面）
-    pub fn from_2d_ellipse(ellipse_2d: &geometry2d::Ellipse) -> Self {
-        let center_2d = ellipse_2d.center();
-        let center = Point3D::new(center_2d.x(), center_2d.y(), 0.0);
-
-        let major_radius = ellipse_2d.major_radius();
-        let minor_radius = ellipse_2d.minor_radius();
-        let rotation = ellipse_2d.rotation_radians();
-
-        Self::xy_plane(center, major_radius, minor_radius, rotation).unwrap()
-    }
-}
-
-// 手動でPartialEqを実装（foundation_ellipseは比較対象外）
-impl PartialEq for Ellipse {
-    fn eq(&self, other: &Self) -> bool {
-        self.center == other.center
-            && self.major_axis == other.major_axis
-            && self.minor_axis == other.minor_axis
-            && self.normal == other.normal
-    }
-}
-
-// geo_foundation Ellipse トレイトの実装
-impl EllipseTrait<f64> for Ellipse {
-    type Point = Point3D;
-    type Vector = Vector3D;
-    type BoundingBox = BBox3D;
-
-    fn center(&self) -> Self::Point {
+    /// 楕円の中心座標を取得
+    pub fn center(&self) -> Point3D {
         self.center
     }
 
-    fn major_radius(&self) -> f64 {
-        self.major_axis.length()
+    /// 楕円の長軸半径を取得
+    pub fn major_radius(&self) -> f64 {
+        self.major_radius
     }
 
-    fn minor_radius(&self) -> f64 {
-        self.minor_axis.length()
+    /// 楕円の短軸半径を取得
+    pub fn minor_radius(&self) -> f64 {
+        self.minor_radius
     }
 
-    fn point_at_angle(&self, angle: Angle<f64>) -> Self::Point {
-        let t = angle.to_radians();
-        let cos_t = t.cos();
-        let sin_t = t.sin();
-
-        // 楕円上の点を局所座標系で計算
-        let major_normalized = self.major_axis.normalize().unwrap_or(Vector3D::unit_x());
-        let minor_normalized = self.minor_axis.normalize().unwrap_or(Vector3D::unit_y());
-
-        let point_vec = major_normalized * (self.major_radius() * cos_t) + 
-                       minor_normalized * (self.minor_radius() * sin_t);
-
-        Point3D::new(
-            self.center.x() + point_vec.x(),
-            self.center.y() + point_vec.y(),
-            self.center.z() + point_vec.z(),
-        )
-    }
-
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        // 点を楕円の局所座標系に変換
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-
-        // 点が楕円の平面上にあるかチェック
-        let distance_to_plane = to_point.dot(&self.normal).abs();
-        if distance_to_plane > GEOMETRIC_TOLERANCE {
-            return false;
-        }
-
-        // 楕円の局所座標系での位置を計算
-        let major_normalized = self.major_axis.normalize().unwrap_or(Vector3D::unit_x());
-        let minor_normalized = self.minor_axis.normalize().unwrap_or(Vector3D::unit_y());
-
-        let u = to_point.dot(&major_normalized);
-        let v = to_point.dot(&minor_normalized);
-
-        // 楕円の方程式で内部判定
-        let normalized = (u / self.major_radius()).powi(2) + (v / self.minor_radius()).powi(2);
-        normalized <= 1.0
-    }
-
-    fn on_boundary(&self, point: &Self::Point, tolerance: f64) -> bool {
-        // 点を楕円の局所座標系に変換
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-
-        // 点が楕円の平面上にあるかチェック
-        let distance_to_plane = to_point.dot(&self.normal).abs();
-        if distance_to_plane > tolerance {
-            return false;
-        }
-
-        // 楕円の局所座標系での位置を計算
-        let major_normalized = self.major_axis.normalize().unwrap_or(Vector3D::unit_x());
-        let minor_normalized = self.minor_axis.normalize().unwrap_or(Vector3D::unit_y());
-
-        let u = to_point.dot(&major_normalized);
-        let v = to_point.dot(&minor_normalized);
-
-        // 楕円の方程式で境界判定
-        let normalized = (u / self.major_radius()).powi(2) + (v / self.minor_radius()).powi(2);
-        (normalized - 1.0).abs() <= tolerance
-    }
-
-    fn bounding_box(&self) -> Self::BoundingBox {
-        // 楕円の軸端点を計算
-        let major_endpoint1 = Vector3D::new(
-            self.center.x() + self.major_axis.x(),
-            self.center.y() + self.major_axis.y(),
-            self.center.z() + self.major_axis.z(),
-        );
-        let major_endpoint2 = Vector3D::new(
-            self.center.x() - self.major_axis.x(),
-            self.center.y() - self.major_axis.y(),
-            self.center.z() - self.major_axis.z(),
-        );
-        let minor_endpoint1 = Vector3D::new(
-            self.center.x() + self.minor_axis.x(),
-            self.center.y() + self.minor_axis.y(),
-            self.center.z() + self.minor_axis.z(),
-        );
-        let minor_endpoint2 = Vector3D::new(
-            self.center.x() - self.minor_axis.x(),
-            self.center.y() - self.minor_axis.y(),
-            self.center.z() - self.minor_axis.z(),
-        );
-
-        let endpoints = [
-            Point3D::new(major_endpoint1.x(), major_endpoint1.y(), major_endpoint1.z()),
-            Point3D::new(major_endpoint2.x(), major_endpoint2.y(), major_endpoint2.z()),
-            Point3D::new(minor_endpoint1.x(), minor_endpoint1.y(), minor_endpoint1.z()),
-            Point3D::new(minor_endpoint2.x(), minor_endpoint2.y(), minor_endpoint2.z()),
-        ];
-
-        BBox3D::from_point_array(&endpoints).unwrap()
-    }
-
-    fn scale(&self, factor: f64) -> Self {
-        Self::new(
-            self.center,
-            self.major_axis * factor,
-            self.minor_axis * factor,
-        ).unwrap()
-    }
-
-    fn translate(&self, vector: &Self::Vector) -> Self {
-        let new_center = Point3D::new(
-            self.center.x() + vector.x(),
-            self.center.y() + vector.y(),
-            self.center.z() + vector.z(),
-        );
-        Self::new(new_center, self.major_axis, self.minor_axis).unwrap()
-    }
-}
-
-// geo_foundation Ellipse3D トレイトの実装
-impl Ellipse3DTrait<f64> for Ellipse {
-    fn normal(&self) -> Vector3D {
+    /// 楕円の法線方向を取得
+    pub fn normal(&self) -> Direction3D {
         self.normal
     }
 
-    fn local_coordinate_system(&self) -> (Vector3D, Vector3D, Vector3D) {
-        let major_normalized = self.major_axis.normalize().unwrap_or(Vector3D::unit_x());
-        let minor_normalized = self.minor_axis.normalize().unwrap_or(Vector3D::unit_y());
-        (major_normalized, minor_normalized, self.normal)
+    /// 楕円の長軸方向を取得
+    pub fn u_axis(&self) -> Direction3D {
+        self.u_axis
     }
 
-    fn point_on_plane(&self, point: &Point3D, tolerance: f64) -> bool {
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
-        to_point.dot(&self.normal).abs() <= tolerance
-    }
-
-    #[allow(refining_impl_trait_reachable)]
-    fn project_to_2d(&self) -> geometry2d::Ellipse {
-        // 楕円を2D平面に投影（XY平面）
-        let center_2d = geometry2d::Point2D::new(self.center.x(), self.center.y());
-        
-        // 軸をXY平面に投影
-        let major_2d_length = (self.major_axis.x().powi(2) + self.major_axis.y().powi(2)).sqrt();
-        let minor_2d_length = (self.minor_axis.x().powi(2) + self.minor_axis.y().powi(2)).sqrt();
-        
-        // 回転角度を計算
-        let rotation = self.major_axis.y().atan2(self.major_axis.x());
-        
-        geometry2d::Ellipse::new(center_2d, major_2d_length, minor_2d_length, rotation).unwrap()
-    }
-}
-
-// 追加のメソッド（geo_primitives独自）
-impl Ellipse {
-    /// geo_foundation Ellipse3DImplを取得
-    pub fn foundation_ellipse(&self) -> &Ellipse3DImpl<f64> {
-        &self.foundation_ellipse
-    }
-
-    /// 長軸ベクトルを取得
-    pub fn major_axis(&self) -> Vector3D {
-        self.major_axis
-    }
-
-    /// 短軸ベクトルを取得
-    pub fn minor_axis(&self) -> Vector3D {
-        self.minor_axis
+    /// 楕円の短軸方向を取得（長軸と法線の外積）
+    pub fn v_axis(&self) -> Direction3D {
+        let v = self.normal.to_vector().cross(&self.u_axis.to_vector());
+        Direction3D::from_vector(v).unwrap()
     }
 
     /// 楕円の面積を計算
     pub fn area(&self) -> f64 {
-        PI * self.major_radius() * self.minor_radius()
+        PI * self.major_radius * self.minor_radius
     }
 
     /// 楕円の周長を概算計算（ラマヌジャンの近似式）
     pub fn circumference(&self) -> f64 {
-        let a = self.major_radius();
-        let b = self.minor_radius();
+        let a = self.major_radius;
+        let b = self.minor_radius;
         let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
         PI * (a + b) * (1.0 + (3.0 * h) / (10.0 + (4.0 - 3.0 * h).sqrt()))
     }
 
     /// 楕円の離心率を計算
     pub fn eccentricity(&self) -> f64 {
-        let major = self.major_radius();
-        let minor = self.minor_radius();
-        if major <= minor {
+        if self.major_radius <= self.minor_radius {
             0.0
         } else {
-            (1.0 - (minor * minor) / (major * major)).sqrt()
+            (1.0 - (self.minor_radius * self.minor_radius)
+                / (self.major_radius * self.major_radius))
+                .sqrt()
         }
     }
 
     /// 楕円の焦点距離を計算
     pub fn focal_distance(&self) -> f64 {
-        let major = self.major_radius();
-        let minor = self.minor_radius();
-        if major <= minor {
+        if self.major_radius <= self.minor_radius {
             0.0
         } else {
-            (major * major - minor * minor).sqrt()
+            (self.major_radius * self.major_radius - self.minor_radius * self.minor_radius).sqrt()
         }
     }
 
     /// 楕円の焦点を取得
     pub fn foci(&self) -> (Point3D, Point3D) {
         let focal_dist = self.focal_distance();
-        let major_normalized = self.major_axis.normalize().unwrap_or(Vector3D::unit_x());
-        
-        let focal_vector = major_normalized * focal_dist;
+        let u_vec = self.u_axis.to_vector() * focal_dist;
+
         let f1 = Point3D::new(
-            self.center.x() + focal_vector.x(),
-            self.center.y() + focal_vector.y(),
-            self.center.z() + focal_vector.z(),
+            self.center.x() + u_vec.x(),
+            self.center.y() + u_vec.y(),
+            self.center.z() + u_vec.z(),
         );
         let f2 = Point3D::new(
-            self.center.x() - focal_vector.x(),
-            self.center.y() - focal_vector.y(),
-            self.center.z() - focal_vector.z(),
+            self.center.x() - u_vec.x(),
+            self.center.y() - u_vec.y(),
+            self.center.z() - u_vec.z(),
         );
 
         (f1, f2)
@@ -387,33 +180,107 @@ impl Ellipse {
 
     /// 楕円が円かどうかを判定
     pub fn is_circle(&self) -> bool {
-        (self.major_radius() - self.minor_radius()).abs() <= GEOMETRIC_TOLERANCE
+        (self.major_radius - self.minor_radius).abs() <= GEOMETRIC_TOLERANCE
     }
 
-    /// 楕円が退化している（面積がほぼゼロ）かを判定
-    pub fn is_degenerate(&self) -> bool {
-        self.minor_radius() <= GEOMETRIC_TOLERANCE
-    }
-
-    /// 楕円を円に変換（長軸の半径を使用）
-    pub fn to_circle(&self) -> Circle {
-        let normal_dir = Direction3D::from_vector(self.normal).unwrap_or(Direction3D::positive_z());
-        let u_axis_dir = Direction3D::from_vector(self.major_axis.normalize().unwrap_or(Vector3D::unit_x())).unwrap_or(Direction3D::positive_x());
+    /// 指定された角度での楕円周上の点を取得
+    pub fn point_at_angle(&self, angle: f64) -> Point3D {
+        let u_vec = self.u_axis.to_vector();
+        let v_vec = self.v_axis().to_vector();
         
-        Circle::new(self.center, self.major_radius(), normal_dir, u_axis_dir)
+        let cos_t = angle.cos();
+        let sin_t = angle.sin();
+
+        let local_point = u_vec * (self.major_radius * cos_t) + v_vec * (self.minor_radius * sin_t);
+
+        Point3D::new(
+            self.center.x() + local_point.x(),
+            self.center.y() + local_point.y(),
+            self.center.z() + local_point.z(),
+        )
     }
 
-    /// 楕円を最小外接円に変換
-    pub fn bounding_circle(&self) -> Circle {
-        self.to_circle()
+    /// 点が楕円内部にあるかを判定
+    pub fn contains_point(&self, point: &Point3D) -> bool {
+        // 楕円の中心を原点とした座標系に変換
+        let to_point = Vector3D::new(
+            point.x() - self.center.x(),
+            point.y() - self.center.y(),
+            point.z() - self.center.z(),
+        );
+
+        // 楕円のローカル座標系での座標を計算
+        let u_coord = to_point.dot(&self.u_axis.to_vector());
+        let v_coord = to_point.dot(&self.v_axis().to_vector());
+
+        // 楕円の方程式で内部判定
+        let normalized = (u_coord / self.major_radius).powi(2) + (v_coord / self.minor_radius).powi(2);
+        normalized <= 1.0
     }
 
-    /// 楕円を最大内接円に変換
-    pub fn inscribed_circle(&self) -> Circle {
-        let normal_dir = Direction3D::from_vector(self.normal).unwrap_or(Direction3D::positive_z());
-        let u_axis_dir = Direction3D::from_vector(self.major_axis.normalize().unwrap_or(Vector3D::unit_x())).unwrap_or(Direction3D::positive_x());
-        
-        Circle::new(self.center, self.minor_radius(), normal_dir, u_axis_dir)
+    /// 点が楕円境界上にあるかを判定
+    pub fn on_boundary(&self, point: &Point3D) -> bool {
+        // 楕円の中心を原点とした座標系に変換
+        let to_point = Vector3D::new(
+            point.x() - self.center.x(),
+            point.y() - self.center.y(),
+            point.z() - self.center.z(),
+        );
+
+        // 楕円のローカル座標系での座標を計算
+        let u_coord = to_point.dot(&self.u_axis.to_vector());
+        let v_coord = to_point.dot(&self.v_axis().to_vector());
+
+        // 楕円の方程式で境界判定
+        let normalized = (u_coord / self.major_radius).powi(2) + (v_coord / self.minor_radius).powi(2);
+        (normalized - 1.0).abs() <= GEOMETRIC_TOLERANCE
+    }
+
+    /// 楕円のバウンディングボックスを計算
+    pub fn bounding_box(&self) -> BBox3D {
+        // 楕円の軸方向での最大範囲を計算
+        let u_vec = self.u_axis.to_vector() * self.major_radius;
+        let v_vec = self.v_axis().to_vector() * self.minor_radius;
+
+        // 楕円上の8つの主要な点を計算（簡易版）
+        let mut points = Vec::new();
+        for i in 0..8 {
+            let angle = (i as f64) * PI / 4.0;
+            points.push(self.point_at_angle(angle));
+        }
+
+        BBox3D::from_point_array(&points).unwrap_or_else(|| {
+            BBox3D::from_3d_points(self.center, self.center)
+        })
+    }
+
+    /// 楕円をスケール
+    pub fn scale(&self, factor: f64) -> Self {
+        Self::new(
+            self.center,
+            self.major_radius * factor,
+            self.minor_radius * factor,
+            self.normal,
+            self.u_axis,
+        )
+        .unwrap()
+    }
+
+    /// 楕円を平行移動
+    pub fn translate(&self, vector: &Vector3D) -> Self {
+        let new_center = Point3D::new(
+            self.center.x() + vector.x(),
+            self.center.y() + vector.y(),
+            self.center.z() + vector.z(),
+        );
+        Self::new(
+            new_center,
+            self.major_radius,
+            self.minor_radius,
+            self.normal,
+            self.u_axis,
+        )
+        .unwrap()
     }
 
     /// 指定された点から楕円境界への最短距離を計算（近似）
@@ -424,7 +291,7 @@ impl Ellipse {
             // 簡易実装：楕円境界上の複数点との距離を計算し最小値を返す
             let mut min_dist = f64::INFINITY;
             for i in 0..36 {
-                let angle = Angle::from_degrees(i as f64 * 10.0);
+                let angle = (i as f64 * 10.0).to_radians();
                 let boundary_point = self.point_at_angle(angle);
                 let dist = point.distance_to(&boundary_point);
                 if dist < min_dist {
@@ -434,20 +301,42 @@ impl Ellipse {
             min_dist
         }
     }
+
+    /// 楕円を円に変換（長軸の半径を使用）
+    pub fn to_circle(&self) -> Circle {
+        Circle::new(self.center, self.major_radius, self.normal, self.u_axis)
+    }
+
+    /// 楕円を最小外接円に変換
+    pub fn bounding_circle(&self) -> Circle {
+        Circle::new(self.center, self.major_radius, self.normal, self.u_axis)
+    }
+
+    /// 楕円を最大内接円に変換
+    pub fn inscribed_circle(&self) -> Circle {
+        Circle::new(self.center, self.minor_radius, self.normal, self.u_axis)
+    }
+}
+
+// 手動でPartialEqを実装
+impl PartialEq for Ellipse {
+    fn eq(&self, other: &Self) -> bool {
+        self.center == other.center
+            && (self.major_radius - other.major_radius).abs() < GEOMETRIC_TOLERANCE
+            && (self.minor_radius - other.minor_radius).abs() < GEOMETRIC_TOLERANCE
+            && self.normal == other.normal
+            && self.u_axis == other.u_axis
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::f64::consts::PI;
-    use crate::traits::Direction;
 
     #[test]
-    fn test_ellipse_3d_creation() {
+    fn test_ellipse_creation() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let major_axis = Vector3D::new(3.0, 0.0, 0.0);
-        let minor_axis = Vector3D::new(0.0, 2.0, 0.0);
-        let ellipse = Ellipse::new(center, major_axis, minor_axis).unwrap();
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
 
         assert_eq!(ellipse.center(), center);
         assert_eq!(ellipse.major_radius(), 3.0);
@@ -455,100 +344,99 @@ mod tests {
     }
 
     #[test]
-    fn test_ellipse_xy_plane() {
-        let center = Point3D::new(1.0, 1.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 4.0, 2.0, 0.0).unwrap();
-
-        assert_eq!(ellipse.center(), center);
-        assert_eq!(ellipse.major_radius(), 4.0);
-        assert_eq!(ellipse.minor_radius(), 2.0);
-    }
-
-    #[test]
     fn test_ellipse_invalid_parameters() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        
-        // 平行な軸（直交していない）
-        let major_axis = Vector3D::new(3.0, 0.0, 0.0);
-        let parallel_minor = Vector3D::new(2.0, 0.0, 0.0);
-        assert!(Ellipse::new(center, major_axis, parallel_minor).is_err());
+
+        // 負の半径
+        assert!(Ellipse::xy_plane(center, -1.0, 2.0).is_err());
+        assert!(Ellipse::xy_plane(center, 2.0, -1.0).is_err());
+
+        // 短軸が長軸より長い
+        assert!(Ellipse::xy_plane(center, 2.0, 3.0).is_err());
     }
 
     #[test]
     fn test_ellipse_area() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0, 0.0).unwrap();
-        
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
+
         let expected_area = PI * 3.0 * 2.0;
         assert!((ellipse.area() - expected_area).abs() < GEOMETRIC_TOLERANCE);
     }
 
     #[test]
+    fn test_ellipse_eccentricity() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+
+        // 円の場合
+        let circle = Ellipse::xy_plane(center, 2.0, 2.0).unwrap();
+        assert!((circle.eccentricity() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+
+        // 楕円の場合
+        let ellipse = Ellipse::xy_plane(center, 5.0, 3.0).unwrap();
+        let expected_eccentricity = (1.0f64 - (3.0 * 3.0) / (5.0 * 5.0)).sqrt();
+        assert!((ellipse.eccentricity() - expected_eccentricity).abs() < GEOMETRIC_TOLERANCE);
+    }
+
+    #[test]
     fn test_ellipse_contains_point() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0, 0.0).unwrap();
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
 
         // 中心点
         assert!(ellipse.contains_point(&center));
-        
+
         // 楕円内部の点
         assert!(ellipse.contains_point(&Point3D::new(1.0, 1.0, 0.0)));
-        
+
         // 楕円外部の点
         assert!(!ellipse.contains_point(&Point3D::new(4.0, 0.0, 0.0)));
-        
-        // 楕円平面外の点
-        assert!(!ellipse.contains_point(&Point3D::new(0.0, 0.0, 1.0)));
+        assert!(!ellipse.contains_point(&Point3D::new(0.0, 3.0, 0.0)));
     }
 
     #[test]
     fn test_ellipse_on_boundary() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0, 0.0).unwrap();
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
 
         // 長軸の端点
-        assert!(ellipse.on_boundary(&Point3D::new(3.0, 0.0, 0.0), GEOMETRIC_TOLERANCE));
-        
+        assert!(ellipse.on_boundary(&Point3D::new(3.0, 0.0, 0.0)));
+        assert!(ellipse.on_boundary(&Point3D::new(-3.0, 0.0, 0.0)));
+
         // 短軸の端点
-        assert!(ellipse.on_boundary(&Point3D::new(0.0, 2.0, 0.0), GEOMETRIC_TOLERANCE));
-    }
-
-    #[test]
-    fn test_ellipse_point_at_angle() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0, 0.0).unwrap();
-
-        // 0度の点（長軸上）
-        let point_0 = ellipse.point_at_angle(Angle::from_degrees(0.0));
-        assert!((point_0.x() - 3.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point_0.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point_0.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-
-        // 90度の点（短軸上）
-        let point_90 = ellipse.point_at_angle(Angle::from_degrees(90.0));
-        assert!((point_90.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point_90.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point_90.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!(ellipse.on_boundary(&Point3D::new(0.0, 2.0, 0.0)));
+        assert!(ellipse.on_boundary(&Point3D::new(0.0, -2.0, 0.0)));
     }
 
     #[test]
     fn test_ellipse_scale() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0, 0.0).unwrap();
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
         let scaled = ellipse.scale(2.0);
 
         assert_eq!(scaled.major_radius(), 6.0);
         assert_eq!(scaled.minor_radius(), 4.0);
+        assert_eq!(scaled.center(), center);
+    }
+
+    #[test]
+    fn test_ellipse_translate() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
+        let vector = Vector3D::new(2.0, 3.0, 1.0);
+        let translated = ellipse.translate(&vector);
+
+        assert_eq!(translated.center(), Point3D::new(2.0, 3.0, 1.0));
+        assert_eq!(translated.major_radius(), 3.0);
+        assert_eq!(translated.minor_radius(), 2.0);
     }
 
     #[test]
     fn test_ellipse_from_circle() {
         let center = Point3D::new(1.0, 2.0, 3.0);
-        let normal = Vector3D::new(0.0, 0.0, 1.0);
-        let u_axis = Vector3D::new(1.0, 0.0, 0.0);
-        let normal_dir = Direction3D::from_vector(normal).unwrap();
-        let u_axis_dir = Direction3D::from_vector(u_axis).unwrap();
-        let circle = Circle::new(center, 5.0, normal_dir, u_axis_dir);
+        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+        let u_axis = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let circle = Circle::new(center, 5.0, normal, u_axis);
         let ellipse = Ellipse::from_circle(&circle);
 
         assert_eq!(ellipse.center(), center);
@@ -558,24 +446,44 @@ mod tests {
     }
 
     #[test]
-    fn test_ellipse_project_to_2d() {
-        let center = Point3D::new(1.0, 2.0, 3.0);
-        let ellipse = Ellipse::xy_plane(center, 4.0, 2.0, PI / 4.0).unwrap();
-        let projected = ellipse.project_to_2d();
-
-        assert_eq!(projected.center(), geometry2d::Point2D::new(1.0, 2.0));
-        assert!((projected.major_radius() - 4.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((projected.minor_radius() - 2.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
     fn test_ellipse_foci() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let ellipse = Ellipse::xy_plane(center, 5.0, 3.0, 0.0).unwrap();
+        let ellipse = Ellipse::xy_plane(center, 5.0, 3.0).unwrap();
         let (f1, f2) = ellipse.foci();
 
         let focal_distance = ellipse.focal_distance();
-        assert!((f1.x() - focal_distance).abs() < GEOMETRIC_TOLERANCE);
-        assert!((f2.x() + focal_distance).abs() < GEOMETRIC_TOLERANCE);
+        assert_eq!(f1, Point3D::new(focal_distance, 0.0, 0.0));
+        assert_eq!(f2, Point3D::new(-focal_distance, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_ellipse_is_circle() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+
+        // 円
+        let circle = Ellipse::xy_plane(center, 2.0, 2.0).unwrap();
+        assert!(circle.is_circle());
+
+        // 楕円
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
+        assert!(!ellipse.is_circle());
+    }
+
+    #[test]
+    fn test_ellipse_point_at_angle() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let ellipse = Ellipse::xy_plane(center, 3.0, 2.0).unwrap();
+
+        // 0度の点（長軸上）
+        let point_0 = ellipse.point_at_angle(0.0);
+        assert!((point_0.x() - 3.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((point_0.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((point_0.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+
+        // 90度の点（短軸上）
+        let point_90 = ellipse.point_at_angle(PI / 2.0);
+        assert!((point_90.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((point_90.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((point_90.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
     }
 }

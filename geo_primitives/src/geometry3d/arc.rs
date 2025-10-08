@@ -1,20 +1,31 @@
-//! 3D Arc implementation - geo_foundation Arc3D trait implementation
+//! 3D Arc implementation
 //!
-//! geo_foundationのArc3Dトレイトを実装した3次元円弧
+//! 3次元円弧の基本実装
 
 use crate::geometry3d::{Circle, Point3D, Vector3D, Direction3D};
-use crate::traits::Direction;
-use geo_foundation::{
-    geometry::{Angle, Circle3DImpl, Point3D as FoundationPoint3D, Vector3D as FoundationVector3D},
-    geometry::arc::{Arc3D as Arc3DTrait, ArcKind},
-};
-use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
+use geo_foundation::abstract_types::geometry::angle::Angle;
+use std::f64::consts::PI;
 
-/// 3D空間上の円弧を表現する構造体（geo_foundation Arc3D trait実装）
-#[derive(Debug, Clone, PartialEq)]
+/// 円弧の種類を表現する列挙型
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArcKind {
+    /// 短弧（π未満）
+    MinorArc,
+    /// 長弧（πより大きい）
+    MajorArc,
+    /// 半円（π）
+    Semicircle,
+    /// 完全な円（2π）
+    FullCircle,
+}
+
+/// 幾何計算用の許容誤差
+const GEOMETRIC_TOLERANCE: f64 = 1e-10;
+
+/// 3D空間上の円弧を表現する構造体
+#[derive(Debug, Clone)]
 pub struct Arc {
-    circle: Circle, // geo_primitives Circle
-    foundation_circle: Circle3DImpl<f64>, // geo_foundation用の円
+    circle: Circle,
     start_angle: Angle<f64>,
     end_angle: Angle<f64>,
 }
@@ -22,16 +33,8 @@ pub struct Arc {
 impl Arc {
     /// 新しい円弧を作成
     pub fn new(circle: Circle, start_angle: Angle<f64>, end_angle: Angle<f64>) -> Self {
-        // geo_primitives CircleをCircle3DImplに変換
-        let foundation_circle = Circle3DImpl::new(
-            FoundationPoint3D::new(circle.center().x(), circle.center().y(), circle.center().z()),
-            circle.radius(),
-            FoundationVector3D::new(circle.normal().x(), circle.normal().y(), circle.normal().z()),
-        );
-
         Self {
             circle,
-            foundation_circle,
             start_angle,
             end_angle,
         }
@@ -93,28 +96,20 @@ impl Arc {
         
         y.atan2(x)
     }
-}
 
-// geo_foundation Arc3D トレイトの実装
-impl Arc3DTrait<f64> for Arc {
-    fn circle(&self) -> &Circle3DImpl<f64> {
-        &self.foundation_circle
+    /// 基底円を取得
+    pub fn circle(&self) -> &Circle {
+        &self.circle
     }
 
-    fn start_angle(&self) -> Angle<f64> {
+    /// 開始角度を取得
+    pub fn start_angle(&self) -> Angle<f64> {
         self.start_angle
     }
 
-    fn end_angle(&self) -> Angle<f64> {
+    /// 終了角度を取得
+    pub fn end_angle(&self) -> Angle<f64> {
         self.end_angle
-    }
-}
-
-// 追加のメソッド（geo_primitives独自）
-impl Arc {
-    /// geo_primitives Circleを取得
-    pub fn primitives_circle(&self) -> &Circle {
-        &self.circle
     }
 
     /// 指定角度での点を取得（ラジアン）
@@ -145,6 +140,11 @@ impl Arc {
         )
     }
 
+    /// 指定角度での点を取得（Angle型）
+    pub fn point_at_angle_typed(&self, angle: Angle<f64>) -> Point3D {
+        self.point_at_angle(angle.to_radians())
+    }
+
     /// 指定された角度が円弧の角度範囲内にあるかを判定
     pub fn angle_contains(&self, angle: Angle<f64>) -> bool {
         let start = self.start_angle.to_radians();
@@ -165,7 +165,7 @@ impl Arc {
         let diff = if end >= start {
             end - start
         } else {
-            end + 2.0 * std::f64::consts::PI - start
+            end + 2.0 * PI - start
         };
         Angle::from_radians(diff)
     }
@@ -183,6 +183,12 @@ impl Arc {
     /// 円弧の終了点を取得
     pub fn end_point(&self) -> Point3D {
         self.point_at_angle(self.end_angle.to_radians())
+    }
+
+    /// 円弧の中点を取得
+    pub fn midpoint(&self) -> Point3D {
+        let mid_angle = (self.start_angle.to_radians() + self.end_angle.to_radians()) / 2.0;
+        self.point_at_angle(mid_angle)
     }
 
     /// 円弧の中心を取得
@@ -212,6 +218,46 @@ impl Arc {
         self.angle_contains(point_angle)
     }
 
+    /// 円弧の種類を判定
+    pub fn arc_kind(&self) -> ArcKind {
+        let span = self.angle_span().to_radians();
+        let two_pi = 2.0 * PI;
+
+        if (span - two_pi).abs() < GEOMETRIC_TOLERANCE {
+            ArcKind::FullCircle
+        } else if (span - PI).abs() < GEOMETRIC_TOLERANCE {
+            ArcKind::Semicircle
+        } else if span < PI {
+            ArcKind::MinorArc
+        } else {
+            ArcKind::MajorArc
+        }
+    }
+
+    /// 円弧を反転（開始と終了を入れ替え）
+    pub fn reverse(&self) -> Self {
+        Self::new(self.circle.clone(), self.end_angle, self.start_angle)
+    }
+
+    /// 円弧を指定した分割数で近似する点列を取得
+    pub fn approximate_with_points(&self, num_segments: usize) -> Vec<Point3D> {
+        if num_segments == 0 {
+            return vec![];
+        }
+
+        let mut points = Vec::with_capacity(num_segments + 1);
+        let span = self.angle_span().to_radians();
+        
+        for i in 0..=num_segments {
+            let t = i as f64 / num_segments as f64;
+            let angle = self.start_angle.to_radians() + span * t;
+            let point = self.point_at_angle(angle);
+            points.push(point);
+        }
+        
+        points
+    }
+
     /// 他の円弧との交差判定
     pub fn intersects_with_arc(&self, other: &Arc) -> bool {
         // 基底円同士の交差判定（簡易版）
@@ -228,28 +274,55 @@ impl Arc {
         !(self_end < other_start || other_end < self_start)
     }
 
-    /// 円弧の種類を判定
-    pub fn arc_kind(&self) -> ArcKind {
-        let span = self.angle_span().to_radians();
-        let pi = std::f64::consts::PI;
-        let two_pi = 2.0 * pi;
+    /// 円弧をスケール
+    pub fn scale(&self, factor: f64) -> Self {
+        Self::new(
+            self.circle.scale(factor),
+            self.start_angle,
+            self.end_angle,
+        )
+    }
 
-        if (span - two_pi).abs() < GEOMETRIC_TOLERANCE {
-            ArcKind::FullCircle
-        } else if (span - pi).abs() < GEOMETRIC_TOLERANCE {
-            ArcKind::Semicircle
-        } else if span < pi {
-            ArcKind::MinorArc
-        } else {
-            ArcKind::MajorArc
-        }
+    /// 円弧を平行移動
+    pub fn translate(&self, dx: f64, dy: f64, dz: f64) -> Self {
+        let vector = Vector3D::new(dx, dy, dz);
+        Self::new(
+            self.circle.translate(&vector),
+            self.start_angle,
+            self.end_angle,
+        )
+    }
+
+    /// 円弧を平行移動（Vector3D版）
+    pub fn translate_by_vector(&self, vector: &Vector3D) -> Self {
+        Self::new(
+            self.circle.translate(vector),
+            self.start_angle,
+            self.end_angle,
+        )
+    }
+
+    /// 円弧を回転
+    pub fn rotate(&self, angle: Angle<f64>) -> Self {
+        Self::new(
+            self.circle.clone(), // 中心周りの回転では円は変わらない
+            Angle::from_radians(self.start_angle.to_radians() + angle.to_radians()),
+            Angle::from_radians(self.end_angle.to_radians() + angle.to_radians()),
+        )
+    }
+}
+
+impl PartialEq for Arc {
+    fn eq(&self, other: &Self) -> bool {
+        self.circle == other.circle
+            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
+            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::f64::consts::PI;
 
     #[test]
     fn test_arc_creation() {
@@ -318,5 +391,65 @@ mod tests {
         assert!(arc.angle_contains(Angle::from_radians(PI / 4.0)));
         assert!(arc.angle_contains(Angle::from_radians(PI / 2.0)));
         assert!(!arc.angle_contains(Angle::from_radians(3.0 * PI / 2.0)));
+    }
+
+    #[test]
+    fn test_arc_reverse() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_axis = Vector3D::new(1.0, 0.0, 0.0);
+        let normal_dir = Direction3D::from_vector(normal).unwrap();
+        let u_axis_dir = Direction3D::from_vector(u_axis).unwrap();
+        let circle = Circle::new(center, 1.0, normal_dir, u_axis_dir);
+        let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
+        let reversed = arc.reverse();
+
+        assert_eq!(reversed.start_angle(), arc.end_angle());
+        assert_eq!(reversed.end_angle(), arc.start_angle());
+    }
+
+    #[test]
+    fn test_arc_midpoint() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_axis = Vector3D::new(1.0, 0.0, 0.0);
+        let normal_dir = Direction3D::from_vector(normal).unwrap();
+        let u_axis_dir = Direction3D::from_vector(u_axis).unwrap();
+        let circle = Circle::new(center, 1.0, normal_dir, u_axis_dir);
+        let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
+        let mid = arc.midpoint();
+
+        let expected_angle = PI / 4.0;
+        let expected_x = expected_angle.cos();
+        let expected_y = expected_angle.sin();
+
+        assert!((mid.x() - expected_x).abs() < GEOMETRIC_TOLERANCE);
+        assert!((mid.y() - expected_y).abs() < GEOMETRIC_TOLERANCE);
+        assert!((mid.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+    }
+
+    #[test]
+    fn test_approximate_with_points() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_axis = Vector3D::new(1.0, 0.0, 0.0);
+        let normal_dir = Direction3D::from_vector(normal).unwrap();
+        let u_axis_dir = Direction3D::from_vector(u_axis).unwrap();
+        let circle = Circle::new(center, 1.0, normal_dir, u_axis_dir);
+        let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
+
+        let points = arc.approximate_with_points(4);
+        assert_eq!(points.len(), 5); // 4セグメント = 5点
+
+        // 最初と最後の点をチェック
+        let first_point = points.first().unwrap();
+        let last_point = points.last().unwrap();
+        
+        assert!((first_point.x() - 1.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((first_point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((first_point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((last_point.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((last_point.y() - 1.0).abs() < GEOMETRIC_TOLERANCE);
+        assert!((last_point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
     }
 }
