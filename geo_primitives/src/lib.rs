@@ -24,22 +24,29 @@ pub use geometry3d::BBox3D;
 pub use traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 // 基本幾何プリミティブ
-pub use geometry2d::{Arc as Arc2D, Circle as Circle2D, Direction2D, Point2D, Vector2D};
-pub use geometry3d::{Arc as Arc3D, Circle as Circle3D, Direction3D, Point3D, Vector3D};
+pub use geometry2d::{
+    Arc as Arc2D, Circle as Circle2D, Direction2D, InfiniteLine2D, Point2D, Vector2D,
+};
+pub use geometry3d::{
+    Arc as Arc3D, Circle as Circle3D, Direction3D, InfiniteLine3D, Point3D, Vector3D,
+};
 
 // 名前空間の整理
 pub mod primitives_2d {
-    pub use crate::{BBox2D, Direction2D, Point2D, Vector2D};
+    pub use crate::{BBox2D, Direction2D, InfiniteLine2D, Point2D, Vector2D};
 }
 
 pub mod primitives_3d {
-    pub use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+    pub use crate::{BBox3D, Direction3D, InfiniteLine3D, Point3D, Vector3D};
 }
 
 /// 便利な再エクスポート
 pub mod prelude {
     // 基本幾何プリミティブ
-    pub use crate::{Direction2D, Direction3D, Point2D, Point3D, Vector2D, Vector3D};
+    pub use crate::{
+        Direction2D, Direction3D, InfiniteLine2D, InfiniteLine3D, Point2D, Point3D, Vector2D,
+        Vector3D,
+    };
 
     // バウンディングボックス
     pub use crate::{BBox2D, BBox3D, BoundingBox, BoundingBoxOps, CollisionBounds};
