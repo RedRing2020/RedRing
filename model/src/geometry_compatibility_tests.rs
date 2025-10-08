@@ -4,9 +4,11 @@
 
 #[cfg(test)]
 mod compatibility_tests {
-    use crate::geometry::geometry3d::{point::Point, vector::Vector, line::Line, direction::Direction};
+    use crate::geometry::geometry3d::{
+        direction::Direction, line::Line, point::Point, vector::Vector,
+    };
+    use crate::geometry_simple_adapter::{simple_factory, SimpleAdaptedLine};
     use crate::geometry_trait::curve3d::Curve3D;
-    use crate::geometry_simple_adapter::{SimpleAdaptedLine, simple_factory};
 
     #[test]
     fn test_line_compatibility_evaluate() {
@@ -28,16 +30,38 @@ mod compatibility_tests {
             let model_point = model_line.evaluate(t);
             let adapted_point = adapted_line.evaluate(t);
 
-            println!("t={}: model({:.6}, {:.6}, {:.6}) vs adapted({:.6}, {:.6}, {:.6})",
-                t, model_point.x(), model_point.y(), model_point.z(),
-                adapted_point.x(), adapted_point.y(), adapted_point.z());
+            println!(
+                "t={}: model({:.6}, {:.6}, {:.6}) vs adapted({:.6}, {:.6}, {:.6})",
+                t,
+                model_point.x(),
+                model_point.y(),
+                model_point.z(),
+                adapted_point.x(),
+                adapted_point.y(),
+                adapted_point.z()
+            );
 
-            assert!((model_point.x() - adapted_point.x()).abs() < 1e-10,
-                "X coordinates differ at t={}: {} vs {}", t, model_point.x(), adapted_point.x());
-            assert!((model_point.y() - adapted_point.y()).abs() < 1e-10,
-                "Y coordinates differ at t={}: {} vs {}", t, model_point.y(), adapted_point.y());
-            assert!((model_point.z() - adapted_point.z()).abs() < 1e-10,
-                "Z coordinates differ at t={}: {} vs {}", t, model_point.z(), adapted_point.z());
+            assert!(
+                (model_point.x() - adapted_point.x()).abs() < 1e-10,
+                "X coordinates differ at t={}: {} vs {}",
+                t,
+                model_point.x(),
+                adapted_point.x()
+            );
+            assert!(
+                (model_point.y() - adapted_point.y()).abs() < 1e-10,
+                "Y coordinates differ at t={}: {} vs {}",
+                t,
+                model_point.y(),
+                adapted_point.y()
+            );
+            assert!(
+                (model_point.z() - adapted_point.z()).abs() < 1e-10,
+                "Z coordinates differ at t={}: {} vs {}",
+                t,
+                model_point.z(),
+                adapted_point.z()
+            );
         }
     }
 
@@ -56,10 +80,17 @@ mod compatibility_tests {
         let model_length = model_line.length();
         let adapted_length = adapted_line.length();
 
-        println!("Length comparison: model={:.10} vs adapted={:.10}", model_length, adapted_length);
+        println!(
+            "Length comparison: model={:.10} vs adapted={:.10}",
+            model_length, adapted_length
+        );
 
-        assert!((model_length - adapted_length).abs() < 1e-10,
-            "Length differs: {} vs {}", model_length, adapted_length);
+        assert!(
+            (model_length - adapted_length).abs() < 1e-10,
+            "Length differs: {} vs {}",
+            model_length,
+            adapted_length
+        );
     }
 
     #[test]
@@ -81,16 +112,38 @@ mod compatibility_tests {
             let model_derivative = model_line.derivative(t);
             let adapted_derivative = adapted_line.derivative(t);
 
-            println!("t={}: model_deriv({:.6}, {:.6}, {:.6}) vs adapted_deriv({:.6}, {:.6}, {:.6})",
-                t, model_derivative.x(), model_derivative.y(), model_derivative.z(),
-                adapted_derivative.x(), adapted_derivative.y(), adapted_derivative.z());
+            println!(
+                "t={}: model_deriv({:.6}, {:.6}, {:.6}) vs adapted_deriv({:.6}, {:.6}, {:.6})",
+                t,
+                model_derivative.x(),
+                model_derivative.y(),
+                model_derivative.z(),
+                adapted_derivative.x(),
+                adapted_derivative.y(),
+                adapted_derivative.z()
+            );
 
-            assert!((model_derivative.x() - adapted_derivative.x()).abs() < 1e-10,
-                "Derivative X differs at t={}: {} vs {}", t, model_derivative.x(), adapted_derivative.x());
-            assert!((model_derivative.y() - adapted_derivative.y()).abs() < 1e-10,
-                "Derivative Y differs at t={}: {} vs {}", t, model_derivative.y(), adapted_derivative.y());
-            assert!((model_derivative.z() - adapted_derivative.z()).abs() < 1e-10,
-                "Derivative Z differs at t={}: {} vs {}", t, model_derivative.z(), adapted_derivative.z());
+            assert!(
+                (model_derivative.x() - adapted_derivative.x()).abs() < 1e-10,
+                "Derivative X differs at t={}: {} vs {}",
+                t,
+                model_derivative.x(),
+                adapted_derivative.x()
+            );
+            assert!(
+                (model_derivative.y() - adapted_derivative.y()).abs() < 1e-10,
+                "Derivative Y differs at t={}: {} vs {}",
+                t,
+                model_derivative.y(),
+                adapted_derivative.y()
+            );
+            assert!(
+                (model_derivative.z() - adapted_derivative.z()).abs() < 1e-10,
+                "Derivative Z differs at t={}: {} vs {}",
+                t,
+                model_derivative.z(),
+                adapted_derivative.z()
+            );
         }
     }
 
@@ -106,8 +159,11 @@ mod compatibility_tests {
         // 新しいSimpleAdaptedLine
         let adapted_line = SimpleAdaptedLine::new(start, end);
 
-        assert_eq!(model_line.kind(), adapted_line.kind(),
-            "CurveKind3D should be the same");
+        assert_eq!(
+            model_line.kind(),
+            adapted_line.kind(),
+            "CurveKind3D should be the same"
+        );
     }
 
     #[test]
@@ -122,8 +178,11 @@ mod compatibility_tests {
         // 新しいSimpleAdaptedLine
         let adapted_line = SimpleAdaptedLine::new(start, end);
 
-        assert_eq!(model_line.domain(), adapted_line.domain(),
-            "Parameter domain should be the same");
+        assert_eq!(
+            model_line.domain(),
+            adapted_line.domain(),
+            "Parameter domain should be the same"
+        );
     }
 
     #[test]
@@ -194,6 +253,9 @@ mod compatibility_tests {
         println!("  Performance ratio (adapted/model): {:.2}x", ratio);
 
         // 極端に遅くないことを確認（10倍以上遅くない）
-        assert!(ratio < 10.0, "SimpleAdaptedLine is more than 10x slower than model::Line");
+        assert!(
+            ratio < 10.0,
+            "SimpleAdaptedLine is more than 10x slower than model::Line"
+        );
     }
 }

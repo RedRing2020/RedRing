@@ -1,17 +1,24 @@
 //! ベクトル演算システム
-//! 
+//!
 //! 統合された2D/3Dベクトル演算を提供し、許容誤差を考慮した
 //! 堅牢な幾何計算を実現する。
 use crate::scalar::Scalar;
 use crate::tolerance::{ToleranceContext, TolerantEq};
 use std::fmt;
-use std::ops::{Add, Sub, Mul, Index, IndexMut};
+use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
 /// 汎用ベクトルトレイト
 pub trait Vector<const D: usize>:
-    Clone + PartialEq + fmt::Debug + fmt::Display
-    + Add<Output = Self> + Sub<Output = Self> + Mul<Scalar, Output = Self>
-    + TolerantEq + Index<usize, Output = Scalar> + IndexMut<usize>
+    Clone
+    + PartialEq
+    + fmt::Debug
+    + fmt::Display
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Scalar, Output = Self>
+    + TolerantEq
+    + Index<usize, Output = Scalar>
+    + IndexMut<usize>
 {
     /// 成分から新しいベクトルを作成
     fn new(components: [Scalar; D]) -> Self;
@@ -23,7 +30,9 @@ pub trait Vector<const D: usize>:
     fn components_mut(&mut self) -> &mut [Scalar; D];
 
     /// 次元数を取得
-    fn dimension() -> usize { D }
+    fn dimension() -> usize {
+        D
+    }
 
     /// 内積
     fn dot(&self, other: &Self) -> Scalar;

@@ -2,9 +2,9 @@
 //!
 //! 2D/3D空間における楕円弧の抽象的なインターフェースを提供
 
-use crate::abstract_types::Scalar;
-use crate::abstract_types::geometry::vector::Vector3D;
 use crate::abstract_types::geometry::angle::AngleType;
+use crate::abstract_types::geometry::vector::Vector3D;
+use crate::abstract_types::Scalar;
 
 /// 2D楕円弧の基本操作を定義するトレイト
 pub trait EllipseArc2D<T: Scalar> {
@@ -117,7 +117,8 @@ pub trait EllipseArc2D<T: Scalar> {
 
     /// 楕円弧の中点を取得
     fn midpoint(&self) -> Self::Point {
-        let mid_angle_radians = (self.start_angle().to_radians() + self.end_angle().to_radians()) / (T::ONE + T::ONE);
+        let mid_angle_radians =
+            (self.start_angle().to_radians() + self.end_angle().to_radians()) / (T::ONE + T::ONE);
         self.point_at_angle(Self::Angle::from_radians(mid_angle_radians))
     }
 
@@ -257,7 +258,8 @@ pub trait EllipseArc3D<T: Scalar> {
 
     /// 楕円弧の中点を取得
     fn midpoint(&self) -> Self::Point {
-        let mid_angle_radians = (self.start_angle().to_radians() + self.end_angle().to_radians()) / (T::ONE + T::ONE);
+        let mid_angle_radians =
+            (self.start_angle().to_radians() + self.end_angle().to_radians()) / (T::ONE + T::ONE);
         self.point_at_angle(Self::Angle::from_radians(mid_angle_radians))
     }
 
@@ -268,7 +270,11 @@ pub trait EllipseArc3D<T: Scalar> {
     fn project_to_xy(&self) -> Self::EllipseArc2D;
 
     /// 楕円弧を指定した平面に投影
-    fn project_to_plane(&self, plane_normal: &Self::Direction, plane_point: &Self::Point) -> Self::EllipseArc2D;
+    fn project_to_plane(
+        &self,
+        plane_normal: &Self::Direction,
+        plane_point: &Self::Point,
+    ) -> Self::EllipseArc2D;
 
     /// 楕円弧を指定した角度分割で近似する点列を取得
     fn approximate_with_points(&self, num_segments: usize) -> Vec<Self::Point>;
@@ -361,7 +367,11 @@ pub trait EllipseArcTransform<T: Scalar> {
     ) -> Self::TransformedEllipseArc;
 
     /// 楕円弧をミラー（指定した軸を中心に反転）
-    fn mirror(&self, axis_point: Self::Point, axis_direction: Self::Vector) -> Self::TransformedEllipseArc;
+    fn mirror(
+        &self,
+        axis_point: Self::Point,
+        axis_direction: Self::Vector,
+    ) -> Self::TransformedEllipseArc;
 }
 
 /// 楕円弧の分割・切断操作に関するトレイト

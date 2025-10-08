@@ -14,33 +14,37 @@ pub struct Matrix3x3<T: Scalar> {
 
 impl<T: Scalar> Matrix3x3<T> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        a11: T, a12: T, a13: T,
-        a21: T, a22: T, a23: T,
-        a31: T, a32: T, a33: T,
-    ) -> Self {
+    pub fn new(a11: T, a12: T, a13: T, a21: T, a22: T, a23: T, a31: T, a32: T, a33: T) -> Self {
         Self {
-            data: [
-                [a11, a12, a13],
-                [a21, a22, a23],
-                [a31, a32, a33],
-            ],
+            data: [[a11, a12, a13], [a21, a22, a23], [a31, a32, a33]],
         }
     }
 
     pub fn zeros() -> Self {
         Self::new(
-            T::ZERO, T::ZERO, T::ZERO,
-            T::ZERO, T::ZERO, T::ZERO,
-            T::ZERO, T::ZERO, T::ZERO
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
         )
     }
 
     pub fn identity() -> Self {
         Self::new(
-            T::ONE, T::ZERO, T::ZERO,
-            T::ZERO, T::ONE, T::ZERO,
-            T::ZERO, T::ZERO, T::ONE
+            T::ONE,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ONE,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ONE,
         )
     }
 
@@ -55,9 +59,8 @@ impl<T: Scalar> Matrix3x3<T> {
         let a32 = self.data[2][1];
         let a33 = self.data[2][2];
 
-        a11 * (a22 * a33 - a23 * a32)
-        - a12 * (a21 * a33 - a23 * a31)
-        + a13 * (a21 * a32 - a22 * a31)
+        a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31)
+            + a13 * (a21 * a32 - a22 * a31)
     }
 
     pub fn trace(&self) -> T {
@@ -66,9 +69,15 @@ impl<T: Scalar> Matrix3x3<T> {
 
     pub fn transpose(&self) -> Self {
         Self::new(
-            self.data[0][0], self.data[1][0], self.data[2][0],
-            self.data[0][1], self.data[1][1], self.data[2][1],
-            self.data[0][2], self.data[1][2], self.data[2][2]
+            self.data[0][0],
+            self.data[1][0],
+            self.data[2][0],
+            self.data[0][1],
+            self.data[1][1],
+            self.data[2][1],
+            self.data[0][2],
+            self.data[1][2],
+            self.data[2][2],
         )
     }
 
@@ -85,14 +94,12 @@ impl<T: Scalar> Matrix3x3<T> {
             (self.data[1][1] * self.data[2][2] - self.data[1][2] * self.data[2][1]) * inv_det,
             (self.data[0][2] * self.data[2][1] - self.data[0][1] * self.data[2][2]) * inv_det,
             (self.data[0][1] * self.data[1][2] - self.data[0][2] * self.data[1][1]) * inv_det,
-
             (self.data[1][2] * self.data[2][0] - self.data[1][0] * self.data[2][2]) * inv_det,
             (self.data[0][0] * self.data[2][2] - self.data[0][2] * self.data[2][0]) * inv_det,
             (self.data[0][2] * self.data[1][0] - self.data[0][0] * self.data[1][2]) * inv_det,
-
             (self.data[1][0] * self.data[2][1] - self.data[1][1] * self.data[2][0]) * inv_det,
             (self.data[0][1] * self.data[2][0] - self.data[0][0] * self.data[2][1]) * inv_det,
-            (self.data[0][0] * self.data[1][1] - self.data[0][1] * self.data[1][0]) * inv_det
+            (self.data[0][0] * self.data[1][1] - self.data[0][1] * self.data[1][0]) * inv_det,
         ))
     }
 
@@ -100,7 +107,7 @@ impl<T: Scalar> Matrix3x3<T> {
         Vector3::new(
             self.data[0][0] * vec.x() + self.data[0][1] * vec.y() + self.data[0][2] * vec.z(),
             self.data[1][0] * vec.x() + self.data[1][1] * vec.y() + self.data[1][2] * vec.z(),
-            self.data[2][0] * vec.x() + self.data[2][1] * vec.y() + self.data[2][2] * vec.z()
+            self.data[2][0] * vec.x() + self.data[2][1] * vec.y() + self.data[2][2] * vec.z(),
         )
     }
 
@@ -142,9 +149,15 @@ impl<T: Scalar> Matrix3x3<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         Self::new(
-            T::ONE, T::ZERO, T::ZERO,
-            T::ZERO, cos_a, -sin_a,
-            T::ZERO, sin_a, cos_a
+            T::ONE,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            cos_a,
+            -sin_a,
+            T::ZERO,
+            sin_a,
+            cos_a,
         )
     }
 
@@ -153,9 +166,15 @@ impl<T: Scalar> Matrix3x3<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         Self::new(
-            cos_a, T::ZERO, sin_a,
-            T::ZERO, T::ONE, T::ZERO,
-            -sin_a, T::ZERO, cos_a
+            cos_a,
+            T::ZERO,
+            sin_a,
+            T::ZERO,
+            T::ONE,
+            T::ZERO,
+            -sin_a,
+            T::ZERO,
+            cos_a,
         )
     }
 
@@ -164,27 +183,45 @@ impl<T: Scalar> Matrix3x3<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         Self::new(
-            cos_a, -sin_a, T::ZERO,
-            sin_a, cos_a, T::ZERO,
-            T::ZERO, T::ZERO, T::ONE
+            cos_a,
+            -sin_a,
+            T::ZERO,
+            sin_a,
+            cos_a,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ONE,
         )
     }
 
     /// スケール行列を作成
     pub fn scale(sx: T, sy: T, sz: T) -> Self {
         Self::new(
-            sx, T::ZERO, T::ZERO,
-            T::ZERO, sy, T::ZERO,
-            T::ZERO, T::ZERO, sz
+            sx,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            sy,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            sz,
         )
     }
 
     /// 平行移動行列を作成（同次座標用）
     pub fn translation(tx: T, ty: T) -> Self {
         Self::new(
-            T::ONE, T::ZERO, tx,
-            T::ZERO, T::ONE, ty,
-            T::ZERO, T::ZERO, T::ONE
+            T::ONE,
+            T::ZERO,
+            tx,
+            T::ZERO,
+            T::ONE,
+            ty,
+            T::ZERO,
+            T::ZERO,
+            T::ONE,
         )
     }
 }

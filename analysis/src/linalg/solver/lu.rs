@@ -69,7 +69,10 @@ impl<T: Scalar> LUSolver<T> {
 
             // 特異性チェック
             if lu_matrix[k][k].abs() < self.tolerance {
-                return Err(format!("Matrix is singular at diagonal element ({}, {})", k, k));
+                return Err(format!(
+                    "Matrix is singular at diagonal element ({}, {})",
+                    k, k
+                ));
             }
 
             // L部分の計算（下三角）
@@ -118,7 +121,7 @@ impl<T: Scalar> LUSolver<T> {
     pub fn solve_with_decomposition(
         &self,
         lu_decomp: &LUDecomposition<T>,
-        rhs: &[T]
+        rhs: &[T],
     ) -> Result<Vec<T>, String> {
         let n = rhs.len();
         if n != lu_decomp.lu_matrix.len() {
@@ -204,10 +207,7 @@ mod tests {
 
     #[test]
     fn test_lu_decomposition_2x2() {
-        let matrix = vec![
-            vec![2.0, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
 
         let solver = LUSolver::new(1e-15);
         let lu_decomp = solver.decompose(&matrix).unwrap();
@@ -218,8 +218,18 @@ mod tests {
             for j in 0..n {
                 let mut reconstructed = 0.0;
                 for k in 0..n {
-                    let l_ik = if i > k { lu_decomp.lu_matrix[i][k] } else if i == k { 1.0 } else { 0.0 };
-                    let u_kj = if k <= j { lu_decomp.lu_matrix[k][j] } else { 0.0 };
+                    let l_ik = if i > k {
+                        lu_decomp.lu_matrix[i][k]
+                    } else if i == k {
+                        1.0
+                    } else {
+                        0.0
+                    };
+                    let u_kj = if k <= j {
+                        lu_decomp.lu_matrix[k][j]
+                    } else {
+                        0.0
+                    };
                     reconstructed += l_ik * u_kj;
                 }
                 let original = matrix[lu_decomp.permutation[i]][j];
@@ -230,10 +240,7 @@ mod tests {
 
     #[test]
     fn test_lu_solver_2x2() {
-        let matrix = vec![
-            vec![2.0, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
         let rhs = vec![5.0, 6.0];
 
         let solver = LUSolver::new(1e-15);
@@ -263,10 +270,7 @@ mod tests {
 
     #[test]
     fn test_lu_determinant() {
-        let matrix = vec![
-            vec![2.0, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
 
         let solver = LUSolver::new(1e-15);
         let lu_decomp = solver.decompose(&matrix).unwrap();

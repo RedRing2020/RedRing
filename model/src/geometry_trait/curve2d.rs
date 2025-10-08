@@ -1,5 +1,5 @@
-﻿use std::any::Any;
 use crate::geometry_kind::CurveKind2D;
+use std::any::Any;
 
 /// NOTE: Removed dependency on old model::geometry, using associated types for Point/Vector.
 /// Curve2D: Abstract trait for 2D curves
@@ -35,7 +35,13 @@ pub trait Curve2D: Any {
 
     /// Split curve at specified parameter (default implementation)
     #[allow(clippy::type_complexity)]
-    fn split(&self, _t: f64) -> Option<(Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>, Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>)> {
+    fn split(
+        &self,
+        _t: f64,
+    ) -> Option<(
+        Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>,
+        Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>,
+    )> {
         None
     }
 

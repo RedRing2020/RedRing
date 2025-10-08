@@ -50,27 +50,26 @@ impl PrimitiveKind {
         match self {
             PrimitiveKind::Point => DimensionClass::Zero,
 
-            PrimitiveKind::LineSegment |
-            PrimitiveKind::PolyLine |
-            PrimitiveKind::BezierCurve |
-            PrimitiveKind::NurbsCurve => DimensionClass::One,
+            PrimitiveKind::LineSegment
+            | PrimitiveKind::PolyLine
+            | PrimitiveKind::BezierCurve
+            | PrimitiveKind::NurbsCurve => DimensionClass::One,
 
-            PrimitiveKind::Circle |
-            PrimitiveKind::Ellipse |
-            PrimitiveKind::Rectangle |
-            PrimitiveKind::Polygon |
-            PrimitiveKind::Triangle |
-            PrimitiveKind::Plane |
-            PrimitiveKind::NurbsSurface => DimensionClass::Two,
+            PrimitiveKind::Circle
+            | PrimitiveKind::Ellipse
+            | PrimitiveKind::Rectangle
+            | PrimitiveKind::Polygon
+            | PrimitiveKind::Triangle
+            | PrimitiveKind::Plane
+            | PrimitiveKind::NurbsSurface => DimensionClass::Two,
 
-            PrimitiveKind::Sphere |
-            PrimitiveKind::Cylinder |
-            PrimitiveKind::Cone |
-            PrimitiveKind::Cube |
-            PrimitiveKind::TriangleMesh => DimensionClass::Three,
+            PrimitiveKind::Sphere
+            | PrimitiveKind::Cylinder
+            | PrimitiveKind::Cone
+            | PrimitiveKind::Cube
+            | PrimitiveKind::TriangleMesh => DimensionClass::Three,
 
-            PrimitiveKind::Group |
-            PrimitiveKind::Assembly => DimensionClass::Complex,
+            PrimitiveKind::Group | PrimitiveKind::Assembly => DimensionClass::Complex,
         }
     }
 
@@ -91,31 +90,30 @@ impl PrimitiveKind {
 
     /// パラメトリック形状かどうか
     pub fn is_parametric(&self) -> bool {
-        matches!(self,
-            PrimitiveKind::BezierCurve |
-            PrimitiveKind::NurbsCurve |
-            PrimitiveKind::NurbsSurface
+        matches!(
+            self,
+            PrimitiveKind::BezierCurve | PrimitiveKind::NurbsCurve | PrimitiveKind::NurbsSurface
         )
     }
 
     /// 解析的形状かどうか
     pub fn is_analytical(&self) -> bool {
-        matches!(self,
-            PrimitiveKind::Circle |
-            PrimitiveKind::Ellipse |
-            PrimitiveKind::Sphere |
-            PrimitiveKind::Cylinder |
-            PrimitiveKind::Cone |
-            PrimitiveKind::Plane
+        matches!(
+            self,
+            PrimitiveKind::Circle
+                | PrimitiveKind::Ellipse
+                | PrimitiveKind::Sphere
+                | PrimitiveKind::Cylinder
+                | PrimitiveKind::Cone
+                | PrimitiveKind::Plane
         )
     }
 
     /// 多角形/メッシュ系かどうか
     pub fn is_mesh(&self) -> bool {
-        matches!(self,
-            PrimitiveKind::Polygon |
-            PrimitiveKind::Triangle |
-            PrimitiveKind::TriangleMesh
+        matches!(
+            self,
+            PrimitiveKind::Polygon | PrimitiveKind::Triangle | PrimitiveKind::TriangleMesh
         )
     }
 }
@@ -146,10 +144,8 @@ impl GeometryPrimitive for GeometryUnion {
         match self {
             GeometryUnion::Point(_) => PrimitiveKind::Point,
             GeometryUnion::Vector(_) => PrimitiveKind::LineSegment, // ベクトルは線分として扱う
-            //GeometryUnion::Circle(_) => PrimitiveKind::Circle,
-            //GeometryUnion::Ellipse(_) => PrimitiveKind::Ellipse,
+                                                                    //GeometryUnion::Circle(_) => PrimitiveKind::Circle,
+                                                                    //GeometryUnion::Ellipse(_) => PrimitiveKind::Ellipse,
         }
     }
 }
-
-

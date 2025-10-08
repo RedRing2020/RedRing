@@ -109,7 +109,7 @@ impl Circle {
         let distance = self.center.distance_to(&other.center);
         let sum_radii = self.radius + other.radius;
         let diff_radii = (self.radius - other.radius).abs();
-        
+
         distance <= sum_radii && distance >= diff_radii
     }
 

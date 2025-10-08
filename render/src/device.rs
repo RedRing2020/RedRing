@@ -10,13 +10,12 @@ pub struct GpuContext<'a> {
 
 impl<'a> GpuContext<'a> {
     pub fn new(instance: &'a Instance, surface: &'a Surface<'a>) -> Self {
-        let adapter = pollster::block_on(
-            instance.request_adapter(&wgpu::RequestAdapterOptions {
-                compatible_surface: Some(surface),
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                force_fallback_adapter: false,
-            })
-        ).expect("No suitable adapter found");
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            compatible_surface: Some(surface),
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            force_fallback_adapter: false,
+        }))
+        .expect("No suitable adapter found");
 
         let descriptor = wgpu::DeviceDescriptor {
             label: Some("RedRing Device"),

@@ -3,10 +3,10 @@
 //! 数値計算の精度を保証し、単位系の安全性を提供する。
 use crate::tolerance::{ToleranceContext, TolerantEq, TolerantOrd};
 use std::fmt;
-use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// 許容誤差を持つスカラー値
-/// 
+///
 /// 注意: 長さに関する値はmm単位で格納される
 #[derive(Debug, Clone, Copy)]
 pub struct Scalar {
@@ -63,7 +63,10 @@ impl Scalar {
 
     /// 平方根
     pub fn sqrt(&self) -> Self {
-        debug_assert!(self.value >= 0.0, "Cannot take square root of negative number");
+        debug_assert!(
+            self.value >= 0.0,
+            "Cannot take square root of negative number"
+        );
         Self {
             value: self.value.sqrt(),
             // 誤差伝播: δ(√x) ≈ δx/(2√x)
@@ -73,7 +76,10 @@ impl Scalar {
 
     /// 自然対数
     pub fn ln(&self) -> Self {
-        debug_assert!(self.value > 0.0, "Cannot take logarithm of non-positive number");
+        debug_assert!(
+            self.value > 0.0,
+            "Cannot take logarithm of non-positive number"
+        );
         Self {
             value: self.value.ln(),
             // 誤差伝播: δ(ln(x)) ≈ δx/x
@@ -122,8 +128,10 @@ impl Scalar {
 
     /// べき乗
     pub fn powf(&self, exponent: f64) -> Self {
-        debug_assert!(self.value > 0.0 || exponent.fract() == 0.0,
-                     "Fractional power of negative number");
+        debug_assert!(
+            self.value > 0.0 || exponent.fract() == 0.0,
+            "Fractional power of negative number"
+        );
         let pow_val = self.value.powf(exponent);
         Self {
             value: pow_val,
@@ -166,7 +174,11 @@ impl TolerantEq for Scalar {
 }
 
 impl TolerantOrd for Scalar {
-    fn tolerant_cmp(&self, other: &Scalar, context: &ToleranceContext) -> Option<std::cmp::Ordering> {
+    fn tolerant_cmp(
+        &self,
+        other: &Scalar,
+        context: &ToleranceContext,
+    ) -> Option<std::cmp::Ordering> {
         if self.tolerant_eq(other, context) {
             Some(std::cmp::Ordering::Equal)
         } else if self.value < other.value {
@@ -235,7 +247,7 @@ impl Mul for Scalar {
                     let term1 = other.value * da;
                     let term2 = self.value * db;
                     Some((term1 * term1 + term2 * term2).sqrt())
-                },
+                }
                 (Some(da), None) => Some(other.value.abs() * da),
                 (None, Some(db)) => Some(self.value.abs() * db),
                 (None, None) => None,
@@ -257,7 +269,7 @@ impl Div for Scalar {
                     let term1 = da / other.value;
                     let term2 = self.value * db / (other.value * other.value);
                     Some((term1 * term1 + term2 * term2).sqrt())
-                },
+                }
                 (Some(da), None) => Some(da / other.value.abs()),
                 (None, Some(db)) => Some(self.value.abs() * db / (other.value * other.value)),
                 (None, None) => None,
@@ -297,9 +309,20 @@ impl fmt::Display for Scalar {
 pub mod constants {
     use super::Scalar;
 
-    pub const PI: Scalar = Scalar { value: std::f64::consts::PI, tolerance: None };
-    pub const E: Scalar = Scalar { value: std::f64::consts::E, tolerance: None };
-    pub const SQRT_2: Scalar = Scalar { value: std::f64::consts::SQRT_2, tolerance: None };
-    pub const FRAC_1_SQRT_2: Scalar = Scalar { value: std::f64::consts::FRAC_1_SQRT_2, tolerance: None };
+    pub const PI: Scalar = Scalar {
+        value: std::f64::consts::PI,
+        tolerance: None,
+    };
+    pub const E: Scalar = Scalar {
+        value: std::f64::consts::E,
+        tolerance: None,
+    };
+    pub const SQRT_2: Scalar = Scalar {
+        value: std::f64::consts::SQRT_2,
+        tolerance: None,
+    };
+    pub const FRAC_1_SQRT_2: Scalar = Scalar {
+        value: std::f64::consts::FRAC_1_SQRT_2,
+        tolerance: None,
+    };
 }
-

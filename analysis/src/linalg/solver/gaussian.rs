@@ -78,7 +78,10 @@ impl<T: Scalar> GaussianSolver<T> {
             if self.use_partial_pivoting {
                 self.partial_pivot(aug_matrix, k)?;
             } else if aug_matrix[k][k].abs() < self.tolerance {
-                return Err(format!("Matrix is singular at diagonal element ({}, {})", k, k));
+                return Err(format!(
+                    "Matrix is singular at diagonal element ({}, {})",
+                    k, k
+                ));
             }
 
             // 前進消去
@@ -169,10 +172,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_2x2() {
-        let matrix = vec![
-            vec![2.0, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
         let rhs = vec![5.0, 6.0];
 
         let solver = GaussianSolver::new(1e-15);
@@ -216,10 +216,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_without_pivoting() {
-        let matrix = vec![
-            vec![0.001, 1.0],
-            vec![2.0, 1.0],
-        ];
+        let matrix = vec![vec![0.001, 1.0], vec![2.0, 1.0]];
         let rhs = vec![1.0, 3.0];
 
         let solver = GaussianSolver::new(1e-15).with_pivoting(false);

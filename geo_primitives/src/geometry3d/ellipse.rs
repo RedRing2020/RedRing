@@ -2,7 +2,7 @@
 //!
 //! 3次元楕円の基本実装
 
-use crate::geometry3d::{Circle, Point3D, Vector3D, BBox3D, Direction3D};
+use crate::geometry3d::{BBox3D, Circle, Direction3D, Point3D, Vector3D};
 use geo_foundation::abstract_types::geometry::Direction;
 use std::f64::consts::PI;
 
@@ -186,7 +186,7 @@ impl Ellipse {
     pub fn point_at_angle(&self, angle: f64) -> Point3D {
         let u_vec = self.u_axis.to_vector();
         let v_vec = self.v_axis().to_vector();
-        
+
         let cos_t = angle.cos();
         let sin_t = angle.sin();
 
@@ -213,7 +213,8 @@ impl Ellipse {
         let v_coord = to_point.dot(&self.v_axis().to_vector());
 
         // 楕円の方程式で内部判定
-        let normalized = (u_coord / self.major_radius).powi(2) + (v_coord / self.minor_radius).powi(2);
+        let normalized =
+            (u_coord / self.major_radius).powi(2) + (v_coord / self.minor_radius).powi(2);
         normalized <= 1.0
     }
 
@@ -231,7 +232,8 @@ impl Ellipse {
         let v_coord = to_point.dot(&self.v_axis().to_vector());
 
         // 楕円の方程式で境界判定
-        let normalized = (u_coord / self.major_radius).powi(2) + (v_coord / self.minor_radius).powi(2);
+        let normalized =
+            (u_coord / self.major_radius).powi(2) + (v_coord / self.minor_radius).powi(2);
         (normalized - 1.0).abs() <= GEOMETRIC_TOLERANCE
     }
 
@@ -248,9 +250,8 @@ impl Ellipse {
             points.push(self.point_at_angle(angle));
         }
 
-        BBox3D::from_point_array(&points).unwrap_or_else(|| {
-            BBox3D::from_3d_points(self.center, self.center)
-        })
+        BBox3D::from_point_array(&points)
+            .unwrap_or_else(|| BBox3D::from_3d_points(self.center, self.center))
     }
 
     /// 楕円をスケール

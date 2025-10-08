@@ -3,7 +3,7 @@
 //! 2D幾何計算、グラフィックス、UI座標に最適化
 //! 高速な演算のためコンパイル時サイズ確定
 use crate::linalg::scalar::Scalar;
-use std::ops::{Add, Sub, Mul, Neg};
+use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元固定サイズベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -114,7 +114,7 @@ impl<T: Scalar> Vector2<T> {
         let sin_a = angle.sin();
         Self::new(
             self.data[0] * cos_a - self.data[1] * sin_a,
-            self.data[0] * sin_a + self.data[1] * cos_a
+            self.data[0] * sin_a + self.data[1] * cos_a,
         )
     }
 
@@ -164,7 +164,7 @@ impl<T: Scalar> Vector2<T> {
     pub fn min(&self, other: &Self) -> Self {
         Self::new(
             self.data[0].min(other.data[0]),
-            self.data[1].min(other.data[1])
+            self.data[1].min(other.data[1]),
         )
     }
 
@@ -172,7 +172,7 @@ impl<T: Scalar> Vector2<T> {
     pub fn max(&self, other: &Self) -> Self {
         Self::new(
             self.data[0].max(other.data[0]),
-            self.data[1].max(other.data[1])
+            self.data[1].max(other.data[1]),
         )
     }
 

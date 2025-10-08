@@ -127,9 +127,9 @@ mod direction3d_tests {
         assert!((direction.length() - 1.0).abs() < 1e-10);
 
         let expected_length = (1.0 + 4.0 + 4.0_f64).sqrt();
-        assert!((direction.x() - 1.0/expected_length).abs() < 1e-10);
-        assert!((direction.y() - 2.0/expected_length).abs() < 1e-10);
-        assert!((direction.z() - 2.0/expected_length).abs() < 1e-10);
+        assert!((direction.x() - 1.0 / expected_length).abs() < 1e-10);
+        assert!((direction.y() - 2.0 / expected_length).abs() < 1e-10);
+        assert!((direction.z() - 2.0 / expected_length).abs() < 1e-10);
     }
 
     #[test]

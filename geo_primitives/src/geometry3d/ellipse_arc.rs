@@ -2,7 +2,7 @@
 //!
 //! 3次元楕円弧の基本実装
 
-use crate::geometry3d::{Ellipse, Point3D, Vector3D, BBox3D};
+use crate::geometry3d::{BBox3D, Ellipse, Point3D, Vector3D};
 use geo_foundation::abstract_types::geometry::Direction;
 use std::f64::consts::PI;
 
@@ -143,12 +143,12 @@ impl EllipseArc {
         // 楕円の微分を計算
         let u_vec = self.ellipse.u_axis().to_vector();
         let v_vec = self.ellipse.v_axis().to_vector();
-        
+
         let cos_t = angle.cos();
         let sin_t = angle.sin();
 
-        u_vec * (-self.ellipse.major_radius() * sin_t) + 
-                     v_vec * (self.ellipse.minor_radius() * cos_t)
+        u_vec * (-self.ellipse.major_radius() * sin_t)
+            + v_vec * (self.ellipse.minor_radius() * cos_t)
     }
 
     /// 指定されたパラメータでの楕円弧の接線ベクトルを取得
@@ -171,11 +171,11 @@ impl EllipseArc {
     pub fn bounding_box(&self) -> BBox3D {
         // 楕円弧上の複数の点をサンプリングしてバウンディングボックスを計算
         let mut points = Vec::new();
-        
+
         // 開始点と終了点
         points.push(self.start_point());
         points.push(self.end_point());
-        
+
         // 中間点を追加
         let num_samples = 16;
         for i in 1..num_samples {
@@ -183,9 +183,8 @@ impl EllipseArc {
             points.push(self.point_at_parameter(t));
         }
 
-        BBox3D::from_point_array(&points).unwrap_or_else(|| {
-            BBox3D::from_3d_points(self.center(), self.center())
-        })
+        BBox3D::from_point_array(&points)
+            .unwrap_or_else(|| BBox3D::from_3d_points(self.center(), self.center()))
     }
 
     /// 点が楕円弧上にあるかを判定
@@ -204,7 +203,7 @@ impl EllipseArc {
 
         let u_coord = to_point.dot(&self.ellipse.u_axis().to_vector());
         let v_coord = to_point.dot(&self.ellipse.v_axis().to_vector());
-        
+
         let angle = v_coord.atan2(u_coord);
         let normalized_angle = Self::normalize_angle(angle);
 
@@ -214,7 +213,7 @@ impl EllipseArc {
     /// 角度が楕円弧の範囲内にあるかを判定
     pub fn angle_in_range(&self, angle: f64) -> bool {
         let normalized = Self::normalize_angle(angle);
-        
+
         if self.end_angle >= self.start_angle {
             normalized >= self.start_angle && normalized <= self.end_angle
         } else {
@@ -247,7 +246,7 @@ impl EllipseArc {
     /// 楕円弧上の点列を生成
     pub fn generate_points(&self, num_points: usize) -> Vec<Point3D> {
         let mut points = Vec::with_capacity(num_points);
-        
+
         for i in 0..num_points {
             let t = if num_points == 1 {
                 0.5
@@ -256,7 +255,7 @@ impl EllipseArc {
             };
             points.push(self.point_at_parameter(t));
         }
-        
+
         points
     }
 
@@ -306,11 +305,11 @@ mod tests {
     #[test]
     fn test_ellipse_arc_length() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        
+
         // 小さな楕円弧（π/4ラジアン = 45度）
         let arc = EllipseArc::xy_plane(center, 3.0, 2.0, 0.0, PI / 4.0).unwrap();
         let arc_length = arc.arc_length();
-        
+
         // 長さは正の値である必要があります
         assert!(arc_length > 0.0, "楕円弧の長さは正の値である必要があります");
     }

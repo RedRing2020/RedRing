@@ -7,7 +7,7 @@
 //! - 単位クォータニオンによる回転表現
 use crate::linalg::scalar::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
-use std::ops::{Add, Sub, Mul, Neg};
+use std::ops::{Add, Mul, Neg, Sub};
 
 /// 単位クォータニオン（回転表現用）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -22,10 +22,14 @@ impl<T: Scalar> Quaternion<T> {
     // === 定数 ===
 
     /// 単位クォータニオン（回転なし）
-    pub const IDENTITY: Quaternion<f64> = Quaternion { data: [0.0, 0.0, 0.0, 1.0] };
+    pub const IDENTITY: Quaternion<f64> = Quaternion {
+        data: [0.0, 0.0, 0.0, 1.0],
+    };
 
     /// ゼロクォータニオン
-    pub const ZERO: Quaternion<f64> = Quaternion { data: [0.0, 0.0, 0.0, 0.0] };
+    pub const ZERO: Quaternion<f64> = Quaternion {
+        data: [0.0, 0.0, 0.0, 0.0],
+    };
 
     // === コンストラクタ ===
 
@@ -56,7 +60,7 @@ impl<T: Scalar> Quaternion<T> {
             axis.x() * sin_half,
             axis.y() * sin_half,
             axis.z() * sin_half,
-            cos_half
+            cos_half,
         )
     }
 
@@ -78,7 +82,7 @@ impl<T: Scalar> Quaternion<T> {
             sr * cp * cy - cr * sp * sy,
             cr * sp * cy + sr * cp * sy,
             cr * cp * sy - sr * sp * cy,
-            cr * cp * cy + sr * sp * sy
+            cr * cp * cy + sr * sp * sy,
         )
     }
 
@@ -158,18 +162,19 @@ impl<T: Scalar> Quaternion<T> {
 
     /// ノルム（大きさ）を計算
     pub fn norm(&self) -> T {
-        (self.data[0] * self.data[0] +
-         self.data[1] * self.data[1] +
-         self.data[2] * self.data[2] +
-         self.data[3] * self.data[3]).sqrt()
+        (self.data[0] * self.data[0]
+            + self.data[1] * self.data[1]
+            + self.data[2] * self.data[2]
+            + self.data[3] * self.data[3])
+            .sqrt()
     }
 
     /// ノルムの2乗を計算
     pub fn norm_squared(&self) -> T {
-        self.data[0] * self.data[0] +
-        self.data[1] * self.data[1] +
-        self.data[2] * self.data[2] +
-        self.data[3] * self.data[3]
+        self.data[0] * self.data[0]
+            + self.data[1] * self.data[1]
+            + self.data[2] * self.data[2]
+            + self.data[3] * self.data[3]
     }
 
     /// 正規化（単位クォータニオン化）
@@ -182,7 +187,7 @@ impl<T: Scalar> Quaternion<T> {
             self.data[0] / norm,
             self.data[1] / norm,
             self.data[2] / norm,
-            self.data[3] / norm
+            self.data[3] / norm,
         ))
     }
 
@@ -202,16 +207,16 @@ impl<T: Scalar> Quaternion<T> {
             conjugate.data[0] / norm_sq,
             conjugate.data[1] / norm_sq,
             conjugate.data[2] / norm_sq,
-            conjugate.data[3] / norm_sq
+            conjugate.data[3] / norm_sq,
         ))
     }
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
-        self.data[0] * other.data[0] +
-        self.data[1] * other.data[1] +
-        self.data[2] * other.data[2] +
-        self.data[3] * other.data[3]
+        self.data[0] * other.data[0]
+            + self.data[1] * other.data[1]
+            + self.data[2] * other.data[2]
+            + self.data[3] * other.data[3]
     }
 
     // === 回転操作 ===
@@ -240,7 +245,7 @@ impl<T: Scalar> Quaternion<T> {
         let axis = Vector3::new(
             normalized.x() / sin_half_angle,
             normalized.y() / sin_half_angle,
-            normalized.z() / sin_half_angle
+            normalized.z() / sin_half_angle,
         );
 
         Ok((axis, angle))
@@ -263,7 +268,11 @@ impl<T: Scalar> Quaternion<T> {
         // Pitch (y-axis rotation)
         let sin_p = T::from_f64(2.0) * (w * y - z * x);
         let pitch = if sin_p.abs() >= T::ONE {
-            if sin_p >= T::ZERO { T::PI / T::from_f64(2.0) } else { -T::PI / T::from_f64(2.0) }
+            if sin_p >= T::ZERO {
+                T::PI / T::from_f64(2.0)
+            } else {
+                -T::PI / T::from_f64(2.0)
+            }
         } else {
             sin_p.asin()
         };
@@ -328,10 +337,10 @@ impl<T: Scalar> Quaternion<T> {
 
     /// ゼロクォータニオンかどうか判定
     pub fn is_zero(&self) -> bool {
-        self.data[0].abs() < T::EPSILON &&
-        self.data[1].abs() < T::EPSILON &&
-        self.data[2].abs() < T::EPSILON &&
-        self.data[3].abs() < T::EPSILON
+        self.data[0].abs() < T::EPSILON
+            && self.data[1].abs() < T::EPSILON
+            && self.data[2].abs() < T::EPSILON
+            && self.data[3].abs() < T::EPSILON
     }
 
     /// 回転角度を取得（ラジアン）
@@ -349,7 +358,7 @@ impl<T: Scalar> Add for Quaternion<T> {
             self.data[0] + other.data[0],
             self.data[1] + other.data[1],
             self.data[2] + other.data[2],
-            self.data[3] + other.data[3]
+            self.data[3] + other.data[3],
         )
     }
 }
@@ -361,7 +370,7 @@ impl<T: Scalar> Sub for Quaternion<T> {
             self.data[0] - other.data[0],
             self.data[1] - other.data[1],
             self.data[2] - other.data[2],
-            self.data[3] - other.data[3]
+            self.data[3] - other.data[3],
         )
     }
 }
@@ -373,7 +382,7 @@ impl<T: Scalar> Mul<T> for Quaternion<T> {
             self.data[0] * scalar,
             self.data[1] * scalar,
             self.data[2] * scalar,
-            self.data[3] * scalar
+            self.data[3] * scalar,
         )
     }
 }
@@ -383,17 +392,20 @@ impl<T: Scalar> Mul for Quaternion<T> {
     fn mul(self, other: Self) -> Self::Output {
         // クォータニオンの積 (Hamilton product)
         Self::new(
-            self.data[3] * other.data[0] + self.data[0] * other.data[3] +
-            self.data[1] * other.data[2] - self.data[2] * other.data[1],
-
-            self.data[3] * other.data[1] - self.data[0] * other.data[2] +
-            self.data[1] * other.data[3] + self.data[2] * other.data[0],
-
-            self.data[3] * other.data[2] + self.data[0] * other.data[1] -
-            self.data[1] * other.data[0] + self.data[2] * other.data[3],
-
-            self.data[3] * other.data[3] - self.data[0] * other.data[0] -
-            self.data[1] * other.data[1] - self.data[2] * other.data[2]
+            self.data[3] * other.data[0]
+                + self.data[0] * other.data[3]
+                + self.data[1] * other.data[2]
+                - self.data[2] * other.data[1],
+            self.data[3] * other.data[1] - self.data[0] * other.data[2]
+                + self.data[1] * other.data[3]
+                + self.data[2] * other.data[0],
+            self.data[3] * other.data[2] + self.data[0] * other.data[1]
+                - self.data[1] * other.data[0]
+                + self.data[2] * other.data[3],
+            self.data[3] * other.data[3]
+                - self.data[0] * other.data[0]
+                - self.data[1] * other.data[1]
+                - self.data[2] * other.data[2],
         )
     }
 }
@@ -495,8 +507,8 @@ mod tests {
     #[test]
     fn test_quaternion_euler_conversion() {
         let pitch = PI / 6.0; // 30度
-        let yaw = PI / 4.0;    // 45度
-        let roll = PI / 3.0;   // 60度
+        let yaw = PI / 4.0; // 45度
+        let roll = PI / 3.0; // 60度
 
         let q = Quaternion::from_euler_angles(pitch, yaw, roll);
         let (recovered_pitch, recovered_yaw, recovered_roll) = q.to_euler_angles();

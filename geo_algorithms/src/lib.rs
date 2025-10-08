@@ -44,6 +44,6 @@
 
 // geo_foundationからの基本型の再エクスポート
 pub use geo_foundation::{Scalar, ToleranceContext};
-pub use geo_primitives::{Vector2D, Vector3D};
 pub use geo_primitives::Point2D;
+pub use geo_primitives::{Vector2D, Vector3D};
 // pub use geo_primitives::Point3D;  // Point3D は一時的にコメントアウト
