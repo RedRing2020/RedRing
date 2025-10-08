@@ -2,7 +2,7 @@
 //!
 //! 3次元円弧の基本実装
 
-use crate::geometry3d::{Circle, Point3D, Vector3D, Direction3D};
+use crate::geometry3d::{Circle, Point3D, Vector3D};
 use geo_foundation::abstract_types::geometry::angle::Angle;
 use std::f64::consts::PI;
 
@@ -323,6 +323,8 @@ impl PartialEq for Arc {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry3d::Direction3D;
+    use geo_foundation::abstract_types::geometry::Direction;
 
     #[test]
     fn test_arc_creation() {
