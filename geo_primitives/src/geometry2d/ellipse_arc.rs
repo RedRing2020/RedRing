@@ -2,7 +2,9 @@
 //!
 //! 2次元楕円弧の基本実装
 
-use crate::geometry2d::{BBox2D, Ellipse, Point2D, Vector2D};
+#[cfg(test)]
+use crate::geometry2d::Point2D;
+use crate::geometry2d::{BBox2D, Ellipse, Vector2D};
 use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
@@ -56,7 +58,7 @@ impl EllipseArc {
 
     /// 楕円弧を作成（center, radii, angles）
     pub fn new_from_params(
-        center: Point2D,
+        center: crate::geometry2d::Point2DF64,
         major_radius: f64,
         minor_radius: f64,
         rotation: f64,
@@ -99,7 +101,7 @@ impl EllipseArc {
     }
 
     /// 楕円弧の中心を取得
-    pub fn center(&self) -> Point2D {
+    pub fn center(&self) -> crate::geometry2d::Point2DF64 {
         self.ellipse.center()
     }
 
@@ -129,28 +131,28 @@ impl EllipseArc {
     }
 
     /// 指定された角度での楕円弧上の点を取得
-    pub fn point_at_angle(&self, angle: f64) -> Point2D {
+    pub fn point_at_angle(&self, angle: f64) -> crate::geometry2d::Point2DF64 {
         self.ellipse.point_at_angle(angle)
     }
 
     /// 指定されたパラメータ（0.0-1.0）での楕円弧上の点を取得
-    pub fn point_at_parameter(&self, t: f64) -> Point2D {
+    pub fn point_at_parameter(&self, t: f64) -> crate::geometry2d::Point2DF64 {
         let angle = self.start_angle + t * self.calculate_angle_range();
         self.point_at_angle(angle)
     }
 
     /// 楕円弧の開始点を取得
-    pub fn start_point(&self) -> Point2D {
+    pub fn start_point(&self) -> crate::geometry2d::Point2DF64 {
         self.point_at_angle(self.start_angle)
     }
 
     /// 楕円弧の終了点を取得
-    pub fn end_point(&self) -> Point2D {
+    pub fn end_point(&self) -> crate::geometry2d::Point2DF64 {
         self.point_at_angle(self.end_angle)
     }
 
     /// 楕円弧の中間点を取得
-    pub fn mid_point(&self) -> Point2D {
+    pub fn mid_point(&self) -> crate::geometry2d::Point2DF64 {
         self.point_at_parameter(0.5)
     }
 
@@ -218,7 +220,7 @@ impl EllipseArc {
     }
 
     /// 点が楕円弧上にあるかを判定
-    pub fn on_arc(&self, point: &Point2D) -> bool {
+    pub fn on_arc(&self, point: &crate::geometry2d::Point2DF64) -> bool {
         // まず楕円境界上にあるかをチェック
         if !self.ellipse.on_boundary(point) {
             return false;
@@ -267,7 +269,7 @@ impl EllipseArc {
     }
 
     /// 楕円弧上の点列を生成
-    pub fn generate_points(&self, num_points: usize) -> Vec<Point2D> {
+    pub fn generate_points(&self, num_points: usize) -> Vec<crate::geometry2d::Point2DF64> {
         let mut points = Vec::with_capacity(num_points);
 
         for i in 0..num_points {

@@ -2,7 +2,9 @@
 //!
 //! 2次元楕円の基本実装
 
-use crate::geometry2d::{BBox2D, Circle, Point2D, Vector2D};
+#[cfg(test)]
+use crate::geometry2d::Point2D;
+use crate::geometry2d::{BBox2D, Circle, Point2DF64, Vector2D};
 use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
@@ -35,7 +37,7 @@ const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 /// 2D平面上の楕円を表現する構造体
 #[derive(Debug, Clone)]
 pub struct Ellipse {
-    center: Point2D,
+    center: crate::geometry2d::Point2DF64,
     major_radius: f64,
     minor_radius: f64,
     rotation: Angle<f64>, // 回転角度
@@ -50,7 +52,7 @@ impl Ellipse {
     /// * `minor_radius` - 短軸の半径
     /// * `rotation` - 回転角度
     pub fn new(
-        center: Point2D,
+        center: Point2DF64,
         major_radius: f64,
         minor_radius: f64,
         rotation: Angle<f64>,
@@ -72,7 +74,7 @@ impl Ellipse {
 
     /// 軸平行楕円を作成（回転なし）
     pub fn axis_aligned(
-        center: Point2D,
+        center: crate::geometry2d::Point2DF64,
         major_radius: f64,
         minor_radius: f64,
     ) -> Result<Self, EllipseError> {
@@ -87,7 +89,7 @@ impl Ellipse {
     }
 
     /// 楕円の中心座標を取得
-    pub fn center(&self) -> Point2D {
+    pub fn center(&self) -> Point2DF64 {
         self.center
     }
 
@@ -140,7 +142,7 @@ impl Ellipse {
     }
 
     /// 楕円の焦点を取得
-    pub fn foci(&self) -> (Point2D, Point2D) {
+    pub fn foci(&self) -> (Point2DF64, Point2DF64) {
         let focal_dist = self.focal_distance();
         let cos_rot = self.rotation.to_radians().cos();
         let sin_rot = self.rotation.to_radians().sin();
@@ -150,7 +152,7 @@ impl Ellipse {
         let f2_x = self.center.x() - focal_dist * cos_rot;
         let f2_y = self.center.y() - focal_dist * sin_rot;
 
-        (Point2D::new(f1_x, f1_y), Point2D::new(f2_x, f2_y))
+        (Point2DF64::new(f1_x, f1_y), Point2DF64::new(f2_x, f2_y))
     }
 
     /// 楕円が円かどうかを判定
@@ -159,7 +161,7 @@ impl Ellipse {
     }
 
     /// 指定された角度での楕円周上の点を取得
-    pub fn point_at_angle(&self, angle: f64) -> Point2D {
+    pub fn point_at_angle(&self, angle: f64) -> Point2DF64 {
         let cos_rot = self.rotation.to_radians().cos();
         let sin_rot = self.rotation.to_radians().sin();
         let cos_t = angle.cos();
@@ -168,11 +170,11 @@ impl Ellipse {
         let x = self.major_radius * cos_t * cos_rot - self.minor_radius * sin_t * sin_rot;
         let y = self.major_radius * cos_t * sin_rot + self.minor_radius * sin_t * cos_rot;
 
-        Point2D::new(self.center.x() + x, self.center.y() + y)
+        Point2DF64::new(self.center.x() + x, self.center.y() + y)
     }
 
     /// 点が楕円内部にあるかを判定
-    pub fn contains_point(&self, point: &Point2D) -> bool {
+    pub fn contains_point(&self, point: &Point2DF64) -> bool {
         // 楕円の中心を原点とした座標系に変換
         let dx = point.x() - self.center.x();
         let dy = point.y() - self.center.y();
@@ -189,7 +191,7 @@ impl Ellipse {
     }
 
     /// 点が楕円境界上にあるかを判定
-    pub fn on_boundary(&self, point: &Point2D) -> bool {
+    pub fn on_boundary(&self, point: &Point2DF64) -> bool {
         // 楕円の中心を原点とした座標系に変換
         let dx = point.x() - self.center.x();
         let dy = point.y() - self.center.y();
@@ -219,8 +221,8 @@ impl Ellipse {
         let y_extent = ((a * sin_rot).powi(2) + (b * cos_rot).powi(2)).sqrt();
 
         BBox2D::from_points(
-            Point2D::new(self.center.x() - x_extent, self.center.y() - y_extent),
-            Point2D::new(self.center.x() + x_extent, self.center.y() + y_extent),
+            Point2DF64::new(self.center.x() - x_extent, self.center.y() - y_extent),
+            Point2DF64::new(self.center.x() + x_extent, self.center.y() + y_extent),
         )
     }
 
@@ -237,7 +239,8 @@ impl Ellipse {
 
     /// 楕円を平行移動
     pub fn translate(&self, vector: &Vector2D) -> Self {
-        let new_center = Point2D::new(self.center.x() + vector.x(), self.center.y() + vector.y());
+        let new_center =
+            Point2DF64::new(self.center.x() + vector.x(), self.center.y() + vector.y());
         Self::new(
             new_center,
             self.major_radius,
@@ -259,7 +262,7 @@ impl Ellipse {
     }
 
     /// 指定された点から楕円境界への最短距離を計算（近似）
-    pub fn distance_to_point(&self, point: &Point2D) -> f64 {
+    pub fn distance_to_point(&self, point: &Point2DF64) -> f64 {
         if self.contains_point(point) {
             0.0
         } else {
@@ -310,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_ellipse_creation() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point2DF64::new(0.0, 0.0);
         let ellipse = Ellipse::axis_aligned(center, 3.0, 2.0).unwrap();
 
         assert_eq!(ellipse.center(), center);

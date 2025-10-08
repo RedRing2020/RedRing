@@ -1,7 +1,7 @@
 //! Circle type parametrization tests
 //! Verify Circle<T> functionality with both f32 and f64 precision
 
-use crate::geometry2d::{Circle, Point};
+use crate::geometry2d::{Circle, Point2D};
 use geo_foundation::abstract_types::Scalar;
 
 #[cfg(test)]
@@ -11,8 +11,8 @@ mod tests {
     // Type aliases
     type Circlef = Circle<f32>;
     type CircleTest = Circle<f64>;
-    type Pointf = Point<f32>;
-    type PointTest = Point<f64>;
+    type Pointf = Point2D<f32>;
+    type PointTest = Point2D<f64>;
 
     #[test]
     fn test_circle_basic_creation() {

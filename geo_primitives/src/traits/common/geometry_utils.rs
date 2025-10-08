@@ -3,12 +3,12 @@
 //! f64ベース幾何プリミティブ間の変換とヘルパー関数を提供
 
 // geo_foundation参照を使用 - Scalarを抽象化
-use crate::geometry2d::Point2D;
+use crate::geometry2d::{Point2D, Point2DF64};
 use crate::geometry3d::Point3D;
 use geo_foundation::Scalar;
 
 /// Point2Dからf64タプルに変換
-pub fn point2d_to_f64(point: &Point2D) -> (f64, f64) {
+pub fn point2d_to_f64(point: &Point2DF64) -> (f64, f64) {
     (point.x(), point.y())
 }
 
@@ -18,7 +18,7 @@ pub fn point3d_to_f64(point: &Point3D) -> (f64, f64, f64) {
 }
 
 /// f64から新しいPoint2Dを作成
-pub fn point2d_from_f64(x: f64, y: f64) -> Point2D {
+pub fn point2d_from_f64(x: f64, y: f64) -> Point2DF64 {
     Point2D::new(x, y)
 }
 
@@ -51,7 +51,7 @@ pub fn f64_max(a: f64, b: f64) -> f64 {
 }
 
 /// Point2Dのf64値でのbounding box計算
-pub fn point2d_bounding_box(points: &[Point2D]) -> Option<(f64, f64, f64, f64)> {
+pub fn point2d_bounding_box(points: &[Point2DF64]) -> Option<(f64, f64, f64, f64)> {
     if points.is_empty() {
         return None;
     }
@@ -101,7 +101,7 @@ pub fn point3d_bounding_box(points: &[Point3D]) -> Option<(f64, f64, f64, f64, f
 }
 
 /// Point2Dの重心をf64で計算
-pub fn point2d_centroid(points: &[Point2D]) -> Option<Point2D> {
+pub fn point2d_centroid(points: &[Point2DF64]) -> Option<Point2DF64> {
     if points.is_empty() {
         return None;
     }
