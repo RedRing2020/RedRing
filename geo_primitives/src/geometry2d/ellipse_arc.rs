@@ -2,7 +2,7 @@
 //!
 //! 2次元楕円弧の基本実装
 
-use crate::geometry2d::{Ellipse, Point2D, Vector2D, BBox2D};
+use crate::geometry2d::{BBox2D, Ellipse, Point2D, Vector2D};
 use geo_foundation::abstract_types::geometry::angle::Angle;
 use std::f64::consts::PI;
 
@@ -63,8 +63,13 @@ impl EllipseArc {
         start_angle: f64,
         end_angle: f64,
     ) -> Result<Self, EllipseArcError> {
-        let ellipse = Ellipse::new(center, major_radius, minor_radius, Angle::from_radians(rotation))
-            .map_err(|e| EllipseArcError::EllipseError(format!("{}", e)))?;
+        let ellipse = Ellipse::new(
+            center,
+            major_radius,
+            minor_radius,
+            Angle::from_radians(rotation),
+        )
+        .map_err(|e| EllipseArcError::EllipseError(format!("{}", e)))?;
         Self::new(ellipse, start_angle, end_angle)
     }
 
@@ -156,20 +161,22 @@ impl EllipseArc {
         let b = self.semi_minor_axis();
         let cos_theta = angle.cos();
         let sin_theta = angle.sin();
-        
+
         let rotation = self.ellipse.rotation().to_radians();
         let cos_rot = rotation.cos();
         let sin_rot = rotation.sin();
-        
+
         // ローカル座標での接線
         let local_tangent_x = -a * sin_theta;
         let local_tangent_y = b * cos_theta;
-        
+
         // グローバル座標に変換
         let tangent_x = local_tangent_x * cos_rot - local_tangent_y * sin_rot;
         let tangent_y = local_tangent_x * sin_rot + local_tangent_y * cos_rot;
-        
-        Vector2D::new(tangent_x, tangent_y).normalize().unwrap_or(Vector2D::new(1.0, 0.0))
+
+        Vector2D::new(tangent_x, tangent_y)
+            .normalize()
+            .unwrap_or(Vector2D::new(1.0, 0.0))
     }
 
     /// 指定されたパラメータでの楕円弧の接線ベクトルを取得
@@ -192,11 +199,11 @@ impl EllipseArc {
     pub fn bounding_box(&self) -> BBox2D {
         // 楕円弧上の複数の点をサンプリングしてバウンディングボックスを計算
         let mut points = Vec::new();
-        
+
         // 開始点と終了点
         points.push(self.start_point());
         points.push(self.end_point());
-        
+
         // 中間点を追加
         let num_samples = 16;
         for i in 1..num_samples {
@@ -218,10 +225,7 @@ impl EllipseArc {
         }
 
         // 角度を計算して範囲内かをチェック
-        let to_point = Vector2D::new(
-            point.x() - self.center().x(),
-            point.y() - self.center().y(),
-        );
+        let to_point = Vector2D::new(point.x() - self.center().x(), point.y() - self.center().y());
 
         let angle = to_point.y().atan2(to_point.x());
         let normalized_angle = Self::normalize_angle(angle);
@@ -232,7 +236,7 @@ impl EllipseArc {
     /// 角度が楕円弧の範囲内にあるかを判定
     pub fn angle_in_range(&self, angle: f64) -> bool {
         let normalized = Self::normalize_angle(angle);
-        
+
         if self.end_angle >= self.start_angle {
             normalized >= self.start_angle && normalized <= self.end_angle
         } else {
@@ -265,7 +269,7 @@ impl EllipseArc {
     /// 楕円弧上の点列を生成
     pub fn generate_points(&self, num_points: usize) -> Vec<Point2D> {
         let mut points = Vec::with_capacity(num_points);
-        
+
         for i in 0..num_points {
             let t = if num_points == 1 {
                 0.5
@@ -274,7 +278,7 @@ impl EllipseArc {
             };
             points.push(self.point_at_parameter(t));
         }
-        
+
         points
     }
 
@@ -324,11 +328,11 @@ mod tests {
     #[test]
     fn test_ellipse_arc_length() {
         let center = Point2D::new(0.0, 0.0);
-        
+
         // 小さな楕円弧（π/4ラジアン = 45度）
         let arc = EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, 0.0, PI / 4.0).unwrap();
         let arc_length = arc.arc_length();
-        
+
         // 長さは正の値である必要があります
         assert!(arc_length > 0.0, "楕円弧の長さは正の値である必要があります");
     }
@@ -336,7 +340,8 @@ mod tests {
     #[test]
     fn test_angle_in_range() {
         let center = Point2D::new(0.0, 0.0);
-        let arc = EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, PI / 4.0, 3.0 * PI / 4.0).unwrap();
+        let arc =
+            EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, PI / 4.0, 3.0 * PI / 4.0).unwrap();
 
         assert!(arc.angle_in_range(PI / 2.0));
         assert!(!arc.angle_in_range(0.0));
