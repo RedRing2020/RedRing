@@ -98,6 +98,9 @@ pub trait Scalar:
     /// 最大値を取得
     fn max(self, other: Self) -> Self;
 
+    /// べき乗
+    fn powi(self, exp: i32) -> Self;
+
     /// 値を指定範囲にクランプ
     fn clamp(self, min: Self, max: Self) -> Self;
 
@@ -208,6 +211,11 @@ impl Scalar for f32 {
     fn from_f64(value: f64) -> Self {
         value as f32
     }
+
+    #[inline]
+    fn powi(self, exp: i32) -> Self {
+        self.powi(exp)
+    }
 }
 
 /// f64用のScalar実装
@@ -304,6 +312,11 @@ impl Scalar for f64 {
     #[inline]
     fn from_f64(value: f64) -> Self {
         value
+    }
+
+    #[inline]
+    fn powi(self, exp: i32) -> Self {
+        self.powi(exp)
     }
 }
 
