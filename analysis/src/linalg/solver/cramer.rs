@@ -3,8 +3,8 @@
 //! 小規模システム（2x2, 3x3）専用の直接解法
 //! 行列式を直接計算して解を求める
 use super::{LinearSolver, SolutionInfo};
-use crate::linalg::{Matrix2x2, Matrix3x3, Vector2, Vector3};
 use crate::linalg::scalar::Scalar;
+use crate::linalg::{Matrix2x2, Matrix3x3, Vector2, Vector3};
 
 /// Cramerの公式ソルバー
 pub struct CramerSolver<T: Scalar> {
@@ -18,36 +18,24 @@ impl<T: Scalar> CramerSolver<T> {
     }
 
     /// 2x2システムをCramerの公式で解く
-    pub fn solve_2x2(
-        &self,
-        matrix: &Matrix2x2<T>,
-        rhs: &Vector2<T>
-    ) -> Result<Vector2<T>, String> {
+    pub fn solve_2x2(&self, matrix: &Matrix2x2<T>, rhs: &Vector2<T>) -> Result<Vector2<T>, String> {
         let det = matrix.determinant();
         if det.abs() < self.tolerance {
             return Err("Matrix is singular".to_string());
         }
 
         // x = det_x / det, y = det_y / det
-        let det_x = Matrix2x2::new(
-            rhs.x(), matrix.get(0, 1),
-            rhs.y(), matrix.get(1, 1)
-        ).determinant();
+        let det_x =
+            Matrix2x2::new(rhs.x(), matrix.get(0, 1), rhs.y(), matrix.get(1, 1)).determinant();
 
-        let det_y = Matrix2x2::new(
-            matrix.get(0, 0), rhs.x(),
-            matrix.get(1, 0), rhs.y()
-        ).determinant();
+        let det_y =
+            Matrix2x2::new(matrix.get(0, 0), rhs.x(), matrix.get(1, 0), rhs.y()).determinant();
 
         Ok(Vector2::new(det_x / det, det_y / det))
     }
 
     /// 3x3システムをCramerの公式で解く
-    pub fn solve_3x3(
-        &self,
-        matrix: &Matrix3x3<T>,
-        rhs: &Vector3<T>
-    ) -> Result<Vector3<T>, String> {
+    pub fn solve_3x3(&self, matrix: &Matrix3x3<T>, rhs: &Vector3<T>) -> Result<Vector3<T>, String> {
         let det = matrix.determinant();
         if det.abs() < self.tolerance {
             return Err("Matrix is singular".to_string());
@@ -55,22 +43,43 @@ impl<T: Scalar> CramerSolver<T> {
 
         // x = det_x / det, y = det_y / det, z = det_z / det
         let det_x = Matrix3x3::new(
-            rhs.x(), matrix.get(0, 1), matrix.get(0, 2),
-            rhs.y(), matrix.get(1, 1), matrix.get(1, 2),
-            rhs.z(), matrix.get(2, 1), matrix.get(2, 2)
-        ).determinant();
+            rhs.x(),
+            matrix.get(0, 1),
+            matrix.get(0, 2),
+            rhs.y(),
+            matrix.get(1, 1),
+            matrix.get(1, 2),
+            rhs.z(),
+            matrix.get(2, 1),
+            matrix.get(2, 2),
+        )
+        .determinant();
 
         let det_y = Matrix3x3::new(
-            matrix.get(0, 0), rhs.x(), matrix.get(0, 2),
-            matrix.get(1, 0), rhs.y(), matrix.get(1, 2),
-            matrix.get(2, 0), rhs.z(), matrix.get(2, 2)
-        ).determinant();
+            matrix.get(0, 0),
+            rhs.x(),
+            matrix.get(0, 2),
+            matrix.get(1, 0),
+            rhs.y(),
+            matrix.get(1, 2),
+            matrix.get(2, 0),
+            rhs.z(),
+            matrix.get(2, 2),
+        )
+        .determinant();
 
         let det_z = Matrix3x3::new(
-            matrix.get(0, 0), matrix.get(0, 1), rhs.x(),
-            matrix.get(1, 0), matrix.get(1, 1), rhs.y(),
-            matrix.get(2, 0), matrix.get(2, 1), rhs.z()
-        ).determinant();
+            matrix.get(0, 0),
+            matrix.get(0, 1),
+            rhs.x(),
+            matrix.get(1, 0),
+            matrix.get(1, 1),
+            rhs.y(),
+            matrix.get(2, 0),
+            matrix.get(2, 1),
+            rhs.z(),
+        )
+        .determinant();
 
         Ok(Vector3::new(det_x / det, det_y / det, det_z / det))
     }
@@ -83,10 +92,8 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
         match n {
             2 => {
                 // 2x2の場合
-                let matrix_2x2 = Matrix2x2::new(
-                    matrix[0][0], matrix[0][1],
-                    matrix[1][0], matrix[1][1]
-                );
+                let matrix_2x2 =
+                    Matrix2x2::new(matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1]);
                 let rhs_2x2 = Vector2::new(rhs[0], rhs[1]);
 
                 let solution_vec = self.solve_2x2(&matrix_2x2, &rhs_2x2)?;
@@ -95,13 +102,19 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
                 // 残差計算
                 let residual = self.calculate_residual(matrix, rhs, &solution);
                 Ok(SolutionInfo::direct(solution, residual))
-            },
+            }
             3 => {
                 // 3x3の場合
                 let matrix_3x3 = Matrix3x3::new(
-                    matrix[0][0], matrix[0][1], matrix[0][2],
-                    matrix[1][0], matrix[1][1], matrix[1][2],
-                    matrix[2][0], matrix[2][1], matrix[2][2]
+                    matrix[0][0],
+                    matrix[0][1],
+                    matrix[0][2],
+                    matrix[1][0],
+                    matrix[1][1],
+                    matrix[1][2],
+                    matrix[2][0],
+                    matrix[2][1],
+                    matrix[2][2],
                 );
                 let rhs_3x3 = Vector3::new(rhs[0], rhs[1], rhs[2]);
 
@@ -111,8 +124,8 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
                 // 残差計算
                 let residual = self.calculate_residual(matrix, rhs, &solution);
                 Ok(SolutionInfo::direct(solution, residual))
-            },
-            _ => Err("Cramer's rule only supports 2x2 and 3x3 systems".to_string())
+            }
+            _ => Err("Cramer's rule only supports 2x2 and 3x3 systems".to_string()),
         }
     }
 }
@@ -143,10 +156,7 @@ mod tests {
 
     #[test]
     fn test_cramer_2x2() {
-        let matrix = vec![
-            vec![2.0, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
         let rhs = vec![5.0, 6.0];
 
         let solver = CramerSolver::new(1e-15);

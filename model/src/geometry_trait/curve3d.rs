@@ -1,5 +1,5 @@
-﻿use std::any::Any;
 use crate::geometry_kind::CurveKind3D;
+use std::any::Any;
 
 /// NOTE: Removed dependency on old model::geometry. Point/Vector are now associated types.
 /// Curve3D: Abstract trait for 3D curves
@@ -35,7 +35,13 @@ pub trait Curve3D: Any {
 
     /// Split curve at specified parameter (default implementation)
     #[allow(clippy::type_complexity)]
-    fn split(&self, _t: f64) -> Option<(Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>, Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>)> {
+    fn split(
+        &self,
+        _t: f64,
+    ) -> Option<(
+        Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>,
+        Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>,
+    )> {
         None
     }
 

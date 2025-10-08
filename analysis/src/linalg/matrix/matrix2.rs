@@ -37,8 +37,10 @@ impl<T: Scalar> Matrix2x2<T> {
 
     pub fn transpose(&self) -> Self {
         Self::new(
-            self.data[0][0], self.data[1][0],
-            self.data[0][1], self.data[1][1]
+            self.data[0][0],
+            self.data[1][0],
+            self.data[0][1],
+            self.data[1][1],
         )
     }
 
@@ -49,15 +51,17 @@ impl<T: Scalar> Matrix2x2<T> {
         }
 
         Ok(Self::new(
-            self.data[1][1] / det,  -self.data[0][1] / det,
-            -self.data[1][0] / det,  self.data[0][0] / det
+            self.data[1][1] / det,
+            -self.data[0][1] / det,
+            -self.data[1][0] / det,
+            self.data[0][0] / det,
         ))
     }
 
     pub fn mul_vector(&self, vec: &Vector2<T>) -> Vector2<T> {
         Vector2::new(
             self.data[0][0] * vec.x() + self.data[0][1] * vec.y(),
-            self.data[1][0] * vec.x() + self.data[1][1] * vec.y()
+            self.data[1][0] * vec.x() + self.data[1][1] * vec.y(),
         )
     }
 
@@ -86,18 +90,12 @@ impl<T: Scalar> Matrix2x2<T> {
     pub fn rotation(angle: T) -> Self {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
-        Self::new(
-            cos_a, -sin_a,
-            sin_a,  cos_a
-        )
+        Self::new(cos_a, -sin_a, sin_a, cos_a)
     }
 
     /// スケール行列を作成
     pub fn scale(sx: T, sy: T) -> Self {
-        Self::new(
-            sx, T::ZERO,
-            T::ZERO, sy
-        )
+        Self::new(sx, T::ZERO, T::ZERO, sy)
     }
 }
 
@@ -106,8 +104,10 @@ impl<T: Scalar> Add for Matrix2x2<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
         Self::new(
-            self.data[0][0] + other.data[0][0], self.data[0][1] + other.data[0][1],
-            self.data[1][0] + other.data[1][0], self.data[1][1] + other.data[1][1]
+            self.data[0][0] + other.data[0][0],
+            self.data[0][1] + other.data[0][1],
+            self.data[1][0] + other.data[1][0],
+            self.data[1][1] + other.data[1][1],
         )
     }
 }
@@ -116,8 +116,10 @@ impl<T: Scalar> Mul<T> for Matrix2x2<T> {
     type Output = Self;
     fn mul(self, scalar: T) -> Self::Output {
         Self::new(
-            self.data[0][0] * scalar, self.data[0][1] * scalar,
-            self.data[1][0] * scalar, self.data[1][1] * scalar
+            self.data[0][0] * scalar,
+            self.data[0][1] * scalar,
+            self.data[1][0] * scalar,
+            self.data[1][1] * scalar,
         )
     }
 }
@@ -129,7 +131,7 @@ impl<T: Scalar> Mul for Matrix2x2<T> {
             self.data[0][0] * other.data[0][0] + self.data[0][1] * other.data[1][0],
             self.data[0][0] * other.data[0][1] + self.data[0][1] * other.data[1][1],
             self.data[1][0] * other.data[0][0] + self.data[1][1] * other.data[1][0],
-            self.data[1][0] * other.data[0][1] + self.data[1][1] * other.data[1][1]
+            self.data[1][0] * other.data[0][1] + self.data[1][1] * other.data[1][1],
         )
     }
 }

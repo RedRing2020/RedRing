@@ -62,11 +62,11 @@ impl Arc {
     /// 3点から円弧を作成
     pub fn from_three_points(start: Point3D, mid: Point3D, end: Point3D) -> Option<Self> {
         let circle = Circle::from_three_points(start, mid, end)?;
-        
+
         // 各点の角度を計算（ローカル平面での角度）
         let start_angle_rad = Self::point_to_angle_rad(&circle, start);
         let end_angle_rad = Self::point_to_angle_rad(&circle, end);
-        
+
         Some(Self::from_radians(circle, start_angle_rad, end_angle_rad))
     }
 
@@ -74,27 +74,33 @@ impl Arc {
     fn point_to_angle_rad(circle: &Circle, point: Point3D) -> f64 {
         let center = circle.center();
         let normal = circle.normal();
-        
+
         // 点を円の平面に投影
         let to_point = Vector3D::new(
             point.x() - center.x(),
             point.y() - center.y(),
             point.z() - center.z(),
         );
-        
+
         // 円の平面内での基準ベクトルを計算（x軸方向のベクトル）
         let reference = if normal.z().abs() < 0.9 {
-            Vector3D::new(0.0, 0.0, 1.0).cross(&normal).normalize().unwrap_or(Vector3D::unit_x())
+            Vector3D::new(0.0, 0.0, 1.0)
+                .cross(&normal)
+                .normalize()
+                .unwrap_or(Vector3D::unit_x())
         } else {
-            Vector3D::new(1.0, 0.0, 0.0).cross(&normal).normalize().unwrap_or(Vector3D::unit_y())
+            Vector3D::new(1.0, 0.0, 0.0)
+                .cross(&normal)
+                .normalize()
+                .unwrap_or(Vector3D::unit_y())
         };
-        
+
         let y_axis = normal.cross(&reference);
-        
+
         // 平面内での座標を計算
         let x = to_point.dot(&reference);
         let y = to_point.dot(&y_axis);
-        
+
         y.atan2(x)
     }
 
@@ -187,7 +193,10 @@ impl Arc {
     /// 点が円弧上にあるかチェック
     pub fn contains_point(&self, point: Point3D) -> bool {
         // まず円上にあるかチェック
-        if !self.circle.contains_point_on_boundary(&point, GEOMETRIC_TOLERANCE) {
+        if !self
+            .circle
+            .contains_point_on_boundary(&point, GEOMETRIC_TOLERANCE)
+        {
             return false;
         }
 
@@ -225,14 +234,14 @@ impl Arc {
 
         let mut points = Vec::with_capacity(num_segments + 1);
         let span = self.angle_span().to_radians();
-        
+
         for i in 0..=num_segments {
             let t = i as f64 / num_segments as f64;
             let angle = self.start_angle.to_radians() + span * t;
             let point = self.point_at_angle(angle);
             points.push(point);
         }
-        
+
         points
     }
 
@@ -254,11 +263,7 @@ impl Arc {
 
     /// 円弧をスケール
     pub fn scale(&self, factor: f64) -> Self {
-        Self::new(
-            self.circle.scale(factor),
-            self.start_angle,
-            self.end_angle,
-        )
+        Self::new(self.circle.scale(factor), self.start_angle, self.end_angle)
     }
 
     /// 円弧を平行移動
@@ -293,8 +298,10 @@ impl Arc {
 impl PartialEq for Arc {
     fn eq(&self, other: &Self) -> bool {
         self.circle == other.circle
-            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
-            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
+            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs()
+                < GEOMETRIC_TOLERANCE
+            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs()
+                < GEOMETRIC_TOLERANCE
     }
 }
 
@@ -306,7 +313,7 @@ mod tests {
     #[test]
     fn test_arc_creation() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -326,7 +333,7 @@ mod tests {
     #[test]
     fn test_arc_length() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -342,7 +349,7 @@ mod tests {
     #[test]
     fn test_arc_kind() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -366,7 +373,7 @@ mod tests {
     #[test]
     fn test_angle_contains() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -383,7 +390,7 @@ mod tests {
     #[test]
     fn test_arc_reverse() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -400,7 +407,7 @@ mod tests {
     #[test]
     fn test_arc_midpoint() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -422,7 +429,7 @@ mod tests {
     #[test]
     fn test_approximate_with_points() {
         use geo_foundation::abstract_types::geometry::Direction;
-        
+
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -437,7 +444,7 @@ mod tests {
         // 最初と最後の点をチェック
         let first_point = points.first().unwrap();
         let last_point = points.last().unwrap();
-        
+
         assert!((first_point.x() - 1.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((first_point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
         assert!((first_point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);

@@ -2,12 +2,21 @@
 //!
 //! f32（グラフィックス用）とf64（高精度計算用）を統一的に扱うための抽象化
 use std::fmt::{Debug, Display};
-use std::ops::{Add, Sub, Mul, Div, Neg};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// 数値計算で使用可能なスカラー型の抽象化
 pub trait Scalar:
-    Copy + Clone + Debug + Display + PartialEq + PartialOrd +
-    Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> + Neg<Output = Self>
+    Copy
+    + Clone
+    + Debug
+    + Display
+    + PartialEq
+    + PartialOrd
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + Neg<Output = Self>
 {
     /// ゼロ値
     const ZERO: Self;
@@ -91,31 +100,77 @@ impl Scalar for f64 {
     const TAU: Self = std::f64::consts::TAU;
     const E: Self = std::f64::consts::E;
 
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn tan(self) -> Self { self.tan() }
-    fn asin(self) -> Self { self.asin() }
-    fn acos(self) -> Self { self.acos() }
-    fn atan(self) -> Self { self.atan() }
-    fn atan2(self, other: Self) -> Self { self.atan2(other) }
-    fn exp(self) -> Self { self.exp() }
-    fn ln(self) -> Self { self.ln() }
-    fn powf(self, exp: Self) -> Self { self.powf(exp) }
-    fn floor(self) -> Self { self.floor() }
-    fn ceil(self) -> Self { self.ceil() }
-    fn round(self) -> Self { self.round() }
-    fn min(self, other: Self) -> Self { self.min(other) }
-    fn max(self, other: Self) -> Self { self.max(other) }
-    fn clamp(self, min: Self, max: Self) -> Self { self.clamp(min, max) }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn tan(self) -> Self {
+        self.tan()
+    }
+    fn asin(self) -> Self {
+        self.asin()
+    }
+    fn acos(self) -> Self {
+        self.acos()
+    }
+    fn atan(self) -> Self {
+        self.atan()
+    }
+    fn atan2(self, other: Self) -> Self {
+        self.atan2(other)
+    }
+    fn exp(self) -> Self {
+        self.exp()
+    }
+    fn ln(self) -> Self {
+        self.ln()
+    }
+    fn powf(self, exp: Self) -> Self {
+        self.powf(exp)
+    }
+    fn floor(self) -> Self {
+        self.floor()
+    }
+    fn ceil(self) -> Self {
+        self.ceil()
+    }
+    fn round(self) -> Self {
+        self.round()
+    }
+    fn min(self, other: Self) -> Self {
+        self.min(other)
+    }
+    fn max(self, other: Self) -> Self {
+        self.max(other)
+    }
+    fn clamp(self, min: Self, max: Self) -> Self {
+        self.clamp(min, max)
+    }
 
-    fn to_f64(self) -> f64 { self }
-    fn to_f32(self) -> f32 { self as f32 }
-    fn from_f64(value: f64) -> Self { value }
-    fn from_f32(value: f32) -> Self { value as f64 }
+    fn to_f64(self) -> f64 {
+        self
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(value: f64) -> Self {
+        value
+    }
+    fn from_f32(value: f32) -> Self {
+        value as f64
+    }
 
-    fn is_finite(self) -> bool { self.is_finite() }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
 }
 
 /// f32に対するScalarトレイトの実装
@@ -127,31 +182,77 @@ impl Scalar for f32 {
     const TAU: Self = std::f32::consts::TAU;
     const E: Self = std::f32::consts::E;
 
-    fn abs(self) -> Self { self.abs() }
-    fn sqrt(self) -> Self { self.sqrt() }
-    fn sin(self) -> Self { self.sin() }
-    fn cos(self) -> Self { self.cos() }
-    fn tan(self) -> Self { self.tan() }
-    fn asin(self) -> Self { self.asin() }
-    fn acos(self) -> Self { self.acos() }
-    fn atan(self) -> Self { self.atan() }
-    fn atan2(self, other: Self) -> Self { self.atan2(other) }
-    fn exp(self) -> Self { self.exp() }
-    fn ln(self) -> Self { self.ln() }
-    fn powf(self, exp: Self) -> Self { self.powf(exp) }
-    fn floor(self) -> Self { self.floor() }
-    fn ceil(self) -> Self { self.ceil() }
-    fn round(self) -> Self { self.round() }
-    fn min(self, other: Self) -> Self { self.min(other) }
-    fn max(self, other: Self) -> Self { self.max(other) }
-    fn clamp(self, min: Self, max: Self) -> Self { self.clamp(min, max) }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn sqrt(self) -> Self {
+        self.sqrt()
+    }
+    fn sin(self) -> Self {
+        self.sin()
+    }
+    fn cos(self) -> Self {
+        self.cos()
+    }
+    fn tan(self) -> Self {
+        self.tan()
+    }
+    fn asin(self) -> Self {
+        self.asin()
+    }
+    fn acos(self) -> Self {
+        self.acos()
+    }
+    fn atan(self) -> Self {
+        self.atan()
+    }
+    fn atan2(self, other: Self) -> Self {
+        self.atan2(other)
+    }
+    fn exp(self) -> Self {
+        self.exp()
+    }
+    fn ln(self) -> Self {
+        self.ln()
+    }
+    fn powf(self, exp: Self) -> Self {
+        self.powf(exp)
+    }
+    fn floor(self) -> Self {
+        self.floor()
+    }
+    fn ceil(self) -> Self {
+        self.ceil()
+    }
+    fn round(self) -> Self {
+        self.round()
+    }
+    fn min(self, other: Self) -> Self {
+        self.min(other)
+    }
+    fn max(self, other: Self) -> Self {
+        self.max(other)
+    }
+    fn clamp(self, min: Self, max: Self) -> Self {
+        self.clamp(min, max)
+    }
 
-    fn to_f64(self) -> f64 { self as f64 }
-    fn to_f32(self) -> f32 { self }
-    fn from_f64(value: f64) -> Self { value as f32 }
-    fn from_f32(value: f32) -> Self { value }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+    fn to_f32(self) -> f32 {
+        self
+    }
+    fn from_f64(value: f64) -> Self {
+        value as f32
+    }
+    fn from_f32(value: f32) -> Self {
+        value
+    }
 
-    fn is_finite(self) -> bool { self.is_finite() }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
 }
 
 /// 型エイリアス（使いやすさのため）

@@ -2,8 +2,8 @@
 //!
 //! 全ての幾何プリミティブが実装すべき基本的なインターフェース
 
-use crate::geometry3d::BBox3D;
 use super::classification::PrimitiveKind;
+use crate::geometry3d::BBox3D;
 
 /// 全ての幾何プリミティブが実装する共通トレイト
 pub trait GeometricPrimitive {
@@ -54,5 +54,3 @@ pub trait PrimitiveCollection {
     /// 指定した境界ボックスと交差するプリミティブを取得
     fn intersecting_with_bbox(&self, bbox: &BBox3D) -> Vec<&Self::Item>;
 }
-
-

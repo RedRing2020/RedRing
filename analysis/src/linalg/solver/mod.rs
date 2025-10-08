@@ -3,13 +3,13 @@
 //! 直接法と反復法の各種ソルバーを提供
 //! - 直接法：ガウス消去法、LU分解法、コレスキー分解法
 //! - 反復法：ヤコビ法、ガウス・ザイデル法、SOR法
-pub mod gaussian;       // ガウス消去法
-pub mod lu;            // LU分解法
-pub mod cramer;        // Cramerの公式（既存）
+pub mod cramer;
+pub mod gaussian; // ガウス消去法
+pub mod lu; // LU分解法 // Cramerの公式（既存）
 
+pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;
 pub use lu::LUSolver;
-pub use cramer::CramerSolver;
 
 use super::scalar::Scalar;
 

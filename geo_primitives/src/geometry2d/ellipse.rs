@@ -299,7 +299,8 @@ impl PartialEq for Ellipse {
         self.center == other.center
             && (self.major_radius - other.major_radius).abs() < GEOMETRIC_TOLERANCE
             && (self.minor_radius - other.minor_radius).abs() < GEOMETRIC_TOLERANCE
-            && (self.rotation.to_radians() - other.rotation.to_radians()).abs() < GEOMETRIC_TOLERANCE
+            && (self.rotation.to_radians() - other.rotation.to_radians()).abs()
+                < GEOMETRIC_TOLERANCE
     }
 }
 

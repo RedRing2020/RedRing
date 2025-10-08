@@ -1,8 +1,8 @@
-use wgpu::{RenderPipeline, Buffer};
-use wgpu::util::DeviceExt;
-use std::sync::Arc;
 use crate::shader::render_2d_shader;
 use crate::vertex_2d::Vertex2D;
+use std::sync::Arc;
+use wgpu::util::DeviceExt;
+use wgpu::{Buffer, RenderPipeline};
 
 pub struct Render2dResources {
     pub device: Arc<wgpu::Device>,
@@ -16,9 +16,15 @@ pub fn create_render_2d_resources(
     format: wgpu::TextureFormat,
 ) -> Render2dResources {
     let vertices: &[Vertex2D] = &[
-        Vertex2D { position: [-0.5, -0.5] },
-        Vertex2D { position: [ 0.5, -0.5] },
-        Vertex2D { position: [ 0.0,  0.5] },
+        Vertex2D {
+            position: [-0.5, -0.5],
+        },
+        Vertex2D {
+            position: [0.5, -0.5],
+        },
+        Vertex2D {
+            position: [0.0, 0.5],
+        },
     ];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

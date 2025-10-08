@@ -3,7 +3,7 @@
 //! 4x4変換行列との演算、同次座標系での3D変換に使用
 //! 透視投影やアフィン変換での座標計算に最適化
 use crate::linalg::scalar::Scalar;
-use std::ops::{Add, Sub, Mul, Neg};
+use std::ops::{Add, Mul, Neg, Sub};
 
 /// 4次元固定サイズベクトル（同次座標系）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,19 +13,29 @@ pub struct Vector4<T: Scalar> {
 
 impl<T: Scalar> Vector4<T> {
     /// X軸単位ベクトル定数
-    pub const X_AXIS: Vector4<f64> = Vector4 { data: [1.0, 0.0, 0.0, 0.0] };
+    pub const X_AXIS: Vector4<f64> = Vector4 {
+        data: [1.0, 0.0, 0.0, 0.0],
+    };
 
     /// Y軸単位ベクトル定数
-    pub const Y_AXIS: Vector4<f64> = Vector4 { data: [0.0, 1.0, 0.0, 0.0] };
+    pub const Y_AXIS: Vector4<f64> = Vector4 {
+        data: [0.0, 1.0, 0.0, 0.0],
+    };
 
     /// Z軸単位ベクトル定数
-    pub const Z_AXIS: Vector4<f64> = Vector4 { data: [0.0, 0.0, 1.0, 0.0] };
+    pub const Z_AXIS: Vector4<f64> = Vector4 {
+        data: [0.0, 0.0, 1.0, 0.0],
+    };
 
     /// W軸単位ベクトル定数
-    pub const W_AXIS: Vector4<f64> = Vector4 { data: [0.0, 0.0, 0.0, 1.0] };
+    pub const W_AXIS: Vector4<f64> = Vector4 {
+        data: [0.0, 0.0, 0.0, 1.0],
+    };
 
     /// ゼロベクトル定数
-    pub const ZERO: Vector4<f64> = Vector4 { data: [0.0, 0.0, 0.0, 0.0] };
+    pub const ZERO: Vector4<f64> = Vector4 {
+        data: [0.0, 0.0, 0.0, 0.0],
+    };
 
     /// 新しい4Dベクトルを作成
     pub fn new(x: T, y: T, z: T, w: T) -> Self {
@@ -35,7 +45,12 @@ impl<T: Scalar> Vector4<T> {
     /// ゼロベクトル - ZERO定数のエイリアス
     pub fn zero() -> Self {
         // 型変換を通じてZERO定数を任意のScalar型で利用可能にする
-        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0))
+        Self::new(
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+        )
     }
 
     /// 3D点から同次座標へ変換（w=1）
@@ -48,30 +63,48 @@ impl<T: Scalar> Vector4<T> {
         Self::new(x, y, z, T::ZERO)
     }
 
-
-
     /// X軸方向の単位ベクトル（1, 0, 0, 0）- X_AXIS定数のエイリアス
     pub fn x_axis() -> Self {
         // 型変換を通じて定数を任意のScalar型で利用可能にする
-        Self::new(T::from_f64(1.0), T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0))
+        Self::new(
+            T::from_f64(1.0),
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+        )
     }
 
     /// Y軸方向の単位ベクトル（0, 1, 0, 0）- Y_AXIS定数のエイリアス
     pub fn y_axis() -> Self {
         // 型変換を通じて定数を任意のScalar型で利用可能にする
-        Self::new(T::from_f64(0.0), T::from_f64(1.0), T::from_f64(0.0), T::from_f64(0.0))
+        Self::new(
+            T::from_f64(0.0),
+            T::from_f64(1.0),
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+        )
     }
 
     /// Z軸方向の単位ベクトル（0, 0, 1, 0）- Z_AXIS定数のエイリアス
     pub fn z_axis() -> Self {
         // 型変換を通じて定数を任意のScalar型で利用可能にする
-        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(1.0), T::from_f64(0.0))
+        Self::new(
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+            T::from_f64(1.0),
+            T::from_f64(0.0),
+        )
     }
 
     /// W軸方向の単位ベクトル（0, 0, 0, 1）- W_AXIS定数のエイリアス
     pub fn w_axis() -> Self {
         // 型変換を通じて定数を任意のScalar型で利用可能にする
-        Self::new(T::from_f64(0.0), T::from_f64(0.0), T::from_f64(0.0), T::from_f64(1.0))
+        Self::new(
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+            T::from_f64(0.0),
+            T::from_f64(1.0),
+        )
     }
 
     /// X成分にアクセス
@@ -113,26 +146,27 @@ impl<T: Scalar> Vector4<T> {
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
-        self.data[0] * other.data[0] +
-        self.data[1] * other.data[1] +
-        self.data[2] * other.data[2] +
-        self.data[3] * other.data[3]
+        self.data[0] * other.data[0]
+            + self.data[1] * other.data[1]
+            + self.data[2] * other.data[2]
+            + self.data[3] * other.data[3]
     }
 
     /// ユークリッドノルム
     pub fn norm(&self) -> T {
-        (self.data[0] * self.data[0] +
-         self.data[1] * self.data[1] +
-         self.data[2] * self.data[2] +
-         self.data[3] * self.data[3]).sqrt()
+        (self.data[0] * self.data[0]
+            + self.data[1] * self.data[1]
+            + self.data[2] * self.data[2]
+            + self.data[3] * self.data[3])
+            .sqrt()
     }
 
     /// ノルムの2乗（平方根計算を避ける）
     pub fn norm_squared(&self) -> T {
-        self.data[0] * self.data[0] +
-        self.data[1] * self.data[1] +
-        self.data[2] * self.data[2] +
-        self.data[3] * self.data[3]
+        self.data[0] * self.data[0]
+            + self.data[1] * self.data[1]
+            + self.data[2] * self.data[2]
+            + self.data[3] * self.data[3]
     }
 
     /// 正規化（単位ベクトル化）
@@ -145,7 +179,7 @@ impl<T: Scalar> Vector4<T> {
             self.data[0] / norm,
             self.data[1] / norm,
             self.data[2] / norm,
-            self.data[3] / norm
+            self.data[3] / norm,
         ))
     }
 
@@ -157,7 +191,7 @@ impl<T: Scalar> Vector4<T> {
         Ok(super::vector3::Vector3::new(
             self.data[0] / self.data[3],
             self.data[1] / self.data[3],
-            self.data[2] / self.data[3]
+            self.data[2] / self.data[3],
         ))
     }
 
@@ -198,7 +232,7 @@ impl<T: Scalar> Vector4<T> {
             self.data[0] * scalar,
             self.data[1] * scalar,
             self.data[2] * scalar,
-            self.data[3] * scalar
+            self.data[3] * scalar,
         )
     }
 
@@ -208,7 +242,7 @@ impl<T: Scalar> Vector4<T> {
             self.data[0] * other.data[0],
             self.data[1] * other.data[1],
             self.data[2] * other.data[2],
-            self.data[3] * other.data[3]
+            self.data[3] * other.data[3],
         )
     }
 
@@ -218,7 +252,7 @@ impl<T: Scalar> Vector4<T> {
             self.data[0].min(other.data[0]),
             self.data[1].min(other.data[1]),
             self.data[2].min(other.data[2]),
-            self.data[3].min(other.data[3])
+            self.data[3].min(other.data[3]),
         )
     }
 
@@ -228,7 +262,7 @@ impl<T: Scalar> Vector4<T> {
             self.data[0].max(other.data[0]),
             self.data[1].max(other.data[1]),
             self.data[2].max(other.data[2]),
-            self.data[3].max(other.data[3])
+            self.data[3].max(other.data[3]),
         )
     }
 
@@ -238,7 +272,7 @@ impl<T: Scalar> Vector4<T> {
             self.data[0].abs(),
             self.data[1].abs(),
             self.data[2].abs(),
-            self.data[3].abs()
+            self.data[3].abs(),
         )
     }
 
@@ -260,7 +294,7 @@ impl<T: Scalar> Vector4<T> {
         Ok(super::vector3::Vector3::new(
             self.data[0] * w_inv,
             self.data[1] * w_inv,
-            self.data[2] * w_inv
+            self.data[2] * w_inv,
         ))
     }
 }
@@ -273,7 +307,7 @@ impl<T: Scalar> Add for Vector4<T> {
             self.data[0] + other.data[0],
             self.data[1] + other.data[1],
             self.data[2] + other.data[2],
-            self.data[3] + other.data[3]
+            self.data[3] + other.data[3],
         )
     }
 }
@@ -285,7 +319,7 @@ impl<T: Scalar> Sub for Vector4<T> {
             self.data[0] - other.data[0],
             self.data[1] - other.data[1],
             self.data[2] - other.data[2],
-            self.data[3] - other.data[3]
+            self.data[3] - other.data[3],
         )
     }
 }
@@ -297,7 +331,7 @@ impl<T: Scalar> Mul<T> for Vector4<T> {
             self.data[0] * scalar,
             self.data[1] * scalar,
             self.data[2] * scalar,
-            self.data[3] * scalar
+            self.data[3] * scalar,
         )
     }
 }

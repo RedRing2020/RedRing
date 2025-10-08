@@ -1,8 +1,8 @@
-use wgpu::{RenderPipeline, Buffer};
-use wgpu::util::DeviceExt;
-use std::sync::Arc;
 use crate::shader::render_3d_shader;
 use crate::vertex_3d::Vertex3D;
+use std::sync::Arc;
+use wgpu::util::DeviceExt;
+use wgpu::{Buffer, RenderPipeline};
 
 pub struct Renderer3D {
     pub device: Arc<wgpu::Device>,
@@ -11,14 +11,17 @@ pub struct Renderer3D {
     pub vertex_count: u32,
 }
 
-pub fn create_renderer_3d(
-    device: &Arc<wgpu::Device>,
-    format: wgpu::TextureFormat,
-) -> Renderer3D {
+pub fn create_renderer_3d(device: &Arc<wgpu::Device>, format: wgpu::TextureFormat) -> Renderer3D {
     let vertices: &[Vertex3D] = &[
-        Vertex3D { position: [-0.5, -0.5, 0.0] },
-        Vertex3D { position: [ 0.5, -0.5, 0.0] },
-        Vertex3D { position: [ 0.0,  0.5, 0.0] },
+        Vertex3D {
+            position: [-0.5, -0.5, 0.0],
+        },
+        Vertex3D {
+            position: [0.5, -0.5, 0.0],
+        },
+        Vertex3D {
+            position: [0.0, 0.5, 0.0],
+        },
     ];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

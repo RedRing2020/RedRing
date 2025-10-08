@@ -2,9 +2,9 @@
 //!
 //! CAD/CAM システムで使用される楕円の抽象化インターフェース
 
-use crate::abstract_types::Scalar;
-use crate::abstract_types::geometry::vector::Vector3D;
 use crate::abstract_types::geometry::angle::AngleType;
+use crate::abstract_types::geometry::vector::Vector3D;
+use crate::abstract_types::Scalar;
 
 /// 2D楕円の基本操作を定義するトレイト
 pub trait Ellipse2D<T: Scalar> {
@@ -62,7 +62,11 @@ pub trait Ellipse2D<T: Scalar> {
         let a = self.semi_major_axis();
         let b = self.semi_minor_axis();
         let h = ((a - b) / (a + b)).powi(2);
-        T::PI * (a + b) * (T::ONE + (T::from_f64(3.0) * h) / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
+        T::PI
+            * (a + b)
+            * (T::ONE
+                + (T::from_f64(3.0) * h)
+                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
     }
 
     /// 楕円の焦点を取得（2つの焦点）
@@ -169,7 +173,11 @@ pub trait Ellipse3D<T: Scalar> {
         let a = self.semi_major_axis();
         let b = self.semi_minor_axis();
         let h = ((a - b) / (a + b)).powi(2);
-        T::PI * (a + b) * (T::ONE + (T::from_f64(3.0) * h) / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
+        T::PI
+            * (a + b)
+            * (T::ONE
+                + (T::from_f64(3.0) * h)
+                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
     }
 
     /// 楕円の焦点を取得（2つの焦点）
@@ -213,7 +221,11 @@ pub trait Ellipse3D<T: Scalar> {
     fn project_to_xy(&self) -> Self::Ellipse2D;
 
     /// 楕円を指定した平面に投影
-    fn project_to_plane(&self, plane_normal: &Self::Direction, plane_point: &Self::Point) -> Self::Ellipse2D;
+    fn project_to_plane(
+        &self,
+        plane_normal: &Self::Direction,
+        plane_point: &Self::Point,
+    ) -> Self::Ellipse2D;
 
     /// 楕円を指定した角度範囲で楕円弧に変換
     fn to_arc(&self, start_angle: Self::Angle, end_angle: Self::Angle) -> Self::EllipseArc;
@@ -253,9 +265,7 @@ pub trait EllipseBuilder<T: Scalar> {
     ) -> Result<Self::Ellipse, Self::Error>;
 
     /// 5点から楕円を構築
-    fn from_five_points(
-        points: [Self::Point; 5],
-    ) -> Result<Self::Ellipse, Self::Error>;
+    fn from_five_points(points: [Self::Point; 5]) -> Result<Self::Ellipse, Self::Error>;
 
     /// 中心と2つの焦点から楕円を構築
     fn from_center_and_foci(
@@ -301,7 +311,11 @@ pub trait EllipseTransform<T: Scalar> {
     ) -> Self::TransformedEllipse;
 
     /// 楕円をミラー（指定した軸を中心に反転）
-    fn mirror(&self, axis_point: Self::Point, axis_direction: Self::Vector) -> Self::TransformedEllipse;
+    fn mirror(
+        &self,
+        axis_point: Self::Point,
+        axis_direction: Self::Vector,
+    ) -> Self::TransformedEllipse;
 
     /// 楕円をせん断変形
     fn shear(&self, shear_vector: Self::Vector) -> Self::TransformedEllipse;
@@ -339,7 +353,11 @@ pub trait EllipseAnalysis<T: Scalar> {
     fn semi_minor_axis(&self) -> T;
 
     /// 指定した直線との交点を計算
-    fn intersect_with_line(&self, line_point: Self::Point, line_direction: Self::Vector) -> Vec<Self::Point>;
+    fn intersect_with_line(
+        &self,
+        line_point: Self::Point,
+        line_direction: Self::Vector,
+    ) -> Vec<Self::Point>;
 
     /// 他の楕円との交点を計算
     fn intersect_with_ellipse(&self, other: &Self) -> Vec<Self::Point>

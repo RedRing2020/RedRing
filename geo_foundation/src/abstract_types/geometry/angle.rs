@@ -8,10 +8,10 @@ use std::fmt;
 /// 角度型の共通インターフェース
 pub trait AngleType: Copy + Clone {
     type Scalar: Scalar;
-    
+
     /// ラジアン値から角度を作成
     fn from_radians(radians: Self::Scalar) -> Self;
-    
+
     /// 角度をラジアン値として取得
     fn to_radians(self) -> Self::Scalar;
 }
@@ -26,11 +26,11 @@ pub struct Angle<T: Scalar> {
 
 impl<T: Scalar> AngleType for Angle<T> {
     type Scalar = T;
-    
+
     fn from_radians(radians: T) -> Self {
         Self { radians }
     }
-    
+
     fn to_radians(self) -> T {
         self.radians
     }

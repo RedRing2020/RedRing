@@ -5,13 +5,7 @@
 use crate::DERIVATIVE_ZERO_THRESHOLD;
 
 /// ニュートン法による方程式求解
-pub fn newton_solve<F, G>(
-    f: F,
-    df: G,
-    initial: f64,
-    max_iter: usize,
-    tol: f64,
-) -> Option<f64>
+pub fn newton_solve<F, G>(f: F, df: G, initial: f64, max_iter: usize, tol: f64) -> Option<f64>
 where
     F: Fn(f64) -> f64,
     G: Fn(f64) -> f64,
@@ -99,12 +93,7 @@ pub fn basis_functions(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec
 }
 
 /// B-spline基底関数の一階導関数 Nᵢₚ′(u) を計算
-pub fn basis_function_derivatives(
-    span: usize,
-    u: f64,
-    degree: usize,
-    knots: &[f64],
-) -> Vec<f64> {
+pub fn basis_function_derivatives(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec<f64> {
     let mut ders = vec![0.0; degree + 1];
     let mut left = vec![0.0; degree + 1];
     let mut right = vec![0.0; degree + 1];

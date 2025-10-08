@@ -1,4 +1,4 @@
-﻿// geometry module removed after migration to geo_primitives / geo_core.
+// geometry module removed after migration to geo_primitives / geo_core.
 pub mod geometry_common;
 pub mod geometry_kind;
 pub mod geometry_trait;
@@ -26,4 +26,4 @@ pub mod geometry_compatibility_tests; // 互換性検証
 
 // Phase 1: geo_core統合API（シンプル版）
 #[cfg(feature = "use_geo_core")]
-pub use geometry_simple_adapter::{SimpleAdaptedLine, TypeConverter, simple_factory};
+pub use geometry_simple_adapter::{simple_factory, SimpleAdaptedLine, TypeConverter};

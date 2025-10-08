@@ -64,12 +64,12 @@ impl ToleranceContext {
     /// 低精度許容誤差コンテキストを作成（プロトタイピング用）
     pub const fn low_precision() -> Self {
         Self {
-            linear: 1e-3,      // 1ミリメートル
-            angular: 1e-6,     // 低精度角度
-            parametric: 1e-8,  // 低精度パラメータ
-            curvature: 1e-1,   // 低精度曲率
-            area: 1e-6,        // 低精度面積
-            volume: 1e-9,      // 低精度体積
+            linear: 1e-3,     // 1ミリメートル
+            angular: 1e-6,    // 低精度角度
+            parametric: 1e-8, // 低精度パラメータ
+            curvature: 1e-1,  // 低精度曲率
+            area: 1e-6,       // 低精度面積
+            volume: 1e-9,     // 低精度体積
         }
     }
 
@@ -87,7 +87,10 @@ impl ToleranceContext {
 
     /// 許容誤差の厳しさを調整
     pub fn tightened(&self, factor: f64) -> Self {
-        debug_assert!(factor > 0.0 && factor <= 1.0, "Tightening factor must be in (0, 1]");
+        debug_assert!(
+            factor > 0.0 && factor <= 1.0,
+            "Tightening factor must be in (0, 1]"
+        );
         Self {
             linear: self.linear * factor,
             angular: self.angular * factor,
@@ -107,8 +110,11 @@ impl Default for ToleranceContext {
 
 impl fmt::Display for ToleranceContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ToleranceContext {{ linear: {:.2e}, angular: {:.2e}, parametric: {:.2e} }}",
-               self.linear, self.angular, self.parametric)
+        write!(
+            f,
+            "ToleranceContext {{ linear: {:.2e}, angular: {:.2e}, parametric: {:.2e} }}",
+            self.linear, self.angular, self.parametric
+        )
     }
 }
 
@@ -138,19 +144,31 @@ pub trait TolerantOrd<Rhs = Self>: TolerantEq<Rhs> {
     fn tolerant_cmp(&self, other: &Rhs, context: &ToleranceContext) -> Option<std::cmp::Ordering>;
 
     fn tolerant_lt(&self, other: &Rhs, context: &ToleranceContext) -> bool {
-        matches!(self.tolerant_cmp(other, context), Some(std::cmp::Ordering::Less))
+        matches!(
+            self.tolerant_cmp(other, context),
+            Some(std::cmp::Ordering::Less)
+        )
     }
 
     fn tolerant_le(&self, other: &Rhs, context: &ToleranceContext) -> bool {
-        !matches!(self.tolerant_cmp(other, context), Some(std::cmp::Ordering::Greater))
+        !matches!(
+            self.tolerant_cmp(other, context),
+            Some(std::cmp::Ordering::Greater)
+        )
     }
 
     fn tolerant_gt(&self, other: &Rhs, context: &ToleranceContext) -> bool {
-        matches!(self.tolerant_cmp(other, context), Some(std::cmp::Ordering::Greater))
+        matches!(
+            self.tolerant_cmp(other, context),
+            Some(std::cmp::Ordering::Greater)
+        )
     }
 
     fn tolerant_ge(&self, other: &Rhs, context: &ToleranceContext) -> bool {
-        !matches!(self.tolerant_cmp(other, context), Some(std::cmp::Ordering::Less))
+        !matches!(
+            self.tolerant_cmp(other, context),
+            Some(std::cmp::Ordering::Less)
+        )
     }
 }
 
@@ -235,5 +253,3 @@ impl TopologyChecker {
         true
     }
 }
-
-

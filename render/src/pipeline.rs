@@ -1,7 +1,7 @@
 use wgpu::{
-    Device, ShaderModule, RenderPipeline, PipelineLayout, BindGroupLayout, TextureFormat,
-    PipelineLayoutDescriptor, RenderPipelineDescriptor, VertexState, FragmentState,
-    PrimitiveState, MultisampleState,
+    BindGroupLayout, Device, FragmentState, MultisampleState, PipelineLayout,
+    PipelineLayoutDescriptor, PrimitiveState, RenderPipeline, RenderPipelineDescriptor,
+    ShaderModule, TextureFormat, VertexState,
 };
 
 #[allow(dead_code)]

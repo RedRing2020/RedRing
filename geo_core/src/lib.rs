@@ -56,8 +56,8 @@
 //! (c) RedRing Project
 
 pub mod scalar;
-pub mod vector;
 pub mod tolerance;
+pub mod vector;
 // pub mod robust;  // Vector2D/3D に依存するため一時的に無効化
 // Primitives modules removed - use geo_primitives instead
 
@@ -66,8 +66,8 @@ pub mod tolerance;
 mod unit_tests;
 
 // 主要な型の再エクスポート
-pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use scalar::Scalar;
+pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
 pub use vector::Vector;
 // Vector2D, Vector3D removed - use geo_primitives instead
 
@@ -86,9 +86,6 @@ pub const DEFAULT_TOLERANCE: ToleranceContext = ToleranceContext {
 
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
-    pub use crate::{
-        ToleranceContext, TolerantEq, TolerantOrd,
-        DEFAULT_TOLERANCE,
-    };
+    pub use crate::{ToleranceContext, TolerantEq, TolerantOrd, DEFAULT_TOLERANCE};
     // Vector2D, Vector3D removed - use geo_primitives::prelude instead
 }
