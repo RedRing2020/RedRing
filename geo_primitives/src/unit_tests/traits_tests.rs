@@ -1,3 +1,5 @@
+//! トレイトと共通ユーティリティのテスト
+//! classification, geometry_utils, BoundingBoxトレイトのテスト
 use crate::geometry2d::Point2D;
 use crate::geometry3d::{BBox3D, Point3D};
 #[cfg(test)]

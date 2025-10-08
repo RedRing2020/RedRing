@@ -3,7 +3,7 @@
 //! 2次元円弧の基本実装
 
 use crate::geometry2d::{Circle, Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::angle::Angle;
+use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
 /// 円弧の種類を表現する列挙型
@@ -25,14 +25,14 @@ const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 /// 2D平面上の円弧を表現する構造体
 #[derive(Debug, Clone)]
 pub struct Arc {
-    circle: Circle,
+    circle: Circle<f64>,
     start_angle: Angle<f64>,
     end_angle: Angle<f64>,
 }
 
 impl Arc {
     /// 新しい円弧を作成
-    pub fn new(circle: Circle, start_angle: Angle<f64>, end_angle: Angle<f64>) -> Self {
+    pub fn new(circle: Circle<f64>, start_angle: Angle<f64>, end_angle: Angle<f64>) -> Self {
         Self {
             circle,
             start_angle,
@@ -41,7 +41,7 @@ impl Arc {
     }
 
     /// ラジアン角度から円弧を作成（利便性メソッド）
-    pub fn from_radians(circle: Circle, start_angle: f64, end_angle: f64) -> Self {
+    pub fn from_radians(circle: Circle<f64>, start_angle: f64, end_angle: f64) -> Self {
         Self::new(
             circle,
             Angle::from_radians(start_angle),
@@ -50,7 +50,7 @@ impl Arc {
     }
 
     /// 度数角度から円弧を作成（利便性メソッド）
-    pub fn from_degrees(circle: Circle, start_angle: f64, end_angle: f64) -> Self {
+    pub fn from_degrees(circle: Circle<f64>, start_angle: f64, end_angle: f64) -> Self {
         Self::new(
             circle,
             Angle::from_degrees(start_angle),
@@ -70,7 +70,7 @@ impl Arc {
     }
 
     /// 点から角度を計算（ラジアン）
-    fn point_to_angle_rad(circle: &Circle, point: Point2D) -> f64 {
+    fn point_to_angle_rad(circle: &Circle<f64>, point: Point2D) -> f64 {
         let center = circle.center();
         let dx = point.x() - center.x();
         let dy = point.y() - center.y();
@@ -78,7 +78,7 @@ impl Arc {
     }
 
     /// 基底円を取得
-    pub fn circle(&self) -> &Circle {
+    pub fn circle(&self) -> &Circle<f64> {
         &self.circle
     }
 

@@ -2,9 +2,11 @@
 //!
 //! 幾何計算で使用される基本的な抽象型を定義
 
+mod angle;
 pub mod geometry;
 mod scalar;
 mod tolerance;
 
+pub use angle::*;
 pub use scalar::Scalar;
 pub use tolerance::{ToleranceContext, TolerantEq};

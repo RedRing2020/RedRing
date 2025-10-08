@@ -4,7 +4,7 @@
 
 use crate::geometry3d::{Circle, Point3D, Vector3D};
 use crate::traits::Circle3D;
-use geo_foundation::abstract_types::geometry::angle::Angle;
+use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
 /// 円弧の種類を表現する列挙型
