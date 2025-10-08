@@ -123,55 +123,8 @@ impl<T: Scalar> Direction3DTrait<T> for Direction3D<T> {
         self.vector.cross(&other.vector)
     }
 
-    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self {
-        // Rodrigues回転公式を使用
-        let cos_theta = angle.cos();
-        let sin_theta = angle.sin();
-        let axis_vec = axis.to_vector();
-        let dot_product = self.dot(axis);
-
-        let rotated = self.vector * cos_theta
-            + axis_vec.cross(&self.vector) * sin_theta
-            + axis_vec * dot_product * (T::ONE - cos_theta);
-
-        Self::from_vector(rotated).unwrap()
-    }
-
-    fn any_perpendicular(&self) -> Self {
-        // 最も小さい成分を持つ軸と外積を取る
-        let abs_x = self.x().abs();
-        let abs_y = self.y().abs();
-        let abs_z = self.z().abs();
-
-        let reference = if abs_x <= abs_y && abs_x <= abs_z {
-            Vector::new(T::ONE, T::ZERO, T::ZERO)
-        } else if abs_y <= abs_z {
-            Vector::new(T::ZERO, T::ONE, T::ZERO)
-        } else {
-            Vector::new(T::ZERO, T::ZERO, T::ONE)
-        };
-
-        let cross = self.vector.cross(&reference);
-        Self::from_vector(cross).unwrap()
-    }
-
-    fn build_orthonormal_basis(&self) -> (Self, Self, Self) {
-        let u = self.any_perpendicular();
-        let v = self.cross(&u);
-        let v_normalized = Self::from_vector(v).unwrap();
-        (*self, u, v_normalized)
-    }
-
-    fn x_axis() -> Self {
-        Self::positive_x()
-    }
-
-    fn y_axis() -> Self {
-        Self::positive_y()
-    }
-
-    fn z_axis() -> Self {
-        Self::positive_z()
+    fn from_components_3d(x: T, y: T, z: T) -> Option<Self> {
+        Self::new(x, y, z)
     }
 }
 

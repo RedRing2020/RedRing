@@ -1,4 +1,5 @@
-//! Test utilities module
+//! Test utilities // Surface要素のテスト用エイリアス
+// use crate::surface::{SphereF32, SphereF64};  // 一時的にコメントアウトdule
 //! テスト共通のユーティリティとエイリアス定義
 //!
 //! このモジュールは実装コードとテストコードの分離を支援し、
@@ -9,27 +10,30 @@
 
 // 2D 幾何要素のテスト用エイリアス
 pub use crate::geometry2d::{
-    Arc, BBox2D, Circle, Direction2D, Ellipse, EllipseArc, InfiniteLine2D, Point2D, Point2DF32,
+    // Arc, BBox2D, Circle, Direction2D, Ellipse, EllipseArc, InfiniteLine2D, Point2D, Point2DF32,  // 一時的にコメントアウト（Direction2D整理中）
+    BBox2D, Point2D, Point2DF32,
     Point2DF64, Vector, Vector2D,
 };
 
 // 3D 幾何要素のテスト用エイリアス（将来の拡張用）
-pub use crate::geometry3d::{Point3D, Vector3D};
+pub use crate::geometry3d::{Point3DF64, Vector3D};
 
 // Surface要素のテスト用エイリアス
-pub use crate::surface::{SphereF32, SphereF64};
+// pub use crate::surface::{SphereF32, SphereF64};  // 一時的にコメントアウト
+
+// 型エイリアス（テスト用）
 
 // テスト用の便利な型エイリアス
 pub type TestPoint2D = Point2D<f64>;
 pub type TestPoint2DF32 = Point2D<f32>;
-pub type TestPoint3D = Point3D;
+pub type TestPoint3D = Point3DF64;
 pub type TestVector2D = Vector2D; // Vector2D = Vector<f64> のエイリアス
 pub type TestVector2DF32 = Vector<f32>;
 pub type TestVector3D = Vector3D;
-pub type TestCircle = Circle<f64>;
-pub type TestCircleF32 = Circle<f32>;
-pub type TestSphereF64 = SphereF64;
-pub type TestSphereF32 = SphereF32;
+// pub type TestCircle = Circle<f64>;  // 一時的にコメントアウト（Circle依存のため）
+// pub type TestCircleF32 = Circle<f32>;  // 一時的にコメントアウト（Circle依存のため）
+// pub type TestSphereF64 = SphereF64;  // 一時的にコメントアウト
+// pub type TestSphereF32 = SphereF32;  // 一時的にコメントアウト
 
 // テスト用定数
 pub const TEST_TOLERANCE: f64 = 1e-10;
@@ -52,13 +56,13 @@ pub mod helpers {
     }
 
     /// テスト用の基本的な円を作成
-    pub fn test_circles() -> Vec<TestCircle> {
-        vec![
-            TestCircle::unit_circle(),
-            TestCircle::new(TestPoint2D::origin(), 2.0),
-            TestCircle::new(TestPoint2D::new(1.0, 1.0), 1.5),
-        ]
-    }
+    // pub fn test_circles() -> Vec<TestCircle> {  // 一時的にコメントアウト（Circle依存のため）
+    //     vec![
+    //         TestCircle::unit_circle(),
+    //         TestCircle::new(TestPoint2D::origin(), 2.0),
+    //         TestCircle::new(TestPoint2D::new(1.0, 1.0), 1.5),
+    //     ]
+    // }
 
     /// 角度の配列（0, π/4, π/2, π, 3π/2, 2π）
     pub fn test_angles() -> Vec<f64> {

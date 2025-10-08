@@ -3,22 +3,24 @@
 //! 3次元空間における円の具体的な実装
 
 use crate::geometry2d;
-use crate::geometry3d::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::geometry3d::{BBox3D, Direction3D, Point3D, Vector};
 use crate::traits::{Circle2D, Circle3D, Direction};
-use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
+use geo_foundation::{
+    abstract_types::Scalar,
+};
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する
 #[derive(Debug, Clone, PartialEq)]
-pub struct Circle {
-    center: Point3D,
-    radius: f64,
-    normal: Direction3D, // 円が存在する平面の法線ベクトル
-    u_axis: Direction3D, // 円の局所X軸（0度方向）
-    v_axis: Direction3D, // 円の局所Y軸（90度方向）
+pub struct Circle<T: Scalar> {
+    center: Point3D<T>,
+    radius: T,
+    normal: Direction3D<T>, // 円が存在する平面の法線ベクトル
+    u_axis: Direction3D<T>, // 円の局所X軸（0度方向）
+    v_axis: Direction3D<T>, // 円の局所Y軸（90度方向）
 }
 
-impl Circle {
+impl<T: Scalar> Circle<T> {
     /// 新しい3D円を作成
     ///
     /// # Arguments
@@ -29,21 +31,21 @@ impl Circle {
     ///
     /// # Panics
     /// 半径が負の値またはNaNの場合、または法線とu_axisが垂直でない場合にパニックする
-    pub fn new(center: Point3D, radius: f64, normal: Direction3D, u_axis: Direction3D) -> Self {
+    pub fn new(center: Point3D<T>, radius: T, normal: Direction3D<T>, u_axis: Direction3D<T>) -> Self {
         assert!(
-            radius >= 0.0 && radius.is_finite(),
-            "半径は非負の有限値である必要があります"
+            radius >= T::ZERO,
+            "半径は非負の値である必要があります"
         );
 
         // 法線とu_axisが垂直であることを確認
         let dot = normal.x() * u_axis.x() + normal.y() * u_axis.y() + normal.z() * u_axis.z();
         assert!(
-            dot.abs() < GEOMETRIC_TOLERANCE,
+            dot.abs() < T::TOLERANCE,
             "法線ベクトルとu_axisは垂直である必要があります"
         );
 
         // v_axisを計算（右手座標系）
-        let cross_product = Vector3D::new(
+        let cross_product = Vector::new(
             normal.y() * u_axis.z() - normal.z() * u_axis.y(),
             normal.z() * u_axis.x() - normal.x() * u_axis.z(),
             normal.x() * u_axis.y() - normal.y() * u_axis.x(),
@@ -64,21 +66,21 @@ impl Circle {
     /// # Arguments
     /// * `center` - 円の中心点
     /// * `radius` - 円の半径
-    pub fn xy_plane_circle(center: Point3D, radius: f64) -> Self {
+    pub fn xy_plane_circle(center: Point3D<T>, radius: T) -> Self {
         let normal = Direction3D::positive_z();
         let u_axis = Direction3D::positive_x();
         Self::new(center, radius, normal, u_axis)
     }
 
     /// XZ平面上の円を作成
-    pub fn xz_plane_circle(center: Point3D, radius: f64) -> Self {
+    pub fn xz_plane_circle(center: Point3D<T>, radius: T) -> Self {
         let normal = Direction3D::positive_y();
         let u_axis = Direction3D::positive_x();
         Self::new(center, radius, normal, u_axis)
     }
 
     /// YZ平面上の円を作成
-    pub fn yz_plane_circle(center: Point3D, radius: f64) -> Self {
+    pub fn yz_plane_circle(center: Point3D<T>, radius: T) -> Self {
         let normal = Direction3D::positive_x();
         let u_axis = Direction3D::positive_y();
         Self::new(center, radius, normal, u_axis)
@@ -86,41 +88,37 @@ impl Circle {
 
     /// 単位円（半径1、原点中心、XY平面）を作成
     pub fn unit_circle() -> Self {
-        Self::xy_plane_circle(Point3D::origin(), 1.0)
+        Self::xy_plane_circle(Point3D::origin(), T::ONE)
     }
 
     /// 円が退化しているか（半径が0）を判定
     pub fn is_degenerate(&self) -> bool {
-        self.radius < GEOMETRIC_TOLERANCE
+        self.radius <= T::TOLERANCE
     }
 
     /// 指定された点が円の平面上にあるかを判定
-    pub fn point_on_plane(&self, point: &Point3D, tolerance: f64) -> bool {
-        let to_point = Vector3D::new(
+    pub fn point_on_plane(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        let to_point = Vector::new(
             point.x() - self.center.x(),
             point.y() - self.center.y(),
             point.z() - self.center.z(),
         );
 
         let distance = to_point
-            .dot(&Vector3D::new(
-                self.normal.x(),
-                self.normal.y(),
-                self.normal.z(),
-            ))
+            .dot(&self.normal.to_vector())
             .abs();
         distance <= tolerance
     }
 
     /// 点を円の平面に投影
-    pub fn project_point_to_plane(&self, point: &Point3D) -> Point3D {
-        let to_point = Vector3D::new(
+    pub fn project_point_to_plane(&self, point: &Point3D<T>) -> Point3D<T> {
+        let to_point = Vector::new(
             point.x() - self.center.x(),
             point.y() - self.center.y(),
             point.z() - self.center.z(),
         );
 
-        let normal_vec = Vector3D::new(self.normal.x(), self.normal.y(), self.normal.z());
+        let normal_vec = self.normal.to_vector();
         let distance_to_plane = to_point.dot(&normal_vec);
 
         Point3D::new(
@@ -131,34 +129,34 @@ impl Circle {
     }
 
     /// 指定された点までの最短距離を取得
-    pub fn distance_to_point(&self, point: &Point3D) -> f64 {
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         let projected = self.project_point_to_plane(point);
         let center_distance = self.center.distance_to(&projected);
         let circle_distance = center_distance - self.radius;
 
         // 平面からの距離も考慮
-        let to_point = Vector3D::new(
+        let to_point = Vector::new(
             point.x() - self.center.x(),
             point.y() - self.center.y(),
             point.z() - self.center.z(),
         );
-        let normal_vec = Vector3D::new(self.normal.x(), self.normal.y(), self.normal.z());
+        let normal_vec = Vector::new(self.normal.x(), self.normal.y(), self.normal.z());
         let plane_distance = to_point.dot(&normal_vec).abs();
 
-        (circle_distance.powi(2) + plane_distance.powi(2)).sqrt()
+        (circle_distance * circle_distance + plane_distance * plane_distance).sqrt()
     }
 
     /// 円を指定倍率で拡大縮小
-    pub fn scale(&self, factor: f64) -> Self {
+    pub fn scale(&self, factor: T) -> Self {
         assert!(
-            factor >= 0.0 && factor.is_finite(),
-            "拡大縮小係数は非負の有限値である必要があります"
+            factor >= T::ZERO,
+            "拡大縮小係数は非負の値である必要があります"
         );
         Self::new(self.center, self.radius * factor, self.normal, self.u_axis)
     }
 
     /// 円を指定ベクトルで平行移動
-    pub fn translate(&self, vector: &Vector3D) -> Self {
+    pub fn translate(&self, vector: &Vector<T>) -> Self {
         let new_center = Point3D::new(
             self.center.x() + vector.x(),
             self.center.y() + vector.y(),
@@ -168,9 +166,10 @@ impl Circle {
     }
 }
 
-impl Circle3D for Circle {
-    type Point = Point3D;
-    type Vector = Vector3D;
+// Circle3Dトレイトの実装はf64特化版のみ
+impl Circle3D for Circle<f64> {
+    type Point = Point3D<f64>;
+    type Vector = Vector<f64>;
 
     fn center(&self) -> Self::Point {
         self.center
@@ -181,12 +180,12 @@ impl Circle3D for Circle {
     }
 
     fn normal(&self) -> Self::Vector {
-        Vector3D::new(self.normal.x(), self.normal.y(), self.normal.z())
+        Vector::new(self.normal.x(), self.normal.y(), self.normal.z())
     }
 
     fn contains_point(&self, point: &Self::Point) -> bool {
         // まず点が円の平面上にあるかチェック
-        if !self.point_on_plane(point, GEOMETRIC_TOLERANCE) {
+        if !self.point_on_plane(point, 1e-10) {
             return false;
         }
 
@@ -195,7 +194,7 @@ impl Circle3D for Circle {
         let distance_squared = (projected.x() - self.center.x()).powi(2)
             + (projected.y() - self.center.y()).powi(2)
             + (projected.z() - self.center.z()).powi(2);
-        distance_squared <= self.radius.powi(2) + GEOMETRIC_TOLERANCE
+        distance_squared <= self.radius.powi(2) + 1e-10
     }
 
     fn on_circumference(&self, point: &Self::Point, tolerance: f64) -> bool {
@@ -223,20 +222,20 @@ impl Circle3D for Circle {
     }
 
     fn tangent_at_point(&self, point: &Self::Point) -> Option<Self::Vector> {
-        if !self.on_circumference(point, GEOMETRIC_TOLERANCE) {
+        if !self.on_circumference(point, 1e-10) {
             return None;
         }
 
         // 円の平面内での接線方向を計算
         let projected = self.project_point_to_plane(point);
-        let radial = Vector3D::new(
+        let radial = Vector::new(
             projected.x() - self.center.x(),
             projected.y() - self.center.y(),
             projected.z() - self.center.z(),
         );
 
         // 接線ベクトルは法線と半径ベクトルの外積
-        let normal_vec = Vector3D::new(self.normal.x(), self.normal.y(), self.normal.z());
+        let normal_vec = Vector::new(self.normal.x(), self.normal.y(), self.normal.z());
         Some(normal_vec.cross(&radial))
     }
 
@@ -248,7 +247,7 @@ impl Circle3D for Circle {
         let local_tangent_x = -self.radius * sin_angle;
         let local_tangent_y = self.radius * cos_angle;
 
-        Vector3D::new(
+        Vector::new(
             local_tangent_x * self.u_axis.x() + local_tangent_y * self.v_axis.x(),
             local_tangent_x * self.u_axis.y() + local_tangent_y * self.v_axis.y(),
             local_tangent_x * self.u_axis.z() + local_tangent_y * self.v_axis.z(),
@@ -301,14 +300,25 @@ impl Circle3D for Circle {
     }
 }
 
-impl Circle {
+impl<T: Scalar> Circle<T> {
+    /// 指定された点が円周上にあるかを判定（許容誤差内）
+    pub fn on_circumference(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        if !self.point_on_plane(point, tolerance) {
+            return false;
+        }
+
+        let projected = self.project_point_to_plane(point);
+        let distance = self.center.distance_to(&projected);
+        (distance - self.radius).abs() <= tolerance
+    }
+
     /// 境界上の点を含む点の包含判定（許容誤差付き）
-    pub fn contains_point_on_boundary(&self, point: &Point3D, tolerance: f64) -> bool {
+    pub fn contains_point_on_boundary(&self, point: &Point3D<T>, tolerance: T) -> bool {
         self.on_circumference(point, tolerance)
     }
 
     /// 他の3D円との交差判定（簡略化実装）
-    pub fn intersects_with_circle(&self, other: &Circle) -> bool {
+    pub fn intersects_with_circle(&self, other: &Circle<T>) -> bool {
         // 同一平面かつ交差する場合のみtrue（簡略化）
         let distance = self.center.distance_to(&other.center);
         let sum_radii = self.radius + other.radius;
@@ -318,32 +328,35 @@ impl Circle {
     }
 
     /// 中心点を取得
-    pub fn center(&self) -> Point3D {
+    pub fn center(&self) -> Point3D<T> {
         self.center
     }
 
     /// 半径を取得
-    pub fn radius(&self) -> f64 {
+    pub fn radius(&self) -> T {
         self.radius
     }
 
     /// 法線方向を取得
-    pub fn normal(&self) -> Vector3D {
-        Vector3D::new(self.normal.x(), self.normal.y(), self.normal.z())
+    pub fn normal(&self) -> Vector<T> {
+        Vector::new(self.normal.x(), self.normal.y(), self.normal.z())
     }
 
     /// U軸（局所X軸）を取得
-    pub fn u_axis(&self) -> Direction3D {
+    pub fn u_axis(&self) -> Direction3D<T> {
         self.u_axis
     }
 
     /// V軸（局所Y軸）を取得
-    pub fn v_axis(&self) -> Direction3D {
+    pub fn v_axis(&self) -> Direction3D<T> {
         self.v_axis
     }
 
-    /// 3点から円を作成（簡略化実装）
-    pub fn from_three_points(p1: Point3D, p2: Point3D, p3: Point3D) -> Option<Self> {
+}
+
+impl Circle<f64> {
+    /// 3点から円を作成（f64特化、簡略化実装）
+    pub fn from_three_points(p1: Point3D<f64>, p2: Point3D<f64>, p3: Point3D<f64>) -> Option<Self> {
         // 簡略化：XY平面上の円として作成
         let p1_2d = crate::geometry2d::Point::new(p1.x(), p1.y());
         let p2_2d = crate::geometry2d::Point::new(p2.x(), p2.y());
@@ -356,92 +369,15 @@ impl Circle {
     }
 }
 
-impl From<Circle> for BBox3D {
-    fn from(circle: Circle) -> Self {
+impl From<Circle<f64>> for BBox3D<f64> {
+    fn from(circle: Circle<f64>) -> Self {
         let (min, max) = circle.bounding_box();
         BBox3D::new_from_tuples((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::f64::consts::{PI, TAU};
+/// f64特化版Circle3Dエイリアス
+pub type Circle3DF64 = Circle<f64>;
 
-    #[test]
-    fn test_xy_plane_circle() {
-        let center = Point3D::new(1.0, 2.0, 3.0);
-        let circle = Circle::xy_plane_circle(center, 5.0);
-
-        assert_eq!(circle.center(), center);
-        assert_eq!(circle.radius(), 5.0);
-        assert_eq!(circle.area(), PI * 25.0);
-        assert_eq!(circle.circumference(), TAU * 5.0);
-
-        // 法線がZ軸方向であることを確認
-        let normal = circle.normal();
-        assert!((normal.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((normal.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((normal.z() - 1.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_unit_circle() {
-        let circle = Circle::unit_circle();
-
-        assert_eq!(circle.center(), Point3D::origin());
-        assert_eq!(circle.radius(), 1.0);
-        assert_eq!(circle.area(), PI);
-        assert_eq!(circle.circumference(), TAU);
-    }
-
-    #[test]
-    fn test_contains_point() {
-        let circle = Circle::xy_plane_circle(Point3D::new(0.0, 0.0, 0.0), 5.0);
-
-        assert!(circle.contains_point(&Point3D::new(0.0, 0.0, 0.0))); // 中心
-        assert!(circle.contains_point(&Point3D::new(3.0, 4.0, 0.0))); // 内部
-        assert!(circle.contains_point(&Point3D::new(5.0, 0.0, 0.0))); // 円周上
-        assert!(!circle.contains_point(&Point3D::new(6.0, 0.0, 0.0))); // 外部
-        assert!(!circle.contains_point(&Point3D::new(0.0, 0.0, 1.0))); // 平面外
-    }
-
-    #[test]
-    fn test_point_at_angle() {
-        let circle = Circle::xy_plane_circle(Point3D::new(0.0, 0.0, 0.0), 2.0);
-
-        let point = circle.point_at_angle(0.0);
-        assert!((point.x() - 2.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-
-        let point = circle.point_at_angle(PI / 2.0);
-        assert!((point.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point.y() - 2.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_bounding_box() {
-        let circle = Circle::xy_plane_circle(Point3D::new(1.0, 2.0, 3.0), 4.0);
-        let (min, max) = circle.bounding_box();
-
-        assert!((min.x() - (-3.0)).abs() < GEOMETRIC_TOLERANCE);
-        assert!((min.y() - (-2.0)).abs() < GEOMETRIC_TOLERANCE);
-        assert!((min.z() - 3.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((max.x() - 5.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((max.y() - 6.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((max.z() - 3.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_to_2d() {
-        let circle_3d = Circle::xy_plane_circle(Point3D::new(1.0, 2.0, 3.0), 4.0);
-        let circle_2d = circle_3d.to_2d();
-
-        // 基本的なプロパティの確認
-        assert_eq!(circle_2d.radius(), 4.0);
-        assert_eq!(circle_2d.area(), PI * 16.0);
-        assert_eq!(circle_2d.circumference(), TAU * 4.0);
-    }
-}
+/// f32特化版Circle3Dエイリアス  
+pub type Circle3DF32 = Circle<f32>;

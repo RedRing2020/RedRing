@@ -4,22 +4,24 @@
 pub mod arc;
 pub mod bbox;
 pub mod circle;
-pub mod direction;
+pub mod direction;  // Direction2Dのジェネリック実装
 pub mod ellipse;
 pub mod ellipse_arc;
-pub mod infinite_line;
+// pub mod infinite_line;  // 一時的にコメントアウト（Direction2D型変換作業中）
 pub mod point;
+pub mod ray;  // Ray2D実装
 pub mod vector;
 
 // Re-export with consistent naming
 pub use arc::Arc;
 pub use bbox::{BBox, BBox2D}; // BBox2D エイリアスも公開
 pub use circle::Circle;
-pub use direction::Direction2D;
+pub use direction::{Direction2D, Direction2DF32, Direction2DF64};  // ジェネリックDirection2D
 pub use ellipse::Ellipse;
 pub use ellipse_arc::EllipseArc;
-pub use infinite_line::InfiniteLine2D;
+// pub use infinite_line::InfiniteLine2D;  // 一時的にコメントアウト（Direction2D型変換作業中）
 pub use point::{Point2D, Point2DF32, Point2DF64};
+pub use ray::{Ray2D, Ray2DF32, Ray2DF64};  // Ray2D公開
 pub use vector::Vector;
 
 // Type aliases for external compatibility and backward compatibility

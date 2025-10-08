@@ -132,14 +132,12 @@ impl<T: Scalar> Vector<T> {
     // scaleメソッドを削除 - *演算子を使用
 
     /// 2点間のベクトル
-    pub fn from_points(from: &crate::geometry3d::Point3D, to: &crate::geometry3d::Point3D) -> Self
-    where
-        T: From<f64>,
+    pub fn from_points(from: &crate::geometry3d::point::Point3D<T>, to: &crate::geometry3d::point::Point3D<T>) -> Self
     {
         Self::new(
-            T::from(to.x() - from.x()),
-            T::from(to.y() - from.y()),
-            T::from(to.z() - from.z()),
+            to.x() - from.x(),
+            to.y() - from.y(),
+            to.z() - from.z(),
         )
     }
 
