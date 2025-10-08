@@ -80,22 +80,62 @@ impl TrimmingInfo {
 /// geo_coreの数値基盤 + modelのCAD概念
 #[derive(Debug, Clone)]
 pub struct IntegratedLine {
-    /// 数値計算基盤（geo_core）
-    core_segment: GeoLineSegment3D,
+    /// 数値計算基盤（仮実装）
+    core_segment: MockLineSegment3D,
     /// CAD幾何情報
     trimming_info: TrimmingInfo,
     /// 許容誤差コンテキスト
     tolerance: ToleranceContext,
 }
 
+/// TODO: 仮実装 - 将来geo_primitives LineSegment3D に置き換え予定
+pub struct MockLineSegment3D {
+    start: Point3D,
+    end: Point3D,
+}
+
+impl MockLineSegment3D {
+    pub fn new(start: Point3D, end: Point3D) -> Self {
+        Self { start, end }
+    }
+
+    pub fn evaluate(&self, t: f64) -> Point3D {
+        let x = self.start.x() + t * (self.end.x() - self.start.x());
+        let y = self.start.y() + t * (self.end.y() - self.start.y());
+        let z = self.start.z() + t * (self.end.z() - self.start.z());
+        Point3D::new(x, y, z)
+    }
+
+    pub fn direction(&self) -> Vector3D {
+        Vector3D::new(
+            self.end.x() - self.start.x(),
+            self.end.y() - self.start.y(),
+            self.end.z() - self.start.z(),
+        )
+    }
+
+    pub fn length(&self) -> f64 {
+        self.direction().norm()
+    }
+
+    pub fn start(&self) -> &Point3D {
+        &self.start
+    }
+
+    pub fn end(&self) -> &Point3D {
+        &self.end
+    }
+
+    pub fn derivative(&self, _t: Scalar) -> Vector3D {
+        self.direction()
+    }
+}
+
 impl IntegratedLine {
     /// 2点から線分を作成（シンプルな線分）
     pub fn from_points(start: Point3D, end: Point3D) -> Self {
-        let geo_start = start.as_geo_core().clone();
-        let geo_end = end.as_geo_core().clone();
-
         Self {
-            core_segment: GeoLineSegment3D::new(geo_start, geo_end),
+            core_segment: MockLineSegment3D::new(start, end),
             trimming_info: TrimmingInfo::new_untrimmed(),
             tolerance: ToleranceContext::standard(),
         }
@@ -110,11 +150,8 @@ impl IntegratedLine {
         let start = infinite_line.at(parameter_start);
         let end = infinite_line.at(parameter_end);
 
-        let geo_start = start.as_geo_core().clone();
-        let geo_end = end.as_geo_core().clone();
-
         Self {
-            core_segment: GeoLineSegment3D::new(geo_start, geo_end),
+            core_segment: MockLineSegment3D::new(start, end),
             trimming_info: TrimmingInfo::new_trimmed(
                 parameter_start,
                 parameter_end,
@@ -158,15 +195,15 @@ impl IntegratedLine {
 
     // アクセサメソッド
     pub fn start(&self) -> Point3D {
-        Point3D::from_geo_core(self.core_segment.start().clone())
+        self.core_segment.start().clone()
     }
 
     pub fn end(&self) -> Point3D {
-        Point3D::from_geo_core(self.core_segment.end().clone())
+        self.core_segment.end().clone()
     }
 
     pub fn direction(&self) -> Vector3D {
-        Vector3D::from_geo_core(self.core_segment.direction())
+        self.core_segment.direction()
     }
 
     pub fn trimming_info(&self) -> &TrimmingInfo {
@@ -186,15 +223,37 @@ impl IntegratedLine {
         }
     }
 
-    /// geo_coreの高精度計算を利用
+    /// 高精度計算を利用（仮実装）
     pub fn distance_to_point(&self, point: &Point3D) -> f64 {
-        let geo_point = point.as_geo_core();
-        self.core_segment.distance_to_point(geo_point).value()
+        // 簡易実装: 点と線分の距離計算
+        let line_vec = self.core_segment.direction();
+        let point_vec = Vector3D::new(
+            point.x() - self.core_segment.start().x(),
+            point.y() - self.core_segment.start().y(),
+            point.z() - self.core_segment.start().z(),
+        );
+        
+        let t = point_vec.dot(&line_vec) / line_vec.dot(&line_vec);
+        let closest_point = self.core_segment.evaluate(t.clamp(0.0, 1.0));
+        
+        let distance_vec = Vector3D::new(
+            point.x() - closest_point.x(),
+            point.y() - closest_point.y(),
+            point.z() - closest_point.z(),
+        );
+        distance_vec.norm()
     }
 
     pub fn closest_parameter(&self, point: &Point3D) -> f64 {
-        let geo_point = point.as_geo_core();
-        self.core_segment.closest_parameter(geo_point, &self.tolerance).value()
+        let line_vec = self.core_segment.direction();
+        let point_vec = Vector3D::new(
+            point.x() - self.core_segment.start().x(),
+            point.y() - self.core_segment.start().y(),
+            point.z() - self.core_segment.start().z(),
+        );
+        
+        let t = point_vec.dot(&line_vec) / line_vec.dot(&line_vec);
+        t.clamp(0.0, 1.0)
     }
 }
 
@@ -208,16 +267,15 @@ impl Curve3D for IntegratedLine {
     }
 
     fn evaluate(&self, t: f64) -> Point3D {
-        let geo_point = self.core_segment.evaluate(Scalar::new(t));
-        Point3D::from_geo_core(geo_point)
+        self.core_segment.evaluate(t)
     }
 
     fn derivative(&self, _t: f64) -> Vector3D {
-        Vector3D::from_geo_core(self.core_segment.derivative(Scalar::new(_t)))
+        self.core_segment.direction()
     }
 
     fn length(&self) -> f64 {
-        self.core_segment.length().value()
+        self.core_segment.length()
     }
 
     fn parameter_hint(&self, pt: &Point3D) -> f64 {
