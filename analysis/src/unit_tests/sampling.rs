@@ -1,6 +1,6 @@
 // API不一致のため一時的にコメントアウト
 // use geo_algorithms::sampling::*;
-// use geo_core::{Point2D, ToleranceContext};
+// 注: geo_core依存関係は除外済み
 
 // #[test]
 // fn test_adaptive_sampler() {
