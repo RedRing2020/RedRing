@@ -13,7 +13,7 @@ pub mod vector;
 
 // Re-export with consistent naming
 pub use arc::Arc;
-pub use bbox::BBox;
+pub use bbox::{BBox, BBox2D}; // BBox2D エイリアスも公開
 pub use circle::Circle;
 pub use direction::Direction2D;
 pub use ellipse::Ellipse;
@@ -24,7 +24,6 @@ pub use vector::Vector;
 
 // Type aliases for external compatibility and backward compatibility
 pub type Arc2D = Arc;
-pub use bbox::BBox as BBox2D;
 pub type Circle2D = Circle<f64>; // f64専用の Circle エイリアス
 pub use ellipse::Ellipse as Ellipse2D;
 pub use ellipse_arc::EllipseArc as EllipseArc2D;

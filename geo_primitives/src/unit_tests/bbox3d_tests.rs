@@ -1,6 +1,6 @@
 #[cfg(test)]
 use crate::geometry3d::{BBox3D, Point3D};
-use crate::traits::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use crate::traits::{BBox, BBoxOps, CollisionBBox};
 
 #[test]
 fn test_bbox3d_creation() {
@@ -52,7 +52,7 @@ fn test_collision_bounds_interface() {
 fn test_generic_trait_implementation() {
     let bbox = BBox3D::new((0.0, 0.0, 0.0), (2.0, 3.0, 4.0));
 
-    // BoundingBoxトレイト
+    // BBoxトレイト
     assert_eq!(bbox.min(), [0.0, 0.0, 0.0]);
     assert_eq!(bbox.max(), [2.0, 3.0, 4.0]);
     assert_eq!(bbox.extent(0), 2.0);
@@ -60,7 +60,7 @@ fn test_generic_trait_implementation() {
     assert_eq!(bbox.extent(2), 4.0);
     assert_eq!(bbox.center(), [1.0, 1.5, 2.0]);
 
-    // BoundingBoxOpsトレイト
+    // BBoxOpsトレイト
     assert!(bbox.contains_point([1.0, 1.5, 2.0]));
     assert!(!bbox.contains_point([3.0, 1.0, 2.0]));
     assert!(bbox.is_valid());

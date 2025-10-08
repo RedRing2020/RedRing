@@ -10,7 +10,7 @@ use std::any::Any;
 ///
 /// このトレイトは3次元空間における球面と球体の共通操作を定義する。
 /// 球面は表面のみ、球体は内部を含む立体として扱う。
-pub trait Sphere3D: Any + Send + Sync {
+pub trait Sphere: Any + Send + Sync {
     /// スカラー型（f32またはf64）
     type Scalar: Scalar;
 
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_sphere_trait_bounds() {
         // コンパイル時にトレイト境界をテスト
-        fn check_sphere_bounds<T: Sphere3D>() {}
+        fn check_sphere_bounds<T: Sphere>() {}
         fn check_spherical_coords<T: SphericalCoordinates>() {}
         fn check_spherical_curve<T: SphericalCurve>() {}
 

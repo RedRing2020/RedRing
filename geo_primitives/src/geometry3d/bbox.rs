@@ -3,63 +3,62 @@
 //! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
 use crate::geometry3d::Point;
-use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use geo_foundation::abstract_types::geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox};
 
 /// 3D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
+///
+/// 3次元空間での立方体による境界表現を提供します。
+/// minとmaxのPointで立方体を定義し、CAD/CAMでの3D形状処理と衝突判定に使用されます。
+///
+/// # カプセル化
+/// フィールドはprivateで、アクセサメソッドを通じてアクセスします。
 #[derive(Debug, Clone, PartialEq)]
-pub struct BBox {
-    pub min: Point,
-    pub max: Point,
+pub struct BBox3D {
+    min: Point,
+    max: Point,
 }
 
-impl BoundingBox<3> for BBox {
-    type Coord = f64;
+impl BBoxTrait<f64> for BBox3D {
+    type Point = Point;
 
-    fn min(&self) -> [Self::Coord; 3] {
-        [self.min.x(), self.min.y(), self.min.z()]
+    fn min(&self) -> Self::Point {
+        self.min
     }
 
-    fn max(&self) -> [Self::Coord; 3] {
-        [self.max.x(), self.max.y(), self.max.z()]
+    fn max(&self) -> Self::Point {
+        self.max
     }
 
-    fn new(min: [Self::Coord; 3], max: [Self::Coord; 3]) -> Self {
-        Self {
-            min: Point::new(min[0], min[1], min[2]),
-            max: Point::new(max[0], max[1], max[2]),
-        }
+    fn new(min: Self::Point, max: Self::Point) -> Self {
+        Self { min, max }
     }
 
-    fn extent(&self, dim: usize) -> Self::Coord {
-        match dim {
-            0 => self.max.x() - self.min.x(),
-            1 => self.max.y() - self.min.y(),
-            2 => self.max.z() - self.min.z(),
-            _ => 0.0,
-        }
-    }
-
-    fn volume(&self) -> Self::Coord {
-        self.width() * self.height() * self.depth()
-    }
-
-    fn center(&self) -> [Self::Coord; 3] {
-        [
+    fn center(&self) -> Self::Point {
+        Point::new(
             (self.min.x() + self.max.x()) / 2.0,
             (self.min.y() + self.max.y()) / 2.0,
             (self.min.z() + self.max.z()) / 2.0,
-        ]
+        )
+    }
+
+    fn volume(&self) -> f64 {
+        // 3Dでは体積
+        self.width() * self.height() * self.depth()
+    }
+
+    fn is_valid(&self) -> bool {
+        self.min.x() <= self.max.x() && self.min.y() <= self.max.y() && self.min.z() <= self.max.z()
     }
 }
 
-impl BoundingBoxOps<3> for BBox {
-    fn contains_point(&self, point: [Self::Coord; 3]) -> bool {
-        point[0] >= self.min.x()
-            && point[0] <= self.max.x()
-            && point[1] >= self.min.y()
-            && point[1] <= self.max.y()
-            && point[2] >= self.min.z()
-            && point[2] <= self.max.z()
+impl BBoxOps<f64> for BBox3D {
+    fn contains_point(&self, point: Self::Point) -> bool {
+        point.x() >= self.min.x()
+            && point.x() <= self.max.x()
+            && point.y() >= self.min.y()
+            && point.y() <= self.max.y()
+            && point.z() >= self.min.z()
+            && point.z() <= self.max.z()
     }
 
     fn intersects(&self, other: &Self) -> bool {
@@ -86,7 +85,7 @@ impl BoundingBoxOps<3> for BBox {
         }
     }
 
-    fn expand(&self, amount: Self::Coord) -> Self {
+    fn expand(&self, amount: f64) -> Self {
         Self {
             min: Point::new(
                 self.min.x() - amount,
@@ -100,13 +99,9 @@ impl BoundingBoxOps<3> for BBox {
             ),
         }
     }
-
-    fn is_valid(&self) -> bool {
-        self.min.x() <= self.max.x() && self.min.y() <= self.max.y() && self.min.z() <= self.max.z()
-    }
 }
 
-impl CollisionBounds<3> for BBox {
+impl CollisionBBox<f64> for BBox3D {
     fn fast_overlaps(&self, other: &Self) -> bool {
         // 軸平行境界ボックス特化の高速重複テスト
         !(self.max.x() < other.min.x()
@@ -117,7 +112,7 @@ impl CollisionBounds<3> for BBox {
             || other.max.z() < self.min.z())
     }
 
-    fn separation_distance(&self, other: &Self) -> Option<Self::Coord> {
+    fn separation_distance(&self, other: &Self) -> Option<f64> {
         if self.intersects(other) {
             return None; // 重複している場合は分離距離なし
         }
@@ -148,22 +143,114 @@ impl CollisionBounds<3> for BBox {
         Some(max_separation)
     }
 
-    fn closest_point_on_surface(&self, point: [Self::Coord; 3]) -> [Self::Coord; 3] {
-        [
-            point[0].clamp(self.min.x(), self.max.x()),
-            point[1].clamp(self.min.y(), self.max.y()),
-            point[2].clamp(self.min.z(), self.max.z()),
-        ]
+    fn closest_point_on_surface(&self, point: Self::Point) -> Self::Point {
+        Point::new(
+            point.x().clamp(self.min.x(), self.max.x()),
+            point.y().clamp(self.min.y(), self.max.y()),
+            point.z().clamp(self.min.z(), self.max.z()),
+        )
     }
 }
 
-impl BBox {
-    /// 新しいBBoxを作成
-    pub fn new(min: (f64, f64, f64), max: (f64, f64, f64)) -> Self {
-        Self {
-            min: Point::new(min.0, min.1, min.2),
-            max: Point::new(max.0, max.1, max.2),
-        }
+impl BBox3D {
+    /// 最小点を取得（読み取り専用アクセサ）
+    pub fn min_point(&self) -> Point {
+        self.min
+    }
+
+    /// 最大点を取得（読み取り専用アクセサ）
+    pub fn max_point(&self) -> Point {
+        self.max
+    }
+
+    /// 最小座標を取得（x座標）
+    pub fn min_x(&self) -> f64 {
+        self.min.x()
+    }
+
+    /// 最小座標を取得（y座標）
+    pub fn min_y(&self) -> f64 {
+        self.min.y()
+    }
+
+    /// 最小座標を取得（z座標）
+    pub fn min_z(&self) -> f64 {
+        self.min.z()
+    }
+
+    /// 最大座標を取得（x座標）
+    pub fn max_x(&self) -> f64 {
+        self.max.x()
+    }
+
+    /// 最大座標を取得（y座標）
+    pub fn max_y(&self) -> f64 {
+        self.max.y()
+    }
+
+    /// 最大座標を取得（z座標）
+    pub fn max_z(&self) -> f64 {
+        self.max.z()
+    }
+
+    /// 境界ボックスの更新（新しいminとmax点を設定）
+    ///
+    /// # 安全性
+    /// min <= max の条件を満たさない場合はpanicします
+    pub fn update(&mut self, min: Point, max: Point) {
+        assert!(
+            min.x() <= max.x() && min.y() <= max.y() && min.z() <= max.z(),
+            "Invalid bounding box: min must be <= max"
+        );
+        self.min = min;
+        self.max = max;
+    }
+
+    /// 点を境界ボックスに含めるよう拡張
+    pub fn expand_to_include_point(&mut self, point: Point) {
+        self.min = Point::new(
+            self.min.x().min(point.x()),
+            self.min.y().min(point.y()),
+            self.min.z().min(point.z()),
+        );
+        self.max = Point::new(
+            self.max.x().max(point.x()),
+            self.max.y().max(point.y()),
+            self.max.z().max(point.z()),
+        );
+    }
+
+    /// 新しいBBox3Dをタプルから作成（互換性のため）
+    pub fn new_from_tuples(min: (f64, f64, f64), max: (f64, f64, f64)) -> Self {
+        Self::new(
+            Point::new(min.0, min.1, min.2),
+            Point::new(max.0, max.1, max.2),
+        )
+    }
+
+    /// 座標値から直接作成（互換性のため）
+    pub fn from_coords(
+        min_x: f64,
+        min_y: f64,
+        min_z: f64,
+        max_x: f64,
+        max_y: f64,
+        max_z: f64,
+    ) -> Self {
+        Self::new(
+            Point::new(min_x, min_y, min_z),
+            Point::new(max_x, max_y, max_z),
+        )
+    }
+
+    /// 2つの点からBBoxを作成（便利コンストラクタ）
+    pub fn from_two_points(min: Point, max: Point) -> Self {
+        Self::new(min, max)
+    }
+
+    /// 以前の名前との互換性のため
+    pub fn from_3d_points(min: Point, max: Point) -> Self {
+        Self::from_two_points(min, max)
     }
 
     /// 2D点から3Dバウンディングボックスを作成（Z=0）
@@ -171,15 +258,10 @@ impl BBox {
         min: crate::geometry2d::Point2DF64,
         max: crate::geometry2d::Point2DF64,
     ) -> Self {
-        Self {
-            min: Point::new(min.x(), min.y(), 0.0),
-            max: Point::new(max.x(), max.y(), 0.0),
-        }
-    }
-
-    /// Pointから3Dバウンディングボックスを作成
-    pub fn from_3d_points(min: Point, max: Point) -> Self {
-        Self { min, max }
+        Self::new(
+            Point::new(min.x(), min.y(), 0.0),
+            Point::new(max.x(), max.y(), 0.0),
+        )
     }
 
     /// 点の集合からバウンディングボックスを作成
@@ -205,7 +287,12 @@ impl BBox {
             );
         }
 
-        Some(Self::from_3d_points(min, max))
+        Some(Self::new(min, max))
+    }
+
+    /// 便利なfrom_pointsエイリアス
+    pub fn from_points(points: &[Point]) -> Option<Self> {
+        Self::from_point_array(points)
     }
 
     /// 幅を取得
@@ -225,16 +312,13 @@ impl BBox {
 
     /// 中心点をタプルで取得（互換性のため）
     pub fn center_tuple(&self) -> (f64, f64, f64) {
-        (
-            (self.min.x() + self.max.x()) / 2.0,
-            (self.min.y() + self.max.y()) / 2.0,
-            (self.min.z() + self.max.z()) / 2.0,
-        )
+        let center = self.center();
+        (center.x(), center.y(), center.z())
     }
 
-    /// 点が境界ボックス内にあるかチェック（タプル版）
+    /// 点が境界ボックス内にあるかチェック（タプル版、互換性のため）
     pub fn contains_point_tuple(&self, point: (f64, f64, f64)) -> bool {
-        self.contains_point([point.0, point.1, point.2])
+        self.contains_point(Point::new(point.0, point.1, point.2))
     }
 
     /// 表面積を計算
@@ -262,6 +346,9 @@ impl BBox {
     }
 }
 
-// 旧BoundingBoxとの互換性のためのtype alias
-#[deprecated(note = "Use BBox instead")]
-pub type LegacyBoundingBox = BBox;
+// 旧名前との互換性のためのtype alias
+#[deprecated(note = "Use BBox3D instead")]
+pub type LegacyBoundingBox = BBox3D;
+
+// 型エイリアス：3D専用の明確化
+pub type BBox3DF64 = BBox3D; // f64専用BBox3D（明示的）

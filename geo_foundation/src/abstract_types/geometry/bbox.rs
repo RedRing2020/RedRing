@@ -1,85 +1,62 @@
-//! ジェネリックなバウンディングボックストレイト
+//! 境界ボックス（Bounding Box）トレイト
 //!
-//! 次元に依存しない境界ボックス操作の共通インターフェース
+//! 2D/3D形状の立方体/矩形による境界表現の共通インターフェース
 
-/// バウンディングボックスの基本操作を定義するトレイト
-pub trait BoundingBox<const D: usize> {
-    /// 座標型（通常はf64）
-    type Coord;
+/// 境界ボックスの基本操作を定義するトレイト
+///
+/// 立方体/矩形による形状の境界表現を提供します。
+/// 高次元データ（4次元以上）はAnalysisクレートで別途対応予定。
+pub trait BBox<T: crate::Scalar> {
+    /// 点の型（Point2D<T>, Point3D<T>など）
+    type Point;
 
-    /// 最小座標を取得
-    fn min(&self) -> [Self::Coord; D];
+    /// 最小点を取得（左下奥など）
+    fn min(&self) -> Self::Point;
 
-    /// 最大座標を取得
-    fn max(&self) -> [Self::Coord; D];
+    /// 最大点を取得（右上手前など）
+    fn max(&self) -> Self::Point;
 
-    /// 新しいバウンディングボックスを作成
-    fn new(min: [Self::Coord; D], max: [Self::Coord; D]) -> Self;
-
-    /// 指定次元の幅を取得
-    fn extent(&self, dim: usize) -> Self::Coord
-    where
-        Self::Coord: std::ops::Sub<Output = Self::Coord> + Copy;
-
-    /// 体積/面積を計算
-    fn volume(&self) -> Self::Coord
-    where
-        Self::Coord: std::ops::Mul<Output = Self::Coord> + Copy + From<f64>;
+    /// 新しい境界ボックスを作成
+    fn new(min: Self::Point, max: Self::Point) -> Self;
 
     /// 中心点を取得
-    fn center(&self) -> [Self::Coord; D]
-    where
-        Self::Coord:
-            std::ops::Add<Output = Self::Coord> + std::ops::Div<f64, Output = Self::Coord> + Copy;
-}
+    fn center(&self) -> Self::Point;
 
-/// バウンディングボックスの高度な操作を定義するトレイト
-pub trait BoundingBoxOps<const D: usize>: BoundingBox<D> {
-    /// 点が境界ボックス内にあるかチェック
-    fn contains_point(&self, point: [Self::Coord; D]) -> bool
-    where
-        Self::Coord: PartialOrd + Copy;
-
-    /// 他の境界ボックスと交差するかチェック
-    fn intersects(&self, other: &Self) -> bool
-    where
-        Self::Coord: PartialOrd + Copy;
-
-    /// 他の境界ボックスとの結合（和集合）
-    fn union(&self, other: &Self) -> Self
-    where
-        Self::Coord: PartialOrd + Copy;
-
-    /// 境界ボックスを指定量だけ拡張
-    fn expand(&self, amount: Self::Coord) -> Self
-    where
-        Self::Coord:
-            std::ops::Add<Output = Self::Coord> + std::ops::Sub<Output = Self::Coord> + Copy;
+    /// 体積/面積を計算
+    fn volume(&self) -> T;
 
     /// 境界ボックスが有効かチェック（min <= max）
-    fn is_valid(&self) -> bool
-    where
-        Self::Coord: PartialOrd + Copy;
+    fn is_valid(&self) -> bool;
+}
+
+/// 境界ボックスの高度な操作を定義するトレイト
+pub trait BBoxOps<T: crate::Scalar>: BBox<T> {
+    /// 点が境界ボックス内にあるかチェック
+    fn contains_point(&self, point: Self::Point) -> bool;
+
+    /// 他の境界ボックスと交差するかチェック
+    fn intersects(&self, other: &Self) -> bool;
+
+    /// 他の境界ボックスとの結合（和集合）
+    fn union(&self, other: &Self) -> Self;
+
+    /// 境界ボックスを指定量だけ拡張
+    fn expand(&self, amount: T) -> Self;
 }
 
 /// 衝突判定用の特殊操作
-pub trait CollisionBounds<const D: usize>: BoundingBoxOps<D> {
+pub trait CollisionBBox<T: crate::Scalar>: BBoxOps<T> {
     /// 高速な重複テスト（軸平行境界ボックス特化）
-    fn fast_overlaps(&self, other: &Self) -> bool
-    where
-        Self::Coord: PartialOrd + Copy;
+    fn fast_overlaps(&self, other: &Self) -> bool;
 
-    /// 境界ボックス間の距離（分離している場合のみ）
-    fn separation_distance(&self, other: &Self) -> Option<Self::Coord>
-    where
-        Self::Coord: PartialOrd + std::ops::Sub<Output = Self::Coord> + Copy + From<f64>;
+    /// 境界ボックス間の分離距離（重複していない場合のみ）
+    fn separation_distance(&self, other: &Self) -> Option<T>;
 
-    /// 最も近い点を境界ボックス表面で取得
-    fn closest_point_on_surface(&self, point: [Self::Coord; D]) -> [Self::Coord; D]
-    where
-        Self::Coord: PartialOrd + Copy;
+    /// 指定点に最も近い境界ボックス表面上の点を取得
+    fn closest_point_on_surface(&self, point: Self::Point) -> Self::Point;
 }
 
 // 注意: 具体的な型エイリアスはgeo_primitivesで定義される
+// 高次元境界データ（4次元以上）はAnalysisクレートで対応予定
 // pub type BBox2D = geo_primitives::geometry2d::BBox2D;
 // pub type BBox3D = geo_primitives::geometry3d::BBox3D;

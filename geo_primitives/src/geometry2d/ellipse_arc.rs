@@ -4,8 +4,9 @@
 
 #[cfg(test)]
 use crate::geometry2d::Point2D;
-use crate::geometry2d::{BBox2D, Ellipse, Vector2D};
+use crate::geometry2d::{bbox::BBoxF64, Ellipse, Vector2D};
 use geo_foundation::abstract_types::Angle;
+use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
 /// 楕円弧関連のエラー
@@ -27,9 +28,6 @@ impl std::fmt::Display for EllipseArcError {
 }
 
 impl std::error::Error for EllipseArcError {}
-
-/// 幾何計算用の許容誤差
-const GEOMETRIC_TOLERANCE: f64 = 1e-10;
 
 /// 2D空間上の楕円弧を表現する構造体
 #[derive(Debug, Clone)]
@@ -198,7 +196,7 @@ impl EllipseArc {
     }
 
     /// 楕円弧のバウンディングボックスを計算
-    pub fn bounding_box(&self) -> BBox2D {
+    pub fn bounding_box(&self) -> BBoxF64 {
         // 楕円弧上の複数の点をサンプリングしてバウンディングボックスを計算
         let mut points = Vec::new();
 
@@ -213,9 +211,9 @@ impl EllipseArc {
             points.push(self.point_at_parameter(t));
         }
 
-        BBox2D::from_point_array(&points).unwrap_or_else(|| {
-            let center = self.center();
-            BBox2D::new((center.x(), center.y()), (center.x(), center.y()))
+        BBoxF64::from_point_array(&points).unwrap_or_else(|| {
+            let center = self.ellipse.center();
+            BBoxF64::new_from_tuples((center.x(), center.y()), (center.x(), center.y()))
         })
     }
 

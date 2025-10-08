@@ -359,7 +359,7 @@ impl Circle {
 impl From<Circle> for BBox3D {
     fn from(circle: Circle) -> Self {
         let (min, max) = circle.bounding_box();
-        BBox3D::new((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
+        BBox3D::new_from_tuples((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
     }
 }
 

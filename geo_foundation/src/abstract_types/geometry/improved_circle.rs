@@ -15,8 +15,8 @@ pub trait Circle<T: Scalar> {
     type Point;
     /// ベクトルの型（Vector2D, Vector3D など）
     type Vector;
-    /// 境界ボックスの型
-    type BoundingBox;
+    /// 境界ボックスの型（通常は BBox2D または BBox3D）
+    type BBox;
 
     /// 次元数を取得（2または3）
     fn dimension() -> usize;
@@ -61,7 +61,7 @@ pub trait Circle<T: Scalar> {
     fn tangent_at_angle(&self, angle: Angle<T>) -> Self::Vector;
 
     /// 円の境界ボックス（外接矩形/直方体）を取得
-    fn bounding_box(&self) -> Self::BoundingBox;
+    fn bounding_box(&self) -> Self::BBox;
 
     /// 円を指定倍率で拡大縮小
     ///
@@ -288,7 +288,7 @@ mod tests {
     impl<T: Scalar> Circle<T> for MockCircle2D<T> {
         type Point = MockPoint2D<T>;
         type Vector = MockVector2D<T>;
-        type BoundingBox = MockBBox2D<T>;
+        type BBox = MockBBox2D<T>;
 
         fn dimension() -> usize {
             2
@@ -339,7 +339,7 @@ mod tests {
             }
         }
 
-        fn bounding_box(&self) -> Self::BoundingBox {
+        fn bounding_box(&self) -> Self::BBox {
             MockBBox2D {
                 min: MockPoint2D {
                     x: self.center.x - self.radius,

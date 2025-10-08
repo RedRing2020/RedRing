@@ -17,7 +17,7 @@ pub trait EllipseArc2D<T: Scalar> {
     /// 楕円の型（通常は Ellipse2D）
     type Ellipse;
     /// 境界ボックスの型（通常は BBox2D）
-    type BoundingBox;
+    type BBox;
 
     /// 楕円弧の中心座標を取得
     fn center(&self) -> Self::Point;
@@ -78,7 +78,7 @@ pub trait EllipseArc2D<T: Scalar> {
     fn arc_length(&self) -> T;
 
     /// 楕円弧の境界ボックスを計算
-    fn bounding_box(&self) -> Self::BoundingBox;
+    fn bounding_box(&self) -> Self::BBox;
 
     /// 指定されたパラメータ位置での点を取得
     /// t: パラメータ（通常は0.0〜1.0、開始角度から終了角度まで）
@@ -145,7 +145,7 @@ pub trait EllipseArc3D<T: Scalar> {
     /// 楕円の型（通常は Ellipse3D）
     type Ellipse;
     /// 境界ボックスの型（通常は BBox3D）
-    type BoundingBox;
+    type BBox;
     /// 2D楕円弧の型（投影用）
     type EllipseArc2D;
 
@@ -213,7 +213,7 @@ pub trait EllipseArc3D<T: Scalar> {
     fn arc_length(&self) -> T;
 
     /// 楕円弧の境界ボックスを計算
-    fn bounding_box(&self) -> Self::BoundingBox;
+    fn bounding_box(&self) -> Self::BBox;
 
     /// 指定されたパラメータ位置での点を取得
     fn point_at_parameter(&self, t: T) -> Self::Point;

@@ -2,7 +2,7 @@
 //!
 //! CAD/CAM で使用される基本的な幾何学要素のトレイト群を提供
 
-// pub mod arc;  // 一時的にコメントアウト
+// pub mod arc;  // 一時的にコメントアウト（実装完了後に有効化）
 pub mod bbox;
 pub mod circle;
 pub mod direction;
@@ -16,7 +16,7 @@ pub mod sphere;
 pub mod vector;
 
 // 基本トレイトをエクスポート
-// pub use arc::*;  // 一時的にコメントアウト
+// pub use arc::*;  // 一時的にコメントアウト（実装完了後に有効化）
 pub use bbox::*;
 pub use circle::*;
 pub use direction::*;
