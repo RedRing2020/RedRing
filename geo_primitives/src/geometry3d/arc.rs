@@ -324,10 +324,11 @@ impl PartialEq for Arc {
 mod tests {
     use super::*;
     use crate::geometry3d::Direction3D;
-    use geo_foundation::abstract_types::geometry::Direction;
 
     #[test]
     fn test_arc_creation() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -346,6 +347,8 @@ mod tests {
 
     #[test]
     fn test_arc_length() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -360,6 +363,8 @@ mod tests {
 
     #[test]
     fn test_arc_kind() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -382,6 +387,8 @@ mod tests {
 
     #[test]
     fn test_angle_contains() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -397,6 +404,8 @@ mod tests {
 
     #[test]
     fn test_arc_reverse() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -412,6 +421,8 @@ mod tests {
 
     #[test]
     fn test_arc_midpoint() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
@@ -432,6 +443,8 @@ mod tests {
 
     #[test]
     fn test_approximate_with_points() {
+        use geo_foundation::abstract_types::geometry::Direction;
+        
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Vector3D::new(0.0, 0.0, 1.0);
         let u_axis = Vector3D::new(1.0, 0.0, 0.0);
