@@ -3,6 +3,7 @@
 //! 3次元円弧の基本実装
 
 use crate::geometry3d::{Circle, Point3D, Vector3D};
+use crate::traits::Circle3D;
 use geo_foundation::abstract_types::geometry::angle::Angle;
 use std::f64::consts::PI;
 
@@ -114,30 +115,7 @@ impl Arc {
 
     /// 指定角度での点を取得（ラジアン）
     pub fn point_at_angle(&self, angle: f64) -> Point3D {
-        let center = self.circle.center();
-        let normal = self.circle.normal();
-        let radius = self.circle.radius();
-        
-        // 円の平面内での基準ベクトルを計算
-        let reference = if normal.z().abs() < 0.9 {
-            Vector3D::new(0.0, 0.0, 1.0).cross(&normal).normalize().unwrap_or(Vector3D::unit_x())
-        } else {
-            Vector3D::new(1.0, 0.0, 0.0).cross(&normal).normalize().unwrap_or(Vector3D::unit_y())
-        };
-        
-        let y_axis = normal.cross(&reference);
-        
-        // 角度に基づいて点を計算
-        let x = radius * angle.cos();
-        let y = radius * angle.sin();
-        
-        let point_vec = reference * x + y_axis * y;
-        
-        Point3D::new(
-            center.x() + point_vec.x(),
-            center.y() + point_vec.y(),
-            center.z() + point_vec.z(),
-        )
+        self.circle.point_at_angle(angle)
     }
 
     /// 指定角度での点を取得（Angle型）
