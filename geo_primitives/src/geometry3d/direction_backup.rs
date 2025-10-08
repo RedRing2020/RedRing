@@ -123,55 +123,8 @@ impl<T: Scalar> Direction3DTrait<T> for Direction3D<T> {
         self.vector.cross(&other.vector)
     }
 
-    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self {
-        // Rodrigues回転公式を使用
-        let cos_theta = angle.cos();
-        let sin_theta = angle.sin();
-        let axis_vec = axis.to_vector();
-        let dot_product = self.dot(axis);
-
-        let rotated = self.vector * cos_theta
-            + axis_vec.cross(&self.vector) * sin_theta
-            + axis_vec * dot_product * (T::ONE - cos_theta);
-
-        Self::from_vector(rotated).unwrap()
-    }
-
-    fn any_perpendicular(&self) -> Self {
-        // 最も小さい成分を持つ軸と外積を取る
-        let abs_x = self.x().abs();
-        let abs_y = self.y().abs();
-        let abs_z = self.z().abs();
-
-        let reference = if abs_x <= abs_y && abs_x <= abs_z {
-            Vector::new(T::ONE, T::ZERO, T::ZERO)
-        } else if abs_y <= abs_z {
-            Vector::new(T::ZERO, T::ONE, T::ZERO)
-        } else {
-            Vector::new(T::ZERO, T::ZERO, T::ONE)
-        };
-
-        let cross = self.vector.cross(&reference);
-        Self::from_vector(cross).unwrap()
-    }
-
-    fn build_orthonormal_basis(&self) -> (Self, Self, Self) {
-        let u = self.any_perpendicular();
-        let v = self.cross(&u);
-        let v_normalized = Self::from_vector(v).unwrap();
-        (*self, u, v_normalized)
-    }
-
-    fn x_axis() -> Self {
-        Self::positive_x()
-    }
-
-    fn y_axis() -> Self {
-        Self::positive_y()
-    }
-
-    fn z_axis() -> Self {
-        Self::positive_z()
+    fn from_components_3d(x: T, y: T, z: T) -> Option<Self> {
+        Self::new(x, y, z)
     }
 }
 
@@ -181,3 +134,88 @@ pub type Direction3DF64 = Direction3D<f64>;
 
 /// f32版の3D Direction（高速演算用）
 pub type Direction3DF32 = Direction3D<f32>;
+    }
+
+    fn build_orthonormal_basis(&self) -> (Self, Self, Self) {
+        let w = *self; // Z軸
+        let u = self.any_perpendicular(); // X軸
+        let v_vec = w.vector.cross(&u.vector); // Y軸
+        let v = Self::from_normalized_vector(v_vec);
+
+        (u, v, w)
+    }
+
+    fn x_axis() -> Self {
+        Self::from_normalized_vector(Vector3D::new(1.0, 0.0, 0.0))
+    }
+
+    fn y_axis() -> Self {
+        Self::from_normalized_vector(Vector3D::new(0.0, 1.0, 0.0))
+    }
+
+    fn z_axis() -> Self {
+        Self::from_normalized_vector(Vector3D::new(0.0, 0.0, 1.0))
+    }
+}
+
+impl StepCompatible for Direction3D {
+    fn to_step_string(&self) -> String {
+        format!(
+            "DIRECTION('',({:.6},{:.6},{:.6}))",
+            self.x(),
+            self.y(),
+            self.z()
+        )
+    }
+
+    fn from_step_string(_step_str: &str) -> Result<Self, String> {
+        // 将来実装予定
+        Err("Not implemented yet".to_string())
+    }
+}
+
+impl std::fmt::Display for Direction3D {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Direction3D({:.3}, {:.3}, {:.3})",
+            self.x(),
+            self.y(),
+            self.z()
+        )
+    }
+}
+
+// 便利な定数
+impl Direction3D {
+    /// 正のX軸方向
+    /// 正のX軸方向を取得
+    pub fn positive_x() -> Self {
+        Self::from_normalized_vector(Vector3D::new(1.0, 0.0, 0.0))
+    }
+
+    /// 正のY軸方向を取得
+    pub fn positive_y() -> Self {
+        Self::from_normalized_vector(Vector3D::new(0.0, 1.0, 0.0))
+    }
+
+    /// 正のZ軸方向を取得
+    pub fn positive_z() -> Self {
+        Self::from_normalized_vector(Vector3D::new(0.0, 0.0, 1.0))
+    }
+
+    /// 負のX軸方向を取得
+    pub fn negative_x() -> Self {
+        Self::from_normalized_vector(Vector3D::new(-1.0, 0.0, 0.0))
+    }
+
+    /// 負のY軸方向を取得
+    pub fn negative_y() -> Self {
+        Self::from_normalized_vector(Vector3D::new(0.0, -1.0, 0.0))
+    }
+
+    /// 負のZ軸方向を取得
+    pub fn negative_z() -> Self {
+        Self::from_normalized_vector(Vector3D::new(0.0, 0.0, -1.0))
+    }
+}

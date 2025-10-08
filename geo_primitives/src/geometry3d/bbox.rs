@@ -2,8 +2,11 @@
 //!
 //! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
-use crate::geometry3d::Point;
-use geo_foundation::abstract_types::geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox};
+use crate::geometry3d::Point3D;
+use geo_foundation::abstract_types::{
+    geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox},
+    Scalar,
+};
 
 /// 3D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
 ///
@@ -13,13 +16,13 @@ use geo_foundation::abstract_types::geometry::{BBox as BBoxTrait, BBoxOps, Colli
 /// # カプセル化
 /// フィールドはprivateで、アクセサメソッドを通じてアクセスします。
 #[derive(Debug, Clone, PartialEq)]
-pub struct BBox3D {
-    min: Point,
-    max: Point,
+pub struct BBox3D<T: Scalar> {
+    min: Point3D<T>,
+    max: Point3D<T>,
 }
 
-impl BBoxTrait<f64> for BBox3D {
-    type Point = Point;
+impl<T: Scalar> BBoxTrait<T> for BBox3D<T> {
+    type Point = Point3D<T>;
 
     fn min(&self) -> Self::Point {
         self.min
@@ -34,14 +37,15 @@ impl BBoxTrait<f64> for BBox3D {
     }
 
     fn center(&self) -> Self::Point {
-        Point::new(
-            (self.min.x() + self.max.x()) / 2.0,
-            (self.min.y() + self.max.y()) / 2.0,
-            (self.min.z() + self.max.z()) / 2.0,
+        let two = T::from_f64(2.0);
+        Point3D::new(
+            (self.min.x() + self.max.x()) / two,
+            (self.min.y() + self.max.y()) / two,
+            (self.min.z() + self.max.z()) / two,
         )
     }
 
-    fn volume(&self) -> f64 {
+    fn volume(&self) -> T {
         // 3Dでは体積
         self.width() * self.height() * self.depth()
     }
@@ -51,7 +55,10 @@ impl BBoxTrait<f64> for BBox3D {
     }
 }
 
-impl BBoxOps<f64> for BBox3D {
+impl<T: Scalar> BBoxOps<T> for BBox3D<T>
+where
+    T: PartialOrd + Copy,
+{
     fn contains_point(&self, point: Self::Point) -> bool {
         point.x() >= self.min.x()
             && point.x() <= self.max.x()
@@ -72,12 +79,12 @@ impl BBoxOps<f64> for BBox3D {
 
     fn union(&self, other: &Self) -> Self {
         Self {
-            min: Point::new(
+            min: Point3D::new(
                 self.min.x().min(other.min.x()),
                 self.min.y().min(other.min.y()),
                 self.min.z().min(other.min.z()),
             ),
-            max: Point::new(
+            max: Point3D::new(
                 self.max.x().max(other.max.x()),
                 self.max.y().max(other.max.y()),
                 self.max.z().max(other.max.z()),
@@ -85,14 +92,14 @@ impl BBoxOps<f64> for BBox3D {
         }
     }
 
-    fn expand(&self, amount: f64) -> Self {
+    fn expand(&self, amount: T) -> Self {
         Self {
-            min: Point::new(
+            min: Point3D::new(
                 self.min.x() - amount,
                 self.min.y() - amount,
                 self.min.z() - amount,
             ),
-            max: Point::new(
+            max: Point3D::new(
                 self.max.x() + amount,
                 self.max.y() + amount,
                 self.max.z() + amount,
@@ -101,7 +108,7 @@ impl BBoxOps<f64> for BBox3D {
     }
 }
 
-impl CollisionBBox<f64> for BBox3D {
+impl<T: Scalar> CollisionBBox<T> for BBox3D<T> {
     fn fast_overlaps(&self, other: &Self) -> bool {
         // 軸平行境界ボックス特化の高速重複テスト
         !(self.max.x() < other.min.x()
@@ -112,12 +119,12 @@ impl CollisionBBox<f64> for BBox3D {
             || other.max.z() < self.min.z())
     }
 
-    fn separation_distance(&self, other: &Self) -> Option<f64> {
+    fn separation_distance(&self, other: &Self) -> Option<T> {
         if self.intersects(other) {
             return None; // 重複している場合は分離距離なし
         }
 
-        let mut max_separation = 0.0f64;
+        let mut max_separation = T::ZERO;
 
         // X軸での分離距離
         if self.max.x() < other.min.x() {
@@ -152,7 +159,7 @@ impl CollisionBBox<f64> for BBox3D {
     }
 }
 
-impl BBox3D {
+impl<T: Scalar> BBox3D<T> {
     /// 最小点を取得（読み取り専用アクセサ）
     pub fn min_point(&self) -> Point {
         self.min
@@ -164,32 +171,32 @@ impl BBox3D {
     }
 
     /// 最小座標を取得（x座標）
-    pub fn min_x(&self) -> f64 {
+    pub fn min_x(&self) -> T {
         self.min.x()
     }
 
     /// 最小座標を取得（y座標）
-    pub fn min_y(&self) -> f64 {
+    pub fn min_y(&self) -> T {
         self.min.y()
     }
 
     /// 最小座標を取得（z座標）
-    pub fn min_z(&self) -> f64 {
+    pub fn min_z(&self) -> T {
         self.min.z()
     }
 
     /// 最大座標を取得（x座標）
-    pub fn max_x(&self) -> f64 {
+    pub fn max_x(&self) -> T {
         self.max.x()
     }
 
     /// 最大座標を取得（y座標）
-    pub fn max_y(&self) -> f64 {
+    pub fn max_y(&self) -> T {
         self.max.y()
     }
 
     /// 最大座標を取得（z座標）
-    pub fn max_z(&self) -> f64 {
+    pub fn max_z(&self) -> T {
         self.max.z()
     }
 
@@ -296,22 +303,22 @@ impl BBox3D {
     }
 
     /// 幅を取得
-    pub fn width(&self) -> f64 {
+    pub fn width(&self) -> T {
         self.max.x() - self.min.x()
     }
 
     /// 高さを取得
-    pub fn height(&self) -> f64 {
+    pub fn height(&self) -> T {
         self.max.y() - self.min.y()
     }
 
     /// 奥行きを取得
-    pub fn depth(&self) -> f64 {
+    pub fn depth(&self) -> T {
         self.max.z() - self.min.z()
     }
 
     /// 中心点をタプルで取得（互換性のため）
-    pub fn center_tuple(&self) -> (f64, f64, f64) {
+    pub fn center_tuple(&self) -> (T, T, T) {
         let center = self.center();
         (center.x(), center.y(), center.z())
     }
@@ -348,7 +355,7 @@ impl BBox3D {
 
 // 旧名前との互換性のためのtype alias
 #[deprecated(note = "Use BBox3D instead")]
-pub type LegacyBoundingBox = BBox3D;
+pub type LegacyBoundingBox = BBox3D<f64>;
 
-// 型エイリアス：3D専用の明確化
-pub type BBox3DF64 = BBox3D; // f64専用BBox3D（明示的）
+/// f64専用のBBox3Dエイリアス
+pub type BBox3DF64 = BBox3D<f64>;

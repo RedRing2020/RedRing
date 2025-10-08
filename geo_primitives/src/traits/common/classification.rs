@@ -132,7 +132,7 @@ pub trait GeometryPrimitive {
 /// 幾何プリミティブのタグ付きユニオン
 #[derive(Debug, Clone)]
 pub enum GeometryUnion {
-    Point(crate::geometry3d::Point3D),
+    Point(crate::geometry3d::point::Point3DF64),
     Vector(crate::geometry3d::Vector3D),
     //Circle(crate::CadCircle),
     //Ellipse(crate::CadEllipse),

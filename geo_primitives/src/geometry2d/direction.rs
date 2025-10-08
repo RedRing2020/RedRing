@@ -1,156 +1,171 @@
-//! Direction2D - 2D方向ベクトルの実装
+//! Direction2D - ジェネリック2D方向ベクトルの実装
 //!
-//! STEP互換のDirection2D実装。常に正規化されたベクトルとして管理され、
-//! CAD操作に必要な方向性を持つ要素を表現する。
+//! 常に正規化されたベクトルとして管理され、型パラメータTをサポート
 
-use crate::geometry2d::Vector2D;
-use geo_foundation::abstract_types::geometry::{
-    Direction, Direction2D as Direction2DTrait, StepCompatible,
-};
+use crate::geometry2d::Vector;
+use geo_foundation::abstract_types::geometry::{Direction, Direction2D as Direction2DTrait};
+use geo_foundation::abstract_types::Scalar;
+use crate::traits::StepCompatible;
 
-/// 2D方向ベクトル
-///
-/// 常に長さが1に正規化されたベクトルを表現する。
-/// STEPのDIRECTIONエンティティに対応。
+/// ジェネリック2D方向ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Direction2D {
-    /// 正規化されたベクトル
-    vector: Vector2D,
+pub struct Direction2D<T: Scalar> {
+    /// 正規化されたベクトル（内部的にはVectorを使用）
+    vector: Vector<T>,
 }
 
-impl Direction2D {
-    /// 内部用：正規化されたベクトルから直接作成（事前に正規化済みを前提）
-    fn from_normalized_vector(vector: Vector2D) -> Self {
-        Self { vector }
+impl<T: Scalar> Direction2D<T> {
+    /// 新しいDirection2Dを作成（内部で正規化）
+    pub fn new(x: T, y: T) -> Option<Self> {
+        let vector = Vector::new(x, y);
+        Self::from_vector(vector)
     }
 
     /// X成分を取得
-    pub fn x(&self) -> f64 {
+    pub fn x(&self) -> T {
         self.vector.x()
     }
 
     /// Y成分を取得
-    pub fn y(&self) -> f64 {
+    pub fn y(&self) -> T {
         self.vector.y()
     }
 
-    /// 長さを取得（常に1.0）
-    pub fn length(&self) -> f64 {
-        self.vector.length()
+    /// 定数方向ベクトル - 正のX軸方向
+    pub fn positive_x() -> Self {
+        Self {
+            vector: Vector::new(T::ONE, T::ZERO),
+        }
+    }
+
+    /// 定数方向ベクトル - 正のY軸方向
+    pub fn positive_y() -> Self {
+        Self {
+            vector: Vector::new(T::ZERO, T::ONE),
+        }
+    }
+
+    /// 定数方向ベクトル - 負のX軸方向
+    pub fn negative_x() -> Self {
+        Self {
+            vector: Vector::new(-T::ONE, T::ZERO),
+        }
+    }
+
+    /// 定数方向ベクトル - 負のY軸方向
+    pub fn negative_y() -> Self {
+        Self {
+            vector: Vector::new(T::ZERO, -T::ONE),
+        }
     }
 }
 
-impl Direction for Direction2D {
-    type Vector = Vector2D;
-    type Scalar = f64;
+impl<T: Scalar> Direction<T> for Direction2D<T> {
+    type Vector = Vector<T>;
 
-    fn from_vector(vector: Self::Vector) -> Option<Self> {
-        let normalized = vector.normalize()?;
-        Some(Self::from_normalized_vector(normalized))
-    }
-
-    fn from_components_2d(x: Self::Scalar, y: Self::Scalar) -> Option<Self> {
-        let vector = Vector2D::new(x, y);
-        Self::from_vector(vector)
-    }
-
-    fn from_components_3d(_x: Self::Scalar, _y: Self::Scalar, _z: Self::Scalar) -> Option<Self> {
-        // 2Dでは3D成分は使用しない
-        None
+    fn from_vector(vector: Self::Vector) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        vector.normalize().map(|normalized| Self {
+            vector: normalized,
+        })
     }
 
     fn to_vector(&self) -> Self::Vector {
         self.vector
     }
 
-    fn dot(&self, other: &Self) -> Self::Scalar {
+    fn dot(&self, other: &Self) -> T {
         self.vector.dot(&other.vector)
     }
 
     fn reverse(&self) -> Self {
-        Self::from_normalized_vector(-self.vector)
+        Self {
+            vector: -self.vector,
+        }
     }
 
-    fn is_parallel(&self, other: &Self, tolerance: Self::Scalar) -> bool {
-        let dot = self.dot(other).abs();
-        (dot - 1.0).abs() < tolerance
+    fn is_parallel(&self, other: &Self, tolerance: T) -> bool {
+        let cross = self.vector.cross_2d(&other.vector);
+        cross.abs() < tolerance
     }
 
-    fn is_perpendicular(&self, other: &Self, tolerance: Self::Scalar) -> bool {
-        self.dot(other).abs() < tolerance
-    }
-
-    fn is_same_direction(&self, other: &Self, tolerance: Self::Scalar) -> bool {
+    fn is_perpendicular(&self, other: &Self, tolerance: T) -> bool {
         let dot = self.dot(other);
-        (dot - 1.0).abs() < tolerance
+        dot.abs() < tolerance
     }
 
-    fn is_opposite_direction(&self, other: &Self, tolerance: Self::Scalar) -> bool {
+    fn is_same_direction(&self, other: &Self, tolerance: T) -> bool {
         let dot = self.dot(other);
-        (dot + 1.0).abs() < tolerance
+        (dot - T::ONE).abs() < tolerance
+    }
+
+    fn is_opposite_direction(&self, other: &Self, tolerance: T) -> bool {
+        let dot = self.dot(other);
+        (dot + T::ONE).abs() < tolerance
     }
 }
 
-impl Direction2DTrait for Direction2D {
+impl<T: Scalar> Direction2DTrait<T> for Direction2D<T> {
     fn perpendicular(&self) -> Self {
-        let perp_vector = self.vector.perpendicular();
-        Self::from_normalized_vector(perp_vector)
+        Self {
+            vector: self.vector.perpendicular(),
+        }
     }
 
-    fn from_angle(angle: Self::Scalar) -> Self {
-        let vector = Vector2D::new(angle.cos(), angle.sin());
-        Self::from_normalized_vector(vector)
+    fn from_angle(angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        // Scalarトレイトの角度メソッドを使用
+        Self {
+            vector: Vector::new(angle.cos(), angle.sin()),
+        }
     }
 
-    fn to_angle(&self) -> Self::Scalar {
+    fn to_angle(&self) -> T {
+        // Scalarトレイトのatan2メソッドを使用
         self.vector.y().atan2(self.vector.x())
     }
 
-    fn x_axis() -> Self {
-        Self::from_normalized_vector(Vector2D::new(1.0, 0.0))
+    fn x_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Self::positive_x()
     }
 
-    fn y_axis() -> Self {
-        Self::from_normalized_vector(Vector2D::new(0.0, 1.0))
+    fn y_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Self::positive_y()
     }
 }
 
-impl StepCompatible for Direction2D {
+impl<T: Scalar> StepCompatible for Direction2D<T> {
     fn to_step_string(&self) -> String {
-        format!("DIRECTION('',({:.6},{:.6}))", self.x(), self.y())
+        format!("DIRECTION(({:.6},{:.6}))", self.x().to_f64(), self.y().to_f64())
     }
 
-    fn from_step_string(_step_str: &str) -> Result<Self, String> {
-        // 将来実装予定
-        Err("Not implemented yet".to_string())
+    fn from_step_string(_step_str: &str) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        Err("STEP parsing not implemented yet".to_string())
     }
 }
 
-impl std::fmt::Display for Direction2D {
+impl<T: Scalar> std::fmt::Display for Direction2D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Direction2D({:.3}, {:.3})", self.x(), self.y())
+        write!(f, "Direction2D({:.3}, {:.3})", self.x().to_f64(), self.y().to_f64())
     }
 }
 
-// 便利な関数
-impl Direction2D {
-    /// 正のX軸方向を取得
-    pub fn positive_x() -> Self {
-        Self::from_normalized_vector(Vector2D::new(1.0, 0.0))
-    }
+// 型エイリアス（後方互換性確保）
+/// f64版の2D Direction（デフォルト）
+pub type Direction2DF64 = Direction2D<f64>;
 
-    /// 正のY軸方向を取得
-    pub fn positive_y() -> Self {
-        Self::from_normalized_vector(Vector2D::new(0.0, 1.0))
-    }
-
-    /// 負のX軸方向を取得
-    pub fn negative_x() -> Self {
-        Self::from_normalized_vector(Vector2D::new(-1.0, 0.0))
-    }
-
-    /// 負のY軸方向を取得
-    pub fn negative_y() -> Self {
-        Self::from_normalized_vector(Vector2D::new(0.0, -1.0))
-    }
-}
+/// f32版の2D Direction（高速演算用）
+pub type Direction2DF32 = Direction2D<f32>;

@@ -2,19 +2,17 @@
 //!
 //! STEPにおけるDIRECTIONエンティティの抽象化。
 //! 正規化されたベクトルとして表現され、CAD形状処理に適した操作を提供する。
-// use crate::traits::Normalizable;
+
+use crate::abstract_types::Scalar;
 use std::fmt::Debug;
 
 /// 方向ベクトルの抽象化トレイト
 ///
 /// STEPのDIRECTIONエンティティに対応し、常に正規化された（長さ=1）ベクトルを表現する。
 /// CAD操作における方向性を持つ要素（軸、法線、切線など）に使用される。
-pub trait Direction: Debug + Clone + PartialEq {
+pub trait Direction<T: Scalar>: Debug + Clone + PartialEq {
     /// 関連するベクトル型
     type Vector: Clone + Debug;
-
-    /// 関連するスカラー型（通常はf64）
-    type Scalar: Clone + Debug + PartialEq;
 
     /// ベクトルから方向を作成
     ///
@@ -23,15 +21,7 @@ pub trait Direction: Debug + Clone + PartialEq {
     ///
     /// # Returns
     /// 正規化された方向ベクトル、またはゼロベクトルの場合はNone
-    fn from_vector(vector: Self::Vector) -> Option<Self>;
-
-    /// 成分から方向を作成（2D用）
-    fn from_components_2d(x: Self::Scalar, y: Self::Scalar) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 成分から方向を作成（3D用）
-    fn from_components_3d(x: Self::Scalar, y: Self::Scalar, z: Self::Scalar) -> Option<Self>
+    fn from_vector(vector: Self::Vector) -> Option<Self>
     where
         Self: Sized;
 
@@ -39,49 +29,55 @@ pub trait Direction: Debug + Clone + PartialEq {
     fn to_vector(&self) -> Self::Vector;
 
     /// 内積計算
-    fn dot(&self, other: &Self) -> Self::Scalar;
+    fn dot(&self, other: &Self) -> T;
 
     /// 方向の反転
     fn reverse(&self) -> Self;
 
     /// 方向が平行かどうかを判定（許容誤差考慮）
-    fn is_parallel(&self, other: &Self, tolerance: Self::Scalar) -> bool;
+    fn is_parallel(&self, other: &Self, tolerance: T) -> bool;
 
     /// 方向が垂直かどうかを判定（許容誤差考慮）
-    fn is_perpendicular(&self, other: &Self, tolerance: Self::Scalar) -> bool;
+    fn is_perpendicular(&self, other: &Self, tolerance: T) -> bool;
 
     /// 方向が同じかどうかを判定（許容誤差考慮）
-    fn is_same_direction(&self, other: &Self, tolerance: Self::Scalar) -> bool;
+    fn is_same_direction(&self, other: &Self, tolerance: T) -> bool;
 
     /// 方向が反対かどうかを判定（許容誤差考慮）
-    fn is_opposite_direction(&self, other: &Self, tolerance: Self::Scalar) -> bool;
+    fn is_opposite_direction(&self, other: &Self, tolerance: T) -> bool;
 }
 
 /// 2D方向ベクトルの追加機能
-pub trait Direction2D: Direction {
+pub trait Direction2D<T: Scalar>: Direction<T> {
     /// 90度回転した方向を取得
     fn perpendicular(&self) -> Self;
 
     /// 角度（ラジアン）から方向を作成
-    fn from_angle(angle: Self::Scalar) -> Self;
+    fn from_angle(angle: T) -> Self
+    where
+        Self: Sized;
 
     /// 方向の角度（ラジアン）を取得
-    fn to_angle(&self) -> Self::Scalar;
+    fn to_angle(&self) -> T;
 
     /// X軸の正方向
-    fn x_axis() -> Self;
+    fn x_axis() -> Self
+    where
+        Self: Sized;
 
     /// Y軸の正方向
-    fn y_axis() -> Self;
+    fn y_axis() -> Self
+    where
+        Self: Sized;
 }
 
 /// 3D方向ベクトルの追加機能
-pub trait Direction3D: Direction {
+pub trait Direction3D<T: Scalar>: Direction<T> {
     /// 外積計算
     fn cross(&self, other: &Self) -> Self::Vector;
 
     /// 指定した軸周りの回転
-    fn rotate_around_axis(&self, axis: &Self, angle: Self::Scalar) -> Self;
+    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self;
 
     /// 任意の軸に対する直交ベクトルを生成
     fn any_perpendicular(&self) -> Self;
@@ -90,13 +86,19 @@ pub trait Direction3D: Direction {
     fn build_orthonormal_basis(&self) -> (Self, Self, Self);
 
     /// X軸の正方向
-    fn x_axis() -> Self;
+    fn x_axis() -> Self
+    where
+        Self: Sized;
 
     /// Y軸の正方向
-    fn y_axis() -> Self;
+    fn y_axis() -> Self
+    where
+        Self: Sized;
 
     /// Z軸の正方向
-    fn z_axis() -> Self;
+    fn z_axis() -> Self
+    where
+        Self: Sized;
 }
 
 /// STEP互換性のためのマーカートレイト

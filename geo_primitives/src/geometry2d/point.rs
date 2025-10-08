@@ -1,4 +1,4 @@
-use crate::geometry2d::Vector2D;
+use crate::geometry2d::Vector;  // ジェネリック Vector を使用
 use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
 use geo_foundation::abstract_types::{Scalar, ToleranceContext, TolerantEq};
 
@@ -31,6 +31,81 @@ impl<T: Scalar> Point2D<T> {
         let dy = self.y - other.y;
         (dx * dx + dy * dy).sqrt()
     }
+
+    /// Point間のベクトルを取得
+    pub fn vector_to(&self, other: &Self) -> Vector<T> {
+        Vector::new(other.x - self.x, other.y - self.y)
+    }
+
+    /// Vectorで平行移動
+    pub fn translate(&self, vector: &Vector<T>) -> Self {
+        Self::new(self.x + vector.x(), self.y + vector.y())
+    }
+
+    /// スカラー倍（原点からの拡大・縮小）
+    pub fn scale(&self, scalar: T) -> Self {
+        Self::new(self.x * scalar, self.y * scalar)
+    }
+
+    /// 原点を中心とした回転（角度はラジアン）
+    pub fn rotate(&self, angle: T) -> Self {
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        Self::new(
+            self.x * cos_a - self.y * sin_a,
+            self.x * sin_a + self.y * cos_a,
+        )
+    }
+
+    /// 中点を計算
+    pub fn midpoint(&self, other: &Self) -> Self {
+        Self::new(
+            (self.x + other.x) / (T::ONE + T::ONE),
+            (self.y + other.y) / (T::ONE + T::ONE),
+        )
+    }
+}
+
+// 演算子オーバーロード
+impl<T: Scalar> std::ops::Add<Vector<T>> for Point2D<T> {
+    type Output = Self;
+
+    fn add(self, vector: Vector<T>) -> Self::Output {
+        self.translate(&vector)
+    }
+}
+
+impl<T: Scalar> std::ops::Sub<Vector<T>> for Point2D<T> {
+    type Output = Self;
+
+    fn sub(self, vector: Vector<T>) -> Self::Output {
+        Self::new(self.x - vector.x(), self.y - vector.y())
+    }
+}
+
+impl<T: Scalar> std::ops::Sub for Point2D<T> {
+    type Output = Vector<T>;
+
+    fn sub(self, other: Self) -> Self::Output {
+        // self - other = Vector from other to self
+        other.vector_to(&self)
+    }
+}
+
+impl<T: Scalar> std::ops::Mul<T> for Point2D<T> {
+    type Output = Self;
+
+    fn mul(self, scalar: T) -> Self::Output {
+        self.scale(scalar)
+    }
+}
+
+impl<T: Scalar> std::ops::Div<T> for Point2D<T> {
+    type Output = Self;
+
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(self.x / scalar, self.y / scalar)
+    }
 }
 
 // geo_foundationトレイトの実装
@@ -43,7 +118,7 @@ impl<T: Scalar> TolerantEq for Point2D<T> {
 
 impl<T: Scalar> PointTrait<2> for Point2D<T> {
     type Scalar = T;
-    type Vector = Vector2D; // TODO: Vector2D<T> に変更が必要
+    type Vector = Vector<T>; // ジェネリック型に修正
 
     fn origin() -> Self {
         Self::new(T::ZERO, T::ZERO)
@@ -55,13 +130,13 @@ impl<T: Scalar> PointTrait<2> for Point2D<T> {
 
     fn translate(&self, vector: &Self::Vector) -> Self {
         Self::new(
-            self.x + T::from_f64(vector.x()),
-            self.y + T::from_f64(vector.y()),
+            self.x + vector.x(),
+            self.y + vector.y(),
         )
     }
 
     fn vector_to(&self, other: &Self) -> Self::Vector {
-        Vector2D::new((other.x - self.x).to_f64(), (other.y - self.y).to_f64())
+        Vector::new(other.x - self.x, other.y - self.y)
     }
 
     fn coords(&self) -> [Self::Scalar; 2] {

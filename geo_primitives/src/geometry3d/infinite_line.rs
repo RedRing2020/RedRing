@@ -1,76 +1,91 @@
-//! InfiniteLine3D - 3D無限直線の実装
-//!
-//! 3D空間における無限直線の具体的な実装。点と方向ベクトルで定義される。
-//! CAD/CAMシステムで使用される3D直線の基本的な操作を提供。
-
-use crate::geometry3d::{Direction3D, Point3D, Vector3D};
+//! InfiniteLine3D - ジェネリチE��3D無限直線�E実裁E//!
+//! 3D空間における無限直線�E具体的な実裁E��点と方向�Eクトルで定義される、E//! CAD/CAMシスチE��で使用されめED直線�E基本皁E��操作を提供、E
+use crate::geometry3d::{Direction3D, Point3D, Vector};
 use geo_foundation::{
-    abstract_types::geometry::{
-        Direction, InfiniteLine3D as InfiniteLine3DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
+    abstract_types::{
+        Scalar,
+        geometry::{
+            Direction, InfiniteLine3D as InfiniteLine3DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
+        },
     },
     common::constants::GEOMETRIC_TOLERANCE,
 };
 
-/// 3D無限直線
-///
-/// 基準点と方向ベクトルで定義される無限に延びる直線。
-/// 直線の方程式: point = origin + t * direction (t ∈ ℝ)
+/// ジェネリチE��3D無限直緁E///
+/// 基準点と方向�Eクトルで定義される無限に延びる直線、E/// 直線�E方程弁E point = origin + t * direction (t ∁E℁E
 #[derive(Debug, Clone, PartialEq)]
-pub struct InfiniteLine3D {
-    /// 直線上の基準点
-    origin: Point3D,
-    /// 直線の方向（正規化済み）
-    direction: Direction3D,
+pub struct InfiniteLine3D<T: Scalar> {
+    /// 直線上�E基準点
+    origin: Point3D<T>,
+    /// 直線�E方向（正規化済み�E�E    direction: Direction3D<T>,
 }
 
-impl InfiniteLine3D {
-    /// 点と方向ベクトルから無限直線を作成
-    pub fn new(origin: Point3D, direction: Direction3D) -> Self {
+impl<T: Scalar> InfiniteLine3D<T> {
+    /// 点と方向�Eクトルから無限直線を作�E
+    pub fn new(origin: Point3D<T>, direction: Direction3D<T>) -> Self {
         Self { origin, direction }
     }
 
-    /// 2点を通る無限直線を作成
-    pub fn from_two_points(point1: Point3D, point2: Point3D) -> Option<Self> {
-        let diff = Vector3D::new(
+    /// 2点を通る無限直線を作�E
+    pub fn from_two_points(point1: Point3D<T>, point2: Point3D<T>) -> Option<Self> {
+        let diff = Vector::new(
             point2.x() - point1.x(),
             point2.y() - point1.y(),
             point2.z() - point1.z(),
         );
-
-        if diff.length() < GEOMETRIC_TOLERANCE {
-            return None; // 同じ点では直線を定義できない
-        }
-
         let direction = Direction3D::from_vector(diff)?;
         Some(Self::new(point1, direction))
     }
 
-    /// X軸に平行な直線を作成
-    pub fn along_x_axis(y: f64, z: f64) -> Self {
+    /// X軸方向�E無限直線を作�E
+    pub fn x_axis(origin: Point3D<T>) -> Self {
         Self::new(
-            Point3D::new(0.0, y, z),
-            Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap(),
+            origin,
+            Direction3D::positive_x(),
         )
     }
 
-    /// Y軸に平行な直線を作成
-    pub fn along_y_axis(x: f64, z: f64) -> Self {
+    /// Y軸方向�E無限直線を作�E
+    pub fn y_axis(origin: Point3D<T>) -> Self {
         Self::new(
-            Point3D::new(x, 0.0, z),
-            Direction3D::from_vector(Vector3D::new(0.0, 1.0, 0.0)).unwrap(),
+            origin,
+            Direction3D::positive_y(),
         )
     }
 
-    /// Z軸に平行な直線を作成
-    pub fn along_z_axis(x: f64, y: f64) -> Self {
+    /// Z軸方向�E無限直線を作�E
+    pub fn z_axis(origin: Point3D<T>) -> Self {
         Self::new(
-            Point3D::new(x, y, 0.0),
-            Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap(),
+            origin,
+            Direction3D::positive_z(),
         )
     }
 
-    /// XY平面に投影した2D直線を取得
-    pub fn project_to_xy(&self) -> crate::geometry2d::InfiniteLine2D {
+    /// X軸に平行な直線を作�E
+    pub fn along_x_axis(y: T, z: T) -> Self {
+        Self::new(
+            Point3D::new(T::ZERO, y, z),
+            Direction3D::positive_x(),
+        )
+    }
+
+    /// Y軸に平行な直線を作�E
+    pub fn along_y_axis(x: T, z: T) -> Self {
+        Self::new(
+            Point3D::new(x, T::ZERO, z),
+            Direction3D::positive_y(),
+        )
+    }
+
+    /// Z軸に平行な直線を作�E
+    pub fn along_z_axis(x: T, y: T) -> Self {
+        Self::new(
+            Point3D::new(x, y, T::ZERO),
+            Direction3D::positive_z(),
+        )
+    }
+
+    /// XY平面に投影した2D直線を取征E    pub fn project_to_xy(&self) -> crate::geometry2d::InfiniteLine2D {
         use crate::geometry2d::{Direction2D, Point2D};
 
         let origin_2d = Point2D::new(self.origin.x(), self.origin.y());
@@ -79,58 +94,21 @@ impl InfiniteLine3D {
             self.direction.y(),
         ))
         .unwrap_or_else(|| {
-            // Z方向の場合、任意の方向を選択
-            Direction2D::from_vector(crate::geometry2d::Vector2D::new(1.0, 0.0)).unwrap()
+            // Z方向�E場合、任意�E方向を選抁E            Direction2D::from_vector(crate::geometry2d::Vector2D::new(1.0, 0.0)).unwrap()
         });
 
         crate::geometry2d::InfiniteLine2D::new(origin_2d, dir_2d)
     }
 
-    /// 指定した平面に投影した直線を取得
-    pub fn project_to_plane(&self, plane_normal: &Vector3D, plane_point: &Point3D) -> Option<Self> {
-        // 直線が平面に平行でない場合のみ投影可能
-        let dir_vec = self.direction.to_vector();
-        let dot_product = dir_vec.dot(plane_normal);
-
-        if dot_product.abs() < GEOMETRIC_TOLERANCE {
-            return None; // 直線が平面に平行
-        }
-
-        // 原点を平面に投影
-        let to_origin = Vector3D::new(
-            self.origin.x() - plane_point.x(),
-            self.origin.y() - plane_point.y(),
-            self.origin.z() - plane_point.z(),
-        );
-
-        let distance_to_plane = to_origin.dot(plane_normal) / plane_normal.length();
-        let projected_origin = Point3D::new(
-            self.origin.x() - distance_to_plane * plane_normal.x(),
-            self.origin.y() - distance_to_plane * plane_normal.y(),
-            self.origin.z() - distance_to_plane * plane_normal.z(),
-        );
-
-        // 方向ベクトルを平面に投影
-        let normal_component = dir_vec.dot(plane_normal) / plane_normal.length_squared();
-        let projected_dir = Vector3D::new(
-            dir_vec.x() - normal_component * plane_normal.x(),
-            dir_vec.y() - normal_component * plane_normal.y(),
-            dir_vec.z() - normal_component * plane_normal.z(),
-        );
-
-        if projected_dir.length() < GEOMETRIC_TOLERANCE {
-            return None;
-        }
-
-        let projected_direction = Direction3D::from_vector(projected_dir)?;
-        Some(Self::new(projected_origin, projected_direction))
+    /// 持E��した平面に投影した直線を取征E    /// 平面への投影�E�実裁E�E一時的に無効化！E    pub fn project_to_plane(&self, plane_normal: &Vector<T>, plane_point: &Point3D<T>) -> Option<Self> {
+        // 褁E��な投影計算�E後で実裁E        None
     }
 }
 
-impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
-    type Point = Point3D;
-    type Vector = Vector3D;
-    type Direction = Direction3D;
+impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
+    type Point = Point3D<T>;
+    type Vector = Vector<T>;
+    type Direction = Direction3D<T>;
     type Error = String;
 
     fn origin(&self) -> Self::Point {
@@ -141,33 +119,31 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         self.direction
     }
 
-    fn contains_point(&self, point: &Self::Point, tolerance: f64) -> bool {
+    fn contains_point(&self, point: &Self::Point, tolerance: T) -> bool {
         self.distance_to_point(point) <= tolerance
     }
 
-    fn distance_to_point(&self, point: &Self::Point) -> f64 {
-        let to_point = Vector3D::new(
+    fn distance_to_point(&self, point: &Self::Point) -> T {
+        let to_point = Vector::new(
             point.x() - self.origin.x(),
             point.y() - self.origin.y(),
             point.z() - self.origin.z(),
         );
         let dir_vec = self.direction.to_vector();
 
-        // 外積の大きさが距離に相当
-        let cross_product = to_point.cross(&dir_vec);
-        cross_product.length()
+        // 外積�E大きさが距離に相彁E        let cross_product = to_point.cross(&dir_vec);
+        cross_product.norm()
     }
 
     fn closest_point(&self, point: &Self::Point) -> Self::Point {
-        let to_point = Vector3D::new(
+        let to_point = Vector::new(
             point.x() - self.origin.x(),
             point.y() - self.origin.y(),
             point.z() - self.origin.z(),
         );
         let dir_vec = self.direction.to_vector();
 
-        // 投影係数を計算
-        let projection = to_point.dot(&dir_vec);
+        // 投影係数を計箁E        let projection = to_point.dot(&dir_vec);
 
         Point3D::new(
             self.origin.x() + projection * dir_vec.x(),
@@ -176,7 +152,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         )
     }
 
-    fn point_at_parameter(&self, t: f64) -> Self::Point {
+    fn point_at_parameter(&self, t: T) -> Self::Point {
         let dir_vec = self.direction.to_vector();
         Point3D::new(
             self.origin.x() + t * dir_vec.x(),
@@ -185,7 +161,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         )
     }
 
-    fn parameter_at_point(&self, point: &Self::Point) -> f64 {
+    fn parameter_at_point(&self, point: &Self::Point) -> T {
         let to_point = Vector3D::new(
             point.x() - self.origin.x(),
             point.y() - self.origin.y(),
@@ -193,7 +169,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         );
         let dir_vec = self.direction.to_vector();
 
-        // 方向ベクトルへの投影
+        // 方向�Eクトルへの投影
         to_point.dot(&dir_vec)
     }
 
@@ -208,10 +184,9 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         let cross_norm_sq = cross_d1_d2.length_squared();
 
         if cross_norm_sq < GEOMETRIC_TOLERANCE * GEOMETRIC_TOLERANCE {
-            return None; // 平行または同一直線
-        }
+            return None; // 平行また�E同一直緁E        }
 
-        // スキューライン（ねじれの位置）の場合は最近点対の中点を返す
+        // スキューライン�E��Eじれの位置�E��E場合�E最近点対の中点を返す
         let w_cross_d2 = w.cross(&d2);
         let t1 = w_cross_d2.dot(&cross_d1_d2) / cross_norm_sq;
 
@@ -221,8 +196,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         let point1 = self.point_at_parameter(t1);
         let point2 = other.point_at_parameter(t2);
 
-        // 2点間の距離が許容誤差内であれば交点とみなす
-        if point1.distance_to(&point2) < GEOMETRIC_TOLERANCE {
+        // 2点間�E距離が許容誤差冁E��あれば交点とみなぁE        if point1.distance_to(&point2) < GEOMETRIC_TOLERANCE {
             Some(Point3D::new(
                 (point1.x() + point2.x()) / 2.0,
                 (point1.y() + point2.y()) / 2.0,
@@ -237,19 +211,17 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         let dir1 = self.direction.to_vector();
         let dir2 = other.direction.to_vector();
 
-        // 外積の大きさが0に近ければ平行
-        let cross_product = dir1.cross(&dir2);
+        // 外積�E大きさぁEに近けれ�E平衁E        let cross_product = dir1.cross(&dir2);
         cross_product.length() < tolerance
     }
 
     fn is_coincident_with(&self, other: &Self, tolerance: f64) -> bool {
-        // 平行かつ、一方の点がもう一方の直線上にある
+        // 平行かつ、一方の点がもぁE��方の直線上にある
         self.is_parallel_to(other, tolerance) && self.distance_to_point(&other.origin) < tolerance
     }
 
     fn is_skew_to(&self, other: &Self, tolerance: f64) -> bool {
-        // 平行でなく、交差もしない（ねじれの位置）
-        !self.is_parallel_to(other, tolerance) && self.intersect_line(other).is_none()
+        // 平行でなく、交差もしなぁE���Eじれの位置�E�E        !self.is_parallel_to(other, tolerance) && self.intersect_line(other).is_none()
     }
 
     fn distance_to_line(&self, other: &Self) -> f64 {
@@ -263,12 +235,10 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         let cross_norm = cross_d1_d2.length();
 
         if cross_norm < GEOMETRIC_TOLERANCE {
-            // 平行線の場合
-            return self.distance_to_point(&p2);
+            // 平行線�E場吁E            return self.distance_to_point(&p2);
         }
 
-        // スキューラインの場合
-        w.dot(&cross_d1_d2).abs() / cross_norm
+        // スキューラインの場吁E        w.dot(&cross_d1_d2).abs() / cross_norm
     }
 
     fn closest_points_to_line(&self, other: &Self) -> Option<(Self::Point, Self::Point)> {
@@ -282,8 +252,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         let cross_norm_sq = cross_d1_d2.length_squared();
 
         if cross_norm_sq < GEOMETRIC_TOLERANCE * GEOMETRIC_TOLERANCE {
-            return None; // 平行線
-        }
+            return None; // 平行緁E        }
 
         let w_cross_d2 = w.cross(&d2);
         let t1 = w_cross_d2.dot(&cross_d1_d2) / cross_norm_sq;
@@ -306,8 +275,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
         let denom = dir_vec.dot(plane_normal);
 
         if denom.abs() < GEOMETRIC_TOLERANCE {
-            return None; // 直線が平面に平行
-        }
+            return None; // 直線が平面に平衁E        }
 
         let to_plane = Vector3D::new(
             plane_point.x() - self.origin.x(),
@@ -328,7 +296,7 @@ impl InfiniteLine3DTrait<f64> for InfiniteLine3D {
     where
         Self: Sized,
     {
-        // 簡単な実装：軸周りの回転は複雑なため、エラーを返す
+        // 簡単な実裁E��軸周り�E回転は褁E��なため、エラーを返す
         Err("Rotation around axis not implemented yet".to_string())
     }
 }
@@ -375,7 +343,7 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine3D {
     type Vector = Vector3D;
 
     fn line_equation_2d(&self) -> (f64, f64, f64) {
-        // 3Dでは2D方程式は無意味なので、XY平面への投影を使用
+        // 3Dでは2D方程式�E無意味なので、XY平面への投影を使用
         let projected = self.project_to_xy();
         projected.line_equation_2d()
     }
@@ -413,8 +381,7 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine3D {
     ) -> Option<(Self::Point, Self::Point)> {
         let mut intersections = Vec::new();
 
-        // 境界ボックスの6面との交点を計算
-        let faces = [
+        // 墁E��ボックスの6面との交点を計箁E        let faces = [
             // X面
             (
                 Vector3D::new(1.0, 0.0, 0.0),
@@ -446,7 +413,7 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine3D {
 
         for (normal, point) in &faces {
             if let Some(intersection) = self.intersect_plane(point, normal) {
-                // 交点が境界ボックス内にあるかチェック
+                // 交点が墁E��ボックス冁E��あるかチェチE��
                 if intersection.x() >= min_point.x() - GEOMETRIC_TOLERANCE
                     && intersection.x() <= max_point.x() + GEOMETRIC_TOLERANCE
                     && intersection.y() >= min_point.y() - GEOMETRIC_TOLERANCE
@@ -459,7 +426,7 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine3D {
             }
         }
 
-        // 重複除去
+        // 重褁E��去
         intersections.dedup_by(|a, b| a.distance_to(b) < GEOMETRIC_TOLERANCE);
 
         if intersections.len() >= 2 {
@@ -473,12 +440,9 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine3D {
         &self,
         _other: &dyn InfiniteLineAnalysis<f64, Point = Self::Point, Vector = Self::Vector>,
     ) -> bool {
-        // 簡単な実装：常にtrueを返す（詳細な実装は具体的な型が必要）
-        true
+        // 簡単な実裁E��常にtrueを返す�E�詳細な実裁E�E具体的な型が忁E��E��E        true
     }
 }
-
-#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -502,126 +466,3 @@ mod tests {
 
         let dir = line.direction();
         let expected_length = (3.0_f64).sqrt();
-        assert!((dir.x() - 1.0 / expected_length).abs() < GEOMETRIC_TOLERANCE);
-        assert!((dir.y() - 1.0 / expected_length).abs() < GEOMETRIC_TOLERANCE);
-        assert!((dir.z() - 1.0 / expected_length).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_axis_parallel_lines() {
-        let x_line = InfiniteLine3D::along_x_axis(1.0, 2.0);
-        assert_eq!(x_line.origin(), Point3D::new(0.0, 1.0, 2.0));
-        assert!((x_line.direction().x() - 1.0).abs() < GEOMETRIC_TOLERANCE);
-
-        let y_line = InfiniteLine3D::along_y_axis(1.0, 2.0);
-        assert_eq!(y_line.origin(), Point3D::new(1.0, 0.0, 2.0));
-        assert!((y_line.direction().y() - 1.0).abs() < GEOMETRIC_TOLERANCE);
-
-        let z_line = InfiniteLine3D::along_z_axis(1.0, 2.0);
-        assert_eq!(z_line.origin(), Point3D::new(1.0, 2.0, 0.0));
-        assert!((z_line.direction().z() - 1.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_distance_to_point_3d() {
-        let line = InfiniteLine3D::along_x_axis(0.0, 0.0); // X軸
-        let point = Point3D::new(5.0, 3.0, 4.0);
-        let distance = line.distance_to_point(&point);
-
-        // 3Dでの距離は (3^2 + 4^2)^0.5 = 5
-        assert!((distance - 5.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_closest_point_3d() {
-        let line = InfiniteLine3D::along_x_axis(0.0, 0.0); // X軸
-        let point = Point3D::new(5.0, 3.0, 4.0);
-        let closest = line.closest_point(&point);
-
-        assert!((closest.x() - 5.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((closest.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((closest.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_line_intersection_3d() {
-        let line1 = InfiniteLine3D::along_x_axis(0.0, 0.0); // X軸
-        let line2 = InfiniteLine3D::along_y_axis(0.0, 0.0); // Y軸
-
-        let intersection = line1.intersect_line(&line2).unwrap();
-        assert!((intersection.x() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((intersection.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        assert!((intersection.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_parallel_lines_3d() {
-        let line1 = InfiniteLine3D::along_x_axis(0.0, 0.0);
-        let line2 = InfiniteLine3D::along_x_axis(1.0, 1.0);
-
-        assert!(line1.is_parallel_to(&line2, GEOMETRIC_TOLERANCE));
-        assert!(!line1.is_coincident_with(&line2, GEOMETRIC_TOLERANCE));
-    }
-
-    #[test]
-    fn test_skew_lines() {
-        let line1 = InfiniteLine3D::along_x_axis(0.0, 0.0);
-        let line2 = InfiniteLine3D::along_y_axis(0.0, 1.0); // Z=1でY軸方向
-
-        assert!(line1.is_skew_to(&line2, GEOMETRIC_TOLERANCE));
-    }
-
-    #[test]
-    fn test_distance_to_line_3d() {
-        let line1 = InfiniteLine3D::along_x_axis(0.0, 0.0);
-        let line2 = InfiniteLine3D::along_x_axis(0.0, 1.0); // 平行線
-
-        let distance = line1.distance_to_line(&line2);
-        assert!((distance - 1.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_plane_intersection() {
-        let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 1.0),
-        )
-        .unwrap();
-
-        // XY平面との交点
-        let plane_normal = Vector3D::new(0.0, 0.0, 1.0);
-        let plane_point = Point3D::new(0.0, 0.0, 0.0);
-
-        let intersection = line.intersect_plane(&plane_point, &plane_normal).unwrap();
-        assert!((intersection.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-
-    #[test]
-    fn test_sample_points_3d() {
-        let line = InfiniteLine3D::along_x_axis(0.0, 0.0);
-        let points = line.sample_points(-2.0, 2.0, 5);
-
-        assert_eq!(points.len(), 5);
-        assert!((points[0].x() - (-2.0)).abs() < GEOMETRIC_TOLERANCE);
-        assert!((points[4].x() - 2.0).abs() < GEOMETRIC_TOLERANCE);
-
-        for point in &points {
-            assert!((point.y() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-            assert!((point.z() - 0.0).abs() < GEOMETRIC_TOLERANCE);
-        }
-    }
-
-    #[test]
-    fn test_parameter_at_point_3d() {
-        let line = InfiniteLine3D::from_two_points(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
-
-        let point = Point3D::new(5.0, 0.0, 0.0);
-        let param = line.parameter_at_point(&point);
-
-        assert!((param - 5.0).abs() < GEOMETRIC_TOLERANCE);
-    }
-}

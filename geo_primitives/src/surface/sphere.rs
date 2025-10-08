@@ -2,6 +2,7 @@
 //!
 //! 3次元空間における球面および球体の実装を提供する。
 
+use crate::geometry3d::point::{Point3DF64, Point3DF32};
 use geo_foundation::Sphere as SphereTrait;
 use geo_foundation::{SphereKind, SphericalCoordinates};
 use std::fmt;
@@ -11,7 +12,7 @@ use std::fmt;
 /// 中心点と半径で定義される球面・球体
 #[derive(Debug, Clone, PartialEq)]
 pub struct SphereF64 {
-    center: crate::geometry3d::Point3D,
+    center: Point3DF64,
     radius: f64,
 }
 
@@ -20,7 +21,7 @@ pub struct SphereF64 {
 /// 中心点と半径で定義される球面・球体
 #[derive(Debug, Clone, PartialEq)]
 pub struct SphereF32 {
-    center: crate::geometry3d::Point3D,
+    center: Point3DF32,
     radius: f32,
 }
 

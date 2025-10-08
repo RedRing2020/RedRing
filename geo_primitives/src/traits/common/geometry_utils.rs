@@ -4,7 +4,7 @@
 
 // geo_foundation参照を使用 - Scalarを抽象化
 use crate::geometry2d::{Point2D, Point2DF64};
-use crate::geometry3d::Point3D;
+use crate::geometry3d::point::Point3DF64 as Point3D;
 use geo_foundation::Scalar;
 
 /// Point2Dからf64タプルに変換
