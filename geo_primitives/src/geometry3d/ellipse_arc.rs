@@ -147,10 +147,8 @@ impl EllipseArc {
         let cos_t = angle.cos();
         let sin_t = angle.sin();
 
-        let tangent = u_vec * (-self.ellipse.major_radius() * sin_t) + 
-                     v_vec * (self.ellipse.minor_radius() * cos_t);
-
-        tangent
+        u_vec * (-self.ellipse.major_radius() * sin_t) + 
+                     v_vec * (self.ellipse.minor_radius() * cos_t)
     }
 
     /// 指定されたパラメータでの楕円弧の接線ベクトルを取得

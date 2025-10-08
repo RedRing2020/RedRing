@@ -3,8 +3,7 @@ pub mod curve3d;
 pub mod normed;
 pub mod normalize;
 pub mod point_ops;
-///pub mod intersect2d;
-
+//pub mod intersect2d;
 pub use curve2d::Curve2D;
 pub use curve3d::Curve3D;
 pub use normed::Normed;
