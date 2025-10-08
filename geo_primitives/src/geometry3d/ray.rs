@@ -2,8 +2,10 @@
 //!
 //! 起点と方向を持つ3次元半無限直線をサポート
 
-use crate::geometry3d::{Point3D, Vector, Direction3D};
-use geo_foundation::abstract_types::geometry::{Ray, Ray3D as Ray3DTrait, Direction, Direction3D as Direction3DTrait};
+use crate::geometry3d::{Direction3D, Point3D, Vector};
+use geo_foundation::abstract_types::geometry::{
+    Direction, Direction3D as Direction3DTrait, Ray, Ray3D as Ray3DTrait,
+};
 use geo_foundation::abstract_types::{Angle, Scalar};
 
 /// ジェネリック3Dレイ（半無限直線）
@@ -71,20 +73,20 @@ impl<T: Scalar> Ray3D<T> {
     pub fn rotate_x(&self, angle: Angle<T>) -> Self {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
-        
+
         let rotated_origin = Point3D::new(
             self.origin.x(),
             self.origin.y() * cos_a - self.origin.z() * sin_a,
             self.origin.y() * sin_a + self.origin.z() * cos_a,
         );
-        
+
         let dir = self.direction.to_vector();
         let rotated_direction_vec = Vector::new(
             dir.x(),
             dir.y() * cos_a - dir.z() * sin_a,
             dir.y() * sin_a + dir.z() * cos_a,
         );
-        
+
         Self {
             origin: rotated_origin,
             direction: Direction3D::from_vector(rotated_direction_vec).unwrap(),
@@ -95,20 +97,20 @@ impl<T: Scalar> Ray3D<T> {
     pub fn rotate_y(&self, angle: Angle<T>) -> Self {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
-        
+
         let rotated_origin = Point3D::new(
             self.origin.x() * cos_a + self.origin.z() * sin_a,
             self.origin.y(),
             -self.origin.x() * sin_a + self.origin.z() * cos_a,
         );
-        
+
         let dir = self.direction.to_vector();
         let rotated_direction_vec = Vector::new(
             dir.x() * cos_a + dir.z() * sin_a,
             dir.y(),
             -dir.x() * sin_a + dir.z() * cos_a,
         );
-        
+
         Self {
             origin: rotated_origin,
             direction: Direction3D::from_vector(rotated_direction_vec).unwrap(),
@@ -119,20 +121,20 @@ impl<T: Scalar> Ray3D<T> {
     pub fn rotate_z(&self, angle: Angle<T>) -> Self {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
-        
+
         let rotated_origin = Point3D::new(
             self.origin.x() * cos_a - self.origin.y() * sin_a,
             self.origin.x() * sin_a + self.origin.y() * cos_a,
             self.origin.z(),
         );
-        
+
         let dir = self.direction.to_vector();
         let rotated_direction_vec = Vector::new(
             dir.x() * cos_a - dir.y() * sin_a,
             dir.x() * sin_a + dir.y() * cos_a,
             dir.z(),
         );
-        
+
         Self {
             origin: rotated_origin,
             direction: Direction3D::from_vector(rotated_direction_vec).unwrap(),
@@ -141,9 +143,7 @@ impl<T: Scalar> Ray3D<T> {
 
     /// レイをオイラー角で回転（X, Y, Z軸の順番）
     pub fn rotate_euler(&self, x_angle: Angle<T>, y_angle: Angle<T>, z_angle: Angle<T>) -> Self {
-        self.rotate_x(x_angle)
-            .rotate_y(y_angle)
-            .rotate_z(z_angle)
+        self.rotate_x(x_angle).rotate_y(y_angle).rotate_z(z_angle)
     }
 
     /// レイの方向ベクトルを取得
@@ -188,10 +188,10 @@ impl<T: Scalar> Ray<T> for Ray3D<T> {
     fn distance_to_point(&self, point: &Self::Point) -> T {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
-        
+
         // 点からレイへの投影
         let projection_length = to_point.dot(&direction_vector);
-        
+
         if projection_length <= T::ZERO {
             // 起点より後方の場合、起点までの距離
             self.origin.distance_to(point)
@@ -205,9 +205,9 @@ impl<T: Scalar> Ray<T> for Ray3D<T> {
     fn closest_point(&self, point: &Self::Point) -> Self::Point {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
-        
+
         let projection_length = to_point.dot(&direction_vector);
-        
+
         if projection_length <= T::ZERO {
             // 起点より後方の場合、起点が最近点
             self.origin
@@ -231,8 +231,7 @@ impl<T: Scalar> Ray<T> for Ray3D<T> {
 
     fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool {
         // 方向が平行かつ起点がもう一方のレイ上にある
-        self.is_parallel_to(other, tolerance) && 
-        other.contains_point(&self.origin, tolerance)
+        self.is_parallel_to(other, tolerance) && other.contains_point(&self.origin, tolerance)
     }
 }
 

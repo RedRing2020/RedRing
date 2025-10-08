@@ -9,13 +9,13 @@ pub mod test_utils;
 // 個別テストモジュール（一時的に多くを無効化）
 // mod arc_tests; // Arc テスト（分離型構造）- 一時的にコメントアウト
 mod arc3d_tests; // Arc3D テスト（分離済み）
-// mod bbox2d_tests; // BBox2D テスト - 一時的にコメントアウト
-// mod bbox3d_tests; // BBox3D テスト - 一時的にコメントアウト
-// mod circle_parametric_tests; // Circle の型パラメータ化テスト - 一時的にコメントアウト
+                 // mod bbox2d_tests; // BBox2D テスト - 一時的にコメントアウト
+                 // mod bbox3d_tests; // BBox3D テスト - 一時的にコメントアウト
+                 // mod circle_parametric_tests; // Circle の型パラメータ化テスト - 一時的にコメントアウト
 mod circle3d_tests; // Circle3D テスト（分離済み）
 mod ellipse3d_tests; // Ellipse3D テスト（分離済み）
-// mod direction_tests; // Direction テスト - 一時的にコメントアウト
-// mod ellipse_tests; // Ellipse テスト（分離型構造）- 一時的にコメントアウト
+                     // mod direction_tests; // Direction テスト - 一時的にコメントアウト
+                     // mod ellipse_tests; // Ellipse テスト（分離型構造）- 一時的にコメントアウト
 mod direction2d_generic_tests; // Direction2D ジェネリックテスト
 mod direction3d_generic_tests; // Direction3D ジェネリックテスト
 mod f32_compatibility_tests; // f32型サポートの包括的テスト
@@ -24,14 +24,14 @@ mod ray_basic_ops_tests; // Ray基礎演算テスト
 mod vector_basic_ops_tests; // Vector基礎演算テスト
 
 // 分割されたtraits_testsモジュール
-mod classification_tests;    // 分類システムテスト
-mod geometry_utils_tests;    // 幾何ユーティリティテスト
-mod primitive_trait_tests;   // プリミティブトレイトテスト
-mod bbox_trait_tests;        // BBoxトレイトテスト
+mod bbox_trait_tests;
+mod classification_tests; // 分類システムテスト
+mod geometry_utils_tests; // 幾何ユーティリティテスト
+mod primitive_trait_tests; // プリミティブトレイトテスト // BBoxトレイトテスト
 
 // InfiniteLineテストモジュール（個別ファイル）
-mod infinite_line2d_tests;   // InfiniteLine2Dテスト
-// mod infinite_line3d_tests;   // InfiniteLine3Dテスト（一時的に無効化）
+mod infinite_line2d_tests; // InfiniteLine2Dテスト
+                           // mod infinite_line3d_tests;   // InfiniteLine3Dテスト（一時的に無効化）
 
 // mod point3d_tests; // Point3D テスト - 一時的にコメントアウト
 // mod point_parametric_tests; // Point の型パラメータ化テスト - 一時的にコメントアウト

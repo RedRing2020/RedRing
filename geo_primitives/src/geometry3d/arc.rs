@@ -3,7 +3,7 @@
 //! 3次元円弧の基本実装
 
 use crate::geometry3d::{Circle, Point3D};
-use geo_foundation::abstract_types::{Scalar, Angle};
+use geo_foundation::abstract_types::{Angle, Scalar};
 
 /// 円弧の種類を表現する列挙型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,7 +90,7 @@ impl<T: Scalar> Arc<T> {
         let angle_diff = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs();
         let pi = T::PI;
         let two_pi = T::TAU;
-        
+
         if angle_diff <= T::TOLERANCE {
             ArcKind::FullCircle
         } else if (angle_diff - pi).abs() <= T::TOLERANCE {
@@ -106,7 +106,7 @@ impl<T: Scalar> Arc<T> {
 
     // TODO: 以下のメソッドは将来実装予定
     // - from_three_points: 3点からの円弧作成
-    // - point_at_angle: 指定角度での点取得  
+    // - point_at_angle: 指定角度での点取得
     // - contains_angle: 角度包含判定
     // - midpoint: 中点取得
     // - reverse: 方向反転

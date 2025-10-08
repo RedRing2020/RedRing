@@ -1,8 +1,8 @@
 //! InfiniteLine2D のテストコード
 
-use crate::geometry2d::{InfiniteLine2D, Point2D, Vector2D, Direction2D};
+use crate::geometry2d::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
 use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
-use geo_foundation::Direction;  // Direction traitをインポート
+use geo_foundation::Direction; // Direction traitをインポート
 
 #[test]
 fn test_infinite_line_creation() {
@@ -75,8 +75,8 @@ fn test_parallel_lines() {
 
 #[test]
 fn test_equation_coefficients() {
-    let line = InfiniteLine2D::from_two_points(Point2D::new(0.0, 0.0), Point2D::new(1.0, 1.0))
-        .unwrap();
+    let line =
+        InfiniteLine2D::from_two_points(Point2D::new(0.0, 0.0), Point2D::new(1.0, 1.0)).unwrap();
 
     let (a, b, c) = line.equation_coefficients();
 
@@ -87,8 +87,8 @@ fn test_equation_coefficients() {
 
 #[test]
 fn test_parameter_at_point() {
-    let line = InfiniteLine2D::from_two_points(Point2D::new(0.0, 0.0), Point2D::new(1.0, 0.0))
-        .unwrap();
+    let line =
+        InfiniteLine2D::from_two_points(Point2D::new(0.0, 0.0), Point2D::new(1.0, 0.0)).unwrap();
 
     let point = Point2D::new(5.0, 0.0);
     let param = line.parameter_at_point(&point);

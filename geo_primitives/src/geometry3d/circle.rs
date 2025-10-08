@@ -5,9 +5,7 @@
 use crate::geometry2d;
 use crate::geometry3d::{BBox3D, Direction3D, Point3D, Vector};
 use crate::traits::{Circle2D, Circle3D, Direction};
-use geo_foundation::{
-    abstract_types::Scalar,
-};
+use geo_foundation::abstract_types::Scalar;
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する
@@ -31,11 +29,13 @@ impl<T: Scalar> Circle<T> {
     ///
     /// # Panics
     /// 半径が負の値またはNaNの場合、または法線とu_axisが垂直でない場合にパニックする
-    pub fn new(center: Point3D<T>, radius: T, normal: Direction3D<T>, u_axis: Direction3D<T>) -> Self {
-        assert!(
-            radius >= T::ZERO,
-            "半径は非負の値である必要があります"
-        );
+    pub fn new(
+        center: Point3D<T>,
+        radius: T,
+        normal: Direction3D<T>,
+        u_axis: Direction3D<T>,
+    ) -> Self {
+        assert!(radius >= T::ZERO, "半径は非負の値である必要があります");
 
         // 法線とu_axisが垂直であることを確認
         let dot = normal.x() * u_axis.x() + normal.y() * u_axis.y() + normal.z() * u_axis.z();
@@ -104,9 +104,7 @@ impl<T: Scalar> Circle<T> {
             point.z() - self.center.z(),
         );
 
-        let distance = to_point
-            .dot(&self.normal.to_vector())
-            .abs();
+        let distance = to_point.dot(&self.normal.to_vector()).abs();
         distance <= tolerance
     }
 
@@ -351,7 +349,6 @@ impl<T: Scalar> Circle<T> {
     pub fn v_axis(&self) -> Direction3D<T> {
         self.v_axis
     }
-
 }
 
 impl Circle<f64> {
@@ -379,5 +376,5 @@ impl From<Circle<f64>> for BBox3D<f64> {
 /// f64特化版Circle3Dエイリアス
 pub type Circle3DF64 = Circle<f64>;
 
-/// f32特化版Circle3Dエイリアス  
+/// f32特化版Circle3Dエイリアス
 pub type Circle3DF32 = Circle<f32>;

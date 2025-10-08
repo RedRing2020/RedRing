@@ -1,4 +1,4 @@
-use crate::geometry2d::Vector;  // ジェネリック Vector を使用
+use crate::geometry2d::Vector; // ジェネリック Vector を使用
 use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
 use geo_foundation::abstract_types::{Scalar, ToleranceContext, TolerantEq};
 
@@ -129,10 +129,7 @@ impl<T: Scalar> PointTrait<2> for Point2D<T> {
     }
 
     fn translate(&self, vector: &Self::Vector) -> Self {
-        Self::new(
-            self.x + vector.x(),
-            self.y + vector.y(),
-        )
+        Self::new(self.x + vector.x(), self.y + vector.y())
     }
 
     fn vector_to(&self, other: &Self) -> Self::Vector {

@@ -1,5 +1,5 @@
 //! Point型の基礎演算テスト
-//! 
+//!
 //! Point2D<T>, Point3D<T>の基礎演算（加算、減算、スカラー倍など）の動作確認
 
 #[cfg(test)]
@@ -154,7 +154,7 @@ mod tests {
         let p = Point2D::<f64>::new(1.0, 2.0);
         let v = Vector2D::new(3.0, 4.0);
         let result = p + v;
-        
+
         // 手動計算と一致するか
         assert_eq!(result.x(), 4.0);
         assert_eq!(result.y(), 6.0);

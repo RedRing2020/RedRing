@@ -1,15 +1,17 @@
 # Copilot Instructions for RedRing
 
-RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。現在は描画基盤と幾何要素の設計段階にあり、NURBS やCAM機能は未実装です。
+RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。現在は描画基盤と幾何要素の設計段階にあり、NURBS や CAM 機能は未実装です。
 
 ## クイックリファレンス
 
 **⚠️ 重要な制約**:
+
 - プロジェクトは正常にビルド・実行可能（警告のみ、主にコードスタイル関連）
 - `render` と `stage` は独立してビルド可能（model に依存しない）
 - 新規コード追加時は既存のトレイト設計と責務分離を尊重すること
 
 **よく使うコマンド**:
+
 ```bash
 cargo build                 # 全体ビルド（成功）
 cargo run                   # メイン実行（GUI環境が必要）
@@ -23,6 +25,7 @@ mdbook build                # ドキュメント生成（manual/ -> docs/）
 ## アーキテクチャ
 
 ### Workspace 構成
+
 - `model`: 幾何データ（Point, Vector, Curve, Surface など）、`model` に依存なし
 - `render`: GPU 描画基盤（wgpu + WGSL）、`model` に依存しない設計
 - `viewmodel`: ビュー操作・変換ロジック、`model` に依存
@@ -30,15 +33,18 @@ mdbook build                # ドキュメント生成（manual/ -> docs/）
 - `redring`: メインアプリケーション、すべてのクレートを統合
 
 ### 依存関係の方向性
+
 ```
 redring → viewmodel → model
        ↘  stage → render
 ```
-**重要**: `render` は `model` に依存しない（GPU層と幾何データ層の分離）
+
+**重要**: `render` は `model` に依存しない（GPU 層と幾何データ層の分離）
 
 ## 幾何データの設計パターン (`model/`)
 
 ### モジュール構成
+
 ```rust
 // model/src/lib.rs
 pub mod analysis;         // 幾何解析ユーティリティ
@@ -49,12 +55,14 @@ pub mod geometry_trait;   // トレイト定義（Curve2D, Curve3D, Surface な�
 ```
 
 ### 階層構造
+
 - `geometry/geometry3d/`: `Point`, `Vector`, `Direction`, `Line`, `Circle`, `Ellipse`, `NurbsCurve` など
-- `geometry/geometry2d/`: 2次元対応の基本要素
+- `geometry/geometry2d/`: 2 次元対応の基本要素
 - `geometry_trait/`: `Curve2D`, `Curve3D`, `Surface`, `Normalize`, `Normed` など
 - `geometry_kind/`: `CurveKind3D`, `SurfaceKind` による型分類
 
 ### 型安全パターン
+
 ```rust
 // Direction は正規化されたベクトルをラップ
 pub struct Direction(Vector);
@@ -68,7 +76,7 @@ impl Direction {
             Some(Direction(v.normalize()))
         }
     }
-    
+
     // アクセサメソッド
     pub fn x(&self) -> f64 { self.0.x() }
     pub fn y(&self) -> f64 { self.0.y() }
@@ -77,6 +85,7 @@ impl Direction {
 ```
 
 ### トレイト設計
+
 ```rust
 // Curve3D: 各曲線型が実装する共通インターフェース
 pub trait Curve3D: Any {
@@ -90,6 +99,7 @@ pub trait Curve3D: Any {
 ## GPU 描画システム (`render/`)
 
 ### モジュール構成
+
 ```rust
 // render/src/lib.rs
 pub mod device;      // wgpu Device 管理
@@ -104,6 +114,7 @@ pub mod vertex_3d;   // 3D 頂点型
 ```
 
 ### シェーダ管理
+
 ```rust
 // shader.rs: コンパイル時埋め込みパターン
 pub fn render_3d_shader(device: &Device) -> wgpu::ShaderModule {
@@ -113,9 +124,11 @@ pub fn render_3d_shader(device: &Device) -> wgpu::ShaderModule {
     })
 }
 ```
+
 シェーダは `render/shaders/` に分離: `render_2d.wgsl`, `render_3d.wgsl`, `wireframe.wgsl`
 
 ### 頂点データパターン
+
 ```rust
 // vertex_3d.rs: bytemuck による GPU 転送可能な型
 #[repr(C)]
@@ -124,25 +137,30 @@ pub struct Vertex3D {
     pub position: [f32; 3],
 }
 ```
+
 **必須**: GPU に送るデータは `#[repr(C)]` + `Pod` + `Zeroable` を実装
 
 ## レンダリングステージ (`stage/`)
 
 ### RenderStage トレイト
+
 ```rust
 pub trait RenderStage {
     fn render(&mut self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView);
     fn update(&mut self) {}  // デフォルト実装あり
 }
 ```
+
 実装例: `OutlineStage`, `DraftStage`, `ShadingStage`
 
 ## シーン管理システム (`stage/`)
 
 ### RenderStage トレイト
+
 各描画ステージの統一インターフェース（`render()` + `update()`）
 
 ### 実装例と具体的なパターン
+
 ```rust
 // OutlineStage: ワイヤーフレーム描画（編集時のエッジ表示用）
 pub struct OutlineStage {
@@ -170,6 +188,7 @@ impl RenderStage for DraftStage {
 ```
 
 ### 共通パターン
+
 - 各ステージは `render` クレートのリソース型（`WireframeResources`, `Render2dResources` など）を保持
 - `new()` で device と format を受け取り、リソースを初期化
 - `update()` の実装はオプション（静的な描画のみなら不要）
@@ -196,23 +215,24 @@ cargo tree --depth 1
 
 ### 現在の状態と制約
 
-- **ビルド状況**: 一部エラーあり（geo_primitives内の型変換作業中）
-- **コード整理状況**: テストファイル分離完了（2024年10月9日）
-  - InfiniteLine2D: 436行 → 250行（43%削減）  
-  - InfiniteLine3D: 617行 → 393行（36%削減）
-  - traits_tests.rsを4ファイルに分割
-- **型変換戦略**: f64固定 → ジェネリック<T: Scalar>への段階的移行
-  - ✅ Direction3D<T>: 完了（74テスト通過）
+- **ビルド状況**: 一部エラーあり（geo_primitives 内の型変換作業中）
+- **コード整理状況**: テストファイル分離完了（2024 年 10 月 9 日）
+  - InfiniteLine2D: 436 行 → 250 行（43%削減）
+  - InfiniteLine3D: 617 行 → 393 行（36%削減）
+  - traits_tests.rs を 4 ファイルに分割
+- **型変換戦略**: f64 固定 → ジェネリック<T: Scalar>への段階的移行
+  - ✅ Direction3D<T>: 完了（74 テスト通過）
   - ✅ Ray3D<T>: 完了（Direction3D<T>統合済み）
   - ❌ InfiniteLine3D: 一時無効化（40+エラー、複雑すぎるため後回し）
   - 📋 Circle3D → Ellipse3D → Arc3D → InfiniteLine2D/3D の順で再有効化予定
-- **テスト**: 現在74テスト通過、分離したテストファイルでコードサイズ大幅削減
+- **テスト**: 現在 74 テスト通過、分離したテストファイルでコードサイズ大幅削減
 - **wgpu バージョン**: 27.0.1 に統一済み
-- **WebAssembly**: 将来対応予定（README記載）だが、現状は native のみ
+- **WebAssembly**: 将来対応予定（README 記載）だが、現状は native のみ
 
 ## 重要な設計原則
 
 ### 1. Option/Result による失敗の明示化
+
 ```rust
 Direction::from_vector(v)  // Option<Direction> を返す（ゼロベクトルは None）
 v.normalize()               // Vector を返す（ゼロベクトルは Vector::ZERO）
@@ -222,12 +242,15 @@ v.normalize()               // Vector を返す（ゼロベクトルは Vector::
 `Direction::from_vector()` は内部で長さチェックを行い、ゼロベクトルの場合は `None` を返すことで型安全性を保証する。
 
 ### 2. トレイト境界による抽象化
+
 - `Normalize` トレイト: 正規化可能な型を抽象化
 - `Curve2D`/`Curve3D` トレイト: 曲線の共通操作を定義
 - 動的ディスパッチには `dyn Trait` または `Any` によるダウンキャストを使用
 
 ### 3. モジュール公開 API
+
 各クレートの `lib.rs` で `pub use` により主要型を再エクスポート
+
 ```rust
 pub mod geometry;
 pub mod geometry_trait;
@@ -235,6 +258,7 @@ pub mod geometry_kind;
 ```
 
 ### 4. WGSL シェーダの統合
+
 - シェーダは独立した `.wgsl` ファイルで管理
 - `include_str!` でコンパイル時に埋め込み
 - シェーダ変更時は Rust 側の再ビルドが必要
@@ -256,13 +280,13 @@ pub mod geometry_kind;
 
 ## 現在の状態と制約
 
-- **ビルド状況**: 一部エラーあり（geo_primitives内の型変換作業中）
-- **進行中の型変換**: f64固定 → ジェネリック<T: Scalar>
+- **ビルド状況**: 一部エラーあり（geo_primitives 内の型変換作業中）
+- **進行中の型変換**: f64 固定 → ジェネリック<T: Scalar>
   - ✅ Direction3D<T>, Ray3D<T>: 完了
   - 🔄 Circle3D → Ellipse3D → Arc3D → InfiniteLine2D/3D: 段階的変換予定
   - ❌ InfiniteLine3D: 一時無効化（複雑すぎるため最後に対応）
 - **未実装機能**: NURBS の完全実装、CAM パス生成、切削シミュレーション
-- **wgpu バージョン**: 27.0.1 に統一済み（2025年）
+- **wgpu バージョン**: 27.0.1 に統一済み（2025 年）
 - **WebAssembly**: 将来対応予定（現在は wgpu のネイティブバックエンドのみ）
 - **viewmodel**: 現在は最小実装（今後の拡張予定）
   - 現状はサンプルの `add()` 関数のみ
@@ -271,13 +295,16 @@ pub mod geometry_kind;
 ## 型変換戦略（進行中）
 
 ### 段階的変換アプローチ
-f64固定型からジェネリック<T: Scalar>への変換を、依存性と複雑さに基づいて段階的に実施：
+
+f64 固定型からジェネリック<T: Scalar>への変換を、依存性と複雑さに基づいて段階的に実施：
 
 1. **Phase 1 - 基本型（完了）** ✅
-   - Direction3D<T>: 正規化ベクトル型、74テスト通過
+
+   - Direction3D<T>: 正規化ベクトル型、74 テスト通過
    - Ray3D<T>: Direction3D<T>統合済み
 
-2. **Phase 2 - 幾何プリミティブ（次の作業）** 🔄  
+2. **Phase 2 - 幾何プリミティブ（次の作業）** 🔄
+
    - Circle3D → Ellipse3D → Arc3D の順で変換
    - 比較的単純で依存関係が少ない
 
@@ -286,6 +313,7 @@ f64固定型からジェネリック<T: Scalar>への変換を、依存性と複
    - トレイト実装の型パラメータ修正が必要
 
 ### 変換時の重要原則
+
 - 一つずつ確実に変換（並行作業禁止）
 - テスト分離でファイルサイズ削減を優先
 - エラーが複雑な場合は一時無効化して後回し
@@ -297,9 +325,9 @@ f64固定型からジェネリック<T: Scalar>への変換を、依存性と複
 - **実行方法**: `cargo test -p <crate_name>` で個別クレートのテスト実行、`cargo test --workspace` で全体実行
 - **推奨**: 新機能追加時は独立したユニットテストを追加（特に render/stage は model に依存しないため追加しやすい）
 - **テストファイル整理**: 大きなテストファイルを分離して管理性向上
-  - traits_tests.rs → 4ファイルに分割
-  - InfiniteLine2D/3Dテスト → 専用ファイルに分離
-  - コードサイズ大幅削減（430-617行 → 250-393行）
+  - traits_tests.rs → 4 ファイルに分割
+  - InfiniteLine2D/3D テスト → 専用ファイルに分離
+  - コードサイズ大幅削減（430-617 行 → 250-393 行）
 
 ## wgpu 27.0.1 への対応
 

@@ -3,7 +3,9 @@
 //! 起点と方向を持つ2次元半無限直線をサポート
 
 use crate::geometry2d::{Direction2D, Point2D, Vector};
-use geo_foundation::abstract_types::geometry::{Direction, Direction2D as Direction2DTrait, Ray, Ray2D as Ray2DTrait};
+use geo_foundation::abstract_types::geometry::{
+    Direction, Direction2D as Direction2DTrait, Ray, Ray2D as Ray2DTrait,
+};
 use geo_foundation::abstract_types::{Angle, Scalar};
 
 /// ジェネリック2Dレイ（半無限直線）
@@ -50,7 +52,8 @@ impl<T: Scalar> Ray2D<T> {
     /// レイを指定角度回転（起点中心）
     pub fn rotate(&self, angle: Angle<T>) -> Self {
         let rotated_origin = self.origin.rotate(angle.to_radians());
-        let rotated_direction = Direction2D::from_angle(self.direction.to_angle() + angle.to_radians());
+        let rotated_direction =
+            Direction2D::from_angle(self.direction.to_angle() + angle.to_radians());
         Self::new(rotated_origin, rotated_direction)
     }
 
@@ -107,10 +110,10 @@ impl<T: Scalar> Ray<T> for Ray2D<T> {
     fn distance_to_point(&self, point: &Self::Point) -> T {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
-        
+
         // 点からレイへの投影
         let projection_length = to_point.dot(&direction_vector);
-        
+
         if projection_length <= T::ZERO {
             // 起点より後方の場合、起点までの距離
             self.origin.distance_to(point)
@@ -124,9 +127,9 @@ impl<T: Scalar> Ray<T> for Ray2D<T> {
     fn closest_point(&self, point: &Self::Point) -> Self::Point {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
-        
+
         let projection_length = to_point.dot(&direction_vector);
-        
+
         if projection_length <= T::ZERO {
             // 起点より後方の場合、起点が最近点
             self.origin
@@ -151,7 +154,7 @@ impl<T: Scalar> Ray<T> for Ray2D<T> {
         if !self.is_parallel_to(other, tolerance) {
             return false;
         }
-        
+
         // 一方の起点がもう一方の直線上にあるかチェック（レイの範囲を超えても良い）
         let distance_to_line = self.distance_to_line(&other.origin);
         distance_to_line <= tolerance
@@ -163,7 +166,7 @@ impl<T: Scalar> Ray2D<T> {
     pub fn distance_to_line(&self, point: &Point2D<T>) -> T {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
-        
+
         // 点からレイの直線への投影
         let projection_length = to_point.dot(&direction_vector);
         let projection_point = self.origin + direction_vector * projection_length;

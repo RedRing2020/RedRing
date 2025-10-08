@@ -12,7 +12,7 @@ mod vector_basic_ops_tests {
         let v1 = Vector::new(1.0, 2.0);
         let v2 = Vector::new(3.0, 4.0);
         let result = v1 + v2;
-        
+
         assert_eq!(result.x(), 4.0);
         assert_eq!(result.y(), 6.0);
     }
@@ -22,7 +22,7 @@ mod vector_basic_ops_tests {
         let v1 = Vector::new(5.0, 7.0);
         let v2 = Vector::new(2.0, 3.0);
         let result = v1 - v2;
-        
+
         assert_eq!(result.x(), 3.0);
         assert_eq!(result.y(), 4.0);
     }
@@ -31,7 +31,7 @@ mod vector_basic_ops_tests {
     fn test_vector2d_scalar_multiplication() {
         let v = Vector::new(2.0, 3.0);
         let result = v * 2.5;
-        
+
         assert_eq!(result.x(), 5.0);
         assert_eq!(result.y(), 7.5);
     }
@@ -40,7 +40,7 @@ mod vector_basic_ops_tests {
     fn test_vector2d_scalar_division() {
         let v = Vector::new(6.0, 9.0);
         let result = v / 3.0;
-        
+
         assert_eq!(result.x(), 2.0);
         assert_eq!(result.y(), 3.0);
     }
@@ -49,7 +49,7 @@ mod vector_basic_ops_tests {
     fn test_vector2d_negation() {
         let v = Vector::new(2.0, -3.0);
         let result = -v;
-        
+
         assert_eq!(result.x(), -2.0);
         assert_eq!(result.y(), 3.0);
     }
@@ -59,7 +59,7 @@ mod vector_basic_ops_tests {
         let v1 = Vector::new(2.0, 3.0);
         let v2 = Vector::new(4.0, 5.0);
         let result = v1.dot(&v2);
-        
+
         // 2*4 + 3*5 = 8 + 15 = 23
         assert_eq!(result, 23.0);
     }
@@ -68,7 +68,7 @@ mod vector_basic_ops_tests {
     fn test_vector2d_length() {
         let v = Vector::new(3.0, 4.0);
         let length = v.length();
-        
+
         // sqrt(3^2 + 4^2) = sqrt(9 + 16) = sqrt(25) = 5
         assert_eq!(length, 5.0);
     }
@@ -77,10 +77,10 @@ mod vector_basic_ops_tests {
     fn test_vector2d_normalize() {
         let v = Vector::new(3.0, 4.0);
         let normalized = v.normalize().unwrap();
-        
+
         // 正規化後の長さは1
         assert!((normalized.length() - 1.0).abs() < f64::EPSILON);
-        
+
         // 方向は保持される
         assert_eq!(normalized.x(), 0.6); // 3/5
         assert_eq!(normalized.y(), 0.8); // 4/5
@@ -89,7 +89,7 @@ mod vector_basic_ops_tests {
     #[test]
     fn test_vector2d_zero_vector() {
         let zero = Vector::<f64>::zero();
-        
+
         assert_eq!(zero.x(), 0.0);
         assert_eq!(zero.y(), 0.0);
         assert_eq!(zero.length(), 0.0);
@@ -100,7 +100,7 @@ mod vector_basic_ops_tests {
         let v1 = Vector::<f32>::new(1.0, 2.0);
         let v2 = Vector::<f32>::new(3.0, 4.0);
         let result = v1 + v2;
-        
+
         assert_eq!(result.x(), 4.0f32);
         assert_eq!(result.y(), 6.0f32);
     }
@@ -110,7 +110,7 @@ mod vector_basic_ops_tests {
         let v1 = Vector::new(2.0, 3.0);
         let v2 = Vector::new(4.0, 5.0);
         let cross = v1.cross_2d(&v2);
-        
+
         // 2*5 - 3*4 = 10 - 12 = -2
         assert_eq!(cross, -2.0);
     }
@@ -119,11 +119,11 @@ mod vector_basic_ops_tests {
     fn test_vector2d_perpendicular() {
         let v = Vector::new(3.0, 4.0);
         let perp = v.perpendicular();
-        
+
         // 垂直ベクトルは (-y, x)
         assert_eq!(perp.x(), -4.0);
         assert_eq!(perp.y(), 3.0);
-        
+
         // 元のベクトルと垂直であることを確認（内積=0）
         assert_eq!(v.dot(&perp), 0.0);
     }
@@ -134,7 +134,7 @@ mod vector_basic_ops_tests {
         let v1 = Vector2D::new(1.0, 2.0);
         let v2 = Vector2D::new(3.0, 4.0);
         let result = v1 + v2;
-        
+
         assert_eq!(result.x(), 4.0);
         assert_eq!(result.y(), 6.0);
     }

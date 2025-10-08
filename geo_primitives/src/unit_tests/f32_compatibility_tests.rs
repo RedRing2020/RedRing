@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::geometry2d::{Point2D, Point2DF32, Vector as Vector2D, Direction2D, Ray2D};
+    use crate::geometry2d::{Direction2D, Point2D, Point2DF32, Ray2D, Vector as Vector2D};
     use crate::geometry3d::{Point3D, Point3DF32, Ray3D};
     use geo_foundation::abstract_types::Scalar;
     use geo_foundation::Ray;
@@ -126,17 +126,17 @@ mod tests {
     #[test]
     fn test_direction2d_f32_support() {
         use crate::geometry2d::Direction2D;
-        
+
         // Direction2D<f32>の基本操作
         let dir_x = Direction2D::<f32>::positive_x();
         let dir_y = Direction2D::<f32>::positive_y();
-        
+
         // 基本メソッドが動作するか確認
         assert_eq!(dir_x.x(), 1.0f32);
         assert_eq!(dir_x.y(), 0.0f32);
         assert_eq!(dir_y.x(), 0.0f32);
         assert_eq!(dir_y.y(), 1.0f32);
-        
+
         // 垂直方向取得（Direct メソッド呼び出し）
         let perp = Direction2D::<f32>::positive_y(); // X軸に垂直なY軸方向
         assert_eq!(perp.x(), 0.0f32);
@@ -145,22 +145,22 @@ mod tests {
 
     #[test]
     fn test_ray_f32_support() {
-        use crate::geometry2d::{Ray2D, Direction2D};
+        use crate::geometry2d::{Direction2D, Ray2D};
         use crate::geometry3d::Ray3D;
         use geo_foundation::Ray;
-        
+
         // Ray2D<f32>の基本操作
         let origin2d = Point2D::<f32>::new(1.0, 2.0);
         let direction2d = Direction2D::<f32>::positive_x();
         let ray2d = Ray2D::new(origin2d, direction2d);
-        
+
         assert_eq!(ray2d.origin().x(), 1.0f32);
         assert_eq!(ray2d.origin().y(), 2.0f32);
-        
+
         // Ray3D<f32>の基本操作
         let origin3d = Point3D::<f32>::new(1.0, 2.0, 3.0);
         let ray3d = Ray3D::x_axis(origin3d);
-        
+
         assert_eq!(ray3d.origin().x(), 1.0f32);
         assert_eq!(ray3d.origin().y(), 2.0f32);
         assert_eq!(ray3d.origin().z(), 3.0f32);
@@ -168,23 +168,23 @@ mod tests {
 
     #[test]
     fn test_f32_type_alias_coverage() {
-        use crate::geometry2d::{Point2DF32, Ray2DF32, Direction2DF32};
+        use crate::geometry2d::{Direction2DF32, Point2DF32, Ray2DF32};
         use crate::geometry3d::{Point3DF32, Ray3DF32};
-        
+
         // 型エイリアスが正しく機能することを確認
         let p2d: Point2DF32 = Point2D::new(1.0f32, 2.0f32);
         let p3d: Point3DF32 = Point3D::new(1.0f32, 2.0f32, 3.0f32);
         let dir2d: Direction2DF32 = Direction2D::positive_x();
         let ray2d: Ray2DF32 = Ray2D::new(p2d, dir2d);
         let ray3d: Ray3DF32 = Ray3D::x_axis(p3d);
-        
+
         // 実際に使用して型が正しいことを確認
         assert_eq!(p2d.x(), 1.0f32);
         assert_eq!(p3d.z(), 3.0f32);
         assert_eq!(dir2d.x(), 1.0f32);
         assert_eq!(ray2d.origin().x(), 1.0f32);
         assert_eq!(ray3d.origin().z(), 3.0f32);
-        
+
         // サイズが期待通りか確認
         assert_eq!(std::mem::size_of::<Point2DF32>(), 8); // f32 * 2
         assert_eq!(std::mem::size_of::<Point3DF32>(), 12); // f32 * 3
