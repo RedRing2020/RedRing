@@ -3,7 +3,7 @@
 //! 2次元楕円の基本実装
 
 use crate::geometry2d::{BBox2D, Circle, Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::angle::Angle;
+use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
 /// 楕円関連のエラー
@@ -80,7 +80,7 @@ impl Ellipse {
     }
 
     /// 円から楕円を作成
-    pub fn from_circle(circle: &Circle) -> Self {
+    pub fn from_circle(circle: &Circle<f64>) -> Self {
         let center = circle.center();
         let radius = circle.radius();
         Self::axis_aligned(center, radius, radius).unwrap()
@@ -278,17 +278,17 @@ impl Ellipse {
     }
 
     /// 楕円を円に変換（長軸の半径を使用）
-    pub fn to_circle(&self) -> Circle {
+    pub fn to_circle(&self) -> Circle<f64> {
         Circle::new(self.center, self.major_radius)
     }
 
     /// 楕円を最小外接円に変換
-    pub fn bounding_circle(&self) -> Circle {
+    pub fn bounding_circle(&self) -> Circle<f64> {
         Circle::new(self.center, self.major_radius)
     }
 
     /// 楕円を最大内接円に変換
-    pub fn inscribed_circle(&self) -> Circle {
+    pub fn inscribed_circle(&self) -> Circle<f64> {
         Circle::new(self.center, self.minor_radius)
     }
 }

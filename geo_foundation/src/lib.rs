@@ -22,10 +22,6 @@ pub use abstract_types::geometry::*;
 #[cfg(test)]
 mod unit_tests;
 
-// 統合テストは現在の実装と互換性がないため無効化
-// #[cfg(test)]
-// mod integration_tests;
-
 /// 便利な再エクスポート
 pub mod prelude {
     pub use crate::abstract_types::{Scalar, ToleranceContext, TolerantEq};

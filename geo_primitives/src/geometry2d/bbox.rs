@@ -8,8 +8,8 @@ use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, Coll
 /// 2D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
 #[derive(Debug, Clone, PartialEq)]
 pub struct BBox {
-    pub min: Point,
-    pub max: Point,
+    pub min: Point<f64>,
+    pub max: Point<f64>,
 }
 
 impl BoundingBox<2> for BBox {
@@ -142,12 +142,12 @@ impl BBox {
     }
 
     /// Pointから2Dバウンディングボックスを作成
-    pub fn from_points(min: Point, max: Point) -> Self {
+    pub fn from_points(min: Point<f64>, max: Point<f64>) -> Self {
         Self { min, max }
     }
 
     /// 点の集合からバウンディングボックスを作成
-    pub fn from_point_array(points: &[Point]) -> Option<Self> {
+    pub fn from_point_array(points: &[Point<f64>]) -> Option<Self> {
         if points.is_empty() {
             return None;
         }

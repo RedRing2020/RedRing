@@ -2,7 +2,7 @@
 //!
 //! CAD/CAM システムで使用される楕円の抽象化インターフェース
 
-use crate::abstract_types::geometry::angle::AngleType;
+use crate::abstract_types::angle::AngleType;
 use crate::abstract_types::geometry::vector::Vector3D;
 use crate::abstract_types::Scalar;
 

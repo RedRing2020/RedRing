@@ -2,7 +2,7 @@
 //!
 //! 2D/3D空間における楕円弧の抽象的なインターフェースを提供
 
-use crate::abstract_types::geometry::angle::AngleType;
+use crate::abstract_types::angle::AngleType;
 use crate::abstract_types::geometry::vector::Vector3D;
 use crate::abstract_types::Scalar;
 

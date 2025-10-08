@@ -3,7 +3,7 @@
 //! 2次元楕円弧の基本実装
 
 use crate::geometry2d::{BBox2D, Ellipse, Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::angle::Angle;
+use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
 /// 楕円弧関連のエラー
