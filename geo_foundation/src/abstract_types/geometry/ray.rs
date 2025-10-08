@@ -58,10 +58,15 @@ pub trait Ray2D<T: Scalar> {
 
     /// 無限直線との交点を計算
     /// 具体的な無限直線型との交点計算は実装側で行う
-    fn intersect_infinite_line(&self, line_origin: &Self::Point, line_direction: &Self::Direction) -> Option<Self::Point>;
+    fn intersect_infinite_line(
+        &self,
+        line_origin: &Self::Point,
+        line_direction: &Self::Direction,
+    ) -> Option<Self::Point>;
 
     /// 線分との交点を計算
-    fn intersect_line_segment(&self, start: &Self::Point, end: &Self::Point) -> Option<Self::Point>;
+    fn intersect_line_segment(&self, start: &Self::Point, end: &Self::Point)
+        -> Option<Self::Point>;
 
     /// 円との交点を計算（最も近い交点）
     fn intersect_circle(&self, center: &Self::Point, radius: T) -> Option<Self::Point>;
@@ -121,19 +126,36 @@ pub trait Ray3D<T: Scalar> {
 
     /// 無限直線との交点を計算
     /// 具体的な無限直線型との交点計算は実装側で行う
-    fn intersect_infinite_line(&self, line_origin: &Self::Point, line_direction: &Self::Direction) -> Option<Self::Point>;
+    fn intersect_infinite_line(
+        &self,
+        line_origin: &Self::Point,
+        line_direction: &Self::Direction,
+    ) -> Option<Self::Point>;
 
     /// 指定した平面との交点を計算
-    fn intersect_plane(&self, plane_point: &Self::Point, plane_normal: &Self::Vector) -> Option<Self::Point>;
+    fn intersect_plane(
+        &self,
+        plane_point: &Self::Point,
+        plane_normal: &Self::Vector,
+    ) -> Option<Self::Point>;
 
     /// 球との交点を計算（最も近い交点）
     fn intersect_sphere(&self, center: &Self::Point, radius: T) -> Option<Self::Point>;
 
     /// 三角形との交点を計算（Möller-Trumbore法）
-    fn intersect_triangle(&self, v0: &Self::Point, v1: &Self::Point, v2: &Self::Point) -> Option<Self::Point>;
+    fn intersect_triangle(
+        &self,
+        v0: &Self::Point,
+        v1: &Self::Point,
+        v2: &Self::Point,
+    ) -> Option<Self::Point>;
 
     /// 境界ボックスとの交点を計算
-    fn intersect_bounding_box(&self, min_point: &Self::Point, max_point: &Self::Point) -> Option<(Self::Point, Self::Point)>;
+    fn intersect_bounding_box(
+        &self,
+        min_point: &Self::Point,
+        max_point: &Self::Point,
+    ) -> Option<(Self::Point, Self::Point)>;
 
     /// 他のレイと平行かどうかを判定
     fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool;
@@ -142,7 +164,11 @@ pub trait Ray3D<T: Scalar> {
     fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool;
 
     /// レイを指定した平面に投影
-    fn project_to_plane(&self, plane_normal: &Self::Vector, plane_point: &Self::Point) -> Option<Self>
+    fn project_to_plane(
+        &self,
+        plane_normal: &Self::Vector,
+        plane_point: &Self::Point,
+    ) -> Option<Self>
     where
         Self: Sized;
 
@@ -173,10 +199,7 @@ pub trait RayBuilder<T: Scalar> {
     ) -> Result<Self::Ray, Self::Error>;
 
     /// 2点を通るレイを構築（第1点が起点、第2点への方向）
-    fn from_two_points(
-        origin: Self::Point,
-        target: Self::Point,
-    ) -> Result<Self::Ray, Self::Error>;
+    fn from_two_points(origin: Self::Point, target: Self::Point) -> Result<Self::Ray, Self::Error>;
 
     /// スクリーン座標からレイを構築（3D用）
     fn from_screen_point(
@@ -224,7 +247,12 @@ pub trait RayAnalysis<T: Scalar> {
     fn sample_points(&self, max_distance: T, step_size: T) -> Vec<Self::Point>;
 
     /// レイ上の指定範囲での点群を生成
-    fn generate_points(&self, start_distance: T, end_distance: T, num_points: usize) -> Vec<Self::Point>;
+    fn generate_points(
+        &self,
+        start_distance: T,
+        end_distance: T,
+        num_points: usize,
+    ) -> Vec<Self::Point>;
 
     /// レイと指定した境界内での交差範囲を取得
     fn clip_to_bounds(&self, min_point: Self::Point, max_point: Self::Point) -> Option<(T, T)>;
@@ -279,7 +307,7 @@ mod tests {
         fn check_2d_ray<T: Scalar, R: Ray2D<T>>(_ray: &R) {
             // このテストはコンパイル時にトレイト境界を確認
         }
-        
+
         #[allow(dead_code)]
         fn check_3d_ray<T: Scalar, R: Ray3D<T>>(_ray: &R) {
             // このテストはコンパイル時にトレイト境界を確認

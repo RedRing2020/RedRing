@@ -25,7 +25,7 @@ pub use vector::Vector;
 // Type aliases for external compatibility
 pub type Arc2D = Arc;
 pub use bbox::BBox as BBox2D;
-pub type Circle2D = Circle<f64>;  // f64専用の Circle エイリアス
+pub type Circle2D = Circle<f64>; // f64専用の Circle エイリアス
 pub use ellipse::Ellipse as Ellipse2D;
 pub use ellipse_arc::EllipseArc as EllipseArc2D;
 // 型パラメータ化された Point/Vector の後方互換エイリアス

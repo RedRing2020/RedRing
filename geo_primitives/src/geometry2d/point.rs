@@ -54,7 +54,10 @@ impl<T: Scalar> PointTrait<2> for Point<T> {
     }
 
     fn translate(&self, vector: &Self::Vector) -> Self {
-        Self::new(self.x + T::from_f64(vector.x()), self.y + T::from_f64(vector.y()))
+        Self::new(
+            self.x + T::from_f64(vector.x()),
+            self.y + T::from_f64(vector.y()),
+        )
     }
 
     fn vector_to(&self, other: &Self) -> Self::Vector {
