@@ -37,7 +37,7 @@ pub mod tests {
         // f64でのベクトル演算
         let v1_f64: Vector<f64> = Vector::new(3.0, 4.0);
         let v2_f64: Vector<f64> = Vector::new(1.0, 2.0);
-        
+
         let sum_f64 = v1_f64 + v2_f64;
         assert_eq!(sum_f64.x(), 4.0f64);
         assert_eq!(sum_f64.y(), 6.0f64);
@@ -48,7 +48,7 @@ pub mod tests {
         // f32でのベクトル演算
         let v1_f32: Vector<f32> = Vector::new(3.0f32, 4.0f32);
         let v2_f32: Vector<f32> = Vector::new(1.0f32, 2.0f32);
-        
+
         let sum_f32 = v1_f32 + v2_f32;
         assert_eq!(sum_f32.x(), 4.0f32);
         assert_eq!(sum_f32.y(), 6.0f32);
@@ -132,17 +132,17 @@ pub mod tests {
         // Vector<f64> と Vector<f32> の相互運用性テスト
         let v_f64: Vector<f64> = Vector::new(1.5, 2.5);
         let v_f32: Vector<f32> = Vector::new(1.5f32, 2.5f32);
-        
+
         // 型変換による比較
         let converted_f32 = Vector::<f32>::new(v_f64.x() as f32, v_f64.y() as f32);
         assert!((converted_f32.x() - v_f32.x()).abs() < f32::EPSILON);
         assert!((converted_f32.y() - v_f32.y()).abs() < f32::EPSILON);
-        
+
         // 演算の一貫性テスト
         let result_f64 = v_f64 * 2.0;
         let result_f32 = v_f32 * 2.0f32;
         let converted_result = Vector::<f32>::new(result_f64.x() as f32, result_f64.y() as f32);
-        
+
         assert!((converted_result.x() - result_f32.x()).abs() < f32::EPSILON);
         assert!((converted_result.y() - result_f32.y()).abs() < f32::EPSILON);
     }

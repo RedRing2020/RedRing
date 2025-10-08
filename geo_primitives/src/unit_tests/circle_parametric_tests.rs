@@ -42,11 +42,11 @@ mod tests {
         // Basic properties test
         assert_eq!(circle_f32.radius(), 3.0f32);
         assert_eq!(circle_f64.radius(), 3.0f64);
-        
+
         // Degenerate test
         let degenerate_f32 = Circlef::new(Pointf::new(0.0, 0.0), 0.0);
         let degenerate_f64 = CircleTest::new(PointTest::new(0.0, 0.0), 0.0);
-        
+
         assert!(degenerate_f32.is_degenerate());
         assert!(degenerate_f64.is_degenerate());
     }
@@ -84,12 +84,12 @@ mod tests {
         // Type conversion test
         let value_f64 = std::f64::consts::PI;
         let value_f32 = f32::from_f64(value_f64);
-        
+
         assert!((value_f32 - std::f32::consts::PI).abs() < f32::EPSILON);
 
         let value_f32_orig = std::f32::consts::E;
         let value_f64_conv = f64::from(value_f32_orig);
-        
+
         assert!((value_f64_conv - std::f64::consts::E).abs() < 1e-6);
     }
 
