@@ -325,7 +325,7 @@ pub trait EllipseTransform<T: Scalar> {
 pub trait EllipseAnalysis<T: Scalar> {
     /// 点の型
     type Point;
-    /// ベクトルの型  
+    /// ベクトルの型
     type Vector;
     /// 角度の型
     type Angle;
