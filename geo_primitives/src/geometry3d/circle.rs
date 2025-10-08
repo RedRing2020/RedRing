@@ -295,7 +295,7 @@ impl Circle3D for Circle {
     fn to_2d(&self) -> impl Circle2D {
         // XY平面への投影として2D円を返す
         geometry2d::circle::Circle::new(
-            crate::geometry2d::point::Point::new(self.center.x(), self.center.y()),
+            crate::geometry2d::Point::new(self.center.x(), self.center.y()),
             self.radius,
         )
     }

@@ -1,9 +1,8 @@
-//! InfiniteLine2D - 2D無限直線の実装
-//!
 //! 2D空間における無限直線の具体的な実装。点と方向ベクトルで定義される。
 //! CAD/CAMシステムで使用される直線の基本的な操作を提供。
 
 use crate::geometry2d::{Direction2D, Point2D, Vector2D};
+
 use geo_foundation::{
     abstract_types::geometry::{
         Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
@@ -18,19 +17,22 @@ use geo_foundation::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct InfiniteLine2D {
     /// 直線上の基準点
-    origin: Point2D,
+    origin: crate::geometry2d::Point2DF64,
     /// 直線の方向（正規化済み）
     direction: Direction2D,
 }
 
 impl InfiniteLine2D {
     /// 点と方向ベクトルから無限直線を作成
-    pub fn new(origin: Point2D, direction: Direction2D) -> Self {
+    pub fn new(origin: crate::geometry2d::Point2DF64, direction: Direction2D) -> Self {
         Self { origin, direction }
     }
 
     /// 2点を通る無限直線を作成
-    pub fn from_two_points(point1: Point2D, point2: Point2D) -> Option<Self> {
+    pub fn from_two_points(
+        point1: crate::geometry2d::Point2DF64,
+        point2: crate::geometry2d::Point2DF64,
+    ) -> Option<Self> {
         let diff = Vector2D::new(point2.x() - point1.x(), point2.y() - point1.y());
 
         if diff.length() < GEOMETRIC_TOLERANCE {
@@ -105,7 +107,7 @@ impl InfiniteLine2D {
 }
 
 impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
-    type Point = Point2D;
+    type Point = crate::geometry2d::Point2DF64;
     type Vector = Vector2D;
     type Direction = Direction2D;
     type Error = String;
@@ -195,7 +197,7 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
 }
 
 impl InfiniteLineBuilder<f64> for InfiniteLine2D {
-    type Point = Point2D;
+    type Point = crate::geometry2d::Point2DF64;
     type Vector = Vector2D;
     type Direction = Direction2D;
     type InfiniteLine = InfiniteLine2D;
@@ -236,7 +238,7 @@ impl InfiniteLineBuilder<f64> for InfiniteLine2D {
 }
 
 impl InfiniteLineAnalysis<f64> for InfiniteLine2D {
-    type Point = Point2D;
+    type Point = crate::geometry2d::Point2DF64;
     type Vector = Vector2D;
 
     fn line_equation_2d(&self) -> (f64, f64, f64) {

@@ -4,15 +4,15 @@ use geo_foundation::abstract_types::{Scalar, ToleranceContext, TolerantEq};
 
 /// A 2D point represented by x and y coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Point<T: Scalar> {
+pub struct Point2D<T: Scalar> {
     pub x: T,
     pub y: T,
 }
 
-impl<T: Scalar> Point<T> {
-    /// Creates a new Point.
-    pub fn new(x: T, y: T) -> Point<T> {
-        Point { x, y }
+impl<T: Scalar> Point2D<T> {
+    /// Creates a new Point2D.
+    pub fn new(x: T, y: T) -> Point2D<T> {
+        Point2D { x, y }
     }
 
     pub fn origin() -> Self {
@@ -34,14 +34,14 @@ impl<T: Scalar> Point<T> {
 }
 
 // geo_foundationトレイトの実装
-impl<T: Scalar> TolerantEq for Point<T> {
+impl<T: Scalar> TolerantEq for Point2D<T> {
     fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
         let distance = self.distance_to(other);
         distance < T::from_f64(context.tolerance())
     }
 }
 
-impl<T: Scalar> PointTrait<2> for Point<T> {
+impl<T: Scalar> PointTrait<2> for Point2D<T> {
     type Scalar = T;
     type Vector = Vector2D; // TODO: Vector2D<T> に変更が必要
 
@@ -50,7 +50,7 @@ impl<T: Scalar> PointTrait<2> for Point<T> {
     }
 
     fn distance_to(&self, other: &Self) -> Self::Scalar {
-        Point::distance_to(self, other)
+        Point2D::distance_to(self, other)
     }
 
     fn translate(&self, vector: &Self::Vector) -> Self {
@@ -69,7 +69,7 @@ impl<T: Scalar> PointTrait<2> for Point<T> {
     }
 }
 
-impl<T: Scalar> Point2DTrait for Point<T> {
+impl<T: Scalar> Point2DTrait for Point2D<T> {
     fn x(&self) -> Self::Scalar {
         self.x
     }
@@ -85,7 +85,7 @@ impl<T: Scalar> Point2DTrait for Point<T> {
 
 // 型エイリアス（後方互換性確保）
 /// f64版の2D Point（デフォルト）
-pub type Point2D = Point<f64>;
+pub type Point2DF64 = Point2D<f64>;
 
 /// f32版の2D Point（高速演算用）
-pub type Point2Df = Point<f32>;
+pub type Point2DF32 = Point2D<f32>;

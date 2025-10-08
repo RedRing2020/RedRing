@@ -6,6 +6,7 @@
 // コアモジュール
 pub mod geometry2d;
 pub mod geometry3d;
+pub mod surface;
 pub mod traits;
 
 // テストモジュール
@@ -31,13 +32,16 @@ pub use geometry3d::{
     Arc as Arc3D, Circle as Circle3D, Direction3D, InfiniteLine3D, Point3D, Vector3D,
 };
 
+// 曲面プリミティブ
+pub use surface::{Sphere, Sphere3D};
+
 // 名前空間の整理
 pub mod primitives_2d {
     pub use crate::{BBox2D, Direction2D, InfiniteLine2D, Point2D, Vector2D};
 }
 
 pub mod primitives_3d {
-    pub use crate::{BBox3D, Direction3D, InfiniteLine3D, Point3D, Vector3D};
+    pub use crate::{BBox3D, Direction3D, InfiniteLine3D, Point3D, Sphere3D, Vector3D};
 }
 
 /// 便利な再エクスポート

@@ -1,8 +1,7 @@
-﻿//! 3D Bounding Box - 衝突判定と形状処理のための3次元境界ボックス
+//! 3D Bounding Box - 衝突判定と形状処理のための3次元境界ボックス
 //!
 //! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
-use crate::geometry2d::Point2D;
 use crate::geometry3d::Point;
 use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
@@ -168,7 +167,10 @@ impl BBox {
     }
 
     /// 2D点から3Dバウンディングボックスを作成（Z=0）
-    pub fn from_2d_points(min: Point2D, max: Point2D) -> Self {
+    pub fn from_2d_points(
+        min: crate::geometry2d::Point2DF64,
+        max: crate::geometry2d::Point2DF64,
+    ) -> Self {
         Self {
             min: Point::new(min.x(), min.y(), 0.0),
             max: Point::new(max.x(), max.y(), 0.0),

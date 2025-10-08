@@ -2,7 +2,9 @@
 //!
 //! 2次元円弧の基本実装
 
-use crate::geometry2d::{Circle, Point2D, Vector2D};
+#[cfg(test)]
+use crate::geometry2d::Point2D;
+use crate::geometry2d::{Circle, Vector2D};
 use geo_foundation::abstract_types::Angle;
 use std::f64::consts::PI;
 
@@ -59,7 +61,11 @@ impl Arc {
     }
 
     /// 3点から円弧を作成
-    pub fn from_three_points(start: Point2D, mid: Point2D, end: Point2D) -> Option<Self> {
+    pub fn from_three_points(
+        start: crate::geometry2d::Point2DF64,
+        mid: crate::geometry2d::Point2DF64,
+        end: crate::geometry2d::Point2DF64,
+    ) -> Option<Self> {
         let circle = Circle::from_three_points(start, mid, end)?;
 
         // 各点の角度を計算（ラジアン）
@@ -70,7 +76,7 @@ impl Arc {
     }
 
     /// 点から角度を計算（ラジアン）
-    fn point_to_angle_rad(circle: &Circle<f64>, point: Point2D) -> f64 {
+    fn point_to_angle_rad(circle: &Circle<f64>, point: crate::geometry2d::Point2DF64) -> f64 {
         let center = circle.center();
         let dx = point.x() - center.x();
         let dy = point.y() - center.y();
@@ -93,16 +99,16 @@ impl Arc {
     }
 
     /// 指定角度での点を取得（ラジアン）
-    pub fn point_at_angle(&self, angle: f64) -> Point2D {
+    pub fn point_at_angle(&self, angle: f64) -> crate::geometry2d::Point2DF64 {
         let center = self.circle.center();
-        Point2D::new(
+        crate::geometry2d::Point2DF64::new(
             center.x() + self.circle.radius() * angle.cos(),
             center.y() + self.circle.radius() * angle.sin(),
         )
     }
 
     /// 指定角度での点を取得（Angle型）
-    pub fn point_at_angle_typed(&self, angle: Angle<f64>) -> Point2D {
+    pub fn point_at_angle_typed(&self, angle: Angle<f64>) -> crate::geometry2d::Point2DF64 {
         self.point_at_angle(angle.to_radians())
     }
 
@@ -139,23 +145,23 @@ impl Arc {
     }
 
     /// 円弧の開始点を取得
-    pub fn start_point(&self) -> Point2D {
+    pub fn start_point(&self) -> crate::geometry2d::Point2DF64 {
         self.point_at_angle(self.start_angle.to_radians())
     }
 
     /// 円弧の終了点を取得
-    pub fn end_point(&self) -> Point2D {
+    pub fn end_point(&self) -> crate::geometry2d::Point2DF64 {
         self.point_at_angle(self.end_angle.to_radians())
     }
 
     /// 円弧の中点を取得
-    pub fn midpoint(&self) -> Point2D {
+    pub fn midpoint(&self) -> crate::geometry2d::Point2DF64 {
         let mid_angle = (self.start_angle.to_radians() + self.end_angle.to_radians()) / 2.0;
         self.point_at_angle(mid_angle)
     }
 
     /// 円弧の中心を取得
-    pub fn center(&self) -> Point2D {
+    pub fn center(&self) -> crate::geometry2d::Point2DF64 {
         self.circle.center()
     }
 
@@ -165,7 +171,7 @@ impl Arc {
     }
 
     /// 点が円弧上にあるかチェック
-    pub fn contains_point(&self, point: Point2D) -> bool {
+    pub fn contains_point(&self, point: crate::geometry2d::Point2DF64) -> bool {
         // まず円上にあるかチェック
         if !self
             .circle
@@ -201,7 +207,10 @@ impl Arc {
     }
 
     /// 円弧を指定した分割数で近似する点列を取得
-    pub fn approximate_with_points(&self, num_segments: usize) -> Vec<Point2D> {
+    pub fn approximate_with_points(
+        &self,
+        num_segments: usize,
+    ) -> Vec<crate::geometry2d::Point2DF64> {
         if num_segments == 0 {
             return vec![];
         }

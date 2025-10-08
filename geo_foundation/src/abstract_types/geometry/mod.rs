@@ -12,6 +12,7 @@ pub mod infinite_line;
 pub mod normalizable;
 pub mod point;
 pub mod ray;
+pub mod sphere;
 pub mod vector;
 
 // 基本トレイトをエクスポート
@@ -25,4 +26,5 @@ pub use infinite_line::*;
 pub use normalizable::*;
 pub use point::*;
 pub use ray::*;
+pub use sphere::*;
 pub use vector::*;

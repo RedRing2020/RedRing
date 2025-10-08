@@ -2,14 +2,14 @@
 //!
 //! 2D形状処理と衝突判定のための2次元境界ボックス
 
-use crate::geometry2d::Point;
+use crate::geometry2d::Point2DF64;
 use geo_foundation::abstract_types::geometry::{BoundingBox, BoundingBoxOps, CollisionBounds};
 
 /// 2D軸平行境界ボックス（AABB: Axis-Aligned Bounding Box）
 #[derive(Debug, Clone, PartialEq)]
 pub struct BBox {
-    pub min: Point<f64>,
-    pub max: Point<f64>,
+    pub min: Point2DF64,
+    pub max: Point2DF64,
 }
 
 impl BoundingBox<2> for BBox {
@@ -25,8 +25,8 @@ impl BoundingBox<2> for BBox {
 
     fn new(min: [Self::Coord; 2], max: [Self::Coord; 2]) -> Self {
         Self {
-            min: Point::new(min[0], min[1]),
-            max: Point::new(max[0], max[1]),
+            min: Point2DF64::new(min[0], min[1]),
+            max: Point2DF64::new(max[0], max[1]),
         }
     }
 
@@ -68,11 +68,11 @@ impl BoundingBoxOps<2> for BBox {
 
     fn union(&self, other: &Self) -> Self {
         Self {
-            min: Point::new(
+            min: Point2DF64::new(
                 self.min.x().min(other.min.x()),
                 self.min.y().min(other.min.y()),
             ),
-            max: Point::new(
+            max: Point2DF64::new(
                 self.max.x().max(other.max.x()),
                 self.max.y().max(other.max.y()),
             ),
@@ -81,8 +81,8 @@ impl BoundingBoxOps<2> for BBox {
 
     fn expand(&self, amount: Self::Coord) -> Self {
         Self {
-            min: Point::new(self.min.x() - amount, self.min.y() - amount),
-            max: Point::new(self.max.x() + amount, self.max.y() + amount),
+            min: Point2DF64::new(self.min.x() - amount, self.min.y() - amount),
+            max: Point2DF64::new(self.max.x() + amount, self.max.y() + amount),
         }
     }
 
@@ -136,18 +136,18 @@ impl BBox {
     /// 新しいBBoxを作成
     pub fn new(min: (f64, f64), max: (f64, f64)) -> Self {
         Self {
-            min: Point::new(min.0, min.1),
-            max: Point::new(max.0, max.1),
+            min: Point2DF64::new(min.0, min.1),
+            max: Point2DF64::new(max.0, max.1),
         }
     }
 
     /// Pointから2Dバウンディングボックスを作成
-    pub fn from_points(min: Point<f64>, max: Point<f64>) -> Self {
+    pub fn from_points(min: Point2DF64, max: Point2DF64) -> Self {
         Self { min, max }
     }
 
     /// 点の集合からバウンディングボックスを作成
-    pub fn from_point_array(points: &[Point<f64>]) -> Option<Self> {
+    pub fn from_point_array(points: &[Point2DF64]) -> Option<Self> {
         if points.is_empty() {
             return None;
         }
@@ -157,8 +157,8 @@ impl BBox {
         let mut max = *first;
 
         for point in points.iter().skip(1) {
-            min = Point::new(min.x().min(point.x()), min.y().min(point.y()));
-            max = Point::new(max.x().max(point.x()), max.y().max(point.y()));
+            min = Point2DF64::new(min.x().min(point.x()), min.y().min(point.y()));
+            max = Point2DF64::new(max.x().max(point.x()), max.y().max(point.y()));
         }
 
         Some(Self::from_points(min, max))

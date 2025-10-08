@@ -2,7 +2,7 @@
 //!
 //! 2次元平面における円の具体的な実装
 
-use crate::geometry2d::{BBox2D, Point, Vector};
+use crate::geometry2d::{BBox2D, Point, Point2D, Vector, Vector2D};
 use crate::traits::Circle2D;
 use geo_foundation::abstract_types::Scalar;
 use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
@@ -10,7 +10,7 @@ use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
 /// 2D平面上の円を表現する構造体
 #[derive(Debug, Clone, PartialEq)]
 pub struct Circle<T: Scalar> {
-    center: Point<T>,
+    center: Point2D<T>,
     radius: T,
 }
 
@@ -23,7 +23,7 @@ impl<T: Scalar> Circle<T> {
     ///
     /// # Panics
     /// 半径が負の値またはNaNの場合にパニックする
-    pub fn new(center: Point<T>, radius: T) -> Self {
+    pub fn new(center: Point2D<T>, radius: T) -> Self {
         assert!(
             radius >= T::ZERO && radius.to_f64().is_finite(),
             "半径は非負の有限値である必要があります"
@@ -36,12 +36,12 @@ impl<T: Scalar> Circle<T> {
     /// # Arguments
     /// * `radius` - 円の半径（正の値）
     pub fn origin_circle(radius: T) -> Self {
-        Self::new(Point::new(T::ZERO, T::ZERO), radius)
+        Self::new(Point2D::new(T::ZERO, T::ZERO), radius)
     }
 
     /// 単位円（半径1、原点中心）を作成
     pub fn unit_circle() -> Self {
-        Self::new(Point::new(T::ZERO, T::ZERO), T::ONE)
+        Self::new(Point2D::new(T::ZERO, T::ZERO), T::ONE)
     }
 
     /// 3点を通る円を作成
@@ -51,7 +51,7 @@ impl<T: Scalar> Circle<T> {
     ///
     /// # Returns
     /// 3点を通る円、または3点が一直線上にある場合は`None`
-    pub fn from_three_points(p1: Point<T>, p2: Point<T>, p3: Point<T>) -> Option<Self> {
+    pub fn from_three_points(p1: Point2D<T>, p2: Point2D<T>, p3: Point2D<T>) -> Option<Self> {
         // 3点が一直線上にないかチェック
         let v1 = Vector::new(p2.x() - p1.x(), p2.y() - p1.y());
         let v2 = Vector::new(p3.x() - p1.x(), p3.y() - p1.y());
@@ -66,7 +66,7 @@ impl<T: Scalar> Circle<T> {
         let ux = (v2.y() * v1.length_squared() - v1.y() * v2.length_squared()) / d;
         let uy = (v1.x() * v2.length_squared() - v2.x() * v1.length_squared()) / d;
 
-        let center = Point::new(p1.x() + ux, p1.y() + uy);
+        let center = Point2D::new(p1.x() + ux, p1.y() + uy);
         let radius = center.distance_to(&p1);
 
         Some(Self::new(center, radius))
@@ -79,7 +79,7 @@ impl<T: Scalar> Circle<T> {
 
     /// 指定された点までの最短距離を取得
     /// 円周までの距離（内部の点では負の値）
-    pub fn distance_to_point(&self, point: &Point<T>) -> T {
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         let center_distance = self.center.distance_to(point);
         center_distance - self.radius
     }
@@ -95,12 +95,12 @@ impl<T: Scalar> Circle<T> {
 
     /// 円を指定ベクトルで平行移動
     pub fn translate(&self, vector: &Vector<T>) -> Self {
-        let new_center = Point::new(self.center.x() + vector.x(), self.center.y() + vector.y());
+        let new_center = Point2D::new(self.center.x() + vector.x(), self.center.y() + vector.y());
         Self::new(new_center, self.radius)
     }
 
     /// 境界上の点を含む点の包含判定（許容誤差付き）
-    pub fn contains_point_on_boundary(&self, point: &Point<T>, tolerance: T) -> bool {
+    pub fn contains_point_on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         let distance = self.distance_to_point(point).abs();
         distance <= tolerance
     }
@@ -115,7 +115,7 @@ impl<T: Scalar> Circle<T> {
     }
 
     /// 中心点を取得
-    pub fn center(&self) -> Point<T> {
+    pub fn center(&self) -> Point2D<T> {
         self.center
     }
 
@@ -126,8 +126,8 @@ impl<T: Scalar> Circle<T> {
 }
 
 impl Circle2D for Circle<f64> {
-    type Point = Point<f64>;
-    type Vector = Vector<f64>;
+    type Point = Point2D<f64>;
+    type Vector = Vector2D;
 
     fn center(&self) -> Self::Point {
         self.center
@@ -188,9 +188,6 @@ impl From<Circle<f64>> for BBox2D {
 mod tests {
     use super::*;
     use std::f64::consts::{PI, TAU};
-
-    // テスト用の型エイリアス
-    type Point2D = Point<f64>;
 
     #[test]
     fn test_circle_creation() {

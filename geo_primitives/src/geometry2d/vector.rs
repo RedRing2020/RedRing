@@ -80,8 +80,8 @@ impl<T: Scalar> Vector<T> {
 
     /// 2点間のベクトル
     pub fn from_points(
-        from: &crate::geometry2d::Point<T>,
-        to: &crate::geometry2d::Point<T>,
+        from: &crate::geometry2d::Point2D<T>,
+        to: &crate::geometry2d::Point2D<T>,
     ) -> Self {
         Self::new(to.x() - from.x(), to.y() - from.y())
     }

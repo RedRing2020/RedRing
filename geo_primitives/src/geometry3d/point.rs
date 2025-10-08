@@ -37,7 +37,7 @@ impl Point {
     }
 
     /// 2D点への投影（Z座標を破棄）
-    pub fn to_point2d(&self) -> crate::geometry2d::Point2D {
+    pub fn to_point2d(&self) -> crate::geometry2d::Point2DF64 {
         crate::geometry2d::Point2D::new(self.x, self.y)
     }
 
