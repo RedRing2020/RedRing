@@ -320,57 +320,6 @@ impl Scalar for f64 {
     }
 }
 
-/// 旧バージョンとの互換性のためのスカラー構造体（非推奨）
-#[deprecated(note = "Use f32 or f64 with Scalar trait instead")]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct LegacyScalar {
-    value: f64,
-}
-
-#[allow(deprecated)]
-impl LegacyScalar {
-    /// 新しいScalarを作成
-    pub fn new(value: f64) -> Self {
-        Self { value }
-    }
-
-    /// 値を取得
-    pub fn value(&self) -> f64 {
-        self.value
-    }
-
-    /// ゼロ値
-    pub const ZERO: Self = Self { value: 0.0 };
-
-    /// 単位値
-    pub const ONE: Self = Self { value: 1.0 };
-
-    /// 絶対値
-    pub fn abs(&self) -> Self {
-        Self::new(self.value.abs())
-    }
-
-    /// 平方根
-    pub fn sqrt(&self) -> Self {
-        Self::new(self.value.sqrt())
-    }
-
-    /// 正弦
-    pub fn sin(&self) -> Self {
-        Self::new(self.value.sin())
-    }
-
-    /// 余弦
-    pub fn cos(&self) -> Self {
-        Self::new(self.value.cos())
-    }
-}
-
-/// 旧バージョンとの互換性のための型エイリアス
-#[deprecated(note = "Use f32 or f64 with Scalar trait instead")]
-#[allow(deprecated)]
-pub type OldScalar = LegacyScalar;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -425,7 +374,7 @@ mod tests {
 
     #[test]
     fn test_type_conversion() {
-        let f32_val = 3.14f32;
+        let f32_val = std::f32::consts::PI;
         let f64_val = f32_val.to_f64();
         let back_to_f32 = f32::from_f64(f64_val);
 
