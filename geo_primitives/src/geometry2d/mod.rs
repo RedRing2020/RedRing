@@ -7,6 +7,7 @@ pub mod circle;
 pub mod direction;
 pub mod ellipse;
 pub mod ellipse_arc;
+pub mod infinite_line;
 pub mod point;
 pub mod vector;
 
@@ -17,6 +18,7 @@ pub use circle::Circle;
 pub use direction::Direction2D;
 pub use ellipse::Ellipse;
 pub use ellipse_arc::EllipseArc;
+pub use infinite_line::InfiniteLine2D;
 pub use point::Point;
 pub use vector::Vector;
 
