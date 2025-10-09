@@ -2,7 +2,9 @@
 //!
 //! 形状判定→計算ロジックディスパッチによる統一API
 
-use crate::abstract_types::geometry::curve_analysis::{CurveAnalysis3D, CurveType, DifferentialGeometry};
+use crate::abstract_types::geometry::curve_analysis::{
+    CurveAnalysis3D, CurveType, DifferentialGeometry,
+};
 use crate::Scalar;
 
 /// 曲線解析の統一ファクトリ
@@ -26,8 +28,12 @@ impl CurveAnalysisFactory {
             }
             CurveType::Ellipse => {
                 // 楕円: 位置依存の曲率計算
-                let a = geometry_data.semi_major_axis.expect("Ellipse requires semi_major_axis");
-                let b = geometry_data.semi_minor_axis.expect("Ellipse requires semi_minor_axis");
+                let a = geometry_data
+                    .semi_major_axis
+                    .expect("Ellipse requires semi_major_axis");
+                let b = geometry_data
+                    .semi_minor_axis
+                    .expect("Ellipse requires semi_minor_axis");
                 Self::ellipse_curvature_at_parameter(a, b, t)
             }
             CurveType::Line => {
@@ -55,15 +61,12 @@ impl CurveAnalysisFactory {
             CurveType::Circle | CurveType::CircleArc => {
                 Self::circle_tangent_at_parameter(geometry_data, t)
             }
-            CurveType::Ellipse => {
-                Self::ellipse_tangent_at_parameter(geometry_data, t)
-            }
-            CurveType::Line => {
-                geometry_data.direction.expect("Line requires direction").to_vector()
-            }
-            _ => {
-                Self::numerical_tangent(geometry_data, t)
-            }
+            CurveType::Ellipse => Self::ellipse_tangent_at_parameter(geometry_data, t),
+            CurveType::Line => geometry_data
+                .direction
+                .expect("Line requires direction")
+                .to_vector(),
+            _ => Self::numerical_tangent(geometry_data, t),
         }
     }
 
@@ -77,12 +80,14 @@ impl CurveAnalysisFactory {
         match curve_type {
             CurveType::Circle | CurveType::CircleArc => {
                 // 円/円弧: 解析的一括計算
-                let (tangent, normal, curvature) = Self::circle_differential_geometry(geometry_data, t);
+                let (tangent, normal, curvature) =
+                    Self::circle_differential_geometry(geometry_data, t);
                 DifferentialGeometry::new(tangent, normal, curvature)
             }
             CurveType::Ellipse => {
                 // 楕円: 解析的一括計算
-                let (tangent, normal, curvature) = Self::ellipse_differential_geometry(geometry_data, t);
+                let (tangent, normal, curvature) =
+                    Self::ellipse_differential_geometry(geometry_data, t);
                 DifferentialGeometry::new(tangent, normal, curvature)
             }
             _ => {
@@ -96,11 +101,8 @@ impl CurveAnalysisFactory {
     }
 
     // ========== 形状固有の計算ロジック ==========
-    
-    fn circle_tangent_at_parameter<T: Scalar>(
-        data: &CurveGeometryData<T>,
-        t: T,
-    ) -> Vector3D<T> {
+
+    fn circle_tangent_at_parameter<T: Scalar>(data: &CurveGeometryData<T>, t: T) -> Vector3D<T> {
         let angle = data.start_angle.unwrap_or(T::ZERO) + t * data.angle_range.unwrap_or(T::TAU);
         let radius = data.radius.expect("Circle requires radius");
         Vector3D::new(-angle.sin() * radius, angle.cos() * radius, T::ZERO)
@@ -111,7 +113,9 @@ impl CurveAnalysisFactory {
         let angle = t * T::TAU;
         let sin_t = angle.sin();
         let cos_t = angle.cos();
-        let denominator = (a * a * sin_t * sin_t + b * b * cos_t * cos_t).powi(3).sqrt();
+        let denominator = (a * a * sin_t * sin_t + b * b * cos_t * cos_t)
+            .powi(3)
+            .sqrt();
         a * b / denominator
     }
 
@@ -121,14 +125,14 @@ impl CurveAnalysisFactory {
     ) -> (Vector3D<T>, Vector3D<T>, T) {
         let angle = data.start_angle.unwrap_or(T::ZERO) + t * data.angle_range.unwrap_or(T::TAU);
         let radius = data.radius.expect("Circle requires radius");
-        
+
         let cos_a = angle.cos();
         let sin_a = angle.sin();
-        
+
         let tangent = Vector3D::new(-sin_a, cos_a, T::ZERO).normalize();
         let normal = Vector3D::new(cos_a, sin_a, T::ZERO);
         let curvature = T::ONE / radius;
-        
+
         (tangent, normal, curvature)
     }
 
@@ -170,19 +174,19 @@ pub struct CurveGeometryData<T: Scalar> {
     pub center: Option<Point3D<T>>,
     pub start_point: Option<Point3D<T>>,
     pub end_point: Option<Point3D<T>>,
-    
+
     // 円/円弧用
     pub radius: Option<T>,
     pub start_angle: Option<T>,
     pub angle_range: Option<T>,
-    
+
     // 楕円用
     pub semi_major_axis: Option<T>,
     pub semi_minor_axis: Option<T>,
-    
+
     // 直線用
     pub direction: Option<Direction3D<T>>,
-    
+
     // NURBS用
     pub control_points: Option<Vec<Point3D<T>>>,
     pub weights: Option<Vec<T>>,
@@ -210,19 +214,11 @@ impl<T: Scalar> CurveAnalysis3D<T> for Circle<T> {
     type Direction = Direction3D<T>;
 
     fn curvature_at_parameter(&self, t: T) -> T {
-        CurveAnalysisFactory::curvature_at_parameter(
-            CurveType::Circle,
-            &self.to_geometry_data(),
-            t,
-        )
+        CurveAnalysisFactory::curvature_at_parameter(CurveType::Circle, &self.to_geometry_data(), t)
     }
 
     fn tangent_at_parameter(&self, t: T) -> Self::Vector {
-        CurveAnalysisFactory::tangent_at_parameter(
-            CurveType::Circle,
-            &self.to_geometry_data(),
-            t,
-        )
+        CurveAnalysisFactory::tangent_at_parameter(CurveType::Circle, &self.to_geometry_data(), t)
     }
 
     fn differential_geometry_at_parameter(&self, t: T) -> DifferentialGeometry<T, Self::Vector> {
