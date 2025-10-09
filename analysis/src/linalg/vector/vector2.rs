@@ -2,7 +2,7 @@
 //!
 //! 2D幾何計算、グラフィックス、UI座標に最適化
 //! 高速な演算のためコンパイル時サイズ確定
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元固定サイズベクトル

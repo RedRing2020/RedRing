@@ -3,7 +3,7 @@
 //! 小規模システム（2x2, 3x3）専用の直接解法
 //! 行列式を直接計算して解を求める
 use super::{LinearSolver, SolutionInfo};
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use crate::linalg::{Matrix2x2, Matrix3x3, Vector2, Vector3};
 
 /// Cramerの公式ソルバー

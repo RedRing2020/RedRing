@@ -5,7 +5,7 @@
 //! - 効率的な回転合成
 //! - 滑らかな補間（SLERP）
 //! - 単位クォータニオンによる回転表現
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
 use std::ops::{Add, Mul, Neg, Sub};
 

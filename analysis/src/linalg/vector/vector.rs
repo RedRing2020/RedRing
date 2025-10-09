@@ -2,7 +2,7 @@
 //!
 //! 任意次元のベクトル演算を効率的に処理
 //! 大規模数値計算や機械学習用途に適している
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
 /// 動的サイズベクトル（高速演算用）

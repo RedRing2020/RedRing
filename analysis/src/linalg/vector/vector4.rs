@@ -2,7 +2,7 @@
 //!
 //! 4x4変換行列との演算、同次座標系での3D変換に使用
 //! 透視投影やアフィン変換での座標計算に最適化
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 4次元固定サイズベクトル（同次座標系）

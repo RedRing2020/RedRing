@@ -3,7 +3,7 @@
 //! 部分ピボット選択付きガウス消去法を実装
 //! 数値安定性を考慮した一般的な直接法
 use super::{LinearSolver, SolutionInfo};
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 
 /// ガウス消去法ソルバー
 pub struct GaussianSolver<T: Scalar> {
