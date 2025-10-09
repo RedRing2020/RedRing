@@ -1,3 +1,4 @@
+use crate::constants::precision::PI;
 /// geo_foundation統合テスト
 ///
 /// Scalar trait、Angle、Circle、Arc、Ellipse実装の統合動作確認を行います。
@@ -6,7 +7,6 @@ use crate::{
     Angle, BBox2D, BBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar, Vector2D,
     Vector3D,
 };
-use crate::constants::precision::PI;
 
 #[cfg(test)]
 mod integration_tests {

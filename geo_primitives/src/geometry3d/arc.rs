@@ -147,7 +147,7 @@ impl<T: Scalar> Arc<T> {
     /// 中点取得
     pub fn midpoint(&self) -> Point3D<T> {
         let mid_angle = self.interpolate_angle(T::ONE / (T::ONE + T::ONE)); // 0.5
-        // 角度を0-1パラメータに変換
+                                                                            // 角度を0-1パラメータに変換
         let param = mid_angle.to_radians() / T::TAU;
         self.circle.point_at_parameter(param)
     }
