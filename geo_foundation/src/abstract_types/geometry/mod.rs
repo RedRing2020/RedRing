@@ -8,9 +8,10 @@ pub mod circle;
 pub mod classification; // 幾何プリミティブの分類システム
 pub mod common; // 共通インターフェイスとヘルパー
 pub mod direction;
-// pub mod ellipse;  // 一時的に無効化（Angle依存のため）
-// pub mod ellipse_arc;  // 一時的に無効化（Angle依存のため）
+pub mod ellipse;
+pub mod ellipse_arc;
 pub mod infinite_line;
+pub mod line;
 pub mod point;
 pub mod primitive; // 幾何プリミティブの共通トレイト
 pub mod ray;
@@ -28,6 +29,7 @@ pub use direction::*;
 // pub use ellipse::*;  // 一時的に無効化（Angle依存のため）
 // pub use ellipse_arc::*;  // 一時的に無効化（Angle依存のため）
 pub use infinite_line::*;
+pub use line::*;
 pub use point::*;
 pub use primitive::*; // 幾何プリミティブの共通トレイト
 pub use ray::*;
