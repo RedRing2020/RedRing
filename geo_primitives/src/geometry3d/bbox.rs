@@ -236,14 +236,7 @@ impl<T: Scalar> BBox3D<T> {
     }
 
     /// 座標値から直接作成（ジェネリック版）
-    pub fn from_coords(
-        min_x: T,
-        min_y: T,
-        min_z: T,
-        max_x: T,
-        max_y: T,
-        max_z: T,
-    ) -> Self {
+    pub fn from_coords(min_x: T, min_y: T, min_z: T, max_x: T, max_y: T, max_z: T) -> Self {
         Self::new(
             Point3D::new(min_x, min_y, min_z),
             Point3D::new(max_x, max_y, max_z),
@@ -264,8 +257,8 @@ impl<T: Scalar> BBox3D<T> {
     pub fn from_2d_points(
         min: crate::geometry2d::Point2DF64,
         max: crate::geometry2d::Point2DF64,
-    ) -> Self 
-    where 
+    ) -> Self
+    where
         T: From<f64>,
     {
         Self::new(

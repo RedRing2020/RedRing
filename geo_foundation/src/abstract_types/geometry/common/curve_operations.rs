@@ -8,20 +8,20 @@ use crate::abstract_types::Scalar;
 pub trait CurveTypes<T: Scalar> {
     /// 点の型
     type Point;
-    /// ベクトルの型  
+    /// ベクトルの型
     type Vector;
     /// 境界ボックスの型
     type BoundingBox;
 }
 
 /// 曲線の基本的な点取得操作
-/// 
+///
 /// 開始点、終了点、中点等の共通操作を定義
 pub trait CurvePoints<T: Scalar>: CurveTypes<T> {
     /// 曲線の開始点を取得
     fn start_point(&self) -> Self::Point;
 
-    /// 曲線の終了点を取得  
+    /// 曲線の終了点を取得
     fn end_point(&self) -> Self::Point;
 
     /// 曲線の中点を取得（パラメータt=0.5での点）
@@ -35,7 +35,7 @@ pub trait CurvePoints<T: Scalar>: CurveTypes<T> {
         if num_points < 2 {
             return vec![self.start_point()];
         }
-        
+
         let mut points = Vec::with_capacity(num_points);
         for i in 0..num_points {
             let t = T::from_f64(i as f64 / (num_points - 1) as f64);

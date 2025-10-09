@@ -3,8 +3,10 @@
 //! 3次元楕円の基本実装
 
 use crate::geometry3d::{BBox3D, Circle, Direction3D, Point3D, Vector};
+use geo_foundation::abstract_types::geometry::common::{
+    AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
+};
 use geo_foundation::abstract_types::{geometry::Direction, Scalar};
-use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 use std::f64::consts::PI;
 
 /// 楕円関連のエラー
@@ -370,15 +372,19 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
         let angle = t * T::TAU;
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
-        
+
         // 楕円の parametric form での導関数
         // x'(t) = -a * sin(θ), y'(t) = b * cos(θ)
         let local_tangent_x = -self.major_radius * sin_angle;
         let local_tangent_y = self.minor_radius * cos_angle;
-        
+
         // v軸方向（短軸）を計算：法線とu軸の外積
-        let v_axis = self.normal.to_vector().cross(&self.u_axis.to_vector()).normalize();
-        
+        let v_axis = self
+            .normal
+            .to_vector()
+            .cross(&self.u_axis.to_vector())
+            .normalize();
+
         // ワールド座標系に変換
         let tangent = self.u_axis.to_vector() * local_tangent_x + v_axis * local_tangent_y;
         tangent.normalize()
@@ -389,12 +395,16 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
         let angle = t * T::TAU;
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
-        
+
         // 楕円の法線は中心向き方向（二次導関数方向）
         let local_normal_x = cos_angle;
         let local_normal_y = sin_angle;
-        
-        let v_axis = self.normal.to_vector().cross(&self.u_axis.to_vector()).normalize();
+
+        let v_axis = self
+            .normal
+            .to_vector()
+            .cross(&self.u_axis.to_vector())
+            .normalize();
         let normal = self.u_axis.to_vector() * local_normal_x + v_axis * local_normal_y;
         normal.normalize()
     }
@@ -410,16 +420,16 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
         let angle = t * T::TAU;
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
-        
+
         let a = self.major_radius;
         let b = self.minor_radius;
-        
+
         // 楕円の曲率公式: κ = ab / (a²sin²θ + b²cos²θ)^(3/2)
         let a_sq = a * a;
         let b_sq = b * b;
         let sin_sq = sin_angle * sin_angle;
         let cos_sq = cos_angle * cos_angle;
-        
+
         let denominator = (a_sq * sin_sq + b_sq * cos_sq).powf(T::ONE + T::ONE / (T::ONE + T::ONE)); // ^(3/2)
         a * b / denominator
     }
@@ -435,20 +445,26 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
         let angle = t * T::TAU;
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
-        
+
         let a = self.major_radius;
         let b = self.minor_radius;
-        let v_axis = self.normal.to_vector().cross(&self.u_axis.to_vector()).normalize();
-        
+        let v_axis = self
+            .normal
+            .to_vector()
+            .cross(&self.u_axis.to_vector())
+            .normalize();
+
         // 一括計算で効率化
         let local_tangent_x = -a * sin_angle;
         let local_tangent_y = b * cos_angle;
-        let tangent = (self.u_axis.to_vector() * local_tangent_x + v_axis * local_tangent_y).normalize();
-        
+        let tangent =
+            (self.u_axis.to_vector() * local_tangent_x + v_axis * local_tangent_y).normalize();
+
         let local_normal_x = cos_angle;
         let local_normal_y = sin_angle;
-        let normal = (self.u_axis.to_vector() * local_normal_x + v_axis * local_normal_y).normalize();
-        
+        let normal =
+            (self.u_axis.to_vector() * local_normal_x + v_axis * local_normal_y).normalize();
+
         // 曲率計算
         let a_sq = a * a;
         let b_sq = b * b;
@@ -456,7 +472,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
         let cos_sq = cos_angle * cos_angle;
         let denominator = (a_sq * sin_sq + b_sq * cos_sq).powf(T::ONE + T::ONE / (T::ONE + T::ONE));
         let curvature = a * b / denominator;
-        
+
         DifferentialGeometry::new(tangent, normal, curvature)
     }
 
@@ -464,7 +480,10 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
     fn max_curvature(&self) -> Option<(T, T)> {
         // 短軸の端点（θ = π/2, 3π/2）で最大曲率
         let max_curvature_value = self.major_radius / (self.minor_radius * self.minor_radius);
-        Some((T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE), max_curvature_value)) // t = 0.25 (π/2)
+        Some((
+            T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE),
+            max_curvature_value,
+        )) // t = 0.25 (π/2)
     }
 
     /// 最小曲率の位置と値を取得（楕円では長軸の端点）
