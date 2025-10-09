@@ -7,7 +7,7 @@ pub mod circle;
 pub mod direction; // Direction2Dのジェネリック実装
 pub mod ellipse;
 pub mod ellipse_arc;
-// pub mod infinite_line;  // 一時的にコメントアウト（Direction2D型変換作業中）
+pub mod infinite_line;  // InfiniteLine2D実装
 pub mod point;
 pub mod ray; // Ray2D実装
 pub mod vector;
@@ -19,7 +19,7 @@ pub use circle::Circle;
 pub use direction::{Direction2D, Direction2DF32, Direction2DF64}; // ジェネリックDirection2D
 pub use ellipse::Ellipse;
 pub use ellipse_arc::EllipseArc;
-// pub use infinite_line::InfiniteLine2D;  // 一時的にコメントアウト（Direction2D型変換作業中）
+pub use infinite_line::InfiniteLine2D;  // InfiniteLine2D公開
 pub use point::{Point2D, Point2DF32, Point2DF64};
 pub use ray::{Ray2D, Ray2DF32, Ray2DF64}; // Ray2D公開
 pub use vector::Vector;

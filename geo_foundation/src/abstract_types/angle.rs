@@ -3,6 +3,7 @@
 //! CAD/CAM システムで使用される角度計算機能
 
 use crate::abstract_types::Scalar;
+#[allow(unused_imports)] // テストで使用されているため
 use crate::constants::precision::PI;
 use std::fmt;
 

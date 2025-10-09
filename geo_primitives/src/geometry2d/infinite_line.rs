@@ -1,14 +1,15 @@
 //! 2D空間における無限直線の具体的な実装。点と方向ベクトルで定義される。
 //! CAD/CAMシステムで使用される直線の基本的な操作を提供。
 
-// use crate::geometry2d::{Direction2D, Point2D, Vector2D};  // 一時的にコメントアウト（Direction2D整理中）
-use crate::geometry2d::{Point2D, Vector2D};
+use crate::geometry2d::{Direction2D, Point2D, Vector};
 
 use geo_foundation::{
-    abstract_types::geometry::{
-        Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
+    abstract_types::{
+        geometry::{
+            Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
+        },
+        Scalar,
     },
-    common::constants::GEOMETRIC_TOLERANCE,
 };
 
 /// 2D無限直線
@@ -16,27 +17,27 @@ use geo_foundation::{
 /// 基準点と方向ベクトルで定義される無限に延びる直線。
 /// 直線の方程式: point = origin + t * direction (t ∈ ℝ)
 #[derive(Debug, Clone, PartialEq)]
-pub struct InfiniteLine2D {
+pub struct InfiniteLine2D<T: Scalar> {
     /// 直線上の基準点
-    origin: crate::geometry2d::Point2DF64,
+    origin: Point2D<T>,
     /// 直線の方向（正規化済み）
-    direction: Direction2D,
+    direction: Direction2D<T>,
 }
 
-impl InfiniteLine2D {
+impl<T: Scalar> InfiniteLine2D<T> {
     /// 点と方向ベクトルから無限直線を作成
-    pub fn new(origin: crate::geometry2d::Point2DF64, direction: Direction2D) -> Self {
+    pub fn new(origin: Point2D<T>, direction: Direction2D<T>) -> Self {
         Self { origin, direction }
     }
 
     /// 2点を通る無限直線を作成
     pub fn from_two_points(
-        point1: crate::geometry2d::Point2DF64,
-        point2: crate::geometry2d::Point2DF64,
+        point1: Point2D<T>,
+        point2: Point2D<T>,
     ) -> Option<Self> {
-        let diff = Vector2D::new(point2.x() - point1.x(), point2.y() - point1.y());
+        let diff = Vector::new(point2.x() - point1.x(), point2.y() - point1.y());
 
-        if diff.length() < GEOMETRIC_TOLERANCE {
+        if diff.length() < T::TOLERANCE {
             return None; // 同じ点では直線を定義できない
         }
 
@@ -45,33 +46,33 @@ impl InfiniteLine2D {
     }
 
     /// X軸に平行な直線を作成
-    pub fn horizontal(y: f64) -> Self {
+    pub fn horizontal(y: T) -> Self {
         Self::new(
-            Point2D::new(0.0, y),
-            Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap(),
+            Point2D::new(T::ZERO, y),
+            Direction2D::from_vector(Vector::new(T::ONE, T::ZERO)).unwrap(),
         )
     }
 
     /// Y軸に平行な直線を作成
-    pub fn vertical(x: f64) -> Self {
+    pub fn vertical(x: T) -> Self {
         Self::new(
-            Point2D::new(x, 0.0),
-            Direction2D::from_vector(Vector2D::new(0.0, 1.0)).unwrap(),
+            Point2D::new(x, T::ZERO),
+            Direction2D::from_vector(Vector::new(T::ZERO, T::ONE)).unwrap(),
         )
     }
 
     /// 指定した角度の直線を作成（原点を通る）
-    pub fn from_angle(angle_radians: f64) -> Self {
+    pub fn from_angle(angle_radians: T) -> Self {
         let direction =
-            Direction2D::from_vector(Vector2D::new(angle_radians.cos(), angle_radians.sin()))
+            Direction2D::from_vector(Vector::new(angle_radians.cos(), angle_radians.sin()))
                 .unwrap();
         Self::new(Point2D::origin(), direction)
     }
 
     /// 直線の傾きを取得（垂直線の場合はNone）
-    pub fn slope(&self) -> Option<f64> {
+    pub fn slope(&self) -> Option<T> {
         let dx = self.direction.x();
-        if dx.abs() < GEOMETRIC_TOLERANCE {
+        if dx.abs() < T::TOLERANCE {
             None // 垂直線
         } else {
             Some(self.direction.y() / dx)
@@ -79,9 +80,9 @@ impl InfiniteLine2D {
     }
 
     /// 直線の方程式の係数を取得 (ax + by + c = 0)
-    pub fn equation_coefficients(&self) -> (f64, f64, f64) {
+    pub fn equation_coefficients(&self) -> (T, T, T) {
         let dir = self.direction.to_vector();
-        let normal = Vector2D::new(-dir.y(), dir.x()); // 90度回転で法線ベクトル
+        let normal = Vector::new(-dir.y(), dir.x()); // 90度回転で法線ベクトル
 
         let a = normal.x();
         let b = normal.y();
@@ -91,15 +92,15 @@ impl InfiniteLine2D {
     }
 
     /// Y切片を取得（垂直線の場合はNone）
-    pub fn y_intercept(&self) -> Option<f64> {
+    pub fn y_intercept(&self) -> Option<T> {
         self.slope()
             .map(|slope| self.origin.y() - slope * self.origin.x())
     }
 
     /// X切片を取得（水平線の場合はNone）
-    pub fn x_intercept(&self) -> Option<f64> {
+    pub fn x_intercept(&self) -> Option<T> {
         let dy = self.direction.y();
-        if dy.abs() < GEOMETRIC_TOLERANCE {
+        if dy.abs() < T::TOLERANCE {
             None // 水平線
         } else {
             Some(self.origin.x() - self.origin.y() * self.direction.x() / dy)
@@ -107,10 +108,10 @@ impl InfiniteLine2D {
     }
 }
 
-impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
-    type Point = crate::geometry2d::Point2DF64;
-    type Vector = Vector2D;
-    type Direction = Direction2D;
+impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine2D<T> {
+    type Point = Point2D<T>;
+    type Vector = Vector<T>;
+    type Direction = Direction2D<T>;
     type Error = String;
 
     fn origin(&self) -> Self::Point {
@@ -121,12 +122,12 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
         self.direction
     }
 
-    fn contains_point(&self, point: &Self::Point, tolerance: f64) -> bool {
+    fn contains_point(&self, point: &Self::Point, tolerance: T) -> bool {
         self.distance_to_point(point) <= tolerance
     }
 
-    fn distance_to_point(&self, point: &Self::Point) -> f64 {
-        let to_point = Vector2D::new(point.x() - self.origin.x(), point.y() - self.origin.y());
+    fn distance_to_point(&self, point: &Self::Point) -> T {
+        let to_point = Vector::new(point.x() - self.origin.x(), point.y() - self.origin.y());
         let dir_vec = self.direction.to_vector();
 
         // 外積の絶対値が距離に相当
@@ -134,7 +135,7 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
     }
 
     fn closest_point(&self, point: &Self::Point) -> Self::Point {
-        let to_point = Vector2D::new(point.x() - self.origin.x(), point.y() - self.origin.y());
+        let to_point = Vector::new(point.x() - self.origin.x(), point.y() - self.origin.y());
         let dir_vec = self.direction.to_vector();
 
         // 投影係数を計算
@@ -146,7 +147,7 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
         )
     }
 
-    fn point_at_parameter(&self, t: f64) -> Self::Point {
+    fn point_at_parameter(&self, t: T) -> Self::Point {
         let dir_vec = self.direction.to_vector();
         Point2D::new(
             self.origin.x() + t * dir_vec.x(),
@@ -154,8 +155,8 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
         )
     }
 
-    fn parameter_at_point(&self, point: &Self::Point) -> f64 {
-        let to_point = Vector2D::new(point.x() - self.origin.x(), point.y() - self.origin.y());
+    fn parameter_at_point(&self, point: &Self::Point) -> T {
+        let to_point = Vector::new(point.x() - self.origin.x(), point.y() - self.origin.y());
         let dir_vec = self.direction.to_vector();
 
         // 方向ベクトルへの投影
@@ -168,7 +169,7 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
 
         let det = a1 * b2 - a2 * b1;
 
-        if det.abs() < GEOMETRIC_TOLERANCE {
+        if det.abs() < T::TOLERANCE {
             return None; // 平行または同一直線
         }
 
@@ -178,7 +179,7 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
         Some(Point2D::new(x, y))
     }
 
-    fn is_parallel_to(&self, other: &Self, tolerance: f64) -> bool {
+    fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
         let dir1 = self.direction.to_vector();
         let dir2 = other.direction.to_vector();
 
@@ -186,22 +187,22 @@ impl InfiniteLine2DTrait<f64> for InfiniteLine2D {
         (dir1.x() * dir2.y() - dir1.y() * dir2.x()).abs() < tolerance
     }
 
-    fn is_coincident_with(&self, other: &Self, tolerance: f64) -> bool {
+    fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool {
         // 平行かつ、一方の点がもう一方の直線上にある
         self.is_parallel_to(other, tolerance) && self.distance_to_point(&other.origin) < tolerance
     }
 
     fn normal_vector(&self) -> Self::Vector {
         let dir = self.direction.to_vector();
-        Vector2D::new(-dir.y(), dir.x()) // 90度回転
+        Vector::new(-dir.y(), dir.x()) // 90度回転
     }
 }
 
-impl InfiniteLineBuilder<f64> for InfiniteLine2D {
-    type Point = crate::geometry2d::Point2DF64;
-    type Vector = Vector2D;
-    type Direction = Direction2D;
-    type InfiniteLine = InfiniteLine2D;
+impl<T: Scalar> InfiniteLineBuilder<T> for InfiniteLine2D<T> {
+    type Point = Point2D<T>;
+    type Vector = Vector<T>;
+    type Direction = Direction2D<T>;
+    type InfiniteLine = InfiniteLine2D<T>;
     type Error = String;
 
     fn from_point_and_direction(
@@ -231,25 +232,25 @@ impl InfiniteLineBuilder<f64> for InfiniteLine2D {
         reference_line: &Self::InfiniteLine,
     ) -> Result<Self::InfiniteLine, Self::Error> {
         let ref_dir = reference_line.direction.to_vector();
-        let perp_dir = Direction2D::from_vector(Vector2D::new(-ref_dir.y(), ref_dir.x()))
+        let perp_dir = Direction2D::from_vector(Vector::new(-ref_dir.y(), ref_dir.x()))
             .ok_or_else(|| "Failed to create perpendicular direction".to_string())?;
 
         Ok(InfiniteLine2D::new(point, perp_dir))
     }
 }
 
-impl InfiniteLineAnalysis<f64> for InfiniteLine2D {
-    type Point = crate::geometry2d::Point2DF64;
-    type Vector = Vector2D;
+impl<T: Scalar> InfiniteLineAnalysis<T> for InfiniteLine2D<T> {
+    type Point = Point2D<T>;
+    type Vector = Vector<T>;
 
-    fn line_equation_2d(&self) -> (f64, f64, f64) {
+    fn line_equation_2d(&self) -> (T, T, T) {
         self.equation_coefficients()
     }
 
     fn sample_points(
         &self,
-        start_param: f64,
-        end_param: f64,
+        start_param: T,
+        end_param: T,
         num_points: usize,
     ) -> Vec<Self::Point> {
         if num_points == 0 {
@@ -257,15 +258,15 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine2D {
         }
 
         if num_points == 1 {
-            let t = (start_param + end_param) / 2.0;
+            let t = (start_param + end_param) / (T::ONE + T::ONE);
             return vec![self.point_at_parameter(t)];
         }
 
         let mut points = Vec::with_capacity(num_points);
-        let step = (end_param - start_param) / (num_points - 1) as f64;
+        let step = (end_param - start_param) / T::from_f64((num_points - 1) as f64);
 
         for i in 0..num_points {
-            let t = start_param + i as f64 * step;
+            let t = start_param + T::from_f64(i as f64) * step;
             points.push(self.point_at_parameter(t));
         }
 
@@ -294,10 +295,10 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine2D {
         for bound in &bounds {
             if let Some(intersection) = self.intersect_line(bound) {
                 // 交点が境界ボックス内にあるかチェック
-                if intersection.x() >= min_point.x() - GEOMETRIC_TOLERANCE
-                    && intersection.x() <= max_point.x() + GEOMETRIC_TOLERANCE
-                    && intersection.y() >= min_point.y() - GEOMETRIC_TOLERANCE
-                    && intersection.y() <= max_point.y() + GEOMETRIC_TOLERANCE
+                if intersection.x() >= min_point.x() - T::TOLERANCE
+                    && intersection.x() <= max_point.x() + T::TOLERANCE
+                    && intersection.y() >= min_point.y() - T::TOLERANCE
+                    && intersection.y() <= max_point.y() + T::TOLERANCE
                 {
                     intersections.push(intersection);
                 }
@@ -305,7 +306,7 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine2D {
         }
 
         // 重複除去
-        intersections.dedup_by(|a, b| a.distance_to(b) < GEOMETRIC_TOLERANCE);
+        intersections.dedup_by(|a, b| a.distance_to(b) < T::TOLERANCE);
 
         if intersections.len() >= 2 {
             Some((intersections[0], intersections[1]))
@@ -316,7 +317,7 @@ impl InfiniteLineAnalysis<f64> for InfiniteLine2D {
 
     fn intersects_with(
         &self,
-        _other: &dyn InfiniteLineAnalysis<f64, Point = Self::Point, Vector = Self::Vector>,
+        _other: &dyn InfiniteLineAnalysis<T, Point = Self::Point, Vector = Self::Vector>,
     ) -> bool {
         // 簡単な実装：常にtrueを返す（詳細な実装は具体的な型が必要）
         true

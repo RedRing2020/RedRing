@@ -142,8 +142,11 @@ mod tests {
     #[test]
     fn test_sphere_trait_bounds() {
         // コンパイル時にトレイト境界をテスト
+        #[allow(dead_code)]
         fn check_sphere_bounds<T: Sphere>() {}
+        #[allow(dead_code)]
         fn check_spherical_coords<T: SphericalCoordinates>() {}
+        #[allow(dead_code)]
         fn check_spherical_curve<T: SphericalCurve>() {}
 
         // これらの関数が正常にコンパイルされることを確認
