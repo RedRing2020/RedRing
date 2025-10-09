@@ -225,7 +225,7 @@ impl<T: Scalar> Circle3D<T> {
     pub fn bounding_box(&self) -> (Point3D<T>, Point3D<T>) {
         // 3D空間での軸平行境界ボックスを正確に計算
         // 各軸方向での円の最大・最小座標を求める
-        
+
         // u_axis, v_axis方向の寄与を計算
         let u_extent_x = self.radius * self.u_axis.x().abs();
         let u_extent_y = self.radius * self.u_axis.y().abs();

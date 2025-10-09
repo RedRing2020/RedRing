@@ -4,9 +4,7 @@
 //! 新しい設計では、InfiniteLine3Dを継承した制約版として実装されます
 
 use crate::geometry3d::{Direction3D, Point3D, Vector};
-use geo_foundation::abstract_types::geometry::{
-    Direction,
-};
+use geo_foundation::abstract_types::geometry::Direction;
 use geo_foundation::abstract_types::{Angle, Scalar};
 
 /// ジェネリック3Dレイ（半無限直線）

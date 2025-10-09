@@ -11,8 +11,8 @@
 //! RayはInfiniteLineの制約版（t >= 0の範囲のみ有効）として設計されています。
 //! 基本操作はInfiniteLineから継承し、レイ固有の制約を追加します。
 
-use crate::abstract_types::Scalar;
 use super::infinite_line::{InfiniteLine2D, InfiniteLine3D};
+use crate::abstract_types::Scalar;
 
 /// 2Dレイ（半無限直線）の基本操作を定義するトレイト
 ///
