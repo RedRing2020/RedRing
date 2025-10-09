@@ -121,7 +121,7 @@ fn test_approximate_with_points() {
     let circle = Circle::new(center, 1.0, normal_dir, u_axis_dir);
     let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
 
-    let points = arc.approximate_with_points(4);
+    let points = arc.approximate_with_points(4); // 4セグメントを生成
     assert_eq!(points.len(), 5); // 4セグメント = 5点
 
     // 最初と最後の点をチェック

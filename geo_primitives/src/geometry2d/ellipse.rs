@@ -4,7 +4,7 @@
 
 use crate::geometry2d::{bbox::BBoxF64, Circle, Point2DF64, Vector2D};
 use geo_foundation::abstract_types::Angle;
-use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
+use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 
 /// 楕円関連のエラー
 #[derive(Debug, Clone, PartialEq)]
@@ -103,37 +103,44 @@ impl Ellipse {
         self.rotation
     }
 
-    /// 楕円の面積を計算
+    /// 楕円の面積を計算（analysis クレートの数値解析機能を使用）
     pub fn area(&self) -> f64 {
-        PI * self.major_radius * self.minor_radius
+        analysis::geometry::ellipse_properties::area(
+            self.major_radius,
+            self.minor_radius
+        )
     }
 
-    /// 楕円の周長を概算計算（ラマヌジャンの近似式）
+    /// 楕円の周長を計算（analysis クレートの高精度数値解析機能を使用）
+    /// 
+    /// # 数値解析について
+    /// 内部的に `analysis::geometry::ellipse_circumference::ramanujan_approximation` を使用。
+    /// ラマヌジャンの近似式で高精度かつ高速な計算を実現します。
+    /// 
+    /// より高精度が必要な場合は、`analysis` クレートの他の手法も直接利用可能：
+    /// - `series_expansion`: 無限級数展開（より高精度）
+    /// - `numerical_integration`: 数値積分（最高精度）
     pub fn circumference(&self) -> f64 {
-        let a = self.major_radius;
-        let b = self.minor_radius;
-        let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
-        PI * (a + b) * (1.0 + (3.0 * h) / (10.0 + (4.0 - 3.0 * h).sqrt()))
+        analysis::geometry::ellipse_circumference::ramanujan_approximation(
+            self.major_radius,
+            self.minor_radius
+        )
     }
 
-    /// 楕円の離心率を計算
+    /// 楕円の離心率を計算（analysis クレートの数値解析機能を使用）
     pub fn eccentricity(&self) -> f64 {
-        if self.major_radius <= self.minor_radius {
-            0.0
-        } else {
-            (1.0 - (self.minor_radius * self.minor_radius)
-                / (self.major_radius * self.major_radius))
-                .sqrt()
-        }
+        analysis::geometry::ellipse_circumference::eccentricity(
+            self.major_radius,
+            self.minor_radius
+        )
     }
 
-    /// 楕円の焦点距離を計算
+    /// 楕円の焦点距離を計算（analysis クレートの数値解析機能を使用）
     pub fn focal_distance(&self) -> f64 {
-        if self.major_radius <= self.minor_radius {
-            0.0
-        } else {
-            (self.major_radius * self.major_radius - self.minor_radius * self.minor_radius).sqrt()
-        }
+        analysis::geometry::ellipse_properties::focal_distance(
+            self.major_radius,
+            self.minor_radius
+        )
     }
 
     /// 楕円の焦点を取得
@@ -288,6 +295,36 @@ impl Ellipse {
     /// 楕円を最大内接円に変換
     pub fn inscribed_circle(&self) -> Circle<f64> {
         Circle::new(self.center, self.minor_radius)
+    }
+
+    /// 高精度な楕円周長計算（無限級数展開）
+    /// 
+    /// analysis クレートの級数展開による高精度計算を使用。
+    /// 計算コストが高いため、通常は `circumference()` を推奨。
+    /// 
+    /// # Arguments
+    /// * `terms` - 級数の項数（精度と計算量のトレードオフ、通常10-20で十分）
+    pub fn circumference_high_precision(&self, terms: usize) -> f64 {
+        analysis::geometry::ellipse_circumference::series_expansion(
+            self.major_radius,
+            self.minor_radius,
+            terms
+        )
+    }
+
+    /// 最高精度な楕円周長計算（数値積分）
+    /// 
+    /// analysis クレートの数値積分による最高精度計算。研究用途や検証用。
+    /// 計算コストが非常に高いため、一般用途では推奨しません。
+    /// 
+    /// # Arguments
+    /// * `n_points` - 積分点数（精度と計算量のトレードオフ、100-1000程度）
+    pub fn circumference_numerical(&self, n_points: usize) -> f64 {
+        analysis::geometry::ellipse_circumference::numerical_integration(
+            self.major_radius,
+            self.minor_radius,
+            n_points
+        )
     }
 }
 

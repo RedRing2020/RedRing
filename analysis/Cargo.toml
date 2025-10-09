@@ -6,9 +6,7 @@ description = "Numerical analysis and geometric sampling for RedRing CAD/CAM"
 license = "MIT"
 
 [dependencies]
-geo_core = { path = "../geo_core" }
-geo_algorithms = { path = "../geo_algorithms" }
-geo_primitives = { path = "../geo_primitives" }
+# 純粋な数値計算のため、外部クレートに依存しない
 
 [dev-dependencies]
 approx = "0.5"
