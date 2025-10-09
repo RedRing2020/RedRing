@@ -4,71 +4,90 @@
 //! 起点から特定の方向に無限に延びる直線を表現する。
 //!
 //! # トレイト階層
-//! - `Ray<T>`: 2D/3D共通の基本操作
-//! - `Ray2D<T>`: 2D固有の基本操作（継承）
-//! - `Ray3D<T>`: 3D固有の基本操作（継承）
+//! - `Ray2D<T>`: InfiniteLine2D<T>を継承した2D半無限直線
+//! - `Ray3D<T>`: InfiniteLine3D<T>を継承した3D半無限直線
 //!
-//! # 注意
-//! CAD/CAM向けの高度な機能（レイキャスティング、衝突検出など）は
-//! 別の拡張モジュールで提供されます。
+//! # 設計思想
+//! RayはInfiniteLineの制約版（t >= 0の範囲のみ有効）として設計されています。
+//! 基本操作はInfiniteLineから継承し、レイ固有の制約を追加します。
 
 use crate::abstract_types::Scalar;
+use super::infinite_line::{InfiniteLine2D, InfiniteLine3D};
 
-/// レイ（半無限直線）の基本操作を定義する共通トレイト
+/// 2Dレイ（半無限直線）の基本操作を定義するトレイト
 ///
-/// 2D/3Dの両方に共通する基本的なレイ操作を提供します。
-/// 次元固有の操作は Ray2D/Ray3D トレイトで拡張されます。
-pub trait Ray<T: Scalar> {
-    /// 点の型（Point2D<T> または Point3D<T>）
-    type Point;
-    /// ベクトルの型（Vector2D<T> または Vector3D<T>）
-    type Vector;
-    /// 方向の型（Direction2D<T> または Direction3D<T>）
-    type Direction;
-    /// エラー型
-    type Error;
-
-    /// レイの起点を取得
-    fn origin(&self) -> Self::Point;
-
-    /// レイの方向ベクトルを取得（正規化済み）
-    fn direction(&self) -> Self::Direction;
-
-    /// 指定されたパラメータ t での点を取得
+/// InfiniteLine2Dを継承し、t >= 0の範囲制約を追加します。
+/// 基本操作はInfiniteLine2Dから継承し、レイ固有の制約チェックを提供します。
+pub trait Ray2D<T: Scalar>: InfiniteLine2D<T> {
+    /// レイ固有：制約付きの点取得
     /// t >= 0 の範囲でのみ有効（半無限直線のため）
-    /// point = origin + t * direction (t >= 0)
-    fn point_at_parameter(&self, t: T) -> Option<Self::Point>;
+    fn point_at_parameter_ray(&self, t: T) -> Option<Self::Point> {
+        if t >= T::ZERO {
+            Some(self.point_at_parameter(t))
+        } else {
+            None
+        }
+    }
 
-    /// 指定された点がレイ上にあるかを判定（許容誤差内）
-    /// 点がレイの起点より後方にある場合はfalseを返す
-    fn contains_point(&self, point: &Self::Point, tolerance: T) -> bool;
+    /// レイ固有：制約付きの点判定
+    /// 点がレイ上にあり、かつ起点より前方にある場合のみtrueを返す
+    fn contains_point_ray(&self, point: &Self::Point, tolerance: T) -> bool {
+        if self.contains_point(point, tolerance) {
+            let param = self.parameter_at_point(point);
+            param >= -tolerance // 許容誤差を考慮
+        } else {
+            false
+        }
+    }
 
-    /// 指定された点からレイへの最短距離を計算
-    fn distance_to_point(&self, point: &Self::Point) -> T;
-
-    /// 指定された点からレイ上の最近点を取得
-    /// 最近点がレイの起点より後方にある場合は起点を返す
-    fn closest_point(&self, point: &Self::Point) -> Self::Point;
-
-    /// 指定された点のレイ上でのパラメータ値を取得
-    /// 負の値の場合は起点より後方にあることを示す
-    fn parameter_at_point(&self, point: &Self::Point) -> T;
-
-    /// 他のレイと平行かどうかを判定
-    fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool;
-
-    /// 他のレイと同一かどうかを判定
-    fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool;
+    /// レイ固有：起点からの距離
+    /// 指定された点がレイの起点より前方にある場合の距離を取得
+    fn distance_from_origin(&self, point: &Self::Point) -> Option<T> {
+        let param = self.parameter_at_point(point);
+        if param >= T::ZERO {
+            Some(param.abs())
+        } else {
+            None
+        }
+    }
 }
 
-/// 2Dレイの基本操作を定義するトレイト
-pub trait Ray2D<T: Scalar>: Ray<T> {
-    // 将来、2D固有の基本操作が必要になった場合にここに追加
-}
+/// 3Dレイ（半無限直線）の基本操作を定義するトレイト
+///
+/// InfiniteLine3Dを継承し、t >= 0の範囲制約を追加します。
+/// 基本操作はInfiniteLine3Dから継承し、レイ固有の制約チェックを提供します。
+pub trait Ray3D<T: Scalar>: InfiniteLine3D<T> {
+    /// レイ固有：制約付きの点取得
+    /// t >= 0 の範囲でのみ有効（半無限直線のため）
+    fn point_at_parameter_ray(&self, t: T) -> Option<Self::Point> {
+        if t >= T::ZERO {
+            Some(self.point_at_parameter(t))
+        } else {
+            None
+        }
+    }
 
-/// 3Dレイの基本操作を定義するトレイト
-pub trait Ray3D<T: Scalar>: Ray<T> {
-    // 将来、3D固有の基本操作が必要になった場合にここに追加
+    /// レイ固有：制約付きの点判定
+    /// 点がレイ上にあり、かつ起点より前方にある場合のみtrueを返す
+    fn contains_point_ray(&self, point: &Self::Point, tolerance: T) -> bool {
+        if self.contains_point(point, tolerance) {
+            let param = self.parameter_at_point(point);
+            param >= -tolerance // 許容誤差を考慮
+        } else {
+            false
+        }
+    }
+
+    /// レイ固有：起点からの距離
+    /// 指定された点がレイの起点より前方にある場合の距離を取得
+    fn distance_from_origin(&self, point: &Self::Point) -> Option<T> {
+        let param = self.parameter_at_point(point);
+        if param >= T::ZERO {
+            Some(param.abs())
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -84,11 +103,6 @@ mod tests {
     #[test]
     fn test_ray_trait_bounds() {
         // トレイト境界のテスト
-        #[allow(dead_code)]
-        fn check_ray<T: Scalar, R: Ray<T>>(_ray: &R) {
-            // 共通Rayトレイトの境界確認
-        }
-
         #[allow(dead_code)]
         fn check_2d_ray<T: Scalar, R: Ray2D<T>>(_ray: &R) {
             // 2Dレイトレイトの境界確認

@@ -33,6 +33,12 @@ impl<T: Scalar> BBoxTrait<T> for BBox2D<T> {
     }
 
     fn new(min: Self::Point, max: Self::Point) -> Self {
+        // 入力検証：min <= max であることを確認
+        assert!(
+            min.x() <= max.x() && min.y() <= max.y(),
+            "Invalid bounding box: min point ({:?}) must be <= max point ({:?})",
+            min, max
+        );
         Self { min, max }
     }
 
@@ -107,23 +113,16 @@ impl<T: Scalar> CollisionBBox<T> for BBox2D<T> {
             return None; // 重複している場合は分離距離なし
         }
 
-        let mut max_separation = T::ZERO;
-
-        // X軸での分離距離
-        if self.max.x() < other.min.x() {
-            max_separation = max_separation.max(other.min.x() - self.max.x());
-        } else if other.max.x() < self.min.x() {
-            max_separation = max_separation.max(self.min.x() - other.max.x());
-        }
-
-        // Y軸での分離距離
-        if self.max.y() < other.min.y() {
-            max_separation = max_separation.max(other.min.y() - self.max.y());
-        } else if other.max.y() < self.min.y() {
-            max_separation = max_separation.max(self.min.y() - other.max.y());
-        }
-
-        Some(max_separation)
+        // 最近点間の距離を計算
+        let self_closest = self.closest_point_on_surface(other.center());
+        let other_closest = other.closest_point_on_surface(self.center());
+        
+        // 2点間のユークリッド距離
+        let dx = self_closest.x() - other_closest.x();
+        let dy = self_closest.y() - other_closest.y();
+        let distance_squared = dx * dx + dy * dy;
+        
+        Some(distance_squared.sqrt())
     }
 
     fn closest_point_on_surface(&self, point: Self::Point) -> Self::Point {
@@ -199,6 +198,20 @@ impl<T: Scalar> BBox2D<T> {
         Self::new(min, max)
     }
 
+    /// 2つの点からBBoxを作成（順序を自動修正）
+    pub fn from_two_points_safe(p1: Point2D<T>, p2: Point2D<T>) -> Self {
+        let min = Point2D::new(p1.x().min(p2.x()), p1.y().min(p2.y()));
+        let max = Point2D::new(p1.x().max(p2.x()), p1.y().max(p2.y()));
+        Self::new(min, max)
+    }
+
+    /// 座標値から安全にBBoxを作成（順序を自動修正）
+    pub fn from_coords_safe(x1: T, y1: T, x2: T, y2: T) -> Self {
+        let min = Point2D::new(x1.min(x2), y1.min(y2));
+        let max = Point2D::new(x1.max(x2), y1.max(y2));
+        Self::new(min, max)
+    }
+
     /// 点の集合からバウンディングボックスを作成
     pub fn from_point_array(points: &[Point2D<T>]) -> Option<Self> {
         if points.is_empty() {
@@ -261,10 +274,9 @@ impl<T: Scalar> BBox2D<T> {
     {
         let w = self.width();
         let h = self.height();
-        // 単純な実装：Scalar型の平方根計算
         let sum = w * w + h * h;
-        // TODO: Scalarトレイトでsqrt機能を提供するか、Float boundを追加
-        sum // 暫定的に二乗和を返す
+        // Scalarトレイトのsqrt機能を使用
+        sum.sqrt()
     }
 
     /// 正方形かどうかをチェック
