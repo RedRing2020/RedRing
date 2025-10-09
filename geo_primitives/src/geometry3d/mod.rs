@@ -14,7 +14,7 @@ pub mod vector;
 
 // Re-export with consistent naming
 pub use arc::{Arc, Arc3D, Arc3DF32, Arc3DF64, ArcKind}; // Arc3D<T>ジェネリック実装（🔄 型変換中）
-pub use bbox::{BBox3D, BBox3DF64}; // BBox3D と f64特化版エイリアスを公開
+pub use bbox::{BBox3D, BBox3DF32, BBox3DF64}; // BBox3D<T>ジェネリック実装と特化版エイリアス（✅ 型変換完了）
 pub use circle::{Circle, Circle3DF32, Circle3DF64}; // Circle3D<T>ジェネリック実装（✅ 型変換完了）
 pub use direction::{Direction3D, Direction3DF32, Direction3DF64}; // ジェネリックDirection3D
                                                                   // pub use ellipse::Ellipse;  // 一時的にコメントアウト（複雑すぎるため後回し）

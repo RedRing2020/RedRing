@@ -4,6 +4,7 @@
 
 use crate::geometry3d::{BBox3D, Circle, Direction3D, Point3D, Vector};
 use geo_foundation::abstract_types::{geometry::Direction, Scalar};
+use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 use std::f64::consts::PI;
 
 /// 楕円関連のエラー
@@ -198,6 +199,24 @@ impl<T: Scalar> Ellipse<T> {
         )
     }
 
+    /// ジェネリック版：指定された角度での楕円周上の点を取得
+    pub fn point_at_angle_generic(&self, angle: T) -> Point3D<T> {
+        let u_vec = self.u_axis.to_vector();
+        // v軸方向を計算：法線とu軸の外積
+        let v_vec = self.normal.to_vector().cross(&u_vec).normalize();
+
+        let cos_t = angle.cos();
+        let sin_t = angle.sin();
+
+        let local_point = u_vec * (self.major_radius * cos_t) + v_vec * (self.minor_radius * sin_t);
+
+        Point3D::new(
+            self.center.x() + local_point.x(),
+            self.center.y() + local_point.y(),
+            self.center.z() + local_point.z(),
+        )
+    }
+
     /// 点が楕円内部にあるかを判定
     pub fn contains_point(&self, point: &Point3D) -> bool {
         // 楕円の中心を原点とした座標系に変換
@@ -325,5 +344,177 @@ impl PartialEq for Ellipse {
             && (self.minor_radius - other.minor_radius).abs() < GEOMETRIC_TOLERANCE
             && self.normal == other.normal
             && self.u_axis == other.u_axis
+    }
+}
+
+// =============================================================================
+// 統一曲線解析インターフェイスの実装
+// =============================================================================
+
+/// Ellipse<T>に統一曲線解析インターフェイスを実装
+/// 楕円は位置により曲率が変化する解析形状
+impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
+    type Point = Point3D<T>;
+    type Vector = Vector<T>;
+    type Direction = Direction3D<T>;
+
+    /// 指定されたパラメータ位置での点を取得
+    /// t: 0.0〜1.0 で一周（0.0=開始点、1.0=終了点=開始点）
+    fn point_at_parameter(&self, t: T) -> Self::Point {
+        let angle = t * T::TAU; // 0.0〜1.0 を 0〜2π に変換
+        self.point_at_angle_generic(angle)
+    }
+
+    /// 指定されたパラメータ位置での接線ベクトルを取得（正規化済み）
+    fn tangent_at_parameter(&self, t: T) -> Self::Vector {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        // 楕円の parametric form での導関数
+        // x'(t) = -a * sin(θ), y'(t) = b * cos(θ)
+        let local_tangent_x = -self.major_radius * sin_angle;
+        let local_tangent_y = self.minor_radius * cos_angle;
+        
+        // v軸方向（短軸）を計算：法線とu軸の外積
+        let v_axis = self.normal.to_vector().cross(&self.u_axis.to_vector()).normalize();
+        
+        // ワールド座標系に変換
+        let tangent = self.u_axis.to_vector() * local_tangent_x + v_axis * local_tangent_y;
+        tangent.normalize()
+    }
+
+    /// 指定されたパラメータ位置での主法線ベクトルを取得（正規化済み）
+    fn normal_at_parameter(&self, t: T) -> Self::Vector {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        // 楕円の法線は中心向き方向（二次導関数方向）
+        let local_normal_x = cos_angle;
+        let local_normal_y = sin_angle;
+        
+        let v_axis = self.normal.to_vector().cross(&self.u_axis.to_vector()).normalize();
+        let normal = self.u_axis.to_vector() * local_normal_x + v_axis * local_normal_y;
+        normal.normalize()
+    }
+
+    /// 指定されたパラメータ位置での双法線ベクトルを取得（正規化済み）
+    fn binormal_at_parameter(&self, _t: T) -> Self::Vector {
+        // 楕円の双法線は常に平面の法線ベクトル
+        self.normal.to_vector()
+    }
+
+    /// 指定されたパラメータ位置での曲率を取得
+    fn curvature_at_parameter(&self, t: T) -> T {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        let a = self.major_radius;
+        let b = self.minor_radius;
+        
+        // 楕円の曲率公式: κ = ab / (a²sin²θ + b²cos²θ)^(3/2)
+        let a_sq = a * a;
+        let b_sq = b * b;
+        let sin_sq = sin_angle * sin_angle;
+        let cos_sq = cos_angle * cos_angle;
+        
+        let denominator = (a_sq * sin_sq + b_sq * cos_sq).powf(T::ONE + T::ONE / (T::ONE + T::ONE)); // ^(3/2)
+        a * b / denominator
+    }
+
+    /// 指定されたパラメータ位置での捩率（ねじれ）を取得
+    fn torsion_at_parameter(&self, _t: T) -> T {
+        // 平面曲線（楕円）の捩率は常にゼロ
+        T::ZERO
+    }
+
+    /// 指定されたパラメータ位置での微分幾何学的情報を一括取得（最も効率的）
+    fn differential_geometry_at_parameter(&self, t: T) -> DifferentialGeometry<T, Self::Vector> {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        let a = self.major_radius;
+        let b = self.minor_radius;
+        let v_axis = self.normal.to_vector().cross(&self.u_axis.to_vector()).normalize();
+        
+        // 一括計算で効率化
+        let local_tangent_x = -a * sin_angle;
+        let local_tangent_y = b * cos_angle;
+        let tangent = (self.u_axis.to_vector() * local_tangent_x + v_axis * local_tangent_y).normalize();
+        
+        let local_normal_x = cos_angle;
+        let local_normal_y = sin_angle;
+        let normal = (self.u_axis.to_vector() * local_normal_x + v_axis * local_normal_y).normalize();
+        
+        // 曲率計算
+        let a_sq = a * a;
+        let b_sq = b * b;
+        let sin_sq = sin_angle * sin_angle;
+        let cos_sq = cos_angle * cos_angle;
+        let denominator = (a_sq * sin_sq + b_sq * cos_sq).powf(T::ONE + T::ONE / (T::ONE + T::ONE));
+        let curvature = a * b / denominator;
+        
+        DifferentialGeometry::new(tangent, normal, curvature)
+    }
+
+    /// 最大曲率の位置と値を取得（楕円では短軸の端点）
+    fn max_curvature(&self) -> Option<(T, T)> {
+        // 短軸の端点（θ = π/2, 3π/2）で最大曲率
+        let max_curvature_value = self.major_radius / (self.minor_radius * self.minor_radius);
+        Some((T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE), max_curvature_value)) // t = 0.25 (π/2)
+    }
+
+    /// 最小曲率の位置と値を取得（楕円では長軸の端点）
+    fn min_curvature(&self) -> Option<(T, T)> {
+        // 長軸の端点（θ = 0, π）で最小曲率
+        let min_curvature_value = self.minor_radius / (self.major_radius * self.major_radius);
+        Some((T::ZERO, min_curvature_value)) // t = 0 (θ = 0)
+    }
+
+    /// 曲率がゼロになる位置を取得（楕円では存在しない）
+    fn inflection_points(&self) -> Vec<T> {
+        Vec::new() // 楕円に変曲点は存在しない
+    }
+
+    /// 曲線が平面曲線かどうかを判定（楕円は常に平面曲線）
+    fn is_planar(&self) -> bool {
+        true
+    }
+}
+
+/// Ellipse<T>に解析的曲線インターフェイスを実装
+impl<T: Scalar> AnalyticalCurve<T> for Ellipse<T> {
+    /// 曲線の種類（楕円）
+    fn curve_type(&self) -> CurveType {
+        CurveType::Ellipse
+    }
+
+    /// 一定曲率かどうか（楕円は位置により曲率が変化）
+    fn has_constant_curvature(&self) -> bool {
+        // 円の場合のみ一定曲率
+        (self.major_radius - self.minor_radius).abs() < T::TOLERANCE
+    }
+
+    /// 解析的に計算可能な曲率の定数値（楕円では一般的に不可能）
+    fn constant_curvature(&self) -> Option<T> {
+        if self.has_constant_curvature() {
+            // 円の場合
+            Some(T::ONE / self.major_radius)
+        } else {
+            None
+        }
+    }
+
+    /// 解析的に計算可能な曲率半径の定数値（楕円では一般的に不可能）
+    fn constant_curvature_radius(&self) -> Option<T> {
+        if self.has_constant_curvature() {
+            // 円の場合
+            Some(self.major_radius)
+        } else {
+            None
+        }
     }
 }

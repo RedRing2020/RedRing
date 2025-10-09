@@ -6,6 +6,7 @@ use crate::geometry2d;
 use crate::geometry3d::{BBox3D, Direction3D, Point3D, Vector};
 use crate::traits::{Circle2D, Circle3D, Direction};
 use geo_foundation::abstract_types::Scalar;
+use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する
@@ -378,3 +379,141 @@ pub type Circle3DF64 = Circle<f64>;
 
 /// f32特化版Circle3Dエイリアス
 pub type Circle3DF32 = Circle<f32>;
+
+// =============================================================================
+// 統一曲線解析インターフェイスの実装
+// =============================================================================
+
+/// Circle<T>に統一曲線解析インターフェイスを実装
+impl<T: Scalar> CurveAnalysis3D<T> for Circle<T> {
+    type Point = Point3D<T>;
+    type Vector = Vector<T>;
+    type Direction = Direction3D<T>;
+
+    /// 指定されたパラメータ位置での点を取得
+    /// t: 0.0〜1.0 で一周（0.0=開始点、1.0=終了点=開始点）
+    fn point_at_parameter(&self, t: T) -> Self::Point {
+        let angle = t * T::TAU; // 0.0〜1.0 を 0〜2π に変換
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        // 局所座標系での点を計算
+        let local_x = self.radius * cos_angle;
+        let local_y = self.radius * sin_angle;
+        
+        // ワールド座標系に変換
+        let world_offset = self.u_axis.to_vector() * local_x + self.v_axis.to_vector() * local_y;
+        self.center + world_offset
+    }
+
+    /// 指定されたパラメータ位置での接線ベクトルを取得（正規化済み）
+    fn tangent_at_parameter(&self, t: T) -> Self::Vector {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        // 局所座標系での接線ベクトル（反時計回り）
+        let local_tangent_x = -sin_angle;
+        let local_tangent_y = cos_angle;
+        
+        // ワールド座標系に変換して正規化
+        let tangent = self.u_axis.to_vector() * local_tangent_x + self.v_axis.to_vector() * local_tangent_y;
+        tangent.normalize().unwrap_or(tangent) // normalizeに失敗した場合は元のベクトルを返す
+    }
+
+    /// 指定されたパラメータ位置での主法線ベクトルを取得（正規化済み）
+    fn normal_at_parameter(&self, t: T) -> Self::Vector {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        // 局所座標系での法線ベクトル（中心向き）
+        let local_normal_x = cos_angle;
+        let local_normal_y = sin_angle;
+        
+        // ワールド座標系に変換（既に正規化済み）
+        self.u_axis.to_vector() * local_normal_x + self.v_axis.to_vector() * local_normal_y
+    }
+
+    /// 指定されたパラメータ位置での双法線ベクトルを取得（正規化済み）
+    fn binormal_at_parameter(&self, _t: T) -> Self::Vector {
+        // 円の双法線は常に平面の法線ベクトル
+        self.normal.to_vector()
+    }
+
+    /// 指定されたパラメータ位置での曲率を取得
+    fn curvature_at_parameter(&self, _t: T) -> T {
+        // 円の曲率は一定: κ = 1/半径
+        T::ONE / self.radius
+    }
+
+    /// 指定されたパラメータ位置での捩率（ねじれ）を取得
+    fn torsion_at_parameter(&self, _t: T) -> T {
+        // 平面曲線（円）の捩率は常にゼロ
+        T::ZERO
+    }
+
+    /// 指定されたパラメータ位置での微分幾何学的情報を一括取得（最も効率的）
+    fn differential_geometry_at_parameter(&self, t: T) -> DifferentialGeometry<T, Self::Vector> {
+        let angle = t * T::TAU;
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        
+        // 局所座標系で一括計算
+        let local_tangent_x = -sin_angle;
+        let local_tangent_y = cos_angle;
+        let local_normal_x = cos_angle;
+        let local_normal_y = sin_angle;
+        
+        // ワールド座標系に変換
+        let tangent_vec = self.u_axis.to_vector() * local_tangent_x + self.v_axis.to_vector() * local_tangent_y;
+        let tangent = tangent_vec.normalize().unwrap_or(tangent_vec);
+        let normal = self.u_axis.to_vector() * local_normal_x + self.v_axis.to_vector() * local_normal_y;
+        let curvature = T::ONE / self.radius;
+        
+        DifferentialGeometry::new(tangent, normal, curvature)
+    }
+
+    /// 最大曲率の位置と値を取得（円は一定曲率）
+    fn max_curvature(&self) -> Option<(T, T)> {
+        Some((T::ZERO, T::ONE / self.radius)) // 任意の位置で一定曲率
+    }
+
+    /// 最小曲率の位置と値を取得（円は一定曲率）
+    fn min_curvature(&self) -> Option<(T, T)> {
+        Some((T::ZERO, T::ONE / self.radius)) // 任意の位置で一定曲率
+    }
+
+    /// 曲率がゼロになる位置を取得（円では存在しない）
+    fn inflection_points(&self) -> Vec<T> {
+        Vec::new() // 円に変曲点は存在しない
+    }
+
+    /// 曲線が平面曲線かどうかを判定（円は常に平面曲線）
+    fn is_planar(&self) -> bool {
+        true
+    }
+}
+
+/// Circle<T>に解析的曲線インターフェイスを実装
+impl<T: Scalar> AnalyticalCurve<T> for Circle<T> {
+    /// 曲線の種類（円）
+    fn curve_type(&self) -> CurveType {
+        CurveType::Circle
+    }
+
+    /// 一定曲率かどうか（円は常に一定曲率）
+    fn has_constant_curvature(&self) -> bool {
+        true
+    }
+
+    /// 解析的に計算可能な曲率の定数値（円の場合: 1/半径）
+    fn constant_curvature(&self) -> Option<T> {
+        Some(T::ONE / self.radius)
+    }
+
+    /// 解析的に計算可能な曲率半径の定数値（円の場合: 半径）
+    fn constant_curvature_radius(&self) -> Option<T> {
+        Some(self.radius)
+    }
+}

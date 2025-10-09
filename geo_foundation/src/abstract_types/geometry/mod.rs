@@ -5,11 +5,11 @@
 // pub mod arc;  // 一時的にコメントアウト（実装完了後に有効化）
 pub mod bbox;
 pub mod circle;
+pub mod common; // 共通インターフェイスとヘルパー
 pub mod direction;
 pub mod ellipse;
 pub mod ellipse_arc;
 pub mod infinite_line;
-pub mod normalizable;
 pub mod point;
 pub mod ray;
 pub mod sphere;
@@ -19,11 +19,11 @@ pub mod vector;
 // pub use arc::*;  // 一時的にコメントアウト（実装完了後に有効化）
 pub use bbox::*;
 pub use circle::*;
+pub use common::*; // 共通インターフェース（曲線解析、ベクトル操作等）を一括エクスポート
 pub use direction::*;
 pub use ellipse::*;
 pub use ellipse_arc::*;
 pub use infinite_line::*;
-pub use normalizable::*;
 pub use point::*;
 pub use ray::*;
 pub use sphere::*;

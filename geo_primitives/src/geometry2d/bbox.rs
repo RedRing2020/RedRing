@@ -289,8 +289,8 @@ impl<T: Scalar> BBox2D<T> {
 // f64版の特化実装（BBox2DExt相当）
 impl BBox2D<f64> {
     /// 3Dバウンディングボックスに変換（Z=0）
-    pub fn to_3d(&self) -> crate::geometry3d::BBox3D {
-        use crate::geometry3d::Point as Point3D;
+    pub fn to_3d(&self) -> crate::geometry3d::BBox3D<f64> {
+        use crate::geometry3d::Point3D;
         crate::geometry3d::BBox3D::new(
             Point3D::new(self.min.x(), self.min.y(), 0.0),
             Point3D::new(self.max.x(), self.max.y(), 0.0),
@@ -317,9 +317,9 @@ impl BBox2D<f64> {
 
 // f32版の特化実装（BBox2DExt相当）
 impl BBox2D<f32> {
-    /// 3Dバウンディングボックスに変換（Z=0）
-    pub fn to_3d(&self) -> crate::geometry3d::BBox3D {
-        use crate::geometry3d::Point as Point3D;
+    /// 3Dバウンディングボックスに変換（Z=0、f64に変換）
+    pub fn to_3d(&self) -> crate::geometry3d::BBox3D<f64> {
+        use crate::geometry3d::Point3D;
         crate::geometry3d::BBox3D::new(
             Point3D::new(self.min.x() as f64, self.min.y() as f64, 0.0),
             Point3D::new(self.max.x() as f64, self.max.y() as f64, 0.0),
