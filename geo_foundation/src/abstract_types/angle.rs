@@ -3,6 +3,7 @@
 //! CAD/CAM システムで使用される角度計算機能
 
 use crate::abstract_types::Scalar;
+use crate::constants::precision::PI;
 use std::fmt;
 
 /// 角度型の共通インターフェース
@@ -172,13 +173,13 @@ mod tests {
         let angle_deg = Angle::from_degrees(180.0f64);
 
         assert!((angle_rad.to_radians() - 1.0).abs() < 1e-10);
-        assert!((angle_deg.to_radians() - std::f64::consts::PI).abs() < 1e-10);
+        assert!((angle_deg.to_radians() - PI).abs() < 1e-10);
     }
 
     #[test]
     fn test_angle_conversion() {
         let angle = Angle::from_degrees(90.0f64);
-        assert!((angle.to_radians() - std::f64::consts::PI / 2.0).abs() < 1e-10);
+        assert!((angle.to_radians() - PI / 2.0).abs() < 1e-10);
         assert!((angle.to_degrees() - 90.0).abs() < 1e-10);
     }
 

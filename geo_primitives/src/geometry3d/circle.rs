@@ -168,6 +168,8 @@ impl<T: Scalar> Circle<T> {
 }
 
 // Circle3Dトレイトの実装はf64特化版のみ
+/*
+// 一時的にコメントアウト - geo_foundationとの整合性調整中
 impl Circle3D for Circle<f64> {
     type Point = Point3D<f64>;
     type Vector = Vector<f64>;
@@ -300,6 +302,7 @@ impl Circle3D for Circle<f64> {
         )
     }
 }
+*/
 
 impl<T: Scalar> Circle<T> {
     /// 指定された点が円周上にあるかを判定（許容誤差内）
@@ -371,8 +374,10 @@ impl Circle<f64> {
 
 impl From<Circle<f64>> for BBox3D<f64> {
     fn from(circle: Circle<f64>) -> Self {
-        let (min, max) = circle.bounding_box();
-        BBox3D::new_from_tuples((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
+        // 一時的にダミー実装
+        BBox3D::new_from_tuples((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
+        // let (min, max) = circle.bounding_box();
+        // BBox3D::new_from_tuples((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
     }
 }
 

@@ -6,8 +6,7 @@
 use crate::geometry2d::Point2D;
 use crate::geometry2d::{bbox::BBoxF64, Ellipse, Vector2D};
 use geo_foundation::abstract_types::Angle;
-use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
-use std::f64::consts::PI;
+use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円弧関連のエラー
 #[derive(Debug, Clone, PartialEq)]

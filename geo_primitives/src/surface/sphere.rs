@@ -3,6 +3,7 @@
 //! 3次元空間における球面および球体の実装を提供する。
 
 use crate::geometry3d::point::{Point3DF32, Point3DF64};
+use geo_foundation::constants::{game, precision};
 use geo_foundation::Sphere as SphereTrait;
 use geo_foundation::{SphereKind, SphericalCoordinates};
 use std::fmt;
@@ -95,14 +96,14 @@ impl SphereTrait for SphereF64 {
         // 4πr²
         let four = 4.0;
         let r_squared = self.radius * self.radius;
-        four * std::f64::consts::PI * r_squared
+        four * precision::PI * r_squared
     }
 
     fn volume(&self) -> Self::Scalar {
         // (4/3)πr³
         let four_thirds = 4.0 / 3.0;
         let r_cubed = self.radius * self.radius * self.radius;
-        four_thirds * std::f64::consts::PI * r_cubed
+        four_thirds * precision::PI * r_cubed
     }
 
     fn point_on_surface(&self, point: &Self::Point) -> bool {
@@ -212,14 +213,14 @@ impl SphereTrait for SphereF32 {
         // 4πr²
         let four = 4.0;
         let r_squared = self.radius * self.radius;
-        four * std::f32::consts::PI * r_squared
+        four * game::PI * r_squared
     }
 
     fn volume(&self) -> Self::Scalar {
         // (4/3)πr³
         let four_thirds = 4.0 / 3.0;
         let r_cubed = self.radius * self.radius * self.radius;
-        four_thirds * std::f32::consts::PI * r_cubed
+        four_thirds * game::PI * r_cubed
     }
 
     fn point_on_surface(&self, point: &Self::Point) -> bool {

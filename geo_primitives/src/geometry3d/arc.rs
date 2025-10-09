@@ -117,13 +117,17 @@ impl<T: Scalar> Arc<T> {
 
     /// 指定角度での点取得
     pub fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
-        self.circle.point_at_angle(angle)
+        // 角度を0-1パラメータに変換してCircleの統一インターフェースを使用
+        let param = angle.to_radians() / T::TAU;
+        self.circle.point_at_parameter(param)
     }
 
     /// パラメータt（0.0〜1.0）での点取得
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         let angle = self.interpolate_angle(t);
-        self.circle.point_at_angle(angle)
+        // 角度を0-1パラメータに変換
+        let param = angle.to_radians() / T::TAU;
+        self.circle.point_at_parameter(param)
     }
 
     /// 角度包含判定
@@ -143,7 +147,9 @@ impl<T: Scalar> Arc<T> {
     /// 中点取得
     pub fn midpoint(&self) -> Point3D<T> {
         let mid_angle = self.interpolate_angle(T::ONE / (T::ONE + T::ONE)); // 0.5
-        self.circle.point_at_angle(mid_angle)
+        // 角度を0-1パラメータに変換
+        let param = mid_angle.to_radians() / T::TAU;
+        self.circle.point_at_parameter(param)
     }
 
     /// 角度範囲の取得（ラジアン）
@@ -200,7 +206,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for Arc<T> {
     }
 
     /// 指定されたパラメータ位置での双法線ベクトルを取得（正規化済み）
-    fn binormal_at_parameter(&self, t: T) -> Self::Vector {
+    fn binormal_at_parameter(&self, _t: T) -> Self::Vector {
         // 円弧の双法線は基底円と同じ（平面の法線）
         self.circle.binormal_at_parameter(T::ZERO) // 位置に依存しない
     }
