@@ -3,10 +3,12 @@
 //! 起点と方向を持つ3次元半無限直線をサポート
 
 use crate::geometry3d::{Direction3D, Point3D, Vector};
+use geo_foundation::abstract_types::geometry::common::{
+    AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
+};
 use geo_foundation::abstract_types::geometry::{
     Direction, Direction3D as Direction3DTrait, Ray, Ray3D as Ray3DTrait,
 };
-use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 use geo_foundation::abstract_types::{Angle, Scalar};
 
 /// ジェネリック3Dレイ（半無限直線）
@@ -282,7 +284,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ray3D<T> {
     fn normal_at_parameter(&self, _t: T) -> Self::Vector {
         // InfiniteLine3Dと同じロジック：方向ベクトルに垂直な任意のベクトル
         let dir = self.direction.to_vector();
-        
+
         // Z方向に垂直でない場合はZ軸との外積を使用
         if dir.z().abs() < T::ONE - T::TOLERANCE {
             let z_axis = Vector::new(T::ZERO, T::ZERO, T::ONE);
@@ -323,7 +325,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for Ray3D<T> {
         let tangent = self.tangent_at_parameter(t);
         let normal = self.normal_at_parameter(t);
         let curvature = T::ZERO;
-        
+
         DifferentialGeometry::new(tangent, normal, curvature)
     }
 

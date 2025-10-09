@@ -4,16 +4,19 @@
 //! 点と方向ベクトルで定義される、CAD/CAMシステムで使用される直線の基本的な操作を提供
 
 use crate::geometry3d::{Direction3D, Point3D, Vector};
+use geo_foundation::abstract_types::geometry::common::{
+    AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
+};
 use geo_foundation::{
     abstract_types::{
-        Scalar,
         geometry::{
-            Direction, InfiniteLine3D as InfiniteLine3DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
+            Direction, InfiniteLine3D as InfiniteLine3DTrait, InfiniteLineAnalysis,
+            InfiniteLineBuilder,
         },
+        Scalar,
     },
     common::constants::GEOMETRIC_TOLERANCE,
 };
-use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 
 /// ジェネリック3D無限直線
 ///
@@ -46,50 +49,32 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// X軸方向の無限直線を作成
     pub fn x_axis(origin: Point3D<T>) -> Self {
-        Self::new(
-            origin,
-            Direction3D::positive_x(),
-        )
+        Self::new(origin, Direction3D::positive_x())
     }
 
     /// Y軸方向の無限直線を作成
     pub fn y_axis(origin: Point3D<T>) -> Self {
-        Self::new(
-            origin,
-            Direction3D::positive_y(),
-        )
+        Self::new(origin, Direction3D::positive_y())
     }
 
     /// Z軸方向の無限直線を作成
     pub fn z_axis(origin: Point3D<T>) -> Self {
-        Self::new(
-            origin,
-            Direction3D::positive_z(),
-        )
+        Self::new(origin, Direction3D::positive_z())
     }
 
     /// X軸に平行な直線を作成
     pub fn along_x_axis(y: T, z: T) -> Self {
-        Self::new(
-            Point3D::new(T::ZERO, y, z),
-            Direction3D::positive_x(),
-        )
+        Self::new(Point3D::new(T::ZERO, y, z), Direction3D::positive_x())
     }
 
     /// Y軸に平行な直線を作成
     pub fn along_y_axis(x: T, z: T) -> Self {
-        Self::new(
-            Point3D::new(x, T::ZERO, z),
-            Direction3D::positive_y(),
-        )
+        Self::new(Point3D::new(x, T::ZERO, z), Direction3D::positive_y())
     }
 
     /// Z軸に平行な直線を作成
     pub fn along_z_axis(x: T, y: T) -> Self {
-        Self::new(
-            Point3D::new(x, y, T::ZERO),
-            Direction3D::positive_z(),
-        )
+        Self::new(Point3D::new(x, y, T::ZERO), Direction3D::positive_z())
     }
 
     /// XY平面に投影した2D直線を取得
@@ -111,7 +96,11 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 指定した平面に投影した直線を取得
     /// 平面への投影は実装が複雑なため、一時的に無効化
-    pub fn project_to_plane(&self, _plane_normal: &Vector<T>, _plane_point: &Point3D<T>) -> Option<Self> {
+    pub fn project_to_plane(
+        &self,
+        _plane_normal: &Vector<T>,
+        _plane_point: &Point3D<T>,
+    ) -> Option<Self> {
         // 複雑な投影計算は後で実装
         None
     }
@@ -356,7 +345,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for InfiniteLine3D<T> {
     fn normal_at_parameter(&self, _t: T) -> Self::Vector {
         // 直線では法線が無限にあるため、方向ベクトルに垂直な任意のベクトルを選ぶ
         let dir = self.direction.to_vector();
-        
+
         // Z方向に垂直でない場合はZ軸との外積を使用
         if dir.z().abs() < T::ONE - T::TOLERANCE {
             let z_axis = Vector::new(T::ZERO, T::ZERO, T::ONE);
@@ -397,7 +386,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for InfiniteLine3D<T> {
         let tangent = self.tangent_at_parameter(t);
         let normal = self.normal_at_parameter(t);
         let curvature = T::ZERO;
-        
+
         DifferentialGeometry::new(tangent, normal, curvature)
     }
 

@@ -8,10 +8,10 @@ use crate::abstract_types::Scalar;
 pub trait Circle2D<T: Scalar> {
     /// 点の型
     type Point;
-    
+
     /// 円の中心座標を取得
     fn center(&self) -> Self::Point;
-    
+
     /// 円の半径を取得
     fn radius(&self) -> T;
 }

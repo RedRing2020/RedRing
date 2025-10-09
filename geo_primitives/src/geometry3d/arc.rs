@@ -2,9 +2,11 @@
 //!
 //! 3次元円弧の基本実装
 
-use crate::geometry3d::{Circle, Point3D, Vector, Direction3D};
+use crate::geometry3d::{Circle, Direction3D, Point3D, Vector};
+use geo_foundation::abstract_types::geometry::common::{
+    AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
+};
 use geo_foundation::abstract_types::{Angle, Scalar};
-use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 
 /// 円弧の種類を表現する列挙型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,7 +131,7 @@ impl<T: Scalar> Arc<T> {
         let start_rad = self.start_angle.to_radians();
         let end_rad = self.end_angle.to_radians();
         let check_rad = angle.to_radians();
-        
+
         if start_rad <= end_rad {
             check_rad >= start_rad && check_rad <= end_rad
         } else {
@@ -148,7 +150,7 @@ impl<T: Scalar> Arc<T> {
     pub fn angle_span(&self) -> T {
         let start_rad = self.start_angle.to_radians();
         let end_rad = self.end_angle.to_radians();
-        
+
         if end_rad >= start_rad {
             end_rad - start_rad
         } else {
@@ -219,7 +221,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for Arc<T> {
     fn differential_geometry_at_parameter(&self, t: T) -> DifferentialGeometry<T, Self::Vector> {
         let angle = self.interpolate_angle(t);
         let circle_param = angle.to_radians() / T::TAU;
-        
+
         // 基底円の微分幾何学情報を取得
         self.circle.differential_geometry_at_parameter(circle_param)
     }

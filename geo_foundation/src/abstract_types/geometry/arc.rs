@@ -17,17 +17,17 @@ use std::fmt::Debug;
 ///
 /// 2次元平面上の円弧を表現する共通インターフェース
 /// 基本操作は共通トレイトから継承
-pub trait Arc2D<T: Scalar>: 
-    Debug + 
-    Clone + 
+pub trait Arc2D<T: Scalar>:
+    Debug +
+    Clone +
     CurveTypes<T> +
-    CurvePoints<T> + 
-    CurveMetrics<T> + 
-    CurveContainment<T> + 
-    CurveTransformation<T> + 
-    AngularCurve<T> + 
-    CenteredCurve<T> + 
-    RadialCurve<T> 
+    CurvePoints<T> +
+    CurveMetrics<T> +
+    CurveContainment<T> +
+    CurveTransformation<T> +
+    AngularCurve<T> +
+    CenteredCurve<T> +
+    RadialCurve<T>
 {
     /// 円の型
     type Circle;
@@ -47,17 +47,17 @@ pub trait Arc2D<T: Scalar>:
 ///
 /// 3次元空間上の円弧を表現する共通インターフェース
 /// 基本操作は共通トレイトから継承
-pub trait Arc3D<T: Scalar>: 
-    Debug + 
-    Clone + 
+pub trait Arc3D<T: Scalar>:
+    Debug +
+    Clone +
     CurveTypes<T> +
-    CurvePoints<T> + 
-    CurveMetrics<T> + 
-    CurveContainment<T> + 
-    CurveTransformation<T> + 
-    AngularCurve<T> + 
-    CenteredCurve<T> + 
-    RadialCurve<T> 
+    CurvePoints<T> +
+    CurveMetrics<T> +
+    CurveContainment<T> +
+    CurveTransformation<T> +
+    AngularCurve<T> +
+    CenteredCurve<T> +
+    RadialCurve<T>
 {
     /// 円の型
     type Circle;

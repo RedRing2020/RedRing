@@ -3,8 +3,10 @@
 //! 3次元楕円弧の基本実装
 
 use crate::geometry3d::{BBox3D, Ellipse, Point3D, Vector3D};
+use geo_foundation::abstract_types::geometry::common::{
+    AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
+};
 use geo_foundation::abstract_types::geometry::Direction;
-use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
@@ -441,12 +443,16 @@ impl CurveAnalysis3D<f64> for EllipseArc {
     }
 
     /// 指定されたパラメータ位置での微分幾何学的情報を一括取得（最も効率的）
-    fn differential_geometry_at_parameter(&self, t: f64) -> DifferentialGeometry<f64, Self::Vector> {
+    fn differential_geometry_at_parameter(
+        &self,
+        t: f64,
+    ) -> DifferentialGeometry<f64, Self::Vector> {
         let angle = self.interpolate_angle(t);
         let ellipse_param = angle / (2.0 * PI);
-        
+
         // 基底楕円の微分幾何学情報を取得
-        self.ellipse.differential_geometry_at_parameter(ellipse_param)
+        self.ellipse
+            .differential_geometry_at_parameter(ellipse_param)
     }
 
     /// 最大曲率の位置と値を取得（楕円弧では弧範囲内での最大値）
@@ -462,11 +468,11 @@ impl CurveAnalysis3D<f64> for EllipseArc {
                 }
             }
         }
-        
+
         // 弧の端点での曲率を比較
         let start_curv = self.curvature_at_parameter(0.0);
         let end_curv = self.curvature_at_parameter(1.0);
-        
+
         if start_curv >= end_curv {
             Some((0.0, start_curv))
         } else {
@@ -487,11 +493,11 @@ impl CurveAnalysis3D<f64> for EllipseArc {
                 }
             }
         }
-        
+
         // 弧の端点での曲率を比較
         let start_curv = self.curvature_at_parameter(0.0);
         let end_curv = self.curvature_at_parameter(1.0);
-        
+
         if start_curv <= end_curv {
             Some((0.0, start_curv))
         } else {
@@ -555,7 +561,7 @@ impl EllipseArc {
         let normalized_angle = Self::normalize_angle(angle);
         let start = self.start_angle;
         let end = self.end_angle;
-        
+
         if start <= end {
             normalized_angle >= start && normalized_angle <= end
         } else {
