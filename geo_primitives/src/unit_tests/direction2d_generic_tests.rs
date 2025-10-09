@@ -20,7 +20,8 @@ mod tests {
         assert!((angle - 0.0).abs() < f64::TOLERANCE);
 
         // 角度からDirection2Dを作成
-        let dir_from_angle = Direction2D::<f64>::from_angle(geo_foundation::constants::precision::PI / 2.0);
+        let dir_from_angle =
+            Direction2D::<f64>::from_angle(geo_foundation::constants::precision::PI / 2.0);
         assert!((dir_from_angle.x() - 0.0).abs() < f64::TOLERANCE);
         assert!((dir_from_angle.y() - 1.0).abs() < f64::TOLERANCE);
     }
