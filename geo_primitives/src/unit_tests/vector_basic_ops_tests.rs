@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod vector_basic_ops_tests {
     use crate::geometry2d::{Vector, Vector2D};
-    use geo_foundation::abstract_types::Scalar;
+    use geo_foundation::Scalar;
 
     #[test]
     fn test_vector2d_addition() {

@@ -12,7 +12,7 @@
 //! 基本操作はInfiniteLineから継承し、レイ固有の制約を追加します。
 
 use super::infinite_line::{InfiniteLine2D, InfiniteLine3D};
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 2Dレイ（半無限直線）の基本操作を定義するトレイト
 ///

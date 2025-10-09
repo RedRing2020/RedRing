@@ -3,8 +3,8 @@
 //! geometry3d配下に配置し、衝突判定のラフチェック対象として使用
 
 use crate::geometry3d::Point3D;
-use geo_foundation::abstract_types::{
-    geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox},
+use geo_foundation::{
+    abstract_types::geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox},
     Scalar,
 };
 

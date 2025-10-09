@@ -7,7 +7,7 @@ use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
 use geo_foundation::abstract_types::geometry::Direction;
-use geo_foundation::abstract_types::Scalar;
+use geo_foundation::Scalar;
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する

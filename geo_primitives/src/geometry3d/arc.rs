@@ -6,7 +6,7 @@ use crate::geometry3d::{Circle, Direction3D, Point3D, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
-use geo_foundation::abstract_types::{Angle, Scalar};
+use geo_foundation::{Angle, Scalar};
 
 /// 円弧の種類を表現する列挙型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -5,7 +5,7 @@
 use crate::geometry2d::Vector;
 use crate::traits::StepCompatible;
 use geo_foundation::abstract_types::geometry::{Direction, Direction2D as Direction2DTrait};
-use geo_foundation::abstract_types::Scalar;
+use geo_foundation::Scalar;
 
 /// ジェネリック2D方向ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]

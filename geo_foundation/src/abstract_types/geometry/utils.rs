@@ -2,7 +2,7 @@
 //!
 //! ジェネリックな型パラメータを使用した抽象的な幾何計算関数を提供
 
-use crate::abstract_types::scalar::Scalar;
+use crate::Scalar;
 
 /// 2つのScalar値の距離（ジェネリック版）
 pub fn scalar_distance<T: Scalar>(a: T, b: T) -> T {

@@ -6,7 +6,7 @@
 mod tests {
     use crate::geometry2d::{Point2D, Vector as Vector2D};
     use crate::geometry3d::{Point3D, Vector as Vector3D};
-    use geo_foundation::abstract_types::Scalar;
+    use geo_foundation::Scalar;
 
     #[test]
     fn test_point2d_basic_operations_f64() {

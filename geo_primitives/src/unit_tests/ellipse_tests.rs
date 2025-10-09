@@ -14,7 +14,7 @@ mod tests {
 
     // 必要な型のみを明示的にインポート
     use crate::geometry2d::Ellipse;
-    use geo_foundation::abstract_types::Angle;
+    use geo_foundation::Angle;
     use std::f64::consts::PI;
 
     #[test]

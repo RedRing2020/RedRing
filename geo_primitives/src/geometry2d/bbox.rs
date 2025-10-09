@@ -3,8 +3,8 @@
 //! 2D形状処理と衝突判定のための2次元境界ボックス
 
 use crate::geometry2d::Point2D;
-use geo_foundation::abstract_types::{
-    geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox},
+use geo_foundation::{
+    abstract_types::geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox},
     Scalar,
 };
 
@@ -271,7 +271,7 @@ impl<T: Scalar> BBox2D<T> {
     /// 対角線の長さを計算
     pub fn diagonal_length(&self) -> T
     where
-        T: geo_foundation::abstract_types::Scalar,
+        T: geo_foundation::Scalar,
     {
         let w = self.width();
         let h = self.height();

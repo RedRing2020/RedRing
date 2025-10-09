@@ -6,7 +6,7 @@
 mod tests {
     use crate::geometry2d::Direction2D;
     use geo_foundation::abstract_types::geometry::Direction2D as Direction2DTrait;
-    use geo_foundation::abstract_types::Scalar;
+    use geo_foundation::Scalar;
 
     #[test]
     fn test_direction2d_generic_f64() {

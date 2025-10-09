@@ -4,7 +4,7 @@
 
 use crate::geometry3d::Vector;
 use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait};
-use geo_foundation::abstract_types::Scalar;
+use geo_foundation::Scalar;
 
 /// ジェネリック3D方向ベクトル
 ///

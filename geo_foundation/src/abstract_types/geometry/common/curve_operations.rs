@@ -2,7 +2,7 @@
 //!
 //! 曲線型全般に適用される基本的な操作（点取得、長さ計算等）
 
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 曲線の共通型定義
 pub trait CurveTypes<T: Scalar> {

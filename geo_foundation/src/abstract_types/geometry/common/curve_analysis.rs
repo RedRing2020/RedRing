@@ -3,7 +3,7 @@
 //! NURBS、円、円弧等すべての曲線型に適用可能な
 //! 接線、法線、曲率等の微分幾何学的解析の共通API
 
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 微分幾何学的情報を格納する構造体
 ///

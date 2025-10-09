@@ -1,6 +1,6 @@
 ﻿use crate::geometry3d::Vector;
 use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point3D as Point3DTrait};
-use geo_foundation::abstract_types::{Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 /// ジェネリック3D点
 #[derive(Debug, Clone, Copy, PartialEq)]

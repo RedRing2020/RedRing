@@ -626,6 +626,7 @@ dependencies = [
 name = "geo_core"
 version = "0.1.0"
 dependencies = [
+ "analysis",
  "approx",
  "criterion",
  "nalgebra",
@@ -639,6 +640,9 @@ dependencies = [
 [[package]]
 name = "geo_foundation"
 version = "0.1.0"
+dependencies = [
+ "analysis",
+]
 
 [[package]]
 name = "geo_primitives"

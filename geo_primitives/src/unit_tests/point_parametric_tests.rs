@@ -4,7 +4,7 @@
 #[cfg(test)]
 pub mod tests {
     use crate::geometry2d::point::{Point2D, Point2DF32, Point2DF64};
-    use geo_foundation::abstract_types::Scalar;
+    use geo_foundation::Scalar;
 
     #[test]
     fn test_point_f64_creation() {

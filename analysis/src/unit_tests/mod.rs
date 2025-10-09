@@ -6,4 +6,5 @@
 pub mod interpolation_tests;
 pub mod numerical_tests;
 pub mod sampling_tests;
+pub mod scalar_tests;
 pub mod statistics_tests;

@@ -3,7 +3,7 @@
 //! 全ての幾何プリミティブが実装すべき基本的なインターフェース
 
 use super::classification::PrimitiveKind;
-use crate::abstract_types::scalar::Scalar;
+use crate::Scalar;
 
 // BBoxを抽象境界ボックスとして定義（より柔軟な実装）
 /// 抽象的な境界ボックストレイト

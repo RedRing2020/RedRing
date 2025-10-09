@@ -13,7 +13,7 @@
 //! // let closest = line.closest_point(&query_point);
 //! ```
 
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 2D無限直線の基本操作を定義するトレイト
 pub trait InfiniteLine2D<T: Scalar> {
