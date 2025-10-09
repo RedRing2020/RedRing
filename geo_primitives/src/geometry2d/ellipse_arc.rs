@@ -69,7 +69,11 @@ impl EllipseArc {
             Angle::from_radians(rotation),
         )
         .map_err(|e| EllipseArcError::EllipseError(format!("{}", e)))?;
-        Self::new(ellipse, Angle::from_radians(start_angle), Angle::from_radians(end_angle))
+        Self::new(
+            ellipse,
+            Angle::from_radians(start_angle),
+            Angle::from_radians(end_angle),
+        )
     }
 
     /// 角度を正規化（0 ～ 2π）
@@ -85,7 +89,7 @@ impl EllipseArc {
     fn calculate_angle_range(&self) -> f64 {
         let start_rad = self.start_angle.to_radians();
         let end_rad = self.end_angle.to_radians();
-        
+
         if end_rad >= start_rad {
             end_rad - start_rad
         } else {
@@ -298,8 +302,10 @@ impl EllipseArc {
 impl PartialEq for EllipseArc {
     fn eq(&self, other: &Self) -> bool {
         self.ellipse == other.ellipse
-            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
-            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
+            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs()
+                < GEOMETRIC_TOLERANCE
+            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs()
+                < GEOMETRIC_TOLERANCE
     }
 }
 

@@ -65,7 +65,11 @@ impl EllipseArc {
     ) -> Result<Self, EllipseArcError> {
         let ellipse = Ellipse::xy_plane(center, major_radius, minor_radius)
             .map_err(|e| EllipseArcError::EllipseError(format!("{}", e)))?;
-        Self::new(ellipse, Angle::from_radians(start_angle), Angle::from_radians(end_angle))
+        Self::new(
+            ellipse,
+            Angle::from_radians(start_angle),
+            Angle::from_radians(end_angle),
+        )
     }
 
     /// 角度を正規化（0 ～ 2π）
