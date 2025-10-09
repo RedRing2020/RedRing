@@ -2,13 +2,12 @@
 ///
 /// すべてのプリミティブ形状を階層的に分類し、
 /// 型安全な識別と処理を可能にする
-/// 
+///
 /// 注意: 基本的な分類システムは geo_foundation に移動されました。
 /// 以下のトレイト・列挙型は geo_foundation::abstract_types::geometry::classification で利用可能です:
 /// - PrimitiveKind
-/// - DimensionClass  
+/// - DimensionClass
 /// - GeometryPrimitive
-
 // geo_foundation の分類システムを再エクスポート
 pub use geo_foundation::abstract_types::geometry::classification::{
     DimensionClass, GeometryPrimitive, PrimitiveKind,

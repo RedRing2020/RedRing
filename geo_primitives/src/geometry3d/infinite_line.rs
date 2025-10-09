@@ -7,13 +7,9 @@ use crate::geometry3d::{Direction3D, Point3D, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
-use geo_foundation::{
-    abstract_types::{
-        geometry::{
-            Direction, InfiniteLine3D as InfiniteLine3DTrait,
-        },
-        Scalar,
-    },
+use geo_foundation::abstract_types::{
+    geometry::{Direction, InfiniteLine3D as InfiniteLine3DTrait},
+    Scalar,
 };
 
 /// ジェネリック3D無限直線

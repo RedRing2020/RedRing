@@ -28,11 +28,11 @@ mod vector_basic_ops_tests; // Vector基礎演算テスト
 mod bbox_trait_tests;
 mod classification_tests; // 分類システムテスト
 mod geometry_utils_tests; // 幾何ユーティリティテスト
-// mod primitive_trait_tests; // プリミティブトレイトテスト - 一時的にコメントアウト（移行中のため）
+                          // mod primitive_trait_tests; // プリミティブトレイトテスト - 一時的にコメントアウト（移行中のため）
 
 // InfiniteLineテストモジュール（個別ファイル）
 mod infinite_line2d_tests; // InfiniteLine2Dテスト（プレースホルダー）
-mod infinite_line3d_tests;   // InfiniteLine3Dテスト（実装完了のため有効化）
+mod infinite_line3d_tests; // InfiniteLine3Dテスト（実装完了のため有効化）
 
 // mod point3d_tests; // Point3D テスト - 一時的にコメントアウト
 // mod point_parametric_tests; // Point の型パラメータ化テスト - 一時的にコメントアウト
