@@ -1,10 +1,12 @@
 //! Ray2D - ジェネリック2Dレイ（半無限直線）の実装
 //!
 //! 起点と方向を持つ2次元半無限直線をサポート
+//! 新しい設計では、InfiniteLine2Dを継承した制約版として実装されます
 
 use crate::geometry2d::{Direction2D, Point2D, Vector};
 use geo_foundation::abstract_types::geometry::{
-    Direction, Direction2D as Direction2DTrait, Ray, Ray2D as Ray2DTrait,
+    Direction, Direction2D as Direction2DTrait, 
+    // Ray2D トレイトは新しい設計では InfiniteLine2D を継承
 };
 use geo_foundation::abstract_types::{Angle, Scalar};
 
@@ -71,23 +73,9 @@ impl<T: Scalar> Ray2D<T> {
         let mirrored_direction = Direction2D::from_angle(angle.to_radians());
         Self::new(mirrored_origin, mirrored_direction)
     }
-}
 
-impl<T: Scalar> Ray<T> for Ray2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector<T>;
-    type Direction = Direction2D<T>;
-    type Error = String; // 将来はもっと詳細なエラー型を定義
-
-    fn origin(&self) -> Self::Point {
-        self.origin
-    }
-
-    fn direction(&self) -> Self::Direction {
-        self.direction
-    }
-
-    fn point_at_parameter(&self, t: T) -> Option<Self::Point> {
+    /// レイ固有：制約付きの点取得（t >= 0のみ）
+    pub fn point_at_parameter_ray(&self, t: T) -> Option<Point2D<T>> {
         if t >= T::ZERO {
             let direction_vector = self.direction.to_vector();
             Some(self.origin + direction_vector * t)
@@ -96,72 +84,32 @@ impl<T: Scalar> Ray<T> for Ray2D<T> {
         }
     }
 
-    fn contains_point(&self, point: &Self::Point, tolerance: T) -> bool {
-        let distance = self.distance_to_point(point);
+    /// レイ固有：制約付きの点判定（前方のみ）
+    pub fn contains_point_ray(&self, point: &Point2D<T>, tolerance: T) -> bool {
+        let distance = self.distance_to_point_unlimited(point);
         if distance <= tolerance {
-            // レイ上にある場合、パラメータが非負かチェック
-            let parameter = self.parameter_at_point(point);
-            parameter >= -tolerance // 小さな誤差は許容
+            let param = self.parameter_at_point_unlimited(point);
+            param >= -tolerance // 許容誤差を考慮して前方判定
         } else {
             false
         }
     }
 
-    fn distance_to_point(&self, point: &Self::Point) -> T {
+    /// 制約なしの距離計算（InfiniteLineの機能）
+    pub fn distance_to_point_unlimited(&self, point: &Point2D<T>) -> T {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
-
-        // 点からレイへの投影
-        let projection_length = to_point.dot(&direction_vector);
-
-        if projection_length <= T::ZERO {
-            // 起点より後方の場合、起点までの距離
-            self.origin.distance_to(point)
-        } else {
-            // 投影点がレイ上にある場合
-            let projection_point = self.origin + direction_vector * projection_length;
-            point.distance_to(&projection_point)
-        }
+        let cross_product = to_point.cross_2d(&direction_vector);
+        cross_product.abs()
     }
 
-    fn closest_point(&self, point: &Self::Point) -> Self::Point {
-        let to_point = *point - self.origin;
-        let direction_vector = self.direction.to_vector();
-
-        let projection_length = to_point.dot(&direction_vector);
-
-        if projection_length <= T::ZERO {
-            // 起点より後方の場合、起点が最近点
-            self.origin
-        } else {
-            // 投影点がレイ上の最近点
-            self.origin + direction_vector * projection_length
-        }
-    }
-
-    fn parameter_at_point(&self, point: &Self::Point) -> T {
+    /// 制約なしのパラメータ計算（InfiniteLineの機能）
+    pub fn parameter_at_point_unlimited(&self, point: &Point2D<T>) -> T {
         let to_point = *point - self.origin;
         let direction_vector = self.direction.to_vector();
         to_point.dot(&direction_vector)
     }
 
-    fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
-        self.direction.is_parallel(&other.direction, tolerance)
-    }
-
-    fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool {
-        // 方向が平行かつ両方の起点が同一直線上にある
-        if !self.is_parallel_to(other, tolerance) {
-            return false;
-        }
-
-        // 一方の起点がもう一方の直線上にあるかチェック（レイの範囲を超えても良い）
-        let distance_to_line = self.distance_to_line(&other.origin);
-        distance_to_line <= tolerance
-    }
-}
-
-impl<T: Scalar> Ray2D<T> {
     /// 点から直線（レイを無限に延長したもの）への距離を計算
     pub fn distance_to_line(&self, point: &Point2D<T>) -> T {
         let to_point = *point - self.origin;
@@ -172,11 +120,39 @@ impl<T: Scalar> Ray2D<T> {
         let projection_point = self.origin + direction_vector * projection_length;
         point.distance_to(&projection_point)
     }
-}
 
-impl<T: Scalar> Ray2DTrait<T> for Ray2D<T> {
-    // 現在は2D固有のメソッドはなし
-    // 将来必要に応じて追加
+    /// レイの起点を取得（InfiniteLineの origin メソッドと互換）
+    pub fn origin(&self) -> Point2D<T> {
+        self.origin
+    }
+
+    /// レイの方向を取得（InfiniteLineの direction メソッドと互換）
+    pub fn direction(&self) -> Direction2D<T> {
+        self.direction
+    }
+
+    /// 制約なしの点取得（InfiniteLineの point_at_parameter メソッドと互換）
+    pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
+        let direction_vector = self.direction.to_vector();
+        self.origin + direction_vector * t
+    }
+
+    /// 他のレイと平行かどうかを判定
+    pub fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
+        self.direction.is_parallel(&other.direction, tolerance)
+    }
+
+    /// 他のレイと同一かどうかを判定
+    pub fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool {
+        // 方向が平行かつ両方の起点が同一直線上にある
+        if !self.is_parallel_to(other, tolerance) {
+            return false;
+        }
+
+        // 一方の起点がもう一方の直線上にあるかチェック（レイの範囲を超えても良い）
+        let distance_to_line = self.distance_to_line(&other.origin);
+        distance_to_line <= tolerance
+    }
 }
 
 // 型エイリアス（後方互換性確保）

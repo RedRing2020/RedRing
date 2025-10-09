@@ -2,19 +2,17 @@
 //!
 //! 3次元空間における円の具体的な実装
 
-use crate::geometry2d;
 use crate::geometry3d::{BBox3D, Direction3D, Point3D, Vector};
-use crate::traits::{Circle2D, Circle3D, Direction};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
+use geo_foundation::abstract_types::geometry::Direction;
 use geo_foundation::abstract_types::Scalar;
-use std::f64::consts::{PI, TAU};
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する
 #[derive(Debug, Clone, PartialEq)]
-pub struct Circle<T: Scalar> {
+pub struct Circle3D<T: Scalar> {
     center: Point3D<T>,
     radius: T,
     normal: Direction3D<T>, // 円が存在する平面の法線ベクトル
@@ -22,7 +20,7 @@ pub struct Circle<T: Scalar> {
     v_axis: Direction3D<T>, // 円の局所Y軸（90度方向）
 }
 
-impl<T: Scalar> Circle<T> {
+impl<T: Scalar> Circle3D<T> {
     /// 新しい3D円を作成
     ///
     /// # Arguments
@@ -225,122 +223,9 @@ impl<T: Scalar> Circle<T> {
 
     /// 円の境界ボックス（最小と最大の座標値）を取得
     pub fn bounding_box(&self) -> (Point3D<T>, Point3D<T>) {
-        // 円の範囲は半径分の立方体
-        let min = Point3D::new(
-            self.center.x() - self.radius,
-            self.center.y() - self.radius,
-            self.center.z() - self.radius,
-        );
-        let max = Point3D::new(
-            self.center.x() + self.radius,
-            self.center.y() + self.radius,
-            self.center.z() + self.radius,
-        );
-        (min, max)
-    }
-}
-
-// Circle3Dトレイトの実装はf64特化版のみ
-/*
-// 一時的にコメントアウト - geo_foundationとの整合性調整中
-impl Circle3D for Circle<f64> {
-    type Point = Point3D<f64>;
-    type Vector = Vector<f64>;
-
-    fn center(&self) -> Self::Point {
-        self.center
-    }
-
-    fn radius(&self) -> f64 {
-        self.radius
-    }
-
-    fn normal(&self) -> Self::Vector {
-        Vector::new(self.normal.x(), self.normal.y(), self.normal.z())
-    }
-
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        // まず点が円の平面上にあるかチェック
-        if !self.point_on_plane(point, 1e-10) {
-            return false;
-        }
-
-        // 平面に投影した点が円内にあるかチェック
-        let projected = self.project_point_to_plane(point);
-        let distance_squared = (projected.x() - self.center.x()).powi(2)
-            + (projected.y() - self.center.y()).powi(2)
-            + (projected.z() - self.center.z()).powi(2);
-        distance_squared <= self.radius.powi(2) + 1e-10
-    }
-
-    fn on_circumference(&self, point: &Self::Point, tolerance: f64) -> bool {
-        if !self.point_on_plane(point, tolerance) {
-            return false;
-        }
-
-        let projected = self.project_point_to_plane(point);
-        let distance = self.center.distance_to(&projected);
-        (distance - self.radius).abs() <= tolerance
-    }
-
-    fn point_at_angle(&self, angle: f64) -> Self::Point {
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
-
-        let local_x = self.radius * cos_angle;
-        let local_y = self.radius * sin_angle;
-
-        Point3D::new(
-            self.center.x() + local_x * self.u_axis.x() + local_y * self.v_axis.x(),
-            self.center.y() + local_x * self.u_axis.y() + local_y * self.v_axis.y(),
-            self.center.z() + local_x * self.u_axis.z() + local_y * self.v_axis.z(),
-        )
-    }
-
-    fn tangent_at_point(&self, point: &Self::Point) -> Option<Self::Vector> {
-        if !self.on_circumference(point, 1e-10) {
-            return None;
-        }
-
-        // 円の平面内での接線方向を計算
-        let projected = self.project_point_to_plane(point);
-        let radial = Vector::new(
-            projected.x() - self.center.x(),
-            projected.y() - self.center.y(),
-            projected.z() - self.center.z(),
-        );
-
-        // 接線ベクトルは法線と半径ベクトルの外積
-        let normal_vec = Vector::new(self.normal.x(), self.normal.y(), self.normal.z());
-        Some(normal_vec.cross(&radial))
-    }
-
-    fn tangent_at_angle(&self, angle: f64) -> Self::Vector {
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
-
-        // 接線ベクトルは (-sin, cos) 方向
-        let local_tangent_x = -self.radius * sin_angle;
-        let local_tangent_y = self.radius * cos_angle;
-
-        Vector::new(
-            local_tangent_x * self.u_axis.x() + local_tangent_y * self.v_axis.x(),
-            local_tangent_x * self.u_axis.y() + local_tangent_y * self.v_axis.y(),
-            local_tangent_x * self.u_axis.z() + local_tangent_y * self.v_axis.z(),
-        )
-    }
-
-    fn bounding_box(&self) -> (Self::Point, Self::Point) {
-        // 3D空間での軸平行境界ボックスを計算
+        // 3D空間での軸平行境界ボックスを正確に計算
         // 各軸方向での円の最大・最小座標を求める
-
-        let mut min_x = self.center.x();
-        let mut max_x = self.center.x();
-        let mut min_y = self.center.y();
-        let mut max_y = self.center.y();
-        let mut min_z = self.center.z();
-        let mut max_z = self.center.z();
-
+        
         // u_axis, v_axis方向の寄与を計算
         let u_extent_x = self.radius * self.u_axis.x().abs();
         let u_extent_y = self.radius * self.u_axis.y().abs();
@@ -354,30 +239,44 @@ impl Circle3D for Circle<f64> {
         let extent_y = u_extent_y + v_extent_y;
         let extent_z = u_extent_z + v_extent_z;
 
-        min_x -= extent_x;
-        max_x += extent_x;
-        min_y -= extent_y;
-        max_y += extent_y;
-        min_z -= extent_z;
-        max_z += extent_z;
-
-        (
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
-        )
-    }
-
-    fn to_2d(&self) -> impl Circle2D {
-        // XY平面への投影として2D円を返す
-        geometry2d::circle::Circle::new(
-            crate::geometry2d::Point::new(self.center.x(), self.center.y()),
-            self.radius,
-        )
+        let min = Point3D::new(
+            self.center.x() - extent_x,
+            self.center.y() - extent_y,
+            self.center.z() - extent_z,
+        );
+        let max = Point3D::new(
+            self.center.x() + extent_x,
+            self.center.y() + extent_y,
+            self.center.z() + extent_z,
+        );
+        (min, max)
     }
 }
-*/
 
-impl<T: Scalar> Circle<T> {
+// Circle3Dトレイトの実装はf64特化版のみ
+use geo_foundation::abstract_types::geometry::{Circle2D, Circle3D as Circle3DTrait};
+
+impl Circle2D<f64> for Circle3D<f64> {
+    type Point = Point3D<f64>;
+
+    fn center(&self) -> Self::Point {
+        self.center
+    }
+
+    fn radius(&self) -> f64 {
+        self.radius
+    }
+}
+
+impl Circle3DTrait<f64> for Circle3D<f64> {
+    type Vector = Vector<f64>;
+
+    fn normal(&self) -> Self::Vector {
+        Vector::new(self.normal.x(), self.normal.y(), self.normal.z())
+    }
+}
+
+impl<T: Scalar> Circle3D<T> {
     /// 指定された点が円周上にあるかを判定（許容誤差内）
     pub fn on_circumference(&self, point: &Point3D<T>, tolerance: T) -> bool {
         if !self.point_on_plane(point, tolerance) {
@@ -395,7 +294,7 @@ impl<T: Scalar> Circle<T> {
     }
 
     /// 他の3D円との交差判定（簡略化実装）
-    pub fn intersects_with_circle(&self, other: &Circle<T>) -> bool {
+    pub fn intersects_with_circle(&self, other: &Circle3D<T>) -> bool {
         // 同一平面かつ交差する場合のみtrue（簡略化）
         let distance = self.center.distance_to(&other.center);
         let sum_radii = self.radius + other.radius;
@@ -430,13 +329,13 @@ impl<T: Scalar> Circle<T> {
     }
 }
 
-impl Circle<f64> {
+impl Circle3D<f64> {
     /// 3点から円を作成（f64特化、簡略化実装）
     pub fn from_three_points(p1: Point3D<f64>, p2: Point3D<f64>, p3: Point3D<f64>) -> Option<Self> {
         // 簡略化：XY平面上の円として作成
-        let p1_2d = crate::geometry2d::Point::new(p1.x(), p1.y());
-        let p2_2d = crate::geometry2d::Point::new(p2.x(), p2.y());
-        let p3_2d = crate::geometry2d::Point::new(p3.x(), p3.y());
+        let p1_2d = crate::geometry2d::Point2D::new(p1.x(), p1.y());
+        let p2_2d = crate::geometry2d::Point2D::new(p2.x(), p2.y());
+        let p3_2d = crate::geometry2d::Point2D::new(p3.x(), p3.y());
 
         let circle_2d = crate::geometry2d::Circle::from_three_points(p1_2d, p2_2d, p3_2d)?;
         let center_3d = Point3D::new(circle_2d.center().x(), circle_2d.center().y(), p1.z());
@@ -445,27 +344,28 @@ impl Circle<f64> {
     }
 }
 
-impl From<Circle<f64>> for BBox3D<f64> {
-    fn from(circle: Circle<f64>) -> Self {
-        // 一時的にダミー実装
-        BBox3D::new_from_tuples((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
-        // let (min, max) = circle.bounding_box();
-        // BBox3D::new_from_tuples((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
+impl From<Circle3D<f64>> for BBox3D<f64> {
+    fn from(_circle: Circle3D<f64>) -> Self {
+        let (min, max) = _circle.bounding_box();
+        BBox3D::new_from_tuples((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
     }
 }
 
 /// f64特化版Circle3Dエイリアス
-pub type Circle3DF64 = Circle<f64>;
+pub type Circle3DF64 = Circle3D<f64>;
 
 /// f32特化版Circle3Dエイリアス
-pub type Circle3DF32 = Circle<f32>;
+pub type Circle3DF32 = Circle3D<f32>;
+
+/// 後方互換性のための型エイリアス
+pub type Circle<T> = Circle3D<T>;
 
 // =============================================================================
 // 統一曲線解析インターフェイスの実装
 // =============================================================================
 
-/// Circle<T>に統一曲線解析インターフェイスを実装
-impl<T: Scalar> CurveAnalysis3D<T> for Circle<T> {
+/// Circle3D<T>に統一曲線解析インターフェイスを実装
+impl<T: Scalar> CurveAnalysis3D<T> for Circle3D<T> {
     type Point = Point3D<T>;
     type Vector = Vector<T>;
     type Direction = Direction3D<T>;
@@ -578,8 +478,8 @@ impl<T: Scalar> CurveAnalysis3D<T> for Circle<T> {
     }
 }
 
-/// Circle<T>に解析的曲線インターフェイスを実装
-impl<T: Scalar> AnalyticalCurve<T> for Circle<T> {
+/// Circle3D<T>に解析的曲線インターフェイスを実装
+impl<T: Scalar> AnalyticalCurve<T> for Circle3D<T> {
     /// 曲線の種類（円）
     fn curve_type(&self) -> CurveType {
         CurveType::Circle
