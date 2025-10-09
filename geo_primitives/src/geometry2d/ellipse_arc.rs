@@ -32,24 +32,24 @@ impl std::error::Error for EllipseArcError {}
 #[derive(Debug, Clone)]
 pub struct EllipseArc {
     ellipse: Ellipse,
-    start_angle: f64,
-    end_angle: f64,
+    start_angle: Angle<f64>,
+    end_angle: Angle<f64>,
 }
 
 impl EllipseArc {
     /// 新しい楕円弧を作成
     pub fn new(
         ellipse: Ellipse,
-        start_angle: f64,
-        end_angle: f64,
+        start_angle: Angle<f64>,
+        end_angle: Angle<f64>,
     ) -> Result<Self, EllipseArcError> {
-        let normalized_start = Self::normalize_angle(start_angle);
-        let normalized_end = Self::normalize_angle(end_angle);
+        let normalized_start = Self::normalize_angle(start_angle.to_radians());
+        let normalized_end = Self::normalize_angle(end_angle.to_radians());
 
         Ok(Self {
             ellipse,
-            start_angle: normalized_start,
-            end_angle: normalized_end,
+            start_angle: Angle::from_radians(normalized_start),
+            end_angle: Angle::from_radians(normalized_end),
         })
     }
 
@@ -69,7 +69,7 @@ impl EllipseArc {
             Angle::from_radians(rotation),
         )
         .map_err(|e| EllipseArcError::EllipseError(format!("{}", e)))?;
-        Self::new(ellipse, start_angle, end_angle)
+        Self::new(ellipse, Angle::from_radians(start_angle), Angle::from_radians(end_angle))
     }
 
     /// 角度を正規化（0 ～ 2π）
@@ -83,10 +83,13 @@ impl EllipseArc {
 
     /// 角度範囲を計算
     fn calculate_angle_range(&self) -> f64 {
-        if self.end_angle >= self.start_angle {
-            self.end_angle - self.start_angle
+        let start_rad = self.start_angle.to_radians();
+        let end_rad = self.end_angle.to_radians();
+        
+        if end_rad >= start_rad {
+            end_rad - start_rad
         } else {
-            (2.0 * PI - self.start_angle) + self.end_angle
+            (2.0 * PI - start_rad) + end_rad
         }
     }
 
@@ -104,12 +107,12 @@ impl EllipseArc {
 
     /// 楕円弧の開始角度を取得
     pub fn start_angle(&self) -> f64 {
-        self.start_angle
+        self.start_angle.to_radians()
     }
 
     /// 楕円弧の終了角度を取得
     pub fn end_angle(&self) -> f64 {
-        self.end_angle
+        self.end_angle.to_radians()
     }
 
     /// 楕円弧の角度範囲を取得
@@ -134,18 +137,19 @@ impl EllipseArc {
 
     /// 指定されたパラメータ（0.0-1.0）での楕円弧上の点を取得
     pub fn point_at_parameter(&self, t: f64) -> crate::geometry2d::Point2DF64 {
-        let angle = self.start_angle + t * self.calculate_angle_range();
+        let start_rad = self.start_angle.to_radians();
+        let angle = start_rad + t * self.calculate_angle_range();
         self.point_at_angle(angle)
     }
 
     /// 楕円弧の開始点を取得
     pub fn start_point(&self) -> crate::geometry2d::Point2DF64 {
-        self.point_at_angle(self.start_angle)
+        self.point_at_angle(self.start_angle.to_radians())
     }
 
     /// 楕円弧の終了点を取得
     pub fn end_point(&self) -> crate::geometry2d::Point2DF64 {
-        self.point_at_angle(self.end_angle)
+        self.point_at_angle(self.end_angle.to_radians())
     }
 
     /// 楕円弧の中間点を取得
@@ -180,18 +184,19 @@ impl EllipseArc {
 
     /// 指定されたパラメータでの楕円弧の接線ベクトルを取得
     pub fn tangent_at_parameter(&self, t: f64) -> Vector2D {
-        let angle = self.start_angle + t * self.calculate_angle_range();
+        let start_rad = self.start_angle.to_radians();
+        let angle = start_rad + t * self.calculate_angle_range();
         self.tangent_at_angle(angle)
     }
 
     /// 楕円弧の開始点での接線ベクトルを取得
     pub fn start_tangent(&self) -> Vector2D {
-        self.tangent_at_angle(self.start_angle)
+        self.tangent_at_angle(self.start_angle.to_radians())
     }
 
     /// 楕円弧の終了点での接線ベクトルを取得
     pub fn end_tangent(&self) -> Vector2D {
-        self.tangent_at_angle(self.end_angle)
+        self.tangent_at_angle(self.end_angle.to_radians())
     }
 
     /// 楕円弧のバウンディングボックスを計算
@@ -235,11 +240,13 @@ impl EllipseArc {
     /// 角度が楕円弧の範囲内にあるかを判定
     pub fn angle_in_range(&self, angle: f64) -> bool {
         let normalized = Self::normalize_angle(angle);
+        let start_rad = self.start_angle.to_radians();
+        let end_rad = self.end_angle.to_radians();
 
-        if self.end_angle >= self.start_angle {
-            normalized >= self.start_angle && normalized <= self.end_angle
+        if end_rad >= start_rad {
+            normalized >= start_rad && normalized <= end_rad
         } else {
-            normalized >= self.start_angle || normalized <= self.end_angle
+            normalized >= start_rad || normalized <= end_rad
         }
     }
 
@@ -291,8 +298,8 @@ impl EllipseArc {
 impl PartialEq for EllipseArc {
     fn eq(&self, other: &Self) -> bool {
         self.ellipse == other.ellipse
-            && (self.start_angle - other.start_angle).abs() < GEOMETRIC_TOLERANCE
-            && (self.end_angle - other.end_angle).abs() < GEOMETRIC_TOLERANCE
+            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
+            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs() < GEOMETRIC_TOLERANCE
     }
 }
 
