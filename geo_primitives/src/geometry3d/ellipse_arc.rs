@@ -8,7 +8,7 @@ use geo_foundation::abstract_types::geometry::common::{
 };
 use geo_foundation::abstract_types::geometry::Direction;
 use geo_foundation::abstract_types::Angle;
-use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
+use geo_foundation::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円弧関連のエラー
 #[derive(Debug, Clone, PartialEq)]

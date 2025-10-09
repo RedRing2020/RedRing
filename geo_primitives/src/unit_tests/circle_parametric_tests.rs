@@ -75,8 +75,8 @@ mod tests {
         assert_eq!(f64::ONE, 1.0f64);
 
         // PI constants test
-        assert!((f32::PI - geo_foundation::constants::game::PI).abs() < f32::EPSILON);
-        assert!((f64::PI - geo_foundation::constants::precision::PI).abs() < f64::EPSILON);
+        assert!((f32::PI - geo_foundation::game::PI).abs() < f32::EPSILON);
+        assert!((f64::PI - geo_foundation::precision::PI).abs() < f64::EPSILON);
     }
 
     #[test]

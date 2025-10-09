@@ -1,7 +1,8 @@
 /// 許容誤差に関する抽象型とトレイト
+use crate::consts;
 
-/// デフォルトの幾何計算許容誤差
-pub const GEOMETRIC_TOLERANCE: f64 = 1e-10;
+/// デフォルトの幾何計算許容誤差（constsモジュールから参照）
+pub const GEOMETRIC_TOLERANCE: f64 = consts::GEOMETRIC_TOLERANCE;
 
 /// 許容誤差コンテキスト
 #[derive(Debug, Clone, Copy)]

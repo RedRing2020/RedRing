@@ -3,8 +3,8 @@
 //! 2次元楕円の基本実装
 
 use crate::geometry2d::{bbox::BBoxF64, Circle, Point2DF64, Vector2D};
-use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use geo_foundation::Angle;
+use geo_foundation::GEOMETRIC_TOLERANCE;
 
 /// 楕円関連のエラー
 #[derive(Debug, Clone, PartialEq)]

@@ -3,8 +3,7 @@
 //! Circle3D型の機能テスト
 
 use crate::geometry3d::{Circle, Point3D};
-use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
-use geo_foundation::constants::precision::{PI, TAU};
+use geo_foundation::{GEOMETRIC_TOLERANCE, PI, TAU};
 
 #[test]
 fn test_xy_plane_circle() {

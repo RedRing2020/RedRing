@@ -1,5 +1,5 @@
 /// 共通機能モジュール
 ///
-/// 定数、エラー型などの橋渡し機能を提供
-pub mod constants;
+/// エラー型などの橋渡し機能を提供
+/// 注意: constantsはanalysisクレートに移動されました
 pub mod error;
