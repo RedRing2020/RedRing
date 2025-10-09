@@ -6,7 +6,8 @@ use crate::geometry3d::{BBox3D, Circle, Direction3D, Point3D, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
-use geo_foundation::abstract_types::{geometry::Direction, Scalar};
+use geo_foundation::abstract_types::geometry::Direction;
+use geo_foundation::Scalar;
 use geo_foundation::constants::precision::PI;
 
 /// 楕円関連のエラー

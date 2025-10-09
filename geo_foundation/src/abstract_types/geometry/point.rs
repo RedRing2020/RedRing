@@ -2,7 +2,7 @@
 //!
 //! CAD/CAM システムで使用される点の抽象化インターフェース
 
-use crate::abstract_types::TolerantEq;
+use crate::TolerantEq;
 use std::fmt::Debug;
 
 /// N次元点の抽象化トレイト

@@ -3,8 +3,8 @@
 
 use crate::geometry2d::{Direction2D, Point2D, Vector};
 
-use geo_foundation::abstract_types::{
-    geometry::{
+use geo_foundation::{
+    abstract_types::geometry::{
         Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
     },
     Scalar,

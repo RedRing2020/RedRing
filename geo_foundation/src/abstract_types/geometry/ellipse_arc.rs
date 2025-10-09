@@ -2,9 +2,8 @@
 //!
 //! 2D/3D空間における楕円弧の抽象的なインターフェースを提供
 
-use crate::abstract_types::angle::AngleType;
 use crate::abstract_types::geometry::vector::Vector3D;
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 2D楕円弧の基本操作を定義するトレイト
 pub trait EllipseArc2D<T: Scalar> {
@@ -13,7 +12,7 @@ pub trait EllipseArc2D<T: Scalar> {
     /// ベクトルの型（通常は Vector2D）
     type Vector;
     /// 角度の型（通常は Angle）
-    type Angle: Copy + AngleType<Scalar = T>;
+    type Angle: Copy;
     /// 楕円の型（通常は Ellipse2D）
     type Ellipse;
     /// 境界ボックスの型（通常は BBox2D）
@@ -141,7 +140,7 @@ pub trait EllipseArc3D<T: Scalar> {
     /// 方向の型（通常は Direction3D）
     type Direction;
     /// 角度の型（通常は Angle）
-    type Angle: Copy + AngleType<Scalar = T>;
+    type Angle: Copy;
     /// 楕円の型（通常は Ellipse3D）
     type Ellipse;
     /// 境界ボックスの型（通常は BBox3D）

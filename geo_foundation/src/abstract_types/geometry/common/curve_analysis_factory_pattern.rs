@@ -3,7 +3,7 @@
 //! 形状判定→計算ロジックディスパッチによる統一API
 
 use crate::abstract_types::geometry::curve_analysis::{CurveAnalysis3D, CurveType, DifferentialGeometry};
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 曲線解析の統一ファクトリ
 pub struct CurveAnalysisFactory;

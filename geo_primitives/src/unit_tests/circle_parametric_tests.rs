@@ -2,7 +2,7 @@
 //! Verify Circle<T> functionality with both f32 and f64 precision
 
 use crate::geometry2d::{Circle, Point2D};
-use geo_foundation::abstract_types::Scalar;
+use geo_foundation::Scalar;
 
 #[cfg(test)]
 mod tests {

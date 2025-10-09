@@ -5,7 +5,7 @@
 
 use crate::geometry3d::{Direction3D, Point3D, Vector};
 use geo_foundation::abstract_types::geometry::Direction;
-use geo_foundation::abstract_types::{Angle, Scalar};
+use geo_foundation::{Angle, Scalar};
 
 /// ジェネリック3Dレイ（半無限直線）
 #[derive(Debug, Clone, Copy, PartialEq)]

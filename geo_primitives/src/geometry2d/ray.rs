@@ -9,7 +9,7 @@ use geo_foundation::abstract_types::geometry::{
     Direction2D as Direction2DTrait,
     // Ray2D トレイトは新しい設計では InfiniteLine2D を継承
 };
-use geo_foundation::abstract_types::{Angle, Scalar};
+use geo_foundation::{Angle, Scalar};
 
 /// ジェネリック2Dレイ（半無限直線）
 #[derive(Debug, Clone, Copy, PartialEq)]

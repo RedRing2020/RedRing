@@ -55,9 +55,7 @@
 //! ---
 //! (c) RedRing Project
 
-pub mod scalar;
-pub mod tolerance;
-pub mod vector;
+// pub mod vector;  // 一時的に無効化（Scalar移行中）
 // pub mod robust;  // Vector2D/3D に依存するため一時的に無効化
 // Primitives modules removed - use geo_primitives instead
 
@@ -66,26 +64,14 @@ pub mod vector;
 mod unit_tests;
 
 // 主要な型の再エクスポート
-pub use scalar::Scalar;
-pub use tolerance::{ToleranceContext, TolerantEq, TolerantOrd, GEOMETRIC_TOLERANCE};
-pub use vector::Vector;
+// pub use vector::Vector;  // 一時的に無効化
 // Vector2D, Vector3D removed - use geo_primitives instead
 
 // Re-export deprecated 3D items - removed, use geo_primitives instead
 // pub use robust::{Orientation, RobustSolver};  // robust モジュール無効化のため一時的にコメントアウト
 
-/// 標準的な許容誤差コンテキスト
-pub const DEFAULT_TOLERANCE: ToleranceContext = ToleranceContext {
-    linear: 1e-6,      // 1マイクロメートル
-    angular: 1e-8,     // 約0.0057度
-    parametric: 1e-10, // パラメータ空間
-    curvature: 1e-3,   // 曲率許容誤差
-    area: 1e-12,       // 面積許容誤差
-    volume: 1e-18,     // 体積許容誤差
-};
-
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
-    pub use crate::{ToleranceContext, TolerantEq, TolerantOrd, DEFAULT_TOLERANCE};
+    // pub use crate::Vector;  // 一時的に無効化
     // Vector2D, Vector3D removed - use geo_primitives::prelude instead
 }

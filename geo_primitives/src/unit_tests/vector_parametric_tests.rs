@@ -4,7 +4,7 @@
 #[cfg(test)]
 pub mod tests {
     use crate::geometry2d::vector::{Vector, Vector2D, Vector2Df};
-    use geo_foundation::abstract_types::Scalar;
+    use geo_foundation::Scalar;
 
     #[test]
     fn test_vector_f64_creation() {

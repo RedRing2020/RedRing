@@ -2,9 +2,8 @@
 //!
 //! CAD/CAM システムで使用される楕円の抽象化インターフェース
 
-use crate::abstract_types::angle::AngleType;
 use crate::abstract_types::geometry::vector::Vector3D;
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 
 /// 2D楕円の基本操作を定義するトレイト
 pub trait Ellipse2D<T: Scalar> {
@@ -13,7 +12,7 @@ pub trait Ellipse2D<T: Scalar> {
     /// ベクトルの型（通常は Vector2D）
     type Vector;
     /// 角度の型（通常は Angle）
-    type Angle: Copy + AngleType<Scalar = T>;
+    type Angle: Copy;
     /// 境界ボックスの型（通常は BBox2D）
     type BBox;
     /// 楕円弧の型
@@ -117,7 +116,7 @@ pub trait Ellipse3D<T: Scalar> {
     /// 方向の型（通常は Direction3D）
     type Direction;
     /// 角度の型（通常は Angle）
-    type Angle: Copy + AngleType<Scalar = T>;
+    type Angle: Copy;
     /// 境界ボックスの型（通常は BBox3D）
     type BBox;
     /// 2D楕円の型（投影用）

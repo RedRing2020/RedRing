@@ -1,4 +1,4 @@
-﻿use geo_foundation::abstract_types::Scalar;
+﻿use geo_foundation::Scalar;
 
 /// 型パラメータ化された3Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]

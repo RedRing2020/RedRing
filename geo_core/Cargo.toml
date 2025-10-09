@@ -8,6 +8,7 @@ license = "MIT"
 [dependencies]
 # 数値計算の安定性
 num-traits = "0.2"
+analysis = { path = "../analysis" }
 approx = "0.5"  # 許容誤差ベース比較
 
 # パフォーマンス（オプション）

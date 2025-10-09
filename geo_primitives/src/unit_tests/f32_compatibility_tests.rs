@@ -6,7 +6,7 @@
 mod tests {
     use crate::geometry2d::{Direction2D, Point2D, Point2DF32, Ray2D, Vector as Vector2D};
     use crate::geometry3d::{Point3D, Point3DF32, Ray3D};
-    use geo_foundation::abstract_types::Scalar;
+    use geo_foundation::Scalar;
     use geo_foundation::Ray;
 
     #[test]

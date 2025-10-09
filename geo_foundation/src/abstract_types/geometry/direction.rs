@@ -3,7 +3,7 @@
 //! STEPにおけるDIRECTIONエンティティの抽象化。
 //! 正規化されたベクトルとして表現され、CAD形状処理に適した操作を提供する。
 
-use crate::abstract_types::Scalar;
+use crate::Scalar;
 use std::fmt::Debug;
 
 /// 方向ベクトルの抽象化トレイト

@@ -7,7 +7,7 @@ mod tests {
     use crate::geometry2d::{Point2D, Ray2D, Vector as Vector2D};
     use crate::geometry3d::{Point3D, Ray3D, Vector as Vector3D};
     use geo_foundation::abstract_types::geometry::Ray;
-    use geo_foundation::abstract_types::{Angle, Scalar};
+    use geo_foundation::{Angle, Scalar};
 
     #[test]
     fn test_ray2d_basic_operations_f64() {

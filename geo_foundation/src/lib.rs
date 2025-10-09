@@ -9,8 +9,8 @@ pub mod abstract_types;
 // 共通機能モジュール
 pub mod common;
 
-// 主要な抽象型を再エクスポート
-pub use abstract_types::{Scalar, ToleranceContext, TolerantEq};
+// analysisクレートからScalarトレイトを再エクスポート
+pub use analysis::abstract_types::{Angle, Scalar, ToleranceContext, TolerantEq};
 
 // 共通機能を再エクスポート
 pub use common::constants::GeometricTolerance;
@@ -19,13 +19,9 @@ pub use common::{constants, error};
 // 抽象型の幾何トレイトを再エクスポート
 pub use abstract_types::geometry::*;
 
-// テストモジュール
-#[cfg(test)]
-mod unit_tests;
-
 /// 便利な再エクスポート
 pub mod prelude {
-    pub use crate::abstract_types::{Scalar, ToleranceContext, TolerantEq};
     pub use crate::common::constants::*;
     pub use crate::common::error::GeometryError;
+    pub use analysis::abstract_types::{Angle, Scalar, ToleranceContext, TolerantEq};
 }
