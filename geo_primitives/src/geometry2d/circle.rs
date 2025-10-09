@@ -3,10 +3,7 @@
 //! 2次元平面における円の具体的な実装
 
 use crate::geometry2d::{bbox::BBoxF64, Point2D, Vector};
-use geo_foundation::abstract_types::{
-    geometry::BBox as BBoxTrait,
-    Scalar,
-};
+use geo_foundation::abstract_types::{geometry::BBox as BBoxTrait, Scalar};
 use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
 
 /// 2D平面上の円を表現する構造体
@@ -149,8 +146,8 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 指定された点が円の内部にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>) -> bool {
-        let distance_squared = (point.x() - self.center.x()) * (point.x() - self.center.x()) +
-                              (point.y() - self.center.y()) * (point.y() - self.center.y());
+        let distance_squared = (point.x() - self.center.x()) * (point.x() - self.center.x())
+            + (point.y() - self.center.y()) * (point.y() - self.center.y());
         distance_squared <= self.radius * self.radius
     }
 
@@ -195,7 +192,7 @@ impl<T: Scalar> Circle2D<T> {
     pub fn tangent_at_angle(&self, angle: T) -> Vector<T> {
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
-        
+
         // 接線ベクトルは (-sin, cos) 方向に半径分の長さ
         Vector::new(-self.radius * sin_angle, self.radius * cos_angle)
     }
@@ -275,27 +272,28 @@ impl Circle2D<f64> {
     /// 2つの円の交点を計算
     pub fn intersection_points(&self, other: &Circle2D<f64>) -> Vec<Point2D<f64>> {
         let distance = self.center.distance_to(&other.center);
-        
+
         // 円が交差しない場合
         if distance > self.radius + other.radius || distance < (self.radius - other.radius).abs() {
             return Vec::new();
         }
-        
+
         // 同心円の場合
         if distance < GEOMETRIC_TOLERANCE {
             return Vec::new(); // 無限個または0個の交点
         }
-        
+
         // 交点を計算
-        let a = (self.radius * self.radius - other.radius * other.radius + distance * distance) / (2.0 * distance);
+        let a = (self.radius * self.radius - other.radius * other.radius + distance * distance)
+            / (2.0 * distance);
         let h = (self.radius * self.radius - a * a).sqrt();
-        
+
         let dx = other.center.x() - self.center.x();
         let dy = other.center.y() - self.center.y();
-        
+
         let p2_x = self.center.x() + a * dx / distance;
         let p2_y = self.center.y() + a * dy / distance;
-        
+
         if h.abs() < GEOMETRIC_TOLERANCE {
             // 1点で接する
             vec![Point2D::new(p2_x, p2_y)]
@@ -303,7 +301,7 @@ impl Circle2D<f64> {
             // 2点で交差
             let offset_x = h * dy / distance;
             let offset_y = h * dx / distance;
-            
+
             vec![
                 Point2D::new(p2_x + offset_x, p2_y - offset_y),
                 Point2D::new(p2_x - offset_x, p2_y + offset_y),

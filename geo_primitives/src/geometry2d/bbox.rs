@@ -37,7 +37,8 @@ impl<T: Scalar> BBoxTrait<T> for BBox2D<T> {
         assert!(
             min.x() <= max.x() && min.y() <= max.y(),
             "Invalid bounding box: min point ({:?}) must be <= max point ({:?})",
-            min, max
+            min,
+            max
         );
         Self { min, max }
     }
@@ -116,12 +117,12 @@ impl<T: Scalar> CollisionBBox<T> for BBox2D<T> {
         // 最近点間の距離を計算
         let self_closest = self.closest_point_on_surface(other.center());
         let other_closest = other.closest_point_on_surface(self.center());
-        
+
         // 2点間のユークリッド距離
         let dx = self_closest.x() - other_closest.x();
         let dy = self_closest.y() - other_closest.y();
         let distance_squared = dx * dx + dy * dy;
-        
+
         Some(distance_squared.sqrt())
     }
 

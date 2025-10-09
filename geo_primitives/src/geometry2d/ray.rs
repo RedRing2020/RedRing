@@ -5,7 +5,8 @@
 
 use crate::geometry2d::{Direction2D, Point2D, Vector};
 use geo_foundation::abstract_types::geometry::{
-    Direction, Direction2D as Direction2DTrait, 
+    Direction,
+    Direction2D as Direction2DTrait,
     // Ray2D トレイトは新しい設計では InfiniteLine2D を継承
 };
 use geo_foundation::abstract_types::{Angle, Scalar};
