@@ -3,7 +3,7 @@
 //! 2次元平面における円の具体的な実装
 
 use crate::geometry2d::{bbox::BBoxF64, Point2D, Vector};
-use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
+use geo_foundation::GEOMETRIC_TOLERANCE;
 use geo_foundation::{abstract_types::geometry::BBox as BBoxTrait, Scalar};
 
 /// 2D平面上の円を表現する構造体

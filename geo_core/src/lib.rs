@@ -55,7 +55,6 @@
 //! ---
 //! (c) RedRing Project
 
-// pub mod vector;  // 一時的に無効化（Scalar移行中）
 // pub mod robust;  // Vector2D/3D に依存するため一時的に無効化
 // Primitives modules removed - use geo_primitives instead
 
@@ -72,6 +71,5 @@ mod unit_tests;
 
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
-    // pub use crate::Vector;  // 一時的に無効化
-    // Vector2D, Vector3D removed - use geo_primitives::prelude instead
+    // Vector modules removed - use analysis::linalg::vector or geo_primitives::prelude instead
 }

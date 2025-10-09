@@ -5,7 +5,7 @@
 use crate::geometry3d::{Direction3D, InfiniteLine3D, Point3D, Vector};
 use geo_foundation::abstract_types::geometry::Direction;
 use geo_foundation::abstract_types::geometry::InfiniteLine3D as InfiniteLine3DTrait;
-use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
+use geo_foundation::GEOMETRIC_TOLERANCE;
 
 #[test]
 fn test_infinite_line_3d_creation() {

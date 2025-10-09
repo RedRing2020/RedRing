@@ -5,8 +5,8 @@
 #[cfg(test)]
 use crate::geometry2d::Point2D;
 use crate::geometry2d::{Circle, Vector2D};
-use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
 use geo_foundation::Angle;
+use geo_foundation::{GEOMETRIC_TOLERANCE, PI};
 
 /// 円弧の種類を表現する列挙型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

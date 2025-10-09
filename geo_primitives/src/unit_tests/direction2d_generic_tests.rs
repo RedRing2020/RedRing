@@ -20,8 +20,7 @@ mod tests {
         assert!((angle - 0.0).abs() < f64::TOLERANCE);
 
         // 角度からDirection2Dを作成
-        let dir_from_angle =
-            Direction2D::<f64>::from_angle(geo_foundation::constants::precision::PI / 2.0);
+        let dir_from_angle = Direction2D::<f64>::from_angle(geo_foundation::precision::PI / 2.0);
         assert!((dir_from_angle.x() - 0.0).abs() < f64::TOLERANCE);
         assert!((dir_from_angle.y() - 1.0).abs() < f64::TOLERANCE);
     }
@@ -35,7 +34,7 @@ mod tests {
 
         // 角度関連のテスト（Scalarトレイトの角度メソッド使用）
         let angle = dir.to_angle();
-        assert!((angle - geo_foundation::constants::game::PI / 2.0).abs() < f32::TOLERANCE);
+        assert!((angle - geo_foundation::game::PI / 2.0).abs() < f32::TOLERANCE);
 
         // 角度からDirection2Dを作成
         let dir_from_angle = Direction2D::<f32>::from_angle(0.0);
