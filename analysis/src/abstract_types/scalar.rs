@@ -50,6 +50,9 @@ pub trait Scalar:
     /// 数学定数e
     const E: Self;
 
+    /// 機械イプシロン（数値精度の限界）
+    const EPSILON: Self;
+
     /// 幾何計算用の許容誤差
     const TOLERANCE: Self;
 
@@ -86,6 +89,15 @@ pub trait Scalar:
     /// 2つの値の逆正接値を計算
     fn atan2(self, other: Self) -> Self;
 
+    /// 指数関数
+    fn exp(self) -> Self;
+
+    /// 自然対数
+    fn ln(self) -> Self;
+
+    /// べき乗（浮動小数点指数）
+    fn powf(self, exp: Self) -> Self;
+
     /// 床関数（最大整数部）
     fn floor(self) -> Self;
 
@@ -112,11 +124,30 @@ pub trait Scalar:
         (self - other).abs() < Self::TOLERANCE
     }
 
+    /// 許容誤差を指定した等価判定
+    fn approx_eq_with_tolerance(self, other: Self, epsilon: Self) -> bool {
+        (self - other).abs() <= epsilon
+    }
+
+    /// ゼロに近いかの判定
+    fn is_zero(self) -> bool {
+        self.abs() <= Self::EPSILON
+    }
+
+    /// 有限値かの判定
+    fn is_finite(self) -> bool;
+
     /// f64に変換
     fn to_f64(self) -> f64;
 
+    /// f32に変換
+    fn to_f32(self) -> f32;
+
     /// f64から変換
     fn from_f64(value: f64) -> Self;
+
+    /// f32から変換
+    fn from_f32(value: f32) -> Self;
 }
 
 /// f32用のScalar実装
@@ -127,6 +158,7 @@ impl Scalar for f32 {
     const PI: Self = std::f32::consts::PI;
     const TAU: Self = std::f32::consts::TAU;
     const E: Self = std::f32::consts::E;
+    const EPSILON: Self = f32::EPSILON;
     const TOLERANCE: Self = 1e-6;
     const DEG_TO_RAD: Self = Self::PI / 180.0;
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
@@ -212,8 +244,38 @@ impl Scalar for f32 {
     }
 
     #[inline]
+    fn to_f32(self) -> f32 {
+        self
+    }
+
+    #[inline]
     fn from_f64(value: f64) -> Self {
         value as f32
+    }
+
+    #[inline]
+    fn from_f32(value: f32) -> Self {
+        value
+    }
+
+    #[inline]
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+
+    #[inline]
+    fn exp(self) -> Self {
+        self.exp()
+    }
+
+    #[inline]
+    fn ln(self) -> Self {
+        self.ln()
+    }
+
+    #[inline]
+    fn powf(self, exp: Self) -> Self {
+        self.powf(exp)
     }
 
     #[inline]
@@ -230,6 +292,7 @@ impl Scalar for f64 {
     const PI: Self = std::f64::consts::PI;
     const TAU: Self = std::f64::consts::TAU;
     const E: Self = std::f64::consts::E;
+    const EPSILON: Self = f64::EPSILON;
     const TOLERANCE: Self = 1e-10;
     const DEG_TO_RAD: Self = Self::PI / 180.0;
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
@@ -315,8 +378,38 @@ impl Scalar for f64 {
     }
 
     #[inline]
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+
+    #[inline]
     fn from_f64(value: f64) -> Self {
         value
+    }
+
+    #[inline]
+    fn from_f32(value: f32) -> Self {
+        value as f64
+    }
+
+    #[inline]
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+
+    #[inline]
+    fn exp(self) -> Self {
+        self.exp()
+    }
+
+    #[inline]
+    fn ln(self) -> Self {
+        self.ln()
+    }
+
+    #[inline]
+    fn powf(self, exp: Self) -> Self {
+        self.powf(exp)
     }
 
     #[inline]

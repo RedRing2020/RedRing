@@ -3,7 +3,7 @@
 //! Doolittle法によるLU分解を実装
 //! 部分ピボット選択付きで数値安定性を確保
 use super::{LinearSolver, SolutionInfo};
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 
 /// LU分解ソルバー
 pub struct LUSolver<T: Scalar> {

@@ -11,7 +11,7 @@ pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;
 pub use lu::LUSolver;
 
-use super::scalar::Scalar;
+use crate::abstract_types::Scalar;
 
 /// 連立方程式の解法結果
 #[derive(Debug, Clone)]

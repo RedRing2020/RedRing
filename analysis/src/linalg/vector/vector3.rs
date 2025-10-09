@@ -2,7 +2,7 @@
 //!
 //! 3D幾何計算、物理シミュレーション、3Dグラフィックスに最適化
 //! CAD/CAMの座標変換や法線ベクトル計算に使用
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 3次元固定サイズベクトル

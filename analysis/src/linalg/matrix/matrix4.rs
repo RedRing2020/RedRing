@@ -2,7 +2,7 @@
 //!
 //! 3D変換、射影変換、カメラ変換のための専用行列
 //! OpenGL/DirectX互換の行列演算を提供
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
 use std::ops::{Add, Mul};
 
