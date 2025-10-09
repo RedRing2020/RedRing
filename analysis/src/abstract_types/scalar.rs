@@ -148,6 +148,9 @@ pub trait Scalar:
 
     /// f32から変換
     fn from_f32(value: f32) -> Self;
+
+    /// usizeから変換
+    fn from_usize(value: usize) -> Self;
 }
 
 /// f32用のScalar実装
@@ -256,6 +259,11 @@ impl Scalar for f32 {
     #[inline]
     fn from_f32(value: f32) -> Self {
         value
+    }
+
+    #[inline]
+    fn from_usize(value: usize) -> Self {
+        value as f32
     }
 
     #[inline]
@@ -389,6 +397,11 @@ impl Scalar for f64 {
 
     #[inline]
     fn from_f32(value: f32) -> Self {
+        value as f64
+    }
+
+    #[inline]
+    fn from_usize(value: usize) -> Self {
         value as f64
     }
 

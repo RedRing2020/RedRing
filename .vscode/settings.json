@@ -5,7 +5,7 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "files.autoSave": "onFocusChange",
-  
+
   // === Editor General Settings ===
   "editor.tabSize": 2,
   "editor.detectIndentation": false,
@@ -19,7 +19,7 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit"
   },
-  
+
   // === Language-Specific Settings ===
   "[rust]": {
     "editor.tabSize": 4,
@@ -54,7 +54,7 @@
   "[yaml]": {
     "editor.tabSize": 2
   },
-  
+
   // === Rust-Analyzer Settings ===
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.check.allTargets": true,
@@ -66,7 +66,7 @@
   "rust-analyzer.lens.enable": true,
   "rust-analyzer.lens.methodReferences": true,
   "rust-analyzer.lens.references": true,
-  
+
   // === Search & Explorer ===
   "search.exclude": {
     "**/target": true,
@@ -83,25 +83,31 @@
   "files.watcherExclude": {
     "**/target/**": true
   },
-  
+
   // === Terminal Settings ===
   "terminal.integrated.defaultProfile.windows": "PowerShell",
   "terminal.integrated.fontSize": 14,
   "terminal.integrated.scrollback": 10000,
-  
+
   // === Git Settings ===
   "git.autofetch": true,
   "git.confirmSync": false,
   "git.enableSmartCommit": true,
-  
+
   // === Workspace-Specific Settings ===
   "workbench.colorTheme": "Default Dark+",
   "workbench.iconTheme": "vs-seti",
   "breadcrumbs.enabled": true,
   "explorer.confirmDelete": false,
   "explorer.confirmDragAndDrop": false,
-  
+
   // === Performance Settings ===
   "typescript.preferences.includePackageJsonAutoImports": "off",
-  "extensions.ignoreRecommendations": false
+  "extensions.ignoreRecommendations": false,
+  "terminal.integrated.automationProfile.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "args": ["-NoExit", "-Command", "[Console]::OutputEncoding=[Console]::InputEncoding=[System.Text.Encoding]::UTF8; chcp 65001"]
+    }
+  }
 }
