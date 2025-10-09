@@ -7,8 +7,8 @@ use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
 use geo_foundation::abstract_types::geometry::Direction;
-use geo_foundation::PI;
 use geo_foundation::Scalar;
+use geo_foundation::PI;
 
 /// 楕円関連のエラー
 #[derive(Debug, Clone, PartialEq)]

@@ -15,8 +15,8 @@ mod tests {
     // 必要な型のみを明示的にインポート
     use crate::geometry2d::{arc::ArcKind, Arc};
     use crate::traits::Circle2D; // Circle の contains_point メソッド用
-    use geo_foundation::PI;
     use geo_foundation::Angle;
+    use geo_foundation::PI;
 
     #[test]
     fn test_arc_creation() {
