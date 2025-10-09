@@ -7,6 +7,7 @@ use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
 use geo_foundation::abstract_types::geometry::Direction;
+use geo_foundation::abstract_types::Angle;
 use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円弧関連のエラー
@@ -33,24 +34,24 @@ impl std::error::Error for EllipseArcError {}
 #[derive(Debug, Clone)]
 pub struct EllipseArc {
     ellipse: Ellipse,
-    start_angle: f64,
-    end_angle: f64,
+    start_angle: geo_foundation::abstract_types::Angle<f64>,
+    end_angle: geo_foundation::abstract_types::Angle<f64>,
 }
 
 impl EllipseArc {
     /// 新しい楕円弧を作成
     pub fn new(
         ellipse: Ellipse,
-        start_angle: f64,
-        end_angle: f64,
+        start_angle: Angle<f64>,
+        end_angle: Angle<f64>,
     ) -> Result<Self, EllipseArcError> {
-        let normalized_start = Self::normalize_angle(start_angle);
-        let normalized_end = Self::normalize_angle(end_angle);
+        let normalized_start = Self::normalize_angle(start_angle.to_radians());
+        let normalized_end = Self::normalize_angle(end_angle.to_radians());
 
         Ok(Self {
             ellipse,
-            start_angle: normalized_start,
-            end_angle: normalized_end,
+            start_angle: Angle::from_radians(normalized_start),
+            end_angle: Angle::from_radians(normalized_end),
         })
     }
 
@@ -64,7 +65,7 @@ impl EllipseArc {
     ) -> Result<Self, EllipseArcError> {
         let ellipse = Ellipse::xy_plane(center, major_radius, minor_radius)
             .map_err(|e| EllipseArcError::EllipseError(format!("{}", e)))?;
-        Self::new(ellipse, start_angle, end_angle)
+        Self::new(ellipse, Angle::from_radians(start_angle), Angle::from_radians(end_angle))
     }
 
     /// 角度を正規化（0 ～ 2π）
