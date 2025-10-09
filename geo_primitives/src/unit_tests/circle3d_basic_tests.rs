@@ -1,9 +1,8 @@
+use crate::geometry3d::circle::Circle3D;
 /// Circle3D 単体テスト
 ///
 /// Circle3D実装の機能テスト
-
 use crate::geometry3d::{Point3D, Vector};
-use crate::geometry3d::circle::Circle3D;
 use geo_foundation::constants::precision::{PI, TAU};
 use geo_foundation::Scalar;
 
