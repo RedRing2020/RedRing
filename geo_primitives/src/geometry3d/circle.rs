@@ -9,6 +9,7 @@ use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
 use geo_foundation::abstract_types::Scalar;
+use std::f64::consts::{PI, TAU};
 
 /// 3D空間上の円を表現する構造体
 /// 円は指定された平面上に存在する
@@ -164,6 +165,74 @@ impl<T: Scalar> Circle<T> {
             self.center.z() + vector.z(),
         );
         Self::new(new_center, self.radius, self.normal, self.u_axis)
+    }
+
+    /// 円の面積を計算
+    pub fn area(&self) -> T {
+        // π * r²
+        let pi = T::from_f64(std::f64::consts::PI);
+        pi * self.radius * self.radius
+    }
+
+    /// 円の周長を計算
+    pub fn circumference(&self) -> T {
+        // 2π * r
+        let tau = T::from_f64(2.0 * std::f64::consts::PI);
+        tau * self.radius
+    }
+
+    /// 指定された点が円の内部にあるかを判定
+    pub fn contains_point(&self, point: &Point3D<T>) -> bool {
+        // 点が円の平面上にあるかチェック
+        let to_point = Vector::new(
+            point.x() - self.center.x(),
+            point.y() - self.center.y(),
+            point.z() - self.center.z(),
+        );
+        
+        // 平面からの距離をチェック
+        let distance_to_plane = to_point.x() * self.normal.x() + 
+                               to_point.y() * self.normal.y() + 
+                               to_point.z() * self.normal.z();
+        
+        if distance_to_plane.abs() > T::TOLERANCE {
+            return false; // 点が平面上にない
+        }
+
+        // 中心からの距離をチェック
+        let distance_from_center = (to_point.x() * to_point.x() + 
+                                  to_point.y() * to_point.y() + 
+                                  to_point.z() * to_point.z()).sqrt();
+        
+        distance_from_center <= self.radius
+    }
+
+    /// 指定された角度（ラジアン）の位置にある点を取得
+    pub fn point_at_angle(&self, angle: T) -> Point3D<T> {
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+
+        Point3D::new(
+            self.center.x() + self.radius * (cos_angle * self.u_axis.x() + sin_angle * self.v_axis.x()),
+            self.center.y() + self.radius * (cos_angle * self.u_axis.y() + sin_angle * self.v_axis.y()),
+            self.center.z() + self.radius * (cos_angle * self.u_axis.z() + sin_angle * self.v_axis.z()),
+        )
+    }
+
+    /// 円の境界ボックス（最小と最大の座標値）を取得
+    pub fn bounding_box(&self) -> (Point3D<T>, Point3D<T>) {
+        // 円の範囲は半径分の立方体
+        let min = Point3D::new(
+            self.center.x() - self.radius,
+            self.center.y() - self.radius,
+            self.center.z() - self.radius,
+        );
+        let max = Point3D::new(
+            self.center.x() + self.radius,
+            self.center.y() + self.radius,
+            self.center.z() + self.radius,
+        );
+        (min, max)
     }
 }
 

@@ -172,6 +172,46 @@ impl<T: Scalar> Arc<T> {
         let angle_rad = start_rad + span * t;
         Angle::from_radians(angle_rad)
     }
+
+    /// 指定された角度が円弧に含まれているかを判定
+    pub fn angle_contains(&self, angle: Angle<T>) -> bool {
+        let angle_rad = angle.to_radians();
+        let start_rad = self.start_angle.to_radians();
+        let end_rad = self.end_angle.to_radians();
+
+        if end_rad >= start_rad {
+            // 通常の場合（2π境界をまたがない）
+            angle_rad >= start_rad && angle_rad <= end_rad
+        } else {
+            // 2π境界をまたぐ場合
+            angle_rad >= start_rad || angle_rad <= end_rad
+        }
+    }
+
+    /// 円弧を逆転させる（開始角度と終了角度を入れ替える）
+    pub fn reverse(&self) -> Self {
+        Self::new(self.circle.clone(), self.end_angle, self.start_angle)
+    }
+
+    /// 円弧を指定した分割数で近似する点列を取得
+    pub fn approximate_with_points(&self, num_segments: usize) -> Vec<Point3D<T>> {
+        if num_segments == 0 {
+            return vec![];
+        }
+
+        let mut points = Vec::with_capacity(num_segments + 1);
+        let span = self.angle_span();
+
+        // セグメント数 + 1 の点を生成（開始点、中間点、終了点）
+        for i in 0..=num_segments {
+            let t = T::from_f64(i as f64 / num_segments as f64);
+            let angle_rad = self.start_angle.to_radians() + span * t;
+            let point = self.circle.point_at_angle(angle_rad);
+            points.push(point);
+        }
+
+        points
+    }
 }
 
 // =============================================================================

@@ -5,11 +5,12 @@ use crate::geometry3d::{BBox3D, Point3D};
 use crate::traits::common::classification::PrimitiveKind;
 use crate::traits::common::geometry_utils::*;
 use crate::traits::common::primitive_trait::GeometricPrimitive;
+use geo_foundation::abstract_types::geometry::BBox as BBoxTrait;
 
 // Primitive trait tests
 struct MockPrimitive {
     kind: PrimitiveKind,
-    bbox: BBox3D,
+    bbox: BBox3D<f64>,
     measure: Option<f64>,
 }
 
@@ -18,7 +19,7 @@ impl GeometricPrimitive for MockPrimitive {
         self.kind
     }
 
-    fn bounding_box(&self) -> BBox3D {
+    fn bounding_box(&self) -> BBox3D<f64> {
         self.bbox.clone()
     }
 
