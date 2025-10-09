@@ -7,7 +7,7 @@ pub mod circle; // Circle3D<T>ジェネリック実装（✅ 型変換完了）
 pub mod direction; // Direction3D<T>ジェネリック実装
                    // pub mod ellipse;  // 一時的にコメントアウト（複雑すぎるため後回し）
                    // pub mod ellipse_arc;  // 一時的にコメントアウト（Ellipse依存）
-                   // pub mod infinite_line;  // 一時的にコメントアウト（変換作業中）  // InfiniteLine3D実装を有効化
+pub mod infinite_line;  // InfiniteLine3D実装を有効化
 pub mod point;
 pub mod ray; // Ray3D実装
 pub mod vector;
@@ -19,7 +19,7 @@ pub use circle::{Circle, Circle3DF32, Circle3DF64}; // Circle3D<T>ジェネリ�
 pub use direction::{Direction3D, Direction3DF32, Direction3DF64}; // ジェネリックDirection3D
                                                                   // pub use ellipse::Ellipse;  // 一時的にコメントアウト（複雑すぎるため後回し）
                                                                   // pub use ellipse_arc::EllipseArc;  // 一時的にコメントアウト（Ellipse依存）
-                                                                  // pub use infinite_line::InfiniteLine3D;  // 一時的にコメントアウト（変換作業中）
+pub use infinite_line::InfiniteLine3D;  // InfiniteLine3D公開
 pub use point::{Point, Point3D, Point3DF32, Point3DF64};
 pub use ray::{Ray3D, Ray3DF32, Ray3DF64}; // Ray3D公開
 pub use vector::{Vector, Vector3D, Vector3Df};

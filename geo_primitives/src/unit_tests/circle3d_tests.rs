@@ -64,13 +64,14 @@ fn test_bounding_box() {
     let circle = Circle::xy_plane_circle(Point3D::new(1.0, 2.0, 3.0), 4.0);
     let (min, max) = circle.bounding_box();
 
-    // 簡略化された境界ボックス実装では、全ての軸で半径分を加減する
-    assert!((min.x() - (-3.0_f64)).abs() < GEOMETRIC_TOLERANCE);
-    assert!((min.y() - (-2.0_f64)).abs() < GEOMETRIC_TOLERANCE);
-    assert!((min.z() - (-1.0_f64)).abs() < GEOMETRIC_TOLERANCE); // center.z() - radius = 3 - 4 = -1
-    assert!((max.x() - 5.0_f64).abs() < GEOMETRIC_TOLERANCE);
-    assert!((max.y() - 6.0_f64).abs() < GEOMETRIC_TOLERANCE);
-    assert!((max.z() - 7.0_f64).abs() < GEOMETRIC_TOLERANCE); // center.z() + radius = 3 + 4 = 7
+    // XY平面の円の境界ボックス計算
+    // u_axis = (1,0,0), v_axis = (0,1,0) なので、Z軸方向には範囲が広がらない
+    assert!((min.x() - (-3.0_f64)).abs() < GEOMETRIC_TOLERANCE); // center.x - radius = 1 - 4 = -3
+    assert!((min.y() - (-2.0_f64)).abs() < GEOMETRIC_TOLERANCE); // center.y - radius = 2 - 4 = -2
+    assert!((min.z() - 3.0_f64).abs() < GEOMETRIC_TOLERANCE); // center.z (変化なし) = 3
+    assert!((max.x() - 5.0_f64).abs() < GEOMETRIC_TOLERANCE); // center.x + radius = 1 + 4 = 5
+    assert!((max.y() - 6.0_f64).abs() < GEOMETRIC_TOLERANCE); // center.y + radius = 2 + 4 = 6
+    assert!((max.z() - 3.0_f64).abs() < GEOMETRIC_TOLERANCE); // center.z (変化なし) = 3
 }
 
 // TODO: to_2dメソッドは現在実装されていないため、テストを無効化

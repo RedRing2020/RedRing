@@ -108,6 +108,19 @@ where
     }
 }
 
+// AbstractBBoxトレイトの実装を追加
+impl<T: Scalar> geo_foundation::abstract_types::geometry::primitive::AbstractBBox<T> for BBox3D<T> {
+    type Point = Point3D<T>;
+
+    fn min(&self) -> Self::Point {
+        self.min
+    }
+
+    fn max(&self) -> Self::Point {
+        self.max
+    }
+}
+
 impl<T: Scalar> CollisionBBox<T> for BBox3D<T> {
     fn fast_overlaps(&self, other: &Self) -> bool {
         // 軸平行境界ボックス特化の高速重複テスト

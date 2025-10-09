@@ -10,12 +10,10 @@ use geo_foundation::abstract_types::geometry::common::{
 use geo_foundation::{
     abstract_types::{
         geometry::{
-            Direction, InfiniteLine3D as InfiniteLine3DTrait, InfiniteLineAnalysis,
-            InfiniteLineBuilder,
+            Direction, InfiniteLine3D as InfiniteLine3DTrait,
         },
         Scalar,
     },
-    common::constants::GEOMETRIC_TOLERANCE,
 };
 
 /// ジェネリック3D無限直線
@@ -78,13 +76,13 @@ impl<T: Scalar> InfiniteLine3D<T> {
     }
 
     /// XY平面に投影した2D直線を取得
-    pub fn project_to_xy(&self) -> crate::geometry2d::InfiniteLine2D {
-        use crate::geometry2d::{Direction2D, Point2D};
+    pub fn project_to_xy(&self) -> crate::geometry2d::InfiniteLine2D<f64> {
+        use crate::geometry2d::{Direction2D, Point2D, Vector};
 
-        let origin_2d = Point2D::new(self.origin.x(), self.origin.y());
-        let dir_2d = Direction2D::from_vector(crate::geometry2d::Vector2D::new(
-            self.direction.x(),
-            self.direction.y(),
+        let origin_2d = Point2D::new(self.origin.x().to_f64(), self.origin.y().to_f64());
+        let dir_2d = Direction2D::from_vector(Vector::new(
+            self.direction.x().to_f64(),
+            self.direction.y().to_f64(),
         ))
         .unwrap_or_else(|| {
             // Z方向の場合、任意の方向を選択
@@ -186,7 +184,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         let cross_d1_d2 = d1.cross(&d2);
         let cross_norm_sq = cross_d1_d2.length_squared();
 
-        if cross_norm_sq < GEOMETRIC_TOLERANCE * GEOMETRIC_TOLERANCE {
+        if cross_norm_sq < T::TOLERANCE * T::TOLERANCE {
             return None; // 平行または同一直線
         }
 
@@ -197,11 +195,11 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         let w_cross_d1 = w.cross(&d1);
         let t2 = w_cross_d1.dot(&cross_d1_d2) / cross_norm_sq;
 
-        let point1 = self.point_at_parameter(t1);
-        let point2 = other.point_at_parameter(t2);
+        let point1 = InfiniteLine3DTrait::point_at_parameter(self, t1);
+        let point2 = InfiniteLine3DTrait::point_at_parameter(other, t2);
 
         // 2点間の距離が許容誤差内であれば交点とみなす
-        if point1.distance_to(&point2) < GEOMETRIC_TOLERANCE {
+        if point1.distance_to(&point2) < T::TOLERANCE {
             Some(Point3D::new(
                 (point1.x() + point2.x()) / (T::ONE + T::ONE),
                 (point1.y() + point2.y()) / (T::ONE + T::ONE),
@@ -212,7 +210,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         }
     }
 
-    fn is_parallel_to(&self, other: &Self, tolerance: f64) -> bool {
+    fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
         let dir1 = self.direction.to_vector();
         let dir2 = other.direction.to_vector();
 
@@ -221,17 +219,17 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         cross_product.length() < tolerance
     }
 
-    fn is_coincident_with(&self, other: &Self, tolerance: f64) -> bool {
+    fn is_coincident_with(&self, other: &Self, tolerance: T) -> bool {
         // 平行かつ、一方の点がもう一方の直線上にある
         self.is_parallel_to(other, tolerance) && self.distance_to_point(&other.origin) < tolerance
     }
 
-    fn is_skew_to(&self, other: &Self, tolerance: f64) -> bool {
+    fn is_skew_to(&self, other: &Self, tolerance: T) -> bool {
         // 平行でなく、交差もしない（ねじれの位置）
         !self.is_parallel_to(other, tolerance) && self.intersect_line(other).is_none()
     }
 
-    fn distance_to_line(&self, other: &Self) -> f64 {
+    fn distance_to_line(&self, other: &Self) -> T {
         let p1 = self.origin;
         let d1 = self.direction.to_vector();
         let p2 = other.origin;
@@ -241,7 +239,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         let cross_d1_d2 = d1.cross(&d2);
         let cross_norm = cross_d1_d2.length();
 
-        if cross_norm < GEOMETRIC_TOLERANCE {
+        if cross_norm < T::TOLERANCE {
             // 平行線の場合
             return self.distance_to_point(&p2);
         }
@@ -260,7 +258,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         let cross_d1_d2 = d1.cross(&d2);
         let cross_norm_sq = cross_d1_d2.length_squared();
 
-        if cross_norm_sq < GEOMETRIC_TOLERANCE * GEOMETRIC_TOLERANCE {
+        if cross_norm_sq < T::TOLERANCE * T::TOLERANCE {
             return None; // 平行線
         }
 
@@ -270,8 +268,8 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         let w_cross_d1 = w.cross(&d1);
         let t2 = w_cross_d1.dot(&cross_d1_d2) / cross_norm_sq;
 
-        let point1 = self.point_at_parameter(t1);
-        let point2 = other.point_at_parameter(t2);
+        let point1 = InfiniteLine3DTrait::point_at_parameter(self, t1);
+        let point2 = InfiniteLine3DTrait::point_at_parameter(other, t2);
 
         Some((point1, point2))
     }
@@ -284,7 +282,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         let dir_vec = self.direction.to_vector();
         let denom = dir_vec.dot(plane_normal);
 
-        if denom.abs() < GEOMETRIC_TOLERANCE {
+        if denom.abs() < T::TOLERANCE {
             return None; // 直線が平面に平行
         }
 
@@ -295,14 +293,14 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         );
 
         let t = to_plane.dot(plane_normal) / denom;
-        Some(self.point_at_parameter(t))
+        Some(InfiniteLine3DTrait::point_at_parameter(self, t))
     }
 
     fn rotate_around_axis(
         &self,
         _axis_point: &Self::Point,
         _axis_direction: &Self::Direction,
-        _angle: f64,
+        _angle: T,
     ) -> Result<Self, Self::Error>
     where
         Self: Sized,

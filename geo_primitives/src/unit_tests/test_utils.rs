@@ -1,12 +1,12 @@
-//! Test utilities // Surface要素のテスト用エイリアス
-// use crate::surface::{SphereF32, SphereF64};  // 一時的にコメントアウトdule
+//! Test utilities
 //! テスト共通のユーティリティとエイリアス定義
 //!
 //! このモジュールは実装コードとテストコードの分離を支援し、
 //! テストでのみ必要な型インポートを提供します。
 
-// テストユーティリティでは全ての型を提供するため、未使用インポート警告を抑制
+// テストユーティリティでは全ての型を提供するため、未使用要素警告を抑制
 #![allow(unused_imports)]
+#![allow(dead_code)]
 
 // 2D 幾何要素のテスト用エイリアス
 pub use crate::geometry2d::{
