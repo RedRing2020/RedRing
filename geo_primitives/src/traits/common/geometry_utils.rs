@@ -11,7 +11,7 @@ use crate::geometry3d::point::Point3DF64 as Point3D;
 // ジェネリック関数は geo_foundation に移動されました
 // 以下の関数は geo_foundation::abstract_types::geometry::utils で利用可能です:
 // - scalar_distance<T: Scalar>(a: T, b: T) -> T
-// - scalar_min<T: Scalar>(a: T, b: T) -> T  
+// - scalar_min<T: Scalar>(a: T, b: T) -> T
 // - scalar_max<T: Scalar>(a: T, b: T) -> T
 // - lerp<T: Scalar>(start: T, end: T, t: T) -> T
 // - clamp<T: Scalar>(value: T, min: T, max: T) -> T

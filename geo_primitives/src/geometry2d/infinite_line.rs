@@ -3,13 +3,11 @@
 
 use crate::geometry2d::{Direction2D, Point2D, Vector};
 
-use geo_foundation::{
-    abstract_types::{
-        geometry::{
-            Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
-        },
-        Scalar,
+use geo_foundation::abstract_types::{
+    geometry::{
+        Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
     },
+    Scalar,
 };
 
 /// 2D無限直線
@@ -31,10 +29,7 @@ impl<T: Scalar> InfiniteLine2D<T> {
     }
 
     /// 2点を通る無限直線を作成
-    pub fn from_two_points(
-        point1: Point2D<T>,
-        point2: Point2D<T>,
-    ) -> Option<Self> {
+    pub fn from_two_points(point1: Point2D<T>, point2: Point2D<T>) -> Option<Self> {
         let diff = Vector::new(point2.x() - point1.x(), point2.y() - point1.y());
 
         if diff.length() < T::TOLERANCE {
@@ -247,12 +242,7 @@ impl<T: Scalar> InfiniteLineAnalysis<T> for InfiniteLine2D<T> {
         self.equation_coefficients()
     }
 
-    fn sample_points(
-        &self,
-        start_param: T,
-        end_param: T,
-        num_points: usize,
-    ) -> Vec<Self::Point> {
+    fn sample_points(&self, start_param: T, end_param: T, num_points: usize) -> Vec<Self::Point> {
         if num_points == 0 {
             return Vec::new();
         }

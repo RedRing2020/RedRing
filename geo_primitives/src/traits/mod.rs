@@ -12,8 +12,8 @@ pub use geo_foundation::abstract_types::geometry::{
 
 // Re-export abstract primitive traits from geo_foundation
 pub use geo_foundation::abstract_types::geometry::{
-    DimensionClass, GeometricPrimitive, GeometryPrimitive, MeasurablePrimitive, PrimitiveKind,
-    PrimitiveCollection, SpatialRelation, TransformablePrimitive,
+    DimensionClass, GeometricPrimitive, GeometryPrimitive, MeasurablePrimitive,
+    PrimitiveCollection, PrimitiveKind, SpatialRelation, TransformablePrimitive,
 };
 
 // Re-export utility functions from geo_foundation
@@ -25,4 +25,4 @@ pub use geo_foundation::abstract_types::geometry::utils::{
 pub use crate::geometry2d::Arc2D;
 
 // Re-export geo_primitives specific implementations
-pub use common::{GeometryUnion};
+pub use common::GeometryUnion;

@@ -1,7 +1,7 @@
 //! 幾何プリミティブの共通トレイト
 //!
 //! 全ての幾何プリミティブが実装すべき基本的なインターフェース
-//! 
+//!
 //! 注意: 抽象的なトレイト定義は geo_foundation に移動されました。
 //! 以下のトレイトは geo_foundation::abstract_types::geometry::primitive で利用可能です:
 //! - GeometricPrimitive<T: Scalar>

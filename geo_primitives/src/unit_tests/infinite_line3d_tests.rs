@@ -3,8 +3,8 @@
 // InfiniteLine3Dの実装が完了したため、テストを有効化
 
 use crate::geometry3d::{Direction3D, InfiniteLine3D, Point3D, Vector};
-use geo_foundation::abstract_types::geometry::InfiniteLine3D as InfiniteLine3DTrait;
 use geo_foundation::abstract_types::geometry::Direction;
+use geo_foundation::abstract_types::geometry::InfiniteLine3D as InfiniteLine3DTrait;
 use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
 
 #[test]
@@ -107,11 +107,9 @@ fn test_distance_to_line_3d() {
 
 #[test]
 fn test_plane_intersection() {
-    let line = InfiniteLine3D::from_two_points(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(1.0, 1.0, 1.0),
-    )
-    .unwrap();
+    let line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0))
+            .unwrap();
 
     // XY平面との交点
     let plane_normal = Vector::new(0.0, 0.0, 1.0);
@@ -144,11 +142,9 @@ fn test_sample_points() {
 
 #[test]
 fn test_parameter_at_point_3d() {
-    let line = InfiniteLine3D::from_two_points(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(1.0, 0.0, 0.0),
-    )
-    .unwrap();
+    let line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
 
     let point = Point3D::new(5.0, 0.0, 0.0);
     let param = line.parameter_at_point(&point);
@@ -158,10 +154,7 @@ fn test_parameter_at_point_3d() {
 
 #[test]
 fn test_project_to_xy() {
-    let line3d = InfiniteLine3D::new(
-        Point3D::new(1.0, 2.0, 3.0),
-        Direction3D::positive_x(),
-    );
+    let line3d = InfiniteLine3D::new(Point3D::new(1.0, 2.0, 3.0), Direction3D::positive_x());
 
     let line2d = line3d.project_to_xy();
 

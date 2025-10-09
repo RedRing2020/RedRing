@@ -2,8 +2,8 @@
 //!
 //! 全ての幾何プリミティブが実装すべき基本的なインターフェース
 
-use crate::abstract_types::scalar::Scalar;
 use super::classification::PrimitiveKind;
+use crate::abstract_types::scalar::Scalar;
 
 // BBoxを抽象境界ボックスとして定義（より柔軟な実装）
 /// 抽象的な境界ボックストレイト
@@ -71,17 +71,20 @@ pub trait PrimitiveCollection<T: Scalar = f64> {
     fn nearest_to_point(&self, point: (T, T, T)) -> Option<&Self::Item>;
 
     /// 指定した境界ボックスと交差するプリミティブを取得（ジェネリック版）
-    fn intersecting_with_bbox(&self, bbox: &<Self::Item as GeometricPrimitive<T>>::BBox) -> Vec<&Self::Item>;
+    fn intersecting_with_bbox(
+        &self,
+        bbox: &<Self::Item as GeometricPrimitive<T>>::BBox,
+    ) -> Vec<&Self::Item>;
 }
 
 /// プリミティブ同士の空間関係を表現するトレイト
 pub trait SpatialRelation<T: Scalar = f64, Other: GeometricPrimitive<T> = Self> {
     /// 他のプリミティブとの距離を計算
     fn distance_to(&self, other: &Other) -> T;
-    
+
     /// 他のプリミティブと交差するかどうか
     fn intersects_with(&self, other: &Other) -> bool;
-    
+
     /// 他のプリミティブを含むかどうか
     fn contains(&self, other: &Other) -> bool;
 }
