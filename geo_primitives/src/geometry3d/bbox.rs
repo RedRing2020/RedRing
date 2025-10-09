@@ -151,7 +151,7 @@ impl<T: Scalar> CollisionBBox<T> for BBox3D<T> {
     }
 
     fn closest_point_on_surface(&self, point: Self::Point) -> Self::Point {
-        Point::new(
+        Point3D::new(
             point.x().clamp(self.min.x(), self.max.x()),
             point.y().clamp(self.min.y(), self.max.y()),
             point.z().clamp(self.min.z(), self.max.z()),
@@ -161,12 +161,12 @@ impl<T: Scalar> CollisionBBox<T> for BBox3D<T> {
 
 impl<T: Scalar> BBox3D<T> {
     /// 最小点を取得（読み取り専用アクセサ）
-    pub fn min_point(&self) -> Point {
+    pub fn min_point(&self) -> Point3D<T> {
         self.min
     }
 
     /// 最大点を取得（読み取り専用アクセサ）
-    pub fn max_point(&self) -> Point {
+    pub fn max_point(&self) -> Point3D<T> {
         self.max
     }
 
@@ -204,7 +204,7 @@ impl<T: Scalar> BBox3D<T> {
     ///
     /// # 安全性
     /// min <= max の条件を満たさない場合はpanicします
-    pub fn update(&mut self, min: Point, max: Point) {
+    pub fn update(&mut self, min: Point3D<T>, max: Point3D<T>) {
         assert!(
             min.x() <= max.x() && min.y() <= max.y() && min.z() <= max.z(),
             "Invalid bounding box: min must be <= max"
@@ -214,65 +214,68 @@ impl<T: Scalar> BBox3D<T> {
     }
 
     /// 点を境界ボックスに含めるよう拡張
-    pub fn expand_to_include_point(&mut self, point: Point) {
-        self.min = Point::new(
+    pub fn expand_to_include_point(&mut self, point: Point3D<T>) {
+        self.min = Point3D::new(
             self.min.x().min(point.x()),
             self.min.y().min(point.y()),
             self.min.z().min(point.z()),
         );
-        self.max = Point::new(
+        self.max = Point3D::new(
             self.max.x().max(point.x()),
             self.max.y().max(point.y()),
             self.max.z().max(point.z()),
         );
     }
 
-    /// 新しいBBox3Dをタプルから作成（互換性のため）
-    pub fn new_from_tuples(min: (f64, f64, f64), max: (f64, f64, f64)) -> Self {
+    /// 新しいBBox3Dをタプルから作成（ジェネリック版）
+    pub fn new_from_tuples(min: (T, T, T), max: (T, T, T)) -> Self {
         Self::new(
-            Point::new(min.0, min.1, min.2),
-            Point::new(max.0, max.1, max.2),
+            Point3D::new(min.0, min.1, min.2),
+            Point3D::new(max.0, max.1, max.2),
         )
     }
 
-    /// 座標値から直接作成（互換性のため）
+    /// 座標値から直接作成（ジェネリック版）
     pub fn from_coords(
-        min_x: f64,
-        min_y: f64,
-        min_z: f64,
-        max_x: f64,
-        max_y: f64,
-        max_z: f64,
+        min_x: T,
+        min_y: T,
+        min_z: T,
+        max_x: T,
+        max_y: T,
+        max_z: T,
     ) -> Self {
         Self::new(
-            Point::new(min_x, min_y, min_z),
-            Point::new(max_x, max_y, max_z),
+            Point3D::new(min_x, min_y, min_z),
+            Point3D::new(max_x, max_y, max_z),
         )
     }
 
     /// 2つの点からBBoxを作成（便利コンストラクタ）
-    pub fn from_two_points(min: Point, max: Point) -> Self {
+    pub fn from_two_points(min: Point3D<T>, max: Point3D<T>) -> Self {
         Self::new(min, max)
     }
 
     /// 以前の名前との互換性のため
-    pub fn from_3d_points(min: Point, max: Point) -> Self {
+    pub fn from_3d_points(min: Point3D<T>, max: Point3D<T>) -> Self {
         Self::from_two_points(min, max)
     }
 
-    /// 2D点から3Dバウンディングボックスを作成（Z=0）
+    /// 2D点から3Dバウンディングボックスを作成（Z=0、T::ZEROを使用）
     pub fn from_2d_points(
         min: crate::geometry2d::Point2DF64,
         max: crate::geometry2d::Point2DF64,
-    ) -> Self {
+    ) -> Self 
+    where 
+        T: From<f64>,
+    {
         Self::new(
-            Point::new(min.x(), min.y(), 0.0),
-            Point::new(max.x(), max.y(), 0.0),
+            Point3D::new(T::from(min.x()), T::from(min.y()), T::ZERO),
+            Point3D::new(T::from(max.x()), T::from(max.y()), T::ZERO),
         )
     }
 
     /// 点の集合からバウンディングボックスを作成
-    pub fn from_point_array(points: &[Point]) -> Option<Self> {
+    pub fn from_point_array(points: &[Point3D<T>]) -> Option<Self> {
         if points.is_empty() {
             return None;
         }
@@ -282,12 +285,12 @@ impl<T: Scalar> BBox3D<T> {
         let mut max = *first;
 
         for point in points.iter().skip(1) {
-            min = Point::new(
+            min = Point3D::new(
                 min.x().min(point.x()),
                 min.y().min(point.y()),
                 min.z().min(point.z()),
             );
-            max = Point::new(
+            max = Point3D::new(
                 max.x().max(point.x()),
                 max.y().max(point.y()),
                 max.z().max(point.z()),
@@ -298,7 +301,7 @@ impl<T: Scalar> BBox3D<T> {
     }
 
     /// 便利なfrom_pointsエイリアス
-    pub fn from_points(points: &[Point]) -> Option<Self> {
+    pub fn from_points(points: &[Point3D<T>]) -> Option<Self> {
         Self::from_point_array(points)
     }
 
@@ -323,29 +326,29 @@ impl<T: Scalar> BBox3D<T> {
         (center.x(), center.y(), center.z())
     }
 
-    /// 点が境界ボックス内にあるかチェック（タプル版、互換性のため）
-    pub fn contains_point_tuple(&self, point: (f64, f64, f64)) -> bool {
-        self.contains_point(Point::new(point.0, point.1, point.2))
+    /// 点が境界ボックス内にあるかチェック（タプル版、Tジェネリック版）
+    pub fn contains_point_tuple(&self, point: (T, T, T)) -> bool {
+        self.contains_point(Point3D::new(point.0, point.1, point.2))
     }
 
-    /// 表面積を計算
-    pub fn surface_area(&self) -> f64 {
+    /// 表面積を計算（ジェネリック版でT型を返す）
+    pub fn surface_area(&self) -> T {
         let w = self.width();
         let h = self.height();
         let d = self.depth();
-        2.0 * (w * h + w * d + h * d)
+        (T::ONE + T::ONE) * (w * h + w * d + h * d)
     }
 
-    /// 対角線の長さを計算
-    pub fn diagonal_length(&self) -> f64 {
+    /// 対角線の長さを計算（ジェネリック版でT型を返す）
+    pub fn diagonal_length(&self) -> T {
         let w = self.width();
         let h = self.height();
         let d = self.depth();
         (w * w + h * h + d * d).sqrt()
     }
 
-    /// 立方体かどうかを判定
-    pub fn is_cube(&self, tolerance: f64) -> bool {
+    /// 立方体かどうかを判定（ジェネリック版でT型のtoleranceを使用）
+    pub fn is_cube(&self, tolerance: T) -> bool {
         let w = self.width();
         let h = self.height();
         let d = self.depth();
@@ -357,5 +360,8 @@ impl<T: Scalar> BBox3D<T> {
 #[deprecated(note = "Use BBox3D instead")]
 pub type LegacyBoundingBox = BBox3D<f64>;
 
-/// f64専用のBBox3Dエイリアス
+/// f64専用のBBox3Dエイリアス（Circle成功パターンに従って）
 pub type BBox3DF64 = BBox3D<f64>;
+
+/// f32専用のBBox3Dエイリアス
+pub type BBox3DF32 = BBox3D<f32>;

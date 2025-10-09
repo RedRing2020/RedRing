@@ -240,6 +240,38 @@ pub trait EllipseArc3D<T: Scalar> {
         tangent.cross(&normal)
     }
 
+    /// 指定されたパラメータ位置での曲率を取得
+    fn curvature_at_parameter(&self, t: T) -> T;
+
+    /// 指定されたパラメータ位置での曲率半径を取得
+    fn curvature_radius_at_parameter(&self, t: T) -> T {
+        let curvature = self.curvature_at_parameter(t);
+        if curvature.abs() < T::TOLERANCE {
+            T::INFINITY
+        } else {
+            T::ONE / curvature
+        }
+    }
+
+    /// 指定されたパラメータ位置での接線と曲率を同時計算（効率的）
+    fn tangent_and_curvature_at_parameter(&self, t: T) -> (Self::Vector, T) {
+        (self.tangent_at_parameter(t), self.curvature_at_parameter(t))
+    }
+
+    /// 楕円弧上の最大曲率位置（短軸端点）を取得
+    fn max_curvature_point(&self) -> Option<(T, T)> {
+        // 楕円の場合、短軸端点で最大曲率となる
+        // デフォルト実装では None、具象型で実装
+        None
+    }
+
+    /// 楕円弧上の最小曲率位置（長軸端点）を取得
+    fn min_curvature_point(&self) -> Option<(T, T)> {
+        // 楕円の場合、長軸端点で最小曲率となる
+        // デフォルト実装では None、具象型で実装
+        None
+    }
+
     /// 指定された点が楕円弧上にあるかを判定
     fn contains_point(&self, point: &Self::Point) -> bool;
 

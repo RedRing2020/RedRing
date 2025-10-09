@@ -38,6 +38,9 @@ pub trait Scalar:
     /// 単位値（1）
     const ONE: Self;
 
+    /// 正の無限大
+    const INFINITY: Self;
+
     /// 数学定数π
     const PI: Self;
 
@@ -120,6 +123,7 @@ pub trait Scalar:
 impl Scalar for f32 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const INFINITY: Self = f32::INFINITY;
     const PI: Self = std::f32::consts::PI;
     const TAU: Self = std::f32::consts::TAU;
     const E: Self = std::f32::consts::E;
@@ -222,6 +226,7 @@ impl Scalar for f32 {
 impl Scalar for f64 {
     const ZERO: Self = 0.0;
     const ONE: Self = 1.0;
+    const INFINITY: Self = f64::INFINITY;
     const PI: Self = std::f64::consts::PI;
     const TAU: Self = std::f64::consts::TAU;
     const E: Self = std::f64::consts::E;

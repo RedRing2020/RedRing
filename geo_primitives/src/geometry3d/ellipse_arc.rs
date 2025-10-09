@@ -4,6 +4,7 @@
 
 use crate::geometry3d::{BBox3D, Ellipse, Point3D, Vector3D};
 use geo_foundation::abstract_types::geometry::Direction;
+use geo_foundation::abstract_types::geometry::common::{CurveAnalysis3D, AnalyticalCurve, CurveType, DifferentialGeometry};
 use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
 use std::f64::consts::PI;
 
@@ -384,5 +385,182 @@ mod tests {
 
         // 最後の点は終了点
         assert!((points[4].distance_to(&arc.end_point())).abs() < GEOMETRIC_TOLERANCE);
+    }
+}
+
+// =============================================================================
+// 統一曲線解析インターフェイスの実装
+// =============================================================================
+
+/// EllipseArcに統一曲線解析インターフェイスを実装
+/// 楕円弧は基底楕円の部分弧として基底楕円の計算を活用
+impl CurveAnalysis3D<f64> for EllipseArc {
+    type Point = Point3D;
+    type Vector = Vector3D;
+    type Direction = crate::geometry3d::Direction3D;
+
+    /// 指定されたパラメータ位置での点を取得
+    /// t: 0.0=開始点、1.0=終了点
+    fn point_at_parameter(&self, t: f64) -> Self::Point {
+        let angle = self.interpolate_angle(t);
+        self.ellipse.point_at_angle(angle)
+    }
+
+    /// 指定されたパラメータ位置での接線ベクトルを取得（正規化済み）
+    fn tangent_at_parameter(&self, t: f64) -> Self::Vector {
+        let angle = self.interpolate_angle(t);
+        // 基底楕円の接線を取得し、パラメータt位置での実際の角度で計算
+        let ellipse_param = angle / (2.0 * PI); // 楕円の0-1パラメータに変換
+        self.ellipse.tangent_at_parameter(ellipse_param)
+    }
+
+    /// 指定されたパラメータ位置での主法線ベクトルを取得（正規化済み）
+    fn normal_at_parameter(&self, t: f64) -> Self::Vector {
+        let angle = self.interpolate_angle(t);
+        let ellipse_param = angle / (2.0 * PI);
+        self.ellipse.normal_at_parameter(ellipse_param)
+    }
+
+    /// 指定されたパラメータ位置での双法線ベクトルを取得（正規化済み）
+    fn binormal_at_parameter(&self, t: f64) -> Self::Vector {
+        // 楕円弧の双法線は基底楕円と同じ（平面の法線）
+        self.ellipse.binormal_at_parameter(0.0) // 位置に依存しない
+    }
+
+    /// 指定されたパラメータ位置での曲率を取得
+    fn curvature_at_parameter(&self, t: f64) -> f64 {
+        let angle = self.interpolate_angle(t);
+        let ellipse_param = angle / (2.0 * PI);
+        self.ellipse.curvature_at_parameter(ellipse_param)
+    }
+
+    /// 指定されたパラメータ位置での捩率（ねじれ）を取得
+    fn torsion_at_parameter(&self, _t: f64) -> f64 {
+        // 平面曲線（楕円弧）の捩率は常にゼロ
+        0.0
+    }
+
+    /// 指定されたパラメータ位置での微分幾何学的情報を一括取得（最も効率的）
+    fn differential_geometry_at_parameter(&self, t: f64) -> DifferentialGeometry<f64, Self::Vector> {
+        let angle = self.interpolate_angle(t);
+        let ellipse_param = angle / (2.0 * PI);
+        
+        // 基底楕円の微分幾何学情報を取得
+        self.ellipse.differential_geometry_at_parameter(ellipse_param)
+    }
+
+    /// 最大曲率の位置と値を取得（楕円弧では弧範囲内での最大値）
+    fn max_curvature(&self) -> Option<(f64, f64)> {
+        // 基底楕円の最大曲率位置が弧範囲内にあるかチェック
+        if let Some((_, max_curv)) = self.ellipse.max_curvature() {
+            // 短軸端点の角度（π/2, 3π/2）が弧範囲内にあるかチェック
+            let max_curv_angles = [PI / 2.0, 3.0 * PI / 2.0];
+            for angle in &max_curv_angles {
+                if self.contains_angle(*angle) {
+                    let t = self.angle_to_parameter(*angle);
+                    return Some((t, max_curv));
+                }
+            }
+        }
+        
+        // 弧の端点での曲率を比較
+        let start_curv = self.curvature_at_parameter(0.0);
+        let end_curv = self.curvature_at_parameter(1.0);
+        
+        if start_curv >= end_curv {
+            Some((0.0, start_curv))
+        } else {
+            Some((1.0, end_curv))
+        }
+    }
+
+    /// 最小曲率の位置と値を取得（楕円弧では弧範囲内での最小値）
+    fn min_curvature(&self) -> Option<(f64, f64)> {
+        // 基底楕円の最小曲率位置が弧範囲内にあるかチェック
+        if let Some((_, min_curv)) = self.ellipse.min_curvature() {
+            // 長軸端点の角度（0, π）が弧範囲内にあるかチェック
+            let min_curv_angles = [0.0, PI];
+            for angle in &min_curv_angles {
+                if self.contains_angle(*angle) {
+                    let t = self.angle_to_parameter(*angle);
+                    return Some((t, min_curv));
+                }
+            }
+        }
+        
+        // 弧の端点での曲率を比較
+        let start_curv = self.curvature_at_parameter(0.0);
+        let end_curv = self.curvature_at_parameter(1.0);
+        
+        if start_curv <= end_curv {
+            Some((0.0, start_curv))
+        } else {
+            Some((1.0, end_curv))
+        }
+    }
+
+    /// 曲率がゼロになる位置を取得（楕円弧では存在しない）
+    fn inflection_points(&self) -> Vec<f64> {
+        Vec::new() // 楕円弧に変曲点は存在しない
+    }
+
+    /// 曲線が平面曲線かどうかを判定（楕円弧は常に平面曲線）
+    fn is_planar(&self) -> bool {
+        true
+    }
+}
+
+/// EllipseArcに解析的曲線インターフェイスを実装
+impl AnalyticalCurve<f64> for EllipseArc {
+    /// 曲線の種類（楕円弧）
+    fn curve_type(&self) -> CurveType {
+        CurveType::EllipseArc
+    }
+
+    /// 一定曲率かどうか（楕円弧は基底楕円が円の場合のみ一定曲率）
+    fn has_constant_curvature(&self) -> bool {
+        self.ellipse.has_constant_curvature()
+    }
+
+    /// 解析的に計算可能な曲率の定数値（基底楕円が円の場合のみ）
+    fn constant_curvature(&self) -> Option<f64> {
+        self.ellipse.constant_curvature()
+    }
+
+    /// 解析的に計算可能な曲率半径の定数値（基底楕円が円の場合のみ）
+    fn constant_curvature_radius(&self) -> Option<f64> {
+        self.ellipse.constant_curvature_radius()
+    }
+}
+
+impl EllipseArc {
+    /// パラメータtから実際の角度への変換
+    fn interpolate_angle(&self, t: f64) -> f64 {
+        let span = self.angle_span();
+        self.start_angle + span * t
+    }
+
+    /// 角度からパラメータtへの変換
+    fn angle_to_parameter(&self, angle: f64) -> f64 {
+        let span = self.angle_span();
+        if span.abs() < GEOMETRIC_TOLERANCE {
+            0.0
+        } else {
+            (angle - self.start_angle) / span
+        }
+    }
+
+    /// 指定角度が弧範囲内にあるかチェック
+    fn contains_angle(&self, angle: f64) -> bool {
+        let normalized_angle = Self::normalize_angle(angle);
+        let start = self.start_angle;
+        let end = self.end_angle;
+        
+        if start <= end {
+            normalized_angle >= start && normalized_angle <= end
+        } else {
+            // 角度が2π境界をまたぐ場合
+            normalized_angle >= start || normalized_angle <= end
+        }
     }
 }
