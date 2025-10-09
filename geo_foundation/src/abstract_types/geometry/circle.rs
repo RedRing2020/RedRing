@@ -3,6 +3,7 @@
 //! 2D/3D空間における円の抽象的なインターフェースを提供
 
 use crate::abstract_types::Scalar;
+use crate::constants::precision::{PI, TAU};
 
 /// 2D円の基本操作を定義するトレイト
 pub trait Circle2D<T: Scalar> {

@@ -41,7 +41,6 @@ pub trait Arc2D<T: Scalar>:
     /// 2D固有の回転（原点基準）
     fn rotate_2d(&self, angle: Angle<T>) -> Self;
 }
-}
 
 /// 3D円弧の抽象化トレイト
 ///

@@ -4,7 +4,7 @@
 
 use crate::geometry3d::{Circle, Point3D};
 use geo_foundation::common::constants::GEOMETRIC_TOLERANCE;
-use std::f64::consts::{PI, TAU};
+use geo_foundation::constants::precision::{PI, TAU};
 
 #[test]
 fn test_xy_plane_circle() {

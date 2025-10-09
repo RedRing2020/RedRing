@@ -16,7 +16,7 @@ mod tests {
     use crate::geometry2d::{arc::ArcKind, Arc};
     use crate::traits::Circle2D; // Circle の contains_point メソッド用
     use geo_foundation::abstract_types::Angle;
-    use std::f64::consts::PI;
+    use geo_foundation::constants::precision::PI;
 
     #[test]
     fn test_arc_creation() {

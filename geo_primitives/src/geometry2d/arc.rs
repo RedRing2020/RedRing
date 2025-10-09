@@ -6,8 +6,7 @@
 use crate::geometry2d::Point2D;
 use crate::geometry2d::{Circle, Vector2D};
 use geo_foundation::abstract_types::{geometry::Arc2D as Arc2DTrait, Angle};
-use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
-use std::f64::consts::PI;
+use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
 
 /// 円弧の種類を表現する列挙型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -441,6 +440,8 @@ mod tests {
     }
 }
 
+/*
+// 一時的にコメントアウト - geo_foundationとの整合性調整中
 // Arc2Dトレイトの実装（geo_foundation::geometry::circle::Arc2D）
 impl Arc2DTrait for Arc {
     type Point = crate::geometry2d::Point2DF64;
@@ -479,6 +480,7 @@ impl Arc2DTrait for Arc {
         self.contains_point(*point) // 現在の実装は内部で許容誤差を使用
     }
 }
+*/
 
 // 型エイリアス：他の形状実装との統一を目指したパターン
 pub type Arc2DF64 = Arc; // f64版（現在の実装）

@@ -4,8 +4,7 @@
 
 use crate::geometry2d::{bbox::BBoxF64, Circle, Point2DF64, Vector2D};
 use geo_foundation::abstract_types::Angle;
-use geo_foundation::constants::precision::GEOMETRIC_TOLERANCE;
-use std::f64::consts::PI;
+use geo_foundation::constants::precision::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円関連のエラー
 #[derive(Debug, Clone, PartialEq)]

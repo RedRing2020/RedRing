@@ -6,6 +6,7 @@ use crate::{
     Angle, BBox2D, BBox3D, Circle, Circle2D, Circle2DImpl, Point2D, Point3D, Scalar, Vector2D,
     Vector3D,
 };
+use crate::constants::precision::PI;
 
 #[cfg(test)]
 mod integration_tests {
@@ -65,7 +66,7 @@ mod integration_tests {
     #[test]
     fn test_angle_f64_operations() {
         let angle1 = Angle::<f64>::from_degrees(45.0);
-        let angle2 = Angle::<f64>::from_radians(std::f64::consts::PI / 4.0);
+        let angle2 = Angle::<f64>::from_radians(PI / 4.0);
 
         // 度数とラジアンの等価性
         assert!(angle1.approx_eq(angle2));
@@ -77,7 +78,7 @@ mod integration_tests {
         assert!((shortest_diff.to_degrees() - 20.0).abs() < 1e-10);
 
         // π/2の三角関数値
-        let quarter_turn = Angle::<f64>::from_radians(std::f64::consts::PI / 2.0);
+        let quarter_turn = Angle::<f64>::from_radians(PI / 2.0);
         assert!((quarter_turn.sin() - 1.0).abs() < 1e-10);
         assert!(quarter_turn.cos().abs() < 1e-10);
     }
@@ -339,7 +340,7 @@ mod integration_tests {
 
         // 円の中心からベクトル方向への接線ベクトル
         let angle = radius_vector.angle();
-        let tangent_angle = angle + std::f64::consts::PI / 2.0;
+        let tangent_angle = angle + PI / 2.0;
         let tangent_vector = Vector2D::from_angle(tangent_angle);
 
         // 接線ベクトルと半径ベクトルは垂直
@@ -624,7 +625,7 @@ mod integration_tests {
         assert!((end_point.y() - 2.0).abs() < 1e-10);
 
         // 弧長計算（90度の弧 = 1/4円）
-        let expected_arc_length = 2.0 * std::f64::consts::PI * 2.0 / 4.0; // quarter circle: 2πr/4
+        let expected_arc_length = 2.0 * PI * 2.0 / 4.0; // quarter circle: 2πr/4
         assert!((arc.arc_length() - expected_arc_length).abs() < 1e-10);
     }
 
@@ -711,7 +712,7 @@ mod integration_tests {
         assert_eq!(ellipse.minor_radius(), 2.0);
 
         // 面積計算
-        let expected_area = std::f64::consts::PI * 3.0 * 2.0;
+        let expected_area = PI * 3.0 * 2.0;
         assert!((ellipse.area() - expected_area).abs() < 1e-10);
 
         // 離心率計算
@@ -893,7 +894,7 @@ mod integration_tests {
         assert!(ellipse.contains_point(&end_point));
 
         // 面積比較
-        let circle_area = std::f64::consts::PI * circle_radius * circle_radius;
+        let circle_area = PI * circle_radius * circle_radius;
         let ellipse_area = ellipse.area();
         let arc_length = arc.arc_length();
 
@@ -901,7 +902,7 @@ mod integration_tests {
         assert!(ellipse_area > circle_area);
 
         // 半円の弧長はπr
-        let expected_arc_length = std::f64::consts::PI * circle_radius;
+        let expected_arc_length = PI * circle_radius;
         assert!((arc_length - expected_arc_length).abs() < 1e-10);
 
         // 5. 境界ボックスの統合
@@ -946,7 +947,7 @@ mod integration_tests {
         .expect("f64円弧作成に失敗");
 
         let arc_length_f64 = arc_f64.arc_length();
-        let expected_length = 3.0 * std::f64::consts::PI / 2.0;
+        let expected_length = 3.0 * PI / 2.0;
         assert!((arc_length_f64 - expected_length).abs() < 1e-10);
 
         // Ellipse
@@ -954,7 +955,7 @@ mod integration_tests {
             Ellipse2DImpl::axis_aligned(Point2D::new(1.0, 2.0), 4.0, 3.0).expect("楕円作成に失敗");
 
         let ellipse_area = ellipse_f64.area();
-        let expected_area = std::f64::consts::PI * 4.0 * 3.0;
+        let expected_area = PI * 4.0 * 3.0;
         assert!((ellipse_area - expected_area).abs() < 1e-10);
     }
 }
