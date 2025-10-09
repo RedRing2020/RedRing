@@ -189,21 +189,22 @@ impl<T: Scalar> Circle<T> {
             point.y() - self.center.y(),
             point.z() - self.center.z(),
         );
-        
+
         // 平面からの距離をチェック
-        let distance_to_plane = to_point.x() * self.normal.x() + 
-                               to_point.y() * self.normal.y() + 
-                               to_point.z() * self.normal.z();
-        
+        let distance_to_plane = to_point.x() * self.normal.x()
+            + to_point.y() * self.normal.y()
+            + to_point.z() * self.normal.z();
+
         if distance_to_plane.abs() > T::TOLERANCE {
             return false; // 点が平面上にない
         }
 
         // 中心からの距離をチェック
-        let distance_from_center = (to_point.x() * to_point.x() + 
-                                  to_point.y() * to_point.y() + 
-                                  to_point.z() * to_point.z()).sqrt();
-        
+        let distance_from_center = (to_point.x() * to_point.x()
+            + to_point.y() * to_point.y()
+            + to_point.z() * to_point.z())
+        .sqrt();
+
         distance_from_center <= self.radius
     }
 
@@ -213,9 +214,12 @@ impl<T: Scalar> Circle<T> {
         let sin_angle = angle.sin();
 
         Point3D::new(
-            self.center.x() + self.radius * (cos_angle * self.u_axis.x() + sin_angle * self.v_axis.x()),
-            self.center.y() + self.radius * (cos_angle * self.u_axis.y() + sin_angle * self.v_axis.y()),
-            self.center.z() + self.radius * (cos_angle * self.u_axis.z() + sin_angle * self.v_axis.z()),
+            self.center.x()
+                + self.radius * (cos_angle * self.u_axis.x() + sin_angle * self.v_axis.x()),
+            self.center.y()
+                + self.radius * (cos_angle * self.u_axis.y() + sin_angle * self.v_axis.y()),
+            self.center.z()
+                + self.radius * (cos_angle * self.u_axis.z() + sin_angle * self.v_axis.z()),
         )
     }
 
