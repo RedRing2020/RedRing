@@ -14,14 +14,10 @@
 use super::infinite_line::{InfiniteLine2D, InfiniteLine3D};
 use crate::Scalar;
 
-/// 2Dレイ（半無限直線）の基本操作を定義するトレイト
-///
-/// InfiniteLine2Dを継承し、t >= 0の範囲制約を追加します。
-/// 基本操作はInfiniteLine2Dから継承し、レイ固有の制約チェックを提供します。
+/// 2D空間における半無限直線（レイ）の基本トレイト
 pub trait Ray2D<T: Scalar>: InfiniteLine2D<T> {
-    /// レイ固有：制約付きの点取得
-    /// t >= 0 の範囲でのみ有効（半無限直線のため）
-    fn point_at_parameter_ray(&self, t: T) -> Option<Self::Point> {
+    /// レイ固有：制約付き点取得（t >= 0のみ）
+    fn point_at_ray(&self, t: T) -> Option<Self::Point> {
         if t >= T::ZERO {
             Some(self.point_at_parameter(t))
         } else {
@@ -29,37 +25,35 @@ pub trait Ray2D<T: Scalar>: InfiniteLine2D<T> {
         }
     }
 
-    /// レイ固有：制約付きの点判定
-    /// 点がレイ上にあり、かつ起点より前方にある場合のみtrueを返す
+    /// レイ固有：制約付き点判定（前方のみ）
     fn contains_point_ray(&self, point: &Self::Point, tolerance: T) -> bool {
-        if self.contains_point(point, tolerance) {
+        if self.distance_to_point(point) <= tolerance {
             let param = self.parameter_at_point(point);
-            param >= -tolerance // 許容誤差を考慮
+            param >= -tolerance // 許容誤差を考慮して前方判定
         } else {
             false
         }
     }
 
-    /// レイ固有：起点からの距離
-    /// 指定された点がレイの起点より前方にある場合の距離を取得
+    /// レイの起点から指定点までの距離（レイ上の場合のみ）
     fn distance_from_origin(&self, point: &Self::Point) -> Option<T> {
-        let param = self.parameter_at_point(point);
-        if param >= T::ZERO {
-            Some(param.abs())
+        if self.contains_point_ray(point, T::from_f64(1e-10)) {
+            let param = self.parameter_at_point(point);
+            if param >= T::ZERO {
+                Some(param)
+            } else {
+                None
+            }
         } else {
             None
         }
     }
 }
 
-/// 3Dレイ（半無限直線）の基本操作を定義するトレイト
-///
-/// InfiniteLine3Dを継承し、t >= 0の範囲制約を追加します。
-/// 基本操作はInfiniteLine3Dから継承し、レイ固有の制約チェックを提供します。
+/// 3D空間における半無限直線（レイ）の基本トレイト
 pub trait Ray3D<T: Scalar>: InfiniteLine3D<T> {
-    /// レイ固有：制約付きの点取得
-    /// t >= 0 の範囲でのみ有効（半無限直線のため）
-    fn point_at_parameter_ray(&self, t: T) -> Option<Self::Point> {
+    /// レイ固有：制約付き点取得（t >= 0のみ）
+    fn point_at_ray(&self, t: T) -> Option<Self::Point> {
         if t >= T::ZERO {
             Some(self.point_at_parameter(t))
         } else {
@@ -67,23 +61,25 @@ pub trait Ray3D<T: Scalar>: InfiniteLine3D<T> {
         }
     }
 
-    /// レイ固有：制約付きの点判定
-    /// 点がレイ上にあり、かつ起点より前方にある場合のみtrueを返す
+    /// レイ固有：制約付き点判定（前方のみ）
     fn contains_point_ray(&self, point: &Self::Point, tolerance: T) -> bool {
-        if self.contains_point(point, tolerance) {
+        if self.distance_to_point(point) <= tolerance {
             let param = self.parameter_at_point(point);
-            param >= -tolerance // 許容誤差を考慮
+            param >= -tolerance // 許容誤差を考慮して前方判定
         } else {
             false
         }
     }
 
-    /// レイ固有：起点からの距離
-    /// 指定された点がレイの起点より前方にある場合の距離を取得
+    /// レイの起点から指定点までの距離（レイ上の場合のみ）
     fn distance_from_origin(&self, point: &Self::Point) -> Option<T> {
-        let param = self.parameter_at_point(point);
-        if param >= T::ZERO {
-            Some(param.abs())
+        if self.contains_point_ray(point, T::from_f64(1e-10)) {
+            let param = self.parameter_at_point(point);
+            if param >= T::ZERO {
+                Some(param)
+            } else {
+                None
+            }
         } else {
             None
         }

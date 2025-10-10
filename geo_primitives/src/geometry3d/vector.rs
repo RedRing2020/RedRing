@@ -156,6 +156,8 @@ impl<T: Scalar> Default for Vector<T> {
     }
 }
 
+// TODO: crate::traits::Vector<3>実装は曖昧性のため後回し
+/*
 // geo_foundation Vector トレイトの実装
 impl<T: Scalar> crate::traits::Vector<3> for Vector<T> {
     type Scalar = T;
@@ -202,7 +204,10 @@ impl<T: Scalar> crate::traits::Vector<3> for Vector<T> {
         dot.abs() < tolerance
     }
 }
+*/
 
+// TODO: crate::traits::Vector3D実装も曖昧性のため後回し
+/*
 // geo_foundation Vector3D トレイトの実装（Vector<3> を前提とする）
 impl<T: Scalar> crate::traits::Vector3D for Vector<T> {
     fn x(&self) -> Self::Scalar {
@@ -237,7 +242,10 @@ impl<T: Scalar> crate::traits::Vector3D for Vector<T> {
         Vector::unit_z()
     }
 }
+*/
 
+// TODO: crate::traits::Vector3DExt実装も曖昧性のため後回し
+/*
 impl<T: Scalar> crate::traits::Vector3DExt for Vector<T> {
     fn rotate_around_axis(&self, axis: &Self, angle: Self::Scalar) -> Self {
         // ロドリゲスの回転公式を実装
@@ -278,17 +286,36 @@ impl<T: Scalar> crate::traits::Vector3DExt for Vector<T> {
         (u, v, normalized)
     }
 }
+*/
 
 // Normalizable トレイトの実装
 impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
     type Output = Vector<T>;
 
-    fn normalize(&self) -> Option<Self::Output> {
-        self.normalize()
+    fn normalize(&self) -> Option<Vector<T>> {
+        let length = self.length();
+        if length.is_zero() {
+            None
+        } else {
+            Some(Vector {
+                x: self.x / length,
+                y: self.y / length,
+                z: self.z / length,
+            })
+        }
     }
 
-    fn normalize_or_zero(&self) -> Self::Output {
-        self.normalize_or_zero()
+    fn normalize_or_zero(&self) -> Vector<T> {
+        let length = self.length();
+        if length.is_zero() {
+            Vector::zero()
+        } else {
+            Vector {
+                x: self.x / length,
+                y: self.y / length,
+                z: self.z / length,
+            }
+        }
     }
 
     fn can_normalize(&self, tolerance: f64) -> bool {

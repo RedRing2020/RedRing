@@ -1,11 +1,12 @@
 //! 2D空間における無限直線の具体的な実装。点と方向ベクトルで定義される。
 //! CAD/CAMシステムで使用される直線の基本的な操作を提供。
 
-use crate::geometry2d::{Direction2D, Point2D, Vector};
+use crate::geometry2d::{Direction, Point, Vector};
 
 use geo_foundation::{
     abstract_types::geometry::{
-        Direction, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis, InfiniteLineBuilder,
+        Direction as DirectionTrait, InfiniteLine2D as InfiniteLine2DTrait, InfiniteLineAnalysis,
+        InfiniteLineBuilder,
     },
     Scalar,
 };
@@ -15,53 +16,52 @@ use geo_foundation::{
 /// 基準点と方向ベクトルで定義される無限に延びる直線。
 /// 直線の方程式: point = origin + t * direction (t ∈ ℝ)
 #[derive(Debug, Clone, PartialEq)]
-pub struct InfiniteLine2D<T: Scalar> {
+pub struct InfiniteLine<T: Scalar> {
     /// 直線上の基準点
-    origin: Point2D<T>,
+    origin: Point<T>,
     /// 直線の方向（正規化済み）
-    direction: Direction2D<T>,
+    direction: Direction<T>,
 }
 
-impl<T: Scalar> InfiniteLine2D<T> {
+impl<T: Scalar> InfiniteLine<T> {
     /// 点と方向ベクトルから無限直線を作成
-    pub fn new(origin: Point2D<T>, direction: Direction2D<T>) -> Self {
+    pub fn new(origin: Point<T>, direction: Direction<T>) -> Self {
         Self { origin, direction }
     }
 
     /// 2点を通る無限直線を作成
-    pub fn from_two_points(point1: Point2D<T>, point2: Point2D<T>) -> Option<Self> {
+    pub fn from_two_points(point1: Point<T>, point2: Point<T>) -> Option<Self> {
         let diff = Vector::new(point2.x() - point1.x(), point2.y() - point1.y());
 
-        if diff.length() < T::TOLERANCE {
+        if diff.length() < T::from_f64(geo_foundation::GEOMETRIC_TOLERANCE) {
             return None; // 同じ点では直線を定義できない
         }
 
-        let direction = Direction2D::from_vector(diff)?;
+        let direction = Direction::from_vector(diff)?;
         Some(Self::new(point1, direction))
     }
 
     /// X軸に平行な直線を作成
     pub fn horizontal(y: T) -> Self {
         Self::new(
-            Point2D::new(T::ZERO, y),
-            Direction2D::from_vector(Vector::new(T::ONE, T::ZERO)).unwrap(),
+            Point::new(T::ZERO, y),
+            Direction::from_vector(Vector::new(T::ONE, T::ZERO)).unwrap(),
         )
     }
 
     /// Y軸に平行な直線を作成
     pub fn vertical(x: T) -> Self {
         Self::new(
-            Point2D::new(x, T::ZERO),
-            Direction2D::from_vector(Vector::new(T::ZERO, T::ONE)).unwrap(),
+            Point::new(x, T::ZERO),
+            Direction::from_vector(Vector::new(T::ZERO, T::ONE)).unwrap(),
         )
     }
 
     /// 指定した角度の直線を作成（原点を通る）
     pub fn from_angle(angle_radians: T) -> Self {
         let direction =
-            Direction2D::from_vector(Vector::new(angle_radians.cos(), angle_radians.sin()))
-                .unwrap();
-        Self::new(Point2D::origin(), direction)
+            Direction::from_vector(Vector::new(angle_radians.cos(), angle_radians.sin())).unwrap();
+        Self::new(Point::origin(), direction)
     }
 
     /// 直線の傾きを取得（垂直線の場合はNone）
@@ -103,10 +103,10 @@ impl<T: Scalar> InfiniteLine2D<T> {
     }
 }
 
-impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine2D<T> {
-    type Point = Point2D<T>;
+impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine<T> {
+    type Point = Point<T>;
     type Vector = Vector<T>;
-    type Direction = Direction2D<T>;
+    type Direction = Direction<T>;
     type Error = String;
 
     fn origin(&self) -> Self::Point {
@@ -136,7 +136,7 @@ impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine2D<T> {
         // 投影係数を計算
         let projection = to_point.dot(&dir_vec);
 
-        Point2D::new(
+        Point::new(
             self.origin.x() + projection * dir_vec.x(),
             self.origin.y() + projection * dir_vec.y(),
         )
@@ -144,7 +144,7 @@ impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine2D<T> {
 
     fn point_at_parameter(&self, t: T) -> Self::Point {
         let dir_vec = self.direction.to_vector();
-        Point2D::new(
+        Point::new(
             self.origin.x() + t * dir_vec.x(),
             self.origin.y() + t * dir_vec.y(),
         )
@@ -171,7 +171,7 @@ impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine2D<T> {
         let x = (b1 * c2 - b2 * c1) / det;
         let y = (a2 * c1 - a1 * c2) / det;
 
-        Some(Point2D::new(x, y))
+        Some(Point::new(x, y))
     }
 
     fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
@@ -194,9 +194,9 @@ impl<T: Scalar> InfiniteLine2DTrait<T> for InfiniteLine2D<T> {
 }
 
 impl<T: Scalar> InfiniteLineBuilder<T> for InfiniteLine2D<T> {
-    type Point = Point2D<T>;
+    type Point = Point<T>;
     type Vector = Vector<T>;
-    type Direction = Direction2D<T>;
+    type Direction = Direction<T>;
     type InfiniteLine = InfiniteLine2D<T>;
     type Error = String;
 
@@ -227,7 +227,7 @@ impl<T: Scalar> InfiniteLineBuilder<T> for InfiniteLine2D<T> {
         reference_line: &Self::InfiniteLine,
     ) -> Result<Self::InfiniteLine, Self::Error> {
         let ref_dir = reference_line.direction.to_vector();
-        let perp_dir = Direction2D::from_vector(Vector::new(-ref_dir.y(), ref_dir.x()))
+        let perp_dir = Direction::from_vector(Vector::new(-ref_dir.y(), ref_dir.x()))
             .ok_or_else(|| "Failed to create perpendicular direction".to_string())?;
 
         Ok(InfiniteLine2D::new(point, perp_dir))
@@ -235,7 +235,7 @@ impl<T: Scalar> InfiniteLineBuilder<T> for InfiniteLine2D<T> {
 }
 
 impl<T: Scalar> InfiniteLineAnalysis<T> for InfiniteLine2D<T> {
-    type Point = Point2D<T>;
+    type Point = Point<T>;
     type Vector = Vector<T>;
 
     fn line_equation_2d(&self) -> (T, T, T) {
@@ -313,3 +313,11 @@ impl<T: Scalar> InfiniteLineAnalysis<T> for InfiniteLine2D<T> {
         true
     }
 }
+
+// 型エイリアス（後方互換性確保）
+/// f64版の2D InfiniteLine（デフォルト）
+pub type InfiniteLine2D<T> = InfiniteLine<T>;
+pub type InfiniteLineF64 = InfiniteLine<f64>;
+
+/// f32版の2D InfiniteLine（高速演算用）
+pub type InfiniteLineF32 = InfiniteLine<f32>;

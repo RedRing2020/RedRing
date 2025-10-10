@@ -1,21 +1,26 @@
-//! Direction2D - ジェネリック2D方向ベクトルの実装
+//! Direction - 最小責務原則による2D方向ベクトルの実装
 //!
-//! 常に正規化されたベクトルとして管理され、型パラメータTをサポート
+//! 基本機能 + 必要な拡張トレイトを組み合わせた実装
 
 use crate::geometry2d::Vector;
 use crate::traits::StepCompatible;
-use geo_foundation::abstract_types::geometry::{Direction, Direction2D as Direction2DTrait};
+use analysis::abstract_types::angle::Angle;
+use geo_foundation::abstract_types::geometry::{
+    Direction as DirectionTrait,
+    Direction2D as Direction2DTrait, // Direction2DAngular,
+    DirectionConstants,
+};
 use geo_foundation::Scalar;
 
 /// ジェネリック2D方向ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Direction2D<T: Scalar> {
+pub struct Direction<T: Scalar> {
     /// 正規化されたベクトル（内部的にはVectorを使用）
     vector: Vector<T>,
 }
 
-impl<T: Scalar> Direction2D<T> {
-    /// 新しいDirection2Dを作成（内部で正規化）
+impl<T: Scalar> Direction<T> {
+    /// 新しいDirectionを作成（内部で正規化）
     pub fn new(x: T, y: T) -> Option<Self> {
         let vector = Vector::new(x, y);
         Self::from_vector(vector)
@@ -60,7 +65,7 @@ impl<T: Scalar> Direction2D<T> {
     }
 }
 
-impl<T: Scalar> Direction<T> for Direction2D<T> {
+impl<T: Scalar> DirectionTrait<T> for Direction<T> {
     type Vector = Vector<T>;
 
     fn from_vector(vector: Self::Vector) -> Option<Self>
@@ -107,44 +112,50 @@ impl<T: Scalar> Direction<T> for Direction2D<T> {
     }
 }
 
-impl<T: Scalar> Direction2DTrait<T> for Direction2D<T> {
+impl<T: Scalar> Direction2DTrait<T> for Direction<T> {
     fn perpendicular(&self) -> Self {
         Self {
             vector: self.vector.perpendicular(),
         }
     }
+}
 
-    fn from_angle(angle: T) -> Self
-    where
-        Self: Sized,
-    {
-        // Scalarトレイトの角度メソッドを使用
+// DirectionAngular実装（Angle型を使用）- トレイトが存在しないため独自実装
+impl<T: Scalar> Direction<T> {
+    /// 角度から方向ベクトルを作成
+    pub fn from_angle(angle: T) -> Self {
+        let angle_obj = Angle::from_radians(angle);
         Self {
-            vector: Vector::new(angle.cos(), angle.sin()),
+            vector: Vector::new(angle_obj.cos(), angle_obj.sin()),
         }
     }
 
-    fn to_angle(&self) -> T {
-        // Scalarトレイトのatan2メソッドを使用
+    /// 方向ベクトルから角度を取得
+    pub fn to_angle(&self) -> T {
         self.vector.y().atan2(self.vector.x())
-    }
-
-    fn x_axis() -> Self
-    where
-        Self: Sized,
-    {
-        Self::positive_x()
-    }
-
-    fn y_axis() -> Self
-    where
-        Self: Sized,
-    {
-        Self::positive_y()
     }
 }
 
-impl<T: Scalar> StepCompatible for Direction2D<T> {
+// DirectionConstants実装
+impl<T: Scalar> DirectionConstants<T> for Direction<T> {
+    fn positive_x() -> Self {
+        Self::from_vector(Vector::unit_x()).unwrap()
+    }
+
+    fn positive_y() -> Self {
+        Self::from_vector(Vector::unit_y()).unwrap()
+    }
+
+    fn negative_x() -> Self {
+        Self::from_vector(-Vector::unit_x()).unwrap()
+    }
+
+    fn negative_y() -> Self {
+        Self::from_vector(-Vector::unit_y()).unwrap()
+    }
+}
+
+impl<T: Scalar> StepCompatible for Direction<T> {
     fn to_step_string(&self) -> String {
         format!(
             "DIRECTION(({:.6},{:.6}))",
@@ -161,11 +172,26 @@ impl<T: Scalar> StepCompatible for Direction2D<T> {
     }
 }
 
-impl<T: Scalar> std::fmt::Display for Direction2D<T> {
+// Direction2DAngular実装を後回しに
+/*
+impl<T: Scalar> Direction2DAngular<T> for Direction<T> {
+    fn from_angle(angle: T) -> Self {
+        let cos_val = Angle::from_radians(angle).cos();
+        let sin_val = Angle::from_radians(angle).sin();
+        Self::from_vector(Vector::new(cos_val, sin_val)).unwrap()
+    }
+
+    fn to_angle(&self) -> T {
+        self.vector.y().atan2(self.vector.x())
+    }
+}
+*/
+
+impl<T: Scalar> std::fmt::Display for Direction<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Direction2D({:.3}, {:.3})",
+            "Direction({:.3}, {:.3})",
             self.x().to_f64(),
             self.y().to_f64()
         )
@@ -173,8 +199,11 @@ impl<T: Scalar> std::fmt::Display for Direction2D<T> {
 }
 
 // 型エイリアス（後方互換性確保）
+/// 2D Direction用の型エイリアス
+pub type Direction2D<T> = Direction<T>;
+
 /// f64版の2D Direction（デフォルト）
-pub type Direction2DF64 = Direction2D<f64>;
+pub type Direction2DF64 = Direction<f64>;
 
 /// f32版の2D Direction（高速演算用）
-pub type Direction2DF32 = Direction2D<f32>;
+pub type Direction2DF32 = Direction<f32>;

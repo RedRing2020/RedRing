@@ -2,10 +2,17 @@
 //!
 //! 2次元円弧の基本実装
 
+use crate::geometry2d::Circle;
 #[cfg(test)]
-use crate::geometry2d::Point2D;
-use crate::geometry2d::{Circle, Vector2D};
-use geo_foundation::Angle;
+use crate::geometry2d::Point;
+use geo_foundation::abstract_types::geometry::{
+    Arc2D as Arc2DTrait,
+    ArcContainment,
+    // ArcTransform,  // 未使用のためコメントアウト
+    // ArcSampling,   // 未使用のためコメントアウト
+    ArcMetrics,
+};
+use geo_foundation::{Angle, Scalar};
 use geo_foundation::{GEOMETRIC_TOLERANCE, PI};
 
 /// 円弧の種類を表現する列挙型
@@ -23,15 +30,15 @@ pub enum ArcKind {
 
 /// 2D平面上の円弧を表現する構造体
 #[derive(Debug, Clone)]
-pub struct Arc {
-    circle: Circle<f64>,
-    start_angle: Angle<f64>,
-    end_angle: Angle<f64>,
+pub struct Arc<T: Scalar> {
+    circle: Circle<T>,
+    start_angle: Angle<T>,
+    end_angle: Angle<T>,
 }
 
-impl Arc {
+impl<T: Scalar> Arc<T> {
     /// 新しい円弧を作成
-    pub fn new(circle: Circle<f64>, start_angle: Angle<f64>, end_angle: Angle<f64>) -> Self {
+    pub fn new(circle: Circle<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
         Self {
             circle,
             start_angle,
@@ -40,7 +47,7 @@ impl Arc {
     }
 
     /// ラジアン角度から円弧を作成（利便性メソッド）
-    pub fn from_radians(circle: Circle<f64>, start_angle: f64, end_angle: f64) -> Self {
+    pub fn from_radians(circle: Circle<T>, start_angle: T, end_angle: T) -> Self {
         Self::new(
             circle,
             Angle::from_radians(start_angle),
@@ -49,7 +56,7 @@ impl Arc {
     }
 
     /// 度数角度から円弧を作成（利便性メソッド）
-    pub fn from_degrees(circle: Circle<f64>, start_angle: f64, end_angle: f64) -> Self {
+    pub fn from_degrees(circle: Circle<T>, start_angle: T, end_angle: T) -> Self {
         Self::new(
             circle,
             Angle::from_degrees(start_angle),
@@ -59,9 +66,9 @@ impl Arc {
 
     /// 3点から円弧を作成
     pub fn from_three_points(
-        start: crate::geometry2d::Point2DF64,
-        mid: crate::geometry2d::Point2DF64,
-        end: crate::geometry2d::Point2DF64,
+        start: crate::geometry2d::Point<T>,
+        mid: crate::geometry2d::Point<T>,
+        end: crate::geometry2d::Point<T>,
     ) -> Option<Self> {
         let circle = Circle::from_three_points(start, mid, end)?;
 
@@ -73,7 +80,7 @@ impl Arc {
     }
 
     /// 点から角度を計算（ラジアン）
-    fn point_to_angle_rad(circle: &Circle<f64>, point: crate::geometry2d::Point2DF64) -> f64 {
+    fn point_to_angle_rad(circle: &Circle<T>, point: crate::geometry2d::Point<T>) -> T {
         let center = circle.center();
         let dx = point.x() - center.x();
         let dy = point.y() - center.y();
@@ -81,36 +88,36 @@ impl Arc {
     }
 
     /// 基底円を取得
-    pub fn circle(&self) -> &Circle<f64> {
+    pub fn circle(&self) -> &Circle<T> {
         &self.circle
     }
 
     /// 開始角度を取得
-    pub fn start_angle(&self) -> Angle<f64> {
+    pub fn start_angle(&self) -> Angle<T> {
         self.start_angle
     }
 
     /// 終了角度を取得
-    pub fn end_angle(&self) -> Angle<f64> {
+    pub fn end_angle(&self) -> Angle<T> {
         self.end_angle
     }
 
     /// 指定角度での点を取得（ラジアン）
-    pub fn point_at_angle(&self, angle: f64) -> crate::geometry2d::Point2DF64 {
+    pub fn point_at_angle(&self, angle: T) -> crate::geometry2d::Point<T> {
         let center = self.circle.center();
-        crate::geometry2d::Point2DF64::new(
+        crate::geometry2d::Point::new(
             center.x() + self.circle.radius() * angle.cos(),
             center.y() + self.circle.radius() * angle.sin(),
         )
     }
 
     /// 指定角度での点を取得（Angle型）
-    pub fn point_at_angle_typed(&self, angle: Angle<f64>) -> crate::geometry2d::Point2DF64 {
+    pub fn point_at_angle_typed(&self, angle: Angle<T>) -> crate::geometry2d::Point<T> {
         self.point_at_angle(angle.to_radians())
     }
 
     /// 指定された角度が円弧の角度範囲内にあるかを判定
-    pub fn angle_contains(&self, angle: Angle<f64>) -> bool {
+    pub fn angle_contains(&self, angle: Angle<T>) -> bool {
         let start = self.start_angle.to_radians();
         let end = self.end_angle.to_radians();
         let test = angle.to_radians();
@@ -125,54 +132,55 @@ impl Arc {
     }
 
     /// 円弧の角度範囲を取得
-    pub fn angle_span(&self) -> Angle<f64> {
+    pub fn angle_span(&self) -> Angle<T> {
         let start = self.start_angle.to_radians();
         let end = self.end_angle.to_radians();
         let diff = if end >= start {
             end - start
         } else {
-            end + 2.0 * PI - start
+            end + T::from_f64(2.0 * PI) - start
         };
         Angle::from_radians(diff)
     }
 
     /// 円弧の弧長を計算
-    pub fn arc_length(&self) -> f64 {
+    pub fn arc_length(&self) -> T {
         self.circle.radius() * self.angle_span().to_radians()
     }
 
     /// 円弧の開始点を取得
-    pub fn start_point(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn start_point(&self) -> crate::geometry2d::Point<T> {
         self.point_at_angle(self.start_angle.to_radians())
     }
 
     /// 円弧の終了点を取得
-    pub fn end_point(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn end_point(&self) -> crate::geometry2d::Point<T> {
         self.point_at_angle(self.end_angle.to_radians())
     }
 
     /// 円弧の中点を取得
-    pub fn midpoint(&self) -> crate::geometry2d::Point2DF64 {
-        let mid_angle = (self.start_angle.to_radians() + self.end_angle.to_radians()) / 2.0;
+    pub fn midpoint(&self) -> crate::geometry2d::Point<T> {
+        let mid_angle =
+            (self.start_angle.to_radians() + self.end_angle.to_radians()) / T::from_f64(2.0);
         self.point_at_angle(mid_angle)
     }
 
     /// 円弧の中心を取得
-    pub fn center(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn center(&self) -> crate::geometry2d::Point<T> {
         self.circle.center()
     }
 
     /// 円弧の半径を取得
-    pub fn radius(&self) -> f64 {
+    pub fn radius(&self) -> T {
         self.circle.radius()
     }
 
     /// 点が円弧上にあるかチェック
-    pub fn contains_point(&self, point: crate::geometry2d::Point2DF64) -> bool {
+    pub fn contains_point(&self, point: crate::geometry2d::Point<T>) -> bool {
         // まず円上にあるかチェック
         if !self
             .circle
-            .contains_point_on_boundary(&point, GEOMETRIC_TOLERANCE)
+            .contains_point_on_boundary(&point, T::from_f64(GEOMETRIC_TOLERANCE))
         {
             return false;
         }
@@ -185,13 +193,15 @@ impl Arc {
     /// 円弧の種類を判定
     pub fn arc_kind(&self) -> ArcKind {
         let span = self.angle_span().to_radians();
-        let two_pi = 2.0 * PI;
+        let two_pi = T::from_f64(2.0 * PI);
+        let pi_val = T::from_f64(PI);
+        let tolerance = T::from_f64(GEOMETRIC_TOLERANCE);
 
-        if (span - two_pi).abs() < GEOMETRIC_TOLERANCE {
+        if (span - two_pi).abs() < tolerance {
             ArcKind::FullCircle
-        } else if (span - PI).abs() < GEOMETRIC_TOLERANCE {
+        } else if (span - pi_val).abs() < tolerance {
             ArcKind::Semicircle
-        } else if span < PI {
+        } else if span < pi_val {
             ArcKind::MinorArc
         } else {
             ArcKind::MajorArc
@@ -204,10 +214,7 @@ impl Arc {
     }
 
     /// 円弧を指定した分割数で近似する点列を取得
-    pub fn approximate_with_points(
-        &self,
-        num_segments: usize,
-    ) -> Vec<crate::geometry2d::Point2DF64> {
+    pub fn approximate_with_points(&self, num_segments: usize) -> Vec<crate::geometry2d::Point<T>> {
         if num_segments == 0 {
             return vec![];
         }
@@ -216,7 +223,7 @@ impl Arc {
         let span = self.angle_span().to_radians();
 
         for i in 0..=num_segments {
-            let t = i as f64 / num_segments as f64;
+            let t = T::from_f64(i as f64 / num_segments as f64);
             let angle = self.start_angle.to_radians() + span * t;
             let point = self.point_at_angle(angle);
             points.push(point);
@@ -226,7 +233,7 @@ impl Arc {
     }
 
     /// 他の円弧との交差判定
-    pub fn intersects_with_arc(&self, other: &Arc) -> bool {
+    pub fn intersects_with_arc(&self, other: &Arc<T>) -> bool {
         // 基底円同士の交差判定
         if !self.circle.intersects_with_circle(&other.circle) {
             return false;
@@ -243,6 +250,9 @@ impl Arc {
         !(self_end < other_start || other_end < self_start)
     }
 
+    /*
+    // 複雑な変換メソッドは一時的にコメントアウト（後でジェネリック化）
+
     /// 円弧をスケール
     pub fn scale(&self, factor: f64) -> Self {
         Self::new(self.circle.scale(factor), self.start_angle, self.end_angle)
@@ -250,7 +260,7 @@ impl Arc {
 
     /// 円弧を平行移動
     pub fn translate(&self, dx: f64, dy: f64) -> Self {
-        let vector = Vector2D::new(dx, dy);
+        let vector = Vector::new(dx, dy);
         Self::new(
             self.circle.translate(&vector),
             self.start_angle,
@@ -258,8 +268,8 @@ impl Arc {
         )
     }
 
-    /// 円弧を平行移動（Vector2D版）
-    pub fn translate_by_vector(&self, vector: &Vector2D) -> Self {
+    /// 円弧を平行移動（Vector版）
+    pub fn translate_by_vector(&self, vector: &Vector) -> Self {
         Self::new(
             self.circle.translate(vector),
             self.start_angle,
@@ -275,15 +285,15 @@ impl Arc {
             Angle::from_radians(self.end_angle.to_radians() + angle.to_radians()),
         )
     }
+    */
 }
 
-impl PartialEq for Arc {
+impl<T: Scalar> PartialEq for Arc<T> {
     fn eq(&self, other: &Self) -> bool {
+        let tolerance = T::from_f64(GEOMETRIC_TOLERANCE);
         self.circle == other.circle
-            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs()
-                < GEOMETRIC_TOLERANCE
-            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs()
-                < GEOMETRIC_TOLERANCE
+            && (self.start_angle.to_radians() - other.start_angle.to_radians()).abs() < tolerance
+            && (self.end_angle.to_radians() - other.end_angle.to_radians()).abs() < tolerance
     }
 }
 
@@ -293,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_arc_creation() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 5.0);
         let arc = Arc::from_radians(circle, 0.0, PI);
 
@@ -306,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_arc_points() {
-        let center = Point2D::new(2.0, 3.0);
+        let center = Point::new(2.0, 3.0);
         let circle = Circle::new(center, 4.0);
         let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
 
@@ -321,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_arc_length() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 3.0);
         let arc = Arc::from_radians(circle, 0.0, PI);
 
@@ -331,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_arc_kind() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 1.0);
 
         let minor_arc = Arc::from_radians(circle.clone(), 0.0, PI / 3.0);
@@ -349,9 +359,9 @@ mod tests {
 
     #[test]
     fn test_from_three_points() {
-        let p1 = Point2D::new(1.0, 0.0);
-        let p2 = Point2D::new(0.0, 1.0);
-        let p3 = Point2D::new(-1.0, 0.0);
+        let p1 = Point::new(1.0, 0.0);
+        let p2 = Point::new(0.0, 1.0);
+        let p3 = Point::new(-1.0, 0.0);
 
         let arc = Arc::from_three_points(p1, p2, p3).expect("円弧作成に失敗");
 
@@ -362,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_angle_contains() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 1.0);
         let arc = Arc::from_radians(circle, 0.0, PI);
 
@@ -373,30 +383,30 @@ mod tests {
 
     #[test]
     fn test_contains_point() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 1.0);
         let arc = Arc::from_radians(circle, 0.0, PI);
 
         // 円弧上の点（開始点）
-        let point_on_arc_start = Point2D::new(1.0, 0.0);
+        let point_on_arc_start = Point::new(1.0, 0.0);
         assert!(arc.contains_point(point_on_arc_start));
 
         // 円弧上の点（終了点）
-        let point_on_arc_end = Point2D::new(-1.0, 0.0);
+        let point_on_arc_end = Point::new(-1.0, 0.0);
         assert!(arc.contains_point(point_on_arc_end));
 
         // 円上だが角度範囲外の点（270度の位置）
-        let point_off_arc = Point2D::new(0.0, -1.0);
+        let point_off_arc = Point::new(0.0, -1.0);
         assert!(!arc.contains_point(point_off_arc));
 
         // 円外の点
-        let point_outside = Point2D::new(2.0, 0.0);
+        let point_outside = Point::new(2.0, 0.0);
         assert!(!arc.contains_point(point_outside));
     }
 
     #[test]
     fn test_arc_reverse() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 1.0);
         let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
         let reversed = arc.reverse();
@@ -407,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_arc_midpoint() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 1.0);
         let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
         let mid = arc.midpoint();
@@ -422,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_approximate_with_points() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let circle = Circle::new(center, 1.0);
         let arc = Arc::from_radians(circle, 0.0, PI / 2.0);
 
@@ -444,8 +454,8 @@ mod tests {
 // 一時的にコメントアウト - geo_foundationとの整合性調整中
 // Arc2Dトレイトの実装（geo_foundation::geometry::circle::Arc2D）
 impl Arc2DTrait for Arc {
-    type Point = crate::geometry2d::Point2DF64;
-    type Vector = Vector2D;
+    type Point = crate::geometry2d::Point<T>;
+    type Vector = Vector;
 
     fn center(&self) -> Self::Point {
         self.center()
@@ -482,9 +492,73 @@ impl Arc2DTrait for Arc {
 }
 */
 
-// 型エイリアス：他の形状実装との統一を目指したパターン
-pub type Arc2DF64 = Arc; // f64版（現在の実装）
-pub type Arc2D = Arc2DF64; // デフォルトはf64版
+// Arc2DTrait基本実装
+impl<T: Scalar> Arc2DTrait<T> for Arc<T> {
+    type Circle = Circle<T>;
+    type Point = crate::geometry2d::Point<T>;
+    type Angle = Angle<T>;
 
-// 注意：Arc2DF32は将来の型パラメータ化で実装予定
-// pub type Arc2DF32 = Arc<f32>; // 将来実装
+    fn circle(&self) -> &Self::Circle {
+        &self.circle
+    }
+
+    fn start_angle(&self) -> Self::Angle {
+        self.start_angle
+    }
+
+    fn end_angle(&self) -> Self::Angle {
+        self.end_angle
+    }
+
+    fn is_full_circle(&self) -> bool {
+        let angle_diff = self.end_angle - self.start_angle;
+        let diff_rad = angle_diff.to_radians();
+        diff_rad.abs() >= T::TAU || diff_rad.abs() >= T::TAU * T::from_f64(0.999)
+    }
+
+    fn start_point(&self) -> Self::Point {
+        self.start_point()
+    }
+
+    fn end_point(&self) -> Self::Point {
+        self.end_point()
+    }
+}
+
+// ArcMetrics実装
+impl<T: Scalar> ArcMetrics<T> for Arc<T> {
+    fn arc_length(&self) -> T {
+        self.arc_length()
+    }
+
+    fn sector_area(&self) -> T {
+        let radius = self.circle.radius();
+        let angle_span = self.angle_span().to_radians();
+        let half = T::from_f64(0.5);
+        half * radius * radius * angle_span
+    }
+
+    fn central_angle(&self) -> T {
+        self.angle_span().to_radians()
+    }
+}
+
+// ArcContainment実装
+impl<T: Scalar> ArcContainment<T> for Arc<T> {
+    fn contains_point(&self, point: &Self::Point) -> bool {
+        self.contains_point(*point)
+    }
+
+    fn contains_angle(&self, angle: Self::Angle) -> bool {
+        self.angle_contains(angle)
+    }
+
+    fn point_at_angle(&self, angle: Self::Angle) -> Self::Point {
+        self.point_at_angle(angle.to_radians())
+    }
+}
+
+// 型エイリアス：他の形状実装との統一を目指したパターン
+pub type Arc2DF64 = Arc<f64>; // f64版
+pub type Arc2DF32 = Arc<f32>; // f32版
+pub type Arc2D<T> = Arc<T>; // ジェネリック版

@@ -1,16 +1,12 @@
+use super::{Direction3D, Point3D, Vector3D};
+use crate::geometry_kind::CurveKind3D;
+use crate::geometry_trait::curve3d::Curve3D;
+use geo_foundation::{Scalar, ToleranceContext};
 /// 階層統合設計によるLine統合実装例
 ///
 /// geo_primitivesのLineSegment3Dを数値計算基盤として内包し、
 /// modelのCAD概念（無限直線、トリミング）を保持する設計
-
 use std::any::Any;
-use crate::geometry_kind::CurveKind3D;
-use crate::geometry_trait::curve3d::Curve3D;
-use super::{Vector3D, Point3D, Direction3D};
-use geo_foundation::{
-    ToleranceContext,
-    Scalar
-};
 
 /// 無限直線の情報
 #[derive(Debug, Clone)]
@@ -24,8 +20,12 @@ impl InfiniteLineInfo {
         Self { origin, direction }
     }
 
-    pub fn origin(&self) -> &Point3D { &self.origin }
-    pub fn direction(&self) -> &Direction3D { &self.direction }
+    pub fn origin(&self) -> &Point3D {
+        &self.origin
+    }
+    pub fn direction(&self) -> &Direction3D {
+        &self.direction
+    }
 
     /// 無限直線上の点を取得（パラメータ t ∈ ℝ）
     pub fn at(&self, t: f64) -> Point3D {
@@ -34,7 +34,7 @@ impl InfiniteLineInfo {
         Point3D::new(
             self.origin.x() + offset.x(),
             self.origin.y() + offset.y(),
-            self.origin.z() + offset.z()
+            self.origin.z() + offset.z(),
         )
     }
 }
@@ -43,8 +43,8 @@ impl InfiniteLineInfo {
 #[derive(Debug, Clone)]
 pub struct TrimmingInfo {
     is_trimmed: bool,
-    parameter_start: f64,  // 無限直線上でのstart位置
-    parameter_end: f64,    // 無限直線上でのend位置
+    parameter_start: f64, // 無限直線上でのstart位置
+    parameter_end: f64,   // 無限直線上でのend位置
     infinite_line: Option<InfiniteLineInfo>,
 }
 
@@ -61,7 +61,7 @@ impl TrimmingInfo {
     pub fn new_trimmed(
         parameter_start: f64,
         parameter_end: f64,
-        infinite_line: InfiniteLineInfo
+        infinite_line: InfiniteLineInfo,
     ) -> Self {
         Self {
             is_trimmed: true,
@@ -71,9 +71,15 @@ impl TrimmingInfo {
         }
     }
 
-    pub fn is_trimmed(&self) -> bool { self.is_trimmed }
-    pub fn parameter_range(&self) -> (f64, f64) { (self.parameter_start, self.parameter_end) }
-    pub fn infinite_line(&self) -> Option<&InfiniteLineInfo> { self.infinite_line.as_ref() }
+    pub fn is_trimmed(&self) -> bool {
+        self.is_trimmed
+    }
+    pub fn parameter_range(&self) -> (f64, f64) {
+        (self.parameter_start, self.parameter_end)
+    }
+    pub fn infinite_line(&self) -> Option<&InfiniteLineInfo> {
+        self.infinite_line.as_ref()
+    }
 }
 
 /// 統合されたLine構造体
@@ -145,18 +151,14 @@ impl IntegratedLine {
     pub fn from_infinite_line_trimmed(
         infinite_line: InfiniteLineInfo,
         parameter_start: f64,
-        parameter_end: f64
+        parameter_end: f64,
     ) -> Self {
         let start = infinite_line.at(parameter_start);
         let end = infinite_line.at(parameter_end);
 
         Self {
             core_segment: MockLineSegment3D::new(start, end),
-            trimming_info: TrimmingInfo::new_trimmed(
-                parameter_start,
-                parameter_end,
-                infinite_line
-            ),
+            trimming_info: TrimmingInfo::new_trimmed(parameter_start, parameter_end, infinite_line),
             tolerance: ToleranceContext::standard(),
         }
     }
@@ -166,7 +168,7 @@ impl IntegratedLine {
         origin: Point3D,
         direction: Direction3D,
         start: Point3D,
-        end: Point3D
+        end: Point3D,
     ) -> Self {
         let infinite_line = InfiniteLineInfo::new(origin, direction);
 
@@ -180,12 +182,12 @@ impl IntegratedLine {
     /// 無限直線上での点のパラメータを計算
     fn calculate_parameter_on_infinite_line(
         infinite_line: &InfiniteLineInfo,
-        point: &Point3D
+        point: &Point3D,
     ) -> f64 {
         let origin_to_point = Vector3D::new(
             point.x() - infinite_line.origin().x(),
             point.y() - infinite_line.origin().y(),
-            point.z() - infinite_line.origin().z()
+            point.z() - infinite_line.origin().z(),
         );
         let direction_vec = infinite_line.direction().to_vector();
 
@@ -232,10 +234,10 @@ impl IntegratedLine {
             point.y() - self.core_segment.start().y(),
             point.z() - self.core_segment.start().z(),
         );
-        
+
         let t = point_vec.dot(&line_vec) / line_vec.dot(&line_vec);
         let closest_point = self.core_segment.evaluate(t.clamp(0.0, 1.0));
-        
+
         let distance_vec = Vector3D::new(
             point.x() - closest_point.x(),
             point.y() - closest_point.y(),
@@ -251,7 +253,7 @@ impl IntegratedLine {
             point.y() - self.core_segment.start().y(),
             point.z() - self.core_segment.start().z(),
         );
-        
+
         let t = point_vec.dot(&line_vec) / line_vec.dot(&line_vec);
         t.clamp(0.0, 1.0)
     }
@@ -299,18 +301,22 @@ pub mod integrated_line_factory {
         origin: Point3D,
         direction: Direction3D,
         start: Point3D,
-        end: Point3D
+        end: Point3D,
     ) -> Box<dyn Curve3D> {
-        Box::new(IntegratedLine::from_model_line(origin, direction, start, end))
+        Box::new(IntegratedLine::from_model_line(
+            origin, direction, start, end,
+        ))
     }
 
     pub fn create_infinite_line_segment(
         infinite_line: InfiniteLineInfo,
         parameter_start: f64,
-        parameter_end: f64
+        parameter_end: f64,
     ) -> Box<dyn Curve3D> {
         Box::new(IntegratedLine::from_infinite_line_trimmed(
-            infinite_line, parameter_start, parameter_end
+            infinite_line,
+            parameter_start,
+            parameter_end,
         ))
     }
 }

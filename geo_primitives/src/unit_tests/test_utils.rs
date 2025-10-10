@@ -31,7 +31,7 @@ pub use crate::geometry3d::{Point3DF64, Vector3D};
 pub type TestPoint2D = Point2D<f64>;
 pub type TestPoint2DF32 = Point2D<f32>;
 pub type TestPoint3D = Point3DF64;
-pub type TestVector2D = Vector2D; // Vector2D = Vector<f64> のエイリアス
+pub type TestVector2D = Vector2D<f64>; // Vector2D = Vector<f64> のエイリアス
 pub type TestVector2DF32 = Vector<f32>;
 pub type TestVector3D = Vector3D;
 // pub type TestCircle = Circle<f64>;  // 一時的にコメントアウト（Circle依存のため）
@@ -67,7 +67,6 @@ pub mod helpers {
     //         TestCircle::new(TestPoint2D::new(1.0, 1.0), 1.5),
     //     ]
     // }
-
     /// 角度の配列（0, π/4, π/2, π, 3π/2, 2π）
     pub fn test_angles() -> Vec<f64> {
         vec![0.0, PI / 4.0, PI / 2.0, PI, 3.0 * PI / 2.0, 2.0 * PI]
@@ -106,7 +105,7 @@ pub mod helpers {
 macro_rules! assert_approx_eq {
     ($a:expr, $b:expr) => {
         assert!(
-            crate::unit_tests::test_utils::helpers::approx_eq_f64($a, $b),
+            $crate::unit_tests::test_utils::helpers::approx_eq_f64($a, $b),
             "Expected approximately equal: {} ≈ {}",
             $a,
             $b
@@ -127,7 +126,7 @@ macro_rules! assert_approx_eq {
 macro_rules! assert_point_approx_eq {
     ($a:expr, $b:expr) => {
         assert!(
-            crate::unit_tests::test_utils::helpers::approx_eq_point2d($a, $b),
+            $crate::unit_tests::test_utils::helpers::approx_eq_point2d($a, $b),
             "Expected approximately equal points: {:?} ≈ {:?}",
             $a,
             $b

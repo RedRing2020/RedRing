@@ -3,6 +3,7 @@
 //! Direction2Dと同様のパターンでジェネリック化されたDirection3D実装
 
 use crate::geometry3d::Vector;
+use analysis::abstract_types::angle::Angle;
 use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait};
 use geo_foundation::Scalar;
 
@@ -122,11 +123,16 @@ impl<T: Scalar> Direction3DTrait<T> for Direction3D<T> {
     fn cross(&self, other: &Self) -> Self::Vector {
         self.vector.cross(&other.vector)
     }
+}
 
-    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self {
-        // Rodrigues回転公式を使用
-        let cos_theta = angle.cos();
-        let sin_theta = angle.sin();
+// 独立した高度な操作メソッド（トレイト外実装）
+impl<T: Scalar> Direction3D<T> {
+    /// 軸周りの回転（Rodrigues回転公式）
+    pub fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self {
+        // Angle型を使用して三角関数を計算
+        let angle_obj = Angle::from_radians(angle);
+        let cos_theta = angle_obj.cos();
+        let sin_theta = angle_obj.sin();
         let axis_vec = axis.to_vector();
         let dot_product = self.dot(axis);
 
@@ -137,7 +143,8 @@ impl<T: Scalar> Direction3DTrait<T> for Direction3D<T> {
         Self::from_vector(rotated).unwrap()
     }
 
-    fn any_perpendicular(&self) -> Self {
+    /// 垂直な方向ベクトルを一つ取得
+    pub fn any_perpendicular(&self) -> Self {
         // 最も小さい成分を持つ軸と外積を取る
         let abs_x = self.x().abs();
         let abs_y = self.y().abs();
@@ -155,22 +162,26 @@ impl<T: Scalar> Direction3DTrait<T> for Direction3D<T> {
         Self::from_vector(cross).unwrap()
     }
 
-    fn build_orthonormal_basis(&self) -> (Self, Self, Self) {
+    /// 正規直交基底を構築
+    pub fn build_orthonormal_basis(&self) -> (Self, Self, Self) {
         let u = self.any_perpendicular();
         let v = self.cross(&u);
         let v_normalized = Self::from_vector(v).unwrap();
         (*self, u, v_normalized)
     }
 
-    fn x_axis() -> Self {
+    /// X軸方向ベクトル
+    pub fn x_axis() -> Self {
         Self::positive_x()
     }
 
-    fn y_axis() -> Self {
+    /// Y軸方向ベクトル
+    pub fn y_axis() -> Self {
         Self::positive_y()
     }
 
-    fn z_axis() -> Self {
+    /// Z軸方向ベクトル
+    pub fn z_axis() -> Self {
         Self::positive_z()
     }
 }

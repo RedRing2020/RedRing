@@ -1,4 +1,7 @@
-﻿use geo_foundation::Scalar;
+use geo_foundation::abstract_types::geometry::{
+    Vector as VectorTrait, Vector2D as Vector2DTrait, Vector2DConstants, Vector2DGeometry,
+};
+use geo_foundation::Scalar;
 
 /// 型パラメータ化された2Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -80,8 +83,8 @@ impl<T: Scalar> Vector<T> {
 
     /// 2点間のベクトル
     pub fn from_points(
-        from: &crate::geometry2d::Point2D<T>,
-        to: &crate::geometry2d::Point2D<T>,
+        from: &crate::geometry2d::Point<T>,
+        to: &crate::geometry2d::Point<T>,
     ) -> Self {
         Self::new(to.x() - from.x(), to.y() - from.y())
     }
@@ -125,14 +128,12 @@ impl<T: Scalar> Default for Vector<T> {
 }
 
 // geo_foundation Vector トレイトの実装
-impl<T: Scalar> crate::traits::Vector<2> for Vector<T> {
-    type Scalar = T;
-
-    fn from_components(components: [Self::Scalar; 2]) -> Self {
+impl<T: Scalar> VectorTrait<T, 2> for Vector<T> {
+    fn from_components(components: [T; 2]) -> Self {
         Self::new(components[0], components[1])
     }
 
-    fn components(&self) -> [Self::Scalar; 2] {
+    fn components(&self) -> [T; 2] {
         [self.x, self.y]
     }
 
@@ -140,11 +141,11 @@ impl<T: Scalar> crate::traits::Vector<2> for Vector<T> {
         Self::zero()
     }
 
-    fn dot(&self, other: &Self) -> Self::Scalar {
+    fn dot(&self, other: &Self) -> T {
         Vector::dot(self, other)
     }
 
-    fn length(&self) -> Self::Scalar {
+    fn length(&self) -> T {
         Vector::length(self)
     }
 
@@ -152,48 +153,53 @@ impl<T: Scalar> crate::traits::Vector<2> for Vector<T> {
         Vector::normalize(self)
     }
 
-    fn is_zero(&self, tolerance: Self::Scalar) -> bool {
+    fn is_zero(&self, tolerance: T) -> bool {
         self.length() < tolerance
     }
 
-    fn is_unit(&self, tolerance: Self::Scalar) -> bool {
+    fn is_unit(&self, tolerance: T) -> bool {
         (self.length() - T::ONE).abs() < tolerance
     }
 
-    fn is_parallel_to(&self, other: &Self, tolerance: Self::Scalar) -> bool {
+    fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
         let cross = self.cross_2d(other);
         cross.abs() < tolerance
     }
 
-    fn is_perpendicular_to(&self, other: &Self, tolerance: Self::Scalar) -> bool {
+    fn is_perpendicular_to(&self, other: &Self, tolerance: T) -> bool {
         let dot = self.dot(other);
         dot.abs() < tolerance
     }
 }
 
-// VectorExt トレイトの実装
-// geo_foundation Vector2D トレイトの実装（Vector<2> を前提とする）
-impl<T: Scalar> crate::traits::Vector2D for Vector<T> {
-    fn x(&self) -> Self::Scalar {
+// Vector2D 座標アクセストレイトの実装
+impl<T: Scalar> Vector2DTrait<T> for Vector<T> {
+    fn x(&self) -> T {
         self.x
     }
 
-    fn y(&self) -> Self::Scalar {
+    fn y(&self) -> T {
         self.y
     }
 
-    fn new(x: Self::Scalar, y: Self::Scalar) -> Self {
+    fn new(x: T, y: T) -> Self {
         Vector::new(x, y)
     }
+}
 
+// Vector 幾何演算トレイトの実装
+impl<T: Scalar> Vector2DGeometry<T> for Vector<T> {
     fn perpendicular(&self) -> Self {
         Vector::perpendicular(self)
     }
 
-    fn cross_2d(&self, other: &Self) -> Self::Scalar {
+    fn cross_2d(&self, other: &Self) -> T {
         Vector::cross_2d(self, other)
     }
+}
 
+// Vector 定数トレイトの実装
+impl<T: Scalar> Vector2DConstants<T> for Vector<T> {
     fn unit_x() -> Self {
         Vector::unit_x()
     }
@@ -203,32 +209,49 @@ impl<T: Scalar> crate::traits::Vector2D for Vector<T> {
     }
 }
 
-impl<T: Scalar> crate::traits::Vector2DExt for Vector<T> {
-    fn from_angle(angle: Self::Scalar) -> Self {
-        Self::new(angle.cos(), angle.sin())
-    }
-
-    fn angle(&self) -> Self::Scalar {
-        self.y.atan2(self.x)
-    }
-
-    fn angle_to(&self, other: &Self) -> Self::Scalar {
-        let cross = self.cross_2d(other);
-        let dot = self.dot(other);
-        cross.atan2(dot)
-    }
-}
+// TODO: Vector2DExt実装は後で追加
+// impl<T: Scalar> Vector2DExt<T> for Vector<T> {
+//     fn from_angle(angle: T) -> Self {
+//         Self::new(angle.cos(), angle.sin())
+//     }
+//
+//     fn angle(&self) -> T {
+//         self.y.atan2(self.x)
+//     }
+//
+//     fn angle_to(&self, other: &Self) -> T {
+//         let cross = self.cross_2d(other);
+//         let dot = self.dot(other);
+//         cross.atan2(dot)
+//     }
+// }
 
 // Normalizable トレイトの実装
 impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
     type Output = Vector<T>;
 
-    fn normalize(&self) -> Option<Self::Output> {
-        self.normalize()
+    fn normalize(&self) -> Option<Vector<T>> {
+        let length = self.length();
+        if length.is_zero() {
+            None
+        } else {
+            Some(Vector {
+                x: self.x / length,
+                y: self.y / length,
+            })
+        }
     }
 
-    fn normalize_or_zero(&self) -> Self::Output {
-        self.normalize_or_zero()
+    fn normalize_or_zero(&self) -> Vector<T> {
+        let length = self.length();
+        if length.is_zero() {
+            Vector::zero()
+        } else {
+            Vector {
+                x: self.x / length,
+                y: self.y / length,
+            }
+        }
     }
 
     fn can_normalize(&self, tolerance: f64) -> bool {
@@ -306,8 +329,11 @@ impl<T: Scalar> std::ops::Neg for Vector<T> {
 // テストコードはunit_tests/Vector_tests.rsに移動
 
 // 型エイリアス（後方互換性確保）
+/// 2D Vector用の型エイリアス
+pub type Vector2D<T> = Vector<T>;
+
 /// f64版の2D Vector（デフォルト）
-pub type Vector2D = Vector<f64>;
+pub type Vector2DF64 = Vector<f64>;
 
 /// f32版の2D Vector（高速演算用）
-pub type Vector2Df = Vector<f32>;
+pub type Vector2DF32 = Vector<f32>;

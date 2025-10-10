@@ -1,8 +1,8 @@
-//! 3D Ellipse implementation
+﻿//! 3D Ellipse implementation
 //!
 //! 3次元楕円の基本実装
 
-use crate::geometry3d::{BBox3D, Circle, Direction3D, Point3D, Vector};
+use crate::geometry3d::{BBox3D, Circle, Direction3D, Point, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
@@ -36,7 +36,7 @@ impl std::error::Error for EllipseError {}
 /// 3D空間上の楕円を表現する構造体
 #[derive(Debug, Clone)]
 pub struct Ellipse<T: Scalar> {
-    center: Point3D<T>,
+    center: Point<T>,
     major_radius: T,
     minor_radius: T,
     normal: Direction3D<T>,
@@ -53,7 +53,7 @@ impl<T: Scalar> Ellipse<T> {
     /// * `normal` - 楕円平面の法線方向
     /// * `u_axis` - 長軸の方向
     pub fn new(
-        center: Point3D<T>,
+        center: Point<T>,
         major_radius: T,
         minor_radius: T,
         normal: Direction3D<T>,
@@ -77,7 +77,7 @@ impl<T: Scalar> Ellipse<T> {
 
     /// XY平面上の楕円を作成
     pub fn xy_plane(
-        center: Point3D<T>,
+        center: Point<T>,
         major_radius: T,
         minor_radius: T,
     ) -> Result<Self, EllipseError> {
@@ -97,7 +97,7 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// 楕円の中心座標を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub fn center(&self) -> Point<T> {
         self.center
     }
 
@@ -162,16 +162,16 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// 楕円の焦点を取得
-    pub fn foci(&self) -> (Point3D<T>, Point3D<T>) {
+    pub fn foci(&self) -> (Point<T>, Point<T>) {
         let focal_dist = self.focal_distance();
         let u_vec = self.u_axis.to_vector() * focal_dist;
 
-        let f1 = Point3D::new(
+        let f1 = Point::new(
             self.center.x() + u_vec.x(),
             self.center.y() + u_vec.y(),
             self.center.z() + u_vec.z(),
         );
-        let f2 = Point3D::new(
+        let f2 = Point::new(
             self.center.x() - u_vec.x(),
             self.center.y() - u_vec.y(),
             self.center.z() - u_vec.z(),
@@ -186,7 +186,7 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// 指定された角度での楕円周上の点を取得
-    pub fn point_at_angle(&self, angle: f64) -> Point3D {
+    pub fn point_at_angle(&self, angle: f64) -> Point {
         let u_vec = self.u_axis.to_vector();
         let v_vec = self.v_axis().to_vector();
 
@@ -195,7 +195,7 @@ impl<T: Scalar> Ellipse<T> {
 
         let local_point = u_vec * (self.major_radius * cos_t) + v_vec * (self.minor_radius * sin_t);
 
-        Point3D::new(
+        Point::new(
             self.center.x() + local_point.x(),
             self.center.y() + local_point.y(),
             self.center.z() + local_point.z(),
@@ -203,7 +203,7 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// ジェネリック版：指定された角度での楕円周上の点を取得
-    pub fn point_at_angle_generic(&self, angle: T) -> Point3D<T> {
+    pub fn point_at_angle_generic(&self, angle: T) -> Point<T> {
         let u_vec = self.u_axis.to_vector();
         // v軸方向を計算：法線とu軸の外積
         let v_vec = self.normal.to_vector().cross(&u_vec).normalize();
@@ -213,7 +213,7 @@ impl<T: Scalar> Ellipse<T> {
 
         let local_point = u_vec * (self.major_radius * cos_t) + v_vec * (self.minor_radius * sin_t);
 
-        Point3D::new(
+        Point::new(
             self.center.x() + local_point.x(),
             self.center.y() + local_point.y(),
             self.center.z() + local_point.z(),
@@ -221,7 +221,7 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// 点が楕円内部にあるかを判定
-    pub fn contains_point(&self, point: &Point3D) -> bool {
+    pub fn contains_point(&self, point: &Point) -> bool {
         // 楕円の中心を原点とした座標系に変換
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
@@ -240,7 +240,7 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// 点が楕円境界上にあるかを判定
-    pub fn on_boundary(&self, point: &Point3D) -> bool {
+    pub fn on_boundary(&self, point: &Point) -> bool {
         // 楕円の中心を原点とした座標系に変換
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
@@ -289,7 +289,7 @@ impl<T: Scalar> Ellipse<T> {
 
     /// 楕円を平行移動
     pub fn translate(&self, vector: &Vector3D) -> Self {
-        let new_center = Point3D::new(
+        let new_center = Point::new(
             self.center.x() + vector.x(),
             self.center.y() + vector.y(),
             self.center.z() + vector.z(),
@@ -305,7 +305,7 @@ impl<T: Scalar> Ellipse<T> {
     }
 
     /// 指定された点から楕円境界への最短距離を計算（近似）
-    pub fn distance_to_point(&self, point: &Point3D) -> f64 {
+    pub fn distance_to_point(&self, point: &Point) -> f64 {
         if self.contains_point(point) {
             0.0
         } else {
@@ -357,7 +357,7 @@ impl PartialEq for Ellipse {
 /// Ellipse<T>に統一曲線解析インターフェイスを実装
 /// 楕円は位置により曲率が変化する解析形状
 impl<T: Scalar> CurveAnalysis3D<T> for Ellipse<T> {
-    type Point = Point3D<T>;
+    type Point = Point<T>;
     type Vector = Vector<T>;
     type Direction = Direction3D<T>;
 

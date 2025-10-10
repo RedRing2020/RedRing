@@ -2,11 +2,7 @@
 ///
 /// このモジュールは、
 /// geo_core の高精度実装を背景で使用するアダプター
-
-use geo_foundation::{
-    Scalar,
-    ToleranceContext,
-};
+use geo_foundation::{Scalar, ToleranceContext};
 
 /// 2D Vector アダプター（model/geometry2d/vector.rs の代替）
 #[derive(Debug, Clone, PartialEq)]
@@ -18,17 +14,23 @@ impl Vector2D {
     /// x成分とy成分からベクトルを構築
     pub fn new(x: f64, y: f64) -> Self {
         Self {
-            inner: GeoVector2D::new(Scalar::new(x), Scalar::new(y))
+            inner: GeoVector2D::new(Scalar::new(x), Scalar::new(y)),
         }
     }
 
     /// 原点ベクトル
     pub fn zero() -> Self {
-        Self { inner: GeoVector2D::zero() }
+        Self {
+            inner: GeoVector2D::zero(),
+        }
     }
 
-    pub fn x(&self) -> f64 { self.inner.x().value() }
-    pub fn y(&self) -> f64 { self.inner.y().value() }
+    pub fn x(&self) -> f64 {
+        self.inner.x().value()
+    }
+    pub fn y(&self) -> f64 {
+        self.inner.y().value()
+    }
 
     /// ベクトルの長さ（ノルム）
     pub fn norm(&self) -> f64 {
@@ -55,21 +57,27 @@ impl Vector2D {
 impl std::ops::Add for Vector2D {
     type Output = Vector2D;
     fn add(self, rhs: Vector2D) -> Vector2D {
-        Vector2D { inner: self.inner + rhs.inner }
+        Vector2D {
+            inner: self.inner + rhs.inner,
+        }
     }
 }
 
 impl std::ops::Sub for Vector2D {
     type Output = Vector2D;
     fn sub(self, rhs: Vector2D) -> Vector2D {
-        Vector2D { inner: self.inner - rhs.inner }
+        Vector2D {
+            inner: self.inner - rhs.inner,
+        }
     }
 }
 
 impl std::ops::Mul<f64> for Vector2D {
     type Output = Vector2D;
     fn mul(self, scalar: f64) -> Vector2D {
-        Vector2D { inner: self.inner * Scalar::new(scalar) }
+        Vector2D {
+            inner: self.inner * Scalar::new(scalar),
+        }
     }
 }
 
@@ -89,16 +97,24 @@ pub struct Vector3D {
 impl Vector3D {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self {
-            inner: GeoVector3D::new(Scalar::new(x), Scalar::new(y), Scalar::new(z))
+            inner: GeoVector3D::new(Scalar::new(x), Scalar::new(y), Scalar::new(z)),
         }
     }
 
-    pub fn x(&self) -> f64 { self.inner.x().value() }
-    pub fn y(&self) -> f64 { self.inner.y().value() }
-    pub fn z(&self) -> f64 { self.inner.z().value() }
+    pub fn x(&self) -> f64 {
+        self.inner.x().value()
+    }
+    pub fn y(&self) -> f64 {
+        self.inner.y().value()
+    }
+    pub fn z(&self) -> f64 {
+        self.inner.z().value()
+    }
 
     pub fn zero() -> Self {
-        Self { inner: GeoVector3D::zero() }
+        Self {
+            inner: GeoVector3D::zero(),
+        }
     }
 
     pub fn norm(&self) -> f64 {
@@ -110,11 +126,15 @@ impl Vector3D {
     }
 
     pub fn cross(&self, other: &Self) -> Self {
-        Self { inner: self.inner.cross(&other.inner) }
+        Self {
+            inner: self.inner.cross(&other.inner),
+        }
     }
 
     pub fn scale(&self, factor: f64) -> Self {
-        Self { inner: self.inner * Scalar::new(factor) }
+        Self {
+            inner: self.inner * Scalar::new(factor),
+        }
     }
 
     /// geo_core への内部アクセス（必要に応じて）
@@ -131,21 +151,27 @@ impl Vector3D {
 impl std::ops::Add for Vector3D {
     type Output = Vector3D;
     fn add(self, rhs: Vector3D) -> Vector3D {
-        Vector3D { inner: self.inner + rhs.inner }
+        Vector3D {
+            inner: self.inner + rhs.inner,
+        }
     }
 }
 
 impl std::ops::Sub for Vector3D {
     type Output = Vector3D;
     fn sub(self, rhs: Vector3D) -> Vector3D {
-        Vector3D { inner: self.inner - rhs.inner }
+        Vector3D {
+            inner: self.inner - rhs.inner,
+        }
     }
 }
 
 impl std::ops::Mul<f64> for Vector3D {
     type Output = Vector3D;
     fn mul(self, scalar: f64) -> Vector3D {
-        Vector3D { inner: self.inner * Scalar::new(scalar) }
+        Vector3D {
+            inner: self.inner * Scalar::new(scalar),
+        }
     }
 }
 
@@ -165,19 +191,27 @@ pub struct Point2D {
 impl Point2D {
     pub fn new(x: f64, y: f64) -> Self {
         Self {
-            inner: GeoPoint2D::from_f64(x, y)
+            inner: GeoPoint2D::from_f64(x, y),
         }
     }
 
-    pub fn x(&self) -> f64 { self.inner.x().value() }
-    pub fn y(&self) -> f64 { self.inner.y().value() }
+    pub fn x(&self) -> f64 {
+        self.inner.x().value()
+    }
+    pub fn y(&self) -> f64 {
+        self.inner.y().value()
+    }
 
     pub fn origin() -> Self {
-        Self { inner: GeoPoint2D::origin() }
+        Self {
+            inner: GeoPoint2D::origin(),
+        }
     }
 
     pub fn to_vector(&self) -> Vector2D {
-        Vector2D { inner: self.inner.to_vector() }
+        Vector2D {
+            inner: self.inner.to_vector(),
+        }
     }
 
     pub fn distance_to(&self, other: &Point2D) -> f64 {
@@ -202,20 +236,28 @@ pub struct Point3D {
 impl Point3D {
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self {
-            inner: GeoPoint3D::from_f64(x, y, z)
+            inner: GeoPoint3D::from_f64(x, y, z),
         }
     }
 
-    pub fn x(&self) -> f64 { self.inner.x().value() }
-    pub fn y(&self) -> f64 { self.inner.y().value() }
-    pub fn z(&self) -> f64 { self.inner.z().value() }
+    pub fn x(&self) -> f64 {
+        self.inner.x().value()
+    }
+    pub fn y(&self) -> f64 {
+        self.inner.y().value()
+    }
+    pub fn z(&self) -> f64 {
+        self.inner.z().value()
+    }
 
     pub fn distance_to(&self, other: &Self) -> f64 {
         self.inner.distance_to(&other.inner).value()
     }
 
     pub fn to_vector(&self) -> Vector3D {
-        Vector3D { inner: self.inner.to_vector() }
+        Vector3D {
+            inner: self.inner.to_vector(),
+        }
     }
 
     /// geo-core への内部アクセス
@@ -279,29 +321,23 @@ impl Direction3D {
 /// アダプター間の便利な変換関数
 impl From<Point3D> for Vector3D {
     fn from(point: Point3D) -> Self {
-        Vector3D { inner: point.inner.to_vector() }
+        Vector3D {
+            inner: point.inner.to_vector(),
+        }
     }
 }
 
 impl std::ops::Add<Vector3D> for Point3D {
     type Output = Point3D;
     fn add(self, rhs: Vector3D) -> Point3D {
-        Point3D::new(
-            self.x() + rhs.x(),
-            self.y() + rhs.y(),
-            self.z() + rhs.z(),
-        )
+        Point3D::new(self.x() + rhs.x(), self.y() + rhs.y(), self.z() + rhs.z())
     }
 }
 
 impl std::ops::Sub for Point3D {
     type Output = Vector3D;
     fn sub(self, rhs: Point3D) -> Vector3D {
-        Vector3D::new(
-            self.x() - rhs.x(),
-            self.y() - rhs.y(),
-            self.z() - rhs.z(),
-        )
+        Vector3D::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
     }
 }
 

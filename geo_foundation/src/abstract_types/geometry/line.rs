@@ -24,7 +24,7 @@
 //!
 //! ## Line2D vs Line3D の設計
 //!
-//! ```rust
+//! ```rust,ignore
 //! // 2D線分 - 平面幾何用
 //! trait Line2D<T: Scalar> {
 //!     type Point2D;      // Point2D<T>
@@ -226,6 +226,7 @@ mod tests {
     use super::*;
 
     // トレイトの境界がコンパイル可能であることを確認するテスト
+    #[allow(dead_code)]
     fn test_trait_bounds<T: Scalar, L>()
     where
         L: Line2D<T>,
@@ -236,6 +237,7 @@ mod tests {
         // トレイトの境界の検証
     }
 
+    #[allow(dead_code)]
     fn test_3d_trait_bounds<T: Scalar, L>()
     where
         L: Line3D<T>,
