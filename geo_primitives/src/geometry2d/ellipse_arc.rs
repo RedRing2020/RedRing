@@ -1,4 +1,4 @@
-﻿//! 2D Ellipse Arc implementation
+﻿//! 2D楕円弧の実装
 //!
 //! 2次元楕円弧の基本実装
 
@@ -18,8 +18,8 @@ pub enum EllipseArcError {
 impl std::fmt::Display for EllipseArcError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EllipseArcError::EllipseError(msg) => write!(f, "Ellipse error: {}", msg),
-            EllipseArcError::InvalidAngle => write!(f, "Invalid angle"),
+            EllipseArcError::EllipseError(msg) => write!(f, "楕円エラー: {}", msg),
+            EllipseArcError::InvalidAngle => write!(f, "無効な角度"),
         }
     }
 }
@@ -51,7 +51,7 @@ impl<T: Scalar> EllipseArc<T> {
         })
     }
 
-    /// 楕円弧を作成（center, radii, angles）
+    /// 楕円弧を作成（中心、半径、角度を指定）
     pub fn new_from_params(
         center: crate::geometry2d::PointF64,
         major_radius: f64,
@@ -296,7 +296,7 @@ impl<T: Scalar> EllipseArc<T> {
     }
 }
 
-// 手動でPartialEqを実装
+// PartialEqトレイトを手動で実装
 impl PartialEq for EllipseArc {
     fn eq(&self, other: &Self) -> bool {
         self.ellipse == other.ellipse
@@ -544,9 +544,9 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
 }
 
 // 型エイリアス（後方互換性確保）
-/// f64版の2D EllipseArc（デフォルト）
+/// f64版の2D楕円弧（デフォルト）
 pub type EllipseArc2D<T> = EllipseArc<T>;
 pub type EllipseArcF64 = EllipseArc<f64>;
 
-/// f32版の2D EllipseArc（高速演算用）
+/// f32版の2D楕円弧（高速演算用）
 pub type EllipseArcF32 = EllipseArc<f32>;
