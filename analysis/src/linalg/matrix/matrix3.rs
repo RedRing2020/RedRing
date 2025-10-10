@@ -116,7 +116,7 @@ impl<T: Scalar> Matrix3x3<T> {
         for i in 0..3 {
             for j in 0..3 {
                 for k in 0..3 {
-                    result.data[i][j] = result.data[i][j] + self.data[i][k] * other.data[k][j];
+                    result.data[i][j] += self.data[i][k] * other.data[k][j];
                 }
             }
         }
@@ -138,7 +138,7 @@ impl<T: Scalar> Matrix3x3<T> {
         let mut sum = T::ZERO;
         for i in 0..3 {
             for j in 0..3 {
-                sum = sum + self.data[i][j] * self.data[i][j];
+                sum += self.data[i][j] * self.data[i][j];
             }
         }
         sum.sqrt()

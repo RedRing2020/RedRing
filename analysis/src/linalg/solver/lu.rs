@@ -150,7 +150,7 @@ impl<T: Scalar> LUSolver<T> {
             for j in (i + 1)..n {
                 x[i] = x[i] - lu_decomp.lu_matrix[i][j] * x[j];
             }
-            x[i] = x[i] / lu_decomp.lu_matrix[i][i];
+            x[i] /= lu_decomp.lu_matrix[i][i];
         }
 
         Ok(x)
@@ -161,7 +161,7 @@ impl<T: Scalar> LUSolver<T> {
         let mut det = T::from_f64(lu_decomp.determinant_sign as f64);
 
         for i in 0..lu_decomp.lu_matrix.len() {
-            det = det * lu_decomp.lu_matrix[i][i];
+            det *= lu_decomp.lu_matrix[i][i];
         }
 
         det
@@ -176,10 +176,10 @@ impl<T: Scalar> LUSolver<T> {
             let mut sum = T::ZERO;
             #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum = sum + matrix[i][j] * solution[j];
+                sum += matrix[i][j] * solution[j];
             }
             let diff = sum - rhs[i];
-            residual = residual + diff * diff;
+            residual += diff * diff;
         }
 
         residual.sqrt()
