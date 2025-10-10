@@ -12,7 +12,7 @@
 //!
 //! 除外される責務:
 //! ├── 計量演算 (arc_length, area) → ArcMetrics
-//! ├── 点判定 (contains_point, on_arc) → ArcContainment  
+//! ├── 点判定 (contains_point, on_arc) → ArcContainment
 //! ├── 変換操作 (translate, rotate) → ArcTransform
 //! └── 高度な生成 (from_three_points) → ArcBuilder
 //! ```
@@ -40,7 +40,7 @@ pub trait Arc2D<T: Scalar>: Debug + Clone {
     /// 開始角度を取得
     fn start_angle(&self) -> Self::Angle;
 
-    /// 終了角度を取得  
+    /// 終了角度を取得
     fn end_angle(&self) -> Self::Angle;
 
     /// 完全な円（360度）かどうかを判定

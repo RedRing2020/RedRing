@@ -3,10 +3,7 @@
 //! 2次元楕円弧の基本実装
 
 use crate::geometry2d::{bbox::BBox, Ellipse, Point, Vector};
-use geo_foundation::{
-    abstract_types::geometry::EllipseArc2D as EllipseArc2DTrait,
-    Angle, Scalar,
-};
+use geo_foundation::{abstract_types::geometry::EllipseArc2D as EllipseArc2DTrait, Angle, Scalar};
 use geo_foundation::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円弧関連のエラー
@@ -430,17 +427,17 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
         // 複数の点をサンプリングしてバウンディングボックスを計算
         let num_samples = 16;
         let mut points = Vec::with_capacity(num_samples + 2);
-        
+
         // 開始点と終了点を追加
         points.push(self.start_point());
         points.push(self.end_point());
-        
+
         // 中間点をサンプリング
         for i in 1..num_samples {
             let t = T::from_f64(i as f64 / num_samples as f64);
             points.push(self.point_at_parameter(t));
         }
-        
+
         BBox::from_points(&points)
     }
 
@@ -467,19 +464,19 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
         let a = self.semi_major_axis();
         let b = self.semi_minor_axis();
         let theta = angle.to_radians();
-        
+
         // ローカル座標での接線
         let dx = -a * theta.sin();
         let dy = b * theta.cos();
-        
+
         // 回転を適用
         let rotation = self.rotation().to_radians();
         let cos_rot = rotation.cos();
         let sin_rot = rotation.sin();
-        
+
         let tangent_x = dx * cos_rot - dy * sin_rot;
         let tangent_y = dx * sin_rot + dy * cos_rot;
-        
+
         Vector::new(tangent_x, tangent_y).normalize()
     }
 
@@ -498,7 +495,7 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
         if !self.ellipse.on_boundary(point) {
             return false;
         }
-        
+
         // 角度範囲内にあるかチェック
         self.point_in_angle_range(point)
     }
@@ -506,15 +503,15 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
     fn point_in_angle_range(&self, point: &Self::Point) -> bool {
         let center = self.center();
         let to_point = Vector::new(point.x() - center.x(), point.y() - center.y());
-        
+
         // 点の角度を計算
         let point_angle = to_point.y().atan2(to_point.x());
         let normalized_angle = Self::normalize_angle(point_angle);
-        
+
         // 角度範囲内かチェック
         let start = Self::normalize_angle(self.start_angle.to_radians());
         let end = Self::normalize_angle(self.end_angle.to_radians());
-        
+
         if end >= start {
             normalized_angle >= start && normalized_angle <= end
         } else {
@@ -528,7 +525,7 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
 
     fn approximate_with_points(&self, num_segments: usize) -> Vec<Self::Point> {
         let mut points = Vec::with_capacity(num_segments + 1);
-        
+
         for i in 0..=num_segments {
             let t = if num_segments == 0 {
                 T::ZERO
@@ -537,13 +534,12 @@ impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
             };
             points.push(self.point_at_parameter(t));
         }
-        
+
         points
     }
 
     fn reverse(&self) -> Self {
-        Self::new(self.ellipse, self.end_angle, self.start_angle)
-            .unwrap_or_else(|_| self.clone())
+        Self::new(self.ellipse, self.end_angle, self.start_angle).unwrap_or_else(|_| self.clone())
     }
 }
 
