@@ -1,8 +1,8 @@
-//! 3D Arc implementation
+﻿//! 3D Arc implementation
 //!
 //! 3次元円弧の基本実装
 
-use crate::geometry3d::{Circle, Direction3D, Point3D, Vector};
+use crate::geometry3d::{Circle, Direction3D, Point, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
@@ -73,7 +73,7 @@ impl<T: Scalar> Arc<T> {
     }
 
     /// 円弧の中心を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub fn center(&self) -> Point<T> {
         self.circle.center()
     }
 
@@ -116,14 +116,14 @@ impl<T: Scalar> Arc<T> {
     // - approximate_with_points: 点列による近似
 
     /// 指定角度での点取得
-    pub fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
+    pub fn point_at_angle(&self, angle: Angle<T>) -> Point<T> {
         // 角度を0-1パラメータに変換してCircleの統一インターフェースを使用
         let param = angle.to_radians() / T::TAU;
         self.circle.point_at_parameter(param)
     }
 
     /// パラメータt（0.0〜1.0）での点取得
-    pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
+    pub fn point_at_parameter(&self, t: T) -> Point<T> {
         let angle = self.interpolate_angle(t);
         // 角度を0-1パラメータに変換
         let param = angle.to_radians() / T::TAU;
@@ -145,7 +145,7 @@ impl<T: Scalar> Arc<T> {
     }
 
     /// 中点取得
-    pub fn midpoint(&self) -> Point3D<T> {
+    pub fn midpoint(&self) -> Point<T> {
         let mid_angle = self.interpolate_angle(T::ONE / (T::ONE + T::ONE)); // 0.5
                                                                             // 角度を0-1パラメータに変換
         let param = mid_angle.to_radians() / T::TAU;
@@ -194,7 +194,7 @@ impl<T: Scalar> Arc<T> {
     }
 
     /// 円弧を指定した分割数で近似する点列を取得
-    pub fn approximate_with_points(&self, num_segments: usize) -> Vec<Point3D<T>> {
+    pub fn approximate_with_points(&self, num_segments: usize) -> Vec<Point<T>> {
         if num_segments == 0 {
             return vec![];
         }
@@ -220,7 +220,7 @@ impl<T: Scalar> Arc<T> {
 
 /// Arc<T>に統一曲線解析インターフェイスを実装
 impl<T: Scalar> CurveAnalysis3D<T> for Arc<T> {
-    type Point = Point3D<T>;
+    type Point = Point<T>;
     type Vector = Vector<T>;
     type Direction = Direction3D<T>;
 

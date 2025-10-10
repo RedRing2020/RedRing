@@ -3,7 +3,7 @@
 //! 加算、減算、スカラー倍、内積などの基本的なベクトル演算の確認
 
 #[cfg(test)]
-mod vector_basic_ops_tests {
+mod tests {
     use crate::geometry2d::{Vector, Vector2D};
     use geo_foundation::Scalar;
 

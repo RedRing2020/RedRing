@@ -4,13 +4,13 @@ use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 /// ジェネリック3D点
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Point3D<T: Scalar> {
+pub struct Point<T: Scalar> {
     x: T,
     y: T,
     z: T,
 }
 
-impl<T: Scalar> Point3D<T> {
+impl<T: Scalar> Point<T> {
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
@@ -79,7 +79,7 @@ impl<T: Scalar> Point3D<T> {
 }
 
 // 演算子オーバーロード
-impl<T: Scalar> std::ops::Add<Vector<T>> for Point3D<T> {
+impl<T: Scalar> std::ops::Add<Vector<T>> for Point<T> {
     type Output = Self;
 
     fn add(self, vector: Vector<T>) -> Self::Output {
@@ -87,16 +87,16 @@ impl<T: Scalar> std::ops::Add<Vector<T>> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Sub<Point3D<T>> for Point3D<T> {
+impl<T: Scalar> std::ops::Sub<Point<T>> for Point<T> {
     type Output = Vector<T>;
 
-    fn sub(self, other: Point3D<T>) -> Self::Output {
+    fn sub(self, other: Point<T>) -> Self::Output {
         // self - other = Vector from other to self
         other.vector_to(&self)
     }
 }
 
-impl<T: Scalar> std::ops::Sub<Vector<T>> for Point3D<T> {
+impl<T: Scalar> std::ops::Sub<Vector<T>> for Point<T> {
     type Output = Self;
 
     fn sub(self, vector: Vector<T>) -> Self::Output {
@@ -108,7 +108,7 @@ impl<T: Scalar> std::ops::Sub<Vector<T>> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Mul<T> for Point3D<T> {
+impl<T: Scalar> std::ops::Mul<T> for Point<T> {
     type Output = Self;
 
     fn mul(self, scalar: T) -> Self::Output {
@@ -116,7 +116,7 @@ impl<T: Scalar> std::ops::Mul<T> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Div<T> for Point3D<T> {
+impl<T: Scalar> std::ops::Div<T> for Point<T> {
     type Output = Self;
 
     fn div(self, scalar: T) -> Self::Output {
@@ -124,30 +124,29 @@ impl<T: Scalar> std::ops::Div<T> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> Default for Point3D<T> {
+impl<T: Scalar> Default for Point<T> {
     fn default() -> Self {
         Self::origin()
     }
 }
 
 // geo_foundationトレイトの実装
-impl<T: Scalar> TolerantEq for Point3D<T> {
+impl<T: Scalar> TolerantEq for Point<T> {
     fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
         let distance = self.distance_to(other);
         distance < T::from_f64(context.tolerance())
     }
 }
 
-impl<T: Scalar> PointTrait<3> for Point3D<T> {
-    type Scalar = T;
+impl<T: Scalar> PointTrait<T, 3> for Point<T> {
     type Vector = Vector<T>;
 
     fn origin() -> Self {
         Self::new(T::ZERO, T::ZERO, T::ZERO)
     }
 
-    fn distance_to(&self, other: &Self) -> Self::Scalar {
-        Point3D::distance_to(self, other)
+    fn distance_to(&self, other: &Self) -> T {
+        self.distance_to(other)
     }
 
     fn translate(&self, vector: &Self::Vector) -> Self {
@@ -162,35 +161,35 @@ impl<T: Scalar> PointTrait<3> for Point3D<T> {
         Vector::new(other.x - self.x, other.y - self.y, other.z - self.z)
     }
 
-    fn coords(&self) -> [Self::Scalar; 3] {
+    fn coords(&self) -> [T; 3] {
         [self.x, self.y, self.z]
     }
 }
 
-impl<T: Scalar> Point3DTrait for Point3D<T> {
-    fn x(&self) -> Self::Scalar {
+impl<T: Scalar> Point3DTrait<T> for Point<T> {
+    fn x(&self) -> T {
         self.x
     }
 
-    fn y(&self) -> Self::Scalar {
+    fn y(&self) -> T {
         self.y
     }
 
-    fn z(&self) -> Self::Scalar {
+    fn z(&self) -> T {
         self.z
     }
 
-    fn from_components(x: Self::Scalar, y: Self::Scalar, z: Self::Scalar) -> Self {
+    fn from_components(x: T, y: T, z: T) -> Self {
         Self::new(x, y, z)
     }
 }
 
 // 型エイリアス（後方互換性確保）
+/// 3D Point用の型エイリアス
+pub type Point3D<T> = Point<T>;
+
 /// f64版の3D Point（デフォルト）
-pub type Point3DF64 = Point3D<f64>;
+pub type Point3DF64 = Point<f64>;
 
 /// f32版の3D Point（高速演算用）
-pub type Point3DF32 = Point3D<f32>;
-
-/// 従来互換のための型エイリアス
-pub type Point = Point3D<f64>;
+pub type Point3DF32 = Point<f32>;

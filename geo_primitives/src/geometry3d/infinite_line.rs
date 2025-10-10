@@ -1,9 +1,9 @@
-//! InfiniteLine3D - ジェネリック3D無限直線の実装
+﻿//! InfiniteLine3D - ジェネリック3D無限直線の実装
 //!
 //! 3D空間における無限直線の具体的な実装
 //! 点と方向ベクトルで定義される、CAD/CAMシステムで使用される直線の基本的な操作を提供
 
-use crate::geometry3d::{Direction3D, Point3D, Vector};
+use crate::geometry3d::{Direction3D, Point, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
@@ -19,19 +19,19 @@ use geo_foundation::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct InfiniteLine3D<T: Scalar> {
     /// 直線上の基準点
-    origin: Point3D<T>,
+    origin: Point<T>,
     /// 直線の方向（正規化済み）
     direction: Direction3D<T>,
 }
 
 impl<T: Scalar> InfiniteLine3D<T> {
     /// 点と方向ベクトルから無限直線を作成
-    pub fn new(origin: Point3D<T>, direction: Direction3D<T>) -> Self {
+    pub fn new(origin: Point<T>, direction: Direction3D<T>) -> Self {
         Self { origin, direction }
     }
 
     /// 2点を通る無限直線を作成
-    pub fn from_two_points(point1: Point3D<T>, point2: Point3D<T>) -> Option<Self> {
+    pub fn from_two_points(point1: Point<T>, point2: Point<T>) -> Option<Self> {
         let diff = Vector::new(
             point2.x() - point1.x(),
             point2.y() - point1.y(),
@@ -42,33 +42,33 @@ impl<T: Scalar> InfiniteLine3D<T> {
     }
 
     /// X軸方向の無限直線を作成
-    pub fn x_axis(origin: Point3D<T>) -> Self {
+    pub fn x_axis(origin: Point<T>) -> Self {
         Self::new(origin, Direction3D::positive_x())
     }
 
     /// Y軸方向の無限直線を作成
-    pub fn y_axis(origin: Point3D<T>) -> Self {
+    pub fn y_axis(origin: Point<T>) -> Self {
         Self::new(origin, Direction3D::positive_y())
     }
 
     /// Z軸方向の無限直線を作成
-    pub fn z_axis(origin: Point3D<T>) -> Self {
+    pub fn z_axis(origin: Point<T>) -> Self {
         Self::new(origin, Direction3D::positive_z())
     }
 
     /// X軸に平行な直線を作成
     pub fn along_x_axis(y: T, z: T) -> Self {
-        Self::new(Point3D::new(T::ZERO, y, z), Direction3D::positive_x())
+        Self::new(Point::new(T::ZERO, y, z), Direction3D::positive_x())
     }
 
     /// Y軸に平行な直線を作成
     pub fn along_y_axis(x: T, z: T) -> Self {
-        Self::new(Point3D::new(x, T::ZERO, z), Direction3D::positive_y())
+        Self::new(Point::new(x, T::ZERO, z), Direction3D::positive_y())
     }
 
     /// Z軸に平行な直線を作成
     pub fn along_z_axis(x: T, y: T) -> Self {
-        Self::new(Point3D::new(x, y, T::ZERO), Direction3D::positive_z())
+        Self::new(Point::new(x, y, T::ZERO), Direction3D::positive_z())
     }
 
     /// XY平面に投影した2D直線を取得
@@ -93,7 +93,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn project_to_plane(
         &self,
         _plane_normal: &Vector<T>,
-        _plane_point: &Point3D<T>,
+        _plane_point: &Point<T>,
     ) -> Option<Self> {
         // 複雑な投影計算は後で実装
         None
@@ -101,7 +101,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
 }
 
 impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
-    type Point = Point3D<T>;
+    type Point = Point<T>;
     type Vector = Vector<T>;
     type Direction = Direction3D<T>;
     type Error = String;
@@ -142,7 +142,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
         // 投影係数を計算
         let projection = to_point.dot(&dir_vec);
 
-        Point3D::new(
+        Point::new(
             self.origin.x() + projection * dir_vec.x(),
             self.origin.y() + projection * dir_vec.y(),
             self.origin.z() + projection * dir_vec.z(),
@@ -151,7 +151,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
 
     fn point_at_parameter(&self, t: T) -> Self::Point {
         let dir_vec = self.direction.to_vector();
-        Point3D::new(
+        Point::new(
             self.origin.x() + t * dir_vec.x(),
             self.origin.y() + t * dir_vec.y(),
             self.origin.z() + t * dir_vec.z(),
@@ -196,7 +196,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
 
         // 2点間の距離が許容誤差内であれば交点とみなす
         if point1.distance_to(&point2) < T::TOLERANCE {
-            Some(Point3D::new(
+            Some(Point::new(
                 (point1.x() + point2.x()) / (T::ONE + T::ONE),
                 (point1.y() + point2.y()) / (T::ONE + T::ONE),
                 (point1.z() + point2.z()) / (T::ONE + T::ONE),
@@ -313,7 +313,7 @@ impl<T: Scalar> InfiniteLine3DTrait<T> for InfiniteLine3D<T> {
 /// InfiniteLine3D<T>に統一曲線解析インターフェイスを実装
 /// 直線は曲率がゼロで接線が一定の特殊ケース
 impl<T: Scalar> CurveAnalysis3D<T> for InfiniteLine3D<T> {
-    type Point = Point3D<T>;
+    type Point = Point<T>;
     type Vector = Vector<T>;
     type Direction = Direction3D<T>;
 
@@ -321,7 +321,7 @@ impl<T: Scalar> CurveAnalysis3D<T> for InfiniteLine3D<T> {
     /// t: 任意の実数値（無限直線なので制限なし）
     fn point_at_parameter(&self, t: T) -> Self::Point {
         let dir_vec = self.direction.to_vector();
-        Point3D::new(
+        Point::new(
             self.origin.x() + t * dir_vec.x(),
             self.origin.y() + t * dir_vec.y(),
             self.origin.z() + t * dir_vec.z(),

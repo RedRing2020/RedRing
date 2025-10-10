@@ -18,8 +18,9 @@ pub mod traits {
 
     // Re-export traits directly from geo_foundation
     pub use geo_foundation::abstract_types::geometry::{
-        BBox, BBoxOps, Circle2D, Circle3D, CollisionBBox, Direction, Direction2D, Direction3D,
-        Normalizable, StepCompatible, Vector, Vector2D, Vector2DExt, Vector3D, Vector3DExt,
+        BBox, Circle2D, Circle3D, Direction as DirectionTrait, Direction2D as Direction2DTrait,
+        Direction3D as Direction3DTrait, Normalizable, StepCompatible, Vector as VectorTrait,
+        Vector2D as Vector2DTrait, Vector3D as Vector3DTrait,
     };
 
     // Re-export abstract primitive traits from geo_foundation
@@ -50,20 +51,21 @@ pub use traits::common::{
     PrimitiveCollection, PrimitiveKind, TransformablePrimitive,
 };
 
-// バウンディングボックス
+// バウンディングボックス - commonフォルダのトレイトを使用
 pub use geometry2d::BBox2D;
 pub use geometry3d::BBox3D;
-pub use traits::{BBox, BBoxOps, CollisionBBox};
+// BBoxOpsとBBoxContainmentはgeo_foundationから直接インポート
+pub use geo_foundation::{BBoxContainment, BBoxOps, BBoxTransform};
 
 // 基本幾何プリミティブ
 pub use geometry2d::{
-    // Arc as Arc2D, Circle as Circle2D, Direction2D, InfiniteLine2D, Point2D, Vector2D,  // 一時的にコメントアウト（Direction2D整理中）
-    Point2D,
+    // Arc as Arc2D, Circle as Circle2D, Direction2D, InfiniteLine2D, Point, Vector2D,  // 一時的にコメントアウト（Direction2D整理中）
+    Point as Point2D,
     Vector2D,
 };
 pub use geometry3d::{
     // Arc as Arc3D, Circle as Circle3D, Direction3D, InfiniteLine3D, Point3D, Vector3D,  // 一時的にコメントアウト（Direction3D整理中）
-    Point3D,
+    Point as Point3D,
     Vector3D,
 };
 
@@ -72,8 +74,9 @@ pub use geometry3d::{
 
 // 名前空間の整理
 pub mod primitives_2d {
-    // pub use crate::{BBox2D, Direction2D, InfiniteLine2D, Point2D, Vector2D};  // 一時的にコメントアウト（Direction整理中）
-    pub use crate::{BBox2D, Point2D, Vector2D};
+    // pub use crate::{BBox2D, Direction2D, InfiniteLine2D, Point, Vector2D};  // 一時的にコメントアウト（Direction整理中）
+    pub use crate::geometry2d::Point;
+    pub use crate::{BBox2D, Vector2D};
 }
 
 pub mod primitives_3d {
@@ -84,16 +87,18 @@ pub mod primitives_3d {
 /// 便利な再エクスポート
 pub mod prelude {
     // 基本幾何プリミティブ
+    pub use crate::geometry2d::Point;
     pub use crate::{
-        // Direction2D, Direction3D, InfiniteLine2D, InfiniteLine3D, Point2D, Point3D, Vector2D,  // 一時的にコメントアウト（Direction整理中）
-        Point2D,
+        // Direction2D, Direction3D, InfiniteLine2D, InfiniteLine3D, Point, Point3D, Vector2D,  // 一時的にコメントアウト（Direction整理中）
         Point3D,
         Vector2D,
         Vector3D,
     };
 
     // バウンディングボックス
-    pub use crate::{BBox, BBox2D, BBox3D, BBoxOps, CollisionBBox};
+    pub use crate::geometry2d::BBox as BBox2D;
+    pub use crate::geometry3d::bbox::BBox3D;
+    // pub use crate::traits::BBoxOps;  // 利用可能になった時にコメントアウト解除
 
     // プリミティブトレイトと分類
     pub use crate::{
@@ -103,9 +108,10 @@ pub mod prelude {
 
     // Direction トレイト (geo_foundation から)
     pub use geo_foundation::abstract_types::geometry::{
-        Direction, Direction2D as Direction2DTrait, Direction3D as Direction3DTrait,
+        Direction as DirectionTrait, Direction2D as Direction2DTrait,
+        Direction3D as Direction3DTrait,
     };
 
     // ベクトルトレイト
-    pub use crate::traits::{Normalizable, Vector, Vector2DExt, Vector3DExt};
+    pub use crate::traits::Normalizable;
 }

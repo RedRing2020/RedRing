@@ -1,23 +1,35 @@
-//! Ellipse - 楕円の抽象化トレイト
+//! Ellipse - 楕円の最小責務抽象化
 //!
-//! CAD/CAM システムで使用される楕円の抽象化インターフェース
+//! # 設計方針: 最小責務原則
+//!
+//! ## 基本Ellipseトレイト = 楕円の基本属性のみ
+//! ```text
+//! Ellipse Trait = 基本属性のみ
+//! ├── 中心座標 (center)
+//! ├── 軸長 (semi_major_axis, semi_minor_axis)
+//! ├── 回転角度 (rotation)
+//! └── 基本判定 (is_circle)
+//!
+//! 除外される責務:
+//! ├── 計量演算 (area, circumference, eccentricity) → EllipseMetrics
+//! ├── 点判定 (contains_point, on_ellipse) → EllipseContainment
+//! ├── 変換操作 (translate, rotate, scale) → EllipseTransform
+//! └── 高度な生成 (from_foci, from_five_points) → EllipseBuilder
+//! ```
 
-use crate::abstract_types::geometry::vector::Vector3D;
+use crate::abstract_types::geometry::vector::{Vector3D, Vector3DGeometry};
 use analysis::AngleType;
 use analysis::Scalar;
 
-/// 2D楕円の基本操作を定義するトレイト
+/// 2D楕円の最小責務トレイト
+///
+/// 楕円の基本属性（中心・軸長・回転）のみを提供。
+/// 計算や変換などの機能は拡張トレイトで分離。
 pub trait Ellipse2D<T: Scalar> {
     /// 点の型（通常は Point2D）
     type Point;
-    /// ベクトルの型（通常は Vector2D）
-    type Vector;
     /// 角度の型（通常は Angle）
     type Angle: Copy + AngleType<Scalar = T>;
-    /// 境界ボックスの型（通常は BBox2D）
-    type BBox;
-    /// 楕円弧の型
-    type EllipseArc;
 
     /// 楕円の中心座標を取得
     fn center(&self) -> Self::Point;
@@ -33,125 +45,64 @@ pub trait Ellipse2D<T: Scalar> {
 
     /// 楕円が円かどうかを判定（長軸と短軸が等しい）
     fn is_circle(&self) -> bool {
-        (self.semi_major_axis() - self.semi_minor_axis()).abs() < T::TOLERANCE
+        (self.semi_major_axis() - self.semi_minor_axis()).abs() < T::from_f64(1e-10)
     }
-
-    /// 楕円の離心率を計算
-    /// 0に近いほど円に近く、1に近いほど細長い楕円
-    fn eccentricity(&self) -> T {
-        let a = self.semi_major_axis();
-        let b = self.semi_minor_axis();
-        if a <= T::TOLERANCE {
-            return T::ZERO;
-        }
-        let c_squared = a * a - b * b;
-        if c_squared <= T::ZERO {
-            T::ZERO
-        } else {
-            (c_squared.sqrt()) / a
-        }
-    }
-
-    /// 楕円の面積を計算
-    fn area(&self) -> T {
-        T::PI * self.semi_major_axis() * self.semi_minor_axis()
-    }
-
-    /// 楕円の周長を計算（ラマヌジャンの近似式を使用）
-    fn circumference(&self) -> T {
-        let a = self.semi_major_axis();
-        let b = self.semi_minor_axis();
-        let h = ((a - b) / (a + b)).powi(2);
-        T::PI
-            * (a + b)
-            * (T::ONE
-                + (T::from_f64(3.0) * h)
-                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
-    }
-
-    /// 楕円の焦点を取得（2つの焦点）
-    fn foci(&self) -> (Self::Point, Self::Point);
-
-    /// 楕円の境界ボックスを計算
-    fn bounding_box(&self) -> Self::BBox;
-
-    /// 指定された角度での楕円周上の点を取得
-    /// angle: 楕円のローカル座標系でのラジアン（長軸方向が0度）
-    fn point_at_angle(&self, angle: Self::Angle) -> Self::Point;
-
-    /// 指定されたパラメータでの楕円周上の点を取得
-    /// t: パラメータ（0.0〜1.0で一周）
-    fn point_at_parameter(&self, t: T) -> Self::Point {
-        let angle_radians = t * T::TAU;
-        self.point_at_angle(Self::Angle::from_radians(angle_radians))
-    }
-
-    /// 指定された角度での接線ベクトルを取得
-    fn tangent_at_angle(&self, angle: Self::Angle) -> Self::Vector;
-
-    /// 指定された角度での法線ベクトルを取得
-    fn normal_at_angle(&self, angle: Self::Angle) -> Self::Vector;
-
-    /// 指定された点が楕円の内部にあるかを判定
-    fn contains_point(&self, point: &Self::Point) -> bool;
-
-    /// 指定された点が楕円周上にあるかを判定
-    fn on_boundary(&self, point: &Self::Point) -> bool;
-
-    /// 指定された点から楕円周までの最短距離を計算
-    fn distance_to_point(&self, point: &Self::Point) -> T;
-
-    /// 楕円を指定した角度範囲で楕円弧に変換
-    fn to_arc(&self, start_angle: Self::Angle, end_angle: Self::Angle) -> Self::EllipseArc;
-
-    /// 楕円を均等分割した点列を取得
-    fn approximate_with_points(&self, num_points: usize) -> Vec<Self::Point>;
 }
 
-/// 3D楕円の基本操作を定義するトレイト
-pub trait Ellipse3D<T: Scalar> {
-    /// 点の型（通常は Point3D）
-    type Point;
-    /// ベクトルの型（通常は Vector3D）
-    type Vector: Vector3D;
-    /// 方向の型（通常は Direction3D）
-    type Direction;
-    /// 角度の型（通常は Angle）
-    type Angle: Copy + AngleType<Scalar = T>;
-    /// 境界ボックスの型（通常は BBox3D）
-    type BBox;
-    /// 2D楕円の型（投影用）
-    type Ellipse2D;
-    /// 楕円弧の型
-    type EllipseArc;
+/// 楕円の計量演算拡張
+///
+/// 面積・周長・離心率などの計算機能を提供。
+pub trait EllipseMetrics<T: Scalar>: Ellipse2D<T> {
+    /// 楕円の離心率を計算
+    /// 0に近いほど円に近く、1に近いほど細長い楕円
+    fn eccentricity(&self) -> T;
 
-    /// 楕円の中心座標を取得
-    fn center(&self) -> Self::Point;
+    /// 楕円の面積を計算
+    fn area(&self) -> T;
 
-    /// 楕円の長軸半径を取得
-    fn semi_major_axis(&self) -> T;
+    /// 楕円の周長を計算（近似式使用）
+    fn circumference(&self) -> T;
+}
 
-    /// 楕円の短軸半径を取得
-    fn semi_minor_axis(&self) -> T;
+/// 楕円の包含・交差判定拡張
+///
+/// 点の包含判定や他の図形との交差判定を提供。
+pub trait EllipseContainment<T: Scalar>: Ellipse2D<T> {
+    /// 点が楕円内部にあるかを判定
+    fn contains_point(&self, point: &Self::Point) -> bool;
 
-    /// 楕円の法線ベクトルを取得（楕円が存在する平面の法線）
-    fn normal(&self) -> Self::Direction;
+    /// 点が楕円境界上にあるかを判定
+    fn on_ellipse(&self, point: &Self::Point, tolerance: T) -> bool;
+
+    /// 指定された角度での楕円周上の点を取得
+    fn point_at_angle(&self, angle: Self::Angle) -> Self::Point;
+}
+
+/// 3D楕円の最小責務トレイト
+///
+/// 2D楕円に法線ベクトルを追加した3D空間での楕円。
+pub trait Ellipse3D<T: Scalar>: Ellipse2D<T> {
+    /// ベクトル型
+    type Vector: Vector3D<T>;
+
+    /// 楕円が存在する平面の法線ベクトルを取得
+    fn normal(&self) -> Self::Vector;
 
     /// 楕円の長軸方向ベクトルを取得
-    fn major_axis_direction(&self) -> Self::Direction;
+    fn major_axis_direction(&self) -> Self::Vector;
 
     /// 楕円の短軸方向ベクトルを取得
-    fn minor_axis_direction(&self) -> Self::Direction;
+    fn minor_axis_direction(&self) -> Self::Vector;
 
     /// 楕円が円かどうかを判定
     fn is_circle(&self) -> bool {
-        (self.semi_major_axis() - self.semi_minor_axis()).abs() < T::TOLERANCE
+        (Ellipse2D::semi_major_axis(self) - Ellipse2D::semi_minor_axis(self)).abs() < T::TOLERANCE
     }
 
     /// 楕円の離心率を計算
     fn eccentricity(&self) -> T {
-        let a = self.semi_major_axis();
-        let b = self.semi_minor_axis();
+        let a = Ellipse2D::semi_major_axis(self);
+        let b = Ellipse2D::semi_minor_axis(self);
         if a <= T::TOLERANCE {
             return T::ZERO;
         }
@@ -165,13 +116,13 @@ pub trait Ellipse3D<T: Scalar> {
 
     /// 楕円の面積を計算
     fn area(&self) -> T {
-        T::PI * self.semi_major_axis() * self.semi_minor_axis()
+        T::PI * Ellipse2D::semi_major_axis(self) * Ellipse2D::semi_minor_axis(self)
     }
 
     /// 楕円の周長を計算
     fn circumference(&self) -> T {
-        let a = self.semi_major_axis();
-        let b = self.semi_minor_axis();
+        let a = Ellipse2D::semi_major_axis(self);
+        let b = Ellipse2D::semi_minor_axis(self);
         let h = ((a - b) / (a + b)).powi(2);
         T::PI
             * (a + b)
@@ -182,9 +133,6 @@ pub trait Ellipse3D<T: Scalar> {
 
     /// 楕円の焦点を取得（2つの焦点）
     fn foci(&self) -> (Self::Point, Self::Point);
-
-    /// 楕円の境界ボックスを計算
-    fn bounding_box(&self) -> Self::BBox;
 
     /// 指定された角度での楕円周上の点を取得
     fn point_at_angle(&self, angle: Self::Angle) -> Self::Point;
@@ -202,7 +150,10 @@ pub trait Ellipse3D<T: Scalar> {
     fn normal_at_angle(&self, angle: Self::Angle) -> Self::Vector;
 
     /// 指定された角度での双法線ベクトルを取得（楕円平面に垂直）
-    fn binormal_at_angle(&self, angle: Self::Angle) -> Self::Vector {
+    fn binormal_at_angle(&self, angle: Self::Angle) -> Self::Vector
+    where
+        Self::Vector: Vector3DGeometry<T>,
+    {
         let tangent = self.tangent_at_angle(angle);
         let normal = self.normal_at_angle(angle);
         tangent.cross(&normal)
@@ -217,24 +168,11 @@ pub trait Ellipse3D<T: Scalar> {
     /// 指定された点から楕円周までの最短距離を計算
     fn distance_to_point(&self, point: &Self::Point) -> T;
 
-    /// 楕円をXY平面に投影して2D楕円を取得
-    fn project_to_xy(&self) -> Self::Ellipse2D;
-
-    /// 楕円を指定した平面に投影
-    fn project_to_plane(
-        &self,
-        plane_normal: &Self::Direction,
-        plane_point: &Self::Point,
-    ) -> Self::Ellipse2D;
-
-    /// 楕円を指定した角度範囲で楕円弧に変換
-    fn to_arc(&self, start_angle: Self::Angle, end_angle: Self::Angle) -> Self::EllipseArc;
-
     /// 楕円を均等分割した点列を取得
     fn approximate_with_points(&self, num_points: usize) -> Vec<Self::Point>;
 
     /// ローカル座標系を構築（長軸、短軸、法線の直交座標系）
-    fn local_coordinate_system(&self) -> (Self::Direction, Self::Direction, Self::Direction) {
+    fn local_coordinate_system(&self) -> (Self::Vector, Self::Vector, Self::Vector) {
         (
             self.major_axis_direction(),
             self.minor_axis_direction(),

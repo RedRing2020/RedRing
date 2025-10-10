@@ -2,7 +2,7 @@
 //!
 //! 2次元楕円の基本実装
 
-use crate::geometry2d::{bbox::BBoxF64, Circle, Point2DF64, Vector2D};
+use crate::geometry2d::{bbox::BBoxF64, Circle, Point2DF64};
 use geo_foundation::Angle;
 use geo_foundation::GEOMETRIC_TOLERANCE;
 
@@ -234,7 +234,7 @@ impl Ellipse {
     }
 
     /// 楕円を平行移動
-    pub fn translate(&self, vector: &Vector2D) -> Self {
+    pub fn translate(&self, vector: &crate::geometry2d::Vector2DF64) -> Self {
         let new_center =
             Point2DF64::new(self.center.x() + vector.x(), self.center.y() + vector.y());
         Self::new(
@@ -244,6 +244,20 @@ impl Ellipse {
             self.rotation,
         )
         .unwrap()
+    }
+
+    /// 楕円のU軸（長軸方向）を取得
+    pub fn u_axis(&self) -> crate::geometry2d::Direction2DF64 {
+        let cos_rot = self.rotation.to_radians().cos();
+        let sin_rot = self.rotation.to_radians().sin();
+        crate::geometry2d::Direction2DF64::new(cos_rot, sin_rot).unwrap()
+    }
+
+    /// 楕円のV軸（短軸方向）を取得
+    pub fn v_axis(&self) -> crate::geometry2d::Direction2DF64 {
+        let cos_rot = self.rotation.to_radians().cos();
+        let sin_rot = self.rotation.to_radians().sin();
+        crate::geometry2d::Direction2DF64::new(-sin_rot, cos_rot).unwrap()
     }
 
     /// 楕円を回転
@@ -332,5 +346,10 @@ impl PartialEq for Ellipse {
                 < GEOMETRIC_TOLERANCE
     }
 }
+
+// 型エイリアス
+pub type Ellipse2D = Ellipse; // f64固定版
+pub type EllipseF64 = Ellipse; // 明示的f64版
+pub type EllipseF32 = Ellipse; // 将来のf32対応用（現在はf64と同じ）
 
 // 注意: テストコードは unit_tests/ellipse_tests.rs に分離されています

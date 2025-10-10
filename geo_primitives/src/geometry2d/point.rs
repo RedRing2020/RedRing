@@ -1,18 +1,18 @@
-use crate::geometry2d::Vector; // ジェネリック Vector を使用
+﻿use crate::geometry2d::Vector; // ジェネリック Vector を使用
 use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
 use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 /// A 2D point represented by x and y coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Point2D<T: Scalar> {
+pub struct Point<T: Scalar> {
     pub x: T,
     pub y: T,
 }
 
-impl<T: Scalar> Point2D<T> {
-    /// Creates a new Point2D.
-    pub fn new(x: T, y: T) -> Point2D<T> {
-        Point2D { x, y }
+impl<T: Scalar> Point<T> {
+    /// Creates a new Point.
+    pub fn new(x: T, y: T) -> Point<T> {
+        Point { x, y }
     }
 
     pub fn origin() -> Self {
@@ -67,7 +67,7 @@ impl<T: Scalar> Point2D<T> {
 }
 
 // 演算子オーバーロード
-impl<T: Scalar> std::ops::Add<Vector<T>> for Point2D<T> {
+impl<T: Scalar> std::ops::Add<Vector<T>> for Point<T> {
     type Output = Self;
 
     fn add(self, vector: Vector<T>) -> Self::Output {
@@ -75,7 +75,7 @@ impl<T: Scalar> std::ops::Add<Vector<T>> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Sub<Vector<T>> for Point2D<T> {
+impl<T: Scalar> std::ops::Sub<Vector<T>> for Point<T> {
     type Output = Self;
 
     fn sub(self, vector: Vector<T>) -> Self::Output {
@@ -83,7 +83,7 @@ impl<T: Scalar> std::ops::Sub<Vector<T>> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Sub for Point2D<T> {
+impl<T: Scalar> std::ops::Sub for Point<T> {
     type Output = Vector<T>;
 
     fn sub(self, other: Self) -> Self::Output {
@@ -92,7 +92,7 @@ impl<T: Scalar> std::ops::Sub for Point2D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Mul<T> for Point2D<T> {
+impl<T: Scalar> std::ops::Mul<T> for Point<T> {
     type Output = Self;
 
     fn mul(self, scalar: T) -> Self::Output {
@@ -100,7 +100,7 @@ impl<T: Scalar> std::ops::Mul<T> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> std::ops::Div<T> for Point2D<T> {
+impl<T: Scalar> std::ops::Div<T> for Point<T> {
     type Output = Self;
 
     fn div(self, scalar: T) -> Self::Output {
@@ -109,23 +109,22 @@ impl<T: Scalar> std::ops::Div<T> for Point2D<T> {
 }
 
 // geo_foundationトレイトの実装
-impl<T: Scalar> TolerantEq for Point2D<T> {
+impl<T: Scalar> TolerantEq for Point<T> {
     fn tolerant_eq(&self, other: &Self, context: &ToleranceContext) -> bool {
         let distance = self.distance_to(other);
         distance < T::from_f64(context.tolerance())
     }
 }
 
-impl<T: Scalar> PointTrait<2> for Point2D<T> {
-    type Scalar = T;
-    type Vector = Vector<T>; // ジェネリック型に修正
+impl<T: Scalar> PointTrait<T, 2> for Point<T> {
+    type Vector = Vector<T>;
 
     fn origin() -> Self {
         Self::new(T::ZERO, T::ZERO)
     }
 
-    fn distance_to(&self, other: &Self) -> Self::Scalar {
-        Point2D::distance_to(self, other)
+    fn distance_to(&self, other: &Self) -> T {
+        self.distance_to(other)
     }
 
     fn translate(&self, vector: &Self::Vector) -> Self {
@@ -136,28 +135,32 @@ impl<T: Scalar> PointTrait<2> for Point2D<T> {
         Vector::new(other.x - self.x, other.y - self.y)
     }
 
-    fn coords(&self) -> [Self::Scalar; 2] {
+    fn coords(&self) -> [T; 2] {
         [self.x, self.y]
     }
 }
 
-impl<T: Scalar> Point2DTrait for Point2D<T> {
-    fn x(&self) -> Self::Scalar {
+// Point2DTrait の実装
+impl<T: Scalar> Point2DTrait<T> for Point<T> {
+    fn x(&self) -> T {
         self.x
     }
 
-    fn y(&self) -> Self::Scalar {
+    fn y(&self) -> T {
         self.y
     }
 
-    fn from_components(x: Self::Scalar, y: Self::Scalar) -> Self {
+    fn from_components(x: T, y: T) -> Self {
         Self::new(x, y)
     }
 }
 
 // 型エイリアス（後方互換性確保）
+/// 2D Point用の型エイリアス
+pub type Point2D<T> = Point<T>;
+
 /// f64版の2D Point（デフォルト）
-pub type Point2DF64 = Point2D<f64>;
+pub type Point2DF64 = Point<f64>;
 
 /// f32版の2D Point（高速演算用）
-pub type Point2DF32 = Point2D<f32>;
+pub type Point2DF32 = Point<f32>;

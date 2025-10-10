@@ -6,7 +6,7 @@
 use crate::abstract_types::Scalar;
 
 #[cfg(test)]
-mod scalar_tests {
+mod tests {
     use super::*;
 
     #[test]

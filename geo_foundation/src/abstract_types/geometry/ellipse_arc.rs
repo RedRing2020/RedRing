@@ -2,7 +2,7 @@
 //!
 //! 2D/3D空間における楕円弧の抽象的なインターフェースを提供
 
-use crate::abstract_types::geometry::vector::Vector3D;
+use crate::abstract_types::geometry::vector::{Vector3D, Vector3DGeometry};
 use analysis::AngleType;
 use analysis::Scalar;
 
@@ -137,7 +137,7 @@ pub trait EllipseArc3D<T: Scalar> {
     /// 点の型（通常は Point3D）
     type Point;
     /// ベクトルの型（通常は Vector3D）
-    type Vector: Vector3D;
+    type Vector: Vector3D<T>;
     /// 方向の型（通常は Direction3D）
     type Direction;
     /// 角度の型（通常は Angle）
@@ -234,7 +234,10 @@ pub trait EllipseArc3D<T: Scalar> {
     fn normal_at_angle(&self, angle: Self::Angle) -> Self::Vector;
 
     /// 指定されたパラメータ位置での双法線ベクトルを取得（楕円平面に垂直）
-    fn binormal_at_parameter(&self, t: T) -> Self::Vector {
+    fn binormal_at_parameter(&self, t: T) -> Self::Vector
+    where
+        Self::Vector: Vector3DGeometry<T>,
+    {
         let tangent = self.tangent_at_parameter(t);
         let normal = self.normal_at_parameter(t);
         tangent.cross(&normal)

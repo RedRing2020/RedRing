@@ -1,11 +1,12 @@
-//! 2D Ellipse Arc implementation
+﻿//! 2D Ellipse Arc implementation
 //!
 //! 2次元楕円弧の基本実装
 
-#[cfg(test)]
-use crate::geometry2d::Point2D;
-use crate::geometry2d::{bbox::BBoxF64, Ellipse, Vector2D};
-use geo_foundation::Angle;
+use crate::geometry2d::{bbox::BBox, Ellipse, Point, Vector};
+use geo_foundation::{
+    abstract_types::geometry::EllipseArc2D as EllipseArc2DTrait,
+    Angle, Scalar,
+};
 use geo_foundation::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円弧関連のエラー
@@ -30,18 +31,18 @@ impl std::error::Error for EllipseArcError {}
 
 /// 2D空間上の楕円弧を表現する構造体
 #[derive(Debug, Clone)]
-pub struct EllipseArc {
-    ellipse: Ellipse,
-    start_angle: Angle<f64>,
-    end_angle: Angle<f64>,
+pub struct EllipseArc<T: Scalar> {
+    ellipse: Ellipse<T>,
+    start_angle: Angle<T>,
+    end_angle: Angle<T>,
 }
 
-impl EllipseArc {
+impl<T: Scalar> EllipseArc<T> {
     /// 新しい楕円弧を作成
     pub fn new(
-        ellipse: Ellipse,
-        start_angle: Angle<f64>,
-        end_angle: Angle<f64>,
+        ellipse: Ellipse<T>,
+        start_angle: Angle<T>,
+        end_angle: Angle<T>,
     ) -> Result<Self, EllipseArcError> {
         let normalized_start = Self::normalize_angle(start_angle.to_radians());
         let normalized_end = Self::normalize_angle(end_angle.to_radians());
@@ -55,7 +56,7 @@ impl EllipseArc {
 
     /// 楕円弧を作成（center, radii, angles）
     pub fn new_from_params(
-        center: crate::geometry2d::Point2DF64,
+        center: crate::geometry2d::PointF64,
         major_radius: f64,
         minor_radius: f64,
         rotation: f64,
@@ -105,7 +106,7 @@ impl EllipseArc {
     }
 
     /// 楕円弧の中心を取得
-    pub fn center(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn center(&self) -> crate::geometry2d::PointF64 {
         self.ellipse.center()
     }
 
@@ -135,34 +136,34 @@ impl EllipseArc {
     }
 
     /// 指定された角度での楕円弧上の点を取得
-    pub fn point_at_angle(&self, angle: f64) -> crate::geometry2d::Point2DF64 {
+    pub fn point_at_angle(&self, angle: f64) -> crate::geometry2d::PointF64 {
         self.ellipse.point_at_angle(angle)
     }
 
     /// 指定されたパラメータ（0.0-1.0）での楕円弧上の点を取得
-    pub fn point_at_parameter(&self, t: f64) -> crate::geometry2d::Point2DF64 {
+    pub fn point_at_parameter(&self, t: f64) -> crate::geometry2d::PointF64 {
         let start_rad = self.start_angle.to_radians();
         let angle = start_rad + t * self.calculate_angle_range();
         self.point_at_angle(angle)
     }
 
     /// 楕円弧の開始点を取得
-    pub fn start_point(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn start_point(&self) -> crate::geometry2d::PointF64 {
         self.point_at_angle(self.start_angle.to_radians())
     }
 
     /// 楕円弧の終了点を取得
-    pub fn end_point(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn end_point(&self) -> crate::geometry2d::PointF64 {
         self.point_at_angle(self.end_angle.to_radians())
     }
 
     /// 楕円弧の中間点を取得
-    pub fn mid_point(&self) -> crate::geometry2d::Point2DF64 {
+    pub fn mid_point(&self) -> crate::geometry2d::PointF64 {
         self.point_at_parameter(0.5)
     }
 
     /// 指定された角度での楕円弧の接線ベクトルを取得
-    pub fn tangent_at_angle(&self, angle: f64) -> Vector2D {
+    pub fn tangent_at_angle(&self, angle: f64) -> Vector {
         // 楕円の微分を計算
         let a = self.semi_major_axis();
         let b = self.semi_minor_axis();
@@ -181,30 +182,30 @@ impl EllipseArc {
         let tangent_x = local_tangent_x * cos_rot - local_tangent_y * sin_rot;
         let tangent_y = local_tangent_x * sin_rot + local_tangent_y * cos_rot;
 
-        Vector2D::new(tangent_x, tangent_y)
+        Vector::new(tangent_x, tangent_y)
             .normalize()
-            .unwrap_or(Vector2D::new(1.0, 0.0))
+            .unwrap_or(Vector::new(1.0, 0.0))
     }
 
     /// 指定されたパラメータでの楕円弧の接線ベクトルを取得
-    pub fn tangent_at_parameter(&self, t: f64) -> Vector2D {
+    pub fn tangent_at_parameter(&self, t: f64) -> Vector {
         let start_rad = self.start_angle.to_radians();
         let angle = start_rad + t * self.calculate_angle_range();
         self.tangent_at_angle(angle)
     }
 
     /// 楕円弧の開始点での接線ベクトルを取得
-    pub fn start_tangent(&self) -> Vector2D {
+    pub fn start_tangent(&self) -> Vector {
         self.tangent_at_angle(self.start_angle.to_radians())
     }
 
     /// 楕円弧の終了点での接線ベクトルを取得
-    pub fn end_tangent(&self) -> Vector2D {
+    pub fn end_tangent(&self) -> Vector {
         self.tangent_at_angle(self.end_angle.to_radians())
     }
 
     /// 楕円弧のバウンディングボックスを計算
-    pub fn bounding_box(&self) -> BBoxF64 {
+    pub fn bounding_box(&self) -> BBox {
         // 楕円弧上の複数の点をサンプリングしてバウンディングボックスを計算
         let mut points = Vec::new();
 
@@ -219,21 +220,21 @@ impl EllipseArc {
             points.push(self.point_at_parameter(t));
         }
 
-        BBoxF64::from_point_array(&points).unwrap_or_else(|| {
+        BBox::from_point_array(&points).unwrap_or_else(|| {
             let center = self.ellipse.center();
-            BBoxF64::new_from_tuples((center.x(), center.y()), (center.x(), center.y()))
+            BBox::new_from_tuples((center.x(), center.y()), (center.x(), center.y()))
         })
     }
 
     /// 点が楕円弧上にあるかを判定
-    pub fn on_arc(&self, point: &crate::geometry2d::Point2DF64) -> bool {
+    pub fn on_arc(&self, point: &crate::geometry2d::PointF64) -> bool {
         // まず楕円境界上にあるかをチェック
         if !self.ellipse.on_boundary(point) {
             return false;
         }
 
         // 角度を計算して範囲内かをチェック
-        let to_point = Vector2D::new(point.x() - self.center().x(), point.y() - self.center().y());
+        let to_point = Vector::new(point.x() - self.center().x(), point.y() - self.center().y());
 
         let angle = to_point.y().atan2(to_point.x());
         let normalized_angle = Self::normalize_angle(angle);
@@ -255,7 +256,7 @@ impl EllipseArc {
     }
 
     /// 楕円弧を平行移動
-    pub fn translate(&self, vector: &Vector2D) -> Self {
+    pub fn translate(&self, vector: &Vector) -> Self {
         let translated_ellipse = self.ellipse.translate(vector);
         Self::new(translated_ellipse, self.start_angle, self.end_angle).unwrap()
     }
@@ -277,7 +278,7 @@ impl EllipseArc {
     }
 
     /// 楕円弧上の点列を生成
-    pub fn generate_points(&self, num_points: usize) -> Vec<crate::geometry2d::Point2DF64> {
+    pub fn generate_points(&self, num_points: usize) -> Vec<crate::geometry2d::PointF64> {
         let mut points = Vec::with_capacity(num_points);
 
         for i in 0..num_points {
@@ -315,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_ellipse_arc_creation() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let arc = EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, 0.0, PI).unwrap();
 
         assert_eq!(arc.center(), center);
@@ -325,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_ellipse_arc_points() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let arc = EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, 0.0, PI).unwrap();
 
         let start_point = arc.start_point();
@@ -339,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_ellipse_arc_length() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
 
         // 小さな楕円弧（π/4ラジアン = 45度）
         let arc = EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, 0.0, PI / 4.0).unwrap();
@@ -351,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_angle_in_range() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let arc =
             EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, PI / 4.0, 3.0 * PI / 4.0).unwrap();
 
@@ -362,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_generate_points() {
-        let center = Point2D::new(0.0, 0.0);
+        let center = Point::new(0.0, 0.0);
         let arc = EllipseArc::new_from_params(center, 3.0, 2.0, 0.0, 0.0, PI).unwrap();
 
         let points = arc.generate_points(5);
@@ -375,3 +376,181 @@ mod tests {
         assert!((points[4].distance_to(&arc.end_point())).abs() < GEOMETRIC_TOLERANCE);
     }
 }
+
+// 新しいトレイト実装
+impl<T: Scalar> EllipseArc2DTrait<T> for EllipseArc<T> {
+    type Point = Point<T>;
+    type Vector = Vector<T>;
+    type Angle = Angle<T>;
+    type Ellipse = Ellipse<T>;
+    type BBox = BBox<T>;
+
+    fn center(&self) -> Self::Point {
+        self.ellipse.center()
+    }
+
+    fn semi_major_axis(&self) -> T {
+        self.ellipse.major_radius()
+    }
+
+    fn semi_minor_axis(&self) -> T {
+        self.ellipse.minor_radius()
+    }
+
+    fn rotation(&self) -> Self::Angle {
+        self.ellipse.rotation()
+    }
+
+    fn start_angle(&self) -> Self::Angle {
+        self.start_angle
+    }
+
+    fn end_angle(&self) -> Self::Angle {
+        self.end_angle
+    }
+
+    fn angle_range(&self) -> Self::Angle {
+        let start = self.start_angle.to_radians();
+        let end = self.end_angle.to_radians();
+        let range = if end >= start {
+            end - start
+        } else {
+            (T::TAU + end) - start
+        };
+        Angle::from_radians(range)
+    }
+
+    fn arc_length(&self) -> T {
+        let range = self.angle_range().to_radians();
+        let ellipse_circumference = self.ellipse.circumference();
+        ellipse_circumference * range / T::TAU
+    }
+
+    fn bounding_box(&self) -> Self::BBox {
+        // 複数の点をサンプリングしてバウンディングボックスを計算
+        let num_samples = 16;
+        let mut points = Vec::with_capacity(num_samples + 2);
+        
+        // 開始点と終了点を追加
+        points.push(self.start_point());
+        points.push(self.end_point());
+        
+        // 中間点をサンプリング
+        for i in 1..num_samples {
+            let t = T::from_f64(i as f64 / num_samples as f64);
+            points.push(self.point_at_parameter(t));
+        }
+        
+        BBox::from_points(&points)
+    }
+
+    fn point_at_parameter(&self, t: T) -> Self::Point {
+        let start_rad = self.start_angle.to_radians();
+        let range_rad = self.angle_range().to_radians();
+        let angle_rad = start_rad + t * range_rad;
+        self.point_at_angle(Angle::from_radians(angle_rad))
+    }
+
+    fn point_at_angle(&self, angle: Self::Angle) -> Self::Point {
+        self.ellipse.point_at_angle(angle)
+    }
+
+    fn tangent_at_parameter(&self, t: T) -> Self::Vector {
+        let start_rad = self.start_angle.to_radians();
+        let range_rad = self.angle_range().to_radians();
+        let angle_rad = start_rad + t * range_rad;
+        self.tangent_at_angle(Angle::from_radians(angle_rad))
+    }
+
+    fn tangent_at_angle(&self, angle: Self::Angle) -> Self::Vector {
+        // 楕円弧の接線を計算
+        let a = self.semi_major_axis();
+        let b = self.semi_minor_axis();
+        let theta = angle.to_radians();
+        
+        // ローカル座標での接線
+        let dx = -a * theta.sin();
+        let dy = b * theta.cos();
+        
+        // 回転を適用
+        let rotation = self.rotation().to_radians();
+        let cos_rot = rotation.cos();
+        let sin_rot = rotation.sin();
+        
+        let tangent_x = dx * cos_rot - dy * sin_rot;
+        let tangent_y = dx * sin_rot + dy * cos_rot;
+        
+        Vector::new(tangent_x, tangent_y).normalize()
+    }
+
+    fn normal_at_parameter(&self, t: T) -> Self::Vector {
+        let tangent = self.tangent_at_parameter(t);
+        Vector::new(-tangent.y(), tangent.x())
+    }
+
+    fn normal_at_angle(&self, angle: Self::Angle) -> Self::Vector {
+        let tangent = self.tangent_at_angle(angle);
+        Vector::new(-tangent.y(), tangent.x())
+    }
+
+    fn contains_point(&self, point: &Self::Point) -> bool {
+        // まず楕円上にあるかチェック
+        if !self.ellipse.on_boundary(point) {
+            return false;
+        }
+        
+        // 角度範囲内にあるかチェック
+        self.point_in_angle_range(point)
+    }
+
+    fn point_in_angle_range(&self, point: &Self::Point) -> bool {
+        let center = self.center();
+        let to_point = Vector::new(point.x() - center.x(), point.y() - center.y());
+        
+        // 点の角度を計算
+        let point_angle = to_point.y().atan2(to_point.x());
+        let normalized_angle = Self::normalize_angle(point_angle);
+        
+        // 角度範囲内かチェック
+        let start = Self::normalize_angle(self.start_angle.to_radians());
+        let end = Self::normalize_angle(self.end_angle.to_radians());
+        
+        if end >= start {
+            normalized_angle >= start && normalized_angle <= end
+        } else {
+            normalized_angle >= start || normalized_angle <= end
+        }
+    }
+
+    fn parent_ellipse(&self) -> Self::Ellipse {
+        self.ellipse
+    }
+
+    fn approximate_with_points(&self, num_segments: usize) -> Vec<Self::Point> {
+        let mut points = Vec::with_capacity(num_segments + 1);
+        
+        for i in 0..=num_segments {
+            let t = if num_segments == 0 {
+                T::ZERO
+            } else {
+                T::from_f64(i as f64 / num_segments as f64)
+            };
+            points.push(self.point_at_parameter(t));
+        }
+        
+        points
+    }
+
+    fn reverse(&self) -> Self {
+        Self::new(self.ellipse, self.end_angle, self.start_angle)
+            .unwrap_or_else(|_| self.clone())
+    }
+}
+
+// 型エイリアス（後方互換性確保）
+/// f64版の2D EllipseArc（デフォルト）
+pub type EllipseArc2D<T> = EllipseArc<T>;
+pub type EllipseArcF64 = EllipseArc<f64>;
+
+/// f32版の2D EllipseArc（高速演算用）
+pub type EllipseArcF32 = EllipseArc<f32>;

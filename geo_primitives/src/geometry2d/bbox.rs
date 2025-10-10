@@ -2,9 +2,11 @@
 //!
 //! 2D形状処理と衝突判定のための2次元境界ボックス
 
-use crate::geometry2d::Point2D;
+use crate::geometry2d::Point;
 use geo_foundation::{
-    abstract_types::geometry::{BBox as BBoxTrait, BBoxOps, CollisionBBox},
+    abstract_types::geometry::{
+        BBox as BBoxTrait, BBoxCollision, BBoxContainment, BBoxOps, BBoxTransform,
+    },
     Scalar,
 };
 
@@ -16,13 +18,13 @@ use geo_foundation::{
 /// # カプセル化
 /// フィールドはprivateで、アクセサメソッドを通じてアクセスします。
 #[derive(Debug, Clone, PartialEq)]
-pub struct BBox2D<T: Scalar> {
-    min: Point2D<T>,
-    max: Point2D<T>,
+pub struct BBox<T: Scalar> {
+    min: Point<T>,
+    max: Point<T>,
 }
 
-impl<T: Scalar> BBoxTrait<T> for BBox2D<T> {
-    type Point = Point2D<T>;
+impl<T: Scalar> BBoxTrait<T> for BBox<T> {
+    type Point = Point<T>;
 
     fn min(&self) -> Self::Point {
         self.min
@@ -45,7 +47,7 @@ impl<T: Scalar> BBoxTrait<T> for BBox2D<T> {
 
     fn center(&self) -> Self::Point {
         let two = T::from_f64(2.0);
-        Point2D::new(
+        Point::new(
             (self.min.x() + self.max.x()) / two,
             (self.min.y() + self.max.y()) / two,
         )
@@ -61,10 +63,12 @@ impl<T: Scalar> BBoxTrait<T> for BBox2D<T> {
     }
 }
 
-impl<T: Scalar> BBoxOps<T> for BBox2D<T>
+impl<T: Scalar> BBoxOps<T> for BBox<T>
 where
     T: PartialOrd + Copy,
 {
+    type Point = Point<T>;
+
     fn contains_point(&self, point: Self::Point) -> bool {
         point.x() >= self.min.x()
             && point.x() <= self.max.x()
@@ -79,29 +83,45 @@ where
             && self.min.y() <= other.max.y()
     }
 
-    fn union(&self, other: &Self) -> Self {
-        Self {
-            min: Point2D::new(
-                self.min.x().min(other.min.x()),
-                self.min.y().min(other.min.y()),
-            ),
-            max: Point2D::new(
-                self.max.x().max(other.max.x()),
-                self.max.y().max(other.max.y()),
-            ),
-        }
+    fn center(&self) -> Self::Point {
+        <Self as geo_foundation::BBox<T>>::center(self)
+    }
+
+    fn area_or_volume(&self) -> T {
+        <Self as geo_foundation::BBox<T>>::volume(self)
     }
 
     fn expand(&self, amount: T) -> Self {
-        Self {
-            min: Point2D::new(self.min.x() - amount, self.min.y() - amount),
-            max: Point2D::new(self.max.x() + amount, self.max.y() + amount),
-        }
+        let half_amount = amount / (T::ONE + T::ONE);
+        Self::new(
+            Point::new(self.min.x() - half_amount, self.min.y() - half_amount),
+            Point::new(self.max.x() + half_amount, self.max.y() + half_amount),
+        )
     }
 }
 
-impl<T: Scalar> CollisionBBox<T> for BBox2D<T> {
-    fn fast_overlaps(&self, other: &Self) -> bool {
+impl<T: Scalar> BBoxContainment<T> for BBox<T> {
+    fn contains_point_with_tolerance(&self, point: &Self::Point, tolerance: T) -> bool {
+        point.x() >= self.min.x() - tolerance
+            && point.x() <= self.max.x() + tolerance
+            && point.y() >= self.min.y() - tolerance
+            && point.y() <= self.max.y() + tolerance
+    }
+
+    fn contains_bbox(&self, other: &Self) -> bool {
+        self.min.x() <= other.min.x()
+            && self.min.y() <= other.min.y()
+            && self.max.x() >= other.max.x()
+            && self.max.y() >= other.max.y()
+    }
+
+    fn is_contained_by(&self, other: &Self) -> bool {
+        other.contains_bbox(self)
+    }
+}
+
+impl<T: Scalar> BBoxCollision<T> for BBox<T> {
+    fn quick_intersect(&self, other: &Self) -> bool {
         // 軸平行境界ボックス特化の高速重複テスト
         !(self.max.x() < other.min.x()
             || other.max.x() < self.min.x()
@@ -109,39 +129,85 @@ impl<T: Scalar> CollisionBBox<T> for BBox2D<T> {
             || other.max.y() < self.min.y())
     }
 
-    fn separation_distance(&self, other: &Self) -> Option<T> {
-        if self.intersects(other) {
-            return None; // 重複している場合は分離距離なし
+    fn intersection_area(&self, other: &Self) -> Option<T> {
+        if !self.quick_intersect(other) {
+            return None;
         }
 
-        // 最近点間の距離を計算
-        let self_closest = self.closest_point_on_surface(other.center());
-        let other_closest = other.closest_point_on_surface(self.center());
+        let min_x = self.min.x().max(other.min.x());
+        let max_x = self.max.x().min(other.max.x());
+        let min_y = self.min.y().max(other.min.y());
+        let max_y = self.max.y().min(other.max.y());
 
-        // 2点間のユークリッド距離
-        let dx = self_closest.x() - other_closest.x();
-        let dy = self_closest.y() - other_closest.y();
-        let distance_squared = dx * dx + dy * dy;
+        let width = max_x - min_x;
+        let height = max_y - min_y;
 
-        Some(distance_squared.sqrt())
+        Some(width * height)
     }
 
-    fn closest_point_on_surface(&self, point: Self::Point) -> Self::Point {
-        Point2D::new(
-            point.x().clamp(self.min.x(), self.max.x()),
-            point.y().clamp(self.min.y(), self.max.y()),
+    fn distance_to(&self, other: &Self) -> T {
+        if self.intersects(other) {
+            return T::ZERO; // 重複している場合は距離は0
+        }
+
+        let dx = if self.max.x() < other.min.x() {
+            other.min.x() - self.max.x()
+        } else if other.max.x() < self.min.x() {
+            self.min.x() - other.max.x()
+        } else {
+            T::ZERO
+        };
+
+        let dy = if self.max.y() < other.min.y() {
+            other.min.y() - self.max.y()
+        } else if other.max.y() < self.min.y() {
+            self.min.y() - other.max.y()
+        } else {
+            T::ZERO
+        };
+
+        (dx * dx + dy * dy).sqrt()
+    }
+}
+
+// BBoxTransform の実装
+impl<T: Scalar> BBoxTransform<T> for BBox<T> {
+    type Vector = crate::geometry2d::Vector<T>;
+
+    fn translate(&self, offset: &Self::Vector) -> Self {
+        Self::new(
+            Point::new(self.min.x() + offset.x(), self.min.y() + offset.y()),
+            Point::new(self.max.x() + offset.x(), self.max.y() + offset.y()),
+        )
+    }
+
+    fn scale(&self, factor: T) -> Self {
+        let center = <Self as geo_foundation::BBoxOps<T>>::center(&self);
+        let half_width = self.width() / (T::ONE + T::ONE) * factor;
+        let half_height = self.height() / (T::ONE + T::ONE) * factor;
+
+        Self::new(
+            Point::new(center.x() - half_width, center.y() - half_height),
+            Point::new(center.x() + half_width, center.y() + half_height),
+        )
+    }
+
+    fn expand_by_vector(&self, expansion: &Self::Vector) -> Self {
+        Self::new(
+            Point::new(self.min.x() - expansion.x(), self.min.y() - expansion.y()),
+            Point::new(self.max.x() + expansion.x(), self.max.y() + expansion.y()),
         )
     }
 }
 
-impl<T: Scalar> BBox2D<T> {
+impl<T: Scalar> BBox<T> {
     /// 最小点を取得（読み取り専用アクセサ）
-    pub fn min_point(&self) -> Point2D<T> {
+    pub fn min_point(&self) -> Point<T> {
         self.min
     }
 
     /// 最大点を取得（読み取り専用アクセサ）
-    pub fn max_point(&self) -> Point2D<T> {
+    pub fn max_point(&self) -> Point<T> {
         self.max
     }
 
@@ -169,7 +235,7 @@ impl<T: Scalar> BBox2D<T> {
     ///
     /// # 安全性
     /// min <= max の条件を満たさない場合はpanicします
-    pub fn update(&mut self, min: Point2D<T>, max: Point2D<T>) {
+    pub fn update(&mut self, min: Point<T>, max: Point<T>) {
         assert!(
             min.x() <= max.x() && min.y() <= max.y(),
             "Invalid bounding box: min must be <= max"
@@ -179,42 +245,42 @@ impl<T: Scalar> BBox2D<T> {
     }
 
     /// 点を境界ボックスに含めるよう拡張
-    pub fn expand_to_include_point(&mut self, point: Point2D<T>) {
-        self.min = Point2D::new(self.min.x().min(point.x()), self.min.y().min(point.y()));
-        self.max = Point2D::new(self.max.x().max(point.x()), self.max.y().max(point.y()));
+    pub fn expand_to_include_point(&mut self, point: Point<T>) {
+        self.min = Point::new(self.min.x().min(point.x()), self.min.y().min(point.y()));
+        self.max = Point::new(self.max.x().max(point.x()), self.max.y().max(point.y()));
     }
 
     /// 新しいBBoxをタプルから作成（互換性のため）
     pub fn new_from_tuples(min: (T, T), max: (T, T)) -> Self {
-        Self::new(Point2D::new(min.0, min.1), Point2D::new(max.0, max.1))
+        Self::new(Point::new(min.0, min.1), Point::new(max.0, max.1))
     }
 
     /// 座標値から直接作成（互換性のため）
     pub fn from_coords(min_x: T, min_y: T, max_x: T, max_y: T) -> Self {
-        Self::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
+        Self::new(Point::new(min_x, min_y), Point::new(max_x, max_y))
     }
 
     /// 2つの点からBBoxを作成（タプル用の便利コンストラクタ）
-    pub fn from_two_points(min: Point2D<T>, max: Point2D<T>) -> Self {
+    pub fn from_two_points(min: Point<T>, max: Point<T>) -> Self {
         Self::new(min, max)
     }
 
     /// 2つの点からBBoxを作成（順序を自動修正）
-    pub fn from_two_points_safe(p1: Point2D<T>, p2: Point2D<T>) -> Self {
-        let min = Point2D::new(p1.x().min(p2.x()), p1.y().min(p2.y()));
-        let max = Point2D::new(p1.x().max(p2.x()), p1.y().max(p2.y()));
+    pub fn from_two_points_safe(p1: Point<T>, p2: Point<T>) -> Self {
+        let min = Point::new(p1.x().min(p2.x()), p1.y().min(p2.y()));
+        let max = Point::new(p1.x().max(p2.x()), p1.y().max(p2.y()));
         Self::new(min, max)
     }
 
     /// 座標値から安全にBBoxを作成（順序を自動修正）
     pub fn from_coords_safe(x1: T, y1: T, x2: T, y2: T) -> Self {
-        let min = Point2D::new(x1.min(x2), y1.min(y2));
-        let max = Point2D::new(x1.max(x2), y1.max(y2));
+        let min = Point::new(x1.min(x2), y1.min(y2));
+        let max = Point::new(x1.max(x2), y1.max(y2));
         Self::new(min, max)
     }
 
     /// 点の集合からバウンディングボックスを作成
-    pub fn from_point_array(points: &[Point2D<T>]) -> Option<Self> {
+    pub fn from_point_array(points: &[Point<T>]) -> Option<Self> {
         if points.is_empty() {
             return None;
         }
@@ -224,15 +290,15 @@ impl<T: Scalar> BBox2D<T> {
         let mut max = *first;
 
         for point in points.iter().skip(1) {
-            min = Point2D::new(min.x().min(point.x()), min.y().min(point.y()));
-            max = Point2D::new(max.x().max(point.x()), max.y().max(point.y()));
+            min = Point::new(min.x().min(point.x()), min.y().min(point.y()));
+            max = Point::new(max.x().max(point.x()), max.y().max(point.y()));
         }
 
         Some(Self::new(min, max))
     }
 
     /// 便利なfrom_pointsエイリアス
-    pub fn from_points(points: &[Point2D<T>]) -> Option<Self> {
+    pub fn from_points(points: &[Point<T>]) -> Option<Self> {
         Self::from_point_array(points)
     }
 
@@ -253,13 +319,13 @@ impl<T: Scalar> BBox2D<T> {
 
     /// 中心点をタプルで取得（互換性のため）
     pub fn center_tuple(&self) -> (T, T) {
-        let center = self.center();
+        let center = <Self as geo_foundation::BBoxOps<T>>::center(&self);
         (center.x(), center.y())
     }
 
     /// 点が境界ボックス内にあるかチェック（タプル版、互換性のため）
     pub fn contains_point_tuple(&self, point: (T, T)) -> bool {
-        self.contains_point(Point2D::new(point.0, point.1))
+        self.contains_point(Point::new(point.0, point.1))
     }
 
     /// 周囲長を計算
@@ -300,7 +366,7 @@ impl<T: Scalar> BBox2D<T> {
 }
 
 // f64版の特化実装（BBox2DExt相当）
-impl BBox2D<f64> {
+impl BBox<f64> {
     /// 3Dバウンディングボックスに変換（Z=0）
     pub fn to_3d(&self) -> crate::geometry3d::BBox3D<f64> {
         use crate::geometry3d::Point3D;
@@ -329,7 +395,7 @@ impl BBox2D<f64> {
 }
 
 // f32版の特化実装（BBox2DExt相当）
-impl BBox2D<f32> {
+impl BBox<f32> {
     /// 3Dバウンディングボックスに変換（Z=0、f64に変換）
     pub fn to_3d(&self) -> crate::geometry3d::BBox3D<f64> {
         use crate::geometry3d::Point3D;
@@ -358,8 +424,8 @@ impl BBox2D<f32> {
 }
 
 // 型エイリアス：命名統一と後方互換性
-pub type BBox = BBox2D<f64>; // 旧BBox互換
-pub type BBoxF64 = BBox2D<f64>;
-pub type BBoxF32 = BBox2D<f32>;
+pub type BBox2D<T> = BBox<T>; // 新形式への移行
+pub type BBoxF64 = BBox<f64>;
+pub type BBoxF32 = BBox<f32>;
 
 // テストコードはunit_tests/BBox_tests.rsに移動
