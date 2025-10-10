@@ -140,10 +140,10 @@ impl<T: Scalar> CramerSolver<T> {
             let mut sum = T::ZERO;
             #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum = sum + matrix[i][j] * solution[j];
+                sum += matrix[i][j] * solution[j];
             }
             let diff = sum - rhs[i];
-            residual = residual + diff * diff;
+            residual += diff * diff;
         }
 
         residual.sqrt()

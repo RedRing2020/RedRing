@@ -145,7 +145,7 @@ impl<T: Scalar> Matrix4x4<T> {
         for i in 0..4 {
             for j in 0..4 {
                 for k in 0..4 {
-                    result.data[i][j] = result.data[i][j] + self.data[i][k] * other.data[k][j];
+                    result.data[i][j] += self.data[i][k] * other.data[k][j];
                 }
             }
         }

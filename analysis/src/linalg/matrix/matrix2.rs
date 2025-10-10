@@ -80,7 +80,7 @@ impl<T: Scalar> Matrix2x2<T> {
         let mut sum = T::ZERO;
         for i in 0..2 {
             for j in 0..2 {
-                sum = sum + self.data[i][j] * self.data[i][j];
+                sum += self.data[i][j] * self.data[i][j];
             }
         }
         sum.sqrt()
