@@ -1,6 +1,49 @@
 //! 幾何プリミティブの共通トレイト
 //!
 //! 全ての幾何プリミティブが実装すべき基本的なインターフェース
+//!
+//! # エラー処理の設計方針
+//!
+//! RedRing では各幾何形状ごとに専用のエラー型を定義する方針を採用しています。
+//! 汎用的な `GeometryError` ではなく、具体的で型安全なエラー処理を提供します。
+//!
+//! ## 専用エラー型の設計パターン
+//!
+//! ```rust,ignore
+//! // 例: Circle 用のエラー型
+//! #[derive(Debug, Clone, PartialEq)]
+//! pub enum CircleError {
+//!     InvalidRadius,
+//!     CollinearPoints,
+//!     InvalidCenter,
+//! }
+//!
+//! impl std::fmt::Display for CircleError {
+//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//!         match self {
+//!             CircleError::InvalidRadius => write!(f, "Invalid radius: must be positive"),
+//!             CircleError::CollinearPoints => write!(f, "Collinear points cannot form a circle"),
+//!             CircleError::InvalidCenter => write!(f, "Invalid center point"),
+//!         }
+//!     }
+//! }
+//! impl std::error::Error for CircleError {}
+//!
+//! // 使用例（仮想的な Circle 構造体）
+//! struct Circle { center: Point, radius: f64 }
+//! struct Point { x: f64, y: f64 }
+//!
+//! impl Circle {
+//!     pub fn new(center: Point, radius: f64) -> Result<Self, CircleError> {
+//!         if radius <= 0.0 {
+//!             return Err(CircleError::InvalidRadius);
+//!         }
+//!         Ok(Circle { center, radius })
+//!     }
+//! }
+//! ```
+//!
+//! この設計により、コンパイル時の型チェックで適切なエラー処理が保証されます。
 
 use super::classification::PrimitiveKind;
 use crate::Scalar;

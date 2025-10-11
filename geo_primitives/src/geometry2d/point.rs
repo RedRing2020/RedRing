@@ -1,5 +1,6 @@
 ﻿use crate::geometry2d::Vector; // ジェネリック Vector を使用
 use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
+use geo_foundation::abstract_types::geometry::common::distance_operations::DistanceCalculation;
 use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 /// A 2D point represented by x and y coordinates.
@@ -152,6 +153,27 @@ impl<T: Scalar> Point2DTrait<T> for Point<T> {
 
     fn from_components(x: T, y: T) -> Self {
         Self::new(x, y)
+    }
+}
+
+// 統合された距離計算トレイトの実装
+impl<T: Scalar> DistanceCalculation<T, Point<T>> for Point<T> {
+    type DistanceResult = T;
+
+    fn distance_to(&self, target: &Point<T>) -> Self::DistanceResult {
+        let dx = self.x - target.x;
+        let dy = self.y - target.y;
+        (dx * dx + dy * dy).sqrt()
+    }
+
+    fn distance_squared_to(&self, target: &Point<T>) -> T {
+        let dx = self.x - target.x;
+        let dy = self.y - target.y;
+        dx * dx + dy * dy
+    }
+
+    fn extract_scalar_distance(&self, result: Self::DistanceResult) -> T {
+        result
     }
 }
 

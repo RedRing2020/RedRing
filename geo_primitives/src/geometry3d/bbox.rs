@@ -227,7 +227,7 @@ impl<T: Scalar> BBoxTransform<T> for BBox3D<T> {
     }
 
     fn scale(&self, factor: T) -> Self {
-        let center = <Self as geo_foundation::BBoxOps<T>>::center(&self);
+        let center = <Self as geo_foundation::BBoxOps<T>>::center(self);
         let half_width = self.width() / (T::ONE + T::ONE) * factor;
         let half_height = self.height() / (T::ONE + T::ONE) * factor;
         let half_depth = self.depth() / (T::ONE + T::ONE) * factor;
@@ -418,7 +418,7 @@ impl<T: Scalar> BBox3D<T> {
 
     /// 中心点をタプルで取得（互換性のため）
     pub fn center_tuple(&self) -> (T, T, T) {
-        let center = <Self as geo_foundation::BBoxOps<T>>::center(&self);
+        let center = <Self as geo_foundation::BBoxOps<T>>::center(self);
         (center.x(), center.y(), center.z())
     }
 

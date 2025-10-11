@@ -4,6 +4,7 @@
 #[cfg(test)]
 pub mod tests {
     use crate::geometry2d::vector::{Vector, Vector2D, Vector2Df};
+    use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
     use geo_foundation::Scalar;
 
     #[test]

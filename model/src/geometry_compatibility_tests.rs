@@ -1,7 +1,6 @@
 /// Phase 1: 互換性検証テスト
 ///
 /// SimpleAdaptedLine と既存のmodel::Line の数値的一致性を確認
-
 #[cfg(test)]
 mod compatibility_tests {
     use crate::geometry::geometry3d::{

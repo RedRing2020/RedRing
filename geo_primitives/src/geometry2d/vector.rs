@@ -1,6 +1,8 @@
 use geo_foundation::abstract_types::geometry::{
     Vector as VectorTrait, Vector2D as Vector2DTrait, Vector2DConstants, Vector2DGeometry,
 };
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
+use geo_foundation::abstract_types::geometry::common::distance_operations::DistanceCalculation;
 use geo_foundation::Scalar;
 
 /// 型パラメータ化された2Dベクトル
@@ -52,21 +54,6 @@ impl<T: Scalar> Vector<T> {
     /// ベクトルの長さの二乗
     pub fn length_squared(&self) -> T {
         self.x * self.x + self.y * self.y
-    }
-
-    /// 正規化（単位ベクトル化）
-    pub fn normalize(&self) -> Option<Self> {
-        let len = self.length();
-        if len == T::ZERO {
-            None
-        } else {
-            Some(Self::new(self.x / len, self.y / len))
-        }
-    }
-
-    /// 正規化（ゼロベクトルの場合はゼロベクトルを返す）
-    pub fn normalize_or_zero(&self) -> Self {
-        self.normalize().unwrap_or_default()
     }
 
     /// 内積
@@ -149,10 +136,6 @@ impl<T: Scalar> VectorTrait<T, 2> for Vector<T> {
         Vector::length(self)
     }
 
-    fn normalize(&self) -> Option<Self> {
-        Vector::normalize(self)
-    }
-
     fn is_zero(&self, tolerance: T) -> bool {
         self.length() < tolerance
     }
@@ -226,8 +209,8 @@ impl<T: Scalar> Vector2DConstants<T> for Vector<T> {
 //     }
 // }
 
-// Normalizable トレイトの実装
-impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
+// Normalizable トレイトの実装（統合版）
+impl<T: Scalar> Normalizable<T> for Vector<T> {
     type Output = Vector<T>;
 
     fn normalize(&self) -> Option<Vector<T>> {
@@ -254,8 +237,28 @@ impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
         }
     }
 
-    fn can_normalize(&self, tolerance: f64) -> bool {
-        self.length().to_f64() > tolerance
+    fn can_normalize(&self, tolerance: T) -> bool {
+        self.length() > tolerance
+    }
+}
+
+// 統合された距離計算トレイトの実装（ベクトル間距離）
+impl<T: Scalar> DistanceCalculation<T, Vector<T>> for Vector<T> {
+    type DistanceResult = T;
+
+    fn distance_to(&self, target: &Vector<T>) -> Self::DistanceResult {
+        let diff = Vector::new(self.x - target.x, self.y - target.y);
+        diff.length()
+    }
+
+    fn distance_squared_to(&self, target: &Vector<T>) -> T {
+        let dx = self.x - target.x;
+        let dy = self.y - target.y;
+        dx * dx + dy * dy
+    }
+
+    fn extract_scalar_distance(&self, result: Self::DistanceResult) -> T {
+        result
     }
 }
 

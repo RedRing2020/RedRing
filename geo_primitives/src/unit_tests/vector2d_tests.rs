@@ -1,5 +1,6 @@
 #[cfg(test)]
 use crate::geometry2d::Vector2D;
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 #[test]
 fn test_vector2d_creation() {
     let v = Vector2D::new(1.0, 2.0);

@@ -297,6 +297,77 @@ impl<T: Scalar> PartialEq for Arc<T> {
     }
 }
 
+// Arc2DTrait基本実装
+impl<T: Scalar> Arc2DTrait<T> for Arc<T> {
+    type Circle = Circle<T>;
+    type Point = crate::geometry2d::Point<T>;
+    type Angle = Angle<T>;
+
+    fn circle(&self) -> &Self::Circle {
+        &self.circle
+    }
+
+    fn start_angle(&self) -> Self::Angle {
+        self.start_angle
+    }
+
+    fn end_angle(&self) -> Self::Angle {
+        self.end_angle
+    }
+
+    fn is_full_circle(&self) -> bool {
+        let angle_diff = self.end_angle - self.start_angle;
+        let diff_rad = angle_diff.to_radians();
+        diff_rad.abs() >= T::TAU || diff_rad.abs() >= T::TAU * T::from_f64(0.999)
+    }
+
+    fn start_point(&self) -> Self::Point {
+        self.start_point()
+    }
+
+    fn end_point(&self) -> Self::Point {
+        self.end_point()
+    }
+}
+
+// ArcMetrics実装
+impl<T: Scalar> ArcMetrics<T> for Arc<T> {
+    fn arc_length(&self) -> T {
+        self.arc_length()
+    }
+
+    fn sector_area(&self) -> T {
+        let radius = self.circle.radius();
+        let angle_span = self.angle_span().to_radians();
+        let half = T::from_f64(0.5);
+        half * radius * radius * angle_span
+    }
+
+    fn central_angle(&self) -> T {
+        self.angle_span().to_radians()
+    }
+}
+
+// ArcContainment実装
+impl<T: Scalar> ArcContainment<T> for Arc<T> {
+    fn contains_point(&self, point: &Self::Point) -> bool {
+        self.contains_point(*point)
+    }
+
+    fn contains_angle(&self, angle: Self::Angle) -> bool {
+        self.angle_contains(angle)
+    }
+
+    fn point_at_angle(&self, angle: Self::Angle) -> Self::Point {
+        self.point_at_angle(angle.to_radians())
+    }
+}
+
+// 型エイリアス：他の形状実装との統一を目指したパターン
+pub type Arc2DF64 = Arc<f64>; // f64版
+pub type Arc2DF32 = Arc<f32>; // f32版
+pub type Arc2D<T> = Arc<T>; // ジェネリック版
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -491,74 +562,3 @@ impl Arc2DTrait for Arc {
     }
 }
 */
-
-// Arc2DTrait基本実装
-impl<T: Scalar> Arc2DTrait<T> for Arc<T> {
-    type Circle = Circle<T>;
-    type Point = crate::geometry2d::Point<T>;
-    type Angle = Angle<T>;
-
-    fn circle(&self) -> &Self::Circle {
-        &self.circle
-    }
-
-    fn start_angle(&self) -> Self::Angle {
-        self.start_angle
-    }
-
-    fn end_angle(&self) -> Self::Angle {
-        self.end_angle
-    }
-
-    fn is_full_circle(&self) -> bool {
-        let angle_diff = self.end_angle - self.start_angle;
-        let diff_rad = angle_diff.to_radians();
-        diff_rad.abs() >= T::TAU || diff_rad.abs() >= T::TAU * T::from_f64(0.999)
-    }
-
-    fn start_point(&self) -> Self::Point {
-        self.start_point()
-    }
-
-    fn end_point(&self) -> Self::Point {
-        self.end_point()
-    }
-}
-
-// ArcMetrics実装
-impl<T: Scalar> ArcMetrics<T> for Arc<T> {
-    fn arc_length(&self) -> T {
-        self.arc_length()
-    }
-
-    fn sector_area(&self) -> T {
-        let radius = self.circle.radius();
-        let angle_span = self.angle_span().to_radians();
-        let half = T::from_f64(0.5);
-        half * radius * radius * angle_span
-    }
-
-    fn central_angle(&self) -> T {
-        self.angle_span().to_radians()
-    }
-}
-
-// ArcContainment実装
-impl<T: Scalar> ArcContainment<T> for Arc<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self.contains_point(*point)
-    }
-
-    fn contains_angle(&self, angle: Self::Angle) -> bool {
-        self.angle_contains(angle)
-    }
-
-    fn point_at_angle(&self, angle: Self::Angle) -> Self::Point {
-        self.point_at_angle(angle.to_radians())
-    }
-}
-
-// 型エイリアス：他の形状実装との統一を目指したパターン
-pub type Arc2DF64 = Arc<f64>; // f64版
-pub type Arc2DF32 = Arc<f32>; // f32版
-pub type Arc2D<T> = Arc<T>; // ジェネリック版

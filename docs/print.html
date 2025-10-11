@@ -273,6 +273,49 @@ RedRing は、Rust の型安全性と責務分離を活かし、<strong>明示�
 <ul>
 <li>STEP 対応、NURBS 実装、mdBook 多言語化などを視野に入れた構造設計</li>
 </ul>
+<h2 id="5-エラー処理ガイドライン"><a class="header" href="#5-エラー処理ガイドライン">5. エラー処理ガイドライン</a></h2>
+<p>RedRing では型安全性と保守性を重視したエラー処理パターンを採用しています。</p>
+<h3 id="専用エラー型の使用"><a class="header" href="#専用エラー型の使用">専用エラー型の使用</a></h3>
+<p>各幾何要素は独自のエラー型を定義し、具体的なエラー情報を提供します：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// ✅ 推奨: 専用エラー型
+impl Ellipse&lt;T&gt; {
+    pub fn from_radii(rx: T, ry: T) -&gt; Result&lt;Self, EllipseError&gt; {
+        // 楕円固有の検証とエラー報告
+    }
+}
+
+// ❌ 非推奨: 汎用エラー型
+impl Ellipse&lt;T&gt; {
+    pub fn from_radii(rx: T, ry: T) -&gt; Result&lt;Self, GeometryError&gt; {
+        // エラーの詳細が不明確
+    }
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="統合トレイトの活用"><a class="header" href="#統合トレイトの活用">統合トレイトの活用</a></h3>
+<p>重複する操作は統合トレイトで抽象化し、型安全性を保ちます：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 正規化操作の統合
+pub trait Normalizable&lt;T&gt; {
+    type Output;
+    type Error;
+    fn normalize(&amp;self) -&gt; Result&lt;Self::Output, Self::Error&gt;;
+}
+
+// 距離計算の統合
+pub trait DistanceCalculation&lt;T, Target&gt; {
+    fn distance_to(&amp;self, other: &amp;Target) -&gt; T;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="実装原則"><a class="header" href="#実装原則">実装原則</a></h3>
+<ul>
+<li><strong>責務分離</strong>: 各モジュールは単一の責務を持つ</li>
+<li><strong>型安全性</strong>: コンパイル時エラー検出を最大化</li>
+<li><strong>トレイト設計</strong>: 共通操作は統合トレイトで抽象化</li>
+<li><strong>エラー情報</strong>: 具体的で actionable なエラーメッセージ</li>
+</ul>
 
                     </main>
 

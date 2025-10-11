@@ -29,10 +29,13 @@ use crate::Scalar;
 use std::fmt::Debug;
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
+// 正規化トレイトのインポート
+use super::common::normalization_operations::Normalizable;
+
 /// N次元ベクトルの最小責務トレイト
 ///
 /// 基本的なベクトル演算のみを提供。
-/// 次元特化機能や幾何演算は拡張トレイトで分離。
+/// 正規化は Normalizable トレイトで分離、次元特化機能や幾何演算は拡張トレイトで分離。
 pub trait Vector<T: Scalar, const DIM: usize>:
     Clone
     + Debug
@@ -42,6 +45,7 @@ pub trait Vector<T: Scalar, const DIM: usize>:
     + Mul<T, Output = Self>
     + Index<usize, Output = T>
     + IndexMut<usize>
+    + Normalizable<T, Output = Self>
 {
     /// 成分から新しいベクトルを作成
     fn from_components(components: [T; DIM]) -> Self
@@ -66,11 +70,6 @@ pub trait Vector<T: Scalar, const DIM: usize>:
     fn length_squared(&self) -> T {
         self.dot(self)
     }
-
-    /// 正規化（単位ベクトル化）
-    fn normalize(&self) -> Option<Self>
-    where
-        Self: Sized;
 
     /// ゼロベクトルかどうかの判定
     fn is_zero(&self, tolerance: T) -> bool;
