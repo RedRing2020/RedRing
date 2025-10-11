@@ -1,6 +1,6 @@
 //! Point3D のテスト
 
-use crate::{BBox3D, Point3D};
+use crate::Point3D;
 use geo_foundation::abstract_types::geometry::foundation::*;
 
 #[cfg(test)]
