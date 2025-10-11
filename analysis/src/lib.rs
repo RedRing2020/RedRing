@@ -7,15 +7,19 @@ pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance�
 pub mod consts;
 pub mod geometry;
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
+
+// 新しい分類構造
+pub mod approximations;
+pub mod metrics; // 距離・計量計算
+pub mod numerics; // 数値計算基盤 // 幾何学的近似計算
+
 pub mod sampling2d; // 既存の2Dサンプリング（後で整理）
 
 #[cfg(test)]
 mod unit_tests;
 
 // 基盤型の再エクスポート
-pub use abstract_types::{
-    Angle, AngleType, Scalar, ToleranceContext, TolerantEq, GEOMETRIC_TOLERANCE,
-};
+pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
 
 // 定数の再エクスポート
 pub use consts::{
