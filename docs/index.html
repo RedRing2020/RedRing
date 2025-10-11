@@ -176,36 +176,54 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="はじめに"><a class="header" href="#はじめに">はじめに</a></h1>
-<p>RedRing は、Rust による CAD/CAM カーネルの構築を目的としたプロジェクトです。<br />
-解析曲線・曲面から自由形状までを扱う幾何モジュールを中心に、国際的な開発者が理解・拡張しやすい構造と設計思想を追求しています。</p>
+<p>RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。<br />
+現在は描画基盤と幾何計算層の構築段階にあり、型安全性と責務分離を重視した設計を採用しています。</p>
 <h2 id="背景と目的"><a class="header" href="#背景と目的">背景と目的</a></h2>
-<p>従来の CAD カーネルは、言語仕様や設計責務が不明瞭で、国際的な貢献が困難でした。<br />
-RedRing は、Rust の型安全性と責務分離を活かし、<strong>明示的・拡張可能・国際化対応</strong>を重視した設計を目指しています。</p>
+<p>従来の CAD カーネルは、複雑な依存関係と不明瞭な責務分担により、保守性と拡張性に課題がありました。<br />
+RedRing は、Rust の型システムを活用し、<strong>型安全性・責務分離・将来拡張性</strong>を重視したモダンなアーキテクチャを目指しています。</p>
 <h2 id="設計方針"><a class="header" href="#設計方針">設計方針</a></h2>
 <ul>
-<li>📐 <strong>責務の分離</strong>：Curve, Surface, Kind などを明確に分類し、役割を限定</li>
-<li>🧩 <strong>拡張性</strong>：Trait による抽象化と Enum による分類で、将来的な形状追加に対応</li>
-<li>🌍 <strong>国際化対応</strong>：命名・ドキュメント・構造図を英語中心に整理し、世界中の開発者が理解可能に</li>
-<li>🛡️ <strong>安全設計</strong>：型による保証と明示的な分類により、誤用を防止</li>
+<li>� <strong>型安全性</strong>：コンパイル時エラー検出による堅牢な設計</li>
+<li>🧩 <strong>責務分離</strong>：各モジュールが単一の責務を持つクリーンアーキテクチャ</li>
+<li>🌍 <strong>国際化対応</strong>：英語中心の命名・ドキュメントで国際的な貢献を促進</li>
+<li>⚡ <strong>パフォーマンス</strong>：wgpu による GPU 加速レンダリング</li>
+<li>� <strong>拡張可能性</strong>：トレイトによる抽象化で将来機能の追加に対応</li>
 </ul>
-<h2 id="構成概要"><a class="header" href="#構成概要">構成概要</a></h2>
-<p>RedRing は以下のモジュール群で構成されています：</p>
+<h2 id="現在の構成"><a class="header" href="#現在の構成">現在の構成</a></h2>
+<p>RedRing は以下のワークスペース構成になっています：</p>
+<h3 id="幾何計算層"><a class="header" href="#幾何計算層">幾何計算層</a></h3>
 <ul>
-<li><code>geometry2d</code>：2次元の曲線・点・ベクトル</li>
-<li><code>geometry3d</code>：3次元の曲線・曲面・点・ベクトル</li>
-<li><code>surface_kind.rs</code>：解析曲面・自由曲面の分類</li>
-<li><code>curve_kind2d.rs</code> / <code>curve_kind3d.rs</code>：次元別の曲線分類</li>
-<li><code>point.rs</code>, <code>vector.rs</code>：基本ジオメトリ要素</li>
+<li><code>geo_foundation</code>：抽象型・トレイト定義・橋渡し</li>
+<li><code>geo_core</code>：許容誤差・ロバスト幾何判定</li>
+<li><code>geo_primitives</code>：f64正準幾何プリミティブ</li>
+<li><code>geo_algorithms</code>：幾何アルゴリズム</li>
+<li><code>model</code>：高次曲線・曲面（今後拡張予定）</li>
+<li><code>analysis</code>：数値解析・CAM処理（今後拡張予定）</li>
 </ul>
-<p>詳細は <a href="./modules.html">モジュール構成</a> を参照してください。</p>
+<h3 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h3>
+<ul>
+<li><code>render</code>：GPU描画基盤（wgpu + WGSL）</li>
+<li><code>stage</code>：レンダリングステージ管理</li>
+<li><code>viewmodel</code>：ビュー操作・変換ロジック</li>
+<li><code>redring</code>：メインアプリケーション</li>
+</ul>
+<p>詳細は <a href="../ARCHITECTURE.html">アーキテクチャ構成</a> および <a href="./modules.html">モジュール構成</a> を参照してください。</p>
 <h2 id="対象読者"><a class="header" href="#対象読者">対象読者</a></h2>
 <ul>
-<li>CAD/CAM カーネルの設計に関心のある Rust 開発者</li>
-<li>国際的なコントリビューター</li>
-<li>幾何モデリング・STEP準拠設計に関心のある技術者</li>
+<li>CAD/CAM プラットフォーム開発に関心のある Rust 開発者</li>
+<li>幾何計算・GPU レンダリングの技術者</li>
+<li>オープンソース CAD プロジェクトへのコントリビューター</li>
+<li>型安全な幾何ライブラリ設計に関心のある開発者</li>
+</ul>
+<h2 id="開発状況"><a class="header" href="#開発状況">開発状況</a></h2>
+<p>現在は描画基盤と幾何計算層の初期構築段階です。NURBS 実装や CAM 機能は今後の開発対象となります。</p>
+<p>最新の進捗状況は以下で確認できます：</p>
+<ul>
+<li><a href="https://github.com/RedRing2020/RedRing/issues">GitHub Issues</a></li>
+<li><a href="https://github.com/RedRing2020/RedRing/projects">GitHub Projects</a></li>
 </ul>
 <hr />
-<p>このドキュメントは、RedRing の設計思想と構造を体系的に整理し、国際的な技術発信の基盤となることを目的としています。</p>
+<p>このドキュメントは、RedRing の設計思想と技術アーキテクチャを体系的に整理し、国際的な技術発信の基盤となることを目的としています。</p>
 
                     </main>
 
