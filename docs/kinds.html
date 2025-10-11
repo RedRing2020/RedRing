@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>型分類 / CurveKind &amp; SurfaceKind - RedRing</title>
+        <title>型分類 / Type Classification - RedRing</title>
 
 
         <!-- Custom HTML head -->
@@ -175,28 +175,58 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="型分類--curvekind--surfacekind"><a class="header" href="#型分類--curvekind--surfacekind">型分類 / CurveKind &amp; SurfaceKind</a></h1>
-<p>RedRing では、幾何学要素の分類を明示的な enum 型で定義することで、型安全性と構造的明快さを両立しています。</p>
-<h2 id="curvekind"><a class="header" href="#curvekind">CurveKind</a></h2>
+                        <h1 id="型分類--type-classification-system"><a class="header" href="#型分類--type-classification-system">型分類 / Type Classification System</a></h1>
+<p>RedRing では、幾何学要素の分類を明示的な型システムで定義することで、型安全性と構造的明快さを両立しています。</p>
+<h2 id="primitivekind"><a class="header" href="#primitivekind">PrimitiveKind</a></h2>
+<p>基本幾何プリミティブの分類：</p>
+<ul>
+<li><code>Point</code>：点</li>
+<li><code>Vector</code>：ベクトル</li>
+<li><code>Direction</code>：正規化されたベクトル</li>
+<li><code>Line</code>：直線</li>
+<li><code>Ray</code>：光線</li>
+</ul>
+<h2 id="curvetype"><a class="header" href="#curvetype">CurveType</a></h2>
+<p>曲線要素の分類：</p>
 <ul>
 <li><code>Line</code>：直線</li>
 <li><code>Circle</code>：円</li>
 <li><code>Ellipse</code>：楕円</li>
-<li><code>Spline</code>：スプライン（将来的に NURBS 対応予定）</li>
+<li><code>Arc</code>：円弧</li>
+<li><code>Spline</code>：スプライン（NURBS 対応予定）</li>
 </ul>
-<h2 id="surfacekind"><a class="header" href="#surfacekind">SurfaceKind</a></h2>
+<h2 id="エラー型システム"><a class="header" href="#エラー型システム">エラー型システム</a></h2>
+<p>各幾何要素は専用のエラー型を持ちます：</p>
 <ul>
-<li><code>Plane</code>：平面</li>
-<li><code>Sphere</code>：球面</li>
-<li><code>Torus</code>：トーラス</li>
-<li><code>Ellipsoid</code>：楕円体</li>
-<li><code>Cylinder</code>：円柱</li>
-<li><code>Cone</code>：円錐</li>
+<li><code>EllipseError</code>：楕円固有のエラー</li>
+<li><code>CircleError</code>：円固有のエラー</li>
+<li><code>NormalizationError</code>：正規化エラー</li>
+<li><code>EllipseArcError</code>：楕円弧エラー</li>
 </ul>
+<h2 id="トレイト統合システム"><a class="header" href="#トレイト統合システム">トレイト統合システム</a></h2>
+<p>重複する操作は統合トレイトで抽象化：</p>
+<h3 id="normalizablet"><a class="header" href="#normalizablet"><code>Normalizable&lt;T&gt;</code></a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait Normalizable&lt;T&gt; {
+    type Output;
+    type Error;
+    fn normalize(&amp;self) -&gt; Result&lt;Self::Output, Self::Error&gt;;
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="distancecalculationt-target"><a class="header" href="#distancecalculationt-target"><code>DistanceCalculation&lt;T, Target&gt;</code></a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait DistanceCalculation&lt;T, Target&gt; {
+    fn distance_to(&amp;self, other: &amp;Target) -&gt; T;
+}
+<span class="boring">}</span></code></pre></pre>
 <h2 id="設計意図"><a class="header" href="#設計意図">設計意図</a></h2>
 <ul>
-<li>型分類は API の明示性と拡張性を高めるために導入</li>
-<li><code>SurfaceKind</code> は <code>Surface</code> トレイトと連携し、動的な型判定にも対応</li>
+<li><strong>型安全性</strong>：コンパイル時の型チェックによるエラー防止</li>
+<li><strong>専用性</strong>：各幾何要素に特化したエラー情報の提供</li>
+<li><strong>拡張性</strong>：新しい幾何要素の追加に対応可能な構造</li>
+<li><strong>明示性</strong>：API の意図と制約を型で表現</li>
 </ul>
 
                     </main>

@@ -1,14 +1,11 @@
 //! ソルバーテスト
 //!
 //! 各種連立方程式ソルバーの統合テスト
-use crate::linalg::solver::{GaussianSolver, LUSolver, CramerSolver, LinearSolver};
+use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
 
 /// 共通テストデータ
 fn get_test_2x2() -> (Vec<Vec<f64>>, Vec<f64>, Vec<f64>) {
-    let matrix = vec![
-        vec![2.0, 1.0],
-        vec![1.0, 3.0],
-    ];
+    let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
     let rhs = vec![5.0, 6.0];
     let expected = vec![1.8, 1.4];
     (matrix, rhs, expected)

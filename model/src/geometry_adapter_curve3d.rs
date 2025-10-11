@@ -1,27 +1,11 @@
+use super::{Point3D, Vector3D};
+use crate::geometry_kind::CurveKind3D;
+use crate::geometry_trait::curve3d::Curve3D;
+use geo_foundation::{Scalar, ToleranceContext};
 /// geometry_adapter.rs の Curve3D trait 統合拡張
 ///
 /// 既存のCurve3D trait設計を保持しつつ、geo_primitivesの数値基盤を活用
-
 use std::any::Any;
-use crate::geometry_kind::CurveKind3D;
-use crate::geometry_trait::curve3d::Curve3D;
-use super::{Vector3D, Point3D};
-use geo_foundation::{
-    ToleranceContext,
-    Scalar
-};
-/// geometry_adapter.rs の Curve3D trait 統合拡張
-///
-/// 既存のCurve3D trait設計を保持しつつ、geo_primitivesの数値基盤を活用
-
-use std::any::Any;
-use crate::geometry_kind::CurveKind3D;
-use crate::geometry_trait::curve3d::Curve3D;
-use super::{Vector3D, Point3D};
-use geo_foundation::{
-    ToleranceContext,
-    Scalar
-};
 // TODO: geo_primitives LineSegment3D への移行は今後実装予定
 
 /// TODO: 仮実装 - 将来geo_primitives LineSegment3D に置き換え予定
@@ -71,27 +55,6 @@ impl AdaptedLine {
             inner: MockLineSegment3D::new(start, end),
             tolerance: ToleranceContext::standard(),
         }
-    }
-}
-
-/// geo_primitives LineSegment3D のアダプター実装
-pub struct AdaptedLine {
-    inner: GeoLineSegment3D,
-    tolerance: ToleranceContext,
-}
-
-impl AdaptedLine {
-    pub fn new(start: Point3D, end: Point3D) -> Self {
-        let geo_start = start.as_geo_core().clone();
-        let geo_end = end.as_geo_core().clone();
-        Self {
-            inner: GeoLineSegment3D::new(geo_start, geo_end),
-            tolerance: ToleranceContext::standard(),
-        }
-    }
-
-    pub fn from_geo_core(inner: GeoLineSegment3D, tolerance: ToleranceContext) -> Self {
-        Self { inner, tolerance }
     }
 }
 
@@ -160,10 +123,8 @@ mod tests {
 
     #[test]
     fn test_curve3d_downcasting() {
-        let line: Box<dyn Curve3D> = curve_factory::create_line(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0)
-        );
+        let line: Box<dyn Curve3D> =
+            curve_factory::create_line(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0));
 
         // Any downcasting テスト
         let adapted_line = line.as_any().downcast_ref::<AdaptedLine>();

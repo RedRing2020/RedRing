@@ -2,8 +2,8 @@
 //!
 //! 任意次元のベクトル演算を効率的に処理
 //! 大規模数値計算や機械学習用途に適している
-use crate::linalg::scalar::Scalar;
-use std::ops::{Add, Sub, Mul, Index, IndexMut};
+use crate::abstract_types::Scalar;
+use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
 /// 動的サイズベクトル（高速演算用）
 #[derive(Debug, Clone, PartialEq)]
@@ -72,7 +72,9 @@ impl<T: Scalar> Vector<T> {
             return Err("Vector dimensions mismatch".to_string());
         }
 
-        Ok(self.data.iter()
+        Ok(self
+            .data
+            .iter()
             .zip(other.data.iter())
             .map(|(a, b)| *a * *b)
             .fold(T::ZERO, |acc, x| acc + x))
@@ -80,17 +82,27 @@ impl<T: Scalar> Vector<T> {
 
     /// ユークリッドノルム（L2ノルム）
     pub fn norm(&self) -> T {
-        self.data.iter().map(|x| *x * *x).fold(T::ZERO, |acc, x| acc + x).sqrt()
+        self.data
+            .iter()
+            .map(|x| *x * *x)
+            .fold(T::ZERO, |acc, x| acc + x)
+            .sqrt()
     }
 
     /// L1ノルム
     pub fn norm_l1(&self) -> T {
-        self.data.iter().map(|x| x.abs()).fold(T::ZERO, |acc, x| acc + x)
+        self.data
+            .iter()
+            .map(|x| x.abs())
+            .fold(T::ZERO, |acc, x| acc + x)
     }
 
     /// 無限大ノルム
     pub fn norm_inf(&self) -> T {
-        self.data.iter().map(|x| x.abs()).fold(T::ZERO, |acc, x| acc.max(x))
+        self.data
+            .iter()
+            .map(|x| x.abs())
+            .fold(T::ZERO, |acc, x| acc.max(x))
     }
 
     /// 正規化（単位ベクトル化）
@@ -118,7 +130,9 @@ impl<T: Scalar> Vector<T> {
         }
 
         Ok(Self {
-            data: self.data.iter()
+            data: self
+                .data
+                .iter()
                 .zip(other.data.iter())
                 .map(|(a, b)| *a * *b)
                 .collect(),
@@ -161,7 +175,9 @@ impl<T: Scalar> Add for Vector<T> {
         }
 
         Ok(Self {
-            data: self.data.iter()
+            data: self
+                .data
+                .iter()
                 .zip(other.data.iter())
                 .map(|(a, b)| *a + *b)
                 .collect(),
@@ -178,7 +194,9 @@ impl<T: Scalar> Sub for Vector<T> {
         }
 
         Ok(Self {
-            data: self.data.iter()
+            data: self
+                .data
+                .iter()
                 .zip(other.data.iter())
                 .map(|(a, b)| *a - *b)
                 .collect(),

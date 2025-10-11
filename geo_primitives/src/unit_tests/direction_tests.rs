@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod direction2d_tests {
     use crate::geometry2d::Direction2D;
-    use crate::traits::geometry::{Direction, Direction2D as Direction2DTrait, StepCompatible};
+    use crate::traits::{Direction, Direction2D as Direction2DTrait, StepCompatible};
     use std::f64::consts::PI;
 
     #[test]
@@ -113,7 +113,7 @@ mod direction2d_tests {
 #[cfg(test)]
 mod direction3d_tests {
     use crate::geometry3d::Direction3D;
-    use crate::traits::geometry::{Direction, Direction3D as Direction3DTrait, StepCompatible};
+    use crate::traits::{Direction, Direction3D as Direction3DTrait, StepCompatible};
     use std::f64::consts::PI;
 
     #[test]
@@ -127,9 +127,9 @@ mod direction3d_tests {
         assert!((direction.length() - 1.0).abs() < 1e-10);
 
         let expected_length = (1.0 + 4.0 + 4.0_f64).sqrt();
-        assert!((direction.x() - 1.0/expected_length).abs() < 1e-10);
-        assert!((direction.y() - 2.0/expected_length).abs() < 1e-10);
-        assert!((direction.z() - 2.0/expected_length).abs() < 1e-10);
+        assert!((direction.x() - 1.0 / expected_length).abs() < 1e-10);
+        assert!((direction.y() - 2.0 / expected_length).abs() < 1e-10);
+        assert!((direction.z() - 2.0 / expected_length).abs() < 1e-10);
     }
 
     #[test]

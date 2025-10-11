@@ -1,5 +1,4 @@
-﻿// use geo_core::{Point2D as Point, LineSegment2D};  // 一時的にコメントアウト
-// use geo_primitives::Point2D as Point;  // 一時的にコメントアウト
+﻿// 注: geo_coreとgeo_primitivesの依存関係は除外済み
 
 // /// evaluate関数を使って線分との交差候補を抽出（離散近似）
 // pub fn sample_intersections<F>(

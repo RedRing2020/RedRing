@@ -1,8 +1,8 @@
 //! 2D/3D Bounding Box統合テスト
 //! BBox2D, BBox3D両方のテストとジェネリックトレイトテスト
-use crate::geometry2d::{Point2D, BBox2D};
-use crate::geometry3d::{Point3D, BBox3D};
-use crate::traits::bbox_trait::{BoundingBox, BoundingBoxOps, CollisionBounds};
+use crate::geometry2d::{BBox2D, Point2D};
+use crate::geometry3d::{BBox3D, Point3D};
+use crate::traits::{BBox, BBoxOps, CollisionBBox};
 
 // =============================================================================
 // BBox2D Tests
@@ -57,18 +57,18 @@ fn test_bbox2d_special_properties() {
     // 正方形
     let square = BBox2D::new((0.0, 0.0), (2.0, 2.0));
     assert!(square.is_square(1e-10));
-    assert_eq!(square.aspect_ratio(), 1.0);
+    assert_eq!(square.aspect_ratio(), Some(1.0));
 
     // 長方形
     let rect = BBox2D::new((0.0, 0.0), (4.0, 2.0));
     assert!(!rect.is_square(1e-10));
-    assert_eq!(rect.aspect_ratio(), 2.0);
+    assert_eq!(rect.aspect_ratio(), Some(2.0));
 
     // 線分（高さ0）
     let line = BBox2D::new((0.0, 1.0), (2.0, 1.0));
     assert_eq!(line.height(), 0.0);
     assert_eq!(line.area(), 0.0);
-    assert_eq!(line.aspect_ratio(), f64::INFINITY);
+    assert_eq!(line.aspect_ratio(), None);
 }
 
 #[test]
@@ -191,15 +191,15 @@ fn test_bbox3d_edge_cases() {
 fn test_generic_bbox_trait_2d() {
     let bbox = BBox2D::new((0.0, 0.0), (2.0, 3.0));
 
-    // BoundingBoxトレイト
+    // BBoxトレイト
     assert_eq!(bbox.min(), [0.0, 0.0]);
-    assert_eq!(bbox.max(), [2.0, 3.0]);
-    assert_eq!(bbox.extent(0), 2.0);
-    assert_eq!(bbox.extent(1), 3.0);
-    assert_eq!(bbox.center(), [1.0, 1.5]);
-    assert_eq!(bbox.volume(), 6.0);
+    assert_eq!(bbox.max(), [10.0, 5.0]);
+    assert_eq!(bbox.extent(0), 10.0);
+    assert_eq!(bbox.extent(1), 5.0);
+    assert_eq!(bbox.volume(), 50.0);
+    assert_eq!(bbox.center(), [5.0, 2.5]);
 
-    // BoundingBoxOpsトレイト
+    // BBoxOpsトレイト
     assert!(bbox.contains_point([1.0, 1.5]));
     assert!(!bbox.contains_point([3.0, 1.0]));
     assert!(bbox.is_valid());
@@ -213,7 +213,7 @@ fn test_generic_bbox_trait_2d() {
 fn test_generic_bbox_trait_3d() {
     let bbox = BBox3D::new((0.0, 0.0, 0.0), (2.0, 3.0, 4.0));
 
-    // BoundingBoxトレイト
+    // BBoxトレイト
     assert_eq!(bbox.min(), [0.0, 0.0, 0.0]);
     assert_eq!(bbox.max(), [2.0, 3.0, 4.0]);
     assert_eq!(bbox.extent(0), 2.0);
@@ -222,7 +222,7 @@ fn test_generic_bbox_trait_3d() {
     assert_eq!(bbox.center(), [1.0, 1.5, 2.0]);
     assert_eq!(bbox.volume(), 24.0);
 
-    // BoundingBoxOpsトレイト
+    // BBoxOpsトレイト
     assert!(bbox.contains_point([1.0, 1.5, 2.0]));
     assert!(!bbox.contains_point([3.0, 1.0, 1.0]));
     assert!(bbox.is_valid());

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
 use bytemuck;
-use wgpu::{
-    CommandEncoder, TextureView,
-    LoadOp, StoreOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor,
-};
 use wgpu::util::DeviceExt;
+use wgpu::{
+    CommandEncoder, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
+    TextureView,
+};
 
 use crate::render_stage::RenderStage;
 
@@ -20,7 +19,8 @@ pub struct DraftStage {
 
 impl DraftStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let resources = render::render_2d::create_render_2d_resources(&Arc::new(device.clone()), format);
+        let resources =
+            render::render_2d::create_render_2d_resources(&Arc::new(device.clone()), format);
         Self {
             resources,
             frame_count: 0,
@@ -68,17 +68,24 @@ impl RenderStage for DraftStage {
         let t = self.frame_count as f32 * 0.02;
 
         let animated_vertices = [
-            Vertex2D { position: [t.sin() * 0.5, -0.5] },
-            Vertex2D { position: [0.5, t.cos() * 0.5] },
-            Vertex2D { position: [0.0, 0.5] },
+            Vertex2D {
+                position: [t.sin() * 0.5, -0.5],
+            },
+            Vertex2D {
+                position: [0.5, t.cos() * 0.5],
+            },
+            Vertex2D {
+                position: [0.0, 0.5],
+            },
         ];
 
         let device = &self.resources.device;
-        self.resources.vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Animated Vertex Buffer"),
-            contents: bytemuck::cast_slice(&animated_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        self.resources.vertex_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Animated Vertex Buffer"),
+                contents: bytemuck::cast_slice(&animated_vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
 
         self.resources.vertex_count = animated_vertices.len() as u32;
     }

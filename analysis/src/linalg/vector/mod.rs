@@ -5,10 +5,10 @@
 //! - 固定サイズベクトル：2D, 3D, 4D（高速演算）
 //! - 同次座標系対応：3D → 4D変換
 #[allow(clippy::module_inception)]
-pub mod vector;    // Vector<T> - 動的サイズベクトル
-pub mod vector2;    // Vector2<T> - 2Dベクトル
-pub mod vector3;    // Vector3<T> - 3Dベクトル
-pub mod vector4;    // Vector4<T> - 4Dベクトル（同次座標）
+pub mod vector; // Vector<T> - 動的サイズベクトル
+pub mod vector2; // Vector2<T> - 2Dベクトル
+pub mod vector3; // Vector3<T> - 3Dベクトル
+pub mod vector4; // Vector4<T> - 4Dベクトル（同次座標）
 
 pub use vector::Vector;
 pub use vector2::Vector2;

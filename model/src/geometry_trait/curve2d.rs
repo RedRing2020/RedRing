@@ -1,38 +1,53 @@
-use std::any::Any;
 use crate::geometry_kind::CurveKind2D;
+use std::any::Any;
 
-/// NOTE: 旧 model::geometry への依存を除去するため、具体的 Point / Vector 型は関連型に切り替えました。
-
-/// Curve2D: 2次元曲線の抽象トレイト
+/// NOTE: Removed dependency on old model::geometry, using associated types for Point/Vector.
+/// Curve2D: Abstract trait for 2D curves
 ///
-/// 各曲線型（Line, Arc, Ellipse など）が共通で実装するためのインターフェース。
-/// CurveKind2D による分類と、評価・微分・長さ取得などの基本操作を提供する。
+/// Common interface for curve types (Line, Arc, Ellipse, etc.).
+/// Provides classification via CurveKind2D and basic operations like evaluation, derivative, length.
 pub trait Curve2D: Any {
     type Point;
     type Vector;
-    /// 型判定のためのダウンキャスト
+    /// Downcast for type identification
     fn as_any(&self) -> &dyn Any;
 
-    /// 曲線の分類を返す
+    /// Returns curve classification
     fn kind(&self) -> CurveKind2D;
 
-    /// パラメータ t に対応する点を返す（通常 t ∈ [0, 1]）
+    /// Evaluate point at parameter t
     fn evaluate(&self, t: f64) -> Self::Point;
 
-    /// パラメータ t における接線方向（1階微分）を返す
+    /// Calculate first derivative vector at parameter t
     fn derivative(&self, t: f64) -> Self::Vector;
 
-    /// 曲線の長さ（t ∈ [0, 1] 区間における定義長）
+    /// Calculate curve length
     fn length(&self) -> f64;
 
-    /// 指定点に対するパラメータ初期推定（数値解析用）
-    fn parameter_hint(&self, _pt: &Self::Point) -> f64 {
-        // デフォルト実装は中心方向など、構造体ごとにオーバーライド
-        0.5
+    /// Returns parameter domain [t_min, t_max]
+    fn domain(&self) -> (f64, f64);
+
+    /// Check if parameter is within valid domain
+    fn is_valid_parameter(&self, t: f64) -> bool {
+        let (t_min, t_max) = self.domain();
+        t >= t_min && t <= t_max
     }
 
-    /// 有効なパラメータ範囲（通常 [0, 1]）
-    fn domain(&self) -> (f64, f64) {
-        (0.0, 1.0)
+    /// Split curve at specified parameter (default implementation)
+    #[allow(clippy::type_complexity)]
+    fn split(
+        &self,
+        _t: f64,
+    ) -> Option<(
+        Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>,
+        Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>,
+    )> {
+        None
+    }
+
+    /// Reverse curve direction (default implementation)
+    #[allow(clippy::type_complexity)]
+    fn reverse(&self) -> Option<Box<dyn Curve2D<Point = Self::Point, Vector = Self::Vector>>> {
+        None
     }
 }

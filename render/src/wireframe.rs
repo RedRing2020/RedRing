@@ -1,6 +1,6 @@
-use wgpu::{Device, RenderPipeline, Buffer};
-use wgpu::util::DeviceExt;
 use crate::shader::wireframe_shader;
+use wgpu::util::DeviceExt;
+use wgpu::{Buffer, Device, RenderPipeline};
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -28,13 +28,11 @@ pub struct WireframeResources {
     pub vertex_count: u32,
 }
 
-pub fn create_wireframe_resources(device: &Device, format: wgpu::TextureFormat) -> WireframeResources {
-    let vertices: &[f32] = &[
-        -0.5, 0.0, 0.0,
-         0.5, 0.0, 0.0,
-         0.0, -0.5, 0.0,
-         0.0,  0.5, 0.0,
-    ];
+pub fn create_wireframe_resources(
+    device: &Device,
+    format: wgpu::TextureFormat,
+) -> WireframeResources {
+    let vertices: &[f32] = &[-0.5, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, -0.5, 0.0, 0.0, 0.5, 0.0];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("Wireframe Vertex Buffer"),

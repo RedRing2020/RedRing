@@ -2,8 +2,4 @@
 //!
 //! 幾何計算で使用される基本的な抽象型を定義
 
-mod scalar;
-mod tolerance;
-
-pub use scalar::Scalar;
-pub use tolerance::{ToleranceContext, TolerantEq};
+pub mod geometry;

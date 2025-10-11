@@ -135,7 +135,7 @@ fn test_quaternion_rotation_composition() {
 
     // Z軸ベクトルを合成回転で変換
     let z_axis = Vector3::<f64>::new(0.0, 0.0, 1.0);
-    let after_q1 = q1.rotate_vector(&z_axis);  // Z軸をX軸周りに90度回転 -> -Y軸
+    let after_q1 = q1.rotate_vector(&z_axis); // Z軸をX軸周りに90度回転 -> -Y軸
     let after_combined = combined.rotate_vector(&z_axis);
 
     // q1: Z(0,0,1) -> -Y(0,-1,0) （X軸周り90度回転）
@@ -155,8 +155,8 @@ fn test_quaternion_rotation_composition() {
 #[test]
 fn test_quaternion_euler_angles() {
     let pitch = PI / 6.0; // 30度
-    let yaw = PI / 4.0;    // 45度
-    let roll = PI / 3.0;   // 60度
+    let yaw = PI / 4.0; // 45度
+    let roll = PI / 3.0; // 60度
 
     let q = Quaternion::<f64>::from_euler_angles(pitch, yaw, roll);
     let (recovered_pitch, recovered_yaw, recovered_roll) = q.to_euler_angles();

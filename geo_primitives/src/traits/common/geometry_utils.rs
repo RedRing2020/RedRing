@@ -1,14 +1,29 @@
 //! 幾何計算用ユーティリティ関数
 //!
 //! f64ベース幾何プリミティブ間の変換とヘルパー関数を提供
+//! 注意: ジェネリック関数は geo_foundation::abstract_types::geometry::utils に移動されました
 
 // geo_foundation参照を使用 - Scalarを抽象化
-use crate::geometry2d::Point2D;
-use crate::geometry3d::Point3D;
-use geo_foundation::Scalar;
+use crate::geometry2d::{Point2D, Point2DF64};
+use crate::geometry3d::point::Point3DF64 as Point3D;
+// use geo_foundation::Scalar; // 使用されていないため削除
+
+// ジェネリック関数は geo_foundation に移動されました
+// 以下の関数は geo_foundation::abstract_types::geometry::utils で利用可能です:
+// - scalar_distance<T: Scalar>(a: T, b: T) -> T
+// - scalar_min<T: Scalar>(a: T, b: T) -> T
+// - scalar_max<T: Scalar>(a: T, b: T) -> T
+// - lerp<T: Scalar>(start: T, end: T, t: T) -> T
+// - clamp<T: Scalar>(value: T, min: T, max: T) -> T
+// - in_range<T: Scalar>(value: T, min: T, max: T) -> bool
+
+// geo_foundation のユーティリティを再エクスポート
+pub use geo_foundation::abstract_types::geometry::utils::{
+    clamp, f64_max, f64_min, in_range, lerp, scalar_distance, scalar_max, scalar_min,
+};
 
 /// Point2Dからf64タプルに変換
-pub fn point2d_to_f64(point: &Point2D) -> (f64, f64) {
+pub fn point2d_to_f64(point: &Point2DF64) -> (f64, f64) {
     (point.x(), point.y())
 }
 
@@ -18,7 +33,7 @@ pub fn point3d_to_f64(point: &Point3D) -> (f64, f64, f64) {
 }
 
 /// f64から新しいPoint2Dを作成
-pub fn point2d_from_f64(x: f64, y: f64) -> Point2D {
+pub fn point2d_from_f64(x: f64, y: f64) -> Point2DF64 {
     Point2D::new(x, y)
 }
 
@@ -27,23 +42,8 @@ pub fn point3d_from_f64(x: f64, y: f64, z: f64) -> Point3D {
     Point3D::new(x, y, z)
 }
 
-/// 2つのScalar値の距離（f64として計算）
-pub fn scalar_distance(a: &Scalar, b: &Scalar) -> f64 {
-    (a.value() - b.value()).abs()
-}
-
-/// 2つのf64値の最小値
-pub fn f64_min(a: f64, b: f64) -> f64 {
-    if a < b { a } else { b }
-}
-
-/// 2つのf64値の最大値
-pub fn f64_max(a: f64, b: f64) -> f64 {
-    if a > b { a } else { b }
-}
-
 /// Point2Dのf64値でのbounding box計算
-pub fn point2d_bounding_box(points: &[Point2D]) -> Option<(f64, f64, f64, f64)> {
+pub fn point2d_bounding_box(points: &[Point2DF64]) -> Option<(f64, f64, f64, f64)> {
     if points.is_empty() {
         return None;
     }
@@ -93,7 +93,7 @@ pub fn point3d_bounding_box(points: &[Point3D]) -> Option<(f64, f64, f64, f64, f
 }
 
 /// Point2Dの重心をf64で計算
-pub fn point2d_centroid(points: &[Point2D]) -> Option<Point2D> {
+pub fn point2d_centroid(points: &[Point2DF64]) -> Option<Point2DF64> {
     if points.is_empty() {
         return None;
     }
@@ -129,7 +129,9 @@ pub fn point3d_centroid(points: &[Point3D]) -> Option<Point3D> {
     }
 
     let count = points.len() as f64;
-    Some(point3d_from_f64(sum_x / count, sum_y / count, sum_z / count))
+    Some(point3d_from_f64(
+        sum_x / count,
+        sum_y / count,
+        sum_z / count,
+    ))
 }
-
-

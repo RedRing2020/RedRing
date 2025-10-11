@@ -176,26 +176,86 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="モジュール構成--module-structure"><a class="header" href="#モジュール構成--module-structure">モジュール構成 / Module Structure</a></h1>
-<p>RedRing の幾何学カーネルは、責務分離と拡張性を重視したモジュール設計に基づいて構成されています。以下は主要なモジュール群の概要です。</p>
-<h2 id="幾何学モジュール"><a class="header" href="#幾何学モジュール">幾何学モジュール</a></h2>
+<p>RedRing は、責務分離と型安全性を重視したワークスペース設計に基づいて構成されています。以下は主要なクレート群の概要です。</p>
+<h2 id="幾何計算層"><a class="header" href="#幾何計算層">幾何計算層</a></h2>
+<h3 id="geo_foundation"><a class="header" href="#geo_foundation"><code>geo_foundation</code></a></h3>
+<p><strong>抽象型・トレイト定義・橋渡し</strong></p>
 <ul>
-<li><code>geometry2d</code>：2次元幾何要素（点、線、円、矩形など）</li>
-<li><code>geometry3d</code>：3次元幾何要素（ベクトル、面、空間曲線など）</li>
+<li>共通トレイト（<code>Normalizable</code>, <code>DistanceCalculation</code> など）</li>
+<li>エラー処理ガイドライン</li>
+<li>型安全な抽象化</li>
 </ul>
-<h2 id="型分類モジュール"><a class="header" href="#型分類モジュール">型分類モジュール</a></h2>
+<h3 id="geo_core"><a class="header" href="#geo_core"><code>geo_core</code></a></h3>
+<p><strong>許容誤差・ロバスト幾何判定</strong></p>
 <ul>
-<li><code>curve_kind</code>：曲線の分類（直線、円弧、スプラインなど）</li>
-<li><code>surface_kind</code>：面の分類（平面、球面、トーラスなど）</li>
+<li><code>ToleranceContext</code> による許容誤差管理</li>
+<li>トレラント比較</li>
+<li>ロバスト幾何判定（orientation など）</li>
 </ul>
-<h2 id="共通ユーティリティ"><a class="header" href="#共通ユーティリティ">共通ユーティリティ</a></h2>
+<h3 id="geo_primitives"><a class="header" href="#geo_primitives"><code>geo_primitives</code></a></h3>
+<p><strong>f64 正準幾何プリミティブ</strong></p>
 <ul>
-<li><code>math</code>：ベクトル演算、行列、数値補助</li>
-<li><code>traits</code>：抽象化のためのトレイト群（例：<code>Surface</code>, <code>Curve</code>）</li>
+<li>基本要素：<code>Point</code>, <code>Vector</code>, <code>Direction</code></li>
+<li>幾何形状：<code>Line</code>, <code>Circle</code>, <code>Ellipse</code>, <code>Arc</code></li>
+<li>2D/3D 両対応のジェネリック実装</li>
+</ul>
+<h3 id="geo_algorithms"><a class="header" href="#geo_algorithms"><code>geo_algorithms</code></a></h3>
+<p><strong>幾何アルゴリズム</strong></p>
+<ul>
+<li>交点計算</li>
+<li>曲線・曲面操作</li>
+<li>幾何変換</li>
+</ul>
+<h3 id="model"><a class="header" href="#model"><code>model</code></a></h3>
+<p><strong>高次曲線・曲面</strong></p>
+<ul>
+<li>NURBS 曲線・曲面（今後実装予定）</li>
+<li>複雑な幾何モデル</li>
+<li>抽象化レイヤ</li>
+</ul>
+<h3 id="analysis"><a class="header" href="#analysis"><code>analysis</code></a></h3>
+<p><strong>数値解析・CAM 処理</strong></p>
+<ul>
+<li>数値計算ユーティリティ</li>
+<li>CAM パス生成（今後実装予定）</li>
+<li>切削シミュレーション（今後実装予定）</li>
+</ul>
+<h2 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h2>
+<h3 id="render"><a class="header" href="#render"><code>render</code></a></h3>
+<p><strong>GPU 描画基盤</strong></p>
+<ul>
+<li>wgpu + WGSL による GPU レンダリング</li>
+<li>シェーダ管理</li>
+<li>頂点データ処理</li>
+</ul>
+<h3 id="stage"><a class="header" href="#stage"><code>stage</code></a></h3>
+<p><strong>レンダリングステージ管理</strong></p>
+<ul>
+<li><code>RenderStage</code> トレイト</li>
+<li>レンダリングパイプライン管理</li>
+<li>シーン構成</li>
+</ul>
+<h3 id="viewmodel"><a class="header" href="#viewmodel"><code>viewmodel</code></a></h3>
+<p><strong>ビュー操作・変換ロジック</strong></p>
+<ul>
+<li>カメラ制御</li>
+<li>ビュー変換</li>
+<li>ユーザーインタラクション</li>
+</ul>
+<h3 id="redring"><a class="header" href="#redring"><code>redring</code></a></h3>
+<p><strong>メインアプリケーション</strong></p>
+<ul>
+<li>アプリケーションエントリポイント</li>
+<li>全クレート統合</li>
+<li>ウィンドウ管理</li>
 </ul>
 <h2 id="構造設計の方針"><a class="header" href="#構造設計の方針">構造設計の方針</a></h2>
 <ul>
-<li>モジュール名は語義的に明確で、国際開発者にも直感的に理解可能</li>
-<li>拡張性を重視し、将来的な NURBS や STEP 対応も視野に入れて設計</li>
+<li><strong>型安全性</strong>：コンパイル時エラー検出を最大化</li>
+<li><strong>責務分離</strong>：各クレートが単一の責務を持つ</li>
+<li><strong>モジュール性</strong>：<code>render</code> は <code>model</code> に依存しない設計</li>
+<li><strong>拡張性</strong>：将来的な NURBS や WebAssembly 対応を考慮</li>
+<li><strong>国際化</strong>：英語ベースの命名で国際的な貢献を促進</li>
 </ul>
 
                     </main>

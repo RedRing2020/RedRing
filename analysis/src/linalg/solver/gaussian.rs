@@ -3,7 +3,7 @@
 //! 部分ピボット選択付きガウス消去法を実装
 //! 数値安定性を考慮した一般的な直接法
 use super::{LinearSolver, SolutionInfo};
-use crate::linalg::scalar::Scalar;
+use crate::abstract_types::Scalar;
 
 /// ガウス消去法ソルバー
 pub struct GaussianSolver<T: Scalar> {
@@ -78,7 +78,10 @@ impl<T: Scalar> GaussianSolver<T> {
             if self.use_partial_pivoting {
                 self.partial_pivot(aug_matrix, k)?;
             } else if aug_matrix[k][k].abs() < self.tolerance {
-                return Err(format!("Matrix is singular at diagonal element ({}, {})", k, k));
+                return Err(format!(
+                    "Matrix is singular at diagonal element ({}, {})",
+                    k, k
+                ));
             }
 
             // 前進消去
@@ -107,7 +110,7 @@ impl<T: Scalar> GaussianSolver<T> {
                 solution[i] = solution[i] - aug_matrix[i][j] * solution[j];
             }
 
-            solution[i] = solution[i] / aug_matrix[i][i];
+            solution[i] /= aug_matrix[i][i];
         }
 
         solution
@@ -122,10 +125,10 @@ impl<T: Scalar> GaussianSolver<T> {
             let mut sum = T::ZERO;
             #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum = sum + matrix[i][j] * solution[j];
+                sum += matrix[i][j] * solution[j];
             }
             let diff = sum - rhs[i];
-            residual = residual + diff * diff;
+            residual += diff * diff;
         }
 
         residual.sqrt()
@@ -169,10 +172,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_2x2() {
-        let matrix = vec![
-            vec![2.0, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
         let rhs = vec![5.0, 6.0];
 
         let solver = GaussianSolver::new(1e-15);
@@ -216,10 +216,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_without_pivoting() {
-        let matrix = vec![
-            vec![0.001, 1.0],
-            vec![2.0, 1.0],
-        ];
+        let matrix = vec![vec![0.001, 1.0], vec![2.0, 1.0]];
         let rhs = vec![1.0, 3.0];
 
         let solver = GaussianSolver::new(1e-15).with_pivoting(false);
