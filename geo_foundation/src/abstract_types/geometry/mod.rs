@@ -12,7 +12,7 @@
 //! - `PointCore`, `VectorCore`: 基本的な座標・成分アクセス
 //! - `CircleCore`, `LineSegmentCore`: 各形状の基本属性アクセス
 //!
-//! ### 基本幾何解析層  
+//! ### 基本幾何解析層
 //! - `BasicMetrics`: データ構造に直接関連する計算（長さ、面積、体積）
 //! - `BasicContainment`: 基本的な包含判定
 //! - `BasicParametric`: パラメトリック形状の基本操作

@@ -9,7 +9,7 @@ use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
 ///
 /// 基本機能のみ：
 /// - 作成・検証
-/// - アクセサメソッド  
+/// - アクセサメソッド
 /// - 基本的な幾何プロパティ
 /// - シンプルなパラメトリック操作
 #[derive(Debug, Clone, PartialEq)]

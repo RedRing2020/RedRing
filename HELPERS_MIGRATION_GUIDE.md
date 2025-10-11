@@ -22,22 +22,24 @@ pub use analysis::Angle;
 ### 移行方法
 
 #### Before（削除前）
+
 ```rust
 use geo_foundation::helpers::{approx_equal, point_distance, Angle};
 ```
 
 #### After（移行後）
+
 ```rust
 use analysis::{Angle, numerics::approx_equal, metrics::point_distance};
 ```
 
 ### 残存する機能
 
-以下は `helpers.rs` に残存（geo_foundation固有）：
+以下は `helpers.rs` に残存（geo_foundation 固有）：
 
 ```rust
 ✅ normalize_parameter()     // パラメータ正規化
-✅ parameter_in_range()      // パラメータ範囲チェック  
+✅ parameter_in_range()      // パラメータ範囲チェック
 ✅ lerp()                    // 線形補間
 ✅ inverse_lerp()            // 逆線形補間
 ✅ angle_to_parameter()      // 角度→パラメータ変換（新規）
@@ -47,11 +49,13 @@ use analysis::{Angle, numerics::approx_equal, metrics::point_distance};
 ## 設計原則
 
 ### geo_foundation/helpers.rs
-- ✅ geo_foundation固有のロジックのみ
+
+- ✅ geo_foundation 固有のロジックのみ
 - ✅ パラメトリック操作の支援
 - ✅ 幾何学的変換の支援
 
 ### analysis クレート
+
 - ✅ 汎用数値計算
 - ✅ 角度操作（Angle<T>）
 - ✅ 距離・面積計算
@@ -62,4 +66,4 @@ use analysis::{Angle, numerics::approx_equal, metrics::point_distance};
 1. **責務の明確化**: 各モジュールが単一責任
 2. **依存関係の正常化**: 適切な階層構造
 3. **保守性の向上**: 機能の所在が明確
-4. **拡張性の向上**: geo_foundation固有の機能を安全に追加可能
+4. **拡張性の向上**: geo_foundation 固有の機能を安全に追加可能

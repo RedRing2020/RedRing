@@ -15,7 +15,7 @@
 - **楕円弧**: `EllipseArc` （楕円の弧部分）
 - **方向**: `Direction` （向きを持つ正規化ベクトル）
 - **光線**: `Ray` （原点と方向を持つ半無限直線）
-- **線分**: `Line` （InfiniteLineを基盤とし、パラメータ範囲で有効範囲を表現）
+- **線分**: `Line` （InfiniteLine を基盤とし、パラメータ範囲で有効範囲を表現）
 
 ### 1.3 2D/3D 次元サフィックス規則
 
@@ -51,7 +51,7 @@ trait Direction3DCore<T: Scalar>     // 3D方向トレイト
 trait CircleCore<T: Scalar>          // 基本円トレイト
 trait Circle3DCore<T: Scalar>        // 3D円トレイト（平面円）
 
-// 楕円 (Ellipse)  
+// 楕円 (Ellipse)
 trait EllipseCore<T: Scalar>         // 基本楕円トレイト
 trait Ellipse3DCore<T: Scalar>       // 3D楕円トレイト
 
@@ -60,7 +60,7 @@ trait ArcCore<T: Scalar>             // 基本円弧トレイト
 trait Arc3DCore<T: Scalar>           // 3D円弧トレイト
 
 // 楕円弧 (EllipseArc)
-trait EllipseArcCore<T: Scalar>      // 基本楕円弧トレイト  
+trait EllipseArcCore<T: Scalar>      // 基本楕円弧トレイト
 trait EllipseArc3DCore<T: Scalar>    // 3D楕円弧トレイト
 ```
 
@@ -109,7 +109,7 @@ pub struct Point<T: Scalar> { ... }
 pub type Point2D<T> = Point<T>;     // 互換性エイリアス
 pub type Point2DF64 = Point<f64>;   // 特化型エイリアス
 
-// geo_primitives/src/geometry3d/point.rs  
+// geo_primitives/src/geometry3d/point.rs
 pub struct Point<T: Scalar> { ... }
 pub type Point3D<T> = Point<T>;     // 互換性エイリアス
 pub type Point3DF64 = Point<f64>;   // 特化型エイリアス
@@ -118,14 +118,14 @@ pub type Point3DF64 = Point<f64>;   // 特化型エイリアス
 pub struct Arc<T: Scalar> { ... }
 pub type Arc2D<T> = Arc<T>;         // 互換性エイリアス
 
-// geo_primitives/src/geometry2d/line.rs  
+// geo_primitives/src/geometry2d/line.rs
 pub struct Line<T: Scalar> { ... }
 pub type Line2D<T> = Line<T>;       // 互換性エイリアス
 ```
 
 ### 3.2 エラー型命名
 
-```rust
+````rust
 ```rust
 // エラー型は明確な接尾辞を使用
 VectorNormalizationError             // ベクトル正規化エラー
@@ -133,35 +133,7 @@ CircleConstructionError              // 円構築エラー
 EllipseDeformationError              // 楕円変形エラー
 ArcAngleError                        // 円弧角度エラー
 LineValidationError                  // 線分検証エラー
-```
-
-## 4. 親子関係の明確化
-
-### 4.1 Circle → Arc 関係
-- **Circle**: 完全な円（360度）
-- **Arc**: 円の一部（角度範囲指定）
-- **実装**: `ArcCore<T>` は `CircleCore<T>` を継承または包含
-
-```rust
-trait ArcCore<T: Scalar>: CircleCore<T> {
-    fn start_angle(&self) -> Angle<T>;
-    fn end_angle(&self) -> Angle<T>;
-    fn is_full_circle(&self) -> bool {
-        self.end_angle() - self.start_angle() >= Angle::full_rotation()
-    }
-}
-```
-
-### 4.2 Ellipse → EllipseArc 関係
-- **Ellipse**: 完全な楕円
-- **EllipseArc**: 楕円の一部（角度範囲指定）
-
-### 4.3 InfiniteLine → Line 関係（RedRing設計方針）
-- **InfiniteLine**: 無限に延びる直線（基盤）
-- **Line**: InfiniteLineを基盤とし、開始・終了パラメータで有効範囲を表現
-- **設計理由**: トリムや移動で線分が傾くことを回避する重要な設計方針
-- **実装**: LineはInfiniteLineへの参照と2つのパラメータ値を持つ
-```
+````
 
 ## 4. 親子関係の明確化
 
@@ -180,6 +152,38 @@ trait ArcCore<T: Scalar>: CircleCore<T> {
     }
 }
 ```
+
+### 4.2 Ellipse → EllipseArc 関係
+
+- **Ellipse**: 完全な楕円
+- **EllipseArc**: 楕円の一部（角度範囲指定）
+
+### 4.3 InfiniteLine → Line 関係（RedRing 設計方針）
+
+- **InfiniteLine**: 無限に延びる直線（基盤）
+- **Line**: InfiniteLine を基盤とし、開始・終了パラメータで有効範囲を表現
+- **設計理由**: トリムや移動で線分が傾くことを回避する重要な設計方針
+- **実装**: Line は InfiniteLine への参照と 2 つのパラメータ値を持つ
+
+````
+
+## 4. 親子関係の明確化
+
+### 4.1 Circle → Arc 関係
+
+- **Circle**: 完全な円（360 度）
+- **Arc**: 円の一部（角度範囲指定）
+- **実装**: `ArcCore<T>` は `CircleCore<T>` を継承または包含
+
+```rust
+trait ArcCore<T: Scalar>: CircleCore<T> {
+    fn start_angle(&self) -> Angle<T>;
+    fn end_angle(&self) -> Angle<T>;
+    fn is_full_circle(&self) -> bool {
+        self.end_angle() - self.start_angle() >= Angle::full_rotation()
+    }
+}
+````
 
 ### 4.2 Ellipse → EllipseArc 関係
 
@@ -209,8 +213,8 @@ trait ArcCore<T: Scalar>: CircleCore<T> {
 - [ ] 次元特化に`2D`/`3D`サフィックス付与
 - [ ] 境界ボックスは`BBox`を使用
 - [ ] 円弧は`Arc`を使用（`Circle`の子）
-- [ ] 線分は`Line`を使用（InfiniteLineを基盤とするRedRing設計）
-- [ ] Line設計: InfiniteLine + パラメータ範囲による有効範囲表現
+- [ ] 線分は`Line`を使用（InfiniteLine を基盤とする RedRing 設計）
+- [ ] Line 設計: InfiniteLine + パラメータ範囲による有効範囲表現
 - [ ] エラー型に明確なサフィックス付与
 
 ### 6.2 コンパイル時検証
