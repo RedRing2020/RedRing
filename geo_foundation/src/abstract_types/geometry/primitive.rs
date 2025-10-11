@@ -48,8 +48,8 @@
 use super::classification::PrimitiveKind;
 use crate::Scalar;
 
-// BBoxを抽象境界ボックスとして定義（より柔軟な実装）
-/// 抽象的な境界ボックストレイト
+// AbstractBBoxを抽象境界ボックスとして定義（より柔軟な実装）
+/// 抽象的な境界ボックストレイト（BBoxに統一）
 pub trait AbstractBBox<T: Scalar> {
     type Point;
     fn min(&self) -> Self::Point;
@@ -58,13 +58,13 @@ pub trait AbstractBBox<T: Scalar> {
 
 /// 全ての幾何プリミティブが実装する共通トレイト（ジェネリック版）
 pub trait GeometricPrimitive<T: Scalar = f64> {
-    /// バウンディングボックスの型
+    /// 境界ボックスの型（BBoxに統一）
     type BBox: AbstractBBox<T>;
 
     /// プリミティブの種類を返す
     fn primitive_kind(&self) -> PrimitiveKind;
 
-    /// バウンディングボックスを返す（ジェネリック版）
+    /// 境界ボックスを返す（ジェネリック版、BBoxに統一）
     fn bounding_box(&self) -> Self::BBox;
 
     /// プリミティブの測定値（長さ、面積、体積など）を返す（ジェネリック版）
