@@ -58,6 +58,8 @@ redring ← stage ← render
 
 ## 🔗 関連ドキュメント
 
+- **[📖 オンラインドキュメント](https://redring2020.github.io/RedRing/)** - GitHub Pages（自動更新）
 - [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md) - 幾何抽象化の詳細仕様
 - [`manual/philosophy.md`](manual/philosophy.md) - 設計思想・エラー処理ガイドライン
 - [`MIGRATION_VECTOR_F64.md`](MIGRATION_VECTOR_F64.md) - f64 正準化移行履歴
+- [`GITHUB_PAGES_SETUP.md`](GITHUB_PAGES_SETUP.md) - GitHub Pages 設定ガイド
