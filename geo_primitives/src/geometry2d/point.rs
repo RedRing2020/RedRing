@@ -1,6 +1,6 @@
 ﻿use crate::geometry2d::Vector; // ジェネリック Vector を使用
-use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
 use geo_foundation::abstract_types::geometry::common::distance_operations::DistanceCalculation;
+use geo_foundation::abstract_types::geometry::{Point as PointTrait, Point2D as Point2DTrait};
 use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 /// A 2D point represented by x and y coordinates.

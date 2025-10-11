@@ -5,8 +5,8 @@
 #[cfg(test)]
 mod tests {
     use crate::geometry3d::{Direction3D, Direction3DF32, Direction3DF64, Vector};
-    use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait};
     use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
+    use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait};
     use geo_foundation::Scalar;
 
     #[test]

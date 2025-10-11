@@ -1,8 +1,8 @@
+use geo_foundation::abstract_types::geometry::common::distance_operations::DistanceCalculation;
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 use geo_foundation::abstract_types::geometry::{
     Vector as VectorTrait, Vector2D as Vector2DTrait, Vector2DConstants, Vector2DGeometry,
 };
-use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
-use geo_foundation::abstract_types::geometry::common::distance_operations::DistanceCalculation;
 use geo_foundation::Scalar;
 
 /// 型パラメータ化された2Dベクトル

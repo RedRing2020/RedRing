@@ -3,10 +3,10 @@
 //! 3次元空間における円の具体的な実装
 
 use crate::geometry3d::{BBox3D, Direction3D, Point, Vector};
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
-use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 use geo_foundation::abstract_types::geometry::{
     Circle2D as Circle2DTrait, Circle3D as Circle3DTrait, CircleContainment, CircleMetrics,
     CircleTransform, Direction,

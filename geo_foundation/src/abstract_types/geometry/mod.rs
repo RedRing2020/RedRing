@@ -12,7 +12,7 @@
 //!   - `InvalidAxisLength` - 軸長が無効
 //!   - `InvalidAxisOrder` - 軸の順序が無効
 //!
-//! - `NormalizationError` - ベクトル正規化時のエラー  
+//! - `NormalizationError` - ベクトル正規化時のエラー
 //!   - `ZeroLength` - ゼロ長ベクトル
 //!   - `NumericalInstability` - 数値不安定
 //!
@@ -67,6 +67,8 @@ pub use classification::*; // プリミティブ分類システム
                            // pub use common::*; // Direction3DConstants の重複を避けるため個別インポートに変更
 pub use common::{
     AnalyticalCurve,
+    CollectionDistanceCalculation,
+    ConditionalNormalizable,
     CurveAnalysis3D,
     CurveType,
     DifferentialGeometry,
@@ -75,11 +77,9 @@ pub use common::{
     // 距離計算トレイト（distance_operations モジュールから）
     DistanceCalculation,
     DistanceWithClosestPoint,
-    CollectionDistanceCalculation,
     // 正規化トレイト（normalization_operations モジュールから）
     Normalizable,
     NormalizationError,
-    ConditionalNormalizable,
 };
 pub use direction::*;
 pub use ellipse::*; // 有効化
