@@ -1,11 +1,11 @@
 # はじめに
 
-RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。  
+RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 現在は描画基盤と幾何計算層の構築段階にあり、型安全性と責務分離を重視した設計を採用しています。
 
 ## 背景と目的
 
-従来の CAD カーネルは、複雑な依存関係と不明瞭な責務分担により、保守性と拡張性に課題がありました。  
+従来の CAD カーネルは、複雑な依存関係と不明瞭な責務分担により、保守性と拡張性に課題がありました。
 RedRing は、Rust の型システムを活用し、**型安全性・責務分離・将来拡張性**を重視したモダンなアーキテクチャを目指しています。
 
 ## 設計方針
@@ -21,15 +21,17 @@ RedRing は、Rust の型システムを活用し、**型安全性・責務分�
 RedRing は以下のワークスペース構成になっています：
 
 ### 幾何計算層
+
 - `geo_foundation`：抽象型・トレイト定義・橋渡し
-- `geo_core`：許容誤差・ロバスト幾何判定  
-- `geo_primitives`：f64正準幾何プリミティブ
+- `geo_core`：許容誤差・ロバスト幾何判定
+- `geo_primitives`：f64 正準幾何プリミティブ
 - `geo_algorithms`：幾何アルゴリズム
 - `model`：高次曲線・曲面（今後拡張予定）
-- `analysis`：数値解析・CAM処理（今後拡張予定）
+- `analysis`：数値解析・CAM 処理（今後拡張予定）
 
 ### レンダリング層
-- `render`：GPU描画基盤（wgpu + WGSL）
+
+- `render`：GPU 描画基盤（wgpu + WGSL）
 - `stage`：レンダリングステージ管理
 - `viewmodel`：ビュー操作・変換ロジック
 - `redring`：メインアプリケーション
@@ -48,6 +50,7 @@ RedRing は以下のワークスペース構成になっています：
 現在は描画基盤と幾何計算層の初期構築段階です。NURBS 実装や CAM 機能は今後の開発対象となります。
 
 最新の進捗状況は以下で確認できます：
+
 - [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)
 - [GitHub Projects](https://github.com/RedRing2020/RedRing/projects)
 
