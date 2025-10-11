@@ -4,10 +4,11 @@ Rust 製 CAD/CAM 研究用プラットフォーム
 現在は描画基盤と構造設計の準備段階です。CAM 処理は未実装です。
 
 **Documentation Languages / ドキュメント言語:**
-| Geometry Abstraction | Link |
-|----------------------|------|
-| English (placeholder) | `model/GEOMETRY_README.md` |
-| 日本語 (詳細) | `model/GEOMETRY_README.ja.md` |
+| ドキュメント | 言語 | アクセス方法 |
+|-------------|------|-------------|
+| **オンラインドキュメント** | 🌐 日本語 | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/)** |
+| Geometry Abstraction | 🇺🇸 English (placeholder) | `model/GEOMETRY_README.md` |
+| Geometry Abstraction | 🇯🇵 日本語 (詳細) | `model/GEOMETRY_README.ja.md` |
 
 ---
 

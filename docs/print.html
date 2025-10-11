@@ -177,10 +177,10 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="はじめに"><a class="header" href="#はじめに">はじめに</a></h1>
-<p>RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。<br />
+<p>RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 現在は描画基盤と幾何計算層の構築段階にあり、型安全性と責務分離を重視した設計を採用しています。</p>
 <h2 id="背景と目的"><a class="header" href="#背景と目的">背景と目的</a></h2>
-<p>従来の CAD カーネルは、複雑な依存関係と不明瞭な責務分担により、保守性と拡張性に課題がありました。<br />
+<p>従来の CAD カーネルは、複雑な依存関係と不明瞭な責務分担により、保守性と拡張性に課題がありました。
 RedRing は、Rust の型システムを活用し、<strong>型安全性・責務分離・将来拡張性</strong>を重視したモダンなアーキテクチャを目指しています。</p>
 <h2 id="設計方針"><a class="header" href="#設計方針">設計方針</a></h2>
 <ul>
@@ -196,14 +196,14 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <ul>
 <li><code>geo_foundation</code>：抽象型・トレイト定義・橋渡し</li>
 <li><code>geo_core</code>：許容誤差・ロバスト幾何判定</li>
-<li><code>geo_primitives</code>：f64正準幾何プリミティブ</li>
+<li><code>geo_primitives</code>：f64 正準幾何プリミティブ</li>
 <li><code>geo_algorithms</code>：幾何アルゴリズム</li>
 <li><code>model</code>：高次曲線・曲面（今後拡張予定）</li>
-<li><code>analysis</code>：数値解析・CAM処理（今後拡張予定）</li>
+<li><code>analysis</code>：数値解析・CAM 処理（今後拡張予定）</li>
 </ul>
 <h3 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h3>
 <ul>
-<li><code>render</code>：GPU描画基盤（wgpu + WGSL）</li>
+<li><code>render</code>：GPU 描画基盤（wgpu + WGSL）</li>
 <li><code>stage</code>：レンダリングステージ管理</li>
 <li><code>viewmodel</code>：ビュー操作・変換ロジック</li>
 <li><code>redring</code>：メインアプリケーション</li>
@@ -243,7 +243,7 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>ロバスト幾何判定（orientation など）</li>
 </ul>
 <h3 id="geo_primitives"><a class="header" href="#geo_primitives"><code>geo_primitives</code></a></h3>
-<p><strong>f64正準幾何プリミティブ</strong></p>
+<p><strong>f64 正準幾何プリミティブ</strong></p>
 <ul>
 <li>基本要素：<code>Point</code>, <code>Vector</code>, <code>Direction</code></li>
 <li>幾何形状：<code>Line</code>, <code>Circle</code>, <code>Ellipse</code>, <code>Arc</code></li>
@@ -264,7 +264,7 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>抽象化レイヤ</li>
 </ul>
 <h3 id="analysis"><a class="header" href="#analysis"><code>analysis</code></a></h3>
-<p><strong>数値解析・CAM処理</strong></p>
+<p><strong>数値解析・CAM 処理</strong></p>
 <ul>
 <li>数値計算ユーティリティ</li>
 <li>CAM パス生成（今後実装予定）</li>
@@ -272,7 +272,7 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 </ul>
 <h2 id="レンダリング層-1"><a class="header" href="#レンダリング層-1">レンダリング層</a></h2>
 <h3 id="render"><a class="header" href="#render"><code>render</code></a></h3>
-<p><strong>GPU描画基盤</strong></p>
+<p><strong>GPU 描画基盤</strong></p>
 <ul>
 <li>wgpu + WGSL による GPU レンダリング</li>
 <li>シェーダ管理</li>
