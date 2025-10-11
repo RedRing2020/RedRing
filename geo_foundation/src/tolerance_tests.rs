@@ -1,6 +1,6 @@
 //! ToleranceSettings と GeometryContext のテスト
 
-use crate::{GeometryContext, Scalar, ToleranceSettings};
+use crate::{GeometryContext, ToleranceSettings};
 
 #[cfg(test)]
 mod tests {
