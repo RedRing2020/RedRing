@@ -1,4 +1,5 @@
 ﻿use geo_foundation::Scalar;
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 
 /// 型パラメータ化された3Dベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,21 +60,6 @@ impl<T: Scalar> Vector<T> {
     /// ベクトルの長さの二乗
     pub fn length_squared(&self) -> T {
         self.x * self.x + self.y * self.y + self.z * self.z
-    }
-
-    /// 正規化（単位ベクトル化）
-    pub fn normalize(&self) -> Option<Self> {
-        let len = self.length();
-        if len == T::ZERO {
-            None
-        } else {
-            Some(Self::new(self.x / len, self.y / len, self.z / len))
-        }
-    }
-
-    /// 正規化（ゼロベクトルの場合はゼロベクトルを返す）
-    pub fn normalize_or_zero(&self) -> Self {
-        self.normalize().unwrap_or_default()
     }
 
     /// 内積
@@ -288,8 +274,8 @@ impl<T: Scalar> crate::traits::Vector3DExt for Vector<T> {
 }
 */
 
-// Normalizable トレイトの実装
-impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
+// Normalizable トレイトの実装（統合版）
+impl<T: Scalar> Normalizable<T> for Vector<T> {
     type Output = Vector<T>;
 
     fn normalize(&self) -> Option<Vector<T>> {
@@ -318,8 +304,8 @@ impl<T: Scalar> crate::traits::Normalizable for Vector<T> {
         }
     }
 
-    fn can_normalize(&self, tolerance: f64) -> bool {
-        self.length().to_f64() > tolerance
+    fn can_normalize(&self, tolerance: T) -> bool {
+        self.length() > tolerance
     }
 }
 

@@ -6,6 +6,7 @@ use crate::geometry3d::{BBox3D, Circle, Direction3D, Point, Vector};
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 use geo_foundation::abstract_types::geometry::Direction;
 use geo_foundation::Scalar;
 use geo_foundation::PI;

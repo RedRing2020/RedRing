@@ -5,6 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::geometry2d::{Vector, Vector2D};
+    use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
     use geo_foundation::Scalar;
 
     #[test]

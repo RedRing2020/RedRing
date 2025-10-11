@@ -7,10 +7,11 @@ use crate::traits::StepCompatible;
 use analysis::abstract_types::angle::Angle;
 use geo_foundation::abstract_types::geometry::{
     Direction as DirectionTrait,
-    Direction2D as Direction2DTrait, // Direction2DAngular,
+    Direction2D as Direction2DTrait,
     DirectionConstants,
 };
-use geo_foundation::Scalar;
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
+use geo_foundation::{Scalar};
 
 /// ジェネリック2D方向ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]

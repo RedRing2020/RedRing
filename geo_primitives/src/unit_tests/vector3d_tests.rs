@@ -1,5 +1,6 @@
 #[cfg(test)]
 use crate::geometry3d::Vector3D;
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 #[test]
 fn test_vector3d_creation() {
     let v = Vector3D::new(1.0, 2.0, 3.0);

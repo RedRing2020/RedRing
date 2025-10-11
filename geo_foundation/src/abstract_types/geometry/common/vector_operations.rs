@@ -1,23 +1,12 @@
-//! ベクトル操作の共通トレイト
+//! ベクトル操作の専用トレイト
 //!
-//! 正規化、内積、外積等のベクトル演算の統一インターフェース
+//! 内積、外積等のベクトル演算に特化したインターフェース
+//! 正規化と距離計算は別モジュールに分離済み
 
-/// 正規化可能なベクトルトレイト
-pub trait Normalizable {
-    type Output;
+use crate::Scalar;
 
-    /// 正規化（エラーハンドリング付き）
-    fn normalize(&self) -> Option<Self::Output>;
-
-    /// 正規化（ゼロベクトルの場合はゼロベクトルを返す）
-    fn normalize_or_zero(&self) -> Self::Output;
-
-    /// 正規化できるかどうかをチェック
-    fn can_normalize(&self, tolerance: f64) -> bool;
-}
-
-/// ベクトル基本操作トレイト（将来の拡張用）
-pub trait VectorOperations<T> {
+/// ベクトル基本操作トレイト
+pub trait VectorOperations<T: Scalar> {
     /// 内積計算
     fn dot(&self, other: &Self) -> T;
 
@@ -35,7 +24,7 @@ pub trait VectorOperations<T> {
 }
 
 /// 3Dベクトル固有の操作トレイト
-pub trait Vector3DOperations<T>: VectorOperations<T> {
+pub trait Vector3DOperations<T: Scalar>: VectorOperations<T> {
     /// 外積計算
     fn cross(&self, other: &Self) -> Self;
 
@@ -47,7 +36,7 @@ pub trait Vector3DOperations<T>: VectorOperations<T> {
 }
 
 /// 2Dベクトル固有の操作トレイト
-pub trait Vector2DOperations<T>: VectorOperations<T> {
+pub trait Vector2DOperations<T: Scalar>: VectorOperations<T> {
     /// 2D外積（スカラー値）
     fn cross_2d(&self, other: &Self) -> T;
 
@@ -59,4 +48,16 @@ pub trait Vector2DOperations<T>: VectorOperations<T> {
 
     /// 反時計回りに90度回転
     fn rotate_90_ccw(&self) -> Self;
+}
+
+/// ベクトル変換操作トレイト（将来の拡張用）
+pub trait VectorTransformation<T: Scalar>: VectorOperations<T> {
+    /// 指定角度で回転
+    fn rotate(&self, angle: T) -> Self;
+
+    /// スケール変換
+    fn scale(&self, factor: T) -> Self;
+
+    /// 反射変換（指定した軸に対する鏡像）
+    fn reflect(&self, axis: &Self) -> Self;
 }

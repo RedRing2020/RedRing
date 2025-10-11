@@ -2,7 +2,8 @@
 mod tests {
     use crate::geometry2d::Vector2D;
     use crate::geometry3d::Vector3D;
-    use crate::traits::{Normalizable, Vector};
+    use crate::traits::Vector;
+    use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 
     #[test]
     fn test_vector_trait_with_vector2d() {
