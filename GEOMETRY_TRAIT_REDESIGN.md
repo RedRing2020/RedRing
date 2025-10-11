@@ -5,16 +5,18 @@
 ### 実装済み構造
 
 #### 共通基盤トレイト (`foundation.rs`)
+
 ```rust
 // データアクセス層
 GeometryFoundation<T>     // 基本属性アクセス（境界ボックス含む）
 BasicMetrics<T>           // データ構造に直接関連する計算
-BasicContainment<T>       // 基本的な包含判定  
+BasicContainment<T>       // 基本的な包含判定
 BasicParametric<T>        // パラメトリック形状の基本操作
 BasicDirectional<T>       // 方向を持つ要素の基本操作
 ```
 
 #### 形状別基本トレイト (`basic_shapes.rs`)
+
 ```rust
 // 点・ベクトル
 PointCore<T>, Point2DCore<T>, Point3DCore<T>
@@ -24,7 +26,7 @@ VectorCore<T>, Vector2DCore<T>, Vector3DCore<T>
 InfiniteLineCore<T>       // 無限直線
 LineSegmentCore<T>        // 線分
 
-// 曲線系  
+// 曲線系
 CircleCore<T>             // 円（BasicMetrics実装済み）
 Circle3DCore<T>           // 3D円
 EllipseCore<T>            // 楕円
@@ -32,11 +34,12 @@ ArcCore<T>                // 弧
 
 // 境界系
 BoundingBoxCore<T>        // 境界ボックス
-BoundingBox2DCore<T>      // 2D境界ボックス  
+BoundingBox2DCore<T>      // 2D境界ボックス
 BoundingBox3DCore<T>      // 3D境界ボックス
 ```
 
 #### ヘルパー関数 (`helpers.rs`)
+
 ```rust
 normalize_angle()           // 角度正規化
 angle_in_range()           // 角度範囲判定
@@ -51,15 +54,16 @@ bbox_*()                   // 境界ボックス計算群
 
 ✅ **明確な責務分離**: 基本=データ+基本解析のみ
 ✅ **型安全性**: コンパイル時の型チェック強化
-✅ **段階的実装**: 基本トレイト→拡張トレイトの段階的追加
+✅ **段階的実装**: 基本トレイト → 拡張トレイトの段階的追加
 ✅ **デフォルト実装**: CircleCore + BasicMetrics で実証
 ✅ **競合回避**: blanket implementation の排除
 
-## 次のPhase: 拡張トレイト設計
+## 次の Phase: 拡張トレイト設計
 
 ### Phase 2 計画: 空間関係・変換トレイト
 
 #### 交差・衝突検出層
+
 ```rust
 trait SpatialIntersection<T, Other = Self> {
     type IntersectionResult;
@@ -73,7 +77,8 @@ trait CollisionDetection<T> {
 }
 ```
 
-#### 変換・射影層  
+#### 変換・射影層
+
 ```rust
 trait GeometryTransform<T> {
     type Transformed;

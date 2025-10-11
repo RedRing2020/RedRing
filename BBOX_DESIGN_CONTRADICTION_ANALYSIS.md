@@ -3,6 +3,7 @@
 ## 問題の構造
 
 ### 現在の状況 (修正前)
+
 ```
 geo_foundation/             ← トレイト定義層
 ├── BBoxCore<T>            ← ✅ 正しい場所
@@ -23,6 +24,7 @@ geo_primitives/             ← 具体実装層
 ```
 
 ### 理想的な設計
+
 ```
 analysis/                   ← 純粋数値計算のみ
 ├── numerics/              ← 特殊数学定数
@@ -41,17 +43,19 @@ geo_primitives/             ← 具体実装
 ## 早まった実装の典型パターン
 
 ### 1. 設計時の思考プロセス (推測)
+
 ```
 「BBoxCore トレイトを作った」
     ↓
 「実装例が欲しい」
-    ↓  
+    ↓
 「とりあえず analysis に計算関数を作っておこう」 ← ❌ ここが間違い
     ↓
 「spatial モジュールという名前にしよう」 ← ❌ ジオメトリなのに analysis
 ```
 
 ### 2. 正しいプロセス
+
 ```
 「BBoxCore トレイトを作った」
     ↓
@@ -63,6 +67,7 @@ geo_primitives/             ← 具体実装
 ## 設計原則違反の分析
 
 ### 1. 責務分離原則違反
+
 ```rust
 // ❌ analysis に境界ボックス計算関数
 pub fn bbox_2d_area<T: Scalar>(width: T, height: T) -> T {
@@ -71,33 +76,39 @@ pub fn bbox_2d_area<T: Scalar>(width: T, height: T) -> T {
 ```
 
 ### 2. 依存関係逆転
+
 ```
 正しい依存: geo_primitives → geo_foundation → analysis
 実際の依存: geo_foundation → analysis (spatial) → geo_primitives
 ```
 
 ### 3. モジュール命名の誤り
+
 - `spatial` = 「空間構造計算」← ジオメトリ処理なのに数値計算っぽい名前
 
 ## 修正結果
 
 ### 削除したもの
+
 - ✅ `analysis/src/spatial/` 全体
 - ✅ `analysis/src/lib.rs` からの spatial 参照
 - ✅ helpers.rs からの spatial 使用
 
 ### 保持するもの
+
 - ✅ `geo_foundation` のトレイト定義
 - ✅ `geo_primitives` の具体実装
 
 ## 学んだ教訓
 
 ### 1. トレイト設計と実装は分離する
+
 - **トレイト定義**: 設計時に作成
 - **具体実装**: 実装時に作成
 - **ヘルパー関数**: 実装時に必要に応じて作成
 
 ### 2. 依存関係の方向を常に意識する
+
 ```rust
 // ✅ 正しい: 上位層が下位層に依存
 geo_primitives::BBox<T> → geo_foundation::BBoxCore<T> → analysis::Scalar
@@ -107,12 +118,13 @@ analysis → geo_foundation (spatial functions)
 ```
 
 ### 3. モジュール名は責務を正確に表現する
+
 - `spatial` → ジオメトリ処理を連想させる ❌
 - `numerics` → 数値計算を正確に表現 ✅
 
 ## 結論
 
-**ユーザーの認識が100%正確でした:**
+**ユーザーの認識が 100%正確でした:**
 
 1. ✅ **境界ボックスはジオメトリ処理** (数値計算ではない)
 2. ✅ **geo_foundation にトレイト定義済み**
