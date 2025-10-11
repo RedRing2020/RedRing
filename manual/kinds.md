@@ -7,7 +7,7 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 基本幾何プリミティブの分類：
 
 - `Point`：点
-- `Vector`：ベクトル  
+- `Vector`：ベクトル
 - `Direction`：正規化されたベクトル
 - `Line`：直線
 - `Ray`：光線
@@ -36,6 +36,7 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 重複する操作は統合トレイトで抽象化：
 
 ### `Normalizable<T>`
+
 ```rust
 pub trait Normalizable<T> {
     type Output;
@@ -45,6 +46,7 @@ pub trait Normalizable<T> {
 ```
 
 ### `DistanceCalculation<T, Target>`
+
 ```rust
 pub trait DistanceCalculation<T, Target> {
     fn distance_to(&self, other: &Target) -> T;
