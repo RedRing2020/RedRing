@@ -2,6 +2,24 @@
 //!
 //! CAD/CAM で使用される基本的な幾何学要素のトレイト群を提供
 //!
+//! # 新しい設計方針: 基本・拡張境界の明確化
+//!
+//! ## 基本トレイト (Foundation)
+//! データ構造・幾何構造に応じた基本の解析のみ
+//!
+//! ### データアクセス層
+//! - `GeometryFoundation`: 基本属性アクセス（境界ボックスを含む）
+//! - `PointCore`, `VectorCore`: 基本的な座標・成分アクセス
+//! - `CircleCore`, `LineSegmentCore`: 各形状の基本属性アクセス
+//!
+//! ### 基本幾何解析層  
+//! - `BasicMetrics`: データ構造に直接関連する計算（長さ、面積、体積）
+//! - `BasicContainment`: 基本的な包含判定
+//! - `BasicParametric`: パラメトリック形状の基本操作
+//!
+//! ## 拡張トレイト (Advanced)
+//! 交差・衝突・変換・射影等の高度な操作は `advanced` モジュールで定義
+//!
 //! # エラー処理の設計方針
 //!
 //! RedRing プロジェクトでは、各幾何形状専用のエラー型を使用する設計を採用しています：
@@ -12,7 +30,7 @@
 //!   - `InvalidAxisLength` - 軸長が無効
 //!   - `InvalidAxisOrder` - 軸の順序が無効
 //!
-//! - `NormalizationError` - ベクトル正規化時のエラー
+//! - `VectorNormalizationError` - ベクトル正規化時のエラー
 //!   - `ZeroLength` - ゼロ長ベクトル
 //!   - `NumericalInstability` - 数値不安定
 //!
@@ -42,7 +60,21 @@
 //! }
 //! ```
 
-pub mod arc; // 有効化
+// 新しいトレイト設計（foundation.rs ベース）
+pub mod foundation; // 共通基盤トレイト
+
+// 新実装専用モジュール（これから追加）
+// pub mod new_point;        // 新しい点の実装
+// pub mod new_vector;       // 新しいベクトルの実装
+// pub mod new_circle;       // 新しい円の実装
+
+// 早まった実装・旧トレイト（一時除外）
+// pub mod helpers;          // 早まった実装 - 削除候補
+// pub mod basic_point;      // 旧実装 - 一時除外
+// pub mod basic_vector;     // 旧実装 - 一時除外
+// pub mod basic_circle;     // 旧実装 - 一時除外
+// pub mod basic_shapes;     // 旧実装 - 一時除外
+// pub mod arc;              // 旧実装 - 一時除外
 pub mod bbox;
 pub mod circle;
 pub mod classification; // 幾何プリミティブの分類システム
@@ -60,11 +92,28 @@ pub mod utils; // 幾何計算ユーティリティ
 pub mod vector;
 
 // 基本トレイトをエクスポート
-pub use arc::*; // 有効化
-pub use bbox::*;
-pub use circle::*;
-pub use classification::*; // プリミティブ分類システム
-                           // pub use common::*; // Direction3DConstants の重複を避けるため個別インポートに変更
+pub use foundation::*; // 共通基盤トレイト
+
+// 新実装の準備（将来追加予定）
+// pub use new_point::{...};
+// pub use new_vector::{...};
+// pub use new_circle::{...};
+
+// geo_foundation固有のヘルパー関数（新実装のため一時的に無効化）
+/*
+pub use helpers::{
+    normalize_parameter, parameter_in_range, lerp, inverse_lerp,
+    angle_to_parameter, parameter_to_angle
+};
+*/
+
+// 古いトレイトのエクスポート（新実装のため一時的に無効化）
+// pub use arc::*; // 有効化
+// pub use bbox::*;
+// pub use circle::*;
+// pub use classification::*; // プリミティブ分類システム
+// pub use common::*; // Direction3DConstants の重複を避けるため個別インポートに変更
+/*
 pub use common::{
     AnalyticalCurve,
     CollectionDistanceCalculation,
@@ -81,14 +130,15 @@ pub use common::{
     Normalizable,
     NormalizationError,
 };
-pub use direction::*;
-pub use ellipse::*; // 有効化
-pub use ellipse_arc::*; // 有効化
-pub use infinite_line::*;
-pub use line::*;
-pub use point::*;
-pub use primitive::*; // 幾何プリミティブの共通トレイト
-pub use ray::*;
-pub use sphere::*;
-pub use utils::*; // ユーティリティ関数
-pub use vector::*;
+*/
+// pub use direction::*;
+// pub use ellipse::*; // 有効化
+// pub use ellipse_arc::*; // 有効化
+// pub use infinite_line::*;
+// pub use line::*;
+// pub use point::*;
+// pub use primitive::*; // 幾何プリミティブの共通トレイト
+// pub use ray::*;
+// pub use sphere::*;
+// pub use utils::*; // ユーティリティ関数
+// pub use vector::*;
