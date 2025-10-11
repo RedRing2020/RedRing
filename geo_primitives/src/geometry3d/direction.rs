@@ -4,8 +4,8 @@
 
 use crate::geometry3d::Vector;
 use analysis::abstract_types::angle::Angle;
-use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait};
 use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
+use geo_foundation::abstract_types::geometry::{Direction, Direction3D as Direction3DTrait};
 use geo_foundation::Scalar;
 
 /// ジェネリック3D方向ベクトル

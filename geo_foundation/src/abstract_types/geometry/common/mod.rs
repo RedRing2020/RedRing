@@ -41,9 +41,7 @@ pub use distance_operations::{
 
 pub use line_operations::{Line3DOps, LineIntersection, LineOps, LineTransform, SegmentOps};
 
-pub use normalization_operations::{
-    ConditionalNormalizable, NormalizationError, Normalizable,
-};
+pub use normalization_operations::{ConditionalNormalizable, Normalizable, NormalizationError};
 
 pub use point_operations::{Point2DOps, Point3DOps, PointGeometry, PointOps, PointTransform};
 

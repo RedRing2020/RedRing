@@ -4,10 +4,10 @@
 //! 点と方向ベクトルで定義される、CAD/CAMシステムで使用される直線の基本的な操作を提供
 
 use crate::geometry3d::{Direction3D, Point, Vector};
+use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 use geo_foundation::abstract_types::geometry::common::{
     AnalyticalCurve, CurveAnalysis3D, CurveType, DifferentialGeometry,
 };
-use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
 use geo_foundation::{
     abstract_types::geometry::{Direction, InfiniteLine3D as InfiniteLine3DTrait},
     Scalar,

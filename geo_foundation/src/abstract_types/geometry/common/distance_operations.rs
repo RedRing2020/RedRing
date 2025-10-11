@@ -5,7 +5,7 @@
 use crate::Scalar;
 
 /// 距離計算の統一インターフェース
-/// 
+///
 /// 点-点、点-線、点-曲線等のすべての距離計算を統一したトレイト。
 /// 型安全性と計算効率を重視した設計。
 pub trait DistanceCalculation<T: Scalar, Target> {
@@ -33,14 +33,17 @@ pub trait DistanceCalculation<T: Scalar, Target> {
 }
 
 /// 最近点を含む距離計算の拡張
-/// 
+///
 /// 距離だけでなく最近点も同時に取得する場合に使用
 pub trait DistanceWithClosestPoint<T: Scalar, Target>: DistanceCalculation<T, Target> {
     /// 最近点の型
     type ClosestPoint;
 
     /// 距離と最近点を同時に計算
-    fn distance_and_closest_point(&self, target: &Target) -> (Self::DistanceResult, Self::ClosestPoint);
+    fn distance_and_closest_point(
+        &self,
+        target: &Target,
+    ) -> (Self::DistanceResult, Self::ClosestPoint);
 
     /// 最近点のみを取得
     fn closest_point(&self, target: &Target) -> Self::ClosestPoint {

@@ -3,8 +3,8 @@
 //! 2次元楕円弧の基本実装
 
 use crate::geometry2d::{bbox::BBox, Ellipse, Point, Vector};
-use geo_foundation::{abstract_types::geometry::EllipseArc2D as EllipseArc2DTrait, Angle, Scalar};
 use geo_foundation::abstract_types::geometry::common::normalization_operations::Normalizable;
+use geo_foundation::{abstract_types::geometry::EllipseArc2D as EllipseArc2DTrait, Angle, Scalar};
 use geo_foundation::{GEOMETRIC_TOLERANCE, PI};
 
 /// 楕円弧関連のエラー
