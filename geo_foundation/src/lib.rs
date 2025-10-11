@@ -6,23 +6,25 @@
 // 抽象型モジュール
 pub mod abstract_types;
 
-// 共通機能モジュール
-pub mod common;
+// analysisクレートからScalarトレイトを再エクスポート
+pub use analysis::abstract_types::{Angle, Scalar, ToleranceContext, TolerantEq};
 
-// 主要な抽象型を再エクスポート
-pub use abstract_types::{Scalar, ToleranceContext, TolerantEq};
+// analysisクレートから定数を再エクスポート
+pub use analysis::{
+    game, precision, GeometricTolerance, DEG_TO_RAD, E, GEOMETRIC_ANGLE_TOLERANCE,
+    GEOMETRIC_DISTANCE_TOLERANCE, GEOMETRIC_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
+};
 
-// 共通機能を再エクスポート
-pub use common::{constants, error, traits};
-
-// テストモジュール
-#[cfg(test)]
-mod unit_tests;
+// 抽象型の幾何トレイトを再エクスポート
+pub use abstract_types::geometry::*;
 
 /// 便利な再エクスポート
 pub mod prelude {
-    pub use crate::abstract_types::{Scalar, ToleranceContext, TolerantEq};
-    pub use crate::common::constants::*;
-    pub use crate::common::error::GeometryError;
-    pub use crate::common::traits::*;
+    // GeometryError は削除済み - 各幾何形状で専用エラー型を使用
+    // 必要に応じて NormalizationError などを個別にインポートしてください
+    pub use crate::{
+        DEG_TO_RAD, E, GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE,
+        GEOMETRIC_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
+    };
+    pub use analysis::abstract_types::{Angle, Scalar, ToleranceContext, TolerantEq};
 }

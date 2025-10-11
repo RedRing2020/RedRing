@@ -1,7 +1,6 @@
 use wgpu::{
-    CommandEncoder, TextureView,
-    LoadOp, StoreOp, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor,
+    CommandEncoder, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
+    TextureView,
 };
 
 use crate::render_stage::RenderStage;

@@ -5,21 +5,19 @@
 //! - 並列処理対応 (将来的にrayon使用予定)
 //! - ジオメトリ依存を排除した純粋な数値計算
 
-pub mod scalar;
-pub mod vector;
-pub mod matrix;      // 固定サイズ・動的サイズ行列
-pub mod quaternion;  // クォータニオン（四元数）
+pub mod matrix; // 固定サイズ・動的サイズ行列
+pub mod quaternion; // クォータニオン（四元数）
 pub mod solver;
+pub mod vector;
 
 #[cfg(test)]
 pub mod unit_tests;
 
 // 明示的なインポートで競合を解決
-pub use scalar::*;
-pub use vector::*;
 pub use matrix::{Matrix2x2, Matrix3x3, Matrix4x4};
-pub use quaternion::{Quaternion, Quaternionf, Quaterniond};
+pub use quaternion::{Quaternion, Quaterniond, Quaternionf};
 pub use solver::*;
+pub use vector::*;
 
 // 便利な型エイリアス（ベクトル）
 pub type Vec2f = Vector2<f32>;

@@ -1,8 +1,8 @@
+use crate::app_renderer::AppRenderer;
+use crate::graphic::{Graphic, init_graphic};
+use stage::{DraftStage, OutlineStage, ShadingStage};
 use std::sync::Arc;
 use winit::window::Window;
-use crate::graphic::{Graphic, init_graphic};
-use crate::app_renderer::AppRenderer;
-use stage::{DraftStage, OutlineStage, ShadingStage};
 
 pub struct AppState {
     pub window: Arc<Window>,
@@ -25,7 +25,9 @@ impl AppState {
     pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
         self.graphic.config.width = size.width;
         self.graphic.config.height = size.height;
-        self.graphic.surface.configure(&self.graphic.device, &self.graphic.config);
+        self.graphic
+            .surface
+            .configure(&self.graphic.device, &self.graphic.config);
     }
 
     pub fn render(&mut self) {
@@ -33,17 +35,26 @@ impl AppState {
     }
 
     pub fn set_stage_draft(&mut self) {
-        let stage = Box::new(DraftStage::new(&self.graphic.device, self.graphic.config.format));
+        let stage = Box::new(DraftStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
         self.renderer.set_stage(stage);
     }
 
     pub fn set_stage_outline(&mut self) {
-        let stage = Box::new(OutlineStage::new(&self.graphic.device, self.graphic.config.format));
+        let stage = Box::new(OutlineStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
         self.renderer.set_stage(stage);
     }
 
     pub fn set_stage_shading(&mut self) {
-        let stage = Box::new(ShadingStage::new(&self.graphic.device, self.graphic.config.format));
+        let stage = Box::new(ShadingStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
         self.renderer.set_stage(stage);
     }
 }

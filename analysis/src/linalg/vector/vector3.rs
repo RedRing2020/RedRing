@@ -2,8 +2,8 @@
 //!
 //! 3D幾何計算、物理シミュレーション、3Dグラフィックスに最適化
 //! CAD/CAMの座標変換や法線ベクトル計算に使用
-use crate::linalg::scalar::Scalar;
-use std::ops::{Add, Sub, Mul, Neg};
+use crate::abstract_types::Scalar;
+use std::ops::{Add, Mul, Neg, Sub};
 
 /// 3次元固定サイズベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,16 +13,24 @@ pub struct Vector3<T: Scalar> {
 
 impl<T: Scalar> Vector3<T> {
     /// X軸単位ベクトル定数
-    pub const X_AXIS: Vector3<f64> = Vector3 { data: [1.0, 0.0, 0.0] };
+    pub const X_AXIS: Vector3<f64> = Vector3 {
+        data: [1.0, 0.0, 0.0],
+    };
 
     /// Y軸単位ベクトル定数
-    pub const Y_AXIS: Vector3<f64> = Vector3 { data: [0.0, 1.0, 0.0] };
+    pub const Y_AXIS: Vector3<f64> = Vector3 {
+        data: [0.0, 1.0, 0.0],
+    };
 
     /// Z軸単位ベクトル定数
-    pub const Z_AXIS: Vector3<f64> = Vector3 { data: [0.0, 0.0, 1.0] };
+    pub const Z_AXIS: Vector3<f64> = Vector3 {
+        data: [0.0, 0.0, 1.0],
+    };
 
     /// ゼロベクトル定数
-    pub const ZERO: Vector3<f64> = Vector3 { data: [0.0, 0.0, 0.0] };
+    pub const ZERO: Vector3<f64> = Vector3 {
+        data: [0.0, 0.0, 0.0],
+    };
 
     /// 新しい3Dベクトルを作成
     pub fn new(x: T, y: T, z: T) -> Self {
@@ -89,9 +97,7 @@ impl<T: Scalar> Vector3<T> {
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
-        self.data[0] * other.data[0] +
-        self.data[1] * other.data[1] +
-        self.data[2] * other.data[2]
+        self.data[0] * other.data[0] + self.data[1] * other.data[1] + self.data[2] * other.data[2]
     }
 
     /// 外積（3D専用）
@@ -105,16 +111,13 @@ impl<T: Scalar> Vector3<T> {
 
     /// ユークリッドノルム
     pub fn norm(&self) -> T {
-        (self.data[0] * self.data[0] +
-         self.data[1] * self.data[1] +
-         self.data[2] * self.data[2]).sqrt()
+        (self.data[0] * self.data[0] + self.data[1] * self.data[1] + self.data[2] * self.data[2])
+            .sqrt()
     }
 
     /// ノルムの2乗（平方根計算を避ける）
     pub fn norm_squared(&self) -> T {
-        self.data[0] * self.data[0] +
-        self.data[1] * self.data[1] +
-        self.data[2] * self.data[2]
+        self.data[0] * self.data[0] + self.data[1] * self.data[1] + self.data[2] * self.data[2]
     }
 
     /// 正規化（単位ベクトル化）
@@ -126,7 +129,7 @@ impl<T: Scalar> Vector3<T> {
         Ok(Self::new(
             self.data[0] / norm,
             self.data[1] / norm,
-            self.data[2] / norm
+            self.data[2] / norm,
         ))
     }
 
@@ -187,9 +190,9 @@ impl<T: Scalar> Vector3<T> {
         let dot_product = self.dot(&axis_normalized);
         let cross_product = axis_normalized.cross(self);
 
-        Ok(*self * cos_angle +
-           cross_product * sin_angle +
-           axis_normalized * dot_product * (T::ONE - cos_angle))
+        Ok(*self * cos_angle
+            + cross_product * sin_angle
+            + axis_normalized * dot_product * (T::ONE - cos_angle))
     }
 
     /// スカラー倍
@@ -197,7 +200,7 @@ impl<T: Scalar> Vector3<T> {
         Self::new(
             self.data[0] * scalar,
             self.data[1] * scalar,
-            self.data[2] * scalar
+            self.data[2] * scalar,
         )
     }
 
@@ -206,7 +209,7 @@ impl<T: Scalar> Vector3<T> {
         Self::new(
             self.data[0] * other.data[0],
             self.data[1] * other.data[1],
-            self.data[2] * other.data[2]
+            self.data[2] * other.data[2],
         )
     }
 
@@ -215,7 +218,7 @@ impl<T: Scalar> Vector3<T> {
         Self::new(
             self.data[0].min(other.data[0]),
             self.data[1].min(other.data[1]),
-            self.data[2].min(other.data[2])
+            self.data[2].min(other.data[2]),
         )
     }
 
@@ -224,17 +227,13 @@ impl<T: Scalar> Vector3<T> {
         Self::new(
             self.data[0].max(other.data[0]),
             self.data[1].max(other.data[1]),
-            self.data[2].max(other.data[2])
+            self.data[2].max(other.data[2]),
         )
     }
 
     /// 絶対値
     pub fn abs(&self) -> Self {
-        Self::new(
-            self.data[0].abs(),
-            self.data[1].abs(),
-            self.data[2].abs()
-        )
+        Self::new(self.data[0].abs(), self.data[1].abs(), self.data[2].abs())
     }
 
     /// 4次元ベクトルに変換（同次座標、w=1）
@@ -255,7 +254,7 @@ impl<T: Scalar> Add for Vector3<T> {
         Self::new(
             self.data[0] + other.data[0],
             self.data[1] + other.data[1],
-            self.data[2] + other.data[2]
+            self.data[2] + other.data[2],
         )
     }
 }
@@ -266,7 +265,7 @@ impl<T: Scalar> Sub for Vector3<T> {
         Self::new(
             self.data[0] - other.data[0],
             self.data[1] - other.data[1],
-            self.data[2] - other.data[2]
+            self.data[2] - other.data[2],
         )
     }
 }
@@ -277,7 +276,7 @@ impl<T: Scalar> Mul<T> for Vector3<T> {
         Self::new(
             self.data[0] * scalar,
             self.data[1] * scalar,
-            self.data[2] * scalar
+            self.data[2] * scalar,
         )
     }
 }

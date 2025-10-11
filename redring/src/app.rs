@@ -1,26 +1,18 @@
 use std::sync::Arc;
+use winit::keyboard::{Key, NamedKey};
 use winit::{
     application::ApplicationHandler,
-    event::{WindowEvent},
+    event::WindowEvent,
     event_loop::ActiveEventLoop,
-    window::{WindowId, WindowAttributes},
+    window::{WindowAttributes, WindowId},
 };
-use winit::keyboard::{Key, NamedKey};
 
 use crate::app_state::AppState;
 
+#[derive(Default)]
 pub struct App {
     pub state: Option<AppState>,
     pub should_exit: bool,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            state: None,
-            should_exit: false,
-        }
-    }
 }
 
 impl ApplicationHandler for App {
@@ -42,18 +34,16 @@ impl ApplicationHandler for App {
                 }
                 WindowEvent::Resized(size) => state.resize(size),
                 WindowEvent::RedrawRequested => state.render(),
-                WindowEvent::KeyboardInput { event, .. } => {
-                    match &event.logical_key {
-                        Key::Character(c) if c.as_str() == "1" => state.set_stage_draft(),
-                        Key::Character(c) if c.as_str() == "2" => state.set_stage_outline(),
-                        Key::Character(c) if c.as_str() == "3" => state.set_stage_shading(),
-                        Key::Named(NamedKey::Escape) => {
-                            self.should_exit = true;
-                            event_loop.exit();
-                        }
-                        _ => {}
+                WindowEvent::KeyboardInput { event, .. } => match &event.logical_key {
+                    Key::Character(c) if c.as_str() == "1" => state.set_stage_draft(),
+                    Key::Character(c) if c.as_str() == "2" => state.set_stage_outline(),
+                    Key::Character(c) if c.as_str() == "3" => state.set_stage_shading(),
+                    Key::Named(NamedKey::Escape) => {
+                        self.should_exit = true;
+                        event_loop.exit();
                     }
-                }
+                    _ => {}
+                },
                 _ => {}
             }
         }

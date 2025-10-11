@@ -1,37 +1,53 @@
-use std::any::Any;
 use crate::geometry_kind::CurveKind3D;
+use std::any::Any;
 
-/// NOTE: 旧 model::geometry 依存を除去。Point / Vector は関連型化。
-
-/// Curve3D: 3次元曲線の抽象トレイト
+/// NOTE: Removed dependency on old model::geometry. Point/Vector are now associated types.
+/// Curve3D: Abstract trait for 3D curves
 ///
-/// 各曲線型（Line, Ellipse, Nurbs など）が共通で実装するためのインターフェース。
-/// CurveKind3D による分類と、評価・微分・長さ取得などの基本操作を提供する。
+/// Common interface for curve types (Line, Ellipse, Nurbs, etc.).
+/// Provides classification via CurveKind3D and basic operations like evaluation, derivative, length.
 pub trait Curve3D: Any {
     type Point;
     type Vector;
-    /// 型判定のためのダウンキャスト
+    /// Downcast for type identification
     fn as_any(&self) -> &dyn Any;
 
-    /// 曲線の分類を返す
+    /// Returns curve classification
     fn kind(&self) -> CurveKind3D;
 
-    /// パラメータ t に対応する点を返す（通常 t ∈ [0, 1]）
+    /// Evaluate point at parameter t
     fn evaluate(&self, t: f64) -> Self::Point;
 
-    /// パラメータ t における接線ベクトル（1階微分）を返す
+    /// Calculate first derivative vector at parameter t
     fn derivative(&self, t: f64) -> Self::Vector;
 
-    /// 曲線の長さ（t ∈ [0, 1] 区間における定義長）
+    /// Calculate curve length
     fn length(&self) -> f64;
 
-    /// 指定点に対するパラメータ初期推定（数値解析用）
-    fn parameter_hint(&self, _pt: &Self::Point) -> f64 {
-        0.5
+    /// Returns parameter domain [t_min, t_max]
+    fn domain(&self) -> (f64, f64);
+
+    /// Check if parameter is within valid domain
+    fn is_valid_parameter(&self, t: f64) -> bool {
+        let (t_min, t_max) = self.domain();
+        t >= t_min && t <= t_max
     }
 
-    /// 有効なパラメータ範囲（通常 [0, 1]）
-    fn domain(&self) -> (f64, f64) {
-        (0.0, 1.0)
+    /// Split curve at specified parameter (default implementation)
+    #[allow(clippy::type_complexity)]
+    fn split(
+        &self,
+        _t: f64,
+    ) -> Option<(
+        Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>,
+        Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>,
+    )> {
+        None
+    }
+
+    /// Reverse curve direction (default implementation)
+    #[allow(clippy::type_complexity)]
+    fn reverse(&self) -> Option<Box<dyn Curve3D<Point = Self::Point, Vector = Self::Vector>>> {
+        None
     }
 }

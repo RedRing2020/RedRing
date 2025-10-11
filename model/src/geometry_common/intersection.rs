@@ -22,8 +22,8 @@ pub enum IntersectionKind {
 #[derive(Debug, Clone)]
 pub struct IntersectionResult<P> {
     pub kind: IntersectionKind,
-    pub points: Vec<P>,           // Point2D or Point3D
-    pub parameters: Vec<f64>,     // Curve 上の t 値（語義整合済み）
+    pub points: Vec<P>,       // Point2D or Point3D
+    pub parameters: Vec<f64>, // Curve 上の t 値（語義整合済み）
     pub tolerance_used: f64,
 }
 

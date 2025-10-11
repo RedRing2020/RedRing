@@ -1,31 +1,31 @@
 //! RedRing Analysis Crate
 //!
 //! 数値解析、幾何サンプリング、統計解析機能を提供する独立クレート。
-//! geo_coreの高精度型を使用して堅牢な数値計算を実現する。
+//! 他のクレートに依存しない純粋な数値計算機能を提供します。
+
+pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance等）
 pub mod consts;
-// pub mod numeric;     // 一時的に無効化
-pub mod linalg;      // 高速線形代数モジュール（数値解析専用）
-pub mod sampling2d;  // 既存の2Dサンプリング（後で整理）
-pub mod geometry;    // 幾何特化数値計算（後で整理）
+pub mod geometry;
+pub mod linalg; // 高速線形代数モジュール（数値解析専用）
+pub mod sampling2d; // 既存の2Dサンプリング（後で整理）
 
 #[cfg(test)]
 mod unit_tests;
 
-// geo_algorithmsからの再エクスポート (一時的にコメントアウト)
-pub use geo_algorithms::{
-    Point2D, Vector2D, Vector3D, Scalar, ToleranceContext,
-    // Point3D, GEOMETRIC_TOLERANCE,  // 一時的にコメントアウト
-    // NewtonSolver, ConvergenceInfo,
-    // BasicStats, PointCluster, RegressionResult,
-    // SamplingResult, QualityMetrics, IntersectionCandidate,
-    // LinearInterpolator, BezierCurve, CatmullRomSpline,
+// 基盤型の再エクスポート
+pub use abstract_types::{
+    Angle, AngleType, Scalar, ToleranceContext, TolerantEq, GEOMETRIC_TOLERANCE,
 };
 
 // 定数の再エクスポート
-pub use consts::DERIVATIVE_ZERO_THRESHOLD;
+pub use consts::{
+    game, precision, GeometricTolerance, DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD, E,
+    GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
+    RAD_TO_DEG, TAU,
+};
 
 // 幾何数値関数の再エクスポート
 pub use geometry::{
-    newton_solve, newton_inverse, newton_arc_length, NormedVector,
-    find_span, basis_functions, basis_function_derivatives,
+    basis_function_derivatives, basis_functions, find_span, newton_arc_length, newton_inverse,
+    newton_solve, NormedVector,
 };

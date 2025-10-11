@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use winit::window::Window;
-use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture};
 use crate::app_renderer::AppRenderer;
+use std::sync::Arc;
+use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture};
+use winit::window::Window;
 
 pub struct Graphic {
     pub device: Device,
@@ -15,7 +15,9 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
     let raw_window: &'static Window = unsafe { &*Arc::into_raw(window.clone()) };
 
     let instance = wgpu::Instance::default();
-    let surface = instance.create_surface(raw_window).expect("Failed to create surface");
+    let surface = instance
+        .create_surface(raw_window)
+        .expect("Failed to create surface");
 
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::HighPerformance,
@@ -24,20 +26,23 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
     }))
     .expect("No suitable GPU adapter found");
 
-    let (device, queue) = pollster::block_on(adapter.request_device(
-        &wgpu::DeviceDescriptor {
-            label: Some("Device"),
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-            memory_hints: Default::default(),
-            trace: wgpu::Trace::default(),
-            experimental_features: wgpu::ExperimentalFeatures::default(),
-        },
-    ))
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        label: Some("Device"),
+        required_features: wgpu::Features::empty(),
+        required_limits: wgpu::Limits::default(),
+        memory_hints: Default::default(),
+        trace: wgpu::Trace::default(),
+        experimental_features: wgpu::ExperimentalFeatures::default(),
+    }))
     .expect("Device creation failed");
 
     let caps = surface.get_capabilities(&adapter);
-    let format = caps.formats.iter().copied().find(|f| f.is_srgb()).unwrap_or(caps.formats[0]);
+    let format = caps
+        .formats
+        .iter()
+        .copied()
+        .find(|f| f.is_srgb())
+        .unwrap_or(caps.formats[0]);
 
     let config = SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -68,9 +73,11 @@ impl Graphic {
                     ..Default::default()
                 });
 
-                let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
+                let mut encoder =
+                    self.device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("Render Encoder"),
+                        });
 
                 renderer.render(&mut encoder, &view);
                 self.queue.submit(std::iter::once(encoder.finish()));

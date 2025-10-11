@@ -6,3 +6,4 @@ description = "Foundation layer providing abstract types and bridge functionalit
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+analysis = { path = "../analysis" }
