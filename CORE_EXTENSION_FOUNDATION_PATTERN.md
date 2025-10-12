@@ -10,8 +10,8 @@ RedRing CAD/CAM プラットフォームでは、幾何形状の機能を **Core
 
 従来の幾何ライブラリでは、すべての機能が一つのクラスに集約されるため、以下の問題が発生していました：
 
-1. **肥大化したAPI**: 基本的な操作にも重い依存関係
-2. **保守性の低下**: 250行を超える巨大ファイル
+1. **肥大化した API**: 基本的な操作にも重い依存関係
+2. **保守性の低下**: 250 行を超える巨大ファイル
 3. **用途別最適化の困難**: レンダリング用と解析用で同じ重いインターフェース
 4. **境界の曖昧さ**: どの機能が必須で、どれが拡張なのか不明確
 
@@ -29,12 +29,14 @@ RedRing CAD/CAM プラットフォームでは、幾何形状の機能を **Core
 **目的**: レンダリング・衝突判定・空間インデックスに必要な基本機能
 
 **特徴**:
+
 - ✅ 軽量・高速
 - ✅ 必須実装
 - ✅ 最小依存関係
 - ✅ 型安全
 
 **含まれる機能**:
+
 - 構築メソッド（`new`, `from_center_radius`）
 - アクセサメソッド（`center`, `radius`）
 - 基本計量（`area`, `circumference`）
@@ -47,12 +49,14 @@ RedRing CAD/CAM プラットフォームでは、幾何形状の機能を **Core
 **目的**: 高度な操作・分析・変換機能
 
 **特徴**:
+
 - ✨ オプション実装
 - ✨ 機能豊富
 - ✨ 専門特化
 - ✨ 段階的追加可能
 
 **含まれる機能**:
+
 - 高度な構築（`from_three_points`, `unit_circle`）
 - 便利メソッド（`diameter`, `point_at_angle`）
 - 変形操作（`scale`, `translate`, `move_to`）
@@ -62,6 +66,7 @@ RedRing CAD/CAM プラットフォームでは、幾何形状の機能を **Core
 ## ファイル構造
 
 ### Before（分離前）
+
 ```
 circle_2d.rs        // 280行の巨大ファイル
 ├── Core 機能
@@ -70,10 +75,11 @@ circle_2d.rs        // 280行の巨大ファイル
 ```
 
 ### After（分離後）
+
 ```
 circle_2d.rs              // 120行（Core実装）
 ├── 構築メソッド
-├── アクセサメソッド  
+├── アクセサメソッド
 ├── 基本計量メソッド
 ├── 基本包含メソッド
 ├── 基本パラメータメソッド
@@ -97,7 +103,7 @@ circle_2d_extensions.rs   // 130行（Extension実装）
 // 基盤トレイト（必須）
 pub trait CoreFoundation<T: Scalar> {
     type Point;
-    type Vector; 
+    type Vector;
     type BBox;
     fn bounding_box(&self) -> Self::BBox;
 }
@@ -142,7 +148,7 @@ impl<T: Scalar> Circle2D<T> {
     pub fn from_center_radius(center: Point2D<T>, radius: T) -> Option<Self> { ... }
 
     // ========================================================================
-    // Core Accessor Methods  
+    // Core Accessor Methods
     // ========================================================================
     pub fn center(&self) -> Point2D<T> { ... }
     pub fn radius(&self) -> T { ... }
@@ -161,7 +167,7 @@ impl<T: Scalar> Circle2D<T> {
 
     // ========================================================================
     // Core Parametric Methods
-    // ========================================================================  
+    // ========================================================================
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> { ... }
     pub fn tangent_at_parameter(&self, t: T) -> Vector2D<T> { ... }
 
@@ -225,7 +231,7 @@ impl<T: Scalar> Circle2D<T> {
 
 ## 利用パターン
 
-### パターン1: Core のみ使用（軽量・高速）
+### パターン 1: Core のみ使用（軽量・高速）
 
 ```rust
 use geo_primitives::Circle2D;
@@ -238,11 +244,12 @@ let point = circle.point_at_parameter(0.5);
 ```
 
 **特徴**:
+
 - ✅ 軽量（最小依存関係）
 - ✅ 高速（基本機能のみ）
 - ✅ レンダリング・衝突判定に最適
 
-### パターン2: Extension を含む使用（高機能）
+### パターン 2: Extension を含む使用（高機能）
 
 ```rust
 use geo_primitives::Circle2D;
@@ -259,28 +266,33 @@ let circle_3d = circle.to_3d();                              // Extension
 ```
 
 **特徴**:
+
 - ✨ 高機能（拡張メソッド利用可能）
 - ✨ 変形・解析・変換操作
-- ✨ CAD/CAM専用機能に最適
+- ✨ CAD/CAM 専用機能に最適
 
 ## メリット
 
 ### 1. 段階的実装
+
 - 最小限の Core から開始
 - 必要に応じて Extension を追加
 - プロジェクトの成熟に合わせて拡張
 
 ### 2. 用途別最適化
+
 - **レンダリング用**: Core のみ（軽量・高速）
 - **解析用**: Core + Extension（高機能）
-- **CAM用**: Core + 専用 Extension
+- **CAM 用**: Core + 専用 Extension
 
 ### 3. 保守性向上
+
 - 責務分離により理解が容易
-- ファイルサイズの削減（280行 → 120+130行）
+- ファイルサイズの削減（280 行 → 120+130 行）
 - 機能別の修正・テストが可能
 
 ### 4. 拡張性
+
 - 新しい Extension を後から追加可能
 - 既存コードに影響を与えない拡張
 - プラグイン的な機能追加
@@ -290,16 +302,19 @@ let circle_3d = circle.to_3d();                              // Extension
 このパターンにより、以下のような新しい Extension を容易に追加できます：
 
 ### CAD 専用拡張
-- `CADExtension<T>`: CAD固有の操作
+
+- `CADExtension<T>`: CAD 固有の操作
 - `DraftingExtension<T>`: 製図支援機能
 - `ConstraintExtension<T>`: 拘束システム
 
-### CAM 専用拡張  
+### CAM 専用拡張
+
 - `CAMExtension<T>`: 切削パス生成
 - `ToolpathExtension<T>`: 工具経路最適化
 - `MachiningExtension<T>`: 加工シミュレーション
 
 ### 解析専用拡張
+
 - `MeshExtension<T>`: メッシュ操作
 - `SimulationExtension<T>`: 物理シミュレーション
 - `OptimizationExtension<T>`: 最適化アルゴリズム
@@ -310,7 +325,7 @@ let circle_3d = circle.to_3d();                              // Extension
 
 - **最小機能**: 必須機能のみ実装
 - **高速性**: パフォーマンスを重視
-- **安定性**: APIの変更を最小限に
+- **安定性**: API の変更を最小限に
 - **依存関係**: 最小限の依存関係
 
 ### 2. Extension 実装のガイドライン

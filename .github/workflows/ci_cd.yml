@@ -60,15 +60,15 @@ jobs:
         run: |
           set -e
           echo "Checking Core/Extension Foundation pattern compliance..."
-          
+
           # 1. 禁止: geo_primitives 外からの直接プリミティブインポート
           echo "Checking for forbidden direct primitive imports..."
           ! grep -R "use geo_primitives::" -n --exclude-dir target --exclude-dir geo_primitives --exclude-dir .github . || (echo "Forbidden direct geo_primitives import outside geo_primitives crate" && exit 1)
-          
+
           # 2. 禁止: Core Foundation を経由しない低レベルアクセス
           echo "Checking for deprecated low-level geometry access..."
           ! grep -R "use geo_core::" -n --exclude-dir target --exclude-dir geo_core --exclude-dir .github . || (echo "Deprecated geo_core direct import - use geo_foundation instead" && exit 1)
-          
+
           # 3. 推奨: geo_foundation 経由のアクセスパターン
           echo "Checking foundation-based access patterns..."
           # geo_foundation からのインポートは許可（推奨パターン）
@@ -77,11 +77,11 @@ jobs:
             echo "✅ Found proper foundation-based imports:"
             head -5 foundation_imports.txt
           fi
-          
+
           # 4. 禁止: 旧 geometry モジュールの使用
           echo "Checking for deprecated geometry module usage..."
           ! grep -R "use.*geometry::" -n --exclude-dir target --exclude-dir .github --exclude "*.md" . | grep -v "geo_foundation\|geo_primitives" || (echo "Deprecated geometry module usage - migrate to geo_foundation/geo_primitives" && exit 1)
-          
+
           echo "✅ Foundation architecture compliance check passed!"
 
   deploy-docs:
