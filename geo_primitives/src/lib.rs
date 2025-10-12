@@ -24,7 +24,8 @@ pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod line_segment_2d; // LineSegment2D の新実装
 pub mod point_2d; // Point2D の新実装 (Core)
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
-pub mod vector_2d; // Vector2D の新実装
+pub mod vector_2d; // Vector2D の新実装 (Core)
+pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
