@@ -19,7 +19,8 @@ pub mod arc_2d;
 pub mod bbox_2d; // BBox2D の新実装
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension)
-pub mod ellipse_2d; // Ellipse2D の新実装
+pub mod ellipse_2d; // Ellipse2D の新実装 (Core)
+pub mod ellipse_2d_extensions; // Ellipse2D の拡張機能 (Extension)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod line_segment_2d; // LineSegment2D の新実装
 pub mod point_2d; // Point2D の新実装 (Core)

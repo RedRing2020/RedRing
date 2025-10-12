@@ -45,7 +45,7 @@ impl<T: Scalar> Circle2D<T> {
         let center = Point2D::new(aux1 / div, aux2 / div);
         let radius = center.distance_to(&p1);
 
-        Some(Self::new(center, radius)?)
+        Self::new(center, radius)
     }
 
     /// 単位円を作成（原点中心、半径1）
