@@ -1,7 +1,7 @@
-//! LineSegment2D のテスト
+﻿//! LineSegment2D のテスト
 
 use crate::{LineSegment2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::geometry::foundation::*, Scalar};
+use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
 
 #[cfg(test)]
 mod tests {
@@ -281,7 +281,7 @@ mod tests {
     fn test_geometry_foundation_traits() {
         let segment = LineSegment2D::new(Point2D::new(1.0, 2.0), Point2D::new(5.0, 6.0)).unwrap();
 
-        // GeometryFoundation
+        // CoreFoundation
         let bbox = segment.bounding_box();
         assert_eq!(bbox.min(), Point2D::new(1.0, 2.0));
         assert_eq!(bbox.max(), Point2D::new(5.0, 6.0));

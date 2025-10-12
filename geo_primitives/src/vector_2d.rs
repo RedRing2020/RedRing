@@ -1,10 +1,10 @@
-//! 2次元ベクトル（Vector2D）の新実装
+﻿//! 2次元ベクトル（Vector2D）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく Vector2D の実装
 
 use crate::Point2D;
 use geo_foundation::{
-    abstract_types::geometry::foundation::{BasicDirectional, BasicMetrics, GeometryFoundation},
+    abstract_types::geometry::core_foundation::{BasicDirectional, BasicMetrics, CoreFoundation},
     Scalar,
 };
 use std::ops::{Add, Mul, Neg, Sub};
@@ -285,7 +285,7 @@ impl<T: Scalar> Neg for Vector2D<T> {
 // Foundation Trait Implementations
 // ============================================================================
 
-impl<T: Scalar> GeometryFoundation<T> for Vector2D<T> {
+impl<T: Scalar> CoreFoundation<T> for Vector2D<T> {
     type Point = Point2D<T>;
     type Vector = Vector2D<T>;
     type BBox = crate::BBox2D<T>;

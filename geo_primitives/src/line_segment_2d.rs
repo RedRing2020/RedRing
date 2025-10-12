@@ -1,11 +1,11 @@
-//! 2次元線分（LineSegment2D）の実装
+﻿//! 2次元線分（LineSegment2D）の実装
 //!
 //! foundation.rs の基盤トレイトに基づく LineSegment2D の実装
 //! InfiniteLine2D を内部活用
 
 use crate::{BBox2D, InfiniteLine2D, Point2D, Vector2D};
 use geo_foundation::{
-    abstract_types::geometry::foundation::*, tolerance_migration::DefaultTolerances,
+    abstract_types::geometry::core_foundation::*, tolerance_migration::DefaultTolerances,
     GeometryContext, Scalar,
 };
 
@@ -417,7 +417,7 @@ impl<T: Scalar> LineSegment2D<T> {
 
 // === foundation トレイト実装 ===
 
-impl<T: Scalar> GeometryFoundation<T> for LineSegment2D<T> {
+impl<T: Scalar> CoreFoundation<T> for LineSegment2D<T> {
     type Point = Point2D<T>;
     type Vector = Vector2D<T>;
     type BBox = BBox2D<T>;

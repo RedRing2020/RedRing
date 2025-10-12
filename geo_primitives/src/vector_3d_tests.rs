@@ -1,7 +1,7 @@
-//! Vector3D のテスト
+﻿//! Vector3D のテスト
 
 use crate::{Point3D, Vector3D};
-use geo_foundation::abstract_types::geometry::foundation::*;
+use geo_foundation::abstract_types::geometry::core_foundation::*;
 
 #[cfg(test)]
 mod tests {

@@ -8,7 +8,7 @@ class MDBookSidebarScrollbox extends HTMLElement {
         super();
     }
     connectedCallback() {
-        this.innerHTML = '<ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> はじめに / Introduction</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">2.</strong> モジュール構成 / Module Structure</a></li><li class="chapter-item expanded "><a href="kinds.html"><strong aria-hidden="true">3.</strong> 型分類 / Type Classification</a></li><li class="chapter-item expanded "><a href="philosophy.html"><strong aria-hidden="true">4.</strong> 設計思想 / Design Philosophy</a></li></ol>';
+        this.innerHTML = '<ol class="chapter"><li class="chapter-item expanded "><a href="intro.html"><strong aria-hidden="true">1.</strong> はじめに / Introduction</a></li><li class="chapter-item expanded "><a href="modules.html"><strong aria-hidden="true">2.</strong> モジュール構成 / Module Structure</a></li><li class="chapter-item expanded "><a href="kinds.html"><strong aria-hidden="true">3.</strong> 型分類 / Type Classification</a></li><li class="chapter-item expanded "><a href="philosophy.html"><strong aria-hidden="true">4.</strong> 設計思想 / Design Philosophy</a></li><li class="chapter-item expanded "><a href="core_extension_pattern.html"><strong aria-hidden="true">5.</strong> Core/Extension パターン / Core/Extension Foundation Pattern</a></li></ol>';
         // Set the current, active page, and reveal it if it's hidden
         let current_page = document.location.href.toString().split("#")[0].split("?")[0];
         if (current_page.endsWith("/")) {

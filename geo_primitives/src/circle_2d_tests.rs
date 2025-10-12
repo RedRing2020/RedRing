@@ -1,7 +1,9 @@
 //! Circle2D のテスト
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::foundation::{BasicContainment, BasicParametric};
+use geo_foundation::abstract_types::geometry::core_foundation::{
+    BasicContainment, BasicParametric,
+};
 use std::f64::consts::{PI, TAU};
 
 /// 基本作成テスト
@@ -263,7 +265,7 @@ fn test_to_3d() {
     assert_eq!(circle3d_z.center().z(), 5.0);
 }
 
-/// Foundation trait - GeometryFoundationテスト
+/// Foundation trait - CoreFoundationテスト
 #[test]
 fn test_geometry_foundation() {
     let circle = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
@@ -280,7 +282,7 @@ fn test_basic_metrics() {
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
 
     // 長さ（円周）
-    use geo_foundation::abstract_types::geometry::foundation::BasicMetrics;
+    use geo_foundation::abstract_types::geometry::core_foundation::BasicMetrics;
     let length = BasicMetrics::length(&circle).unwrap();
     assert!((length - TAU * 2.0).abs() < 1e-10);
 

@@ -4,11 +4,11 @@
 //!
 //! # 新しい設計方針: 基本・拡張境界の明確化
 //!
-//! ## 基本トレイト (Foundation)
+//! ## 基本トレイト (Core Foundation)
 //! データ構造・幾何構造に応じた基本の解析のみ
 //!
 //! ### データアクセス層
-//! - `GeometryFoundation`: 基本属性アクセス（境界ボックスを含む）
+//! - `CoreFoundation`: 基本属性アクセス（境界ボックスを含む）
 //! - `PointCore`, `VectorCore`: 基本的な座標・成分アクセス
 //! - `CircleCore`, `LineSegmentCore`: 各形状の基本属性アクセス
 //!
@@ -17,8 +17,8 @@
 //! - `BasicContainment`: 基本的な包含判定
 //! - `BasicParametric`: パラメトリック形状の基本操作
 //!
-//! ## 拡張トレイト (Advanced)
-//! 交差・衝突・変換・射影等の高度な操作は `advanced` モジュールで定義
+//! ## 拡張トレイト (Extension Foundation)
+//! 交差・衝突・変換・射影等の高度な操作は `extension_foundation` モジュールで定義
 //!
 //! # エラー処理の設計方針
 //!
@@ -60,8 +60,9 @@
 //! }
 //! ```
 
-// 新しいトレイト設計（foundation.rs ベース）
-pub mod foundation; // 共通基盤トレイト
+// 新しいトレイト設計（Core/Extension Foundation ベース）
+pub mod core_foundation; // 中核基盤トレイト（旧 foundation）
+pub mod extension_foundation; // 拡張基盤トレイト（旧 primitive）
 
 // 新実装専用モジュール（これから追加）
 // pub mod new_point;        // 新しい点の実装
@@ -85,14 +86,14 @@ pub mod ellipse_arc;
 pub mod infinite_line;
 pub mod line;
 pub mod point;
-pub mod primitive; // 幾何プリミティブの共通トレイト
 pub mod ray;
 pub mod sphere;
 pub mod utils; // 幾何計算ユーティリティ
 pub mod vector;
 
 // 基本トレイトをエクスポート
-pub use foundation::*; // 共通基盤トレイト
+pub use core_foundation::*; // 中核基盤トレイト
+pub use extension_foundation::*; // 拡張基盤トレイト
 
 // 新実装の準備（将来追加予定）
 // pub use new_point::{...};

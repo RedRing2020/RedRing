@@ -1,4 +1,4 @@
-//! Vector2D のテスト
+﻿//! Vector2D のテスト
 
 use crate::{Point2D, Vector2D};
 use std::f64;

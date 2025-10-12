@@ -1,7 +1,7 @@
-//! InfiniteLine2D のテスト
+﻿//! InfiniteLine2D のテスト
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::foundation::{
+use geo_foundation::abstract_types::geometry::core_foundation::{
     BasicContainment, BasicDirectional, BasicParametric,
 };
 use std::f64::consts::FRAC_PI_4;
@@ -291,7 +291,7 @@ fn test_to_3d() {
     assert_eq!(line3d_z.point().z(), 5.0);
 }
 
-/// Foundation trait - GeometryFoundationテスト
+/// Foundation trait - CoreFoundationテスト
 #[test]
 fn test_geometry_foundation() {
     let line = InfiniteLine2D::horizontal(1.0);

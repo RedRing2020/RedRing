@@ -1,11 +1,11 @@
-//! 2次元楕円（Ellipse2D）の実装
+﻿//! 2次元楕円（Ellipse2D）の実装
 //!
 //! foundation.rs の基盤トレイトに基づく Ellipse2D の実装
 
 use crate::{BBox2D, Circle2D, Point2D, Vector2D};
 use geo_foundation::{
-    abstract_types::geometry::foundation::{
-        BasicContainment, BasicMetrics, BasicParametric, GeometryFoundation,
+    abstract_types::geometry::core_foundation::{
+        BasicContainment, BasicMetrics, BasicParametric, CoreFoundation,
     },
     tolerance_migration::DefaultTolerances,
     Scalar,
@@ -347,7 +347,7 @@ impl<T: Scalar> Ellipse2D<T> {
 
 // === Foundation トレイト実装 ===
 
-impl<T: Scalar> GeometryFoundation<T> for Ellipse2D<T> {
+impl<T: Scalar> CoreFoundation<T> for Ellipse2D<T> {
     type Point = Point2D<T>;
     type Vector = Vector2D<T>;
     type BBox = BBox2D<T>;

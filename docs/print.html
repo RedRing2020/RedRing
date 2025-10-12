@@ -424,6 +424,49 @@ pub trait DistanceCalculation&lt;T, Target&gt; {
 <li><strong>トレイト設計</strong>: 共通操作は統合トレイトで抽象化</li>
 <li><strong>エラー情報</strong>: 具体的で actionable なエラーメッセージ</li>
 </ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="coreextension-foundation-パターン"><a class="header" href="#coreextension-foundation-パターン">Core/Extension Foundation パターン</a></h1>
+<p>RedRing の中核設計原則である Core/Extension Foundation パターンについて説明します。</p>
+<h2 id="パターンの概要"><a class="header" href="#パターンの概要">パターンの概要</a></h2>
+<p>幾何形状の機能を <strong>Core（中核）</strong> と <strong>Extension（拡張）</strong> に分離し、用途に応じて必要な機能のみを使用できる設計パターンです。</p>
+<h2 id="分離の方針"><a class="header" href="#分離の方針">分離の方針</a></h2>
+<h3 id="core-foundation必須高速"><a class="header" href="#core-foundation必須高速">Core Foundation（必須・高速）</a></h3>
+<ul>
+<li>レンダリング・衝突判定・空間インデックスに必要な基本機能</li>
+<li>軽量・高速・必須実装</li>
+<li>構築、アクセサ、基本計量、基本包含、基本パラメータ、境界ボックス</li>
+</ul>
+<h3 id="extension-foundation拡張高機能"><a class="header" href="#extension-foundation拡張高機能">Extension Foundation（拡張・高機能）</a></h3>
+<ul>
+<li>高度な操作・分析・変換機能</li>
+<li>オプション実装・機能豊富</li>
+<li>高度な構築、変形、空間関係、次元変換、コレクション操作</li>
+</ul>
+<h2 id="ファイル構造"><a class="header" href="#ファイル構造">ファイル構造</a></h2>
+<pre><code>circle_2d.rs              // Core実装（120行）
+circle_2d_extensions.rs   // Extension実装（130行）
+</code></pre>
+<h2 id="利用例"><a class="header" href="#利用例">利用例</a></h2>
+<h3 id="core-のみ使用"><a class="header" href="#core-のみ使用">Core のみ使用</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use geo_primitives::Circle2D;
+let circle = Circle2D::new(center, radius)?;
+let area = circle.area();
+<span class="boring">}</span></code></pre></pre>
+<h3 id="extension-を含む使用"><a class="header" href="#extension-を含む使用">Extension を含む使用</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let unit_circle = Circle2D::unit_circle();  // Extension
+let scaled = circle.scale(2.0)?;            // Extension
+<span class="boring">}</span></code></pre></pre>
+<h2 id="メリット"><a class="header" href="#メリット">メリット</a></h2>
+<ol>
+<li><strong>段階的実装</strong>: 最小限から段階的に機能追加</li>
+<li><strong>用途別最適化</strong>: レンダリング用（軽量）vs 解析用（高機能）</li>
+<li><strong>保守性向上</strong>: 責務分離により理解・修正が容易</li>
+<li><strong>拡張性</strong>: 新しい Extension を後から追加可能</li>
+</ol>
+<p>詳細は <a href="../CORE_EXTENSION_FOUNDATION_PATTERN.html">CORE_EXTENSION_FOUNDATION_PATTERN.md</a> を参照してください。</p>
 
                     </main>
 
