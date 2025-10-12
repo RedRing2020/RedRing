@@ -1,4 +1,4 @@
-//! Point2D の包括的テスト
+﻿//! Point2D の包括的テスト
 //!
 //! 基本機能、座標操作、距離計算、変換機能、演算子などをテスト
 
@@ -90,7 +90,8 @@ mod tests {
         let point = Point2D::new(1.0_f64, 2.0_f64);
 
         // 平行移動
-        let translated = point.translate(3.0_f64, 4.0_f64);
+        let translation_vector = crate::Vector2D::new(3.0_f64, 4.0_f64);
+        let translated = point.translate(translation_vector);
         assert_eq!(translated, Point2D::new(4.0_f64, 6.0_f64));
 
         // 原点中心回転（90度）
@@ -129,7 +130,7 @@ mod tests {
 
         // Vector2D から Point2D を作成
         let vector = Vector2D::new(5.0_f64, 6.0_f64);
-        let from_vector = Point2D::from_vector(&vector);
+        let from_vector = Point2D::from_vector(vector);
         assert_eq!(from_vector.x(), 5.0);
         assert_eq!(from_vector.y(), 6.0);
 
@@ -154,11 +155,11 @@ mod tests {
         let subtracted = point - vector;
         assert_eq!(subtracted, Point2D::new(1.0_f64, -1.0_f64));
 
-        // Point - Point = Point（座標成分ごとの減算）
+        // Point - Point = Vector（2点間のベクトル）
         let p1 = Point2D::new(5.0_f64, 8.0_f64);
         let p2 = Point2D::new(2.0_f64, 3.0_f64);
         let diff = p1 - p2;
-        assert_eq!(diff, Point2D::new(3.0_f64, 5.0_f64));
+        assert_eq!(diff, Vector2D::new(3.0_f64, 5.0_f64));
 
         // スカラー乗算
         let scaled = point * 2.0_f64;

@@ -1,11 +1,11 @@
-//! 2次元無限直線（InfiniteLine2D）の新実装
+﻿//! 2次元無限直線（InfiniteLine2D）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく InfiniteLine2D の実装
 
 use crate::{Point2D, Vector2D};
 use geo_foundation::{
-    abstract_types::geometry::foundation::{
-        BasicContainment, BasicDirectional, BasicParametric, GeometryFoundation,
+    abstract_types::geometry::core_foundation::{
+        BasicContainment, BasicDirectional, BasicParametric, CoreFoundation,
     },
     Scalar,
 };
@@ -272,13 +272,13 @@ impl<T: Scalar> InfiniteLine2D<T> {
 // Foundation Trait Implementations
 // ============================================================================
 
-impl<T: Scalar> GeometryFoundation<T> for InfiniteLine2D<T> {
+impl<T: Scalar> CoreFoundation<T> for InfiniteLine2D<T> {
     type Point = Point2D<T>;
     type Vector = Vector2D<T>;
     type BBox = crate::BBox2D<T>;
 
     fn bounding_box(&self) -> Self::BBox {
-        InfiniteLine2D::bounding_box(self)
+        self.bounding_box()
     }
 }
 

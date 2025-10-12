@@ -1,9 +1,9 @@
-//! ベクトル（Vector）の新実装
+﻿//! ベクトル（Vector）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく Vector3D の実装
 
 use crate::{BBox3D, Point3D};
-use geo_foundation::{abstract_types::geometry::foundation::*, Scalar};
+use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
 
 /// 3次元ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -151,7 +151,7 @@ impl<T: Scalar> std::ops::Sub for Vector3D<T> {
 
 // === foundation トレイト実装 ===
 
-impl<T: Scalar> GeometryFoundation<T> for Vector3D<T> {
+impl<T: Scalar> CoreFoundation<T> for Vector3D<T> {
     type Point = Point3D<T>;
     type Vector = Self;
     type BBox = BBox3D<T>;

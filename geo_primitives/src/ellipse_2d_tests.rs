@@ -1,7 +1,7 @@
-//! Ellipse2D のテスト
+﻿//! Ellipse2D のテスト
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::geometry::foundation::*, Scalar};
+use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
 
 #[cfg(test)]
 mod tests {
@@ -285,7 +285,7 @@ mod tests {
     fn test_geometry_foundation() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::new(1.0, 2.0), 3.0, 2.0).unwrap();
 
-        // GeometryFoundation
+        // CoreFoundation
         let bbox = ellipse.bounding_box();
         assert_eq!(bbox.min(), Point2D::new(-2.0, 0.0));
         assert_eq!(bbox.max(), Point2D::new(4.0, 4.0));

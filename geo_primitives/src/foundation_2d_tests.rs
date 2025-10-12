@@ -1,11 +1,11 @@
-//! Foundation traitのテスト
+﻿//! Foundation traitのテスト
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::foundation::{
-    BasicContainment, BasicDirectional, GeometryFoundation,
+use geo_foundation::abstract_types::geometry::core_foundation::{
+    BasicContainment, BasicDirectional, CoreFoundation,
 };
 
-/// Point2DのGeometryFoundationテスト
+/// Point2DのCoreFoundationテスト
 #[test]
 fn test_point2d_geometry_foundation() {
     let point = Point2D::new(3.0, 4.0);
@@ -38,7 +38,7 @@ fn test_point2d_basic_containment() {
     assert!((distance - 0.1f64).abs() < f64::EPSILON);
 }
 
-/// Vector2DのGeometryFoundationテスト
+/// Vector2DのCoreFoundationテスト
 #[test]
 fn test_vector2d_geometry_foundation() {
     let vector = Vector2D::new(3.0, -2.0);
@@ -55,7 +55,7 @@ fn test_vector2d_basic_metrics() {
     let vector = Vector2D::new(3.0f64, 4.0f64);
 
     // 長さ取得（BasicMetricsトレイトから）
-    use geo_foundation::abstract_types::geometry::foundation::BasicMetrics;
+    use geo_foundation::abstract_types::geometry::core_foundation::BasicMetrics;
     let length = BasicMetrics::length(&vector).unwrap();
     assert_eq!(length, 5.0f64);
 
@@ -109,7 +109,7 @@ fn test_foundation_f32() {
     assert!(point.contains_point(&point));
 
     // BasicMetricsトレイトのlength()を明示的に呼び出し
-    use geo_foundation::abstract_types::geometry::foundation::BasicMetrics;
+    use geo_foundation::abstract_types::geometry::core_foundation::BasicMetrics;
     let length_opt: Option<f32> = BasicMetrics::length(&vector);
     assert_eq!(length_opt.unwrap(), 5.0f32);
 

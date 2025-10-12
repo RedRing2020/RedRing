@@ -1,9 +1,9 @@
-//! 点（Point）の新実装
+﻿//! 点（Point）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく Point3D の実装
 
 use crate::{BBox3D, Vector3D};
-use geo_foundation::{abstract_types::geometry::foundation::*, Scalar};
+use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
 
 /// 3次元空間の点
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -55,7 +55,7 @@ impl<T: Scalar> Point3D<T> {
 
 // === foundation トレイト実装 ===
 
-impl<T: Scalar> GeometryFoundation<T> for Point3D<T> {
+impl<T: Scalar> CoreFoundation<T> for Point3D<T> {
     type Point = Self;
     type Vector = Vector3D<T>;
     type BBox = BBox3D<T>;
