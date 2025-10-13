@@ -18,7 +18,7 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 他の線分との交点を取得
     pub fn intersection_with_segment(&self, other: &Self) -> Option<Point2D<T>> {
         // 無限直線での交点を計算
-        let line_intersection = self.line().intersection_with_line(&other.line())?;
+        let line_intersection = self.line().intersection_with_line(other.line())?;
 
         // 両方の線分上にある点かチェック
         let tolerance = T::EPSILON;
@@ -137,17 +137,17 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// 平行性の判定
     pub fn is_parallel_to(&self, other: &Self, _tolerance: T) -> bool {
-        self.line().is_parallel(&other.line())
+        self.line().is_parallel(other.line())
     }
 
     /// 垂直性の判定
     pub fn is_perpendicular_to(&self, other: &Self, _tolerance: T) -> bool {
-        self.line().is_perpendicular(&other.line())
+        self.line().is_perpendicular(other.line())
     }
 
     /// 同一直線上にあるかの判定
     pub fn is_collinear_with(&self, other: &Self, _tolerance: T) -> bool {
-        self.line().is_coincident(&other.line())
+        self.line().is_coincident(other.line())
     }
 
     /// 線分同士の最短距離
