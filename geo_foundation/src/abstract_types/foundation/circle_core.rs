@@ -52,7 +52,7 @@ pub trait UnifiedCircleFoundation<T: Scalar>: CircleCore<T> + CircleMetrics<T> {
     /// 統一変換メソッド
     fn foundation_transform(&self, operation: &str) -> Option<Self>;
 
-    /// 統一距離計算メソッド  
+    /// 統一距離計算メソッド
     fn foundation_distance(&self, other: &Self) -> T;
 
     /// 統一交点計算メソッド

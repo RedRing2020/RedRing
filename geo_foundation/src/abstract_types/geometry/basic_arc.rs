@@ -5,10 +5,16 @@
 
 // Foundation統一システムから再エクスポート
 pub use crate::abstract_types::foundation::{
+    Arc3DCore,
     // Arc Foundation
-    ArcCore, ArcMetrics, UnifiedArcFoundation, Arc3DCore,
+    ArcCore,
+    ArcMetrics,
+    EllipseArc3DCore,
     // EllipseArc Foundation
-    EllipseArcCore, EllipseArcMetrics, UnifiedEllipseArcFoundation, EllipseArc3DCore
+    EllipseArcCore,
+    EllipseArcMetrics,
+    UnifiedArcFoundation,
+    UnifiedEllipseArcFoundation,
 };
 
 // Legacy support - 旧式import用の再エクスポート

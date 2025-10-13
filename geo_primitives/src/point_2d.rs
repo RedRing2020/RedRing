@@ -186,7 +186,7 @@ impl<T: Scalar> Point2D<T> {
         crate::Point3D::new(self.x, self.y, z)
     }
 
-    /// Vector2Dに変換  
+    /// Vector2Dに変換
     pub fn to_vector(&self) -> Vector2D<T> {
         Vector2D::new(self.x, self.y)
     }
