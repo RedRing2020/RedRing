@@ -13,7 +13,7 @@
 //! // let closest = line.closest_point(&query_point);
 //! ```
 
-use analysis::Scalar;
+use crate::{Angle, Scalar};
 
 /// 2D無限直線の基本操作を定義するトレイト
 pub trait InfiniteLine2D<T: Scalar> {
@@ -127,7 +127,7 @@ pub trait InfiniteLine3D<T: Scalar> {
         &self,
         axis_point: &Self::Point,
         axis_direction: &Self::Direction,
-        angle: T,
+        angle: Angle<T>,
     ) -> Result<Self, Self::Error>
     where
         Self: Sized;
@@ -182,7 +182,7 @@ pub trait InfiniteLineTransform<T: Scalar> {
     fn translate(&self, translation: Self::Matrix) -> Self::TransformedLine;
 
     /// 直線を回転（2D）
-    fn rotate_2d(&self, angle: T, center: Self::Matrix) -> Self::TransformedLine;
+    fn rotate_2d(&self, angle: Angle<T>, center: Self::Matrix) -> Self::TransformedLine;
 
     /// 直線を一般的な変換行列で変換
     fn transform(&self, matrix: &Self::Matrix) -> Self::TransformedLine;

@@ -17,7 +17,7 @@
 //! └── 高度な生成 (from_three_points) → ArcBuilder
 //! ```
 
-use crate::Scalar;
+use crate::{Angle, Scalar};
 use std::fmt::Debug;
 
 /// 2D円弧の最小責務トレイト
@@ -89,7 +89,7 @@ pub trait ArcTransform<T: Scalar>: Arc2D<T> {
     fn translate_xy(&self, dx: T, dy: T) -> Self;
 
     /// 2D固有の回転（原点基準）
-    fn rotate_2d(&self, angle: T) -> Self;
+    fn rotate_2d(&self, angle: Angle<T>) -> Self;
 
     /// 拡大縮小
     fn scale(&self, factor: T) -> Self;

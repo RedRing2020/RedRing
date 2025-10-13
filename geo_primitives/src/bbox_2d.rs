@@ -1,21 +1,45 @@
-﻿//! 2次元境界ボックス（BBox2D）の新実装
+﻿//! 2次元境界ボックス（BBox2D）の Core 実装
 //!
-//! foundation.rs の基盤トレイトに基づく BBox2D の実装
+//! Core Foundation パターンに基づく BBox2D の必須機能のみ
+//! 拡張機能は bbox_2d_extensions.rs を参照
 
 use crate::Point2D;
-use geo_foundation::Scalar;
+use geo_foundation::{
+    abstract_types::geometry::core_foundation::{
+        BasicContainment, BasicMetrics, CoreFoundation,
+    },
+    Scalar,
+};
 
 /// 2次元軸平行境界ボックス
+///
+/// 最小点と最大点で定義される矩形領域
+/// 軸に平行な辺を持つ境界ボックス
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BBox2D<T: Scalar> {
     min: Point2D<T>,
     max: Point2D<T>,
 }
 
+// ============================================================================
+// Core Implementation (必須機能のみ)
+// ============================================================================
+
 impl<T: Scalar> BBox2D<T> {
-    /// 新しい境界ボックスを作成
+    // ========================================================================
+    // Core Construction Methods
+    // ========================================================================
+
+    /// 最小点と最大点から境界ボックスを作成
     pub fn new(min: Point2D<T>, max: Point2D<T>) -> Self {
-        Self { min, max }
+        // 座標を正規化（min <= max）
+        let actual_min = Point2D::new(min.x().min(max.x()), min.y().min(max.y()));
+        let actual_max = Point2D::new(min.x().max(max.x()), min.y().max(max.y()));
+
+        Self {
+            min: actual_min,
+            max: actual_max,
+        }
     }
 
     /// 点から境界ボックスを作成（点の境界ボックス = 点自身）
@@ -46,6 +70,29 @@ impl<T: Scalar> BBox2D<T> {
             Point2D::new(max_x, max_y),
         ))
     }
+
+    /// 原点中心の正方形境界ボックスを作成
+    pub fn centered_square(half_size: T) -> Self {
+        Self::new(
+            Point2D::new(-half_size, -half_size),
+            Point2D::new(half_size, half_size),
+        )
+    }
+
+    /// 指定中心と大きさの境界ボックスを作成
+    pub fn from_center_size(center: Point2D<T>, width: T, height: T) -> Self {
+        let half_width = width / (T::ONE + T::ONE);
+        let half_height = height / (T::ONE + T::ONE);
+
+        Self::new(
+            Point2D::new(center.x() - half_width, center.y() - half_height),
+            Point2D::new(center.x() + half_width, center.y() + half_height),
+        )
+    }
+
+    // ========================================================================
+    // Core Accessor Methods
+    // ========================================================================
 
     /// 最小点を取得
     pub fn min(&self) -> Point2D<T> {
@@ -86,6 +133,10 @@ impl<T: Scalar> BBox2D<T> {
         (self.width(), self.height())
     }
 
+    // ========================================================================
+    // Core Containment Methods
+    // ========================================================================
+
     /// 点が境界ボックス内に含まれるかを判定
     pub fn contains_point(&self, point: &Point2D<T>) -> bool {
         point.x() >= self.min.x()
@@ -99,61 +150,99 @@ impl<T: Scalar> BBox2D<T> {
         self.contains_point(&other.min) && self.contains_point(&other.max)
     }
 
-    /// 他の境界ボックスと交差するかを判定
-    pub fn intersects(&self, other: &Self) -> bool {
-        !(self.max.x() < other.min.x()
-            || other.max.x() < self.min.x()
-            || self.max.y() < other.min.y()
-            || other.max.y() < self.min.y())
-    }
-
-    /// 他の境界ボックスとの交差領域を取得
-    pub fn intersection(&self, other: &Self) -> Option<Self> {
-        if !self.intersects(other) {
-            return None;
+    /// 点から境界ボックスの境界への最短距離
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
+        // 内部にある場合は距離0
+        if self.contains_point(point) {
+            return T::ZERO;
         }
 
-        let min_x = self.min.x().max(other.min.x());
-        let min_y = self.min.y().max(other.min.y());
-        let max_x = self.max.x().min(other.max.x());
-        let max_y = self.max.y().min(other.max.y());
+        // 外部の場合、最も近い境界への距離
+        let dx = if point.x() < self.min.x() {
+            self.min.x() - point.x()
+        } else if point.x() > self.max.x() {
+            point.x() - self.max.x()
+        } else {
+            T::ZERO
+        };
 
-        Some(Self::new(
-            Point2D::new(min_x, min_y),
-            Point2D::new(max_x, max_y),
-        ))
+        let dy = if point.y() < self.min.y() {
+            self.min.y() - point.y()
+        } else if point.y() > self.max.y() {
+            point.y() - self.max.y()
+        } else {
+            T::ZERO
+        };
+
+        (dx * dx + dy * dy).sqrt()
     }
 
-    /// 他の境界ボックスとの結合領域を取得
-    pub fn union(&self, other: &Self) -> Self {
-        let min_x = self.min.x().min(other.min.x());
-        let min_y = self.min.y().min(other.min.y());
-        let max_x = self.max.x().max(other.max.x());
-        let max_y = self.max.y().max(other.max.y());
+    // ========================================================================
+    // Core Validation Methods
+    // ========================================================================
 
-        Self::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
+    /// 境界ボックスが有効かどうかを判定
+    pub fn is_valid(&self) -> bool {
+        self.min.x() <= self.max.x() && self.min.y() <= self.max.y()
     }
 
-    /// 境界ボックスを指定マージンで拡張
-    pub fn expand(&self, margin: T) -> Self {
-        Self::new(
-            Point2D::new(self.min.x() - margin, self.min.y() - margin),
-            Point2D::new(self.max.x() + margin, self.max.y() + margin),
-        )
-    }
-
-    /// 境界ボックスが退化しているか（面積が0）
+    /// 境界ボックスが退化しているか（面積が0またはほぼ0）
     pub fn is_degenerate(&self, tolerance: T) -> bool {
         self.width() <= tolerance || self.height() <= tolerance
     }
 
-    /// 3次元境界ボックスに拡張（Z=0）
-    pub fn to_3d(&self) -> crate::BBox3D<T> {
-        crate::BBox3D::new(self.min.to_3d(), self.max.to_3d())
+    /// 境界ボックスが点かどうか（幅も高さも0）
+    pub fn is_point(&self, tolerance: T) -> bool {
+        self.width() <= tolerance && self.height() <= tolerance
+    }
+}
+
+// ============================================================================
+// Core Foundation Trait Implementations
+// ============================================================================
+
+impl<T: Scalar> CoreFoundation<T> for BBox2D<T> {
+    type Point = Point2D<T>;
+    type Vector = crate::Vector2D<T>;
+    type BBox = BBox2D<T>;
+
+    fn bounding_box(&self) -> Self::BBox {
+        *self
+    }
+}
+
+impl<T: Scalar> BasicMetrics<T> for BBox2D<T> {
+    fn length(&self) -> Option<T> {
+        // 境界ボックスの場合、周囲長を返す
+        let perimeter = (self.width() + self.height()) * (T::ONE + T::ONE);
+        Some(perimeter)
+    }
+}
+
+impl<T: Scalar> BasicContainment<T> for BBox2D<T> {
+    fn contains_point(&self, point: &Self::Point) -> bool {
+        self.contains_point(point)
     }
 
-    /// 3次元境界ボックスに拡張（指定Z範囲）
-    pub fn to_3d_with_z(&self, min_z: T, max_z: T) -> crate::BBox3D<T> {
-        crate::BBox3D::new(self.min.to_3d_with_z(min_z), self.max.to_3d_with_z(max_z))
+    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
+        // 境界上かどうかの判定
+        if !self.contains_point(point) {
+            return false;
+        }
+
+        // 各辺からの距離をチェック
+        let dist_to_left = (point.x() - self.min.x()).abs();
+        let dist_to_right = (self.max.x() - point.x()).abs();
+        let dist_to_bottom = (point.y() - self.min.y()).abs();
+        let dist_to_top = (self.max.y() - point.y()).abs();
+
+        dist_to_left <= tolerance
+            || dist_to_right <= tolerance
+            || dist_to_bottom <= tolerance
+            || dist_to_top <= tolerance
+    }
+
+    fn distance_to_point(&self, point: &Self::Point) -> T {
+        self.distance_to_point(point)
     }
 }

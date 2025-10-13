@@ -25,7 +25,7 @@
 //! VectorAngular: 角度関連操作
 //! ```
 
-use crate::Scalar;
+use crate::{Angle, Scalar};
 use std::fmt::Debug;
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
@@ -178,12 +178,12 @@ pub trait Vector3DConstants<T: Scalar>: Vector3D<T> {
 /// 角度関連の演算機能を提供。角度が必要な場合のみ使用。
 pub trait Vector2DAngular<T: Scalar>: Vector2D<T> {
     /// 角度（ラジアン）から2Dベクトルを作成
-    fn from_angle(angle: T) -> Self
+    fn from_angle(angle: Angle<T>) -> Self
     where
         Self: Sized;
 
     /// ベクトルの角度（ラジアン）を取得
-    fn angle(&self) -> T;
+    fn to_angle(&self) -> Angle<T>;
 
     /// 他のベクトルとの角度差を取得
     fn angle_to(&self, other: &Self) -> T;
@@ -194,7 +194,7 @@ pub trait Vector2DAngular<T: Scalar>: Vector2D<T> {
 /// 3D空間での回転操作を提供。
 pub trait Vector3DRotation<T: Scalar>: Vector3D<T> {
     /// 指定した軸周りの回転
-    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self;
+    fn rotate_around_axis(&self, axis: &Self, angle: Angle<T>) -> Self;
 
     /// 任意の軸に対する直交ベクトルを生成
     fn any_perpendicular(&self) -> Self;

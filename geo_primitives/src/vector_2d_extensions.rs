@@ -4,7 +4,7 @@
 //! 基本機能は vector_2d.rs を参照
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_foundation::{Angle, Scalar};
 
 impl<T: Scalar> Vector2D<T> {
     // ========================================================================
@@ -80,9 +80,10 @@ impl<T: Scalar> Vector2D<T> {
     // ========================================================================
 
     /// ベクトルを指定角度回転
-    pub fn rotate(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
+    pub fn rotate(&self, angle: Angle<T>) -> Self {
+        let radians = angle.to_radians();
+        let cos_a = radians.cos();
+        let sin_a = radians.sin();
         Self::new(
             self.x() * cos_a - self.y() * sin_a,
             self.x() * sin_a + self.y() * cos_a,
