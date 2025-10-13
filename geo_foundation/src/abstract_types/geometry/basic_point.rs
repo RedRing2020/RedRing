@@ -4,11 +4,11 @@
 //! このファイルは Foundation システムへの参照ブリッジとして機能
 
 // Foundation統一システムから再エクスポート
-pub use crate::abstract_types::foundation::point_extensions::{
-    PointInterpolation, PointTransformation, PointPredicate, 
-    PointConversion, PointDimensionConversion, UnifiedPointExtensions
-};
 pub use crate::abstract_types::abstracts::point_traits::Point2D;
+pub use crate::abstract_types::foundation::point_extensions::{
+    PointConversion, PointDimensionConversion, PointInterpolation, PointPredicate,
+    PointTransformation, UnifiedPointExtensions,
+};
 
 // Foundation統一システムに移行完了
 // 旧式の実装は abstracts/point_traits.rs と foundation/point_extensions.rs に統合済み

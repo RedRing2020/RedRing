@@ -16,7 +16,7 @@ pub struct Arc2D<T: Scalar> {
     circle: Circle2D<T>,
     /// 開始角度
     start_angle: Angle<T>,
-    /// 終了角度  
+    /// 終了角度
     end_angle: Angle<T>,
 }
 

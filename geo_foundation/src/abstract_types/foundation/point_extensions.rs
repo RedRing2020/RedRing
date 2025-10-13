@@ -33,7 +33,7 @@ pub trait PointTransformation<T: Scalar> {
     fn reflect_origin(&self) -> Self::Point;
 }
 
-/// Point2D 述語Foundation  
+/// Point2D 述語Foundation
 pub trait PointPredicate<T: Scalar> {
     type Point;
 

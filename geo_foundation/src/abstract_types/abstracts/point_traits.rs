@@ -10,6 +10,6 @@ pub trait Point2D<T: Scalar> {
     /// X座標を取得
     fn x(&self) -> T;
 
-    /// Y座標を取得  
+    /// Y座標を取得
     fn y(&self) -> T;
 }
