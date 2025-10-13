@@ -64,6 +64,11 @@
 pub mod core_foundation; // 中核基盤トレイト（旧 foundation）
 pub mod extension_foundation; // 拡張基盤トレイト（旧 primitive）
 
+// 統一交点計算トレイト
+pub use intersection::{
+    BasicIntersection, IntersectionHelpers, MultipleIntersection, SelfIntersection,
+};
+
 // 新実装専用モジュール（これから追加）
 // pub mod new_point;        // 新しい点の実装
 // pub mod new_vector;       // 新しいベクトルの実装
@@ -84,6 +89,7 @@ pub mod direction;
 pub mod ellipse;
 pub mod ellipse_arc;
 pub mod infinite_line;
+pub mod intersection; // 交点計算トレイト
 pub mod line;
 pub mod point;
 pub mod ray;
