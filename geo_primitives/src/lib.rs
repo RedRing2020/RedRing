@@ -28,6 +28,8 @@ pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod point_2d; // Point2D の新実装 (Core)
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
+pub mod ray_2d; // Ray2D の新実装 (Core)
+pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
@@ -66,6 +68,8 @@ mod line_segment_2d_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
+mod ray_2d_tests;
+#[cfg(test)]
 mod vector_2d_tests;
 
 // 旧実装（一時除外）
@@ -94,4 +98,5 @@ pub use ellipse_2d::Ellipse2D;
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
 pub use point_2d::Point2D;
+pub use ray_2d::Ray2D;
 pub use vector_2d::Vector2D;
