@@ -15,14 +15,17 @@ pub mod point_3d; // Point3D の新実装
 pub mod vector_3d; // Vector3D の新実装
 
 // 2D プリミティブ
-pub mod arc_2d;
-pub mod bbox_2d; // BBox2D の新実装
+pub mod arc_2d; // Arc2D の新実装 (Core)
+pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)
+pub mod bbox_2d; // BBox2D の新実装 (Core)
+pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension)
 pub mod ellipse_2d; // Ellipse2D の新実装 (Core)
 pub mod ellipse_2d_extensions; // Ellipse2D の拡張機能 (Extension)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
-pub mod line_segment_2d; // LineSegment2D の新実装
+pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
+pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod point_2d; // Point2D の新実装 (Core)
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod vector_2d; // Vector2D の新実装 (Core)

@@ -1,7 +1,7 @@
 ﻿//! LineSegment2D のテスト
 
 use crate::{LineSegment2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
+use geo_foundation::{abstract_types::geometry::core_foundation::*, Angle, Scalar};
 
 #[cfg(test)]
 mod tests {
@@ -51,13 +51,17 @@ mod tests {
         let horizontal = LineSegment2D::horizontal_segment(2.0, 1.0, 5.0).unwrap();
         assert_eq!(horizontal.start(), Point2D::new(1.0, 2.0));
         assert_eq!(horizontal.end(), Point2D::new(5.0, 2.0));
-        assert!(horizontal.is_horizontal(f64::ANGLE_TOLERANCE));
+        // 水平性をdirectionで確認
+        let dir = horizontal.direction();
+        assert!((dir.y().abs()) < f64::ANGLE_TOLERANCE);
 
         // 垂直線分
         let vertical = LineSegment2D::vertical_segment(3.0, 1.0, 4.0).unwrap();
         assert_eq!(vertical.start(), Point2D::new(3.0, 1.0));
         assert_eq!(vertical.end(), Point2D::new(3.0, 4.0));
-        assert!(vertical.is_vertical(f64::ANGLE_TOLERANCE));
+        // 垂直性をdirectionで確認
+        let dir = vertical.direction();
+        assert!((dir.x().abs()) < f64::ANGLE_TOLERANCE);
 
         // 原点からの線分
         let from_origin = LineSegment2D::from_origin(Point2D::new(3.0, 4.0)).unwrap();
@@ -170,18 +174,18 @@ mod tests {
         let segment3 = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
         // 平行判定
-        assert!(segment1.is_parallel(&segment2, f64::ANGLE_TOLERANCE));
-        assert!(!segment1.is_parallel(&segment3, f64::ANGLE_TOLERANCE));
+        assert!(segment1.is_parallel_to(&segment2, f64::ANGLE_TOLERANCE));
+        assert!(!segment1.is_parallel_to(&segment3, f64::ANGLE_TOLERANCE));
 
         // 垂直判定
-        assert!(segment1.is_perpendicular(&segment3, f64::ANGLE_TOLERANCE));
-        assert!(!segment1.is_perpendicular(&segment2, f64::ANGLE_TOLERANCE));
+        assert!(segment1.is_perpendicular_to(&segment3, f64::ANGLE_TOLERANCE));
+        assert!(!segment1.is_perpendicular_to(&segment2, f64::ANGLE_TOLERANCE));
 
         // 共線判定
         let collinear_segment =
             LineSegment2D::new(Point2D::new(3.0, 0.0), Point2D::new(5.0, 0.0)).unwrap();
-        assert!(segment1.is_collinear(&collinear_segment, f64::EPSILON));
-        assert!(!segment1.is_collinear(&segment2, f64::EPSILON));
+        assert!(segment1.is_collinear_with(&collinear_segment, f64::EPSILON));
+        assert!(!segment1.is_collinear_with(&segment2, f64::EPSILON));
     }
 
     #[test]
@@ -254,7 +258,7 @@ mod tests {
         let segment = LineSegment2D::new(Point2D::new(1.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
 
         // 90度回転
-        let rotated = segment.rotate_around_origin(std::f64::consts::PI / 2.0);
+        let rotated = segment.rotate_around_origin(Angle::from_radians(std::f64::consts::PI / 2.0));
         let rotated_start = rotated.start();
         let rotated_end = rotated.end();
 

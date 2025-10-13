@@ -7,7 +7,7 @@
 //! - analysis クレートへの依存は最小限
 //! - 単一責任の原則を遵守
 
-use crate::Scalar;
+use crate::{Angle, Scalar};
 
 // =============================================================================
 // パラメータ操作（geo_foundation固有）
@@ -56,21 +56,21 @@ pub fn inverse_lerp<T: Scalar>(a: T, b: T, value: T) -> Option<T> {
 // 幾何学的変換（geo_foundation固有）
 // =============================================================================
 
-/// 角度を正規化されたパラメータに変換
+/// 角度をパラメータに変換
 ///
 /// 円・円弧のパラメータ化で使用
-pub fn angle_to_parameter<T: Scalar>(angle: T, start_angle: T, end_angle: T) -> T {
-    let range = end_angle - start_angle;
+pub fn angle_to_parameter<T: Scalar>(angle: Angle<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> T {
+    let range = end_angle.0 - start_angle.0;
     if range == T::ZERO {
         T::ZERO
     } else {
-        (angle - start_angle) / range
+        (angle.0 - start_angle.0) / range
     }
 }
 
 /// パラメータを角度に変換
 ///
 /// 円・円弧のパラメータ逆変換で使用
-pub fn parameter_to_angle<T: Scalar>(t: T, start_angle: T, end_angle: T) -> T {
-    start_angle + t * (end_angle - start_angle)
+pub fn parameter_to_angle<T: Scalar>(t: T, start_angle: Angle<T>, end_angle: Angle<T>) -> Angle<T> {
+    Angle(start_angle.0 + t * (end_angle.0 - start_angle.0))
 }

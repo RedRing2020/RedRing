@@ -80,7 +80,7 @@ pub trait Vector2DCore<T: Scalar>: VectorCore<T> {
     fn perpendicular(&self) -> Self;
 
     /// ベクトルの角度を取得（ラジアン）
-    fn angle(&self) -> T {
+    fn angle(&self) -> Angle<T> {
         self.y().atan2(self.x())
     }
 }

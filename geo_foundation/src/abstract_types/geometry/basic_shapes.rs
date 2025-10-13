@@ -161,13 +161,13 @@ pub trait EllipseCore<T: Scalar>:
     fn semi_minor_axis(&self) -> T;
 
     /// 回転角度を取得（ラジアン）
-    fn rotation_angle(&self) -> T;
+    fn rotation_angle(&self) -> Angle<T>;
 
     /// 離心率を取得
     fn eccentricity(&self) -> T;
 
     /// 指定角度での点を取得（パラメトリック角度）
-    fn point_at_angle(&self, angle: T) -> Self::Point;
+    fn point_at_angle(&self, angle: Angle<T>) -> Self::Point;
 }
 
 // =============================================================================
@@ -205,7 +205,7 @@ pub trait ArcCore<T: Scalar>:
     fn midpoint(&self) -> Self::Point;
 
     /// 指定角度が弧の範囲内にあるかを判定
-    fn contains_angle(&self, angle: T) -> bool;
+    fn contains_angle(&self, angle: Angle<T>) -> bool;
 }
 
 // =============================================================================

@@ -1,6 +1,7 @@
 ﻿//! Vector2D のテスト
 
 use crate::{Point2D, Vector2D};
+use geo_foundation::Angle;
 use std::f64;
 
 /// 基本作成テスト
@@ -202,19 +203,19 @@ fn test_rotation() {
     let v = Vector2D::new(1.0, 0.0);
 
     // 90度回転
-    let rotated = v.rotate(FRAC_PI_2);
-    assert!((rotated.x() - 0.0).abs() < f64::EPSILON);
-    assert!((rotated.y() - 1.0).abs() < f64::EPSILON);
+    let rotated = v.rotate(Angle::from_radians(FRAC_PI_2));
+    assert!((rotated.x() - 0.0_f64).abs() < f64::EPSILON);
+    assert!((rotated.y() - 1.0_f64).abs() < f64::EPSILON);
 
     // 90度回転（専用メソッド）
     let rot90 = v.rotate_90();
-    assert!((rot90.x() - 0.0).abs() < f64::EPSILON);
-    assert!((rot90.y() - 1.0).abs() < f64::EPSILON);
+    assert!((rot90.x() - 0.0_f64).abs() < f64::EPSILON);
+    assert!((rot90.y() - 1.0_f64).abs() < f64::EPSILON);
 
     // -90度回転
     let rot_neg90 = v.rotate_neg_90();
-    assert!((rot_neg90.x() - 0.0).abs() < f64::EPSILON);
-    assert!((rot_neg90.y() - (-1.0)).abs() < f64::EPSILON);
+    assert!((rot_neg90.x() - 0.0_f64).abs() < f64::EPSILON);
+    assert!((rot_neg90.y() - (-1.0_f64)).abs() < f64::EPSILON);
 }
 
 /// 反射テスト

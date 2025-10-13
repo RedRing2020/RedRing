@@ -30,7 +30,7 @@
 //! └── orthonormal_basis() - 直交基底
 //! ```
 
-use crate::Scalar;
+use crate::{Angle, Scalar};
 use std::fmt::Debug;
 
 /// 方向ベクトルの最小責務トレイト
@@ -86,12 +86,12 @@ pub trait Direction2D<T: Scalar>: Direction<T> {
 /// 基本Directionとは分離して、角度が必要な場合のみ使用。
 pub trait Direction2DAngular<T: Scalar>: Direction2D<T> {
     /// 角度（ラジアン）から方向を作成
-    fn from_angle(angle: T) -> Self
+    fn from_angle(angle: Angle<T>) -> Self
     where
         Self: Sized;
 
     /// 方向の角度（ラジアン）を取得
-    fn to_angle(&self) -> T;
+    fn to_angle(&self) -> Angle<T>;
 }
 
 /// 2D方向ベクトルの定数提供
@@ -122,7 +122,7 @@ pub trait Direction3D<T: Scalar>: Direction<T> {
 /// 軸回転などの高度な3D変換操作を提供。
 pub trait Direction3DRotation<T: Scalar>: Direction3D<T> {
     /// 指定した軸周りの回転
-    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self;
+    fn rotate_around_axis(&self, axis: &Self, angle: Angle<T>) -> Self;
 }
 
 /// 3D方向ベクトルの直交基底生成

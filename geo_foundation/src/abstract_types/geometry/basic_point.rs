@@ -42,7 +42,7 @@ pub trait Point2DCore<T: Scalar>: PointCore<T> {
     }
 
     /// 極座標での角度を取得（ラジアン）
-    fn polar_angle(&self) -> T {
+    fn polar_angle(&self) -> Angle<T> {
         self.y().atan2(self.x())
     }
 }

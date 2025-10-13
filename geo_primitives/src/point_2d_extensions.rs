@@ -4,7 +4,7 @@
 //! 基本機能は point_2d.rs を参照
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_foundation::{Angle, Scalar};
 
 impl<T: Scalar> Point2D<T> {
     // ========================================================================
@@ -46,7 +46,7 @@ impl<T: Scalar> Point2D<T> {
     }
 
     /// 指定点周りの回転
-    pub fn rotate_around(&self, center: &Self, angle: T) -> Self {
+    pub fn rotate_around(&self, center: &Self, angle: Angle<T>) -> Self {
         let offset = *self - *center;
         let rotated_offset = offset.rotate(angle);
         *center + rotated_offset

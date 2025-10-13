@@ -131,7 +131,7 @@
 //! この設計により、コンパイル時の型チェックで適切なエラー処理が保証されます。
 
 use super::classification::PrimitiveKind;
-use crate::Scalar;
+use crate::{Angle, Scalar};
 
 // AbstractBBoxを抽象境界ボックスとして定義（より柔軟な実装）
 /// 抽象的な境界ボックストレイト（BBoxに統一）
@@ -170,7 +170,7 @@ pub trait TransformableExtension<T: Scalar = f64>: ExtensionFoundation<T> {
     fn scale(&self, factor: T) -> Self::Transformed;
 
     /// 回転（オイラー角、ラジアン、ジェネリック版）
-    fn rotate(&self, angles: (T, T, T)) -> Self::Transformed;
+    fn rotate(&self, angles: (Angle<T>, Angle<T>, Angle<T>)) -> Self::Transformed;
 
     /// 指定した中心点を基準にスケール（デフォルト実装なし、実装側で定義）
     fn scale_about_point(&self, center: (T, T, T), factor: T) -> Self::Transformed;
