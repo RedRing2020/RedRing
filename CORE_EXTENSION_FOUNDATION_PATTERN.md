@@ -229,6 +229,88 @@ impl<T: Scalar> Circle2D<T> {
 // impl<T: Scalar> SpatialExtension<T> for Circle2D<T> { ... }
 ```
 
+### Ray2D実装例（2025年10月完了）
+
+**完全な Core/Extension Foundation パターンの実装例**
+
+#### Core Foundation実装（ray_2d.rs - 183行）
+```rust
+//! Ray2D - 2次元半無限直線の実装
+//! パラメータ表現: point = origin + t * direction (t ≥ 0)
+
+pub struct Ray2D<T: Scalar> {
+    origin: Point2D<T>,      // 起点
+    direction: Vector2D<T>,  // 方向ベクトル（正規化済み）
+}
+
+impl<T: Scalar> Ray2D<T> {
+    // Core 作成メソッド
+    pub fn new(origin: Point2D<T>, direction: Vector2D<T>) -> Option<Self> { ... }
+    pub fn from_points(start: Point2D<T>, through: Point2D<T>) -> Option<Self> { ... }
+    
+    // Core アクセサ
+    pub fn origin(&self) -> Point2D<T> { ... }
+    pub fn direction(&self) -> Vector2D<T> { ... }
+    
+    // Core 基本操作
+    pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool { ... }
+    pub fn parameter_for_point(&self, point: &Point2D<T>) -> T { ... }
+    pub fn to_infinite_line(&self) -> InfiniteLine2D<T> { ... }
+}
+
+// Core Foundation トレイト実装
+impl<T: Scalar> CoreFoundation<T> for Ray2D<T> { ... }
+impl<T: Scalar> BasicParametric<T> for Ray2D<T> { ... }
+impl<T: Scalar> BasicDirectional<T> for Ray2D<T> { ... }
+impl<T: Scalar> BasicContainment<T> for Ray2D<T> { ... }
+```
+
+#### Extension Foundation実装（ray_2d_extensions.rs - 174行）
+```rust
+//! Ray2D Extensions - 高度な幾何演算・変換操作
+
+impl<T: Scalar> Ray2D<T> {
+    // 特殊作成メソッド
+    pub fn x_axis_ray(x: T, y: T) -> Self { ... }
+    pub fn y_axis_ray(x: T, y: T) -> Self { ... }
+    pub fn from_angle(angle: Angle<T>) -> Self { ... }
+    
+    // 交点計算
+    pub fn intersection_with_ray(&self, other: &Self) -> Option<Point2D<T>> { ... }
+    pub fn intersection_with_line_segment(&self, segment: &LineSegment2D<T>) -> Option<Point2D<T>> { ... }
+    
+    // 幾何関係判定
+    pub fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool { ... }
+    pub fn is_perpendicular_to(&self, other: &Self, tolerance: T) -> bool { ... }
+    
+    // 変換操作
+    pub fn translate(&self, translation: Vector2D<T>) -> Self { ... }
+    pub fn rotate_around_point(&self, angle: Angle<T>, center: Point2D<T>) -> Self { ... }
+    
+    // 分割・測定
+    pub fn split_at_parameter(&self, t: T) -> Option<(LineSegment2D<T>, Self)> { ... }
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T { ... }
+}
+```
+
+**Ray2D実装の特徴**:
+- ✅ **tolerance引数による厳密制御**: 全ての判定メソッドでtolerance指定可能
+- ✅ **半無限直線の完全実装**: t ≥ 0のパラメータ範囲制約
+- ✅ **Core/Extension完全分離**: 基本機能183行、拡張機能174行
+- ✅ **包括的テストスイート**: ray_2d_tests.rsで全機能検証済み
+
+## 適用済み幾何プリミティブ
+
+| プリミティブ | Core実装 | Extension実装 | テスト | 状態 |
+|-------------|---------|---------------|-------|------|
+| Circle2D    | ✅      | ✅            | ✅    | 完了 |
+| **Ray2D**   | ✅      | ✅            | ✅    | **完了** |
+| Arc2D       | ✅      | ✅            | ✅    | 完了 |
+| LineSegment2D | ✅    | ✅            | ✅    | 完了 |
+| Ellipse2D   | ✅      | ✅            | ✅    | 完了 |
+| Point2D/3D  | ✅      | ✅            | ✅    | 完了 |
+| Vector2D/3D | ✅      | ✅            | ✅    | 完了 |
+
 ## 利用パターン
 
 ### パターン 1: Core のみ使用（軽量・高速）
@@ -238,9 +320,12 @@ use geo_primitives::Circle2D;
 
 // 基本的な円の操作
 let circle = Circle2D::new(center, radius)?;
+
+// Core機能のみ
 let area = circle.area();
 let bbox = circle.bounding_box();
 let point = circle.point_at_parameter(0.5);
+let contains = circle.contains_point_inside(&test_point);
 ```
 
 **特徴**:
