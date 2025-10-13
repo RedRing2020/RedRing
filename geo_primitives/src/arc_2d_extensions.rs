@@ -108,8 +108,8 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 中点を取得
     pub fn mid_point(&self) -> Point2D<T> {
-        let mid_angle = self.start_angle().to_radians()
-            + self.angle_span().to_radians() / (T::ONE + T::ONE);
+        let mid_angle =
+            self.start_angle().to_radians() + self.angle_span().to_radians() / (T::ONE + T::ONE);
         self.point_at_angle(mid_angle)
     }
 
