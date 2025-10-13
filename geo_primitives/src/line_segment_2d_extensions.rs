@@ -3,8 +3,8 @@
 //! Core Foundation パターンに基づく LineSegment2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
-use crate::{InfiniteLine2D, LineSegment2D, Point2D};
-use geo_foundation::{Angle, Scalar};
+use crate::{InfiniteLine2D, LineSegment2D, Point2D, Ray2D};
+use geo_foundation::{abstract_types::geometry::BasicIntersection, Angle, Scalar};
 
 // ============================================================================
 // Extension Implementation (高度な機能)
@@ -12,26 +12,15 @@ use geo_foundation::{Angle, Scalar};
 
 impl<T: Scalar> LineSegment2D<T> {
     // ========================================================================
-    // Advanced Intersection Methods
+    // 交点計算（Intersectionトレイト経由の統一実装）
     // ========================================================================
 
     /// 他の線分との交点を取得
     pub fn intersection_with_segment(&self, other: &Self) -> Option<Point2D<T>> {
-        // 無限直線での交点を計算
-        let line_intersection = self.line().intersection_with_line(other.line())?;
-
-        // 両方の線分上にある点かチェック
-        let tolerance = T::EPSILON;
-        if self.contains_point(&line_intersection, tolerance)
-            && other.contains_point(&line_intersection, tolerance)
-        {
-            Some(line_intersection)
-        } else {
-            None
-        }
+        self.intersection_with(other, T::EPSILON)
     }
 
-    /// 直線との交点を取得
+    /// 無限直線との交点を取得
     pub fn intersection_with_line(&self, line: &InfiniteLine2D<T>) -> Option<Point2D<T>> {
         let intersection = self.line().intersection_with_line(line)?;
         let tolerance = T::EPSILON;
@@ -43,21 +32,12 @@ impl<T: Scalar> LineSegment2D<T> {
         }
     }
 
-    /// 光線との交点を取得（Ray2D未実装のため一時的にコメントアウト）
-    /*
-    pub fn intersection_with_ray(&self, ray: &crate::Ray2D<T>) -> Option<Point2D<T>> {
-        let intersection = self.line().intersection_with_ray(ray)?;
-        let tolerance = T::EPSILON;
-
-        if self.contains_point(&intersection, tolerance) {
-            Some(intersection)
-        } else {
-            None
-        }
+    /// 光線との交点を取得
+    pub fn intersection_with_ray(&self, ray: &Ray2D<T>) -> Option<Point2D<T>> {
+        self.intersection_with(ray, T::EPSILON)
     }
-    */
 
-    /// 円との交点を取得（一時的にコメントアウト - InfiniteLine2Dにメソッドなし）
+    // 円との交点を取得（一時的にコメントアウト - InfiniteLine2Dにメソッドなし）
     /*
     pub fn intersections_with_circle(&self, circle: &Circle2D<T>) -> Vec<Point2D<T>> {
         let line_intersections = self.line().intersections_with_circle(circle);
@@ -69,6 +49,53 @@ impl<T: Scalar> LineSegment2D<T> {
             .collect()
     }
     */
+}
+
+// ============================================================================
+// Intersection トレイト実装（統一的な交点計算）
+// ============================================================================
+
+// LineSegment2D と Ray2D の交点計算
+impl<T: Scalar> BasicIntersection<T, Ray2D<T>> for LineSegment2D<T> {
+    type Point = Point2D<T>;
+
+    fn intersection_with(&self, ray: &Ray2D<T>, tolerance: T) -> Option<Self::Point> {
+        let line_intersection = self
+            .line()
+            .intersection_with_line(&ray.to_infinite_line())?;
+
+        if self.contains_point(&line_intersection, tolerance) {
+            // Ray上にあるかも確認
+            let ray_t = ray.parameter_for_point(&line_intersection);
+            if ray_t >= T::ZERO {
+                Some(line_intersection)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+// LineSegment2D と LineSegment2D の交点計算
+impl<T: Scalar> BasicIntersection<T, LineSegment2D<T>> for LineSegment2D<T> {
+    type Point = Point2D<T>;
+
+    fn intersection_with(&self, other: &LineSegment2D<T>, tolerance: T) -> Option<Self::Point> {
+        let line_intersection = self.line().intersection_with_line(other.line())?;
+
+        if self.contains_point(&line_intersection, tolerance)
+            && other.contains_point(&line_intersection, tolerance)
+        {
+            Some(line_intersection)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T: Scalar> LineSegment2D<T> {
     // ========================================================================
     // Advanced Geometric Operations
     // ========================================================================
