@@ -1,4 +1,4 @@
-﻿//! 幾何プリミティブクレート
+//! 幾何プリミティブクレート
 //!
 //! 新しいトレイト設計に基づく実装への移行中
 //! 旧実装は一時的にコンパイル除外
@@ -16,7 +16,13 @@ pub mod vector_3d; // Vector3D の新実装
 
 // 2D プリミティブ
 pub mod arc_2d; // Arc2D の新実装 (Core)
+pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装
+pub mod arc_2d_containment; // Arc2D 包含判定拡張
 pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)
+pub mod arc_2d_intersection; // Arc2D 交点計算Foundation実装
+pub mod arc_2d_metrics; // Arc2D 計量演算拡張
+pub mod arc_2d_sampling; // Arc2D 点列生成拡張
+pub mod arc_2d_transform; // Arc2D 変換操作拡張
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod circle_2d; // Circle2D の新実装 (Core)
@@ -26,7 +32,7 @@ pub mod ellipse_2d_extensions; // Ellipse2D の拡張機能 (Extension)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
-pub mod point_2d; // Point2D の新実装 (Core)
+pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
@@ -72,12 +78,28 @@ mod ray_2d_tests;
 #[cfg(test)]
 mod vector_2d_tests;
 
-// 旧実装（一時除外）
-// pub mod geometry2d;  // 旧実装 - 一時除外
-// pub mod geometry3d;  // 旧実装 - 一時除外
-
 // 最小限の基盤のみ残す
 pub use geo_foundation::{Angle, Scalar};
+
+// Foundation システム統一トレイト
+pub use geo_foundation::abstract_types::foundation::{
+    AdvancedCollision,
+    AdvancedTransform,
+    // Collision Foundation
+    BasicCollision,
+    // Intersection Foundation
+    BasicIntersection,
+    // Transform Foundation
+    BasicTransform,
+    BoundingBoxCollision,
+    CollisionHelpers,
+    IntersectionHelpers,
+    MultipleIntersection,
+    PointDistance,
+    PointDistanceHelpers,
+    SelfIntersection,
+    TransformHelpers,
+};
 
 // 新実装の公開（次元中立設計）
 // 3D プリミティブ

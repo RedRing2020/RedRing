@@ -13,7 +13,7 @@
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
+use geo_foundation::{abstract_types::foundation::core_foundation::*, Scalar};
 
 /// 2次元半無限直線
 ///

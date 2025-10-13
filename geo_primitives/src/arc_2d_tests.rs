@@ -1,9 +1,9 @@
-﻿//! Arc2D の基本テスト
+//! Arc2D の基本テスト
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Arc2D, Point2D, Vector2D};
-use geo_foundation::Angle;
+use geo_foundation::{abstract_types::foundation::ArcMetrics, Angle};
 
 #[cfg(test)]
 mod tests {

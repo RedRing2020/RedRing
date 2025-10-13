@@ -62,10 +62,9 @@ impl<T: Scalar> Arc2D<T> {
         let start_angle = start_dir.y().atan2(start_dir.x());
         let end_angle = end_dir.y().atan2(end_dir.x());
 
+        let circle = Circle2D::new(center, radius)?;
         Self::new(
-            center,
-            radius,
-            start_dir,
+            circle,
             Angle::from_radians(start_angle),
             Angle::from_radians(end_angle),
         )
@@ -106,34 +105,8 @@ impl<T: Scalar> Arc2D<T> {
     // Extension Geometric Methods
     // ========================================================================
 
-    /// 中点を取得
-    pub fn mid_point(&self) -> Point2D<T> {
-        let mid_angle =
-            self.start_angle().to_radians() + self.angle_span().to_radians() / (T::ONE + T::ONE);
-        self.point_at_angle(mid_angle)
-    }
-
-    // ========================================================================
-    // Extension Utility Methods
-    // ========================================================================
-
-    /// 角度を [0, 2π) 範囲に正規化
-    pub fn normalize_angle(&self, angle: Angle<T>) -> Angle<T> {
-        let two_pi = Angle::from_radians(T::TAU);
-        let mut normalized = angle;
-
-        // 負の角度を正に変換
-        while normalized.to_radians() < T::ZERO {
-            normalized += two_pi;
-        }
-
-        // 2π以上の角度を削減
-        while normalized >= two_pi {
-            normalized -= two_pi;
-        }
-
-        normalized
-    }
+    // mid_point is implemented in arc_2d_sampling.rs
+    // normalize_angle is implemented in arc_2d_containment.rs
 
     // ========================================================================
     // Extension Type Conversion Methods

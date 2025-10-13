@@ -4,7 +4,7 @@
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
 use crate::{InfiniteLine2D, LineSegment2D, Point2D, Ray2D};
-use geo_foundation::{abstract_types::geometry::BasicIntersection, Angle, Scalar};
+use geo_foundation::{abstract_types::foundation::BasicIntersection, Angle, Scalar};
 
 // ============================================================================
 // Extension Implementation (高度な機能)
@@ -237,17 +237,33 @@ impl<T: Scalar> LineSegment2D<T> {
         Self::new(new_start, new_end).expect("Translation should preserve segment validity")
     }
 
-    /// 線分を指定比率でスケール
+    /// 線分を原点基準でスケール
     pub fn scale(&self, factor: T) -> Option<Self> {
+        self.scale_from_point(&Point2D::origin(), factor)
+    }
+
+    /// 線分を指定点基準でスケール
+    pub fn scale_from_point(&self, center: &Point2D<T>, factor: T) -> Option<Self> {
         if factor <= T::ZERO {
             return None;
         }
 
-        let center = self.midpoint();
-        let new_start = center + (self.start() - center) * factor;
-        let new_end = center + (self.end() - center) * factor;
+        let new_start = *center + (self.start() - *center) * factor;
+        let new_end = *center + (self.end() - *center) * factor;
 
         Self::new(new_start, new_end)
+    }
+
+    /// 線分を中心基準でスケール
+    pub fn scale_from_center(&self, factor: T) -> Option<Self> {
+        let center = self.midpoint();
+        self.scale_from_point(&center, factor)
+    }
+
+    /// 線分を始点基準でスケール（長さのみ変更）
+    pub fn scale_length(&self, factor: T) -> Option<Self> {
+        let start = self.start();
+        self.scale_from_point(&start, factor)
     }
 
     /// 方向を反転した線分を取得
@@ -310,8 +326,8 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 指定軸周りの回転（2Dでは原点周りの回転）
     pub fn rotate_around_origin(&self, angle: Angle<T>) -> Self {
         let origin = Point2D::origin();
-        let new_start = self.start().rotate_around(&origin, angle);
-        let new_end = self.end().rotate_around(&origin, angle);
+        let new_start = self.start().rotate_around_angle(&origin, angle);
+        let new_end = self.end().rotate_around_angle(&origin, angle);
         Self::new(new_start, new_end).expect("Rotation should preserve segment validity")
     }
 }

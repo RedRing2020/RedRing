@@ -1,7 +1,7 @@
 ﻿//! InfiniteLine3D のテスト
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
-use geo_foundation::abstract_types::geometry::core_foundation::*;
+use geo_foundation::abstract_types::foundation::core_foundation::*;
 
 #[cfg(test)]
 mod tests {
