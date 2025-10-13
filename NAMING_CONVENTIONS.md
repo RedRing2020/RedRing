@@ -223,37 +223,37 @@ trait ArcCore<T: Scalar>: CircleCore<T> {
 - トレイト継承関係の検証
 - 型エイリアスの一貫性チェック
 
-## 実装対応状況（2025年10月13日現在）
+## 実装対応状況（2025 年 10 月 13 日現在）
 
 以下の表は、geo_primitives における Core/Extension Foundation パターンの実装状況を示します：
 
-| 形状 | Core実装 | Extension実装 | テスト | 備考 |
-|------|----------|---------------|-------|------|
-| **Point2D/3D** | ✅ | ✅ | ✅ | f64正準化完了 |
-| **Vector2D/3D** | ✅ | ✅ | ✅ | f64正準化完了 |
-| **Circle2D/3D** | ✅ | ✅ | ✅ | Core/Extension分離完了 |
-| **Ray2D** | ✅ | ✅ | ✅ | **新規実装完了（2025年10月）** |
-| **LineSegment2D/3D** | ✅ | ✅ | ✅ | Core/Extension分離完了 |
-| **InfiniteLine2D/3D** | ✅ | ✅ | ✅ | 基本実装完了 |
-| **Arc2D/3D** | ✅ | ✅ | ✅ | Core/Extension分離完了 |
-| **Ellipse2D/3D** | ✅ | ✅ | ✅ | Core/Extension分離完了 |
-| **BBox2D/3D** | ✅ | ✅ | ✅ | 基本実装完了 |
+| 形状                  | Core 実装 | Extension 実装 | テスト | 備考                              |
+| --------------------- | --------- | -------------- | ------ | --------------------------------- |
+| **Point2D/3D**        | ✅        | ✅             | ✅     | f64 正準化完了                    |
+| **Vector2D/3D**       | ✅        | ✅             | ✅     | f64 正準化完了                    |
+| **Circle2D/3D**       | ✅        | ✅             | ✅     | Core/Extension 分離完了           |
+| **Ray2D**             | ✅        | ✅             | ✅     | **新規実装完了（2025 年 10 月）** |
+| **LineSegment2D/3D**  | ✅        | ✅             | ✅     | Core/Extension 分離完了           |
+| **InfiniteLine2D/3D** | ✅        | ✅             | ✅     | 基本実装完了                      |
+| **Arc2D/3D**          | ✅        | ✅             | ✅     | Core/Extension 分離完了           |
+| **Ellipse2D/3D**      | ✅        | ✅             | ✅     | Core/Extension 分離完了           |
+| **BBox2D/3D**         | ✅        | ✅             | ✅     | 基本実装完了                      |
 
 ### 実装品質指標
 
-- **Core実装サイズ**: 120-200行（必須機能のみ）
-- **Extension実装サイズ**: 100-180行（高度な機能）
+- **Core 実装サイズ**: 120-200 行（必須機能のみ）
+- **Extension 実装サイズ**: 100-180 行（高度な機能）
 - **テストカバレッジ**: 全プリミティブでユニットテスト完備
-- **tolerance対応**: Ray2Dは引数指定tolerance完全対応
+- **tolerance 対応**: Ray2D は引数指定 tolerance 完全対応
 
 ### 命名規則適合状況
 
-| 規則 | 適合率 | 備考 |
-|------|-------|------|
-| トレイト名`Core`サフィックス | 100% | 全Abstract Traitsで適用済み |
-| 次元サフィックス`2D`/`3D` | 100% | geo_primitives全体で統一 |
-| `BBox`命名（BoundingBox❌） | 100% | 統一済み |
-| Core/Extension分離 | 95% | Ray2Dで完全パターン適用 |
+| 規則                         | 適合率 | 備考                          |
+| ---------------------------- | ------ | ----------------------------- |
+| トレイト名`Core`サフィックス | 100%   | 全 Abstract Traits で適用済み |
+| 次元サフィックス`2D`/`3D`    | 100%   | geo_primitives 全体で統一     |
+| `BBox`命名（BoundingBox❌）  | 100%   | 統一済み                      |
+| Core/Extension 分離          | 95%    | Ray2D で完全パターン適用      |
 
 ## 7. ドキュメント要件
 
