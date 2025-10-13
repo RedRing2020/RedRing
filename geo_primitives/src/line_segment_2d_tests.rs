@@ -1,4 +1,4 @@
-﻿//! LineSegment2D のテスト
+//! LineSegment2D のテスト
 
 use crate::{LineSegment2D, Point2D, Vector2D};
 use geo_foundation::{abstract_types::geometry::core_foundation::*, Angle, Scalar};
@@ -154,10 +154,15 @@ mod tests {
         assert_eq!(translated.start(), Point2D::new(3.0, 4.0));
         assert_eq!(translated.end(), Point2D::new(5.0, 4.0));
 
-        // スケーリング
+        // スケーリング（原点基準）
         let scaled = segment.scale(2.0).unwrap();
-        assert_eq!(scaled.start(), Point2D::new(1.0, 1.0));
-        assert_eq!(scaled.end(), Point2D::new(5.0, 1.0)); // 始点から2倍の長さ
+        assert_eq!(scaled.start(), Point2D::new(2.0, 2.0)); // 原点から2倍
+        assert_eq!(scaled.end(), Point2D::new(6.0, 2.0)); // 原点から2倍
+
+        // 長さスケーリング（始点基準）
+        let length_scaled = segment.scale_length(2.0).unwrap();
+        assert_eq!(length_scaled.start(), Point2D::new(1.0, 1.0)); // 始点固定
+        assert_eq!(length_scaled.end(), Point2D::new(5.0, 1.0)); // 長さ2倍
 
         // 方向反転
         let reversed = segment.reverse();
@@ -327,7 +332,7 @@ mod tests {
         assert_eq!(mid_point, Point2D::new(2.0, 0.0));
 
         let tangent = segment.tangent_at_parameter(0.5);
-        assert_eq!(tangent, Vector2D::new(4.0, 0.0)); // 方向 * 長さ
+        assert_eq!(tangent, Vector2D::new(1.0, 0.0)); // 正規化された接線方向
     }
 
     #[test]

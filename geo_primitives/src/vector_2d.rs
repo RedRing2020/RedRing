@@ -5,7 +5,7 @@
 
 use crate::Point2D;
 use geo_foundation::{
-    abstract_types::geometry::core_foundation::{BasicDirectional, BasicMetrics, CoreFoundation},
+    abstract_types::foundation::core_foundation::{BasicDirectional, BasicMetrics, CoreFoundation},
     Scalar,
 };
 use std::ops::{Add, Mul, Neg, Sub};
@@ -74,9 +74,14 @@ impl<T: Scalar> Vector2D<T> {
         self.x * self.x + self.y * self.y
     }
 
-    /// ベクトルの長さを取得
+    /// ベクトルの長さ（ノルム）を計算
     pub fn length(&self) -> T {
-        self.length_squared().sqrt()
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+
+    /// ベクトルの大きさ（長さの別名）
+    pub fn magnitude(&self) -> T {
+        self.length()
     }
 
     /// ベクトルを正規化（長さを1にする）
@@ -176,5 +181,11 @@ impl<T: Scalar> Neg for Vector2D<T> {
 
     fn neg(self) -> Self::Output {
         Self::new(-self.x, -self.y)
+    }
+}
+
+impl<T: Scalar> From<(T, T)> for Vector2D<T> {
+    fn from(tuple: (T, T)) -> Self {
+        Self::new(tuple.0, tuple.1)
     }
 }

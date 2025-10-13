@@ -3,7 +3,7 @@
 //! foundation.rs の基盤トレイトに基づく Point3D の実装
 
 use crate::{BBox3D, Vector3D};
-use geo_foundation::{abstract_types::geometry::core_foundation::*, Scalar};
+use geo_foundation::{abstract_types::foundation::core_foundation::*, Scalar};
 
 /// 3次元空間の点
 #[derive(Debug, Clone, Copy, PartialEq)]

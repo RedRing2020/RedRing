@@ -89,7 +89,7 @@ impl<T: Scalar> Ray2D<T> {
 
     /// Ray を回転
     pub fn rotate(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
-        let rotated_origin = self.origin().rotate_around(center, angle);
+        let rotated_origin = self.origin().rotate_around_angle(center, angle);
         let rotated_direction = self.direction().rotate(angle);
         Self::new(rotated_origin, rotated_direction).unwrap()
     }

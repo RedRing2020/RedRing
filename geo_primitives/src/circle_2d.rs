@@ -1,4 +1,4 @@
-﻿//! 2次元円（Circle2D）の Core 実装
+//! 2次元円（Circle2D）の Core 実装
 //!
 //! Core Foundation パターンに基づく Circle2D の必須機能のみ
 //! 拡張機能は circle_2d_extensions.rs を参照

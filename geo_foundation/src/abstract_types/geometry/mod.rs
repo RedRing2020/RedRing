@@ -64,9 +64,11 @@
 pub mod core_foundation; // 中核基盤トレイト（旧 foundation）
 pub mod extension_foundation; // 拡張基盤トレイト（旧 primitive）
 
-// 統一交点計算トレイト
-pub use intersection::{
-    BasicIntersection, IntersectionHelpers, MultipleIntersection, SelfIntersection,
+// 統一Foundation システムトレイト - foundationモジュールを参照
+pub use super::foundation::{
+    AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
+    CollisionHelpers, MultipleIntersection, PointDistance, PointDistanceHelpers, SelfIntersection,
+    TransformHelpers,
 };
 
 // 新実装専用モジュール（これから追加）
@@ -80,10 +82,12 @@ pub use intersection::{
 // pub mod basic_vector;     // 旧実装 - 一時除外
 // pub mod basic_circle;     // 旧実装 - 一時除外
 // pub mod basic_shapes;     // 旧実装 - 一時除外
-// pub mod arc;              // 旧実装 - 一時除外
+// Legacy modules - Foundation bridge
+// pub mod arc;              // Arc トレイト定義 - Foundation 参照に変更
 pub mod bbox;
-pub mod circle;
+// pub mod circle;           // Circle トレイト定義 - Foundation 参照に変更
 pub mod classification; // 幾何プリミティブの分類システム
+                        // pub mod collision;      // 削除済み - foundationモジュールを使用
 pub mod common; // 共通インターフェイスとヘルパー
 pub mod direction;
 pub mod ellipse;
@@ -94,12 +98,33 @@ pub mod line;
 pub mod point;
 pub mod ray;
 pub mod sphere;
+// pub mod transform;      // 削除済み - foundationモジュールを使用
 pub mod utils; // 幾何計算ユーティリティ
 pub mod vector;
 
 // 基本トレイトをエクスポート
 pub use core_foundation::*; // 中核基盤トレイト
 pub use extension_foundation::*; // 拡張基盤トレイト
+
+// Foundation システムからの直接 re-export
+pub use super::foundation::{
+    Arc3DCore,
+    // Arc Foundation
+    ArcCore,
+    ArcMetrics,
+    Circle3DCore,
+    // Circle Foundation
+    CircleCore,
+    CircleMetrics,
+    EllipseArc3DCore,
+    // Note: BasicTransform, BasicCollision, BasicIntersection は既に上で import 済み
+    // EllipseArc Foundation
+    EllipseArcCore,
+    EllipseArcMetrics,
+    UnifiedArcFoundation,
+    UnifiedCircleFoundation,
+    UnifiedEllipseArcFoundation,
+};
 
 // 新実装の準備（将来追加予定）
 // pub use new_point::{...};
@@ -114,10 +139,10 @@ pub use helpers::{
 };
 */
 
-// 古いトレイトのエクスポート（新実装のため一時的に無効化）
-// pub use arc::*; // 有効化
+// 古いトレイトのエクスポート（Foundation 参照に変更）
+// pub use arc::*; // Arc トレイト群のエクスポート - Foundation 参照に変更
 // pub use bbox::*;
-// pub use circle::*;
+// pub use circle::*; // Circle トレイト群のエクスポート - Foundation 参照に変更
 // pub use classification::*; // プリミティブ分類システム
 // pub use common::*; // Direction3DConstants の重複を避けるため個別インポートに変更
 /*

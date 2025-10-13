@@ -108,7 +108,7 @@ mod tests {
         // 指定点中心回転
         let center = Point2D::new(1.0_f64, 1.0_f64);
         let rotated_around =
-            point.rotate_around(&center, Angle::from_radians(std::f64::consts::PI / 2.0));
+            point.rotate_around_angle(&center, Angle::from_radians(std::f64::consts::PI / 2.0));
         assert!((rotated_around.x() - 0.0).abs() < 1e-10);
         assert!((rotated_around.y() - 1.0).abs() < 1e-10);
 
