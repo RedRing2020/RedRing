@@ -3,9 +3,7 @@
 //! Core Foundation パターンに基づく LineSegment2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
-use crate::{
-    LineSegment2D, InfiniteLine2D, Point2D,
-};
+use crate::{InfiniteLine2D, LineSegment2D, Point2D};
 use geo_foundation::{Angle, Scalar};
 
 // ============================================================================
@@ -71,7 +69,6 @@ impl<T: Scalar> LineSegment2D<T> {
             .collect()
     }
     */
-
     // ========================================================================
     // Advanced Geometric Operations
     // ========================================================================
@@ -168,13 +165,9 @@ impl<T: Scalar> LineSegment2D<T> {
             other.distance_to_point(&self.end()),
         ];
 
-        distances.into_iter().fold(distances[0], |min, d| {
-            if d < min {
-                d
-            } else {
-                min
-            }
-        })
+        distances
+            .into_iter()
+            .fold(distances[0], |min, d| if d < min { d } else { min })
     }
 
     // ========================================================================

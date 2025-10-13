@@ -59,7 +59,11 @@ pub fn inverse_lerp<T: Scalar>(a: T, b: T, value: T) -> Option<T> {
 /// 角度をパラメータに変換
 ///
 /// 円・円弧のパラメータ化で使用
-pub fn angle_to_parameter<T: Scalar>(angle: Angle<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> T {
+pub fn angle_to_parameter<T: Scalar>(
+    angle: Angle<T>,
+    start_angle: Angle<T>,
+    end_angle: Angle<T>,
+) -> T {
     let range = end_angle.0 - start_angle.0;
     if range == T::ZERO {
         T::ZERO

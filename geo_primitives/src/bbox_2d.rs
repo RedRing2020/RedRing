@@ -5,9 +5,7 @@
 
 use crate::Point2D;
 use geo_foundation::{
-    abstract_types::geometry::core_foundation::{
-        BasicContainment, BasicMetrics, CoreFoundation,
-    },
+    abstract_types::geometry::core_foundation::{BasicContainment, BasicMetrics, CoreFoundation},
     Scalar,
 };
 
