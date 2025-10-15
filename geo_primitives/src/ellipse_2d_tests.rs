@@ -3,8 +3,9 @@
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{
     core::{
-        NewBasicContainment as BasicContainment, BasicMetrics, NewBasicParametric as BasicParametric, CoreFoundation,
-        EllipseCore, EllipseMetrics, UnifiedEllipseFoundation,
+        BasicMetrics, CoreFoundation, EllipseCore, EllipseMetrics,
+        NewBasicContainment as BasicContainment, NewBasicParametric as BasicParametric,
+        UnifiedEllipseFoundation,
     },
     Scalar,
 };
@@ -368,9 +369,7 @@ mod tests {
 #[cfg(test)]
 mod foundation_tests {
     use super::*;
-    use geo_foundation::core::{
-        EllipseCore, EllipseMetrics, UnifiedEllipseFoundation,
-    };
+    use geo_foundation::core::{EllipseCore, EllipseMetrics, UnifiedEllipseFoundation};
     use std::f64::consts::{PI, TAU};
 
     /// EllipseCore trait実装テスト
@@ -408,9 +407,9 @@ mod foundation_tests {
         assert!(area > 0.0);
         assert!(eccentricity >= 0.0);
         assert!(focal_distance >= 0.0);
-        
+
         // 楕円の場合、焦点は中心軸上にある
-        assert_eq!(focus1.y(), focus2.y());  // Y座標は同じ（回転なしの場合）
+        assert_eq!(focus1.y(), focus2.y()); // Y座標は同じ（回転なしの場合）
 
         // 円に近い楕円のテスト
 

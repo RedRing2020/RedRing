@@ -209,7 +209,8 @@ impl<T: Scalar> Ellipse2D<T> {
     pub fn foundation_resolve_collision(&self, other: &Self) -> Option<(Self, Self)> {
         let center_distance = self.center().distance_to(&other.center());
         let self_avg_radius = (self.semi_major_axis() + self.semi_minor_axis()) / (T::ONE + T::ONE);
-        let other_avg_radius = (other.semi_major_axis() + other.semi_minor_axis()) / (T::ONE + T::ONE);
+        let other_avg_radius =
+            (other.semi_major_axis() + other.semi_minor_axis()) / (T::ONE + T::ONE);
         let required_distance = self_avg_radius + other_avg_radius;
 
         if center_distance >= required_distance {
@@ -219,10 +220,7 @@ impl<T: Scalar> Ellipse2D<T> {
         if center_distance < T::EPSILON {
             // 同心楕円の場合は少しずらす
             let offset = Vector2D::new(required_distance / (T::ONE + T::ONE), T::ZERO);
-            return Some((
-                self.translate(&offset.negate()),
-                other.translate(&offset),
-            ));
+            return Some((self.translate(&offset.negate()), other.translate(&offset)));
         }
 
         let direction = Vector2D::from_points(self.center(), other.center()).normalize();
@@ -232,10 +230,7 @@ impl<T: Scalar> Ellipse2D<T> {
         let self_offset = direction * (-half_separation);
         let other_offset = direction * half_separation;
 
-        Some((
-            self.translate(&self_offset),
-            other.translate(&other_offset),
-        ))
+        Some((self.translate(&self_offset), other.translate(&other_offset)))
     }
 
     /// Foundation Intersection統合での楕円群の重心計算
@@ -276,8 +271,8 @@ impl<T: Scalar> Ellipse2D<T> {
         // 長軸と短軸を入れ替える（90度回転も含む）
         Self::new(
             self.center(),
-            self.semi_minor_axis(), // 短軸が新しい長軸
-            self.semi_major_axis(), // 長軸が新しい短軸
+            self.semi_minor_axis(),                      // 短軸が新しい長軸
+            self.semi_major_axis(),                      // 長軸が新しい短軸
             self.rotation() + T::PI / (T::ONE + T::ONE), // 90度回転
         )
     }
@@ -289,8 +284,9 @@ impl<T: Scalar> Ellipse2D<T> {
         }
 
         // e = sqrt(1 - (b/a)^2) から b = a * sqrt(1 - e^2) を計算
-        let new_minor = self.semi_major_axis() * (T::ONE - target_eccentricity * target_eccentricity).sqrt();
-        
+        let new_minor =
+            self.semi_major_axis() * (T::ONE - target_eccentricity * target_eccentricity).sqrt();
+
         Self::new(
             self.center(),
             self.semi_major_axis(),

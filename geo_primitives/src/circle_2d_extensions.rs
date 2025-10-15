@@ -73,8 +73,6 @@ impl<T: Scalar> Circle2D<T> {
         )
     }
 
-
-
     // ========================================================================
     // Transformation Methods (Extension)
     // ========================================================================
@@ -167,14 +165,11 @@ impl<T: Scalar> Circle2D<T> {
 
         let center_distance = self.center().distance_to(&other.center());
         let required_distance = self.radius() + other.radius();
-        
+
         if center_distance < T::EPSILON {
             // 同心円の場合は少しずらす
             let offset = Vector2D::new(required_distance / (T::ONE + T::ONE), T::ZERO);
-            return Some((
-                self.translate(offset.negate()),
-                other.translate(offset),
-            ));
+            return Some((self.translate(offset.negate()), other.translate(offset)));
         }
 
         let direction = Vector2D::from_points(self.center(), other.center()).normalize();
@@ -184,10 +179,7 @@ impl<T: Scalar> Circle2D<T> {
         let self_offset = direction * (-half_separation);
         let other_offset = direction * half_separation;
 
-        Some((
-            self.translate(self_offset),
-            other.translate(other_offset),
-        ))
+        Some((self.translate(self_offset), other.translate(other_offset)))
     }
 
     /// Foundation Intersection統合での複数円の中心計算

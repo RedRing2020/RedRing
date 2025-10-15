@@ -3,12 +3,18 @@
 //! マーカーInterface + 段階的Foundation実装
 
 use geo_foundation::core::{
-    // マーカーInterface
-    GeometryShape, Shape2D, SurfaceShape, ParametricShape,
-    // 段階的Foundation
-    DataAccess, BasicMeasurement, BasicContainment, BasicParametric,
+    BasicContainment,
+    BasicMeasurement,
+    BasicParametric,
     // 特化Foundation
     CircularFoundation,
+    // 段階的Foundation
+    DataAccess,
+    // マーカーInterface
+    GeometryShape,
+    ParametricShape,
+    Shape2D,
+    SurfaceShape,
 };
 use geo_foundation::Scalar;
 
@@ -43,7 +49,7 @@ impl<T: Scalar> BasicMeasurement<T> for Circle2D<T> {
     fn area(&self) -> Option<T> {
         Some(T::PI * self.radius * self.radius)
     }
-    
+
     fn perimeter(&self) -> Option<T> {
         Some(T::TAU * self.radius)
     }
@@ -55,7 +61,7 @@ impl<T: Scalar> BasicContainment<T> for Circle2D<T> {
         let distance = self.center.distance_to(point);
         distance <= self.radius
     }
-    
+
     fn distance_to_point(&self, point: &Self::Point) -> T {
         let center_distance = self.center.distance_to(point);
         if center_distance <= self.radius {
@@ -73,7 +79,7 @@ impl<T: Scalar> BasicParametric<T> for Circle2D<T> {
         let y = self.center.y() + self.radius * t.sin();
         Point2D::new(x, y)
     }
-    
+
     fn tangent_at_parameter(&self, t: T) -> Self::Vector {
         let dx = -self.radius * t.sin();
         let dy = self.radius * t.cos();
@@ -86,7 +92,7 @@ impl<T: Scalar> CircularFoundation<T> for Circle2D<T> {
     fn center(&self) -> Self::Point {
         self.center
     }
-    
+
     fn radius(&self) -> T {
         self.radius
     }
