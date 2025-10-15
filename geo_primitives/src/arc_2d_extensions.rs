@@ -62,7 +62,12 @@ impl<T: Scalar> Arc2D<T> {
         let start_angle = start_dir.y().atan2(start_dir.x());
         let end_angle = end_dir.y().atan2(end_dir.x());
 
-        let circle = Circle2D::new(center, radius)?;
+        let center_f64 = geo_foundation::abstracts::Point2D::new(
+            center.x().to_f64().unwrap_or(0.0),
+            center.y().to_f64().unwrap_or(0.0),
+        );
+        let radius_f64 = radius.to_f64().unwrap_or(0.0);
+        let circle = Circle2D::new(center_f64, radius_f64)?;
         Self::new(
             circle,
             Angle::from_radians(start_angle),
@@ -113,9 +118,13 @@ impl<T: Scalar> Arc2D<T> {
     // ========================================================================
 
     /// Circle2D に変換（完全円の場合のみ）
-    pub fn to_circle(&self) -> Option<Circle2D<T>> {
+    pub fn to_circle(&self) -> Option<Circle2D> {
         if self.is_full_circle() {
-            Circle2D::new(self.center(), self.radius())
+            let center_f64 = geo_foundation::abstracts::Point2D::new(
+                self.center().x().to_f64().unwrap_or(0.0),
+                self.center().y().to_f64().unwrap_or(0.0),
+            );
+            Circle2D::new(center_f64, self.radius())
         } else {
             None
         }

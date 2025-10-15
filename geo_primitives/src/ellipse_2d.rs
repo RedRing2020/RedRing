@@ -1,15 +1,9 @@
-//! 2次元楕円（Ellipse2D）の Core 実装
+//! 2次元楕円（Ellipse2D）の新実装
 //!
-//! Core Foundation パターンに基づく Ellipse2D の必須機能のみ
-//! 拡張機能は ellipse_2d_extensions.rs を参照
+//! 新しいtraitsシステムに対応したEllipse2Dの実装
 
 use crate::{BBox2D, Circle2D, Point2D, Vector2D};
-use geo_foundation::{
-    abstract_types::geometry::core_foundation::{
-        BasicContainment, BasicMetrics, BasicParametric, CoreFoundation,
-    },
-    Scalar,
-};
+use geo_foundation::Scalar;
 
 /// 2次元楕円
 ///
@@ -52,19 +46,19 @@ impl<T: Scalar> Ellipse2D<T> {
         }
     }
 
-    /// 軸が整列した楕円を作成（回転なし）
-    pub fn axis_aligned(center: Point2D<T>, semi_major: T, semi_minor: T) -> Option<Self> {
-        Self::new(center, semi_major, semi_minor, T::ZERO)
-    }
-
     /// 円から楕円を作成
-    pub fn from_circle(circle: &Circle2D<T>) -> Self {
+    pub fn from_circle(circle: Circle2D<T>) -> Self {
         Self {
             center: circle.center(),
             semi_major: circle.radius(),
             semi_minor: circle.radius(),
             rotation: T::ZERO,
         }
+    }
+
+    /// 軸に平行な楕円を作成（回転なし）
+    pub fn axis_aligned(center: Point2D<T>, semi_major: T, semi_minor: T) -> Option<Self> {
+        Self::new(center, semi_major, semi_minor, T::ZERO)
     }
 
     // ========================================================================
@@ -77,189 +71,208 @@ impl<T: Scalar> Ellipse2D<T> {
     }
 
     /// 長半軸を取得
-    pub fn semi_major_axis(&self) -> T {
+    pub fn semi_major(&self) -> T {
         self.semi_major
     }
 
     /// 短半軸を取得
-    pub fn semi_minor_axis(&self) -> T {
+    pub fn semi_minor(&self) -> T {
         self.semi_minor
     }
 
-    /// 回転角を取得
+    /// 回転角を取得（ラジアン）
     pub fn rotation(&self) -> T {
         self.rotation
     }
 
-    // ========================================================================
-    // Core Metrics Methods
-    // ========================================================================
+    /// 長軸の長さを取得
+    pub fn major_axis(&self) -> T {
+        self.semi_major * (T::ONE + T::ONE)
+    }
 
-    /// 面積を計算
+    /// 短軸の長さを取得
+    pub fn minor_axis(&self) -> T {
+        self.semi_minor * (T::ONE + T::ONE)
+    }
+
+    /// 離心率を取得
+    pub fn eccentricity(&self) -> T {
+        if self.semi_major == T::ZERO {
+            return T::ZERO;
+        }
+
+        let e_squared =
+            T::ONE - (self.semi_minor * self.semi_minor) / (self.semi_major * self.semi_major);
+        if e_squared <= T::ZERO {
+            T::ZERO
+        } else {
+            e_squared.sqrt()
+        }
+    }
+
+    /// 面積を取得
     pub fn area(&self) -> T {
         T::PI * self.semi_major * self.semi_minor
     }
 
-    /// 周長を近似計算（ラマヌジャンの公式）
+    /// 周囲長を取得（ラマヌジャンの近似式）
     pub fn perimeter(&self) -> T {
         let a = self.semi_major;
         let b = self.semi_minor;
         let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
-        let three = T::from_f64(3.0);
-        let ten = T::from_f64(10.0);
-        let four = T::from_f64(4.0);
+
+        // ラマヌジャンの第二近似式の簡易版
+        let three = T::ONE + T::ONE + T::ONE;
+        let ten = three + three + three + T::ONE;
+        let four = T::ONE + T::ONE + T::ONE + T::ONE;
 
         T::PI * (a + b) * (T::ONE + (three * h) / (ten + (four - three * h).sqrt()))
     }
 
     // ========================================================================
-    // Core Parametric Methods
+    // Core Geometric Methods
     // ========================================================================
 
-    /// パラメータ t での点を取得（0 <= t <= 2π）
+    /// 点が楕円内に含まれるかを判定
+    pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
+        let distance_to_boundary = self.distance_to_point(point);
+        distance_to_boundary <= tolerance
+    }
+
+    /// 点から楕円境界への最短距離
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
+        // 楕円の中心を原点とする座標系に変換
+        let translated = Point2D::new(point.x() - self.center.x(), point.y() - self.center.y());
+
+        // 回転を考慮した座標変換
+        let cos_theta = self.rotation.cos();
+        let sin_theta = self.rotation.sin();
+
+        let x_rot = translated.x() * cos_theta + translated.y() * sin_theta;
+        let y_rot = -translated.x() * sin_theta + translated.y() * cos_theta;
+
+        // 正規化された楕円座標での距離計算
+        let x_norm = x_rot / self.semi_major;
+        let y_norm = y_rot / self.semi_minor;
+        let normalized_distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
+
+        if normalized_distance <= T::ONE {
+            // 点が楕円内部にある場合
+            T::ZERO
+        } else {
+            // 点が楕円外部にある場合の近似距離
+            // より正確な計算には数値的手法が必要
+            let scale = T::ONE / normalized_distance;
+            let boundary_x = x_rot * scale;
+            let boundary_y = y_rot * scale;
+
+            ((x_rot - boundary_x) * (x_rot - boundary_x)
+                + (y_rot - boundary_y) * (y_rot - boundary_y))
+                .sqrt()
+        }
+    }
+
+    /// パラメータ t での点を取得（0 <= t < 2π）
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
         let cos_t = t.cos();
         let sin_t = t.sin();
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
 
-        // 楕円上の点（ローカル座標）
-        let local_x = self.semi_major * cos_t;
-        let local_y = self.semi_minor * sin_t;
+        // 楕円上の点（回転前）
+        let x_local = self.semi_major * cos_t;
+        let y_local = self.semi_minor * sin_t;
 
-        // 回転変換
-        let rotated_x = local_x * cos_rot - local_y * sin_rot;
-        let rotated_y = local_x * sin_rot + local_y * cos_rot;
+        // 回転を適用
+        let cos_theta = self.rotation.cos();
+        let sin_theta = self.rotation.sin();
 
-        // 中心への平行移動
-        Point2D::new(self.center.x() + rotated_x, self.center.y() + rotated_y)
+        let x_rotated = x_local * cos_theta - y_local * sin_theta;
+        let y_rotated = x_local * sin_theta + y_local * cos_theta;
+
+        // 中心を考慮した最終座標
+        Point2D::new(self.center.x() + x_rotated, self.center.y() + y_rotated)
     }
 
     /// パラメータ t での接線ベクトルを取得
     pub fn tangent_at_parameter(&self, t: T) -> Vector2D<T> {
         let cos_t = t.cos();
         let sin_t = t.sin();
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
 
-        // 接線ベクトル（ローカル座標）
-        let local_dx = -self.semi_major * sin_t;
-        let local_dy = self.semi_minor * cos_t;
+        // 楕円の接線ベクトル（回転前）
+        let dx_local = -self.semi_major * sin_t;
+        let dy_local = self.semi_minor * cos_t;
 
-        // 回転変換
-        let rotated_dx = local_dx * cos_rot - local_dy * sin_rot;
-        let rotated_dy = local_dx * sin_rot + local_dy * cos_rot;
+        // 回転を適用
+        let cos_theta = self.rotation.cos();
+        let sin_theta = self.rotation.sin();
 
-        Vector2D::new(rotated_dx, rotated_dy)
+        let dx_rotated = dx_local * cos_theta - dy_local * sin_theta;
+        let dy_rotated = dx_local * sin_theta + dy_local * cos_theta;
+
+        Vector2D::new(dx_rotated, dy_rotated)
     }
 
-    // ========================================================================
-    // Core Containment Methods
-    // ========================================================================
-
-    /// 点が楕円内部にあるかを判定
-    pub fn contains_point(&self, point: &Point2D<T>) -> bool {
-        // 中心からの相対位置
-        let rel_x = point.x() - self.center.x();
-        let rel_y = point.y() - self.center.y();
-
-        // 回転の逆変換
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
-        let local_x = rel_x * cos_rot + rel_y * sin_rot;
-        let local_y = -rel_x * sin_rot + rel_y * cos_rot;
-
-        // 楕円の方程式: (x/a)² + (y/b)² <= 1
-        let term_x = local_x / self.semi_major;
-        let term_y = local_y / self.semi_minor;
-        term_x * term_x + term_y * term_y <= T::ONE
-    }
-
-    /// 点から楕円への最短距離を近似計算
-    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        // 中心からの相対位置
-        let rel_x = point.x() - self.center.x();
-        let rel_y = point.y() - self.center.y();
-
-        // 回転の逆変換
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
-        let local_x = rel_x * cos_rot + rel_y * sin_rot;
-        let local_y = -rel_x * sin_rot + rel_y * cos_rot;
-
-        // 楕円の標準形での距離計算（近似）
-        // 正確な計算は複雑なので、最も近い楕円上の点を求める簡略化
-        let t = local_y.atan2(local_x); // 角度の近似
-        let ellipse_point = self.point_at_parameter(t);
-        point.distance_to(&ellipse_point)
-    }
-
-    /// 境界ボックスを計算
+    /// 境界ボックスを取得
     pub fn bounding_box(&self) -> BBox2D<T> {
-        // 回転を考慮した境界ボックス計算
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
+        // 回転を考慮した楕円の境界ボックス計算
+        let cos_theta = self.rotation.cos();
+        let sin_theta = self.rotation.sin();
 
-        let a_cos = self.semi_major * cos_rot;
-        let a_sin = self.semi_major * sin_rot;
-        let b_cos = self.semi_minor * cos_rot;
-        let b_sin = self.semi_minor * sin_rot;
+        let a = self.semi_major;
+        let b = self.semi_minor;
 
-        let width = (a_cos * a_cos + b_sin * b_sin).sqrt();
-        let height = (a_sin * a_sin + b_cos * b_cos).sqrt();
+        // 回転楕円の幅と高さ
+        let width = ((a * cos_theta) * (a * cos_theta) + (b * sin_theta) * (b * sin_theta)).sqrt();
+        let height = ((a * sin_theta) * (a * sin_theta) + (b * cos_theta) * (b * cos_theta)).sqrt();
 
-        BBox2D::new(
-            Point2D::new(self.center.x() - width, self.center.y() - height),
-            Point2D::new(self.center.x() + width, self.center.y() + height),
+        BBox2D::from_center_size(
+            self.center,
+            width * (T::ONE + T::ONE),
+            height * (T::ONE + T::ONE),
         )
     }
+
+    // ========================================================================
+    // Conversion Methods
+    // ========================================================================
+
+    /// 円に変換（可能な場合）
+    pub fn to_circle(&self) -> Option<Circle2D<T>> {
+        if (self.semi_major - self.semi_minor).abs() <= T::EPSILON {
+            Circle2D::new(self.center, self.semi_major)
+        } else {
+            None
+        }
+    }
+
+    /// 楕円が円かどうかを判定
+    pub fn is_circle(&self, tolerance: T) -> bool {
+        (self.semi_major - self.semi_minor).abs() <= tolerance
+    }
 }
 
 // ============================================================================
-// Core Foundation Trait Implementations
+// Helper Methods
 // ============================================================================
 
-impl<T: Scalar> CoreFoundation<T> for Ellipse2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        self.bounding_box()
-    }
-}
-
-impl<T: Scalar> BasicMetrics<T> for Ellipse2D<T> {
-    fn length(&self) -> Option<T> {
-        Some(self.perimeter())
-    }
-}
-
-impl<T: Scalar> BasicContainment<T> for Ellipse2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self.contains_point(point)
-    }
-
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
+impl<T: Scalar> Ellipse2D<T> {
+    /// 境界上の点かどうかを判定
+    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         let distance = self.distance_to_point(point);
         distance <= tolerance
     }
 
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        self.distance_to_point(point)
-    }
-}
-
-impl<T: Scalar> BasicParametric<T> for Ellipse2D<T> {
-    fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::TAU)
+    /// パラメータ範囲を取得
+    pub fn parameter_range(&self) -> (T, T) {
+        (T::ZERO, T::TAU) // 0 から 2π
     }
 
-    fn point_at_parameter(&self, t: T) -> Self::Point {
-        self.point_at_parameter(t)
+    /// 長軸方向の単位ベクトルを取得
+    pub fn major_axis_direction(&self) -> Vector2D<T> {
+        Vector2D::new(self.rotation.cos(), self.rotation.sin())
     }
 
-    fn tangent_at_parameter(&self, t: T) -> Self::Vector {
-        self.tangent_at_parameter(t)
+    /// 短軸方向の単位ベクトルを取得
+    pub fn minor_axis_direction(&self) -> Vector2D<T> {
+        Vector2D::new(-self.rotation.sin(), self.rotation.cos())
     }
 }

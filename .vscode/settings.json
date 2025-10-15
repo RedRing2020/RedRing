@@ -95,7 +95,7 @@
   "git.enableSmartCommit": true,
 
   // === Workspace-Specific Settings ===
-  "workbench.colorTheme": "Default Dark+",
+  "workbench.colorTheme": "PowerShell ISE",
   "workbench.iconTheme": "vs-seti",
   "breadcrumbs.enabled": true,
   "explorer.confirmDelete": false,

@@ -4,10 +4,7 @@
 //! 拡張機能は bbox_2d_extensions.rs を参照
 
 use crate::Point2D;
-use geo_foundation::{
-    abstract_types::geometry::core_foundation::{BasicContainment, BasicMetrics, CoreFoundation},
-    Scalar,
-};
+use geo_foundation::Scalar;
 
 /// 2次元軸平行境界ボックス
 ///
@@ -196,33 +193,22 @@ impl<T: Scalar> BBox2D<T> {
 }
 
 // ============================================================================
-// Core Foundation Trait Implementations
+// Helper Methods (Foundation traits converted to methods)
 // ============================================================================
 
-impl<T: Scalar> CoreFoundation<T> for BBox2D<T> {
-    type Point = Point2D<T>;
-    type Vector = crate::Vector2D<T>;
-    type BBox = BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
+impl<T: Scalar> BBox2D<T> {
+    /// 境界ボックスの境界ボックス（自分自身）
+    pub fn bounding_box(&self) -> Self {
         *self
     }
-}
 
-impl<T: Scalar> BasicMetrics<T> for BBox2D<T> {
-    fn length(&self) -> Option<T> {
-        // 境界ボックスの場合、周囲長を返す
-        let perimeter = (self.width() + self.height()) * (T::ONE + T::ONE);
-        Some(perimeter)
-    }
-}
-
-impl<T: Scalar> BasicContainment<T> for BBox2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self.contains_point(point)
+    /// 周囲長を取得
+    pub fn perimeter(&self) -> T {
+        (self.width() + self.height()) * (T::ONE + T::ONE)
     }
 
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
+    /// 境界上かどうかの判定
+    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         // 境界上かどうかの判定
         if !self.contains_point(point) {
             return false;
@@ -238,9 +224,5 @@ impl<T: Scalar> BasicContainment<T> for BBox2D<T> {
             || dist_to_right <= tolerance
             || dist_to_bottom <= tolerance
             || dist_to_top <= tolerance
-    }
-
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        self.distance_to_point(point)
     }
 }

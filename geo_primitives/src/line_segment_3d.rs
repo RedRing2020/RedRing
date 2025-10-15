@@ -3,8 +3,8 @@
 //! foundation.rs の基盤トレイトに基づく LineSegment3D の実装
 //! InfiniteLine3D を内部活用
 
-use crate::{BBox3D, InfiniteLine3D, Point3D, Vector3D};
-use geo_foundation::{abstract_types::foundation::core_foundation::*, Scalar};
+use crate::{InfiniteLine3D, Point3D, Vector3D};
+use geo_foundation::Scalar;
 
 /// 3次元空間の線分
 ///
@@ -252,7 +252,8 @@ impl<T: Scalar> LineSegment3D<T> {
 
 // === foundation トレイト実装 ===
 
-impl<T: Scalar> CoreFoundation<T> for LineSegment3D<T> {
+// TODO: Foundation traits need migration to new traits system
+/*
     type Point = Point3D<T>;
     type Vector = Vector3D<T>;
     type BBox = BBox3D<T>;
@@ -331,3 +332,5 @@ impl<T: Scalar> BasicDirectional<T> for LineSegment3D<T> {
         self.reverse()
     }
 }
+
+*/

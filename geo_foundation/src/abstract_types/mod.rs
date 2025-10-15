@@ -1,17 +1,25 @@
-//! 抽象型定義モジュール - Foundation統一アーキテクチャ
+//! 移行互換モジュール - 廃止予定
 //!
-//! 設計統一アプローチによる構造化された幾何Foundation システム
+//! 新しい構造:
+//! - `traits` - Foundation操作トレイト群  
+//! - `abstracts` - 最小責務抽象化
+//! - `geometry` - 基本幾何Foundation
 
-// Foundation Pattern - 統一基盤システム
-pub mod foundation;
+// 下位互換性のための移行aliasモジュール
+pub mod foundation {
+    pub use crate::geometry::*;
+    pub use crate::traits::*;
+}
 
-// Abstract Traits - 最小責務抽象化
-pub mod abstracts;
+pub mod abstracts {
+    pub use crate::abstracts::*;
+}
 
-// Legacy geometry module (段階的移行中)
-pub mod geometry;
+pub mod geometry {
+    pub use crate::geometry::*;
+}
 
-// Re-exports for convenience (specific to avoid ambiguity)
+// Re-exports for backward compatibility
 pub use abstracts::Arc2D;
 pub use foundation::{
     AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,

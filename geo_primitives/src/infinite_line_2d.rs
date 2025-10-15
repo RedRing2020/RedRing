@@ -1,14 +1,9 @@
-﻿//! 2次元無限直線（InfiniteLine2D）の新実装
+//! 2次元無限直線（InfiniteLine2D）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく InfiniteLine2D の実装
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::{
-    abstract_types::geometry::core_foundation::{
-        BasicContainment, BasicDirectional, BasicParametric, CoreFoundation,
-    },
-    Scalar,
-};
+use geo_foundation::Scalar;
 
 /// 2次元無限直線
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -246,17 +241,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         }
     }
 
-    /// 境界ボックスを取得（無限大の範囲として表現）
-    pub fn bounding_box(&self) -> crate::BBox2D<T> {
-        // 無限直線の境界ボックスは理論上無限大
-        // 実用的な大きな値を使用
-        let large_value = T::from_f64(1e6);
-        crate::BBox2D::new(
-            Point2D::new(-large_value, -large_value),
-            Point2D::new(large_value, large_value),
-        )
-    }
-
     /// 3次元無限直線に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::InfiniteLine3D<T> {
         crate::InfiniteLine3D::new(self.point.to_3d(), self.direction.to_3d()).unwrap()
@@ -269,59 +253,38 @@ impl<T: Scalar> InfiniteLine2D<T> {
 }
 
 // ============================================================================
-// Foundation Trait Implementations
+// Helper Methods (Foundation traits converted to methods)
 // ============================================================================
 
-impl<T: Scalar> CoreFoundation<T> for InfiniteLine2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = crate::BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        self.bounding_box()
-    }
-}
-
-impl<T: Scalar> BasicContainment<T> for InfiniteLine2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self.contains_point(point, T::EPSILON)
+impl<T: Scalar> InfiniteLine2D<T> {
+    /// 境界ボックスを取得（起点を含む十分大きな範囲）
+    pub fn bounding_box(&self) -> crate::BBox2D<T> {
+        // 無限直線なので実用的な大きさの境界ボックスを生成
+        let large_value = T::from_f64(1000.0);
+        crate::BBox2D::<T>::from_center_size(self.point, large_value, large_value)
     }
 
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
-    }
-
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        InfiniteLine2D::distance_to_point(self, point)
-    }
-}
-
-impl<T: Scalar> BasicDirectional<T> for InfiniteLine2D<T> {
-    type Direction = Vector2D<T>;
-
-    fn direction(&self) -> Self::Direction {
-        self.direction
-    }
-
-    fn reverse_direction(&self) -> Self {
+    /// 方向を反転
+    pub fn reverse_direction(&self) -> Self {
         self.reverse()
     }
-}
 
-impl<T: Scalar> BasicParametric<T> for InfiniteLine2D<T> {
-    fn parameter_range(&self) -> (T, T) {
+    /// パラメータ範囲を取得
+    pub fn parameter_range(&self) -> (T, T) {
         // 無限直線なので理論上は (-∞, +∞)
         // 実用的な大きな値を使用
         let large_value = T::from_f64(1e6);
         (-large_value, large_value)
     }
 
-    fn point_at_parameter(&self, t: T) -> Self::Point {
-        InfiniteLine2D::point_at_parameter(self, t)
-    }
-
-    fn tangent_at_parameter(&self, _t: T) -> Self::Vector {
+    /// 接線ベクトルを取得
+    pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // 直線の接線ベクトルは方向ベクトルと同じ
         self.direction
+    }
+
+    /// 境界上判定（直線では点上判定と同じ）
+    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
+        self.contains_point(point, tolerance)
     }
 }

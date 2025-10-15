@@ -13,7 +13,7 @@
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::foundation::core_foundation::*, Scalar};
+use geo_foundation::Scalar;
 
 /// 2次元半無限直線
 ///
@@ -115,59 +115,45 @@ impl<T: Scalar> Ray2D<T> {
     }
 }
 
-// Core Foundation トレイト実装
-impl<T: Scalar> CoreFoundation<T> for Ray2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = crate::BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
+// === Helper methods ===
+impl<T: Scalar> Ray2D<T> {
+    /// 境界ボックスを取得（起点のみ）
+    pub fn bounding_box(&self) -> crate::BBox2D<T> {
         // Ray は無限なので、境界ボックスは起点のみで構成
         // 実際の用途では適切な範囲を指定する必要がある
-        Self::BBox::from_point(self.origin)
+        crate::BBox2D::<T>::from_point(self.origin)
     }
-}
 
-impl<T: Scalar> BasicParametric<T> for Ray2D<T> {
-    fn point_at_parameter(&self, t: T) -> Self::Point {
-        // Ray では t >= 0 のみ有効だが、トレイトでは制限なし
+    /// パラメータ位置の点を取得
+    pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
+        // Ray では t >= 0 のみ有効だが、計算上は制限なし
         self.origin + self.direction * t
     }
 
-    fn parameter_range(&self) -> (T, T) {
+    /// パラメータ範囲を取得
+    pub fn parameter_range(&self) -> (T, T) {
         // Ray のパラメータ範囲は [0, ∞)
         (T::ZERO, T::INFINITY)
     }
 
-    fn tangent_at_parameter(&self, _t: T) -> Self::Vector {
+    /// 接線方向を取得
+    pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // Ray の接線方向は一定（方向ベクトル）
         self.direction
     }
-}
 
-impl<T: Scalar> BasicDirectional<T> for Ray2D<T> {
-    type Direction = Vector2D<T>;
-
-    fn direction(&self) -> Self::Direction {
-        self.direction
-    }
-
-    fn reverse_direction(&self) -> Self {
+    /// 方向を反転
+    pub fn reverse_direction(&self) -> Self {
         Self::new(self.origin, -self.direction).unwrap()
     }
-}
 
-impl<T: Scalar> BasicContainment<T> for Ray2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self.contains_point(point, T::EPSILON)
-    }
-
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
-        // Ray では境界とは Ray 上の点と同じ
+    /// 境界上判定（Rayでは点上判定と同じ）
+    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.contains_point(point, tolerance)
     }
 
-    fn distance_to_point(&self, point: &Self::Point) -> T {
+    /// 点からの距離
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         let t = self.parameter_for_point(point);
 
         if t >= T::ZERO {

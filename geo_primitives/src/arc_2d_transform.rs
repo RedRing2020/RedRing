@@ -5,7 +5,7 @@
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Vector2D};
 use geo_foundation::{
-    abstract_types::geometry::{AdvancedTransform, BasicTransform, TransformHelpers},
+    traits::{AdvancedTransform, BasicTransform, TransformHelpers},
     Angle, Scalar,
 };
 

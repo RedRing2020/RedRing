@@ -3,7 +3,7 @@
 //! foundation.rs の基盤トレイトに基づく Vector3D の実装
 
 use crate::{BBox3D, Point3D};
-use geo_foundation::{abstract_types::foundation::core_foundation::*, Scalar};
+use geo_foundation::Scalar;
 
 /// 3次元ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -149,15 +149,10 @@ impl<T: Scalar> std::ops::Sub for Vector3D<T> {
     }
 }
 
-// === foundation トレイト実装 ===
-
-impl<T: Scalar> CoreFoundation<T> for Vector3D<T> {
-    type Point = Point3D<T>;
-    type Vector = Self;
-    type BBox = BBox3D<T>;
-
+// === Helper methods ===
+impl<T: Scalar> Vector3D<T> {
     /// ベクトルの境界ボックス（原点と終点を含む）
-    fn bounding_box(&self) -> Self::BBox {
+    pub fn bounding_box(&self) -> BBox3D<T> {
         let origin = Point3D::<T>::origin();
         let end_point = self.to_point();
 
@@ -173,25 +168,14 @@ impl<T: Scalar> CoreFoundation<T> for Vector3D<T> {
             Point3D::new(max_x, max_y, max_z),
         )
     }
-}
-
-impl<T: Scalar> BasicMetrics<T> for Vector3D<T> {
-    /// ベクトルの長さ
-    fn length(&self) -> Option<T> {
-        Some(self.length())
-    }
-}
-
-impl<T: Scalar> BasicDirectional<T> for Vector3D<T> {
-    type Direction = Self;
 
     /// 方向（正規化されたベクトル）
-    fn direction(&self) -> Self::Direction {
+    pub fn direction(&self) -> Self {
         self.normalize().unwrap_or_else(|| Self::unit_x()) // デフォルトは X 軸方向
     }
 
     /// 方向を反転
-    fn reverse_direction(&self) -> Self {
+    pub fn reverse_direction(&self) -> Self {
         self.negate()
     }
 }

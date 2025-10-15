@@ -2,8 +2,8 @@
 //!
 //! foundation.rs の基盤トレイトに基づく Point3D の実装
 
-use crate::{BBox3D, Vector3D};
-use geo_foundation::{abstract_types::foundation::core_foundation::*, Scalar};
+use crate::Vector3D;
+use geo_foundation::Scalar;
 
 /// 3次元空間の点
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,33 +53,16 @@ impl<T: Scalar> Point3D<T> {
     }
 }
 
-// === foundation トレイト実装 ===
-
-impl<T: Scalar> CoreFoundation<T> for Point3D<T> {
-    type Point = Self;
-    type Vector = Vector3D<T>;
-    type BBox = BBox3D<T>;
-
-    /// 点の境界ボックス = 点自身
-    fn bounding_box(&self) -> Self::BBox {
-        BBox3D::from_point(*self)
-    }
-}
-
-impl<T: Scalar> BasicContainment<T> for Point3D<T> {
-    /// 点が自分自身と一致するかを判定
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self == point
-    }
-
+// === Distance calculation methods ===
+impl<T: Scalar> Point3D<T> {
     /// 点が境界上（許容誤差内）にあるかを判定
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
+    pub fn on_boundary(&self, point: &Self, tolerance: T) -> bool {
         self.distance_to(point) <= tolerance
     }
 
-    /// 点から点への距離
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        self.distance_to(point)
+    /// 点が自分自身と一致するかを判定
+    pub fn contains_point(&self, point: &Self) -> bool {
+        self == point
     }
 }
 

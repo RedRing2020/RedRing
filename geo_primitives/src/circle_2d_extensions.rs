@@ -73,11 +73,7 @@ impl<T: Scalar> Circle2D<T> {
         )
     }
 
-    /// 点が円上にあるかを判定
-    pub fn contains_point_on_circle(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        let distance = self.center().distance_to(point);
-        (distance - self.radius()).abs() <= tolerance
-    }
+
 
     // ========================================================================
     // Transformation Methods (Extension)
@@ -143,5 +139,87 @@ impl<T: Scalar> Circle2D<T> {
             self.radius(),
         )
         .unwrap()
+    }
+
+    // ========================================================================
+    // Foundation Integration Methods (Extension)
+    // ========================================================================
+
+    /// Foundation Transform統合での高度な変換
+    pub fn foundation_scale_from_point(&self, point: Point2D<T>, factor: T) -> Option<Self> {
+        if factor <= T::ZERO {
+            return None;
+        }
+
+        // アフィン変換: center' = point + (center - point) * factor
+        let offset = Vector2D::from_points(point, self.center());
+        let new_center = point + (offset * factor);
+        let new_radius = self.radius() * factor;
+
+        Self::new(new_center, new_radius)
+    }
+
+    /// Foundation Collision統合での円同士の衝突解決
+    pub fn foundation_resolve_collision(&self, other: &Self) -> Option<(Self, Self)> {
+        if !self.intersects_circle(other) {
+            return None;
+        }
+
+        let center_distance = self.center().distance_to(&other.center());
+        let required_distance = self.radius() + other.radius();
+        
+        if center_distance < T::EPSILON {
+            // 同心円の場合は少しずらす
+            let offset = Vector2D::new(required_distance / (T::ONE + T::ONE), T::ZERO);
+            return Some((
+                self.translate(offset.negate()),
+                other.translate(offset),
+            ));
+        }
+
+        let direction = Vector2D::from_points(self.center(), other.center()).normalize();
+        let separation = required_distance - center_distance;
+        let half_separation = separation / (T::ONE + T::ONE);
+
+        let self_offset = direction * (-half_separation);
+        let other_offset = direction * half_separation;
+
+        Some((
+            self.translate(self_offset),
+            other.translate(other_offset),
+        ))
+    }
+
+    /// Foundation Intersection統合での複数円の中心計算
+    pub fn foundation_weighted_center(&self, others: &[Self], weights: &[T]) -> Option<Point2D<T>> {
+        if others.len() != weights.len() {
+            return None;
+        }
+
+        let mut total_weight = T::ZERO;
+        let mut weighted_x = T::ZERO;
+        let mut weighted_y = T::ZERO;
+
+        // 自分の重み（半径に基づく）
+        let self_weight = self.radius();
+        total_weight = total_weight + self_weight;
+        weighted_x = weighted_x + (self.center().x() * self_weight);
+        weighted_y = weighted_y + (self.center().y() * self_weight);
+
+        // 他の円の重み付き中心
+        for (circle, &weight) in others.iter().zip(weights) {
+            total_weight = total_weight + weight;
+            weighted_x = weighted_x + (circle.center().x() * weight);
+            weighted_y = weighted_y + (circle.center().y() * weight);
+        }
+
+        if total_weight > T::EPSILON {
+            Some(Point2D::new(
+                weighted_x / total_weight,
+                weighted_y / total_weight,
+            ))
+        } else {
+            None
+        }
     }
 }
