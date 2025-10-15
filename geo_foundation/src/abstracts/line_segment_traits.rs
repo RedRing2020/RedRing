@@ -17,7 +17,7 @@ pub trait LineSegment2D<T: Scalar>: InfiniteLine2D<T> {
     /// 線分の開始点を取得
     fn start_point(&self) -> Self::Point;
 
-    /// 線分の終了点を取得  
+    /// 線分の終了点を取得
     fn end_point(&self) -> Self::Point;
 
     /// 線分の長さを取得
@@ -26,7 +26,7 @@ pub trait LineSegment2D<T: Scalar>: InfiniteLine2D<T> {
     /// 無限直線上での開始パラメータ
     fn start_parameter(&self) -> T;
 
-    /// 無限直線上での終了パラメータ  
+    /// 無限直線上での終了パラメータ
     fn end_parameter(&self) -> T;
 }
 

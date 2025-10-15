@@ -1,7 +1,7 @@
 //! 移行互換モジュール - 廃止予定
 //!
 //! 新しい構造:
-//! - `traits` - Foundation操作トレイト群  
+//! - `traits` - Foundation操作トレイト群
 //! - `abstracts` - 最小責務抽象化
 //! - `geometry` - 基本幾何Foundation
 
