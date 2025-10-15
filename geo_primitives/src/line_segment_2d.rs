@@ -4,12 +4,7 @@
 //! 拡張機能は line_segment_2d_extensions.rs を参照
 
 use crate::{BBox2D, InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::{
-    abstract_types::geometry::core_foundation::{
-        BasicContainment, BasicDirectional, BasicMetrics, BasicParametric, CoreFoundation,
-    },
-    Scalar,
-};
+use geo_foundation::Scalar;
 
 /// 2次元平面の線分
 ///
@@ -197,66 +192,32 @@ impl<T: Scalar> LineSegment2D<T> {
 }
 
 // ============================================================================
-// Core Foundation Trait Implementations
+// ============================================================================
+// Helper Methods (Foundation traits converted to methods)
 // ============================================================================
 
-impl<T: Scalar> CoreFoundation<T> for LineSegment2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        self.bounding_box()
-    }
-}
-
-impl<T: Scalar> BasicMetrics<T> for LineSegment2D<T> {
-    fn length(&self) -> Option<T> {
-        Some(LineSegment2D::length(self))
-    }
-}
-
-impl<T: Scalar> BasicDirectional<T> for LineSegment2D<T> {
-    type Direction = Vector2D<T>;
-
-    fn direction(&self) -> Self::Direction {
-        self.direction()
-    }
-
-    fn reverse_direction(&self) -> Self {
+impl<T: Scalar> LineSegment2D<T> {
+    /// 方向を反転
+    pub fn reverse_direction(&self) -> Self {
         Self {
             line: self.line,
             start_param: self.end_param,
             end_param: self.start_param,
         }
     }
-}
 
-impl<T: Scalar> BasicContainment<T> for LineSegment2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        let tolerance = T::EPSILON;
-        self.contains_point(point, tolerance)
-    }
-
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
-    }
-
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        self.distance_to_point(point)
-    }
-}
-
-impl<T: Scalar> BasicParametric<T> for LineSegment2D<T> {
-    fn parameter_range(&self) -> (T, T) {
+    /// パラメータ範囲を取得
+    pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::ONE)
     }
 
-    fn point_at_parameter(&self, t: T) -> Self::Point {
-        self.point_at_normalized_parameter(t)
+    /// 接線ベクトルを取得
+    pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
+        self.direction()
     }
 
-    fn tangent_at_parameter(&self, _t: T) -> Self::Vector {
-        self.direction()
+    /// 境界上判定（線分では点上判定と同じ）
+    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
+        self.contains_point(point, tolerance)
     }
 }

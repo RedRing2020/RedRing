@@ -185,4 +185,117 @@ impl<T: Scalar> Ellipse2D<T> {
     //     // Z=0平面上の楕円として3D楕円を作成
     //     // 実装は3D楕円の実装後に追加予定
     // }
+
+    // ========================================================================
+    // Foundation Integration Methods (Extension)
+    // ========================================================================
+
+    /// Foundation Transform統合での高度な楕円変換
+    pub fn foundation_scale_from_point(&self, point: Point2D<T>, factor: T) -> Option<Self> {
+        if factor <= T::ZERO {
+            return None;
+        }
+
+        // アフィン変換: center' = point + (center - point) * factor
+        let offset = Vector2D::from_points(point, self.center());
+        let new_center = point + (offset * factor);
+        let new_major = self.semi_major_axis() * factor;
+        let new_minor = self.semi_minor_axis() * factor;
+
+        Self::new(new_center, new_major, new_minor, self.rotation())
+    }
+
+    /// Foundation Collision統合での楕円同士の衝突解決
+    pub fn foundation_resolve_collision(&self, other: &Self) -> Option<(Self, Self)> {
+        let center_distance = self.center().distance_to(&other.center());
+        let self_avg_radius = (self.semi_major_axis() + self.semi_minor_axis()) / (T::ONE + T::ONE);
+        let other_avg_radius = (other.semi_major_axis() + other.semi_minor_axis()) / (T::ONE + T::ONE);
+        let required_distance = self_avg_radius + other_avg_radius;
+
+        if center_distance >= required_distance {
+            return None; // 衝突していない
+        }
+
+        if center_distance < T::EPSILON {
+            // 同心楕円の場合は少しずらす
+            let offset = Vector2D::new(required_distance / (T::ONE + T::ONE), T::ZERO);
+            return Some((
+                self.translate(&offset.negate()),
+                other.translate(&offset),
+            ));
+        }
+
+        let direction = Vector2D::from_points(self.center(), other.center()).normalize();
+        let separation = required_distance - center_distance;
+        let half_separation = separation / (T::ONE + T::ONE);
+
+        let self_offset = direction * (-half_separation);
+        let other_offset = direction * half_separation;
+
+        Some((
+            self.translate(&self_offset),
+            other.translate(&other_offset),
+        ))
+    }
+
+    /// Foundation Intersection統合での楕円群の重心計算
+    pub fn foundation_weighted_center(&self, others: &[Self], weights: &[T]) -> Option<Point2D<T>> {
+        if others.len() != weights.len() {
+            return None;
+        }
+
+        let mut total_weight = T::ZERO;
+        let mut weighted_x = T::ZERO;
+        let mut weighted_y = T::ZERO;
+
+        // 自分の重み（面積に基づく）
+        let self_weight = self.area();
+        total_weight = total_weight + self_weight;
+        weighted_x = weighted_x + (self.center().x() * self_weight);
+        weighted_y = weighted_y + (self.center().y() * self_weight);
+
+        // 他の楕円の重み付き中心
+        for (ellipse, &weight) in others.iter().zip(weights) {
+            total_weight = total_weight + weight;
+            weighted_x = weighted_x + (ellipse.center().x() * weight);
+            weighted_y = weighted_y + (ellipse.center().y() * weight);
+        }
+
+        if total_weight > T::EPSILON {
+            Some(Point2D::new(
+                weighted_x / total_weight,
+                weighted_y / total_weight,
+            ))
+        } else {
+            None
+        }
+    }
+
+    /// Foundation系統での楕円の軸変換
+    pub fn foundation_swap_axes(&self) -> Option<Self> {
+        // 長軸と短軸を入れ替える（90度回転も含む）
+        Self::new(
+            self.center(),
+            self.semi_minor_axis(), // 短軸が新しい長軸
+            self.semi_major_axis(), // 長軸が新しい短軸
+            self.rotation() + T::PI / (T::ONE + T::ONE), // 90度回転
+        )
+    }
+
+    /// Foundation系統での楕円の離心率調整
+    pub fn foundation_adjust_eccentricity(&self, target_eccentricity: T) -> Option<Self> {
+        if target_eccentricity < T::ZERO || target_eccentricity >= T::ONE {
+            return None; // 無効な離心率
+        }
+
+        // e = sqrt(1 - (b/a)^2) から b = a * sqrt(1 - e^2) を計算
+        let new_minor = self.semi_major_axis() * (T::ONE - target_eccentricity * target_eccentricity).sqrt();
+        
+        Self::new(
+            self.center(),
+            self.semi_major_axis(),
+            new_minor,
+            self.rotation(),
+        )
+    }
 }

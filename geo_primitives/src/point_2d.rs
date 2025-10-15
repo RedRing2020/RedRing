@@ -4,8 +4,9 @@
 
 use crate::Vector2D;
 use geo_foundation::{
-    abstract_types::abstracts::point_traits::Point2D as Point2DTrait,
-    abstract_types::geometry::core_foundation::{BasicContainment, CoreFoundation},
+    // abstract_types::abstracts::point_traits::Point2D as Point2DTrait,
+    // abstract_types::geometry::core_foundation::{BasicContainment, CoreFoundation},
+    abstracts::point_traits,
     Scalar,
 };
 
@@ -101,9 +102,11 @@ impl<T: Scalar> Point2D<T> {
 }
 
 // ============================================================================
-// Foundation Abstract Trait Implementation
+// ============================================================================
+// Legacy Foundation Trait Implementation (Temporarily Disabled)
 // ============================================================================
 
+/*
 impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
     fn x(&self) -> T {
         self.x
@@ -113,10 +116,6 @@ impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
         self.y
     }
 }
-
-// ============================================================================
-// Core Foundation Trait Implementations
-// ============================================================================
 
 impl<T: Scalar> CoreFoundation<T> for Point2D<T> {
     type Point = Point2D<T>;
@@ -141,6 +140,7 @@ impl<T: Scalar> BasicContainment<T> for Point2D<T> {
         self.distance_to(point)
     }
 }
+*/
 
 // ============================================================================
 // Extension Methods (既存コード互換性のため)
@@ -299,5 +299,20 @@ impl<T: Scalar> Neg for Point2D<T> {
 impl<T: Scalar> Default for Point2D<T> {
     fn default() -> Self {
         Self::origin()
+    }
+}
+
+// ============================================================================
+// geo_foundation abstracts trait implementations
+// ============================================================================
+
+/// geo_foundation::abstracts::Point2D<T> トレイト実装
+impl<T: Scalar> point_traits::Point2D<T> for Point2D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
     }
 }

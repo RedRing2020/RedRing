@@ -1,15 +1,9 @@
-//! 2次元円（Circle2D）の Core 実装
+//! 2次元円（Circle2D）のCore実装
 //!
-//! Core Foundation パターンに基づく Circle2D の必須機能のみ
-//! 拡張機能は circle_2d_extensions.rs を参照
+//! Foundation統一システムに基づくCircle2Dの必須機能のみ
 
-use crate::{Point2D, Vector2D};
-use geo_foundation::{
-    abstract_types::geometry::core_foundation::{
-        BasicContainment, BasicMetrics, BasicParametric, CoreFoundation,
-    },
-    Scalar,
-};
+use crate::Point2D;
+use geo_foundation::Scalar;
 
 /// 2次元円
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -18,15 +12,7 @@ pub struct Circle2D<T: Scalar> {
     radius: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Circle2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい円を作成
     pub fn new(center: Point2D<T>, radius: T) -> Option<Self> {
         if radius > T::ZERO {
@@ -35,15 +21,6 @@ impl<T: Scalar> Circle2D<T> {
             None
         }
     }
-
-    /// 中心と半径から円を作成
-    pub fn from_center_radius(center: Point2D<T>, radius: T) -> Option<Self> {
-        Self::new(center, radius)
-    }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 中心を取得
     pub fn center(&self) -> Point2D<T> {
@@ -55,132 +32,110 @@ impl<T: Scalar> Circle2D<T> {
         self.radius
     }
 
-    // ========================================================================
-    // Core Metrics Methods
-    // ========================================================================
+    /// バウンディングボックスを取得
+    pub fn bounding_box(&self) -> (Point2D<T>, Point2D<T>) {
+        let min_point = Point2D::new(self.center.x() - self.radius, self.center.y() - self.radius);
+        let max_point = Point2D::new(self.center.x() + self.radius, self.center.y() + self.radius);
+        (min_point, max_point)
+    }
 
-    /// 円周の長さを取得
+    /// 円周の長さ
     pub fn circumference(&self) -> T {
-        let tau = T::TAU;
-        tau * self.radius
+        T::TAU * self.radius
     }
 
-    /// 面積を取得
+    /// 円の面積
     pub fn area(&self) -> T {
-        let pi = T::from_f64(std::f64::consts::PI);
-        pi * self.radius * self.radius
+        T::PI * self.radius * self.radius
     }
 
-    // ========================================================================
-    // Core Containment Methods
-    // ========================================================================
-
-    /// 点が円内部にあるかを判定
-    pub fn contains_point_inside(&self, point: &Point2D<T>) -> bool {
-        let distance = self.center.distance_to(point);
-        distance <= self.radius
+    /// 点が円内部にあるか判定
+    pub fn contains_point(&self, point: Point2D<T>) -> bool {
+        let dx = point.x() - self.center.x();
+        let dy = point.y() - self.center.y();
+        let distance_squared = dx * dx + dy * dy;
+        distance_squared < self.radius * self.radius
     }
 
-    /// 点から円への最短距離を計算
-    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        let distance_to_center = self.center.distance_to(point);
-        if distance_to_center <= self.radius {
-            T::ZERO // 点が円内部にある
-        } else {
-            distance_to_center - self.radius
-        }
-    }
-
-    // ========================================================================
-    // Core Parametric Methods
-    // ========================================================================
-
-    /// 指定パラメータでの点を取得（0-1の範囲で一周）
+    /// パラメータでの点を取得
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
-        let tau = T::TAU;
-        let angle = t * tau;
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
+        let angle = T::TAU * t;
         Point2D::new(
-            self.center.x() + self.radius * cos_a,
-            self.center.y() + self.radius * sin_a,
+            self.center.x() + self.radius * angle.cos(),
+            self.center.y() + self.radius * angle.sin(),
         )
     }
 
-    /// 指定パラメータでの接線ベクトルを取得
-    pub fn tangent_at_parameter(&self, t: T) -> Vector2D<T> {
-        let tau = T::TAU;
-        let angle = t * tau;
-        let sin_a = angle.sin();
-        let cos_a = angle.cos();
-        // 接線ベクトルは半径方向に垂直
-        Vector2D::new(-sin_a, cos_a).normalize()
-    }
-
-    // ========================================================================
-    // Core Bounding Box Method
-    // ========================================================================
-
-    /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> crate::BBox2D<T> {
-        let min_point = Point2D::new(self.center.x() - self.radius, self.center.y() - self.radius);
-        let max_point = Point2D::new(self.center.x() + self.radius, self.center.y() + self.radius);
-        crate::BBox2D::new(min_point, max_point)
+    /// 点から円周への距離
+    pub fn distance_to_point(&self, point: Point2D<T>) -> T {
+        let dx = point.x() - self.center.x();
+        let dy = point.y() - self.center.y();
+        let center_distance = (dx * dx + dy * dy).sqrt();
+        (center_distance - self.radius).abs()
     }
 }
 
-// ============================================================================
-// Foundation Trait Implementations
-// ============================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl<T: Scalar> CoreFoundation<T> for Circle2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = crate::BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        self.bounding_box()
-    }
-}
-
-impl<T: Scalar> BasicMetrics<T> for Circle2D<T> {
-    fn length(&self) -> Option<T> {
-        Some(self.circumference())
+    #[test]
+    fn test_circle_creation() {
+        let center = Point2D::new(1.0, 2.0);
+        let circle = Circle2D::new(center, 3.0).unwrap();
+        assert_eq!(circle.center(), center);
+        assert_eq!(circle.radius(), 3.0);
     }
 
-    fn area(&self) -> Option<T> {
-        Some(Circle2D::area(self))
+    #[test]
+    fn test_circle_invalid_radius() {
+        let center = Point2D::new(0.0, 0.0);
+        assert!(Circle2D::new(center, 0.0).is_none());
+        assert!(Circle2D::new(center, -1.0).is_none());
     }
 
-    fn perimeter(&self) -> Option<T> {
-        Some(self.circumference())
-    }
-}
-
-impl<T: Scalar> BasicContainment<T> for Circle2D<T> {
-    fn contains_point(&self, point: &Self::Point) -> bool {
-        self.contains_point_inside(point)
-    }
-
-    fn on_boundary(&self, point: &Self::Point, tolerance: T) -> bool {
-        self.contains_point_on_circle(point, tolerance)
+    #[test]
+    fn test_bounding_box() {
+        let center = Point2D::new(0.0, 0.0);
+        let circle = Circle2D::new(center, 2.0).unwrap();
+        let (min, max) = circle.bounding_box();
+        assert_eq!(min, Point2D::new(-2.0, -2.0));
+        assert_eq!(max, Point2D::new(2.0, 2.0));
     }
 
-    fn distance_to_point(&self, point: &Self::Point) -> T {
-        Circle2D::distance_to_point(self, point)
-    }
-}
+    #[test]
+    fn test_metrics() {
+        let center = Point2D::new(0.0, 0.0);
+        let circle = Circle2D::new(center, 1.0).unwrap();
 
-impl<T: Scalar> BasicParametric<T> for Circle2D<T> {
-    fn parameter_range(&self) -> (T, T) {
-        (T::ZERO, T::ONE) // 0-1の範囲で一周
-    }
-
-    fn point_at_parameter(&self, t: T) -> Self::Point {
-        Circle2D::point_at_parameter(self, t)
+        assert!((circle.circumference() - 2.0 * std::f64::consts::PI).abs() < 1e-10);
+        assert!((circle.area() - std::f64::consts::PI).abs() < 1e-10);
     }
 
-    fn tangent_at_parameter(&self, t: T) -> Self::Vector {
-        Circle2D::tangent_at_parameter(self, t)
+    #[test]
+    fn test_containment() {
+        let center = Point2D::new(0.0, 0.0);
+        let circle = Circle2D::new(center, 1.0).unwrap();
+
+        assert!(circle.contains_point(Point2D::new(0.0, 0.0))); // 中心
+        assert!(circle.contains_point(Point2D::new(0.5, 0.0))); // 内部
+        assert!(!circle.contains_point(Point2D::new(2.0, 0.0))); // 外部
+    }
+
+    #[test]
+    fn test_parametric() {
+        let center = Point2D::new(0.0, 0.0);
+        let circle = Circle2D::new(center, 1.0).unwrap();
+
+        let p0 = circle.point_at_parameter(0.0);
+        let p_quarter = circle.point_at_parameter(0.25);
+        let p_half = circle.point_at_parameter(0.5);
+
+        assert!((p0.x() - 1.0).abs() < 1e-10);
+        assert!((p0.y() - 0.0).abs() < 1e-10);
+        assert!((p_quarter.x() - 0.0).abs() < 1e-10);
+        assert!((p_quarter.y() - 1.0).abs() < 1e-10);
+        assert!((p_half.x() - (-1.0)).abs() < 1e-10);
+        assert!((p_half.y() - 0.0).abs() < 1e-10);
     }
 }

@@ -1,14 +1,14 @@
 //! 2次元円弧（Arc2D）の Core 実装
 //!
-//! Core Foundation パターンに基づく Arc2D の必須機能のみ
+//! Foundation統一システムに基づく Arc2D の必須機能のみ
 //! 拡張機能は arc_2d_extensions.rs を参照
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::abstracts::Arc2D as Arc2DTrait, Angle, Scalar};
+use analysis::Angle;
+use geo_foundation::Scalar;
 
 /// 2次元円弧
 ///
-/// geo_foundation::Arc2D<T> トレイトの基本実装
 /// 基底円と角度範囲による円弧の定義
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc2D<T: Scalar> {
@@ -133,53 +133,40 @@ impl<T: Scalar> Arc2D<T> {
         // 円の接線方向（時計回り）
         Vector2D::new(angle.cos(), angle.sin())
     }
-}
 
-// ============================================================================
-// geo_foundation Arc2D Trait Implementation
-// ============================================================================
-
-impl<T: Scalar> Arc2DTrait<T> for Arc2D<T> {
-    type Circle = Circle2D<T>;
-    type Point = Point2D<T>;
-    type Angle = Angle<T>;
-
-    fn circle(&self) -> &Circle2D<T> {
-        self.circle()
+    /// 円弧の角度範囲を取得
+    pub fn angular_span(&self) -> T {
+        let start = self.start_angle.to_radians();
+        let end = self.end_angle.to_radians();
+        if end >= start {
+            end - start
+        } else {
+            // 角度が逆転している場合（例：350度から10度まで）
+            T::TAU - (start - end)
+        }
     }
 
-    fn start_angle(&self) -> Angle<T> {
-        self.start_angle
+    /// 円弧の長さを計算
+    pub fn arc_length(&self) -> T {
+        self.radius() * self.angular_span()
     }
 
-    fn end_angle(&self) -> Angle<T> {
-        self.end_angle
-    }
-
-    fn is_full_circle(&self) -> bool {
-        // extensionsファイルの実装を使用
-        self.is_full_circle()
-    }
-
-    fn start_point(&self) -> Point2D<T> {
-        self.point_at_angle(self.start_angle.to_radians())
-    }
-
-    fn end_point(&self) -> Point2D<T> {
-        self.point_at_angle(self.end_angle.to_radians())
+    /// 完全な円かどうかを判定
+    pub fn is_full_circle(&self) -> bool {
+        let span = self.angular_span();
+        (span - T::TAU).abs() < T::EPSILON
     }
 }
 
 // ============================================================================
-// Foundation System Trait Implementation
+// geo_foundation abstracts trait implementations
 // ============================================================================
 
-use geo_foundation::abstract_types::foundation::ArcCore;
-
-impl<T: Scalar> ArcCore<T> for Arc2D<T> {
+/// geo_foundation::abstracts::Arc2D<T> トレイト実装
+impl<T: Scalar> geo_foundation::abstracts::arc_traits::Arc2D<T> for Arc2D<T> {
     type Circle = Circle2D<T>;
     type Point = Point2D<T>;
-    type Angle = Angle<T>;
+    type Angle = analysis::Angle<T>;
 
     fn circle(&self) -> &Self::Circle {
         &self.circle
@@ -203,5 +190,86 @@ impl<T: Scalar> ArcCore<T> for Arc2D<T> {
 
     fn end_point(&self) -> Self::Point {
         self.end_point()
+    }
+}
+
+/// ArcMetrics トレイト実装
+impl<T: Scalar> geo_foundation::abstracts::arc_traits::ArcMetrics<T> for Arc2D<T> {
+    fn arc_length(&self) -> T {
+        self.arc_length()
+    }
+
+    fn sector_area(&self) -> T {
+        let half_radius_squared = self.radius() * self.radius() / (T::ONE + T::ONE);
+        half_radius_squared * self.angular_span()
+    }
+
+    fn central_angle(&self) -> Self::Angle {
+        analysis::Angle::from_radians(self.angular_span())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arc_creation() {
+        let center = Point2D::new(0.0, 0.0);
+        let radius = 1.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(90.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+        assert_eq!(arc.center(), center);
+        assert_eq!(arc.radius(), radius);
+        assert_eq!(arc.start_angle(), start);
+        assert_eq!(arc.end_angle(), end);
+    }
+
+    #[test]
+    fn test_arc_points() {
+        let center = Point2D::new(1.0, 1.0);
+        let radius = 2.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(90.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+
+        let start_pt = arc.start_point();
+        let end_pt = arc.end_point();
+
+        // 開始点：(center_x + radius, center_y) = (3.0, 1.0)
+        assert!((start_pt.x() - 3.0).abs() < 1e-10);
+        assert!((start_pt.y() - 1.0).abs() < 1e-10);
+
+        // 終了点：(center_x, center_y + radius) = (1.0, 3.0)
+        assert!((end_pt.x() - 1.0).abs() < 1e-10);
+        assert!((end_pt.y() - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_arc_length() {
+        let center = Point2D::new(0.0, 0.0);
+        let radius = 1.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(90.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+
+        // 90度円弧の長さ = π/2
+        let expected_length = std::f64::consts::PI / 2.0;
+        assert!((arc.arc_length() - expected_length).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_full_circle() {
+        let center = Point2D::new(0.0, 0.0);
+        let radius = 1.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(360.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+        assert!(arc.is_full_circle());
     }
 }

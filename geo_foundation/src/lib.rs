@@ -1,16 +1,26 @@
 //! geo_foundation - 幾何計算の基盤クレート
 //!
-//! 抽象型と橋渡し機能を提供し、他のgeoクレート間の
-//! 共通基盤として機能する
+//! geo_foundation は抽象化・インターフェース層
+//! geo_primitives の具体実装を抽象化して呼び出すためのトレイト定義
 
-// 抽象型モジュール
-pub mod abstract_types;
+// Abstract Traits - 最小責務抽象化（主要インターフェース）
+pub mod abstracts;
+
+// Foundation Traits - 統一操作トレイト群
+pub mod traits;
+
+// Geometry Core Foundation - 基本幾何Foundation
+pub mod geometry;
 
 // 許容誤差管理モジュール
 pub mod tolerance;
 
 // 許容誤差移行支援モジュール（将来削除予定）
 pub mod tolerance_migration;
+
+// Legacy abstract_types (段階的廃止予定)
+#[deprecated(note = "Use `abstracts`, `traits`, or `geometry` modules directly")]
+pub mod abstract_types;
 
 // テストモジュール
 #[cfg(test)]
@@ -25,8 +35,24 @@ pub use analysis::{
     GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
 };
 
-// 抽象型の幾何トレイトを再エクスポート
-pub use abstract_types::geometry::*;
+// Abstract Traitsを再エクスポート（主要インターフェース）
+pub use abstracts::{
+    circle_traits::Circle2D as Circle2DTrait,
+    point_traits::Point2D as Point2DTrait,
+    vector_traits::{Vector2D, Vector2DOps, Vector3D, Vector3DOps, VectorMetrics, VectorOps},
+};
+
+// Foundation Traitsを再エクスポート
+pub use traits::{
+    AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
+    MultipleIntersection, PointDistance, SelfIntersection, TransformHelpers,
+};
+
+// Geometry Core Foundationを再エクスポート
+// 注意: 実際の実装はabstract_types/foundation/にある
+// pub use geometry::{
+//     BasicContainment, BasicDirectional, BasicMetrics, BasicParametric, CoreFoundation,
+// };
 
 // 許容誤差管理を再エクスポート
 pub use tolerance::{GeometryContext, ToleranceSettings};

@@ -3,11 +3,7 @@
 //! Core Foundation パターンに基づく Vector2D の必須機能のみ
 //! 拡張機能は vector_2d_extensions.rs を参照
 
-use crate::Point2D;
-use geo_foundation::{
-    abstract_types::foundation::core_foundation::{BasicDirectional, BasicMetrics, CoreFoundation},
-    Scalar,
-};
+use geo_foundation::{abstracts::vector_traits, Scalar};
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元ベクトル
@@ -113,6 +109,11 @@ impl<T: Scalar> Vector2D<T> {
 // Core Foundation Trait Implementations
 // ============================================================================
 
+// ============================================================================
+// Legacy Foundation Trait Implementations (Temporarily Disabled)
+// ============================================================================
+
+/*
 impl<T: Scalar> CoreFoundation<T> for Vector2D<T> {
     type Point = Point2D<T>;
     type Vector = Vector2D<T>;
@@ -147,6 +148,7 @@ impl<T: Scalar> BasicDirectional<T> for Vector2D<T> {
         -*self
     }
 }
+*/
 
 // ============================================================================
 // 基本演算子実装 (Basic Operator Implementations)
@@ -187,5 +189,20 @@ impl<T: Scalar> Neg for Vector2D<T> {
 impl<T: Scalar> From<(T, T)> for Vector2D<T> {
     fn from(tuple: (T, T)) -> Self {
         Self::new(tuple.0, tuple.1)
+    }
+}
+
+// ============================================================================
+// geo_foundation abstracts trait implementations
+// ============================================================================
+
+/// geo_foundation::abstracts::Vector2D<T> トレイト実装
+impl<T: Scalar> vector_traits::Vector2D<T> for Vector2D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
     }
 }

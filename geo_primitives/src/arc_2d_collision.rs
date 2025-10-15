@@ -5,7 +5,7 @@
 
 use crate::{Arc2D, Circle2D, Point2D, Vector2D};
 use geo_foundation::{
-    abstract_types::foundation::{BasicCollision, PointDistance},
+    traits::{BasicCollision, PointDistance},
     Scalar,
 };
 
@@ -142,10 +142,15 @@ impl<T: Scalar> BasicCollision<T, Circle2D<T>> for Arc2D<T> {
     type Point2D = Point2D<T>;
 
     fn intersects(&self, other: &Circle2D<T>, tolerance: T) -> bool {
-        // 円と円弧の中心距離
-        let center_distance = Point2D::distance(&self.circle().center(), &other.center());
-        let radii_sum = self.circle().radius() + other.radius();
-        let radii_diff = (self.circle().radius() - other.radius()).abs();
+        // 円と円弧の中心距離計算
+        let arc_center = self.circle().center();
+        let circle_center = other.center();
+        let center_distance = Point2D::distance(&arc_center, &circle_center);
+
+        let arc_radius = self.circle().radius();
+        let circle_radius = other.radius();
+        let radii_sum = arc_radius + circle_radius;
+        let radii_diff = (arc_radius - circle_radius).abs();
 
         // 円同士が交差する条件
         let circles_intersect =
