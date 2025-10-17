@@ -5,7 +5,7 @@
 
 use crate::{Arc2D, Point2D};
 use geo_foundation::{
-    abstract_types::abstracts::ArcContainment, tolerance_migration::DefaultTolerances, Angle,
+    abstracts::arc_traits::ArcContainment, tolerance_migration::DefaultTolerances, Angle,
     Scalar,
 };
 

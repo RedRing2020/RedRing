@@ -1,7 +1,7 @@
 //! LineSegment2D のテスト
 
 use crate::{LineSegment2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::geometry::core_foundation::*, Angle, Scalar};
+use geo_foundation::{core_foundation::*, Angle, Scalar};
 
 #[cfg(test)]
 mod tests {

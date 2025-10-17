@@ -3,14 +3,14 @@
 //! geo_foundation は抽象化・インターフェース層
 //! geo_primitives の具体実装を抽象化して呼び出すためのトレイト定義
 
+// Core Foundation - 幾何形状の中核基盤トレイト
+pub mod core_foundation;
+
 // Abstract Traits - 最小責務抽象化（主要インターフェース）
 pub mod abstracts;
 
 // Foundation Traits - 統一操作トレイト群
 pub mod traits;
-
-// Geometry Core Foundation - 基本幾何Foundation
-pub mod geometry;
 
 // 許容誤差管理モジュール
 pub mod tolerance;
