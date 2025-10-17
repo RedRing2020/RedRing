@@ -6,6 +6,15 @@
 // Core Foundation - 幾何形状の中核基盤トレイト
 pub mod core_foundation;
 
+// Extension Foundation - 幾何形状の拡張基盤トレイト
+pub mod extension_foundation;
+
+// Classification - 幾何プリミティブの分類システム
+pub mod classification;
+
+// Classification - 幾何プリミティブの分類
+pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
+
 // Abstract Traits - 最小責務抽象化（主要インターフェース）
 pub mod abstracts;
 
@@ -40,6 +49,12 @@ pub use abstracts::{
     circle_traits::Circle2D as Circle2DTrait,
     point_traits::Point2D as Point2DTrait,
     vector_traits::{Vector2D, Vector2DOps, Vector3D, Vector3DOps, VectorMetrics, VectorOps},
+};
+
+// Extension Foundation Traitsを再エクスポート
+pub use extension_foundation::{
+    CollectionExtension, ExtensionFoundation, MeasurableExtension, SpatialExtension,
+    TransformableExtension,
 };
 
 // Foundation Traitsを再エクスポート
