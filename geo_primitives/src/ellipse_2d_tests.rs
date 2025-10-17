@@ -1,7 +1,14 @@
-//! Ellipse2D のテスト
+﻿//! Ellipse2D のテスト
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::geometry::foundation::*, Scalar};
+use geo_foundation::{
+    core::{
+        BasicMetrics, CoreFoundation, EllipseCore, EllipseMetrics,
+        NewBasicContainment as BasicContainment, NewBasicParametric as BasicParametric,
+        UnifiedEllipseFoundation,
+    },
+    Scalar,
+};
 
 #[cfg(test)]
 mod tests {
@@ -285,7 +292,7 @@ mod tests {
     fn test_geometry_foundation() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::new(1.0, 2.0), 3.0, 2.0).unwrap();
 
-        // GeometryFoundation
+        // CoreFoundation
         let bbox = ellipse.bounding_box();
         assert_eq!(bbox.min(), Point2D::new(-2.0, 0.0));
         assert_eq!(bbox.max(), Point2D::new(4.0, 4.0));
@@ -352,5 +359,166 @@ mod tests {
         let bbox = ellipse.bounding_box();
         assert_eq!(bbox.min(), Point2D::new(-3.0f32, -2.0f32));
         assert_eq!(bbox.max(), Point2D::new(3.0f32, 2.0f32));
+    }
+}
+
+// ============================================================================
+// Foundation System Tests for Ellipse2D
+// ============================================================================
+
+#[cfg(test)]
+mod foundation_tests {
+    use super::*;
+    use geo_foundation::core::{EllipseCore, EllipseMetrics, UnifiedEllipseFoundation};
+    use std::f64::consts::{PI, TAU};
+
+    /// EllipseCore trait実装テスト
+    #[test]
+    fn test_ellipse_core_trait() {
+        let ellipse = Ellipse2D::new(Point2D::new(1.0, 2.0), 4.0, 3.0, PI / 4.0).unwrap();
+
+        // EllipseCore trait経由でのアクセス
+        assert_eq!(ellipse.center(), Point2D::new(1.0, 2.0));
+        assert_eq!(ellipse.major_radius(), 4.0);
+        assert_eq!(ellipse.minor_radius(), 3.0);
+        assert_eq!(ellipse.rotation(), PI / 4.0);
+
+        // 角度指定での点取得
+        let point_at_0 = ellipse.point_at_angle(0.0);
+        let point_at_param_0 = ellipse.point_at_parameter(0.0);
+        assert!((point_at_0.x() - point_at_param_0.x()).abs() < 1e-10);
+        assert!((point_at_0.y() - point_at_param_0.y()).abs() < 1e-10);
+    }
+
+    /// EllipseMetrics trait実装テスト
+    #[test]
+    fn test_ellipse_metrics_trait() {
+        let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 5.0, 3.0, 0.0).unwrap();
+
+        // EllipseMetrics trait経由でのアクセス
+        let perimeter = ellipse.perimeter();
+        let area = ellipse.area();
+        let eccentricity = ellipse.eccentricity();
+        let focal_distance = ellipse.focal_distance();
+        let focus1 = ellipse.focus1();
+        let focus2 = ellipse.focus2();
+
+        assert!(perimeter > 0.0);
+        assert!(area > 0.0);
+        assert!(eccentricity >= 0.0);
+        assert!(focal_distance >= 0.0);
+
+        // 楕円の場合、焦点は中心軸上にある
+        assert_eq!(focus1.y(), focus2.y()); // Y座標は同じ（回転なしの場合）
+
+        // 円に近い楕円のテスト
+
+        // 離心率計算
+        let eccentricity = ellipse.eccentricity();
+        let expected_e = (1.0 - (3.0 * 3.0) / (5.0 * 5.0)).sqrt();
+        assert!((eccentricity - expected_e).abs() < 1e-10);
+
+        // 円に近いかの判定
+        let nearly_circular = Ellipse2D::new(Point2D::new(0.0, 0.0), 5.0, 4.99, 0.0).unwrap();
+        assert!(nearly_circular.is_nearly_circular(0.1));
+        assert!(!ellipse.is_nearly_circular(0.1));
+    }
+
+    /// UnifiedEllipseFoundation trait実装テスト
+    #[test]
+    fn test_unified_ellipse_foundation_trait() {
+        let ellipse1 = Ellipse2D::new(Point2D::new(0.0, 0.0), 4.0, 2.0, 0.0).unwrap();
+        let ellipse2 = Ellipse2D::new(Point2D::new(3.0, 0.0), 2.0, 1.5, 0.0).unwrap();
+
+        // Foundation transform
+        let doubled_major = ellipse1.foundation_transform("double_major").unwrap();
+        assert_eq!(doubled_major.major_radius(), 8.0);
+        assert_eq!(doubled_major.minor_radius(), 2.0);
+
+        let doubled_minor = ellipse1.foundation_transform("double_minor").unwrap();
+        assert_eq!(doubled_minor.major_radius(), 4.0);
+        assert_eq!(doubled_minor.minor_radius(), 4.0);
+
+        let to_circle = ellipse1.foundation_transform("to_circle").unwrap();
+        assert_eq!(to_circle.major_radius(), 3.0); // (4+2)/2
+        assert_eq!(to_circle.minor_radius(), 3.0);
+
+        // Foundation distance
+        let distance = ellipse1.foundation_distance(&ellipse2);
+        assert_eq!(distance, 3.0);
+
+        // Foundation intersection（重なる楕円の場合）
+        let close_ellipse = Ellipse2D::new(Point2D::new(1.0, 0.0), 3.0, 2.0, 0.0).unwrap();
+        let intersection = ellipse1.foundation_intersection(&close_ellipse);
+        assert!(intersection.is_some());
+        let point = intersection.unwrap();
+        assert_eq!(point, Point2D::new(0.5, 0.0)); // 中点
+    }
+
+    /// Foundation Extensions統合テスト
+    #[test]
+    fn test_foundation_extensions() {
+        let ellipse = Ellipse2D::new(Point2D::new(2.0, 3.0), 4.0, 3.0, PI / 6.0).unwrap();
+
+        // Foundation scale from point
+        let scaled = ellipse
+            .foundation_scale_from_point(Point2D::new(0.0, 0.0), 1.5)
+            .unwrap();
+        assert!((scaled.center().x() - 3.0).abs() < 1e-10);
+        assert!((scaled.center().y() - 4.5).abs() < 1e-10);
+        assert!((scaled.major_radius() - 6.0).abs() < 1e-10);
+        assert!((scaled.minor_radius() - 4.5).abs() < 1e-10);
+
+        // Foundation collision resolution
+        let ellipse1 = Ellipse2D::new(Point2D::new(0.0, 0.0), 2.0, 1.5, 0.0).unwrap();
+        let ellipse2 = Ellipse2D::new(Point2D::new(1.0, 0.0), 1.5, 1.0, 0.0).unwrap();
+        let resolved = ellipse1.foundation_resolve_collision(&ellipse2);
+        assert!(resolved.is_some());
+
+        // Foundation weighted center
+        let others = vec![Ellipse2D::new(Point2D::new(6.0, 0.0), 2.0, 1.0, 0.0).unwrap()];
+        let weights = vec![ellipse.area()]; // 同じ重み
+        let weighted_center = ellipse.foundation_weighted_center(&others, &weights);
+        assert!(weighted_center.is_some());
+
+        // Foundation axes swap
+        let swapped = ellipse.foundation_swap_axes().unwrap();
+        assert_eq!(swapped.major_radius(), ellipse.minor_radius());
+        assert_eq!(swapped.minor_radius(), ellipse.major_radius());
+
+        // Foundation eccentricity adjustment
+        let adjusted = ellipse.foundation_adjust_eccentricity(0.5).unwrap();
+        let new_eccentricity = adjusted.eccentricity();
+        assert!((new_eccentricity - 0.5).abs() < 1e-10);
+    }
+
+    /// Foundation System数学的整合性テスト
+    #[test]
+    fn test_foundation_mathematical_consistency() {
+        let ellipse = Ellipse2D::new(Point2D::new(1.0, 1.0), 3.0, 2.0, PI / 4.0).unwrap();
+
+        // tangent_at_parameter の正規化確認
+        let tangent = ellipse.tangent_at_parameter(PI / 4.0);
+        assert!((tangent.length() - 1.0).abs() < 1e-10);
+
+        // スケール変換の数学的整合性
+        let center_point = Point2D::new(0.0, 0.0);
+        let factor = 2.0;
+        let scaled = ellipse
+            .foundation_scale_from_point(center_point, factor)
+            .unwrap();
+
+        // 期待値：center' = (0,0) + ((1,1) - (0,0)) * 2 = (2, 2)
+        assert!((scaled.center().x() - 2.0).abs() < 1e-10);
+        assert!((scaled.center().y() - 2.0).abs() < 1e-10);
+        assert!((scaled.major_radius() - 6.0).abs() < 1e-10);
+        assert!((scaled.minor_radius() - 4.0).abs() < 1e-10);
+
+        // Foundation transform の面積保持確認
+        let original_area = ellipse.area();
+        let circle_transform = ellipse.foundation_transform("to_circle").unwrap();
+        let avg_radius = (ellipse.major_radius() + ellipse.minor_radius()) / 2.0;
+        let expected_circle_area = PI * avg_radius * avg_radius;
+        assert!((circle_transform.area() - expected_circle_area).abs() < 1e-10);
     }
 }

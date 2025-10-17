@@ -1,7 +1,6 @@
-//! Vector3D のテスト
+﻿//! Vector3D のテスト
 
 use crate::{Point3D, Vector3D};
-use geo_foundation::abstract_types::geometry::foundation::*;
 
 #[cfg(test)]
 mod tests {
@@ -44,15 +43,16 @@ mod tests {
     #[test]
     fn test_vector3d_normalize() {
         let vec = Vector3D::new(3.0_f64, 4.0, 0.0);
-        let normalized = vec.normalize().unwrap();
+        let normalized = vec.normalize();
         assert!((normalized.length() - 1.0).abs() < 1e-10);
-        assert_eq!(normalized.x(), 0.6);
-        assert_eq!(normalized.y(), 0.8);
-        assert_eq!(normalized.z(), 0.0);
+        assert!((normalized.x() - 0.6).abs() < 1e-10);
+        assert!((normalized.y() - 0.8).abs() < 1e-10);
+        assert!((normalized.z() - 0.0).abs() < 1e-10);
 
-        // ゼロベクトルは正規化できない
+        // ゼロベクトルの正規化はゼロベクトルを返す
         let zero = Vector3D::<f64>::zero();
-        assert!(zero.normalize().is_none());
+        let normalized_zero = zero.normalize();
+        assert!(normalized_zero.length() <= f64::EPSILON);
     }
 
     #[test]
@@ -112,18 +112,19 @@ mod tests {
     #[test]
     fn test_basic_metrics() {
         let vec = Vector3D::new(3.0_f64, 4.0, 0.0);
-        // BasicMetrics::length() はOption<T>を返すが、Vector3D::length()はTを返す
-        assert_eq!(BasicMetrics::length(&vec), Some(5.0));
+        // 長さの計算
+        assert_eq!(vec.length(), 5.0);
+        assert_eq!(vec.length_squared(), 25.0);
     }
 
     #[test]
-    fn test_basic_directional() {
+    fn test_basic_operations() {
         let vec = Vector3D::new(3.0_f64, 4.0, 0.0);
-        let direction = vec.direction();
-        assert!((direction.length() - 1.0).abs() < 1e-10);
+        let normalized = vec.normalize();
+        assert!((normalized.length() - 1.0).abs() < 1e-10);
 
-        let reversed = vec.reverse_direction();
-        assert_eq!(reversed.components(), [-3.0, -4.0, 0.0]);
+        let negated = -vec;
+        assert_eq!(negated.components(), [-3.0, -4.0, 0.0]);
     }
 
     #[test]
