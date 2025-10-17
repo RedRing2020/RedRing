@@ -1,41 +1,9 @@
-//! 2次元点（Point2D）の新実装
+﻿//! Point2D Core 実装
 //!
-//! foundation.rs の基盤トレイトに基づく Point2D の実装
-//!
-//! ## メソッド分類
-//!
-//! ### 基本実装 (Core Implementation)
-//! - `new()`, `origin()` - 基本的なコンストラクタ
-//!
-//! ### アクセサメソッド (Accessor Methods)
-//! - `x()`, `y()`, `coords()`, `to_tuple()`, `from_tuple()` - 座標データへのアクセス
-//!
-//! ### 距離・測定関連 (Distance & Measurement)
-//! - `distance_to()`, `distance_squared_to()`, `norm()`, `norm_squared()` - 距離計算
-//!
-//! ### 補間・中点計算 (Interpolation & Midpoint)
-//! - `lerp()`, `midpoint()` - 点間の補間操作
-//!
-//! ### 座標変換 (Geometric Transformations)
-//! - `translate()`, `rotate()`, `rotate_around()`, `scale()`, `scale_uniform()`
-//! - `reflect_x()`, `reflect_y()`, `reflect_origin()` - 幾何学的変換
-//!
-//! ### 判定・比較関連 (Predicates & Comparisons)
-//! - `is_origin()`, `is_approximately_equal()` - 状態判定
-//!
-//! ### 型変換・相互変換 (Type Conversions)
-//! - `to_vector()`, `vector_to()`, `from_vector()` - Vector2D との相互変換
-//!
-//! ### 次元拡張 (Dimension Extension)
-//! - `to_3d()`, `to_3d_with_z()` - 3次元への拡張
-//!
-//! この分類により、将来的に各カテゴリを独立したトレイトとして分離したり、
-//! opt機能として条件コンパイルしたりすることが容易になります。
+//! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
-use geo_foundation::{
-    abstract_types::geometry::foundation::{BasicContainment, GeometryFoundation},
-    Scalar,
-};
+use crate::Vector2D;
+use geo_foundation::{core::point_traits, Scalar};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -46,10 +14,14 @@ pub struct Point2D<T: Scalar> {
     y: T,
 }
 
+// ============================================================================
+// Core Implementation (必須機能のみ)
+// ============================================================================
+
 impl<T: Scalar> Point2D<T> {
-    // ============================================================================
-    // 基本実装 (Core Implementation)
-    // ============================================================================
+    // ========================================================================
+    // Core Construction Methods
+    // ========================================================================
 
     /// 新しい点を作成
     pub fn new(x: T, y: T) -> Self {
@@ -61,9 +33,14 @@ impl<T: Scalar> Point2D<T> {
         Self::new(T::ZERO, T::ZERO)
     }
 
-    // ============================================================================
-    // アクセサメソッド (Accessor Methods)
-    // ============================================================================
+    /// タプルから点を作成
+    pub fn from_tuple(coords: (T, T)) -> Self {
+        Self::new(coords.0, coords.1)
+    }
+
+    // ========================================================================
+    // Core Accessor Methods
+    // ========================================================================
 
     /// X座標を取得
     pub fn x(&self) -> T {
@@ -85,20 +62,18 @@ impl<T: Scalar> Point2D<T> {
         (self.x, self.y)
     }
 
-    /// タプルから点を作成
-    pub fn from_tuple(coords: (T, T)) -> Self {
-        Self::new(coords.0, coords.1)
-    }
-
-    // ============================================================================
-    // 距離・測定関連 (Distance & Measurement)
-    // ============================================================================
+    // ========================================================================
+    // Core Distance Methods (基本距離計算)
+    // ========================================================================
 
     /// 他の点との距離を計算
     pub fn distance_to(&self, other: &Self) -> T {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        (dx * dx + dy * dy).sqrt()
+        self.distance_squared_to(other).sqrt()
+    }
+
+    /// 2点間の距離を計算（static版）
+    pub fn distance(point1: &Self, point2: &Self) -> T {
+        point1.distance_to(point2)
     }
 
     /// 他の点との距離の二乗を計算（sqrt回避で高速）
@@ -110,140 +85,34 @@ impl<T: Scalar> Point2D<T> {
 
     /// 原点からの距離（ノルム）
     pub fn norm(&self) -> T {
-        (self.x * self.x + self.y * self.y).sqrt()
+        self.norm_squared().sqrt()
     }
 
     /// 原点からの距離の二乗
     pub fn norm_squared(&self) -> T {
         self.x * self.x + self.y * self.y
     }
-
-    // ============================================================================
-    // 補間・中点計算 (Interpolation & Midpoint)
-    // ============================================================================
-
-    /// 点を別の点に向かって線形補間
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
-        Self::new(
-            self.x + t * (other.x - self.x),
-            self.y + t * (other.y - self.y),
-        )
-    }
-
-    /// 中点を計算
-    pub fn midpoint(&self, other: &Self) -> Self {
-        Self::new(
-            (self.x + other.x) / (T::ONE + T::ONE),
-            (self.y + other.y) / (T::ONE + T::ONE),
-        )
-    }
-
-    // ============================================================================
-    // 座標変換 (Geometric Transformations)
-    // ============================================================================
-
-    /// 点を指定ベクトルで平行移動
-    pub fn translate(&self, dx: T, dy: T) -> Self {
-        Self::new(self.x + dx, self.y + dy)
-    }
-
-    /// 原点中心で回転（角度はラジアン）
-    pub fn rotate(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-        Self::new(
-            self.x * cos_a - self.y * sin_a,
-            self.x * sin_a + self.y * cos_a,
-        )
-    }
-
-    /// 指定点中心で回転
-    pub fn rotate_around(&self, center: &Self, angle: T) -> Self {
-        let translated = Self::new(self.x - center.x, self.y - center.y);
-        let rotated = translated.rotate(angle);
-        Self::new(rotated.x + center.x, rotated.y + center.y)
-    }
-
-    /// 原点中心でスケーリング
-    pub fn scale(&self, scale_x: T, scale_y: T) -> Self {
-        Self::new(self.x * scale_x, self.y * scale_y)
-    }
-
-    /// 均等スケーリング
-    pub fn scale_uniform(&self, scale: T) -> Self {
-        Self::new(self.x * scale, self.y * scale)
-    }
-
-    /// X軸に対する反転
-    pub fn reflect_x(&self) -> Self {
-        Self::new(self.x, -self.y)
-    }
-
-    /// Y軸に対する反転
-    pub fn reflect_y(&self) -> Self {
-        Self::new(-self.x, self.y)
-    }
-
-    /// 原点に対する反転
-    pub fn reflect_origin(&self) -> Self {
-        Self::new(-self.x, -self.y)
-    }
-
-    // ============================================================================
-    // 判定・比較関連 (Predicates & Comparisons)
-    // ============================================================================
-
-    /// 点が原点かどうかを判定
-    pub fn is_origin(&self, tolerance: T) -> bool {
-        self.norm() <= tolerance
-    }
-
-    /// 他の点との近似等価判定
-    pub fn is_approximately_equal(&self, other: &Self, tolerance: T) -> bool {
-        self.distance_to(other) <= tolerance
-    }
-
-    // ============================================================================
-    // 型変換・相互変換 (Type Conversions)
-    // ============================================================================
-
-    /// Point2D を Vector2D に変換（原点からのベクトル）
-    pub fn to_vector(&self) -> crate::Vector2D<T> {
-        crate::Vector2D::new(self.x, self.y)
-    }
-
-    /// 2点間のベクトルを計算（明示的なVector2D作成）
-    pub fn vector_to(&self, other: &Self) -> crate::Vector2D<T> {
-        crate::Vector2D::new(other.x - self.x, other.y - self.y)
-    }
-
-    /// Vector2D から Point2D を作成（ベクトルの終点として）
-    pub fn from_vector(vector: &crate::Vector2D<T>) -> Self {
-        Self::new(vector.x(), vector.y())
-    }
-
-    // ============================================================================
-    // 次元拡張 (Dimension Extension)
-    // ============================================================================
-
-    /// 3次元空間に拡張（Z=0）
-    pub fn to_3d(&self) -> crate::Point3D<T> {
-        crate::Point3D::new(self.x, self.y, T::ZERO)
-    }
-
-    /// 3次元空間に拡張（指定Z値）
-    pub fn to_3d_with_z(&self, z: T) -> crate::Point3D<T> {
-        crate::Point3D::new(self.x, self.y, z)
-    }
 }
 
 // ============================================================================
-// Foundation Trait Implementations
+// ============================================================================
+// Legacy Foundation Trait Implementation (Temporarily Disabled)
 // ============================================================================
 
-impl<T: Scalar> GeometryFoundation<T> for Point2D<T> {
+/*
+impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
+    }
+}
+
+impl<T: Scalar> CoreFoundation<T> for Point2D<T> {
     type Point = Point2D<T>;
-    type Vector = crate::Vector2D<T>;
+    type Vector = Vector2D<T>;
     type BBox = crate::BBox2D<T>;
 
     fn bounding_box(&self) -> Self::BBox {
@@ -264,39 +133,161 @@ impl<T: Scalar> BasicContainment<T> for Point2D<T> {
         self.distance_to(point)
     }
 }
+*/
+
+// ============================================================================
+// Extension Methods (既存コード互換性のため)
+// ============================================================================
+
+impl<T: Scalar> Point2D<T> {
+    /// 他の点へのベクトル
+    pub fn vector_to(&self, other: &Self) -> Vector2D<T> {
+        Vector2D::new(other.x - self.x, other.y - self.y)
+    }
+
+    /// 指定点周りの回転（Angle<T>型角度）
+    pub fn rotate_around(&self, center: &Self, angle: geo_foundation::Angle<T>) -> Self {
+        let offset = Vector2D::new(self.x - center.x, self.y - center.y);
+        let radians = angle.to_radians();
+        let cos_a = radians.cos();
+        let sin_a = radians.sin();
+        let rotated_x = offset.x() * cos_a - offset.y() * sin_a;
+        let rotated_y = offset.x() * sin_a + offset.y() * cos_a;
+        Point2D::new(center.x + rotated_x, center.y + rotated_y)
+    }
+
+    /// 指定点周りの回転（T型角度）- 後方互換性のため
+    pub fn rotate_around_radians(&self, center: &Self, angle: T) -> Self {
+        self.rotate_around(center, geo_foundation::Angle::from_radians(angle))
+    }
+
+    /// 原点周りの回転（Angle<T>型角度）
+    pub fn rotate(&self, angle: geo_foundation::Angle<T>) -> Self {
+        let radians = angle.to_radians();
+        let cos_a = radians.cos();
+        let sin_a = radians.sin();
+        let rotated_x = self.x * cos_a - self.y * sin_a;
+        let rotated_y = self.x * sin_a + self.y * cos_a;
+        Point2D::new(rotated_x, rotated_y)
+    }
+
+    /// 原点周りの回転（T型角度）- 後方互換性のため
+    pub fn rotate_radians(&self, angle: T) -> Self {
+        self.rotate(geo_foundation::Angle::from_radians(angle))
+    }
+
+    /// 3D点に変換（Z=0）
+    pub fn to_3d(&self) -> crate::Point3D<T> {
+        crate::Point3D::new(self.x, self.y, T::ZERO)
+    }
+
+    /// 3D点に変換（Z指定）
+    pub fn to_3d_with_z(&self, z: T) -> crate::Point3D<T> {
+        crate::Point3D::new(self.x, self.y, z)
+    }
+
+    /// Vector2Dに変換
+    pub fn to_vector(&self) -> Vector2D<T> {
+        Vector2D::new(self.x, self.y)
+    }
+
+    /// ベクトルから点を作成
+    pub fn from_vector(vector: Vector2D<T>) -> Self {
+        Point2D::new(vector.x(), vector.y())
+    }
+
+    /// 原点判定
+    pub fn is_origin(&self) -> bool {
+        self.x.abs() <= T::EPSILON && self.y.abs() <= T::EPSILON
+    }
+
+    /// 近似等価判定
+    pub fn is_approximately_equal(&self, other: &Self, tolerance: T) -> bool {
+        (self.x - other.x).abs() <= tolerance && (self.y - other.y).abs() <= tolerance
+    }
+
+    /// 線形補間
+    pub fn lerp(&self, other: &Self, t: T) -> Self {
+        let one_minus_t = T::ONE - t;
+        Point2D::new(
+            one_minus_t * self.x + t * other.x,
+            one_minus_t * self.y + t * other.y,
+        )
+    }
+
+    /// 中点計算
+    pub fn midpoint(&self, other: &Self) -> Self {
+        let half = T::from_f64(0.5);
+        self.lerp(other, half)
+    }
+
+    /// X軸反射
+    pub fn reflect_x(&self) -> Self {
+        Point2D::new(-self.x, self.y)
+    }
+
+    /// Y軸反射
+    pub fn reflect_y(&self) -> Self {
+        Point2D::new(self.x, -self.y)
+    }
+
+    /// 原点反射
+    pub fn reflect_origin(&self) -> Self {
+        Point2D::new(-self.x, -self.y)
+    }
+
+    /// 平行移動
+    pub fn translate(&self, vector: Vector2D<T>) -> Self {
+        *self + vector
+    }
+
+    /// スケール（非均等）
+    pub fn scale(&self, scale_x: T, scale_y: T) -> Self {
+        Point2D::new(self.x * scale_x, self.y * scale_y)
+    }
+
+    /// 均等スケール
+    pub fn scale_uniform(&self, scale: T) -> Self {
+        self.scale(scale, scale)
+    }
+}
 
 // ============================================================================
 // 基本演算子実装 (Basic Operator Implementations)
 // ============================================================================
 
-/// 加算演算子の実装
-impl<T: Scalar> Add for Point2D<T> {
+impl<T: Scalar> Add<Vector2D<T>> for Point2D<T> {
     type Output = Self;
 
-    fn add(self, other: Self) -> Self::Output {
-        Self::new(self.x + other.x, self.y + other.y)
+    fn add(self, rhs: Vector2D<T>) -> Self::Output {
+        Self::new(self.x + rhs.x(), self.y + rhs.y())
     }
 }
 
-/// Point2D - Point2D = Point2D (座標成分ごとの減算)
-impl<T: Scalar> Sub for Point2D<T> {
-    type Output = Point2D<T>;
+impl<T: Scalar> Sub<Vector2D<T>> for Point2D<T> {
+    type Output = Self;
 
-    fn sub(self, other: Self) -> Self::Output {
-        Point2D::new(self.x - other.x, self.y - other.y)
+    fn sub(self, rhs: Vector2D<T>) -> Self::Output {
+        Self::new(self.x - rhs.x(), self.y - rhs.y())
     }
 }
 
-/// スカラー乗算演算子の実装
+impl<T: Scalar> Sub<Point2D<T>> for Point2D<T> {
+    type Output = Vector2D<T>;
+
+    fn sub(self, rhs: Point2D<T>) -> Self::Output {
+        Vector2D::new(self.x - rhs.x, self.y - rhs.y)
+    }
+}
+
 impl<T: Scalar> Mul<T> for Point2D<T> {
     type Output = Self;
 
-    fn mul(self, scalar: T) -> Self::Output {
-        Self::new(self.x * scalar, self.y * scalar)
+    fn mul(self, rhs: T) -> Self::Output {
+        Self::new(self.x * rhs, self.y * rhs)
     }
 }
 
-/// 負号演算子の実装
 impl<T: Scalar> Neg for Point2D<T> {
     type Output = Self;
 
@@ -305,24 +296,23 @@ impl<T: Scalar> Neg for Point2D<T> {
     }
 }
 
-// ============================================================================
-// Vector2D 相互演算子実装 (Vector2D Interop Operators)
-// ============================================================================
-
-/// Point2D + Vector2D = Point2D (点をベクトル分移動)
-impl<T: Scalar> Add<crate::Vector2D<T>> for Point2D<T> {
-    type Output = Point2D<T>;
-
-    fn add(self, vector: crate::Vector2D<T>) -> Self::Output {
-        Point2D::new(self.x + vector.x(), self.y + vector.y())
+impl<T: Scalar> Default for Point2D<T> {
+    fn default() -> Self {
+        Self::origin()
     }
 }
 
-/// Point2D - Vector2D = Point2D (点をベクトル分逆移動)
-impl<T: Scalar> Sub<crate::Vector2D<T>> for Point2D<T> {
-    type Output = Point2D<T>;
+// ============================================================================
+// geo_foundation abstracts trait implementations
+// ============================================================================
 
-    fn sub(self, vector: crate::Vector2D<T>) -> Self::Output {
-        Point2D::new(self.x - vector.x(), self.y - vector.y())
+/// geo_foundation::core::Point2D<T> トレイト実装
+impl<T: Scalar> point_traits::Point2D<T> for Point2D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
     }
 }

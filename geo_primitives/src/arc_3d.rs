@@ -1,10 +1,9 @@
-//! 3D円弧の基本実装
+﻿//! 3D円弧のCore実装
 //!
-//! 最小限の機能に集中：作成、アクセサ、基本プロパティのみ
-//! 他の幾何要素との変換・組み合わせは将来の拡張で実装予定
+//! Foundation統一システムに基づくArc3Dの必須機能のみ
 
-use crate::{Point3D, Vector3D};
-use geo_foundation::{tolerance_migration::DefaultTolerances, Angle, Scalar};
+use crate::{Angle, Direction3D, Point3D, Vector3D};
+use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
 
 /// 3次元円弧（基本実装）
 ///
@@ -17,10 +16,10 @@ use geo_foundation::{tolerance_migration::DefaultTolerances, Angle, Scalar};
 pub struct Arc3D<T: Scalar> {
     center: Point3D<T>,
     radius: T,
-    normal: Vector3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
-    start_dir: Vector3D<T>, // 開始方向ベクトル（正規化済み）
-    start_angle: Angle<T>,  // 開始角度
-    end_angle: Angle<T>,    // 終了角度
+    normal: Direction3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
+    start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
+    start_angle: Angle<T>,     // 開始角度
+    end_angle: Angle<T>,       // 終了角度
 }
 
 impl<T: Scalar> Arc3D<T> {
@@ -29,20 +28,19 @@ impl<T: Scalar> Arc3D<T> {
     /// # 引数
     /// * `center` - 円弧の中心点
     /// * `radius` - 円弧の半径
-    /// * `normal` - 円弧平面の法線ベクトル
-    /// * `start_dir` - 開始方向ベクトル（中心から開始点への方向）
+    /// * `normal` - 円弧平面の法線方向（正規化済み）
+    /// * `start_dir` - 開始方向（中心から開始点への方向、正規化済み）
     /// * `start_angle` - 開始角度
     /// * `end_angle` - 終了角度
     ///
     /// # 制約
     /// - `radius > 0`
     /// - `normal` と `start_dir` は直交していること
-    /// - `normal` と `start_dir` は非ゼロベクトルであること
     pub fn new(
         center: Point3D<T>,
         radius: T,
-        normal: Vector3D<T>,
-        start_dir: Vector3D<T>,
+        normal: Direction3D<T>,
+        start_dir: Direction3D<T>,
         start_angle: Angle<T>,
         end_angle: Angle<T>,
     ) -> Option<Self> {
@@ -51,19 +49,8 @@ impl<T: Scalar> Arc3D<T> {
             return None;
         }
 
-        // 基本的な長さチェック
-        let normal_length = normal.length();
-        let start_dir_length = start_dir.length();
-        if normal_length <= T::TOLERANCE || start_dir_length <= T::TOLERANCE {
-            return None;
-        }
-
-        // 正規化
-        let normal_normalized = normal * (T::ONE / normal_length);
-        let start_dir_normalized = start_dir * (T::ONE / start_dir_length);
-
         // 基本的な直交性チェック
-        let dot_product = normal_normalized.dot(&start_dir_normalized);
+        let dot_product = normal.dot(&start_dir);
         if dot_product.abs() > DefaultTolerances::distance::<T>() {
             return None;
         }
@@ -71,8 +58,8 @@ impl<T: Scalar> Arc3D<T> {
         Some(Self {
             center,
             radius,
-            normal: normal_normalized,
-            start_dir: start_dir_normalized,
+            normal,
+            start_dir,
             start_angle,
             end_angle,
         })
@@ -110,19 +97,40 @@ impl<T: Scalar> Arc3D<T> {
         let radius = (start - center).length();
 
         // 法線ベクトル（右手系）
-        let normal = cross.normalize().unwrap_or(Vector3D::unit_z());
+        let normal_dir = Direction3D::from_vector(cross.normalize())?;
 
         // 開始方向
-        let start_dir = (start - center).normalize().unwrap_or(Vector3D::unit_x());
+        let start_dir = Direction3D::from_vector((start - center).normalize())?;
 
         // 角度計算は簡略化（基本実装では0から2πの範囲とする）
         Self::new(
             center,
             radius,
-            normal,
+            normal_dir,
             start_dir,
             Angle::from_radians(T::ZERO),
             Angle::from_radians(T::PI),
+        )
+    }
+
+    /// Vector3Dから円弧を作成（後方互換性）
+    pub fn from_vectors(
+        center: Point3D<T>,
+        radius: T,
+        normal: Vector3D<T>,
+        start_dir: Vector3D<T>,
+        start_angle: Angle<T>,
+        end_angle: Angle<T>,
+    ) -> Option<Self> {
+        let normal_dir = Direction3D::from_vector(normal)?;
+        let start_dir_dir = Direction3D::from_vector(start_dir)?;
+        Self::new(
+            center,
+            radius,
+            normal_dir,
+            start_dir_dir,
+            start_angle,
+            end_angle,
         )
     }
 
@@ -136,8 +144,8 @@ impl<T: Scalar> Arc3D<T> {
         Self::new(
             center,
             radius,
-            Vector3D::unit_z(),
-            Vector3D::unit_x(),
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
+            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
             start_angle,
             end_angle,
         )
@@ -156,12 +164,12 @@ impl<T: Scalar> Arc3D<T> {
     }
 
     /// 円弧平面の法線ベクトルを取得
-    pub fn normal(&self) -> Vector3D<T> {
+    pub fn normal(&self) -> Direction3D<T> {
         self.normal
     }
 
     /// 開始方向ベクトルを取得
-    pub fn start_direction(&self) -> Vector3D<T> {
+    pub fn start_direction(&self) -> Direction3D<T> {
         self.start_dir
     }
 
@@ -221,8 +229,8 @@ impl<T: Scalar> Arc3D<T> {
         let u_axis = self.start_dir;
         let v_axis = self.normal.cross(&u_axis);
 
-        let point_on_circle =
-            u_axis * (self.radius * cos_angle) + v_axis * (self.radius * sin_angle);
+        let point_on_circle = u_axis.as_vector() * (self.radius * cos_angle)
+            + v_axis.as_vector() * (self.radius * sin_angle);
 
         self.center + point_on_circle
     }

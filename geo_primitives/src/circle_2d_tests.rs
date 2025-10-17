@@ -1,7 +1,19 @@
-//! Circle2D のテスト
+﻿//! Circle2D のテスト
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_foundation::abstract_types::geometry::foundation::{BasicContainment, BasicParametric};
+use geo_foundation::{
+    core::{
+        BasicMeasurement,
+        // 新階層Foundation
+        GeometryShape,
+        NewBasicContainment as BasicContainment,
+        NewBasicParametric,
+        ParametricShape,
+        Shape2D,
+        SurfaceShape,
+    },
+    Scalar,
+};
 use std::f64::consts::{PI, TAU};
 
 /// 基本作成テスト
@@ -263,7 +275,7 @@ fn test_to_3d() {
     assert_eq!(circle3d_z.center().z(), 5.0);
 }
 
-/// Foundation trait - GeometryFoundationテスト
+/// Foundation trait - CoreFoundationテスト
 #[test]
 fn test_geometry_foundation() {
     let circle = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
@@ -280,7 +292,7 @@ fn test_basic_metrics() {
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
 
     // 長さ（円周）
-    use geo_foundation::abstract_types::geometry::foundation::BasicMetrics;
+    use geo_foundation::core_foundation::BasicMetrics;
     let length = BasicMetrics::length(&circle).unwrap();
     assert!((length - TAU * 2.0).abs() < 1e-10);
 
@@ -326,15 +338,15 @@ fn test_basic_containment() {
 fn test_basic_parametric() {
     let circle = Circle2D::new(Point2D::new(0.0f64, 0.0f64), 1.0f64).unwrap();
 
-    // パラメータ範囲
+    // パラメータ範囲 (旧仕様: 0-1正規化)
     let (start, end) = circle.parameter_range();
     assert_eq!(start, 0.0);
     assert_eq!(end, 1.0);
 
-    // パラメータでの点取得
-    let p0 = circle.point_at_parameter(0.0);
-    let p25 = circle.point_at_parameter(0.25);
-    let p50 = circle.point_at_parameter(0.5);
+    // パラメータでの点取得 (0-1正規化、内部でTAU倍)
+    let p0 = circle.point_at_parameter(0.0); // 0 * TAU = 0°
+    let p25 = circle.point_at_parameter(0.25); // 0.25 * TAU = 90°
+    let p50 = circle.point_at_parameter(0.5); // 0.5 * TAU = 180°
 
     assert!((p0.x() - 1.0f64).abs() < 1e-10);
     assert!((p25.y() - 1.0f64).abs() < 1e-10);
@@ -358,4 +370,282 @@ fn test_circle2d_f32() {
 
     let area = circle.area();
     assert!((area - (std::f32::consts::PI * 9.0f32)).abs() < 1e-6);
+}
+
+// ============================================================================
+// Foundation System Tests
+// ============================================================================
+
+#[cfg(test)]
+mod foundation_tests {
+    use super::*;
+    use geo_foundation::core::circle_core::{
+        CircleCore, CircleMetrics, UnifiedCircleFoundation,
+    };
+
+    /// CircleCore trait実装テスト
+    #[test]
+    fn test_circle_core_trait() {
+        let circle = Circle2D::new(Point2D::new(2.0, 3.0), 5.0).unwrap();
+
+        // CircleCore trait経由でのアクセス
+        assert_eq!(circle.center(), Point2D::new(2.0, 3.0));
+        assert_eq!(circle.radius(), 5.0);
+    }
+
+    /// CircleMetrics trait実装テスト
+    #[test]
+    fn test_circle_metrics_trait() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
+
+        // CircleMetrics trait経由でのアクセス
+        let area = circle.area();
+        let circumference = circle.circumference();
+        let diameter = circle.diameter();
+
+        assert!((area - (PI * 4.0)).abs() < 1e-10);
+        assert!((circumference - (TAU * 2.0)).abs() < 1e-10);
+        assert_eq!(diameter, 4.0);
+    }
+
+    /// UnifiedCircleFoundation trait実装テスト
+    #[test]
+    fn test_unified_circle_foundation_trait() {
+        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
+        let circle2 = Circle2D::new(Point2D::new(4.0, 0.0), 2.0).unwrap();
+
+        // Foundation transform
+        let doubled = circle1.foundation_transform("double_radius").unwrap();
+        assert_eq!(doubled.radius(), 6.0);
+
+        let halved = circle1.foundation_transform("half_radius").unwrap();
+        assert_eq!(halved.radius(), 1.5);
+
+        // Foundation distance
+        let distance = circle1.foundation_distance(&circle2);
+        assert_eq!(distance, 4.0);
+
+        // Foundation intersection（重なる円の場合）
+        let circle3 = Circle2D::new(Point2D::new(2.0, 0.0), 3.0).unwrap();
+        let intersection = circle1.foundation_intersection(&circle3);
+        assert!(intersection.is_some());
+        let point = intersection.unwrap();
+        assert_eq!(point, Point2D::new(1.0, 0.0)); // 中点
+    }
+
+    /// Foundation Extensions統合テスト
+    #[test]
+    fn test_foundation_extensions() {
+        let circle = Circle2D::new(Point2D::new(2.0, 2.0), 3.0).unwrap();
+
+        // Foundation scale from point
+        let scaled = circle
+            .foundation_scale_from_point(Point2D::new(0.0, 0.0), 2.0)
+            .unwrap();
+        assert_eq!(scaled.center(), Point2D::new(4.0, 4.0));
+        assert_eq!(scaled.radius(), 6.0);
+
+        // Foundation collision resolution
+        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
+        let circle2 = Circle2D::new(Point2D::new(1.0, 0.0), 2.0).unwrap();
+        let resolved = circle1.foundation_resolve_collision(&circle2);
+        assert!(resolved.is_some());
+
+        let (new_circle1, new_circle2) = resolved.unwrap();
+        let new_distance = new_circle1.center().distance_to(&new_circle2.center());
+        assert!((new_distance - 4.0_f64).abs() < 1e-10); // 半径の合計
+
+        // Foundation weighted center
+        let others = vec![Circle2D::new(Point2D::new(4.0, 0.0), 1.0).unwrap()];
+        let weights = vec![1.0_f64];
+        let weighted_center = circle.foundation_weighted_center(&others, &weights);
+        assert!(weighted_center.is_some());
+    }
+
+    /// Foundation System数学的整合性テスト
+    #[test]
+    fn test_foundation_mathematical_consistency() {
+        let circle = Circle2D::new(Point2D::new(1.0, 1.0), 2.0).unwrap();
+
+        // スケール変換の数学的整合性
+        let center_point = Point2D::new(0.0, 0.0);
+        let factor = 1.5;
+        let scaled = circle
+            .foundation_scale_from_point(center_point, factor)
+            .unwrap();
+
+        // 期待値：center' = (0,0) + ((1,1) - (0,0)) * 1.5 = (1.5, 1.5)
+        assert!((scaled.center().x() - 1.5_f64).abs() < 1e-10);
+        assert!((scaled.center().y() - 1.5_f64).abs() < 1e-10);
+        assert!((scaled.radius() - 3.0_f64).abs() < 1e-10);
+
+        // Foundation transform の数学的一貫性
+        let original_area = circle.area();
+        let doubled = circle.foundation_transform("double_radius").unwrap();
+        let expected_area = PI * (doubled.radius() * doubled.radius());
+        assert!((doubled.area() - expected_area).abs() < 1e-10);
+    }
+}
+
+// ============================================================================
+// 新階層Foundation システムテスト
+// ============================================================================
+
+#[cfg(test)]
+mod hierarchy_foundation_tests {
+    use super::*;
+
+    /// 新階層Foundation：マーカーInterface テスト
+    #[test]
+    fn test_marker_interfaces() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0).unwrap();
+
+        // マーカーInterface の型チェック（コンパイル時確認）
+        fn assert_geometry_shape<T: Scalar, S: GeometryShape<T>>(_: &S) {}
+        fn assert_shape_2d<T: Scalar, S: Shape2D<T>>(_: &S) {}
+        fn assert_surface_shape<T: Scalar, S: SurfaceShape<T>>(_: &S) {}
+        fn assert_parametric_shape<T: Scalar, S: ParametricShape<T>>(_: &S) {}
+
+        assert_geometry_shape(&circle);
+        assert_shape_2d(&circle);
+        assert_surface_shape(&circle);
+        assert_parametric_shape(&circle);
+
+        // 型情報の確認
+        type Point = <Circle2D<f64> as GeometryShape<f64>>::Point;
+        type Vector = <Circle2D<f64> as GeometryShape<f64>>::Vector;
+        type BBox = <Circle2D<f64> as GeometryShape<f64>>::BBox;
+
+        // 型の正確性確認
+        let _: Point = Point2D::new(1.0, 2.0);
+        let _: Vector = Vector2D::new(1.0, 2.0);
+    }
+
+    /// レベル1：データアクセス Foundation テスト
+    #[test]
+    fn test_data_access_level() {
+        let circle = Circle2D::new(Point2D::new(2.0, 3.0), 4.0).unwrap();
+
+        // DataAccess trait経由での境界ボックス取得
+        let bbox = circle.bounding_box();
+
+        // 境界ボックスの正確性確認
+        assert_eq!(bbox.min().x(), -2.0); // 2.0 - 4.0
+        assert_eq!(bbox.min().y(), -1.0); // 3.0 - 4.0
+        assert_eq!(bbox.max().x(), 6.0); // 2.0 + 4.0
+        assert_eq!(bbox.max().y(), 7.0); // 3.0 + 4.0
+    }
+
+    /// レベル2：基本計量 Foundation テスト
+    #[test]
+    fn test_basic_measurement_level() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
+
+        // BasicMeasurement trait経由での計量
+        let area = BasicMeasurement::area(&circle).expect("Circle area should be Some");
+        let perimeter =
+            BasicMeasurement::perimeter(&circle).expect("Circle perimeter should be Some");
+
+        // 数学的正確性確認
+        assert!((area - (PI * 9.0)).abs() < 1e-10); // π * r²
+        assert!((perimeter - (TAU * 3.0)).abs() < 1e-10); // 2π * r
+
+        // length は円では定義されない
+        assert!(circle.length().is_none());
+    }
+
+    /// レベル3：基本包含 Foundation テスト
+    #[test]
+    fn test_basic_containment_level() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0).unwrap();
+
+        // BasicContainment trait経由での包含判定
+        assert!(circle.contains_point(&Point2D::new(0.0, 0.0))); // 中心
+        assert!(circle.contains_point(&Point2D::new(3.0, 4.0))); // 内部点
+        assert!(!circle.contains_point(&Point2D::new(6.0, 0.0))); // 外部点
+
+        // 距離計算
+        assert_eq!(circle.distance_to_point(&Point2D::new(0.0, 0.0)), 0.0); // 内部
+        assert_eq!(circle.distance_to_point(&Point2D::new(10.0, 0.0)), 5.0); // 外部
+
+        // 境界判定
+        assert!(circle.on_boundary(&Point2D::new(5.0, 0.0), 0.001)); // 境界上
+        assert!(!circle.on_boundary(&Point2D::new(10.0, 0.0), 0.001)); // 境界外
+    }
+
+    /// レベル4：パラメトリック Foundation テスト
+    #[test]
+    fn test_basic_parametric_level() {
+        let circle = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
+
+        // NewBasicParametric trait経由でのパラメトリック操作
+        let point_0 = NewBasicParametric::point_at_parameter(&circle, 0.0);
+        let point_pi_2 = NewBasicParametric::point_at_parameter(&circle, PI / 2.0);
+        let point_pi = NewBasicParametric::point_at_parameter(&circle, PI);
+
+        // パラメトリック点の正確性
+        assert!((point_0.x() - 4.0).abs() < 1e-10); // 1 + 3*cos(0) = 4
+        assert!((point_0.y() - 2.0).abs() < 1e-10); // 2 + 3*sin(0) = 2
+
+        assert!((point_pi_2.x() - 1.0).abs() < 1e-10); // 1 + 3*cos(π/2) = 1
+        assert!((point_pi_2.y() - 5.0).abs() < 1e-10); // 2 + 3*sin(π/2) = 5
+
+        assert!((point_pi.x() - (-2.0)).abs() < 1e-10); // 1 + 3*cos(π) = -2
+        assert!((point_pi.y() - 2.0).abs() < 1e-10); // 2 + 3*sin(π) = 2
+
+        // 接線ベクトル
+        let tangent_0 = NewBasicParametric::tangent_at_parameter(&circle, 0.0);
+        assert!((tangent_0.x() - 0.0).abs() < 1e-10); // -3*sin(0) = 0
+        assert!((tangent_0.y() - 3.0).abs() < 1e-10); // 3*cos(0) = 3
+
+        // パラメータ範囲
+        let (min_t, max_t) = NewBasicParametric::parameter_range(&circle);
+        assert_eq!(min_t, 0.0);
+        assert_eq!(max_t, TAU);
+    }
+
+    /// 円特化Foundation テスト
+    #[test]
+    fn test_circular_foundation() {
+        let circle = Circle2D::new(Point2D::new(3.0, 4.0), 2.5).unwrap();
+
+        // CircularFoundation trait経由での円特化操作
+        let center = circle.center();
+        let radius = circle.radius();
+
+        assert_eq!(center, Point2D::new(3.0, 4.0));
+        assert_eq!(radius, 2.5);
+    }
+
+    /// 階層Foundation統合テスト
+    #[test]
+    fn test_foundation_hierarchy_integration() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+
+        // 全レベルの機能を段階的に確認
+        // レベル1: データアクセス
+        let bbox = circle.bounding_box();
+        let test_point = Point2D::new(0.5, 0.5);
+        assert!(
+            test_point.x() >= bbox.min().x()
+                && test_point.x() <= bbox.max().x()
+                && test_point.y() >= bbox.min().y()
+                && test_point.y() <= bbox.max().y()
+        );
+
+        // レベル2: 計量 (レベル1継承)
+        let area = BasicMeasurement::area(&circle).expect("Circle area should be Some");
+        assert!((area - PI).abs() < 1e-10);
+
+        // レベル3: 包含 (レベル2継承)
+        assert!(circle.contains_point(&Point2D::new(0.5, 0.0)));
+
+        // レベル4: パラメトリック (レベル3継承)
+        let point = circle.point_at_parameter(PI / 4.0);
+        assert!(circle.contains_point(&point));
+
+        // 特化: 円固有 (全レベル利用可能)
+        assert_eq!(circle.center(), Point2D::new(0.0, 0.0));
+        assert_eq!(circle.radius(), 1.0);
+    }
 }

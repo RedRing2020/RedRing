@@ -1,7 +1,6 @@
-//! Point3D のテスト
+﻿//! Point3D のテスト
 
 use crate::Point3D;
-use geo_foundation::abstract_types::geometry::foundation::*;
 
 #[cfg(test)]
 mod tests {
@@ -58,17 +57,7 @@ mod tests {
     // === foundation トレイトテスト ===
 
     #[test]
-    fn test_geometry_foundation() {
-        let point = Point3D::new(1.0, 2.0, 3.0);
-        let bbox = point.bounding_box();
-
-        // 点の境界ボックス = 点自身
-        assert_eq!(bbox.min(), point);
-        assert_eq!(bbox.max(), point);
-    }
-
-    #[test]
-    fn test_basic_containment() {
+    fn test_basic_operations() {
         let point = Point3D::new(1.0, 2.0, 3.0);
         let same_point = Point3D::new(1.0, 2.0, 3.0);
         let different_point = Point3D::new(2.0, 3.0, 4.0);
@@ -83,7 +72,7 @@ mod tests {
         assert!(!point.on_boundary(&Point3D::new(1.1, 2.0, 3.0), 0.05));
 
         // 距離計算
-        assert_eq!(point.distance_to_point(&same_point), 0.0);
-        assert_eq!(point.distance_to_point(&Point3D::new(1.0, 2.0, 6.0)), 3.0);
+        assert_eq!(point.distance_to(&same_point), 0.0);
+        assert_eq!(point.distance_to(&Point3D::new(1.0, 2.0, 6.0)), 3.0);
     }
 }

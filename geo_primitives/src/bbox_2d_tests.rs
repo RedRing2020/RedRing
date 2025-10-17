@@ -1,4 +1,4 @@
-//! BBox2D のテスト
+﻿//! BBox2D のテスト
 
 use crate::{BBox2D, Point2D};
 

@@ -1,9 +1,10 @@
-//! ベクトル（Vector）の新実装
+﻿//! 3次元ベクトル（Vector3D）の Core 実装
 //!
-//! foundation.rs の基盤トレイトに基づく Vector3D の実装
+//! Core Foundation パターンに基づく Vector3D の必須機能のみ
+//! 拡張機能は vector_3d_extensions.rs を参照
 
 use crate::{BBox3D, Point3D};
-use geo_foundation::{abstract_types::geometry::foundation::*, Scalar};
+use geo_foundation::{core::vector_traits, Scalar};
 
 /// 3次元ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,7 +14,15 @@ pub struct Vector3D<T: Scalar> {
     z: T,
 }
 
+// ============================================================================
+// Core Implementation (必須機能のみ)
+// ============================================================================
+
 impl<T: Scalar> Vector3D<T> {
+    // ========================================================================
+    // Core Construction Methods
+    // ========================================================================
+
     /// 新しいベクトルを作成
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
@@ -24,18 +33,29 @@ impl<T: Scalar> Vector3D<T> {
         Self::new(T::ZERO, T::ZERO, T::ZERO)
     }
 
-    /// 単位ベクトル（軸方向）
+    /// X軸単位ベクトルを取得
     pub fn unit_x() -> Self {
         Self::new(T::ONE, T::ZERO, T::ZERO)
     }
 
+    /// Y軸単位ベクトルを取得
     pub fn unit_y() -> Self {
         Self::new(T::ZERO, T::ONE, T::ZERO)
     }
 
+    /// Z軸単位ベクトルを取得
     pub fn unit_z() -> Self {
         Self::new(T::ZERO, T::ZERO, T::ONE)
     }
+
+    /// タプルからベクトルを作成
+    pub fn from_tuple(components: (T, T, T)) -> Self {
+        Self::new(components.0, components.1, components.2)
+    }
+
+    // ========================================================================
+    // Core Accessor Methods
+    // ========================================================================
 
     /// X成分を取得
     pub fn x(&self) -> T {
@@ -57,43 +77,56 @@ impl<T: Scalar> Vector3D<T> {
         [self.x, self.y, self.z]
     }
 
-    /// ベクトルの長さ（ノルム）を計算
-    pub fn length(&self) -> T {
-        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
-    }
+    // ========================================================================
+    // Core Metrics Methods
+    // ========================================================================
 
-    /// ベクトルの長さの2乗を計算（sqrt計算を避ける）
+    /// ベクトルの長さの二乗を取得
     pub fn length_squared(&self) -> T {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
-    /// ベクトルを正規化（単位ベクトル化）
-    pub fn normalize(&self) -> Option<Self> {
+    /// ベクトルの長さ（ノルム）を計算
+    pub fn length(&self) -> T {
+        self.length_squared().sqrt()
+    }
+
+    /// ベクトルの大きさ（長さの別名）
+    pub fn magnitude(&self) -> T {
+        self.length()
+    }
+
+    /// ベクトルを正規化（長さを1にする）
+    pub fn normalize(&self) -> Self {
         let len = self.length();
-        if len > T::EPSILON {
-            Some(Self::new(self.x / len, self.y / len, self.z / len))
+        if len <= T::ZERO {
+            Self::zero()
         } else {
-            None // ゼロベクトルは正規化できない
+            Self::new(self.x / len, self.y / len, self.z / len)
         }
     }
 
-    /// ベクトルの反転
-    pub fn negate(&self) -> Self {
-        Self::new(-self.x, -self.y, -self.z)
-    }
+    // ========================================================================
+    // Core Calculation Methods
+    // ========================================================================
 
-    /// 内積計算
+    /// 内積を計算
     pub fn dot(&self, other: &Self) -> T {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    /// 外積計算
+    /// 3D外積を計算
     pub fn cross(&self, other: &Self) -> Self {
         Self::new(
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
             self.x * other.y - self.y * other.x,
         )
+    }
+
+    /// ベクトルの反転
+    pub fn negate(&self) -> Self {
+        Self::new(-self.x, -self.y, -self.z)
     }
 
     /// 2点間のベクトルを作成
@@ -114,16 +147,18 @@ impl<T: Scalar> Vector3D<T> {
     /// 他のベクトルと平行かどうかを判定
     pub fn is_parallel(&self, other: &Self) -> bool {
         let cross = self.cross(other);
-        cross.length() <= T::TOLERANCE
+        cross.length() <= T::EPSILON
     }
 
     /// 他のベクトルと垂直かどうかを判定
     pub fn is_perpendicular(&self, other: &Self) -> bool {
-        self.dot(other).abs() <= T::TOLERANCE
+        self.dot(other).abs() <= T::EPSILON
     }
 }
 
-// === 演算子オーバーロード ===
+// ============================================================================
+// Operator Implementations
+// ============================================================================
 
 impl<T: Scalar> std::ops::Mul<T> for Vector3D<T> {
     type Output = Self;
@@ -149,15 +184,21 @@ impl<T: Scalar> std::ops::Sub for Vector3D<T> {
     }
 }
 
-// === foundation トレイト実装 ===
+impl<T: Scalar> std::ops::Neg for Vector3D<T> {
+    type Output = Self;
 
-impl<T: Scalar> GeometryFoundation<T> for Vector3D<T> {
-    type Point = Point3D<T>;
-    type Vector = Self;
-    type BBox = BBox3D<T>;
+    fn neg(self) -> Self::Output {
+        Self::new(-self.x, -self.y, -self.z)
+    }
+}
 
+// ============================================================================
+// Helper Methods
+// ============================================================================
+
+impl<T: Scalar> Vector3D<T> {
     /// ベクトルの境界ボックス（原点と終点を含む）
-    fn bounding_box(&self) -> Self::BBox {
+    pub fn bounding_box(&self) -> BBox3D<T> {
         let origin = Point3D::<T>::origin();
         let end_point = self.to_point();
 
@@ -175,30 +216,35 @@ impl<T: Scalar> GeometryFoundation<T> for Vector3D<T> {
     }
 }
 
-impl<T: Scalar> BasicMetrics<T> for Vector3D<T> {
-    /// ベクトルの長さ
-    fn length(&self) -> Option<T> {
-        Some(self.length())
+// ============================================================================
+// geo_foundation abstracts trait implementations
+// ============================================================================
+
+/// geo_foundation::core::Vector2D<T> トレイト実装
+impl<T: Scalar> vector_traits::Vector2D<T> for Vector3D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
     }
 }
 
-impl<T: Scalar> BasicDirectional<T> for Vector3D<T> {
-    type Direction = Self;
-
-    /// 方向（正規化されたベクトル）
-    fn direction(&self) -> Self::Direction {
-        self.normalize().unwrap_or_else(|| Self::unit_x()) // デフォルトは X 軸方向
-    }
-
-    /// 方向を反転
-    fn reverse_direction(&self) -> Self {
-        self.negate()
+/// geo_foundation::core::Vector3D<T> トレイト実装
+impl<T: Scalar> vector_traits::Vector3D<T> for Vector3D<T> {
+    fn z(&self) -> T {
+        self.z
     }
 }
 
-// 基本機能のみに集中 - 複雑な変換は将来のextensionトレイトで実装予定
-//
-// 削除済みの複雑な機能：
-// - rotate_around_axis (行列変換として別途実装予定)
-// - 複合変換操作
-// - 高度な幾何計算
+// ============================================================================
+// From trait implementations
+// ============================================================================
+
+/// タプルからの変換
+impl<T: Scalar> From<(T, T, T)> for Vector3D<T> {
+    fn from(tuple: (T, T, T)) -> Self {
+        Self::new(tuple.0, tuple.1, tuple.2)
+    }
+}
