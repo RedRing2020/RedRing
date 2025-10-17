@@ -2,7 +2,7 @@
 //!
 //! 新しい構造への完全移行完了:
 //! - `traits/` - Foundation操作トレイト群
-//! - `abstracts/` - 最小責務抽象化  
+//! - `abstracts/` - 最小責務抽象化
 //! - `geometry/` - 基本幾何Foundation
 
 // 下位互換性のための再エクスポート

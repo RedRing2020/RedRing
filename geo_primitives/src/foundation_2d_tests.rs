@@ -1,9 +1,7 @@
 ﻿//! Foundation traitのテスト
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::core_foundation::{
-    BasicContainment, BasicDirectional, CoreFoundation,
-};
+use geo_foundation::core_foundation::{BasicContainment, BasicDirectional, CoreFoundation};
 
 /// Point2DのCoreFoundationテスト
 #[test]
