@@ -1,6 +1,6 @@
 //! RedRing 幾何計算中核 (Geometry Computational Core)
 //!
-//! このクレートは// Direction3D is deprecated in core - removed, use geo_primitives::Direction3D instead許容誤差 (tolerance)** と **ロバスト幾何判定** を中心とした
+//! このクレートは **許容誤差 (tolerance)** と **ロバスト幾何判定** を中心とした
 //! 最小構成の計算インフラを提供します。形状プリミティブ（線分 / 平面 / 円など）の
 //! 正準定義は `geo_primitives` クレートへ段階的に移管され、`geo_core` は
 //! 「数値安定性・比較ロジック・低レベル補助」のみに収束していきます。
@@ -33,7 +33,7 @@
 //! ```
 //!
 //! ## 今後の縮小計画 (Roadmap Snapshot)
-//! - [Phase] f64 正準プリミティブ: `geo_primitives::f64geom::*` に集約 (進行中)
+//! - [Phase] f64 正準プリミティブ: `geo-primitives::f64geom::*` に集約 (進行中)
 //! - [Phase] 旧 3D プリミティブ (`legacy-primitives3d` feature) の段階的削除
 //! - [Planned] Point/Vector の最終配置評価: `geo_core` に残すか `geo_primitives` へ移すかを
 //!   trait ベース抽象 (`Vec3Like`, `Point3Like`) の試作結果で判断
@@ -56,7 +56,7 @@
 //! (c) RedRing Project
 
 // pub mod robust;  // Vector2D/3D に依存するため一時的に無効化
-// Primitives modules removed - use geo_primitives instead
+// Primitives modules removed - use geo-primitives instead
 
 // テストモジュール
 #[cfg(test)]
@@ -64,12 +64,12 @@ mod unit_tests;
 
 // 主要な型の再エクスポート
 // pub use vector::Vector;  // 一時的に無効化
-// Vector2D, Vector3D removed - use geo_primitives instead
+// Vector2D, Vector3D removed - use geo-primitives instead
 
-// Re-export deprecated 3D items - removed, use geo_primitives instead
+// Re-export deprecated 3D items - removed, use geo-primitives instead
 // pub use robust::{Orientation, RobustSolver};  // robust モジュール無効化のため一時的にコメントアウト
 
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
-    // Vector modules removed - use analysis::linalg::vector or geo_primitives::prelude instead
+    // Vector modules removed - use analysis::linalg::vector or geo-primitives::prelude instead
 }
