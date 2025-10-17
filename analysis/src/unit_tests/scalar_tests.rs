@@ -4,6 +4,7 @@
 //! f32/f64両方での動作と相互運用性をテストします。
 
 use crate::abstract_types::Scalar;
+use crate::GeometricTolerance;
 
 #[cfg(test)]
 mod tests {
@@ -15,19 +16,19 @@ mod tests {
         let a_f32 = 3.0f32;
         let b_f32 = 4.0f32;
         let hypotenuse_f32 = (a_f32 * a_f32 + b_f32 * b_f32).sqrt();
-        assert!((hypotenuse_f32 - 5.0f32).abs() < f32::TOLERANCE);
+        assert!((hypotenuse_f32 - 5.0f32).abs() < <f32 as GeometricTolerance>::TOLERANCE);
 
         // f64 Scalar trait テスト
         let a_f64 = 3.0f64;
         let b_f64 = 4.0f64;
         let hypotenuse_f64 = (a_f64 * a_f64 + b_f64 * b_f64).sqrt();
-        assert!((hypotenuse_f64 - 5.0f64).abs() < f64::TOLERANCE);
+        assert!((hypotenuse_f64 - 5.0f64).abs() < <f64 as GeometricTolerance>::TOLERANCE);
 
         // 型変換テスト
         let f32_val = f32::PI;
         let converted_to_f64 = f32_val.to_f64();
         let back_to_f32 = f32::from_f64(converted_to_f64);
-        assert!((f32_val - back_to_f32).abs() < f32::TOLERANCE);
+        assert!((f32_val - back_to_f32).abs() < <f32 as GeometricTolerance>::TOLERANCE);
     }
 
     #[test]
@@ -54,7 +55,9 @@ mod tests {
 
         // 基本的な変換
         assert!((value_f32.to_f64() - value_f64).abs() < 1e-6);
-        assert!((f32::from_f64(value_f64) - value_f32).abs() < f32::TOLERANCE);
+        assert!(
+            (f32::from_f64(value_f64) - value_f32).abs() < <f32 as GeometricTolerance>::TOLERANCE
+        );
 
         // 近似等価
         assert!(value_f32.approx_eq(42.5));
@@ -64,16 +67,16 @@ mod tests {
     #[test]
     fn test_precision_boundaries() {
         // 精度境界でのテスト
-        let small_f32 = f32::TOLERANCE * 0.1;
-        let large_f32 = f32::TOLERANCE * 10.0;
+        let small_f32 = <f32 as GeometricTolerance>::TOLERANCE * 0.1;
+        let large_f32 = <f32 as GeometricTolerance>::TOLERANCE * 10.0;
 
-        assert!(small_f32.abs() < f32::TOLERANCE);
-        assert!(large_f32.abs() > f32::TOLERANCE);
+        assert!(small_f32.abs() < <f32 as GeometricTolerance>::TOLERANCE);
+        assert!(large_f32.abs() > <f32 as GeometricTolerance>::TOLERANCE);
 
-        let small_f64 = f64::TOLERANCE * 0.1;
-        let large_f64 = f64::TOLERANCE * 10.0;
+        let small_f64 = <f64 as GeometricTolerance>::TOLERANCE * 0.1;
+        let large_f64 = <f64 as GeometricTolerance>::TOLERANCE * 10.0;
 
-        assert!(small_f64.abs() < f64::TOLERANCE);
-        assert!(large_f64.abs() > f64::TOLERANCE);
+        assert!(small_f64.abs() < <f64 as GeometricTolerance>::TOLERANCE);
+        assert!(large_f64.abs() > <f64 as GeometricTolerance>::TOLERANCE);
     }
 }

@@ -1,4 +1,4 @@
-﻿//! 3D円弧のCore実装
+//! 3D円弧のCore実装
 //!
 //! Foundation統一システムに基づくArc3Dの必須機能のみ
 
@@ -81,7 +81,7 @@ impl<T: Scalar> Arc3D<T> {
         let v2 = end - start;
         let cross = v1.cross(&v2);
 
-        if cross.length() <= T::TOLERANCE {
+        if cross.length() <= DefaultTolerances::distance::<T>() {
             return None; // 一直線上の点
         }
 
@@ -202,13 +202,15 @@ impl<T: Scalar> Arc3D<T> {
     /// 円弧が完全な円かどうかを判定
     pub fn is_full_circle(&self) -> bool {
         let full_circle = Angle::from_radians(T::from_f64(2.0) * T::PI);
-        self.angle_span().is_equivalent_default(&full_circle)
+        let diff = (self.angle_span().to_radians() - full_circle.to_radians()).abs();
+        diff <= DefaultTolerances::angle::<T>()
     }
 
     /// 円弧が退化しているかどうかを判定
     pub fn is_degenerate(&self) -> bool {
         let tolerance = DefaultTolerances::distance::<T>();
-        self.radius <= tolerance || self.angle_span().to_radians() <= Angle::<T>::tolerance()
+        self.radius <= tolerance
+            || self.angle_span().to_radians() <= DefaultTolerances::angle::<T>()
     }
 
     // === 基本的なパラメトリック操作 ===

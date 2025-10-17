@@ -39,7 +39,11 @@
       "comments": "off",
       "strings": "off",
       "other": "off"
-    }
+    },
+    "rust-analyzer.enable": false,
+    "editor.semanticHighlighting.enabled": false,
+    "editor.suggest.showWords": false,
+    "editor.wordBasedSuggestions": "off"
   },
   "[json]": {
     "editor.tabSize": 2,
@@ -71,6 +75,18 @@
   "rust-analyzer.lens.debug": true,
   "rust-analyzer.runnables.command": "cargo",
   "rust-analyzer.files.excludeDirs": [],
+  "rust-analyzer.files.excludeFiles": ["**/*.md"],
+  "rust-analyzer.diagnostics.disabled": [
+    "unresolved-import",
+    "unresolved-macro-call",
+    "undefined",
+    "unknown-tool",
+    "unknown-toolset"
+  ],
+  "rust-analyzer.workspace.symbol.search.scope": "workspace_and_dependencies",
+  "rust-analyzer.workspace.symbol.search.kind": "only_types",
+  "rust-analyzer.completion.callable.snippets": "none",
+  "rust-analyzer.lens.forceCustomCommands": false,
 
   // === Search & Explorer ===
   "search.exclude": {
@@ -117,6 +133,19 @@
   "breadcrumbs.enabled": true,
   "explorer.confirmDelete": false,
   "explorer.confirmDragAndDrop": false,
+
+  // === Language Server Settings ===
+  "rust-analyzer.server.extraEnv": {
+    "RUST_ANALYZER_DISABLE_MARKDOWN": "1"
+  },
+  "rust-analyzer.cargo.features": [],
+  "rust-analyzer.linkedProjects": [],
+
+  // === File Associations ===
+  "files.associations": {
+    "*.md": "markdown",
+    "copilot-instructions.md": "markdown"
+  },
 
   // === Performance Settings ===
   "typescript.preferences.includePackageJsonAutoImports": "off",

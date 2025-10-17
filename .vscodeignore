@@ -1,0 +1,12 @@
+# VS Code Language Server 無視設定
+# Markdownファイル内のRustコードブロックは解析対象外
+**/*.md
+.github/copilot-instructions.md
+
+# ドキュメント関連
+book/
+docs/
+manual/
+
+# ビルド成果物
+target/
