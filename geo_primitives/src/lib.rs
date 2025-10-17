@@ -18,27 +18,19 @@ pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
-pub mod vector_3d; // Vector3D の新実装 // Direction3D の拡張機能 (Extension)
+pub mod vector_3d; // Vector3D の新実装
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
 pub mod arc_2d; // Arc2D の新実装 (Core)
 pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装
-                          // pub mod arc_2d_containment; // Arc2D 包含判定拡張（未対応）
-                          // pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)（未対応）
-                          // pub mod arc_2d_intersection; // Arc2D 交点計算Foundation実装（未対応）
-                          // pub mod arc_2d_metrics; // Arc2D 計量演算拡張（未対応）
-                          // pub mod arc_2d_sampling; // Arc2D 点列生成拡張（未対応）
-                          // pub mod arc_2d_transform; // Arc2D 変換操作拡張（未対応）
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_metrics; // Circle2D 計量演算
-                           // pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension) - 一時無効化
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
-                                   // pub mod ellipse_2d_extensions; // Ellipse2D の拡張機能 (Extension) - 一時無効化
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
@@ -50,46 +42,20 @@ pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod vector_2d; // Vector2D の新実装 (Core)
-pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension) // Direction2D の拡張機能 (Extension)
+pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
-// #[cfg(test)]
-// mod arc_3d_tests; // 一時無効化
-// #[cfg(test)]
-// mod circle_3d_tests; // 一時無効化：古いFoundationトレイト使用
 #[cfg(test)]
 mod ellipse_3d_tests;
-// #[cfg(test)]
-// mod infinite_line_3d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
-// mod line_segment_3d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
 #[cfg(test)]
-mod point_3d_tests; // 新Foundation対応済み
-                    // #[cfg(test)]
+mod point_3d_tests;
 #[cfg(test)]
-mod vector_3d_tests; // 新Foundation対応済み
+mod vector_3d_tests;
 
 // 2D テスト
-// #[cfg(test)]
-// mod arc_2d_tests; // 一時無効化：古いFoundationトレイト使用
 #[cfg(test)]
 mod bbox_2d_tests;
-// #[cfg(test)]
-// mod circle_2d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
-// mod ellipse_2d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
-// mod ellipse_arc_new_tests; // 一時無効化：未作成のテストファイル
-// #[cfg(test)]
-// mod ellipse_new_tests; // 一時無効化：未作成のテストファイル
-// #[cfg(test)]
-// mod foundation_2d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
-// mod infinite_line_2d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
-// mod line_segment_2d_tests; // 一時無効化：古いFoundationトレイト使用
 #[cfg(test)]
 mod direction_extensions_tests;
 #[cfg(test)]
