@@ -1,9 +1,9 @@
-﻿//! 点（Point）の新実装
+﻿//! Point3D Core 実装
 //!
-//! foundation.rs の基盤トレイトに基づく Point3D の実装
+//! Foundation統一システムに基づくPoint3Dの必須機能のみ
 
 use crate::Vector3D;
-use geo_foundation::Scalar;
+use geo_foundation::{abstracts::point_traits, Scalar};
 
 /// 3次元空間の点
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,7 +13,15 @@ pub struct Point3D<T: Scalar> {
     z: T,
 }
 
+// ============================================================================
+// Core Implementation (必須機能のみ)
+// ============================================================================
+
 impl<T: Scalar> Point3D<T> {
+    // ========================================================================
+    // Core Construction Methods
+    // ========================================================================
+
     /// 新しい点を作成
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
@@ -23,6 +31,15 @@ impl<T: Scalar> Point3D<T> {
     pub fn origin() -> Self {
         Self::new(T::ZERO, T::ZERO, T::ZERO)
     }
+
+    /// タプルから点を作成
+    pub fn from_tuple(coords: (T, T, T)) -> Self {
+        Self::new(coords.0, coords.1, coords.2)
+    }
+
+    // ========================================================================
+    // Core Accessor Methods
+    // ========================================================================
 
     /// X座標を取得
     pub fn x(&self) -> T {
@@ -44,17 +61,33 @@ impl<T: Scalar> Point3D<T> {
         [self.x, self.y, self.z]
     }
 
+    // ========================================================================
+    // Core Calculation Methods
+    // ========================================================================
+
     /// 他の点との距離を計算
     pub fn distance_to(&self, other: &Self) -> T {
+        self.distance_squared_to(other).sqrt()
+    }
+
+    /// 他の点との距離の二乗を計算（sqrt回避で高速）
+    pub fn distance_squared_to(&self, other: &Self) -> T {
         let dx = self.x - other.x;
         let dy = self.y - other.y;
         let dz = self.z - other.z;
-        (dx * dx + dy * dy + dz * dz).sqrt()
+        dx * dx + dy * dy + dz * dz
     }
-}
 
-// === Distance calculation methods ===
-impl<T: Scalar> Point3D<T> {
+    /// 原点からの距離（ノルム）
+    pub fn norm(&self) -> T {
+        self.norm_squared().sqrt()
+    }
+
+    /// 原点からの距離の二乗
+    pub fn norm_squared(&self) -> T {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
+
     /// 点が境界上（許容誤差内）にあるかを判定
     pub fn on_boundary(&self, point: &Self, tolerance: T) -> bool {
         self.distance_to(point) <= tolerance
@@ -66,7 +99,9 @@ impl<T: Scalar> Point3D<T> {
     }
 }
 
-// === 演算子の実装 ===
+// ============================================================================
+// Operator Implementations
+// ============================================================================
 
 // Point - Point = Vector (2点間のベクトル)
 impl<T: Scalar> std::ops::Sub for Point3D<T> {
@@ -104,8 +139,36 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
 }
 
 // 基本機能のみに集中 - 複雑な変換は将来のextensionトレイトで実装予定
-//
-// 削除済みの複雑な機能：
-// - rotate_around_axis (行列変換として別途実装予定)
-// - 複合変換操作
-// - 高度な幾何計算
+
+// ============================================================================
+// geo_foundation abstracts trait implementations
+// ============================================================================
+
+/// geo_foundation::abstracts::Point2D<T> トレイト実装
+impl<T: Scalar> point_traits::Point2D<T> for Point3D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
+    }
+}
+
+/// geo_foundation::abstracts::Point3D<T> トレイト実装
+impl<T: Scalar> point_traits::Point3D<T> for Point3D<T> {
+    fn z(&self) -> T {
+        self.z
+    }
+}
+
+// ============================================================================
+// From trait implementations
+// ============================================================================
+
+/// タプルからの変換
+impl<T: Scalar> From<(T, T, T)> for Point3D<T> {
+    fn from(tuple: (T, T, T)) -> Self {
+        Self::new(tuple.0, tuple.1, tuple.2)
+    }
+}

@@ -8,11 +8,17 @@
 pub mod arc_3d;
 pub mod bbox_3d; // BBox3D の新実装
 pub mod circle_3d; // Circle3D の新実装
-pub mod ellipse_3d; // Ellipse3D の新実装
+pub mod direction_3d; // Direction3D の新実装 (Core)
+pub mod direction_3d_extensions;
+pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
+pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
-pub mod line_segment_3d; // LineSegment3D の新実装
-pub mod point_3d; // Point3D の新実装
-pub mod vector_3d; // Vector3D の新実装
+pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
+pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
+pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
+pub mod point_3d; // Point3D の新実装 (Core)
+pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
+pub mod vector_3d; // Vector3D の新実装 // Direction3D の拡張機能 (Extension)
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
@@ -30,9 +36,13 @@ pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_metrics; // Circle2D 計量演算
                            // pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension) - 一時無効化
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
-pub mod ellipse_arc_2d; // EllipseArc2D の実装 (楕円弧)
-                        // pub mod ellipse_2d_extensions; // Ellipse2D の拡張機能 (Extension) - 一時無効化
+pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
+pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
+                                   // pub mod ellipse_2d_extensions; // Ellipse2D の拡張機能 (Extension) - 一時無効化
+pub mod direction_2d; // Direction2D の新実装 (Core)
+pub mod direction_2d_extensions;
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
+pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod point_2d; // Point2D の新実装
@@ -40,7 +50,7 @@ pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod vector_2d; // Vector2D の新実装 (Core)
-pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
+pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension) // Direction2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
@@ -55,9 +65,11 @@ mod ellipse_3d_tests;
 // #[cfg(test)]
 // mod line_segment_3d_tests; // 一時無効化：古いFoundationトレイト使用
 // #[cfg(test)]
-// mod point_3d_tests; // 一時無効化：古いFoundationトレイト使用
-// #[cfg(test)]
-// mod vector_3d_tests; // 一時無効化：古いFoundationトレイト使用
+#[cfg(test)]
+mod point_3d_tests; // 新Foundation対応済み
+                    // #[cfg(test)]
+#[cfg(test)]
+mod vector_3d_tests; // 新Foundation対応済み
 
 // 2D テスト
 // #[cfg(test)]
@@ -68,16 +80,18 @@ mod bbox_2d_tests;
 // mod circle_2d_tests; // 一時無効化：古いFoundationトレイト使用
 // #[cfg(test)]
 // mod ellipse_2d_tests; // 一時無効化：古いFoundationトレイト使用
+// #[cfg(test)]
+// mod ellipse_arc_new_tests; // 一時無効化：未作成のテストファイル
+// #[cfg(test)]
+// mod ellipse_new_tests; // 一時無効化：未作成のテストファイル
+// #[cfg(test)]
+// mod foundation_2d_tests; // 一時無効化：古いFoundationトレイト使用
+// #[cfg(test)]
+// mod infinite_line_2d_tests; // 一時無効化：古いFoundationトレイト使用
+// #[cfg(test)]
+// mod line_segment_2d_tests; // 一時無効化：古いFoundationトレイト使用
 #[cfg(test)]
-mod ellipse_arc_new_tests;
-#[cfg(test)]
-mod ellipse_new_tests; // 新しいEllipse2D実装のテスト // 新しいEllipseArc2D実装のテスト
-                       // #[cfg(test)]
-                       // mod foundation_2d_tests; // 一時無効化：古いFoundationトレイト使用
-                       // #[cfg(test)]
-                       // mod infinite_line_2d_tests; // 一時無効化：古いFoundationトレイト使用
-                       // #[cfg(test)]
-                       // mod line_segment_2d_tests; // 一時無効化：古いFoundationトレイト使用
+mod direction_extensions_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
@@ -113,6 +127,7 @@ pub use geo_foundation::abstract_types::foundation::{
 pub use arc_3d::Arc3D;
 pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
+pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
@@ -123,6 +138,7 @@ pub use vector_3d::Vector3D;
 pub use arc_2d::Arc2D; // ジェネリック実装完了により再有効化
 pub use bbox_2d::BBox2D;
 pub use circle_2d::Circle2D;
+pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;
 pub use ellipse_arc_2d::EllipseArc2D; // 楕円弧
 pub use infinite_line_2d::InfiniteLine2D;

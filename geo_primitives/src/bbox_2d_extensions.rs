@@ -139,7 +139,7 @@ impl<T: Scalar> BBox2D<T> {
         let corners = self.corners();
         let rotated_corners: Vec<Point2D<T>> = corners
             .iter()
-            .map(|corner| corner.rotate_around_angle(center, angle))
+            .map(|corner| corner.rotate_around(center, angle))
             .collect();
 
         Self::from_points(&rotated_corners).unwrap_or(*self)

@@ -1,7 +1,7 @@
-//! 新しいEllipseArc2D実装のテスト
+//! EllipseArc2D実装のテスト
 
 #[cfg(test)]
-mod new_ellipse_arc_tests {
+mod ellipse_arc_2d_tests {
     use crate::ellipse_2d::Ellipse2D;
     use crate::ellipse_arc_2d::EllipseArc2D;
     use crate::Point2D;

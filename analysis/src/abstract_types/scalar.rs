@@ -71,6 +71,12 @@ pub trait Scalar:
     /// 1/√2 (正規化でよく使用)
     const INV_SQRT_2: Self;
 
+    /// 最大値
+    const MAX: Self;
+
+    /// 最小値
+    const MIN: Self;
+
     /// 絶対値を取得
     fn abs(self) -> Self;
 
@@ -180,6 +186,8 @@ impl Scalar for f32 {
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
     const SQRT_2: Self = std::f32::consts::SQRT_2;
     const INV_SQRT_2: Self = 1.0 / std::f32::consts::SQRT_2;
+    const MAX: Self = f32::MAX;
+    const MIN: Self = f32::MIN;
 
     #[inline]
     fn abs(self) -> Self {
@@ -327,6 +335,8 @@ impl Scalar for f64 {
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
     const SQRT_2: Self = std::f64::consts::SQRT_2;
     const INV_SQRT_2: Self = 1.0 / std::f64::consts::SQRT_2;
+    const MAX: Self = f64::MAX;
+    const MIN: Self = f64::MIN;
 
     #[inline]
     fn abs(self) -> Self {

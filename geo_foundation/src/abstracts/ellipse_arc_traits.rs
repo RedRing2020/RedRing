@@ -125,15 +125,15 @@ pub trait EllipseArcSampling<T: Scalar>: EllipseArc2D<T> {
 ///
 /// 2D楕円弧に法線ベクトルを追加した3D空間での楕円弧。
 pub trait EllipseArc3D<T: Scalar>: EllipseArc2D<T> {
-    /// ベクトル型
-    type Vector;
+    /// 方向型（単位化済みベクトル）
+    type Direction;
 
     /// 楕円弧が存在する平面の法線ベクトルを取得
-    fn normal(&self) -> Self::Vector;
+    fn normal(&self) -> Self::Direction;
 
     /// 楕円の長軸方向ベクトルを取得
-    fn major_axis_direction(&self) -> Self::Vector;
+    fn major_axis_direction(&self) -> Self::Direction;
 
     /// 楕円の短軸方向ベクトルを取得
-    fn minor_axis_direction(&self) -> Self::Vector;
+    fn minor_axis_direction(&self) -> Self::Direction;
 }

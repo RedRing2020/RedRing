@@ -1,7 +1,7 @@
-//! 新しいEllipse2D実装のテスト
+//! Ellipse2D実装の追加テスト
 
 #[cfg(test)]
-mod new_ellipse_tests {
+mod ellipse_2d_additional_tests {
     use crate::ellipse_2d::Ellipse2D;
     use crate::Point2D;
 

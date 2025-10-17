@@ -1,6 +1,6 @@
-//! 2次元楕円弧（EllipseArc2D）の実装
+//! 2次元楕円弧（EllipseArc2D）のCore実装
 //!
-//! 新しいtraitsシステムに対応したEllipseArc2Dの実装
+//! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
 use crate::{Arc2D, BBox2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
@@ -17,7 +17,7 @@ pub struct EllipseArc2D<T: Scalar> {
 }
 
 // ============================================================================
-// Core Implementation
+// Core Implementation (必須機能のみ)
 // ============================================================================
 
 impl<T: Scalar> EllipseArc2D<T> {
@@ -43,19 +43,6 @@ impl<T: Scalar> EllipseArc2D<T> {
     pub fn from_arc(arc: Arc2D<T>) -> Self {
         let ellipse = Ellipse2D::from_circle(*arc.circle());
         Self::new(ellipse, arc.start_angle(), arc.end_angle())
-    }
-
-    /// 楕円の一部分として楕円弧を作成
-    pub fn from_ellipse_sector(
-        center: Point2D<T>,
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: Angle<T>,
-        end_angle: Angle<T>,
-    ) -> Option<Self> {
-        let ellipse = Ellipse2D::new(center, semi_major, semi_minor, rotation)?;
-        Some(Self::new(ellipse, start_angle, end_angle))
     }
 
     // ========================================================================
@@ -231,7 +218,7 @@ impl<T: Scalar> EllipseArc2D<T> {
         }
 
         let angle = to_point.angle();
-        self.angle_in_range(angle)
+        self.angle_in_range(angle.to_radians())
     }
 
     /// パラメータ範囲を取得
@@ -239,82 +226,8 @@ impl<T: Scalar> EllipseArc2D<T> {
         (T::ZERO, T::ONE)
     }
 
-    /// 楕円弧が円弧かどうかを判定
-    pub fn is_circular_arc(&self, tolerance: T) -> bool {
-        self.ellipse.is_circle(tolerance)
-    }
-
-    /// 円弧に変換（可能な場合）
-    pub fn to_arc(&self) -> Option<Arc2D<T>> {
-        let circle = self.ellipse.to_circle()?;
-        Arc2D::new(circle, self.start_angle, self.end_angle)
-    }
-
-    // ========================================================================
-    // Transformation Methods
-    // ========================================================================
-
-    /// 中心を移動
-    pub fn translate(&self, offset: Vector2D<T>) -> Self {
-        let new_center = Point2D::new(
-            self.ellipse.center().x() + offset.x(),
-            self.ellipse.center().y() + offset.y(),
-        );
-
-        let new_ellipse = Ellipse2D::new(
-            new_center,
-            self.ellipse.semi_major(),
-            self.ellipse.semi_minor(),
-            self.ellipse.rotation(),
-        )
-        .unwrap();
-
-        Self::new(new_ellipse, self.start_angle, self.end_angle)
-    }
-
-    /// 回転
-    pub fn rotate(&self, _angle: T, _pivot: Point2D<T>) -> Self {
-        // TODO: 楕円の回転変換を実装
-        // 現在は簡易実装
-        *self
-    }
-
-    /// スケール
-    pub fn scale(&self, _scale_x: T, _scale_y: T, _origin: Point2D<T>) -> Self {
-        // TODO: 楕円のスケール変換を実装
-        // 現在は簡易実装
-        *self
-    }
-}
-
-// ============================================================================
-// Additional Helper Methods
-// ============================================================================
-
-impl<T: Scalar> EllipseArc2D<T> {
     /// 境界上の点かどうかを判定
     pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.contains_point(point, tolerance)
-    }
-
-    /// 楕円弧の方向を反転
-    pub fn reverse(&self) -> Self {
-        Self::new(self.ellipse, self.end_angle, self.start_angle)
-    }
-
-    /// 楕円弧を複数のセグメントに分割
-    pub fn subdivide(&self, num_segments: usize) -> Vec<Point2D<T>> {
-        let mut points = Vec::with_capacity(num_segments + 1);
-
-        for i in 0..=num_segments {
-            let t = if num_segments == 0 {
-                T::ZERO
-            } else {
-                T::from_f64(i as f64) / T::from_f64(num_segments as f64)
-            };
-            points.push(self.point_at_parameter(t));
-        }
-
-        points
     }
 }

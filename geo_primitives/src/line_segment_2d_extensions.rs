@@ -326,8 +326,8 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 指定軸周りの回転（2Dでは原点周りの回転）
     pub fn rotate_around_origin(&self, angle: Angle<T>) -> Self {
         let origin = Point2D::origin();
-        let new_start = self.start().rotate_around_angle(&origin, angle);
-        let new_end = self.end().rotate_around_angle(&origin, angle);
+        let new_start = self.start().rotate_around(&origin, angle);
+        let new_end = self.end().rotate_around(&origin, angle);
         Self::new(new_start, new_end).expect("Rotation should preserve segment validity")
     }
 }

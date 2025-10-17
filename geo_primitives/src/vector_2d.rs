@@ -72,7 +72,7 @@ impl<T: Scalar> Vector2D<T> {
 
     /// ベクトルの長さ（ノルム）を計算
     pub fn length(&self) -> T {
-        (self.x * self.x + self.y * self.y).sqrt()
+        self.length_squared().sqrt()
     }
 
     /// ベクトルの大きさ（長さの別名）

@@ -1,8 +1,8 @@
-﻿//! Ellipse3D の基本テスト
+//! Ellipse3D の基本テスト
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
-use crate::{Circle3D, Ellipse3D, Point3D, Vector3D};
+use crate::{Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 
 #[cfg(test)]
 mod tests {
@@ -17,8 +17,14 @@ mod tests {
         assert_eq!(ellipse.center(), center);
         assert_eq!(ellipse.semi_major_axis(), 5.0);
         assert_eq!(ellipse.semi_minor_axis(), 3.0);
-        assert_eq!(ellipse.normal(), Vector3D::unit_z());
-        assert_eq!(ellipse.major_axis_direction(), Vector3D::unit_x());
+        assert_eq!(
+            ellipse.normal(),
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap()
+        );
+        assert_eq!(
+            ellipse.major_axis_direction(),
+            Direction3D::from_vector(Vector3D::unit_x()).unwrap()
+        );
 
         // 不正な楕円（短軸が長軸より大きい）
         let invalid = Ellipse3D::xy_aligned(center, 3.0, 5.0);
@@ -32,7 +38,7 @@ mod tests {
     #[test]
     fn test_from_circle() {
         let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 2.0, 3.0), 4.0).unwrap();
-        let ellipse = Ellipse3D::from_circle(&circle);
+        let ellipse = Ellipse3D::from_circle(&circle).unwrap();
 
         assert_eq!(ellipse.center(), circle.center());
         assert_eq!(ellipse.semi_major_axis(), circle.radius());
@@ -85,11 +91,17 @@ mod tests {
 
         // 長軸方向
         let major_dir = ellipse.major_axis_direction();
-        assert_eq!(major_dir, Vector3D::unit_x());
+        assert_eq!(
+            major_dir,
+            Direction3D::from_vector(Vector3D::unit_x()).unwrap()
+        );
 
         // 短軸方向
         let minor_dir = ellipse.minor_axis_direction();
-        assert_eq!(minor_dir, Vector3D::unit_y());
+        assert_eq!(
+            minor_dir,
+            Direction3D::from_vector(Vector3D::unit_y()).unwrap()
+        );
 
         // 基本的な直交性確認
         let dot1: f64 = major_dir.dot(&minor_dir);

@@ -12,12 +12,12 @@ impl<T: Scalar> Vector2D<T> {
     // ========================================================================
 
     /// 角度からベクトルを作成（単位ベクトル）
-    pub fn from_angle(angle: T) -> Self {
+    pub fn from_angle(angle: Angle<T>) -> Self {
         Self::new(angle.cos(), angle.sin())
     }
 
     /// 角度と長さからベクトルを作成
-    pub fn from_angle_length(angle: T, length: T) -> Self {
+    pub fn from_angle_length(angle: Angle<T>, length: T) -> Self {
         Self::new(angle.cos() * length, angle.sin() * length)
     }
 
@@ -116,16 +116,16 @@ impl<T: Scalar> Vector2D<T> {
     // Extension Angle Methods
     // ========================================================================
 
-    /// ベクトル間の角度を取得（ラジアン）
-    pub fn angle_to(&self, other: &Self) -> T {
+    /// ベクトル間の角度を取得
+    pub fn angle_to(&self, other: &Self) -> Angle<T> {
         let dot = self.dot(other);
         let cross = self.cross(other);
-        cross.atan2(dot)
+        Angle::from_radians(cross.atan2(dot))
     }
 
-    /// ベクトルのX軸からの角度を取得（ラジアン）
-    pub fn angle(&self) -> T {
-        self.y().atan2(self.x())
+    /// ベクトルのX軸からの角度を取得
+    pub fn angle(&self) -> Angle<T> {
+        Angle::from_radians(self.y().atan2(self.x()))
     }
 
     // ========================================================================

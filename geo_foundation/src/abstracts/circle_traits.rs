@@ -21,11 +21,11 @@ pub trait Circle2D<T: Scalar> {
 
 /// 3D円の最小責務抽象化
 pub trait Circle3D<T: Scalar>: Circle2D<T> {
-    /// ベクトル型
-    type Vector;
+    /// 方向型
+    type Direction;
 
     /// 円が存在する平面の法線ベクトルを取得
-    fn normal(&self) -> Self::Vector;
+    fn normal(&self) -> Self::Direction;
 }
 
 /// 円の計量最小責務

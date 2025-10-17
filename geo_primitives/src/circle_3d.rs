@@ -1,8 +1,8 @@
-﻿//! 円（Circle）の新実装
+//! 円（Circle）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく Circle3D の実装
 
-use crate::{Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元空間の円
@@ -11,7 +11,7 @@ use geo_foundation::Scalar;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Circle3D<T: Scalar> {
     center: Point3D<T>,
-    normal: Vector3D<T>, // 円が存在する平面の法線ベクトル
+    normal: Direction3D<T>, // 円が存在する平面の法線ベクトル
     radius: T,
 }
 
@@ -20,39 +20,55 @@ impl<T: Scalar> Circle3D<T> {
     ///
     /// # 引数
     /// * `center` - 円の中心点
-    /// * `normal` - 円が存在する平面の法線ベクトル（正規化される）
+    /// * `normal` - 円が存在する平面の法線方向（正規化済み）
     /// * `radius` - 円の半径（正の値である必要がある）
     ///
     /// # 戻り値
     /// * `Some(Circle3D)` - 有効な円が作成できた場合
-    /// * `None` - 半径が0以下、または法線ベクトルがゼロベクトルの場合
-    pub fn new(center: Point3D<T>, normal: Vector3D<T>, radius: T) -> Option<Self> {
+    /// * `None` - 半径が0以下の場合
+    pub fn new(center: Point3D<T>, normal: Direction3D<T>, radius: T) -> Option<Self> {
         if radius <= T::ZERO {
             return None;
         }
 
-        let normalized_normal = normal.normalize()?;
-
         Some(Self {
             center,
-            normal: normalized_normal,
+            normal,
             radius,
         })
     }
 
+    /// Vector3Dから円を作成（後方互換性）
+    pub fn from_vector(center: Point3D<T>, normal: Vector3D<T>, radius: T) -> Option<Self> {
+        let normal_dir = Direction3D::from_vector(normal)?;
+        Self::new(center, normal_dir, radius)
+    }
+
     /// XY平面上の円を作成（Z軸が法線）
     pub fn new_xy_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(center, Vector3D::unit_z(), radius)
+        Self::new(
+            center,
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
+            radius,
+        )
     }
 
     /// XZ平面上の円を作成（Y軸が法線）
     pub fn new_xz_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(center, Vector3D::unit_y(), radius)
+        Self::new(
+            center,
+            Direction3D::from_vector(Vector3D::unit_y()).unwrap(),
+            radius,
+        )
     }
 
     /// YZ平面上の円を作成（X軸が法線）
     pub fn new_yz_plane(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(center, Vector3D::unit_x(), radius)
+        Self::new(
+            center,
+            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
+            radius,
+        )
     }
 
     /// 中心点を取得
@@ -61,7 +77,7 @@ impl<T: Scalar> Circle3D<T> {
     }
 
     /// 法線ベクトルを取得
-    pub fn normal(&self) -> Vector3D<T> {
+    pub fn normal(&self) -> Direction3D<T> {
         self.normal
     }
 
@@ -71,15 +87,15 @@ impl<T: Scalar> Circle3D<T> {
     }
 
     /// 円平面のU軸（基準軸）を取得
-    pub fn u_axis(&self) -> Vector3D<T> {
+    pub fn u_axis(&self) -> Direction3D<T> {
         let (u, _) = self.get_plane_basis();
-        u
+        Direction3D::from_vector(u).unwrap()
     }
 
     /// 円平面のV軸を取得
-    pub fn v_axis(&self) -> Vector3D<T> {
+    pub fn v_axis(&self) -> Direction3D<T> {
         let (_, v) = self.get_plane_basis();
-        v
+        Direction3D::from_vector(v).unwrap()
     }
 
     /// 直径を取得
@@ -153,14 +169,11 @@ impl<T: Scalar> Circle3D<T> {
         };
 
         // 第一基底ベクトル: normal × temp を正規化
-        let first = self
-            .normal
-            .cross(&temp)
-            .normalize()
-            .unwrap_or_else(|| Vector3D::unit_x());
+        let first_unnormalized = self.normal.as_vector().cross(&temp);
+        let first = first_unnormalized.normalize();
 
         // 第二基底ベクトル: normal × first
-        let second = self.normal.cross(&first);
+        let second = self.normal.as_vector().cross(&first);
 
         (first, second)
     }
@@ -168,7 +181,7 @@ impl<T: Scalar> Circle3D<T> {
     /// 点が円の平面上にあるかを判定
     pub fn point_on_plane(&self, point: &Point3D<T>, tolerance: T) -> bool {
         let center_to_point = Vector3D::from_points(&self.center, point);
-        let distance_to_plane = center_to_point.dot(&self.normal).abs();
+        let distance_to_plane = center_to_point.dot(&self.normal.as_vector()).abs();
         distance_to_plane <= tolerance
     }
 
@@ -181,7 +194,7 @@ impl<T: Scalar> Circle3D<T> {
     pub fn distance_to_circle(&self, point: &Point3D<T>) -> T {
         // 点を円の平面に投影
         let center_to_point = Vector3D::from_points(&self.center, point);
-        let plane_distance = center_to_point.dot(&self.normal);
+        let plane_distance = center_to_point.dot(&self.normal.as_vector());
 
         // 平面上での投影点
         let projected_offset = Vector3D::new(

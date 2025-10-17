@@ -3,7 +3,7 @@
 //! Ray2D の高度な幾何演算、変換操作、特殊作成メソッドを提供
 //! Core Foundation では提供しない拡張機能のみ
 
-use crate::{InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Vector2D};
+use crate::{Direction2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
 
 impl<T: Scalar> Ray2D<T> {
@@ -11,12 +11,14 @@ impl<T: Scalar> Ray2D<T> {
 
     /// X軸正方向の Ray を作成
     pub fn x_axis_ray(x: T, y: T) -> Self {
-        Self::new(Point2D::new(x, y), Vector2D::new(T::ONE, T::ZERO)).unwrap()
+        let direction = Direction2D::new(T::ONE, T::ZERO).unwrap();
+        Self::new(Point2D::new(x, y), direction.as_vector()).unwrap()
     }
 
     /// Y軸正方向の Ray を作成
     pub fn y_axis_ray(x: T, y: T) -> Self {
-        Self::new(Point2D::new(x, y), Vector2D::new(T::ZERO, T::ONE)).unwrap()
+        let direction = Direction2D::new(T::ZERO, T::ONE).unwrap();
+        Self::new(Point2D::new(x, y), direction.as_vector()).unwrap()
     }
 
     /// 原点から指定方向の Ray を作成
@@ -89,7 +91,7 @@ impl<T: Scalar> Ray2D<T> {
 
     /// Ray を回転
     pub fn rotate(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
-        let rotated_origin = self.origin().rotate_around_angle(center, angle);
+        let rotated_origin = self.origin().rotate_around(center, angle);
         let rotated_direction = self.direction().rotate(angle);
         Self::new(rotated_origin, rotated_direction).unwrap()
     }
@@ -102,11 +104,13 @@ impl<T: Scalar> Ray2D<T> {
     /// Ray をスケール
     pub fn scale(&self, center: &Point2D<T>, factor: T) -> Self {
         let scaled_origin = *center + (self.origin() - *center) * factor;
+        // DerefによりVector2D<T>が得られる
         Self::new(scaled_origin, self.direction()).unwrap()
     }
 
     /// Ray を反転（逆方向の Ray を作成）
     pub fn reverse(&self) -> Self {
+        // DerefによりVector2D<T>が得られる
         Self::new(self.origin(), -self.direction()).unwrap()
     }
 
@@ -163,11 +167,13 @@ impl<T: Scalar> Ray2D<T> {
         if length < T::ZERO {
             return None;
         }
+        // DerefによりVector2D<T>が得られる
         Some(self.origin() + self.direction() * length)
     }
 
     /// Ray の角度を取得（X軸正方向からの角度）
     pub fn angle(&self) -> Angle<T> {
-        Angle::from_radians(self.direction().y().atan2(self.direction().x()))
+        let dir = self.direction();
+        Angle::from_radians(dir.y().atan2(dir.x()))
     }
 }

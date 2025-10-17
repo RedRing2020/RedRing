@@ -4,8 +4,9 @@
 //! 機能は拡張トレイト（Foundation層）で分離し、コア機能のみを提供
 
 // === 基本プリミティブ ===
+pub mod direction_traits;
 pub mod point_traits; // Point最小責務トレイト
-pub mod vector_traits; // Vector最小責務トレイト
+pub mod vector_traits; // Vector最小責務トレイト // Direction最小責務トレイト
 
 // === 線形プリミティブ ===
 pub mod infinite_line_traits; // InfiniteLine最小責務トレイト
@@ -25,6 +26,7 @@ pub mod bbox_traits; // BBox最小責務トレイト
 pub use arc_traits::*;
 pub use bbox_traits::*;
 pub use circle_traits::*;
+pub use direction_traits::*;
 pub use ellipse_arc_traits::*;
 pub use ellipse_traits::*;
 pub use infinite_line_traits::*;
