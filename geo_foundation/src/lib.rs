@@ -27,10 +27,6 @@ pub mod tolerance;
 // 許容誤差移行支援モジュール（将来削除予定）
 pub mod tolerance_migration;
 
-// Legacy abstract_types (段階的廃止予定)
-#[deprecated(note = "Use `abstracts`, `traits`, or `geometry` modules directly")]
-pub mod abstract_types;
-
 // テストモジュール
 #[cfg(test)]
 mod tolerance_tests;
