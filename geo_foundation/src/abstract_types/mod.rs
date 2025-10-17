@@ -27,7 +27,7 @@ pub mod foundation {
 
     // 形状特化トレイト - abstracts/ から再エクスポート
     pub use crate::abstracts::{
-        arc_core::*, arc_extensions::*, circle_core::*, ellipse_arc_core::*, point_extensions::*,
+        circle_core::*,
     };
 }
 
