@@ -3,7 +3,7 @@
 /// 交差検出、近似、最適化問題の解法を提供
 
 use geo_foundation::ToleranceContext;
-use geo_primitives::Point2D;
+// use geo_primitives::Point2D;  // CI/CD compliance: use geo_foundation instead
 use crate::sampling::IntersectionCandidate;
 
 /// 2次元ベクトル（analysisのlinalgから独立）

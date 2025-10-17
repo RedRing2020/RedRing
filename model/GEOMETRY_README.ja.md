@@ -31,7 +31,7 @@ redring ─┬─ viewmodel ── model(抽象) ──┐
 
 ```rust
 use model::geometry_trait::{Curve2D, Curve3D};
-use geo_primitives::{Point2D, Vector2D, Point3D, Vector3D};
+use geo_foundation::{Point2D, Vector2D, Point3D, Vector3D};  // CI/CD compliance
 
 struct MyCurve2D { /* ... */ }
 

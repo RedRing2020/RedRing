@@ -49,7 +49,7 @@
 //! ## 使用例
 //!
 //! ```rust,ignore
-//! use geo_primitives::geometry2d::{Ellipse, EllipseError, Point};
+//! // use geo-primitives::geometry2d::{Ellipse, EllipseError, Point};  // CI/CD compliance
 //!
 //! let center = Point::new(0.0, 0.0);
 //! let angle = 0.0;

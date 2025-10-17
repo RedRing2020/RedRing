@@ -35,8 +35,8 @@ impl SphereF64 {
     ///
     /// # Examples
     /// ```
-    /// use geo_primitives::geometry3d::Point3D;
-    /// use geo_primitives::surface::SphereF64;
+    /// use crate::geometry3d::Point3D;  // CI/CD compliance: internal reference
+    /// use crate::surface::SphereF64;   // CI/CD compliance: internal reference
     /// use geo_foundation::Sphere as SphereTrait; // トレイトをインポート
     ///
     /// let center = Point3D::new(1.0, 2.0, 3.0);

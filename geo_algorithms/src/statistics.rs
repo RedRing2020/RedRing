@@ -3,7 +3,7 @@
 /// 基本統計量の計算、分布解析、回帰分析を提供する
 
 use geo_foundation::{Scalar, ToleranceContext};
-use geo_primitives::Point2D;
+// use geo_primitives::Point2D;  // CI/CD compliance: use geo_foundation instead
 
 /// 基本統計量
 #[derive(Debug, Clone)]
