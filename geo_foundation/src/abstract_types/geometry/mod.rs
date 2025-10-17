@@ -63,7 +63,7 @@
 
 // 新しいトレイト設計（Core/Extension Foundation ベース）
 pub mod core_foundation; // 互換性ブリッジ（src直下の core_foundation への参照）
-// extension_foundation は src/ 直下に移動済み
+                         // extension_foundation は src/ 直下に移動済み
 
 // 統一Foundation システムトレイト - foundationモジュールを参照
 pub use super::foundation::{
@@ -88,7 +88,7 @@ pub use super::foundation::{
 pub mod bbox;
 // pub mod circle;           // Circle トレイト定義 - Foundation 参照に変更
 // classification は src/ 直下に移動済み
-                        // pub mod collision;      // 削除済み - foundationモジュールを使用
+// pub mod collision;      // 削除済み - foundationモジュールを使用
 pub mod common; // 共通インターフェイスとヘルパー
 pub mod direction;
 pub mod ellipse;
