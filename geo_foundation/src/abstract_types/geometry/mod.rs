@@ -106,26 +106,6 @@ pub mod vector;
 pub use core_foundation::*; // 中核基盤トレイト
 pub use extension_foundation::*; // 拡張基盤トレイト
 
-// Foundation システムからの直接 re-export
-pub use super::foundation::{
-    Arc3DCore,
-    // Arc Foundation
-    ArcCore,
-    ArcMetrics,
-    Circle3DCore,
-    // Circle Foundation
-    CircleCore,
-    CircleMetrics,
-    EllipseArc3DCore,
-    // Note: BasicTransform, BasicCollision, BasicIntersection は既に上で import 済み
-    // EllipseArc Foundation
-    EllipseArcCore,
-    EllipseArcMetrics,
-    UnifiedArcFoundation,
-    UnifiedCircleFoundation,
-    UnifiedEllipseArcFoundation,
-};
-
 // 新実装の準備（将来追加予定）
 // pub use new_point::{...};
 // pub use new_vector::{...};
