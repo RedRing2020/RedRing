@@ -5,7 +5,8 @@
 
 use crate::{Arc2D, Point2D};
 use geo_foundation::{
-    abstracts::arc_traits::{ArcSampling, ArcMetrics}, Scalar,
+    abstracts::arc_traits::{ArcMetrics, ArcSampling},
+    Scalar,
 };
 
 // ============================================================================

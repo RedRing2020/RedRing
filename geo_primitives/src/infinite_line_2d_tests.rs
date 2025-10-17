@@ -1,9 +1,7 @@
 ﻿//! InfiniteLine2D のテスト
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::core_foundation::{
-    BasicContainment, BasicDirectional, BasicParametric,
-};
+use geo_foundation::core_foundation::{BasicContainment, BasicDirectional, BasicParametric};
 use std::f64::consts::FRAC_PI_4;
 
 /// 基本作成テスト
