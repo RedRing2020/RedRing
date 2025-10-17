@@ -1,4 +1,4 @@
-//! 2次元無限直線（InfiniteLine2D）のCore実装
+﻿//! 2次元無限直線（InfiniteLine2D）のCore実装
 //!
 //! Foundation統一システムに基づくInfiniteLine2Dの必須機能のみ
 

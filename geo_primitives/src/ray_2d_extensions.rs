@@ -1,4 +1,4 @@
-//! Ray2D Extensions - 2次元半無限直線の拡張機能
+﻿//! Ray2D Extensions - 2次元半無限直線の拡張機能
 //!
 //! Ray2D の高度な幾何演算、変換操作、特殊作成メソッドを提供
 //! Core Foundation では提供しない拡張機能のみ

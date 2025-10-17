@@ -1,9 +1,9 @@
-//! 2次元ベクトル（Vector2D）の Core 実装
+﻿//! 2次元ベクトル（Vector2D）の Core 実装
 //!
 //! Core Foundation パターンに基づく Vector2D の必須機能のみ
 //! 拡張機能は vector_2d_extensions.rs を参照
 
-use geo_foundation::{abstracts::vector_traits, Scalar};
+use geo_foundation::{core::vector_traits, Scalar};
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元ベクトル
@@ -196,7 +196,7 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
 // geo_foundation abstracts trait implementations
 // ============================================================================
 
-/// geo_foundation::abstracts::Vector2D<T> トレイト実装
+/// geo_foundation::core::Vector2D<T> トレイト実装
 impl<T: Scalar> vector_traits::Vector2D<T> for Vector2D<T> {
     fn x(&self) -> T {
         self.x

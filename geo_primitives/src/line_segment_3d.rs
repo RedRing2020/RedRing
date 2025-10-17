@@ -1,4 +1,4 @@
-//! 3次元線分（LineSegment3D）の Core 実装
+﻿//! 3次元線分（LineSegment3D）の Core 実装
 //!
 //! Core Foundation パターンに基づく LineSegment3D の必須機能のみ
 //! 拡張機能は line_segment_3d_extensions.rs を参照

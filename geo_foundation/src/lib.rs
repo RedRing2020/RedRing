@@ -15,11 +15,11 @@ pub mod classification;
 // Classification - 幾何プリミティブの分類
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 
-// Abstract Traits - 最小責務抽象化（主要インターフェース）
-pub mod abstracts;
+// Core Traits - 基本機能抽象化（主要インターフェース）
+pub mod core;
 
-// Foundation Traits - 統一操作トレイト群
-pub mod traits;
+// Extension Traits - 拡張操作トレイト群
+pub mod extensions;
 
 // 許容誤差管理モジュール
 pub mod tolerance;
@@ -40,8 +40,8 @@ pub use analysis::{
     GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
 };
 
-// Abstract Traitsを再エクスポート（主要インターフェース）
-pub use abstracts::{
+// Core Traitsを再エクスポート（主要インターフェース）
+pub use core::{
     circle_traits::Circle2D as Circle2DTrait,
     point_traits::Point2D as Point2DTrait,
     vector_traits::{Vector2D, Vector2DOps, Vector3D, Vector3DOps, VectorMetrics, VectorOps},
@@ -53,8 +53,8 @@ pub use extension_foundation::{
     TransformableExtension,
 };
 
-// Foundation Traitsを再エクスポート
-pub use traits::{
+// Extension Traitsを再エクスポート
+pub use extensions::{
     AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
     MultipleIntersection, PointDistance, SelfIntersection, TransformHelpers,
 };

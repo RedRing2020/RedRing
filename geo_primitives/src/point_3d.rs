@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくPoint3Dの必須機能のみ
 
 use crate::Vector3D;
-use geo_foundation::{abstracts::point_traits, Scalar};
+use geo_foundation::{core::point_traits, Scalar};
 
 /// 3次元空間の点
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -144,7 +144,7 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
 // geo_foundation abstracts trait implementations
 // ============================================================================
 
-/// geo_foundation::abstracts::Point2D<T> トレイト実装
+/// geo_foundation::core::Point2D<T> トレイト実装
 impl<T: Scalar> point_traits::Point2D<T> for Point3D<T> {
     fn x(&self) -> T {
         self.x
@@ -155,7 +155,7 @@ impl<T: Scalar> point_traits::Point2D<T> for Point3D<T> {
     }
 }
 
-/// geo_foundation::abstracts::Point3D<T> トレイト実装
+/// geo_foundation::core::Point3D<T> トレイト実装
 impl<T: Scalar> point_traits::Point3D<T> for Point3D<T> {
     fn z(&self) -> T {
         self.z

@@ -1,4 +1,4 @@
-//! Direction3D Extensions 実装
+﻿//! Direction3D Extensions 実装
 //!
 //! Foundation統一システムに基づくDirection3Dの拡張機能
 //! Core機能は direction_3d.rs を参照

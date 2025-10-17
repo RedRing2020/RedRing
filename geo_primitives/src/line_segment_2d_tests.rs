@@ -1,4 +1,4 @@
-//! LineSegment2D のテスト
+﻿//! LineSegment2D のテスト
 
 use crate::{LineSegment2D, Point2D, Vector2D};
 use geo_foundation::{core_foundation::*, Angle, Scalar};

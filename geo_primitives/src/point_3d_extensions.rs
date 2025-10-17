@@ -1,4 +1,4 @@
-//! Point3D拡張機能
+﻿//! Point3D拡張機能
 //!
 //! Extension Foundation パターンに基づく Point3D の拡張実装
 //! 高度な構築・変換・空間関係メソッドを提供

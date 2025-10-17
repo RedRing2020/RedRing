@@ -1,4 +1,4 @@
-//! 円（Circle）の新実装
+﻿//! 円（Circle）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく Circle3D の実装
 

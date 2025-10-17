@@ -1,4 +1,4 @@
-//! 3D楕円のCore実装
+﻿//! 3D楕円のCore実装
 //!
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 

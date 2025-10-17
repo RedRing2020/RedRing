@@ -1,4 +1,4 @@
-//! Vector2D拡張メソッド
+﻿//! Vector2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Vector2D の拡張機能
 //! 基本機能は vector_2d.rs を参照

@@ -1,4 +1,4 @@
-//! EllipseArc2D実装のテスト
+﻿//! EllipseArc2D実装のテスト
 
 #[cfg(test)]
 mod ellipse_arc_2d_tests {

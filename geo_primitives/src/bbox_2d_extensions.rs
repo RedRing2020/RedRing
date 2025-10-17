@@ -1,4 +1,4 @@
-//! 2次元境界ボックス（BBox2D）の Extension 実装
+﻿//! 2次元境界ボックス（BBox2D）の Extension 実装
 //!
 //! Core Foundation パターンに基づく BBox2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供

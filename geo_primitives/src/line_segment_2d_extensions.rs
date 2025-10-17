@@ -1,10 +1,10 @@
-//! 2次元線分（LineSegment2D）の Extension 実装
+﻿//! 2次元線分（LineSegment2D）の Extension 実装
 //!
 //! Core Foundation パターンに基づく LineSegment2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
 use crate::{InfiniteLine2D, LineSegment2D, Point2D, Ray2D};
-use geo_foundation::{traits::BasicIntersection, Angle, Scalar};
+use geo_foundation::{extensions::BasicIntersection, Angle, Scalar};
 
 // ============================================================================
 // Extension Implementation (高度な機能)

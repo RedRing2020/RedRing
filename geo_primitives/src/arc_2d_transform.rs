@@ -1,4 +1,4 @@
-//! Arc変換操作統一Foundation実装
+﻿//! Arc変換操作統一Foundation実装
 //!
 //! 統一Transform Foundation システムによる変換操作
 //! 全幾何プリミティブで共通利用可能な統一インターフェース

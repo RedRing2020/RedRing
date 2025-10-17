@@ -1,4 +1,4 @@
-//! Arc2D拡張メソッド
+﻿//! Arc2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Arc2D の拡張機能
 //! 基本機能は arc_2d.rs を参照
@@ -62,7 +62,7 @@ impl<T: Scalar> Arc2D<T> {
         let start_angle = start_dir.y().atan2(start_dir.x());
         let end_angle = end_dir.y().atan2(end_dir.x());
 
-        let center_f64 = geo_foundation::abstracts::Point2D::new(
+        let center_f64 = geo_foundation::core::Point2D::new(
             center.x().to_f64().unwrap_or(0.0),
             center.y().to_f64().unwrap_or(0.0),
         );
@@ -120,7 +120,7 @@ impl<T: Scalar> Arc2D<T> {
     /// Circle2D に変換（完全円の場合のみ）
     pub fn to_circle(&self) -> Option<Circle2D> {
         if self.is_full_circle() {
-            let center_f64 = geo_foundation::abstracts::Point2D::new(
+            let center_f64 = geo_foundation::core::Point2D::new(
                 self.center().x().to_f64().unwrap_or(0.0),
                 self.center().y().to_f64().unwrap_or(0.0),
             );

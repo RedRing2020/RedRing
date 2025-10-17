@@ -1,4 +1,4 @@
-//! 2次元円弧（Arc2D）の Core 実装
+﻿//! 2次元円弧（Arc2D）の Core 実装
 //!
 //! Foundation統一システムに基づく Arc2D の必須機能のみ
 //! 拡張機能は arc_2d_extensions.rs を参照
@@ -162,8 +162,8 @@ impl<T: Scalar> Arc2D<T> {
 // geo_foundation abstracts trait implementations
 // ============================================================================
 
-/// geo_foundation::abstracts::Arc2D<T> トレイト実装
-impl<T: Scalar> geo_foundation::abstracts::arc_traits::Arc2D<T> for Arc2D<T> {
+/// geo_foundation::core::Arc2D<T> トレイト実装
+impl<T: Scalar> geo_foundation::core::arc_traits::Arc2D<T> for Arc2D<T> {
     type Circle = Circle2D<T>;
     type Point = Point2D<T>;
     type Angle = analysis::Angle<T>;
@@ -194,7 +194,7 @@ impl<T: Scalar> geo_foundation::abstracts::arc_traits::Arc2D<T> for Arc2D<T> {
 }
 
 /// ArcMetrics トレイト実装
-impl<T: Scalar> geo_foundation::abstracts::arc_traits::ArcMetrics<T> for Arc2D<T> {
+impl<T: Scalar> geo_foundation::core::arc_traits::ArcMetrics<T> for Arc2D<T> {
     fn arc_length(&self) -> T {
         self.arc_length()
     }
