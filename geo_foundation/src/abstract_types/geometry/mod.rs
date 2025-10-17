@@ -62,8 +62,8 @@
 //! ```
 
 // 新しいトレイト設計（Core/Extension Foundation ベース）
-pub mod core_foundation; // 互換性ブリッジ（src直下の core_foundation への参照）
-                         // extension_foundation は src/ 直下に移動済み
+// core_foundation は src/ 直下に移動済み
+// extension_foundation は src/ 直下に移動済み
 
 // 統一Foundation システムトレイト - foundationモジュールを参照
 pub use super::foundation::{
@@ -77,31 +77,8 @@ pub use super::foundation::{
 // pub mod new_vector;       // 新しいベクトルの実装
 // pub mod new_circle;       // 新しい円の実装
 
-// 早まった実装・旧トレイト（一時除外）
-// pub mod helpers;          // 早まった実装 - 削除候補
-// pub mod basic_point;      // 旧実装 - 一時除外
-// pub mod basic_vector;     // 旧実装 - 一時除外
-// pub mod basic_circle;     // 旧実装 - 一時除外
-// pub mod basic_shapes;     // 旧実装 - 一時除外
-// Legacy modules - Foundation bridge
-// pub mod arc;              // Arc トレイト定義 - Foundation 参照に変更
-pub mod bbox;
-// pub mod circle;           // Circle トレイト定義 - Foundation 参照に変更
-// classification は src/ 直下に移動済み
-// pub mod collision;      // 削除済み - foundationモジュールを使用
-pub mod common; // 共通インターフェイスとヘルパー
-pub mod direction;
-pub mod ellipse;
-pub mod ellipse_arc;
-pub mod infinite_line;
-pub mod intersection; // 交点計算トレイト
-pub mod line;
-pub mod point;
-pub mod ray;
-pub mod sphere;
-// pub mod transform;      // 削除済み - foundationモジュールを使用
-pub mod utils; // 幾何計算ユーティリティ
-pub mod vector;
+// Legacy modules - 使用されているファイルのみ維持
+pub mod intersection; // 交点計算トレイト（活発に使用されている）
 
 // 基本トレイトをエクスポート
 // core_foundation は src/ 直下に移動済み（libから直接利用）
