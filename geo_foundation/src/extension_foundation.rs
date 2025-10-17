@@ -130,7 +130,7 @@
 //!
 //! この設計により、コンパイル時の型チェックで適切なエラー処理が保証されます。
 
-use super::classification::PrimitiveKind;
+use crate::classification::PrimitiveKind;
 use crate::{Angle, Scalar};
 
 // AbstractBBoxを抽象境界ボックスとして定義（より柔軟な実装）

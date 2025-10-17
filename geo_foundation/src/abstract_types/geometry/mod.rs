@@ -18,7 +18,8 @@
 //! - `BasicParametric`: パラメトリック形状の基本操作
 //!
 //! ## 拡張トレイト (Extension Foundation)
-//! 交差・衝突・変換・射影等の高度な操作は `extension_foundation` モジュールで定義
+//! 交差・衝突・変換・射影等の高度な操作は extension_foundation モジュールで定義
+//! （注：extension_foundation.rs は src 直下に配置されており、lib.rs から直接利用）
 //!
 //! # エラー処理の設計方針
 //!
@@ -61,8 +62,8 @@
 //! ```
 
 // 新しいトレイト設計（Core/Extension Foundation ベース）
-pub mod core_foundation; // 中核基盤トレイト（旧 foundation）
-pub mod extension_foundation; // 拡張基盤トレイト（旧 primitive）
+pub mod core_foundation; // 互換性ブリッジ（src直下の core_foundation への参照）
+// extension_foundation は src/ 直下に移動済み
 
 // 統一Foundation システムトレイト - foundationモジュールを参照
 pub use super::foundation::{
@@ -86,7 +87,7 @@ pub use super::foundation::{
 // pub mod arc;              // Arc トレイト定義 - Foundation 参照に変更
 pub mod bbox;
 // pub mod circle;           // Circle トレイト定義 - Foundation 参照に変更
-pub mod classification; // 幾何プリミティブの分類システム
+// classification は src/ 直下に移動済み
                         // pub mod collision;      // 削除済み - foundationモジュールを使用
 pub mod common; // 共通インターフェイスとヘルパー
 pub mod direction;
@@ -103,8 +104,8 @@ pub mod utils; // 幾何計算ユーティリティ
 pub mod vector;
 
 // 基本トレイトをエクスポート
-pub use core_foundation::*; // 中核基盤トレイト
-pub use extension_foundation::*; // 拡張基盤トレイト
+// core_foundation は src/ 直下に移動済み（libから直接利用）
+// extension_foundation は src/ 直下に移動済み（libから直接利用）
 
 // 新実装の準備（将来追加予定）
 // pub use new_point::{...};
