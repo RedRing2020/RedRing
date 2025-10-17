@@ -26,9 +26,7 @@ pub mod foundation {
     pub use crate::extension_foundation::*;
 
     // 形状特化トレイト - abstracts/ から再エクスポート
-    pub use crate::abstracts::{
-        circle_core::*,
-    };
+    pub use crate::abstracts::circle_core::*;
 }
 
 // Virtual geometry module for backward compatibility
