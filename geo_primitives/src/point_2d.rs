@@ -73,9 +73,7 @@ impl<T: Scalar> Point2D<T> {
 
     /// 他の点との距離を計算
     pub fn distance_to(&self, other: &Self) -> T {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        (dx * dx + dy * dy).sqrt()
+        self.distance_squared_to(other).sqrt()
     }
 
     /// 2点間の距離を計算（static版）
@@ -92,7 +90,7 @@ impl<T: Scalar> Point2D<T> {
 
     /// 原点からの距離（ノルム）
     pub fn norm(&self) -> T {
-        (self.x * self.x + self.y * self.y).sqrt()
+        self.norm_squared().sqrt()
     }
 
     /// 原点からの距離の二乗
@@ -152,28 +150,35 @@ impl<T: Scalar> Point2D<T> {
         Vector2D::new(other.x - self.x, other.y - self.y)
     }
 
-    /// 指定点周りの回転（T型角度）
-    pub fn rotate_around(&self, center: &Self, angle: T) -> Self {
+    /// 指定点周りの回転（Angle<T>型角度）
+    pub fn rotate_around(&self, center: &Self, angle: geo_foundation::Angle<T>) -> Self {
         let offset = Vector2D::new(self.x - center.x, self.y - center.y);
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
+        let radians = angle.to_radians();
+        let cos_a = radians.cos();
+        let sin_a = radians.sin();
         let rotated_x = offset.x() * cos_a - offset.y() * sin_a;
         let rotated_y = offset.x() * sin_a + offset.y() * cos_a;
         Point2D::new(center.x + rotated_x, center.y + rotated_y)
     }
 
-    /// 指定点周りの回転（Angle<T>型角度）
-    pub fn rotate_around_angle(&self, center: &Self, angle: geo_foundation::Angle<T>) -> Self {
-        self.rotate_around(center, angle.to_radians())
+    /// 指定点周りの回転（T型角度）- 後方互換性のため
+    pub fn rotate_around_radians(&self, center: &Self, angle: T) -> Self {
+        self.rotate_around(center, geo_foundation::Angle::from_radians(angle))
     }
 
-    /// 原点周りの回転（T型角度）
-    pub fn rotate(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
+    /// 原点周りの回転（Angle<T>型角度）
+    pub fn rotate(&self, angle: geo_foundation::Angle<T>) -> Self {
+        let radians = angle.to_radians();
+        let cos_a = radians.cos();
+        let sin_a = radians.sin();
         let rotated_x = self.x * cos_a - self.y * sin_a;
         let rotated_y = self.x * sin_a + self.y * cos_a;
         Point2D::new(rotated_x, rotated_y)
+    }
+
+    /// 原点周りの回転（T型角度）- 後方互換性のため
+    pub fn rotate_radians(&self, angle: T) -> Self {
+        self.rotate(geo_foundation::Angle::from_radians(angle))
     }
 
     /// 3D点に変換（Z=0）

@@ -110,9 +110,9 @@ pub trait ArcSampling<T: Scalar>: Arc2D<T> {
 ///
 /// 2D円弧に法線ベクトルを追加した3D空間での円弧。
 pub trait Arc3D<T: Scalar>: Arc2D<T> {
-    /// ベクトル型
-    type Vector;
+    /// 方向型
+    type Direction;
 
     /// 円弧が存在する平面の法線ベクトルを取得
-    fn normal(&self) -> Self::Vector;
+    fn normal(&self) -> Self::Direction;
 }

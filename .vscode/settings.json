@@ -17,6 +17,7 @@
   "editor.formatOnPaste": true,
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
+    "source.fixAll.clippy": "explicit",
     "source.organizeImports": "explicit"
   },
 
@@ -66,6 +67,10 @@
   "rust-analyzer.lens.enable": true,
   "rust-analyzer.lens.methodReferences": true,
   "rust-analyzer.lens.references": true,
+  "rust-analyzer.lens.run": true,
+  "rust-analyzer.lens.debug": true,
+  "rust-analyzer.runnables.command": "cargo",
+  "rust-analyzer.files.excludeDirs": [],
 
   // === Search & Explorer ===
   "search.exclude": {
@@ -94,6 +99,18 @@
   "git.confirmSync": false,
   "git.enableSmartCommit": true,
 
+  // === File Organization & Test Management ===
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.rs": "${basename}_tests.rs,${basename}_extensions.rs,${basename}_collision.rs,${basename}_intersection.rs,${basename}_metrics.rs,${basename}_transform.rs,${basename}_sampling.rs,${basename}_containment.rs,${basename}_additional_tests.rs",
+    "Cargo.toml": "Cargo.lock",
+    "README.md": "*.md,MIGRATION_*.md,*-analysis.md,*-plan.md,*-roadmap.md,*-report.md,UNITS.md,LICENSE",
+    "book.toml": "book,docs"
+  },
+  "explorer.sortOrder": "type",
+  "explorer.compactFolders": false,
+
   // === Workspace-Specific Settings ===
   "workbench.colorTheme": "PowerShell ISE",
   "workbench.iconTheme": "vs-seti",
@@ -104,10 +121,22 @@
   // === Performance Settings ===
   "typescript.preferences.includePackageJsonAutoImports": "off",
   "extensions.ignoreRecommendations": false,
-  "terminal.integrated.automationProfile.windows": {
-    "PowerShell": {
-      "source": "PowerShell",
-      "args": ["-NoExit", "-Command", "[Console]::OutputEncoding=[Console]::InputEncoding=[System.Text.Encoding]::UTF8; chcp 65001"]
-    }
-  }
+
+  // === Testing & Development ===
+  "rust-analyzer.cargo.buildScripts.enable": true,
+  "rust-analyzer.procMacro.enable": true,
+  "rust-analyzer.cargo.loadOutDirsFromCheck": true,
+  "rust-analyzer.experimental.procAttrMacros": true,
+
+
+
+  // === Documentation ===
+  "rust-analyzer.hover.documentation.enable": true,
+  "rust-analyzer.hover.actions.enable": true,
+  "rust-analyzer.hover.actions.implementations.enable": true,
+  "rust-analyzer.hover.actions.references.enable": true,
+
+  // === Debugging ===
+  "debug.allowBreakpointsEverywhere": true,
+  "debug.showInStatusBar": "onFirstSessionStart"
 }

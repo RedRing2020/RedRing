@@ -166,15 +166,15 @@ fn test_parallel_perpendicular() {
 fn test_angles() {
     // X軸ベクトルの角度は0
     let x_axis = Vector2D::new(1.0, 0.0);
-    assert!((x_axis.angle() - 0.0f64).abs() < f64::EPSILON);
+    assert!((x_axis.angle().to_radians() - 0.0f64).abs() < f64::EPSILON);
 
     // Y軸ベクトルの角度はπ/2
     let y_axis = Vector2D::new(0.0, 1.0);
-    assert!((y_axis.angle() - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
+    assert!((y_axis.angle().to_radians() - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
 
     // ベクトル間の角度
     let angle = x_axis.angle_to(&y_axis);
-    assert!((angle - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
+    assert!((angle.to_radians() - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
 }
 
 /// 角度からベクトル生成テスト
@@ -182,15 +182,15 @@ fn test_angles() {
 fn test_from_angle() {
     use std::f64::consts::{FRAC_PI_2, PI};
 
-    let v1 = Vector2D::from_angle(0.0);
+    let v1 = Vector2D::from_angle(Angle::from_radians(0.0));
     assert!((v1.x() - 1.0f64).abs() < f64::EPSILON);
     assert!((v1.y() - 0.0f64).abs() < f64::EPSILON);
 
-    let v2 = Vector2D::from_angle(FRAC_PI_2);
+    let v2 = Vector2D::from_angle(Angle::from_radians(FRAC_PI_2));
     assert!((v2.x() - 0.0f64).abs() < f64::EPSILON);
     assert!((v2.y() - 1.0f64).abs() < f64::EPSILON);
 
-    let v3 = Vector2D::from_angle_length(PI, 2.0);
+    let v3 = Vector2D::from_angle_length(Angle::from_radians(PI), 2.0);
     assert!((v3.x() - (-2.0f64)).abs() < f64::EPSILON);
     assert!(v3.y().abs() < 1e-15); // sin(PI)の浮動小数点誤差を考慮
 }

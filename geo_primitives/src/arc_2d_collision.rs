@@ -6,7 +6,7 @@
 use crate::{Arc2D, Circle2D, Point2D, Vector2D};
 use geo_foundation::{
     traits::{BasicCollision, PointDistance},
-    Scalar,
+    Angle, Scalar,
 };
 
 // ============================================================================
@@ -215,22 +215,23 @@ impl<T: Scalar> BasicCollision<T, Arc2D<T>> for Arc2D<T> {
 
 impl<T: Scalar> Arc2D<T> {
     /// 角度が円弧の範囲内にあるかを判定
-    pub fn angle_in_range(&self, angle: T) -> bool {
+    pub fn angle_in_range(&self, angle: Angle<T>) -> bool {
         // TODO: Angle<T>での角度正規化とrange判定
         // 現在は簡易実装
         let start_rad = self.start_angle().to_radians();
         let end_rad = self.end_angle().to_radians();
+        let angle_rad = angle.to_radians();
 
         if start_rad <= end_rad {
-            angle >= start_rad && angle <= end_rad
+            angle_rad >= start_rad && angle_rad <= end_rad
         } else {
             // 角度が0を跨ぐ場合
-            angle >= start_rad || angle <= end_rad
+            angle_rad >= start_rad || angle_rad <= end_rad
         }
     }
 
     /// tolerance付きで角度が円弧の範囲内にあるかを判定
-    pub fn angle_in_range_with_tolerance(&self, angle: T, _tolerance: T) -> bool {
+    pub fn angle_in_range_with_tolerance(&self, angle: Angle<T>, _tolerance: T) -> bool {
         // TODO: より正確なtolerance判定実装
         self.angle_in_range(angle)
     }

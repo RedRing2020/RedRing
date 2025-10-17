@@ -96,19 +96,19 @@ mod tests {
         assert_eq!(translated, Point2D::new(4.0_f64, 6.0_f64));
 
         // 原点中心回転（90度）
-        let rotated_90 = point.rotate(std::f64::consts::PI / 2.0);
+        let rotated_90 = point.rotate(Angle::from_radians(std::f64::consts::PI / 2.0));
         assert!((rotated_90.x() - (-2.0)).abs() < 1e-10);
         assert!((rotated_90.y() - 1.0).abs() < 1e-10);
 
         // 180度回転
-        let rotated_180 = point.rotate(std::f64::consts::PI);
+        let rotated_180 = point.rotate(Angle::from_radians(std::f64::consts::PI));
         assert!((rotated_180.x() - (-1.0)).abs() < 1e-10);
         assert!((rotated_180.y() - (-2.0)).abs() < 1e-10);
 
         // 指定点中心回転
         let center = Point2D::new(1.0_f64, 1.0_f64);
         let rotated_around =
-            point.rotate_around_angle(&center, Angle::from_radians(std::f64::consts::PI / 2.0));
+            point.rotate_around(&center, Angle::from_radians(std::f64::consts::PI / 2.0));
         assert!((rotated_around.x() - 0.0).abs() < 1e-10);
         assert!((rotated_around.y() - 1.0).abs() < 1e-10);
 
@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(midpoint, Point2D::new(3.0f32, 4.5f32));
 
         // 回転
-        let rotated = point.rotate(std::f32::consts::PI / 2.0);
+        let rotated = point.rotate(Angle::from_radians(std::f32::consts::PI / 2.0));
         assert!((rotated.x() - (-2.5f32)).abs() < 1e-6);
         assert!((rotated.y() - 1.5f32).abs() < 1e-6);
     }

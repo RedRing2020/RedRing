@@ -30,17 +30,17 @@ pub trait Ellipse2D<T: Scalar> {
 
 /// 3D楕円の最小責務抽象化
 pub trait Ellipse3D<T: Scalar>: Ellipse2D<T> {
-    /// ベクトル型
-    type Vector;
+    /// 方向型
+    type Direction;
 
     /// 楕円が存在する平面の法線ベクトルを取得
-    fn normal(&self) -> Self::Vector;
+    fn normal(&self) -> Self::Direction;
 
     /// 楕円の長軸方向ベクトルを取得
-    fn major_axis_direction(&self) -> Self::Vector;
+    fn major_axis_direction(&self) -> Self::Direction;
 
     /// 楕円の短軸方向ベクトルを取得
-    fn minor_axis_direction(&self) -> Self::Vector;
+    fn minor_axis_direction(&self) -> Self::Direction;
 }
 
 /// 楕円の計量最小責務
