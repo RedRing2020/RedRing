@@ -1,7 +1,6 @@
 /// 統計処理機能
 ///
 /// 基本統計量の計算、分布解析、回帰分析を提供する
-
 use geo_foundation::{Scalar, ToleranceContext};
 // use geo_primitives::Point2D;  // CI/CD compliance: use geo_foundation instead
 
@@ -40,9 +39,7 @@ impl BasicStats {
         let sum: f64 = values.iter().sum();
         let mean = sum / count as f64;
 
-        let variance = values.iter()
-            .map(|v| (v - mean).powi(2))
-            .sum::<f64>() / count as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / count as f64;
 
         let std_dev = variance.sqrt();
         let min = values.iter().copied().fold(f64::INFINITY, f64::min);
@@ -85,7 +82,8 @@ impl PointCluster {
     /// 点群の分散（重心からの距離の分散）
     pub fn variance(&self, points: &[Point2D]) -> f64 {
         if let Some(centroid) = self.centroid(points) {
-            let distances: Vec<f64> = points.iter()
+            let distances: Vec<f64> = points
+                .iter()
                 .map(|p| centroid.distance_to(p).value())
                 .collect();
 
