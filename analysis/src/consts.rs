@@ -118,6 +118,12 @@ pub const GEOMETRIC_ANGLE_TOLERANCE: f64 = precision::GEOMETRIC_ANGLE_TOLERANCE;
 ///
 /// f32とf64それぞれの精度に適した許容誤差を提供します。
 /// 型パラメータ化された幾何計算で使用されます。
+///
+/// # 設計方針
+///
+/// - **責務分離**: 数値型（Scalar trait）は機械誤差（EPSILON）のみ保持
+/// - **許容誤差統一**: すべての幾何計算用許容誤差はこのtraitで管理
+/// - **用途別最適化**: f32 は game モジュール、f64 は precision モジュールの定数を使用
 pub trait GeometricTolerance {
     /// その型に適した幾何計算用の許容誤差（汎用）
     const TOLERANCE: Self;

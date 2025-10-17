@@ -3,7 +3,7 @@
 //! foundation.rs の基盤トレイトに基づく Circle3D の実装
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
 
 /// 3次元空間の円
 ///
@@ -146,23 +146,23 @@ impl<T: Scalar> Circle3D<T> {
     /// 法線ベクトルに垂直な正規直交基底
     fn get_plane_basis(&self) -> (Vector3D<T>, Vector3D<T>) {
         // Z軸方向の法線の場合は特別扱い（XY平面）
-        if (self.normal.z() - T::ONE).abs() < T::TOLERANCE {
+        if (self.normal.z() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
             // XY平面：X軸とY軸を使用
             return (Vector3D::unit_x(), Vector3D::unit_y());
         }
 
         // Y軸方向の法線の場合（XZ平面）
-        if (self.normal.y() - T::ONE).abs() < T::TOLERANCE {
+        if (self.normal.y() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
             return (Vector3D::unit_x(), Vector3D::unit_z());
         }
 
         // X軸方向の法線の場合（YZ平面）
-        if (self.normal.x() - T::ONE).abs() < T::TOLERANCE {
+        if (self.normal.x() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
             return (Vector3D::unit_y(), Vector3D::unit_z());
         }
 
         // 一般的な場合：Gram-Schmidt 過程で正規直交基底を作成
-        let temp = if self.normal.z().abs() < T::TOLERANCE {
+        let temp = if self.normal.z().abs() < DefaultTolerances::distance::<T>() {
             Vector3D::unit_z()
         } else {
             Vector3D::unit_x()

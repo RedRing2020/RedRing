@@ -1,9 +1,9 @@
-﻿//! InfiniteLine2D Extension 機能
+//! InfiniteLine2D Extension 機能
 //!
 //! Extension Foundation パターンに基づく InfiniteLine2D の拡張実装
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::{Angle, Scalar};
+use geo_foundation::{tolerance_migration::DefaultTolerances, Angle, Scalar};
 
 // ============================================================================
 // Extension Methods Implementation
@@ -85,7 +85,7 @@ impl<T: Scalar> InfiniteLine2D<T> {
     /// 直線が平行かを判定（角度許容誤差使用）
     pub fn is_parallel(&self, other: &Self) -> bool {
         self.direction()
-            .is_parallel(&other.direction(), T::ANGLE_TOLERANCE)
+            .is_parallel(&other.direction(), DefaultTolerances::angle::<T>())
     }
 
     /// 直線が平行かを判定（カスタム許容誤差）
@@ -95,13 +95,14 @@ impl<T: Scalar> InfiniteLine2D<T> {
 
     /// 直線が同一かを判定
     pub fn is_coincident(&self, other: &Self) -> bool {
-        self.is_parallel(other) && self.contains_point(&other.point(), T::TOLERANCE)
+        self.is_parallel(other)
+            && self.contains_point(&other.point(), DefaultTolerances::distance::<T>())
     }
 
     /// 直線が垂直かを判定（角度許容誤差使用）
     pub fn is_perpendicular(&self, other: &Self) -> bool {
         self.direction()
-            .is_perpendicular(&other.direction(), T::ANGLE_TOLERANCE)
+            .is_perpendicular(&other.direction(), DefaultTolerances::angle::<T>())
     }
 
     /// 直線が垂直かを判定（カスタム許容誤差）
