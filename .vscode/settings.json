@@ -77,7 +77,7 @@
   "rust-analyzer.files.excludeDirs": [],
   "rust-analyzer.files.excludeFiles": ["**/*.md"],
   "rust-analyzer.diagnostics.disabled": [
-    "unresolved-import", 
+    "unresolved-import",
     "unresolved-macro-call",
     "undefined",
     "unknown-tool",
@@ -146,7 +146,7 @@
     "*.md": "markdown",
     "copilot-instructions.md": "markdown"
   },
-  
+
   // === Performance Settings ===
   "typescript.preferences.includePackageJsonAutoImports": "off",
   "extensions.ignoreRecommendations": false,
