@@ -10,6 +10,12 @@ use std::fmt::{Debug, Display};
 /// 角度、座標、距離など幾何要素で使用される数値型の
 /// 共通操作を定義します。
 ///
+/// # 設計方針
+///
+/// - **機械誤差のみ**: EPSILON のみ保持（機械精度の限界）
+/// - **許容誤差分離**: TOLERANCE, ANGLE_TOLERANCE は crate::GeometricTolerance trait で管理
+/// - **定数統一**: consts.rs で幾何計算用定数を一元管理
+///
 /// # 用途
 ///
 /// - **f32**: ゲーム開発、リアルタイム描画、GPUコンピューティング
@@ -52,12 +58,6 @@ pub trait Scalar:
 
     /// 機械イプシロン（数値精度の限界）
     const EPSILON: Self;
-
-    /// 幾何計算用の許容誤差
-    const TOLERANCE: Self;
-
-    /// 角度計算用の許容誤差（より緩い設定）
-    const ANGLE_TOLERANCE: Self;
 
     /// 角度変換定数（度からラジアンへ）
     const DEG_TO_RAD: Self;
@@ -138,7 +138,11 @@ pub trait Scalar:
     fn clamp(self, min: Self, max: Self) -> Self;
 
     /// ほぼ等しいかを許容誤差で判定
-    fn approx_eq(self, other: Self) -> bool {
+    /// 注意: GeometricTolerance trait が実装されている型でのみ使用可能
+    fn approx_eq(self, other: Self) -> bool
+    where
+        Self: crate::GeometricTolerance,
+    {
         (self - other).abs() < Self::TOLERANCE
     }
 
@@ -180,8 +184,6 @@ impl Scalar for f32 {
     const TAU: Self = std::f32::consts::TAU;
     const E: Self = std::f32::consts::E;
     const EPSILON: Self = f32::EPSILON;
-    const TOLERANCE: Self = 1e-6;
-    const ANGLE_TOLERANCE: Self = 1e-4; // より緩い角度許容誤差
     const DEG_TO_RAD: Self = Self::PI / 180.0;
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
     const SQRT_2: Self = std::f32::consts::SQRT_2;
@@ -329,8 +331,6 @@ impl Scalar for f64 {
     const TAU: Self = std::f64::consts::TAU;
     const E: Self = std::f64::consts::E;
     const EPSILON: Self = f64::EPSILON;
-    const TOLERANCE: Self = 1e-10;
-    const ANGLE_TOLERANCE: Self = 1e-8; // より緩い角度許容誤差
     const DEG_TO_RAD: Self = Self::PI / 180.0;
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
     const SQRT_2: Self = std::f64::consts::SQRT_2;
@@ -513,11 +513,12 @@ mod tests {
 
     #[test]
     fn test_approx_eq() {
+        use crate::GeometricTolerance;
         let a = 1.0f32;
-        let b = 1.0f32 + f32::TOLERANCE / 10.0;
+        let b = 1.0f32 + <f32 as GeometricTolerance>::TOLERANCE / 10.0;
         assert!(a.approx_eq(b));
 
-        let c = 1.0f32 + f32::TOLERANCE * 10.0;
+        let c = 1.0f32 + <f32 as GeometricTolerance>::TOLERANCE * 10.0;
         assert!(!a.approx_eq(c));
     }
 
@@ -527,6 +528,6 @@ mod tests {
         let f64_val = f32_val.to_f64();
         let back_to_f32 = f32::from_f64(f64_val);
 
-        assert!((f32_val - back_to_f32).abs() < f32::TOLERANCE);
+        assert!((f32_val - back_to_f32).abs() < f32::EPSILON);
     }
 }

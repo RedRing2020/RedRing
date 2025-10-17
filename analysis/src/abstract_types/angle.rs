@@ -38,8 +38,11 @@ impl<T: Scalar> AngleType for Angle<T> {
 
 impl<T: Scalar> Angle<T> {
     /// 角度専用の許容誤差を取得
-    /// Scalarトレイトの ANGLE_TOLERANCE を使用しつつ、角度として適切なスケールに調整
-    pub fn tolerance() -> T {
+    /// crate::GeometricTolerance trait を使用し、角度として適切なスケールに調整
+    pub fn tolerance() -> T
+    where
+        T: crate::GeometricTolerance,
+    {
         T::ANGLE_TOLERANCE
     }
 
@@ -49,8 +52,11 @@ impl<T: Scalar> Angle<T> {
         diff.radians.abs() <= tolerance
     }
 
-    /// デフォルト許容誤差での等価性チェック
-    pub fn is_equivalent_default(&self, other: &Self) -> bool {
+    /// デフォルト許容誤差での等価性チェック（GeometricTolerance実装が必要）
+    pub fn is_equivalent_default(&self, other: &Self) -> bool
+    where
+        T: crate::GeometricTolerance,
+    {
         self.is_equivalent(other, Self::tolerance())
     }
 

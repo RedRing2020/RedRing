@@ -39,7 +39,8 @@
       "comments": "off",
       "strings": "off",
       "other": "off"
-    }
+    },
+    "rust-analyzer.enable": false
   },
   "[json]": {
     "editor.tabSize": 2,
@@ -71,6 +72,8 @@
   "rust-analyzer.lens.debug": true,
   "rust-analyzer.runnables.command": "cargo",
   "rust-analyzer.files.excludeDirs": [],
+  "rust-analyzer.files.excludeFiles": ["**/*.md"],
+  "rust-analyzer.diagnostics.disabled": ["unresolved-import", "unresolved-macro-call"],
 
   // === Search & Explorer ===
   "search.exclude": {
@@ -117,6 +120,11 @@
   "breadcrumbs.enabled": true,
   "explorer.confirmDelete": false,
   "explorer.confirmDragAndDrop": false,
+
+  // === Language Server Settings ===
+  "rust-analyzer.server.extraEnv": {
+    "RUST_ANALYZER_DISABLE_MARKDOWN": "1"
+  },
 
   // === Performance Settings ===
   "typescript.preferences.includePackageJsonAutoImports": "off",
