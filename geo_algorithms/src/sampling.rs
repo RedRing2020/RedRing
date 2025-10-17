@@ -1,7 +1,6 @@
 /// 幾何サンプリングとパターン解析
 ///
 /// 2D/3D幾何要素のサンプリング、交差検出、パターン抽出機能
-
 use geo_foundation::ToleranceContext;
 // use geo_primitives::Point2D;  // CI/CD compliance: use geo_foundation instead
 
@@ -61,7 +60,15 @@ impl AdaptiveSampler {
         let mut points = Vec::new();
         let mut parameters = Vec::new();
 
-        self.sample_recursive(&evaluator, &curvature_fn, start, end, 0, &mut points, &mut parameters);
+        self.sample_recursive(
+            &evaluator,
+            &curvature_fn,
+            start,
+            end,
+            0,
+            &mut points,
+            &mut parameters,
+        );
 
         let quality = self.calculate_quality_metrics(&points, &parameters);
 
@@ -108,9 +115,26 @@ impl AdaptiveSampler {
 
         let should_subdivide = curvature.abs() > curvature_threshold || parametric_threshold;
 
-        if should_subdivide && points.len() < 1000 { // 最大点数制限
-            self.sample_recursive(evaluator, curvature_fn, start, mid, depth + 1, points, parameters);
-            self.sample_recursive(evaluator, curvature_fn, mid, end, depth + 1, points, parameters);
+        if should_subdivide && points.len() < 1000 {
+            // 最大点数制限
+            self.sample_recursive(
+                evaluator,
+                curvature_fn,
+                start,
+                mid,
+                depth + 1,
+                points,
+                parameters,
+            );
+            self.sample_recursive(
+                evaluator,
+                curvature_fn,
+                mid,
+                end,
+                depth + 1,
+                points,
+                parameters,
+            );
         } else {
             // 中間点と終点を追加
             points.push(evaluator(mid));
@@ -132,14 +156,16 @@ impl AdaptiveSampler {
         // 距離の均一性を計算
         let mut distances = Vec::new();
         for i in 1..points.len() {
-            let dist = points[i].distance_to(&points[i-1]).value();
+            let dist = points[i].distance_to(&points[i - 1]).value();
             distances.push(dist);
         }
 
         let mean_distance: f64 = distances.iter().sum::<f64>() / distances.len() as f64;
-        let variance: f64 = distances.iter()
+        let variance: f64 = distances
+            .iter()
             .map(|d| (d - mean_distance).powi(2))
-            .sum::<f64>() / distances.len() as f64;
+            .sum::<f64>()
+            / distances.len() as f64;
 
         let uniformity_score = if variance > 0.0 {
             1.0 / (1.0 + variance.sqrt() / mean_distance)
@@ -286,8 +312,11 @@ impl PoissonDiskSampler {
         bounds: (Point2D, Point2D),
     ) -> bool {
         // 境界チェック
-        if point.x().value() < bounds.0.x().value() || point.x().value() > bounds.1.x().value() ||
-           point.y().value() < bounds.0.y().value() || point.y().value() > bounds.1.y().value() {
+        if point.x().value() < bounds.0.x().value()
+            || point.x().value() > bounds.1.x().value()
+            || point.y().value() < bounds.0.y().value()
+            || point.y().value() > bounds.1.y().value()
+        {
             return false;
         }
 

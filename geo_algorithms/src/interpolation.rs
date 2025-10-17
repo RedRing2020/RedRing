@@ -1,6 +1,5 @@
 /// 補間、曲線近似用関数群
 /// 線形、ベジェ、Catmull-Rom、NURBS風の補間、近似
-
 use geo_foundation::ToleranceContext;
 // use geo_primitives::Vector2D;  // CI/CD compliance: use geo_foundation instead
 // use geo_primitives::Point2D;  // 一時的にコメントアウト
@@ -40,7 +39,7 @@ impl LinearInterpolator {
         let mut total_length = 0.0;
 
         for i in 1..points.len() {
-            let dist = points[i-1].distance_to(&points[i]).value();
+            let dist = points[i - 1].distance_to(&points[i]).value();
             total_length += dist;
             lengths.push(total_length);
         }
@@ -50,15 +49,15 @@ impl LinearInterpolator {
         // 対象セグメントを見つける
         for i in 1..lengths.len() {
             if target_length <= lengths[i] {
-                let segment_start = lengths[i-1];
+                let segment_start = lengths[i - 1];
                 let segment_length = lengths[i] - segment_start;
 
                 if segment_length < self.tolerance.linear {
-                    return Some(points[i-1]);
+                    return Some(points[i - 1]);
                 }
 
                 let local_t = (target_length - segment_start) / segment_length;
-                return Some(self.interpolate(&points[i-1], &points[i], local_t));
+                return Some(self.interpolate(&points[i - 1], &points[i], local_t));
             }
         }
 
@@ -87,15 +86,15 @@ impl BezierCurve {
         let uuu = uu * u;
         let ttt = tt * t;
 
-        let x = uuu * self.p0.x().value() +
-                3.0 * uu * t * self.p1.x().value() +
-                3.0 * u * tt * self.p2.x().value() +
-                ttt * self.p3.x().value();
+        let x = uuu * self.p0.x().value()
+            + 3.0 * uu * t * self.p1.x().value()
+            + 3.0 * u * tt * self.p2.x().value()
+            + ttt * self.p3.x().value();
 
-        let y = uuu * self.p0.y().value() +
-                3.0 * uu * t * self.p1.y().value() +
-                3.0 * u * tt * self.p2.y().value() +
-                ttt * self.p3.y().value();
+        let y = uuu * self.p0.y().value()
+            + 3.0 * uu * t * self.p1.y().value()
+            + 3.0 * u * tt * self.p2.y().value()
+            + ttt * self.p3.y().value();
 
         Point2D::from_f64(x, y)
     }
@@ -106,15 +105,15 @@ impl BezierCurve {
         let uu = u * u;
         let tt = t * t;
 
-        let dx = -3.0 * uu * self.p0.x().value() +
-                 3.0 * (uu - 2.0 * u * t) * self.p1.x().value() +
-                 3.0 * (2.0 * u * t - tt) * self.p2.x().value() +
-                 3.0 * tt * self.p3.x().value();
+        let dx = -3.0 * uu * self.p0.x().value()
+            + 3.0 * (uu - 2.0 * u * t) * self.p1.x().value()
+            + 3.0 * (2.0 * u * t - tt) * self.p2.x().value()
+            + 3.0 * tt * self.p3.x().value();
 
-        let dy = -3.0 * uu * self.p0.y().value() +
-                 3.0 * (uu - 2.0 * u * t) * self.p1.y().value() +
-                 3.0 * (2.0 * u * t - tt) * self.p2.y().value() +
-                 3.0 * tt * self.p3.y().value();
+        let dy = -3.0 * uu * self.p0.y().value()
+            + 3.0 * (uu - 2.0 * u * t) * self.p1.y().value()
+            + 3.0 * (2.0 * u * t - tt) * self.p2.y().value()
+            + 3.0 * tt * self.p3.y().value();
 
         Vector2D::from_f64(dx, dy)
     }
@@ -166,19 +165,34 @@ impl CatmullRomSpline {
         Some(self.catmull_rom_interpolate(p0, p1, p2, p3, local_t))
     }
 
-    fn catmull_rom_interpolate(&self, p0: &Point2D, p1: &Point2D, p2: &Point2D, p3: &Point2D, t: f64) -> Point2D {
+    fn catmull_rom_interpolate(
+        &self,
+        p0: &Point2D,
+        p1: &Point2D,
+        p2: &Point2D,
+        p3: &Point2D,
+        t: f64,
+    ) -> Point2D {
         let t2 = t * t;
         let t3 = t2 * t;
 
-        let x = 0.5 * ((2.0 * p1.x().value()) +
-                       (-p0.x().value() + p2.x().value()) * t +
-                       (2.0 * p0.x().value() - 5.0 * p1.x().value() + 4.0 * p2.x().value() - p3.x().value()) * t2 +
-                       (-p0.x().value() + 3.0 * p1.x().value() - 3.0 * p2.x().value() + p3.x().value()) * t3);
+        let x = 0.5
+            * ((2.0 * p1.x().value())
+                + (-p0.x().value() + p2.x().value()) * t
+                + (2.0 * p0.x().value() - 5.0 * p1.x().value() + 4.0 * p2.x().value()
+                    - p3.x().value())
+                    * t2
+                + (-p0.x().value() + 3.0 * p1.x().value() - 3.0 * p2.x().value() + p3.x().value())
+                    * t3);
 
-        let y = 0.5 * ((2.0 * p1.y().value()) +
-                       (-p0.y().value() + p2.y().value()) * t +
-                       (2.0 * p0.y().value() - 5.0 * p1.y().value() + 4.0 * p2.y().value() - p3.y().value()) * t2 +
-                       (-p0.y().value() + 3.0 * p1.y().value() - 3.0 * p2.y().value() + p3.y().value()) * t3);
+        let y = 0.5
+            * ((2.0 * p1.y().value())
+                + (-p0.y().value() + p2.y().value()) * t
+                + (2.0 * p0.y().value() - 5.0 * p1.y().value() + 4.0 * p2.y().value()
+                    - p3.y().value())
+                    * t2
+                + (-p0.y().value() + 3.0 * p1.y().value() - 3.0 * p2.y().value() + p3.y().value())
+                    * t3);
 
         Point2D::from_f64(x, y)
     }

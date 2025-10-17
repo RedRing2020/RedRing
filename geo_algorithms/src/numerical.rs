@@ -1,7 +1,6 @@
 /// 幾何学的交差解析と最適化アルゴリズム
 ///
 /// 交差検出、近似、最適化問題の解法を提供
-
 use geo_foundation::ToleranceContext;
 // use geo_primitives::Point2D;  // CI/CD compliance: use geo_foundation instead
 use crate::sampling::IntersectionCandidate;
@@ -29,7 +28,10 @@ impl Vector2 {
     pub fn normalize(&self) -> Option<Self> {
         let len = (self.x * self.x + self.y * self.y).sqrt();
         if len > 1e-10 {
-            Some(Self { x: self.x / len, y: self.y / len })
+            Some(Self {
+                x: self.x / len,
+                y: self.y / len,
+            })
         } else {
             None
         }
@@ -93,7 +95,9 @@ impl NewtonSolver {
             info.residual = f_val.abs();
             info.final_error = delta.abs();
 
-            if info.residual < self.tolerance.parametric && info.final_error < self.tolerance.parametric {
+            if info.residual < self.tolerance.parametric
+                && info.final_error < self.tolerance.parametric
+            {
                 info.converged = true;
                 break;
             }
@@ -140,7 +144,9 @@ impl NewtonSolver {
             info.residual = (f1 * f1 + f2 * f2).sqrt();
             info.final_error = (dx * dx + dy * dy).sqrt();
 
-            if info.residual < self.tolerance.parametric && info.final_error < self.tolerance.parametric {
+            if info.residual < self.tolerance.parametric
+                && info.final_error < self.tolerance.parametric
+            {
                 info.converged = true;
                 break;
             }
@@ -236,15 +242,15 @@ impl CurveIntersection {
             let df2_dt1 = (p1_dt.y().value() - p1.y().value()) / h;
             let df2_dt2 = -(p2_dt.y().value() - p2.y().value()) / h;
 
-            let jacobian = [
-                [df1_dt1, df1_dt2],
-                [df2_dt1, df2_dt2],
-            ];
+            let jacobian = [[df1_dt1, df1_dt2], [df2_dt1, df2_dt2]];
 
             (f1, f2, jacobian)
         };
 
-        if let Ok(((t1, t2), convergence)) = self.newton_solver.solve_2d(system, (initial_t1, initial_t2)) {
+        if let Ok(((t1, t2), convergence)) = self
+            .newton_solver
+            .solve_2d(system, (initial_t1, initial_t2))
+        {
             if convergence.converged {
                 let intersection_point = curve1(t1);
                 let verification_point = curve2(t2);
@@ -262,7 +268,10 @@ impl CurveIntersection {
         None
     }
 
-    fn remove_duplicate_candidates(&self, mut candidates: Vec<IntersectionCandidate>) -> Vec<IntersectionCandidate> {
+    fn remove_duplicate_candidates(
+        &self,
+        mut candidates: Vec<IntersectionCandidate>,
+    ) -> Vec<IntersectionCandidate> {
         candidates.sort_by(|a, b| a.parameter.partial_cmp(&b.parameter).unwrap());
 
         let mut unique = Vec::new();
@@ -348,15 +357,19 @@ impl LeastSquaresFitter {
         let b3 = sum_x2 + sum_y2;
 
         // 3x3 連立方程式を解く (Cramerの公式)
-        let det = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
+        let det = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31)
+            + a13 * (a21 * a32 - a22 * a31);
 
         if det.abs() < self.tolerance.parametric {
             return Err("Degenerate point set - singular matrix".to_string());
         }
 
-        let det_a = b1 * (a22 * a33 - a23 * a32) - a12 * (b2 * a33 - a23 * b3) + a13 * (b2 * a32 - a22 * b3);
-        let det_b = a11 * (b2 * a33 - a23 * b3) - b1 * (a21 * a33 - a23 * a31) + a13 * (a21 * b3 - b2 * a31);
-        let det_c = a11 * (a22 * b3 - b2 * a32) - a12 * (a21 * b3 - b2 * a31) + b1 * (a21 * a32 - a22 * a31);
+        let det_a = b1 * (a22 * a33 - a23 * a32) - a12 * (b2 * a33 - a23 * b3)
+            + a13 * (b2 * a32 - a22 * b3);
+        let det_b = a11 * (b2 * a33 - a23 * b3) - b1 * (a21 * a33 - a23 * a31)
+            + a13 * (a21 * b3 - b2 * a31);
+        let det_c = a11 * (a22 * b3 - b2 * a32) - a12 * (a21 * b3 - b2 * a31)
+            + b1 * (a21 * a32 - a22 * a31);
 
         let a = det_a / det;
         let b = det_b / det;
@@ -398,10 +411,7 @@ impl LeastSquaresFitter {
             // 垂直線の場合
             let avg_x = sum_x / n;
             let avg_y = sum_y / n;
-            return Ok((
-                Point2D::from_f64(avg_x, avg_y),
-                Vector2::y_axis()
-            ));
+            return Ok((Point2D::from_f64(avg_x, avg_y), Vector2::y_axis()));
         }
 
         let slope = (n * sum_xy - sum_x * sum_y) / denom;
