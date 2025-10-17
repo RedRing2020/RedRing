@@ -56,11 +56,20 @@ pub trait Scalar:
     /// 幾何計算用の許容誤差
     const TOLERANCE: Self;
 
+    /// 角度計算用の許容誤差（より緩い設定）
+    const ANGLE_TOLERANCE: Self;
+
     /// 角度変換定数（度からラジアンへ）
     const DEG_TO_RAD: Self;
 
     /// 角度変換定数（ラジアンから度へ）
     const RAD_TO_DEG: Self;
+
+    /// 平方根2 (よく使用される数学定数)
+    const SQRT_2: Self;
+
+    /// 1/√2 (正規化でよく使用)
+    const INV_SQRT_2: Self;
 
     /// 絶対値を取得
     fn abs(self) -> Self;
@@ -94,6 +103,9 @@ pub trait Scalar:
 
     /// 自然対数
     fn ln(self) -> Self;
+
+    /// 常用対数（底10）
+    fn log10(self) -> Self;
 
     /// べき乗（浮動小数点指数）
     fn powf(self, exp: Self) -> Self;
@@ -143,7 +155,7 @@ pub trait Scalar:
     /// f32に変換
     fn to_f32(self) -> f32;
 
-    /// f64から変換
+    /// f64値から変換
     fn from_f64(value: f64) -> Self;
 
     /// f32から変換
@@ -163,8 +175,11 @@ impl Scalar for f32 {
     const E: Self = std::f32::consts::E;
     const EPSILON: Self = f32::EPSILON;
     const TOLERANCE: Self = 1e-6;
+    const ANGLE_TOLERANCE: Self = 1e-4; // より緩い角度許容誤差
     const DEG_TO_RAD: Self = Self::PI / 180.0;
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
+    const SQRT_2: Self = std::f32::consts::SQRT_2;
+    const INV_SQRT_2: Self = 1.0 / std::f32::consts::SQRT_2;
 
     #[inline]
     fn abs(self) -> Self {
@@ -282,6 +297,11 @@ impl Scalar for f32 {
     }
 
     #[inline]
+    fn log10(self) -> Self {
+        self.log10()
+    }
+
+    #[inline]
     fn powf(self, exp: Self) -> Self {
         self.powf(exp)
     }
@@ -302,8 +322,11 @@ impl Scalar for f64 {
     const E: Self = std::f64::consts::E;
     const EPSILON: Self = f64::EPSILON;
     const TOLERANCE: Self = 1e-10;
+    const ANGLE_TOLERANCE: Self = 1e-8; // より緩い角度許容誤差
     const DEG_TO_RAD: Self = Self::PI / 180.0;
     const RAD_TO_DEG: Self = 180.0 / Self::PI;
+    const SQRT_2: Self = std::f64::consts::SQRT_2;
+    const INV_SQRT_2: Self = 1.0 / std::f64::consts::SQRT_2;
 
     #[inline]
     fn abs(self) -> Self {
@@ -418,6 +441,11 @@ impl Scalar for f64 {
     #[inline]
     fn ln(self) -> Self {
         self.ln()
+    }
+
+    #[inline]
+    fn log10(self) -> Self {
+        self.log10()
     }
 
     #[inline]
