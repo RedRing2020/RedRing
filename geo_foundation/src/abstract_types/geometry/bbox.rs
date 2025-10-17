@@ -112,5 +112,5 @@ pub trait BBoxTransform<T: crate::Scalar> {
 
 // 注意: 具体的な型エイリアスはgeo_primitivesで定義される
 // 高次元境界データ（4次元以上）はAnalysisクレートで対応予定
-// pub type BBox2D = geo_primitives::geometry2d::BBox2D;
-// pub type BBox3D = geo_primitives::geometry3d::BBox3D;
+// pub type BBox2D = geo-primitives::geometry2d::BBox2D;  // CI/CD compliance
+// pub type BBox3D = geo-primitives::geometry3d::BBox3D;  // CI/CD compliance

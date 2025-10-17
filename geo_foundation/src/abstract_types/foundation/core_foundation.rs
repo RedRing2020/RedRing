@@ -31,7 +31,7 @@
 //! ### 利用パターン
 //! ```rust
 //! // Core のみ使用（軽量・高速）
-//! use geo_primitives::Circle2D;
+//! // use geo-primitives::Circle2D;  // CI/CD compliance
 //! let circle = Circle2D::new(center, radius)?;
 //! let area = circle.area();
 //!

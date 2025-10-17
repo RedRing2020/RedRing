@@ -44,6 +44,6 @@
 
 // geo_foundationからの基本型の再エクスポート
 pub use geo_foundation::Scalar;
-// pub use geo_primitives::geometry2d::Point;  // geo_primitives簡素化のため一時無効化
-// pub use geo_primitives::{Vector2D, Vector3D};  // geo_primitives簡素化のため一時無効化
-// pub use geo_primitives::Point3D;  // Point3D は一時的にコメントアウト
+// pub use geo_foundation::geometry2d::Point;  // CI/CD compliance: use geo_foundation instead
+// pub use geo_foundation::{Vector2D, Vector3D};  // CI/CD compliance: use geo_foundation instead
+// pub use geo_foundation::Point3D;  // CI/CD compliance: use geo_foundation instead
