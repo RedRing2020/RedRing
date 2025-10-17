@@ -1,11 +1,11 @@
-//! Arc衝突検出・距離計算統一Foundation実装
+﻿//! Arc衝突検出・距離計算統一Foundation実装
 //!
 //! 統一Collision Foundation システムによる衝突検出・距離計算
 //! 全幾何プリミティブで共通利用可能な統一インターフェース
 
 use crate::{Arc2D, Circle2D, Point2D, Vector2D};
 use geo_foundation::{
-    traits::{BasicCollision, PointDistance},
+    extensions::{BasicCollision, PointDistance},
     Angle, Scalar,
 };
 

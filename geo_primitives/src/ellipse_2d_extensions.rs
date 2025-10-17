@@ -1,4 +1,4 @@
-//! Ellipse2D拡張メソッド
+﻿//! Ellipse2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Ellipse2D の拡張機能
 //! 基本機能は ellipse_2d.rs を参照

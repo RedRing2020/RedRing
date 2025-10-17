@@ -1,4 +1,4 @@
-//! InfiniteLine3D Extension 機能
+﻿//! InfiniteLine3D Extension 機能
 //!
 //! Extension Foundation パターンに基づく InfiniteLine3D の拡張実装
 

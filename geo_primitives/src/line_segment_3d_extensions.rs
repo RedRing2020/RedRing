@@ -1,4 +1,4 @@
-//! 3次元線分（LineSegment3D）の Extension 実装
+﻿//! 3次元線分（LineSegment3D）の Extension 実装
 //!
 //! Core Foundation パターンに基づく LineSegment3D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供

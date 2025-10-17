@@ -1,4 +1,4 @@
-//! Direction2D/3D Extensions Tests
+﻿//! Direction2D/3D Extensions Tests
 //!
 //! Core + Extensions パターンの検証テスト
 

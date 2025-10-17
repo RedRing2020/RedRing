@@ -1,4 +1,4 @@
-//! Direction2D Extensions 実装
+﻿//! Direction2D Extensions 実装
 //!
 //! Foundation統一システムに基づくDirection2Dの拡張機能
 //! Core機能は direction_2d.rs を参照

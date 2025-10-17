@@ -1,4 +1,4 @@
-//! 2次元楕円弧（EllipseArc2D）のCore実装
+﻿//! 2次元楕円弧（EllipseArc2D）のCore実装
 //!
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 

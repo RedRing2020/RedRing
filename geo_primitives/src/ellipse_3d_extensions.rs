@@ -1,4 +1,4 @@
-//! Ellipse3D Extension 機能
+﻿//! Ellipse3D Extension 機能
 //!
 //! Extension Foundation パターンに基づく Ellipse3D の拡張実装
 

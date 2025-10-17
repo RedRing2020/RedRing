@@ -1,4 +1,4 @@
-//! 2次元線分（LineSegment2D）の Core 実装
+﻿//! 2次元線分（LineSegment2D）の Core 実装
 //!
 //! Core Foundation パターンに基づく LineSegment2D の必須機能のみ
 //! 拡張機能は line_segment_2d_extensions.rs を参照

@@ -1,4 +1,4 @@
-//! 2次元楕円（Ellipse2D）の新実装
+﻿//! 2次元楕円（Ellipse2D）の新実装
 //!
 //! 新しいtraitsシステムに対応したEllipse2Dの実装
 

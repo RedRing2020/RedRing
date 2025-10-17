@@ -1,4 +1,4 @@
-//! 幾何プリミティブクレート
+﻿//! 幾何プリミティブクレート
 //!
 //! 新しいトレイト設計に基づく実装への移行中
 //! 旧実装は一時的にコンパイル除外
@@ -69,7 +69,7 @@ mod vector_2d_tests;
 pub use geo_foundation::{Angle, Scalar};
 
 // Foundation システム統一トレイト
-pub use geo_foundation::traits::{
+pub use geo_foundation::extensions::{
     AdvancedCollision,
     AdvancedTransform,
     // Collision Foundation

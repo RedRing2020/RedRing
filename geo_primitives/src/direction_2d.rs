@@ -1,10 +1,10 @@
-//! Direction2D Core 実装
+﻿//! Direction2D Core 実装
 //!
 //! Foundation統一システムに基づくDirection2Dの必須機能のみ
 //! 拡張機能は direction_2d_extensions.rs を参照
 
 use crate::Vector2D;
-use geo_foundation::{abstracts::direction_traits, Scalar};
+use geo_foundation::{core::direction_traits, Scalar};
 use std::ops::{Deref, DerefMut};
 
 /// 2次元方向ベクトル（正規化済み）
@@ -123,7 +123,7 @@ impl<T: Scalar> Direction2D<T> {
 // geo_foundation abstracts trait implementations
 // ============================================================================
 
-/// geo_foundation::abstracts::Direction2D<T> トレイト実装
+/// geo_foundation::core::Direction2D<T> トレイト実装
 impl<T: Scalar> direction_traits::Direction2D<T> for Direction2D<T> {
     type Vector = Vector2D<T>;
 
@@ -140,7 +140,7 @@ impl<T: Scalar> direction_traits::Direction2D<T> for Direction2D<T> {
     }
 }
 
-/// geo_foundation::abstracts::DirectionRelations<T> トレイト実装
+/// geo_foundation::core::DirectionRelations<T> トレイト実装
 impl<T: Scalar> direction_traits::DirectionRelations<T> for Direction2D<T> {
     fn is_parallel_to(&self, other: &Self) -> bool {
         self.is_parallel_to(other)

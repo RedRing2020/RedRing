@@ -1,4 +1,4 @@
-//! Circle2D 拡張機能
+﻿//! Circle2D 拡張機能
 //!
 //! Extension Foundation パターンに基づく Circle2D の拡張実装
 

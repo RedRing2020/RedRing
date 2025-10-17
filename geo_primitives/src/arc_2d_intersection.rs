@@ -1,4 +1,4 @@
-//! Arc交点計算統一Foundation実装
+﻿//! Arc交点計算統一Foundation実装
 //!
 //! 統一Intersection Foundation システムによる交点計算
 //! 全幾何プリミティブで共通利用可能な統一インターフェース

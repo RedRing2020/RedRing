@@ -1,4 +1,4 @@
-//! Circle2D のテスト
+﻿//! Circle2D のテスト
 
 use crate::{Circle2D, Point2D, Vector2D};
 use geo_foundation::{
@@ -379,7 +379,7 @@ fn test_circle2d_f32() {
 #[cfg(test)]
 mod foundation_tests {
     use super::*;
-    use geo_foundation::abstracts::circle_core::{
+    use geo_foundation::core::circle_core::{
         CircleCore, CircleMetrics, UnifiedCircleFoundation,
     };
 

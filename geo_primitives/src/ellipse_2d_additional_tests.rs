@@ -1,4 +1,4 @@
-//! Ellipse2D実装の追加テスト
+﻿//! Ellipse2D実装の追加テスト
 
 #[cfg(test)]
 mod ellipse_2d_additional_tests {

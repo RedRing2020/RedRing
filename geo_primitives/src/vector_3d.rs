@@ -4,7 +4,7 @@
 //! 拡張機能は vector_3d_extensions.rs を参照
 
 use crate::{BBox3D, Point3D};
-use geo_foundation::{abstracts::vector_traits, Scalar};
+use geo_foundation::{core::vector_traits, Scalar};
 
 /// 3次元ベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -220,7 +220,7 @@ impl<T: Scalar> Vector3D<T> {
 // geo_foundation abstracts trait implementations
 // ============================================================================
 
-/// geo_foundation::abstracts::Vector2D<T> トレイト実装
+/// geo_foundation::core::Vector2D<T> トレイト実装
 impl<T: Scalar> vector_traits::Vector2D<T> for Vector3D<T> {
     fn x(&self) -> T {
         self.x
@@ -231,7 +231,7 @@ impl<T: Scalar> vector_traits::Vector2D<T> for Vector3D<T> {
     }
 }
 
-/// geo_foundation::abstracts::Vector3D<T> トレイト実装
+/// geo_foundation::core::Vector3D<T> トレイト実装
 impl<T: Scalar> vector_traits::Vector3D<T> for Vector3D<T> {
     fn z(&self) -> T {
         self.z

@@ -1,9 +1,9 @@
-//! Point2D Core 実装
+﻿//! Point2D Core 実装
 //!
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
 use crate::Vector2D;
-use geo_foundation::{abstracts::point_traits, Scalar};
+use geo_foundation::{core::point_traits, Scalar};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -306,7 +306,7 @@ impl<T: Scalar> Default for Point2D<T> {
 // geo_foundation abstracts trait implementations
 // ============================================================================
 
-/// geo_foundation::abstracts::Point2D<T> トレイト実装
+/// geo_foundation::core::Point2D<T> トレイト実装
 impl<T: Scalar> point_traits::Point2D<T> for Point2D<T> {
     fn x(&self) -> T {
         self.x

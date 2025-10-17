@@ -1,4 +1,4 @@
-//! 2次元円（Circle2D）のCore実装
+﻿//! 2次元円（Circle2D）のCore実装
 //!
 //! Foundation統一システムに基づくCircle2Dの必須機能のみ
 

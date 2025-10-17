@@ -1,4 +1,4 @@
-//! EllipseArc2D Extension 機能
+﻿//! EllipseArc2D Extension 機能
 //!
 //! Extension Foundation パターンに基づく EllipseArc2D の拡張実装
 
