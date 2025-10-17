@@ -5,7 +5,7 @@
 
 use crate::{Arc2D, Circle2D, Point2D, Vector2D};
 use geo_foundation::{
-    abstract_types::foundation::{BasicIntersection, MultipleIntersection, SelfIntersection},
+    traits::{BasicIntersection, MultipleIntersection, SelfIntersection},
     PointDistance, Scalar,
 };
 

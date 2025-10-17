@@ -69,7 +69,7 @@ mod vector_2d_tests;
 pub use geo_foundation::{Angle, Scalar};
 
 // Foundation システム統一トレイト
-pub use geo_foundation::abstract_types::foundation::{
+pub use geo_foundation::traits::{
     AdvancedCollision,
     AdvancedTransform,
     // Collision Foundation

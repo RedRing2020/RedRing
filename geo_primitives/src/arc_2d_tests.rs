@@ -3,7 +3,7 @@
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Arc2D, Point2D, Vector2D};
-use geo_foundation::{abstract_types::foundation::ArcMetrics, Angle};
+use geo_foundation::{abstracts::arc_traits::ArcMetrics, Angle};
 
 #[cfg(test)]
 mod tests {

@@ -3,12 +3,7 @@
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
 use crate::Vector2D;
-use geo_foundation::{
-    // abstract_types::abstracts::point_traits::Point2D as Point2DTrait,
-    // abstract_types::geometry::core_foundation::{BasicContainment, CoreFoundation},
-    abstracts::point_traits,
-    Scalar,
-};
+use geo_foundation::{abstracts::point_traits, Scalar};
 
 use std::ops::{Add, Mul, Neg, Sub};
 

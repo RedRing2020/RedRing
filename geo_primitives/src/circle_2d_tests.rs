@@ -292,7 +292,7 @@ fn test_basic_metrics() {
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
 
     // 長さ（円周）
-    use geo_foundation::abstract_types::foundation::core_foundation::BasicMetrics;
+    use geo_foundation::core_foundation::BasicMetrics;
     let length = BasicMetrics::length(&circle).unwrap();
     assert!((length - TAU * 2.0).abs() < 1e-10);
 
@@ -379,7 +379,7 @@ fn test_circle2d_f32() {
 #[cfg(test)]
 mod foundation_tests {
     use super::*;
-    use geo_foundation::abstract_types::foundation::circle_core::{
+    use geo_foundation::abstracts::circle_core::{
         CircleCore, CircleMetrics, UnifiedCircleFoundation,
     };
 

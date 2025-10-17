@@ -23,13 +23,13 @@
 //! ## 実装パターン
 //!
 //! ### ファイル分離
-//! ```
+//! ```text
 //! circle_2d.rs              // Core実装（120行）
 //! circle_2d_extensions.rs   // Extension実装（130行）
 //! ```
 //!
 //! ### 利用パターン
-//! ```rust
+//! ```text
 //! // Core のみ使用（軽量・高速）
 //! // use geo-primitives::Circle2D;  // CI/CD compliance
 //! let circle = Circle2D::new(center, radius)?;
