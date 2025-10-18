@@ -1,24 +1,25 @@
-﻿// 注: geo_coreとgeo_primitivesの依存関係は除外済み
+//! 数値サンプリング機能
+//!
+//! 幾何学に依存しない純粋な数値サンプリング手法を提供
+//!
+//! ## 提供予定の機能
+//!
+//! - **グリッドサンプリング**: 規則的な格子点でのサンプリング
+//! - **ランダムサンプリング**: モンテカルロ法によるランダムサンプリング
+//! - **準ランダムサンプリング**: Halton、Sobol系列等の低次元性サンプリング
+//! - **適応的サンプリング**: 関数の性質に応じた適応的サンプリング
+//! - **層化サンプリング**: 領域を分割した効率的サンプリング
+//!
+//! ## 注意
+//!
+//! このモジュールは純粋な数値計算機能のみを提供し、
+//! 幾何学的なオブジェクト（Point、LineSegment等）には依存しません。
+//! 幾何学的サンプリングは `geo_core` クレートで実装されます。
 
-// /// evaluate関数を使って線分との交差候補を抽出（離散近似）
-// pub fn sample_intersections<F>(
-//     evaluator: F,
-//     line: &LineSegment2D,
-//     sample_count: usize,
-//     epsilon: f64,
-// ) -> Vec<Point>
-// where
-//     F: Fn(f64) -> Point,
-// {
-//     let mut result = vec![];
-//     for i in 0..sample_count {
-//         let theta = (i as f64) * std::f64::consts::TAU / (sample_count as f64);
-//         let pt = evaluator(theta);
-//         if line.distance_to_point(&pt).value() < epsilon {
-//             result.push(pt);
-//         }
-//     }
+// TODO: 以下の機能を実装予定
 //
-//     result.dedup_by(|a, b| a.distance_to(b).value() < epsilon);
-//     result
-// }
+// pub mod grid;      // グリッドサンプリング
+// pub mod random;    // ランダムサンプリング
+// pub mod adaptive;  // 適応的サンプリング
+// pub mod stratified; // 層化サンプリング
+// pub mod quasi;     // 準ランダムサンプリング

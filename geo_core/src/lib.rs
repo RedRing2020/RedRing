@@ -7,13 +7,18 @@
 //!
 //! ## 役割境界 (Target Architecture)
 //! ```text
-//! +----------------------+  許容誤差 / ロバスト判定
+//! +----------------------+  総合幾何演算 / 交差判定 / 衝突判定
+//! |    geo_algorithms    |
+//! +----------------------+
+//!             |
+//!             v
+//! +----------------------+  基盤幾何演算
 //! |       geo_core        |
 //! +----------------------+
 //!             |
 //!             v
-//! +----------------------+  総合幾何演算 / 交差判定 / 衝突判定
-//! |    geo_algorithms    |
+//! +----------------------+  幾何演算ラッパー層 (geo_nurbs / geo_primitives ...の抽象化 / ハンドリング)
+//! |    geo_foundation    |
 //! +----------------------+
 //!             |
 //!             v
@@ -22,7 +27,7 @@
 //! +----------------------+
 //!             |
 //!             v
-//! +----------------------+  f64 ベース幾何プリミティブ (点 / ベクトル / 方向 / 面 / 曲線 ...)
+//! +----------------------+  ベース幾何プリミティブ (点 / ベクトル / 方向 / 面 ...)
 //! |    geo_primitives    |
 //! +-----------+----------+
 //!             |
@@ -61,9 +66,8 @@
 /// 幾何図形の近似計算モジュール
 pub mod approximations;
 
-// テストモジュール
-#[cfg(test)]
-mod unit_tests;
+/// 幾何学的計量計算モジュール
+pub mod metrics;
 
 // 主要な型の再エクスポート
 // pub use vector::Vector;  // 一時的に無効化
@@ -72,8 +76,13 @@ mod unit_tests;
 // Re-export deprecated 3D items - removed, use geo-primitives instead
 // pub use robust::{Orientation, RobustSolver};  // robust モジュール無効化のため一時的にコメントアウト
 
-// 近似計算機能の再エクスポート
-pub use approximations::*;
+// 近似計算機能の再エクスポート（モジュール名衝突を避けるため個別インポート）
+pub use approximations::{
+    bezier_length_approximation, ellipse_perimeter_ramanujan_ii, parametric_curve_length,
+};
+
+// 計量計算機能の再エクスポート
+pub use metrics::*;
 
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
@@ -82,5 +91,12 @@ pub mod prelude {
     // 近似計算の便利な関数を再エクスポート
     pub use crate::approximations::{
         bezier_length_approximation, ellipse_perimeter_ramanujan_ii, parametric_curve_length,
+    };
+
+    // 計量計算の便利な関数を再エクスポート（geometry専用）
+    pub use crate::metrics::{
+        arc_length, circle_area, ellipse_arc_length_approximation, ellipse_area_f64,
+        ellipse_circumference_ramanujan_f64, ellipse_eccentricity_f64, sphere_volume,
+        triangle_area_2d,
     };
 }

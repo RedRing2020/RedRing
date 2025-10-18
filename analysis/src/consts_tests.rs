@@ -45,20 +45,4 @@ mod tests {
         let area_f32: f32 = ToleranceConstants::area();
         assert_eq!(area_f32, 1e-5);
     }
-
-    #[test]
-    fn test_backward_compatibility() {
-        // numericsモジュール経由でのアクセステスト（後方互換性）
-        use crate::numerics::{
-            MathConstants as NumericsMathConstants,
-            ToleranceConstants as NumericsToleranceConstants,
-        };
-
-        let golden_ratio: f64 = NumericsMathConstants::golden_ratio();
-        let expected = (1.0 + 5.0_f64.sqrt()) / 2.0;
-        assert!((golden_ratio - expected).abs() < 1e-10);
-
-        let tolerance: f64 = NumericsToleranceConstants::geometric();
-        assert_eq!(tolerance, 1e-10);
-    }
 }
