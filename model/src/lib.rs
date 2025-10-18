@@ -1,29 +1,10 @@
-// geometry module removed after migration to geo_primitives / geo_core.
-pub mod geometry_common;
-pub mod geometry_kind;
-pub mod geometry_trait;
-// pub mod geometry_adapter; // 一時的に無効化
-// pub mod geometry_migration; // 一時的に無効化
+// Model crate now serves as minimal abstraction layer only
+//
+// Migration completed:
+// - geometry -> geo_primitives (concrete implementations)
+// - analysis -> analysis crate (numerical computing)
+// - geometry_common -> geo_foundation/extensions/intersection (new design)
+// - geometry_kind -> geo_foundation/classification (unified classification)
+// - geometry_trait -> geo_foundation/core + extensions (trait abstraction)
 
-// Phase 1: geo_core統合アダプター
-// pub mod geometry_adapter_curve3d; // 一時的に無効化
-// pub mod geometry_integrated_line; // 一時的に無効化
-// pub mod geometry_common_adapted; // 一時的に無効化
-// pub mod geometry_simple_adapter; // シンプルな動作版 (deprecated)
-
-// #[cfg(feature = "use_geo_core")]
-// pub mod geometry_compatibility_tests; // 互換性検証 - deprecated
-
-// 段階的移行のメインAPI（一時的に無効化）
-// pub use geometry_migration::{
-//     Vector2D, Vector3D, Point2D, Point3D, Direction3D,
-//     Normalize, Normed,
-//     geometry2d, geometry3d,
-// };
-
-// #[cfg(feature = "use_geo_core")]
-// pub use geometry_migration::conversion;
-
-// Phase 1: geo_core統合API（シンプル版） - deprecated
-// #[cfg(feature = "use_geo_core")]
-// pub use geometry_simple_adapter::{simple_factory, SimpleAdaptedLine, TypeConverter};
+// No public API - model now serves as workspace organization only
