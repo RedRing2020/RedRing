@@ -200,7 +200,8 @@ circle_2d_extensions.rs   // Extension実装（130行）
 <h3 id="core-のみ使用"><a class="header" href="#core-のみ使用">Core のみ使用</a></h3>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>use geo_primitives::Circle2D;
+</span>use geo_foundation::Point2D;
+use geo_foundation::Circle2D;
 let circle = Circle2D::new(center, radius)?;
 let area = circle.area();
 <span class="boring">}</span></code></pre></pre>

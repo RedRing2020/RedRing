@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod debug_tests {
-    use geo_primitives::Point2D;
+    use geo_foundation::Point2D;
 
     #[test]
     fn debug_point_operations() {

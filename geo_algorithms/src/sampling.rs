@@ -2,7 +2,6 @@
 ///
 /// 2D/3D幾何要素のサンプリング、交差検出、パターン抽出機能
 use geo_foundation::ToleranceContext;
-// use geo_primitives::Point2D;  // CI/CD compliance: use geo_foundation instead
 
 /// サンプリング結果
 #[derive(Debug, Clone)]

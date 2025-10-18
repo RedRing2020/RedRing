@@ -3,10 +3,7 @@ name = "model"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-geo_foundation = { path = "../geo_foundation" }
-analysis = { path = "../analysis" }
+# No dependencies - model serves as workspace organization only
 
 [features]
 default = []
-use_geo_core = []  # geo_core統合を有効化

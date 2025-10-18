@@ -74,8 +74,8 @@ geo_foundation/src/abstract_types/foundation/
 // Foundation直接使用（推奨）
 use geo_foundation::foundation::CoreFoundation;
 
-// Legacy bridge経由（既存コード互換）
-use geo_foundation::geometry::core_foundation::CoreFoundation;
+// Legacy bridge経由（既存コード互換）- deprecated
+// use geo_foundation::geometry::core_foundation::CoreFoundation;
 
 // 統一re-export経由（便利）
 use geo_foundation::foundation::*;

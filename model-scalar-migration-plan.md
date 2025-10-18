@@ -28,7 +28,7 @@ pub struct Point {
 
 ```rust
 // model/geometry/geometry3d/point.rs
-use geo_core::{Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]  // Copy削除（Scalarの制約）
 pub struct Point {
