@@ -44,7 +44,7 @@ geo_foundation/src/
 
 ```rust
 // 従来のパス (deprecated but working)
-use geo_foundation::abstract_types::foundation::circle_core::CircleCore;
+// use geo_foundation::abstract_types::foundation::circle_core::CircleCore;
 
 // 新しいパス (recommended)
 use geo_foundation::foundation::circle_core::CircleCore;

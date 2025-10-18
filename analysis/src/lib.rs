@@ -5,7 +5,7 @@
 
 pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance等）
 pub mod consts;
-pub mod geometry;
+pub mod curves; // 曲線・NURBS数値計算
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
 
 // 新しい分類構造
@@ -13,7 +13,7 @@ pub mod approximations;
 pub mod metrics; // 距離・計量計算
 pub mod numerics; // 数値計算基盤 // 幾何学的近似計算
 
-pub mod sampling2d; // 既存の2Dサンプリング（後で整理）
+pub mod sampling; // 数値サンプリング機能
 
 #[cfg(test)]
 mod unit_tests;
@@ -32,8 +32,8 @@ pub use consts::{
     RAD_TO_DEG, TAU,
 };
 
-// 幾何数値関数の再エクスポート
-pub use geometry::{
+// 曲線・NURBS数値関数の再エクスポート
+pub use crate::curves::{
     basis_function_derivatives, basis_functions, find_span, newton_arc_length, newton_inverse,
     newton_solve, NormedVector,
 };

@@ -1115,10 +1115,6 @@ dependencies = [
 [[package]]
 name = "model"
 version = "0.1.0"
-dependencies = [
- "analysis",
- "geo_foundation",
-]
 
 [[package]]
 name = "naga"

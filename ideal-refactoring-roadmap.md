@@ -45,7 +45,7 @@ pub struct Point {
 }
 
 // model/geometry/geometry3d/point.rs (After)
-use geo_core::{Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]  // Copy削除
 pub struct Point {
@@ -119,7 +119,7 @@ impl Curve3D for Circle {
 
 ```rust
 // geo_primitives/src/point.rs (modelから移植)
-use geo_core::{Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]
 pub struct Point2D {
@@ -166,7 +166,7 @@ pub enum PrimitiveKind {
 
 ```rust
 // model/src/lib.rs
-pub use geo_primitives::{
+pub use geo_foundation::{
     Point2D, Point3D, LineSegment2D, LineSegment3D,
     Circle2D, Circle3D, Triangle2D, Triangle3D,
     GeometricPrimitive, PrimitiveKind
@@ -202,8 +202,8 @@ serde = ["geo_core/serde"]
 
 ```rust
 // geo_nurbs/src/nurbs_curve.rs (modelから移植)
-use geo_core::{Scalar, Vector3D, ToleranceContext};
-use geo_primitives::Point3D;
+use geo_foundation::{Scalar, Vector3D, ToleranceContext};
+use geo_foundation::Point3D;
 
 #[derive(Debug, Clone)]
 pub struct NurbsCurve {
@@ -265,8 +265,8 @@ pub fn basis_function_derivatives(
 ```rust
 // model継続使用のためのAPI保持
 // model/src/compatibility.rs
-#[deprecated(note = "Use geo_primitives::Point3D")]
-pub type Point = geo_primitives::Point3D;
+#[deprecated(note = "Use geo_foundation::Point3D")]
+pub type Point = geo_foundation::Point3D;
 
 #[deprecated(note = "Use geo_nurbs::NurbsCurve")]
 pub type NurbsCurve = geo_nurbs::NurbsCurve;
