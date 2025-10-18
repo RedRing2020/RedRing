@@ -21,21 +21,21 @@ The legacy `model::geometry` (geometry2d/geometry3d) implementation has been rem
 ## Migration Mapping (Old -> New)
 | Old (model::geometry) | New Location |
 |-----------------------|-------------|
-| geometry2d::Point     | geo_primitives::Point2D |
-| geometry2d::Vector    | geo_primitives::Vector2D |
-| geometry2d::{Line,Circle,Arc,Ellipse,Ray,InfiniteLine} | geo_primitives::* 2D |
-| geometry3d::Point     | geo_primitives::Point3D |
-| geometry3d::Vector    | geo_primitives::Vector3D |
-| geometry3d::{Line,Circle,Arc,Ellipse,Plane,InfiniteLine} | geo_primitives::* 3D |
-| geometry3d::NurbsCurve (stub) | (Planned) geo_primitives::nurbs::* |
+| geometry2d::Point     | geo_foundation::Point2D |
+| geometry2d::Vector    | geo_foundation::Vector2D |
+| geometry2d::{Line,Circle,Arc,Ellipse,Ray,InfiniteLine} | geo_foundation::* 2D |
+| geometry3d::Point     | geo_foundation::Point3D |
+| geometry3d::Vector    | geo_foundation::Vector3D |
+| geometry3d::{Line,Circle,Arc,Ellipse,Plane,InfiniteLine} | geo_foundation::* 3D |
+| geometry3d::NurbsCurve (stub) | (Planned) geo_foundation::nurbs::* |
 | SimpleAdaptedLine adapter | (Deprecated) Removed use |
 
 ## Implementing New Curves
 Implementors should supply associated types:
 ```rust
 impl Curve2D for MyCurve2D {
-    type Point = geo_primitives::Point2D;
-    type Vector = geo_primitives::Vector2D;
+    type Point = geo_foundation::Point2D;
+    type Vector = geo_foundation::Vector2D;
     // ... methods ...
 }
 ```

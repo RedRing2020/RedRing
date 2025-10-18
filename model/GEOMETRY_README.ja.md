@@ -61,11 +61,11 @@ impl Curve2D for MyCurve2D {
 
 | 旧 `model::geometry`                                             | 新しい参照先                           |
 | ---------------------------------------------------------------- | -------------------------------------- |
-| geometry2d::Point / Vector                                       | `geo_primitives::Point2D` / `Vector2D` |
-| geometry2d::Line / Circle / Arc / Ellipse / Ray / InfiniteLine   | `geo_primitives` 2D 群                 |
-| geometry3d::Point / Vector                                       | `geo_primitives::Point3D` / `Vector3D` |
-| geometry3d::Line / Circle / Arc / Ellipse / Plane / InfiniteLine | `geo_primitives` 3D 群                 |
-| NurbsCurve / NurbsSurface (stub)                                 | 今後 `geo_primitives` に正式移行予定   |
+| geometry2d::Point / Vector                                       | `geo_foundation::Point2D` / `Vector2D` |
+| geometry2d::Line / Circle / Arc / Ellipse / Ray / InfiniteLine   | `geo_foundation` 2D 群                 |
+| geometry3d::Point / Vector                                       | `geo_foundation::Point3D` / `Vector3D` |
+| geometry3d::Line / Circle / Arc / Ellipse / Plane / InfiniteLine | `geo_foundation` 3D 群                 |
+| NurbsCurve / NurbsSurface (stub)                                 | 今後 `geo_foundation` に正式移行予定   |
 | SimpleAdaptedLine adapter                                        | 廃止 (履歴のみ)                        |
 
 ## 今後の拡張予定 (案)
@@ -88,10 +88,10 @@ impl Curve2D for MyCurve2D {
 
 ## 典型的な移行手順 (既存コードを新層へ移す場合)
 
-1. 旧 `model::geometry` 型 import を `geo_primitives::*` に切り替え
+1. 旧 `model::geometry` 型 import を `geo_foundation::*` に切り替え
 2. `impl Curve2D for X` へ関連型指定を追加
 3. 固有の内部数値計算は `geo_core` のベクトル/スカラー演算に置換
-4. テスト: 幾何単体テストは `geo_primitives` サイドへ移譲
+4. テスト: 幾何単体テストは `geo_foundation` サイドへ移譲
 5. ドキュメント: 移行履歴を `GEOMETRY_REMOVAL.md` に追記
 
 ## よくある質問 (FAQ)
