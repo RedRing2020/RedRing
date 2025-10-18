@@ -1,6 +1,6 @@
 //! 曲線長計算の近似
 
-use crate::abstract_types::Scalar;
+use analysis::abstract_types::Scalar;
 
 /// ベジェ曲線の長さ近似（分割近似法）
 pub fn bezier_length_approximation<T: Scalar>(control_points: &[[T; 2]], num_segments: usize) -> T {

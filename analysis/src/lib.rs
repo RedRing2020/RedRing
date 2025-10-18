@@ -9,9 +9,8 @@ pub mod curves; // 曲線・NURBS数値計算
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
 
 // 新しい分類構造
-pub mod approximations;
 pub mod metrics; // 距離・計量計算
-pub mod numerics; // 数値計算基盤 // 幾何学的近似計算
+pub mod numerics; // 数値計算基盤
 
 pub mod sampling; // 数値サンプリング機能
 

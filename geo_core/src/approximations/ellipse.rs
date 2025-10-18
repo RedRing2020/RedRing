@@ -1,6 +1,6 @@
 //! 楕円関連の近似計算
 
-use crate::abstract_types::Scalar;
+use analysis::abstract_types::Scalar;
 
 /// 楕円の周長（ラマヌジャンの近似式I）
 pub fn ellipse_perimeter_ramanujan_i<T: Scalar>(semi_major: T, semi_minor: T) -> T {

@@ -58,6 +58,9 @@
 // pub mod robust;  // Vector2D/3D に依存するため一時的に無効化
 // Primitives modules removed - use geo-primitives instead
 
+/// 幾何図形の近似計算モジュール
+pub mod approximations;
+
 // テストモジュール
 #[cfg(test)]
 mod unit_tests;
@@ -69,7 +72,17 @@ mod unit_tests;
 // Re-export deprecated 3D items - removed, use geo-primitives instead
 // pub use robust::{Orientation, RobustSolver};  // robust モジュール無効化のため一時的にコメントアウト
 
+// 近似計算機能の再エクスポート
+pub use approximations::*;
+
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
     // Vector modules removed - use analysis::linalg::vector or geo-primitives::prelude instead
+    
+    // 近似計算の便利な関数を再エクスポート
+    pub use crate::approximations::{
+        ellipse_perimeter_ramanujan_ii,
+        bezier_length_approximation,
+        parametric_curve_length,
+    };
 }
