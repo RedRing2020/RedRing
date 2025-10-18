@@ -33,7 +33,7 @@ pub use consts::{
 };
 
 // 幾何数値関数の再エクスポート
-pub use geometry::{
+pub use crate::geometry::{
     basis_function_derivatives, basis_functions, find_span, newton_arc_length, newton_inverse,
     newton_solve, NormedVector,
 };
