@@ -33,18 +33,20 @@ mod tests {
 
     #[test]
     fn test_mathematical_constants_consistency() {
-        // PI定数の一貫性
-        assert!((f32::PI.to_f64() - f64::PI).abs() < 1e-6);
-        assert!((f32::TAU.to_f64() - f64::TAU).abs() < 1e-6);
+        // PI定数の一貫性（f32とf64それぞれの適切な許容誤差を使用）
+        assert!((f32::PI.to_f64() - f64::PI).abs() < <f32 as GeometricTolerance>::TOLERANCE as f64);
+        assert!(
+            (f32::TAU.to_f64() - f64::TAU).abs() < <f32 as GeometricTolerance>::TOLERANCE as f64
+        );
 
         // 角度変換定数の一貫性
         let degrees_f32 = 180.0f32;
         let radians_f32 = degrees_f32 * f32::DEG_TO_RAD;
-        assert!((radians_f32 - f32::PI).abs() < 1e-6);
+        assert!((radians_f32 - f32::PI).abs() < <f32 as GeometricTolerance>::TOLERANCE);
 
         let degrees_f64 = 180.0f64;
         let radians_f64 = degrees_f64 * f64::DEG_TO_RAD;
-        assert!((radians_f64 - f64::PI).abs() < 1e-10);
+        assert!((radians_f64 - f64::PI).abs() < <f64 as GeometricTolerance>::TOLERANCE);
     }
 
     #[test]
@@ -53,8 +55,10 @@ mod tests {
         let value_f32: f32 = 42.5;
         let value_f64: f64 = 42.5;
 
-        // 基本的な変換
-        assert!((value_f32.to_f64() - value_f64).abs() < 1e-6);
+        // 基本的な変換（統一された許容誤差を使用）
+        assert!(
+            (value_f32.to_f64() - value_f64).abs() < <f32 as GeometricTolerance>::TOLERANCE as f64
+        );
         assert!(
             (f32::from_f64(value_f64) - value_f32).abs() < <f32 as GeometricTolerance>::TOLERANCE
         );
