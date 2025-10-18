@@ -45,7 +45,7 @@ pub struct Point {
 }
 
 // model/geometry/geometry3d/point.rs (After)
-use geo_core::{Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]  // Copy削除
 pub struct Point {
@@ -119,7 +119,7 @@ impl Curve3D for Circle {
 
 ```rust
 // geo_primitives/src/point.rs (modelから移植)
-use geo_core::{Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Scalar, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]
 pub struct Point2D {
@@ -202,7 +202,7 @@ serde = ["geo_core/serde"]
 
 ```rust
 // geo_nurbs/src/nurbs_curve.rs (modelから移植)
-use geo_core::{Scalar, Vector3D, ToleranceContext};
+use geo_foundation::{Scalar, Vector3D, ToleranceContext};
 use geo_foundation::Point3D;
 
 #[derive(Debug, Clone)]
