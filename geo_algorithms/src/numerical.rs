@@ -1,8 +1,8 @@
+use crate::sampling::IntersectionCandidate;
 /// 幾何学的交差解析と最適化アルゴリズム
 ///
 /// 交差検出、近似、最適化問題の解法を提供
 use geo_foundation::ToleranceContext;
-use crate::sampling::IntersectionCandidate;
 
 /// 2次元ベクトル（analysisのlinalgから独立）
 #[derive(Debug, Clone, Copy)]
