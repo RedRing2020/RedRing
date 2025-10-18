@@ -4,7 +4,7 @@ use crate::approximations::*;
 use analysis::abstract_types::Scalar;
 
 #[cfg(test)]
-mod ellipse_tests {
+mod tests {
     use super::*;
 
     #[test]

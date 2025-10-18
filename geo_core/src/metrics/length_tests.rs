@@ -3,7 +3,7 @@
 use crate::metrics::*;
 
 #[cfg(test)]
-mod length_tests {
+mod tests {
     use super::*;
 
     #[test]

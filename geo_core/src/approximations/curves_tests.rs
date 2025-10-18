@@ -3,7 +3,7 @@
 use crate::approximations::*;
 
 #[cfg(test)]
-mod curve_tests {
+mod tests {
     use super::*;
 
     #[test]
