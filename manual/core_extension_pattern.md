@@ -32,7 +32,8 @@ circle_2d_extensions.rs   // Extension実装（130行）
 ### Core のみ使用
 
 ```rust
-use geo_primitives::Circle2D;
+use geo_foundation::Point2D;
+use geo_foundation::Circle2D;
 let circle = Circle2D::new(center, radius)?;
 let area = circle.area();
 ```
