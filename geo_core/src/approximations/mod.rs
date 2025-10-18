@@ -7,7 +7,9 @@ pub mod curves;
 pub mod ellipse;
 
 #[cfg(test)]
-mod tests;
+mod curves_tests;
+#[cfg(test)]
+mod ellipse_tests;
 
 pub use curves::*;
 pub use ellipse::*;

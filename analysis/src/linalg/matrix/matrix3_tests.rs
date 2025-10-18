@@ -10,7 +10,6 @@ mod tests {
 
     type Matrix3 = Matrix3x3<f64>;
     type Vec2 = Vector2<f64>;
-    type Vec3 = Vector3<f64>;
 
     // 統一された許容誤差定数を使用
     const TOLERANCE: f64 = TOLERANCE_F64;

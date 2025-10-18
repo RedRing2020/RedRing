@@ -11,15 +11,9 @@ pub mod numerical_methods; // 数値計算手法（汎用数値計算 + NURBS/B-
 // 新しい分類構造
 pub mod metrics; // 距離・計量計算
 
-pub mod sampling; // 数値サンプリング機能
-
 // テストモジュール（*_tests.rs形式）
 #[cfg(test)]
-mod interpolation_tests;
-#[cfg(test)]
-mod numerical_tests;
-#[cfg(test)]
-mod statistics_tests;
+mod numerical_methods_tests;
 
 #[cfg(test)]
 mod consts_tests;

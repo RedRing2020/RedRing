@@ -8,7 +8,9 @@ pub mod ellipse;
 pub mod length;
 
 #[cfg(test)]
-mod tests;
+mod area_volume_tests;
+#[cfg(test)]
+mod length_tests;
 
 // 便利な再エクスポート（geometry専用機能のみ）
 pub use area_volume::{

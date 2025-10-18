@@ -1,10 +1,10 @@
-//! 近似計算機能のテスト
+//! 楕円近似計算のテスト
 
 use crate::approximations::*;
 use analysis::abstract_types::Scalar;
 
 #[cfg(test)]
-mod tests {
+mod ellipse_tests {
     use super::*;
 
     #[test]
@@ -37,25 +37,5 @@ mod tests {
         let focal_distance = ellipse_focal_distance(semi_major, semi_minor);
         let expected_c = (semi_major.powi(2) - semi_minor.powi(2)).sqrt();
         assert!((focal_distance - expected_c).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_bezier_curve_length() {
-        // 単純な線分のベジェ曲線
-        let control_points = [[0.0, 0.0], [3.0, 4.0]];
-        let length = bezier_length_approximation(&control_points, 10);
-        let expected_length = 5.0; // 3-4-5三角形の斜辺
-
-        assert!((length - expected_length).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_parametric_curve_length() {
-        // 単位円の1/4の弧長
-        let curve_fn = |t: f64| [t.cos(), t.sin()];
-        let length = parametric_curve_length(curve_fn, 0.0, std::f64::consts::PI / 2.0, 100);
-        let expected_length = std::f64::consts::PI / 2.0;
-
-        assert!((length - expected_length).abs() < 0.01);
     }
 }

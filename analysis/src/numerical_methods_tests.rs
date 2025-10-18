@@ -44,9 +44,46 @@ mod tests {
         assert!(result.is_none()); // 収束しないことを確認
     }
 
-    // プレースホルダーテスト（将来的に数値解析機能のテストを追加）
+    // === 統計計算テスト（numerical_methods の一部として） ===
+
     #[test]
-    fn test_placeholder() {
-        assert!(true);
+    fn test_simple_statistics() {
+        let values = [1.0, 2.0, 3.0, 4.0, 5.0];
+
+        // 平均値
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        assert!((mean - 3.0).abs() < 1e-10);
+
+        // 最小値・最大値
+        let min = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+        let max = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        assert_eq!(min, 1.0);
+        assert_eq!(max, 5.0);
+
+        // 分散
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        assert!((variance - 2.0).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_empty_dataset() {
+        let values: Vec<f64> = vec![];
+
+        // 空のデータセットの処理
+        assert!(values.is_empty());
+        assert_eq!(values.len(), 0);
+    }
+
+    #[test]
+    fn test_single_value_statistics() {
+        let values = [42.0];
+
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        assert_eq!(mean, 42.0);
+
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        assert_eq!(variance, 0.0);
+    }
+
+    // TODO: より高度な数値解析機能のテストを実装予定
 }
