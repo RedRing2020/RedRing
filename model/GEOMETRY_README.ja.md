@@ -70,9 +70,9 @@ impl Curve2D for MyCurve2D {
 
 ## 今後の拡張予定 (案)
 
-1. NURBS 評価本実装 (2D/3D 曲線・サーフェス) を `geo_primitives` に統合 → 抽象 `Curve*` / `Surface*` 実装例追加
+1. NURBS 評価本実装 (2D/3D 曲線・サーフェス) を `geo_foundation` に統合 → 抽象 `Curve*` / `Surface*` 実装例追加
 2. `Surface` トレイトの導入: `evaluate(u,v)`, `normal(u,v)`, `is_closed_{u,v}` など
-3. Tolerance 戦略の抽象インターフェース化 (今は `geo_core::ToleranceContext` を直参照)
+3. Tolerance 戦略の抽象インターフェース化 (今は `geo_foundation::ToleranceContext` を直参照)
 4. Parametric Domain 拡張: 曲線の `domain()` を閉区間以外 (周期関数/ラップ) に拡張するためのフラグ付加
 5. エラーハンドリング: `evaluate` が失敗し得る場合に `Result` 版 API を並行提供
 

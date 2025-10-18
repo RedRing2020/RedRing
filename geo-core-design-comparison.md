@@ -58,8 +58,8 @@ pub mod geometry_trait {
 ### 問題 1: 命名規則の衝突
 
 ```rust
-// geo_core期待
-use geo_core::{Point2D, Point3D};
+// geo_foundation期待
+use geo_foundation::{Point2D, Point3D};
 
 // model現状
 use crate::geometry::{geometry2d::Point, geometry3d::Point};
@@ -100,7 +100,7 @@ pub struct Point { x: Scalar, y: Scalar, z: Scalar }
 
 ```rust
 // model/src/geometry/geometry3d/point.rs
-pub use geo_core::Point3D as Point;
+pub use geo_foundation::Point3D as Point;
 
 // 課題:
 // - 27個のコンパイルエラー修正が必要
@@ -115,9 +115,9 @@ pub use geo_core::Point3D as Point;
 pub struct Point { x: Scalar, y: Scalar, z: Scalar }
 
 impl Point {
-    // geo_coreとの相互変換
-    pub fn from_geo_core(p: geo_core::Point3D) -> Self { ... }
-    pub fn to_geo_core(&self) -> geo_core::Point3D { ... }
+    // geo_foundationとの相互変換
+    pub fn from_geo_foundation(p: geo_foundation::Point3D) -> Self { ... }
+    pub fn to_geo_foundation(&self) -> geo_foundation::Point3D { ... }
 }
 ```
 
@@ -155,7 +155,7 @@ impl Point {
 ### 実装例
 
 ```rust
-use geo_core::{Point3D as GeoPoint3D, Scalar, ToleranceContext, TolerantEq};
+use geo_foundation::{Point3D as GeoPoint3D, Scalar, ToleranceContext, TolerantEq};
 
 #[derive(Debug, Clone)]
 pub struct Point {

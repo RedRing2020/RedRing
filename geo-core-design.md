@@ -145,7 +145,7 @@ pub trait Surface<P: Point<3>>: TolerantGeometry {
 ## 利用例
 
 ```rust
-use geo_core::*;
+use geo_foundation::*;
 
 let ctx = ToleranceContext {
     linear: 1e-6,
