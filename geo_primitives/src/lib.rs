@@ -18,6 +18,7 @@ pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
+pub mod point_3d_transform; // Point3D の変換機能 (Transform)
 pub mod vector_3d; // Vector3D の新実装
 
 // 2D プリミティブ
