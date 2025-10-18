@@ -2,6 +2,7 @@
 //!
 //! 全幾何プリミティブで共通利用可能な変換操作Foundation システム
 //! メンテナンス効率向上のため、統一インターフェースを提供
+//! analysisクレートの行列演算と統合された実装
 
 use crate::Scalar;
 
@@ -210,4 +211,96 @@ pub trait BasicTransform3D<T: Scalar> {
 
     /// 3D 等方スケール
     fn scale_3d(&self, center: Self::Point3D, factor: T) -> Self::Transformed;
+}
+
+/// 行列ベースの変換操作を提供する実装ヘルパー
+///
+/// analysisクレートの行列演算を活用した具体的な変換実装
+pub mod matrix_transform {
+    use super::*;
+    use crate::extensions::analysis_conversion::transform_2d;
+    use analysis::linalg::{Matrix3x3, Vector2};
+
+    /// 2D 点を行列で変換
+    pub fn transform_point_2d<T: Scalar>(point_x: T, point_y: T, matrix: &Matrix3x3<T>) -> (T, T) {
+        let input = Vector2::new(point_x, point_y);
+        let result = matrix.transform_point_2d(&input);
+        (result.x(), result.y())
+    }
+
+    /// 2D ベクトルを行列で変換（平行移動成分は無視）
+    pub fn transform_vector_2d<T: Scalar>(
+        vector_x: T,
+        vector_y: T,
+        matrix: &Matrix3x3<T>,
+    ) -> (T, T) {
+        let input = Vector2::new(vector_x, vector_y);
+        let result = matrix.transform_vector_2d(&input);
+        (result.x(), result.y())
+    }
+
+    /// 複数の変換を合成
+    pub fn compose_transforms_2d<T: Scalar>(transforms: &[Matrix3x3<T>]) -> Matrix3x3<T> {
+        transforms
+            .iter()
+            .fold(Matrix3x3::identity(), |acc, t| acc.mul_matrix(t))
+    }
+
+    /// 一般的な2D変換の生成ファクトリ
+    pub struct Transform2DBuilder<T: Scalar> {
+        matrix: Matrix3x3<T>,
+    }
+
+    impl<T: Scalar> Transform2DBuilder<T> {
+        /// 新しいビルダーを作成
+        pub fn new() -> Self {
+            Self {
+                matrix: Matrix3x3::identity(),
+            }
+        }
+
+        /// 平行移動を追加
+        pub fn translate(mut self, dx: T, dy: T) -> Self {
+            let translation = transform_2d::translation_matrix(dx, dy);
+            self.matrix = self.matrix.mul_matrix(&translation);
+            self
+        }
+
+        /// 回転を追加（原点中心）
+        pub fn rotate(mut self, angle_rad: T) -> Self {
+            let rotation = transform_2d::rotation_matrix(angle_rad);
+            self.matrix = self.matrix.mul_matrix(&rotation);
+            self
+        }
+
+        /// スケールを追加（原点中心）
+        pub fn scale(mut self, sx: T, sy: T) -> Self {
+            let scale = transform_2d::scale_matrix(sx, sy);
+            self.matrix = self.matrix.mul_matrix(&scale);
+            self
+        }
+
+        /// 等方スケールを追加（原点中心）
+        pub fn uniform_scale(self, factor: T) -> Self {
+            self.scale(factor, factor)
+        }
+
+        /// 指定点中心で回転を追加
+        pub fn rotate_around(mut self, center_x: T, center_y: T, angle_rad: T) -> Self {
+            let rotation = transform_2d::rotation_around_point(center_x, center_y, angle_rad);
+            self.matrix = self.matrix.mul_matrix(&rotation);
+            self
+        }
+
+        /// 変換行列を構築
+        pub fn build(self) -> Matrix3x3<T> {
+            self.matrix
+        }
+    }
+
+    impl<T: Scalar> Default for Transform2DBuilder<T> {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 }
