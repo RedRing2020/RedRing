@@ -78,11 +78,9 @@ pub use approximations::*;
 /// プリファクトリ：よく使用される値の作成
 pub mod prelude {
     // Vector modules removed - use analysis::linalg::vector or geo-primitives::prelude instead
-    
+
     // 近似計算の便利な関数を再エクスポート
     pub use crate::approximations::{
-        ellipse_perimeter_ramanujan_ii,
-        bezier_length_approximation,
-        parametric_curve_length,
+        bezier_length_approximation, ellipse_perimeter_ramanujan_ii, parametric_curve_length,
     };
 }
