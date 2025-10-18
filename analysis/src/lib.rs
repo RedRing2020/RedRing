@@ -17,6 +17,9 @@ pub mod sampling; // 数値サンプリング機能
 #[cfg(test)]
 mod unit_tests;
 
+#[cfg(test)]
+mod consts_tests;
+
 // 基盤型の再エクスポート
 pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
 
@@ -27,9 +30,9 @@ pub use linalg::vector::{Vector2, Vector3, Vector4};
 
 // 定数の再エクスポート
 pub use consts::{
-    game, precision, GeometricTolerance, DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD, E,
-    GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
-    RAD_TO_DEG, TAU,
+    game, precision, GeometricTolerance, MathConstants, ToleranceConstants, DEG_TO_RAD,
+    DERIVATIVE_ZERO_THRESHOLD, E, GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI,
+    PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
 };
 
 // 曲線・NURBS数値関数の再エクスポート
