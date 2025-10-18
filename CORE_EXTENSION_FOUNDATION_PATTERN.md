@@ -319,7 +319,7 @@ impl<T: Scalar> Ray2D<T> {
 ### パターン 1: Core のみ使用（軽量・高速）
 
 ```rust
-use geo_primitives::Circle2D;
+use geo_foundation::Circle2D;
 
 // 基本的な円の操作
 let circle = Circle2D::new(center, radius)?;
@@ -340,7 +340,7 @@ let contains = circle.contains_point_inside(&test_point);
 ### パターン 2: Extension を含む使用（高機能）
 
 ```rust
-use geo_primitives::Circle2D;
+use geo_foundation::Circle2D;
 // Extensions は自動的にインポートされる
 
 // 高度な円の操作

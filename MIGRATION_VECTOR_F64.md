@@ -132,10 +132,10 @@ assert_eq!(v.x().value(), 1.0);
 
 | Old (deprecated) | New Canonical | Downstream Effects |
 |------------------|---------------|-------------------|
-| Legacy geo_core imports | Use geo_primitives instead | Any crate depending on previous `Scalar` returns must be recompiled and updated. |
-| LineSegment3D from geo_core | LineSegment3D from geo_primitives | Generic code relying on `Mul<Scalar>` will need a bound change or conversion to `Mul<f64>`. |
-| Plane from geo_core | Plane from geo_primitives | Reverse multiplication simplifies generic numeric expressions (e.g., scalars on left produced by literals or function returns). |
-| Direction3D from geo_core | Direction3D from geo_primitives | Direction is now implemented with proper normalization guarantees. |
+| Legacy geo_core imports | Use geo_foundation instead | Any crate depending on previous `Scalar` returns must be recompiled and updated. |
+| LineSegment3D from geo_core | LineSegment3D from geo_foundation | Generic code relying on `Mul<Scalar>` will need a bound change or conversion to `Mul<f64>`. |
+| Plane from geo_core | Plane from geo_foundation | Reverse multiplication simplifies generic numeric expressions (e.g., scalars on left produced by literals or function returns). |
+| Direction3D from geo_core | Direction3D from geo_foundation | Direction is now implemented with proper normalization guarantees. |
 
 ## Direction & Future Cleanup
 
