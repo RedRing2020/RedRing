@@ -6,6 +6,7 @@
 //! - 滑らかな補間（SLERP）
 //! - 単位クォータニオンによる回転表現
 use crate::abstract_types::Scalar;
+use crate::linalg::matrix::Matrix4x4;
 use crate::linalg::vector::{Vector3, Vector4};
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -64,25 +65,27 @@ impl<T: Scalar> Quaternion<T> {
         )
     }
 
-    /// オイラー角からクォータニオンを作成（XYZ順）
-    /// angles: (pitch, yaw, roll) in radians
-    pub fn from_euler_angles(pitch: T, yaw: T, roll: T) -> Self {
-        let half_pitch = pitch / T::from_f64(2.0);
-        let half_yaw = yaw / T::from_f64(2.0);
-        let half_roll = roll / T::from_f64(2.0);
+    /// オイラー角からクォータニオンを作成（XYZ順、Matrix4x4と同じ順序）
+    /// x: X軸周り回転（pitch）、y: Y軸周り回転（yaw）、z: Z軸周り回転（roll）
+    /// Matrix4x4::rotation_euler_xyz と同じ結果を保証
+    pub fn from_euler_angles(x: T, y: T, z: T) -> Self {
+        let half_x = x / T::from_f64(2.0);
+        let half_y = y / T::from_f64(2.0);
+        let half_z = z / T::from_f64(2.0);
 
-        let cp = half_pitch.cos();
-        let sp = half_pitch.sin();
-        let cy = half_yaw.cos();
-        let sy = half_yaw.sin();
-        let cr = half_roll.cos();
-        let sr = half_roll.sin();
+        let cx = half_x.cos();
+        let sx = half_x.sin();
+        let cy = half_y.cos();
+        let sy = half_y.sin();
+        let cz = half_z.cos();
+        let sz = half_z.sin();
 
+        // XYZ順の回転合成
         Self::new(
-            sr * cp * cy - cr * sp * sy,
-            cr * sp * cy + sr * cp * sy,
-            cr * cp * sy - sr * sp * cy,
-            cr * cp * cy + sr * sp * sy,
+            sx * cy * cz - cx * sy * sz,
+            cx * sy * cz + sx * cy * sz,
+            cx * cy * sz - sx * sy * cz,
+            cx * cy * cz + sx * sy * sz,
         )
     }
 
@@ -251,38 +254,39 @@ impl<T: Scalar> Quaternion<T> {
         Ok((axis, angle))
     }
 
-    /// オイラー角に変換（XYZ順）
+    /// オイラー角に変換（XYZ順、from_euler_anglesと同じ順序）
+    /// 戻り値: (x, y, z) = (X軸回転, Y軸回転, Z軸回転)
     pub fn to_euler_angles(&self) -> (T, T, T) {
         let normalized = self.normalize().unwrap_or(*self);
 
-        let x = normalized.x();
-        let y = normalized.y();
-        let z = normalized.z();
-        let w = normalized.w();
+        let qx = normalized.x();
+        let qy = normalized.y();
+        let qz = normalized.z();
+        let qw = normalized.w();
 
-        // Roll (x-axis rotation)
-        let sin_r_cp = T::from_f64(2.0) * (w * x + y * z);
-        let cos_r_cp = T::ONE - T::from_f64(2.0) * (x * x + y * y);
-        let roll = sin_r_cp.atan2(cos_r_cp);
+        // X軸回転 (pitch)
+        let sin_x = T::from_f64(2.0) * (qw * qx + qy * qz);
+        let cos_x = T::ONE - T::from_f64(2.0) * (qx * qx + qy * qy);
+        let x_rotation = sin_x.atan2(cos_x);
 
-        // Pitch (y-axis rotation)
-        let sin_p = T::from_f64(2.0) * (w * y - z * x);
-        let pitch = if sin_p.abs() >= T::ONE {
-            if sin_p >= T::ZERO {
+        // Y軸回転 (yaw) - ジンバルロック対策
+        let sin_y = T::from_f64(2.0) * (qw * qy - qz * qx);
+        let y_rotation = if sin_y.abs() >= T::ONE {
+            if sin_y >= T::ZERO {
                 T::PI / T::from_f64(2.0)
             } else {
                 -T::PI / T::from_f64(2.0)
             }
         } else {
-            sin_p.asin()
+            sin_y.asin()
         };
 
-        // Yaw (z-axis rotation)
-        let sin_y_cp = T::from_f64(2.0) * (w * z + x * y);
-        let cos_y_cp = T::ONE - T::from_f64(2.0) * (y * y + z * z);
-        let yaw = sin_y_cp.atan2(cos_y_cp);
+        // Z軸回転 (roll)
+        let sin_z = T::from_f64(2.0) * (qw * qz + qx * qy);
+        let cos_z = T::ONE - T::from_f64(2.0) * (qy * qy + qz * qz);
+        let z_rotation = sin_z.atan2(cos_z);
 
-        (pitch, yaw, roll)
+        (x_rotation, y_rotation, z_rotation)
     }
 
     // === 補間 ===
@@ -346,6 +350,84 @@ impl<T: Scalar> Quaternion<T> {
     /// 回転角度を取得（ラジアン）
     pub fn angle(&self) -> T {
         T::from_f64(2.0) * self.w().abs().clamp(T::ZERO, T::ONE).acos()
+    }
+
+    /// クォータニオンから4x4回転行列を作成
+    /// ジンバルロック回避のための推奨方法
+    pub fn to_rotation_matrix(&self) -> Result<Matrix4x4<T>, String> {
+        let normalized = self.normalize()?;
+
+        let x = normalized.x();
+        let y = normalized.y();
+        let z = normalized.z();
+        let w = normalized.w();
+
+        let xx = x * x;
+        let yy = y * y;
+        let zz = z * z;
+        let xy = x * y;
+        let xz = x * z;
+        let yz = y * z;
+        let wx = w * x;
+        let wy = w * y;
+        let wz = w * z;
+
+        Ok(Matrix4x4::new(
+            T::ONE - T::from_f64(2.0) * (yy + zz),
+            T::from_f64(2.0) * (xy - wz),
+            T::from_f64(2.0) * (xz + wy),
+            T::ZERO,
+            T::from_f64(2.0) * (xy + wz),
+            T::ONE - T::from_f64(2.0) * (xx + zz),
+            T::from_f64(2.0) * (yz - wx),
+            T::ZERO,
+            T::from_f64(2.0) * (xz - wy),
+            T::from_f64(2.0) * (yz + wx),
+            T::ONE - T::from_f64(2.0) * (xx + yy),
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ZERO,
+            T::ONE,
+        ))
+    }
+
+    /// クォータニオンから3x3回転行列部分を抽出
+    pub fn to_rotation_matrix3(&self) -> Result<[[T; 3]; 3], String> {
+        let normalized = self.normalize()?;
+
+        let x = normalized.x();
+        let y = normalized.y();
+        let z = normalized.z();
+        let w = normalized.w();
+
+        let xx = x * x;
+        let yy = y * y;
+        let zz = z * z;
+        let xy = x * y;
+        let xz = x * z;
+        let yz = y * z;
+        let wx = w * x;
+        let wy = w * y;
+        let wz = w * z;
+
+        Ok([
+            [
+                T::ONE - T::from_f64(2.0) * (yy + zz),
+                T::from_f64(2.0) * (xy - wz),
+                T::from_f64(2.0) * (xz + wy),
+            ],
+            [
+                T::from_f64(2.0) * (xy + wz),
+                T::ONE - T::from_f64(2.0) * (xx + zz),
+                T::from_f64(2.0) * (yz - wx),
+            ],
+            [
+                T::from_f64(2.0) * (xz - wy),
+                T::from_f64(2.0) * (yz + wx),
+                T::ONE - T::from_f64(2.0) * (xx + yy),
+            ],
+        ])
     }
 }
 
@@ -529,5 +611,45 @@ mod tests {
         assert!((rotated.x() - to.x()).abs() < 1e-10);
         assert!((rotated.y() - to.y()).abs() < 1e-10);
         assert!((rotated.z() - to.z()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_quaternion_to_matrix() {
+        // Z軸周りの90度回転をテスト
+        let axis = Vector3::new(0.0, 0.0, 1.0);
+        let angle = std::f64::consts::PI / 2.0;
+        let q = Quaternion::from_axis_angle(&axis, angle);
+
+        let matrix = q.to_rotation_matrix().unwrap();
+
+        // X軸ベクトルを回転してY軸になるか確認
+        let x_vec = crate::linalg::vector::Vector4::new(1.0, 0.0, 0.0, 1.0);
+        let rotated = matrix * x_vec;
+
+        assert!((rotated.x() - 0.0).abs() < 1e-10);
+        assert!((rotated.y() - 1.0).abs() < 1e-10);
+        assert!((rotated.z() - 0.0).abs() < 1e-10);
+        assert!((rotated.w() - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_quaternion_matrix_roundtrip() {
+        // クォータニオン -> 行列 -> クォータニオンの往復変換をテスト
+        let original_q = Quaternion::from_axis_angle(
+            &Vector3::new(1.0, 1.0, 1.0).normalize().unwrap(),
+            std::f64::consts::PI / 3.0,
+        );
+
+        let matrix = original_q.to_rotation_matrix().unwrap();
+        let recovered_q = matrix.extract_quaternion_3d().unwrap();
+
+        // クォータニオンは符号の不定性があるため、回転結果が同じかで比較
+        let test_vec = Vector3::new(1.0, 2.0, 3.0);
+        let rotated1 = original_q.rotate_vector(&test_vec);
+        let rotated2 = recovered_q.rotate_vector(&test_vec);
+
+        assert!((rotated1.x() - rotated2.x()).abs() < 1e-10);
+        assert!((rotated1.y() - rotated2.y()).abs() < 1e-10);
+        assert!((rotated1.z() - rotated2.z()).abs() < 1e-10);
     }
 }

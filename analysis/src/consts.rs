@@ -175,3 +175,108 @@ pub mod test_constants {
     /// 距離テスト用の許容誤差（f32）
     pub const DISTANCE_TOLERANCE_F32: f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
 }
+
+/// 特殊数学定数を提供
+///
+/// 基本定数 (π, e, τ, √2) は `Scalar` トレイトを使用してください
+///
+/// ## 使い分け
+///
+/// - **基本数学定数 (π, e, τ)**: `T::PI`, `T::E`, `T::TAU` を使用
+/// - **よく使う定数 (√2, 1/√2)**: `T::SQRT_2`, `T::INV_SQRT_2` を使用
+/// - **固定型定数**: `analysis::consts::game::PI` (f32), `analysis::consts::precision::PI` (f64)
+/// - **特殊数学定数**: この `MathConstants` を使用
+pub struct MathConstants;
+
+impl MathConstants {
+    /// 黄金比 φ = (1 + √5) / 2
+    pub fn golden_ratio<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        (T::ONE + T::from_f64(5.0).sqrt()) / T::from_f64(2.0)
+    }
+
+    /// 自然対数の底 ln(2)
+    pub fn ln_2<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        T::from_f64(std::f64::consts::LN_2)
+    }
+
+    /// 自然対数の底 ln(10)
+    pub fn ln_10<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        T::from_f64(std::f64::consts::LN_10)
+    }
+
+    /// 平方根 √3
+    pub fn sqrt_3<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        T::from_f64(3.0).sqrt()
+    }
+}
+
+/// 許容誤差定数の統一管理
+///
+/// 型に応じて最適な許容誤差を提供します。
+/// 既存の `GeometricTolerance` との統合ポイントです。
+pub struct ToleranceConstants;
+
+impl ToleranceConstants {
+    /// 一般的な幾何学計算用許容誤差
+    ///
+    /// - f32相当: 1e-6 (ゲーム・リアルタイム用)
+    /// - f64相当: 1e-10 (CAD・高精度用)
+    pub fn geometric<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        if std::mem::size_of::<T>() == 4 {
+            T::from_f64(1e-6) // f32 equivalent
+        } else {
+            T::from_f64(1e-10) // f64 equivalent
+        }
+    }
+
+    /// 角度計算用許容誤差
+    pub fn angular<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        if std::mem::size_of::<T>() == 4 {
+            T::from_f64(1e-6) // f32 equivalent
+        } else {
+            T::from_f64(1e-8) // f64 equivalent
+        }
+    }
+
+    /// 長さ計算用許容誤差
+    pub fn distance<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        if std::mem::size_of::<T>() == 4 {
+            T::from_f64(1e-6) // f32 equivalent
+        } else {
+            T::from_f64(1e-12) // f64 equivalent
+        }
+    }
+
+    /// 面積計算用許容誤差
+    pub fn area<T>() -> T
+    where
+        T: crate::abstract_types::Scalar,
+    {
+        if std::mem::size_of::<T>() == 4 {
+            T::from_f64(1e-5) // f32 equivalent (area = length²)
+        } else {
+            T::from_f64(1e-10) // f64 equivalent
+        }
+    }
+}
