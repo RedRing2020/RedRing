@@ -22,6 +22,7 @@ RedRing/
 ### アーキテクチャ階層の明確化
 
 **依存関係の方向:**
+
 ```
 model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
                                                       ↘     ↙
@@ -31,41 +32,43 @@ model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
 **各層の責務:**
 
 1. **geo_foundation**: 抽象化・型システム
+
    - Core/Extension Foundation パターン
-   - 共通トレイト定義（Normalizable, DistanceCalculation等）
-   - 型安全な抽象化API
+   - 共通トレイト定義（Normalizable, DistanceCalculation 等）
+   - 型安全な抽象化 API
 
 2. **geo_core**: 幾何計算基盤
+
    - 数値演算の実装
    - 許容誤差管理（ToleranceContext）
-   - ロバスト幾何判定（orientation等）
+   - ロバスト幾何判定（orientation 等）
    - スカラー型・ベクトル演算
 
 3. **geo_primitives**: 具体実装
-   - geo_foundationのトレイトの実装
-   - geo_coreの計算基盤を活用
-   - f64正準幾何プリミティブ
+   - geo_foundation のトレイトの実装
+   - geo_core の計算基盤を活用
+   - f64 正準幾何プリミティブ
 
-## 2. geo_foundation経由でのgeo_core活用計画
+## 2. geo_foundation 経由での geo_core 活用計画
 
-### Phase 1: geo_coreの数値基盤強化
+### Phase 1: geo_core の数値基盤強化
 
-- [ ] 許容誤差システムの完全実装（ToleranceContext拡張）
-- [ ] ロバスト幾何判定の追加（orientation, incircle等）
-- [ ] スカラー演算の最適化（SIMD対応検討）
+- [ ] 許容誤差システムの完全実装（ToleranceContext 拡張）
+- [ ] ロバスト幾何判定の追加（orientation, incircle 等）
+- [ ] スカラー演算の最適化（SIMD 対応検討）
 - [ ] ベクトル演算ライブラリの統合
 
-### Phase 2: geo_foundation抽象化層の拡張
+### Phase 2: geo_foundation 抽象化層の拡張
 
 - [ ] Core/Extension Foundation パターンの標準化
 - [ ] 新しいトレイトの追加（曲線・曲面用）
 - [ ] エラー型システムの統一
-- [ ] 型安全なAPI設計の完成
+- [ ] 型安全な API 設計の完成
 
-### Phase 3: geo_primitives実装層の完成
+### Phase 3: geo_primitives 実装層の完成
 
-- [ ] geo_foundationトレイトの完全実装
-- [ ] geo_core計算基盤の活用
+- [ ] geo_foundation トレイトの完全実装
+- [ ] geo_core 計算基盤の活用
 - [ ] パフォーマンス最適化
 - [ ] 包括的テストスイートの構築
 
@@ -129,15 +132,15 @@ redring-wasm/
 
 ### 移行戦略（現在の設計に基づく）
 
-1. **geo_foundation抽象化**: トレイト定義と型システムの確立
-2. **geo_core基盤強化**: 数値演算とロバスト性の実装
-3. **geo_primitives完成**: 具体実装の統合
+1. **geo_foundation 抽象化**: トレイト定義と型システムの確立
+2. **geo_core 基盤強化**: 数値演算とロバスト性の実装
+3. **geo_primitives 完成**: 具体実装の統合
 4. **段階的移行**: 上位レイヤーの順次更新
-5. **最終統合**: レガシーコードの削除とAPI統一
+5. **最終統合**: レガシーコードの削除と API 統一
 
 ### 設計原則の実装
 
-```rust
+````rust
 // geo_foundationでの抽象化例
 pub trait GeometricPrimitive<T> {
     type Point;
@@ -156,7 +159,7 @@ pub mod tolerance {
 impl GeometricPrimitive<f64> for Circle2D {
     type Point = Point2D;
     type Vector = Vector2D;
-    
+
     fn bounding_box(&self) -> BoundingBox<f64> {
         // geo_coreの計算を活用
         tolerance::robust_bounding_box(self.center, self.radius)
@@ -171,7 +174,7 @@ pub use geo_foundation::tolerance::ToleranceContext;
 // 既存APIの維持（deprecated警告付き）
 #[deprecated(note = "Use geo_foundation::primitives::Point instead")]
 pub type Point3D = geo_foundation::primitives::Point3D;
-```
+````
 
 ## 6. パフォーマンス最適化
 
@@ -210,7 +213,7 @@ geo_foundation/   geo_core/    # 単体テスト（抽象化・計算基盤）
 ### 品質保証
 
 - プロパティベーステスト（quickcheck）
-- ベンチマークテスト（criterion）  
+- ベンチマークテスト（criterion）
 - Core/Extension Foundation パターン準拠チェック
 - 回帰テスト（既存形状データ）
 
@@ -218,7 +221,7 @@ geo_foundation/   geo_core/    # 単体テスト（抽象化・計算基盤）
 
 ### 技術文書
 
-- [ ] アーキテクチャ図の更新（3層構造の明示）
+- [ ] アーキテクチャ図の更新（3 層構造の明示）
 - [ ] Core/Extension Foundation パターンガイド
 - [ ] geo_foundation ↔ geo_core 連携パターン
 - [ ] API リファレンスの再構築
@@ -234,8 +237,8 @@ geo_foundation/   geo_core/    # 単体テスト（抽象化・計算基盤）
 ### 🎯 現在完了済み
 
 1. ✅ geo_foundation 抽象化層（Core/Extension Foundation パターン）
-2. ✅ analysis クレート（Matrix4x4 3D変換ライブラリ）
-3. ✅ 基本的なCI/CD準拠（禁止参照チェック）
+2. ✅ analysis クレート（Matrix4x4 3D 変換ライブラリ）
+3. ✅ 基本的な CI/CD 準拠（禁止参照チェック）
 4. ✅ 統一された許容誤差管理システム
 
 ### 🚀 High Priority (次の段階)
@@ -276,6 +279,6 @@ geo_foundation/   geo_core/    # 単体テスト（抽象化・計算基盤）
 
 1. **依存性の方向性**: model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
 2. **抽象化レベル**: geo_foundation（抽象）→ geo_core（計算）→ geo_primitives（実装）
-3. **品質保証**: 3層それぞれでの独立テスト + 結合テスト
+3. **品質保証**: 3 層それぞれでの独立テスト + 結合テスト
 
 この計画により、RedRing は CAD/CAM 用途に適した堅牢で高性能な幾何ライブラリとして発展していきます。
