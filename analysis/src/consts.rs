@@ -149,3 +149,29 @@ impl GeometricTolerance for f64 {
 
 // 数値解析専用定数の再エクスポート（後方互換性）
 pub const DERIVATIVE_ZERO_THRESHOLD: f64 = numerical::DERIVATIVE_ZERO_THRESHOLD;
+
+/// テストで使用する統一された許容誤差定数
+///
+/// テストコードでの使用を推奨します。
+/// 型に応じた適切な許容誤差が自動的に選択されます。
+pub mod test_constants {
+    use super::GeometricTolerance;
+
+    /// f64 テスト用の標準許容誤差
+    pub const TOLERANCE_F64: f64 = <f64 as GeometricTolerance>::TOLERANCE;
+
+    /// f32 テスト用の標準許容誤差
+    pub const TOLERANCE_F32: f32 = <f32 as GeometricTolerance>::TOLERANCE;
+
+    /// 角度テスト用の許容誤差（f64）
+    pub const ANGLE_TOLERANCE_F64: f64 = <f64 as GeometricTolerance>::ANGLE_TOLERANCE;
+
+    /// 角度テスト用の許容誤差（f32）
+    pub const ANGLE_TOLERANCE_F32: f32 = <f32 as GeometricTolerance>::ANGLE_TOLERANCE;
+
+    /// 距離テスト用の許容誤差（f64）
+    pub const DISTANCE_TOLERANCE_F64: f64 = <f64 as GeometricTolerance>::DISTANCE_TOLERANCE;
+
+    /// 距離テスト用の許容誤差（f32）
+    pub const DISTANCE_TOLERANCE_F32: f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
+}

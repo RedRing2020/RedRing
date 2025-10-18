@@ -21,6 +21,10 @@ mod unit_tests;
 // 基盤型の再エクスポート
 pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
 
+// 線形代数の再エクスポート
+pub use linalg::matrix::{Matrix3x3, Matrix4x4};
+pub use linalg::vector::{Vector2, Vector3, Vector4};
+
 // 定数の再エクスポート
 pub use consts::{
     game, precision, GeometricTolerance, DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD, E,
