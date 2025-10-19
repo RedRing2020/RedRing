@@ -18,7 +18,7 @@ impl<T: Scalar> Ray3D<T> {
     /// 平行移動
     pub fn translate(&self, offset: &Vector3D<T>) -> Self {
         let new_origin = self.origin() + *offset;
-        Self::new(new_origin, self.direction()).unwrap()
+        Self::new(new_origin, self.direction().as_vector()).unwrap()
     }
 
     /// 均一スケール
@@ -28,7 +28,7 @@ impl<T: Scalar> Ray3D<T> {
         let new_origin = *center + scaled_origin;
 
         // 方向ベクトルはスケールされない（正規化済み）
-        Self::new(new_origin, self.direction()).unwrap()
+        Self::new(new_origin, self.direction().as_vector()).unwrap()
     }
 
     /// Ray の方向を新しい方向に設定
@@ -38,7 +38,7 @@ impl<T: Scalar> Ray3D<T> {
 
     /// Ray の起点を新しい点に設定
     pub fn with_origin(&self, new_origin: Point3D<T>) -> Self {
-        Self::new(new_origin, self.direction()).unwrap()
+        Self::new(new_origin, self.direction().as_vector()).unwrap()
     }
 
     /// 指定した長さで切断してLineSegment3Dに変換
@@ -78,7 +78,7 @@ impl<T: Scalar> Ray3D<T> {
         plane_point: &Point3D<T>,
         plane_normal: &Vector3D<T>,
     ) -> Option<Point3D<T>> {
-        let denom = self.direction().dot(plane_normal);
+        let denom = self.direction().as_vector().dot(plane_normal);
 
         // Ray が平面に平行な場合
         if denom.abs() < T::EPSILON {

@@ -105,13 +105,13 @@ impl<T: Scalar> Ray2D<T> {
     pub fn scale(&self, center: &Point2D<T>, factor: T) -> Self {
         let scaled_origin = *center + (self.origin() - *center) * factor;
         // DerefによりVector2D<T>が得られる
-        Self::new(scaled_origin, self.direction()).unwrap()
+        Self::new(scaled_origin, self.direction().as_vector()).unwrap()
     }
 
     /// Ray を反転（逆方向の Ray を作成）
     pub fn reverse(&self) -> Self {
         // DerefによりVector2D<T>が得られる
-        Self::new(self.origin(), -self.direction()).unwrap()
+        Self::new(self.origin(), (-self.direction()).as_vector()).unwrap()
     }
 
     // === 幾何関係判定（Extension で提供） ===
@@ -182,7 +182,7 @@ impl<T: Scalar> Ray2D<T> {
     /// 平行移動（BasicTransformより柔軟）
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         let new_origin = self.origin() + offset;
-        Self::new(new_origin, self.direction()).unwrap()
+        Self::new(new_origin, self.direction().as_vector()).unwrap()
     }
 
     /// 非均一スケール
@@ -228,9 +228,10 @@ impl<T: Scalar> Ray2D<T> {
         let reflected_origin = *line_point + (projection_vector * (T::ONE + T::ONE)) - to_origin;
 
         // 方向ベクトルの反射
-        let dir_projection_scalar = self.direction().dot(&normalized_line_dir);
+        let dir_projection_scalar = self.direction().as_vector().dot(&normalized_line_dir);
         let dir_projection_vector = normalized_line_dir * dir_projection_scalar;
-        let reflected_direction = (dir_projection_vector * (T::ONE + T::ONE)) - self.direction();
+        let reflected_direction =
+            (dir_projection_vector * (T::ONE + T::ONE)) - self.direction().as_vector();
 
         Self::new(reflected_origin, reflected_direction).unwrap()
     }
@@ -242,7 +243,7 @@ impl<T: Scalar> Ray2D<T> {
 
     /// Ray の起点を新しい点に設定
     pub fn with_origin(&self, new_origin: Point2D<T>) -> Self {
-        Self::new(new_origin, self.direction()).unwrap()
+        Self::new(new_origin, self.direction().as_vector()).unwrap()
     }
 
     /// 指定した長さで切断してLineSegment2Dに変換

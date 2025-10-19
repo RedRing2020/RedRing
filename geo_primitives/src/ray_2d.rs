@@ -12,7 +12,7 @@
 //! - InfiniteLine2D への変換
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
 
-use crate::{InfiniteLine2D, Point2D, Vector2D};
+use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
 use geo_foundation::Scalar;
 
 /// 2次元半無限直線
@@ -67,8 +67,8 @@ impl<T: Scalar> Ray2D<T> {
     }
 
     /// 方向ベクトルを取得（正規化済み）
-    pub fn direction(&self) -> Vector2D<T> {
-        self.direction
+    pub fn direction(&self) -> Direction2D<T> {
+        Direction2D::from_vector(self.direction).unwrap()
     }
 
     /// 点が Ray 上にあるかを判定（tolerance付き）
@@ -166,3 +166,19 @@ impl<T: Scalar> Ray2D<T> {
         }
     }
 }
+
+// トレイト実装
+// TODO: CoreFoundation実装後に有効化
+/*
+impl<T: Scalar> BasicDirectional<T> for Ray2D<T> {
+    type Direction = Direction2D<T>;
+
+    fn direction(&self) -> Self::Direction {
+        self.direction()
+    }
+
+    fn reverse_direction(&self) -> Self {
+        self.reverse_direction()
+    }
+}
+*/

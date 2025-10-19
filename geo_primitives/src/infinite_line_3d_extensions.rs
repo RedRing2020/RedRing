@@ -1,4 +1,4 @@
-﻿//! InfiniteLine3D Extension 機能
+//! InfiniteLine3D Extension 機能
 //!
 //! Extension Foundation パターンに基づく InfiniteLine3D の拡張実装
 
@@ -78,7 +78,10 @@ impl<T: Scalar> InfiniteLine3D<T> {
     /// 他の直線との関係を判定
     pub fn relationship_with(&self, other: &Self, tolerance: T) -> LineRelationship {
         // 方向ベクトルの平行性チェック
-        let cross_product = self.direction().cross(&other.direction());
+        let cross_product = self
+            .direction()
+            .as_vector()
+            .cross(&other.direction().as_vector());
         let is_parallel = cross_product.length() <= tolerance;
 
         if is_parallel {

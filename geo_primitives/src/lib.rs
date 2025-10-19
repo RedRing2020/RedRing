@@ -16,6 +16,7 @@ pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
+pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod point_3d; // Point3D の新実装 (Core)
@@ -50,6 +51,7 @@ pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
+pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod point_2d; // Point2D の新実装
@@ -81,6 +83,10 @@ mod direction_2d_extensions_tests;
 mod direction_3d_extensions_tests;
 #[cfg(test)]
 mod foundation_tests;
+#[cfg(test)]
+mod infinite_line_2d_tests;
+#[cfg(test)]
+mod infinite_line_3d_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]

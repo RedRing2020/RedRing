@@ -12,7 +12,7 @@
 //! - InfiniteLine3D への変換
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
 
-use crate::{InfiniteLine3D, Point3D, Vector3D};
+use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元半無限直線
@@ -67,8 +67,8 @@ impl<T: Scalar> Ray3D<T> {
     }
 
     /// 方向ベクトルを取得（正規化済み）
-    pub fn direction(&self) -> Vector3D<T> {
-        self.direction
+    pub fn direction(&self) -> Direction3D<T> {
+        Direction3D::from_vector(self.direction).unwrap()
     }
 
     /// 点が Ray 上にあるかを判定（tolerance付き）
@@ -216,3 +216,19 @@ impl<T: Scalar> Ray3D<T> {
         Self::new(origin, Vector3D::unit_z()).unwrap()
     }
 }
+
+// トレイト実装
+// TODO: CoreFoundation実装後に有効化
+/*
+impl<T: Scalar> BasicDirectional<T> for Ray3D<T> {
+    type Direction = Direction3D<T>;
+
+    fn direction(&self) -> Self::Direction {
+        self.direction()
+    }
+
+    fn reverse_direction(&self) -> Self {
+        self.reverse_direction()
+    }
+}
+*/

@@ -19,7 +19,7 @@ mod tests {
         let ray = Ray3D::new(origin, direction).unwrap();
 
         assert_eq!(ray.origin(), origin);
-        assert_eq!(ray.direction(), Vector3D::new(1.0, 0.0, 0.0));
+        assert_eq!(ray.direction().as_vector(), Vector3D::new(1.0, 0.0, 0.0));
     }
 
     #[test]
@@ -158,7 +158,10 @@ mod tests {
         let reversed = ray.reverse_direction();
 
         assert_eq!(reversed.origin(), origin);
-        assert_eq!(reversed.direction(), Vector3D::new(-1.0, 0.0, 0.0));
+        assert_eq!(
+            reversed.direction().as_vector(),
+            Vector3D::new(-1.0, 0.0, 0.0)
+        );
     }
 
     #[test]
@@ -169,9 +172,9 @@ mod tests {
         let y_ray = Ray3D::along_y_axis(origin);
         let z_ray = Ray3D::along_z_axis(origin);
 
-        assert_eq!(x_ray.direction(), Vector3D::unit_x());
-        assert_eq!(y_ray.direction(), Vector3D::unit_y());
-        assert_eq!(z_ray.direction(), Vector3D::unit_z());
+        assert_eq!(x_ray.direction().as_vector(), Vector3D::unit_x());
+        assert_eq!(y_ray.direction().as_vector(), Vector3D::unit_y());
+        assert_eq!(z_ray.direction().as_vector(), Vector3D::unit_z());
     }
 
     #[test]
