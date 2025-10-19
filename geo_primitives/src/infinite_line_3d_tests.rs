@@ -1,7 +1,6 @@
 //! InfiniteLine3D のテスト
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
-use geo_foundation::core_foundation::*;
 use geo_foundation::{extensions::BasicTransform, Angle};
 
 // BasicTransformの実装を有効にするため
