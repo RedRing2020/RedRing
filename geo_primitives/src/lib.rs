@@ -33,8 +33,6 @@ pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 // Transform テストモジュール
 #[cfg(test)]
 pub mod ray_3d_tests;
-#[cfg(test)]
-pub mod vector_3d_transform_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
@@ -64,6 +62,7 @@ pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
+pub mod vector_2d_transform; // Vector2D の変換機能 (Transform)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
