@@ -2,6 +2,7 @@
 //!
 //! Core Foundation パターンに基づく Vector3D の必須機能のみ
 //! 拡張機能は vector_3d_extensions.rs を参照
+//! 変換機能は vector_3d_transform.rs を参照
 
 use crate::{BBox3D, Point3D};
 use geo_foundation::{core::vector_traits, Scalar};
