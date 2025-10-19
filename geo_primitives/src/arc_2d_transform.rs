@@ -167,52 +167,46 @@ impl<T: Scalar> AdvancedTransform<T> for Arc2D<T> {
         // LineSegment2D を軸とした鏡像反転
         let axis_start = axis.start_point();
         let axis_end = axis.end_point();
-        
+
         // 軸ベクトル
-        let axis_vec = Vector2D::new(
-            axis_end.x() - axis_start.x(),
-            axis_end.y() - axis_start.y(),
-        );
+        let axis_vec = Vector2D::new(axis_end.x() - axis_start.x(), axis_end.y() - axis_start.y());
         let axis_len_sq = axis_vec.x() * axis_vec.x() + axis_vec.y() * axis_vec.y();
-        
+
         if axis_len_sq <= T::ZERO {
             // 軸が点の場合は元の円弧を返す
             return *self;
         }
-        
+
         // 中心点の鏡像反転
         let center = self.circle().center();
-        let to_center = Vector2D::new(
-            center.x() - axis_start.x(),
-            center.y() - axis_start.y(),
-        );
-        
+        let to_center = Vector2D::new(center.x() - axis_start.x(), center.y() - axis_start.y());
+
         // 軸上への射影
-        let projection = (to_center.x() * axis_vec.x() + to_center.y() * axis_vec.y()) / axis_len_sq;
+        let projection =
+            (to_center.x() * axis_vec.x() + to_center.y() * axis_vec.y()) / axis_len_sq;
         let projection_point = Point2D::new(
             axis_start.x() + projection * axis_vec.x(),
             axis_start.y() + projection * axis_vec.y(),
         );
-        
+
         // 鏡像点
         let mirrored_center = Point2D::new(
             T::from_f64(2.0) * projection_point.x() - center.x(),
             T::from_f64(2.0) * projection_point.y() - center.y(),
         );
-        
+
         // 新しい円を作成
         let new_circle = Circle2D::new(mirrored_center, self.circle().radius())
             .expect("Mirror should preserve circle validity");
-        
+
         // 角度も反転（軸の角度に応じて）
         let axis_angle = axis_vec.y().atan2(axis_vec.x());
         let angle_offset = Angle::from_radians(T::from_f64(2.0) * axis_angle);
         let new_start = angle_offset - self.start_angle();
         let new_end = angle_offset - self.end_angle();
-        
+
         // 開始と終了を入れ替え（鏡像反転により向きが逆になる）
-        Self::new(new_circle, new_end, new_start)
-            .expect("Mirror should preserve arc validity")
+        Self::new(new_circle, new_end, new_start).expect("Mirror should preserve arc validity")
     }
 
     /// 非等方スケール
@@ -230,7 +224,7 @@ impl<T: Scalar> AdvancedTransform<T> for Arc2D<T> {
         // 現在の実装では、スケール比が等しい場合のみ円弧として扱う
         let scale_ratio = (scale_x / scale_y).abs();
         let tolerance = T::from_f64(1e-10);
-        
+
         if (scale_ratio - T::ONE).abs() < tolerance {
             // 等方スケールとして処理
             <Self as BasicTransform<T>>::scale(self, center, scale_x)
