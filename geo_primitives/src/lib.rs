@@ -22,6 +22,12 @@ pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
 pub mod vector_3d; // Vector3D の新実装
+pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
+pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
+
+// Transform テストモジュール
+#[cfg(test)]
+pub mod vector_3d_transform_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
