@@ -51,6 +51,7 @@ pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
 pub mod ellipse_2d_transform; // Ellipse2D の変換機能 (Transform)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
+pub mod ellipse_arc_2d_transform; // EllipseArc2D の変換機能 (Transform)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
@@ -85,6 +86,8 @@ mod bbox_2d_tests;
 mod direction_2d_extensions_tests;
 #[cfg(test)]
 mod direction_3d_extensions_tests;
+#[cfg(test)]
+mod ellipse_arc_2d_tests;
 #[cfg(test)]
 mod foundation_tests;
 #[cfg(test)]
