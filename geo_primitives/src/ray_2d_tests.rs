@@ -130,7 +130,7 @@ mod tests {
 
         let modified = ray.with_direction(new_direction).unwrap();
         assert_eq!(modified.origin(), ray.origin());
-        assert_eq!(modified.direction(), new_direction.normalize());
+        assert_eq!(modified.direction().as_vector(), new_direction.normalize());
     }
 
     #[test]

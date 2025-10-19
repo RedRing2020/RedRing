@@ -16,8 +16,10 @@ pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
+pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
+pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
@@ -31,8 +33,6 @@ pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 // Transform テストモジュール
 #[cfg(test)]
 pub mod ray_3d_tests;
-#[cfg(test)]
-pub mod vector_3d_transform_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
@@ -50,8 +50,10 @@ pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
+pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
+pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
 pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
@@ -60,6 +62,7 @@ pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
+pub mod vector_2d_transform; // Vector2D の変換機能 (Transform)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
@@ -81,6 +84,10 @@ mod direction_2d_extensions_tests;
 mod direction_3d_extensions_tests;
 #[cfg(test)]
 mod foundation_tests;
+#[cfg(test)]
+mod infinite_line_2d_tests;
+#[cfg(test)]
+mod infinite_line_3d_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
@@ -140,9 +147,3 @@ pub use vector_2d::Vector2D;
 // ============================================================================
 // Test Modules
 // ============================================================================
-
-#[cfg(test)]
-mod bbox_2d_builder_tests; // BBox2D Builder パターンテスト
-
-#[cfg(test)]
-mod bbox_3d_builder_tests; // BBox3D Builder パターンテスト

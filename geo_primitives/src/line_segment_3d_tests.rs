@@ -3,6 +3,10 @@
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_foundation::core_foundation::*;
 
+// BasicTransformの実装を有効にするため
+#[allow(unused_imports)]
+use crate::line_segment_3d_transform;
+
 #[cfg(test)]
 mod tests {
     use super::*;

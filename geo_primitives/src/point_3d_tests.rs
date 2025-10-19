@@ -1,4 +1,4 @@
-﻿//! Point3D のテスト
+//! Point3D のテスト
 
 use crate::Point3D;
 
@@ -74,5 +74,65 @@ mod tests {
         // 距離計算
         assert_eq!(point.distance_to(&same_point), 0.0);
         assert_eq!(point.distance_to(&Point3D::new(1.0, 2.0, 6.0)), 3.0);
+    }
+
+    // ============================================================================
+    // Transform テスト (point_3d_transform.rs から統合)
+    // ============================================================================
+
+    #[test]
+    fn test_transform_translate() {
+        use crate::Vector3D;
+        use geo_foundation::extensions::BasicTransform;
+
+        let point = Point3D::new(1.0, 2.0, 3.0);
+        let translation = Vector3D::new(2.0, 3.0, 4.0);
+        let translated = BasicTransform::translate(&point, translation);
+
+        assert_eq!(translated.x(), 3.0);
+        assert_eq!(translated.y(), 5.0);
+        assert_eq!(translated.z(), 7.0);
+    }
+
+    #[test]
+    fn test_transform_scale_origin() {
+        use geo_foundation::extensions::TransformHelpers;
+
+        let point = Point3D::new(2.0, 3.0, 4.0);
+        let scaled = point.scale_origin(2.0);
+
+        assert_eq!(scaled.x(), 4.0);
+        assert_eq!(scaled.y(), 6.0);
+        assert_eq!(scaled.z(), 8.0);
+    }
+
+    #[test]
+    fn test_transform_translate_axes() {
+        use geo_foundation::extensions::TransformHelpers;
+
+        let point = Point3D::new(1.0, 2.0, 3.0);
+
+        let translated_x = point.translate_x(1.0);
+        assert_eq!(translated_x, Point3D::new(2.0, 2.0, 3.0));
+
+        let translated_y = point.translate_y(1.0);
+        assert_eq!(translated_y, Point3D::new(1.0, 3.0, 3.0));
+
+        let translated_xy = point.translate_xy(1.0, 1.0);
+        assert_eq!(translated_xy, Point3D::new(2.0, 3.0, 3.0));
+    }
+
+    #[test]
+    fn test_transform_scale_from_center() {
+        use geo_foundation::extensions::BasicTransform;
+
+        let point = Point3D::new(4.0, 6.0, 8.0);
+        let center = Point3D::new(2.0, 3.0, 4.0);
+        let scaled = BasicTransform::scale(&point, center, 2.0);
+
+        // (4-2)*2+2=6, (6-3)*2+3=9, (8-4)*2+4=12
+        assert_eq!(scaled.x(), 6.0);
+        assert_eq!(scaled.y(), 9.0);
+        assert_eq!(scaled.z(), 12.0);
     }
 }

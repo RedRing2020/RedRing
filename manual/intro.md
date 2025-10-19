@@ -23,11 +23,11 @@ RedRing は以下のワークスペース構成になっています：
 ### 幾何計算層
 
 - `geo_foundation`：抽象型・トレイト定義・橋渡し
-- `geo_core`：許容誤差・ロバスト幾何判定
-- `geo_primitives`：f64 正準幾何プリミティブ
-- `geo_algorithms`：幾何アルゴリズム
+- `geo_core`：基本計算機能・許容誤差・ロバスト幾何判定
+- `geo_primitives`：f64/f32 正準ジェネリック型幾何プリミティブ
+- `geo_algorithms`：高度な幾何アルゴリズム・CAM 処理（今後拡張予定）
 - `model`：高次曲線・曲面（今後拡張予定）
-- `analysis`：数値解析・CAM 処理（今後拡張予定）
+- `analysis`：数値解析
 
 ### レンダリング層
 

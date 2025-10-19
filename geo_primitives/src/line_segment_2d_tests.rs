@@ -3,6 +3,10 @@
 use crate::{LineSegment2D, Point2D, Vector2D};
 use geo_foundation::{core_foundation::*, Angle, Scalar};
 
+// BasicTransformの実装を有効にするため
+#[allow(unused_imports)]
+use crate::line_segment_2d_transform;
+
 #[cfg(test)]
 mod tests {
     use super::*;

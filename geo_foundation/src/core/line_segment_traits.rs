@@ -15,10 +15,10 @@ use crate::Scalar;
 /// 無限直線の一部をトリミングした線分
 pub trait LineSegment2D<T: Scalar>: InfiniteLine2D<T> {
     /// 線分の開始点を取得
-    fn start_point(&self) -> Self::Point;
+    fn start(&self) -> Self::Point;
 
     /// 線分の終了点を取得
-    fn end_point(&self) -> Self::Point;
+    fn end(&self) -> Self::Point;
 
     /// 線分の長さを取得
     fn length(&self) -> T;
