@@ -155,8 +155,8 @@ impl<T: Scalar> EllipseArc2D<T> {
         let start_point = self.start_point();
         let end_point = self.end_point();
 
-        let dist_to_start = Point2D::distance(point, &start_point);
-        let dist_to_end = Point2D::distance(point, &end_point);
+        let dist_to_start = point.distance_to(&start_point);
+        let dist_to_end = point.distance_to(&end_point);
 
         dist_to_start.min(dist_to_end)
     }

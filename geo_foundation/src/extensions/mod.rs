@@ -2,11 +2,13 @@
 //!
 //! 幾何プリミティブの拡張操作を定義するExtensionトレイト群
 
+pub mod analysis_conversion; // analysisクレートとの型変換
 pub mod collision; // 衝突検出Extensions
 pub mod intersection; // 交点計算Extensions
 pub mod transform; // 変換操作Extensions
 
 // Re-exports
+pub use analysis_conversion::*;
 pub use collision::*;
 pub use intersection::*;
 pub use transform::*;

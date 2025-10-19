@@ -46,16 +46,25 @@ impl<T: Scalar> Direction2D<T> {
         cross.atan2(dot).abs()
     }
 
-    /// より良い方向判定（内積を使用、許容誤差付き）
-    pub fn is_same_direction_with_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        let dot = self.dot(other);
-        dot >= T::ONE - tolerance
+    /// Angle型を使用した方向判定（角度またはラジアン指定可能）
+    pub fn is_same_direction_within_angle(
+        &self,
+        other: &Self,
+        angle_tolerance: geo_foundation::Angle<T>,
+    ) -> bool {
+        let angle_diff = self.angle_between(other);
+        angle_diff <= angle_tolerance.to_radians()
     }
 
-    /// 反対方向判定（許容誤差付き）
-    pub fn is_opposite_direction_with_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        let dot = self.dot(other);
-        dot <= -T::ONE + tolerance
+    /// Angle型を使用した反対方向判定
+    pub fn is_opposite_direction_within_angle(
+        &self,
+        other: &Self,
+        angle_tolerance: geo_foundation::Angle<T>,
+    ) -> bool {
+        let angle_diff = self.angle_between(other);
+        // πラジアン（180度）に近いかを判定
+        (angle_diff - T::PI).abs() <= angle_tolerance.to_radians()
     }
 
     /// 単位円上での線形補間

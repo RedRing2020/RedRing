@@ -71,11 +71,6 @@ impl<T: Scalar> Point2D<T> {
         self.distance_squared_to(other).sqrt()
     }
 
-    /// 2点間の距離を計算（static版）
-    pub fn distance(point1: &Self, point2: &Self) -> T {
-        point1.distance_to(point2)
-    }
-
     /// 他の点との距離の二乗を計算（sqrt回避で高速）
     pub fn distance_squared_to(&self, other: &Self) -> T {
         let dx = self.x - other.x;
