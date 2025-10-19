@@ -4,9 +4,9 @@
 mod ellipse_arc_2d_tests {
     use crate::ellipse_2d::Ellipse2D;
     use crate::ellipse_arc_2d::EllipseArc2D;
-    use crate::{LineSegment2D, Point2D, Vector2D};
-    use analysis::linalg::Matrix3x3;
-    use geo_foundation::extensions::{AdvancedTransform, BasicTransform};
+    use crate::Point2D;
+    // use analysis::linalg::Matrix3x3;
+    // use geo_foundation::extensions::{AdvancedTransform, BasicTransform};
     use geo_foundation::Angle;
 
     #[test]

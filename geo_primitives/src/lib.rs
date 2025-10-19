@@ -4,6 +4,9 @@
 //! 旧実装は一時的にコンパイル除外
 
 // 新実装用モジュール（次元中立設計）
+// 共通型とエラー
+pub mod transform_error;
+
 // 3D プリミティブ
 pub mod arc_3d;
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
@@ -15,6 +18,8 @@ pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
+pub mod ellipse_3d_transform; // Ellipse3D の変換機能 (Transform)
+pub mod ellipse_3d_transform_safe; // Ellipse3D の安全な変換機能 (Safe Transform)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
@@ -32,6 +37,8 @@ pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
 pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 
 // Transform テストモジュール
+#[cfg(test)]
+pub mod ellipse_3d_transform_tests;
 #[cfg(test)]
 pub mod ray_3d_tests;
 
