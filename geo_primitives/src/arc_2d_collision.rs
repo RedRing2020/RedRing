@@ -36,8 +36,8 @@ impl<T: Scalar> PointDistance<T> for Arc2D<T> {
             let start_point = self.start_point();
             let end_point = self.end_point();
 
-            let dist_to_start = Point2D::distance(point, &start_point);
-            let dist_to_end = Point2D::distance(point, &end_point);
+            let dist_to_start = point.distance_to(&start_point);
+            let dist_to_end = point.distance_to(&end_point);
 
             dist_to_start.min(dist_to_end)
         }
@@ -104,8 +104,8 @@ impl<T: Scalar> PointDistance<T> for Arc2D<T> {
             let start_point = self.start_point();
             let end_point = self.end_point();
 
-            let dist_to_start = Point2D::distance(point, &start_point);
-            let dist_to_end = Point2D::distance(point, &end_point);
+            let dist_to_start = point.distance_to(&start_point);
+            let dist_to_end = point.distance_to(&end_point);
 
             if dist_to_start < dist_to_end {
                 start_point
@@ -145,7 +145,7 @@ impl<T: Scalar> BasicCollision<T, Circle2D<T>> for Arc2D<T> {
         // 円と円弧の中心距離計算
         let arc_center = self.circle().center();
         let circle_center = other.center();
-        let center_distance = Point2D::distance(&arc_center, &circle_center);
+        let center_distance = arc_center.distance_to(&circle_center);
 
         let arc_radius = self.circle().radius();
         let circle_radius = other.radius();
@@ -171,7 +171,7 @@ impl<T: Scalar> BasicCollision<T, Circle2D<T>> for Arc2D<T> {
 
     fn distance_to(&self, other: &Circle2D<T>) -> T {
         // 中心間距離から半径を差し引いた値
-        let center_distance = Point2D::distance(&self.circle().center(), &other.center());
+        let center_distance = self.circle().center().distance_to(&other.center());
         let min_distance = center_distance - self.circle().radius() - other.radius();
 
         min_distance.max(T::ZERO)

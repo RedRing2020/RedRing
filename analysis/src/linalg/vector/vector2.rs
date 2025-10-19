@@ -89,9 +89,9 @@ impl<T: Scalar> Vector2<T> {
         self.data[0] * self.data[0] + self.data[1] * self.data[1]
     }
 
-    /// 他のベクトルとのマンハッタン距離（metrics::manhattan_distanceのラッパー）
-    pub fn manhattan_distance_to(&self, other: &Self) -> T {
-        crate::metrics::manhattan_distance(&[self.x(), self.y()], &[other.x(), other.y()])
+    /// マンハッタン距離（L1ノルム）
+    pub fn manhattan_distance(&self, other: &Self) -> T {
+        (self.data[0] - other.data[0]).abs() + (self.data[1] - other.data[1]).abs()
     }
 
     /// 正規化（単位ベクトル化）
