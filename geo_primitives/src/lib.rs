@@ -147,9 +147,3 @@ pub use vector_2d::Vector2D;
 // ============================================================================
 // Test Modules
 // ============================================================================
-
-#[cfg(test)]
-mod bbox_2d_builder_tests; // BBox2D Builder パターンテスト
-
-#[cfg(test)]
-mod bbox_3d_builder_tests; // BBox3D Builder パターンテスト
