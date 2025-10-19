@@ -19,17 +19,15 @@ fn test_bbox_3d_basic() {
 }
 
 /// 境界ボックスの作成（順序が逆の場合）
-    #[test]
-    fn test_bbox_3d_creation_reversed() {
-        // 反転した座標で作成してもそのまま保存される（自動修正なし）
-        let bbox = BBox3D::new(
-            Point3D::new(4.0, 6.0, 9.0),
-            Point3D::new(1.0, 2.0, 3.0),
-        );
-        // BBox3D::new() は引数をそのまま保存（自動修正しない）
-        assert_eq!(bbox.min(), Point3D::new(4.0, 6.0, 9.0));
-        assert_eq!(bbox.max(), Point3D::new(1.0, 2.0, 3.0));
-    }/// 点からの境界ボックス作成
+#[test]
+fn test_bbox_3d_creation_reversed() {
+    // 反転した座標で作成してもそのまま保存される（自動修正なし）
+    let bbox = BBox3D::new(Point3D::new(4.0, 6.0, 9.0), Point3D::new(1.0, 2.0, 3.0));
+    // BBox3D::new() は引数をそのまま保存（自動修正しない）
+    assert_eq!(bbox.min(), Point3D::new(4.0, 6.0, 9.0));
+    assert_eq!(bbox.max(), Point3D::new(1.0, 2.0, 3.0));
+}
+/// 点からの境界ボックス作成
 #[test]
 fn test_bbox_3d_from_point() {
     let point = Point3D::new(2.0, 3.0, 4.0);
@@ -45,33 +43,27 @@ fn test_bbox_3d_from_point() {
 /// 中心点の計算
 #[test]
 fn test_bbox_3d_center() {
-    let bbox = BBox3D::new(
-        Point3D::new(1.0, 2.0, 3.0),
-        Point3D::new(5.0, 8.0, 9.0),
-    );
+    let bbox = BBox3D::new(Point3D::new(1.0, 2.0, 3.0), Point3D::new(5.0, 8.0, 9.0));
     let center = bbox.center();
 
     assert_eq!(center.x(), 3.0); // (1+5)/2
-    assert_eq!(center.y(), 5.0); // (2+8)/2  
+    assert_eq!(center.y(), 5.0); // (2+8)/2
     assert_eq!(center.z(), 6.0); // (3+9)/2
 }
 
 /// 点の包含判定
 #[test]
 fn test_bbox_3d_contains_point() {
-    let bbox = BBox3D::new(
-        Point3D::new(1.0, 2.0, 3.0),
-        Point3D::new(5.0, 6.0, 9.0),
-    );
+    let bbox = BBox3D::new(Point3D::new(1.0, 2.0, 3.0), Point3D::new(5.0, 6.0, 9.0));
 
     // 境界ボックス内の点
     assert!(bbox.contains_point(&Point3D::new(3.0, 4.0, 6.0)));
-    
+
     // 境界上の点
     assert!(bbox.contains_point(&Point3D::new(1.0, 2.0, 3.0))); // min
     assert!(bbox.contains_point(&Point3D::new(5.0, 6.0, 9.0))); // max
     assert!(bbox.contains_point(&Point3D::new(3.0, 2.0, 6.0))); // 境界上
-    
+
     // 境界ボックス外の点
     assert!(!bbox.contains_point(&Point3D::new(0.0, 4.0, 6.0))); // X軸外
     assert!(!bbox.contains_point(&Point3D::new(3.0, 1.0, 6.0))); // Y軸外
@@ -82,23 +74,17 @@ fn test_bbox_3d_contains_point() {
 /// 境界ボックスのサイズ計算
 #[test]
 fn test_bbox_3d_dimensions() {
-    let bbox = BBox3D::new(
-        Point3D::new(2.0, 3.0, 1.0),
-        Point3D::new(8.0, 7.0, 5.0),
-    );
+    let bbox = BBox3D::new(Point3D::new(2.0, 3.0, 1.0), Point3D::new(8.0, 7.0, 5.0));
 
-    assert_eq!(bbox.width(), 6.0);  // 8-2
+    assert_eq!(bbox.width(), 6.0); // 8-2
     assert_eq!(bbox.height(), 4.0); // 7-3
-    assert_eq!(bbox.depth(), 4.0);  // 5-1
+    assert_eq!(bbox.depth(), 4.0); // 5-1
 }
 
 /// 単位立方体のテスト
 #[test]
 fn test_bbox_3d_unit_cube() {
-    let bbox = BBox3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(1.0, 1.0, 1.0),
-    );
+    let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0));
 
     assert_eq!(bbox.width(), 1.0);
     assert_eq!(bbox.height(), 1.0);
@@ -114,19 +100,16 @@ fn test_bbox_3d_negative_coordinates() {
         Point3D::new(-1.0, -1.0, 1.0),
     );
 
-    assert_eq!(bbox.width(), 4.0);   // -1-(-5) = 4
-    assert_eq!(bbox.height(), 2.0);  // -1-(-3) = 2
-    assert_eq!(bbox.depth(), 3.0);   // 1-(-2) = 3
+    assert_eq!(bbox.width(), 4.0); // -1-(-5) = 4
+    assert_eq!(bbox.height(), 2.0); // -1-(-3) = 2
+    assert_eq!(bbox.depth(), 3.0); // 1-(-2) = 3
     assert_eq!(bbox.center(), Point3D::new(-3.0, -2.0, -0.5));
 }
 
 /// 原点を含む境界ボックス
 #[test]
 fn test_bbox_3d_contains_origin() {
-    let bbox = BBox3D::new(
-        Point3D::new(-2.0, -1.0, -3.0),
-        Point3D::new(3.0, 2.0, 1.0),
-    );
+    let bbox = BBox3D::new(Point3D::new(-2.0, -1.0, -3.0), Point3D::new(3.0, 2.0, 1.0));
 
     assert!(bbox.contains_point(&Point3D::new(0.0, 0.0, 0.0)));
     assert_eq!(bbox.width(), 5.0);
@@ -138,28 +121,19 @@ fn test_bbox_3d_contains_origin() {
 #[test]
 fn test_bbox_3d_degenerate_cases() {
     // X軸のみゼロ
-    let bbox_x = BBox3D::new(
-        Point3D::new(2.0, 1.0, 0.0),
-        Point3D::new(2.0, 3.0, 4.0),
-    );
+    let bbox_x = BBox3D::new(Point3D::new(2.0, 1.0, 0.0), Point3D::new(2.0, 3.0, 4.0));
     assert_eq!(bbox_x.width(), 0.0);
     assert_eq!(bbox_x.height(), 2.0);
     assert_eq!(bbox_x.depth(), 4.0);
 
     // Y軸のみゼロ
-    let bbox_y = BBox3D::new(
-        Point3D::new(1.0, 2.0, 0.0),
-        Point3D::new(3.0, 2.0, 4.0),
-    );
+    let bbox_y = BBox3D::new(Point3D::new(1.0, 2.0, 0.0), Point3D::new(3.0, 2.0, 4.0));
     assert_eq!(bbox_y.width(), 2.0);
     assert_eq!(bbox_y.height(), 0.0);
     assert_eq!(bbox_y.depth(), 4.0);
 
     // Z軸のみゼロ
-    let bbox_z = BBox3D::new(
-        Point3D::new(1.0, 2.0, 3.0),
-        Point3D::new(4.0, 5.0, 3.0),
-    );
+    let bbox_z = BBox3D::new(Point3D::new(1.0, 2.0, 3.0), Point3D::new(4.0, 5.0, 3.0));
     assert_eq!(bbox_z.width(), 3.0);
     assert_eq!(bbox_z.height(), 3.0);
     assert_eq!(bbox_z.depth(), 0.0);
@@ -168,10 +142,7 @@ fn test_bbox_3d_degenerate_cases() {
 /// 境界上の点の詳細テスト
 #[test]
 fn test_bbox_3d_boundary_points() {
-    let bbox = BBox3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(4.0, 3.0, 2.0),
-    );
+    let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 3.0, 2.0));
 
     // 8つの頂点全てが含まれることを確認
     assert!(bbox.contains_point(&Point3D::new(0.0, 0.0, 0.0))); // 前面左下
@@ -231,7 +202,7 @@ fn test_bbox_3d_tiny_dimensions() {
 #[test]
 fn test_bbox_3d_default() {
     let bbox: BBox3D<f64> = Default::default();
-    
+
     // デフォルトは単位立方体の半分サイズ（-0.5 to 0.5）
     assert_eq!(bbox.center(), Point3D::new(0.0, 0.0, 0.0));
     assert_eq!(bbox.width(), 1.0);

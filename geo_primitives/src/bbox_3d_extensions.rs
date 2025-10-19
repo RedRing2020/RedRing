@@ -3,7 +3,7 @@
 //! Core Foundation パターンに基づく BBox3D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
-use crate::{BBox3D, Point3D, Circle3D, Ellipse3D};
+use crate::{BBox3D, Circle3D, Ellipse3D, Point3D};
 use geo_foundation::Scalar;
 
 // ============================================================================
@@ -19,7 +19,7 @@ impl<T: Scalar> BBox3D<T> {
     pub fn from_circle(circle: &Circle3D<T>) -> Self {
         let center = circle.center();
         let radius = circle.radius();
-        
+
         // 円の法線方向に関係なく、すべての軸方向にradius分拡張
         let min_point = Point3D::new(
             center.x() - radius,
@@ -31,7 +31,7 @@ impl<T: Scalar> BBox3D<T> {
             center.y() + radius,
             center.z() + radius,
         );
-        
+
         Self::new(min_point, max_point)
     }
 
@@ -40,7 +40,7 @@ impl<T: Scalar> BBox3D<T> {
         let center = ellipse.center();
         let semi_major = ellipse.semi_major_axis();
         let semi_minor = ellipse.semi_minor_axis();
-        
+
         // 簡略化：楕円を包含する立方体として計算
         let max_radius = semi_major.max(semi_minor);
         let min_point = Point3D::new(
@@ -53,7 +53,7 @@ impl<T: Scalar> BBox3D<T> {
             center.y() + max_radius,
             center.z() + max_radius,
         );
-        
+
         Self::new(min_point, max_point)
     }
 

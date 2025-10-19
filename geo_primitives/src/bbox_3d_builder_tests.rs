@@ -7,7 +7,7 @@ mod tests {
     use crate::{BBox3D, Point3D};
 
     // ========================================================================
-    // BBox3D Builder Tests  
+    // BBox3D Builder Tests
     // ========================================================================
 
     #[test]
@@ -19,7 +19,7 @@ mod tests {
             Point3D::new(0.0, 3.0, 2.0),
         ];
         let bbox = BBox3D::from_point_collection(&points).unwrap();
-        
+
         assert_eq!(bbox.min(), Point3D::new(0.0, 1.0, 0.0));
         assert_eq!(bbox.max(), Point3D::new(5.0, 6.0, 4.0));
         assert_eq!(bbox.width(), 5.0);
@@ -34,11 +34,11 @@ mod tests {
         assert!(bbox.is_none());
     }
 
-    #[test] 
+    #[test]
     fn test_bbox3d_from_single_point() {
         let points = vec![Point3D::new(2.0, 3.0, 4.0)];
         let bbox = BBox3D::from_point_collection(&points).unwrap();
-        
+
         // 単一点の境界ボックスは点自身
         assert_eq!(bbox.min(), Point3D::new(2.0, 3.0, 4.0));
         assert_eq!(bbox.max(), Point3D::new(2.0, 3.0, 4.0));
@@ -59,7 +59,7 @@ mod tests {
             Point3D::new(-3.0, 4.0, 3.0),
         ];
         let bbox = BBox3D::from_point_collection(&points).unwrap();
-        
+
         assert_eq!(bbox.min(), Point3D::new(-10.0, -5.0, -2.0));
         assert_eq!(bbox.max(), Point3D::new(10.0, 5.0, 3.0));
         assert_eq!(bbox.width(), 20.0);
@@ -78,7 +78,7 @@ mod tests {
             Point3D::new(1.0, 1.0, 0.0),
         ];
         let bbox = BBox3D::from_point_collection(&points).unwrap();
-        
+
         assert_eq!(bbox.min(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(bbox.max(), Point3D::new(1.0, 1.0, 0.0));
         assert_eq!(bbox.width(), 1.0);
@@ -94,25 +94,19 @@ mod tests {
     #[test]
     fn test_bbox3d_builder_with_intersection() {
         // 3D点群から境界ボックスを作成し、交差判定を行う
-        let points1 = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(2.0, 2.0, 2.0),
-        ];
+        let points1 = vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 2.0, 2.0)];
         let bbox1 = BBox3D::from_point_collection(&points1).unwrap();
-        
-        let points2 = vec![
-            Point3D::new(1.0, 1.0, 1.0),
-            Point3D::new(3.0, 3.0, 3.0),
-        ];
+
+        let points2 = vec![Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 3.0, 3.0)];
         let bbox2 = BBox3D::from_point_collection(&points2).unwrap();
-        
+
         // 2つの境界ボックスが交差することを確認
         assert!(bbox1.intersects(&bbox2));
-        
+
         // 交差領域を取得
         let intersection = bbox1.intersection(&bbox2);
         assert!(intersection.is_some());
-        
+
         let intersection_bbox = intersection.unwrap();
         assert_eq!(intersection_bbox.min(), Point3D::new(1.0, 1.0, 1.0));
         assert_eq!(intersection_bbox.max(), Point3D::new(2.0, 2.0, 2.0));
@@ -122,21 +116,15 @@ mod tests {
     #[test]
     fn test_bbox3d_builder_with_union() {
         // 分離した点群から境界ボックスを作成し、結合を行う
-        let points1 = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 1.0),
-        ];
+        let points1 = vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0)];
         let bbox1 = BBox3D::from_point_collection(&points1).unwrap();
-        
-        let points2 = vec![
-            Point3D::new(3.0, 3.0, 3.0),
-            Point3D::new(4.0, 4.0, 4.0),
-        ];
+
+        let points2 = vec![Point3D::new(3.0, 3.0, 3.0), Point3D::new(4.0, 4.0, 4.0)];
         let bbox2 = BBox3D::from_point_collection(&points2).unwrap();
-        
+
         // 2つの境界ボックスの結合を取得
         let union_bbox = bbox1.union(&bbox2);
-        
+
         // 結合結果が両方の領域を包含することを確認
         assert_eq!(union_bbox.min(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(union_bbox.max(), Point3D::new(4.0, 4.0, 4.0));
@@ -144,7 +132,7 @@ mod tests {
         assert_eq!(union_bbox.height(), 4.0);
         assert_eq!(union_bbox.depth(), 4.0);
         assert_eq!(union_bbox.volume(), 64.0); // 4 * 4 * 4
-        
+
         // 元の点群を全て包含することを確認
         assert!(union_bbox.contains_point(&Point3D::new(0.0, 0.0, 0.0)));
         assert!(union_bbox.contains_point(&Point3D::new(1.0, 1.0, 1.0)));
@@ -155,21 +143,15 @@ mod tests {
     #[test]
     fn test_bbox3d_builder_non_intersecting() {
         // 交差しない境界ボックスのテスト
-        let points1 = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 1.0),
-        ];
+        let points1 = vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0)];
         let bbox1 = BBox3D::from_point_collection(&points1).unwrap();
-        
-        let points2 = vec![
-            Point3D::new(5.0, 5.0, 5.0),
-            Point3D::new(6.0, 6.0, 6.0),
-        ];
+
+        let points2 = vec![Point3D::new(5.0, 5.0, 5.0), Point3D::new(6.0, 6.0, 6.0)];
         let bbox2 = BBox3D::from_point_collection(&points2).unwrap();
-        
+
         // 2つの境界ボックスが交差しないことを確認
         assert!(!bbox1.intersects(&bbox2));
-        
+
         // 交差領域が存在しないことを確認
         let intersection = bbox1.intersection(&bbox2);
         assert!(intersection.is_none());
@@ -178,15 +160,12 @@ mod tests {
     #[test]
     fn test_bbox3d_builder_expansion() {
         // 境界ボックス生成後の拡張操作テスト
-        let points = vec![
-            Point3D::new(1.0, 1.0, 1.0),
-            Point3D::new(2.0, 2.0, 2.0),
-        ];
+        let points = vec![Point3D::new(1.0, 1.0, 1.0), Point3D::new(2.0, 2.0, 2.0)];
         let bbox = BBox3D::from_point_collection(&points).unwrap();
-        
+
         // 各軸方向に1.0ずつ拡張
         let expanded_bbox = bbox.expand_by_margin(1.0);
-        
+
         assert_eq!(expanded_bbox.min(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(expanded_bbox.max(), Point3D::new(3.0, 3.0, 3.0));
         assert_eq!(expanded_bbox.width(), 3.0);

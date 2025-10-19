@@ -62,19 +62,20 @@ mod direction_2d_extensions_tests {
 
         // 新しいAngle型を使用したAPI（推奨）
         use geo_foundation::Angle;
-        
+
         // ラジアン指定での角度許容誤差
         assert!(dir1.is_same_direction_within_angle(&dir2, Angle::from_radians(0.002))); // 0.002ラジアン許容誤差
         assert!(!dir1.is_same_direction_within_angle(&dir2, Angle::from_radians(0.0005))); // 0.0005ラジアン許容誤差
-        
+
         // 度指定での角度許容誤差
         assert!(dir1.is_same_direction_within_angle(&dir2, Angle::from_degrees(0.2))); // 0.2度許容誤差
         assert!(!dir1.is_same_direction_within_angle(&dir2, Angle::from_degrees(0.02))); // 0.02度許容誤差
-        
+
         // より大きな角度誤差をテスト
         let dir3 = Direction2D::from_angle_radians(0.01); // 0.01ラジアン ≈ 0.57度の誤差
         assert!(dir1.is_same_direction_within_angle(&dir3, Angle::from_degrees(1.0))); // 1度許容誤差
-        assert!(!dir1.is_same_direction_within_angle(&dir3, Angle::from_degrees(0.1))); // 0.1度許容誤差
+        assert!(!dir1.is_same_direction_within_angle(&dir3, Angle::from_degrees(0.1)));
+        // 0.1度許容誤差
     }
 
     #[test]
@@ -111,18 +112,18 @@ mod direction_2d_extensions_tests {
     fn test_angle_api_usage_examples() {
         // 新しいAngle型APIの使用例をテスト
         use geo_foundation::Angle;
-        
+
         let dir1 = Direction2D::<TestType>::positive_x();
         let dir2 = Direction2D::from_angle_radians(0.017453); // 約1度の誤差
-        
+
         // 使いやすい度数指定
         assert!(dir1.is_same_direction_within_angle(&dir2, Angle::from_degrees(2.0)));
         assert!(!dir1.is_same_direction_within_angle(&dir2, Angle::from_degrees(0.5)));
-        
+
         // 精密なラジアン指定
         assert!(dir1.is_same_direction_within_angle(&dir2, Angle::from_radians(0.02)));
         assert!(!dir1.is_same_direction_within_angle(&dir2, Angle::from_radians(0.01)));
-        
+
         // ユーザーは内積計算を気にする必要がない！
         // 直感的な角度指定で判定可能
     }

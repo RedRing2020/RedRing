@@ -47,13 +47,21 @@ impl<T: Scalar> Direction2D<T> {
     }
 
     /// Angle型を使用した方向判定（角度またはラジアン指定可能）
-    pub fn is_same_direction_within_angle(&self, other: &Self, angle_tolerance: geo_foundation::Angle<T>) -> bool {
+    pub fn is_same_direction_within_angle(
+        &self,
+        other: &Self,
+        angle_tolerance: geo_foundation::Angle<T>,
+    ) -> bool {
         let angle_diff = self.angle_between(other);
         angle_diff <= angle_tolerance.to_radians()
     }
 
     /// Angle型を使用した反対方向判定
-    pub fn is_opposite_direction_within_angle(&self, other: &Self, angle_tolerance: geo_foundation::Angle<T>) -> bool {
+    pub fn is_opposite_direction_within_angle(
+        &self,
+        other: &Self,
+        angle_tolerance: geo_foundation::Angle<T>,
+    ) -> bool {
         let angle_diff = self.angle_between(other);
         // πラジアン（180度）に近いかを判定
         (angle_diff - T::PI).abs() <= angle_tolerance.to_radians()

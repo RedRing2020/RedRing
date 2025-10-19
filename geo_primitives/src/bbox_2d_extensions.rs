@@ -3,7 +3,7 @@
 //! Core Foundation パターンに基づく BBox2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
-use crate::{BBox2D, Point2D, Vector2D, Circle2D, Ellipse2D, Arc2D};
+use crate::{Arc2D, BBox2D, Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
 
 // ============================================================================
@@ -31,22 +31,22 @@ impl<T: Scalar> BBox2D<T> {
         // 円弧をサンプリングして境界ボックスを計算
         let num_samples = 16;
         let mut points = Vec::new();
-        
+
         // 開始点と終了点を追加
         points.push(arc.start_point());
         points.push(arc.end_point());
-        
+
         // 中間サンプル点を追加
         let start_rad = arc.start_angle().to_radians();
         let end_rad = arc.end_angle().to_radians();
         let angle_range = end_rad - start_rad;
-        
+
         for i in 1..num_samples {
             let t = T::from_f64(i as f64 / num_samples as f64);
             let angle_rad = start_rad + angle_range * t;
             points.push(arc.point_at_angle(angle_rad));
         }
-        
+
         Self::from_point_collection(&points).unwrap()
     }
 

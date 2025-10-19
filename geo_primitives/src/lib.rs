@@ -68,13 +68,13 @@ mod direction_2d_extensions_tests;
 #[cfg(test)]
 mod direction_3d_extensions_tests;
 #[cfg(test)]
+mod foundation_tests;
+#[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
 mod ray_2d_tests;
 #[cfg(test)]
-mod vector_2d_tests;
-#[cfg(test)]
-mod foundation_tests; // Foundation traitの動作確認テスト
+mod vector_2d_tests; // Foundation traitの動作確認テスト
 
 // 最小限の基盤のみ残す
 pub use geo_foundation::{Angle, Scalar};
@@ -133,5 +133,3 @@ mod bbox_2d_builder_tests; // BBox2D Builder パターンテスト
 
 #[cfg(test)]
 mod bbox_3d_builder_tests; // BBox3D Builder パターンテスト
-
-
