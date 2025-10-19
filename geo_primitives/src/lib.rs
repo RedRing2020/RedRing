@@ -1,4 +1,4 @@
-﻿//! 幾何プリミティブクレート
+//! 幾何プリミティブクレート
 //!
 //! 新しいトレイト設計に基づく実装への移行中
 //! 旧実装は一時的にコンパイル除外
@@ -21,11 +21,16 @@ pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
+pub mod ray_3d; // Ray3D の新実装 (Core)
+pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
+pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
 pub mod vector_3d; // Vector3D の新実装
 pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
 pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 
 // Transform テストモジュール
+#[cfg(test)]
+pub mod ray_3d_tests;
 #[cfg(test)]
 pub mod vector_3d_transform_tests;
 
@@ -52,6 +57,7 @@ pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
+pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
@@ -115,6 +121,7 @@ pub use ellipse_3d::Ellipse3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use point_3d::Point3D;
+pub use ray_3d::Ray3D;
 pub use vector_3d::Vector3D;
 
 // 2D プリミティブ
