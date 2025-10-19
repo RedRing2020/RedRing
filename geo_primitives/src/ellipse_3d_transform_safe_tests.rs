@@ -5,11 +5,8 @@
 #[cfg(test)]
 mod ellipse_3d_safe_transform_tests {
     use crate::{
-        ellipse_3d::Ellipse3D,
-        point_3d::Point3D,
-        vector_3d::Vector3D,
-        transform_error::TransformError,
-        Angle,
+        ellipse_3d::Ellipse3D, point_3d::Point3D, transform_error::TransformError,
+        vector_3d::Vector3D, Angle,
     };
     use std::f64::consts::PI;
 
@@ -17,8 +14,8 @@ mod ellipse_3d_safe_transform_tests {
     fn create_test_ellipse() -> Ellipse3D<f64> {
         Ellipse3D::new(
             Point3D::new(1.0, 2.0, 3.0),
-            2.0, // 長軸
-            1.0, // 短軸
+            2.0,                          // 長軸
+            1.0,                          // 短軸
             Vector3D::new(0.0, 0.0, 1.0), // Z軸に垂直な楕円
             Vector3D::new(1.0, 0.0, 0.0), // X軸方向が長軸
         )
@@ -31,10 +28,10 @@ mod ellipse_3d_safe_transform_tests {
         let translation = Vector3D::new(5.0, -2.0, 1.0);
 
         let result = ellipse.safe_translate(translation);
-        
+
         assert!(result.is_ok());
         let translated = result.unwrap();
-        
+
         // 中心が平行移動されることを確認
         let expected_center = Point3D::new(6.0, 0.0, 4.0);
         assert_eq!(translated.center(), expected_center);
@@ -47,10 +44,10 @@ mod ellipse_3d_safe_transform_tests {
         let scale_factor = 2.0;
 
         let result = ellipse.safe_scale(scale_center, scale_factor);
-        
+
         assert!(result.is_ok());
         let scaled = result.unwrap();
-        
+
         // 半軸長がスケールされることを確認
         assert_eq!(scaled.semi_major_axis(), 4.0);
         assert_eq!(scaled.semi_minor_axis(), 2.0);
@@ -63,7 +60,7 @@ mod ellipse_3d_safe_transform_tests {
         let scale_factor = 0.0;
 
         let result = ellipse.safe_scale(scale_center, scale_factor);
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
     }
@@ -75,10 +72,10 @@ mod ellipse_3d_safe_transform_tests {
         let scale_factor = -2.0;
 
         let result = ellipse.safe_scale(scale_center, scale_factor);
-        
+
         assert!(result.is_ok());
         let scaled = result.unwrap();
-        
+
         // 負のスケールでは絶対値を使用
         assert_eq!(scaled.semi_major_axis(), 4.0);
         assert_eq!(scaled.semi_minor_axis(), 2.0);
@@ -92,10 +89,10 @@ mod ellipse_3d_safe_transform_tests {
         let rotation_angle = Angle::from_radians(PI / 2.0);
 
         let result = ellipse.safe_rotate(rotation_center, rotation_axis, rotation_angle);
-        
+
         assert!(result.is_ok());
         let rotated = result.unwrap();
-        
+
         // 基本的な妥当性を確認
         assert!(rotated.detailed_validation().is_ok());
     }
@@ -108,7 +105,7 @@ mod ellipse_3d_safe_transform_tests {
         let rotation_angle = Angle::from_radians(PI / 2.0);
 
         let result = ellipse.safe_rotate(rotation_center, rotation_axis, rotation_angle);
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), TransformError::ZeroVector);
     }
@@ -119,15 +116,15 @@ mod ellipse_3d_safe_transform_tests {
         let scale_center = Point3D::origin();
 
         let result = ellipse.safe_scale_non_uniform(scale_center, 2.0, 1.5, 3.0);
-        
+
         assert!(result.is_ok());
         let scaled = result.unwrap();
-        
+
         // 平均スケール倍率での近似
         let expected_avg_scale = (2.0 + 1.5 + 3.0) / 3.0;
         let expected_major = 2.0 * expected_avg_scale;
         let expected_minor = 1.0 * expected_avg_scale;
-        
+
         assert!((scaled.semi_major_axis() - expected_major).abs() < 1e-10);
         assert!((scaled.semi_minor_axis() - expected_minor).abs() < 1e-10);
     }
@@ -158,13 +155,13 @@ mod ellipse_3d_safe_transform_tests {
         let ellipse = create_test_ellipse();
 
         let result = ellipse.safe_reverse();
-        
+
         assert!(result.is_ok());
         let reversed = result.unwrap();
-        
+
         // 法線方向が反転されていることを確認
         assert_eq!(reversed.normal().as_vector(), -ellipse.normal().as_vector());
-        
+
         // 他のプロパティは変化しない
         assert_eq!(reversed.center(), ellipse.center());
         assert_eq!(reversed.semi_major_axis(), ellipse.semi_major_axis());
@@ -185,7 +182,7 @@ mod ellipse_3d_safe_transform_tests {
             rotation_axis,
             rotation_angle,
         );
-        
+
         assert!(result.is_ok());
         let transformed = result.unwrap();
         assert!(transformed.detailed_validation().is_ok());
@@ -199,7 +196,7 @@ mod ellipse_3d_safe_transform_tests {
         let translation = Vector3D::new(2.0, -1.0, 0.5);
 
         let result = ellipse.safe_scale_and_translate(scale_center, scale_factor, translation);
-        
+
         assert!(result.is_ok());
         let transformed = result.unwrap();
         assert!(transformed.detailed_validation().is_ok());
@@ -211,10 +208,9 @@ mod ellipse_3d_safe_transform_tests {
         let scale_center = Point3D::origin();
         let translation = Vector3D::new(1.0, 2.0, 3.0);
 
-        let result = ellipse.safe_scale_non_uniform_and_translate(
-            scale_center, 2.0, 1.5, 3.0, translation
-        );
-        
+        let result =
+            ellipse.safe_scale_non_uniform_and_translate(scale_center, 2.0, 1.5, 3.0, translation);
+
         assert!(result.is_ok());
         let transformed = result.unwrap();
         assert!(transformed.detailed_validation().is_ok());
@@ -225,7 +221,7 @@ mod ellipse_3d_safe_transform_tests {
         assert!(Ellipse3D::<f64>::validate_scale_factor(1.0));
         assert!(Ellipse3D::<f64>::validate_scale_factor(-1.0));
         assert!(Ellipse3D::<f64>::validate_scale_factor(0.1));
-        
+
         assert!(!Ellipse3D::<f64>::validate_scale_factor(0.0));
         assert!(!Ellipse3D::<f64>::validate_scale_factor(f64::INFINITY));
         assert!(!Ellipse3D::<f64>::validate_scale_factor(f64::NAN));
@@ -233,21 +229,31 @@ mod ellipse_3d_safe_transform_tests {
 
     #[test]
     fn test_validate_rotation_axis() {
-        assert!(Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(1.0, 0.0, 0.0)));
-        assert!(Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(0.0, 1.0, 0.0)));
-        assert!(Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(1.0, 1.0, 1.0)));
-        
+        assert!(Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(
+            1.0, 0.0, 0.0
+        )));
+        assert!(Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(
+            0.0, 1.0, 0.0
+        )));
+        assert!(Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(
+            1.0, 1.0, 1.0
+        )));
+
         assert!(!Ellipse3D::<f64>::validate_rotation_axis(Vector3D::zero()));
-        assert!(!Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(f64::NAN, 0.0, 0.0)));
+        assert!(!Ellipse3D::<f64>::validate_rotation_axis(Vector3D::new(
+            f64::NAN,
+            0.0,
+            0.0
+        )));
     }
 
     #[test]
     fn test_detailed_validation() {
         let ellipse = create_test_ellipse();
-        
+
         // 正常な楕円
         assert!(ellipse.detailed_validation().is_ok());
-        
+
         // 不正な楕円は作成時点で弾かれるため、
         // ここでは既存の楕円の検証のみテスト
     }
@@ -255,14 +261,14 @@ mod ellipse_3d_safe_transform_tests {
     #[test]
     fn test_error_propagation() {
         let ellipse = create_test_ellipse();
-        
+
         // 複合変換でエラーが適切に伝播することを確認
         let result = ellipse.safe_scale_and_translate(
             Point3D::origin(),
             0.0, // 無効なスケール倍率
             Vector3D::new(1.0, 1.0, 1.0),
         );
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
     }
@@ -270,21 +276,21 @@ mod ellipse_3d_safe_transform_tests {
     #[test]
     fn test_transform_chain_with_error_handling() {
         let ellipse = create_test_ellipse();
-        
+
         // 正常な変換チェーン
         let result = ellipse
             .safe_translate(Vector3D::new(1.0, 1.0, 1.0))
             .and_then(|e| e.safe_scale(Point3D::origin(), 2.0))
             .and_then(|e| e.safe_reverse());
-        
+
         assert!(result.is_ok());
-        
+
         // エラーを含む変換チェーン
         let result = ellipse
             .safe_translate(Vector3D::new(1.0, 1.0, 1.0))
             .and_then(|e| e.safe_scale(Point3D::origin(), 0.0)) // エラー発生点
             .and_then(|e| e.safe_reverse());
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
     }
