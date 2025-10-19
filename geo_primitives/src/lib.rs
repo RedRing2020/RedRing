@@ -43,6 +43,7 @@ pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod bbox_2d_transform; // BBox2D の変換機能 (Transform)
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_metrics; // Circle2D 計量演算
+pub mod circle_2d_transform; // Circle2D の変換機能 (Transform)
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
