@@ -3,7 +3,7 @@
 //! Direction2D拡張機能のテスト
 
 #[cfg(test)]
-mod direction_2d_extensions_tests {
+mod tests {
     use crate::{Direction2D, Vector2D};
 
     type TestType = f64;

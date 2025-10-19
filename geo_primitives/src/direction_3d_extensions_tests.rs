@@ -3,7 +3,7 @@
 //! Direction3D拡張機能のテスト
 
 #[cfg(test)]
-mod direction_3d_extensions_tests {
+mod tests {
     use crate::{Direction3D, Vector3D};
     use geo_foundation::Scalar;
 
