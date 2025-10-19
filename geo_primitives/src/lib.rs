@@ -7,6 +7,8 @@
 // 3D プリミティブ
 pub mod arc_3d;
 pub mod bbox_3d; // BBox3D の新実装
+pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
+pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
 pub mod circle_3d; // Circle3D の新実装
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
@@ -27,6 +29,7 @@ pub mod arc_2d; // Arc2D の新実装 (Core)
 pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
+pub mod bbox_2d_transform; // BBox2D の変換機能 (Transform)
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod direction_2d; // Direction2D の新実装 (Core)
@@ -40,6 +43,7 @@ pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
+pub mod point_2d_transform; // Point2D の変換機能 (Transform)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod vector_2d; // Vector2D の新実装 (Core)
@@ -47,6 +51,8 @@ pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
+#[cfg(test)]
+mod bbox_3d_tests;
 #[cfg(test)]
 mod ellipse_3d_tests;
 #[cfg(test)]
@@ -58,13 +64,17 @@ mod vector_3d_tests;
 #[cfg(test)]
 mod bbox_2d_tests;
 #[cfg(test)]
-mod direction_extensions_tests;
+mod direction_2d_extensions_tests;
+#[cfg(test)]
+mod direction_3d_extensions_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
 mod ray_2d_tests;
 #[cfg(test)]
 mod vector_2d_tests;
+#[cfg(test)]
+mod foundation_tests; // Foundation traitの動作確認テスト
 
 // 最小限の基盤のみ残す
 pub use geo_foundation::{Angle, Scalar};
@@ -113,3 +123,15 @@ pub use line_segment_2d::LineSegment2D;
 pub use point_2d::Point2D;
 pub use ray_2d::Ray2D;
 pub use vector_2d::Vector2D;
+
+// ============================================================================
+// Test Modules
+// ============================================================================
+
+#[cfg(test)]
+mod bbox_2d_builder_tests; // BBox2D Builder パターンテスト
+
+#[cfg(test)]
+mod bbox_3d_builder_tests; // BBox3D Builder パターンテスト
+
+
