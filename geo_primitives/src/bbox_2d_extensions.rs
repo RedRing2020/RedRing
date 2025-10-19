@@ -3,7 +3,7 @@
 //! Core Foundation パターンに基づく BBox2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
-use crate::{BBox2D, Point2D, Vector2D};
+use crate::{Arc2D, BBox2D, Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
 
 // ============================================================================
@@ -11,6 +11,69 @@ use geo_foundation::{Angle, Scalar};
 // ============================================================================
 
 impl<T: Scalar> BBox2D<T> {
+    // ========================================================================
+    // Shape Builder Methods (形状からの境界ボックス生成)
+    // ========================================================================
+
+    /// 円から境界ボックスを作成
+    pub fn from_circle(circle: &Circle2D<T>) -> Self {
+        let (min_point, max_point) = circle.bounding_box();
+        Self::new(min_point, max_point)
+    }
+
+    /// 楕円から境界ボックスを作成
+    pub fn from_ellipse(ellipse: &Ellipse2D<T>) -> Self {
+        ellipse.bounding_box()
+    }
+
+    /// 円弧から境界ボックスを作成（サンプリングベース）
+    pub fn from_arc(arc: &Arc2D<T>) -> Self {
+        // 円弧をサンプリングして境界ボックスを計算
+        let num_samples = 16;
+        let mut points = Vec::new();
+
+        // 開始点と終了点を追加
+        points.push(arc.start_point());
+        points.push(arc.end_point());
+
+        // 中間サンプル点を追加
+        let start_rad = arc.start_angle().to_radians();
+        let end_rad = arc.end_angle().to_radians();
+        let angle_range = end_rad - start_rad;
+
+        for i in 1..num_samples {
+            let t = T::from_f64(i as f64 / num_samples as f64);
+            let angle_rad = start_rad + angle_range * t;
+            points.push(arc.point_at_angle(angle_rad));
+        }
+
+        Self::from_point_collection(&points).unwrap()
+    }
+
+    /// 複数の点から境界ボックスを作成
+    pub fn from_point_collection(points: &[Point2D<T>]) -> Option<Self> {
+        if points.is_empty() {
+            return None;
+        }
+
+        let mut min_x = points[0].x();
+        let mut min_y = points[0].y();
+        let mut max_x = points[0].x();
+        let mut max_y = points[0].y();
+
+        for point in points.iter().skip(1) {
+            min_x = min_x.min(point.x());
+            min_y = min_y.min(point.y());
+            max_x = max_x.max(point.x());
+            max_y = max_y.max(point.y());
+        }
+
+        Some(Self::new(
+            Point2D::new(min_x, min_y),
+            Point2D::new(max_x, max_y),
+        ))
+    }
+
     // ========================================================================
     // Advanced Intersection Methods
     // ========================================================================
@@ -142,7 +205,7 @@ impl<T: Scalar> BBox2D<T> {
             .map(|corner| corner.rotate_around(center, angle))
             .collect();
 
-        Self::from_points(&rotated_corners).unwrap_or(*self)
+        Self::from_point_collection(&rotated_corners).unwrap_or(*self)
     }
 
     /// 境界ボックスを指定点基準でスケール

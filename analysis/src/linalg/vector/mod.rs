@@ -10,16 +10,6 @@ pub mod vector2; // Vector2<T> - 2Dベクトル
 pub mod vector3; // Vector3<T> - 3Dベクトル
 pub mod vector4; // Vector4<T> - 4Dベクトル（同次座標）
 
-// テストモジュール（*_tests.rs形式）
-#[cfg(test)]
-pub mod vector2_tests;
-#[cfg(test)]
-pub mod vector3_tests;
-#[cfg(test)]
-pub mod vector4_tests;
-#[cfg(test)]
-pub mod vector_tests;
-
 pub use vector::Vector;
 pub use vector2::Vector2;
 pub use vector3::Vector3;

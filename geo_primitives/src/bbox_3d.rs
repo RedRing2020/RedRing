@@ -68,3 +68,18 @@ impl<T: Scalar> BBox3D<T> {
             && point.z() <= self.max.z()
     }
 }
+
+// ============================================================================
+// Default implementation
+// ============================================================================
+
+impl<T: Scalar> Default for BBox3D<T> {
+    fn default() -> Self {
+        // 原点を中心とした単位立方体
+        let half = T::ONE / (T::ONE + T::ONE);
+        BBox3D::new(
+            Point3D::new(-half, -half, -half),
+            Point3D::new(half, half, half),
+        )
+    }
+}
