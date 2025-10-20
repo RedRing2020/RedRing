@@ -31,11 +31,8 @@ impl<T: Scalar> BasicTransform<T> for Point3D<T> {
     /// # 戻り値
     /// 平行移動された新しい点
     fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        Point3D::new(
-            self.x() + translation.x(),
-            self.y() + translation.y(),
-            self.z() + translation.z(),
-        )
+        // 内部的に安全なメソッドを使用し、エラー時は元の点を返す
+        self.safe_translate(translation).unwrap_or(*self)
     }
 
     /// 指定中心での回転（Z軸周りの回転）
@@ -46,15 +43,10 @@ impl<T: Scalar> BasicTransform<T> for Point3D<T> {
     ///
     /// # 戻り値
     /// 回転された新しい点
-    fn rotate(&self, center: Self::Point2D, _angle: Self::Angle) -> Self::Transformed {
-        // 簡易的なZ軸周り回転（将来はanalysisの行列演算を使用予定）
-        let dx = self.x() - center.x();
-        let dy = self.y() - center.y();
-        let dz = self.z() - center.z();
-
-        // TODO: angle.radians() の代わりにアクセサメソッドを使用
-        // 現在は簡易実装のため回転なしで返す
-        Point3D::new(center.x() + dx, center.y() + dy, center.z() + dz)
+    fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
+        // 内部的に安全なメソッドを使用し、エラー時は元の点を返す
+        let axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE); // Z軸
+        self.safe_rotate(center, axis, angle).unwrap_or(*self)
     }
 
     /// 指定中心でのスケール
@@ -66,15 +58,8 @@ impl<T: Scalar> BasicTransform<T> for Point3D<T> {
     /// # 戻り値
     /// スケールされた新しい点
     fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed {
-        let dx = self.x() - center.x();
-        let dy = self.y() - center.y();
-        let dz = self.z() - center.z();
-
-        Point3D::new(
-            center.x() + dx * factor,
-            center.y() + dy * factor,
-            center.z() + dz * factor,
-        )
+        // 内部的に安全なメソッドを使用し、エラー時は元の点を返す
+        self.safe_scale(center, factor).unwrap_or(*self)
     }
 }
 

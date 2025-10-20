@@ -30,6 +30,7 @@ pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
+pub mod point_3d_transform_safe; // Point3D の安全な変換機能 (Safe Transform)
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
@@ -42,6 +43,8 @@ pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 pub mod ellipse_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod ellipse_3d_transform_tests;
+#[cfg(test)]
+pub mod point_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod ray_3d_tests;
 
@@ -71,6 +74,7 @@ pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
 pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
+pub mod point_2d_transform_safe; // Point2D の安全な変換機能 (Safe Transform)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
@@ -106,6 +110,8 @@ mod infinite_line_2d_tests;
 mod infinite_line_3d_tests;
 #[cfg(test)]
 mod point_2d_tests;
+#[cfg(test)]
+pub mod point_2d_transform_safe_tests;
 #[cfg(test)]
 mod ray_2d_tests;
 #[cfg(test)]
