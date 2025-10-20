@@ -34,9 +34,12 @@ pub mod point_3d_transform_safe; // Point3D の安全な変換機能 (Safe Trans
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
+
+// Vector3D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_3d; // Vector3D の新実装
 pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
 pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
+pub mod vector_3d_transform_safe; // Vector3D の安全な変換機能 (Safe Transform)
 
 // Transform テストモジュール
 #[cfg(test)]
@@ -47,6 +50,10 @@ pub mod ellipse_3d_transform_tests;
 pub mod point_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod ray_3d_tests;
+
+// Vector3D テストモジュール
+#[cfg(test)]
+pub mod vector_3d_transform_safe_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
@@ -78,9 +85,12 @@ pub mod point_2d_transform_safe; // Point2D の安全な変換機能 (Safe Trans
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
+
+// Vector2D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 pub mod vector_2d_transform; // Vector2D の変換機能 (Transform)
+pub mod vector_2d_transform_safe; // Vector2D の安全な変換機能 (Safe Transform)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
@@ -116,6 +126,10 @@ pub mod point_2d_transform_safe_tests;
 mod ray_2d_tests;
 #[cfg(test)]
 mod vector_2d_tests; // Foundation traitの動作確認テスト
+
+// Vector2D テストモジュール
+#[cfg(test)]
+pub mod vector_2d_transform_safe_tests;
 
 // 最小限の基盤のみ残す
 pub use geo_foundation::{Angle, Scalar};
