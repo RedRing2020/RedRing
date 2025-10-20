@@ -123,8 +123,10 @@ impl<T: Scalar> InfiniteLine2D<T> {
     /// 境界ボックスを取得（起点を含む十分大きな範囲）
     pub fn bounding_box(&self) -> crate::BBox2D<T> {
         // 無限直線なので実用的な大きさの境界ボックスを生成
-        let large_value = T::from_f64(1000.0);
-        crate::BBox2D::<T>::from_center_size(self.point, large_value, large_value)
+        let large_value = T::from_f64(1e6);
+        // from_center_sizeは幅を2で割るので、期待値の2倍を渡す
+        let total_range = large_value + large_value;
+        crate::BBox2D::<T>::from_center_size(self.point, total_range, total_range)
     }
 
     /// パラメータ範囲を取得

@@ -1,8 +1,13 @@
-﻿//! InfiniteLine2D のテスト
+//! InfiniteLine2D のテスト
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::core_foundation::{BasicContainment, BasicDirectional, BasicParametric};
+// use geo_foundation::core_foundation::{BasicContainment, BasicDirectional, BasicParametric};
+use geo_foundation::{extensions::BasicTransform, Angle};
 use std::f64::consts::FRAC_PI_4;
+
+// BasicTransformの実装を有効にするため
+#[allow(unused_imports)]
+use crate::infinite_line_2d_transform;
 
 /// 基本作成テスト
 #[test]
@@ -56,12 +61,12 @@ fn test_axis_aligned_lines() {
     // 水平線
     let horizontal = InfiniteLine2D::horizontal(3.0);
     assert_eq!(horizontal.point(), Point2D::new(0.0, 3.0));
-    assert_eq!(horizontal.direction(), Vector2D::unit_x());
+    assert_eq!(horizontal.direction().as_vector(), Vector2D::unit_x());
 
     // 垂直線
     let vertical = InfiniteLine2D::vertical(2.0);
     assert_eq!(vertical.point(), Point2D::new(2.0, 0.0));
-    assert_eq!(vertical.direction(), Vector2D::unit_y());
+    assert_eq!(vertical.direction().as_vector(), Vector2D::unit_y());
 }
 
 /// 傾きと切片からの作成テスト
@@ -84,7 +89,7 @@ fn test_normal() {
     let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
 
     let normal = line.normal();
-    assert_eq!(normal, Vector2D::new(0.0, -1.0)); // 右回り90度回転
+    assert_eq!(normal.as_vector(), Vector2D::new(0.0, -1.0)); // 右回り90度回転
 }
 
 /// パラメータでの点取得テスト
@@ -361,7 +366,7 @@ fn test_basic_parametric() {
 
     // 接線ベクトル取得（直線では方向ベクトルと同じ）
     let tangent = line.tangent_at_parameter(123.0); // パラメータに関係なく一定
-    assert_eq!(tangent, line.direction());
+    assert_eq!(tangent, line.direction().as_vector());
 }
 
 /// f32での動作テスト
@@ -374,4 +379,64 @@ fn test_infinite_line2d_f32() {
 
     let distance = line.distance_to_point(&Point2D::new(0.0f32, 0.0f32));
     assert!(distance > 0.0f32);
+}
+
+// ============================================================================
+// BasicTransform Tests
+// ============================================================================
+
+#[test]
+fn test_infinite_line2d_basic_transform_translate() {
+    let line = InfiniteLine2D::new(
+        Point2D::new(1.0_f64, 2.0_f64),
+        Vector2D::new(1.0_f64, 0.0_f64),
+    )
+    .unwrap();
+    let offset = Vector2D::new(3.0_f64, 4.0_f64);
+
+    let translated = BasicTransform::translate(&line, offset);
+    assert_eq!(translated.point(), Point2D::new(4.0_f64, 6.0_f64));
+    assert_eq!(
+        translated.direction().as_vector(),
+        line.direction().as_vector()
+    );
+}
+
+#[test]
+fn test_infinite_line2d_basic_transform_rotate() {
+    let line = InfiniteLine2D::new(
+        Point2D::new(2.0_f64, 0.0_f64),
+        Vector2D::new(1.0_f64, 0.0_f64),
+    )
+    .unwrap();
+    let center = Point2D::new(0.0_f64, 0.0_f64);
+    let angle = Angle::from_degrees(90.0_f64);
+
+    let rotated = BasicTransform::rotate(&line, center, angle);
+
+    // 90度回転後、点(2,0) → (0,2)、方向(1,0) → (0,1)
+    let expected_point = Point2D::new(0.0_f64, 2.0_f64);
+    let expected_direction = Vector2D::new(0.0_f64, 1.0_f64).normalize();
+
+    assert!((rotated.point().x() - expected_point.x()).abs() < 1e-10_f64);
+    assert!((rotated.point().y() - expected_point.y()).abs() < 1e-10_f64);
+    assert!((rotated.direction().x() - expected_direction.x()).abs() < 1e-10_f64);
+    assert!((rotated.direction().y() - expected_direction.y()).abs() < 1e-10_f64);
+}
+
+#[test]
+fn test_infinite_line2d_basic_transform_scale() {
+    let line = InfiniteLine2D::new(
+        Point2D::new(2.0_f64, 3.0_f64),
+        Vector2D::new(1.0_f64, 0.0_f64),
+    )
+    .unwrap();
+    let center = Point2D::new(0.0_f64, 0.0_f64);
+    let factor = 2.0_f64;
+
+    let scaled = BasicTransform::scale(&line, center, factor);
+
+    // スケール後、直線上の点は(4,6)、方向は正規化されているので変わらず
+    assert_eq!(scaled.point(), Point2D::new(4.0_f64, 6.0_f64));
+    assert_eq!(scaled.direction().as_vector(), line.direction().as_vector());
 }

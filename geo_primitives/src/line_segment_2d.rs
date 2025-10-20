@@ -61,12 +61,12 @@ impl<T: Scalar> LineSegment2D<T> {
     // ========================================================================
 
     /// 始点を取得
-    pub fn start(&self) -> Point2D<T> {
+    pub fn start_point(&self) -> Point2D<T> {
         self.line.point_at_parameter(self.start_param)
     }
 
     /// 終点を取得
-    pub fn end(&self) -> Point2D<T> {
+    pub fn end_point(&self) -> Point2D<T> {
         self.line.point_at_parameter(self.end_param)
     }
 
@@ -92,8 +92,8 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// ベクトル表現を取得（始点から終点へのベクトル）
     pub fn vector(&self) -> Vector2D<T> {
-        let start = self.start();
-        let end = self.end();
+        let start = self.start_point();
+        let end = self.end_point();
         Vector2D::from_points(start, end)
     }
 
@@ -106,9 +106,9 @@ impl<T: Scalar> LineSegment2D<T> {
         if t < T::ZERO || t > T::ONE {
             // パラメータが範囲外の場合は最も近い端点を返す
             if t < T::ZERO {
-                return self.start();
+                return self.start_point();
             } else {
-                return self.end();
+                return self.end_point();
             }
         }
 
@@ -168,7 +168,7 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// 境界ボックスを取得
     pub fn bounding_box(&self) -> BBox2D<T> {
-        BBox2D::new(self.start(), self.end())
+        BBox2D::new(self.start_point(), self.end_point())
     }
 
     // ========================================================================

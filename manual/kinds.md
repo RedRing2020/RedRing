@@ -9,8 +9,9 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 - `Point`：点
 - `Vector`：ベクトル
 - `Direction`：正規化されたベクトル
-- `Line`：直線
-- `Ray`：光線
+- `Line`：直線（線分）
+- `Ray`：光線（半無限直線）
+- `InfiniteLine` :無限直線
 
 ## CurveType
 
@@ -20,7 +21,34 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 - `Circle`：円
 - `Ellipse`：楕円
 - `Arc`：円弧
-- `Spline`：スプライン（NURBS 対応予定）
+- `EllipseArc`:楕円弧
+- `NurbsCurve`：NURBS 曲線
+
+## PrimitiveSurfaceType
+
+- `Plane`：無限平面
+- `Triangle`：三角形
+- `Rectangle`:四辺形
+
+## SurfaceType
+
+- `NurbsSurface`：NURBS 曲面
+- `RotateSolid`：回転体
+- `CylindricalSurface`：円柱面
+- `NurbsSurface`：NURBS 曲面
+- `polygonMesh`：多角形メッシュ
+- `TriangleMesh`：三角形メッシュ（表示用 or 三角形メッシュ操作用）
+
+## SolidType
+
+- `Sphere`：球
+- `CylindricalSolid`：円柱体
+- `Cone`：円錐
+- `Ellipsoid`：楕円体
+- `Torus`：トーラス
+- `RotateSolid`：回転体
+
+基本幾何プリミティブ面要素の分類
 
 ## エラー型システム
 
