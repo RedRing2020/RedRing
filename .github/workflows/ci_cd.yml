@@ -97,12 +97,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     # Wait for build-test job to complete successfully
     needs: [build-test, foundation-architecture-scan]
-    
+
     # GitHub Pages デプロイ環境設定
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
