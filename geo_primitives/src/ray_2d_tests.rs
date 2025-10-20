@@ -157,8 +157,8 @@ mod tests {
         let length = 5.0_f64;
 
         let segment = ray.to_line_segment_with_length(length).unwrap();
-        assert_eq!(segment.start(), Point2D::new(0.0_f64, 0.0_f64));
-        assert_eq!(segment.end(), Point2D::new(5.0_f64, 0.0_f64));
+        assert_eq!(segment.start_point(), Point2D::new(0.0_f64, 0.0_f64));
+        assert_eq!(segment.end_point(), Point2D::new(5.0_f64, 0.0_f64));
 
         // 負の長さは None を返す
         assert!(ray.to_line_segment_with_length(-1.0_f64).is_none());

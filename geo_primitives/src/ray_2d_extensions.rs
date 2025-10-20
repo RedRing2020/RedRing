@@ -154,8 +154,8 @@ impl<T: Scalar> Ray2D<T> {
         }
 
         let dist_to_segment = segment.distance_to_point(&self.origin());
-        let dist_start_to_ray = self.distance_to_point(&segment.start());
-        let dist_end_to_ray = self.distance_to_point(&segment.end());
+        let dist_start_to_ray = self.distance_to_point(&segment.start_point());
+        let dist_end_to_ray = self.distance_to_point(&segment.end_point());
 
         dist_to_segment.min(dist_start_to_ray).min(dist_end_to_ray)
     }

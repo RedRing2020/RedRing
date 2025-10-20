@@ -4,6 +4,9 @@
 //! 旧実装は一時的にコンパイル除外
 
 // 新実装用モジュール（次元中立設計）
+// 共通型とエラー
+pub mod transform_error;
+
 // 3D プリミティブ
 pub mod arc_3d;
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
@@ -15,6 +18,8 @@ pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
+pub mod ellipse_3d_transform; // Ellipse3D の変換機能 (Transform)
+pub mod ellipse_3d_transform_safe; // Ellipse3D の安全な変換機能 (Safe Transform)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
@@ -33,6 +38,8 @@ pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 
 // Transform テストモジュール
 #[cfg(test)]
+pub mod ellipse_3d_transform_tests;
+#[cfg(test)]
 pub mod ray_3d_tests;
 
 // 2D プリミティブ
@@ -48,8 +55,10 @@ pub mod circle_2d_transform; // Circle2D の変換機能 (Transform)
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
+pub mod ellipse_2d_transform; // Ellipse2D の変換機能 (Transform)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
+pub mod ellipse_arc_2d_transform; // EllipseArc2D の変換機能 (Transform)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
@@ -84,6 +93,8 @@ mod bbox_2d_tests;
 mod direction_2d_extensions_tests;
 #[cfg(test)]
 mod direction_3d_extensions_tests;
+#[cfg(test)]
+mod ellipse_arc_2d_tests;
 #[cfg(test)]
 mod foundation_tests;
 #[cfg(test)]

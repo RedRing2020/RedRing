@@ -18,8 +18,8 @@ impl<T: Scalar> BasicTransform<T> for LineSegment2D<T> {
 
     /// 平行移動
     fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        let new_start = self.start() + translation;
-        let new_end = self.end() + translation;
+        let new_start = self.start_point() + translation;
+        let new_end = self.end_point() + translation;
         Self::new(new_start, new_end).unwrap()
     }
 
@@ -29,14 +29,14 @@ impl<T: Scalar> BasicTransform<T> for LineSegment2D<T> {
         let sin_angle = angle.sin();
 
         // 始点を回転
-        let start_relative = self.start() - center;
+        let start_relative = self.start_point() - center;
         let rotated_start = Point2D::new(
             start_relative.x() * cos_angle - start_relative.y() * sin_angle,
             start_relative.x() * sin_angle + start_relative.y() * cos_angle,
         ) + center.to_vector();
 
         // 終点を回転
-        let end_relative = self.end() - center;
+        let end_relative = self.end_point() - center;
         let rotated_end = Point2D::new(
             end_relative.x() * cos_angle - end_relative.y() * sin_angle,
             end_relative.x() * sin_angle + end_relative.y() * cos_angle,
@@ -47,8 +47,8 @@ impl<T: Scalar> BasicTransform<T> for LineSegment2D<T> {
 
     /// スケール
     fn scale(&self, center: Self::Point2D, scale_factor: T) -> Self::Transformed {
-        let scaled_start = center + (self.start() - center) * scale_factor;
-        let scaled_end = center + (self.end() - center) * scale_factor;
+        let scaled_start = center + (self.start_point() - center) * scale_factor;
+        let scaled_end = center + (self.end_point() - center) * scale_factor;
         Self::new(scaled_start, scaled_end).unwrap()
     }
 }
