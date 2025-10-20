@@ -179,16 +179,16 @@ impl<T: Scalar> BasicTransform<T> for Vector3D<T> {
 
     /// 平行移動（ベクトルの加算）
     fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        *self + translation
+        self.safe_translate(translation).unwrap()
     }
 
     /// Z軸周りの回転
     fn rotate(&self, _center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
-        self.rotate_z(angle.to_radians())
+        self.safe_rotate_z_origin(angle).unwrap()
     }
 
     /// 等方スケール
     fn scale(&self, _center: Self::Point2D, factor: T) -> Self::Transformed {
-        *self * factor
+        self.safe_scale_origin(factor).unwrap()
     }
 }

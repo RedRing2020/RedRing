@@ -2,6 +2,35 @@
 //!
 //! 統一Transform Foundation システムによる変換操作
 //! 2D点の基本的な変換機能を提供
+//!
+//! ## 設計方針
+//!
+//! このファイルは公開API層として機能し、内部的に安全な実装
+//! (`point_2d_transform_safe.rs`) を呼び出します：
+//!
+//! - **BasicTransform trait**: パニックしない安全なインターフェース
+//! - **エラー時の動作**: 元の点をcloneして返す（後方互換性維持）
+//! - **詳細なエラーハンドリング**: `safe_*` メソッドを直接使用
+//!
+//! ## 使用例
+//!
+//! ```rust
+//! use geo_primitives::{Point2D, Vector2D};
+//! use geo_foundation::{extensions::BasicTransform, Angle};
+//!
+//! let point = Point2D::new(1.0, 2.0);
+//! let center = Point2D::origin();
+//! let angle = Angle::from_radians(std::f64::consts::PI / 4.0);
+//!
+//! // BasicTransformトレイトを使用した変換（エラー時は元の点を返す）
+//! let rotated = BasicTransform::rotate(&point, center, angle);
+//!
+//! // エラーハンドリングが必要な場合
+//! match point.safe_rotate(center, angle) {
+//!     Ok(result) => println!("回転成功: {:?}", result),
+//!     Err(e) => println!("回転失敗: {}", e),
+//! }
+//! ```
 
 use crate::{Point2D, Vector2D};
 use geo_foundation::{extensions::BasicTransform, Angle, Scalar};
@@ -35,13 +64,9 @@ impl<T: Scalar> BasicTransform<T> for Point2D<T> {
     ///
     /// # 戻り値
     /// 回転された新しい点
-    fn rotate(&self, center: Self::Point2D, _angle: Self::Angle) -> Self::Transformed {
-        // 簡易実装：現在は回転なしで点を返す（将来的にanalysis行列を使用予定）
-        let dx = self.x() - center.x();
-        let dy = self.y() - center.y();
-
-        // TODO: 実際の回転計算を実装
-        Point2D::new(center.x() + dx, center.y() + dy)
+    fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
+        // 内部的に安全なメソッドを使用し、エラー時は元の点を返す
+        self.safe_rotate(center, angle).unwrap_or(*self)
     }
 
     /// 指定中心でのスケール
@@ -53,10 +78,8 @@ impl<T: Scalar> BasicTransform<T> for Point2D<T> {
     /// # 戻り値
     /// スケールされた新しい点
     fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed {
-        let dx = self.x() - center.x();
-        let dy = self.y() - center.y();
-
-        Point2D::new(center.x() + dx * factor, center.y() + dy * factor)
+        // 内部的に安全なメソッドを使用し、エラー時は元の点を返す
+        self.safe_scale(center, factor).unwrap_or(*self)
     }
 }
 

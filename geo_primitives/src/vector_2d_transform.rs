@@ -3,7 +3,8 @@
 //! geo_foundation統合による統一Transform Foundation システム
 //! BasicTransform + 高度変換操作の実装
 
-use crate::{Point2D, Vector2D};
+use super::point_2d::Point2D;
+use super::vector_2d::Vector2D;
 use geo_foundation::{extensions::BasicTransform, Angle, Scalar};
 
 // ============================================================================
@@ -134,7 +135,7 @@ impl<T: Scalar> BasicTransform<T> for Vector2D<T> {
     /// # 戻り値
     /// 平行移動後の新しいベクトル
     fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        *self + translation
+        self.safe_translate(translation).unwrap()
     }
 
     /// 指定した点を中心とした回転
@@ -148,13 +149,7 @@ impl<T: Scalar> BasicTransform<T> for Vector2D<T> {
     /// # 戻り値
     /// 回転後の新しいベクトル
     fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
-        // ベクトルを点として扱って回転
-        let point = Point2D::new(self.x(), self.y());
-        let rotated_point = point.translate(Vector2D::new(-center.x(), -center.y()));
-        let rotated = rotated_point.rotate_radians(angle.to_radians());
-        let final_point =
-            Point2D::new(rotated.x(), rotated.y()).translate(Vector2D::new(center.x(), center.y()));
-        Vector2D::new(final_point.x(), final_point.y())
+        self.safe_rotate(center, angle).unwrap()
     }
 
     /// 指定した点を中心としたスケール変更
@@ -168,13 +163,6 @@ impl<T: Scalar> BasicTransform<T> for Vector2D<T> {
     /// # 戻り値
     /// スケール後の新しいベクトル
     fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed {
-        // ベクトルを点として扱ってスケール
-        let point = Point2D::new(self.x(), self.y());
-        let offset = Vector2D::new(point.x() - center.x(), point.y() - center.y());
-        let scaled_offset = Vector2D::new(offset.x() * factor, offset.y() * factor);
-        Vector2D::new(
-            center.x() + scaled_offset.x(),
-            center.y() + scaled_offset.y(),
-        )
+        self.safe_scale(center, factor).unwrap()
     }
 }

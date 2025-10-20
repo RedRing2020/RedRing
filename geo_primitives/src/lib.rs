@@ -5,7 +5,8 @@
 
 // 新実装用モジュール（次元中立設計）
 // 共通型とエラー
-pub mod transform_error;
+// エラー型はgeo_foundationから公開されたものを使用
+pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
@@ -29,18 +30,30 @@ pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
+pub mod point_3d_transform_safe; // Point3D の安全な変換機能 (Safe Transform)
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
+
+// Vector3D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_3d; // Vector3D の新実装
 pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
 pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
+pub mod vector_3d_transform_safe; // Vector3D の安全な変換機能 (Safe Transform)
 
 // Transform テストモジュール
 #[cfg(test)]
+pub mod ellipse_3d_transform_safe_tests;
+#[cfg(test)]
 pub mod ellipse_3d_transform_tests;
 #[cfg(test)]
+pub mod point_3d_transform_safe_tests;
+#[cfg(test)]
 pub mod ray_3d_tests;
+
+// Vector3D テストモジュール
+#[cfg(test)]
+pub mod vector_3d_transform_safe_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
@@ -68,12 +81,16 @@ pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
 pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
+pub mod point_2d_transform_safe; // Point2D の安全な変換機能 (Safe Transform)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
+
+// Vector2D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 pub mod vector_2d_transform; // Vector2D の変換機能 (Transform)
+pub mod vector_2d_transform_safe; // Vector2D の安全な変換機能 (Safe Transform)
 
 // テストモジュール（次元中立設計）
 // 3D テスト
@@ -104,9 +121,15 @@ mod infinite_line_3d_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
+pub mod point_2d_transform_safe_tests;
+#[cfg(test)]
 mod ray_2d_tests;
 #[cfg(test)]
 mod vector_2d_tests; // Foundation traitの動作確認テスト
+
+// Vector2D テストモジュール
+#[cfg(test)]
+pub mod vector_2d_transform_safe_tests;
 
 // 最小限の基盤のみ残す
 pub use geo_foundation::{Angle, Scalar};

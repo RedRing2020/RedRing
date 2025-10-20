@@ -2,10 +2,8 @@
 //!
 //! Result型を使用した適切なエラーハンドリング実装
 
-use crate::{
-    ellipse_3d::Ellipse3D, point_3d::Point3D, transform_error::TransformError, vector_3d::Vector3D,
-    Angle, Scalar,
-};
+use crate::{ellipse_3d::Ellipse3D, point_3d::Point3D, vector_3d::Vector3D, Angle, Scalar};
+use geo_foundation::TransformError;
 
 // ============================================================================
 // Safe Transform Implementation (Result型使用)
@@ -30,7 +28,9 @@ impl<T: Scalar> Ellipse3D<T> {
             self.normal().as_vector(),
             self.major_axis_direction().as_vector(),
         )
-        .ok_or(TransformError::InvalidGeometry)
+        .ok_or(TransformError::InvalidGeometry(
+            "Failed to create translated ellipse".to_string(),
+        ))
     }
 
     /// 安全な等方スケール
@@ -47,7 +47,9 @@ impl<T: Scalar> Ellipse3D<T> {
     pub fn safe_scale(&self, center: Point3D<T>, factor: T) -> Result<Self, TransformError> {
         // スケール倍率の妥当性チェック
         if factor == T::ZERO {
-            return Err(TransformError::InvalidScaleFactor);
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factor cannot be zero".to_string(),
+            ));
         }
 
         // 中心点をスケール
@@ -73,7 +75,9 @@ impl<T: Scalar> Ellipse3D<T> {
             self.normal().as_vector(),
             self.major_axis_direction().as_vector(),
         )
-        .ok_or(TransformError::InvalidGeometry)
+        .ok_or(TransformError::InvalidGeometry(
+            "Failed to create scaled ellipse".to_string(),
+        ))
     }
 
     /// 安全な回転変換
@@ -96,7 +100,9 @@ impl<T: Scalar> Ellipse3D<T> {
     ) -> Result<Self, TransformError> {
         // 回転軸の妥当性チェック
         if axis.length() <= T::ZERO {
-            return Err(TransformError::ZeroVector);
+            return Err(TransformError::ZeroVector(
+                "Rotation axis cannot be zero vector".to_string(),
+            ));
         }
 
         // 簡易実装：位置のみ変更、向きは保持
@@ -118,7 +124,9 @@ impl<T: Scalar> Ellipse3D<T> {
             self.normal().as_vector(),
             self.major_axis_direction().as_vector(),
         )
-        .ok_or(TransformError::InvalidGeometry)
+        .ok_or(TransformError::InvalidGeometry(
+            "Failed to create rotated ellipse".to_string(),
+        ))
     }
 
     /// 安全な非等方スケール
@@ -143,7 +151,9 @@ impl<T: Scalar> Ellipse3D<T> {
     ) -> Result<Self, TransformError> {
         // スケール倍率の妥当性チェック
         if scale_x == T::ZERO || scale_y == T::ZERO || scale_z == T::ZERO {
-            return Err(TransformError::InvalidScaleFactor);
+            return Err(TransformError::InvalidScaleFactor(
+                "Non-uniform scale factors cannot be zero".to_string(),
+            ));
         }
 
         // 中心点を変換
@@ -191,7 +201,9 @@ impl<T: Scalar> Ellipse3D<T> {
             new_normal,
             new_major_axis,
         )
-        .ok_or(TransformError::InvalidGeometry)
+        .ok_or(TransformError::InvalidGeometry(
+            "Failed to create non-uniformly scaled ellipse".to_string(),
+        ))
     }
 
     /// 安全な楕円反転
@@ -209,7 +221,9 @@ impl<T: Scalar> Ellipse3D<T> {
             -self.normal().as_vector(),
             self.major_axis_direction().as_vector(),
         )
-        .ok_or(TransformError::InvalidGeometry)
+        .ok_or(TransformError::InvalidGeometry(
+            "Failed to create reversed ellipse".to_string(),
+        ))
     }
 }
 
@@ -293,17 +307,23 @@ impl<T: Scalar> Ellipse3D<T> {
     pub fn detailed_validation(&self) -> Result<(), TransformError> {
         // 半軸長の妥当性
         if self.semi_major_axis() <= T::ZERO || self.semi_minor_axis() <= T::ZERO {
-            return Err(TransformError::InvalidGeometry);
+            return Err(TransformError::InvalidGeometry(
+                "Semi-axes must be positive".to_string(),
+            ));
         }
 
         // 長軸 >= 短軸
         if self.semi_major_axis() < self.semi_minor_axis() {
-            return Err(TransformError::InvalidGeometry);
+            return Err(TransformError::InvalidGeometry(
+                "Semi-major axis must be >= semi-minor axis".to_string(),
+            ));
         }
 
         // 値の有限性チェック
         if !self.semi_major_axis().is_finite() || !self.semi_minor_axis().is_finite() {
-            return Err(TransformError::InvalidGeometry);
+            return Err(TransformError::InvalidGeometry(
+                "Semi-axes must be finite".to_string(),
+            ));
         }
 
         Ok(())

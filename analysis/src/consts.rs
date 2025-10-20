@@ -1,6 +1,68 @@
 //! RedRing 数値解析・幾何計算用の統一定数群
 //!
 //! 用途別にf32/f64の定数を分離して提供し、数値解析と幾何計算の両方をサポートします。
+//!
+//! # 設計方針と使い分け
+//!
+//! ## 定数使用の責務分離
+//!
+//! RedRingでは定数の使用について明確な責務分離を行っています：
+//!
+//! ### 🔹 **基礎レイヤー（geo_primitives等）**: 標準ライブラリ定数を直接使用
+//! ```rust
+//! // テストコードやプリミティブ実装では標準定数を直接使用
+//! use std::f64::consts::PI;
+//! let half_pi = PI / 2.0;  // ✅ 推奨
+//! ```
+//! **理由**: シンプル性、明確性、依存関係の最小化、パフォーマンス
+//!
+//! ### 🔹 **アプリケーションレイヤー（analysis等）**: 用途別定数を使用
+//! ```rust
+//! // CAD/CAM計算では精度・用途別の定数を使用
+//! use analysis::precision::PI as PRECISION_PI;  // 高精度計算用
+//! use analysis::game::PI as GAME_PI;            // ゲーム用f32
+//! ```
+//! **理由**: 用途別最適化、許容誤差の統一管理、f32/f64の使い分け
+//!
+//! ### 🔹 **Scalarトレイト**: 数値定数は含まない
+//! ```rust
+//! // Scalarは型の基本操作のみを定義
+//! trait Scalar: Copy + Clone + PartialEq {
+//!     const ZERO: Self;     // ✅ 型の基本要素
+//!     const ONE: Self;      // ✅ 型の基本要素
+//!     // const PI: Self;    // ❌ 数学定数は含めない
+//! }
+//! ```
+//! **理由**: 責務の明確化、型システムの単純性維持
+//!
+//! ## この設計の利点
+//!
+//! - **シンプルな基礎**: テストやプリミティブ実装が軽量
+//! - **用途別最適化**: CAD（高精度）とゲーム（高速）の使い分け
+//! - **保守性**: 許容誤差や定数の変更が局所化される
+//! - **性能**: 不要な抽象化による間接参照を回避
+//!
+//! ## 実装例の比較
+//!
+//! ```rust
+//! // ❌ すべてを統一しようとすると複雑になる（例示のみ）
+//! // impl<T: Scalar> Point2D<T> {
+//! //     fn rotate(&self, angle: T) { /* 処理 */ }  // シンプル
+//! // }
+//!
+//! // ✅ レイヤー別に適切な定数を使用
+//!
+//! // 基礎レイヤー（geo_primitives）
+//! use std::f64::consts::PI;
+//! // let rotated = point.rotate(center, angle_from_radians(PI / 4.0));
+//!
+//! // アプリケーションレイヤー（analysis）
+//! use analysis::precision::{PI as PRECISION_PI, GEOMETRIC_TOLERANCE};
+//! // if angle_diff.abs() < GEOMETRIC_TOLERANCE { /* 処理 */ }
+//! ```
+//!
+//! この設計により、各レイヤーが適切な責務を持ちながら、
+//! 全体として一貫性のあるシステムを構築しています。
 
 /// 数値解析専用定数
 pub mod numerical {
@@ -124,6 +186,33 @@ pub const GEOMETRIC_ANGLE_TOLERANCE: f64 = precision::GEOMETRIC_ANGLE_TOLERANCE;
 /// - **責務分離**: 数値型（Scalar trait）は機械誤差（EPSILON）のみ保持
 /// - **許容誤差統一**: すべての幾何計算用許容誤差はこのtraitで管理
 /// - **用途別最適化**: f32 は game モジュール、f64 は precision モジュールの定数を使用
+///
+/// # 使用パターン
+///
+/// ## ❌ 避けるべきパターン
+/// ```rust
+/// // Scalarトレイトに数学定数を含めるのは責務違反
+/// trait Scalar {
+///     const PI: Self;  // ❌ 数学定数は含めない
+/// }
+///
+/// // テストで独自定数を定義するのは無駄
+/// const PI: f64 = std::f64::consts::PI;  // ❌ 標準定数を直接使う
+/// ```
+///
+/// ## ✅ 推奨パターン
+/// ```rust
+/// // 基礎レイヤー: 標準定数を直接使用
+/// use std::f64::consts::PI;
+/// let half_pi = PI / 2.0;
+///
+/// // アプリケーションレイヤー: このtraitで許容誤差を統一
+/// use analysis::{GeometricTolerance, Scalar};
+/// use std::ops::Sub;
+/// fn nearly_equal<T: GeometricTolerance + Scalar + Sub<Output=T> + PartialOrd + Copy>(a: T, b: T) -> bool {
+///     (a - b).abs() < T::TOLERANCE
+/// }
+/// ```
 pub trait GeometricTolerance {
     /// その型に適した幾何計算用の許容誤差（汎用）
     const TOLERANCE: Self;
@@ -154,6 +243,34 @@ pub const DERIVATIVE_ZERO_THRESHOLD: f64 = numerical::DERIVATIVE_ZERO_THRESHOLD;
 ///
 /// テストコードでの使用を推奨します。
 /// 型に応じた適切な許容誤差が自動的に選択されます。
+///
+/// # 使用指針
+///
+/// ## 基礎レイヤーのテスト（geo_primitives等）
+/// ```rust
+/// // 標準定数を直接使用（推奨）
+/// use std::f64::consts::PI;
+/// let result = PI / 2.0;
+/// assert!((result - PI/2.0).abs() < 1e-10);
+/// ```
+///
+/// ## アプリケーションレイヤーのテスト（analysis等）
+/// ```rust
+/// // このモジュールの定数を使用
+/// use analysis::test_constants::TOLERANCE_F64;
+/// let result: f64 = 1.5;
+/// let expected: f64 = 1.5;
+/// assert!((result - expected).abs() < TOLERANCE_F64);
+/// ```
+///
+/// ## 型パラメータ化されたテスト
+/// ```rust
+/// use analysis::{GeometricTolerance, Scalar};
+/// fn test_generic<T: GeometricTolerance + Scalar>(value: T) {
+///     let diff = value;  // 例として
+///     assert!(diff.abs() < T::TOLERANCE);  // trait経由で使用
+/// }
+/// ```
 pub mod test_constants {
     use super::GeometricTolerance;
 
