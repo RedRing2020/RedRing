@@ -4,13 +4,7 @@
 //! Direction3D と Vector3D の正しい API に基づく
 //! 内部的に安全なTransform実装を使用
 
-use crate::{
-    ellipse_3d::Ellipse3D, 
-    point_3d::Point3D, 
-    vector_3d::Vector3D, 
-    transform_error::TransformError,
-    Angle, Scalar
-};
+use crate::{ellipse_3d::Ellipse3D, point_3d::Point3D, vector_3d::Vector3D, Angle, Scalar};
 use geo_foundation::extensions::BasicTransform3D;
 
 // ============================================================================
@@ -38,7 +32,7 @@ impl<T: Scalar> BasicTransform3D<T> for Ellipse3D<T> {
             Ok(result) => result,
             Err(_) => {
                 // 平行移動は通常失敗しないが、万が一の場合は元の楕円を返す
-                *self
+                self.clone()
             }
         }
     }
@@ -61,7 +55,7 @@ impl<T: Scalar> BasicTransform3D<T> for Ellipse3D<T> {
             Err(_) => {
                 // 回転が失敗した場合は元の楕円を返す
                 // （例：ゼロベクトル軸、無効な楕円など）
-                *self
+                self.clone()
             }
         }
     }
@@ -83,7 +77,7 @@ impl<T: Scalar> BasicTransform3D<T> for Ellipse3D<T> {
             Err(_) => {
                 // スケールが失敗した場合は元の楕円を返す
                 // （例：ゼロスケール、無効な楕円など）
-                *self
+                self.clone()
             }
         }
     }
@@ -110,7 +104,7 @@ impl<T: Scalar> Ellipse3D<T> {
             self.major_axis_direction().as_vector(),
         ) {
             Some(ellipse) => ellipse,
-            None => *self, // 万が一失敗した場合は元の楕円を返す
+            None => self.clone(), // 万が一失敗した場合は元の楕円を返す
         }
     }
 

@@ -4,10 +4,8 @@
 
 #[cfg(test)]
 mod ellipse_3d_safe_transform_tests {
-    use crate::{
-        ellipse_3d::Ellipse3D, point_3d::Point3D, transform_error::TransformError,
-        vector_3d::Vector3D, Angle,
-    };
+    use crate::{ellipse_3d::Ellipse3D, point_3d::Point3D, vector_3d::Vector3D, Angle};
+    use geo_foundation::TransformError;
     use std::f64::consts::PI;
 
     /// テスト用の基準楕円を作成
@@ -62,7 +60,10 @@ mod ellipse_3d_safe_transform_tests {
         let result = ellipse.safe_scale(scale_center, scale_factor);
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => (),
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
     }
 
     #[test]
@@ -107,7 +108,10 @@ mod ellipse_3d_safe_transform_tests {
         let result = ellipse.safe_rotate(rotation_center, rotation_axis, rotation_angle);
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::ZeroVector);
+        match result.unwrap_err() {
+            TransformError::ZeroVector(_) => (),
+            _ => panic!("Expected ZeroVector error"),
+        }
     }
 
     #[test]
@@ -137,17 +141,26 @@ mod ellipse_3d_safe_transform_tests {
         // X軸でゼロスケール
         let result = ellipse.safe_scale_non_uniform(scale_center, 0.0, 1.5, 3.0);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => (),
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
 
         // Y軸でゼロスケール
         let result = ellipse.safe_scale_non_uniform(scale_center, 2.0, 0.0, 3.0);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => (),
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
 
         // Z軸でゼロスケール
         let result = ellipse.safe_scale_non_uniform(scale_center, 2.0, 1.5, 0.0);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => (),
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
     }
 
     #[test]
@@ -270,7 +283,10 @@ mod ellipse_3d_safe_transform_tests {
         );
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => (),
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
     }
 
     #[test]
@@ -292,6 +308,9 @@ mod ellipse_3d_safe_transform_tests {
             .and_then(|e| e.safe_reverse());
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), TransformError::InvalidScaleFactor);
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => (),
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
     }
 }

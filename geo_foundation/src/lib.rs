@@ -56,7 +56,8 @@ pub use extension_foundation::{
 // Extension Traitsを再エクスポート
 pub use extensions::{
     AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
-    MultipleIntersection, PointDistance, SelfIntersection, TransformHelpers,
+    MultipleIntersection, PointDistance, SafeTransform, SelfIntersection, TransformError,
+    TransformHelpers,
 };
 
 // Geometry Core Foundationを再エクスポート
@@ -70,11 +71,11 @@ pub use tolerance::{GeometryContext, ToleranceSettings};
 
 /// 便利な再エクスポート
 pub mod prelude {
-    // GeometryError は削除済み - 各幾何形状で専用エラー型を使用
-    // 必要に応じて NormalizationError などを個別にインポートしてください
+    // TransformError を追加 - 安全な変換操作用
     pub use crate::{
-        GeometryContext, ToleranceSettings, DEG_TO_RAD, E, GEOMETRIC_ANGLE_TOLERANCE,
-        GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
+        GeometryContext, SafeTransform, ToleranceSettings, TransformError, DEG_TO_RAD, E,
+        GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
+        RAD_TO_DEG, TAU,
     };
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 }

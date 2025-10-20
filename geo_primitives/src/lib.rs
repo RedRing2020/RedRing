@@ -5,7 +5,8 @@
 
 // 新実装用モジュール（次元中立設計）
 // 共通型とエラー
-pub mod transform_error;
+// エラー型はgeo_foundationから公開されたものを使用
+pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
@@ -38,9 +39,9 @@ pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 
 // Transform テストモジュール
 #[cfg(test)]
-pub mod ellipse_3d_transform_tests;
-#[cfg(test)]
 pub mod ellipse_3d_transform_safe_tests;
+#[cfg(test)]
+pub mod ellipse_3d_transform_tests;
 #[cfg(test)]
 pub mod ray_3d_tests;
 

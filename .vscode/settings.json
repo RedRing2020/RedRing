@@ -124,6 +124,9 @@
     "bbox_3d.rs": "bbox_3d_tests.rs,bbox_3d_extensions.rs,bbox_3d_transform.rs,bbox_3d_builder_tests.rs",
     "direction_2d.rs": "direction_2d_extensions.rs,direction_2d_extensions_tests.rs",
     "direction_3d.rs": "direction_3d_extensions.rs,direction_3d_extensions_tests.rs",
+    "transform.rs": "transform_error.rs",
+    "collision.rs": "collision_error.rs",
+    "intersection.rs": "intersection_error.rs",
     "Cargo.toml": "Cargo.lock",
     "README.md": "*.md,MIGRATION_*.md,*-analysis.md,*-plan.md,*-roadmap.md,*-report.md,UNITS.md,LICENSE",
     "book.toml": "book,docs"
