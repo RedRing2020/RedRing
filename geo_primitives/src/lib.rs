@@ -40,6 +40,8 @@ pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 #[cfg(test)]
 pub mod ellipse_3d_transform_tests;
 #[cfg(test)]
+pub mod ellipse_3d_transform_safe_tests;
+#[cfg(test)]
 pub mod ray_3d_tests;
 
 // 2D プリミティブ
