@@ -12,22 +12,22 @@
 //! ```rust
 //! // テストコードやプリミティブ実装では標準定数を直接使用
 //! use std::f64::consts::PI;
-//! let angle = Angle::from_radians(PI / 2.0);  // ✅ 推奨
+//! let half_pi = PI / 2.0;  // ✅ 推奨
 //! ```
 //! **理由**: シンプル性、明確性、依存関係の最小化、パフォーマンス
 //!
 //! ### 🔹 **アプリケーションレイヤー（analysis等）**: 用途別定数を使用
 //! ```rust
 //! // CAD/CAM計算では精度・用途別の定数を使用
-//! use analysis::precision::PI;  // 高精度計算用
-//! use analysis::game::PI;       // ゲーム用f32
+//! use analysis::precision::PI as PRECISION_PI;  // 高精度計算用
+//! use analysis::game::PI as GAME_PI;            // ゲーム用f32
 //! ```
 //! **理由**: 用途別最適化、許容誤差の統一管理、f32/f64の使い分け
 //!
 //! ### 🔹 **Scalarトレイト**: 数値定数は含まない
 //! ```rust
 //! // Scalarは型の基本操作のみを定義
-//! trait Scalar: Copy + ... {
+//! trait Scalar: Copy + Clone + PartialEq {
 //!     const ZERO: Self;     // ✅ 型の基本要素
 //!     const ONE: Self;      // ✅ 型の基本要素
 //!     // const PI: Self;    // ❌ 数学定数は含めない
@@ -45,20 +45,20 @@
 //! ## 実装例の比較
 //!
 //! ```rust
-//! // ❌ すべてを統一しようとすると複雑になる
-//! impl<T: Scalar> Point2D<T> {
-//!     fn rotate(&self, angle: T::MathConsts::PI) { ... }  // 複雑
-//! }
+//! // ❌ すべてを統一しようとすると複雑になる（例示のみ）
+//! // impl<T: Scalar> Point2D<T> {
+//! //     fn rotate(&self, angle: T) { /* 処理 */ }  // シンプル
+//! // }
 //!
 //! // ✅ レイヤー別に適切な定数を使用
 //!
 //! // 基礎レイヤー（geo_primitives）
 //! use std::f64::consts::PI;
-//! let rotated = point.rotate(center, Angle::from_radians(PI / 4.0));
+//! // let rotated = point.rotate(center, angle_from_radians(PI / 4.0));
 //!
 //! // アプリケーションレイヤー（analysis）
-//! use analysis::precision::{PI, GEOMETRIC_TOLERANCE};
-//! if angle_diff.abs() < GEOMETRIC_TOLERANCE { ... }
+//! use analysis::precision::{PI as PRECISION_PI, GEOMETRIC_TOLERANCE};
+//! // if angle_diff.abs() < GEOMETRIC_TOLERANCE { /* 処理 */ }
 //! ```
 //!
 //! この設計により、各レイヤーが適切な責務を持ちながら、
@@ -204,10 +204,12 @@ pub const GEOMETRIC_ANGLE_TOLERANCE: f64 = precision::GEOMETRIC_ANGLE_TOLERANCE;
 /// ```rust
 /// // 基礎レイヤー: 標準定数を直接使用
 /// use std::f64::consts::PI;
-/// let angle = Angle::from_radians(PI / 2.0);
+/// let half_pi = PI / 2.0;
 ///
 /// // アプリケーションレイヤー: このtraitで許容誤差を統一
-/// fn nearly_equal<T: GeometricTolerance>(a: T, b: T) -> bool {
+/// use analysis::{GeometricTolerance, Scalar};
+/// use std::ops::Sub;
+/// fn nearly_equal<T: GeometricTolerance + Scalar + Sub<Output=T> + PartialOrd + Copy>(a: T, b: T) -> bool {
 ///     (a - b).abs() < T::TOLERANCE
 /// }
 /// ```
@@ -248,6 +250,7 @@ pub const DERIVATIVE_ZERO_THRESHOLD: f64 = numerical::DERIVATIVE_ZERO_THRESHOLD;
 /// ```rust
 /// // 標準定数を直接使用（推奨）
 /// use std::f64::consts::PI;
+/// let result = PI / 2.0;
 /// assert!((result - PI/2.0).abs() < 1e-10);
 /// ```
 ///
@@ -255,12 +258,16 @@ pub const DERIVATIVE_ZERO_THRESHOLD: f64 = numerical::DERIVATIVE_ZERO_THRESHOLD;
 /// ```rust
 /// // このモジュールの定数を使用
 /// use analysis::test_constants::TOLERANCE_F64;
+/// let result: f64 = 1.5;
+/// let expected: f64 = 1.5;
 /// assert!((result - expected).abs() < TOLERANCE_F64);
 /// ```
 ///
 /// ## 型パラメータ化されたテスト
 /// ```rust
-/// fn test_generic<T: GeometricTolerance>(value: T) {
+/// use analysis::{GeometricTolerance, Scalar};
+/// fn test_generic<T: GeometricTolerance + Scalar>(value: T) {
+///     let diff = value;  // 例として
 ///     assert!(diff.abs() < T::TOLERANCE);  // trait経由で使用
 /// }
 /// ```

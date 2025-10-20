@@ -27,7 +27,7 @@ pub use linalg::vector::{Vector2, Vector3, Vector4};
 
 // 定数の再エクスポート
 pub use consts::{
-    game, precision, GeometricTolerance, DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD, E,
+    game, precision, test_constants, GeometricTolerance, DEG_TO_RAD, DERIVATIVE_ZERO_THRESHOLD, E,
     GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
     RAD_TO_DEG, TAU,
 };
