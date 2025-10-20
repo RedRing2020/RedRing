@@ -1,4 +1,4 @@
-//! Ellipse3D Safe Transform テスト
+﻿//! Ellipse3D Safe Transform テスト
 //!
 //! Result型を使用した安全な変換機能のテスト
 

@@ -1,6 +1,4 @@
-//! Transform操作のエラー型定義
-//!
-//! 幾何変換操作で発生する可能性のあるエラーを定義します。
+//! Transform エラー型定義
 
 use std::fmt;
 
@@ -31,28 +29,3 @@ impl fmt::Display for TransformError {
 }
 
 impl std::error::Error for TransformError {}
-
-/// 安全なTransform操作のトレイト
-///
-/// 失敗の可能性がある変換操作をResult型で表現します。
-pub trait SafeTransform<T: crate::Scalar> {
-    /// 安全な平行移動
-    fn safe_translate(&self, offset: T) -> Result<Self, TransformError>
-    where
-        Self: Sized;
-
-    /// 安全なスケール変換
-    fn safe_scale(&self, center: T, factor: T) -> Result<Self, TransformError>
-    where
-        Self: Sized;
-
-    /// 安全な回転変換
-    fn safe_rotate(
-        &self,
-        center: T,
-        axis: T,
-        angle: crate::Angle<T>,
-    ) -> Result<Self, TransformError>
-    where
-        Self: Sized;
-}
