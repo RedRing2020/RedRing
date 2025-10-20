@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+# GitHub Pages デプロイ用の権限設定
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -91,6 +97,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     # Wait for build-test job to complete successfully
     needs: [build-test, foundation-architecture-scan]
+    
+    # GitHub Pages デプロイ環境設定
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,14 +115,14 @@ jobs:
       - name: Build documentation
         run: mdbook build
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          # Keep build artifacts for debugging
-          keep_files: false
-          # Add commit info
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy documentation from develop branch (${{ github.sha }})'
+          path: './docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
