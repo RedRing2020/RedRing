@@ -56,7 +56,7 @@
 //! use std::f64::consts::PI;
 //! let rotated = point.rotate(center, Angle::from_radians(PI / 4.0));
 //!
-//! // アプリケーションレイヤー（analysis）  
+//! // アプリケーションレイヤー（analysis）
 //! use analysis::precision::{PI, GEOMETRIC_TOLERANCE};
 //! if angle_diff.abs() < GEOMETRIC_TOLERANCE { ... }
 //! ```
