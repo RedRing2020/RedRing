@@ -3,7 +3,7 @@
 //! BasicTransform3D トレイトと追加メソッドのテスト
 
 #[cfg(test)]
-mod ellipse_3d_transform_tests {
+mod tests {
     use crate::{ellipse_3d::Ellipse3D, point_3d::Point3D, vector_3d::Vector3D, Angle};
     use geo_foundation::extensions::BasicTransform3D;
     use std::f64::consts::PI;
