@@ -6,9 +6,7 @@
 mod point_3d_safe_transform_tests {
     use crate::{point_3d::Point3D, vector_3d::Vector3D, Angle};
     use geo_foundation::TransformError;
-    use std::f64::{INFINITY, NAN};
-
-    const PI: f64 = std::f64::consts::PI;
+    use std::f64::consts::PI;
 
     fn create_test_point() -> Point3D<f64> {
         Point3D::new(1.0, 2.0, 3.0)
@@ -35,7 +33,7 @@ mod point_3d_safe_transform_tests {
     #[test]
     fn test_safe_translate_infinite_vector() {
         let point = create_test_point();
-        let translation = Vector3D::new(INFINITY, 1.0, 1.0);
+        let translation = Vector3D::new(f64::INFINITY, 1.0, 1.0);
 
         let result = point.safe_translate(translation);
         assert!(result.is_err());
@@ -48,7 +46,7 @@ mod point_3d_safe_transform_tests {
     #[test]
     fn test_safe_translate_nan_vector() {
         let point = create_test_point();
-        let translation = Vector3D::new(1.0, NAN, 1.0);
+        let translation = Vector3D::new(1.0, f64::NAN, 1.0);
 
         let result = point.safe_translate(translation);
         assert!(result.is_err());
@@ -95,7 +93,7 @@ mod point_3d_safe_transform_tests {
         let point = create_test_point();
         let center = Point3D::origin();
 
-        let result = point.safe_scale(center, INFINITY);
+        let result = point.safe_scale(center, f64::INFINITY);
         assert!(result.is_err());
         match result.unwrap_err() {
             TransformError::InvalidScaleFactor(_) => (),
@@ -106,7 +104,7 @@ mod point_3d_safe_transform_tests {
     #[test]
     fn test_safe_scale_infinite_center_error() {
         let point = create_test_point();
-        let center = Point3D::new(INFINITY, 0.0, 0.0);
+        let center = Point3D::new(f64::INFINITY, 0.0, 0.0);
 
         let result = point.safe_scale(center, 2.0);
         assert!(result.is_err());
@@ -170,7 +168,7 @@ mod point_3d_safe_transform_tests {
     #[test]
     fn test_safe_rotate_infinite_center_error() {
         let point = create_test_point();
-        let center = Point3D::new(INFINITY, 0.0, 0.0);
+        let center = Point3D::new(f64::INFINITY, 0.0, 0.0);
         let axis = Vector3D::new(0.0, 0.0, 1.0);
         let angle = Angle::from_radians(PI / 4.0);
 
@@ -187,7 +185,7 @@ mod point_3d_safe_transform_tests {
         let point = create_test_point();
         let center = Point3D::origin();
         let axis = Vector3D::new(0.0, 0.0, 1.0);
-        let angle = Angle::from_radians(INFINITY);
+        let angle = Angle::from_radians(f64::INFINITY);
 
         let result = point.safe_rotate(center, axis, angle);
         assert!(result.is_err());
@@ -244,14 +242,14 @@ mod point_3d_safe_transform_tests {
         let valid_point = create_test_point();
         assert!(valid_point.detailed_validation().is_ok());
 
-        let invalid_point = Point3D::new(NAN, 2.0, 3.0);
+        let invalid_point = Point3D::new(f64::NAN, 2.0, 3.0);
         assert!(invalid_point.detailed_validation().is_err());
     }
 
     #[test]
     fn test_error_propagation() {
         let point = create_test_point();
-        let invalid_translation = Vector3D::new(NAN, 1.0, 1.0);
+        let invalid_translation = Vector3D::new(f64::NAN, 1.0, 1.0);
 
         let result = point.safe_translate(invalid_translation);
         assert!(result.is_err());
