@@ -90,11 +90,30 @@ jobs:
 
           echo "✅ Foundation architecture compliance check passed!"
 
+  build-docs:
+    name: Build Documentation (verify only)
+    runs-on: ubuntu-latest
+    # Build docs on all branches except main (main will deploy them)
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: 'latest'
+
+      - name: Build documentation (verify only)
+        run: |
+          mdbook build
+          echo "✅ Documentation built successfully (verification only, no deployment)"
+
   deploy-docs:
     name: Deploy Documentation
     runs-on: ubuntu-latest
-    # Only deploy on pushes to develop branch (not PRs or main)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    # Only deploy on pushes to main branch (not PRs or other branches)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Wait for build-test job to complete successfully
     needs: [build-test, foundation-architecture-scan]
 
@@ -126,3 +145,16 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  check-deployment-skipped:
+    name: Check Deployment Status
+    runs-on: ubuntu-latest
+    # Show status for branches that don't deploy
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    needs: [build-test, foundation-architecture-scan]
+    steps:
+      - name: Deployment skipped notification
+        run: |
+          echo "ℹ️  GitHub Pages deployment skipped for branch: ${{ github.ref_name }}"
+          echo "📖 Documentation deployment only occurs on the 'main' branch"
+          echo "✅ Branch build and test completed successfully"
