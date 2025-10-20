@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]  # メインブランチのみでデプロイメントワークフローを実行
+    branches: [main] # メインブランチのみでデプロイメントワークフローを実行
   pull_request:
     branches: [main]
 
