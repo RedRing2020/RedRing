@@ -190,8 +190,8 @@ mod tests {
         let expected: Direction2D<f64> = Direction2D::positive_y();
 
         let tolerance = 1e-10_f64;
-        assert!((result.x() as f64 - expected.x() as f64).abs() < tolerance);
-        assert!((result.y() as f64 - expected.y() as f64).abs() < tolerance);
+        assert!((result.x() - expected.x()).abs() < tolerance);
+        assert!((result.y() - expected.y()).abs() < tolerance);
     }
 
     #[test]
@@ -204,8 +204,8 @@ mod tests {
         let expected: Direction2D<f64> = Direction2D::negative_x();
 
         let tolerance = 1e-10_f64;
-        assert!((result.x() as f64 - expected.x() as f64).abs() < tolerance);
-        assert!((result.y() as f64 - expected.y() as f64).abs() < tolerance);
+        assert!((result.x() - expected.x()).abs() < tolerance);
+        assert!((result.y() - expected.y()).abs() < tolerance);
     }
 
     #[test]
@@ -260,8 +260,8 @@ mod tests {
         let expected: Direction2D<f64> = Direction2D::negative_x();
 
         let tolerance = 1e-10_f64;
-        assert!((result.x() as f64 - expected.x() as f64).abs() < tolerance);
-        assert!((result.y() as f64 - expected.y() as f64).abs() < tolerance);
+        assert!((result.x() - expected.x()).abs() < tolerance);
+        assert!((result.y() - expected.y()).abs() < tolerance);
     }
 
     #[test]
