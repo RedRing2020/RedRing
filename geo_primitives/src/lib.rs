@@ -17,6 +17,7 @@ pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
 pub mod circle_3d; // Circle3D の新実装
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
+pub mod direction_3d_transform_safe; // Direction3D の安全な変換機能 (Safe Transform)
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod ellipse_3d_transform; // Ellipse3D の変換機能 (Transform)
@@ -67,6 +68,7 @@ pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod circle_2d_transform; // Circle2D の変換機能 (Transform)
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
+pub mod direction_2d_transform_safe; // Direction2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
 pub mod ellipse_2d_transform; // Ellipse2D の変換機能 (Transform)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
