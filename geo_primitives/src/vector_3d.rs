@@ -169,6 +169,14 @@ impl<T: Scalar> std::ops::Mul<T> for Vector3D<T> {
     }
 }
 
+impl<T: Scalar> std::ops::Div<T> for Vector3D<T> {
+    type Output = Self;
+
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
+    }
+}
+
 impl<T: Scalar> std::ops::Add for Vector3D<T> {
     type Output = Self;
 

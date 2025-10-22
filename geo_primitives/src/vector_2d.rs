@@ -178,6 +178,14 @@ impl<T: Scalar> Mul<T> for Vector2D<T> {
     }
 }
 
+impl<T: Scalar> std::ops::Div<T> for Vector2D<T> {
+    type Output = Self;
+
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(self.x / scalar, self.y / scalar)
+    }
+}
+
 impl<T: Scalar> Neg for Vector2D<T> {
     type Output = Self;
 
