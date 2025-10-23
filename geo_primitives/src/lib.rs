@@ -11,6 +11,7 @@ pub use geo_foundation::TransformError;
 // 3D プリミティブ
 pub mod arc_3d;
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
+pub mod arc_3d_transform_safe; // Arc3D の安全な変換機能 (Safe Transform)
 pub mod bbox_3d; // BBox3D の新実装
 pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
 pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
@@ -65,6 +66,8 @@ pub mod vector_3d_transform_safe_tests;
 // Arc2D関連（ジェネリック実装完了により再有効化）
 pub mod arc_2d; // Arc2D の新実装 (Core)
 pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装
+                          // pub mod arc_2d_transform; // Arc2D の変換機能 (Transform) - 一時無効化
+pub mod arc_2d_transform_safe; // Arc2D の安全な変換機能 (Safe Transform)
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod bbox_2d_transform; // BBox2D の変換機能 (Transform)
