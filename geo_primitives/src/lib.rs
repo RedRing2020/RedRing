@@ -81,6 +81,7 @@ pub mod direction_2d_extensions;
 pub mod direction_2d_transform_safe; // Direction2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
 pub mod ellipse_2d_transform; // Ellipse2D の変換機能 (Transform)
+pub mod ellipse_2d_transform_safe; // Ellipse2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod ellipse_arc_2d_transform; // EllipseArc2D の変換機能 (Transform)
