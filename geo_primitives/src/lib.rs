@@ -30,6 +30,7 @@ pub mod infinite_line_3d_transform_safe; // InfiniteLine3D の安全な変換機
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
+pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機能 (Safe Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
@@ -85,6 +86,7 @@ pub mod infinite_line_2d_transform_safe; // InfiniteLine2D の安全な変換機
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
+pub mod line_segment_2d_transform_safe; // LineSegment2D の安全な変換機能 (Safe Transform)
 pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
