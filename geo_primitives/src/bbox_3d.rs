@@ -67,6 +67,34 @@ impl<T: Scalar> BBox3D<T> {
             && point.z() >= self.min.z()
             && point.z() <= self.max.z()
     }
+
+    /// 複数の点から境界ボックスを作成
+    pub fn from_points(points: &[Point3D<T>]) -> Option<Self> {
+        if points.is_empty() {
+            return None;
+        }
+
+        let mut min_x = points[0].x();
+        let mut max_x = points[0].x();
+        let mut min_y = points[0].y();
+        let mut max_y = points[0].y();
+        let mut min_z = points[0].z();
+        let mut max_z = points[0].z();
+
+        for point in points.iter().skip(1) {
+            min_x = min_x.min(point.x());
+            max_x = max_x.max(point.x());
+            min_y = min_y.min(point.y());
+            max_y = max_y.max(point.y());
+            min_z = min_z.min(point.z());
+            max_z = max_z.max(point.z());
+        }
+
+        Some(Self::new(
+            Point3D::new(min_x, min_y, min_z),
+            Point3D::new(max_x, max_y, max_z),
+        ))
+    }
 }
 
 // ============================================================================
