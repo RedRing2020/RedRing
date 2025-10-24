@@ -1,21 +1,15 @@
-﻿//! Direction3D Core 実装
+﻿//! Direction3D - Core Implementation
 //!
-//! Foundation統一システムに基づくDirection3Dの必須機能のみ
-//! 拡張機能は direction_3d_extensions.rs を参照
+//! 3次元方向ベクトルの基本実装とコンストラクタ、アクセサメソッド
 
 use crate::Vector3D;
-use geo_foundation::{core::direction_traits, Scalar};
+use geo_foundation::Scalar;
 use std::ops::{Deref, DerefMut, Mul, Neg};
 
 /// 3次元方向ベクトル（正規化済み）
-#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Direction3D<T: Scalar> {
     vector: Vector3D<T>,
 }
-
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
 
 impl<T: Scalar> Direction3D<T> {
     // ========================================================================
@@ -105,18 +99,12 @@ impl<T: Scalar> Direction3D<T> {
     }
 
     // ========================================================================
-    // Core Calculation Methods
+    // Core Basic Operations
     // ========================================================================
 
     /// 他の方向との内積を計算
     pub fn dot(&self, other: &Self) -> T {
         self.vector.dot(&other.vector)
-    }
-
-    /// 3D外積を計算（結果も正規化される）
-    pub fn cross(&self, other: &Self) -> Self {
-        let cross_result = self.vector.cross(&other.vector);
-        Self::from_vector(cross_result).unwrap_or_else(|| Self::positive_x())
     }
 
     /// 180度回転（反転）
@@ -126,78 +114,24 @@ impl<T: Scalar> Direction3D<T> {
         }
     }
 
-    /// 他の方向と平行かどうかを判定
-    pub fn is_parallel_to(&self, other: &Self) -> bool {
-        self.vector.is_parallel(&other.vector)
-    }
-
-    /// 他の方向と垂直かどうかを判定
-    pub fn is_perpendicular_to(&self, other: &Self) -> bool {
-        let dot_product = self.dot(other).abs();
-        dot_product <= T::ZERO + T::EPSILON
-    }
-
-    /// 長さ（常に1.0、正規化済みのため）
+    /// 長さを取得（常に1.0）
     pub fn length(&self) -> T {
         T::ONE
     }
 
-    /// ベクトル正規化（既に正規化済みなので自身を返す）
+    /// 正規化（既に正規化済みなのでselfを返す）
     pub fn normalize(&self) -> Self {
         *self
     }
 
-    /// 否定（-演算子のメソッド版）
+    /// 符号反転（reverse()と同じ）
     pub fn negate(&self) -> Self {
-        -*self
+        self.reverse()
     }
 }
 
 // ============================================================================
-// geo_foundation abstracts trait implementations
-// ============================================================================
-
-/// geo_foundation::core::Direction2D<T> トレイト実装
-impl<T: Scalar> direction_traits::Direction2D<T> for Direction3D<T> {
-    type Vector = Vector3D<T>;
-
-    fn x(&self) -> T {
-        self.x()
-    }
-
-    fn y(&self) -> T {
-        self.y()
-    }
-
-    fn as_vector(&self) -> Self::Vector {
-        self.as_vector()
-    }
-}
-
-/// geo_foundation::core::Direction3D<T> トレイト実装
-impl<T: Scalar> direction_traits::Direction3D<T> for Direction3D<T> {
-    fn z(&self) -> T {
-        self.z()
-    }
-}
-
-/// geo_foundation::core::DirectionRelations<T> トレイト実装
-impl<T: Scalar> direction_traits::DirectionRelations<T> for Direction3D<T> {
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        self.is_parallel_to(other)
-    }
-
-    fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.is_perpendicular_to(other)
-    }
-
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
-    }
-}
-
-// ============================================================================
-// Deref implementations - Vector3Dメソッドを透過的に使用可能
+// Core Trait Implementations
 // ============================================================================
 
 /// Direction3DをVector3Dとして扱えるようにする
@@ -216,10 +150,6 @@ impl<T: Scalar> DerefMut for Direction3D<T> {
     }
 }
 
-// ============================================================================
-// From trait implementations
-// ============================================================================
-
 /// Vector3Dからの変換（失敗する可能性があるためOptionを返す）
 impl<T: Scalar> TryFrom<Vector3D<T>> for Direction3D<T> {
     type Error = ();
@@ -228,10 +158,6 @@ impl<T: Scalar> TryFrom<Vector3D<T>> for Direction3D<T> {
         Self::from_vector(vector).ok_or(())
     }
 }
-
-// ============================================================================
-// Operator Implementations
-// ============================================================================
 
 /// スカラー倍（Vector3Dを返す）
 impl<T: Scalar> Mul<T> for Direction3D<T> {
