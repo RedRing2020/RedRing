@@ -102,8 +102,7 @@ impl<T: Scalar> EllipseArc3D<T> {
         _axis_direction: Vector3D<T>,
         _rotation_angle: Angle<T>,
     ) -> Self {
-        let scaled = self.scale(scale_factor).unwrap_or(self.clone());
-        scaled
+        self.scale(scale_factor).unwrap_or(self.clone())
     }
 
     /// 複合変換：非等方スケール + 平行移動
