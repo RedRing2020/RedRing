@@ -137,6 +137,7 @@
     "ellipse_2d.rs": "ellipse_2d_tests.rs,ellipse_2d_extensions.rs,ellipse_2d_transform.rs,ellipse_2d_transform_safe.rs",
     "ellipse_3d.rs": "ellipse_3d_tests.rs,ellipse_3d_extensions.rs,ellipse_3d_transform.rs,ellipse_3d_transform_safe.rs,ellipse_3d_transform_safe_tests.rs",
     "ellipse_arc_2d.rs": "ellipse_arc_2d_tests.rs,ellipse_arc_2d_extensions.rs,ellipse_arc_2d_transform.rs,ellipse_arc_2d_transform_safe.rs",
+    "ellipse_arc_3d.rs": "ellipse_arc_3d_tests.rs,ellipse_arc_3d_extensions.rs,ellipse_arc_3d_transform.rs,ellipse_arc_3d_transform_safe.rs",
     "infinite_line_2d.rs": "infinite_line_2d_tests.rs,infinite_line_2d_extensions.rs,infinite_line_2d_transform.rs,infinite_line_2d_transform_safe.rs",
     "infinite_line_3d.rs": "infinite_line_3d_tests.rs,infinite_line_3d_extensions.rs,infinite_line_3d_transform.rs,infinite_line_3d_transform_safe.rs",
     "line_segment_2d.rs": "line_segment_2d_tests.rs,line_segment_2d_extensions.rs,line_segment_2d_transform.rs,line_segment_2d_transform_safe.rs",
