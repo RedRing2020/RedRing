@@ -109,7 +109,7 @@ impl<T: Scalar> Ellipse3D<T> {
         // 楕円平面内の法線（接線に直交）
         let tangent_dir =
             Direction3D::from_vector(tangent_world).unwrap_or(Direction3D::positive_x());
-        self.normal().cross(&tangent_dir).as_vector()
+        self.normal().cross(&tangent_dir)
     }
 
     // ========================================================================

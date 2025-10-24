@@ -1,4 +1,4 @@
-﻿//! 3D楕円のCore実装
+//! 3D楕円のCore実装
 //!
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
@@ -119,7 +119,8 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 短軸方向ベクトルを取得
     pub fn minor_axis_direction(&self) -> Direction3D<T> {
-        self.normal.cross(&self.major_axis_dir)
+        Direction3D::from_vector(self.normal.cross(&self.major_axis_dir))
+            .expect("Cross product of normalized vectors should be valid")
     }
 
     // ========================================================================

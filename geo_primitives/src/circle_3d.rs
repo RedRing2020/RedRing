@@ -8,7 +8,7 @@ use geo_foundation::Scalar;
 /// 3次元空間の円
 ///
 /// 3次元空間内の任意の平面上に存在する円を表現
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Circle3D<T: Scalar> {
     center: Point3D<T>,
     normal: Direction3D<T>, // 円が存在する平面の法線ベクトル

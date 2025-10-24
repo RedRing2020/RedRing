@@ -25,7 +25,7 @@ impl<T: Scalar> BasicTransform<T> for InfiniteLine3D<T> {
     /// Z軸周りの回転（簡易実装）
     fn rotate(&self, _center: Self::Point2D, _angle: Self::Angle) -> Self::Transformed {
         // 簡易実装：3D回転は複雑なので、現在は元の直線をコピーして返す
-        *self
+        self.clone()
     }
 
     /// 均一スケール

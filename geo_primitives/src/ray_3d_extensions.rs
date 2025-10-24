@@ -1,16 +1,137 @@
-//! Ray3D拡張機能の実装
+//! Ray3D Extensions 実装
 //!
-//! Core Foundation パターンに基づく Ray3D の拡張機能
-//! 変換機能、高度な幾何操作を提供
+//! Foundation統一システムに基づくRay3Dの拡張機能
+//! Core機能は ray_3d.rs を参照
 
-use crate::{BBox3D, Point3D, Ray3D, Vector3D};
+use crate::{BBox3D, InfiniteLine3D, Point3D, Ray3D, Vector3D};
 use geo_foundation::Scalar;
 
 // ============================================================================
-// Ray3D Transform Extensions
+// Core trait implementations
+// ============================================================================
+
+impl<T: Scalar> Clone for Ray3D<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Scalar> Copy for Ray3D<T> {}
+
+impl<T: Scalar> PartialEq for Ray3D<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.origin() == other.origin() && self.direction_vector() == other.direction_vector()
+    }
+}
+
+impl<T: Scalar> std::fmt::Debug for Ray3D<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Ray3D")
+            .field("origin", &self.origin())
+            .field("direction", &self.direction_vector())
+            .finish()
+    }
+}
+
+impl<T: Scalar> std::fmt::Display for Ray3D<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Ray3D(origin: {:?}, direction: {:?})",
+            self.origin(),
+            self.direction_vector()
+        )
+    }
+}
+
+// ============================================================================
+// Extended geometric operations (moved from core)
 // ============================================================================
 
 impl<T: Scalar> Ray3D<T> {
+    /// InfiniteLine3D への変換
+    ///
+    /// # 戻り値
+    /// 同じ起点と方向を持つ無限直線
+    pub fn to_infinite_line(&self) -> InfiniteLine3D<T> {
+        InfiniteLine3D::new(self.origin(), self.direction_vector())
+            .expect("Ray direction should always create valid InfiniteLine3D")
+    }
+
+    /// 境界ボックスを取得（無限のため最大値を使用）
+    pub fn bounding_box(&self) -> BBox3D<T> {
+        // Ray は無限に延びるため、方向に基づいて最大値を設定
+        BBox3D::from_points(&[self.origin(), Point3D::new(T::MAX, T::MAX, T::MAX)])
+            .unwrap_or_else(|| BBox3D::from_point(self.origin()))
+    }
+
+    /// パラメータの範囲を取得
+    pub fn parameter_range(&self) -> (T, T) {
+        (T::ZERO, T::INFINITY)
+    }
+
+    /// パラメータ t での接線ベクトルを取得
+    pub fn tangent_at_parameter(&self, _t: T) -> Vector3D<T> {
+        self.direction_vector()
+    }
+
+    /// 点が境界上にあるかを判定（Ray の場合は起点のみ）
+    pub fn on_boundary(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        self.origin().distance_to(point) <= tolerance
+    }
+
+    /// 点までの距離を計算
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
+        let to_point = *point - self.origin();
+        let projection_length = self.direction_vector().dot(&to_point);
+
+        if projection_length <= T::ZERO {
+            // 点が Ray の起点より後ろにある場合
+            self.origin().distance_to(point)
+        } else {
+            // 点を Ray に垂直投影した点までの距離
+            let projection = self.origin() + self.direction_vector() * projection_length;
+            point.distance_to(&projection)
+        }
+    }
+
+    /// Ray が指定した点の方向を向いているかを判定
+    pub fn points_towards(&self, target: &Point3D<T>) -> bool {
+        let to_target = *target - self.origin();
+        self.direction_vector().dot(&to_target) > T::ZERO
+    }
+
+    /// 点が Ray の前方にあるかを判定
+    pub fn is_point_ahead(&self, point: &Point3D<T>) -> bool {
+        let to_point = *point - self.origin();
+        self.direction_vector().dot(&to_point) > T::ZERO
+    }
+
+    /// 点が Ray の後方にあるかを判定
+    pub fn is_point_behind(&self, point: &Point3D<T>) -> bool {
+        !self.is_point_ahead(point)
+    }
+
+    /// Ray 上で指定した点に最も近い点を取得
+    pub fn closest_point_on_ray(&self, point: &Point3D<T>) -> Point3D<T> {
+        let to_point = *point - self.origin();
+        let projection_length = self.direction_vector().dot(&to_point);
+
+        if projection_length <= T::ZERO {
+            // 投影が起点より後ろの場合は起点を返す
+            self.origin()
+        } else {
+            // 投影した点を返す
+            self.origin() + self.direction_vector() * projection_length
+        }
+    }
+
+    /// 指定した点に最も近い Ray 上の点のパラメータを取得
+    pub fn closest_parameter(&self, point: &Point3D<T>) -> T {
+        let t = self.parameter_for_point(point);
+        t.max(T::ZERO) // t < 0 の場合は 0 (起点) を返す
+    }
+
     // ========================================================================
     // Transform Methods
     // ========================================================================
