@@ -23,11 +23,11 @@ redring ─┬─ viewmodel ── model(抽象) ──┐
 
 ## 旧 geometry 削除の背景
 
-| 課題       | 詳細                                                | 対応                         |
-| ---------- | --------------------------------------------------- | ---------------------------- |
-| 重複定義   | Point/Vector/曲線が複数箇所で二重管理               | geo_primitives に集約        |
-| 保守コスト | 旧実装 vs 新実装の平行メンテ                        | Foundation統合による一元化   |
-| 依存混線   | model → (独自実装) + geo_* の複雑な依存関係         | 抽象のみ残し参照方向を単純化 |
+| 課題       | 詳細                                          | 対応                         |
+| ---------- | --------------------------------------------- | ---------------------------- |
+| 重複定義   | Point/Vector/曲線が複数箇所で二重管理         | geo_primitives に集約        |
+| 保守コスト | 旧実装 vs 新実装の平行メンテ                  | Foundation 統合による一元化  |
+| 依存混線   | model → (独自実装) + geo\_\* の複雑な依存関係 | 抽象のみ残し参照方向を単純化 |
 
 ## `Curve2D` / `Curve3D` の新しい形
 
@@ -61,14 +61,14 @@ impl Curve2D for MyCurve2D {
 
 ## 旧 → 新 マッピング早見表
 
-| 旧 `model::geometry`                                             | 新しい参照先                               |
-| ---------------------------------------------------------------- | ------------------------------------------ |
-| geometry2d::Point / Vector                                       | `geo_primitives::Point2D` / `Vector2D`     |
-| geometry2d::Line / Circle / Arc / Ellipse / Ray / InfiniteLine   | `geo_primitives` 2D 群                     |
-| geometry3d::Point / Vector                                       | `geo_primitives::Point3D` / `Vector3D`     |
-| geometry3d::Line / Circle / Arc / Ellipse / Plane / InfiniteLine | `geo_primitives` 3D 群（Foundation統合済） |
-| NurbsCurve / NurbsSurface (stub)                                 | 今後 `geo_primitives` に正式移行予定       |
-| SimpleAdaptedLine adapter                                        | 廃止 (履歴のみ)                            |
+| 旧 `model::geometry`                                             | 新しい参照先                                |
+| ---------------------------------------------------------------- | ------------------------------------------- |
+| geometry2d::Point / Vector                                       | `geo_primitives::Point2D` / `Vector2D`      |
+| geometry2d::Line / Circle / Arc / Ellipse / Ray / InfiniteLine   | `geo_primitives` 2D 群                      |
+| geometry3d::Point / Vector                                       | `geo_primitives::Point3D` / `Vector3D`      |
+| geometry3d::Line / Circle / Arc / Ellipse / Plane / InfiniteLine | `geo_primitives` 3D 群（Foundation 統合済） |
+| NurbsCurve / NurbsSurface (stub)                                 | 今後 `geo_primitives` に正式移行予定        |
+| SimpleAdaptedLine adapter                                        | 廃止 (履歴のみ)                             |
 
 ## 今後の拡張予定 (案)
 
