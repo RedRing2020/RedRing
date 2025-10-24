@@ -1,8 +1,7 @@
-﻿//! 3次元ベクトル（Vector3D）の Core 実装
+﻿//! 3次元ベクトル（Vector3D）のCore実装
 //!
 //! Core Foundation パターンに基づく Vector3D の必須機能のみ
 //! 拡張機能は vector_3d_extensions.rs を参照
-//! 変換機能は vector_3d_transform.rs を参照
 
 use crate::{BBox3D, Point3D};
 use geo_foundation::{core::vector_traits, Scalar};
@@ -49,7 +48,7 @@ impl<T: Scalar> Vector3D<T> {
         Self::new(T::ZERO, T::ZERO, T::ONE)
     }
 
-    /// タプルからベクトルを作成
+    /// タプルから作成
     pub fn from_tuple(components: (T, T, T)) -> Self {
         Self::new(components.0, components.1, components.2)
     }
@@ -58,17 +57,17 @@ impl<T: Scalar> Vector3D<T> {
     // Core Accessor Methods
     // ========================================================================
 
-    /// X成分を取得
+    /// x成分を取得
     pub fn x(&self) -> T {
         self.x
     }
 
-    /// Y成分を取得
+    /// y成分を取得
     pub fn y(&self) -> T {
         self.y
     }
 
-    /// Z成分を取得
+    /// z成分を取得
     pub fn z(&self) -> T {
         self.z
     }
@@ -79,44 +78,40 @@ impl<T: Scalar> Vector3D<T> {
     }
 
     // ========================================================================
-    // Core Metrics Methods
+    // Core Calculation Methods
     // ========================================================================
 
-    /// ベクトルの長さの二乗を取得
+    /// ベクトルの長さの二乗
     pub fn length_squared(&self) -> T {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
-    /// ベクトルの長さ（ノルム）を計算
+    /// ベクトルの長さ
     pub fn length(&self) -> T {
         self.length_squared().sqrt()
     }
 
-    /// ベクトルの大きさ（長さの別名）
+    /// ベクトルの大きさ（lengthのエイリアス）
     pub fn magnitude(&self) -> T {
         self.length()
     }
 
-    /// ベクトルを正規化（長さを1にする）
+    /// ベクトルを正規化
     pub fn normalize(&self) -> Self {
         let len = self.length();
-        if len <= T::ZERO {
+        if len == T::ZERO {
             Self::zero()
         } else {
             Self::new(self.x / len, self.y / len, self.z / len)
         }
     }
 
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
-
-    /// 内積を計算
+    /// 内積
     pub fn dot(&self, other: &Self) -> T {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    /// 3D外積を計算
+    /// 外積
     pub fn cross(&self, other: &Self) -> Self {
         Self::new(
             self.y * other.z - self.z * other.y,
@@ -155,57 +150,7 @@ impl<T: Scalar> Vector3D<T> {
     pub fn is_perpendicular(&self, other: &Self) -> bool {
         self.dot(other).abs() <= T::EPSILON
     }
-}
 
-// ============================================================================
-// Operator Implementations
-// ============================================================================
-
-impl<T: Scalar> std::ops::Mul<T> for Vector3D<T> {
-    type Output = Self;
-
-    fn mul(self, scalar: T) -> Self::Output {
-        Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
-    }
-}
-
-impl<T: Scalar> std::ops::Div<T> for Vector3D<T> {
-    type Output = Self;
-
-    fn div(self, scalar: T) -> Self::Output {
-        Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
-    }
-}
-
-impl<T: Scalar> std::ops::Add for Vector3D<T> {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self::Output {
-        Self::new(self.x + other.x, self.y + other.y, self.z + other.z)
-    }
-}
-
-impl<T: Scalar> std::ops::Sub for Vector3D<T> {
-    type Output = Self;
-
-    fn sub(self, other: Self) -> Self::Output {
-        Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
-    }
-}
-
-impl<T: Scalar> std::ops::Neg for Vector3D<T> {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self::new(-self.x, -self.y, -self.z)
-    }
-}
-
-// ============================================================================
-// Helper Methods
-// ============================================================================
-
-impl<T: Scalar> Vector3D<T> {
     /// ベクトルの境界ボックス（原点と終点を含む）
     pub fn bounding_box(&self) -> BBox3D<T> {
         let origin = Point3D::<T>::origin();
@@ -226,7 +171,51 @@ impl<T: Scalar> Vector3D<T> {
 }
 
 // ============================================================================
-// geo_foundation abstracts trait implementations
+// Core Operator implementations
+// ============================================================================
+
+impl<T: Scalar> std::ops::Add for Vector3D<T> {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        Self::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    }
+}
+
+impl<T: Scalar> std::ops::Sub for Vector3D<T> {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
+    }
+}
+
+impl<T: Scalar> std::ops::Mul<T> for Vector3D<T> {
+    type Output = Self;
+
+    fn mul(self, scalar: T) -> Self::Output {
+        Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
+    }
+}
+
+impl<T: Scalar> std::ops::Div<T> for Vector3D<T> {
+    type Output = Self;
+
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(self.x / scalar, self.y / scalar, self.z / scalar)
+    }
+}
+
+impl<T: Scalar> std::ops::Neg for Vector3D<T> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        self.negate()
+    }
+}
+
+// ============================================================================
+// geo_foundation trait implementations
 // ============================================================================
 
 /// geo_foundation::core::Vector2D<T> トレイト実装
