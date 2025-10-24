@@ -1,6 +1,7 @@
 //! 3次元楕円弧（EllipseArc3D）のCore実装
 //!
-//! Foundation統一システムに基づくEllipseArc3Dの必須機能のみ
+//! Core Foundation パターンに基づく EllipseArc3D の必須機能のみ
+//! 拡張機能は ellipse_arc_3d_extensions.rs を参照
 
 use crate::{Arc3D, BBox3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_foundation::{Angle, Scalar};
@@ -26,11 +27,6 @@ impl<T: Scalar> EllipseArc3D<T> {
     // ========================================================================
 
     /// 新しい3D楕円弧を作成
-    ///
-    /// # 引数
-    /// * `ellipse` - 基底3D楕円
-    /// * `start_angle` - 開始角度
-    /// * `end_angle` - 終了角度
     pub fn new(ellipse: Ellipse3D<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
         Self {
             ellipse,
@@ -41,9 +37,7 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 3D円弧から3D楕円弧を作成
     pub fn from_arc(arc: Arc3D<T>) -> Option<Self> {
-        // Arc3D から Circle3D を構築
         let circle = Circle3D::new(arc.center(), arc.normal(), arc.radius())?;
-
         let ellipse = Ellipse3D::from_circle(&circle)?;
         Some(Self::new(ellipse, arc.start_angle(), arc.end_angle()))
     }
@@ -72,27 +66,27 @@ impl<T: Scalar> EllipseArc3D<T> {
         self.ellipse.center()
     }
 
-    /// 長半軸の長さを取得
+    /// 長半径を取得
     pub fn semi_major(&self) -> T {
         self.ellipse.semi_major_axis()
     }
 
-    /// 短半軸の長さを取得
+    /// 短半径を取得
     pub fn semi_minor(&self) -> T {
         self.ellipse.semi_minor_axis()
     }
 
-    /// 楕円平面の法線ベクトルを取得
+    /// 法線方向を取得
     pub fn normal(&self) -> Direction3D<T> {
         self.ellipse.normal()
     }
 
-    /// 長軸方向ベクトルを取得
+    /// 長軸方向を取得
     pub fn major_axis_direction(&self) -> Direction3D<T> {
         self.ellipse.major_axis_direction()
     }
 
-    /// 短軸方向ベクトルを取得
+    /// 短軸方向を取得
     pub fn minor_axis_direction(&self) -> Direction3D<T> {
         self.ellipse.minor_axis_direction()
     }
@@ -101,9 +95,31 @@ impl<T: Scalar> EllipseArc3D<T> {
     // Core Geometric Properties
     // ========================================================================
 
+    /// 開始点を取得
+    pub fn start_point(&self) -> Point3D<T> {
+        self.ellipse.point_at_angle(self.start_angle)
+    }
+
+    /// 終了点を取得
+    pub fn end_point(&self) -> Point3D<T> {
+        self.ellipse.point_at_angle(self.end_angle)
+    }
+
+    /// パラメータ値tにおける点を取得
+    pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
+        let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
+        let current_angle = self.start_angle.to_radians() + t * angle_diff;
+        self.ellipse
+            .point_at_angle(Angle::from_radians(current_angle))
+    }
+
+    /// 弧の中点を取得
+    pub fn midpoint(&self) -> Point3D<T> {
+        self.point_at_parameter(T::from_f64(0.5))
+    }
+
     /// 弧の角度スパンを取得
     pub fn angle_span(&self) -> T {
-        // 角度の差を計算（常に正の値）
         let diff = self.end_angle.to_radians() - self.start_angle.to_radians();
         if diff >= T::ZERO {
             diff
@@ -123,41 +139,16 @@ impl<T: Scalar> EllipseArc3D<T> {
         self.ellipse.is_circle()
     }
 
-    // ========================================================================
-    // Core Parametric Operations
-    // ========================================================================
-
-    /// パラメータ値tにおける点を取得
-    ///
-    /// # 引数
-    /// * `t` - パラメータ値（0.0で開始点、1.0で終了点）
-    pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
-        // パラメータを角度に変換
-        let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
-        let current_angle = self.start_angle.to_radians() + t * angle_diff;
-
-        // 楕円上の点を計算
-        self.ellipse
-            .point_at_angle(Angle::from_radians(current_angle))
-    }
-
-    /// 開始点を取得
-    pub fn start_point(&self) -> Point3D<T> {
-        self.ellipse.point_at_angle(self.start_angle)
-    }
-
-    /// 終了点を取得
-    pub fn end_point(&self) -> Point3D<T> {
-        self.ellipse.point_at_angle(self.end_angle)
-    }
-
-    /// 弧の中点を取得
-    pub fn midpoint(&self) -> Point3D<T> {
-        self.point_at_parameter(T::from_f64(0.5))
+    /// 楕円弧の有効性を検証
+    pub fn is_valid(&self) -> bool {
+        self.ellipse.semi_major_axis() > T::ZERO
+            && self.ellipse.semi_minor_axis() > T::ZERO
+            && self.start_angle.to_radians().is_finite()
+            && self.end_angle.to_radians().is_finite()
     }
 
     // ========================================================================
-    // Core Transform Methods (basic transforms)
+    // Core Transform Methods
     // ========================================================================
 
     /// 平行移動
@@ -167,6 +158,21 @@ impl<T: Scalar> EllipseArc3D<T> {
             self.start_angle,
             self.end_angle,
         )
+    }
+
+    /// 向きを反転した楕円弧を取得
+    pub fn reverse(&self) -> Self {
+        Self::new(self.ellipse.clone(), self.end_angle, self.start_angle)
+    }
+
+    /// 角度範囲を変更した新しい楕円弧を作成
+    pub fn with_angles(&self, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
+        Self::new(self.ellipse.clone(), start_angle, end_angle)
+    }
+
+    /// 基底楕円を変更した新しい楕円弧を作成
+    pub fn with_ellipse(&self, ellipse: Ellipse3D<T>) -> Self {
+        Self::new(ellipse, self.start_angle, self.end_angle)
     }
 
     /// 原点中心の回転（Z軸回転）
@@ -198,52 +204,14 @@ impl<T: Scalar> EllipseArc3D<T> {
         Some(Self::new(scaled_ellipse, self.start_angle, self.end_angle))
     }
 
-    // ========================================================================
-    // Core Validation Methods
-    // ========================================================================
-
-    /// 楕円弧の有効性を検証
-    pub fn is_valid(&self) -> bool {
-        // 基底楕円の有効性チェック（簡易版）
-        self.ellipse.semi_major_axis() > T::ZERO &&
-        self.ellipse.semi_minor_axis() > T::ZERO &&
-        // 角度の有効性チェック
-        self.start_angle.to_radians().is_finite() &&
-        self.end_angle.to_radians().is_finite()
-    }
-
-    // ========================================================================
-    // Core Utility Methods
-    // ========================================================================
-
-    /// 角度範囲を変更した新しい楕円弧を作成
-    pub fn with_angles(&self, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
-        Self::new(self.ellipse.clone(), start_angle, end_angle)
-    }
-
-    /// 基底楕円を変更した新しい楕円弧を作成
-    pub fn with_ellipse(&self, ellipse: Ellipse3D<T>) -> Self {
-        Self::new(ellipse, self.start_angle, self.end_angle)
-    }
-
-    /// 向きを反転した楕円弧を取得
-    pub fn reverse(&self) -> Self {
-        Self::new(self.ellipse.clone(), self.end_angle, self.start_angle)
-    }
-
     /// 部分弧を取得
-    ///
-    /// # 引数
-    /// * `sub_start` - 部分弧の開始角度（元の弧の範囲内である必要がある）
-    /// * `sub_end` - 部分弧の終了角度（元の弧の範囲内である必要がある）
     pub fn sub_arc(&self, sub_start: Angle<T>, sub_end: Angle<T>) -> Option<Self> {
-        // 角度が弧の範囲内にあるかチェック
         let start_rad = self.start_angle.to_radians();
         let end_rad = self.end_angle.to_radians();
         let sub_start_rad = sub_start.to_radians();
         let sub_end_rad = sub_end.to_radians();
 
-        // 簡単な範囲チェック（より詳細な実装は拡張版で）
+        // 簡単な範囲チェック
         if (sub_start_rad >= start_rad && sub_start_rad <= end_rad)
             && (sub_end_rad >= start_rad && sub_end_rad <= end_rad)
             && sub_start_rad <= sub_end_rad
@@ -256,7 +224,6 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// バウンディングボックスを取得（近似）
     pub fn bounding_box(&self) -> BBox3D<T> {
-        // 開始点、終了点、中点を含むボックスを作成（簡易版）
         let start = self.start_point();
         let end = self.end_point();
         let mid = self.midpoint();
@@ -273,7 +240,6 @@ impl<T: Scalar> Copy for EllipseArc3D<T> where Ellipse3D<T>: Copy {}
 
 impl<T: Scalar> Default for EllipseArc3D<T> {
     fn default() -> Self {
-        // XY平面上の単位楕円弧を作成
         let center = Point3D::origin();
         let normal = Vector3D::unit_z();
         let major_axis = Vector3D::unit_x();
