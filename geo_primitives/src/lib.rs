@@ -10,6 +10,7 @@ pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
+pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
 pub mod arc_3d_transform_safe; // Arc3D の安全な変換機能 (Safe Transform)
 pub mod bbox_3d; // BBox3D の新実装
