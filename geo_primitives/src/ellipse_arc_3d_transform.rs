@@ -51,7 +51,7 @@ impl<T: Scalar> EllipseArc3D<T> {
     /// # 引数
     /// * `center` - スケール中心点
     /// * `scale_x` - X軸方向のスケール倍率
-    /// * `scale_y` - Y軸方向のスケール倍率  
+    /// * `scale_y` - Y軸方向のスケール倍率
     /// * `scale_z` - Z軸方向のスケール倍率
     ///
     /// # 戻り値
