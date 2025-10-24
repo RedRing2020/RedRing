@@ -182,6 +182,19 @@ impl<T: Scalar> Ellipse3D<T> {
         )
     }
 
+    /// パラメータ t での楕円の接線ベクトルを計算
+    /// t ∈ [0, 2π]
+    pub fn tangent_at_parameter(&self, t: T) -> Vector3D<T> {
+        let cos_t = t.cos();
+        let sin_t = t.sin();
+
+        let major_component = self.major_axis_dir.as_vector() * (-self.semi_major_axis * sin_t);
+        let minor_component =
+            self.minor_axis_direction().as_vector() * (self.semi_minor_axis * cos_t);
+
+        major_component + minor_component
+    }
+
     /// 角度 θ での楕円上の点を計算
     pub fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
         self.point_at_parameter(angle.to_radians())

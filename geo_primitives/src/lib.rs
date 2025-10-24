@@ -25,6 +25,11 @@ pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod ellipse_3d_transform; // Ellipse3D の変換機能 (Transform)
 pub mod ellipse_3d_transform_safe; // Ellipse3D の安全な変換機能 (Safe Transform)
+pub mod ellipse_arc_3d; // EllipseArc3D の実装 (Core)
+pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
+pub mod ellipse_arc_3d_transform; // EllipseArc3D の変換機能 (Transform)
+                                  // pub mod ellipse_arc_3d_transform_safe; // EllipseArc3D の安全な変換機能 (Safe Transform) - 一時的に無効化
+pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
@@ -178,6 +183,7 @@ pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
 pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
+pub use ellipse_arc_3d::EllipseArc3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use point_3d::Point3D;
