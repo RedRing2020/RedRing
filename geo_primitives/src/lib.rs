@@ -10,6 +10,7 @@ pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
+pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
 pub mod arc_3d_transform_safe; // Arc3D の安全な変換機能 (Safe Transform)
 pub mod bbox_3d; // BBox3D の新実装
@@ -17,6 +18,9 @@ pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
 pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
 pub mod bbox_3d_transform_safe; // BBox3D の安全な変換機能 (Safe Transform)
 pub mod circle_3d; // Circle3D の新実装
+pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
+pub mod circle_3d_tests; // Circle3D のテスト
+pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
 pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
