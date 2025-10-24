@@ -12,9 +12,10 @@ permissions:
   pages: write
   id-token: write
 
+# GitHub Pages デプロイのコンカレンシー制御
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: 'pages'
+  cancel-in-progress: false
 
 jobs:
   build-test:
@@ -96,6 +97,12 @@ jobs:
     # Deploy documentation to GitHub Pages
     needs: [build-test, foundation-architecture-scan]
 
+    # GitHub Pagesデプロイに必要な権限を設定
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -108,9 +115,14 @@ jobs:
       - name: Build documentation
         run: mdbook build
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          force_orphan: true
+          path: ./docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

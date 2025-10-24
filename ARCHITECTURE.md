@@ -11,14 +11,14 @@ analysis ← model ← geo_algorithms ← geo_primitives ← geo_foundation
                                                    ↘ geo_core
 ```
 
-| クレート         | 責務                         | 状態        |
-| ---------------- | ---------------------------- | ----------- |
-| `geo_foundation` | 抽象型・トレイト定義・橋渡し | ✅ 実装済み |
-| `geo_core`       | 許容誤差・ロバスト幾何判定   | 🔄 開発中   |
-| `geo_primitives` | f64 正準幾何プリミティブ     | ✅ 実装済み |
-| `geo_algorithms` | 幾何アルゴリズム             | 🔄 開発中   |
-| `model`          | 高次曲線・曲面               | 📋 計画中   |
-| `analysis`       | 数値解析・CAM 処理           | 📋 計画中   |
+| クレート         | 責務                            | 状態        |
+| ---------------- | ------------------------------- | ----------- |
+| `geo_foundation` | 抽象型・トレイト定義・橋渡し    | ✅ 実装済み |
+| `geo_core`       | 許容誤差・ロバスト幾何判定      | ✅ 実装済み |
+| `geo_primitives` | Foundation 統合幾何プリミティブ | ✅ 完了     |
+| `geo_algorithms` | 幾何アルゴリズム                | 🔄 開発中   |
+| `model`          | 高次曲線・曲面                  | 📋 計画中   |
+| `analysis`       | 数値解析・CAM 処理              | 📋 計画中   |
 
 ### レンダリング層
 
@@ -39,8 +39,8 @@ redring ← stage ← render
 | 項目                    | 状態    | 説明                                      |
 | ----------------------- | ------- | ----------------------------------------- |
 | Vector/Point f64 化     | ✅ 完了 | `.value()` 呼び出し不要                   |
-| 3D 基本プリミティブ抽出 | ✅ 完了 | f64 正準型に統一                          |
-| f64 正準型 alias 公開   | ✅ 完了 | 旧 API 名は f64 実装へ透過接続            |
+| 3D 基本プリミティブ抽出 | ✅ 完了 | Foundation 統合型に統一                   |
+| Foundation 責務分離     | ✅ 完了 | Core/Extensions 分離による保守性向上      |
 | Legacy 削除フェーズ     | ✅ 完了 | 旧 Legacy\* 型削除、CI で deprecated deny |
 
 詳細な移行履歴と予定は `MIGRATION_VECTOR_F64.md` の末尾「Core Role Realignment」を参照してください。
