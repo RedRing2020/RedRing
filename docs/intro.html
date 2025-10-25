@@ -194,11 +194,11 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <h3 id="幾何計算層"><a class="header" href="#幾何計算層">幾何計算層</a></h3>
 <ul>
 <li><code>geo_foundation</code>：抽象型・トレイト定義・橋渡し</li>
-<li><code>geo_core</code>：許容誤差・ロバスト幾何判定</li>
-<li><code>geo_primitives</code>：f64 正準幾何プリミティブ</li>
-<li><code>geo_algorithms</code>：幾何アルゴリズム</li>
+<li><code>geo_core</code>：基本計算機能・許容誤差・ロバスト幾何判定</li>
+<li><code>geo_primitives</code>：Foundation 統合済み幾何プリミティブ（Core/Extensions 分離）</li>
+<li><code>geo_algorithms</code>：高度な幾何アルゴリズム・CAM 処理（今後拡張予定）</li>
 <li><code>model</code>：高次曲線・曲面（今後拡張予定）</li>
-<li><code>analysis</code>：数値解析・CAM 処理（今後拡張予定）</li>
+<li><code>analysis</code>：数値解析</li>
 </ul>
 <h3 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h3>
 <ul>
@@ -216,7 +216,9 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>型安全な幾何ライブラリ設計に関心のある開発者</li>
 </ul>
 <h2 id="開発状況"><a class="header" href="#開発状況">開発状況</a></h2>
-<p>現在は描画基盤と幾何計算層の初期構築段階です。NURBS 実装や CAM 機能は今後の開発対象となります。</p>
+<p>現在は描画基盤と幾何計算層の構築が完了し、Foundation 統合による責務分離が実装済みです。
+主要な 3D 幾何プリミティブは全て Core/Extensions 分離パターンに移行済みで、保守性が大幅に向上しています。
+NURBS 実装や CAM 機能は今後の開発対象となります。</p>
 <p>最新の進捗状況は以下で確認できます：</p>
 <ul>
 <li><a href="https://github.com/RedRing2020/RedRing/issues">GitHub Issues</a></li>

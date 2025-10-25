@@ -183,8 +183,9 @@
 <li><code>Point</code>：点</li>
 <li><code>Vector</code>：ベクトル</li>
 <li><code>Direction</code>：正規化されたベクトル</li>
-<li><code>Line</code>：直線</li>
-<li><code>Ray</code>：光線</li>
+<li><code>Line</code>：直線（線分）</li>
+<li><code>Ray</code>：光線（半無限直線）</li>
+<li><code>InfiniteLine</code> :無限直線</li>
 </ul>
 <h2 id="curvetype"><a class="header" href="#curvetype">CurveType</a></h2>
 <p>曲線要素の分類：</p>
@@ -193,8 +194,34 @@
 <li><code>Circle</code>：円</li>
 <li><code>Ellipse</code>：楕円</li>
 <li><code>Arc</code>：円弧</li>
-<li><code>Spline</code>：スプライン（NURBS 対応予定）</li>
+<li><code>EllipseArc</code>:楕円弧</li>
+<li><code>NurbsCurve</code>：NURBS 曲線</li>
 </ul>
+<h2 id="primitivesurfacetype"><a class="header" href="#primitivesurfacetype">PrimitiveSurfaceType</a></h2>
+<ul>
+<li><code>Plane</code>：無限平面</li>
+<li><code>Triangle</code>：三角形</li>
+<li><code>Rectangle</code>:四辺形</li>
+</ul>
+<h2 id="surfacetype"><a class="header" href="#surfacetype">SurfaceType</a></h2>
+<ul>
+<li><code>NurbsSurface</code>：NURBS 曲面</li>
+<li><code>RotateSolid</code>：回転体</li>
+<li><code>CylindricalSurface</code>：円柱面</li>
+<li><code>NurbsSurface</code>：NURBS 曲面</li>
+<li><code>polygonMesh</code>：多角形メッシュ</li>
+<li><code>TriangleMesh</code>：三角形メッシュ（表示用 or 三角形メッシュ操作用）</li>
+</ul>
+<h2 id="solidtype"><a class="header" href="#solidtype">SolidType</a></h2>
+<ul>
+<li><code>Sphere</code>：球</li>
+<li><code>CylindricalSolid</code>：円柱体</li>
+<li><code>Cone</code>：円錐</li>
+<li><code>Ellipsoid</code>：楕円体</li>
+<li><code>Torus</code>：トーラス</li>
+<li><code>RotateSolid</code>：回転体</li>
+</ul>
+<p>基本幾何プリミティブ面要素の分類</p>
 <h2 id="エラー型システム"><a class="header" href="#エラー型システム">エラー型システム</a></h2>
 <p>各幾何要素は専用のエラー型を持ちます：</p>
 <ul>

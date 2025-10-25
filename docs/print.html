@@ -195,11 +195,11 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <h3 id="幾何計算層"><a class="header" href="#幾何計算層">幾何計算層</a></h3>
 <ul>
 <li><code>geo_foundation</code>：抽象型・トレイト定義・橋渡し</li>
-<li><code>geo_core</code>：許容誤差・ロバスト幾何判定</li>
-<li><code>geo_primitives</code>：f64 正準幾何プリミティブ</li>
-<li><code>geo_algorithms</code>：幾何アルゴリズム</li>
+<li><code>geo_core</code>：基本計算機能・許容誤差・ロバスト幾何判定</li>
+<li><code>geo_primitives</code>：Foundation 統合済み幾何プリミティブ（Core/Extensions 分離）</li>
+<li><code>geo_algorithms</code>：高度な幾何アルゴリズム・CAM 処理（今後拡張予定）</li>
 <li><code>model</code>：高次曲線・曲面（今後拡張予定）</li>
-<li><code>analysis</code>：数値解析・CAM 処理（今後拡張予定）</li>
+<li><code>analysis</code>：数値解析</li>
 </ul>
 <h3 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h3>
 <ul>
@@ -217,7 +217,9 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>型安全な幾何ライブラリ設計に関心のある開発者</li>
 </ul>
 <h2 id="開発状況"><a class="header" href="#開発状況">開発状況</a></h2>
-<p>現在は描画基盤と幾何計算層の初期構築段階です。NURBS 実装や CAM 機能は今後の開発対象となります。</p>
+<p>現在は描画基盤と幾何計算層の構築が完了し、Foundation 統合による責務分離が実装済みです。
+主要な 3D 幾何プリミティブは全て Core/Extensions 分離パターンに移行済みで、保守性が大幅に向上しています。
+NURBS 実装や CAM 機能は今後の開発対象となります。</p>
 <p>最新の進捗状況は以下で確認できます：</p>
 <ul>
 <li><a href="https://github.com/RedRing2020/RedRing/issues">GitHub Issues</a></li>
@@ -229,25 +231,27 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <p>RedRing は、責務分離と型安全性を重視したワークスペース設計に基づいて構成されています。以下は主要なクレート群の概要です。</p>
 <h2 id="幾何計算層-1"><a class="header" href="#幾何計算層-1">幾何計算層</a></h2>
 <h3 id="geo_foundation"><a class="header" href="#geo_foundation"><code>geo_foundation</code></a></h3>
-<p><strong>抽象型・トレイト定義・橋渡し</strong></p>
+<p><strong>抽象型・許容誤差管理・トレイト定義・橋渡し</strong></p>
 <ul>
 <li>共通トレイト（<code>Normalizable</code>, <code>DistanceCalculation</code> など）</li>
+<li><code>ToleranceContext</code> による許容誤差管理</li>
+<li>トレラント比較</li>
 <li>エラー処理ガイドライン</li>
 <li>型安全な抽象化</li>
 </ul>
 <h3 id="geo_core"><a class="header" href="#geo_core"><code>geo_core</code></a></h3>
-<p><strong>許容誤差・ロバスト幾何判定</strong></p>
+<p>** 基本図形処理・ロバスト幾何判定**</p>
 <ul>
-<li><code>ToleranceContext</code> による許容誤差管理</li>
-<li>トレラント比較</li>
+<li>基本図形処理</li>
 <li>ロバスト幾何判定（orientation など）</li>
 </ul>
 <h3 id="geo_primitives"><a class="header" href="#geo_primitives"><code>geo_primitives</code></a></h3>
-<p><strong>f64 正準幾何プリミティブ</strong></p>
+<p><strong>Foundation 統合済み幾何プリミティブ</strong></p>
 <ul>
-<li>基本要素：<code>Point</code>, <code>Vector</code>, <code>Direction</code></li>
-<li>幾何形状：<code>Line</code>, <code>Circle</code>, <code>Ellipse</code>, <code>Arc</code></li>
+<li>基本要素：<code>Point</code>, <code>Vector</code>, <code>Direction</code>（Core/Extensions 分離済み）</li>
+<li>幾何形状：<code>LineSegment</code>, <code>Circle</code>, <code>Ellipse</code>, <code>Arc</code>（責務分離完了）</li>
 <li>2D/3D 両対応のジェネリック実装</li>
+<li>Foundation 統合アーキテクチャによる保守性向上</li>
 </ul>
 <h3 id="geo_algorithms"><a class="header" href="#geo_algorithms"><code>geo_algorithms</code></a></h3>
 <p><strong>幾何アルゴリズム</strong></p>
@@ -256,7 +260,7 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>曲線・曲面操作</li>
 <li>幾何変換</li>
 </ul>
-<h3 id="model"><a class="header" href="#model"><code>model</code></a></h3>
+<h3 id="geo_nurbs"><a class="header" href="#geo_nurbs"><code>geo_nurbs</code></a></h3>
 <p><strong>高次曲線・曲面</strong></p>
 <ul>
 <li>NURBS 曲線・曲面（今後実装予定）</li>
@@ -264,12 +268,54 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>抽象化レイヤ</li>
 </ul>
 <h3 id="analysis"><a class="header" href="#analysis"><code>analysis</code></a></h3>
-<p><strong>数値解析・CAM 処理</strong></p>
+<p><strong>数値解析・汎用数値計算</strong></p>
 <ul>
-<li>数値計算ユーティリティ</li>
-<li>CAM パス生成（今後実装予定）</li>
+<li>独立した汎用数値計算ライブラリ</li>
+<li><code>Scalar</code>トレイト、許容誤差管理</li>
+<li>ドメイン非依存の数学的基盤</li>
+<li>他のプロジェクトでも再利用可能</li>
+</ul>
+<h3 id="geo_io"><a class="header" href="#geo_io"><code>geo_io</code></a></h3>
+<p><strong>ファイルI/O・境界層処理</strong></p>
+<ul>
+<li>STL、OBJ、PLY等のファイル形式との変換</li>
+<li><strong>例外的設計</strong>: <code>geo_foundation</code>トレイトを経由せず、直接<code>geo_primitives</code>にアクセス</li>
+<li>ゼロコピー最適化によるパフォーマンス重視</li>
+<li>外部データ形式との効率的な境界処理</li>
+</ul>
+<h4 id="geo_io-の例外設計根拠"><a class="header" href="#geo_io-の例外設計根拠">geo_io の例外設計根拠</a></h4>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 他のgeo_*クレートは geo_foundation 経由
+use geo_foundation::{Point3D, Vector3D};
+
+// geo_ioのみ直接アクセス（例外パターン）
+use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
+<span class="boring">}</span></code></pre></pre>
+<p>この例外は以下の理由で採用：</p>
+<ul>
+<li><strong>パフォーマンス</strong>: ファイル形式との直接変換でゼロコピー最適化</li>
+<li><strong>責務明確化</strong>: I/O境界層としての特化</li>
+<li><strong>実装複雑性回避</strong>: 抽象化オーバーヘッドの排除</li>
+</ul>
+<h3 id="cam_solver"><a class="header" href="#cam_solver"><code>cam_solver</code></a></h3>
+<p><strong>CAM 演算・パス作成 / 編集・ポスト処理・切削シミュレーション</strong></p>
+<ul>
+<li>CAM パス生成 / 編集（今後実装予定）</li>
+<li>各 CNC コントローラー 対応ポスト処理（今後実装予定）</li>
 <li>切削シミュレーション（今後実装予定）</li>
 </ul>
+<h3 id="data_exchange"><a class="header" href="#data_exchange"><code>data_exchange</code></a></h3>
+<p><strong>データインポート/エクスポート（将来実装予定）</strong></p>
+<ul>
+<li>STL インポート/エクスポート</li>
+<li>OBJ インポート/エクスポート</li>
+<li>STEP インポート/エクスポート</li>
+<li>IGES インポート/エクスポート</li>
+<li>DXF インポート/エクスポート</li>
+<li>DWG インポート/エクスポート</li>
+</ul>
+<p><em>注記</em>: 現在は<code>geo_io</code>でSTL形式のみ実装済み</p>
 <h2 id="レンダリング層-1"><a class="header" href="#レンダリング層-1">レンダリング層</a></h2>
 <h3 id="render"><a class="header" href="#render"><code>render</code></a></h3>
 <p><strong>GPU 描画基盤</strong></p>
@@ -286,11 +332,14 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li>シーン構成</li>
 </ul>
 <h3 id="viewmodel"><a class="header" href="#viewmodel"><code>viewmodel</code></a></h3>
-<p><strong>ビュー操作・変換ロジック</strong></p>
+<p><strong>ビュー操作・変換ロジック・MVVMアーキテクチャ</strong></p>
 <ul>
-<li>カメラ制御</li>
+<li>カメラ制御（将来実装予定）</li>
 <li>ビュー変換</li>
-<li>ユーザーインタラクション</li>
+<li>ユーザーインタラクション（将来実装予定）</li>
+<li><strong>MVVM準拠</strong>: Model層（<code>geo_*</code>）とView層（<code>render</code>）の架け橋</li>
+<li>STL読み込み・GPU変換機能（<code>stl_loader</code>）</li>
+<li>メッシュデータ変換（<code>mesh_converter</code>）</li>
 </ul>
 <h3 id="redring"><a class="header" href="#redring"><code>redring</code></a></h3>
 <p><strong>メインアプリケーション</strong></p>
@@ -306,7 +355,16 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li><strong>モジュール性</strong>：<code>render</code> は <code>model</code> に依存しない設計</li>
 <li><strong>拡張性</strong>：将来的な NURBS や WebAssembly 対応を考慮</li>
 <li><strong>国際化</strong>：英語ベースの命名で国際的な貢献を促進</li>
+<li><strong>MVVMアーキテクチャ</strong>：View → ViewModel → Model の層分離</li>
+<li><strong>例外設計許容</strong>：パフォーマンス要件に応じた適切な例外設計（I/O層など）</li>
 </ul>
+<h2 id="アーキテクチャ依存関係"><a class="header" href="#アーキテクチャ依存関係">アーキテクチャ依存関係</a></h2>
+<pre><code>redring (View) → viewmodel → model (geo_*)
+            ↘  stage → render
+
+独立: analysis (汎用数値計算)
+例外: geo_io (直接geo_primitives依存でゼロコピー最適化)
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="型分類--type-classification-system"><a class="header" href="#型分類--type-classification-system">型分類 / Type Classification System</a></h1>
 <p>RedRing では、幾何学要素の分類を明示的な型システムで定義することで、型安全性と構造的明快さを両立しています。</p>
 <h2 id="primitivekind"><a class="header" href="#primitivekind">PrimitiveKind</a></h2>
@@ -315,8 +373,9 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li><code>Point</code>：点</li>
 <li><code>Vector</code>：ベクトル</li>
 <li><code>Direction</code>：正規化されたベクトル</li>
-<li><code>Line</code>：直線</li>
-<li><code>Ray</code>：光線</li>
+<li><code>Line</code>：直線（線分）</li>
+<li><code>Ray</code>：光線（半無限直線）</li>
+<li><code>InfiniteLine</code> :無限直線</li>
 </ul>
 <h2 id="curvetype"><a class="header" href="#curvetype">CurveType</a></h2>
 <p>曲線要素の分類：</p>
@@ -325,8 +384,34 @@ RedRing は、Rust の型システムを活用し、<strong>型安全性・責�
 <li><code>Circle</code>：円</li>
 <li><code>Ellipse</code>：楕円</li>
 <li><code>Arc</code>：円弧</li>
-<li><code>Spline</code>：スプライン（NURBS 対応予定）</li>
+<li><code>EllipseArc</code>:楕円弧</li>
+<li><code>NurbsCurve</code>：NURBS 曲線</li>
 </ul>
+<h2 id="primitivesurfacetype"><a class="header" href="#primitivesurfacetype">PrimitiveSurfaceType</a></h2>
+<ul>
+<li><code>Plane</code>：無限平面</li>
+<li><code>Triangle</code>：三角形</li>
+<li><code>Rectangle</code>:四辺形</li>
+</ul>
+<h2 id="surfacetype"><a class="header" href="#surfacetype">SurfaceType</a></h2>
+<ul>
+<li><code>NurbsSurface</code>：NURBS 曲面</li>
+<li><code>RotateSolid</code>：回転体</li>
+<li><code>CylindricalSurface</code>：円柱面</li>
+<li><code>NurbsSurface</code>：NURBS 曲面</li>
+<li><code>polygonMesh</code>：多角形メッシュ</li>
+<li><code>TriangleMesh</code>：三角形メッシュ（表示用 or 三角形メッシュ操作用）</li>
+</ul>
+<h2 id="solidtype"><a class="header" href="#solidtype">SolidType</a></h2>
+<ul>
+<li><code>Sphere</code>：球</li>
+<li><code>CylindricalSolid</code>：円柱体</li>
+<li><code>Cone</code>：円錐</li>
+<li><code>Ellipsoid</code>：楕円体</li>
+<li><code>Torus</code>：トーラス</li>
+<li><code>RotateSolid</code>：回転体</li>
+</ul>
+<p>基本幾何プリミティブ面要素の分類</p>
 <h2 id="エラー型システム"><a class="header" href="#エラー型システム">エラー型システム</a></h2>
 <p>各幾何要素は専用のエラー型を持ちます：</p>
 <ul>
@@ -424,6 +509,45 @@ pub trait DistanceCalculation&lt;T, Target&gt; {
 <li><strong>トレイト設計</strong>: 共通操作は統合トレイトで抽象化</li>
 <li><strong>エラー情報</strong>: 具体的で actionable なエラーメッセージ</li>
 </ul>
+<h2 id="6-io-レイヤーの例外的設計パターン"><a class="header" href="#6-io-レイヤーの例外的設計パターン">6. I/O レイヤーの例外的設計パターン</a></h2>
+<p>RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O層に例外的な設計パターンを採用しています。</p>
+<h3 id="geo_foundation-トレイト設計からの例外"><a class="header" href="#geo_foundation-トレイト設計からの例外">geo_foundation トレイト設計からの例外</a></h3>
+<p><code>geo_io</code> クレートは、他の <code>geo_*</code> クレートとは異なり、<code>geo_foundation</code> トレイトを経由せず、直接 <code>geo_primitives</code> にアクセスします：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// geo_io での直接アクセス（例外パターン）
+use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
+
+pub fn load_stl&lt;T: Scalar&gt;(path: &amp;Path) -&gt; Result&lt;TriangleMesh3D&lt;T&gt;, IoError&gt; {
+    // ファイル形式との直接的な変換処理
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="設計根拠"><a class="header" href="#設計根拠">設計根拠</a></h3>
+<ol>
+<li><strong>ゼロコピー最適化</strong>: ファイル形式との効率的なデータ変換</li>
+<li><strong>境界層の責務</strong>: 外部データ形式 ↔ 内部データ構造の変換に特化</li>
+<li><strong>パフォーマンス重視</strong>: 大量データの高速処理要件</li>
+<li><strong>実装複雑性の回避</strong>: 抽象化によるオーバーヘッドを排除</li>
+</ol>
+<h3 id="mvvm準拠のアクセスパターン"><a class="header" href="#mvvm準拠のアクセスパターン">MVVM準拠のアクセスパターン</a></h3>
+<p>View層（<code>redring</code>）は直接 <code>geo_io</code> にアクセスせず、ViewModel層（<code>viewmodel</code>）を経由：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// ❌ View層での直接I/Oアクセス（禁止）
+// use geo_io::stl;
+
+// ✅ ViewModel経由のアクセス（推奨）
+use viewmodel::stl_loader::{load_stl_mesh, StlMeshData};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="analysis-クレートの汎用性"><a class="header" href="#analysis-クレートの汎用性">Analysis クレートの汎用性</a></h3>
+<p><code>analysis</code> クレートは数値計算ライブラリとして独立し、特定のドメインに依存しない汎用的な実装を提供：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 汎用数値型とトレイト
+pub trait Scalar: Copy + Clone + PartialEq + PartialOrd + ... {}
+pub trait TolerantEq&lt;T: Scalar&gt; { ... }
+<span class="boring">}</span></code></pre></pre>
+<p>この設計により、各層の責務が明確になり、パフォーマンスと保守性のバランスが実現されます。</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="coreextension-foundation-パターン"><a class="header" href="#coreextension-foundation-パターン">Core/Extension Foundation パターン</a></h1>
 <p>RedRing の中核設計原則である Core/Extension Foundation パターンについて説明します。</p>
 <h2 id="パターンの概要"><a class="header" href="#パターンの概要">パターンの概要</a></h2>

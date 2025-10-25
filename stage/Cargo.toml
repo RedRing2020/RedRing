@@ -1,9 +1,0 @@
-[package]
-name = "stage"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-wgpu = "27.0.1"
-render = { path = "../render" }
-bytemuck = "1.23.2"

@@ -239,6 +239,45 @@ pub trait DistanceCalculation&lt;T, Target&gt; {
 <li><strong>トレイト設計</strong>: 共通操作は統合トレイトで抽象化</li>
 <li><strong>エラー情報</strong>: 具体的で actionable なエラーメッセージ</li>
 </ul>
+<h2 id="6-io-レイヤーの例外的設計パターン"><a class="header" href="#6-io-レイヤーの例外的設計パターン">6. I/O レイヤーの例外的設計パターン</a></h2>
+<p>RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O層に例外的な設計パターンを採用しています。</p>
+<h3 id="geo_foundation-トレイト設計からの例外"><a class="header" href="#geo_foundation-トレイト設計からの例外">geo_foundation トレイト設計からの例外</a></h3>
+<p><code>geo_io</code> クレートは、他の <code>geo_*</code> クレートとは異なり、<code>geo_foundation</code> トレイトを経由せず、直接 <code>geo_primitives</code> にアクセスします：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// geo_io での直接アクセス（例外パターン）
+use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
+
+pub fn load_stl&lt;T: Scalar&gt;(path: &amp;Path) -&gt; Result&lt;TriangleMesh3D&lt;T&gt;, IoError&gt; {
+    // ファイル形式との直接的な変換処理
+}
+<span class="boring">}</span></code></pre></pre>
+<h3 id="設計根拠"><a class="header" href="#設計根拠">設計根拠</a></h3>
+<ol>
+<li><strong>ゼロコピー最適化</strong>: ファイル形式との効率的なデータ変換</li>
+<li><strong>境界層の責務</strong>: 外部データ形式 ↔ 内部データ構造の変換に特化</li>
+<li><strong>パフォーマンス重視</strong>: 大量データの高速処理要件</li>
+<li><strong>実装複雑性の回避</strong>: 抽象化によるオーバーヘッドを排除</li>
+</ol>
+<h3 id="mvvm準拠のアクセスパターン"><a class="header" href="#mvvm準拠のアクセスパターン">MVVM準拠のアクセスパターン</a></h3>
+<p>View層（<code>redring</code>）は直接 <code>geo_io</code> にアクセスせず、ViewModel層（<code>viewmodel</code>）を経由：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// ❌ View層での直接I/Oアクセス（禁止）
+// use geo_io::stl;
+
+// ✅ ViewModel経由のアクセス（推奨）
+use viewmodel::stl_loader::{load_stl_mesh, StlMeshData};
+<span class="boring">}</span></code></pre></pre>
+<h3 id="analysis-クレートの汎用性"><a class="header" href="#analysis-クレートの汎用性">Analysis クレートの汎用性</a></h3>
+<p><code>analysis</code> クレートは数値計算ライブラリとして独立し、特定のドメインに依存しない汎用的な実装を提供：</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 汎用数値型とトレイト
+pub trait Scalar: Copy + Clone + PartialEq + PartialOrd + ... {}
+pub trait TolerantEq&lt;T: Scalar&gt; { ... }
+<span class="boring">}</span></code></pre></pre>
+<p>この設計により、各層の責務が明確になり、パフォーマンスと保守性のバランスが実現されます。</p>
 
                     </main>
 

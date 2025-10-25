@@ -1,17 +1,17 @@
 [workspace]
 members = [
-    "analysis",        # 新規：数値解析クレート
-    "geo_foundation",  # 新規：幾何計算基盤（抽象型・橋渡し）
-    "geo_core",        # 新規：幾何計算基盤
-    "geo_primitives",  # 新規：幾何プリミティブクレート
-    "geo_algorithms",  # 新規：幾何アルゴリズムクレート
-    "geo_io",          # 新規：ファイルI/Oクレート
-    "model",
-    "viewmodel",
-    "render",
-    "redring",         # メインクレート
-    "stage"
-, "geo_algorithms", "geo_foundation"]
+    "analysis",                # 独立：数値解析クレート（汎用基盤）
+    "model/geo_foundation",    # Model層：幾何計算基盤（抽象型・橋渡し）
+    "model/geo_core",          # Model層：幾何計算基盤
+    "model/geo_primitives",    # Model層：幾何プリミティブクレート
+    "model/geo_algorithms",    # Model層：幾何アルゴリズムクレート
+    "model/geo_io",            # Model層：ファイルI/Oクレート
+    "viewmodel/converter",     # ViewModel層：データ変換・架け橋
+    "viewmodel/graphics",      # ViewModel層：グラフィックス制御（カメラ等）
+    "view/render",             # View層：GPU描画基盤
+    "view/stage",              # View層：レンダリングステージ管理
+    "view/app",                # View層：メインアプリケーション
+]
 resolver = "3"
 
 [workspace.dependencies]
