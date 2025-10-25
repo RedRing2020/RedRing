@@ -23,12 +23,12 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_primitives`
 
-**Foundation統合済み幾何プリミティブ**
+**Foundation 統合済み幾何プリミティブ**
 
-- 基本要素：`Point`, `Vector`, `Direction`（Core/Extensions分離済み）
+- 基本要素：`Point`, `Vector`, `Direction`（Core/Extensions 分離済み）
 - 幾何形状：`LineSegment`, `Circle`, `Ellipse`, `Arc`（責務分離完了）
 - 2D/3D 両対応のジェネリック実装
-- Foundation統合アーキテクチャによる保守性向上
+- Foundation 統合アーキテクチャによる保守性向上
 
 ### `geo_algorithms`
 

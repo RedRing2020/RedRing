@@ -24,7 +24,7 @@ RedRing は以下のワークスペース構成になっています：
 
 - `geo_foundation`：抽象型・トレイト定義・橋渡し
 - `geo_core`：基本計算機能・許容誤差・ロバスト幾何判定
-- `geo_primitives`：Foundation統合済み幾何プリミティブ（Core/Extensions分離）
+- `geo_primitives`：Foundation 統合済み幾何プリミティブ（Core/Extensions 分離）
 - `geo_algorithms`：高度な幾何アルゴリズム・CAM 処理（今後拡張予定）
 - `model`：高次曲線・曲面（今後拡張予定）
 - `analysis`：数値解析
@@ -47,8 +47,8 @@ RedRing は以下のワークスペース構成になっています：
 
 ## 開発状況
 
-現在は描画基盤と幾何計算層の構築が完了し、Foundation統合による責務分離が実装済みです。
-主要な3D幾何プリミティブは全てCore/Extensions分離パターンに移行済みで、保守性が大幅に向上しています。
+現在は描画基盤と幾何計算層の構築が完了し、Foundation 統合による責務分離が実装済みです。
+主要な 3D 幾何プリミティブは全て Core/Extensions 分離パターンに移行済みで、保守性が大幅に向上しています。
 NURBS 実装や CAM 機能は今後の開発対象となります。
 
 最新の進捗状況は以下で確認できます：
