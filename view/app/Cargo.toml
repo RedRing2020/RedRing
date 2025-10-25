@@ -10,7 +10,7 @@ smol_str = "0.3.2"
 pollster.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-viewmodel = { path = "../viewmodel/converter" }
+viewmodel = { path = "../../viewmodel/converter" }
 render = { path = "../render" }
 stage = { path = "../stage" }
-analysis = { path = "../analysis" }
+analysis = { path = "../../analysis" }

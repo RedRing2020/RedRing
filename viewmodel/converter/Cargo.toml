@@ -1,0 +1,11 @@
+[package]
+name = "viewmodel"
+version = "0.1.0"
+edition = "2024"
+description = "Data conversion layer for MVVM architecture - Model to View transformation"
+
+[dependencies]
+geo_foundation = { path = "../../model/geo_foundation" }
+geo_primitives = { path = "../../model/geo_primitives" }
+geo_io = { path = "../../model/geo_io" }
+tracing = "0.1"
