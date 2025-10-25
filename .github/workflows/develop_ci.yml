@@ -1,0 +1,119 @@
+name: Development CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+# 基本的な権限設定（デプロイメント権限なし）
+permissions:
+  contents: read
+  actions: read
+
+# 並行実行制御
+concurrency:
+  group: develop-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [stable]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+          components: clippy, rustfmt
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy lints
+        run: cargo clippy --all-targets --all-features --workspace -- -D warnings
+
+      - name: Build workspace
+        run: cargo build --workspace --verbose
+
+      - name: Run tests
+        run: cargo test --workspace --verbose
+
+      - name: Build documentation
+        run: |
+          cargo doc --workspace --no-deps --verbose
+          echo "✅ Documentation built successfully (develop branch - no deployment)"
+
+  foundation-architecture-scan:
+    name: Foundation Architecture Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Foundation architecture validation
+        run: |
+          echo "🔍 Foundation Architecture Validation"
+          echo "📦 Checking geo_foundation crate structure..."
+
+          # geo_foundation の基本構造確認
+          if [ -f "geo_foundation/Cargo.toml" ]; then
+            echo "✅ geo_foundation/Cargo.toml found"
+          else
+            echo "❌ geo_foundation/Cargo.toml not found"
+            exit 1
+          fi
+
+          # Transform error 統合確認
+          if grep -r "TransformError" geo_foundation/src/ > /dev/null 2>&1; then
+            echo "✅ TransformError found in geo_foundation"
+          else
+            echo "❌ TransformError not found in geo_foundation"
+            exit 1
+          fi
+
+          # geo_primitives での重複確認
+          if grep -r "enum TransformError" geo_primitives/src/ > /dev/null 2>&1; then
+            echo "❌ Duplicate TransformError found in geo_primitives"
+            exit 1
+          else
+            echo "✅ No duplicate TransformError in geo_primitives"
+          fi
+
+          echo "✅ Foundation architecture validation completed"
+
+  check-no-deployment:
+    name: Development Branch Status
+    runs-on: ubuntu-latest
+    needs: [build-test, foundation-architecture-scan]
+
+    steps:
+      - name: Development branch notification
+        run: |
+          echo "🚀 Development CI completed successfully"
+          echo "📋 Branch: ${{ github.ref_name }}"
+          echo "🔄 Event: ${{ github.event_name }}"
+          echo "ℹ️  No deployment occurs on development branches"
+          echo "📖 Documentation deployment only occurs on the 'main' branch"
+          echo "✅ All development checks passed"

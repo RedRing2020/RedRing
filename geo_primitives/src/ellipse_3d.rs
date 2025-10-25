@@ -1,4 +1,4 @@
-﻿//! 3D楕円のCore実装
+//! 3D楕円のCore実装
 //!
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
@@ -119,7 +119,8 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 短軸方向ベクトルを取得
     pub fn minor_axis_direction(&self) -> Direction3D<T> {
-        self.normal.cross(&self.major_axis_dir)
+        Direction3D::from_vector(self.normal.cross(&self.major_axis_dir))
+            .expect("Cross product of normalized vectors should be valid")
     }
 
     // ========================================================================
@@ -180,6 +181,19 @@ impl<T: Scalar> Ellipse3D<T> {
             self.center.y() + major_component.y() + minor_component.y(),
             self.center.z() + major_component.z() + minor_component.z(),
         )
+    }
+
+    /// パラメータ t での楕円の接線ベクトルを計算
+    /// t ∈ [0, 2π]
+    pub fn tangent_at_parameter(&self, t: T) -> Vector3D<T> {
+        let cos_t = t.cos();
+        let sin_t = t.sin();
+
+        let major_component = self.major_axis_dir.as_vector() * (-self.semi_major_axis * sin_t);
+        let minor_component =
+            self.minor_axis_direction().as_vector() * (self.semi_minor_axis * cos_t);
+
+        major_component + minor_component
     }
 
     /// 角度 θ での楕円上の点を計算

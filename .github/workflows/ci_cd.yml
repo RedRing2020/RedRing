@@ -2,19 +2,20 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main] # メインブランチのみでデプロイメントワークフローを実行
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
-# GitHub Pages デプロイ用の権限設定
+# GitHub Pages デプロイ用の権限設定（mainブランチのみ）
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# GitHub Pages デプロイのコンカレンシー制御
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: 'pages'
+  cancel-in-progress: false
 
 jobs:
   build-test:
@@ -93,18 +94,23 @@ jobs:
   deploy-docs:
     name: Deploy Documentation
     runs-on: ubuntu-latest
-    # Only deploy on pushes to develop branch (not PRs or main)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    # Wait for build-test job to complete successfully
+    # Deploy documentation to GitHub Pages (mainブランチのみ)
+    if: github.ref == 'refs/heads/main'
     needs: [build-test, foundation-architecture-scan]
 
-    # GitHub Pages デプロイ環境設定
+    # GitHub Pages環境の指定（必須）
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
+    # GitHub Pagesデプロイに必要な権限を設定
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup mdBook
@@ -121,7 +127,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './docs'
+          path: ./docs
 
       - name: Deploy to GitHub Pages
         id: deployment

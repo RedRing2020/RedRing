@@ -25,7 +25,7 @@ impl<T: Scalar> BasicTransform<T> for Ray3D<T> {
     /// Z軸周りの回転（簡易実装）
     fn rotate(&self, _center: Self::Point2D, _angle: Self::Angle) -> Self::Transformed {
         // 簡易実装：回転は複雑なので、現在は元のRayをクローンして返す
-        self.clone()
+        *self
     }
 
     /// 均一スケール

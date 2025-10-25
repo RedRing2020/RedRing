@@ -10,23 +10,38 @@ pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
+pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
+pub mod arc_3d_transform_safe; // Arc3D の安全な変換機能 (Safe Transform)
 pub mod bbox_3d; // BBox3D の新実装
 pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
 pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
+pub mod bbox_3d_transform_safe; // BBox3D の安全な変換機能 (Safe Transform)
 pub mod circle_3d; // Circle3D の新実装
+pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
+pub mod circle_3d_tests; // Circle3D のテスト
+pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
+pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
+pub mod direction_3d_transform_safe; // Direction3D の安全な変換機能 (Safe Transform)
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod ellipse_3d_transform; // Ellipse3D の変換機能 (Transform)
 pub mod ellipse_3d_transform_safe; // Ellipse3D の安全な変換機能 (Safe Transform)
+pub mod ellipse_arc_3d; // EllipseArc3D の実装 (Core)
+pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
+pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
+pub mod ellipse_arc_3d_transform; // EllipseArc3D の変換機能 (Transform)
+pub mod ellipse_arc_3d_transform_safe; // EllipseArc3D の安全な変換機能 (Safe Transform)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
+pub mod infinite_line_3d_transform_safe; // InfiniteLine3D の安全な変換機能 (Safe Transform)
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
+pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機能 (Safe Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
@@ -34,6 +49,7 @@ pub mod point_3d_transform_safe; // Point3D の安全な変換機能 (Safe Trans
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
+pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform)
 
 // Vector3D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_3d; // Vector3D の新実装
@@ -59,25 +75,34 @@ pub mod vector_3d_transform_safe_tests;
 // Arc2D関連（ジェネリック実装完了により再有効化）
 pub mod arc_2d; // Arc2D の新実装 (Core)
 pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装
+                          // pub mod arc_2d_transform; // Arc2D の変換機能 (Transform) - 一時無効化
+pub mod arc_2d_transform_safe; // Arc2D の安全な変換機能 (Safe Transform)
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod bbox_2d_transform; // BBox2D の変換機能 (Transform)
+pub mod bbox_2d_transform_safe; // BBox2D の安全な変換機能 (Safe Transform)
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod circle_2d_transform; // Circle2D の変換機能 (Transform)
+pub mod circle_2d_transform_safe; // Circle2D の安全な変換機能 (Safe Transform)
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
+pub mod direction_2d_transform_safe; // Direction2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
 pub mod ellipse_2d_transform; // Ellipse2D の変換機能 (Transform)
+pub mod ellipse_2d_transform_safe; // Ellipse2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod ellipse_arc_2d_transform; // EllipseArc2D の変換機能 (Transform)
+pub mod ellipse_arc_2d_transform_safe; // EllipseArc2D の安全な変換機能 (Safe Transform)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
+pub mod infinite_line_2d_transform_safe; // InfiniteLine2D の安全な変換機能 (Safe Transform)
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
+pub mod line_segment_2d_transform_safe; // LineSegment2D の安全な変換機能 (Safe Transform)
 pub mod point_2d; // Point2D の新実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
@@ -85,6 +110,7 @@ pub mod point_2d_transform_safe; // Point2D の安全な変換機能 (Safe Trans
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
+pub mod ray_2d_transform_safe; // Ray2D の安全な変換機能 (Safe Transform)
 
 // Vector2D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_2d; // Vector2D の新実装 (Core)
@@ -161,6 +187,7 @@ pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
 pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
+pub use ellipse_arc_3d::EllipseArc3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use point_3d::Point3D;
