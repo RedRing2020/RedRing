@@ -135,7 +135,7 @@ fn calculate_bounds(mesh: &geo_primitives::TriangleMesh3D<f64>) -> ([f32; 3], [f
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;  // テストが無効化されているため一時的にコメントアウト
 
     #[test]
     #[ignore] // tempfile依存のため一時的に無効化

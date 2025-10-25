@@ -119,7 +119,7 @@ jobs:
             # コメントアウトされていない use geo_primitives:: を検索
             if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
               # 許可されたパス以外の場合は違反
-              if ! echo "$file" | grep -qE "^\./viewmodel/|^\./model/geo_foundation/|^\./model/geo_io/"; then
+              if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
                 if [ -z "$FORBIDDEN_IMPORTS" ]; then
                   FORBIDDEN_IMPORTS="$file"
                 else
