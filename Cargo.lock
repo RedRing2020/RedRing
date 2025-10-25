@@ -1846,6 +1846,7 @@ dependencies = [
 name = "redring"
 version = "0.1.0"
 dependencies = [
+ "analysis",
  "geo_foundation",
  "geo_io",
  "geo_primitives",
@@ -1895,10 +1896,9 @@ name = "render"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "geo_foundation",
- "geo_primitives",
  "pollster",
  "tracing",
+ "viewmodel",
  "wgpu",
  "winit",
 ]
@@ -2423,7 +2423,10 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "viewmodel"
 version = "0.1.0"
 dependencies = [
+ "geo_foundation",
+ "geo_primitives",
  "model",
+ "tracing",
 ]
 
 [[package]]

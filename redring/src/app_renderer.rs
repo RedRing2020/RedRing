@@ -37,4 +37,9 @@ impl AppRenderer {
     pub fn update(&mut self) {
         self.stage.update();
     }
+
+    /// ステージへの可変参照を取得（カメラ更新など）
+    pub fn get_stage_mut(&mut self) -> &mut dyn RenderStage {
+        self.stage.as_mut()
+    }
 }

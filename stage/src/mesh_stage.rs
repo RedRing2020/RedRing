@@ -31,6 +31,27 @@ impl MeshStage {
         // リソースにメッシュデータを更新
         self.resources.update_mesh_data(device, &vertices, &indices);
     }
+
+    /// カメラ行列を更新
+    pub fn update_camera(
+        &mut self,
+        queue: &wgpu::Queue,
+        view_matrix: [[f32; 4]; 4],
+        proj_matrix: [[f32; 4]; 4],
+    ) {
+        self.resources
+            .update_camera(queue, view_matrix, proj_matrix);
+    }
+
+    /// ワイヤーフレームモードを切り替え
+    pub fn toggle_wireframe(&mut self) {
+        self.resources.toggle_wireframe();
+    }
+
+    /// ワイヤーフレームモードかどうか
+    pub fn is_wireframe(&self) -> bool {
+        self.resources.is_wireframe()
+    }
 }
 
 impl RenderStage for MeshStage {
@@ -62,5 +83,9 @@ impl RenderStage for MeshStage {
 
     fn update(&mut self) {
         // 必要に応じてアニメーション更新等を実装
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }

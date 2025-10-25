@@ -19,7 +19,7 @@ impl<'a> GpuContext<'a> {
 
         let descriptor = wgpu::DeviceDescriptor {
             label: Some("RedRing Device"),
-            required_features: wgpu::Features::empty(),
+            required_features: wgpu::Features::POLYGON_MODE_LINE, // ワイヤーフレーム機能を有効化
             required_limits: wgpu::Limits::default(),
             memory_hints: wgpu::MemoryHints::default(),
             trace: wgpu::Trace::default(),

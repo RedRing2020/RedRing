@@ -9,5 +9,4 @@ wgpu = "27.0.1"
 tracing = "0.1"
 bytemuck = "1.23.2"
 pollster.workspace = true
-geo_primitives = { path = "../geo_primitives" }
-geo_foundation = { path = "../geo_foundation" }
+viewmodel = { path = "../viewmodel" }

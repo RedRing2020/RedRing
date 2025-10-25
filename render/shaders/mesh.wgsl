@@ -46,8 +46,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let light_dir = normalize(vec3<f32>(1.0, 1.0, 1.0));
     let diffuse = max(dot(normal, light_dir), 0.1); // 最小値0.1でアンビエント効果
 
-    // 基本的なマテリアルカラー（グレー）
-    let base_color = vec3<f32>(0.7, 0.7, 0.7);
+    // 基本的なマテリアルカラー（オレンジ色で見えやすく）
+    let base_color = vec3<f32>(1.0, 0.5, 0.2);
 
     // 最終カラー
     let final_color = base_color * diffuse;

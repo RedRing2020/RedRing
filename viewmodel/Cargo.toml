@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 model = { path = "../model" }
+geo_foundation = { path = "../geo_foundation" }
+geo_primitives = { path = "../geo_primitives" }
+tracing = "0.1"

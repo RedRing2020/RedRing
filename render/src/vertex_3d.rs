@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use viewmodel::mesh_converter::VertexData;
 use wgpu::vertex_attr_array;
 
 #[repr(C)]
@@ -32,6 +33,14 @@ impl MeshVertex {
         Self { position, normal }
     }
 
+    /// viewmodelのVertexDataから変換
+    pub fn from_vertex_data(vertex_data: &VertexData) -> Self {
+        Self {
+            position: vertex_data.position,
+            normal: vertex_data.normal,
+        }
+    }
+
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         const ATTRIBUTES: &[wgpu::VertexAttribute] = &vertex_attr_array![
             0 => Float32x3, // position @location(0)
@@ -44,4 +53,12 @@ impl MeshVertex {
             attributes: ATTRIBUTES,
         }
     }
+}
+
+/// VertexDataのベクタをMeshVertexのベクタに変換
+pub fn convert_vertex_data_to_mesh_vertices(vertex_data: &[VertexData]) -> Vec<MeshVertex> {
+    vertex_data
+        .iter()
+        .map(MeshVertex::from_vertex_data)
+        .collect()
 }

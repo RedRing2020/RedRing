@@ -64,4 +64,8 @@ impl RenderStage for ShadingStage {
         self.frame_count += 1;
         // 今後: アニメーションやカメラ制御などを追加可能
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
