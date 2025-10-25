@@ -97,7 +97,7 @@ jobs:
     # Deploy documentation to GitHub Pages (mainブランチのみ)
     if: github.ref == 'refs/heads/main'
     needs: [build-test, foundation-architecture-scan]
-    
+
     # GitHub Pages環境の指定（必須）
     environment:
       name: github-pages
