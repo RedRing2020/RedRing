@@ -8,7 +8,7 @@ RedRing の幾何計算層とレンダリング層の構成について説明し
 
 ```
 analysis ← model ← geo_algorithms ← geo_primitives ← geo_foundation
-                                                   ↘ geo_core
+                                 ← geo_io ←---------↗ geo_core
 ```
 
 | クレート         | 責務                            | 状態        |
@@ -16,6 +16,7 @@ analysis ← model ← geo_algorithms ← geo_primitives ← geo_foundation
 | `geo_foundation` | 抽象型・トレイト定義・橋渡し    | ✅ 実装済み |
 | `geo_primitives` | Foundation 統合幾何プリミティブ | 🔄 開発中   |
 | `geo_core`       | 幾何基本演算・ロバスト幾何判定  | 📋 計画中   |
+| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）  | 📋 計画中   |
 | `model`          | 高次曲線・曲面                  | 📋 計画中   |
 | `geo_algorithms` | 幾何アルゴリズム                | 📋 計画中   |
 | `analysis`       | 数値解析                        | 🔄 開発中   |

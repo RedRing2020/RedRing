@@ -1,0 +1,20 @@
+[package]
+name = "geo_io"
+version = "0.1.0"
+edition = "2021"
+description = "File I/O operations for geometric data (STL, OBJ, PLY, etc.)"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+geo_primitives = { path = "../geo_primitives" }
+geo_foundation = { path = "../geo_foundation" }
+
+# Optional async support
+tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }
+
+[features]
+default = []
+async = ["tokio"]
+
+[dev-dependencies]
+tempfile = "3.0"

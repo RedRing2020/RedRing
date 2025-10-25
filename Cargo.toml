@@ -5,6 +5,7 @@ members = [
     "geo_core",        # 新規：幾何計算基盤
     "geo_primitives",  # 新規：幾何プリミティブクレート
     "geo_algorithms",  # 新規：幾何アルゴリズムクレート
+    "geo_io",          # 新規：ファイルI/Oクレート
     "model",
     "viewmodel",
     "render",
