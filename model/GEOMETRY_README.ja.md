@@ -35,7 +35,7 @@ redring ─┬─ viewmodel ── model(抽象) ──┐
 
 ```rust
 use model::geometry_trait::{Curve2D, Curve3D};
-use geo_foundation::Scalar;  // Foundation推奨パターン
+use geo_foundation::Scalar;  // Foundation推奨アーキテクチャパターン
 
 struct MyCurve2D { /* ... */ }
 
