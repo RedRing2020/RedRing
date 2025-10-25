@@ -4,7 +4,7 @@ use super::*;
 use crate::{Point3D, Triangle3D, Vector3D};
 
 #[cfg(test)]
-mod triangle_3d_tests {
+mod tests {
     use super::*;
 
     #[test]
