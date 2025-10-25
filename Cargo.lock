@@ -1892,6 +1892,8 @@ name = "render"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "geo_foundation",
+ "geo_primitives",
  "pollster",
  "tracing",
  "wgpu",
