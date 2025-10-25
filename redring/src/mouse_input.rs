@@ -39,15 +39,12 @@ impl MouseInput {
 
     /// キー状態を更新
     pub fn update_key(&mut self, key: &winit::keyboard::Key, pressed: bool) {
-        match key {
-            winit::keyboard::Key::Named(winit::keyboard::NamedKey::Control) => {
-                self.ctrl_pressed = pressed;
-                if !pressed {
-                    self.operation = MouseOperation::None;
-                    self.last_position = None;
-                }
+        if let winit::keyboard::Key::Named(winit::keyboard::NamedKey::Control) = key {
+            self.ctrl_pressed = pressed;
+            if !pressed {
+                self.operation = MouseOperation::None;
+                self.last_position = None;
             }
-            _ => {}
         }
     }
 

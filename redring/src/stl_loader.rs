@@ -7,10 +7,12 @@ use geo_primitives::TriangleMesh3D;
 use render::vertex_3d::MeshVertex;
 use std::path::Path;
 
+/// STL読み込み結果の型エイリアス（複雑性軽減のため）
+type StlLoadResult =
+    Result<(Vec<MeshVertex>, Vec<u32>, ([f32; 3], [f32; 3])), Box<dyn std::error::Error>>;
+
 /// STLファイルを読み込み、レンダリング用の頂点データと境界ボックスに変換
-pub fn load_stl_for_rendering(
-    path: &Path,
-) -> Result<(Vec<MeshVertex>, Vec<u32>, ([f32; 3], [f32; 3])), Box<dyn std::error::Error>> {
+pub fn load_stl_for_rendering(path: &Path) -> StlLoadResult {
     // STLファイルを読み込み
     let mesh: TriangleMesh3D<f64> = stl::load_stl(path)?;
 
@@ -110,16 +112,14 @@ pub fn create_sample_stl(path: &Path) -> Result<(), Box<dyn std::error::Error>> 
 }
 
 /// サンプルSTLファイルを作成して読み込み、境界ボックス付きで返す
-pub fn create_sample_stl_with_bounds(
-    path: &Path,
-) -> Result<(Vec<MeshVertex>, Vec<u32>, ([f32; 3], [f32; 3])), Box<dyn std::error::Error>> {
+pub fn create_sample_stl_with_bounds(path: &Path) -> StlLoadResult {
     create_sample_stl(path)?;
     load_stl_for_rendering(path)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
     // use tempfile::NamedTempFile;
 
     #[test]

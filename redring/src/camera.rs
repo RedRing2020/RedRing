@@ -105,7 +105,7 @@ impl Camera {
 
         // 距離を調整（最小・最大制限付き）
         let new_distance = self.distance * (1.0 + zoom_factor);
-        self.distance = new_distance.max(0.1).min(50.0);
+        self.distance = new_distance.clamp(0.1, 50.0);
 
         tracing::debug!(
             "ズーム: delta=({:.2},{:.2}), factor={:.3}, distance={:.2}",
@@ -134,7 +134,7 @@ impl Camera {
         let margin = 1.2; // 1.2倍のマージン
         let distance = (diagonal * margin) / (2.0 * (fov_rad / 2.0).tan());
 
-        self.distance = distance.max(1.0).min(50.0); // 制限
+        self.distance = distance.clamp(1.0, 50.0); // 制限
 
         // より良い初期視点のために少し斜めから見るように回転を設定
         let x_rotation = Quaternionf::from_axis_angle(&Vec3f::new(1.0, 0.0, 0.0), -0.3); // 少し上から
