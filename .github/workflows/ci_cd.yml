@@ -94,8 +94,14 @@ jobs:
   deploy-docs:
     name: Deploy Documentation
     runs-on: ubuntu-latest
-    # Deploy documentation to GitHub Pages
+    # Deploy documentation to GitHub Pages (mainブランチのみ)
+    if: github.ref == 'refs/heads/main'
     needs: [build-test, foundation-architecture-scan]
+    
+    # GitHub Pages環境の指定（必須）
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     # GitHub Pagesデプロイに必要な権限を設定
     permissions:
