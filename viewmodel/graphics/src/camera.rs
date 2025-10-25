@@ -367,10 +367,7 @@ impl Camera {
         self.zoom = 1.0;
         self.rotation = Quaternionf::identity(); // 正面視点で確実
 
-        tracing::warn!(
-            "緊急カメラ脱出実行（距離: {:.1}、正面視点）",
-            self.distance
-        );
+        tracing::warn!("緊急カメラ脱出実行（距離: {:.1}、正面視点）", self.distance);
     }
 
     /// カメラの現在状態をログ出力（デバッグ用）

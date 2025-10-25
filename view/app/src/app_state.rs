@@ -166,12 +166,12 @@ impl AppState {
     /// キーボード入力を処理
     pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
         self.mouse_input.update_key(key, pressed);
-        
+
         // キーが押された時のみ処理
         if !pressed {
             return;
         }
-        
+
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
                 "r" => {
@@ -206,7 +206,9 @@ impl AppState {
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
                     tracing::info!("w: ワイヤーフレーム切替");
-                    tracing::info!("マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム");
+                    tracing::info!(
+                        "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
+                    );
                 }
                 "w" => {
                     // ワイヤーフレーム切替
