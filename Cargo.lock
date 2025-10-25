@@ -1129,10 +1129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "model"
-version = "0.1.0"
-
-[[package]]
 name = "naga"
 version = "27.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1847,10 +1843,6 @@ name = "redring"
 version = "0.1.0"
 dependencies = [
  "analysis",
- "geo_foundation",
- "geo_io",
- "geo_primitives",
- "model",
  "pollster",
  "render",
  "smol_str 0.3.2",
@@ -2424,8 +2416,8 @@ name = "viewmodel"
 version = "0.1.0"
 dependencies = [
  "geo_foundation",
+ "geo_io",
  "geo_primitives",
- "model",
  "tracing",
 ]
 

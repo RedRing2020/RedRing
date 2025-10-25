@@ -179,25 +179,27 @@
 <p>RedRing は、責務分離と型安全性を重視したワークスペース設計に基づいて構成されています。以下は主要なクレート群の概要です。</p>
 <h2 id="幾何計算層"><a class="header" href="#幾何計算層">幾何計算層</a></h2>
 <h3 id="geo_foundation"><a class="header" href="#geo_foundation"><code>geo_foundation</code></a></h3>
-<p><strong>抽象型・トレイト定義・橋渡し</strong></p>
+<p><strong>抽象型・許容誤差管理・トレイト定義・橋渡し</strong></p>
 <ul>
 <li>共通トレイト（<code>Normalizable</code>, <code>DistanceCalculation</code> など）</li>
+<li><code>ToleranceContext</code> による許容誤差管理</li>
+<li>トレラント比較</li>
 <li>エラー処理ガイドライン</li>
 <li>型安全な抽象化</li>
 </ul>
 <h3 id="geo_core"><a class="header" href="#geo_core"><code>geo_core</code></a></h3>
-<p><strong>許容誤差・ロバスト幾何判定</strong></p>
+<p>** 基本図形処理・ロバスト幾何判定**</p>
 <ul>
-<li><code>ToleranceContext</code> による許容誤差管理</li>
-<li>トレラント比較</li>
+<li>基本図形処理</li>
 <li>ロバスト幾何判定（orientation など）</li>
 </ul>
 <h3 id="geo_primitives"><a class="header" href="#geo_primitives"><code>geo_primitives</code></a></h3>
-<p><strong>f64 正準幾何プリミティブ</strong></p>
+<p><strong>Foundation 統合済み幾何プリミティブ</strong></p>
 <ul>
-<li>基本要素：<code>Point</code>, <code>Vector</code>, <code>Direction</code></li>
-<li>幾何形状：<code>Line</code>, <code>Circle</code>, <code>Ellipse</code>, <code>Arc</code></li>
+<li>基本要素：<code>Point</code>, <code>Vector</code>, <code>Direction</code>（Core/Extensions 分離済み）</li>
+<li>幾何形状：<code>LineSegment</code>, <code>Circle</code>, <code>Ellipse</code>, <code>Arc</code>（責務分離完了）</li>
 <li>2D/3D 両対応のジェネリック実装</li>
+<li>Foundation 統合アーキテクチャによる保守性向上</li>
 </ul>
 <h3 id="geo_algorithms"><a class="header" href="#geo_algorithms"><code>geo_algorithms</code></a></h3>
 <p><strong>幾何アルゴリズム</strong></p>
@@ -206,7 +208,7 @@
 <li>曲線・曲面操作</li>
 <li>幾何変換</li>
 </ul>
-<h3 id="model"><a class="header" href="#model"><code>model</code></a></h3>
+<h3 id="geo_nurbs"><a class="header" href="#geo_nurbs"><code>geo_nurbs</code></a></h3>
 <p><strong>高次曲線・曲面</strong></p>
 <ul>
 <li>NURBS 曲線・曲面（今後実装予定）</li>
@@ -214,12 +216,54 @@
 <li>抽象化レイヤ</li>
 </ul>
 <h3 id="analysis"><a class="header" href="#analysis"><code>analysis</code></a></h3>
-<p><strong>数値解析・CAM 処理</strong></p>
+<p><strong>数値解析・汎用数値計算</strong></p>
 <ul>
-<li>数値計算ユーティリティ</li>
-<li>CAM パス生成（今後実装予定）</li>
+<li>独立した汎用数値計算ライブラリ</li>
+<li><code>Scalar</code>トレイト、許容誤差管理</li>
+<li>ドメイン非依存の数学的基盤</li>
+<li>他のプロジェクトでも再利用可能</li>
+</ul>
+<h3 id="geo_io"><a class="header" href="#geo_io"><code>geo_io</code></a></h3>
+<p><strong>ファイルI/O・境界層処理</strong></p>
+<ul>
+<li>STL、OBJ、PLY等のファイル形式との変換</li>
+<li><strong>例外的設計</strong>: <code>geo_foundation</code>トレイトを経由せず、直接<code>geo_primitives</code>にアクセス</li>
+<li>ゼロコピー最適化によるパフォーマンス重視</li>
+<li>外部データ形式との効率的な境界処理</li>
+</ul>
+<h4 id="geo_io-の例外設計根拠"><a class="header" href="#geo_io-の例外設計根拠">geo_io の例外設計根拠</a></h4>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 他のgeo_*クレートは geo_foundation 経由
+use geo_foundation::{Point3D, Vector3D};
+
+// geo_ioのみ直接アクセス（例外パターン）
+use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
+<span class="boring">}</span></code></pre></pre>
+<p>この例外は以下の理由で採用：</p>
+<ul>
+<li><strong>パフォーマンス</strong>: ファイル形式との直接変換でゼロコピー最適化</li>
+<li><strong>責務明確化</strong>: I/O境界層としての特化</li>
+<li><strong>実装複雑性回避</strong>: 抽象化オーバーヘッドの排除</li>
+</ul>
+<h3 id="cam_solver"><a class="header" href="#cam_solver"><code>cam_solver</code></a></h3>
+<p><strong>CAM 演算・パス作成 / 編集・ポスト処理・切削シミュレーション</strong></p>
+<ul>
+<li>CAM パス生成 / 編集（今後実装予定）</li>
+<li>各 CNC コントローラー 対応ポスト処理（今後実装予定）</li>
 <li>切削シミュレーション（今後実装予定）</li>
 </ul>
+<h3 id="data_exchange"><a class="header" href="#data_exchange"><code>data_exchange</code></a></h3>
+<p><strong>データインポート/エクスポート（将来実装予定）</strong></p>
+<ul>
+<li>STL インポート/エクスポート</li>
+<li>OBJ インポート/エクスポート</li>
+<li>STEP インポート/エクスポート</li>
+<li>IGES インポート/エクスポート</li>
+<li>DXF インポート/エクスポート</li>
+<li>DWG インポート/エクスポート</li>
+</ul>
+<p><em>注記</em>: 現在は<code>geo_io</code>でSTL形式のみ実装済み</p>
 <h2 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h2>
 <h3 id="render"><a class="header" href="#render"><code>render</code></a></h3>
 <p><strong>GPU 描画基盤</strong></p>
@@ -236,11 +280,14 @@
 <li>シーン構成</li>
 </ul>
 <h3 id="viewmodel"><a class="header" href="#viewmodel"><code>viewmodel</code></a></h3>
-<p><strong>ビュー操作・変換ロジック</strong></p>
+<p><strong>ビュー操作・変換ロジック・MVVMアーキテクチャ</strong></p>
 <ul>
-<li>カメラ制御</li>
+<li>カメラ制御（将来実装予定）</li>
 <li>ビュー変換</li>
-<li>ユーザーインタラクション</li>
+<li>ユーザーインタラクション（将来実装予定）</li>
+<li><strong>MVVM準拠</strong>: Model層（<code>geo_*</code>）とView層（<code>render</code>）の架け橋</li>
+<li>STL読み込み・GPU変換機能（<code>stl_loader</code>）</li>
+<li>メッシュデータ変換（<code>mesh_converter</code>）</li>
 </ul>
 <h3 id="redring"><a class="header" href="#redring"><code>redring</code></a></h3>
 <p><strong>メインアプリケーション</strong></p>
@@ -256,7 +303,16 @@
 <li><strong>モジュール性</strong>：<code>render</code> は <code>model</code> に依存しない設計</li>
 <li><strong>拡張性</strong>：将来的な NURBS や WebAssembly 対応を考慮</li>
 <li><strong>国際化</strong>：英語ベースの命名で国際的な貢献を促進</li>
+<li><strong>MVVMアーキテクチャ</strong>：View → ViewModel → Model の層分離</li>
+<li><strong>例外設計許容</strong>：パフォーマンス要件に応じた適切な例外設計（I/O層など）</li>
 </ul>
+<h2 id="アーキテクチャ依存関係"><a class="header" href="#アーキテクチャ依存関係">アーキテクチャ依存関係</a></h2>
+<pre><code>redring (View) → viewmodel → model (geo_*)
+            ↘  stage → render
+
+独立: analysis (汎用数値計算)
+例外: geo_io (直接geo_primitives依存でゼロコピー最適化)
+</code></pre>
 
                     </main>
 

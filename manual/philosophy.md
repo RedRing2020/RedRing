@@ -69,3 +69,51 @@ pub trait DistanceCalculation<T, Target> {
 - **型安全性**: コンパイル時エラー検出を最大化
 - **トレイト設計**: 共通操作は統合トレイトで抽象化
 - **エラー情報**: 具体的で actionable なエラーメッセージ
+
+## 6. I/O レイヤーの例外的設計パターン
+
+RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O層に例外的な設計パターンを採用しています。
+
+### geo_foundation トレイト設計からの例外
+
+`geo_io` クレートは、他の `geo_*` クレートとは異なり、`geo_foundation` トレイトを経由せず、直接 `geo_primitives` にアクセスします：
+
+```rust
+// geo_io での直接アクセス（例外パターン）
+use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
+
+pub fn load_stl<T: Scalar>(path: &Path) -> Result<TriangleMesh3D<T>, IoError> {
+    // ファイル形式との直接的な変換処理
+}
+```
+
+### 設計根拠
+
+1. **ゼロコピー最適化**: ファイル形式との効率的なデータ変換
+2. **境界層の責務**: 外部データ形式 ↔ 内部データ構造の変換に特化
+3. **パフォーマンス重視**: 大量データの高速処理要件
+4. **実装複雑性の回避**: 抽象化によるオーバーヘッドを排除
+
+### MVVM準拠のアクセスパターン
+
+View層（`redring`）は直接 `geo_io` にアクセスせず、ViewModel層（`viewmodel`）を経由：
+
+```rust
+// ❌ View層での直接I/Oアクセス（禁止）
+// use geo_io::stl;
+
+// ✅ ViewModel経由のアクセス（推奨）
+use viewmodel::stl_loader::{load_stl_mesh, StlMeshData};
+```
+
+### Analysis クレートの汎用性
+
+`analysis` クレートは数値計算ライブラリとして独立し、特定のドメインに依存しない汎用的な実装を提供：
+
+```rust
+// 汎用数値型とトレイト
+pub trait Scalar: Copy + Clone + PartialEq + PartialOrd + ... {}
+pub trait TolerantEq<T: Scalar> { ... }
+```
+
+この設計により、各層の責務が明確になり、パフォーマンスと保守性のバランスが実現されます。

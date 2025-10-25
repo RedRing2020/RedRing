@@ -75,30 +75,69 @@ jobs:
       - name: Foundation architecture validation
         run: |
           echo "🔍 Foundation Architecture Validation"
-          echo "📦 Checking geo_foundation crate structure..."
+          echo "📦 Checking Core/Extension Foundation pattern compliance..."
 
           # geo_foundation の基本構造確認
-          if [ -f "geo_foundation/Cargo.toml" ]; then
-            echo "✅ geo_foundation/Cargo.toml found"
+          if [ -f "model/geo_foundation/Cargo.toml" ]; then
+            echo "✅ model/geo_foundation/Cargo.toml found"
           else
-            echo "❌ geo_foundation/Cargo.toml not found"
+            echo "❌ model/geo_foundation/Cargo.toml not found"
             exit 1
           fi
 
-          # Transform error 統合確認
-          if grep -r "TransformError" geo_foundation/src/ > /dev/null 2>&1; then
-            echo "✅ TransformError found in geo_foundation"
+          # TransformError 統合確認
+          if grep -r "TransformError" model/geo_foundation/src/ > /dev/null 2>&1; then
+            echo "✅ TransformError found in model/geo_foundation"
           else
-            echo "❌ TransformError not found in geo_foundation"
+            echo "❌ TransformError not found in model/geo_foundation"
             exit 1
           fi
 
           # geo_primitives での重複確認
-          if grep -r "enum TransformError" geo_primitives/src/ > /dev/null 2>&1; then
-            echo "❌ Duplicate TransformError found in geo_primitives"
+          if grep -r "enum TransformError" model/geo_primitives/src/ > /dev/null 2>&1; then
+            echo "❌ Duplicate TransformError found in model/geo_primitives"
             exit 1
           else
             echo "✅ No duplicate TransformError in geo_primitives"
+          fi
+
+          # 直接 geo_primitives インポートの確認（許可パターンを除く）
+          echo "🔍 Checking for forbidden direct geo_primitives imports..."
+          
+          # 許可されるパターン：
+          # 1. geo_primitives クレート内（自己参照）
+          # 2. viewmodel クレート（Model層アクセス許可）
+          # 3. geo_foundation クレート（Foundation層）
+          # 4. geo_io クレート（I/O操作用）
+          # 5. コメント内（無効化されたコード）
+          
+          # 検索して許可パターンでフィルタリング
+          FORBIDDEN_IMPORTS=""
+          
+          # 各ファイルを個別にチェック
+          for file in $(find . -name "*.rs" -not -path "./model/geo_primitives/*" -not -path "./target/*"); do
+            # コメントアウトされていない use geo_primitives:: を検索
+            if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
+              # 許可されたパス以外の場合は違反
+              if ! echo "$file" | grep -qE "^\./viewmodel/|^\./model/geo_foundation/|^\./model/geo_io/"; then
+                if [ -z "$FORBIDDEN_IMPORTS" ]; then
+                  FORBIDDEN_IMPORTS="$file"
+                else
+                  FORBIDDEN_IMPORTS="$FORBIDDEN_IMPORTS\n$file"
+                fi
+                echo "❌ Forbidden import in: $file"
+                grep -n "use geo_primitives::" "$file"
+              fi
+            fi
+          done
+          
+          if [ -n "$FORBIDDEN_IMPORTS" ]; then
+            echo "❌ Found forbidden direct geo_primitives imports:"
+            echo "$FORBIDDEN_IMPORTS"
+            echo "💡 Please use geo_foundation, geo_core, or viewmodel for geo_primitives access"
+            exit 1
+          else
+            echo "✅ No forbidden direct geo_primitives imports found"
           fi
 
           echo "✅ Foundation architecture validation completed"

@@ -9,4 +9,4 @@ wgpu = "27.0.1"
 tracing = "0.1"
 bytemuck = "1.23.2"
 pollster.workspace = true
-viewmodel = { path = "../viewmodel" }
+viewmodel = { path = "../../viewmodel/converter" }
