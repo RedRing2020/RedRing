@@ -57,9 +57,9 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_io`
 
-**ファイルI/O・境界層処理**
+**ファイル I/O・境界層処理**
 
-- STL、OBJ、PLY等のファイル形式との変換
+- STL、OBJ、PLY 等のファイル形式との変換
 - **例外的設計**: `geo_foundation`トレイトを経由せず、直接`geo_primitives`にアクセス
 - ゼロコピー最適化によるパフォーマンス重視
 - 外部データ形式との効率的な境界処理
@@ -75,8 +75,9 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 ```
 
 この例外は以下の理由で採用：
+
 - **パフォーマンス**: ファイル形式との直接変換でゼロコピー最適化
-- **責務明確化**: I/O境界層としての特化
+- **責務明確化**: I/O 境界層としての特化
 - **実装複雑性回避**: 抽象化オーバーヘッドの排除
 
 ### `cam_solver`
@@ -98,7 +99,7 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 - DXF インポート/エクスポート
 - DWG インポート/エクスポート
 
-*注記*: 現在は`geo_io`でSTL形式のみ実装済み
+_注記_: 現在は`geo_io`で STL 形式のみ実装済み
 
 ## レンダリング層
 
@@ -120,13 +121,13 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 
 ### `viewmodel`
 
-**ビュー操作・変換ロジック・MVVMアーキテクチャ**
+**ビュー操作・変換ロジック・MVVM アーキテクチャ**
 
 - カメラ制御（将来実装予定）
 - ビュー変換
 - ユーザーインタラクション（将来実装予定）
-- **MVVM準拠**: Model層（`geo_*`）とView層（`render`）の架け橋
-- STL読み込み・GPU変換機能（`stl_loader`）
+- **MVVM 準拠**: Model 層（`geo_*`）と View 層（`render`）の架け橋
+- STL 読み込み・GPU 変換機能（`stl_loader`）
 - メッシュデータ変換（`mesh_converter`）
 
 ### `redring`
@@ -144,8 +145,8 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 - **モジュール性**：`render` は `model` に依存しない設計
 - **拡張性**：将来的な NURBS や WebAssembly 対応を考慮
 - **国際化**：英語ベースの命名で国際的な貢献を促進
-- **MVVMアーキテクチャ**：View → ViewModel → Model の層分離
-- **例外設計許容**：パフォーマンス要件に応じた適切な例外設計（I/O層など）
+- **MVVM アーキテクチャ**：View → ViewModel → Model の層分離
+- **例外設計許容**：パフォーマンス要件に応じた適切な例外設計（I/O 層など）
 
 ## アーキテクチャ依存関係
 

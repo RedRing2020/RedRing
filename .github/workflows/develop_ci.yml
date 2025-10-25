@@ -103,17 +103,17 @@ jobs:
 
           # 直接 geo_primitives インポートの確認（許可パターンを除く）
           echo "🔍 Checking for forbidden direct geo_primitives imports..."
-          
+
           # 許可されるパターン：
           # 1. geo_primitives クレート内（自己参照）
           # 2. viewmodel クレート（Model層アクセス許可）
           # 3. geo_foundation クレート（Foundation層）
           # 4. geo_io クレート（I/O操作用）
           # 5. コメント内（無効化されたコード）
-          
+
           # 検索して許可パターンでフィルタリング
           FORBIDDEN_IMPORTS=""
-          
+
           # 各ファイルを個別にチェック
           for file in $(find . -name "*.rs" -not -path "./model/geo_primitives/*" -not -path "./target/*"); do
             # コメントアウトされていない use geo_primitives:: を検索
@@ -130,7 +130,7 @@ jobs:
               fi
             fi
           done
-          
+
           if [ -n "$FORBIDDEN_IMPORTS" ]; then
             echo "❌ Found forbidden direct geo_primitives imports:"
             echo "$FORBIDDEN_IMPORTS"

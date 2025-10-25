@@ -1,0 +1,16 @@
+[package]
+name = "redring"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+winit = "0.30"
+wgpu = "27.0.1"
+smol_str = "0.3.2"
+pollster.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+viewmodel = { path = "../viewmodel/converter" }
+render = { path = "../render" }
+stage = { path = "../stage" }
+analysis = { path = "../analysis" }

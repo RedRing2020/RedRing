@@ -1,0 +1,9 @@
+[package]
+name = "geo_foundation"
+version = "0.1.0"
+edition = "2021"
+description = "Foundation layer providing abstract types and bridge functionality for geometric computation"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+analysis = { path = "../analysis" }

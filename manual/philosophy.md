@@ -72,7 +72,7 @@ pub trait DistanceCalculation<T, Target> {
 
 ## 6. I/O レイヤーの例外的設計パターン
 
-RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O層に例外的な設計パターンを採用しています。
+RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O 層に例外的な設計パターンを採用しています。
 
 ### geo_foundation トレイト設計からの例外
 
@@ -94,9 +94,9 @@ pub fn load_stl<T: Scalar>(path: &Path) -> Result<TriangleMesh3D<T>, IoError> {
 3. **パフォーマンス重視**: 大量データの高速処理要件
 4. **実装複雑性の回避**: 抽象化によるオーバーヘッドを排除
 
-### MVVM準拠のアクセスパターン
+### MVVM 準拠のアクセスパターン
 
-View層（`redring`）は直接 `geo_io` にアクセスせず、ViewModel層（`viewmodel`）を経由：
+View 層（`redring`）は直接 `geo_io` にアクセスせず、ViewModel 層（`viewmodel`）を経由：
 
 ```rust
 // ❌ View層での直接I/Oアクセス（禁止）
