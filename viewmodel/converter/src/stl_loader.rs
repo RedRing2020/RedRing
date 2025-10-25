@@ -58,7 +58,7 @@ pub fn load_stl_mesh(path: &Path) -> Result<StlMeshData, Box<dyn std::error::Err
 
 /// サンプルSTLファイルを作成
 pub fn create_sample_stl_mesh(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Model層（geo_primitives）でメッシュを構築
+    // Model層（geo_primitives経由）でメッシュを構築
     use geo_primitives::{Point3D, TriangleMesh3D};
 
     // シンプルな立方体を作成

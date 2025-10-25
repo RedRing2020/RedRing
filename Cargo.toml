@@ -7,6 +7,7 @@ members = [
     "model/geo_algorithms",    # Model層：幾何アルゴリズムクレート
     "model/geo_io",            # Model層：ファイルI/Oクレート
     "viewmodel/converter",     # ViewModel層：データ変換・架け橋
+    "viewmodel/graphics",      # ViewModel層：グラフィックス制御（カメラ等）
     "view/render",             # View層：GPU描画基盤
     "view/stage",              # View層：レンダリングステージ管理
     "view/app",                # View層：メインアプリケーション

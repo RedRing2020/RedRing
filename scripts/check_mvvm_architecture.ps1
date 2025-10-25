@@ -84,13 +84,11 @@ function Test-Dependencies {
     }
 
     Write-Host "   Dependencies: $($ActualDeps -join ', ')" -ForegroundColor Gray
-
-    return $ActualDeps
 }
 
 # Check each crate dependencies
 foreach ($CrateName in $ArchitectureRules.Keys) {
-    $Dependencies = Test-Dependencies -CrateName $CrateName -Rules $ArchitectureRules[$CrateName]
+    Test-Dependencies -CrateName $CrateName -Rules $ArchitectureRules[$CrateName]
 }
 
 # Cross-check with cargo tree
