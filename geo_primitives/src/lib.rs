@@ -51,6 +51,7 @@ pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
 pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
+pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 
 // Vector3D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_3d; // Vector3D の新実装
@@ -69,6 +70,8 @@ pub mod point_3d_transform_safe_tests;
 pub mod ray_3d_tests;
 #[cfg(test)]
 pub mod triangle_3d_tests;
+#[cfg(test)]
+pub mod triangle_mesh_3d_tests;
 
 // Vector3D テストモジュール
 #[cfg(test)]
@@ -196,6 +199,7 @@ pub use line_segment_3d::LineSegment3D;
 pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use triangle_3d::Triangle3D;
+pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;
 
 // 2D プリミティブ
