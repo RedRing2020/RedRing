@@ -12,11 +12,11 @@ pub struct Graphic {
 }
 
 pub fn init_graphic(window: Arc<Window>) -> Graphic {
-    let raw_window: &'static Window = unsafe { &*Arc::into_raw(window.clone()) };
-
     let instance = wgpu::Instance::default();
+
+    // 安全な方法でSurfaceを作成
     let surface = instance
-        .create_surface(raw_window)
+        .create_surface(window.clone())
         .expect("Failed to create surface");
 
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -28,7 +28,7 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
 
     let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
         label: Some("Device"),
-        required_features: wgpu::Features::empty(),
+        required_features: wgpu::Features::POLYGON_MODE_LINE, // ワイヤーフレーム機能を有効化
         required_limits: wgpu::Limits::default(),
         memory_hints: Default::default(),
         trace: wgpu::Trace::default(),

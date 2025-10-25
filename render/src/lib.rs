@@ -1,4 +1,6 @@
 pub mod device;
+pub mod mesh;
+pub mod mesh_convert;
 pub mod pipeline;
 pub mod render_2d;
 pub mod render_3d;
