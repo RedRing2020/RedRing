@@ -1,40 +1,12 @@
 use crate::app_renderer::AppRenderer;
-use crate::camera::Camera;
 use crate::graphic::{Graphic, init_graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
-use analysis::linalg::vector::Vec3f;
 use stage::{DraftStage, MeshStage, OutlineStage, ShadingStage};
 use std::path::Path;
 use std::sync::Arc;
+use viewmodel_graphics::Camera;
 use winit::window::Window;
-
-/// 4x4行列による3D点の変換
-fn transform_point(matrix: &[[f32; 4]; 4], point: Vec3f) -> Vec3f {
-    let x = matrix[0][0] * point.x()
-        + matrix[0][1] * point.y()
-        + matrix[0][2] * point.z()
-        + matrix[0][3];
-    let y = matrix[1][0] * point.x()
-        + matrix[1][1] * point.y()
-        + matrix[1][2] * point.z()
-        + matrix[1][3];
-    let z = matrix[2][0] * point.x()
-        + matrix[2][1] * point.y()
-        + matrix[2][2] * point.z()
-        + matrix[2][3];
-    let w = matrix[3][0] * point.x()
-        + matrix[3][1] * point.y()
-        + matrix[3][2] * point.z()
-        + matrix[3][3];
-
-    // 同次座標系から3D座標に変換
-    if w != 0.0 {
-        Vec3f::new(x / w, y / w, z / w)
-    } else {
-        Vec3f::new(x, y, z)
-    }
-}
 
 pub struct AppState {
     pub window: Arc<Window>,
@@ -42,10 +14,6 @@ pub struct AppState {
     pub renderer: AppRenderer,
     pub camera: Camera,
     pub mouse_input: MouseInput,
-    // モデル用境界ボックス（ワールド座標系）
-    pub model_bounds: Option<(Vec3f, Vec3f)>,
-    // ビュー用境界ボックス（カメラ座標系で動的更新）
-    pub view_bounds: Option<(Vec3f, Vec3f)>,
 }
 
 impl AppState {
@@ -59,8 +27,6 @@ impl AppState {
             renderer,
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
-            model_bounds: None,
-            view_bounds: None,
         }
     }
 
@@ -105,18 +71,10 @@ impl AppState {
         tracing::info!("STLファイル読み込み開始: {:?}", path);
 
         // STLファイルを読み込み、レンダリング用データに変換
-        let (vertices, indices, bounds) = stl_loader::load_stl_for_rendering(path)?;
-        let (min_bounds, max_bounds) = bounds;
+        let (vertices, indices, _bounds) = stl_loader::load_stl_for_rendering(path)?;
 
-        // カメラをメッシュに適応
-        use analysis::linalg::vector::Vec3f;
-        let min_vec = Vec3f::new(min_bounds[0], min_bounds[1], min_bounds[2]);
-        let max_vec = Vec3f::new(max_bounds[0], max_bounds[1], max_bounds[2]);
-
-        // モデル境界ボックスを保存
-        self.model_bounds = Some((min_vec, max_vec));
-
-        self.camera.fit_to_mesh(min_vec, max_vec);
+        // カメラを標準CAD視点に設定（固定値）
+        self.camera.reset_to_standard_cad_view();
 
         // メッシュステージを作成してSTLデータを設定
         let mut mesh_stage = Box::new(MeshStage::new(
@@ -139,19 +97,11 @@ impl AppState {
     pub fn load_sample_stl(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let sample_path = std::env::temp_dir().join("redring_sample.stl");
 
-        // サンプルSTLファイルを作成して境界ボックス付きで読み込み
-        let (vertices, indices, bounds) = stl_loader::create_sample_stl_with_bounds(&sample_path)?;
-        let (min_bounds, max_bounds) = bounds;
+        // サンプルSTLファイルを作成して読み込み
+        let (vertices, indices, _bounds) = stl_loader::create_sample_stl_with_bounds(&sample_path)?;
 
-        // カメラをメッシュに適応
-        use analysis::linalg::vector::Vec3f;
-        let min_vec = Vec3f::new(min_bounds[0], min_bounds[1], min_bounds[2]);
-        let max_vec = Vec3f::new(max_bounds[0], max_bounds[1], max_bounds[2]);
-
-        // モデル境界ボックスを保存
-        self.model_bounds = Some((min_vec, max_vec));
-
-        self.camera.fit_to_mesh(min_vec, max_vec);
+        // カメラを標準CAD視点に設定（固定値）
+        self.camera.reset_to_standard_cad_view();
 
         // メッシュステージを作成してSTLデータを設定
         let mut mesh_stage = Box::new(MeshStage::new(
@@ -172,6 +122,21 @@ impl AppState {
     pub fn reset_camera(&mut self) {
         self.camera.reset();
         self.update_camera_uniforms();
+    }
+
+    /// 安全な視点にカメラをリセット（標準CAD視点）
+    pub fn reset_camera_to_safe_view(&mut self) {
+        // 固定の標準CAD視点にリセット
+        self.camera.reset_to_standard_cad_view();
+        self.update_camera_uniforms();
+        tracing::info!("カメラを標準CAD視点にリセット");
+    }
+
+    /// 緊急脱出：最小距離を強制確保
+    pub fn emergency_camera_escape(&mut self) {
+        self.camera.ensure_minimum_distance();
+        self.update_camera_uniforms();
+        tracing::warn!("緊急カメラ脱出実行");
     }
 
     /// カメラ状態をログ出力
@@ -201,6 +166,55 @@ impl AppState {
     /// キーボード入力を処理
     pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
         self.mouse_input.update_key(key, pressed);
+        
+        // キーが押された時のみ処理
+        if !pressed {
+            return;
+        }
+        
+        if let winit::keyboard::Key::Character(ch) = key {
+            match ch.as_str() {
+                "r" => {
+                    // リセット（基本）
+                    self.camera.reset();
+                    self.update_camera_uniforms();
+                    tracing::info!("カメラをリセット（rキー）");
+                }
+                "t" => {
+                    // 標準CAD視点
+                    self.camera.reset_to_standard_cad_view();
+                    self.update_camera_uniforms();
+                    tracing::info!("標準CAD視点に設定（tキー）");
+                }
+                "f" => {
+                    // 正面視点（デバッグ用）
+                    self.camera.reset_to_front_view();
+                    self.update_camera_uniforms();
+                    tracing::info!("正面視点に設定（fキー）");
+                }
+                "e" => {
+                    // 緊急脱出
+                    self.camera.emergency_camera_escape();
+                    self.update_camera_uniforms();
+                    tracing::warn!("緊急カメラ脱出実行（eキー）");
+                }
+                "h" => {
+                    // ヘルプ表示
+                    tracing::info!("=== カメラ操作ヘルプ ===");
+                    tracing::info!("r: カメラリセット");
+                    tracing::info!("t: 標準CAD視点");
+                    tracing::info!("f: 正面視点");
+                    tracing::info!("e: 緊急脱出");
+                    tracing::info!("w: ワイヤーフレーム切替");
+                    tracing::info!("マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム");
+                }
+                "w" => {
+                    // ワイヤーフレーム切替
+                    self.toggle_wireframe();
+                }
+                _ => {}
+            }
+        }
     }
 
     /// マウスボタン入力を処理
@@ -249,120 +263,6 @@ impl AppState {
             .downcast_mut::<MeshStage>()
         {
             mesh_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
-        }
-
-        // カメラが変更されたらビュー用境界ボックスを更新
-        self.update_view_bounds();
-    }
-
-    /// ビュー用境界ボックスを更新（カメラ座標系での境界ボックス計算）
-    fn update_view_bounds(&mut self) {
-        if let Some((min_world, max_world)) = self.model_bounds {
-            // ワールド座標系の境界ボックスの8つの頂点を計算
-            let world_corners = [
-                Vec3f::new(min_world.x(), min_world.y(), min_world.z()),
-                Vec3f::new(max_world.x(), min_world.y(), min_world.z()),
-                Vec3f::new(min_world.x(), max_world.y(), min_world.z()),
-                Vec3f::new(max_world.x(), max_world.y(), min_world.z()),
-                Vec3f::new(min_world.x(), min_world.y(), max_world.z()),
-                Vec3f::new(max_world.x(), min_world.y(), max_world.z()),
-                Vec3f::new(min_world.x(), max_world.y(), max_world.z()),
-                Vec3f::new(max_world.x(), max_world.y(), max_world.z()),
-            ];
-
-            // ビュー変換行列を取得
-            let view_matrix = self.camera.view_matrix();
-
-            // 各頂点をカメラ座標系に変換し、包含ボックスを計算
-            let mut min_view = Vec3f::new(f32::INFINITY, f32::INFINITY, f32::INFINITY);
-            let mut max_view = Vec3f::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY);
-
-            for corner in &world_corners {
-                // ワールド座標をカメラ座標に変換
-                let view_pos = transform_point(&view_matrix, *corner);
-
-                min_view = Vec3f::new(
-                    min_view.x().min(view_pos.x()),
-                    min_view.y().min(view_pos.y()),
-                    min_view.z().min(view_pos.z()),
-                );
-                max_view = Vec3f::new(
-                    max_view.x().max(view_pos.x()),
-                    max_view.y().max(view_pos.y()),
-                    max_view.z().max(view_pos.z()),
-                );
-            }
-
-            self.view_bounds = Some((min_view, max_view));
-        } else {
-            self.view_bounds = None;
-        }
-    }
-
-    /// ビュー用境界ボックスに基づいてカメラをフィット（fキー用）
-    pub fn fit_camera_to_view_bounds(&mut self) {
-        if let Some((min_bounds, max_bounds)) = self.model_bounds {
-            // モデル境界ボックスを使用してカメラをフィット
-            self.camera.fit_to_mesh(min_bounds, max_bounds);
-            self.update_camera_uniforms();
-            tracing::info!("カメラをモデル境界ボックスにフィット");
-        } else {
-            tracing::warn!("モデル境界ボックスが設定されていません");
-        }
-    }
-
-    /// 境界ボックス状態をログ出力（dキー用デバッグ機能の拡張）
-    pub fn log_bounds_state(&self) {
-        if let Some((min_model, max_model)) = self.model_bounds {
-            tracing::info!("モデル境界ボックス（ワールド座標系）:");
-            tracing::info!(
-                "  最小: [{:.3}, {:.3}, {:.3}]",
-                min_model.x(),
-                min_model.y(),
-                min_model.z()
-            );
-            tracing::info!(
-                "  最大: [{:.3}, {:.3}, {:.3}]",
-                max_model.x(),
-                max_model.y(),
-                max_model.z()
-            );
-
-            let size = max_model - min_model;
-            tracing::info!(
-                "  サイズ: [{:.3}, {:.3}, {:.3}]",
-                size.x(),
-                size.y(),
-                size.z()
-            );
-        } else {
-            tracing::info!("モデル境界ボックス: 未設定");
-        }
-
-        if let Some((min_view, max_view)) = self.view_bounds {
-            tracing::info!("ビュー境界ボックス（カメラ座標系）:");
-            tracing::info!(
-                "  最小: [{:.3}, {:.3}, {:.3}]",
-                min_view.x(),
-                min_view.y(),
-                min_view.z()
-            );
-            tracing::info!(
-                "  最大: [{:.3}, {:.3}, {:.3}]",
-                max_view.x(),
-                max_view.y(),
-                max_view.z()
-            );
-
-            let size = max_view - min_view;
-            tracing::info!(
-                "  サイズ: [{:.3}, {:.3}, {:.3}]",
-                size.x(),
-                size.y(),
-                size.z()
-            );
-        } else {
-            tracing::info!("ビュー境界ボックス: 未設定");
         }
     }
 }

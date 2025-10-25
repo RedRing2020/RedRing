@@ -53,14 +53,31 @@ impl ApplicationHandler for App {
                                 state.reset_camera();
                                 tracing::info!("カメラリセット");
                             }
+                            Key::Character(c) if c.as_str() == "t" => {
+                                state.reset_camera_to_safe_view();
+                                tracing::info!("安全な視点にリセット");
+                            }
+                            Key::Character(c) if c.as_str() == "e" => {
+                                state.emergency_camera_escape();
+                                tracing::warn!("緊急カメラ脱出");
+                            }
+                            Key::Character(c) if c.as_str() == "h" => {
+                                tracing::info!("=== キーバインド ===");
+                                tracing::info!("1: ドラフトステージ");
+                                tracing::info!("2: アウトラインステージ");
+                                tracing::info!("3: シェーディングステージ");
+                                tracing::info!("s: サンプルSTL読み込み");
+                                tracing::info!("r: カメラリセット（基本位置）");
+                                tracing::info!("t: 標準CAD視点にリセット");
+                                tracing::info!("e: 緊急脱出（最小距離確保）");
+                                tracing::info!("d: カメラ状態ログ出力");
+                                tracing::info!("w: ワイヤーフレーム切り替え");
+                                tracing::info!("h: このヘルプ");
+                                tracing::info!("ESC: アプリ終了");
+                            }
                             Key::Character(c) if c.as_str() == "d" => {
                                 state.log_camera_state();
-                                state.log_bounds_state();
-                                tracing::info!("カメラ・境界ボックス状態ログ出力");
-                            }
-                            Key::Character(c) if c.as_str() == "f" => {
-                                state.fit_camera_to_view_bounds();
-                                tracing::info!("カメラをビュー境界ボックスにフィット");
+                                tracing::info!("カメラ状態ログ出力");
                             }
                             Key::Character(c) if c.as_str() == "w" => {
                                 state.toggle_wireframe();

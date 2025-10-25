@@ -1,0 +1,11 @@
+[package]
+name = "viewmodel-graphics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+analysis = { path = "../../analysis" }
+tracing = "0.1"
+
+[dev-dependencies]
+tracing-test = "0.2"
