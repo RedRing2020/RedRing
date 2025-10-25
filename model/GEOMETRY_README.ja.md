@@ -35,16 +35,18 @@ redring ─┬─ viewmodel ── model(抽象) ──┐
 
 ```rust
 use model::geometry_trait::{Curve2D, Curve3D};
-use geo_primitives::{Point2D, Vector2D, Point3D, Vector3D};  // Foundation統合型
+use geo_foundation::Scalar;  // Foundation推奨パターン
 
 struct MyCurve2D { /* ... */ }
 
-impl Curve2D for MyCurve2D {
-    type Point = Point2D<f64>;
-    type Vector = Vector2D<f64>;
+impl<T: Scalar> Curve2D for MyCurve2D {
+    type Point = geo_foundation::Point2D<T>;
+    type Vector = geo_foundation::Vector2D<T>;
 
     fn as_any(&self) -> &dyn std::any::Any { self }
-    fn kind(&self) -> model::geometry_kind::CurveKind2D { model::geometry_kind::CurveKind2D::Line }
+    fn kind(&self) -> model::geometry_kind::CurveKind2D {
+        model::geometry_kind::CurveKind2D::Line
+    }
     fn evaluate(&self, t: f64) -> Self::Point { /* ... */ unimplemented!() }
     fn derivative(&self, t: f64) -> Self::Vector { /* ... */ unimplemented!() }
     fn length(&self) -> f64 { /* ... */ 0.0 }
@@ -63,16 +65,16 @@ impl Curve2D for MyCurve2D {
 
 | 旧 `model::geometry`                                             | 新しい参照先                                |
 | ---------------------------------------------------------------- | ------------------------------------------- |
-| geometry2d::Point / Vector                                       | `geo_primitives::Point2D` / `Vector2D`      |
-| geometry2d::Line / Circle / Arc / Ellipse / Ray / InfiniteLine   | `geo_primitives` 2D 群                      |
-| geometry3d::Point / Vector                                       | `geo_primitives::Point3D` / `Vector3D`      |
-| geometry3d::Line / Circle / Arc / Ellipse / Plane / InfiniteLine | `geo_primitives` 3D 群（Foundation 統合済） |
-| NurbsCurve / NurbsSurface (stub)                                 | 今後 `geo_primitives` に正式移行予定        |
+| geometry2d::Point / Vector                                       | `geo_foundation` 経由でアクセス             |
+| geometry2d::Line / Circle / Arc / Ellipse / Ray / InfiniteLine   | `geo_foundation` 2D 群                      |
+| geometry3d::Point / Vector                                       | `geo_foundation` 経由でアクセス             |
+| geometry3d::Line / Circle / Arc / Ellipse / Plane / InfiniteLine | `geo_foundation` 3D 群（Foundation 統合済） |
+| NurbsCurve / NurbsSurface (stub)                                 | 今後 Foundation 層 に正式移行予定           |
 | SimpleAdaptedLine adapter                                        | 廃止 (履歴のみ)                             |
 
 ## 今後の拡張予定 (案)
 
-1. NURBS 評価本実装 (2D/3D 曲線・サーフェス) を `geo_primitives` に統合 → 抽象 `Curve*` / `Surface*` 実装例追加
+1. NURBS 評価本実装 (2D/3D 曲線・サーフェス) を Foundation 層 に統合 → 抽象 `Curve*` / `Surface*` 実装例追加
 2. `Surface` トレイトの導入: `evaluate(u,v)`, `normal(u,v)`, `is_closed_{u,v}` など
 3. Tolerance 戦略の抽象インターフェース化 (今は `geo_foundation::ToleranceContext` を直参照)
 4. Parametric Domain 拡張: 曲線の `domain()` を閉区間以外 (周期関数/ラップ) に拡張するためのフラグ付加
@@ -90,10 +92,10 @@ impl Curve2D for MyCurve2D {
 
 ## 典型的な移行手順 (既存コードを新層へ移す場合)
 
-1. 旧 `model::geometry` 型 import を `geo_primitives::*` に切り替え
+1. 旧 `model::geometry` 型 import を `geo_foundation::*` に切り替え
 2. `impl Curve2D for X` へ関連型指定を追加
 3. 固有の内部数値計算は `geo_foundation` / `geo_core` のベクトル/スカラー演算に置換
-4. テスト: 幾何単体テストは `geo_primitives` サイドへ移譲
+4. テスト: 幾何単体テストは Foundation 層 サイドへ移譲
 5. ドキュメント: 移行履歴を `GEOMETRY_REMOVAL.md` に追記
 
 ## よくある質問 (FAQ)
