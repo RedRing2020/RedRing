@@ -12,11 +12,11 @@ pub struct Graphic {
 }
 
 pub fn init_graphic(window: Arc<Window>) -> Graphic {
-    let raw_window: &'static Window = unsafe { &*Arc::into_raw(window.clone()) };
-
     let instance = wgpu::Instance::default();
+
+    // 安全な方法でSurfaceを作成
     let surface = instance
-        .create_surface(raw_window)
+        .create_surface(window.clone())
         .expect("Failed to create surface");
 
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {

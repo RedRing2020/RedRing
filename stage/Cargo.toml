@@ -7,3 +7,4 @@ edition = "2024"
 wgpu = "27.0.1"
 render = { path = "../render" }
 bytemuck = "1.23.2"
+tracing = "0.1"

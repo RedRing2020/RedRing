@@ -14,3 +14,6 @@ viewmodel = { path = "../viewmodel" }
 model = { path = "../model" }
 render = { path = "../render" }
 stage = { path = "../stage" }
+geo_io = { path = "../geo_io" }
+geo_primitives = { path = "../geo_primitives" }
+geo_foundation = { path = "../geo_foundation" }

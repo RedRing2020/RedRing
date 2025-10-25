@@ -3,16 +3,12 @@ use crate::vertex_3d::MeshVertex;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
-/// メッシュレンダリング用のUniform構造体
+/// メッシュレンダリング用のUniform構造体（簡略版）
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct MeshUniforms {
     pub view_proj: [[f32; 4]; 4], // ビュー・プロジェクション行列
     pub model: [[f32; 4]; 4],     // モデル行列
-    pub light_position: [f32; 3], // ライト位置
-    pub _padding1: f32,           // アライメント調整
-    pub light_color: [f32; 3],    // ライトカラー
-    pub _padding2: f32,           // アライメント調整
 }
 
 impl Default for MeshUniforms {
@@ -30,10 +26,6 @@ impl Default for MeshUniforms {
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
-            light_position: [2.0, 2.0, 2.0],
-            _padding1: 0.0,
-            light_color: [1.0, 1.0, 1.0],
-            _padding2: 0.0,
         }
     }
 }
@@ -44,6 +36,9 @@ pub struct MeshResources {
     pub uniform_buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
+    pub vertex_buffer: Option<wgpu::Buffer>,
+    pub index_buffer: Option<wgpu::Buffer>,
+    pub index_count: u32,
 }
 
 impl MeshResources {
@@ -120,13 +115,7 @@ impl MeshResources {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
+            depth_stencil: None, // 一時的に深度テストを無効化
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -141,11 +130,57 @@ impl MeshResources {
             uniform_buffer,
             bind_group_layout,
             bind_group,
+            vertex_buffer: None,
+            index_buffer: None,
+            index_count: 0,
         }
     }
 
     /// Uniformバッファを更新
     pub fn update_uniforms(&self, queue: &wgpu::Queue, uniforms: &MeshUniforms) {
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[*uniforms]));
+    }
+
+    /// メッシュデータを更新
+    pub fn update_mesh_data(
+        &mut self,
+        device: &wgpu::Device,
+        vertices: &[MeshVertex],
+        indices: &[u32],
+    ) {
+        // 頂点バッファを作成
+        if !vertices.is_empty() {
+            self.vertex_buffer = Some(device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Mesh Vertex Buffer"),
+                    contents: bytemuck::cast_slice(vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                },
+            ));
+        }
+
+        // インデックスバッファを作成
+        if !indices.is_empty() {
+            self.index_buffer = Some(device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Mesh Index Buffer"),
+                    contents: bytemuck::cast_slice(indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                },
+            ));
+            self.index_count = indices.len() as u32;
+        }
+    }
+
+    /// メッシュをレンダリング
+    pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+        if let (Some(vertex_buffer), Some(index_buffer)) = (&self.vertex_buffer, &self.index_buffer)
+        {
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+        }
     }
 }

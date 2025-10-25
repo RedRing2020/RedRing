@@ -38,6 +38,11 @@ impl ApplicationHandler for App {
                     Key::Character(c) if c.as_str() == "1" => state.set_stage_draft(),
                     Key::Character(c) if c.as_str() == "2" => state.set_stage_outline(),
                     Key::Character(c) if c.as_str() == "3" => state.set_stage_shading(),
+                    Key::Character(c) if c.as_str() == "s" => {
+                        if let Err(e) = state.load_sample_stl() {
+                            tracing::error!("サンプルSTL読み込み失敗: {}", e);
+                        }
+                    }
                     Key::Named(NamedKey::Escape) => {
                         self.should_exit = true;
                         event_loop.exit();

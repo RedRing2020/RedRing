@@ -1846,6 +1846,9 @@ dependencies = [
 name = "redring"
 version = "0.1.0"
 dependencies = [
+ "geo_foundation",
+ "geo_io",
+ "geo_primitives",
  "model",
  "pollster",
  "render",
@@ -2144,6 +2147,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "render",
+ "tracing",
  "wgpu",
 ]
 
