@@ -50,7 +50,7 @@ pub fn create_sample_stl_with_bounds(path: &Path) -> StlLoadResult {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;  // テストが無効化されているため一時的にコメントアウト
     // use tempfile::NamedTempFile;
 
     #[test]
