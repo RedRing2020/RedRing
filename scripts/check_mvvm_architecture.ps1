@@ -14,23 +14,23 @@ $Violations = @()
 # Architecture Rules Definition
 $ArchitectureRules = @{
     # View layer (render, stage) should NOT depend on Model layer (geo_*) directly
-    "render" = @{
+    "render"    = @{
         "ForbiddenDeps" = @("geo_primitives", "geo_foundation", "geo_core", "geo_algorithms", "geo_io")
-        "AllowedDeps" = @("viewmodel", "wgpu", "winit", "bytemuck", "tracing", "pollster")
+        "AllowedDeps"   = @("viewmodel", "wgpu", "winit", "bytemuck", "tracing", "pollster")
     }
-    "stage" = @{
+    "stage"     = @{
         "ForbiddenDeps" = @("geo_primitives", "geo_foundation", "geo_core", "geo_algorithms", "geo_io")
-        "AllowedDeps" = @("render", "viewmodel", "wgpu", "bytemuck", "tracing")
+        "AllowedDeps"   = @("render", "viewmodel", "wgpu", "bytemuck", "tracing")
     }
     # ViewModel layer can depend on Model layer
     "viewmodel" = @{
-        "AllowedDeps" = @("model", "geo_primitives", "geo_foundation", "tracing")
+        "AllowedDeps"   = @("model", "geo_primitives", "geo_foundation", "tracing")
         "ForbiddenDeps" = @()  # No specific restrictions
     }
     # Model layer should NOT depend on other layers (pure domain logic)
-    "model" = @{
+    "model"     = @{
         "ForbiddenDeps" = @("render", "stage", "viewmodel", "redring")
-        "AllowedDeps" = @()  # External libraries only
+        "AllowedDeps"   = @()  # External libraries only
     }
 }
 
@@ -39,18 +39,18 @@ function Test-Dependencies {
         [string]$CrateName,
         [hashtable]$Rules
     )
-    
+
     $CargoTomlPath = Join-Path $WorkspaceRoot "$CrateName/Cargo.toml"
-    
+
     if (-not (Test-Path $CargoTomlPath)) {
         Write-Host "⚠️  $CrateName Cargo.toml not found: $CargoTomlPath" -ForegroundColor Yellow
         return @()
     }
-    
+
     Write-Host "🔍 Checking $CrateName dependencies..." -ForegroundColor Cyan
-    
+
     $CargoContent = Get-Content $CargoTomlPath -Raw
-    
+
     # Check forbidden dependencies
     if ($Rules.ContainsKey("ForbiddenDeps")) {
         foreach ($ForbiddenDep in $Rules["ForbiddenDeps"]) {
@@ -62,12 +62,12 @@ function Test-Dependencies {
             }
         }
     }
-    
+
     # Extract actual dependencies
     $ActualDeps = @()
     $Lines = $CargoContent -split "`n"
     $InDependencies = $false
-    
+
     foreach ($Line in $Lines) {
         if ($Line -match '^\[dependencies\]') {
             $InDependencies = $true
@@ -82,9 +82,9 @@ function Test-Dependencies {
             $ActualDeps += $DepName
         }
     }
-    
+
     Write-Host "   Dependencies: $($ActualDeps -join ', ')" -ForegroundColor Gray
-    
+
     return $ActualDeps
 }
 
@@ -97,7 +97,7 @@ foreach ($CrateName in $ArchitectureRules.Keys) {
 Write-Host "`n🌳 Cross-checking with cargo tree..." -ForegroundColor Cyan
 try {
     $TreeOutput = & cargo tree --depth 2 2>$null
-    
+
     # Check render for geo_* dependencies
     $RenderLines = $TreeOutput | Where-Object { $_ -match "render v" }
     foreach ($Line in $RenderLines) {
@@ -108,7 +108,7 @@ try {
             Write-Host $Violation -ForegroundColor Red
         }
     }
-    
+
     # Check stage for geo_* dependencies
     $StageLines = $TreeOutput | Where-Object { $_ -match "stage v" }
     foreach ($Line in $StageLines) {
@@ -119,7 +119,8 @@ try {
             Write-Host $Violation -ForegroundColor Red
         }
     }
-} catch {
+}
+catch {
     Write-Host "⚠️  cargo tree execution failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
@@ -131,7 +132,8 @@ if ($ErrorCount -eq 0) {
     Write-Host "✅ MVVM Architecture Compliant: No violations detected" -ForegroundColor Green
     Write-Host "   - View layer (render, stage) accesses Model layer only through ViewModel" -ForegroundColor Gray
     Write-Host "   - Dependency separation properly implemented" -ForegroundColor Gray
-} else {
+}
+else {
     Write-Host "❌ MVVM Architecture Violations: $ErrorCount issues detected" -ForegroundColor Red
     Write-Host "`nViolation Details:" -ForegroundColor Yellow
     foreach ($Violation in $Violations) {
