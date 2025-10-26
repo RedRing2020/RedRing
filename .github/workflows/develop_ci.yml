@@ -69,6 +69,8 @@ jobs:
 
       - name: Architecture dependency validation
         run: |
+          set +e  # Don't exit on command failures
+          
           echo "🏗️ RedRing Architecture Dependency Check"
           echo "📅 Date: $(date)"
           echo ""
@@ -259,10 +261,10 @@ jobs:
           # Check documentation files separately (warning only)
           echo "  📖 Checking documentation files (warnings only)..."
           DOC_IMPORTS=""
-          
+
           # Check for geo_primitives imports in documentation files
           DOC_FILES_WITH_IMPORTS=$(find . \( -name "*.md" -o -path "./docs/*" -o -path "./book/*" \) -type f -exec grep -l "use geo_primitives::" {} \; 2>/dev/null || true)
-          
+
           if [ -n "$DOC_FILES_WITH_IMPORTS" ]; then
             echo "$DOC_FILES_WITH_IMPORTS" | while read -r file; do
               echo "    ⚠️ Documentation contains geo_primitives import: $(basename "$file")"
