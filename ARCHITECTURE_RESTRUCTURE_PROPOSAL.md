@@ -4,10 +4,10 @@
 
 ✅ **アーキテクチャ再編は既に完了済み**
 
-- Foundation 層: `foundation/analysis/` - 独立基盤ライブラリ
-- Model 層: `model/geo_*/` - 幾何・データ処理クレート群
-- ViewModel 層: `viewmodel/converter/`, `viewmodel/graphics/` - 変換・架け橋
-- View 層: `view/app/`, `view/render/`, `view/stage/` - 描画・UI
+- Foundation層: `foundation/analysis/` - 独立基盤ライブラリ
+- Model層: `model/geo_*/` - 幾何・データ処理クレート群
+- ViewModel層: `viewmodel/converter/`, `viewmodel/graphics/` - 変換・架け橋
+- View層: `view/app/`, `view/render/`, `view/stage/` - 描画・UI
 - Documentation: `manual/` → `docs/` の最適化構造
 
 ## 提案構造
