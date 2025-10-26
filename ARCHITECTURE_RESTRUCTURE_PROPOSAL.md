@@ -1,10 +1,14 @@
 # RedRing アーキテクチャ再編提案
 
-## 現在の課題
+## 現在の状況
 
-- Model 層クレートが散在（geo\_\*, model/）
-- View 層クレートが散在（redring/, render/, stage/）
-- 名前空間が不明確で依存関係が把握しにくい
+✅ **アーキテクチャ再編は既に完了済み**
+
+- Foundation層: `foundation/analysis/` - 独立基盤ライブラリ
+- Model層: `model/geo_*/` - 幾何・データ処理クレート群
+- ViewModel層: `viewmodel/converter/`, `viewmodel/graphics/` - 変換・架け橋
+- View層: `view/app/`, `view/render/`, `view/stage/` - 描画・UI
+- Documentation: `manual/` → `docs/` の最適化構造
 
 ## 提案構造
 
@@ -25,14 +29,12 @@ RedRing/
 │   └── viewmodel/      # 現在のviewmodel/
 │
 ├── view/               # View層（描画・UI）
-│   ├── render/         # GPU描画（現在のrender/）
-│   ├── stage/          # レンダリングステージ（現在のstage/）
-│   └── app/            # メインアプリ（現在のredring/）
+│   ├── render/         # GPU描画（移行済み）
+│   ├── stage/          # レンダリングステージ（移行済み）
+│   └── app/            # メインアプリ（移行済み）
 │
-└── docs/               # ドキュメント
-    ├── manual/         # 現在のmanual/
-    ├── book/           # 現在のbook/
-    └── docs/           # 現在のdocs/
+├── manual/             # mdbook ソース（編集用）
+└── docs/               # GitHub Pages 配信用（CI/CD生成）
 ```
 
 ## 利点

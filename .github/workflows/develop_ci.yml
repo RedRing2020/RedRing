@@ -305,7 +305,7 @@ jobs:
               echo "  🔍 Debug: ERROR_COUNT=0, but in else clause - this shouldn't happen"
             fi
           fi
-          
+
           # Explicit exit with success if no errors
           if [ $ERROR_COUNT -eq 0 ]; then
             echo "  🔍 Debug: Exiting with success (exit 0)"

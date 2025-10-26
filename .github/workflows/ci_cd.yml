@@ -63,6 +63,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check Foundation Independence
+        run: |
+          set -e
+          echo "Checking Foundation layer independence..."
+
+          # 1. Foundation層クレートの外部依存性チェック
+          echo "Checking foundation/ crates have no external dependencies..."
+          for foundation_crate in foundation/*/; do
+            if [ -f "$foundation_crate/Cargo.toml" ]; then
+              echo "Checking $foundation_crate"
+              # dev-dependencies以外の依存関係をチェック
+              if grep -A 20 "^\[dependencies\]" "$foundation_crate/Cargo.toml" | grep -v "^\[" | grep -v "^#" | grep -v "^$" | grep "="; then
+                echo "❌ Foundation crate $foundation_crate has external dependencies"
+                grep -A 20 "^\[dependencies\]" "$foundation_crate/Cargo.toml" | grep -v "^\[" | head -5
+                exit 1
+              fi
+            fi
+          done
+          echo "✅ Foundation layer independence verified"
+
       - name: Check Core/Extension Foundation Pattern Compliance
         run: |
           set -e
@@ -70,7 +90,7 @@ jobs:
 
           # 1. 禁止: geo_primitives 外からの直接プリミティブインポート（許可パス除く）
           echo "Checking for forbidden direct primitive imports..."
-          
+
           FORBIDDEN_FOUND=""
           # Exclude documentation, generated files, tests, and permitted paths
           for file in $(find . -name "*.rs" \
@@ -80,7 +100,7 @@ jobs:
             -not -path "*/tests/*" \
             -not -name "*test*.rs" \
             -not -name "*example*.rs"); do
-            
+
             if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
               # Allow specific permitted paths
               if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
@@ -90,7 +110,7 @@ jobs:
               fi
             fi
           done
-          
+
           if [ -n "$FORBIDDEN_FOUND" ]; then
             echo "Forbidden direct geo_primitives import outside geo_primitives crate"
             exit 1
