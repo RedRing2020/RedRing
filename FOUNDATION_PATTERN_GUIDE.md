@@ -16,7 +16,7 @@ pub trait ExtensionFoundation<T: Scalar> {
     fn measure(&self) -> Option<T>;
 }
 
-// analysis/src/abstract_types/mod.rs  
+// analysis/src/abstract_types/mod.rs
 pub trait TolerantEq<T: Scalar> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool;
 }
@@ -51,32 +51,32 @@ impl<T: Scalar> TolerantEq<T> for Point3D<T> {
 
 ## 実装済み Foundation ファイル
 
-### ✅ 完全実装済み（2025年10月26日現在）
+### ✅ 完全実装済み（2025 年 10 月 26 日現在）
 
-| 幾何プリミティブ | Foundation ファイル | 実装内容 |
-|------------------|-------------------|----------|
-| **Arc3D** | `arc_3d_foundation.rs` | 弧の境界ボックス、弧長、誤差比較 |
-| **BoundingBox3D** | `bbox_3d_foundation.rs` | 境界ボックスの体積、包含判定 |
-| **Circle3D** | `circle_3d_foundation.rs` | 円の境界ボックス、円周、誤差比較 |
-| **Cylinder3D** | `cylinder_3d_foundation.rs` | 円柱の境界ボックス、表面積 |
-| **Point3D** | `point_3d_foundation.rs` | 点の距離比較、測度0 |
-| **Ray3D** | `ray_3d_foundation.rs` | 無限レイ、測度無限大 |
-| **Sphere3D** | `sphere_3d_foundation.rs` | 球の境界ボックス、表面積 |
-| **Triangle3D** | `triangle_3d_foundation.rs` | 三角形の境界ボックス、面積 |
-| **TriangleMesh3D** | `triangle_mesh_3d_foundation.rs` | メッシュの境界ボックス、総面積 |
-| **Vector3D** | `vector_3d_foundation.rs` | ベクトルの長さ、誤差比較 |
+| 幾何プリミティブ   | Foundation ファイル              | 実装内容                         |
+| ------------------ | -------------------------------- | -------------------------------- |
+| **Arc3D**          | `arc_3d_foundation.rs`           | 弧の境界ボックス、弧長、誤差比較 |
+| **BoundingBox3D**  | `bbox_3d_foundation.rs`          | 境界ボックスの体積、包含判定     |
+| **Circle3D**       | `circle_3d_foundation.rs`        | 円の境界ボックス、円周、誤差比較 |
+| **Cylinder3D**     | `cylinder_3d_foundation.rs`      | 円柱の境界ボックス、表面積       |
+| **Point3D**        | `point_3d_foundation.rs`         | 点の距離比較、測度 0             |
+| **Ray3D**          | `ray_3d_foundation.rs`           | 無限レイ、測度無限大             |
+| **Sphere3D**       | `sphere_3d_foundation.rs`        | 球の境界ボックス、表面積         |
+| **Triangle3D**     | `triangle_3d_foundation.rs`      | 三角形の境界ボックス、面積       |
+| **TriangleMesh3D** | `triangle_mesh_3d_foundation.rs` | メッシュの境界ボックス、総面積   |
+| **Vector3D**       | `vector_3d_foundation.rs`        | ベクトルの長さ、誤差比較         |
 
 ### 📋 今後の実装予定（2D 系）
 
-| 幾何プリミティブ | Foundation ファイル | 優先度 |
-|------------------|-------------------|--------|
-| **Point2D** | `point_2d_foundation.rs` | 高 |
-| **Vector2D** | `vector_2d_foundation.rs` | 高 |
-| **Direction2D** | `direction_2d_foundation.rs` | 高 |
-| **Ray2D** | `ray_2d_foundation.rs` | 高 |
-| **Circle2D** | `circle_2d_foundation.rs` | 中 |
-| **Arc2D** | `arc_2d_foundation.rs` | 中 |
-| **Ellipse2D** | `ellipse_2d_foundation.rs` | 低 |
+| 幾何プリミティブ | Foundation ファイル          | 優先度 |
+| ---------------- | ---------------------------- | ------ |
+| **Point2D**      | `point_2d_foundation.rs`     | 高     |
+| **Vector2D**     | `vector_2d_foundation.rs`    | 高     |
+| **Direction2D**  | `direction_2d_foundation.rs` | 高     |
+| **Ray2D**        | `ray_2d_foundation.rs`       | 高     |
+| **Circle2D**     | `circle_2d_foundation.rs`    | 中     |
+| **Arc2D**        | `arc_2d_foundation.rs`       | 中     |
+| **Ellipse2D**    | `ellipse_2d_foundation.rs`   | 低     |
 
 ## PrimitiveKind 列挙型
 
@@ -84,21 +84,21 @@ impl<T: Scalar> TolerantEq<T> for Point3D<T> {
 pub enum PrimitiveKind {
     // 基本要素
     Point,
-    Vector, 
+    Vector,
     Direction,
     Ray,
-    
+
     // 曲線
     Line,
     Circle,
     Ellipse,
     Arc,
-    
+
     // 曲面
     Plane,
     Sphere,
     Cylinder,
-    
+
     // 複合形状
     Triangle,
     Mesh,
@@ -110,21 +110,21 @@ pub enum PrimitiveKind {
 
 ### 1. measure() メソッドの実装指針
 
-| 形状タイプ | 測度の意味 | 実装例 |
-|------------|------------|--------|
-| **点** | 測度0 | `T::ZERO` |
-| **曲線** | 長さ | `self.length()` |
-| **曲面** | 面積 | `self.area()` |
-| **立体** | 体積 | `self.volume()` |
-| **無限形状** | 無限大 | `None` または特別処理 |
+| 形状タイプ   | 測度の意味 | 実装例                |
+| ------------ | ---------- | --------------------- |
+| **点**       | 測度 0     | `T::ZERO`             |
+| **曲線**     | 長さ       | `self.length()`       |
+| **曲面**     | 面積       | `self.area()`         |
+| **立体**     | 体積       | `self.volume()`       |
+| **無限形状** | 無限大     | `None` または特別処理 |
 
 ### 2. bounding_box() メソッドの実装指針
 
-| 形状タイプ | 境界ボックス | 実装例 |
-|------------|--------------|--------|
+| 形状タイプ   | 境界ボックス   | 実装例                          |
+| ------------ | -------------- | ------------------------------- |
 | **有限形状** | 最小包含直方体 | `Some(BoundingBox3D::from_...)` |
-| **無限形状** | 定義不可 | `None` |
-| **退化形状** | 特別処理 | 条件分岐で適切に処理 |
+| **無限形状** | 定義不可       | `None`                          |
+| **退化形状** | 特別処理       | 条件分岐で適切に処理            |
 
 ### 3. tolerant_eq() メソッドの実装指針
 
@@ -133,10 +133,10 @@ impl<T: Scalar> TolerantEq<T> for GeometryType<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 距離ベースの比較（推奨）
         self.distance_to(other) <= tolerance
-        
+
         // または成分ベースの比較
-        // (self.x() - other.x()).abs() <= tolerance && 
-        // (self.y() - other.y()).abs() <= tolerance && 
+        // (self.x() - other.x()).abs() <= tolerance &&
+        // (self.y() - other.y()).abs() <= tolerance &&
         // (self.z() - other.z()).abs() <= tolerance
     }
 }
@@ -156,29 +156,29 @@ mod tests {
     #[test]
     fn test_extension_foundation() {
         let geometry = GeometryType::new(/* パラメータ */);
-        
+
         // primitive_kind のテスト
         assert_eq!(geometry.primitive_kind(), PrimitiveKind::ExpectedKind);
-        
+
         // bounding_box のテスト
         let bbox = geometry.bounding_box();
         assert!(bbox.is_some()); // または is_none() for infinite shapes
-        
+
         // measure のテスト
         let measure = geometry.measure();
         assert!(measure.is_some());
         assert!(measure.unwrap() >= 0.0); // 負の測度はない
     }
 
-    #[test]  
+    #[test]
     fn test_tolerant_eq() {
         let geometry1 = GeometryType::new(/* パラメータ1 */);
         let geometry2 = GeometryType::new(/* パラメータ2 */);
         let tolerance = 0.01;
-        
+
         // 自己比較
         assert!(geometry1.tolerant_eq(&geometry1, tolerance));
-        
+
         // 対称性
         assert_eq!(
             geometry1.tolerant_eq(&geometry2, tolerance),
@@ -233,7 +233,7 @@ model/
 
 ### 1. ファイルサイズ
 
-- Foundation ファイル: **50-100行** を目標
+- Foundation ファイル: **50-100 行** を目標
 - 簡潔で集中した実装を心がける
 
 ### 2. テストカバレッジ
@@ -264,6 +264,6 @@ model/
 
 ---
 
-**最終更新**: 2025年10月26日  
-**文書バージョン**: 1.0  
+**最終更新**: 2025 年 10 月 26 日
+**文書バージョン**: 1.0
 **対応システム**: RedRing Foundation v1.0

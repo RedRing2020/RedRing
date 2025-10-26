@@ -61,9 +61,11 @@
     │ + foundation│  │ + foundation│
     └─────────────┘  └─────────────┘
 ```
+
     │ start/end   │  │ start/end   │
     └─────────────┘  └─────────────┘
-```
+
+````
 
 ## 🚀 具体的な改善点
 
@@ -79,7 +81,7 @@ fn radius(&self) -> T where T: Scalar;
 // 利用例
 let circle_f64 = Circle2D::<f64>::new(center, 5.0);
 let circle_f32 = Circle2D::<f32>::new(center, 5.0); // 高速計算用
-```
+````
 
 **メリット**:
 
@@ -195,6 +197,7 @@ impl<T: Scalar> Arc<T> for Arc2D<T> {
    - 段階的移行（エイリアス使用）
 
 2. **Foundation ファイル実装**
+
    - `circle_2d_foundation.rs` 新規作成
    - `circle_3d_foundation.rs` 既存活用
    - VS Code ファイルグループ化設定更新
@@ -266,10 +269,10 @@ mod tests {
     fn test_extension_foundation() {
         let circle = Circle2D::new(Point::origin(), 5.0);
         assert_eq!(circle.primitive_kind(), PrimitiveKind::Circle);
-        
+
         let bbox = circle.bounding_box();
         assert!(bbox.is_some());
-        
+
         let area = circle.measure();
         assert!(area.is_some());
         assert!((area.unwrap() - 25.0 * std::f64::consts::PI).abs() < 1e-10);
@@ -280,7 +283,7 @@ mod tests {
         let circle1 = Circle2D::new(Point::origin(), 5.0);
         let circle2 = Circle2D::new(Point::new(0.005, 0.0), 5.001);
         let tolerance = 0.01;
-        
+
         assert!(circle1.tolerant_eq(&circle2, tolerance));
     }
 }
