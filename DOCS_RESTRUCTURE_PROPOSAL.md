@@ -3,12 +3,12 @@
 ## 現在の課題
 
 - `docs/`, `book/`, `manual/` が並存
-- GitHub Pages設定との整合性
+- GitHub Pages 設定との整合性
 - mdbook の出力先設定
 
 ## 推奨構造
 
-### オプション1: 統合型（推奨）
+### オプション 1: 統合型（推奨）
 
 ```
 RedRing/
@@ -24,7 +24,7 @@ RedRing/
 └── docs/                  # GitHub Pages実際の配信先（CI/CDで生成）
 ```
 
-### オプション2: 分離型
+### オプション 2: 分離型
 
 ```
 RedRing/
@@ -35,7 +35,7 @@ RedRing/
 
 ## 推奨移行手順
 
-### 1. オプション1（統合型）の場合
+### 1. オプション 1（統合型）の場合
 
 ```bash
 # 1. 統合ディレクトリ作成
@@ -54,7 +54,7 @@ Move-Item manual/* documentation/source/
 Move-Item book documentation/archive
 ```
 
-### 2. オプション2（分離型）の場合
+### 2. オプション 2（分離型）の場合
 
 ```bash
 # 1. 旧book/フォルダをアーカイブ
@@ -67,30 +67,34 @@ Move-Item book archive
 
 ## GitHub Pages への影響
 
-### 変更なし（オプション2）
+### 変更なし（オプション 2）
+
 - `book.toml`: 現在の設定維持
 - CI/CD: 変更不要
 - GitHub Pages: 影響なし
 
-### 変更あり（オプション1）
+### 変更あり（オプション 1）
+
 - `book.toml`: `src` パスを更新
 - CI/CD: 変更不要（出力先は同じ`docs/`）
 - GitHub Pages: 影響なし
 
 ## 推奨案
 
-**オプション2（分離型）** を推奨します：
+**オプション 2（分離型）** を推奨します：
 
 ### 理由
-1. GitHub Pages設定への影響最小
+
+1. GitHub Pages 設定への影響最小
 2. 移行リスクが低い
 3. 現在の作業フローを維持
 4. 必要に応じて将来統合可能
 
 ### 実装手順
+
 1. 重複している`book/`フォルダを`archive/`に移動
 2. 現在の`manual/` → `docs/`の流れを維持
-3. GitHub Pages設定は変更なし
+3. GitHub Pages 設定は変更なし
 
 ## 次のステップ
 
