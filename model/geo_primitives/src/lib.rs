@@ -50,6 +50,11 @@ pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
 pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform)
+pub mod sphere_3d; // Sphere3D の新実装 (Core)
+pub mod sphere_3d_extensions; // Sphere3D の拡張機能 (Extension)
+pub mod sphere_3d_foundation; // Sphere3D のトレイト実装
+#[cfg(test)]
+pub mod sphere_3d_tests; // Sphere3D のテスト
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 
@@ -198,6 +203,7 @@ pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
+pub use sphere_3d::Sphere3D;
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;

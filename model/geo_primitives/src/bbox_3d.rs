@@ -3,7 +3,7 @@
 //! foundation.rs の基盤トレイトに基づく BBox3D の実装
 
 use crate::Point3D;
-use geo_foundation::Scalar;
+use geo_foundation::{extension_foundation::AbstractBBox, Scalar};
 
 /// 3次元軸平行境界ボックス
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -109,5 +109,21 @@ impl<T: Scalar> Default for BBox3D<T> {
             Point3D::new(-half, -half, -half),
             Point3D::new(half, half, half),
         )
+    }
+}
+
+// ============================================================================
+// Foundation Trait Implementation
+// ============================================================================
+
+impl<T: Scalar> AbstractBBox<T> for BBox3D<T> {
+    type Point = Point3D<T>;
+
+    fn min(&self) -> Self::Point {
+        self.min
+    }
+
+    fn max(&self) -> Self::Point {
+        self.max
     }
 }
