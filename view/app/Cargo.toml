@@ -14,4 +14,4 @@ viewmodel = { path = "../../viewmodel/converter" }
 viewmodel-graphics = { path = "../../viewmodel/graphics" }
 render = { path = "../render" }
 stage = { path = "../stage" }
-analysis = { path = "../../analysis" }
+analysis = { path = "../../foundation/analysis" }

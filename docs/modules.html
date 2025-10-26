@@ -224,9 +224,9 @@
 <li>他のプロジェクトでも再利用可能</li>
 </ul>
 <h3 id="geo_io"><a class="header" href="#geo_io"><code>geo_io</code></a></h3>
-<p><strong>ファイルI/O・境界層処理</strong></p>
+<p><strong>ファイル I/O・境界層処理</strong></p>
 <ul>
-<li>STL、OBJ、PLY等のファイル形式との変換</li>
+<li>STL、OBJ、PLY 等のファイル形式との変換</li>
 <li><strong>例外的設計</strong>: <code>geo_foundation</code>トレイトを経由せず、直接<code>geo_primitives</code>にアクセス</li>
 <li>ゼロコピー最適化によるパフォーマンス重視</li>
 <li>外部データ形式との効率的な境界処理</li>
@@ -243,7 +243,7 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 <p>この例外は以下の理由で採用：</p>
 <ul>
 <li><strong>パフォーマンス</strong>: ファイル形式との直接変換でゼロコピー最適化</li>
-<li><strong>責務明確化</strong>: I/O境界層としての特化</li>
+<li><strong>責務明確化</strong>: I/O 境界層としての特化</li>
 <li><strong>実装複雑性回避</strong>: 抽象化オーバーヘッドの排除</li>
 </ul>
 <h3 id="cam_solver"><a class="header" href="#cam_solver"><code>cam_solver</code></a></h3>
@@ -263,7 +263,7 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 <li>DXF インポート/エクスポート</li>
 <li>DWG インポート/エクスポート</li>
 </ul>
-<p><em>注記</em>: 現在は<code>geo_io</code>でSTL形式のみ実装済み</p>
+<p><em>注記</em>: 現在は<code>geo_io</code>で STL 形式のみ実装済み</p>
 <h2 id="レンダリング層"><a class="header" href="#レンダリング層">レンダリング層</a></h2>
 <h3 id="render"><a class="header" href="#render"><code>render</code></a></h3>
 <p><strong>GPU 描画基盤</strong></p>
@@ -280,13 +280,13 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 <li>シーン構成</li>
 </ul>
 <h3 id="viewmodel"><a class="header" href="#viewmodel"><code>viewmodel</code></a></h3>
-<p><strong>ビュー操作・変換ロジック・MVVMアーキテクチャ</strong></p>
+<p><strong>ビュー操作・変換ロジック・MVVM アーキテクチャ</strong></p>
 <ul>
 <li>カメラ制御（将来実装予定）</li>
 <li>ビュー変換</li>
 <li>ユーザーインタラクション（将来実装予定）</li>
-<li><strong>MVVM準拠</strong>: Model層（<code>geo_*</code>）とView層（<code>render</code>）の架け橋</li>
-<li>STL読み込み・GPU変換機能（<code>stl_loader</code>）</li>
+<li><strong>MVVM 準拠</strong>: Model 層（<code>geo_*</code>）と View 層（<code>render</code>）の架け橋</li>
+<li>STL 読み込み・GPU 変換機能（<code>stl_loader</code>）</li>
 <li>メッシュデータ変換（<code>mesh_converter</code>）</li>
 </ul>
 <h3 id="redring"><a class="header" href="#redring"><code>redring</code></a></h3>
@@ -303,8 +303,8 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 <li><strong>モジュール性</strong>：<code>render</code> は <code>model</code> に依存しない設計</li>
 <li><strong>拡張性</strong>：将来的な NURBS や WebAssembly 対応を考慮</li>
 <li><strong>国際化</strong>：英語ベースの命名で国際的な貢献を促進</li>
-<li><strong>MVVMアーキテクチャ</strong>：View → ViewModel → Model の層分離</li>
-<li><strong>例外設計許容</strong>：パフォーマンス要件に応じた適切な例外設計（I/O層など）</li>
+<li><strong>MVVM アーキテクチャ</strong>：View → ViewModel → Model の層分離</li>
+<li><strong>例外設計許容</strong>：パフォーマンス要件に応じた適切な例外設計（I/O 層など）</li>
 </ul>
 <h2 id="アーキテクチャ依存関係"><a class="header" href="#アーキテクチャ依存関係">アーキテクチャ依存関係</a></h2>
 <pre><code>redring (View) → viewmodel → model (geo_*)

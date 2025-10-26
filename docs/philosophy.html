@@ -240,7 +240,7 @@ pub trait DistanceCalculation&lt;T, Target&gt; {
 <li><strong>エラー情報</strong>: 具体的で actionable なエラーメッセージ</li>
 </ul>
 <h2 id="6-io-レイヤーの例外的設計パターン"><a class="header" href="#6-io-レイヤーの例外的設計パターン">6. I/O レイヤーの例外的設計パターン</a></h2>
-<p>RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O層に例外的な設計パターンを採用しています。</p>
+<p>RedRing では、パフォーマンスと責務分離のバランスを取るため、I/O 層に例外的な設計パターンを採用しています。</p>
 <h3 id="geo_foundation-トレイト設計からの例外"><a class="header" href="#geo_foundation-トレイト設計からの例外">geo_foundation トレイト設計からの例外</a></h3>
 <p><code>geo_io</code> クレートは、他の <code>geo_*</code> クレートとは異なり、<code>geo_foundation</code> トレイトを経由せず、直接 <code>geo_primitives</code> にアクセスします：</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -259,8 +259,8 @@ pub fn load_stl&lt;T: Scalar&gt;(path: &amp;Path) -&gt; Result&lt;TriangleMesh3D
 <li><strong>パフォーマンス重視</strong>: 大量データの高速処理要件</li>
 <li><strong>実装複雑性の回避</strong>: 抽象化によるオーバーヘッドを排除</li>
 </ol>
-<h3 id="mvvm準拠のアクセスパターン"><a class="header" href="#mvvm準拠のアクセスパターン">MVVM準拠のアクセスパターン</a></h3>
-<p>View層（<code>redring</code>）は直接 <code>geo_io</code> にアクセスせず、ViewModel層（<code>viewmodel</code>）を経由：</p>
+<h3 id="mvvm-準拠のアクセスパターン"><a class="header" href="#mvvm-準拠のアクセスパターン">MVVM 準拠のアクセスパターン</a></h3>
+<p>View 層（<code>redring</code>）は直接 <code>geo_io</code> にアクセスせず、ViewModel 層（<code>viewmodel</code>）を経由：</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// ❌ View層での直接I/Oアクセス（禁止）
