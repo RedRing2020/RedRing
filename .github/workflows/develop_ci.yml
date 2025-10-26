@@ -240,7 +240,7 @@ jobs:
             -not -path "*/tests/*" \
             -not -name "*test*.rs" \
             -not -name "*example*.rs"); do
-            
+
             if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
               # Allow specific permitted paths
               if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
@@ -255,7 +255,7 @@ jobs:
           if [ -z "$FORBIDDEN_IMPORTS" ]; then
             echo "  ✅ No forbidden direct geo_primitives imports found"
           fi
-          
+
           # Check documentation files separately (warning only)
           echo "  📖 Checking documentation files (warnings only)..."
           DOC_IMPORTS=""
@@ -266,7 +266,7 @@ jobs:
               ((WARNING_COUNT++))
             fi
           done
-          
+
           if [ -z "$DOC_IMPORTS" ]; then
             echo "  ✅ No geo_primitives imports in documentation"
           fi
