@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づく Arc2D の必須機能のみ
 //! 拡張機能は arc_2d_extensions.rs を参照
 
-use crate::{Circle2D, Point2D, Vector2D};
+use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
 use geo_foundation::Scalar;
 
@@ -128,10 +128,11 @@ impl<T: Scalar> Arc2D<T> {
     }
 
     /// 開始方向ベクトルを取得
-    pub fn start_direction(&self) -> Vector2D<T> {
+    pub fn start_direction(&self) -> Direction2D<T> {
         let angle = self.start_angle.to_radians();
         // 円の接線方向（時計回り）
-        Vector2D::new(angle.cos(), angle.sin())
+        let direction_vector = Vector2D::new(-angle.sin(), angle.cos());
+        Direction2D::from_vector(direction_vector).expect("Direction vector should be valid")
     }
 
     /// 円弧の角度範囲を取得

@@ -13,6 +13,8 @@ pub enum PrimitiveKind {
     PolyLine,
     BezierCurve,
     NurbsCurve,
+    Arc,
+    Ray,
 
     // 2次元: 面要素
     Circle,
@@ -33,6 +35,11 @@ pub enum PrimitiveKind {
     // 複合要素
     Group,
     Assembly,
+
+    // 補助要素
+    BoundingBox,
+    Vector,
+    Mesh,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,7 +60,9 @@ impl PrimitiveKind {
             PrimitiveKind::LineSegment
             | PrimitiveKind::PolyLine
             | PrimitiveKind::BezierCurve
-            | PrimitiveKind::NurbsCurve => DimensionClass::One,
+            | PrimitiveKind::NurbsCurve
+            | PrimitiveKind::Arc
+            | PrimitiveKind::Ray => DimensionClass::One,
 
             PrimitiveKind::Circle
             | PrimitiveKind::Ellipse
@@ -67,9 +76,12 @@ impl PrimitiveKind {
             | PrimitiveKind::Cylinder
             | PrimitiveKind::Cone
             | PrimitiveKind::Cube
-            | PrimitiveKind::TriangleMesh => DimensionClass::Three,
+            | PrimitiveKind::TriangleMesh
+            | PrimitiveKind::Mesh => DimensionClass::Three,
 
             PrimitiveKind::Group | PrimitiveKind::Assembly => DimensionClass::Complex,
+
+            PrimitiveKind::BoundingBox | PrimitiveKind::Vector => DimensionClass::Complex,
         }
     }
 

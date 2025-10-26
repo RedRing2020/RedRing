@@ -12,9 +12,17 @@
 | **Arc 設計**       | 独立実装、重複             | Circle 内包で簡素化             |
 | **テスト配置**     | unit_tests のみ            | 実装内+統合テストのハイブリッド |
 
-### 2. **改善されたアーキテクチャ**
+### 2. **改善されたアーキテクチャ（Foundation パターン対応）**
 
 ```
+┌─────────────────────┐
+│   Foundation        │  ← 統一トレイト層
+│ - ExtensionFoundation│
+│ - TolerantEq        │
+│ - PrimitiveKind     │
+└─────────────────────┘
+           │
+           ▼
 ┌─────────────────────┐
 │   Scalar Trait      │  ← f32/f64抽象化
 │   (f32, f64)        │
@@ -39,18 +47,25 @@
     ┌─────────┴─────────┐
     ▼                   ▼
 ┌─────────────┐  ┌─────────────┐
-│ Circle2D<T> │  │ Circle3D<T> │  ← 次元特化
+│ Circle2D<T> │  │ Circle3D<T> │  ← 次元特化 + Foundation
 │ - intersect │  │ - normal    │
 │ - tangent   │  │ - to_2d     │
+│ + foundation│  │ + foundation│
 └─────────────┘  └─────────────┘
            │                  │
            ▼                  ▼
     ┌─────────────┐  ┌─────────────┐
-    │  Arc2D<T>   │  │  Arc3D<T>   │  ← Circle内包
+    │  Arc2D<T>   │  │  Arc3D<T>   │  ← Circle内包 + Foundation
     │ circle: C2D │  │ circle: C3D │
     │ start/end   │  │ start/end   │
+    │ + foundation│  │ + foundation│
     └─────────────┘  └─────────────┘
 ```
+
+    │ start/end   │  │ start/end   │
+    └─────────────┘  └─────────────┘
+
+````
 
 ## 🚀 具体的な改善点
 
@@ -66,7 +81,7 @@ fn radius(&self) -> T where T: Scalar;
 // 利用例
 let circle_f64 = Circle2D::<f64>::new(center, 5.0);
 let circle_f32 = Circle2D::<f32>::new(center, 5.0); // 高速計算用
-```
+````
 
 **メリット**:
 
@@ -178,9 +193,16 @@ impl<T: Scalar> Arc<T> for Arc2D<T> {
 
    - 現在の`Circle2D`/`Circle3D`を新設計に移行
    - ジェネリック化（`Circle<T: Scalar>`）
+   - Foundation トレイト統合（`ExtensionFoundation<T>` + `TolerantEq<T>`）
    - 段階的移行（エイリアス使用）
 
-2. **既存実装の更新**
+2. **Foundation ファイル実装**
+
+   - `circle_2d_foundation.rs` 新規作成
+   - `circle_3d_foundation.rs` 既存活用
+   - VS Code ファイルグループ化設定更新
+
+3. **既存実装の更新**
    ```rust
    // 互換性のためのエイリアス
    pub type Circle2DOld = Circle2D<f64>;
@@ -216,10 +238,10 @@ impl<T: Scalar> Arc<T> for Arc2D<T> {
 | **保守性**           | ✅ 実装と一体      | ❌ 実装と分離    |
 | **複雑なテスト**     | ❌ 制限あり        | ✅ 自由度高      |
 
-### **推奨ハイブリッド戦略**
+### **推奨ハイブリッド戦略（Foundation パターン対応）**
 
 ```rust
-// 実装ファイル内（例：circle.rs）
+// 実装ファイル内（例：circle_2d.rs）
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,6 +255,36 @@ mod tests {
     #[test]
     fn test_internal_methods() {
         // プライベート機能のテスト
+    }
+}
+
+// Foundation 実装ファイル（例：circle_2d_foundation.rs）
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use geo_foundation::ExtensionFoundation;
+    use analysis::TolerantEq;
+
+    #[test]
+    fn test_extension_foundation() {
+        let circle = Circle2D::new(Point::origin(), 5.0);
+        assert_eq!(circle.primitive_kind(), PrimitiveKind::Circle);
+
+        let bbox = circle.bounding_box();
+        assert!(bbox.is_some());
+
+        let area = circle.measure();
+        assert!(area.is_some());
+        assert!((area.unwrap() - 25.0 * std::f64::consts::PI).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_tolerant_eq() {
+        let circle1 = Circle2D::new(Point::origin(), 5.0);
+        let circle2 = Circle2D::new(Point::new(0.005, 0.0), 5.001);
+        let tolerance = 0.01;
+
+        assert!(circle1.tolerant_eq(&circle2, tolerance));
     }
 }
 

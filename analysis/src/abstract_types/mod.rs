@@ -10,14 +10,14 @@ pub use angle::{Angle, AngleType};
 pub use scalar::Scalar;
 
 /// 許容誤差を考慮した等価比較トレイト
-pub trait TolerantEq {
+pub trait TolerantEq<T: Scalar> {
     /// 許容誤差を考慮した等価比較
-    fn tolerant_eq(&self, other: &Self, tolerance: Self) -> bool;
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool;
 }
 
 // Scalarトレイトを実装する型に対する汎用実装
-impl<T: Scalar> TolerantEq for T {
-    fn tolerant_eq(&self, other: &Self, tolerance: Self) -> bool {
+impl<T: Scalar> TolerantEq<T> for T {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         (*self - *other).abs() < tolerance
     }
 }
