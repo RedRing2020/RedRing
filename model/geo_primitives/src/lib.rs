@@ -11,17 +11,25 @@ pub use geo_foundation::TransformError;
 // 3D プリミティブ
 pub mod arc_3d;
 pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
+pub mod arc_3d_foundation; // Arc3D のFoundation実装
 pub mod arc_3d_transform; // Arc3D の変換機能 (Transform)
 pub mod arc_3d_transform_safe; // Arc3D の安全な変換機能 (Safe Transform)
 pub mod bbox_3d; // BBox3D の新実装
 pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
+pub mod bbox_3d_foundation; // BBox3D のFoundation実装
 pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
 pub mod bbox_3d_transform_safe; // BBox3D の安全な変換機能 (Safe Transform)
 pub mod circle_3d; // Circle3D の新実装
 pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
+pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
 pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
+pub mod cylinder_3d; // Cylinder3D の新実装 (Core)
+pub mod cylinder_3d_extensions; // Cylinder3D の拡張機能 (Extension)
+pub mod cylinder_3d_foundation; // Cylinder3D のトレイト実装
+#[cfg(test)]
+pub mod cylinder_3d_tests; // Cylinder3D のテスト
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod direction_3d_transform_safe; // Direction3D の安全な変換機能 (Safe Transform)
@@ -44,10 +52,12 @@ pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機能 (Safe Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
+pub mod point_3d_foundation; // Point3D のFoundation実装
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
 pub mod point_3d_transform_safe; // Point3D の安全な変換機能 (Safe Transform)
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
+pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
 pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform)
 pub mod sphere_3d; // Sphere3D の新実装 (Core)
@@ -56,11 +66,14 @@ pub mod sphere_3d_foundation; // Sphere3D のトレイト実装
 #[cfg(test)]
 pub mod sphere_3d_tests; // Sphere3D のテスト
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
+pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
+pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 
 // Vector3D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_3d; // Vector3D の新実装
 pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
+pub mod vector_3d_foundation; // Vector3D のFoundation実装
 pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
 pub mod vector_3d_transform_safe; // Vector3D の安全な変換機能 (Safe Transform)
 
@@ -196,6 +209,7 @@ pub use geo_foundation::extensions::{
 pub use arc_3d::Arc3D;
 pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
+pub use cylinder_3d::Cylinder3D;
 pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
 pub use ellipse_arc_3d::EllipseArc3D;
