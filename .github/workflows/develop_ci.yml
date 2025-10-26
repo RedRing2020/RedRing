@@ -56,8 +56,8 @@ jobs:
           cargo doc --workspace --no-deps --verbose
           echo "✅ Documentation built successfully (develop branch - no deployment)"
 
-  foundation-architecture-scan:
-    name: Foundation Architecture Scan
+  architecture-dependency-check:
+    name: Architecture Dependency Check
     runs-on: ubuntu-latest
 
     steps:
@@ -66,86 +66,209 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
 
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Foundation architecture validation
+      - name: Architecture dependency validation
         run: |
-          echo "🔍 Foundation Architecture Validation"
-          echo "📦 Checking Core/Extension Foundation pattern compliance..."
+          echo "🏗️ RedRing Architecture Dependency Check"
+          echo "📅 Date: $(date)"
+          echo ""
 
-          # geo_foundation の基本構造確認
-          if [ -f "model/geo_foundation/Cargo.toml" ]; then
-            echo "✅ model/geo_foundation/Cargo.toml found"
-          else
-            echo "❌ model/geo_foundation/Cargo.toml not found"
-            exit 1
-          fi
+          ERROR_COUNT=0
+          WARNING_COUNT=0
 
-          # TransformError 統合確認
-          if grep -r "TransformError" model/geo_foundation/src/ > /dev/null 2>&1; then
-            echo "✅ TransformError found in model/geo_foundation"
-          else
-            echo "❌ TransformError not found in model/geo_foundation"
-            exit 1
-          fi
+          # Define workspace structure
+          declare -A WORKSPACE_CRATES=(
+            ["analysis"]="analysis"
+            ["geo_foundation"]="model/geo_foundation"
+            ["geo_core"]="model/geo_core"
+            ["geo_primitives"]="model/geo_primitives"
+            ["geo_algorithms"]="model/geo_algorithms"
+            ["geo_io"]="model/geo_io"
+            ["converter"]="viewmodel/converter"
+            ["graphics"]="viewmodel/graphics"
+            ["render"]="view/render"
+            ["stage"]="view/stage"
+            ["app"]="view/app"
+          )
 
-          # geo_primitives での重複確認
-          if grep -r "enum TransformError" model/geo_primitives/src/ > /dev/null 2>&1; then
-            echo "❌ Duplicate TransformError found in model/geo_primitives"
-            exit 1
-          else
-            echo "✅ No duplicate TransformError in geo_primitives"
-          fi
+          # Define allowed dependencies
+          declare -A ALLOWED_DEPS=(
+            ["analysis"]=""
+            ["geo_foundation"]="analysis"
+            ["geo_core"]="geo_foundation analysis"
+            ["geo_primitives"]="geo_foundation geo_core analysis"
+            ["geo_algorithms"]="geo_foundation geo_core geo_primitives analysis"
+            ["geo_io"]="geo_foundation geo_core geo_primitives geo_algorithms analysis"
+            ["converter"]="geo_foundation geo_core geo_primitives geo_algorithms geo_io analysis"
+            ["graphics"]="geo_foundation geo_core geo_primitives analysis"
+            ["render"]="analysis"
+            ["stage"]="render analysis"
+            ["app"]="converter graphics render stage analysis"
+          )
 
-          # 直接 geo_primitives インポートの確認（許可パターンを除く）
-          echo "🔍 Checking for forbidden direct geo_primitives imports..."
+          # Function to get crate dependencies
+          get_crate_dependencies() {
+            local crate_path="$1"
+            local cargo_toml="$crate_path/Cargo.toml"
 
-          # 許可されるパターン：
-          # 1. geo_primitives クレート内（自己参照）
-          # 2. viewmodel クレート（Model層アクセス許可）
-          # 3. geo_foundation クレート（Foundation層）
-          # 4. geo_io クレート（I/O操作用）
-          # 5. コメント内（無効化されたコード）
+            if [ ! -f "$cargo_toml" ]; then
+              return
+            fi
 
-          # 検索して許可パターンでフィルタリング
-          FORBIDDEN_IMPORTS=""
+            # Extract workspace dependencies from [dependencies] section
+            awk '
+              /^\[dependencies\]/ { in_deps = 1; next }
+              /^\[/ && in_deps { in_deps = 0 }
+              in_deps && /^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=/ {
+                match($0, /^([a-zA-Z_][a-zA-Z0-9_]*)/, arr)
+                dep_name = arr[1]
+                # Check if it is a workspace crate
+                if (dep_name == "analysis" || dep_name == "geo_foundation" ||
+                    dep_name == "geo_core" || dep_name == "geo_primitives" ||
+                    dep_name == "geo_algorithms" || dep_name == "geo_io" ||
+                    dep_name == "converter" || dep_name == "graphics" ||
+                    dep_name == "render" || dep_name == "stage" || dep_name == "app") {
+                  print dep_name
+                }
+              }
+            ' "$cargo_toml"
+          }
 
-          # 各ファイルを個別にチェック
-          for file in $(find . -name "*.rs" -not -path "./model/geo_primitives/*" -not -path "./target/*"); do
-            # コメントアウトされていない use geo_primitives:: を検索
-            if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
-              # 許可されたパス以外の場合は違反
-              if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
-                if [ -z "$FORBIDDEN_IMPORTS" ]; then
-                  FORBIDDEN_IMPORTS="$file"
+          echo "1️⃣ Model layer naming rule check:"
+          MODEL_CRATES=("geo_foundation" "geo_core" "geo_primitives" "geo_algorithms" "geo_io")
+          for crate_name in "${MODEL_CRATES[@]}"; do
+            if [ -d "${WORKSPACE_CRATES[$crate_name]}" ]; then
+              echo "  ✅ $crate_name follows geo_ prefix rule"
+            else
+              echo "  ❌ Required Model crate '$crate_name' not found"
+              ((ERROR_COUNT++))
+            fi
+          done
+          echo ""
+
+          echo "2️⃣ Dependency rule check:"
+          for crate_name in "${!WORKSPACE_CRATES[@]}"; do
+            crate_path="${WORKSPACE_CRATES[$crate_name]}"
+
+            if [ -d "$crate_path" ]; then
+              echo "  🔍 Checking: $crate_name"
+
+              # Get actual dependencies
+              actual_deps=$(get_crate_dependencies "$crate_path")
+              allowed_deps="${ALLOWED_DEPS[$crate_name]}"
+
+              if [ -n "$actual_deps" ]; then
+                for dep in $actual_deps; do
+                  if echo "$allowed_deps" | grep -q "\b$dep\b"; then
+                    echo "    ✅ $crate_name -> $dep (allowed)"
+                  else
+                    echo "    ❌ $crate_name -> $dep (not allowed)"
+                    ((ERROR_COUNT++))
+                  fi
+                done
+              else
+                echo "    ℹ️ No workspace dependencies"
+              fi
+            else
+              echo "  ⚠️ Crate path not found: $crate_path"
+              ((WARNING_COUNT++))
+            fi
+          done
+          echo ""
+
+          echo "3️⃣ Layer dependency summary:"
+          declare -A LAYERS=(
+            ["Analysis"]="analysis"
+            ["Model"]="geo_foundation geo_core geo_primitives geo_algorithms geo_io"
+            ["ViewModel"]="converter graphics"
+            ["View"]="render stage app"
+          )
+
+          for layer_name in "${!LAYERS[@]}"; do
+            echo "  📋 $layer_name layer:"
+            for crate_name in ${LAYERS[$layer_name]}; do
+              if [ -d "${WORKSPACE_CRATES[$crate_name]}" ]; then
+                deps=$(get_crate_dependencies "${WORKSPACE_CRATES[$crate_name]}")
+                if [ -n "$deps" ]; then
+                  echo "    $crate_name -> $deps"
                 else
-                  FORBIDDEN_IMPORTS="$FORBIDDEN_IMPORTS\n$file"
+                  echo "    $crate_name -> (no deps)"
                 fi
-                echo "❌ Forbidden import in: $file"
+              else
+                echo "    $crate_name -> (not found)"
+              fi
+            done
+          done
+          echo ""
+
+          echo "4️⃣ Foundation architecture validation:"
+
+          # geo_foundation basic structure check
+          if [ -f "model/geo_foundation/Cargo.toml" ]; then
+            echo "  ✅ model/geo_foundation/Cargo.toml found"
+          else
+            echo "  ❌ model/geo_foundation/Cargo.toml not found"
+            ((ERROR_COUNT++))
+          fi
+
+          # TransformError integration check
+          if grep -r "TransformError" model/geo_foundation/src/ > /dev/null 2>&1; then
+            echo "  ✅ TransformError found in model/geo_foundation"
+          else
+            echo "  ❌ TransformError not found in model/geo_foundation"
+            ((ERROR_COUNT++))
+          fi
+
+          # Check for duplicate TransformError in geo_primitives
+          if grep -r "enum TransformError" model/geo_primitives/src/ > /dev/null 2>&1; then
+            echo "  ❌ Duplicate TransformError found in model/geo_primitives"
+            ((ERROR_COUNT++))
+          else
+            echo "  ✅ No duplicate TransformError in geo_primitives"
+          fi
+
+          # Check for forbidden direct geo_primitives imports
+          echo "  🔍 Checking for forbidden direct geo_primitives imports..."
+
+          FORBIDDEN_IMPORTS=""
+          for file in $(find . -name "*.rs" -not -path "./model/geo_primitives/*" -not -path "./target/*"); do
+            if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
+              if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
+                echo "    ❌ Forbidden import in: $file"
                 grep -n "use geo_primitives::" "$file"
+                FORBIDDEN_IMPORTS="found"
+                ((ERROR_COUNT++))
               fi
             fi
           done
 
-          if [ -n "$FORBIDDEN_IMPORTS" ]; then
-            echo "❌ Found forbidden direct geo_primitives imports:"
-            echo "$FORBIDDEN_IMPORTS"
-            echo "💡 Please use geo_foundation, geo_core, or viewmodel for geo_primitives access"
-            exit 1
-          else
-            echo "✅ No forbidden direct geo_primitives imports found"
+          if [ -z "$FORBIDDEN_IMPORTS" ]; then
+            echo "  ✅ No forbidden direct geo_primitives imports found"
           fi
+          echo ""
 
-          echo "✅ Foundation architecture validation completed"
+          echo "5️⃣ Results:"
+          if [ $ERROR_COUNT -eq 0 ] && [ $WARNING_COUNT -eq 0 ]; then
+            echo "  🎉 SUCCESS: All architecture dependency checks passed!"
+            echo "  ✅ View -> ViewModel -> Model direction maintained"
+            echo "  ✅ Model layer naming rules (geo_*) followed"
+            echo "  ✅ No forbidden dependencies detected"
+            echo "  ✅ Foundation architecture is compliant"
+          else
+            echo "  🚨 FAILED: Architecture dependency issues found"
+            echo "  ❌ Errors: $ERROR_COUNT"
+            echo "  ⚠️ Warnings: $WARNING_COUNT"
+
+            if [ $ERROR_COUNT -gt 0 ]; then
+              echo "  🛑 Exiting due to detected errors"
+              exit 1
+            fi
+          fi
 
   check-no-deployment:
     name: Development Branch Status
     runs-on: ubuntu-latest
-    needs: [build-test, foundation-architecture-scan]
+    needs: [build-test, architecture-dependency-check]
 
     steps:
       - name: Development branch notification
