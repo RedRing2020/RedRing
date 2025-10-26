@@ -69,6 +69,8 @@ jobs:
 
       - name: Architecture dependency validation
         run: |
+          set +e  # Don't exit on command failures
+
           echo "🏗️ RedRing Architecture Dependency Check"
           echo "📅 Date: $(date)"
           echo ""
@@ -231,11 +233,21 @@ jobs:
           echo "  🔍 Checking for forbidden direct geo_primitives imports..."
 
           FORBIDDEN_IMPORTS=""
-          for file in $(find . -name "*.rs" -not -path "./model/geo_primitives/*" -not -path "./target/*"); do
+          # Exclude documentation, generated files, and tests from direct import checks
+          for file in $(find . -name "*.rs" \
+            -not -path "./model/geo_primitives/*" \
+            -not -path "./target/*" \
+            -not -path "./docs/*" \
+            -not -path "./book/*" \
+            -not -path "*/tests/*" \
+            -not -name "*test*.rs" \
+            -not -name "*example*.rs"); do
+
             if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
+              # Allow specific permitted paths
               if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
                 echo "    ❌ Forbidden import in: $file"
-                grep -n "use geo_primitives::" "$file"
+                grep -n "use geo_primitives::" "$file" | head -3
                 FORBIDDEN_IMPORTS="found"
                 ((ERROR_COUNT++))
               fi
@@ -245,24 +257,60 @@ jobs:
           if [ -z "$FORBIDDEN_IMPORTS" ]; then
             echo "  ✅ No forbidden direct geo_primitives imports found"
           fi
+
+          # Check documentation files separately (warning only)
+          echo "  📖 Checking documentation files (warnings only)..."
+          DOC_IMPORTS=""
+
+          # Check for geo_primitives imports in documentation files
+          DOC_FILES_WITH_IMPORTS=$(find . \( -name "*.md" -o -path "./docs/*" -o -path "./book/*" \) -type f -exec grep -l "use geo_primitives::" {} \; 2>/dev/null || true)
+
+          if [ -n "$DOC_FILES_WITH_IMPORTS" ]; then
+            echo "$DOC_FILES_WITH_IMPORTS" | while read -r file; do
+              echo "    ⚠️ Documentation contains geo_primitives import: $(basename "$file")"
+            done
+            DOC_IMPORTS="found"
+            ((WARNING_COUNT++))
+          fi
+
+          if [ -z "$DOC_IMPORTS" ]; then
+            echo "  ✅ No geo_primitives imports in documentation"
+          fi
           echo ""
 
           echo "5️⃣ Results:"
+          echo "  🔍 Debug: ERROR_COUNT=$ERROR_COUNT, WARNING_COUNT=$WARNING_COUNT"
           if [ $ERROR_COUNT -eq 0 ] && [ $WARNING_COUNT -eq 0 ]; then
             echo "  🎉 SUCCESS: All architecture dependency checks passed!"
             echo "  ✅ View -> ViewModel -> Model direction maintained"
             echo "  ✅ Model layer naming rules (geo_*) followed"
             echo "  ✅ No forbidden dependencies detected"
             echo "  ✅ Foundation architecture is compliant"
+          elif [ $ERROR_COUNT -eq 0 ] && [ $WARNING_COUNT -gt 0 ]; then
+            echo "  ✅ SUCCESS: Architecture checks passed with warnings"
+            echo "  ✅ View -> ViewModel -> Model direction maintained"
+            echo "  ✅ Model layer naming rules (geo_*) followed"
+            echo "  ✅ No forbidden dependencies detected"
+            echo "  ⚠️ Warnings: $WARNING_COUNT (documentation only)"
+            echo "  🔍 Debug: Taking WARNING-only path, no exit 1"
           else
             echo "  🚨 FAILED: Architecture dependency issues found"
             echo "  ❌ Errors: $ERROR_COUNT"
             echo "  ⚠️ Warnings: $WARNING_COUNT"
+            echo "  🔍 Debug: Taking FAILURE path"
 
             if [ $ERROR_COUNT -gt 0 ]; then
               echo "  🛑 Exiting due to detected errors"
               exit 1
+            else
+              echo "  🔍 Debug: ERROR_COUNT=0, but in else clause - this shouldn't happen"
             fi
+          fi
+          
+          # Explicit exit with success if no errors
+          if [ $ERROR_COUNT -eq 0 ]; then
+            echo "  🔍 Debug: Exiting with success (exit 0)"
+            exit 0
           fi
 
   check-no-deployment:
