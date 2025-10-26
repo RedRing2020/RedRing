@@ -23,14 +23,14 @@ impl<T: Scalar> ExtensionFoundation<T> for Sphere3D<T> {
     }
 }
 
-impl<T: Scalar> TolerantEq for Sphere3D<T> {
-    fn tolerant_eq(&self, other: &Self, tolerance: Self) -> bool {
+impl<T: Scalar> TolerantEq<T> for Sphere3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の距離と半径の差を直接計算で比較
         let center_distance = self.center().distance_to(&other.center());
         let radius_diff = (self.radius() - other.radius()).abs();
 
-        // 許容誤差として球の半径を使用
-        center_distance <= tolerance.radius() && radius_diff <= tolerance.radius()
+        // 許容誤差として単一のスカラー値を使用
+        center_distance <= tolerance && radius_diff <= tolerance
     }
 }
 
@@ -59,9 +59,9 @@ mod tests {
         let sphere2 = Sphere3D::new(Point3D::new(0.0, 0.0, 0.0), 5.0).unwrap();
         let sphere3 = Sphere3D::new(Point3D::new(1.0, 0.0, 0.0), 5.0).unwrap();
 
-        let tolerance = Sphere3D::new(Point3D::new(0.0, 0.0, 0.0), 0.1).unwrap();
+        let tolerance = 0.01; // スカラー値の許容誤差
 
-        assert!(sphere1.tolerant_eq(&sphere2, tolerance.clone()));
+        assert!(sphere1.tolerant_eq(&sphere2, tolerance));
         assert!(!sphere1.tolerant_eq(&sphere3, tolerance));
     }
 }
