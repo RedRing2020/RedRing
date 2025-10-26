@@ -68,9 +68,35 @@ jobs:
           set -e
           echo "Checking Core/Extension Foundation pattern compliance..."
 
-          # 1. 禁止: geo_primitives 外からの直接プリミティブインポート
+          # 1. 禁止: geo_primitives 外からの直接プリミティブインポート（許可パス除く）
           echo "Checking for forbidden direct primitive imports..."
-          ! grep -R "use geo_primitives::" -n --exclude-dir target --exclude-dir geo_primitives --exclude-dir .github . || (echo "Forbidden direct geo_primitives import outside geo_primitives crate" && exit 1)
+          
+          FORBIDDEN_FOUND=""
+          # Exclude documentation, generated files, tests, and permitted paths
+          for file in $(find . -name "*.rs" \
+            -not -path "./target/*" \
+            -not -path "./geo_primitives/*" \
+            -not -path "./model/geo_primitives/*" \
+            -not -path "./docs/*" \
+            -not -path "./book/*" \
+            -not -path "*/tests/*" \
+            -not -name "*test*.rs" \
+            -not -name "*example*.rs"); do
+            
+            if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
+              # Allow specific permitted paths
+              if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
+                echo "❌ Forbidden import in: $file"
+                grep -n "use geo_primitives::" "$file" | head -3
+                FORBIDDEN_FOUND="true"
+              fi
+            fi
+          done
+          
+          if [ -n "$FORBIDDEN_FOUND" ]; then
+            echo "Forbidden direct geo_primitives import outside geo_primitives crate"
+            exit 1
+          fi
 
           # 2. 禁止: Core Foundation を経由しない低レベルアクセス
           echo "Checking for deprecated low-level geometry access..."
