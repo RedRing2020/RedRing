@@ -238,7 +238,6 @@ jobs:
             -not -path "./model/geo_primitives/*" \
             -not -path "./target/*" \
             -not -path "./docs/*" \
-            -not -path "./book/*" \
             -not -path "*/tests/*" \
             -not -name "*test*.rs" \
             -not -name "*example*.rs"); do
