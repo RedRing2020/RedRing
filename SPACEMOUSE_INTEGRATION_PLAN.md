@@ -1,31 +1,33 @@
 # SpaceMouse Integration Plan for RedRing
 
-CAD/CAM研究プラットフォーム RedRing への 3DConnexion SpaceMouse 対応実装計画
+CAD/CAM 研究プラットフォーム RedRing への 3DConnexion SpaceMouse 対応実装計画
 
-**作成日**: 2025年10月26日  
-**対象**: RedRing v0.1.0  
+**作成日**: 2025 年 10 月 26 日
+**対象**: RedRing v0.1.0
 **現在のブランチ**: feature/geometry-foundation-final
 
 ## 🎯 概要
 
-3DConnexion SpaceMouse は6軸（6DOF）入力デバイスで、CADアプリケーションにおいて3D空間のナビゲーションを大幅に向上させる。RedRing の現在のマウス+キーボード操作に加えて、プロフェッショナルなCAD操作環境を提供する。
+3DConnexion SpaceMouse は 6 軸（6DOF）入力デバイスで、CAD アプリケーションにおいて 3D 空間のナビゲーションを大幅に向上させる。RedRing の現在のマウス+キーボード操作に加えて、プロフェッショナルな CAD 操作環境を提供する。
 
 ## 🔍 技術調査結果
 
 ### 実装アプローチ
 
-**推奨方法: HIDAPI使用**
+**推奨方法: HIDAPI 使用**
+
 - ✅ クロスプラットフォーム対応（Windows/Linux/macOS）
-- ✅ 3DxWare SDKより軽量・シンプル
-- ✅ Rustクレート `hidapi` が利用可能
+- ✅ 3DxWare SDK より軽量・シンプル
+- ✅ Rust クレート `hidapi` が利用可能
 - ✅ ドライバー依存が少ない
 
 **参考情報:**
-- StackOverflow: GLFW C++での実装例でHIDAPIが推奨されている
-- Python実装: PySpaceMouseでHIDAPI使用実績あり
-- OpenSCADでも HidApiInputDriver が動作確認済み
 
-### 必要なRustクレート
+- StackOverflow: GLFW C++での実装例で HIDAPI が推奨されている
+- Python 実装: PySpaceMouse で HIDAPI 使用実績あり
+- OpenSCAD でも HidApiInputDriver が動作確認済み
+
+### 必要な Rust クレート
 
 ```toml
 [dependencies]
@@ -33,22 +35,22 @@ hidapi = "2.6"          # HID デバイス通信
 serde = "1.0"           # データシリアライゼーション（設定用）
 ```
 
-## 📊 SpaceMouse仕様
+## 📊 SpaceMouse 仕様
 
 ### 入力データ形式
 
-- **6軸データ**: 
+- **6 軸データ**:
   - X, Y, Z（移動: 前後/左右/上下）
   - RX, RY, RZ（回転: ピッチ/ヨー/ロール）
 - **拡張データ（SpaceMouse Compact）**:
   - **移動ベクトル**: 平行移動情報
-  - **回転ベクトル**: 回転軸・角度情報  
+  - **回転ベクトル**: 回転軸・角度情報
   - **スケールベクトル**: 均等/非均等スケーリング（可能性あり）
   - **射影スケール**: 通常は含まれない（予想）
-- **ボタン**: デバイス依存（0-32個）
-- **データレート**: 最大1000Hz
-- **値域**: -1023 〜 +1023（16bit精度）
-- **ベンダーID**: 0x046D（3Dconnexion）
+- **ボタン**: デバイス依存（0-32 個）
+- **データレート**: 最大 1000Hz
+- **値域**: -1023 〜 +1023（16bit 精度）
+- **ベンダー ID**: 0x046D（3Dconnexion）
 
 ### 対応デバイス
 
@@ -60,19 +62,20 @@ serde = "1.0"           # データシリアライゼーション（設定用）
 - Space Navigator（旧モデル）
 
 **SpaceMouse Compact 特性:**
-- 6軸入力: 回転ベクトル + 移動ベクトル
-- **ハードウェア制約**: 6軸操作で非等方スケール指示は物理的に不可能
+
+- 6 軸入力: 回転ベクトル + 移動ベクトル
+- **ハードウェア制約**: 6 軸操作で非等方スケール指示は物理的に不可能
 - **等方スケール**: プッシュ/プル操作による統一スケール変更のみ
-- 2ボタン構成
-- USB-C接続
+- 2 ボタン構成
+- USB-C 接続
 - 座標変換マトリックス処理に最適化
-- Matrix×Quaternion 2回演算での効率的変換
+- Matrix×Quaternion 2 回演算での効率的変換
 
 ## 🏗️ 実装計画
 
-### Phase 1: 基盤準備（SpaceMouse Compact対応）
+### Phase 1: 基盤準備（SpaceMouse Compact 対応）
 
-#### 1.1 SpaceMouseInputモジュール作成
+#### 1.1 SpaceMouseInput モジュール作成
 
 **ファイル**: `view/app/src/spacemouse_input.rs`
 
@@ -131,10 +134,10 @@ pub enum MatrixOperationMode {
     }    /// SpaceMouse Compact専用の接続処理
     pub fn connect_compact(&mut self) -> Result<bool, Box<dyn std::error::Error>> {
         let api = HidApi::new()?;
-        
+
         // SpaceMouse Compact固有のProduct ID検索
         for device_info in api.device_list() {
-            if device_info.vendor_id() == 0x046D && 
+            if device_info.vendor_id() == 0x046D &&
                device_info.product_id() == 0xC652 { // SpaceMouse Compact
                 let device = device_info.open_device(&api)?;
                 self.device = Some(device);
@@ -142,7 +145,7 @@ pub enum MatrixOperationMode {
                 return Ok(true);
             }
         }
-        
+
         Err("SpaceMouse Compact not found".into())
     }
 
@@ -150,7 +153,7 @@ pub enum MatrixOperationMode {
     pub fn update_matrix_mode(&mut self) -> bool {
         if let Some(device) = &mut self.device {
             let mut buffer = [0u8; 8];
-            
+
             match device.read_timeout(&mut buffer, 100) {
                 Ok(bytes_read) if bytes_read > 0 => {
                     // SpaceMouse Compactのデータフォーマット解析
@@ -165,7 +168,7 @@ pub enum MatrixOperationMode {
             false
         }
     }
-    
+
     /// SpaceMouse Compactデータ解析
     fn parse_compact_data(&mut self, buffer: &[u8]) {
         // SpaceMouse Compactの具体的なデータフォーマットに基づく解析
@@ -173,24 +176,24 @@ pub enum MatrixOperationMode {
         self.translation[0] = parse_axis_data(&buffer[0..2]);
         self.translation[1] = parse_axis_data(&buffer[2..4]);
         self.translation[2] = parse_axis_data(&buffer[4..6]);
-        
+
         // 回転ベクトル（RX, RY, RZ）- 別パケットまたは追加データで取得
         if buffer.len() >= 12 {
             self.rotation[0] = parse_axis_data(&buffer[6..8]);
             self.rotation[1] = parse_axis_data(&buffer[8..10]);
             self.rotation[2] = parse_axis_data(&buffer[10..12]);
         }
-        
+
         // スケールベクトル（SX, SY, SZ）- 拡張データが利用可能な場合
         if buffer.len() >= 18 {
             self.scale[0] = parse_scale_data(&buffer[12..14]);
             self.scale[1] = parse_scale_data(&buffer[14..16]);
             self.scale[2] = parse_scale_data(&buffer[16..18]);
         }
-        
+
         // 実装詳細はデバイステストで確定
     }
-    
+
     fn update_coordinate_system(&mut self) {
         self.coordinate_system = SpaceMouseCoordinateSystem::from(self);
     }
@@ -224,7 +227,7 @@ pub struct SpaceMouseDevice {
 pub fn detect_spacemouse_devices() -> Result<Vec<SpaceMouseDevice>, Box<dyn std::error::Error>> {
     let api = HidApi::new()?;
     let mut devices = Vec::new();
-    
+
     for device_info in api.device_list() {
         if device_info.vendor_id() == SPACEMOUSE_VENDOR_ID {
             devices.push(SpaceMouseDevice {
@@ -234,14 +237,14 @@ pub fn detect_spacemouse_devices() -> Result<Vec<SpaceMouseDevice>, Box<dyn std:
             });
         }
     }
-    
+
     Ok(devices)
 }
 ```
 
 ### Phase 2: カメラシステム統合
 
-#### 2.1 Camera拡張（座標変換マトリックス統合）
+#### 2.1 Camera 拡張（座標変換マトリックス統合）
 
 **ファイル**: `viewmodel/graphics/src/camera.rs`
 
@@ -259,19 +262,19 @@ impl Camera {
             input.translation[1] * input.sensitivity,
             input.translation[2] * input.sensitivity,
         );
-        
+
         let rotation_vec = Vec3f::new(
             input.rotation[0] * input.sensitivity,
             input.rotation[1] * input.sensitivity,
             input.rotation[2] * input.sensitivity,
         );
-        
+
         let scale_vec = Vec3f::new(
             input.scale[0],
-            input.scale[1], 
+            input.scale[1],
             input.scale[2],
         );
-        
+
         // Matrix×Quaternion 2回演算による統一処理
         match input.matrix_operations {
             MatrixOperationMode::TwoStageTransform => {
@@ -291,17 +294,17 @@ impl Camera {
         // 第1段階: 現在のカメラ変換マトリックス取得
         let view_matrix = self.view_matrix();
         let camera_transform = view_matrix.inverse().unwrap_or(Matrix4f::identity());
-        
+
         // 第2段階: SpaceMouse座標系からカメラ座標系への変換
         let local_translation = camera_transform.transform_vector(translation);
         let local_rotation = camera_transform.transform_vector(rotation);
-        
+
         // 平行移動の適用
         self.target += local_translation * 0.01;
-        
+
         // 回転の適用（Quaternion演算）
         self.apply_rotation_vector(local_rotation * 0.001);
-        
+
         // スケール操作（ズーム距離調整）
         let avg_scale = (scale.x() + scale.y() + scale.z()) / 3.0;
         if (avg_scale - 1.0).abs() > 0.001 { // デッドゾーン
@@ -309,32 +312,32 @@ impl Camera {
             self.distance = self.distance.clamp(0.1, 200.0);
         }
     }
-    
+
     /// 単一変換: 統合マトリックス処理
     fn apply_single_transform(&mut self, translation: Vec3f, rotation: Vec3f, scale: Vec3f) {
         // 統合変換マトリックス構築
         let transform_matrix = self.build_spacemouse_transform_matrix(translation, rotation, scale);
-        
+
         // 現在のカメラ状態に統合マトリックス適用
         self.apply_transform_matrix(transform_matrix);
     }
-    
+
     /// 分離軸変換: 各軸独立処理
     fn apply_separate_axis_transform(&mut self, translation: Vec3f, rotation: Vec3f, scale: Vec3f) {
         // X, Y, Z軸を独立して処理（軸拘束モード等で有用）
         self.apply_axis_constrained_transform(translation, rotation, scale);
     }
 }
-    
+
     /// 回転ベクトルからクォータニオン回転への変換
     fn apply_rotation_vector(&mut self, rotation_vec: Vec3f) {
         // 回転ベクトルの大きさ（角度）
         let angle = rotation_vec.magnitude();
-        
+
         if angle > 0.0001 { // デッドゾーン
             // 回転軸の正規化
             let axis = rotation_vec / angle;
-            
+
             // クォータニオン回転の生成と適用
             let rotation_quat = Quaternionf::from_axis_angle(&axis, angle);
             self.rotation = (self.rotation * rotation_quat).normalize()
@@ -364,7 +367,7 @@ pub struct SpaceMouseCoordinateSystem {
     pub rz_rotation: f32,
     /// SX軸: X軸スケール
     pub sx_scale: f32,
-    /// SY軸: Y軸スケール  
+    /// SY軸: Y軸スケール
     pub sy_scale: f32,
     /// SZ軸: Z軸スケール
     pub sz_scale: f32,
@@ -419,7 +422,7 @@ pub enum SpaceMouseMode {
 
 ### Phase 3: アプリケーション統合
 
-#### 3.1 AppState拡張
+#### 3.1 AppState 拡張
 
 **ファイル**: `view/app/src/app_state.rs`
 
@@ -433,7 +436,7 @@ pub struct AppState {
     pub renderer: AppRenderer,
     pub camera: Camera,
     pub mouse_input: MouseInput,
-    
+
     // 新規追加
     pub spacemouse_input: SpaceMouseInput,
 }
@@ -442,7 +445,7 @@ impl AppState {
     pub fn new(window: Arc<Window>) -> Self {
         // 既存の初期化...
         let mut spacemouse_input = SpaceMouseInput::new();
-        
+
         // SpaceMouse接続試行
         if let Err(e) = spacemouse_input.connect() {
             tracing::warn!("SpaceMouse接続失敗: {}", e);
@@ -491,17 +494,17 @@ impl AppState {
 }
 ```
 
-## 🎛️ CAD操作への最適化（SpaceMouse Compact特化）
+## 🎛️ CAD 操作への最適化（SpaceMouse Compact 特化）
 
 ### 座標変換マトリックス統合の利点
 
-1. **直感的操作**: SpaceMouseの移動ベクトル/回転ベクトル/スケールベクトルを直接マトリックス変換
+1. **直感的操作**: SpaceMouse の移動ベクトル/回転ベクトル/スケールベクトルを直接マトリックス変換
 2. **一貫性**: 現在のカメラシステムのマトリックス処理と統一
 3. **拡張性**: 将来のオブジェクト操作でも同一の変換ロジック使用可能
 4. **精度**: 中間変換を減らして数値誤差を最小化
-5. **効率性**: Matrix×Quaternion 2回演算での最適化
+5. **効率性**: Matrix×Quaternion 2 回演算での最適化
 
-### Matrix×Quaternion 2回演算の技術的詳細
+### Matrix×Quaternion 2 回演算の技術的詳細
 
 ```rust
 /// 第1回演算: SpaceMouse→カメラ座標系変換
@@ -515,7 +518,7 @@ camera.rotation = camera.rotation * rotation_quaternion;
 camera.target += local_translation;
 ```
 
-### SpaceMouse Compact最適化パターン
+### SpaceMouse Compact 最適化パターン
 
 ```rust
 /// SpaceMouse Compact用のCAD操作モード
@@ -548,7 +551,7 @@ pub enum ObjectTransformMode {
 }
 ```
 
-### SpaceMouse Compact 2ボタン活用
+### SpaceMouse Compact 2 ボタン活用
 
 ```rust
 /// SpaceMouse Compactのボタン割り当て
@@ -574,18 +577,18 @@ pub enum CompactButton2Action {
 }
 ```
 
-### 感度設定（SpaceMouse Compact最適化）
+### 感度設定（SpaceMouse Compact 最適化）
 
 ```rust
 pub struct CompactSpaceMouseSettings {
     /// 移動ベクトル感度（カメラターゲット移動）
-    pub translation_sensitivity: f32,  
+    pub translation_sensitivity: f32,
     /// 回転ベクトル感度（カメラ回転）
-    pub rotation_sensitivity: f32,     
+    pub rotation_sensitivity: f32,
     /// ズーム操作感度（Z軸移動）
-    pub zoom_sensitivity: f32,         
+    pub zoom_sensitivity: f32,
     /// デッドゾーン（微細な手の震え無視）
-    pub deadzone: f32,                 
+    pub deadzone: f32,
     /// 座標変換マトリックス統合モード
     pub matrix_integration: bool,
     /// 軸反転設定（SpaceMouse Compact用）
@@ -623,8 +626,8 @@ impl Default for CompactSpaceMouseSettings {
 
 ### パフォーマンス最適化
 
-- **バックグラウンド処理**: HIDデータ読み取りを別スレッドで実行
-- **フレームレート制御**: SpaceMouseデータ更新を60-120Hzに制限
+- **バックグラウンド処理**: HID データ読み取りを別スレッドで実行
+- **フレームレート制御**: SpaceMouse データ更新を 60-120Hz に制限
 - **差分更新**: 変化がない場合はカメラ更新をスキップ
 
 ### エラーハンドリング
@@ -645,7 +648,7 @@ pub enum SpaceMouseError {
 
 ### ユーザビリティ
 
-- **デッドゾーン**: 微細な手の震えを無視（デフォルト5%）
+- **デッドゾーン**: 微細な手の震えを無視（デフォルト 5%）
 - **感度カーブ**: リニア/指数関数的選択可能
 - **軸反転**: ユーザー設定で各軸の方向反転
 - **ホットプラグ**: デバイス接続/切断の動的検出
@@ -667,31 +670,36 @@ view/app/Cargo.toml        # hidapi依存関係追加
 
 ## 🚀 実装スケジュール
 
-### Phase 1: 基本実装（1-2週間）
-- [ ] hidapi依存関係追加
-- [ ] **SpaceMouse接続・データフォーマット検証**
-- [ ] SpaceMouseInputモジュール作成
+### Phase 1: 基本実装（1-2 週間）
+
+- [ ] hidapi 依存関係追加
+- [ ] **SpaceMouse 接続・データフォーマット検証**
+- [ ] SpaceMouseInput モジュール作成
 - [ ] デバイス検出機能
-- [ ] 基本的なHIDデータ読み取り
+- [ ] 基本的な HID データ読み取り
 
 ### Phase 1.5: データフォーマット検証（実機テスト）
-- [ ] SpaceMouse Compact接続確認
+
+- [ ] SpaceMouse Compact 接続確認
 - [ ] 生バイトデータの取得とログ出力
 - [ ] データ構造の解析（配列/バイト/テキスト形式）
-- [ ] 6軸データの実際のマッピング確認
+- [ ] 6 軸データの実際のマッピング確認
 - [ ] スケールベクトル存在確認
 
-### Phase 2: カメラ統合（1週間）
-- [ ] Camera拡張メソッド追加
-- [ ] 6軸データからカメラ操作への変換
+### Phase 2: カメラ統合（1 週間）
+
+- [ ] Camera 拡張メソッド追加
+- [ ] 6 軸データからカメラ操作への変換
 - [ ] 感度・デッドゾーン設定
 
-### Phase 3: アプリケーション統合（1週間）
-- [ ] AppState拡張
+### Phase 3: アプリケーション統合（1 週間）
+
+- [ ] AppState 拡張
 - [ ] キーボードショートカット追加
 - [ ] エラーハンドリング実装
 
-### Phase 4: 最適化・テスト（1週間）
+### Phase 4: 最適化・テスト（1 週間）
+
 - [ ] パフォーマンス最適化
 - [ ] ユーザビリティ改善
 - [ ] 複数デバイス対応
@@ -704,22 +712,22 @@ view/app/Cargo.toml        # hidapi依存関係追加
 - [PySpaceMouse Implementation](https://spacemouse.kubaandrysek.cz/)
 - [GLFW SpaceMouse Example (C++)](https://stackoverflow.com/questions/75644410/)
 
-## 💡 将来の拡張（SpaceMouse Compact活用）
+## 💡 将来の拡張（SpaceMouse Compact 活用）
 
-- **CADオブジェクト操作**: 選択オブジェクトの6軸マトリックス変換
-- **精密加工シミュレーション**: 工具パスの6軸調整
+- **CAD オブジェクト操作**: 選択オブジェクトの 6 軸マトリックス変換
+- **精密加工シミュレーション**: 工具パスの 6 軸調整
 - **マルチビューポート**: 複数視点の同期操作
-- **コラボレーション**: ネットワーク経由でのSpaceMouse操作共有
-- **VR/AR統合**: 物理SpaceMouseと仮想6軸操作の統合
-- **CAMパス編集**: 工具経路の6軸リアルタイム調整
-- **マクロ記録**: SpaceMouse操作の記録・再生
+- **コラボレーション**: ネットワーク経由での SpaceMouse 操作共有
+- **VR/AR 統合**: 物理 SpaceMouse と仮想 6 軸操作の統合
+- **CAM パス編集**: 工具経路の 6 軸リアルタイム調整
+- **マクロ記録**: SpaceMouse 操作の記録・再生
 
-### SpaceMouse Compact実装の技術的優位性
+### SpaceMouse Compact 実装の技術的優位性
 
-1. **座標変換統一**: マトリックス×ベクトル演算でカメラとオブジェクト操作を統一
+1. **座標変換統一**: マトリックス × ベクトル演算でカメラとオブジェクト操作を統一
 2. **リアルタイム性**: 移動/回転/スケールベクトルの直接的なマトリックス適用
-3. **2回演算効率**: Matrix×Quaternion処理の最適化によるパフォーマンス向上
-4. **拡張性**: 同一の変換ロジックでCAD/CAM/レンダリング統合
+3. **2 回演算効率**: Matrix×Quaternion 処理の最適化によるパフォーマンス向上
+4. **拡張性**: 同一の変換ロジックで CAD/CAM/レンダリング統合
 5. **保守性**: 既存のカメラシステムとの自然な統合
 6. **スケール対応**: 非均等スケーリングによる詳細なビュー制御
 
@@ -729,21 +737,21 @@ view/app/Cargo.toml        # hidapi依存関係追加
   - [ ] 接続確認（Vendor ID: 0x046D, Product ID: 0xC652）
   - [ ] 生バイトデータの構造確認
   - [ ] パケットサイズの特定
-    - [ ] 12バイト（6軸: 移動+回転）
-    - [ ] 14バイト（7軸: 移動+回転+等方スケール） ⭐ 最有力候補
-    - [ ] 18バイト（9軸: 移動+回転+異方スケール）
+    - [ ] 12 バイト（6 軸: 移動+回転）
+    - [ ] 14 バイト（7 軸: 移動+回転+等方スケール） ⭐ 最有力候補
+    - [ ] 18 バイト（9 軸: 移動+回転+異方スケール）
   - [ ] 移動ベクトル（X,Y,Z）のバイト位置確認
   - [ ] 回転ベクトル（RX,RY,RZ）のバイト位置確認
   - [ ] スケールデータの形式確認
-    - [ ] **等方スケール（f32×1個）の可能性** ⭐ 最有力候補
+    - [ ] **等方スケール（f32×1 個）の可能性** ⭐ 最有力候補
     - [ ] プッシュ/プル操作による統一スケール変更
-    - [ ] 異方スケール（SX,SY,SZ×3個）は物理的操作不可能
+    - [ ] 異方スケール（SX,SY,SZ×3 個）は物理的操作不可能
     - [ ] スケール無し（移動+回転のみ）の可能性
   - [ ] ボタンデータの位置とフォーマット確認
-- [ ] Matrix×Quaternion 2回演算のパフォーマンス測定
+- [ ] Matrix×Quaternion 2 回演算のパフォーマンス測定
 - [ ] 射影スケール非対応の確認
 - [ ] デッドゾーン・感度調整の最適化
-- [ ] 2ボタン機能の実用性評価
+- [ ] 2 ボタン機能の実用性評価
 
 ### データフォーマット検証用コード
 
@@ -751,27 +759,27 @@ view/app/Cargo.toml        # hidapi依存関係追加
 /// SpaceMouse Compact データフォーマット解析用
 pub fn debug_spacemouse_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
     let api = HidApi::new()?;
-    
+
     // SpaceMouse Compact検索
     for device_info in api.device_list() {
         if device_info.vendor_id() == 0x046D && device_info.product_id() == 0xC652 {
             let device = device_info.open_device(&api)?;
-            
+
             println!("🔍 SpaceMouse Compact検出:");
             println!("   Vendor ID: 0x{:04X}", device_info.vendor_id());
             println!("   Product ID: 0x{:04X}", device_info.product_id());
             println!("   Product: {:?}", device_info.product_string());
             println!("   Serial: {:?}", device_info.serial_number());
-            
+
             // データ読み取りテスト
             println!("\n📊 データ読み取りテスト:");
             for i in 0..10 {
                 let mut buffer = [0u8; 32]; // 大きめのバッファで検証
-                
+
                 match device.read_timeout(&mut buffer, 1000) {
                     Ok(bytes_read) => {
                         println!("  [{}] {} bytes: {:02X?}", i, bytes_read, &buffer[..bytes_read]);
-                        
+
                         // バイト配列の解析
                         if bytes_read >= 6 {
                             self.analyze_data_format(&buffer[..bytes_read]);
@@ -779,21 +787,21 @@ pub fn debug_spacemouse_data(&mut self) -> Result<(), Box<dyn std::error::Error>
                     }
                     Err(e) => println!("  [{}] 読み取りエラー: {}", i, e),
                 }
-                
+
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
-            
+
             break;
         }
     }
-    
+
     Ok(())
 }
 
 /// バイト配列からデータ構造を推測
 fn analyze_data_format(&self, data: &[u8]) {
     println!("    データ解析:");
-    
+
     // 16bit Little Endian として解析
     for (i, chunk) in data.chunks(2).enumerate() {
         if chunk.len() == 2 {
@@ -802,7 +810,7 @@ fn analyze_data_format(&self, data: &[u8]) {
             println!("      軸{}: raw={:6} normalized={:7.4}", i, value, normalized);
         }
     }
-    
+
     // 可能なデータ構造パターン
     if data.len() >= 6 {
         println!("    6軸データ候補 (移動+回転のみ):");
@@ -811,19 +819,19 @@ fn analyze_data_format(&self, data: &[u8]) {
         let z = i16::from_le_bytes([data[4], data[5]]) as f32 / 1023.0;
         println!("      Translation: X={:.4}, Y={:.4}, Z={:.4}", x, y, z);
     }
-    
+
     if data.len() >= 12 {
         let rx = i16::from_le_bytes([data[6], data[7]]) as f32 / 1023.0;
         let ry = i16::from_le_bytes([data[8], data[9]]) as f32 / 1023.0;
         let rz = i16::from_le_bytes([data[10], data[11]]) as f32 / 1023.0;
         println!("      Rotation: RX={:.4}, RY={:.4}, RZ={:.4}", rx, ry, rz);
     }
-    
+
     if data.len() >= 14 {
         let scale = i16::from_le_bytes([data[12], data[13]]) as f32 / 1023.0;
         println!("      Scale (等方/プッシュプル): {:.4}", scale);
     }
-    
+
     if data.len() >= 18 {
         println!("    18バイト = 想定外（Compactでは異方スケール操作不可）:");
         let sx = i16::from_le_bytes([data[12], data[13]]) as f32 / 1023.0;
@@ -837,7 +845,7 @@ fn analyze_data_format(&self, data: &[u8]) {
 
 ---
 
-**実装優先度**: SpaceMouse Compact所有により、実機テストが可能。座標変換マトリックス統合アプローチで高い親和性を実現。
+**実装優先度**: SpaceMouse Compact 所有により、実機テストが可能。座標変換マトリックス統合アプローチで高い親和性を実現。
 
 ---
 
