@@ -73,12 +73,24 @@ jobs:
           for foundation_crate in foundation/*/; do
             if [ -f "$foundation_crate/Cargo.toml" ]; then
               echo "Checking $foundation_crate"
-              # [dependencies]セクションのみを正確にチェック（dev-dependenciesは除外）
-              if sed -n '/^\[dependencies\]/,/^\[/p' "$foundation_crate/Cargo.toml" | grep -v "^\[" | grep -v "^#" | grep -v "^$" | grep "=" | head -1; then
+
+              # [dependencies]セクションから実際の依存関係行のみを抽出
+              # awk を使用してより確実にセクションを処理
+              deps_found=$(awk '
+                /^\[dependencies\]/ { in_deps = 1; next }
+                /^\[/ && in_deps { in_deps = 0 }
+                in_deps && /^[a-zA-Z_][a-zA-Z0-9_-]*[[:space:]]*=/ {
+                  print $0
+                }
+              ' "$foundation_crate/Cargo.toml")
+
+              if [ -n "$deps_found" ]; then
                 echo "❌ Foundation crate $foundation_crate has external dependencies"
-                echo "# 純粋な数値計算のため、外部クレートに依存しない"
-                sed -n '/^\[dependencies\]/,/^\[/p' "$foundation_crate/Cargo.toml" | grep -v "^\[" | head -5
+                echo "Found dependencies:"
+                echo "$deps_found"
                 exit 1
+              else
+                echo "✅ $foundation_crate has no external dependencies"
               fi
             fi
           done
