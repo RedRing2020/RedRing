@@ -273,6 +273,7 @@ jobs:
           echo ""
 
           echo "5️⃣ Results:"
+          echo "  🔍 Debug: ERROR_COUNT=$ERROR_COUNT, WARNING_COUNT=$WARNING_COUNT"
           if [ $ERROR_COUNT -eq 0 ] && [ $WARNING_COUNT -eq 0 ]; then
             echo "  🎉 SUCCESS: All architecture dependency checks passed!"
             echo "  ✅ View -> ViewModel -> Model direction maintained"
@@ -285,14 +286,18 @@ jobs:
             echo "  ✅ Model layer naming rules (geo_*) followed"
             echo "  ✅ No forbidden dependencies detected"
             echo "  ⚠️ Warnings: $WARNING_COUNT (documentation only)"
+            echo "  🔍 Debug: Taking WARNING-only path, no exit 1"
           else
             echo "  🚨 FAILED: Architecture dependency issues found"
             echo "  ❌ Errors: $ERROR_COUNT"
             echo "  ⚠️ Warnings: $WARNING_COUNT"
+            echo "  🔍 Debug: Taking FAILURE path"
 
             if [ $ERROR_COUNT -gt 0 ]; then
               echo "  🛑 Exiting due to detected errors"
               exit 1
+            else
+              echo "  🔍 Debug: ERROR_COUNT=0, but in else clause - this shouldn't happen"
             fi
           fi
 
