@@ -73,7 +73,7 @@ jobs:
           for foundation_crate in foundation/*/; do
             if [ -f "$foundation_crate/Cargo.toml" ]; then
               echo "Checking $foundation_crate"
-              
+
               # [dependencies]セクションから実際の依存関係行のみを抽出
               # awk を使用してより確実にセクションを処理
               deps_found=$(awk '
@@ -83,7 +83,7 @@ jobs:
                   print $0
                 }
               ' "$foundation_crate/Cargo.toml")
-              
+
               if [ -n "$deps_found" ]; then
                 echo "❌ Foundation crate $foundation_crate has external dependencies"
                 echo "Found dependencies:"
