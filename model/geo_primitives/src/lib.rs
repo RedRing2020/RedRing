@@ -53,9 +53,13 @@ pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機�
 pub mod plane_3d; // Plane3D の新実装 (Core)
 pub mod plane_3d_extensions; // Plane3D の拡張機能 (Extension)
 pub mod plane_3d_foundation; // Plane3D のFoundation実装
+                             // pub mod plane_3d_intersection; // 一時的にコメントアウト（機能過多）
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
 pub mod plane_3d_transform; // Plane3D の変換機能 (Transform)
+pub mod plane_3d_transform_safe; // Plane3D の安全な変換機能 (Safe Transform)
+#[cfg(test)]
+pub mod plane_3d_transform_safe_tests; // Plane3D の安全な変換テスト
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
