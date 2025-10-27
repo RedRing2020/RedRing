@@ -50,6 +50,12 @@ pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機能 (Safe Transform)
+pub mod plane_3d; // Plane3D の新実装 (Core)
+pub mod plane_3d_extensions; // Plane3D の拡張機能 (Extension)
+pub mod plane_3d_foundation; // Plane3D のFoundation実装
+#[cfg(test)]
+pub mod plane_3d_tests; // Plane3D のテスト
+pub mod plane_3d_transform; // Plane3D の変換機能 (Transform)
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
@@ -215,6 +221,7 @@ pub use ellipse_3d::Ellipse3D;
 pub use ellipse_arc_3d::EllipseArc3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
+pub use plane_3d::Plane3D;
 pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use sphere_3d::Sphere3D;

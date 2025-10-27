@@ -26,72 +26,128 @@ mdbook build                # ドキュメント生成（manual/ -> docs/）
 
 ### Workspace 構成
 
-- `model`: 幾何データ（Point, Vector, Curve, Surface など）、`model` に依存なし
-- `render`: GPU 描画基盤（wgpu + WGSL）、`model` に依存しない設計
-- `viewmodel`: ビュー操作・変換ロジック、`model` に依存
-- `stage`: レンダリングステージ管理（`RenderStage` トレイト）、`render` に依存
-- `redring`: メインアプリケーション、すべてのクレートを統合
+- `geo_foundation`: 抽象化レイヤー（トレイト定義・型システム）
+- `geo_core`: 幾何計算基盤（数値演算・許容誤差・ロバスト性）
+- `geo_primitives`: 具体実装（基本幾何要素）
+- `geo_algorithms`: 高レベル幾何アルゴリズム
+- `model`: 高次曲線・曲面（NURBS等）
+- `analysis`: 数値解析・線形代数・CAM処理
+- `render`: GPU 描画基盤（wgpu + WGSL）
+- `viewmodel`: ビュー操作・変換ロジック
+- `stage`: レンダリングステージ管理（`RenderStage` トレイト）
+- `redring`: メインアプリケーション
 
 ### 依存関係の方向性
 
 ```
+model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
+                                                      ↘     ↙
+                                                        analysis
 redring → viewmodel → model
        ↘  stage → render
 ```
 
-**重要**: `render` は `model` に依存しない（GPU 層と幾何データ層の分離）
+**重要**: Foundation パターンにより統一されたトレイト実装、`render` は幾何データ層に依存しない
 
-## 幾何データの設計パターン (`model/`)
+## 幾何データの設計パターン（現在の構造）
 
 ### モジュール構成
 
 ```rust
-// model/src/lib.rs
-pub mod analysis;         // 幾何解析ユーティリティ
-pub mod geometry;         // 基本幾何要素（geometry2d/, geometry3d/）
-pub mod geometry_common;  // 共通定義
-pub mod geometry_kind;    // 型分類（CurveKind, SurfaceKind）
-pub mod geometry_trait;   // トレイト定義（Curve2D, Curve3D, Surface など）
+// Foundation レイヤー: geo_foundation/src/
+pub mod extension_foundation;     // ExtensionFoundation トレイト
+pub mod extensions;               // BasicTransform, 型安全操作
+pub mod primitive_kind;           // PrimitiveKind 分類
+pub mod scalar;                   // Scalar トレイト
+pub mod bounding_box;             // BoundingBox3D
+
+// Core レイヤー: geo_core/src/
+pub mod scalar_operations;        // 数値演算実装
+pub mod tolerance;                // ToleranceContext 管理
+pub mod robust_calculations;      // ロバスト幾何判定
+
+// Primitives レイヤー: geo_primitives/src/
+pub mod point_3d;                 // Point3D<T>
+pub mod vector_3d;                // Vector3D<T>
+pub mod plane_3d;                 // Plane3D<T>
+// + 各要素の foundation, extensions, transform ファイル
+
+// Legacy: model/src/
+pub mod geometry;                 // 高次曲線・曲面（NURBS等）
+pub mod geometry_trait;           // Curve2D, Curve3D, Surface トレイト
 ```
 
-### 階層構造
+### Foundation パターンの実装
 
-- `geometry/geometry3d/`: `Point`, `Vector`, `Direction`, `Line`, `Circle`, `Ellipse`, `NurbsCurve` など
-- `geometry/geometry2d/`: 2 次元対応の基本要素
-- `geometry_trait/`: `Curve2D`, `Curve3D`, `Surface`, `Normalize`, `Normed` など
-- `geometry_kind/`: `CurveKind3D`, `SurfaceKind` による型分類
+Foundation パターンは全ての幾何プリミティブに統一インターフェースを提供します：
+
+```rust
+// geo_foundation/src/extension_foundation.rs
+pub trait ExtensionFoundation<T: Scalar> {
+    fn primitive_kind(&self) -> PrimitiveKind;
+    fn bounding_box(&self) -> Option<BoundingBox3D<T>>;
+    fn measure(&self) -> Option<T>;
+}
+
+// geo_primitives/src/plane_3d_foundation.rs の例
+impl<T: Scalar> ExtensionFoundation<T> for Plane3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Plane
+    }
+    
+    fn bounding_box(&self) -> Option<BoundingBox3D<T>> {
+        None // 無限平面はバウンディングボックスなし
+    }
+    
+    fn measure(&self) -> Option<T> {
+        None // 無限平面の測度は定義されない
+    }
+}
+```
+
+### 分離されたファイル構成
+
+各幾何プリミティブは以下の構成で実装されています：
+
+- `{shape}_3d.rs`: 基本実装
+- `{shape}_3d_foundation.rs`: Foundation トレイト実装
+- `{shape}_3d_extensions.rs`: 基本操作・拡張機能
+- `{shape}_3d_transform.rs`: 変換操作（BasicTransform）
+- `{shape}_3d_tests.rs`: テストスイート
 
 ### 型安全パターン
 
-```rust
-// Direction は正規化されたベクトルをラップ
-pub struct Direction(Vector);
+Direction と Vector の明確な分離により型安全性を保証：
 
-impl Direction {
-    pub fn from_vector(v: Vector) -> Option<Self> {
+```rust
+// geo_primitives/src/direction_3d.rs
+pub struct Direction3D<T: Scalar>(Vector3D<T>);
+
+impl<T: Scalar> Direction3D<T> {
+    pub fn from_vector(v: Vector3D<T>) -> Option<Self> {
         let len = v.norm();
-        if len == 0.0 {
+        if len.is_zero() {
             None
         } else {
-            Some(Direction(v.normalize()))
+            Some(Direction3D(v.normalize()))
         }
     }
 
     // アクセサメソッド
-    pub fn x(&self) -> f64 { self.0.x() }
-    pub fn y(&self) -> f64 { self.0.y() }
-    pub fn z(&self) -> f64 { self.0.z() }
+    pub fn x(&self) -> T { self.0.x() }
+    pub fn y(&self) -> T { self.0.y() }
+    pub fn z(&self) -> T { self.0.z() }
 }
 ```
 
 ### トレイト設計
 
 ```rust
-// Curve3D: 各曲線型が実装する共通インターフェース
+// model/src/geometry_trait.rs: 各曲線型が実装する共通インターフェース
 pub trait Curve3D: Any {
     fn kind(&self) -> CurveKind3D;
-    fn evaluate(&self, t: f64) -> Point;
-    fn derivative(&self, t: f64) -> Vector;
+    fn evaluate(&self, t: f64) -> Point3D<f64>;
+    fn derivative(&self, t: f64) -> Vector3D<f64>;
     fn length(&self) -> f64;
 }
 ```
@@ -223,6 +279,7 @@ cargo tree --depth 1
 - **型変換戦略**: f64 固定 → ジェネリック<T: Scalar>への段階的移行
   - ✅ Direction3D<T>: 完了（74 テスト通過）
   - ✅ Ray3D<T>: 完了（Direction3D<T>統合済み）
+  - ✅ Plane3D<T>: 完了（Foundation パターン実装済み）
   - ❌ InfiniteLine3D: 一時無効化（40+エラー、複雑すぎるため後回し）
   - 📋 Circle3D → Ellipse3D → Arc3D → InfiniteLine2D/3D の順で再有効化予定
 - **テスト**: 現在 74 テスト通過、分離したテストファイルでコードサイズ大幅削減
@@ -302,6 +359,7 @@ f64 固定型からジェネリック<T: Scalar>への変換を、依存性と�
 
    - Direction3D<T>: 正規化ベクトル型、74 テスト通過
    - Ray3D<T>: Direction3D<T>統合済み
+   - Plane3D<T>: Foundation パターン実装済み
 
 2. **Phase 2 - 幾何プリミティブ（次の作業）** 🔄
 

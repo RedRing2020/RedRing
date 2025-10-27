@@ -7,7 +7,7 @@
 
 ## 現状分析
 
-### 実装済み（Intersection）✅
+### 未実装（Intersection）❌
 
 - `BasicIntersection<T, Other>`: 基本交点計算
 - `MultipleIntersection<T, Other>`: 複数交点計算
