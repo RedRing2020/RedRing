@@ -1,5 +1,7 @@
 # Copilot Instructions for RedRing
 
+**最終更新日: 2025 年 10 月 28 日**
+
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。現在は描画基盤と幾何要素の設計段階にあり、NURBS や CAM 機能は未実装です。
 
 ## クイックリファレンス
@@ -26,16 +28,22 @@ mdbook build                # ドキュメント生成（manual/ -> docs/）
 
 ### Workspace 構成
 
-- `geo_foundation`: 抽象化レイヤー（トレイト定義・型システム）
-- `geo_core`: 幾何計算基盤（数値演算・許容誤差・ロバスト性）
-- `geo_primitives`: 具体実装（基本幾何要素）
-- `geo_algorithms`: 高レベル幾何アルゴリズム
-- `model`: 高次曲線・曲面（NURBS等）
-- `analysis`: 数値解析・線形代数・CAM処理
-- `render`: GPU 描画基盤（wgpu + WGSL）
-- `viewmodel`: ビュー操作・変換ロジック
-- `stage`: レンダリングステージ管理（`RenderStage` トレイト）
-- `redring`: メインアプリケーション
+- `foundation`: 独立した基礎機能
+  -- `analysis`: 数値解析・線形代数
+- `model`: 高次曲線・曲面（NURBS 等）
+  -- `geo_foundation`: 抽象化レイヤー（トレイト定義・型システム）
+  -- `geo_primitives`: 具体実装（基本幾何要素）
+  -- `geo_core`: 幾何計算基盤・共通幾何計算
+  -- `geo_algorithms`: 高レベル幾何アルゴリズム
+  -- `geo_io`: データ変換
+  -- `geo_nurbs`: NURBS 曲線・曲面（予定）
+- `view`: アプリケーション・ビュー
+  -- `app`: メインアプリケーション
+  -- `render`: GPU 描画基盤（wgpu + WGSL）
+  -- `stage`: レンダリングステージ管理（`RenderStage` トレイト）
+- `viewmodel`: ビュー操作実装・変換ロジック
+  -- `converter`: view に model をデータ変換する
+  -- `graphics`: view に model の描画基盤（wgpu + WGSL）の情報を橋渡しする
 
 ### 依存関係の方向性
 
@@ -94,11 +102,11 @@ impl<T: Scalar> ExtensionFoundation<T> for Plane3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Plane
     }
-    
+
     fn bounding_box(&self) -> Option<BoundingBox3D<T>> {
         None // 無限平面はバウンディングボックスなし
     }
-    
+
     fn measure(&self) -> Option<T> {
         None // 無限平面の測度は定義されない
     }
