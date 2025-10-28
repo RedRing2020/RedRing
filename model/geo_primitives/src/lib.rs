@@ -64,6 +64,9 @@ pub mod plane_coordinate_system; // STEP準拠の座標系付き平面（Core）
 pub mod plane_coordinate_system_foundation; // Plane3DCoordinateSystem のFoundation実装
 #[cfg(test)]
 pub mod plane_coordinate_system_tests; // Plane3DCoordinateSystem のテスト
+pub mod plane_coordinate_system_transform; // Plane3DCoordinateSystem の変換機能 (Transform)
+#[cfg(test)]
+pub mod plane_coordinate_system_transform_tests; // Plane3DCoordinateSystem の変換テスト
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装

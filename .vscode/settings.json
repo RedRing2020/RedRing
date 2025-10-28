@@ -135,7 +135,7 @@
     "circle_2d.rs": "circle_2d_tests.rs,circle_2d_extensions.rs,circle_2d_metrics.rs,circle_2d_transform.rs,circle_2d_transform_safe.rs",
     "circle_3d.rs": "circle_3d_extensions.rs,circle_3d_foundation.rs,circle_3d_transform.rs,circle_3d_transform_safe.rs",
     "cylinder_3d.rs": "cylinder_3d_extensions.rs,cylinder_3d_foundation.rs,cylinder_3d_tests.rs",
-    "plane_3d.rs": "plane_3d_extensions.rs,plane_3d_foundation.rs,plane_3d_transform.rs,plane_3d_transform_safe.rs,plane_3d_transform_safe_tests.rs,plane_coordinate_system.rs,plane_coordinate_system_foundation.rs,plane_coordinate_system_tests.rs",
+    "plane_3d.rs": "plane_3d_extensions.rs,plane_3d_foundation.rs,plane_3d_transform.rs,plane_3d_transform_safe.rs,plane_3d_transform_safe_tests.rs,plane_coordinate_system.rs,plane_coordinate_system_foundation.rs,plane_coordinate_system_transform.rs,plane_coordinate_system_tests.rs,plane_coordinate_system_transform_tests.rs",
     "sphere_3d.rs": "sphere_3d_tests.rs,sphere_3d_extensions.rs,sphere_3d_foundation.rs",
     "triangle_3d.rs": "triangle_3d_tests.rs,triangle_3d_foundation.rs",
     "triangle_mesh_3d.rs": "triangle_mesh_3d_tests.rs,triangle_mesh_3d_foundation.rs",
