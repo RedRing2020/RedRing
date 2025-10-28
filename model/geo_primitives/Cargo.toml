@@ -15,3 +15,6 @@ serde = ["dep:serde"]
 version = "1.0.228"
 features = ["derive"]
 optional = true
+
+[dev-dependencies]
+approx = "0.5"

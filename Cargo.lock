@@ -665,6 +665,7 @@ name = "geo_primitives"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "approx",
  "geo_foundation",
  "serde",
 ]
