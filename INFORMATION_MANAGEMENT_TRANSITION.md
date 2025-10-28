@@ -1,5 +1,8 @@
 # RedRing 情報管理方針転換
 
+**作成日: 2025年10月28日**
+**最終更新: 2025年10月28日**
+
 ## 背景
 - ルート直下に約30個のMDファイルが散乱
 - GitHub Pages (manual/docs/) との情報重複
@@ -9,10 +12,14 @@
 
 ### 1. ドキュメント階層化
 ```
-docs/           # GitHub Pages（公開用）
-├── manual/     # ユーザー向けドキュメント
-├── dev/        # 開発者向けドキュメント
-└── archive/    # 古い分析ファイル
+docs/           # GitHub Pages（公開用HTML生成先）
+manual/         # mdbook ソース（ユーザー向けドキュメント）
+
+dev/            # 開発者向けドキュメント（ルート直下）
+├── architecture/   # アーキテクチャ設計ファイル
+└── foundation/     # Foundation パターン関連
+
+archive/        # 古い分析・提案ファイル（ルート直下）
 
 .github/
 ├── copilot-instructions.md  # 簡素化版
@@ -28,11 +35,11 @@ docs/           # GitHub Pages（公開用）
 ### 3. ルート直下整理
 ```bash
 # 移動対象
-ARCHITECTURE*.md         → docs/dev/architecture/
-FOUNDATION*.md          → docs/dev/foundation/
-*_ANALYSIS.md          → docs/archive/
-*_PROPOSAL.md          → docs/archive/
-MIGRATION*.md          → docs/archive/
+ARCHITECTURE*.md         → dev/architecture/
+FOUNDATION*.md          → dev/foundation/
+*_ANALYSIS.md          → archive/
+*_PROPOSAL.md          → archive/
+MIGRATION*.md          → archive/
 ```
 
 ### 4. 残すもの
