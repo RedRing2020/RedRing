@@ -55,7 +55,8 @@ mod tests {
         let point_u = Point3D::new(1.0, 0.0, 0.0);
         let point_v = Point3D::new(0.0, 1.0, 0.0);
 
-        let plane_sys = Plane3DCoordinateSystem::from_three_points(origin, point_u, point_v).unwrap();
+        let plane_sys =
+            Plane3DCoordinateSystem::from_three_points(origin, point_u, point_v).unwrap();
 
         // Z軸が法線になることを確認
         let normal = plane_sys.normal();
@@ -152,7 +153,8 @@ mod tests {
         .unwrap();
 
         // PlaneCoordinateSystemに変換
-        let coord_system = Plane3DCoordinateSystem::from_simple_plane(&original_plane, None).unwrap();
+        let coord_system =
+            Plane3DCoordinateSystem::from_simple_plane(&original_plane, None).unwrap();
 
         // 逆変換
         let reconstructed_plane = coord_system.to_simple_plane();
@@ -234,7 +236,8 @@ mod tests {
         let zero_normal = Vector3D::new(0.0, 0.0, 0.0);
         let u_direction = Vector3D::new(1.0, 0.0, 0.0);
 
-        let result = Plane3DCoordinateSystem::from_origin_and_axes(origin, zero_normal, u_direction);
+        let result =
+            Plane3DCoordinateSystem::from_origin_and_axes(origin, zero_normal, u_direction);
         assert!(result.is_none());
 
         // ゼロベクトルU軸

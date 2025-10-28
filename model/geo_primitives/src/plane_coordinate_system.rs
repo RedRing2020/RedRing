@@ -15,7 +15,7 @@
 //! PLANE('', AXIS2_PLACEMENT_3D('', POINT, AXIS, REF_DIRECTION));
 //! ```
 //! - location: 平面原点（origin）
-//! - axis: Z軸方向（normal）- 法線ベクトル  
+//! - axis: Z軸方向（normal）- 法線ベクトル
 //! - ref_direction: X軸方向（u_axis）- 第一軸
 //! - derived Y軸: normal × u_axis で自動計算（v_axis）
 
@@ -34,7 +34,7 @@ use geo_foundation::Scalar;
 ///
 /// ## CAD用途
 /// - スケッチ平面の基準座標系
-/// - テクスチャマッピングのUV座標系  
+/// - テクスチャマッピングのUV座標系
 /// - 2Dパターン配置の基準面
 /// - 断面生成時の方向制御
 /// - STEPファイルとの相互変換
@@ -47,7 +47,7 @@ pub struct Plane3DCoordinateSystem<T: Scalar> {
     /// Direction3D<T>により正規化が保証される
     normal: Direction3D<T>,
 
-    /// X軸方向 - 第一軸（STEP: ref_direction）  
+    /// X軸方向 - 第一軸（STEP: ref_direction）
     /// Direction3D<T>により正規化が保証される
     u_axis: Direction3D<T>,
 
@@ -103,14 +103,14 @@ impl<T: Scalar> Plane3DCoordinateSystem<T> {
 
     /// 3点から平面座標系を作成
     ///
-    /// # Arguments  
+    /// # Arguments
     /// * `origin` - 原点
     /// * `point_u` - U軸方向の参照点
     /// * `point_v` - V軸方向の参照点
     ///
     /// # Algorithm
     /// 1. origin → point_u ベクトルをU方向とする
-    /// 2. origin → point_v ベクトルをV方向とする  
+    /// 2. origin → point_v ベクトルをV方向とする
     /// 3. 法線 = U × V で計算
     /// 4. from_origin_and_axes で座標系を構築
     pub fn from_three_points(
