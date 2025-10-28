@@ -60,6 +60,10 @@ pub mod plane_3d_transform; // Plane3D の変換機能 (Transform)
 pub mod plane_3d_transform_safe; // Plane3D の安全な変換機能 (Safe Transform)
 #[cfg(test)]
 pub mod plane_3d_transform_safe_tests; // Plane3D の安全な変換テスト
+pub mod plane_coordinate_system; // STEP準拠の座標系付き平面（Core）
+pub mod plane_coordinate_system_foundation; // Plane3DCoordinateSystem のFoundation実装
+#[cfg(test)]
+pub mod plane_coordinate_system_tests; // Plane3DCoordinateSystem のテスト
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
@@ -198,13 +202,13 @@ pub use geo_foundation::{Angle, Scalar};
 pub use geo_foundation::extensions::{
     AdvancedCollision,
     AdvancedTransform,
+    BBoxCollision,
     // Collision Foundation
     BasicCollision,
     // Intersection Foundation
     BasicIntersection,
     // Transform Foundation
     BasicTransform,
-    BoundingBoxCollision,
     CollisionHelpers,
     IntersectionHelpers,
     MultipleIntersection,
@@ -226,6 +230,7 @@ pub use ellipse_arc_3d::EllipseArc3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use plane_3d::Plane3D;
+pub use plane_coordinate_system::Plane3DCoordinateSystem;
 pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use sphere_3d::Sphere3D;

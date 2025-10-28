@@ -1,6 +1,6 @@
 # Copilot Instructions for RedRing
 
-**最終更新日: 2025 年 10 月 28 日**
+**最終更新日: 2025 年 10 月 29 日**
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
@@ -51,8 +51,9 @@ viewmodel/         # ビュー変換ロジック
 ```rust
 // 全ての幾何プリミティブが実装する統一インターフェース
 pub trait ExtensionFoundation<T: Scalar> {
+    type BBox: AbstractBBox<T>;
     fn primitive_kind(&self) -> PrimitiveKind;
-    fn bounding_box(&self) -> Option<BoundingBox3D<T>>;
+    fn bounding_box(&self) -> Self::BBox;
     fn measure(&self) -> Option<T>;
 }
 ```
@@ -76,19 +77,28 @@ Foundation パターンは全ての幾何プリミティブに統一インター
 ```rust
 // geo_foundation/src/extension_foundation.rs
 pub trait ExtensionFoundation<T: Scalar> {
+    type BBox: AbstractBBox<T>;
     fn primitive_kind(&self) -> PrimitiveKind;
-    fn bounding_box(&self) -> Option<BoundingBox3D<T>>;
+    fn bounding_box(&self) -> Self::BBox;
     fn measure(&self) -> Option<T>;
 }
 
 // geo_primitives/src/plane_3d_foundation.rs の例
 impl<T: Scalar> ExtensionFoundation<T> for Plane3D<T> {
+    type BBox = BBox3D<T>;
+
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Plane
     }
 
-    fn bounding_box(&self) -> Option<BoundingBox3D<T>> {
-        None // 無限平面はバウンディングボックスなし
+    fn bounding_box(&self) -> Self::BBox {
+        // 無限平面用の微小境界ボックス
+        let origin = crate::Point3D::origin();
+        let epsilon = T::EPSILON;
+        BBox3D::new(
+            crate::Point3D::new(origin.x() - epsilon, origin.y() - epsilon, origin.z() - epsilon),
+            crate::Point3D::new(origin.x() + epsilon, origin.y() + epsilon, origin.z() + epsilon)
+        )
     }
 
     fn measure(&self) -> Option<T> {

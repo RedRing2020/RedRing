@@ -37,7 +37,7 @@ pub enum PrimitiveKind {
     Assembly,
 
     // 補助要素
-    BoundingBox,
+    BBox,
     Vector,
     Mesh,
 }
@@ -81,7 +81,7 @@ impl PrimitiveKind {
 
             PrimitiveKind::Group | PrimitiveKind::Assembly => DimensionClass::Complex,
 
-            PrimitiveKind::BoundingBox | PrimitiveKind::Vector => DimensionClass::Complex,
+            PrimitiveKind::BBox | PrimitiveKind::Vector => DimensionClass::Complex,
         }
     }
 
