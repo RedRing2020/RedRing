@@ -9,11 +9,12 @@ RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームで
 **✅ ビルド状況**: 正常（cargo build/test 成功）
 **✅ 型システム**: ジェネリック<T: Scalar>対応完了
 **✅ Foundation パターン**: 実装完了
-**✅ 情報管理**: GitHub Issues/Projects移行済み
+**✅ 情報管理**: GitHub Issues/Projects 移行済み
 
 ## クイックリファレンス
 
 **よく使うコマンド**:
+
 ```bash
 cargo build                 # 全体ビルド
 cargo run                   # メイン実行（GUI環境が必要）
@@ -22,12 +23,14 @@ mdbook build                # ドキュメント生成（manual/ -> docs/）
 ```
 
 **重要な制約**:
+
 - 新規コード追加時は既存のトレイト設計と責務分離を尊重
 - `render` と `stage` は独立してビルド可能（model に依存しない）
 
 ## アーキテクチャ概要
 
 ### Workspace 構成
+
 ```
 foundation/         # 基礎機能（analysis: 数値解析・線形代数）
 model/             # 幾何データ層
@@ -44,6 +47,7 @@ viewmodel/         # ビュー変換ロジック
 ```
 
 ### Foundation パターン
+
 ```rust
 // 全ての幾何プリミティブが実装する統一インターフェース
 pub trait ExtensionFoundation<T: Scalar> {
@@ -52,12 +56,14 @@ pub trait ExtensionFoundation<T: Scalar> {
     fn measure(&self) -> Option<T>;
 }
 ```
+
 model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
-                                                      ↘     ↙
-                                                        analysis
+↘ ↙
+analysis
 redring → viewmodel → model
-       ↘  stage → render
-```
+↘ stage → render
+
+````
 
 **重要**: Foundation パターンにより統一されたトレイト実装、`render` は幾何データ層に依存しない
 
@@ -89,7 +95,7 @@ impl<T: Scalar> ExtensionFoundation<T> for Plane3D<T> {
         None // 無限平面の測度は定義されない
     }
 }
-```
+````
 
 ### 分離されたファイル構成
 

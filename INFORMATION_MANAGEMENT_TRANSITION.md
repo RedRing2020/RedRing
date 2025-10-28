@@ -1,16 +1,18 @@
 # RedRing 情報管理方針転換
 
-**作成日: 2025年10月28日**
-**最終更新: 2025年10月28日**
+**作成日: 2025 年 10 月 28 日**
+**最終更新: 2025 年 10 月 28 日**
 
 ## 背景
-- ルート直下に約30個のMDファイルが散乱
+
+- ルート直下に約 30 個の MD ファイルが散乱
 - GitHub Pages (manual/docs/) との情報重複
 - 進捗管理の破綻（毎日記憶喪失状態）
 
 ## 新しい管理方針
 
 ### 1. ドキュメント階層化
+
 ```
 docs/           # GitHub Pages（公開用HTML生成先）
 manual/         # mdbook ソース（ユーザー向けドキュメント）
@@ -27,12 +29,14 @@ archive/        # 古い分析・提案ファイル（ルート直下）
 ```
 
 ### 2. 進捗管理移行
+
 - **GitHub Issues**: 具体的タスク
 - **GitHub Projects**: フェーズ管理
 - **GitHub Milestones**: 重要な節目
 - **copilot-instructions.md**: 現在状況のみ（詳細進捗除外）
 
 ### 3. ルート直下整理
+
 ```bash
 # 移動対象
 ARCHITECTURE*.md         → dev/architecture/
@@ -43,6 +47,7 @@ MIGRATION*.md          → archive/
 ```
 
 ### 4. 残すもの
+
 ```
 README.md              # プロジェクト概要
 Cargo.toml            # ビルド設定
@@ -53,15 +58,15 @@ LICENSE               # ライセンス
 ## 実装手順
 
 1. **Phase 1**: アーカイブフォルダ作成・移動
-2. **Phase 2**: copilot-instructions.md簡素化
-3. **Phase 3**: GitHub Issues/Projects設定
-4. **Phase 4**: CI/CDでドキュメント自動更新
+2. **Phase 2**: copilot-instructions.md 簡素化
+3. **Phase 3**: GitHub Issues/Projects 設定
+4. **Phase 4**: CI/CD でドキュメント自動更新
 
 ## 期待効果
 
-- **情報の一元化**: GitHub Issues中心
+- **情報の一元化**: GitHub Issues 中心
 - **ドキュメント整理**: 用途別階層化
 - **進捗追跡**: 自動化・可視化
-- **記憶喪失対策**: Issueベース管理
+- **記憶喪失対策**: Issue ベース管理
 
 この方針で進めることで、情報管理の破綻を防げると考えます。
