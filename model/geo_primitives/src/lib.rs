@@ -25,11 +25,23 @@ pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
 pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
-pub mod cylinder_3d; // Cylinder3D の新実装 (Core)
-pub mod cylinder_3d_extensions; // Cylinder3D の拡張機能 (Extension)
-pub mod cylinder_3d_foundation; // Cylinder3D のトレイト実装
+pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
+pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
 #[cfg(test)]
-pub mod cylinder_3d_tests; // Cylinder3D のテスト
+pub mod cylindrical_solid_3d_tests; // CylindricalSolid3D のテスト
+pub mod cylindrical_solid_3d_transform; // CylindricalSolid3D の変換機能 (Transform)
+pub mod cylindrical_solid_3d_transform_safe; // CylindricalSolid3D の安全な変換機能 (Safe Transform)
+#[cfg(test)]
+pub mod cylindrical_solid_3d_transform_tests; // CylindricalSolid3D の変換テスト
+pub mod cylindrical_surface_3d; // CylindricalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod cylindrical_surface_3d_extensions; // CylindricalSurface3D の拡張機能 (Extension)
+pub mod cylindrical_surface_3d_foundation; // CylindricalSurface3D のFoundation実装
+#[cfg(test)]
+pub mod cylindrical_surface_3d_tests; // CylindricalSurface3D のテスト
+pub mod cylindrical_surface_3d_transform; // CylindricalSurface3D の変換機能 (Transform)
+#[cfg(test)]
+pub mod cylindrical_surface_3d_transform_tests; // CylindricalSurface3D の変換テスト
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod direction_3d_transform_safe; // Direction3D の安全な変換機能 (Safe Transform)
@@ -226,7 +238,11 @@ pub use geo_foundation::extensions::{
 pub use arc_3d::Arc3D;
 pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
-pub use cylinder_3d::Cylinder3D;
+pub use cylindrical_solid_3d::CylindricalSolid3D; // 新式ソリッド
+pub use cylindrical_solid_3d_transform_safe::{
+    CylindricalSolid3DTransformError, SafeTransform, TransformResult,
+}; // 安全な変換操作とエラー型
+pub use cylindrical_surface_3d::CylindricalSurface3D; // 新式サーフェス
 pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
 pub use ellipse_arc_3d::EllipseArc3D;
