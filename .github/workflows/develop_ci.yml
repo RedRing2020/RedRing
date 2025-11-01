@@ -78,7 +78,7 @@ jobs:
 
           # Define workspace structure
           declare -A WORKSPACE_CRATES=(
-            ["analysis"]="analysis"
+            ["analysis"]="foundation/analysis"
             ["geo_foundation"]="model/geo_foundation"
             ["geo_core"]="model/geo_core"
             ["geo_primitives"]="model/geo_primitives"
