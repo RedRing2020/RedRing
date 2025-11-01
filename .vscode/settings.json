@@ -152,6 +152,7 @@
     "infinite_line_3d.rs": "infinite_line_3d_tests.rs,infinite_line_3d_extensions.rs,infinite_line_3d_transform.rs,infinite_line_3d_transform_safe.rs",
     "line_segment_2d.rs": "line_segment_2d_tests.rs,line_segment_2d_extensions.rs,line_segment_2d_transform.rs,line_segment_2d_transform_safe.rs",
     "line_segment_3d.rs": "line_segment_3d_tests.rs,line_segment_3d_extensions.rs,line_segment_3d_transform.rs,line_segment_3d_transform_safe.rs",
+    "torus_surface_3d.rs": "torus_surface_3d_extensions.rs,torus_surface_3d_foundation.rs,torus_surface_3d_transform.rs,torus_surface_3d_transform_safe.rs,torus_surface_3d_transform_safe_tests.rs,torus_surface_3d_tests.rs",
     "lib.rs": "foundation_tests.rs,*_tests.rs",
     "transform.rs": "transform_error.rs",
     "collision.rs": "collision_error.rs",

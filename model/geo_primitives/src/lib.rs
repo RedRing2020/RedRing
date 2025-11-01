@@ -117,6 +117,7 @@ pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具�
 pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
 pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
 pub mod torus_surface_3d_transform; // TorusSurface3D の変換機能 (Transform)
+pub mod torus_surface_3d_transform_safe; // TorusSurface3D の安全な変換機能 (Safe Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
@@ -138,6 +139,10 @@ pub mod ellipse_3d_transform_tests;
 pub mod point_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod ray_3d_tests;
+#[cfg(test)]
+pub mod torus_surface_3d_tests;
+#[cfg(test)]
+pub mod torus_surface_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod triangle_3d_tests;
 #[cfg(test)]
