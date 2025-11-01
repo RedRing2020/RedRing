@@ -25,6 +25,12 @@ pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
 pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
+pub mod conical_solid_3d; // ConicalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod conical_solid_3d_extensions; // ConicalSolid3D の拡張機能 (Extension)
+pub mod conical_solid_3d_foundation; // ConicalSolid3D のFoundation実装
+#[cfg(test)]
+pub mod conical_solid_3d_tests; // ConicalSolid3D のテスト
+pub mod conical_solid_3d_transform; // ConicalSolid3D の変換機能 (Transform)
 pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
 pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
@@ -243,6 +249,7 @@ pub use geo_foundation::extensions::{
 pub use arc_3d::Arc3D;
 pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
+pub use conical_solid_3d::{Cone3D, ConicalSolid3D}; // 新式円錐ソリッド + 互換エイリアス
 pub use cylindrical_solid_3d::CylindricalSolid3D; // 新式ソリッド
 pub use cylindrical_solid_3d_transform_safe::{
     CylindricalSolid3DTransformError, SafeTransform, TransformResult,
