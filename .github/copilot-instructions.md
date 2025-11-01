@@ -95,7 +95,7 @@ redring → viewmodel → model
    - エラーケースの検証
    - 境界値テスト
 
-3. **実装ファイル内のテスト禁止**: 
+3. **実装ファイル内のテスト禁止**:
    - 実装ファイル（`{shape}_3d.rs`, `{shape}_3d_transform_safe.rs` など）内でのテストコード記載は禁止
    - 必ず独立したテストファイルに分離する
 
@@ -112,7 +112,7 @@ redring → viewmodel → model
 SafeTransform実装では以下のエラー型を適切に使用：
 
 - `TransformError::ZeroVector` - ゼロ・無効ベクトル
-- `TransformError::InvalidScaleFactor` - 無効なスケール倍率  
+- `TransformError::InvalidScaleFactor` - 無効なスケール倍率
 - `TransformError::InvalidRotation` - 無効な回転パラメータ
 - `TransformError::InvalidGeometry` - 変換後の幾何的無効性
 
