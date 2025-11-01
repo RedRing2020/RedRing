@@ -25,7 +25,11 @@ pub enum PrimitiveKind {
 
     // 3次元: 立体要素
     Sphere,
-    Cylinder,
+    SphericalSolid,     // 新式球ソリッド
+    SphericalSurface,   // 新式球サーフェス
+    Cylinder,           // 旧式（互換性のため残存）
+    CylindricalSolid,   // 新式ソリッド
+    CylindricalSurface, // 新式サーフェス
     Cone,
     Cube,
     Plane,
@@ -37,7 +41,7 @@ pub enum PrimitiveKind {
     Assembly,
 
     // 補助要素
-    BoundingBox,
+    BBox,
     Vector,
     Mesh,
 }
@@ -70,10 +74,14 @@ impl PrimitiveKind {
             | PrimitiveKind::Polygon
             | PrimitiveKind::Triangle
             | PrimitiveKind::Plane
+            | PrimitiveKind::CylindricalSurface  // サーフェスは2次元
+            | PrimitiveKind::SphericalSurface    // 球サーフェスは2次元
             | PrimitiveKind::NurbsSurface => DimensionClass::Two,
 
             PrimitiveKind::Sphere
-            | PrimitiveKind::Cylinder
+            | PrimitiveKind::SphericalSolid     // 新式球ソリッド
+            | PrimitiveKind::Cylinder           // 旧式（互換性）
+            | PrimitiveKind::CylindricalSolid   // 新式ソリッド
             | PrimitiveKind::Cone
             | PrimitiveKind::Cube
             | PrimitiveKind::TriangleMesh
@@ -81,7 +89,7 @@ impl PrimitiveKind {
 
             PrimitiveKind::Group | PrimitiveKind::Assembly => DimensionClass::Complex,
 
-            PrimitiveKind::BoundingBox | PrimitiveKind::Vector => DimensionClass::Complex,
+            PrimitiveKind::BBox | PrimitiveKind::Vector => DimensionClass::Complex,
         }
     }
 
@@ -115,7 +123,11 @@ impl PrimitiveKind {
             PrimitiveKind::Circle
                 | PrimitiveKind::Ellipse
                 | PrimitiveKind::Sphere
+                | PrimitiveKind::SphericalSolid
+                | PrimitiveKind::SphericalSurface
                 | PrimitiveKind::Cylinder
+                | PrimitiveKind::CylindricalSolid
+                | PrimitiveKind::CylindricalSurface
                 | PrimitiveKind::Cone
                 | PrimitiveKind::Plane
         )

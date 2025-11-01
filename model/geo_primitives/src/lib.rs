@@ -25,11 +25,23 @@ pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
 pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
-pub mod cylinder_3d; // Cylinder3D の新実装 (Core)
-pub mod cylinder_3d_extensions; // Cylinder3D の拡張機能 (Extension)
-pub mod cylinder_3d_foundation; // Cylinder3D のトレイト実装
+pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
+pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
 #[cfg(test)]
-pub mod cylinder_3d_tests; // Cylinder3D のテスト
+pub mod cylindrical_solid_3d_tests; // CylindricalSolid3D のテスト
+pub mod cylindrical_solid_3d_transform; // CylindricalSolid3D の変換機能 (Transform)
+pub mod cylindrical_solid_3d_transform_safe; // CylindricalSolid3D の安全な変換機能 (Safe Transform)
+#[cfg(test)]
+pub mod cylindrical_solid_3d_transform_tests; // CylindricalSolid3D の変換テスト
+pub mod cylindrical_surface_3d; // CylindricalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod cylindrical_surface_3d_extensions; // CylindricalSurface3D の拡張機能 (Extension)
+pub mod cylindrical_surface_3d_foundation; // CylindricalSurface3D のFoundation実装
+#[cfg(test)]
+pub mod cylindrical_surface_3d_tests; // CylindricalSurface3D のテスト
+pub mod cylindrical_surface_3d_transform; // CylindricalSurface3D の変換機能 (Transform)
+#[cfg(test)]
+pub mod cylindrical_surface_3d_transform_tests; // CylindricalSurface3D の変換テスト
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod direction_3d_transform_safe; // Direction3D の安全な変換機能 (Safe Transform)
@@ -60,6 +72,13 @@ pub mod plane_3d_transform; // Plane3D の変換機能 (Transform)
 pub mod plane_3d_transform_safe; // Plane3D の安全な変換機能 (Safe Transform)
 #[cfg(test)]
 pub mod plane_3d_transform_safe_tests; // Plane3D の安全な変換テスト
+pub mod plane_coordinate_system; // STEP準拠の座標系付き平面（Core）
+pub mod plane_coordinate_system_foundation; // Plane3DCoordinateSystem のFoundation実装
+#[cfg(test)]
+pub mod plane_coordinate_system_tests; // Plane3DCoordinateSystem のテスト
+pub mod plane_coordinate_system_transform; // Plane3DCoordinateSystem の変換機能 (Transform)
+#[cfg(test)]
+pub mod plane_coordinate_system_transform_tests; // Plane3DCoordinateSystem の変換テスト
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
@@ -70,11 +89,12 @@ pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
 pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform)
-pub mod sphere_3d; // Sphere3D の新実装 (Core)
-pub mod sphere_3d_extensions; // Sphere3D の拡張機能 (Extension)
-pub mod sphere_3d_foundation; // Sphere3D のトレイト実装
-#[cfg(test)]
-pub mod sphere_3d_tests; // Sphere3D のテスト
+pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
+pub mod spherical_solid_3d_transform; // SphericalSolid3D の変換機能 (Transform)
+pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
+pub mod spherical_surface_3d_transform; // SphericalSurface3D の変換機能 (Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
@@ -161,6 +181,10 @@ mod ellipse_3d_tests;
 #[cfg(test)]
 mod point_3d_tests;
 #[cfg(test)]
+mod spherical_solid_3d_tests;
+#[cfg(test)]
+mod spherical_surface_3d_tests;
+#[cfg(test)]
 mod vector_3d_tests;
 
 // 2D テスト
@@ -198,13 +222,13 @@ pub use geo_foundation::{Angle, Scalar};
 pub use geo_foundation::extensions::{
     AdvancedCollision,
     AdvancedTransform,
+    BBoxCollision,
     // Collision Foundation
     BasicCollision,
     // Intersection Foundation
     BasicIntersection,
     // Transform Foundation
     BasicTransform,
-    BoundingBoxCollision,
     CollisionHelpers,
     IntersectionHelpers,
     MultipleIntersection,
@@ -219,16 +243,22 @@ pub use geo_foundation::extensions::{
 pub use arc_3d::Arc3D;
 pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
-pub use cylinder_3d::Cylinder3D;
+pub use cylindrical_solid_3d::CylindricalSolid3D; // 新式ソリッド
+pub use cylindrical_solid_3d_transform_safe::{
+    CylindricalSolid3DTransformError, SafeTransform, TransformResult,
+}; // 安全な変換操作とエラー型
+pub use cylindrical_surface_3d::CylindricalSurface3D; // 新式サーフェス
 pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
 pub use ellipse_arc_3d::EllipseArc3D;
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use plane_3d::Plane3D;
+pub use plane_coordinate_system::Plane3DCoordinateSystem;
 pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
-pub use sphere_3d::Sphere3D;
+pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド
+pub use spherical_surface_3d::SphericalSurface3D; // 新式球サーフェス
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;

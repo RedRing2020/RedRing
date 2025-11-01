@@ -266,11 +266,11 @@ pub trait PointDistanceHelpers<T: Scalar>: PointDistance<T> {
 // PointDistanceHelpers の自動実装
 impl<T: Scalar, U> PointDistanceHelpers<T> for U where U: PointDistance<T> {}
 
-/// Bounding Box による高速事前スクリーニング
+/// BBox による高速事前スクリーニング
 ///
 /// 詳細な衝突検出の前に境界ボックスでの事前判定を行い、
 /// 計算効率を向上させるためのトレイト
-pub trait BoundingBoxCollision<T: Scalar> {
+pub trait BBoxCollision<T: Scalar> {
     /// 境界ボックス型
     type BBox;
 

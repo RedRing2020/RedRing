@@ -1,0 +1,9 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 120 # GitHub ActionsのYAMLファイルでは120文字まで許可
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off'] # GitHub Actionsで使用される値を許可
+  document-start: disable # GitHub ActionsではDocument startは不要

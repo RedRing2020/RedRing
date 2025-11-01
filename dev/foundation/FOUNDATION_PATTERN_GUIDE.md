@@ -1,5 +1,7 @@
 # Foundation パターン実装ガイド
 
+**最終更新日: 2025 年 10 月 29 日**
+
 ## 概要
 
 Foundation パターンは、RedRing の幾何システムにおける統一トレイト実装方式です。全ての幾何プリミティブが共通のインターフェースを持つことで、型安全性と一貫性を保証します。
@@ -11,8 +13,9 @@ Foundation パターンは、RedRing の幾何システムにおける統一ト�
 ```rust
 // geo_foundation/src/extension_foundation.rs
 pub trait ExtensionFoundation<T: Scalar> {
+    type BBox: AbstractBBox<T>;
     fn primitive_kind(&self) -> PrimitiveKind;
-    fn bounding_box(&self) -> Option<BoundingBox3D<T>>;
+    fn bounding_box(&self) -> Self::BBox;
     fn measure(&self) -> Option<T>;
 }
 
@@ -29,12 +32,14 @@ pub trait TolerantEq<T: Scalar> {
 ```rust
 // 例: point_3d_foundation.rs
 impl<T: Scalar> ExtensionFoundation<T> for Point3D<T> {
+    type BBox = BBox3D<T>;
+
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Point
     }
 
-    fn bounding_box(&self) -> Option<BoundingBox3D<T>> {
-        Some(BoundingBox3D::from_point(*self))
+    fn bounding_box(&self) -> Self::BBox {
+        BBox3D::from_point(*self)
     }
 
     fn measure(&self) -> Option<T> {
@@ -56,7 +61,7 @@ impl<T: Scalar> TolerantEq<T> for Point3D<T> {
 | 幾何プリミティブ   | Foundation ファイル              | 実装内容                         |
 | ------------------ | -------------------------------- | -------------------------------- |
 | **Arc3D**          | `arc_3d_foundation.rs`           | 弧の境界ボックス、弧長、誤差比較 |
-| **BoundingBox3D**  | `bbox_3d_foundation.rs`          | 境界ボックスの体積、包含判定     |
+| **BBox3D**         | `bbox_3d_foundation.rs`          | 境界ボックスの体積、包含判定     |
 | **Circle3D**       | `circle_3d_foundation.rs`        | 円の境界ボックス、円周、誤差比較 |
 | **Cylinder3D**     | `cylinder_3d_foundation.rs`      | 円柱の境界ボックス、表面積       |
 | **Point3D**        | `point_3d_foundation.rs`         | 点の距離比較、測度 0             |
@@ -102,7 +107,7 @@ pub enum PrimitiveKind {
     // 複合形状
     Triangle,
     Mesh,
-    BoundingBox,
+    BBox,
 }
 ```
 
@@ -120,11 +125,11 @@ pub enum PrimitiveKind {
 
 ### 2. bounding_box() メソッドの実装指針
 
-| 形状タイプ   | 境界ボックス   | 実装例                          |
-| ------------ | -------------- | ------------------------------- |
-| **有限形状** | 最小包含直方体 | `Some(BoundingBox3D::from_...)` |
-| **無限形状** | 定義不可       | `None`                          |
-| **退化形状** | 特別処理       | 条件分岐で適切に処理            |
+| 形状タイプ   | 境界ボックス     | 実装例                 |
+| ------------ | ---------------- | ---------------------- |
+| **有限形状** | 最小包含直方体   | `BBox3D::from_...`     |
+| **無限形状** | 微小境界ボックス | `原点周辺の微小BBox3D` |
+| **退化形状** | 特別処理         | 条件分岐で適切に処理   |
 
 ### 3. tolerant_eq() メソッドの実装指針
 
@@ -193,7 +198,7 @@ mod tests {
 ### Foundation ファイルの依存関係
 
 ```rust
-use crate::{GeometryType, BoundingBox3D}; // 同クレート内の型
+use crate::{GeometryType, BBox3D}; // 同クレート内の型
 use geo_foundation::{ExtensionFoundation, PrimitiveKind}; // Foundation トレイト
 use analysis::{TolerantEq, Scalar}; // 抽象型トレイト
 ```
