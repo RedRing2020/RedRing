@@ -89,11 +89,12 @@ pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
 pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform)
-pub mod sphere_3d; // Sphere3D の新実装 (Core)
-pub mod sphere_3d_extensions; // Sphere3D の拡張機能 (Extension)
-pub mod sphere_3d_foundation; // Sphere3D のトレイト実装
-#[cfg(test)]
-pub mod sphere_3d_tests; // Sphere3D のテスト
+pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
+pub mod spherical_solid_3d_transform; // SphericalSolid3D の変換機能 (Transform)
+pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
+pub mod spherical_surface_3d_transform; // SphericalSurface3D の変換機能 (Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
@@ -180,6 +181,10 @@ mod ellipse_3d_tests;
 #[cfg(test)]
 mod point_3d_tests;
 #[cfg(test)]
+mod spherical_solid_3d_tests;
+#[cfg(test)]
+mod spherical_surface_3d_tests;
+#[cfg(test)]
 mod vector_3d_tests;
 
 // 2D テスト
@@ -252,7 +257,8 @@ pub use plane_3d::Plane3D;
 pub use plane_coordinate_system::Plane3DCoordinateSystem;
 pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
-pub use sphere_3d::Sphere3D;
+pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド
+pub use spherical_surface_3d::SphericalSurface3D; // 新式球サーフェス
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;

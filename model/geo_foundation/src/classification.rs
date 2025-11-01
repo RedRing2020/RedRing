@@ -25,6 +25,8 @@ pub enum PrimitiveKind {
 
     // 3次元: 立体要素
     Sphere,
+    SphericalSolid,     // 新式球ソリッド
+    SphericalSurface,   // 新式球サーフェス
     Cylinder,           // 旧式（互換性のため残存）
     CylindricalSolid,   // 新式ソリッド
     CylindricalSurface, // 新式サーフェス
@@ -73,9 +75,11 @@ impl PrimitiveKind {
             | PrimitiveKind::Triangle
             | PrimitiveKind::Plane
             | PrimitiveKind::CylindricalSurface  // サーフェスは2次元
+            | PrimitiveKind::SphericalSurface    // 球サーフェスは2次元
             | PrimitiveKind::NurbsSurface => DimensionClass::Two,
 
             PrimitiveKind::Sphere
+            | PrimitiveKind::SphericalSolid     // 新式球ソリッド
             | PrimitiveKind::Cylinder           // 旧式（互換性）
             | PrimitiveKind::CylindricalSolid   // 新式ソリッド
             | PrimitiveKind::Cone
@@ -119,7 +123,11 @@ impl PrimitiveKind {
             PrimitiveKind::Circle
                 | PrimitiveKind::Ellipse
                 | PrimitiveKind::Sphere
+                | PrimitiveKind::SphericalSolid
+                | PrimitiveKind::SphericalSurface
                 | PrimitiveKind::Cylinder
+                | PrimitiveKind::CylindricalSolid
+                | PrimitiveKind::CylindricalSurface
                 | PrimitiveKind::Cone
                 | PrimitiveKind::Plane
         )

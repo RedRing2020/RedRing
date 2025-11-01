@@ -70,7 +70,7 @@ impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Point3D, Vector3D};
+    use crate::Point3D;
 
     #[test]
     fn test_extension_foundation() {
@@ -95,8 +95,8 @@ mod tests {
         // 許容誤差内で等しい
         assert!(surface1.tolerant_eq(&surface2, 1e-3));
 
-        // 許容誤差外で異なる
-        assert!(surface1.tolerant_ne(&surface2, 1e-5));
+        // 許容誤差外で異なる - tolerant_eqの逆
+        assert!(!surface1.tolerant_eq(&surface2, 1e-5));
     }
 
     #[test]
@@ -105,8 +105,8 @@ mod tests {
 
         let surface2 = CylindricalSurface3D::new_z_axis(Point3D::new(10.0, 0.0, 0.0), 5.0).unwrap();
 
-        // 中心が大きく異なる
-        assert!(surface1.tolerant_ne(&surface2, 1e-3));
+        // 中心が大きく異なる - tolerant_eqの逆
+        assert!(!surface1.tolerant_eq(&surface2, 1e-3));
         assert!(!surface1.tolerant_eq(&surface2, 1e-3));
     }
 }

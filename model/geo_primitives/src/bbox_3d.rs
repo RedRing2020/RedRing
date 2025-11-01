@@ -1,4 +1,4 @@
-﻿//! 境界ボックス（BBox）の新実装
+//! 境界ボックス（BBox）の新実装
 //!
 //! foundation.rs の基盤トレイトに基づく BBox3D の実装
 
@@ -66,6 +66,12 @@ impl<T: Scalar> BBox3D<T> {
             && point.y() <= self.max.y()
             && point.z() >= self.min.z()
             && point.z() <= self.max.z()
+    }
+
+    /// 境界ボックスが空かどうかを判定
+    /// （無効な境界ボックス、すなわち min > max の場合）
+    pub fn is_empty(&self) -> bool {
+        self.min.x() > self.max.x() || self.min.y() > self.max.y() || self.min.z() > self.max.z()
     }
 
     /// 複数の点から境界ボックスを作成

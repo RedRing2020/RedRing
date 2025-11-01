@@ -44,7 +44,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         );
 
         // 円柱は等方的なスケールのみサポート（非一様スケールでは楕円柱になる）
-        let scaled_radius = self.radius() * scale_x;
+        let scaled_radius = self.radius() * scale_x.abs();
 
         Self::new(
             scaled_center,
@@ -52,7 +52,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
             self.ref_direction().as_vector(),
             scaled_radius,
         )
-        .unwrap()
+        .expect("CylindricalSurface3D creation should not fail with valid input")
     }
 
     /// 均一スケール（中心点指定）
@@ -184,8 +184,8 @@ mod tests {
     fn test_translate() {
         let surface = CylindricalSurface3D::new(
             Point3D::new(1.0, 2.0, 3.0),
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
+            Vector3D::unit_z(), // Direction3DではなくVector3Dを使用
+            Vector3D::unit_x(), // Direction3DではなくVector3Dを使用
             2.0,
         )
         .unwrap();
@@ -203,8 +203,8 @@ mod tests {
     fn test_scale_uniform() {
         let surface = CylindricalSurface3D::new(
             Point3D::new(2.0, 0.0, 0.0),
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
+            Vector3D::unit_z(), // Direction3DではなくVector3Dを使用
+            Vector3D::unit_x(), // Direction3DではなくVector3Dを使用
             1.0,
         )
         .unwrap();
@@ -221,8 +221,8 @@ mod tests {
     fn test_rotate_z() {
         let surface = CylindricalSurface3D::new(
             Point3D::new(1.0, 0.0, 0.0),
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            Direction3D::from_vector(Vector3D::unit_x()).unwrap(),
+            Vector3D::unit_z(), // Direction3DではなくVector3Dを使用
+            Vector3D::unit_x(), // Direction3DではなくVector3Dを使用
             1.0,
         )
         .unwrap();
