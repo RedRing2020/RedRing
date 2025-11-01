@@ -32,6 +32,8 @@ pub mod conical_solid_3d_foundation; // ConicalSolid3D のFoundation実装
 pub mod conical_solid_3d_tests; // ConicalSolid3D のテスト
 pub mod conical_solid_3d_transform; // ConicalSolid3D の変換機能 (Transform)
 pub mod conical_solid_3d_transform_safe; // ConicalSolid3D の安全な変換機能 (SafeTransform)
+#[cfg(test)]
+pub mod conical_solid_3d_transform_safe_tests; // ConicalSolid3D の安全な変換機能のテスト
 pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
 pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
