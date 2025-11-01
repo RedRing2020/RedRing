@@ -33,6 +33,7 @@ pub enum PrimitiveKind {
     Cone,
     ConicalSolid,   // 新式円錐ソリッド
     ConicalSurface, // 新式円錐サーフェス
+    TorusSurface,   // 新式トーラスサーフェス (3D CAM対応)
     Cube,
     Plane,
     TriangleMesh,
@@ -79,6 +80,7 @@ impl PrimitiveKind {
             | PrimitiveKind::CylindricalSurface  // サーフェスは2次元
             | PrimitiveKind::SphericalSurface    // 球サーフェスは2次元
             | PrimitiveKind::ConicalSurface      // 円錐サーフェスは2次元
+            | PrimitiveKind::TorusSurface        // トーラスサーフェスは2次元
             | PrimitiveKind::NurbsSurface => DimensionClass::Two,
 
             PrimitiveKind::Sphere
@@ -133,6 +135,9 @@ impl PrimitiveKind {
                 | PrimitiveKind::CylindricalSolid
                 | PrimitiveKind::CylindricalSurface
                 | PrimitiveKind::Cone
+                | PrimitiveKind::ConicalSolid
+                | PrimitiveKind::ConicalSurface
+                | PrimitiveKind::TorusSurface
                 | PrimitiveKind::Plane
         )
     }

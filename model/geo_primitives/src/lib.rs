@@ -113,6 +113,10 @@ pub mod spherical_solid_3d_transform; // SphericalSolid3D の変換機能 (Trans
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
 pub mod spherical_surface_3d_transform; // SphericalSurface3D の変換機能 (Transform)
+pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具オフセット対応
+pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
+pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
+pub mod torus_surface_3d_transform; // TorusSurface3D の変換機能 (Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
@@ -279,6 +283,7 @@ pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド
 pub use spherical_surface_3d::SphericalSurface3D; // 新式球サーフェス
+pub use torus_surface_3d::TorusSurface3D; // 新式トーラスサーフェス (3D CAM対応)
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;
