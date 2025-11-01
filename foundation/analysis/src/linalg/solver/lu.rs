@@ -215,7 +215,7 @@ mod tests {
         // LU分解の検証（PA = LU）
         let n = matrix.len();
         for i in 0..n {
-            for j in 0..n {
+            for (j, _) in matrix.iter().enumerate().take(n) {
                 let mut reconstructed = 0.0;
                 for k in 0..n {
                     let l_ik = if i > k {

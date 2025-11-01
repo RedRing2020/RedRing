@@ -13,7 +13,7 @@ impl<T: Scalar> ExtensionFoundation<T> for BBox3D<T> {
     type BBox = BBox3D<T>;
 
     fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::BoundingBox
+        PrimitiveKind::BBox
     }
 
     fn bounding_box(&self) -> Self::BBox {
@@ -45,7 +45,7 @@ mod tests {
     fn test_extension_foundation() {
         let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 5.0, 3.0));
 
-        assert_eq!(bbox.primitive_kind(), PrimitiveKind::BoundingBox);
+        assert_eq!(bbox.primitive_kind(), PrimitiveKind::BBox);
         assert!(bbox.measure().is_some());
         assert_eq!(bbox.measure().unwrap(), bbox.volume());
 

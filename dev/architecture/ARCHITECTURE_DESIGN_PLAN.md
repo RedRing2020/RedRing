@@ -73,7 +73,7 @@
 ### ✅ 完全実装済み（Foundation 対応）
 
 - **3D 幾何プリミティブ Foundation**: 10 形状すべて完備
-  - Arc3D, BoundingBox3D, Circle3D, Cylinder3D, Point3D
+  - Arc3D, BBox3D, Circle3D, Cylinder3D, Point3D
   - Ray3D, Sphere3D, Triangle3D, TriangleMesh3D, Vector3D
   - ExtensionFoundation<T> + TolerantEq<T> 統一実装
 
