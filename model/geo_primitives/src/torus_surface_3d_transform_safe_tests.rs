@@ -79,8 +79,7 @@ mod tests {
 
         let result = torus.safe_translate(large_translation);
         // 有限値だが非常に大きい値での計算結果のチェック
-        if result.is_ok() {
-            let translated = result.unwrap();
+        if let Ok(translated) = result {
             assert!(translated.origin().x().is_finite());
             assert!(translated.origin().y().is_finite());
             assert!(translated.origin().z().is_finite());
@@ -500,8 +499,7 @@ mod tests {
 
         let result = torus.safe_scale(center, large_scale, large_scale, large_scale);
 
-        if result.is_ok() {
-            let scaled = result.unwrap();
+        if let Ok(scaled) = result {
             // 計算結果が有限であることを確認
             assert!(scaled.major_radius().is_finite());
             assert!(scaled.minor_radius().is_finite());

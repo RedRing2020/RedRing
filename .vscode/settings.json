@@ -26,7 +26,11 @@
     "editor.tabSize": 4,
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
-    "editor.semanticHighlighting.enabled": true
+    "editor.semanticHighlighting.enabled": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.rust": "explicit",
+      "source.organizeImports.rust": "explicit"
+    }
   },
   "[toml]": {
     "editor.tabSize": 2,
@@ -87,6 +91,8 @@
   "rust-analyzer.workspace.symbol.search.kind": "only_types",
   "rust-analyzer.completion.callable.snippets": "none",
   "rust-analyzer.lens.forceCustomCommands": false,
+  "rust-analyzer.rustfmt.extraArgs": [],
+  "rust-analyzer.rustfmt.overrideCommand": null,
 
   // === Search & Explorer ===
   "search.exclude": {
@@ -153,6 +159,7 @@
     "line_segment_2d.rs": "line_segment_2d_tests.rs,line_segment_2d_extensions.rs,line_segment_2d_transform.rs,line_segment_2d_transform_safe.rs",
     "line_segment_3d.rs": "line_segment_3d_tests.rs,line_segment_3d_extensions.rs,line_segment_3d_transform.rs,line_segment_3d_transform_safe.rs",
     "torus_surface_3d.rs": "torus_surface_3d_extensions.rs,torus_surface_3d_foundation.rs,torus_surface_3d_transform.rs,torus_surface_3d_transform_safe.rs,torus_surface_3d_transform_safe_tests.rs,torus_surface_3d_tests.rs",
+    "torus_solid_3d.rs": "torus_solid_3d_extensions.rs,torus_solid_3d_foundation.rs,torus_solid_3d_transform.rs,torus_solid_3d_transform_safe.rs,torus_solid_3d_transform_safe_tests.rs,torus_solid_3d_tests.rs",
     "lib.rs": "foundation_tests.rs,*_tests.rs",
     "transform.rs": "transform_error.rs",
     "collision.rs": "collision_error.rs",
