@@ -120,7 +120,7 @@ impl<T: Scalar> SafeTransform<T> for TorusSolid3D<T> {
     ///
     /// # Arguments
     /// * `center` - 無視されるダミー値
-    /// * `axis` - 無視されるダミー値  
+    /// * `axis` - 無視されるダミー値
     /// * `angle` - 回転角度
     ///
     /// # Returns
