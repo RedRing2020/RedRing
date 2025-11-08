@@ -5,7 +5,7 @@
 
 use crate::{BBox2D, Point2D, Vector2D};
 use analysis::Angle;
-use geo_foundation::{Scalar, TransformError};
+use geo_foundation::{GeometricTolerance, Scalar, TransformError};
 
 /// BBox2Dの安全な変換操作
 impl<T: Scalar> BBox2D<T> {
@@ -364,6 +364,118 @@ impl<T: Scalar> BBox2D<T> {
         }
 
         Ok(BBox2D::new(new_min, new_max))
+    }
+}
+
+/// BBox2D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> BBox2D<T> {
+    /// トレランス制約付きスケール（指定点中心）
+    ///
+    /// # 引数
+    /// * `center` - スケール中心点
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(BBox2D)` - スケール後の境界ボックス
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後のサイズがトレランス以下
+    pub fn safe_scale_with_tolerance(
+        &self,
+        center: Point2D<T>,
+        factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        // 境界ボックスの4つの角をスケール
+        let corners = [
+            self.min(),
+            Point2D::new(self.max().x(), self.min().y()),
+            self.max(),
+            Point2D::new(self.min().x(), self.max().y()),
+        ];
+
+        let scaled_corners: Vec<Point2D<T>> = corners
+            .iter()
+            .map(|&corner| center + (corner - center) * factor)
+            .collect();
+
+        // スケール後の境界を計算
+        let mut min_x = scaled_corners[0].x();
+        let mut max_x = scaled_corners[0].x();
+        let mut min_y = scaled_corners[0].y();
+        let mut max_y = scaled_corners[0].y();
+
+        for corner in &scaled_corners {
+            if corner.x() < min_x {
+                min_x = corner.x();
+            }
+            if corner.x() > max_x {
+                max_x = corner.x();
+            }
+            if corner.y() < min_y {
+                min_y = corner.y();
+            }
+            if corner.y() > max_y {
+                max_y = corner.y();
+            }
+        }
+
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+
+        // サイズの幾何学的制約チェック（トレランスベース）
+        let min_size = T::DISTANCE_TOLERANCE;
+        if width <= min_size || height <= min_size {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後のサイズ(幅:{:?}, 高さ:{:?})がトレランス({:?})以下になります",
+                width, height, min_size
+            )));
+        }
+
+        // 数値安定性チェック
+        if !min_x.is_finite() || !max_x.is_finite() || !min_y.is_finite() || !max_y.is_finite() {
+            return Err(TransformError::InvalidGeometry(
+                "スケール計算結果が無効です".to_string(),
+            ));
+        }
+
+        let scaled_min = Point2D::new(min_x, min_y);
+        let scaled_max = Point2D::new(max_x, max_y);
+
+        Ok(Self::new(scaled_min, scaled_max))
+    }
+
+    /// サイズスケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この境界ボックスに適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_size = T::DISTANCE_TOLERANCE;
+        let current_width = self.width();
+        let current_height = self.height();
+
+        // 小さい方のサイズを基準に計算
+        let smaller_size = if current_width < current_height {
+            current_width
+        } else {
+            current_height
+        };
+
+        if smaller_size <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小サイズを維持するための倍率 + 安全マージン
+            let min_factor = min_size / smaller_size;
+            min_factor + T::DISTANCE_TOLERANCE
+        }
     }
 }
 

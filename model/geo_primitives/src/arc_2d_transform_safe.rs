@@ -5,7 +5,7 @@
 
 use crate::{Arc2D, Circle2D, Point2D, Vector2D};
 use analysis::Angle;
-use geo_foundation::{Scalar, TransformError};
+use geo_foundation::{GeometricTolerance, Scalar, TransformError};
 
 /// Arc2Dの安全な変換操作
 impl<T: Scalar> Arc2D<T> {
@@ -409,6 +409,73 @@ impl<T: Scalar> Arc2D<T> {
         Self::new(new_circle, self.start_angle(), self.end_angle()).ok_or(
             TransformError::InvalidGeometry("新しい円での円弧の作成に失敗".to_string()),
         )
+    }
+}
+
+/// Arc2D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> Arc2D<T> {
+    /// トレランス制約付き半径スケール（中心・角度固定）
+    ///
+    /// # 引数
+    /// * `factor` - 半径のスケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(Arc2D)` - 半径スケール後の円弧
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の半径がトレランス以下
+    pub fn safe_scale_radius_with_tolerance(&self, factor: T) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "半径スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        let new_radius = self.circle().radius() * factor;
+
+        // 半径の幾何学的制約チェック（トレランスベース）
+        let min_radius = T::DISTANCE_TOLERANCE;
+        if new_radius <= min_radius {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の半径({:?})がトレランス({:?})以下になります",
+                new_radius, min_radius
+            )));
+        }
+
+        // 数値安定性チェック
+        if !new_radius.is_finite() {
+            return Err(TransformError::InvalidGeometry(
+                "半径スケール計算結果が無効です".to_string(),
+            ));
+        }
+
+        let new_circle = Circle2D::new(self.circle().center(), new_radius).ok_or(
+            TransformError::InvalidGeometry("スケール後の円の作成に失敗しました".to_string()),
+        )?;
+
+        Self::new(new_circle, self.start_angle(), self.end_angle()).ok_or(
+            TransformError::InvalidGeometry("半径スケール後の円弧の作成に失敗しました".to_string()),
+        )
+    }
+
+    /// 半径スケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この円弧に適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_radius = T::DISTANCE_TOLERANCE;
+        let current_radius = self.circle().radius();
+
+        if current_radius <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小半径を維持するための倍率 + 安全マージン
+            let min_factor = min_radius / current_radius;
+            min_factor + T::DISTANCE_TOLERANCE
+        }
     }
 }
 

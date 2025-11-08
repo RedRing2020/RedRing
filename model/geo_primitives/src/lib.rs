@@ -25,6 +25,24 @@ pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod circle_3d_transform; // Circle3D の変換機能 (Transform)
 pub mod circle_3d_transform_safe; // Circle3D の安全な変換機能 (Safe Transform)
+pub mod conical_solid_3d; // ConicalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod conical_solid_3d_extensions; // ConicalSolid3D の拡張機能 (Extension)
+pub mod conical_solid_3d_foundation; // ConicalSolid3D のFoundation実装
+#[cfg(test)]
+pub mod conical_solid_3d_tests; // ConicalSolid3D のテスト
+pub mod conical_solid_3d_transform; // ConicalSolid3D の変換機能 (Transform)
+pub mod conical_solid_3d_transform_safe; // ConicalSolid3D の安全な変換機能 (SafeTransform)
+#[cfg(test)]
+pub mod conical_solid_3d_transform_safe_tests; // ConicalSolid3D の安全な変換機能のテスト
+pub mod conical_surface_3d; // ConicalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod conical_surface_3d_extensions; // ConicalSurface3D の拡張機能 (Extension)
+pub mod conical_surface_3d_foundation; // ConicalSurface3D のFoundation実装
+#[cfg(test)]
+pub mod conical_surface_3d_tests; // ConicalSurface3D のテスト
+pub mod conical_surface_3d_transform; // ConicalSurface3D の変換機能 (Transform)
+pub mod conical_surface_3d_transform_safe; // ConicalSurface3D の安全な変換機能 (SafeTransform)
+#[cfg(test)]
+pub mod conical_surface_3d_transform_safe_tests; // ConicalSurface3D の安全な変換機能のテスト
 pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
 pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
@@ -92,9 +110,21 @@ pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
 pub mod spherical_solid_3d_transform; // SphericalSolid3D の変換機能 (Transform)
+pub mod spherical_solid_3d_transform_safe; // SphericalSolid3D の安全な変換機能 (Safe Transform)
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
 pub mod spherical_surface_3d_transform; // SphericalSurface3D の変換機能 (Transform)
+pub mod spherical_surface_3d_transform_safe; // SphericalSurface3D の安全な変換機能 (Safe Transform)
+pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
+pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
+pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
+pub mod torus_solid_3d_transform; // TorusSolid3D の変換機能 (Transform)
+pub mod torus_solid_3d_transform_safe; // TorusSolid3D の安全な変換機能 (Safe Transform)
+pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具オフセット対応
+pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
+pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
+pub mod torus_surface_3d_transform; // TorusSurface3D の変換機能 (Transform)
+pub mod torus_surface_3d_transform_safe; // TorusSurface3D の安全な変換機能 (Safe Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
@@ -116,6 +146,14 @@ pub mod ellipse_3d_transform_tests;
 pub mod point_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod ray_3d_tests;
+#[cfg(test)]
+pub mod torus_solid_3d_tests;
+#[cfg(test)]
+pub mod torus_solid_3d_transform_safe_tests;
+#[cfg(test)]
+pub mod torus_surface_3d_tests;
+#[cfg(test)]
+pub mod torus_surface_3d_transform_safe_tests;
 #[cfg(test)]
 pub mod triangle_3d_tests;
 #[cfg(test)]
@@ -183,7 +221,11 @@ mod point_3d_tests;
 #[cfg(test)]
 mod spherical_solid_3d_tests;
 #[cfg(test)]
+mod spherical_solid_3d_transform_safe_tests;
+#[cfg(test)]
 mod spherical_surface_3d_tests;
+#[cfg(test)]
+mod spherical_surface_3d_transform_safe_tests;
 #[cfg(test)]
 mod vector_3d_tests;
 
@@ -243,6 +285,8 @@ pub use geo_foundation::extensions::{
 pub use arc_3d::Arc3D;
 pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
+pub use conical_solid_3d::{Cone3D, ConicalSolid3D}; // 新式円錐ソリッド + 互換エイリアス
+pub use conical_surface_3d::{ConeRim3D, ConicalSurface3D}; // 新式円錐サーフェス + 互換エイリアス
 pub use cylindrical_solid_3d::CylindricalSolid3D; // 新式ソリッド
 pub use cylindrical_solid_3d_transform_safe::{
     CylindricalSolid3DTransformError, SafeTransform, TransformResult,
@@ -259,6 +303,8 @@ pub use point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド
 pub use spherical_surface_3d::SphericalSurface3D; // 新式球サーフェス
+pub use torus_solid_3d::TorusSolid3D; // 新式トーラスソリッド (3D CAM対応)
+pub use torus_surface_3d::TorusSurface3D; // 新式トーラスサーフェス (3D CAM対応)
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;
