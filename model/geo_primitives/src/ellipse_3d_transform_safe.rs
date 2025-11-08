@@ -3,7 +3,7 @@
 //! Result型を使用した適切なエラーハンドリング実装
 
 use crate::{ellipse_3d::Ellipse3D, point_3d::Point3D, vector_3d::Vector3D, Angle, Scalar};
-use geo_foundation::TransformError;
+use geo_foundation::{GeometricTolerance, TransformError};
 
 // ============================================================================
 // Safe Transform Implementation (Result型使用)
@@ -327,5 +327,106 @@ impl<T: Scalar> Ellipse3D<T> {
         }
 
         Ok(())
+    }
+}
+
+/// Ellipse3D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> Ellipse3D<T> {
+    /// トレランス制約付きスケール（指定点中心）
+    ///
+    /// # 引数
+    /// * `center` - スケール中心点
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(Ellipse3D)` - スケール後の楕円
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の半軸長がトレランス以下
+    pub fn safe_scale_with_tolerance(
+        &self,
+        center: Point3D<T>,
+        factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        // 中心点をスケール
+        let center_vector = self.center().to_vector();
+        let relative_position = center_vector - center.to_vector();
+        let scaled_relative = relative_position * factor;
+        let new_center_vector = center.to_vector() + scaled_relative;
+        let new_center = Point3D::new(
+            new_center_vector.x(),
+            new_center_vector.y(),
+            new_center_vector.z(),
+        );
+
+        // 半軸長をスケール
+        let new_semi_major = self.semi_major_axis() * factor.abs();
+        let new_semi_minor = self.semi_minor_axis() * factor.abs();
+
+        // 半軸長の幾何学的制約チェック（トレランスベース）
+        let min_axis = T::DISTANCE_TOLERANCE;
+        if new_semi_major <= min_axis || new_semi_minor <= min_axis {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の半軸長(major:{:?}, minor:{:?})がトレランス({:?})以下になります",
+                new_semi_major, new_semi_minor, min_axis
+            )));
+        }
+
+        // 数値安定性チェック
+        if !new_center.x().is_finite()
+            || !new_center.y().is_finite()
+            || !new_center.z().is_finite()
+            || !new_semi_major.is_finite()
+            || !new_semi_minor.is_finite()
+        {
+            return Err(TransformError::InvalidGeometry(
+                "スケール計算結果が無効です".to_string(),
+            ));
+        }
+
+        Self::new(
+            new_center,
+            new_semi_major,
+            new_semi_minor,
+            self.normal().to_vector(),
+            self.major_axis_direction().to_vector(),
+        )
+        .ok_or(TransformError::InvalidGeometry(
+            "スケール後の楕円の作成に失敗しました".to_string(),
+        ))
+    }
+
+    /// 半軸長スケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この楕円に適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_axis = T::DISTANCE_TOLERANCE;
+        let current_major = self.semi_major_axis();
+        let current_minor = self.semi_minor_axis();
+
+        // 小さい方の軸を基準に計算
+        let smaller_axis = if current_major < current_minor {
+            current_major
+        } else {
+            current_minor
+        };
+
+        if smaller_axis <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小軸長を維持するための倍率 + 安全マージン
+            let min_factor = min_axis / smaller_axis;
+            min_factor + T::DISTANCE_TOLERANCE
+        }
     }
 }

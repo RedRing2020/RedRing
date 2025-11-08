@@ -26,7 +26,11 @@
     "editor.tabSize": 4,
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
-    "editor.semanticHighlighting.enabled": true
+    "editor.semanticHighlighting.enabled": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.rust": "explicit",
+      "source.organizeImports.rust": "explicit"
+    }
   },
   "[toml]": {
     "editor.tabSize": 2,
@@ -87,6 +91,8 @@
   "rust-analyzer.workspace.symbol.search.kind": "only_types",
   "rust-analyzer.completion.callable.snippets": "none",
   "rust-analyzer.lens.forceCustomCommands": false,
+  "rust-analyzer.rustfmt.extraArgs": [],
+  "rust-analyzer.rustfmt.overrideCommand": null,
 
   // === Search & Explorer ===
   "search.exclude": {
@@ -134,12 +140,14 @@
     "arc_3d.rs": "arc_3d_tests.rs,arc_3d_extensions.rs,arc_3d_foundation.rs,arc_3d_transform.rs,arc_3d_transform_safe.rs,arc_3d_backup.rs",
     "circle_2d.rs": "circle_2d_tests.rs,circle_2d_extensions.rs,circle_2d_metrics.rs,circle_2d_transform.rs,circle_2d_transform_safe.rs",
     "circle_3d.rs": "circle_3d_extensions.rs,circle_3d_foundation.rs,circle_3d_transform.rs,circle_3d_transform_safe.rs",
+    "conical_solid_3d.rs": "conical_solid_3d_extensions.rs,conical_solid_3d_foundation.rs,conical_solid_3d_transform.rs,conical_solid_3d_transform_safe.rs,conical_solid_3d_transform_safe_tests.rs,conical_solid_3d_tests.rs",
+    "conical_surface_3d.rs": "conical_surface_3d_extensions.rs,conical_surface_3d_foundation.rs,conical_surface_3d_transform.rs,conical_surface_3d_transform_safe.rs,conical_surface_3d_transform_safe_tests.rs,conical_surface_3d_tests.rs",
     "cylindrical_solid_3d.rs": "cylindrical_solid_3d_extensions.rs,cylindrical_solid_3d_foundation.rs,cylindrical_solid_3d_transform.rs,cylindrical_solid_3d_tests.rs,cylindrical_solid_3d_transform_tests.rs,cylindrical_solid_3d_transform_safe.rs",
     "cylindrical_surface_3d.rs": "cylindrical_surface_3d_extensions.rs,cylindrical_surface_3d_foundation.rs,cylindrical_surface_3d_transform.rs,cylindrical_surface_3d_tests.rs,cylindrical_surface_3d_transform_tests.rs",
     "plane_3d.rs": "plane_3d_extensions.rs,plane_3d_foundation.rs,plane_3d_transform.rs,plane_3d_transform_safe.rs,plane_3d_transform_safe_tests.rs,plane_coordinate_system.rs,plane_coordinate_system_foundation.rs,plane_coordinate_system_transform.rs,plane_coordinate_system_tests.rs,plane_coordinate_system_transform_tests.rs",
     "sphere_3d.rs": "sphere_3d_tests.rs,sphere_3d_extensions.rs,sphere_3d_foundation.rs",
-    "spherical_solid_3d.rs": "spherical_solid_3d_extensions.rs,spherical_solid_3d_foundation.rs,spherical_solid_3d_transform.rs,spherical_solid_3d_tests.rs,spherical_solid_3d_transform_tests.rs",
-    "spherical_surface_3d.rs": "spherical_surface_3d_extensions.rs,spherical_surface_3d_foundation.rs,spherical_surface_3d_transform.rs,spherical_surface_3d_tests.rs,spherical_surface_3d_transform_tests.rs",
+    "spherical_solid_3d.rs": "spherical_solid_3d_extensions.rs,spherical_solid_3d_foundation.rs,spherical_solid_3d_transform.rs,spherical_solid_3d_transform_safe.rs,spherical_solid_3d_transform_safe_tests.rs,spherical_solid_3d_tests.rs,spherical_solid_3d_transform_tests.rs",
+    "spherical_surface_3d.rs": "spherical_surface_3d_extensions.rs,spherical_surface_3d_foundation.rs,spherical_surface_3d_transform.rs,spherical_surface_3d_transform_safe.rs,spherical_surface_3d_transform_safe_tests.rs,spherical_surface_3d_tests.rs,spherical_surface_3d_transform_tests.rs",
     "triangle_3d.rs": "triangle_3d_tests.rs,triangle_3d_foundation.rs",
     "triangle_mesh_3d.rs": "triangle_mesh_3d_tests.rs,triangle_mesh_3d_foundation.rs",
     "ellipse_2d.rs": "ellipse_2d_tests.rs,ellipse_2d_additional_tests.rs,ellipse_2d_extensions.rs,ellipse_2d_transform.rs,ellipse_2d_transform_safe.rs",
@@ -150,6 +158,9 @@
     "infinite_line_3d.rs": "infinite_line_3d_tests.rs,infinite_line_3d_extensions.rs,infinite_line_3d_transform.rs,infinite_line_3d_transform_safe.rs",
     "line_segment_2d.rs": "line_segment_2d_tests.rs,line_segment_2d_extensions.rs,line_segment_2d_transform.rs,line_segment_2d_transform_safe.rs",
     "line_segment_3d.rs": "line_segment_3d_tests.rs,line_segment_3d_extensions.rs,line_segment_3d_transform.rs,line_segment_3d_transform_safe.rs",
+    "torus_surface_3d.rs": "torus_surface_3d_extensions.rs,torus_surface_3d_foundation.rs,torus_surface_3d_transform.rs,torus_surface_3d_transform_safe.rs,torus_surface_3d_transform_safe_tests.rs,torus_surface_3d_tests.rs",
+    "torus_solid_3d.rs": "torus_solid_3d_extensions.rs,torus_solid_3d_foundation.rs,torus_solid_3d_transform.rs,torus_solid_3d_transform_safe.rs,torus_solid_3d_transform_safe_tests.rs,torus_solid_3d_tests.rs",
+    "ellipsoidal_surface_3d.rs": "ellipsoidal_surface_3d_extensions.rs,ellipsoidal_surface_3d_foundation.rs,ellipsoidal_surface_3d_transform.rs,ellipsoidal_surface_3d_transform_safe.rs,ellipsoidal_surface_3d_transform_safe_tests.rs,ellipsoidal_surface_3d_tests.rs",
     "lib.rs": "foundation_tests.rs,*_tests.rs",
     "transform.rs": "transform_error.rs",
     "collision.rs": "collision_error.rs",

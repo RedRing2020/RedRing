@@ -1,6 +1,6 @@
 # Copilot Instructions for RedRing
 
-**最終更新日: 2025 年 10 月 29 日**
+**最終更新日: 2025 年 11 月 1 日**
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
@@ -67,6 +67,79 @@ redring → viewmodel → model
 ````
 
 **重要**: Foundation パターンにより統一されたトレイト実装、`render` は幾何データ層に依存しない
+
+## geo_primitives 実装の作法
+
+### ファイル命名規則と責務分離
+
+各幾何プリミティブは以下の構成で実装されています：
+
+- `{shape}_3d.rs`: 基本実装
+- `{shape}_3d_foundation.rs`: Foundation トレイト実装
+- `{shape}_3d_extensions.rs`: 基本操作・拡張機能
+- `{shape}_3d_transform.rs`: 変換操作（BasicTransform）
+- `{shape}_3d_transform_safe.rs`: 安全な変換操作（SafeTransform）
+- `{shape}_3d_tests.rs`: 基本機能のテストスイート
+- `{shape}_3d_transform_safe_tests.rs`: 安全な変換操作のテストスイート
+
+### テストコード配置ルール
+
+**重要**: テストコードの配置は厳格にルール化されています：
+
+1. **基本テスト**: `{shape}_3d_tests.rs` に集約
+   - 基本機能、拡張機能、Foundation実装のテスト
+   - 通常の変換操作（BasicTransform）のテスト
+
+2. **エラーハンドリング版テスト**: `{shape}_3d_transform_safe_tests.rs` に分離
+   - SafeTransform トレイトのテスト
+   - エラーケースの検証
+   - 境界値テスト
+
+3. **実装ファイル内のテスト禁止**:
+   - 実装ファイル（`{shape}_3d.rs`, `{shape}_3d_transform_safe.rs` など）内でのテストコード記載は禁止
+   - 必ず独立したテストファイルに分離する
+
+### ネスティング設定
+
+新規ファイル追加時は必ず `.vscode/settings.json` のネスティング設定を更新：
+
+```jsonc
+"{shape}_3d.rs": "{shape}_3d_extensions.rs,{shape}_3d_foundation.rs,{shape}_3d_transform.rs,{shape}_3d_transform_safe.rs,{shape}_3d_transform_safe_tests.rs,{shape}_3d_tests.rs"
+```
+
+### エラーハンドリングパターン
+
+SafeTransform実装では以下のエラー型を適切に使用：
+
+- `TransformError::ZeroVector` - ゼロ・無効ベクトル
+- `TransformError::InvalidScaleFactor` - 無効なスケール倍率
+- `TransformError::InvalidRotation` - 無効な回転パラメータ
+- `TransformError::InvalidGeometry` - 変換後の幾何的無効性
+
+### 型安全パターン
+
+Direction と Vector の明確な分離により型安全性を保証：
+
+```rust
+// geo_primitives/src/direction_3d.rs
+pub struct Direction3D<T: Scalar>(Vector3D<T>);
+
+impl<T: Scalar> Direction3D<T> {
+    pub fn from_vector(v: Vector3D<T>) -> Option<Self> {
+        let len = v.norm();
+        if len.is_zero() {
+            None
+        } else {
+            Some(Direction3D(v.normalize()))
+        }
+    }
+
+    // アクセサメソッド
+    pub fn x(&self) -> T { self.0.x() }
+    pub fn y(&self) -> T { self.0.y() }
+    pub fn z(&self) -> T { self.0.z() }
+}
+```
 
 ## 幾何データの設計パターン（現在の構造）
 
