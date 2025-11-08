@@ -1,4 +1,4 @@
-//! BBox3D 安全な変換エラーハンドリング実装
+﻿//! BBox3D 安全な変換エラーハンドリング実装
 //!
 //! Result<T, TransformError>パターンによる安全な変換操作
 //! analysisクレートのAngle型を使用した型安全なインターフェース
@@ -489,6 +489,134 @@ impl<T: Scalar> BBox3D<T> {
     }
 }
 
+/// BBox3D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> BBox3D<T> {
+    /// トレランス制約付きスケール（指定点中心）
+    ///
+    /// # 引数
+    /// * `center` - スケール中心点
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(BBox3D)` - スケール後の境界ボックス
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後のサイズがトレランス以下
+    pub fn safe_scale_with_tolerance(
+        &self,
+        center: Point3D<T>,
+        factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        // 境界ボックスの8つの角をスケール
+        let corners = [
+            self.min(),
+            Point3D::new(self.max().x(), self.min().y(), self.min().z()),
+            Point3D::new(self.min().x(), self.max().y(), self.min().z()),
+            Point3D::new(self.min().x(), self.min().y(), self.max().z()),
+            Point3D::new(self.max().x(), self.max().y(), self.min().z()),
+            Point3D::new(self.max().x(), self.min().y(), self.max().z()),
+            Point3D::new(self.min().x(), self.max().y(), self.max().z()),
+            self.max(),
+        ];
+
+        let scaled_corners: Vec<Point3D<T>> = corners
+            .iter()
+            .map(|&corner| center + (corner - center) * factor)
+            .collect();
+
+        // スケール後の境界を計算
+        let mut min_x = scaled_corners[0].x();
+        let mut max_x = scaled_corners[0].x();
+        let mut min_y = scaled_corners[0].y();
+        let mut max_y = scaled_corners[0].y();
+        let mut min_z = scaled_corners[0].z();
+        let mut max_z = scaled_corners[0].z();
+
+        for corner in &scaled_corners {
+            if corner.x() < min_x {
+                min_x = corner.x();
+            }
+            if corner.x() > max_x {
+                max_x = corner.x();
+            }
+            if corner.y() < min_y {
+                min_y = corner.y();
+            }
+            if corner.y() > max_y {
+                max_y = corner.y();
+            }
+            if corner.z() < min_z {
+                min_z = corner.z();
+            }
+            if corner.z() > max_z {
+                max_z = corner.z();
+            }
+        }
+
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        let depth = max_z - min_z;
+
+        // サイズの幾何学的制約チェック（トレランスベース）
+        let min_size = T::DISTANCE_TOLERANCE;
+        if width <= min_size || height <= min_size || depth <= min_size {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後のサイズ(幅:{:?}, 高さ:{:?}, 奥行き:{:?})がトレランス({:?})以下になります",
+                width, height, depth, min_size
+            )));
+        }
+
+        // 数値安定性チェック
+        if !min_x.is_finite()
+            || !max_x.is_finite()
+            || !min_y.is_finite()
+            || !max_y.is_finite()
+            || !min_z.is_finite()
+            || !max_z.is_finite()
+        {
+            return Err(TransformError::InvalidGeometry(
+                "スケール計算結果が無効です".to_string(),
+            ));
+        }
+
+        let scaled_min = Point3D::new(min_x, min_y, min_z);
+        let scaled_max = Point3D::new(max_x, max_y, max_z);
+
+        Ok(Self::new(scaled_min, scaled_max))
+    }
+
+    /// サイズスケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この境界ボックスに適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_size = T::DISTANCE_TOLERANCE;
+        let current_width = self.width();
+        let current_height = self.height();
+        let current_depth = self.depth();
+
+        // 最小のサイズを基準に計算
+        let smallest_size = current_width.min(current_height).min(current_depth);
+
+        if smallest_size <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小サイズを維持するための倍率 + 安全マージン
+            let min_factor = min_size / smallest_size;
+            min_factor + T::DISTANCE_TOLERANCE
+        }
+    }
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -660,133 +788,5 @@ mod tests {
         assert!(result.max().x().is_finite());
         assert!(result.max().y().is_finite());
         assert!(result.max().z().is_finite());
-    }
-}
-
-/// BBox3D のトレランス制約付き安全変換操作
-impl<T: Scalar + GeometricTolerance> BBox3D<T> {
-    /// トレランス制約付きスケール（指定点中心）
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `factor` - スケール倍率（正の値のみ）
-    ///
-    /// # 戻り値
-    /// * `Ok(BBox3D)` - スケール後の境界ボックス
-    /// * `Err(TransformError)` - 無効なスケール倍率または結果
-    ///
-    /// # エラー条件
-    /// - スケール倍率が0以下
-    /// - スケール後のサイズがトレランス以下
-    pub fn safe_scale_with_tolerance(
-        &self,
-        center: Point3D<T>,
-        factor: T,
-    ) -> Result<Self, TransformError> {
-        // 基本的なスケール倍率チェック
-        if factor <= T::ZERO || !factor.is_finite() {
-            return Err(TransformError::InvalidScaleFactor(
-                "スケール倍率は正の有限値である必要があります".to_string(),
-            ));
-        }
-
-        // 境界ボックスの8つの角をスケール
-        let corners = [
-            self.min(),
-            Point3D::new(self.max().x(), self.min().y(), self.min().z()),
-            Point3D::new(self.min().x(), self.max().y(), self.min().z()),
-            Point3D::new(self.min().x(), self.min().y(), self.max().z()),
-            Point3D::new(self.max().x(), self.max().y(), self.min().z()),
-            Point3D::new(self.max().x(), self.min().y(), self.max().z()),
-            Point3D::new(self.min().x(), self.max().y(), self.max().z()),
-            self.max(),
-        ];
-
-        let scaled_corners: Vec<Point3D<T>> = corners
-            .iter()
-            .map(|&corner| center + (corner - center) * factor)
-            .collect();
-
-        // スケール後の境界を計算
-        let mut min_x = scaled_corners[0].x();
-        let mut max_x = scaled_corners[0].x();
-        let mut min_y = scaled_corners[0].y();
-        let mut max_y = scaled_corners[0].y();
-        let mut min_z = scaled_corners[0].z();
-        let mut max_z = scaled_corners[0].z();
-
-        for corner in &scaled_corners {
-            if corner.x() < min_x {
-                min_x = corner.x();
-            }
-            if corner.x() > max_x {
-                max_x = corner.x();
-            }
-            if corner.y() < min_y {
-                min_y = corner.y();
-            }
-            if corner.y() > max_y {
-                max_y = corner.y();
-            }
-            if corner.z() < min_z {
-                min_z = corner.z();
-            }
-            if corner.z() > max_z {
-                max_z = corner.z();
-            }
-        }
-
-        let width = max_x - min_x;
-        let height = max_y - min_y;
-        let depth = max_z - min_z;
-
-        // サイズの幾何学的制約チェック（トレランスベース）
-        let min_size = T::DISTANCE_TOLERANCE;
-        if width <= min_size || height <= min_size || depth <= min_size {
-            return Err(TransformError::InvalidGeometry(format!(
-                "スケール後のサイズ(幅:{:?}, 高さ:{:?}, 奥行き:{:?})がトレランス({:?})以下になります",
-                width, height, depth, min_size
-            )));
-        }
-
-        // 数値安定性チェック
-        if !min_x.is_finite()
-            || !max_x.is_finite()
-            || !min_y.is_finite()
-            || !max_y.is_finite()
-            || !min_z.is_finite()
-            || !max_z.is_finite()
-        {
-            return Err(TransformError::InvalidGeometry(
-                "スケール計算結果が無効です".to_string(),
-            ));
-        }
-
-        let scaled_min = Point3D::new(min_x, min_y, min_z);
-        let scaled_max = Point3D::new(max_x, max_y, max_z);
-
-        Ok(Self::new(scaled_min, scaled_max))
-    }
-
-    /// サイズスケールの最小許容倍率を取得
-    ///
-    /// # 戻り値
-    /// この境界ボックスに適用可能な最小のスケール倍率
-    pub fn minimum_scale_factor(&self) -> T {
-        let min_size = T::DISTANCE_TOLERANCE;
-        let current_width = self.width();
-        let current_height = self.height();
-        let current_depth = self.depth();
-
-        // 最小のサイズを基準に計算
-        let smallest_size = current_width.min(current_height).min(current_depth);
-
-        if smallest_size <= T::ZERO {
-            T::ZERO
-        } else {
-            // 最小サイズを維持するための倍率 + 安全マージン
-            let min_factor = min_size / smallest_size;
-            min_factor + T::DISTANCE_TOLERANCE
-        }
     }
 }
