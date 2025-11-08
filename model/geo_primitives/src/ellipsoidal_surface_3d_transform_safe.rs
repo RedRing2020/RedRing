@@ -31,7 +31,11 @@ impl<T: Scalar> SafeTransform<T> for EllipsoidalSurface3D<T> {
     }
 
     /// 安全なスケール変換
-    fn safe_scale(&self, center: Self::Point, factors: Self::Vector) -> Result<Self, TransformError> {
+    fn safe_scale(
+        &self,
+        center: Self::Point,
+        factors: Self::Vector,
+    ) -> Result<Self, TransformError> {
         // スケール倍率の有効性をチェック
         if !factors.x().is_finite() || !factors.y().is_finite() || !factors.z().is_finite() {
             return Err(TransformError::InvalidScaleFactor(

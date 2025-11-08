@@ -838,7 +838,7 @@ mod tests {
     }
 }
 
-/// Circle3D のトレランス制約付き安全変換操作  
+/// Circle3D のトレランス制約付き安全変換操作
 impl<T: Scalar + GeometricTolerance> Circle3D<T> {
     /// トレランス制約付き半径スケール（中心・法線固定）
     ///
