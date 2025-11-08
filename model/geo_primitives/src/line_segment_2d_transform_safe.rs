@@ -1,4 +1,4 @@
-//! LineSegment2D 安全な変換エラーハンドリング実装
+﻿//! LineSegment2D 安全な変換エラーハンドリング実装
 //!
 //! Result<T, TransformError>パターンによる安全な変換操作
 //! analysisクレートのAngle型を使用した型安全なインターフェース
@@ -367,6 +367,108 @@ impl<T: Scalar> LineSegment2D<T> {
     }
 }
 
+/// LineSegment2D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> LineSegment2D<T> {
+    /// トレランス制約付きスケール（原点中心）
+    ///
+    /// # 引数
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(LineSegment2D)` - スケール後の線分
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の線分の長さがトレランス以下
+    pub fn safe_scale_with_tolerance(&self, factor: T) -> Result<Self, TransformError> {
+        self.safe_scale_with_tolerance_center(Point2D::origin(), factor)
+    }
+
+    /// トレランス制約付きスケール（指定点中心）
+    ///
+    /// # 引数
+    /// * `center` - スケール中心点
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(LineSegment2D)` - スケール後の線分
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の線分の長さがトレランス以下
+    pub fn safe_scale_with_tolerance_center(
+        &self,
+        center: Point2D<T>,
+        factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        // スケール中心の有効性チェック
+        if !center.x().is_finite() || !center.y().is_finite() {
+            return Err(TransformError::InvalidGeometry(
+                "無効なスケール中心点です".to_string(),
+            ));
+        }
+
+        let new_length = self.length() * factor;
+
+        // 長さの幾何学的制約チェック（トレランスベース）
+        let min_length = T::DISTANCE_TOLERANCE;
+        if new_length <= min_length {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の線分長({:?})がトレランス({:?})以下になります",
+                new_length, min_length
+            )));
+        }
+
+        // 基本のスケール処理を実行
+        self.safe_scale(center, factor)
+    }
+
+    /// 長さスケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この線分に適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_length = T::DISTANCE_TOLERANCE;
+        let current_length = self.length();
+
+        if current_length <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小長さを維持するための倍率
+            // スケール後長さ = 現在長さ × 倍率 >= トレランス
+            // 最小倍率 = トレランス / 現在長さ
+            min_length / current_length
+        }
+    }
+
+    /// スケール倍率の事前検証
+    ///
+    /// # 引数
+    /// * `factor` - チェックするスケール倍率
+    ///
+    /// # 戻り値
+    /// スケール倍率が有効かどうか
+    pub fn validate_scale_factor(&self, factor: T) -> bool {
+        if factor <= T::ZERO || !factor.is_finite() {
+            return false;
+        }
+
+        let new_length = self.length() * factor;
+        let min_length = T::DISTANCE_TOLERANCE;
+
+        new_length >= min_length && new_length.is_finite()
+    }
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -496,107 +598,5 @@ mod tests {
         assert!((result.start_point().y() - 0.0).abs() < tolerance);
         assert!((result.end_point().x() - 3.0).abs() < tolerance);
         assert!((result.end_point().y() - 0.0).abs() < tolerance);
-    }
-}
-
-/// LineSegment2D のトレランス制約付き安全変換操作
-impl<T: Scalar + GeometricTolerance> LineSegment2D<T> {
-    /// トレランス制約付きスケール（原点中心）
-    ///
-    /// # 引数
-    /// * `factor` - スケール倍率（正の値のみ）
-    ///
-    /// # 戻り値
-    /// * `Ok(LineSegment2D)` - スケール後の線分
-    /// * `Err(TransformError)` - 無効なスケール倍率または結果
-    ///
-    /// # エラー条件
-    /// - スケール倍率が0以下
-    /// - スケール後の線分の長さがトレランス以下
-    pub fn safe_scale_with_tolerance(&self, factor: T) -> Result<Self, TransformError> {
-        self.safe_scale_with_tolerance_center(Point2D::origin(), factor)
-    }
-
-    /// トレランス制約付きスケール（指定点中心）
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `factor` - スケール倍率（正の値のみ）
-    ///
-    /// # 戻り値
-    /// * `Ok(LineSegment2D)` - スケール後の線分
-    /// * `Err(TransformError)` - 無効なスケール倍率または結果
-    ///
-    /// # エラー条件
-    /// - スケール倍率が0以下
-    /// - スケール後の線分の長さがトレランス以下
-    pub fn safe_scale_with_tolerance_center(
-        &self,
-        center: Point2D<T>,
-        factor: T,
-    ) -> Result<Self, TransformError> {
-        // 基本的なスケール倍率チェック
-        if factor <= T::ZERO || !factor.is_finite() {
-            return Err(TransformError::InvalidScaleFactor(
-                "スケール倍率は正の有限値である必要があります".to_string(),
-            ));
-        }
-
-        // スケール中心の有効性チェック
-        if !center.x().is_finite() || !center.y().is_finite() {
-            return Err(TransformError::InvalidGeometry(
-                "無効なスケール中心点です".to_string(),
-            ));
-        }
-
-        let new_length = self.length() * factor;
-
-        // 長さの幾何学的制約チェック（トレランスベース）
-        let min_length = T::DISTANCE_TOLERANCE;
-        if new_length <= min_length {
-            return Err(TransformError::InvalidGeometry(format!(
-                "スケール後の線分長({:?})がトレランス({:?})以下になります",
-                new_length, min_length
-            )));
-        }
-
-        // 基本のスケール処理を実行
-        self.safe_scale(center, factor)
-    }
-
-    /// 長さスケールの最小許容倍率を取得
-    ///
-    /// # 戻り値
-    /// この線分に適用可能な最小のスケール倍率
-    pub fn minimum_scale_factor(&self) -> T {
-        let min_length = T::DISTANCE_TOLERANCE;
-        let current_length = self.length();
-
-        if current_length <= T::ZERO {
-            T::ZERO
-        } else {
-            // 最小長さを維持するための倍率
-            // スケール後長さ = 現在長さ × 倍率 >= トレランス
-            // 最小倍率 = トレランス / 現在長さ
-            min_length / current_length
-        }
-    }
-
-    /// スケール倍率の事前検証
-    ///
-    /// # 引数
-    /// * `factor` - チェックするスケール倍率
-    ///
-    /// # 戻り値
-    /// スケール倍率が有効かどうか
-    pub fn validate_scale_factor(&self, factor: T) -> bool {
-        if factor <= T::ZERO || !factor.is_finite() {
-            return false;
-        }
-
-        let new_length = self.length() * factor;
-        let min_length = T::DISTANCE_TOLERANCE;
-
-        new_length >= min_length && new_length.is_finite()
     }
 }
