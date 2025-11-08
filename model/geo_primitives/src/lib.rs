@@ -110,9 +110,11 @@ pub mod ray_3d_transform_safe; // Ray3D の安全な変換機能 (Safe Transform
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
 pub mod spherical_solid_3d_transform; // SphericalSolid3D の変換機能 (Transform)
+pub mod spherical_solid_3d_transform_safe; // SphericalSolid3D の安全な変換機能 (Safe Transform)
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
 pub mod spherical_surface_3d_transform; // SphericalSurface3D の変換機能 (Transform)
+pub mod spherical_surface_3d_transform_safe; // SphericalSurface3D の安全な変換機能 (Safe Transform)
 pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
 pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
 pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
@@ -219,7 +221,11 @@ mod point_3d_tests;
 #[cfg(test)]
 mod spherical_solid_3d_tests;
 #[cfg(test)]
+mod spherical_solid_3d_transform_safe_tests;
+#[cfg(test)]
 mod spherical_surface_3d_tests;
+#[cfg(test)]
+mod spherical_surface_3d_transform_safe_tests;
 #[cfg(test)]
 mod vector_3d_tests;
 

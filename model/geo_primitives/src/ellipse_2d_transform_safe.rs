@@ -5,7 +5,7 @@
 
 use crate::{Ellipse2D, Point2D, Vector2D};
 use analysis::Angle;
-use geo_foundation::{Scalar, TransformError};
+use geo_foundation::{GeometricTolerance, Scalar, TransformError};
 
 /// Ellipse2Dの安全な変換操作
 impl<T: Scalar> Ellipse2D<T> {
@@ -801,5 +801,142 @@ mod tests {
         let invalid_angle = Angle::from_radians(f64::INFINITY);
         let result = ellipse.safe_rotate_origin(invalid_angle);
         assert!(result.is_err());
+    }
+}
+
+/// Ellipse2D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> Ellipse2D<T> {
+    /// トレランス制約付きスケール（指定点中心）
+    ///
+    /// # 引数
+    /// * `center` - スケール中心点
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(Ellipse2D)` - スケール後の楕円
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の半軸長がトレランス以下
+    pub fn safe_scale_with_tolerance(
+        &self,
+        center: Point2D<T>,
+        factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        let scaled_center = center + (self.center() - center) * factor;
+        let scaled_semi_major = self.semi_major() * factor;
+        let scaled_semi_minor = self.semi_minor() * factor;
+
+        // 半軸長の幾何学的制約チェック（トレランスベース）
+        let min_axis = T::DISTANCE_TOLERANCE;
+        if scaled_semi_major <= min_axis || scaled_semi_minor <= min_axis {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の半軸長(major:{:?}, minor:{:?})がトレランス({:?})以下になります",
+                scaled_semi_major, scaled_semi_minor, min_axis
+            )));
+        }
+
+        // 数値安定性チェック
+        if !scaled_center.x().is_finite()
+            || !scaled_center.y().is_finite()
+            || !scaled_semi_major.is_finite()
+            || !scaled_semi_minor.is_finite()
+        {
+            return Err(TransformError::InvalidGeometry(
+                "スケール計算結果が無効です".to_string(),
+            ));
+        }
+
+        Self::new(
+            scaled_center,
+            scaled_semi_major,
+            scaled_semi_minor,
+            self.rotation(),
+        )
+        .ok_or(TransformError::InvalidGeometry(
+            "スケール後の楕円の作成に失敗しました".to_string(),
+        ))
+    }
+
+    /// 半軸長スケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この楕円に適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_axis = T::DISTANCE_TOLERANCE;
+        let current_major = self.semi_major();
+        let current_minor = self.semi_minor();
+
+        // 小さい方の軸を基準に計算
+        let smaller_axis = if current_major < current_minor {
+            current_major
+        } else {
+            current_minor
+        };
+
+        if smaller_axis <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小軸長を維持するための倍率 + 安全マージン
+            let min_factor = min_axis / smaller_axis;
+            min_factor + T::DISTANCE_TOLERANCE
+        }
+    }
+
+    /// トレランス制約付き半軸長スケール
+    ///
+    /// # 引数
+    /// * `major_factor` - 長軸のスケール倍率
+    /// * `minor_factor` - 短軸のスケール倍率
+    ///
+    /// # 戻り値
+    /// * `Ok(Ellipse2D)` - スケール後の楕円
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    pub fn safe_scale_axes_with_tolerance(
+        &self,
+        major_factor: T,
+        minor_factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if major_factor <= T::ZERO
+            || minor_factor <= T::ZERO
+            || !major_factor.is_finite()
+            || !minor_factor.is_finite()
+        {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        let new_semi_major = self.semi_major() * major_factor;
+        let new_semi_minor = self.semi_minor() * minor_factor;
+
+        // 半軸長の幾何学的制約チェック（トレランスベース）
+        let min_axis = T::DISTANCE_TOLERANCE;
+        if new_semi_major <= min_axis || new_semi_minor <= min_axis {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の半軸長(major:{:?}, minor:{:?})がトレランス({:?})以下になります",
+                new_semi_major, new_semi_minor, min_axis
+            )));
+        }
+
+        // 楕円の条件確認（長軸 >= 短軸）
+        let (final_major, final_minor) = if new_semi_major >= new_semi_minor {
+            (new_semi_major, new_semi_minor)
+        } else {
+            (new_semi_minor, new_semi_major)
+        };
+
+        Self::new(self.center(), final_major, final_minor, self.rotation()).ok_or(
+            TransformError::InvalidGeometry("軸スケール後の楕円の作成に失敗しました".to_string()),
+        )
     }
 }

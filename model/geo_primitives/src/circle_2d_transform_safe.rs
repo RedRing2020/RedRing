@@ -5,7 +5,7 @@
 
 use crate::{Circle2D, Point2D, Vector2D};
 use analysis::Angle;
-use geo_foundation::{Scalar, TransformError};
+use geo_foundation::{GeometricTolerance, Scalar, TransformError};
 
 /// Circle2Dの安全な変換操作
 impl<T: Scalar> Circle2D<T> {
@@ -155,11 +155,17 @@ impl<T: Scalar> Circle2D<T> {
         let scaled_center = center + (self.center() - center) * factor;
         let scaled_radius = self.radius() * factor;
 
+        // スケール後の半径がゼロ以下でないことを確認（基本チェック）
+        if scaled_radius <= T::ZERO {
+            return Err(TransformError::InvalidGeometry(
+                "スケール後の半径がゼロ以下になります".to_string(),
+            ));
+        }
+
         // スケール結果の有効性チェック
         if !scaled_center.x().is_finite()
             || !scaled_center.y().is_finite()
             || !scaled_radius.is_finite()
-            || scaled_radius <= T::ZERO
         {
             return Err(TransformError::InvalidGeometry(
                 "スケール計算結果が無効".to_string(),
@@ -553,5 +559,77 @@ mod tests {
         // 無限大の半径はエラー
         let result = circle.safe_with_radius(f64::INFINITY);
         assert!(result.is_err());
+    }
+}
+
+/// Circle2D のトレランス制約付き安全変換操作
+impl<T: Scalar + GeometricTolerance> Circle2D<T> {
+    /// トレランス制約付きスケール（指定点中心）
+    ///
+    /// # 引数
+    /// * `center` - スケール中心点
+    /// * `factor` - スケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(Circle2D)` - スケール後の円
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の半径がトレランス以下
+    pub fn safe_scale_with_tolerance(
+        &self,
+        center: Point2D<T>,
+        factor: T,
+    ) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        let scaled_center = center + (self.center() - center) * factor;
+        let scaled_radius = self.radius() * factor;
+
+        // 半径の幾何学的制約チェック（トレランスベース）
+        let min_radius = T::DISTANCE_TOLERANCE;
+        if scaled_radius <= min_radius {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の半径({:?})がトレランス({:?})以下になります",
+                scaled_radius, min_radius
+            )));
+        }
+
+        // 数値安定性チェック
+        if !scaled_center.x().is_finite()
+            || !scaled_center.y().is_finite()
+            || !scaled_radius.is_finite()
+        {
+            return Err(TransformError::InvalidGeometry(
+                "スケール計算結果が無効です".to_string(),
+            ));
+        }
+
+        Self::new(scaled_center, scaled_radius).ok_or(TransformError::InvalidGeometry(
+            "スケール後の円の作成に失敗しました".to_string(),
+        ))
+    }
+
+    /// 半径の最小許容スケール倍率を取得
+    ///
+    /// # 戻り値
+    /// この円に適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_radius = T::DISTANCE_TOLERANCE;
+        let current_radius = self.radius();
+
+        if current_radius <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小半径を維持するための倍率 + 安全マージン
+            let min_factor = min_radius / current_radius;
+            min_factor + T::DISTANCE_TOLERANCE
+        }
     }
 }

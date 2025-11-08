@@ -5,7 +5,7 @@
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
 use analysis::Angle;
-use geo_foundation::{Scalar, TransformError};
+use geo_foundation::{GeometricTolerance, Scalar, TransformError};
 
 /// Circle3Dの安全な変換操作
 impl<T: Scalar> Circle3D<T> {
@@ -835,5 +835,79 @@ mod tests {
         let zero_axis = Vector3D::new(0.0, 0.0, 0.0);
         let result = circle.safe_rotate_axis(axis_point, zero_axis, Angle::from_degrees(90.0));
         assert!(result.is_err());
+    }
+}
+
+/// Circle3D のトレランス制約付き安全変換操作  
+impl<T: Scalar + GeometricTolerance> Circle3D<T> {
+    /// トレランス制約付き半径スケール（中心・法線固定）
+    ///
+    /// # 引数
+    /// * `factor` - 半径のスケール倍率（正の値のみ）
+    ///
+    /// # 戻り値
+    /// * `Ok(Circle3D)` - 半径スケール後の円
+    /// * `Err(TransformError)` - 無効なスケール倍率または結果
+    ///
+    /// # エラー条件
+    /// - スケール倍率が0以下
+    /// - スケール後の半径がトレランス以下
+    pub fn safe_scale_radius_with_tolerance(&self, factor: T) -> Result<Self, TransformError> {
+        // 基本的なスケール倍率チェック
+        if factor <= T::ZERO || !factor.is_finite() {
+            return Err(TransformError::InvalidScaleFactor(
+                "半径スケール倍率は正の有限値である必要があります".to_string(),
+            ));
+        }
+
+        let new_radius = self.radius() * factor;
+
+        // 半径の幾何学的制約チェック（トレランスベース）
+        let min_radius = T::DISTANCE_TOLERANCE;
+        if new_radius <= min_radius {
+            return Err(TransformError::InvalidGeometry(format!(
+                "スケール後の半径({:?})がトレランス({:?})以下になります",
+                new_radius, min_radius
+            )));
+        }
+
+        // 基本の半径スケール処理を実行
+        self.safe_scale_radius(factor)
+    }
+
+    /// 半径スケールの最小許容倍率を取得
+    ///
+    /// # 戻り値
+    /// この円に適用可能な最小のスケール倍率
+    pub fn minimum_scale_factor(&self) -> T {
+        let min_radius = T::DISTANCE_TOLERANCE;
+        let current_radius = self.radius();
+
+        if current_radius <= T::ZERO {
+            T::ZERO
+        } else {
+            // 最小半径を維持するための倍率
+            // スケール後半径 = 現在半径 × 倍率 >= トレランス
+            // 最小倍率 = トレランス / 現在半径
+            min_radius / current_radius
+        }
+    }
+
+    /// スケール倍率の事前検証
+    ///
+    /// # 引数
+    /// * `factor` - チェックするスケール倍率
+    ///
+    /// # 戻り値
+    /// スケール倍率が有効かどうか
+    pub fn validate_scale_factor(&self, factor: T) -> bool {
+        if factor <= T::ZERO || !factor.is_finite() {
+            return false;
+        }
+
+        let new_radius = self.radius() * factor;
+        let min_radius = T::DISTANCE_TOLERANCE;
+
+        new_radius >= min_radius && new_radius.is_finite()
     }
 }
