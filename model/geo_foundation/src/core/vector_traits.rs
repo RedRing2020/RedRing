@@ -66,3 +66,17 @@ pub trait Vector3DOps<T: Scalar>: Vector3D<T> {
     /// 3D外積
     fn cross(&self, other: &Self) -> Self;
 }
+
+/// Vector2D作成のための抽象トレイト
+/// NURBSなどの高レベル実装がコンストラクタを呼び出すためのインターフェース
+pub trait Vector2DConstructor<T: Scalar> {
+    /// 新しいVector2Dインスタンスを作成
+    fn new(x: T, y: T) -> Self;
+}
+
+/// Vector3D作成のための抽象トレイト
+/// NURBSなどの高レベル実装がコンストラクタを呼び出すためのインターフェース
+pub trait Vector3DConstructor<T: Scalar> {
+    /// 新しいVector3Dインスタンスを作成
+    fn new(x: T, y: T, z: T) -> Self;
+}

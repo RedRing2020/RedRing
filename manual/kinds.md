@@ -22,7 +22,7 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 - `Ellipse`：楕円
 - `Arc`：円弧
 - `EllipseArc`:楕円弧
-- `NurbsCurve`：NURBS 曲線
+- `NurbsCurve`：NURBS 曲線（✅ 実装完了）
 
 ## PrimitiveSurfaceType
 
@@ -32,10 +32,9 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 
 ## SurfaceType
 
-- `NurbsSurface`：NURBS 曲面
+- `NurbsSurface`：NURBS 曲面（✅ 実装完了）
 - `RotateSolid`：回転体
 - `CylindricalSurface`：円柱面
-- `NurbsSurface`：NURBS 曲面
 - `polygonMesh`：多角形メッシュ
 - `TriangleMesh`：三角形メッシュ（表示用 or 三角形メッシュ操作用）
 
@@ -58,6 +57,11 @@ RedRing では、幾何学要素の分類を明示的な型システムで定義
 - `CircleError`：円固有のエラー
 - `NormalizationError`：正規化エラー
 - `EllipseArcError`：楕円弧エラー
+- `NurbsError`：NURBS曲線・曲面固有のエラー（✅ 実装完了）
+  - 制御点不足エラー
+  - 無効なノットベクトル
+  - 重み値の問題
+  - パラメータ範囲外エラー
 
 ## トレイト統合システム
 

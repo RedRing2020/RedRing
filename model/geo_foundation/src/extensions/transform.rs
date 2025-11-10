@@ -1,306 +1,80 @@
-//! 変換操作の統一インターフェース
+//! Basic transformation traits
 //!
-//! 全幾何プリミティブで共通利用可能な変換操作Foundation システム
-//! メンテナンス効率向上のため、統一インターフェースを提供
-//! analysisクレートの行列演算と統合された実装
+//! This module defines abstract transformation interfaces that can be implemented
+//! by geometric primitives. These traits use associated types to remain abstract
+//! about the specific geometric types involved.
 
 use crate::Scalar;
 
-/// 基本変換操作の統一インターフェース
+/// Basic 2D transformation operations
 ///
-/// 全ての幾何プリミティブが実装すべき基本的な変換操作
-/// 平行移動、回転、スケールの3つの基本変換を提供
+/// This trait defines the fundamental transformation operations that 2D geometric
+/// primitives should support. It uses associated types to remain abstract about
+/// the specific point, vector, and angle types.
 pub trait BasicTransform<T: Scalar> {
-    /// 変換後の型（通常は Self と同じ）
+    /// Vector type for translations
+    type Vector2D;
+    /// Point type for rotation and scaling centers
+    type Point2D;
+    /// Angle type for rotations
+    type Angle: Copy;
+    /// The type returned after transformation
     type Transformed;
 
-    /// 2D ベクトル型
-    type Vector2D;
-
-    /// 2D 点型
-    type Point2D;
-
-    /// 角度型
-    type Angle;
-
-    /// 平行移動
-    ///
-    /// # 引数
-    /// * `translation` - 移動ベクトル
-    ///
-    /// # 戻り値
-    /// 平行移動された新しいオブジェクト
+    /// Translate the primitive by a vector
     fn translate(&self, translation: Self::Vector2D) -> Self::Transformed;
 
-    /// 指定中心での回転
-    ///
-    /// # 引数
-    /// * `center` - 回転中心点
-    /// * `angle` - 回転角度
-    ///
-    /// # 戻り値
-    /// 回転された新しいオブジェクト
+    /// Rotate the primitive around a center point by an angle
     fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed;
 
-    /// 指定中心でのスケール
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `factor` - スケール倍率
-    ///
-    /// # 戻り値
-    /// スケールされた新しいオブジェクト
+    /// Scale the primitive from a center point by a uniform factor
     fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed;
 }
 
-/// 高度変換操作の拡張インターフェース
+/// Basic 3D transformation operations
 ///
-/// より高度な変換操作を提供する拡張トレイト
-/// 鏡像反転、非等方スケール、行列変換等を含む
-pub trait AdvancedTransform<T: Scalar>: BasicTransform<T> {
-    /// 2D 直線型
-    type Line2D;
-
-    /// 3x3 変換行列型
-    type Matrix3;
-
-    /// 鏡像反転
-    ///
-    /// # 引数
-    /// * `axis` - 反転軸となる直線
-    ///
-    /// # 戻り値
-    /// 鏡像反転された新しいオブジェクト
-    fn mirror(&self, axis: Self::Line2D) -> Self::Transformed;
-
-    /// 非等方スケール（X軸・Y軸で異なる倍率）
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `scale_x` - X軸方向のスケール倍率
-    /// * `scale_y` - Y軸方向のスケール倍率
-    ///
-    /// # 戻り値
-    /// 非等方スケールされた新しいオブジェクト
-    fn scale_non_uniform(&self, center: Self::Point2D, scale_x: T, scale_y: T)
-        -> Self::Transformed;
-
-    /// アフィン変換行列による変換
-    ///
-    /// # 引数
-    /// * `matrix` - 3x3 アフィン変換行列
-    ///
-    /// # 戻り値
-    /// 行列変換された新しいオブジェクト
-    fn transform_matrix(&self, matrix: &Self::Matrix3) -> Self::Transformed;
-
-    /// 反転（向きの逆転）
-    ///
-    /// Arc、LineSegment等の向きを持つ幾何要素に適用
-    /// Circle等の向きを持たない要素では self を返す
-    ///
-    /// # 戻り値
-    /// 向きが反転された新しいオブジェクト
-    fn reverse(&self) -> Self::Transformed;
-}
-
-/// 便利メソッドを提供するヘルパートレイト
-///
-/// よく使用される特定パラメータでの変換操作のデフォルト実装を提供
-/// `BasicTransform` を実装した型に対して自動的に実装される
-pub trait TransformHelpers<T: Scalar>: BasicTransform<T> {
-    /// 原点中心での回転
-    ///
-    /// # 引数
-    /// * `angle` - 回転角度
-    ///
-    /// # 戻り値
-    /// 原点中心で回転された新しいオブジェクト
-    fn rotate_origin(&self, angle: Self::Angle) -> Self::Transformed;
-
-    /// 原点中心でのスケール
-    ///
-    /// # 引数
-    /// * `factor` - スケール倍率
-    ///
-    /// # 戻り値
-    /// 原点中心でスケールされた新しいオブジェクト
-    fn scale_origin(&self, factor: T) -> Self::Transformed;
-
-    /// X軸方向への平行移動
-    ///
-    /// # 引数
-    /// * `dx` - X軸方向の移動量
-    ///
-    /// # 戻り値
-    /// X軸方向に移動された新しいオブジェクト
-    fn translate_x(&self, dx: T) -> Self::Transformed;
-
-    /// Y軸方向への平行移動
-    ///
-    /// # 引数
-    /// * `dy` - Y軸方向の移動量
-    ///
-    /// # 戻り値
-    /// Y軸方向に移動された新しいオブジェクト
-    fn translate_y(&self, dy: T) -> Self::Transformed;
-
-    /// XY両方向への平行移動
-    ///
-    /// # 引数
-    /// * `dx` - X軸方向の移動量
-    /// * `dy` - Y軸方向の移動量
-    ///
-    /// # 戻り値
-    /// XY方向に移動された新しいオブジェクト
-    fn translate_xy(&self, dx: T, dy: T) -> Self::Transformed;
-}
-
-// TransformHelpers の自動実装
-// BasicTransform を実装している型に対して自動的に便利メソッドを提供
-impl<T: Scalar, U> TransformHelpers<T> for U
-where
-    U: BasicTransform<T>,
-    // 型制約: 必要な型が構築可能であること
-    U::Vector2D: From<(T, T)>,
-    U::Point2D: Default,
-{
-    fn rotate_origin(&self, angle: Self::Angle) -> Self::Transformed {
-        self.rotate(Self::Point2D::default(), angle)
-    }
-
-    fn scale_origin(&self, factor: T) -> Self::Transformed {
-        self.scale(Self::Point2D::default(), factor)
-    }
-
-    fn translate_x(&self, dx: T) -> Self::Transformed {
-        self.translate(U::Vector2D::from((dx, T::ZERO)))
-    }
-
-    fn translate_y(&self, dy: T) -> Self::Transformed {
-        self.translate(U::Vector2D::from((T::ZERO, dy)))
-    }
-
-    fn translate_xy(&self, dx: T, dy: T) -> Self::Transformed {
-        self.translate(U::Vector2D::from((dx, dy)))
-    }
-}
-
-/// 3D 変換操作の基本インターフェース
-///
-/// 3D 幾何プリミティブ用の基本変換操作
-/// 将来の3D対応時に使用予定
+/// This trait defines the fundamental transformation operations that 3D geometric
+/// primitives should support.
 pub trait BasicTransform3D<T: Scalar> {
-    /// 変換後の型
+    /// Vector type for 3D translations
+    type Vector3D;
+    /// Point type for rotation and scaling centers
+    type Point3D;
+    /// Rotation type (could be quaternion, axis-angle, etc.)
+    type Rotation3D;
+    /// The type returned after transformation
     type Transformed;
 
-    /// 3D ベクトル型
-    type Vector3D;
-
-    /// 3D 点型
-    type Point3D;
-
-    /// 3D 回転型（クォータニオンまたはオイラー角）
-    type Rotation3D;
-
-    /// 3D 平行移動
+    /// Translate the primitive by a 3D vector
     fn translate_3d(&self, translation: Self::Vector3D) -> Self::Transformed;
 
-    /// 3D 回転
+    /// Rotate the primitive around a center point with 3D rotation
     fn rotate_3d(&self, center: Self::Point3D, rotation: Self::Rotation3D) -> Self::Transformed;
 
-    /// 3D 等方スケール
+    /// Scale the primitive from a center point by a uniform factor in 3D
     fn scale_3d(&self, center: Self::Point3D, factor: T) -> Self::Transformed;
 }
 
-/// 行列ベースの変換操作を提供する実装ヘルパー
+/// Advanced 2D transformation operations
 ///
-/// analysisクレートの行列演算を活用した具体的な変換実装
-pub mod matrix_transform {
-    use super::*;
-    use crate::extensions::analysis_conversion::transform_2d;
-    use analysis::linalg::{Matrix3x3, Vector2};
+/// This trait extends BasicTransform with more sophisticated operations
+/// like mirroring and matrix transformations.
+pub trait AdvancedTransform<T: Scalar>: BasicTransform<T> {
+    /// Line type for mirroring operations
+    type Line2D;
+    /// Matrix type for general transformations
+    type Matrix3;
 
-    /// 2D 点を行列で変換
-    pub fn transform_point_2d<T: Scalar>(point_x: T, point_y: T, matrix: &Matrix3x3<T>) -> (T, T) {
-        let input = Vector2::new(point_x, point_y);
-        let result = matrix.transform_point_2d(&input);
-        (result.x(), result.y())
-    }
+    /// Mirror the primitive across a line
+    fn mirror(&self, axis: Self::Line2D) -> Self::Transformed;
 
-    /// 2D ベクトルを行列で変換（平行移動成分は無視）
-    pub fn transform_vector_2d<T: Scalar>(
-        vector_x: T,
-        vector_y: T,
-        matrix: &Matrix3x3<T>,
-    ) -> (T, T) {
-        let input = Vector2::new(vector_x, vector_y);
-        let result = matrix.transform_vector_2d(&input);
-        (result.x(), result.y())
-    }
+    /// Scale the primitive with different factors for x and y
+    fn non_uniform_scale(&self, center: Self::Point2D, scale_x: T, scale_y: T)
+        -> Self::Transformed;
 
-    /// 複数の変換を合成
-    pub fn compose_transforms_2d<T: Scalar>(transforms: &[Matrix3x3<T>]) -> Matrix3x3<T> {
-        transforms
-            .iter()
-            .fold(Matrix3x3::identity(), |acc, t| acc.mul_matrix(t))
-    }
+    /// Apply a general transformation matrix
+    fn transform_matrix(&self, matrix: &Self::Matrix3) -> Self::Transformed;
 
-    /// 一般的な2D変換の生成ファクトリ
-    pub struct Transform2DBuilder<T: Scalar> {
-        matrix: Matrix3x3<T>,
-    }
-
-    impl<T: Scalar> Transform2DBuilder<T> {
-        /// 新しいビルダーを作成
-        pub fn new() -> Self {
-            Self {
-                matrix: Matrix3x3::identity(),
-            }
-        }
-
-        /// 平行移動を追加
-        pub fn translate(mut self, dx: T, dy: T) -> Self {
-            let translation = transform_2d::translation_matrix(dx, dy);
-            self.matrix = self.matrix.mul_matrix(&translation);
-            self
-        }
-
-        /// 回転を追加（原点中心）
-        pub fn rotate(mut self, angle_rad: T) -> Self {
-            let rotation = transform_2d::rotation_matrix(angle_rad);
-            self.matrix = self.matrix.mul_matrix(&rotation);
-            self
-        }
-
-        /// スケールを追加（原点中心）
-        pub fn scale(mut self, sx: T, sy: T) -> Self {
-            let scale = transform_2d::scale_matrix(sx, sy);
-            self.matrix = self.matrix.mul_matrix(&scale);
-            self
-        }
-
-        /// 等方スケールを追加（原点中心）
-        pub fn uniform_scale(self, factor: T) -> Self {
-            self.scale(factor, factor)
-        }
-
-        /// 指定点中心で回転を追加
-        pub fn rotate_around(mut self, center_x: T, center_y: T, angle_rad: T) -> Self {
-            let rotation = transform_2d::rotation_around_point(center_x, center_y, angle_rad);
-            self.matrix = self.matrix.mul_matrix(&rotation);
-            self
-        }
-
-        /// 変換行列を構築
-        pub fn build(self) -> Matrix3x3<T> {
-            self.matrix
-        }
-    }
-
-    impl<T: Scalar> Default for Transform2DBuilder<T> {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
+    /// Reverse the orientation of the primitive (e.g., flip curve direction)
+    fn reverse(&self) -> Self::Transformed;
 }

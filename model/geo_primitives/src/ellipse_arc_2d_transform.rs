@@ -116,14 +116,14 @@ impl<T: Scalar> AdvancedTransform<T> for EllipseArc2D<T> {
     ///
     /// # 戻り値
     /// 非等方スケールされた新しい楕円弧
-    fn scale_non_uniform(
+    fn non_uniform_scale(
         &self,
         center: Self::Point2D,
         scale_x: T,
         scale_y: T,
     ) -> Self::Transformed {
         // 基底楕円を非等方スケール
-        let scaled_ellipse = self.ellipse().scale_non_uniform(center, scale_x, scale_y);
+        let scaled_ellipse = self.ellipse().non_uniform_scale(scale_x, scale_y);
 
         // 非等方スケールでは角度が変化するため再計算が必要
         let start_point = self.start_point();
@@ -276,7 +276,8 @@ impl<T: Scalar> EllipseArc2D<T> {
         scale_y: T,
         translation: Vector2D<T>,
     ) -> Self {
-        let scaled = AdvancedTransform::scale_non_uniform(self, scale_center, scale_x, scale_y);
+        let scaled =
+            <Self as AdvancedTransform<T>>::non_uniform_scale(self, scale_center, scale_x, scale_y);
         BasicTransform::translate(&scaled, translation)
     }
 }

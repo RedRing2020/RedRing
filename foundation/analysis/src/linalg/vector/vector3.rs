@@ -3,7 +3,7 @@
 //! 3D幾何計算、物理シミュレーション、3Dグラフィックスに最適化
 //! CAD/CAMの座標変換や法線ベクトル計算に使用
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// 3次元固定サイズベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -277,6 +277,17 @@ impl<T: Scalar> Mul<T> for Vector3<T> {
             self.data[0] * scalar,
             self.data[1] * scalar,
             self.data[2] * scalar,
+        )
+    }
+}
+
+impl<T: Scalar> Div<T> for Vector3<T> {
+    type Output = Self;
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(
+            self.data[0] / scalar,
+            self.data[1] / scalar,
+            self.data[2] / scalar,
         )
     }
 }

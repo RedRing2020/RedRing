@@ -168,7 +168,6 @@ impl<T: Scalar> BBox2D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::TransformHelpers;
 
     #[test]
     fn test_translate() {
@@ -183,9 +182,9 @@ mod tests {
     }
 
     #[test]
-    fn test_scale_origin() {
+    fn test_scale_from_origin() {
         let bbox = BBox2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 4.0));
-        let scaled = bbox.scale_origin(2.0);
+        let scaled = BasicTransform::scale(&bbox, Point2D::origin(), 2.0);
 
         assert_eq!(scaled.min(), Point2D::new(2.0, 2.0));
         assert_eq!(scaled.max(), Point2D::new(6.0, 8.0));
@@ -229,7 +228,7 @@ mod tests {
     #[test]
     fn test_translate_xy() {
         let bbox = BBox2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 3.0));
-        let translated = bbox.translate_xy(1.0, 2.0);
+        let translated = BasicTransform::translate(&bbox, Vector2D::new(1.0, 2.0));
 
         assert_eq!(translated.min(), Point2D::new(1.0, 2.0));
         assert_eq!(translated.max(), Point2D::new(3.0, 5.0));

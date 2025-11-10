@@ -3,7 +3,7 @@
 //! 4x4変換行列との演算、同次座標系での3D変換に使用
 //! 透視投影やアフィン変換での座標計算に最適化
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// 4次元固定サイズベクトル（同次座標系）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -332,6 +332,18 @@ impl<T: Scalar> Mul<T> for Vector4<T> {
             self.data[1] * scalar,
             self.data[2] * scalar,
             self.data[3] * scalar,
+        )
+    }
+}
+
+impl<T: Scalar> Div<T> for Vector4<T> {
+    type Output = Self;
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(
+            self.data[0] / scalar,
+            self.data[1] / scalar,
+            self.data[2] / scalar,
+            self.data[3] / scalar,
         )
     }
 }

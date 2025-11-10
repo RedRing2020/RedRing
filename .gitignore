@@ -24,3 +24,7 @@ target
 # Added by cargo
 
 /target
+
+# VS Code MCP (Model Context Protocol) configuration
+# Personal/local configuration should not be shared
+.vscode/mcp.json

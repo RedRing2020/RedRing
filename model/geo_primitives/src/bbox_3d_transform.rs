@@ -214,7 +214,6 @@ impl<T: Scalar> BBox3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::TransformHelpers;
 
     #[test]
     fn test_translate() {
@@ -230,9 +229,9 @@ mod tests {
     }
 
     #[test]
-    fn test_scale_origin() {
+    fn test_scale_from_origin() {
         let bbox = BBox3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 4.0, 5.0));
-        let scaled = bbox.scale_origin(2.0);
+        let scaled = BasicTransform::scale(&bbox, Point3D::origin(), 2.0);
 
         assert_eq!(scaled.min(), Point3D::new(2.0, 2.0, 2.0));
         assert_eq!(scaled.max(), Point3D::new(6.0, 8.0, 10.0));
