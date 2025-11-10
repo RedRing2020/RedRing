@@ -89,7 +89,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
         }
 
         // フラット座標配列を構築
-        let mut coordinates = Vec::with_capacity(u_count * v_count * 3);
+        let mut coordinates = Vec::with_capacity(u_count * v_count * 3_usize);
         #[allow(clippy::needless_range_loop)] // 2次元グリッドアクセスの標準パターン
         for u in 0..u_count {
             #[allow(clippy::needless_range_loop)] // 2次元グリッドアクセスの標準パターン

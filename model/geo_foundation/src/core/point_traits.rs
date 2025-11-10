@@ -20,3 +20,17 @@ pub trait Point3D<T: Scalar>: Point2D<T> {
     /// Z座標を取得
     fn z(&self) -> T;
 }
+
+/// Point2D作成のための抽象トレイト
+/// NURBSなどの高レベル実装がコンストラクタを呼び出すためのインターフェース
+pub trait Point2DConstructor<T: Scalar> {
+    /// 新しいPoint2Dインスタンスを作成
+    fn new(x: T, y: T) -> Self;
+}
+
+/// Point3D作成のための抽象トレイト
+/// NURBSなどの高レベル実装がコンストラクタを呼び出すためのインターフェース
+pub trait Point3DConstructor<T: Scalar> {
+    /// 新しいPoint3Dインスタンスを作成
+    fn new(x: T, y: T, z: T) -> Self;
+}

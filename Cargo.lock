@@ -635,6 +635,7 @@ dependencies = [
  "analysis",
  "approx",
  "criterion",
+ "geo_foundation",
  "nalgebra 0.34.1",
  "num-traits",
  "quickcheck",
@@ -666,7 +667,6 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
- "geo_core",
  "geo_foundation",
  "geo_primitives",
  "nalgebra 0.33.2",

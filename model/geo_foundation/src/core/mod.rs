@@ -10,4 +10,5 @@ pub mod direction_traits;
 pub mod nurbs_traits;
 pub mod plane_traits;
 pub mod point_traits;
+pub mod triangle_traits;
 pub mod vector_traits;

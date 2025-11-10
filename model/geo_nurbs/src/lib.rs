@@ -145,9 +145,15 @@ mod tests {
         // 実際のNURBS計算でのトレランス使用テスト（動的な値）
         let tolerance = constants::DEFAULT_TOLERANCE;
         let small_diff = tolerance * 0.5;
-        assert!(small_diff < tolerance, "Small difference should be within tolerance");
-        
+        assert!(
+            small_diff < tolerance,
+            "Small difference should be within tolerance"
+        );
+
         let large_diff = tolerance * 2.0;
-        assert!(large_diff > tolerance, "Large difference should exceed tolerance");
+        assert!(
+            large_diff > tolerance,
+            "Large difference should exceed tolerance"
+        );
     }
 }

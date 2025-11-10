@@ -3,7 +3,7 @@
 //! 基本機能、座標操作、距離計算、変換機能、演算子などをテスト
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::Angle;
+use geo_foundation::{Angle, BasicTransform};
 
 #[cfg(test)]
 mod tests {
@@ -318,11 +318,9 @@ mod tests {
     }
 
     #[test]
-    fn test_transform_scale_origin() {
-        use geo_foundation::extensions::TransformHelpers;
-
+    fn test_transform_scale_from_origin() {
         let point = Point2D::new(2.0, 3.0);
-        let scaled = point.scale_origin(2.0);
+        let scaled = BasicTransform::scale(&point, Point2D::origin(), 2.0);
 
         assert_eq!(scaled.x(), 4.0);
         assert_eq!(scaled.y(), 6.0);
@@ -330,24 +328,20 @@ mod tests {
 
     #[test]
     fn test_transform_translate_axes() {
-        use geo_foundation::extensions::TransformHelpers;
-
         let point = Point2D::new(1.0, 2.0);
 
-        let translated_x = point.translate_x(1.0);
+        let translated_x = BasicTransform::translate(&point, Vector2D::new(1.0, 0.0));
         assert_eq!(translated_x, Point2D::new(2.0, 2.0));
 
-        let translated_y = point.translate_y(1.0);
+        let translated_y = BasicTransform::translate(&point, Vector2D::new(0.0, 1.0));
         assert_eq!(translated_y, Point2D::new(1.0, 3.0));
 
-        let translated_xy = point.translate_xy(1.0, 1.0);
+        let translated_xy = BasicTransform::translate(&point, Vector2D::new(1.0, 1.0));
         assert_eq!(translated_xy, Point2D::new(2.0, 3.0));
     }
 
     #[test]
     fn test_transform_scale_from_center() {
-        use geo_foundation::extensions::BasicTransform;
-
         let point = Point2D::new(4.0, 6.0);
         let center = Point2D::new(2.0, 3.0);
         let scaled = BasicTransform::scale(&point, center, 2.0);

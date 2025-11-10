@@ -48,8 +48,12 @@ pub use core::{
         NurbsCurveOperations, NurbsSurface, NurbsSurfaceOperations, ParametricGeometry,
         WeightedGeometry,
     },
-    point_traits::Point2D as Point2DTrait,
-    vector_traits::{Vector2D, Vector2DOps, Vector3D, Vector3DOps, VectorMetrics, VectorOps},
+    point_traits::{Point2D as Point2DTrait, Point2DConstructor, Point3DConstructor},
+    triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
+    vector_traits::{
+        Vector2D, Vector2DConstructor, Vector2DOps, Vector3D, Vector3DConstructor, Vector3DOps,
+        VectorMetrics, VectorOps,
+    },
 };
 
 // Extension Foundation Traitsを再エクスポート
@@ -62,7 +66,6 @@ pub use extension_foundation::{
 pub use extensions::{
     AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
     MultipleIntersection, PointDistance, SafeTransform, SelfIntersection, TransformError,
-    TransformHelpers,
 };
 
 // Geometry Core Foundationを再エクスポート

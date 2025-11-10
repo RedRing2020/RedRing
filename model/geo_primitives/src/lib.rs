@@ -271,13 +271,9 @@ pub use geo_foundation::extensions::{
     BasicIntersection,
     // Transform Foundation
     BasicTransform,
-    CollisionHelpers,
-    IntersectionHelpers,
     MultipleIntersection,
     PointDistance,
-    PointDistanceHelpers,
     SelfIntersection,
-    TransformHelpers,
 };
 
 // 新実装の公開（次元中立設計）

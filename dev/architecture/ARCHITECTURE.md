@@ -7,20 +7,22 @@ RedRing の幾何計算層とレンダリング層の構成について説明し
 ### 幾何計算層
 
 ```
-analysis ← model ← geo_algorithms ← geo_primitives ← geo_foundation
-                                 ← geo_io ←---------↗ geo_core
+analysis → geo_foundation → geo_primitives
+                ↓              ↓
+           geo_core      geo_nurbs
+                ↓              ↓
+         geo_algorithms  geo_io
 ```
 
-| クレート         | 責務                            | 状態        |
-| ---------------- | ------------------------------- | ----------- |
-| `geo_foundation` | 抽象型・トレイト定義・橋渡し    | ✅ 実装済み |
-| `geo_primitives` | Foundation 統合幾何プリミティブ | 🔄 開発中   |
-| `geo_core`       | 幾何基本演算・ロバスト幾何判定  | 📋 計画中   |
-| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）  | 📋 計画中   |
-| `model`          | 高次曲線・曲面                  | 📋 計画中   |
-| `geo_algorithms` | 幾何アルゴリズム                | 📋 計画中   |
-| `analysis`       | 数値解析                        | 🔄 開発中   |
-| `geo_cam`        | CAM 処理                        | 📋 計画中   |
+| クレート         | 責務                                      | 状態        |
+| ---------------- | ----------------------------------------- | ----------- |
+| `analysis`       | 数値解析・線形代数・微積分                | ✅ 実装済み |
+| `geo_foundation` | 抽象型・トレイト定義（BasicTransform等）  | ✅ 実装済み |
+| `geo_primitives` | プリミティブ幾何専用（独自Transform実装） | ✅ 実装済み |
+| `geo_nurbs`      | NURBS幾何専用（独自Transform実装）       | ✅ 実装済み |
+| `geo_core`       | 交差判定等・全幾何組み合わせ実装用        | � 開発中   |
+| `geo_algorithms` | 高レベル幾何アルゴリズム                  | 📋 計画中   |
+| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）           | 📋 計画中   |
 
 ### レンダリング層
 

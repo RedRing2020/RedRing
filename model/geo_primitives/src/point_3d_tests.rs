@@ -1,6 +1,7 @@
 //! Point3D のテスト
 
-use crate::Point3D;
+use crate::{Point3D, Vector3D};
+use geo_foundation::BasicTransform;
 
 #[cfg(test)]
 mod tests {
@@ -95,11 +96,9 @@ mod tests {
     }
 
     #[test]
-    fn test_transform_scale_origin() {
-        use geo_foundation::extensions::TransformHelpers;
-
+    fn test_transform_scale_from_origin() {
         let point = Point3D::new(2.0, 3.0, 4.0);
-        let scaled = point.scale_origin(2.0);
+        let scaled = BasicTransform::scale(&point, Point3D::origin(), 2.0);
 
         assert_eq!(scaled.x(), 4.0);
         assert_eq!(scaled.y(), 6.0);
@@ -108,23 +107,20 @@ mod tests {
 
     #[test]
     fn test_transform_translate_axes() {
-        use geo_foundation::extensions::TransformHelpers;
-
         let point = Point3D::new(1.0, 2.0, 3.0);
 
-        let translated_x = point.translate_x(1.0);
+        let translated_x = BasicTransform::translate(&point, Vector3D::new(1.0, 0.0, 0.0));
         assert_eq!(translated_x, Point3D::new(2.0, 2.0, 3.0));
 
-        let translated_y = point.translate_y(1.0);
+        let translated_y = BasicTransform::translate(&point, Vector3D::new(0.0, 1.0, 0.0));
         assert_eq!(translated_y, Point3D::new(1.0, 3.0, 3.0));
 
-        let translated_xy = point.translate_xy(1.0, 1.0);
+        let translated_xy = BasicTransform::translate(&point, Vector3D::new(1.0, 1.0, 0.0));
         assert_eq!(translated_xy, Point3D::new(2.0, 3.0, 3.0));
     }
 
     #[test]
     fn test_transform_scale_from_center() {
-        use geo_foundation::extensions::BasicTransform;
 
         let point = Point3D::new(4.0, 6.0, 8.0);
         let center = Point3D::new(2.0, 3.0, 4.0);

@@ -144,7 +144,7 @@ impl<T: Scalar> AdvancedTransform<T> for Ellipse2D<T> {
     }
 
     /// 非等方スケール
-    fn scale_non_uniform(
+    fn non_uniform_scale(
         &self,
         center: Self::Point2D,
         scale_x: T,
@@ -366,7 +366,7 @@ impl<T: Scalar> Ellipse2D<T> {
 
     /// 非均等拡大縮小（互換性維持）
     pub fn non_uniform_scale(&self, x_factor: T, y_factor: T) -> Self {
-        <Self as AdvancedTransform<T>>::scale_non_uniform(
+        <Self as AdvancedTransform<T>>::non_uniform_scale(
             self,
             Point2D::origin(),
             x_factor,
