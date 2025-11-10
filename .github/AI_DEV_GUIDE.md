@@ -27,7 +27,7 @@
 - `model/geo_nurbs/src/foundation_impl.rs` - Foundation統合
 
 ### ドキュメント
-- `manual/ai_development_guide.md` - 📋 **この文書** - 完全な開発ガイド
+- `.github/ai_development_guide.md` - 📋 完全な開発ガイド（詳細版）
 - `manual/nurbs.md` - NURBS技術文書
 - `manual/theme/custom.css` - 装飾スタイル
 - `manual/theme/custom.js` - インタラクティブ機能

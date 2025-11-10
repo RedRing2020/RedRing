@@ -43,6 +43,7 @@ NURBS やプリミティブ形状などの幾何要素は未実装であり、�
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | 開発者                 | ワークスペース構成・移行ステータス・テスト戦略 |
 | [`manual/philosophy.md`](manual/philosophy.md)                     | コントリビューター     | 設計思想・エラー処理ガイドライン・実装パターン |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | 幾何ライブラリ開発者   | 幾何抽象化の詳細仕様                           |
+| [`.github/AI_DEV_GUIDE.md`](.github/AI_DEV_GUIDE.md)              | 🤖 AI開発者           | セッション復旧・開発継続支援                   |
 | [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | 開発者                 | 機能リクエスト・バグ報告・進捗管理             |
 | [GitHub Projects](https://github.com/RedRing2020/RedRing/projects) | 開発者                 | 開発ロードマップ・タスク管理                   |
 
