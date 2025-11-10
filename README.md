@@ -248,7 +248,20 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## 🙏 Acknowledgments
+## � License
+
+RedRing is available under a dual license:
+
+- **[MIT License](LICENSE-MIT)** - Simple, permissive license
+- **[Apache License 2.0](LICENSE-APACHE)** - Includes patent grant protection
+
+You may choose either license. See [LICENSE](LICENSE) for details.
+
+This dual licensing follows the standard practice of the Rust ecosystem and provides maximum compatibility for both academic and commercial use.
+
+---
+
+## �🙏 Acknowledgments
 
 We thank all contributors who have helped develop RedRing.
 
