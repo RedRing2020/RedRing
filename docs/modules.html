@@ -209,11 +209,16 @@
 <li>幾何変換</li>
 </ul>
 <h3 id="geo_nurbs"><a class="header" href="#geo_nurbs"><code>geo_nurbs</code></a></h3>
-<p><strong>高次曲線・曲面</strong></p>
+<p><strong>NURBS 曲線・曲面システム（✅ 実装完了）</strong></p>
 <ul>
-<li>NURBS 曲線・曲面（今後実装予定）</li>
-<li>複雑な幾何モデル</li>
-<li>抽象化レイヤ</li>
+<li><strong>NurbsCurve2D/3D</strong>: メモリ最適化されたNURBS曲線実装</li>
+<li><strong>NurbsSurface3D</strong>: 双方向パラメトリックNURBSサーフェス</li>
+<li><strong>基底関数計算</strong>: Cox-de Boorアルゴリズムによる高効率B-スプライン基底関数</li>
+<li><strong>変換操作</strong>: ノット挿入、次数上昇、曲線分割</li>
+<li><strong>Foundation統合</strong>: ExtensionFoundation完全対応</li>
+<li><strong>型安全性</strong>: Scalarトレイト境界による数値型抽象化</li>
+<li><strong>エラーハンドリング</strong>: 包括的NurbsErrorによる堅牢性</li>
+<li>CAD/CAM アプリケーションの核心機能を提供</li>
 </ul>
 <h3 id="analysis"><a class="header" href="#analysis"><code>analysis</code></a></h3>
 <p><strong>数値解析・汎用数値計算</strong></p>

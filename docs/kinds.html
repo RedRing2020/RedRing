@@ -195,7 +195,7 @@
 <li><code>Ellipse</code>：楕円</li>
 <li><code>Arc</code>：円弧</li>
 <li><code>EllipseArc</code>:楕円弧</li>
-<li><code>NurbsCurve</code>：NURBS 曲線</li>
+<li><code>NurbsCurve</code>：NURBS 曲線（✅ 実装完了）</li>
 </ul>
 <h2 id="primitivesurfacetype"><a class="header" href="#primitivesurfacetype">PrimitiveSurfaceType</a></h2>
 <ul>
@@ -205,10 +205,9 @@
 </ul>
 <h2 id="surfacetype"><a class="header" href="#surfacetype">SurfaceType</a></h2>
 <ul>
-<li><code>NurbsSurface</code>：NURBS 曲面</li>
+<li><code>NurbsSurface</code>：NURBS 曲面（✅ 実装完了）</li>
 <li><code>RotateSolid</code>：回転体</li>
 <li><code>CylindricalSurface</code>：円柱面</li>
-<li><code>NurbsSurface</code>：NURBS 曲面</li>
 <li><code>polygonMesh</code>：多角形メッシュ</li>
 <li><code>TriangleMesh</code>：三角形メッシュ（表示用 or 三角形メッシュ操作用）</li>
 </ul>
@@ -229,6 +228,14 @@
 <li><code>CircleError</code>：円固有のエラー</li>
 <li><code>NormalizationError</code>：正規化エラー</li>
 <li><code>EllipseArcError</code>：楕円弧エラー</li>
+<li><code>NurbsError</code>：NURBS曲線・曲面固有のエラー（✅ 実装完了）
+<ul>
+<li>制御点不足エラー</li>
+<li>無効なノットベクトル</li>
+<li>重み値の問題</li>
+<li>パラメータ範囲外エラー</li>
+</ul>
+</li>
 </ul>
 <h2 id="トレイト統合システム"><a class="header" href="#トレイト統合システム">トレイト統合システム</a></h2>
 <p>重複する操作は統合トレイトで抽象化：</p>
