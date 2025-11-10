@@ -1,5 +1,5 @@
 use crate::app_renderer::AppRenderer;
-use crate::graphic::{Graphic, init_graphic};
+use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
 use stage::{DraftStage, MeshStage, OutlineStage, ShadingStage};

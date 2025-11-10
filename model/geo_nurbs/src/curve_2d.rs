@@ -3,9 +3,8 @@
 //! Non-Uniform Rational B-Spline 2D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{KnotVector, NurbsError, Result};
-use analysis::Scalar;
-use geo_primitives::{Point2D, Vector2D};
+use crate::{KnotVector, NurbsError, Result, Scalar};
+use analysis::linalg::vector::Vector2;
 
 /// 重み配列の効率的管理（2D曲線用）
 #[derive(Debug, Clone)]
@@ -16,7 +15,7 @@ pub enum WeightStorage<T: Scalar> {
     Individual(Vec<T>),
 }
 
-/// NURBS曲線 - 2次元（メモリ最適化版）
+/// NURBS曲線 - 2次元（Foundation パターン準拠・ジェネリック）
 ///
 /// # 特徴
 /// - フラット配列による高効率メモリ配置
@@ -45,7 +44,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
     /// 新しいNURBS曲線を作成
     ///
     /// # 引数
-    /// * `control_points` - 制御点配列
+    /// * `control_points` - 制御点座標配列 [(x, y), ...]
     /// * `weights` - 重み配列（Noneの場合は非有理）
     /// * `knot_vector` - ノットベクトル
     /// * `degree` - NURBS次数
@@ -58,7 +57,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
     /// * ノットベクトルが無効な場合
     /// * 重み配列のサイズが制御点数と一致しない場合
     pub fn new(
-        control_points: Vec<Point2D<T>>,
+        control_points: &[Vector2<T>],
         weights: Option<Vec<T>>,
         knot_vector: KnotVector<T>,
         degree: usize,
@@ -125,9 +124,9 @@ impl<T: Scalar> NurbsCurve2D<T> {
 
     /// 制御点取得
     #[must_use]
-    pub fn control_point(&self, index: usize) -> Point2D<T> {
+    pub fn control_point(&self, index: usize) -> Vector2<T> {
         let base = self.control_point_index(index);
-        Point2D::new(self.coordinates[base], self.coordinates[base + 1])
+        Vector2::new(self.coordinates[base], self.coordinates[base + 1])
     }
 
     /// 重み取得
@@ -176,7 +175,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
     }
 
     /// 指定パラメータでの曲線上の点を計算
-    pub fn evaluate_at(&self, t: T) -> Point2D<T> {
+    pub fn evaluate_at(&self, t: T) -> Vector2<T> {
         let span = crate::knot::find_knot_span(t, &self.knot_vector, self.degree);
         let basis = self.compute_basis_functions(t, span);
 
@@ -197,11 +196,11 @@ impl<T: Scalar> NurbsCurve2D<T> {
             }
         }
 
-        Point2D::new(numerator_x / denominator, numerator_y / denominator)
+        Vector2::new(numerator_x / denominator, numerator_y / denominator)
     }
 
     /// 指定パラメータでの1次導関数を計算
-    pub fn derivative_at(&self, t: T) -> Vector2D<T> {
+    pub fn derivative_at(&self, t: T) -> Vector2<T> {
         let h = T::from_f64(1e-8);
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
@@ -209,7 +208,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
         let dx = (p2.x() - p1.x()) / (h + h);
         let dy = (p2.y() - p1.y()) / (h + h);
 
-        Vector2D::new(dx, dy)
+        Vector2::new(dx, dy)
     }
 
     /// 曲線の長さを近似計算
@@ -272,15 +271,15 @@ mod tests {
     #[test]
     fn test_nurbs_curve_2d_creation() {
         let control_points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(2.0, 0.0),
+            Vector2::new(0.0, 0.0),
+            Vector2::new(1.0, 1.0),
+            Vector2::new(2.0, 0.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve2D::new(control_points, weights, knot_vector, degree);
+        let curve = NurbsCurve2D::new(&control_points, weights, knot_vector, degree);
         assert!(curve.is_ok());
 
         let curve = curve.unwrap();
@@ -291,15 +290,15 @@ mod tests {
     #[test]
     fn test_curve_evaluation() {
         let control_points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(2.0, 0.0),
+            Vector2::new(0.0, 0.0),
+            Vector2::new(1.0, 1.0),
+            Vector2::new(2.0, 0.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve2D::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = NurbsCurve2D::new(&control_points, weights, knot_vector, degree).unwrap();
 
         // 開始点と終了点のテスト
         let start_point = curve.evaluate_at(0.0);
@@ -317,15 +316,15 @@ mod tests {
     #[test]
     fn test_approximate_length() {
         let control_points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(2.0, 0.0),
+            Vector2::new(0.0, 0.0),
+            Vector2::new(1.0, 0.0),
+            Vector2::new(2.0, 0.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve2D::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = NurbsCurve2D::new(&control_points, weights, knot_vector, degree).unwrap();
         let length = curve.approximate_length(100);
 
         // 直線に近い曲線なので長さは約2.0

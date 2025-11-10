@@ -3,7 +3,7 @@
 //! 任意次元のベクトル演算を効率的に処理
 //! 大規模数値計算や機械学習用途に適している
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Index, IndexMut, Mul, Sub};
+use std::ops::{Add, Div, Index, IndexMut, Mul, Sub};
 
 /// 動的サイズベクトル（高速演算用）
 #[derive(Debug, Clone, PartialEq)]
@@ -209,6 +209,16 @@ impl<T: Scalar> Mul<T> for Vector<T> {
 
     fn mul(self, scalar: T) -> Self::Output {
         self.scale(scalar)
+    }
+}
+
+impl<T: Scalar> Div<T> for Vector<T> {
+    type Output = Self;
+
+    fn div(self, scalar: T) -> Self::Output {
+        Self {
+            data: self.data.into_iter().map(|x| x / scalar).collect(),
+        }
     }
 }
 

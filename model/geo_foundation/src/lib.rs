@@ -89,6 +89,6 @@ pub mod prelude {
         RAD_TO_DEG, TAU,
     };
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
-    
+
     // Note: 具体的な幾何型は geo_primitives から直接 import してください
 }

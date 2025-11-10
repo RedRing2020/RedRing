@@ -3,9 +3,8 @@
 //! Non-Uniform Rational B-Spline 3D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{KnotVector, NurbsError, Result};
-use analysis::Scalar;
-use geo_primitives::{Point3D, Vector3D};
+use crate::{KnotVector, NurbsError, Result, Scalar};
+use analysis::linalg::vector::Vector3;
 
 /// 重み配列の効率的管理（3D曲線用）
 #[derive(Debug, Clone)]
@@ -58,7 +57,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     /// * ノットベクトルが無効な場合
     /// * 重み配列のサイズが制御点数と一致しない場合
     pub fn new(
-        control_points: Vec<Point3D<T>>,
+        control_points: Vec<Vector3<T>>,
         weights: Option<Vec<T>>,
         knot_vector: KnotVector<T>,
         degree: usize,
@@ -126,9 +125,9 @@ impl<T: Scalar> NurbsCurve3D<T> {
 
     /// 制御点取得
     #[must_use]
-    pub fn control_point(&self, index: usize) -> Point3D<T> {
+    pub fn control_point(&self, index: usize) -> Vector3<T> {
         let base = self.control_point_index(index);
-        Point3D::new(
+        Vector3::new(
             self.coordinates[base],
             self.coordinates[base + 1],
             self.coordinates[base + 2],
@@ -181,7 +180,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     }
 
     /// 指定パラメータでの曲線上の点を計算
-    pub fn evaluate_at(&self, t: T) -> Point3D<T> {
+    pub fn evaluate_at(&self, t: T) -> Vector3<T> {
         let span = crate::knot::find_knot_span(t, &self.knot_vector, self.degree);
         let basis = self.compute_basis_functions(t, span);
 
@@ -204,7 +203,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
             }
         }
 
-        Point3D::new(
+        Vector3::new(
             numerator_x / denominator,
             numerator_y / denominator,
             numerator_z / denominator,
@@ -212,7 +211,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     }
 
     /// 指定パラメータでの1次導関数を計算
-    pub fn derivative_at(&self, t: T) -> Vector3D<T> {
+    pub fn derivative_at(&self, t: T) -> Vector3<T> {
         let h = T::from_f64(1e-8);
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
@@ -221,12 +220,14 @@ impl<T: Scalar> NurbsCurve3D<T> {
         let dy = (p2.y() - p1.y()) / (h + h);
         let dz = (p2.z() - p1.z()) / (h + h);
 
-        Vector3D::new(dx, dy, dz)
+        Vector3::new(dx, dy, dz)
     }
 
     /// 指定パラメータでの接線ベクトルを計算（正規化済み）
-    pub fn tangent_at(&self, t: T) -> Vector3D<T> {
-        self.derivative_at(t).normalize()
+    pub fn tangent_at(&self, t: T) -> Vector3<T> {
+        self.derivative_at(t)
+            .normalize()
+            .unwrap_or_else(|_| Vector3::zero())
     }
 
     /// 曲線の長さを近似計算
@@ -246,10 +247,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
             let t = t_min + dt * T::from_usize(i);
             let current_point = self.evaluate_at(t);
 
-            let dx = current_point.x() - prev_point.x();
-            let dy = current_point.y() - prev_point.y();
-            let dz = current_point.z() - prev_point.z();
-            let segment_length = (dx * dx + dy * dy + dz * dz).sqrt();
+            let segment_length = (current_point - prev_point).norm();
 
             total_length += segment_length;
             prev_point = current_point;
@@ -290,9 +288,9 @@ mod tests {
     #[test]
     fn test_nurbs_curve_3d_creation() {
         let control_points = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 0.0),
-            Point3D::new(2.0, 0.0, 1.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 1.0, 0.0),
+            Vector3::new(2.0, 0.0, 1.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -309,9 +307,9 @@ mod tests {
     #[test]
     fn test_curve_3d_evaluation() {
         let control_points = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 1.0),
-            Point3D::new(2.0, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 1.0, 1.0),
+            Vector3::new(2.0, 0.0, 0.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -337,9 +335,9 @@ mod tests {
     #[test]
     fn test_tangent_calculation() {
         let control_points = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(2.0, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(2.0, 0.0, 0.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -357,9 +355,9 @@ mod tests {
     #[test]
     fn test_approximate_length_3d() {
         let control_points = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(2.0, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(2.0, 0.0, 0.0),
         ];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];

@@ -3,9 +3,8 @@
 //! Non-Uniform Rational B-Spline surfaces の基本実装です。
 //! 制御点の2次元グリッド、重み、2方向のノットベクトルを使用して自由形状曲面を表現します。
 
-use crate::{KnotVector, NurbsError, Result};
-use analysis::Scalar;
-use geo_primitives::{Point3D, Triangle3D, Vector3D};
+use crate::{KnotVector, NurbsError, Result, Scalar};
+use analysis::linalg::vector::Vector3;
 
 /// 重み配列の効率的管理
 #[derive(Debug, Clone)]
@@ -62,7 +61,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     /// * ノットベクトルが無効な場合
     #[allow(clippy::needless_pass_by_value)] // 制御点グリッドを所有する必要がある
     pub fn new(
-        control_points: Vec<Vec<Point3D<T>>>,
+        control_points: Vec<Vec<Vector3<T>>>,
         weights: Option<Vec<Vec<T>>>,
         u_knots: KnotVector<T>,
         v_knots: KnotVector<T>,
@@ -171,9 +170,9 @@ impl<T: Scalar> NurbsSurface3D<T> {
 
     /// 制御点取得
     #[must_use]
-    pub fn control_point(&self, u: usize, v: usize) -> Point3D<T> {
+    pub fn control_point(&self, u: usize, v: usize) -> Vector3<T> {
         let idx = self.control_point_index(u, v);
-        Point3D::new(
+        Vector3::new(
             self.coordinates[idx],
             self.coordinates[idx + 1],
             self.coordinates[idx + 2],
@@ -247,7 +246,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     ///
     /// # 戻り値
     /// サーフェス上の点
-    pub fn evaluate_at(&self, u: T, v: T) -> Point3D<T> {
+    pub fn evaluate_at(&self, u: T, v: T) -> Vector3<T> {
         // ノットスパンを見つける
         let u_span = crate::knot::find_knot_span(u, &self.u_knots, self.u_degree);
         let v_span = crate::knot::find_knot_span(v, &self.v_knots, self.v_degree);
@@ -282,7 +281,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
             }
         }
 
-        Point3D::new(
+        Vector3::new(
             numerator_x / denominator,
             numerator_y / denominator,
             numerator_z / denominator,
@@ -297,16 +296,12 @@ impl<T: Scalar> NurbsSurface3D<T> {
     ///
     /// # 戻り値
     /// u方向接線ベクトル
-    pub fn u_derivative_at(&self, u: T, v: T) -> Vector3D<T> {
+    pub fn u_derivative_at(&self, u: T, v: T) -> Vector3<T> {
         let h = T::from_f64(1e-8);
         let p1 = self.evaluate_at(u - h, v);
         let p2 = self.evaluate_at(u + h, v);
 
-        let dx = (p2.x() - p1.x()) / (h + h);
-        let dy = (p2.y() - p1.y()) / (h + h);
-        let dz = (p2.z() - p1.z()) / (h + h);
-
-        Vector3D::new(dx, dy, dz)
+        (p2 - p1) / (h + h)
     }
 
     /// v方向の偏導関数を計算
@@ -317,16 +312,12 @@ impl<T: Scalar> NurbsSurface3D<T> {
     ///
     /// # 戻り値
     /// v方向接線ベクトル
-    pub fn v_derivative_at(&self, u: T, v: T) -> Vector3D<T> {
+    pub fn v_derivative_at(&self, u: T, v: T) -> Vector3<T> {
         let h = T::from_f64(1e-8);
         let p1 = self.evaluate_at(u, v - h);
         let p2 = self.evaluate_at(u, v + h);
 
-        let dx = (p2.x() - p1.x()) / (h + h);
-        let dy = (p2.y() - p1.y()) / (h + h);
-        let dz = (p2.z() - p1.z()) / (h + h);
-
-        Vector3D::new(dx, dy, dz)
+        (p2 - p1) / (h + h)
     }
 
     /// 指定点での法線ベクトルを計算
@@ -337,12 +328,15 @@ impl<T: Scalar> NurbsSurface3D<T> {
     ///
     /// # 戻り値
     /// 正規化された法線ベクトル
-    pub fn normal_at(&self, u: T, v: T) -> Vector3D<T> {
+    pub fn normal_at(&self, u: T, v: T) -> Vector3<T> {
         let u_tangent = self.u_derivative_at(u, v);
         let v_tangent = self.v_derivative_at(u, v);
 
         // 外積で法線ベクトルを計算
-        u_tangent.cross(&v_tangent).normalize()
+        u_tangent
+            .cross(&v_tangent)
+            .normalize()
+            .unwrap_or_else(|_| Vector3::zero())
     }
 
     /// サーフェスの面積を近似計算
@@ -378,16 +372,16 @@ impl<T: Scalar> NurbsSurface3D<T> {
                 let p01 = self.evaluate_at(u1, v2);
                 let p11 = self.evaluate_at(u2, v2);
 
-                // 三角形2つに分割して面積計算
-                let area1 = if let Some(triangle) = Triangle3D::new(p00, p10, p01) {
-                    triangle.area()
-                } else {
-                    T::ZERO
+                // 三角形2つに分割して面積計算（直接実装）
+                let area1 = {
+                    let v1 = p10 - p00;
+                    let v2 = p01 - p00;
+                    v1.cross(&v2).norm() / (T::ONE + T::ONE) // 外積の大きさの半分
                 };
-                let area2 = if let Some(triangle) = Triangle3D::new(p10, p11, p01) {
-                    triangle.area()
-                } else {
-                    T::ZERO
+                let area2 = {
+                    let v1 = p11 - p10;
+                    let v2 = p01 - p10;
+                    v1.cross(&v2).norm() / (T::ONE + T::ONE)
                 };
 
                 total_area += area1 + area2;
@@ -454,8 +448,8 @@ mod tests {
     fn test_nurbs_surface_creation() {
         // 2x2 制御点グリッド
         let control_points = vec![
-            vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 0.0)],
-            vec![Point3D::new(1.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0)],
+            vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)],
+            vec![Vector3::new(1.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0)],
         ];
 
         let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
@@ -484,8 +478,8 @@ mod tests {
     fn test_surface_evaluation() {
         // 平面サーフェスのテスト
         let control_points = vec![
-            vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 0.0)],
-            vec![Point3D::new(1.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0)],
+            vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)],
+            vec![Vector3::new(1.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)],
         ];
 
         let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];

@@ -3,31 +3,31 @@
 //! NURBS曲線・曲面に対する変換、挿入、分割などの操作を提供します。
 
 use crate::{KnotVector, Result};
+use analysis::linalg::vector::{Vector2, Vector3};
 use analysis::Scalar;
-use geo_primitives::{Point2D, Point3D};
 
 /// ノット挿入結果の型エイリアス（2D用）
-pub type KnotInsertResult2D<T> = Result<(Vec<Point2D<T>>, Vec<T>, KnotVector<T>)>;
+pub type KnotInsertResult2D<T> = Result<(Vec<Vector2<T>>, Vec<T>, KnotVector<T>)>;
 
 /// ノット挿入結果の型エイリアス（3D用）
-pub type KnotInsertResult3D<T> = Result<(Vec<Point3D<T>>, Vec<T>, KnotVector<T>)>;
+pub type KnotInsertResult3D<T> = Result<(Vec<Vector3<T>>, Vec<T>, KnotVector<T>)>;
 
 /// 次数上昇結果の型エイリアス（2D用）
-pub type DegreeElevateResult2D<T> = Result<(Vec<Point2D<T>>, Vec<T>, KnotVector<T>, usize)>;
+pub type DegreeElevateResult2D<T> = Result<(Vec<Vector2<T>>, Vec<T>, KnotVector<T>, usize)>;
 
 /// 次数上昇結果の型エイリアス（3D用）
-pub type DegreeElevateResult3D<T> = Result<(Vec<Point3D<T>>, Vec<T>, KnotVector<T>, usize)>;
+pub type DegreeElevateResult3D<T> = Result<(Vec<Vector3<T>>, Vec<T>, KnotVector<T>, usize)>;
 
 /// 曲線分割結果の型エイリアス（2D用）
 pub type CurveSplitResult2D<T> = Result<(
-    (Vec<Point2D<T>>, Vec<T>, KnotVector<T>),
-    (Vec<Point2D<T>>, Vec<T>, KnotVector<T>),
+    (Vec<Vector2<T>>, Vec<T>, KnotVector<T>),
+    (Vec<Vector2<T>>, Vec<T>, KnotVector<T>),
 )>;
 
 /// 曲線分割結果の型エイリアス（3D用）
 pub type CurveSplitResult3D<T> = Result<(
-    (Vec<Point3D<T>>, Vec<T>, KnotVector<T>),
-    (Vec<Point3D<T>>, Vec<T>, KnotVector<T>),
+    (Vec<Vector3<T>>, Vec<T>, KnotVector<T>),
+    (Vec<Vector3<T>>, Vec<T>, KnotVector<T>),
 )>;
 
 /// ノット挿入アルゴリズム
@@ -54,7 +54,7 @@ impl KnotInsertion {
     /// 無効なノットベクトルや次数の場合にエラーを返します
     #[allow(clippy::many_single_char_names)] // 数学記号は標準的
     pub fn insert_knot_2d<T: Scalar>(
-        control_points: &[Point2D<T>],
+        control_points: &[Vector2<T>],
         weights: &[T],
         knots: &KnotVector<T>,
         degree: usize,
@@ -103,7 +103,7 @@ impl KnotInsertion {
             let new_y = (T::ONE - alpha) * prev_point.y() + alpha * old_point.y();
             let new_weight = (T::ONE - alpha) * prev_weight + alpha * old_weight;
 
-            new_control_points.push(Point2D::new(new_x, new_y));
+            new_control_points.push(Vector2::new(new_x, new_y));
             new_weights.push(new_weight);
         }
 
@@ -123,7 +123,7 @@ impl KnotInsertion {
     /// 無効なノットベクトルや次数の場合にエラーを返します
     #[allow(clippy::many_single_char_names)] // 数学記号は標準的
     pub fn insert_knot_3d<T: Scalar>(
-        control_points: &[Point3D<T>],
+        control_points: &[Vector3<T>],
         weights: &[T],
         knots: &KnotVector<T>,
         degree: usize,
@@ -170,7 +170,7 @@ impl KnotInsertion {
             let new_z = (T::ONE - alpha) * prev_point.z() + alpha * old_point.z();
             let new_weight = (T::ONE - alpha) * prev_weight + alpha * old_weight;
 
-            new_control_points.push(Point3D::new(new_x, new_y, new_z));
+            new_control_points.push(Vector3::new(new_x, new_y, new_z));
             new_weights.push(new_weight);
         }
 
@@ -203,7 +203,7 @@ impl DegreeElevation {
     /// # Errors
     /// 無効な次数や制御点の場合にエラーを返します
     pub fn elevate_degree_2d<T: Scalar>(
-        control_points: &[Point2D<T>],
+        control_points: &[Vector2<T>],
         weights: &[T],
         knots: &KnotVector<T>,
         degree: usize,
@@ -242,7 +242,7 @@ impl DegreeElevation {
             let new_y = alpha * prev_point.y() + (T::ONE - alpha) * curr_point.y();
             let new_weight = alpha * prev_weight + (T::ONE - alpha) * curr_weight;
 
-            new_control_points.push(Point2D::new(new_x, new_y));
+            new_control_points.push(Vector2::new(new_x, new_y));
             new_weights.push(new_weight);
         }
 
@@ -259,7 +259,7 @@ impl DegreeElevation {
     /// # Errors
     /// 無効な次数や制御点の場合にエラーを返します
     pub fn elevate_degree_3d<T: Scalar>(
-        control_points: &[Point3D<T>],
+        control_points: &[Vector3<T>],
         weights: &[T],
         knots: &KnotVector<T>,
         degree: usize,
@@ -293,7 +293,7 @@ impl DegreeElevation {
             let new_z = alpha * prev_point.z() + (T::ONE - alpha) * curr_point.z();
             let new_weight = alpha * prev_weight + (T::ONE - alpha) * curr_weight;
 
-            new_control_points.push(Point3D::new(new_x, new_y, new_z));
+            new_control_points.push(Vector3::new(new_x, new_y, new_z));
             new_weights.push(new_weight);
         }
 
@@ -324,7 +324,7 @@ impl CurveSplitting {
     /// # Errors
     /// 分割パラメータが範囲外の場合にエラーを返します
     pub fn split_curve_2d<T: Scalar>(
-        control_points: &[Point2D<T>],
+        control_points: &[Vector2<T>],
         weights: &[T],
         knots: &KnotVector<T>,
         degree: usize,
@@ -384,7 +384,7 @@ impl CurveSplitting {
     /// # Errors
     /// 分割パラメータが範囲外の場合にエラーを返します
     pub fn split_curve_3d<T: Scalar>(
-        control_points: &[Point3D<T>],
+        control_points: &[Vector3<T>],
         weights: &[T],
         knots: &KnotVector<T>,
         degree: usize,
@@ -440,9 +440,9 @@ mod tests {
     #[test]
     fn test_knot_insertion_2d() {
         let control_points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(2.0, 0.0),
+            Vector2::new(0.0, 0.0),
+            Vector2::new(1.0, 1.0),
+            Vector2::new(2.0, 0.0),
         ];
         let weights = vec![1.0, 1.0, 1.0];
         let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -462,9 +462,9 @@ mod tests {
     #[test]
     fn test_degree_elevation_2d() {
         let control_points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(2.0, 0.0),
+            Vector2::new(0.0, 0.0),
+            Vector2::new(1.0, 1.0),
+            Vector2::new(2.0, 0.0),
         ];
         let weights = vec![1.0, 1.0, 1.0];
         let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];

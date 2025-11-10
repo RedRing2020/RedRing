@@ -109,10 +109,10 @@ impl ApplicationHandler for App {
         _device_id: winit::event::DeviceId,
         event: DeviceEvent,
     ) {
-        if let Some(state) = &mut self.state
-            && let DeviceEvent::MouseMotion { delta } = event
-        {
-            state.handle_mouse_motion(delta);
+        if let Some(state) = &mut self.state {
+            if let DeviceEvent::MouseMotion { delta } = event {
+                state.handle_mouse_motion(delta);
+            }
         }
     }
 
