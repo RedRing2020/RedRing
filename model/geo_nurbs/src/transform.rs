@@ -192,7 +192,7 @@ impl DegreeElevation {
     ///
     /// # 引数
     /// * `control_points` - 制御点配列
-    /// * `weights` - 重み配列  
+    /// * `weights` - 重み配列
     /// * `knots` - ノットベクトル
     /// * `degree` - 現在の次数
     ///
@@ -321,7 +321,7 @@ impl CurveSplitting {
     /// ((左側制御点, 左側重み, 左側ノット), (右側制御点, 右側重み, 右側ノット))
     /// NURBS曲線の2D分割
     ///
-    /// # Errors  
+    /// # Errors
     /// 分割パラメータが範囲外の場合にエラーを返します
     pub fn split_curve_2d<T: Scalar>(
         control_points: &[Point2D<T>],
@@ -382,7 +382,7 @@ impl CurveSplitting {
     /// NURBS曲線の3D分割
     ///
     /// # Errors
-    /// 分割パラメータが範囲外の場合にエラーを返します  
+    /// 分割パラメータが範囲外の場合にエラーを返します
     pub fn split_curve_3d<T: Scalar>(
         control_points: &[Point3D<T>],
         weights: &[T],

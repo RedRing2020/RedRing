@@ -14,15 +14,15 @@ analysis → geo_foundation → geo_primitives
          geo_algorithms  geo_io
 ```
 
-| クレート         | 責務                                      | 状態        |
-| ---------------- | ----------------------------------------- | ----------- |
-| `analysis`       | 数値解析・線形代数・微積分                | ✅ 実装済み |
-| `geo_foundation` | 抽象型・トレイト定義（BasicTransform等）  | ✅ 実装済み |
-| `geo_primitives` | プリミティブ幾何専用（独自Transform実装） | ✅ 実装済み |
-| `geo_nurbs`      | NURBS幾何専用（独自Transform実装）       | ✅ 実装済み |
-| `geo_core`       | 交差判定等・全幾何組み合わせ実装用        | � 開発中   |
-| `geo_algorithms` | 高レベル幾何アルゴリズム                  | 📋 計画中   |
-| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）           | 📋 計画中   |
+| クレート         | 責務                                        | 状態        |
+| ---------------- | ------------------------------------------- | ----------- |
+| `analysis`       | 数値解析・線形代数・微積分                  | ✅ 実装済み |
+| `geo_foundation` | 抽象型・トレイト定義（BasicTransform 等）   | ✅ 実装済み |
+| `geo_primitives` | プリミティブ幾何専用（独自 Transform 実装） | ✅ 実装済み |
+| `geo_nurbs`      | NURBS 幾何専用（独自 Transform 実装）       | ✅ 実装済み |
+| `geo_core`       | 交差判定等・全幾何組み合わせ実装用          | � 開発中    |
+| `geo_algorithms` | 高レベル幾何アルゴリズム                    | 📋 計画中   |
+| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）              | 📋 計画中   |
 
 ### レンダリング層
 

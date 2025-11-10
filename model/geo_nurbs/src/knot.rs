@@ -109,7 +109,7 @@ pub fn create_uniform_knot_vector<T: Scalar>(
 
 /// クランプノットベクトルを生成（開始・終了で完全に重複）
 ///
-/// # 引数  
+/// # 引数
 /// * `degree` - NURBS次数
 /// * `num_control_points` - 制御点数
 ///
@@ -125,7 +125,7 @@ pub fn create_clamped_knot_vector<T: Scalar>(
 /// オープンノットベクトルを生成（内部に重複なし）
 ///
 /// # 引数
-/// * `degree` - NURBS次数  
+/// * `degree` - NURBS次数
 /// * `num_control_points` - 制御点数
 ///
 /// # 戻り値

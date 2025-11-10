@@ -121,7 +121,6 @@ mod tests {
 
     #[test]
     fn test_transform_scale_from_center() {
-
         let point = Point3D::new(4.0, 6.0, 8.0);
         let center = Point3D::new(2.0, 3.0, 4.0);
         let scaled = BasicTransform::scale(&point, center, 2.0);
