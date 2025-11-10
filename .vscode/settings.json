@@ -166,7 +166,8 @@
     "collision.rs": "collision_error.rs",
     "intersection.rs": "intersection_error.rs",
     "Cargo.toml": "Cargo.lock",
-    "README.md": "*.md,MIGRATION_*.md,*-analysis.md,*-plan.md,*-roadmap.md,*-report.md,UNITS.md,LICENSE,ARCHITECTURE_DESIGN_PLAN.md,CIRCLE_IMPROVEMENT_PROPOSAL.md,CORE_EXTENSION_FOUNDATION_PATTERN.md",
+    "README.md": "*.md,MIGRATION_*.md,*-analysis.md,*-plan.md,*-roadmap.md,*-report.md,UNITS.md,ARCHITECTURE_DESIGN_PLAN.md,CIRCLE_IMPROVEMENT_PROPOSAL.md,CORE_EXTENSION_FOUNDATION_PATTERN.md",
+    "LICENSE": "LICENSE-MIT,LICENSE-APACHE",
     "book.toml": "book,docs"
   },
   "explorer.sortOrder": "type",
