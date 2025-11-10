@@ -240,6 +240,7 @@ pub fn rational_basis_derivatives<T: Scalar>(
             let mut weighted_sum = T::ZERO;
             let mut weighted_sum_deriv = T::ZERO;
 
+            #[allow(clippy::needless_range_loop)] // NURBS基底関数計算の標準アルゴリズム
             for j in 0..=degree {
                 let j_index = span - degree + j;
                 if j_index < weights.len() {
