@@ -5,6 +5,7 @@ members = [
     "model/geo_core",          # Model層：幾何計算基盤
     "model/geo_primitives",    # Model層：幾何プリミティブクレート
     "model/geo_algorithms",    # Model層：幾何アルゴリズムクレート
+    "model/geo_nurbs",         # Model層：NURBS曲線・曲面クレート
     "model/geo_io",            # Model層：ファイルI/Oクレート
     "viewmodel/converter",     # ViewModel層：データ変換・架け橋
     "viewmodel/graphics",      # ViewModel層：グラフィックス制御（カメラ等）

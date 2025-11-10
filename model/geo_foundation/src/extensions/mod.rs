@@ -5,6 +5,7 @@
 pub mod analysis_conversion; // analysisクレートとの型変換
 pub mod collision; // 衝突検出Extensions
 pub mod intersection; // 交点計算Extensions
+pub mod nurbs; // NURBS特有の拡張操作
 pub mod transform; // 変換操作Extensions
 pub mod transform_error; // 変換操作エラー定義
 
@@ -12,5 +13,6 @@ pub mod transform_error; // 変換操作エラー定義
 pub use analysis_conversion::*;
 pub use collision::*;
 pub use intersection::*;
+pub use nurbs::*;
 pub use transform::*;
 pub use transform_error::{SafeTransform, TransformError};

@@ -43,6 +43,11 @@ pub use analysis::{
 // Core Traitsを再エクスポート（主要インターフェース）
 pub use core::{
     circle_traits::Circle2D as Circle2DTrait,
+    nurbs_traits::{
+        BasisFunction, BiParametricGeometry, KnotVector as KnotVectorTrait, NurbsCurve,
+        NurbsCurveOperations, NurbsSurface, NurbsSurfaceOperations, ParametricGeometry,
+        WeightedGeometry,
+    },
     point_traits::Point2D as Point2DTrait,
     vector_traits::{Vector2D, Vector2DOps, Vector3D, Vector3DOps, VectorMetrics, VectorOps},
 };

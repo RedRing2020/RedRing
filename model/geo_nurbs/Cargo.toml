@@ -1,0 +1,25 @@
+[package]
+name = "geo_nurbs"
+version = "0.1.0"
+edition = "2021"
+authors = ["RedRing Development Team"]
+description = "NURBS curves and surfaces for RedRing CAD/CAM platform"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+# Foundation層
+analysis = { path = "../../foundation/analysis" }
+
+# Model層の基盤
+geo_foundation = { path = "../geo_foundation" }
+geo_core = { path = "../geo_core" }
+geo_primitives = { path = "../geo_primitives" }
+
+# 数値計算
+nalgebra = "0.33.0"
+
+# ユーティリティ
+thiserror = "1.0.69"
+
+[dev-dependencies]
+approx = "0.5.1"
