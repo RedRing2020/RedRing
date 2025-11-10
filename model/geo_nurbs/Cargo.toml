@@ -12,8 +12,6 @@ analysis = { path = "../../foundation/analysis" }
 
 # Model層の基盤
 geo_foundation = { path = "../geo_foundation" }
-# 具体的な型の取得のため（将来的にはgeo_foundationから間接参照に変更予定）
-geo_primitives = { path = "../geo_primitives" }
 
 # 数値計算
 nalgebra = "0.33.0"

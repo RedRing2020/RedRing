@@ -1,7 +1,7 @@
 # RedRing 幾何計算アーキテクチャ設計原則
 
 **作成日**: 2025 年 11 月 10 日
-**最終更新日**: 2025 年 11 月 10 日
+**最終更新日**: 2025 年 11 月 11 日
 
 ## 設計原則
 
@@ -19,11 +19,13 @@
 - **特徴**: 独自の BasicTransform 実装を提供
 - **依存関係**: geo_foundation, analysis に依存
 
-#### geo_nurbs (NURBS 幾何層)
+#### geo_nurbs (NURBS 幾何層) ⚠️ 現在Foundation パターン違反状態
 
 - **責務**: NURBS 曲線・曲面の具体実装
-- **特徴**: 独自の BasicTransform 実装、geo_primitives の基本型使用可能
-- **依存関係**: geo_foundation, geo_primitives, analysis に依存
+- **特徴**: 独自の BasicTransform 実装、geo_core 経由でのアクセス
+- **現在の状態**: geo_primitives を直接インポート（違反状態）
+- **正しい依存関係**: geo_foundation, geo_core, analysis のみ
+- **修正予定**: geo_core ブリッジパターンによる間接アクセス
 
 #### geo_core (共通計算層)
 
@@ -33,13 +35,17 @@
 
 ### 2. 循環参照回避の原則
 
-正しい依存方向：
+正しい依存方向（修正版 2025年11月11日）：
 
 ```
-analysis → geo_foundation → geo_primitives
-                ↓              ↓
-           geo_core      geo_nurbs
+analysis → geo_foundation
+                ↓
+           geo_core（ブリッジ役）
+            ↓    ↓
+   geo_primitives  geo_nurbs
 ```
+
+**重要**: geo_nurbs は geo_primitives を直接参照してはいけない
 
 **禁止される循環参照**:
 
@@ -59,12 +65,13 @@ analysis → geo_foundation → geo_primitives
 - ❌ 旧: Transform 実装の中央集権化
 - ✅ 新: 交差判定等の複合計算・共通アルゴリズム
 
-### 4. 直接参照制限の緩和
+### 4. Foundation パターン厳守の原則（2025年11月11日修正）
 
-**geo_nurbs の geo_primitives 使用を許可**:
+**geo_nurbs の geo_primitives 直接参照は禁止**:
 
-- 理由: 基本形状（Point3D, Vector3D 等）は共通基盤として必要
-- 制限: 循環参照を引き起こす逆方向参照は禁止
+- 理由: Foundation パターンの整合性維持のため
+- 解決策: geo_core ブリッジパターンによる間接アクセス
+- 現状: 違反状態のため修正が必要
 
 ## アーキテクチャ検証
 
@@ -74,28 +81,40 @@ analysis → geo_foundation → geo_primitives
 PowerShell -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies_simple.ps1
 ```
 
-### 許可されている依存関係
+### 正しい依存関係（2025年11月11日修正）
 
 ```powershell
 "geo_foundation" = @("analysis")
-"geo_primitives" = @("geo_foundation", "analysis")
-"geo_nurbs"      = @("geo_foundation", "geo_primitives", "analysis")
 "geo_core"       = @("geo_foundation", "analysis")
+"geo_primitives" = @("geo_foundation", "geo_core", "analysis")
+"geo_nurbs"      = @("geo_foundation", "geo_core", "analysis")  # geo_primitives 直接参照は禁止
 ```
 
-## 今回の問題解決履歴
+**重要**: 現在の geo_nurbs は上記に違反している状態
 
-### 問題: NURBS 実装時の循環参照
+### 現在の課題（2025年11月11日更新）
 
-- **発生**: geo_core ← → geo_primitives の相互依存
-- **原因**: Transform 実装の配置に関する設計理解の混乱
-- **解決**: Transform 実装を各クレートに分散、geo_core の役割を再定義
+### 🚨 緊急対応が必要な問題
 
-### 重要な学習事項
+1. **geo_nurbs Foundation パターン違反**: 
+   - 現状: geo_primitives を全ファイルで直接インポート
+   - 影響: アーキテクチャチェック失敗、Foundation パターン破綻
 
-1. **Foundation vs Core**: Foundation=抽象層, Core=共通計算層
-2. **Transform 実装の分散**: 中央集権化ではなく、各専門クレートで実装
-3. **geo_core の真の役割**: 交差判定等の複合的な幾何計算
+2. **geo_core ブリッジ未実装**:
+   - 現状: Foundation トレイトと具体型の仲介機能が未完成
+   - 影響: 上位クレートが Foundation パターンを遵守できない
+
+### 修正方針
+
+1. **geo_core ブリッジパターン実装完了**
+2. **geo_nurbs から geo_primitives への直接依存削除**
+3. **geo_nurbs → geo_core → geo_foundation ルートの確立**
+
+### 重要な教訓
+
+1. **Foundation パターンは絶対遵守**: 例外は認めない
+2. **ドキュメントファースト**: 実装前に必ずドキュメント更新
+3. **アーキテクチャチェックの重要性**: 違反を早期発見
 
 ---
 

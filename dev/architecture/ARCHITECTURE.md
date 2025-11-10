@@ -6,23 +6,32 @@ RedRing の幾何計算層とレンダリング層の構成について説明し
 
 ### 幾何計算層
 
+### 現在の実装状況（2025年11月11日更新）
+
 ```
-analysis → geo_foundation → geo_primitives
-                ↓              ↓
-           geo_core      geo_nurbs
-                ↓              ↓
-         geo_algorithms  geo_io
+analysis → geo_foundation
+                ↓
+           geo_core（ブリッジ役・開発中）
+            ↓    ↓
+   geo_primitives  geo_nurbs（Foundation パターン違反）
+            ↓         ↓
+      geo_algorithms  geo_io
 ```
 
-| クレート         | 責務                                        | 状態        |
-| ---------------- | ------------------------------------------- | ----------- |
-| `analysis`       | 数値解析・線形代数・微積分                  | ✅ 実装済み |
-| `geo_foundation` | 抽象型・トレイト定義（BasicTransform 等）   | ✅ 実装済み |
-| `geo_primitives` | プリミティブ幾何専用（独自 Transform 実装） | ✅ 実装済み |
-| `geo_nurbs`      | NURBS 幾何専用（独自 Transform 実装）       | ✅ 実装済み |
-| `geo_core`       | 交差判定等・全幾何組み合わせ実装用          | � 開発中    |
-| `geo_algorithms` | 高レベル幾何アルゴリズム                    | 📋 計画中   |
-| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）              | 📋 計画中   |
+| クレート         | 責務                                        | 現在の状態  | 目標状態 |
+| ---------------- | ------------------------------------------- | ----------- | -------- |
+| `analysis`       | 数値解析・線形代数・微積分                  | ✅ 実装済み | ✅ 完了  |
+| `geo_foundation` | 抽象型・トレイト定義（BasicTransform 等）   | ✅ 実装済み | ✅ 完了  |
+| `geo_primitives` | プリミティブ幾何専用（独自 Transform 実装） | ✅ 実装済み | ✅ 完了  |
+| `geo_nurbs`      | NURBS 幾何専用（Foundation パターン準拠）   | ⚠️ パターン違反 | 🔧 修正予定 |
+| `geo_core`       | Foundation ブリッジ・交差判定基盤           | 🚧 開発中    | 🔧 実装予定 |
+| `geo_algorithms` | 高レベル幾何アルゴリズム                    | 📋 計画中   | 📋 将来実装 |
+| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）              | 📋 計画中   | 📋 将来実装 |
+
+### 重要な課題（2025年11月11日時点）
+1. **geo_nurbs Foundation パターン違反**: 直接 geo_primitives をインポート
+2. **geo_core ブリッジ未完成**: Foundation トレイトと具体型の仲介が未実装
+3. **アーキテクチャチェック失敗**: 依存関係チェックで検出される違反状態
 
 ### レンダリング層
 

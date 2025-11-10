@@ -77,6 +77,9 @@ pub use extensions::{
 // 許容誤差管理を再エクスポート
 pub use tolerance::{GeometryContext, ToleranceSettings};
 
+// Note: 具体的な型は geo_primitives から直接 import してください
+// 循環依存を避けるため、geo_foundation では型の再エクスポートは行いません
+
 /// 便利な再エクスポート
 pub mod prelude {
     // TransformError を追加 - 安全な変換操作用
@@ -86,4 +89,6 @@ pub mod prelude {
         RAD_TO_DEG, TAU,
     };
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
+    
+    // Note: 具体的な幾何型は geo_primitives から直接 import してください
 }
