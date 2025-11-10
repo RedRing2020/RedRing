@@ -1,8 +1,29 @@
 ﻿[book]
-authors = ["RedRing"]
-language = "en"
+authors = ["RedRing Development Team"]
+description = "RedRing CAD/CAM Platform Documentation - 高性能CAD/CAMソフトウェア開発プラットフォーム"
+language = "ja"
+multilingual = false
 src = "manual"
-title = "RedRing"
+title = "RedRing Documentation"
 
 [build]
 build-dir = "docs"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+curly-quotes = true
+mathjax-support = true
+copy-fonts = true
+google-analytics = ""
+additional-css = ["theme/custom.css"]
+additional-js = ["theme/custom.js"]
+git-repository-url = "https://github.com/RedRing2020/RedRing"
+edit-url-template = "https://github.com/RedRing2020/RedRing/edit/main/manual/{path}"
+
+[output.html.fold]
+enable = true
+level = 2
+
+[output.html.print]
+enable = true
