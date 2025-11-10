@@ -176,7 +176,7 @@
 
   // === Workspace-Specific Settings ===
   "workbench.colorTheme": "PowerShell ISE",
-  "workbench.iconTheme": "vs-seti",
+  "workbench.iconTheme": "material-icon-theme",
   "workbench.tree.indent": 12,
   "workbench.tree.renderIndentGuides": "always",
   "breadcrumbs.enabled": true,
