@@ -15,6 +15,7 @@ preferred-dark-theme = "navy"
 smart-punctuation = true
 mathjax-support = true
 copy-fonts = true
+theme = "theme"
 additional-css = ["theme/custom.css"]
 additional-js = ["theme/custom.js"]
 git-repository-url = "https://github.com/RedRing2020/RedRing"
