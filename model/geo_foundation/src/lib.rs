@@ -64,8 +64,10 @@ pub use extension_foundation::{
 
 // Extension Traitsを再エクスポート
 pub use extensions::{
-    AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
-    MultipleIntersection, PointDistance, SafeTransform, SelfIntersection, TransformError,
+    AdvancedCollision, AdvancedTransform, AnalysisTransform2D, AnalysisTransform3D,
+    AnalysisTransformSupport, AnalysisTransformVector2D, AnalysisTransformVector3D, BasicCollision,
+    BasicIntersection, BasicTransform, MultipleIntersection, PointDistance, SafeTransform,
+    TransformError,
 };
 
 // Geometry Core Foundationを再エクスポート
@@ -84,9 +86,10 @@ pub use tolerance::{GeometryContext, ToleranceSettings};
 pub mod prelude {
     // TransformError を追加 - 安全な変換操作用
     pub use crate::{
-        GeometryContext, SafeTransform, ToleranceSettings, TransformError, DEG_TO_RAD, E,
-        GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
-        RAD_TO_DEG, TAU,
+        AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport,
+        AnalysisTransformVector2D, AnalysisTransformVector3D, GeometryContext, SafeTransform,
+        ToleranceSettings, TransformError, DEG_TO_RAD, E, GEOMETRIC_ANGLE_TOLERANCE,
+        GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
     };
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 

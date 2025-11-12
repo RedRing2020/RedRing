@@ -131,8 +131,11 @@ pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 
-// Vector3D関連（Core, Extension, Transform, Safe Transform）
+// Vector3D関連（Core, Extension, Transform, Safe Transform, Analysis）
 pub mod vector_3d; // Vector3D の新実装
+pub mod vector_3d_analysis_transform; // Vector3D の Analysis Matrix/Vector 統合変換
+#[cfg(test)]
+pub mod vector_3d_analysis_transform_tests; // Vector3D Analysis変換のテストスイート
 pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
 pub mod vector_3d_foundation; // Vector3D のFoundation実装
 pub mod vector_3d_transform; // Vector3D の変換機能 (Transform)
