@@ -12,10 +12,9 @@ build-dir = "docs"
 [output.html]
 default-theme = "navy"
 preferred-dark-theme = "navy"
-curly-quotes = true
+smart-punctuation = true
 mathjax-support = true
 copy-fonts = true
-google-analytics = ""
 additional-css = ["theme/custom.css"]
 additional-js = ["theme/custom.js"]
 git-repository-url = "https://github.com/RedRing2020/RedRing"
