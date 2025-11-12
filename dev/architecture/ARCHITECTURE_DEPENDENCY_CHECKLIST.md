@@ -15,11 +15,23 @@
 
 ### **Model 層 (geo\_\*)**
 
+#### 現在の実装状況（2025年11月11日時点）
+```
+geo_foundation → analysis ✅
+geo_core → geo_foundation, analysis ✅
+geo_primitives → geo_foundation, geo_core, analysis ✅
+geo_algorithms → geo_primitives ⚠️ (簡略化実装)
+geo_nurbs → geo_foundation, analysis ⚠️ (Foundation パターン違反状態)
+geo_io → geo_foundation, geo_core, geo_primitives, geo_algorithms, analysis ✅
+```
+
+#### 目標アーキテクチャ（修正予定）
 ```
 geo_foundation → analysis ✅
 geo_core → geo_foundation, analysis ✅
 geo_primitives → geo_foundation, geo_core, analysis ✅
 geo_algorithms → geo_foundation, geo_core, geo_primitives, analysis ✅
+geo_nurbs → geo_foundation, geo_core, analysis ✅ (geo_core 経由アクセス)
 geo_io → geo_foundation, geo_core, geo_primitives, geo_algorithms, analysis ✅
 ```
 
@@ -78,9 +90,10 @@ analysis → なし ✅ (完全独立)
 - [ ] Model 層クレートに `geo_` プレフィックス
 - [ ] 必須クレート存在確認:
   - [ ] `geo_foundation` (抽象化レイヤー)
-  - [ ] `geo_core` (基盤)
+  - [ ] `geo_core` (基盤・ブリッジ役)
   - [ ] `geo_primitives` (プリミティブ)
   - [ ] `geo_algorithms` (アルゴリズム)
+  - [ ] `geo_nurbs` (NURBS システム - 2025年11月追加)
   - [ ] `geo_io` (I/O 専用)
 
 ### **2. 依存方向チェック**

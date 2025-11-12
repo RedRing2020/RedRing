@@ -56,16 +56,3 @@ pub trait SelfIntersection<T: Scalar> {
     /// 自己交差点のベクトル
     fn self_intersections(&self, tolerance: T) -> Vec<Self::Point>;
 }
-
-/// 交点計算のヘルパートレイト
-///
-/// tolerance のデフォルト値を提供する便利機能
-pub trait IntersectionHelpers<T: Scalar, Other>: BasicIntersection<T, Other> {
-    /// デフォルト tolerance での交点計算
-    fn intersection(&self, other: &Other) -> Option<Self::Point> {
-        self.intersection_with(other, T::EPSILON)
-    }
-}
-
-// ヘルパートレイトの自動実装
-impl<T: Scalar, Other, U> IntersectionHelpers<T, Other> for U where U: BasicIntersection<T, Other> {}

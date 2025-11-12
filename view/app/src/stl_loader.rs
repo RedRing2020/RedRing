@@ -3,9 +3,9 @@
 //! STLファイルを読み込んでメッシュデータをGPU用の形式に変換します。
 //! MVVMアーキテクチャに準拠し、ViewModelレイヤー経由でSTLデータを処理します。
 
-use render::vertex_3d::{MeshVertex, convert_vertex_data_to_mesh_vertices};
+use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use std::path::Path;
-use viewmodel::stl_loader::{StlMeshData, create_and_load_sample_stl, load_stl_mesh};
+use viewmodel::stl_loader::{create_and_load_sample_stl, load_stl_mesh, StlMeshData};
 
 /// STL読み込み結果の型エイリアス（複雑性軽減のため）
 type StlLoadResult =

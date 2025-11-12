@@ -5,6 +5,7 @@ members = [
     "model/geo_core",          # Model層：幾何計算基盤
     "model/geo_primitives",    # Model層：幾何プリミティブクレート
     "model/geo_algorithms",    # Model層：幾何アルゴリズムクレート
+    "model/geo_nurbs",         # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
     "model/geo_io",            # Model層：ファイルI/Oクレート
     "viewmodel/converter",     # ViewModel層：データ変換・架け橋
     "viewmodel/graphics",      # ViewModel層：グラフィックス制御（カメラ等）
@@ -13,6 +14,14 @@ members = [
     "view/app",                # View層：メインアプリケーション
 ]
 resolver = "3"
+
+[workspace.package]
+license = "MIT OR Apache-2.0"
+authors = ["RedRing"]
+edition = "2021"
+repository = "https://github.com/RedRing2020/RedRing"
+keywords = ["cad", "cam", "graphics", "geometry", "nurbs"]
+categories = ["graphics", "mathematics", "science"]
 
 [workspace.dependencies]
 pollster = "0.4.0"

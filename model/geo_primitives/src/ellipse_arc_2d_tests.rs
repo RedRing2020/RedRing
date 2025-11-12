@@ -244,7 +244,7 @@ mod ellipse_arc_2d_transform_tests {
         let axis_end = Point2D::new(0.0, 1.0);
         let axis = LineSegment2D::new(axis_start, axis_end).expect("軸の作成に失敗");
 
-        let mirrored_arc = AdvancedTransform::mirror(&arc, axis);
+        let mirrored_arc = <EllipseArc2D<f64> as AdvancedTransform<f64>>::mirror(&arc, axis);
 
         // 鏡像反転後の中心はY軸に対して対称
         assert!((mirrored_arc.ellipse().center().x() - 0.0).abs() < 1e-10);
@@ -268,7 +268,12 @@ mod ellipse_arc_2d_transform_tests {
         let scale_center = Point2D::new(0.0, 0.0);
         let scale_x = 2.0;
         let scale_y = 0.5;
-        let scaled_arc = AdvancedTransform::scale_non_uniform(&arc, scale_center, scale_x, scale_y);
+        let scaled_arc = <EllipseArc2D<f64> as AdvancedTransform<f64>>::non_uniform_scale(
+            &arc,
+            scale_center,
+            scale_x,
+            scale_y,
+        );
 
         // 非等方スケール後は楕円の形状が変化
         // 詳細な検証は楕円の変換ロジックに依存
@@ -285,7 +290,7 @@ mod ellipse_arc_2d_transform_tests {
             Angle::from_radians(std::f64::consts::PI / 2.0),
         );
 
-        let reversed_arc = AdvancedTransform::reverse(&arc);
+        let reversed_arc = <EllipseArc2D<f64> as AdvancedTransform<f64>>::reverse(&arc);
 
         // 開始角度と終了角度が交換されている
         assert!(
@@ -313,7 +318,8 @@ mod ellipse_arc_2d_transform_tests {
         let sin45 = (std::f64::consts::PI / 4.0).sin();
         let matrix = Matrix3x3::new(cos45, -sin45, 1.0, sin45, cos45, 1.0, 0.0, 0.0, 1.0);
 
-        let transformed_arc = AdvancedTransform::transform_matrix(&arc, &matrix);
+        let transformed_arc =
+            <EllipseArc2D<f64> as AdvancedTransform<f64>>::transform_matrix(&arc, &matrix);
 
         // 変換後の妥当性確認
         assert!(transformed_arc.is_valid_after_transform());

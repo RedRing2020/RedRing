@@ -1,14 +1,44 @@
 # Copilot Instructions for RedRing
 
-**最終更新日: 2025 年 11 月 1 日**
+**最終更新日: 2025 年 11 月 11 日**
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
+
+## 🚨 AI開発者への厳格な制約（2025年11月11日追加）
+
+### 必須確認プロセス
+1. **設計検討フェーズ**: 実装前に複数選択肢を提示し、ユーザー承認を得る
+2. **継続作業確認**: 既存の途中実装がないか `dev/` フォルダと `model/geo_core` を確認
+3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（`geo_nurbs → geo_core → geo_foundation`）
+4. **依存関係不変**: `scripts/check_architecture_dependencies_simple.ps1` の改変は絶対禁止
+
+### 絶対禁止事項
+- ❌ ユーザー承認なしでの実装開始
+- ❌ Foundation パターンの破壊や迂回
+- ❌ 既存設計方針の無断変更
+- ❌ `geo_primitives` への直接依存の許可
+- ❌ アーキテクチャチェックスクリプトの例外追加
+
+### 実装許可が必要な作業
+- 新クレートの作成
+- 依存関係の変更
+- Foundation パターンの修正
+- アーキテクチャの変更
+
+### ドキュメントファースト原則（2025年11月11日追加）
+1. **実装前にドキュメント更新**: 変更前に必ず dev/ フォルダの関連ドキュメントを更新
+2. **ドキュメントを情報源とする**: dev/architecture/ の情報を最優先の参考とする
+3. **古い情報の上書き禁止**: 実装と乖離したドキュメントで上書きしない
+4. **現状の正確な記録**: 問題状況も含めて正確にドキュメントに記録
+
+**重要**: 「設計検討を行いましょう」という指示は**設計提案のみ**を意味し、実装開始の許可ではありません。
 
 ## 現在の状態
 
 **✅ ビルド状況**: 正常（cargo build/test 成功）
 **✅ 型システム**: ジェネリック<T: Scalar>対応完了
 **✅ Foundation パターン**: 実装完了
+**⚠️ geo_nurbs**: Foundation パターン違反状態（修正が必要）
 **✅ 情報管理**: GitHub Issues/Projects 移行済み
 
 ## クイックリファレンス
@@ -58,15 +88,22 @@ pub trait ExtensionFoundation<T: Scalar> {
 }
 ```
 
-model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
-↘ ↙
-analysis
-redring → viewmodel → model
-↘ stage → render
+**正しいアーキテクチャ**:
+```
+analysis → geo_foundation
+                ↓
+           geo_core
+            ↓    ↓
+   geo_primitives  geo_nurbs
+            ↓         ↓
+      geo_algorithms  geo_io
+```
 
-````
-
-**重要**: Foundation パターンにより統一されたトレイト実装、`render` は幾何データ層に依存しない
+**重要**: 
+- Foundation パターンにより統一されたトレイト実装
+- `geo_core` がブリッジ役として Foundation トレイトと具体型を仲介
+- `geo_nurbs` は `geo_primitives` を直接参照せず、`geo_core` 経由でアクセス
+- `render` は幾何データ層に依存しない
 
 ## geo_primitives 実装の作法
 
@@ -330,6 +367,11 @@ pub mod geometry_kind;
 - **README.md**: 安定機能のみ記載、詳細は Issues/Projects 参照
 - **生成コマンド**: `mdbook build` で `manual/` → `docs/` へビルド
 - **ドキュメント作成時**: 必ずタイムスタンプを記載（作成日・最終更新日）
+
+### 重要な参照文書
+- **プロジェクト構造方針**: `.github/PROJECT_STRUCTURE_POLICY.md`
+- **技術アーキテクチャ**: `dev/architecture/ARCHITECTURE.md`
+- **設計文書集**: `dev/architecture/` および `dev/foundation/`
 
 ## デバッグ・トレース
 

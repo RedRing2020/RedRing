@@ -9,7 +9,10 @@ license = "MIT"
 # 数値計算の安定性
 num-traits = "0.2"
 analysis = { path = "../../foundation/analysis" }
-approx = "0.5"  # 許容誤差ベース比較
+approx = "0.5"                                    # 許容誤差ベース比較
+
+# 幾何プリミティブとの橋渡し
+geo_foundation = { path = "../geo_foundation" }
 
 # パフォーマンス（オプション）
 nalgebra = { version = "0.34.1", optional = true }

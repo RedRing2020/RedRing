@@ -3,7 +3,7 @@
 //! 2D幾何計算、グラフィックス、UI座標に最適化
 //! 高速な演算のためコンパイル時サイズ確定
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// 2次元固定サイズベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -201,6 +201,13 @@ impl<T: Scalar> Mul<T> for Vector2<T> {
     type Output = Self;
     fn mul(self, scalar: T) -> Self::Output {
         Self::new(self.data[0] * scalar, self.data[1] * scalar)
+    }
+}
+
+impl<T: Scalar> Div<T> for Vector2<T> {
+    type Output = Self;
+    fn div(self, scalar: T) -> Self::Output {
+        Self::new(self.data[0] / scalar, self.data[1] / scalar)
     }
 }
 

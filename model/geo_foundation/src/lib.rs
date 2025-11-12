@@ -43,8 +43,17 @@ pub use analysis::{
 // Core Traitsを再エクスポート（主要インターフェース）
 pub use core::{
     circle_traits::Circle2D as Circle2DTrait,
-    point_traits::Point2D as Point2DTrait,
-    vector_traits::{Vector2D, Vector2DOps, Vector3D, Vector3DOps, VectorMetrics, VectorOps},
+    nurbs_traits::{
+        BasisFunction, BiParametricGeometry, KnotVector as KnotVectorTrait, NurbsCurve,
+        NurbsCurveOperations, NurbsSurface, NurbsSurfaceOperations, ParametricGeometry,
+        WeightedGeometry,
+    },
+    point_traits::{Point2D as Point2DTrait, Point2DConstructor, Point3DConstructor},
+    triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
+    vector_traits::{
+        Vector2D, Vector2DConstructor, Vector2DOps, Vector3D, Vector3DConstructor, Vector3DOps,
+        VectorMetrics, VectorOps,
+    },
 };
 
 // Extension Foundation Traitsを再エクスポート
@@ -57,7 +66,6 @@ pub use extension_foundation::{
 pub use extensions::{
     AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
     MultipleIntersection, PointDistance, SafeTransform, SelfIntersection, TransformError,
-    TransformHelpers,
 };
 
 // Geometry Core Foundationを再エクスポート
@@ -69,6 +77,9 @@ pub use extensions::{
 // 許容誤差管理を再エクスポート
 pub use tolerance::{GeometryContext, ToleranceSettings};
 
+// Note: 具体的な型は geo_primitives から直接 import してください
+// 循環依存を避けるため、geo_foundation では型の再エクスポートは行いません
+
 /// 便利な再エクスポート
 pub mod prelude {
     // TransformError を追加 - 安全な変換操作用
@@ -78,4 +89,6 @@ pub mod prelude {
         RAD_TO_DEG, TAU,
     };
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
+
+    // Note: 具体的な幾何型は geo_primitives から直接 import してください
 }

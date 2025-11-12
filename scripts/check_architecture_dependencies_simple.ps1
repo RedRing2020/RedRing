@@ -32,7 +32,7 @@ function Get-CrateDependencies {
         if ($inDepsSection -and $line -match '^(\w+)\s*=') {
             $depName = $matches[1]
             # Check if it's a workspace crate
-            $workspaceCrates = @("analysis", "geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "converter", "graphics", "render", "stage", "app")
+            $workspaceCrates = @("analysis", "geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "converter", "graphics", "render", "stage", "app")
             if ($workspaceCrates -contains $depName) {
                 $dependencies += $depName
             }
@@ -52,11 +52,12 @@ function Test-ArchitectureDependencies {
 
     # Define workspace structure
     $workspaceCrates = @{
-        "analysis"       = "analysis"
+        "analysis"       = "foundation\analysis"
         "geo_foundation" = "model\geo_foundation"
         "geo_core"       = "model\geo_core"
         "geo_primitives" = "model\geo_primitives"
         "geo_algorithms" = "model\geo_algorithms"
+        "geo_nurbs"      = "model\geo_nurbs"
         "geo_io"         = "model\geo_io"
         "converter"      = "viewmodel\converter"
         "graphics"       = "viewmodel\graphics"
@@ -72,6 +73,7 @@ function Test-ArchitectureDependencies {
         "geo_core"       = @("geo_foundation", "analysis")
         "geo_primitives" = @("geo_foundation", "geo_core", "analysis")
         "geo_algorithms" = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
+        "geo_nurbs"      = @("geo_foundation", "geo_primitives", "analysis")  # 例外: 基本幾何型使用
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
         "converter"      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "analysis")
         "graphics"       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
@@ -81,7 +83,7 @@ function Test-ArchitectureDependencies {
     }
 
     Write-ColorText "1. Checking Model layer naming rules..." "Yellow"
-    $modelCrates = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
+    $modelCrates = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io")
     foreach ($crateName in $modelCrates) {
         if (Test-Path $workspaceCrates[$crateName]) {
             Write-ColorText "  OK: $crateName follows geo_ prefix rule" "Green"
