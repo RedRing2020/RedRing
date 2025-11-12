@@ -28,3 +28,16 @@ target
 # VS Code MCP (Model Context Protocol) configuration
 # Personal/local configuration should not be shared
 .vscode/mcp.json
+
+# mdbook generated documentation
+# ソースファイル（manual/, theme/）は追跡、生成物（docs/内のHTML等）は除外
+docs/*.html
+docs/*.js
+docs/*.css
+docs/css/
+docs/fonts/
+docs/FontAwesome/
+# docsディレクトリ内のthemeは生成物なので除外、ルートのtheme/は追跡
+docs/theme/
+# GitHub Pages設定は追跡対象
+!docs/.nojekyll
