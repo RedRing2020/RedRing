@@ -143,7 +143,6 @@ pub mod analysis_transform {
 /// Vector3DでのAnalysisTransformVector3D実装（geo_foundation統一トレイト）
 impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
     type Matrix4x4 = Matrix4x4<T>;
-    type Vector3D = Vector3D<T>;
     type Angle = Angle<T>;
     type Output = Self;
 
@@ -153,10 +152,12 @@ impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
 
     fn rotate_vector_analysis(
         &self,
-        axis: &Vector3D<T>,
+        axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
-        let matrix = analysis_transform::rotation_matrix_3d(axis, angle)?;
+        // Vector3からVector3Dへの変換
+        let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
+        let matrix = analysis_transform::rotation_matrix_3d(&axis_vector3d, angle)?;
         Ok(self.transform_vector_matrix(&matrix))
     }
 
@@ -177,19 +178,30 @@ impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
 
     fn apply_vector_composite_transform(
         &self,
-        rotation: Option<(&Vector3D<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, Angle<T>)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
-        let matrix = analysis_transform::composite_vector_transform_3d(rotation, scale)?;
+        // Vector3からVector3Dへの変換（所有権の問題を回避）
+        let rotation_vector3d =
+            rotation.map(|(axis, angle)| (Vector3D::new(axis.x(), axis.y(), axis.z()), angle));
+        let rotation_ref = rotation_vector3d.as_ref().map(|(v, a)| (v, *a));
+
+        let matrix = analysis_transform::composite_vector_transform_3d(rotation_ref, scale)?;
         Ok(self.transform_vector_matrix(&matrix))
     }
 
     fn apply_vector_composite_transform_uniform(
         &self,
-        rotation: Option<(&Vector3D<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, Angle<T>)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
-        let matrix = analysis_transform::composite_vector_transform_uniform_3d(rotation, scale)?;
+        // Vector3からVector3Dへの変換（所有権の問題を回避）
+        let rotation_vector3d =
+            rotation.map(|(axis, angle)| (Vector3D::new(axis.x(), axis.y(), axis.z()), angle));
+        let rotation_ref = rotation_vector3d.as_ref().map(|(v, a)| (v, *a));
+
+        let matrix =
+            analysis_transform::composite_vector_transform_uniform_3d(rotation_ref, scale)?;
         Ok(self.transform_vector_matrix(&matrix))
     }
 

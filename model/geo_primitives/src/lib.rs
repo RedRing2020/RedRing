@@ -200,6 +200,7 @@ pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
 pub mod line_segment_2d_transform_safe; // LineSegment2D の安全な変換機能 (Safe Transform)
 pub mod point_2d; // Point2D の新実装
+pub mod point_2d_analysis_transform; // Point2D の Analysis Matrix3x3 統合変換
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
 pub mod point_2d_transform_safe; // Point2D の安全な変換機能 (Safe Transform)
@@ -210,6 +211,7 @@ pub mod ray_2d_transform_safe; // Ray2D の安全な変換機能 (Safe Transform
 
 // Vector2D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_2d; // Vector2D の新実装 (Core)
+pub mod vector_2d_analysis_transform; // Vector2D の Analysis Matrix3x3 統合変換
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 pub mod vector_2d_transform; // Vector2D の変換機能 (Transform)
 pub mod vector_2d_transform_safe; // Vector2D の安全な変換機能 (Safe Transform)

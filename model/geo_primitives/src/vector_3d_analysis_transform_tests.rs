@@ -38,7 +38,8 @@ mod tests {
     #[test]
     fn test_vector_rotation_analysis() {
         let vector = Vector3D::new(1.0, 0.0, 0.0);
-        let axis = Vector3D::new(0.0, 0.0, 1.0); // Z軸周り
+        let axis_vector3d = Vector3D::new(0.0, 0.0, 1.0); // Z軸周り
+        let axis: analysis::linalg::vector::Vector3<f64> = axis_vector3d.into();
         let angle = Angle::from_degrees(90.0); // 90度回転
 
         let rotated = vector.rotate_vector_analysis(&axis, angle).unwrap();
@@ -71,7 +72,8 @@ mod tests {
     #[test]
     fn test_vector_composite_transform() {
         let vector = Vector3D::new(1.0, 0.0, 0.0);
-        let axis = Vector3D::new(0.0, 0.0, 1.0);
+        let axis_vector3d = Vector3D::new(0.0, 0.0, 1.0);
+        let axis: analysis::linalg::vector::Vector3<f64> = axis_vector3d.into();
         let angle = Angle::from_radians(PI / 2.0); // 90度
 
         // 回転+スケールの複合変換
@@ -91,7 +93,8 @@ mod tests {
     #[test]
     fn test_vector_composite_uniform_transform() {
         let vector = Vector3D::new(1.0, 1.0, 0.0);
-        let axis = Vector3D::new(0.0, 0.0, 1.0);
+        let axis_vector3d = Vector3D::new(0.0, 0.0, 1.0);
+        let axis: analysis::linalg::vector::Vector3<f64> = axis_vector3d.into();
         let angle = Angle::from_degrees(45.0); // 45度回転
 
         let transformed = vector
@@ -128,7 +131,8 @@ mod tests {
     #[test]
     fn test_error_zero_axis_rotation() {
         let vector = Vector3D::new(1.0, 0.0, 0.0);
-        let zero_axis = Vector3D::new(0.0, 0.0, 0.0);
+        let zero_axis_vector3d = Vector3D::new(0.0, 0.0, 0.0);
+        let zero_axis: analysis::linalg::vector::Vector3<f64> = zero_axis_vector3d.into();
         let angle = Angle::from_degrees(90.0);
 
         let result = vector.rotate_vector_analysis(&zero_axis, angle);

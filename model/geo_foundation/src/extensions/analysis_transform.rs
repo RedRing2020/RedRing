@@ -4,6 +4,7 @@
 //! geo_nurbsのmatrix_transformパターンを基盤とする統一実装
 
 use crate::Scalar;
+use analysis::linalg::vector::{Vector2, Vector3};
 
 /// 3D Analysis Matrix変換トレイト（座標点用）
 ///
@@ -12,8 +13,6 @@ use crate::Scalar;
 pub trait AnalysisTransform3D<T: Scalar> {
     /// Matrix4x4型（analysis::linalg::matrix::Matrix4x4）
     type Matrix4x4;
-    /// Vector3D型（実装依存）
-    type Vector3D;
     /// Angle型（geo_foundation::Angle）
     type Angle;
     /// 変換結果型（通常はSelf）
@@ -22,10 +21,10 @@ pub trait AnalysisTransform3D<T: Scalar> {
     /// Matrix4x4による直接座標変換（平行移動、回転、スケール全て適用）
     fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
 
-    /// 平行移動変換（Analysis Vector使用）
+    /// 平行移動変換（Analysis Vector3使用）
     fn translate_analysis(
         &self,
-        translation: &Self::Vector3D,
+        translation: &Vector3<T>,
     ) -> Result<Self::Output, crate::TransformError>
     where
         Self: Sized;
@@ -34,7 +33,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
     fn rotate_analysis(
         &self,
         center: &Self,
-        axis: &Self::Vector3D,
+        axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, crate::TransformError>
     where
@@ -63,8 +62,8 @@ pub trait AnalysisTransform3D<T: Scalar> {
     /// 複合変換（平行移動+回転+スケール）
     fn apply_composite_transform(
         &self,
-        translation: Option<&Self::Vector3D>,
-        rotation: Option<(&Self, &Self::Vector3D, Self::Angle)>,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, crate::TransformError>
     where
@@ -73,8 +72,8 @@ pub trait AnalysisTransform3D<T: Scalar> {
     /// 複合変換（均等スケール版）
     fn apply_composite_transform_uniform(
         &self,
-        translation: Option<&Self::Vector3D>,
-        rotation: Option<(&Self, &Self::Vector3D, Self::Angle)>,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, crate::TransformError>
     where
@@ -88,8 +87,6 @@ pub trait AnalysisTransform3D<T: Scalar> {
 pub trait AnalysisTransformVector3D<T: Scalar> {
     /// Matrix4x4型（analysis::linalg::matrix::Matrix4x4）
     type Matrix4x4;
-    /// Vector3D型（実装依存）  
-    type Vector3D;
     /// Angle型（geo_foundation::Angle）
     type Angle;
     /// 変換結果型（通常はSelf）
@@ -101,7 +98,7 @@ pub trait AnalysisTransformVector3D<T: Scalar> {
     /// 軸回転変換（方向ベクトル用、中心点不要）
     fn rotate_vector_analysis(
         &self,
-        axis: &Self::Vector3D,
+        axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, crate::TransformError>
     where
@@ -128,7 +125,7 @@ pub trait AnalysisTransformVector3D<T: Scalar> {
     /// 複合変換（回転+スケール、方向ベクトル用）
     fn apply_vector_composite_transform(
         &self,
-        rotation: Option<(&Self::Vector3D, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, crate::TransformError>
     where
@@ -137,7 +134,7 @@ pub trait AnalysisTransformVector3D<T: Scalar> {
     /// 複合変換（回転+均等スケール、方向ベクトル用）
     fn apply_vector_composite_transform_uniform(
         &self,
-        rotation: Option<(&Self::Vector3D, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, crate::TransformError>
     where
@@ -155,8 +152,6 @@ pub trait AnalysisTransformVector3D<T: Scalar> {
 pub trait AnalysisTransform2D<T: Scalar> {
     /// Matrix3x3型（analysis::linalg::matrix::Matrix3x3）
     type Matrix3x3;
-    /// Vector2D型（実装依存）
-    type Vector2D;
     /// Angle型（geo_foundation::Angle）
     type Angle;
     /// 変換結果型（通常はSelf）
@@ -165,10 +160,10 @@ pub trait AnalysisTransform2D<T: Scalar> {
     /// Matrix3x3による直接座標変換（2D用）
     fn transform_point_matrix_2d(&self, matrix: &Self::Matrix3x3) -> Self::Output;
 
-    /// 平行移動変換（2D用）
+    /// 平行移動変換（2D用、Analysis Vector2使用）
     fn translate_analysis_2d(
         &self,
-        translation: &Self::Vector2D,
+        translation: &Vector2<T>,
     ) -> Result<Self::Output, crate::TransformError>
     where
         Self: Sized;
@@ -208,8 +203,6 @@ pub trait AnalysisTransform2D<T: Scalar> {
 pub trait AnalysisTransformVector2D<T: Scalar> {
     /// Matrix3x3型（analysis::linalg::matrix::Matrix3x3）
     type Matrix3x3;
-    /// Vector2D型（実装依存）
-    type Vector2D;
     /// Angle型（geo_foundation::Angle）
     type Angle;
     /// 変換結果型（通常はSelf）
@@ -245,6 +238,14 @@ pub trait AnalysisTransformVector2D<T: Scalar> {
 
     /// 2D Analysis Vector正規化
     fn normalize_analysis_2d(&self) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// Analysis Vector2への変換
+    fn to_analysis_vector_2d(&self) -> Vector2<T>;
+
+    /// Analysis Vector2からの変換
+    fn from_analysis_vector_2d(analysis_vector: &Vector2<T>) -> Self
     where
         Self: Sized;
 }

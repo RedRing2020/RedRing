@@ -182,7 +182,6 @@ pub mod analysis_transform {
 /// Point3DでのAnalysisTransform3D実装（geo_foundation統一トレイト）
 impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
     type Matrix4x4 = Matrix4x4<T>;
-    type Vector3D = Vector3D<T>;
     type Angle = Angle<T>;
     type Output = Self;
 
@@ -190,18 +189,22 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
         analysis_transform::transform_point_3d(self, matrix)
     }
 
-    fn translate_analysis(&self, translation: &Vector3D<T>) -> Result<Self, TransformError> {
-        let matrix = analysis_transform::translation_matrix_3d(translation);
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self, TransformError> {
+        // Vector3からVector3Dへの変換
+        let vector3d = Vector3D::new(translation.x(), translation.y(), translation.z());
+        let matrix = analysis_transform::translation_matrix_3d(&vector3d);
         Ok(self.transform_point_matrix(&matrix))
     }
 
     fn rotate_analysis(
         &self,
         center: &Self,
-        axis: &Vector3D<T>,
+        axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
-        let matrix = analysis_transform::rotation_matrix_3d(center, axis, angle)?;
+        // Vector3からVector3Dへの変換
+        let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
+        let matrix = analysis_transform::rotation_matrix_3d(center, &axis_vector3d, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -227,23 +230,43 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
 
     fn apply_composite_transform(
         &self,
-        translation: Option<&Vector3D<T>>,
-        rotation: Option<(&Self, &Vector3D<T>, Angle<T>)>,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
-        let matrix =
-            analysis_transform::composite_point_transform_3d(translation, rotation, scale)?;
+        // Vector3をVector3Dに変換（所有権の問題を回避）
+        let translation_vector3d = translation.map(|t| Vector3D::new(t.x(), t.y(), t.z()));
+        let rotation_adapted = rotation.map(|(center, axis, angle)| {
+            (center, Vector3D::new(axis.x(), axis.y(), axis.z()), angle)
+        });
+        let rotation_ref = rotation_adapted.as_ref().map(|(c, v, a)| (*c, v, *a));
+
+        let matrix = analysis_transform::composite_point_transform_3d(
+            translation_vector3d.as_ref(),
+            rotation_ref,
+            scale,
+        )?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     fn apply_composite_transform_uniform(
         &self,
-        translation: Option<&Vector3D<T>>,
-        rotation: Option<(&Self, &Vector3D<T>, Angle<T>)>,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
-        let matrix =
-            analysis_transform::composite_point_transform_uniform_3d(translation, rotation, scale)?;
+        // Vector3をVector3Dに変換（所有権の問題を回避）
+        let translation_vector3d = translation.map(|t| Vector3D::new(t.x(), t.y(), t.z()));
+        let rotation_adapted = rotation.map(|(center, axis, angle)| {
+            (center, Vector3D::new(axis.x(), axis.y(), axis.z()), angle)
+        });
+        let rotation_ref = rotation_adapted.as_ref().map(|(c, v, a)| (*c, v, *a));
+
+        let matrix = analysis_transform::composite_point_transform_uniform_3d(
+            translation_vector3d.as_ref(),
+            rotation_ref,
+            scale,
+        )?;
         Ok(self.transform_point_matrix(&matrix))
     }
 }
@@ -255,7 +278,8 @@ mod tests {
     #[test]
     fn test_analysis_translation() {
         let point = Point3D::new(1.0, 2.0, 3.0);
-        let translation = Vector3D::new(1.0, 1.0, 1.0);
+        let translation_vector3d = Vector3D::new(1.0, 1.0, 1.0);
+        let translation: Vector3<f64> = translation_vector3d.into();
 
         let result = point.translate_analysis(&translation).unwrap();
         assert_eq!(result, Point3D::new(2.0, 3.0, 4.0));
@@ -265,7 +289,8 @@ mod tests {
     fn test_analysis_rotation() {
         let point = Point3D::new(1.0, 0.0, 0.0);
         let center = Point3D::origin();
-        let axis = Vector3D::new(0.0, 0.0, 1.0); // Z軸
+        let axis_vector3d = Vector3D::new(0.0, 0.0, 1.0); // Z軸
+        let axis: Vector3<f64> = axis_vector3d.into();
         let angle = Angle::from_radians(std::f64::consts::PI / 2.0); // 90度
 
         let result = point.rotate_analysis(&center, &axis, angle).unwrap();
@@ -289,9 +314,11 @@ mod tests {
     #[test]
     fn test_composite_transform() {
         let point = Point3D::new(1.0, 0.0, 0.0);
-        let translation = Vector3D::new(1.0, 1.0, 1.0);
+        let translation_vector3d = Vector3D::new(1.0, 1.0, 1.0);
+        let translation: Vector3<f64> = translation_vector3d.into();
         let center = Point3D::origin();
-        let axis = Vector3D::new(0.0, 0.0, 1.0);
+        let axis_vector3d = Vector3D::new(0.0, 0.0, 1.0);
+        let axis: Vector3<f64> = axis_vector3d.into();
         let angle = Angle::from_radians(std::f64::consts::PI / 2.0);
         let scale = (2.0, 2.0, 2.0); // 個別スケール値
 
@@ -336,7 +363,8 @@ mod tests {
         let center = Point3D::origin();
 
         // ゼロベクトル軸での回転
-        let zero_axis = Vector3D::new(0.0, 0.0, 0.0);
+        let zero_axis_vector3d = Vector3D::new(0.0, 0.0, 0.0);
+        let zero_axis: Vector3<f64> = zero_axis_vector3d.into();
         let angle = Angle::from_radians(1.0);
         assert!(point.rotate_analysis(&center, &zero_axis, angle).is_err());
 
