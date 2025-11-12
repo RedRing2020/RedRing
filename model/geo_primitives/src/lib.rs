@@ -98,6 +98,7 @@ pub mod plane_coordinate_system_transform; // Plane3DCoordinateSystem の変換�
 #[cfg(test)]
 pub mod plane_coordinate_system_transform_tests; // Plane3DCoordinateSystem の変換テスト
 pub mod point_3d; // Point3D の新実装 (Core)
+pub mod point_3d_analysis_transform; // Point3D の Analysis Matrix/Vector 統合変換
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
