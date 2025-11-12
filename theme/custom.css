@@ -1,0 +1,106 @@
+/* RedRing Documentation Custom Styles */
+
+/* メインカラーパレット */
+:root {
+    --redring-primary: #3B82F6;
+    --redring-secondary: #1E40AF;
+    --redring-accent: #F59E0B;
+    --redring-background: #F8FAFC;
+    --redring-surface: #FFFFFF;
+    --redring-text: #1F2937;
+    --redring-text-light: #6B7280;
+}
+
+/* グラデーション背景 */
+.sidebar {
+    background: linear-gradient(135deg, var(--redring-primary) 0%, var(--redring-secondary) 100%);
+}
+
+/* ナビゲーションスタイリング */
+.sidebar-scrollbox {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    margin: 10px;
+    padding: 10px;
+}
+
+/* コードブロックスタイリング */
+pre {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: 8px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* タイトルスタイリング */
+.book-title {
+    color: white !important;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* リンクのホバーエフェクト */
+.sidebar a:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+/* コンテンツエリアの調整 */
+.content {
+    background: var(--redring-background);
+}
+
+/* 見出しのスタイリング */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--redring-text);
+    font-weight: 600;
+}
+
+h1 {
+    border-bottom: 2px solid var(--redring-primary);
+    padding-bottom: 10px;
+}
+
+/* 強調テキスト */
+strong {
+    color: var(--redring-secondary);
+    font-weight: 600;
+}
+
+/* テーブルスタイリング */
+table {
+    border-collapse: collapse;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+table th {
+    background: var(--redring-primary);
+    color: white;
+    font-weight: 600;
+}
+
+table tr:nth-child(even) {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+/* 引用ブロック */
+blockquote {
+    border-left: 4px solid var(--redring-accent);
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    padding: 16px;
+}
+
+/* インラインコード */
+code {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--redring-secondary);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-weight: 500;
+}
