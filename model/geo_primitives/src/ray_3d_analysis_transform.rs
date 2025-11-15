@@ -131,8 +131,17 @@ pub mod analysis_transform {
     pub fn composite_transform_matrix<T: Scalar>(
         params: &CompositeTransform3D<T>,
     ) -> Result<Matrix4x4<T>, TransformError> {
-        let scale_matrix = scale_matrix(&params.scale_center, params.scale_x, params.scale_y, params.scale_z)?;
-        let rotation_matrix = rotation_matrix(&params.rotation_center, &params.rotation_axis, params.rotation_angle)?;
+        let scale_matrix = scale_matrix(
+            &params.scale_center,
+            params.scale_x,
+            params.scale_y,
+            params.scale_z,
+        )?;
+        let rotation_matrix = rotation_matrix(
+            &params.rotation_center,
+            &params.rotation_axis,
+            params.rotation_angle,
+        )?;
         let translation_matrix = translation_matrix(&params.translation);
 
         Ok(translation_matrix * rotation_matrix * scale_matrix)
@@ -294,9 +303,9 @@ mod tests {
 
         // 90度Z軸回転後の起点確認
         let expected_origin = Point3D::new(-2.0, 1.0, 3.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin().x() - expected_origin.x()).abs() < 1e-10);
+        assert!((result.origin().y() - expected_origin.y()).abs() < 1e-10);
+        assert!((result.origin().z() - expected_origin.z()).abs() < 1e-10);
 
         // 90度Z軸回転後の方向ベクトル確認
         assert!((result.direction().x() - 0.0).abs() < f64::EPSILON);

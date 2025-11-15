@@ -129,8 +129,17 @@ pub mod analysis_transform {
     pub fn composite_transform_matrix<T: Scalar>(
         params: &CompositeTransform3D<T>,
     ) -> Result<Matrix4x4<T>, TransformError> {
-        let scale_matrix = scale_matrix(&params.scale_center, params.scale_x, params.scale_y, params.scale_z)?;
-        let rotation_matrix = rotation_matrix(&params.rotation_center, &params.rotation_axis, params.rotation_angle)?;
+        let scale_matrix = scale_matrix(
+            &params.scale_center,
+            params.scale_x,
+            params.scale_y,
+            params.scale_z,
+        )?;
+        let rotation_matrix = rotation_matrix(
+            &params.rotation_center,
+            &params.rotation_axis,
+            params.rotation_angle,
+        )?;
         let translation_matrix = translation_matrix(&params.translation);
 
         Ok(translation_matrix * rotation_matrix * scale_matrix)

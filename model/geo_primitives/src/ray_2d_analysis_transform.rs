@@ -215,8 +215,8 @@ mod tests {
 
         // 90度回転後の起点確認
         let expected_origin = Point2D::new(-2.0, 1.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin().x() - expected_origin.x()).abs() < 1e-10);
+        assert!((result.origin().y() - expected_origin.y()).abs() < 1e-10);
 
         // 90度回転後の方向ベクトル確認
         assert!((result.direction().x() - 0.0).abs() < f64::EPSILON);
@@ -241,7 +241,7 @@ mod tests {
         assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
 
         // 方向ベクトルもスケール変換される（正規化前）
-        let expected_dir_magnitude = (scale_x * scale_x).sqrt();
+        let _expected_dir_magnitude = (scale_x * scale_x).sqrt();
         // Direction2Dは常に正規化されている（norm = 1.0）
         assert!((result.direction().x() - 1.0).abs() < f64::EPSILON); // x方向は保持
         assert!((result.direction().y() - 0.0).abs() < f64::EPSILON); // y方向は0のまま

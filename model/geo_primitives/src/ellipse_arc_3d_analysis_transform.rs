@@ -376,15 +376,27 @@ mod tests {
 
         // ゼロスケールのテスト
         let result_x = arc.scale_analysis(&arc, 0.0, 2.0, 1.0);
-        assert!(matches!(result_x, Err(TransformError::ZeroVector(_))));
+        assert!(matches!(
+            result_x,
+            Err(TransformError::InvalidScaleFactor(_))
+        ));
 
         let result_y = arc.scale_analysis(&arc, 2.0, 0.0, 1.0);
-        assert!(matches!(result_y, Err(TransformError::ZeroVector(_))));
+        assert!(matches!(
+            result_y,
+            Err(TransformError::InvalidScaleFactor(_))
+        ));
 
         let result_z = arc.scale_analysis(&arc, 2.0, 1.0, 0.0);
-        assert!(matches!(result_z, Err(TransformError::ZeroVector(_))));
+        assert!(matches!(
+            result_z,
+            Err(TransformError::InvalidScaleFactor(_))
+        ));
 
         let result_uniform = arc.uniform_scale_analysis(&arc, 0.0);
-        assert!(matches!(result_uniform, Err(TransformError::ZeroVector(_))));
+        assert!(matches!(
+            result_uniform,
+            Err(TransformError::InvalidScaleFactor(_))
+        ));
     }
 }

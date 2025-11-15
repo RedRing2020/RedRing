@@ -300,11 +300,11 @@ mod tests {
     fn test_analysis_composite_transform() {
         let circle = Circle2D::new(Point2D::new(1.0_f64, 1.0), 2.0).unwrap();
 
-        let translation = Vector2D::new(3.0_f64, 4.0);
-        let rotation_center = Point2D::<f64>::origin();
-        let rotation_angle = Angle::from_degrees(90.0_f64);
-        let scale_center = Point2D::<f64>::origin();
-        let scale_factor = 2.0_f64;
+        let _translation = Vector2D::new(3.0_f64, 4.0);
+        let _rotation_center = Point2D::<f64>::origin();
+        let _rotation_angle = Angle::from_degrees(90.0_f64);
+        let _scale_center = Point2D::<f64>::origin();
+        let _scale_factor = 2.0_f64;
 
         // Matrix変換で複合変換をシミュレート
         // 平行移動 + スケールの組み合わせを使用
@@ -318,8 +318,8 @@ mod tests {
         // 複合変換: スケール -> 平行移動
         // 最終結果の検証
         assert!(transformed.radius() > 0.0);
-        assert!(!(transformed.center().x() as f64).is_nan());
-        assert!(!(transformed.center().y() as f64).is_nan());
+        assert!(!transformed.center().x().is_nan());
+        assert!(!transformed.center().y().is_nan());
     }
 
     #[test]
