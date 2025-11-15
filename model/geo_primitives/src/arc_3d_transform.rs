@@ -30,7 +30,7 @@ pub mod analysis_transform {
         let normal_vec = arc.normal().as_vector();
         let transformed_normal_vec = matrix.transform_vector_3d(&Vector3::new(
             normal_vec.x(),
-            normal_vec.y(), 
+            normal_vec.y(),
             normal_vec.z(),
         ));
         let transformed_normal = Direction3D::from_vector(crate::Vector3D::new(

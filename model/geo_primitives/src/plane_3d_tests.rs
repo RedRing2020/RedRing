@@ -1,6 +1,6 @@
 //! Plane3D テストファイル
 
-use crate::{Plane3D, Point3D, Vector3D};
+use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 
 #[cfg(test)]
 mod tests {
@@ -77,18 +77,27 @@ mod tests {
     fn test_coordinate_planes() {
         // XY平面
         let xy_plane = Plane3D::xy_plane(5.0);
-        assert_eq!(xy_plane.point(), Point3D::new(0.0, 0.0, 5.0));
-        assert_eq!(xy_plane.normal(), Vector3D::unit_z());
+        assert_eq!(xy_plane.origin(), Point3D::new(0.0, 0.0, 5.0));
+        assert_eq!(
+            xy_plane.normal(),
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap()
+        );
 
         // XZ平面
         let xz_plane = Plane3D::xz_plane(3.0);
-        assert_eq!(xz_plane.point(), Point3D::new(0.0, 3.0, 0.0));
-        assert_eq!(xz_plane.normal(), Vector3D::unit_y());
+        assert_eq!(xz_plane.origin(), Point3D::new(0.0, 3.0, 0.0));
+        assert_eq!(
+            xz_plane.normal(),
+            Direction3D::from_vector(Vector3D::unit_y()).unwrap()
+        );
 
         // YZ平面
         let yz_plane = Plane3D::yz_plane(2.0);
-        assert_eq!(yz_plane.point(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(yz_plane.normal(), Vector3D::unit_x());
+        assert_eq!(yz_plane.origin(), Point3D::new(2.0, 0.0, 0.0));
+        assert_eq!(
+            yz_plane.normal(),
+            Direction3D::from_vector(Vector3D::unit_x()).unwrap()
+        );
     }
 
     // ========================================================================
@@ -186,15 +195,21 @@ mod tests {
     #[test]
     fn test_default() {
         let plane = Plane3D::<f64>::default();
-        assert_eq!(plane.point(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(plane.normal(), Vector3D::unit_z());
+        assert_eq!(plane.origin(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(
+            plane.normal(),
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap()
+        );
     }
 
     #[test]
     fn test_xy_constant() {
         let plane = Plane3D::<f64>::xy();
-        assert_eq!(plane.point(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(plane.normal(), Vector3D::unit_z());
+        assert_eq!(plane.origin(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(
+            plane.normal(),
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap()
+        );
     }
 
     // ========================================================================
@@ -207,7 +222,7 @@ mod tests {
         let display_str = format!("{}", plane);
 
         assert!(display_str.contains("Plane3D"));
-        assert!(display_str.contains("point"));
+        assert!(display_str.contains("origin"));
         assert!(display_str.contains("normal"));
     }
 }

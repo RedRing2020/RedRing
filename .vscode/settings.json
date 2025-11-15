@@ -213,8 +213,6 @@
   "rust-analyzer.cargo.loadOutDirsFromCheck": true,
   "rust-analyzer.experimental.procAttrMacros": true,
 
-
-
   // === Documentation ===
   "rust-analyzer.hover.documentation.enable": true,
   "rust-analyzer.hover.actions.enable": true,
@@ -225,4 +223,3 @@
   "debug.allowBreakpointsEverywhere": true,
   "debug.showInStatusBar": "onFirstSessionStart"
 }
-

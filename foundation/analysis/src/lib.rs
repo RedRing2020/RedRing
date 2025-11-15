@@ -6,6 +6,7 @@
 pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance等）
 pub mod consts;
 pub mod curves; // 曲線・NURBS数値計算
+pub mod geometry; // 純粋数学的幾何図形
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
 
 // 新しい分類構造
@@ -23,6 +24,8 @@ pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
 
 // 線形代数の再エクスポート
 pub use linalg::matrix::{Matrix3x3, Matrix4x4};
+pub use linalg::point2::{Coordinates2D, Point2};
+pub use linalg::point3::{Coordinates3D, Point3};
 pub use linalg::vector::{Vector2, Vector3, Vector4};
 
 // 定数の再エクスポート

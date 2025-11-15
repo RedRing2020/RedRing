@@ -57,9 +57,7 @@ pub mod plane_3d_foundation; // Plane3D のFoundation実装
                              // pub mod plane_3d_intersection; // 一時的にコメントアウト（機能過多）
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
-                        // pub mod plane_coordinate_system; // STEP準拠の座標系付き平面（Core） - 依存関係エラーのため一時無効化
-                        // pub mod plane_coordinate_system_foundation; // Plane3DCoordinateSystem のFoundation実装 - Plane3DCoordinateSystem依存のため一時無効化
-                        // pub mod plane_coordinate_system_tests; // Plane3DCoordinateSystem のテスト - Plane3DCoordinateSystem依存のため一時無効化
+                        // 削除: plane_coordinate_systemはPlane3Dに統合済み
 pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
@@ -221,7 +219,7 @@ pub use ellipsoidal_surface_3d::EllipsoidalSurface3D; // 3D楕円体サーフェ
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use plane_3d::Plane3D;
-// pub use plane_coordinate_system::Plane3DCoordinateSystem; // 一時無効化
+// 削除: Plane3DCoordinateSystemはPlane3Dに統合済み
 pub use crate::point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド

@@ -38,9 +38,21 @@ pub mod analysis_transform {
         let transformed_vb = matrix.transform_point_3d(&vb_vec);
         let transformed_vc = matrix.transform_point_3d(&vc_vec);
 
-        let new_va = Point3D::from_vector(Vector3D::new(transformed_va.x(), transformed_va.y(), transformed_va.z()));
-        let new_vb = Point3D::from_vector(Vector3D::new(transformed_vb.x(), transformed_vb.y(), transformed_vb.z()));
-        let new_vc = Point3D::from_vector(Vector3D::new(transformed_vc.x(), transformed_vc.y(), transformed_vc.z()));
+        let new_va = Point3D::from_vector(Vector3D::new(
+            transformed_va.x(),
+            transformed_va.y(),
+            transformed_va.z(),
+        ));
+        let new_vb = Point3D::from_vector(Vector3D::new(
+            transformed_vb.x(),
+            transformed_vb.y(),
+            transformed_vb.z(),
+        ));
+        let new_vc = Point3D::from_vector(Vector3D::new(
+            transformed_vc.x(),
+            transformed_vc.y(),
+            transformed_vc.z(),
+        ));
 
         Triangle3D::new(new_va, new_vb, new_vc).unwrap()
     }
