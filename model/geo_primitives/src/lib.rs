@@ -20,6 +20,7 @@ pub mod bbox_3d_foundation; // BBox3D のFoundation実装
 pub mod bbox_3d_transform; // BBox3D の変換機能 (Transform)
 pub mod bbox_3d_transform_safe; // BBox3D の安全な変換機能 (Safe Transform)
 pub mod circle_3d; // Circle3D の新実装
+pub mod circle_3d_analysis_transform; // Circle3D のAnalysis Transform実装
 pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
 pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_tests; // Circle3D のテスト
@@ -77,6 +78,7 @@ pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extensio
 pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
 pub mod infinite_line_3d_transform_safe; // InfiniteLine3D の安全な変換機能 (Safe Transform)
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
+pub mod line_segment_3d_analysis_transform; // LineSegment3D の Analysis Matrix/Vector 統合変換
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機能 (Safe Transform)
@@ -127,7 +129,9 @@ pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
 pub mod torus_surface_3d_transform; // TorusSurface3D の変換機能 (Transform)
 pub mod torus_surface_3d_transform_safe; // TorusSurface3D の安全な変換機能 (Safe Transform)
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
+pub mod triangle_3d_analysis_transform; // Triangle3D のAnalysis Transform実装
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
+pub mod triangle_3d_transform; // Triangle3D の変換機能 (Transform)
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 
@@ -178,6 +182,7 @@ pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod bbox_2d_transform; // BBox2D の変換機能 (Transform)
 pub mod bbox_2d_transform_safe; // BBox2D の安全な変換機能 (Safe Transform)
 pub mod circle_2d; // Circle2D の新実装 (Core)
+pub mod circle_2d_analysis_transform; // Circle2D の Analysis Matrix/Vector 統合変換
 pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod circle_2d_transform; // Circle2D の変換機能 (Transform)
 pub mod circle_2d_transform_safe; // Circle2D の安全な変換機能 (Safe Transform)
@@ -196,6 +201,7 @@ pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extensio
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
 pub mod infinite_line_2d_transform_safe; // InfiniteLine2D の安全な変換機能 (Safe Transform)
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
+pub mod line_segment_2d_analysis_transform; // LineSegment2D の Analysis Matrix/Vector 統合変換
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_transform; // LineSegment2D の変換機能 (Transform)
 pub mod line_segment_2d_transform_safe; // LineSegment2D の安全な変換機能 (Safe Transform)
@@ -208,6 +214,9 @@ pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
 pub mod ray_2d_transform_safe; // Ray2D の安全な変換機能 (Safe Transform)
+pub mod triangle_2d; // Triangle2D の新実装 (Core)
+pub mod triangle_2d_analysis_transform; // Triangle2D のAnalysis Transform実装
+pub mod triangle_2d_transform; // Triangle2D の変換機能 (Transform)
 
 // Vector2D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_2d; // Vector2D の新実装 (Core)
@@ -322,6 +331,7 @@ pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
 pub use point_2d::Point2D;
 pub use ray_2d::Ray2D;
+pub use triangle_2d::Triangle2D;
 pub use vector_2d::Vector2D;
 
 // ============================================================================

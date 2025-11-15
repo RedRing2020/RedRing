@@ -1,7 +1,7 @@
-//! LineSegment3D Transform実装
+//! LineSegment3D変換操作統一Foundation実装
 //!
-//! geo_foundation::extensions::BasicTransformトレイトの実装
-//! Core/Extension分離パターンに従った変換機能の実装
+//! 統一Transform Foundation システムによる変換操作
+//! Analysis Matrix4x4による2端点一括変換最適化
 
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_foundation::{extensions::BasicTransform, Angle, Scalar};
