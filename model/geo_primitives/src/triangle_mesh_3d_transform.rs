@@ -18,7 +18,7 @@ pub mod analysis_transform {
     ) -> TriangleMesh3D<T> {
         // 頂点の変換
         let mut transformed_vertices = Vec::with_capacity(mesh.vertices().len());
-        
+
         for vertex in mesh.vertices() {
             // geo_primitives::Point3D → analysis::Vector3 → 変換 → geo_primitives::Point3D
             let vertex_vec = vertex.to_analysis_vector3();
@@ -62,7 +62,10 @@ pub mod analysis_transform {
         }
 
         let normalized_axis = axis.normalize().map_err(TransformError::ZeroVector)?;
-        Ok(Matrix4x4::rotation_axis(&normalized_axis, angle.to_radians()))
+        Ok(Matrix4x4::rotation_axis(
+            &normalized_axis,
+            angle.to_radians(),
+        ))
     }
 
     /// スケール行列生成（中心点指定版）
@@ -140,7 +143,11 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
         Ok(self.transform_point_matrix(&matrix))
     }
 
-    fn uniform_scale_analysis(&self, center: &Self, scale_factor: T) -> Result<Self, TransformError> {
+    fn uniform_scale_analysis(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
     }
 
@@ -151,22 +158,22 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
         let mut result = self.clone();
-        
+
         // 平行移動
         if let Some(trans) = translation {
             result = result.translate_analysis(trans)?;
         }
-        
+
         // 回転
         if let Some((center, axis, angle)) = rotation {
             result = result.rotate_analysis(center, axis, angle)?;
         }
-        
+
         // スケール
         if let Some((sx, sy, sz)) = scale {
             result = result.scale_analysis(&result, sx, sy, sz)?;
         }
-        
+
         Ok(result)
     }
 
@@ -212,7 +219,7 @@ mod tests {
         assert_relative_eq!(vertices[0].x(), 2.0); // 0.0 + 2.0
         assert_relative_eq!(vertices[0].y(), 3.0); // 0.0 + 3.0
         assert_relative_eq!(vertices[0].z(), 4.0); // 0.0 + 4.0
-        
+
         assert_relative_eq!(vertices[1].x(), 3.0); // 1.0 + 2.0
         assert_relative_eq!(vertices[1].y(), 3.0); // 0.0 + 3.0
         assert_relative_eq!(vertices[1].z(), 4.0); // 0.0 + 4.0
