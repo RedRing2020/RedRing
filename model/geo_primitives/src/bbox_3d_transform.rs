@@ -1,91 +1,58 @@
-//! BBox3D変換操作統一Foundation実装
+//! BBox3D Analysis Matrix/Vector統合変換実装
 //!
-//! 統一Transform Foundation システムによる変換操作
-//! 3D境界ボックスの変換では、変換後の8つの頂点から新しい境界ボックスを再計算
+//! Analysis Matrix4x4を直接使用した効率的な3D境界ボックス変換
+//! Direction3D実装パターンを踏襲した統一設計
+//! BBox3Dの直方体構造を保持した変換処理
 
-use crate::{BBox3D, Point3D, Vector3D};
-use geo_foundation::{extensions::BasicTransform, Angle, Scalar};
+use crate::{BBox3D, Point3D};
+use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
+use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 
-// ============================================================================
-// BasicTransform Trait Implementation (統一Foundation)
-// ============================================================================
+/// BBox3D用Analysis Matrix4x4変換モジュール
+pub mod analysis_transform {
+    use super::*;
 
-impl<T: Scalar> BasicTransform<T> for BBox3D<T> {
-    type Transformed = BBox3D<T>;
-    type Vector2D = Vector3D<T>; // 3D用にVector3Dを使用
-    type Point2D = Point3D<T>; // 3D用にPoint3Dを使用
-    type Angle = Angle<T>;
+    /// BBox3Dの4x4行列変換（境界ボックス構造保持）
+    pub fn transform_bbox_3d<T: Scalar>(
+        bbox: &BBox3D<T>,
+        matrix: &Matrix4x4<T>,
+    ) -> Result<BBox3D<T>, TransformError> {
+        // 境界ボックスの8つの角点を変換
+        let min_point = bbox.min();
+        let max_point = bbox.max();
 
-    /// 平行移動
-    ///
-    /// # 引数
-    /// * `translation` - 移動ベクトル
-    ///
-    /// # 戻り値
-    /// 平行移動された新しい境界ボックス
-    fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        // 境界ボックスの平行移動は min と max を同じベクトルで移動
-        let new_min = self.min().translate(translation);
-        let new_max = self.max().translate(translation);
-        BBox3D::new(new_min, new_max)
+        // 8つの角点を定義（直方体の頂点）
+        let corners = [
+            min_point,                                                 // 左下手前
+            Point3D::new(max_point.x(), min_point.y(), min_point.z()), // 右下手前
+            Point3D::new(max_point.x(), max_point.y(), min_point.z()), // 右上手前
+            Point3D::new(min_point.x(), max_point.y(), min_point.z()), // 左上手前
+            Point3D::new(min_point.x(), min_point.y(), max_point.z()), // 左下奥
+            Point3D::new(max_point.x(), min_point.y(), max_point.z()), // 右下奥
+            max_point,                                                 // 右上奥
+            Point3D::new(min_point.x(), max_point.y(), max_point.z()), // 左上奥
+        ];
+
+        // 全ての角点を変換
+        let mut transformed_points = Vec::with_capacity(8);
+        for corner in &corners {
+            let corner_vec = Vector3::new(corner.x(), corner.y(), corner.z());
+            let transformed_vec = matrix.transform_point_3d(&corner_vec);
+            transformed_points.push(Point3D::new(
+                transformed_vec.x(),
+                transformed_vec.y(),
+                transformed_vec.z(),
+            ));
+        }
+
+        // 変換後の点群から新しい境界ボックスを生成
+        create_bbox_from_points(&transformed_points).ok_or_else(|| {
+            TransformError::InvalidGeometry("Failed to create transformed BBox3D".to_string())
+        })
     }
 
-    /// 指定中心での回転
-    ///
-    /// # 引数
-    /// * `center` - 回転中心点
-    /// * `angle` - 回転角度
-    ///
-    /// # 戻り値
-    /// 回転後の新しい境界ボックス（8つの頂点を回転させて再計算）
-    fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
-        // 境界ボックスの8つの頂点を取得
-        let vertices = self.get_all_vertices();
-
-        // 各頂点を回転
-        let rotated_vertices: Vec<Point3D<T>> = vertices
-            .iter()
-            .map(|vertex| BasicTransform::rotate(vertex, center, angle))
-            .collect();
-
-        // 回転した頂点から新しい境界ボックスを構築
-        Self::from_transform_points(&rotated_vertices)
-            .expect("8つの頂点から境界ボックスが作成できないはずがない")
-    }
-
-    /// 指定中心でのスケール
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `factor` - スケール倍率
-    ///
-    /// # 戻り値
-    /// スケールされた新しい境界ボックス
-    fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed {
-        // 境界ボックスの8つの頂点をスケール
-        let vertices = self.get_all_vertices();
-
-        // 各頂点をスケール
-        let scaled_vertices: Vec<Point3D<T>> = vertices
-            .iter()
-            .map(|vertex| BasicTransform::scale(vertex, center, factor))
-            .collect();
-
-        // スケールした頂点から新しい境界ボックスを構築
-        Self::from_transform_points(&scaled_vertices)
-            .expect("8つの頂点から境界ボックスが作成できないはずがない")
-    }
-}
-
-// ============================================================================
-// Required implementations for BasicTransform
-// ============================================================================
-// 追加のヘルパーメソッド
-// ============================================================================
-
-impl<T: Scalar> BBox3D<T> {
-    /// 複数の点から境界ボックスを作成
-    fn from_transform_points(points: &[Point3D<T>]) -> Option<Self> {
+    /// 点群から境界ボックスを生成
+    fn create_bbox_from_points<T: Scalar>(points: &[Point3D<T>]) -> Option<BBox3D<T>> {
         if points.is_empty() {
             return None;
         }
@@ -106,190 +73,348 @@ impl<T: Scalar> BBox3D<T> {
             max_z = max_z.max(point.z());
         }
 
-        Some(Self::new(
+        Some(BBox3D::new(
             Point3D::new(min_x, min_y, min_z),
             Point3D::new(max_x, max_y, max_z),
         ))
     }
 
-    /// 境界ボックスの8つの頂点をすべて取得
-    pub fn get_all_vertices(&self) -> [Point3D<T>; 8] {
-        let min = self.min();
-        let max = self.max();
-
-        [
-            Point3D::from_vector(Vector3D::new(min.x(), min.y(), min.z())), // 前面左下
-            Point3D::from_vector(Vector3D::new(max.x(), min.y(), min.z())), // 前面右下
-            Point3D::from_vector(Vector3D::new(max.x(), max.y(), min.z())), // 前面右上
-            Point3D::from_vector(Vector3D::new(min.x(), max.y(), min.z())), // 前面左上
-            Point3D::from_vector(Vector3D::new(min.x(), min.y(), max.z())), // 背面左下
-            Point3D::from_vector(Vector3D::new(max.x(), min.y(), max.z())), // 背面右下
-            Point3D::from_vector(Vector3D::new(max.x(), max.y(), max.z())), // 背面右上
-            Point3D::from_vector(Vector3D::new(min.x(), max.y(), max.z())), // 背面左上
-        ]
-    }
-
-    /// 境界ボックスの体積を計算
-    pub fn volume(&self) -> T {
-        self.width() * self.height() * self.depth()
-    }
-
-    /// 境界ボックスを指定の比率でスケール拡張/縮小
-    ///
-    /// # 引数
-    /// * `factor` - 拡張倍率（1.0より大きいと拡張、小さいと縮小）
-    ///
-    /// # 戻り値
-    /// 拡張/縮小された新しい境界ボックス
-    pub fn scale_uniform(&self, factor: T) -> Self {
-        let center = self.center();
-        BasicTransform::scale(self, center, factor)
-    }
-
-    /// 境界ボックスを指定のマージンで拡張
-    ///
-    /// # 引数
-    /// * `margin` - 全方向への拡張マージン
-    ///
-    /// # 戻り値
-    /// マージンで拡張された新しい境界ボックス
-    pub fn expand_by_margin(&self, margin: T) -> Self {
-        BBox3D::new(
-            Point3D::new(
-                self.min().x() - margin,
-                self.min().y() - margin,
-                self.min().z() - margin,
-            ),
-            Point3D::new(
-                self.max().x() + margin,
-                self.max().y() + margin,
-                self.max().z() + margin,
-            ),
-        )
-    }
-
-    /// 境界ボックスを非等方でスケール
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `scale_x` - X軸方向のスケール倍率
-    /// * `scale_y` - Y軸方向のスケール倍率
-    /// * `scale_z` - Z軸方向のスケール倍率
-    ///
-    /// # 戻り値
-    /// 非等方スケールされた新しい境界ボックス
-    pub fn scale_non_uniform(
-        &self,
-        center: Point3D<T>,
-        scale_x: T,
-        scale_y: T,
-        scale_z: T,
-    ) -> Self {
-        let vertices = self.get_all_vertices();
-
-        // 各頂点を非等方スケール
-        let scaled_vertices: Vec<Point3D<T>> = vertices
+    /// 複数境界ボックスの一括4x4行列変換
+    pub fn transform_bboxes_3d<T: Scalar>(
+        bboxes: &[BBox3D<T>],
+        matrix: &Matrix4x4<T>,
+    ) -> Result<Vec<BBox3D<T>>, TransformError> {
+        bboxes
             .iter()
-            .map(|vertex| {
-                let dx = vertex.x() - center.x();
-                let dy = vertex.y() - center.y();
-                let dz = vertex.z() - center.z();
-                Point3D::new(
-                    center.x() + dx * scale_x,
-                    center.y() + dy * scale_y,
-                    center.z() + dz * scale_z,
-                )
-            })
-            .collect();
+            .map(|bbox| transform_bbox_3d(bbox, matrix))
+            .collect()
+    }
 
-        Self::from_transform_points(&scaled_vertices)
-            .expect("8つの頂点から境界ボックスが作成できないはずがない")
+    /// 平行移動行列生成（3D用）
+    pub fn translation_matrix_3d<T: Scalar>(dx: T, dy: T, dz: T) -> Matrix4x4<T> {
+        let translation = Vector3::new(dx, dy, dz);
+        Matrix4x4::translation_3d(&translation)
+    }
+
+    /// 軸回転行列生成（任意軸）
+    pub fn axis_rotation_matrix_3d<T: Scalar>(axis: &Vector3<T>, angle: Angle<T>) -> Matrix4x4<T> {
+        Matrix4x4::rotation_axis(axis, angle.to_radians())
+    }
+
+    /// スケール行列生成（3D用）
+    pub fn scale_matrix_3d<T: Scalar>(sx: T, sy: T, sz: T) -> Matrix4x4<T> {
+        let scale = Vector3::new(sx, sy, sz);
+        Matrix4x4::scale_3d(&scale)
     }
 }
 
 // ============================================================================
-// Tests Module
+// AnalysisTransform3D Implementation
+// ============================================================================
+
+impl<T: Scalar> AnalysisTransform3D<T> for BBox3D<T> {
+    type Matrix4x4 = Matrix4x4<T>;
+    type Angle = Angle<T>;
+    type Output = BBox3D<T>;
+
+    /// Matrix4x4による直接座標変換
+    fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output {
+        analysis_transform::transform_bbox_3d(self, matrix).unwrap_or_else(|_| *self)
+    }
+
+    /// 平行移動変換（Analysis Vector3使用）
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::translation_matrix_3d(
+            translation.x(),
+            translation.y(),
+            translation.z(),
+        );
+        analysis_transform::transform_bbox_3d(self, &matrix)
+    }
+
+    /// 軸回転変換（Analysis Matrix4x4使用）
+    fn rotate_analysis(
+        &self,
+        center: &Self,
+        axis: &Vector3<T>,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, TransformError> {
+        let center_point = center.center();
+        let to_origin = analysis_transform::translation_matrix_3d(
+            -center_point.x(),
+            -center_point.y(),
+            -center_point.z(),
+        );
+        let rotation = analysis_transform::axis_rotation_matrix_3d(axis, angle);
+        let from_origin = analysis_transform::translation_matrix_3d(
+            center_point.x(),
+            center_point.y(),
+            center_point.z(),
+        );
+
+        let combined_matrix = from_origin.mul_matrix(&rotation.mul_matrix(&to_origin));
+        analysis_transform::transform_bbox_3d(self, &combined_matrix)
+    }
+
+    /// スケール変換
+    fn scale_analysis(
+        &self,
+        center: &Self,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Self::Output, TransformError> {
+        if scale_x.is_zero() || scale_y.is_zero() || scale_z.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factors cannot be zero".to_string(),
+            ));
+        }
+
+        let center_point = center.center();
+        let to_origin = analysis_transform::translation_matrix_3d(
+            -center_point.x(),
+            -center_point.y(),
+            -center_point.z(),
+        );
+        let scale = analysis_transform::scale_matrix_3d(scale_x, scale_y, scale_z);
+        let from_origin = analysis_transform::translation_matrix_3d(
+            center_point.x(),
+            center_point.y(),
+            center_point.z(),
+        );
+
+        let combined_matrix = from_origin.mul_matrix(&scale.mul_matrix(&to_origin));
+        analysis_transform::transform_bbox_3d(self, &combined_matrix)
+    }
+
+    /// 均等スケール変換
+    fn uniform_scale_analysis(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, TransformError> {
+        self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
+    }
+
+    /// 複合変換（平行移動+回転+スケール）
+    fn apply_composite_transform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self::Output, TransformError> {
+        let mut result = *self;
+
+        // 平行移動
+        if let Some(trans) = translation {
+            result = result.translate_analysis(trans)?;
+        }
+
+        // 回転
+        if let Some((center, axis, angle)) = rotation {
+            result = result.rotate_analysis(center, axis, angle)?;
+        }
+
+        // スケール
+        if let Some((sx, sy, sz)) = scale {
+            let center = result; // 現在の境界ボックスを中心として使用
+            result = result.scale_analysis(&center, sx, sy, sz)?;
+        }
+
+        Ok(result)
+    }
+
+    /// 複合変換（均等スケール版）
+    fn apply_composite_transform_uniform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<T>,
+    ) -> Result<Self::Output, TransformError> {
+        let scale_tuple = scale.map(|s| (s, s, s));
+        self.apply_composite_transform(translation, rotation, scale_tuple)
+    }
+}
+
+// ============================================================================
+// Tests
 // ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Point3D;
 
-    #[test]
-    fn test_translate() {
-        let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 3.0, 4.0));
-        let translation = Vector3D::new(1.0, 2.0, 3.0);
-        let translated = bbox.translate(translation);
-
-        assert_eq!(translated.min(), Point3D::new(1.0, 2.0, 3.0));
-        assert_eq!(translated.max(), Point3D::new(3.0, 5.0, 7.0));
-        assert_eq!(translated.width(), bbox.width());
-        assert_eq!(translated.height(), bbox.height());
-        assert_eq!(translated.depth(), bbox.depth());
+    /// テスト用BBox3D生成
+    fn create_test_bbox() -> BBox3D<f64> {
+        BBox3D::new(Point3D::new(-1.0, -1.0, -1.0), Point3D::new(1.0, 1.0, 1.0))
     }
 
     #[test]
-    fn test_scale_from_origin() {
-        let bbox = BBox3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 4.0, 5.0));
-        let scaled = BasicTransform::scale(&bbox, Point3D::origin(), 2.0);
+    fn test_translation_analysis_transform() {
+        let bbox = create_test_bbox();
+        let translation = Vector3::new(2.0, 3.0, 4.0);
 
-        assert_eq!(scaled.min(), Point3D::new(2.0, 2.0, 2.0));
-        assert_eq!(scaled.max(), Point3D::new(6.0, 8.0, 10.0));
-        assert_eq!(scaled.width(), bbox.width() * 2.0);
-        assert_eq!(scaled.height(), bbox.height() * 2.0);
-        assert_eq!(scaled.depth(), bbox.depth() * 2.0);
+        let result = bbox.translate_analysis(&translation).unwrap();
+
+        assert_eq!(result.min().x(), 1.0);
+        assert_eq!(result.min().y(), 2.0);
+        assert_eq!(result.min().z(), 3.0);
+        assert_eq!(result.max().x(), 3.0);
+        assert_eq!(result.max().y(), 4.0);
+        assert_eq!(result.max().z(), 5.0);
+        assert_eq!(result.width(), 2.0);
+        assert_eq!(result.height(), 2.0);
+        assert_eq!(result.depth(), 2.0);
     }
 
     #[test]
-    fn test_scale_uniform() {
-        let bbox = BBox3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 4.0, 5.0));
-        let expanded = bbox.scale_uniform(2.0);
+    fn test_rotation_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+        let x_axis = Vector3::new(1.0, 0.0, 0.0);
+        let rotation_angle = Angle::from_degrees(90.0);
 
-        // 中心点は変わらず、サイズが2倍に
-        assert_eq!(expanded.center(), bbox.center());
-        assert_eq!(expanded.width(), bbox.width() * 2.0);
-        assert_eq!(expanded.height(), bbox.height() * 2.0);
-        assert_eq!(expanded.depth(), bbox.depth() * 2.0);
+        let result = bbox
+            .rotate_analysis(&center_bbox, &x_axis, rotation_angle)
+            .unwrap();
+
+        // X軸回転後は同じサイズの境界ボックスになる（対称な立方体のため）
+        assert!((result.width() - 2.0).abs() < 1e-10);
+        assert!((result.height() - 2.0).abs() < 1e-10);
+        assert!((result.depth() - 2.0).abs() < 1e-10);
     }
 
     #[test]
-    fn test_expand_by_margin() {
-        let bbox = BBox3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 4.0, 5.0));
-        let expanded = bbox.expand_by_margin(0.5);
+    fn test_axis_rotation_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+        let axis = Vector3::new(1.0, 1.0, 1.0); // (1,1,1)軸回転
+        let rotation_angle = Angle::from_degrees(120.0);
 
-        assert_eq!(expanded.min(), Point3D::new(0.5, 0.5, 0.5));
-        assert_eq!(expanded.max(), Point3D::new(3.5, 4.5, 5.5));
-        assert_eq!(expanded.width(), bbox.width() + 1.0);
-        assert_eq!(expanded.height(), bbox.height() + 1.0);
-        assert_eq!(expanded.depth(), bbox.depth() + 1.0);
+        let result = bbox
+            .rotate_analysis(&center_bbox, &axis, rotation_angle)
+            .unwrap();
+
+        // 任意軸回転により境界ボックスは拡大する（立方体が回転すると外接直方体が大きくなる）
+        assert!(result.width() >= 2.0);
+        assert!(result.height() >= 2.0);
+        assert!(result.depth() >= 2.0);
+        // 中心位置は保持される
+        let center = result.center();
+        assert!((center.x()).abs() < 1e-10);
+        assert!((center.y()).abs() < 1e-10);
+        assert!((center.z()).abs() < 1e-10);
     }
 
     #[test]
-    fn test_scale_non_uniform() {
-        let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 4.0, 6.0));
-        let center = Point3D::new(1.0, 2.0, 3.0);
-        let scaled = bbox.scale_non_uniform(center, 2.0, 0.5, 1.5);
+    fn test_scale_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
 
-        // X軸方向に2倍、Y軸方向に0.5倍、Z軸方向に1.5倍
-        assert_eq!(scaled.width(), bbox.width() * 2.0);
-        assert_eq!(scaled.height(), bbox.height() * 0.5);
-        assert_eq!(scaled.depth(), bbox.depth() * 1.5);
+        let result = bbox.scale_analysis(&center_bbox, 2.0, 3.0, 4.0).unwrap();
+
+        assert_eq!(result.width(), 4.0); // 2.0 * 2.0
+        assert_eq!(result.height(), 6.0); // 2.0 * 3.0
+        assert_eq!(result.depth(), 8.0); // 2.0 * 4.0
     }
 
     #[test]
-    fn test_get_all_vertices() {
-        let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 2.0, 3.0));
-        let vertices = bbox.get_all_vertices();
+    fn test_uniform_scale_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
 
-        assert_eq!(vertices.len(), 8);
-        assert!(vertices.contains(&Point3D::new(0.0, 0.0, 0.0))); // 前面左下
-        assert!(vertices.contains(&Point3D::new(1.0, 2.0, 3.0))); // 背面右上
+        let result = bbox.uniform_scale_analysis(&center_bbox, 2.5).unwrap();
+
+        assert_eq!(result.width(), 5.0); // 2.0 * 2.5
+        assert_eq!(result.height(), 5.0); // 2.0 * 2.5
+        assert_eq!(result.depth(), 5.0); // 2.0 * 2.5
     }
 
     #[test]
-    fn test_volume() {
-        let bbox = BBox3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(2.0, 3.0, 4.0));
+    fn test_matrix_direct_transform() {
+        let bbox = create_test_bbox();
+        let matrix = analysis_transform::translation_matrix_3d(5.0, -3.0, 2.0);
 
-        assert_eq!(bbox.volume(), 24.0); // 2 * 3 * 4 = 24
+        let result = bbox.transform_point_matrix(&matrix);
+
+        assert_eq!(result.min().x(), 4.0); // -1.0 + 5.0
+        assert_eq!(result.min().y(), -4.0); // -1.0 + (-3.0)
+        assert_eq!(result.min().z(), 1.0); // -1.0 + 2.0
+        assert_eq!(result.max().x(), 6.0); // 1.0 + 5.0
+        assert_eq!(result.max().y(), -2.0); // 1.0 + (-3.0)
+        assert_eq!(result.max().z(), 3.0); // 1.0 + 2.0
+    }
+
+    #[test]
+    fn test_zero_scale_error() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+
+        let result = bbox.scale_analysis(&center_bbox, 0.0, 1.0, 1.0);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => {}
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
+    }
+
+    #[test]
+    fn test_batch_transform() {
+        let bboxes = vec![create_test_bbox(); 3];
+        let matrix = analysis_transform::translation_matrix_3d(10.0, -5.0, 7.0);
+
+        let results = analysis_transform::transform_bboxes_3d(&bboxes, &matrix).unwrap();
+
+        assert_eq!(results.len(), 3);
+        for result in results {
+            assert_eq!(result.min().x(), 9.0); // -1.0 + 10.0
+            assert_eq!(result.min().y(), -6.0); // -1.0 + (-5.0)
+            assert_eq!(result.min().z(), 6.0); // -1.0 + 7.0
+            assert_eq!(result.max().x(), 11.0); // 1.0 + 10.0
+            assert_eq!(result.max().y(), -4.0); // 1.0 + (-5.0)
+            assert_eq!(result.max().z(), 8.0); // 1.0 + 7.0
+        }
+    }
+
+    #[test]
+    fn test_composite_transform() {
+        let bbox = create_test_bbox();
+        let translation = Vector3::new(1.0, 1.0, 1.0);
+        let center_bbox = create_test_bbox();
+        let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸回転
+        let rotation_angle = Angle::from_degrees(90.0);
+        let scale = (2.0, 2.0, 2.0);
+
+        let result = bbox
+            .apply_composite_transform(
+                Some(&translation),
+                Some((&center_bbox, &axis, rotation_angle)),
+                Some(scale),
+            )
+            .unwrap();
+
+        // 複合変換後のサイズ確認
+        assert_eq!(result.width(), 4.0); // 2.0 * 2.0
+        assert_eq!(result.height(), 4.0); // 2.0 * 2.0
+        assert_eq!(result.depth(), 4.0); // 2.0 * 2.0
+    }
+
+    #[test]
+    fn test_negative_scale_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+
+        let result = bbox.scale_analysis(&center_bbox, -1.0, 1.0, 2.0).unwrap();
+
+        // 負のスケールで反転
+        assert_eq!(result.width(), 2.0);
+        assert_eq!(result.height(), 2.0);
+        assert_eq!(result.depth(), 4.0);
+        let center = result.center();
+        assert!((center.x()).abs() < 1e-10);
+        assert!((center.y()).abs() < 1e-10);
+        assert!((center.z()).abs() < 1e-10);
     }
 }
