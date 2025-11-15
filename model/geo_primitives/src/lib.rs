@@ -65,15 +65,18 @@ pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod direction_3d_transform_safe; // Direction3D の安全な変換機能 (Safe Transform)
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
+pub mod ellipse_3d_analysis_transform; // Ellipse3D の Analysis Matrix4x4 統合変換
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
 pub mod ellipse_3d_transform; // Ellipse3D の変換機能 (Transform)
 pub mod ellipse_3d_transform_safe; // Ellipse3D の安全な変換機能 (Safe Transform)
 pub mod ellipse_arc_3d; // EllipseArc3D の実装 (Core)
+pub mod ellipse_arc_3d_analysis_transform; // EllipseArc3D のAnalysis Transform実装
 pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipse_arc_3d_transform; // EllipseArc3D の変換機能 (Transform)
 pub mod ellipse_arc_3d_transform_safe; // EllipseArc3D の安全な変換機能 (Safe Transform)
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
+pub mod infinite_line_3d_analysis_transform; // InfiniteLine3D の Analysis Matrix/Vector 統合変換
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_transform; // InfiniteLine3D の変換機能 (Transform)
 pub mod infinite_line_3d_transform_safe; // InfiniteLine3D の安全な変換機能 (Safe Transform)
@@ -83,6 +86,7 @@ pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod line_segment_3d_transform; // LineSegment3D の変換機能 (Transform)
 pub mod line_segment_3d_transform_safe; // LineSegment3D の安全な変換機能 (Safe Transform)
 pub mod plane_3d; // Plane3D の新実装 (Core)
+pub mod plane_3d_analysis_transform; // Plane3D の Analysis Matrix4x4 統合変換
 pub mod plane_3d_extensions; // Plane3D の拡張機能 (Extension)
 pub mod plane_3d_foundation; // Plane3D のFoundation実装
                              // pub mod plane_3d_intersection; // 一時的にコメントアウト（機能過多）
@@ -106,6 +110,7 @@ pub mod point_3d_foundation; // Point3D のFoundation実装
 pub mod point_3d_transform; // Point3D の変換機能 (Transform)
 pub mod point_3d_transform_safe; // Point3D の安全な変換機能 (Safe Transform)
 pub mod ray_3d; // Ray3D の新実装 (Core)
+pub mod ray_3d_analysis_transform; // Ray3D の Analysis Matrix4x4 統合変換
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_transform; // Ray3D の変換機能 (Transform)
@@ -190,13 +195,16 @@ pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
 pub mod direction_2d_transform_safe; // Direction2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
+pub mod ellipse_2d_analysis_transform; // Ellipse2D の Analysis Matrix3x3 統合変換
 pub mod ellipse_2d_transform; // Ellipse2D の変換機能 (Transform)
 pub mod ellipse_2d_transform_safe; // Ellipse2D の安全な変換機能 (Safe Transform)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
+pub mod ellipse_arc_2d_analysis_transform; // EllipseArc2D のAnalysis Transform実装
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod ellipse_arc_2d_transform; // EllipseArc2D の変換機能 (Transform)
 pub mod ellipse_arc_2d_transform_safe; // EllipseArc2D の安全な変換機能 (Safe Transform)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
+pub mod infinite_line_2d_analysis_transform; // InfiniteLine2D の Analysis Matrix/Vector 統合変換
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換機能 (Transform)
 pub mod infinite_line_2d_transform_safe; // InfiniteLine2D の安全な変換機能 (Safe Transform)
@@ -211,6 +219,7 @@ pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod point_2d_transform; // Point2D の変換機能 (Transform)
 pub mod point_2d_transform_safe; // Point2D の安全な変換機能 (Safe Transform)
 pub mod ray_2d; // Ray2D の新実装 (Core)
+pub mod ray_2d_analysis_transform; // Ray2D の Analysis Matrix3x3 統合変換
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_transform; // Ray2D の変換機能 (Transform)
 pub mod ray_2d_transform_safe; // Ray2D の安全な変換機能 (Safe Transform)
