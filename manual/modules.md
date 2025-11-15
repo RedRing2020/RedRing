@@ -6,13 +6,16 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_foundation`
 
-**抽象型・許容誤差管理・トレイト定義・橋渡し**
+**統一トレイト基盤・Analysis Transform・Foundation パターン**
 
-- 共通トレイト（`Normalizable`, `DistanceCalculation` など）
-- `ToleranceContext` による許容誤差管理
-- トレラント比較
-- エラー処理ガイドライン
-- 型安全な抽象化
+- **Foundation統一システム**: `ExtensionFoundation` による統一インターフェース
+- **Analysis Transform**: `analysis`クレート統合による高効率変換システム
+  - `AnalysisTransform3D` - Matrix4x4による座標変換（平行移動・回転・スケール）
+  - `AnalysisTransformVector3D` - 方向ベクトル専用変換
+  - Analysis Vector3/Point3との効率的な型変換
+- **許容誤差管理**: `ToleranceContext` による精度制御
+- **共通トレイト**: 衝突検出、交点計算、距離計算
+- **型安全抽象化**: Scalarトレイト境界による数値型統一
 
 ### `geo_core`
 
@@ -32,11 +35,14 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_algorithms`
 
-**幾何アルゴリズム**
+**高レベル幾何アルゴリズム**
 
 - 交点計算
 - 曲線・曲面操作
-- 幾何変換
+- 空間関係解析
+- ブール演算（将来実装予定）
+
+注：基本的な幾何変換は `geo_foundation` の Analysis Transform システムで提供
 
 ### `geo_nurbs`
 

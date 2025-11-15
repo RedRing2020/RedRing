@@ -45,6 +45,29 @@ let unit_circle = Circle2D::unit_circle();  // Extension
 let scaled = circle.scale(2.0)?;            // Extension
 ```
 
+### Analysis Transform（幾何変換拡張）
+
+```rust
+use analysis::linalg::vector::Vector3;
+use geo_foundation::{AnalysisTransform3D, Angle};
+
+// 平行移動
+let translation = Vector3::new(1.0, 2.0, 3.0);
+let translated = mesh.translate_analysis(&translation)?;
+
+// 回転（軸回転）
+let axis = Vector3::new(0.0, 0.0, 1.0);
+let angle = Angle::from_degrees(90.0);
+let rotated = mesh.rotate_analysis(&mesh, &axis, angle)?;
+
+// 複合変換（平行移動 + 回転 + スケール）
+let result = mesh.apply_composite_transform(
+    Some(&translation),
+    Some((&mesh, &axis, angle)),
+    Some((2.0, 2.0, 2.0))
+)?;
+```
+
 ## メリット
 
 1. **段階的実装**: 最小限から段階的に機能追加
