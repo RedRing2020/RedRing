@@ -1,80 +1,263 @@
-//! Basic transformation traits
+//! Analysis Transform Traits - 効率的なMatrix/Vector変換抽象化
 //!
-//! This module defines abstract transformation interfaces that can be implemented
-//! by geometric primitives. These traits use associated types to remain abstract
-//! about the specific geometric types involved.
+//! Analysis Matrix/Vectorクレートを基盤とした高効率変換トレイト群
+//! geo_nurbsのmatrix_transformパターンを基盤とする統一実装
 
 use crate::Scalar;
+use analysis::linalg::vector::{Vector2, Vector3};
 
-/// Basic 2D transformation operations
+/// 3D Analysis Matrix変換トレイト（座標点用）
 ///
-/// This trait defines the fundamental transformation operations that 2D geometric
-/// primitives should support. It uses associated types to remain abstract about
-/// the specific point, vector, and angle types.
-pub trait BasicTransform<T: Scalar> {
-    /// Vector type for translations
-    type Vector2D;
-    /// Point type for rotation and scaling centers
-    type Point2D;
-    /// Angle type for rotations
-    type Angle: Copy;
-    /// The type returned after transformation
-    type Transformed;
+/// Matrix4x4を使用した効率的な座標変換を提供
+/// 平行移動、回転、スケールの統合変換をサポート
+pub trait AnalysisTransform3D<T: Scalar> {
+    /// Matrix4x4型（analysis::linalg::matrix::Matrix4x4）
+    type Matrix4x4;
+    /// Angle型（geo_foundation::Angle）
+    type Angle;
+    /// 変換結果型（通常はSelf）
+    type Output;
 
-    /// Translate the primitive by a vector
-    fn translate(&self, translation: Self::Vector2D) -> Self::Transformed;
+    /// Matrix4x4による直接座標変換（平行移動、回転、スケール全て適用）
+    fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
 
-    /// Rotate the primitive around a center point by an angle
-    fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed;
+    /// 平行移動変換（Analysis Vector3使用）
+    fn translate_analysis(
+        &self,
+        translation: &Vector3<T>,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
 
-    /// Scale the primitive from a center point by a uniform factor
-    fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed;
+    /// 軸回転変換（Analysis Matrix4x4使用）
+    fn rotate_analysis(
+        &self,
+        center: &Self,
+        axis: &Vector3<T>,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// スケール変換（Analysis Matrix4x4使用）
+    fn scale_analysis(
+        &self,
+        center: &Self,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 均等スケール変換（Analysis Matrix4x4使用）
+    fn uniform_scale_analysis(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 複合変換（平行移動+回転+スケール）
+    fn apply_composite_transform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 複合変換（均等スケール版）
+    fn apply_composite_transform_uniform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<T>,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
 }
 
-/// Basic 3D transformation operations
+/// 3D Analysis Vector変換トレイト（方向ベクトル用）
 ///
-/// This trait defines the fundamental transformation operations that 3D geometric
-/// primitives should support.
-pub trait BasicTransform3D<T: Scalar> {
-    /// Vector type for 3D translations
-    type Vector3D;
-    /// Point type for rotation and scaling centers
-    type Point3D;
-    /// Rotation type (could be quaternion, axis-angle, etc.)
-    type Rotation3D;
-    /// The type returned after transformation
-    type Transformed;
+/// Matrix4x4を使用した方向ベクトル専用変換
+/// 平行移動成分を自動的に無視する特性
+pub trait AnalysisTransformVector3D<T: Scalar> {
+    /// Matrix4x4型（analysis::linalg::matrix::Matrix4x4）
+    type Matrix4x4;
+    /// Angle型（geo_foundation::Angle）
+    type Angle;
+    /// 変換結果型（通常はSelf）
+    type Output;
 
-    /// Translate the primitive by a 3D vector
-    fn translate_3d(&self, translation: Self::Vector3D) -> Self::Transformed;
+    /// Matrix4x4による方向ベクトル変換（平行移動成分は無視される）
+    fn transform_vector_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
 
-    /// Rotate the primitive around a center point with 3D rotation
-    fn rotate_3d(&self, center: Self::Point3D, rotation: Self::Rotation3D) -> Self::Transformed;
+    /// 軸回転変換（方向ベクトル用、中心点不要）
+    fn rotate_vector_analysis(
+        &self,
+        axis: &Vector3<T>,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
 
-    /// Scale the primitive from a center point by a uniform factor in 3D
-    fn scale_3d(&self, center: Self::Point3D, factor: T) -> Self::Transformed;
+    /// スケール変換（方向ベクトル用）
+    fn scale_vector_analysis(
+        &self,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 均等スケール変換（方向ベクトル用）
+    fn uniform_scale_vector_analysis(
+        &self,
+        scale_factor: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 複合変換（回転+スケール、方向ベクトル用）
+    fn apply_vector_composite_transform(
+        &self,
+        rotation: Option<(&Vector3<T>, Self::Angle)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 複合変換（回転+均等スケール、方向ベクトル用）
+    fn apply_vector_composite_transform_uniform(
+        &self,
+        rotation: Option<(&Vector3<T>, Self::Angle)>,
+        scale: Option<T>,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// Analysis Vector正規化
+    fn normalize_analysis(&self) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
 }
 
-/// Advanced 2D transformation operations
+/// 2D Analysis Matrix変換トレイト（座標点用）
 ///
-/// This trait extends BasicTransform with more sophisticated operations
-/// like mirroring and matrix transformations.
-pub trait AdvancedTransform<T: Scalar>: BasicTransform<T> {
-    /// Line type for mirroring operations
-    type Line2D;
-    /// Matrix type for general transformations
-    type Matrix3;
+/// Matrix3x3を使用した効率的な2D座標変換を提供
+pub trait AnalysisTransform2D<T: Scalar> {
+    /// Matrix3x3型（analysis::linalg::matrix::Matrix3x3）
+    type Matrix3x3;
+    /// Angle型（geo_foundation::Angle）
+    type Angle;
+    /// 変換結果型（通常はSelf）
+    type Output;
 
-    /// Mirror the primitive across a line
-    fn mirror(&self, axis: Self::Line2D) -> Self::Transformed;
+    /// Matrix3x3による直接座標変換（2D用）
+    fn transform_point_matrix_2d(&self, matrix: &Self::Matrix3x3) -> Self::Output;
 
-    /// Scale the primitive with different factors for x and y
-    fn non_uniform_scale(&self, center: Self::Point2D, scale_x: T, scale_y: T)
-        -> Self::Transformed;
+    /// 平行移動変換（2D用、Analysis Vector2使用）
+    fn translate_analysis_2d(
+        &self,
+        translation: &Vector2<T>,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
 
-    /// Apply a general transformation matrix
-    fn transform_matrix(&self, matrix: &Self::Matrix3) -> Self::Transformed;
+    /// 回転変換（2D用、中心点指定）
+    fn rotate_analysis_2d(
+        &self,
+        center: &Self,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
 
-    /// Reverse the orientation of the primitive (e.g., flip curve direction)
-    fn reverse(&self) -> Self::Transformed;
+    /// スケール変換（2D用）
+    fn scale_analysis_2d(
+        &self,
+        center: &Self,
+        scale_x: T,
+        scale_y: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 均等スケール変換（2D用）
+    fn uniform_scale_analysis_2d(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+}
+
+/// 2D Analysis Vector変換トレイト（方向ベクトル用）
+///
+/// Matrix3x3を使用した2D方向ベクトル専用変換
+pub trait AnalysisTransformVector2D<T: Scalar> {
+    /// Matrix3x3型（analysis::linalg::matrix::Matrix3x3）
+    type Matrix3x3;
+    /// Angle型（geo_foundation::Angle）
+    type Angle;
+    /// 変換結果型（通常はSelf）
+    type Output;
+
+    /// Matrix3x3による方向ベクトル変換（2D用、平行移動成分は無視される）
+    fn transform_vector_matrix_2d(&self, matrix: &Self::Matrix3x3) -> Self::Output;
+
+    /// 回転変換（2D方向ベクトル用、中心点不要）
+    fn rotate_vector_analysis_2d(
+        &self,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// スケール変換（2D方向ベクトル用）
+    fn scale_vector_analysis_2d(
+        &self,
+        scale_x: T,
+        scale_y: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 均等スケール変換（2D方向ベクトル用）
+    fn uniform_scale_vector_analysis_2d(
+        &self,
+        scale_factor: T,
+    ) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// 2D Analysis Vector正規化
+    fn normalize_analysis_2d(&self) -> Result<Self::Output, crate::TransformError>
+    where
+        Self: Sized;
+
+    /// Analysis Vector2への変換
+    fn to_analysis_vector_2d(&self) -> Vector2<T>;
+
+    /// Analysis Vector2からの変換
+    fn from_analysis_vector_2d(analysis_vector: &Vector2<T>) -> Self
+    where
+        Self: Sized;
+}
+
+/// Analysis変換実装のマーカートレイト
+///
+/// geo_nurbsレベルの効率性を示すマーカー
+/// パフォーマンスクリティカルな用途での適用可能性を示す
+pub trait AnalysisTransformSupport {
+    /// Analysis Matrix/Vector統合済みかどうか
+    const HAS_ANALYSIS_INTEGRATION: bool = true;
+
+    /// geo_nurbsレベルのパフォーマンスを実現するかどうか
+    const PERFORMANCE_OPTIMIZED: bool = true;
 }

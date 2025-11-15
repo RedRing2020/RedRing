@@ -3,7 +3,7 @@
 //! 基本機能、座標操作、距離計算、変換機能、演算子などをテスト
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::{Angle, BasicTransform};
+use geo_foundation::Angle;
 
 #[cfg(test)]
 mod tests {

@@ -176,3 +176,44 @@ impl<T: Scalar> From<(T, T, T)> for Point3D<T> {
         Self::new(tuple.0, tuple.1, tuple.2)
     }
 }
+
+// ============================================================================
+// Analysis Integration (Analysis変換機能)
+// ============================================================================
+
+impl<T: Scalar> Point3D<T> {
+    /// analysis::Point3に変換
+    pub fn to_analysis_point3(&self) -> analysis::linalg::point3::Point3<T> {
+        analysis::linalg::point3::Point3::new(self.x, self.y, self.z)
+    }
+
+    /// analysis::Point3から作成
+    pub fn from_analysis_point3(p: analysis::linalg::point3::Point3<T>) -> Self {
+        Self::new(p.x(), p.y(), p.z())
+    }
+
+    /// analysis::Vector3に変換（位置ベクトルとして）
+    pub fn to_analysis_vector3(&self) -> analysis::linalg::vector::Vector3<T> {
+        self.to_analysis_point3().to_vector()
+    }
+
+    /// analysis::Vector3から作成（位置ベクトルから）
+    pub fn from_analysis_vector3(v: analysis::linalg::vector::Vector3<T>) -> Self {
+        let point = analysis::linalg::point3::Point3::from_vector(v);
+        Self::from_analysis_point3(point)
+    }
+}
+
+/// analysis::Point3からの変換
+impl<T: Scalar> From<analysis::linalg::point3::Point3<T>> for Point3D<T> {
+    fn from(p: analysis::linalg::point3::Point3<T>) -> Self {
+        Self::from_analysis_point3(p)
+    }
+}
+
+/// analysis::Point3への変換
+impl<T: Scalar> From<Point3D<T>> for analysis::linalg::point3::Point3<T> {
+    fn from(p: Point3D<T>) -> Self {
+        p.to_analysis_point3()
+    }
+}

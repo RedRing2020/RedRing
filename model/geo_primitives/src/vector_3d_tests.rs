@@ -167,25 +167,8 @@ mod tests {
 
     #[test]
     fn test_transform_vector_trait() {
-        // カスタム変換行列の例
-        struct SimpleMatrix;
-
-        // impl crate::vector_3d_transform::TransformVector3D<f64> for SimpleMatrix {
-        //     fn transform_vector_3d(&self, vector: &Vector3D<f64>) -> Vector3D<f64> {
-        //         // 単純なスケール変換
-        //         Vector3D::new(vector.x() * 2.0, vector.y() * 2.0, vector.z() * 2.0)
-        //     }
-        // }
-
-        // let v = Vector3D::new(1.0, 2.0, 3.0);
-        // let matrix = SimpleMatrix;
-        // let transformed = v.transform_vector(&matrix);
-
-        // assert_eq!(transformed.x(), 2.0);
-        // assert_eq!(transformed.y(), 4.0);
-        // assert_eq!(transformed.z(), 6.0);
-
-        // 一時的にテストをスキップ（TransformVector3Dトレイトの実装待ち）
+        // Transform機能は将来実装予定
+        // 現在はコア機能のテストのみ実装
         assert!(true);
     }
 

@@ -50,10 +50,6 @@ pub use core::{
     },
     point_traits::{Point2D as Point2DTrait, Point2DConstructor, Point3DConstructor},
     triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
-    vector_traits::{
-        Vector2D, Vector2DConstructor, Vector2DOps, Vector3D, Vector3DConstructor, Vector3DOps,
-        VectorMetrics, VectorOps,
-    },
 };
 
 // Extension Foundation Traitsを再エクスポート
@@ -64,9 +60,9 @@ pub use extension_foundation::{
 
 // Extension Traitsを再エクスポート
 pub use extensions::{
-    AdvancedCollision, AdvancedTransform, AnalysisTransform2D, AnalysisTransform3D,
+    AdvancedCollision, AnalysisTransform2D, AnalysisTransform3D,
     AnalysisTransformSupport, AnalysisTransformVector2D, AnalysisTransformVector3D, BasicCollision,
-    BasicIntersection, BasicTransform, MultipleIntersection, PointDistance, SafeTransform,
+    BasicIntersection, MultipleIntersection, PointDistance, SafeTransform,
     TransformError,
 };
 
