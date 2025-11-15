@@ -139,7 +139,12 @@ impl<T: Scalar> Plane3D<T> {
     /// 平面上の投影点
     pub fn project_point(&self, point: Point3D<T>) -> Point3D<T> {
         let distance = self.distance_to_point(point);
-        point - self.normal * distance
+        let normal_offset: Vector3D<T> = self.normal * distance;
+        Point3D::new(
+            point.x() - normal_offset.x(),
+            point.y() - normal_offset.y(),
+            point.z() - normal_offset.z(),
+        )
     }
 
     /// 平面の方程式係数を取得

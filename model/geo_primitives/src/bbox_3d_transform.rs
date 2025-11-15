@@ -118,14 +118,14 @@ impl<T: Scalar> BBox3D<T> {
         let max = self.max();
 
         [
-            Point3D::new(min.x(), min.y(), min.z()), // 前面左下
-            Point3D::new(max.x(), min.y(), min.z()), // 前面右下
-            Point3D::new(max.x(), max.y(), min.z()), // 前面右上
-            Point3D::new(min.x(), max.y(), min.z()), // 前面左上
-            Point3D::new(min.x(), min.y(), max.z()), // 背面左下
-            Point3D::new(max.x(), min.y(), max.z()), // 背面右下
-            Point3D::new(max.x(), max.y(), max.z()), // 背面右上
-            Point3D::new(min.x(), max.y(), max.z()), // 背面左上
+            Point3D::from_vector(Vector3D::new(min.x(), min.y(), min.z())), // 前面左下
+            Point3D::from_vector(Vector3D::new(max.x(), min.y(), min.z())), // 前面右下
+            Point3D::from_vector(Vector3D::new(max.x(), max.y(), min.z())), // 前面右上
+            Point3D::from_vector(Vector3D::new(min.x(), max.y(), min.z())), // 前面左上
+            Point3D::from_vector(Vector3D::new(min.x(), min.y(), max.z())), // 背面左下
+            Point3D::from_vector(Vector3D::new(max.x(), min.y(), max.z())), // 背面右下
+            Point3D::from_vector(Vector3D::new(max.x(), max.y(), max.z())), // 背面右上
+            Point3D::from_vector(Vector3D::new(min.x(), max.y(), max.z())), // 背面左上
         ]
     }
 

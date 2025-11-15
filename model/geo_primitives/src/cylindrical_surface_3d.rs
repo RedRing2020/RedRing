@@ -334,7 +334,12 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 
         // 軸方向成分を除去して径方向距離を計算
         let axis_projection = to_point.dot(&self.axis.as_vector());
-        let radial_vector = to_point - self.axis.as_vector() * axis_projection;
+        let axis_component = self.axis.as_vector() * axis_projection;
+        let radial_vector = Vector3D::new(
+            to_point.x() - axis_component.x(),
+            to_point.y() - axis_component.y(),
+            to_point.z() - axis_component.z(),
+        );
         let radial_distance = radial_vector.length();
 
         // サーフェスまでの距離
@@ -353,7 +358,12 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         let v = to_point.dot(&self.axis.as_vector());
 
         // 径方向ベクトル
-        let radial_vector = to_point - self.axis.as_vector() * v;
+        let axis_component = self.axis.as_vector() * v;
+        let radial_vector = Vector3D::new(
+            to_point.x() - axis_component.x(),
+            to_point.y() - axis_component.y(),
+            to_point.z() - axis_component.z(),
+        );
         let radial_distance = radial_vector.length();
 
         // U パラメータ（角度）

@@ -2,8 +2,9 @@
 //!
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
-use crate::{Arc2D, BBox2D, Ellipse2D, Point2D, Vector2D};
+use crate::{BBox2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
+// use geo_foundation::core::arc_traits::Arc2D; // 未使用のため一時的にコメントアウト
 
 /// 2次元楕円弧
 ///
@@ -40,15 +41,14 @@ impl<T: Scalar> EllipseArc2D<T> {
     }
 
     /// 円弧から楕円弧を作成
-    pub fn from_arc(arc: Arc2D<T>) -> Self {
-        let ellipse = Ellipse2D::from_circle(*arc.circle());
-        Self::new(ellipse, arc.start_angle(), arc.end_angle())
-    }
-
+    // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
+    // pub fn from_arc(arc: Arc2D<T>) -> Self {
+    //     let ellipse = Ellipse2D::from_circle(*arc.circle());
+    //     Self::new(ellipse, arc.start_angle(), arc.end_angle())
+    // }
     // ========================================================================
     // Core Accessor Methods
     // ========================================================================
-
     /// 基底楕円を取得
     pub fn ellipse(&self) -> &Ellipse2D<T> {
         &self.ellipse

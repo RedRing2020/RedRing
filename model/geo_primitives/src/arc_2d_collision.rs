@@ -3,7 +3,8 @@
 //! 統一Collision Foundation システムによる衝突検出・距離計算
 //! 全幾何プリミティブで共通利用可能な統一インターフェース
 
-use crate::{Arc2D, Circle2D, Point2D, Vector2D};
+// use crate::{Arc2D, Circle2D, Point2D, Vector2D}; // Arc2D一時的にコメントアウト
+use crate::{Circle2D, Point2D, Vector2D};
 use geo_foundation::{
     extensions::{BasicCollision, PointDistance},
     Angle, Scalar,
@@ -13,108 +14,108 @@ use geo_foundation::{
 // PointDistance Trait Implementation (統一Foundation)
 // ============================================================================
 
-impl<T: Scalar> PointDistance<T> for Arc2D<T> {
-    type Point2D = Point2D<T>;
+// impl<T: Scalar> PointDistance<T> for Arc2D<T> {
+//     type Point2D = Point2D<T>;
 
-    /// 点までの距離
-    fn distance_to_point(&self, point: &Self::Point2D) -> T {
-        // 1. 点から円の中心への距離
-        let center = self.circle().center();
-        let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
-        let distance_to_center = center_to_point.magnitude();
-
-        // 2. 点が円弧の角度範囲内にあるかを確認
-        let angle_to_point = center_to_point.angle();
-
-        if self.angle_in_range(angle_to_point) {
-            // 点が円弧の角度範囲内にある場合
-            // 円の半径との差が最短距離
-            (distance_to_center - self.circle().radius()).abs()
-        } else {
-            // 点が円弧の角度範囲外にある場合
-            // 開始点または終了点までの距離
-            let start_point = self.start_point();
-            let end_point = self.end_point();
-
-            let dist_to_start = point.distance_to(&start_point);
-            let dist_to_end = point.distance_to(&end_point);
-
-            dist_to_start.min(dist_to_end)
-        }
-    }
-
-    /// 点が内部にあるか（円弧の場合は扇形領域）
-    fn contains_point(&self, point: &Self::Point2D, tolerance: T) -> bool {
-        // 円弧の扇形領域内かを判定
-        let center = self.circle().center();
-        let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
-        let distance_to_center = center_to_point.magnitude();
-        let angle_to_point = center_to_point.angle();
-
-        // 1. 円の内部にあるか
-        let within_circle = distance_to_center <= self.circle().radius() + tolerance;
-
-        // 2. 角度範囲内にあるか
-        let within_angle_range = self.angle_in_range_with_tolerance(angle_to_point, tolerance);
-
-        within_circle && within_angle_range
-    }
-
-    /// 点が境界上にあるか（円弧上）
-    fn point_on_boundary(&self, point: &Self::Point2D, tolerance: T) -> bool {
-        let center = self.circle().center();
-        let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
-        let distance_to_center = center_to_point.magnitude();
-        let angle_to_point = center_to_point.angle();
-
-        // 1. 円の境界上にあるか
-        let on_circle = (distance_to_center - self.circle().radius()).abs() <= tolerance;
-
-        // 2. 角度範囲内にあるか
-        let within_angle_range = self.angle_in_range_with_tolerance(angle_to_point, tolerance);
-
-        on_circle && within_angle_range
-    }
-
-    /// 最近点を取得
-    fn closest_point(&self, point: &Self::Point2D) -> Self::Point2D {
-        let center = self.circle().center();
-        let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
-        let distance_to_center = center_to_point.magnitude();
-
-        if distance_to_center == T::ZERO {
-            // 点が中心にある場合は開始点を返す
-            return self.start_point();
-        }
-
-        let angle_to_point = center_to_point.angle();
-
-        if self.angle_in_range(angle_to_point) {
-            // 点が円弧の角度範囲内にある場合
-            // 円周上の対応点
-            let radius = self.circle().radius();
-            let unit_vector = center_to_point.normalize();
-            Point2D::new(
-                center.x() + unit_vector.x() * radius,
-                center.y() + unit_vector.y() * radius,
-            )
-        } else {
-            // 点が円弧の角度範囲外にある場合
-            // 開始点または終了点の近い方
-            let start_point = self.start_point();
-            let end_point = self.end_point();
-
-            let dist_to_start = point.distance_to(&start_point);
-            let dist_to_end = point.distance_to(&end_point);
-
-            if dist_to_start < dist_to_end {
-                start_point
-            } else {
-                end_point
-            }
-        }
-    }
-}
+//     /// 点までの距離
+//     fn distance_to_point(&self, point: &Self::Point2D) -> T {
+//         // 1. 点から円の中心への距離
+//         let center = self.circle().center();
+//         let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
+//         let distance_to_center = center_to_point.magnitude();
+//
+//         // 2. 点が円弧の角度範囲内にあるかを確認
+//         let angle_to_point = center_to_point.angle();
+//
+//         if self.angle_in_range(angle_to_point) {
+//             // 点が円弧の角度範囲内にある場合
+//             // 円の半径との差が最短距離
+//             (distance_to_center - self.circle().radius()).abs()
+//         } else {
+//             // 点が円弧の角度範囲外にある場合
+//             // 開始点または終了点までの距離
+//             let start_point = self.start_point();
+//             let end_point = self.end_point();
+//
+//             let dist_to_start = point.distance_to(&start_point);
+//             let dist_to_end = point.distance_to(&end_point);
+//
+//             dist_to_start.min(dist_to_end)
+//         }
+//     }
+//
+//     /// 点が内部にあるか（円弧の場合は扇形領域）
+//     fn contains_point(&self, point: &Self::Point2D, tolerance: T) -> bool {
+//         // 円弧の扇形領域内かを判定
+//         let center = self.circle().center();
+//         let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
+//         let distance_to_center = center_to_point.magnitude();
+//         let angle_to_point = center_to_point.angle();
+//
+//         // 1. 円の内部にあるか
+//         let within_circle = distance_to_center <= self.circle().radius() + tolerance;
+//
+//         // 2. 角度範囲内にあるか
+//         let within_angle_range = self.angle_in_range_with_tolerance(angle_to_point, tolerance);
+//
+//         within_circle && within_angle_range
+//     }
+//
+//     /// 点が境界上にあるか（円弧上）
+//     fn point_on_boundary(&self, point: &Self::Point2D, tolerance: T) -> bool {
+//         let center = self.circle().center();
+//         let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
+//         let distance_to_center = center_to_point.magnitude();
+//         let angle_to_point = center_to_point.angle();
+//
+//         // 1. 円の境界上にあるか
+//         let on_circle = (distance_to_center - self.circle().radius()).abs() <= tolerance;
+//
+//         // 2. 角度範囲内にあるか
+//         let within_angle_range = self.angle_in_range_with_tolerance(angle_to_point, tolerance);
+//
+//         on_circle && within_angle_range
+//     }
+//
+//     /// 最近点を取得
+//     fn closest_point(&self, point: &Self::Point2D) -> Self::Point2D {
+//         let center = self.circle().center();
+//         let center_to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
+//         let distance_to_center = center_to_point.magnitude();
+//
+//         if distance_to_center == T::ZERO {
+//             // 点が中心にある場合は開始点を返す
+//             return self.start_point();
+//         }
+//
+//         let angle_to_point = center_to_point.angle();
+//
+//         if self.angle_in_range(angle_to_point) {
+//             // 点が円弧の角度範囲内にある場合
+//             // 円周上の対応点
+//             let radius = self.circle().radius();
+//             let unit_vector = center_to_point.normalize();
+//             Point2D::new(
+//                 center.x() + unit_vector.x() * radius,
+//                 center.y() + unit_vector.y() * radius,
+//             )
+//         } else {
+//             // 点が円弧の角度範囲外にある場合
+//             // 開始点または終了点の近い方
+//             let start_point = self.start_point();
+//             let end_point = self.end_point();
+//
+//             let dist_to_start = point.distance_to(&start_point);
+//             let dist_to_end = point.distance_to(&end_point);
+//
+//             if dist_to_start < dist_to_end {
+//                 start_point
+//             } else {
+//                 end_point
+//             }
+//         }
+//     }
+// }
 
 // ============================================================================
 // BasicCollision Implementations

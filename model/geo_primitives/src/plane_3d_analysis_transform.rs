@@ -19,7 +19,8 @@ pub mod analysis_transform {
 
     /// Analysis Vector3からの変換（Point3D専用）
     pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
+        let vector3d = Vector3D::new(vector.x(), vector.y(), vector.z());
+        Point3D::from_vector(vector3d)
     }
 
     /// Analysis Vector3への変換（Vector3D専用）

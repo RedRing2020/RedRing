@@ -91,6 +91,6 @@ impl<T: Scalar> ToAnalysisVector3<T> for Point3D<T> {
 
 impl<T: Scalar> FromAnalysisVector3<T> for Point3D<T> {
     fn from_analysis_vector3(vec: &analysis::linalg::Vector3<T>) -> Self {
-        Point3D::new(vec.x(), vec.y(), vec.z())
+        Point3D::from_vector(vec)
     }
 }

@@ -2,8 +2,9 @@
 //!
 //! Extension Foundation パターンに基づく EllipseArc2D の拡張実装
 
-use crate::{Arc2D, BBox2D, Ellipse2D, EllipseArc2D, Point2D, Vector2D};
+use crate::{BBox2D, Ellipse2D, EllipseArc2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
+// use geo_foundation::core::arc_traits::Arc2D; // 未使用のため一時的にコメントアウト
 
 // ============================================================================
 // Extension Methods Implementation
@@ -37,15 +38,14 @@ impl<T: Scalar> EllipseArc2D<T> {
     }
 
     /// 円弧に変換（可能な場合）
-    pub fn to_arc(&self) -> Option<Arc2D<T>> {
-        let circle = self.ellipse().to_circle()?;
-        Arc2D::new(circle, self.start_angle(), self.end_angle())
-    }
-
+    // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
+    // pub fn to_arc(&self) -> Option<Arc2D<T>> {
+    //     let circle = self.ellipse().to_circle()?;
+    //     Arc2D::new(circle, self.start_angle(), self.end_angle())
+    // }
     // ========================================================================
     // Transformation Methods (Extension)
     // ========================================================================
-
     /// 中心を移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         let new_center = Point2D::new(

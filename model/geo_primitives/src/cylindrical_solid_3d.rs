@@ -266,7 +266,11 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             self.axis.y() * axis_projection,
             self.axis.z() * axis_projection,
         );
-        let radial_component = to_point - axis_component;
+        let radial_component = Vector3D::new(
+            to_point.x() - axis_component.x(),
+            to_point.y() - axis_component.y(),
+            to_point.z() - axis_component.z(),
+        );
         let radial_distance = radial_component.magnitude();
 
         radial_distance <= self.radius
@@ -297,7 +301,11 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             self.axis.y() * axis_projection.max(T::ZERO).min(self.height),
             self.axis.z() * axis_projection.max(T::ZERO).min(self.height),
         );
-        let radial_component = to_point - axis_component;
+        let radial_component = Vector3D::new(
+            to_point.x() - axis_component.x(),
+            to_point.y() - axis_component.y(),
+            to_point.z() - axis_component.z(),
+        );
         let radial_distance = radial_component.magnitude();
         let radial_excess = (radial_distance - self.radius).max(T::ZERO);
 

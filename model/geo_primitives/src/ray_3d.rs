@@ -90,7 +90,12 @@ impl<T: Scalar> Ray3D<T> {
     /// # 戻り値
     /// Ray上の点
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
-        self.origin + self.direction * t
+        let direction_offset = self.direction * t;
+        Point3D::new(
+            self.origin.x() + direction_offset.x(),
+            self.origin.y() + direction_offset.y(),
+            self.origin.z() + direction_offset.z(),
+        )
     }
 
     /// 点がRay上にあるかを判定

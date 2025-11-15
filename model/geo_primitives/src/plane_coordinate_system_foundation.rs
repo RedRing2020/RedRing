@@ -1,6 +1,7 @@
 //! Plane3DCoordinateSystem の Foundation トレイト実装
 
-use crate::{BBox3D, Plane3DCoordinateSystem};
+// use crate::{BBox3D, Plane3DCoordinateSystem}; // 一時的にコメントアウト
+use crate::BBox3D;
 use geo_foundation::{extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for Plane3DCoordinateSystem<T> {

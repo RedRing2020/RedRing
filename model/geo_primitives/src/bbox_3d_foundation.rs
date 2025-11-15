@@ -21,7 +21,10 @@ impl<T: Scalar> ExtensionFoundation<T> for BBox3D<T> {
     }
 
     fn measure(&self) -> Option<T> {
-        Some(self.volume())
+        let width: T = self.width();
+        let height: T = self.height();
+        let depth: T = self.depth();
+        Some(width * height * depth) // 体積を計算
     }
 }
 

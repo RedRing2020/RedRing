@@ -135,6 +135,9 @@ impl<T: Scalar> BBox3D<T> {
 
     /// 境界ボックスが退化しているかを判定
     pub fn is_degenerate(&self) -> bool {
-        self.width() == T::ZERO || self.height() == T::ZERO || self.depth() == T::ZERO
+        let zero: T = T::ZERO;
+        BBox3D::<T>::width(self) == zero
+            || BBox3D::<T>::height(self) == zero
+            || BBox3D::<T>::depth(self) == zero
     }
 }

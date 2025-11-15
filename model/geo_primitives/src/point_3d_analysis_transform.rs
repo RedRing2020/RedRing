@@ -21,7 +21,7 @@ pub mod analysis_transform {
     /// Analysis Vector3からの変換
     impl<T: Scalar> From<Vector3<T>> for Point3D<T> {
         fn from(vector: Vector3<T>) -> Self {
-            Point3D::new(vector.x(), vector.y(), vector.z())
+            Point3D::from_vector(Vector3D::new(vector.x(), vector.y(), vector.z()))
         }
     }
 

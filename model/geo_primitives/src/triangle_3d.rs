@@ -129,9 +129,9 @@ impl<T: Scalar> Triangle3D<T> {
 
     /// 周囲長を計算
     pub fn perimeter(&self) -> T {
-        let ab_length = self.edge_ab().length();
-        let bc_length = self.edge_bc().length();
-        let ca_length = self.edge_ca().length();
+        let ab_length: T = self.edge_ab().length();
+        let bc_length: T = self.edge_bc().length();
+        let ca_length: T = self.edge_ca().length();
 
         ab_length + bc_length + ca_length
     }
@@ -142,7 +142,9 @@ impl<T: Scalar> Triangle3D<T> {
 
     /// 三角形が退化していないかチェック
     pub fn is_valid(&self) -> bool {
-        self.area() > T::from_f64(1e-10)
+        let area: T = self.area();
+        let threshold = T::from_f64(1e-10);
+        area > threshold
     }
 
     /// 指定した点が三角形の平面上にあるかチェック（バリセントリック座標使用）

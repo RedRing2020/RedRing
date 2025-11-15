@@ -48,6 +48,14 @@ impl<T: Scalar> BBox3D<T> {
         self.max.z() - self.min.z()
     }
 
+    /// 境界ボックスの体積を取得
+    pub fn volume(&self) -> T {
+        let width: T = self.width();
+        let height: T = self.height();
+        let depth: T = self.depth();
+        width * height * depth
+    }
+
     /// 境界ボックスの中心点を取得
     pub fn center(&self) -> Point3D<T> {
         let two = T::ONE + T::ONE;

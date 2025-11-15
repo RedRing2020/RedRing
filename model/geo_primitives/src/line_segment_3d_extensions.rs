@@ -63,8 +63,18 @@ impl<T: Scalar> LineSegment3D<T> {
     /// 線分を延長
     pub fn extend(&self, start_extension: T, end_extension: T) -> Self {
         let direction = self.direction().normalize();
-        let new_start = self.start() - direction * start_extension;
-        let new_end = self.end() + direction * end_extension;
+        let start_offset = direction * start_extension;
+        let end_offset = direction * end_extension;
+        let new_start = Point3D::new(
+            self.start().x() - start_offset.x(),
+            self.start().y() - start_offset.y(),
+            self.start().z() - start_offset.z(),
+        );
+        let new_end = Point3D::new(
+            self.end().x() + end_offset.x(),
+            self.end().y() + end_offset.y(),
+            self.end().z() + end_offset.z(),
+        );
         Self::new(new_start, new_end).expect("Extended segment should be valid")
     }
 

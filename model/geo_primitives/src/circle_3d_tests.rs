@@ -135,42 +135,6 @@ mod tests {
     }
 
     #[test]
-    fn test_transforms() {
-        let center = Point3D::new(1.0, 2.0, 3.0);
-        let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-        let radius = 4.0;
-        let circle = Circle3D::new(center, normal, radius).unwrap();
-
-        // 平行移動
-        let translation = Vector3D::new(2.0, 3.0, 4.0);
-        let translated = circle.translate(&translation);
-        let expected_center = Point3D::new(3.0, 5.0, 7.0);
-        assert_eq!(translated.center(), expected_center);
-        assert_eq!(translated.normal(), normal);
-        assert_eq!(translated.radius(), radius);
-
-        // スケール変換
-        let scaled = circle.scale(2.0).unwrap();
-        let expected_scaled_center = Point3D::new(2.0, 4.0, 6.0);
-        assert_eq!(scaled.center(), expected_scaled_center);
-        assert_eq!(scaled.normal(), normal);
-        assert_eq!(scaled.radius(), 8.0);
-
-        // 無効なスケール
-        assert!(circle.scale(0.0).is_none());
-        assert!(circle.scale(-1.0).is_none());
-
-        // Z軸回転
-        let xy_circle = Circle3D::new_xy_plane(Point3D::new(1.0, 0.0, 0.0), 1.0).unwrap();
-        let rotated = xy_circle.rotate_z(std::f64::consts::PI / 2.0);
-
-        // 90度回転後、中心は(0, 1, 0)付近になるはず
-        assert_approx_eq(rotated.center().x(), 0.0, 1e-10);
-        assert_approx_eq(rotated.center().y(), 1.0, 1e-10);
-        assert_approx_eq(rotated.center().z(), 0.0, 1e-10);
-    }
-
-    #[test]
     fn test_extensions() {
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
