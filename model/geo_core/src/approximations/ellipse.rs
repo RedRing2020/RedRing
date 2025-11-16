@@ -111,8 +111,8 @@ pub fn ellipse_circumference_series<T: Scalar>(
         // (2n-1)!! / (2n)!! の計算
         coeff = coeff * T::from_f64(2.0 * n as f64 - 1.0) / T::from_f64(2.0 * n as f64);
         let term = coeff * coeff * power / T::from_f64(2.0 * n as f64 - 1.0);
-        e_k = e_k - term;
-        power = power * e_squared;
+        e_k -= term;
+        power *= e_squared;
 
         // 収束判定（近似）
         if term < T::from_f64(1e-15) {
@@ -155,7 +155,7 @@ pub fn ellipse_circumference_numerical<T: Scalar>(
     for i in 0..n_points {
         let t = (T::from_f64(i as f64) + T::from_f64(0.5)) * dt; // 中点公式
         let integrand = (T::ONE - e_squared * t.sin().powi(2)).sqrt();
-        sum = sum + integrand * dt;
+        sum += integrand * dt;
     }
 
     T::from_f64(4.0) * a * sum
@@ -176,7 +176,6 @@ pub fn ellipse_foci<T: Scalar>(major_radius: T, minor_radius: T) -> (T, T) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    type F64 = f64;
 
     #[test]
     fn test_circle_circumference() {
