@@ -6,7 +6,7 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_foundation`
 
-**統一トレイト基盤・Analysis Transform・Foundation パターン**
+#### 統一トレイト基盤・Analysis Transform・Foundation パターン
 
 - **Foundation統一システム**: `ExtensionFoundation` による統一インターフェース
 - **Analysis Transform**: `analysis`クレート統合による高効率変換システム
@@ -19,14 +19,14 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_core`
 
-** 基本図形処理・ロバスト幾何判定**
+#### 基本図形処理・ロバスト幾何判定
 
 - 基本図形処理
 - ロバスト幾何判定（orientation など）
 
 ### `geo_primitives`
 
-**Foundation 統合済み幾何プリミティブ**
+#### Foundation 統合済み幾何プリミティブ
 
 - 基本要素：`Point`, `Vector`, `Direction`（Core/Extensions 分離済み）
 - 幾何形状：`LineSegment`, `Circle`, `Ellipse`, `Arc`（責務分離完了）
@@ -35,7 +35,7 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_algorithms`
 
-**高レベル幾何アルゴリズム**
+#### 高レベル幾何アルゴリズム
 
 - 交点計算
 - 曲線・曲面操作
@@ -46,7 +46,7 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_nurbs`
 
-**NURBS 曲線・曲面システム（✅ 実装完了）**
+#### NURBS 曲線・曲面システム（✅ 実装完了）
 
 - **NurbsCurve2D/3D**: メモリ最適化されたNURBS曲線実装
 - **NurbsSurface3D**: 双方向パラメトリックNURBSサーフェス
@@ -59,7 +59,7 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `analysis`
 
-**数値解析・汎用数値計算**
+#### 数値解析・汎用数値計算
 
 - 独立した汎用数値計算ライブラリ
 - `Scalar`トレイト、許容誤差管理
@@ -68,7 +68,7 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
 
 ### `geo_io`
 
-**ファイル I/O・境界層処理**
+#### ファイル I/O・境界層処理
 
 - STL、OBJ、PLY 等のファイル形式との変換
 - **例外的設計**: `geo_foundation`トレイトを経由せず、直接`geo_primitives`にアクセス
@@ -93,7 +93,7 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 
 ### `cam_solver`
 
-**CAM 演算・パス作成 / 編集・ポスト処理・切削シミュレーション**
+#### CAM 演算・パス作成 / 編集・ポスト処理・切削シミュレーション
 
 - CAM パス生成 / 編集（今後実装予定）
 - 各 CNC コントローラー 対応ポスト処理（今後実装予定）
@@ -101,7 +101,7 @@ use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 
 ### `data_exchange`
 
-**データインポート/エクスポート（将来実装予定）**
+#### データインポート/エクスポート（将来実装予定）
 
 - STL インポート/エクスポート
 - OBJ インポート/エクスポート
@@ -116,7 +116,7 @@ _注記_: 現在は`geo_io`で STL 形式のみ実装済み
 
 ### `render`
 
-**GPU 描画基盤**
+#### GPU 描画基盤
 
 - wgpu + WGSL による GPU レンダリング
 - シェーダ管理
@@ -124,7 +124,7 @@ _注記_: 現在は`geo_io`で STL 形式のみ実装済み
 
 ### `stage`
 
-**レンダリングステージ管理**
+#### レンダリングステージ管理
 
 - `RenderStage` トレイト
 - レンダリングパイプライン管理
@@ -132,7 +132,7 @@ _注記_: 現在は`geo_io`で STL 形式のみ実装済み
 
 ### `viewmodel`
 
-**ビュー操作・変換ロジック・MVVM アーキテクチャ**
+#### ビュー操作・変換ロジック・MVVM アーキテクチャ
 
 - カメラ制御（将来実装予定）
 - ビュー変換
@@ -143,7 +143,7 @@ _注記_: 現在は`geo_io`で STL 形式のみ実装済み
 
 ### `redring`
 
-**メインアプリケーション**
+#### メインアプリケーション
 
 - アプリケーションエントリポイント
 - 全クレート統合
@@ -161,7 +161,7 @@ _注記_: 現在は`geo_io`で STL 形式のみ実装済み
 
 ## アーキテクチャ依存関係
 
-```
+```text
 redring (View) → viewmodel → model (geo_*)
             ↘  stage → render
 

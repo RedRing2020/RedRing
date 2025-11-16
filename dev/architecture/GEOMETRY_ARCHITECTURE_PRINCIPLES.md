@@ -37,7 +37,7 @@
 
 正しい依存方向（修正版 2025年11月11日）：
 
-```
+```text
 analysis → geo_foundation
                 ↓
            geo_core（ブリッジ役）
@@ -96,7 +96,7 @@ PowerShell -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependenci
 
 ### 🚨 緊急対応が必要な問題
 
-1. **geo_nurbs Foundation パターン違反**: 
+1. **geo_nurbs Foundation パターン違反**:
    - 現状: geo_primitives を全ファイルで直接インポート
    - 影響: アーキテクチャチェック失敗、Foundation パターン破綻
 

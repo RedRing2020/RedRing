@@ -60,10 +60,9 @@ pub use extension_foundation::{
 
 // Extension Traitsを再エクスポート
 pub use extensions::{
-    AdvancedCollision, AnalysisTransform2D, AnalysisTransform3D,
-    AnalysisTransformSupport, AnalysisTransformVector2D, AnalysisTransformVector3D, BasicCollision,
-    BasicIntersection, MultipleIntersection, PointDistance, SafeTransform,
-    TransformError,
+    AdvancedCollision, AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport,
+    AnalysisTransformVector2D, AnalysisTransformVector3D, BasicCollision, BasicIntersection,
+    MultipleIntersection, PointDistance, SafeTransform, TransformError,
 };
 
 // Geometry Core Foundationを再エクスポート

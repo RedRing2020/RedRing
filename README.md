@@ -7,11 +7,12 @@ A research platform for CAD/CAM development built with Rust + wgpu.
 Currently focusing on rendering infrastructure and foundational architecture design. CAM processing features are planned for future development.
 
 **Documentation Languages:**
-| Document | Language | Access Method |
-|----------|----------|---------------|
-| **Online Documentation** | 🌐 Japanese | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/)** |
-| Geometry Abstraction | 🇺🇸 English (placeholder) | `model/GEOMETRY_README.md` |
-| Geometry Abstraction | 🇯🇵 Japanese (detailed) | `model/GEOMETRY_README.ja.md` |
+
+| Document                 | Language                 | Access Method                                                 |
+| ------------------------ | ------------------------ | ------------------------------------------------------------- |
+| **Online Documentation** | 🌐 Japanese              | **[📖 GitHub Pages](https://redring2020.github.io/RedRing/)** |
+| Geometry Abstraction     | 🇺🇸 English (placeholder) | `model/GEOMETRY_README.md`                                    |
+| Geometry Abstraction     | 🇯🇵 Japanese (detailed)   | `model/GEOMETRY_README.ja.md`                                 |
 
 ---
 
@@ -36,7 +37,7 @@ Machining simulation and CAM path generation features are also planned for futur
 ### ✅ Implemented Features
 
 - 🎨 **Rendering Infrastructure** (wgpu/winit) - GPU rendering pipeline
-- 📐 **Foundation Geometry Library** - Points, lines, planes, vector operations  
+- 📐 **Foundation Geometry Library** - Points, lines, planes, vector operations
 - 🏗️ **Foundation Pattern** - Unified geometric primitive interface
 - 📊 **NURBS System** - Complete NURBS curves and surfaces implementation
 - 🔧 **Test Framework** - Comprehensive test suite (23/23 tests passing)
@@ -52,14 +53,14 @@ Machining simulation and CAM path generation features are also planned for futur
 
 - 🔪 CAM path generation engine
 - ⚡ Machining simulation
-- 🌐 WebAssembly support  
+- 🌐 WebAssembly support
 - 🖱️ SpaceMouse integration
 
 For implementation progress and design decisions, please check our Issue tracker:
-  👉 [View Issues](https://github.com/RedRing2020/RedRing/issues)
+👉 [View Issues](https://github.com/RedRing2020/RedRing/issues)
 
 Development structure and responsibility separation designs are managed via GitHub Projects:
-  👉 [View Projects](https://github.com/RedRing2020/RedRing/projects)
+👉 [View Projects](https://github.com/RedRing2020/RedRing/projects)
 
 > **Note:** README is only updated when stable features are implemented. For detailed progress, please check Issues/Projects.
 
@@ -67,36 +68,40 @@ Development structure and responsibility separation designs are managed via GitH
 
 ## 📚 Documentation Guide
 
-| Document                                                           | Target Audience      | Content                                        |
-| ------------------------------------------------------------------ | -------------------- | ---------------------------------------------- |
-| `README.md`                                                        | General Users & New Developers | Project Overview & Build Instructions |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers           | Workspace Structure & Migration Status & Test Strategy |
-| [`manual/philosophy.md`](manual/philosophy.md)                     | Contributors         | Design Philosophy & Error Handling & Implementation Patterns |
-| [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers | Detailed Geometry Abstraction Specifications |
-| [`.github/AI_DEV_GUIDE.md`](.github/AI_DEV_GUIDE.md)              | 🤖 AI Developers    | Session Recovery & Development Continuity Support |
-| [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | Developers           | Feature Requests & Bug Reports & Progress Management |
-| [GitHub Projects](https://github.com/RedRing2020/RedRing/projects) | Developers           | Development Roadmap & Task Management |
+| Document                                                           | Target Audience                | Content                                                      |
+| ------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------ |
+| `README.md`                                                        | General Users & New Developers | Project Overview & Build Instructions                        |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers                     | Workspace Structure & Migration Status & Test Strategy       |
+| [`manual/philosophy.md`](manual/philosophy.md)                     | Contributors                   | Design Philosophy & Error Handling & Implementation Patterns |
+| [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers    | Detailed Geometry Abstraction Specifications                 |
+| [`.github/AI_DEV_GUIDE.md`](.github/AI_DEV_GUIDE.md)               | 🤖 AI Developers               | Session Recovery & Development Continuity Support            |
+| [GitHub Issues](https://github.com/RedRing2020/RedRing/issues)     | Developers                     | Feature Requests & Bug Reports & Progress Management         |
+| [GitHub Projects](https://github.com/RedRing2020/RedRing/projects) | Developers                     | Development Roadmap & Task Management                        |
 
 ---
 
 ## 🛠️ Technology Stack
 
 ### Core Technologies
+
 - **Rust** (latest stable recommended) - Systems programming language
 - **wgpu** - Cross-platform GPU API
 - **winit** - Window management and event handling
 
 ### Numerical Computing & Geometry
+
 - **nalgebra** - Linear algebra library
 - **approx** - Floating-point comparison
 - **Custom NURBS** - In-house NURBS engine implementation
 
 ### Development & Testing
+
 - **cargo** - Rust package manager
 - **mdbook** - Documentation generation
 - **GitHub Actions** - CI/CD pipeline
 
 ### Future Support
+
 - **WebAssembly** - Browser execution environment
 - **STEP/IGES** - CAD file formats
 - **OpenCASCADE** - Advanced geometry kernel (under consideration)
@@ -108,17 +113,20 @@ Development structure and responsibility separation designs are managed via GitH
 RedRing is built on the following principles:
 
 ### 🔒 Type Safety
+
 - Memory safety through Rust's ownership system
 - Abstraction via generics and traits
 - Compile-time error detection for quality assurance
 
 ### 🏗️ Separation of Concerns
+
 - **Foundation**: Basic functionality and numerical analysis
 - **Model**: Geometric data layer and algorithms
 - **View**: Application and rendering layer
 - **ViewModel**: View transformation logic
 
 ### 🚀 Future Extensibility
+
 - Modular crate architecture
 - Plugin-capable design
 - Incremental feature addition support
@@ -134,6 +142,7 @@ For detailed design philosophy, error handling guidelines, and trait design patt
 ### Prerequisites
 
 #### Basic Requirements
+
 - **Rust** (latest stable recommended) - Install from [official site](https://www.rust-lang.org/)
 - **cargo** (included with Rust)
 - **git** - For repository cloning
@@ -141,26 +150,31 @@ For detailed design philosophy, error handling guidelines, and trait design patt
 #### Platform-Specific Requirements
 
 **Windows:**
+
 - Visual Studio Build Tools or Visual Studio Community
 - Windows 10/11 (DirectX 12 support)
 
 **macOS:**
+
 - Xcode Command Line Tools: `xcode-select --install`
 - macOS 10.15+ (Metal support)
 
 **Linux:**
+
 - Required packages: `sudo apt install build-essential pkg-config libx11-dev`
 - Vulkan or OpenGL drivers
 
 ### Build Steps
 
 #### 1. Clone Repository
+
 ```bash
 git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
 #### 2. Verify Dependencies
+
 ```bash
 # Check Rust version
 rustc --version
@@ -170,6 +184,7 @@ cargo --version
 ```
 
 #### 3. Build Project
+
 ```bash
 # Debug build (fast compilation)
 cargo build
@@ -179,6 +194,7 @@ cargo build --release
 ```
 
 #### 4. Run Application
+
 ```bash
 # Requires GUI environment (X11/Wayland/Windows/macOS)
 cargo run
@@ -188,6 +204,7 @@ cargo test --workspace
 ```
 
 #### 5. Generate Documentation (Optional)
+
 ```bash
 # Requires mdbook: cargo install mdbook
 mdbook build  # Generates manual/ -> docs/
@@ -197,6 +214,7 @@ mdbook serve  # Serve locally for preview
 ### Troubleshooting
 
 #### GPU Driver Issues
+
 ```bash
 # If wgpu cannot detect GPU
 export WGPU_BACKEND=vulkan  # Linux
@@ -205,6 +223,7 @@ export WGPU_BACKEND=dx12    # Windows
 ```
 
 #### Build Errors
+
 ```bash
 # Update dependencies
 cargo update
@@ -266,6 +285,7 @@ This dual licensing follows the standard practice of the Rust ecosystem and prov
 We thank all contributors who have helped develop RedRing.
 
 This project also benefits from the following open-source projects:
+
 - [Rust Programming Language](https://www.rust-lang.org/)
 - [wgpu](https://wgpu.rs/) - WebGPU implementation
 - [winit](https://github.com/rust-windowing/winit) - Window handling
@@ -273,7 +293,7 @@ This project also benefits from the following open-source projects:
 
 ---
 
-**🔗 Links**
+## 🔗 Links
 
 - 📧 **Contact**: [Issues](https://github.com/RedRing2020/RedRing/issues) or [Discussions](https://github.com/RedRing2020/RedRing/discussions)
 - 🌐 **Website**: [GitHub Pages](https://redring2020.github.io/RedRing/)

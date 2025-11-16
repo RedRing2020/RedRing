@@ -22,7 +22,7 @@ RedRing の中核設計原則である Core/Extension Foundation パターンに
 
 ## ファイル構造
 
-```
+```text
 circle_2d.rs              // Core実装（120行）
 circle_2d_extensions.rs   // Extension実装（130行）
 ```

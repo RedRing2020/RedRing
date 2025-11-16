@@ -2,211 +2,221 @@
 
 /* カラーテーマ */
 :root {
-    --primary-color: #2563eb;
-    --secondary-color: #1e40af;
-    --success-color: #059669;
-    --warning-color: #d97706;
-    --danger-color: #dc2626;
-    --info-color: #0891b2;
-    
-    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --accent-gradient: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  --primary-color: #2563eb;
+  --secondary-color: #1e40af;
+  --success-color: #059669;
+  --warning-color: #d97706;
+  --danger-color: #dc2626;
+  --info-color: #0891b2;
+
+  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --accent-gradient: linear-gradient(45deg, #ff6b6b, #4ecdc4);
 }
 
 /* ヘッダーの装飾 */
 .chapter h1 {
-    background: var(--bg-gradient);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-size: 2.5em;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    border-bottom: 3px solid var(--primary-color);
-    padding-bottom: 0.5rem;
+  background: var(--bg-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 2.5em;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  border-bottom: 3px solid var(--primary-color);
+  padding-bottom: 0.5rem;
 }
 
 .chapter h2 {
-    color: var(--primary-color);
-    border-left: 4px solid var(--primary-color);
-    padding-left: 1rem;
-    margin: 2rem 0 1rem 0;
+  color: var(--primary-color);
+  border-left: 4px solid var(--primary-color);
+  padding-left: 1rem;
+  margin: 2rem 0 1rem 0;
 }
 
 .chapter h3 {
-    color: var(--secondary-color);
-    font-weight: 600;
-    margin: 1.5rem 0 0.5rem 0;
+  color: var(--secondary-color);
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem 0;
 }
 
 /* ステータスバッジ */
 .status-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    margin-left: 0.5rem;
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
 }
 
 .status-completed {
-    background-color: var(--success-color);
-    color: white;
+  background-color: var(--success-color);
+  color: white;
 }
 
 .status-planned {
-    background-color: var(--info-color);
-    color: white;
+  background-color: var(--info-color);
+  color: white;
 }
 
 .status-wip {
-    background-color: var(--warning-color);
-    color: white;
+  background-color: var(--warning-color);
+  color: white;
 }
 
 /* コードブロックの装飾 */
 pre {
-    background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%) !important;
-    border-radius: 8px;
-    border-left: 4px solid var(--primary-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%) !important;
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 code {
-    background-color: #f3f4f6;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background-color: #f3f4f6;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
 }
 
 /* 引用の装飾 */
 blockquote {
-    border-left: 4px solid var(--primary-color);
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    padding: 1rem;
-    margin: 1.5rem 0;
-    border-radius: 0 8px 8px 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid var(--primary-color);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 1rem;
+  margin: 1.5rem 0;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* テーブルの装飾 */
 table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 1.5rem 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    overflow: hidden;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 th {
-    background: var(--bg-gradient);
-    color: white;
-    font-weight: 600;
-    padding: 1rem;
-    text-align: left;
+  background: var(--bg-gradient);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
 }
 
 td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 tr:nth-child(even) {
-    background-color: #f9fafb;
+  background-color: #f9fafb;
 }
 
 tr:hover {
-    background-color: #f3f4f6;
-    transition: background-color 0.2s ease;
+  background-color: #f3f4f6;
+  transition: background-color 0.2s ease;
 }
 
 /* リストの装飾 */
 ul li {
-    margin: 0.5rem 0;
+  margin: 0.5rem 0;
 }
 
 ul li::marker {
-    color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 /* 特別な装飾クラス */
 .highlight-box {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    border: 1px solid var(--primary-color);
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
 }
 
 .warning-box {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 1px solid var(--warning-color);
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid var(--warning-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
 }
 
 .success-box {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    border: 1px solid var(--success-color);
-    border-radius: 8px;
-    padding: 1rem;
-    margin: 1rem 0;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid var(--success-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
 }
 
 /* アニメーション */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .chapter > * {
-    animation: fadeIn 0.6s ease-out;
+  animation: fadeIn 0.6s ease-out;
 }
 
 /* ダークモード対応 */
 @media (prefers-color-scheme: dark) {
-    :root {
-        --bg-color: #1f2937;
-        --text-color: #f9fafb;
-    }
-    
-    .highlight-box {
-        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-        color: white;
-    }
-    
-    code {
-        background-color: #374151;
-        color: #f9fafb;
-    }
+  :root {
+    --bg-color: #1f2937;
+    --text-color: #f9fafb;
+  }
+
+  .highlight-box {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    color: white;
+  }
+
+  code {
+    background-color: #374151;
+    color: #f9fafb;
+  }
 }
 
 /* 印刷用スタイル */
 @media print {
-    .chapter h1, .chapter h2 {
-        color: #000 !important;
-        background: none !important;
-        -webkit-text-fill-color: initial !important;
-    }
-    
-    pre, blockquote, table {
-        break-inside: avoid;
-    }
+  .chapter h1,
+  .chapter h2 {
+    color: #000 !important;
+    background: none !important;
+    -webkit-text-fill-color: initial !important;
+  }
+
+  pre,
+  blockquote,
+  table {
+    break-inside: avoid;
+  }
 }
 
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
-    .chapter h1 {
-        font-size: 2em;
-    }
-    
-    table {
-        font-size: 0.875rem;
-    }
-    
-    th, td {
-        padding: 0.5rem;
-    }
+  .chapter h1 {
+    font-size: 2em;
+  }
+
+  table {
+    font-size: 0.875rem;
+  }
+
+  th,
+  td {
+    padding: 0.5rem;
+  }
 }

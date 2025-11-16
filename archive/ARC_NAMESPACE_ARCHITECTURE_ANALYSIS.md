@@ -5,7 +5,6 @@
 ### geo_foundation/src/abstract_types/geometry/
 
 1. **arc.rs** - 最小責務抽象化（21 行 + 85 行拡張トレイト）
-
    - `Arc2D<T>`: 基本属性のみ（円・角度範囲・基本判定）
    - `ArcMetrics<T>`: 計量演算拡張
    - `ArcContainment<T>`: 包含・角度判定拡張
@@ -84,7 +83,7 @@ pub trait ArcCore<T: Scalar>:
 
 ## 親子関係の分析
 
-**結論: 親子関係ではなく、並行する異なる設計アプローチ**
+### 結論: 親子関係ではなく、並行する異なる設計アプローチ
 
 - `basic_arc.rs` → `arc.rs` の親子関係ではない
 - むしろ `basic_arc.rs` は RedRing の Core/Extension Foundation パターン

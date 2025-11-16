@@ -88,21 +88,7 @@ pub mod vector_3d_foundation; // Vector3D のFoundation実装
 
 // Transform テストモジュール
 #[cfg(test)]
-// pub mod ellipse_3d_transform_safe_tests; // 削除済み
-#[cfg(test)]
-// pub mod ellipse_3d_transform_tests; // 削除済み
-#[cfg(test)]
-// pub mod point_3d_transform_safe_tests; // 削除済み
-#[cfg(test)]
 pub mod ray_3d_tests;
-#[cfg(test)]
-// pub mod torus_solid_3d_tests; // 未実装Transform機能のため無効化
-#[cfg(test)]
-// pub mod torus_solid_3d_transform_safe_tests; // 削除済み
-#[cfg(test)]
-// pub mod torus_surface_3d_tests; // 未実装Transform機能のため無効化
-#[cfg(test)]
-// pub mod torus_surface_3d_transform_safe_tests; // 削除済み
 #[cfg(test)]
 pub mod triangle_3d_tests;
 #[cfg(test)]
@@ -139,20 +125,15 @@ pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
-// 3D テスト
 #[cfg(test)]
 mod bbox_3d_tests;
 #[cfg(test)]
 mod ellipse_3d_tests;
 #[cfg(test)]
 mod point_3d_tests;
-#[cfg(test)]
 // mod spherical_solid_3d_tests; // 未実装position機能のため無効化
-#[cfg(test)]
 // mod spherical_solid_3d_transform_safe_tests; // 削除済み
-#[cfg(test)]
 // mod spherical_surface_3d_tests; // 未実装position機能のため無効化
-#[cfg(test)]
 // mod spherical_surface_3d_transform_safe_tests; // 削除済み
 #[cfg(test)]
 mod vector_3d_tests;
@@ -164,19 +145,14 @@ mod bbox_2d_tests;
 mod direction_2d_extensions_tests;
 #[cfg(test)]
 mod direction_3d_extensions_tests;
-#[cfg(test)]
 // mod ellipse_arc_2d_tests; // 未実装Transform機能のため無効化
 #[cfg(test)]
 mod foundation_tests;
-#[cfg(test)]
 // mod infinite_line_2d_tests; // 未実装Transform機能のため無効化
-#[cfg(test)]
 // mod infinite_line_3d_tests; // 未実装Transform機能のため無効化
 #[cfg(test)]
 mod point_2d_tests;
-#[cfg(test)]
 // pub mod point_2d_transform_safe_tests; // 削除済み
-#[cfg(test)]
 // mod ray_2d_tests; // 未実装Transform機能のため無効化
 #[cfg(test)]
 mod vector_2d_tests; // Foundation traitの動作確認テスト

@@ -16,7 +16,8 @@
 ### **Model 層 (geo\_\*)**
 
 #### 現在の実装状況（2025年11月11日時点）
-```
+
+```text
 geo_foundation → analysis ✅
 geo_core → geo_foundation, analysis ✅
 geo_primitives → geo_foundation, geo_core, analysis ✅
@@ -26,7 +27,8 @@ geo_io → geo_foundation, geo_core, geo_primitives, geo_algorithms, analysis �
 ```
 
 #### 目標アーキテクチャ（修正予定）
-```
+
+```text
 geo_foundation → analysis ✅
 geo_core → geo_foundation, analysis ✅
 geo_primitives → geo_foundation, geo_core, analysis ✅
@@ -37,14 +39,14 @@ geo_io → geo_foundation, geo_core, geo_primitives, geo_algorithms, analysis �
 
 ### **ViewModel 層**
 
-```
+```text
 converter → geo_*, analysis ✅ (例外: geo_io直接参照許可)
 graphics → geo_foundation, geo_core, geo_primitives, analysis ✅
 ```
 
 ### **View 層**
 
-```
+```text
 render → analysis ✅ (GPU層独立性保持)
 stage → render, analysis ✅
 app → converter, graphics, render, stage, analysis ✅
@@ -52,7 +54,7 @@ app → converter, graphics, render, stage, analysis ✅
 
 ### **Analysis 層**
 
-```
+```text
 analysis → なし ✅ (完全独立)
 ```
 
@@ -146,7 +148,7 @@ analysis → なし ✅ (完全独立)
 
 ## 📊 **期待される依存グラフ**
 
-```
+```text
 ┌─────────────┐
 │   analysis  │ (完全独立)
 └─────────────┘

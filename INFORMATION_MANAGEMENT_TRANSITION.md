@@ -13,7 +13,7 @@
 
 ### 1. ドキュメント階層化
 
-```
+```text
 docs/           # GitHub Pages（公開用HTML生成先）
 manual/         # mdbook ソース（ユーザー向けドキュメント）
 
@@ -48,7 +48,7 @@ MIGRATION*.md          → archive/
 
 ### 4. 残すもの
 
-```
+```text
 README.md              # プロジェクト概要
 Cargo.toml            # ビルド設定
 book.toml             # ドキュメント生成

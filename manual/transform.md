@@ -13,7 +13,7 @@ RedRingの統一幾何変換システムについて説明します。従来の�
 
 ### シンプルな構成
 
-```
+```text
 従来（削除済み）:
 ├── BasicTransform      - 基本変換（削除）
 ├── AdvancedTransform   - 高度変換（削除）
@@ -40,13 +40,13 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     // 直接Matrix変換
     fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
-    
+
     // 基本変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
     fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
     fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
     fn uniform_scale_analysis(&self, center: &Self, scale_factor: T) -> Result<Self::Output, TransformError>;
-    
+
     // 複合変換
     fn apply_composite_transform(
         &self,
@@ -67,7 +67,7 @@ pub trait AnalysisTransformVector3D<T: Scalar> {
     fn transform_vector_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
     fn rotate_vector_analysis(&self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
     fn scale_vector_analysis(&self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
-    
+
     // Analysis正規化
     fn normalize_analysis(&self) -> Result<Self::Output, TransformError>;
 }
@@ -87,7 +87,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
 
     fn transform_point_matrix(&self, matrix: &Matrix4x4<T>) -> Self {
         let mut transformed_vertices = Vec::with_capacity(self.vertices().len());
-        
+
         for vertex in self.vertices() {
             // 効率的な型変換チェーン
             let vertex_vec = vertex.to_analysis_vector3();          // Point3D → Vector3
@@ -112,12 +112,12 @@ impl<T: Scalar> Point3D<T> {
     pub fn to_analysis_vector3(&self) -> analysis::Vector3<T> {
         self.to_analysis_point3().to_vector()
     }
-    
+
     pub fn from_analysis_vector3(v: analysis::Vector3<T>) -> Self {
         let point = analysis::Point3::from_vector(v);
         Self::from_analysis_point3(point)
     }
-    
+
     // 直接変換
     pub fn to_analysis_point3(&self) -> analysis::Point3<T> {
         analysis::Point3::new(self.x, self.y, self.z)
@@ -231,7 +231,7 @@ trait BasicTransform<T> { /* ... */ }
 trait AdvancedTransform<T>: BasicTransform<T> { /* ... */ }
 
 // 削除済み - 過剰なジェネリック抽象化
-trait BasicTransform3D<T> { 
+trait BasicTransform3D<T> {
     type Vector3D;    // 抽象化しすぎて非効率
     type Point3D;
     type Rotation3D;

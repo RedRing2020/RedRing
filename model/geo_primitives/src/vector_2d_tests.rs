@@ -381,15 +381,17 @@ fn test_2d_rotation() {
 }
 
 #[test]
+#[ignore] // 実装待ち
 fn test_transform_vector_trait() {
     // 一時的にテストをスキップ（TransformVector2Dトレイトの実装待ち）
-    assert!(true);
+    // テストは実装待ち
 }
 
 #[test]
+#[ignore] // 実装待ち
 fn test_transform_point_trait() {
     // 一時的にテストをスキップ（TransformPoint2Dトレイトの実装待ち）
-    assert!(true);
+    // テストは実装待ち
 }
 
 #[test]

@@ -1,6 +1,6 @@
 # RedRing アーキテクチャガイド
 
-**最終更新: 2025年11月11日**
+**最終更新**: 2025年11月11日
 
 ## 現在の構造（2025年11月11日時点）
 
@@ -14,7 +14,7 @@
 
 ## 提案構造
 
-```
+```text
 RedRing/
 ├── foundation/          # 独立基盤ライブラリ（ドメイン非依存）
 │   └── analysis/       # 数値計算（現在のanalysis/）
@@ -50,10 +50,10 @@ RedRing/
 
 ### 2. 依存関係の可視化
 
-```
+```text
 view/ → viewmodel/ → model/
      ↗              ↗
-foundation/ (全層で利用可能)
+foundation/ （全層で利用可能）
 ```
 
 ### 3. 新規開発者の理解促進
@@ -90,11 +90,13 @@ foundation/ (全層で利用可能)
 ## 現在の課題（2025年11月11日）
 
 ### 🚨 解決が必要な問題
+
 1. **geo_nurbs Foundation パターン違反**: geo_primitives を直接インポート
 2. **geo_core ブリッジ未完成**: Foundation トレイトと具体型の仲介機能が未実装
 3. **アーキテクチャチェック失敗**: 依存関係チェックスクリプトでエラー検出
 
 ### 🎯 修正方針
+
 - geo_core でのブリッジパターン実装完了
 - geo_nurbs から geo_primitives への直接依存を削除
 - geo_nurbs → geo_core → geo_foundation のルート確立

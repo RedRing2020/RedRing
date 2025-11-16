@@ -8,7 +8,7 @@ use wgpu::{
 
 use crate::render_stage::RenderStage;
 
-use render::render_3d::{Renderer3D, create_renderer_3d, draw_renderer_3d};
+use render::render_3d::{create_renderer_3d, draw_renderer_3d, Renderer3D};
 
 pub struct ShadingStage {
     renderer: Renderer3D,

@@ -1,20 +1,23 @@
-//! Foundation システム統一設計書
-//!
-//! Intersection、Collision、Transform の Foundation システム統一設計
-//! メンテナンス効率向上のため、全幾何プリミティブで共通利用可能な統一システムを構築
+# Foundation システム統一設計書
 
-# Foundation システム統一設計
+**作成日**: 2025年11月11日
+**目的**: Intersection、Collision、Transform の Foundation システム統一設計
+**方針**: メンテナンス効率向上のため、全幾何プリミティブで共通利用可能な統一システムを構築
 
-**最終更新: 2025年11月11日**
+## Foundation システム設計方針
+
+**最終更新**: 2025年11月11日
 
 ## 重要な課題（2025年11月11日現在）
 
 ### geo_nurbs Foundation パターン違反 🚨
+
 - **問題**: geo_nurbs が geo_primitives を直接インポート
 - **影響**: アーキテクチャチェック失敗、Foundation パターン破綻
 - **解決策**: geo_core ブリッジパターンの実装完了
 
 ### geo_core ブリッジ実装未完成 🔧
+
 - **問題**: Foundation トレイトと具体型の仲介が未実装
 - **影響**: 上位クレートが Foundation パターンを遵守できない
 - **解決策**: geo_core での具体型アクセス機能の実装
@@ -96,7 +99,7 @@ impl<T: Scalar, U> TransformHelpers<T> for U where U: BasicTransform<T> {}
 
 ### 2. Collision Foundation システム
 
-#### 統一トレイト設計
+#### 衝突検出統一トレイト設計
 
 ```rust
 // 基本衝突検出インターフェース
@@ -160,7 +163,7 @@ where U: BasicCollision<T, Other> {}
 
 #### ファイル構成
 
-```
+```text
 geo_foundation/src/abstract_types/geometry/
 ├── intersection.rs     ✅ 実装済み
 ├── transform.rs        📋 新規作成予定
@@ -170,7 +173,7 @@ geo_foundation/src/abstract_types/geometry/
 
 #### geo_primitives での実装パターン
 
-```
+```text
 geo_primitives/src/
 ├── arc_2d.rs                    ✅ 実装済み
 ├── arc_2d_metrics.rs           ✅ 実装済み
@@ -186,12 +189,10 @@ geo_primitives/src/
 ### Phase 1: Transform Foundation 統一システム ✅ 完了
 
 1. **統一トレイト定義** ✅ 完了
-
    - `geo_foundation/src/abstract_types/geometry/transform.rs` 作成
    - `BasicTransform`, `AdvancedTransform`, `TransformHelpers` 定義
 
 2. **既存個別 Transform トレイトの統一化** ✅ 完了
-
    - Arc2D: `arc_2d_transform.rs` を統一トレイトベースに変更
    - 統一インターフェースによる実装完了
 
@@ -202,12 +203,10 @@ geo_primitives/src/
 ### Phase 2: Collision Foundation システム構築 ✅ 完了
 
 1. **Collision 統一トレイト定義** ✅ 完了
-
    - `geo_foundation/src/abstract_types/geometry/collision.rs` 作成
    - `BasicCollision`, `AdvancedCollision`, `PointDistance` 定義
 
 2. **Arc2D Collision 実装** ✅ 完了
-
    - `arc_2d_collision.rs` 作成
    - Arc-Point, Arc-Circle, Arc-Arc の衝突検出実装
 
@@ -217,7 +216,6 @@ geo_primitives/src/
 ### Phase 3: Intersection Foundation 拡張 ✅ 完了
 
 1. **Arc2D Intersection 実装** ✅ 完了
-
    - `arc_2d_intersection.rs` 作成
    - 既存 `BasicIntersection` トレイトベース実装
 

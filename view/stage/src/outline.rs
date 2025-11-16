@@ -4,7 +4,7 @@ use wgpu::{
 };
 
 use crate::render_stage::RenderStage;
-use render::wireframe::{WireframeResources, draw_wireframe};
+use render::wireframe::{draw_wireframe, WireframeResources};
 
 pub struct OutlineStage {
     resources: WireframeResources,

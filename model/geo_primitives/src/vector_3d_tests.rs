@@ -169,7 +169,7 @@ mod tests {
     fn test_transform_vector_trait() {
         // Transform機能は将来実装予定
         // 現在はコア機能のテストのみ実装
-        assert!(true);
+        // テストは実装待ち
     }
 
     #[test]
@@ -193,7 +193,7 @@ mod tests {
         // assert_eq!(transformed.z(), 4.0);
 
         // 一時的にテストをスキップ（TransformPoint3Dトレイトの実装待ち）
-        assert!(true);
+        // テストは実装待ち
     }
 
     #[test]
