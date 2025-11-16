@@ -4,7 +4,6 @@
 
 pub mod area_volume;
 pub mod distance;
-pub mod ellipse;
 pub mod length;
 
 #[cfg(test)]
@@ -12,15 +11,9 @@ mod area_volume_tests;
 #[cfg(test)]
 mod length_tests;
 
-// 便利な再エクスポート（geometry専用機能のみ）
-pub use area_volume::{
-    box_volume, circle_area, cone_surface_area, cone_volume, cylinder_surface_area,
-    cylinder_volume, polygon_area, rectangle_area, sphere_surface_area, sphere_volume,
-    trapezoid_area, triangle_area_2d, triangle_area_heron,
-};
-pub use ellipse::{
-    ellipse_area_f64, ellipse_circumference_numerical_f64, ellipse_circumference_ramanujan_f64,
-    ellipse_circumference_series_f64, ellipse_eccentricity_f64, ellipse_focal_distance_f64,
-    ellipse_foci_f64,
-};
-pub use length::{arc_length, ellipse_arc_length_approximation};
+// 便利な再エクスポート（geometry特化機能 + analysis関数）
+// analysisの汎用関数を再エクスポートし、統一インターフェースを提供
+pub use area_volume::*; // analysis関数の再エクスポート含む
+pub use length::*; // analysis関数の再エクスポート含む
+
+// ellipse機能は approximations/ellipse.rs に統合されました

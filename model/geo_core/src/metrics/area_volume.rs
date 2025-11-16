@@ -7,6 +7,11 @@ pub fn circle_area<T: Scalar>(radius: T) -> T {
     T::PI * radius * radius
 }
 
+/// 楕円の面積計算
+pub fn ellipse_area<T: Scalar>(semi_major: T, semi_minor: T) -> T {
+    T::PI * semi_major * semi_minor
+}
+
 /// 三角形の面積計算（座標版）
 pub fn triangle_area_2d<T: Scalar>(x1: T, y1: T, x2: T, y2: T, x3: T, y3: T) -> T {
     ((x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / T::from_f64(2.0)).abs()

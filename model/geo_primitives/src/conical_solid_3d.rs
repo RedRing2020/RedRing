@@ -19,7 +19,7 @@
 //! **最終更新: 2025年11月1日**
 
 use crate::{BBox3D, Direction3D, Point3D, Vector3D};
-use analysis;
+
 use geo_foundation::Scalar;
 
 /// 3次元円錐ソリッド（STEP準拠のCore実装）
@@ -240,7 +240,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// # Returns
     /// 体積 V = (1/3)π × r² × h
     pub fn volume(&self) -> T {
-        analysis::metrics::cone_volume(self.radius(), self.height())
+        T::PI * self.radius() * self.radius() * self.height() / T::from_f64(3.0)
     }
 
     /// 円錐の表面積を計算（底面含む）
@@ -248,7 +248,8 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// # Returns
     /// 表面積 S = π × r × (r + √(r² + h²))
     pub fn surface_area(&self) -> T {
-        analysis::metrics::cone_surface_area(self.radius(), self.height())
+        let slant_height = (self.radius() * self.radius() + self.height() * self.height()).sqrt();
+        T::PI * self.radius() * (self.radius() + slant_height)
     }
 
     /// 円錐の境界ボックスを計算

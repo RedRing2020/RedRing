@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::numerical_methods::newton_solve;
+    use crate::numerics::solver::newton_solve;
 
     #[test]
     fn test_newton_solver() {
