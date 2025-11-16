@@ -59,6 +59,7 @@ pub mod plane_3d_foundation; // Plane3D のFoundation実装
 pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
 pub mod point_3d; // Point3D の新実装 (Core)
+pub mod point_3d_core_traits; // Point3D の Core traits 実装
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
 pub mod ray_3d; // Ray3D の新実装 (Core)
@@ -115,6 +116,7 @@ pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extensio
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod point_2d; // Point2D の新実装
+pub mod point_2d_core_traits; // Point2D の Core traits 実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
