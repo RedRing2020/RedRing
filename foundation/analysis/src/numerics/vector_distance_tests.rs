@@ -1,6 +1,6 @@
-//! 汎用距離・長さ計算のテスト
+//! ベクトル・距離数値計算のテスト
 
-use crate::metrics::*;
+use crate::numerics::*;
 
 #[cfg(test)]
 mod tests {
