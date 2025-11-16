@@ -18,7 +18,7 @@ resolver = "2"
 [workspace.package]
 license = "MIT OR Apache-2.0"
 authors = ["RedRing"]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/RedRing2020/RedRing"
 keywords = ["cad", "cam", "graphics", "geometry", "nurbs"]
 categories = ["graphics", "mathematics", "science"]
