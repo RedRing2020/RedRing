@@ -58,11 +58,26 @@ pub use extension_foundation::{
     TransformableExtension,
 };
 
-// Extension Traitsを再エクスポート
+// Core Transform Traitsを再エクスポート（extensions → core移動）
+pub use core::transform::{
+    AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport, AnalysisTransformVector2D,
+    AnalysisTransformVector3D,
+};
+
+// Core Transform Errorを再エクスポート（段階的移行: 両方からアクセス可能）
+pub use core::transform_error::{
+    SafeTransform as CoreSafeTransform, TransformError as CoreTransformError,
+};
+
+// Extension Traitsを再エクスポート(既存互換性維持)
 pub use extensions::{
-    AdvancedCollision, AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport,
-    AnalysisTransformVector2D, AnalysisTransformVector3D, BasicCollision, BasicIntersection,
-    MultipleIntersection, PointDistance, SafeTransform, TransformError,
+    AdvancedCollision,
+    BasicCollision,
+    BasicIntersection,
+    MultipleIntersection,
+    PointDistance,
+    SafeTransform,
+    TransformError, // 既存ルート維持
 };
 
 // Geometry Core Foundationを再エクスポート
@@ -79,13 +94,19 @@ pub use tolerance::{GeometryContext, ToleranceSettings};
 
 /// 便利な再エクスポート
 pub mod prelude {
-    // TransformError を追加 - 安全な変換操作用
+    // Core Transform Traits（core::transformから）
     pub use crate::{
         AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport,
-        AnalysisTransformVector2D, AnalysisTransformVector3D, GeometryContext, SafeTransform,
-        ToleranceSettings, TransformError, DEG_TO_RAD, E, GEOMETRIC_ANGLE_TOLERANCE,
-        GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
+        AnalysisTransformVector2D, AnalysisTransformVector3D,
     };
+    // Extension機能(既存互換性維持)
+    pub use crate::{
+        GeometryContext, SafeTransform, ToleranceSettings, TransformError, DEG_TO_RAD, E,
+        GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
+        RAD_TO_DEG, TAU,
+    };
+    // Core Transform Errorルート(段階的移行用)
+    pub use crate::{CoreSafeTransform, CoreTransformError};
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 
     // Note: 具体的な幾何型は geo_primitives から直接 import してください
