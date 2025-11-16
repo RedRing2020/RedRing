@@ -36,8 +36,5 @@ pub use consts::{
     RAD_TO_DEG, TAU,
 };
 
-// 数値計算関数の再エクスポート
-pub use crate::numerical_methods::{
-    basis_function_derivatives, basis_functions, find_span, newton_arc_length, newton_inverse,
-    newton_solve, NormedVector,
-};
+// 数値計算関数の再エクスポート（汎用数値計算のみ）
+pub use crate::numerical_methods::{newton_arc_length, newton_inverse, newton_solve, NormedVector};

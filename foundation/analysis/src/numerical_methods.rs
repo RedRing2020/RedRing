@@ -90,125 +90,14 @@ pub trait NormedVector {
 }
 
 // =============================================================================
-// NURBS/B-spline特化機能 (NURBS/B-spline Specialized Functions)
+// 注意: B-spline/NURBS特化機能は geo_nurbs クレートに移動済み
 // =============================================================================
-
-/// NURBS/B-splineノットベクトルからスパンインデックスを検索
-///
-/// パラメータ u に対応するノットスパンのインデックスを二分探索で効率的に求める。
-/// NURBS曲線・曲面の評価において基底関数計算の前処理として必須。
-///
-/// # Arguments
-/// * `n` - 制御点数 - 1
-/// * `degree` - B-splineの次数
-/// * `u` - パラメータ値
-/// * `knots` - ノットベクトル
-///
-/// # Returns
-/// スパンインデックス（degree ≤ span ≤ n）
-pub fn find_span(n: usize, degree: usize, u: f64, knots: &[f64]) -> usize {
-    if u >= knots[n + 1] {
-        return n;
-    }
-    if u <= knots[degree] {
-        return degree;
-    }
-
-    let mut low = degree;
-    let mut high = n + 1;
-    let mut mid = (low + high) / 2;
-
-    while u < knots[mid] || u >= knots[mid + 1] {
-        if u < knots[mid] {
-            high = mid;
-        } else {
-            low = mid;
-        }
-        mid = (low + high) / 2;
-    }
-
-    mid
-}
-
-/// B-spline基底関数Nᵢₚ(u)の値を計算
-///
-/// Cox-de Boor再帰式を非再帰的に実装した効率的なアルゴリズム。
-/// 指定されたスパンと次数に対して、すべての非零基底関数の値を計算。
-///
-/// # Arguments
-/// * `span` - find_span()で求めたスパンインデックス
-/// * `u` - パラメータ値
-/// * `degree` - B-splineの次数
-/// * `knots` - ノットベクトル
-///
-/// # Returns
-/// 基底関数値のベクトル（長さ = degree + 1）
-pub fn basis_functions(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec<f64> {
-    let mut n = vec![0.0; degree + 1];
-    let mut left = vec![0.0; degree + 1];
-    let mut right = vec![0.0; degree + 1];
-
-    n[0] = 1.0;
-
-    for j in 1..=degree {
-        left[j] = u - knots[span + 1 - j];
-        right[j] = knots[span + j] - u;
-        let mut saved = 0.0;
-
-        for r in 0..j {
-            let temp = n[r] / (right[r + 1] + left[j - r]);
-            n[r] = saved + right[r + 1] * temp;
-            saved = left[j - r] * temp;
-        }
-        n[j] = saved;
-    }
-
-    n
-}
-
-/// B-spline基底関数の一階導関数 Nᵢₚ′(u) を計算
-///
-/// 基底関数の導関数を効率的に計算。NURBS曲線の接線ベクトル計算や
-/// 曲率解析において重要な機能。
-///
-/// # Arguments
-/// * `span` - find_span()で求めたスパンインデックス
-/// * `u` - パラメータ値
-/// * `degree` - B-splineの次数
-/// * `knots` - ノットベクトル
-///
-/// # Returns
-/// 基底関数導関数値のベクトル（長さ = degree + 1）
-pub fn basis_function_derivatives(span: usize, u: f64, degree: usize, knots: &[f64]) -> Vec<f64> {
-    let mut ders = vec![0.0; degree + 1];
-    let mut left = vec![0.0; degree + 1];
-    let mut right = vec![0.0; degree + 1];
-    let mut ndu = vec![vec![0.0; degree + 1]; degree + 1];
-
-    ndu[0][0] = 1.0;
-
-    for j in 1..=degree {
-        left[j] = u - knots[span + 1 - j];
-        right[j] = knots[span + j] - u;
-        let mut saved = 0.0;
-
-        for r in 0..j {
-            let temp = ndu[r][j - 1] / (right[r + 1] + left[j - r]);
-            ndu[r][j] = saved + right[r + 1] * temp;
-            saved = left[j - r] * temp;
-        }
-        ndu[j][j] = saved;
-    }
-
-    #[allow(clippy::needless_range_loop)]
-    for j in 0..=degree {
-        ders[j] = 0.0;
-    }
-
-    for j in 1..=degree {
-        let coeff = degree as f64 / (knots[span + j] - knots[span + j - degree]);
-        ders[j - 1] = coeff * (ndu[j - 1][degree - 1] - ndu[j][degree - 1]);
-    }
-
-    ders
-}
+//
+// 以前ここにあった以下の機能は geo_nurbs/basis.rs に統合されています：
+// - find_span() - ノットスパン検索
+// - basis_functions() - B-spline基底関数計算
+// - basis_function_derivatives() - 基底関数導関数計算
+//
+// これらの機能は形状特化機能であり、analysisクレートの責務範囲外です。
+// 新しい使用方法：
+//   use geo_nurbs::basis::{basis_function, basis_functions, rational_basis_functions};
