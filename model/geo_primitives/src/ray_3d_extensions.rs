@@ -7,31 +7,8 @@ use crate::{BBox3D, InfiniteLine3D, Point3D, Ray3D, Vector3D};
 use geo_foundation::Scalar;
 
 // ============================================================================
-// Core trait implementations
+// Display Implementation
 // ============================================================================
-
-impl<T: Scalar> Clone for Ray3D<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T: Scalar> Copy for Ray3D<T> {}
-
-impl<T: Scalar> PartialEq for Ray3D<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.origin() == other.origin() && self.direction_vector() == other.direction_vector()
-    }
-}
-
-impl<T: Scalar> std::fmt::Debug for Ray3D<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Ray3D")
-            .field("origin", &self.origin())
-            .field("direction", &self.direction_vector())
-            .finish()
-    }
-}
 
 impl<T: Scalar> std::fmt::Display for Ray3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

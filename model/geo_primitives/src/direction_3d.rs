@@ -7,6 +7,7 @@ use geo_foundation::Scalar;
 use std::ops::{Deref, DerefMut, Mul, Neg};
 
 /// 3次元方向ベクトル（正規化済み）
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Direction3D<T: Scalar> {
     vector: Vector3D<T>,
 }
@@ -182,5 +183,109 @@ impl<T: Scalar> Neg for Direction3D<T> {
         Self {
             vector: -self.vector,
         }
+    }
+}
+
+// ============================================================================
+// Foundation Pattern Core Traits Implementation
+// ============================================================================
+
+use geo_foundation::core::direction_core_traits::{
+    Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
+};
+use analysis::linalg::Vector3;
+
+impl<T: Scalar> Direction3DConstructor<T> for Direction3D<T> {
+    fn from_vector(vector: Vector3<T>) -> Option<Self> {
+        Direction3D::new(vector.x(), vector.y(), vector.z())
+    }
+
+    fn new(x: T, y: T, z: T) -> Option<Self> {
+        Direction3D::new(x, y, z)
+    }
+
+    fn positive_x() -> Self { Direction3D::positive_x() }
+    fn positive_y() -> Self { Direction3D::positive_y() }
+    fn positive_z() -> Self { Direction3D::positive_z() }
+    fn negative_x() -> Self { Direction3D::positive_x().reverse() }
+    fn negative_y() -> Self { Direction3D::positive_y().reverse() }
+    fn negative_z() -> Self { Direction3D::positive_z().reverse() }
+
+    fn from_tuple(components: (T, T, T)) -> Option<Self> {
+        Self::new(components.0, components.1, components.2)
+    }
+
+    fn from_analysis_vector(vector: &Vector3<T>) -> Option<Self> {
+        Self::new(vector.x(), vector.y(), vector.z())
+    }
+}
+
+impl<T: Scalar> Direction3DProperties<T> for Direction3D<T> {
+    fn x(&self) -> T { self.x() }
+    fn y(&self) -> T { self.y() }
+    fn z(&self) -> T { self.z() }
+    fn components(&self) -> [T; 3] { [self.x(), self.y(), self.z()] }
+    fn to_tuple(&self) -> (T, T, T) { (self.x(), self.y(), self.z()) }
+    fn to_analysis_vector(&self) -> Vector3<T> { Vector3::new(self.x(), self.y(), self.z()) }
+    fn as_vector(&self) -> Vector3<T> { self.to_analysis_vector() }
+    fn length(&self) -> T { T::ONE }
+    fn is_normalized(&self) -> bool { true }
+    fn dimension(&self) -> u32 { 3 }
+}
+
+impl<T: Scalar> Direction3DMeasure<T> for Direction3D<T> {
+    fn dot(&self, other: &Self) -> T { self.dot(other) }
+    
+    fn angle_to(&self, other: &Self) -> T {
+        let dot_product = self.dot(other).max(-T::ONE).min(T::ONE);
+        dot_product.acos()
+    }
+
+    fn cross(&self, other: &Self) -> Self {
+        let result_vector = self.as_vector().cross(&other.as_vector());
+        let vec3d = Vector3D::new(result_vector.x(), result_vector.y(), result_vector.z());
+        Direction3D::from_vector(vec3d).unwrap_or_else(|| Direction3D::positive_x())
+    }
+
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        (self.dot(other).abs() - T::ONE).abs() <= T::EPSILON
+    }
+
+    fn is_perpendicular_to(&self, other: &Self) -> bool {
+        self.dot(other).abs() <= T::EPSILON
+    }
+
+    fn is_same_direction(&self, other: &Self) -> bool {
+        self.dot(other) >= T::ONE - T::EPSILON
+    }
+
+    fn is_opposite_direction(&self, other: &Self) -> bool {
+        self.dot(other) <= -T::ONE + T::EPSILON
+    }
+
+    fn reverse(&self) -> Self { self.reverse() }
+
+    fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self {
+        let cos_angle = angle.cos();
+        let sin_angle = angle.sin();
+        let one_minus_cos = T::ONE - cos_angle;
+
+        let ax = axis.x(); let ay = axis.y(); let az = axis.z();
+        let x = self.x(); let y = self.y(); let z = self.z();
+
+        let new_x = (cos_angle + ax * ax * one_minus_cos) * x
+            + (ax * ay * one_minus_cos - az * sin_angle) * y
+            + (ax * az * one_minus_cos + ay * sin_angle) * z;
+
+        let new_y = (ay * ax * one_minus_cos + az * sin_angle) * x
+            + (cos_angle + ay * ay * one_minus_cos) * y
+            + (ay * az * one_minus_cos - ax * sin_angle) * z;
+
+        let new_z = (az * ax * one_minus_cos - ay * sin_angle) * x
+            + (az * ay * one_minus_cos + ax * sin_angle) * y
+            + (cos_angle + az * az * one_minus_cos) * z;
+
+        Direction3D::new(new_x, new_y, new_z)
+            .expect("回転後のベクトルは正規化可能でなければならない")
     }
 }

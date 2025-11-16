@@ -53,6 +53,10 @@ pub use core::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
         Ray3DMeasure, Ray3DProperties,
     },
+    circle_core_traits::{
+        Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties, 
+        Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
+    },
     triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
 };
 

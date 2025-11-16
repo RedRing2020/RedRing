@@ -2,14 +2,20 @@
 //!
 //! Ray3D は起点から一方向に無限に延びる半無限直線を表現します。
 //! パラメータ t は 0 ≤ t < ∞ の範囲で定義されます。
+//! Core Traits実装（Constructor, Properties, Measure）も含む
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use analysis::linalg::{point3::Point3, vector::Vector3};
+use geo_foundation::{
+    core::ray_core_traits::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties},
+    Scalar,
+};
 
 /// 3次元半無限直線
 ///
 /// 起点から指定方向に無限に延びる半無限直線を表現します。
 /// パラメータ表現: point = origin + t * direction (t ≥ 0)
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ray3D<T: Scalar> {
     /// 起点（t=0での点）
     origin: Point3D<T>,
@@ -151,5 +157,241 @@ impl<T: Scalar> Ray3D<T> {
     /// Z軸に平行な Ray を作成
     pub fn along_z_axis(origin: Point3D<T>) -> Self {
         Self::new(origin, Vector3D::unit_z()).unwrap()
+    }
+
+
+}
+
+// ============================================================================
+// Core Traits Implementation
+// ============================================================================
+
+/// Ray3DConstructor トレイト実装
+impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
+    fn new(origin: Point3<T>, direction: Vector3<T>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let direction_vector = Vector3D::new(direction.x(), direction.y(), direction.z());
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        Ray3D::new(origin_point, direction_vector)
+    }
+
+    fn from_points(start: Point3<T>, through: Point3<T>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let start_point = Point3D::new(start.x(), start.y(), start.z());
+        let through_point = Point3D::new(through.x(), through.y(), through.z());
+        Ray3D::from_points(start_point, through_point)
+    }
+
+    fn along_positive_x(origin: Point3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        Ray3D::along_x_axis(origin_point)
+    }
+
+    fn along_positive_y(origin: Point3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        Ray3D::along_y_axis(origin_point)
+    }
+
+    fn along_positive_z(origin: Point3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        Ray3D::along_z_axis(origin_point)
+    }
+
+    fn along_negative_x(origin: Point3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let neg_x_direction = Vector3D::new(-T::ONE, T::ZERO, T::ZERO);
+        Ray3D::new(origin_point, neg_x_direction).unwrap()
+    }
+
+    fn along_negative_y(origin: Point3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let neg_y_direction = Vector3D::new(T::ZERO, -T::ONE, T::ZERO);
+        Ray3D::new(origin_point, neg_y_direction).unwrap()
+    }
+
+    fn along_negative_z(origin: Point3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let neg_z_direction = Vector3D::new(T::ZERO, T::ZERO, -T::ONE);
+        Ray3D::new(origin_point, neg_z_direction).unwrap()
+    }
+
+    fn x_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Ray3D::along_x_axis(Point3D::origin())
+    }
+
+    fn y_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Ray3D::along_y_axis(Point3D::origin())
+    }
+
+    fn z_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Ray3D::along_z_axis(Point3D::origin())
+    }
+}
+
+/// Ray3DProperties トレイト実装
+impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
+    fn origin(&self) -> Point3<T> {
+        let origin = self.origin();
+        Point3::new(origin.x(), origin.y(), origin.z())
+    }
+
+    fn direction(&self) -> Vector3<T> {
+        let direction = self.direction_vector();
+        Vector3::new(direction.x(), direction.y(), direction.z())
+    }
+
+    fn origin_x(&self) -> T {
+        self.origin().x()
+    }
+
+    fn origin_y(&self) -> T {
+        self.origin().y()
+    }
+
+    fn origin_z(&self) -> T {
+        self.origin().z()
+    }
+
+    fn direction_x(&self) -> T {
+        self.direction_vector().x()
+    }
+
+    fn direction_y(&self) -> T {
+        self.direction_vector().y()
+    }
+
+    fn direction_z(&self) -> T {
+        self.direction_vector().z()
+    }
+
+    fn is_valid(&self) -> bool {
+        // Ray3D::new がSomeを返した時点で有効性は保証されている
+        true
+    }
+}
+
+/// Ray3DMeasure トレイト実装
+impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
+    fn point_at_parameter(&self, t: T) -> Point3<T> {
+        let point = self.point_at_parameter(t);
+        Point3::new(point.x(), point.y(), point.z())
+    }
+
+    fn closest_point(&self, point: &Point3<T>) -> Point3<T> {
+        let target_point = Point3D::new(point.x(), point.y(), point.z());
+        let t = self.parameter_for_point(&target_point);
+        let clamped_t = if t < T::ZERO { T::ZERO } else { t };
+        let closest = self.point_at_parameter(clamped_t);
+        Point3::new(closest.x(), closest.y(), closest.z())
+    }
+
+    fn distance_to_point(&self, point: &Point3<T>) -> T {
+        let target_point = Point3D::new(point.x(), point.y(), point.z());
+        let to_point = target_point - self.origin();
+        let projection_length = self.direction_vector().dot(&to_point);
+
+        if projection_length <= T::ZERO {
+            self.origin().distance_to(&target_point)
+        } else {
+            let direction_offset = self.direction_vector() * projection_length;
+            let projection = Point3D::new(
+                self.origin().x() + direction_offset.x(),
+                self.origin().y() + direction_offset.y(),
+                self.origin().z() + direction_offset.z(),
+            );
+            target_point.distance_to(&projection)
+        }
+    }
+
+    fn contains_point(&self, point: &Point3<T>) -> bool {
+        let target_point = Point3D::new(point.x(), point.y(), point.z());
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.contains_point(&target_point, DefaultTolerances::distance::<T>())
+    }
+
+    fn parameter_for_point(&self, point: &Point3<T>) -> T {
+        let target_point = Point3D::new(point.x(), point.y(), point.z());
+        self.parameter_for_point(&target_point)
+    }
+
+    fn points_towards(&self, direction: &Vector3<T>) -> bool {
+        let target_direction = Vector3D::new(direction.x(), direction.y(), direction.z());
+        let dot = self.direction_vector().dot(&target_direction);
+        dot > T::ZERO
+    }
+
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        let this_dir = self.direction_vector();
+        let other_dir = other.direction_vector();
+
+        let cross = this_dir.cross(&other_dir);
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        cross.length() < DefaultTolerances::distance::<T>()
+    }
+
+    fn is_same_direction(&self, other: &Self) -> bool {
+        if !self.is_parallel_to(other) {
+            return false;
+        }
+
+        let dot = self.direction_vector().dot(&other.direction_vector());
+        dot > T::ZERO
+    }
+
+    fn is_opposite_direction(&self, other: &Self) -> bool {
+        if !self.is_parallel_to(other) {
+            return false;
+        }
+
+        let dot = self.direction_vector().dot(&other.direction_vector());
+        dot < T::ZERO
+    }
+
+    fn reverse(&self) -> Self
+    where
+        Self: Sized,
+    {
+        self.reverse_direction()
+    }
+
+    fn translate(&self, offset: Vector3<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let offset_vector = Vector3D::new(offset.x(), offset.y(), offset.z());
+        let new_origin = self.origin() + offset_vector;
+
+        Ray3D::new(new_origin, self.direction_vector()).unwrap()
     }
 }

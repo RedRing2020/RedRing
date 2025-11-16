@@ -10,7 +10,7 @@ use geo_foundation::{Angle, Scalar};
 ///
 /// 3D空間内の楕円の一部分を表現する楕円弧
 /// 開始角度と終了角度で定義される
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EllipseArc3D<T: Scalar> {
     ellipse: Ellipse3D<T>, // 基底楕円
     start_angle: Angle<T>, // 開始角度
@@ -162,12 +162,12 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 向きを反転した楕円弧を取得
     pub fn reverse(&self) -> Self {
-        Self::new(self.ellipse.clone(), self.end_angle, self.start_angle)
+        Self::new(self.ellipse, self.end_angle, self.start_angle)
     }
 
     /// 角度範囲を変更した新しい楕円弧を作成
     pub fn with_angles(&self, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
-        Self::new(self.ellipse.clone(), start_angle, end_angle)
+        Self::new(self.ellipse, start_angle, end_angle)
     }
 
     /// 基底楕円を変更した新しい楕円弧を作成
@@ -179,7 +179,7 @@ impl<T: Scalar> EllipseArc3D<T> {
     pub fn rotate_z(&self, _angle: T) -> Option<Self> {
         // 簡単なZ軸回転（実際の実装は拡張版で）
         Some(Self::new(
-            self.ellipse.clone(),
+            self.ellipse,
             self.start_angle,
             self.end_angle,
         ))
@@ -216,7 +216,7 @@ impl<T: Scalar> EllipseArc3D<T> {
             && (sub_end_rad >= start_rad && sub_end_rad <= end_rad)
             && sub_start_rad <= sub_end_rad
         {
-            Some(Self::new(self.ellipse.clone(), sub_start, sub_end))
+            Some(Self::new(self.ellipse, sub_start, sub_end))
         } else {
             None
         }
@@ -233,10 +233,8 @@ impl<T: Scalar> EllipseArc3D<T> {
 }
 
 // ============================================================================
-// Core Trait Implementations
+// Default Implementations
 // ============================================================================
-
-impl<T: Scalar> Copy for EllipseArc3D<T> where Ellipse3D<T>: Copy {}
 
 impl<T: Scalar> Default for EllipseArc3D<T> {
     fn default() -> Self {

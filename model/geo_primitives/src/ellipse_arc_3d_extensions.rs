@@ -247,7 +247,7 @@ impl<T: Scalar> EllipseArc3D<T> {
         }
 
         Self::new(
-            self.ellipse().clone(),
+            *self.ellipse(),
             Angle::from_radians(start_rad),
             Angle::from_radians(end_rad),
         )

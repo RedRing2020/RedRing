@@ -10,7 +10,7 @@ use geo_foundation::Scalar;
 ///
 /// STEP準拠でaxis（法線）とref_direction（参照方向）を持ち、
 /// 3D空間での完全な座標系定義とArc3D変換に対応
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Circle3D<T: Scalar> {
     center: Point3D<T>,
     /// Z軸方向（円が存在する平面の法線ベクトル）

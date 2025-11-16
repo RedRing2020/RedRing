@@ -12,7 +12,7 @@ use geo_foundation::Scalar;
 /// - アクセサメソッド
 /// - 基本的な幾何プロパティ（面積、法線）
 /// - 重心計算
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle3D<T: Scalar> {
     vertex_a: Point3D<T>,
     vertex_b: Point3D<T>,

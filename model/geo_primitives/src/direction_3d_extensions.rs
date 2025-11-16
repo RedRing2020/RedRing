@@ -10,27 +10,7 @@ use geo_foundation::{Angle, Scalar};
 // Core trait implementations (moved from core)
 // ============================================================================
 
-impl<T: Scalar> Clone for Direction3D<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T: Scalar> Copy for Direction3D<T> {}
-
-impl<T: Scalar> PartialEq for Direction3D<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_vector() == other.as_vector()
-    }
-}
-
-impl<T: Scalar> std::fmt::Debug for Direction3D<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Direction3D")
-            .field(&self.as_vector())
-            .finish()
-    }
-}
+// Derive traits now handled by #[derive] macro in main struct definition
 
 impl<T: Scalar> std::fmt::Display for Direction3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

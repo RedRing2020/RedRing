@@ -9,7 +9,7 @@ use geo_foundation::Scalar;
 ///
 /// 点と方向ベクトルで定義される無限に延びる直線
 /// Core機能：基本構築、アクセサ、基本幾何計算
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct InfiniteLine3D<T: Scalar> {
     point: Point3D<T>,         // 直線上の任意の点
     direction: Direction3D<T>, // 方向ベクトル（正規化済み）

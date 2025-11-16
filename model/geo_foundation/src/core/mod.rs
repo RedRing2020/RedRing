@@ -8,7 +8,8 @@
 // ============================================================================
 pub mod direction_core_traits; // Direction Core traits (Constructor/Properties/Measure)
 pub mod point_core_traits;
-pub mod ray_core_traits; // Ray Core traits (Constructor/Properties/Measure)
+pub mod ray_core_traits;
+pub mod circle_core_traits; // Ray Core traits (Constructor/Properties/Measure)
 pub mod transform; // extensionsから移動した共通Transformトレイト群
 pub mod transform_error;
 pub mod vector_core_traits; // Vector Core traits (Constructor/Properties/Measure) // extensionsから移動したTransformError(段階的移行中)

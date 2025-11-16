@@ -11,15 +11,20 @@
 //! - 基本的な幾何操作（point_at_parameter, contains_point）
 //! - InfiniteLine2D への変換
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
+//! - Core Traits実装（Constructor, Properties, Measure）
 
 use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use analysis::linalg::{point2::Point2, vector::Vector2};
+use geo_foundation::{
+    core::ray_core_traits::{Ray2DConstructor, Ray2DMeasure, Ray2DProperties},
+    Scalar,
+};
 
 /// 2次元半無限直線
 ///
 /// 起点から指定方向に無限に延びる半無限直線を表現します。
 /// パラメータ表現: point = origin + t * direction (t ≥ 0)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ray2D<T: Scalar> {
     /// 起点（t=0での点）
     origin: Point2D<T>,
@@ -167,18 +172,207 @@ impl<T: Scalar> Ray2D<T> {
     }
 }
 
-// トレイト実装
-// TODO: CoreFoundation実装後に有効化
-/*
-impl<T: Scalar> BasicDirectional<T> for Ray2D<T> {
-    type Direction = Direction2D<T>;
+// ============================================================================
+// Core Traits Implementation
+// ============================================================================
 
-    fn direction(&self) -> Self::Direction {
-        self.direction()
+/// Ray2DConstructor トレイト実装
+impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
+    fn new(origin: Point2<T>, direction: Vector2<T>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let direction_vector = Vector2D::new(direction.x(), direction.y());
+        let origin_point = Point2D::new(origin.x(), origin.y());
+        Ray2D::new(origin_point, direction_vector)
     }
 
-    fn reverse_direction(&self) -> Self {
-        self.reverse_direction()
+    fn from_points(start: Point2<T>, through: Point2<T>) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        let start_point = Point2D::new(start.x(), start.y());
+        let through_point = Point2D::new(through.x(), through.y());
+        Ray2D::from_points(start_point, through_point)
+    }
+
+    fn along_positive_x(origin: Point2<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point2D::new(origin.x(), origin.y());
+        let x_direction = Vector2D::new(T::ONE, T::ZERO);
+        Ray2D::new(origin_point, x_direction).unwrap()
+    }
+
+    fn along_positive_y(origin: Point2<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point2D::new(origin.x(), origin.y());
+        let y_direction = Vector2D::new(T::ZERO, T::ONE);
+        Ray2D::new(origin_point, y_direction).unwrap()
+    }
+
+    fn along_negative_x(origin: Point2<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point2D::new(origin.x(), origin.y());
+        let neg_x_direction = Vector2D::new(-T::ONE, T::ZERO);
+        Ray2D::new(origin_point, neg_x_direction).unwrap()
+    }
+
+    fn along_negative_y(origin: Point2<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point2D::new(origin.x(), origin.y());
+        let neg_y_direction = Vector2D::new(T::ZERO, -T::ONE);
+        Ray2D::new(origin_point, neg_y_direction).unwrap()
+    }
+
+    fn x_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Self::along_positive_x(Point2::origin())
+    }
+
+    fn y_axis() -> Self
+    where
+        Self: Sized,
+    {
+        Self::along_positive_y(Point2::origin())
     }
 }
-*/
+
+/// Ray2DProperties トレイト実装
+impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
+    fn origin(&self) -> Point2<T> {
+        let origin = self.origin();
+        Point2::new(origin.x(), origin.y())
+    }
+
+    fn direction(&self) -> Vector2<T> {
+        let direction = self.direction();
+        Vector2::new(direction.x(), direction.y())
+    }
+
+    fn origin_x(&self) -> T {
+        self.origin().x()
+    }
+
+    fn origin_y(&self) -> T {
+        self.origin().y()
+    }
+
+    fn direction_x(&self) -> T {
+        self.direction().x()
+    }
+
+    fn direction_y(&self) -> T {
+        self.direction().y()
+    }
+
+    fn is_valid(&self) -> bool {
+        // Ray2D::new がSomeを返した時点で有効性は保証されている
+        true
+    }
+}
+
+/// Ray2DMeasure トレイト実装
+impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
+    fn point_at_parameter(&self, t: T) -> Point2<T> {
+        let point = self.point_at_parameter(t);
+        Point2::new(point.x(), point.y())
+    }
+
+    fn closest_point(&self, point: &Point2<T>) -> Point2<T> {
+        let target_point = Point2D::new(point.x(), point.y());
+        let t = self.parameter_for_point(&target_point);
+        let clamped_t = if t < T::ZERO { T::ZERO } else { t };
+        let closest = self.point_at_parameter(clamped_t);
+        Point2::new(closest.x(), closest.y())
+    }
+
+    fn distance_to_point(&self, point: &Point2<T>) -> T {
+        let target_point = Point2D::new(point.x(), point.y());
+        self.distance_to_point(&target_point)
+    }
+
+    fn contains_point(&self, point: &Point2<T>) -> bool {
+        let target_point = Point2D::new(point.x(), point.y());
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.contains_point(&target_point, DefaultTolerances::distance::<T>())
+    }
+
+    fn parameter_for_point(&self, point: &Point2<T>) -> T {
+        let target_point = Point2D::new(point.x(), point.y());
+        self.parameter_for_point(&target_point)
+    }
+
+    fn points_towards(&self, direction: &Vector2<T>) -> bool {
+        let target_direction = Vector2D::new(direction.x(), direction.y());
+        let self_direction = Vector2D::new(self.direction().x(), self.direction().y());
+        let dot = self_direction.dot(&target_direction);
+        dot > T::ZERO
+    }
+
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
+        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+
+        let cross = this_dir.cross(&other_dir);
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        cross.abs() < DefaultTolerances::distance::<T>()
+    }
+
+    fn is_same_direction(&self, other: &Self) -> bool {
+        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
+        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+
+        let cross = this_dir.cross(&other_dir);
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        if cross.abs() >= DefaultTolerances::distance::<T>() {
+            return false;
+        }
+
+        let dot = this_dir.dot(&other_dir);
+        dot > T::ZERO
+    }
+
+    fn is_opposite_direction(&self, other: &Self) -> bool {
+        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
+        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+
+        let cross = this_dir.cross(&other_dir);
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        if cross.abs() >= DefaultTolerances::distance::<T>() {
+            return false;
+        }
+
+        let dot = this_dir.dot(&other_dir);
+        dot < T::ZERO
+    }
+
+    fn reverse(&self) -> Self
+    where
+        Self: Sized,
+    {
+        let direction_vec = Vector2D::new(self.direction().x(), self.direction().y());
+        let reversed_direction = -direction_vec;
+        Ray2D::new(self.origin(), reversed_direction).unwrap()
+    }
+
+    fn translate(&self, offset: Vector2<T>) -> Self
+    where
+        Self: Sized,
+    {
+        let offset_vector = Vector2D::new(offset.x(), offset.y());
+        let new_origin = self.origin() + offset_vector;
+        let direction_vec = Vector2D::new(self.direction().x(), self.direction().y());
+
+        Ray2D::new(new_origin, direction_vec).unwrap()
+    }
+}

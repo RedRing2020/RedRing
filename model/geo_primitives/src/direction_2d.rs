@@ -4,7 +4,13 @@
 //! 拡張機能は direction_2d_extensions.rs を参照
 
 use crate::Vector2D;
-use geo_foundation::{core::direction_traits, Scalar};
+use analysis::linalg::vector::Vector2;
+use geo_foundation::{
+    core::direction_core_traits::{
+        Direction2DConstructor, Direction2DMeasure, Direction2DProperties,
+    },
+    Scalar,
+};
 use std::ops::{Deref, DerefMut};
 
 /// 2次元方向ベクトル（正規化済み）
@@ -94,6 +100,14 @@ impl<T: Scalar> Direction2D<T> {
         self.vector.dot(&other.vector)
     }
 
+    /// 他の方向との角度を計算（0 ≤ angle ≤ π）
+    pub fn angle_to(&self, other: &Self) -> T {
+        let dot_product = self.dot(other);
+        // dot_product を [-1, 1] にクランプ
+        let clamped = dot_product.max(-T::ONE).min(T::ONE);
+        clamped.acos()
+    }
+
     /// 90度回転（反時計回り）
     pub fn rotate_90(&self) -> Self {
         Self {
@@ -120,13 +134,48 @@ impl<T: Scalar> Direction2D<T> {
 }
 
 // ============================================================================
-// geo_foundation abstracts trait implementations
+// Foundation Pattern Core Traits Implementation
 // ============================================================================
 
-/// geo_foundation::core::Direction2D<T> トレイト実装
-impl<T: Scalar> direction_traits::Direction2D<T> for Direction2D<T> {
-    type Vector = Vector2D<T>;
+/// Direction2D Constructor Trait Implementation
+impl<T: Scalar> Direction2DConstructor<T> for Direction2D<T> {
+    fn from_vector(vector: Vector2<T>) -> Option<Self> {
+        let geo_vector = Vector2D::new(vector.x(), vector.y());
+        Self::from_vector(geo_vector)
+    }
 
+    fn new(x: T, y: T) -> Option<Self> {
+        Self::new(x, y)
+    }
+
+    fn positive_x() -> Self {
+        Self::positive_x()
+    }
+
+    fn positive_y() -> Self {
+        Self::positive_y()
+    }
+
+    fn negative_x() -> Self {
+        Self::negative_x()
+    }
+
+    fn negative_y() -> Self {
+        Self::negative_y()
+    }
+
+    fn from_tuple(components: (T, T)) -> Option<Self> {
+        Self::new(components.0, components.1)
+    }
+
+    fn from_analysis_vector(vector: &Vector2<T>) -> Option<Self> {
+        let geo_vector = Vector2D::new(vector.x(), vector.y());
+        Self::from_vector(geo_vector)
+    }
+}
+
+/// Direction2D Properties Trait Implementation
+impl<T: Scalar> Direction2DProperties<T> for Direction2D<T> {
     fn x(&self) -> T {
         self.x()
     }
@@ -135,13 +184,45 @@ impl<T: Scalar> direction_traits::Direction2D<T> for Direction2D<T> {
         self.y()
     }
 
-    fn as_vector(&self) -> Self::Vector {
-        self.as_vector()
+    fn components(&self) -> [T; 2] {
+        [self.x(), self.y()]
+    }
+
+    fn to_tuple(&self) -> (T, T) {
+        (self.x(), self.y())
+    }
+
+    fn to_analysis_vector(&self) -> Vector2<T> {
+        Vector2::new(self.x(), self.y())
+    }
+
+    fn as_vector(&self) -> Vector2<T> {
+        Vector2::new(self.x(), self.y())
+    }
+
+    fn length(&self) -> T {
+        T::ONE // Direction は常に正規化済み
+    }
+
+    fn is_normalized(&self) -> bool {
+        true // Direction は常に正規化済み
+    }
+
+    fn dimension(&self) -> u32 {
+        2
     }
 }
 
-/// geo_foundation::core::DirectionRelations<T> トレイト実装
-impl<T: Scalar> direction_traits::DirectionRelations<T> for Direction2D<T> {
+/// Direction2D Measure Trait Implementation
+impl<T: Scalar> Direction2DMeasure<T> for Direction2D<T> {
+    fn dot(&self, other: &Self) -> T {
+        self.dot(other)
+    }
+
+    fn angle_to(&self, other: &Self) -> T {
+        self.angle_to(other)
+    }
+
     fn is_parallel_to(&self, other: &Self) -> bool {
         self.is_parallel_to(other)
     }
@@ -150,8 +231,28 @@ impl<T: Scalar> direction_traits::DirectionRelations<T> for Direction2D<T> {
         self.is_perpendicular_to(other)
     }
 
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
+    fn is_same_direction(&self, other: &Self) -> bool {
+        self.dot(other) > T::ONE - T::EPSILON
+    }
+
+    fn is_opposite_direction(&self, other: &Self) -> bool {
+        self.dot(other) < -T::ONE + T::EPSILON
+    }
+
+    fn reverse(&self) -> Self {
+        Self::from_vector(Vector2D::new(-self.x(), -self.y())).unwrap()
+    }
+
+    fn rotate_90(&self) -> Self {
+        Self::from_vector(Vector2D::new(-self.y(), self.x())).unwrap()
+    }
+
+    fn rotate(&self, angle: T) -> Self {
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        let new_x = self.x() * cos_a - self.y() * sin_a;
+        let new_y = self.x() * sin_a + self.y() * cos_a;
+        Self::from_vector(Vector2D::new(new_x, new_y)).unwrap()
     }
 }
 

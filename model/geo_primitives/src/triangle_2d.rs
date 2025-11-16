@@ -12,7 +12,7 @@ use geo_foundation::Scalar;
 /// - アクセサメソッド
 /// - 基本的な幾何プロパティ（面積、外心、重心）
 /// - 辺の長さ計算
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle2D<T: Scalar> {
     vertex_a: Point2D<T>,
     vertex_b: Point2D<T>,
@@ -240,10 +240,8 @@ impl<T: Scalar> Triangle2D<T> {
 }
 
 // ============================================================================
-// Required Implementations
+// Default Implementations
 // ============================================================================
-
-impl<T: Scalar> Copy for Triangle2D<T> {}
 
 // Default実装（unit triangle）
 impl<T: Scalar> Default for Triangle2D<T> {

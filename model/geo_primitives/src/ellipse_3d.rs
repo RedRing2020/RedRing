@@ -12,7 +12,7 @@ use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
 /// - アクセサメソッド
 /// - 基本的な幾何プロパティ
 /// - 基本パラメトリック操作
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ellipse3D<T: Scalar> {
     center: Point3D<T>,
     semi_major_axis: T,

@@ -10,7 +10,7 @@ use geo_foundation::Scalar;
 ///
 /// 始点と終点を持つ有限の線分
 /// 内部的に InfiniteLine3D とパラメータ範囲を使用
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment3D<T: Scalar> {
     line: InfiniteLine3D<T>, // 基盤となる無限直線
     start_param: T,          // 始点のパラメータ

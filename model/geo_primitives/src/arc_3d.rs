@@ -11,7 +11,7 @@ use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
 /// - 作成・検証
 /// - アクセサメソッド
 /// - 基本的な幾何プロパティ
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc3D<T: Scalar> {
     center: Point3D<T>,
     radius: T,
