@@ -1,6 +1,14 @@
 // RedRing Documentation Custom JavaScript
 
 document.addEventListener("DOMContentLoaded", function () {
+  // テスト用：CSSが効いていることを確認するための明確な変更
+  console.log("RedRing Custom JS Loaded!");
+  
+  // テスト用：ページタイトルに装飾を追加
+  const title = document.querySelector('.menu-title');
+  if (title) {
+    title.innerHTML = '🦀 ' + title.innerHTML + ' 🔧';
+  }
   // ステータスバッジの自動追加
   const badges = {
     "✅ 実装完了": "status-completed",
