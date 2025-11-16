@@ -15,7 +15,7 @@ pub mod approximations; // 幾何学的近似計算
 pub mod metrics; // 距離・計量計算
 pub mod numerics; // 数値計算基盤
 
-pub mod sampling; // 数値サンプリング機能
+// pub mod sampling; - 機能は geo_algorithms/sampling.rs に移動済み
 
 #[cfg(test)]
 mod unit_tests;
