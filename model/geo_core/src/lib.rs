@@ -24,3 +24,6 @@ pub mod metrics;
 // テストモジュール
 #[cfg(test)]
 mod unit_tests;
+
+// 便利な再エクスポート
+pub use approximations::ellipse::*; // 楕円計算機能を直接使用可能

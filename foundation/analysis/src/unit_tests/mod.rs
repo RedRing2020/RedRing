@@ -8,7 +8,7 @@ pub mod interpolation_tests;
 pub mod linalg;
 pub mod numerical_additional_tests;
 pub mod numerical_tests;
-pub mod sampling_additional_tests;
-pub mod sampling_tests;
+// pub mod sampling_additional_tests; - 機能はgeo_algorithmsに移動済み
+// pub mod sampling_tests; - 機能はgeo_algorithmsに移動済み
 pub mod scalar_tests;
 pub mod statistics_tests;

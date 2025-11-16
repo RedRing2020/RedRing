@@ -70,6 +70,39 @@ pub mod numerical {
     pub const DERIVATIVE_ZERO_THRESHOLD: f64 = 1e-12;
 }
 
+/// 特殊数学定数（黄金比、自然対数など）
+///
+/// 基本的な数学定数（π, e, τ）は game/precision モジュールを使用してください。
+/// ここでは数学・科学計算でよく使われる特殊な定数を提供します。
+pub mod special {
+    /// 黄金比 φ = (1 + √5) / 2 ≈ 1.618033988749...
+    ///
+    /// 美術、建築、自然界の比例に現れる特別な比率。
+    /// フィボナッチ数列の隣接項の比の極限値としても知られています。
+    pub const GOLDEN_RATIO_F64: f64 = 1.618033988749894;
+    pub const GOLDEN_RATIO_F32: f32 = 1.618_034_f32;
+
+    /// 自然対数の底 ln(2) ≈ 0.693147180559...
+    ///
+    /// 対数計算、指数関数、情報理論で頻繁に使用される定数。
+    pub const LN_2_F64: f64 = std::f64::consts::LN_2;
+    pub const LN_2_F32: f32 = std::f32::consts::LN_2;
+
+    /// 自然対数の底 ln(10) ≈ 2.302585092994...
+    ///
+    /// 常用対数と自然対数の変換で使用される定数。
+    pub const LN_10_F64: f64 = std::f64::consts::LN_10;
+    pub const LN_10_F32: f32 = std::f32::consts::LN_10;
+
+    /// 平方根 √3 ≈ 1.732050807568...
+    ///
+    /// 正三角形の高さ計算、60度の三角関数値などで使用。
+    pub const SQRT_3_F64: f64 = 1.7320508075688772;
+    pub const SQRT_3_F32: f32 = 1.7320508_f32;
+
+    // 注意: ジェネリック版は必要に応じて analysis::abstract_types::Scalar トレイトで実装可能
+}
+
 /// 幾何計算で使用される定数
 ///
 /// 用途別にf32/f64の定数を分離して提供します:
@@ -291,4 +324,56 @@ pub mod test_constants {
 
     /// 距離テスト用の許容誤差（f32）
     pub const DISTANCE_TOLERANCE_F32: f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{special, GeometricTolerance};
+
+    #[test]
+    fn test_special_constants() {
+        // 黄金比のテスト
+        let golden_ratio_f64 = special::GOLDEN_RATIO_F64;
+        let expected_golden_ratio = (1.0 + 5.0_f64.sqrt()) / 2.0;
+        assert!((golden_ratio_f64 - expected_golden_ratio).abs() < 1e-10);
+
+        let golden_ratio_f32 = special::GOLDEN_RATIO_F32;
+        let expected_golden_ratio_f32 = (1.0 + 5.0_f32.sqrt()) / 2.0;
+        assert!((golden_ratio_f32 - expected_golden_ratio_f32).abs() < 1e-6);
+
+        // ln(2)のテスト
+        let ln_2_f64 = special::LN_2_F64;
+        assert!((ln_2_f64 - std::f64::consts::LN_2).abs() < 1e-15);
+
+        // ln(10)のテスト
+        let ln_10_f64 = special::LN_10_F64;
+        assert!((ln_10_f64 - std::f64::consts::LN_10).abs() < 1e-15);
+
+        // √3のテスト
+        let sqrt_3_f64 = special::SQRT_3_F64;
+        assert!((sqrt_3_f64 - 3.0_f64.sqrt()).abs() < 1e-15);
+    }
+
+    #[test]
+    fn test_tolerance_constants() {
+        // GeometricToleranceトレイトのテスト
+        let geometric_f64 = <f64 as GeometricTolerance>::TOLERANCE;
+        let geometric_f32 = <f32 as GeometricTolerance>::TOLERANCE;
+
+        // f64は高精度、f32は低精度であることを確認
+        assert!(geometric_f64 < geometric_f32 as f64);
+        assert_eq!(geometric_f64, 1e-10);
+        assert_eq!(geometric_f32, 1e-6);
+
+        // 角度・距離許容誤差もテスト
+        let angle_f64 = <f64 as GeometricTolerance>::ANGLE_TOLERANCE;
+        let distance_f64 = <f64 as GeometricTolerance>::DISTANCE_TOLERANCE;
+        assert_eq!(angle_f64, 1e-12);
+        assert_eq!(distance_f64, 1e-10);
+
+        let angle_f32 = <f32 as GeometricTolerance>::ANGLE_TOLERANCE;
+        let distance_f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
+        assert_eq!(angle_f32, 1e-6);
+        assert_eq!(distance_f32, 1e-6);
+    }
 }

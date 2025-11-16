@@ -1,6 +1,10 @@
-//! 汎用距離・長さ計算のテスト
+//! ベクトル・距離数値計算のテスト
 
-use crate::metrics::*;
+use crate::numerics::vector_distance::{
+    chebyshev_distance, manhattan_distance, minkowski_distance, point_distance, point_distance_2d,
+    point_distance_3d, polyline_length, polyline_length_3d, vector_length, vector_length_2d,
+    vector_length_3d, vector_length_squared,
+};
 
 #[cfg(test)]
 mod tests {
