@@ -1,6 +1,7 @@
 # Summary
 
 - [はじめに / Introduction](./intro.md)
+- [アーキテクチャ構成 / Architecture](./architecture.md)
 - [モジュール構成 / Module Structure](./modules.md)
 - [型分類 / Type Classification](./kinds.md)
 - [設計思想 / Design Philosophy](./philosophy.md)

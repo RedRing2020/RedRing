@@ -49,6 +49,10 @@ pub use core::{
         WeightedGeometry,
     },
     point_traits::{Point2D as Point2DTrait, Point2DConstructor, Point3DConstructor},
+    ray_core_traits::{
+        Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
+        Ray3DMeasure, Ray3DProperties,
+    },
     triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
 };
 
