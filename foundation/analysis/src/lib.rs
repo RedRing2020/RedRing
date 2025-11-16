@@ -8,7 +8,7 @@ pub mod consts;
 // pub mod curves; - 楕円機能は geo_core に統合されました
 pub mod geometry; // 純粋数学的幾何図形
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
-pub mod numerical_methods; // 汎用数値計算手法
+// pub mod numerical_methods; - numerics/solver に移動済み
 
 // 新しい分類構造
 pub mod approximations; // 幾何学的近似計算
@@ -36,5 +36,5 @@ pub use consts::{
     RAD_TO_DEG, TAU,
 };
 
-// 数値計算関数の再エクスポート（汎用数値計算のみ）
-pub use crate::numerical_methods::{newton_arc_length, newton_inverse, newton_solve, NormedVector};
+// 数値計算関数の再エクスポート（numericsモジュールから）
+pub use crate::numerics::{newton_arc_length, newton_inverse, newton_solve, NormedVector};

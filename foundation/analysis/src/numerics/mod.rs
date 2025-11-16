@@ -1,15 +1,17 @@
 //! 数値計算基盤モジュール
 //!
-//! 特殊数学定数、許容誤差管理、ベクトル・距離計算を提供します。
-//! 基本的な数値計算機能は `Scalar` トレイトに統合されています。
+//! ベクトル・距離計算、数値解法ソルバーを提供します。
+//! 特殊数学定数は `crate::consts::special` モジュールを使用してください。
 
-pub mod constants;
+pub mod solver;
+#[cfg(test)]
+pub mod solver_tests;
 pub mod vector_distance;
 #[cfg(test)]
 pub mod vector_distance_tests;
 
-// 特殊数学定数の再エクスポート
-pub use constants::{MathConstants, ToleranceConstants};
+// 数値解法ソルバーの再エクスポート
+pub use solver::{newton_arc_length, newton_inverse, newton_solve, NormedVector};
 
 // ベクトル・距離計算の再エクスポート
 pub use vector_distance::{
