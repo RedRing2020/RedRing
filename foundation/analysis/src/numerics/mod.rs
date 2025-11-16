@@ -5,6 +5,7 @@
 
 pub mod constants;
 pub mod vector_distance;
+#[cfg(test)]
 pub mod vector_distance_tests;
 
 // 特殊数学定数の再エクスポート
