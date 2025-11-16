@@ -5,7 +5,7 @@
 
 pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance等）
 pub mod consts;
-pub mod curves; // 曲線・楕円特化数値計算
+// pub mod curves; - 楕円機能は geo_core に統合されました
 pub mod geometry; // 純粋数学的幾何図形
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
 pub mod numerical_methods; // 汎用数値計算手法
