@@ -1,29 +1,29 @@
-# Analysis Transform システム
+# Transform システム
 
-RedRingの統一幾何変換システムについて説明します。従来の複雑なBasicTransform/AdvancedTransform階層を廃止し、`analysis`クレートと統合したシンプルで高效率な変換システムを採用しています。
+RedRingの幾何変換システムについて説明します。現在は`analysis`クレートのMatrix4x4とVectorを直接使用した効率的な変換システムを提供しています。
 
 ## 設計思想
 
-### 統一性と効率性
+### 設計原則
 
-- **単一変換システム**: BasicTransformとAdvancedTransformを統合
-- **Analysis統合**: `analysis`クレートのMatrix4x4/Vector3を直接活用
-- **型変換最適化**: geo_primitives⇔analysis間の効率的変換
-- **Foundation準拠**: ExtensionFoundationパターンとの完全統合
+- **Analysis統合**: `analysis`クレートのMatrix4x4/Vector3を直接使用
+- **型変換効率**: geo_primitives⇔analysis間の最適化された変換
+- **Foundation準拠**: ExtensionFoundationパターンとの統合
+- **エラーハンドリング**: TransformErrorによる安全な変換操作
 
 ### シンプルな構成
 
 ```text
-従来（削除済み）:
-├── BasicTransform      - 基本変換（削除）
-├── AdvancedTransform   - 高度変換（削除）
-└── SafeTransform       - エラーハンドリング（統合済み）
+現在の構成:
+├── AnalysisTransform3D        - 3D座標点変換
+├── AnalysisTransformVector3D  - 3D方向ベクトル変換
+├── AnalysisTransform2D        - 2D変換
+└── TransformError             - エラーハンドリング
 
-現在（統一済み）:
-└── AnalysisTransform   - 統一変換システム
-    ├── AnalysisTransform3D        - 座標点変換
-    ├── AnalysisTransformVector3D  - 方向ベクトル変換
-    └── AnalysisTransform2D        - 2D変換
+基盤:
+├── analysis::Matrix4x4        - 変換行列計算
+├── analysis::Vector3          - 3Dベクトル操作
+└── analysis::Vector2          - 2Dベクトル操作
 ```
 
 ## Core Traits
@@ -132,6 +132,7 @@ impl<T: Scalar> Point3D<T> {
 ```rust
 use analysis::linalg::vector::Vector3;
 use geo_foundation::{AnalysisTransform3D, Angle};
+use geo_primitives::TriangleMesh3D;
 
 let mesh = TriangleMesh3D::new(vertices, indices)?;
 
@@ -221,32 +222,37 @@ match mesh.rotate_analysis(&center, &axis, angle) {
 
 追加実装は各図形の `*_transform.rs` ファイルで段階的に展開予定。
 
-## Legacy からの移行
+## 閉発状況
 
-### 削除されたパターン
+### 現在の実装状況
 
-```rust
-// 削除済み - 複雑すぎた階層
-trait BasicTransform<T> { /* ... */ }
-trait AdvancedTransform<T>: BasicTransform<T> { /* ... */ }
+✅ **完成済み**:
+- `AnalysisTransform3D` - 3D座標点変換トレイト
+- `AnalysisTransformVector3D` - 3D方向ベクトル変換トレイト
+- `TransformError` - 統一エラーハンドリング
+- Analysis統合 - Matrix4x4/Vector3直接使用
 
-// 削除済み - 過剰なジェネリック抽象化
-trait BasicTransform3D<T> {
-    type Vector3D;    // 抽象化しすぎて非効率
-    type Point3D;
-    type Rotation3D;
-}
-```
+⚙️ **開発中**:
+- `AnalysisTransform2D` - 2D変換トレイト
+- 追加の幾何プリミティブ対応
 
-### 現在のシンプルな設計
+### 設計の特徴
 
 ```rust
-// 統一済み - Analysis統合による効率的実装
+// 現在のシンプルな設計
 trait AnalysisTransform3D<T: Scalar> {
-    type Matrix4x4 = analysis::Matrix4x4<T>;  // 具体型指定
-    type Angle = geo_foundation::Angle<T>;
-    type Output;
+    type Matrix4x4;  // analysis::Matrix4x4<T>
+    type Angle;      // geo_foundation::Angle<T>
+    type Output;     // 通常はSelf
+    
+    // 直接Matrix変換
+    fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
+    
+    // Analysisベースの字全な変換操作
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
 }
 ```
 
-この統一により、実装の複雑性を大幅に削減し、同時にパフォーマンスを向上させることができました。
+この設計により、analysisクレートの高性能なMatrix/Vector演算を直接活用し、同時に存全なエラーハンドリングを提供しています。

@@ -1,5 +1,16 @@
 /* RedRing Documentation Custom Styles */
 
+/* テスト用：明らかに見える変更 */
+body {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+}
+
+.menu-title {
+  color: #dc2626 !important;
+  font-weight: bold !important;
+  font-size: 1.5em !important;
+}
+
 /* カラーテーマ */
 :root {
   --primary-color: #2563eb;
