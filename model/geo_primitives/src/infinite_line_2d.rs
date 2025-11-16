@@ -1,4 +1,4 @@
-﻿//! 2次元無限直線（InfiniteLine2D）のCore実装
+//! 2次元無限直線（InfiniteLine2D）のCore実装
 //!
 //! Foundation統一システムに基づくInfiniteLine2Dの必須機能のみ
 
@@ -146,5 +146,172 @@ impl<T: Scalar> InfiniteLine2D<T> {
     /// 境界上判定（直線では点上判定と同じ）
     pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.contains_point(point, tolerance)
+    }
+}
+
+// ============================================================================
+// Foundation Pattern Core Traits Implementation
+// ============================================================================
+
+use geo_foundation::core::infinite_line_core_traits::{
+    InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
+};
+
+/// InfiniteLine2D Constructor Trait Implementation
+impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
+    fn new(point: (T, T), direction: (T, T)) -> Option<Self> {
+        let point_2d = Point2D::new(point.0, point.1);
+        let direction_vec = Vector2D::new(direction.0, direction.1);
+        Self::new(point_2d, direction_vec)
+    }
+
+    fn from_two_points(p1: (T, T), p2: (T, T)) -> Option<Self> {
+        let point1 = Point2D::new(p1.0, p1.1);
+        let point2 = Point2D::new(p2.0, p2.1);
+        Self::from_two_points(point1, point2)
+    }
+
+    fn horizontal(y: T) -> Self {
+        let point = Point2D::new(T::ZERO, y);
+        Self::new(point, Vector2D::unit_x()).unwrap()
+    }
+
+    fn vertical(x: T) -> Self {
+        let point = Point2D::new(x, T::ZERO);
+        Self::new(point, Vector2D::unit_y()).unwrap()
+    }
+
+    fn x_axis() -> Self {
+        Self::horizontal(T::ZERO)
+    }
+
+    fn y_axis() -> Self {
+        Self::vertical(T::ZERO)
+    }
+
+    fn through_origin(direction: (T, T)) -> Option<Self> {
+        let origin = Point2D::new(T::ZERO, T::ZERO);
+        let direction_vec = Vector2D::new(direction.0, direction.1);
+        Self::new(origin, direction_vec)
+    }
+}
+
+/// InfiniteLine2D Properties Trait Implementation
+impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
+    fn point(&self) -> (T, T) {
+        (self.point().x(), self.point().y())
+    }
+
+    fn direction(&self) -> (T, T) {
+        (self.direction().x(), self.direction().y())
+    }
+
+    fn normal(&self) -> (T, T) {
+        let n = self.normal();
+        (n.x(), n.y())
+    }
+
+    fn slope(&self) -> Option<T> {
+        if self.direction().x().abs() <= T::EPSILON {
+            None // 垂直線
+        } else {
+            Some(self.direction().y() / self.direction().x())
+        }
+    }
+
+    fn y_intercept(&self) -> Option<T> {
+        self.slope().map(|slope| self.point().y() - slope * self.point().x())
+    }
+
+    fn x_intercept(&self) -> Option<T> {
+        if self.direction().y().abs() <= T::EPSILON {
+            None // 水平線
+        } else {
+            // x = (y - b) / m, y=0のときのx
+            if let Some(slope) = self.slope() {
+                let b = self.y_intercept().unwrap_or(T::ZERO);
+                Some(-b / slope)
+            } else {
+                Some(self.point().x()) // 垂直線のx座標
+            }
+        }
+    }
+
+    fn is_horizontal(&self) -> bool {
+        self.direction().y().abs() <= T::EPSILON
+    }
+
+    fn is_vertical(&self) -> bool {
+        self.direction().x().abs() <= T::EPSILON
+    }
+
+    fn passes_through_origin(&self) -> bool {
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.contains_point(&Point2D::origin(), DefaultTolerances::distance::<T>())
+    }
+
+    fn dimension(&self) -> u32 {
+        2
+    }
+}
+
+/// InfiniteLine2D Measure Trait Implementation
+impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let p = self.point_at_parameter(t);
+        (p.x(), p.y())
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.contains_point(&p, DefaultTolerances::distance::<T>())
+    }
+
+    fn project_point(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let projected = self.project_point(&p);
+        (projected.x(), projected.y())
+    }
+
+    fn parameter_for_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.parameter_for_point(&p)
+    }
+
+    fn intersection(&self, other: &Self) -> Option<(T, T)> {
+        self.intersection(other).map(|intersection_point| (intersection_point.x(), intersection_point.y()))
+    }
+
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        self.direction().is_parallel(&other.direction(), T::EPSILON)
+    }
+
+    fn is_perpendicular_to(&self, other: &Self) -> bool {
+        self.direction()
+            .is_perpendicular(&other.direction(), T::EPSILON)
+    }
+
+    fn is_same_line(&self, other: &Self) -> bool {
+        // 平行かつ同じ点を含む場合
+        self.is_parallel_to(other) && {
+            use geo_foundation::tolerance_migration::DefaultTolerances;
+            self.contains_point(&other.point(), DefaultTolerances::distance::<T>())
+        }
+    }
+
+    fn angle_to(&self, other: &Self) -> T {
+        let dot = self.direction().dot(&other.direction());
+        let clamped = dot.max(-T::ONE).min(T::ONE);
+        clamped.acos()
+    }
+
+    fn reverse(&self) -> Self {
+        Self::new(self.point(), -(*self.direction())).unwrap()
     }
 }

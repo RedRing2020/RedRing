@@ -178,11 +178,7 @@ impl<T: Scalar> EllipseArc3D<T> {
     /// 原点中心の回転（Z軸回転）
     pub fn rotate_z(&self, _angle: T) -> Option<Self> {
         // 簡単なZ軸回転（実際の実装は拡張版で）
-        Some(Self::new(
-            self.ellipse,
-            self.start_angle,
-            self.end_angle,
-        ))
+        Some(Self::new(self.ellipse, self.start_angle, self.end_angle))
     }
 
     /// 原点中心の均等スケール

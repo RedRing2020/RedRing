@@ -158,8 +158,6 @@ impl<T: Scalar> Ray3D<T> {
     pub fn along_z_axis(origin: Point3D<T>) -> Self {
         Self::new(origin, Vector3D::unit_z()).unwrap()
     }
-
-
 }
 
 // ============================================================================

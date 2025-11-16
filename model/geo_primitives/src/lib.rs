@@ -105,8 +105,8 @@ pub mod triangle_mesh_3d_tests;
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod circle_2d; // Circle2D の新実装 (Core)
-// pub mod circle_2d_core_traits; // Moved to circle_2d.rs
-// pub mod circle_3d_core_traits; // Moved to circle_3d.rs
+                   // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
+                   // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
 
 // Circle Core Traits の公開 - Foundation Pattern実装完了
 pub use geo_foundation::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
@@ -119,10 +119,16 @@ pub use geo_foundation::core::direction_core_traits::{
     Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
 }; // Direction3D の Core traits 公開
 
+// InfiniteLine Core Traits の公開 - Foundation Pattern実装完了
+pub use geo_foundation::core::infinite_line_core_traits::{
+    InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
+    InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties,
+};
+
 // Ray Core Traits の公開 - Foundation Pattern実装完了
 pub use geo_foundation::core::ray_core_traits::{
-    Ray2DConstructor, Ray2DMeasure, Ray2DProperties,
-    Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
+    Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DMeasure,
+    Ray3DProperties,
 };
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
@@ -236,7 +242,8 @@ pub use ray_2d::Ray2D;
 pub use triangle_2d::Triangle2D;
 pub use vector_2d::Vector2D;
 
-// Ray Core Traits再エクスポート（Foundation経由）
+// Core Traits統合エクスポート（Foundation経由）
+pub use geo_foundation::core::infinite_line_core_traits::{InfiniteLine2DCore, InfiniteLine3DCore};
 pub use geo_foundation::core::ray_core_traits::{Ray2DCore, Ray3DCore};
 
 // ============================================================================

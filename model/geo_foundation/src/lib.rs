@@ -42,7 +42,16 @@ pub use analysis::{
 
 // Core Traitsを再エクスポート（主要インターフェース）
 pub use core::{
+    circle_core_traits::{
+        Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties,
+        Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
+    },
     circle_traits::Circle2D as Circle2DTrait,
+    infinite_line_core_traits::{
+        InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure,
+        InfiniteLine2DProperties, InfiniteLine3DConstructor, InfiniteLine3DCore,
+        InfiniteLine3DMeasure, InfiniteLine3DProperties,
+    },
     nurbs_traits::{
         BasisFunction, BiParametricGeometry, KnotVector as KnotVectorTrait, NurbsCurve,
         NurbsCurveOperations, NurbsSurface, NurbsSurfaceOperations, ParametricGeometry,
@@ -52,10 +61,6 @@ pub use core::{
     ray_core_traits::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
         Ray3DMeasure, Ray3DProperties,
-    },
-    circle_core_traits::{
-        Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties, 
-        Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
     },
     triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
 };
