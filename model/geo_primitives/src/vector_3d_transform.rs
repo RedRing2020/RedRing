@@ -1,194 +1,215 @@
-//! Vector3D変換機能の拡張実装
+//! Vector3D Analysis Matrix/Vector統合変換実装
 //!
-//! geo_foundation統合による統一Transform Foundation システム
-//! BasicTransform + 高度変換操作の実装
+//! Analysis Matrix/Vectorを直接使用した効率的な方向ベクトル変換
+//! geo_nurbsのmatrix_transformパターンを基盤とする統一実装
+//! 方向ベクトルとしての特性（平行移動無効化）を考慮
 
-use crate::{Point3D, Vector3D};
-use geo_foundation::{extensions::BasicTransform, Angle, Scalar};
+use crate::Vector3D;
+use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
+use geo_foundation::{AnalysisTransformVector3D, Angle, Scalar, TransformError};
 
-// ============================================================================
-// Transform Traits（変換操作のためのトレイト）
-// ============================================================================
+/// Vector3D用Analysis Matrix/Vector変換モジュール
+pub mod analysis_transform {
+    use super::*;
 
-/// 3Dベクトルを方向ベクトルとして変換するトレイト
-pub trait TransformVector3D<T: Scalar> {
-    /// ベクトルを方向ベクトルとして変換（平行移動なし）
-    fn transform_vector_3d(&self, vector: &Vector3D<T>) -> Vector3D<T>;
-}
-
-/// 3D点として変換するトレイト
-pub trait TransformPoint3D<T: Scalar> {
-    /// 点を変換（平行移動あり）
-    fn transform_point_3d(&self, point: &Point3D<T>) -> Point3D<T>;
-}
-
-// ============================================================================
-// Vector3D Transform Extensions
-// ============================================================================
-
-impl<T: Scalar> Vector3D<T> {
-    // ========================================================================
-    // Advanced Transform Methods
-    // ========================================================================
-
-    /// 4x4変換行列でベクトルを変換（方向ベクトルとして）
-    ///
-    /// ベクトルを(x, y, z, 0)として扱い、回転・スケールのみ適用
-    /// 平行移動は無視される（方向ベクトルの特性）
-    ///
-    /// # 引数
-    /// * `matrix` - 4x4変換行列の参照
-    ///
-    /// # 戻り値
-    /// 変換された新しいベクトル
-    ///
-    /// # 例
-    /// ```
-    /// use geo_primitives::Vector3D;
-    /// let v = Vector3D::new(1.0, 0.0, 0.0);
-    /// // matrix は 4x4 変換行列
-    /// // let transformed = v.transform_vector(&matrix);
-    /// ```
-    pub fn transform_vector<M>(&self, matrix: &M) -> Self
-    where
-        M: TransformVector3D<T>,
-    {
-        matrix.transform_vector_3d(self)
+    /// Analysis Vector3への変換
+    impl<T: Scalar> From<Vector3D<T>> for Vector3<T> {
+        fn from(vector: Vector3D<T>) -> Self {
+            Vector3::new(vector.x(), vector.y(), vector.z())
+        }
     }
 
-    /// 4x4変換行列でベクトルを点として変換
-    ///
-    /// ベクトルを(x, y, z, 1)として扱い、平行移動・回転・スケールを適用
-    /// 原点からの位置ベクトルとして解釈
-    ///
-    /// # 引数
-    /// * `matrix` - 4x4変換行列の参照
-    ///
-    /// # 戻り値
-    /// 変換された新しいベクトル
-    ///
-    /// # 例
-    /// ```
-    /// use geo_primitives::Vector3D;
-    /// let v = Vector3D::new(1.0, 2.0, 3.0);
-    /// // matrix は 4x4 変換行列
-    /// // let transformed = v.transform_point(&matrix);
-    /// ```
-    pub fn transform_point<M>(&self, matrix: &M) -> Self
-    where
-        M: TransformPoint3D<T>,
-    {
-        let point = self.to_point();
-        let transformed_point = matrix.transform_point_3d(&point);
-        Self::new(
-            transformed_point.x(),
-            transformed_point.y(),
-            transformed_point.z(),
-        )
+    /// Analysis Vector3からの変換
+    impl<T: Scalar> From<Vector3<T>> for Vector3D<T> {
+        fn from(vector: Vector3<T>) -> Self {
+            Vector3D::new(vector.x(), vector.y(), vector.z())
+        }
     }
 
-    // ========================================================================
-    // Rotation Transform Methods
-    // ========================================================================
-
-    /// 回転変換のみを適用
-    ///
-    /// 指定された角度だけZ軸周りに回転
-    ///
-    /// # 引数
-    /// * `angle` - 回転角度（ラジアン）
-    ///
-    /// # 戻り値
-    /// 回転された新しいベクトル
-    pub fn rotate_z(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-
-        Self::new(
-            self.x() * cos_a - self.y() * sin_a,
-            self.x() * sin_a + self.y() * cos_a,
-            self.z(),
-        )
+    /// 単一ベクトルの4x4行列変換（方向ベクトルとして、平行移動成分を無視）
+    pub fn transform_vector_3d<T: Scalar>(
+        vector: &Vector3D<T>,
+        matrix: &Matrix4x4<T>,
+    ) -> Vector3D<T> {
+        let vec: Vector3<T> = (*vector).into();
+        let transformed = matrix.transform_vector_3d(&vec);
+        transformed.into()
     }
 
-    /// X軸周りの回転
-    pub fn rotate_x(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-
-        Self::new(
-            self.x(),
-            self.y() * cos_a - self.z() * sin_a,
-            self.y() * sin_a + self.z() * cos_a,
-        )
+    /// 複数ベクトルの一括4x4行列変換
+    pub fn transform_vectors_3d<T: Scalar>(
+        vectors: &[Vector3D<T>],
+        matrix: &Matrix4x4<T>,
+    ) -> Vec<Vector3D<T>> {
+        vectors
+            .iter()
+            .map(|v| transform_vector_3d(v, matrix))
+            .collect()
     }
 
-    /// Y軸周りの回転
-    pub fn rotate_y(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
+    /// 回転行列の生成（4x4、軸回転）
+    pub fn rotation_matrix_3d<T: Scalar>(
+        axis: &Vector3D<T>,
+        angle: Angle<T>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        let axis_vec: Vector3<T> = Vector3::new(axis.x(), axis.y(), axis.z());
 
-        Self::new(
-            self.x() * cos_a + self.z() * sin_a,
-            self.y(),
-            -self.x() * sin_a + self.z() * cos_a,
-        )
-    }
-
-    // ========================================================================
-    // Composite Transform Methods
-    // ========================================================================
-
-    /// オイラー角による複合回転（ZYX順）
-    pub fn rotate_euler_zyx(&self, yaw: T, pitch: T, roll: T) -> Self {
-        self.rotate_z(yaw).rotate_y(pitch).rotate_x(roll)
-    }
-
-    /// オイラー角による複合回転（XYZ順）
-    pub fn rotate_euler_xyz(&self, roll: T, pitch: T, yaw: T) -> Self {
-        self.rotate_x(roll).rotate_y(pitch).rotate_z(yaw)
-    }
-
-    /// 任意軸周りの回転（ロドリゲスの公式）
-    pub fn rotate_around_axis(&self, axis: &Self, angle: T) -> Self {
-        let normalized_axis = axis.normalize();
-        if normalized_axis.is_zero() {
-            return *self;
+        // ゼロベクトルチェック
+        if axis_vec.norm_squared().is_zero() {
+            return Err(TransformError::ZeroVector(
+                "Cannot rotate around zero vector".to_string(),
+            ));
         }
 
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-        let one_minus_cos = T::ONE - cos_a;
+        let normalized_axis = axis_vec.normalize().map_err(TransformError::ZeroVector)?;
+        Ok(Matrix4x4::rotation_axis(
+            &normalized_axis,
+            angle.to_radians(),
+        ))
+    }
 
-        let dot_product = self.dot(&normalized_axis);
-        let cross_product = normalized_axis.cross(self);
+    /// スケール行列の生成（4x4）
+    pub fn scale_matrix_3d<T: Scalar>(
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        if scale_x.is_zero() || scale_y.is_zero() || scale_z.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factors cannot be zero".to_string(),
+            ));
+        }
+        let scale_vec = Vector3::new(scale_x, scale_y, scale_z);
+        Ok(Matrix4x4::scale_3d(&scale_vec))
+    }
 
-        *self * cos_a + cross_product * sin_a + normalized_axis * (dot_product * one_minus_cos)
+    /// 均等スケール行列の生成（4x4）
+    pub fn uniform_scale_matrix_3d<T: Scalar>(
+        scale_factor: T,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        if scale_factor.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factor cannot be zero".to_string(),
+            ));
+        }
+        Ok(Matrix4x4::uniform_scale_3d(scale_factor))
+    }
+
+    /// 複合変換行列の構築（4x4、ベクトル用）
+    pub fn composite_vector_transform_3d<T: Scalar>(
+        rotation: Option<(&Vector3D<T>, Angle<T>)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        let mut result = Matrix4x4::identity();
+
+        // スケール適用
+        if let Some((sx, sy, sz)) = scale {
+            let scale_matrix = scale_matrix_3d(sx, sy, sz)?;
+            result = result * scale_matrix;
+        }
+
+        // 回転適用
+        if let Some((axis, angle)) = rotation {
+            let rotation_matrix = rotation_matrix_3d(axis, angle)?;
+            result = result * rotation_matrix;
+        }
+
+        Ok(result)
+    }
+
+    /// 複合変換行列の構築（均等スケール版）
+    pub fn composite_vector_transform_uniform_3d<T: Scalar>(
+        rotation: Option<(&Vector3D<T>, Angle<T>)>,
+        scale: Option<T>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        let mut result = Matrix4x4::identity();
+
+        // 均等スケール適用
+        if let Some(scale_factor) = scale {
+            let scale_matrix = uniform_scale_matrix_3d(scale_factor)?;
+            result = result * scale_matrix;
+        }
+
+        // 回転適用
+        if let Some((axis, angle)) = rotation {
+            let rotation_matrix = rotation_matrix_3d(axis, angle)?;
+            result = result * rotation_matrix;
+        }
+
+        Ok(result)
     }
 }
 
-// ============================================================================
-// BasicTransform implementation (geo_foundation統合)
-// ============================================================================
-
-impl<T: Scalar> BasicTransform<T> for Vector3D<T> {
-    type Transformed = Vector3D<T>;
-    type Vector2D = Vector3D<T>; // 3Dベクトルを2D操作でも使用
-    type Point2D = Point3D<T>; // 3D点を2D操作でも使用
+/// Vector3DでのAnalysisTransformVector3D実装（geo_foundation統一トレイト）
+impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
+    type Matrix4x4 = Matrix4x4<T>;
     type Angle = Angle<T>;
+    type Output = Self;
 
-    /// 平行移動（ベクトルの加算）
-    fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        self.safe_translate(translation).unwrap()
+    fn transform_vector_matrix(&self, matrix: &Matrix4x4<T>) -> Self {
+        analysis_transform::transform_vector_3d(self, matrix)
     }
 
-    /// Z軸周りの回転
-    fn rotate(&self, _center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
-        self.safe_rotate_z_origin(angle).unwrap()
+    fn rotate_vector_analysis(
+        &self,
+        axis: &Vector3<T>,
+        angle: Angle<T>,
+    ) -> Result<Self, TransformError> {
+        // Vector3からVector3Dへの変換
+        let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
+        let matrix = analysis_transform::rotation_matrix_3d(&axis_vector3d, angle)?;
+        Ok(self.transform_vector_matrix(&matrix))
     }
 
-    /// 等方スケール
-    fn scale(&self, _center: Self::Point2D, factor: T) -> Self::Transformed {
-        self.safe_scale_origin(factor).unwrap()
+    fn scale_vector_analysis(
+        &self,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Self, TransformError> {
+        let matrix = analysis_transform::scale_matrix_3d(scale_x, scale_y, scale_z)?;
+        Ok(self.transform_vector_matrix(&matrix))
+    }
+
+    fn uniform_scale_vector_analysis(&self, scale_factor: T) -> Result<Self, TransformError> {
+        let matrix = analysis_transform::uniform_scale_matrix_3d(scale_factor)?;
+        Ok(self.transform_vector_matrix(&matrix))
+    }
+
+    fn apply_vector_composite_transform(
+        &self,
+        rotation: Option<(&Vector3<T>, Angle<T>)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self, TransformError> {
+        // Vector3からVector3Dへの変換（所有権の問題を回避）
+        let rotation_vector3d =
+            rotation.map(|(axis, angle)| (Vector3D::new(axis.x(), axis.y(), axis.z()), angle));
+        let rotation_ref = rotation_vector3d.as_ref().map(|(v, a)| (v, *a));
+
+        let matrix = analysis_transform::composite_vector_transform_3d(rotation_ref, scale)?;
+        Ok(self.transform_vector_matrix(&matrix))
+    }
+
+    fn apply_vector_composite_transform_uniform(
+        &self,
+        rotation: Option<(&Vector3<T>, Angle<T>)>,
+        scale: Option<T>,
+    ) -> Result<Self, TransformError> {
+        // Vector3からVector3Dへの変換（所有権の問題を回避）
+        let rotation_vector3d =
+            rotation.map(|(axis, angle)| (Vector3D::new(axis.x(), axis.y(), axis.z()), angle));
+        let rotation_ref = rotation_vector3d.as_ref().map(|(v, a)| (v, *a));
+
+        let matrix =
+            analysis_transform::composite_vector_transform_uniform_3d(rotation_ref, scale)?;
+        Ok(self.transform_vector_matrix(&matrix))
+    }
+
+    fn normalize_analysis(&self) -> Result<Self, TransformError> {
+        let analysis_vec: Vector3<T> = (*self).into();
+        let normalized = analysis_vec
+            .normalize()
+            .map_err(TransformError::ZeroVector)?;
+        Ok(normalized.into())
     }
 }

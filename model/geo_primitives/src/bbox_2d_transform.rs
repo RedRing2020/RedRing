@@ -1,236 +1,292 @@
-//! BBox2D変換操作統一Foundation実装
+//! BBox2D Analysis Matrix/Vector統合変換実装
 //!
-//! 統一Transform Foundation システムによる変換操作
-//! 境界ボックスの変換では、変換後の頂点から新しい境界ボックスを再計算
+//! Analysis Matrix3x3を直接使用した効率的な2D境界ボックス変換
+//! Arc2D実装パターンを踏襲した統一設計
+//! BBox2Dの矩形構造を保持した変換処理
 
-use crate::{BBox2D, Point2D, Vector2D};
-use geo_foundation::{extensions::BasicTransform, Angle, Scalar};
+use crate::{BBox2D, Point2D};
+use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
+use geo_foundation::{AnalysisTransform2D, Scalar, TransformError};
 
-// ============================================================================
-// BasicTransform Trait Implementation (統一Foundation)
-// ============================================================================
+/// BBox2D用Analysis Matrix3x3変換モジュール
+pub mod analysis_transform {
+    use super::*;
 
-impl<T: Scalar> BasicTransform<T> for BBox2D<T> {
-    type Transformed = BBox2D<T>;
-    type Vector2D = Vector2D<T>;
-    type Point2D = Point2D<T>;
-    type Angle = Angle<T>;
+    /// BBox2Dの3x3行列変換（境界ボックス構造保持）
+    pub fn transform_bbox_2d<T: Scalar>(
+        bbox: &BBox2D<T>,
+        matrix: &Matrix3x3<T>,
+    ) -> Result<BBox2D<T>, TransformError> {
+        // 境界ボックスの4つの角点を変換
+        let min_point = bbox.min();
+        let max_point = bbox.max();
 
-    /// 平行移動
-    ///
-    /// # 引数
-    /// * `translation` - 移動ベクトル
-    ///
-    /// # 戻り値
-    /// 平行移動された新しい境界ボックス
-    fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        // 境界ボックスの平行移動は min と max を同じベクトルで移動
-        let new_min = self.min().translate(translation);
-        let new_max = self.max().translate(translation);
-        BBox2D::new(new_min, new_max)
-    }
-
-    /// 指定中心での回転
-    ///
-    /// # 引数
-    /// * `center` - 回転中心点
-    /// * `angle` - 回転角度
-    ///
-    /// # 戻り値
-    /// 回転後の新しい境界ボックス（4つの角を回転させて再計算）
-    fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
-        // 境界ボックスの4つの角を取得
+        // 4つの角点を定義
         let corners = [
-            self.min(),                                   // 左下
-            Point2D::new(self.max().x(), self.min().y()), // 右下
-            self.max(),                                   // 右上
-            Point2D::new(self.min().x(), self.max().y()), // 左上
+            min_point,                                  // 左下
+            Point2D::new(max_point.x(), min_point.y()), // 右下
+            max_point,                                  // 右上
+            Point2D::new(min_point.x(), max_point.y()), // 左上
         ];
 
-        // 各角を回転
-        let rotated_corners: Vec<Point2D<T>> = corners
-            .iter()
-            .map(|corner| BasicTransform::rotate(corner, center, angle))
-            .collect();
+        // 全ての角点を変換
+        let mut transformed_points = Vec::with_capacity(4);
+        for corner in &corners {
+            let corner_vec = Vector2::new(corner.x(), corner.y());
+            let transformed_vec = matrix.transform_point_2d(&corner_vec);
+            transformed_points.push(Point2D::new(transformed_vec.x(), transformed_vec.y()));
+        }
 
-        // 回転した角から新しい境界ボックスを構築
-        BBox2D::from_points(&rotated_corners)
-            .expect("4つの角から境界ボックスが作成できないはずがない")
+        // 変換後の点群から新しい境界ボックスを生成
+        BBox2D::from_points(&transformed_points).ok_or_else(|| {
+            TransformError::InvalidGeometry("Failed to create transformed BBox2D".to_string())
+        })
     }
 
-    /// 指定中心でのスケール
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `factor` - スケール倍率
-    ///
-    /// # 戻り値
-    /// スケールされた新しい境界ボックス
-    fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed {
-        // 境界ボックスの4つの角をスケール
-        let corners = [
-            self.min(),
-            Point2D::new(self.max().x(), self.min().y()),
-            self.max(),
-            Point2D::new(self.min().x(), self.max().y()),
-        ];
-
-        // 各角をスケール
-        let scaled_corners: Vec<Point2D<T>> = corners
+    /// 複数境界ボックスの一括3x3行列変換
+    pub fn transform_bboxes_2d<T: Scalar>(
+        bboxes: &[BBox2D<T>],
+        matrix: &Matrix3x3<T>,
+    ) -> Result<Vec<BBox2D<T>>, TransformError> {
+        bboxes
             .iter()
-            .map(|corner| BasicTransform::scale(corner, center, factor))
-            .collect();
+            .map(|bbox| transform_bbox_2d(bbox, matrix))
+            .collect()
+    }
 
-        // スケールした角から新しい境界ボックスを構築
-        BBox2D::from_points(&scaled_corners)
-            .expect("4つの角から境界ボックスが作成できないはずがない")
+    /// 平行移動行列生成（2D用）
+    pub fn translation_matrix_2d<T: Scalar>(dx: T, dy: T) -> Matrix3x3<T> {
+        let translation = Vector2::new(dx, dy);
+        Matrix3x3::translation_2d(&translation)
+    }
+
+    /// 回転行列生成（2D用）
+    pub fn rotation_matrix_2d<T: Scalar>(angle: geo_foundation::Angle<T>) -> Matrix3x3<T> {
+        Matrix3x3::rotation_2d(angle.to_radians())
+    }
+
+    /// スケール行列生成（2D用）
+    pub fn scale_matrix_2d<T: Scalar>(sx: T, sy: T) -> Matrix3x3<T> {
+        let scale = Vector2::new(sx, sy);
+        Matrix3x3::scale_2d(&scale)
     }
 }
 
 // ============================================================================
-// Required implementations for BasicTransform
+// AnalysisTransform2D Implementation
 // ============================================================================
 
-impl<T: Scalar> Default for BBox2D<T> {
-    fn default() -> Self {
-        // 原点を中心とした単位正方形
-        BBox2D::centered_square(T::ONE / (T::ONE + T::ONE))
+impl<T: Scalar> AnalysisTransform2D<T> for BBox2D<T> {
+    type Matrix3x3 = Matrix3x3<T>;
+    type Angle = geo_foundation::Angle<T>;
+    type Output = BBox2D<T>;
+
+    /// Matrix3x3による直接座標変換
+    fn transform_point_matrix_2d(&self, matrix: &Self::Matrix3x3) -> Self::Output {
+        analysis_transform::transform_bbox_2d(self, matrix).unwrap_or_else(|_| *self)
+        // エラー時は元のBBox2Dを返す
+    }
+
+    /// 平行移動変換（Analysis Vector2使用）
+    fn translate_analysis_2d(
+        &self,
+        translation: &Vector2<T>,
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::translation_matrix_2d(translation.x(), translation.y());
+        analysis_transform::transform_bbox_2d(self, &matrix)
+    }
+
+    /// 回転変換（中心点指定）
+    fn rotate_analysis_2d(
+        &self,
+        center: &Self,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, TransformError> {
+        // 中心点への移動 -> 回転 -> 元位置への移動の合成変換
+        let center_point = center.center();
+        let to_origin =
+            analysis_transform::translation_matrix_2d(-center_point.x(), -center_point.y());
+        let rotation = analysis_transform::rotation_matrix_2d(angle);
+        let from_origin =
+            analysis_transform::translation_matrix_2d(center_point.x(), center_point.y());
+
+        let combined_matrix = from_origin.mul_matrix(&rotation.mul_matrix(&to_origin));
+        analysis_transform::transform_bbox_2d(self, &combined_matrix)
+    }
+
+    /// スケール変換
+    fn scale_analysis_2d(
+        &self,
+        center: &Self,
+        scale_x: T,
+        scale_y: T,
+    ) -> Result<Self::Output, TransformError> {
+        if scale_x.is_zero() || scale_y.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factors cannot be zero".to_string(),
+            ));
+        }
+
+        let center_point = center.center();
+        let to_origin =
+            analysis_transform::translation_matrix_2d(-center_point.x(), -center_point.y());
+        let scale = analysis_transform::scale_matrix_2d(scale_x, scale_y);
+        let from_origin =
+            analysis_transform::translation_matrix_2d(center_point.x(), center_point.y());
+
+        let combined_matrix = from_origin.mul_matrix(&scale.mul_matrix(&to_origin));
+        analysis_transform::transform_bbox_2d(self, &combined_matrix)
+    }
+
+    /// 均等スケール変換
+    fn uniform_scale_analysis_2d(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, TransformError> {
+        self.scale_analysis_2d(center, scale_factor, scale_factor)
     }
 }
 
 // ============================================================================
-// 特別な変換メソッド（境界ボックス固有）
-// ============================================================================
-
-impl<T: Scalar> BBox2D<T> {
-    /// 境界ボックスを指定の比率でスケール拡張/縮小
-    ///
-    /// # 引数
-    /// * `factor` - 拡張倍率（1.0より大きいと拡張、小さいと縮小）
-    ///
-    /// # 戻り値
-    /// 拡張/縮小された新しい境界ボックス
-    pub fn scale_uniform(&self, factor: T) -> Self {
-        let center = self.center();
-        BasicTransform::scale(self, center, factor)
-    }
-
-    /// 境界ボックスを指定のマージンで拡張
-    ///
-    /// # 引数
-    /// * `margin` - 全方向への拡張マージン
-    ///
-    /// # 戻り値
-    /// マージンで拡張された新しい境界ボックス
-    pub fn expand_by_margin(&self, margin: T) -> Self {
-        BBox2D::new(
-            Point2D::new(self.min().x() - margin, self.min().y() - margin),
-            Point2D::new(self.max().x() + margin, self.max().y() + margin),
-        )
-    }
-
-    /// 境界ボックスを非等方でスケール
-    ///
-    /// # 引数
-    /// * `center` - スケール中心点
-    /// * `scale_x` - X軸方向のスケール倍率
-    /// * `scale_y` - Y軸方向のスケール倍率
-    ///
-    /// # 戻り値
-    /// 非等方スケールされた新しい境界ボックス
-    pub fn scale_non_uniform(&self, center: Point2D<T>, scale_x: T, scale_y: T) -> Self {
-        let corners = [
-            self.min(),
-            Point2D::new(self.max().x(), self.min().y()),
-            self.max(),
-            Point2D::new(self.min().x(), self.max().y()),
-        ];
-
-        // 各角を非等方スケール
-        let scaled_corners: Vec<Point2D<T>> = corners
-            .iter()
-            .map(|corner| {
-                let dx = corner.x() - center.x();
-                let dy = corner.y() - center.y();
-                Point2D::new(center.x() + dx * scale_x, center.y() + dy * scale_y)
-            })
-            .collect();
-
-        BBox2D::from_points(&scaled_corners)
-            .expect("4つの角から境界ボックスが作成できないはずがない")
-    }
-}
-
-// ============================================================================
-// Tests Module
+// Tests
 // ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Point2D;
+    use geo_foundation::Angle;
 
-    #[test]
-    fn test_translate() {
-        let bbox = BBox2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 3.0));
-        let translation = Vector2D::new(1.0, 2.0);
-        let translated = BasicTransform::translate(&bbox, translation);
-
-        assert_eq!(translated.min(), Point2D::new(1.0, 2.0));
-        assert_eq!(translated.max(), Point2D::new(3.0, 5.0));
-        assert_eq!(translated.width(), bbox.width());
-        assert_eq!(translated.height(), bbox.height());
+    /// テスト用BBox2D生成
+    fn create_test_bbox() -> BBox2D<f64> {
+        BBox2D::new(Point2D::new(-1.0, -1.0), Point2D::new(1.0, 1.0))
     }
 
     #[test]
-    fn test_scale_from_origin() {
-        let bbox = BBox2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 4.0));
-        let scaled = BasicTransform::scale(&bbox, Point2D::origin(), 2.0);
+    fn test_translation_analysis_transform() {
+        let bbox = create_test_bbox();
+        let translation = Vector2::new(3.0, 2.0);
 
-        assert_eq!(scaled.min(), Point2D::new(2.0, 2.0));
-        assert_eq!(scaled.max(), Point2D::new(6.0, 8.0));
-        assert_eq!(scaled.width(), bbox.width() * 2.0);
-        assert_eq!(scaled.height(), bbox.height() * 2.0);
+        let result = bbox.translate_analysis_2d(&translation).unwrap();
+
+        assert_eq!(result.min().x(), 2.0);
+        assert_eq!(result.min().y(), 1.0);
+        assert_eq!(result.max().x(), 4.0);
+        assert_eq!(result.max().y(), 3.0);
+        assert_eq!(result.width(), 2.0);
+        assert_eq!(result.height(), 2.0);
     }
 
     #[test]
-    fn test_scale_uniform() {
-        let bbox = BBox2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 4.0));
-        let expanded = bbox.scale_uniform(2.0);
+    fn test_rotation_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+        let rotation_angle = Angle::from_degrees(90.0);
 
-        // 中心点は変わらず、サイズが2倍に
-        assert_eq!(expanded.center(), bbox.center());
-        assert_eq!(expanded.width(), bbox.width() * 2.0);
-        assert_eq!(expanded.height(), bbox.height() * 2.0);
+        let result = bbox
+            .rotate_analysis_2d(&center_bbox, rotation_angle)
+            .unwrap();
+
+        // 90度回転後は同じサイズの境界ボックスになる（対称な正方形のため）
+        assert!((result.width() - 2.0).abs() < 1e-10);
+        assert!((result.height() - 2.0).abs() < 1e-10);
     }
 
     #[test]
-    fn test_expand_by_margin() {
-        let bbox = BBox2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 4.0));
-        let expanded = bbox.expand_by_margin(0.5);
+    fn test_scale_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
 
-        assert_eq!(expanded.min(), Point2D::new(0.5, 0.5));
-        assert_eq!(expanded.max(), Point2D::new(3.5, 4.5));
-        assert_eq!(expanded.width(), bbox.width() + 1.0);
-        assert_eq!(expanded.height(), bbox.height() + 1.0);
+        let result = bbox.scale_analysis_2d(&center_bbox, 2.0, 3.0).unwrap();
+
+        assert_eq!(result.width(), 4.0); // 2.0 * 2.0
+        assert_eq!(result.height(), 6.0); // 2.0 * 3.0
     }
 
     #[test]
-    fn test_scale_non_uniform() {
-        let bbox = BBox2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 4.0));
-        let center = Point2D::new(1.0, 2.0);
-        let scaled = bbox.scale_non_uniform(center, 2.0, 0.5);
+    fn test_uniform_scale_analysis_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
 
-        // X軸方向に2倍、Y軸方向に0.5倍
-        assert_eq!(scaled.width(), bbox.width() * 2.0);
-        assert_eq!(scaled.height(), bbox.height() * 0.5);
+        let result = bbox.uniform_scale_analysis_2d(&center_bbox, 2.5).unwrap();
+
+        assert_eq!(result.width(), 5.0); // 2.0 * 2.5
+        assert_eq!(result.height(), 5.0); // 2.0 * 2.5
     }
 
     #[test]
-    fn test_translate_xy() {
-        let bbox = BBox2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 3.0));
-        let translated = BasicTransform::translate(&bbox, Vector2D::new(1.0, 2.0));
+    fn test_matrix_direct_transform() {
+        let bbox = create_test_bbox();
+        let matrix = analysis_transform::translation_matrix_2d(5.0, -3.0);
 
-        assert_eq!(translated.min(), Point2D::new(1.0, 2.0));
-        assert_eq!(translated.max(), Point2D::new(3.0, 5.0));
+        let result = bbox.transform_point_matrix_2d(&matrix);
+
+        assert_eq!(result.min().x(), 4.0); // -1.0 + 5.0
+        assert_eq!(result.min().y(), -4.0); // -1.0 + (-3.0)
+        assert_eq!(result.max().x(), 6.0); // 1.0 + 5.0
+        assert_eq!(result.max().y(), -2.0); // 1.0 + (-3.0)
+    }
+
+    #[test]
+    fn test_zero_scale_error() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+
+        let result = bbox.scale_analysis_2d(&center_bbox, 0.0, 1.0);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            TransformError::InvalidScaleFactor(_) => {}
+            _ => panic!("Expected InvalidScaleFactor error"),
+        }
+    }
+
+    #[test]
+    fn test_batch_transform() {
+        let bboxes = vec![create_test_bbox(); 3];
+        let matrix = analysis_transform::translation_matrix_2d(10.0, -5.0);
+
+        let results = analysis_transform::transform_bboxes_2d(&bboxes, &matrix).unwrap();
+
+        assert_eq!(results.len(), 3);
+        for result in results {
+            assert_eq!(result.min().x(), 9.0); // -1.0 + 10.0
+            assert_eq!(result.min().y(), -6.0); // -1.0 + (-5.0)
+            assert_eq!(result.max().x(), 11.0); // 1.0 + 10.0
+            assert_eq!(result.max().y(), -4.0); // 1.0 + (-5.0)
+        }
+    }
+
+    #[test]
+    fn test_corner_transform_consistency() {
+        let bbox = create_test_bbox();
+        let rotation_angle = Angle::from_degrees(45.0);
+        let rotation_matrix = analysis_transform::rotation_matrix_2d(rotation_angle);
+
+        let result = analysis_transform::transform_bbox_2d(&bbox, &rotation_matrix).unwrap();
+
+        // 45度回転後の境界ボックスは元より大きくなる（対角線方向に拡大）
+        assert!(result.width() > bbox.width());
+        assert!(result.height() > bbox.height());
+
+        // 中心は原点のまま（原点中心回転のため）
+        let center = result.center();
+        assert!((center.x()).abs() < 1e-10);
+        assert!((center.y()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_negative_scale_transform() {
+        let bbox = create_test_bbox();
+        let center_bbox = create_test_bbox();
+
+        let result = bbox.scale_analysis_2d(&center_bbox, -1.0, 1.0).unwrap();
+
+        // 負のスケールで反転
+        assert_eq!(result.width(), 2.0);
+        assert_eq!(result.height(), 2.0);
+        assert!((result.center().x()).abs() < 1e-10);
+        assert!((result.center().y()).abs() < 1e-10);
     }
 }

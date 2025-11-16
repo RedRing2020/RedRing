@@ -1,11 +1,11 @@
 # 🎯 NURBS 曲線・曲面システム / NURBS Curves and Surfaces
 
-<div class="highlight-box">
-<strong>📅 最終更新日: 2025年11月10日</strong><br>
-<strong>📊 実装状況: ✅ 実装完了</strong><br>
-<strong>🧪 テスト状況: 23/23 テスト合格</strong><br>
-<strong>⚡ 品質: Clippy警告ゼロ</strong>
-</div>
+> **ℹ️ プロジェクト情報**
+>
+> **📅 最終更新日**: 2025年11月10日
+> **📊 実装状況**: ✅ 実装完了
+> **🧪 テスト状況**: 23/23 テスト合格
+> **⚡ 品質**: Clippy警告ゼロ
 
 ## 🌟 概要 / Overview
 
@@ -13,24 +13,22 @@ RedRing の NURBS (Non-Uniform Rational B-Splines) システムは、CAD/CAM ア
 
 ### ✨ 主な特徴 / Key Features
 
-| 特徴 | 説明 | 状況 |
-|------|------|------|
-| 🎯 **高精度表現** | 数学的に厳密なNURBS定義 | ✅ 完了 |
-| 🚀 **メモリ効率** | フラット配列による最適化 | ✅ 完了 |
-| 🔒 **型安全性** | ジェネリック型による抽象化 | ✅ 完了 |
+| 特徴                  | 説明                         | 状況    |
+| --------------------- | ---------------------------- | ------- |
+| 🎯 **高精度表現**     | 数学的に厳密なNURBS定義      | ✅ 完了 |
+| 🚀 **メモリ効率**     | フラット配列による最適化     | ✅ 完了 |
+| 🔒 **型安全性**       | ジェネリック型による抽象化   | ✅ 完了 |
 | 🏗️ **Foundation統合** | RedRing パターンへの完全対応 | ✅ 完了 |
-| 📐 **Cox-de Boor** | 高効率基底関数アルゴリズム | ✅ 完了 |
-| ⚡ **ゼロコピー** | 効率的なメモリ転送 | ✅ 完了 |
+| 📐 **Cox-de Boor**    | 高効率基底関数アルゴリズム   | ✅ 完了 |
+| ⚡ **ゼロコピー**     | 効率的なメモリ転送           | ✅ 完了 |
 
 ## 🏛️ アーキテクチャ / Architecture
 
-<div class="success-box">
-<strong>🎉 実装完了:</strong> 全モジュールが正常に動作し、23件のテストがすべて合格しています。
-</div>
+> **🎉 実装完了**: 全モジュールが正常に動作し、23件のテストがすべて合格しています。
 
 ### 📦 クレート構成
 
-```
+```text
 model/geo_nurbs/
 ├── basis.rs              # B-スプライン基底関数計算
 ├── curve_2d.rs          # 2D NURBS曲線実装
@@ -158,7 +156,7 @@ let (left_curve, right_curve) = CurveSplitting::split_curve_2d(
 )?;
 
 // 次数上昇
-let (new_points, new_weights, new_knots, new_degree) = 
+let (new_points, new_weights, new_knots, new_degree) =
     DegreeElevation::elevate_degree_2d(&control_points, &weights, &knots, degree)?;
 ```
 
@@ -169,15 +167,15 @@ let (new_points, new_weights, new_knots, new_degree) =
 ```rust
 impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
     type BBox = geo_primitives::BBox3D<T>;
-    
+
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::NurbsCurve
     }
-    
+
     fn bounding_box(&self) -> Self::BBox {
         // 制御点から境界ボックスを計算
     }
-    
+
     fn measure(&self) -> Option<T> {
         Some(self.approximate_length(100))
     }
@@ -191,7 +189,7 @@ impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
 impl<T: Scalar> NurbsCurve<T> for NurbsCurve2D<T> {
     type Point = Point2D<T>;
     type Vector = Vector2D<T>;
-    
+
     fn degree(&self) -> usize;
     fn control_point_count(&self) -> usize;
     fn parameter_domain(&self) -> (T, T);
@@ -209,7 +207,7 @@ impl<T: Scalar> WeightedGeometry<T> for NurbsCurve2D<T> {
     // ...
 }
 
-// パラメトリック幾何トレイト  
+// パラメトリック幾何トレイト
 impl<T: Scalar> ParametricGeometry<T> for NurbsCurve2D<T> {
     fn normalize_parameter(&self, parameter: T) -> T;
     fn is_parameter_valid(&self, parameter: T) -> bool;
@@ -225,9 +223,9 @@ Cox-de Boor 再帰公式による効率的な基底関数計算：
 
 ```rust
 pub fn basis_function<T: Scalar>(
-    i: usize, 
-    degree: usize, 
-    t: T, 
+    i: usize,
+    degree: usize,
+    t: T,
     knots: &KnotVector<T>
 ) -> T {
     if degree == 0 {
@@ -240,14 +238,14 @@ pub fn basis_function<T: Scalar>(
     } else {
         // 高次基底関数の再帰計算
         let left_term = if !knots[i + degree] - knots[i]).is_zero() {
-            (t - knots[i]) * basis_function(i, degree - 1, t, knots) 
+            (t - knots[i]) * basis_function(i, degree - 1, t, knots)
                 / (knots[i + degree] - knots[i])
         } else { T::ZERO };
-        
+
         let right_term = if i + degree + 1 < knots.len() {
             // 右側の項の計算
         } else { T::ZERO };
-        
+
         left_term + right_term
     }
 }
@@ -271,7 +269,7 @@ pub fn control_point(&self, index: usize) -> Point3D<T> {
     let base = self.control_point_index(index);
     Point3D::new(
         self.coordinates[base],
-        self.coordinates[base + 1], 
+        self.coordinates[base + 1],
         self.coordinates[base + 2]
     )
 }
@@ -284,16 +282,16 @@ pub fn control_point(&self, index: usize) -> Point3D<T> {
 pub enum NurbsError {
     #[error("制御点数が不足: {actual}個. 次数{degree}には最低{required}個必要")]
     InsufficientControlPoints { actual: usize, required: usize, degree: usize },
-    
+
     #[error("無効なノットベクトル: {reason}")]
     InvalidKnotVector { reason: String },
-    
+
     #[error("重み値が不正: {weight}. 正の値が必要")]
     InvalidWeight { weight: f64 },
-    
+
     #[error("パラメータが範囲外: {parameter}. [{min}, {max}]")]
     ParameterOutOfRange { parameter: f64, min: f64, max: f64 },
-    
+
     // その他のエラーバリアント...
 }
 ```
@@ -313,7 +311,7 @@ pub enum NurbsError {
 // 1000点のNURBS曲線評価
 test curve_evaluation_1000_points ... bench: 2,345 ns/iter (+/- 123)
 
-// 100x100 NURBSサーフェス評価  
+// 100x100 NURBSサーフェス評価
 test surface_evaluation_100x100   ... bench: 234,567 ns/iter (+/- 5,432)
 ```
 

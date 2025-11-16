@@ -37,25 +37,25 @@ permissions:
 
 1. **リポジトリ設定にアクセス:**
 
-   ```
+   ```text
    https://github.com/RedRing2020/RedRing/settings/pages
    ```
 
 2. **Source 設定確認:**
-
    - "GitHub Actions" が選択されていることを確認
    - 他の設定（Branch 等）は不要
 
 3. **Environment 設定確認:**
-   ```
+
+   ```text
    https://github.com/RedRing2020/RedRing/settings/environments
    ```
+
    - `github-pages` environment が存在することを確認
 
 ### 次回 main ブランチへのマージ時の確認項目
 
 1. **Actions ログ確認:**
-
    - `Deploy Documentation` ジョブが正常実行
    - `./docs` からのアップロードが成功
    - GitHub Pages へのデプロイが成功
@@ -66,24 +66,24 @@ permissions:
 
 ## トラブルシューティング
 
-### もし Pages デプロイが失敗する場合:
+### もし Pages デプロイが失敗する場合
 
 1. **権限エラー:**
 
-   ```
+   ```text
    Settings > Actions > General > Workflow permissions
    → "Read and write permissions" を選択
    ```
 
 2. **Pages 設定エラー:**
 
-   ```
+   ```text
    Settings > Pages > Source
    → "GitHub Actions" を再選択
    ```
 
 3. **Environment エラー:**
-   ```
+   ```text
    Settings > Environments > github-pages
    → Protection rules を確認
    ```

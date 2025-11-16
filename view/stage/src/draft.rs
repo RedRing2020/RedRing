@@ -9,7 +9,7 @@ use wgpu::{
 
 use crate::render_stage::RenderStage;
 
-use render::render_2d::{Render2dResources, draw_render_2d};
+use render::render_2d::{draw_render_2d, Render2dResources};
 use render::vertex_2d::Vertex2D;
 
 pub struct DraftStage {

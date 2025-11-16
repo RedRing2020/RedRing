@@ -6,11 +6,7 @@
       "request": "launch",
       "name": "Debug RedRing",
       "cargo": {
-        "args": [
-          "build",
-          "--bin=redring",
-          "--package=redring"
-        ],
+        "args": ["build", "--bin=redring", "--package=redring"],
         "filter": {
           "name": "redring",
           "kind": "bin"
@@ -25,10 +21,7 @@
       "request": "launch",
       "name": "Debug Current Package",
       "cargo": {
-        "args": [
-          "build",
-          "--package=${fileBasenameNoExtension}"
-        ]
+        "args": ["build", "--package=${fileBasenameNoExtension}"]
       },
       "args": [],
       "cwd": "${workspaceFolder}",
@@ -39,11 +32,7 @@
       "request": "launch",
       "name": "Test Current Package",
       "cargo": {
-        "args": [
-          "test",
-          "--package=${fileBasenameNoExtension}",
-          "--no-run"
-        ]
+        "args": ["test", "--package=${fileBasenameNoExtension}", "--no-run"]
       },
       "args": [],
       "cwd": "${workspaceFolder}",

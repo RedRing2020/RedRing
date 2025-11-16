@@ -90,7 +90,12 @@ impl<T: Scalar> Ray3D<T> {
             self.origin().distance_to(point)
         } else {
             // 点を Ray に垂直投影した点までの距離
-            let projection = self.origin() + self.direction_vector() * projection_length;
+            let direction_offset = self.direction_vector() * projection_length;
+            let projection = Point3D::new(
+                self.origin().x() + direction_offset.x(),
+                self.origin().y() + direction_offset.y(),
+                self.origin().z() + direction_offset.z(),
+            );
             point.distance_to(&projection)
         }
     }
@@ -122,7 +127,14 @@ impl<T: Scalar> Ray3D<T> {
             self.origin()
         } else {
             // 投影した点を返す
-            self.origin() + self.direction_vector() * projection_length
+            {
+                let direction_offset = self.direction_vector() * projection_length;
+                Point3D::new(
+                    self.origin().x() + direction_offset.x(),
+                    self.origin().y() + direction_offset.y(),
+                    self.origin().z() + direction_offset.z(),
+                )
+            }
         }
     }
 
@@ -138,7 +150,11 @@ impl<T: Scalar> Ray3D<T> {
 
     /// 平行移動
     pub fn translate(&self, offset: &Vector3D<T>) -> Self {
-        let new_origin = self.origin() + *offset;
+        let new_origin = Point3D::new(
+            self.origin().x() + offset.x(),
+            self.origin().y() + offset.y(),
+            self.origin().z() + offset.z(),
+        );
         Self::new(new_origin, self.direction().as_vector()).unwrap()
     }
 
@@ -146,7 +162,11 @@ impl<T: Scalar> Ray3D<T> {
     pub fn scale_uniform(&self, center: &Point3D<T>, factor: T) -> Self {
         let relative_origin = Vector3D::from_points(center, &self.origin());
         let scaled_origin = relative_origin * factor;
-        let new_origin = *center + scaled_origin;
+        let new_origin = Point3D::new(
+            center.x() + scaled_origin.x(),
+            center.y() + scaled_origin.y(),
+            center.z() + scaled_origin.z(),
+        );
 
         // 方向ベクトルはスケールされない（正規化済み）
         Self::new(new_origin, self.direction().as_vector()).unwrap()

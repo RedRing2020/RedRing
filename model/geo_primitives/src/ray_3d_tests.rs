@@ -5,8 +5,7 @@ use geo_foundation::Scalar;
 
 // BasicTransformの実装を有効にするため
 #[allow(unused_imports)]
-use crate::ray_3d_transform;
-
+// use crate::ray_3d_transform; // 削除済み
 #[cfg(test)]
 mod tests {
     use super::*;

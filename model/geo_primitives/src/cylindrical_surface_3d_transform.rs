@@ -1,237 +1,477 @@
-//! CylindricalSurface3D変換機能の実装
+//! CylindricalSurface3D Analysis Matrix/Vector統合変換実装
 //!
-//! Foundation パターンによる統一Transform処理
+//! Analysis Matrix4x4を直接使用した効率的な3D円柱サーフェス変換
+//! Point3D/Vector3D Analysis Transform パターンを基盤とする統一実装
+//! 3D円柱サーフェスの特性（中心点・軸・参照方向・半径）を考慮したMatrix変換
 
-use crate::{CylindricalSurface3D, Direction3D, Point3D, Vector3D};
-use geo_foundation::{Angle, Scalar};
+use crate::{CylindricalSurface3D, Point3D, Vector3D};
+use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
+use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 
-impl<T: Scalar> CylindricalSurface3D<T> {
+/// CylindricalSurface3D用Analysis Matrix4x4変換モジュール
+pub mod analysis_transform {
+    use super::*;
+
+    /// Analysis Vector3への変換（Point3D専用）
+    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
+        Vector3::new(point.x(), point.y(), point.z())
+    }
+
+    /// Analysis Vector3からの変換（Point3D専用）
+    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
+        Point3D::new(vector.x(), vector.y(), vector.z())
+    }
+
+    /// Analysis Vector3への変換（Vector3D専用）
+    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
+        Vector3::new(vector.x(), vector.y(), vector.z())
+    }
+
+    /// Analysis Vector3からの変換（Vector3D専用）
+    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
+        Vector3D::new(vector.x(), vector.y(), vector.z())
+    }
+
+    /// 円柱サーフェスの行列変換（Matrix4x4）
+    ///
+    /// 円柱の中心点、軸方向、参照方向をMatrix変換し、新しい円柱サーフェスを構築
+    pub fn transform_cylindrical_surface_3d<T: Scalar>(
+        cylindrical_surface: &CylindricalSurface3D<T>,
+        matrix: &Matrix4x4<T>,
+    ) -> Result<CylindricalSurface3D<T>, TransformError> {
+        // 中心点を変換
+        let center_vec = point_to_analysis_vector(cylindrical_surface.center());
+        let transformed_center_vec = matrix.transform_point_3d(&center_vec);
+        let new_center = analysis_vector_to_point(transformed_center_vec);
+
+        // 軸方向を変換
+        let axis_vec = vector_to_analysis_vector(cylindrical_surface.axis().as_vector());
+        let transformed_axis_vec = matrix.transform_vector_3d(&axis_vec);
+        let new_axis_vector = analysis_vector_to_vector(transformed_axis_vec);
+
+        // 参照方向を変換
+        let ref_dir_vec =
+            vector_to_analysis_vector(cylindrical_surface.ref_direction().as_vector());
+        let transformed_ref_dir_vec = matrix.transform_vector_3d(&ref_dir_vec);
+        let new_ref_direction_vector = analysis_vector_to_vector(transformed_ref_dir_vec);
+
+        // スケール倍率を参照方向から計算（半径の変換に使用）
+        let original_ref_length = cylindrical_surface.ref_direction().as_vector().length();
+        let transformed_ref_length = new_ref_direction_vector.length();
+
+        if transformed_ref_length.is_zero() {
+            return Err(TransformError::InvalidGeometry(
+                "Transformed reference direction vector is zero".to_string(),
+            ));
+        }
+
+        let scale_factor = transformed_ref_length / original_ref_length;
+
+        // 新しい半径を計算（スケール変換を考慮）
+        let new_radius = cylindrical_surface.radius() * scale_factor;
+
+        // 変換後の円柱サーフェスを構築
+        CylindricalSurface3D::new(
+            new_center,
+            new_axis_vector,
+            new_ref_direction_vector,
+            new_radius,
+        )
+        .ok_or_else(|| {
+            TransformError::InvalidGeometry(
+                "Failed to create transformed CylindricalSurface3D".to_string(),
+            )
+        })
+    }
+
+    /// 平行移動行列を生成（3D用）
+    pub fn translation_matrix<T: Scalar>(translation: &Vector3<T>) -> Matrix4x4<T> {
+        Matrix4x4::translation(translation.x(), translation.y(), translation.z())
+    }
+
+    /// 軸回転行列を生成（中心点指定）
+    pub fn rotation_matrix<T: Scalar>(
+        center: &Point3D<T>,
+        axis: &Vector3<T>,
+        angle: Angle<T>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        // 軸ベクトルが正規化されているか確認
+        let axis_length = (axis.x() * axis.x() + axis.y() * axis.y() + axis.z() * axis.z()).sqrt();
+        if axis_length.is_zero() {
+            return Err(TransformError::InvalidRotation(
+                "Rotation axis cannot be zero vector".to_string(),
+            ));
+        }
+
+        let normalized_axis = Vector3::new(
+            axis.x() / axis_length,
+            axis.y() / axis_length,
+            axis.z() / axis_length,
+        );
+
+        let center_vec = point_to_analysis_vector(*center);
+        let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
+        let translation_to_origin =
+            Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
+        let translation_back =
+            Matrix4x4::translation(center_vec.x(), center_vec.y(), center_vec.z());
+        Ok(translation_back * rotation_matrix * translation_to_origin)
+    }
+
+    /// スケール行列を生成（中心点指定）
+    pub fn scale_matrix<T: Scalar>(
+        center: &Point3D<T>,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        if scale_x.is_zero() || scale_y.is_zero() || scale_z.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factors cannot be zero".to_string(),
+            ));
+        }
+
+        let center_vec = point_to_analysis_vector(*center);
+        let scale_matrix = Matrix4x4::scale(scale_x, scale_y, scale_z);
+        let translation_to_origin =
+            Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
+        let translation_back =
+            Matrix4x4::translation(center_vec.x(), center_vec.y(), center_vec.z());
+        Ok(translation_back * scale_matrix * translation_to_origin)
+    }
+
+    /// 複合変換パラメータ構造体
+    pub struct CompositeTransform3D<T: Scalar> {
+        pub translation: Vector3<T>,
+        pub rotation_center: Point3D<T>,
+        pub rotation_axis: Vector3<T>,
+        pub rotation_angle: Angle<T>,
+        pub scale_center: Point3D<T>,
+        pub scale_x: T,
+        pub scale_y: T,
+        pub scale_z: T,
+    }
+
+    /// 複合変換行列を生成（最も効率的な順序：Scale→Rotate→Translate）
+    pub fn composite_transform_matrix<T: Scalar>(
+        params: &CompositeTransform3D<T>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        let scale_matrix = scale_matrix(
+            &params.scale_center,
+            params.scale_x,
+            params.scale_y,
+            params.scale_z,
+        )?;
+        let rotation_matrix = rotation_matrix(
+            &params.rotation_center,
+            &params.rotation_axis,
+            params.rotation_angle,
+        )?;
+        let translation_matrix = translation_matrix(&params.translation);
+
+        Ok(translation_matrix * rotation_matrix * scale_matrix)
+    }
+}
+
+/// CylindricalSurface3D用AnalysisTransform3Dトレイト実装
+impl<T: Scalar> AnalysisTransform3D<T> for CylindricalSurface3D<T> {
+    type Matrix4x4 = Matrix4x4<T>;
+    type Angle = Angle<T>;
+    type Output = CylindricalSurface3D<T>;
+
+    /// Matrix4x4による直接変換
+    fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output {
+        analysis_transform::transform_cylindrical_surface_3d(self, matrix)
+            .expect("CylindricalSurface transformation should be valid")
+    }
+
     /// 平行移動
-    pub fn translate(&self, translation: Vector3D<T>) -> Self {
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
+        // 高速化: 中心点のみ平行移動、他の属性は不変
         let new_center = Point3D::new(
             self.center().x() + translation.x(),
             self.center().y() + translation.y(),
             self.center().z() + translation.z(),
         );
 
-        Self::new(
+        CylindricalSurface3D::new(
             new_center,
             self.axis().as_vector(),
             self.ref_direction().as_vector(),
             self.radius(),
         )
-        .unwrap()
+        .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
 
-    /// 非一様スケール（中心点指定）
-    pub fn scale_non_uniform(
+    /// 軸回転（中心点指定）
+    fn rotate_analysis(
         &self,
-        scale_center: Point3D<T>,
+        center: &Self,
+        axis: &Vector3<T>,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+        Ok(self.transform_point_matrix(&matrix))
+    }
+
+    /// スケール変換（中心点指定）
+    fn scale_analysis(
+        &self,
+        center: &Self,
         scale_x: T,
         scale_y: T,
         scale_z: T,
-    ) -> Self {
-        // 中心点のスケール変換
-        let relative_center = Vector3D::new(
-            self.center().x() - scale_center.x(),
-            self.center().y() - scale_center.y(),
-            self.center().z() - scale_center.z(),
-        );
-        let scaled_center = Point3D::new(
-            scale_center.x() + relative_center.x() * scale_x,
-            scale_center.y() + relative_center.y() * scale_y,
-            scale_center.z() + relative_center.z() * scale_z,
-        );
-
-        // 円柱は等方的なスケールのみサポート（非一様スケールでは楕円柱になる）
-        let scaled_radius = self.radius() * scale_x.abs();
-
-        Self::new(
-            scaled_center,
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            scaled_radius,
-        )
-        .expect("CylindricalSurface3D creation should not fail with valid input")
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::scale_matrix(&center.center(), scale_x, scale_y, scale_z)?;
+        Ok(self.transform_point_matrix(&matrix))
     }
 
-    /// 均一スケール（中心点指定）
-    pub fn scale_uniform(&self, scale_center: Point3D<T>, factor: T) -> Self {
-        self.scale_non_uniform(scale_center, factor, factor, factor)
-    }
-
-    /// Z軸周りの回転（2D回転、原点中心）
-    pub fn rotate_z(&self, angle: Angle<T>) -> Self {
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
-
-        // 中心点のZ軸回転
-        let new_center = Point3D::new(
-            self.center().x() * cos_angle - self.center().y() * sin_angle,
-            self.center().x() * sin_angle + self.center().y() * cos_angle,
-            self.center().z(),
-        );
-
-        // 軸ベクトルのZ軸回転
-        let axis_vec = self.axis().as_vector();
-        let rotated_axis_vec = Vector3D::new(
-            axis_vec.x() * cos_angle - axis_vec.y() * sin_angle,
-            axis_vec.x() * sin_angle + axis_vec.y() * cos_angle,
-            axis_vec.z(),
-        );
-        let new_axis = Direction3D::from_vector(rotated_axis_vec).unwrap();
-
-        // 参照方向のZ軸回転
-        let ref_vec = self.ref_direction().as_vector();
-        let rotated_ref_vec = Vector3D::new(
-            ref_vec.x() * cos_angle - ref_vec.y() * sin_angle,
-            ref_vec.x() * sin_angle + ref_vec.y() * cos_angle,
-            ref_vec.z(),
-        );
-        let new_ref = Direction3D::from_vector(rotated_ref_vec).unwrap();
-
-        Self::new(
-            new_center,
-            new_axis.as_vector(),
-            new_ref.as_vector(),
-            self.radius(),
-        )
-        .unwrap()
-    }
-
-    /// 任意軸周りの回転
-    pub fn rotate_around_axis(
+    /// 均等スケール変換
+    fn uniform_scale_analysis(
         &self,
-        axis: Vector3D<T>,
-        angle: Angle<T>,
-        rotation_center: Point3D<T>,
-    ) -> Result<Self, &'static str> {
-        // Rodrigues回転公式の実装
-        fn rodrigues_rotation<T: Scalar>(
-            v: Vector3D<T>,
-            k: Vector3D<T>,
-            cos_angle: T,
-            sin_angle: T,
-        ) -> Vector3D<T> {
-            // v_rot = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ))
-            let k_dot_v = k.dot(&v);
-            let k_cross_v = k.cross(&v);
-            let one_minus_cos = T::ONE - cos_angle;
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, TransformError> {
+        self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
+    }
 
-            v * cos_angle + k_cross_v * sin_angle + k * k_dot_v * one_minus_cos
+    /// 複合変換（最適化済み）
+    fn apply_composite_transform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self::Output, TransformError> {
+        let mut matrix = Matrix4x4::identity();
+
+        if let Some(scale_factors) = scale {
+            let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
+            let scale_mat = analysis_transform::scale_matrix(
+                &scale_center.center(),
+                scale_factors.0,
+                scale_factors.1,
+                scale_factors.2,
+            )?;
+            matrix = scale_mat * matrix;
         }
 
-        // 軸ベクトルを正規化
-        let axis_length = axis.length();
-        if axis_length.is_zero() {
-            return Err("Cannot rotate around zero vector");
+        if let Some((center, axis, angle)) = rotation {
+            let rot_mat = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+            matrix = rot_mat * matrix;
         }
-        let axis_normalized = axis * (T::ONE / axis_length);
 
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
+        if let Some(trans) = translation {
+            let trans_mat = analysis_transform::translation_matrix(trans);
+            matrix = trans_mat * matrix;
+        }
 
-        // 中心点の回転
-        let to_center = Vector3D::new(
-            self.center().x() - rotation_center.x(),
-            self.center().y() - rotation_center.y(),
-            self.center().z() - rotation_center.z(),
-        );
-        let rotated_to_center =
-            rodrigues_rotation(to_center, axis_normalized, cos_angle, sin_angle);
-        let new_center = Point3D::new(
-            rotation_center.x() + rotated_to_center.x(),
-            rotation_center.y() + rotated_to_center.y(),
-            rotation_center.z() + rotated_to_center.z(),
-        );
+        Ok(self.transform_point_matrix(&matrix))
+    }
 
-        // 軸ベクトルの回転
-        let rotated_axis = rodrigues_rotation(
-            self.axis().as_vector(),
-            axis_normalized,
-            cos_angle,
-            sin_angle,
-        );
-        let new_axis =
-            Direction3D::from_vector(rotated_axis).ok_or("Invalid rotated axis direction")?;
-
-        // 参照方向の回転
-        let rotated_ref = rodrigues_rotation(
-            self.ref_direction().as_vector(),
-            axis_normalized,
-            cos_angle,
-            sin_angle,
-        );
-        let new_ref =
-            Direction3D::from_vector(rotated_ref).ok_or("Invalid rotated ref direction")?;
-
-        Self::new(
-            new_center,
-            new_axis.as_vector(),
-            new_ref.as_vector(),
-            self.radius(),
-        )
-        .ok_or("Failed to create rotated cylindrical surface")
+    /// 複合変換（均等スケール版）
+    fn apply_composite_transform_uniform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<T>,
+    ) -> Result<Self::Output, TransformError> {
+        let scale_tuple = scale.map(|s| (s, s, s));
+        self.apply_composite_transform(translation, rotation, scale_tuple)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
+    use crate::Point3D;
+    use analysis::linalg::vector::Vector3;
+    use geo_foundation::Angle;
 
-    #[test]
-    fn test_translate() {
-        let surface = CylindricalSurface3D::new(
-            Point3D::new(1.0, 2.0, 3.0),
-            Vector3D::unit_z(), // Direction3DではなくVector3Dを使用
-            Vector3D::unit_x(), // Direction3DではなくVector3Dを使用
-            2.0,
+    fn create_test_cylindrical_surface() -> CylindricalSurface3D<f64> {
+        CylindricalSurface3D::new_z_axis(
+            Point3D::origin(),
+            2.0, // radius
         )
-        .unwrap();
-
-        let translation = Vector3D::new(1.0, 1.0, 1.0);
-        let translated = surface.translate(translation);
-
-        assert_relative_eq!(translated.center().x(), 2.0);
-        assert_relative_eq!(translated.center().y(), 3.0);
-        assert_relative_eq!(translated.center().z(), 4.0);
-        assert_relative_eq!(translated.radius(), 2.0);
+        .unwrap()
     }
 
     #[test]
-    fn test_scale_uniform() {
-        let surface = CylindricalSurface3D::new(
-            Point3D::new(2.0, 0.0, 0.0),
-            Vector3D::unit_z(), // Direction3DではなくVector3Dを使用
-            Vector3D::unit_x(), // Direction3DではなくVector3Dを使用
-            1.0,
-        )
-        .unwrap();
+    fn test_analysis_translation() {
+        let surface = create_test_cylindrical_surface();
+        let translation = Vector3::new(5.0, 3.0, 1.0);
 
-        let scaled = surface.scale_uniform(Point3D::origin(), 2.0);
+        let result = surface.translate_analysis(&translation).unwrap();
 
-        assert_relative_eq!(scaled.center().x(), 4.0);
-        assert_relative_eq!(scaled.center().y(), 0.0);
-        assert_relative_eq!(scaled.center().z(), 0.0);
-        assert_relative_eq!(scaled.radius(), 2.0);
+        // 中心点が移動することを確認
+        let expected_center = Point3D::new(5.0, 3.0, 1.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+
+        // 軸と参照方向は変わらない
+        assert!((result.axis().x() - surface.axis().x()).abs() < f64::EPSILON);
+        assert!((result.axis().y() - surface.axis().y()).abs() < f64::EPSILON);
+        assert!((result.axis().z() - surface.axis().z()).abs() < f64::EPSILON);
+
+        // 半径は変わらない
+        assert!((result.radius() - surface.radius()).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn test_rotate_z() {
-        let surface = CylindricalSurface3D::new(
-            Point3D::new(1.0, 0.0, 0.0),
-            Vector3D::unit_z(), // Direction3DではなくVector3Dを使用
-            Vector3D::unit_x(), // Direction3DではなくVector3Dを使用
-            1.0,
-        )
-        .unwrap();
+    fn test_analysis_rotation() {
+        let surface = create_test_cylindrical_surface();
+        let center_surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+        let axis = Vector3::new(1.0, 0.0, 0.0); // x軸回転
+        let angle = Angle::from_degrees(90.0);
 
-        let angle = Angle::from_radians(std::f64::consts::PI / 2.0);
-        let rotated = surface.rotate_z(angle);
+        let result = surface
+            .rotate_analysis(&center_surface, &axis, angle)
+            .unwrap();
 
-        assert_relative_eq!(rotated.center().x(), 0.0, epsilon = 1e-10);
-        assert_relative_eq!(rotated.center().y(), 1.0, epsilon = 1e-10);
-        assert_relative_eq!(rotated.center().z(), 0.0);
+        // 90度X軸回転後の中心点確認（原点なので変わらない）
+        let expected_center = Point3D::new(0.0, 0.0, 0.0);
+        assert!((result.center().x() - expected_center.x()).abs() < 1e-10);
+        assert!((result.center().y() - expected_center.y()).abs() < 1e-10);
+        assert!((result.center().z() - expected_center.z()).abs() < 1e-10);
+
+        // 軸方向が回転される（Z軸(0,0,1)をX軸周りに90度回転すると(0,-1,0)になる）
+        assert!((result.axis().x() - 0.0).abs() < 1e-10);
+        assert!((result.axis().y() - (-1.0)).abs() < 1e-10);
+        assert!((result.axis().z() - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_analysis_scale() {
+        let surface = create_test_cylindrical_surface();
+        let center_surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+        let scale_x = 2.0;
+        let scale_y = 3.0;
+        let scale_z = 4.0;
+
+        let result = surface
+            .scale_analysis(&center_surface, scale_x, scale_y, scale_z)
+            .unwrap();
+
+        // 中心点がスケールされることを確認（原点なので変わらない）
+        let expected_center = Point3D::new(0.0, 0.0, 0.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+
+        // 半径がスケールされることを確認
+        // 円柱の軸がZ方向で、参照方向がX方向なので、半径はXスケールに影響される
+        assert!((result.radius() - surface.radius() * scale_x).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_analysis_uniform_scale() {
+        let surface = create_test_cylindrical_surface();
+        let center_surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+        let scale_factor = 2.0;
+
+        let result = surface
+            .uniform_scale_analysis(&center_surface, scale_factor)
+            .unwrap();
+
+        // 中心点がスケールされることを確認（原点なので変わらない）
+        let expected_center = Point3D::new(0.0, 0.0, 0.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+
+        // 半径が均等にスケールされることを確認
+        assert!((result.radius() - surface.radius() * scale_factor).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_analysis_composite_transform() {
+        let surface = create_test_cylindrical_surface();
+        let translation = Vector3::new(1.0, 1.0, 1.0);
+        let rotation_center_surface =
+            CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+        let rotation_axis = Vector3::new(0.0, 0.0, 1.0);
+        let rotation_angle = Angle::from_degrees(0.0); // 回転なし
+        let scale_factors = (2.0, 2.0, 2.0);
+
+        let result = surface
+            .apply_composite_transform(
+                Some(&translation),
+                Some((&rotation_center_surface, &rotation_axis, rotation_angle)),
+                Some(scale_factors),
+            )
+            .unwrap();
+
+        // 複合変換の結果を確認
+        // Scale(2,2,2) -> Rotate(0) -> Translate(1,1,1)
+        let expected_center = Point3D::new(1.0, 1.0, 1.0); // (0*2+1, 0*2+1, 0*2+1)
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_zero_scale_error() {
+        let surface = create_test_cylindrical_surface();
+        let center_surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+
+        let result = surface.scale_analysis(&center_surface, 0.0, 1.0, 1.0);
+        assert!(matches!(result, Err(TransformError::InvalidScaleFactor(_))));
+    }
+
+    #[test]
+    fn test_zero_rotation_axis_error() {
+        let surface = create_test_cylindrical_surface();
+        let center_surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+        let zero_axis = Vector3::new(0.0, 0.0, 0.0);
+        let angle = Angle::from_degrees(90.0);
+
+        let result = surface.rotate_analysis(&center_surface, &zero_axis, angle);
+        assert!(matches!(result, Err(TransformError::InvalidRotation(_))));
+    }
+
+    #[test]
+    fn test_transform_point_matrix() {
+        let surface = create_test_cylindrical_surface();
+        let matrix = Matrix4x4::translation(2.0, 3.0, 4.0);
+
+        let result = surface.transform_point_matrix(&matrix);
+
+        // 平行移動による中心点の変化を確認
+        let expected_center = Point3D::new(2.0, 3.0, 4.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+
+        // 軸と参照方向は変わらない（平行移動のため）
+        assert!((result.axis().x() - surface.axis().x()).abs() < f64::EPSILON);
+        assert!((result.axis().y() - surface.axis().y()).abs() < f64::EPSILON);
+        assert!((result.axis().z() - surface.axis().z()).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_parametric_surface_preservation() {
+        let surface = create_test_cylindrical_surface();
+        let center_surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 1.0).unwrap();
+        let scale_factor = 2.0;
+
+        let result = surface
+            .uniform_scale_analysis(&center_surface, scale_factor)
+            .unwrap();
+
+        // 基本的な半径のスケール確認
+        assert!((result.radius() - surface.radius() * scale_factor).abs() < f64::EPSILON);
+
+        // パラメトリックサーフェス上の点のスケール確認
+        let u = 0.0; // 0度の位置（X軸上）
+        let v = 0.0; // 中心位置
+
+        let original_point = surface.point_at_uv(u, v);
+        let scaled_point = result.point_at_uv(u, v);
+
+        // 中心位置（v=0）での X軸上の点を確認
+        // 原点中心なので、半径方向の点が scale_factor 倍される
+        assert!((scaled_point.x() - original_point.x() * scale_factor).abs() < f64::EPSILON * 10.0);
+        assert!((scaled_point.y() - original_point.y() * scale_factor).abs() < f64::EPSILON * 10.0);
+        assert!((scaled_point.z() - original_point.z() * scale_factor).abs() < f64::EPSILON * 10.0);
     }
 }

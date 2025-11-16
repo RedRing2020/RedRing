@@ -1,4 +1,4 @@
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use wgpu::{Instance, Surface, SurfaceTexture};
 use winit::window::Window;
 

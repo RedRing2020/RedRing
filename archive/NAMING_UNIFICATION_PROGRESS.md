@@ -155,13 +155,11 @@ pub use basic_shapes::{
 
 ### 今後の作業項目
 
-1. **Angle<T>型統合**
-
-   - `basic_arc.rs` のエラー解消（Angle<T>型メソッド実装必要）
+1. **Angle\<T\>型統合**
+   - `basic_arc.rs` のエラー解消（Angle\<T\>型メソッド実装必要）
    - 型安全な角度操作の完全実装
 
 2. **geo_primitives の対応確認**
-
    - CircleArc, LinePiece 命名への適合
    - 実装との整合性検証
 

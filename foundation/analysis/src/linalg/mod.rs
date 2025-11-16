@@ -3,12 +3,15 @@
 //! 高性能な数値解析向け線形代数ライブラリ
 //! - 行列演算（Matrix2x2, Matrix3x3, Matrix4x4）
 //! - ベクトル演算（Vector2, Vector3, Vector4）
+//! - 点演算（Point2, Point3）
 //! - クォータニオン演算（Quaternion）
 //! - 連立方程式ソルバー（Gaussian, LU, Cramer）
 //! - SIMD最適化対応
 //! - 並列処理対応 (将来的にrayon使用予定)
 
 pub mod matrix;
+pub mod point2;
+pub mod point3;
 pub mod quaternion;
 pub mod solver;
 pub mod vector;

@@ -50,10 +50,6 @@ pub use core::{
     },
     point_traits::{Point2D as Point2DTrait, Point2DConstructor, Point3DConstructor},
     triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
-    vector_traits::{
-        Vector2D, Vector2DConstructor, Vector2DOps, Vector3D, Vector3DConstructor, Vector3DOps,
-        VectorMetrics, VectorOps,
-    },
 };
 
 // Extension Foundation Traitsを再エクスポート
@@ -64,8 +60,9 @@ pub use extension_foundation::{
 
 // Extension Traitsを再エクスポート
 pub use extensions::{
-    AdvancedCollision, AdvancedTransform, BasicCollision, BasicIntersection, BasicTransform,
-    MultipleIntersection, PointDistance, SafeTransform, SelfIntersection, TransformError,
+    AdvancedCollision, AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport,
+    AnalysisTransformVector2D, AnalysisTransformVector3D, BasicCollision, BasicIntersection,
+    MultipleIntersection, PointDistance, SafeTransform, TransformError,
 };
 
 // Geometry Core Foundationを再エクスポート
@@ -84,9 +81,10 @@ pub use tolerance::{GeometryContext, ToleranceSettings};
 pub mod prelude {
     // TransformError を追加 - 安全な変換操作用
     pub use crate::{
-        GeometryContext, SafeTransform, ToleranceSettings, TransformError, DEG_TO_RAD, E,
-        GEOMETRIC_ANGLE_TOLERANCE, GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6,
-        RAD_TO_DEG, TAU,
+        AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport,
+        AnalysisTransformVector2D, AnalysisTransformVector3D, GeometryContext, SafeTransform,
+        ToleranceSettings, TransformError, DEG_TO_RAD, E, GEOMETRIC_ANGLE_TOLERANCE,
+        GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
     };
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 

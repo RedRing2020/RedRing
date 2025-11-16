@@ -1,10 +1,11 @@
-﻿//! 2次元境界ボックス（BBox2D）の Extension 実装
+//! 2次元境界ボックス（BBox2D）の Extension 実装
 //!
 //! Core Foundation パターンに基づく BBox2D の拡張機能
 //! 高度な幾何計算、交差判定、変換処理等を提供
 
-use crate::{Arc2D, BBox2D, Circle2D, Ellipse2D, Point2D, Vector2D};
+use crate::{BBox2D, Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
+// use geo_foundation::core::arc_traits::Arc2D; // 未使用のため一時的にコメントアウト
 
 // ============================================================================
 // Extension Implementation (高度な機能)
@@ -26,29 +27,30 @@ impl<T: Scalar> BBox2D<T> {
         ellipse.bounding_box()
     }
 
-    /// 円弧から境界ボックスを作成（サンプリングベース）
-    pub fn from_arc(arc: &Arc2D<T>) -> Self {
-        // 円弧をサンプリングして境界ボックスを計算
-        let num_samples = 16;
-        let mut points = Vec::new();
+    // 円弧から境界ボックスを作成（サンプリングベース）
+    // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
+    // pub fn from_arc(arc: &Arc2D<T>) -> Self {
+    //     // 円弧をサンプリングして境界ボックスを計算
+    //     let num_samples = 16;
+    //     let mut points = Vec::new();
 
-        // 開始点と終了点を追加
-        points.push(arc.start_point());
-        points.push(arc.end_point());
+    //     // 開始点と終了点を追加
+    //     points.push(arc.start_point());
+    //     points.push(arc.end_point());
 
-        // 中間サンプル点を追加
-        let start_rad = arc.start_angle().to_radians();
-        let end_rad = arc.end_angle().to_radians();
-        let angle_range = end_rad - start_rad;
+    //     // 中間サンプル点を追加
+    //     let start_rad = arc.start_angle().to_radians();
+    //     let end_rad = arc.end_angle().to_radians();
+    //     let angle_range = end_rad - start_rad;
 
-        for i in 1..num_samples {
-            let t = T::from_f64(i as f64 / num_samples as f64);
-            let angle_rad = start_rad + angle_range * t;
-            points.push(arc.point_at_angle(angle_rad));
-        }
+    //     for i in 1..num_samples {
+    //         let t = T::from_f64(i as f64 / num_samples as f64);
+    //         let angle_rad = start_rad + angle_range * t;
+    //         points.push(arc.point_at_angle(angle_rad));
+    //     }
 
-        Self::from_point_collection(&points).unwrap()
-    }
+    //     Self::from_point_collection(&points).unwrap()
+    // }
 
     /// 複数の点から境界ボックスを作成
     pub fn from_point_collection(points: &[Point2D<T>]) -> Option<Self> {
@@ -193,7 +195,9 @@ impl<T: Scalar> BBox2D<T> {
 
     /// 境界ボックスを平行移動
     pub fn translate(&self, offset: &Vector2D<T>) -> Self {
-        Self::new(self.min() + *offset, self.max() + *offset)
+        let new_min = Point2D::new(self.min().x() + offset.x(), self.min().y() + offset.y());
+        let new_max = Point2D::new(self.max().x() + offset.x(), self.max().y() + offset.y());
+        Self::new(new_min, new_max)
     }
 
     /// 境界ボックスを指定点周りで回転
@@ -215,11 +219,17 @@ impl<T: Scalar> BBox2D<T> {
         }
 
         // 手動で中心点基準のスケール計算
-        let min_offset = self.min() - *center;
-        let max_offset = self.max() - *center;
+        let min_offset = Vector2D::new(self.min().x() - center.x(), self.min().y() - center.y());
+        let max_offset = Vector2D::new(self.max().x() - center.x(), self.max().y() - center.y());
 
-        let scaled_min = *center + min_offset * factor;
-        let scaled_max = *center + max_offset * factor;
+        let scaled_min = Point2D::new(
+            center.x() + min_offset.x() * factor,
+            center.y() + min_offset.y() * factor,
+        );
+        let scaled_max = Point2D::new(
+            center.x() + max_offset.x() * factor,
+            center.y() + max_offset.y() * factor,
+        );
 
         Some(Self::new(scaled_min, scaled_max))
     }

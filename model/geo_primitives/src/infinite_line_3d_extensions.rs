@@ -187,9 +187,14 @@ impl<T: Scalar> InfiniteLine3D<T> {
             self.point().z() - center.z(),
         );
 
-        let rotated_to_point = to_point * cos_angle
-            + normalized_axis.cross(&to_point) * sin_angle
-            + normalized_axis * (normalized_axis.dot(&to_point) * (T::ONE - cos_angle));
+        let term1 = to_point * cos_angle;
+        let term2 = normalized_axis.cross(&to_point) * sin_angle;
+        let term3 = normalized_axis * (normalized_axis.dot(&to_point) * (T::ONE - cos_angle));
+        let rotated_to_point = Vector3D::new(
+            term1.x() + term2.x() + term3.x(),
+            term1.y() + term2.y() + term3.y(),
+            term1.z() + term2.z() + term3.z(),
+        );
 
         let new_point = Point3D::new(
             center.x() + rotated_to_point.x(),

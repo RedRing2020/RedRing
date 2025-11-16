@@ -44,8 +44,12 @@ impl<T: Scalar> ConicalSolid3D<T> {
         let radius_at_height = self.radius() * (T::ONE - height_ratio);
 
         // 軸からの距離を計算
-        let axis_projection = self.axis().as_vector() * height_along_axis;
-        let radial_vector = relative - axis_projection;
+        let axis_projection: Vector3D<T> = self.axis().as_vector() * height_along_axis;
+        let radial_vector = Vector3D::new(
+            relative.x() - axis_projection.x(),
+            relative.y() - axis_projection.y(),
+            relative.z() - axis_projection.z(),
+        );
         let distance_from_axis = radial_vector.length();
 
         distance_from_axis <= radius_at_height

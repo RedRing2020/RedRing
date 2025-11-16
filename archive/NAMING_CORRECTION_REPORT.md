@@ -4,20 +4,20 @@
 
 ### ✅ 実施済み修正
 
-**1. CAD 業界標準準拠への修正**
+#### 1. CAD 業界標準準拠への修正
 
 - **Arc 名称**: `CircleArc` → `Arc` （業界標準）
 - **Line 名称**: `LinePiece` → `Line` （業界標準）
 - **修正理由**: CAD 業界で一般的に使用される名称への統一
 
-**2. 直線階層の正しい親子関係確立**
+#### 2. 直線階層の正しい親子関係確立
 
 - **InfiniteLine** (親): 無限に延びる直線
 - **Ray** (子): 半無限直線（始点あり、一方向に無限）
 - **Line** (孫): 線分（始点と終点を持つ）
 - **階層構造**: InfiniteLine → Ray → Line
 
-**3. 境界ボックス統一維持**
+#### 3. 境界ボックス統一維持
 
 - `BoundingBox` → `BBox` の統一を維持
 - geo_primitives との名前整合性確保
@@ -103,7 +103,6 @@ basic_bbox.rs       // BBox専用トレイト
 ### Phase 3: 旧ファイルクリーンアップ計画
 
 1. **basic_shapes.rs の段階的分離**
-
    - ArcCore → basic_arc.rs に移行
    - LineCore → basic_line.rs に移行
    - BBoxCore → basic_bbox.rs に移行
@@ -123,7 +122,7 @@ basic_bbox.rs       // BBox専用トレイト
 
 ## 技術的考慮事項
 
-### Angle<T>型統合の必要性
+### Angle\<T\>型統合の必要性
 
 ```rust
 // 現在の制限事項
@@ -152,13 +151,13 @@ fn start_angle(&self) -> Angle<T>;   // 型安全な角度型使用
 
 1. ✅ 基本命名規則の統一完了
 2. 📋 geo_primitives 実装の命名確認
-3. 📋 Angle<T>型の完全実装
+3. 📋 Angle\<T\>型の完全実装
 
 ### 中期（near-term）
 
 1. 📋 専用トレイトファイルの有効化
 2. 📋 basic_shapes.rs の段階的分離
-3. 📋 型安全性の向上（Angle<T>統合）
+3. 📋 型安全性の向上（Angle\<T\>統合）
 
 ### 長期（long-term）
 

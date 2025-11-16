@@ -1,38 +1,38 @@
 {
   "recommendations": [
     // === Core Rust Development ===
-    "rust-lang.rust-analyzer",           // Rust language server and analysis
-    "vadimcn.vscode-lldb",               // Rust debugging support
-    "serayuzgur.crates",                 // Cargo.toml dependency management
-    
+    "rust-lang.rust-analyzer", // Rust language server and analysis
+    "vadimcn.vscode-lldb", // Rust debugging support
+    "serayuzgur.crates", // Cargo.toml dependency management
+
     // === Code Quality ===
     "streetsidesoftware.code-spell-checker", // English spell checker
-    "usernamehw.errorlens",              // Inline error highlighting
-    "gruntfuggly.todo-tree",            // TODO/FIXME comment tracking
-    
+    "usernamehw.errorlens", // Inline error highlighting
+    "gruntfuggly.todo-tree", // TODO/FIXME comment tracking
+
     // === Documentation & Markdown ===
-    "yzhang.markdown-all-in-one",        // Markdown editing support
+    "yzhang.markdown-all-in-one", // Markdown editing support
     "shd101wyy.markdown-preview-enhanced", // Advanced Markdown preview
-    "bierner.markdown-mermaid",          // Mermaid diagram support
-    "davidanson.vscode-markdownlint",    // Markdown linting
-    
+    "bierner.markdown-mermaid", // Mermaid diagram support
+    "davidanson.vscode-markdownlint", // Markdown linting
+
     // === Development Tools ===
-    "ms-vscode.powershell",              // PowerShell scripting
-    "esbenp.prettier-vscode",            // JSON/YAML formatting
-    "tamasfe.even-better-toml",          // TOML file support
-    "redhat.vscode-yaml",                // YAML support
-    
+    "ms-vscode.powershell", // PowerShell scripting
+    "esbenp.prettier-vscode", // JSON/YAML formatting
+    "tamasfe.even-better-toml", // TOML file support
+    "redhat.vscode-yaml", // YAML support
+
     // === Git & Version Control ===
-    "eamodio.gitlens",                   // Enhanced Git capabilities
-    "mhutchie.git-graph",                // Git commit graph visualization
-    
+    "eamodio.gitlens", // Enhanced Git capabilities
+    "mhutchie.git-graph", // Git commit graph visualization
+
     // === Productivity ===
-    "ms-vscode.vscode-json",             // JSON language support
-    "ms-vscode-remote.remote-wsl",       // WSL support (if needed)
+    "ms-vscode.vscode-json", // JSON language support
+    "ms-vscode-remote.remote-wsl", // WSL support (if needed)
     "christian-kohler.path-intellisense", // File path autocompletion
-    
+
     // === Math & CAD Support ===
-    "james-yu.latex-workshop",           // LaTeX support for documentation
-    "goessner.mdmath"                    // Math expression support in Markdown
+    "james-yu.latex-workshop", // LaTeX support for documentation
+    "goessner.mdmath" // Math expression support in Markdown
   ]
 }

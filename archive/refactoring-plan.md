@@ -4,7 +4,7 @@
 
 ### 現在のワークスペース構成（更新版）
 
-```
+```text
 RedRing/
 ├── geo_foundation/     # 抽象化レイヤー：トレイト定義・型システム
 ├── geo_core/           # 幾何計算基盤：数値演算・許容誤差・ロバスト性
@@ -23,7 +23,7 @@ RedRing/
 
 **依存関係の方向:**
 
-```
+```text
 model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
                                                       ↘     ↙
                                                         analysis
@@ -32,13 +32,11 @@ model → geo_algorithms → geo_primitives → geo_foundation ← geo_core
 **各層の責務:**
 
 1. **geo_foundation**: 抽象化・型システム
-
    - Core/Extension Foundation パターン
    - 共通トレイト定義（Normalizable, DistanceCalculation 等）
    - 型安全な抽象化 API
 
 2. **geo_core**: 幾何計算基盤
-
    - 数値演算の実装
    - 許容誤差管理（ToleranceContext）
    - ロバスト幾何判定（orientation 等）
@@ -107,7 +105,7 @@ algorithms/
 
 ## 4. WebAssembly 対応 (redring-wasm)
 
-### 目的
+### WebAssembly の目的
 
 - ブラウザでの CAD ビューア
 - クロスプラットフォーム展開
@@ -202,7 +200,7 @@ impl Vector3D {
 
 ### テストピラミッド（更新版）
 
-```
+```text
 geo_algorithms/     # 結合テスト（CAD操作シナリオ）
     ↑
 geo_primitives/     # 統合テスト（具体実装）

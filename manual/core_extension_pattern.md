@@ -22,7 +22,7 @@ RedRing の中核設計原則である Core/Extension Foundation パターンに
 
 ## ファイル構造
 
-```
+```text
 circle_2d.rs              // Core実装（120行）
 circle_2d_extensions.rs   // Extension実装（130行）
 ```
@@ -43,6 +43,29 @@ let area = circle.area();
 ```rust
 let unit_circle = Circle2D::unit_circle();  // Extension
 let scaled = circle.scale(2.0)?;            // Extension
+```
+
+### Analysis Transform（幾何変換拡張）
+
+```rust
+use analysis::linalg::vector::Vector3;
+use geo_foundation::{AnalysisTransform3D, Angle};
+
+// 平行移動
+let translation = Vector3::new(1.0, 2.0, 3.0);
+let translated = mesh.translate_analysis(&translation)?;
+
+// 回転（軸回転）
+let axis = Vector3::new(0.0, 0.0, 1.0);
+let angle = Angle::from_degrees(90.0);
+let rotated = mesh.rotate_analysis(&mesh, &axis, angle)?;
+
+// 複合変換（平行移動 + 回転 + スケール）
+let result = mesh.apply_composite_transform(
+    Some(&translation),
+    Some((&mesh, &axis, angle)),
+    Some((2.0, 2.0, 2.0))
+)?;
 ```
 
 ## メリット

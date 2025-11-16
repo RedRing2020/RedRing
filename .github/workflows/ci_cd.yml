@@ -2,7 +2,8 @@ name: CI/CD
 
 on:
   push:
-    branches: [main] # メインブランチのみでデプロイメントワークフローを実行
+    # メインブランチのみでデプロイメントワークフローを実行
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -14,7 +15,7 @@ permissions:
 
 # GitHub Pages デプロイのコンカレンシー制御
 concurrency:
-  group: 'pages'
+  group: "pages"
   cancel-in-progress: false
 
 jobs:
@@ -131,12 +132,15 @@ jobs:
 
           # 2. 禁止: Core Foundation を経由しない低レベルアクセス
           echo "Checking for deprecated low-level geometry access..."
-          ! grep -R "use geo_core::" -n --exclude-dir target --exclude-dir model/geo_core --exclude-dir .github . || (echo "Deprecated geo_core direct import - use geo_foundation instead" && exit 1)
+          ! grep -R "use geo_core::" -n \
+            --exclude-dir target --exclude-dir model/geo_core --exclude-dir .github . || \
+            (echo "Deprecated geo_core direct import - use geo_foundation instead" && exit 1)
 
           # 3. 推奨: geo_foundation 経由のアクセスパターン
           echo "Checking foundation-based access patterns..."
           # geo_foundation からのインポートは許可（推奨パターン）
-          grep -R "use geo_foundation::" -n --exclude-dir target --exclude-dir .github . > foundation_imports.txt || true
+          grep -R "use geo_foundation::" -n \
+            --exclude-dir target --exclude-dir .github . > foundation_imports.txt || true
           if [ -s foundation_imports.txt ]; then
             echo "✅ Found proper foundation-based imports:"
             head -5 foundation_imports.txt
@@ -144,7 +148,10 @@ jobs:
 
           # 4. 禁止: 旧 geometry モジュールの使用
           echo "Checking for deprecated geometry module usage..."
-          ! grep -R "use.*geometry::" -n --exclude-dir target --exclude-dir .github --exclude "*.md" . | grep -v "geo_foundation\|geo_primitives" || (echo "Deprecated geometry module usage - migrate to geo_foundation/geo_primitives" && exit 1)
+          ! grep -R "use.*geometry::" -n \
+            --exclude-dir target --exclude-dir .github --exclude "*.md" . | \
+            grep -v "geo_foundation\|geo_primitives" || \
+            (echo "Deprecated geometry module usage - migrate to geo_foundation/geo_primitives" && exit 1)
 
           echo "✅ Foundation architecture compliance check passed!"
 
@@ -173,7 +180,7 @@ jobs:
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@v1
         with:
-          mdbook-version: 'latest'
+          mdbook-version: "latest"
 
       - name: Build documentation
         run: mdbook build

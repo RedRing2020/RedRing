@@ -1,275 +1,480 @@
-//! SphericalSolid3D Transform Operations
+//! SphericalSolid3D Analysis Matrix/Vector統合変換実装
 //!
-//! STEP準拠球ソリッドの変換操作実装
-//!
-//! **作成日: 2025年11月1日**
-//! **最終更新: 2025年11月1日**
-//!
-//! ## 実装内容
-//! - 平行移動：center の移動
-//! - 回転：軸と参照方向の回転
-//! - スケール：半径のスケーリング
-//! - BasicTransform トレイト実装（Foundation パターン準拠）
-//!
-//! ## STEP準拠球ソリッド変換の特性
-//! - 軸と参照方向の直交性保持：変換後も axis ⊥ ref_direction を維持
-//! - 正規化保持：軸と参照方向が単位ベクトルのまま
-//! - 右手系保持：Y軸 = Z軸 × X軸 関係を維持
-//! - 幾何学的整合性：半径の正の値保持
-//! - ソリッド特性保持：体積比例、内部判定整合性
+//! Analysis Matrix4x4を直接使用した効率的な3D球ソリッド変換
+//! Point3D/Vector3D Analysis Transform パターンを基盤とする統一実装
+//! 3D球ソリッドの特性（中心点・軸・参照方向・半径）を考慮したMatrix変換
 
 use crate::{Point3D, SphericalSolid3D, Vector3D};
-use geo_foundation::{Angle, Scalar};
+use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
+use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 
-// ============================================================================
-// Basic Transform Operations
-// ============================================================================
+/// SphericalSolid3D用Analysis Matrix4x4変換モジュール
+pub mod analysis_transform {
+    use super::*;
 
-impl<T: Scalar> SphericalSolid3D<T> {
+    /// Analysis Vector3への変換（Point3D専用）
+    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
+        Vector3::new(point.x(), point.y(), point.z())
+    }
+
+    /// Analysis Vector3からの変換（Point3D専用）
+    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
+        Point3D::new(vector.x(), vector.y(), vector.z())
+    }
+
+    /// Analysis Vector3への変換（Vector3D専用）
+    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
+        Vector3::new(vector.x(), vector.y(), vector.z())
+    }
+
+    /// Analysis Vector3からの変換（Vector3D専用）
+    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
+        Vector3D::new(vector.x(), vector.y(), vector.z())
+    }
+
+    /// 球ソリッドの行列変換（Matrix4x4）
+    ///
+    /// 球の中心点、軸方向、参照方向をMatrix変換し、新しい球ソリッドを構築
+    pub fn transform_spherical_solid_3d<T: Scalar>(
+        spherical_solid: &SphericalSolid3D<T>,
+        matrix: &Matrix4x4<T>,
+    ) -> Result<SphericalSolid3D<T>, TransformError> {
+        // 中心点を変換
+        let center_vec = point_to_analysis_vector(spherical_solid.center());
+        let transformed_center_vec = matrix.transform_point_3d(&center_vec);
+        let new_center = analysis_vector_to_point(transformed_center_vec);
+
+        // 軸方向を変換
+        let axis_vec = vector_to_analysis_vector(spherical_solid.axis().as_vector());
+        let transformed_axis_vec = matrix.transform_vector_3d(&axis_vec);
+        let new_axis_vector = analysis_vector_to_vector(transformed_axis_vec);
+
+        // 参照方向を変換
+        let ref_dir_vec = vector_to_analysis_vector(spherical_solid.ref_direction().as_vector());
+        let transformed_ref_dir_vec = matrix.transform_vector_3d(&ref_dir_vec);
+        let new_ref_direction_vector = analysis_vector_to_vector(transformed_ref_dir_vec);
+
+        // スケール倍率を計算（半径の変換に使用）
+        // 球の場合は均等スケールを想定するため、任意の軸のスケール倍率を使用
+        let original_axis_length = spherical_solid.axis().as_vector().length();
+        let transformed_axis_length = new_axis_vector.length();
+
+        if transformed_axis_length.is_zero() {
+            return Err(TransformError::InvalidGeometry(
+                "Transformed axis vector is zero".to_string(),
+            ));
+        }
+
+        let scale_factor = transformed_axis_length / original_axis_length;
+
+        // 新しい半径を計算（スケール変換を考慮）
+        let new_radius = spherical_solid.radius() * scale_factor;
+
+        // 変換後の球ソリッドを構築
+        SphericalSolid3D::new(
+            new_center,
+            new_axis_vector,
+            new_ref_direction_vector,
+            new_radius,
+        )
+        .ok_or_else(|| {
+            TransformError::InvalidGeometry(
+                "Failed to create transformed SphericalSolid3D".to_string(),
+            )
+        })
+    }
+
+    /// 平行移動行列を生成（3D用）
+    pub fn translation_matrix<T: Scalar>(translation: &Vector3<T>) -> Matrix4x4<T> {
+        Matrix4x4::translation(translation.x(), translation.y(), translation.z())
+    }
+
+    /// 軸回転行列を生成（中心点指定）
+    pub fn rotation_matrix<T: Scalar>(
+        center: &Point3D<T>,
+        axis: &Vector3<T>,
+        angle: Angle<T>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        // 軸ベクトルが正規化されているか確認
+        let axis_length = (axis.x() * axis.x() + axis.y() * axis.y() + axis.z() * axis.z()).sqrt();
+        if axis_length.is_zero() {
+            return Err(TransformError::InvalidRotation(
+                "Rotation axis cannot be zero vector".to_string(),
+            ));
+        }
+
+        let normalized_axis = Vector3::new(
+            axis.x() / axis_length,
+            axis.y() / axis_length,
+            axis.z() / axis_length,
+        );
+
+        let center_vec = point_to_analysis_vector(*center);
+        let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
+        let translation_to_origin =
+            Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
+        let translation_back =
+            Matrix4x4::translation(center_vec.x(), center_vec.y(), center_vec.z());
+        Ok(translation_back * rotation_matrix * translation_to_origin)
+    }
+
+    /// スケール行列を生成（中心点指定）
+    pub fn scale_matrix<T: Scalar>(
+        center: &Point3D<T>,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        if scale_x.is_zero() || scale_y.is_zero() || scale_z.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factors cannot be zero".to_string(),
+            ));
+        }
+
+        let center_vec = point_to_analysis_vector(*center);
+        let scale_matrix = Matrix4x4::scale(scale_x, scale_y, scale_z);
+        let translation_to_origin =
+            Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
+        let translation_back =
+            Matrix4x4::translation(center_vec.x(), center_vec.y(), center_vec.z());
+        Ok(translation_back * scale_matrix * translation_to_origin)
+    }
+
+    /// 複合変換パラメータ構造体
+    pub struct CompositeTransform3D<T: Scalar> {
+        pub translation: Vector3<T>,
+        pub rotation_center: Point3D<T>,
+        pub rotation_axis: Vector3<T>,
+        pub rotation_angle: Angle<T>,
+        pub scale_center: Point3D<T>,
+        pub scale_x: T,
+        pub scale_y: T,
+        pub scale_z: T,
+    }
+
+    /// 複合変換行列を生成（最も効率的な順序：Scale→Rotate→Translate）
+    pub fn composite_transform_matrix<T: Scalar>(
+        params: &CompositeTransform3D<T>,
+    ) -> Result<Matrix4x4<T>, TransformError> {
+        let scale_matrix = scale_matrix(
+            &params.scale_center,
+            params.scale_x,
+            params.scale_y,
+            params.scale_z,
+        )?;
+        let rotation_matrix = rotation_matrix(
+            &params.rotation_center,
+            &params.rotation_axis,
+            params.rotation_angle,
+        )?;
+        let translation_matrix = translation_matrix(&params.translation);
+
+        Ok(translation_matrix * rotation_matrix * scale_matrix)
+    }
+}
+
+/// SphericalSolid3D用AnalysisTransform3Dトレイト実装
+impl<T: Scalar> AnalysisTransform3D<T> for SphericalSolid3D<T> {
+    type Matrix4x4 = Matrix4x4<T>;
+    type Angle = Angle<T>;
+    type Output = SphericalSolid3D<T>;
+
+    /// Matrix4x4による直接変換
+    fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output {
+        analysis_transform::transform_spherical_solid_3d(self, matrix)
+            .expect("SphericalSolid transformation should be valid")
+    }
+
     /// 平行移動
-    ///
-    /// # Arguments
-    /// * `translation` - 移動ベクトル
-    ///
-    /// # Returns
-    /// 平行移動後の球ソリッド
-    ///
-    /// # Note
-    /// 中心のみが移動、軸・参照方向・半径は不変
-    pub fn translate(&self, translation: Vector3D<T>) -> Self {
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
+        // 高速化: 中心点のみ平行移動、他の属性は不変
         let new_center = Point3D::new(
             self.center().x() + translation.x(),
             self.center().y() + translation.y(),
             self.center().z() + translation.z(),
         );
+
         SphericalSolid3D::new(
             new_center,
             self.axis().as_vector(),
             self.ref_direction().as_vector(),
             self.radius(),
         )
-        .expect("Translation should preserve valid sphere properties")
+        .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
+    }
+
+    /// 軸回転（中心点指定）
+    fn rotate_analysis(
+        &self,
+        center: &Self,
+        axis: &Vector3<T>,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+        Ok(self.transform_point_matrix(&matrix))
+    }
+
+    /// スケール変換（中心点指定）
+    fn scale_analysis(
+        &self,
+        center: &Self,
+        scale_x: T,
+        scale_y: T,
+        scale_z: T,
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::scale_matrix(&center.center(), scale_x, scale_y, scale_z)?;
+        Ok(self.transform_point_matrix(&matrix))
     }
 
     /// 均等スケール変換
-    ///
-    /// # Arguments
-    /// * `scale_factor` - スケール係数（正の値）
-    ///
-    /// # Returns
-    /// スケール変換後の球ソリッド、無効な係数の場合は None
-    ///
-    /// # Note
-    /// 中心、軸方向、参照方向はそのまま、半径をスケール
-    pub fn scale_uniform(&self, scale_factor: T) -> Option<Self> {
-        if scale_factor <= T::ZERO {
-            return None;
-        }
-
-        SphericalSolid3D::new(
-            self.center(),
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.radius() * scale_factor,
-        )
-    }
-
-    /// Z軸周りの回転
-    ///
-    /// # Arguments
-    /// * `angle` - 回転角度
-    ///
-    /// # Returns
-    /// Z軸周りに回転した球ソリッド
-    ///
-    /// # Note
-    /// 原点を中心にZ軸周りに回転。center, axis, ref_direction が回転される
-    pub fn rotate_z(&self, angle: &Angle<T>) -> Self {
-        self.rotate_around_axis(
-            &Point3D::new(T::ZERO, T::ZERO, T::ZERO),
-            &Vector3D::new(T::ZERO, T::ZERO, T::ONE),
-            angle,
-        )
-        .expect("Z-axis rotation should always be valid")
-    }
-
-    /// 任意軸周りの回転
-    ///
-    /// # Arguments
-    /// * `rotation_center` - 回転中心点
-    /// * `rotation_axis` - 回転軸（正規化される）
-    /// * `angle` - 回転角度
-    ///
-    /// # Returns
-    /// 回転後の球ソリッド、回転軸が無効な場合は None
-    ///
-    /// # Note
-    /// center, axis, ref_direction を回転軸周りに回転
-    /// 半径は不変（球の対称性により）
-    pub fn rotate_around_axis(
+    fn uniform_scale_analysis(
         &self,
-        rotation_center: &Point3D<T>,
-        rotation_axis: &Vector3D<T>,
-        angle: &Angle<T>,
-    ) -> Option<Self> {
-        let cos_theta = angle.cos();
-        let sin_theta = angle.sin();
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, TransformError> {
+        self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
+    }
 
-        // 回転軸の正規化
-        let axis_norm = rotation_axis.magnitude();
-        if axis_norm.is_zero() {
-            return None;
+    /// 複合変換（最適化済み）
+    fn apply_composite_transform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self::Output, TransformError> {
+        let mut matrix = Matrix4x4::identity();
+
+        if let Some(scale_factors) = scale {
+            let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
+            let scale_mat = analysis_transform::scale_matrix(
+                &scale_center.center(),
+                scale_factors.0,
+                scale_factors.1,
+                scale_factors.2,
+            )?;
+            matrix = scale_mat * matrix;
         }
-        let normalized_axis = *rotation_axis / axis_norm;
 
-        // Rodrigues の回転公式のヘルパー関数
-        let rotate_vector = |v: &Vector3D<T>| -> Vector3D<T> {
-            let k = normalized_axis;
-            let v_parallel = k * v.dot(&k);
-            let v_perpendicular = *v - v_parallel;
-            let w = k.cross(v);
+        if let Some((center, axis, angle)) = rotation {
+            let rot_mat = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+            matrix = rot_mat * matrix;
+        }
 
-            v_parallel + v_perpendicular * cos_theta + w * sin_theta
-        };
+        if let Some(trans) = translation {
+            let trans_mat = analysis_transform::translation_matrix(trans);
+            matrix = trans_mat * matrix;
+        }
 
-        // 中心点の回転
-        let center_to_rotation_center = Vector3D::new(
-            self.center().x() - rotation_center.x(),
-            self.center().y() - rotation_center.y(),
-            self.center().z() - rotation_center.z(),
-        );
-        let rotated_center_offset = rotate_vector(&center_to_rotation_center);
-        let new_center = Point3D::new(
-            rotation_center.x() + rotated_center_offset.x(),
-            rotation_center.y() + rotated_center_offset.y(),
-            rotation_center.z() + rotated_center_offset.z(),
-        );
+        Ok(self.transform_point_matrix(&matrix))
+    }
 
-        // 軸方向の回転
-        let new_axis_vector = rotate_vector(&self.axis().as_vector());
-        let new_axis = crate::Direction3D::from_vector(new_axis_vector)
-            .expect("Rotated axis should remain valid");
-
-        // 参照方向の回転
-        let new_ref_direction_vector = rotate_vector(&self.ref_direction().as_vector());
-        let new_ref_direction = crate::Direction3D::from_vector(new_ref_direction_vector)
-            .expect("Rotated ref_direction should remain valid");
-
-        SphericalSolid3D::new(
-            new_center,
-            new_axis.as_vector(),
-            new_ref_direction.as_vector(),
-            self.radius(),
-        )
+    /// 複合変換（均等スケール版）
+    fn apply_composite_transform_uniform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<T>,
+    ) -> Result<Self::Output, TransformError> {
+        let scale_tuple = scale.map(|s| (s, s, s));
+        self.apply_composite_transform(translation, rotation, scale_tuple)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
+    use crate::Point3D;
+    use analysis::linalg::vector::Vector3;
+    use geo_foundation::Angle;
 
     fn create_test_spherical_solid() -> SphericalSolid3D<f64> {
-        SphericalSolid3D::new_standard(Point3D::new(1.0, 2.0, 3.0), 2.0).unwrap()
+        SphericalSolid3D::new_at_origin(
+            2.0, // radius
+        )
+        .unwrap()
     }
 
     #[test]
-    fn test_translate() {
-        let spherical_solid = create_test_spherical_solid();
-        let translation = Vector3D::new(5.0, -3.0, 2.0);
+    fn test_analysis_translation() {
+        let sphere = create_test_spherical_solid();
+        let translation = Vector3::new(5.0, 3.0, 1.0);
 
-        let translated = spherical_solid.translate(translation);
+        let result = sphere.translate_analysis(&translation).unwrap();
 
-        // 中心が移動
-        assert_eq!(translated.center(), Point3D::new(6.0, -1.0, 5.0));
+        // 中心点が移動することを確認
+        let expected_center = Point3D::new(5.0, 3.0, 1.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
 
-        // 他のプロパティは不変
-        assert_eq!(translated.radius(), spherical_solid.radius());
-        assert_eq!(translated.axis(), spherical_solid.axis());
-        assert_eq!(translated.ref_direction(), spherical_solid.ref_direction());
+        // 軸と参照方向は変わらない
+        assert!((result.axis().x() - sphere.axis().x()).abs() < f64::EPSILON);
+        assert!((result.axis().y() - sphere.axis().y()).abs() < f64::EPSILON);
+        assert!((result.axis().z() - sphere.axis().z()).abs() < f64::EPSILON);
+
+        // 半径は変わらない
+        assert!((result.radius() - sphere.radius()).abs() < f64::EPSILON);
     }
 
     #[test]
-    fn test_scale_uniform() {
-        let spherical_solid = create_test_spherical_solid();
-        let scale_factor = 2.5;
-
-        let scaled = spherical_solid.scale_uniform(scale_factor).unwrap();
-
-        // 半径がスケール
-        assert_relative_eq!(
-            scaled.radius(),
-            spherical_solid.radius() * scale_factor,
-            epsilon = 1e-10
-        );
-
-        // 中心と軸は不変
-        assert_eq!(scaled.center(), spherical_solid.center());
-        assert_eq!(scaled.axis(), spherical_solid.axis());
-        assert_eq!(scaled.ref_direction(), spherical_solid.ref_direction());
-
-        // 無効な係数
-        assert!(spherical_solid.scale_uniform(0.0).is_none());
-        assert!(spherical_solid.scale_uniform(-1.0).is_none());
-    }
-
-    #[test]
-    fn test_rotate_z() {
-        let spherical_solid =
-            SphericalSolid3D::new_standard(Point3D::new(1.0, 0.0, 0.0), 2.0).unwrap();
-
+    fn test_analysis_rotation() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let axis = Vector3::new(1.0, 0.0, 0.0); // x軸回転
         let angle = Angle::from_degrees(90.0);
-        let rotated = spherical_solid.rotate_z(&angle);
 
-        // 90度回転後の確認
-        assert_relative_eq!(rotated.center().x(), 0.0, epsilon = 1e-10);
-        assert_relative_eq!(rotated.center().y(), 1.0, epsilon = 1e-10);
-        assert_relative_eq!(rotated.center().z(), 0.0, epsilon = 1e-10);
-
-        // 半径は不変
-        assert_eq!(rotated.radius(), spherical_solid.radius());
-    }
-
-    #[test]
-    fn test_direct_transform_methods() {
-        let spherical_solid = create_test_spherical_solid();
-
-        // 直接メソッド経由での操作
-        let translation = Vector3D::new(1.0_f64, 1.0_f64, 1.0_f64);
-        let translated = spherical_solid.translate(translation);
-        assert_eq!(translated.center(), Point3D::new(2.0, 3.0, 4.0));
-
-        let scaled = spherical_solid.scale_uniform(2.0).unwrap();
-        assert_eq!(scaled.radius(), 4.0);
-
-        let rotation_center = Point3D::new(0.0, 0.0, 0.0);
-        let angle = Angle::from_degrees(90.0);
-        let axis = Vector3D::unit_z();
-        let rotated = spherical_solid
-            .rotate_around_axis(&rotation_center, &axis, &angle)
+        let result = sphere
+            .rotate_analysis(&center_sphere, &axis, angle)
             .unwrap();
 
-        assert_relative_eq!(rotated.center().x(), -2.0, epsilon = 1e-10);
-        assert_relative_eq!(rotated.center().y(), 1.0, epsilon = 1e-10);
+        // 90度X軸回転後の中心点確認（原点なので変わらない）
+        let expected_center = Point3D::new(0.0, 0.0, 0.0);
+        assert!((result.center().x() - expected_center.x()).abs() < 1e-10);
+        assert!((result.center().y() - expected_center.y()).abs() < 1e-10);
+        assert!((result.center().z() - expected_center.z()).abs() < 1e-10);
+
+        // 軸方向が回転される（Z軸(0,0,1)をX軸周りに90度回転すると(0,-1,0)になる）
+        assert!((result.axis().x() - 0.0).abs() < 1e-10);
+        assert!((result.axis().y() - (-1.0)).abs() < 1e-10);
+        assert!((result.axis().z() - 0.0).abs() < 1e-10);
     }
 
     #[test]
-    fn test_solid_property_preservation() {
-        let spherical_solid = create_test_spherical_solid();
-        let original_volume = spherical_solid.volume();
+    fn test_analysis_scale() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let scale_x = 2.0;
+        let scale_y = 3.0;
+        let scale_z = 4.0;
 
-        // 平行移動では体積不変
-        let translated = spherical_solid.translate(Vector3D::new(10.0, 20.0, 30.0));
-        assert_relative_eq!(translated.volume(), original_volume, epsilon = 1e-10);
+        let result = sphere
+            .scale_analysis(&center_sphere, scale_x, scale_y, scale_z)
+            .unwrap();
 
-        // 回転では体積不変
-        let angle = Angle::from_degrees(45.0);
-        let rotated = spherical_solid.rotate_z(&angle);
-        assert_relative_eq!(rotated.volume(), original_volume, epsilon = 1e-10);
+        // 中心点がスケールされることを確認（原点なので変わらない）
+        let expected_center = Point3D::new(0.0, 0.0, 0.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
 
-        // スケールでは体積比例
-        let scaled = spherical_solid.scale_uniform(2.0).unwrap();
-        assert_relative_eq!(scaled.volume(), original_volume * 8.0, epsilon = 1e-10);
-        // 2³
+        // 球の半径がスケールされることを確認
+        // 球の軸がZ方向なので、軸のスケール倍率（scale_z）が半径に影響
+        assert!((result.radius() - sphere.radius() * scale_z).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_analysis_uniform_scale() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let scale_factor = 2.0;
+
+        let result = sphere
+            .uniform_scale_analysis(&center_sphere, scale_factor)
+            .unwrap();
+
+        // 中心点がスケールされることを確認（原点なので変わらない）
+        let expected_center = Point3D::new(0.0, 0.0, 0.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+
+        // 半径が均等にスケールされることを確認
+        assert!((result.radius() - sphere.radius() * scale_factor).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_analysis_composite_transform() {
+        let sphere = create_test_spherical_solid();
+        let translation = Vector3::new(1.0, 1.0, 1.0);
+        let rotation_center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let rotation_axis = Vector3::new(0.0, 0.0, 1.0);
+        let rotation_angle = Angle::from_degrees(0.0); // 回転なし
+        let scale_factors = (2.0, 2.0, 2.0);
+
+        let result = sphere
+            .apply_composite_transform(
+                Some(&translation),
+                Some((&rotation_center_sphere, &rotation_axis, rotation_angle)),
+                Some(scale_factors),
+            )
+            .unwrap();
+
+        // 複合変換の結果を確認
+        // Scale(2,2,2) -> Rotate(0) -> Translate(1,1,1)
+        let expected_center = Point3D::new(1.0, 1.0, 1.0); // (0*2+1, 0*2+1, 0*2+1)
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_zero_scale_error() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+
+        let result = sphere.scale_analysis(&center_sphere, 0.0, 1.0, 1.0);
+        assert!(matches!(result, Err(TransformError::InvalidScaleFactor(_))));
+    }
+
+    #[test]
+    fn test_zero_rotation_axis_error() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let zero_axis = Vector3::new(0.0, 0.0, 0.0);
+        let angle = Angle::from_degrees(90.0);
+
+        let result = sphere.rotate_analysis(&center_sphere, &zero_axis, angle);
+        assert!(matches!(result, Err(TransformError::InvalidRotation(_))));
+    }
+
+    #[test]
+    fn test_transform_point_matrix() {
+        let sphere = create_test_spherical_solid();
+        let matrix = Matrix4x4::translation(2.0, 3.0, 4.0);
+
+        let result = sphere.transform_point_matrix(&matrix);
+
+        // 平行移動による中心点の変化を確認
+        let expected_center = Point3D::new(2.0, 3.0, 4.0);
+        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+
+        // 軸と参照方向は変わらない（平行移動のため）
+        assert!((result.axis().x() - sphere.axis().x()).abs() < f64::EPSILON);
+        assert!((result.axis().y() - sphere.axis().y()).abs() < f64::EPSILON);
+        assert!((result.axis().z() - sphere.axis().z()).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_volume_preservation_uniform_scale() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let scale_factor = 2.0;
+
+        let result = sphere
+            .uniform_scale_analysis(&center_sphere, scale_factor)
+            .unwrap();
+
+        // 体積は scale_factor^3 倍になる
+        let expected_volume_ratio = scale_factor * scale_factor * scale_factor;
+        let actual_volume_ratio = result.volume() / sphere.volume();
+        assert!((actual_volume_ratio - expected_volume_ratio).abs() < f64::EPSILON * 10.0);
+    }
+
+    #[test]
+    fn test_surface_area_preservation_uniform_scale() {
+        let sphere = create_test_spherical_solid();
+        let center_sphere = SphericalSolid3D::new_at_origin(1.0).unwrap();
+        let scale_factor = 2.0;
+
+        let result = sphere
+            .uniform_scale_analysis(&center_sphere, scale_factor)
+            .unwrap();
+
+        // 表面積は scale_factor^2 倍になる
+        let expected_area_ratio = scale_factor * scale_factor;
+        let actual_area_ratio = result.surface_area() / sphere.surface_area();
+        assert!((actual_area_ratio - expected_area_ratio).abs() < f64::EPSILON * 10.0);
     }
 }

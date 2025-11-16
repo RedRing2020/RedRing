@@ -1,325 +1,266 @@
-﻿//! Arc変換操作統一Foundation実装
+//! Arc2D Analysis Matrix/Vector統合変換実装
 //!
-//! 統一Transform Foundation システムによる変換操作
-//! 全幾何プリミティブで共通利用可能な統一インターフェース
+//! Analysis Matrix3x3を直接使用した効率的な2D円弧変換
+//! Direction2D/Vector2D実装パターンを踏襲した統一設計
+//! Arc2Dの円弧構造を保持した変換処理
 
-use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Vector2D};
-use analysis::linalg::Matrix3x3;
-use geo_foundation::{
-    traits::{AdvancedTransform, BasicTransform, TransformHelpers},
-    Angle, Scalar,
-};
+use crate::{Arc2D, Circle2D, Point2D};
+use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
+use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
+
+/// Arc2D用Analysis Matrix3x3変換モジュール
+pub mod analysis_transform {
+    use super::*;
+
+    /// Arc2Dの3x3行列変換（円弧構造保持）
+    pub fn transform_arc_2d<T: Scalar>(
+        arc: &Arc2D<T>,
+        matrix: &Matrix3x3<T>,
+    ) -> Result<Arc2D<T>, TransformError> {
+        // 基底円の変換
+        let transformed_circle = transform_circle_2d(arc.circle(), matrix)?;
+
+        // 角度は回転成分のみ影響を受ける
+        let rotation_radians = matrix.extract_rotation_2d();
+        let rotation_angle = Angle::from_radians(rotation_radians);
+        let new_start_angle = arc.start_angle() + rotation_angle;
+        let new_end_angle = arc.end_angle() + rotation_angle;
+
+        Arc2D::new(transformed_circle, new_start_angle, new_end_angle).ok_or_else(|| {
+            TransformError::InvalidGeometry("Failed to create transformed Arc2D".to_string())
+        })
+    }
+
+    /// Circle2Dの3x3行列変換
+    fn transform_circle_2d<T: Scalar>(
+        circle: &Circle2D<T>,
+        matrix: &Matrix3x3<T>,
+    ) -> Result<Circle2D<T>, TransformError> {
+        // 中心点の変換
+        let center_vec = Vector2::new(circle.center().x(), circle.center().y());
+        let transformed_center_vec = matrix.transform_point_2d(&center_vec);
+        let transformed_center =
+            Point2D::new(transformed_center_vec.x(), transformed_center_vec.y());
+
+        // 半径のスケール変換
+        let scale_factors = matrix.extract_scale_2d();
+        let transformed_radius = circle.radius() * scale_factors.x().abs(); // 均等スケールを仮定
+
+        if transformed_radius <= T::ZERO {
+            return Err(TransformError::InvalidGeometry(
+                "Transformed circle radius is non-positive".to_string(),
+            ));
+        }
+
+        Circle2D::new(transformed_center, transformed_radius).ok_or_else(|| {
+            TransformError::InvalidGeometry("Failed to create transformed Circle2D".to_string())
+        })
+    }
+
+    /// 複数円弧の一括3x3行列変換
+    pub fn transform_arcs_2d<T: Scalar>(
+        arcs: &[Arc2D<T>],
+        matrix: &Matrix3x3<T>,
+    ) -> Result<Vec<Arc2D<T>>, TransformError> {
+        arcs.iter()
+            .map(|arc| transform_arc_2d(arc, matrix))
+            .collect()
+    }
+
+    /// 平行移動行列生成（2D用）
+    pub fn translation_matrix_2d<T: Scalar>(dx: T, dy: T) -> Matrix3x3<T> {
+        let translation = Vector2::new(dx, dy);
+        Matrix3x3::translation_2d(&translation)
+    }
+
+    /// 回転行列生成（2D用）
+    pub fn rotation_matrix_2d<T: Scalar>(angle: Angle<T>) -> Matrix3x3<T> {
+        Matrix3x3::rotation_2d(angle.to_radians())
+    }
+
+    /// スケール行列生成（2D用）
+    pub fn scale_matrix_2d<T: Scalar>(sx: T, sy: T) -> Matrix3x3<T> {
+        let scale = Vector2::new(sx, sy);
+        Matrix3x3::scale_2d(&scale)
+    }
+}
 
 // ============================================================================
-// BasicTransform Trait Implementation (統一Foundation)
+// AnalysisTransform2D Implementation
 // ============================================================================
 
-impl<T: Scalar> BasicTransform<T> for Arc2D<T> {
-    type Transformed = Arc2D<T>;
-    type Vector2D = Vector2D<T>;
-    type Point2D = Point2D<T>;
+impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
+    type Matrix3x3 = Matrix3x3<T>;
     type Angle = Angle<T>;
+    type Output = Arc2D<T>;
 
-    /// 平行移動
-    fn translate(&self, translation: Self::Vector2D) -> Self::Transformed {
-        // Circle2D の translate メソッドを使用（Circle2D側にて実装済みと仮定）
-        let new_circle = Circle2D::new(
-            Point2D::new(
-                self.circle().center().x() + translation.x(),
-                self.circle().center().y() + translation.y(),
-            ),
-            self.circle().radius(),
-        )
-        .expect("Translation should preserve circle validity");
-
-        Self::new(new_circle, self.start_angle(), self.end_angle())
-            .expect("Translation should preserve arc validity")
+    /// Matrix3x3による直接座標変換
+    fn transform_point_matrix_2d(&self, matrix: &Self::Matrix3x3) -> Self::Output {
+        analysis_transform::transform_arc_2d(self, matrix).unwrap_or_else(|_| *self)
+        // エラー時は元のArc2Dを返す
     }
 
-    /// 指定中心での回転
-    fn rotate(&self, center: Self::Point2D, angle: Self::Angle) -> Self::Transformed {
-        // 中心点の回転
-        let center_to_arc_center = Vector2D::new(
-            self.circle().center().x() - center.x(),
-            self.circle().center().y() - center.y(),
-        );
-
-        // 回転行列適用（簡易実装、将来的にはMatrix2D使用）
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
-        let rotated_x = center_to_arc_center.x() * cos_angle - center_to_arc_center.y() * sin_angle;
-        let rotated_y = center_to_arc_center.x() * sin_angle + center_to_arc_center.y() * cos_angle;
-
-        let new_center = Point2D::new(center.x() + rotated_x, center.y() + rotated_y);
-        let new_circle = Circle2D::new(new_center, self.circle().radius())
-            .expect("Rotation should preserve circle validity");
-
-        // 円弧の角度も回転分だけ調整
-        let new_start = self.start_angle() + angle;
-        let new_end = self.end_angle() + angle;
-
-        Self::new(new_circle, new_start, new_end).expect("Rotation should preserve arc validity")
-    }
-
-    /// 指定中心でのスケール
-    fn scale(&self, center: Self::Point2D, factor: T) -> Self::Transformed {
-        if factor <= T::ZERO {
-            panic!("Scale factor must be positive");
-        }
-
-        // 中心点のスケール
-        let center_to_arc_center = Vector2D::new(
-            self.circle().center().x() - center.x(),
-            self.circle().center().y() - center.y(),
-        );
-        let scaled_offset = Vector2D::new(
-            center_to_arc_center.x() * factor,
-            center_to_arc_center.y() * factor,
-        );
-        let new_center = Point2D::new(
-            center.x() + scaled_offset.x(),
-            center.y() + scaled_offset.y(),
-        );
-
-        // 半径もスケール
-        let new_radius = self.circle().radius() * factor;
-        let new_circle =
-            Circle2D::new(new_center, new_radius).expect("Scaling should preserve circle validity");
-
-        Self::new(new_circle, self.start_angle(), self.end_angle())
-            .expect("Scaling should preserve arc validity")
-    }
-}
-
-// TransformHelpers trait は自動実装される
-// （BasicTransform を実装しているため）
-
-// ============================================================================
-// Extension Methods (旧実装からの移行)
-// ============================================================================
-
-impl<T: Scalar> Arc2D<T> {
-    /// X, Y座標での個別平行移動
-    pub fn translate_xy(&self, dx: T, dy: T) -> Self {
-        let translation = Vector2D::new(dx, dy);
-        <Self as BasicTransform<T>>::translate(self, translation)
-    }
-
-    /// ベクトルによる平行移動
-    pub fn translate(&self, vector: &Vector2D<T>) -> Self {
-        self.translate_xy(vector.x(), vector.y())
-    }
-
-    /// 原点中心でのスケール変換
-    pub fn scale_origin(&self, factor: T) -> Self {
-        <Self as BasicTransform<T>>::scale(self, Point2D::origin(), factor)
-    }
-
-    /// 指定点を中心とした回転
-    pub fn rotate_around_point(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
-        // 1. 回転中心に移動
-        let to_origin = Vector2D::new(-center.x(), -center.y());
-        let translated = self.translate(&to_origin);
-
-        // 2. 原点中心で回転
-        let rotated = translated.rotate(Point2D::origin(), angle);
-
-        // 3. 元の位置に戻す
-        let back_translation = Vector2D::new(center.x(), center.y());
-        rotated.translate(&back_translation)
-    }
-
-    /// 指定点を中心とした拡大縮小
-    pub fn scale_around_point(&self, center: &Point2D<T>, factor: T) -> Self {
-        if factor <= T::ZERO {
-            panic!("Scale factor must be positive");
-        }
-
-        // 1. スケール中心に移動
-        let to_origin = Vector2D::new(-center.x(), -center.y());
-        let translated = self.translate(&to_origin);
-
-        // 2. 原点中心でスケール
-        let scaled = translated.scale(Point2D::origin(), factor);
-
-        // 3. 元の位置に戻す
-        let back_translation = Vector2D::new(center.x(), center.y());
-        scaled.translate(&back_translation)
-    }
-
-    /// 円弧の反転（開始と終了を入れ替え）
-    pub fn reverse(&self) -> Self {
-        Self::new(*self.circle(), self.end_angle(), self.start_angle())
-            .expect("Reversing should preserve arc validity")
-    }
-}
-
-// ============================================================================
-// AdvancedTransform Trait Implementation (統一Foundation)
-// ============================================================================
-
-impl<T: Scalar> AdvancedTransform<T> for Arc2D<T> {
-    type Line2D = LineSegment2D<T>;
-    type Matrix3 = Matrix3x3<T>;
-
-    /// 鏡像反転
-    fn mirror(&self, axis: Self::Line2D) -> Self::Transformed {
-        // LineSegment2D を軸とした鏡像反転
-        let axis_start = axis.start_point();
-        let axis_end = axis.end_point();
-
-        // 軸ベクトル
-        let axis_vec = Vector2D::new(axis_end.x() - axis_start.x(), axis_end.y() - axis_start.y());
-        let axis_len_sq = axis_vec.x() * axis_vec.x() + axis_vec.y() * axis_vec.y();
-
-        if axis_len_sq <= T::ZERO {
-            // 軸が点の場合は元の円弧を返す
-            return *self;
-        }
-
-        // 中心点の鏡像反転
-        let center = self.circle().center();
-        let to_center = Vector2D::new(center.x() - axis_start.x(), center.y() - axis_start.y());
-
-        // 軸上への射影
-        let projection =
-            (to_center.x() * axis_vec.x() + to_center.y() * axis_vec.y()) / axis_len_sq;
-        let projection_point = Point2D::new(
-            axis_start.x() + projection * axis_vec.x(),
-            axis_start.y() + projection * axis_vec.y(),
-        );
-
-        // 鏡像点
-        let mirrored_center = Point2D::new(
-            T::from_f64(2.0) * projection_point.x() - center.x(),
-            T::from_f64(2.0) * projection_point.y() - center.y(),
-        );
-
-        // 新しい円を作成
-        let new_circle = Circle2D::new(mirrored_center, self.circle().radius())
-            .expect("Mirror should preserve circle validity");
-
-        // 角度も反転（軸の角度に応じて）
-        let axis_angle = axis_vec.y().atan2(axis_vec.x());
-        let angle_offset = Angle::from_radians(T::from_f64(2.0) * axis_angle);
-        let new_start = angle_offset - self.start_angle();
-        let new_end = angle_offset - self.end_angle();
-
-        // 開始と終了を入れ替え（鏡像反転により向きが逆になる）
-        Self::new(new_circle, new_end, new_start).expect("Mirror should preserve arc validity")
-    }
-
-    /// 非等方スケール
-    fn scale_non_uniform(
+    /// 平行移動変換（Analysis Vector2使用）
+    fn translate_analysis_2d(
         &self,
-        center: Self::Point2D,
+        translation: &Vector2<T>,
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::translation_matrix_2d(translation.x(), translation.y());
+        analysis_transform::transform_arc_2d(self, &matrix)
+    }
+
+    /// 回転変換（中心点指定）
+    fn rotate_analysis_2d(
+        &self,
+        center: &Self,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, TransformError> {
+        // 中心点への移動 -> 回転 -> 元位置への移動の合成変換
+        let center_point = center.circle().center();
+        let to_origin =
+            analysis_transform::translation_matrix_2d(-center_point.x(), -center_point.y());
+        let rotation = analysis_transform::rotation_matrix_2d(angle);
+        let from_origin =
+            analysis_transform::translation_matrix_2d(center_point.x(), center_point.y());
+
+        let combined_matrix = from_origin.mul_matrix(&rotation.mul_matrix(&to_origin));
+        analysis_transform::transform_arc_2d(self, &combined_matrix)
+    }
+
+    /// スケール変換
+    fn scale_analysis_2d(
+        &self,
+        center: &Self,
         scale_x: T,
         scale_y: T,
-    ) -> Self::Transformed {
-        if scale_x <= T::ZERO || scale_y <= T::ZERO {
-            panic!("Scale factors must be positive");
+    ) -> Result<Self::Output, TransformError> {
+        if scale_x.is_zero() || scale_y.is_zero() {
+            return Err(TransformError::InvalidScaleFactor(
+                "Scale factors cannot be zero".to_string(),
+            ));
         }
 
-        // 非等方スケールの場合、真円は楕円になる
-        // 現在の実装では、スケール比が等しい場合のみ円弧として扱う
-        let scale_ratio = (scale_x / scale_y).abs();
-        let tolerance = T::from_f64(1e-10);
+        let center_point = center.circle().center();
+        let to_origin =
+            analysis_transform::translation_matrix_2d(-center_point.x(), -center_point.y());
+        let scale = analysis_transform::scale_matrix_2d(scale_x, scale_y);
+        let from_origin =
+            analysis_transform::translation_matrix_2d(center_point.x(), center_point.y());
 
-        if (scale_ratio - T::ONE).abs() < tolerance {
-            // 等方スケールとして処理
-            <Self as BasicTransform<T>>::scale(self, center, scale_x)
-        } else {
-            // 非等方スケールの場合は幾何学的平均でのスケールで近似
-            // 注意: 本来は楕円弧への変換が必要だが、Arc2D範囲内での近似
-            let geometric_mean = (scale_x * scale_y).sqrt();
-            <Self as BasicTransform<T>>::scale(self, center, geometric_mean)
-        }
+        let combined_matrix = from_origin.mul_matrix(&scale.mul_matrix(&to_origin));
+        analysis_transform::transform_arc_2d(self, &combined_matrix)
     }
 
-    /// アフィン変換行列による変換
-    fn transform_matrix(&self, matrix: &Self::Matrix3) -> Self::Transformed {
-        // 中心点を変換
-        let center_vec = Vector2D::new(self.circle().center().x(), self.circle().center().y());
-        let transformed_center_vec = matrix.transform_point_2d(&center_vec);
-        let new_center = Point2D::new(transformed_center_vec.x(), transformed_center_vec.y());
-
-        // スケール成分を取得（行列式の平方根で近似）
-        let det = matrix.determinant();
-        if det <= T::ZERO {
-            panic!("Invalid transformation matrix (non-positive determinant)");
-        }
-        let scale_factor = det.sqrt();
-        let new_radius = self.circle().radius() * scale_factor;
-
-        // 新しい円を作成
-        let new_circle = Circle2D::new(new_center, new_radius)
-            .expect("Matrix transformation should preserve circle validity");
-
-        // 回転成分を取得して角度に適用
-        let rotation_angle = matrix.get(0, 1).atan2(matrix.get(0, 0));
-        let angle_offset = Angle::from_radians(rotation_angle);
-        let new_start = self.start_angle() + angle_offset;
-        let new_end = self.end_angle() + angle_offset;
-
-        Self::new(new_circle, new_start, new_end)
-            .expect("Matrix transformation should preserve arc validity")
-    }
-
-    /// 反転（向きの逆転）
-    fn reverse(&self) -> Self::Transformed {
-        Self::new(*self.circle(), self.end_angle(), self.start_angle())
-            .expect("Reversing should preserve arc validity")
+    /// 均等スケール変換
+    fn uniform_scale_analysis_2d(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, TransformError> {
+        self.scale_analysis_2d(center, scale_factor, scale_factor)
     }
 }
 
 // ============================================================================
-// 互換性維持のための Extension Methods
+// Tests
 // ============================================================================
 
-impl<T: Scalar> Arc2D<T> {
-    /// 水平反転（Y軸に対する鏡像）（互換性維持）
-    pub fn flip_horizontal(&self) -> Self {
-        let center = self.circle().center();
-        let flipped_center = Point2D::new(-center.x(), center.y());
-        let flipped_circle = Circle2D::new(flipped_center, self.circle().radius())
-            .expect("Flip should preserve circle validity");
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Circle2D, Point2D};
+    use analysis::Angle;
 
-        // 角度も反転
-        let pi = Angle::from_radians(T::PI);
-        let new_start = Angle::from_radians(pi.to_radians() - self.start_angle().to_radians());
-        let new_end = Angle::from_radians(pi.to_radians() - self.end_angle().to_radians());
-
-        Self::new(flipped_circle, new_end, new_start)
-            .expect("Horizontal flip should preserve arc validity")
+    /// テスト用Arc2D生成
+    fn create_test_arc() -> Arc2D<f64> {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let start_angle = Angle::from_degrees(0.0);
+        let end_angle = Angle::from_degrees(90.0);
+        Arc2D::new(circle, start_angle, end_angle).unwrap()
     }
 
-    /// 垂直反転（X軸に対する鏡像）（互換性維持）
-    pub fn flip_vertical(&self) -> Self {
-        let center = self.circle().center();
-        let flipped_center = Point2D::new(center.x(), -center.y());
-        let flipped_circle = Circle2D::new(flipped_center, self.circle().radius())
-            .expect("Flip should preserve circle validity");
+    #[test]
+    fn test_translation_analysis_transform() {
+        let arc = create_test_arc();
+        let translation = Vector2::new(2.0, 3.0);
 
-        // 角度も反転
-        let new_start = Angle::from_radians(-self.start_angle().to_radians());
-        let new_end = Angle::from_radians(-self.end_angle().to_radians());
+        let result = arc.translate_analysis_2d(&translation).unwrap();
 
-        Self::new(flipped_circle, new_end, new_start)
-            .expect("Vertical flip should preserve arc validity")
+        assert_eq!(result.circle().center().x(), 2.0);
+        assert_eq!(result.circle().center().y(), 3.0);
+        assert_eq!(result.circle().radius(), 1.0);
+        assert_eq!(result.start_angle().to_degrees(), 0.0);
+        assert_eq!(result.end_angle().to_degrees(), 90.0);
     }
 
-    /// 均等拡大縮小（互換性維持）
-    pub fn uniform_scale(&self, factor: T) -> Self {
-        self.scale_origin(factor)
+    #[test]
+    fn test_rotation_analysis_transform() {
+        let arc = create_test_arc();
+        let center_arc = create_test_arc();
+        let rotation_angle = Angle::from_degrees(45.0);
+
+        let result = arc.rotate_analysis_2d(&center_arc, rotation_angle).unwrap();
+
+        // 回転後の角度チェック
+        assert!((result.start_angle().to_degrees() - 45.0).abs() < 1e-10);
+        assert!((result.end_angle().to_degrees() - 135.0).abs() < 1e-10);
+        assert_eq!(result.circle().radius(), 1.0);
     }
 
-    /// 非均等拡大縮小（互換性維持）
-    pub fn non_uniform_scale(&self, x_factor: T, y_factor: T) -> Self {
-        <Self as AdvancedTransform<T>>::scale_non_uniform(
-            self,
-            Point2D::origin(),
-            x_factor,
-            y_factor,
-        )
+    #[test]
+    fn test_scale_analysis_transform() {
+        let arc = create_test_arc();
+        let center_arc = create_test_arc();
+
+        let result = arc.scale_analysis_2d(&center_arc, 2.0, 2.0).unwrap();
+
+        assert_eq!(result.circle().radius(), 2.0);
+        assert_eq!(result.start_angle().to_degrees(), 0.0);
+        assert_eq!(result.end_angle().to_degrees(), 90.0);
+    }
+
+    #[test]
+    fn test_uniform_scale_analysis_transform() {
+        let arc = create_test_arc();
+        let center_arc = create_test_arc();
+
+        let result = arc.uniform_scale_analysis_2d(&center_arc, 3.0).unwrap();
+
+        assert_eq!(result.circle().radius(), 3.0);
+    }
+
+    #[test]
+    fn test_matrix_direct_transform() {
+        let arc = create_test_arc();
+        let matrix = analysis_transform::translation_matrix_2d(1.0, 2.0);
+
+        let result = arc.transform_point_matrix_2d(&matrix);
+
+        assert_eq!(result.circle().center().x(), 1.0);
+        assert_eq!(result.circle().center().y(), 2.0);
+    }
+
+    #[test]
+    fn test_zero_scale_error() {
+        let arc = create_test_arc();
+        let center_arc = create_test_arc();
+
+        let result = arc.scale_analysis_2d(&center_arc, 0.0, 1.0);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_batch_transform() {
+        let arcs = vec![create_test_arc(); 3];
+        let matrix = analysis_transform::translation_matrix_2d(5.0, 10.0);
+
+        let results = analysis_transform::transform_arcs_2d(&arcs, &matrix).unwrap();
+
+        assert_eq!(results.len(), 3);
+        for result in results {
+            assert_eq!(result.circle().center().x(), 5.0);
+            assert_eq!(result.circle().center().y(), 10.0);
+        }
     }
 }

@@ -266,15 +266,32 @@ impl<T: Scalar> ConicalSolid3D<T> {
         let y_dir = self.derived_y_axis().as_vector();
 
         // 底面の円周上の極値を計算
-        let radius_x = x_dir * self.radius;
-        let radius_y = y_dir * self.radius;
+        let radius_x: Vector3D<T> = x_dir * self.radius;
+        let radius_y: Vector3D<T> = y_dir * self.radius;
 
-        // 底面の境界点
+        // 底面の境界点（座標レベルで計算して型推論問題を回避）
+        let center_vec = self.center.to_vector();
         let base_bounds = [
-            self.center + radius_x,
-            self.center - radius_x,
-            self.center + radius_y,
-            self.center - radius_y,
+            Point3D::new(
+                center_vec.x() + radius_x.x(),
+                center_vec.y() + radius_x.y(),
+                center_vec.z() + radius_x.z(),
+            ),
+            Point3D::new(
+                center_vec.x() - radius_x.x(),
+                center_vec.y() - radius_x.y(),
+                center_vec.z() - radius_x.z(),
+            ),
+            Point3D::new(
+                center_vec.x() + radius_y.x(),
+                center_vec.y() + radius_y.y(),
+                center_vec.z() + radius_y.z(),
+            ),
+            Point3D::new(
+                center_vec.x() - radius_y.x(),
+                center_vec.y() - radius_y.y(),
+                center_vec.z() - radius_y.z(),
+            ),
         ];
 
         // 頂点

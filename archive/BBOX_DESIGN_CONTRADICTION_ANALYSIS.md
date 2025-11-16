@@ -4,7 +4,7 @@
 
 ### 現在の状況 (修正前)
 
-```
+```text
 geo_foundation/             ← トレイト定義層
 ├── BBoxCore<T>            ← ✅ 正しい場所
 ├── BBox2DCore<T>          ← ✅ 正しい場所
@@ -25,7 +25,7 @@ geo_primitives/             ← 具体実装層
 
 ### 理想的な設計
 
-```
+```text
 analysis/                   ← 純粋数値計算のみ
 ├── numerics/              ← 特殊数学定数
 ├── metrics/               ← 距離・長さ計算
@@ -44,7 +44,7 @@ geo_primitives/             ← 具体実装
 
 ### 1. 設計時の思考プロセス (推測)
 
-```
+```text
 「BBoxCore トレイトを作った」
     ↓
 「実装例が欲しい」
@@ -56,7 +56,7 @@ geo_primitives/             ← 具体実装
 
 ### 2. 正しいプロセス
 
-```
+```text
 「BBoxCore トレイトを作った」
     ↓
 「geo_primitives で具体実装を作る」 ← ✅ 正しい
@@ -77,7 +77,7 @@ pub fn bbox_2d_area<T: Scalar>(width: T, height: T) -> T {
 
 ### 2. 依存関係逆転
 
-```
+```text
 正しい依存: geo_primitives → geo_foundation → analysis
 実際の依存: geo_foundation → analysis (spatial) → geo_primitives
 ```

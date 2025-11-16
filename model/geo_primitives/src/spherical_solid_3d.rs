@@ -17,7 +17,8 @@
 //! **作成日: 2025年11月1日**
 //! **最終更新: 2025年11月1日**
 
-use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D};
+// use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
+use crate::{BBox3D, Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元球ソリッド（STEP準拠のCore実装）
@@ -175,16 +176,16 @@ impl<T: Scalar> SphericalSolid3D<T> {
     }
 
     /// 球ソリッドの位置（座標系）を取得
-    pub fn position(&self) -> Plane3DCoordinateSystem<T> {
-        // Plane3DCoordinateSystemを原点と軸から構築
-        Plane3DCoordinateSystem::from_origin_and_axes(
-            self.center,
-            self.axis.as_vector(),          // 法線方向
-            self.ref_direction.as_vector(), // U軸方向
-        )
-        .expect("Coordinate system creation should succeed with valid sphere parameters")
-    }
-
+    // 一時的にコメントアウト: Plane3DCoordinateSystemが未定義
+    // pub fn position(&self) -> Plane3DCoordinateSystem<T> {
+    //     // Plane3DCoordinateSystemを原点と軸から構築
+    //     Plane3DCoordinateSystem::from_origin_and_axes(
+    //         self.center,
+    //         self.axis.as_vector(),          // 法線方向
+    //         self.ref_direction.as_vector(), // U軸方向
+    //     )
+    //     .expect("Coordinate system creation should succeed with valid sphere parameters")
+    // }
     /// 球の直径を取得
     pub fn diameter(&self) -> T {
         self.radius * T::from_f64(2.0)

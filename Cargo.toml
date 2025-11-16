@@ -1,24 +1,24 @@
 [workspace]
 members = [
-    "foundation/analysis",     # Foundation層：数値解析クレート（ドメイン非依存基盤）
-    "model/geo_foundation",    # Model層：幾何計算基盤（抽象型・橋渡し）
-    "model/geo_core",          # Model層：幾何計算基盤
-    "model/geo_primitives",    # Model層：幾何プリミティブクレート
-    "model/geo_algorithms",    # Model層：幾何アルゴリズムクレート
-    "model/geo_nurbs",         # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
-    "model/geo_io",            # Model層：ファイルI/Oクレート
-    "viewmodel/converter",     # ViewModel層：データ変換・架け橋
-    "viewmodel/graphics",      # ViewModel層：グラフィックス制御（カメラ等）
-    "view/render",             # View層：GPU描画基盤
-    "view/stage",              # View層：レンダリングステージ管理
-    "view/app",                # View層：メインアプリケーション
+  "foundation/analysis",  # Foundation層：数値解析クレート（ドメイン非依存基盤）
+  "model/geo_foundation", # Model層：幾何計算基盤（抽象型・橋渡し）
+  "model/geo_core",       # Model層：幾何計算基盤
+  "model/geo_primitives", # Model層：幾何プリミティブクレート
+  "model/geo_algorithms", # Model層：幾何アルゴリズムクレート
+  "model/geo_nurbs",      # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
+  "model/geo_io",         # Model層：ファイルI/Oクレート
+  "viewmodel/converter",  # ViewModel層：データ変換・架け橋
+  "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
+  "view/render",          # View層：GPU描画基盤
+  "view/stage",           # View層：レンダリングステージ管理
+  "view/app",             # View層：メインアプリケーション
 ]
-resolver = "3"
+resolver = "2"
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
 authors = ["RedRing"]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/RedRing2020/RedRing"
 keywords = ["cad", "cam", "graphics", "geometry", "nurbs"]
 categories = ["graphics", "mathematics", "science"]

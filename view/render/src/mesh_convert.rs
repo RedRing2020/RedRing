@@ -3,7 +3,7 @@
 //! MVVM アーキテクチャに従い、viewmodel の mesh_converter を使用して変換を実行。
 //! render レイヤーから直接 geo_* クレートへの依存を削除。
 
-use crate::vertex_3d::{MeshVertex, convert_vertex_data_to_mesh_vertices};
+use crate::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 
 /// ジェネリック版のメッシュ変換（型消去経由）
 /// geo_primitives への直接依存を避けるため、型消去されたインターフェースを使用

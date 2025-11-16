@@ -4,7 +4,7 @@
 //! Model層（geo_io）からView層（render）への架け橋
 
 use crate::mesh_converter::{
-    VertexData, triangle_mesh_to_vertices, triangle_mesh_to_vertices_with_indices,
+    triangle_mesh_to_vertices, triangle_mesh_to_vertices_with_indices, VertexData,
 };
 use geo_io::stl;
 use std::path::Path;
