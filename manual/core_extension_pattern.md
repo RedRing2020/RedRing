@@ -32,8 +32,10 @@ circle_2d_extensions.rs   // Extension実装（130行）
 ### Core のみ使用
 
 ```rust
-use geo_foundation::Point2D;
-use geo_foundation::Circle2D;
+use geo_primitives::{Point2D, Circle2D};
+
+let center = Point2D::new(0.0, 0.0);
+let radius = 1.0;
 let circle = Circle2D::new(center, radius)?;
 let area = circle.area();
 ```
@@ -41,15 +43,20 @@ let area = circle.area();
 ### Extension を含む使用
 
 ```rust
-let unit_circle = Circle2D::unit_circle();  // Extension
-let scaled = circle.scale(2.0)?;            // Extension
+use geo_primitives::Circle2D;
+
+// Extension機能の利用例
+let unit_circle = Circle2D::unit_circle();  // Extension: 単位円作成
+let point = Point2D::new(0.5, 0.5);
+let contains = circle.contains_point(&point); // Extension: 点包含判定
 ```
 
 ### Analysis Transform（幾何変換拡張）
 
 ```rust
 use analysis::linalg::vector::Vector3;
-use geo_foundation::{AnalysisTransform3D, Angle};
+use geo_foundation::AnalysisTransform3D;
+use geo_foundation::Angle;
 
 // 平行移動
 let translation = Vector3::new(1.0, 2.0, 3.0);
@@ -75,4 +82,4 @@ let result = mesh.apply_composite_transform(
 3. **保守性向上**: 責務分離により理解・修正が容易
 4. **拡張性**: 新しい Extension を後から追加可能
 
-詳細は [CORE_EXTENSION_FOUNDATION_PATTERN.md](../CORE_EXTENSION_FOUNDATION_PATTERN.md) を参照してください。
+詳細は [CORE_EXTENSION_FOUNDATION_PATTERN.md](../archive/CORE_EXTENSION_FOUNDATION_PATTERN.md) を参照してください。

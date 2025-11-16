@@ -5,5 +5,5 @@
 - [型分類 / Type Classification](./kinds.md)
 - [設計思想 / Design Philosophy](./philosophy.md)
 - [Core/Extension パターン / Core/Extension Foundation Pattern](./core_extension_pattern.md)
-- [Analysis Transform システム / Analysis Transform System](./transform.md)
+- [Transform システム / Transform System](./transform.md)
 - [NURBS 曲線・曲面システム / NURBS Curves and Surfaces](./nurbs.md)

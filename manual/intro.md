@@ -36,7 +36,7 @@ RedRing は以下のワークスペース構成になっています：
 - `viewmodel`：ビュー操作・変換ロジック
 - `redring`：メインアプリケーション
 
-詳細は [アーキテクチャ構成](../ARCHITECTURE.md) および [モジュール構成](./modules.md) を参照してください。
+詳細は [アーキテクチャ構成](../dev/architecture/ARCHITECTURE.md) および [モジュール構成](./modules.md) を参照してください。
 
 ## 対象読者
 
