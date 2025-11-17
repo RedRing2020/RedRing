@@ -1,6 +1,6 @@
 # Foundation Core Traits 再設計方法論
 
-**作成日**: 2025年11月16日  
+**作成日**: 2025年11月16日
 **最終更新**: 2025年11月16日
 
 ## 概要
@@ -63,10 +63,10 @@ model/geo_foundation/src/core/
 pub trait {Shape}2DConstructor<T: Scalar> {
     /// 基本コンストラクタ（形状固有パラメータ）
     fn new(...) -> Self;
-    
+
     /// Analysis層からの変換
     fn from_analysis_vector(vector: &Vector2<T>) -> Self;
-    
+
     /// 特殊値生成（形状に応じて）
     fn zero() -> Self;  // Vector用
     fn origin() -> Self; // Point用
@@ -83,15 +83,15 @@ pub trait {Shape}2DProperties<T: Scalar> {
     // 座標・成分アクセス
     fn x(&self) -> T;
     fn y(&self) -> T;
-    
+
     // Analysis層への変換
     fn to_analysis_vector(&self) -> Vector2<T>;
-    
+
     // 基本プロパティ
     fn length(&self) -> T; // Vector用
     fn distance_from_origin(&self) -> T; // Point用
     fn radius(&self) -> T; // Circle用
-    
+
     // 共通プロパティ
     fn dimension(&self) -> u32;
 }
@@ -106,11 +106,11 @@ pub trait {Shape}2DMeasure<T: Scalar> {
     // 基本計量
     fn distance_to(&self, other: &Self) -> T;
     fn distance_squared_to(&self, other: &Self) -> T;
-    
+
     // 形状固有計量
     fn area(&self) -> Option<T>;
     fn length(&self) -> Option<T>;
-    
+
     // 関係演算（形状固有）
     fn dot(&self, other: &Self) -> T; // Vector用
     fn intersects(&self, other: &Self) -> bool; // Circle用
@@ -143,7 +143,7 @@ pub trait {Shape}2DConstructor<T: Scalar> {
     // 形状固有の特殊値
 }
 
-// 2. Properties Traits  
+// 2. Properties Traits
 pub trait {Shape}2DProperties<T: Scalar> {
     fn x(&self) -> T;
     fn y(&self) -> T;
@@ -189,7 +189,7 @@ impl<T: Scalar> {Shape}2DConstructor<T> for {Shape}2D<T> {
     fn new(...) -> Self {
         // 実装
     }
-    
+
     fn from_analysis_vector(vector: &Vector2<T>) -> Self {
         // Analysis層からの変換
     }
@@ -228,7 +228,7 @@ fn try_normalize(&self) -> Option<Self>;
 // To Analysis
 fn to_analysis_vector(&self) -> Vector2<T>;
 
-// From Analysis  
+// From Analysis
 fn from_analysis_vector(vector: &Vector2<T>) -> Self;
 ```
 
@@ -314,7 +314,7 @@ impl<T: Scalar> DirectionMeasure<T> for Direction3D<T> { /* impl */ }
 ### 必須チェック項目
 
 1. **ビルド**: `cargo build` ✅
-2. **Clippy**: `cargo clippy --workspace -- -D warnings` ✅  
+2. **Clippy**: `cargo clippy --workspace -- -D warnings` ✅
 3. **テスト**: `cargo test --workspace` ✅
 4. **型制約**: `Option<Self>`に`Sized`制約 ✅
 5. **🚨 derive統一**: 全図形で `#[derive(Debug, Clone, Copy, PartialEq)]` 使用 ✅

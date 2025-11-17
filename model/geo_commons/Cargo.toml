@@ -1,0 +1,21 @@
+[package]
+name = "geo_commons"
+version = "0.1.0"
+edition = "2021"
+description = "共通幾何計算機能 - Foundation Pattern と geo_primitives の橋渡し"
+license = "MIT"
+
+[dependencies]
+# 基礎計算ライブラリ
+analysis = { path = "../../foundation/analysis" }
+
+# 数値計算の安定性
+num-traits = "0.2"
+approx = "0.5"
+
+# シリアル化サポート（オプション）
+serde = { version = "1.0", optional = true, features = ["derive"] }
+
+[features]
+default = []
+serde_support = ["dep:serde"]

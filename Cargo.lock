@@ -629,6 +629,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "geo_commons"
+version = "0.1.0"
+dependencies = [
+ "analysis",
+ "approx",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
 name = "geo_core"
 version = "0.1.0"
 dependencies = [
@@ -649,6 +659,7 @@ name = "geo_foundation"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "geo_commons",
 ]
 
 [[package]]

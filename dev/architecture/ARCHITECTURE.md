@@ -8,31 +8,37 @@ RedRing の幾何計算層とレンダリング層の構成について説明し
 
 ### 現在の実装状況（2025年11月11日更新）
 
+### 現在の実装状況（2025年11月18日更新）
+
 ```text
-analysis → geo_foundation
-                ↓
-           geo_core（ブリッジ役・開発中）
-            ↓    ↓
-   geo_primitives  geo_nurbs（Foundation パターン違反）
-            ↓         ↓
-      geo_algorithms  geo_io
+analysis → geo_foundation → geo_commons
+               ↓
+           geo_core
+               ↓
+       geo_primitives
+               ↓
+       geo_algorithms
+               ↓
+            geo_io
 ```
 
 | クレート         | 責務                                        | 現在の状態      | 目標状態    |
 | ---------------- | ------------------------------------------- | --------------- | ----------- |
 | `analysis`       | 数値解析・線形代数・微積分                  | ✅ 実装済み     | ✅ 完了     |
 | `geo_foundation` | 抽象型・トレイト定義（BasicTransform 等）   | ✅ 実装済み     | ✅ 完了     |
+| `geo_commons`    | 共通計算機能（geo_foundation 経由のみアクセス） | ✅ 実装済み     | ✅ 完了     |
 | `geo_primitives` | プリミティブ幾何専用（独自 Transform 実装） | ✅ 実装済み     | ✅ 完了     |
 | `geo_nurbs`      | NURBS 幾何専用（Foundation パターン準拠）   | ⚠️ パターン違反 | 🔧 修正予定 |
 | `geo_core`       | Foundation ブリッジ・交差判定基盤           | 🚧 開発中       | 🔧 実装予定 |
 | `geo_algorithms` | 高レベル幾何アルゴリズム                    | 📋 計画中       | 📋 将来実装 |
 | `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）              | 📋 計画中       | 📋 将来実装 |
 
-### 重要な課題（2025年11月11日時点）
+### 移行作業（2025年11月18日時点）
 
-1. **geo_nurbs Foundation パターン違反**: 直接 geo_primitives をインポート
-2. **geo_core ブリッジ未完成**: Foundation トレイトと具体型の仲介が未実装
-3. **アーキテクチャチェック失敗**: 依存関係チェックで検出される違反状態
+1. **geo_commons新設**: 共通計算機能の統一配置層を作成
+2. **geo_core再構成**: approximations/metrics機能をgeo_commonsに移行  
+3. **Foundation Pattern実装**: geo_commons は geo_foundation 経由でのみアクセス可能
+4. **依存関係制御**: geo_primitives は geo_foundation の trait デフォルト実装を使用
 
 ### レンダリング層
 

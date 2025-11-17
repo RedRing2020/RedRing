@@ -14,12 +14,7 @@ use analysis::linalg::vector::{Vector2, Vector3};
 /// Ellipse2D生成のためのConstructorトレイト
 pub trait Ellipse2DConstructor<T: Scalar> {
     /// 基本コンストラクタ（中心点、長軸半径、短軸半径、回転角）
-    fn new(
-        center: (T, T), 
-        semi_major_axis: T, 
-        semi_minor_axis: T, 
-        rotation: T
-    ) -> Option<Self>
+    fn new(center: (T, T), semi_major_axis: T, semi_minor_axis: T, rotation: T) -> Option<Self>
     where
         Self: Sized;
 
@@ -27,15 +22,13 @@ pub trait Ellipse2DConstructor<T: Scalar> {
     fn from_center_and_axes(
         center: (T, T),
         major_axis_endpoint: (T, T),
-        minor_axis_endpoint: (T, T)
+        minor_axis_endpoint: (T, T),
     ) -> Option<Self>
     where
         Self: Sized;
 
     /// 5点から楕円を構築（一般的な楕円フィット）
-    fn from_five_points(
-        p1: (T, T), p2: (T, T), p3: (T, T), p4: (T, T), p5: (T, T)
-    ) -> Option<Self>
+    fn from_five_points(p1: (T, T), p2: (T, T), p3: (T, T), p4: (T, T), p5: (T, T)) -> Option<Self>
     where
         Self: Sized;
 
@@ -58,7 +51,7 @@ pub trait Ellipse3DConstructor<T: Scalar> {
         normal: (T, T, T),
         semi_major_axis: T,
         semi_minor_axis: T,
-        major_axis_direction: (T, T, T)
+        major_axis_direction: (T, T, T),
     ) -> Option<Self>
     where
         Self: Sized;
@@ -70,37 +63,37 @@ pub trait Ellipse3DConstructor<T: Scalar> {
         major_axis_direction: (T, T, T),
         minor_axis_direction: (T, T, T),
         semi_major_axis: T,
-        semi_minor_axis: T
+        semi_minor_axis: T,
     ) -> Option<Self>
     where
         Self: Sized;
 
     /// XY平面上の楕円作成
     fn new_xy_plane(
-        center: (T, T, T), 
-        semi_major_axis: T, 
-        semi_minor_axis: T, 
-        rotation: T
+        center: (T, T, T),
+        semi_major_axis: T,
+        semi_minor_axis: T,
+        rotation: T,
     ) -> Option<Self>
     where
         Self: Sized;
 
     /// XZ平面上の楕円作成
     fn new_xz_plane(
-        center: (T, T, T), 
-        semi_major_axis: T, 
-        semi_minor_axis: T, 
-        rotation: T
+        center: (T, T, T),
+        semi_major_axis: T,
+        semi_minor_axis: T,
+        rotation: T,
     ) -> Option<Self>
     where
         Self: Sized;
 
     /// YZ平面上の楕円作成
     fn new_yz_plane(
-        center: (T, T, T), 
-        semi_major_axis: T, 
-        semi_minor_axis: T, 
-        rotation: T
+        center: (T, T, T),
+        semi_major_axis: T,
+        semi_minor_axis: T,
+        rotation: T,
     ) -> Option<Self>
     where
         Self: Sized;
@@ -216,15 +209,15 @@ pub trait Ellipse3DMeasure<T: Scalar>: Ellipse2DMeasure<T> {
 
     /// 3D空間での直線との交点を計算
     fn intersection_with_line_3d(
-        &self, 
-        line_point: (T, T, T), 
-        line_direction: (T, T, T)
+        &self,
+        line_point: (T, T, T),
+        line_direction: (T, T, T),
     ) -> Vec<(T, T, T)>;
 
     /// 平面との交点を計算
     fn intersection_with_plane(
         &self,
         plane_point: (T, T, T),
-        plane_normal: (T, T, T)
+        plane_normal: (T, T, T),
     ) -> Vec<(T, T, T)>;
 }

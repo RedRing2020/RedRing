@@ -1,6 +1,6 @@
 # 既存Trait → 新分類システム マッピング表
 
-**作成日**: 2025年11月16日  
+**作成日**: 2025年11月16日
 **最終更新**: 2025年11月16日
 
 ## 概要
@@ -15,18 +15,18 @@
 ```rust
 // 現在
 core/point_traits.rs:
-- Point2D<T>              → properties/PositionProperties  
+- Point2D<T>              → properties/PositionProperties
 - Point3D<T>              → properties/PositionProperties
 - Point2DConstructor<T>   → constructor/BasicConstructor
 - Point3DConstructor<T>   → constructor/BasicConstructor
 ```
 
-#### Vector系 Traits  
+#### Vector系 Traits
 ```rust
 // 現在
 core/vector_traits.rs:
 - Vector2D<T>             → properties/PositionProperties
-- Vector3D<T>             → properties/PositionProperties  
+- Vector3D<T>             → properties/PositionProperties
 - VectorConstructor<T>    → constructor/BasicConstructor
 - VectorOperations<T>     → measure/BasicMeasure (norm, length等)
 ```
@@ -66,7 +66,7 @@ core/nurbs_traits.rs:
 ```rust
 // 現在 (extensions/transform.rs) - 既にAnalysis系に統合済み
 - AnalysisTransform3D<T>        → core/transform/AnalysisTransform3D
-- AnalysisTransform2D<T>        → core/transform/AnalysisTransform2D  
+- AnalysisTransform2D<T>        → core/transform/AnalysisTransform2D
 - AnalysisTransformVector3D<T>  → core/transform/AnalysisTransformVector3D
 - SafeTransform<T>              → core/transform/SafeTransform
 // 注：BasicTransformは既にAnalysisTransformに統合済み
@@ -88,7 +88,7 @@ core/nurbs_traits.rs:
 
 #### Analysis Conversion → **Extensions維持**
 ```rust
-// 現在 (extensions/analysis_conversion.rs)  
+// 現在 (extensions/analysis_conversion.rs)
 - AnalysisConversion<T>      → extensions/analysis/AnalysisConversion
 - MatrixConversion<T>        → extensions/analysis/AnalysisConversion
 ```
@@ -99,10 +99,10 @@ core/nurbs_traits.rs:
 
 #### 1.1 Constructor Traits作成
 - [ ] `core/constructor/basic_constructor.rs`
-- [ ] `core/constructor/from_points.rs` 
+- [ ] `core/constructor/from_points.rs`
 - [ ] `core/constructor/from_parameters.rs`
 
-#### 1.2 Properties Traits作成  
+#### 1.2 Properties Traits作成
 - [ ] `core/properties/position_properties.rs`
 - [ ] `core/properties/shape_properties.rs`
 - [ ] `core/properties/dimension_properties.rs`
@@ -140,7 +140,7 @@ core/nurbs_traits.rs:
 - [ ] Point2D/Point3Dの新trait実装
 - [ ] コンストラクタの統合
 
-#### 3.2 Vector系の更新  
+#### 3.2 Vector系の更新
 - [ ] Vector2D/Vector3Dの新trait実装
 - [ ] Operations → Measureの移行
 
@@ -158,7 +158,7 @@ core/nurbs_traits.rs:
 - [ ] import文の更新
 - [ ] trait bound の更新
 
-#### 4.2 geo_algorithmsの更新  
+#### 4.2 geo_algorithmsの更新
 - [ ] 新trait参照への変更
 
 #### 4.3 geo_nurbsの更新
@@ -185,14 +185,14 @@ core/nurbs_traits.rs:
 - 移行期間中は旧traitも並行維持
 - Deprecation warningで段階的移行
 
-### 🧪 テスト戦略  
+### 🧪 テスト戦略
 - 各Phase完了時にビルド確認
 - geo_primitives更新時に全テスト実行
 
 ## 想定工数
 
 - **Phase 1-2**: 3-4日 (新構造実装)
-- **Phase 3**: 2-3日 (primitives更新) 
+- **Phase 3**: 2-3日 (primitives更新)
 - **Phase 4**: 1日 (依存更新)
 - **Phase 5**: 1日 (クリーンアップ)
 

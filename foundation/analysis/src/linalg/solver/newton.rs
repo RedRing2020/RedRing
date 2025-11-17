@@ -24,7 +24,7 @@ use crate::DERIVATIVE_ZERO_THRESHOLD;
 /// # Example
 /// ```rust
 /// use analysis::linalg::solver::newton::newton_solve;
-/// 
+///
 /// // x^2 - 2 = 0 の解を求める（√2を計算）
 /// let f = |x: f64| x * x - 2.0;
 /// let df = |x: f64| 2.0 * x;
@@ -72,7 +72,7 @@ where
 /// # Example
 /// ```rust
 /// use analysis::linalg::solver::newton::newton_inverse;
-/// 
+///
 /// // x^3 の逆関数（立方根）を計算
 /// let f = |x: f64| x * x * x;
 /// let df = |x: f64| 3.0 * x * x;
@@ -105,7 +105,7 @@ mod tests {
         let f = |x: f64| x * x - 2.0;
         let df = |x: f64| 2.0 * x;
         let result = newton_solve(f, df, 1.0, 100, 1e-10);
-        
+
         assert!(result.is_some());
         let sqrt_2 = result.unwrap();
         assert!((sqrt_2 - 1.41421356).abs() < 1e-6);
@@ -117,7 +117,7 @@ mod tests {
         let f = |x: f64| x * x * x;
         let df = |x: f64| 3.0 * x * x;
         let result = newton_inverse(f, df, 8.0, 2.0, 100, 1e-10);
-        
+
         assert!(result.is_some());
         let cube_root = result.unwrap();
         assert!((cube_root - 2.0).abs() < 1e-6);
@@ -129,7 +129,7 @@ mod tests {
         let f = |x: f64| x * x;
         let df = |_: f64| 0.0; // 常に0の導関数
         let result = newton_solve(f, df, 1.0, 100, 1e-10);
-        
+
         assert!(result.is_none());
     }
 }

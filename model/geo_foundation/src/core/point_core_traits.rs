@@ -56,7 +56,7 @@ pub trait Point2DProperties<T: Scalar> {
     /// X座標取得
     fn x(&self) -> T;
 
-    /// Y座標取得  
+    /// Y座標取得
     fn y(&self) -> T;
 
     /// 座標を配列として取得
@@ -200,7 +200,7 @@ pub trait Point2DCore<T: Scalar>:
 {
 }
 
-/// Point3Dの3つのCore機能統合トレイト  
+/// Point3Dの3つのCore機能統合トレイト
 /// Transform機能はAnalysisTransform3D<T>を別途使用
 pub trait Point3DCore<T: Scalar>:
     Point3DConstructor<T> + Point3DProperties<T> + Point3DMeasure<T>

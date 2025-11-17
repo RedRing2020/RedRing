@@ -1,6 +1,6 @@
 # Foundation Core/Extension分類システム再設計提案
 
-**作成日**: 2025年11月16日  
+**作成日**: 2025年11月16日
 **最終更新**: 2025年11月16日
 
 ## 概要
@@ -66,7 +66,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;
     type Angle;
     type Output;
-    
+
     fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
     fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
@@ -178,7 +178,7 @@ extensions/
 
 ### 📋 Phase 2: 次期形状の実装
 1. Line Core Traitsの実装
-2. Arc Core Traitsの実装  
+2. Arc Core Traitsの実装
 3. Plane Core Traitsの実装
 
 ### 📋 Phase 3: Extension機能の拡充

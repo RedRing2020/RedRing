@@ -1,6 +1,6 @@
 # ハイブリッド実装方針の詳細設計
 
-**作成日**: 2025年11月16日  
+**作成日**: 2025年11月16日
 **最終更新**: 2025年11月16日
 
 ## 概要
@@ -15,7 +15,7 @@ Core機能は形状別統合、Extensions機能は機能別分離のハイブリ
 ```text
 core/
 ├── point_core_traits.rs      # Point用4core機能統合
-├── vector_core_traits.rs     # Vector用4core機能統合  
+├── vector_core_traits.rs     # Vector用4core機能統合
 ├── circle_core_traits.rs     # Circle用4core機能統合
 ├── line_core_traits.rs       # Line用4core機能統合
 ├── plane_core_traits.rs      # Plane用4core機能統合
@@ -47,10 +47,10 @@ pub trait PointConstructor<T: Scalar> {
 pub trait PointProperties<T: Scalar> {
     type Point;
     type BBox;
-    
+
     /// X座標取得
     fn x(&self) -> T;
-    /// Y座標取得  
+    /// Y座標取得
     fn y(&self) -> T;
     /// 位置（自分自身）
     fn position(&self) -> Self::Point;
@@ -66,7 +66,7 @@ pub trait PointTransform<T: Scalar> {
     type Vector;
     type Angle;
     type Output;
-    
+
     /// Matrix変換
     fn transform_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
     /// 平行移動
@@ -145,7 +145,7 @@ pub trait BasicCollision<T: Scalar, Other> {
 
 /// 高度な衝突検出トレイト（将来拡張用）
 pub trait AdvancedCollision<T: Scalar, Other>: BasicCollision<T, Other> {
-    /// 衝突時刻計算（動的衝突検出）  
+    /// 衝突時刻計算（動的衝突検出）
     fn collision_time(&self, velocity: &Self::Vector, other: &Other, other_velocity: &Other::Vector) -> Option<T>;
     /// 衝突応答計算
     fn collision_response(&self, other: &Other) -> (Self::Vector, Other::Vector);
@@ -160,7 +160,7 @@ pub trait AdvancedCollision<T: Scalar, Other>: BasicCollision<T, Other> {
 3. **実装一貫性**: 4つのcore機能が統一された構造
 4. **メンテナンス性**: 形状単位での変更管理
 
-### Extensions（機能別分離）の利点  
+### Extensions（機能別分離）の利点
 1. **拡張性**: 新機能を独立して追加
 2. **専門性**: 複雑なアルゴリズムの分離
 3. **並行開発**: チームでの分担作業が容易
@@ -170,7 +170,7 @@ pub trait AdvancedCollision<T: Scalar, Other>: BasicCollision<T, Other> {
 
 ### Phase 1: Core統合（2-3日）
 1. point_core_traits.rs作成
-2. vector_core_traits.rs作成  
+2. vector_core_traits.rs作成
 3. circle_core_traits.rs作成
 4. 他の主要形状のcore統合
 

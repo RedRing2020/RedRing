@@ -20,23 +20,23 @@
 /// # Example
 /// ```rust
 /// use analysis::numerics::integration::{newton_arc_length, NormedVector};
-/// 
+///
 /// // 2D円の弧長計算の例
 /// #[derive(Clone)]
 /// struct Vec2D { x: f64, y: f64 }
-/// 
+///
 /// impl NormedVector for Vec2D {
 ///     fn norm(&self) -> f64 {
 ///         (self.x * self.x + self.y * self.y).sqrt()
 ///     }
 /// }
-/// 
+///
 /// // 半径1の円の導関数：r'(t) = (-sin(t), cos(t))
-/// let circle_derivative = |t: f64| Vec2D { 
-///     x: -t.sin(), 
-///     y: t.cos() 
+/// let circle_derivative = |t: f64| Vec2D {
+///     x: -t.sin(),
+///     y: t.cos()
 /// };
-/// 
+///
 /// // 半周の弧長を計算（理論値: π）
 /// let arc_length = newton_arc_length(circle_derivative, 0.0, std::f64::consts::PI, 1000);
 /// assert!((arc_length - std::f64::consts::PI).abs() < 1e-3);
@@ -71,9 +71,9 @@ where
 /// # Example Implementation
 /// ```rust
 /// use analysis::numerics::integration::NormedVector;
-/// 
+///
 /// struct Vector3D { x: f64, y: f64, z: f64 }
-/// 
+///
 /// impl NormedVector for Vector3D {
 ///     fn norm(&self) -> f64 {
 ///         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
@@ -101,7 +101,7 @@ pub trait NormedVector {
 /// # Example
 /// ```rust
 /// use analysis::numerics::integration::trapezoidal_rule;
-/// 
+///
 /// // ∫₀¹ x² dx = 1/3 を計算
 /// let result = trapezoidal_rule(|x| x * x, 0.0, 1.0, 1000);
 /// assert!((result - 1.0/3.0).abs() < 1e-6);
@@ -112,12 +112,12 @@ where
 {
     let h = (b - a) / n as f64;
     let mut sum = 0.5 * (f(a) + f(b));
-    
+
     for i in 1..n {
         let x = a + i as f64 * h;
         sum += f(x);
     }
-    
+
     sum * h
 }
 
@@ -142,7 +142,7 @@ mod tests {
         // 直線の弧長：r'(t) = (1, 0) でt∈[0,1]
         let line_derivative = |_t: f64| TestVector2D { x: 1.0, y: 0.0 };
         let arc_length = newton_arc_length(line_derivative, 0.0, 1.0, 100);
-        
+
         // 理論値: 1.0
         assert!((arc_length - 1.0).abs() < 1e-10);
     }
@@ -150,11 +150,11 @@ mod tests {
     #[test]
     fn test_newton_arc_length_circle() {
         // 半径1の円の弧長：r'(t) = (-sin(t), cos(t))
-        let circle_derivative = |t: f64| TestVector2D { 
-            x: -t.sin(), 
-            y: t.cos() 
+        let circle_derivative = |t: f64| TestVector2D {
+            x: -t.sin(),
+            y: t.cos(),
         };
-        
+
         // 半周の弧長を計算（理論値: π）
         let arc_length = newton_arc_length(circle_derivative, 0.0, std::f64::consts::PI, 1000);
         assert!((arc_length - std::f64::consts::PI).abs() < 1e-3);
@@ -164,7 +164,7 @@ mod tests {
     fn test_trapezoidal_rule_quadratic() {
         // ∫₀¹ x² dx = 1/3 を計算
         let result = trapezoidal_rule(|x| x * x, 0.0, 1.0, 1000);
-        assert!((result - 1.0/3.0).abs() < 1e-6);
+        assert!((result - 1.0 / 3.0).abs() < 1e-6);
     }
 
     #[test]

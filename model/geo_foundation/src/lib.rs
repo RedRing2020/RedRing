@@ -18,6 +18,9 @@ pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 // Core Traits - 基本機能抽象化（主要インターフェース）
 pub mod core;
 
+// Commons - 共通計算トレイト
+pub mod commons;
+
 // Extension Traits - 拡張操作トレイト群
 pub mod extensions;
 
@@ -51,6 +54,10 @@ pub use core::{
         Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
     },
     circle_traits::Circle2D as Circle2DTrait,
+    ellipse_core_traits::{
+        Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
+        Ellipse3DMeasure, Ellipse3DProperties,
+    },
     infinite_line_core_traits::{
         InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure,
         InfiniteLine2DProperties, InfiniteLine3DConstructor, InfiniteLine3DCore,
@@ -129,6 +136,14 @@ pub mod prelude {
     // Core Transform Errorルート(段階的移行用)
     pub use crate::{CoreSafeTransform, CoreTransformError};
     pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
+
+    // Ellipse Calculation Traits (commons経由)
+    pub use crate::commons::{
+        EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
+    };
+
+    // Commons Bridge - geo_commons への Foundation Pattern準拠アクセス
+    pub use geo_commons as commons;
 
     // Note: 具体的な幾何型は geo_primitives から直接 import してください
 }
