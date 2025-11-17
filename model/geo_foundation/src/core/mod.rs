@@ -9,6 +9,7 @@
 pub mod bbox_core_traits; // BBox Core traits (Constructor/Properties/Measure)
 pub mod circle_core_traits; // Circle Core traits (Constructor/Properties/Measure)
 pub mod direction_core_traits; // Direction Core traits (Constructor/Properties/Measure)
+pub mod ellipse_arc_core_traits; // EllipseArc Core traits (Constructor/Properties/Measure)
 pub mod ellipse_core_traits; // Ellipse Core traits (Constructor/Properties/Measure)
 pub mod infinite_line_core_traits; // InfiniteLine Core traits (Constructor/Properties/Measure)
 pub mod linesegment_core_traits; // LineSegment Core traits (Constructor/Properties/Measure)

@@ -54,6 +54,11 @@ pub use core::{
         Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
     },
     circle_traits::Circle2D as Circle2DTrait,
+    ellipse_arc_core_traits::{
+        EllipseArc2DConstructor, EllipseArc2DCore, EllipseArc2DMeasure, EllipseArc2DProperties,
+        EllipseArc3DConstructor, EllipseArc3DCore, EllipseArc3DMeasure, EllipseArc3DProperties,
+        EllipseArcParametric, EllipseArcSampling,
+    },
     ellipse_core_traits::{
         Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
         Ellipse3DMeasure, Ellipse3DProperties,

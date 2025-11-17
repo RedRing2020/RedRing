@@ -4,7 +4,6 @@
 
 use crate::{BBox2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{Angle, Scalar};
-// use geo_foundation::core::arc_traits::Arc2D; // 未使用のため一時的にコメントアウト
 
 /// 2次元楕円弧
 ///
@@ -231,3 +230,5 @@ impl<T: Scalar> EllipseArc2D<T> {
         self.contains_point(point, tolerance)
     }
 }
+
+// TODO: Foundation実装は後で段階的に追加
