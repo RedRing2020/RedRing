@@ -19,6 +19,10 @@ pub mod gaussian; // ガウス消去法
 pub mod lu; // LU分解法
 pub mod newton; // ニュートン・ラフソン法
 
+// テストモジュール
+#[cfg(test)]
+pub mod solver_tests;
+
 pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;
 pub use lu::LUSolver;
