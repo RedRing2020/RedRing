@@ -1,11 +1,23 @@
-//! 連立一次方程式ソルバーモジュール
+//! 方程式ソルバーモジュール
 //!
-//! 直接法と反復法の各種ソルバーを提供
-//! - 直接法：ガウス消去法、LU分解法、コレスキー分解法
-//! - 反復法：ヤコビ法、ガウス・ザイデル法、SOR法
+//! 線形方程式と非線形方程式の各種ソルバーを提供
+//! - 線形方程式：ガウス消去法、LU分解法、クラメール法
+//! - 非線形方程式：ニュートン・ラフソン法
+//!
+//! ## 使用例
+//! ```rust
+//! use analysis::linalg::solver::newton::{newton_solve, newton_inverse};
+//! 
+//! // 非線形方程式 f(x) = x^2 - 2 = 0 の解（√2を求める）
+//! let f = |x: f64| x * x - 2.0;
+//! let df = |x: f64| 2.0 * x;
+//! let result = newton_solve(f, df, 1.0, 100, 1e-10);
+//! assert!(result.is_some());
+//! ```
 pub mod cramer;
 pub mod gaussian; // ガウス消去法
-pub mod lu; // LU分解法 // Cramerの公式（既存）
+pub mod lu; // LU分解法
+pub mod newton; // ニュートン・ラフソン法
 
 pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;

@@ -37,4 +37,5 @@ pub use consts::{
 };
 
 // 数値計算関数の再エクスポート（numericsモジュールから）
-pub use crate::numerics::{newton_arc_length, newton_inverse, newton_solve, NormedVector};
+pub use crate::numerics::{newton_arc_length, trapezoidal_rule, NormedVector};
+pub use crate::linalg::solver::newton::{newton_solve, newton_inverse};
