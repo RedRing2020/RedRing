@@ -6,9 +6,11 @@
 // ============================================================================
 // New Core Traits (ハイブリッド方針: Core3機能統合 + Transform共通)
 // ============================================================================
+pub mod bbox_core_traits; // BBox Core traits (Constructor/Properties/Measure)
 pub mod circle_core_traits; // Circle Core traits (Constructor/Properties/Measure)
 pub mod direction_core_traits; // Direction Core traits (Constructor/Properties/Measure)
 pub mod infinite_line_core_traits; // InfiniteLine Core traits (Constructor/Properties/Measure)
+pub mod linesegment_core_traits; // LineSegment Core traits (Constructor/Properties/Measure)
 pub mod point_core_traits;
 pub mod ray_core_traits; // Ray Core traits (Constructor/Properties/Measure)
 pub mod transform; // extensionsから移動した共通Transformトレイト群

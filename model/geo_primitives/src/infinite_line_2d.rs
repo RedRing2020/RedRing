@@ -220,7 +220,8 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 
     fn y_intercept(&self) -> Option<T> {
-        self.slope().map(|slope| self.point().y() - slope * self.point().x())
+        self.slope()
+            .map(|slope| self.point().y() - slope * self.point().x())
     }
 
     fn x_intercept(&self) -> Option<T> {
@@ -285,7 +286,8 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
     }
 
     fn intersection(&self, other: &Self) -> Option<(T, T)> {
-        self.intersection(other).map(|intersection_point| (intersection_point.x(), intersection_point.y()))
+        self.intersection(other)
+            .map(|intersection_point| (intersection_point.x(), intersection_point.y()))
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {

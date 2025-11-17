@@ -104,6 +104,7 @@ pub mod triangle_mesh_3d_tests;
 // pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装 - Arc2D依存のため一時無効化
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
+pub mod bbox_2d_foundation; // BBox2D のFoundation実装
 pub mod circle_2d; // Circle2D の新実装 (Core)
                    // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
                    // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
