@@ -9,3 +9,6 @@ pub mod ellipse_calculation_traits;
 pub use ellipse_calculation_traits::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
+
+// geo_commonsから距離計算関数を再エクスポート
+pub use geo_commons::{ellipse_2d_distance_to_point, ellipse_3d_distance_to_point};

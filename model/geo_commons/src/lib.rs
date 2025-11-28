@@ -29,3 +29,4 @@ pub use metrics::area_volume::{
     circle_area, cone_volume, cylinder_volume, ellipse_area, polygon_area, sphere_volume,
     triangle_area, triangle_area_from_coords,
 };
+pub use metrics::distance::{ellipse_2d_distance_to_point, ellipse_3d_distance_to_point};

@@ -234,25 +234,14 @@ impl<T: Scalar> Ellipse3D<T> {
         let n = self.normal.as_vector();
         let z_local = translated.dot(&n);
         
-        // 正規化された楕円座標での距離計算
-        let x_norm = x_local / self.semi_major_axis;
-        let y_norm = y_local / self.semi_minor_axis;
-        let normalized_distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
-        
-        // 平面内距離
-        let planar_distance = if normalized_distance <= T::ONE {
-            T::ZERO
-        } else {
-            let scale = T::ONE / normalized_distance;
-            let boundary_x = x_local * scale;
-            let boundary_y = y_local * scale;
-            ((x_local - boundary_x) * (x_local - boundary_x)
-                + (y_local - boundary_y) * (y_local - boundary_y))
-                .sqrt()
-        };
-        
-        // 平面外距離を含めた総距離
-        (planar_distance * planar_distance + z_local * z_local).sqrt()
+        // geo_commonsの共通実装を使用
+        geo_foundation::commons::ellipse_3d_distance_to_point(
+            x_local,
+            y_local,
+            z_local,
+            self.semi_major_axis,
+            self.semi_minor_axis,
+        )
     }
 }
 

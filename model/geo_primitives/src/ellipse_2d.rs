@@ -157,25 +157,13 @@ impl<T: Scalar> Ellipse2D<T> {
         let x_rot = translated.x() * cos_theta + translated.y() * sin_theta;
         let y_rot = -translated.x() * sin_theta + translated.y() * cos_theta;
 
-        // 正規化された楕円座標での距離計算
-        let x_norm = x_rot / self.semi_major;
-        let y_norm = y_rot / self.semi_minor;
-        let normalized_distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
-
-        if normalized_distance <= T::ONE {
-            // 点が楕円内部にある場合
-            T::ZERO
-        } else {
-            // 点が楕円外部にある場合の近似距離
-            // より正確な計算には数値的手法が必要
-            let scale = T::ONE / normalized_distance;
-            let boundary_x = x_rot * scale;
-            let boundary_y = y_rot * scale;
-
-            ((x_rot - boundary_x) * (x_rot - boundary_x)
-                + (y_rot - boundary_y) * (y_rot - boundary_y))
-                .sqrt()
-        }
+        // geo_commonsの共通実装を使用
+        geo_foundation::commons::ellipse_2d_distance_to_point(
+            x_rot,
+            y_rot,
+            self.semi_major,
+            self.semi_minor,
+        )
     }
 
     /// パラメータ t での点を取得（0 <= t < 2π）
