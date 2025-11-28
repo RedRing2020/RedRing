@@ -384,6 +384,92 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 }
 
 // ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::{
+    CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DMeasure,
+    CylindricalSurface3DProperties,
+};
+
+impl<T: Scalar> CylindricalSurface3DConstructor<T> for CylindricalSurface3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+        _height: T, // 未使用：サーフェスは高さを持たない
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
+        Self::new(center_point, axis_vector, ref_vector, radius)
+    }
+
+    fn new_standard(center: (T, T, T), radius: T, _height: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::new_z_axis(center_point, radius)
+    }
+
+    fn unit_cylinder_surface() -> Self {
+        Self::new_z_axis(Point3D::origin(), T::ONE)
+            .expect("Unit cylinder surface should always be valid")
+    }
+}
+
+impl<T: Scalar> CylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius()
+    }
+
+    fn height(&self) -> T {
+        T::ZERO // サーフェスは高さを持たない
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn diameter(&self) -> T {
+        self.radius() * T::from_f64(2.0)
+    }
+}
+
+impl<T: Scalar> CylindricalSurface3DMeasure<T> for CylindricalSurface3D<T> {
+    fn surface_area(&self) -> T {
+        T::ZERO // 無限円柱面は無限大の表面積
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        let p = self.point_at_uv(u, v);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn normal_at(&self, u: T, _v: T) -> (T, T, T) {
+        let n = self.normal_at_uv(u, T::ZERO);
+        (n.x(), n.y(), n.z())
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(point_3d)
+    }
+}
+
+impl<T: Scalar> CylindricalSurface3DCore<T> for CylindricalSurface3D<T> {}
+
+// ============================================================================
 // Display Implementation
 // ============================================================================
 

@@ -350,6 +350,97 @@ impl<T: Scalar> ConicalSolid3D<T> {
 }
 
 // ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::{
+    ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure, ConicalSolid3DProperties,
+};
+
+impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
+    fn new(
+        apex: (T, T, T),
+        _base_center: (T, T, T), // 未使用
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+        height: T,
+    ) -> Option<Self> {
+        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
+        Self::new(apex_point, axis_vector, ref_vector, radius, height)
+    }
+
+    fn new_standard(base_center: (T, T, T), radius: T, height: T) -> Option<Self> {
+        let center_point = Point3D::new(base_center.0, base_center.1, base_center.2);
+        Self::new_standard(center_point, radius, height)
+    }
+
+    fn unit_cone() -> Self {
+        Self::new_at_origin(T::ONE, T::from_f64(2.0)).expect("Unit cone should always be valid")
+    }
+}
+
+impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
+    fn apex(&self) -> (T, T, T) {
+        let a = self.apex();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn base_center(&self) -> (T, T, T) {
+        let b = self.base_center();
+        (b.x(), b.y(), b.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius()
+    }
+
+    fn height(&self) -> T {
+        self.height()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn slant_height(&self) -> T {
+        let r = self.radius();
+        let h = self.height();
+        (r * r + h * h).sqrt()
+    }
+}
+
+impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
+    fn volume(&self) -> T {
+        self.volume()
+    }
+
+    fn surface_area(&self) -> T {
+        self.surface_area()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.contains_point(point_3d)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(point_3d).abs()
+    }
+}
+
+impl<T: Scalar> ConicalSolid3DCore<T> for ConicalSolid3D<T> {}
+
+// ============================================================================
 // Display Implementation
 // ============================================================================
 

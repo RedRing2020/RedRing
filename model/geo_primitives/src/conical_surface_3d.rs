@@ -470,6 +470,111 @@ impl<T: Scalar> ConicalSurface3D<T> {
 }
 
 // ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::{
+    ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DMeasure,
+    ConicalSurface3DProperties,
+};
+
+impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
+    fn new(
+        apex: (T, T, T),
+        _base_center: (T, T, T), // 未使用
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+        height: T,
+    ) -> Option<Self> {
+        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
+        // semi_angle = arctan(radius / height)
+        let semi_angle = (radius / height).atan();
+        Self::new(apex_point, axis_vector, ref_vector, radius, semi_angle)
+    }
+
+    fn new_standard(_base_center: (T, T, T), radius: T, height: T) -> Option<Self> {
+        let semi_angle = (radius / height).atan();
+        Self::new_at_origin(radius, semi_angle)
+    }
+
+    fn unit_cone_surface() -> Self {
+        let semi_angle = (T::ONE / T::from_f64(2.0)).atan();
+        Self::new_at_origin(T::ONE, semi_angle).expect("Unit cone surface should always be valid")
+    }
+}
+
+impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
+    fn apex(&self) -> (T, T, T) {
+        let a = self.center();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn base_center(&self) -> (T, T, T) {
+        let axis_vec = self.axis().as_vector();
+        let height = self.radius() / self.semi_angle().tan();
+        let b = Point3D::new(
+            self.center().x() + axis_vec.x() * height,
+            self.center().y() + axis_vec.y() * height,
+            self.center().z() + axis_vec.z() * height,
+        );
+        (b.x(), b.y(), b.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius()
+    }
+
+    fn height(&self) -> T {
+        self.radius() / self.semi_angle().tan()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn slant_height(&self) -> T {
+        let height = self.height();
+        let radius = self.radius();
+        (height * height + radius * radius).sqrt()
+    }
+}
+
+impl<T: Scalar> ConicalSurface3DMeasure<T> for ConicalSurface3D<T> {
+    fn surface_area(&self) -> T {
+        T::PI * self.radius() * self.slant_height()
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        let p = self.point_at_uv(u, v);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
+        if let Some(n) = self.normal_at_uv(u, v) {
+            (n.x(), n.y(), n.z())
+        } else {
+            (T::ZERO, T::ZERO, T::ONE) // フォールバック
+        }
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(&point_3d)
+    }
+}
+
+impl<T: Scalar> ConicalSurface3DCore<T> for ConicalSurface3D<T> {}
+
+// ============================================================================
 // Standard Traits
 // ============================================================================
 

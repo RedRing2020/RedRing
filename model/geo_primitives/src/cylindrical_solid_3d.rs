@@ -337,6 +337,92 @@ impl<T: Scalar> std::fmt::Display for CylindricalSolid3D<T> {
 }
 
 // ============================================================================
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::{
+    CylindricalSolid3DConstructor, CylindricalSolid3DCore, CylindricalSolid3DMeasure,
+    CylindricalSolid3DProperties,
+};
+
+impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+        height: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
+        Self::new(center_point, axis_vector, ref_vector, radius, height)
+    }
+
+    fn new_standard(center: (T, T, T), radius: T, height: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::new_z_axis(center_point, radius, height)
+    }
+
+    fn unit_cylinder() -> Self {
+        Self::new_z_axis(Point3D::origin(), T::ONE, T::from_f64(2.0))
+            .expect("Unit cylinder should always be valid")
+    }
+}
+
+impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius()
+    }
+
+    fn height(&self) -> T {
+        self.height()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn diameter(&self) -> T {
+        self.radius() * T::from_f64(2.0)
+    }
+}
+
+impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
+    fn volume(&self) -> T {
+        self.volume()
+    }
+
+    fn surface_area(&self) -> T {
+        self.surface_area()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.contains_point(point_3d)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(point_3d).abs()
+    }
+}
+
+impl<T: Scalar> CylindricalSolid3DCore<T> for CylindricalSolid3D<T> {}
+
+// ============================================================================
 // Backward Compatibility (移行期間中のみ)
 // ============================================================================
 

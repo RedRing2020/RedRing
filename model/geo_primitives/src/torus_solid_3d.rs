@@ -207,3 +207,99 @@ impl<T: Scalar> TorusSolid3D<T> {
         cross_section_distance <= self.minor_radius
     }
 }
+
+use geo_foundation::{
+    TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure, TorusSolid3DProperties,
+};
+
+impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
+    fn new(
+        origin: (T, T, T),
+        axis_vector: (T, T, T),
+        ref_vector: (T, T, T),
+        major_radius: T,
+        minor_radius: T,
+    ) -> Option<Self> {
+        let origin = Point3D::new(origin.0, origin.1, origin.2);
+        let axis =
+            Direction3D::from_vector(Vector3D::new(axis_vector.0, axis_vector.1, axis_vector.2))?;
+        let x_axis =
+            Direction3D::from_vector(Vector3D::new(ref_vector.0, ref_vector.1, ref_vector.2))?;
+        Self::new(origin, axis, x_axis, major_radius, minor_radius)
+    }
+
+    fn new_standard(center: (T, T, T), major_radius: T, minor_radius: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::standard(major_radius, minor_radius).map(|mut t| {
+            // standardは原点中心なので、centerに移動
+            t.origin = center_point;
+            t
+        })
+    }
+
+    fn unit_torus() -> Self {
+        Self::minimal().unwrap()
+    }
+}
+
+impl<T: Scalar> TorusSolid3DProperties<T> for TorusSolid3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let o = self.origin();
+        (o.x(), o.y(), o.z())
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.z_axis();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.x_axis();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn major_radius(&self) -> T {
+        self.major_radius()
+    }
+
+    fn minor_radius(&self) -> T {
+        self.minor_radius()
+    }
+
+    fn tube_diameter(&self) -> T {
+        self.minor_radius() * T::from_f64(2.0)
+    }
+}
+
+impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
+    fn volume(&self) -> T {
+        self.volume()
+    }
+
+    fn surface_area(&self) -> T {
+        self.surface_area()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.contains_point(&p)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        // 簡易実装: トーラス表面への最短距離の近似計算
+        let local = p - *self.origin();
+        let z_component = local.dot(&self.z_axis().as_vector());
+        let radial_vector = local - (self.z_axis().as_vector() * z_component);
+        let radial_distance = (radial_vector.x() * radial_vector.x()
+            + radial_vector.y() * radial_vector.y()
+            + radial_vector.z() * radial_vector.z())
+        .sqrt();
+        let torus_center_distance = (radial_distance - self.major_radius()).abs();
+        let cross_section_distance =
+            (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
+        (cross_section_distance - self.minor_radius()).abs()
+    }
+}
+
+impl<T: Scalar> TorusSolid3DCore<T> for TorusSolid3D<T> {}

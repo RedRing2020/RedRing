@@ -452,3 +452,122 @@ impl<T: Scalar> std::fmt::Display for EllipsoidalSurface3D<T> {
         )
     }
 }
+
+use geo_foundation::{
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
+    EllipsoidalSurface3DProperties,
+};
+
+impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis_vector: (T, T, T),
+        ref_vector: (T, T, T),
+        semi_axis_a: T,
+        semi_axis_b: T,
+        semi_axis_c: T,
+    ) -> Option<Self> {
+        let center = Point3D::new(center.0, center.1, center.2);
+        let axis_vec = Vector3D::new(axis_vector.0, axis_vector.1, axis_vector.2);
+        let ref_vec = Vector3D::new(ref_vector.0, ref_vector.1, ref_vector.2);
+        Self::new(
+            center,
+            axis_vec,
+            ref_vec,
+            semi_axis_a,
+            semi_axis_b,
+            semi_axis_c,
+        )
+    }
+
+    fn new_standard(
+        center: (T, T, T),
+        semi_axis_a: T,
+        semi_axis_b: T,
+        semi_axis_c: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
+        let ref_direction = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
+        Self::new(
+            center_point,
+            axis,
+            ref_direction,
+            semi_axis_a,
+            semi_axis_b,
+            semi_axis_c,
+        )
+    }
+
+    fn unit_ellipsoid_surface() -> Self {
+        Self::new_spherical(Point3D::origin(), T::ONE).unwrap()
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn semi_axis_a(&self) -> T {
+        self.a_radius()
+    }
+
+    fn semi_axis_b(&self) -> T {
+        self.b_radius()
+    }
+
+    fn semi_axis_c(&self) -> T {
+        self.c_radius()
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
+    fn surface_area(&self) -> T {
+        // 楕円体の表面積は解析解がないため、近似値を返す
+        // Knud Thomsen's formula を使用
+        let a = self.a_radius();
+        let b = self.b_radius();
+        let c = self.c_radius();
+        let p = T::from_f64(1.6075);
+        let ap = a.powf(p);
+        let bp = b.powf(p);
+        let cp = c.powf(p);
+        let numerator = ap * bp + bp * cp + cp * ap;
+        let four = T::from_f64(4.0);
+        let three = T::from_f64(3.0);
+        let pi = T::from_f64(std::f64::consts::PI);
+        four * pi * (numerator / three).powf(T::ONE / p)
+    }
+
+    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
+        if let Some(n) = self.normal_at_uv(u, v) {
+            (n.x(), n.y(), n.z())
+        } else {
+            (T::ZERO, T::ZERO, T::ONE)
+        }
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        let p = self.point_at_uv(u, v);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(&p)
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DCore<T> for EllipsoidalSurface3D<T> {}
