@@ -458,6 +458,8 @@ impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse2D<T> {}
 // ============================================================================
 
 impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
+    // ========== Phase 1 実装 ==========
+
     fn new(center: (T, T), semi_major: T, semi_minor: T, rotation: T) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
         Self::new(center_point, semi_major, semi_minor, rotation)
@@ -472,9 +474,54 @@ impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
         let c = Point2D::new(center.0, center.1);
         Self::new(c, semi_major, semi_minor, T::ZERO)
     }
+
+    // ========== Phase 2 実装 ==========
+
+    fn from_circle(center: (T, T), radius: T) -> Self {
+        let c = Point2D::new(center.0, center.1);
+        Self::new(c, radius, radius, T::ZERO)
+            .expect("Circle should be a valid ellipse")
+    }
+
+    fn from_foci_and_semi_major(
+        focus1: (T, T),
+        focus2: (T, T),
+        semi_major: T,
+    ) -> Option<Self> {
+        let f1 = Point2D::new(focus1.0, focus1.1);
+        let f2 = Point2D::new(focus2.0, focus2.1);
+
+        // 中心点は焦点の中点
+        let center = Point2D::new(
+            (f1.x() + f2.x()) / (T::ONE + T::ONE),
+            (f1.y() + f2.y()) / (T::ONE + T::ONE),
+        );
+
+        // 焦点間距離の半分 = c
+        let focal_vec = Vector2D::from_points(f1, f2);
+        let two_c = focal_vec.length();
+        let c = two_c / (T::ONE + T::ONE);
+
+        // b = sqrt(a^2 - c^2)
+        if c > semi_major {
+            return None; // 無効な楕円
+        }
+        let semi_minor = (semi_major * semi_major - c * c).sqrt();
+
+        // 回転角を算出（f1 -> f2 の方向）
+        let rotation = focal_vec.y().atan2(focal_vec.x());
+
+        Self::new(center, semi_major, semi_minor, rotation)
+    }
+
+    fn centered_at_origin(semi_major: T, semi_minor: T, rotation: T) -> Option<Self> {
+        Self::new(Point2D::origin(), semi_major, semi_minor, rotation)
+    }
 }
 
 impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
+    // ========== Phase 1 実装 ==========
+
     fn center(&self) -> (T, T) {
         (self.center.x(), self.center.y())
     }
@@ -494,9 +541,27 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
     fn eccentricity(&self) -> T {
         self.eccentricity()
     }
+
+    // ========== Phase 2 実装 ==========
+
+    fn focal_distance(&self) -> T {
+        geo_foundation::commons::EllipseCalculation::focal_distance(self)
+    }
+
+    fn focus1(&self) -> (T, T) {
+        let (f1, _) = self.foci();
+        (f1.x(), f1.y())
+    }
+
+    fn focus2(&self) -> (T, T) {
+        let (_, f2) = self.foci();
+        (f2.x(), f2.y())
+    }
 }
 
 impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
+    // ========== Phase 1 実装 ==========
+
     fn measure(&self) -> T {
         self.area()
     }
@@ -514,5 +579,49 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
     fn is_circle(&self) -> bool {
         let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
         self.is_circle(tolerance)
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        // パラメトリック方程式で楕円上の点を計算
+        let cos_t = t.cos();
+        let sin_t = t.sin();
+        let cos_rot = self.rotation.cos();
+        let sin_rot = self.rotation.sin();
+
+        // ローカル座標系での点
+        let x_local = self.semi_major * cos_t;
+        let y_local = self.semi_minor * sin_t;
+
+        // 回転変換
+        let x_rotated = x_local * cos_rot - y_local * sin_rot;
+        let y_rotated = x_local * sin_rot + y_local * cos_rot;
+
+        // 中心移動
+        (
+            self.center.x() + x_rotated,
+            self.center.y() + y_rotated,
+        )
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
+    }
+
+    fn point_on_boundary(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        // 点が楕円上にあるか判定：点から楕円周への距離が許容誤差以内
+        let dist = self.distance_to_point(&p);
+        dist <= tolerance
+    }
+
+    fn linear_eccentricity(&self) -> T {
+        // 線形離心率 c = sqrt(a^2 - b^2)
+        let a = self.semi_major;
+        let b = self.semi_minor;
+        (a * a - b * b).sqrt()
     }
 }

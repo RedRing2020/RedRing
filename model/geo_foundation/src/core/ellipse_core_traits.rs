@@ -11,8 +11,9 @@ use crate::Scalar;
 // Ellipse2D Core Traits
 // ============================================================================
 
-/// Ellipse2D Constructor トレイト（3メソッド）
+/// Ellipse2D Constructor トレイト（3+3メソッド）
 pub trait Ellipse2DConstructor<T: Scalar>: Sized {
+    // ========== Phase 1 実装 ==========
     /// 中心、長軸、短軸、回転角から楕円を作成
     fn new(center: (T, T), semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;
 
@@ -21,10 +22,25 @@ pub trait Ellipse2DConstructor<T: Scalar>: Sized {
 
     /// 軸に平行な楕円を作成（回転なし）
     fn axis_aligned(center: (T, T), semi_major: T, semi_minor: T) -> Option<Self>;
+
+    // ========== Phase 2 実装 ==========
+    /// 円から楕円を作成
+    fn from_circle(center: (T, T), radius: T) -> Self;
+
+    /// 焦点と長半軸から楕円を作成
+    fn from_foci_and_semi_major(
+        focus1: (T, T),
+        focus2: (T, T),
+        semi_major: T,
+    ) -> Option<Self>;
+
+    /// 原点中心の楕円を作成
+    fn centered_at_origin(semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;
 }
 
-/// Ellipse2D Properties トレイト（5メソッド）
+/// Ellipse2D Properties トレイト（5+3メソッド）
 pub trait Ellipse2DProperties<T: Scalar> {
+    // ========== Phase 1 実装 ==========
     /// 中心座標を取得
     fn center(&self) -> (T, T);
 
@@ -39,10 +55,21 @@ pub trait Ellipse2DProperties<T: Scalar> {
 
     /// 離心率を取得
     fn eccentricity(&self) -> T;
+
+    // ========== Phase 2 実装 ==========
+    /// 焦点間距離を取得
+    fn focal_distance(&self) -> T;
+
+    /// 第1焦点を取得
+    fn focus1(&self) -> (T, T);
+
+    /// 第2焦点を取得
+    fn focus2(&self) -> (T, T);
 }
 
-/// Ellipse2D Measure トレイト（4メソッド）
+/// Ellipse2D Measure トレイト（4+4メソッド）
 pub trait Ellipse2DMeasure<T: Scalar> {
+    // ========== Phase 1 実装 ==========
     /// 楕円の面積（測度）を計算
     fn measure(&self) -> T;
 
@@ -54,6 +81,19 @@ pub trait Ellipse2DMeasure<T: Scalar> {
 
     /// 楕円が円かどうか判定
     fn is_circle(&self) -> bool;
+
+    // ========== Phase 2 実装 ==========
+    /// パラメータ t における楕円上の点を取得（0 <= t < 2π）
+    fn point_at_parameter(&self, t: T) -> (T, T);
+
+    /// 点から楕円周への最短距離を計算
+    fn distance_to_point(&self, point: (T, T)) -> T;
+
+    /// 楕円周上の点かどうか判定
+    fn point_on_boundary(&self, point: (T, T)) -> bool;
+
+    /// 楕円の線形離心率を取得
+    fn linear_eccentricity(&self) -> T;
 }
 
 /// Ellipse2D Core トレイト（統合インターフェース）
