@@ -3,7 +3,16 @@
 //! Foundation統一システムに基づくPoint3Dの必須機能のみ
 
 use crate::Vector3D;
-use geo_foundation::{core::point_traits, Scalar};
+use analysis::linalg::vector::Vector3;
+use geo_foundation::{
+    core::{
+        point_core_traits::{
+            Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties,
+        },
+        point_traits,
+    },
+    Scalar,
+};
 
 /// 3次元空間の点
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -221,6 +230,100 @@ impl<T: Scalar> point_traits::Point3D<T> for Point3D<T> {
         self.z
     }
 }
+
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
+    fn new(x: T, y: T, z: T) -> Self {
+        Point3D::new(x, y, z)
+    }
+
+    fn origin() -> Self {
+        Point3D::origin()
+    }
+
+    fn from_tuple(coords: (T, T, T)) -> Self {
+        Point3D::from_tuple(coords)
+    }
+
+    fn from_analysis_vector(vector: &Vector3<T>) -> Self {
+        Point3D::new(vector.x(), vector.y(), vector.z())
+    }
+
+    fn from_point(other: &Self) -> Self {
+        *other
+    }
+
+    fn from_spherical(r: T, theta: T, phi: T) -> Self {
+        Point3D::from_spherical(r, theta, phi)
+    }
+}
+
+impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
+    fn x(&self) -> T {
+        self.x()
+    }
+
+    fn y(&self) -> T {
+        self.y()
+    }
+
+    fn z(&self) -> T {
+        self.z()
+    }
+
+    fn coords(&self) -> [T; 3] {
+        self.coords()
+    }
+
+    fn to_tuple(&self) -> (T, T, T) {
+        (self.x(), self.y(), self.z())
+    }
+
+    fn to_analysis_vector(&self) -> Vector3<T> {
+        Vector3::new(self.x(), self.y(), self.z())
+    }
+}
+
+impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        self.distance_to(other)
+    }
+
+    fn distance_squared_to(&self, other: &Self) -> T {
+        self.distance_squared_to(other)
+    }
+
+    fn distance_from_origin(&self) -> T {
+        let origin = Point3D::origin();
+        self.distance_to(&origin)
+    }
+
+    fn norm_squared(&self) -> T {
+        let origin = Point3D::origin();
+        self.distance_squared_to(&origin)
+    }
+
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
+    }
+
+    fn manhattan_distance_to(&self, other: &Self) -> T {
+        self.manhattan_distance_to(other)
+    }
+
+    fn chebyshev_distance_to(&self, other: &Self) -> T {
+        self.chebyshev_distance_to(other)
+    }
+}
+
+impl<T: Scalar> Point3DCore<T> for Point3D<T> {}
 
 // ============================================================================
 // From trait implementations

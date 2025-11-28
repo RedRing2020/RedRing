@@ -3,7 +3,16 @@
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
 use crate::Vector2D;
-use geo_foundation::{core::point_traits, Scalar};
+use analysis::linalg::vector::Vector2;
+use geo_foundation::{
+    core::{
+        point_core_traits::{
+            Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties,
+        },
+        point_traits,
+    },
+    Scalar,
+};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -351,3 +360,97 @@ impl<T: Scalar> point_traits::Point2D<T> for Point2D<T> {
         self.y
     }
 }
+
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
+    fn new(x: T, y: T) -> Self {
+        Point2D::new(x, y)
+    }
+
+    fn origin() -> Self {
+        Point2D::origin()
+    }
+
+    fn from_tuple(coords: (T, T)) -> Self {
+        Point2D::from_tuple(coords)
+    }
+
+    fn from_analysis_vector(vector: &Vector2<T>) -> Self {
+        Point2D::new(vector.x(), vector.y())
+    }
+
+    fn from_point(other: &Self) -> Self {
+        *other
+    }
+
+    fn from_polar(r: T, theta: T) -> Self {
+        Point2D::from_polar(r, theta)
+    }
+}
+
+impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
+    fn x(&self) -> T {
+        self.x()
+    }
+
+    fn y(&self) -> T {
+        self.y()
+    }
+
+    fn coords(&self) -> [T; 2] {
+        self.coords()
+    }
+
+    fn to_tuple(&self) -> (T, T) {
+        self.to_tuple()
+    }
+
+    fn to_analysis_vector(&self) -> Vector2<T> {
+        Vector2::new(self.x(), self.y())
+    }
+
+    fn polar_radius(&self) -> T {
+        self.polar_radius()
+    }
+}
+
+impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        self.distance_to(other)
+    }
+
+    fn distance_squared_to(&self, other: &Self) -> T {
+        self.distance_squared_to(other)
+    }
+
+    fn distance_from_origin(&self) -> T {
+        let origin = Point2D::origin();
+        self.distance_to(&origin)
+    }
+
+    fn norm_squared(&self) -> T {
+        let origin = Point2D::origin();
+        self.distance_squared_to(&origin)
+    }
+
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
+    }
+
+    fn manhattan_distance_to(&self, other: &Self) -> T {
+        self.manhattan_distance_to(other)
+    }
+
+    fn chebyshev_distance_to(&self, other: &Self) -> T {
+        self.chebyshev_distance_to(other)
+    }
+}
+
+impl<T: Scalar> Point2DCore<T> for Point2D<T> {}
