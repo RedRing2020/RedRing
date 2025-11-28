@@ -221,9 +221,9 @@ mod tests {
         let b = 3.0;
         let perimeter = ellipse_perimeter_ramanujan_i(a, b);
 
-        // 期待値は約25.53（参考値）
+        // 期待値は約25.53(参考値)
         assert!(perimeter > 25.0 && perimeter < 26.0);
-        assert_abs_diff_eq!(perimeter, 25.526999519494658, epsilon = 0.01);
+        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.01);
     }
 
     #[test]
@@ -234,7 +234,7 @@ mod tests {
 
         // ラマヌジャンII近似は高精度
         assert!(perimeter > 25.5 && perimeter < 25.6);
-        assert_abs_diff_eq!(perimeter, 25.526999519494658, epsilon = 0.001);
+        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.001);
     }
 
     #[test]
@@ -265,7 +265,7 @@ mod tests {
 
         // 級数展開は項数が多いほど高精度
         assert!(perimeter > 25.0 && perimeter < 26.0);
-        assert_abs_diff_eq!(perimeter, 25.526999519494658, epsilon = 0.1);
+        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.1);
     }
 
     #[test]
@@ -275,7 +275,7 @@ mod tests {
         let perimeter = ellipse_circumference_numerical(a, b, 1000);
 
         // 数値積分は最も高精度
-        assert_abs_diff_eq!(perimeter, 25.526999519494658, epsilon = 0.01);
+        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.01);
     }
 
     #[test]

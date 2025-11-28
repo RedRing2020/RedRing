@@ -29,7 +29,7 @@ use crate::DERIVATIVE_ZERO_THRESHOLD;
 /// let f = |x: f64| x * x - 2.0;
 /// let df = |x: f64| 2.0 * x;
 /// let result = newton_solve(f, df, 1.0, 100, 1e-10);
-/// assert!((result.unwrap() - 1.41421356).abs() < 1e-6);
+/// assert!((result.unwrap() - std::f64::consts::SQRT_2).abs() < 1e-6);
 /// ```
 pub fn newton_solve<F, G>(f: F, df: G, initial: f64, max_iter: usize, tol: f64) -> Option<f64>
 where
@@ -101,14 +101,14 @@ mod tests {
 
     #[test]
     fn test_newton_solve_square_root() {
-        // x^2 - 2 = 0 の解を求める（√2を計算）
+        // x^2 - 2 = 0 の解を求める(√2を計算)
         let f = |x: f64| x * x - 2.0;
         let df = |x: f64| 2.0 * x;
         let result = newton_solve(f, df, 1.0, 100, 1e-10);
 
         assert!(result.is_some());
         let sqrt_2 = result.unwrap();
-        assert!((sqrt_2 - 1.41421356).abs() < 1e-6);
+        assert!((sqrt_2 - std::f64::consts::SQRT_2).abs() < 1e-6);
     }
 
     #[test]

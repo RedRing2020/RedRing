@@ -4,7 +4,12 @@
 //! 拡張機能は ellipse_arc_3d_extensions.rs を参照
 
 use crate::{Arc3D, BBox3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_foundation::{Angle, Scalar};
+use geo_foundation::{
+    core::ellipse_arc_core_traits::{
+        EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
+    },
+    Angle, Scalar,
+};
 
 /// 3次元楕円弧
 ///
@@ -249,10 +254,105 @@ impl<T: Scalar> Default for EllipseArc3D<T> {
 }
 
 // ============================================================================
-// Foundation Pattern Implementation
+// Core Traits Implementation (Phase 1)
 // ============================================================================
 
-// Foundation実装は現在は簡略化してコメントアウト
-// TODO: 後で段階的に実装する
+impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
+    fn new(
+        center: (T, T, T),
+        normal: (T, T, T),
+        semi_major: T,
+        semi_minor: T,
+        major_direction: (T, T, T),
+        start_angle: T,
+        end_angle: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
+        let major_vec = Vector3D::new(major_direction.0, major_direction.1, major_direction.2);
+        
+        let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Some(Self::new(ellipse, start, end))
+    }
 
-// TODO: EllipseArc3DのFoundation実装は後で段階的に追加
+    fn xy_plane(
+        center: (T, T, T),
+        semi_major: T,
+        semi_minor: T,
+        rotation: T,
+        start_angle: T,
+        end_angle: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let normal_vec = Vector3D::unit_z();
+        
+        // 回転を考慮した長軸方向
+        let cos_rot = rotation.cos();
+        let sin_rot = rotation.sin();
+        let major_vec = Vector3D::new(cos_rot, sin_rot, T::ZERO);
+        
+        let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Some(Self::new(ellipse, start, end))
+    }
+
+    fn unit_ellipse_arc_xy() -> Self {
+        let center = Point3D::origin();
+        let normal = Vector3D::unit_z();
+        let major_axis = Vector3D::unit_x();
+        let ellipse = Ellipse3D::new(center, T::ONE, T::ONE, normal, major_axis).unwrap();
+        let start = Angle::from_radians(T::ZERO);
+        let end = Angle::from_radians(T::PI / (T::ONE + T::ONE)); // π/2
+        Self::new(ellipse, start, end)
+    }
+}
+
+impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn semi_major_axis(&self) -> T {
+        self.semi_major()
+    }
+
+    fn semi_minor_axis(&self) -> T {
+        self.semi_minor()
+    }
+
+    fn start_angle(&self) -> T {
+        self.start_angle.to_radians()
+    }
+
+    fn end_angle(&self) -> T {
+        self.end_angle.to_radians()
+    }
+}
+
+impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
+    fn measure(&self) -> T {
+        // 楕円弧の長さの簡易近似
+        let full_perimeter = self.ellipse.perimeter();
+        let angle_ratio = self.angle_span() / T::TAU;
+        full_perimeter * angle_ratio
+    }
+
+    fn start_point(&self) -> (T, T, T) {
+        let p = self.start_point();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn end_point(&self) -> (T, T, T) {
+        let p = self.end_point();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        let p = self.point_at_parameter(t);
+        (p.x(), p.y(), p.z())
+    }
+}

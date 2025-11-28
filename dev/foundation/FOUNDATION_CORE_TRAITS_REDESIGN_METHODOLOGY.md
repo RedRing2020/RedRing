@@ -41,7 +41,7 @@ Point2D/Point3D および Vector2D/Vector3D の実装を通じて確立した、
 ```text
 model/geo_foundation/src/core/
 ├── point_traits.rs
-├── vector_traits.rs  
+├── vector_traits.rs
 ├── circle_traits.rs
 └── {shape}_traits.rs
 ```

@@ -4,7 +4,12 @@
 //! 拡張機能は line_segment_2d_extensions.rs を参照
 
 use crate::{BBox2D, InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::linesegment_core_traits::{
+        LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties,
+    },
+    Scalar,
+};
 
 /// 2次元平面の線分
 ///
@@ -219,5 +224,75 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 境界上判定（線分では点上判定と同じ）
     pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.contains_point(point, tolerance)
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
+    fn new(start: (T, T), end: (T, T)) -> Option<Self> {
+        let start_point = Point2D::new(start.0, start.1);
+        let end_point = Point2D::new(end.0, end.1);
+        Self::new(start_point, end_point)
+    }
+
+    fn from_point_direction_length(start: (T, T), direction: (T, T), length: T) -> Option<Self> {
+        let start_point = Point2D::new(start.0, start.1);
+        let direction_vec = Vector2D::new(direction.0, direction.1);
+        Self::from_point_direction_length(start_point, direction_vec, length)
+    }
+
+    fn unit_x() -> Self {
+        let start = Point2D::origin();
+        let end = Point2D::new(T::ONE, T::ZERO);
+        Self::new(start, end).unwrap()
+    }
+}
+
+impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
+    fn start(&self) -> (T, T) {
+        let p = self.start_point();
+        (p.x(), p.y())
+    }
+
+    fn end(&self) -> (T, T) {
+        let p = self.end_point();
+        (p.x(), p.y())
+    }
+
+    fn midpoint(&self) -> (T, T) {
+        let p = self.midpoint();
+        (p.x(), p.y())
+    }
+
+    fn length(&self) -> T {
+        self.length()
+    }
+
+    fn dimension(&self) -> u32 {
+        2
+    }
+}
+
+impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
+    fn measure(&self) -> T {
+        self.length()
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        self.contains_point(&p, T::EPSILON)
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let p = self.point_at_normalized_parameter(t);
+        (p.x(), p.y())
     }
 }

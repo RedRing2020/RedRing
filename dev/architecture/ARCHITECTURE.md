@@ -36,7 +36,7 @@ analysis → geo_foundation
 
 - **`analysis`**: 数値解析・線形代数・微積分の基盤機能
 - **`geo_foundation`**: 抽象トレイト定義（*_core_traits 等）
-- **`geo_commons`**: 共通幾何計算機能、Foundation橋渡し  
+- **`geo_commons`**: 共通幾何計算機能、Foundation橋渡し
 - **`geo_primitives`**: プリミティブ幾何実装（Point, Vector, Circle等）
 - **`geo_nurbs`**: NURBS 曲線・曲面実装
 - **`geo_core`**: Foundation ブリッジ・交差判定基盤
@@ -78,7 +78,7 @@ redring ← stage ← render
 #### アプリケーション層の責務
 
 - **`render`**: GPU 描画基盤（wgpu + WGSL）- 基本描画機能のみ
-- **`stage`**: レンダリングステージ管理 - 最小限の構造のみ  
+- **`stage`**: レンダリングステージ管理 - 最小限の構造のみ
 - **`viewmodel`**: ビュー操作・変換ロジック - 基礎機能のみ
 - **`redring`**: メインアプリケーション - ウィンドウ表示のみ
 

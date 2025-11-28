@@ -3,7 +3,12 @@
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
 use crate::{BBox2D, Ellipse2D, Point2D, Vector2D};
-use geo_foundation::{Angle, Scalar};
+use geo_foundation::{
+    core::ellipse_arc_core_traits::{
+        EllipseArc2DConstructor, EllipseArc2DMeasure, EllipseArc2DProperties,
+    },
+    Angle, Scalar,
+};
 
 /// 2次元楕円弧
 ///
@@ -231,4 +236,90 @@ impl<T: Scalar> EllipseArc2D<T> {
     }
 }
 
-// TODO: Foundation実装は後で段階的に追加
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
+    fn new(
+        center: (T, T),
+        semi_major: T,
+        semi_minor: T,
+        rotation: T,
+        start_angle: T,
+        end_angle: T,
+    ) -> Option<Self> {
+        let center_point = Point2D::new(center.0, center.1);
+        let ellipse = Ellipse2D::new(center_point, semi_major, semi_minor, rotation)?;
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Some(Self::new(ellipse, start, end))
+    }
+
+    fn unit_ellipse_arc() -> Self {
+        let center = Point2D::origin();
+        let ellipse = Ellipse2D::new(center, T::ONE, T::ONE, T::ZERO).unwrap();
+        let start = Angle::from_radians(T::ZERO);
+        let end = Angle::from_radians(T::PI / (T::ONE + T::ONE)); // π/2
+        Self::new(ellipse, start, end)
+    }
+
+    fn from_ellipse_and_angles(
+        center: (T, T),
+        semi_major: T,
+        semi_minor: T,
+        start_angle: T,
+        end_angle: T,
+    ) -> Option<Self> {
+        // 回転なし（0度）で楕円弧を作成
+        let center_point = Point2D::new(center.0, center.1);
+        let ellipse = Ellipse2D::new(center_point, semi_major, semi_minor, T::ZERO)?;
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Some(Self::new(ellipse, start, end))
+    }
+}
+
+impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
+    fn center(&self) -> (T, T) {
+        let c = self.center();
+        (c.x(), c.y())
+    }
+
+    fn semi_major_axis(&self) -> T {
+        self.semi_major()
+    }
+
+    fn semi_minor_axis(&self) -> T {
+        self.semi_minor()
+    }
+
+    fn start_angle(&self) -> T {
+        self.start_angle.to_radians()
+    }
+
+    fn end_angle(&self) -> T {
+        self.end_angle.to_radians()
+    }
+}
+
+impl<T: Scalar> EllipseArc2DMeasure<T> for EllipseArc2D<T> {
+    fn measure(&self) -> T {
+        self.arc_length()
+    }
+
+    fn start_point(&self) -> (T, T) {
+        let p = self.start_point();
+        (p.x(), p.y())
+    }
+
+    fn end_point(&self) -> (T, T) {
+        let p = self.end_point();
+        (p.x(), p.y())
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let p = self.point_at_parameter(t);
+        (p.x(), p.y())
+    }
+}

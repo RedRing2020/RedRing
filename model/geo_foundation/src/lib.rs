@@ -57,11 +57,9 @@ pub use core::{
     ellipse_arc_core_traits::{
         EllipseArc2DConstructor, EllipseArc2DCore, EllipseArc2DMeasure, EllipseArc2DProperties,
         EllipseArc3DConstructor, EllipseArc3DCore, EllipseArc3DMeasure, EllipseArc3DProperties,
-        EllipseArcParametric, EllipseArcSampling,
     },
     ellipse_core_traits::{
-        Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
-        Ellipse3DMeasure, Ellipse3DProperties,
+        Ellipse2DConstructor, Ellipse2DCore, Ellipse2DMeasure, Ellipse2DProperties,
     },
     infinite_line_core_traits::{
         InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure,
@@ -82,7 +80,11 @@ pub use core::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
         Ray3DMeasure, Ray3DProperties,
     },
-    triangle_traits::{Triangle3D as Triangle3DTrait, Triangle3DConstructor},
+    triangle_core_traits::{
+        Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
+        Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
+    },
+    triangle_traits::{Triangle3D as Triangle3DTrait},
 };
 
 // Extension Foundation Traitsを再エクスポート

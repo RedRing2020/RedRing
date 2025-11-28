@@ -3,7 +3,12 @@
 //! Foundation統一システムに基づくTriangle2Dの必須機能のみ
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::triangle_core_traits::{
+        Triangle2DConstructor, Triangle2DMeasure, Triangle2DProperties,
+    },
+    Scalar,
+};
 
 /// 2次元三角形（Core実装）
 ///
@@ -247,6 +252,74 @@ impl<T: Scalar> Triangle2D<T> {
 impl<T: Scalar> Default for Triangle2D<T> {
     fn default() -> Self {
         Self::unit_triangle()
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
+    fn new(a: (T, T), b: (T, T), c: (T, T)) -> Option<Self> {
+        let pa = Point2D::new(a.0, a.1);
+        let pb = Point2D::new(b.0, b.1);
+        let pc = Point2D::new(c.0, c.1);
+        Self::new(pa, pb, pc)
+    }
+
+    fn unit_triangle() -> Self {
+        Self::unit_triangle()
+    }
+
+    fn from_array(points: [(T, T); 3]) -> Option<Self> {
+        let pa = Point2D::new(points[0].0, points[0].1);
+        let pb = Point2D::new(points[1].0, points[1].1);
+        let pc = Point2D::new(points[2].0, points[2].1);
+        Self::new(pa, pb, pc)
+    }
+}
+
+impl<T: Scalar> Triangle2DProperties<T> for Triangle2D<T> {
+    fn vertex_a(&self) -> (T, T) {
+        let p = self.vertex_a();
+        (p.x(), p.y())
+    }
+
+    fn vertex_b(&self) -> (T, T) {
+        let p = self.vertex_b();
+        (p.x(), p.y())
+    }
+
+    fn vertex_c(&self) -> (T, T) {
+        let p = self.vertex_c();
+        (p.x(), p.y())
+    }
+
+    fn centroid(&self) -> (T, T) {
+        let c = self.centroid();
+        (c.x(), c.y())
+    }
+
+    fn circumcenter(&self) -> Option<(T, T)> {
+        self.circumcenter().map(|c| (c.x(), c.y()))
+    }
+}
+
+impl<T: Scalar> Triangle2DMeasure<T> for Triangle2D<T> {
+    fn measure(&self) -> T {
+        self.area()
+    }
+
+    fn edge_ab_length(&self) -> T {
+        self.edge_ab().length()
+    }
+
+    fn edge_bc_length(&self) -> T {
+        self.edge_bc().length()
+    }
+
+    fn edge_ca_length(&self) -> T {
+        self.edge_ca().length()
     }
 }
 

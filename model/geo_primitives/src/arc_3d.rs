@@ -3,7 +3,11 @@
 //! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
-use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
+use geo_foundation::{
+    core::arc_core_traits::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties},
+    tolerance_migration::DefaultTolerances,
+    Scalar,
+};
 
 /// 3次元円弧（基本実装）
 ///
@@ -133,5 +137,191 @@ impl<T: Scalar> Arc3D<T> {
         let span = self.angle_span().to_radians();
         let two_pi = T::from_f64(2.0) * T::PI;
         (span - two_pi).abs() < DefaultTolerances::angle::<T>()
+    }
+
+    /// 指定角度での点を取得（内部用）
+    fn point_at_angle_internal(&self, angle: Angle<T>) -> Point3D<T> {
+        // 開始方向ベクトルを角度分回転
+        let rotation_axis = self.normal.as_vector();
+        let start_vec = self.start_dir.as_vector();
+
+        // ロドリゲスの回転公式を使用
+        let theta = angle.to_radians();
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+
+        let rotated = start_vec * cos_theta
+            + rotation_axis.cross(&start_vec) * sin_theta
+            + rotation_axis * (rotation_axis.dot(&start_vec) * (T::ONE - cos_theta));
+
+        self.center + rotated * self.radius
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
+    fn new(
+        center: (T, T, T),
+        radius: T,
+        normal: (T, T, T),
+        start_angle: T,
+        end_angle: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
+        let normal_dir = Direction3D::from_vector(normal_vec)?;
+
+        // デフォルトの開始方向（法線に垂直なベクトル）を計算
+        let start_dir = Self::compute_perpendicular(normal_dir)?;
+
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+
+        Self::new(center_point, radius, normal_dir, start_dir, start, end)
+    }
+
+    fn xy_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Self::xy_arc(center_point, radius, start, end)
+    }
+
+    fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self> {
+        let p1 = Point3D::new(start.0, start.1, start.2);
+        let p2 = Point3D::new(mid.0, mid.1, mid.2);
+        let p3 = Point3D::new(end.0, end.1, end.2);
+
+        // 3点から円の中心と法線を計算
+        let v1 = p2 - p1;
+        let v2 = p3 - p1;
+        let normal_vec = v1.cross(&v2);
+        let normal_dir = Direction3D::from_vector(normal_vec)?;
+
+        // 外接円の中心を計算
+        let center = Self::circumcenter_3d(p1, p2, p3, normal_dir)?;
+        let radius = center.distance_to(&p1);
+
+        // 開始方向を計算
+        let start_vec = p1 - center;
+        let start_dir = Direction3D::from_vector(start_vec)?;
+
+        // 角度を計算
+        let start_angle = Angle::from_radians(T::ZERO);
+        let end_vec = p3 - center;
+        let end_angle = Self::angle_between_vectors(start_vec, end_vec, normal_vec);
+
+        Self::new(center, radius, normal_dir, start_dir, start_angle, end_angle)
+    }
+}
+
+impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius()
+    }
+
+    fn start_angle(&self) -> T {
+        self.start_angle.to_radians()
+    }
+
+    fn end_angle(&self) -> T {
+        self.end_angle.to_radians()
+    }
+
+    fn dimension(&self) -> u32 {
+        3
+    }
+}
+
+impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
+    fn measure(&self) -> T {
+        self.arc_length()
+    }
+
+    fn start_point(&self) -> (T, T, T) {
+        let p = self.point_at_angle_internal(self.start_angle);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn end_point(&self) -> (T, T, T) {
+        let p = self.point_at_angle_internal(self.end_angle);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
+        let p = self.point_at_angle_internal(angle);
+        (p.x(), p.y(), p.z())
+    }
+}
+
+// ============================================================================
+// Helper methods for Arc3D
+// ============================================================================
+
+impl<T: Scalar> Arc3D<T> {
+    /// 法線に垂直なベクトルを計算
+    fn compute_perpendicular(normal: Direction3D<T>) -> Option<Direction3D<T>> {
+        let n = normal.as_vector();
+
+        // X軸との外積を試す
+        let x_axis = Vector3D::unit_x();
+        let perp1 = n.cross(&x_axis);
+
+        if perp1.length() > T::EPSILON {
+            Direction3D::from_vector(perp1)
+        } else {
+            // X軸と平行な場合、Y軸を使用
+            let y_axis = Vector3D::unit_y();
+            let perp2 = n.cross(&y_axis);
+            Direction3D::from_vector(perp2)
+        }
+    }
+
+    /// 3D空間での外接円の中心を計算
+    fn circumcenter_3d(
+        p1: Point3D<T>,
+        p2: Point3D<T>,
+        p3: Point3D<T>,
+        _normal: Direction3D<T>,
+    ) -> Option<Point3D<T>> {
+        let v1 = p2 - p1;
+        let v2 = p3 - p1;
+
+        let v1_sq = v1.dot(&v1);
+        let v2_sq = v2.dot(&v2);
+        let v1_v2 = v1.dot(&v2);
+
+        let denom = (T::ONE + T::ONE) * (v1_sq * v2_sq - v1_v2 * v1_v2);
+        if denom.abs() < T::EPSILON {
+            return None;
+        }
+
+        let alpha = v2_sq * (v1_sq - v1_v2) / denom;
+        let beta = v1_sq * (v2_sq - v1_v2) / denom;
+
+        Some(p1 + v1 * alpha + v2 * beta)
+    }
+
+    /// 2つのベクトル間の角度を計算
+    fn angle_between_vectors(v1: Vector3D<T>, v2: Vector3D<T>, normal: Vector3D<T>) -> Angle<T> {
+        let cos_angle = v1.dot(&v2) / (v1.length() * v2.length());
+        let angle = cos_angle.acos();
+
+        // 符号を確認（法線との外積で判定）
+        let cross = v1.cross(&v2);
+        if cross.dot(&normal) < T::ZERO {
+            Angle::from_radians(T::TAU - angle)
+        } else {
+            Angle::from_radians(angle)
+        }
     }
 }

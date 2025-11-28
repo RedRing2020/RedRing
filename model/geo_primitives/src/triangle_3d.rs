@@ -3,7 +3,12 @@
 //! Foundation統一システムに基づくTriangle3Dの必須機能のみ
 
 use crate::{Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::triangle_core_traits::{
+        Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties,
+    },
+    Scalar,
+};
 
 /// 3次元三角形（Core実装）
 ///
@@ -166,6 +171,80 @@ impl<T: Scalar> Triangle3D<T> {
 
         // 三角形内部の条件
         u >= T::ZERO && v >= T::ZERO && (u + v) <= T::ONE
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
+    fn new(a: (T, T, T), b: (T, T, T), c: (T, T, T)) -> Option<Self> {
+        let pa = Point3D::new(a.0, a.1, a.2);
+        let pb = Point3D::new(b.0, b.1, b.2);
+        let pc = Point3D::new(c.0, c.1, c.2);
+        Self::new(pa, pb, pc)
+    }
+
+    fn from_array(points: [(T, T, T); 3]) -> Option<Self> {
+        let pa = Point3D::new(points[0].0, points[0].1, points[0].2);
+        let pb = Point3D::new(points[1].0, points[1].1, points[1].2);
+        let pc = Point3D::new(points[2].0, points[2].1, points[2].2);
+        Self::new(pa, pb, pc)
+    }
+
+    fn unit_triangle_xy() -> Self {
+        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let pa = Point3D::new(T::ZERO, T::ONE, T::ZERO);
+        let pb = Point3D::new(-h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
+        let pc = Point3D::new(h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
+        Self::new(pa, pb, pc)
+            .expect("Unit triangle should always be valid")
+    }
+}
+
+impl<T: Scalar> Triangle3DProperties<T> for Triangle3D<T> {
+    fn vertex_a(&self) -> (T, T, T) {
+        let p = self.vertex_a();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn vertex_b(&self) -> (T, T, T) {
+        let p = self.vertex_b();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn vertex_c(&self) -> (T, T, T) {
+        let p = self.vertex_c();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn centroid(&self) -> (T, T, T) {
+        let c = self.centroid();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn normal(&self) -> (T, T, T) {
+        let n = self.normal().unwrap_or(Vector3D::unit_z());
+        (n.x(), n.y(), n.z())
+    }
+}
+
+impl<T: Scalar> Triangle3DMeasure<T> for Triangle3D<T> {
+    fn measure(&self) -> T {
+        self.area()
+    }
+
+    fn edge_ab_length(&self) -> T {
+        self.edge_ab().length()
+    }
+
+    fn edge_bc_length(&self) -> T {
+        self.edge_bc().length()
+    }
+
+    fn edge_ca_length(&self) -> T {
+        self.edge_ca().length()
     }
 }
 

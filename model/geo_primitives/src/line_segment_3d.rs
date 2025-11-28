@@ -4,7 +4,12 @@
 //! 拡張機能は line_segment_3d_extensions.rs を参照
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::linesegment_core_traits::{
+        LineSegment3DConstructor, LineSegment3DMeasure, LineSegment3DProperties,
+    },
+    Scalar,
+};
 
 /// 3次元空間の線分
 ///
@@ -138,5 +143,81 @@ impl<T: Scalar> LineSegment3D<T> {
     /// 線分が退化しているか（長さが0）を判定
     pub fn is_degenerate(&self, tolerance: T) -> bool {
         self.length() <= tolerance
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
+    fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self> {
+        let start_point = Point3D::new(start.0, start.1, start.2);
+        let end_point = Point3D::new(end.0, end.1, end.2);
+        Self::new(start_point, end_point)
+    }
+
+    fn from_point_direction_length(
+        start: (T, T, T),
+        direction: (T, T, T),
+        length: T,
+    ) -> Option<Self> {
+        let start_point = Point3D::new(start.0, start.1, start.2);
+        let direction_vec = Vector3D::new(direction.0, direction.1, direction.2);
+        Self::from_point_direction_length(start_point, direction_vec, length)
+    }
+
+    fn unit_x() -> Self {
+        let start = Point3D::origin();
+        let end = Point3D::new(T::ONE, T::ZERO, T::ZERO);
+        Self::new(start, end).unwrap()
+    }
+}
+
+impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
+    fn start(&self) -> (T, T, T) {
+        let p = self.start();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn end(&self) -> (T, T, T) {
+        let p = self.end();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn midpoint(&self) -> (T, T, T) {
+        let p = self.midpoint();
+        (p.x(), p.y(), p.z())
+    }
+
+    fn length(&self) -> T {
+        self.length()
+    }
+
+    fn dimension(&self) -> u32 {
+        3
+    }
+}
+
+impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
+    fn measure(&self) -> T {
+        self.length()
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_point(&p)
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.contains_point(&p, T::EPSILON)
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        // 正規化パラメータ（0〜1）で線分上の点を取得
+        let param = self.start_param + t * (self.end_param - self.start_param);
+        let p = self.line.point_at_parameter(param);
+        (p.x(), p.y(), p.z())
     }
 }

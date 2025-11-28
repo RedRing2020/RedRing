@@ -4,7 +4,10 @@
 //! STEP (ISO 10303) 準拠の axis2_placement_3d スタイルで実装
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::circle_core_traits::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties},
+    Scalar,
+};
 
 /// 3次元空間の円
 ///
@@ -170,5 +173,120 @@ impl<T: Scalar> Circle3D<T> {
     /// 面積を計算
     pub fn area(&self) -> T {
         T::PI * self.radius * self.radius
+    }
+
+    /// 点が円内部にあるか判定（3D空間での判定）
+    pub fn contains_point_3d(&self, point: Point3D<T>) -> bool {
+        // 点から中心へのベクトル
+        let to_point = Vector3D::new(
+            point.x() - self.center.x(),
+            point.y() - self.center.y(),
+            point.z() - self.center.z(),
+        );
+
+        // 平面上にあるかチェック（法線との内積が0）
+        let axis_vec = self.axis.as_vector();
+        let dot = to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z();
+        if dot.abs() > T::EPSILON {
+            return false; // 平面上にない
+        }
+
+        // 中心からの距離をチェック
+        let distance_squared = to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
+        distance_squared <= self.radius * self.radius
+    }
+
+    /// 点から円周への距離（3D空間）
+    pub fn distance_to_point_3d(&self, point: Point3D<T>) -> T {
+        // 点から中心へのベクトル
+        let to_point = Vector3D::new(
+            point.x() - self.center.x(),
+            point.y() - self.center.y(),
+            point.z() - self.center.z(),
+        );
+
+        // 平面への投影距離（法線方向成分）
+        let axis_vec = self.axis.as_vector();
+        let plane_distance = (to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z()).abs();
+
+        // 平面上での中心からの距離
+        let distance_squared = to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
+        let planar_distance_squared = distance_squared - plane_distance * plane_distance;
+        let planar_distance = planar_distance_squared.max(T::ZERO).sqrt();
+
+        // 円周への距離
+        let radial_distance = (planar_distance - self.radius).abs();
+
+        // 平面距離と半径方向距離の合成
+        (plane_distance * plane_distance + radial_distance * radial_distance).sqrt()
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
+    fn new(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
+        let axis_dir = Direction3D::from_vector(axis_vec)?;
+        Self::new(center_point, axis_dir, radius)
+    }
+
+    fn new_xy_plane(center: (T, T, T), radius: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::new_xy_plane(center_point, radius)
+    }
+
+    fn unit_circle_xy() -> Self {
+        let center = Point3D::origin();
+        Self::new_xy_plane(center, T::ONE).unwrap()
+    }
+}
+
+impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
+    fn center(&self) -> (T, T, T) {
+        (self.center.x(), self.center.y(), self.center.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        (self.axis.x(), self.axis.y(), self.axis.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        (
+            self.ref_direction.x(),
+            self.ref_direction.y(),
+            self.ref_direction.z(),
+        )
+    }
+
+    fn dimension(&self) -> u32 {
+        3
+    }
+}
+
+impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
+    fn circumference(&self) -> T {
+        self.circumference()
+    }
+
+    fn area(&self) -> T {
+        self.area()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.contains_point_3d(p)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_point_3d(p)
     }
 }

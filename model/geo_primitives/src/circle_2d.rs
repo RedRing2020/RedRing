@@ -4,7 +4,10 @@
 //! STEP (ISO 10303) 準拠の ref_direction フィールドでArc変換に対応
 
 use crate::{Direction2D, Point2D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::circle_core_traits::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties},
+    Scalar,
+};
 
 /// 2次元円
 ///
@@ -183,5 +186,69 @@ impl<T: Scalar> Circle2D<T> {
             // 円が交差している
             T::ZERO
         }
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
+    fn new(center: (T, T), radius: T) -> Option<Self> {
+        let center_point = Point2D::new(center.0, center.1);
+        Self::new(center_point, radius)
+    }
+
+    fn new_with_ref_direction(center: (T, T), radius: T, ref_direction: (T, T)) -> Option<Self> {
+        let center_point = Point2D::new(center.0, center.1);
+        let ref_dir = Direction2D::new(ref_direction.0, ref_direction.1)?;
+        Self::new_with_ref_direction(center_point, radius, ref_dir)
+    }
+
+    fn unit_circle() -> Self {
+        let center = Point2D::origin();
+        Self::new(center, T::ONE).unwrap()
+    }
+}
+
+impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
+    fn center(&self) -> (T, T) {
+        (self.center.x(), self.center.y())
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+
+    fn ref_direction(&self) -> (T, T) {
+        (self.ref_direction.x(), self.ref_direction.y())
+    }
+
+    fn diameter(&self) -> T {
+        self.radius + self.radius
+    }
+
+    fn dimension(&self) -> u32 {
+        2
+    }
+}
+
+impl<T: Scalar> Circle2DMeasure<T> for Circle2D<T> {
+    fn circumference(&self) -> T {
+        self.circumference()
+    }
+
+    fn area(&self) -> T {
+        self.area()
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        self.contains_point(p)
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(p)
     }
 }

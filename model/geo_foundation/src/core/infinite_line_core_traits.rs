@@ -37,7 +37,7 @@ pub trait InfiniteLine2DConstructor<T: Scalar> {
     where
         Self: Sized;
 
-    /// Y軸に平行な直線（X座標指定）  
+    /// Y軸に平行な直線（X座標指定）
     fn vertical(x: T) -> Self
     where
         Self: Sized;
