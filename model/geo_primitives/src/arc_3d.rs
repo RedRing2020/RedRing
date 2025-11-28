@@ -223,6 +223,40 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
             end_angle,
         )
     }
+
+    // Phase 2: 追加コンストラクタ
+    fn xz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let normal_dir = Direction3D::positive_y(); // XZ平面の法線はY軸
+        let start_dir = Direction3D::positive_x(); // 開始方向はX軸
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Self::new(center_point, radius, normal_dir, start_dir, start, end)
+    }
+
+    fn yz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let normal_dir = Direction3D::positive_x(); // YZ平面の法線はX軸
+        let start_dir = Direction3D::positive_y(); // 開始方向はY軸
+        let start = Angle::from_radians(start_angle);
+        let end = Angle::from_radians(end_angle);
+        Self::new(center_point, radius, normal_dir, start_dir, start, end)
+    }
+
+    fn full_circle(center: (T, T, T), normal: (T, T, T), radius: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
+        let normal_dir = Direction3D::from_vector(normal_vec)?;
+        let start_dir = Self::compute_perpendicular(normal_dir)?;
+        Self::new(
+            center_point,
+            radius,
+            normal_dir,
+            start_dir,
+            Angle::from_radians(T::ZERO),
+            Angle::from_radians(T::from_f64(2.0) * T::PI),
+        )
+    }
 }
 
 impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
@@ -246,6 +280,24 @@ impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
     fn dimension(&self) -> u32 {
         3
     }
+
+    // Phase 2: 追加プロパティ
+    fn angle_span(&self) -> T {
+        (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
+    }
+
+    fn is_full_circle(&self) -> bool {
+        let span = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs();
+        (span - T::from_f64(2.0) * T::PI).abs() <= T::EPSILON
+    }
+
+    fn is_on_xy_plane(&self) -> bool {
+        let normal = *self.normal();
+        let z_axis = Direction3D::positive_z();
+        (normal.x() - z_axis.x()).abs() <= T::EPSILON &&
+        (normal.y() - z_axis.y()).abs() <= T::EPSILON &&
+        (normal.z() - z_axis.z()).abs() <= T::EPSILON
+    }
 }
 
 impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
@@ -267,6 +319,37 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
         let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
         let p = self.point_at_angle_internal(angle);
         (p.x(), p.y(), p.z())
+    }
+
+    // Phase 2: 追加測度メソッド
+    fn midpoint(&self) -> (T, T, T) {
+        let mid_angle = (self.start_angle + self.end_angle) / (T::ONE + T::ONE);
+        let p = self.point_at_angle_internal(mid_angle);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn point_at_angle(&self, angle: T) -> (T, T, T) {
+        let p = self.point_at_angle_internal(Angle::from_radians(angle));
+        (p.x(), p.y(), p.z())
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        // 簡易実装: 円弧上の最近点までの距離
+        let center_pt = Arc3D::center(self);
+        let dx = point.0 - center_pt.x();
+        let dy = point.1 - center_pt.y();
+        let dz = point.2 - center_pt.z();
+        ((dx * dx + dy * dy + dz * dz).sqrt() - self.radius()).abs()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        // 簡易実装: 半径と角度範囲をチェック
+        let center_pt = Arc3D::center(self);
+        let dx = point.0 - center_pt.x();
+        let dy = point.1 - center_pt.y();
+        let dz = point.2 - center_pt.z();
+        let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+        (dist - self.radius()).abs() <= T::EPSILON
     }
 }
 

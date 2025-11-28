@@ -324,6 +324,32 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
         let end = Angle::from_radians(T::PI);
         Self::new(circle, start, end).unwrap()
     }
+
+    // Phase 2: 追加コンストラクタ
+    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self> {
+        let center_point = Point2D::new(center.0, center.1);
+        let start_point = Point2D::new(start.0, start.1);
+        let end_point = Point2D::new(end.0, end.1);
+        
+        let radius = center_point.distance_to(&start_point);
+        let start_angle = Self::angle_from_center(center_point, start_point);
+        let end_angle = Self::angle_from_center(center_point, end_point);
+        
+        let circle = Circle2D::new(center_point, radius)?;
+        Self::new(circle, Angle::from_radians(start_angle), Angle::from_radians(end_angle))
+    }
+
+    fn full_circle(center: (T, T), radius: T) -> Self {
+        let center_point = Point2D::new(center.0, center.1);
+        let circle = Circle2D::new(center_point, radius).unwrap();
+        let start = Angle::from_radians(T::ZERO);
+        let end = Angle::from_radians(T::TWO * T::PI);
+        Self::new(circle, start, end).unwrap()
+    }
+
+    fn unit_semicircle() -> Self {
+        Self::semicircle((T::ZERO, T::ZERO), T::ONE)
+    }
 }
 
 impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
@@ -346,6 +372,21 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 
     fn dimension(&self) -> u32 {
         2
+    }
+
+    // Phase 2: 追加プロパティ
+    fn angle_span(&self) -> T {
+        (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
+    }
+
+    fn is_full_circle(&self) -> bool {
+        let span = self.angle_span();
+        (span - T::TWO * T::PI).abs() <= T::EPSILON
+    }
+
+    fn is_semicircle(&self) -> bool {
+        let span = self.angle_span();
+        (span - T::PI).abs() <= T::EPSILON
     }
 }
 
@@ -370,6 +411,28 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
         let angle = start_rad + t * (end_rad - start_rad);
         let p = self.point_at_angle(angle);
         (p.x(), p.y())
+    }
+
+    // Phase 2: 追加測度メソッド
+    fn midpoint(&self) -> (T, T) {
+        let mid_angle = (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
+        let p = self.point_at_angle(mid_angle);
+        (p.x(), p.y())
+    }
+
+    fn point_at_angle(&self, angle: T) -> (T, T) {
+        let p = Arc2D::point_at_angle(self, Angle::from_radians(angle));
+        (p.x(), p.y())
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        Arc2D::distance_to_point(self, &p)
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        Arc2D::contains_point(self, &p, T::EPSILON)
     }
 }
 

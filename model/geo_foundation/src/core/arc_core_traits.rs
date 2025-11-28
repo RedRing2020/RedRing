@@ -36,6 +36,22 @@ pub trait Arc2DConstructor<T: Scalar> {
     fn semicircle(center: (T, T), radius: T) -> Self
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ
+    /// 中心と円周上の2点から円弧を作成
+    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 全周（360度）の円弧を作成
+    fn full_circle(center: (T, T), radius: T) -> Self
+    where
+        Self: Sized;
+
+    /// 原点中心の単位半円
+    fn unit_semicircle() -> Self
+    where
+        Self: Sized;
 }
 
 /// Arc3D生成のためのConstructorトレイト（Phase 1: 最小限）
@@ -71,6 +87,22 @@ pub trait Arc3DConstructor<T: Scalar> {
     fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ
+    /// XZ平面上の円弧を作成
+    fn xz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// YZ平面上の円弧を作成
+    fn yz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 全周（360度）の円弧を作成
+    fn full_circle(center: (T, T, T), normal: (T, T, T), radius: T) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -93,6 +125,16 @@ pub trait Arc2DProperties<T: Scalar> {
 
     /// 形状の次元数（2）
     fn dimension(&self) -> u32;
+
+    // Phase 2: 追加プロパティ
+    /// 円弧の角度範囲（ラジアン）
+    fn angle_span(&self) -> T;
+
+    /// 全周（360度）かどうか
+    fn is_full_circle(&self) -> bool;
+
+    /// 半円（180度）かどうか
+    fn is_semicircle(&self) -> bool;
 }
 
 /// Arc3D基本プロパティ取得トレイト（Phase 1: 最小限）
@@ -111,6 +153,16 @@ pub trait Arc3DProperties<T: Scalar> {
 
     /// 形状の次元数（3）
     fn dimension(&self) -> u32;
+
+    // Phase 2: 追加プロパティ
+    /// 円弧の角度範囲（ラジアン）
+    fn angle_span(&self) -> T;
+
+    /// 全周（360度）かどうか
+    fn is_full_circle(&self) -> bool;
+
+    /// XY平面上かどうか
+    fn is_on_xy_plane(&self) -> bool;
 }
 
 // ============================================================================
@@ -130,6 +182,19 @@ pub trait Arc2DMeasure<T: Scalar> {
 
     /// パラメータt（0<=t<=1）での点を取得
     fn point_at_parameter(&self, t: T) -> (T, T);
+
+    // Phase 2: 追加測度メソッド
+    /// 中点を取得
+    fn midpoint(&self) -> (T, T);
+
+    /// 角度での点を取得
+    fn point_at_angle(&self, angle: T) -> (T, T);
+
+    /// 点から円弧への最短距離
+    fn distance_to_point(&self, point: (T, T)) -> T;
+
+    /// 点が円弧上にあるか
+    fn contains_point(&self, point: (T, T)) -> bool;
 }
 
 /// Arc3D計量・関係演算機能トレイト（Phase 1: 最小限）
@@ -145,6 +210,19 @@ pub trait Arc3DMeasure<T: Scalar> {
 
     /// パラメータt（0<=t<=1）での点を取得
     fn point_at_parameter(&self, t: T) -> (T, T, T);
+
+    // Phase 2: 追加測度メソッド
+    /// 中点を取得
+    fn midpoint(&self) -> (T, T, T);
+
+    /// 角度での点を取得
+    fn point_at_angle(&self, angle: T) -> (T, T, T);
+
+    /// 点から円弧への最短距離
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+
+    /// 点が円弧上にあるか
+    fn contains_point(&self, point: (T, T, T)) -> bool;
 }
 
 // ============================================================================
