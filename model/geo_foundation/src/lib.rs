@@ -60,6 +60,7 @@ pub use core::{
     },
     ellipse_core_traits::{
         Ellipse2DConstructor, Ellipse2DCore, Ellipse2DMeasure, Ellipse2DProperties,
+        Ellipse3DConstructor, Ellipse3DCore, Ellipse3DMeasure, Ellipse3DProperties,
     },
     infinite_line_core_traits::{
         InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure,

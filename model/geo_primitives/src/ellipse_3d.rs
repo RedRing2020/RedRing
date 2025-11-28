@@ -6,7 +6,10 @@ use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
 use geo_foundation::prelude::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
-use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
+use geo_foundation::{
+    tolerance_migration::DefaultTolerances, Ellipse3DConstructor, Ellipse3DMeasure,
+    Ellipse3DProperties, Scalar,
+};
 
 /// 3次元楕円（Core実装）
 ///
@@ -208,15 +211,58 @@ impl<T: Scalar> Ellipse3D<T> {
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::TAU)
     }
+
+    /// 3D空間での点から楕円への最短距離を計算（内部実装）
+    fn distance_to_point_3d_internal(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        
+        // 点を楕円の座標系に変換
+        let translated = Vector3D::new(
+            p.x() - self.center.x(),
+            p.y() - self.center.y(),
+            p.z() - self.center.z(),
+        );
+
+        // 楕円平面への射影
+        let u = self.major_axis_dir.as_vector();
+        let v = self.minor_axis_direction().as_vector();
+        
+        let x_local = translated.dot(&u);
+        let y_local = translated.dot(&v);
+        
+        // 平面外成分（法線方向）
+        let n = self.normal.as_vector();
+        let z_local = translated.dot(&n);
+        
+        // 正規化された楕円座標での距離計算
+        let x_norm = x_local / self.semi_major_axis;
+        let y_norm = y_local / self.semi_minor_axis;
+        let normalized_distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
+        
+        // 平面内距離
+        let planar_distance = if normalized_distance <= T::ONE {
+            T::ZERO
+        } else {
+            let scale = T::ONE / normalized_distance;
+            let boundary_x = x_local * scale;
+            let boundary_y = y_local * scale;
+            ((x_local - boundary_x) * (x_local - boundary_x)
+                + (y_local - boundary_y) * (y_local - boundary_y))
+                .sqrt()
+        };
+        
+        // 平面外距離を含めた総距離
+        (planar_distance * planar_distance + z_local * z_local).sqrt()
+    }
 }
 
 // ============================================================================
-// Foundation Pattern: Core Traits Implementation
-// NOTE: Phase 1では Ellipse3D の Core Traits は対象外のため、実装はコメントアウト
+// Foundation Pattern: Core Traits Implementation (Phase 1 + Phase 2)
 // ============================================================================
 
-/*
 impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
+    // ========== Phase 1 実装 ==========
+    
     /// 基本コンストラクタ（中心点、平面法線、長軸半径、短軸半径、長軸方向）
     fn new(
         center: (T, T, T),
@@ -290,6 +336,8 @@ impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
         )
     }
 
+    // ========== Phase 2 実装 ==========
+
     /// XZ平面上の楕円作成
     fn new_xz_plane(
         center: (T, T, T),
@@ -345,6 +393,8 @@ impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
 }
 
 impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
+    // ========== Phase 1 実装 ==========
+    
     /// 楕円が存在する平面の法線ベクトルを取得
     fn normal(&self) -> (T, T, T) {
         (self.normal.x(), self.normal.y(), self.normal.z())
@@ -370,18 +420,32 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
         (self.center.x(), self.center.y(), self.center.z())
     }
 
-    /// Analysis層互換の3D座標変換
-    fn to_analysis_vector_3d(&self) -> Vector3<T> {
-        Vector3::new(self.center.x(), self.center.y(), self.center.z())
-    }
-
     /// 3D中心点をタプルとして取得
     fn center_3d_tuple(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())
     }
+
+    // ========== Phase 2 実装 ==========
+
+    /// 長半軸の長さを取得
+    fn semi_major_axis(&self) -> T {
+        self.semi_major_axis
+    }
+
+    /// 短半軸の長さを取得
+    fn semi_minor_axis(&self) -> T {
+        self.semi_minor_axis
+    }
+
+    /// 離心率を取得
+    fn eccentricity(&self) -> T {
+        self.eccentricity()
+    }
 }
 
 impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
+    // ========== Phase 1 実装 ==========
+    
     /// 3D空間での点が楕円内部にあるかを判定
     fn contains_point_3d(&self, point: (T, T, T)) -> bool {
         self.distance_to_point_3d_internal(point)
@@ -412,8 +476,31 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
         // 3D楕円と平面の交点計算は複雑
         Vec::new()
     }
+
+    // ========== Phase 2 実装 ==========
+
+    /// 楕円の面積を計算
+    fn measure(&self) -> T {
+        self.area()
+    }
+
+    /// 楕円の周長を計算（近似）
+    fn perimeter(&self) -> T {
+        self.perimeter_ramanujan_ii()
+    }
+
+    /// パラメータ t における楕円上の点を取得（0 <= t < 2π）
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        let p = self.point_at_parameter(t);
+        (p.x(), p.y(), p.z())
+    }
+
+    /// 楕円が円かどうか判定
+    fn is_circle(&self) -> bool {
+        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
+    }
 }
-*/
 
 // ============================================================================
 // Advanced Calculation Traits Implementation
