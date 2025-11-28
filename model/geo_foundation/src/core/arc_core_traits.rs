@@ -153,17 +153,11 @@ pub trait Arc3DMeasure<T: Scalar> {
 
 /// Arc2Dの3つのCore機能統合トレイト
 /// Transform機能はAnalysisTransform2D<T>を別途使用
-pub trait Arc2DCore<T: Scalar>:
-    Arc2DConstructor<T> + Arc2DProperties<T> + Arc2DMeasure<T>
-{
-}
+pub trait Arc2DCore<T: Scalar>: Arc2DConstructor<T> + Arc2DProperties<T> + Arc2DMeasure<T> {}
 
 /// Arc3Dの3つのCore機能統合トレイト
 /// Transform機能はAnalysisTransform3D<T>を別途使用
-pub trait Arc3DCore<T: Scalar>:
-    Arc3DConstructor<T> + Arc3DProperties<T> + Arc3DMeasure<T>
-{
-}
+pub trait Arc3DCore<T: Scalar>: Arc3DConstructor<T> + Arc3DProperties<T> + Arc3DMeasure<T> {}
 
 // ============================================================================
 // Blanket implementations for Core traits

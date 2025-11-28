@@ -6,9 +6,7 @@ use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
 use geo_foundation::prelude::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
-use geo_foundation::{
-    tolerance_migration::DefaultTolerances, Scalar,
-};
+use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
 
 /// 3次元楕円（Core実装）
 ///

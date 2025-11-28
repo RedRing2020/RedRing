@@ -214,7 +214,14 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
         let end_vec = p3 - center;
         let end_angle = Self::angle_between_vectors(start_vec, end_vec, normal_vec);
 
-        Self::new(center, radius, normal_dir, start_dir, start_angle, end_angle)
+        Self::new(
+            center,
+            radius,
+            normal_dir,
+            start_dir,
+            start_angle,
+            end_angle,
+        )
     }
 }
 

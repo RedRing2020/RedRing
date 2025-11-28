@@ -4,9 +4,7 @@
 
 use crate::{Point2D, Vector2D};
 use geo_foundation::{
-    core::triangle_core_traits::{
-        Triangle2DConstructor, Triangle2DMeasure, Triangle2DProperties,
-    },
+    core::triangle_core_traits::{Triangle2DConstructor, Triangle2DMeasure, Triangle2DProperties},
     Scalar,
 };
 

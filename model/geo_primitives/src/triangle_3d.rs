@@ -4,9 +4,7 @@
 
 use crate::{Point3D, Vector3D};
 use geo_foundation::{
-    core::triangle_core_traits::{
-        Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties,
-    },
+    core::triangle_core_traits::{Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties},
     Scalar,
 };
 
@@ -198,8 +196,7 @@ impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
         let pa = Point3D::new(T::ZERO, T::ONE, T::ZERO);
         let pb = Point3D::new(-h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
         let pc = Point3D::new(h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
-        Self::new(pa, pb, pc)
-            .expect("Unit triangle should always be valid")
+        Self::new(pa, pb, pc).expect("Unit triangle should always be valid")
     }
 }
 

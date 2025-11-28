@@ -186,13 +186,15 @@ impl<T: Scalar> Circle3D<T> {
 
         // 平面上にあるかチェック（法線との内積が0）
         let axis_vec = self.axis.as_vector();
-        let dot = to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z();
+        let dot =
+            to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z();
         if dot.abs() > T::EPSILON {
             return false; // 平面上にない
         }
 
         // 中心からの距離をチェック
-        let distance_squared = to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
+        let distance_squared =
+            to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
         distance_squared <= self.radius * self.radius
     }
 
@@ -207,10 +209,14 @@ impl<T: Scalar> Circle3D<T> {
 
         // 平面への投影距離（法線方向成分）
         let axis_vec = self.axis.as_vector();
-        let plane_distance = (to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z()).abs();
+        let plane_distance = (to_point.x() * axis_vec.x()
+            + to_point.y() * axis_vec.y()
+            + to_point.z() * axis_vec.z())
+        .abs();
 
         // 平面上での中心からの距離
-        let distance_squared = to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
+        let distance_squared =
+            to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
         let planar_distance_squared = distance_squared - plane_distance * plane_distance;
         let planar_distance = planar_distance_squared.max(T::ZERO).sqrt();
 

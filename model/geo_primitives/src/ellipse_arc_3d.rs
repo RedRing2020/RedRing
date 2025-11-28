@@ -270,7 +270,7 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
         let major_vec = Vector3D::new(major_direction.0, major_direction.1, major_direction.2);
-        
+
         let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
         let start = Angle::from_radians(start_angle);
         let end = Angle::from_radians(end_angle);
@@ -287,12 +287,12 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
     ) -> Option<Self> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         let normal_vec = Vector3D::unit_z();
-        
+
         // 回転を考慮した長軸方向
         let cos_rot = rotation.cos();
         let sin_rot = rotation.sin();
         let major_vec = Vector3D::new(cos_rot, sin_rot, T::ZERO);
-        
+
         let ellipse = Ellipse3D::new(center_point, semi_major, semi_minor, normal_vec, major_vec)?;
         let start = Angle::from_radians(start_angle);
         let end = Angle::from_radians(end_angle);
