@@ -194,6 +194,27 @@ impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
         let direction_vec = Vector2D::new(direction.0, direction.1);
         Self::new(origin, direction_vec)
     }
+
+    // ========== Phase 2 実装 ==========
+
+    fn from_angle(angle: T) -> Self {
+        let direction = Vector2D::new(angle.cos(), angle.sin());
+        Self::new(Point2D::origin(), direction).unwrap()
+    }
+
+    fn from_point_and_angle(point: (T, T), angle: T) -> Self {
+        let point_2d = Point2D::new(point.0, point.1);
+        let direction = Vector2D::new(angle.cos(), angle.sin());
+        Self::new(point_2d, direction).unwrap()
+    }
+
+    fn perpendicular_through(point: (T, T), other: &Self) -> Self {
+        let point_2d = Point2D::new(point.0, point.1);
+        let other_dir = other.direction();
+        // 90度回転して垂直方向を取得: (x, y) -> (-y, x)
+        let perp_dir = Vector2D::new(-other_dir.y(), other_dir.x());
+        Self::new(point_2d, perp_dir).unwrap()
+    }
 }
 
 /// InfiniteLine2D Properties Trait Implementation
@@ -253,6 +274,25 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
 
     fn dimension(&self) -> u32 {
         2
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn angle(&self) -> T {
+        let dir = self.direction();
+        dir.y().atan2(dir.x())
+    }
+
+    fn is_above(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        let vec_to_point = p - self.point();
+        let cross = self.direction().cross(&vec_to_point);
+        cross > T::ZERO
+    }
+
+    fn is_below(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        !self.is_above(point) && !self.contains_point(&p, T::EPSILON)
     }
 }
 
@@ -315,5 +355,65 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
 
     fn reverse(&self) -> Self {
         Self::new(self.point(), -(*self.direction())).unwrap()
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn mirror_point(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let projected = self.project_point(&p);
+        // 鏡面点 = 2 * 投影点 - 元の点
+        let mirrored = projected + (projected - p);
+        (mirrored.x(), mirrored.y())
+    }
+
+    fn offset(&self, distance: T) -> Self {
+        let normal = self.normal();
+        let offset_point = self.point() + normal * distance;
+        Self::new(offset_point, *self.direction()).unwrap()
+    }
+
+    fn rotate_around_origin(&self, angle: T) -> Self {
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        // 点を回転
+        let p = self.point();
+        let rotated_point = Point2D::new(
+            p.x() * cos_a - p.y() * sin_a,
+            p.x() * sin_a + p.y() * cos_a,
+        );
+
+        // 方向ベクトルを回転
+        let d = self.direction();
+        let rotated_dir = Vector2D::new(
+            d.x() * cos_a - d.y() * sin_a,
+            d.x() * sin_a + d.y() * cos_a,
+        );
+
+        Self::new(rotated_point, rotated_dir).unwrap()
+    }
+
+    fn rotate_around_point(&self, center: (T, T), angle: T) -> Self {
+        let center_pt = Point2D::new(center.0, center.1);
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        // 中心からの相対位置を計算
+        let relative = self.point() - center_pt;
+        let rotated_relative = Point2D::new(
+            relative.x() * cos_a - relative.y() * sin_a,
+            relative.x() * sin_a + relative.y() * cos_a,
+        );
+        let rotated_point = center_pt + (rotated_relative - Point2D::origin());
+
+        // 方向ベクトルを回転
+        let d = self.direction();
+        let rotated_dir = Vector2D::new(
+            d.x() * cos_a - d.y() * sin_a,
+            d.x() * sin_a + d.y() * cos_a,
+        );
+
+        Self::new(rotated_point, rotated_dir).unwrap()
     }
 }

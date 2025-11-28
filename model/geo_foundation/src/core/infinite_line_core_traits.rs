@@ -56,6 +56,23 @@ pub trait InfiniteLine2DConstructor<T: Scalar> {
     fn through_origin(direction: (T, T)) -> Option<Self>
     where
         Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 指定角度（ラジアン）の直線を原点を通るように作成
+    fn from_angle(angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// 指定点を通る指定角度の直線を作成
+    fn from_point_and_angle(point: (T, T), angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// 指定点を通り、指定直線に垂直な直線を作成
+    fn perpendicular_through(point: (T, T), other: &Self) -> Self
+    where
+        Self: Sized;
 }
 
 /// InfiniteLine3D生成のためのConstructorトレイト
@@ -104,6 +121,27 @@ pub trait InfiniteLine3DConstructor<T: Scalar> {
     fn through_origin(direction: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// XY平面上で指定角度の直線を原点を通るように作成
+    fn from_xy_angle(angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// 指定点を通りXY平面上で指定角度の直線を作成
+    fn from_point_and_xy_angle(point: (T, T, T), angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// 指定点を通り、指定直線に垂直かつ指定平面内の直線を作成
+    fn perpendicular_in_plane(
+        point: (T, T, T),
+        other: &Self,
+        plane_normal: (T, T, T),
+    ) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -141,6 +179,17 @@ pub trait InfiniteLine2DProperties<T: Scalar> {
 
     /// 形状の次元数（2）
     fn dimension(&self) -> u32;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 直線の方向角度（ラジアン）を取得
+    fn angle(&self) -> T;
+
+    /// 指定点が直線の上側にあるか判定
+    fn is_above(&self, point: (T, T)) -> bool;
+
+    /// 指定点が直線の下側にあるか判定
+    fn is_below(&self, point: (T, T)) -> bool;
 }
 
 /// InfiniteLine3D基本プロパティ取得トレイト
@@ -174,6 +223,17 @@ pub trait InfiniteLine3DProperties<T: Scalar> {
 
     /// 形状の次元数（3）
     fn dimension(&self) -> u32;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// XY平面上での方向角度（azimuth）を取得
+    fn xy_angle(&self) -> T;
+
+    /// 指定平面上にあるか判定
+    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool;
+
+    /// 座標軸に平行か判定（いずれかの軸）
+    fn is_axis_aligned(&self) -> bool;
 }
 
 // ============================================================================
@@ -214,6 +274,26 @@ pub trait InfiniteLine2DMeasure<T: Scalar> {
 
     /// 直線を反転（方向を逆にする）
     fn reverse(&self) -> Self
+    where
+        Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 点を直線に対して鏡面反射
+    fn mirror_point(&self, point: (T, T)) -> (T, T);
+
+    /// 指定距離だけ離れた平行な直線を作成
+    fn offset(&self, distance: T) -> Self
+    where
+        Self: Sized;
+
+    /// 原点周りに指定角度だけ回転
+    fn rotate_around_origin(&self, angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// 指定点周りに指定角度だけ回転
+    fn rotate_around_point(&self, center: (T, T), angle: T) -> Self
     where
         Self: Sized;
 }
@@ -263,6 +343,26 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
     fn reverse(&self) -> Self
     where
         Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 点を直線に対して鏡面反射
+    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
+
+    /// 指定軸周りに指定角度だけ回転
+    fn rotate_around_axis(&self, axis_point: (T, T, T), axis_direction: (T, T, T), angle: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 平面との交点を計算
+    fn intersection_with_plane(
+        &self,
+        plane_point: (T, T, T),
+        plane_normal: (T, T, T),
+    ) -> Option<(T, T, T)>;
+
+    /// 他の直線との交点を計算（交差する場合）
+    fn intersection_with_line(&self, other: &Self) -> Option<(T, T, T)>;
 }
 
 // ============================================================================

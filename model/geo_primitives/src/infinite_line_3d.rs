@@ -361,6 +361,37 @@ impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
         let dir = Vector3D::new(direction.0, direction.1, direction.2);
         InfiniteLine3D::new(origin, dir)
     }
+
+    // ========== Phase 2 実装 ==========
+
+    fn from_xy_angle(angle: T) -> Self {
+        let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
+        InfiniteLine3D::new(Point3D::origin(), direction).unwrap()
+    }
+
+    fn from_point_and_xy_angle(point: (T, T, T), angle: T) -> Self {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
+        InfiniteLine3D::new(p, direction).unwrap()
+    }
+
+    fn perpendicular_in_plane(
+        point: (T, T, T),
+        other: &Self,
+        plane_normal: (T, T, T),
+    ) -> Option<Self> {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let other_dir = Vector3D::new(
+            other.direction().x(),
+            other.direction().y(),
+            other.direction().z(),
+        );
+        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
+
+        // 平面法線と直線方向の外積で垂直方向を計算
+        let perp_dir = normal.cross(&other_dir);
+        InfiniteLine3D::new(p, perp_dir)
+    }
 }
 
 // ============================================================================
@@ -421,6 +452,34 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
 
     fn dimension(&self) -> u32 {
         3
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn xy_angle(&self) -> T {
+        let dir = InfiniteLine3D::direction(self);
+        dir.y().atan2(dir.x())
+    }
+
+    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool {
+        let dir = InfiniteLine3D::direction(self);
+        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
+        let dir_vec = Vector3D::new(dir.x(), dir.y(), dir.z());
+
+        // 方向ベクトルが法線に垂直かつ、直線上の点が平面上にある
+        let dot = dir_vec.dot(&normal);
+        if dot.abs() > T::EPSILON {
+            return false;
+        }
+
+        let line_point = InfiniteLine3D::point(self);
+        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
+        let to_line = Vector3D::from_points(&plane_pt, &line_point);
+        to_line.dot(&normal).abs() <= T::EPSILON
+    }
+
+    fn is_axis_aligned(&self) -> bool {
+        self.is_x_parallel() || self.is_y_parallel() || self.is_z_parallel()
     }
 }
 
@@ -527,6 +586,93 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         let self_point = <Self as InfiniteLine3DProperties<T>>::point(self);
         let reversed_dir = (-self_dir.0, -self_dir.1, -self_dir.2);
         <Self as InfiniteLine3DConstructor<T>>::new(self_point, reversed_dir).unwrap()
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let projected = self.project_point(&p);
+        // 鏡面点 = 2 * 投影点 - 元の点
+        let mirrored = projected + (projected - p);
+        (mirrored.x(), mirrored.y(), mirrored.z())
+    }
+
+    fn rotate_around_axis(
+        &self,
+        axis_point: (T, T, T),
+        axis_direction: (T, T, T),
+        angle: T,
+    ) -> Option<Self> {
+        use analysis::linalg::matrix::Matrix4x4;
+        use analysis::linalg::vector::Vector3;
+
+        let axis_vec = Vector3::new(axis_direction.0, axis_direction.1, axis_direction.2);
+        let axis_normalized = axis_vec.normalize().ok()?;
+
+        let rotation_matrix = Matrix4x4::rotation_axis(&axis_normalized, angle);
+
+        // 軸上の点からの相対位置を計算して回転
+        let line_point = InfiniteLine3D::point(self);
+        let axis_pt = Point3D::new(axis_point.0, axis_point.1, axis_point.2);
+        let relative = Vector3D::from_points(&axis_pt, &line_point);
+        let relative_analysis = Vector3::new(relative.x(), relative.y(), relative.z());
+        let rotated_relative = rotation_matrix.transform_point_3d(&relative_analysis);
+
+        let rotated_point = Point3D::new(
+            axis_pt.x() + rotated_relative.x(),
+            axis_pt.y() + rotated_relative.y(),
+            axis_pt.z() + rotated_relative.z(),
+        );
+
+        // 方向ベクトルを回転
+        let dir = InfiniteLine3D::direction(self);
+        let dir_analysis = Vector3::new(dir.x(), dir.y(), dir.z());
+        let rotated_dir_analysis = rotation_matrix.transform_vector_3d(&dir_analysis);
+        let rotated_dir = Vector3D::new(
+            rotated_dir_analysis.x(),
+            rotated_dir_analysis.y(),
+            rotated_dir_analysis.z(),
+        );
+
+        InfiniteLine3D::new(rotated_point, rotated_dir)
+    }
+
+    fn intersection_with_plane(
+        &self,
+        plane_point: (T, T, T),
+        plane_normal: (T, T, T),
+    ) -> Option<(T, T, T)> {
+        let dir = InfiniteLine3D::direction(self);
+        let line_point = InfiniteLine3D::point(self);
+        let dir_vec = Vector3D::new(dir.x(), dir.y(), dir.z());
+        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
+
+        let denom = dir_vec.dot(&normal);
+        if denom.abs() <= T::EPSILON {
+            return None; // 平行または平面内
+        }
+
+        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
+        let to_plane = Vector3D::from_points(&line_point, &plane_pt);
+
+        let t = to_plane.dot(&normal) / denom;
+        let intersection = <Self as InfiniteLine3DMeasure<T>>::point_at_parameter(self, t);
+        Some(intersection)
+    }
+
+    fn intersection_with_line(&self, other: &Self) -> Option<(T, T, T)> {
+        if self.is_parallel_to(other) {
+            return None;
+        }
+
+        if !self.intersects(other) {
+            return None; // スキュー線
+        }
+
+        // 交差する場合、最接近点が交点
+        self.closest_points(other)
+            .map(|(p1, _)| p1)
     }
 }
 
