@@ -255,6 +255,44 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
     {
         Ray3D::along_z_axis(Point3D::origin())
     }
+
+    // ========== Phase 2 実装 ==========
+
+    fn from_spherical(origin: Point3<T>, azimuth: T, elevation: T) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let cos_elev = elevation.cos();
+        let sin_elev = elevation.sin();
+        let cos_azim = azimuth.cos();
+        let sin_azim = azimuth.sin();
+
+        let direction = Vector3D::new(
+            cos_elev * cos_azim,
+            cos_elev * sin_azim,
+            sin_elev,
+        );
+        Ray3D::new(origin_point, direction).unwrap()
+    }
+
+    fn xy_plane_angle(origin: Point3<T>, angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
+        Ray3D::new(origin_point, direction).unwrap()
+    }
+
+    fn xz_plane_angle(origin: Point3<T>, angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let direction = Vector3D::new(angle.cos(), T::ZERO, angle.sin());
+        Ray3D::new(origin_point, direction).unwrap()
+    }
 }
 
 /// Ray3DProperties トレイト実装
@@ -296,6 +334,25 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     fn is_valid(&self) -> bool {
         // Ray3D::new がSomeを返した時点で有効性は保証されている
         true
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn azimuth(&self) -> T {
+        let dir = self.direction_vector();
+        dir.y().atan2(dir.x())
+    }
+
+    fn elevation(&self) -> T {
+        let dir = self.direction_vector();
+        let xy_length = (dir.x() * dir.x() + dir.y() * dir.y()).sqrt();
+        dir.z().atan2(xy_length)
+    }
+
+    fn is_on_xy_plane(&self) -> bool {
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.origin().z().abs() < DefaultTolerances::distance::<T>()
+            && self.direction_vector().z().abs() < DefaultTolerances::distance::<T>()
     }
 }
 
@@ -391,5 +448,99 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let new_origin = self.origin() + offset_vector;
 
         Ray3D::new(new_origin, self.direction_vector()).unwrap()
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn distance_to_ray(&self, other: &Self) -> T {
+        let w = self.origin() - other.origin();
+        let a = self.direction_vector().dot(&self.direction_vector());
+        let b = self.direction_vector().dot(&other.direction_vector());
+        let c = other.direction_vector().dot(&other.direction_vector());
+        let d = self.direction_vector().dot(&w);
+        let e = other.direction_vector().dot(&w);
+
+        let denom = a * c - b * b;
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        if denom.abs() < DefaultTolerances::distance::<T>() {
+            // 平行: 片方の起点から他方への距離
+            let other_origin = other.origin();
+            return self.distance_to_point(&Point3D::new(
+                other_origin.x(),
+                other_origin.y(),
+                other_origin.z(),
+            ));
+        }
+
+        let sc = (b * e - c * d) / denom;
+        let tc = (a * e - b * d) / denom;
+
+        let sc_clamped = if sc < T::ZERO { T::ZERO } else { sc };
+        let tc_clamped = if tc < T::ZERO { T::ZERO } else { tc };
+
+        let p1 = self.point_at_parameter(sc_clamped);
+        let p2 = other.point_at_parameter(tc_clamped);
+
+        let diff = Vector3D::new(p1.x() - p2.x(), p1.y() - p2.y(), p1.z() - p2.z());
+        diff.length()
+    }
+
+    fn point_at_distance(&self, distance: T) -> Point3<T> {
+        // 方向ベクトルは正規化済みなので、パラメータ = 距離
+        let point = self.point_at_parameter(distance);
+        Point3::new(point.x(), point.y(), point.z())
+    }
+
+    fn angle_between(&self, other: &Self) -> T {
+        let dot = self.direction_vector().dot(&other.direction_vector());
+        let clamped = if dot > T::ONE {
+            T::ONE
+        } else if dot < -T::ONE {
+            -T::ONE
+        } else {
+            dot
+        };
+        clamped.acos()
+    }
+
+    fn rotate_around_axis(&self, axis: &Vector3<T>, angle: T) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        use analysis::linalg::matrix::Matrix4x4;
+        use analysis::linalg::vector::Vector3;
+
+        // analysis::Vector3 に変換
+        let axis_analysis = Vector3::new(axis.x(), axis.y(), axis.z());
+        let norm = axis_analysis.norm();
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        if norm < DefaultTolerances::distance::<T>() {
+            return None;
+        }
+
+        let normalized_axis = axis_analysis.normalize().ok()?;
+        let rotation_matrix = Matrix4x4::rotation_axis(&normalized_axis, angle);
+
+        // 起点を回転
+        let origin = self.origin();
+        let origin_analysis = Vector3::new(origin.x(), origin.y(), origin.z());
+        let rotated_origin_analysis = rotation_matrix.transform_point_3d(&origin_analysis);
+        let rotated_origin = Point3D::new(
+            rotated_origin_analysis.x(),
+            rotated_origin_analysis.y(),
+            rotated_origin_analysis.z(),
+        );
+
+        // 方向ベクトルを回転
+        let dir = self.direction_vector();
+        let dir_analysis = Vector3::new(dir.x(), dir.y(), dir.z());
+        let rotated_dir_analysis = rotation_matrix.transform_vector_3d(&dir_analysis);
+        let rotated_dir = Vector3D::new(
+            rotated_dir_analysis.x(),
+            rotated_dir_analysis.y(),
+            rotated_dir_analysis.z(),
+        );
+
+        Ray3D::new(rotated_origin, rotated_dir)
     }
 }

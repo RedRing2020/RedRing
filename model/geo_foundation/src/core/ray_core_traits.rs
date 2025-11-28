@@ -58,6 +58,23 @@ pub trait Ray2DConstructor<T: Scalar> {
     fn y_axis() -> Self
     where
         Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 指定角度（ラジアン）の方向のRayを作成
+    fn from_angle(origin: Point2<T>, angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// 水平右方向（+X）のRayを原点から作成
+    fn horizontal_right() -> Self
+    where
+        Self: Sized;
+
+    /// 垂直上方向（+Y）のRayを原点から作成
+    fn vertical_up() -> Self
+    where
+        Self: Sized;
 }
 
 /// Ray3D生成のためのConstructorトレイト
@@ -118,6 +135,23 @@ pub trait Ray3DConstructor<T: Scalar> {
     fn z_axis() -> Self
     where
         Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 指定された2つの軸周りの角度からRayを作成（球面座標系）
+    fn from_spherical(origin: Point3<T>, azimuth: T, elevation: T) -> Self
+    where
+        Self: Sized;
+
+    /// XY平面上で指定角度のRayを作成
+    fn xy_plane_angle(origin: Point3<T>, angle: T) -> Self
+    where
+        Self: Sized;
+
+    /// XZ平面上で指定角度のRayを作成
+    fn xz_plane_angle(origin: Point3<T>, angle: T) -> Self
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -151,6 +185,17 @@ pub trait Ray2DProperties<T: Scalar> {
     fn dimension(&self) -> usize {
         2
     }
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// Rayの方向角度（ラジアン）を取得
+    fn angle(&self) -> T;
+
+    /// Rayが水平方向かどうか
+    fn is_horizontal(&self) -> bool;
+
+    /// Rayが垂直方向かどうか
+    fn is_vertical(&self) -> bool;
 }
 
 /// Ray3D属性アクセスのためのPropertiesトレイト
@@ -186,6 +231,17 @@ pub trait Ray3DProperties<T: Scalar> {
     fn dimension(&self) -> usize {
         3
     }
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 方位角（azimuth）を取得（XY平面での角度）
+    fn azimuth(&self) -> T;
+
+    /// 仰角（elevation）を取得（Z軸からの角度）
+    fn elevation(&self) -> T;
+
+    /// RayがXY平面上にあるかどうか
+    fn is_on_xy_plane(&self) -> bool;
 }
 
 // ============================================================================
@@ -232,6 +288,22 @@ pub trait Ray2DMeasure<T: Scalar> {
     fn translate(&self, offset: Vector2<T>) -> Self
     where
         Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 他のRayとの交点を計算
+    fn intersection_with_ray(&self, other: &Self) -> Option<Point2<T>>;
+
+    /// 指定距離だけ進んだ点を取得
+    fn point_at_distance(&self, distance: T) -> Point2<T>;
+
+    /// 2つのRay間の角度を計算（ラジアン）
+    fn angle_between(&self, other: &Self) -> T;
+
+    /// Rayを指定角度だけ回転
+    fn rotate_around_origin(&self, angle: T) -> Self
+    where
+        Self: Sized;
 }
 
 /// Ray3D測定のためのMeasureトレイト
@@ -272,6 +344,22 @@ pub trait Ray3DMeasure<T: Scalar> {
 
     /// 指定した分だけ起点を移動
     fn translate(&self, offset: Vector3<T>) -> Self
+    where
+        Self: Sized;
+
+    // ========== Phase 2: 追加メソッド ==========
+
+    /// 他のRayとの最短距離を計算（スキュー線の場合）
+    fn distance_to_ray(&self, other: &Self) -> T;
+
+    /// 指定距離だけ進んだ点を取得
+    fn point_at_distance(&self, distance: T) -> Point3<T>;
+
+    /// 2つのRay間の角度を計算（ラジアン）
+    fn angle_between(&self, other: &Self) -> T;
+
+    /// 指定軸周りに指定角度だけ回転
+    fn rotate_around_axis(&self, axis: &Vector3<T>, angle: T) -> Option<Self>
     where
         Self: Sized;
 }

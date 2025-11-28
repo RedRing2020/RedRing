@@ -245,6 +245,31 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
     {
         Self::along_positive_y(Point2::origin())
     }
+
+    // ========== Phase 2 実装 ==========
+
+    fn from_angle(origin: Point2<T>, angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        let origin_point = Point2D::new(origin.x(), origin.y());
+        let direction = Vector2D::new(angle.cos(), angle.sin());
+        Ray2D::new(origin_point, direction).unwrap()
+    }
+
+    fn horizontal_right() -> Self
+    where
+        Self: Sized,
+    {
+        Self::x_axis()
+    }
+
+    fn vertical_up() -> Self
+    where
+        Self: Sized,
+    {
+        Self::y_axis()
+    }
 }
 
 /// Ray2DProperties トレイト実装
@@ -278,6 +303,23 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     fn is_valid(&self) -> bool {
         // Ray2D::new がSomeを返した時点で有効性は保証されている
         true
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn angle(&self) -> T {
+        let dir = self.direction();
+        dir.y().atan2(dir.x())
+    }
+
+    fn is_horizontal(&self) -> bool {
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.direction().y().abs() < DefaultTolerances::distance::<T>()
+    }
+
+    fn is_vertical(&self) -> bool {
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.direction().x().abs() < DefaultTolerances::distance::<T>()
     }
 }
 
@@ -374,5 +416,66 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         let direction_vec = Vector2D::new(self.direction().x(), self.direction().y());
 
         Ray2D::new(new_origin, direction_vec).unwrap()
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn intersection_with_ray(&self, other: &Self) -> Option<Point2<T>> {
+        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
+        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+
+        let cross = this_dir.cross(&other_dir);
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        if cross.abs() < DefaultTolerances::distance::<T>() {
+            return None; // 平行または一致
+        }
+
+        let diff = other.origin() - self.origin();
+        let diff_vec = Vector2D::new(diff.x(), diff.y());
+        let t = diff_vec.cross(&other_dir) / cross;
+
+        if t < T::ZERO {
+            return None; // Rayの逆方向
+        }
+
+        let intersection = self.point_at_parameter(t);
+        Some(Point2::new(intersection.x(), intersection.y()))
+    }
+
+    fn point_at_distance(&self, distance: T) -> Point2<T> {
+        // 方向ベクトルは正規化済みなので、パラメータ = 距離
+        let point = self.point_at_parameter(distance);
+        Point2::new(point.x(), point.y())
+    }
+
+    fn angle_between(&self, other: &Self) -> T {
+        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
+        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+        let dot = this_dir.dot(&other_dir);
+        dot.acos()
+    }
+
+    fn rotate_around_origin(&self, angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        let origin = self.origin();
+        let ox = origin.x();
+        let oy = origin.y();
+        let new_ox = ox * cos_a - oy * sin_a;
+        let new_oy = ox * sin_a + oy * cos_a;
+        let new_origin = Point2D::new(new_ox, new_oy);
+
+        let dir = self.direction();
+        let dx = dir.x();
+        let dy = dir.y();
+        let new_dx = dx * cos_a - dy * sin_a;
+        let new_dy = dx * sin_a + dy * cos_a;
+        let new_direction = Vector2D::new(new_dx, new_dy);
+
+        Ray2D::new(new_origin, new_direction).unwrap()
     }
 }
