@@ -353,11 +353,7 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
         Some(Self::new(ellipse, start, end))
     }
 
-    fn from_three_points(
-        start: (T, T, T),
-        mid: (T, T, T),
-        end: (T, T, T),
-    ) -> Option<Self> {
+    fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self> {
         let p1 = Point3D::new(start.0, start.1, start.2);
         let p2 = Point3D::new(mid.0, mid.1, mid.2);
         let p3 = Point3D::new(end.0, end.1, end.2);
@@ -522,7 +518,23 @@ impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
         // 16分割でサンプリング
         let t_values = [
             T::ZERO,
-            T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE),
+            T::ONE
+                / (T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE),
             T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE),
             T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE),
             T::ONE / (T::ONE + T::ONE),

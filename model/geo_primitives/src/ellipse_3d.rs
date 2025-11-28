@@ -215,7 +215,7 @@ impl<T: Scalar> Ellipse3D<T> {
     /// 3D空間での点から楕円への最短距離を計算（内部実装）
     fn distance_to_point_3d_internal(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
-        
+
         // 点を楕円の座標系に変換
         let translated = Vector3D::new(
             p.x() - self.center.x(),
@@ -226,14 +226,14 @@ impl<T: Scalar> Ellipse3D<T> {
         // 楕円平面への射影
         let u = self.major_axis_dir.as_vector();
         let v = self.minor_axis_direction().as_vector();
-        
+
         let x_local = translated.dot(&u);
         let y_local = translated.dot(&v);
-        
+
         // 平面外成分（法線方向）
         let n = self.normal.as_vector();
         let z_local = translated.dot(&n);
-        
+
         // geo_commonsの共通実装を使用
         geo_foundation::commons::ellipse_3d_distance_to_point(
             x_local,
@@ -251,7 +251,7 @@ impl<T: Scalar> Ellipse3D<T> {
 
 impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
     // ========== Phase 1 実装 ==========
-    
+
     /// 基本コンストラクタ（中心点、平面法線、長軸半径、短軸半径、長軸方向）
     fn new(
         center: (T, T, T),
@@ -383,7 +383,7 @@ impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
 
 impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
     // ========== Phase 1 実装 ==========
-    
+
     /// 楕円が存在する平面の法線ベクトルを取得
     fn normal(&self) -> (T, T, T) {
         (self.normal.x(), self.normal.y(), self.normal.z())
@@ -434,7 +434,7 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
 
 impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
     // ========== Phase 1 実装 ==========
-    
+
     /// 3D空間での点が楕円内部にあるかを判定
     fn contains_point_3d(&self, point: (T, T, T)) -> bool {
         self.distance_to_point_3d_internal(point)

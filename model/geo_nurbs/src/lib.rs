@@ -12,7 +12,8 @@
 pub mod basis;
 pub mod curve_2d;
 pub mod curve_3d;
-pub mod surface;
+pub mod operations;
+pub mod surface_3d;
 pub mod transform;
 
 pub mod error;
@@ -28,8 +29,8 @@ pub use curve_2d::NurbsCurve2D;
 pub use curve_3d::NurbsCurve3D;
 pub use error::{NurbsError, Result};
 pub use knot::{validate_knot_vector, KnotVector};
-pub use surface::NurbsSurface3D;
-pub use transform::{CurveSplitting, DegreeElevation, KnotInsertion};
+pub use operations::{CurveSplitting, DegreeElevation, KnotInsertion};
+pub use surface_3d::NurbsSurface3D;
 pub use weight_storage::WeightStorage;
 
 /// NURBS関連の定数

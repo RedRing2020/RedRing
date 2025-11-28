@@ -1,4 +1,4 @@
-﻿//! 2次元楕円弧（EllipseArc2D）のCore実装
+//! 2次元楕円弧（EllipseArc2D）のCore実装
 //!
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
@@ -281,12 +281,7 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
 
     // ========== Phase 2: 追加コンストラクタ ==========
 
-    fn from_circle_arc(
-        center: (T, T),
-        radius: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self> {
+    fn from_circle_arc(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
         // 円弧は楕円弧の特殊ケース（a = b = radius）
         let center_point = Point2D::new(center.0, center.1);
         let ellipse = Ellipse2D::new(center_point, radius, radius, T::ZERO)?;
@@ -295,11 +290,7 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
         Some(Self::new(ellipse, start, end))
     }
 
-    fn from_three_points(
-        start: (T, T),
-        mid: (T, T),
-        end: (T, T),
-    ) -> Option<Self> {
+    fn from_three_points(start: (T, T), mid: (T, T), end: (T, T)) -> Option<Self> {
         // 3点を通る円弧として解釈
         let p1 = Point2D::new(start.0, start.1);
         let p2 = Point2D::new(mid.0, mid.1);
@@ -340,11 +331,7 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
         Self::from_circle_arc((center.x(), center.y()), radius, start_angle, end_angle)
     }
 
-    fn from_center_and_points(
-        center: (T, T),
-        start: (T, T),
-        end: (T, T),
-    ) -> Option<Self> {
+    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self> {
         let c = Point2D::new(center.0, center.1);
         let p1 = Point2D::new(start.0, start.1);
         let p2 = Point2D::new(end.0, end.1);

@@ -384,22 +384,19 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     fn is_xy_plane(&self) -> bool {
         let tolerance = T::EPSILON;
         let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        (self.normal.as_vector() - z_axis).length() < tolerance
-            && self.origin.z().abs() < tolerance
+        (self.normal.as_vector() - z_axis).length() < tolerance && self.origin.z().abs() < tolerance
     }
 
     fn is_xz_plane(&self) -> bool {
         let tolerance = T::EPSILON;
         let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        (self.normal.as_vector() - y_axis).length() < tolerance
-            && self.origin.y().abs() < tolerance
+        (self.normal.as_vector() - y_axis).length() < tolerance && self.origin.y().abs() < tolerance
     }
 
     fn is_yz_plane(&self) -> bool {
         let tolerance = T::EPSILON;
         let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        (self.normal.as_vector() - x_axis).length() < tolerance
-            && self.origin.x().abs() < tolerance
+        (self.normal.as_vector() - x_axis).length() < tolerance && self.origin.x().abs() < tolerance
     }
 }
 

@@ -215,7 +215,7 @@ impl<T: Scalar> Triangle3D<T> {
         // 3D空間での外心計算は複雑なため、2D投影して計算
         // 法線を取得
         let normal = self.normal()?;
-        
+
         // 三角形の平面上で2D座標系を構築
         let ab = self.edge_ab();
         let x_axis = ab.normalize();
@@ -224,14 +224,16 @@ impl<T: Scalar> Triangle3D<T> {
         // 各頂点を2D座標に変換
         let a_2d = (T::ZERO, T::ZERO);
         let b_2d = (ab.length(), T::ZERO);
-        
+
         let ac = Vector3D::from_points(&self.vertex_a, &self.vertex_c);
         let c_x = ac.dot(&x_axis);
         let c_y = ac.dot(&y_axis);
         let c_2d = (c_x, c_y);
 
         // 2D外心を計算
-        let d = (a_2d.0 * (b_2d.1 - c_2d.1) + b_2d.0 * (c_2d.1 - a_2d.1) + c_2d.0 * (a_2d.1 - b_2d.1)) * (T::ONE + T::ONE);
+        let d =
+            (a_2d.0 * (b_2d.1 - c_2d.1) + b_2d.0 * (c_2d.1 - a_2d.1) + c_2d.0 * (a_2d.1 - b_2d.1))
+                * (T::ONE + T::ONE);
         if d.abs() < T::from_f64(1e-10) {
             return None;
         }
@@ -240,8 +242,10 @@ impl<T: Scalar> Triangle3D<T> {
         let b_sq = b_2d.0 * b_2d.0 + b_2d.1 * b_2d.1;
         let c_sq = c_2d.0 * c_2d.0 + c_2d.1 * c_2d.1;
 
-        let ux = (a_sq * (b_2d.1 - c_2d.1) + b_sq * (c_2d.1 - a_2d.1) + c_sq * (a_2d.1 - b_2d.1)) / d;
-        let uy = (a_sq * (c_2d.0 - b_2d.0) + b_sq * (a_2d.0 - c_2d.0) + c_sq * (b_2d.0 - a_2d.0)) / d;
+        let ux =
+            (a_sq * (b_2d.1 - c_2d.1) + b_sq * (c_2d.1 - a_2d.1) + c_sq * (a_2d.1 - b_2d.1)) / d;
+        let uy =
+            (a_sq * (c_2d.0 - b_2d.0) + b_sq * (a_2d.0 - c_2d.0) + c_sq * (b_2d.0 - a_2d.0)) / d;
 
         // 2D座標を3D空間に戻す
         let circumcenter = Point3D::new(
@@ -315,7 +319,9 @@ impl<T: Scalar> Triangle3D<T> {
             return to_point.length();
         }
 
-        let t = (to_point.dot(&edge) / edge_length_sq).max(T::ZERO).min(T::ONE);
+        let t = (to_point.dot(&edge) / edge_length_sq)
+            .max(T::ZERO)
+            .min(T::ONE);
 
         let closest = Point3D::new(
             p1.x() + t * edge.x(),

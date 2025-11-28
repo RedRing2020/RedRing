@@ -1,4 +1,4 @@
-﻿//! Point2D Core 実装
+//! Point2D Core 実装
 //!
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
@@ -6,9 +6,7 @@ use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_foundation::{
     core::{
-        point_core_traits::{
-            Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties,
-        },
+        point_core_traits::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties},
         point_traits,
     },
     Scalar,

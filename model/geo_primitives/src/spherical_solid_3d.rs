@@ -277,6 +277,86 @@ impl<T: Scalar> SphericalSolid3D<T> {
 }
 
 // ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::{
+    SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,
+    SphericalSolid3DProperties,
+};
+
+impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
+        Self::new(center_point, axis_vector, ref_vector, radius)
+    }
+
+    fn new_standard(center: (T, T, T), radius: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::new_standard(center_point, radius)
+    }
+
+    fn unit_sphere() -> Self {
+        Self::new_at_origin(T::ONE).expect("Unit sphere creation should always succeed")
+    }
+}
+
+impl<T: Scalar> SphericalSolid3DProperties<T> for SphericalSolid3D<T> {
+    fn center(&self) -> (T, T, T) {
+        (self.center.x(), self.center.y(), self.center.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        (self.axis.x(), self.axis.y(), self.axis.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        (
+            self.ref_direction.x(),
+            self.ref_direction.y(),
+            self.ref_direction.z(),
+        )
+    }
+
+    fn diameter(&self) -> T {
+        self.diameter()
+    }
+}
+
+impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
+    fn volume(&self) -> T {
+        self.volume()
+    }
+
+    fn surface_area(&self) -> T {
+        self.surface_area()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.contains_point(point_3d)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(point_3d).abs()
+    }
+}
+
+impl<T: Scalar> SphericalSolid3DCore<T> for SphericalSolid3D<T> {}
+
+// ============================================================================
 // Display Implementation
 // ============================================================================
 

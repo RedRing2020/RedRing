@@ -671,8 +671,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         }
 
         // 交差する場合、最接近点が交点
-        self.closest_points(other)
-            .map(|(p1, _)| p1)
+        self.closest_points(other).map(|(p1, _)| p1)
     }
 }
 

@@ -29,11 +29,7 @@ pub trait Ellipse2DConstructor<T: Scalar>: Sized {
     fn from_circle(center: (T, T), radius: T) -> Self;
 
     /// 焦点と長半軸から楕円を作成
-    fn from_foci_and_semi_major(
-        focus1: (T, T),
-        focus2: (T, T),
-        semi_major: T,
-    ) -> Option<Self>;
+    fn from_foci_and_semi_major(focus1: (T, T), focus2: (T, T), semi_major: T) -> Option<Self>;
 
     /// 原点中心の楕円を作成
     fn centered_at_origin(semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;

@@ -6,9 +6,7 @@ use crate::Vector3D;
 use analysis::linalg::vector::Vector3;
 use geo_foundation::{
     core::{
-        point_core_traits::{
-            Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties,
-        },
+        point_core_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties},
         point_traits,
     },
     Scalar,

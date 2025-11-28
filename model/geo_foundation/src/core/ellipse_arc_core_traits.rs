@@ -17,7 +17,7 @@ use crate::Scalar;
 /// EllipseArc2D生成のためのConstructorトレイト（Phase 1 + Phase 2）
 pub trait EllipseArc2DConstructor<T: Scalar> {
     // ========== Phase 1: 最小限のコンストラクタ（3メソッド） ==========
-    
+
     /// 中心、長軸、短軸、回転角、角度範囲から楕円弧を作成
     fn new(
         center: (T, T),
@@ -47,32 +47,19 @@ pub trait EllipseArc2DConstructor<T: Scalar> {
         Self: Sized;
 
     // ========== Phase 2: 追加コンストラクタ（3メソッド） ==========
-    
+
     /// 円弧から楕円弧を作成（円弧は楕円弧の特殊ケース）
-    fn from_circle_arc(
-        center: (T, T),
-        radius: T,
-        start_angle: T,
-        end_angle: T,
-    ) -> Option<Self>
+    fn from_circle_arc(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self>
     where
         Self: Sized;
 
     /// 3点を通る楕円弧を作成（開始点、中間点、終了点）
-    fn from_three_points(
-        start: (T, T),
-        mid: (T, T),
-        end: (T, T),
-    ) -> Option<Self>
+    fn from_three_points(start: (T, T), mid: (T, T), end: (T, T)) -> Option<Self>
     where
         Self: Sized;
 
     /// 中心と2点から楕円弧を作成（回転角は0）
-    fn from_center_and_points(
-        center: (T, T),
-        start: (T, T),
-        end: (T, T),
-    ) -> Option<Self>
+    fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self>
     where
         Self: Sized;
 }
@@ -80,7 +67,7 @@ pub trait EllipseArc2DConstructor<T: Scalar> {
 /// EllipseArc3D生成のためのConstructorトレイト（Phase 1 + Phase 2）
 pub trait EllipseArc3DConstructor<T: Scalar> {
     // ========== Phase 1: 最小限のコンストラクタ（3メソッド） ==========
-    
+
     /// 3D空間での楕円弧を作成（法線、長軸方向、角度範囲）
     fn new(
         center: (T, T, T),
@@ -112,7 +99,7 @@ pub trait EllipseArc3DConstructor<T: Scalar> {
         Self: Sized;
 
     // ========== Phase 2: 追加コンストラクタ（3メソッド） ==========
-    
+
     /// XZ平面上の楕円弧を作成
     fn xz_plane(
         center: (T, T, T),
@@ -138,11 +125,7 @@ pub trait EllipseArc3DConstructor<T: Scalar> {
         Self: Sized;
 
     /// 3点を通る楕円弧を3D空間に作成（開始点、中間点、終了点）
-    fn from_three_points(
-        start: (T, T, T),
-        mid: (T, T, T),
-        end: (T, T, T),
-    ) -> Option<Self>
+    fn from_three_points(start: (T, T, T), mid: (T, T, T), end: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
 }
@@ -154,7 +137,7 @@ pub trait EllipseArc3DConstructor<T: Scalar> {
 /// EllipseArc2D基本プロパティ取得トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc2DProperties<T: Scalar> {
     // ========== Phase 1: 最小限のプロパティ（5メソッド） ==========
-    
+
     /// 中心点を取得
     fn center(&self) -> (T, T);
 
@@ -171,7 +154,7 @@ pub trait EllipseArc2DProperties<T: Scalar> {
     fn end_angle(&self) -> T;
 
     // ========== Phase 2: 追加プロパティ（3メソッド） ==========
-    
+
     /// 回転角を取得（ラジアン）
     fn rotation(&self) -> T;
 
@@ -185,7 +168,7 @@ pub trait EllipseArc2DProperties<T: Scalar> {
 /// EllipseArc3D基本プロパティ取得トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc3DProperties<T: Scalar> {
     // ========== Phase 1: 最小限のプロパティ（5メソッド） ==========
-    
+
     /// 中心点を取得
     fn center(&self) -> (T, T, T);
 
@@ -202,7 +185,7 @@ pub trait EllipseArc3DProperties<T: Scalar> {
     fn end_angle(&self) -> T;
 
     // ========== Phase 2: 追加プロパティ（3メソッド） ==========
-    
+
     /// 法線ベクトルを取得
     fn normal(&self) -> (T, T, T);
 
@@ -220,7 +203,7 @@ pub trait EllipseArc3DProperties<T: Scalar> {
 /// EllipseArc2D計量・関係演算機能トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc2DMeasure<T: Scalar> {
     // ========== Phase 1: 最小限の計量（4メソッド） ==========
-    
+
     /// 楕円弧の長さ（測度）
     fn measure(&self) -> T;
 
@@ -234,7 +217,7 @@ pub trait EllipseArc2DMeasure<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T);
 
     // ========== Phase 2: 追加計量（4メソッド） ==========
-    
+
     /// 中点を取得（パラメータt=0.5の点）
     fn mid_point(&self) -> (T, T);
 
@@ -251,7 +234,7 @@ pub trait EllipseArc2DMeasure<T: Scalar> {
 /// EllipseArc3D計量・関係演算機能トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc3DMeasure<T: Scalar> {
     // ========== Phase 1: 最小限の計量（4メソッド） ==========
-    
+
     /// 楕円弧の長さ（測度）
     fn measure(&self) -> T;
 
@@ -265,7 +248,7 @@ pub trait EllipseArc3DMeasure<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 
     // ========== Phase 2: 追加計量（4メソッド） ==========
-    
+
     /// 中点を取得（パラメータt=0.5の点）
     fn mid_point(&self) -> (T, T, T);
 

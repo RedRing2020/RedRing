@@ -290,13 +290,12 @@ impl<T: Scalar> Triangle2D<T> {
         }
 
         // パラメータt: 点からの最短距離を与える辺上の位置
-        let t = (to_point.dot(&edge) / edge_length_sq).max(T::ZERO).min(T::ONE);
+        let t = (to_point.dot(&edge) / edge_length_sq)
+            .max(T::ZERO)
+            .min(T::ONE);
 
         // 辺上の最近点
-        let closest = Point2D::new(
-            p1.x() + t * edge.x(),
-            p1.y() + t * edge.y(),
-        );
+        let closest = Point2D::new(p1.x() + t * edge.x(), p1.y() + t * edge.y());
 
         Vector2D::from_points(closest, *point).length()
     }

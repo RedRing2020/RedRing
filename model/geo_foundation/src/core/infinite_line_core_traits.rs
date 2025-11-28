@@ -350,7 +350,12 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
 
     /// 指定軸周りに指定角度だけ回転
-    fn rotate_around_axis(&self, axis_point: (T, T, T), axis_direction: (T, T, T), angle: T) -> Option<Self>
+    fn rotate_around_axis(
+        &self,
+        axis_point: (T, T, T),
+        axis_direction: (T, T, T),
+        angle: T,
+    ) -> Option<Self>
     where
         Self: Sized;
 

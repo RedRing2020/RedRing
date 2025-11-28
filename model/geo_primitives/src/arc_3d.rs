@@ -294,9 +294,9 @@ impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
     fn is_on_xy_plane(&self) -> bool {
         let normal = *self.normal();
         let z_axis = Direction3D::positive_z();
-        (normal.x() - z_axis.x()).abs() <= T::EPSILON &&
-        (normal.y() - z_axis.y()).abs() <= T::EPSILON &&
-        (normal.z() - z_axis.z()).abs() <= T::EPSILON
+        (normal.x() - z_axis.x()).abs() <= T::EPSILON
+            && (normal.y() - z_axis.y()).abs() <= T::EPSILON
+            && (normal.z() - z_axis.z()).abs() <= T::EPSILON
     }
 }
 

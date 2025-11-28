@@ -379,17 +379,13 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
 
         // 点を回転
         let p = self.point();
-        let rotated_point = Point2D::new(
-            p.x() * cos_a - p.y() * sin_a,
-            p.x() * sin_a + p.y() * cos_a,
-        );
+        let rotated_point =
+            Point2D::new(p.x() * cos_a - p.y() * sin_a, p.x() * sin_a + p.y() * cos_a);
 
         // 方向ベクトルを回転
         let d = self.direction();
-        let rotated_dir = Vector2D::new(
-            d.x() * cos_a - d.y() * sin_a,
-            d.x() * sin_a + d.y() * cos_a,
-        );
+        let rotated_dir =
+            Vector2D::new(d.x() * cos_a - d.y() * sin_a, d.x() * sin_a + d.y() * cos_a);
 
         Self::new(rotated_point, rotated_dir).unwrap()
     }
@@ -409,10 +405,8 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
 
         // 方向ベクトルを回転
         let d = self.direction();
-        let rotated_dir = Vector2D::new(
-            d.x() * cos_a - d.y() * sin_a,
-            d.x() * sin_a + d.y() * cos_a,
-        );
+        let rotated_dir =
+            Vector2D::new(d.x() * cos_a - d.y() * sin_a, d.x() * sin_a + d.y() * cos_a);
 
         Self::new(rotated_point, rotated_dir).unwrap()
     }

@@ -268,11 +268,7 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
         let cos_azim = azimuth.cos();
         let sin_azim = azimuth.sin();
 
-        let direction = Vector3D::new(
-            cos_elev * cos_azim,
-            cos_elev * sin_azim,
-            sin_elev,
-        );
+        let direction = Vector3D::new(cos_elev * cos_azim, cos_elev * sin_azim, sin_elev);
         Ray3D::new(origin_point, direction).unwrap()
     }
 

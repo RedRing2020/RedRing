@@ -467,15 +467,10 @@ impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
 
     fn from_circle(center: (T, T), radius: T) -> Self {
         let c = Point2D::new(center.0, center.1);
-        Self::new(c, radius, radius, T::ZERO)
-            .expect("Circle should be a valid ellipse")
+        Self::new(c, radius, radius, T::ZERO).expect("Circle should be a valid ellipse")
     }
 
-    fn from_foci_and_semi_major(
-        focus1: (T, T),
-        focus2: (T, T),
-        semi_major: T,
-    ) -> Option<Self> {
+    fn from_foci_and_semi_major(focus1: (T, T), focus2: (T, T), semi_major: T) -> Option<Self> {
         let f1 = Point2D::new(focus1.0, focus1.1);
         let f2 = Point2D::new(focus2.0, focus2.1);
 
@@ -587,10 +582,7 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
         let y_rotated = x_local * sin_rot + y_local * cos_rot;
 
         // 中心移動
-        (
-            self.center.x() + x_rotated,
-            self.center.y() + y_rotated,
-        )
+        (self.center.x() + x_rotated, self.center.y() + y_rotated)
     }
 
     fn distance_to_point(&self, point: (T, T)) -> T {
