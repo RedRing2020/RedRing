@@ -187,6 +187,56 @@ impl<T: Scalar> Circle2D<T> {
             T::ZERO
         }
     }
+
+    /// 3点から円を作成する内部メソッド
+    fn from_three_points_internal(
+        point1: Point2D<T>,
+        point2: Point2D<T>,
+        point3: Point2D<T>,
+    ) -> Option<Self> {
+        // 3点が一直線上にある場合は円が定義できない
+        let dx1 = point2.x() - point1.x();
+        let dy1 = point2.y() - point1.y();
+        let dx2 = point3.x() - point2.x();
+        let dy2 = point3.y() - point2.y();
+
+        let cross = dx1 * dy2 - dy1 * dx2;
+        if cross.abs() <= T::EPSILON {
+            return None; // 3点が一直線上
+        }
+
+        // 外心を計算
+        let d = T::from_f64(2.0)
+            * (point1.x() * (point2.y() - point3.y())
+                + point2.x() * (point3.y() - point1.y())
+                + point3.x() * (point1.y() - point2.y()));
+
+        if d.abs() <= T::EPSILON {
+            return None;
+        }
+
+        let p1_sq = point1.x() * point1.x() + point1.y() * point1.y();
+        let p2_sq = point2.x() * point2.x() + point2.y() * point2.y();
+        let p3_sq = point3.x() * point3.x() + point3.y() * point3.y();
+
+        let cx = (p1_sq * (point2.y() - point3.y())
+            + p2_sq * (point3.y() - point1.y())
+            + p3_sq * (point1.y() - point2.y()))
+            / d;
+        let cy = (p1_sq * (point3.x() - point2.x())
+            + p2_sq * (point1.x() - point3.x())
+            + p3_sq * (point2.x() - point1.x()))
+            / d;
+
+        let center = Point2D::new(cx, cy);
+
+        // 半径を計算
+        let dx = point1.x() - cx;
+        let dy = point1.y() - cy;
+        let radius = (dx * dx + dy * dy).sqrt();
+
+        Self::new(center, radius)
+    }
 }
 
 // ============================================================================
@@ -208,6 +258,35 @@ impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
     fn unit_circle() -> Self {
         let center = Point2D::origin();
         Self::new(center, T::ONE).unwrap()
+    }
+
+    // Phase 2 メソッド実装
+
+    fn from_center_and_point(center: (T, T), point_on_circle: (T, T)) -> Option<Self> {
+        let center_point = Point2D::new(center.0, center.1);
+        let point = Point2D::new(point_on_circle.0, point_on_circle.1);
+
+        let dx = point.x() - center_point.x();
+        let dy = point.y() - center_point.y();
+        let radius = (dx * dx + dy * dy).sqrt();
+
+        if radius <= T::ZERO {
+            None
+        } else {
+            Self::new(center_point, radius)
+        }
+    }
+
+    fn from_three_points(p1: (T, T), p2: (T, T), p3: (T, T)) -> Option<Self> {
+        let point1 = Point2D::new(p1.0, p1.1);
+        let point2 = Point2D::new(p2.0, p2.1);
+        let point3 = Point2D::new(p3.0, p3.1);
+
+        Self::from_three_points_internal(point1, point2, point3)
+    }
+
+    fn centered_at_origin(radius: T) -> Option<Self> {
+        Self::new(Point2D::origin(), radius)
     }
 }
 
@@ -231,6 +310,20 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     fn dimension(&self) -> u32 {
         2
     }
+
+    // Phase 2 メソッド実装
+
+    fn is_unit_circle(&self) -> bool {
+        (self.radius - T::ONE).abs() <= T::EPSILON
+    }
+
+    fn is_centered_at_origin(&self) -> bool {
+        self.center.x().abs() <= T::EPSILON && self.center.y().abs() <= T::EPSILON
+    }
+
+    fn is_degenerate(&self) -> bool {
+        self.radius <= T::EPSILON
+    }
 }
 
 impl<T: Scalar> Circle2DMeasure<T> for Circle2D<T> {
@@ -250,5 +343,27 @@ impl<T: Scalar> Circle2DMeasure<T> for Circle2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
         self.distance_to_point(p)
+    }
+
+    // Phase 2 メソッド実装
+
+    fn point_on_circumference(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        self.point_on_circumference(p)
+    }
+
+    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let closest = self.closest_point_to(p);
+        (closest.x(), closest.y())
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let point = self.point_at_parameter(t);
+        (point.x(), point.y())
+    }
+
+    fn distance_to_circle(&self, other: &Self) -> T {
+        self.distance_to_circle(other)
     }
 }

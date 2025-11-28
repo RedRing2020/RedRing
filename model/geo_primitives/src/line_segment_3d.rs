@@ -172,6 +172,29 @@ impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
         let end = Point3D::new(T::ONE, T::ZERO, T::ZERO);
         Self::new(start, end).unwrap()
     }
+
+    // Phase 2: 追加コンストラクタ
+    fn unit_y() -> Self {
+        let start = Point3D::origin();
+        let end = Point3D::new(T::ZERO, T::ONE, T::ZERO);
+        Self::new(start, end).unwrap()
+    }
+
+    fn unit_z() -> Self {
+        let start = Point3D::origin();
+        let end = Point3D::new(T::ZERO, T::ZERO, T::ONE);
+        Self::new(start, end).unwrap()
+    }
+
+    fn horizontal_xy(midpoint: (T, T, T), length: T) -> Option<Self> {
+        if length <= T::ZERO {
+            return None;
+        }
+        let half_length = length / (T::ONE + T::ONE);
+        let start = Point3D::new(midpoint.0 - half_length, midpoint.1, midpoint.2);
+        let end = Point3D::new(midpoint.0 + half_length, midpoint.1, midpoint.2);
+        Self::new(start, end)
+    }
 }
 
 impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
@@ -197,6 +220,23 @@ impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
     fn dimension(&self) -> u32 {
         3
     }
+
+    // Phase 2: 追加プロパティ
+    fn is_unit_length(&self) -> bool {
+        (self.length() - T::ONE).abs() <= T::EPSILON
+    }
+
+    fn is_on_xy_plane(&self) -> bool {
+        let start = self.start();
+        let end = self.end();
+        (start.z() - end.z()).abs() <= T::EPSILON
+    }
+
+    fn is_on_yz_plane(&self) -> bool {
+        let start = self.start();
+        let end = self.end();
+        (start.x() - end.x()).abs() <= T::EPSILON
+    }
 }
 
 impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
@@ -219,5 +259,55 @@ impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
         let param = self.start_param + t * (self.end_param - self.start_param);
         let p = self.line.point_at_parameter(param);
         (p.x(), p.y(), p.z())
+    }
+
+    // Phase 2: 追加測度メソッド
+    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = Point3D::new(point.0, point.1, point.2);
+        // 直線上のパラメータを計算
+        let line_param = self.line.parameter_for_point(&p);
+        // 線分範囲にクランプ
+        let clamped_param = if line_param < self.start_param {
+            self.start_param
+        } else if line_param > self.end_param {
+            self.end_param
+        } else {
+            line_param
+        };
+        let result = self.line.point_at_parameter(clamped_param);
+        (result.x(), result.y(), result.z())
+    }
+
+    fn distance_to_segment(&self, other: &Self) -> T {
+        // 簡易実装: 各端点から他方の線分への最短距離の最小値
+        let other_start_pt = other.start();
+        let other_end_pt = other.end();
+        let self_start_pt = self.start();
+        let self_end_pt = self.end();
+
+        let d1 = self.distance_to_point(&other_start_pt);
+        let d2 = self.distance_to_point(&other_end_pt);
+        let d3 = other.distance_to_point(&self_start_pt);
+        let d4 = other.distance_to_point(&self_end_pt);
+
+        let min1 = if d1 < d2 { d1 } else { d2 };
+        let min2 = if d3 < d4 { d3 } else { d4 };
+        if min1 < min2 {
+            min1
+        } else {
+            min2
+        }
+    }
+
+    fn direction_vector(&self) -> (T, T, T) {
+        let dir = self.direction();
+        (dir.x(), dir.y(), dir.z())
+    }
+
+    fn as_vector(&self) -> (T, T, T) {
+        let start = self.start();
+        let end = self.end();
+        let v = Vector3D::from_points(&start, &end);
+        (v.x(), v.y(), v.z())
     }
 }

@@ -28,6 +28,22 @@ pub trait LineSegment2DConstructor<T: Scalar> {
     fn unit_x() -> Self
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ
+    /// 中点と長さから水平線分を作成
+    fn from_midpoint_length_horizontal(midpoint: (T, T), length: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 中点と長さから垂直線分を作成
+    fn from_midpoint_length_vertical(midpoint: (T, T), length: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// Y軸方向の単位線分（原点から(0,1)まで）
+    fn unit_y() -> Self
+    where
+        Self: Sized;
 }
 
 /// LineSegment3D生成のためのConstructorトレイト（Phase 1: 最小限）
@@ -48,6 +64,22 @@ pub trait LineSegment3DConstructor<T: Scalar> {
 
     /// X軸方向の単位線分（原点から(1,0,0)まで）
     fn unit_x() -> Self
+    where
+        Self: Sized;
+
+    // Phase 2: 追加コンストラクタ
+    /// Y軸方向の単位線分（原点から(0,1,0)まで）
+    fn unit_y() -> Self
+    where
+        Self: Sized;
+
+    /// Z軸方向の単位線分（原点から(0,0,1)まで）
+    fn unit_z() -> Self
+    where
+        Self: Sized;
+
+    /// XY平面上の水平線分（Z=0）
+    fn horizontal_xy(midpoint: (T, T, T), length: T) -> Option<Self>
     where
         Self: Sized;
 }
@@ -72,6 +104,16 @@ pub trait LineSegment2DProperties<T: Scalar> {
 
     /// 形状の次元数（2）
     fn dimension(&self) -> u32;
+
+    // Phase 2: 追加プロパティ
+    /// 単位長さ（長さ1）の線分かどうか
+    fn is_unit_length(&self) -> bool;
+
+    /// 水平線分（Y座標が一定）かどうか
+    fn is_horizontal(&self) -> bool;
+
+    /// 垂直線分（X座標が一定）かどうか
+    fn is_vertical(&self) -> bool;
 }
 
 /// LineSegment3D基本プロパティ取得トレイト（Phase 1: 最小限）
@@ -90,6 +132,16 @@ pub trait LineSegment3DProperties<T: Scalar> {
 
     /// 形状の次元数（3）
     fn dimension(&self) -> u32;
+
+    // Phase 2: 追加プロパティ
+    /// 単位長さ（長さ1）の線分かどうか
+    fn is_unit_length(&self) -> bool;
+
+    /// XY平面上（Z座標が一定）の線分かどうか
+    fn is_on_xy_plane(&self) -> bool;
+
+    /// YZ平面上（X座標が一定）の線分かどうか
+    fn is_on_yz_plane(&self) -> bool;
 }
 
 // ============================================================================
@@ -109,6 +161,19 @@ pub trait LineSegment2DMeasure<T: Scalar> {
 
     /// パラメータt（0<=t<=1）での点を取得
     fn point_at_parameter(&self, t: T) -> (T, T);
+
+    // Phase 2: 追加測度メソッド
+    /// 点から線分への最近点を計算
+    fn closest_point_to(&self, point: (T, T)) -> (T, T);
+
+    /// 2つの線分間の最短距離
+    fn distance_to_segment(&self, other: &Self) -> T;
+
+    /// 方向ベクトルを取得
+    fn direction_vector(&self) -> (T, T);
+
+    /// 線分のベクトル表現（始点から終点）
+    fn as_vector(&self) -> (T, T);
 }
 
 /// LineSegment3D計量・関係演算機能トレイト（Phase 1: 最小限）
@@ -124,6 +189,19 @@ pub trait LineSegment3DMeasure<T: Scalar> {
 
     /// パラメータt（0<=t<=1）での点を取得
     fn point_at_parameter(&self, t: T) -> (T, T, T);
+
+    // Phase 2: 追加測度メソッド
+    /// 点から線分への最近点を計算
+    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
+
+    /// 2つの線分間の最短距離
+    fn distance_to_segment(&self, other: &Self) -> T;
+
+    /// 方向ベクトルを取得
+    fn direction_vector(&self) -> (T, T, T);
+
+    /// 線分のベクトル表現（始点から終点）
+    fn as_vector(&self) -> (T, T, T);
 }
 
 // ============================================================================
