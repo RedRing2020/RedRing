@@ -87,6 +87,61 @@ impl<T: Scalar> Point2D<T> {
     pub fn norm_squared(&self) -> T {
         self.x * self.x + self.y * self.y
     }
+
+    // ========================================================================
+    // Phase 2 Constructor Methods
+    // ========================================================================
+
+    /// 極座標から点を作成（r: 半径, theta: 角度）
+    pub fn from_polar(r: T, theta: T) -> Self {
+        Self::new(r * theta.cos(), r * theta.sin())
+    }
+
+    // ========================================================================
+    // Phase 2 Properties Methods
+    // ========================================================================
+
+    /// 極座標の半径成分を取得
+    pub fn polar_radius(&self) -> T {
+        self.norm()
+    }
+
+    /// 極座標の角度成分を取得（ラジアン）
+    pub fn polar_angle(&self) -> T {
+        self.y.atan2(self.x)
+    }
+
+    // ========================================================================
+    // Phase 2 Measure Methods
+    // ========================================================================
+
+    /// 2点の中点を計算
+    pub fn midpoint(&self, other: &Self) -> Self {
+        Self::new(
+            (self.x + other.x) / (T::ONE + T::ONE),
+            (self.y + other.y) / (T::ONE + T::ONE),
+        )
+    }
+
+    /// 別の点との線形補間（t=0で自分、t=1で相手）
+    pub fn lerp(&self, other: &Self, t: T) -> Self {
+        Self::new(
+            self.x + (other.x - self.x) * t,
+            self.y + (other.y - self.y) * t,
+        )
+    }
+
+    /// マンハッタン距離（L1ノルム）
+    pub fn manhattan_distance_to(&self, other: &Self) -> T {
+        (self.x - other.x).abs() + (self.y - other.y).abs()
+    }
+
+    /// チェビシェフ距離（L∞ノルム）
+    pub fn chebyshev_distance_to(&self, other: &Self) -> T {
+        let dx = (self.x - other.x).abs();
+        let dy = (self.y - other.y).abs();
+        dx.max(dy)
+    }
 }
 
 // ============================================================================
@@ -199,21 +254,6 @@ impl<T: Scalar> Point2D<T> {
     /// 近似等価判定
     pub fn is_approximately_equal(&self, other: &Self, tolerance: T) -> bool {
         (self.x - other.x).abs() <= tolerance && (self.y - other.y).abs() <= tolerance
-    }
-
-    /// 線形補間
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
-        let one_minus_t = T::ONE - t;
-        Point2D::new(
-            one_minus_t * self.x + t * other.x,
-            one_minus_t * self.y + t * other.y,
-        )
-    }
-
-    /// 中点計算
-    pub fn midpoint(&self, other: &Self) -> Self {
-        let half = T::from_f64(0.5);
-        self.lerp(other, half)
     }
 
     /// X軸反射

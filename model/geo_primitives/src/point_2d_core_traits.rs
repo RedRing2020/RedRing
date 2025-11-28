@@ -39,6 +39,11 @@ impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
     fn from_point(other: &Self) -> Self {
         *other
     }
+
+    /// 極座標から作成（r: 半径, theta: 角度）
+    fn from_polar(r: T, theta: T) -> Self {
+        Point2D::from_polar(r, theta)
+    }
 }
 
 // ============================================================================
@@ -70,6 +75,11 @@ impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
     fn to_analysis_vector(&self) -> Vector2<T> {
         Vector2::new(self.x(), self.y())
     }
+
+    /// 極座標の半径成分を取得
+    fn polar_radius(&self) -> T {
+        self.polar_radius()
+    }
 }
 
 // ============================================================================
@@ -97,6 +107,26 @@ impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
     fn norm_squared(&self) -> T {
         let origin = Point2D::origin();
         self.distance_squared_to(&origin)
+    }
+
+    /// 2点の中点を計算
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    /// 別の点との線形補間
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
+    }
+
+    /// マンハッタン距離（L1ノルム）
+    fn manhattan_distance_to(&self, other: &Self) -> T {
+        self.manhattan_distance_to(other)
+    }
+
+    /// チェビシェフ距離（L∞ノルム）
+    fn chebyshev_distance_to(&self, other: &Self) -> T {
+        self.chebyshev_distance_to(other)
     }
 }
 

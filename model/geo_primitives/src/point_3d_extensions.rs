@@ -15,20 +15,6 @@ impl<T: Scalar> Point3D<T> {
     // Advanced Construction Methods (Extension)
     // ========================================================================
 
-    /// 球面座標から点を作成（r, θ, φ）
-    pub fn from_spherical(radius: T, theta: Angle<T>, phi: Angle<T>) -> Self {
-        let sin_phi = phi.to_radians().sin();
-        let cos_phi = phi.to_radians().cos();
-        let sin_theta = theta.to_radians().sin();
-        let cos_theta = theta.to_radians().cos();
-
-        Self::new(
-            radius * sin_phi * cos_theta,
-            radius * sin_phi * sin_theta,
-            radius * cos_phi,
-        )
-    }
-
     /// 円筒座標から点を作成（r, θ, z）
     pub fn from_cylindrical(radius: T, theta: Angle<T>, z: T) -> Self {
         let sin_theta = theta.to_radians().sin();
@@ -40,21 +26,6 @@ impl<T: Scalar> Point3D<T> {
     // ========================================================================
     // Interpolation Methods (Extension)
     // ========================================================================
-
-    /// 線形補間
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
-        Point3D::new(
-            self.x() + t * (other.x() - self.x()),
-            self.y() + t * (other.y() - self.y()),
-            self.z() + t * (other.z() - self.z()),
-        )
-    }
-
-    /// 中点計算
-    pub fn midpoint(&self, other: &Self) -> Self {
-        let half = T::ONE / (T::ONE + T::ONE);
-        self.lerp(other, half)
-    }
 
     /// 重心計算（3点）
     pub fn centroid_3(p1: &Self, p2: &Self, p3: &Self) -> Self {

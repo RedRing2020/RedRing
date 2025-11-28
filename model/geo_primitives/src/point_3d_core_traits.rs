@@ -39,6 +39,11 @@ impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
     fn from_point(other: &Self) -> Self {
         *other
     }
+
+    /// 球面座標から作成（r: 半径, theta: 方位角, phi: 仰角）
+    fn from_spherical(r: T, theta: T, phi: T) -> Self {
+        Point3D::from_spherical(r, theta, phi)
+    }
 }
 
 // ============================================================================
@@ -102,6 +107,26 @@ impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
     fn norm_squared(&self) -> T {
         let origin = Point3D::origin();
         self.distance_squared_to(&origin)
+    }
+
+    /// 2点の中点を計算
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    /// 別の点との線形補間
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
+    }
+
+    /// マンハッタン距離（L1ノルム）
+    fn manhattan_distance_to(&self, other: &Self) -> T {
+        self.manhattan_distance_to(other)
+    }
+
+    /// チェビシェフ距離（L∞ノルム）
+    fn chebyshev_distance_to(&self, other: &Self) -> T {
+        self.chebyshev_distance_to(other)
     }
 }
 

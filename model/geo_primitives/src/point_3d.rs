@@ -88,6 +88,62 @@ impl<T: Scalar> Point3D<T> {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
+    // ========================================================================
+    // Phase 2 Constructor Methods
+    // ========================================================================
+
+    /// 球面座標から点を作成（r: 半径, theta: 方位角, phi: 仰角）
+    /// theta: xy平面での角度（0 = +x軸）
+    /// phi: z軸からの角度（0 = +z軸, π/2 = xy平面）
+    pub fn from_spherical(r: T, theta: T, phi: T) -> Self {
+        let sin_phi = phi.sin();
+        Self::new(
+            r * sin_phi * theta.cos(),
+            r * sin_phi * theta.sin(),
+            r * phi.cos(),
+        )
+    }
+
+    // ========================================================================
+    // Phase 2 Measure Methods
+    // ========================================================================
+
+    /// 2点の中点を計算
+    pub fn midpoint(&self, other: &Self) -> Self {
+        let two = T::ONE + T::ONE;
+        Self::new(
+            (self.x + other.x) / two,
+            (self.y + other.y) / two,
+            (self.z + other.z) / two,
+        )
+    }
+
+    /// 別の点との線形補間（t=0で自分、t=1で相手）
+    pub fn lerp(&self, other: &Self, t: T) -> Self {
+        Self::new(
+            self.x + (other.x - self.x) * t,
+            self.y + (other.y - self.y) * t,
+            self.z + (other.z - self.z) * t,
+        )
+    }
+
+    /// マンハッタン距離（L1ノルム）
+    pub fn manhattan_distance_to(&self, other: &Self) -> T {
+        (self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()
+    }
+
+    /// チェビシェフ距離（L∞ノルム）
+    pub fn chebyshev_distance_to(&self, other: &Self) -> T {
+        let dx = (self.x - other.x).abs();
+        let dy = (self.y - other.y).abs();
+        let dz = (self.z - other.z).abs();
+        dx.max(dy).max(dz)
+    }
+
+    // ========================================================================
+    // Legacy Methods (kept for compatibility)
+    // ========================================================================
+
     /// 点が境界上（許容誤差内）にあるかを判定
     pub fn on_boundary(&self, point: &Self, tolerance: T) -> bool {
         self.distance_to(point) <= tolerance
