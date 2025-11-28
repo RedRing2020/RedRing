@@ -75,6 +75,9 @@ pub use core::{
         NurbsCurveOperations, NurbsSurface, NurbsSurfaceOperations, ParametricGeometry,
         WeightedGeometry,
     },
+    plane_core_traits::{
+        Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties,
+    },
     point_traits::{Point2D as Point2DTrait, Point2DConstructor, Point3DConstructor},
     ray_core_traits::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,

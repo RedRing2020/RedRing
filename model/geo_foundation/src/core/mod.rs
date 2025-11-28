@@ -14,6 +14,7 @@ pub mod ellipse_arc_core_traits; // EllipseArc Core traits (Constructor/Properti
 pub mod ellipse_core_traits; // Ellipse Core traits (Constructor/Properties/Measure)
 pub mod infinite_line_core_traits; // InfiniteLine Core traits (Constructor/Properties/Measure)
 pub mod linesegment_core_traits; // LineSegment Core traits (Constructor/Properties/Measure)
+pub mod plane_core_traits; // Plane Core traits (Constructor/Properties/Measure)
 pub mod point_core_traits;
 pub mod ray_core_traits; // Ray Core traits (Constructor/Properties/Measure)
 pub mod transform; // extensionsから移動した共通Transformトレイト群
