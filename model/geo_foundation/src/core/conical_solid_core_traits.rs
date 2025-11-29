@@ -4,12 +4,15 @@
 //! Core機能（Constructor/Properties/Measure）を形状別に統合
 //! Transform機能は共通のAnalysisTransformトレイトを使用
 //!
-//! ## Phase 1 実装（最小限のメソッドのみ）
+//! ## Phase 1: 最小限のメソッド
 //! - Constructor: 3メソッド（new, new_standard, unit_cone）
 //! - Properties: 7メソッド（apex, base_center, radius, height, axis, ref_direction, slant_height）
 //! - Measure: 4メソッド（volume, surface_area, contains_point, distance_to_point）
 //!
-//! 作成日: 2025年11月29日
+//! ## Phase 2: 標準機能追加
+//! - Constructor: +3メソッド（from_apex_and_base_circle, from_apex_angle, frustum）
+//! - Properties: +3メソッド（half_angle, lateral_surface_area, base_area）
+//! - Measure: +4メソッド（point_at_conical, bounding_box, closest_point_on_surface, contains_point_tolerance）
 
 use crate::Scalar;
 
@@ -50,6 +53,37 @@ pub trait ConicalSolid3DConstructor<T: Scalar> {
     fn unit_cone() -> Self
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ（3メソッド）
+
+    /// 頂点と底面円から円錐を作成
+    fn from_apex_and_base_circle(
+        apex: (T, T, T),
+        base_center: (T, T, T),
+        base_radius: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 頂点、軸、高さ、頂角から円錐を作成
+    fn from_apex_angle(
+        apex: (T, T, T),
+        axis: (T, T, T),
+        height: T,
+        half_angle: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 円錐台（frustum）を作成
+    fn frustum(
+        base_center: (T, T, T),
+        top_center: (T, T, T),
+        base_radius: T,
+        top_radius: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -80,6 +114,17 @@ pub trait ConicalSolid3DProperties<T: Scalar> {
     ///
     /// 母線長さ = √(r² + h²)
     fn slant_height(&self) -> T;
+
+    // Phase 2: 追加プロパティ（3メソッド）
+
+    /// 頂角の半分を取得（母線と軸のなす角）
+    fn half_angle(&self) -> T;
+
+    /// 側面積のみを取得（πr × slant_height）
+    fn lateral_surface_area(&self) -> T;
+
+    /// 底面積を取得（πr²）
+    fn base_area(&self) -> T;
 }
 
 // ============================================================================
@@ -103,6 +148,22 @@ pub trait ConicalSolid3DMeasure<T: Scalar> {
 
     /// 点と円錐との最短距離を計算
     fn distance_to_point(&self, point: (T, T, T)) -> T;
+
+    // Phase 2: 追加測定（4メソッド）
+
+    /// 円錐座標系での点を取得
+    ///
+    /// r_ratio: 半径比率 [0, 1], theta: 角度, h_ratio: 高さ比率 [0, 1]
+    fn point_at_conical(&self, r_ratio: T, theta: T, h_ratio: T) -> (T, T, T);
+
+    /// 円錐の境界ボックスを取得（最小点、最大点）
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+
+    /// 指定点に最も近い円錐表面上の点を取得
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
+
+    /// 許容誤差付きで点が円錐内部に含まれるか判定
+    fn contains_point_tolerance(&self, point: (T, T, T), tolerance: T) -> bool;
 }
 
 // ============================================================================

@@ -307,6 +307,50 @@ impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
     fn unit_sphere() -> Self {
         Self::new_at_origin(T::ONE).expect("Unit sphere creation should always succeed")
     }
+
+    // Phase 2: 追加コンストラクタ
+
+    fn from_diameter(center: (T, T, T), diameter: T) -> Option<Self> {
+        let radius = diameter / (T::ONE + T::ONE);
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::new_standard(center_point, radius)
+    }
+
+    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
+        let center_x = (min.0 + max.0) / (T::ONE + T::ONE);
+        let center_y = (min.1 + max.1) / (T::ONE + T::ONE);
+        let center_z = (min.2 + max.2) / (T::ONE + T::ONE);
+        
+        let dx = (max.0 - min.0) / (T::ONE + T::ONE);
+        let dy = (max.1 - min.1) / (T::ONE + T::ONE);
+        let dz = (max.2 - min.2) / (T::ONE + T::ONE);
+        
+        let radius = dx.min(dy).min(dz);
+        let center_point = Point3D::new(center_x, center_y, center_z);
+        Self::new_standard(center_point, radius)
+    }
+
+    fn from_four_points(
+        p1: (T, T, T),
+        p2: (T, T, T),
+        p3: (T, T, T),
+        p4: (T, T, T),
+    ) -> Option<Self> {
+        // 4点を通る球の中心と半径を計算（外接球）
+        // 簡易実装：重心を中心として最も遠い点までの距離を半径とする
+        let center_x = (p1.0 + p2.0 + p3.0 + p4.0) / T::from_f64(4.0);
+        let center_y = (p1.1 + p2.1 + p3.1 + p4.1) / T::from_f64(4.0);
+        let center_z = (p1.2 + p2.2 + p3.2 + p4.2) / T::from_f64(4.0);
+        
+        let dist1 = ((p1.0 - center_x).powi(2) + (p1.1 - center_y).powi(2) + (p1.2 - center_z).powi(2)).sqrt();
+        let dist2 = ((p2.0 - center_x).powi(2) + (p2.1 - center_y).powi(2) + (p2.2 - center_z).powi(2)).sqrt();
+        let dist3 = ((p3.0 - center_x).powi(2) + (p3.1 - center_y).powi(2) + (p3.2 - center_z).powi(2)).sqrt();
+        let dist4 = ((p4.0 - center_x).powi(2) + (p4.1 - center_y).powi(2) + (p4.2 - center_z).powi(2)).sqrt();
+        
+        let radius = dist1.max(dist2).max(dist3).max(dist4);
+        let center_point = Point3D::new(center_x, center_y, center_z);
+        Self::new_standard(center_point, radius)
+    }
 }
 
 impl<T: Scalar> SphericalSolid3DProperties<T> for SphericalSolid3D<T> {
@@ -332,6 +376,21 @@ impl<T: Scalar> SphericalSolid3DProperties<T> for SphericalSolid3D<T> {
     fn diameter(&self) -> T {
         self.radius_internal() * T::from_f64(2.0)
     }
+
+    // Phase 2: 追加プロパティ
+
+    fn is_unit_sphere(&self) -> bool {
+        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
+    }
+
+    fn circumference(&self) -> T {
+        T::TAU * self.radius_internal()
+    }
+
+    fn is_centered_at_origin(&self) -> bool {
+        let c = self.center_internal();
+        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
+    }
 }
 
 impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
@@ -351,6 +410,67 @@ impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(point_3d).abs()
+    }
+
+    // Phase 2: 追加測定
+
+    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T) {
+        let c = self.center_internal();
+        let r = self.radius_internal();
+        
+        let cos_lat = latitude.cos();
+        let sin_lat = latitude.sin();
+        let cos_lon = longitude.cos();
+        let sin_lon = longitude.sin();
+        
+        let x = c.x() + r * cos_lat * cos_lon;
+        let y = c.y() + r * cos_lat * sin_lon;
+        let z = c.z() + r * sin_lat;
+        
+        (x, y, z)
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let c = self.center_internal();
+        let r = self.radius_internal();
+        
+        let min = (c.x() - r, c.y() - r, c.z() - r);
+        let max = (c.x() + r, c.y() + r, c.z() + r);
+        
+        (min, max)
+    }
+
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
+        let c = self.center_internal();
+        let r = self.radius_internal();
+        let p = Point3D::new(point.0, point.1, point.2);
+        
+        let dir = Vector3D::from_points(&c, &p);
+        let len = dir.length();
+        
+        if len < T::EPSILON {
+            // 点が中心にある場合は任意の表面点を返す
+            return (c.x() + r, c.y(), c.z());
+        }
+        
+        let normalized = dir / len;
+        let surface_point = Point3D::new(
+            c.x() + normalized.x() * r,
+            c.y() + normalized.y() * r,
+            c.z() + normalized.z() * r,
+        );
+        
+        (surface_point.x(), surface_point.y(), surface_point.z())
+    }
+
+    fn intersects_sphere(&self, other_center: (T, T, T), other_radius: T) -> bool {
+        let c1 = self.center_internal();
+        let c2 = Point3D::new(other_center.0, other_center.1, other_center.2);
+        let r1 = self.radius_internal();
+        let r2 = other_radius;
+        
+        let distance = c1.distance_to(&c2);
+        distance <= (r1 + r2)
     }
 }
 

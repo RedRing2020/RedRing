@@ -372,6 +372,39 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
         Self::new_z_axis(Point3D::origin(), T::ONE, T::from_f64(2.0))
             .expect("Unit cylinder should always be valid")
     }
+
+    // Phase 2: 追加コンストラクタ
+
+    fn from_axis_and_radius(start_point: (T, T, T), end_point: (T, T, T), radius: T) -> Option<Self> {
+        let p1 = Point3D::new(start_point.0, start_point.1, start_point.2);
+        let p2 = Point3D::new(end_point.0, end_point.1, end_point.2);
+        let axis_vec = Vector3D::from_points(&p1, &p2);
+        let height = axis_vec.length();
+        
+        if height < T::EPSILON {
+            return None;
+        }
+        
+        let axis_dir = axis_vec / height;
+        let ref_dir = if axis_dir.z().abs() < T::from_f64(0.9) {
+            Vector3D::new(T::ZERO, T::ZERO, T::ONE)
+        } else {
+            Vector3D::new(T::ONE, T::ZERO, T::ZERO)
+        };
+        
+        let center_point = Point3D::new(start_point.0, start_point.1, start_point.2);
+        
+        Self::new(center_point, axis_dir, ref_dir, radius, height)
+    }
+
+    fn from_diameter(center: (T, T, T), _axis: (T, T, T), diameter: T, height: T) -> Option<Self> {
+        let radius = diameter / (T::ONE + T::ONE);
+        Self::new_standard(center, radius, height)
+    }
+
+    fn from_two_points_and_radius(p1: (T, T, T), p2: (T, T, T), radius: T) -> Option<Self> {
+        Self::from_axis_and_radius(p1, p2, radius)
+    }
 }
 
 impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
@@ -401,6 +434,23 @@ impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
 
     fn diameter(&self) -> T {
         self.radius * T::from_f64(2.0)
+    }
+
+    // Phase 2: 追加プロパティ
+
+    fn top_center(&self) -> (T, T, T) {
+        let top_x = self.center.x() + self.axis.x() * self.height;
+        let top_y = self.center.y() + self.axis.y() * self.height;
+        let top_z = self.center.z() + self.axis.z() * self.height;
+        (top_x, top_y, top_z)
+    }
+
+    fn lateral_surface_area(&self) -> T {
+        T::TAU * self.radius * self.height
+    }
+
+    fn base_area(&self) -> T {
+        T::PI * self.radius * self.radius
     }
 }
 
@@ -476,6 +526,77 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
 
         // 軸方向と半径方向の距離を合成
         (axis_distance * axis_distance + radial_excess * radial_excess).sqrt()
+    }
+
+    // Phase 2: 追加測定
+
+    fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T) {
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+        
+        let x_axis = self.ref_direction.as_vector();
+        let y_axis = self.y_axis().as_vector();
+        let z_axis = self.axis.as_vector();
+        
+        let x = self.center.x() + r * cos_theta * x_axis.x() + r * sin_theta * y_axis.x() + z * z_axis.x();
+        let y = self.center.y() + r * cos_theta * x_axis.y() + r * sin_theta * y_axis.y() + z * z_axis.y();
+        let z_coord = self.center.z() + r * cos_theta * x_axis.z() + r * sin_theta * y_axis.z() + z * z_axis.z();
+        
+        (x, y, z_coord)
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let r = self.radius;
+        let h = self.height;
+        
+        let min_x = self.center.x() - r;
+        let max_x = self.center.x() + r;
+        let min_y = self.center.y() - r;
+        let max_y = self.center.y() + r;
+        
+        let base_z = self.center.z();
+        let top_z = base_z + h * self.axis.z();
+        let min_z = base_z.min(top_z);
+        let max_z = base_z.max(top_z);
+        
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
+        let to_point_x = point.0 - self.center.x();
+        let to_point_y = point.1 - self.center.y();
+        let to_point_z = point.2 - self.center.z();
+
+        let axis_projection =
+            to_point_x * self.axis.x() + to_point_y * self.axis.y() + to_point_z * self.axis.z();
+        
+        let clamped_h = axis_projection.max(T::ZERO).min(self.height);
+        
+        let axis_comp_x = self.axis.x() * clamped_h;
+        let axis_comp_y = self.axis.y() * clamped_h;
+        let axis_comp_z = self.axis.z() * clamped_h;
+
+        let radial_x = to_point_x - axis_comp_x;
+        let radial_y = to_point_y - axis_comp_y;
+        let radial_z = to_point_z - axis_comp_z;
+
+        let radial_len = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+        
+        if radial_len > T::EPSILON {
+            let scale = self.radius / radial_len;
+            let surface_x = self.center.x() + axis_comp_x + radial_x * scale;
+            let surface_y = self.center.y() + axis_comp_y + radial_y * scale;
+            let surface_z = self.center.z() + axis_comp_z + radial_z * scale;
+            (surface_x, surface_y, surface_z)
+        } else {
+            (self.center.x() + axis_comp_x + self.radius, 
+             self.center.y() + axis_comp_y, 
+             self.center.z() + axis_comp_z)
+        }
+    }
+
+    fn intersects_line(&self, _line_point: (T, T, T), _line_dir: (T, T, T)) -> Option<(T, T, T)> {
+        None
     }
 }
 

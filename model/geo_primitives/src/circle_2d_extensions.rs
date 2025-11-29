@@ -57,12 +57,6 @@ impl<T: Scalar> Circle2D<T> {
     // Convenience Methods (Extension)
     // ========================================================================
 
-    /// 直径を取得
-    pub fn diameter(&self) -> T {
-        let two = T::ONE + T::ONE;
-        self.radius_internal() * two
-    }
-
     /// 指定角度での点を取得（ラジアン）
     pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
         let cos_a = angle.cos();
@@ -121,9 +115,10 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 3次元円に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::Circle3D<T> {
+        use crate::Direction3D;
         crate::Circle3D::new(
             self.center_internal().to_3d(),
-            Vector2D::new(T::ZERO, T::ZERO).to_3d_with_z(T::ONE), // Z軸法線
+            Direction3D::positive_z(), // Z軸法線
             self.radius_internal(),
         )
         .unwrap()
@@ -131,9 +126,10 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 3次元円に拡張（指定Z値平面）
     pub fn to_3d_at_z(&self, z: T) -> crate::Circle3D<T> {
+        use crate::Direction3D;
         crate::Circle3D::new(
             self.center_internal().to_3d_with_z(z),
-            Vector2D::new(T::ZERO, T::ZERO).to_3d_with_z(T::ONE), // Z軸法線
+            Direction3D::positive_z(), // Z軸法線
             self.radius_internal(),
         )
         .unwrap()
@@ -172,7 +168,8 @@ impl<T: Scalar> Circle2D<T> {
             return Some((self.translate(offset.negate()), other.translate(offset)));
         }
 
-        let direction = Vector2D::from_points(self.center_internal(), other.center_internal()).normalize();
+        let direction =
+            Vector2D::from_points(self.center_internal(), other.center_internal()).normalize();
         let separation = required_distance - center_distance;
         let half_separation = separation / (T::ONE + T::ONE);
 
@@ -194,15 +191,15 @@ impl<T: Scalar> Circle2D<T> {
 
         // 自分の重み（半径に基づく）
         let self_weight = self.radius_internal();
-        total_weight = total_weight + self_weight;
-        weighted_x = weighted_x + (self.center_internal().x() * self_weight);
-        weighted_y = weighted_y + (self.center_internal().y() * self_weight);
+        total_weight += self_weight;
+        weighted_x += self.center_internal().x() * self_weight;
+        weighted_y += self.center_internal().y() * self_weight;
 
         // 他の円の重み付き中心
         for (circle, &weight) in others.iter().zip(weights) {
-            total_weight = total_weight + weight;
-            weighted_x = weighted_x + (circle.center_internal().x() * weight);
-            weighted_y = weighted_y + (circle.center_internal().y() * weight);
+            total_weight += weight;
+            weighted_x += circle.center_internal().x() * weight;
+            weighted_y += circle.center_internal().y() * weight;
         }
 
         if total_weight > T::EPSILON {

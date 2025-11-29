@@ -113,16 +113,6 @@ impl<T: Scalar> Circle2D<T> {
         self.radius <= T::EPSILON
     }
 
-    /// 単位円かどうか
-    pub fn is_unit_circle(&self) -> bool {
-        (self.radius - T::ONE).abs() <= T::EPSILON
-    }
-
-    /// 原点中心かどうか
-    pub fn is_centered_at_origin(&self) -> bool {
-        self.center.x().abs() <= T::EPSILON && self.center.y().abs() <= T::EPSILON
-    }
-
     /// 点が円周上にあるか判定
     pub fn point_on_circumference(&self, point: Point2D<T>) -> bool {
         let dx = point.x() - self.center.x();

@@ -385,6 +385,60 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
     fn unit_cone() -> Self {
         Self::new_at_origin(T::ONE, T::from_f64(2.0)).expect("Unit cone should always be valid")
     }
+
+    fn from_apex_and_base_circle(
+        apex: (T, T, T),
+        base_center: (T, T, T),
+        radius: T,
+    ) -> Option<Self> {
+        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
+        let base_point = Point3D::new(base_center.0, base_center.1, base_center.2);
+        let axis_vector = Vector3D::new(
+            base_point.x() - apex_point.x(),
+            base_point.y() - apex_point.y(),
+            base_point.z() - apex_point.z(),
+        );
+        let height = axis_vector.length();
+        let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
+            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vector)
+        } else {
+            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
+        };
+        Self::new(apex_point, axis_vector, ref_direction, radius, height)
+    }
+
+    fn from_apex_angle(
+        apex: (T, T, T),
+        axis: (T, T, T),
+        half_angle: T,
+        height: T,
+    ) -> Option<Self> {
+        let radius = height * half_angle.tan();
+        let apex_point = Point3D::new(apex.0, apex.1, apex.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
+            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vector)
+        } else {
+            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
+        };
+        Self::new(apex_point, axis_vector, ref_direction, radius, height)
+    }
+
+    fn frustum(
+        base_center: (T, T, T),
+        axis: (T, T, T),
+        base_radius: T,
+        height: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(base_center.0, base_center.1, base_center.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
+            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vector)
+        } else {
+            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
+        };
+        Self::new(center_point, axis_vector, ref_direction, base_radius, height)
+    }
 }
 
 impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
@@ -421,6 +475,18 @@ impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
         let h = self.height_internal();
         (r * r + h * h).sqrt()
     }
+
+    fn half_angle(&self) -> T {
+        (self.radius_internal() / self.height_internal()).atan()
+    }
+
+    fn lateral_surface_area(&self) -> T {
+        T::PI * self.radius_internal() * self.slant_height()
+    }
+
+    fn base_area(&self) -> T {
+        T::PI * self.radius_internal() * self.radius_internal()
+    }
 }
 
 impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
@@ -440,6 +506,103 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(point_3d).abs()
+    }
+
+    fn point_at_conical(&self, r: T, theta: T, z: T) -> (T, T, T) {
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+        
+        let x_axis = self.ref_direction_internal().as_vector();
+        let z_axis = self.axis_internal().as_vector();
+        let y_axis = z_axis.cross(&x_axis);
+        
+        let x = self.center.x() + r * cos_theta * x_axis.x() + r * sin_theta * y_axis.x() + z * z_axis.x();
+        let y = self.center.y() + r * cos_theta * x_axis.y() + r * sin_theta * y_axis.y() + z * z_axis.y();
+        let z_coord = self.center.z() + r * cos_theta * x_axis.z() + r * sin_theta * y_axis.z() + z * z_axis.z();
+        
+        (x, y, z_coord)
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let r = self.radius_internal();
+        let h = self.height_internal();
+        
+        let min_x = self.center.x() - r;
+        let max_x = self.center.x() + r;
+        let min_y = self.center.y() - r;
+        let max_y = self.center.y() + r;
+        
+        let base_z = self.center.z();
+        let apex_z = base_z + h * self.axis_internal().z();
+        let min_z = base_z.min(apex_z);
+        let max_z = base_z.max(apex_z);
+        
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
+        let apex = self.apex_internal();
+        let to_point_x = point.0 - apex.x();
+        let to_point_y = point.1 - apex.y();
+        let to_point_z = point.2 - apex.z();
+
+        let axis_projection =
+            to_point_x * self.axis_internal().x() + to_point_y * self.axis_internal().y() + to_point_z * self.axis_internal().z();
+        
+        if axis_projection <= T::ZERO {
+            return (apex.x(), apex.y(), apex.z());
+        }
+        
+        if axis_projection >= self.height_internal() {
+            let clamped_h = self.height_internal();
+            let axis_comp_x = self.axis_internal().x() * clamped_h;
+            let axis_comp_y = self.axis_internal().y() * clamped_h;
+            let axis_comp_z = self.axis_internal().z() * clamped_h;
+
+            let radial_x = to_point_x - axis_comp_x;
+            let radial_y = to_point_y - axis_comp_y;
+            let radial_z = to_point_z - axis_comp_z;
+
+            let radial_len = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+            
+            if radial_len > T::EPSILON {
+                let scale = self.radius_internal() / radial_len;
+                (apex.x() + axis_comp_x + radial_x * scale,
+                 apex.y() + axis_comp_y + radial_y * scale,
+                 apex.z() + axis_comp_z + radial_z * scale)
+            } else {
+                (apex.x() + axis_comp_x + self.radius_internal(),
+                 apex.y() + axis_comp_y,
+                 apex.z() + axis_comp_z)
+            }
+        } else {
+            let current_radius = self.radius_internal() * (T::ONE - axis_projection / self.height_internal());
+            let axis_comp_x = self.axis_internal().x() * axis_projection;
+            let axis_comp_y = self.axis_internal().y() * axis_projection;
+            let axis_comp_z = self.axis_internal().z() * axis_projection;
+
+            let radial_x = to_point_x - axis_comp_x;
+            let radial_y = to_point_y - axis_comp_y;
+            let radial_z = to_point_z - axis_comp_z;
+
+            let radial_len = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+            
+            if radial_len > T::EPSILON {
+                let scale = current_radius / radial_len;
+                (apex.x() + axis_comp_x + radial_x * scale,
+                 apex.y() + axis_comp_y + radial_y * scale,
+                 apex.z() + axis_comp_z + radial_z * scale)
+            } else {
+                (apex.x() + axis_comp_x + current_radius,
+                 apex.y() + axis_comp_y,
+                 apex.z() + axis_comp_z)
+            }
+        }
+    }
+
+    fn contains_point_tolerance(&self, point: (T, T, T), tolerance: T) -> bool {
+        let distance = self.distance_to_point(point);
+        distance <= tolerance
     }
 }
 

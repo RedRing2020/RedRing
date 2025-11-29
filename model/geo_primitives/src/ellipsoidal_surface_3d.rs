@@ -503,6 +503,31 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
     fn unit_ellipsoid_surface() -> Self {
         Self::new_spherical(Point3D::origin(), T::ONE).unwrap()
     }
+
+    fn from_bounding_box(
+        min: (T, T, T),
+        max: (T, T, T),
+    ) -> Option<Self> {
+        let center_x = (min.0 + max.0) / T::from_f64(2.0);
+        let center_y = (min.1 + max.1) / T::from_f64(2.0);
+        let center_z = (min.2 + max.2) / T::from_f64(2.0);
+        let semi_a = (max.0 - min.0) / T::from_f64(2.0);
+        let semi_b = (max.1 - min.1) / T::from_f64(2.0);
+        let semi_c = (max.2 - min.2) / T::from_f64(2.0);
+        Self::new_standard((center_x, center_y, center_z), semi_a, semi_b, semi_c)
+    }
+
+    fn from_semi_axes(center: (T, T, T), a: T, b: T, c: T) -> Option<Self> {
+        Self::new_standard(center, a, b, c)
+    }
+
+    fn oblate_spheroid(
+        center: (T, T, T),
+        equatorial_radius: T,
+        polar_radius: T,
+    ) -> Option<Self> {
+        Self::new_standard(center, equatorial_radius, equatorial_radius, polar_radius)
+    }
 }
 
 impl<T: Scalar> EllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
@@ -531,6 +556,27 @@ impl<T: Scalar> EllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
 
     fn semi_axis_c(&self) -> T {
         self.c_radius_internal()
+    }
+
+    fn is_sphere(&self) -> bool {
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c = self.c_radius_internal();
+        (a - b).abs() < T::EPSILON && (b - c).abs() < T::EPSILON
+    }
+
+    fn is_oblate(&self) -> bool {
+        let c = self.c_radius_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        c < a.max(b)
+    }
+
+    fn eccentricity(&self) -> T {
+        let a = self.a_radius_internal();
+        let c = self.c_radius_internal();
+        let e2 = T::ONE - (c * c) / (a * a);
+        e2.max(T::ZERO).sqrt()
     }
 }
 
@@ -568,6 +614,47 @@ impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(&p)
+    }
+
+    fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T) {
+        let cos_phi = phi.cos();
+        let sin_phi = phi.sin();
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+        
+        let c = self.center_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c_radius = self.c_radius_internal();
+        
+        (
+            c.x() + a * cos_theta * sin_phi,
+            c.y() + b * sin_theta * sin_phi,
+            c.z() + c_radius * cos_phi,
+        )
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let c = self.center_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c_radius = self.c_radius_internal();
+        let max_radius = a.max(b).max(c_radius);
+        (
+            (c.x() - max_radius, c.y() - max_radius, c.z() - max_radius),
+            (c.x() + max_radius, c.y() + max_radius, c.z() + max_radius),
+        )
+    }
+
+    fn volume(&self) -> T {
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c = self.c_radius_internal();
+        T::from_f64(4.0 / 3.0) * T::PI * a * b * c
+    }
+
+    fn surface_area_knud_thomsen(&self) -> T {
+        self.surface_area()
     }
 }
 

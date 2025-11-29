@@ -105,8 +105,9 @@ pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod bbox_2d_foundation; // BBox2D のFoundation実装
 pub mod circle_2d; // Circle2D の新実装 (Core)
-                   // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
-                   // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
+pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension - Phase 2 対応)
+                              // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
+                              // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
 
 // Circle Core Traits の公開 - Foundation Pattern実装完了
 pub use geo_foundation::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};

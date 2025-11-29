@@ -4,12 +4,15 @@
 //! Core機能（Constructor/Properties/Measure）を形状別に統合
 //! Transform機能は共通のAnalysisTransformトレイトを使用
 //!
-//! ## Phase 1 実装（最小限のメソッドのみ）
+//! ## Phase 1: 最小限のメソッド
 //! - Constructor: 3メソッド（new, new_standard, unit_sphere_surface）
 //! - Properties: 5メソッド（center, radius, axis, ref_direction, diameter）
 //! - Measure: 4メソッド（surface_area, point_at_uv, normal_at, distance_to_point）
 //!
-//! 作成日: 2025年11月29日
+//! ## Phase 2: 標準機能追加
+//! - Constructor: +3メソッド（from_diameter, from_bounding_box, from_three_points）
+//! - Properties: +3メソッド（is_unit_sphere, circumference, is_centered_at_origin）
+//! - Measure: +4メソッド（point_at_latlong, bounding_box, closest_point, tangent_at）
 
 use crate::Scalar;
 
@@ -19,9 +22,7 @@ use crate::Scalar;
 
 /// SphericalSurface3D生成のためのConstructorトレイト
 pub trait SphericalSurface3DConstructor<T: Scalar> {
-    // ========================================================================
     // Phase 1: 基本コンストラクタ（3メソッド）
-    // ========================================================================
 
     /// STEP準拠のAXIS2_PLACEMENT_3D形式で球サーフェスを作成
     ///
@@ -45,6 +46,23 @@ pub trait SphericalSurface3DConstructor<T: Scalar> {
     fn unit_sphere_surface() -> Self
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ（3メソッド）
+
+    /// 直径指定で球サーフェスを作成
+    fn from_diameter(center: (T, T, T), diameter: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 境界ボックスに内接する球サーフェスを作成
+    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 3点を通る球サーフェスを作成（最小球）
+    fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -53,9 +71,7 @@ pub trait SphericalSurface3DConstructor<T: Scalar> {
 
 /// SphericalSurface3D基本プロパティ取得トレイト
 pub trait SphericalSurface3DProperties<T: Scalar> {
-    // ========================================================================
     // Phase 1: 基本プロパティ（5メソッド）
-    // ========================================================================
 
     /// 球の中心点取得
     fn center(&self) -> (T, T, T);
@@ -71,6 +87,17 @@ pub trait SphericalSurface3DProperties<T: Scalar> {
 
     /// 球の直径取得
     fn diameter(&self) -> T;
+
+    // Phase 2: 追加プロパティ（3メソッド）
+
+    /// 単位球（半径1）かどうか判定
+    fn is_unit_sphere(&self) -> bool;
+
+    /// 大円の円周を取得（2πr）
+    fn circumference(&self) -> T;
+
+    /// 原点中心かどうか判定
+    fn is_centered_at_origin(&self) -> bool;
 }
 
 // ============================================================================
@@ -79,9 +106,7 @@ pub trait SphericalSurface3DProperties<T: Scalar> {
 
 /// SphericalSurface3D測定機能トレイト
 pub trait SphericalSurface3DMeasure<T: Scalar> {
-    // ========================================================================
     // Phase 1: 基本測定（4メソッド）
-    // ========================================================================
 
     /// 球サーフェスの表面積を計算
     ///
@@ -99,6 +124,23 @@ pub trait SphericalSurface3DMeasure<T: Scalar> {
 
     /// 点とサーフェスとの最短距離を計算
     fn distance_to_point(&self, point: (T, T, T)) -> T;
+
+    // Phase 2: 追加測定（4メソッド）
+
+    /// 緯度経度指定で表面上の点を取得
+    ///
+    /// latitude ∈ [-π/2, π/2]: 緯度（-90° to 90°）
+    /// longitude ∈ [0, 2π]: 経度（0° to 360°）
+    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T);
+
+    /// 球サーフェスの境界ボックスを取得（最小点、最大点）
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+
+    /// 指定点に最も近いサーフェス上の点を取得
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
+
+    /// パラメータ座標(u, v)での接線ベクトルを計算
+    fn tangent_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T));
 }
 
 // ============================================================================

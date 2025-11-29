@@ -232,7 +232,6 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
     fn new_standard(center: (T, T, T), major_radius: T, minor_radius: T) -> Option<Self> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         Self::standard(major_radius, minor_radius).map(|mut t| {
-            // standardは原点中心なので、centerに移動
             t.origin = center_point;
             t
         })
@@ -240,6 +239,60 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
 
     fn unit_torus() -> Self {
         Self::minimal().unwrap()
+    }
+
+    fn from_diameters(
+        center: (T, T, T),
+        axis: (T, T, T),
+        major_diameter: T,
+        minor_diameter: T,
+    ) -> Option<Self> {
+        let major_radius = major_diameter / T::from_f64(2.0);
+        let minor_radius = minor_diameter / T::from_f64(2.0);
+        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_direction = if axis_vec.z().abs() < T::from_f64(0.99) {
+            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vec)
+        } else {
+            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vec)
+        };
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_dir = Direction3D::from_vector(axis_vec)?;
+        let ref_dir = Direction3D::from_vector(ref_direction)?;
+        Self::new(
+            center_point,
+            axis_dir,
+            ref_dir,
+            major_radius,
+            minor_radius,
+        )
+    }
+
+    fn from_radii_and_axis(
+        center: (T, T, T),
+        axis: (T, T, T),
+        major_radius: T,
+        minor_radius: T,
+    ) -> Option<Self> {
+        let axis_vec = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_direction = if axis_vec.z().abs() < T::from_f64(0.99) {
+            Vector3D::new(T::ZERO, T::ZERO, T::ONE).cross(&axis_vec)
+        } else {
+            Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vec)
+        };
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_dir = Direction3D::from_vector(axis_vec)?;
+        let ref_dir = Direction3D::from_vector(ref_direction)?;
+        Self::new(
+            center_point,
+            axis_dir,
+            ref_dir,
+            major_radius,
+            minor_radius,
+        )
+    }
+
+    fn ring_torus(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self> {
+        Self::from_radii_and_axis(center, axis, radius, radius)
     }
 }
 
@@ -269,6 +322,18 @@ impl<T: Scalar> TorusSolid3DProperties<T> for TorusSolid3D<T> {
 
     fn tube_diameter(&self) -> T {
         self.minor_radius_internal() * T::from_f64(2.0)
+    }
+
+    fn aspect_ratio(&self) -> T {
+        self.major_radius_internal() / self.minor_radius_internal()
+    }
+
+    fn outer_radius(&self) -> T {
+        self.major_radius_internal() + self.minor_radius_internal()
+    }
+
+    fn inner_radius(&self) -> T {
+        (self.major_radius_internal() - self.minor_radius_internal()).max(T::ZERO)
     }
 }
 
@@ -301,6 +366,85 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
         (cross_section_distance - self.minor_radius_internal()).abs()
+    }
+
+    fn point_at_toroidal(&self, u: T, v: T) -> (T, T, T) {
+        let cos_u = u.cos();
+        let sin_u = u.sin();
+        let cos_v = v.cos();
+        let sin_v = v.sin();
+        
+        let o = self.origin_internal();
+        let x_axis = self.x_axis_internal().as_vector();
+        let y_axis = self.y_axis_internal().as_vector();
+        let z_axis = self.z_axis_internal().as_vector();
+        
+        let r_major = self.major_radius_internal();
+        let r_minor = self.minor_radius_internal();
+        
+        let circle_radius = r_major + r_minor * cos_v;
+        
+        let x = o.x() + circle_radius * cos_u * x_axis.x() + circle_radius * sin_u * y_axis.x() + r_minor * sin_v * z_axis.x();
+        let y = o.y() + circle_radius * cos_u * x_axis.y() + circle_radius * sin_u * y_axis.y() + r_minor * sin_v * z_axis.y();
+        let z = o.z() + circle_radius * cos_u * x_axis.z() + circle_radius * sin_u * y_axis.z() + r_minor * sin_v * z_axis.z();
+        
+        (x, y, z)
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let o = self.origin_internal();
+        let r_outer = self.major_radius_internal() + self.minor_radius_internal();
+        
+        let min_x = o.x() - r_outer;
+        let max_x = o.x() + r_outer;
+        let min_y = o.y() - r_outer;
+        let max_y = o.y() + r_outer;
+        let min_z = o.z() - self.minor_radius_internal();
+        let max_z = o.z() + self.minor_radius_internal();
+        
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let local = p - *self.origin_internal();
+        let z_axis = self.z_axis_internal();
+        let z_component = local.dot(&z_axis.as_vector());
+        let radial_vector = local - (z_axis.as_vector() * z_component);
+        let radial_distance = radial_vector.length();
+        
+        let radial_dir = if radial_distance > T::EPSILON {
+            radial_vector / radial_distance
+        } else {
+            self.x_axis_internal().as_vector()
+        };
+        
+        let torus_center = radial_dir * self.major_radius_internal();
+        let to_surface = Vector3D::new(
+            local.x() - torus_center.x(),
+            local.y() - torus_center.y(),
+            local.z() - torus_center.z(),
+        );
+        let distance_to_tube = to_surface.length();
+        
+        let surface_dir = if distance_to_tube > T::EPSILON {
+            to_surface / distance_to_tube
+        } else {
+            z_axis.as_vector()
+        };
+        
+        let surface_point = torus_center + surface_dir * self.minor_radius_internal();
+        let o = self.origin_internal();
+        
+        (
+            o.x() + surface_point.x(),
+            o.y() + surface_point.y(),
+            o.z() + surface_point.z(),
+        )
+    }
+
+    fn is_self_intersecting(&self) -> bool {
+        self.major_radius_internal() < self.minor_radius_internal()
     }
 }
 

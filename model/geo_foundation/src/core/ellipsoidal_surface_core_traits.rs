@@ -4,12 +4,15 @@
 //! Core機能（Constructor/Properties/Measure）を形状別に統合
 //! Transform機能は共通のAnalysisTransformトレイトを使用
 //!
-//! ## Phase 1 実装（最小限のメソッドのみ）
-//! - Constructor: 3メソッド（new, new_standard, unit_ellipsoid_surface）
-//! - Properties: 6メソッド（center, semi_axis_a, semi_axis_b, semi_axis_c, axis, ref_direction）
-//! - Measure: 4メソッド（surface_area, point_at_uv, normal_at, distance_to_point）
+//! ## Phase 1: 最小限のメソッド
+//! - Constructor: 3メソッド（new, new_standard, unit_ellipsoid）
+//! - Properties: 7メソッド（center, semi_axis_a/b/c, axis, ref_direction）
+//! - Measure: 4メソッド（approximate_surface_area, point_at_uv, normal_at, distance_to_point）
 //!
-//! 作成日: 2025年11月29日
+//! ## Phase 2: 標準機能追加
+//! - Constructor: +3メソッド（from_semi_axes, from_bounding_box, oblate_spheroid）
+//! - Properties: +3メソッド（eccentricity, is_sphere, is_oblate）
+//! - Measure: +4メソッド（point_at_spherical, bounding_box, volume, surface_area_knud_thomsen）
 
 use crate::Scalar;
 
@@ -55,6 +58,27 @@ pub trait EllipsoidalSurface3DConstructor<T: Scalar> {
     fn unit_ellipsoid_surface() -> Self
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ（3メソッド）
+
+    /// 3軸半径指定で楕円体を作成（簡易版、標準軸配置）
+    fn from_semi_axes(center: (T, T, T), a: T, b: T, c: T) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 境界ボックスに内接する楕円体を作成
+    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 扁平回転楕円体を作成（極半径 < 赤道半径）
+    fn oblate_spheroid(
+        center: (T, T, T),
+        equatorial_radius: T,
+        polar_radius: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -80,6 +104,17 @@ pub trait EllipsoidalSurface3DProperties<T: Scalar> {
 
     /// 参照方向取得（X軸、正規化済み）
     fn ref_direction(&self) -> (T, T, T);
+
+    // Phase 2: 追加プロパティ（3メソッド）
+
+    /// 離心率を取得
+    fn eccentricity(&self) -> T;
+
+    /// 球かどうか判定（a = b = c）
+    fn is_sphere(&self) -> bool;
+
+    /// 扁平形状かどうか判定（極半径 < 赤道半径）
+    fn is_oblate(&self) -> bool;
 }
 
 // ============================================================================
@@ -106,6 +141,22 @@ pub trait EllipsoidalSurface3DMeasure<T: Scalar> {
 
     /// 点とサーフェスとの最短距離を計算
     fn distance_to_point(&self, point: (T, T, T)) -> T;
+
+    // Phase 2: 追加測定（4メソッド）
+
+    /// 球面座標系での点を取得
+    ///
+    /// theta ∈ [0, 2π]: 方位角, phi ∈ [0, π]: 仰角
+    fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T);
+
+    /// 楕円体の境界ボックスを取得（最小点、最大点）
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+
+    /// 楕円体の体積を計算（(4/3)π × a × b × c）
+    fn volume(&self) -> T;
+
+    /// Knud Thomsen's formula による近似表面積
+    fn surface_area_knud_thomsen(&self) -> T;
 }
 
 // ============================================================================

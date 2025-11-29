@@ -4,12 +4,15 @@
 //! Core機能（Constructor/Properties/Measure）を形状別に統合
 //! Transform機能は共通のAnalysisTransformトレイトを使用
 //!
-//! ## Phase 1 実装（最小限のメソッドのみ）
+//! ## Phase 1: 最小限のメソッド
 //! - Constructor: 3メソッド（new, new_standard, unit_torus）
 //! - Properties: 6メソッド（center, major_radius, minor_radius, axis, ref_direction, tube_diameter）
 //! - Measure: 4メソッド（volume, surface_area, contains_point, distance_to_point）
 //!
-//! 作成日: 2025年11月29日
+//! ## Phase 2: 標準機能追加
+//! - Constructor: +3メソッド（from_diameters, from_radii_and_axis, ring_torus）
+//! - Properties: +3メソッド（aspect_ratio, outer_radius, inner_radius）
+//! - Measure: +4メソッド（point_at_toroidal, bounding_box, closest_point_on_surface, is_self_intersecting）
 
 use crate::Scalar;
 
@@ -48,6 +51,33 @@ pub trait TorusSolid3DConstructor<T: Scalar> {
     fn unit_torus() -> Self
     where
         Self: Sized;
+
+    // Phase 2: 追加コンストラクタ（3メソッド）
+
+    /// 直径指定でトーラスを作成
+    fn from_diameters(
+        center: (T, T, T),
+        axis: (T, T, T),
+        major_diameter: T,
+        minor_diameter: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// 半径と軸のみでトーラスを作成（ref_directionは自動設定）
+    fn from_radii_and_axis(
+        center: (T, T, T),
+        axis: (T, T, T),
+        major_radius: T,
+        minor_radius: T,
+    ) -> Option<Self>
+    where
+        Self: Sized;
+
+    /// リングトーラス（major_radius = minor_radius）を作成
+    fn ring_torus(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 // ============================================================================
@@ -73,6 +103,17 @@ pub trait TorusSolid3DProperties<T: Scalar> {
 
     /// 管の直径取得
     fn tube_diameter(&self) -> T;
+
+    // Phase 2: 追加プロパティ（3メソッド）
+
+    /// アスペクト比を取得（major_radius / minor_radius）
+    fn aspect_ratio(&self) -> T;
+
+    /// 外半径を取得（R + r）
+    fn outer_radius(&self) -> T;
+
+    /// 内半径を取得（R - r）
+    fn inner_radius(&self) -> T;
 }
 
 // ============================================================================
@@ -97,6 +138,22 @@ pub trait TorusSolid3DMeasure<T: Scalar> {
 
     /// 点とトーラスとの最短距離を計算
     fn distance_to_point(&self, point: (T, T, T)) -> T;
+
+    // Phase 2: 追加測定（4メソッド）
+
+    /// トーラス座標系での点を取得
+    ///
+    /// u: 大円角度 [0, 2π], v: 管円角度 [0, 2π]
+    fn point_at_toroidal(&self, u: T, v: T) -> (T, T, T);
+
+    /// トーラスの境界ボックスを取得（最小点、最大点）
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+
+    /// 指定点に最も近いトーラス表面上の点を取得
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
+
+    /// 自己交差判定（R < r の場合に true）
+    fn is_self_intersecting(&self) -> bool;
 }
 
 // ============================================================================
