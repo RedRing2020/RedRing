@@ -3,7 +3,8 @@
 //! ExtensionFoundation と TolerantEq トレイトの実装
 //! ハイブリッドモデラーの分類システムとの統合
 
-use crate::{BBox3D, CylindricalSurface3D};
+use crate::CylindricalSurface3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
@@ -23,7 +24,7 @@ impl<T: Scalar> ExtensionFoundation<T> for CylindricalSurface3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for CylindricalSurface3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         // サーフェスは無限軸方向のため、径方向の境界のみ

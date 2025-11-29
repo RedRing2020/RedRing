@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくLineSegment3Dの拡張機能
 //! Core機能は line_segment_3d.rs を参照
 
-use crate::{BBox3D, LineSegment3D, Point3D, Vector3D};
+use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_foundation::{core_foundation::*, Scalar};
 
 // ============================================================================
@@ -29,9 +29,18 @@ impl<T: Scalar> std::fmt::Display for LineSegment3D<T> {
 
 impl<T: Scalar> LineSegment3D<T> {
     /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> BBox3D<T> {
-        BBox3D::from_points(&[self.start(), self.end()])
-            .unwrap_or_else(|| BBox3D::from_point(self.start()))
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
+        let start = self.start();
+        let end = self.end();
+        geo_core::Aabb3D::from_points(&[
+            Point3::new(start.x(), start.y(), start.z()),
+            Point3::new(end.x(), end.y(), end.z()),
+        ])
+        .unwrap_or_else(|| {
+            let pt = Point3::new(start.x(), start.y(), start.z());
+            geo_core::Aabb3D::new(pt, pt)
+        })
     }
 
     /// パラメータでの点を取得

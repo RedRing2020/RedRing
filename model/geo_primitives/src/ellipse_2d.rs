@@ -2,7 +2,7 @@
 //!
 //! 新しいtraitsシステムに対応したEllipse2Dの実装
 
-use crate::{BBox2D, Circle2D, Point2D, Vector2D};
+use crate::{Circle2D, Point2D, Vector2D};
 use geo_foundation::prelude::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
@@ -206,7 +206,8 @@ impl<T: Scalar> Ellipse2D<T> {
     }
 
     /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> BBox2D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
+        use analysis::Point2;
         // 回転を考慮した楕円の境界ボックス計算
         let cos_theta = self.rotation.cos();
         let sin_theta = self.rotation.sin();
@@ -218,9 +219,9 @@ impl<T: Scalar> Ellipse2D<T> {
         let width = ((a * cos_theta) * (a * cos_theta) + (b * sin_theta) * (b * sin_theta)).sqrt();
         let height = ((a * sin_theta) * (a * sin_theta) + (b * cos_theta) * (b * cos_theta)).sqrt();
 
-        BBox2D::new(
-            Point2D::new(self.center.x() - width, self.center.y() - height),
-            Point2D::new(self.center.x() + width, self.center.y() + height),
+        geo_core::Aabb2D::new(
+            Point2::new(self.center.x() - width, self.center.y() - height),
+            Point2::new(self.center.x() + width, self.center.y() + height),
         )
     }
 

@@ -60,12 +60,7 @@ pub trait SphericalSolid3DConstructor<T: Scalar> {
         Self: Sized;
 
     /// 4点を通る球（外接球）を作成
-    fn from_four_points(
-        p1: (T, T, T),
-        p2: (T, T, T),
-        p3: (T, T, T),
-        p4: (T, T, T),
-    ) -> Option<Self>
+    fn from_four_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T), p4: (T, T, T)) -> Option<Self>
     where
         Self: Sized;
 }

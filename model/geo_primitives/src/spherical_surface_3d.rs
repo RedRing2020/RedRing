@@ -18,7 +18,7 @@
 //! **最終更新: 2025年11月1日**
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元球サーフェス（STEP準拠のCore実装）
@@ -259,18 +259,19 @@ impl<T: Scalar> SphericalSurface3D<T> {
     }
 
     /// 球サーフェスの境界ボックスを計算
-    pub fn bounding_box(&self) -> BBox3D<T> {
-        let min_point = Point3D::new(
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
+        let min_point = Point3::new(
             self.center.x() - self.radius,
             self.center.y() - self.radius,
             self.center.z() - self.radius,
         );
-        let max_point = Point3D::new(
+        let max_point = Point3::new(
             self.center.x() + self.radius,
             self.center.y() + self.radius,
             self.center.z() + self.radius,
         );
-        BBox3D::new(min_point, max_point)
+        geo_core::Aabb3D::new(min_point, max_point)
     }
 
     /// 球サーフェスが退化しているかどうかを判定
@@ -431,11 +432,11 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
         let center_x = (min.0 + max.0) / (T::ONE + T::ONE);
         let center_y = (min.1 + max.1) / (T::ONE + T::ONE);
         let center_z = (min.2 + max.2) / (T::ONE + T::ONE);
-        
+
         let dx = (max.0 - min.0) / (T::ONE + T::ONE);
         let dy = (max.1 - min.1) / (T::ONE + T::ONE);
         let dz = (max.2 - min.2) / (T::ONE + T::ONE);
-        
+
         let radius = dx.min(dy).min(dz);
         let center_point = Point3D::new(center_x, center_y, center_z);
         Self::new_standard(center_point, radius)
@@ -445,11 +446,17 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
         let center_x = (p1.0 + p2.0 + p3.0) / T::from_f64(3.0);
         let center_y = (p1.1 + p2.1 + p3.1) / T::from_f64(3.0);
         let center_z = (p1.2 + p2.2 + p3.2) / T::from_f64(3.0);
-        
-        let dist1 = ((p1.0 - center_x).powi(2) + (p1.1 - center_y).powi(2) + (p1.2 - center_z).powi(2)).sqrt();
-        let dist2 = ((p2.0 - center_x).powi(2) + (p2.1 - center_y).powi(2) + (p2.2 - center_z).powi(2)).sqrt();
-        let dist3 = ((p3.0 - center_x).powi(2) + (p3.1 - center_y).powi(2) + (p3.2 - center_z).powi(2)).sqrt();
-        
+
+        let dist1 =
+            ((p1.0 - center_x).powi(2) + (p1.1 - center_y).powi(2) + (p1.2 - center_z).powi(2))
+                .sqrt();
+        let dist2 =
+            ((p2.0 - center_x).powi(2) + (p2.1 - center_y).powi(2) + (p2.2 - center_z).powi(2))
+                .sqrt();
+        let dist3 =
+            ((p3.0 - center_x).powi(2) + (p3.1 - center_y).powi(2) + (p3.2 - center_z).powi(2))
+                .sqrt();
+
         let radius = dist1.max(dist2).max(dist3);
         let center_point = Point3D::new(center_x, center_y, center_z);
         Self::new_standard(center_point, radius)
@@ -519,26 +526,26 @@ impl<T: Scalar> SphericalSurface3DMeasure<T> for SphericalSurface3D<T> {
     fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T) {
         let c = self.center_internal();
         let r = self.radius_internal();
-        
+
         let cos_lat = latitude.cos();
         let sin_lat = latitude.sin();
         let cos_lon = longitude.cos();
         let sin_lon = longitude.sin();
-        
+
         let x = c.x() + r * cos_lat * cos_lon;
         let y = c.y() + r * cos_lat * sin_lon;
         let z = c.z() + r * sin_lat;
-        
+
         (x, y, z)
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
         let c = self.center_internal();
         let r = self.radius_internal();
-        
+
         let min = (c.x() - r, c.y() - r, c.z() - r);
         let max = (c.x() + r, c.y() + r, c.z() + r);
-        
+
         (min, max)
     }
 
@@ -546,40 +553,40 @@ impl<T: Scalar> SphericalSurface3DMeasure<T> for SphericalSurface3D<T> {
         let c = self.center_internal();
         let r = self.radius_internal();
         let p = Point3D::new(point.0, point.1, point.2);
-        
+
         let dir = Vector3D::from_points(&c, &p);
         let len = dir.length();
-        
+
         if len < T::EPSILON {
             return (c.x() + r, c.y(), c.z());
         }
-        
+
         let normalized = dir / len;
         let surface_point = Point3D::new(
             c.x() + normalized.x() * r,
             c.y() + normalized.y() * r,
             c.z() + normalized.z() * r,
         );
-        
+
         (surface_point.x(), surface_point.y(), surface_point.z())
     }
 
     fn tangent_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
         let r = self.radius_internal();
-        
+
         let cos_v = v.cos();
         let sin_v = v.sin();
         let cos_u = u.cos();
         let sin_u = u.sin();
-        
+
         let tu_x = -r * cos_v * sin_u;
         let tu_y = r * cos_v * cos_u;
         let tu_z = T::ZERO;
-        
+
         let tv_x = -r * sin_v * cos_u;
         let tv_y = -r * sin_v * sin_u;
         let tv_z = r * cos_v;
-        
+
         ((tu_x, tu_y, tu_z), (tv_x, tv_y, tv_z))
     }
 }

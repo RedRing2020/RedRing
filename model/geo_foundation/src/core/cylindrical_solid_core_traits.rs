@@ -55,7 +55,11 @@ pub trait CylindricalSolid3DConstructor<T: Scalar> {
     // Phase 2: 追加コンストラクタ（3メソッド）
 
     /// 軸線の始点・終点と半径から円柱を作成
-    fn from_axis_and_radius(start_point: (T, T, T), end_point: (T, T, T), radius: T) -> Option<Self>
+    fn from_axis_and_radius(
+        start_point: (T, T, T),
+        end_point: (T, T, T),
+        radius: T,
+    ) -> Option<Self>
     where
         Self: Sized;
 

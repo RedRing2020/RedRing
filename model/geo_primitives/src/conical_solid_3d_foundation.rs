@@ -5,21 +5,24 @@
 //! **作成日: 2025年11月1日**
 //! **最終更新: 2025年11月1日**
 
-use crate::{BBox3D, ConicalSolid3D};
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use crate::ConicalSolid3D;
+use geo_core::Aabb3D;
+use geo_foundation::{
+    Bounded, ConicalSolid3DMeasure, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
+};
 
 impl<T: Scalar> ExtensionFoundation<T> for ConicalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::Cone
+        PrimitiveKind::ConicalSolid
     }
 
     fn measure(&self) -> Option<T> {
-        Some(self.volume_internal())
+        Some(self.volume())
     }
 }
 
 impl<T: Scalar> Bounded<T> for ConicalSolid3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         Some(self.bounding_box())
@@ -75,7 +78,7 @@ mod tests {
         let conical_solid = ConicalSolid3D::new(center, axis, ref_direction, 5.0, 10.0).unwrap();
 
         // primitive_kind のテスト
-        assert_eq!(conical_solid.primitive_kind(), PrimitiveKind::Cone);
+        assert_eq!(conical_solid.primitive_kind(), PrimitiveKind::ConicalSolid);
 
         // measure (体積) のテスト
         assert!(conical_solid.measure().is_some());

@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくRay3Dの拡張機能
 //! Core機能は ray_3d.rs を参照
 
-use crate::{BBox3D, InfiniteLine3D, Point3D, Ray3D, Vector3D};
+use crate::{InfiniteLine3D, Point3D, Ray3D, Vector3D};
 use geo_foundation::Scalar;
 
 // ============================================================================
@@ -35,11 +35,13 @@ impl<T: Scalar> Ray3D<T> {
             .expect("Ray direction should always create valid InfiniteLine3D")
     }
 
-    /// 境界ボックスを取得（無限のため最大値を使用）
-    pub fn bounding_box(&self) -> BBox3D<T> {
-        // Ray は無限に延びるため、方向に基づいて最大値を設定
-        BBox3D::from_points(&[self.origin_internal(), Point3D::new(T::MAX, T::MAX, T::MAX)])
-            .unwrap_or_else(|| BBox3D::from_point(self.origin_internal()))
+    /// 境界ボックスを取得（無限のため起点のみ）
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
+        // Ray は無限に延びるため、境界ボックスは起点のみで構成
+        let origin = self.origin_internal();
+        let pt = Point3::new(origin.x(), origin.y(), origin.z());
+        geo_core::Aabb3D::new(pt, pt)
     }
 
     /// パラメータの範囲を取得
@@ -172,11 +174,19 @@ impl<T: Scalar> Ray3D<T> {
     ///
     /// # 戻り値
     /// [0, max_parameter] 範囲での境界ボックス
-    pub fn bounding_box_for_range(&self, max_parameter: T) -> BBox3D<T> {
+    pub fn bounding_box_for_range(&self, max_parameter: T) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         let start_point = self.origin_internal();
         let end_point = self.point_at_parameter(max_parameter);
 
-        BBox3D::from_point_collection(&[start_point, end_point]).unwrap()
+        geo_core::Aabb3D::from_points(&[
+            Point3::new(start_point.x(), start_point.y(), start_point.z()),
+            Point3::new(end_point.x(), end_point.y(), end_point.z()),
+        ])
+        .unwrap_or_else(|| {
+            let pt = Point3::new(start_point.x(), start_point.y(), start_point.z());
+            geo_core::Aabb3D::new(pt, pt)
+        })
     }
 
     // ========================================================================

@@ -2,7 +2,7 @@
 //!
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
-use crate::{Arc3D, BBox3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
+use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
 use geo_foundation::{Angle, Scalar};
 
 // ============================================================================
@@ -146,7 +146,8 @@ impl<T: Scalar> EllipseArc3D<T> {
     // ========================================================================
 
     /// より詳細な境界ボックス計算（高精度版）
-    pub fn precise_bounding_box(&self, sample_points: usize) -> BBox3D<T> {
+    pub fn precise_bounding_box(&self, sample_points: usize) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         let mut min_x = T::MAX;
         let mut max_x = T::MIN;
         let mut min_y = T::MAX;
@@ -171,9 +172,9 @@ impl<T: Scalar> EllipseArc3D<T> {
             max_z = max_z.max(point.z());
         }
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            Point3::new(min_x, min_y, min_z),
+            Point3::new(max_x, max_y, max_z),
         )
     }
 

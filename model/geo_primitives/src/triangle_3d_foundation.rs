@@ -1,6 +1,7 @@
 //! Triangle3D の Foundation トレイト実装
 
-use crate::{BBox3D, Triangle3D};
+use crate::Triangle3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
@@ -18,7 +19,7 @@ impl<T: Scalar> ExtensionFoundation<T> for Triangle3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for Triangle3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         // 3つの頂点の最小/最大座標を計算
@@ -58,7 +59,10 @@ impl<T: Scalar> Bounded<T> for Triangle3D<T> {
         let min_point = crate::Point3D::new(min_x, min_y, min_z);
         let max_point = crate::Point3D::new(max_x, max_y, max_z);
 
-        Some(BBox3D::new(min_point, max_point))
+        Some(Aabb3D::new(
+            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
+            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+        ))
     }
 }
 

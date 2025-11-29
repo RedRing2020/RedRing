@@ -1,4 +1,4 @@
-﻿//! 2次元円弧（Arc2D）の Core 実装
+//! 2次元円弧（Arc2D）の Core 実装
 //!
 //! Foundation統一システムに基づく Arc2D の必須機能のみ
 //! 拡張機能は arc_2d_extensions.rs を参照
@@ -7,8 +7,7 @@ use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
 use geo_foundation::{
     core::arc_core_traits::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties},
-    Circle2DProperties,
-    Scalar,
+    Circle2DProperties, Scalar,
 };
 
 /// 2次元円弧
@@ -316,7 +315,11 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
         };
 
         let circle = Circle2D::new(center, radius)?;
-        Self::new(circle, Angle::from_radians(start_rad), Angle::from_radians(end_rad))
+        Self::new(
+            circle,
+            Angle::from_radians(start_rad),
+            Angle::from_radians(end_rad),
+        )
     }
 
     fn semicircle(center: (T, T), radius: T) -> Self {
@@ -332,13 +335,17 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
         let center_point = Point2D::new(center.0, center.1);
         let start_point = Point2D::new(start.0, start.1);
         let end_point = Point2D::new(end.0, end.1);
-        
+
         let radius = center_point.distance_to(&start_point);
         let start_angle = Self::angle_from_center(center_point, start_point);
         let end_angle = Self::angle_from_center(center_point, end_point);
-        
+
         let circle = Circle2D::new(center_point, radius)?;
-        Self::new(circle, Angle::from_radians(start_angle), Angle::from_radians(end_angle))
+        Self::new(
+            circle,
+            Angle::from_radians(start_angle),
+            Angle::from_radians(end_angle),
+        )
     }
 
     fn full_circle(center: (T, T), radius: T) -> Self {
@@ -417,7 +424,8 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
 
     // Phase 2: 追加測度メソッド
     fn midpoint(&self) -> (T, T) {
-        let mid_angle = (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
+        let mid_angle =
+            (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
         let p = self.point_at_angle_internal(mid_angle);
         (p.x(), p.y())
     }
@@ -462,10 +470,12 @@ impl<T: Scalar> Arc2D<T> {
         }
 
         let two = T::ONE + T::ONE;
-        let ux = ((x1 * x1 + y1 * y1) * (y2 - y3) + (x2 * x2 + y2 * y2) * (y3 - y1)
+        let ux = ((x1 * x1 + y1 * y1) * (y2 - y3)
+            + (x2 * x2 + y2 * y2) * (y3 - y1)
             + (x3 * x3 + y3 * y3) * (y1 - y2))
             / (two * d);
-        let uy = ((x1 * x1 + y1 * y1) * (x3 - x2) + (x2 * x2 + y2 * y2) * (x1 - x3)
+        let uy = ((x1 * x1 + y1 * y1) * (x3 - x2)
+            + (x2 * x2 + y2 * y2) * (x1 - x3)
             + (x3 * x3 + y3 * y3) * (x2 - x1))
             / (two * d);
 
@@ -484,10 +494,10 @@ impl<T: Scalar> Arc2D<T> {
         let normalize = |angle: T| {
             let mut a = angle;
             while a < T::ZERO {
-                a = a + T::TAU;
+                a += T::TAU;
             }
             while a >= T::TAU {
-                a = a - T::TAU;
+                a -= T::TAU;
             }
             a
         };

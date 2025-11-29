@@ -15,7 +15,7 @@
 //! - radius: 基準点での半径
 //! - semi_angle: 半頂角（ラジアン）
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元円錐サーフェス（STEP準拠のCore実装）
@@ -413,7 +413,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
     ///
     /// # Returns
     /// 指定範囲での境界ボックス
-    pub fn bounding_box(&self, min_v: T, max_v: T) -> BBox3D<T> {
+    pub fn bounding_box(&self, min_v: T, max_v: T) -> geo_core::Aabb3D<T> {
         let r_min = self.radius_at_v_internal(min_v);
         let r_max = self.radius_at_v_internal(max_v);
         let max_radius = if r_min > r_max { r_min } else { r_max };
@@ -465,9 +465,9 @@ impl<T: Scalar> ConicalSurface3D<T> {
             max_point.z() + max_radius
         };
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            analysis::Point3::new(min_x, min_y, min_z),
+            analysis::Point3::new(max_x, max_y, max_z),
         )
     }
 }

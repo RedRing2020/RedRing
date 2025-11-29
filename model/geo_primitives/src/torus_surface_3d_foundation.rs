@@ -3,7 +3,8 @@
 //
 // Foundation パターンに従い、統一されたプリミティブインターフェースを提供します。
 
-use crate::{BBox3D, Point3D, TorusSurface3D};
+use crate::{Point3D, TorusSurface3D};
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for TorusSurface3D<T> {
@@ -18,7 +19,7 @@ impl<T: Scalar> ExtensionFoundation<T> for TorusSurface3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for TorusSurface3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         // トーラスの外半径（最大半径）
@@ -69,7 +70,10 @@ impl<T: Scalar> Bounded<T> for TorusSurface3D<T> {
             origin.z() + z_extent_final,
         );
 
-        Some(BBox3D::new(min_point, max_point))
+        Some(Aabb3D::new(
+            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
+            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+        ))
     }
 }
 

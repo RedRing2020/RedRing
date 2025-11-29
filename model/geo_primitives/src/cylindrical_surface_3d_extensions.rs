@@ -313,7 +313,8 @@ impl<T: Scalar> BoundedCylindricalSurface3D<T> {
     }
 
     /// 境界ボックスを計算
-    pub fn bounding_box(&self) -> crate::BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         // 境界を考慮した正確な境界ボックス計算
         let mut points = vec![
             self.surface.point_at_uv(self.u_bounds.0, self.v_bounds.0),
@@ -337,8 +338,16 @@ impl<T: Scalar> BoundedCylindricalSurface3D<T> {
             }
         }
 
-        crate::BBox3D::from_points(&points)
-            .unwrap_or_else(|| crate::BBox3D::new(Point3D::origin(), Point3D::origin()))
+        geo_core::Aabb3D::from_points(
+            &points
+                .iter()
+                .map(|p| Point3::new(p.x(), p.y(), p.z()))
+                .collect::<Vec<_>>(),
+        )
+        .unwrap_or_else(|| {
+            let origin = Point3::new(T::ZERO, T::ZERO, T::ZERO);
+            geo_core::Aabb3D::new(origin, origin)
+        })
     }
 }
 

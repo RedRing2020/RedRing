@@ -181,9 +181,13 @@ pub use extensions::{
     AdvancedCollision,
     BasicCollision,
     BasicIntersection,
+    BooleanError,
+    BooleanOperations,
+    MultipleBooleanOperations,
     MultipleIntersection,
     PointDistance,
     SafeTransform,
+    TolerantBooleanOperations,
     TransformError, // 既存ルート維持
 };
 

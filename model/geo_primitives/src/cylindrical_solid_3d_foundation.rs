@@ -1,6 +1,7 @@
 //! CylindricalSolid3D の Foundation トレイト実装
 
-use crate::{BBox3D, CylindricalSolid3D};
+use crate::CylindricalSolid3D;
+use geo_core::Aabb3D;
 use geo_foundation::{
     Bounded, CylindricalSolid3DMeasure, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
 };
@@ -20,7 +21,7 @@ impl<T: Scalar> ExtensionFoundation<T> for CylindricalSolid3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for CylindricalSolid3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         Some(self.bounding_box())

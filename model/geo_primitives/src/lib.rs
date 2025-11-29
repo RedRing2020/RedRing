@@ -12,9 +12,6 @@ pub use geo_foundation::TransformError;
 pub mod arc_3d;
 pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_foundation; // Arc3D のFoundation実装
-pub mod bbox_3d; // BBox3D の新実装
-pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
-pub mod bbox_3d_foundation; // BBox3D のFoundation実装
 pub mod circle_3d; // Circle3D の新実装
 pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
 pub mod circle_3d_foundation; // Circle3D のFoundation実装
@@ -101,10 +98,7 @@ pub mod triangle_mesh_3d_tests;
 // Arc2D関連（ジェネリック実装完了により再有効化）
 pub mod arc_2d; // Arc2D の新実装 (Core)
 pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)
-// pub mod arc_2d_foundation; // Arc2D のFoundation実装 - 作成予定
-pub mod bbox_2d; // BBox2D の新実装 (Core)
-pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
-pub mod bbox_2d_foundation; // BBox2D のFoundation実装
+                           // pub mod arc_2d_foundation; // Arc2D のFoundation実装 - 作成予定
 pub mod circle_2d; // Circle2D の新実装 (Core)
 pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension - Phase 2 対応)
                               // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
@@ -158,8 +152,6 @@ pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
 #[cfg(test)]
-mod bbox_3d_tests;
-#[cfg(test)]
 mod ellipse_3d_tests;
 #[cfg(test)]
 mod point_3d_tests;
@@ -171,8 +163,6 @@ mod point_3d_tests;
 mod vector_3d_tests;
 
 // 2D テスト
-#[cfg(test)]
-mod bbox_2d_tests;
 #[cfg(test)]
 mod direction_2d_extensions_tests;
 #[cfg(test)]
@@ -211,7 +201,6 @@ pub use geo_foundation::extensions::{
 // 新実装の公開（次元中立設計）
 // 3D プリミティブ
 pub use arc_3d::Arc3D;
-pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
 pub use conical_solid_3d::{Cone3D, ConicalSolid3D}; // 新式円錐ソリッド + 互換エイリアス
 pub use conical_surface_3d::{ConeRim3D, ConicalSurface3D}; // 新式円錐サーフェス + 互換エイリアス
@@ -238,7 +227,6 @@ pub use vector_3d::Vector3D;
 
 // 2D プリミティブ
 // pub use arc_2d::Arc2D; // 一時無効化
-pub use crate::bbox_2d::BBox2D;
 pub use circle_2d::Circle2D;
 pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;

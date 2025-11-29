@@ -1,4 +1,4 @@
-﻿//! Arc2D拡張メソッド
+//! Arc2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Arc2D の拡張機能
 //! 基本機能は arc_2d.rs を参照
@@ -81,8 +81,7 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 退化した円弧かどうかを判定（非常に小さい半径または角度範囲）
     pub fn is_degenerate(&self) -> bool {
-        self.radius() <= DefaultTolerances::distance::<T>()
-        || self.angular_span() <= T::EPSILON
+        self.radius() <= DefaultTolerances::distance::<T>() || self.angular_span() <= T::EPSILON
     }
 
     /// 指定角度が円弧の範囲内にあるかを判定

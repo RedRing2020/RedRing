@@ -3,7 +3,7 @@
 //! Core Foundation パターンに基づく EllipseArc3D の必須機能のみ
 //! 拡張機能は ellipse_arc_3d_extensions.rs を参照
 
-use crate::{Arc3D, BBox3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
+use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_foundation::{
     core::ellipse_arc_core_traits::{
         EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
@@ -224,12 +224,23 @@ impl<T: Scalar> EllipseArc3D<T> {
     }
 
     /// バウンディングボックスを取得（近似）
-    pub fn bounding_box(&self) -> BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
         let start = self.start_point();
         let end = self.end_point();
         let mid = self.midpoint();
 
-        BBox3D::from_points(&[start, end, mid]).unwrap_or_default()
+        geo_core::Aabb3D::from_points(&[
+            analysis::Point3::new(start.x(), start.y(), start.z()),
+            analysis::Point3::new(end.x(), end.y(), end.z()),
+            analysis::Point3::new(mid.x(), mid.y(), mid.z()),
+        ])
+        .unwrap_or_else(|| {
+            // フォールバック: ゼロサイズのボックス
+            geo_core::Aabb3D::new(
+                analysis::Point3::new(start.x(), start.y(), start.z()),
+                analysis::Point3::new(start.x(), start.y(), start.z()),
+            )
+        })
     }
 }
 

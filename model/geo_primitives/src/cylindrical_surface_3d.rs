@@ -15,7 +15,7 @@
 //! - radius: 円柱半径
 //! - 高さは境界によって定義（無限円柱面）
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元円柱サーフェス（STEP準拠のCore実装）
@@ -293,7 +293,8 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     ///
     /// 注意: 無限サーフェスのため、v方向の境界は外部で指定する必要がある
     /// ここでは半径による径方向の境界のみ計算
-    pub fn bounding_box_radial(&self) -> BBox3D<T> {
+    pub fn bounding_box_radial(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         // 各軸成分の最大伸び（径方向のみ）
         let axis_x = self.axis.x();
         let axis_y = self.axis.y();
@@ -313,9 +314,9 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         let min_z = self.center.z() - radius_z;
         let max_z = self.center.z() + radius_z;
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            Point3::new(min_x, min_y, min_z),
+            Point3::new(max_x, max_y, max_z),
         )
     }
 

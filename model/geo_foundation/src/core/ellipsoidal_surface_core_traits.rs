@@ -72,11 +72,7 @@ pub trait EllipsoidalSurface3DConstructor<T: Scalar> {
         Self: Sized;
 
     /// 扁平回転楕円体を作成（極半径 < 赤道半径）
-    fn oblate_spheroid(
-        center: (T, T, T),
-        equatorial_radius: T,
-        polar_radius: T,
-    ) -> Option<Self>
+    fn oblate_spheroid(center: (T, T, T), equatorial_radius: T, polar_radius: T) -> Option<Self>
     where
         Self: Sized;
 }

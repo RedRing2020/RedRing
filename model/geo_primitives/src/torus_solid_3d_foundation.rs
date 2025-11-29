@@ -4,7 +4,8 @@
 // ExtensionFoundation トレイトを実装し、統一されたインターフェースを提供します。
 // 境界ボックス計算、測度（体積）、プリミティブ種別の分類を行います。
 
-use crate::{BBox3D, Point3D, TorusSolid3D};
+use crate::TorusSolid3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TorusSolid3DMeasure};
 
 impl<T: Scalar> ExtensionFoundation<T> for TorusSolid3D<T> {
@@ -18,7 +19,7 @@ impl<T: Scalar> ExtensionFoundation<T> for TorusSolid3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         let major_radius = self.major_radius_internal();
@@ -35,13 +36,13 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
         // 主回転軸（Z軸）が標準軸の場合
         if (z_axis.z() - T::ONE).abs() < T::EPSILON {
             // XY平面でのトーラス：Z方向は副半径のみ
-            Some(BBox3D::new(
-                Point3D::new(
+            Some(Aabb3D::new(
+                analysis::Point3::new(
                     origin.x() - total_radius,
                     origin.y() - total_radius,
                     origin.z() - minor_radius,
                 ),
-                Point3D::new(
+                analysis::Point3::new(
                     origin.x() + total_radius,
                     origin.y() + total_radius,
                     origin.z() + minor_radius,
@@ -50,13 +51,13 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
         } else {
             // 回転されたトーラスの場合：保守的な境界ボックス
             let max_extent = total_radius;
-            Some(BBox3D::new(
-                Point3D::new(
+            Some(Aabb3D::new(
+                analysis::Point3::new(
                     origin.x() - max_extent,
                     origin.y() - max_extent,
                     origin.z() - max_extent,
                 ),
-                Point3D::new(
+                analysis::Point3::new(
                     origin.x() + max_extent,
                     origin.y() + max_extent,
                     origin.z() + max_extent,
@@ -69,7 +70,7 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Direction3D, Vector3D};
+    use crate::{Direction3D, Point3D, Vector3D};
     use geo_foundation::TorusSolid3DMeasure;
 
     #[test]

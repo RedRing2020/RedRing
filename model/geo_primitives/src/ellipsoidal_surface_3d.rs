@@ -19,7 +19,7 @@
 //! **作成日: 2025年11月15日**
 //! **最終更新: 2025年11月15日**
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元楕円体サーフェス（STEP準拠のCore実装）
@@ -400,7 +400,8 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
     }
 
     /// 境界ボックスを計算
-    pub fn bounding_box(&self) -> BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         // 各軸方向の最大伸び
         let x_axis = self.ref_direction.as_vector();
         let y_axis = self.derived_y_axis_internal().as_vector();
@@ -420,13 +421,13 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
             + self.c_radius * z_axis.z().abs())
         .max(T::EPSILON);
 
-        BBox3D::new(
-            Point3D::new(
+        geo_core::Aabb3D::new(
+            Point3::new(
                 self.center.x() - max_x_extent,
                 self.center.y() - max_y_extent,
                 self.center.z() - max_z_extent,
             ),
-            Point3D::new(
+            Point3::new(
                 self.center.x() + max_x_extent,
                 self.center.y() + max_y_extent,
                 self.center.z() + max_z_extent,
@@ -504,10 +505,7 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
         Self::new_spherical(Point3D::origin(), T::ONE).unwrap()
     }
 
-    fn from_bounding_box(
-        min: (T, T, T),
-        max: (T, T, T),
-    ) -> Option<Self> {
+    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
         let center_x = (min.0 + max.0) / T::from_f64(2.0);
         let center_y = (min.1 + max.1) / T::from_f64(2.0);
         let center_z = (min.2 + max.2) / T::from_f64(2.0);
@@ -521,11 +519,7 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
         Self::new_standard(center, a, b, c)
     }
 
-    fn oblate_spheroid(
-        center: (T, T, T),
-        equatorial_radius: T,
-        polar_radius: T,
-    ) -> Option<Self> {
+    fn oblate_spheroid(center: (T, T, T), equatorial_radius: T, polar_radius: T) -> Option<Self> {
         Self::new_standard(center, equatorial_radius, equatorial_radius, polar_radius)
     }
 }
@@ -621,12 +615,12 @@ impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
         let sin_phi = phi.sin();
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
-        
+
         let c = self.center_internal();
         let a = self.a_radius_internal();
         let b = self.b_radius_internal();
         let c_radius = self.c_radius_internal();
-        
+
         (
             c.x() + a * cos_theta * sin_phi,
             c.y() + b * sin_theta * sin_phi,

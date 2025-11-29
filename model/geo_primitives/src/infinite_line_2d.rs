@@ -121,12 +121,15 @@ impl<T: Scalar> InfiniteLine2D<T> {
     // ========================================================================
 
     /// 境界ボックスを取得（起点を含む十分大きな範囲）
-    pub fn bounding_box(&self) -> crate::BBox2D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
+        use analysis::Point2;
         // 無限直線なので実用的な大きさの境界ボックスを生成
         let large_value = T::from_f64(1e6);
-        // from_center_sizeは幅を2で割るので、期待値の2倍を渡す
-        let total_range = large_value + large_value;
-        crate::BBox2D::<T>::from_center_size(self.point, total_range, total_range)
+        let half_range = large_value;
+        geo_core::Aabb2D::new(
+            Point2::new(self.point.x() - half_range, self.point.y() - half_range),
+            Point2::new(self.point.x() + half_range, self.point.y() + half_range),
+        )
     }
 
     /// パラメータ範囲を取得

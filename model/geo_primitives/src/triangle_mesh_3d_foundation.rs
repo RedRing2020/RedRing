@@ -1,6 +1,7 @@
 //! TriangleMesh3D の Foundation トレイト実装
 
-use crate::{BBox3D, TriangleMesh3D};
+use crate::TriangleMesh3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
@@ -36,11 +37,14 @@ impl<T: Scalar> ExtensionFoundation<T> for TriangleMesh3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for TriangleMesh3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         if let Some((min_point, max_point)) = self.bounding_box() {
-            Some(BBox3D::new(min_point, max_point))
+            Some(Aabb3D::new(
+                analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
+                analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+            ))
         } else {
             // 空のメッシュの場合は None
             None

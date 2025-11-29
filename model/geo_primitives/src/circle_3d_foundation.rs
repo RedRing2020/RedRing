@@ -1,6 +1,7 @@
 //! Circle3D の Foundation トレイト実装
 
-use crate::{BBox3D, Circle3D};
+use crate::Circle3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
@@ -18,7 +19,7 @@ impl<T: Scalar> ExtensionFoundation<T> for Circle3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for Circle3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         // 円の包含する境界ボックスを計算
@@ -66,7 +67,10 @@ impl<T: Scalar> Bounded<T> for Circle3D<T> {
             center.z() + extent_z,
         );
 
-        Some(BBox3D::new(min_point, max_point))
+        Some(Aabb3D::new(
+            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
+            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+        ))
     }
 }
 

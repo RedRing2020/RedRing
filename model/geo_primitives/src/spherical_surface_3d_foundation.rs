@@ -5,7 +5,8 @@
 //! **作成日: 2025年11月1日**
 //! **最終更新: 2025年11月1日**
 
-use crate::{BBox3D, SphericalSurface3D};
+use crate::SphericalSurface3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for SphericalSurface3D<T> {
@@ -19,7 +20,7 @@ impl<T: Scalar> ExtensionFoundation<T> for SphericalSurface3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for SphericalSurface3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         Some(self.bounding_box())
@@ -40,8 +41,8 @@ mod tests {
         assert_eq!(surface.primitive_kind(), PrimitiveKind::SphericalSurface);
 
         let bbox = surface.aabb().expect("should have aabb");
-        assert_eq!(bbox.min(), Point3D::new(-1.0, 0.0, 1.0));
-        assert_eq!(bbox.max(), Point3D::new(3.0, 4.0, 5.0));
+        assert_eq!(bbox.min(), analysis::Point3::new(-1.0, 0.0, 1.0));
+        assert_eq!(bbox.max(), analysis::Point3::new(3.0, 4.0, 5.0));
 
         let area = surface.measure().unwrap();
         let expected_area = 4.0 * std::f64::consts::PI * 4.0; // 4π * r²

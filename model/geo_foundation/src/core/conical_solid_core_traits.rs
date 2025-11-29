@@ -66,12 +66,7 @@ pub trait ConicalSolid3DConstructor<T: Scalar> {
         Self: Sized;
 
     /// 頂点、軸、高さ、頂角から円錐を作成
-    fn from_apex_angle(
-        apex: (T, T, T),
-        axis: (T, T, T),
-        height: T,
-        half_angle: T,
-    ) -> Option<Self>
+    fn from_apex_angle(apex: (T, T, T), axis: (T, T, T), height: T, half_angle: T) -> Option<Self>
     where
         Self: Sized;
 

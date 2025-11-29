@@ -3,7 +3,8 @@
 //! ExtensionFoundation トレイトの実装により、
 //! 他の幾何プリミティブとの統一インターフェースを提供
 
-use crate::{BBox3D, ConicalSurface3D};
+use crate::ConicalSurface3D;
+use geo_core::Aabb3D;
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for ConicalSurface3D<T> {
@@ -19,7 +20,7 @@ impl<T: Scalar> ExtensionFoundation<T> for ConicalSurface3D<T> {
 }
 
 impl<T: Scalar> Bounded<T> for ConicalSurface3D<T> {
-    type Aabb = BBox3D<T>;
+    type Aabb = Aabb3D<T>;
 
     fn aabb(&self) -> Option<Self::Aabb> {
         // 実用的な範囲で境界ボックスを計算
@@ -65,7 +66,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
     ///
     /// # Returns
     /// 実用的な範囲での最小境界ボックス
-    pub fn minimal_bounding_box(&self) -> BBox3D<T> {
+    pub fn minimal_bounding_box(&self) -> Aabb3D<T> {
         // 円錐は無限に延びるため、実用的な範囲を設定
         // 基準半径の10倍程度の範囲を使用
         let practical_range = self.radius_internal() * T::from_f64(10.0);

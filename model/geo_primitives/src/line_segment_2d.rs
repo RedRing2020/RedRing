@@ -3,7 +3,7 @@
 //! Core Foundation パターンに基づく LineSegment2D の必須機能のみ
 //! 拡張機能は line_segment_2d_extensions.rs を参照
 
-use crate::{BBox2D, InfiniteLine2D, Point2D, Vector2D};
+use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_foundation::{
     core::linesegment_core_traits::{
         LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties,
@@ -172,8 +172,14 @@ impl<T: Scalar> LineSegment2D<T> {
     }
 
     /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> BBox2D<T> {
-        BBox2D::new(self.start_point(), self.end_point())
+    pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
+        use analysis::Point2;
+        let start = self.start_point();
+        let end = self.end_point();
+        geo_core::Aabb2D::new(
+            Point2::new(start.x(), start.y()),
+            Point2::new(end.x(), end.y()),
+        )
     }
 
     // ========================================================================

@@ -15,7 +15,7 @@
 //! - radius: 円柱半径
 //! - height: 円柱高さ
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
@@ -211,7 +211,8 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     }
 
     /// 円柱ソリッドの境界ボックスを計算
-    pub fn bounding_box(&self) -> BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         // 各軸成分の最大伸び
         let axis_x = self.axis.x();
         let axis_y = self.axis.y();
@@ -235,9 +236,9 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         let min_z = (self.center.z() - radius_z).min(self.center.z() + height_z - radius_z);
         let max_z = (self.center.z() + radius_z).max(self.center.z() + height_z + radius_z);
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            Point3::new(min_x, min_y, min_z),
+            Point3::new(max_x, max_y, max_z),
         )
     }
 
@@ -375,25 +376,29 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
 
     // Phase 2: 追加コンストラクタ
 
-    fn from_axis_and_radius(start_point: (T, T, T), end_point: (T, T, T), radius: T) -> Option<Self> {
+    fn from_axis_and_radius(
+        start_point: (T, T, T),
+        end_point: (T, T, T),
+        radius: T,
+    ) -> Option<Self> {
         let p1 = Point3D::new(start_point.0, start_point.1, start_point.2);
         let p2 = Point3D::new(end_point.0, end_point.1, end_point.2);
         let axis_vec = Vector3D::from_points(&p1, &p2);
         let height = axis_vec.length();
-        
+
         if height < T::EPSILON {
             return None;
         }
-        
+
         let axis_dir = axis_vec / height;
         let ref_dir = if axis_dir.z().abs() < T::from_f64(0.9) {
             Vector3D::new(T::ZERO, T::ZERO, T::ONE)
         } else {
             Vector3D::new(T::ONE, T::ZERO, T::ZERO)
         };
-        
+
         let center_point = Point3D::new(start_point.0, start_point.1, start_point.2);
-        
+
         Self::new(center_point, axis_dir, ref_dir, radius, height)
     }
 
@@ -533,32 +538,41 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
     fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T) {
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
-        
+
         let x_axis = self.ref_direction.as_vector();
         let y_axis = self.y_axis().as_vector();
         let z_axis = self.axis.as_vector();
-        
-        let x = self.center.x() + r * cos_theta * x_axis.x() + r * sin_theta * y_axis.x() + z * z_axis.x();
-        let y = self.center.y() + r * cos_theta * x_axis.y() + r * sin_theta * y_axis.y() + z * z_axis.y();
-        let z_coord = self.center.z() + r * cos_theta * x_axis.z() + r * sin_theta * y_axis.z() + z * z_axis.z();
-        
+
+        let x = self.center.x()
+            + r * cos_theta * x_axis.x()
+            + r * sin_theta * y_axis.x()
+            + z * z_axis.x();
+        let y = self.center.y()
+            + r * cos_theta * x_axis.y()
+            + r * sin_theta * y_axis.y()
+            + z * z_axis.y();
+        let z_coord = self.center.z()
+            + r * cos_theta * x_axis.z()
+            + r * sin_theta * y_axis.z()
+            + z * z_axis.z();
+
         (x, y, z_coord)
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
         let r = self.radius;
         let h = self.height;
-        
+
         let min_x = self.center.x() - r;
         let max_x = self.center.x() + r;
         let min_y = self.center.y() - r;
         let max_y = self.center.y() + r;
-        
+
         let base_z = self.center.z();
         let top_z = base_z + h * self.axis.z();
         let min_z = base_z.min(top_z);
         let max_z = base_z.max(top_z);
-        
+
         ((min_x, min_y, min_z), (max_x, max_y, max_z))
     }
 
@@ -569,9 +583,9 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
 
         let axis_projection =
             to_point_x * self.axis.x() + to_point_y * self.axis.y() + to_point_z * self.axis.z();
-        
+
         let clamped_h = axis_projection.max(T::ZERO).min(self.height);
-        
+
         let axis_comp_x = self.axis.x() * clamped_h;
         let axis_comp_y = self.axis.y() * clamped_h;
         let axis_comp_z = self.axis.z() * clamped_h;
@@ -581,7 +595,7 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
         let radial_z = to_point_z - axis_comp_z;
 
         let radial_len = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
-        
+
         if radial_len > T::EPSILON {
             let scale = self.radius / radial_len;
             let surface_x = self.center.x() + axis_comp_x + radial_x * scale;
@@ -589,9 +603,11 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
             let surface_z = self.center.z() + axis_comp_z + radial_z * scale;
             (surface_x, surface_y, surface_z)
         } else {
-            (self.center.x() + axis_comp_x + self.radius, 
-             self.center.y() + axis_comp_y, 
-             self.center.z() + axis_comp_z)
+            (
+                self.center.x() + axis_comp_x + self.radius,
+                self.center.y() + axis_comp_y,
+                self.center.z() + axis_comp_z,
+            )
         }
     }
 

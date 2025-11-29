@@ -258,13 +258,7 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         let axis_dir = Direction3D::from_vector(axis_vec)?;
         let ref_dir = Direction3D::from_vector(ref_direction)?;
-        Self::new(
-            center_point,
-            axis_dir,
-            ref_dir,
-            major_radius,
-            minor_radius,
-        )
+        Self::new(center_point, axis_dir, ref_dir, major_radius, minor_radius)
     }
 
     fn from_radii_and_axis(
@@ -282,13 +276,7 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         let axis_dir = Direction3D::from_vector(axis_vec)?;
         let ref_dir = Direction3D::from_vector(ref_direction)?;
-        Self::new(
-            center_point,
-            axis_dir,
-            ref_dir,
-            major_radius,
-            minor_radius,
-        )
+        Self::new(center_point, axis_dir, ref_dir, major_radius, minor_radius)
     }
 
     fn ring_torus(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self> {
@@ -373,35 +361,44 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
         let sin_u = u.sin();
         let cos_v = v.cos();
         let sin_v = v.sin();
-        
+
         let o = self.origin_internal();
         let x_axis = self.x_axis_internal().as_vector();
         let y_axis = self.y_axis_internal().as_vector();
         let z_axis = self.z_axis_internal().as_vector();
-        
+
         let r_major = self.major_radius_internal();
         let r_minor = self.minor_radius_internal();
-        
+
         let circle_radius = r_major + r_minor * cos_v;
-        
-        let x = o.x() + circle_radius * cos_u * x_axis.x() + circle_radius * sin_u * y_axis.x() + r_minor * sin_v * z_axis.x();
-        let y = o.y() + circle_radius * cos_u * x_axis.y() + circle_radius * sin_u * y_axis.y() + r_minor * sin_v * z_axis.y();
-        let z = o.z() + circle_radius * cos_u * x_axis.z() + circle_radius * sin_u * y_axis.z() + r_minor * sin_v * z_axis.z();
-        
+
+        let x = o.x()
+            + circle_radius * cos_u * x_axis.x()
+            + circle_radius * sin_u * y_axis.x()
+            + r_minor * sin_v * z_axis.x();
+        let y = o.y()
+            + circle_radius * cos_u * x_axis.y()
+            + circle_radius * sin_u * y_axis.y()
+            + r_minor * sin_v * z_axis.y();
+        let z = o.z()
+            + circle_radius * cos_u * x_axis.z()
+            + circle_radius * sin_u * y_axis.z()
+            + r_minor * sin_v * z_axis.z();
+
         (x, y, z)
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
         let o = self.origin_internal();
         let r_outer = self.major_radius_internal() + self.minor_radius_internal();
-        
+
         let min_x = o.x() - r_outer;
         let max_x = o.x() + r_outer;
         let min_y = o.y() - r_outer;
         let max_y = o.y() + r_outer;
         let min_z = o.z() - self.minor_radius_internal();
         let max_z = o.z() + self.minor_radius_internal();
-        
+
         ((min_x, min_y, min_z), (max_x, max_y, max_z))
     }
 
@@ -412,13 +409,13 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
         let z_component = local.dot(&z_axis.as_vector());
         let radial_vector = local - (z_axis.as_vector() * z_component);
         let radial_distance = radial_vector.length();
-        
+
         let radial_dir = if radial_distance > T::EPSILON {
             radial_vector / radial_distance
         } else {
             self.x_axis_internal().as_vector()
         };
-        
+
         let torus_center = radial_dir * self.major_radius_internal();
         let to_surface = Vector3D::new(
             local.x() - torus_center.x(),
@@ -426,16 +423,16 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
             local.z() - torus_center.z(),
         );
         let distance_to_tube = to_surface.length();
-        
+
         let surface_dir = if distance_to_tube > T::EPSILON {
             to_surface / distance_to_tube
         } else {
             z_axis.as_vector()
         };
-        
+
         let surface_point = torus_center + surface_dir * self.minor_radius_internal();
         let o = self.origin_internal();
-        
+
         (
             o.x() + surface_point.x(),
             o.y() + surface_point.y(),

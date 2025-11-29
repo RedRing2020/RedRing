@@ -123,10 +123,14 @@ impl<T: Scalar> Ray2D<T> {
 // === Helper methods ===
 impl<T: Scalar> Ray2D<T> {
     /// 境界ボックスを取得（起点のみ）
-    pub fn bounding_box(&self) -> crate::BBox2D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
+        use analysis::Point2;
         // Ray は無限なので、境界ボックスは起点のみで構成
         // 実際の用途では適切な範囲を指定する必要がある
-        crate::BBox2D::<T>::from_point(self.origin)
+        geo_core::Aabb2D::new(
+            Point2::new(self.origin.x(), self.origin.y()),
+            Point2::new(self.origin.x(), self.origin.y()),
+        )
     }
 
     /// パラメータ位置の点を取得

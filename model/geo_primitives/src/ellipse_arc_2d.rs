@@ -2,7 +2,7 @@
 //!
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
-use crate::{BBox2D, Ellipse2D, Point2D, Vector2D};
+use crate::{Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{
     core::ellipse_arc_core_traits::{
         EllipseArc2DConstructor, EllipseArc2DMeasure, EllipseArc2DProperties,
@@ -166,7 +166,8 @@ impl<T: Scalar> EllipseArc2D<T> {
     }
 
     /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> BBox2D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
+        use analysis::Point2;
         // 開始点と終了点
         let start = self.start_point();
         let end = self.end_point();
@@ -192,7 +193,7 @@ impl<T: Scalar> EllipseArc2D<T> {
             }
         }
 
-        BBox2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
+        geo_core::Aabb2D::new(Point2::new(min_x, min_y), Point2::new(max_x, max_y))
     }
 
     // ========================================================================

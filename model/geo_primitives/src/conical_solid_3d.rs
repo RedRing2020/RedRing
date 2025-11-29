@@ -18,7 +18,7 @@
 //! **作成日: 2025年11月1日**
 //! **最終更新: 2025年11月1日**
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 
 use geo_foundation::Scalar;
 
@@ -266,7 +266,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// 1. 底面の円の境界を軸に垂直な平面で計算
     /// 2. 頂点座標を考慮
     /// 3. 全体を包含する境界ボックスを構築
-    pub fn bounding_box(&self) -> BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
         // 軸に垂直なベクトル（参照方向とY軸）を取得
         let x_dir = self.ref_direction.as_vector();
         let y_dir = self.derived_y_axis_internal().as_vector();
@@ -329,9 +329,9 @@ impl<T: Scalar> ConicalSolid3D<T> {
         min_z = min_z.min(apex.z());
         max_z = max_z.max(apex.z());
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            analysis::Point3::new(min_x, min_y, min_z),
+            analysis::Point3::new(max_x, max_y, max_z),
         )
     }
 
@@ -407,12 +407,7 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
         Self::new(apex_point, axis_vector, ref_direction, radius, height)
     }
 
-    fn from_apex_angle(
-        apex: (T, T, T),
-        axis: (T, T, T),
-        half_angle: T,
-        height: T,
-    ) -> Option<Self> {
+    fn from_apex_angle(apex: (T, T, T), axis: (T, T, T), half_angle: T, height: T) -> Option<Self> {
         let radius = height * half_angle.tan();
         let apex_point = Point3D::new(apex.0, apex.1, apex.2);
         let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
@@ -424,12 +419,7 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
         Self::new(apex_point, axis_vector, ref_direction, radius, height)
     }
 
-    fn frustum(
-        base_center: (T, T, T),
-        axis: (T, T, T),
-        base_radius: T,
-        height: T,
-    ) -> Option<Self> {
+    fn frustum(base_center: (T, T, T), axis: (T, T, T), base_radius: T, height: T) -> Option<Self> {
         let center_point = Point3D::new(base_center.0, base_center.1, base_center.2);
         let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
         let ref_direction = if axis_vector.z().abs() < T::from_f64(0.99) {
@@ -437,7 +427,13 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
         } else {
             Vector3D::new(T::ONE, T::ZERO, T::ZERO).cross(&axis_vector)
         };
-        Self::new(center_point, axis_vector, ref_direction, base_radius, height)
+        Self::new(
+            center_point,
+            axis_vector,
+            ref_direction,
+            base_radius,
+            height,
+        )
     }
 }
 
@@ -511,32 +507,41 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
     fn point_at_conical(&self, r: T, theta: T, z: T) -> (T, T, T) {
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
-        
+
         let x_axis = self.ref_direction_internal().as_vector();
         let z_axis = self.axis_internal().as_vector();
         let y_axis = z_axis.cross(&x_axis);
-        
-        let x = self.center.x() + r * cos_theta * x_axis.x() + r * sin_theta * y_axis.x() + z * z_axis.x();
-        let y = self.center.y() + r * cos_theta * x_axis.y() + r * sin_theta * y_axis.y() + z * z_axis.y();
-        let z_coord = self.center.z() + r * cos_theta * x_axis.z() + r * sin_theta * y_axis.z() + z * z_axis.z();
-        
+
+        let x = self.center.x()
+            + r * cos_theta * x_axis.x()
+            + r * sin_theta * y_axis.x()
+            + z * z_axis.x();
+        let y = self.center.y()
+            + r * cos_theta * x_axis.y()
+            + r * sin_theta * y_axis.y()
+            + z * z_axis.y();
+        let z_coord = self.center.z()
+            + r * cos_theta * x_axis.z()
+            + r * sin_theta * y_axis.z()
+            + z * z_axis.z();
+
         (x, y, z_coord)
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
         let r = self.radius_internal();
         let h = self.height_internal();
-        
+
         let min_x = self.center.x() - r;
         let max_x = self.center.x() + r;
         let min_y = self.center.y() - r;
         let max_y = self.center.y() + r;
-        
+
         let base_z = self.center.z();
         let apex_z = base_z + h * self.axis_internal().z();
         let min_z = base_z.min(apex_z);
         let max_z = base_z.max(apex_z);
-        
+
         ((min_x, min_y, min_z), (max_x, max_y, max_z))
     }
 
@@ -546,13 +551,14 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
         let to_point_y = point.1 - apex.y();
         let to_point_z = point.2 - apex.z();
 
-        let axis_projection =
-            to_point_x * self.axis_internal().x() + to_point_y * self.axis_internal().y() + to_point_z * self.axis_internal().z();
-        
+        let axis_projection = to_point_x * self.axis_internal().x()
+            + to_point_y * self.axis_internal().y()
+            + to_point_z * self.axis_internal().z();
+
         if axis_projection <= T::ZERO {
             return (apex.x(), apex.y(), apex.z());
         }
-        
+
         if axis_projection >= self.height_internal() {
             let clamped_h = self.height_internal();
             let axis_comp_x = self.axis_internal().x() * clamped_h;
@@ -563,20 +569,26 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
             let radial_y = to_point_y - axis_comp_y;
             let radial_z = to_point_z - axis_comp_z;
 
-            let radial_len = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
-            
+            let radial_len =
+                (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+
             if radial_len > T::EPSILON {
                 let scale = self.radius_internal() / radial_len;
-                (apex.x() + axis_comp_x + radial_x * scale,
-                 apex.y() + axis_comp_y + radial_y * scale,
-                 apex.z() + axis_comp_z + radial_z * scale)
+                (
+                    apex.x() + axis_comp_x + radial_x * scale,
+                    apex.y() + axis_comp_y + radial_y * scale,
+                    apex.z() + axis_comp_z + radial_z * scale,
+                )
             } else {
-                (apex.x() + axis_comp_x + self.radius_internal(),
-                 apex.y() + axis_comp_y,
-                 apex.z() + axis_comp_z)
+                (
+                    apex.x() + axis_comp_x + self.radius_internal(),
+                    apex.y() + axis_comp_y,
+                    apex.z() + axis_comp_z,
+                )
             }
         } else {
-            let current_radius = self.radius_internal() * (T::ONE - axis_projection / self.height_internal());
+            let current_radius =
+                self.radius_internal() * (T::ONE - axis_projection / self.height_internal());
             let axis_comp_x = self.axis_internal().x() * axis_projection;
             let axis_comp_y = self.axis_internal().y() * axis_projection;
             let axis_comp_z = self.axis_internal().z() * axis_projection;
@@ -585,17 +597,22 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
             let radial_y = to_point_y - axis_comp_y;
             let radial_z = to_point_z - axis_comp_z;
 
-            let radial_len = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
-            
+            let radial_len =
+                (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+
             if radial_len > T::EPSILON {
                 let scale = current_radius / radial_len;
-                (apex.x() + axis_comp_x + radial_x * scale,
-                 apex.y() + axis_comp_y + radial_y * scale,
-                 apex.z() + axis_comp_z + radial_z * scale)
+                (
+                    apex.x() + axis_comp_x + radial_x * scale,
+                    apex.y() + axis_comp_y + radial_y * scale,
+                    apex.z() + axis_comp_z + radial_z * scale,
+                )
             } else {
-                (apex.x() + axis_comp_x + current_radius,
-                 apex.y() + axis_comp_y,
-                 apex.z() + axis_comp_z)
+                (
+                    apex.x() + axis_comp_x + current_radius,
+                    apex.y() + axis_comp_y,
+                    apex.z() + axis_comp_z,
+                )
             }
         }
     }
