@@ -17,6 +17,7 @@ pub enum PrimitiveKind {
     NurbsCurve3D,
     Arc,
     Ray,
+    InfiniteLine,
 
     // 2次元: 面要素
     Circle,
@@ -75,7 +76,8 @@ impl PrimitiveKind {
             | PrimitiveKind::NurbsCurve2D
             | PrimitiveKind::NurbsCurve3D
             | PrimitiveKind::Arc
-            | PrimitiveKind::Ray => DimensionClass::One,
+            | PrimitiveKind::Ray
+            | PrimitiveKind::InfiniteLine => DimensionClass::One,
 
             PrimitiveKind::Circle
             | PrimitiveKind::Ellipse

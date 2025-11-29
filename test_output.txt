@@ -1,0 +1,144 @@
+   Compiling geo_primitives v0.1.0 (C:\Users\takat\GitHub\RedRing\model\geo_primitives)
+error[E0308]: mismatched types
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:200:34
+    |
+200 |         assert_eq!(line.point(), Point2D::origin());
+    |                                  ^^^^^^^^^^^^^^^^^ expected `(f64, f64)`, found `Point2D<_>`
+    |
+    = note: expected tuple `(f64, f64)`
+              found struct `point_2d::Point2D<_>`
+
+error[E0599]: no method named `x` found for tuple `(f64, f64)` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:201:37
+    |
+201 |         assert_eq!(line.direction().x(), 1.0);
+    |                                     ^ method not found in `(f64, f64)`
+
+error[E0599]: no method named `y` found for tuple `(f64, f64)` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:202:37
+    |
+202 |         assert_eq!(line.direction().y(), 0.0);
+    |                                     ^ method not found in `(f64, f64)`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:212:35
+    |
+212 |         assert_eq!(result.point().x(), 1.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:213:35
+    |
+213 |         assert_eq!(result.point().y(), 2.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:215:39
+    |
+215 |         assert_eq!(result.direction().x(), 1.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:216:39
+    |
+216 |         assert_eq!(result.direction().y(), 0.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:229:33
+    |
+229 |         assert!((result.point().x() - 0.0).abs() < TOLERANCE);
+    |                                 ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:230:33
+    |
+230 |         assert!((result.point().y() - 1.0).abs() < TOLERANCE);
+    |                                 ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:232:37
+    |
+232 |         assert!((result.direction().x() - 0.0).abs() < TOLERANCE);
+    |                                     ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:233:37
+    |
+233 |         assert!((result.direction().y() - 1.0).abs() < TOLERANCE);
+    |                                     ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:244:35
+    |
+244 |         assert_eq!(result.point().x(), 4.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:245:35
+    |
+245 |         assert_eq!(result.point().y(), 3.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:247:39
+    |
+247 |         assert_eq!(result.direction().x(), 1.0); // 豁｣隕丞喧縺輔ｌ繧九◆繧・    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:248:39
+    |
+248 |         assert_eq!(result.direction().y(), 0.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:259:35
+    |
+259 |         assert_eq!(result.point().x(), 2.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:260:35
+    |
+260 |         assert_eq!(result.point().y(), 2.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:262:39
+    |
+262 |         assert_eq!(result.direction().x(), 1.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:263:39
+    |
+263 |         assert_eq!(result.direction().y(), 0.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:286:35
+    |
+286 |         assert_eq!(result.point().x(), 3.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:287:35
+    |
+287 |         assert_eq!(result.point().y(), 3.0);
+    |                                   ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `x` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:288:39
+    |
+288 |         assert_eq!(result.direction().x(), 1.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+error[E0599]: no method named `y` found for tuple `({float}, {float})` in the current scope
+   --> model\geo_primitives\src\infinite_line_2d_transform.rs:289:39
+    |
+289 |         assert_eq!(result.direction().y(), 0.0);
+    |                                       ^ method not found in `({float}, {float})`
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `geo_primitives` (lib test) due to 23 previous errors

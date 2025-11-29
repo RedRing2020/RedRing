@@ -17,9 +17,18 @@ pub mod analysis_transform {
         triangle: &Triangle2D<T>,
         matrix: &Matrix3x3<T>,
     ) -> Triangle2D<T> {
-        let va_vec = Vector2::new(triangle.vertex_a_internal().x(), triangle.vertex_a_internal().y());
-        let vb_vec = Vector2::new(triangle.vertex_b_internal().x(), triangle.vertex_b_internal().y());
-        let vc_vec = Vector2::new(triangle.vertex_c_internal().x(), triangle.vertex_c_internal().y());
+        let va_vec = Vector2::new(
+            triangle.vertex_a_internal().x(),
+            triangle.vertex_a_internal().y(),
+        );
+        let vb_vec = Vector2::new(
+            triangle.vertex_b_internal().x(),
+            triangle.vertex_b_internal().y(),
+        );
+        let vc_vec = Vector2::new(
+            triangle.vertex_c_internal().x(),
+            triangle.vertex_c_internal().y(),
+        );
 
         // Matrix3x3による一括変換
         let transformed_va = matrix.transform_point_2d(&va_vec);

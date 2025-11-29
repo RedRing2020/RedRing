@@ -187,6 +187,7 @@ pub use extensions::{
     MultipleIntersection,
     PointDistance,
     SafeTransform,
+    SelfIntersection,
     TolerantBooleanOperations,
     TransformError, // 既存ルート維持
 };

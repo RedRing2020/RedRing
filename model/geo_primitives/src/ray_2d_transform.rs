@@ -45,8 +45,10 @@ pub mod analysis_transform {
         let new_origin = analysis_vector_to_point(transformed_origin_vec);
 
         // 方向ベクトルを変換（平行移動成分を除去するため原点中心変換）
-        let direction_vec =
-            vector_to_analysis_vector(Vector2D::new(ray.direction_internal().x(), ray.direction_internal().y()));
+        let direction_vec = vector_to_analysis_vector(Vector2D::new(
+            ray.direction_internal().x(),
+            ray.direction_internal().y(),
+        ));
         let transformed_direction_vec = matrix.transform_vector_2d(&direction_vec);
         let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
 
@@ -134,7 +136,8 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ray2D<T> {
             self.origin_internal().x() + translation.x(),
             self.origin_internal().y() + translation.y(),
         );
-        let direction_vec = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let direction_vec =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         Ray2D::new(new_origin, direction_vec).ok_or_else(|| {
             TransformError::InvalidGeometry("Direction vector became zero".to_string())
         })
@@ -157,7 +160,8 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ray2D<T> {
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix_2d(&center.origin_internal(), scale_x, scale_y)?;
+        let matrix =
+            analysis_transform::scale_matrix_2d(&center.origin_internal(), scale_x, scale_y)?;
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 

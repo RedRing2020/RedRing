@@ -1,7 +1,8 @@
 /// geo_commons - 共通幾何計算機能クレート
 ///
-/// Foundation Pattern と geo_primitives の間で共通利用される
-/// 計算機能を提供します。
+/// Foundation Pattern において、形状に依存しない共通計算機能を提供します。
+/// geo_core が低レベル共通型を担当するのに対し、
+/// geo_commons は近似計算や計量演算等の数値計算を提供します。
 ///
 /// ## 主要機能
 /// - **approximations**: 楕円等の近似計算
@@ -9,7 +10,7 @@
 ///
 /// ## アーキテクチャでの位置
 /// ```text
-/// geo_foundation → geo_commons → geo_primitives
+/// geo_foundation → geo_commons → geo_core → geo_primitives, geo_nurbs → geo_algorithms
 /// ```
 ///
 /// ---
