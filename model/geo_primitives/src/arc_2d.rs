@@ -7,6 +7,7 @@ use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
 use geo_foundation::{
     core::arc_core_traits::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties},
+    Circle2DProperties,
     Scalar,
 };
 
@@ -91,7 +92,8 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point2D<T> {
-        self.circle.center()
+        let (x, y) = self.circle.center();
+        Point2D::new(x, y)
     }
 
     /// 半径を取得
@@ -113,8 +115,8 @@ impl<T: Scalar> Arc2D<T> {
     // Core Geometric Methods
     // ========================================================================
 
-    /// 指定角度における点を取得
-    pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
+    /// 指定角度における点を取得（内部用・ラジアン値）
+    fn point_at_angle_internal(&self, angle: T) -> Point2D<T> {
         let x = self.radius() * angle.cos();
         let y = self.radius() * angle.sin();
         self.center() + Vector2D::new(x, y)
@@ -122,12 +124,12 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 開始点を取得
     pub fn start_point(&self) -> Point2D<T> {
-        self.point_at_angle(self.start_angle.to_radians())
+        self.point_at_angle_internal(self.start_angle.to_radians())
     }
 
     /// 終了点を取得
     pub fn end_point(&self) -> Point2D<T> {
-        self.point_at_angle(self.end_angle.to_radians())
+        self.point_at_angle_internal(self.end_angle.to_radians())
     }
 
     /// 開始方向ベクトルを取得
@@ -343,7 +345,7 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
         let center_point = Point2D::new(center.0, center.1);
         let circle = Circle2D::new(center_point, radius).unwrap();
         let start = Angle::from_radians(T::ZERO);
-        let end = Angle::from_radians(T::TWO * T::PI);
+        let end = Angle::from_radians((T::ONE + T::ONE) * T::PI);
         Self::new(circle, start, end).unwrap()
     }
 
@@ -381,7 +383,7 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 
     fn is_full_circle(&self) -> bool {
         let span = self.angle_span();
-        (span - T::TWO * T::PI).abs() <= T::EPSILON
+        (span - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON
     }
 
     fn is_semicircle(&self) -> bool {
@@ -409,30 +411,34 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
         let start_rad = self.start_angle.to_radians();
         let end_rad = self.end_angle.to_radians();
         let angle = start_rad + t * (end_rad - start_rad);
-        let p = self.point_at_angle(angle);
+        let p = self.point_at_angle_internal(angle);
         (p.x(), p.y())
     }
 
     // Phase 2: 追加測度メソッド
     fn midpoint(&self) -> (T, T) {
         let mid_angle = (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
-        let p = self.point_at_angle(mid_angle);
+        let p = self.point_at_angle_internal(mid_angle);
         (p.x(), p.y())
     }
 
     fn point_at_angle(&self, angle: T) -> (T, T) {
-        let p = Arc2D::point_at_angle(self, Angle::from_radians(angle));
+        let p = self.point_at_angle_internal(angle);
         (p.x(), p.y())
     }
 
     fn distance_to_point(&self, point: (T, T)) -> T {
-        let p = Point2D::new(point.0, point.1);
-        Arc2D::distance_to_point(self, &p)
+        // 簡易実装: 円弧の中心からの距離との差分
+        let center = self.center();
+        let dx = point.0 - center.x();
+        let dy = point.1 - center.y();
+        let distance_from_center = (dx * dx + dy * dy).sqrt();
+        (distance_from_center - self.radius()).abs()
     }
 
     fn contains_point(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        Arc2D::contains_point(self, &p, T::EPSILON)
+        let distance = self.distance_to_point(point);
+        distance <= T::EPSILON
     }
 }
 

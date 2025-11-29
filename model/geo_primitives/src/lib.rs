@@ -99,8 +99,9 @@ pub mod triangle_mesh_3d_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
-// pub mod arc_2d; // Arc2D の新実装 (Core) - 依存関係エラーのため一時無効化
-// pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装 - Arc2D依存のため一時無効化
+pub mod arc_2d; // Arc2D の新実装 (Core)
+pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)
+// pub mod arc_2d_foundation; // Arc2D のFoundation実装 - 作成予定
 pub mod bbox_2d; // BBox2D の新実装 (Core)
 pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
 pub mod bbox_2d_foundation; // BBox2D のFoundation実装
@@ -112,6 +113,13 @@ pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension - Phase 2 �
 // Circle Core Traits の公開 - Foundation Pattern実装完了
 pub use geo_foundation::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
 pub use geo_foundation::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties};
+
+// Arc Core Traits の公開 - Foundation Pattern実装完了
+pub use geo_foundation::core::arc_core_traits::{
+    Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DMeasure,
+    Arc3DProperties,
+};
+
 pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
