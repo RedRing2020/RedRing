@@ -181,34 +181,34 @@ impl<T: Scalar> ConicalSurface3D<T> {
     // ========================================================================
 
     /// 基準点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// 軸方向を取得
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
     /// 参照方向を取得
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// 基準点での半径を取得
-    pub fn radius(&self) -> T {
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
     /// 半頂角を取得
-    pub fn semi_angle(&self) -> T {
+    pub(crate) fn semi_angle_internal(&self) -> T {
         self.semi_angle
     }
 
     /// Y軸方向を計算（派生軸）
     ///
     /// STEP標準：Y = Z × X（右手系）
-    pub fn derived_y_axis(&self) -> Direction3D<T> {
+    pub(crate) fn derived_y_axis_internal(&self) -> Direction3D<T> {
         let z = self.axis.as_vector();
         let x = self.ref_direction.as_vector();
 
@@ -234,8 +234,9 @@ impl<T: Scalar> ConicalSurface3D<T> {
     ///
     /// # Returns
     /// その位置での円錐の半径
-    pub fn radius_at_v(&self, v: T) -> T {
-        self.radius + v * self.semi_angle.tan()
+    #[allow(dead_code)]
+    pub(crate) fn radius_at_v_internal(&self, v: T) -> T {
+        self.radius_internal() + v * self.semi_angle_internal().tan()
     }
 
     /// パラメータ (u, v) での点を計算
@@ -249,10 +250,10 @@ impl<T: Scalar> ConicalSurface3D<T> {
     pub fn point_at_uv(&self, u: T, v: T) -> Point3D<T> {
         let cos_u = u.cos();
         let sin_u = u.sin();
-        let r_at_v = self.radius_at_v(v);
+        let r_at_v = self.radius_at_v_internal(v);
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 放射方向ベクトル
@@ -286,7 +287,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
         let tan_angle = self.semi_angle.tan();
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 放射方向成分
@@ -310,8 +311,9 @@ impl<T: Scalar> ConicalSurface3D<T> {
     ///
     /// # Returns
     /// 円錐の頂点位置
-    pub fn apex(&self) -> Point3D<T> {
-        let distance_to_apex = -self.radius / self.semi_angle.tan();
+    #[allow(dead_code)]
+    pub(crate) fn apex_internal(&self) -> Point3D<T> {
+        let distance_to_apex = -self.radius_internal() / self.semi_angle_internal().tan();
         let axis_vec = self.axis.as_vector();
 
         Point3D::new(
@@ -331,14 +333,15 @@ impl<T: Scalar> ConicalSurface3D<T> {
     /// サーフェス上にある場合は true
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
         // 点を円錐の局所座標系に変換
+        let center = self.center_internal();
         let relative = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
+            point.x() - center.x(),
+            point.y() - center.y(),
+            point.z() - center.z(),
         );
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 軸方向成分
@@ -352,7 +355,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
         let radial_distance = (radial_x * radial_x + radial_y * radial_y).sqrt();
 
         // 期待される半径
-        let expected_radius = self.radius_at_v(v);
+        let expected_radius = self.radius_at_v_internal(v);
 
         // 許容誤差内での判定
         (radial_distance - expected_radius).abs() <= tolerance
@@ -378,7 +381,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
         let v = relative.x() * z_axis.x() + relative.y() * z_axis.y() + relative.z() * z_axis.z();
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
 
         let radial_x =
             relative.x() * x_axis.x() + relative.y() * x_axis.y() + relative.z() * x_axis.z();
@@ -386,7 +389,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
             relative.x() * y_axis.x() + relative.y() * y_axis.y() + relative.z() * y_axis.z();
         let radial_distance = (radial_x * radial_x + radial_y * radial_y).sqrt();
 
-        let expected_radius = self.radius_at_v(v);
+        let expected_radius = self.radius_at_v_internal(v);
         (radial_distance - expected_radius).abs()
     }
 
@@ -411,8 +414,8 @@ impl<T: Scalar> ConicalSurface3D<T> {
     /// # Returns
     /// 指定範囲での境界ボックス
     pub fn bounding_box(&self, min_v: T, max_v: T) -> BBox3D<T> {
-        let r_min = self.radius_at_v(min_v);
-        let r_max = self.radius_at_v(max_v);
+        let r_min = self.radius_at_v_internal(min_v);
+        let r_max = self.radius_at_v_internal(max_v);
         let max_radius = if r_min > r_max { r_min } else { r_max };
 
         // 軸方向の範囲
@@ -508,42 +511,45 @@ impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
 
 impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
     fn apex(&self) -> (T, T, T) {
-        let a = self.center();
+        let a = self.center_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn base_center(&self) -> (T, T, T) {
-        let axis_vec = self.axis().as_vector();
-        let height = self.radius() / self.semi_angle().tan();
+        let axis_vec = self.axis_internal().as_vector();
+        let radius = self.radius_internal();
+        let semi_angle = self.semi_angle_internal();
+        let height = radius / semi_angle.tan();
+        let center = self.center_internal();
         let b = Point3D::new(
-            self.center().x() + axis_vec.x() * height,
-            self.center().y() + axis_vec.y() * height,
-            self.center().z() + axis_vec.z() * height,
+            center.x() + axis_vec.x() * height,
+            center.y() + axis_vec.y() * height,
+            center.z() + axis_vec.z() * height,
         );
         (b.x(), b.y(), b.z())
     }
 
     fn radius(&self) -> T {
-        self.radius()
+        self.radius_internal()
     }
 
     fn height(&self) -> T {
-        self.radius() / self.semi_angle().tan()
+        self.radius_internal() / self.semi_angle_internal().tan()
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.axis();
+        let a = self.axis_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction();
+        let r = self.ref_direction_internal();
         (r.x(), r.y(), r.z())
     }
 
     fn slant_height(&self) -> T {
-        let height = self.height();
-        let radius = self.radius();
+        let height = self.radius_internal() / self.semi_angle_internal().tan();
+        let radius = self.radius_internal();
         (height * height + radius * radius).sqrt()
     }
 }
@@ -580,14 +586,17 @@ impl<T: Scalar> ConicalSurface3DCore<T> for ConicalSurface3D<T> {}
 
 impl<T: Scalar> std::fmt::Display for ConicalSurface3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let center = self.center_internal();
+        let axis = self.axis_internal();
+        let ref_dir = self.ref_direction_internal();
         write!(
             f,
             "ConicalSurface3D {{ center: {:?}, axis: {:?}, ref_direction: {:?}, radius: {}, semi_angle: {} }}",
-            self.center(),
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.radius(),
-            self.semi_angle()
+            center,
+            axis.as_vector(),
+            ref_dir.as_vector(),
+            self.radius_internal(),
+            self.semi_angle_internal()
         )
     }
 }

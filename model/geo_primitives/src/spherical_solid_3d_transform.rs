@@ -40,23 +40,23 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<SphericalSolid3D<T>, TransformError> {
         // 中心点を変換
-        let center_vec = point_to_analysis_vector(spherical_solid.center());
+        let center_vec = point_to_analysis_vector(spherical_solid.center_internal());
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
         let new_center = analysis_vector_to_point(transformed_center_vec);
 
         // 軸方向を変換
-        let axis_vec = vector_to_analysis_vector(spherical_solid.axis().as_vector());
+        let axis_vec = vector_to_analysis_vector(spherical_solid.axis_internal().as_vector());
         let transformed_axis_vec = matrix.transform_vector_3d(&axis_vec);
         let new_axis_vector = analysis_vector_to_vector(transformed_axis_vec);
 
         // 参照方向を変換
-        let ref_dir_vec = vector_to_analysis_vector(spherical_solid.ref_direction().as_vector());
+        let ref_dir_vec = vector_to_analysis_vector(spherical_solid.ref_direction_internal().as_vector());
         let transformed_ref_dir_vec = matrix.transform_vector_3d(&ref_dir_vec);
         let new_ref_direction_vector = analysis_vector_to_vector(transformed_ref_dir_vec);
 
         // スケール倍率を計算（半径の変換に使用）
         // 球の場合は均等スケールを想定するため、任意の軸のスケール倍率を使用
-        let original_axis_length = spherical_solid.axis().as_vector().length();
+        let original_axis_length = spherical_solid.axis_internal().as_vector().length();
         let transformed_axis_length = new_axis_vector.length();
 
         if transformed_axis_length.is_zero() {
@@ -68,7 +68,7 @@ pub mod analysis_transform {
         let scale_factor = transformed_axis_length / original_axis_length;
 
         // 新しい半径を計算（スケール変換を考慮）
-        let new_radius = spherical_solid.radius() * scale_factor;
+        let new_radius = spherical_solid.radius_internal() * scale_factor;
 
         // 変換後の球ソリッドを構築
         SphericalSolid3D::new(
@@ -189,16 +189,16 @@ impl<T: Scalar> AnalysisTransform3D<T> for SphericalSolid3D<T> {
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 中心点のみ平行移動、他の属性は不変
         let new_center = Point3D::new(
-            self.center().x() + translation.x(),
-            self.center().y() + translation.y(),
-            self.center().z() + translation.z(),
+            self.center_internal().x() + translation.x(),
+            self.center_internal().y() + translation.y(),
+            self.center_internal().z() + translation.z(),
         );
 
         SphericalSolid3D::new(
             new_center,
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.radius(),
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.radius_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -210,7 +210,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for SphericalSolid3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -222,7 +222,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for SphericalSolid3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.center(), scale_x, scale_y, scale_z)?;
+        let matrix = analysis_transform::scale_matrix(&center.center_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -247,7 +247,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for SphericalSolid3D<T> {
         if let Some(scale_factors) = scale {
             let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
             let scale_mat = analysis_transform::scale_matrix(
-                &scale_center.center(),
+                &scale_center.center_internal(),
                 scale_factors.0,
                 scale_factors.1,
                 scale_factors.2,
@@ -256,7 +256,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for SphericalSolid3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+            let rot_mat = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -303,17 +303,17 @@ mod tests {
 
         // 中心点が移動することを確認
         let expected_center = Point3D::new(5.0, 3.0, 1.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 軸と参照方向は変わらない
-        assert!((result.axis().x() - sphere.axis().x()).abs() < f64::EPSILON);
-        assert!((result.axis().y() - sphere.axis().y()).abs() < f64::EPSILON);
-        assert!((result.axis().z() - sphere.axis().z()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().x() - sphere.axis_internal().x()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().y() - sphere.axis_internal().y()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().z() - sphere.axis_internal().z()).abs() < f64::EPSILON);
 
         // 半径は変わらない
-        assert!((result.radius() - sphere.radius()).abs() < f64::EPSILON);
+        assert!((result.radius_internal() - sphere.radius_internal()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -329,14 +329,14 @@ mod tests {
 
         // 90度X軸回転後の中心点確認（原点なので変わらない）
         let expected_center = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.center().x() - expected_center.x()).abs() < 1e-10);
-        assert!((result.center().y() - expected_center.y()).abs() < 1e-10);
-        assert!((result.center().z() - expected_center.z()).abs() < 1e-10);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < 1e-10);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < 1e-10);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < 1e-10);
 
         // 軸方向が回転される（Z軸(0,0,1)をX軸周りに90度回転すると(0,-1,0)になる）
-        assert!((result.axis().x() - 0.0).abs() < 1e-10);
-        assert!((result.axis().y() - (-1.0)).abs() < 1e-10);
-        assert!((result.axis().z() - 0.0).abs() < 1e-10);
+        assert!((result.axis_internal().x() - 0.0).abs() < 1e-10);
+        assert!((result.axis_internal().y() - (-1.0)).abs() < 1e-10);
+        assert!((result.axis_internal().z() - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -353,13 +353,13 @@ mod tests {
 
         // 中心点がスケールされることを確認（原点なので変わらない）
         let expected_center = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 球の半径がスケールされることを確認
         // 球の軸がZ方向なので、軸のスケール倍率（scale_z）が半径に影響
-        assert!((result.radius() - sphere.radius() * scale_z).abs() < f64::EPSILON);
+        assert!((result.radius_internal() - sphere.radius_internal() * scale_z).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -374,12 +374,12 @@ mod tests {
 
         // 中心点がスケールされることを確認（原点なので変わらない）
         let expected_center = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 半径が均等にスケールされることを確認
-        assert!((result.radius() - sphere.radius() * scale_factor).abs() < f64::EPSILON);
+        assert!((result.radius_internal() - sphere.radius_internal() * scale_factor).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -402,9 +402,9 @@ mod tests {
         // 複合変換の結果を確認
         // Scale(2,2,2) -> Rotate(0) -> Translate(1,1,1)
         let expected_center = Point3D::new(1.0, 1.0, 1.0); // (0*2+1, 0*2+1, 0*2+1)
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -436,14 +436,14 @@ mod tests {
 
         // 平行移動による中心点の変化を確認
         let expected_center = Point3D::new(2.0, 3.0, 4.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 軸と参照方向は変わらない（平行移動のため）
-        assert!((result.axis().x() - sphere.axis().x()).abs() < f64::EPSILON);
-        assert!((result.axis().y() - sphere.axis().y()).abs() < f64::EPSILON);
-        assert!((result.axis().z() - sphere.axis().z()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().x() - sphere.axis_internal().x()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().y() - sphere.axis_internal().y()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().z() - sphere.axis_internal().z()).abs() < f64::EPSILON);
     }
 
     #[test]

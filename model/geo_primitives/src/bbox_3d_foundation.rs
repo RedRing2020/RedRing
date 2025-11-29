@@ -5,7 +5,7 @@
 
 use crate::{BBox3D, Point3D};
 use geo_foundation::{
-    extension_foundation::ExtensionFoundation, BBox3DConstructor, BBox3DMeasure, BBox3DProperties,
+    BBox3DConstructor, BBox3DMeasure, BBox3DProperties, Bounded, ExtensionFoundation,
     PrimitiveKind, Scalar, TolerantEq,
 };
 
@@ -427,18 +427,20 @@ impl<T: Scalar> BBox3DMeasure<T> for BBox3D<T> {
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for BBox3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::BBox
     }
 
-    fn bounding_box(&self) -> Self::BBox {
-        *self // 境界ボックス自身がその境界ボックス
-    }
-
     fn measure(&self) -> Option<T> {
-        Some(<Self as BBox3DMeasure<T>>::volume(self)) // Core Traitのvolume()を使用
+        Some(self.volume())
+    }
+}
+
+impl<T: Scalar> Bounded<T> for BBox3D<T> {
+    type Aabb = BBox3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        Some(*self)
     }
 }
 
@@ -466,7 +468,7 @@ mod tests {
         assert!(bbox.measure().is_some());
         assert_eq!(bbox.measure().unwrap(), bbox.volume());
 
-        let self_bbox = bbox.bounding_box();
+        let self_bbox = bbox.aabb().expect("should have aabb");
         assert_eq!(bbox, self_bbox);
     }
 

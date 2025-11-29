@@ -206,7 +206,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
             let y_axis = self.y_axis().as_vector();
 
             // 円の制御点（重み付きで正確な円を表現）
-            let center = self.center();
+            let center = self.center_internal();
             row.push(Point3D::new(
                 center.x() + x_axis.x() * r,
                 center.y() + x_axis.y() * r,

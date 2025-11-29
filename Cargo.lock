@@ -678,7 +678,10 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
+ "geo_commons",
+ "geo_core",
  "geo_foundation",
+ "geo_primitives",
  "nalgebra 0.33.2",
  "thiserror 1.0.69",
 ]
@@ -689,6 +692,8 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
+ "geo_commons",
+ "geo_core",
  "geo_foundation",
  "serde",
 ]

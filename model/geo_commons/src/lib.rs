@@ -1,20 +1,19 @@
-//! geo_commons - 共通幾何計算機能クレート
-//!
-//! Foundation Pattern と geo_primitives の間で共通利用される
-//! 計算機能を提供します。
-//!
-//! ## 主要機能
-//! - **approximations**: 楕円等の近似計算
-//! - **metrics**: 面積・体積・距離等の計量計算
-//!
-//! ## アーキテクチャでの位置
-//! ```text
-//! geo_foundation → geo_commons → geo_primitives
-//! ```
-//!
-//! ---
-//! © RedRing Project
-
+/// geo_commons - 共通幾何計算機能クレート
+///
+/// Foundation Pattern と geo_primitives の間で共通利用される
+/// 計算機能を提供します。
+///
+/// ## 主要機能
+/// - **approximations**: 楕円等の近似計算
+/// - **metrics**: 面積・体積・距離等の計量計算
+///
+/// ## アーキテクチャでの位置
+/// ```text
+/// geo_foundation → geo_commons → geo_primitives
+/// ```
+///
+/// ---
+/// © RedRing Project
 pub mod approximations;
 pub mod metrics;
 

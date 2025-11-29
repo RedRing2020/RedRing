@@ -2,7 +2,7 @@
 name = "geo_commons"
 version = "0.1.0"
 edition = "2021"
-description = "共通幾何計算機能 - Foundation Pattern と geo_primitives の橋渡し"
+description = "共通幾何計算機能 - Foundation Pattern の共通実装"
 license = "MIT"
 
 [dependencies]

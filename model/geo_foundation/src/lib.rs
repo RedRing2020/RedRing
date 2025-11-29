@@ -24,6 +24,8 @@ pub mod commons;
 // Extension Traits - 拡張操作トレイト群
 pub mod extensions;
 
+// BBox - 境界ボックス実装（共通ユーティリティ）
+
 // 許容誤差管理モジュール
 pub mod tolerance;
 
@@ -157,9 +159,11 @@ pub use core::{
 
 // Extension Foundation Traitsを再エクスポート
 pub use extension_foundation::{
-    CollectionExtension, ExtensionFoundation, MeasurableExtension, SpatialExtension,
+    Bounded, CollectionExtension, ExtensionFoundation, MeasurableExtension, SpatialExtension,
     TransformableExtension,
 };
+
+// Commons Traitsを再エクスポート
 
 // Core Transform Traitsを再エクスポート（extensions → core移動）
 pub use core::transform::{
@@ -220,5 +224,6 @@ pub mod prelude {
     // Commons Bridge - geo_commons への Foundation Pattern準拠アクセス
     pub use geo_commons as commons;
 
+    // Note: AABB型は geo_core から直接 import してください
     // Note: 具体的な幾何型は geo_primitives から直接 import してください
 }

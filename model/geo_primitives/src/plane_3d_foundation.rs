@@ -1,40 +1,15 @@
 //! Plane3D の Foundation トレイト実装
 
-use crate::{BBox3D, Plane3D};
-use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use crate::Plane3D;
+use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for Plane3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Plane
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        // 無限平面は境界ボックスを持たない
-        // 理論的には無限大の境界ボックスを返すべきだが、
-        // 実用上は None を表現するため、原点の微小な境界ボックスを返す
-        let origin: crate::Point3D<T> = crate::Point3D::origin();
-        let epsilon = T::EPSILON;
-
-        let min_point = crate::Point3D::new(
-            origin.x() - epsilon,
-            origin.y() - epsilon,
-            origin.z() - epsilon,
-        );
-        let max_point = crate::Point3D::new(
-            origin.x() + epsilon,
-            origin.y() + epsilon,
-            origin.z() + epsilon,
-        );
-
-        BBox3D::from_points(&[min_point, max_point]).expect("Failed to create bounding box")
     }
 
     fn measure(&self) -> Option<T> {
@@ -43,12 +18,14 @@ impl<T: Scalar> ExtensionFoundation<T> for Plane3D<T> {
     }
 }
 
+// Note: Plane3D は無限に広がるため、Bounded トレイトは実装しません
+
 impl<T: Scalar> TolerantEq<T> for Plane3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 平面の等価性を誤差許容で判定
         // 1. 法線ベクトルが同じ方向を向いているか
-        let normal1 = self.normal();
-        let normal2 = other.normal();
+        let normal1 = self.normal_internal();
+        let normal2 = other.normal_internal();
 
         // 法線の方向が同じまたは反対か（平行性チェック）
         let dot_product = normal1.dot(&normal2).abs();
@@ -80,16 +57,11 @@ mod tests {
         // primitive_kind のテスト
         assert_eq!(plane.primitive_kind(), PrimitiveKind::Plane);
 
-        // bounding_box のテスト（無限平面なので微小な境界ボックス）
-        let bbox = plane.bounding_box();
-        // 境界ボックスが存在することを確認
-        assert!(bbox.width() > 0.0);
-        assert!(bbox.height() > 0.0);
-        assert!(bbox.depth() > 0.0);
-
         // measure のテスト（無限平面なので None）
         let measure = plane.measure();
         assert!(measure.is_none());
+
+        // Plane3D は Bounded を実装しないため、aabb() はありません
     }
 
     #[test]

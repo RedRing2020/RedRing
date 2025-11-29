@@ -17,9 +17,9 @@ mod tests {
         assert!(triangle.is_some());
 
         let triangle = triangle.unwrap();
-        assert_eq!(triangle.vertex_a(), a);
-        assert_eq!(triangle.vertex_b(), b);
-        assert_eq!(triangle.vertex_c(), c);
+        assert_eq!(triangle.vertex_a_internal(), a);
+        assert_eq!(triangle.vertex_b_internal(), b);
+        assert_eq!(triangle.vertex_c_internal(), c);
     }
 
     #[test]

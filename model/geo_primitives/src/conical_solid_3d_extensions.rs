@@ -25,26 +25,30 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// 4. 軸からの距離が半径以下かチェック
     pub fn contains_point(&self, point: Point3D<T>) -> bool {
         // 中心からの相対ベクトル
+        let center = self.center_internal();
         let relative = Vector3D::new(
-            point.x() - self.center().x(),
-            point.y() - self.center().y(),
-            point.z() - self.center().z(),
+            point.x() - center.x(),
+            point.y() - center.y(),
+            point.z() - center.z(),
         );
 
         // 軸方向への射影（高さ）
-        let height_along_axis = relative.dot(&self.axis().as_vector());
+        let axis = self.axis_internal();
+        let height_along_axis = relative.dot(&axis.as_vector());
 
         // 高さが範囲外の場合
-        if height_along_axis < T::ZERO || height_along_axis > self.height() {
+        let height = self.height_internal();
+        if height_along_axis < T::ZERO || height_along_axis > height {
             return false;
         }
 
         // その高さでの円錐半径を計算（線形補間）
-        let height_ratio = height_along_axis / self.height();
-        let radius_at_height = self.radius() * (T::ONE - height_ratio);
+        let height_ratio = height_along_axis / height;
+        let radius = self.radius_internal();
+        let radius_at_height = radius * (T::ONE - height_ratio);
 
         // 軸からの距離を計算
-        let axis_projection: Vector3D<T> = self.axis().as_vector() * height_along_axis;
+        let axis_projection: Vector3D<T> = axis.as_vector() * height_along_axis;
         let radial_vector = Vector3D::new(
             relative.x() - axis_projection.x(),
             relative.y() - axis_projection.y(),
@@ -68,15 +72,17 @@ impl<T: Scalar> ConicalSolid3D<T> {
         }
 
         // 簡易実装: 中心からの距離から半径を引く
+        let center = self.center_internal();
         let center_distance = Vector3D::new(
-            point.x() - self.center().x(),
-            point.y() - self.center().y(),
-            point.z() - self.center().z(),
+            point.x() - center.x(),
+            point.y() - center.y(),
+            point.z() - center.z(),
         )
         .length();
 
         let half = T::ONE + T::ONE; // 2を表現
-        let average_radius = self.radius() / half;
+        let radius = self.radius_internal();
+        let average_radius = radius / half;
         if center_distance > average_radius {
             center_distance - average_radius
         } else {
@@ -104,34 +110,15 @@ impl<T: Scalar> ConicalSolid3D<T> {
         let mut points = Vec::new();
 
         // 底面の4点（簡略化）
-        let r = self.radius();
-        points.push(Point3D::new(
-            self.center().x() + r,
-            self.center().y(),
-            self.center().z(),
-        ));
-        points.push(Point3D::new(
-            self.center().x(),
-            self.center().y() + r,
-            self.center().z(),
-        ));
-        points.push(Point3D::new(
-            self.center().x() - r,
-            self.center().y(),
-            self.center().z(),
-        ));
-        points.push(Point3D::new(
-            self.center().x(),
-            self.center().y() - r,
-            self.center().z(),
-        ));
+        let r = self.radius_internal();
+        let center = self.center_internal();
+        points.push(Point3D::new(center.x() + r, center.y(), center.z()));
+        points.push(Point3D::new(center.x(), center.y() + r, center.z()));
+        points.push(Point3D::new(center.x() - r, center.y(), center.z()));
+        points.push(Point3D::new(center.x(), center.y() - r, center.z()));
 
         // 頂点も追加
-        let apex = Point3D::new(
-            self.center().x() + self.axis().x() * self.height(),
-            self.center().y() + self.axis().y() * self.height(),
-            self.center().z() + self.axis().z() * self.height(),
-        );
+        let apex = self.apex_internal();
         points.push(apex);
 
         points
@@ -154,7 +141,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// # Returns
     /// 底面の中心座標
     pub fn base_center(&self) -> Point3D<T> {
-        self.center()
+        self.center_internal()
     }
 
     /// 指定した高さでの円錐半径を計算
@@ -165,12 +152,13 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// # Returns
     /// その高さでの半径（範囲外の場合は None）
     pub fn radius_at_height(&self, height_from_base: T) -> Option<T> {
-        if height_from_base < T::ZERO || height_from_base > self.height() {
+        let height = self.height_internal();
+        if height_from_base < T::ZERO || height_from_base > height {
             return None;
         }
 
-        let height_ratio = height_from_base / self.height();
-        let radius = self.radius() * (T::ONE - height_ratio);
+        let height_ratio = height_from_base / height;
+        let radius = self.radius_internal() * (T::ONE - height_ratio);
         Some(radius)
     }
 
@@ -179,12 +167,8 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// # Returns
     /// 底面中心から頂点への直線
     pub fn axis_line(&self) -> (Point3D<T>, Point3D<T>) {
-        let start = self.center();
-        let end = Point3D::new(
-            self.center().x() + self.axis().x() * self.height(),
-            self.center().y() + self.axis().y() * self.height(),
-            self.center().z() + self.axis().z() * self.height(),
-        );
+        let start = self.center_internal();
+        let end = self.apex_internal();
         (start, end)
     }
 }

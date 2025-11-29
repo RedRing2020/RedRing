@@ -1,7 +1,6 @@
 // torus_surface_3d_extensions.rs
 // TorusSurface3D の拡張機能実装
 //
-// 3D CAM 工具オフセット計算を含む高度な幾何計算機能を提供します。
 
 use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
 use geo_foundation::Scalar;
@@ -18,15 +17,27 @@ impl<T: Scalar> TorusSurface3D<T> {
 
         // 1. 原点を基準とした相対位置
         let relative_point = Vector3D::new(
-            target.x() - self.origin().x(),
-            target.y() - self.origin().y(),
-            target.z() - self.origin().z(),
+            target.x() - self.origin_internal().x(),
+            target.y() - self.origin_internal().y(),
+            target.z() - self.origin_internal().z(),
         );
 
         // 2. 局所座標系への変換
-        let x_axis_vec = Vector3D::new(self.x_axis().x(), self.x_axis().y(), self.x_axis().z());
-        let y_axis_vec = Vector3D::new(self.y_axis().x(), self.y_axis().y(), self.y_axis().z());
-        let z_axis_vec = Vector3D::new(self.z_axis().x(), self.z_axis().y(), self.z_axis().z());
+        let x_axis_vec = Vector3D::new(
+            self.x_axis_internal().x(),
+            self.x_axis_internal().y(),
+            self.x_axis_internal().z(),
+        );
+        let y_axis_vec = Vector3D::new(
+            self.y_axis_internal().x(),
+            self.y_axis_internal().y(),
+            self.y_axis_internal().z(),
+        );
+        let z_axis_vec = Vector3D::new(
+            self.z_axis_internal().x(),
+            self.z_axis_internal().y(),
+            self.z_axis_internal().z(),
+        );
 
         let local_x = relative_point.dot(&x_axis_vec);
         let local_y = relative_point.dot(&y_axis_vec);
@@ -40,11 +51,11 @@ impl<T: Scalar> TorusSurface3D<T> {
         let projected_radius = if radial_distance > T::EPSILON {
             radial_distance
         } else {
-            self.major_radius() // 中心軸上の場合
+            self.major_radius_internal() // 中心軸上の場合
         };
 
         // 5. 副方向角度 v の初期推定
-        let tube_center_distance = projected_radius - self.major_radius();
+        let tube_center_distance = projected_radius - self.major_radius_internal();
         let v_initial = local_z.atan2(tube_center_distance);
         let _radial_distance_norm = (local_x * local_x + local_y * local_y).sqrt();
 
@@ -79,8 +90,8 @@ impl<T: Scalar> TorusSurface3D<T> {
         let cos_v = v.cos();
 
         // 主曲率の計算
-        let k1 = cos_v / (self.major_radius() + self.minor_radius() * cos_v);
-        let k2 = T::ONE / self.minor_radius();
+        let k1 = cos_v / (self.major_radius_internal() + self.minor_radius_internal() * cos_v);
+        let k2 = T::ONE / self.minor_radius_internal();
 
         (k1, k2)
     }
@@ -138,7 +149,8 @@ impl<T: Scalar> TorusSurface3D<T> {
             point_u_plus.y() - surface_point.y(),
             point_u_plus.z() - surface_point.z(),
         );
-        let feed_direction = Direction3D::from_vector(feed_direction_vec).unwrap_or(self.x_axis()); // フォールバック
+        let feed_direction =
+            Direction3D::from_vector(feed_direction_vec).unwrap_or(self.x_axis_internal()); // フォールバック
 
         // 曲率に基づく送り速度係数
         let mean_curvature = self.mean_curvature(u, v);
@@ -167,15 +179,15 @@ impl<T: Scalar> TorusSurface3D<T> {
         let mut contours = Vec::new();
 
         // Z軸方向の成分を考慮した高さ計算
-        let origin_z = self.origin().z();
+        let origin_z = self.origin_internal().z();
         let relative_height = z_height - origin_z;
 
         // 局所座標での Z 高さに対応する v パラメータを求める
-        let max_z_extent = self.minor_radius();
+        let max_z_extent = self.minor_radius_internal();
 
         if relative_height.abs() <= max_z_extent {
             // v パラメータを計算（近似）
-            let v_value = (relative_height / self.minor_radius()).asin();
+            let v_value = (relative_height / self.minor_radius_internal()).asin();
 
             // u パラメータは 0 から 2π まで一周
             let num_points = 64; // 分割数
@@ -220,13 +232,13 @@ impl<T: Scalar> TorusSurface3D<T> {
             point_u_plus.y() - point_current.y(),
             point_u_plus.z() - point_current.z(),
         );
-        let u_tangent = Direction3D::from_vector(u_tangent_vec).unwrap_or(self.x_axis());
+        let u_tangent = Direction3D::from_vector(u_tangent_vec).unwrap_or(self.x_axis_internal());
 
         // v方向の接線ベクトル（u_tangent と normal の外積）
         let normal_vec = Vector3D::new(normal.x(), normal.y(), normal.z());
         let u_tangent_vec_norm = Vector3D::new(u_tangent.x(), u_tangent.y(), u_tangent.z());
         let v_tangent_vec = normal_vec.cross(&u_tangent_vec_norm);
-        let v_tangent = Direction3D::from_vector(v_tangent_vec).unwrap_or(self.y_axis());
+        let v_tangent = Direction3D::from_vector(v_tangent_vec).unwrap_or(self.y_axis_internal());
 
         (u_tangent, v_tangent, normal)
     }

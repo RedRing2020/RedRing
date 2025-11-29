@@ -70,12 +70,12 @@ function Test-ArchitectureDependencies {
     # Define allowed dependencies
     $allowedDeps = @{
         "analysis"       = @()
-        "geo_foundation" = @("analysis")
-        "geo_commons"    = @("geo_foundation", "analysis")
-        "geo_core"       = @("geo_foundation", "analysis")
-        "geo_primitives" = @("geo_foundation", "analysis")  # geo_commons は geo_foundation 経由でアクセス
+        "geo_foundation" = @("analysis", "geo_commons")  # geo_commons から計算関数を再エクスポート
+        "geo_commons"    = @("analysis")  # 独立した計算関数クレート
+        "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
+        "geo_primitives" = @("geo_foundation", "geo_core", "analysis")  # geo_core の AABB型を使用
         "geo_algorithms" = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
-        "geo_nurbs"      = @("geo_foundation", "geo_primitives", "analysis")  # 例外: 基本幾何型使用
+        "geo_nurbs"      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
         "converter"      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "analysis")
         "graphics"       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")

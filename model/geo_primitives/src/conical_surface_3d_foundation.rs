@@ -1,29 +1,31 @@
-﻿//! ConicalSurface3D の Foundation パターン実装
+//! ConicalSurface3D の Foundation パターン実装
 //!
 //! ExtensionFoundation トレイトの実装により、
 //! 他の幾何プリミティブとの統一インターフェースを提供
 
 use crate::{BBox3D, ConicalSurface3D};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for ConicalSurface3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::ConicalSurface
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        // 実用的な範囲で境界ボックスを計算
-        // デフォルトで軸方向に ±100 単位の範囲を使用
-        let default_range = T::from_f64(100.0);
-        self.bounding_box(-default_range, default_range)
     }
 
     fn measure(&self) -> Option<T> {
         // 円錐サーフェスの表面積は無限大（無制限範囲）
         // 境界が指定された場合のみ計算可能
         None
+    }
+}
+
+impl<T: Scalar> Bounded<T> for ConicalSurface3D<T> {
+    type Aabb = BBox3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        // 実用的な範囲で境界ボックスを計算
+        // デフォルトで軸方向に ±100 単位の範囲を使用
+        let default_range = T::from_f64(100.0);
+        Some(self.bounding_box(-default_range, default_range))
     }
 }
 
@@ -46,12 +48,12 @@ impl<T: Scalar> ConicalSurface3D<T> {
         // 円錐サーフェスの表面積公式
         // A = (u_range / 2π) * π * (r1 + r2) * s
         // ここで s は母線の長さ
-        let r1 = self.radius_at_v(min_v);
-        let r2 = self.radius_at_v(max_v);
+        let r1 = self.radius_at_v_internal(min_v);
+        let r2 = self.radius_at_v_internal(max_v);
         let height = max_v - min_v;
 
         // 母線の長さ
-        let slant_height = height / self.semi_angle().cos();
+        let slant_height = height / self.semi_angle_internal().cos();
 
         // 表面積
         let pi = T::PI;
@@ -66,7 +68,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
     pub fn minimal_bounding_box(&self) -> BBox3D<T> {
         // 円錐は無限に延びるため、実用的な範囲を設定
         // 基準半径の10倍程度の範囲を使用
-        let practical_range = self.radius() * T::from_f64(10.0);
+        let practical_range = self.radius_internal() * T::from_f64(10.0);
         self.bounding_box(-practical_range, practical_range)
     }
 }

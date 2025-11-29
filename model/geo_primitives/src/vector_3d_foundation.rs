@@ -1,37 +1,15 @@
 //! Vector3D の Foundation トレイト実装
 
-use crate::{BBox3D, Point3D, Vector3D};
-use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use crate::Vector3D;
+use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for Vector3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Vector
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        // ベクトルの境界ボックスは原点から終点まで
-        let _origin: Point3D<T> = Point3D::origin();
-        let _endpoint = Point3D::new(self.x(), self.y(), self.z());
-
-        let min_x = T::ZERO.min(self.x());
-        let max_x = T::ZERO.max(self.x());
-        let min_y = T::ZERO.min(self.y());
-        let max_y = T::ZERO.max(self.y());
-        let min_z = T::ZERO.min(self.z());
-        let max_z = T::ZERO.max(self.z());
-
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
-        )
     }
 
     fn measure(&self) -> Option<T> {
@@ -63,9 +41,7 @@ mod tests {
         assert!(vector.measure().is_some());
         assert_eq!(vector.measure().unwrap(), vector.magnitude());
 
-        let bbox = vector.bounding_box();
-        assert_eq!(bbox.min(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(bbox.max(), Point3D::new(3.0, 4.0, 0.0));
+        // Vectors don't have bounding boxes in the new architecture
     }
 
     #[test]

@@ -74,8 +74,13 @@ impl<T: Scalar> Ray3D<T> {
         self.origin
     }
 
-    /// 方向ベクトルを取得
-    pub fn direction(&self) -> Direction3D<T> {
+    /// 起点を取得（内部用）
+    pub(crate) fn origin_internal(&self) -> Point3D<T> {
+        self.origin
+    }
+
+    /// 方向ベクトルを取得（内部用）
+    pub(crate) fn direction_internal(&self) -> Direction3D<T> {
         Direction3D::from_vector(self.direction).expect("Ray direction should always be valid")
     }
 
@@ -294,7 +299,7 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
 /// Ray3DProperties トレイト実装
 impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     fn origin(&self) -> Point3<T> {
-        let origin = self.origin();
+        let origin = self.origin_internal();
         Point3::new(origin.x(), origin.y(), origin.z())
     }
 
@@ -304,15 +309,15 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     }
 
     fn origin_x(&self) -> T {
-        self.origin().x()
+        self.origin_internal().x()
     }
 
     fn origin_y(&self) -> T {
-        self.origin().y()
+        self.origin_internal().y()
     }
 
     fn origin_z(&self) -> T {
-        self.origin().z()
+        self.origin_internal().z()
     }
 
     fn direction_x(&self) -> T {
@@ -347,7 +352,7 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
 
     fn is_on_xy_plane(&self) -> bool {
         use geo_foundation::tolerance_migration::DefaultTolerances;
-        self.origin().z().abs() < DefaultTolerances::distance::<T>()
+        self.origin_internal().z().abs() < DefaultTolerances::distance::<T>()
             && self.direction_vector().z().abs() < DefaultTolerances::distance::<T>()
     }
 }
@@ -369,17 +374,17 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
 
     fn distance_to_point(&self, point: &Point3<T>) -> T {
         let target_point = Point3D::new(point.x(), point.y(), point.z());
-        let to_point = target_point - self.origin();
+        let to_point = target_point - self.origin_internal();
         let projection_length = self.direction_vector().dot(&to_point);
 
         if projection_length <= T::ZERO {
-            self.origin().distance_to(&target_point)
+            self.origin_internal().distance_to(&target_point)
         } else {
             let direction_offset = self.direction_vector() * projection_length;
             let projection = Point3D::new(
-                self.origin().x() + direction_offset.x(),
-                self.origin().y() + direction_offset.y(),
-                self.origin().z() + direction_offset.z(),
+                self.origin_internal().x() + direction_offset.x(),
+                self.origin_internal().y() + direction_offset.y(),
+                self.origin_internal().z() + direction_offset.z(),
             );
             target_point.distance_to(&projection)
         }
@@ -441,7 +446,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         Self: Sized,
     {
         let offset_vector = Vector3D::new(offset.x(), offset.y(), offset.z());
-        let new_origin = self.origin() + offset_vector;
+        let new_origin = self.origin_internal() + offset_vector;
 
         Ray3D::new(new_origin, self.direction_vector()).unwrap()
     }
@@ -449,7 +454,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
     // ========== Phase 2 実装 ==========
 
     fn distance_to_ray(&self, other: &Self) -> T {
-        let w = self.origin() - other.origin();
+        let w = self.origin_internal() - other.origin_internal();
         let a = self.direction_vector().dot(&self.direction_vector());
         let b = self.direction_vector().dot(&other.direction_vector());
         let c = other.direction_vector().dot(&other.direction_vector());
@@ -460,7 +465,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         use geo_foundation::tolerance_migration::DefaultTolerances;
         if denom.abs() < DefaultTolerances::distance::<T>() {
             // 平行: 片方の起点から他方への距離
-            let other_origin = other.origin();
+            let other_origin = other.origin_internal();
             return self.distance_to_point(&Point3D::new(
                 other_origin.x(),
                 other_origin.y(),
@@ -518,7 +523,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let rotation_matrix = Matrix4x4::rotation_axis(&normalized_axis, angle);
 
         // 起点を回転
-        let origin = self.origin();
+        let origin = self.origin_internal();
         let origin_analysis = Vector3::new(origin.x(), origin.y(), origin.z());
         let rotated_origin_analysis = rotation_matrix.transform_point_3d(&origin_analysis);
         let rotated_origin = Point3D::new(

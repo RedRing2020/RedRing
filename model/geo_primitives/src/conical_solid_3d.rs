@@ -186,27 +186,27 @@ impl<T: Scalar> ConicalSolid3D<T> {
     // ========================================================================
 
     /// 円錐の底面中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// 軸方向（底面から頂点への正規化ベクトル）を取得
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
     /// 参照方向（X軸の正規化ベクトル）を取得
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// 底面の半径を取得
-    pub fn radius(&self) -> T {
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
     /// 円錐の高さを取得
-    pub fn height(&self) -> T {
+    pub(crate) fn height_internal(&self) -> T {
         self.height
     }
 
@@ -214,7 +214,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     ///
     /// # Returns
     /// 底面中心から軸方向に高さ分移動した点
-    pub fn apex(&self) -> Point3D<T> {
+    pub(crate) fn apex_internal(&self) -> Point3D<T> {
         Point3D::new(
             self.center.x() + self.axis.x() * self.height,
             self.center.y() + self.axis.y() * self.height,
@@ -226,7 +226,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     ///
     /// # Returns
     /// 右手系座標系のY軸方向
-    pub fn derived_y_axis(&self) -> Direction3D<T> {
+    pub(crate) fn derived_y_axis_internal(&self) -> Direction3D<T> {
         let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector).unwrap() // 直交ベクトルなので常に成功
     }
@@ -239,17 +239,22 @@ impl<T: Scalar> ConicalSolid3D<T> {
     ///
     /// # Returns
     /// 体積 V = (1/3)π × r² × h
-    pub fn volume(&self) -> T {
-        T::PI * self.radius() * self.radius() * self.height() / T::from_f64(3.0)
+    #[allow(dead_code)]
+    pub(crate) fn volume_internal(&self) -> T {
+        T::PI * self.radius_internal() * self.radius_internal() * self.height_internal()
+            / T::from_f64(3.0)
     }
 
     /// 円錐の表面積を計算（底面含む）
     ///
     /// # Returns
     /// 表面積 S = π × r × (r + √(r² + h²))
-    pub fn surface_area(&self) -> T {
-        let slant_height = (self.radius() * self.radius() + self.height() * self.height()).sqrt();
-        T::PI * self.radius() * (self.radius() + slant_height)
+    #[allow(dead_code)]
+    pub(crate) fn surface_area_internal(&self) -> T {
+        let slant_height = (self.radius_internal() * self.radius_internal()
+            + self.height_internal() * self.height_internal())
+        .sqrt();
+        T::PI * self.radius_internal() * (self.radius_internal() + slant_height)
     }
 
     /// 円錐の境界ボックスを計算
@@ -264,7 +269,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
     pub fn bounding_box(&self) -> BBox3D<T> {
         // 軸に垂直なベクトル（参照方向とY軸）を取得
         let x_dir = self.ref_direction.as_vector();
-        let y_dir = self.derived_y_axis().as_vector();
+        let y_dir = self.derived_y_axis_internal().as_vector();
 
         // 底面の円周上の極値を計算
         let radius_x: Vector3D<T> = x_dir * self.radius;
@@ -296,7 +301,7 @@ impl<T: Scalar> ConicalSolid3D<T> {
         ];
 
         // 頂点
-        let apex = self.apex();
+        let apex = self.apex_internal();
 
         // 全ての点の最小・最大値を計算
         let mut min_x = self.center.x();
@@ -384,47 +389,47 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
 
 impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     fn apex(&self) -> (T, T, T) {
-        let a = self.apex();
+        let a = self.apex_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn base_center(&self) -> (T, T, T) {
-        let b = self.base_center();
+        let b = self.center_internal();
         (b.x(), b.y(), b.z())
     }
 
     fn radius(&self) -> T {
-        self.radius()
+        self.radius_internal()
     }
 
     fn height(&self) -> T {
-        self.height()
+        self.height_internal()
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.axis();
+        let a = self.axis_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction();
+        let r = self.ref_direction_internal();
         (r.x(), r.y(), r.z())
     }
 
     fn slant_height(&self) -> T {
-        let r = self.radius();
-        let h = self.height();
+        let r = self.radius_internal();
+        let h = self.height_internal();
         (r * r + h * h).sqrt()
     }
 }
 
 impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
     fn volume(&self) -> T {
-        self.volume()
+        self.volume_internal()
     }
 
     fn surface_area(&self) -> T {
-        self.surface_area()
+        self.surface_area_internal()
     }
 
     fn contains_point(&self, point: (T, T, T)) -> bool {

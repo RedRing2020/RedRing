@@ -133,27 +133,57 @@
 use crate::classification::PrimitiveKind;
 use crate::{Angle, Scalar};
 
-// AbstractBBoxを抽象境界ボックスとして定義（より柔軟な実装）
-/// 抽象的な境界ボックストレイト（BBoxに統一）
-pub trait AbstractBBox<T: Scalar> {
-    type Point;
-    fn min(&self) -> Self::Point;
-    fn max(&self) -> Self::Point;
-}
-
 /// 全ての幾何プリミティブが実装する拡張基盤トレイト（ジェネリック版）
+///
+/// # 設計方針
+///
+/// ExtensionFoundation は全てのプリミティブに共通する最小限の機能のみを定義します：
+/// - プリミティブの種類識別
+/// - 測定値の取得
+///
+/// 境界ボックス（AABB）は別トレイト `Bounded` で定義されており、
+/// 空間的な広がりを持つプリミティブのみが実装します。
+/// Point3D, Vector3D, Direction3D などの基本要素には AABB は不要です。
 pub trait ExtensionFoundation<T: Scalar = f64> {
-    /// 境界ボックスの型（BBoxに統一）
-    type BBox: AbstractBBox<T>;
-
     /// プリミティブの種類を返す
     fn primitive_kind(&self) -> PrimitiveKind;
 
-    /// 境界ボックスを返す（ジェネリック版、BBoxに統一）
-    fn bounding_box(&self) -> Self::BBox;
-
-    /// プリミティブの測定値（長さ、面積、体積など）を返す（ジェネリック版）
+    /// プリミティブの測定値（長さ、面積、体積など）を返す
     fn measure(&self) -> Option<T>;
+}
+
+/// 境界ボックス（AABB）を持つプリミティブのトレイト
+///
+/// # 実装対象
+///
+/// Circle, Triangle, NURBS Curve など、空間的な広がりを持つ幾何要素が実装します。
+/// Point, Vector, Direction などの基本要素は実装する必要がありません。
+///
+/// # AABB型
+///
+/// 具体的な AABB 型（`geo_core::Aabb2D`, `geo_core::Aabb3D`）は実装側で指定します。
+/// geo_foundation はトレイト定義のみを提供し、具体型は geo_core で実装されています。
+///
+/// # 使用例
+///
+/// ```rust,ignore
+/// use geo_foundation::Bounded;
+/// use geo_core::Aabb3D;
+///
+/// impl<T: Scalar> Bounded<T> for Circle3D<T> {
+///     type Aabb = Aabb3D<T>;
+///     
+///     fn aabb(&self) -> Option<Self::Aabb> {
+///         Some(Aabb3D::new(min, max))
+///     }
+/// }
+/// ```
+pub trait Bounded<T: Scalar = f64>: ExtensionFoundation<T> {
+    /// 境界ボックスの型（geo_core::Aabb2D または geo_core::Aabb3D）
+    type Aabb;
+
+    /// 境界ボックスを返す
+    fn aabb(&self) -> Option<Self::Aabb>;
 }
 
 /// 変形可能な幾何プリミティブの拡張トレイト（ジェネリック版）
@@ -193,16 +223,17 @@ pub trait CollectionExtension<T: Scalar = f64> {
     type Item: ExtensionFoundation<T>;
 
     /// 全プリミティブの結合境界ボックス（ジェネリック版）
-    fn combined_bounding_box(&self) -> Option<<Self::Item as ExtensionFoundation<T>>::BBox>;
+    fn combined_aabb(&self) -> Option<<Self::Item as Bounded<T>>::Aabb>
+    where
+        Self::Item: Bounded<T>;
 
     /// 指定した点に最も近いプリミティブを取得（ジェネリック版）
     fn nearest_to_point(&self, point: (T, T, T)) -> Option<&Self::Item>;
 
     /// 指定した境界ボックスと交差するプリミティブを取得（ジェネリック版）
-    fn intersecting_with_bbox(
-        &self,
-        bbox: &<Self::Item as ExtensionFoundation<T>>::BBox,
-    ) -> Vec<&Self::Item>;
+    fn intersecting_with_aabb(&self, aabb: &<Self::Item as Bounded<T>>::Aabb) -> Vec<&Self::Item>
+    where
+        Self::Item: Bounded<T>;
 }
 
 /// プリミティブ同士の空間関係を表現する拡張トレイト

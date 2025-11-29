@@ -187,39 +187,40 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
     // ========================================================================
 
     /// 中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// 軸方向を取得
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
     /// 参照方向を取得
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// X軸方向の半径を取得
-    pub fn a_radius(&self) -> T {
+    pub(crate) fn a_radius_internal(&self) -> T {
         self.a_radius
     }
 
     /// Y軸方向の半径を取得
-    pub fn b_radius(&self) -> T {
+    pub(crate) fn b_radius_internal(&self) -> T {
         self.b_radius
     }
 
     /// Z軸方向の半径を取得
-    pub fn c_radius(&self) -> T {
+    pub(crate) fn c_radius_internal(&self) -> T {
         self.c_radius
     }
 
     /// Y軸方向を計算（派生軸）
     ///
     /// STEP標準：Y = Z × X（右手系）
-    pub fn derived_y_axis(&self) -> Direction3D<T> {
+    #[allow(dead_code)]
+    pub(crate) fn derived_y_axis_internal(&self) -> Direction3D<T> {
         let z = self.axis.as_vector();
         let x = self.ref_direction.as_vector();
 
@@ -253,7 +254,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         let sin_v = v.sin();
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 楕円体上の点
@@ -291,7 +292,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         let sin_v = v.sin();
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 楕円体の法線（非正規化）
@@ -326,7 +327,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         );
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 局所座標系での座標
@@ -365,7 +366,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         );
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         let local_x =
@@ -402,7 +403,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
     pub fn bounding_box(&self) -> BBox3D<T> {
         // 各軸方向の最大伸び
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 各座標軸での最大・最小値を計算
@@ -443,12 +444,12 @@ impl<T: Scalar> std::fmt::Display for EllipsoidalSurface3D<T> {
         write!(
             f,
             "EllipsoidalSurface3D {{ center: {:?}, axis: {:?}, ref_direction: {:?}, a_radius: {}, b_radius: {}, c_radius: {} }}",
-            self.center(),
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.a_radius(),
-            self.b_radius(),
-            self.c_radius()
+            self.center_internal(),
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.a_radius_internal(),
+            self.b_radius_internal(),
+            self.c_radius_internal()
         )
     }
 }
@@ -506,30 +507,30 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
 
 impl<T: Scalar> EllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center();
+        let c = self.center_internal();
         (c.x(), c.y(), c.z())
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.axis();
+        let a = self.axis_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction();
+        let r = self.ref_direction_internal();
         (r.x(), r.y(), r.z())
     }
 
     fn semi_axis_a(&self) -> T {
-        self.a_radius()
+        self.a_radius_internal()
     }
 
     fn semi_axis_b(&self) -> T {
-        self.b_radius()
+        self.b_radius_internal()
     }
 
     fn semi_axis_c(&self) -> T {
-        self.c_radius()
+        self.c_radius_internal()
     }
 }
 
@@ -537,9 +538,9 @@ impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
     fn surface_area(&self) -> T {
         // 楕円体の表面積は解析解がないため、近似値を返す
         // Knud Thomsen's formula を使用
-        let a = self.a_radius();
-        let b = self.b_radius();
-        let c = self.c_radius();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c = self.c_radius_internal();
         let p = T::from_f64(1.6075);
         let ap = a.powf(p);
         let bp = b.powf(p);

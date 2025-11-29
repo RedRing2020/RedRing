@@ -3,8 +3,8 @@
 //! MVVMアーキテクチャにおけるViewModel層の責務として、
 //! geo_primitives の具体型を使用して TriangleMesh3D を GPU レンダリング用の頂点データに変換します。
 
-// 具体型はgeo_primitivesから
-use geo_primitives::{TriangleMesh3D, Vector3D};
+use geo_foundation::core::triangle_core_traits::Triangle3DProperties;
+use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 
 /// GPU用頂点データ（renderクレートのMeshVertexと同じ構造）
 #[repr(C)]
@@ -43,9 +43,12 @@ pub fn triangle_mesh_to_vertices(mesh: &TriangleMesh3D<f64>) -> Vec<VertexData> 
     // 各三角形を個別の頂点として展開（法線の一貫性を保つため）
     for i in 0..mesh.triangle_count() {
         if let Some(triangle) = mesh.triangle(i) {
-            let va = triangle.vertex_a();
-            let vb = triangle.vertex_b();
-            let vc = triangle.vertex_c();
+            let va_tuple = triangle.vertex_a();
+            let vb_tuple = triangle.vertex_b();
+            let vc_tuple = triangle.vertex_c();
+            let va = Point3D::new(va_tuple.0, va_tuple.1, va_tuple.2);
+            let vb = Point3D::new(vb_tuple.0, vb_tuple.1, vb_tuple.2);
+            let vc = Point3D::new(vc_tuple.0, vc_tuple.1, vc_tuple.2);
 
             // 三角形の法線を計算（CCW順序を前提）
             let edge1 = Vector3D::new(vb.x() - va.x(), vb.y() - va.y(), vb.z() - va.z());

@@ -149,29 +149,30 @@ impl<T: Scalar> SphericalSolid3D<T> {
     // ========================================================================
 
     /// 球の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// 参照軸方向を取得（正規化済み）
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
     /// 参照方向を取得（正規化済み、X軸相当）
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// Y軸方向を計算（axis × ref_direction）
-    pub fn y_axis(&self) -> Direction3D<T> {
+    #[allow(dead_code)]
+    pub(crate) fn y_axis_internal(&self) -> Direction3D<T> {
         let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector)
             .expect("Y-axis calculation should always succeed with orthogonal axes")
     }
 
     /// 球ソリッドの半径を取得
-    pub fn radius(&self) -> T {
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
@@ -310,27 +311,26 @@ impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
 
 impl<T: Scalar> SphericalSolid3DProperties<T> for SphericalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
+        let c = self.center_internal();
+        (c.x(), c.y(), c.z())
     }
 
     fn radius(&self) -> T {
-        self.radius
+        self.radius_internal()
     }
 
     fn axis(&self) -> (T, T, T) {
-        (self.axis.x(), self.axis.y(), self.axis.z())
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        (
-            self.ref_direction.x(),
-            self.ref_direction.y(),
-            self.ref_direction.z(),
-        )
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
     }
 
     fn diameter(&self) -> T {
-        self.diameter()
+        self.radius_internal() * T::from_f64(2.0)
     }
 }
 

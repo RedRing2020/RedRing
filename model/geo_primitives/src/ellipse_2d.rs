@@ -55,9 +55,9 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 円から楕円を作成
     pub fn from_circle(circle: Circle2D<T>) -> Self {
         Self {
-            center: circle.center(),
-            semi_major: circle.radius(),
-            semi_minor: circle.radius(),
+            center: circle.center_internal(),
+            semi_major: circle.radius_internal(),
+            semi_minor: circle.radius_internal(),
             rotation: T::ZERO,
         }
     }
@@ -218,10 +218,9 @@ impl<T: Scalar> Ellipse2D<T> {
         let width = ((a * cos_theta) * (a * cos_theta) + (b * sin_theta) * (b * sin_theta)).sqrt();
         let height = ((a * sin_theta) * (a * sin_theta) + (b * cos_theta) * (b * cos_theta)).sqrt();
 
-        BBox2D::from_center_size(
-            self.center,
-            width * (T::ONE + T::ONE),
-            height * (T::ONE + T::ONE),
+        BBox2D::new(
+            Point2D::new(self.center.x() - width, self.center.y() - height),
+            Point2D::new(self.center.x() + width, self.center.y() + height),
         )
     }
 

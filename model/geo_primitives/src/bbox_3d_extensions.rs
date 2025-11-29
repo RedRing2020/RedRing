@@ -17,8 +17,8 @@ impl<T: Scalar> BBox3D<T> {
 
     /// 3D円から境界ボックスを作成
     pub fn from_circle(circle: &Circle3D<T>) -> Self {
-        let center = circle.center();
-        let radius = circle.radius();
+        let center = circle.center_internal();
+        let radius = circle.radius_internal();
 
         // 円の法線方向に関係なく、すべての軸方向にradius分拡張
         let min_point = Point3D::new(

@@ -51,18 +51,18 @@ impl<T: Scalar> Circle2D<T> {
         }
     }
 
-    /// 中心を取得
-    pub fn center(&self) -> Point2D<T> {
+    /// 中心を取得（内部用）
+    pub(crate) fn center_internal(&self) -> Point2D<T> {
         self.center
     }
 
-    /// 半径を取得
-    pub fn radius(&self) -> T {
+    /// 半径を取得（内部用）
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
-    /// 参照方向を取得
-    pub fn ref_direction(&self) -> Direction2D<T> {
+    /// 参照方向を取得（内部用）
+    pub(crate) fn ref_direction_internal(&self) -> Direction2D<T> {
         self.ref_direction
     }
 
@@ -292,19 +292,22 @@ impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
 
 impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     fn center(&self) -> (T, T) {
-        (self.center.x(), self.center.y())
+        let c = self.center_internal();
+        (c.x(), c.y())
     }
 
     fn radius(&self) -> T {
-        self.radius
+        self.radius_internal()
     }
 
     fn ref_direction(&self) -> (T, T) {
-        (self.ref_direction.x(), self.ref_direction.y())
+        let r = self.ref_direction_internal();
+        (r.x(), r.y())
     }
 
     fn diameter(&self) -> T {
-        self.radius + self.radius
+        let r = self.radius_internal();
+        r + r
     }
 
     fn dimension(&self) -> u32 {
@@ -314,15 +317,16 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     // Phase 2 メソッド実装
 
     fn is_unit_circle(&self) -> bool {
-        (self.radius - T::ONE).abs() <= T::EPSILON
+        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
     }
 
     fn is_centered_at_origin(&self) -> bool {
-        self.center.x().abs() <= T::EPSILON && self.center.y().abs() <= T::EPSILON
+        let c = self.center_internal();
+        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON
     }
 
     fn is_degenerate(&self) -> bool {
-        self.radius <= T::EPSILON
+        self.radius_internal() <= T::EPSILON
     }
 }
 

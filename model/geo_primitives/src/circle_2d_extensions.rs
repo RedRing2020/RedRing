@@ -1,4 +1,4 @@
-﻿//! Circle2D 拡張機能
+//! Circle2D 拡張機能
 //!
 //! Extension Foundation パターンに基づく Circle2D の拡張実装
 
@@ -60,7 +60,7 @@ impl<T: Scalar> Circle2D<T> {
     /// 直径を取得
     pub fn diameter(&self) -> T {
         let two = T::ONE + T::ONE;
-        self.radius() * two
+        self.radius_internal() * two
     }
 
     /// 指定角度での点を取得（ラジアン）
@@ -68,8 +68,8 @@ impl<T: Scalar> Circle2D<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
         Point2D::new(
-            self.center().x() + self.radius() * cos_a,
-            self.center().y() + self.radius() * sin_a,
+            self.center_internal().x() + self.radius_internal() * cos_a,
+            self.center_internal().y() + self.radius_internal() * sin_a,
         )
     }
 
@@ -80,7 +80,7 @@ impl<T: Scalar> Circle2D<T> {
     /// 円を指定倍率でスケール
     pub fn scale(&self, factor: T) -> Option<Self> {
         if factor > T::ZERO {
-            Self::new(self.center(), self.radius() * factor)
+            Self::new(self.center_internal(), self.radius_internal() * factor)
         } else {
             None
         }
@@ -88,12 +88,12 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 円を指定ベクトルで平行移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
-        Self::new(self.center() + offset, self.radius()).unwrap()
+        Self::new(self.center_internal() + offset, self.radius_internal()).unwrap()
     }
 
     /// 円を指定点に移動
     pub fn move_to(&self, new_center: Point2D<T>) -> Self {
-        Self::new(new_center, self.radius()).unwrap()
+        Self::new(new_center, self.radius_internal()).unwrap()
     }
 
     // ========================================================================
@@ -102,17 +102,17 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 他の円と交差するかを判定
     pub fn intersects_circle(&self, other: &Self) -> bool {
-        let distance = self.center().distance_to(&other.center());
-        let sum_radii = self.radius() + other.radius();
-        let diff_radii = (self.radius() - other.radius()).abs();
+        let distance = self.center_internal().distance_to(&other.center_internal());
+        let sum_radii = self.radius_internal() + other.radius_internal();
+        let diff_radii = (self.radius_internal() - other.radius_internal()).abs();
 
         distance <= sum_radii && distance >= diff_radii
     }
 
     /// 他の円を完全に含むかを判定
     pub fn contains_circle(&self, other: &Self) -> bool {
-        let distance = self.center().distance_to(&other.center());
-        distance + other.radius() <= self.radius()
+        let distance = self.center_internal().distance_to(&other.center_internal());
+        distance + other.radius_internal() <= self.radius_internal()
     }
 
     // ========================================================================
@@ -122,9 +122,9 @@ impl<T: Scalar> Circle2D<T> {
     /// 3次元円に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::Circle3D<T> {
         crate::Circle3D::new(
-            self.center().to_3d(),
+            self.center_internal().to_3d(),
             Vector2D::new(T::ZERO, T::ZERO).to_3d_with_z(T::ONE), // Z軸法線
-            self.radius(),
+            self.radius_internal(),
         )
         .unwrap()
     }
@@ -132,9 +132,9 @@ impl<T: Scalar> Circle2D<T> {
     /// 3次元円に拡張（指定Z値平面）
     pub fn to_3d_at_z(&self, z: T) -> crate::Circle3D<T> {
         crate::Circle3D::new(
-            self.center().to_3d_with_z(z),
+            self.center_internal().to_3d_with_z(z),
             Vector2D::new(T::ZERO, T::ZERO).to_3d_with_z(T::ONE), // Z軸法線
-            self.radius(),
+            self.radius_internal(),
         )
         .unwrap()
     }
@@ -150,9 +150,9 @@ impl<T: Scalar> Circle2D<T> {
         }
 
         // アフィン変換: center' = point + (center - point) * factor
-        let offset = Vector2D::from_points(point, self.center());
+        let offset = Vector2D::from_points(point, self.center_internal());
         let new_center = point + (offset * factor);
-        let new_radius = self.radius() * factor;
+        let new_radius = self.radius_internal() * factor;
 
         Self::new(new_center, new_radius)
     }
@@ -163,8 +163,8 @@ impl<T: Scalar> Circle2D<T> {
             return None;
         }
 
-        let center_distance = self.center().distance_to(&other.center());
-        let required_distance = self.radius() + other.radius();
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
+        let required_distance = self.radius_internal() + other.radius_internal();
 
         if center_distance < T::EPSILON {
             // 同心円の場合は少しずらす
@@ -172,7 +172,7 @@ impl<T: Scalar> Circle2D<T> {
             return Some((self.translate(offset.negate()), other.translate(offset)));
         }
 
-        let direction = Vector2D::from_points(self.center(), other.center()).normalize();
+        let direction = Vector2D::from_points(self.center_internal(), other.center_internal()).normalize();
         let separation = required_distance - center_distance;
         let half_separation = separation / (T::ONE + T::ONE);
 
@@ -193,16 +193,16 @@ impl<T: Scalar> Circle2D<T> {
         let mut weighted_y = T::ZERO;
 
         // 自分の重み（半径に基づく）
-        let self_weight = self.radius();
+        let self_weight = self.radius_internal();
         total_weight = total_weight + self_weight;
-        weighted_x = weighted_x + (self.center().x() * self_weight);
-        weighted_y = weighted_y + (self.center().y() * self_weight);
+        weighted_x = weighted_x + (self.center_internal().x() * self_weight);
+        weighted_y = weighted_y + (self.center_internal().y() * self_weight);
 
         // 他の円の重み付き中心
         for (circle, &weight) in others.iter().zip(weights) {
             total_weight = total_weight + weight;
-            weighted_x = weighted_x + (circle.center().x() * weight);
-            weighted_y = weighted_y + (circle.center().y() * weight);
+            weighted_x = weighted_x + (circle.center_internal().x() * weight);
+            weighted_y = weighted_y + (circle.center_internal().y() * weight);
         }
 
         if total_weight > T::EPSILON {

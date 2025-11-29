@@ -158,24 +158,19 @@ impl<T: Scalar> Plane3D<T> {
     // アクセサメソッド
     // ========================================================================
 
-    /// 平面原点を取得
+    /// 平面の原点を取得
     pub fn origin(&self) -> Point3D<T> {
         self.origin
     }
 
-    /// 法線方向（Z軸）を取得
+    /// 平面の法線方向を取得
     pub fn normal(&self) -> Direction3D<T> {
         self.normal
     }
 
-    /// U軸方向（X軸）を取得
-    pub fn u_axis(&self) -> Direction3D<T> {
-        self.u_axis
-    }
-
-    /// V軸方向（Y軸）を取得
-    pub fn v_axis(&self) -> Direction3D<T> {
-        self.v_axis
+    /// 法線方向（Z軸）を取得（内部用）
+    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
+        self.normal
     }
 
     /// 従来の点+法線ベクトル形式で原点と法線を取得

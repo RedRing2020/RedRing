@@ -136,27 +136,32 @@ impl<T: Scalar> Circle3D<T> {
     }
 
     /// 中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// Z軸方向（法線ベクトル）を取得
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
-    /// 法線ベクトルを取得（後方互換性）
+    /// 法線方向を取得
     pub fn normal(&self) -> Direction3D<T> {
         self.axis
     }
 
+    /// 法線ベクトルを取得（後方互換性）
+    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
+        self.axis
+    }
+
     /// X軸方向（参照方向）を取得
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// 半径を取得
-    pub fn radius(&self) -> T {
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
@@ -359,23 +364,22 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
 
 impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
     fn center(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
+        let c = self.center_internal();
+        (c.x(), c.y(), c.z())
     }
 
     fn radius(&self) -> T {
-        self.radius
+        self.radius_internal()
     }
 
     fn axis(&self) -> (T, T, T) {
-        (self.axis.x(), self.axis.y(), self.axis.z())
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        (
-            self.ref_direction.x(),
-            self.ref_direction.y(),
-            self.ref_direction.z(),
-        )
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
     }
 
     fn dimension(&self) -> u32 {
@@ -385,22 +389,21 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
     // Phase 2 メソッド実装
 
     fn is_unit_circle(&self) -> bool {
-        (self.radius - T::ONE).abs() <= T::EPSILON
+        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
     }
 
     fn is_centered_at_origin(&self) -> bool {
-        self.center.x().abs() <= T::EPSILON
-            && self.center.y().abs() <= T::EPSILON
-            && self.center.z().abs() <= T::EPSILON
+        let c = self.center_internal();
+        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
     }
 
     fn is_degenerate(&self) -> bool {
-        self.radius <= T::EPSILON
+        self.radius_internal() <= T::EPSILON
     }
 
     fn is_on_xy_plane(&self) -> bool {
         // Z軸に平行かどうかを確認
-        let z_component = self.axis.z().abs();
+        let z_component = self.axis_internal().z().abs();
         (z_component - T::ONE).abs() <= T::EPSILON
     }
 }

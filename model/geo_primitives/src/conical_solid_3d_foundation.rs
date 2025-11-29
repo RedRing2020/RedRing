@@ -6,44 +6,52 @@
 //! **最終更新: 2025年11月1日**
 
 use crate::{BBox3D, ConicalSolid3D};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 impl<T: Scalar> ExtensionFoundation<T> for ConicalSolid3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Cone
     }
 
-    fn bounding_box(&self) -> Self::BBox {
-        self.bounding_box()
-    }
-
     fn measure(&self) -> Option<T> {
-        Some(self.volume())
+        Some(self.volume_internal())
+    }
+}
+
+impl<T: Scalar> Bounded<T> for ConicalSolid3D<T> {
+    type Aabb = BBox3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        Some(self.bounding_box())
     }
 }
 
 impl<T: Scalar> TolerantEq<T> for ConicalSolid3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の比較
-        let center_diff = (self.center().x() - other.center().x()).abs()
-            + (self.center().y() - other.center().y()).abs()
-            + (self.center().z() - other.center().z()).abs();
+        let center_self = self.center_internal();
+        let center_other = other.center_internal();
+        let center_diff = (center_self.x() - center_other.x()).abs()
+            + (center_self.y() - center_other.y()).abs()
+            + (center_self.z() - center_other.z()).abs();
 
         // 軸方向の比較（正規化済みベクトル）
-        let axis_diff = (self.axis().x() - other.axis().x()).abs()
-            + (self.axis().y() - other.axis().y()).abs()
-            + (self.axis().z() - other.axis().z()).abs();
+        let axis_self = self.axis_internal();
+        let axis_other = other.axis_internal();
+        let axis_diff = (axis_self.x() - axis_other.x()).abs()
+            + (axis_self.y() - axis_other.y()).abs()
+            + (axis_self.z() - axis_other.z()).abs();
 
         // 参照方向の比較（正規化済みベクトル）
-        let ref_diff = (self.ref_direction().x() - other.ref_direction().x()).abs()
-            + (self.ref_direction().y() - other.ref_direction().y()).abs()
-            + (self.ref_direction().z() - other.ref_direction().z()).abs();
+        let ref_self = self.ref_direction_internal();
+        let ref_other = other.ref_direction_internal();
+        let ref_diff = (ref_self.x() - ref_other.x()).abs()
+            + (ref_self.y() - ref_other.y()).abs()
+            + (ref_self.z() - ref_other.z()).abs();
 
         // 半径と高さの比較
-        let radius_diff = (self.radius() - other.radius()).abs();
-        let height_diff = (self.height() - other.height()).abs();
+        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
+        let height_diff = (self.height_internal() - other.height_internal()).abs();
 
         center_diff <= tolerance
             && axis_diff <= tolerance
@@ -76,7 +84,7 @@ mod tests {
         assert_relative_eq!(volume, expected_volume, epsilon = 1e-10);
 
         // bounding_box のテスト
-        let bbox = conical_solid.bounding_box();
+        let bbox = conical_solid.aabb().expect("should have aabb");
         // 底面: center ± radius in x,y directions
         // 頂点: center + axis * height
         assert_relative_eq!(bbox.min().x(), -4.0, epsilon = 1e-10); // 1 - 5

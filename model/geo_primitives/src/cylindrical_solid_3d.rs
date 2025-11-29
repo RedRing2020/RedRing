@@ -154,11 +154,11 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     }
 
     // ========================================================================
-    // Core Accessor Methods
+    // Core Accessor Methods (Internal use only)
     // ========================================================================
 
-    /// 底面の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    /// 底面の中心点を取得（内部使用）
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
@@ -190,20 +190,21 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     }
 
     // ========================================================================
-    // Core Geometric Properties (ソリッド特性)
+    // Core Geometric Properties (Internal use only)
     // ========================================================================
 
-    /// 円柱ソリッドの体積を計算
+    /// 円柱ソリッドの体積を計算（内部使用）
     ///
     /// 体積 = π × r² × h
-    pub fn volume(&self) -> T {
+    pub(crate) fn volume_internal(&self) -> T {
         T::PI * self.radius * self.radius * self.height
     }
 
-    /// 円柱ソリッドの表面積を計算
+    /// 円柱ソリッドの表面積を計算（内部使用）
     ///
     /// 表面積 = 2π × r² + 2π × r × h (底面積 + 側面積)
-    pub fn surface_area(&self) -> T {
+    #[allow(dead_code)]
+    pub(crate) fn surface_area_internal(&self) -> T {
         let base_area = T::PI * self.radius * self.radius;
         let side_area = T::from_f64(2.0) * T::PI * self.radius * self.height;
         T::from_f64(2.0) * base_area + side_area
@@ -241,11 +242,12 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     }
 
     // ========================================================================
-    // Core Containment and Distance Methods (ソリッド特性)
+    // Core Containment and Distance Methods (Internal use only)
     // ========================================================================
 
-    /// 点が円柱ソリッド内部に含まれるかを判定
-    pub fn contains_point(&self, point: Point3D<T>) -> bool {
+    /// 点が円柱ソリッド内部に含まれるかを判定（内部使用）
+    #[allow(dead_code)]
+    pub(crate) fn contains_point_internal(&self, point: Point3D<T>) -> bool {
         // 点から底面への投影を計算
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
@@ -276,8 +278,9 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         radial_distance <= self.radius
     }
 
-    /// 点から円柱ソリッド表面までの距離を計算
-    pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
+    /// 点から円柱ソリッド表面までの距離を計算（内部使用）
+    #[allow(dead_code)]
+    pub(crate) fn distance_to_surface_internal(&self, point: Point3D<T>) -> T {
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
             point.y() - self.center.y(),
@@ -373,50 +376,106 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
 
 impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center();
-        (c.x(), c.y(), c.z())
+        (self.center.x(), self.center.y(), self.center.z())
     }
 
     fn radius(&self) -> T {
-        self.radius()
+        self.radius
     }
 
     fn height(&self) -> T {
-        self.height()
+        self.height
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.axis();
-        (a.x(), a.y(), a.z())
+        (self.axis.x(), self.axis.y(), self.axis.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction();
-        (r.x(), r.y(), r.z())
+        (
+            self.ref_direction.x(),
+            self.ref_direction.y(),
+            self.ref_direction.z(),
+        )
     }
 
     fn diameter(&self) -> T {
-        self.radius() * T::from_f64(2.0)
+        self.radius * T::from_f64(2.0)
     }
 }
 
 impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
     fn volume(&self) -> T {
-        self.volume()
+        T::PI * self.radius * self.radius * self.height
     }
 
     fn surface_area(&self) -> T {
-        self.surface_area()
+        let base_area = T::PI * self.radius * self.radius;
+        let side_area = T::from_f64(2.0) * T::PI * self.radius * self.height;
+        T::from_f64(2.0) * base_area + side_area
     }
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
-        let point_3d = Point3D::new(point.0, point.1, point.2);
-        self.contains_point(point_3d)
+        // 点から底面への投影を計算
+        let to_point_x = point.0 - self.center.x();
+        let to_point_y = point.1 - self.center.y();
+        let to_point_z = point.2 - self.center.z();
+
+        let axis_projection =
+            to_point_x * self.axis.x() + to_point_y * self.axis.y() + to_point_z * self.axis.z();
+
+        // 高さ範囲の確認
+        if axis_projection < T::ZERO || axis_projection > self.height {
+            return false;
+        }
+
+        // 半径範囲の確認
+        let axis_comp_x = self.axis.x() * axis_projection;
+        let axis_comp_y = self.axis.y() * axis_projection;
+        let axis_comp_z = self.axis.z() * axis_projection;
+
+        let radial_x = to_point_x - axis_comp_x;
+        let radial_y = to_point_y - axis_comp_y;
+        let radial_z = to_point_z - axis_comp_z;
+
+        let radial_distance_sq = radial_x * radial_x + radial_y * radial_y + radial_z * radial_z;
+
+        radial_distance_sq <= self.radius * self.radius
     }
 
     fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let point_3d = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_surface(point_3d).abs()
+        let to_point_x = point.0 - self.center.x();
+        let to_point_y = point.1 - self.center.y();
+        let to_point_z = point.2 - self.center.z();
+
+        let axis_projection =
+            to_point_x * self.axis.x() + to_point_y * self.axis.y() + to_point_z * self.axis.z();
+
+        // 軸方向の距離
+        let axis_distance = if axis_projection < T::ZERO {
+            -axis_projection
+        } else if axis_projection > self.height {
+            axis_projection - self.height
+        } else {
+            T::ZERO
+        };
+
+        // 半径方向の距離
+        let clamped_projection = axis_projection.max(T::ZERO).min(self.height);
+        let axis_comp_x = self.axis.x() * clamped_projection;
+        let axis_comp_y = self.axis.y() * clamped_projection;
+        let axis_comp_z = self.axis.z() * clamped_projection;
+
+        let radial_x = to_point_x - axis_comp_x;
+        let radial_y = to_point_y - axis_comp_y;
+        let radial_z = to_point_z - axis_comp_z;
+
+        let radial_distance =
+            (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+        let radial_excess = (radial_distance - self.radius).max(T::ZERO);
+
+        // 軸方向と半径方向の距離を合成
+        (axis_distance * axis_distance + radial_excess * radial_excess).sqrt()
     }
 }
 

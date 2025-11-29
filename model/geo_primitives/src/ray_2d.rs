@@ -1,4 +1,4 @@
-﻿//! Ray2D - 2次元半無限直線の実装（Core Foundation）
+//! Ray2D - 2次元半無限直線の実装（Core Foundation）
 //!
 //! Ray2D は起点から一方向に無限に延びる半無限直線を表現します。
 //! パラメータ t は 0 ≤ t < ∞ の範囲で定義されます。
@@ -66,13 +66,13 @@ impl<T: Scalar> Ray2D<T> {
         Self::new(start, direction_vector)
     }
 
-    /// 起点を取得
-    pub fn origin(&self) -> Point2D<T> {
+    /// 起点を取得（内部用）
+    pub(crate) fn origin_internal(&self) -> Point2D<T> {
         self.origin
     }
 
-    /// 方向ベクトルを取得（正規化済み）
-    pub fn direction(&self) -> Direction2D<T> {
+    /// 方向ベクトルを取得（正規化済み、内部用）
+    pub(crate) fn direction_internal(&self) -> Direction2D<T> {
         Direction2D::from_vector(self.direction).unwrap()
     }
 
@@ -275,29 +275,29 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
 /// Ray2DProperties トレイト実装
 impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     fn origin(&self) -> Point2<T> {
-        let origin = self.origin();
+        let origin = self.origin_internal();
         Point2::new(origin.x(), origin.y())
     }
 
     fn direction(&self) -> Vector2<T> {
-        let direction = self.direction();
+        let direction = self.direction_internal();
         Vector2::new(direction.x(), direction.y())
     }
 
     fn origin_x(&self) -> T {
-        self.origin().x()
+        self.origin_internal().x()
     }
 
     fn origin_y(&self) -> T {
-        self.origin().y()
+        self.origin_internal().y()
     }
 
     fn direction_x(&self) -> T {
-        self.direction().x()
+        self.direction_internal().x()
     }
 
     fn direction_y(&self) -> T {
-        self.direction().y()
+        self.direction_internal().y()
     }
 
     fn is_valid(&self) -> bool {
@@ -308,18 +308,18 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     // ========== Phase 2 実装 ==========
 
     fn angle(&self) -> T {
-        let dir = self.direction();
+        let dir = self.direction_internal();
         dir.y().atan2(dir.x())
     }
 
     fn is_horizontal(&self) -> bool {
         use geo_foundation::tolerance_migration::DefaultTolerances;
-        self.direction().y().abs() < DefaultTolerances::distance::<T>()
+        self.direction_internal().y().abs() < DefaultTolerances::distance::<T>()
     }
 
     fn is_vertical(&self) -> bool {
         use geo_foundation::tolerance_migration::DefaultTolerances;
-        self.direction().x().abs() < DefaultTolerances::distance::<T>()
+        self.direction_internal().x().abs() < DefaultTolerances::distance::<T>()
     }
 }
 
@@ -356,14 +356,18 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
 
     fn points_towards(&self, direction: &Vector2<T>) -> bool {
         let target_direction = Vector2D::new(direction.x(), direction.y());
-        let self_direction = Vector2D::new(self.direction().x(), self.direction().y());
+        let self_direction =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         let dot = self_direction.dot(&target_direction);
         dot > T::ZERO
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
-        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
 
         let cross = this_dir.cross(&other_dir);
         use geo_foundation::tolerance_migration::DefaultTolerances;
@@ -371,8 +375,11 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
     }
 
     fn is_same_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
-        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
 
         let cross = this_dir.cross(&other_dir);
         use geo_foundation::tolerance_migration::DefaultTolerances;
@@ -385,8 +392,11 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
     }
 
     fn is_opposite_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
-        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
 
         let cross = this_dir.cross(&other_dir);
         use geo_foundation::tolerance_migration::DefaultTolerances;
@@ -402,9 +412,10 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
     where
         Self: Sized,
     {
-        let direction_vec = Vector2D::new(self.direction().x(), self.direction().y());
+        let direction_vec =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         let reversed_direction = -direction_vec;
-        Ray2D::new(self.origin(), reversed_direction).unwrap()
+        Ray2D::new(self.origin_internal(), reversed_direction).unwrap()
     }
 
     fn translate(&self, offset: Vector2<T>) -> Self
@@ -412,8 +423,9 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         Self: Sized,
     {
         let offset_vector = Vector2D::new(offset.x(), offset.y());
-        let new_origin = self.origin() + offset_vector;
-        let direction_vec = Vector2D::new(self.direction().x(), self.direction().y());
+        let new_origin = self.origin_internal() + offset_vector;
+        let direction_vec =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
 
         Ray2D::new(new_origin, direction_vec).unwrap()
     }
@@ -421,8 +433,11 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
     // ========== Phase 2 実装 ==========
 
     fn intersection_with_ray(&self, other: &Self) -> Option<Point2<T>> {
-        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
-        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
 
         let cross = this_dir.cross(&other_dir);
         use geo_foundation::tolerance_migration::DefaultTolerances;
@@ -430,7 +445,7 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
             return None; // 平行または一致
         }
 
-        let diff = other.origin() - self.origin();
+        let diff = other.origin_internal() - self.origin_internal();
         let diff_vec = Vector2D::new(diff.x(), diff.y());
         let t = diff_vec.cross(&other_dir) / cross;
 
@@ -449,8 +464,11 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
     }
 
     fn angle_between(&self, other: &Self) -> T {
-        let this_dir = Vector2D::new(self.direction().x(), self.direction().y());
-        let other_dir = Vector2D::new(other.direction().x(), other.direction().y());
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
         let dot = this_dir.dot(&other_dir);
         dot.acos()
     }
@@ -462,14 +480,14 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
 
-        let origin = self.origin();
+        let origin = self.origin_internal();
         let ox = origin.x();
         let oy = origin.y();
         let new_ox = ox * cos_a - oy * sin_a;
         let new_oy = ox * sin_a + oy * cos_a;
         let new_origin = Point2D::new(new_ox, new_oy);
 
-        let dir = self.direction();
+        let dir = self.direction_internal();
         let dx = dir.x();
         let dy = dir.y();
         let new_dx = dx * cos_a - dy * sin_a;

@@ -155,29 +155,30 @@ impl<T: Scalar> SphericalSurface3D<T> {
     // ========================================================================
 
     /// 球の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// 参照軸方向を取得（正規化済み）
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
     /// 参照方向を取得（正規化済み、X軸相当）
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// Y軸方向を計算（axis × ref_direction）
-    pub fn y_axis(&self) -> Direction3D<T> {
+    #[allow(dead_code)]
+    pub(crate) fn y_axis_internal(&self) -> Direction3D<T> {
         let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector)
             .expect("Y-axis calculation should always succeed with orthogonal axes")
     }
 
     /// 球の半径を取得
-    pub fn radius(&self) -> T {
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
@@ -207,7 +208,7 @@ impl<T: Scalar> SphericalSurface3D<T> {
         let cos_v = v.cos();
 
         let x_component = self.ref_direction.as_vector() * (self.radius * sin_u * cos_v);
-        let y_component = self.y_axis().as_vector() * (self.radius * sin_u * sin_v);
+        let y_component = self.y_axis_internal().as_vector() * (self.radius * sin_u * sin_v);
         let z_component = self.axis.as_vector() * (self.radius * cos_u);
 
         let local_point = x_component + y_component + z_component;
@@ -226,7 +227,7 @@ impl<T: Scalar> SphericalSurface3D<T> {
         let cos_v = v.cos();
 
         let x_component = self.ref_direction.as_vector() * (sin_u * cos_v);
-        let y_component = self.y_axis().as_vector() * (sin_u * sin_v);
+        let y_component = self.y_axis_internal().as_vector() * (sin_u * sin_v);
         let z_component = self.axis.as_vector() * cos_u;
 
         let normal_vector = x_component + y_component + z_component;
@@ -313,7 +314,7 @@ impl<T: Scalar> SphericalSurface3D<T> {
 
         // ワールド座標系に変換
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis().as_vector();
+        let y_axis = self.y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         Point3D::new(
@@ -423,27 +424,26 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
 
 impl<T: Scalar> SphericalSurface3DProperties<T> for SphericalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
+        let c = self.center_internal();
+        (c.x(), c.y(), c.z())
     }
 
     fn radius(&self) -> T {
-        self.radius
+        self.radius_internal()
     }
 
     fn axis(&self) -> (T, T, T) {
-        (self.axis.x(), self.axis.y(), self.axis.z())
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        (
-            self.ref_direction.x(),
-            self.ref_direction.y(),
-            self.ref_direction.z(),
-        )
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
     }
 
     fn diameter(&self) -> T {
-        self.diameter()
+        self.radius_internal() * T::from_f64(2.0)
     }
 }
 

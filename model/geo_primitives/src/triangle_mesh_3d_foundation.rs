@@ -1,29 +1,15 @@
 //! TriangleMesh3D の Foundation トレイト実装
 
 use crate::{BBox3D, TriangleMesh3D};
-use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for TriangleMesh3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Mesh
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        if let Some((min_point, max_point)) = self.bounding_box() {
-            BBox3D::new(min_point, max_point)
-        } else {
-            // 空のメッシュの場合は原点のバウンディングボックス
-            let origin = crate::Point3D::new(T::ZERO, T::ZERO, T::ZERO);
-            BBox3D::new(origin, origin)
-        }
     }
 
     fn measure(&self) -> Option<T> {
@@ -46,6 +32,19 @@ impl<T: Scalar> ExtensionFoundation<T> for TriangleMesh3D<T> {
         }
 
         Some(total_area)
+    }
+}
+
+impl<T: Scalar> Bounded<T> for TriangleMesh3D<T> {
+    type Aabb = BBox3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        if let Some((min_point, max_point)) = self.bounding_box() {
+            Some(BBox3D::new(min_point, max_point))
+        } else {
+            // 空のメッシュの場合は None
+            None
+        }
     }
 }
 
@@ -88,9 +87,9 @@ mod tests {
         assert!(mesh.measure().is_some());
         // measure()はsurface_area()の代替実装
 
-        if let Some((min_pt, max_pt)) = mesh.bounding_box() {
-            assert_eq!(min_pt.x(), 0.0);
-            assert_eq!(max_pt.x(), 1.0);
+        if let Some(bbox) = mesh.aabb() {
+            assert_eq!(bbox.min().x(), 0.0);
+            assert_eq!(bbox.max().x(), 1.0);
         }
     }
 

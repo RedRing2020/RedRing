@@ -60,24 +60,19 @@ impl<T: Scalar> Triangle3D<T> {
     // Core Accessor Methods
     // ========================================================================
 
-    /// 頂点Aを取得
-    pub fn vertex_a(&self) -> Point3D<T> {
+    /// 頂点Aを取得（内部用）
+    pub(crate) fn vertex_a_internal(&self) -> Point3D<T> {
         self.vertex_a
     }
 
-    /// 頂点Bを取得
-    pub fn vertex_b(&self) -> Point3D<T> {
+    /// 頂点Bを取得（内部用）
+    pub(crate) fn vertex_b_internal(&self) -> Point3D<T> {
         self.vertex_b
     }
 
-    /// 頂点Cを取得
-    pub fn vertex_c(&self) -> Point3D<T> {
+    /// 頂点Cを取得（内部用）
+    pub(crate) fn vertex_c_internal(&self) -> Point3D<T> {
         self.vertex_c
-    }
-
-    /// 全頂点を配列として取得
-    pub fn vertices(&self) -> [Point3D<T>; 3] {
-        [self.vertex_a, self.vertex_b, self.vertex_c]
     }
 
     // ========================================================================
@@ -380,17 +375,17 @@ impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
 
 impl<T: Scalar> Triangle3DProperties<T> for Triangle3D<T> {
     fn vertex_a(&self) -> (T, T, T) {
-        let p = self.vertex_a();
+        let p = self.vertex_a_internal();
         (p.x(), p.y(), p.z())
     }
 
     fn vertex_b(&self) -> (T, T, T) {
-        let p = self.vertex_b();
+        let p = self.vertex_b_internal();
         (p.x(), p.y(), p.z())
     }
 
     fn vertex_c(&self) -> (T, T, T) {
-        let p = self.vertex_c();
+        let p = self.vertex_c_internal();
         (p.x(), p.y(), p.z())
     }
 

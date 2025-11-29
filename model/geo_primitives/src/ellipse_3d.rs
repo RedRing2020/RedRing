@@ -82,13 +82,13 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 3D円から楕円を作成
     pub fn from_circle(circle: &Circle3D<T>) -> Option<Self> {
-        let normal_dir = circle.normal();
-        let u_axis_dir = circle.u_axis();
+        let normal_dir = circle.normal_internal();
+        let u_axis_dir = circle.ref_direction_internal();
 
         Some(Self {
-            center: circle.center(),
-            semi_major_axis: circle.radius(),
-            semi_minor_axis: circle.radius(),
+            center: circle.center_internal(),
+            semi_major_axis: circle.radius_internal(),
+            semi_minor_axis: circle.radius_internal(),
             normal: normal_dir,
             major_axis_dir: u_axis_dir,
         })

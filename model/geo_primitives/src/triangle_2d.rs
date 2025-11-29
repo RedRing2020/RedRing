@@ -89,24 +89,19 @@ impl<T: Scalar> Triangle2D<T> {
     // Core Accessor Methods
     // ========================================================================
 
-    /// 頂点A取得
-    pub fn vertex_a(&self) -> Point2D<T> {
+    /// 頂点A取得（内部用）
+    pub(crate) fn vertex_a_internal(&self) -> Point2D<T> {
         self.vertex_a
     }
 
-    /// 頂点B取得
-    pub fn vertex_b(&self) -> Point2D<T> {
+    /// 頂点B取得（内部用）
+    pub(crate) fn vertex_b_internal(&self) -> Point2D<T> {
         self.vertex_b
     }
 
-    /// 頂点C取得
-    pub fn vertex_c(&self) -> Point2D<T> {
+    /// 頂点C取得（内部用）
+    pub(crate) fn vertex_c_internal(&self) -> Point2D<T> {
         self.vertex_c
-    }
-
-    /// 頂点配列として取得
-    pub fn vertices(&self) -> [Point2D<T>; 3] {
-        [self.vertex_a, self.vertex_b, self.vertex_c]
     }
 
     // ========================================================================
@@ -350,17 +345,17 @@ impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
 
 impl<T: Scalar> Triangle2DProperties<T> for Triangle2D<T> {
     fn vertex_a(&self) -> (T, T) {
-        let p = self.vertex_a();
+        let p = self.vertex_a_internal();
         (p.x(), p.y())
     }
 
     fn vertex_b(&self) -> (T, T) {
-        let p = self.vertex_b();
+        let p = self.vertex_b_internal();
         (p.x(), p.y())
     }
 
     fn vertex_c(&self) -> (T, T) {
-        let p = self.vertex_c();
+        let p = self.vertex_c_internal();
         (p.x(), p.y())
     }
 

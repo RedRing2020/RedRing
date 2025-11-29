@@ -202,18 +202,19 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSolid3D<T> {
     /// 平行移動
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 原点のみ平行移動、他の属性は不変
+        let origin = self.origin_internal();
         let new_origin = Point3D::new(
-            self.origin().x() + translation.x(),
-            self.origin().y() + translation.y(),
-            self.origin().z() + translation.z(),
+            origin.x() + translation.x(),
+            origin.y() + translation.y(),
+            origin.z() + translation.z(),
         );
 
         TorusSolid3D::new(
             new_origin,
-            *self.z_axis(),
-            *self.x_axis(),
-            self.major_radius(),
-            self.minor_radius(),
+            *self.z_axis_internal(),
+            *self.x_axis_internal(),
+            self.major_radius_internal(),
+            self.minor_radius_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -225,7 +226,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSolid3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(center.origin(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(center.origin_internal(), axis, angle)?;;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -237,7 +238,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSolid3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(center.origin(), scale_x, scale_y, scale_z)?;
+        let matrix = analysis_transform::scale_matrix(center.origin_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 

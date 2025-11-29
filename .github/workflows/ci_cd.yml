@@ -59,6 +59,16 @@ jobs:
         if: matrix.feature-set == 'default' || matrix.feature-set == 'strict'
         run: cargo fmt -- --check
 
+  architecture-dependency-check:
+    name: Architecture Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Architecture Dependency Check
+        shell: pwsh
+        run: |
+          .\scripts\check_architecture_dependencies_simple.ps1 -ExitOnError
+
   foundation-architecture-scan:
     name: Foundation Architecture Compliance Scan
     runs-on: ubuntu-latest
@@ -160,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     # Deploy documentation to GitHub Pages (mainブランチのみ)
     if: github.ref == 'refs/heads/main'
-    needs: [build-test, foundation-architecture-scan]
+    needs: [build-test, architecture-dependency-check, foundation-architecture-scan]
 
     # GitHub Pages環境の指定（必須）
     environment:

@@ -2,7 +2,6 @@
 // STEP AP214 準拠のトーラス固体実装
 //
 // トーラス固体は主半径（major_radius）と副半径（minor_radius）を持つ回転固体です。
-// 3D CAM での固体加工計算において必須の幾何要素です。
 //
 // STEP エンティティ: TORUS + AXIS2_PLACEMENT_3D
 // 固体としての体積と表面を持ちます。
@@ -103,24 +102,24 @@ impl<T: Scalar> TorusSolid3D<T> {
     }
 
     // アクセサメソッド
-    pub fn origin(&self) -> &Point3D<T> {
+    pub(crate) fn origin_internal(&self) -> &Point3D<T> {
         &self.origin
     }
-    pub fn z_axis(&self) -> &Direction3D<T> {
+    pub(crate) fn z_axis_internal(&self) -> &Direction3D<T> {
         &self.z_axis
     }
-    pub fn x_axis(&self) -> &Direction3D<T> {
+    pub(crate) fn x_axis_internal(&self) -> &Direction3D<T> {
         &self.x_axis
     }
-    pub fn major_radius(&self) -> T {
+    pub(crate) fn major_radius_internal(&self) -> T {
         self.major_radius
     }
-    pub fn minor_radius(&self) -> T {
+    pub(crate) fn minor_radius_internal(&self) -> T {
         self.minor_radius
     }
 
     /// Y軸方向を計算（右手座標系）
-    pub fn y_axis(&self) -> Direction3D<T> {
+    pub(crate) fn y_axis_internal(&self) -> Direction3D<T> {
         let y_vec = Vector3D::new(
             self.z_axis.y() * self.x_axis.z() - self.z_axis.z() * self.x_axis.y(),
             self.z_axis.z() * self.x_axis.x() - self.z_axis.x() * self.x_axis.z(),
@@ -147,7 +146,8 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// 体積を計算
     ///
     /// トーラス固体の体積 = 2π²R²r (R=主半径, r=副半径)
-    pub fn volume(&self) -> T {
+    #[allow(dead_code)]
+    pub(crate) fn volume_internal(&self) -> T {
         let two = T::from_f64(2.0);
         let pi_squared = T::from_f64(PI * PI);
 
@@ -157,7 +157,8 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// 表面積を計算
     ///
     /// トーラス固体の表面積 = 4π²Rr (R=主半径, r=副半径)
-    pub fn surface_area(&self) -> T {
+    #[allow(dead_code)]
+    pub(crate) fn surface_area_internal(&self) -> T {
         let four = T::from_f64(4.0);
         let pi_squared = T::from_f64(PI * PI);
 
@@ -190,7 +191,7 @@ impl<T: Scalar> TorusSolid3D<T> {
             + relative.y() * self.x_axis.y()
             + relative.z() * self.x_axis.z();
 
-        let y_axis = self.y_axis();
+        let y_axis = self.y_axis_internal();
         let y_component =
             relative.x() * y_axis.x() + relative.y() * y_axis.y() + relative.z() * y_axis.z();
 
@@ -244,40 +245,40 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
 
 impl<T: Scalar> TorusSolid3DProperties<T> for TorusSolid3D<T> {
     fn center(&self) -> (T, T, T) {
-        let o = self.origin();
+        let o = self.origin_internal();
         (o.x(), o.y(), o.z())
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.z_axis();
+        let a = self.z_axis_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.x_axis();
+        let r = self.x_axis_internal();
         (r.x(), r.y(), r.z())
     }
 
     fn major_radius(&self) -> T {
-        self.major_radius()
+        self.major_radius_internal()
     }
 
     fn minor_radius(&self) -> T {
-        self.minor_radius()
+        self.minor_radius_internal()
     }
 
     fn tube_diameter(&self) -> T {
-        self.minor_radius() * T::from_f64(2.0)
+        self.minor_radius_internal() * T::from_f64(2.0)
     }
 }
 
 impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
     fn volume(&self) -> T {
-        self.volume()
+        self.volume_internal()
     }
 
     fn surface_area(&self) -> T {
-        self.surface_area()
+        self.surface_area_internal()
     }
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
@@ -288,17 +289,18 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         // 簡易実装: トーラス表面への最短距離の近似計算
-        let local = p - *self.origin();
-        let z_component = local.dot(&self.z_axis().as_vector());
-        let radial_vector = local - (self.z_axis().as_vector() * z_component);
+        let local = p - *self.origin_internal();
+        let z_axis = self.z_axis_internal();
+        let z_component = local.dot(&z_axis.as_vector());
+        let radial_vector = local - (z_axis.as_vector() * z_component);
         let radial_distance = (radial_vector.x() * radial_vector.x()
             + radial_vector.y() * radial_vector.y()
             + radial_vector.z() * radial_vector.z())
         .sqrt();
-        let torus_center_distance = (radial_distance - self.major_radius()).abs();
+        let torus_center_distance = (radial_distance - self.major_radius_internal()).abs();
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
-        (cross_section_distance - self.minor_radius()).abs()
+        (cross_section_distance - self.minor_radius_internal()).abs()
     }
 }
 

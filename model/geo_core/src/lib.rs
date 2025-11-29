@@ -1,24 +1,25 @@
 //! geo_core - 幾何計算基盤クレート
 //!
-//! Foundation パターンにおける高度な幾何演算を提供します。
-//! 交差判定、衝突検出、複数プリミティブ間の演算など。
+//! Foundation パターンにおける共通幾何型とトレイト実装を提供します。
+//! AABB（軸平行境界ボックス）などの基本幾何型を実装。
 //!
 //! ## 主要機能
-//! - **intersections**: 交差判定・交線計算
-//! - **collisions**: 衝突検出・距離計算
-//! - **operations**: 複数プリミティブ間の演算
+//! - **aabb2d/aabb3d**: 軸平行境界ボックス（AABB）実装
+//! - **intersections**: 交差判定・交線計算（予定）
+//! - **collisions**: 衝突検出・距離計算（予定）
 //!
 //! ## Foundation パターンでの役割
 //! ```text
-//! geo_algorithms → geo_core (高度な幾何演算)
+//! geo_foundation → geo_core → geo_primitives, geo_nurbs
 //! ```
 //!
 //! ---
 //! © RedRing Project
 
-// 基本的な共通計算機能はgeo_commonsに移動
-// 高度な幾何演算のみここで実装予定
+// AABB型実装
+pub mod aabb_2d;
+pub mod aabb_3d;
 
-// テストモジュール
-#[cfg(test)]
-mod unit_tests;
+// 公開API
+pub use aabb_2d::Aabb2D;
+pub use aabb_3d::Aabb3D;

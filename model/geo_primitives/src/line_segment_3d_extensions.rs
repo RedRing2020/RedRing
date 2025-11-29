@@ -91,8 +91,8 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点を線分に投影
     pub fn project_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        let to_point = Vector3D::from_points(&self.line().point(), point);
-        let t = to_point.dot(&self.line().direction());
+        let to_point = Vector3D::from_points(&self.line().point_internal(), point);
+        let t = to_point.dot(&self.line().direction_internal());
 
         // パラメータを線分の範囲内に制限
         let clamped_param = if t < self.start_param() {
@@ -108,8 +108,8 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 線分上で点に最も近い点のパラメータを取得
     pub fn closest_parameter(&self, point: &Point3D<T>) -> T {
-        let to_point = Vector3D::from_points(&self.line().point(), point);
-        let line_param = to_point.dot(&self.line().direction());
+        let to_point = Vector3D::from_points(&self.line().point_internal(), point);
+        let line_param = to_point.dot(&self.line().direction_internal());
 
         // 線分のパラメータ範囲に正規化
         if line_param < self.start_param() {

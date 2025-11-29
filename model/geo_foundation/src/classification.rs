@@ -13,6 +13,8 @@ pub enum PrimitiveKind {
     PolyLine,
     BezierCurve,
     NurbsCurve,
+    NurbsCurve2D,
+    NurbsCurve3D,
     Arc,
     Ray,
 
@@ -39,6 +41,7 @@ pub enum PrimitiveKind {
     Plane,
     TriangleMesh,
     NurbsSurface,
+    NurbsSurface3D,
 
     // 複合要素
     Group,
@@ -69,6 +72,8 @@ impl PrimitiveKind {
             | PrimitiveKind::PolyLine
             | PrimitiveKind::BezierCurve
             | PrimitiveKind::NurbsCurve
+            | PrimitiveKind::NurbsCurve2D
+            | PrimitiveKind::NurbsCurve3D
             | PrimitiveKind::Arc
             | PrimitiveKind::Ray => DimensionClass::One,
 
@@ -82,7 +87,8 @@ impl PrimitiveKind {
             | PrimitiveKind::SphericalSurface    // 球サーフェスは2次元
             | PrimitiveKind::ConicalSurface      // 円錐サーフェスは2次元
             | PrimitiveKind::TorusSurface        // トーラスサーフェスは2次元
-            | PrimitiveKind::NurbsSurface => DimensionClass::Two,
+            | PrimitiveKind::NurbsSurface
+            | PrimitiveKind::NurbsSurface3D => DimensionClass::Two,
 
             PrimitiveKind::Sphere
             | PrimitiveKind::SphericalSolid     // 新式球ソリッド

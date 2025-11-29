@@ -41,15 +41,15 @@ impl<T: Scalar> Circle3D<T> {
 
         // 円上の点 = 中心 + radius * (x * u + y * v)
         let offset = Vector3D::new(
-            self.radius() * (x * u.x() + y * v.x()),
-            self.radius() * (x * u.y() + y * v.y()),
-            self.radius() * (x * u.z() + y * v.z()),
+            self.radius_internal() * (x * u.x() + y * v.x()),
+            self.radius_internal() * (x * u.y() + y * v.y()),
+            self.radius_internal() * (x * u.z() + y * v.z()),
         );
 
         Point3D::new(
-            self.center().x() + offset.x(),
-            self.center().y() + offset.y(),
-            self.center().z() + offset.z(),
+            self.center_internal().x() + offset.x(),
+            self.center_internal().y() + offset.y(),
+            self.center_internal().z() + offset.z(),
         )
     }
 
@@ -57,34 +57,34 @@ impl<T: Scalar> Circle3D<T> {
     /// 法線ベクトルに垂直な正規直交基底
     pub fn get_plane_basis(&self) -> (Vector3D<T>, Vector3D<T>) {
         // Z軸方向の法線の場合は特別扱い（XY平面）
-        if (self.normal().z() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
+        if (self.normal_internal().z() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
             // XY平面：X軸とY軸を使用
             return (Vector3D::unit_x(), Vector3D::unit_y());
         }
 
         // Y軸方向の法線の場合（XZ平面）
-        if (self.normal().y() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
+        if (self.normal_internal().y() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
             return (Vector3D::unit_x(), Vector3D::unit_z());
         }
 
         // X軸方向の法線の場合（YZ平面）
-        if (self.normal().x() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
+        if (self.normal_internal().x() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
             return (Vector3D::unit_y(), Vector3D::unit_z());
         }
 
         // 一般的な場合：Gram-Schmidt 過程で正規直交基底を作成
-        let temp = if self.normal().z().abs() < DefaultTolerances::distance::<T>() {
+        let temp = if self.normal_internal().z().abs() < DefaultTolerances::distance::<T>() {
             Vector3D::unit_z()
         } else {
             Vector3D::unit_x()
         };
 
         // 第一基底ベクトル: normal × temp を正規化
-        let first_unnormalized = self.normal().as_vector().cross(&temp);
+        let first_unnormalized = self.normal_internal().as_vector().cross(&temp);
         let first = first_unnormalized.normalize();
 
         // 第二基底ベクトル: normal × first
-        let second = self.normal().as_vector().cross(&first);
+        let second = self.normal_internal().as_vector().cross(&first);
 
         (first, second)
     }
@@ -98,8 +98,10 @@ impl<T: Scalar> Circle3D<T> {
     /// # 戻り値
     /// 点が円の平面上にある場合は `true`
     pub fn point_on_plane(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        let center_to_point = Vector3D::from_points(&self.center(), point);
-        let distance_to_plane = center_to_point.dot(&self.normal().as_vector()).abs();
+        let center_to_point = Vector3D::from_points(&self.center_internal(), point);
+        let distance_to_plane = center_to_point
+            .dot(&self.normal_internal().as_vector())
+            .abs();
         distance_to_plane <= tolerance
     }
 
@@ -111,7 +113,7 @@ impl<T: Scalar> Circle3D<T> {
     /// # 戻り値
     /// 3D空間での直線距離
     pub fn distance_to_center(&self, point: &Point3D<T>) -> T {
-        self.center().distance_to(point)
+        self.center_internal().distance_to(point)
     }
 
     /// 点から円への最短距離
@@ -123,18 +125,18 @@ impl<T: Scalar> Circle3D<T> {
     /// 点から円周上の最近点への3D距離
     pub fn distance_to_circle(&self, point: &Point3D<T>) -> T {
         // 点を円の平面に投影
-        let center_to_point = Vector3D::from_points(&self.center(), point);
-        let plane_distance = center_to_point.dot(&self.normal().as_vector());
+        let center_to_point = Vector3D::from_points(&self.center_internal(), point);
+        let plane_distance = center_to_point.dot(&self.normal_internal().as_vector());
 
         // 平面上での投影点
         let projected_offset = Vector3D::new(
-            center_to_point.x() - plane_distance * self.normal().x(),
-            center_to_point.y() - plane_distance * self.normal().y(),
-            center_to_point.z() - plane_distance * self.normal().z(),
+            center_to_point.x() - plane_distance * self.normal_internal().x(),
+            center_to_point.y() - plane_distance * self.normal_internal().y(),
+            center_to_point.z() - plane_distance * self.normal_internal().z(),
         );
 
         let radial_distance = projected_offset.length();
-        let circle_distance = (radial_distance - self.radius()).abs();
+        let circle_distance = (radial_distance - self.radius_internal()).abs();
 
         // 3D距離 = √(平面距離² + 円距離²)
         (plane_distance * plane_distance + circle_distance * circle_distance).sqrt()
@@ -182,11 +184,11 @@ impl<T: Scalar> Circle3D<T> {
     /// 平面の方程式: (法線ベクトル, 平面上の点からの距離)
     /// ax + by + cz + d = 0 の形で、(a, b, c) = 法線ベクトル、d = -法線·中心点
     pub fn plane_equation(&self) -> (Vector3D<T>, T) {
-        let normal = self.normal().as_vector();
+        let normal = self.normal_internal().as_vector();
         let d = -normal.dot(&Vector3D::new(
-            self.center().x(),
-            self.center().y(),
-            self.center().z(),
+            self.center_internal().x(),
+            self.center_internal().y(),
+            self.center_internal().z(),
         ));
         (normal, d)
     }
@@ -219,14 +221,14 @@ impl<T: Scalar> Circle3D<T> {
     /// # 戻り値
     /// 円周上の最近点
     pub fn closest_point_on_circle(&self, point: &Point3D<T>) -> Point3D<T> {
-        let center_to_point = Vector3D::from_points(&self.center(), point);
-        let plane_distance = center_to_point.dot(&self.normal().as_vector());
+        let center_to_point = Vector3D::from_points(&self.center_internal(), point);
+        let plane_distance = center_to_point.dot(&self.normal_internal().as_vector());
 
         // 平面上での投影点への方向
         let projected_direction = Vector3D::new(
-            center_to_point.x() - plane_distance * self.normal().x(),
-            center_to_point.y() - plane_distance * self.normal().y(),
-            center_to_point.z() - plane_distance * self.normal().z(),
+            center_to_point.x() - plane_distance * self.normal_internal().x(),
+            center_to_point.y() - plane_distance * self.normal_internal().y(),
+            center_to_point.z() - plane_distance * self.normal_internal().z(),
         );
 
         let radial_distance = projected_direction.length();
@@ -240,9 +242,9 @@ impl<T: Scalar> Circle3D<T> {
 
         // 円周上の最近点
         Point3D::new(
-            self.center().x() + self.radius() * normalized_direction.x(),
-            self.center().y() + self.radius() * normalized_direction.y(),
-            self.center().z() + self.radius() * normalized_direction.z(),
+            self.center_internal().x() + self.radius_internal() * normalized_direction.x(),
+            self.center_internal().y() + self.radius_internal() * normalized_direction.y(),
+            self.center_internal().z() + self.radius_internal() * normalized_direction.z(),
         )
     }
 }

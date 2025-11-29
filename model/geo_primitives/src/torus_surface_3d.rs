@@ -2,7 +2,6 @@
 // STEP AP214 準拠のトーラス面実装
 //
 // トーラス面は主半径（major_radius）と副半径（minor_radius）を持つ回転面です。
-// 3D CAM での工具オフセット計算において必須の幾何要素です。
 //
 // STEP エンティティ: TOROIDAL_SURFACE + AXIS2_PLACEMENT_3D
 // パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]
@@ -87,22 +86,22 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 原点を取得
-    pub fn origin(&self) -> Point3D<T> {
+    pub(crate) fn origin_internal(&self) -> Point3D<T> {
         self.origin
     }
 
     /// Z軸方向を取得
-    pub fn z_axis(&self) -> Direction3D<T> {
+    pub(crate) fn z_axis_internal(&self) -> Direction3D<T> {
         self.z_axis
     }
 
     /// X軸方向を取得
-    pub fn x_axis(&self) -> Direction3D<T> {
+    pub(crate) fn x_axis_internal(&self) -> Direction3D<T> {
         self.x_axis
     }
 
     /// Y軸方向を計算（右手座標系）
-    pub fn y_axis(&self) -> Direction3D<T> {
+    pub(crate) fn y_axis_internal(&self) -> Direction3D<T> {
         let z_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
         let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
         let y_vec = z_vec.cross(&x_vec);
@@ -112,12 +111,12 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 主半径を取得
-    pub fn major_radius(&self) -> T {
+    pub(crate) fn major_radius_internal(&self) -> T {
         self.major_radius
     }
 
     /// 副半径を取得
-    pub fn minor_radius(&self) -> T {
+    pub(crate) fn minor_radius_internal(&self) -> T {
         self.minor_radius
     }
 
@@ -138,7 +137,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         let cos_v = v.cos();
         let sin_v = v.sin();
 
-        let y_axis = self.y_axis();
+        let y_axis = self.y_axis_internal();
 
         // 管の中心を計算
         let radius_at_v = self.major_radius + self.minor_radius * cos_v;
@@ -173,7 +172,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         let cos_v = v.cos();
         let sin_v = v.sin();
 
-        let y_axis = self.y_axis();
+        let y_axis = self.y_axis_internal();
 
         // 法線ベクトルの計算（外向き法線）
         let radial_component = cos_v;
@@ -283,30 +282,30 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
 
 impl<T: Scalar> TorusSurface3DProperties<T> for TorusSurface3D<T> {
     fn center(&self) -> (T, T, T) {
-        let o = self.origin();
+        let o = self.origin_internal();
         (o.x(), o.y(), o.z())
     }
 
     fn axis(&self) -> (T, T, T) {
-        let a = self.z_axis();
+        let a = self.z_axis_internal();
         (a.x(), a.y(), a.z())
     }
 
     fn ref_direction(&self) -> (T, T, T) {
-        let r = self.x_axis();
+        let r = self.x_axis_internal();
         (r.x(), r.y(), r.z())
     }
 
     fn major_radius(&self) -> T {
-        self.major_radius()
+        self.major_radius_internal()
     }
 
     fn minor_radius(&self) -> T {
-        self.minor_radius()
+        self.minor_radius_internal()
     }
 
     fn tube_diameter(&self) -> T {
-        self.minor_radius() * T::from_f64(2.0)
+        self.minor_radius_internal() * T::from_f64(2.0)
     }
 }
 
@@ -327,21 +326,21 @@ impl<T: Scalar> TorusSurface3DMeasure<T> for TorusSurface3D<T> {
         let cos_v = v.cos();
         let sin_v = v.sin();
 
-        let y_axis = self.y_axis();
-        let radius_at_v = self.major_radius() + self.minor_radius() * cos_v;
+        let y_axis = self.y_axis_internal();
+        let radius_at_v = self.major_radius_internal() + self.minor_radius_internal() * cos_v;
 
         let x_component = radius_at_v * cos_u;
         let y_component = radius_at_v * sin_u;
-        let z_component = self.minor_radius() * sin_v;
+        let z_component = self.minor_radius_internal() * sin_v;
 
-        let x_contrib =
-            Vector3D::new(self.x_axis().x(), self.x_axis().y(), self.x_axis().z()) * x_component;
+        let x_axis = self.x_axis_internal();
+        let z_axis = self.z_axis_internal();
+        let x_contrib = Vector3D::new(x_axis.x(), x_axis.y(), x_axis.z()) * x_component;
         let y_contrib = Vector3D::new(y_axis.x(), y_axis.y(), y_axis.z()) * y_component;
-        let z_contrib =
-            Vector3D::new(self.z_axis().x(), self.z_axis().y(), self.z_axis().z()) * z_component;
+        let z_contrib = Vector3D::new(z_axis.x(), z_axis.y(), z_axis.z()) * z_component;
 
         let total_offset = x_contrib + y_contrib + z_contrib;
-        let origin = self.origin();
+        let origin = self.origin_internal();
 
         (
             origin.x() + total_offset.x(),
@@ -353,17 +352,19 @@ impl<T: Scalar> TorusSurface3DMeasure<T> for TorusSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         // 簡易実装: トーラス表面への最短距離の近似計算
-        let local = p - self.origin();
-        let z_component = local.dot(&self.z_axis().as_vector());
-        let radial_vector = local - (self.z_axis().as_vector() * z_component);
+        let origin = self.origin_internal();
+        let local = p - origin;
+        let z_axis = self.z_axis_internal();
+        let z_component = local.dot(&z_axis.as_vector());
+        let radial_vector = local - (z_axis.as_vector() * z_component);
         let radial_distance = (radial_vector.x() * radial_vector.x()
             + radial_vector.y() * radial_vector.y()
             + radial_vector.z() * radial_vector.z())
         .sqrt();
-        let torus_center_distance = (radial_distance - self.major_radius()).abs();
+        let torus_center_distance = (radial_distance - self.major_radius_internal()).abs();
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
-        (cross_section_distance - self.minor_radius()).abs()
+        (cross_section_distance - self.minor_radius_internal()).abs()
     }
 }
 

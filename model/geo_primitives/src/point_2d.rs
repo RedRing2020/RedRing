@@ -167,15 +167,6 @@ impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> CoreFoundation<T> for Point2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = crate::BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        crate::BBox2D::from_point(*self)
-    }
-}
 
 impl<T: Scalar> BasicContainment<T> for Point2D<T> {
     fn contains_point(&self, point: &Self::Point) -> bool {

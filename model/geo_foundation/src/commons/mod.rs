@@ -1,8 +1,11 @@
-//! geo_foundation commons - 共通計算トレイト
-//!
-//! geo_commons クレートで使用される共通計算トレイトを定義します。
-//! Foundation Pattern において、具体的な計算実装とトレイト定義を分離する役割を担います。
-
+mod aabb_2d_trait;
+mod aabb_3d_trait;
+pub use aabb_2d_trait::Aabb2DTrait;
+pub use aabb_3d_trait::Aabb3DTrait;
+/// geo_foundation commons - 共通計算トレイト
+///
+/// geo_commons クレートで使用される共通計算トレイトを定義します。
+/// Foundation Pattern において、具体的な計算実装とトレイト定義を分離する役割を担います。
 pub mod ellipse_calculation_traits;
 
 // 便利な再エクスポート

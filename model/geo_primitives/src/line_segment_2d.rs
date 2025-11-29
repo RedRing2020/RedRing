@@ -89,9 +89,9 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 方向ベクトルを取得（正規化済み）
     pub fn direction(&self) -> Vector2D<T> {
         if self.end_param >= self.start_param {
-            *self.line.direction()
+            *self.line.direction_internal()
         } else {
-            (*self.line.direction()).negate()
+            (*self.line.direction_internal()).negate()
         }
     }
 

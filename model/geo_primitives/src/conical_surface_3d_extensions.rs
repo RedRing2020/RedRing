@@ -19,14 +19,14 @@ impl<T: Scalar> ConicalSurface3D<T> {
     pub fn closest_point_to(&self, point: &Point3D<T>) -> (Point3D<T>, (T, T), T) {
         // 簡略実装：軸方向を固定して放射方向の最短点を求める
         let relative = Vector3D::new(
-            point.x() - self.center().x(),
-            point.y() - self.center().y(),
-            point.z() - self.center().z(),
+            point.x() - self.center_internal().x(),
+            point.y() - self.center_internal().y(),
+            point.z() - self.center_internal().z(),
         );
 
-        let z_axis = self.axis().as_vector();
-        let x_axis = self.ref_direction().as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let z_axis = self.axis_internal().as_vector();
+        let x_axis = self.ref_direction_internal().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
 
         // 軸方向成分
         let v = relative.x() * z_axis.x() + relative.y() * z_axis.y() + relative.z() * z_axis.z();
@@ -63,10 +63,10 @@ impl<T: Scalar> ConicalSurface3D<T> {
     pub fn du_vector(&self, u: T, v: T) -> Vector3D<T> {
         let sin_u = u.sin();
         let cos_u = u.cos();
-        let r_at_v = self.radius_at_v(v);
+        let r_at_v = self.radius_at_v_internal(v);
 
-        let x_axis = self.ref_direction().as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let x_axis = self.ref_direction_internal().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
 
         Vector3D::new(
             r_at_v * (-sin_u * x_axis.x() + cos_u * y_axis.x()),
@@ -86,11 +86,11 @@ impl<T: Scalar> ConicalSurface3D<T> {
     pub fn dv_vector(&self, u: T, _v: T) -> Vector3D<T> {
         let cos_u = u.cos();
         let sin_u = u.sin();
-        let tan_angle = self.semi_angle().tan();
+        let tan_angle = self.semi_angle_internal().tan();
 
-        let x_axis = self.ref_direction().as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
-        let z_axis = self.axis().as_vector();
+        let x_axis = self.ref_direction_internal().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
+        let z_axis = self.axis_internal().as_vector();
 
         // dP/dv = tan(角度) * (cos(u) * X + sin(u) * Y) + Z
         Vector3D::new(
@@ -109,8 +109,8 @@ impl<T: Scalar> ConicalSurface3D<T> {
     /// # Returns
     /// (主曲率1, 主曲率2)
     pub fn principal_curvatures(&self, _u: T, v: T) -> (T, T) {
-        let r_at_v = self.radius_at_v(v);
-        let cos_angle = self.semi_angle().cos();
+        let r_at_v = self.radius_at_v_internal(v);
+        let cos_angle = self.semi_angle_internal().cos();
 
         // 円錐面の主曲率
         // κ1 = 0 (母線方向：直線のため曲率0)
@@ -188,7 +188,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
         plane_normal: &Direction3D<T>,
     ) -> PlaneIntersectionType {
         // 平面と円錐軸の関係を分析
-        let axis_vec = self.axis().as_vector();
+        let axis_vec = self.axis_internal().as_vector();
         let normal_vec = plane_normal.as_vector();
 
         // 軸と平面法線の内積
@@ -197,7 +197,7 @@ impl<T: Scalar> ConicalSurface3D<T> {
             + axis_vec.z() * normal_vec.z();
 
         let cos_axis_normal = dot_product.abs();
-        let cos_semi_angle = self.semi_angle().cos();
+        let cos_semi_angle = self.semi_angle_internal().cos();
 
         if cos_axis_normal > cos_semi_angle {
             PlaneIntersectionType::Ellipse
@@ -219,19 +219,22 @@ impl<T: Scalar> ConicalSurface3D<T> {
         let cos_u = u.cos();
         let sin_u = u.sin();
 
-        let x_axis = self.ref_direction().as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
-        let _z_axis = self.axis().as_vector();
+        let x_axis = self.ref_direction_internal().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
+        let _z_axis = self.axis_internal().as_vector();
 
         // 基準点での放射方向
         let radial_point = Point3D::new(
-            self.center().x() + self.radius() * (cos_u * x_axis.x() + sin_u * y_axis.x()),
-            self.center().y() + self.radius() * (cos_u * x_axis.y() + sin_u * y_axis.y()),
-            self.center().z() + self.radius() * (cos_u * x_axis.z() + sin_u * y_axis.z()),
+            self.center_internal().x()
+                + self.radius_internal() * (cos_u * x_axis.x() + sin_u * y_axis.x()),
+            self.center_internal().y()
+                + self.radius_internal() * (cos_u * x_axis.y() + sin_u * y_axis.y()),
+            self.center_internal().z()
+                + self.radius_internal() * (cos_u * x_axis.z() + sin_u * y_axis.z()),
         );
 
         // 母線の方向：頂点に向かう方向
-        let apex = self.apex();
+        let apex = self.apex_internal();
         let direction_vec = Vector3D::new(
             apex.x() - radial_point.x(),
             apex.y() - radial_point.y(),
@@ -255,15 +258,15 @@ impl<T: Scalar> ConicalSurface3D<T> {
     /// # Returns
     /// (中心点, 軸方向, 半径)
     pub fn cross_section_at_v(&self, v: T) -> (Point3D<T>, Direction3D<T>, T) {
-        let axis_vec = self.axis().as_vector();
+        let axis_vec = self.axis_internal().as_vector();
         let center = Point3D::new(
-            self.center().x() + v * axis_vec.x(),
-            self.center().y() + v * axis_vec.y(),
-            self.center().z() + v * axis_vec.z(),
+            self.center_internal().x() + v * axis_vec.x(),
+            self.center_internal().y() + v * axis_vec.y(),
+            self.center_internal().z() + v * axis_vec.z(),
         );
-        let radius = self.radius_at_v(v);
+        let radius = self.radius_at_v_internal(v);
 
-        (center, self.axis(), radius)
+        (center, self.axis_internal(), radius)
     }
 
     /// 工具径路生成用のパラメータ計算
