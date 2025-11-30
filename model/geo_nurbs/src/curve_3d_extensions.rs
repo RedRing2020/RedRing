@@ -175,9 +175,9 @@ mod tests {
         let bbox = curve.bounding_box_with_options(AabbOptions::Rough);
 
         // 制御点ベースなので、制御点を含む
-        assert_eq!(bbox.min().x(), 0.0);
-        assert_eq!(bbox.max().x(), 2.0);
-        assert_eq!(bbox.max().y(), 2.0); // 制御点(1,2,0)を含む
+        assert!((bbox.min().x() - 0.0).abs() < 1e-10);
+        assert!((bbox.max().x() - 2.0).abs() < 1e-10);
+        assert!((bbox.max().y() - 2.0).abs() < 1e-10); // 制御点(1,2,0)を含む
     }
 
     #[test]

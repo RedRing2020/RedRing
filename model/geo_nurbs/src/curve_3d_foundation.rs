@@ -78,12 +78,12 @@ mod tests {
         let max = bbox.max();
 
         // 境界ボックスは制御点を含む
-        assert_eq!(min.x, 0.0);
-        assert_eq!(min.y, 0.0);
-        assert_eq!(min.z, 0.0);
-        assert_eq!(max.x, 2.0);
-        assert_eq!(max.y, 1.0);
-        assert_eq!(max.z, 0.0);
+        assert!((min.x - 0.0).abs() < 1e-10);
+        assert!((min.y - 0.0).abs() < 1e-10);
+        assert!((min.z - 0.0).abs() < 1e-10);
+        assert!((max.x - 2.0).abs() < 1e-10);
+        assert!((max.y - 1.0).abs() < 1e-10);
+        assert!((max.z - 0.0).abs() < 1e-10);
 
         // 測度（曲線長）の確認
         let length = curve.measure();

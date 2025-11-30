@@ -214,71 +214,6 @@ impl<T: Scalar> geo_foundation::core::arc_traits::ArcMetrics<T> for Arc2D<T> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_arc_creation() {
-        let center = Point2D::new(0.0, 0.0);
-        let radius = 1.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(90.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-        assert_eq!(arc.center(), center);
-        assert_eq!(arc.radius(), radius);
-        assert_eq!(arc.start_angle(), start);
-        assert_eq!(arc.end_angle(), end);
-    }
-
-    #[test]
-    fn test_arc_points() {
-        let center = Point2D::new(1.0, 1.0);
-        let radius = 2.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(90.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-
-        let start_pt = arc.start_point();
-        let end_pt = arc.end_point();
-
-        // 開始点：(center_x + radius, center_y) = (3.0, 1.0)
-        assert!((start_pt.x() - 3.0).abs() < 1e-10);
-        assert!((start_pt.y() - 1.0).abs() < 1e-10);
-
-        // 終了点：(center_x, center_y + radius) = (1.0, 3.0)
-        assert!((end_pt.x() - 1.0).abs() < 1e-10);
-        assert!((end_pt.y() - 3.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_arc_length() {
-        let center = Point2D::new(0.0, 0.0);
-        let radius = 1.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(90.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-
-        // 90度円弧の長さ = π/2
-        let expected_length = std::f64::consts::PI / 2.0;
-        assert!((arc.arc_length() - expected_length).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_full_circle() {
-        let center = Point2D::new(0.0, 0.0);
-        let radius = 1.0;
-        let start = Angle::from_degrees(0.0);
-        let end = Angle::from_degrees(360.0);
-
-        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-        assert!(arc.is_full_circle());
-    }
-}
-
 // ============================================================================
 // Core Traits Implementation (Phase 1)
 // ============================================================================
@@ -511,5 +446,70 @@ impl<T: Scalar> Arc2D<T> {
         } else {
             s <= m || m <= e
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arc_creation() {
+        let center = Point2D::new(0.0, 0.0);
+        let radius = 1.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(90.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+        assert_eq!(arc.center(), center);
+        assert_eq!(arc.radius(), radius);
+        assert_eq!(arc.start_angle(), start);
+        assert_eq!(arc.end_angle(), end);
+    }
+
+    #[test]
+    fn test_arc_points() {
+        let center = Point2D::new(1.0, 1.0);
+        let radius = 2.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(90.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+
+        let start_pt = arc.start_point();
+        let end_pt = arc.end_point();
+
+        // 開始点：(center_x + radius, center_y) = (3.0, 1.0)
+        assert!((start_pt.x() - 3.0).abs() < 1e-10);
+        assert!((start_pt.y() - 1.0).abs() < 1e-10);
+
+        // 終了点：(center_x, center_y + radius) = (1.0, 3.0)
+        assert!((end_pt.x() - 1.0).abs() < 1e-10);
+        assert!((end_pt.y() - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_arc_length() {
+        let center = Point2D::new(0.0, 0.0);
+        let radius = 1.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(90.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+
+        // 90度円弧の長さ = π/2
+        let expected_length = std::f64::consts::PI / 2.0;
+        assert!((arc.arc_length() - expected_length).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_full_circle() {
+        let center = Point2D::new(0.0, 0.0);
+        let radius = 1.0;
+        let start = Angle::from_degrees(0.0);
+        let end = Angle::from_degrees(360.0);
+
+        let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
+        assert!(arc.is_full_circle());
     }
 }
