@@ -89,6 +89,7 @@ redring ← stage ← render
 - **`redring`**: メインアプリケーション - ウィンドウ表示のみ
 
 **現在未実装の主要機能**:
+
 - メニューシステム
 - コマンドパレット
 - ファイル操作（開く/保存）
@@ -97,7 +98,7 @@ redring ← stage ← render
 
 ## 🔄 f64正準化移行について
 
-- **基本方針**: Vector/Point は f64 正準型、測定量は Scalar<T> 維持
+- **基本方針**: Vector/Point は f64 正準型、測定量は Scalar `<T>` 維持
 - **Legacy型**: 全て削除済み、CI で deprecated symbols を deny
 - **詳細履歴**: `MIGRATION_VECTOR_F64.md` を参照
 
