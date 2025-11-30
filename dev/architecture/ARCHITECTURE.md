@@ -27,7 +27,7 @@ analysis → geo_foundation
             ↓
         geo_commons
             ↓
-        geo_core（ブリッジ役）
+        geo_core（低レイヤー・基本型提供）
             ↓    ↓
    geo_primitives  geo_nurbs
 ```
@@ -37,11 +37,17 @@ analysis → geo_foundation
 - **`analysis`**: 数値解析・線形代数・微積分の基盤機能
 - **`geo_foundation`**: 抽象トレイト定義（*_core_traits 等）
 - **`geo_commons`**: 共通幾何計算機能、Foundation橋渡し
+- **`geo_core`**: **低レイヤー基本型**（Aabb2D/Aabb3D等）- geo_primitives/geo_nurbsから直接アクセス可
 - **`geo_primitives`**: プリミティブ幾何実装（Point, Vector, Circle等）
 - **`geo_nurbs`**: NURBS 曲線・曲面実装
-- **`geo_core`**: Foundation ブリッジ・交差判定基盤
 - **`geo_algorithms`**: 高レベル幾何アルゴリズム
 - **`geo_io`**: ファイル I/O（STL/OBJ/PLY 等）
+
+#### レイヤー設計の重要ポイント
+
+- **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
+- **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
+- **循環依存回避**: `geo_foundation` → `geo_core`の依存は禁止（循環依存を防ぐため）
 
 ## 🔧 修正方針
 
