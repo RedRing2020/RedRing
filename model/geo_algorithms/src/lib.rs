@@ -35,7 +35,9 @@
 // pub mod numerical;
 // pub mod statistics;
 // pub mod sampling;
-// pub mod interpolation;// 主要な型とトレイトの再エクスポート
+// pub mod interpolation;
+
+// 主要な型とトレイトの再エクスポート
 // Point2D API互換性問題により一時的にコメントアウト
 // pub use numerical::{NewtonSolver, ConvergenceInfo};
 // pub use statistics::{BasicStats, PointCluster, RegressionResult};

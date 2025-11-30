@@ -29,7 +29,7 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Result<Circle2D<T>, TransformError> {
         // 中心点の変換
-        let center_vec: Vector2<T> = circle.center().into();
+        let center_vec: Vector2<T> = circle.center_internal().into();
         let transformed_center_vec = matrix.transform_point_2d(&center_vec);
         let new_center: Point2D<T> = transformed_center_vec.into();
 
@@ -44,7 +44,7 @@ pub mod analysis_transform {
             ));
         }
 
-        let new_radius = circle.radius() * scale_factor;
+        let new_radius = circle.radius_internal() * scale_factor;
 
         Circle2D::new(new_center, new_radius).ok_or_else(|| {
             TransformError::InvalidGeometry("Transformed circle has invalid radius".to_string())
@@ -134,8 +134,8 @@ pub mod analysis_transform {
             ));
         }
 
-        let new_radius = circle.radius() * factor;
-        Circle2D::new(circle.center(), new_radius)
+        let new_radius = circle.radius_internal() * factor;
+        Circle2D::new(circle.center_internal(), new_radius)
             .ok_or_else(|| TransformError::InvalidGeometry("Scaled radius is invalid".to_string()))
     }
 }
@@ -173,7 +173,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
         center: &Self,
         angle: Self::Angle,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = Point2D::new(center.center().x(), center.center().y());
+        let center_point = Point2D::new(center.center_internal().x(), center.center_internal().y());
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         analysis_transform::transform_circle_2d(self, &matrix)
     }
@@ -200,7 +200,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
         center: &Self,
         scale_factor: T,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = Point2D::new(center.center().x(), center.center().y());
+        let center_point = Point2D::new(center.center_internal().x(), center.center_internal().y());
         let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
         analysis_transform::transform_circle_2d(self, &matrix)
     }
@@ -262,9 +262,9 @@ mod tests {
 
         let transformed = circle.translate_analysis_2d(&translation).unwrap();
 
-        assert!((transformed.center().x() - 6.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 9.0).abs() < 1e-10);
-        assert!((transformed.radius() - 3.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 6.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 9.0).abs() < 1e-10);
+        assert!((transformed.radius_internal() - 3.0).abs() < 1e-10);
     }
 
     #[test]
@@ -276,9 +276,9 @@ mod tests {
         let transformed = circle.rotate_analysis_2d(&center_circle, angle).unwrap();
 
         // 90度回転で (1,0) -> (0,1)
-        assert!((transformed.center().x() - 0.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 1.0).abs() < 1e-10);
-        assert!((transformed.radius() - 2.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 0.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 1.0).abs() < 1e-10);
+        assert!((transformed.radius_internal() - 2.0).abs() < 1e-10);
     }
 
     #[test]
@@ -291,9 +291,9 @@ mod tests {
             .uniform_scale_analysis_2d(&center_circle, scale_factor)
             .unwrap();
 
-        assert!((transformed.center().x() - 4.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 8.0).abs() < 1e-10);
-        assert!((transformed.radius() - 6.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 4.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 8.0).abs() < 1e-10);
+        assert!((transformed.radius_internal() - 6.0).abs() < 1e-10);
     }
 
     #[test]
@@ -317,9 +317,9 @@ mod tests {
 
         // 複合変換: スケール -> 平行移動
         // 最終結果の検証
-        assert!(transformed.radius() > 0.0);
-        assert!(!transformed.center().x().is_nan());
-        assert!(!transformed.center().y().is_nan());
+        assert!(transformed.radius_internal() > 0.0);
+        assert!(!transformed.center_internal().x().is_nan());
+        assert!(!transformed.center_internal().y().is_nan());
     }
 
     #[test]
@@ -330,9 +330,9 @@ mod tests {
         let transformed = circle.analysis_scale_radius(factor).unwrap();
 
         // 中心は変わらず、半径のみスケール
-        assert!((transformed.center().x() - 5.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 7.0).abs() < 1e-10);
-        assert!((transformed.radius() - 4.5).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 5.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 7.0).abs() < 1e-10);
+        assert!((transformed.radius_internal() - 4.5).abs() < 1e-10);
     }
 
     #[test]
@@ -350,15 +350,15 @@ mod tests {
         assert_eq!(transformed.len(), 3);
 
         // 各円の平行移動を確認
-        assert!((transformed[0].center().x() - 10.0).abs() < 1e-10);
-        assert!((transformed[0].center().y() - 20.0).abs() < 1e-10);
-        assert!((transformed[1].center().x() - 12.0).abs() < 1e-10);
-        assert!((transformed[1].center().y() - 22.0).abs() < 1e-10);
+        assert!((transformed[0].center_internal().x() - 10.0).abs() < 1e-10);
+        assert!((transformed[0].center_internal().y() - 20.0).abs() < 1e-10);
+        assert!((transformed[1].center_internal().x() - 12.0).abs() < 1e-10);
+        assert!((transformed[1].center_internal().y() - 22.0).abs() < 1e-10);
 
         // 半径は変わらない
-        assert!((transformed[0].radius() - 1.0).abs() < 1e-10);
-        assert!((transformed[1].radius() - 2.0).abs() < 1e-10);
-        assert!((transformed[2].radius() - 0.5).abs() < 1e-10);
+        assert!((transformed[0].radius_internal() - 1.0).abs() < 1e-10);
+        assert!((transformed[1].radius_internal() - 2.0).abs() < 1e-10);
+        assert!((transformed[2].radius_internal() - 0.5).abs() < 1e-10);
     }
 
     #[test]

@@ -3,30 +3,33 @@
 //! ExtensionFoundation と TolerantEq トレイトの実装
 //! ハイブリッドモデラーの分類システムとの統合
 
-use crate::{BBox3D, CylindricalSurface3D};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use crate::CylindricalSurface3D;
+use geo_core::Aabb3D;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // ExtensionFoundation Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for CylindricalSurface3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSurface
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        // サーフェスは無限軸方向のため、径方向の境界のみ
-        // 実際の用途では境界制約が必要
-        self.bounding_box_radial()
     }
 
     fn measure(&self) -> Option<T> {
         // サーフェスの測度は面積だが、無限サーフェスのため None
         // 境界制約された場合のみ有限の面積を持つ
         None
+    }
+}
+
+impl<T: Scalar> Bounded<T> for CylindricalSurface3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        // サーフェスは無限軸方向のため、径方向の境界のみ
+        // 実際の用途では境界制約が必要
+        Some(self.bounding_box_radial())
     }
 }
 
@@ -37,7 +40,7 @@ impl<T: Scalar> ExtensionFoundation<T> for CylindricalSurface3D<T> {
 impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の比較
-        let center_diff = self.center().to_vector() - other.center().to_vector();
+        let center_diff = self.center_internal().to_vector() - other.center_internal().to_vector();
         if center_diff.length() > tolerance {
             return false;
         }
@@ -78,7 +81,7 @@ mod tests {
 
         assert_eq!(surface.primitive_kind(), PrimitiveKind::CylindricalSurface);
 
-        let bbox = surface.bounding_box();
+        let bbox = surface.aabb().expect("should have aabb");
         assert!(!bbox.is_empty());
 
         // 無限サーフェスのため測度は None

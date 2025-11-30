@@ -18,7 +18,10 @@ mod tests {
         let ray = Ray3D::new(origin, direction).unwrap();
 
         assert_eq!(ray.origin(), origin);
-        assert_eq!(ray.direction().as_vector(), Vector3D::new(1.0, 0.0, 0.0));
+        assert_eq!(
+            ray.direction_internal().as_vector(),
+            Vector3D::new(1.0, 0.0, 0.0)
+        );
     }
 
     #[test]
@@ -29,9 +32,9 @@ mod tests {
         let ray = Ray3D::new(origin, direction).unwrap();
 
         assert_eq!(ray.origin(), origin);
-        assert!((ray.direction().length() - 1.0).abs() < 1e-10);
-        assert!((ray.direction().x() - 0.6).abs() < 1e-10);
-        assert!((ray.direction().y() - 0.8).abs() < 1e-10);
+        assert!((ray.direction_internal().length() - 1.0).abs() < 1e-10);
+        assert!((ray.direction_internal().x() - 0.6).abs() < 1e-10);
+        assert!((ray.direction_internal().y() - 0.8).abs() < 1e-10);
     }
 
     #[test]
@@ -52,7 +55,7 @@ mod tests {
         let ray = Ray3D::from_points(start, through).unwrap();
 
         assert_eq!(ray.origin(), start);
-        assert!((ray.direction().length() - 1.0).abs() < 1e-10);
+        assert!((ray.direction_internal().length() - 1.0).abs() < 1e-10);
     }
 
     #[test]
@@ -158,7 +161,7 @@ mod tests {
 
         assert_eq!(reversed.origin(), origin);
         assert_eq!(
-            reversed.direction().as_vector(),
+            reversed.direction_internal().as_vector(),
             Vector3D::new(-1.0, 0.0, 0.0)
         );
     }
@@ -171,9 +174,9 @@ mod tests {
         let y_ray = Ray3D::along_y_axis(origin);
         let z_ray = Ray3D::along_z_axis(origin);
 
-        assert_eq!(x_ray.direction().as_vector(), Vector3D::unit_x());
-        assert_eq!(y_ray.direction().as_vector(), Vector3D::unit_y());
-        assert_eq!(z_ray.direction().as_vector(), Vector3D::unit_z());
+        assert_eq!(x_ray.direction_internal().as_vector(), Vector3D::unit_x());
+        assert_eq!(y_ray.direction_internal().as_vector(), Vector3D::unit_y());
+        assert_eq!(z_ray.direction_internal().as_vector(), Vector3D::unit_z());
     }
 
     #[test]
@@ -208,9 +211,9 @@ mod tests {
 
         // 正規化確認
         let normalized_length = 1.0 / (3.0_f64).sqrt();
-        assert!((ray.direction().x() - normalized_length).abs() < 1e-10);
-        assert!((ray.direction().y() - normalized_length).abs() < 1e-10);
-        assert!((ray.direction().z() - normalized_length).abs() < 1e-10);
+        assert!((ray.direction_internal().x() - normalized_length).abs() < 1e-10);
+        assert!((ray.direction_internal().y() - normalized_length).abs() < 1e-10);
+        assert!((ray.direction_internal().z() - normalized_length).abs() < 1e-10);
 
         // 対角線上の点をテスト
         let point = ray.point_at_parameter((3.0_f64).sqrt());

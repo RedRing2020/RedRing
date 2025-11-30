@@ -1,4 +1,4 @@
-﻿//! Ellipse3D の基本テスト
+//! Ellipse3D の基本テスト
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
@@ -40,9 +40,9 @@ mod tests {
         let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 2.0, 3.0), 4.0).unwrap();
         let ellipse = Ellipse3D::from_circle(&circle).unwrap();
 
-        assert_eq!(ellipse.center(), circle.center());
-        assert_eq!(ellipse.semi_major_axis(), circle.radius());
-        assert_eq!(ellipse.semi_minor_axis(), circle.radius());
+        assert_eq!(ellipse.center(), circle.center_internal());
+        assert_eq!(ellipse.semi_major_axis(), circle.radius_internal());
+        assert_eq!(ellipse.semi_minor_axis(), circle.radius_internal());
         assert_eq!(ellipse.normal(), circle.normal());
         assert!(ellipse.is_circle());
     }
@@ -76,7 +76,7 @@ mod tests {
 
         // 円への変換
         let circle = circle_ellipse.to_circle().unwrap();
-        assert_eq!(circle.radius(), 3.0);
+        assert_eq!(circle.radius_internal(), 3.0);
     }
 
     #[test]

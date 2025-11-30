@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくLineSegment3Dの拡張機能
 //! Core機能は line_segment_3d.rs を参照
 
-use crate::{BBox3D, LineSegment3D, Point3D, Vector3D};
+use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_foundation::{core_foundation::*, Scalar};
 
 // ============================================================================
@@ -29,9 +29,18 @@ impl<T: Scalar> std::fmt::Display for LineSegment3D<T> {
 
 impl<T: Scalar> LineSegment3D<T> {
     /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> BBox3D<T> {
-        BBox3D::from_points(&[self.start(), self.end()])
-            .unwrap_or_else(|| BBox3D::from_point(self.start()))
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
+        let start = self.start();
+        let end = self.end();
+        geo_core::Aabb3D::from_points(&[
+            Point3::new(start.x(), start.y(), start.z()),
+            Point3::new(end.x(), end.y(), end.z()),
+        ])
+        .unwrap_or_else(|| {
+            let pt = Point3::new(start.x(), start.y(), start.z());
+            geo_core::Aabb3D::new(pt, pt)
+        })
     }
 
     /// パラメータでの点を取得
@@ -91,8 +100,8 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点を線分に投影
     pub fn project_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        let to_point = Vector3D::from_points(&self.line().point(), point);
-        let t = to_point.dot(&self.line().direction());
+        let to_point = Vector3D::from_points(&self.line().point_internal(), point);
+        let t = to_point.dot(&self.line().direction_internal());
 
         // パラメータを線分の範囲内に制限
         let clamped_param = if t < self.start_param() {
@@ -108,8 +117,8 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 線分上で点に最も近い点のパラメータを取得
     pub fn closest_parameter(&self, point: &Point3D<T>) -> T {
-        let to_point = Vector3D::from_points(&self.line().point(), point);
-        let line_param = to_point.dot(&self.line().direction());
+        let to_point = Vector3D::from_points(&self.line().point_internal(), point);
+        let line_param = to_point.dot(&self.line().direction_internal());
 
         // 線分のパラメータ範囲に正規化
         if line_param < self.start_param() {

@@ -1,4 +1,4 @@
-﻿//! 2次元ベクトル（Vector2D）の Core 実装
+//! 2次元ベクトル（Vector2D）の Core 実装
 //!
 //! Core Foundation パターンに基づく Vector2D の必須機能のみ
 //! 拡張機能は vector_2d_extensions.rs を参照
@@ -112,43 +112,6 @@ impl<T: Scalar> Vector2D<T> {
 // ============================================================================
 // Legacy Foundation Trait Implementations (Temporarily Disabled)
 // ============================================================================
-
-/*
-impl<T: Scalar> CoreFoundation<T> for Vector2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = crate::BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        // ベクトルは原点から終点への境界ボックス
-        // 最小・最大を正しく設定
-        let min_x = T::ZERO.min(self.x);
-        let max_x = T::ZERO.max(self.x);
-        let min_y = T::ZERO.min(self.y);
-        let max_y = T::ZERO.max(self.y);
-
-        crate::BBox2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
-    }
-}
-
-impl<T: Scalar> BasicMetrics<T> for Vector2D<T> {
-    fn length(&self) -> Option<T> {
-        Some(Vector2D::length(self))
-    }
-}
-
-impl<T: Scalar> BasicDirectional<T> for Vector2D<T> {
-    type Direction = Vector2D<T>;
-
-    fn direction(&self) -> Self::Direction {
-        self.normalize()
-    }
-
-    fn reverse_direction(&self) -> Self {
-        -*self
-    }
-}
-*/
 
 // ============================================================================
 // 基本演算子実装 (Basic Operator Implementations)

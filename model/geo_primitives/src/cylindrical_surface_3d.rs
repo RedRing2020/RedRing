@@ -15,7 +15,7 @@
 //! - radius: 円柱半径
 //! - 高さは境界によって定義（無限円柱面）
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元円柱サーフェス（STEP準拠のCore実装）
@@ -148,11 +148,11 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     }
 
     // ========================================================================
-    // Core Accessor Methods
+    // Core Accessor Methods (Internal use only)
     // ========================================================================
 
-    /// 軸上の基準点を取得
-    pub fn center(&self) -> Point3D<T> {
+    /// 軸上の基準点を取得（内部使用）
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
@@ -293,7 +293,8 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     ///
     /// 注意: 無限サーフェスのため、v方向の境界は外部で指定する必要がある
     /// ここでは半径による径方向の境界のみ計算
-    pub fn bounding_box_radial(&self) -> BBox3D<T> {
+    pub fn bounding_box_radial(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         // 各軸成分の最大伸び（径方向のみ）
         let axis_x = self.axis.x();
         let axis_y = self.axis.y();
@@ -313,18 +314,19 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         let min_z = self.center.z() - radius_z;
         let max_z = self.center.z() + radius_z;
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            Point3::new(min_x, min_y, min_z),
+            Point3::new(max_x, max_y, max_z),
         )
     }
 
     // ========================================================================
-    // Core Distance and Projection Methods (サーフェス特性)
+    // Core Distance and Projection Methods (Internal use only)
     // ========================================================================
 
-    /// 点からサーフェスへの最短距離を計算
-    pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
+    /// 点からサーフェスへの最短距離を計算（内部使用）
+    #[allow(dead_code)]
+    pub(crate) fn distance_to_surface_internal(&self, point: Point3D<T>) -> T {
         // 点から軸への距離を計算
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
@@ -382,6 +384,163 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         (closest_point, u, v)
     }
 }
+
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::{
+    CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DMeasure,
+    CylindricalSurface3DProperties,
+};
+
+impl<T: Scalar> CylindricalSurface3DConstructor<T> for CylindricalSurface3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+        _height: T, // 未使用：サーフェスは高さを持たない
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis_vector = Vector3D::new(axis.0, axis.1, axis.2);
+        let ref_vector = Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2);
+        Self::new(center_point, axis_vector, ref_vector, radius)
+    }
+
+    fn new_standard(center: (T, T, T), radius: T, _height: T) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        Self::new_z_axis(center_point, radius)
+    }
+
+    fn unit_cylinder_surface() -> Self {
+        Self::new_z_axis(Point3D::origin(), T::ONE)
+            .expect("Unit cylinder surface should always be valid")
+    }
+}
+
+impl<T: Scalar> CylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        (self.center.x(), self.center.y(), self.center.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+
+    fn height(&self) -> T {
+        T::ZERO // サーフェスは高さを持たない
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        (self.axis.x(), self.axis.y(), self.axis.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        (
+            self.ref_direction.x(),
+            self.ref_direction.y(),
+            self.ref_direction.z(),
+        )
+    }
+
+    fn diameter(&self) -> T {
+        self.radius * T::from_f64(2.0)
+    }
+}
+
+impl<T: Scalar> CylindricalSurface3DMeasure<T> for CylindricalSurface3D<T> {
+    fn surface_area(&self) -> T {
+        T::ZERO // 無限円柱面は無限大の表面積
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        let cos_u = u.cos();
+        let sin_u = u.sin();
+
+        let x_axis_x = self.ref_direction.x();
+        let x_axis_y = self.ref_direction.y();
+        let x_axis_z = self.ref_direction.z();
+
+        // Y軸 = Z軸 × X軸
+        let z_x = self.axis.x();
+        let z_y = self.axis.y();
+        let z_z = self.axis.z();
+        let y_axis_x = z_y * x_axis_z - z_z * x_axis_y;
+        let y_axis_y = z_z * x_axis_x - z_x * x_axis_z;
+        let y_axis_z = z_x * x_axis_y - z_y * x_axis_x;
+
+        // 円周方向の点
+        let radial_x = (cos_u * self.radius) * x_axis_x + (sin_u * self.radius) * y_axis_x;
+        let radial_y = (cos_u * self.radius) * x_axis_y + (sin_u * self.radius) * y_axis_y;
+        let radial_z = (cos_u * self.radius) * x_axis_z + (sin_u * self.radius) * y_axis_z;
+
+        // 軸方向のオフセット
+        let axial_x = z_x * v;
+        let axial_y = z_y * v;
+        let axial_z = z_z * v;
+
+        (
+            self.center.x() + radial_x + axial_x,
+            self.center.y() + radial_y + axial_y,
+            self.center.z() + radial_z + axial_z,
+        )
+    }
+
+    fn normal_at(&self, u: T, _v: T) -> (T, T, T) {
+        let cos_u = u.cos();
+        let sin_u = u.sin();
+
+        let x_axis_x = self.ref_direction.x();
+        let x_axis_y = self.ref_direction.y();
+        let x_axis_z = self.ref_direction.z();
+
+        // Y軸 = Z軸 × X軸
+        let z_x = self.axis.x();
+        let z_y = self.axis.y();
+        let z_z = self.axis.z();
+        let y_axis_x = z_y * x_axis_z - z_z * x_axis_y;
+        let y_axis_y = z_z * x_axis_x - z_x * x_axis_z;
+        let y_axis_z = z_x * x_axis_y - z_y * x_axis_x;
+
+        // 径方向の単位ベクトル
+        (
+            x_axis_x * cos_u + y_axis_x * sin_u,
+            x_axis_y * cos_u + y_axis_y * sin_u,
+            x_axis_z * cos_u + y_axis_z * sin_u,
+        )
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        // 点から軸上の基準点へのベクトル
+        let to_point_x = point.0 - self.center.x();
+        let to_point_y = point.1 - self.center.y();
+        let to_point_z = point.2 - self.center.z();
+
+        // 軸方向成分
+        let axis_projection =
+            to_point_x * self.axis.x() + to_point_y * self.axis.y() + to_point_z * self.axis.z();
+
+        // 軸方向ベクトル
+        let axis_comp_x = self.axis.x() * axis_projection;
+        let axis_comp_y = self.axis.y() * axis_projection;
+        let axis_comp_z = self.axis.z() * axis_projection;
+
+        // 径方向ベクトル
+        let radial_x = to_point_x - axis_comp_x;
+        let radial_y = to_point_y - axis_comp_y;
+        let radial_z = to_point_z - axis_comp_z;
+
+        // 径方向距離
+        let radial_distance =
+            (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+
+        // 半径との差の絶対値
+        (radial_distance - self.radius).abs()
+    }
+}
+
+impl<T: Scalar> CylindricalSurface3DCore<T> for CylindricalSurface3D<T> {}
 
 // ============================================================================
 // Display Implementation

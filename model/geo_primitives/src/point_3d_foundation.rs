@@ -1,24 +1,15 @@
 //! Point3D の Foundation トレイト実装
 
-use crate::{BBox3D, Point3D};
-use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use crate::Point3D;
+use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for Point3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Point
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        // 点の境界ボックスは点自身
-        BBox3D::from_point(*self)
     }
 
     fn measure(&self) -> Option<T> {
@@ -49,9 +40,7 @@ mod tests {
         assert!(point.measure().is_some());
         assert_eq!(point.measure().unwrap(), 0.0);
 
-        let bbox = point.bounding_box();
-        assert_eq!(bbox.min(), point);
-        assert_eq!(bbox.max(), point);
+        // Points don't have bounding boxes in the new architecture
     }
 
     #[test]

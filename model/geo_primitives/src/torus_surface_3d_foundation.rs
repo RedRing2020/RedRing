@@ -3,40 +3,43 @@
 //
 // Foundation パターンに従い、統一されたプリミティブインターフェースを提供します。
 
-use crate::{BBox3D, Point3D, TorusSurface3D};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar};
+use crate::{Point3D, TorusSurface3D};
+use geo_core::Aabb3D;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for TorusSurface3D<T> {
-    type BBox = BBox3D<T>;
-
     /// プリミティブの種類を返す
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::TorusSurface
     }
 
-    /// 境界ボックスを計算
-    ///
-    /// トーラス面の境界ボックスは軸配置を考慮して計算されます。
-    /// 3D CAM での工具パス計算において重要な情報です。
-    fn bounding_box(&self) -> Self::BBox {
+    fn measure(&self) -> Option<T> {
+        Some(self.surface_area())
+    }
+}
+
+impl<T: Scalar> Bounded<T> for TorusSurface3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
         // トーラスの外半径（最大半径）
-        let outer_radius = self.major_radius() + self.minor_radius();
+        let outer_radius = self.major_radius_internal() + self.minor_radius_internal();
 
         // 軸方向の範囲
-        let z_extent = self.minor_radius();
+        let z_extent = self.minor_radius_internal();
 
         // 局所座標系での境界を計算
-        let origin = self.origin();
+        let origin = self.origin_internal();
 
         // Z軸方向の成分を考慮した境界計算
-        let z_axis = self.z_axis();
+        let z_axis = self.z_axis_internal();
         let z_vec_x = z_axis.x() * z_extent;
         let z_vec_y = z_axis.y() * z_extent;
         let z_vec_z = z_axis.z() * z_extent;
 
         // X, Y軸方向の最大範囲を計算
-        let x_axis = self.x_axis();
-        let y_axis = self.y_axis();
+        let x_axis = self.x_axis_internal();
+        let y_axis = self.y_axis_internal();
 
         // 各軸成分の最大値を計算
         let x_max_from_x = x_axis.x().abs() * outer_radius;
@@ -67,15 +70,10 @@ impl<T: Scalar> ExtensionFoundation<T> for TorusSurface3D<T> {
             origin.z() + z_extent_final,
         );
 
-        BBox3D::new(min_point, max_point)
-    }
-
-    /// 測度（表面積）を計算
-    ///
-    /// トーラス面の表面積: 4π² × major_radius × minor_radius
-    /// 3D CAM での材料除去量計算に使用されます。
-    fn measure(&self) -> Option<T> {
-        Some(self.surface_area())
+        Some(Aabb3D::new(
+            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
+            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+        ))
     }
 }
 
@@ -109,7 +107,7 @@ mod tests {
         let minor_radius = 1.0;
         let torus = TorusSurface3D::standard(major_radius, minor_radius).unwrap();
 
-        let bbox = torus.bounding_box();
+        let bbox = torus.aabb().expect("should have aabb");
         let outer_radius = major_radius + minor_radius; // 4.0
 
         // 標準トーラス（XY平面、Z軸中心）の境界ボックス
@@ -133,7 +131,7 @@ mod tests {
 
         let torus =
             TorusSurface3D::new(origin, z_axis, x_axis, major_radius, minor_radius).unwrap();
-        let bbox = torus.bounding_box();
+        let bbox = torus.aabb().expect("should have aabb");
 
         let outer_radius = major_radius + minor_radius; // 2.5
 
@@ -160,7 +158,7 @@ mod tests {
         assert!(torus.measure().unwrap() > 0.0);
 
         // 境界ボックスが有効
-        let bbox = torus.bounding_box();
+        let bbox = torus.aabb().expect("should have aabb");
         assert!(bbox.min().x() < bbox.max().x());
         assert!(bbox.min().y() < bbox.max().y());
         assert!(bbox.min().z() < bbox.max().z());

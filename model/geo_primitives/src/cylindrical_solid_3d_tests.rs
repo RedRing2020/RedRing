@@ -1,8 +1,10 @@
 //! CylindricalSolid3D のテスト（STEP準拠）
+//! Core Traits経由でのAPI使用を推奨
 
 #[cfg(test)]
 mod tests {
     use crate::{CylindricalSolid3D, Direction3D, Point3D, Vector3D};
+    use geo_foundation::{CylindricalSolid3DMeasure, CylindricalSolid3DProperties};
 
     #[test]
     fn test_cylindrical_solid_creation() {
@@ -15,13 +17,22 @@ mod tests {
         let cylindrical_solid =
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
-        assert_eq!(cylindrical_solid.center(), center);
-        assert_eq!(cylindrical_solid.radius(), radius);
-        assert_eq!(cylindrical_solid.height(), height);
+        // Core Traits経由でアクセス
+        let center_tuple = CylindricalSolid3DProperties::center(&cylindrical_solid);
+        assert_eq!(center_tuple, (1.0, 2.0, 3.0));
+        assert_eq!(
+            CylindricalSolid3DProperties::radius(&cylindrical_solid),
+            radius
+        );
+        assert_eq!(
+            CylindricalSolid3DProperties::height(&cylindrical_solid),
+            height
+        );
         // 軸は Direction3D として正規化されているはず
-        assert_eq!(cylindrical_solid.axis().x(), 0.0);
-        assert_eq!(cylindrical_solid.axis().y(), 0.0);
-        assert_eq!(cylindrical_solid.axis().z(), 1.0);
+        let axis_tuple = CylindricalSolid3DProperties::axis(&cylindrical_solid);
+        assert_eq!(axis_tuple.0, 0.0);
+        assert_eq!(axis_tuple.1, 0.0);
+        assert_eq!(axis_tuple.2, 1.0);
     }
 
     #[test]
@@ -122,7 +133,7 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         let expected_volume = std::f64::consts::PI * radius * radius * height;
-        let actual_volume = cylindrical_solid.volume();
+        let actual_volume = CylindricalSolid3DMeasure::volume(&cylindrical_solid);
         assert!((actual_volume - expected_volume).abs() < 1e-10_f64);
     }
 
@@ -138,7 +149,8 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         let expected_surface_area = 2.0 * std::f64::consts::PI * radius * (radius + height);
-        assert!((cylindrical_solid.surface_area() - expected_surface_area).abs() < 1e-10);
+        let actual_area = CylindricalSolid3DMeasure::surface_area(&cylindrical_solid);
+        assert!((actual_area - expected_surface_area).abs() < 1e-10);
     }
 
     #[test]
@@ -153,16 +165,25 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         // 円柱内部の点
-        let inside_point = Point3D::new(2.0, 2.0, 3.0);
-        assert!(cylindrical_solid.contains_point(inside_point));
+        let inside_point = (2.0, 2.0, 3.0);
+        assert!(CylindricalSolid3DMeasure::contains_point(
+            &cylindrical_solid,
+            inside_point
+        ));
 
         // 円柱外部の点
-        let outside_point = Point3D::new(10.0, 0.0, 0.0);
-        assert!(!cylindrical_solid.contains_point(outside_point));
+        let outside_point = (10.0, 0.0, 0.0);
+        assert!(!CylindricalSolid3DMeasure::contains_point(
+            &cylindrical_solid,
+            outside_point
+        ));
 
         // 高さ範囲外の点
-        let too_high_point = Point3D::new(0.0, 0.0, 15.0);
-        assert!(!cylindrical_solid.contains_point(too_high_point));
+        let too_high_point = (0.0, 0.0, 15.0);
+        assert!(!CylindricalSolid3DMeasure::contains_point(
+            &cylindrical_solid,
+            too_high_point
+        ));
     }
 
     #[test]
@@ -176,8 +197,14 @@ mod tests {
         let cylindrical_solid =
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
-        assert_eq!(cylindrical_solid.radius(), radius);
-        assert_eq!(cylindrical_solid.height(), height);
+        assert_eq!(
+            CylindricalSolid3DProperties::radius(&cylindrical_solid),
+            radius
+        );
+        assert_eq!(
+            CylindricalSolid3DProperties::height(&cylindrical_solid),
+            height
+        );
     }
 
     #[test]
@@ -213,8 +240,8 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         // ソリッド特有のプロパティ
-        let volume = cylindrical_solid.volume();
-        let surface_area = cylindrical_solid.surface_area();
+        let volume = CylindricalSolid3DMeasure::volume(&cylindrical_solid);
+        let surface_area = CylindricalSolid3DMeasure::surface_area(&cylindrical_solid);
         let bbox = cylindrical_solid.bounding_box();
 
         // 体積が正の値
@@ -240,16 +267,16 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         // 内部の点（距離は0に近い）
-        let internal_point = Point3D::new(0.0, 0.0, 5.0);
-        let distance = cylindrical_solid.distance_to_surface(internal_point);
+        let internal_point = (0.0, 0.0, 5.0);
+        let distance =
+            CylindricalSolid3DMeasure::distance_to_point(&cylindrical_solid, internal_point);
         assert!(distance < 1e-10);
 
         // 外部の点
-        let external_point = Point3D::new(8.0, 0.0, 5.0);
+        let external_point = (8.0, 0.0, 5.0);
         let expected_distance = 3.0_f64; // 8 - 5 = 3
-        assert!(
-            (cylindrical_solid.distance_to_surface(external_point) - expected_distance).abs()
-                < 1e-10_f64
-        );
+        let actual_distance =
+            CylindricalSolid3DMeasure::distance_to_point(&cylindrical_solid, external_point);
+        assert!((actual_distance - expected_distance).abs() < 1e-10_f64);
     }
 }

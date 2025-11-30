@@ -52,7 +52,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn is_parallel_to_axis(&self, axis: Vector3D<T>, tolerance: T) -> bool {
         let normalized_axis =
             Direction3D::from_vector(axis.normalize()).unwrap_or(Direction3D::positive_x());
-        let dot_product = self.direction().dot(&normalized_axis).abs();
+        let dot_product = self.direction_internal().dot(&normalized_axis).abs();
         (dot_product - T::ONE).abs() <= tolerance
     }
 
@@ -79,14 +79,14 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn relationship_with(&self, other: &Self, tolerance: T) -> LineRelationship {
         // 方向ベクトルの平行性チェック
         let cross_product = self
-            .direction()
+            .direction_internal()
             .as_vector()
-            .cross(&other.direction().as_vector());
+            .cross(&other.direction_internal().as_vector());
         let is_parallel = cross_product.length() <= tolerance;
 
         if is_parallel {
             // 平行な場合、同一直線かチェック
-            if self.contains_point(&other.point(), tolerance) {
+            if self.contains_point(&other.point_internal(), tolerance) {
                 LineRelationship::Coincident
             } else {
                 LineRelationship::Parallel
@@ -94,9 +94,9 @@ impl<T: Scalar> InfiniteLine3D<T> {
         } else {
             // 平行でない場合、交差か非交差かチェック
             let to_other_point = Vector3D::new(
-                other.point().x() - self.point().x(),
-                other.point().y() - self.point().y(),
-                other.point().z() - self.point().z(),
+                other.point_internal().x() - self.point_internal().x(),
+                other.point_internal().y() - self.point_internal().y(),
+                other.point_internal().z() - self.point_internal().z(),
             );
 
             // スカラ三重積でねじれ位置判定
@@ -150,18 +150,22 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn translate(&self, offset: Vector3D<T>) -> Self {
         Self::new(
             Point3D::new(
-                self.point().x() + offset.x(),
-                self.point().y() + offset.y(),
-                self.point().z() + offset.z(),
+                self.point_internal().x() + offset.x(),
+                self.point_internal().y() + offset.y(),
+                self.point_internal().z() + offset.z(),
             ),
-            self.direction().as_vector(),
+            self.direction_internal().as_vector(),
         )
         .unwrap()
     }
 
     /// 方向を反転
     pub fn reverse(&self) -> Self {
-        Self::new(self.point(), (-self.direction()).as_vector()).unwrap()
+        Self::new(
+            self.point_internal(),
+            (-self.direction_internal()).as_vector(),
+        )
+        .unwrap()
     }
 
     /// 指定点周りの回転（軸と角度指定）
@@ -182,9 +186,9 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
         // 点の回転
         let to_point = Vector3D::new(
-            self.point().x() - center.x(),
-            self.point().y() - center.y(),
-            self.point().z() - center.z(),
+            self.point_internal().x() - center.x(),
+            self.point_internal().y() - center.y(),
+            self.point_internal().z() - center.z(),
         );
 
         let term1 = to_point * cos_angle;
@@ -203,9 +207,10 @@ impl<T: Scalar> InfiniteLine3D<T> {
         );
 
         // 方向ベクトルの回転
-        let rotated_direction = self.direction() * cos_angle
-            + normalized_axis.cross(&self.direction()) * sin_angle
-            + normalized_axis * (normalized_axis.dot(&self.direction()) * (T::ONE - cos_angle));
+        let rotated_direction = self.direction_internal() * cos_angle
+            + normalized_axis.cross(&self.direction_internal()) * sin_angle
+            + normalized_axis
+                * (normalized_axis.dot(&self.direction_internal()) * (T::ONE - cos_angle));
 
         Some(Self::new(new_point, rotated_direction).unwrap())
     }
@@ -221,8 +226,9 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 2次元投影（Z成分を無視）
     pub fn to_2d(&self) -> crate::InfiniteLine2D<T> {
-        let point_2d = Point2D::new(self.point().x(), self.point().y());
-        let direction_2d = Vector2D::new(self.direction().x(), self.direction().y());
+        let point_2d = Point2D::new(self.point_internal().x(), self.point_internal().y());
+        let direction_2d =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         crate::InfiniteLine2D::new(point_2d, direction_2d).unwrap()
     }
 
@@ -233,15 +239,17 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// XZ平面への投影
     pub fn project_to_xz_plane(&self) -> crate::InfiniteLine2D<T> {
-        let projected_point = Point2D::new(self.point().x(), self.point().z());
-        let projected_direction = Vector2D::new(self.direction().x(), self.direction().z());
+        let projected_point = Point2D::new(self.point_internal().x(), self.point_internal().z());
+        let projected_direction =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().z());
         crate::InfiniteLine2D::new(projected_point, projected_direction).unwrap()
     }
 
     /// YZ平面への投影
     pub fn project_to_yz_plane(&self) -> crate::InfiniteLine2D<T> {
-        let projected_point = Point2D::new(self.point().y(), self.point().z());
-        let projected_direction = Vector2D::new(self.direction().y(), self.direction().z());
+        let projected_point = Point2D::new(self.point_internal().y(), self.point_internal().z());
+        let projected_direction =
+            Vector2D::new(self.direction_internal().y(), self.direction_internal().z());
         crate::InfiniteLine2D::new(projected_point, projected_direction).unwrap()
     }
 
@@ -261,19 +269,19 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 直線間の最短距離を計算
     pub fn distance_between_lines(&self, other: &Self) -> T {
-        let direction_cross = self.direction().cross(&other.direction());
+        let direction_cross = self.direction_internal().cross(&other.direction_internal());
         let cross_length = direction_cross.length();
 
         if cross_length <= T::EPSILON {
             // 平行線の場合
-            return self.distance_to_point(&other.point());
+            return self.distance_to_point(&other.point_internal());
         }
 
         // ねじれ位置の場合
         let to_other_point = Vector3D::new(
-            other.point().x() - self.point().x(),
-            other.point().y() - self.point().y(),
-            other.point().z() - self.point().z(),
+            other.point_internal().x() - self.point_internal().x(),
+            other.point_internal().y() - self.point_internal().y(),
+            other.point_internal().z() - self.point_internal().z(),
         );
 
         to_other_point.dot(&direction_cross).abs() / cross_length

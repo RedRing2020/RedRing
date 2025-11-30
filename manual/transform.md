@@ -244,10 +244,10 @@ trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;  // analysis::Matrix4x4<T>
     type Angle;      // geo_foundation::Angle<T>
     type Output;     // 通常はSelf
-    
+
     // 直接Matrix変換
     fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
-    
+
     // Analysisベースの字全な変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
     fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;

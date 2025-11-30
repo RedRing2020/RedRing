@@ -1,10 +1,15 @@
-﻿//! 2次元線分（LineSegment2D）の Core 実装
+//! 2次元線分（LineSegment2D）の Core 実装
 //!
 //! Core Foundation パターンに基づく LineSegment2D の必須機能のみ
 //! 拡張機能は line_segment_2d_extensions.rs を参照
 
-use crate::{BBox2D, InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use crate::{InfiniteLine2D, Point2D, Vector2D};
+use geo_foundation::{
+    core::linesegment_core_traits::{
+        LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties,
+    },
+    Scalar,
+};
 
 /// 2次元平面の線分
 ///
@@ -84,9 +89,9 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 方向ベクトルを取得（正規化済み）
     pub fn direction(&self) -> Vector2D<T> {
         if self.end_param >= self.start_param {
-            *self.line.direction()
+            *self.line.direction_internal()
         } else {
-            (*self.line.direction()).negate()
+            (*self.line.direction_internal()).negate()
         }
     }
 
@@ -167,8 +172,14 @@ impl<T: Scalar> LineSegment2D<T> {
     }
 
     /// 境界ボックスを取得
-    pub fn bounding_box(&self) -> BBox2D<T> {
-        BBox2D::new(self.start_point(), self.end_point())
+    pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
+        use analysis::Point2;
+        let start = self.start_point();
+        let end = self.end_point();
+        geo_core::Aabb2D::new(
+            Point2::new(start.x(), start.y()),
+            Point2::new(end.x(), end.y()),
+        )
     }
 
     // ========================================================================
@@ -219,5 +230,165 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 境界上判定（線分では点上判定と同じ）
     pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.contains_point(point, tolerance)
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
+    fn new(start: (T, T), end: (T, T)) -> Option<Self> {
+        let start_point = Point2D::new(start.0, start.1);
+        let end_point = Point2D::new(end.0, end.1);
+        Self::new(start_point, end_point)
+    }
+
+    fn from_point_direction_length(start: (T, T), direction: (T, T), length: T) -> Option<Self> {
+        let start_point = Point2D::new(start.0, start.1);
+        let direction_vec = Vector2D::new(direction.0, direction.1);
+        Self::from_point_direction_length(start_point, direction_vec, length)
+    }
+
+    fn unit_x() -> Self {
+        let start = Point2D::origin();
+        let end = Point2D::new(T::ONE, T::ZERO);
+        Self::new(start, end).unwrap()
+    }
+
+    // Phase 2: 追加コンストラクタ
+    fn from_midpoint_length_horizontal(midpoint: (T, T), length: T) -> Option<Self> {
+        if length <= T::ZERO {
+            return None;
+        }
+        let half_length = length / (T::ONE + T::ONE);
+        let start = Point2D::new(midpoint.0 - half_length, midpoint.1);
+        let end = Point2D::new(midpoint.0 + half_length, midpoint.1);
+        Self::new(start, end)
+    }
+
+    fn from_midpoint_length_vertical(midpoint: (T, T), length: T) -> Option<Self> {
+        if length <= T::ZERO {
+            return None;
+        }
+        let half_length = length / (T::ONE + T::ONE);
+        let start = Point2D::new(midpoint.0, midpoint.1 - half_length);
+        let end = Point2D::new(midpoint.0, midpoint.1 + half_length);
+        Self::new(start, end)
+    }
+
+    fn unit_y() -> Self {
+        let start = Point2D::origin();
+        let end = Point2D::new(T::ZERO, T::ONE);
+        Self::new(start, end).unwrap()
+    }
+}
+
+impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
+    fn start(&self) -> (T, T) {
+        let p = self.start_point();
+        (p.x(), p.y())
+    }
+
+    fn end(&self) -> (T, T) {
+        let p = self.end_point();
+        (p.x(), p.y())
+    }
+
+    fn midpoint(&self) -> (T, T) {
+        let p = self.midpoint();
+        (p.x(), p.y())
+    }
+
+    fn length(&self) -> T {
+        self.length()
+    }
+
+    fn dimension(&self) -> u32 {
+        2
+    }
+
+    // Phase 2: 追加プロパティ
+    fn is_unit_length(&self) -> bool {
+        (self.length() - T::ONE).abs() <= T::EPSILON
+    }
+
+    fn is_horizontal(&self) -> bool {
+        let start = self.start();
+        let end = self.end();
+        (start.1 - end.1).abs() <= T::EPSILON
+    }
+
+    fn is_vertical(&self) -> bool {
+        let start = self.start();
+        let end = self.end();
+        (start.0 - end.0).abs() <= T::EPSILON
+    }
+}
+
+impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
+    fn measure(&self) -> T {
+        self.length()
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        self.contains_point(&p, T::EPSILON)
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let p = self.point_at_normalized_parameter(t);
+        (p.x(), p.y())
+    }
+
+    // Phase 2: 追加測度メソッド
+    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let t = self.parameter_for_point(&p);
+        // パラメータを [0, 1] にクランプ
+        let clamped_t = if t < T::ZERO {
+            T::ZERO
+        } else if t > T::ONE {
+            T::ONE
+        } else {
+            t
+        };
+        self.point_at_parameter(clamped_t)
+    }
+
+    fn distance_to_segment(&self, other: &Self) -> T {
+        // 簡易実装: 各端点から他方の線分への最短距離の最小値
+        let other_start_pt = other.start_point();
+        let other_end_pt = other.end_point();
+        let self_start_pt = self.start_point();
+        let self_end_pt = self.end_point();
+
+        let d1 = self.distance_to_point(&other_start_pt);
+        let d2 = self.distance_to_point(&other_end_pt);
+        let d3 = other.distance_to_point(&self_start_pt);
+        let d4 = other.distance_to_point(&self_end_pt);
+
+        let min1 = if d1 < d2 { d1 } else { d2 };
+        let min2 = if d3 < d4 { d3 } else { d4 };
+        if min1 < min2 {
+            min1
+        } else {
+            min2
+        }
+    }
+
+    fn direction_vector(&self) -> (T, T) {
+        let dir = self.direction();
+        (dir.x(), dir.y())
+    }
+
+    fn as_vector(&self) -> (T, T) {
+        let v = self.vector();
+        (v.x(), v.y())
     }
 }

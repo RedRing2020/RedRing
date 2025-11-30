@@ -3,7 +3,10 @@
 //! Foundation統一システムに基づくTriangle2Dの必須機能のみ
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    core::triangle_core_traits::{Triangle2DConstructor, Triangle2DMeasure, Triangle2DProperties},
+    Scalar,
+};
 
 /// 2次元三角形（Core実装）
 ///
@@ -12,7 +15,7 @@ use geo_foundation::Scalar;
 /// - アクセサメソッド
 /// - 基本的な幾何プロパティ（面積、外心、重心）
 /// - 辺の長さ計算
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle2D<T: Scalar> {
     vertex_a: Point2D<T>,
     vertex_b: Point2D<T>,
@@ -60,28 +63,45 @@ impl<T: Scalar> Triangle2D<T> {
         .expect("Unit triangle should always be valid")
     }
 
+    /// 原点中心の正三角形を生成（辺の長さ指定）
+    pub fn equilateral_at_origin(side_length: T) -> Self {
+        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let half = side_length / (T::ONE + T::ONE);
+        Self::new(
+            Point2D::new(T::ZERO, side_length * h / T::from_f64(1.5)),
+            Point2D::new(-half, -side_length * h / T::from_f64(3.0)),
+            Point2D::new(half, -side_length * h / T::from_f64(3.0)),
+        )
+        .expect("Equilateral triangle should always be valid")
+    }
+
+    /// 直角二等辺三角形を生成（原点、x軸、y軸上）
+    pub fn right_isosceles(leg_length: T) -> Self {
+        Self::new(
+            Point2D::new(T::ZERO, T::ZERO),
+            Point2D::new(leg_length, T::ZERO),
+            Point2D::new(T::ZERO, leg_length),
+        )
+        .expect("Right isosceles triangle should always be valid")
+    }
+
     // ========================================================================
     // Core Accessor Methods
     // ========================================================================
 
-    /// 頂点A取得
-    pub fn vertex_a(&self) -> Point2D<T> {
+    /// 頂点A取得（内部用）
+    pub(crate) fn vertex_a_internal(&self) -> Point2D<T> {
         self.vertex_a
     }
 
-    /// 頂点B取得
-    pub fn vertex_b(&self) -> Point2D<T> {
+    /// 頂点B取得（内部用）
+    pub(crate) fn vertex_b_internal(&self) -> Point2D<T> {
         self.vertex_b
     }
 
-    /// 頂点C取得
-    pub fn vertex_c(&self) -> Point2D<T> {
+    /// 頂点C取得（内部用）
+    pub(crate) fn vertex_c_internal(&self) -> Point2D<T> {
         self.vertex_c
-    }
-
-    /// 頂点配列として取得
-    pub fn vertices(&self) -> [Point2D<T>; 3] {
-        [self.vertex_a, self.vertex_b, self.vertex_c]
     }
 
     // ========================================================================
@@ -237,18 +257,164 @@ impl<T: Scalar> Triangle2D<T> {
             vertex_c: self.vertex_b,
         }
     }
+
+    /// 点から三角形までの最短距離を計算
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
+        // 点が三角形内部にある場合、距離は0
+        if self.contains_point(point) {
+            return T::ZERO;
+        }
+
+        // 各辺から点までの距離の最小値を計算
+        let dist_ab = self.distance_to_edge(point, self.vertex_a, self.vertex_b);
+        let dist_bc = self.distance_to_edge(point, self.vertex_b, self.vertex_c);
+        let dist_ca = self.distance_to_edge(point, self.vertex_c, self.vertex_a);
+
+        dist_ab.min(dist_bc).min(dist_ca)
+    }
+
+    /// 点から線分までの距離を計算（ヘルパーメソッド）
+    fn distance_to_edge(&self, point: &Point2D<T>, p1: Point2D<T>, p2: Point2D<T>) -> T {
+        let edge = Vector2D::from_points(p1, p2);
+        let to_point = Vector2D::from_points(p1, *point);
+
+        let edge_length_sq = edge.dot(&edge);
+        if edge_length_sq < T::from_f64(1e-10) {
+            // 退化した辺の場合、点p1までの距離
+            return to_point.length();
+        }
+
+        // パラメータt: 点からの最短距離を与える辺上の位置
+        let t = (to_point.dot(&edge) / edge_length_sq)
+            .max(T::ZERO)
+            .min(T::ONE);
+
+        // 辺上の最近点
+        let closest = Point2D::new(p1.x() + t * edge.x(), p1.y() + t * edge.y());
+
+        Vector2D::from_points(closest, *point).length()
+    }
 }
 
 // ============================================================================
-// Required Implementations
+// Default Implementations
 // ============================================================================
-
-impl<T: Scalar> Copy for Triangle2D<T> {}
 
 // Default実装（unit triangle）
 impl<T: Scalar> Default for Triangle2D<T> {
     fn default() -> Self {
         Self::unit_triangle()
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Phase 1)
+// ============================================================================
+
+impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
+    fn new(a: (T, T), b: (T, T), c: (T, T)) -> Option<Self> {
+        let pa = Point2D::new(a.0, a.1);
+        let pb = Point2D::new(b.0, b.1);
+        let pc = Point2D::new(c.0, c.1);
+        Self::new(pa, pb, pc)
+    }
+
+    fn unit_triangle() -> Self {
+        Self::unit_triangle()
+    }
+
+    fn from_array(points: [(T, T); 3]) -> Option<Self> {
+        let pa = Point2D::new(points[0].0, points[0].1);
+        let pb = Point2D::new(points[1].0, points[1].1);
+        let pc = Point2D::new(points[2].0, points[2].1);
+        Self::new(pa, pb, pc)
+    }
+
+    fn equilateral_at_origin(side_length: T) -> Self {
+        Self::equilateral_at_origin(side_length)
+    }
+
+    fn right_isosceles(leg_length: T) -> Self {
+        Self::right_isosceles(leg_length)
+    }
+
+    fn reversed(&self) -> Self {
+        self.reverse()
+    }
+}
+
+impl<T: Scalar> Triangle2DProperties<T> for Triangle2D<T> {
+    fn vertex_a(&self) -> (T, T) {
+        let p = self.vertex_a_internal();
+        (p.x(), p.y())
+    }
+
+    fn vertex_b(&self) -> (T, T) {
+        let p = self.vertex_b_internal();
+        (p.x(), p.y())
+    }
+
+    fn vertex_c(&self) -> (T, T) {
+        let p = self.vertex_c_internal();
+        (p.x(), p.y())
+    }
+
+    fn centroid(&self) -> (T, T) {
+        let c = self.centroid();
+        (c.x(), c.y())
+    }
+
+    fn circumcenter(&self) -> Option<(T, T)> {
+        self.circumcenter().map(|c| (c.x(), c.y()))
+    }
+
+    fn incenter(&self) -> (T, T) {
+        let i = self.incenter();
+        (i.x(), i.y())
+    }
+
+    fn circumradius(&self) -> Option<T> {
+        self.circumradius()
+    }
+
+    fn inradius(&self) -> T {
+        self.inradius()
+    }
+}
+
+impl<T: Scalar> Triangle2DMeasure<T> for Triangle2D<T> {
+    fn measure(&self) -> T {
+        self.area()
+    }
+
+    fn edge_ab_length(&self) -> T {
+        self.edge_ab().length()
+    }
+
+    fn edge_bc_length(&self) -> T {
+        self.edge_bc().length()
+    }
+
+    fn edge_ca_length(&self) -> T {
+        self.edge_ca().length()
+    }
+
+    fn perimeter(&self) -> T {
+        self.perimeter()
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        self.contains_point(&p)
+    }
+
+    fn is_clockwise(&self) -> bool {
+        self.is_clockwise()
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
     }
 }
 

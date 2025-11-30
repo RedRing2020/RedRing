@@ -1,9 +1,16 @@
-﻿//! Point2D Core 実装
+//! Point2D Core 実装
 //!
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
 use crate::Vector2D;
-use geo_foundation::{core::point_traits, Scalar};
+use analysis::linalg::vector::Vector2;
+use geo_foundation::{
+    core::{
+        point_core_traits::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties},
+        point_traits,
+    },
+    Scalar,
+};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -87,6 +94,61 @@ impl<T: Scalar> Point2D<T> {
     pub fn norm_squared(&self) -> T {
         self.x * self.x + self.y * self.y
     }
+
+    // ========================================================================
+    // Phase 2 Constructor Methods
+    // ========================================================================
+
+    /// 極座標から点を作成（r: 半径, theta: 角度）
+    pub fn from_polar(r: T, theta: T) -> Self {
+        Self::new(r * theta.cos(), r * theta.sin())
+    }
+
+    // ========================================================================
+    // Phase 2 Properties Methods
+    // ========================================================================
+
+    /// 極座標の半径成分を取得
+    pub fn polar_radius(&self) -> T {
+        self.norm()
+    }
+
+    /// 極座標の角度成分を取得（ラジアン）
+    pub fn polar_angle(&self) -> T {
+        self.y.atan2(self.x)
+    }
+
+    // ========================================================================
+    // Phase 2 Measure Methods
+    // ========================================================================
+
+    /// 2点の中点を計算
+    pub fn midpoint(&self, other: &Self) -> Self {
+        Self::new(
+            (self.x + other.x) / (T::ONE + T::ONE),
+            (self.y + other.y) / (T::ONE + T::ONE),
+        )
+    }
+
+    /// 別の点との線形補間（t=0で自分、t=1で相手）
+    pub fn lerp(&self, other: &Self, t: T) -> Self {
+        Self::new(
+            self.x + (other.x - self.x) * t,
+            self.y + (other.y - self.y) * t,
+        )
+    }
+
+    /// マンハッタン距離（L1ノルム）
+    pub fn manhattan_distance_to(&self, other: &Self) -> T {
+        (self.x - other.x).abs() + (self.y - other.y).abs()
+    }
+
+    /// チェビシェフ距離（L∞ノルム）
+    pub fn chebyshev_distance_to(&self, other: &Self) -> T {
+        let dx = (self.x - other.x).abs();
+        let dy = (self.y - other.y).abs();
+        dx.max(dy)
+    }
 }
 
 // ============================================================================
@@ -105,15 +167,6 @@ impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> CoreFoundation<T> for Point2D<T> {
-    type Point = Point2D<T>;
-    type Vector = Vector2D<T>;
-    type BBox = crate::BBox2D<T>;
-
-    fn bounding_box(&self) -> Self::BBox {
-        crate::BBox2D::from_point(*self)
-    }
-}
 
 impl<T: Scalar> BasicContainment<T> for Point2D<T> {
     fn contains_point(&self, point: &Self::Point) -> bool {
@@ -199,21 +252,6 @@ impl<T: Scalar> Point2D<T> {
     /// 近似等価判定
     pub fn is_approximately_equal(&self, other: &Self, tolerance: T) -> bool {
         (self.x - other.x).abs() <= tolerance && (self.y - other.y).abs() <= tolerance
-    }
-
-    /// 線形補間
-    pub fn lerp(&self, other: &Self, t: T) -> Self {
-        let one_minus_t = T::ONE - t;
-        Point2D::new(
-            one_minus_t * self.x + t * other.x,
-            one_minus_t * self.y + t * other.y,
-        )
-    }
-
-    /// 中点計算
-    pub fn midpoint(&self, other: &Self) -> Self {
-        let half = T::from_f64(0.5);
-        self.lerp(other, half)
     }
 
     /// X軸反射
@@ -311,3 +349,97 @@ impl<T: Scalar> point_traits::Point2D<T> for Point2D<T> {
         self.y
     }
 }
+
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
+    fn new(x: T, y: T) -> Self {
+        Point2D::new(x, y)
+    }
+
+    fn origin() -> Self {
+        Point2D::origin()
+    }
+
+    fn from_tuple(coords: (T, T)) -> Self {
+        Point2D::from_tuple(coords)
+    }
+
+    fn from_analysis_vector(vector: &Vector2<T>) -> Self {
+        Point2D::new(vector.x(), vector.y())
+    }
+
+    fn from_point(other: &Self) -> Self {
+        *other
+    }
+
+    fn from_polar(r: T, theta: T) -> Self {
+        Point2D::from_polar(r, theta)
+    }
+}
+
+impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
+    fn x(&self) -> T {
+        self.x()
+    }
+
+    fn y(&self) -> T {
+        self.y()
+    }
+
+    fn coords(&self) -> [T; 2] {
+        self.coords()
+    }
+
+    fn to_tuple(&self) -> (T, T) {
+        self.to_tuple()
+    }
+
+    fn to_analysis_vector(&self) -> Vector2<T> {
+        Vector2::new(self.x(), self.y())
+    }
+
+    fn polar_radius(&self) -> T {
+        self.polar_radius()
+    }
+}
+
+impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        self.distance_to(other)
+    }
+
+    fn distance_squared_to(&self, other: &Self) -> T {
+        self.distance_squared_to(other)
+    }
+
+    fn distance_from_origin(&self) -> T {
+        let origin = Point2D::origin();
+        self.distance_to(&origin)
+    }
+
+    fn norm_squared(&self) -> T {
+        let origin = Point2D::origin();
+        self.distance_squared_to(&origin)
+    }
+
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
+    }
+
+    fn manhattan_distance_to(&self, other: &Self) -> T {
+        self.manhattan_distance_to(other)
+    }
+
+    fn chebyshev_distance_to(&self, other: &Self) -> T {
+        self.chebyshev_distance_to(other)
+    }
+}
+
+impl<T: Scalar> Point2DCore<T> for Point2D<T> {}

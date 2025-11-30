@@ -1,5 +1,6 @@
 //! STLローダーのテスト
 
+use geo_foundation::core::triangle_core_traits::Triangle3DProperties;
 use geo_io::stl;
 use geo_primitives::{Point3D, TriangleMesh3D};
 use std::io::Write;
@@ -29,9 +30,12 @@ fn test_ascii_stl_roundtrip() {
     assert_eq!(loaded_mesh.vertex_count(), 3); // 重複頂点がマージされる
 
     let triangle = loaded_mesh.triangle(0).unwrap();
-    assert_eq!(triangle.vertex_a(), Point3D::new(0.0, 0.0, 0.0));
-    assert_eq!(triangle.vertex_b(), Point3D::new(1.0, 0.0, 0.0));
-    assert_eq!(triangle.vertex_c(), Point3D::new(0.0, 1.0, 0.0));
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
+    assert_eq!((va.0, va.1, va.2), (0.0, 0.0, 0.0));
+    assert_eq!((vb.0, vb.1, vb.2), (1.0, 0.0, 0.0));
+    assert_eq!((vc.0, vc.1, vc.2), (0.0, 1.0, 0.0));
 }
 
 #[test]
@@ -57,9 +61,12 @@ endsolid test
     assert_eq!(mesh.vertex_count(), 3);
 
     let triangle = mesh.triangle(0).unwrap();
-    assert_eq!(triangle.vertex_a(), Point3D::new(0.0, 0.0, 0.0));
-    assert_eq!(triangle.vertex_b(), Point3D::new(1.0, 0.0, 0.0));
-    assert_eq!(triangle.vertex_c(), Point3D::new(0.0, 1.0, 0.0));
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
+    assert_eq!((va.0, va.1, va.2), (0.0, 0.0, 0.0));
+    assert_eq!((vb.0, vb.1, vb.2), (1.0, 0.0, 0.0));
+    assert_eq!((vc.0, vc.1, vc.2), (0.0, 1.0, 0.0));
 }
 
 #[test]

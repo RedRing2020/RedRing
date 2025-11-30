@@ -18,19 +18,19 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Triangle3D<T> {
         let va_vec = Vector3::new(
-            triangle.vertex_a().x(),
-            triangle.vertex_a().y(),
-            triangle.vertex_a().z(),
+            triangle.vertex_a_internal().x(),
+            triangle.vertex_a_internal().y(),
+            triangle.vertex_a_internal().z(),
         );
         let vb_vec = Vector3::new(
-            triangle.vertex_b().x(),
-            triangle.vertex_b().y(),
-            triangle.vertex_b().z(),
+            triangle.vertex_b_internal().x(),
+            triangle.vertex_b_internal().y(),
+            triangle.vertex_b_internal().z(),
         );
         let vc_vec = Vector3::new(
-            triangle.vertex_c().x(),
-            triangle.vertex_c().y(),
-            triangle.vertex_c().z(),
+            triangle.vertex_c_internal().x(),
+            triangle.vertex_c_internal().y(),
+            triangle.vertex_c_internal().z(),
         );
 
         // Matrix4x4による一括変換
@@ -161,9 +161,9 @@ pub mod analysis_transform {
 
     /// 三角形の重心を計算する補助関数
     pub fn triangle_centroid_3d<T: Scalar>(triangle: &Triangle3D<T>) -> Point3D<T> {
-        let vertex_a = triangle.vertex_a();
-        let vertex_b = triangle.vertex_b();
-        let vertex_c = triangle.vertex_c();
+        let vertex_a = triangle.vertex_a_internal();
+        let vertex_b = triangle.vertex_b_internal();
+        let vertex_c = triangle.vertex_c_internal();
 
         // 3で除算するため、T::ONEを3つ足す
         let three = T::ONE + T::ONE + T::ONE;
@@ -294,15 +294,15 @@ mod tests {
 
         let result = triangle.translate_analysis(&translation).unwrap();
 
-        assert!((result.vertex_a().x() - 2.0).abs() < 1e-10); // 0.0 + 2.0
-        assert!((result.vertex_a().y() - 3.0).abs() < 1e-10); // 0.0 + 3.0
-        assert!((result.vertex_a().z() - 4.0).abs() < 1e-10); // 0.0 + 4.0
-        assert!((result.vertex_b().x() - 3.0).abs() < 1e-10); // 1.0 + 2.0
-        assert!((result.vertex_b().y() - 3.0).abs() < 1e-10); // 0.0 + 3.0
-        assert!((result.vertex_b().z() - 4.0).abs() < 1e-10); // 0.0 + 4.0
-        assert!((result.vertex_c().x() - 2.5).abs() < 1e-10); // 0.5 + 2.0
-        assert!((result.vertex_c().y() - 4.0).abs() < 1e-10); // 1.0 + 3.0
-        assert!((result.vertex_c().z() - 4.5).abs() < 1e-10); // 0.5 + 4.0
+        assert!((result.vertex_a_internal().x() - 2.0).abs() < 1e-10); // 0.0 + 2.0
+        assert!((result.vertex_a_internal().y() - 3.0).abs() < 1e-10); // 0.0 + 3.0
+        assert!((result.vertex_a_internal().z() - 4.0).abs() < 1e-10); // 0.0 + 4.0
+        assert!((result.vertex_b_internal().x() - 3.0).abs() < 1e-10); // 1.0 + 2.0
+        assert!((result.vertex_b_internal().y() - 3.0).abs() < 1e-10); // 0.0 + 3.0
+        assert!((result.vertex_b_internal().z() - 4.0).abs() < 1e-10); // 0.0 + 4.0
+        assert!((result.vertex_c_internal().x() - 2.5).abs() < 1e-10); // 0.5 + 2.0
+        assert!((result.vertex_c_internal().y() - 4.0).abs() < 1e-10); // 1.0 + 3.0
+        assert!((result.vertex_c_internal().z() - 4.5).abs() < 1e-10); // 0.5 + 4.0
     }
 
     #[test]
@@ -315,15 +315,15 @@ mod tests {
         let result = triangle.rotate_analysis(&center, &axis, angle).unwrap();
 
         // Z軸周り90度回転: (x, y, z) -> (-y, x, z)
-        assert!((result.vertex_a().x() - 0.0).abs() < 1e-10);
-        assert!((result.vertex_a().y() - 0.0).abs() < 1e-10);
-        assert!((result.vertex_a().z() - 0.0).abs() < 1e-10);
-        assert!((result.vertex_b().x() - 0.0).abs() < 1e-10);
-        assert!((result.vertex_b().y() - 1.0).abs() < 1e-10);
-        assert!((result.vertex_b().z() - 0.0).abs() < 1e-10);
-        assert!((result.vertex_c().x() - (-1.0)).abs() < 1e-10);
-        assert!((result.vertex_c().y() - 0.5).abs() < 1e-10);
-        assert!((result.vertex_c().z() - 0.5).abs() < 1e-10);
+        assert!((result.vertex_a_internal().x() - 0.0).abs() < 1e-10);
+        assert!((result.vertex_a_internal().y() - 0.0).abs() < 1e-10);
+        assert!((result.vertex_a_internal().z() - 0.0).abs() < 1e-10);
+        assert!((result.vertex_b_internal().x() - 0.0).abs() < 1e-10);
+        assert!((result.vertex_b_internal().y() - 1.0).abs() < 1e-10);
+        assert!((result.vertex_b_internal().z() - 0.0).abs() < 1e-10);
+        assert!((result.vertex_c_internal().x() - (-1.0)).abs() < 1e-10);
+        assert!((result.vertex_c_internal().y() - 0.5).abs() < 1e-10);
+        assert!((result.vertex_c_internal().z() - 0.5).abs() < 1e-10);
     }
 
     #[test]
@@ -333,15 +333,15 @@ mod tests {
 
         let result = triangle.scale_analysis(&center, 2.0, 2.0, 2.0).unwrap();
 
-        assert!((result.vertex_a().x() - 0.0).abs() < 1e-10); // 0.0 * 2.0
-        assert!((result.vertex_a().y() - 0.0).abs() < 1e-10); // 0.0 * 2.0
-        assert!((result.vertex_a().z() - 0.0).abs() < 1e-10); // 0.0 * 2.0
-        assert!((result.vertex_b().x() - 2.0).abs() < 1e-10); // 1.0 * 2.0
-        assert!((result.vertex_b().y() - 0.0).abs() < 1e-10); // 0.0 * 2.0
-        assert!((result.vertex_b().z() - 0.0).abs() < 1e-10); // 0.0 * 2.0
-        assert!((result.vertex_c().x() - 1.0).abs() < 1e-10); // 0.5 * 2.0
-        assert!((result.vertex_c().y() - 2.0).abs() < 1e-10); // 1.0 * 2.0
-        assert!((result.vertex_c().z() - 1.0).abs() < 1e-10); // 0.5 * 2.0
+        assert!((result.vertex_a_internal().x() - 0.0).abs() < 1e-10); // 0.0 * 2.0
+        assert!((result.vertex_a_internal().y() - 0.0).abs() < 1e-10); // 0.0 * 2.0
+        assert!((result.vertex_a_internal().z() - 0.0).abs() < 1e-10); // 0.0 * 2.0
+        assert!((result.vertex_b_internal().x() - 2.0).abs() < 1e-10); // 1.0 * 2.0
+        assert!((result.vertex_b_internal().y() - 0.0).abs() < 1e-10); // 0.0 * 2.0
+        assert!((result.vertex_b_internal().z() - 0.0).abs() < 1e-10); // 0.0 * 2.0
+        assert!((result.vertex_c_internal().x() - 1.0).abs() < 1e-10); // 0.5 * 2.0
+        assert!((result.vertex_c_internal().y() - 2.0).abs() < 1e-10); // 1.0 * 2.0
+        assert!((result.vertex_c_internal().z() - 1.0).abs() < 1e-10); // 0.5 * 2.0
     }
 
     #[test]
@@ -351,15 +351,15 @@ mod tests {
 
         let result = triangle.uniform_scale_analysis(&center, 3.0).unwrap();
 
-        assert!((result.vertex_a().x() - 0.0).abs() < 1e-10); // 0.0 * 3.0
-        assert!((result.vertex_a().y() - 0.0).abs() < 1e-10); // 0.0 * 3.0
-        assert!((result.vertex_a().z() - 0.0).abs() < 1e-10); // 0.0 * 3.0
-        assert!((result.vertex_b().x() - 3.0).abs() < 1e-10); // 1.0 * 3.0
-        assert!((result.vertex_b().y() - 0.0).abs() < 1e-10); // 0.0 * 3.0
-        assert!((result.vertex_b().z() - 0.0).abs() < 1e-10); // 0.0 * 3.0
-        assert!((result.vertex_c().x() - 1.5).abs() < 1e-10); // 0.5 * 3.0
-        assert!((result.vertex_c().y() - 3.0).abs() < 1e-10); // 1.0 * 3.0
-        assert!((result.vertex_c().z() - 1.5).abs() < 1e-10); // 0.5 * 3.0
+        assert!((result.vertex_a_internal().x() - 0.0).abs() < 1e-10); // 0.0 * 3.0
+        assert!((result.vertex_a_internal().y() - 0.0).abs() < 1e-10); // 0.0 * 3.0
+        assert!((result.vertex_a_internal().z() - 0.0).abs() < 1e-10); // 0.0 * 3.0
+        assert!((result.vertex_b_internal().x() - 3.0).abs() < 1e-10); // 1.0 * 3.0
+        assert!((result.vertex_b_internal().y() - 0.0).abs() < 1e-10); // 0.0 * 3.0
+        assert!((result.vertex_b_internal().z() - 0.0).abs() < 1e-10); // 0.0 * 3.0
+        assert!((result.vertex_c_internal().x() - 1.5).abs() < 1e-10); // 0.5 * 3.0
+        assert!((result.vertex_c_internal().y() - 3.0).abs() < 1e-10); // 1.0 * 3.0
+        assert!((result.vertex_c_internal().z() - 1.5).abs() < 1e-10); // 0.5 * 3.0
     }
 
     #[test]
@@ -371,15 +371,15 @@ mod tests {
         let matrix = Matrix4x4::translation_3d(&translation_vec);
         let result = triangle.transform_point_matrix(&matrix);
 
-        assert!((result.vertex_a().x() - 1.0).abs() < 1e-10); // 0.0 + 1.0
-        assert!((result.vertex_a().y() - 1.0).abs() < 1e-10); // 0.0 + 1.0
-        assert!((result.vertex_a().z() - 1.0).abs() < 1e-10); // 0.0 + 1.0
-        assert!((result.vertex_b().x() - 2.0).abs() < 1e-10); // 1.0 + 1.0
-        assert!((result.vertex_b().y() - 1.0).abs() < 1e-10); // 0.0 + 1.0
-        assert!((result.vertex_b().z() - 1.0).abs() < 1e-10); // 0.0 + 1.0
-        assert!((result.vertex_c().x() - 1.5).abs() < 1e-10); // 0.5 + 1.0
-        assert!((result.vertex_c().y() - 2.0).abs() < 1e-10); // 1.0 + 1.0
-        assert!((result.vertex_c().z() - 1.5).abs() < 1e-10); // 0.5 + 1.0
+        assert!((result.vertex_a_internal().x() - 1.0).abs() < 1e-10); // 0.0 + 1.0
+        assert!((result.vertex_a_internal().y() - 1.0).abs() < 1e-10); // 0.0 + 1.0
+        assert!((result.vertex_a_internal().z() - 1.0).abs() < 1e-10); // 0.0 + 1.0
+        assert!((result.vertex_b_internal().x() - 2.0).abs() < 1e-10); // 1.0 + 1.0
+        assert!((result.vertex_b_internal().y() - 1.0).abs() < 1e-10); // 0.0 + 1.0
+        assert!((result.vertex_b_internal().z() - 1.0).abs() < 1e-10); // 0.0 + 1.0
+        assert!((result.vertex_c_internal().x() - 1.5).abs() < 1e-10); // 0.5 + 1.0
+        assert!((result.vertex_c_internal().y() - 2.0).abs() < 1e-10); // 1.0 + 1.0
+        assert!((result.vertex_c_internal().z() - 1.5).abs() < 1e-10); // 0.5 + 1.0
     }
 
     #[test]
@@ -401,14 +401,14 @@ mod tests {
         assert_eq!(results.len(), 2);
 
         // 最初の三角形
-        assert!((results[0].vertex_a().x() - 1.0).abs() < 1e-10);
-        assert!((results[0].vertex_a().y() - 1.0).abs() < 1e-10);
-        assert!((results[0].vertex_a().z() - 1.0).abs() < 1e-10);
+        assert!((results[0].vertex_a_internal().x() - 1.0).abs() < 1e-10);
+        assert!((results[0].vertex_a_internal().y() - 1.0).abs() < 1e-10);
+        assert!((results[0].vertex_a_internal().z() - 1.0).abs() < 1e-10);
 
         // 2番目の三角形
-        assert!((results[1].vertex_a().x() - 3.0).abs() < 1e-10);
-        assert!((results[1].vertex_a().y() - 3.0).abs() < 1e-10);
-        assert!((results[1].vertex_a().z() - 3.0).abs() < 1e-10);
+        assert!((results[1].vertex_a_internal().x() - 3.0).abs() < 1e-10);
+        assert!((results[1].vertex_a_internal().y() - 3.0).abs() < 1e-10);
+        assert!((results[1].vertex_a_internal().z() - 3.0).abs() < 1e-10);
     }
 
     #[test]

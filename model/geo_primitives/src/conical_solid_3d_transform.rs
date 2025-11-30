@@ -189,18 +189,19 @@ impl<T: Scalar> AnalysisTransform3D<T> for ConicalSolid3D<T> {
     /// 平行移動
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 中心点のみ平行移動、他の属性は不変
+        let center = self.center_internal();
         let new_center = Point3D::new(
-            self.center().x() + translation.x(),
-            self.center().y() + translation.y(),
-            self.center().z() + translation.z(),
+            center.x() + translation.x(),
+            center.y() + translation.y(),
+            center.z() + translation.z(),
         );
 
         ConicalSolid3D::new(
             new_center,
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.radius(),
-            self.height(),
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.radius_internal(),
+            self.height_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -212,7 +213,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for ConicalSolid3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 

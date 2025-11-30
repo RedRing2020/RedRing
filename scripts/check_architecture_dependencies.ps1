@@ -21,8 +21,9 @@ $ARCHITECTURE_RULES = @{
 
         # Model層 (geo_*)
         "geo_foundation" = @("analysis")  # 数値計算のみ許可
+        "geo_commons"    = @("geo_foundation", "analysis")  # 共通計算機能
         "geo_core"       = @("geo_foundation", "analysis")
-        "geo_primitives" = @("geo_foundation", "geo_core", "analysis")
+        "geo_primitives" = @("geo_foundation", "analysis")  # geo_commonsは geo_foundation 経由でアクセス
         "geo_algorithms" = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
 
@@ -40,6 +41,7 @@ $ARCHITECTURE_RULES = @{
     "ForbiddenDependencies" = @{
         # Model → ViewModel/View 禁止
         "geo_foundation" = @("converter", "graphics", "render", "stage", "app")
+        "geo_commons"    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")  # geo_foundation以外からの直接アクセス禁止
         "geo_core"       = @("converter", "graphics", "render", "stage", "app")
         "geo_primitives" = @("converter", "graphics", "render", "stage", "app")
         "geo_algorithms" = @("converter", "graphics", "render", "stage", "app")
@@ -61,7 +63,7 @@ $ARCHITECTURE_RULES = @{
     # 命名規則
     "NamingRules"           = @{
         "ModelPrefix"         = "geo_"
-        "RequiredModelCrates" = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
+        "RequiredModelCrates" = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
     }
 }
 
@@ -106,6 +108,7 @@ function Get-WorkspaceCrates {
     $layerMapping = @{
         "analysis"       = "analysis"
         "geo_foundation" = "model/geo_foundation"
+        "geo_commons"    = "model/geo_commons"
         "geo_core"       = "model/geo_core"
         "geo_primitives" = "model/geo_primitives"
         "geo_algorithms" = "model/geo_algorithms"
@@ -192,7 +195,7 @@ function Test-ArchitectureDependencies {
 
     $layers = @{
         "Analysis"  = @("analysis")
-        "Model"     = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
+        "Model"     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
         "ViewModel" = @("converter", "graphics")
         "View"      = @("render", "stage", "app")
     }
@@ -249,6 +252,7 @@ function Show-ArchitectureRules {
     Write-Host "   • View -> ViewModel -> Model (one-way)"
     Write-Host "   • ViewModel -> geo_* (concrete Model reference)"
     Write-Host "   • ViewModel -> geo_io (efficient data conversion)"
+    Write-Host "   • geo_foundation -> geo_commons (Foundation Pattern)"
     Write-Host "   • analysis -> independent (numerical computation crate)"
     Write-Host ""
 
@@ -256,13 +260,15 @@ function Show-ArchitectureRules {
     Write-Host "   • Model -> ViewModel (reverse dependency)"
     Write-Host "   • Model -> View (layer crossing)"
     Write-Host "   • ViewModel -> View (reverse dependency)"
+    Write-Host "   • Direct geo_commons access (must use geo_foundation)"
     Write-Host "   • View -> Model (direct dependency, geo_foundation exception planned)"
     Write-Host "   • analysis -> other crates (independence violation)"
     Write-Host ""
 
     Write-Info "NAMING rules:"
     Write-Host "   • Model layer crates: 'geo_' prefix required"
-    Write-Host "   • geo_foundation: Model abstraction layer & bridge"
+    Write-Host "   • geo_foundation: Model abstraction layer & bridge to geo_commons"
+    Write-Host "   • geo_commons: Common computation functions (Foundation Pattern)"
     Write-Host "   • geo_io: Data format exchange (ViewModel direct reference allowed)"
     Write-Host ""
 }

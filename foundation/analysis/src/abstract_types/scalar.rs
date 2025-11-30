@@ -173,6 +173,9 @@ pub trait Scalar:
 
     /// usizeから変換
     fn from_usize(value: usize) -> Self;
+
+    /// ビット表現を取得（ハッシュ用）
+    fn to_bits(self) -> u64;
 }
 
 /// f32用のScalar実装
@@ -320,6 +323,11 @@ impl Scalar for f32 {
     fn powi(self, exp: i32) -> Self {
         self.powi(exp)
     }
+
+    #[inline]
+    fn to_bits(self) -> u64 {
+        self.to_bits() as u64
+    }
 }
 
 /// f64用のScalar実装
@@ -466,6 +474,11 @@ impl Scalar for f64 {
     #[inline]
     fn powi(self, exp: i32) -> Self {
         self.powi(exp)
+    }
+
+    #[inline]
+    fn to_bits(self) -> u64 {
+        self.to_bits()
     }
 }
 

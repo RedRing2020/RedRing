@@ -48,7 +48,7 @@ pub mod analysis_transform {
         // 法線ベクトルを変換（通常のベクトル変換を使用）
         // 注意: 完全に正確な法線変換には逆転置行列が必要ですが、
         // 単純化のため通常の変換を使用します
-        let normal_vec = vector_to_analysis_vector(plane.normal());
+        let normal_vec = vector_to_analysis_vector(plane.normal_internal());
         let transformed_normal_vec = matrix.transform_vector_3d(&normal_vec);
         let new_normal_vector = analysis_vector_to_vector(transformed_normal_vec);
 
@@ -167,7 +167,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Plane3D<T> {
             self.point().y() + translation.y(),
             self.point().z() + translation.z(),
         );
-        Plane3D::from_point_and_normal(new_point, self.normal())
+        Plane3D::from_point_and_normal(new_point, self.normal_internal())
             .ok_or_else(|| TransformError::InvalidGeometry("Normal vector became zero".to_string()))
     }
 
@@ -277,9 +277,9 @@ mod tests {
         assert!((result.point().z() - expected_point.z()).abs() < f64::EPSILON);
 
         // 法線ベクトルは変わらない
-        assert!((result.normal().x() - 0.0).abs() < f64::EPSILON);
-        assert!((result.normal().y() - 0.0).abs() < f64::EPSILON);
-        assert!((result.normal().z() - 1.0).abs() < f64::EPSILON);
+        assert!((result.normal_internal().x() - 0.0).abs() < f64::EPSILON);
+        assert!((result.normal_internal().y() - 0.0).abs() < f64::EPSILON);
+        assert!((result.normal_internal().z() - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -302,9 +302,9 @@ mod tests {
         assert!((result.point().z() - expected_point.z()).abs() < 1e-10);
 
         // 90度X軸回転後の法線ベクトル確認
-        assert!((result.normal().x() - 0.0).abs() < 1e-10);
-        assert!((result.normal().y() - (-1.0)).abs() < 1e-10);
-        assert!((result.normal().z() - 0.0).abs() < 1e-10);
+        assert!((result.normal_internal().x() - 0.0).abs() < 1e-10);
+        assert!((result.normal_internal().y() - (-1.0)).abs() < 1e-10);
+        assert!((result.normal_internal().z() - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -332,9 +332,9 @@ mod tests {
         // 法線ベクトルは逆転置変換によって適切にスケールされる
         // スケール(2,3,4)の逆転置は diag(1/2, 1/3, 1/4)
         // 法線(0,0,1)は(0,0,1/4)になり、正規化されて(0,0,1)になる
-        assert!((result.normal().x() - 0.0).abs() < f64::EPSILON);
-        assert!((result.normal().y() - 0.0).abs() < f64::EPSILON);
-        assert!((result.normal().z() - 1.0).abs() < f64::EPSILON);
+        assert!((result.normal_internal().x() - 0.0).abs() < f64::EPSILON);
+        assert!((result.normal_internal().y() - 0.0).abs() < f64::EPSILON);
+        assert!((result.normal_internal().z() - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]

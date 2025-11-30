@@ -3,7 +3,7 @@
 //! Core Foundation パターンに基づく Vector3D の必須機能のみ
 //! 拡張機能は vector_3d_extensions.rs を参照
 
-use crate::{BBox3D, Point3D};
+use crate::Point3D;
 use geo_foundation::{core::vector_traits, Scalar};
 
 /// 3次元ベクトル
@@ -152,7 +152,8 @@ impl<T: Scalar> Vector3D<T> {
     }
 
     /// ベクトルの境界ボックス（原点と終点を含む）
-    pub fn bounding_box(&self) -> BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         let origin = Point3D::<T>::origin();
         let end_point = self.to_point();
 
@@ -163,9 +164,9 @@ impl<T: Scalar> Vector3D<T> {
         let min_z = origin.z().min(end_point.z());
         let max_z = origin.z().max(end_point.z());
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            Point3::new(min_x, min_y, min_z),
+            Point3::new(max_x, max_y, max_z),
         )
     }
 }

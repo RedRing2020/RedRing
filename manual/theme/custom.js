@@ -3,7 +3,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   // テスト用：CSSが効いていることを確認するための明確な変更
   console.log("RedRing Custom JS Loaded!");
-  
+
   // テスト用：ページタイトルに装飾を追加
   const title = document.querySelector('.menu-title');
   if (title) {

@@ -1,22 +1,27 @@
 //! Arc3D の Foundation トレイト実装
 
-use crate::{Arc3D, BBox3D};
-use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use crate::Arc3D;
+use geo_core::Aabb3D;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for Arc3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc
     }
 
-    fn bounding_box(&self) -> Self::BBox {
+    fn measure(&self) -> Option<T> {
+        Some(self.arc_length())
+    }
+}
+
+impl<T: Scalar> Bounded<T> for Arc3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
         // 円弧の開始点と終了点を含む境界ボックスを計算
         let _start_point = self.start_point();
         let _end_point = self.end_point();
@@ -38,11 +43,10 @@ impl<T: Scalar> ExtensionFoundation<T> for Arc3D<T> {
             center.z() + radius,
         );
 
-        BBox3D::new(min_point, max_point)
-    }
-
-    fn measure(&self) -> Option<T> {
-        Some(self.arc_length())
+        Some(Aabb3D::new(
+            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
+            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+        ))
     }
 }
 
@@ -84,9 +88,9 @@ mod tests {
         assert!(arc.measure().is_some());
         assert_eq!(arc.measure().unwrap(), arc.arc_length());
 
-        let bbox = arc.bounding_box();
+        let aabb = arc.aabb().expect("Arc should have an AABB");
         // 中心を含む境界ボックス
-        assert!(bbox.min().x() <= center.x() && center.x() <= bbox.max().x());
+        assert!(aabb.min().x() <= center.x() && center.x() <= aabb.max().x());
     }
 
     #[test]

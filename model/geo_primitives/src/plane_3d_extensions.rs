@@ -13,7 +13,7 @@ impl<T: Scalar> Plane3D<T> {
     /// 平面による点の鏡像反転
     pub fn mirror_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let _distance = self.distance_to_point(*point);
-        let normal = self.normal();
+        let normal = self.normal_internal();
 
         // 符号付き距離を計算（平面の法線方向が正）
         let to_point = Vector3D::new(
@@ -34,7 +34,7 @@ impl<T: Scalar> Plane3D<T> {
 
     /// 平面によるベクトルの鏡像反転
     pub fn mirror_vector(&self, vector: &Vector3D<T>) -> Vector3D<T> {
-        let normal = self.normal();
+        let normal = self.normal_internal();
         let dot_product = vector.dot(&normal);
         let reflection = normal * (dot_product * (T::ONE + T::ONE));
 
@@ -48,7 +48,7 @@ impl<T: Scalar> Plane3D<T> {
     /// 平面上への点の射影（参照版）
     pub fn project_point_ref(&self, point: &Point3D<T>) -> Point3D<T> {
         let distance = self.distance_to_point(*point);
-        let projection_vector = self.normal() * distance;
+        let projection_vector = self.normal_internal() * distance;
 
         Point3D::new(
             point.x() - projection_vector.x(),

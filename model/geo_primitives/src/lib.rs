@@ -10,14 +10,15 @@ pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
+pub mod arc_3d_collision; // Arc3D の衝突判定
 pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_foundation; // Arc3D のFoundation実装
-pub mod bbox_3d; // BBox3D の新実装
-pub mod bbox_3d_extensions; // BBox3D の拡張機能 (Extension)
-pub mod bbox_3d_foundation; // BBox3D のFoundation実装
+pub mod arc_3d_intersection; // Arc3D の交差計算
 pub mod circle_3d; // Circle3D の新実装
+pub mod circle_3d_collision; // Circle3D の衝突判定
 pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
 pub mod circle_3d_foundation; // Circle3D のFoundation実装
+pub mod circle_3d_intersection; // Circle3D の交差計算
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod conical_solid_3d; // ConicalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod conical_solid_3d_extensions; // ConicalSolid3D の拡張機能 (Extension)
@@ -48,27 +49,37 @@ pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
+pub mod infinite_line_3d_collision; // InfiniteLine3D の衝突検出実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
+pub mod infinite_line_3d_foundation; // InfiniteLine3D の Foundation 実装
+pub mod infinite_line_3d_intersection; // InfiniteLine3D の交点計算実装
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
+pub mod line_segment_3d_collision; // LineSegment3D の衝突検出実装
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
+pub mod line_segment_3d_foundation; // LineSegment3D の Foundation 実装
+pub mod line_segment_3d_intersection; // LineSegment3D の交点計算実装
 pub mod plane_3d; // Plane3D の新実装 (Core)
+pub mod plane_3d_collision; // Plane3D の衝突検出実装
 pub mod plane_3d_extensions; // Plane3D の拡張機能 (Extension)
 pub mod plane_3d_foundation; // Plane3D のFoundation実装
-                             // pub mod plane_3d_intersection; // 一時的にコメントアウト（機能過多）
+pub mod plane_3d_intersection; // Plane3D の交点計算実装
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
 pub mod point_3d; // Point3D の新実装 (Core)
-pub mod point_3d_core_traits; // Point3D の Core traits 実装
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
 pub mod ray_3d; // Ray3D の新実装 (Core)
+pub mod ray_3d_collision; // Ray3D の衝突検出実装
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
+pub mod ray_3d_intersection; // Ray3D の交点計算実装
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod spherical_surface_3d_collision; // SphericalSurface3D の衝突判定
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
+pub mod spherical_surface_3d_intersection; // SphericalSurface3D の交差計算
 pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
 pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
 pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
@@ -76,7 +87,9 @@ pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具�
 pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
 pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
+pub mod triangle_3d_collision; // Triangle3D の衝突検出実装
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
+pub mod triangle_3d_intersection; // Triangle3D の交点計算実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
@@ -100,35 +113,87 @@ pub mod triangle_mesh_3d_tests;
 
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
-// pub mod arc_2d; // Arc2D の新実装 (Core) - 依存関係エラーのため一時無効化
-// pub mod arc_2d_collision; // Arc2D 衝突検出・距離計算Foundation実装 - Arc2D依存のため一時無効化
-pub mod bbox_2d; // BBox2D の新実装 (Core)
-pub mod bbox_2d_extensions; // BBox2D の拡張機能 (Extension)
+pub mod arc_2d; // Arc2D の新実装 (Core)
+pub mod arc_2d_collision; // Arc2D の衝突検出実装
+pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)
+pub mod arc_2d_foundation; // Arc2D のFoundation実装
+pub mod arc_2d_intersection; // Arc2D の交点計算実装
+
 pub mod circle_2d; // Circle2D の新実装 (Core)
+pub mod circle_2d_collision; // Circle2D の Collision 実装
+pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension - Phase 2 対応)
+pub mod circle_2d_intersection; // Circle2D の Intersection 実装
+                                // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
+                                // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
+
+// Circle Core Traits の公開 - Foundation Pattern実装完了
+pub use geo_foundation::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
+pub use geo_foundation::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties};
+
+// Arc Core Traits の公開 - Foundation Pattern実装完了
+pub use geo_foundation::core::arc_core_traits::{
+    Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DMeasure,
+    Arc3DProperties,
+};
+
 pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
+// pub mod direction_3d_core_traits; // Moved to direction_3d.rs
+pub use geo_foundation::core::direction_core_traits::{
+    Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
+}; // Direction3D の Core traits 公開
+
+// InfiniteLine Core Traits の公開 - Foundation Pattern実装完了
+pub use geo_foundation::core::infinite_line_core_traits::{
+    InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
+    InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties,
+};
+
+// Ray Core Traits の公開 - Foundation Pattern実装完了
+pub use geo_foundation::core::ray_core_traits::{
+    Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DMeasure,
+    Ray3DProperties,
+};
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
+                    // pub mod ellipse_2d_additional_tests; // Ellipse2D の追加テスト
+pub mod ellipse_2d_collision; // Ellipse2D の衝突検出実装
+pub mod ellipse_2d_foundation; // Ellipse2D の Foundation 実装
+pub mod ellipse_2d_intersection; // Ellipse2D の交点計算実装
+                                 // pub mod ellipse_2d_tests; // Ellipse2D のテスト
+pub mod ellipse_2d_transform; // Ellipse2D の変換実装
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
+pub mod infinite_line_2d_collision; // InfiniteLine2D の衝突検出実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
+pub mod infinite_line_2d_foundation; // InfiniteLine2D の Foundation 実装
+pub mod infinite_line_2d_intersection; // InfiniteLine2D の交点計算実装
+pub mod infinite_line_2d_transform; // InfiniteLine2D の変換実装
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
+pub mod line_segment_2d_collision; // LineSegment2D の衝突検出実装
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
+pub mod line_segment_2d_foundation; // LineSegment2D のFoundation実装
+pub mod line_segment_2d_intersection; // LineSegment2D の交点計算実装
 pub mod point_2d; // Point2D の新実装
-pub mod point_2d_core_traits; // Point2D の Core traits 実装
 pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod ray_2d; // Ray2D の新実装 (Core)
+pub mod ray_2d_collision; // Ray2D の衝突検出実装
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
+pub mod ray_2d_foundation; // Ray2D の Foundation 実装
+pub mod ray_2d_intersection; // Ray2D の交点計算実装
+pub mod ray_2d_transform; // Ray2D の変換実装
 pub mod triangle_2d; // Triangle2D の新実装 (Core)
+pub mod triangle_2d_collision; // Triangle2D の衝突検出実装
+pub mod triangle_2d_foundation; // Triangle2D の Foundation 実装
+pub mod triangle_2d_intersection; // Triangle2D の交点計算実装
+pub mod triangle_2d_transform; // Triangle2D の変換実装
 
 // Vector2D関連（Core, Extension, Transform, Safe Transform）
 pub mod vector_2d; // Vector2D の新実装 (Core)
 pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 
 // テストモジュール（次元中立設計）
-#[cfg(test)]
-mod bbox_3d_tests;
 #[cfg(test)]
 mod ellipse_3d_tests;
 #[cfg(test)]
@@ -141,8 +206,6 @@ mod point_3d_tests;
 mod vector_3d_tests;
 
 // 2D テスト
-#[cfg(test)]
-mod bbox_2d_tests;
 #[cfg(test)]
 mod direction_2d_extensions_tests;
 #[cfg(test)]
@@ -181,7 +244,6 @@ pub use geo_foundation::extensions::{
 // 新実装の公開（次元中立設計）
 // 3D プリミティブ
 pub use arc_3d::Arc3D;
-pub use bbox_3d::BBox3D;
 pub use circle_3d::Circle3D;
 pub use conical_solid_3d::{Cone3D, ConicalSolid3D}; // 新式円錐ソリッド + 互換エイリアス
 pub use conical_surface_3d::{ConeRim3D, ConicalSurface3D}; // 新式円錐サーフェス + 互換エイリアス
@@ -207,8 +269,7 @@ pub use triangle_mesh_3d::TriangleMesh3D;
 pub use vector_3d::Vector3D;
 
 // 2D プリミティブ
-// pub use arc_2d::Arc2D; // 一時無効化
-pub use crate::bbox_2d::BBox2D;
+pub use arc_2d::Arc2D;
 pub use circle_2d::Circle2D;
 pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;
@@ -219,6 +280,10 @@ pub use point_2d::Point2D;
 pub use ray_2d::Ray2D;
 pub use triangle_2d::Triangle2D;
 pub use vector_2d::Vector2D;
+
+// Core Traits統合エクスポート（Foundation経由）
+pub use geo_foundation::core::infinite_line_core_traits::{InfiniteLine2DCore, InfiniteLine3DCore};
+pub use geo_foundation::core::ray_core_traits::{Ray2DCore, Ray3DCore};
 
 // ============================================================================
 // Test Modules

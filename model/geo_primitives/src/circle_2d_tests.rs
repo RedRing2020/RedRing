@@ -377,61 +377,7 @@ fn test_circle2d_f32() {
 // ============================================================================
 
 #[cfg(test)]
-mod foundation_tests {
-    use super::*;
-    use geo_foundation::core::circle_core::{
-        CircleCore, CircleMetrics, UnifiedCircleFoundation,
-    };
 
-    /// CircleCore trait実装テスト
-    #[test]
-    fn test_circle_core_trait() {
-        let circle = Circle2D::new(Point2D::new(2.0, 3.0), 5.0).unwrap();
-
-        // CircleCore trait経由でのアクセス
-        assert_eq!(circle.center(), Point2D::new(2.0, 3.0));
-        assert_eq!(circle.radius(), 5.0);
-    }
-
-    /// CircleMetrics trait実装テスト
-    #[test]
-    fn test_circle_metrics_trait() {
-        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
-
-        // CircleMetrics trait経由でのアクセス
-        let area = circle.area();
-        let circumference = circle.circumference();
-        let diameter = circle.diameter();
-
-        assert!((area - (PI * 4.0)).abs() < 1e-10);
-        assert!((circumference - (TAU * 2.0)).abs() < 1e-10);
-        assert_eq!(diameter, 4.0);
-    }
-
-    /// UnifiedCircleFoundation trait実装テスト
-    #[test]
-    fn test_unified_circle_foundation_trait() {
-        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
-        let circle2 = Circle2D::new(Point2D::new(4.0, 0.0), 2.0).unwrap();
-
-        // Foundation transform
-        let doubled = circle1.foundation_transform("double_radius").unwrap();
-        assert_eq!(doubled.radius(), 6.0);
-
-        let halved = circle1.foundation_transform("half_radius").unwrap();
-        assert_eq!(halved.radius(), 1.5);
-
-        // Foundation distance
-        let distance = circle1.foundation_distance(&circle2);
-        assert_eq!(distance, 4.0);
-
-        // Foundation intersection（重なる円の場合）
-        let circle3 = Circle2D::new(Point2D::new(2.0, 0.0), 3.0).unwrap();
-        let intersection = circle1.foundation_intersection(&circle3);
-        assert!(intersection.is_some());
-        let point = intersection.unwrap();
-        assert_eq!(point, Point2D::new(1.0, 0.0)); // 中点
-    }
 
     /// Foundation Extensions統合テスト
     #[test]

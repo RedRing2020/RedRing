@@ -19,7 +19,7 @@
 //! **作成日: 2025年11月15日**
 //! **最終更新: 2025年11月15日**
 
-use crate::{BBox3D, Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
 
 /// 3次元楕円体サーフェス（STEP準拠のCore実装）
@@ -187,39 +187,40 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
     // ========================================================================
 
     /// 中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
     /// 軸方向を取得
-    pub fn axis(&self) -> Direction3D<T> {
+    pub(crate) fn axis_internal(&self) -> Direction3D<T> {
         self.axis
     }
 
     /// 参照方向を取得
-    pub fn ref_direction(&self) -> Direction3D<T> {
+    pub(crate) fn ref_direction_internal(&self) -> Direction3D<T> {
         self.ref_direction
     }
 
     /// X軸方向の半径を取得
-    pub fn a_radius(&self) -> T {
+    pub(crate) fn a_radius_internal(&self) -> T {
         self.a_radius
     }
 
     /// Y軸方向の半径を取得
-    pub fn b_radius(&self) -> T {
+    pub(crate) fn b_radius_internal(&self) -> T {
         self.b_radius
     }
 
     /// Z軸方向の半径を取得
-    pub fn c_radius(&self) -> T {
+    pub(crate) fn c_radius_internal(&self) -> T {
         self.c_radius
     }
 
     /// Y軸方向を計算（派生軸）
     ///
     /// STEP標準：Y = Z × X（右手系）
-    pub fn derived_y_axis(&self) -> Direction3D<T> {
+    #[allow(dead_code)]
+    pub(crate) fn derived_y_axis_internal(&self) -> Direction3D<T> {
         let z = self.axis.as_vector();
         let x = self.ref_direction.as_vector();
 
@@ -253,7 +254,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         let sin_v = v.sin();
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 楕円体上の点
@@ -291,7 +292,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         let sin_v = v.sin();
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 楕円体の法線（非正規化）
@@ -326,7 +327,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         );
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 局所座標系での座標
@@ -365,7 +366,7 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         );
 
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         let local_x =
@@ -399,10 +400,11 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
     }
 
     /// 境界ボックスを計算
-    pub fn bounding_box(&self) -> BBox3D<T> {
+    pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
+        use analysis::Point3;
         // 各軸方向の最大伸び
         let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.derived_y_axis().as_vector();
+        let y_axis = self.derived_y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
         // 各座標軸での最大・最小値を計算
@@ -419,13 +421,13 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
             + self.c_radius * z_axis.z().abs())
         .max(T::EPSILON);
 
-        BBox3D::new(
-            Point3D::new(
+        geo_core::Aabb3D::new(
+            Point3::new(
                 self.center.x() - max_x_extent,
                 self.center.y() - max_y_extent,
                 self.center.z() - max_z_extent,
             ),
-            Point3D::new(
+            Point3::new(
                 self.center.x() + max_x_extent,
                 self.center.y() + max_y_extent,
                 self.center.z() + max_z_extent,
@@ -443,12 +445,211 @@ impl<T: Scalar> std::fmt::Display for EllipsoidalSurface3D<T> {
         write!(
             f,
             "EllipsoidalSurface3D {{ center: {:?}, axis: {:?}, ref_direction: {:?}, a_radius: {}, b_radius: {}, c_radius: {} }}",
-            self.center(),
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.a_radius(),
-            self.b_radius(),
-            self.c_radius()
+            self.center_internal(),
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.a_radius_internal(),
+            self.b_radius_internal(),
+            self.c_radius_internal()
         )
     }
 }
+
+use geo_foundation::{
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
+    EllipsoidalSurface3DProperties,
+};
+
+impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis_vector: (T, T, T),
+        ref_vector: (T, T, T),
+        semi_axis_a: T,
+        semi_axis_b: T,
+        semi_axis_c: T,
+    ) -> Option<Self> {
+        let center = Point3D::new(center.0, center.1, center.2);
+        let axis_vec = Vector3D::new(axis_vector.0, axis_vector.1, axis_vector.2);
+        let ref_vec = Vector3D::new(ref_vector.0, ref_vector.1, ref_vector.2);
+        Self::new(
+            center,
+            axis_vec,
+            ref_vec,
+            semi_axis_a,
+            semi_axis_b,
+            semi_axis_c,
+        )
+    }
+
+    fn new_standard(
+        center: (T, T, T),
+        semi_axis_a: T,
+        semi_axis_b: T,
+        semi_axis_c: T,
+    ) -> Option<Self> {
+        let center_point = Point3D::new(center.0, center.1, center.2);
+        let axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
+        let ref_direction = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
+        Self::new(
+            center_point,
+            axis,
+            ref_direction,
+            semi_axis_a,
+            semi_axis_b,
+            semi_axis_c,
+        )
+    }
+
+    fn unit_ellipsoid_surface() -> Self {
+        Self::new_spherical(Point3D::origin(), T::ONE).unwrap()
+    }
+
+    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
+        let center_x = (min.0 + max.0) / T::from_f64(2.0);
+        let center_y = (min.1 + max.1) / T::from_f64(2.0);
+        let center_z = (min.2 + max.2) / T::from_f64(2.0);
+        let semi_a = (max.0 - min.0) / T::from_f64(2.0);
+        let semi_b = (max.1 - min.1) / T::from_f64(2.0);
+        let semi_c = (max.2 - min.2) / T::from_f64(2.0);
+        Self::new_standard((center_x, center_y, center_z), semi_a, semi_b, semi_c)
+    }
+
+    fn from_semi_axes(center: (T, T, T), a: T, b: T, c: T) -> Option<Self> {
+        Self::new_standard(center, a, b, c)
+    }
+
+    fn oblate_spheroid(center: (T, T, T), equatorial_radius: T, polar_radius: T) -> Option<Self> {
+        Self::new_standard(center, equatorial_radius, equatorial_radius, polar_radius)
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center_internal();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn semi_axis_a(&self) -> T {
+        self.a_radius_internal()
+    }
+
+    fn semi_axis_b(&self) -> T {
+        self.b_radius_internal()
+    }
+
+    fn semi_axis_c(&self) -> T {
+        self.c_radius_internal()
+    }
+
+    fn is_sphere(&self) -> bool {
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c = self.c_radius_internal();
+        (a - b).abs() < T::EPSILON && (b - c).abs() < T::EPSILON
+    }
+
+    fn is_oblate(&self) -> bool {
+        let c = self.c_radius_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        c < a.max(b)
+    }
+
+    fn eccentricity(&self) -> T {
+        let a = self.a_radius_internal();
+        let c = self.c_radius_internal();
+        let e2 = T::ONE - (c * c) / (a * a);
+        e2.max(T::ZERO).sqrt()
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
+    fn surface_area(&self) -> T {
+        // 楕円体の表面積は解析解がないため、近似値を返す
+        // Knud Thomsen's formula を使用
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c = self.c_radius_internal();
+        let p = T::from_f64(1.6075);
+        let ap = a.powf(p);
+        let bp = b.powf(p);
+        let cp = c.powf(p);
+        let numerator = ap * bp + bp * cp + cp * ap;
+        let four = T::from_f64(4.0);
+        let three = T::from_f64(3.0);
+        let pi = T::from_f64(std::f64::consts::PI);
+        four * pi * (numerator / three).powf(T::ONE / p)
+    }
+
+    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
+        if let Some(n) = self.normal_at_uv(u, v) {
+            (n.x(), n.y(), n.z())
+        } else {
+            (T::ZERO, T::ZERO, T::ONE)
+        }
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        let p = self.point_at_uv(u, v);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(&p)
+    }
+
+    fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T) {
+        let cos_phi = phi.cos();
+        let sin_phi = phi.sin();
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+
+        let c = self.center_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c_radius = self.c_radius_internal();
+
+        (
+            c.x() + a * cos_theta * sin_phi,
+            c.y() + b * sin_theta * sin_phi,
+            c.z() + c_radius * cos_phi,
+        )
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let c = self.center_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c_radius = self.c_radius_internal();
+        let max_radius = a.max(b).max(c_radius);
+        (
+            (c.x() - max_radius, c.y() - max_radius, c.z() - max_radius),
+            (c.x() + max_radius, c.y() + max_radius, c.z() + max_radius),
+        )
+    }
+
+    fn volume(&self) -> T {
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c = self.c_radius_internal();
+        T::from_f64(4.0 / 3.0) * T::PI * a * b * c
+    }
+
+    fn surface_area_knud_thomsen(&self) -> T {
+        self.surface_area()
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DCore<T> for EllipsoidalSurface3D<T> {}
