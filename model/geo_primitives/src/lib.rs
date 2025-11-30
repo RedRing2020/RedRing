@@ -10,11 +10,15 @@ pub use geo_foundation::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;
+pub mod arc_3d_collision; // Arc3D の衝突判定
 pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_foundation; // Arc3D のFoundation実装
+pub mod arc_3d_intersection; // Arc3D の交差計算
 pub mod circle_3d; // Circle3D の新実装
+pub mod circle_3d_collision; // Circle3D の衝突判定
 pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
 pub mod circle_3d_foundation; // Circle3D のFoundation実装
+pub mod circle_3d_intersection; // Circle3D の交差計算
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod conical_solid_3d; // ConicalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod conical_solid_3d_extensions; // ConicalSolid3D の拡張機能 (Extension)
@@ -45,13 +49,20 @@ pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
+pub mod infinite_line_3d_collision; // InfiniteLine3D の衝突検出実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
+pub mod infinite_line_3d_foundation; // InfiniteLine3D の Foundation 実装
+pub mod infinite_line_3d_intersection; // InfiniteLine3D の交点計算実装
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
+pub mod line_segment_3d_collision; // LineSegment3D の衝突検出実装
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
+pub mod line_segment_3d_foundation; // LineSegment3D の Foundation 実装
+pub mod line_segment_3d_intersection; // LineSegment3D の交点計算実装
 pub mod plane_3d; // Plane3D の新実装 (Core)
+pub mod plane_3d_collision; // Plane3D の衝突検出実装
 pub mod plane_3d_extensions; // Plane3D の拡張機能 (Extension)
 pub mod plane_3d_foundation; // Plane3D のFoundation実装
-                             // pub mod plane_3d_intersection; // 一時的にコメントアウト（機能過多）
+pub mod plane_3d_intersection; // Plane3D の交点計算実装
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
@@ -59,12 +70,16 @@ pub mod point_3d; // Point3D の新実装 (Core)
 pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
 pub mod point_3d_foundation; // Point3D のFoundation実装
 pub mod ray_3d; // Ray3D の新実装 (Core)
+pub mod ray_3d_collision; // Ray3D の衝突検出実装
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
+pub mod ray_3d_intersection; // Ray3D の交点計算実装
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod spherical_surface_3d_collision; // SphericalSurface3D の衝突判定
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
+pub mod spherical_surface_3d_intersection; // SphericalSurface3D の交差計算
 pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
 pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
 pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
@@ -72,7 +87,9 @@ pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具�
 pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
 pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
+pub mod triangle_3d_collision; // Triangle3D の衝突検出実装
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
+pub mod triangle_3d_intersection; // Triangle3D の交点計算実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
