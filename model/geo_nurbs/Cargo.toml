@@ -14,7 +14,6 @@ analysis = { path = "../../foundation/analysis" }
 geo_foundation = { path = "../geo_foundation" }
 geo_core = { path = "../geo_core" }
 geo_primitives = { path = "../geo_primitives" }
-geo_commons = { path = "../geo_commons" }
 
 # 数値計算
 nalgebra = "0.33.0"

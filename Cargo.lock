@@ -678,7 +678,6 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
- "geo_commons",
  "geo_core",
  "geo_foundation",
  "geo_primitives",
@@ -692,7 +691,6 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
- "geo_commons",
  "geo_core",
  "geo_foundation",
  "serde",
