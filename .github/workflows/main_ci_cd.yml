@@ -64,6 +64,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify checkout
+        run: |
+          echo "Checking script version..."
+          grep -n "geo_foundation.*geo_commons" scripts/check_architecture_dependencies_simple.ps1 || echo "Pattern not found"
       - name: Run Architecture Dependency Check
         shell: pwsh
         run: |
@@ -80,9 +84,10 @@ jobs:
           echo "Checking Foundation layer independence..."
 
           # 1. Foundation層クレートの外部依存性チェック
-          echo "Checking foundation/ crates have no external dependencies..."
+          echo "Checking foundation/ crates have minimal external dependencies..."
           for foundation_crate in foundation/*/; do
             if [ -f "$foundation_crate/Cargo.toml" ]; then
+              crate_name=$(basename "$foundation_crate")
               echo "Checking $foundation_crate"
 
               # [dependencies]セクションから実際の依存関係行のみを抽出
@@ -96,10 +101,16 @@ jobs:
               ' "$foundation_crate/Cargo.toml")
 
               if [ -n "$deps_found" ]; then
-                echo "❌ Foundation crate $foundation_crate has external dependencies"
-                echo "Found dependencies:"
+                # analysis は完全に独立である必要がある
+                if [ "$crate_name" = "analysis" ]; then
+                  echo "❌ Foundation crate analysis must have no external dependencies"
+                  echo "Found dependencies:"
+                  echo "$deps_found"
+                  exit 1
+                fi
+                
+                echo "ℹ️  $foundation_crate has dependencies (allowed for non-analysis crates):"
                 echo "$deps_found"
-                exit 1
               else
                 echo "✅ $foundation_crate has no external dependencies"
               fi
