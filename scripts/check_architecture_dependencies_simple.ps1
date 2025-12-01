@@ -67,10 +67,10 @@ function Test-ArchitectureDependencies {
         "app"            = "view\app"
     }
 
-    # Define allowed dependencies
+    # Define allowed dependencies (Updated: 2025-12-01)
     $allowedDeps = @{
         "analysis"       = @()
-        "geo_foundation" = @("analysis", "geo_commons")  # geo_commons から計算関数を再エクスポート
+        "geo_foundation" = @("analysis", "geo_commons")  # geo_commons: 共通計算関数を再エクスポート
         "geo_commons"    = @("analysis")  # 独立した計算関数クレート
         "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
         "geo_primitives" = @("geo_foundation", "geo_core", "analysis")  # geo_core の AABB型を使用
