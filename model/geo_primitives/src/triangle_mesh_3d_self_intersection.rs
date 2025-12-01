@@ -15,6 +15,7 @@ use geo_foundation::{
 struct TriangleBBox<T: Scalar> {
     min: Point3D<T>,
     max: Point3D<T>,
+    #[allow(dead_code)]
     triangle_index: usize,
 }
 
