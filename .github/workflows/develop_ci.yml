@@ -95,8 +95,8 @@ jobs:
           # Define allowed dependencies
           declare -A ALLOWED_DEPS=(
             ["analysis"]=""
-            ["geo_foundation"]="analysis"
-            ["geo_commons"]="geo_foundation analysis"
+            ["geo_foundation"]="analysis geo_commons"
+            ["geo_commons"]="analysis"
             ["geo_core"]="geo_foundation analysis"
             ["geo_primitives"]="geo_foundation analysis"
             ["geo_algorithms"]="geo_foundation geo_core geo_primitives analysis"
