@@ -92,7 +92,6 @@ pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_3d_intersection; // Triangle3D の交点計算実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
-pub mod triangle_mesh_3d_self_intersection; // TriangleMesh3D の自己交差検出
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
 
 // Vector3D関連（Core, Extension, Transform, Safe Transform, Analysis）
