@@ -98,6 +98,10 @@ function Test-ArchitectureDependencies {
     Write-Host ""
 
     Write-ColorText "2. Checking dependency rules..." "Yellow"
+    
+    # Debug: geo_foundation の許可依存先を表示
+    Write-ColorText "  DEBUG: geo_foundation allowed deps: $($allowedDeps['geo_foundation'] -join ', ')" "Gray"
+    
     foreach ($crateName in $workspaceCrates.Keys) {
         $cratePath = $workspaceCrates[$crateName]
 
