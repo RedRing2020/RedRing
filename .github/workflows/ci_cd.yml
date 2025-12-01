@@ -64,6 +64,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify checkout
+        run: |
+          echo "Checking script version..."
+          grep -n "geo_foundation.*geo_commons" scripts/check_architecture_dependencies_simple.ps1 || echo "Pattern not found"
       - name: Run Architecture Dependency Check
         shell: pwsh
         run: |
