@@ -43,7 +43,13 @@ pub mod cylindrical_surface_3d_tests; // CylindricalSurface3D のテスト
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
+pub mod ellipse_3d_collision; // Ellipse3D の衝突判定
+#[cfg(test)]
+pub mod ellipse_3d_collision_tests; // Ellipse3D の衝突判定テスト
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
+pub mod ellipse_3d_intersection; // Ellipse3D の交差計算
+#[cfg(test)]
+pub mod ellipse_3d_intersection_tests; // Ellipse3D の交差計算テスト
 pub mod ellipse_arc_3d; // EllipseArc3D の実装 (Core)
 pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
