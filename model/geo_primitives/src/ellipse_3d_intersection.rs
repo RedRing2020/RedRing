@@ -4,8 +4,7 @@
 //! Phase 3.1: BasicIntersection, MultipleIntersection 実装
 
 use crate::{
-    Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D,
-    Triangle3D,
+    Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
 };
 use geo_foundation::{
     extensions::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection},

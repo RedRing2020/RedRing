@@ -16,9 +16,7 @@ mod tests {
         assert!(ellipse.intersection_with(&center, 2.0).is_some());
 
         let outside = Point3D::new(10.0, 10.0, 10.0);
-        assert!(ellipse
-            .intersection_with(&outside, f64::EPSILON)
-            .is_none());
+        assert!(ellipse.intersection_with(&outside, f64::EPSILON).is_none());
     }
 
     #[test]

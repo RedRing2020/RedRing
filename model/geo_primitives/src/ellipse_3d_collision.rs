@@ -3,7 +3,10 @@
 //! 3次元楕円の衝突判定実装
 //! Phase 3.1: BasicCollision 実装
 
-use crate::{Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, Vector3D};
+use crate::{
+    Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
+    Vector3D,
+};
 use geo_foundation::{extensions::BasicCollision, Scalar};
 
 // ============================================================================

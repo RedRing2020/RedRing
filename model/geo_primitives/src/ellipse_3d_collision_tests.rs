@@ -38,11 +38,8 @@ mod tests {
         .unwrap();
 
         // 楕円の長軸上の点を通る線分
-        let crossing = LineSegment3D::new(
-            Point3D::new(-3.0, 0.0, 0.0),
-            Point3D::new(3.0, 0.0, 0.0),
-        )
-        .unwrap();
+        let crossing =
+            LineSegment3D::new(Point3D::new(-3.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0)).unwrap();
         // 端点が楕円上にある
         assert!(ellipse.intersects(&crossing, 0.1));
     }
