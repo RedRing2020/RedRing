@@ -153,7 +153,7 @@
     "triangle_3d.rs": "triangle_3d_collision.rs,triangle_3d_foundation.rs,triangle_3d_intersection.rs,triangle_3d_tests.rs,triangle_3d_transform.rs",
     "triangle_mesh_3d.rs": "triangle_mesh_3d_tests.rs,triangle_mesh_3d_foundation.rs,triangle_mesh_3d_transform.rs",
     "ellipse_2d.rs": "ellipse_2d_additional_tests.rs,ellipse_2d_collision.rs,ellipse_2d_extensions.rs,ellipse_2d_foundation.rs,ellipse_2d_intersection.rs,ellipse_2d_tests.rs,ellipse_2d_transform.rs",
-    "ellipse_3d.rs": "ellipse_3d_tests.rs,ellipse_3d_extensions.rs,ellipse_3d_transform.rs,ellipse_3d_transform_tests.rs,ellipse_3d_transform_safe_tests.rs",
+    "ellipse_3d.rs": "ellipse_3d_collision.rs,ellipse_3d_collision_tests.rs,ellipse_3d_extensions.rs,ellipse_3d_intersection.rs,ellipse_3d_intersection_tests.rs,ellipse_3d_tests.rs,ellipse_3d_transform.rs,ellipse_3d_transform_safe_tests.rs,ellipse_3d_transform_tests.rs",
     "ellipse_arc_2d.rs": "ellipse_arc_2d_tests.rs,ellipse_arc_2d_extensions.rs,ellipse_arc_2d_transform.rs",
     "ellipse_arc_3d.rs": "ellipse_arc_3d_tests.rs,ellipse_arc_3d_extensions.rs,ellipse_arc_3d_transform.rs",
     "infinite_line_3d.rs": "infinite_line_3d_collision.rs,infinite_line_3d_extensions.rs,infinite_line_3d_foundation.rs,infinite_line_3d_intersection.rs,infinite_line_3d_tests.rs,infinite_line_3d_transform.rs",
