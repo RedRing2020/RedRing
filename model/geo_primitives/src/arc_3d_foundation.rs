@@ -43,10 +43,7 @@ impl<T: Scalar> Bounded<T> for Arc3D<T> {
             center.z() + radius,
         );
 
-        Some(Aabb3D::new(
-            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
-            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
-        ))
+        Some(Aabb3D::new(min_point, max_point))
     }
 }
 

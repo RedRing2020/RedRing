@@ -109,7 +109,7 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// より詳細な境界ボックス計算（高精度版）
     pub fn precise_bounding_box(&self, sample_points: usize) -> geo_core::Aabb2D<T> {
-        use analysis::Point2;
+        use geo_core::Point2D;
         let mut min_x = T::MAX;
         let mut max_x = T::MIN;
         let mut min_y = T::MAX;
@@ -130,7 +130,7 @@ impl<T: Scalar> EllipseArc2D<T> {
             max_y = max_y.max(point.y());
         }
 
-        geo_core::Aabb2D::new(Point2::new(min_x, min_y), Point2::new(max_x, max_y))
+        geo_core::Aabb2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
     }
 
     /// 楕円弧の曲率を計算

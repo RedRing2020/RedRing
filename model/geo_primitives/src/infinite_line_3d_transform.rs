@@ -12,27 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        let vector3d = Vector3D::new(vector.x(), vector.y(), vector.z());
-        Point3D::from_vector(vector3d)
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 無限直線の行列変換（Matrix4x4）
     ///
     /// 直線上の点と方向ベクトルをMatrix変換し、新しい無限直線を構築
@@ -41,14 +20,14 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<InfiniteLine3D<T>, TransformError> {
         // 直線上の点を変換
-        let point_vec = point_to_analysis_vector(infinite_line.point_internal());
+        let point_vec: Vector3<T> = infinite_line.point_internal().into();
         let transformed_point_vec = matrix.transform_point_3d(&point_vec);
-        let new_point = analysis_vector_to_point(transformed_point_vec);
+        let new_point: Point3D<T> = transformed_point_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため方向ベクトル専用変換）
-        let direction_vec = vector_to_analysis_vector(*infinite_line.direction_internal());
+        let direction_vec: Vector3<T> = (*infinite_line.direction_internal()).into();
         let transformed_direction_vec = matrix.transform_vector_3d(&direction_vec);
-        let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
+        let new_direction_vector: Vector3D<T> = transformed_direction_vec.into();
 
         // 変換後の無限直線を構築
         InfiniteLine3D::new(new_point, new_direction_vector).ok_or_else(|| {

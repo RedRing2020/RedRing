@@ -1,8 +1,6 @@
 //! 距離計算の共通実装
 //!
 //! 幾何形状間の距離計算アルゴリズムを提供します。
-//!
-//! 作成日: 2025年11月29日
 
 use analysis::Scalar;
 
@@ -75,49 +73,264 @@ pub fn ellipse_3d_distance_to_point<T: Scalar>(
     (planar_distance * planar_distance + normal_distance * normal_distance).sqrt()
 }
 
+/// 球の中心から無限直線までの最短距離を計算
+///
+/// # Arguments
+///
+/// * `center` - 球の中心座標 (x, y, z)
+/// * `radius` - 球の半径
+/// * `line_point` - 直線上の任意の点 (x, y, z)
+/// * `line_direction` - 直線の方向ベクトル (dx, dy, dz) ※正規化不要
+/// * `is_solid` - true なら球体（内部含む）、false なら球面（表面のみ）
+///
+/// # Returns
+///
+/// 球（面または体）から直線までの最短距離
+///
+/// # Algorithm
+///
+/// 1. 直線上の最近点のパラメータ t を計算: `t = (C - P) · d / |d|²`
+/// 2. 最近点 F = P + t·d を求める
+/// 3. 中心から最近点までの距離 d_CF を計算
+/// 4. 球体の場合: d_CF ≤ r なら 0、さもなくば d_CF - r
+/// 5. 球面の場合: |d_CF - r|
+pub fn sphere_to_infinite_line_distance<T: Scalar>(
+    center: (T, T, T),
+    radius: T,
+    line_point: (T, T, T),
+    line_direction: (T, T, T),
+    is_solid: bool,
+) -> T {
+    let (cx, cy, cz) = center;
+    let (px, py, pz) = line_point;
+    let (dx, dy, dz) = line_direction;
+
+    // ベクトル to_center = center - line_point
+    let to_cx = cx - px;
+    let to_cy = cy - py;
+    let to_cz = cz - pz;
+
+    // direction の内積
+    let dir_dot = dx * dx + dy * dy + dz * dz;
+
+    // パラメータ t = to_center · direction / |direction|²
+    let t = (to_cx * dx + to_cy * dy + to_cz * dz) / dir_dot;
+
+    // 最近点 = line_point + t * direction
+    let closest_x = px + t * dx;
+    let closest_y = py + t * dy;
+    let closest_z = pz + t * dz;
+
+    // 中心から最近点までの距離
+    let diff_x = cx - closest_x;
+    let diff_y = cy - closest_y;
+    let diff_z = cz - closest_z;
+    let distance_from_center = (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt();
+
+    if is_solid {
+        // 球体: 内部なら0、外側なら表面までの距離
+        if distance_from_center <= radius {
+            T::ZERO
+        } else {
+            distance_from_center - radius
+        }
+    } else {
+        // 球面: 表面までの最短距離
+        (distance_from_center - radius).abs()
+    }
+}
+
+/// 球の中心から光線（Ray）までの最短距離を計算
+///
+/// # Arguments
+///
+/// * `center` - 球の中心座標 (x, y, z)
+/// * `radius` - 球の半径
+/// * `ray_origin` - 光線の始点 (x, y, z)
+/// * `ray_direction` - 光線の方向ベクトル (dx, dy, dz) ※正規化不要
+/// * `is_solid` - true なら球体、false なら球面
+///
+/// # Returns
+///
+/// 球から光線までの最短距離
+///
+/// # Algorithm
+///
+/// 1. 無限直線として最近点のパラメータ t を計算
+/// 2. t < 0 の場合: 光線の始点との距離を使用
+/// 3. t ≥ 0 の場合: 無限直線と同じ処理
+pub fn sphere_to_ray_distance<T: Scalar>(
+    center: (T, T, T),
+    radius: T,
+    ray_origin: (T, T, T),
+    ray_direction: (T, T, T),
+    is_solid: bool,
+) -> T {
+    let (cx, cy, cz) = center;
+    let (ox, oy, oz) = ray_origin;
+    let (dx, dy, dz) = ray_direction;
+
+    // ベクトル to_center = center - origin
+    let to_cx = cx - ox;
+    let to_cy = cy - oy;
+    let to_cz = cz - oz;
+
+    // direction の内積
+    let dir_dot = dx * dx + dy * dy + dz * dz;
+
+    // パラメータ t
+    let t = (to_cx * dx + to_cy * dy + to_cz * dz) / dir_dot;
+
+    if t < T::ZERO {
+        // 光線の始点が最近点
+        let dist_to_origin = (to_cx * to_cx + to_cy * to_cy + to_cz * to_cz).sqrt();
+
+        if is_solid {
+            if dist_to_origin <= radius {
+                T::ZERO
+            } else {
+                dist_to_origin - radius
+            }
+        } else {
+            (dist_to_origin - radius).abs()
+        }
+    } else {
+        // t ≥ 0: 無限直線と同じ処理
+        let closest_x = ox + t * dx;
+        let closest_y = oy + t * dy;
+        let closest_z = oz + t * dz;
+
+        let diff_x = cx - closest_x;
+        let diff_y = cy - closest_y;
+        let diff_z = cz - closest_z;
+        let distance_from_center = (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt();
+
+        if is_solid {
+            if distance_from_center <= radius {
+                T::ZERO
+            } else {
+                distance_from_center - radius
+            }
+        } else {
+            (distance_from_center - radius).abs()
+        }
+    }
+}
+
+/// 球の中心から線分までの最短距離を計算
+///
+/// # Arguments
+///
+/// * `center` - 球の中心座標 (x, y, z)
+/// * `radius` - 球の半径
+/// * `segment_start` - 線分の始点 (x, y, z)
+/// * `segment_end` - 線分の終点 (x, y, z)
+/// * `is_solid` - true なら球体、false なら球面
+///
+/// # Returns
+///
+/// 球から線分までの最短距離
+///
+/// # Algorithm
+///
+/// 1. 線分の方向ベクトル direction = end - start を計算
+/// 2. 無限直線として最近点のパラメータ t を計算
+/// 3. t < 0: 始点との距離
+/// 4. t > 1: 終点との距離
+/// 5. 0 ≤ t ≤ 1: 線分上の点との距離
+pub fn sphere_to_line_segment_distance<T: Scalar>(
+    center: (T, T, T),
+    radius: T,
+    segment_start: (T, T, T),
+    segment_end: (T, T, T),
+    is_solid: bool,
+) -> T {
+    let (cx, cy, cz) = center;
+    let (sx, sy, sz) = segment_start;
+    let (ex, ey, ez) = segment_end;
+
+    // 線分の方向ベクトル
+    let dx = ex - sx;
+    let dy = ey - sy;
+    let dz = ez - sz;
+
+    // ベクトル to_center = center - start
+    let to_cx = cx - sx;
+    let to_cy = cy - sy;
+    let to_cz = cz - sz;
+
+    // direction の内積
+    let dir_dot = dx * dx + dy * dy + dz * dz;
+
+    // パラメータ t
+    let t = (to_cx * dx + to_cy * dy + to_cz * dz) / dir_dot;
+
+    // 最近点の座標を求める
+    let (nearest_x, nearest_y, nearest_z) = if t < T::ZERO {
+        // 始点が最近点
+        segment_start
+    } else if t > T::ONE {
+        // 終点が最近点
+        segment_end
+    } else {
+        // 線分上の点が最近点
+        (sx + t * dx, sy + t * dy, sz + t * dz)
+    };
+
+    // 中心から最近点までの距離
+    let diff_x = cx - nearest_x;
+    let diff_y = cy - nearest_y;
+    let diff_z = cz - nearest_z;
+    let distance_from_center = (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt();
+
+    if is_solid {
+        if distance_from_center <= radius {
+            T::ZERO
+        } else {
+            distance_from_center - radius
+        }
+    } else {
+        (distance_from_center - radius).abs()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // 楕円テスト（既存）
     #[test]
     fn test_ellipse_2d_distance_inside() {
-        // 楕円内部の点
         let dist = ellipse_2d_distance_to_point(1.0_f64, 0.5, 2.0, 1.0);
         assert!(dist < 1e-10);
     }
 
     #[test]
     fn test_ellipse_2d_distance_outside() {
-        // 楕円外部の点
         let dist = ellipse_2d_distance_to_point(4.0_f64, 0.0, 2.0, 1.0);
         assert!((dist - 2.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_ellipse_2d_distance_on_boundary() {
-        // 楕円境界上の点（長軸端）
         let dist = ellipse_2d_distance_to_point(2.0_f64, 0.0, 2.0, 1.0);
         assert!(dist < 1e-10);
     }
 
     #[test]
     fn test_ellipse_3d_distance_on_plane() {
-        // 平面上の点（法線距離=0）
         let dist = ellipse_3d_distance_to_point(1.0_f64, 0.5, 0.0, 2.0, 1.0);
         assert!(dist < 1e-10);
     }
 
     #[test]
     fn test_ellipse_3d_distance_off_plane() {
-        // 平面外の点
         let dist = ellipse_3d_distance_to_point(0.0_f64, 0.0, 3.0, 2.0, 1.0);
         assert!((dist - 3.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_ellipse_3d_distance_combined() {
-        // 平面内距離と法線距離の組み合わせ
-        // 平面内: (4,0) → 距離2.0, 法線: 3.0 → 総距離 sqrt(4+9) = sqrt(13)
         let dist = ellipse_3d_distance_to_point(4.0_f64, 0.0, 3.0, 2.0, 1.0);
         let expected = (4.0 + 9.0_f64).sqrt();
         assert!((dist - expected).abs() < 1e-10);
@@ -127,5 +340,91 @@ mod tests {
     fn test_f32_compatibility() {
         let dist = ellipse_2d_distance_to_point(1.0_f32, 0.5, 2.0, 1.0);
         assert!(dist < 1e-6);
+    }
+
+    // 球と直線のテスト（新規）
+    #[test]
+    fn test_sphere_to_infinite_line_intersecting_solid() {
+        let center = (0.0, 0.0, 0.0);
+        let radius = 1.0;
+        let line_point = (-2.0, 0.0, 0.0);
+        let line_direction = (1.0, 0.0, 0.0);
+
+        let dist =
+            sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
+        assert!(dist.abs() < 1e-10); // 直線が球体を貫通
+    }
+
+    #[test]
+    fn test_sphere_to_infinite_line_intersecting_surface() {
+        let center = (0.0, 0.0, 0.0);
+        let radius = 1.0;
+        let line_point = (-2.0, 0.0, 0.0);
+        let line_direction = (1.0, 0.0, 0.0);
+
+        let dist =
+            sphere_to_infinite_line_distance(center, radius, line_point, line_direction, false);
+        assert!((dist - 1.0).abs() < 1e-10); // 球面まで距離1
+    }
+
+    #[test]
+    fn test_sphere_to_infinite_line_tangent() {
+        let center = (0.0, 0.0, 0.0);
+        let radius = 1.0;
+        let line_point = (0.0, 1.0, 0.0); // Y軸上の点
+        let line_direction = (1.0, 0.0, 0.0); // X軸方向
+
+        let dist =
+            sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
+        assert!(dist.abs() < 1e-10); // 接線は衝突
+    }
+
+    #[test]
+    fn test_sphere_to_ray_behind_origin() {
+        let center = (-2.0, 0.0, 0.0);
+        let radius = 1.0;
+        let ray_origin = (0.0, 0.0, 0.0);
+        let ray_direction = (1.0, 0.0, 0.0); // X軸正方向
+
+        let dist = sphere_to_ray_distance(center, radius, ray_origin, ray_direction, true);
+        assert!((dist - 1.0).abs() < 1e-10); // 始点との距離 - 半径
+    }
+
+    #[test]
+    fn test_sphere_to_ray_through_center() {
+        let center = (0.0, 0.0, 0.0);
+        let radius = 1.0;
+        let ray_origin = (-2.0, 0.0, 0.0);
+        let ray_direction = (1.0, 0.0, 0.0);
+
+        let dist = sphere_to_ray_distance(center, radius, ray_origin, ray_direction, true);
+        assert!(dist.abs() < 1e-10); // 光線が球体を貫通
+    }
+
+    #[test]
+    fn test_sphere_to_line_segment_endpoint() {
+        let center = (0.0, 2.0, 0.0);
+        let radius = 1.0;
+        let segment_start = (-1.0, 0.0, 0.0);
+        let segment_end = (1.0, 0.0, 0.0);
+
+        let dist =
+            sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
+        // 線分上の最近点は (0, 0, 0) → 中心からの距離は 2.0
+        // 球体なので距離は 2.0 - 1.0 = 1.0
+        let expected = 1.0;
+        assert!((dist - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_sphere_to_line_segment_through_center() {
+        let center = (0.0, 0.0, 0.0);
+        let radius = 1.0;
+        let segment_start = (-2.0, 0.0, 0.0);
+        let segment_end = (2.0, 0.0, 0.0);
+
+        let dist =
+            sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
+        assert!(dist.abs() < 1e-10); // 線分が球体を貫通
     }
 }

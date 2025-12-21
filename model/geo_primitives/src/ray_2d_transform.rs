@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector2への変換（Point2D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point2D<T>) -> Vector2<T> {
-        Vector2::new(point.x(), point.y())
-    }
-
-    /// Analysis Vector2からの変換（Point2D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector2<T>) -> Point2D<T> {
-        Point2D::new(vector.x(), vector.y())
-    }
-
-    /// Analysis Vector2への変換（Vector2D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector2D<T>) -> Vector2<T> {
-        Vector2::new(vector.x(), vector.y())
-    }
-
-    /// Analysis Vector2からの変換（Vector2D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector2<T>) -> Vector2D<T> {
-        Vector2D::new(vector.x(), vector.y())
-    }
-
     /// 半無限直線の行列変換（Matrix3x3）
     ///
     /// 起点と方向ベクトルをMatrix変換し、新しい半無限直線を構築
@@ -40,17 +20,15 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Result<Ray2D<T>, TransformError> {
         // 起点を変換
-        let origin_vec = point_to_analysis_vector(ray.origin_internal());
+        let origin_vec: Vector2<T> = ray.origin_internal().into();
         let transformed_origin_vec = matrix.transform_point_2d(&origin_vec);
-        let new_origin = analysis_vector_to_point(transformed_origin_vec);
+        let new_origin: Point2D<T> = transformed_origin_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため原点中心変換）
-        let direction_vec = vector_to_analysis_vector(Vector2D::new(
-            ray.direction_internal().x(),
-            ray.direction_internal().y(),
-        ));
+        let direction_vec: Vector2<T> =
+            Vector2D::new(ray.direction_internal().x(), ray.direction_internal().y()).into();
         let transformed_direction_vec = matrix.transform_vector_2d(&direction_vec);
-        let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
+        let new_direction_vector: Vector2D<T> = transformed_direction_vec.into();
 
         // 変換後の半無限直線を構築
         Ray2D::new(new_origin, new_direction_vector).ok_or_else(|| {
@@ -66,7 +44,7 @@ pub mod analysis_transform {
 
     /// 回転行列を生成（中心点指定）
     pub fn rotation_matrix_2d<T: Scalar>(center: &Point2D<T>, angle: Angle<T>) -> Matrix3x3<T> {
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector2<T> = (*center).into();
         Matrix3x3::rotation_around_point_2d(&center_vec, angle.to_radians())
     }
 
@@ -82,7 +60,7 @@ pub mod analysis_transform {
             ));
         }
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector2<T> = (*center).into();
         let scale_vec = Vector2::new(scale_x, scale_y);
         let scale_matrix = Matrix3x3::scale_2d(&scale_vec);
         let translation_to_origin =

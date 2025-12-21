@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 楕円体サーフェスの行列変換（Matrix4x4）
     ///
     /// 楕円体の中心点、軸方向、参照方向をMatrix変換し、新しい楕円体サーフェスを構築
@@ -40,26 +20,26 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<EllipsoidalSurface3D<T>, TransformError> {
         // 中心点を変換
-        let center_vec = point_to_analysis_vector(ellipsoidal_surface.center_internal());
+        let center_vec: Vector3<T> = ellipsoidal_surface.center_internal().into();
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
-        let new_center = analysis_vector_to_point(transformed_center_vec);
+        let new_center: Point3D<T> = transformed_center_vec.into();
 
         // 軸方向を変換
-        let axis_vec = vector_to_analysis_vector(ellipsoidal_surface.axis_internal().as_vector());
+        let axis_vec: Vector3<T> = ellipsoidal_surface.axis_internal().as_vector().into();
         let transformed_axis_vec = matrix.transform_vector_3d(&axis_vec);
-        let new_axis_vector = analysis_vector_to_vector(transformed_axis_vec);
+        let new_axis_vector: Vector3D<T> = transformed_axis_vec.into();
 
         // 参照方向を変換
-        let ref_dir_vec =
-            vector_to_analysis_vector(ellipsoidal_surface.ref_direction_internal().as_vector());
+        let ref_dir_vec: Vector3<T> =
+            ellipsoidal_surface.ref_direction_internal().as_vector().into();
         let transformed_ref_dir_vec = matrix.transform_vector_3d(&ref_dir_vec);
-        let new_ref_direction_vector = analysis_vector_to_vector(transformed_ref_dir_vec);
+        let new_ref_direction_vector: Vector3D<T> = transformed_ref_dir_vec.into();
 
         // Y軸方向を変換（派生軸）
-        let y_axis_vec =
-            vector_to_analysis_vector(ellipsoidal_surface.derived_y_axis_internal().as_vector());
+        let y_axis_vec: Vector3<T> =
+            ellipsoidal_surface.derived_y_axis_internal().as_vector().into();
         let transformed_y_axis_vec = matrix.transform_vector_3d(&y_axis_vec);
-        let new_y_axis_vector = analysis_vector_to_vector(transformed_y_axis_vec);
+        let new_y_axis_vector: Vector3D<T> = transformed_y_axis_vec.into();
 
         // スケール倍率を各軸方向から計算
         let original_x_length = ellipsoidal_surface.ref_direction_internal().as_vector().length();

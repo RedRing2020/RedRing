@@ -294,7 +294,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     /// 注意: 無限サーフェスのため、v方向の境界は外部で指定する必要がある
     /// ここでは半径による径方向の境界のみ計算
     pub fn bounding_box_radial(&self) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         // 各軸成分の最大伸び（径方向のみ）
         let axis_x = self.axis.x();
         let axis_y = self.axis.y();
@@ -315,8 +314,8 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         let max_z = self.center.z() + radius_z;
 
         geo_core::Aabb3D::new(
-            Point3::new(min_x, min_y, min_z),
-            Point3::new(max_x, max_y, max_z),
+            geo_core::Point3D::new(min_x, min_y, min_z),
+            geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
 

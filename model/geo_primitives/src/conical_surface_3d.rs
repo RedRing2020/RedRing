@@ -466,8 +466,8 @@ impl<T: Scalar> ConicalSurface3D<T> {
         };
 
         geo_core::Aabb3D::new(
-            analysis::Point3::new(min_x, min_y, min_z),
-            analysis::Point3::new(max_x, max_y, max_z),
+            geo_core::Point3D::new(min_x, min_y, min_z),
+            geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
 }

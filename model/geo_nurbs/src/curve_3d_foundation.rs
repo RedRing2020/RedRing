@@ -1,8 +1,7 @@
 //! `NurbsCurve3D` の Foundation パターン実装
 
 use crate::NurbsCurve3D;
-use analysis::Point3;
-use geo_core::Aabb3D;
+use geo_core::{Aabb3D, Point3D};
 use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve3D<T> {
@@ -40,7 +39,7 @@ impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
         let mut points = Vec::with_capacity(self.num_points());
         for i in 0..self.num_points() {
             let base = i * 3;
-            points.push(Point3::new(
+            points.push(Point3D::new(
                 coords[base],
                 coords[base + 1],
                 coords[base + 2],
@@ -78,12 +77,12 @@ mod tests {
         let max = bbox.max();
 
         // 境界ボックスは制御点を含む
-        assert!((min.x - 0.0).abs() < 1e-10);
-        assert!((min.y - 0.0).abs() < 1e-10);
-        assert!((min.z - 0.0).abs() < 1e-10);
-        assert!((max.x - 2.0).abs() < 1e-10);
-        assert!((max.y - 1.0).abs() < 1e-10);
-        assert!((max.z - 0.0).abs() < 1e-10);
+        assert!((min.x() - 0.0).abs() < 1e-10);
+        assert!((min.y() - 0.0).abs() < 1e-10);
+        assert!((min.z() - 0.0).abs() < 1e-10);
+        assert!((max.x() - 2.0).abs() < 1e-10);
+        assert!((max.y() - 1.0).abs() < 1e-10);
+        assert!((max.z() - 0.0).abs() < 1e-10);
 
         // 測度（曲線長）の確認
         let length = curve.measure();

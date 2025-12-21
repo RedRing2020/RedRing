@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// トーラス面の行列変換（Matrix4x4）
     ///
     /// トーラスの原点、軸方向をMatrix変換し、半径をスケール変換して新しいトーラス面を構築
@@ -40,19 +20,19 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<TorusSurface3D<T>, TransformError> {
         // 原点を変換
-        let origin_vec = point_to_analysis_vector(torus_surface.origin_internal());
+        let origin_vec: Vector3<T> = torus_surface.origin_internal().into();
         let transformed_origin_vec = matrix.transform_point_3d(&origin_vec);
-        let new_origin = analysis_vector_to_point(transformed_origin_vec);
+        let new_origin: Point3D<T> = transformed_origin_vec.into();
 
         // Z軸方向を変換
-        let z_axis_vec = vector_to_analysis_vector(torus_surface.z_axis_internal().as_vector());
+        let z_axis_vec: Vector3<T> = torus_surface.z_axis_internal().as_vector().into();
         let transformed_z_axis_vec = matrix.transform_vector_3d(&z_axis_vec);
-        let new_z_axis_vector = analysis_vector_to_vector(transformed_z_axis_vec);
+        let new_z_axis_vector: Vector3D<T> = transformed_z_axis_vec.into();
 
         // X軸方向を変換
-        let x_axis_vec = vector_to_analysis_vector(torus_surface.x_axis_internal().as_vector());
+        let x_axis_vec: Vector3<T> = torus_surface.x_axis_internal().as_vector().into();
         let transformed_x_axis_vec = matrix.transform_vector_3d(&x_axis_vec);
-        let new_x_axis_vector = analysis_vector_to_vector(transformed_x_axis_vec);
+        let new_x_axis_vector: Vector3D<T> = transformed_x_axis_vec.into();
 
         // スケール倍率を計算（半径の変換に使用）
         let original_z_length = torus_surface.z_axis_internal().as_vector().length();

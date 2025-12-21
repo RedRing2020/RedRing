@@ -15,26 +15,6 @@ use geo_foundation::{
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector2への変換（Point2D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point2D<T>) -> Vector2<T> {
-        Vector2::new(point.x(), point.y())
-    }
-
-    /// Analysis Vector2からの変換（Point2D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector2<T>) -> Point2D<T> {
-        Point2D::new(vector.x(), vector.y())
-    }
-
-    /// Analysis Vector2への変換（Vector2D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector2D<T>) -> Vector2<T> {
-        Vector2::new(vector.x(), vector.y())
-    }
-
-    /// Analysis Vector2からの変換（Vector2D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector2<T>) -> Vector2D<T> {
-        Vector2D::new(vector.x(), vector.y())
-    }
-
     /// 無限直線の行列変換（Matrix3x3）
     ///
     /// 直線上の点と方向ベクトルをMatrix変換し、新しい無限直線を構築
@@ -46,13 +26,13 @@ pub mod analysis_transform {
         let point_tuple = infinite_line.point();
         let point_vec = Vector2::new(point_tuple.0, point_tuple.1);
         let transformed_point_vec = matrix.transform_point_2d(&point_vec);
-        let new_point = analysis_vector_to_point(transformed_point_vec);
+        let new_point: Point2D<T> = transformed_point_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため原点中心変換）
         let direction_tuple = infinite_line.direction();
         let direction_vec = Vector2::new(direction_tuple.0, direction_tuple.1);
         let transformed_direction_vec = matrix.transform_vector_2d(&direction_vec);
-        let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
+        let new_direction_vector: Vector2D<T> = transformed_direction_vec.into();
 
         // 変換後の無限直線を構築
         InfiniteLine2D::new(new_point, new_direction_vector).ok_or_else(|| {
@@ -68,7 +48,7 @@ pub mod analysis_transform {
 
     /// 回転行列を生成（中心点指定）
     pub fn rotation_matrix_2d<T: Scalar>(center: &Point2D<T>, angle: Angle<T>) -> Matrix3x3<T> {
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector2<T> = (*center).into();
         Matrix3x3::rotation_around_point_2d(&center_vec, angle.to_radians())
     }
 
@@ -83,7 +63,7 @@ pub mod analysis_transform {
                 "Scale factors cannot be zero".to_string(),
             ));
         }
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector2<T> = (*center).into();
         // Analysis Matrix3x3にはscale_around_point_2dがないので、手動で計算
         let translation_to_origin =
             Matrix3x3::translation_2d(&Vector2::new(-center_vec.x(), -center_vec.y()));
