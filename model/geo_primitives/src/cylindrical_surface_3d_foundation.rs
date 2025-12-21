@@ -40,24 +40,36 @@ impl<T: Scalar> Bounded<T> for CylindricalSurface3D<T> {
 impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の比較
-        let center_diff = self.center_internal().to_vector() - other.center_internal().to_vector();
-        if center_diff.length() > tolerance {
+        let dx = self.center_internal().x() - other.center_internal().x();
+        let dy = self.center_internal().y() - other.center_internal().y();
+        let dz = self.center_internal().z() - other.center_internal().z();
+        let center_dist_sq = dx * dx + dy * dy + dz * dz;
+        if center_dist_sq > tolerance * tolerance {
             return false;
         }
 
         // 軸の比較（方向は逆でも同じ軸）
-        let axis_diff = self.axis().as_vector() - other.axis().as_vector();
-        if axis_diff.length() > tolerance {
+        let axis_dx = self.axis().x() - other.axis().x();
+        let axis_dy = self.axis().y() - other.axis().y();
+        let axis_dz = self.axis().z() - other.axis().z();
+        let axis_dist_sq = axis_dx * axis_dx + axis_dy * axis_dy + axis_dz * axis_dz;
+        if axis_dist_sq > tolerance * tolerance {
             // 逆方向もチェック
-            let axis_diff_reversed = self.axis().as_vector() + other.axis().as_vector();
-            if axis_diff_reversed.length() > tolerance {
+            let axis_dx_rev = self.axis().x() + other.axis().x();
+            let axis_dy_rev = self.axis().y() + other.axis().y();
+            let axis_dz_rev = self.axis().z() + other.axis().z();
+            let axis_dist_sq_rev = axis_dx_rev * axis_dx_rev + axis_dy_rev * axis_dy_rev + axis_dz_rev * axis_dz_rev;
+            if axis_dist_sq_rev > tolerance * tolerance {
                 return false;
             }
         }
 
         // 参照方向の比較
-        let ref_diff = self.ref_direction().as_vector() - other.ref_direction().as_vector();
-        if ref_diff.length() > tolerance {
+        let ref_dx = self.ref_direction().x() - other.ref_direction().x();
+        let ref_dy = self.ref_direction().y() - other.ref_direction().y();
+        let ref_dz = self.ref_direction().z() - other.ref_direction().z();
+        let ref_dist_sq = ref_dx * ref_dx + ref_dy * ref_dy + ref_dz * ref_dz;
+        if ref_dist_sq > tolerance * tolerance {
             return false;
         }
 

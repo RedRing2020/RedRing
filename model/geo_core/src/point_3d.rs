@@ -272,24 +272,6 @@ impl<T: Scalar> Point3D<T> {
     pub fn to_vector(&self) -> analysis::linalg::vector::Vector3<T> {
         self.to_analysis_vector3()
     }
-
-    /// ベクトルだけ移動した点を返す（analysis::Vector3 使用）
-    pub fn translate_by_analysis(&self, v: analysis::linalg::vector::Vector3<T>) -> Self {
-        Self::new(
-            self.x + v.x(),
-            self.y + v.y(),
-            self.z + v.z(),
-        )
-    }
-
-    /// 別の点との差をベクトルとして返す
-    pub fn vector_to(&self, other: &Self) -> analysis::linalg::vector::Vector3<T> {
-        analysis::linalg::vector::Vector3::new(
-            other.x - self.x,
-            other.y - self.y,
-            other.z - self.z,
-        )
-    }
 }
 
 // ============================================================================

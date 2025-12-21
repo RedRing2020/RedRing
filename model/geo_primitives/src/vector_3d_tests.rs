@@ -99,15 +99,7 @@ mod tests {
 
     // === foundation トレイトテスト ===
 
-    #[test]
-    fn test_geometry_foundation() {
-        let vec = Vector3D::new(3.0, 4.0, 5.0);
-        let bbox = vec.bounding_box();
-
-        // ベクトルの境界ボックスは原点と終点を含む
-        assert_eq!(bbox.min(), analysis::Point3::new(0.0, 0.0, 0.0));
-        assert_eq!(bbox.max(), analysis::Point3::new(3.0, 4.0, 5.0));
-    }
+    // Note: bounding_box は geo_core への移行により削除されました
 
     #[test]
     fn test_basic_metrics() {

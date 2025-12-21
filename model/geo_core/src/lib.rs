@@ -18,6 +18,7 @@
 
 // 基本型実装
 pub mod point_3d;
+pub mod vector_3d;
 #[cfg(test)]
 mod point_3d_tests;
 
@@ -27,5 +28,6 @@ pub mod aabb_3d;
 
 // 公開API
 pub use point_3d::Point3D;
+pub use vector_3d::{DominantAxis, Vector3D, VectorRelationship};
 pub use aabb_2d::Aabb2D;
 pub use aabb_3d::Aabb3D;

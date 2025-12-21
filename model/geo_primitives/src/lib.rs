@@ -139,11 +139,8 @@ pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
 
-// Vector3D関連（Core, Extension, Transform, Safe Transform, Analysis）
-pub mod vector_3d; // Vector3D の新実装
-#[cfg(test)]
-pub mod vector_3d_extensions; // Vector3D の拡張機能 (Extension)
-pub mod vector_3d_foundation; // Vector3D のFoundation実装
+// Vector3D関連（geo_core から再エクスポート）
+pub mod vector_3d; // Vector3D の再エクスポート (geo_core から)
 
 // Transform テストモジュール
 #[cfg(test)]
@@ -247,8 +244,6 @@ pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
 // テストモジュール（次元中立設計）
 #[cfg(test)]
 mod ellipse_3d_tests;
-#[cfg(test)]
-mod point_3d_tests;
 // mod spherical_solid_3d_tests; // 未実装position機能のため無効化
 // mod spherical_solid_3d_transform_safe_tests; // 削除済み
 // mod spherical_surface_3d_tests; // 未実装position機能のため無効化
