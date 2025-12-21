@@ -102,9 +102,7 @@ pub mod plane_3d_intersection; // Plane3D の交点計算実装
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
-pub mod point_3d; // Point3D の新実装 (Core)
-pub mod point_3d_extensions; // Point3D の拡張機能 (Extension)
-pub mod point_3d_foundation; // Point3D のFoundation実装
+pub mod point_3d; // Point3D の再エクスポート (geo_core から)
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_collision; // Ray3D の衝突検出実装
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)

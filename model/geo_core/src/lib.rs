@@ -18,6 +18,8 @@
 
 // 基本型実装
 pub mod point_3d;
+#[cfg(test)]
+mod point_3d_tests;
 
 // AABB型実装
 pub mod aabb_2d;
