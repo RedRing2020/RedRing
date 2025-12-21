@@ -2,9 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D,
-    };
+    use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
     use geo_foundation::extensions::BasicCollision;
 
     /// テスト用の標準的な球面サーフェスを作成
