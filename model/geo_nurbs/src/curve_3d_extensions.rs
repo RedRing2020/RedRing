@@ -1,8 +1,7 @@
 //! `NurbsCurve3D` の拡張機能
 
 use crate::NurbsCurve3D;
-use analysis::Point3;
-use geo_core::Aabb3D;
+use geo_core::{Aabb3D, Point3D};
 use geo_foundation::Scalar;
 
 /// 境界ボックス計算オプション
@@ -106,8 +105,8 @@ impl<T: Scalar> NurbsCurve3D<T> {
         }
 
         Aabb3D::new(
-            Point3::new(min_x, min_y, min_z),
-            Point3::new(max_x, max_y, max_z),
+            Point3D::new(min_x, min_y, min_z),
+            Point3D::new(max_x, max_y, max_z),
         )
     }
 

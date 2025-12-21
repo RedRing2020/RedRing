@@ -212,7 +212,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
 
     /// 円柱ソリッドの境界ボックスを計算
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         // 各軸成分の最大伸び
         let axis_x = self.axis.x();
         let axis_y = self.axis.y();
@@ -237,8 +236,8 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         let max_z = (self.center.z() + radius_z).max(self.center.z() + height_z + radius_z);
 
         geo_core::Aabb3D::new(
-            Point3::new(min_x, min_y, min_z),
-            Point3::new(max_x, max_y, max_z),
+            geo_core::Point3D::new(min_x, min_y, min_z),
+            geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
 

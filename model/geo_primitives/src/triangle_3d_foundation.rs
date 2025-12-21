@@ -60,8 +60,8 @@ impl<T: Scalar> Bounded<T> for Triangle3D<T> {
         let max_point = crate::Point3D::new(max_x, max_y, max_z);
 
         Some(Aabb3D::new(
-            analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
-            analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+            min_point,
+            max_point,
         ))
     }
 }

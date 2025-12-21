@@ -42,8 +42,8 @@ impl<T: Scalar> Bounded<T> for TriangleMesh3D<T> {
     fn aabb(&self) -> Option<Self::Aabb> {
         if let Some((min_point, max_point)) = self.bounding_box() {
             Some(Aabb3D::new(
-                analysis::Point3::new(min_point.x(), min_point.y(), min_point.z()),
-                analysis::Point3::new(max_point.x(), max_point.y(), max_point.z()),
+                min_point,
+                max_point,
             ))
         } else {
             // 空のメッシュの場合は None

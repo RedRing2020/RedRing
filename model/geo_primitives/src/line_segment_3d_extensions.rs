@@ -30,16 +30,14 @@ impl<T: Scalar> std::fmt::Display for LineSegment3D<T> {
 impl<T: Scalar> LineSegment3D<T> {
     /// 境界ボックスを取得
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         let start = self.start();
         let end = self.end();
         geo_core::Aabb3D::from_points(&[
-            Point3::new(start.x(), start.y(), start.z()),
-            Point3::new(end.x(), end.y(), end.z()),
+            start,
+            end,
         ])
         .unwrap_or_else(|| {
-            let pt = Point3::new(start.x(), start.y(), start.z());
-            geo_core::Aabb3D::new(pt, pt)
+            geo_core::Aabb3D::new(start, start)
         })
     }
 

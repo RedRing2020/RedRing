@@ -37,11 +37,9 @@ impl<T: Scalar> Ray3D<T> {
 
     /// 境界ボックスを取得（無限のため起点のみ）
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         // Ray は無限に延びるため、境界ボックスは起点のみで構成
         let origin = self.origin_internal();
-        let pt = Point3::new(origin.x(), origin.y(), origin.z());
-        geo_core::Aabb3D::new(pt, pt)
+        geo_core::Aabb3D::new(origin, origin)
     }
 
     /// パラメータの範囲を取得
@@ -175,17 +173,15 @@ impl<T: Scalar> Ray3D<T> {
     /// # 戻り値
     /// [0, max_parameter] 範囲での境界ボックス
     pub fn bounding_box_for_range(&self, max_parameter: T) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         let start_point = self.origin_internal();
         let end_point = self.point_at_parameter(max_parameter);
 
         geo_core::Aabb3D::from_points(&[
-            Point3::new(start_point.x(), start_point.y(), start_point.z()),
-            Point3::new(end_point.x(), end_point.y(), end_point.z()),
+            start_point,
+            end_point,
         ])
         .unwrap_or_else(|| {
-            let pt = Point3::new(start_point.x(), start_point.y(), start_point.z());
-            geo_core::Aabb3D::new(pt, pt)
+            geo_core::Aabb3D::new(start_point, start_point)
         })
     }
 

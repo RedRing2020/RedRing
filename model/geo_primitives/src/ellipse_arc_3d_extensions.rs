@@ -208,7 +208,6 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// より詳細な境界ボックス計算（高精度版）
     pub fn precise_bounding_box(&self, sample_points: usize) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         let mut min_x = T::MAX;
         let mut max_x = T::MIN;
         let mut min_y = T::MAX;
@@ -234,8 +233,8 @@ impl<T: Scalar> EllipseArc3D<T> {
         }
 
         geo_core::Aabb3D::new(
-            Point3::new(min_x, min_y, min_z),
-            Point3::new(max_x, max_y, max_z),
+            geo_core::Point3D::new(min_x, min_y, min_z),
+            geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
 
