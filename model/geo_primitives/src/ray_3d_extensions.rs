@@ -176,13 +176,8 @@ impl<T: Scalar> Ray3D<T> {
         let start_point = self.origin_internal();
         let end_point = self.point_at_parameter(max_parameter);
 
-        geo_core::Aabb3D::from_points(&[
-            start_point,
-            end_point,
-        ])
-        .unwrap_or_else(|| {
-            geo_core::Aabb3D::new(start_point, start_point)
-        })
+        geo_core::Aabb3D::from_points(&[start_point, end_point])
+            .unwrap_or_else(|| geo_core::Aabb3D::new(start_point, start_point))
     }
 
     // ========================================================================

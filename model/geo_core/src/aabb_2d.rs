@@ -208,18 +208,9 @@ mod tests {
 
     #[test]
     fn test_intersects() {
-        let aabb1 = Aabb2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 2.0),
-        );
-        let aabb2 = Aabb2D::new(
-            Point2D::new(1.0, 1.0),
-            Point2D::new(3.0, 3.0),
-        );
-        let aabb3 = Aabb2D::new(
-            Point2D::new(3.0, 3.0),
-            Point2D::new(4.0, 4.0),
-        );
+        let aabb1 = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 2.0));
+        let aabb2 = Aabb2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 3.0));
+        let aabb3 = Aabb2D::new(Point2D::new(3.0, 3.0), Point2D::new(4.0, 4.0));
         assert!(aabb1.intersects(&aabb2));
         assert!(aabb2.intersects(&aabb1));
         assert!(!aabb1.intersects(&aabb3));
@@ -227,18 +218,9 @@ mod tests {
 
     #[test]
     fn test_contains_aabb() {
-        let outer = Aabb2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(4.0, 4.0),
-        );
-        let inner = Aabb2D::new(
-            Point2D::new(1.0, 1.0),
-            Point2D::new(3.0, 3.0),
-        );
-        let partial = Aabb2D::new(
-            Point2D::new(2.0, 2.0),
-            Point2D::new(5.0, 5.0),
-        );
+        let outer = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 4.0));
+        let inner = Aabb2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 3.0));
+        let partial = Aabb2D::new(Point2D::new(2.0, 2.0), Point2D::new(5.0, 5.0));
         assert!(outer.contains_aabb(&inner));
         assert!(!outer.contains_aabb(&partial));
         assert!(!inner.contains_aabb(&outer));
@@ -246,14 +228,8 @@ mod tests {
 
     #[test]
     fn test_is_empty() {
-        let valid = Aabb2D::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 1.0),
-        );
-        let invalid = Aabb2D::new(
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.0, 1.0),
-        );
+        let valid = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(1.0, 1.0));
+        let invalid = Aabb2D::new(Point2D::new(1.0, 0.0), Point2D::new(0.0, 1.0));
         assert!(!valid.is_empty());
         assert!(invalid.is_empty());
     }

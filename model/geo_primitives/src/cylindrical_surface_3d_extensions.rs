@@ -337,8 +337,7 @@ impl<T: Scalar> BoundedCylindricalSurface3D<T> {
             }
         }
 
-        geo_core::Aabb3D::from_points(&points)
-        .unwrap_or_else(|| {
+        geo_core::Aabb3D::from_points(&points).unwrap_or_else(|| {
             let origin = geo_core::Point3D::new(T::ZERO, T::ZERO, T::ZERO);
             geo_core::Aabb3D::new(origin, origin)
         })

@@ -32,13 +32,8 @@ impl<T: Scalar> LineSegment3D<T> {
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
         let start = self.start();
         let end = self.end();
-        geo_core::Aabb3D::from_points(&[
-            start,
-            end,
-        ])
-        .unwrap_or_else(|| {
-            geo_core::Aabb3D::new(start, start)
-        })
+        geo_core::Aabb3D::from_points(&[start, end])
+            .unwrap_or_else(|| geo_core::Aabb3D::new(start, start))
     }
 
     /// パラメータでの点を取得

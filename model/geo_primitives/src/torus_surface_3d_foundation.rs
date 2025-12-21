@@ -70,10 +70,7 @@ impl<T: Scalar> Bounded<T> for TorusSurface3D<T> {
             origin.z() + z_extent_final,
         );
 
-        Some(Aabb3D::new(
-            min_point,
-            max_point,
-        ))
+        Some(Aabb3D::new(min_point, max_point))
     }
 }
 

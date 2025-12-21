@@ -229,17 +229,9 @@ impl<T: Scalar> EllipseArc3D<T> {
         let end = self.end_point();
         let mid = self.midpoint();
 
-        geo_core::Aabb3D::from_points(&[
-            start,
-            end,
-            mid,
-        ])
-        .unwrap_or_else(|| {
+        geo_core::Aabb3D::from_points(&[start, end, mid]).unwrap_or_else(|| {
             // フォールバック: ゼロサイズのボックス
-            geo_core::Aabb3D::new(
-                start,
-                start,
-            )
+            geo_core::Aabb3D::new(start, start)
         })
     }
 }

@@ -232,14 +232,8 @@ mod tests {
 
     #[test]
     fn test_is_empty() {
-        let valid = Aabb3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 1.0),
-        );
-        let invalid = Aabb3D::new(
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 1.0),
-        );
+        let valid = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0));
+        let invalid = Aabb3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 1.0));
         assert!(!valid.is_empty());
         assert!(invalid.is_empty());
     }

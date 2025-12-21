@@ -25,10 +25,8 @@ pub mod analysis_transform {
         let new_origin: Point2D<T> = transformed_origin_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため原点中心変換）
-        let direction_vec: Vector2<T> = Vector2D::new(
-            ray.direction_internal().x(),
-            ray.direction_internal().y(),
-        ).into();
+        let direction_vec: Vector2<T> =
+            Vector2D::new(ray.direction_internal().x(), ray.direction_internal().y()).into();
         let transformed_direction_vec = matrix.transform_vector_2d(&direction_vec);
         let new_direction_vector: Vector2D<T> = transformed_direction_vec.into();
 

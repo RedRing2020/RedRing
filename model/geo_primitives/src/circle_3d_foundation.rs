@@ -67,10 +67,7 @@ impl<T: Scalar> Bounded<T> for Circle3D<T> {
             center.z() + extent_z,
         );
 
-        Some(Aabb3D::new(
-            min_point,
-            max_point,
-        ))
+        Some(Aabb3D::new(min_point, max_point))
     }
 }
 
