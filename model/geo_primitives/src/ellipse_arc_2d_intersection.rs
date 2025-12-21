@@ -144,10 +144,9 @@ impl<T: Scalar> BasicIntersection<T, EllipseArc2D<T>> for EllipseArc2D<T> {
 
     fn intersection_with(&self, other: &EllipseArc2D<T>, tolerance: T) -> Option<Self::Point> {
         // 複数交点から最初の1つを取得
-        let intersections =
-            <Self as MultipleIntersection<T, EllipseArc2D<T>>>::intersections_with(
-                self, other, tolerance,
-            );
+        let intersections = <Self as MultipleIntersection<T, EllipseArc2D<T>>>::intersections_with(
+            self, other, tolerance,
+        );
         intersections.into_iter().next()
     }
 }
@@ -168,8 +167,7 @@ impl<T: Scalar> MultipleIntersection<T, EllipseArc2D<T>> for EllipseArc2D<T> {
         ellipse_intersections
             .into_iter()
             .filter(|p| {
-                self.point_in_angle_range(p, tolerance)
-                    && other.point_in_angle_range(p, tolerance)
+                self.point_in_angle_range(p, tolerance) && other.point_in_angle_range(p, tolerance)
             })
             .collect()
     }
