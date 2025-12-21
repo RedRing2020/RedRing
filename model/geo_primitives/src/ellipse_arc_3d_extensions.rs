@@ -142,6 +142,67 @@ impl<T: Scalar> EllipseArc3D<T> {
     }
 
     // ========================================================================
+    // Helper Methods
+    // ========================================================================
+
+    /// 角度が楕円弧の範囲内にあるかを判定
+    pub fn angle_in_range(&self, angle: T) -> bool {
+        let start_rad = self.start_angle().to_radians();
+        let end_rad = self.end_angle().to_radians();
+
+        if start_rad <= end_rad {
+            angle >= start_rad && angle <= end_rad
+        } else {
+            // 角度が0を跨ぐ場合
+            angle >= start_rad || angle <= end_rad
+        }
+    }
+
+    /// 点が楕円弧の角度範囲内にあるかを判定
+    pub fn point_in_angle_range(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        let center = self.center();
+        let to_point = Vector3D::new(
+            point.x() - center.x(),
+            point.y() - center.y(),
+            point.z() - center.z(),
+        );
+
+        if to_point.magnitude() <= tolerance {
+            return true; // 中心点の場合
+        }
+
+        // 楕円平面上への投影
+        let major_axis = self.major_axis_direction().as_vector();
+        let minor_axis = self.minor_axis_direction().as_vector();
+
+        // 平面内での座標を計算
+        let x_comp = to_point.dot(&major_axis);
+        let y_comp = to_point.dot(&minor_axis);
+
+        // 角度を計算
+        let angle = y_comp.atan2(x_comp);
+
+        self.angle_in_range(angle)
+    }
+
+    /// 点から楕円弧への最短距離
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
+        // 点が角度範囲内にある場合
+        if self.point_in_angle_range(point, T::EPSILON) {
+            return self.ellipse().distance_to_point(point);
+        }
+
+        // 角度範囲外の場合は端点への距離
+        let start_point = self.start_point();
+        let end_point = self.end_point();
+
+        let dist_to_start = point.distance_to(&start_point);
+        let dist_to_end = point.distance_to(&end_point);
+
+        dist_to_start.min(dist_to_end)
+    }
+
+    // ========================================================================
     // Advanced Analysis Methods (Extension)
     // ========================================================================
 
