@@ -51,7 +51,13 @@ pub mod ellipse_3d_intersection; // Ellipse3D の交差計算
 #[cfg(test)]
 pub mod ellipse_3d_intersection_tests; // Ellipse3D の交差計算テスト
 pub mod ellipse_arc_3d; // EllipseArc3D の実装 (Core)
+pub mod ellipse_arc_3d_collision; // EllipseArc3D の衝突検出実装
+#[cfg(test)]
+pub mod ellipse_arc_3d_collision_tests; // EllipseArc3D の衝突検出テスト
 pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
+pub mod ellipse_arc_3d_intersection; // EllipseArc3D の交点計算実装
+#[cfg(test)]
+pub mod ellipse_arc_3d_intersection_tests; // EllipseArc3D の交点計算テスト
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
