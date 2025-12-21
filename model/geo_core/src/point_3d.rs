@@ -242,36 +242,6 @@ impl<T: Scalar> Point3D<T> {
     pub fn contains_point(&self, point: &Self) -> bool {
         self == point
     }
-
-    // ========================================================================
-    // Analysis Integration (Analysis変換機能)
-    // ========================================================================
-
-    /// analysis::Point3に変換
-    pub fn to_analysis_point3(&self) -> analysis::linalg::point3::Point3<T> {
-        analysis::linalg::point3::Point3::new(self.x, self.y, self.z)
-    }
-
-    /// analysis::Point3から作成
-    pub fn from_analysis_point3(p: analysis::linalg::point3::Point3<T>) -> Self {
-        Self::new(p.x(), p.y(), p.z())
-    }
-
-    /// analysis::Vector3に変換（位置ベクトルとして）
-    pub fn to_analysis_vector3(&self) -> analysis::linalg::vector::Vector3<T> {
-        self.to_analysis_point3().to_vector()
-    }
-
-    /// analysis::Vector3から作成（位置ベクトルから）
-    pub fn from_analysis_vector3(v: analysis::linalg::vector::Vector3<T>) -> Self {
-        let point = analysis::linalg::point3::Point3::from_vector(v);
-        Self::from_analysis_point3(point)
-    }
-
-    /// 位置ベクトルとして取得（原点からのベクトル）
-    pub fn to_vector(&self) -> analysis::linalg::vector::Vector3<T> {
-        self.to_analysis_vector3()
-    }
 }
 
 // ============================================================================
@@ -314,7 +284,7 @@ impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
     }
 
     fn from_analysis_vector(v: &analysis::linalg::vector::Vector3<T>) -> Self {
-        Point3D::from_analysis_vector3(*v)
+        Point3D::new(v.x(), v.y(), v.z())
     }
 
     fn from_point(p: &Self) -> Self {
@@ -344,7 +314,7 @@ impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
     }
 
     fn to_analysis_vector(&self) -> analysis::linalg::vector::Vector3<T> {
-        self.to_analysis_vector3()
+        analysis::linalg::vector::Vector3::new(self.x, self.y, self.z)
     }
 }
 
@@ -399,20 +369,6 @@ impl<T: Scalar> Point3DCore<T> for Point3D<T> {}
 impl<T: Scalar> From<(T, T, T)> for Point3D<T> {
     fn from(tuple: (T, T, T)) -> Self {
         Self::new(tuple.0, tuple.1, tuple.2)
-    }
-}
-
-/// analysis::Point3からの変換
-impl<T: Scalar> From<analysis::linalg::point3::Point3<T>> for Point3D<T> {
-    fn from(p: analysis::linalg::point3::Point3<T>) -> Self {
-        Self::from_analysis_point3(p)
-    }
-}
-
-/// analysis::Point3への変換
-impl<T: Scalar> From<Point3D<T>> for analysis::linalg::point3::Point3<T> {
-    fn from(p: Point3D<T>) -> Self {
-        p.to_analysis_point3()
     }
 }
 
@@ -494,15 +450,15 @@ mod tests {
     fn test_lerp() {
         let p1 = Point3D::new(0.0, 0.0, 0.0);
         let p2 = Point3D::new(10.0, 10.0, 10.0);
-        
+
         let lerp0 = p1.lerp(&p2, 0.0);
         assert_eq!(lerp0.x(), 0.0);
-        
+
         let lerp_half = p1.lerp(&p2, 0.5);
         assert_eq!(lerp_half.x(), 5.0);
         assert_eq!(lerp_half.y(), 5.0);
         assert_eq!(lerp_half.z(), 5.0);
-        
+
         let lerp1 = p1.lerp(&p2, 1.0);
         assert_eq!(lerp1.x(), 10.0);
     }
@@ -520,7 +476,7 @@ mod tests {
         let p1 = Point3D::new(1.0, 2.0, 3.0);
         let p2 = Point3D::new(1.0, 2.0, 3.0);
         let p3 = Point3D::new(1.0, 2.0, 4.0);
-        
+
         assert_eq!(p1, p2);
         assert_ne!(p1, p3);
     }

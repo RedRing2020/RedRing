@@ -2,7 +2,6 @@
 //!
 //! 3次元球面の衝突判定実装
 
-use crate::sphere_distance_helpers;
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
 use geo_foundation::{extensions::BasicCollision, Scalar};
 
@@ -49,12 +48,12 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
-        sphere_distance_helpers::sphere_to_line_segment_distance(
+        geo_core::sphere_metrics::sphere_to_line_segment_distance(
             &self.center_internal(),
             self.radius_internal(),
             &segment.start(),
             &segment.end(),
-            false, // SphericalSurface3D は球面（表面のみ）
+            false,
         )
     }
 }
@@ -75,12 +74,12 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        sphere_distance_helpers::sphere_to_ray_distance(
+        geo_core::sphere_metrics::sphere_to_ray_distance(
             &self.center_internal(),
             self.radius_internal(),
             &ray.origin_internal(),
-            &ray.direction_internal(),
-            false, // SphericalSurface3D は球面（表面のみ）
+            &ray.direction_internal().as_vector(),
+            false,
         )
     }
 }
@@ -101,12 +100,12 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        sphere_distance_helpers::sphere_to_infinite_line_distance(
+        geo_core::sphere_metrics::sphere_to_infinite_line_distance(
             &self.center_internal(),
             self.radius_internal(),
             &line.point_internal(),
-            &line.direction_internal(),
-            false, // SphericalSurface3D は球面（表面のみ）
+            &line.direction_internal().as_vector(),
+            false,
         )
     }
 }

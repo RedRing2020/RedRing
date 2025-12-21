@@ -25,6 +25,20 @@ pub mod analysis_transform {
         }
     }
 
+    /// Vector2D → Analysis Vector2 変換
+    impl<T: Scalar> From<Vector2D<T>> for Vector2<T> {
+        fn from(vector: Vector2D<T>) -> Self {
+            Vector2::new(vector.x(), vector.y())
+        }
+    }
+
+    /// Analysis Vector2 → Vector2D 変換
+    impl<T: Scalar> From<Vector2<T>> for Vector2D<T> {
+        fn from(vector: Vector2<T>) -> Self {
+            Vector2D::new(vector.x(), vector.y())
+        }
+    }
+
     /// 単一点の行列変換（Matrix3x3）
     pub fn transform_point_2d<T: Scalar>(point: &Point2D<T>, matrix: &Matrix3x3<T>) -> Point2D<T> {
         let vec: Vector2<T> = (*point).into();

@@ -58,7 +58,8 @@ impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
             let axis_dx_rev = self.axis().x() + other.axis().x();
             let axis_dy_rev = self.axis().y() + other.axis().y();
             let axis_dz_rev = self.axis().z() + other.axis().z();
-            let axis_dist_sq_rev = axis_dx_rev * axis_dx_rev + axis_dy_rev * axis_dy_rev + axis_dz_rev * axis_dz_rev;
+            let axis_dist_sq_rev =
+                axis_dx_rev * axis_dx_rev + axis_dy_rev * axis_dy_rev + axis_dz_rev * axis_dz_rev;
             if axis_dist_sq_rev > tolerance * tolerance {
                 return false;
             }

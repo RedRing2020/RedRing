@@ -176,8 +176,7 @@ impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
                 axis.z() / axis_length,
             );
 
-            let rotation_matrix =
-                Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
+            let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
             composite = rotation_matrix * composite;
         }
 

@@ -17,17 +17,34 @@
 //! © RedRing Project
 
 // 基本型実装
+pub mod point_2d;
+pub mod point_2d_transform;
 pub mod point_3d;
+pub mod point_3d_transform;
+pub mod sphere_metrics; // 球距離計算関数
+pub mod vector_2d;
+pub mod vector_2d_transform;
 pub mod vector_3d;
+pub mod vector_3d_transform;
+
+// テストモジュール
+#[cfg(test)]
+mod point_2d_tests;
 #[cfg(test)]
 mod point_3d_tests;
+#[cfg(test)]
+mod vector_2d_tests;
+#[cfg(test)]
+mod vector_3d_tests;
 
 // AABB型実装
 pub mod aabb_2d;
 pub mod aabb_3d;
 
 // 公開API
-pub use point_3d::Point3D;
-pub use vector_3d::{DominantAxis, Vector3D, VectorRelationship};
 pub use aabb_2d::Aabb2D;
 pub use aabb_3d::Aabb3D;
+pub use point_2d::Point2D;
+pub use point_3d::Point3D;
+pub use vector_2d::Vector2D;
+pub use vector_3d::{DominantAxis, Vector3D, VectorRelationship};

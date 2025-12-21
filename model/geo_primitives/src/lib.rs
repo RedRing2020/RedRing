@@ -102,13 +102,12 @@ pub mod plane_3d_intersection; // Plane3D の交点計算実装
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
-pub mod point_3d; // Point3D の再エクスポート (geo_core から)
+                        // Point3D/Vector3Dは geo_core から直接エクスポート
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_collision; // Ray3D の衝突検出実装
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_intersection; // Ray3D の交点計算実装
-pub mod sphere_distance_helpers; // 球形状と線分形状間の距離計算ヘルパー
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定
 #[cfg(test)]
@@ -138,9 +137,6 @@ pub mod triangle_3d_intersection; // Triangle3D の交点計算実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
-
-// Vector3D関連（geo_core から再エクスポート）
-pub mod vector_3d; // Vector3D の再エクスポート (geo_core から)
 
 // Transform テストモジュール
 #[cfg(test)]
@@ -223,8 +219,6 @@ pub mod line_segment_2d_collision; // LineSegment2D の衝突検出実装
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_foundation; // LineSegment2D のFoundation実装
 pub mod line_segment_2d_intersection; // LineSegment2D の交点計算実装
-pub mod point_2d; // Point2D の新実装
-pub mod point_2d_extensions; // Point2D の拡張機能 (Extension)
 pub mod ray_2d; // Ray2D の新実装 (Core)
 pub mod ray_2d_collision; // Ray2D の衝突検出実装
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
@@ -237,10 +231,6 @@ pub mod triangle_2d_foundation; // Triangle2D の Foundation 実装
 pub mod triangle_2d_intersection; // Triangle2D の交点計算実装
 pub mod triangle_2d_transform; // Triangle2D の変換実装
 
-// Vector2D関連（Core, Extension, Transform, Safe Transform）
-pub mod vector_2d; // Vector2D の新実装 (Core)
-pub mod vector_2d_extensions; // Vector2D の拡張機能 (Extension)
-
 // テストモジュール（次元中立設計）
 #[cfg(test)]
 mod ellipse_3d_tests;
@@ -248,9 +238,6 @@ mod ellipse_3d_tests;
 // mod spherical_solid_3d_transform_safe_tests; // 削除済み
 // mod spherical_surface_3d_tests; // 未実装position機能のため無効化
 // mod spherical_surface_3d_transform_safe_tests; // 削除済み
-#[cfg(test)]
-mod vector_3d_tests;
-
 // 2D テスト
 #[cfg(test)]
 mod direction_2d_extensions_tests;
@@ -261,15 +248,7 @@ mod direction_3d_extensions_tests;
 mod foundation_tests;
 // mod infinite_line_2d_tests; // 未実装Transform機能のため無効化
 // mod infinite_line_3d_tests; // 未実装Transform機能のため無効化
-#[cfg(test)]
-mod point_2d_tests;
-// pub mod point_2d_transform_safe_tests; // 削除済み
-// mod ray_2d_tests; // 未実装Transform機能のため無効化
-#[cfg(test)]
-mod vector_2d_tests; // Foundation traitの動作確認テスト
-
-// Vector2D テストモジュール
-// pub mod vector_2d_transform_safe_tests; // 削除済み
+// Point2D/Point3D/Vector2D/Vector3D関連のモジュールは geo_core に移動済み
 
 // 最小限の基盤のみ残す
 pub use geo_foundation::{Angle, Scalar};
@@ -304,7 +283,6 @@ pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
 pub use plane_3d::Plane3D;
 // 削除: Plane3DCoordinateSystemはPlane3Dに統合済み
-pub use crate::point_3d::Point3D;
 pub use ray_3d::Ray3D;
 pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド
 pub use spherical_surface_3d::SphericalSurface3D; // 新式球サーフェス
@@ -312,7 +290,6 @@ pub use torus_solid_3d::TorusSolid3D; // 新式トーラスソリッド (3D CAM�
 pub use torus_surface_3d::TorusSurface3D; // 新式トーラスサーフェス (3D CAM対応)
 pub use triangle_3d::Triangle3D;
 pub use triangle_mesh_3d::TriangleMesh3D;
-pub use vector_3d::Vector3D;
 
 // 2D プリミティブ
 pub use arc_2d::Arc2D;
@@ -320,12 +297,16 @@ pub use circle_2d::Circle2D;
 pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;
 pub use ellipse_arc_2d::EllipseArc2D; // 楕円弧
+pub use geo_core::Point2D;
+pub use geo_core::Vector2D;
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
-pub use point_2d::Point2D;
 pub use ray_2d::Ray2D;
 pub use triangle_2d::Triangle2D;
-pub use vector_2d::Vector2D;
+
+// geo_core から Point3D/Vector3D を直接エクスポート
+pub use geo_core::Point3D;
+pub use geo_core::Vector3D;
 
 // Core Traits統合エクスポート（Foundation経由）
 pub use geo_foundation::core::infinite_line_core_traits::{InfiniteLine2DCore, InfiniteLine3DCore};

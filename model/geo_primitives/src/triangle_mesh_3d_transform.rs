@@ -11,6 +11,16 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
+    /// Point3DをanalysisのVector3に変換（ヘルパー関数）
+    fn point_to_analysis_vector<T: Scalar>(point: &Point3D<T>) -> Vector3<T> {
+        Vector3::new(point.x(), point.y(), point.z())
+    }
+
+    /// analysisのVector3をPoint3Dに変換（ヘルパー関数）
+    fn analysis_vector_to_point<T: Scalar>(vec: Vector3<T>) -> Point3D<T> {
+        Point3D::new(vec.x(), vec.y(), vec.z())
+    }
+
     /// 単一メッシュの行列変換
     pub fn transform_triangle_mesh_3d<T: Scalar>(
         mesh: &TriangleMesh3D<T>,
@@ -21,9 +31,9 @@ pub mod analysis_transform {
 
         for vertex in mesh.vertices() {
             // geo_primitives::Point3D → analysis::Vector3 → 変換 → geo_primitives::Point3D
-            let vertex_vec = vertex.to_analysis_vector3();
+            let vertex_vec = point_to_analysis_vector(vertex);
             let transformed_vec = matrix.transform_point_3d(&vertex_vec);
-            let new_vertex = Point3D::from_analysis_vector3(transformed_vec);
+            let new_vertex = analysis_vector_to_point(transformed_vec);
             transformed_vertices.push(new_vertex);
         }
 
@@ -99,7 +109,7 @@ pub mod analysis_transform {
 
         let mut sum = Vector3::zero();
         for vertex in mesh.vertices() {
-            sum = sum + vertex.to_analysis_vector3();
+            sum = sum + point_to_analysis_vector(vertex);
         }
 
         let count = T::from_f64(mesh.vertices().len() as f64);

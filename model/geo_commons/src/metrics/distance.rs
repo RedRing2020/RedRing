@@ -1,8 +1,6 @@
 //! 距離計算の共通実装
 //!
 //! 幾何形状間の距離計算アルゴリズムを提供します。
-//!
-//! 作成日: 2025年11月29日
 
 use analysis::Scalar;
 
@@ -96,9 +94,6 @@ pub fn ellipse_3d_distance_to_point<T: Scalar>(
 /// 3. 中心から最近点までの距離 d_CF を計算
 /// 4. 球体の場合: d_CF ≤ r なら 0、さもなくば d_CF - r
 /// 5. 球面の場合: |d_CF - r|
-///
-/// # 作成日
-/// 2025年12月21日
 pub fn sphere_to_infinite_line_distance<T: Scalar>(
     center: (T, T, T),
     radius: T,
@@ -164,9 +159,6 @@ pub fn sphere_to_infinite_line_distance<T: Scalar>(
 /// 1. 無限直線として最近点のパラメータ t を計算
 /// 2. t < 0 の場合: 光線の始点との距離を使用
 /// 3. t ≥ 0 の場合: 無限直線と同じ処理
-///
-/// # 作成日
-/// 2025年12月21日
 pub fn sphere_to_ray_distance<T: Scalar>(
     center: (T, T, T),
     radius: T,
@@ -246,9 +238,6 @@ pub fn sphere_to_ray_distance<T: Scalar>(
 /// 3. t < 0: 始点との距離
 /// 4. t > 1: 終点との距離
 /// 5. 0 ≤ t ≤ 1: 線分上の点との距離
-///
-/// # 作成日
-/// 2025年12月21日
 pub fn sphere_to_line_segment_distance<T: Scalar>(
     center: (T, T, T),
     radius: T,

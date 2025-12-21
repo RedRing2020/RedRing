@@ -3,7 +3,6 @@
 //! 球ソリッドとの衝突判定（含内部）を提供する。
 //! 球ソリッドは内部を持つ立体であり、距離計算は表面までの距離または内部からの距離を返す。
 
-use crate::sphere_distance_helpers;
 use crate::{
     Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, Triangle3D,
     Vector3D,
@@ -76,12 +75,12 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &LineSegment3D<T>) -> T {
-        sphere_distance_helpers::sphere_to_line_segment_distance(
+        geo_core::sphere_metrics::sphere_to_line_segment_distance(
             &self.center_internal(),
             self.radius_internal(),
             &line.start(),
             &line.end(),
-            true, // SphericalSolid3D は球体（内部含む）
+            true,
         )
     }
 }
@@ -99,12 +98,12 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        sphere_distance_helpers::sphere_to_ray_distance(
+        geo_core::sphere_metrics::sphere_to_ray_distance(
             &self.center_internal(),
             self.radius_internal(),
             &ray.origin_internal(),
-            &ray.direction_internal(),
-            true, // SphericalSolid3D は球体（内部含む）
+            &ray.direction_internal().as_vector(),
+            true,
         )
     }
 }
@@ -122,12 +121,12 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        sphere_distance_helpers::sphere_to_infinite_line_distance(
+        geo_core::sphere_metrics::sphere_to_infinite_line_distance(
             &self.center_internal(),
             self.radius_internal(),
             &line.point_internal(),
-            &line.direction_internal(),
-            true, // SphericalSolid3D は球体（内部含む）
+            &line.direction_internal().as_vector(),
+            true,
         )
     }
 }

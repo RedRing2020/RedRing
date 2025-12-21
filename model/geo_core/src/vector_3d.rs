@@ -376,7 +376,11 @@ impl<T: Scalar> std::ops::Sub for Point3D<T> {
     type Output = Vector3D<T>;
 
     fn sub(self, other: Self) -> Self::Output {
-        Vector3D::new(self.x() - other.x(), self.y() - other.y(), self.z() - other.z())
+        Vector3D::new(
+            self.x() - other.x(),
+            self.y() - other.y(),
+            self.z() - other.z(),
+        )
     }
 }
 
