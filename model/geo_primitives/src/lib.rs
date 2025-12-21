@@ -169,7 +169,13 @@ pub mod ellipse_2d_intersection; // Ellipse2D の交点計算実装
                                  // pub mod ellipse_2d_tests; // Ellipse2D のテスト
 pub mod ellipse_2d_transform; // Ellipse2D の変換実装
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
+pub mod ellipse_arc_2d_collision; // EllipseArc2D の衝突検出実装
+#[cfg(test)]
+pub mod ellipse_arc_2d_collision_tests; // EllipseArc2D の衝突検出テスト
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
+pub mod ellipse_arc_2d_intersection; // EllipseArc2D の交点計算実装
+#[cfg(test)]
+pub mod ellipse_arc_2d_intersection_tests; // EllipseArc2D の交点計算テスト
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
 pub mod infinite_line_2d_collision; // InfiniteLine2D の衝突検出実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
