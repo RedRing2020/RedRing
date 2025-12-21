@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 geo_foundation = { path = "../geo_foundation" }
 geo_core = { path = "../geo_core" }
-geo_commons = { path = "../geo_commons" }
 analysis = { path = "../../foundation/analysis" }
 
 [features]
