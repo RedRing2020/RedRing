@@ -31,8 +31,14 @@ pub mod conical_surface_3d_foundation; // ConicalSurface3D のFoundation実装
                                        // #[cfg(test)]
                                        // pub mod conical_surface_3d_tests; // ConicalSurface3D のテスト - 未実装Transform機能のため無効化
 pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod cylindrical_solid_3d_collision; // CylindricalSolid3D の衝突判定
+#[cfg(test)]
+pub mod cylindrical_solid_3d_collision_tests; // CylindricalSolid3D の衝突判定テスト
 pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
 pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
+pub mod cylindrical_solid_3d_intersection; // CylindricalSolid3D の交差計算
+#[cfg(test)]
+pub mod cylindrical_solid_3d_intersection_tests; // CylindricalSolid3D の交差計算テスト
 #[cfg(test)]
 pub mod cylindrical_solid_3d_tests; // CylindricalSolid3D のテスト
 pub mod cylindrical_surface_3d; // CylindricalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
