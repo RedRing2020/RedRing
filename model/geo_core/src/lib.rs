@@ -16,10 +16,14 @@
 //! ---
 //! © RedRing Project
 
+// 基本型実装
+pub mod point_3d;
+
 // AABB型実装
 pub mod aabb_2d;
 pub mod aabb_3d;
 
 // 公開API
+pub use point_3d::Point3D;
 pub use aabb_2d::Aabb2D;
 pub use aabb_3d::Aabb3D;
