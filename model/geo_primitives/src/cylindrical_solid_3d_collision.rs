@@ -33,10 +33,10 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for CylindricalSolid3D<T> {
         let center = self.center_internal();
         let axis = self.axis();
         let to_point = Vector3D::from_points(&center, point);
-        
+
         // 軸方向の投影
         let axis_projection = to_point.dot(&axis.as_vector());
-        
+
         // 高さ範囲内かチェック
         let height = self.height();
         let axis_dist = if axis_projection < T::ZERO {
@@ -46,7 +46,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for CylindricalSolid3D<T> {
         } else {
             T::ZERO // 高さ範囲内
         };
-        
+
         // 軸からの半径方向距離
         let perpendicular = to_point - axis.as_vector() * axis_projection;
         let radial_distance = perpendicular.magnitude();
@@ -56,7 +56,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for CylindricalSolid3D<T> {
         } else {
             T::ZERO
         };
-        
+
         // 距離の合成（両方ゼロなら内部または表面上）
         if axis_dist.is_zero() && radial_dist.is_zero() {
             T::ZERO
@@ -171,14 +171,14 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSolid3D<T> {
 
     fn intersects(&self, triangle: &Triangle3D<T>, tolerance: T) -> bool {
         use geo_foundation::Triangle3DProperties;
-        
+
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
         let (cx, cy, cz) = triangle.vertex_c();
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         self.distance_to(&va) <= tolerance
             || self.distance_to(&vb) <= tolerance
             || self.distance_to(&vc) <= tolerance
@@ -190,14 +190,14 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSolid3D<T> {
 
     fn distance_to(&self, triangle: &Triangle3D<T>) -> T {
         use geo_foundation::Triangle3DProperties;
-        
+
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
         let (cx, cy, cz) = triangle.vertex_c();
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         let dist_a = self.distance_to(&va);
         let dist_b = self.distance_to(&vb);
         let dist_c = self.distance_to(&vc);
@@ -216,7 +216,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for CylindricalSolid3D<T> {
         // 円柱の中心点が平面に近いかチェック
         let center = self.center_internal();
         let dist_center = plane.distance_to(&center).abs();
-        
+
         // 簡易判定：中心からの距離が半径+高さ以内
         let max_extent = self.radius() + self.height();
         dist_center <= tolerance + max_extent

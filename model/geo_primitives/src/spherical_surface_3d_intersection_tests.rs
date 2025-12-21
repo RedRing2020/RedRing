@@ -2,10 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{InfiniteLine3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
-    use geo_foundation::extensions::{
-        BasicIntersection, MultipleIntersection, SelfIntersection,
-    };
+    use crate::{InfiniteLine3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
+    use geo_foundation::extensions::BasicIntersection;
 
     /// テスト用の標準的な球面サーフェスを作成
     fn create_test_sphere() -> SphericalSurface3D<f64> {
@@ -44,11 +42,8 @@ mod tests {
     #[test]
     fn test_line_intersection() {
         let sphere = create_test_sphere();
-        let line = InfiniteLine3D::new(
-            Point3D::new(-2.0, 0.0, 0.0),
-            Vector3D::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
+        let line = InfiniteLine3D::new(Point3D::new(-2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0))
+            .unwrap();
         let result: Option<Point3D<f64>> = sphere.intersection_with(&line, 1e-10);
         // 簡易実装では未実装
         assert!(result.is_none());

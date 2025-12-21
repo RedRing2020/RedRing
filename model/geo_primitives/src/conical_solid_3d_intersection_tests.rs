@@ -3,9 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{ConicalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D, Vector3D};
-    use geo_foundation::extensions::{
-        BasicIntersection, MultipleIntersection, SelfIntersection,
-    };
+    use geo_foundation::extensions::{BasicIntersection, SelfIntersection};
 
     /// テスト用の標準的な円錐ソリッドを作成
     fn create_test_cone() -> ConicalSolid3D<f64> {
@@ -52,11 +50,8 @@ mod tests {
     #[test]
     fn test_line_intersection() {
         let cone = create_test_cone();
-        let line = InfiniteLine3D::new(
-            Point3D::new(0.0, 0.0, -1.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        )
-        .unwrap();
+        let line = InfiniteLine3D::new(Point3D::new(0.0, 0.0, -1.0), Vector3D::new(0.0, 0.0, 1.0))
+            .unwrap();
         let result: Option<Point3D<f64>> = cone.intersection_with(&line, 1e-10);
         // 簡易実装では未実装
         assert!(result.is_none());

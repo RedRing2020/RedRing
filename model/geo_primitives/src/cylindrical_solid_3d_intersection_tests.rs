@@ -13,11 +13,12 @@ mod tests {
         // 原点を中心とする半径1.0、高さ2.0の円柱（Z軸方向）
         CylindricalSolid3D::new(
             Point3D::new(0.0, 0.0, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),      // axis
-            Vector3D::new(1.0, 0.0, 0.0),      // ref_direction
-            1.0,                                 // radius
-            2.0,                                 // height
-        ).unwrap()
+            Vector3D::new(0.0, 0.0, 1.0), // axis
+            Vector3D::new(1.0, 0.0, 0.0), // ref_direction
+            1.0,                          // radius
+            2.0,                          // height
+        )
+        .unwrap()
     }
 
     #[test]
@@ -26,8 +27,9 @@ mod tests {
         let plane = Plane3D::from_point_and_normal(
             Point3D::new(0.0, 0.0, 1.0),
             Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let result = cylinder.intersection_with(&plane, TOLERANCE);
         assert!(result.is_some());
     }
@@ -38,8 +40,9 @@ mod tests {
         let plane = Plane3D::from_point_and_normal(
             Point3D::new(0.0, 0.0, 0.0),
             Vector3D::new(1.0, 0.0, 0.0),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let result = cylinder.intersection_with(&plane, TOLERANCE);
         assert!(result.is_some());
     }
@@ -52,7 +55,7 @@ mod tests {
     //         Point3D::new(0.0, 0.0, -1.0),
     //         Vector3D::new(0.0, 0.0, 1.0),
     //     ).unwrap();
-    //     
+    //
     //     let result = cylinder.intersection_with(&line, TOLERANCE);
     //     assert!(result.is_some());
     // }
@@ -60,11 +63,9 @@ mod tests {
     #[test]
     fn test_line_intersection_outside() {
         let cylinder = create_test_cylinder();
-        let line = InfiniteLine3D::new(
-            Point3D::new(5.0, 0.0, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        let line =
+            InfiniteLine3D::new(Point3D::new(5.0, 0.0, 0.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+
         let result = cylinder.intersection_with(&line, TOLERANCE);
         assert!(result.is_none());
     }
@@ -75,8 +76,9 @@ mod tests {
         let plane = Plane3D::from_point_and_normal(
             Point3D::new(0.0, 0.0, 1.0),
             Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let results = cylinder.intersections_with(&plane, TOLERANCE);
         assert!(!results.is_empty());
     }
@@ -84,11 +86,9 @@ mod tests {
     #[test]
     fn test_multiple_intersections_line() {
         let cylinder = create_test_cylinder();
-        let line = InfiniteLine3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        let line =
+            InfiniteLine3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+
         let results = cylinder.intersections_with(&line, TOLERANCE);
         // 軸上の線は円柱を貫通するため交点がある
         assert!(!results.is_empty());
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn test_self_intersection() {
         let cylinder = create_test_cylinder();
-        
+
         let results = cylinder.self_intersections(TOLERANCE);
         // 単一の円柱ソリッドは自己交差しない
         assert!(results.is_empty());
@@ -106,11 +106,9 @@ mod tests {
     #[test]
     fn test_intersection_tangent_line() {
         let cylinder = create_test_cylinder();
-        let line = InfiniteLine3D::new(
-            Point3D::new(1.0, 0.0, 1.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        let line =
+            InfiniteLine3D::new(Point3D::new(1.0, 0.0, 1.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+
         let result = cylinder.intersection_with(&line, TOLERANCE);
         // 接線は交点を持つ
         assert!(result.is_some());

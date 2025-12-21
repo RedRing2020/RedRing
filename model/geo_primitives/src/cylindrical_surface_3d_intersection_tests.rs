@@ -5,9 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{CylindricalSurface3D, LineSegment3D, Plane3D, Point3D, Triangle3D, Vector3D};
-    use geo_foundation::extensions::{
-        BasicIntersection, MultipleIntersection, SelfIntersection,
-    };
+    use geo_foundation::extensions::{BasicIntersection, MultipleIntersection, SelfIntersection};
 
     const TOLERANCE: f64 = 1e-10;
 

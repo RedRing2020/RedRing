@@ -2,9 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        ConicalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D,
-    };
+    use crate::{ConicalSolid3D, LineSegment3D, Plane3D, Point3D, Vector3D};
     use geo_foundation::extensions::BasicCollision;
 
     /// テスト用の標準的な円錐ソリッドを作成
@@ -74,11 +72,8 @@ mod tests {
     fn test_line_segment_no_intersection() {
         let cone = create_test_cone();
         // 外部の線分
-        let line = LineSegment3D::new(
-            Point3D::new(3.0, 0.0, 0.0),
-            Point3D::new(4.0, 0.0, 0.0),
-        )
-        .unwrap();
+        let line =
+            LineSegment3D::new(Point3D::new(3.0, 0.0, 0.0), Point3D::new(4.0, 0.0, 0.0)).unwrap();
         assert!(!cone.intersects(&line, 1e-10));
     }
 

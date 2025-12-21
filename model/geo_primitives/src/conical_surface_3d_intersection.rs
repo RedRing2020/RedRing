@@ -2,7 +2,9 @@
 //!
 //! 3次元円錐サーフェスの交差判定実装
 
-use crate::{Circle3D, ConicalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Triangle3D};
+use crate::{
+    Circle3D, ConicalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Triangle3D,
+};
 use geo_foundation::{
     extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
     Scalar,
@@ -73,14 +75,14 @@ impl<T: Scalar> BasicIntersection<T, Triangle3D<T>> for ConicalSurface3D<T> {
 
     fn intersection_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Option<Point3D<T>> {
         use geo_foundation::{extensions::BasicCollision, Triangle3DProperties};
-        
+
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
         let (cx, cy, cz) = triangle.vertex_c();
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         if self.intersects(&va, tolerance) {
             Some(va)
         } else if self.intersects(&vb, tolerance) {
@@ -167,14 +169,14 @@ impl<T: Scalar> MultipleIntersection<T, Triangle3D<T>> for ConicalSurface3D<T> {
 
     fn intersections_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
         use geo_foundation::{extensions::BasicCollision, Triangle3DProperties};
-        
+
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
         let (cx, cy, cz) = triangle.vertex_c();
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         let mut results = Vec::new();
         if self.intersects(&va, tolerance) {
             results.push(va);
