@@ -21,10 +21,16 @@ pub mod circle_3d_foundation; // Circle3D のFoundation実装
 pub mod circle_3d_intersection; // Circle3D の交差計算
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod conical_solid_3d; // ConicalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod conical_solid_3d_collision; // ConicalSolid3D の衝突判定
+#[cfg(test)]
+pub mod conical_solid_3d_collision_tests; // ConicalSolid3D の衝突判定テスト
 pub mod conical_solid_3d_extensions; // ConicalSolid3D の拡張機能 (Extension)
 pub mod conical_solid_3d_foundation; // ConicalSolid3D のFoundation実装
-                                     // #[cfg(test)]
-                                     // pub mod conical_solid_3d_tests; // ConicalSolid3D のテスト - 未実装Transform機能のため無効化
+pub mod conical_solid_3d_intersection; // ConicalSolid3D の交差計算
+#[cfg(test)]
+pub mod conical_solid_3d_intersection_tests; // ConicalSolid3D の交差計算テスト
+                                             // #[cfg(test)]
+                                             // pub mod conical_solid_3d_tests; // ConicalSolid3D のテスト - 未実装Transform機能のため無効化
 pub mod conical_surface_3d; // ConicalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod conical_surface_3d_collision; // ConicalSurface3D の衝突判定
 #[cfg(test)]
