@@ -69,15 +69,15 @@ mod tests {
         assert!(sphere.intersects(&line, 1e-6));
     }
 
-    // TODO: Ray3D との距離計算実装が完了したらテストを追加
-    // #[test]
-    // fn test_collision_with_ray() {
-    //     let sphere = create_test_sphere::<f64>();
-    //     let origin = Point3D::new(-2.0, 0.0, 0.0);
-    //     let direction = Vector3D::new(1.0, 0.0, 0.0); // X軸方向
-    //     let ray = Ray3D::new(origin, direction).expect("Failed to create ray");
-    //     assert!(sphere.intersects(&ray, 1e-6));
-    // }
+    // Ray3D との距離計算実装が完了 (Issue #180)
+    #[test]
+    fn test_collision_with_ray() {
+        let sphere = create_test_sphere::<f64>();
+        let origin = Point3D::new(-2.0, 0.0, 0.0);
+        let direction = Vector3D::new(1.0, 0.0, 0.0); // X軸方向
+        let ray = Ray3D::new(origin, direction).expect("Failed to create ray");
+        assert!(sphere.intersects(&ray, 1e-6));
+    }
 
     #[test]
     fn test_collision_with_infinite_line_through_center() {

@@ -119,7 +119,8 @@ mod spherical_surface_3d_collision_tests; // SphericalSurface3D 衝突判定テ�
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
 pub mod spherical_surface_3d_intersection; // SphericalSurface3D の交差計算
 #[cfg(test)]
-mod spherical_surface_3d_intersection_tests; // SphericalSurface3D 交差計算テスト
+mod spherical_surface_3d_intersection_tests; // SphericalSurface3D の交差計算テスト
+pub mod sphere_distance_helpers; // 球形状と線分形状間の距離計算ヘルパー
 pub mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定
 #[cfg(test)]
 mod spherical_solid_3d_collision_tests; // SphericalSolid3D 衝突判定テスト

@@ -3,6 +3,7 @@
 //! 球ソリッドとの衝突判定（含内部）を提供する。
 //! 球ソリッドは内部を持つ立体であり、距離計算は表面までの距離または内部からの距離を返す。
 
+use crate::sphere_distance_helpers;
 use crate::{
     Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
     Triangle3D, Vector3D,
@@ -75,13 +76,13 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &LineSegment3D<T>) -> T {
-        // 簡易実装：端点の最小距離
-        // TODO: 線分と球ソリッドの正確な距離計算
-        let start_point = line.start();
-        let end_point = line.end();
-
-        self.distance_to(&start_point)
-            .min(self.distance_to(&end_point))
+        sphere_distance_helpers::sphere_to_line_segment_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &line.start(),
+            &line.end(),
+            true, // SphericalSolid3D は球体（内部含む）
+        )
     }
 }
 
@@ -98,10 +99,13 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        // 簡易実装：始点との距離
-        // TODO: 光線と球ソリッドの正確な距離計算
-        let origin = ray.origin();
-        self.distance_to(&origin)
+        sphere_distance_helpers::sphere_to_ray_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &ray.origin_internal(),
+            &ray.direction_internal(),
+            true, // SphericalSolid3D は球体（内部含む）
+        )
     }
 }
 
@@ -118,29 +122,13 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        use geo_foundation::InfiniteLine3DProperties;
-
-        // 中心から直線への最短距離
-        let center = self.center_internal();
-        let (px, py, pz) = line.point();
-        let point_on_line = Point3D::new(px, py, pz);
-        let (dx, dy, dz) = line.direction();
-        let direction = Vector3D::new(dx, dy, dz);
-
-        let to_center = Vector3D::from_points(&point_on_line, &center);
-        let projection = to_center.dot(&direction) / direction.dot(&direction);
-        let closest_point_on_line = point_on_line + direction * projection;
-
-        let distance_center_to_line =
-            Vector3D::from_points(&closest_point_on_line, &center).magnitude();
-        let radius = self.radius_internal();
-
-        if distance_center_to_line <= radius {
-            // 直線が球を貫通
-            T::ZERO
-        } else {
-            distance_center_to_line - radius
-        }
+        sphere_distance_helpers::sphere_to_infinite_line_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &line.point_internal(),
+            &line.direction_internal(),
+            true, // SphericalSolid3D は球体（内部含む）
+        )
     }
 }
 

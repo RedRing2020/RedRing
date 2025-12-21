@@ -2,6 +2,7 @@
 //!
 //! 3次元球面の衝突判定実装
 
+use crate::sphere_distance_helpers;
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
 use geo_foundation::{extensions::BasicCollision, Scalar};
 
@@ -48,9 +49,13 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
-        let dist_start = self.distance_to(&segment.start());
-        let dist_end = self.distance_to(&segment.end());
-        dist_start.min(dist_end)
+        sphere_distance_helpers::sphere_to_line_segment_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &segment.start(),
+            &segment.end(),
+            false, // SphericalSurface3D は球面（表面のみ）
+        )
     }
 }
 
@@ -70,7 +75,13 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        self.distance_to(&ray.origin_internal())
+        sphere_distance_helpers::sphere_to_ray_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &ray.origin_internal(),
+            &ray.direction_internal(),
+            false, // SphericalSurface3D は球面（表面のみ）
+        )
     }
 }
 
@@ -82,7 +93,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSurface3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
-        self.distance_to(&line.point_internal()) <= tolerance
+        self.distance_to(line) <= tolerance
     }
 
     fn overlaps(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
@@ -90,7 +101,13 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        self.distance_to(&line.point_internal())
+        sphere_distance_helpers::sphere_to_infinite_line_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &line.point_internal(),
+            &line.direction_internal(),
+            false, // SphericalSurface3D は球面（表面のみ）
+        )
     }
 }
 
