@@ -124,12 +124,12 @@ impl<T: Scalar> Ray2D<T> {
 impl<T: Scalar> Ray2D<T> {
     /// 境界ボックスを取得（起点のみ）
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
-        use analysis::Point2;
+        use geo_core::Point2D;
         // Ray は無限なので、境界ボックスは起点のみで構成
         // 実際の用途では適切な範囲を指定する必要がある
         geo_core::Aabb2D::new(
-            Point2::new(self.origin.x(), self.origin.y()),
-            Point2::new(self.origin.x(), self.origin.y()),
+            Point2D::new(self.origin.x(), self.origin.y()),
+            Point2D::new(self.origin.x(), self.origin.y()),
         )
     }
 
