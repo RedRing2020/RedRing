@@ -5,8 +5,8 @@
 //! 円錐サーフェスは厚みのない曲面であり、距離計算は表面までの最短距離を返す。
 
 use crate::{
-    Circle3D, ConicalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D,
-    Triangle3D, Vector3D,
+    Circle3D, ConicalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
+    Vector3D,
 };
 use geo_foundation::{extensions::BasicCollision, Scalar};
 
@@ -31,17 +31,18 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for ConicalSurface3D<T> {
         let center = self.center_internal();
         let axis = self.axis_internal();
         let to_point = Vector3D::from_points(&center, point);
-        
+
         // 軸方向の投影
         let axis_projection = to_point.dot(&axis.as_vector());
-        
+
         // その高さでの期待半径
-        let expected_radius = self.radius_internal() + axis_projection * self.semi_angle_internal().tan();
-        
+        let expected_radius =
+            self.radius_internal() + axis_projection * self.semi_angle_internal().tan();
+
         // 半径方向距離
         let perpendicular = to_point - axis.as_vector() * axis_projection;
         let radial_distance = perpendicular.magnitude();
-        
+
         // サーフェスまでの距離（半径方向のずれ）
         (radial_distance - expected_radius).abs()
     }
@@ -152,14 +153,14 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for ConicalSurface3D<T> {
 
     fn intersects(&self, triangle: &Triangle3D<T>, tolerance: T) -> bool {
         use geo_foundation::Triangle3DProperties;
-        
+
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
         let (cx, cy, cz) = triangle.vertex_c();
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         self.distance_to(&va) <= tolerance
             || self.distance_to(&vb) <= tolerance
             || self.distance_to(&vc) <= tolerance
@@ -171,18 +172,18 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for ConicalSurface3D<T> {
 
     fn distance_to(&self, triangle: &Triangle3D<T>) -> T {
         use geo_foundation::Triangle3DProperties;
-        
+
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
         let (cx, cy, cz) = triangle.vertex_c();
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         let dist_a = self.distance_to(&va);
         let dist_b = self.distance_to(&vb);
         let dist_c = self.distance_to(&vc);
-        
+
         dist_a.min(dist_b).min(dist_c)
     }
 }
@@ -206,7 +207,9 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for ConicalSurface3D<T> {
 
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
         let center = self.center_internal();
-        plane.distance_to_point(center).min(self.distance_to(&plane.origin()))
+        plane
+            .distance_to_point(center)
+            .min(self.distance_to(&plane.origin()))
     }
 }
 

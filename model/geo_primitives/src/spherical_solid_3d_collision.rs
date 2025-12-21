@@ -5,8 +5,8 @@
 
 use crate::sphere_distance_helpers;
 use crate::{
-    Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
-    Triangle3D, Vector3D,
+    Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, Triangle3D,
+    Vector3D,
 };
 use geo_foundation::{extensions::BasicCollision, Circle3DProperties, Scalar};
 

@@ -78,7 +78,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = arc1.intersection_with(&arc2, 0.01);
+        let _result = arc1.intersection_with(&arc2, 0.01);
         // 簡易実装では交点計算の詳細は省略
         // フィルタリングメカニズムの動作を確認
         let intersections = arc1.intersections_with(&arc2, 0.01);
@@ -92,7 +92,7 @@ mod tests {
 
         // 同じ楕円
         let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 5.0, 3.0, 0.0).unwrap();
-        let result = arc.intersection_with(&ellipse, 0.01);
+        let _result = arc.intersection_with(&ellipse, 0.01);
         // 簡易実装: 楕円の中心点を返すため、角度範囲外になる可能性がある
         // assert!(result.is_some()); // コメントアウト
 

@@ -361,7 +361,8 @@ mod tests {
         let line_point = (-2.0, 0.0, 0.0);
         let line_direction = (1.0, 0.0, 0.0);
 
-        let dist = sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
+        let dist =
+            sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
         assert!(dist.abs() < 1e-10); // 直線が球体を貫通
     }
 
@@ -372,7 +373,8 @@ mod tests {
         let line_point = (-2.0, 0.0, 0.0);
         let line_direction = (1.0, 0.0, 0.0);
 
-        let dist = sphere_to_infinite_line_distance(center, radius, line_point, line_direction, false);
+        let dist =
+            sphere_to_infinite_line_distance(center, radius, line_point, line_direction, false);
         assert!((dist - 1.0).abs() < 1e-10); // 球面まで距離1
     }
 
@@ -383,7 +385,8 @@ mod tests {
         let line_point = (0.0, 1.0, 0.0); // Y軸上の点
         let line_direction = (1.0, 0.0, 0.0); // X軸方向
 
-        let dist = sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
+        let dist =
+            sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
         assert!(dist.abs() < 1e-10); // 接線は衝突
     }
 
@@ -416,7 +419,8 @@ mod tests {
         let segment_start = (-1.0, 0.0, 0.0);
         let segment_end = (1.0, 0.0, 0.0);
 
-        let dist = sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
+        let dist =
+            sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
         // 線分上の最近点は (0, 0, 0) → 中心からの距離は 2.0
         // 球体なので距離は 2.0 - 1.0 = 1.0
         let expected = 1.0;
@@ -430,7 +434,8 @@ mod tests {
         let segment_start = (-2.0, 0.0, 0.0);
         let segment_end = (2.0, 0.0, 0.0);
 
-        let dist = sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
+        let dist =
+            sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
         assert!(dist.abs() < 1e-10); // 線分が球体を貫通
     }
 }

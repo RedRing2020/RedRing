@@ -11,7 +11,6 @@
 ///
 /// # 作成日
 /// 2025年12月21日
-
 use crate::{Direction3D, Point3D};
 use analysis::Scalar;
 use geo_commons::metrics::sphere_to_infinite_line_distance as commons_infinite_line;
@@ -131,7 +130,8 @@ mod tests {
         let line_point = Point3D::new(-2.0, 0.0, 0.0);
         let line_direction = Direction3D::positive_x();
 
-        let dist = sphere_to_infinite_line_distance(&center, radius, &line_point, &line_direction, true);
+        let dist =
+            sphere_to_infinite_line_distance(&center, radius, &line_point, &line_direction, true);
         assert!(dist.abs() < 1e-10);
     }
 
@@ -153,7 +153,8 @@ mod tests {
         let segment_start = Point3D::new(-2.0, 0.0, 0.0);
         let segment_end = Point3D::new(2.0, 0.0, 0.0);
 
-        let dist = sphere_to_line_segment_distance(&center, radius, &segment_start, &segment_end, true);
+        let dist =
+            sphere_to_line_segment_distance(&center, radius, &segment_start, &segment_end, true);
         assert!(dist.abs() < 1e-10);
     }
 }

@@ -32,12 +32,12 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for CylindricalSurface3D<T> {
         let center = self.center_internal();
         let axis = self.axis();
         let to_point = Vector3D::from_points(&center, point);
-        
+
         // 軸方向成分を除去して、軸に垂直な成分のみを取得
         let axis_component = to_point.dot(&axis.as_vector());
         let perpendicular = to_point - axis.as_vector() * axis_component;
         let radial_distance = perpendicular.magnitude();
-        
+
         // 円柱面までの距離は、軸からの距離と半径の差の絶対値
         (radial_distance - self.radius()).abs()
     }
@@ -149,7 +149,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
 
     fn intersects(&self, triangle: &Triangle3D<T>, tolerance: T) -> bool {
         use geo_foundation::Triangle3DProperties;
-        
+
         // 三角形の各頂点との距離をチェック
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -157,7 +157,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         self.distance_to(&va) <= tolerance
             || self.distance_to(&vb) <= tolerance
             || self.distance_to(&vc) <= tolerance
@@ -169,7 +169,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
 
     fn distance_to(&self, triangle: &Triangle3D<T>) -> T {
         use geo_foundation::Triangle3DProperties;
-        
+
         // 簡易実装: 三角形の頂点との距離の最小値
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -177,7 +177,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
         let va = Point3D::new(ax, ay, az);
         let vb = Point3D::new(bx, by, bz);
         let vc = Point3D::new(cx, cy, cz);
-        
+
         let dist_a = self.distance_to(&va);
         let dist_b = self.distance_to(&vb);
         let dist_c = self.distance_to(&vc);
@@ -225,25 +225,25 @@ impl<T: Scalar> BasicCollision<T, CylindricalSurface3D<T>> for CylindricalSurfac
         // 2つの円柱サーフェスの軸が平行かどうかで場合分け
         let axis1 = self.axis();
         let axis2 = other.axis();
-        
+
         // 軸の平行度チェック
         let cross = axis1.as_vector().cross(&axis2.as_vector());
         let is_parallel = cross.magnitude() < tolerance;
-        
+
         if is_parallel {
             // 軸が平行な場合: 軸間の距離が半径の和以下なら交差
             let center1 = self.center_internal();
             let center2 = other.center_internal();
             let between_centers = Vector3D::from_points(&center1, &center2);
-            
+
             // 軸方向成分を除去
             let axis_component = between_centers.dot(&axis1.as_vector());
             let perpendicular = between_centers - axis1.as_vector() * axis_component;
             let axis_distance = perpendicular.magnitude();
-            
+
             let radius_sum = self.radius() + other.radius();
             let radius_diff = (self.radius() - other.radius()).abs();
-            
+
             axis_distance <= radius_sum + tolerance && axis_distance >= radius_diff - tolerance
         } else {
             // 軸が交差する場合: 簡易実装として、中心点間の距離をチェック

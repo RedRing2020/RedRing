@@ -17,7 +17,8 @@ mod tests {
             Vector3D::new(1.0, 0.0, 0.0),
             1.0,
             std::f64::consts::PI / 4.0, // 45度
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[test]
@@ -26,8 +27,9 @@ mod tests {
         let plane = Plane3D::from_point_and_normal(
             Point3D::new(0.0, 0.0, 0.0),
             Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let result = cone.intersection_with(&plane, TOLERANCE);
         assert!(result.is_some());
     }
@@ -35,11 +37,9 @@ mod tests {
     #[test]
     fn test_line_intersection_outside() {
         let cone = create_test_cone();
-        let line = InfiniteLine3D::new(
-            Point3D::new(10.0, 0.0, 0.0),
-            Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        let line = InfiniteLine3D::new(Point3D::new(10.0, 0.0, 0.0), Vector3D::new(0.0, 0.0, 1.0))
+            .unwrap();
+
         let result = cone.intersection_with(&line, TOLERANCE);
         assert!(result.is_none());
     }
@@ -50,8 +50,9 @@ mod tests {
         let plane = Plane3D::from_point_and_normal(
             Point3D::new(0.0, 0.0, 0.0),
             Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         let results = cone.intersections_with(&plane, TOLERANCE);
         assert!(!results.is_empty());
     }
@@ -59,7 +60,7 @@ mod tests {
     #[test]
     fn test_self_intersection() {
         let cone = create_test_cone();
-        
+
         let results = cone.self_intersections(TOLERANCE);
         // 単一の円錐サーフェスは自己交差しない
         assert!(results.is_empty());
@@ -69,7 +70,7 @@ mod tests {
     fn test_intersection_point_on_surface() {
         let cone = create_test_cone();
         let point = Point3D::new(1.0, 0.0, 0.0);
-        
+
         let result = cone.intersection_with(&point, TOLERANCE);
         assert!(result.is_some());
     }
@@ -78,7 +79,7 @@ mod tests {
     fn test_intersection_point_outside() {
         let cone = create_test_cone();
         let point = Point3D::new(5.0, 0.0, 0.0);
-        
+
         let result = cone.intersection_with(&point, TOLERANCE);
         assert!(result.is_none());
     }

@@ -46,7 +46,8 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for ConicalSolid3D<T> {
                 } else {
                     // 底面エッジからの距離
                     let edge_distance = radial_distance - self.radius_internal();
-                    return (edge_distance * edge_distance + axis_projection * axis_projection).sqrt();
+                    return (edge_distance * edge_distance + axis_projection * axis_projection)
+                        .sqrt();
                 }
             } else {
                 // 頂点より上

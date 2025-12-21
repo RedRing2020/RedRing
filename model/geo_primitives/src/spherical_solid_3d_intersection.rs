@@ -58,11 +58,7 @@ impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for SphericalSolid3D<T> {
 impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for SphericalSolid3D<T> {
     type Point = Point3D<T>;
 
-    fn intersections_with(
-        &self,
-        line: &InfiniteLine3D<T>,
-        _tolerance: T,
-    ) -> Vec<Self::Point> {
+    fn intersections_with(&self, line: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
         use geo_foundation::InfiniteLine3DProperties;
 
         let center = self.center_internal();

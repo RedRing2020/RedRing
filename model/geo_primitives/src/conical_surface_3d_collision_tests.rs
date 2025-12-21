@@ -4,7 +4,9 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{Circle3D, ConicalSurface3D, Direction3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D, Vector3D};
+    use crate::{
+        ConicalSurface3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D,
+    };
     use geo_foundation::extensions::BasicCollision;
 
     const TOLERANCE: f64 = 1e-10;
@@ -17,7 +19,8 @@ mod tests {
             Vector3D::new(1.0, 0.0, 0.0),
             1.0,
             std::f64::consts::PI / 4.0, // 45度
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[test]
@@ -25,7 +28,7 @@ mod tests {
         let cone = create_test_cone();
         // 基準点での半径1.0の位置
         let surface_point = Point3D::new(1.0, 0.0, 0.0);
-        
+
         assert!(cone.intersects(&surface_point, TOLERANCE));
         assert!(cone.overlaps(&surface_point, TOLERANCE));
         assert!(cone.distance_to(&surface_point) < TOLERANCE);
@@ -35,7 +38,7 @@ mod tests {
     fn test_point_outside() {
         let cone = create_test_cone();
         let outside_point = Point3D::new(5.0, 0.0, 0.0);
-        
+
         assert!(!cone.intersects(&outside_point, TOLERANCE));
         assert!(!cone.overlaps(&outside_point, TOLERANCE));
         assert!(cone.distance_to(&outside_point) > 3.0);
@@ -50,7 +53,7 @@ mod tests {
     //         Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap(),
     //         0.5
     //     ).unwrap();
-    //     
+    //
     //     assert!(cone.intersects(&circle, TOLERANCE));
     //     assert!(cone.overlaps(&circle, TOLERANCE));
     // }
@@ -58,11 +61,9 @@ mod tests {
     #[test]
     fn test_line_segment_through() {
         let cone = create_test_cone();
-        let line = LineSegment3D::new(
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(2.0, 0.0, 1.0),
-        ).unwrap();
-        
+        let line =
+            LineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 1.0)).unwrap();
+
         assert!(cone.intersects(&line, TOLERANCE));
     }
 
@@ -75,7 +76,7 @@ mod tests {
     //         Point3D::new(1.5, 0.0, 0.0),
     //         Point3D::new(1.0, 0.5, 0.0),
     //     ).unwrap();
-    //     
+    //
     //     assert!(cone.intersects(&triangle, TOLERANCE));
     // }
 
@@ -85,19 +86,17 @@ mod tests {
         let plane = Plane3D::from_point_and_normal(
             Point3D::new(0.0, 0.0, 0.0),
             Vector3D::new(0.0, 0.0, 1.0),
-        ).unwrap();
-        
+        )
+        .unwrap();
+
         assert!(cone.intersects(&plane, TOLERANCE));
     }
 
     #[test]
     fn test_ray_intersection() {
         let cone = create_test_cone();
-        let ray = Ray3D::new(
-            Point3D::new(1.0, 0.0, 0.0),
-            Vector3D::new(0.0, 1.0, 0.0),
-        ).unwrap();
-        
+        let ray = Ray3D::new(Point3D::new(1.0, 0.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+
         assert!(cone.intersects(&ray, TOLERANCE));
     }
 
@@ -106,7 +105,7 @@ mod tests {
         let cone = create_test_cone();
         // 円錐の上方（Z=1の位置では半径が2.0になる）
         let point = Point3D::new(0.0, 0.0, 1.0);
-        
+
         let distance = cone.distance_to(&point);
         // 軸上の点なので期待半径は2.0、実際の半径方向距離は0.0
         assert!((distance - 2.0).abs() < TOLERANCE);
@@ -117,7 +116,7 @@ mod tests {
         let cone = create_test_cone();
         // Z=1での円錐サーフェス上（半径2.0）
         let point = Point3D::new(2.0, 0.0, 1.0);
-        
+
         let distance = cone.distance_to(&point);
         assert!(distance < TOLERANCE);
     }
@@ -127,7 +126,7 @@ mod tests {
     // fn test_conical_surface_self_intersection() {
     //     let cone1 = create_test_cone();
     //     let cone2 = create_test_cone();
-    //     
+    //
     //     assert!(cone1.intersects(&cone2, TOLERANCE));
     // }
 }
