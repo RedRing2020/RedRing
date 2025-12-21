@@ -466,6 +466,167 @@ impl<T: Scalar> VectorOpsTrait<T> for Vector3D<T> {
     }
 }
 
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use analysis::linalg::vector::Vector3;
+use geo_foundation::core::vector_core_traits::{
+    Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
+};
+
+impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
+    fn new(x: T, y: T, z: T) -> Self {
+        Self::new(x, y, z)
+    }
+
+    fn zero() -> Self {
+        Self::zero()
+    }
+
+    fn unit_x() -> Self {
+        Self::unit_x()
+    }
+
+    fn unit_y() -> Self {
+        Self::unit_y()
+    }
+
+    fn unit_z() -> Self {
+        Self::unit_z()
+    }
+
+    fn from_tuple(components: (T, T, T)) -> Self {
+        Self::new(components.0, components.1, components.2)
+    }
+
+    fn from_analysis_vector(vector: &Vector3<T>) -> Self {
+        Self::new(vector.x(), vector.y(), vector.z())
+    }
+
+    fn from_array(components: [T; 3]) -> Self {
+        Self::new(components[0], components[1], components[2])
+    }
+
+    fn from_spherical(magnitude: T, azimuth: T, elevation: T) -> Self {
+        let x = magnitude * elevation.cos() * azimuth.cos();
+        let y = magnitude * elevation.cos() * azimuth.sin();
+        let z = magnitude * elevation.sin();
+        Self::new(x, y, z)
+    }
+
+    fn from_cylindrical(radial_distance: T, azimuth: T, height: T) -> Self {
+        let x = radial_distance * azimuth.cos();
+        let y = radial_distance * azimuth.sin();
+        let z = height;
+        Self::new(x, y, z)
+    }
+
+    fn from_vector(other: &Self) -> Self {
+        *other
+    }
+}
+
+impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
+    }
+
+    fn z(&self) -> T {
+        self.z
+    }
+
+    fn components(&self) -> [T; 3] {
+        self.components()
+    }
+
+    fn to_tuple(&self) -> (T, T, T) {
+        (self.x, self.y, self.z)
+    }
+
+    fn to_analysis_vector(&self) -> Vector3<T> {
+        Vector3::new(self.x, self.y, self.z)
+    }
+
+    fn length(&self) -> T {
+        self.length()
+    }
+
+    fn length_squared(&self) -> T {
+        self.length_squared()
+    }
+
+    fn normalize(&self) -> Self {
+        self.normalize()
+    }
+
+    fn try_normalize(&self) -> Option<Self> {
+        let len = self.length();
+        if len <= T::ZERO {
+            None
+        } else {
+            Some(*self / len)
+        }
+    }
+}
+
+impl<T: Scalar> Vector3DMeasure<T> for Vector3D<T> {
+    fn dot(&self, other: &Self) -> T {
+        self.dot(other)
+    }
+
+    fn cross_3d(&self, other: &Self) -> Self {
+        self.cross(other)
+    }
+
+    fn angle_to(&self, other: &Self) -> Option<T> {
+        Some(self.angle_between(other))
+    }
+
+    fn distance_to(&self, other: &Self) -> T {
+        (*self - *other).length()
+    }
+
+    fn distance_squared_to(&self, other: &Self) -> T {
+        (*self - *other).length_squared()
+    }
+
+    fn magnitude(&self) -> T {
+        self.magnitude()
+    }
+
+    fn manhattan_distance(&self) -> T {
+        self.x.abs() + self.y.abs() + self.z.abs()
+    }
+
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        self.is_parallel(other)
+    }
+
+    fn is_perpendicular_to(&self, other: &Self) -> bool {
+        self.is_perpendicular(other)
+    }
+
+    fn project_onto(&self, other: &Self) -> Option<Self> {
+        Some(self.project_onto(other))
+    }
+
+    fn project_onto_plane(&self, normal: &Self) -> Option<Self> {
+        let proj = self.project_onto(normal);
+        Some(*self - proj)
+    }
+}
+
+impl<T: Scalar> Vector3DCore<T> for Vector3D<T> {}
+
+// ============================================================================
+// Extension Foundation Implementation
+// ============================================================================
+
 impl<T: Scalar> ExtensionFoundation<T> for Vector3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Vector

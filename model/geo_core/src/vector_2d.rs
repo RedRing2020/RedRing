@@ -371,3 +371,132 @@ impl<T: Scalar> vector_traits::Vector2D<T> for Vector2D<T> {
         self.y
     }
 }
+
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use analysis::linalg::vector::Vector2;
+use geo_foundation::core::vector_core_traits::{
+    Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
+};
+
+impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
+    fn new(x: T, y: T) -> Self {
+        Self::new(x, y)
+    }
+
+    fn zero() -> Self {
+        Self::zero()
+    }
+
+    fn unit_x() -> Self {
+        Self::unit_x()
+    }
+
+    fn unit_y() -> Self {
+        Self::unit_y()
+    }
+
+    fn from_tuple(components: (T, T)) -> Self {
+        Self::new(components.0, components.1)
+    }
+
+    fn from_analysis_vector(vector: &Vector2<T>) -> Self {
+        Self::new(vector.x(), vector.y())
+    }
+
+    fn from_array(components: [T; 2]) -> Self {
+        Self::new(components[0], components[1])
+    }
+
+    fn from_polar(magnitude: T, angle: T) -> Self {
+        Self::new(magnitude * angle.cos(), magnitude * angle.sin())
+    }
+
+    fn from_vector(other: &Self) -> Self {
+        *other
+    }
+}
+
+impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
+    fn x(&self) -> T {
+        self.x
+    }
+
+    fn y(&self) -> T {
+        self.y
+    }
+
+    fn components(&self) -> [T; 2] {
+        self.components()
+    }
+
+    fn to_tuple(&self) -> (T, T) {
+        (self.x, self.y)
+    }
+
+    fn to_analysis_vector(&self) -> Vector2<T> {
+        Vector2::new(self.x, self.y)
+    }
+
+    fn length(&self) -> T {
+        self.length()
+    }
+
+    fn length_squared(&self) -> T {
+        self.length_squared()
+    }
+
+    fn normalize(&self) -> Self {
+        self.normalize()
+    }
+
+    fn try_normalize(&self) -> Option<Self> {
+        self.try_normalize()
+    }
+}
+
+impl<T: Scalar> Vector2DMeasure<T> for Vector2D<T> {
+    fn dot(&self, other: &Self) -> T {
+        self.dot(other)
+    }
+
+    fn cross_2d(&self, other: &Self) -> T {
+        self.cross(other)
+    }
+
+    fn angle_to(&self, other: &Self) -> Option<T> {
+        Some(self.angle_to(other).to_radians())
+    }
+
+    fn distance_to(&self, other: &Self) -> T {
+        (*self - *other).length()
+    }
+
+    fn distance_squared_to(&self, other: &Self) -> T {
+        (*self - *other).length_squared()
+    }
+
+    fn magnitude(&self) -> T {
+        self.magnitude()
+    }
+
+    fn manhattan_distance(&self) -> T {
+        self.x.abs() + self.y.abs()
+    }
+
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        self.is_parallel(other, T::EPSILON)
+    }
+
+    fn is_perpendicular_to(&self, other: &Self) -> bool {
+        self.is_perpendicular(other, T::EPSILON)
+    }
+
+    fn project_onto(&self, other: &Self) -> Option<Self> {
+        Some(self.project_onto(other))
+    }
+}
+
+impl<T: Scalar> Vector2DCore<T> for Vector2D<T> {}
