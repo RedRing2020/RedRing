@@ -114,8 +114,18 @@ pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハ�
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_surface_3d_collision; // SphericalSurface3D の衝突判定
+#[cfg(test)]
+mod spherical_surface_3d_collision_tests; // SphericalSurface3D 衝突判定テスト
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
 pub mod spherical_surface_3d_intersection; // SphericalSurface3D の交差計算
+#[cfg(test)]
+mod spherical_surface_3d_intersection_tests; // SphericalSurface3D 交差計算テスト
+pub mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定
+#[cfg(test)]
+mod spherical_solid_3d_collision_tests; // SphericalSolid3D 衝突判定テスト
+pub mod spherical_solid_3d_intersection; // SphericalSolid3D の交差計算
+#[cfg(test)]
+mod spherical_solid_3d_intersection_tests; // SphericalSolid3D 交差計算テスト
 pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
 pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
 pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
