@@ -4,10 +4,7 @@
 //! 基本機能、Foundation トレイト、Analysis 変換、演算子オーバーロードを含む。
 
 use geo_foundation::{
-    core::{
-        point_core_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties},
-        point_traits,
-    },
+    core::point_core_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties},
     Scalar,
 };
 
@@ -245,26 +242,8 @@ impl<T: Scalar> Point3D<T> {
 }
 
 // ============================================================================
-// Foundation Trait Implementations
+// Core Traits Implementation (Foundation Pattern)
 // ============================================================================
-
-/// geo_foundation::core::Point2D<T> トレイト実装
-impl<T: Scalar> point_traits::Point2D<T> for Point3D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-}
-
-/// geo_foundation::core::Point3D<T> トレイト実装
-impl<T: Scalar> point_traits::Point3D<T> for Point3D<T> {
-    fn z(&self) -> T {
-        self.z
-    }
-}
 
 impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
     fn new(x: T, y: T, z: T) -> Self {

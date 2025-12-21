@@ -4,10 +4,7 @@
 //! 基本機能、Foundation トレイト、拡張機能、演算子オーバーロードを含む。
 
 use crate::Point3D;
-use geo_foundation::{
-    core::{vector_traits, vector_traits::VectorOps as VectorOpsTrait},
-    ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 /// 3次元ベクトル
 ///
@@ -407,62 +404,6 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
             self.y() - vector.y(),
             self.z() - vector.z(),
         )
-    }
-}
-
-// ============================================================================
-// Foundation Trait Implementations
-// ============================================================================
-
-/// geo_foundation::core::Vector2D<T> トレイト実装
-impl<T: Scalar> vector_traits::Vector2D<T> for Vector3D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
-    }
-}
-
-/// geo_foundation::core::Vector3D<T> トレイト実装
-impl<T: Scalar> vector_traits::Vector3D<T> for Vector3D<T> {
-    fn z(&self) -> T {
-        self.z
-    }
-}
-
-/// geo_foundation::core::VectorMetrics<T> トレイト実装
-impl<T: Scalar> vector_traits::VectorMetrics<T> for Vector3D<T> {
-    fn length(&self) -> T {
-        self.length()
-    }
-
-    fn length_squared(&self) -> T {
-        self.length_squared()
-    }
-
-    fn normalize(&self) -> Self {
-        self.normalize()
-    }
-}
-
-/// geo_foundation::core::VectorOps<T> トレイト実装
-impl<T: Scalar> VectorOpsTrait<T> for Vector3D<T> {
-    fn add(&self, other: &Self) -> Self {
-        Self::new(self.x + other.x, self.y + other.y, self.z + other.z)
-    }
-
-    fn subtract(&self, other: &Self) -> Self {
-        Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
-    }
-
-    fn scale(&self, scalar: T) -> Self {
-        Self::new(self.x * scalar, self.y * scalar, self.z * scalar)
-    }
-
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
     }
 }
 

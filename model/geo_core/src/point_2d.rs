@@ -5,10 +5,7 @@
 use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_foundation::{
-    core::{
-        point_core_traits::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties},
-        point_traits,
-    },
+    core::point_core_traits::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties},
     Scalar,
 };
 
@@ -332,21 +329,6 @@ impl<T: Scalar> Neg for Point2D<T> {
 impl<T: Scalar> Default for Point2D<T> {
     fn default() -> Self {
         Self::origin()
-    }
-}
-
-// ============================================================================
-// geo_foundation abstracts trait implementations
-// ============================================================================
-
-/// geo_foundation::core::Point2D<T> トレイト実装
-impl<T: Scalar> point_traits::Point2D<T> for Point2D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
     }
 }
 

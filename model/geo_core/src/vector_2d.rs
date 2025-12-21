@@ -2,7 +2,7 @@
 //!
 //! geo_core内部実装として、全機能を統合
 
-use geo_foundation::{core::vector_traits, Angle, Scalar};
+use geo_foundation::{Angle, Scalar};
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元ベクトル
@@ -354,21 +354,6 @@ impl<T: Scalar> Neg for Vector2D<T> {
 impl<T: Scalar> From<(T, T)> for Vector2D<T> {
     fn from(tuple: (T, T)) -> Self {
         Self::new(tuple.0, tuple.1)
-    }
-}
-
-// ============================================================================
-// geo_foundation abstracts trait implementations
-// ============================================================================
-
-/// geo_foundation::core::Vector2D<T> トレイト実装
-impl<T: Scalar> vector_traits::Vector2D<T> for Vector2D<T> {
-    fn x(&self) -> T {
-        self.x
-    }
-
-    fn y(&self) -> T {
-        self.y
     }
 }
 
