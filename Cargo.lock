@@ -681,7 +681,6 @@ dependencies = [
  "approx",
  "geo_core",
  "geo_foundation",
- "geo_primitives",
  "nalgebra 0.33.2",
  "thiserror 1.0.69",
 ]

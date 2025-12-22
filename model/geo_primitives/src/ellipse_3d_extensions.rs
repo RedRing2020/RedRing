@@ -104,7 +104,8 @@ impl<T: Scalar> Ellipse3D<T> {
         let u_axis = self.major_axis_direction();
         let v_axis = self.minor_axis_direction();
 
-        let tangent_world = u_axis * tangent_local.x() + v_axis * tangent_local.y();
+        let tangent_world =
+            u_axis.to_vector() * tangent_local.x() + v_axis.to_vector() * tangent_local.y();
 
         // 楕円平面内の法線（接線に直交）
         let tangent_dir =
