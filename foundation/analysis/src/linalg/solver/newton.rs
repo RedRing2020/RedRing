@@ -95,6 +95,86 @@ where
     newton_solve(g, df, initial, max_iter, tol)
 }
 
+/// 2変数連立非線形方程式をニュートン法で解く
+///
+/// f1(x, y) = 0 と f2(x, y) = 0 を同時に満たす (x, y) を求める。
+/// ヤコビ行列を用いた多変数ニュートン法を実装。
+///
+/// # Arguments
+/// * `system` - (f1, f2, ヤコビ行列) を返す関数
+///   - f1, f2: 方程式の値
+///   - jacobian: [[∂f1/∂x, ∂f1/∂y], [∂f2/∂x, ∂f2/∂y]]
+/// * `initial` - 初期値 (x0, y0)
+/// * `max_iter` - 最大反復回数
+/// * `tol` - 収束判定の許容誤差
+///
+/// # Returns
+/// * `Some((x, y))` - 収束した場合の解
+/// * `None` - 発散またはヤコビ行列が特異な場合
+///
+/// # Example
+/// ```rust
+/// use analysis::linalg::solver::newton::newton_solve_2d;
+///
+/// // 連立方程式: x^2 + y^2 = 1, x - y = 0 (単位円と y=x の交点)
+/// let system = |x: f64, y: f64| {
+///     let f1 = x * x + y * y - 1.0;
+///     let f2 = x - y;
+///     let jacobian = [
+///         [2.0 * x, 2.0 * y],
+///         [1.0, -1.0]
+///     ];
+///     (f1, f2, jacobian)
+/// };
+/// let result = newton_solve_2d(system, (1.0, 0.5), 100, 1e-10);
+/// assert!(result.is_some());
+/// let (x, y) = result.unwrap();
+/// let expected = 1.0 / 2_f64.sqrt();
+/// assert!((x - expected).abs() < 1e-6);
+/// assert!((y - expected).abs() < 1e-6);
+/// ```
+pub fn newton_solve_2d<F>(
+    system: F,
+    initial: (f64, f64),
+    max_iter: usize,
+    tol: f64,
+) -> Option<(f64, f64)>
+where
+    F: Fn(f64, f64) -> (f64, f64, [[f64; 2]; 2]),
+{
+    let mut x = initial.0;
+    let mut y = initial.1;
+
+    for _ in 0..max_iter {
+        let (f1, f2, jacobian) = system(x, y);
+
+        // ヤコビ行列の行列式を計算
+        let det = jacobian[0][0] * jacobian[1][1] - jacobian[0][1] * jacobian[1][0];
+        
+        if det.abs() < DERIVATIVE_ZERO_THRESHOLD {
+            return None; // 特異行列
+        }
+
+        // クラメルの公式で逆行列を計算して解を更新
+        let inv_det = 1.0 / det;
+        let dx = inv_det * (jacobian[1][1] * f1 - jacobian[0][1] * f2);
+        let dy = inv_det * (-jacobian[1][0] * f1 + jacobian[0][0] * f2);
+
+        x -= dx;
+        y -= dy;
+
+        // 収束判定
+        let residual = (f1 * f1 + f2 * f2).sqrt();
+        let step_size = (dx * dx + dy * dy).sqrt();
+
+        if residual < tol && step_size < tol {
+            return Some((x, y));
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,6 +210,40 @@ mod tests {
         let df = |_: f64| 0.0; // 常に0の導関数
         let result = newton_solve(f, df, 1.0, 100, 1e-10);
 
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_2d_circle_line() {
+        // 連立方程式: x^2 + y^2 = 1, x - y = 0
+        // 単位円と y=x の交点を求める
+        let system = |x: f64, y: f64| {
+            let f1 = x * x + y * y - 1.0;
+            let f2 = x - y;
+            let jacobian = [[2.0 * x, 2.0 * y], [1.0, -1.0]];
+            (f1, f2, jacobian)
+        };
+
+        let result = newton_solve_2d(system, (1.0, 0.5), 100, 1e-10);
+        assert!(result.is_some());
+
+        let (x, y) = result.unwrap();
+        let expected = 1.0 / 2_f64.sqrt();
+        assert!((x - expected).abs() < 1e-6);
+        assert!((y - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_newton_solve_2d_singular_jacobian() {
+        // ヤコビ行列が特異になるケース
+        let system = |x: f64, y: f64| {
+            let f1 = x + y;
+            let f2 = x + y; // f2 = f1（従属）
+            let jacobian = [[1.0, 1.0], [1.0, 1.0]]; // det = 0
+            (f1, f2, jacobian)
+        };
+
+        let result = newton_solve_2d(system, (1.0, 1.0), 100, 1e-10);
         assert!(result.is_none());
     }
 }

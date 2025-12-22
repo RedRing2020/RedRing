@@ -19,6 +19,9 @@ pub mod gaussian; // ガウス消去法
 pub mod lu; // LU分解法
 pub mod newton; // ニュートン・ラフソン法
 
+// Newton法ソルバーの再エクスポート
+pub use newton::{newton_inverse, newton_solve, newton_solve_2d};
+
 // テストモジュール
 #[cfg(test)]
 pub mod solver_tests;

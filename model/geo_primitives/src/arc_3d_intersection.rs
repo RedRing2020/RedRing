@@ -13,19 +13,29 @@ impl<T: Scalar> BasicIntersection<T, Point3D<T>> for Arc3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, point: &Point3D<T>, tolerance: T) -> Option<Self::Point> {
-        let start = self.start_point();
-        let end = self.end_point();
+        let center = self.center();
+        let to_center = *point - center;
+        let distance = to_center.magnitude();
 
-        let dist_start = crate::Vector3D::from_points(&start, point).magnitude();
-        let dist_end = crate::Vector3D::from_points(&end, point).magnitude();
-
-        if dist_start <= tolerance {
-            Some(start)
-        } else if dist_end <= tolerance {
-            Some(end)
-        } else {
-            None
+        // 1. 円周上にあるか確認
+        if (distance - self.radius()).abs() > tolerance {
+            return None;
         }
+
+        // 2. 円弧平面上にあるか確認
+        let to_point = *point - center;
+        let normal = self.normal().as_vector();
+        let plane_distance = to_point.dot(&normal).abs();
+        if plane_distance > tolerance {
+            return None;
+        }
+
+        // 3. 角度範囲内にあるか確認
+        if !self.contains_point_angle(*point) {
+            return None;
+        }
+
+        Some(*point)
     }
 }
 

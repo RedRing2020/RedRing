@@ -139,6 +139,58 @@ impl<T: Scalar> Arc3D<T> {
         (span - two_pi).abs() < DefaultTolerances::angle::<T>()
     }
 
+    /// 点が円弧の角度範囲内にあるかを判定
+    ///
+    /// 点が円弧上にあるかどうかではなく、角度範囲に収まっているかのみをチェック
+    pub fn contains_point_angle(&self, point: Point3D<T>) -> bool {
+        if self.is_full_circle() {
+            return true; // 完全円の場合は全ての角度を含む
+        }
+
+        // 点から中心へのベクトルを計算
+        let to_point = point - self.center;
+
+        // 円弧平面への投影（法線に垂直な成分）
+        let normal_vec = self.normal.as_vector();
+        let projection = to_point - normal_vec * to_point.dot(&normal_vec);
+
+        // 投影ベクトルがゼロの場合（点が円弧の中心軸上にある）
+        if projection.magnitude() < T::EPSILON {
+            return false;
+        }
+
+        // 開始方向ベクトルとの角度を計算
+        let start_vec = self.start_dir.as_vector();
+        
+        // 内積とcross積で角度を計算
+        let cos_angle = projection.normalize().dot(&start_vec);
+        let sin_angle = normal_vec.dot(&projection.normalize().cross(&start_vec));
+        let point_angle = sin_angle.atan2(cos_angle);
+
+        // 正規化（0 から 2π の範囲に）
+        let normalize = |mut angle: T| {
+            let two_pi = T::TAU;
+            while angle < T::ZERO {
+                angle = angle + two_pi;
+            }
+            while angle >= two_pi {
+                angle = angle - two_pi;
+            }
+            angle
+        };
+
+        let point_normalized = normalize(point_angle);
+        let start_normalized = normalize(self.start_angle.to_radians());
+        let end_normalized = normalize(self.end_angle.to_radians());
+
+        // 角度範囲の判定
+        if start_normalized <= end_normalized {
+            point_normalized >= start_normalized && point_normalized <= end_normalized
+        } else {
+            point_normalized >= start_normalized || point_normalized <= end_normalized
+        }
+    }
+
     /// 指定角度での点を取得（内部用）
     fn point_at_angle_internal(&self, angle: Angle<T>) -> Point3D<T> {
         // 開始方向ベクトルを角度分回転
