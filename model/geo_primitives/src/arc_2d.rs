@@ -161,6 +161,50 @@ impl<T: Scalar> Arc2D<T> {
         let span = self.angular_span();
         (span - T::TAU).abs() < T::EPSILON
     }
+
+    /// 点が円弧の角度範囲内にあるかを判定
+    ///
+    /// 点が円弧上にあるかどうかではなく、角度範囲に収まっているかのみをチェック
+    pub fn contains_point_angle(&self, point: Point2D<T>) -> bool {
+        if self.is_full_circle() {
+            return true; // 完全円の場合は全ての角度を含む
+        }
+
+        let center = self.center();
+        let dx = point.x() - center.x();
+        let dy = point.y() - center.y();
+
+        // atan2で点の角度を計算（-π から π の範囲）
+        let point_angle = dy.atan2(dx);
+
+        // 開始・終了角度をラジアンで取得
+        let start_rad = self.start_angle.to_radians();
+        let end_rad = self.end_angle.to_radians();
+
+        // 正規化（0 から 2π の範囲に）
+        let normalize = |mut angle: T| {
+            while angle < T::ZERO {
+                angle += T::TAU;
+            }
+            while angle >= T::TAU {
+                angle -= T::TAU;
+            }
+            angle
+        };
+
+        let point_normalized = normalize(point_angle);
+        let start_normalized = normalize(start_rad);
+        let end_normalized = normalize(end_rad);
+
+        // 角度範囲の判定
+        if start_normalized <= end_normalized {
+            // 通常のケース（例：30度から150度）
+            point_normalized >= start_normalized && point_normalized <= end_normalized
+        } else {
+            // 0度をまたぐケース（例：330度から30度）
+            point_normalized >= start_normalized || point_normalized <= end_normalized
+        }
+    }
 }
 
 // ============================================================================

@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+analysis = { path = "../../foundation/analysis" }
 geo_foundation = { path = "../geo_foundation" }
 geo_primitives = { path = "../geo_primitives" }

@@ -2,6 +2,7 @@ use crate::sampling::IntersectionCandidate;
 /// 幾何学的交差解析と最適化アルゴリズム
 ///
 /// 交差検出、近似、最適化問題の解法を提供
+use analysis::linalg::solver::newton::newton_solve_2d;
 use geo_foundation::ToleranceContext;
 
 /// 2次元ベクトル（analysisのlinalgから独立）
@@ -37,137 +38,22 @@ impl Vector2 {
     }
 }
 
-/// 数値解法の収束情報
-#[derive(Debug, Clone)]
-pub struct ConvergenceInfo {
-    pub iterations: usize,
-    pub residual: f64,
-    pub converged: bool,
-    pub final_error: f64,
-}
-
-/// Newton-Raphson法による方程式求解
-pub struct NewtonSolver {
-    tolerance: ToleranceContext,
-    max_iterations: usize,
-}
-
-impl NewtonSolver {
-    pub fn new(tolerance: ToleranceContext) -> Self {
-        Self {
-            tolerance,
-            max_iterations: 100,
-        }
-    }
-
-    /// 1変数関数の根を求める
-    pub fn solve_1d<F, G>(
-        &self,
-        function: F,
-        derivative: G,
-        initial_guess: f64,
-    ) -> Result<(f64, ConvergenceInfo), String>
-    where
-        F: Fn(f64) -> f64,
-        G: Fn(f64) -> f64,
-    {
-        let mut x = initial_guess;
-        let mut info = ConvergenceInfo {
-            iterations: 0,
-            residual: f64::INFINITY,
-            converged: false,
-            final_error: f64::INFINITY,
-        };
-
-        for i in 0..self.max_iterations {
-            let f_val = function(x);
-            let df_val = derivative(x);
-
-            if df_val.abs() < self.tolerance.parametric {
-                return Err("Derivative too small, cannot continue".to_string());
-            }
-
-            let delta = f_val / df_val;
-            x -= delta;
-
-            info.iterations = i + 1;
-            info.residual = f_val.abs();
-            info.final_error = delta.abs();
-
-            if info.residual < self.tolerance.parametric
-                && info.final_error < self.tolerance.parametric
-            {
-                info.converged = true;
-                break;
-            }
-        }
-
-        Ok((x, info))
-    }
-
-    /// 2変数関数系の解
-    pub fn solve_2d<F>(
-        &self,
-        system: F,
-        initial_guess: (f64, f64),
-    ) -> Result<((f64, f64), ConvergenceInfo), String>
-    where
-        F: Fn(f64, f64) -> (f64, f64, [[f64; 2]; 2]), // (f1, f2, jacobian)
-    {
-        let mut x = initial_guess.0;
-        let mut y = initial_guess.1;
-        let mut info = ConvergenceInfo {
-            iterations: 0,
-            residual: f64::INFINITY,
-            converged: false,
-            final_error: f64::INFINITY,
-        };
-
-        for i in 0..self.max_iterations {
-            let (f1, f2, jacobian) = system(x, y);
-
-            // ヤコビ行列の逆行列を計算
-            let det = jacobian[0][0] * jacobian[1][1] - jacobian[0][1] * jacobian[1][0];
-            if det.abs() < self.tolerance.parametric {
-                return Err("Singular Jacobian".to_string());
-            }
-
-            let inv_det = 1.0 / det;
-            let dx = inv_det * (jacobian[1][1] * f1 - jacobian[0][1] * f2);
-            let dy = inv_det * (-jacobian[1][0] * f1 + jacobian[0][0] * f2);
-
-            x -= dx;
-            y -= dy;
-
-            info.iterations = i + 1;
-            info.residual = (f1 * f1 + f2 * f2).sqrt();
-            info.final_error = (dx * dx + dy * dy).sqrt();
-
-            if info.residual < self.tolerance.parametric
-                && info.final_error < self.tolerance.parametric
-            {
-                info.converged = true;
-                break;
-            }
-        }
-
-        Ok(((x, y), info))
-    }
+/// 適応的ステップサイズ計算（中心差分法用）
+///
+/// 数値微分の精度を向上させるため、変数の大きさに応じたステップサイズを計算
+fn adaptive_step_size(x: f64) -> f64 {
+    let eps = f64::EPSILON.sqrt(); // √ε ≈ 1.5e-8
+    eps * x.abs().max(1.0)
 }
 
 /// 曲線間交差検出
 pub struct CurveIntersection {
     tolerance: ToleranceContext,
-    newton_solver: NewtonSolver,
 }
 
 impl CurveIntersection {
     pub fn new(tolerance: ToleranceContext) -> Self {
-        let newton_solver = NewtonSolver::new(tolerance.clone());
-        Self {
-            tolerance,
-            newton_solver,
-        }
+        Self { tolerance }
     }
 
     /// 2曲線の交差候補を検出
@@ -222,9 +108,7 @@ impl CurveIntersection {
         F1: Fn(f64) -> Point2D,
         F2: Fn(f64) -> Point2D,
     {
-        // 数値微分による勾配計算
-        let h = 1e-8;
-
+        // 中心差分法による数値微分（適応的ステップサイズ）
         let system = |t1: f64, t2: f64| {
             let p1 = curve1(t1);
             let p2 = curve2(t2);
@@ -232,34 +116,39 @@ impl CurveIntersection {
             let f1 = p1.x().value() - p2.x().value();
             let f2 = p1.y().value() - p2.y().value();
 
-            // ヤコビ行列（数値微分）
-            let p1_dt = curve1(t1 + h);
-            let p2_dt = curve2(t2 + h);
+            // 適応的ステップサイズで中心差分法を使用（精度向上）
+            let h1 = adaptive_step_size(t1);
+            let h2 = adaptive_step_size(t2);
 
-            let df1_dt1 = (p1_dt.x().value() - p1.x().value()) / h;
-            let df1_dt2 = -(p2_dt.x().value() - p2.x().value()) / h;
-            let df2_dt1 = (p1_dt.y().value() - p1.y().value()) / h;
-            let df2_dt2 = -(p2_dt.y().value() - p2.y().value()) / h;
+            // 中心差分: (f(x+h) - f(x-h)) / (2h)
+            let p1_plus = curve1(t1 + h1);
+            let p1_minus = curve1(t1 - h1);
+            let p2_plus = curve2(t2 + h2);
+            let p2_minus = curve2(t2 - h2);
+
+            let df1_dt1 = (p1_plus.x().value() - p1_minus.x().value()) / (2.0 * h1);
+            let df1_dt2 = -(p2_plus.x().value() - p2_minus.x().value()) / (2.0 * h2);
+            let df2_dt1 = (p1_plus.y().value() - p1_minus.y().value()) / (2.0 * h1);
+            let df2_dt2 = -(p2_plus.y().value() - p2_minus.y().value()) / (2.0 * h2);
 
             let jacobian = [[df1_dt1, df1_dt2], [df2_dt1, df2_dt2]];
 
             (f1, f2, jacobian)
         };
 
-        if let Ok(((t1, t2), convergence)) = self
-            .newton_solver
-            .solve_2d(system, (initial_t1, initial_t2))
-        {
-            if convergence.converged {
-                let intersection_point = curve1(t1);
-                let verification_point = curve2(t2);
-                let distance = intersection_point.distance_to(&verification_point).value();
+        // analysis の newton_solve_2d を使用
+        if let Some((t1, t2)) = newton_solve_2d(system, (initial_t1, initial_t2), 100, self.tolerance.parametric) {
+            let intersection_point = curve1(t1);
+            let verification_point = curve2(t2);
+            let distance = intersection_point.distance_to(&verification_point).value();
 
+            // 収束判定
+            if distance < self.tolerance.linear {
                 return Some(IntersectionCandidate {
                     point: intersection_point,
                     parameter: t1,
                     distance,
-                    confidence: 1.0 / (1.0 + convergence.final_error),
+                    confidence: 1.0 / (1.0 + distance),
                 });
             }
         }

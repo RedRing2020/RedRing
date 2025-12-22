@@ -24,11 +24,17 @@ impl<T: Scalar> BasicIntersection<T, Point2D<T>> for Arc2D<T> {
         let dy = point.y() - center_y;
         let distance = (dx * dx + dy * dy).sqrt();
 
-        if (distance - self.radius()).abs() <= tolerance {
-            Some(*point)
-        } else {
-            None
+        // 1. 円周上にあるか確認
+        if (distance - self.radius()).abs() > tolerance {
+            return None;
         }
+
+        // 2. 角度範囲内にあるか確認
+        if !self.contains_point_angle(*point) {
+            return None;
+        }
+
+        Some(*point)
     }
 }
 
@@ -75,7 +81,7 @@ impl<T: Scalar> SelfIntersection<T> for Arc2D<T> {
 // 幾何計算ヘルパー関数
 // ============================================================================
 
-/// 円弧と円の交点を計算（簡易版）
+/// 円弧と円の交点を計算（角度範囲考慮版）
 fn calculate_arc_circle_intersections<T: Scalar>(
     arc: &Arc2D<T>,
     circle: &Circle2D<T>,
@@ -89,8 +95,12 @@ fn calculate_arc_circle_intersections<T: Scalar>(
     if let Some(base_circle) = base_circle {
         let circle_intersections = calculate_circle_circle_intersections(&base_circle, circle);
 
-        // すべての交点を結果に追加（角度範囲チェックは省略）
-        result.extend(circle_intersections);
+        // 角度範囲内の交点のみをフィルタリング
+        for point in circle_intersections {
+            if arc.contains_point_angle(point) {
+                result.push(point);
+            }
+        }
     }
 
     result
