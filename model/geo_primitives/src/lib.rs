@@ -334,17 +334,12 @@ pub use circle_2d::Circle2D;
 pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;
 pub use ellipse_arc_2d::EllipseArc2D; // 楕円弧
-                                      // Point2D/Vector2D は geo_primitives 内で定義されている
+// Point2D/Vector2D/Point3D/Vector3D は geo_core から提供
+pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D};
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
-pub use point_2d::Point2D;
 pub use ray_2d::Ray2D;
 pub use triangle_2d::Triangle2D;
-pub use vector_2d::Vector2D;
-
-// Point3D/Vector3D は geo_primitives 内で定義されている
-pub use point_3d::Point3D;
-pub use vector_3d::Vector3D;
 
 // Core Traits統合エクスポート（Foundation経由）
 pub use geo_foundation::core::infinite_line_core_traits::{InfiniteLine2DCore, InfiniteLine3DCore};

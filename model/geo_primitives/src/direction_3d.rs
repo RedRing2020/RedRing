@@ -205,13 +205,13 @@ impl<T: Scalar> Direction3DConstructor<T> for Direction3D<T> {
     }
 
     fn positive_x() -> Self {
-        Direction3D::positive_x()
+        Direction3D::<T>::positive_x()
     }
     fn positive_y() -> Self {
-        Direction3D::positive_y()
+        Direction3D::<T>::positive_y()
     }
     fn positive_z() -> Self {
-        Direction3D::positive_z()
+        Direction3D::<T>::positive_z()
     }
     fn negative_x() -> Self {
         Direction3D::positive_x().reverse()
