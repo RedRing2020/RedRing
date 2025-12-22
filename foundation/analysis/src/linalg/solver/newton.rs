@@ -150,7 +150,7 @@ where
 
         // ヤコビ行列の行列式を計算
         let det = jacobian[0][0] * jacobian[1][1] - jacobian[0][1] * jacobian[1][0];
-        
+
         if det.abs() < DERIVATIVE_ZERO_THRESHOLD {
             return None; // 特異行列
         }

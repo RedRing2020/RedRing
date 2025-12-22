@@ -161,7 +161,7 @@ impl<T: Scalar> Arc3D<T> {
 
         // 開始方向ベクトルとの角度を計算
         let start_vec = self.start_dir.as_vector();
-        
+
         // 内積とcross積で角度を計算
         let cos_angle = projection.normalize().dot(&start_vec);
         let sin_angle = normal_vec.dot(&projection.normalize().cross(&start_vec));
