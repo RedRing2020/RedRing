@@ -50,7 +50,6 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for TriangleMesh3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Triangle3D;
     use geo_foundation::extensions::BasicCollision;
 
     fn create_simple_quad_mesh() -> TriangleMesh3D<f64> {

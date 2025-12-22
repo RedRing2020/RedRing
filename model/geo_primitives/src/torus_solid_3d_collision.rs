@@ -42,7 +42,6 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for TorusSolid3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Direction3D;
     use geo_foundation::extensions::BasicCollision; // トレイトを明示的にインポート
 
     #[test]
