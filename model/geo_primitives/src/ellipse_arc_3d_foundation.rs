@@ -27,7 +27,7 @@ impl<T: Scalar> Bounded<T> for EllipseArc3D<T> {
         // 楕円弧の中心と半径（長半軸）から包含する境界ボックスを計算
         let center = self.center();
         let semi_major = self.semi_major();
-        
+
         // 簡易的な実装: 中心から長半軸分の範囲を境界ボックスとする
         // より正確な実装では、楕円弧の実際の範囲を考慮する必要がある
         let min_x = center.x() - semi_major;

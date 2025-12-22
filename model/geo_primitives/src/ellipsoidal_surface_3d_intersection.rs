@@ -54,14 +54,16 @@ mod tests {
 
         // サーフェスに近い点（許容誤差内）
         let near_point = Point3D::new(1.0, 0.0, 0.05);
-        
+
         // 実際の距離を確認
         let actual_distance = surface.distance_to_surface(&near_point);
-        
+
         // 大きな許容誤差では交差あり
         assert!(surface.intersection_with(&near_point, 0.1).is_some());
-        
+
         // 小さな許容誤差（実際の距離より小さい）では交差なし
-        assert!(surface.intersection_with(&near_point, actual_distance / 2.0).is_none());
+        assert!(surface
+            .intersection_with(&near_point, actual_distance / 2.0)
+            .is_none());
     }
 }
