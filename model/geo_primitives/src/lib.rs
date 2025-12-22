@@ -334,7 +334,7 @@ pub use circle_2d::Circle2D;
 pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;
 pub use ellipse_arc_2d::EllipseArc2D; // 楕円弧
-// Point2D/Vector2D/Point3D/Vector3D は geo_core から提供
+                                      // Point2D/Vector2D/Point3D/Vector3D は geo_core から提供
 pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D};
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
