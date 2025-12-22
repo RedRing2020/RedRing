@@ -107,29 +107,31 @@ pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
 
 // Point/Vector モジュール宣言
-pub mod point_2d;
-pub mod point_2d_extensions;
-#[cfg(test)]
-pub mod point_2d_tests;
-pub mod point_2d_transform;
-pub mod point_3d;
-pub mod point_3d_extensions;
-pub mod point_3d_foundation;
-#[cfg(test)]
-pub mod point_3d_tests;
-pub mod vector_2d;
-pub mod vector_2d_extensions;
-#[cfg(test)]
-pub mod vector_2d_tests;
-pub mod vector_2d_transform;
-pub mod vector_3d;
-pub mod vector_3d_extensions;
-pub mod vector_3d_foundation;
-#[cfg(test)]
-pub mod vector_3d_tests;
-pub mod vector_3d_transform;
-#[cfg(test)]
-pub mod vector_3d_transform_tests;
+// Note: Point/Vector implementations are provided by geo_core
+// TODO: Point2D implementation pending
+// pub mod point_2d;
+// pub mod point_2d_extensions;
+// #[cfg(test)]
+// pub mod point_2d_tests;
+// pub mod point_2d_transform;
+// pub mod point_3d;
+// pub mod point_3d_extensions;
+// pub mod point_3d_foundation;
+// #[cfg(test)]
+// pub mod point_3d_tests;
+// pub mod vector_2d;
+// pub mod vector_2d_extensions;
+// #[cfg(test)]
+// pub mod vector_2d_tests;
+// pub mod vector_2d_transform;
+// pub mod vector_3d;
+// pub mod vector_3d_extensions;
+// pub mod vector_3d_foundation;
+// #[cfg(test)]
+// pub mod vector_3d_tests;
+// pub mod vector_3d_transform;
+// #[cfg(test)]
+// pub mod vector_3d_transform_tests;
 
 pub mod ray_3d; // Ray3D の新実装 (Core)
 pub mod ray_3d_collision; // Ray3D の衝突検出実装
