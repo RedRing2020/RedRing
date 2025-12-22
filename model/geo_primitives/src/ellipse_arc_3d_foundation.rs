@@ -38,8 +38,8 @@ impl<T: Scalar> Bounded<T> for EllipseArc3D<T> {
         let max_z = center.z() + semi_major;
 
         Some(Aabb3D::new(
-            geo_core::Point3D::new(min_x, min_y, min_z),
-            geo_core::Point3D::new(max_x, max_y, max_z),
+            crate::Point3D::new(min_x, min_y, min_z).into(),
+            crate::Point3D::new(max_x, max_y, max_z).into(),
         ))
     }
 }
