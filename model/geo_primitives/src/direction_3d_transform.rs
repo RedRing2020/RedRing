@@ -12,29 +12,17 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換
-    pub fn direction_to_analysis_vector<T: Scalar>(direction: &Direction3D<T>) -> Vector3<T> {
-        Vector3::new(direction.x(), direction.y(), direction.z())
-    }
-
-    /// Analysis Vector3からの変換（正規化保証）
-    pub fn analysis_vector_to_direction<T: Scalar>(
-        vector: Vector3<T>,
-    ) -> Result<Direction3D<T>, TransformError> {
-        let vector3d = Vector3D::new(vector.x(), vector.y(), vector.z());
-        Direction3D::from_vector(vector3d).ok_or_else(|| {
-            TransformError::ZeroVector("Transformed direction vector is zero".to_string())
-        })
-    }
-
     /// 単一方向ベクトルの4x4行列変換（方向ベクトルとして、平行移動成分を無視）
     pub fn transform_direction_3d<T: Scalar>(
         direction: &Direction3D<T>,
         matrix: &Matrix4x4<T>,
     ) -> Result<Direction3D<T>, TransformError> {
-        let vec = direction_to_analysis_vector(direction);
+        let vec: Vector3<T> = (*direction).into();
         let transformed = matrix.transform_vector_3d(&vec);
-        analysis_vector_to_direction(transformed)
+        let vector3d: Vector3D<T> = transformed.into();
+        Direction3D::from_vector(vector3d).ok_or_else(|| {
+            TransformError::ZeroVector("Transformed direction vector is zero".to_string())
+        })
     }
 
     /// 複数方向ベクトルの一括4x4行列変換

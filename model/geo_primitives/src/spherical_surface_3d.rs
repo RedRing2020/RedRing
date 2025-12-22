@@ -260,13 +260,12 @@ impl<T: Scalar> SphericalSurface3D<T> {
 
     /// 球サーフェスの境界ボックスを計算
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
-        let min_point = Point3::new(
+        let min_point = geo_core::Point3D::new(
             self.center.x() - self.radius,
             self.center.y() - self.radius,
             self.center.z() - self.radius,
         );
-        let max_point = Point3::new(
+        let max_point = geo_core::Point3D::new(
             self.center.x() + self.radius,
             self.center.y() + self.radius,
             self.center.z() + self.radius,

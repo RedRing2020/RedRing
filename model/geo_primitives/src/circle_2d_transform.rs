@@ -11,16 +11,6 @@ use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector2への変換（Circle2D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point2D<T>) -> Vector2<T> {
-        Vector2::new(point.x(), point.y())
-    }
-
-    /// Analysis Vector2からの変換（Circle2D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector2<T>) -> Point2D<T> {
-        Point2D::new(vector.x(), vector.y())
-    }
-
     /// 単一円の行列変換（Matrix3x3）
     ///
     /// 中心点をMatrix変換し、スケール成分を半径に適用

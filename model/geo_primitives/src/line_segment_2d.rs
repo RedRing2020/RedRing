@@ -173,12 +173,12 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// 境界ボックスを取得
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
-        use analysis::Point2;
+        use geo_core::Point2D;
         let start = self.start_point();
         let end = self.end_point();
         geo_core::Aabb2D::new(
-            Point2::new(start.x(), start.y()),
-            Point2::new(end.x(), end.y()),
+            Point2D::new(start.x(), start.y()),
+            Point2D::new(end.x(), end.y()),
         )
     }
 

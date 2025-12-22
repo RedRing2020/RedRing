@@ -12,27 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        let vector3d = Vector3D::new(vector.x(), vector.y(), vector.z());
-        Point3D::from_vector(vector3d)
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 半無限直線の行列変換（Matrix4x4）
     ///
     /// 起点と方向ベクトルをMatrix変換し、新しい半無限直線を構築
@@ -41,18 +20,18 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<Ray3D<T>, TransformError> {
         // 起点を変換
-        let origin_vec = point_to_analysis_vector(ray.origin_internal());
+        let origin_vec: Vector3<T> = ray.origin_internal().into();
         let transformed_origin_vec = matrix.transform_point_3d(&origin_vec);
-        let new_origin = analysis_vector_to_point(transformed_origin_vec);
+        let new_origin: Point3D<T> = transformed_origin_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため方向ベクトル専用変換）
-        let direction_vec = vector_to_analysis_vector(Vector3D::new(
+        let direction_vec: Vector3<T> = Vector3D::new(
             ray.direction_internal().x(),
             ray.direction_internal().y(),
             ray.direction_internal().z(),
-        ));
+        ).into();
         let transformed_direction_vec = matrix.transform_vector_3d(&direction_vec);
-        let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
+        let new_direction_vector: Vector3D<T> = transformed_direction_vec.into();
 
         // 変換後の半無限直線を構築
         Ray3D::new(new_origin, new_direction_vector).ok_or_else(|| {
@@ -85,7 +64,7 @@ pub mod analysis_transform {
             axis.z() / axis_length,
         );
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
@@ -107,7 +86,7 @@ pub mod analysis_transform {
             ));
         }
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let scale_matrix = Matrix4x4::scale(scale_x, scale_y, scale_z);
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());

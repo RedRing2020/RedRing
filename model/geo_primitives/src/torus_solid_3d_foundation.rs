@@ -37,12 +37,12 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
         if (z_axis.z() - T::ONE).abs() < T::EPSILON {
             // XY平面でのトーラス：Z方向は副半径のみ
             Some(Aabb3D::new(
-                analysis::Point3::new(
+                crate::Point3D::new(
                     origin.x() - total_radius,
                     origin.y() - total_radius,
                     origin.z() - minor_radius,
                 ),
-                analysis::Point3::new(
+                crate::Point3D::new(
                     origin.x() + total_radius,
                     origin.y() + total_radius,
                     origin.z() + minor_radius,
@@ -52,12 +52,12 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
             // 回転されたトーラスの場合：保守的な境界ボックス
             let max_extent = total_radius;
             Some(Aabb3D::new(
-                analysis::Point3::new(
+                crate::Point3D::new(
                     origin.x() - max_extent,
                     origin.y() - max_extent,
                     origin.z() - max_extent,
                 ),
-                analysis::Point3::new(
+                crate::Point3D::new(
                     origin.x() + max_extent,
                     origin.y() + max_extent,
                     origin.z() + max_extent,

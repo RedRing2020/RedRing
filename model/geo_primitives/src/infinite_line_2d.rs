@@ -122,13 +122,13 @@ impl<T: Scalar> InfiniteLine2D<T> {
 
     /// 境界ボックスを取得（起点を含む十分大きな範囲）
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
-        use analysis::Point2;
+        use geo_core::Point2D;
         // 無限直線なので実用的な大きさの境界ボックスを生成
         let large_value = T::from_f64(1e6);
         let half_range = large_value;
         geo_core::Aabb2D::new(
-            Point2::new(self.point.x() - half_range, self.point.y() - half_range),
-            Point2::new(self.point.x() + half_range, self.point.y() + half_range),
+            Point2D::new(self.point.x() - half_range, self.point.y() - half_range),
+            Point2D::new(self.point.x() + half_range, self.point.y() + half_range),
         )
     }
 

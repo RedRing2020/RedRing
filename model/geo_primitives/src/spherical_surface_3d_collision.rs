@@ -48,9 +48,13 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
-        let dist_start = self.distance_to(&segment.start());
-        let dist_end = self.distance_to(&segment.end());
-        dist_start.min(dist_end)
+        geo_core::sphere_metrics::sphere_to_line_segment_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &segment.start(),
+            &segment.end(),
+            false,
+        )
     }
 }
 
@@ -70,7 +74,13 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        self.distance_to(&ray.origin_internal())
+        geo_core::sphere_metrics::sphere_to_ray_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &ray.origin_internal(),
+            &ray.direction_internal().as_vector(),
+            false,
+        )
     }
 }
 
@@ -82,7 +92,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSurface3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
-        self.distance_to(&line.point_internal()) <= tolerance
+        self.distance_to(line) <= tolerance
     }
 
     fn overlaps(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
@@ -90,7 +100,13 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        self.distance_to(&line.point_internal())
+        geo_core::sphere_metrics::sphere_to_infinite_line_distance(
+            &self.center_internal(),
+            self.radius_internal(),
+            &line.point_internal(),
+            &line.direction_internal().as_vector(),
+            false,
+        )
     }
 }
 

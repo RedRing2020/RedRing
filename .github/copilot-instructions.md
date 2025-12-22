@@ -321,13 +321,11 @@ pub trait RenderStage {
 ### Git/GitHub 基本操作
 
 **ブランチ戦略**:
-
 ```
 main (リリース版) ← develop (開発版) ← feature/xxx (機能ブランチ)
 ```
 
 **新規作業開始**:
-
 ```bash
 # 必ずdevelopから分岐
 git checkout develop
@@ -341,7 +339,6 @@ git push origin feature/issue-xxx-description
 ```
 
 **PR作成（重要）**:
-
 ```bash
 # ❌ 絶対禁止: mainへの直接PR
 gh pr create --base main  # ← これは絶対ダメ
@@ -354,7 +351,6 @@ gh pr create --base develop --title "タイトル" --body "説明"
 ```
 
 **AI開発者への必須確認事項**:
-
 1. ブランチがdevelopから分岐しているか: `git log --oneline --graph`
 2. PRのマージ先は必ずdevelop
 3. 重要な操作（PR作成、マージ、ブランチ削除）は**必ずユーザーに確認**

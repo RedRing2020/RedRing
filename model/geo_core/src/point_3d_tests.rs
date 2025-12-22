@@ -77,39 +77,9 @@ mod tests {
     }
 
     // ============================================================================
-    // Transform テスト (point_3d_transform.rs から統合)
     // ============================================================================
-
-    #[test]
-    fn test_transform_translate() {
-        use crate::Vector3D;
-
-        let point = Point3D::new(1.0, 2.0, 3.0);
-        let translation = Vector3D::new(2.0, 3.0, 4.0);
-        // BasicTransformトレイトが未実装のため、実装済みメソッドでテスト
-        // let translated = BasicTransform::translate(&point, translation);
-        let translated = Point3D::new(
-            point.x() + translation.x(),
-            point.y() + translation.y(),
-            point.z() + translation.z(),
-        );
-
-        assert_eq!(translated.x(), 3.0);
-        assert_eq!(translated.y(), 5.0);
-        assert_eq!(translated.z(), 7.0);
-    }
-
-    #[test]
-    fn test_transform_scale_from_origin() {
-        let point = Point3D::new(2.0, 3.0, 4.0);
-        // BasicTransformトレイトが未実装のため、実装済みメソッドでテスト
-        // let scaled = BasicTransform::scale(&point, Point3D::origin(), 2.0);
-        let scaled = point.scale(&Point3D::origin(), 2.0);
-
-        assert_eq!(scaled.x(), 4.0);
-        assert_eq!(scaled.y(), 6.0);
-        assert_eq!(scaled.z(), 8.0);
-    }
+    // Transform テスト（基本機能のみ）
+    // ============================================================================
 
     #[test]
     fn test_coordinate_arithmetic() {

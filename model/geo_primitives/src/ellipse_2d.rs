@@ -207,7 +207,7 @@ impl<T: Scalar> Ellipse2D<T> {
 
     /// 境界ボックスを取得
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
-        use analysis::Point2;
+        use geo_core::Point2D;
         // 回転を考慮した楕円の境界ボックス計算
         let cos_theta = self.rotation.cos();
         let sin_theta = self.rotation.sin();
@@ -220,8 +220,8 @@ impl<T: Scalar> Ellipse2D<T> {
         let height = ((a * sin_theta) * (a * sin_theta) + (b * cos_theta) * (b * cos_theta)).sqrt();
 
         geo_core::Aabb2D::new(
-            Point2::new(self.center.x() - width, self.center.y() - height),
-            Point2::new(self.center.x() + width, self.center.y() + height),
+            Point2D::new(self.center.x() - width, self.center.y() - height),
+            Point2D::new(self.center.x() + width, self.center.y() + height),
         )
     }
 

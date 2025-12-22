@@ -12,27 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        let vector3d = Vector3D::new(vector.x(), vector.y(), vector.z());
-        Point3D::from_vector(vector3d)
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 平面の行列変換（Matrix4x4）
     ///
     /// 平面上の点と法線ベクトルをMatrix変換し、新しい平面を構築
@@ -41,16 +20,16 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<Plane3D<T>, TransformError> {
         // 平面上の点を変換
-        let point_vec = point_to_analysis_vector(plane.point());
+        let point_vec: Vector3<T> = plane.point().into();
         let transformed_point_vec = matrix.transform_point_3d(&point_vec);
-        let new_point = analysis_vector_to_point(transformed_point_vec);
+        let new_point: Point3D<T> = transformed_point_vec.into();
 
         // 法線ベクトルを変換（通常のベクトル変換を使用）
         // 注意: 完全に正確な法線変換には逆転置行列が必要ですが、
         // 単純化のため通常の変換を使用します
-        let normal_vec = vector_to_analysis_vector(plane.normal_internal());
+        let normal_vec: Vector3<T> = plane.normal_internal().into();
         let transformed_normal_vec = matrix.transform_vector_3d(&normal_vec);
-        let new_normal_vector = analysis_vector_to_vector(transformed_normal_vec);
+        let new_normal_vector: Vector3D<T> = transformed_normal_vec.into();
 
         // 変換後の平面を構築
         Plane3D::from_point_and_normal(new_point, new_normal_vector).ok_or_else(|| {
@@ -83,7 +62,7 @@ pub mod analysis_transform {
             axis.z() / axis_length,
         );
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
@@ -105,7 +84,7 @@ pub mod analysis_transform {
             ));
         }
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let scale_matrix = Matrix4x4::scale(scale_x, scale_y, scale_z);
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());

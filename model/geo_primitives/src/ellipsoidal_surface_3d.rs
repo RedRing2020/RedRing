@@ -401,7 +401,6 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
 
     /// 境界ボックスを計算
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
-        use analysis::Point3;
         // 各軸方向の最大伸び
         let x_axis = self.ref_direction.as_vector();
         let y_axis = self.derived_y_axis_internal().as_vector();
@@ -422,12 +421,12 @@ impl<T: Scalar> EllipsoidalSurface3D<T> {
         .max(T::EPSILON);
 
         geo_core::Aabb3D::new(
-            Point3::new(
+            geo_core::Point3D::new(
                 self.center.x() - max_x_extent,
                 self.center.y() - max_y_extent,
                 self.center.z() - max_z_extent,
             ),
-            Point3::new(
+            geo_core::Point3D::new(
                 self.center.x() + max_x_extent,
                 self.center.y() + max_y_extent,
                 self.center.z() + max_z_extent,
