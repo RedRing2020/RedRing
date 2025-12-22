@@ -171,10 +171,10 @@ impl<T: Scalar> Arc3D<T> {
         let normalize = |mut angle: T| {
             let two_pi = T::TAU;
             while angle < T::ZERO {
-                angle = angle + two_pi;
+                angle += two_pi;
             }
             while angle >= two_pi {
-                angle = angle - two_pi;
+                angle -= two_pi;
             }
             angle
         };

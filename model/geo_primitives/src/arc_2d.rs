@@ -184,10 +184,10 @@ impl<T: Scalar> Arc2D<T> {
         // 正規化（0 から 2π の範囲に）
         let normalize = |mut angle: T| {
             while angle < T::ZERO {
-                angle = angle + T::TAU;
+                angle += T::TAU;
             }
             while angle >= T::TAU {
-                angle = angle - T::TAU;
+                angle -= T::TAU;
             }
             angle
         };
