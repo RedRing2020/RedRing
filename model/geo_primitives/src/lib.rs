@@ -79,11 +79,14 @@ pub mod ellipse_arc_3d_collision; // EllipseArc3D の衝突検出実装
 #[cfg(test)]
 pub mod ellipse_arc_3d_collision_tests; // EllipseArc3D の衝突検出テスト
 pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
+pub mod ellipse_arc_3d_foundation; // EllipseArc3D の Foundation 実装
 pub mod ellipse_arc_3d_intersection; // EllipseArc3D の交点計算実装
 #[cfg(test)]
 pub mod ellipse_arc_3d_intersection_tests; // EllipseArc3D の交点計算テスト
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod ellipsoidal_surface_3d_collision; // EllipsoidalSurface3D の衝突検出実装
+pub mod ellipsoidal_surface_3d_intersection; // EllipsoidalSurface3D の交点計算実装
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_collision; // InfiniteLine3D の衝突検出実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
@@ -125,17 +128,23 @@ pub mod spherical_surface_3d_intersection; // SphericalSurface3D の交差計算
 #[cfg(test)]
 mod spherical_surface_3d_intersection_tests; // SphericalSurface3D の交差計算テスト
 pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
+pub mod torus_solid_3d_collision; // TorusSolid3D の衝突判定実装
 pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
 pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
+pub mod torus_solid_3d_intersection; // TorusSolid3D の交差判定実装
 pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具オフセット対応
+pub mod torus_surface_3d_collision; // TorusSurface3D の衝突判定実装
 pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
 pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
+pub mod torus_surface_3d_intersection; // TorusSurface3D の交差判定実装
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
 pub mod triangle_3d_collision; // Triangle3D の衝突検出実装
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
 pub mod triangle_3d_intersection; // Triangle3D の交点計算実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
+pub mod triangle_mesh_3d_collision; // TriangleMesh3D の衝突検出実装
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
+pub mod triangle_mesh_3d_intersection; // TriangleMesh3D の交点計算実装
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
 
 // Transform テストモジュール
@@ -205,6 +214,7 @@ pub mod ellipse_arc_2d_collision; // EllipseArc2D の衝突検出実装
 #[cfg(test)]
 pub mod ellipse_arc_2d_collision_tests; // EllipseArc2D の衝突検出テスト
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
+pub mod ellipse_arc_2d_foundation; // EllipseArc2D の Foundation 実装
 pub mod ellipse_arc_2d_intersection; // EllipseArc2D の交点計算実装
 #[cfg(test)]
 pub mod ellipse_arc_2d_intersection_tests; // EllipseArc2D の交点計算テスト
