@@ -9,7 +9,10 @@ use crate::{
     Circle3D, CylindricalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D,
     Triangle3D, Vector3D,
 };
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_foundation::{
+    extensions::{AdvancedCollision, BasicCollision},
+    Scalar,
+};
 
 // ============================================================================
 // CylindricalSurface3D vs Point3D
@@ -271,3 +274,250 @@ impl<T: Scalar> BasicCollision<T, CylindricalSurface3D<T>> for CylindricalSurfac
         }
     }
 }
+
+// ============================================================================
+// AdvancedCollision Implementations
+// ============================================================================
+
+// CylindricalSurface3D vs Point3D
+impl<T: Scalar> AdvancedCollision<T, Point3D<T>> for CylindricalSurface3D<T> {
+    type PointPair = (Point3D<T>, Point3D<T>);
+    type Vector2D = Vector3D<T>;
+
+    fn closest_points(&self, point: &Point3D<T>) -> Self::PointPair {
+        // 点から軸への最近点を計算
+        let center = self.center_internal();
+        let axis = self.axis();
+        let to_point = Vector3D::from_points(&center, point);
+
+        // 軸方向成分を計算
+        let axis_component = to_point.dot(&axis.as_vector());
+        let projection_on_axis = center + axis.as_vector() * axis_component;
+
+        // 軸に垂直な方向の単位ベクトルを求める
+        let radial = Vector3D::from_points(&projection_on_axis, point);
+        let radial_length = radial.magnitude();
+
+        let closest_on_surface = if radial_length.is_zero() {
+            // 点が軸上にある場合は任意の方向に半径分移動
+            projection_on_axis + Vector3D::new(self.radius(), T::ZERO, T::ZERO)
+        } else {
+            // 軸上の点から半径分だけ点の方向に移動
+            projection_on_axis + radial * (self.radius() / radial_length)
+        };
+
+        (closest_on_surface, *point)
+    }
+
+    fn overlap_measure(&self, _point: &Point3D<T>) -> Option<T> {
+        // 点との重なり測定値は定義されない（点は面積を持たない）
+        None
+    }
+
+    fn separated_by_axis(&self, point: &Point3D<T>, axis: Self::Vector2D) -> bool {
+        // 簡易実装: 軸方向の射影を比較
+        let center = self.center_internal();
+        let self_proj = center.x() * axis.x() + center.y() * axis.y() + center.z() * axis.z();
+        let point_proj = point.x() * axis.x() + point.y() * axis.y() + point.z() * axis.z();
+        let radius_proj = self.radius() * axis.magnitude();
+
+        (point_proj - self_proj).abs() > radius_proj
+    }
+
+    fn containment_relation(&self, point: &Point3D<T>, tolerance: T) -> (bool, bool) {
+        // 円柱面は点を包含しない（無限に薄い面）
+        // 点も円柱面を包含できない
+        let on_surface = self.intersects(point, tolerance);
+        (false, !on_surface)
+    }
+}
+
+// CylindricalSurface3D vs Circle3D
+impl<T: Scalar> AdvancedCollision<T, Circle3D<T>> for CylindricalSurface3D<T> {
+    type PointPair = (Point3D<T>, Point3D<T>);
+    type Vector2D = Vector3D<T>;
+
+    fn closest_points(&self, circle: &Circle3D<T>) -> Self::PointPair {
+        use geo_foundation::Circle3DProperties;
+        // 簡易実装: 円の中心点に対する最近点を返す
+        let (cx, cy, cz) = circle.center();
+        let center_point = Point3D::new(cx, cy, cz);
+        self.closest_points(&center_point)
+    }
+
+    fn overlap_measure(&self, _circle: &Circle3D<T>) -> Option<T> {
+        // 簡易実装: 重なり測定未サポート
+        None
+    }
+
+    fn separated_by_axis(&self, circle: &Circle3D<T>, axis: Self::Vector2D) -> bool {
+        use geo_foundation::Circle3DProperties;
+        let (cx, cy, cz) = circle.center();
+        let center_point = Point3D::new(cx, cy, cz);
+        self.separated_by_axis(&center_point, axis)
+    }
+
+    fn containment_relation(&self, _circle: &Circle3D<T>, _tolerance: T) -> (bool, bool) {
+        // 円柱面と円の包含関係は複雑なため簡易実装
+        (false, false)
+    }
+}
+
+// CylindricalSurface3D vs LineSegment3D
+impl<T: Scalar> AdvancedCollision<T, LineSegment3D<T>> for CylindricalSurface3D<T> {
+    type PointPair = (Point3D<T>, Point3D<T>);
+    type Vector2D = Vector3D<T>;
+
+    fn closest_points(&self, segment: &LineSegment3D<T>) -> Self::PointPair {
+        // 簡易実装: 始点に対する最近点を返す
+        self.closest_points(&segment.start())
+    }
+
+    fn overlap_measure(&self, _segment: &LineSegment3D<T>) -> Option<T> {
+        None
+    }
+
+    fn separated_by_axis(&self, segment: &LineSegment3D<T>, axis: Self::Vector2D) -> bool {
+        // 線分の両端点が分離軸で分離されているかチェック
+        self.separated_by_axis(&segment.start(), axis)
+            && self.separated_by_axis(&segment.end(), axis)
+    }
+
+    fn containment_relation(&self, _segment: &LineSegment3D<T>, _tolerance: T) -> (bool, bool) {
+        (false, false)
+    }
+}
+
+// CylindricalSurface3D vs Triangle3D
+impl<T: Scalar> AdvancedCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
+    type PointPair = (Point3D<T>, Point3D<T>);
+    type Vector2D = Vector3D<T>;
+
+    fn closest_points(&self, triangle: &Triangle3D<T>) -> Self::PointPair {
+        use geo_foundation::Triangle3DProperties;
+        // 簡易実装: 頂点Aに対する最近点を返す
+        let (ax, ay, az) = triangle.vertex_a();
+        let va = Point3D::new(ax, ay, az);
+        self.closest_points(&va)
+    }
+
+    fn overlap_measure(&self, _triangle: &Triangle3D<T>) -> Option<T> {
+        None
+    }
+
+    fn separated_by_axis(&self, triangle: &Triangle3D<T>, axis: Self::Vector2D) -> bool {
+        use geo_foundation::Triangle3DProperties;
+        // 三角形の全頂点が分離軸で分離されているかチェック
+        let (ax, ay, az) = triangle.vertex_a();
+        let (bx, by, bz) = triangle.vertex_b();
+        let (cx, cy, cz) = triangle.vertex_c();
+        let va = Point3D::new(ax, ay, az);
+        let vb = Point3D::new(bx, by, bz);
+        let vc = Point3D::new(cx, cy, cz);
+
+        self.separated_by_axis(&va, axis)
+            && self.separated_by_axis(&vb, axis)
+            && self.separated_by_axis(&vc, axis)
+    }
+
+    fn containment_relation(&self, _triangle: &Triangle3D<T>, _tolerance: T) -> (bool, bool) {
+        (false, false)
+    }
+}
+
+// CylindricalSurface3D vs Plane3D
+impl<T: Scalar> AdvancedCollision<T, Plane3D<T>> for CylindricalSurface3D<T> {
+    type PointPair = (Point3D<T>, Point3D<T>);
+    type Vector2D = Vector3D<T>;
+
+    fn closest_points(&self, plane: &Plane3D<T>) -> Self::PointPair {
+        // 円柱の中心点から平面への最近点を計算
+        let center = self.center_internal();
+        let normal = plane.normal();
+        let point_on_plane = plane.point();
+
+        // 中心点から平面への垂直距離
+        let to_center = Vector3D::from_points(&point_on_plane, &center);
+        let dist = to_center.dot(&normal.as_vector());
+        let closest_on_plane = center - normal.as_vector() * dist;
+
+        // 円柱面上の最近点を簡易計算
+        let (surf_pt, _) = self.closest_points(&closest_on_plane);
+
+        (surf_pt, closest_on_plane)
+    }
+
+    fn overlap_measure(&self, _plane: &Plane3D<T>) -> Option<T> {
+        None
+    }
+
+    fn separated_by_axis(&self, _plane: &Plane3D<T>, _axis: Self::Vector2D) -> bool {
+        // 平面との分離判定は複雑なため簡易実装
+        false
+    }
+
+    fn containment_relation(&self, _plane: &Plane3D<T>, _tolerance: T) -> (bool, bool) {
+        // 無限平面と無限円柱面はどちらも包含関係を持たない
+        (false, false)
+    }
+}
+
+// CylindricalSurface3D vs CylindricalSurface3D
+impl<T: Scalar> AdvancedCollision<T, CylindricalSurface3D<T>> for CylindricalSurface3D<T> {
+    type PointPair = (Point3D<T>, Point3D<T>);
+    type Vector2D = Vector3D<T>;
+
+    fn closest_points(&self, other: &CylindricalSurface3D<T>) -> Self::PointPair {
+        // 簡易実装: 両方の中心点から最近点を計算
+        let center1 = self.center_internal();
+        let center2 = other.center_internal();
+
+        let (pt1, _) = self.closest_points(&center2);
+        let (pt2, _) = other.closest_points(&center1);
+
+        (pt1, pt2)
+    }
+
+    fn overlap_measure(&self, _other: &CylindricalSurface3D<T>) -> Option<T> {
+        // 2つの円柱面の重なり測定は複雑なため未実装
+        None
+    }
+
+    fn separated_by_axis(&self, other: &CylindricalSurface3D<T>, axis: Self::Vector2D) -> bool {
+        // 両方の中心点の射影を比較
+        let center1 = self.center_internal();
+        let center2 = other.center_internal();
+
+        let proj1 = center1.x() * axis.x() + center1.y() * axis.y() + center1.z() * axis.z();
+        let proj2 = center2.x() * axis.x() + center2.y() * axis.y() + center2.z() * axis.z();
+
+        let radius_proj1 = self.radius() * axis.magnitude();
+        let radius_proj2 = other.radius() * axis.magnitude();
+
+        (proj2 - proj1).abs() > (radius_proj1 + radius_proj2)
+    }
+
+    fn containment_relation(&self, other: &CylindricalSurface3D<T>, tolerance: T) -> (bool, bool) {
+        // 円柱面同士の包含関係: 軸が一致し、一方の半径が他方より大きい場合のみ
+        let axis1 = self.axis();
+        let axis2 = other.axis();
+
+        // 軸の平行度チェック
+        let cross = axis1.as_vector().cross(&axis2.as_vector());
+        let is_parallel = cross.magnitude() < tolerance;
+
+        if !is_parallel {
+            return (false, false);
+        }
+
+        let r1 = self.radius();
+        let r2 = other.radius();
+
+        // 半径の比較
+        let self_contains = r1 > r2 + tolerance;
+        let other_contains = r2 > r1 + tolerance;
+
+        (self_contains, other_contains)
+    }
+}
+
