@@ -54,14 +54,14 @@ pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実�
 #[cfg(test)]
 pub mod cylindrical_solid_3d_tests; // CylindricalSolid3D のテスト
 pub mod cylindrical_surface_3d; // CylindricalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-                                // pub mod cylindrical_surface_3d_collision; // CylindricalSurface3D の衝突判定 - ファイル未実装
-                                // #[cfg(test)]
-                                // pub mod cylindrical_surface_3d_collision_tests; // CylindricalSurface3D の衝突判定テスト - ファイル未実装
+pub mod cylindrical_surface_3d_collision; // CylindricalSurface3D の衝突判定・高度衝突判定
+#[cfg(test)]
+pub mod cylindrical_surface_3d_collision_tests; // CylindricalSurface3D の衝突判定テスト
 pub mod cylindrical_surface_3d_extensions; // CylindricalSurface3D の拡張機能 (Extension)
 pub mod cylindrical_surface_3d_foundation; // CylindricalSurface3D のFoundation実装
-                                           // pub mod cylindrical_surface_3d_intersection; // CylindricalSurface3D の交差計算 - ファイル未実装
-                                           // #[cfg(test)]
-                                           // pub mod cylindrical_surface_3d_intersection_tests; // CylindricalSurface3D の交差計算テスト - ファイル未実装
+pub mod cylindrical_surface_3d_intersection; // CylindricalSurface3D の交差計算
+                                             // #[cfg(test)]
+                                             // pub mod cylindrical_surface_3d_intersection_tests; // CylindricalSurface3D の交差計算テスト - ファイル未実装
 #[cfg(test)]
 pub mod cylindrical_surface_3d_tests; // CylindricalSurface3D のテスト
 pub mod direction_3d; // Direction3D の新実装 (Core)
