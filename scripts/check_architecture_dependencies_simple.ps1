@@ -67,14 +67,14 @@ function Test-ArchitectureDependencies {
         "app"            = "view\app"
     }
 
-    # Define allowed dependencies (Updated: 2025-12-01)
+    # Define allowed dependencies (Updated: 2025-12-25)
     $allowedDeps = @{
         "analysis"       = @()
         "geo_foundation" = @("analysis", "geo_commons")  # geo_commons: 共通計算関数を再エクスポート
         "geo_commons"    = @("analysis")  # 独立した計算関数クレート
         "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
         "geo_primitives" = @("geo_foundation", "geo_core", "analysis")  # geo_core の AABB型を使用
-        "geo_algorithms" = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
+        "geo_algorithms" = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "analysis")  # NURBS衝突判定のため geo_nurbs を追加
         "geo_nurbs"      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
         "converter"      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "analysis")
