@@ -56,6 +56,66 @@ impl<T: Scalar> NurbsCurveCollider<T> {
     pub fn into_inner(self) -> NurbsCurve3D<T> {
         self.0
     }
+
+    /// Newton法により点への最近接パラメータを精密化
+    ///
+    /// 目的関数: f(u) = (C(u) - P) · C'(u) = 0
+    /// C(u)が点Pに最も近いとき、C(u)-P は C'(u) に直交する
+    fn newton_refine_closest_point(
+        &self,
+        point: &Point3D<T>,
+        initial_u: T,
+        u_min: T,
+        u_max: T,
+    ) -> T {
+        let max_iter = 20;
+        let tolerance = T::from_f64(1e-10);
+        let mut u = initial_u;
+
+        for _ in 0..max_iter {
+            let c = self.0.evaluate_at(u);
+            let dc = self.0.derivative_at(u);
+
+            // f(u) = (C(u) - P) · C'(u)
+            let diff_x = c.x() - point.x();
+            let diff_y = c.y() - point.y();
+            let diff_z = c.z() - point.z();
+
+            let f = diff_x * dc.x() + diff_y * dc.y() + diff_z * dc.z();
+
+            // f'(u) の数値計算（2階導関数を避けるため）
+            let h = T::from_f64(1e-7);
+            let u_plus = (u + h).min(u_max);
+
+            let c_plus = self.0.evaluate_at(u_plus);
+            let dc_plus = self.0.derivative_at(u_plus);
+            let diff_plus_x = c_plus.x() - point.x();
+            let diff_plus_y = c_plus.y() - point.y();
+            let diff_plus_z = c_plus.z() - point.z();
+            let f_plus =
+                diff_plus_x * dc_plus.x() + diff_plus_y * dc_plus.y() + diff_plus_z * dc_plus.z();
+
+            let df = (f_plus - f) / h;
+
+            // 導関数が小さすぎる場合は収束したとみなす
+            if df.abs() < T::from_f64(1e-12) {
+                break;
+            }
+
+            // Newton更新: u_new = u - f(u) / f'(u)
+            let delta = f / df;
+            let u_new = (u - delta).clamp(u_min, u_max);
+
+            // 収束判定
+            if (u_new - u).abs() < tolerance {
+                return u_new;
+            }
+
+            u = u_new;
+        }
+
+        u
+    }
 }
 
 // ============================================================================
@@ -74,28 +134,44 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
     }
 
     fn distance_to(&self, point: &Point3D<T>) -> T {
-        // 離散化による近似計算（Phase 1 実装）
-        // 将来的に Newton-Raphson 法で精密化
-        let num_samples = 100;
-        let mut min_distance = T::INFINITY;
+        // 2段階アプローチ: サンプリング + Newton法による精密化
+        // 1. サンプリングで初期推定値を見つける
+        // 2. Newton法で最近接点を精密計算
 
+        let num_samples = 20; // サンプル数を削減（Newton法で精密化するため）
         let (u_min, u_max) = self.0.parameter_domain();
         let delta_u = (u_max - u_min) / T::from_usize(num_samples);
 
+        let mut best_u = u_min;
+        let mut min_dist_sq = T::INFINITY;
+
+        // Phase 1: サンプリングで初期推定
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
             let curve_point = self.0.evaluate_at(u);
 
-            // ユークリッド距離計算
             let dx = curve_point.x() - point.x();
             let dy = curve_point.y() - point.y();
             let dz = curve_point.z() - point.z();
-            let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+            let dist_sq = dx * dx + dy * dy + dz * dz;
 
-            min_distance = min_distance.min(distance);
+            if dist_sq < min_dist_sq {
+                min_dist_sq = dist_sq;
+                best_u = u;
+            }
         }
 
-        min_distance
+        // Phase 2: Newton法で精密化
+        // 目的関数: f(u) = (C(u) - P) · C'(u) = 0
+        // C(u)が点Pに最も近いとき、C(u)-P が C'(u) に直交する
+        let refined_u = self.newton_refine_closest_point(point, best_u, u_min, u_max);
+
+        // 最終的な距離を計算
+        let closest_point = self.0.evaluate_at(refined_u);
+        let dx = closest_point.x() - point.x();
+        let dy = closest_point.y() - point.y();
+        let dz = closest_point.z() - point.z();
+        (dx * dx + dy * dy + dz * dz).sqrt()
     }
 }
 
