@@ -12,6 +12,7 @@
 pub mod basis;
 pub mod curve_2d;
 pub mod curve_3d;
+pub mod curve_3d_collision;
 pub mod curve_3d_extensions;
 pub mod curve_3d_foundation;
 pub mod operations;
