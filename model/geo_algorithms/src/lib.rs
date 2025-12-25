@@ -30,6 +30,9 @@
 //! - `statistics`: 統計解析 (基本統計量、回帰分析、主成分分析)
 //! - `sampling`: サンプリング手法 (適応サンプリング、パターン解析)
 //! - `interpolation`: 補間・近似 (スプライン、ベジエ、NURBS基盤)
+//! - `collision`: 衝突判定・交差判定 (NURBS × Primitives, NURBS × NURBS)
+
+pub mod collision;
 
 // Point2D API互換性問題により一時的にコメントアウト
 // pub mod numerical;
