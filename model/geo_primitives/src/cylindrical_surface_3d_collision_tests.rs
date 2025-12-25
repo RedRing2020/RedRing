@@ -90,8 +90,7 @@ mod tests {
         let cylinder = create_test_cylinder();
         let point = Point3D::new(0.5, 0.0, 0.0);
 
-        let (cylinder_contains, point_contains) =
-            cylinder.containment_relation(&point, TOLERANCE);
+        let (cylinder_contains, point_contains) = cylinder.containment_relation(&point, TOLERANCE);
 
         // 円柱面（無限に薄い）は点を包含しない
         assert!(!cylinder_contains);
@@ -128,8 +127,8 @@ mod tests {
         let cylinder = create_test_cylinder();
 
         // 始点が円柱面上にある線分
-        let segment = LineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
-            .unwrap();
+        let segment =
+            LineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
 
         assert!(cylinder.intersects(&segment, TOLERANCE));
     }

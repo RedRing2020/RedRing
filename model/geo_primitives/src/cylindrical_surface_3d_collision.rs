@@ -520,4 +520,3 @@ impl<T: Scalar> AdvancedCollision<T, CylindricalSurface3D<T>> for CylindricalSur
         (self_contains, other_contains)
     }
 }
-
