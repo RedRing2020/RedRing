@@ -634,4 +634,3 @@ mod tests {
         assert!(EllipsoidalSolid3D::new(center, axis, ref_dir, 0.0, 2.0, 3.0).is_none());
     }
 }
-
