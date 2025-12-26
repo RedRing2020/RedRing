@@ -2,7 +2,9 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D};
+    use crate::{
+        EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D,
+    };
     use geo_foundation::{extensions::BasicCollision, Scalar};
 
     fn create_test_ellipsoid<T: Scalar>() -> EllipsoidalSolid3D<T> {
@@ -11,7 +13,7 @@ mod tests {
         let ref_direction = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
         let a_radius = T::from_f64(2.0); // X軸方向
         let b_radius = T::from_f64(1.5); // Y軸方向
-        let c_radius = T::ONE;           // Z軸方向
+        let c_radius = T::ONE; // Z軸方向
         EllipsoidalSolid3D::new(center, axis, ref_direction, a_radius, b_radius, c_radius)
             .expect("Failed to create test ellipsoid")
     }
