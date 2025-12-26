@@ -147,40 +147,110 @@ pub mod analysis_transform {
 }
 
 impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSolid3D<T> {
-    /// 楕円体ソリッドを平行移動
-    fn translate(&self, translation: Vector3D<T>) -> Result<Self, TransformError> {
-        let translation_vec: Vector3<T> = translation.into();
-        let matrix = analysis_transform::translation_matrix(&translation_vec);
-        analysis_transform::transform_ellipsoidal_solid_3d(self, &matrix)
+    type Matrix4x4 = Matrix4x4<T>;
+    type Angle = Angle<T>;
+    type Output = EllipsoidalSolid3D<T>;
+
+    /// Matrix4x4による直接変換
+    fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output {
+        analysis_transform::transform_ellipsoidal_solid_3d(self, matrix)
+            .expect("EllipsoidalSolid transformation should be valid")
     }
 
-    /// 楕円体ソリッドを回転
-    fn rotate(
-        &self,
-        center: Point3D<T>,
-        axis: Vector3D<T>,
-        angle: Angle<T>,
-    ) -> Result<Self, TransformError> {
-        let axis_vec: Vector3<T> = axis.into();
-        let matrix = analysis_transform::rotation_matrix(&center, &axis_vec, angle)?;
-        analysis_transform::transform_ellipsoidal_solid_3d(self, &matrix)
+    /// 平行移動
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
+        // 高速化: 中心点のみ平行移動、他の属性は不変
+        let new_center = Point3D::new(
+            self.center_internal().x() + translation.x(),
+            self.center_internal().y() + translation.y(),
+            self.center_internal().z() + translation.z(),
+        );
+
+        EllipsoidalSolid3D::new(
+            new_center,
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.a_radius_internal(),
+            self.b_radius_internal(),
+            self.c_radius_internal(),
+        )
+        .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
 
-    /// 楕円体ソリッドをスケール変換
-    fn scale(
+    /// 軸回転（中心点指定）
+    fn rotate_analysis(
         &self,
-        center: Point3D<T>,
+        center: &Self,
+        axis: &Vector3<T>,
+        angle: Self::Angle,
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
+        Ok(self.transform_point_matrix(&matrix))
+    }
+
+    /// スケール変換（中心点指定）
+    fn scale_analysis(
+        &self,
+        center: &Self,
         scale_x: T,
         scale_y: T,
         scale_z: T,
-    ) -> Result<Self, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center, scale_x, scale_y, scale_z)?;
-        analysis_transform::transform_ellipsoidal_solid_3d(self, &matrix)
+    ) -> Result<Self::Output, TransformError> {
+        let matrix = analysis_transform::scale_matrix(&center.center_internal(), scale_x, scale_y, scale_z)?;
+        Ok(self.transform_point_matrix(&matrix))
     }
 
-    /// 楕円体ソリッドをMatrix4x4で変換
-    fn transform(&self, matrix: &Matrix4x4<T>) -> Result<Self, TransformError> {
-        analysis_transform::transform_ellipsoidal_solid_3d(self, matrix)
+    /// 均等スケール変換
+    fn uniform_scale_analysis(
+        &self,
+        center: &Self,
+        scale_factor: T,
+    ) -> Result<Self::Output, TransformError> {
+        self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
+    }
+
+    /// 複合変換（最適化済み）
+    fn apply_composite_transform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<(T, T, T)>,
+    ) -> Result<Self::Output, TransformError> {
+        let mut matrix = Matrix4x4::identity();
+
+        if let Some(scale_factors) = scale {
+            let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
+            let scale_mat = analysis_transform::scale_matrix(
+                &scale_center.center_internal(),
+                scale_factors.0,
+                scale_factors.1,
+                scale_factors.2,
+            )?;
+            matrix = scale_mat * matrix;
+        }
+
+        if let Some((center, axis, angle)) = rotation {
+            let rot_mat = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
+            matrix = rot_mat * matrix;
+        }
+
+        if let Some(trans) = translation {
+            let trans_mat = analysis_transform::translation_matrix(trans);
+            matrix = trans_mat * matrix;
+        }
+
+        Ok(self.transform_point_matrix(&matrix))
+    }
+
+    /// 複合変換（均等スケール版）
+    fn apply_composite_transform_uniform(
+        &self,
+        translation: Option<&Vector3<T>>,
+        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        scale: Option<T>,
+    ) -> Result<Self::Output, TransformError> {
+        let scale_tuple = scale.map(|s| (s, s, s));
+        self.apply_composite_transform(translation, rotation, scale_tuple)
     }
 }
 
@@ -191,9 +261,9 @@ mod tests {
     #[test]
     fn test_translate() {
         let ellipsoid = EllipsoidalSolid3D::new_at_origin(2.0, 3.0, 4.0).unwrap();
-        let translation = Vector3D::new(1.0, 2.0, 3.0);
+        let translation = Vector3::new(1.0, 2.0, 3.0);
 
-        let translated = ellipsoid.translate(translation).unwrap();
+        let translated = ellipsoid.translate_analysis(&translation).unwrap();
 
         assert_eq!(
             translated.center_internal(),
@@ -207,11 +277,10 @@ mod tests {
     #[test]
     fn test_rotate_z_axis() {
         let ellipsoid = EllipsoidalSolid3D::new_at_origin(2.0, 3.0, 4.0).unwrap();
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let axis = Vector3D::new(0.0, 0.0, 1.0);
+        let axis = Vector3::new(0.0, 0.0, 1.0);
         let angle = Angle::from_degrees(90.0);
 
-        let rotated = ellipsoid.rotate(center, axis, angle).unwrap();
+        let rotated = ellipsoid.rotate_analysis(&ellipsoid, &axis, angle).unwrap();
 
         // 中心は変わらない
         assert!((rotated.center_internal().x() - 0.0).abs() < 1e-10);
@@ -225,9 +294,8 @@ mod tests {
     #[test]
     fn test_scale() {
         let ellipsoid = EllipsoidalSolid3D::new_at_origin(2.0, 3.0, 4.0).unwrap();
-        let center = Point3D::new(0.0, 0.0, 0.0);
 
-        let scaled = ellipsoid.scale(center, 2.0, 2.0, 2.0).unwrap();
+        let scaled = ellipsoid.scale_analysis(&ellipsoid, 2.0, 2.0, 2.0).unwrap();
 
         // 各半径が2倍になる
         assert!((scaled.a_radius_internal() - 4.0).abs() < 1e-10);
@@ -238,10 +306,9 @@ mod tests {
     #[test]
     fn test_non_uniform_scale() {
         let ellipsoid = EllipsoidalSolid3D::new_at_origin(2.0, 3.0, 4.0).unwrap();
-        let center = Point3D::new(0.0, 0.0, 0.0);
 
         // 非均等スケール
-        let scaled = ellipsoid.scale(center, 2.0, 1.5, 0.5).unwrap();
+        let scaled = ellipsoid.scale_analysis(&ellipsoid, 2.0, 1.5, 0.5).unwrap();
 
         assert!((scaled.a_radius_internal() - 4.0).abs() < 1e-10);
         assert!((scaled.b_radius_internal() - 4.5).abs() < 1e-10);
@@ -254,7 +321,7 @@ mod tests {
 
         // 平行移動行列
         let matrix = Matrix4x4::translation(5.0, 6.0, 7.0);
-        let transformed = ellipsoid.transform(&matrix).unwrap();
+        let transformed = ellipsoid.transform_point_matrix(&matrix);
 
         assert_eq!(
             transformed.center_internal(),
@@ -265,10 +332,9 @@ mod tests {
     #[test]
     fn test_invalid_scale() {
         let ellipsoid = EllipsoidalSolid3D::new_at_origin(2.0, 3.0, 4.0).unwrap();
-        let center = Point3D::new(0.0, 0.0, 0.0);
 
         // ゼロスケール
-        let result = ellipsoid.scale(center, 0.0, 1.0, 1.0);
+        let result = ellipsoid.scale_analysis(&ellipsoid, 0.0, 1.0, 1.0);
         assert!(result.is_err());
     }
 }
