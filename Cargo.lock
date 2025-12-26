@@ -2509,6 +2509,7 @@ dependencies = [
  "geo_foundation",
  "geo_io",
  "geo_primitives",
+ "thiserror 2.0.17",
  "tracing",
 ]
 
