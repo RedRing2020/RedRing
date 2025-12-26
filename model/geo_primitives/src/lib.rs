@@ -85,13 +85,13 @@ pub mod ellipse_arc_3d_foundation; // EllipseArc3D の Foundation 実装
                                    // pub mod ellipse_arc_3d_intersection_tests; // EllipseArc3D の交点計算テスト - ファイル未実装
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipsoidal_solid_3d; // EllipsoidalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-                              // pub mod ellipsoidal_solid_3d_collision; // EllipsoidalSolid3D の衝突判定 - ファイル未実装
-                              // #[cfg(test)]
-                              // pub mod ellipsoidal_solid_3d_collision_tests; // EllipsoidalSolid3D の衝突判定テスト - ファイル未実装
+pub mod ellipsoidal_solid_3d_collision; // EllipsoidalSolid3D の衝突判定
+// #[cfg(test)]
+// pub mod ellipsoidal_solid_3d_collision_tests; // EllipsoidalSolid3D の衝突判定テスト - ファイル未実装
 pub mod ellipsoidal_solid_3d_foundation; // EllipsoidalSolid3D のFoundation実装
-                                         // pub mod ellipsoidal_solid_3d_intersection; // EllipsoidalSolid3D の交差計算 - ファイル未実装
-                                         // #[cfg(test)]
-                                         // pub mod ellipsoidal_solid_3d_intersection_tests; // EllipsoidalSolid3D の交差計算テスト - ファイル未実装
+pub mod ellipsoidal_solid_3d_intersection; // EllipsoidalSolid3D の交差計算
+// #[cfg(test)]
+// pub mod ellipsoidal_solid_3d_intersection_tests; // EllipsoidalSolid3D の交差計算テスト - ファイル未実装
 pub mod ellipsoidal_solid_3d_transform; // EllipsoidalSolid3D の Transform 実装
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod ellipsoidal_surface_3d_collision; // EllipsoidalSurface3D の衝突検出実装
