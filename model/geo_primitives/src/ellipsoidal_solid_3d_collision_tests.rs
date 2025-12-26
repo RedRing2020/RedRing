@@ -119,39 +119,4 @@ mod tests {
             .expect("Failed to create ellipsoid2");
         assert!(!ellipsoid1.intersects(&ellipsoid2, 1e-6));
     }
-
-    // ========================================================================
-    // NURBS Curve Collision Tests
-    // ========================================================================
-    // Note: NURBS vs Primitives collision is implemented in geo_algorithms
-    // (primitive_nurbs.rs) due to orphan rules.
-    // These tests verify that geo_algorithms integration works correctly.
-
-    #[cfg(feature = "nurbs")]
-    #[test]
-    fn test_collision_with_nurbs_curve() {
-        use geo_algorithms::collision::primitive_nurbs::NurbsCurveCollider;
-        use geo_nurbs::NurbsCurve3D;
-
-        let ellipsoid = create_test_ellipsoid::<f64>();
-
-        // Create a simple NURBS curve passing through the ellipsoid
-        use analysis::linalg::vector::vector3::Vector3;
-        let control_points = vec![
-            Vector3::new(-3.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 0.0), // passes through center
-            Vector3::new(3.0, 0.0, 0.0),
-        ];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let curve = NurbsCurve3D::new(control_points, weights, knots, 2)
-            .expect("Failed to create NURBS curve");
-
-        let collider = NurbsCurveCollider::new(curve);
-
-        // The NURBS curve passes through the ellipsoid's center
-        assert!(collider.intersects(&Point3D::origin(), 1e-6));
-        let distance = collider.distance_to(&Point3D::origin());
-        assert!(distance < 1e-6);
-    }
 }

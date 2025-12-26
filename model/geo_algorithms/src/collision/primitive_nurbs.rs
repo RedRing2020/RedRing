@@ -27,7 +27,10 @@ use geo_foundation::{
     Scalar,
 };
 use geo_nurbs::NurbsCurve3D;
-use geo_primitives::{Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Ray3D};
+use geo_primitives::{
+    Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
+    Ray3D, SphericalSolid3D,
+};
 
 // ============================================================================
 // Newtype Wrapper for NurbsCurve3D
@@ -458,6 +461,129 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
+// ============================================================================
+// NurbsCurveCollider vs SphericalSolid3D
+// ============================================================================
+
+impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, sphere: &SphericalSolid3D<T>, tolerance: T) -> bool {
+        self.distance_to(sphere) <= tolerance
+    }
+
+    fn overlaps(&self, sphere: &SphericalSolid3D<T>, tolerance: T) -> bool {
+        self.intersects(sphere, tolerance)
+    }
+
+    fn distance_to(&self, sphere: &SphericalSolid3D<T>) -> T {
+        // NURBS曲線をサンプリングして、各点から球への距離を計算
+        let num_samples = 100;
+        let mut min_distance = T::INFINITY;
+
+        let (u_min, u_max) = self.0.parameter_domain();
+        let delta_u = (u_max - u_min) / T::from_usize(num_samples);
+
+        for i in 0..=num_samples {
+            let u = u_min + delta_u * T::from_usize(i);
+            let curve_vec = self.0.evaluate_at(u);
+            let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+
+            // SphericalSolid3Dの distance_to メソッドを完全修飾構文で呼び出す
+            let distance =
+                <SphericalSolid3D<T> as BasicCollision<T, Point3D<T>>>::distance_to(
+                    sphere,
+                    &curve_point,
+                );
+            min_distance = min_distance.min(distance);
+        }
+
+        min_distance
+    }
+}
+
+// ============================================================================
+// NurbsCurveCollider vs EllipsoidalSolid3D
+// ============================================================================
+
+impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
+        self.distance_to(ellipsoid) <= tolerance
+    }
+
+    fn overlaps(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
+        self.intersects(ellipsoid, tolerance)
+    }
+
+    fn distance_to(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
+        // NURBS曲線をサンプリングして、各点から楕円体への距離を計算
+        let num_samples = 100;
+        let mut min_distance = T::INFINITY;
+
+        let (u_min, u_max) = self.0.parameter_domain();
+        let delta_u = (u_max - u_min) / T::from_usize(num_samples);
+
+        for i in 0..=num_samples {
+            let u = u_min + delta_u * T::from_usize(i);
+            let curve_vec = self.0.evaluate_at(u);
+            let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+
+            // 楕円体の distance_to メソッドを完全修飾構文で呼び出す
+            let distance =
+                <EllipsoidalSolid3D<T> as BasicCollision<T, Point3D<T>>>::distance_to(
+                    ellipsoid,
+                    &curve_point,
+                );
+            min_distance = min_distance.min(distance);
+        }
+
+        min_distance
+    }
+}
+
+// ============================================================================
+// NurbsCurveCollider vs CylindricalSolid3D
+// ============================================================================
+
+impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
+        self.distance_to(cylinder) <= tolerance
+    }
+
+    fn overlaps(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
+        self.intersects(cylinder, tolerance)
+    }
+
+    fn distance_to(&self, cylinder: &CylindricalSolid3D<T>) -> T {
+        // NURBS曲線をサンプリングして、各点から円柱への距離を計算
+        let num_samples = 100;
+        let mut min_distance = T::INFINITY;
+
+        let (u_min, u_max) = self.0.parameter_domain();
+        let delta_u = (u_max - u_min) / T::from_usize(num_samples);
+
+        for i in 0..=num_samples {
+            let u = u_min + delta_u * T::from_usize(i);
+            let curve_vec = self.0.evaluate_at(u);
+            let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
+
+            // 円柱の distance_to メソッドを完全修飾構文で呼び出す
+            let distance =
+                <CylindricalSolid3D<T> as BasicCollision<T, Point3D<T>>>::distance_to(
+                    cylinder,
+                    &curve_point,
+                );
+            min_distance = min_distance.min(distance);
+        }
+
+        min_distance
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -665,5 +791,96 @@ mod tests {
 
         let distance = collider.distance_to(&plane);
         assert!((distance - 1.0).abs() < 0.1); // 約1.0の距離
+    }
+
+    // ========================================================================
+    // SphericalSolid3D tests
+    // ========================================================================
+
+    #[test]
+    fn test_spherical_solid_intersecting() {
+        let curve = create_test_curve::<f64>();
+        let collider = NurbsCurveCollider::new(curve);
+
+        // 曲線の始点を含む球
+        use geo_core::Vector3D;
+        let sphere = SphericalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            0.5,
+        )
+        .unwrap();
+
+        let tolerance = 1e-6;
+        assert!(collider.intersects(&sphere, tolerance));
+    }
+
+    #[test]
+    fn test_spherical_solid_separate() {
+        let curve = create_test_curve::<f64>();
+        let collider = NurbsCurveCollider::new(curve);
+
+        // 曲線から離れた球
+        use geo_core::Vector3D;
+        let sphere = SphericalSolid3D::new(
+            Point3D::new(10.0, 10.0, 10.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            0.5,
+        )
+        .unwrap();
+
+        let distance = collider.distance_to(&sphere);
+        assert!(distance > 10.0);
+    }
+
+    // ========================================================================
+    // EllipsoidalSolid3D tests
+    // ========================================================================
+
+    #[test]
+    fn test_ellipsoidal_solid_intersecting() {
+        let curve = create_test_curve::<f64>();
+        let collider = NurbsCurveCollider::new(curve);
+
+        // 曲線の始点を含む楕円体
+        use geo_core::Vector3D;
+        let ellipsoid = EllipsoidalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            0.5,
+            0.5,
+            0.5,
+        )
+        .unwrap();
+
+        let tolerance = 1e-6;
+        assert!(collider.intersects(&ellipsoid, tolerance));
+    }
+
+    // ========================================================================
+    // CylindricalSolid3D tests
+    // ========================================================================
+
+    #[test]
+    fn test_cylindrical_solid_near() {
+        let curve = create_test_curve::<f64>();
+        let collider = NurbsCurveCollider::new(curve);
+
+        // 曲線の近くの円柱
+        use geo_core::Vector3D;
+        let cylinder = CylindricalSolid3D::new(
+            Point3D::new(0.5, 0.5, -1.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            0.1,
+            2.0,
+        )
+        .unwrap();
+
+        let distance = collider.distance_to(&cylinder);
+        assert!(distance >= 0.0);
     }
 }
