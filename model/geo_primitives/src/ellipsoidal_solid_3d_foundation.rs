@@ -1,9 +1,6 @@
 //! EllipsoidalSolid3D Foundation Implementation
 //!
 //! ExtensionFoundation トレイトによる統一インターフェースの実装
-//!
-//! **作成日: 2025年12月27日**
-//! **最終更新: 2025年12月27日**
 
 use crate::{EllipsoidalSolid3D, Point3D};
 use geo_core::Aabb3D;

@@ -3,9 +3,6 @@
 //! Analysis Matrix4x4を直接使用した効率的な3D楕円体ソリッド変換
 //! Point3D/Vector3D Analysis Transform パターンを基盤とする統一実装
 //! 3D楕円体ソリッドの特性（中心点・軸・参照方向・3つの半径）を考慮したMatrix変換
-//!
-//! **作成日: 2025年12月27日**
-//! **最終更新: 2025年12月27日**
 
 use crate::{EllipsoidalSolid3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};

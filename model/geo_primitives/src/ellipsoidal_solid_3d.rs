@@ -15,9 +15,6 @@
 //! - a_radius: X軸方向の半径
 //! - b_radius: Y軸方向の半径
 //! - c_radius: Z軸方向の半径
-//!
-//! **作成日: 2025年12月27日**
-//! **最終更新: 2025年12月27日**
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::Scalar;
