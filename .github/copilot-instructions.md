@@ -4,7 +4,36 @@
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
-## 🚨 AI開発者への厳格な制約（2025年11月11日追加）
+## 🚨 AI開発者への厳格な制約（最終更新: 2025年12月27日）
+
+### 実装前の必須チェックリスト（絶対遵守）
+
+**新規幾何プリミティブ実装時は以下を全て確認してからユーザーに報告**:
+
+#### ステップ1: 既存実装の確認
+```bash
+# 同種の形状の完全な実装を確認
+ls model/geo_foundation/src/core/*_solid_core_traits.rs
+ls model/geo_primitives/src/*_solid_3d*.rs
+```
+
+#### ステップ2: Foundation Pattern の確認
+以下の全てが揃っているか確認：
+- [ ] `geo_foundation/src/core/{shape}_core_traits.rs` - Core Traits 定義
+  - [ ] `{Shape}Constructor<T>` trait
+  - [ ] `{Shape}Properties<T>` trait  
+  - [ ] `{Shape}Measure<T>` trait
+- [ ] `geo_primitives/src/{shape}_3d.rs` - Core Traits 実装
+- [ ] `geo_primitives/src/{shape}_3d_foundation.rs` - Extension 実装
+- [ ] `geo_primitives/src/{shape}_3d_transform.rs` - Transform 実装
+
+#### ステップ3: ユーザーへの確認
+実装を開始する前に、以下の情報をユーザーに提示：
+- 既存実装との比較（何が足りないか）
+- 実装が必要なファイルの完全なリスト
+- 実装順序の提案
+
+**ユーザーの明示的な承認を得るまで実装を開始しない**
 
 ### 必須確認プロセス
 
@@ -81,15 +110,41 @@ view/              # アプリケーション・描画層
 viewmodel/         # ビュー変換ロジック
 ```
 
-### Foundation パターン
+### Foundation パターン（Core + Extension + Transform）
 
+**重要**: 全ての幾何プリミティブは以下の3層構造で実装される：
+
+#### 1. Core Traits（geo_foundation/src/core/）
 ```rust
-// 全ての幾何プリミティブが実装する統一インターフェース
+// {shape}_core_traits.rs で定義
+pub trait {Shape}Constructor<T: Scalar> { ... }
+pub trait {Shape}Properties<T: Scalar> { ... }
+pub trait {Shape}Measure<T: Scalar> { ... }
+```
+
+#### 2. Extension Traits（geo_foundation/src/extension_foundation.rs）
+```rust
 pub trait ExtensionFoundation<T: Scalar> {
-    type BBox: AbstractBBox<T>;
     fn primitive_kind(&self) -> PrimitiveKind;
-    fn bounding_box(&self) -> Self::BBox;
     fn measure(&self) -> Option<T>;
+}
+
+pub trait Bounded<T: Scalar>: ExtensionFoundation<T> {
+    type Aabb;
+    fn aabb(&self) -> Option<Self::Aabb>;
+}
+```
+
+#### 3. Transform Traits（geo_foundation/src/core/transform.rs）
+```rust
+pub trait AnalysisTransform3D<T: Scalar> {
+    type Matrix4x4;
+    type Angle;
+    type Output;
+    fn translate_analysis(...) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(...) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(...) -> Result<Self::Output, TransformError>;
+    fn transform_point_matrix(...) -> Self::Output;
 }
 ```
 

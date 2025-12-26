@@ -27,11 +27,12 @@ pub mod conical_solid_core_traits; // ConicalSolid Core traits
 pub mod conical_surface_core_traits; // ConicalSurface Core traits
 pub mod cylindrical_solid_core_traits; // CylindricalSolid Core traits
 pub mod cylindrical_surface_core_traits; // CylindricalSurface Core traits
-pub mod ellipsoidal_surface_core_traits;
+pub mod ellipsoidal_solid_core_traits; // EllipsoidalSolid Core traits
+pub mod ellipsoidal_surface_core_traits; // EllipsoidalSurface Core traits
 pub mod spherical_solid_core_traits; // SphericalSolid Core traits
 pub mod spherical_surface_core_traits; // SphericalSurface Core traits
 pub mod torus_solid_core_traits; // TorusSolid Core traits
-pub mod torus_surface_core_traits; // TorusSurface Core traits // EllipsoidalSurface Core traits
+pub mod torus_surface_core_traits; // TorusSurface Core traits
 
 // NURBS (自由曲線・曲面)
 pub mod nurbs_curve_2d_core_traits; // NurbsCurve2D Core traits

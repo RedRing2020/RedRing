@@ -30,6 +30,8 @@ pub enum PrimitiveKind {
     Sphere,
     SphericalSolid,     // 新式球ソリッド
     SphericalSurface,   // 新式球サーフェス
+    EllipsoidalSolid,   // 楕円体ソリッド
+    EllipsoidalSurface, // 楕円体サーフェス
     Cylinder,           // 旧式（互換性のため残存）
     CylindricalSolid,   // 新式ソリッド
     CylindricalSurface, // 新式サーフェス
@@ -87,6 +89,7 @@ impl PrimitiveKind {
             | PrimitiveKind::Plane
             | PrimitiveKind::CylindricalSurface  // サーフェスは2次元
             | PrimitiveKind::SphericalSurface    // 球サーフェスは2次元
+            | PrimitiveKind::EllipsoidalSurface  // 楕円体サーフェスは2次元
             | PrimitiveKind::ConicalSurface      // 円錐サーフェスは2次元
             | PrimitiveKind::TorusSurface        // トーラスサーフェスは2次元
             | PrimitiveKind::NurbsSurface
@@ -94,6 +97,7 @@ impl PrimitiveKind {
 
             PrimitiveKind::Sphere
             | PrimitiveKind::SphericalSolid     // 新式球ソリッド
+            | PrimitiveKind::EllipsoidalSolid   // 楕円体ソリッド
             | PrimitiveKind::Cylinder           // 旧式（互換性）
             | PrimitiveKind::CylindricalSolid   // 新式ソリッド
             | PrimitiveKind::Cone
@@ -139,6 +143,8 @@ impl PrimitiveKind {
             PrimitiveKind::Circle
                 | PrimitiveKind::Ellipse
                 | PrimitiveKind::Sphere
+                | PrimitiveKind::EllipsoidalSolid
+                | PrimitiveKind::EllipsoidalSurface
                 | PrimitiveKind::SphericalSolid
                 | PrimitiveKind::SphericalSurface
                 | PrimitiveKind::Cylinder

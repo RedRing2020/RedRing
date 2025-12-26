@@ -43,9 +43,9 @@ pub mod conical_surface_3d_foundation; // ConicalSurface3D のFoundation実装
                                        // #[cfg(test)]
                                        // pub mod conical_surface_3d_tests; // ConicalSurface3D のテスト - 未実装Transform機能のため無効化
 pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-                              // pub mod cylindrical_solid_3d_collision; // CylindricalSolid3D の衝突判定 - ファイル未実装
-                              // #[cfg(test)]
-                              // pub mod cylindrical_solid_3d_collision_tests; // CylindricalSolid3D の衝突判定テスト - ファイル未実装
+pub mod cylindrical_solid_3d_collision; // CylindricalSolid3D の衝突判定
+                                        // #[cfg(test)]
+                                        // pub mod cylindrical_solid_3d_collision_tests; // CylindricalSolid3D の衝突判定テスト - ファイル未実装
 pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
 pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
                                          // pub mod cylindrical_solid_3d_intersection; // CylindricalSolid3D の交差計算 - ファイル未実装
@@ -84,6 +84,15 @@ pub mod ellipse_arc_3d_foundation; // EllipseArc3D の Foundation 実装
                                    // #[cfg(test)]
                                    // pub mod ellipse_arc_3d_intersection_tests; // EllipseArc3D の交点計算テスト - ファイル未実装
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
+pub mod ellipsoidal_solid_3d; // EllipsoidalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
+pub mod ellipsoidal_solid_3d_collision; // EllipsoidalSolid3D の衝突判定
+#[cfg(test)]
+pub mod ellipsoidal_solid_3d_collision_tests; // EllipsoidalSolid3D の衝突判定テスト
+pub mod ellipsoidal_solid_3d_foundation; // EllipsoidalSolid3D のFoundation実装
+pub mod ellipsoidal_solid_3d_intersection; // EllipsoidalSolid3D の交差計算
+#[cfg(test)]
+pub mod ellipsoidal_solid_3d_intersection_tests; // EllipsoidalSolid3D の交差計算テスト
+pub mod ellipsoidal_solid_3d_transform; // EllipsoidalSolid3D の Transform 実装
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod ellipsoidal_surface_3d_collision; // EllipsoidalSurface3D の衝突検出実装
 pub mod ellipsoidal_surface_3d_intersection; // EllipsoidalSurface3D の交点計算実装
@@ -139,13 +148,13 @@ pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_intersection; // Ray3D の交点計算実装
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-                            // pub mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定 - ファイル未実装
-                            // #[cfg(test)]
-                            // mod spherical_solid_3d_collision_tests; // SphericalSolid3D 衝突判定テスト - ファイル未実装
+pub mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定
+#[cfg(test)]
+pub mod spherical_solid_3d_collision_tests; // SphericalSolid3D 衝突判定テスト
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
                                        // pub mod spherical_solid_3d_intersection; // SphericalSolid3D の交差計算 - ファイル未実装
                                        // #[cfg(test)]
-                                       // mod spherical_solid_3d_intersection_tests; // SphericalSolid3D 交差計算テスト - ファイル未実装
+                                       // pub mod spherical_solid_3d_intersection_tests; // SphericalSolid3D 交差計算テスト - ファイル未実装
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
                               // pub mod spherical_surface_3d_collision; // SphericalSurface3D の衝突判定 - ファイル未実装
                               // #[cfg(test)]
@@ -315,6 +324,7 @@ pub use cylindrical_surface_3d::CylindricalSurface3D; // 新式サーフェス
 pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
 pub use ellipse_arc_3d::EllipseArc3D;
+pub use ellipsoidal_solid_3d::EllipsoidalSolid3D; // 3D楕円体ソリッド
 pub use ellipsoidal_surface_3d::EllipsoidalSurface3D; // 3D楕円体サーフェス
 pub use infinite_line_3d::InfiniteLine3D;
 pub use line_segment_3d::LineSegment3D;
