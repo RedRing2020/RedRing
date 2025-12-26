@@ -256,13 +256,23 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
     /// # Algorithm
     /// ローカル座標系に変換して (x/a)² + (y/b)² + (z/c)² ≤ 1 で判定
     pub fn contains_point(&self, point: &Point3D<T>) -> bool {
-        // ワールド座標からローカル座標に変換
-        let local_point = self.world_to_local(point);
+        // 中心からのオフセット
+        let offset = *point - self.center;
+
+        // ローカル座標軸
+        let x_axis = self.ref_direction.as_vector();
+        let y_axis = self.y_axis_internal().as_vector();
+        let z_axis = self.axis.as_vector();
+
+        // ローカル座標に投影
+        let local_x = offset.dot(&x_axis);
+        let local_y = offset.dot(&y_axis);
+        let local_z = offset.dot(&z_axis);
 
         // 正規化された楕円体方程式
-        let x_norm = local_point.x() / self.a_radius;
-        let y_norm = local_point.y() / self.b_radius;
-        let z_norm = local_point.z() / self.c_radius;
+        let x_norm = local_x / self.a_radius;
+        let y_norm = local_y / self.b_radius;
+        let z_norm = local_z / self.c_radius;
 
         // (x/a)² + (y/b)² + (z/c)² ≤ 1
         let sum = x_norm * x_norm + y_norm * y_norm + z_norm * z_norm;
@@ -277,32 +287,8 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
     /// # Returns
     /// 表面上にある場合は `true`
     pub fn is_on_surface(&self, point: &Point3D<T>) -> bool {
-        let local_point = self.world_to_local(point);
-
-        let x_norm = local_point.x() / self.a_radius;
-        let y_norm = local_point.y() / self.b_radius;
-        let z_norm = local_point.z() / self.c_radius;
-
-        let sum = x_norm * x_norm + y_norm * y_norm + z_norm * z_norm;
-
-        // 許容誤差内で 1 に等しいかチェック
-        (sum - T::ONE).abs() < T::EPSILON * T::from_f64(10.0)
-    }
-
-    // ========================================================================
-    // Coordinate Transformations
-    // ========================================================================
-
-    /// ワールド座標系からローカル座標系に変換
-    ///
-    /// # Arguments
-    /// * `world_point` - ワールド座標系の点
-    ///
-    /// # Returns
-    /// ローカル座標系の点
-    pub(crate) fn world_to_local(&self, world_point: &Point3D<T>) -> Point3D<T> {
         // 中心からのオフセット
-        let offset = *world_point - self.center;
+        let offset = *point - self.center;
 
         // ローカル座標軸
         let x_axis = self.ref_direction.as_vector();
@@ -314,25 +300,14 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let local_y = offset.dot(&y_axis);
         let local_z = offset.dot(&z_axis);
 
-        Point3D::new(local_x, local_y, local_z)
-    }
+        let x_norm = local_x / self.a_radius;
+        let y_norm = local_y / self.b_radius;
+        let z_norm = local_z / self.c_radius;
 
-    /// ローカル座標系からワールド座標系に変換
-    ///
-    /// # Arguments
-    /// * `local_point` - ローカル座標系の点
-    ///
-    /// # Returns
-    /// ワールド座標系の点
-    pub(crate) fn local_to_world(&self, local_point: &Point3D<T>) -> Point3D<T> {
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
+        let sum = x_norm * x_norm + y_norm * y_norm + z_norm * z_norm;
 
-        let world_offset =
-            x_axis * local_point.x() + y_axis * local_point.y() + z_axis * local_point.z();
-
-        self.center + world_offset
+        // 許容誤差内で 1 に等しいかチェック
+        (sum - T::ONE).abs() < T::EPSILON * T::from_f64(10.0)
     }
 
     /// 点と楕円体ソリッド表面との距離を計算（近似）
@@ -356,29 +331,39 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
     /// # Returns
     /// 表面上の最近接点（近似）
     pub fn closest_point_on_surface(&self, point: &Point3D<T>) -> Point3D<T> {
-        // ローカル座標系に変換
-        let local_point = self.world_to_local(point);
+        // 中心からのオフセット
+        let offset = *point - self.center;
+
+        // ローカル座標軸
+        let x_axis = self.ref_direction.as_vector();
+        let y_axis = self.y_axis_internal().as_vector();
+        let z_axis = self.axis.as_vector();
+
+        // ローカル座標に投影
+        let local_x = offset.dot(&x_axis);
+        let local_y = offset.dot(&y_axis);
+        let local_z = offset.dot(&z_axis);
 
         // 正規化座標
-        let x_norm = local_point.x() / self.a_radius;
-        let y_norm = local_point.y() / self.b_radius;
-        let z_norm = local_point.z() / self.c_radius;
+        let x_norm = local_x / self.a_radius;
+        let y_norm = local_y / self.b_radius;
+        let z_norm = local_z / self.c_radius;
 
         // 原点からの距離
         let dist = (x_norm * x_norm + y_norm * y_norm + z_norm * z_norm).sqrt();
 
         if dist < T::EPSILON {
             // 中心点の場合はX軸上の点を返す
-            return self.local_to_world(&Point3D::new(self.a_radius, T::ZERO, T::ZERO));
+            return self.center + x_axis * self.a_radius;
         }
 
         // 表面上の点を計算（正規化ベクトルをスケール）
-        let surface_x = local_point.x() / dist;
-        let surface_y = local_point.y() / dist;
-        let surface_z = local_point.z() / dist;
+        let surface_x = local_x / dist;
+        let surface_y = local_y / dist;
+        let surface_z = local_z / dist;
 
-        let surface_local = Point3D::new(surface_x, surface_y, surface_z);
-        self.local_to_world(&surface_local)
+        // ワールド座標系に変換
+        self.center + x_axis * surface_x + y_axis * surface_y + z_axis * surface_z
     }
 }
 

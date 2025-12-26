@@ -35,22 +35,28 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let b = self.b_radius_internal();
         let c = self.c_radius_internal();
 
-        // ローカル座標系での8つの頂点（楕円体を包む直方体）
+        // ローカル座標軸
+        let x_axis = self.ref_direction_internal().as_vector();
+        let y_axis = self.y_axis_internal().as_vector();
+        let z_axis = self.axis_internal().as_vector();
+        let center = self.center_internal();
+
+        // ローカル座標系での8つの頂点（楕円体を包む直方体）をワールド座標に変換
         let local_vertices = [
-            Point3D::new(a, b, c),
-            Point3D::new(a, b, -c),
-            Point3D::new(a, -b, c),
-            Point3D::new(a, -b, -c),
-            Point3D::new(-a, b, c),
-            Point3D::new(-a, b, -c),
-            Point3D::new(-a, -b, c),
-            Point3D::new(-a, -b, -c),
+            (a, b, c),
+            (a, b, -c),
+            (a, -b, c),
+            (a, -b, -c),
+            (-a, b, c),
+            (-a, b, -c),
+            (-a, -b, c),
+            (-a, -b, -c),
         ];
 
         // ワールド座標系に変換
         let world_vertices: Vec<Point3D<T>> = local_vertices
             .iter()
-            .map(|p| self.local_to_world(p))
+            .map(|(lx, ly, lz)| center + x_axis * *lx + y_axis * *ly + z_axis * *lz)
             .collect();
 
         // 最小・最大点を計算
