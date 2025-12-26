@@ -196,7 +196,8 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSolid3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.center_internal(), scale_x, scale_y, scale_z)?;
+        let matrix =
+            analysis_transform::scale_matrix(&center.center_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -230,7 +231,8 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSolid3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
+            let rot_mat =
+                analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -265,10 +267,7 @@ mod tests {
 
         let translated = ellipsoid.translate_analysis(&translation).unwrap();
 
-        assert_eq!(
-            translated.center_internal(),
-            Point3D::new(1.0, 2.0, 3.0)
-        );
+        assert_eq!(translated.center_internal(), Point3D::new(1.0, 2.0, 3.0));
         assert_eq!(translated.a_radius_internal(), 2.0);
         assert_eq!(translated.b_radius_internal(), 3.0);
         assert_eq!(translated.c_radius_internal(), 4.0);
@@ -323,10 +322,7 @@ mod tests {
         let matrix = Matrix4x4::translation(5.0, 6.0, 7.0);
         let transformed = ellipsoid.transform_point_matrix(&matrix);
 
-        assert_eq!(
-            transformed.center_internal(),
-            Point3D::new(5.0, 6.0, 7.0)
-        );
+        assert_eq!(transformed.center_internal(), Point3D::new(5.0, 6.0, 7.0));
     }
 
     #[test]

@@ -129,12 +129,7 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
     }
 
     /// Z軸標準の楕円体ソリッドを作成（簡易コンストラクタ）
-    pub fn new_standard(
-        center: Point3D<T>,
-        a_radius: T,
-        b_radius: T,
-        c_radius: T,
-    ) -> Option<Self> {
+    pub fn new_standard(center: Point3D<T>, a_radius: T, b_radius: T, c_radius: T) -> Option<Self> {
         Self::new(
             center,
             Vector3D::new(T::ZERO, T::ZERO, T::ONE),
@@ -289,7 +284,7 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let z_norm = local_point.z() / self.c_radius;
 
         let sum = x_norm * x_norm + y_norm * y_norm + z_norm * z_norm;
-        
+
         // 許容誤差内で 1 に等しいかチェック
         (sum - T::ONE).abs() < T::EPSILON * T::from_f64(10.0)
     }
@@ -334,11 +329,56 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let y_axis = self.y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
-        let world_offset = x_axis * local_point.x()
-            + y_axis * local_point.y()
-            + z_axis * local_point.z();
+        let world_offset =
+            x_axis * local_point.x() + y_axis * local_point.y() + z_axis * local_point.z();
 
         self.center + world_offset
+    }
+
+    /// 点と楕円体ソリッド表面との距離を計算（近似）
+    ///
+    /// # Arguments
+    /// * `point` - 判定する点
+    ///
+    /// # Returns
+    /// 表面までの距離（近似値）
+    pub fn distance_to_surface(&self, point: &Point3D<T>) -> T {
+        let closest = self.closest_point_on_surface(point);
+        let diff = *point - closest;
+        (diff.x() * diff.x() + diff.y() * diff.y() + diff.z() * diff.z()).sqrt()
+    }
+
+    /// 指定点に最も近い表面上の点を取得（近似）
+    ///
+    /// # Arguments
+    /// * `point` - 基準点
+    ///
+    /// # Returns
+    /// 表面上の最近接点（近似）
+    pub fn closest_point_on_surface(&self, point: &Point3D<T>) -> Point3D<T> {
+        // ローカル座標系に変換
+        let local_point = self.world_to_local(point);
+
+        // 正規化座標
+        let x_norm = local_point.x() / self.a_radius;
+        let y_norm = local_point.y() / self.b_radius;
+        let z_norm = local_point.z() / self.c_radius;
+
+        // 原点からの距離
+        let dist = (x_norm * x_norm + y_norm * y_norm + z_norm * z_norm).sqrt();
+
+        if dist < T::EPSILON {
+            // 中心点の場合はX軸上の点を返す
+            return self.local_to_world(&Point3D::new(self.a_radius, T::ZERO, T::ZERO));
+        }
+
+        // 表面上の点を計算（正規化ベクトルをスケール）
+        let surface_x = local_point.x() / dist;
+        let surface_y = local_point.y() / dist;
+        let surface_z = local_point.z() / dist;
+
+        let surface_local = Point3D::new(surface_x, surface_y, surface_z);
+        self.local_to_world(&surface_local)
     }
 }
 
@@ -369,7 +409,7 @@ mod tests {
     fn test_new_standard_ellipsoidal_solid() {
         let center = Point3D::new(1.0, 2.0, 3.0);
         let ellipsoid = EllipsoidalSolid3D::new_standard(center, 2.0, 3.0, 4.0);
-        
+
         assert!(ellipsoid.is_some());
         let e = ellipsoid.unwrap();
         assert_eq!(e.center_internal(), center);
@@ -378,11 +418,11 @@ mod tests {
     #[test]
     fn test_volume() {
         let ellipsoid = EllipsoidalSolid3D::new_at_origin(2.0, 3.0, 4.0).unwrap();
-        
+
         // V = (4/3)π × 2 × 3 × 4 = 32π
         let expected = (4.0 / 3.0) * std::f64::consts::PI * 2.0 * 3.0 * 4.0;
         let volume = ellipsoid.volume();
-        
+
         assert!((volume - expected).abs() < 1e-10);
     }
 
@@ -439,3 +479,173 @@ mod tests {
         assert!(EllipsoidalSolid3D::new(center, axis, ref_dir, 0.0, 2.0, 3.0).is_none());
     }
 }
+
+// ============================================================================
+// Core Traits Implementation
+// ============================================================================
+
+use geo_foundation::{
+    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
+    EllipsoidalSolid3DProperties,
+};
+
+impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
+    fn new(
+        center: (T, T, T),
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        a_radius: T,
+        b_radius: T,
+        c_radius: T,
+    ) -> Option<Self> {
+        Self::new(
+            Point3D::new(center.0, center.1, center.2),
+            Vector3D::new(axis.0, axis.1, axis.2),
+            Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2),
+            a_radius,
+            b_radius,
+            c_radius,
+        )
+    }
+
+    fn new_standard(center: (T, T, T), a_radius: T, b_radius: T, c_radius: T) -> Option<Self> {
+        Self::new_standard(
+            Point3D::new(center.0, center.1, center.2),
+            a_radius,
+            b_radius,
+            c_radius,
+        )
+    }
+
+    fn unit_ellipsoid() -> Self {
+        Self::new_standard(
+            Point3D::new(T::ZERO, T::ZERO, T::ZERO),
+            T::ONE,
+            T::ONE,
+            T::ONE,
+        )
+        .unwrap()
+    }
+
+    fn from_radii(center: (T, T, T), a: T, b: T, c: T) -> Option<Self> {
+        Self::new_standard(Point3D::new(center.0, center.1, center.2), a, b, c)
+    }
+
+    fn from_bounding_box(min: (T, T, T), max: (T, T, T)) -> Option<Self> {
+        let center_x = (min.0 + max.0) / T::from_f64(2.0);
+        let center_y = (min.1 + max.1) / T::from_f64(2.0);
+        let center_z = (min.2 + max.2) / T::from_f64(2.0);
+
+        let a = (max.0 - min.0) / T::from_f64(2.0);
+        let b = (max.1 - min.1) / T::from_f64(2.0);
+        let c = (max.2 - min.2) / T::from_f64(2.0);
+
+        Self::new_standard(Point3D::new(center_x, center_y, center_z), a, b, c)
+    }
+
+    fn new_sphere(
+        center: (T, T, T),
+        axis: (T, T, T),
+        ref_direction: (T, T, T),
+        radius: T,
+    ) -> Option<Self> {
+        Self::new_sphere(
+            Point3D::new(center.0, center.1, center.2),
+            Vector3D::new(axis.0, axis.1, axis.2),
+            Vector3D::new(ref_direction.0, ref_direction.1, ref_direction.2),
+            radius,
+        )
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center_internal();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn a_radius(&self) -> T {
+        self.a_radius_internal()
+    }
+
+    fn b_radius(&self) -> T {
+        self.b_radius_internal()
+    }
+
+    fn c_radius(&self) -> T {
+        self.c_radius_internal()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn radii(&self) -> (T, T, T) {
+        (self.a_radius, self.b_radius, self.c_radius)
+    }
+
+    fn is_sphere(&self) -> bool {
+        let epsilon = T::EPSILON * T::from_f64(10.0);
+        (self.a_radius - self.b_radius).abs() < epsilon
+            && (self.b_radius - self.c_radius).abs() < epsilon
+    }
+
+    fn is_unit_ellipsoid(&self) -> bool {
+        let epsilon = T::EPSILON * T::from_f64(10.0);
+        (self.a_radius - T::ONE).abs() < epsilon
+            && (self.b_radius - T::ONE).abs() < epsilon
+            && (self.c_radius - T::ONE).abs() < epsilon
+    }
+
+    fn is_centered_at_origin(&self) -> bool {
+        let epsilon = T::EPSILON * T::from_f64(10.0);
+        let c = self.center_internal();
+        c.x().abs() < epsilon && c.y().abs() < epsilon && c.z().abs() < epsilon
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DMeasure<T> for EllipsoidalSolid3D<T> {
+    fn volume(&self) -> T {
+        self.volume()
+    }
+
+    fn surface_area(&self) -> T {
+        self.surface_area()
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        self.contains_point(&Point3D::new(point.0, point.1, point.2))
+    }
+
+    fn distance_to_surface(&self, point: (T, T, T)) -> T {
+        self.distance_to_surface(&Point3D::new(point.0, point.1, point.2))
+    }
+
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let bbox = self.bounding_box();
+        let min = bbox.min();
+        let max = bbox.max();
+        ((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
+    }
+
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = self.closest_point_on_surface(&Point3D::new(point.0, point.1, point.2));
+        (p.x(), p.y(), p.z())
+    }
+
+    fn is_on_surface(&self, point: (T, T, T)) -> bool {
+        self.is_on_surface(&Point3D::new(point.0, point.1, point.2))
+    }
+
+    fn is_degenerate(&self) -> bool {
+        self.is_degenerate()
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DCore<T> for EllipsoidalSolid3D<T> {}

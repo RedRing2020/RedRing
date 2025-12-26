@@ -28,13 +28,13 @@ pub enum PrimitiveKind {
 
     // 3次元: 立体要素
     Sphere,
-    SphericalSolid,      // 新式球ソリッド
-    SphericalSurface,    // 新式球サーフェス
-    EllipsoidalSolid,    // 楕円体ソリッド
-    EllipsoidalSurface,  // 楕円体サーフェス
-    Cylinder,            // 旧式（互換性のため残存）
-    CylindricalSolid,    // 新式ソリッド
-    CylindricalSurface,  // 新式サーフェス
+    SphericalSolid,     // 新式球ソリッド
+    SphericalSurface,   // 新式球サーフェス
+    EllipsoidalSolid,   // 楕円体ソリッド
+    EllipsoidalSurface, // 楕円体サーフェス
+    Cylinder,           // 旧式（互換性のため残存）
+    CylindricalSolid,   // 新式ソリッド
+    CylindricalSurface, // 新式サーフェス
     Cone,
     ConicalSolid,   // 新式円錐ソリッド
     ConicalSurface, // 新式円錐サーフェス

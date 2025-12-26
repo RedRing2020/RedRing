@@ -99,10 +99,7 @@ mod tests {
         let solid = EllipsoidalSolid3D::new_standard(center, 2.0, 3.0, 4.0).unwrap();
 
         // Foundation トレイトのテスト
-        assert_eq!(
-            solid.primitive_kind(),
-            PrimitiveKind::EllipsoidalSolid
-        );
+        assert_eq!(solid.primitive_kind(), PrimitiveKind::EllipsoidalSolid);
 
         let bbox = solid.aabb().expect("should have aabb");
         // 標準方向なので、中心 ± 各半径
@@ -124,7 +121,7 @@ mod tests {
         let solid = EllipsoidalSolid3D::new(center, axis, ref_dir, 2.0, 1.0, 1.0).unwrap();
 
         let bbox = solid.aabb().expect("should have aabb");
-        
+
         // 回転しているので境界ボックスは単純な ±radius ではない
         assert!(bbox.min().x() < 0.0);
         assert!(bbox.min().y() < 0.0);
@@ -135,8 +132,7 @@ mod tests {
     #[test]
     fn test_ellipsoidal_solid_degenerate() {
         let center = Point3D::new(0.0, 0.0, 0.0);
-        let solid =
-            EllipsoidalSolid3D::new_standard(center, f64::EPSILON / 2.0, 1.0, 1.0).unwrap();
+        let solid = EllipsoidalSolid3D::new_standard(center, f64::EPSILON / 2.0, 1.0, 1.0).unwrap();
 
         assert!(solid.is_degenerate());
 
@@ -148,14 +144,13 @@ mod tests {
     fn test_sphere_special_case_foundation() {
         // a = b = c の球の特殊ケース
         let center = Point3D::new(1.0, 2.0, 3.0);
-        let solid =
-            EllipsoidalSolid3D::new_sphere(
-                center,
-                Vector3D::new(0.0, 0.0, 1.0),
-                Vector3D::new(1.0, 0.0, 0.0),
-                5.0,
-            )
-            .unwrap();
+        let solid = EllipsoidalSolid3D::new_sphere(
+            center,
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            5.0,
+        )
+        .unwrap();
 
         assert_eq!(solid.primitive_kind(), PrimitiveKind::EllipsoidalSolid);
 

@@ -89,6 +89,10 @@ pub use core::{
         Ellipse2DConstructor, Ellipse2DCore, Ellipse2DMeasure, Ellipse2DProperties,
         Ellipse3DConstructor, Ellipse3DCore, Ellipse3DMeasure, Ellipse3DProperties,
     },
+    ellipsoidal_solid_core_traits::{
+        EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
+        EllipsoidalSolid3DProperties,
+    },
     ellipsoidal_surface_core_traits::{
         EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
         EllipsoidalSurface3DProperties,
