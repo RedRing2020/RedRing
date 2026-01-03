@@ -36,6 +36,9 @@ impl AppState {
         self.graphic
             .surface
             .configure(&self.graphic.device, &self.graphic.config);
+
+        // リサイズ時にカメラのアスペクト比も更新
+        self.update_camera_uniforms();
     }
 
     pub fn render(&mut self) {
@@ -116,6 +119,283 @@ impl AppState {
         self.update_camera_uniforms();
 
         Ok(())
+    }
+
+    /// デバッグ用：LineSegment3Dを表示
+    pub fn load_debug_line(&mut self) {
+        use geo_primitives::{LineSegment3D, Point3D};
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::shape_converter::line_segment_to_vertices;
+
+        tracing::info!("デバッグ形状: LineSegment3D表示");
+
+        // 原点を通るX軸方向の線分を作成
+        let line =
+            LineSegment3D::new(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
+
+        // ViewModel層で頂点データに変換
+        let vertex_data = line_segment_to_vertices(&line);
+
+        tracing::info!("線分: (-2,0,0) to (2,0,0), 頂点数={}", vertex_data.len());
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成して線分データを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用：Circle3Dを表示
+    pub fn load_debug_circle(&mut self) {
+        use geo_primitives::{Circle3D, Direction3D, Point3D, Vector3D};
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::shape_converter::{circle_to_vertices, TessellationQuality};
+
+        tracing::info!("デバッグ形状: Circle3D表示");
+
+        // XY平面上の大きな円を作成（デバッグ用）
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+        let radius = 5.0; // 大きめの半径で確実に見えるように
+        let circle = Circle3D::new(center, normal, radius).unwrap();
+
+        // ViewModel層で頂点データに変換（LineStrip形式）
+        let quality = TessellationQuality::default();
+        let vertex_data = circle_to_vertices(&circle, &quality);
+
+        tracing::info!(
+            "円: 半径={:.2}, 中心=({:.2},{:.2},{:.2}), 頂点数={}",
+            radius,
+            center.x(),
+            center.y(),
+            center.z(),
+            vertex_data.len()
+        );
+
+        // LineList用に線分ペアに変換（デバッグ）
+        let mut line_list_vertices = Vec::new();
+        for i in 0..vertex_data.len() - 1 {
+            line_list_vertices.push(vertex_data[i]);
+            line_list_vertices.push(vertex_data[i + 1]);
+        }
+
+        tracing::info!("LineList変換後の頂点数={}", line_list_vertices.len());
+
+        // デバッグ: 最初の数頂点を出力
+        for (idx, v) in line_list_vertices.iter().take(4).enumerate() {
+            tracing::info!(
+                "  頂点[{}]: ({:.3}, {:.3}, {:.3})",
+                idx,
+                v.position[0],
+                v.position[1],
+                v.position[2]
+            );
+        }
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = line_list_vertices
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成して線分データを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+
+        // デバッグ: カメラ情報を出力
+        let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
+        tracing::info!(
+            "カメラposition: ({:.2}, {:.2}, {:.2}) ← これは使われていない",
+            self.camera.position.x(),
+            self.camera.position.y(),
+            self.camera.position.z()
+        );
+        tracing::info!(
+            "ターゲット: ({:.2}, {:.2}, {:.2}), 距離: {:.2}",
+            self.camera.target.x(),
+            self.camera.target.y(),
+            self.camera.target.z(),
+            self.camera.distance
+        );
+        tracing::info!("回転: {:?}", self.camera.rotation);
+        tracing::info!(
+            "投影モード: {:?}, near={:.3}, far={:.1}",
+            self.camera.projection_mode,
+            (self.camera.distance * 0.01).max(0.001),
+            (self.camera.distance * 100.0).min(1000.0)
+        );
+        tracing::info!(
+            "ビューポート: {}x{} (aspect={:.2})",
+            self.graphic.config.width,
+            self.graphic.config.height,
+            aspect
+        );
+    }
+
+    /// デバッグ用：クリップ空間座標の単純な正方形（単位行列テスト）
+    pub fn load_debug_clip_square(&mut self) {
+        use render::vertex_3d::MeshVertex;
+
+        tracing::warn!("DEBUG: クリップ空間座標の正方形を表示（単位行列テスト）");
+
+        // クリップ空間座標（-1.0～1.0）で画面中央に小さな正方形
+        let vertices = vec![
+            // 左上
+            MeshVertex {
+                position: [-0.3, 0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 右上
+            MeshVertex {
+                position: [0.3, 0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 右上（重複）
+            MeshVertex {
+                position: [0.3, 0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 右下
+            MeshVertex {
+                position: [0.3, -0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 右下（重複）
+            MeshVertex {
+                position: [0.3, -0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 左下
+            MeshVertex {
+                position: [-0.3, -0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 左下（重複）
+            MeshVertex {
+                position: [-0.3, -0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+            // 左上
+            MeshVertex {
+                position: [-0.3, 0.3, 0.0],
+                normal: [0.0, 0.0, 1.0],
+            },
+        ];
+
+        tracing::warn!("頂点数: {}", vertices.len());
+
+        let mut mesh_stage = Box::new(stage::mesh_stage::MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+        self.renderer.set_stage(mesh_stage);
+
+        // カメラのユニフォームを更新（単位行列が使われる）
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用：Triangle3Dを表示（ソリッド）
+    pub fn load_debug_triangle(&mut self) {
+        use geo_primitives::{Point3D, Triangle3D};
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::shape_converter::triangle_to_solid_vertices;
+
+        tracing::info!("デバッグ形状: Triangle3D表示");
+
+        // XY平面上の三角形を作成
+        let va = Point3D::new(0.0, 0.0, 0.0);
+        let vb = Point3D::new(1.0, 0.0, 0.0);
+        let vc = Point3D::new(0.5, 1.0, 0.0);
+        let triangle = Triangle3D::new(va, vb, vc).unwrap();
+
+        // ViewModel層で頂点データに変換
+        let vertex_data = triangle_to_solid_vertices(&triangle);
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // インデックスを生成（TriangleList用）
+        let indices: Vec<u32> = vec![0, 1, 2];
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成してメッシュデータを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用：Arc3Dを表示
+    pub fn load_debug_arc(&mut self) {
+        use geo_primitives::{Angle, Arc3D, Point3D};
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::shape_converter::{arc_to_wireframe_line_segments, TessellationQuality};
+
+        tracing::info!("デバッグ形状: Arc3D表示");
+
+        // XY平面上の90度の円弧を作成
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let radius = 1.5;
+        let start_angle = Angle::from_radians(0.0);
+        let end_angle = Angle::from_radians(std::f64::consts::FRAC_PI_2); // 90度
+
+        let arc = Arc3D::xy_arc(center, radius, start_angle, end_angle).unwrap();
+
+        // ViewModel層で頂点データに変換（LineList形式）
+        let quality = TessellationQuality::default();
+        let vertex_data = arc_to_wireframe_line_segments(&arc, &quality);
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成して線分データを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
     }
 
     /// カメラをリセット
@@ -206,6 +486,13 @@ impl AppState {
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
                     tracing::info!("w: ワイヤーフレーム切替");
+                    tracing::info!("=== デバッグ形状表示 ===");
+                    tracing::info!("s: クリップ空間正方形（単位行列テスト）");
+                    tracing::info!("l: LineSegment3D表示");
+                    tracing::info!("c: Circle3D表示");
+                    tracing::info!("t: Triangle3D表示 (shift+t推奨)");
+                    tracing::info!("a: Arc3D表示");
+                    tracing::info!("=== その他 ===");
                     tracing::info!(
                         "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
                     );
@@ -213,6 +500,22 @@ impl AppState {
                 "w" => {
                     // ワイヤーフレーム切替
                     self.toggle_wireframe();
+                }
+                "q" => {
+                    // デバッグ: クリップ空間正方形（単位行列テスト）
+                    self.load_debug_clip_square();
+                }
+                "l" => {
+                    // デバッグ: LineSegment3D表示
+                    self.load_debug_line();
+                }
+                "c" => {
+                    // デバッグ: Circle3D表示
+                    self.load_debug_circle();
+                }
+                "a" => {
+                    // デバッグ: Arc3D表示
+                    self.load_debug_arc();
                 }
                 _ => {}
             }
@@ -257,7 +560,9 @@ impl AppState {
         let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
         let projection_matrix = self.camera.projection_matrix(aspect);
 
-        // ステージがMeshStageの場合にカメラを更新
+        tracing::debug!("カメラ行列更新: aspect={:.2}", aspect);
+
+        // ステージがMeshStageの場合にカメラを更新（メッシュと線の両方）
         if let Some(mesh_stage) = self
             .renderer
             .get_stage_mut()

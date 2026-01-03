@@ -20,3 +20,4 @@ viewmodel-graphics = { path = "../../viewmodel/graphics" }
 render = { path = "../render" }
 stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
+geo_primitives = { path = "../../model/geo_primitives" }

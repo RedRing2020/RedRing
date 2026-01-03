@@ -83,21 +83,33 @@ impl Camera {
 
     /// ビュー行列を計算
     pub fn view_matrix(&self) -> [[f32; 4]; 4] {
-        // 回転行列を取得
-        let rotation_matrix = quaternion_to_matrix(&self.rotation);
+        // デバッグ: 回転を無視して固定位置にカメラを配置
+        // カメラ: (0, 0, 10) から原点 (0, 0, 0) を見る
+        let camera_pos = Vec3f::new(0.0, 0.0, 10.0);
+        let target = Vec3f::new(0.0, 0.0, 0.0);
+        let up = Vec3f::new(0.0, 1.0, 0.0);
 
-        // カメラの位置を計算（ターゲット - 距離 * 回転後のZ軸）
-        // Z軸の負方向（カメラから見て奥）にターゲットが見えるように
-        let forward = Vec3f::new(
-            -rotation_matrix[2][0], // Z軸を反転
-            -rotation_matrix[2][1],
-            -rotation_matrix[2][2],
+        let result = look_at(camera_pos, target, up);
+
+        tracing::info!(
+            "view_matrix: camera_pos=({:.2}, {:.2}, {:.2}), target=({:.2}, {:.2}, {:.2})",
+            camera_pos.x(),
+            camera_pos.y(),
+            camera_pos.z(),
+            target.x(),
+            target.y(),
+            target.z()
         );
 
-        let camera_pos = self.target + forward * self.distance;
+        tracing::info!(
+            "view_matrix result:\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]",
+            result[0][0], result[0][1], result[0][2], result[0][3],
+            result[1][0], result[1][1], result[1][2], result[1][3],
+            result[2][0], result[2][1], result[2][2], result[2][3],
+            result[3][0], result[3][1], result[3][2], result[3][3]
+        );
 
-        // ビュー行列を計算
-        look_at(camera_pos, self.target, Vec3f::new(0.0, 1.0, 0.0))
+        result
     }
 
     /// プロジェクション行列を計算
@@ -290,20 +302,14 @@ impl Camera {
     /// 標準CAD視点にリセット（固定の適切な距離と角度）
     pub fn reset_to_standard_cad_view(&mut self) {
         self.target = Vec3f::new(0.0, 0.0, 0.0);
-        self.distance = 10.0; // より遠い距離で確実に見える
+        self.distance = 10.0;
         self.zoom = 1.0;
 
-        // 斜め上からの標準CAD視点（35°/45°）
-        let x_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(1.0, 0.0, 0.0), -35.0_f32.to_radians());
-        let y_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(0.0, 1.0, 0.0), 45.0_f32.to_radians());
-        self.rotation = (y_rotation * x_rotation)
-            .normalize()
-            .unwrap_or(Quaternionf::identity());
+        // 初期表示は回転なし（Z軸正方向から真正面に見る）
+        self.rotation = Quaternionf::identity();
 
         tracing::info!(
-            "カメラを標準CAD視点にリセット（距離: {:.1}）",
+            "カメラを標準CAD視点にリセット（距離: {:.1}、回転なし・Z正方向から正面）",
             self.distance
         );
     }
@@ -446,16 +452,16 @@ fn look_at(eye: Vec3f, center: Vec3f, up: Vec3f) -> [[f32; 4]; 4] {
         .unwrap_or(Vec3f::new(1.0, 0.0, 0.0));
     let up_final = right.cross(&forward);
 
+    let tx = -right.dot(&eye);
+    let ty = -up_final.dot(&eye);
+    let tz = forward.dot(&eye);
+
+    // 列優先(column-major): 配列は列方向に読む（下に向かって読む）
     [
-        [right.x(), up_final.x(), -forward.x(), 0.0],
-        [right.y(), up_final.y(), -forward.y(), 0.0],
-        [right.z(), up_final.z(), -forward.z(), 0.0],
-        [
-            -right.dot(&eye),
-            -up_final.dot(&eye),
-            forward.dot(&eye),
-            1.0,
-        ],
+        [right.x(), up_final.x(), -forward.x(), 0.0], // column 0
+        [right.y(), up_final.y(), -forward.y(), 0.0], // column 1
+        [right.z(), up_final.z(), -forward.z(), 0.0], // column 2
+        [tx, ty, tz, 1.0],                            // column 3 (translation)
     ]
 }
 
@@ -463,11 +469,14 @@ fn look_at(eye: Vec3f, center: Vec3f, up: Vec3f) -> [[f32; 4]; 4] {
 fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> [[f32; 4]; 4] {
     let f = 1.0 / (fovy / 2.0).tan();
 
+    // 列優先(column-major)形式でwgpuに渡す
+    // シェーダで matrix * vec4 を使用するため、列ベクトルとして扱う
+    // 各配列 = 列、配列内の要素 = 行0,1,2,3
     [
-        [f / aspect, 0.0, 0.0, 0.0],
-        [0.0, f, 0.0, 0.0],
-        [0.0, 0.0, (far + near) / (near - far), -1.0],
-        [0.0, 0.0, (2.0 * far * near) / (near - far), 0.0],
+        [f / aspect, 0.0, 0.0, 0.0], // column 0: [row0, row1, row2, row3]
+        [0.0, f, 0.0, 0.0],          // column 1
+        [0.0, 0.0, (far + near) / (near - far), -1.0], // column 2 (w成分は-1)
+        [0.0, 0.0, (2.0 * far * near) / (near - far), 0.0], // column 3 (透視除算用)
     ]
 }
 
@@ -480,16 +489,18 @@ fn orthographic(
     near: f32,
     far: f32,
 ) -> [[f32; 4]; 4] {
+    // 列優先(column-major)形式でwgpuに渡す
+    // 各配列 = 列、配列内の要素 = 行0,1,2,3
     [
-        [2.0 / (right - left), 0.0, 0.0, 0.0],
-        [0.0, 2.0 / (top - bottom), 0.0, 0.0],
-        [0.0, 0.0, -2.0 / (far - near), 0.0],
+        [2.0 / (right - left), 0.0, 0.0, 0.0], // column 0: スケールX
+        [0.0, 2.0 / (top - bottom), 0.0, 0.0], // column 1: スケールY
+        [0.0, 0.0, -2.0 / (far - near), 0.0],  // column 2: スケールZ
         [
             -(right + left) / (right - left),
             -(top + bottom) / (top - bottom),
             -(far + near) / (far - near),
             1.0,
-        ],
+        ], // column 3: 平行移動
     ]
 }
 

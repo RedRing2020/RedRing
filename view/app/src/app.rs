@@ -67,6 +67,11 @@ impl ApplicationHandler for App {
                                 tracing::info!("2: アウトラインステージ");
                                 tracing::info!("3: シェーディングステージ");
                                 tracing::info!("s: サンプルSTL読み込み");
+                                tracing::info!("--- デバッグ形状表示 ---");
+                                tracing::info!("l: LineSegment3D表示");
+                                tracing::info!("c: Circle3D表示");
+                                tracing::info!("a: Arc3D表示");
+                                tracing::info!("--- カメラ操作 ---");
                                 tracing::info!("r: カメラリセット（基本位置）");
                                 tracing::info!("t: 標準CAD視点にリセット");
                                 tracing::info!("e: 緊急脱出（最小距離確保）");
@@ -74,6 +79,15 @@ impl ApplicationHandler for App {
                                 tracing::info!("w: ワイヤーフレーム切り替え");
                                 tracing::info!("h: このヘルプ");
                                 tracing::info!("ESC: アプリ終了");
+                            }
+                            Key::Character(c) if c.as_str() == "l" => {
+                                state.load_debug_line();
+                            }
+                            Key::Character(c) if c.as_str() == "c" => {
+                                state.load_debug_circle();
+                            }
+                            Key::Character(c) if c.as_str() == "a" => {
+                                state.load_debug_arc();
                             }
                             Key::Character(c) if c.as_str() == "d" => {
                                 state.log_camera_state();
