@@ -123,18 +123,13 @@ impl AppState {
 
     /// デバッグ用：LineSegment3Dを表示
     pub fn load_debug_line(&mut self) {
-        use geo_primitives::{LineSegment3D, Point3D};
         use render::vertex_3d::MeshVertex;
-        use viewmodel::shape_converter::line_segment_to_vertices;
+        use viewmodel::debug_shapes::create_debug_line_segment;
 
         tracing::info!("デバッグ形状: LineSegment3D表示");
 
-        // 原点を通るX軸方向の線分を作成
-        let line =
-            LineSegment3D::new(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
-
-        // ViewModel層で頂点データに変換
-        let vertex_data = line_segment_to_vertices(&line);
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_line_segment();
 
         tracing::info!("線分: (-2,0,0) to (2,0,0), 頂点数={}", vertex_data.len());
 
@@ -160,50 +155,15 @@ impl AppState {
 
     /// デバッグ用：Circle3Dを表示
     pub fn load_debug_circle(&mut self) {
-        use geo_primitives::{Circle3D, Direction3D, Point3D, Vector3D};
         use render::vertex_3d::MeshVertex;
-        use viewmodel::shape_converter::{circle_to_vertices, TessellationQuality};
+        use viewmodel::debug_shapes::create_debug_circle;
 
-        tracing::info!("デバッグ形状: Circle3D表示");
+        tracing::info!("デバッグ形状: Circle3D表示（LineList形式）");
 
-        // XY平面上の大きな円を作成（デバッグ用）
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-        let radius = 5.0; // 大きめの半径で確実に見えるように
-        let circle = Circle3D::new(center, normal, radius).unwrap();
+        // ViewModel層で頂点データを生成
+        let line_list_vertices = create_debug_circle();
 
-        // ViewModel層で頂点データに変換（LineStrip形式）
-        let quality = TessellationQuality::default();
-        let vertex_data = circle_to_vertices(&circle, &quality);
-
-        tracing::info!(
-            "円: 半径={:.2}, 中心=({:.2},{:.2},{:.2}), 頂点数={}",
-            radius,
-            center.x(),
-            center.y(),
-            center.z(),
-            vertex_data.len()
-        );
-
-        // LineList用に線分ペアに変換（デバッグ）
-        let mut line_list_vertices = Vec::new();
-        for i in 0..vertex_data.len() - 1 {
-            line_list_vertices.push(vertex_data[i]);
-            line_list_vertices.push(vertex_data[i + 1]);
-        }
-
-        tracing::info!("LineList変換後の頂点数={}", line_list_vertices.len());
-
-        // デバッグ: 最初の数頂点を出力
-        for (idx, v) in line_list_vertices.iter().take(4).enumerate() {
-            tracing::info!(
-                "  頂点[{}]: ({:.3}, {:.3}, {:.3})",
-                idx,
-                v.position[0],
-                v.position[1],
-                v.position[2]
-            );
-        }
+        tracing::info!("円: radius=5.0, 頂点数={}", line_list_vertices.len());
 
         // MeshVertexに変換
         let vertices: Vec<MeshVertex> = line_list_vertices
@@ -257,52 +217,16 @@ impl AppState {
     /// デバッグ用：クリップ空間座標の単純な正方形（単位行列テスト）
     pub fn load_debug_clip_square(&mut self) {
         use render::vertex_3d::MeshVertex;
+        use viewmodel::debug_shapes::create_debug_clip_square;
 
         tracing::warn!("DEBUG: クリップ空間座標の正方形を表示（単位行列テスト）");
 
-        // クリップ空間座標（-1.0～1.0）で画面中央に小さな正方形
-        let vertices = vec![
-            // 左上
-            MeshVertex {
-                position: [-0.3, 0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 右上
-            MeshVertex {
-                position: [0.3, 0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 右上（重複）
-            MeshVertex {
-                position: [0.3, 0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 右下
-            MeshVertex {
-                position: [0.3, -0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 右下（重複）
-            MeshVertex {
-                position: [0.3, -0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 左下
-            MeshVertex {
-                position: [-0.3, -0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 左下（重複）
-            MeshVertex {
-                position: [-0.3, -0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-            // 左上
-            MeshVertex {
-                position: [-0.3, 0.3, 0.0],
-                normal: [0.0, 0.0, 1.0],
-            },
-        ];
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_clip_square();
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
 
         tracing::warn!("頂点数: {}", vertices.len());
 
@@ -320,20 +244,13 @@ impl AppState {
 
     /// デバッグ用：Triangle3Dを表示（ソリッド）
     pub fn load_debug_triangle(&mut self) {
-        use geo_primitives::{Point3D, Triangle3D};
         use render::vertex_3d::MeshVertex;
-        use viewmodel::shape_converter::triangle_to_solid_vertices;
+        use viewmodel::debug_shapes::create_debug_triangle;
 
-        tracing::info!("デバッグ形状: Triangle3D表示");
+        tracing::info!("デバッグ形状: Triangle3D表示（ソリッド）");
 
-        // XY平面上の三角形を作成
-        let va = Point3D::new(0.0, 0.0, 0.0);
-        let vb = Point3D::new(1.0, 0.0, 0.0);
-        let vc = Point3D::new(0.5, 1.0, 0.0);
-        let triangle = Triangle3D::new(va, vb, vc).unwrap();
-
-        // ViewModel層で頂点データに変換
-        let vertex_data = triangle_to_solid_vertices(&triangle);
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_triangle();
 
         // MeshVertexに変換
         let vertices: Vec<MeshVertex> = vertex_data
@@ -360,23 +277,13 @@ impl AppState {
 
     /// デバッグ用：Arc3Dを表示
     pub fn load_debug_arc(&mut self) {
-        use geo_primitives::{Angle, Arc3D, Point3D};
         use render::vertex_3d::MeshVertex;
-        use viewmodel::shape_converter::{arc_to_wireframe_line_segments, TessellationQuality};
+        use viewmodel::debug_shapes::create_debug_arc;
 
-        tracing::info!("デバッグ形状: Arc3D表示");
+        tracing::info!("デバッグ形状: Arc3D表示（LineList形式）");
 
-        // XY平面上の90度の円弧を作成
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let radius = 1.5;
-        let start_angle = Angle::from_radians(0.0);
-        let end_angle = Angle::from_radians(std::f64::consts::FRAC_PI_2); // 90度
-
-        let arc = Arc3D::xy_arc(center, radius, start_angle, end_angle).unwrap();
-
-        // ViewModel層で頂点データに変換（LineList形式）
-        let quality = TessellationQuality::default();
-        let vertex_data = arc_to_wireframe_line_segments(&arc, &quality);
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_arc();
 
         // MeshVertexに変換
         let vertices: Vec<MeshVertex> = vertex_data

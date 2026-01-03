@@ -10,6 +10,7 @@
 //! - 境界ボックス計算・変換
 //! - 形状可視化データ変換（幾何プリミティブ → GPU頂点データ）
 
+pub mod debug_shapes;
 pub mod mesh_converter;
 pub mod shape_converter;
 pub mod stl_loader;
