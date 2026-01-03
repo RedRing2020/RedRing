@@ -3,15 +3,15 @@ use crate::vertex_3d::MeshVertex;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
-/// メッシュレンダリング用のUniform構造体（簡略版）
+/// ライン描画用のUniform構造体
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
-pub struct MeshUniforms {
+pub struct LineUniforms {
     pub view_proj: [[f32; 4]; 4], // ビュー・プロジェクション行列
     pub model: [[f32; 4]; 4],     // モデル行列
 }
 
-impl Default for MeshUniforms {
+impl Default for LineUniforms {
     fn default() -> Self {
         Self {
             view_proj: [
@@ -30,22 +30,19 @@ impl Default for MeshUniforms {
     }
 }
 
-/// メッシュレンダリングリソース
-pub struct MeshResources {
+/// 線分レンダリングリソース
+pub struct LineResources {
     pub render_pipeline: wgpu::RenderPipeline,
-    pub wireframe_pipeline: wgpu::RenderPipeline,
     pub uniform_buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
     pub vertex_buffer: Option<wgpu::Buffer>,
-    pub index_buffer: Option<wgpu::Buffer>,
-    pub index_count: u32,
-    pub wireframe_mode: bool,
+    pub vertex_count: u32,
 }
 
-impl MeshResources {
+impl LineResources {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let shader = shader::mesh_shader(device);
+        let shader = shader::line_shader(device);
 
         // Uniform bind group layout
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -59,13 +56,13 @@ impl MeshResources {
                 },
                 count: None,
             }],
-            label: Some("mesh_bind_group_layout"),
+            label: Some("line_bind_group_layout"),
         });
 
         // Uniform buffer
-        let uniforms = MeshUniforms::default();
+        let uniforms = LineUniforms::default();
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Mesh Uniform Buffer"),
+            label: Some("Line Uniform Buffer"),
             contents: bytemuck::cast_slice(&[uniforms]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -77,20 +74,20 @@ impl MeshResources {
                 binding: 0,
                 resource: uniform_buffer.as_entire_binding(),
             }],
-            label: Some("mesh_bind_group"),
+            label: Some("line_bind_group"),
         });
 
         // Render pipeline layout
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Mesh Render Pipeline Layout"),
+                label: Some("Line Render Pipeline Layout"),
                 bind_group_layouts: &[&bind_group_layout],
                 push_constant_ranges: &[],
             });
 
-        // Render pipeline
+        // Render pipeline（LineList トポロジー）
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Mesh Render Pipeline"),
+            label: Some("Line Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -109,10 +106,10 @@ impl MeshResources {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::LineList, // デバッグ: 一旦LineListで確認
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None, // カリング無効（両面表示）
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -127,60 +124,18 @@ impl MeshResources {
             cache: None,
         });
 
-        // ワイヤーフレーム用のパイプライン（ポリゴンモードをLineに変更）
-        let wireframe_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Mesh Wireframe Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[MeshVertex::desc()],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,                       // カリング無効（両面表示）
-                polygon_mode: wgpu::PolygonMode::Line, // ワイヤーフレーム
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
-
         Self {
             render_pipeline,
-            wireframe_pipeline,
             uniform_buffer,
             bind_group_layout,
             bind_group,
             vertex_buffer: None,
-            index_buffer: None,
-            index_count: 0,
-            wireframe_mode: false,
+            vertex_count: 0,
         }
     }
 
     /// Uniformバッファを更新
-    pub fn update_uniforms(&self, queue: &wgpu::Queue, uniforms: &MeshUniforms) {
+    pub fn update_uniforms(&self, queue: &wgpu::Queue, uniforms: &LineUniforms) {
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[*uniforms]));
     }
 
@@ -191,84 +146,105 @@ impl MeshResources {
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
-        // ビュー・プロジェクション行列を計算
+        tracing::warn!("LineResources.update_camera():");
+        tracing::warn!(
+            "  view[0]: [{:.3}, {:.3}, {:.3}, {:.3}]",
+            view_matrix[0][0],
+            view_matrix[0][1],
+            view_matrix[0][2],
+            view_matrix[0][3]
+        );
+        tracing::warn!(
+            "  view[1]: [{:.3}, {:.3}, {:.3}, {:.3}]",
+            view_matrix[1][0],
+            view_matrix[1][1],
+            view_matrix[1][2],
+            view_matrix[1][3]
+        );
+        tracing::warn!(
+            "  view[2]: [{:.3}, {:.3}, {:.3}, {:.3}]",
+            view_matrix[2][0],
+            view_matrix[2][1],
+            view_matrix[2][2],
+            view_matrix[2][3]
+        );
+        tracing::warn!(
+            "  view[3]: [{:.3}, {:.3}, {:.3}, {:.3}]",
+            view_matrix[3][0],
+            view_matrix[3][1],
+            view_matrix[3][2],
+            view_matrix[3][3]
+        );
+
+        // proj × view の順序でview-projection行列を計算
         let view_proj = multiply_matrices(proj_matrix, view_matrix);
 
-        let uniforms = MeshUniforms {
-            view_proj,
-            model: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
+        tracing::warn!(
+            "  view_proj[3]: [{:.3}, {:.3}, {:.3}, {:.3}]",
+            view_proj[3][0],
+            view_proj[3][1],
+            view_proj[3][2],
+            view_proj[3][3]
+        );
 
+        let model = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+
+        let uniforms = LineUniforms { view_proj, model };
         self.update_uniforms(queue, &uniforms);
     }
 
-    /// メッシュデータを更新
-    pub fn update_mesh_data(
-        &mut self,
-        device: &wgpu::Device,
-        vertices: &[MeshVertex],
-        indices: &[u32],
-    ) {
-        // 頂点バッファを作成
+    /// 線分データを更新
+    pub fn update_line_data(&mut self, device: &wgpu::Device, vertices: &[MeshVertex]) {
+        tracing::warn!("LineResources.update_line_data(): {} 頂点", vertices.len());
+
+        // 最初の8頂点の座標をログ出力（デバッグ用）
+        if !vertices.is_empty() && vertices.len() <= 8 {
+            for (i, v) in vertices.iter().enumerate() {
+                tracing::warn!(
+                    "  頂点[{}]: ({:.3}, {:.3}, {:.3})",
+                    i,
+                    v.position[0],
+                    v.position[1],
+                    v.position[2]
+                );
+            }
+        }
+
         if !vertices.is_empty() {
             self.vertex_buffer = Some(device.create_buffer_init(
                 &wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh Vertex Buffer"),
+                    label: Some("Line Vertex Buffer"),
                     contents: bytemuck::cast_slice(vertices),
                     usage: wgpu::BufferUsages::VERTEX,
                 },
             ));
-        }
-
-        // インデックスバッファを作成
-        if !indices.is_empty() {
-            self.index_buffer = Some(device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("Mesh Index Buffer"),
-                    contents: bytemuck::cast_slice(indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                },
-            ));
-            self.index_count = indices.len() as u32;
+            self.vertex_count = vertices.len() as u32;
         }
     }
 
-    /// ワイヤーフレームモードを切り替え
-    pub fn toggle_wireframe(&mut self) {
-        self.wireframe_mode = !self.wireframe_mode;
-    }
-
-    /// ワイヤーフレームモードかどうか
-    pub fn is_wireframe(&self) -> bool {
-        self.wireframe_mode
-    }
-
-    /// メッシュをレンダリング
+    /// 線分をレンダリング
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        if let (Some(vertex_buffer), Some(index_buffer)) = (&self.vertex_buffer, &self.index_buffer)
-        {
-            // ワイヤーフレームモードに応じてパイプラインを選択
-            let pipeline = if self.wireframe_mode {
-                &self.wireframe_pipeline
-            } else {
-                &self.render_pipeline
-            };
-
-            render_pass.set_pipeline(pipeline);
+        if let Some(vertex_buffer) = &self.vertex_buffer {
+            tracing::warn!(
+                "LineResources.render(): vertex_count={}, pipeline設定開始",
+                self.vertex_count
+            );
+            render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.bind_group, &[]);
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+            render_pass.draw(0..self.vertex_count, 0..1);
+            tracing::warn!("LineResources.render(): draw完了");
+        } else {
+            tracing::warn!("LineResources.render(): vertex_buffer が None");
         }
     }
 }
 
-/// 4x4行列の乗算
 /// 4x4行列の乗算 (column-major)
 /// [[f32; 4]; 4] = [col0, col1, col2, col3]
 fn multiply_matrices(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {

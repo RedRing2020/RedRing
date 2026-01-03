@@ -36,6 +36,9 @@ impl AppState {
         self.graphic
             .surface
             .configure(&self.graphic.device, &self.graphic.config);
+
+        // リサイズ時にカメラのアスペクト比も更新
+        self.update_camera_uniforms();
     }
 
     pub fn render(&mut self) {
@@ -116,6 +119,190 @@ impl AppState {
         self.update_camera_uniforms();
 
         Ok(())
+    }
+
+    /// デバッグ用：LineSegment3Dを表示
+    pub fn load_debug_line(&mut self) {
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::debug_shapes::create_debug_line_segment;
+
+        tracing::info!("デバッグ形状: LineSegment3D表示");
+
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_line_segment();
+
+        tracing::info!("線分: (-2,0,0) to (2,0,0), 頂点数={}", vertex_data.len());
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成して線分データを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用：Circle3Dを表示
+    pub fn load_debug_circle(&mut self) {
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::debug_shapes::create_debug_circle;
+
+        tracing::info!("デバッグ形状: Circle3D表示（LineList形式）");
+
+        // ViewModel層で頂点データを生成
+        let line_list_vertices = create_debug_circle();
+
+        tracing::info!("円: radius=5.0, 頂点数={}", line_list_vertices.len());
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = line_list_vertices
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成して線分データを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+
+        // デバッグ: カメラ情報を出力
+        let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
+        tracing::info!(
+            "カメラposition: ({:.2}, {:.2}, {:.2}) ← これは使われていない",
+            self.camera.position.x(),
+            self.camera.position.y(),
+            self.camera.position.z()
+        );
+        tracing::info!(
+            "ターゲット: ({:.2}, {:.2}, {:.2}), 距離: {:.2}",
+            self.camera.target.x(),
+            self.camera.target.y(),
+            self.camera.target.z(),
+            self.camera.distance
+        );
+        tracing::info!("回転: {:?}", self.camera.rotation);
+        tracing::info!(
+            "投影モード: {:?}, near={:.3}, far={:.1}",
+            self.camera.projection_mode,
+            (self.camera.distance * 0.01).max(0.001),
+            (self.camera.distance * 100.0).min(1000.0)
+        );
+        tracing::info!(
+            "ビューポート: {}x{} (aspect={:.2})",
+            self.graphic.config.width,
+            self.graphic.config.height,
+            aspect
+        );
+    }
+
+    /// デバッグ用：クリップ空間座標の単純な正方形（単位行列テスト）
+    pub fn load_debug_clip_square(&mut self) {
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::debug_shapes::create_debug_clip_square;
+
+        tracing::warn!("DEBUG: クリップ空間座標の正方形を表示（単位行列テスト）");
+
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_clip_square();
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        tracing::warn!("頂点数: {}", vertices.len());
+
+        let mut mesh_stage = Box::new(stage::mesh_stage::MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+        self.renderer.set_stage(mesh_stage);
+
+        // カメラのユニフォームを更新（単位行列が使われる）
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用：Triangle3Dを表示（ソリッド）
+    pub fn load_debug_triangle(&mut self) {
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::debug_shapes::create_debug_triangle;
+
+        tracing::info!("デバッグ形状: Triangle3D表示（ソリッド）");
+
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_triangle();
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // インデックスを生成（TriangleList用）
+        let indices: Vec<u32> = vec![0, 1, 2];
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成してメッシュデータを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用：Arc3Dを表示
+    pub fn load_debug_arc(&mut self) {
+        use render::vertex_3d::MeshVertex;
+        use viewmodel::debug_shapes::create_debug_arc;
+
+        tracing::info!("デバッグ形状: Arc3D表示（LineList形式）");
+
+        // ViewModel層で頂点データを生成
+        let vertex_data = create_debug_arc();
+
+        // MeshVertexに変換
+        let vertices: Vec<MeshVertex> = vertex_data
+            .iter()
+            .map(MeshVertex::from_vertex_data)
+            .collect();
+
+        // カメラを適切な位置に設定
+        self.camera.reset_to_standard_cad_view();
+
+        // MeshStageを作成して線分データを設定
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
     }
 
     /// カメラをリセット
@@ -206,6 +393,13 @@ impl AppState {
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
                     tracing::info!("w: ワイヤーフレーム切替");
+                    tracing::info!("=== デバッグ形状表示 ===");
+                    tracing::info!("s: クリップ空間正方形（単位行列テスト）");
+                    tracing::info!("l: LineSegment3D表示");
+                    tracing::info!("c: Circle3D表示");
+                    tracing::info!("t: Triangle3D表示 (shift+t推奨)");
+                    tracing::info!("a: Arc3D表示");
+                    tracing::info!("=== その他 ===");
                     tracing::info!(
                         "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
                     );
@@ -213,6 +407,22 @@ impl AppState {
                 "w" => {
                     // ワイヤーフレーム切替
                     self.toggle_wireframe();
+                }
+                "q" => {
+                    // デバッグ: クリップ空間正方形（単位行列テスト）
+                    self.load_debug_clip_square();
+                }
+                "l" => {
+                    // デバッグ: LineSegment3D表示
+                    self.load_debug_line();
+                }
+                "c" => {
+                    // デバッグ: Circle3D表示
+                    self.load_debug_circle();
+                }
+                "a" => {
+                    // デバッグ: Arc3D表示
+                    self.load_debug_arc();
                 }
                 _ => {}
             }
@@ -257,7 +467,9 @@ impl AppState {
         let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
         let projection_matrix = self.camera.projection_matrix(aspect);
 
-        // ステージがMeshStageの場合にカメラを更新
+        tracing::debug!("カメラ行列更新: aspect={:.2}", aspect);
+
+        // ステージがMeshStageの場合にカメラを更新（メッシュと線の両方）
         if let Some(mesh_stage) = self
             .renderer
             .get_stage_mut()

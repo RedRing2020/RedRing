@@ -1,8 +1,28 @@
 # 形状可視化システム設計仕様
 
 **作成日**: 2025年12月26日  
-**最終更新**: 2025年12月26日  
+**最終更新**: 2026年1月2日  
 **関連Issue**: [#188 形状可視化システムの実装](https://github.com/RedRing2020/RedRing/issues/188)
+
+## ⚠️ 実装状況（2026年1月2日更新）
+
+### ✅ Phase 1完了範囲（設計 + ViewModel層）
+- 設計ドキュメント作成（本ドキュメント + SHAPE_VIEW_LAYER_DESIGN.md）
+- `viewmodel/converter/src/shape_converter.rs` 実装完了
+  - LineSegment3D, Circle3D, Triangle3D, Arc3D の変換関数
+  - TessellationQuality パラメータシステム
+  - 包括的なテストスイート
+
+### ❌ 未実装（Phase 2で実装予定）
+- **View層の実装**
+  - LineResources（線分描画パイプライン）
+  - line.wgsl シェーダ
+  - MeshStage拡張（RenderMode::Lines対応）
+- **アプリケーション層統合**
+  - デバッグ用形状表示機能（キーバインド）
+  - エンドツーエンド動作確認
+
+**重要**: 現時点ではViewModel層のデータ変換のみ実装済み。実際の画面表示は未実装。
 
 ## 📋 概要
 
@@ -304,13 +324,116 @@ pub enum ShapeConversionError {
 4. **法線の正規化**: 必ず正規化された法線を渡す
 5. **CCW順序**: 三角形の頂点順序は反時計回り
 
-## 🚀 次のステップ
+## 🚀 次のステップ（Phase 2計画）
 
-1. **Task 1.2**: shape_converterモジュールの実装（LineSegment3D, Circle3Dのプロトタイプ）
-2. **Task 1.3**: View層の受け入れ設計（MeshStage拡張 vs 新規ShapeStage）
-3. **Phase 2**: 各形状の順次実装
+### Phase 2: View層実装とエンドツーエンド統合
+
+**目標**: 実際に画面上で形状を表示できる状態にする
+
+#### Task 2.1: 線分描画インフラ構築
+- [ ] `view/render/src/line.rs` 作成（LineResources実装）
+- [ ] `view/render/shaders/line.wgsl` 作成
+- [ ] LineList トポロジーによる描画パイプライン
+- [ ] ユニフォームバッファ（カメラ行列）統合
+
+#### Task 2.2: MeshStage拡張
+- [ ] RenderMode enum に Lines を追加
+- [ ] `set_line_data()` メソッド実装
+- [ ] render() メソッドで RenderMode に応じた描画分岐
+
+#### Task 2.3: アプリケーション層統合
+- [ ] `view/app/src/app_state.rs` にデバッグ形状表示関数追加
+  - `load_debug_line()` - LineSegment3D表示
+  - `load_debug_circle()` - Circle3D表示
+  - `load_debug_triangle()` - Triangle3D表示
+  - `load_debug_arc()` - Arc3D表示
+- [ ] キーバインド設定（l, c, t, a キー）
+- [ ] ヘルプメッセージ更新
+
+#### Task 2.4: エンドツーエンドテスト
+- [ ] 各形状が実際に表示されることを確認
+- [ ] スクリーンショット/動画記録
+- [ ] パフォーマンス測定（60FPS達成確認）
+
+### Phase 3以降: 高度な機能
+- LOD自動切り替え
+- 適応的テッセレーション（カメラ距離・画面解像度考慮）
+- インスタンシング対応
+- その他のプリミティブ対応
 
 ---
 
-**レビュー**: @TBD  
-**承認**: @TBD
+## 🔧 テッセレーション品質パラメータ改善提案
+
+### 現在の問題点
+
+現在の `TessellationQuality` は固定値であり、以下の要因を考慮していない：
+- カメラからの距離（遠い形状は低品質でも良い）
+- 画面上のピクセルサイズ（小さく見える形状は簡略化可能）
+- 形状の曲率（曲がりが急な部分は高密度が必要）
+
+### 改善案：適応的品質計算
+
+```rust
+pub struct AdaptiveTessellation {
+    /// 基準品質設定
+    pub base_quality: TessellationQuality,
+    
+    /// LOD距離閾値（単位：ワールド座標）
+    pub lod_distances: [f32; 3],  // [near, mid, far]
+    
+    /// 画面ピクセルあたりのセグメント密度目標
+    pub target_pixels_per_segment: f32,
+}
+
+impl AdaptiveTessellation {
+    /// カメラ距離と画面解像度を考慮したセグメント数計算
+    pub fn calculate_segments(
+        &self,
+        shape_radius: f32,
+        distance_to_camera: f32,
+        screen_size: (u32, u32),
+        fov: f32,
+    ) -> usize {
+        // 画面上での形状のピクセルサイズを推定
+        let screen_radius = self.project_to_screen(
+            shape_radius, 
+            distance_to_camera, 
+            screen_size, 
+            fov
+        );
+        
+        // 円周に必要なセグメント数を計算
+        let circumference_pixels = 2.0 * PI * screen_radius;
+        let segments = (circumference_pixels / self.target_pixels_per_segment).ceil() as usize;
+        
+        // 最小・最大値でクランプ
+        segments.clamp(
+            self.base_quality.min_segments,
+            self.base_quality.max_segments
+        )
+    }
+    
+    fn project_to_screen(
+        &self,
+        radius: f32,
+        distance: f32,
+        screen_size: (u32, u32),
+        fov: f32,
+    ) -> f32 {
+        // 透視投影による画面上のサイズ計算
+        let screen_height = screen_size.1 as f32;
+        let tan_half_fov = (fov / 2.0).tan();
+        (radius * screen_height) / (distance * tan_half_fov * 2.0)
+    }
+}
+```
+
+### 実装優先度
+- **Phase 2**: 固定品質パラメータで動作確認（現行のまま）
+- **Phase 3**: 適応的品質計算を実装し、LOD戦略を導入
+
+---
+
+**レビュー**: 実装完了後に実施  
+**承認**: エンドツーエンドテスト合格後
