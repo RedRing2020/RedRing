@@ -7,6 +7,7 @@
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::items_after_test_module)]
 
 // NURBS実装モジュール
 pub mod basis;

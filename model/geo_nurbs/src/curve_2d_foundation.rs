@@ -1,14 +1,60 @@
-//! `NurbsCurve2D` Foundation Pattern 統合テスト
+//! `NurbsCurve2D` Foundation Pattern 統合
 //!
-//! Core Traits (Constructor/Properties/Measure) の動作検証
+//! Extension Traits の実装とテスト
+
+use crate::{NurbsCurve2D, Scalar};
+use geo_foundation::{Bounded, ExtensionFoundation, NurbsCurve2DProperties, PrimitiveKind};
+
+// ============================================================================
+// Extension Foundation 実装
+// ============================================================================
+
+impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::NurbsCurve2D
+    }
+
+    fn measure(&self) -> Option<T> {
+        Some(self.approximate_length(100))
+    }
+}
+
+impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
+    type Aabb = geo_core::Aabb2D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        // 制御点ベースの境界ボックスを計算
+        let mut min_x = T::from_f64(f64::INFINITY);
+        let mut min_y = T::from_f64(f64::INFINITY);
+        let mut max_x = T::from_f64(f64::NEG_INFINITY);
+        let mut max_y = T::from_f64(f64::NEG_INFINITY);
+
+        for i in 0..self.num_control_points() {
+            let point = self.control_point(i);
+            min_x = min_x.min(point.x());
+            min_y = min_y.min(point.y());
+            max_x = max_x.max(point.x());
+            max_y = max_y.max(point.y());
+        }
+
+        Some(geo_core::Aabb2D::new(
+            geo_core::Point2D::new(min_x, min_y),
+            geo_core::Point2D::new(max_x, max_y),
+        ))
+    }
+}
+
+// ============================================================================
+// Foundation Pattern 統合テスト
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
     use crate::knot::clamped_knot_vector;
     use crate::NurbsCurve2D;
     use geo_foundation::{
-        Bounded, ExtensionFoundation, NurbsCurve2DConstructor, NurbsCurve2DMeasure,
-        NurbsCurve2DProperties, PrimitiveKind,
+        ExtensionFoundation, NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties,
+        PrimitiveKind,
     };
 
     // ============================================================================

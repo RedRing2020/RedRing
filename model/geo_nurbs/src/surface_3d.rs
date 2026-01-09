@@ -440,80 +440,12 @@ impl<T: Scalar> NurbsSurface3D<T> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_nurbs_surface_creation() {
-        use geo_foundation::NurbsSurface3DConstructor;
-        // 2x2 制御点グリッド
-        let control_points = vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 1.0)],
-        ];
-
-        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-
-        let u_knots = vec![0.0, 0.0, 1.0, 1.0];
-        let v_knots = vec![0.0, 0.0, 1.0, 1.0];
-
-        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-            control_points,
-            Some(weights), // 有理サーフェスとして
-            u_knots,
-            v_knots,
-            1, // u_degree
-            1, // v_degree
-        );
-
-        assert!(surface.is_ok());
-
-        let surface = surface.unwrap();
-        assert_eq!(surface.grid_size(), (2, 2));
-        assert_eq!(surface.u_degree(), 1);
-        assert_eq!(surface.v_degree(), 1);
-    }
-
-    #[test]
-    fn test_surface_evaluation() {
-        use geo_foundation::NurbsSurface3DConstructor;
-        // 平面サーフェスのテスト
-        let control_points = vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-        ];
-
-        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-
-        let u_knots = vec![0.0, 0.0, 1.0, 1.0];
-        let v_knots = vec![0.0, 0.0, 1.0, 1.0];
-
-        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-            control_points,
-            Some(weights), // 有理サーフェスとして
-            u_knots,
-            v_knots,
-            1,
-            1,
-        )
-        .unwrap();
-
-        // 中央点の評価
-        let point = surface.evaluate_at(0.5, 0.5);
-        assert!((point.x() - 0.5).abs() < 1e-10);
-        assert!((point.y() - 0.5).abs() < 1e-10);
-        assert!((point.z() - 0.0).abs() < 1e-10);
-    }
-}
-
 // ============================================================================
 // Core Traits 実装
 // ============================================================================
 
 use geo_foundation::{
-    Bounded, ExtensionFoundation, NurbsSurface3DConstructor, NurbsSurface3DCore,
-    NurbsSurface3DMeasure, NurbsSurface3DProperties, PrimitiveKind,
+    NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
 };
 
 impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
@@ -657,6 +589,7 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
         }
     }
 
+    #[allow(clippy::similar_names)]
     fn surface_area(&self) -> T {
         // 簡易実装: 中央差分で近似
         let subdivisions = 20;
@@ -671,9 +604,7 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
                 let u = u_min + du * T::from_usize(i) + du / T::from_f64(2.0);
                 let v = v_min + dv * T::from_usize(j) + dv / T::from_f64(2.0);
 
-                #[allow(clippy::similar_names)]
                 let d_du = self.u_derivative_at(u, v);
-                #[allow(clippy::similar_names)]
                 let d_dv = self.v_derivative_at(u, v);
 
                 // 外積の大きさ
@@ -700,46 +631,71 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
 impl<T: Scalar> NurbsSurface3DCore<T> for NurbsSurface3D<T> {}
 
 // ============================================================================
-// Extension Foundation 実装
+// テスト
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for NurbsSurface3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::NurbsSurface3D
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use geo_foundation::NurbsSurface3DConstructor;
+
+    #[test]
+    fn test_nurbs_surface_creation() {
+        // 2x2 制御点グリッド
+        let control_points = vec![
+            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 1.0)],
+        ];
+
+        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
+
+        let u_knots = vec![0.0, 0.0, 1.0, 1.0];
+        let v_knots = vec![0.0, 0.0, 1.0, 1.0];
+
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
+            control_points,
+            Some(weights), // 有理サーフェスとして
+            u_knots,
+            v_knots,
+            1, // u_degree
+            1, // v_degree
+        );
+
+        assert!(surface.is_ok());
+
+        let surface = surface.unwrap();
+        assert_eq!(surface.grid_size(), (2, 2));
+        assert_eq!(surface.u_degree(), 1);
+        assert_eq!(surface.v_degree(), 1);
     }
 
-    fn measure(&self) -> Option<T> {
-        Some(self.surface_area())
-    }
-}
+    #[test]
+    fn test_surface_evaluation() {
+        // 平面サーフェスのテスト
+        let control_points = vec![
+            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+        ];
 
-impl<T: Scalar> Bounded<T> for NurbsSurface3D<T> {
-    type Aabb = geo_core::Aabb3D<T>;
+        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
 
-    fn aabb(&self) -> Option<Self::Aabb> {
-        // 制御点ベースの境界ボックスを計算
-        let mut min_x = T::from_f64(f64::INFINITY);
-        let mut min_y = T::from_f64(f64::INFINITY);
-        let mut min_z = T::from_f64(f64::INFINITY);
-        let mut max_x = T::from_f64(f64::NEG_INFINITY);
-        let mut max_y = T::from_f64(f64::NEG_INFINITY);
-        let mut max_z = T::from_f64(f64::NEG_INFINITY);
+        let u_knots = vec![0.0, 0.0, 1.0, 1.0];
+        let v_knots = vec![0.0, 0.0, 1.0, 1.0];
 
-        for u in 0..self.u_count {
-            for v in 0..self.v_count {
-                let point = self.control_point(u, v);
-                min_x = min_x.min(point.x());
-                min_y = min_y.min(point.y());
-                min_z = min_z.min(point.z());
-                max_x = max_x.max(point.x());
-                max_y = max_y.max(point.y());
-                max_z = max_z.max(point.z());
-            }
-        }
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
+            control_points,
+            Some(weights), // 有理サーフェスとして
+            u_knots,
+            v_knots,
+            1,
+            1,
+        )
+        .unwrap();
 
-        Some(geo_core::Aabb3D::new(
-            geo_core::Point3D::new(min_x, min_y, min_z),
-            geo_core::Point3D::new(max_x, max_y, max_z),
-        ))
+        // 中央点の評価
+        let point = surface.evaluate_at(0.5, 0.5);
+        assert!((point.x() - 0.5).abs() < 1e-10);
+        assert!((point.y() - 0.5).abs() < 1e-10);
+        assert!((point.z() - 0.0).abs() < 1e-10);
     }
 }

@@ -5,6 +5,9 @@
 
 use crate::{KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector2;
+use geo_foundation::{
+    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
+};
 
 /// 重み配列の効率的管理（2D曲線用）
 #[derive(Debug, Clone)]
@@ -261,90 +264,9 @@ impl<T: Scalar> NurbsCurve2D<T> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_nurbs_curve_2d_creation() {
-        use geo_foundation::NurbsCurve2DConstructor;
-        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            weights,
-            knot_vector,
-            degree,
-        );
-        assert!(curve.is_ok());
-
-        let curve = curve.unwrap();
-        assert_eq!(curve.degree(), 2);
-        assert_eq!(curve.num_points(), 3);
-    }
-
-    #[test]
-    fn test_curve_evaluation() {
-        use geo_foundation::NurbsCurve2DConstructor;
-        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            weights,
-            knot_vector,
-            degree,
-        )
-        .unwrap();
-
-        // 開始点と終了点のテスト
-        let start_point = curve.evaluate_at(0.0);
-        let end_point = curve.evaluate_at(1.0);
-
-        // 開始点は最初の制御点に近い
-        assert!((start_point.x() - 0.0).abs() < 1e-10);
-        assert!((start_point.y() - 0.0).abs() < 1e-10);
-
-        // 終了点は最後の制御点に近い
-        assert!((end_point.x() - 2.0).abs() < 1e-10);
-        assert!((end_point.y() - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_approximate_length() {
-        use geo_foundation::NurbsCurve2DConstructor;
-        let control_points = &[(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            weights,
-            knot_vector,
-            degree,
-        )
-        .unwrap();
-        let length = curve.approximate_length(100);
-
-        // 直線に近い曲線なので長さは約2.0
-        assert!((length - 2.0).abs() < 0.1);
-    }
-}
-
 // ============================================================================
 // Core Traits 実装
 // ============================================================================
-
-use geo_foundation::{
-    Bounded, ExtensionFoundation, NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure,
-    NurbsCurve2DProperties, PrimitiveKind,
-};
 
 impl<T: Scalar> NurbsCurve2DConstructor<T> for NurbsCurve2D<T> {
     fn new(
@@ -430,6 +352,7 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
         self.approximate_length(100)
     }
 
+    #[allow(clippy::similar_names)]
     fn curvature_at(&self, t: T) -> T {
         let h = T::from_f64(1e-8);
         let d1 = self.derivative_at(t);
@@ -437,9 +360,7 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
         let d2_minus = self.derivative_at(t - h);
 
         // 2次導関数の中央差分近似
-        #[allow(clippy::similar_names)]
         let d2x = (d2_plus.x() - d2_minus.x()) / (h + h);
-        #[allow(clippy::similar_names)]
         let d2y = (d2_plus.y() - d2_minus.y()) / (h + h);
 
         // 曲率 = |x'y'' - y'x''| / (x'^2 + y'^2)^(3/2)
@@ -457,40 +378,81 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
 impl<T: Scalar> NurbsCurve2DCore<T> for NurbsCurve2D<T> {}
 
 // ============================================================================
-// Extension Foundation 実装
+// テスト
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::NurbsCurve2D
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_nurbs_curve_2d_creation() {
+        use geo_foundation::NurbsCurve2DConstructor;
+        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
+        let weights = Some(vec![1.0, 1.0, 1.0]);
+        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let degree = 2;
+
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            weights,
+            knot_vector,
+            degree,
+        );
+        assert!(curve.is_ok());
+
+        let curve = curve.unwrap();
+        assert_eq!(curve.degree(), 2);
+        assert_eq!(curve.num_points(), 3);
     }
 
-    fn measure(&self) -> Option<T> {
-        Some(self.approximate_length(100))
+    #[test]
+    fn test_curve_evaluation() {
+        use geo_foundation::NurbsCurve2DConstructor;
+        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
+        let weights = Some(vec![1.0, 1.0, 1.0]);
+        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let degree = 2;
+
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            weights,
+            knot_vector,
+            degree,
+        )
+        .unwrap();
+
+        // 開始点と終了点のテスト
+        let start_point = curve.evaluate_at(0.0);
+        let end_point = curve.evaluate_at(1.0);
+
+        // 開始点は最初の制御点に近い
+        assert!((start_point.x() - 0.0).abs() < 1e-10);
+        assert!((start_point.y() - 0.0).abs() < 1e-10);
+
+        // 終了点は最後の制御点に近い
+        assert!((end_point.x() - 2.0).abs() < 1e-10);
+        assert!((end_point.y() - 0.0).abs() < 1e-10);
     }
-}
 
-impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
-    type Aabb = geo_core::Aabb2D<T>;
+    #[test]
+    fn test_approximate_length() {
+        use geo_foundation::NurbsCurve2DConstructor;
+        let control_points = &[(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
+        let weights = Some(vec![1.0, 1.0, 1.0]);
+        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let degree = 2;
 
-    fn aabb(&self) -> Option<Self::Aabb> {
-        // 制御点ベースの境界ボックスを計算
-        let mut min_x = T::from_f64(f64::INFINITY);
-        let mut min_y = T::from_f64(f64::INFINITY);
-        let mut max_x = T::from_f64(f64::NEG_INFINITY);
-        let mut max_y = T::from_f64(f64::NEG_INFINITY);
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            weights,
+            knot_vector,
+            degree,
+        )
+        .unwrap();
+        let length = curve.approximate_length(100);
 
-        for i in 0..self.num_points {
-            let point = self.control_point(i);
-            min_x = min_x.min(point.x());
-            min_y = min_y.min(point.y());
-            max_x = max_x.max(point.x());
-            max_y = max_y.max(point.y());
-        }
-
-        Some(geo_core::Aabb2D::new(
-            geo_core::Point2D::new(min_x, min_y),
-            geo_core::Point2D::new(max_x, max_y),
-        ))
+        // 直線に近い曲線なので長さは約2.0
+        assert!((length - 2.0).abs() < 0.1);
     }
 }
