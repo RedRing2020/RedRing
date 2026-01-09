@@ -58,15 +58,16 @@ mod tests {
 
     #[test]
     fn test_nurbs_curve_3d_foundation() {
+        use geo_foundation::NurbsCurve3DConstructor;
         // 簡単なNURBS曲線を作成
         let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (2.0, 0.0, 0.0),
         ];
 
         let knots = clamped_knot_vector(2, 3);
-        let curve = NurbsCurve3D::new(control_points, None, knots, 2).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(2, knots, control_points, None).unwrap();
 
         // PrimitiveKind の確認
         assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);

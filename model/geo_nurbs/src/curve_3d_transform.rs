@@ -53,8 +53,8 @@ fn transform_control_points<T: Scalar>(
         None
     };
 
-    // 既存のpub fnコンストラクタを使用
-    NurbsCurve3D::new(
+    // 内部ヘルパーを使用
+    NurbsCurve3D::new_internal(
         transformed_points,
         weights,
         curve.knot_vector().clone(),
