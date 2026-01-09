@@ -14,6 +14,7 @@ pub mod curve_2d;
 pub mod curve_3d;
 pub mod curve_3d_extensions;
 pub mod curve_3d_foundation;
+pub mod curve_3d_transform;
 pub mod operations;
 pub mod surface_3d;
 pub mod transform;
