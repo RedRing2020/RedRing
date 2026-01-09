@@ -149,7 +149,6 @@ pub use core::{
         Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
         Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
     },
-    triangle_traits::Triangle3D as Triangle3DTrait,
     vector_core_traits::{
         Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
         Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,

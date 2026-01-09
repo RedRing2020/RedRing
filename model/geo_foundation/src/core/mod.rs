@@ -47,4 +47,3 @@ pub mod transform_error; // extensionsから移動したTransformError(段階的
 // Legacy Traits (段階的移行中)
 // ============================================================================
 pub mod nurbs_traits;
-pub mod triangle_traits;
