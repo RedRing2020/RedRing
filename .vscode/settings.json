@@ -167,6 +167,11 @@
     "torus_solid_3d.rs": "torus_solid_3d_collision.rs,torus_solid_3d_extensions.rs,torus_solid_3d_foundation.rs,torus_solid_3d_intersection.rs,torus_solid_3d_tests.rs,torus_solid_3d_transform.rs,torus_solid_3d_transform_safe_tests.rs",
     "ellipsoidal_surface_3d.rs": "ellipsoidal_surface_3d_collision.rs,ellipsoidal_surface_3d_extensions.rs,ellipsoidal_surface_3d_foundation.rs,ellipsoidal_surface_3d_intersection.rs,ellipsoidal_surface_3d_tests.rs,ellipsoidal_surface_3d_transform.rs,ellipsoidal_surface_3d_transform_safe_tests.rs",
     "ellipsoidal_solid_3d.rs": "ellipsoidal_solid_3d_collision.rs,ellipsoidal_solid_3d_collision_tests.rs,ellipsoidal_solid_3d_extensions.rs,ellipsoidal_solid_3d_foundation.rs,ellipsoidal_solid_3d_intersection.rs,ellipsoidal_solid_3d_intersection_tests.rs,ellipsoidal_solid_3d_tests.rs,ellipsoidal_solid_3d_transform.rs",
+    // geo_nurbs ファイルネスティング
+    "curve_2d.rs": "curve_2d_foundation.rs,curve_2d_transform.rs",
+    "curve_3d.rs": "curve_3d_extensions.rs,curve_3d_foundation.rs,curve_3d_transform.rs",
+    "surface_3d.rs": "surface_3d_foundation.rs,surface_3d_transform.rs",
+    // その他
     "lib.rs": "foundation_tests.rs,*_tests.rs",
     "transform.rs": "transform_error.rs",
     "collision.rs": "collision_error.rs",

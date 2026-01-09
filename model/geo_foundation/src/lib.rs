@@ -111,7 +111,7 @@ pub use core::{
         NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
     },
     nurbs_curve_3d_core_traits::{
-        NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DMeasure, NurbsCurve3DProperties,
+        NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties,
     },
     nurbs_surface_3d_core_traits::{
         NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure,

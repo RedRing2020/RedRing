@@ -7,16 +7,21 @@
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::items_after_test_module)]
 
 // NURBS実装モジュール
 pub mod basis;
 pub mod curve_2d;
+pub mod curve_2d_foundation;
+pub mod curve_2d_transform;
 pub mod curve_3d;
 pub mod curve_3d_extensions;
 pub mod curve_3d_foundation;
+pub mod curve_3d_transform;
 pub mod operations;
 pub mod surface_3d;
-pub mod transform;
+pub mod surface_3d_foundation;
+pub mod surface_3d_transform;
 
 pub mod error;
 pub mod knot;

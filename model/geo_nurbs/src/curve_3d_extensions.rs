@@ -158,18 +158,20 @@ impl<T: Scalar> NurbsCurve3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use analysis::linalg::vector::Vector3;
 
     #[test]
     fn test_rough_bbox() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 2.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 2.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
-        let curve = NurbsCurve3D::new(control_points, None, knots, 2).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            2,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
 
         let bbox = curve.bounding_box_with_options(AabbOptions::Rough);
 
@@ -181,14 +183,17 @@ mod tests {
 
     #[test]
     fn test_precise_bbox() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 2.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 2.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
-        let curve = NurbsCurve3D::new(control_points, None, knots, 2).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            2,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
 
         let precise_bbox =
             curve.bounding_box_with_options(AabbOptions::Precise { tolerance: 0.01 });
@@ -201,14 +206,17 @@ mod tests {
 
     #[test]
     fn test_adaptive_bbox() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
-        let curve = NurbsCurve3D::new(control_points, None, knots, 2).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            2,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
 
         // 分割数を変えてテスト
         let bbox_100 = curve.bounding_box_with_options(AabbOptions::Adaptive {
@@ -227,15 +235,22 @@ mod tests {
 
     #[test]
     fn test_bbox_comparison() {
+        use geo_foundation::NurbsCurve3DConstructor;
         let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 2.0, 1.0),
-            Vector3::new(2.0, 0.0, 0.0),
-            Vector3::new(3.0, 0.0, 0.0),
+            (0.0, 0.0, 0.0),
+            (1.0, 2.0, 1.0),
+            (2.0, 0.0, 0.0),
+            (3.0, 0.0, 0.0),
         ];
 
         let knots = clamped_knot_vector(3, 4);
-        let curve = NurbsCurve3D::new(control_points, None, knots, 3).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            3,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
 
         let rough = curve.bounding_box_with_options(AabbOptions::Rough);
         let precise = curve.bounding_box_with_options(AabbOptions::Precise { tolerance: 0.01 });

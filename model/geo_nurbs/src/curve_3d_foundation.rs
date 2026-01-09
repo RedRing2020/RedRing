@@ -53,20 +53,22 @@ impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use analysis::linalg::vector::Vector3;
     use geo_foundation::{Bounded, ExtensionFoundation};
 
     #[test]
     fn test_nurbs_curve_3d_foundation() {
+        use geo_foundation::NurbsCurve3DConstructor;
         // 簡単なNURBS曲線を作成
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
-        let curve = NurbsCurve3D::new(control_points, None, knots, 2).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            2,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
 
         // PrimitiveKind の確認
         assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
@@ -88,5 +90,98 @@ mod tests {
         let length = curve.measure();
         assert!(length.is_some());
         assert!(length.unwrap() > 0.0);
+    }
+
+    #[test]
+    fn test_core_traits_constructor_new() {
+        use geo_foundation::NurbsCurve3DConstructor;
+
+        // トレイト経由で作成（型を明示）
+        let degree = 2;
+        let knots = vec![0.0_f64, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let control_points = vec![(0.0_f64, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)];
+        let weights = None;
+
+        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knots,
+            control_points,
+            weights,
+        );
+        assert!(result.is_ok());
+
+        let curve = result.unwrap();
+        assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
+    }
+
+    #[test]
+    fn test_core_traits_from_bezier() {
+        use geo_foundation::NurbsCurve3DConstructor;
+
+        let control_points = vec![(0.0_f64, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)];
+        let result =
+            <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(control_points);
+        assert!(result.is_ok());
+
+        let curve = result.unwrap();
+        assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
+    }
+
+    #[test]
+    fn test_core_traits_line_segment() {
+        use geo_foundation::NurbsCurve3DConstructor;
+
+        let start = (0.0_f64, 0.0, 0.0);
+        let end = (1.0, 1.0, 1.0);
+        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, end);
+        assert!(result.is_ok());
+
+        let curve = result.unwrap();
+        assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
+    }
+
+    #[test]
+    fn test_core_traits_properties() {
+        use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
+
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(vec![
+            (0.0, 0.0, 0.0),
+            (0.5, 1.0, 0.0),
+            (1.0, 0.0, 0.0),
+        ])
+        .unwrap();
+
+        // Propertiesトレイトメソッド確認
+        assert_eq!(curve.degree(), 2);
+        assert_eq!(curve.control_points_count(), 3);
+        assert!(!curve.is_rational());
+
+        let (t_min, t_max) = curve.parameter_domain();
+        assert!((t_min - 0.0).abs() < 1e-10);
+        assert!((t_max - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_core_traits_measure() {
+        use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DMeasure};
+
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
+            (0.0, 0.0, 0.0),
+            (3.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        // Measureトレイトメソッド確認
+        let tolerance = 1e-6;
+        let total_length = curve.arc_length_total(tolerance);
+        assert!((total_length - 3.0).abs() < 1e-3);
+
+        let half_length = curve.arc_length(0.0, 0.5, tolerance);
+        assert!((half_length - 1.5).abs() < 1e-3);
+
+        let point_opt = curve.evaluate(0.5);
+        assert!(point_opt.is_some());
+        let point = point_opt.unwrap();
+        assert!((point.0 - 1.5).abs() < 1e-10);
     }
 }

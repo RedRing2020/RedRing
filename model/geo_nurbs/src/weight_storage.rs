@@ -1,23 +1,6 @@
-//! NURBS共通定義（重み格納方式とエラー型）
+//! NURBS重み格納方式
 
 use analysis::Scalar;
-
-/// NURBS操作エラー
-#[derive(Debug, Clone, PartialEq)]
-pub enum NurbsOperationError {
-    /// 無効なパラメータ値
-    InvalidParameter,
-    /// 無効なインデックス
-    InvalidIndex,
-    /// 無効な次数
-    InvalidDegree,
-    /// 無効な重み値
-    InvalidWeight,
-    /// 無効な幾何形状
-    InvalidGeometry,
-    /// 操作がサポートされていない
-    UnsupportedOperation,
-}
 
 /// NURBS重み格納方式
 #[derive(Debug, Clone, PartialEq)]
