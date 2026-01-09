@@ -1,118 +1,208 @@
-//! NurbsCurve3D Core Traits - NURBS 3D曲線の3つのCore機能統合
+//! NURBS Curve Core Traits - NURBS曲線の3つのCore機能統合
 //!
 //! Foundation ハイブリッド実装方針に基づく
 //! Core機能（Constructor/Properties/Measure）を形状別に統合
 //! Transform機能は共通のAnalysisTransformトレイトを使用
 //!
 //! ## Phase 1 実装（最小限のメソッドのみ）
-//! - Constructor: 3メソッド（new, from_control_points, unit_line）
-//! - Properties: 5メソッド（degree, num_control_points, knot_vector, is_rational, dimension）
-//! - Measure: 4メソッド（point_at, tangent_at, length, curvature_at）
+//! - Constructor: 3メソッド（new, from_bezier, line_segment）
+//! - Properties: 6メソッド（degree, knot_vector, control_points_count, weights, is_rational, parameter_domain）
+//! - Measure: 4メソッド（arc_length, arc_length_total, parameter_at_length, evaluate）
 //!
-//! 作成日: 2025年11月29日
+//! ## 実装例
+//! ```ignore
+//! use geo_foundation::core::nurbs_curve_3d_core_traits::*;
+//! 
+//! // Constructor経由で作成
+//! let curve = NurbsCurve3D::line_segment((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)).unwrap();
+//! 
+//! // Properties経由で情報取得
+//! let deg = curve.degree();
+//! let is_rat = curve.is_rational();
+//! 
+//! // Measure経由で計量
+//! let point = curve.evaluate(0.5).unwrap();
+//! let length = curve.arc_length_total(1e-6);
+//! ```
+//!
+//! 作成日: 2026年1月9日
 
 use crate::Scalar;
 
 // ============================================================================
-// 1. Constructor Traits - NurbsCurve3D生成機能（Phase 1: 最小限）
+// 1. Constructor Traits - NURBS Curve生成機能（Phase 1: 最小限）
 // ============================================================================
 
 /// NurbsCurve3D生成のためのConstructorトレイト
+///
+/// NURBS曲線の基本的な生成方法を提供します。
+/// Phase 1では最小限の3つのコンストラクタのみ実装。
 pub trait NurbsCurve3DConstructor<T: Scalar> {
-    /// NURBS 3D曲線を作成
+    // ========================================================================
+    // Phase 1: 基本コンストラクタ（3メソッド）
+    // ========================================================================
+
+    /// 基本コンストラクタ（次数、ノット、制御点、重み）
     ///
-    /// # Arguments
-    /// * `control_points` - 制御点配列 [(x, y, z), ...]
+    /// # 引数
+    /// * `degree` - NURBS曲線の次数（1=線形、2=2次、3=3次）
+    /// * `knots` - ノットベクトル
+    /// * `control_points` - 制御点配列（x,y,z座標のタプル）
     /// * `weights` - 重み配列（Noneの場合は非有理曲線）
-    /// * `knot_vector` - ノットベクトル
-    /// * `degree` - NURBS次数
     ///
-    /// # Errors
+    /// # エラー
     /// * 制御点数が次数+1未満の場合
     /// * ノットベクトルが無効な場合
     /// * 重み配列のサイズが制御点数と一致しない場合
+    ///
+    /// # 戻り値
+    /// 成功時は新しいNURBS曲線、失敗時はエラーメッセージ
     fn new(
-        control_points: &[(T, T, T)],
-        weights: Option<Vec<T>>,
-        knot_vector: Vec<T>,
         degree: usize,
+        knots: Vec<T>,
+        control_points: Vec<(T, T, T)>,
+        weights: Option<Vec<T>>,
     ) -> Result<Self, String>
     where
         Self: Sized;
 
-    /// 制御点のみから非有理NURBS曲線を作成（簡易コンストラクタ）
+    /// Bezier曲線として作成（クランプド・ノットベクトル使用）
     ///
-    /// 自動的にクランプされた均一ノットベクトルを生成
-    fn from_control_points(control_points: &[(T, T, T)], degree: usize) -> Result<Self, String>
+    /// n個の制御点からn-1次のBezier曲線を作成します。
+    /// ノットベクトルは自動的にクランプド形式で生成されます。
+    ///
+    /// # 引数
+    /// * `control_points` - Bezier曲線の制御点（x,y,z座標のタプル）
+    ///
+    /// # エラー
+    /// * 制御点数が2未満の場合
+    ///
+    /// # 戻り値
+    /// 成功時は新しいBezier曲線、失敗時はエラーメッセージ
+    fn from_bezier(control_points: Vec<(T, T, T)>) -> Result<Self, String>
     where
         Self: Sized;
 
-    /// 単位線分（(0,0,0)から(1,0,0)への直線）
-    fn unit_line() -> Self
+    /// 線分として作成（1次NURBS、2制御点）
+    ///
+    /// 2つの点を結ぶ直線をNURBS曲線として表現します。
+    /// 次数1、ノットベクトル[0,0,1,1]で作成されます。
+    ///
+    /// # 引数
+    /// * `start` - 始点（x,y,z座標のタプル）
+    /// * `end` - 終点（x,y,z座標のタプル）
+    ///
+    /// # エラー
+    /// * 始点と終点が一致する場合
+    ///
+    /// # 戻り値
+    /// 成功時は新しい線分NURBS曲線、失敗時はエラーメッセージ
+    fn line_segment(start: (T, T, T), end: (T, T, T)) -> Result<Self, String>
     where
         Self: Sized;
 }
 
 // ============================================================================
-// 2. Properties Traits - NurbsCurve3D基本情報取得（Phase 1: 最小限）
+// 2. Properties Traits - NURBS Curve基本情報取得（Phase 1: 最小限）
 // ============================================================================
 
 /// NurbsCurve3D基本プロパティ取得トレイト
+///
+/// NURBS曲線の構造的な情報（次数、ノット、制御点数等）を取得します。
 pub trait NurbsCurve3DProperties<T: Scalar> {
-    /// NURBS次数を取得
+    // ========================================================================
+    // Phase 1: 基本プロパティ（6メソッド）
+    // ========================================================================
+
+    /// NURBS曲線の次数を取得
+    ///
+    /// # 戻り値
+    /// 曲線の次数（1=線形、2=2次、3=3次）
     fn degree(&self) -> usize;
 
-    /// 制御点数を取得
-    fn num_control_points(&self) -> usize;
-
     /// ノットベクトルへの参照を取得
+    ///
+    /// # 戻り値
+    /// ノットベクトルのスライス参照
     fn knot_vector(&self) -> &[T];
 
+    /// 制御点の数を取得
+    ///
+    /// # 戻り値
+    /// 制御点の総数
+    fn control_points_count(&self) -> usize;
+
+    /// 重み配列への参照を取得
+    ///
+    /// # 戻り値
+    /// 有理曲線の場合は`Some(&[T])`、非有理曲線の場合は`None`
+    fn weights(&self) -> Option<&[T]>;
+
     /// 有理曲線かどうかを判定
+    ///
+    /// # 戻り値
+    /// 重み配列が存在する場合は`true`、そうでない場合は`false`
     fn is_rational(&self) -> bool;
 
-    /// 曲線の次元数を取得（3D曲線の場合は3）
-    fn dimension(&self) -> usize {
-        3
-    }
+    /// パラメータ定義域を取得
+    ///
+    /// # 戻り値
+    /// (u_min, u_max) のタプル
+    fn parameter_domain(&self) -> (T, T);
 }
 
 // ============================================================================
-// 3. Measure Traits - NurbsCurve3D測定・評価機能（Phase 1: 最小限）
+// 3. Measure Traits - NURBS Curve計量・評価機能（Phase 1: 最小限）
 // ============================================================================
 
-/// NurbsCurve3D測定・評価機能トレイト
+/// NurbsCurve3D計量・評価トレイト
+///
+/// NURBS曲線上の点の評価、曲線長の計算など、計量関連の機能を提供します。
 pub trait NurbsCurve3DMeasure<T: Scalar> {
-    /// パラメータ t での曲線上の点を計算
+    // ========================================================================
+    // Phase 1: 基本計量（4メソッド）
+    // ========================================================================
+
+    /// 指定されたパラメータ範囲の曲線長を計算（数値積分）
     ///
-    /// # Arguments
-    /// * `t` - パラメータ値（通常 [0, 1] の範囲）
-    fn point_at(&self, t: T) -> (T, T, T);
-
-    /// パラメータ t での接線ベクトルを計算
+    /// # 引数
+    /// * `u_start` - 開始パラメータ
+    /// * `u_end` - 終了パラメータ
+    /// * `tolerance` - 許容誤差
     ///
-    /// # Arguments
-    /// * `t` - パラメータ値
-    fn tangent_at(&self, t: T) -> (T, T, T);
-
-    /// 曲線の長さを計算
+    /// # 戻り値
+    /// 曲線長の近似値
     ///
-    /// 数値積分により近似計算
-    fn length(&self) -> T;
+    /// # 注意
+    /// 数値積分による近似値です。高精度が必要な場合はtoleranceを小さくしてください。
+    fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T;
 
-    /// パラメータ t での曲率を計算
+    /// 曲線全体の長さを計算
     ///
-    /// # Arguments
-    /// * `t` - パラメータ値
-    fn curvature_at(&self, t: T) -> T;
-}
+    /// # 引数
+    /// * `tolerance` - 許容誤差
+    ///
+    /// # 戻り値
+    /// 曲線全体の長さの近似値
+    fn arc_length_total(&self, tolerance: T) -> T;
 
-// ============================================================================
-// 4. Core統合トレイト
-// ============================================================================
+    /// 指定された曲線長に対応するパラメータ値を計算
+    ///
+    /// # 引数
+    /// * `arc_length` - 曲線長
+    /// * `tolerance` - 許容誤差
+    ///
+    /// # 戻り値
+    /// パラメータ値が見つかった場合は`Some(u)`、そうでない場合は`None`
+    fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T>;
 
-/// NurbsCurve3DのCore機能を統合するトレイト
-pub trait NurbsCurve3DCore<T: Scalar>:
-    NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T> + NurbsCurve3DMeasure<T>
-{
+    /// 指定されたパラメータ値における曲線上の点を評価
+    ///
+    /// # 引数
+    /// * `u` - パラメータ値（parameter_domain()の範囲内である必要がある）
+    ///
+    /// # 戻り値
+    /// 曲線上の点の座標（x, y, z）のタプル
+    /// パラメータが範囲外の場合は`None`
+    fn evaluate(&self, u: T) -> Option<(T, T, T)>;
 }
