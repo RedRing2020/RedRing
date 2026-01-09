@@ -4,3 +4,4 @@ pub mod app_state;
 pub mod graphic;
 pub mod mouse_input;
 pub mod stl_loader;
+pub mod svg_loader;

@@ -60,6 +60,7 @@
 pub mod error;
 pub mod stl;
 pub mod stl_bulk;
+pub mod svg;
 
 // Re-exports
 pub use error::{IoError, StlError};

@@ -121,188 +121,146 @@ impl AppState {
         Ok(())
     }
 
-    /// デバッグ用：LineSegment3Dを表示
+    /// デバッグ用：LineSegment3Dを表示（SVGから読み込み）
     pub fn load_debug_line(&mut self) {
-        use render::vertex_3d::MeshVertex;
-        use viewmodel::debug_shapes::create_debug_line_segment;
+        use std::path::Path;
 
-        tracing::info!("デバッグ形状: LineSegment3D表示");
+        tracing::info!("デバッグ形状: LineSegment3D表示（SVGから）");
 
-        // ViewModel層で頂点データを生成
-        let vertex_data = create_debug_line_segment();
+        let svg_path = Path::new("tests/fixtures/shapes/line.svg");
+        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+            Ok(vertices) => {
+                tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
-        tracing::info!("線分: (-2,0,0) to (2,0,0), 頂点数={}", vertex_data.len());
+                self.camera.reset_to_standard_cad_view();
 
-        // MeshVertexに変換
-        let vertices: Vec<MeshVertex> = vertex_data
-            .iter()
-            .map(MeshVertex::from_vertex_data)
-            .collect();
+                let mut mesh_stage = Box::new(MeshStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
+                mesh_stage.set_line_data(&self.graphic.device, vertices);
 
-        // カメラを適切な位置に設定
-        self.camera.reset_to_standard_cad_view();
-
-        // MeshStageを作成して線分データを設定
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_line_data(&self.graphic.device, vertices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+                self.renderer.set_stage(mesh_stage);
+                self.update_camera_uniforms();
+            }
+            Err(e) => {
+                tracing::error!("SVG読み込みエラー: {}", e);
+            }
+        }
     }
 
-    /// デバッグ用：Circle3Dを表示
+    /// デバッグ用：Circle3Dを表示（SVGから読み込み）
     pub fn load_debug_circle(&mut self) {
-        use render::vertex_3d::MeshVertex;
-        use viewmodel::debug_shapes::create_debug_circle;
+        use std::path::Path;
 
-        tracing::info!("デバッグ形状: Circle3D表示（LineList形式）");
+        tracing::info!("デバッグ形状: Circle3D表示（SVGから）");
 
-        // ViewModel層で頂点データを生成
-        let line_list_vertices = create_debug_circle();
+        let svg_path = Path::new("tests/fixtures/shapes/circle.svg");
+        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+            Ok(vertices) => {
+                tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
-        tracing::info!("円: radius=5.0, 頂点数={}", line_list_vertices.len());
+                self.camera.reset_to_standard_cad_view();
 
-        // MeshVertexに変換
-        let vertices: Vec<MeshVertex> = line_list_vertices
-            .iter()
-            .map(MeshVertex::from_vertex_data)
-            .collect();
+                let mut mesh_stage = Box::new(MeshStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
+                mesh_stage.set_line_data(&self.graphic.device, vertices);
 
-        // カメラを適切な位置に設定
-        self.camera.reset_to_standard_cad_view();
-
-        // MeshStageを作成して線分データを設定
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_line_data(&self.graphic.device, vertices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
-
-        // デバッグ: カメラ情報を出力
-        let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
-        tracing::info!(
-            "カメラposition: ({:.2}, {:.2}, {:.2}) ← これは使われていない",
-            self.camera.position.x(),
-            self.camera.position.y(),
-            self.camera.position.z()
-        );
-        tracing::info!(
-            "ターゲット: ({:.2}, {:.2}, {:.2}), 距離: {:.2}",
-            self.camera.target.x(),
-            self.camera.target.y(),
-            self.camera.target.z(),
-            self.camera.distance
-        );
-        tracing::info!("回転: {:?}", self.camera.rotation);
-        tracing::info!(
-            "投影モード: {:?}, near={:.3}, far={:.1}",
-            self.camera.projection_mode,
-            (self.camera.distance * 0.01).max(0.001),
-            (self.camera.distance * 100.0).min(1000.0)
-        );
-        tracing::info!(
-            "ビューポート: {}x{} (aspect={:.2})",
-            self.graphic.config.width,
-            self.graphic.config.height,
-            aspect
-        );
+                self.renderer.set_stage(mesh_stage);
+                self.update_camera_uniforms();
+            }
+            Err(e) => {
+                tracing::error!("SVG読み込みエラー: {}", e);
+            }
+        }
     }
 
-    /// デバッグ用：クリップ空間座標の単純な正方形（単位行列テスト）
+    /// デバッグ用：クリップ空間座標の単純な正方形（SVGから読み込み）
     pub fn load_debug_clip_square(&mut self) {
-        use render::vertex_3d::MeshVertex;
-        use viewmodel::debug_shapes::create_debug_clip_square;
+        use std::path::Path;
 
-        tracing::warn!("DEBUG: クリップ空間座標の正方形を表示（単位行列テスト）");
+        tracing::warn!("DEBUG: クリップ空間正方形を表示（SVGから）");
 
-        // ViewModel層で頂点データを生成
-        let vertex_data = create_debug_clip_square();
-        let vertices: Vec<MeshVertex> = vertex_data
-            .iter()
-            .map(MeshVertex::from_vertex_data)
-            .collect();
+        let svg_path = Path::new("tests/fixtures/shapes/clip_square.svg");
+        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+            Ok(vertices) => {
+                tracing::warn!("SVG読み込み成功: {} 頂点", vertices.len());
 
-        tracing::warn!("頂点数: {}", vertices.len());
+                let mut mesh_stage = Box::new(stage::mesh_stage::MeshStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
 
-        let mut mesh_stage = Box::new(stage::mesh_stage::MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
+                mesh_stage.set_line_data(&self.graphic.device, vertices);
+                self.renderer.set_stage(mesh_stage);
 
-        mesh_stage.set_line_data(&self.graphic.device, vertices);
-        self.renderer.set_stage(mesh_stage);
-
-        // カメラのユニフォームを更新（単位行列が使われる）
-        self.update_camera_uniforms();
+                self.update_camera_uniforms();
+            }
+            Err(e) => {
+                tracing::error!("SVG読み込みエラー: {}", e);
+            }
+        }
     }
 
-    /// デバッグ用：Triangle3Dを表示（ソリッド）
+    /// デバッグ用：Triangle3Dを表示（SVGから読み込み）
     pub fn load_debug_triangle(&mut self) {
-        use render::vertex_3d::MeshVertex;
-        use viewmodel::debug_shapes::create_debug_triangle;
+        use std::path::Path;
 
-        tracing::info!("デバッグ形状: Triangle3D表示（ソリッド）");
+        tracing::info!("デバッグ形状: Triangle3D表示（SVGから）");
 
-        // ViewModel層で頂点データを生成
-        let vertex_data = create_debug_triangle();
+        let svg_path = Path::new("tests/fixtures/shapes/triangle.svg");
+        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+            Ok(vertices) => {
+                tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
-        // MeshVertexに変換
-        let vertices: Vec<MeshVertex> = vertex_data
-            .iter()
-            .map(MeshVertex::from_vertex_data)
-            .collect();
+                // インデックスを生成（TriangleList用）
+                let indices: Vec<u32> = vec![0, 1, 2];
 
-        // インデックスを生成（TriangleList用）
-        let indices: Vec<u32> = vec![0, 1, 2];
+                self.camera.reset_to_standard_cad_view();
 
-        // カメラを適切な位置に設定
-        self.camera.reset_to_standard_cad_view();
+                let mut mesh_stage = Box::new(MeshStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
+                mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
 
-        // MeshStageを作成してメッシュデータを設定
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+                self.renderer.set_stage(mesh_stage);
+                self.update_camera_uniforms();
+            }
+            Err(e) => {
+                tracing::error!("SVG読み込みエラー: {}", e);
+            }
+        }
     }
 
-    /// デバッグ用：Arc3Dを表示
+    /// デバッグ用：Arc3Dを表示（SVGから読み込み）
     pub fn load_debug_arc(&mut self) {
-        use render::vertex_3d::MeshVertex;
-        use viewmodel::debug_shapes::create_debug_arc;
+        use std::path::Path;
 
-        tracing::info!("デバッグ形状: Arc3D表示（LineList形式）");
+        tracing::info!("デバッグ形状: Arc3D表示（SVGから）");
 
-        // ViewModel層で頂点データを生成
-        let vertex_data = create_debug_arc();
+        let svg_path = Path::new("tests/fixtures/shapes/arc.svg");
+        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+            Ok(vertices) => {
+                tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
-        // MeshVertexに変換
-        let vertices: Vec<MeshVertex> = vertex_data
-            .iter()
-            .map(MeshVertex::from_vertex_data)
-            .collect();
+                self.camera.reset_to_standard_cad_view();
 
-        // カメラを適切な位置に設定
-        self.camera.reset_to_standard_cad_view();
+                let mut mesh_stage = Box::new(MeshStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
+                mesh_stage.set_line_data(&self.graphic.device, vertices);
 
-        // MeshStageを作成して線分データを設定
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_line_data(&self.graphic.device, vertices);
-
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+                self.renderer.set_stage(mesh_stage);
+                self.update_camera_uniforms();
+            }
+            Err(e) => {
+                tracing::error!("SVG読み込みエラー: {}", e);
+            }
+        }
     }
 
     /// カメラをリセット
