@@ -226,6 +226,31 @@ pub trait Arc3DMeasure<T: Scalar> {
 }
 
 // ============================================================================
+// 4. Extension Traits - Arc拡張機能
+// ============================================================================
+
+/// Arc2D点列生成拡張
+pub trait Arc2DSampling<T: Scalar> {
+    /// 円弧を指定数に分割した点列を生成
+    fn sample_points(&self, num_points: usize) -> Vec<(T, T)>;
+
+    /// 指定された弧長間隔で点列を生成
+    fn sample_by_arc_length(&self, arc_length_step: T) -> Vec<(T, T)>;
+}
+
+/// Arc2D包含・角度判定拡張
+pub trait Arc2DContainment<T: Scalar> {
+    /// 点が円弧上にあるかを判定
+    fn contains_point(&self, point: (T, T)) -> bool;
+
+    /// 角度が円弧の角度範囲内にあるかを判定
+    fn contains_angle(&self, angle: T) -> bool;
+
+    /// 指定角度での円弧上の点を取得
+    fn point_at_angle(&self, angle: T) -> (T, T);
+}
+
+// ============================================================================
 // 統合Traitバンドル（利便性向上）
 // ============================================================================
 

@@ -4,7 +4,7 @@
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::Arc2D;
-use geo_foundation::{abstracts::arc_traits::ArcMetrics, Angle, Scalar};
+use geo_foundation::{core::arc_core_traits::Arc2DMeasure, Angle, Scalar};
 
 // ============================================================================
 // ArcMetrics Trait Implementation

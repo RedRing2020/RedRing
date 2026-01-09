@@ -208,55 +208,8 @@ impl<T: Scalar> Arc2D<T> {
 }
 
 // ============================================================================
-// geo_foundation abstracts trait implementations
+// Core Traits実装（arc_core_traits準拠）
 // ============================================================================
-
-/// geo_foundation::core::Arc2D<T> トレイト実装
-impl<T: Scalar> geo_foundation::core::arc_traits::Arc2D<T> for Arc2D<T> {
-    type Circle = Circle2D<T>;
-    type Point = Point2D<T>;
-    type Angle = analysis::Angle<T>;
-
-    fn circle(&self) -> &Self::Circle {
-        &self.circle
-    }
-
-    fn start_angle(&self) -> Self::Angle {
-        self.start_angle
-    }
-
-    fn end_angle(&self) -> Self::Angle {
-        self.end_angle
-    }
-
-    fn is_full_circle(&self) -> bool {
-        self.is_full_circle()
-    }
-
-    fn start_point(&self) -> Self::Point {
-        self.start_point()
-    }
-
-    fn end_point(&self) -> Self::Point {
-        self.end_point()
-    }
-}
-
-/// ArcMetrics トレイト実装
-impl<T: Scalar> geo_foundation::core::arc_traits::ArcMetrics<T> for Arc2D<T> {
-    fn arc_length(&self) -> T {
-        self.arc_length()
-    }
-
-    fn sector_area(&self) -> T {
-        let half_radius_squared = self.radius() * self.radius() / (T::ONE + T::ONE);
-        half_radius_squared * self.angular_span()
-    }
-
-    fn central_angle(&self) -> Self::Angle {
-        analysis::Angle::from_radians(self.angular_span())
-    }
-}
 
 // ============================================================================
 // Core Traits Implementation (Phase 1)
