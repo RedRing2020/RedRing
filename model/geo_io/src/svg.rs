@@ -243,7 +243,9 @@ fn parse_path_arc(_node: &roxmltree::Node) -> Result<Option<ArcData>, SvgError> 
 /// points属性をパースして座標リストに変換
 fn parse_points_attribute(points_str: &str) -> Result<Vec<(f64, f64)>, SvgError> {
     let mut points = Vec::new();
-    let tokens: Vec<&str> = points_str.split(|c: char| c.is_whitespace() || c == ',').collect();
+    let tokens: Vec<&str> = points_str
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .collect();
 
     let mut i = 0;
     while i + 1 < tokens.len() {

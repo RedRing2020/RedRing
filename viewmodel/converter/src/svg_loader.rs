@@ -54,8 +54,9 @@ fn convert_svg_to_vertices(svg_data: &SvgShapeData) -> Result<Vec<VertexData>, S
         ))
         .ok_or_else(|| SvgLoaderError::InvalidData("Invalid circle normal vector".to_string()))?;
 
-        let circle = Circle3D::new(center, normal, circle_data.radius)
-            .ok_or_else(|| SvgLoaderError::ConstructionError("Failed to create Circle3D".to_string()))?;
+        let circle = Circle3D::new(center, normal, circle_data.radius).ok_or_else(|| {
+            SvgLoaderError::ConstructionError("Failed to create Circle3D".to_string())
+        })?;
 
         vertices.extend(circle_to_wireframe_line_segments(&circle, &quality));
     }
@@ -65,8 +66,9 @@ fn convert_svg_to_vertices(svg_data: &SvgShapeData) -> Result<Vec<VertexData>, S
         let start = Point3D::<f64>::new(line_data.start.0, line_data.start.1, line_data.start.2);
         let end = Point3D::<f64>::new(line_data.end.0, line_data.end.1, line_data.end.2);
 
-        let line = LineSegment3D::new(start, end)
-            .ok_or_else(|| SvgLoaderError::ConstructionError("Failed to create LineSegment3D".to_string()))?;
+        let line = LineSegment3D::new(start, end).ok_or_else(|| {
+            SvgLoaderError::ConstructionError("Failed to create LineSegment3D".to_string())
+        })?;
 
         vertices.extend(line_segment_to_vertices(&line));
     }
@@ -77,8 +79,9 @@ fn convert_svg_to_vertices(svg_data: &SvgShapeData) -> Result<Vec<VertexData>, S
         let p1 = Point3D::<f64>::new(tri_data.p1.0, tri_data.p1.1, tri_data.p1.2);
         let p2 = Point3D::<f64>::new(tri_data.p2.0, tri_data.p2.1, tri_data.p2.2);
 
-        let triangle = Triangle3D::new(p0, p1, p2)
-            .ok_or_else(|| SvgLoaderError::ConstructionError("Failed to create Triangle3D".to_string()))?;
+        let triangle = Triangle3D::new(p0, p1, p2).ok_or_else(|| {
+            SvgLoaderError::ConstructionError("Failed to create Triangle3D".to_string())
+        })?;
 
         vertices.extend(triangle_to_solid_vertices(&triangle));
     }
@@ -98,9 +101,7 @@ fn convert_svg_to_vertices(svg_data: &SvgShapeData) -> Result<Vec<VertexData>, S
             arc_data.start_direction.1,
             arc_data.start_direction.2,
         ))
-        .ok_or_else(|| {
-            SvgLoaderError::InvalidData("Invalid arc start direction".to_string())
-        })?;
+        .ok_or_else(|| SvgLoaderError::InvalidData("Invalid arc start direction".to_string()))?;
 
         let start_angle = geo_foundation::Angle::from_radians(arc_data.start_angle);
         let end_angle = geo_foundation::Angle::from_radians(arc_data.end_angle);
@@ -178,6 +179,9 @@ mod tests {
         temp_file.write_all(svg_content.as_bytes()).unwrap();
 
         let vertices = load_svg_shapes(temp_file.path()).unwrap();
-        assert!(!vertices.is_empty(), "Should have vertices for multiple shapes");
+        assert!(
+            !vertices.is_empty(),
+            "Should have vertices for multiple shapes"
+        );
     }
 }
