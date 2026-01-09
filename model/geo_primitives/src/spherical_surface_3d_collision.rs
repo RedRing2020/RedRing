@@ -48,13 +48,7 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
-        geo_core::sphere_metrics::sphere_to_line_segment_distance(
-            &self.center_internal(),
-            self.radius_internal(),
-            &segment.start(),
-            &segment.end(),
-            false,
-        )
+        self.distance_to_line_segment(&segment.start(), &segment.end())
     }
 }
 
@@ -74,13 +68,7 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        geo_core::sphere_metrics::sphere_to_ray_distance(
-            &self.center_internal(),
-            self.radius_internal(),
-            &ray.origin_internal(),
-            &ray.direction_internal().as_vector(),
-            false,
-        )
+        self.distance_to_ray(&ray.origin_internal(), &ray.direction_internal().as_vector())
     }
 }
 
@@ -100,13 +88,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSurface3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        geo_core::sphere_metrics::sphere_to_infinite_line_distance(
-            &self.center_internal(),
-            self.radius_internal(),
-            &line.point_internal(),
-            &line.direction_internal().as_vector(),
-            false,
-        )
+        self.distance_to_infinite_line(&line.point_internal(), &line.direction_internal().as_vector())
     }
 }
 

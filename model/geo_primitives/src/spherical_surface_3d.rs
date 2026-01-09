@@ -248,6 +248,84 @@ impl<T: Scalar> SphericalSurface3D<T> {
     }
 
     // ========================================================================
+    // 距離計算メソッド（sphere_metricsから移動）
+    // ========================================================================
+
+    /// 球面から無限直線までの最短距離を計算
+    ///
+    /// # Arguments
+    /// * `line_point` - 直線上の任意の点
+    /// * `line_direction` - 直線の方向ベクトル（正規化不要）
+    ///
+    /// # Returns
+    /// 球面から無限直線までの最短距離
+    pub fn distance_to_infinite_line(
+        &self,
+        line_point: &Point3D<T>,
+        line_direction: &Vector3D<T>,
+    ) -> T {
+        let to_center = self.center - *line_point;
+        let dir_dot = line_direction.dot(line_direction);
+        let t = to_center.dot(line_direction) / dir_dot;
+        let closest = *line_point + *line_direction * t;
+        let distance_from_center = (self.center - closest).length();
+        (distance_from_center - self.radius).abs()
+    }
+
+    /// 球面から光線（Ray）までの最短距離を計算
+    ///
+    /// # Arguments
+    /// * `ray_origin` - 光線の始点
+    /// * `ray_direction` - 光線の方向ベクトル（正規化不要）
+    ///
+    /// # Returns
+    /// 球面から光線までの最短距離
+    pub fn distance_to_ray(&self, ray_origin: &Point3D<T>, ray_direction: &Vector3D<T>) -> T {
+        let to_center = self.center - *ray_origin;
+        let dir_dot = ray_direction.dot(ray_direction);
+        let t = to_center.dot(ray_direction) / dir_dot;
+
+        if t < T::ZERO {
+            let dist_to_origin = to_center.length();
+            (dist_to_origin - self.radius).abs()
+        } else {
+            let closest = *ray_origin + *ray_direction * t;
+            let distance_from_center = (self.center - closest).length();
+            (distance_from_center - self.radius).abs()
+        }
+    }
+
+    /// 球面から線分までの最短距離を計算
+    ///
+    /// # Arguments
+    /// * `segment_start` - 線分の始点
+    /// * `segment_end` - 線分の終点
+    ///
+    /// # Returns
+    /// 球面から線分までの最短距離
+    pub fn distance_to_line_segment(
+        &self,
+        segment_start: &Point3D<T>,
+        segment_end: &Point3D<T>,
+    ) -> T {
+        let direction = *segment_end - *segment_start;
+        let to_center = self.center - *segment_start;
+        let dir_dot = direction.dot(&direction);
+        let t = to_center.dot(&direction) / dir_dot;
+
+        let nearest = if t < T::ZERO {
+            *segment_start
+        } else if t > T::ONE {
+            *segment_end
+        } else {
+            *segment_start + direction * t
+        };
+
+        let distance_from_center = (self.center - nearest).length();
+        (distance_from_center - self.radius).abs()
+    }
+
+    // ========================================================================
     // Core Geometric Properties (サーフェス特性)
     // ========================================================================
 
