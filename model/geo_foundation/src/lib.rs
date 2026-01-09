@@ -59,7 +59,6 @@ pub use core::{
         Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties,
         Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
     },
-    circle_traits::Circle2D as Circle2DTrait,
     // Surface/Solid Core Traits
     conical_solid_core_traits::{
         ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure,
