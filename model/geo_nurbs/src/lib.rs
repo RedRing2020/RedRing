@@ -19,6 +19,7 @@ pub mod curve_3d_transform;
 pub mod operations;
 pub mod surface_3d;
 pub mod surface_3d_foundation;
+pub mod surface_3d_transform;
 pub mod transform;
 
 pub mod error;
