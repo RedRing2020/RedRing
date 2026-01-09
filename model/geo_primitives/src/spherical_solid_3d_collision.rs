@@ -75,13 +75,7 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &LineSegment3D<T>) -> T {
-        geo_core::sphere_metrics::sphere_to_line_segment_distance(
-            &self.center_internal(),
-            self.radius_internal(),
-            &line.start(),
-            &line.end(),
-            true,
-        )
+        self.distance_to_line_segment(&line.start(), &line.end())
     }
 }
 
@@ -98,12 +92,9 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
-        geo_core::sphere_metrics::sphere_to_ray_distance(
-            &self.center_internal(),
-            self.radius_internal(),
+        self.distance_to_ray(
             &ray.origin_internal(),
             &ray.direction_internal().as_vector(),
-            true,
         )
     }
 }
@@ -121,12 +112,9 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for SphericalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        geo_core::sphere_metrics::sphere_to_infinite_line_distance(
-            &self.center_internal(),
-            self.radius_internal(),
+        self.distance_to_infinite_line(
             &line.point_internal(),
             &line.direction_internal().as_vector(),
-            true,
         )
     }
 }

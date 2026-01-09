@@ -248,6 +248,103 @@ impl<T: Scalar> SphericalSolid3D<T> {
     }
 
     // ========================================================================
+    // 距離計算メソッド（sphere_metricsから移動）
+    // ========================================================================
+
+    /// 球ソリッドから無限直線までの最短距離を計算
+    ///
+    /// # Arguments
+    /// * `line_point` - 直線上の任意の点
+    /// * `line_direction` - 直線の方向ベクトル（正規化不要）
+    ///
+    /// # Returns
+    /// 球ソリッドから無限直線までの最短距離（内部なら0）
+    pub fn distance_to_infinite_line(
+        &self,
+        line_point: &Point3D<T>,
+        line_direction: &Vector3D<T>,
+    ) -> T {
+        let to_center = self.center - *line_point;
+        let dir_dot = line_direction.dot(line_direction);
+        let t = to_center.dot(line_direction) / dir_dot;
+        let closest = *line_point + *line_direction * t;
+        let distance_from_center = (self.center - closest).length();
+
+        if distance_from_center <= self.radius {
+            T::ZERO
+        } else {
+            distance_from_center - self.radius
+        }
+    }
+
+    /// 球ソリッドから光線（Ray）までの最短距離を計算
+    ///
+    /// # Arguments
+    /// * `ray_origin` - 光線の始点
+    /// * `ray_direction` - 光線の方向ベクトル（正規化不要）
+    ///
+    /// # Returns
+    /// 球ソリッドから光線までの最短距離（内部なら0）
+    pub fn distance_to_ray(&self, ray_origin: &Point3D<T>, ray_direction: &Vector3D<T>) -> T {
+        let to_center = self.center - *ray_origin;
+        let dir_dot = ray_direction.dot(ray_direction);
+        let t = to_center.dot(ray_direction) / dir_dot;
+
+        if t < T::ZERO {
+            // 光線の始点が最近点
+            let dist_to_origin = to_center.length();
+            if dist_to_origin <= self.radius {
+                T::ZERO
+            } else {
+                dist_to_origin - self.radius
+            }
+        } else {
+            // t ≥ 0: 無限直線と同じ処理
+            let closest = *ray_origin + *ray_direction * t;
+            let distance_from_center = (self.center - closest).length();
+            if distance_from_center <= self.radius {
+                T::ZERO
+            } else {
+                distance_from_center - self.radius
+            }
+        }
+    }
+
+    /// 球ソリッドから線分までの最短距離を計算
+    ///
+    /// # Arguments
+    /// * `segment_start` - 線分の始点
+    /// * `segment_end` - 線分の終点
+    ///
+    /// # Returns
+    /// 球ソリッドから線分までの最短距離（内部なら0）
+    pub fn distance_to_line_segment(
+        &self,
+        segment_start: &Point3D<T>,
+        segment_end: &Point3D<T>,
+    ) -> T {
+        let direction = *segment_end - *segment_start;
+        let to_center = self.center - *segment_start;
+        let dir_dot = direction.dot(&direction);
+        let t = to_center.dot(&direction) / dir_dot;
+
+        let nearest = if t < T::ZERO {
+            *segment_start
+        } else if t > T::ONE {
+            *segment_end
+        } else {
+            *segment_start + direction * t
+        };
+
+        let distance_from_center = (self.center - nearest).length();
+        if distance_from_center <= self.radius {
+            T::ZERO
+        } else {
+            distance_from_center - self.radius
+        }
+    }
+
+    // ========================================================================
     // Surface Operations
     // ========================================================================
 

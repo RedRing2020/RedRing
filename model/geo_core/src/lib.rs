@@ -21,7 +21,6 @@ pub mod point_2d;
 pub mod point_2d_transform;
 pub mod point_3d;
 pub mod point_3d_transform;
-pub mod sphere_metrics; // 球距離計算関数
 pub mod vector_2d;
 pub mod vector_2d_transform;
 pub mod vector_3d;
