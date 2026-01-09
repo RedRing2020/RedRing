@@ -10,3 +10,6 @@ geo_primitives = { path = "../../model/geo_primitives" }
 geo_io = { path = "../../model/geo_io" }
 tracing = "0.1"
 thiserror = "2.0"
+
+[dev-dependencies]
+tempfile = "3.0"
