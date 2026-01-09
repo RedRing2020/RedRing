@@ -116,11 +116,6 @@ pub use core::{
         NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure,
         NurbsSurface3DProperties,
     },
-    nurbs_traits::{
-        BasisFunction, BiParametricGeometry, KnotVector as KnotVectorTrait, NurbsCurve,
-        NurbsCurveOperations, NurbsSurface, NurbsSurfaceOperations, ParametricGeometry,
-        WeightedGeometry,
-    },
     plane_core_traits::{Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties},
     point_core_traits::{
         Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties, Point3DConstructor,
