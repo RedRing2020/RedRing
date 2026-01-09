@@ -59,14 +59,16 @@ mod tests {
     fn test_nurbs_curve_3d_foundation() {
         use geo_foundation::NurbsCurve3DConstructor;
         // 簡単なNURBS曲線を作成
-        let control_points = vec![
-            (0.0, 0.0, 0.0),
-            (1.0, 1.0, 0.0),
-            (2.0, 0.0, 0.0),
-        ];
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(2, knots, control_points, None).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            2,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
 
         // PrimitiveKind の確認
         assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
@@ -100,8 +102,12 @@ mod tests {
         let control_points = vec![(0.0_f64, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)];
         let weights = None;
 
-        let result =
-            <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(degree, knots, control_points, weights);
+        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knots,
+            control_points,
+            weights,
+        );
         assert!(result.is_ok());
 
         let curve = result.unwrap();
@@ -113,7 +119,8 @@ mod tests {
         use geo_foundation::NurbsCurve3DConstructor;
 
         let control_points = vec![(0.0_f64, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)];
-        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(control_points);
+        let result =
+            <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(control_points);
         assert!(result.is_ok());
 
         let curve = result.unwrap();

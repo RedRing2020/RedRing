@@ -1,6 +1,6 @@
-//! NurbsSurface3D Transform Implementation
+//! `NurbsSurface3D` Transform Implementation
 //!
-//! AnalysisTransform3D trait implementation for NURBS surfaces.
+//! `AnalysisTransform3D` trait implementation for NURBS surfaces.
 //! Applies transformations to all control points using Analysis Matrix operations.
 
 use crate::surface_3d::NurbsSurface3D;
@@ -9,7 +9,7 @@ use analysis::linalg::{
     vector::{Vector3, Vector4},
 };
 use geo_foundation::{
-    Angle, AnalysisTransform3D, NurbsSurface3DProperties, Scalar, TransformError,
+    AnalysisTransform3D, Angle, NurbsSurface3DProperties, Scalar, TransformError,
 };
 
 /// Matrix4x4による制御点変換の内部実装
@@ -68,13 +68,13 @@ fn transform_control_points<T: Scalar>(
     NurbsSurface3D::new_internal(
         transformed_points,
         weights,
-        surface.u_knots().to_vec(),
-        surface.v_knots().to_vec(),
+        surface.u_knots().clone(),
+        surface.v_knots().clone(),
         surface.u_degree(),
         surface.v_degree(),
     )
     .map_err(|e| {
-        TransformError::InvalidGeometry(format!("Failed to create transformed surface: {}", e))
+        TransformError::InvalidGeometry(format!("Failed to create transformed surface: {e}"))
     })
 }
 
@@ -129,10 +129,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     }
 
     /// 平行移動変換（Analysis Vector3使用）
-    fn translate_analysis(
-        &self,
-        translation: &Vector3<T>,
-    ) -> Result<Self::Output, TransformError> {
+    fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         let matrix = translation_matrix_3d(translation.x(), translation.y(), translation.z());
         transform_control_points(self, &matrix)
     }
@@ -270,15 +267,13 @@ mod tests {
 
     #[test]
     fn test_translate_analysis() {
-        let surface =
-            <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         let translation = Vector3::new(1.0, 2.0, 3.0);
-        let result =
-            <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::translate_analysis(
-                &surface,
-                &translation,
-            );
+        let result = <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::translate_analysis(
+            &surface,
+            &translation,
+        );
 
         assert!(result.is_ok());
         let translated = result.unwrap();
@@ -292,8 +287,7 @@ mod tests {
 
     #[test]
     fn test_rotate_analysis_z_axis() {
-        let surface =
-            <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         let axis = Vector3::new(0.0, 0.0, 1.0);
         let angle = Angle::from_degrees(90.0);
@@ -309,7 +303,7 @@ mod tests {
         // 少なくとも制御点が変化していることを確認
         let original_p10 = surface.control_point(1, 0);
         let rotated_p10 = rotated.control_point(1, 0);
-        
+
         // 何らかの変化があることを確認
         let changed = (original_p10.x() - rotated_p10.x()).abs() > 1e-10
             || (original_p10.y() - rotated_p10.y()).abs() > 1e-10;
@@ -318,8 +312,7 @@ mod tests {
 
     #[test]
     fn test_uniform_scale_analysis() {
-        let surface =
-            <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         let scale_factor = 2.0;
         let result = <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::uniform_scale_analysis(
@@ -344,16 +337,14 @@ mod tests {
 
     #[test]
     fn test_transform_point_matrix() {
-        let surface =
-            <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         let translation = Vector3::new(5.0, 10.0, 15.0);
         let matrix = Matrix4x4::translation_3d(&translation);
 
-        let transformed =
-            <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::transform_point_matrix(
-                &surface, &matrix,
-            );
+        let transformed = <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::transform_point_matrix(
+            &surface, &matrix,
+        );
 
         // 原点の制御点が変換されているか確認
         let p00 = transformed.control_point(0, 0);
@@ -364,8 +355,7 @@ mod tests {
 
     #[test]
     fn test_apply_composite_transform() {
-        let surface =
-            <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         let translation = Vector3::new(1.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 0.0, 1.0);

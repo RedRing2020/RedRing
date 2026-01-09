@@ -285,16 +285,17 @@ mod tests {
     #[test]
     fn test_nurbs_curve_3d_creation() {
         use geo_foundation::NurbsCurve3DConstructor;
-        let control_points = vec![
-            (0.0, 0.0, 0.0),
-            (1.0, 1.0, 0.0),
-            (2.0, 0.0, 1.0),
-        ];
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 1.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(degree, knot_vector, control_points, weights);
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        );
         assert!(curve.is_ok());
 
         let curve = curve.unwrap();
@@ -305,16 +306,18 @@ mod tests {
     #[test]
     fn test_curve_3d_evaluation() {
         use geo_foundation::NurbsCurve3DConstructor;
-        let control_points = vec![
-            (0.0, 0.0, 0.0),
-            (1.0, 1.0, 1.0),
-            (2.0, 0.0, 0.0),
-        ];
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(degree, knot_vector, control_points, weights).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        )
+        .unwrap();
 
         // 開始点と終了点のテスト
         let start_point = curve.evaluate_at(0.0);
@@ -334,16 +337,18 @@ mod tests {
     #[test]
     fn test_tangent_calculation() {
         use geo_foundation::NurbsCurve3DConstructor;
-        let control_points = vec![
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
-        ];
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(degree, knot_vector, control_points, weights).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        )
+        .unwrap();
         let tangent = curve.tangent_at(0.5);
 
         // 直線に近い曲線なのでX軸方向の接線
@@ -355,16 +360,18 @@ mod tests {
     #[test]
     fn test_approximate_length_3d() {
         use geo_foundation::NurbsCurve3DConstructor;
-        let control_points = vec![
-            (0.0, 0.0, 0.0),
-            (1.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
-        ];
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(degree, knot_vector, control_points, weights).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        )
+        .unwrap();
         let length = curve.approximate_length(100);
 
         // 直線に近い曲線なので長さは約2.0
@@ -453,7 +460,7 @@ impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
 
         // クランプド・ノットベクトルを生成
         let knots_vec = crate::knot::clamped_knot_vector(degree, control_points.len());
-        let knots: Vec<T> = knots_vec.into();
+        let knots: Vec<T> = knots_vec;
 
         // トレイトのnewメソッドに転送（これは NurbsCurve3DConstructor::new）
         <Self as NurbsCurve3DConstructor<T>>::new(degree, knots, control_points, None)
@@ -514,13 +521,16 @@ impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
         // 簡易実装：一定間隔でサンプリング
         let tolerance_f64 = tolerance.to_f64();
         let u_range_f64 = (u_end - u_start).to_f64();
-        let num_samples = ((u_range_f64 / tolerance_f64) as usize).max(10).min(1000);
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let num_samples = ((u_range_f64 / tolerance_f64) as usize).clamp(10, 1000);
+        #[allow(clippy::cast_precision_loss)]
         let step = (u_end - u_start) / T::from_f64(num_samples as f64);
 
         let mut total_length = T::ZERO;
         let mut prev_point = self.evaluate_at(u_start);
 
         for i in 1..=num_samples {
+            #[allow(clippy::cast_precision_loss)]
             let u = u_start + step * T::from_f64(i as f64);
             let current_point = self.evaluate_at(u);
 

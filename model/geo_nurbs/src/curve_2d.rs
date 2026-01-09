@@ -268,16 +268,17 @@ mod tests {
     #[test]
     fn test_nurbs_curve_2d_creation() {
         use geo_foundation::NurbsCurve2DConstructor;
-        let control_points = &[
-            (0.0, 0.0),
-            (1.0, 1.0),
-            (2.0, 0.0),
-        ];
+        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(control_points, weights, knot_vector, degree);
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            weights,
+            knot_vector,
+            degree,
+        );
         assert!(curve.is_ok());
 
         let curve = curve.unwrap();
@@ -288,16 +289,18 @@ mod tests {
     #[test]
     fn test_curve_evaluation() {
         use geo_foundation::NurbsCurve2DConstructor;
-        let control_points = &[
-            (0.0, 0.0),
-            (1.0, 1.0),
-            (2.0, 0.0),
-        ];
+        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            weights,
+            knot_vector,
+            degree,
+        )
+        .unwrap();
 
         // 開始点と終了点のテスト
         let start_point = curve.evaluate_at(0.0);
@@ -315,16 +318,18 @@ mod tests {
     #[test]
     fn test_approximate_length() {
         use geo_foundation::NurbsCurve2DConstructor;
-        let control_points = &[
-            (0.0, 0.0),
-            (1.0, 0.0),
-            (2.0, 0.0),
-        ];
+        let control_points = &[(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            weights,
+            knot_vector,
+            degree,
+        )
+        .unwrap();
         let length = curve.approximate_length(100);
 
         // 直線に近い曲線なので長さは約2.0
@@ -337,8 +342,8 @@ mod tests {
 // ============================================================================
 
 use geo_foundation::{
-    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
-    ExtensionFoundation, Bounded, PrimitiveKind,
+    Bounded, ExtensionFoundation, NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure,
+    NurbsCurve2DProperties, PrimitiveKind,
 };
 
 impl<T: Scalar> NurbsCurve2DConstructor<T> for NurbsCurve2D<T> {
@@ -354,11 +359,13 @@ impl<T: Scalar> NurbsCurve2DConstructor<T> for NurbsCurve2D<T> {
             .map(|&(x, y)| Vector2::new(x, y))
             .collect();
 
-        Self::new_internal(&points, weights, knot_vector, degree)
-            .map_err(|e| e.to_string())
+        Self::new_internal(&points, weights, knot_vector, degree).map_err(|e| e.to_string())
     }
 
-    fn from_control_points(control_points: &[(T, T)], degree: usize) -> std::result::Result<Self, String> {
+    fn from_control_points(
+        control_points: &[(T, T)],
+        degree: usize,
+    ) -> std::result::Result<Self, String> {
         if control_points.len() < degree + 1 {
             return Err(format!(
                 "Insufficient control points: {} < {}",
@@ -430,7 +437,9 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
         let d2_minus = self.derivative_at(t - h);
 
         // 2次導関数の中央差分近似
+        #[allow(clippy::similar_names)]
         let d2x = (d2_plus.x() - d2_minus.x()) / (h + h);
+        #[allow(clippy::similar_names)]
         let d2y = (d2_plus.y() - d2_minus.y()) / (h + h);
 
         // 曲率 = |x'y'' - y'x''| / (x'^2 + y'^2)^(3/2)

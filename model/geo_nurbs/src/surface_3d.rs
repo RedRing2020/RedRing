@@ -512,8 +512,8 @@ mod tests {
 // ============================================================================
 
 use geo_foundation::{
-    NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure,
-    NurbsSurface3DProperties, ExtensionFoundation, Bounded, PrimitiveKind,
+    Bounded, ExtensionFoundation, NurbsSurface3DConstructor, NurbsSurface3DCore,
+    NurbsSurface3DMeasure, NurbsSurface3DProperties, PrimitiveKind,
 };
 
 impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
@@ -671,7 +671,9 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
                 let u = u_min + du * T::from_usize(i) + du / T::from_f64(2.0);
                 let v = v_min + dv * T::from_usize(j) + dv / T::from_f64(2.0);
 
+                #[allow(clippy::similar_names)]
                 let d_du = self.u_derivative_at(u, v);
+                #[allow(clippy::similar_names)]
                 let d_dv = self.v_derivative_at(u, v);
 
                 // 外積の大きさ
@@ -691,10 +693,7 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
         let du = self.u_derivative_at(u, v);
         let dv = self.v_derivative_at(u, v);
 
-        (
-            (du.x(), du.y(), du.z()),
-            (dv.x(), dv.y(), dv.z()),
-        )
+        ((du.x(), du.y(), du.z()), (dv.x(), dv.y(), dv.z()))
     }
 }
 

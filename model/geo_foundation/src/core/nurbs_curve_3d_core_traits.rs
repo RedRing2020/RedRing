@@ -13,17 +13,17 @@
 //! ```ignore
 //! use geo_nurbs::NurbsCurve3D;
 //! use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DProperties, NurbsCurve3DMeasure};
-//! 
+//!
 //! // Constructor Trait経由で作成
 //! let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
 //!     (0.0, 0.0, 0.0),
 //!     (1.0, 0.0, 0.0)
 //! ).unwrap();
-//! 
+//!
 //! // Properties Trait経由で情報取得
 //! let deg = <NurbsCurve3D<f64> as NurbsCurve3DProperties<f64>>::degree(&curve);
 //! let is_rat = <NurbsCurve3D<f64> as NurbsCurve3DProperties<f64>>::is_rational(&curve);
-//! 
+//!
 //! // Measure Trait経由で計量
 //! let point = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::evaluate(&curve, 0.5).unwrap();
 //! let length = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::arc_length_total(&curve, 1e-6);

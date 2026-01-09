@@ -1,4 +1,4 @@
-//! Foundation Pattern integration tests for NurbsSurface3D
+//! Foundation Pattern integration tests for `NurbsSurface3D`
 
 #[cfg(test)]
 mod tests {
@@ -50,9 +50,7 @@ mod tests {
             <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::v_count(&surface),
             2
         );
-        assert!(
-            <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::is_rational(&surface)
-        );
+        assert!(<NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::is_rational(&surface));
     }
 
     #[test]
@@ -89,9 +87,7 @@ mod tests {
             <NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::v_degree(&surface),
             2
         );
-        assert!(
-            !<NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::is_rational(&surface)
-        );
+        assert!(!<NurbsSurface3D<f64> as NurbsSurface3DProperties<f64>>::is_rational(&surface));
     }
 
     #[test]
@@ -293,7 +289,9 @@ mod tests {
         ];
 
         let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::from_control_points(
-            control_points, 1, 1,
+            control_points,
+            1,
+            1,
         )
         .unwrap();
 

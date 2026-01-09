@@ -1,6 +1,6 @@
-//! NurbsCurve3D Transform Implementation
+//! `NurbsCurve3D` Transform Implementation
 //!
-//! AnalysisTransform3D trait implementation for NURBS curves.
+//! `AnalysisTransform3D` trait implementation for NURBS curves.
 //! Applies transformations to all control points using Analysis Matrix operations.
 
 use crate::curve_3d::NurbsCurve3D;
@@ -8,7 +8,7 @@ use analysis::linalg::{
     matrix::Matrix4x4,
     vector::{Vector3, Vector4},
 };
-use geo_foundation::{Angle, AnalysisTransform3D, NurbsCurve3DProperties, Scalar, TransformError};
+use geo_foundation::{AnalysisTransform3D, Angle, NurbsCurve3DProperties, Scalar, TransformError};
 
 /// Matrix4x4による制御点変換の内部実装
 fn transform_control_points<T: Scalar>(
@@ -60,7 +60,9 @@ fn transform_control_points<T: Scalar>(
         curve.knot_vector().clone(),
         curve.degree(),
     )
-    .map_err(|e| TransformError::InvalidGeometry(format!("Failed to create transformed curve: {}", e)))
+    .map_err(|e| {
+        TransformError::InvalidGeometry(format!("Failed to create transformed curve: {e}"))
+    })
 }
 
 /// 平行移動行列を生成
@@ -230,11 +232,12 @@ impl<T: Scalar> NurbsCurve3D<T> {
 
         for i in 0..num_points {
             let point = self.control_point(i);
-            sum_x = sum_x + point.x();
-            sum_y = sum_y + point.y();
-            sum_z = sum_z + point.z();
+            sum_x += point.x();
+            sum_y += point.y();
+            sum_z += point.z();
         }
 
+        #[allow(clippy::cast_precision_loss)]
         let n = T::from_f64(num_points as f64);
         Vector3::new(sum_x / n, sum_y / n, sum_z / n)
     }
@@ -259,7 +262,7 @@ mod tests {
 
         let transformed = result.unwrap();
         assert_eq!(transformed.num_points(), 2);
-        
+
         // 始点確認（0,0,0 → 5,3,2）
         let p0 = transformed.control_point(0);
         assert!((p0.x() - 5.0).abs() < 1e-10);
