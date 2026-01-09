@@ -127,10 +127,6 @@ pub use core::{
         Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties, Point3DConstructor,
         Point3DCore, Point3DMeasure, Point3DProperties,
     },
-    point_traits::{
-        Point2D as Point2DTrait, Point2DConstructor as Point2DConstructorTrait,
-        Point3DConstructor as Point3DConstructorTrait,
-    },
     ray_core_traits::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
         Ray3DMeasure, Ray3DProperties,
