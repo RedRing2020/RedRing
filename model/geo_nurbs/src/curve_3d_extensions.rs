@@ -158,7 +158,6 @@ impl<T: Scalar> NurbsCurve3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use analysis::linalg::vector::Vector3;
 
     #[test]
     fn test_rough_bbox() {

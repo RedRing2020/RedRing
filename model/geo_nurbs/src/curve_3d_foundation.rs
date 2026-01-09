@@ -53,7 +53,6 @@ impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use analysis::linalg::vector::Vector3;
     use geo_foundation::{Bounded, ExtensionFoundation};
 
     #[test]

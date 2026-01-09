@@ -2,15 +2,14 @@
 //!
 //! Core Traits (Constructor/Properties/Measure) の動作検証
 
-use crate::{knot::clamped_knot_vector, NurbsCurve2D};
-use geo_foundation::{
-    NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties, PrimitiveKind,
-};
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use geo_foundation::ExtensionFoundation;
+    use crate::knot::clamped_knot_vector;
+    use crate::NurbsCurve2D;
+    use geo_foundation::{
+        Bounded, ExtensionFoundation, NurbsCurve2DConstructor, NurbsCurve2DMeasure,
+        NurbsCurve2DProperties, PrimitiveKind,
+    };
 
     // ============================================================================
     // Core Traits Constructor テスト

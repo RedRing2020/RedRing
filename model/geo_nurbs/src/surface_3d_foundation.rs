@@ -1,16 +1,12 @@
 //! Foundation Pattern integration tests for NurbsSurface3D
 
-use analysis::Scalar;
-use geo_foundation::{
-    Bounded, ExtensionFoundation, NurbsSurface3DConstructor, NurbsSurface3DMeasure,
-    NurbsSurface3DProperties, PrimitiveKind,
-};
-
-use crate::NurbsSurface3D;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::NurbsSurface3D;
+    use geo_foundation::{
+        Bounded, ExtensionFoundation, NurbsSurface3DConstructor, NurbsSurface3DMeasure,
+        NurbsSurface3DProperties, PrimitiveKind,
+    };
 
     #[test]
     fn test_constructor_new() {
