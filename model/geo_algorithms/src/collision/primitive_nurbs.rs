@@ -609,7 +609,20 @@ mod tests {
             T::ONE,
         ];
 
-        NurbsCurve3D::new(control_points, weights, knots, 3).unwrap()
+        // Core Traits経由で生成（Foundation Pattern）
+        // シグネチャ: new(degree, knots, control_points: Vec<(T,T,T)>, weights)
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points_tuples = control_points
+            .into_iter()
+            .map(|v| (v.x(), v.y(), v.z()))
+            .collect();
+        <NurbsCurve3D<T> as NurbsCurve3DConstructor<T>>::new(
+            3,
+            knots,
+            control_points_tuples,
+            weights,
+        )
+        .unwrap()
     }
 
     #[test]

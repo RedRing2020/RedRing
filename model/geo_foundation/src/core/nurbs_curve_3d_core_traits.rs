@@ -11,18 +11,22 @@
 //!
 //! ## 実装例
 //! ```ignore
-//! use geo_foundation::core::nurbs_curve_3d_core_traits::*;
+//! use geo_nurbs::NurbsCurve3D;
+//! use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DProperties, NurbsCurve3DMeasure};
 //! 
-//! // Constructor経由で作成
-//! let curve = NurbsCurve3D::line_segment((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)).unwrap();
+//! // Constructor Trait経由で作成
+//! let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
+//!     (0.0, 0.0, 0.0),
+//!     (1.0, 0.0, 0.0)
+//! ).unwrap();
 //! 
-//! // Properties経由で情報取得
-//! let deg = curve.degree();
-//! let is_rat = curve.is_rational();
+//! // Properties Trait経由で情報取得
+//! let deg = <NurbsCurve3D<f64> as NurbsCurve3DProperties<f64>>::degree(&curve);
+//! let is_rat = <NurbsCurve3D<f64> as NurbsCurve3DProperties<f64>>::is_rational(&curve);
 //! 
-//! // Measure経由で計量
-//! let point = curve.evaluate(0.5).unwrap();
-//! let length = curve.arc_length_total(1e-6);
+//! // Measure Trait経由で計量
+//! let point = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::evaluate(&curve, 0.5).unwrap();
+//! let length = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::arc_length_total(&curve, 1e-6);
 //! ```
 //!
 //! 作成日: 2026年1月9日

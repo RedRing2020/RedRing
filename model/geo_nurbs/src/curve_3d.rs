@@ -43,6 +43,9 @@ pub struct NurbsCurve3D<T: Scalar> {
 impl<T: Scalar> NurbsCurve3D<T> {
     /// 新しいNURBS 3D曲線を作成
     ///
+    /// # 非推奨
+    /// このメソッドは非推奨です。代わりに `geo_foundation::NurbsCurve3DConstructor` トレイトを使用してください。
+    ///
     /// # 引数
     /// * `control_points` - 制御点配列
     /// * `weights` - 重み配列（Noneの場合は非有理）
@@ -56,6 +59,10 @@ impl<T: Scalar> NurbsCurve3D<T> {
     /// * 制御点数が次数+1未満の場合
     /// * ノットベクトルが無効な場合
     /// * 重み配列のサイズが制御点数と一致しない場合
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use NurbsCurve3DConstructor::new() trait method instead. Import: use geo_foundation::NurbsCurve3DConstructor;"
+    )]
     pub fn new(
         control_points: Vec<Vector3<T>>,
         weights: Option<Vec<T>>,
