@@ -11,6 +11,7 @@
 // NURBS実装モジュール
 pub mod basis;
 pub mod curve_2d;
+pub mod curve_2d_foundation;
 pub mod curve_3d;
 pub mod curve_3d_extensions;
 pub mod curve_3d_foundation;
