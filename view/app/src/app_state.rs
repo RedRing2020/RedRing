@@ -2,6 +2,7 @@ use crate::app_renderer::AppRenderer;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
+use analysis::{LengthUnit, Tolerance};
 use stage::{DraftStage, MeshStage, OutlineStage, ShadingStage};
 use std::path::Path;
 use std::sync::Arc;
@@ -14,6 +15,18 @@ pub struct AppState {
     pub renderer: AppRenderer,
     pub camera: Camera,
     pub mouse_input: MouseInput,
+
+    /// アプリケーション単位系（CAD標準: ミリメートル）
+    ///
+    /// 全ての幾何データはこの単位で解釈されます。
+    /// デフォルト: ミリメートル（浮動小数点誤差を最小化）
+    pub unit_system: LengthUnit,
+
+    /// 表示トレランス（CAD標準: 0.01mm）
+    ///
+    /// 曲線のテッセレーション（分割）や近似計算で使用される許容誤差。
+    /// この値により、曲線から生成される線分の精度が決まります。
+    pub display_tolerance: Tolerance,
 }
 
 impl AppState {
@@ -27,7 +40,20 @@ impl AppState {
             renderer,
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
+            // CAD標準設定
+            unit_system: LengthUnit::Millimeter,
+            display_tolerance: Tolerance::default(), // 0.01mm
         }
+    }
+
+    /// 現在の単位でのトレランス値を取得
+    ///
+    /// # Examples
+    ///
+    /// 単位系がミリメートル、トレランスが0.01mmの場合 → 0.01
+    /// 単位系がメートル、トレランスが0.01mmの場合 → 0.00001
+    pub fn tolerance_in_current_unit(&self) -> f64 {
+        self.display_tolerance.in_unit(self.unit_system)
     }
 
     pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
@@ -128,7 +154,7 @@ impl AppState {
         tracing::info!("デバッグ形状: LineSegment3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/line.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+        match crate::svg_loader::load_svg_for_rendering(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -156,7 +182,7 @@ impl AppState {
         tracing::info!("デバッグ形状: Circle3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/circle.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+        match crate::svg_loader::load_svg_for_rendering(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -184,7 +210,7 @@ impl AppState {
         tracing::warn!("DEBUG: クリップ空間正方形を表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/clip_square.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+        match crate::svg_loader::load_svg_for_rendering(svg_path, None) {
             Ok(vertices) => {
                 tracing::warn!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -211,7 +237,7 @@ impl AppState {
         tracing::info!("デバッグ形状: Triangle3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/triangle.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+        match crate::svg_loader::load_svg_for_rendering(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -242,9 +268,46 @@ impl AppState {
         tracing::info!("デバッグ形状: Arc3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/arc.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path) {
+        match crate::svg_loader::load_svg_for_rendering(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
+
+                self.camera.reset_to_standard_cad_view();
+
+                let mut mesh_stage = Box::new(MeshStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
+                mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+                self.renderer.set_stage(mesh_stage);
+                self.update_camera_uniforms();
+            }
+            Err(e) => {
+                tracing::error!("SVG読み込みエラー: {}", e);
+            }
+        }
+    }
+
+    /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
+    pub fn load_debug_nurbs(&mut self) {
+        use std::path::Path;
+
+        let tolerance = self.tolerance_in_current_unit();
+        tracing::info!("デバッグ形状: NurbsCurve3D表示（SVGから）");
+        tracing::info!(
+            "表示トレランス: {:.6} (単位系: {:?})",
+            tolerance,
+            self.unit_system
+        );
+
+        let svg_path = Path::new("tests/fixtures/shapes/nurbs_curve.svg");
+        match crate::svg_loader::load_svg_for_rendering(svg_path, Some(tolerance)) {
+            Ok(vertices) => {
+                tracing::info!(
+                    "SVG読み込み成功: {} 頂点（テッセレーション済み）",
+                    vertices.len()
+                );
 
                 self.camera.reset_to_standard_cad_view();
 

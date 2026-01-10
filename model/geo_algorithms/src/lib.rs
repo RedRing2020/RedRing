@@ -48,7 +48,10 @@ pub mod collision;
 // pub use interpolation::{LinearInterpolator, BezierCurve, CatmullRomSpline};
 
 // geo_foundationからの基本型の再エクスポート
+
+// NURBS型の再エクスポート（ViewModel層からのアクセス用）
 pub use geo_foundation::Scalar;
+pub use geo_nurbs::NurbsCurve3D;
 // pub use geo_foundation::geometry2d::Point;  // CI/CD compliance: use geo_foundation instead
 // pub use geo_foundation::{Vector2D, Vector3D};  // CI/CD compliance: use geo_foundation instead
 // pub use geo_foundation::Point3D;  // CI/CD compliance: use geo_foundation instead

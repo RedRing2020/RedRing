@@ -8,7 +8,8 @@ use crate::shape_converter::{
     arc_to_wireframe_line_segments, circle_to_wireframe_line_segments, line_segment_to_vertices,
     triangle_to_solid_vertices, TessellationQuality,
 };
-use geo_io::svg::{parse_svg_file, SvgError, SvgShapeData};
+use geo_algorithms::NurbsCurve3D;
+use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use geo_primitives::{Arc3D, Circle3D, Direction3D, LineSegment3D, Point3D, Triangle3D, Vector3D};
 use std::path::Path;
 use thiserror::Error;
@@ -27,16 +28,23 @@ pub enum SvgLoaderError {
 }
 
 /// SVGファイルを読み込み、GPU用頂点データに変換
-pub fn load_svg_shapes(path: &Path) -> Result<Vec<VertexData>, SvgLoaderError> {
+///
+/// # Arguments
+/// * `path` - SVGファイルパス
+/// * `tolerance` - テッセレーショントレランス（ミリメートル単位）
+pub fn load_svg_shapes(path: &Path, tolerance: f64) -> Result<Vec<VertexData>, SvgLoaderError> {
     // 1. geo_ioでSVG解析
     let svg_data = parse_svg_file(path)?;
 
     // 2. 各形状をVertexDataに変換
-    convert_svg_to_vertices(&svg_data)
+    convert_svg_to_vertices(&svg_data, tolerance)
 }
 
 /// SvgShapeDataをVertexDataに変換
-fn convert_svg_to_vertices(svg_data: &SvgShapeData) -> Result<Vec<VertexData>, SvgLoaderError> {
+fn convert_svg_to_vertices(
+    svg_data: &SvgShapeData,
+    tolerance: f64,
+) -> Result<Vec<VertexData>, SvgLoaderError> {
     let mut vertices = Vec::new();
     let quality = TessellationQuality::default();
 
@@ -119,6 +127,70 @@ fn convert_svg_to_vertices(svg_data: &SvgShapeData) -> Result<Vec<VertexData>, S
         vertices.extend(arc_to_wireframe_line_segments(&arc, &quality));
     }
 
+    // NURBS曲線を変換
+    for nurbs_data in &svg_data.nurbs_curves {
+        vertices.extend(nurbs_curve_to_vertices(nurbs_data, tolerance)?);
+    }
+
+    Ok(vertices)
+}
+
+/// NURBS曲線をテッセレーション（線分分割）してVertexDataに変換
+///
+/// # Arguments
+/// * `nurbs_data` - SVGから読み込んだNURBSデータ
+/// * `tolerance` - 許容誤差（ミリメートル単位）
+///
+/// # テッセレーション戦略
+/// - 曲線の全長を計算
+/// - 全長÷トレランスで分割数を決定
+/// - 均等パラメータ分割で頂点生成
+fn nurbs_curve_to_vertices(
+    nurbs_data: &NurbsCurveData,
+    tolerance: f64,
+) -> Result<Vec<VertexData>, SvgLoaderError> {
+    use geo_foundation::NurbsCurve3DConstructor;
+
+    // NURBS曲線を生成
+    let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+        nurbs_data.degree,
+        nurbs_data.knots.clone(),
+        nurbs_data.control_points.clone(),
+        nurbs_data.weights.clone(),
+    )
+    .map_err(|e| {
+        SvgLoaderError::ConstructionError(format!("Failed to create NurbsCurve3D: {:?}", e))
+    })?;
+
+    // パラメータ範囲を取得
+    let (t_min, t_max) = curve.parameter_domain();
+
+    // 曲線の全長を計算
+    use geo_foundation::NurbsCurve3DMeasure;
+    let arc_length = curve.arc_length_total(tolerance);
+
+    // 分割数を決定（曲線長÷トレランス、最小10、最大10000）
+    let num_segments = ((arc_length / tolerance).ceil() as usize).clamp(10, 10000);
+
+    tracing::debug!(
+        "NURBS tessellation: arc_length={:.3}, tolerance={:.3}, segments={}",
+        arc_length,
+        tolerance,
+        num_segments
+    );
+
+    // 均等パラメータ分割で頂点生成
+    let mut vertices = Vec::with_capacity(num_segments + 1);
+    for i in 0..=num_segments {
+        let t = t_min + (t_max - t_min) * (i as f64 / num_segments as f64);
+        let point = curve.evaluate_at(t);
+
+        vertices.push(VertexData {
+            position: [point.x() as f32, point.y() as f32, point.z() as f32],
+            normal: [0.0, 0.0, 1.0], // Z軸正方向（SVGは2D平面）
+        });
+    }
+
     Ok(vertices)
 }
 
@@ -137,7 +209,7 @@ mod tests {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(svg_content.as_bytes()).unwrap();
 
-        let vertices = load_svg_shapes(temp_file.path()).unwrap();
+        let vertices = load_svg_shapes(temp_file.path(), 0.01).unwrap();
         assert!(!vertices.is_empty(), "Should have vertices for circle");
     }
 
@@ -150,7 +222,7 @@ mod tests {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(svg_content.as_bytes()).unwrap();
 
-        let vertices = load_svg_shapes(temp_file.path()).unwrap();
+        let vertices = load_svg_shapes(temp_file.path(), 0.01).unwrap();
         assert_eq!(vertices.len(), 2, "Line should have 2 vertices");
     }
 
@@ -163,7 +235,7 @@ mod tests {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(svg_content.as_bytes()).unwrap();
 
-        let vertices = load_svg_shapes(temp_file.path()).unwrap();
+        let vertices = load_svg_shapes(temp_file.path(), 0.01).unwrap();
         assert_eq!(vertices.len(), 3, "Triangle should have 3 vertices");
     }
 
@@ -178,10 +250,31 @@ mod tests {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(svg_content.as_bytes()).unwrap();
 
-        let vertices = load_svg_shapes(temp_file.path()).unwrap();
+        let vertices = load_svg_shapes(temp_file.path(), 0.01).unwrap();
         assert!(
             !vertices.is_empty(),
             "Should have vertices for multiple shapes"
+        );
+    }
+
+    #[test]
+    fn test_load_svg_nurbs_curve() {
+        let svg_content = r#"<svg xmlns="http://www.w3.org/2000/svg">
+            <path 
+                data-nurbs="true"
+                data-degree="3"
+                data-control-points="0,0,0; 3,0,0; 3,3,0; 0,3,0"
+                data-knots="0,0,0,0,1,1,1,1"
+                data-weights="1,1,1,1" />
+        </svg>"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(svg_content.as_bytes()).unwrap();
+
+        let vertices = load_svg_shapes(temp_file.path(), 0.01).unwrap();
+        assert!(
+            vertices.len() > 10,
+            "NURBS curve should have many vertices from tessellation"
         );
     }
 }

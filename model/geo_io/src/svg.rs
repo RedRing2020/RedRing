@@ -97,6 +97,19 @@ pub struct ArcData {
     pub end_angle: f64,
 }
 
+/// NURBS曲線データ
+#[derive(Debug, Clone, PartialEq)]
+pub struct NurbsCurveData {
+    /// 次数
+    pub degree: usize,
+    /// 制御点 (x, y, z)
+    pub control_points: Vec<(f64, f64, f64)>,
+    /// ノットベクトル
+    pub knots: Vec<f64>,
+    /// 重み（None = 非有理NURBS）
+    pub weights: Option<Vec<f64>>,
+}
+
 /// SVGから抽出された形状データ
 #[derive(Debug, Default)]
 pub struct SvgShapeData {
@@ -108,6 +121,8 @@ pub struct SvgShapeData {
     pub triangles: Vec<TriangleData>,
     /// 円弧のリスト
     pub arcs: Vec<ArcData>,
+    /// NURBS曲線のリスト
+    pub nurbs_curves: Vec<NurbsCurveData>,
 }
 
 /// SVGファイルをパースして形状データを抽出
@@ -157,8 +172,11 @@ fn traverse_elements(node: &roxmltree::Node, shapes: &mut SvgShapeData) -> Resul
             }
         }
         "path" => {
-            // pathからarcを抽出（将来実装）
-            if let Some(arc) = parse_path_arc(node)? {
+            // NURBS曲線をチェック（data-nurbs属性があれば）
+            if let Some(nurbs) = parse_nurbs_path(node)? {
+                shapes.nurbs_curves.push(nurbs);
+            } else if let Some(arc) = parse_path_arc(node)? {
+                // pathからarcを抽出
                 shapes.arcs.push(arc);
             }
         }
@@ -238,6 +256,100 @@ fn parse_path_arc(_node: &roxmltree::Node) -> Result<Option<ArcData>, SvgError> 
     // TODO: pathのd属性をパースしてArcコマンドを抽出
     // 現時点では未実装
     Ok(None)
+}
+
+/// path要素からNURBS曲線を抽出
+///
+/// カスタムdata-*属性を使用してNURBSパラメータを指定します：
+/// - data-nurbs="true" - NURBS曲線であることを示す
+/// - data-degree="3" - 次数
+/// - data-control-points="x1,y1,z1; x2,y2,z2; ..." - 制御点リスト
+/// - data-knots="k1,k2,k3,..." - ノットベクトル
+/// - data-weights="w1,w2,w3,..." - 重み（オプション）
+fn parse_nurbs_path(node: &roxmltree::Node) -> Result<Option<NurbsCurveData>, SvgError> {
+    // data-nurbs属性をチェック
+    let is_nurbs = node
+        .attribute("data-nurbs")
+        .map(|v| v == "true")
+        .unwrap_or(false);
+
+    if !is_nurbs {
+        return Ok(None);
+    }
+
+    // 次数を取得
+    let degree_str = node
+        .attribute("data-degree")
+        .ok_or_else(|| SvgError::MissingAttribute("data-degree".to_string()))?;
+    let degree = degree_str
+        .parse::<usize>()
+        .map_err(|_| SvgError::InvalidAttribute(format!("Invalid degree: {}", degree_str)))?;
+
+    // 制御点を取得
+    let control_points_str = node
+        .attribute("data-control-points")
+        .ok_or_else(|| SvgError::MissingAttribute("data-control-points".to_string()))?;
+    let control_points = parse_control_points(control_points_str)?;
+
+    // ノットベクトルを取得
+    let knots_str = node
+        .attribute("data-knots")
+        .ok_or_else(|| SvgError::MissingAttribute("data-knots".to_string()))?;
+    let knots = parse_float_array(knots_str)?;
+
+    // 重み（オプション）
+    let weights = if let Some(weights_str) = node.attribute("data-weights") {
+        Some(parse_float_array(weights_str)?)
+    } else {
+        None
+    };
+
+    Ok(Some(NurbsCurveData {
+        degree,
+        control_points,
+        knots,
+        weights,
+    }))
+}
+
+/// 制御点リストをパース（"x1,y1,z1; x2,y2,z2; ..."形式）
+fn parse_control_points(s: &str) -> Result<Vec<(f64, f64, f64)>, SvgError> {
+    let mut points = Vec::new();
+
+    for point_str in s.split(';') {
+        let coords: Vec<&str> = point_str.split(',').map(str::trim).collect();
+        if coords.len() != 3 {
+            return Err(SvgError::InvalidAttribute(format!(
+                "Invalid control point format: {}",
+                point_str
+            )));
+        }
+
+        let x = coords[0]
+            .parse::<f64>()
+            .map_err(|_| SvgError::InvalidAttribute(format!("Invalid x: {}", coords[0])))?;
+        let y = coords[1]
+            .parse::<f64>()
+            .map_err(|_| SvgError::InvalidAttribute(format!("Invalid y: {}", coords[1])))?;
+        let z = coords[2]
+            .parse::<f64>()
+            .map_err(|_| SvgError::InvalidAttribute(format!("Invalid z: {}", coords[2])))?;
+
+        points.push((x, y, z));
+    }
+
+    Ok(points)
+}
+
+/// 浮動小数点数配列をパース（"v1,v2,v3,..."形式）
+fn parse_float_array(s: &str) -> Result<Vec<f64>, SvgError> {
+    s.split(',')
+        .map(str::trim)
+        .map(|v| {
+            v.parse::<f64>()
+                .map_err(|_| SvgError::InvalidAttribute(format!("Invalid float: {}", v)))
+        })
+        .collect()
 }
 
 /// points属性をパースして座標リストに変換
@@ -354,5 +466,45 @@ mod tests {
 
         let shapes = parse_svg_string(svg).unwrap();
         assert_eq!(shapes.lines.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_nurbs_curve() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg">
+                <path 
+                    data-nurbs="true"
+                    data-degree="3"
+                    data-control-points="0,0,0; 1,0,0; 1,1,0; 0,1,0"
+                    data-knots="0,0,0,0,1,1,1,1"
+                    data-weights="1,1,1,1" />
+            </svg>"#;
+
+        let shapes = parse_svg_string(svg).unwrap();
+        assert_eq!(shapes.nurbs_curves.len(), 1);
+        let nurbs = &shapes.nurbs_curves[0];
+        assert_eq!(nurbs.degree, 3);
+        assert_eq!(nurbs.control_points.len(), 4);
+        assert_eq!(nurbs.control_points[0], (0.0, 0.0, 0.0));
+        assert_eq!(nurbs.control_points[3], (0.0, 1.0, 0.0));
+        assert_eq!(nurbs.knots.len(), 8);
+        assert_eq!(nurbs.weights.as_ref().unwrap().len(), 4);
+    }
+
+    #[test]
+    fn test_parse_nurbs_without_weights() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg">
+                <path 
+                    data-nurbs="true"
+                    data-degree="2"
+                    data-control-points="0,0,0; 1,0,0; 1,1,0"
+                    data-knots="0,0,0,1,1,1" />
+            </svg>"#;
+
+        let shapes = parse_svg_string(svg).unwrap();
+        assert_eq!(shapes.nurbs_curves.len(), 1);
+        let nurbs = &shapes.nurbs_curves[0];
+        assert_eq!(nurbs.degree, 2);
+        assert_eq!(nurbs.control_points.len(), 3);
+        assert!(nurbs.weights.is_none());
     }
 }
