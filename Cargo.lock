@@ -2514,9 +2514,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "viewmodel"
 version = "0.1.0"
 dependencies = [
+ "geo_algorithms",
  "geo_foundation",
  "geo_io",
- "geo_nurbs",
  "geo_primitives",
  "tempfile",
  "thiserror 2.0.17",
