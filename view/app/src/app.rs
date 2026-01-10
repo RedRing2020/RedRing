@@ -71,6 +71,7 @@ impl ApplicationHandler for App {
                                 tracing::info!("l: LineSegment3D表示");
                                 tracing::info!("c: Circle3D表示");
                                 tracing::info!("a: Arc3D表示");
+                                tracing::info!("n: NurbsCurve3D表示（SVGから）");
                                 tracing::info!("--- カメラ操作 ---");
                                 tracing::info!("r: カメラリセット（基本位置）");
                                 tracing::info!("t: 標準CAD視点にリセット");
@@ -88,6 +89,9 @@ impl ApplicationHandler for App {
                             }
                             Key::Character(c) if c.as_str() == "a" => {
                                 state.load_debug_arc();
+                            }
+                            Key::Character(c) if c.as_str() == "n" => {
+                                state.load_debug_nurbs();
                             }
                             Key::Character(c) if c.as_str() == "d" => {
                                 state.log_camera_state();

@@ -10,11 +10,16 @@ use viewmodel::svg_loader::load_svg_shapes;
 pub type SvgLoadResult = Result<Vec<MeshVertex>, Box<dyn std::error::Error>>;
 
 /// SVGファイルを読み込み、レンダリング用の頂点データに変換
-pub fn load_svg_for_rendering(path: &Path) -> SvgLoadResult {
+///
+/// # Arguments
+/// * `path` - SVGファイルパス
+/// * `tolerance` - テッセレーショントレランス（ミリメートル単位、デフォルト: 0.01mm）
+pub fn load_svg_for_rendering(path: &Path, tolerance: Option<f64>) -> SvgLoadResult {
     tracing::info!("SVGファイル読み込み: {:?}", path);
 
+    let tol = tolerance.unwrap_or(0.01);
     // ViewModel層でSVGをVertexDataに変換
-    let vertex_data = load_svg_shapes(path)?;
+    let vertex_data = load_svg_shapes(path, tol)?;
 
     tracing::info!("SVG変換完了: {} 頂点", vertex_data.len());
 
