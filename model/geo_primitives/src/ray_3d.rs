@@ -7,7 +7,7 @@
 use crate::{Direction3D, Point3D, Vector3D};
 use analysis::linalg::{point3::Point3, vector::Vector3};
 use geo_foundation::{
-    core::ray_core_traits::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties},
+    core::ray_traits::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties},
     Scalar,
 };
 

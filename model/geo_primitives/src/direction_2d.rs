@@ -1,4 +1,4 @@
-﻿//! Direction2D Core 実装
+//! Direction2D Core 実装
 //!
 //! Foundation統一システムに基づくDirection2Dの必須機能のみ
 //! 拡張機能は direction_2d_extensions.rs を参照
@@ -6,7 +6,7 @@
 use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_foundation::{
-    core::direction_core_traits::{
+    core::direction_traits::{
         Direction2DConstructor, Direction2DMeasure, Direction2DProperties,
     },
     Scalar,

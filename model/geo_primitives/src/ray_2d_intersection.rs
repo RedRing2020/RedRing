@@ -4,7 +4,7 @@
 
 use crate::{Arc2D, Circle2D, Ellipse2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D};
 use geo_foundation::{
-    core::arc_core_traits::Arc2DProperties,
+    core::arc_traits::Arc2DProperties,
     extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
     Circle2DProperties, LineSegment2DProperties, Scalar,
 };

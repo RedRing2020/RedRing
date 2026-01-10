@@ -214,7 +214,7 @@ pub use geo_foundation::{Circle2DConstructor, Circle2DMeasure, Circle2DPropertie
 pub use geo_foundation::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties};
 
 // Arc Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::core::arc_core_traits::{
+pub use geo_foundation::core::arc_traits::{
     Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DMeasure,
     Arc3DProperties,
 };
@@ -223,18 +223,18 @@ pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
 // pub mod direction_3d_core_traits; // Moved to direction_3d.rs
-pub use geo_foundation::core::direction_core_traits::{
+pub use geo_foundation::core::direction_traits::{
     Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
 }; // Direction3D の Core traits 公開
 
 // InfiniteLine Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::core::infinite_line_core_traits::{
+pub use geo_foundation::core::infinite_line_traits::{
     InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
     InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties,
 };
 
 // Ray Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::core::ray_core_traits::{
+pub use geo_foundation::core::ray_traits::{
     Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DMeasure,
     Ray3DProperties,
 };
@@ -352,8 +352,8 @@ pub use ray_2d::Ray2D;
 pub use triangle_2d::Triangle2D;
 
 // Core Traits統合エクスポート（Foundation経由）
-pub use geo_foundation::core::infinite_line_core_traits::{InfiniteLine2DCore, InfiniteLine3DCore};
-pub use geo_foundation::core::ray_core_traits::{Ray2DCore, Ray3DCore};
+pub use geo_foundation::core::infinite_line_traits::{InfiniteLine2DCore, InfiniteLine3DCore};
+pub use geo_foundation::core::ray_traits::{Ray2DCore, Ray3DCore};
 
 // ============================================================================
 // Test Modules

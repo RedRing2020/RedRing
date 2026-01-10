@@ -1,11 +1,11 @@
-﻿//! Arc点列生成拡張トレイト実装
+//! Arc点列生成拡張トレイト実装
 //!
 //! 円弧の分割や点列生成機能
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
 use geo_foundation::{
-    core::arc_core_traits::{Arc2DMeasure, Arc2DSampling},
+    core::arc_traits::{Arc2DMeasure, Arc2DSampling},
     Scalar,
 };
 

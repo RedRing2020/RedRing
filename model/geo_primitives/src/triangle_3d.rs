@@ -4,7 +4,7 @@
 
 use crate::{Point3D, Vector3D};
 use geo_foundation::{
-    core::triangle_core_traits::{Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties},
+    core::triangle_traits::{Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties},
     Scalar,
 };
 

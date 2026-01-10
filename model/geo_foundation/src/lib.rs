@@ -47,104 +47,104 @@ pub use analysis::{
 
 // Core Traitsを再エクスポート（主要インターフェース）
 pub use core::{
-    arc_core_traits::{
+    arc_traits::{
         Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
         Arc3DMeasure, Arc3DProperties,
     },
-    bbox_core_traits::{
+    bbox_traits::{
         BBox2DConstructor, BBox2DCore, BBox2DMeasure, BBox2DProperties, BBox3DConstructor,
         BBox3DCore, BBox3DMeasure, BBox3DProperties,
     },
-    circle_core_traits::{
+    circle_traits::{
         Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties,
         Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
     },
     // Surface/Solid Core Traits
-    conical_solid_core_traits::{
+    conical_solid_traits::{
         ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure,
         ConicalSolid3DProperties,
     },
-    conical_surface_core_traits::{
+    conical_surface_traits::{
         ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DMeasure,
         ConicalSurface3DProperties,
     },
-    cylindrical_solid_core_traits::{
+    cylindrical_solid_traits::{
         CylindricalSolid3DConstructor, CylindricalSolid3DCore, CylindricalSolid3DMeasure,
         CylindricalSolid3DProperties,
     },
-    cylindrical_surface_core_traits::{
+    cylindrical_surface_traits::{
         CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DMeasure,
         CylindricalSurface3DProperties,
     },
-    direction_core_traits::{
+    direction_traits::{
         Direction2DConstructor, Direction2DCore, Direction2DMeasure, Direction2DProperties,
         Direction3DConstructor, Direction3DCore, Direction3DMeasure, Direction3DProperties,
     },
-    ellipse_arc_core_traits::{
+    ellipse_arc_traits::{
         EllipseArc2DConstructor, EllipseArc2DCore, EllipseArc2DMeasure, EllipseArc2DProperties,
         EllipseArc3DConstructor, EllipseArc3DCore, EllipseArc3DMeasure, EllipseArc3DProperties,
     },
-    ellipse_core_traits::{
+    ellipse_traits::{
         Ellipse2DConstructor, Ellipse2DCore, Ellipse2DMeasure, Ellipse2DProperties,
         Ellipse3DConstructor, Ellipse3DCore, Ellipse3DMeasure, Ellipse3DProperties,
     },
-    ellipsoidal_solid_core_traits::{
+    ellipsoidal_solid_traits::{
         EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
         EllipsoidalSolid3DProperties,
     },
-    ellipsoidal_surface_core_traits::{
+    ellipsoidal_surface_traits::{
         EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
         EllipsoidalSurface3DProperties,
     },
-    infinite_line_core_traits::{
+    infinite_line_traits::{
         InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure,
         InfiniteLine2DProperties, InfiniteLine3DConstructor, InfiniteLine3DCore,
         InfiniteLine3DMeasure, InfiniteLine3DProperties,
     },
-    linesegment_core_traits::{
+    linesegment_traits::{
         LineSegment2DConstructor, LineSegment2DCore, LineSegment2DMeasure, LineSegment2DProperties,
         LineSegment3DConstructor, LineSegment3DCore, LineSegment3DMeasure, LineSegment3DProperties,
     },
     // NURBS Core Traits
-    nurbs_curve_2d_core_traits::{
+    nurbs_curve_2d_traits::{
         NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
     },
-    nurbs_curve_3d_core_traits::{
+    nurbs_curve_3d_traits::{
         NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties,
     },
-    nurbs_surface_3d_core_traits::{
+    nurbs_surface_3d_traits::{
         NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure,
         NurbsSurface3DProperties,
     },
-    plane_core_traits::{Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties},
-    point_core_traits::{
+    plane_traits::{Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties},
+    point_traits::{
         Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties, Point3DConstructor,
         Point3DCore, Point3DMeasure, Point3DProperties,
     },
-    ray_core_traits::{
+    ray_traits::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
         Ray3DMeasure, Ray3DProperties,
     },
-    spherical_solid_core_traits::{
+    spherical_solid_traits::{
         SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,
         SphericalSolid3DProperties,
     },
-    spherical_surface_core_traits::{
+    spherical_surface_traits::{
         SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DMeasure,
         SphericalSurface3DProperties,
     },
-    torus_solid_core_traits::{
+    torus_solid_traits::{
         TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure, TorusSolid3DProperties,
     },
-    torus_surface_core_traits::{
+    torus_surface_traits::{
         TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure,
         TorusSurface3DProperties,
     },
-    triangle_core_traits::{
+    triangle_traits::{
         Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
         Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
     },
-    vector_core_traits::{
+    vector_traits::{
         Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
         Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
     },

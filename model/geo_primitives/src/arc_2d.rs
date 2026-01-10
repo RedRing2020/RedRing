@@ -6,7 +6,7 @@
 use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
 use geo_foundation::{
-    core::arc_core_traits::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties},
+    core::arc_traits::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties},
     Circle2DProperties, Scalar,
 };
 

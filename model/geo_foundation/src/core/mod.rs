@@ -4,40 +4,40 @@
 //! 型安全性と責務分離を実現します。
 
 // ============================================================================
-// New Core Traits (ハイブリッド方針: Core3機能統合 + Transform共通)
+// Foundation Pattern Traits (Constructor/Properties/Measure + Transform共通)
 // ============================================================================
 
 // 基本図形 (Primitives)
-pub mod arc_core_traits; // Arc Core traits (Constructor/Properties/Measure)
-pub mod bbox_core_traits; // BBox Core traits (Constructor/Properties/Measure)
-pub mod circle_core_traits; // Circle Core traits (Constructor/Properties/Measure)
-pub mod direction_core_traits; // Direction Core traits (Constructor/Properties/Measure)
-pub mod ellipse_arc_core_traits; // EllipseArc Core traits (Constructor/Properties/Measure)
-pub mod ellipse_core_traits; // Ellipse Core traits (Constructor/Properties/Measure)
-pub mod infinite_line_core_traits; // InfiniteLine Core traits (Constructor/Properties/Measure)
-pub mod linesegment_core_traits; // LineSegment Core traits (Constructor/Properties/Measure)
-pub mod plane_core_traits; // Plane Core traits (Constructor/Properties/Measure)
-pub mod point_core_traits; // Point Core traits (Constructor/Properties/Measure)
-pub mod ray_core_traits; // Ray Core traits (Constructor/Properties/Measure)
-pub mod triangle_core_traits; // Triangle Core traits (Constructor/Properties/Measure)
-pub mod vector_core_traits; // Vector Core traits (Constructor/Properties/Measure)
+pub mod arc_traits; // Arc traits (Constructor/Properties/Measure)
+pub mod bbox_traits; // BBox traits (Constructor/Properties/Measure)
+pub mod circle_traits; // Circle traits (Constructor/Properties/Measure)
+pub mod direction_traits; // Direction traits (Constructor/Properties/Measure)
+pub mod ellipse_arc_traits; // EllipseArc traits (Constructor/Properties/Measure)
+pub mod ellipse_traits; // Ellipse traits (Constructor/Properties/Measure)
+pub mod infinite_line_traits; // InfiniteLine traits (Constructor/Properties/Measure)
+pub mod linesegment_traits; // LineSegment traits (Constructor/Properties/Measure)
+pub mod plane_traits; // Plane traits (Constructor/Properties/Measure)
+pub mod point_traits; // Point traits (Constructor/Properties/Measure)
+pub mod ray_traits; // Ray traits (Constructor/Properties/Measure)
+pub mod triangle_traits; // Triangle traits (Constructor/Properties/Measure)
+pub mod vector_traits; // Vector traits (Constructor/Properties/Measure)
 
 // Surface/Solid (3D幾何形状)
-pub mod conical_solid_core_traits; // ConicalSolid Core traits
-pub mod conical_surface_core_traits; // ConicalSurface Core traits
-pub mod cylindrical_solid_core_traits; // CylindricalSolid Core traits
-pub mod cylindrical_surface_core_traits; // CylindricalSurface Core traits
-pub mod ellipsoidal_solid_core_traits; // EllipsoidalSolid Core traits
-pub mod ellipsoidal_surface_core_traits; // EllipsoidalSurface Core traits
-pub mod spherical_solid_core_traits; // SphericalSolid Core traits
-pub mod spherical_surface_core_traits; // SphericalSurface Core traits
-pub mod torus_solid_core_traits; // TorusSolid Core traits
-pub mod torus_surface_core_traits; // TorusSurface Core traits
+pub mod conical_solid_traits; // ConicalSolid traits
+pub mod conical_surface_traits; // ConicalSurface traits
+pub mod cylindrical_solid_traits; // CylindricalSolid traits
+pub mod cylindrical_surface_traits; // CylindricalSurface traits
+pub mod ellipsoidal_solid_traits; // EllipsoidalSolid traits
+pub mod ellipsoidal_surface_traits; // EllipsoidalSurface traits
+pub mod spherical_solid_traits; // SphericalSolid traits
+pub mod spherical_surface_traits; // SphericalSurface traits
+pub mod torus_solid_traits; // TorusSolid traits
+pub mod torus_surface_traits; // TorusSurface traits
 
 // NURBS (自由曲線・曲面)
-pub mod nurbs_curve_2d_core_traits; // NurbsCurve2D Core traits
-pub mod nurbs_curve_3d_core_traits; // NurbsCurve3D Core traits
-pub mod nurbs_surface_3d_core_traits; // NurbsSurface3D Core traits
+pub mod nurbs_curve_2d_traits; // NurbsCurve2D traits
+pub mod nurbs_curve_3d_traits; // NurbsCurve3D traits
+pub mod nurbs_surface_3d_traits; // NurbsSurface3D traits
 
 // 共通Transform機能
 pub mod transform; // extensionsから移動した共通Transformトレイト群

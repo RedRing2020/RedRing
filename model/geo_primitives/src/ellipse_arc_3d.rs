@@ -5,7 +5,7 @@
 
 use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_foundation::{
-    core::ellipse_arc_core_traits::{
+    core::ellipse_arc_traits::{
         EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
     },
     Angle, Scalar,

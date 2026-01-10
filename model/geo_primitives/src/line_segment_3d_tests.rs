@@ -1,4 +1,4 @@
-﻿//! LineSegment3D のテスト
+//! LineSegment3D のテスト
 
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_foundation::core_foundation::*;

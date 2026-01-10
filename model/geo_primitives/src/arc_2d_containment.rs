@@ -1,11 +1,11 @@
-﻿//! Arc包含・角度判定拡張トレイト実装
+//! Arc包含・角度判定拡張トレイト実装
 //!
 //! 点の包含判定や角度範囲チェック機能
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
 use geo_foundation::{
-    core::arc_core_traits::Arc2DContainment, tolerance_migration::DefaultTolerances, Angle, Scalar,
+    core::arc_traits::Arc2DContainment, tolerance_migration::DefaultTolerances, Angle, Scalar,
 };
 
 // ============================================================================

@@ -1,4 +1,4 @@
-﻿//! Circle2D のテスト
+//! Circle2D のテスト
 
 use crate::{Circle2D, Point2D, Vector2D};
 use geo_foundation::{
