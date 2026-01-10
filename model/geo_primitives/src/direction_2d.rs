@@ -6,9 +6,7 @@
 use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_foundation::{
-    core::direction_traits::{
-        Direction2DConstructor, Direction2DMeasure, Direction2DProperties,
-    },
+    core::direction_traits::{Direction2DConstructor, Direction2DMeasure, Direction2DProperties},
     Scalar,
 };
 use std::ops::{Deref, DerefMut};
