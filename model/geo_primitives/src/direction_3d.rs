@@ -191,7 +191,7 @@ impl<T: Scalar> Neg for Direction3D<T> {
 // ============================================================================
 
 use analysis::linalg::Vector3;
-use geo_foundation::core::direction_core_traits::{
+use geo_foundation::core::direction_traits::{
     Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
 };
 

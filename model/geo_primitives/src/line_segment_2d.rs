@@ -5,7 +5,7 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_foundation::{
-    core::linesegment_core_traits::{
+    core::linesegment_traits::{
         LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties,
     },
     Scalar,

@@ -1,10 +1,10 @@
-﻿//! Arc計量演算拡張トレイト実装
+//! Arc計量演算拡張トレイト実装
 //!
 //! 弧長・面積・中心角などの計算機能
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::Arc2D;
-use geo_foundation::{abstracts::arc_traits::ArcMetrics, Angle, Scalar};
+use geo_foundation::{core::arc_traits::Arc2DMeasure, Angle, Scalar};
 
 // ============================================================================
 // ArcMetrics Trait Implementation

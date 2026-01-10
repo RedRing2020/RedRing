@@ -20,8 +20,8 @@
 use geo_core::Point3D;
 use geo_foundation::{
     core::{
-        circle_core_traits::Circle3DProperties,
-        infinite_line_core_traits::InfiniteLine3DProperties, plane_core_traits::Plane3DProperties,
+        circle_traits::Circle3DProperties, infinite_line_traits::InfiniteLine3DProperties,
+        plane_traits::Plane3DProperties,
     },
     extensions::BasicCollision,
     Scalar,

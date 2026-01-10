@@ -4,7 +4,7 @@
 
 use crate::{Ellipse2D, Point2D, Vector2D};
 use geo_foundation::{
-    core::ellipse_arc_core_traits::{
+    core::ellipse_arc_traits::{
         EllipseArc2DConstructor, EllipseArc2DMeasure, EllipseArc2DProperties,
     },
     Angle, Scalar,

@@ -4,7 +4,7 @@
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
 use geo_foundation::{
-    core::arc_core_traits::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties},
+    core::arc_traits::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties},
     tolerance_migration::DefaultTolerances,
     Scalar,
 };

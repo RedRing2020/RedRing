@@ -179,9 +179,9 @@ mod tests {
         .unwrap();
         // 簡易実装では頂点との衝突判定をテスト
         let (ax, ay, az) =
-            geo_foundation::core::triangle_core_traits::Triangle3DProperties::vertex_a(&triangle);
+            geo_foundation::core::triangle_traits::Triangle3DProperties::vertex_a(&triangle);
         let (bx, by, bz) =
-            geo_foundation::core::triangle_core_traits::Triangle3DProperties::vertex_b(&triangle);
+            geo_foundation::core::triangle_traits::Triangle3DProperties::vertex_b(&triangle);
         let vertex_a = Point3D::new(ax, ay, az);
         let vertex_b = Point3D::new(bx, by, bz);
         // 頂点AとBは楕円弧上
@@ -196,7 +196,7 @@ mod tests {
         )
         .unwrap();
         let (ax_far, ay_far, az_far) =
-            geo_foundation::core::triangle_core_traits::Triangle3DProperties::vertex_a(
+            geo_foundation::core::triangle_traits::Triangle3DProperties::vertex_a(
                 &triangle_far,
             );
         let vertex_a_far = Point3D::new(ax_far, ay_far, az_far);

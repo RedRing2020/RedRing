@@ -4,7 +4,7 @@
 //! 自動フォーマット判定機能付き。
 
 use crate::error::StlError;
-use geo_foundation::core::triangle_core_traits::Triangle3DProperties;
+use geo_foundation::core::triangle_traits::Triangle3DProperties;
 use geo_foundation::Scalar;
 use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 use std::fs::File;

@@ -7,7 +7,7 @@
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
 use geo_foundation::{
-    core::infinite_line_core_traits::InfiniteLine2DProperties, AnalysisTransform2D, Angle, Scalar,
+    core::infinite_line_traits::InfiniteLine2DProperties, AnalysisTransform2D, Angle, Scalar,
     TransformError,
 };
 

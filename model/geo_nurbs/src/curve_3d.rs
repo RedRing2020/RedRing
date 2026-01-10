@@ -383,7 +383,7 @@ mod tests {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::core::nurbs_curve_3d_core_traits::{
+use geo_foundation::core::nurbs_curve_3d_traits::{
     NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties,
 };
 

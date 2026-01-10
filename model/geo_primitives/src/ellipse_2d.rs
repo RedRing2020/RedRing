@@ -7,7 +7,7 @@ use geo_foundation::prelude::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
 use geo_foundation::{
-    core::ellipse_core_traits::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties},
+    core::ellipse_traits::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties},
     Scalar,
 };
 

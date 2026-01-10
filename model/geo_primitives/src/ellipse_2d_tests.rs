@@ -1,4 +1,4 @@
-﻿//! Ellipse2D のテスト
+//! Ellipse2D のテスト
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_foundation::Scalar;

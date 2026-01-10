@@ -5,7 +5,7 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_foundation::{
-    core::circle_core_traits::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties},
+    core::circle_traits::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties},
     Scalar,
 };
 

@@ -16,7 +16,7 @@
 use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
 use analysis::linalg::{point2::Point2, vector::Vector2};
 use geo_foundation::{
-    core::ray_core_traits::{Ray2DConstructor, Ray2DMeasure, Ray2DProperties},
+    core::ray_traits::{Ray2DConstructor, Ray2DMeasure, Ray2DProperties},
     Scalar,
 };
 
