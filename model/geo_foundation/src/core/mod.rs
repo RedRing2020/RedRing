@@ -40,10 +40,5 @@ pub mod nurbs_curve_3d_traits; // NurbsCurve3D traits
 pub mod nurbs_surface_3d_traits; // NurbsSurface3D traits
 
 // 共通Transform機能
-pub mod transform; // extensionsから移動した共通Transformトレイト群
-pub mod transform_error; // extensionsから移動したTransformError(段階的移行中)
-
-// ============================================================================
-// Legacy Traits (段階的移行中)
-// ============================================================================
-// 全てのレガシートレイトが削除されました
+pub mod transform;
+pub mod transform_error;
