@@ -22,8 +22,14 @@
 //! 型消去された形状オブジェクトを適切に変換します。
 
 use crate::mesh_converter::VertexData;
-use geo_foundation::{Arc3DProperties, Circle3DProperties, PrimitiveKind, Triangle3DProperties};
-use geo_primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D, Vector3D};
+use geo_foundation::{
+    Arc3DProperties, Circle3DProperties, EllipseArc3DProperties, InfiniteLine3DProperties,
+    Plane3DProperties, PrimitiveKind, Ray3DProperties, Triangle3DProperties,
+};
+use geo_primitives::{
+    Arc3D, Circle3D, Ellipse3D, EllipseArc3D, InfiniteLine3D, LineSegment3D, Plane3D,
+    Point3D, Ray3D, Triangle3D, Vector3D,
+};
 use std::f64::consts::PI;
 
 /// テッセレーション品質パラメータ
@@ -55,6 +61,15 @@ pub struct TessellationQuality {
     /// 平面グリッドの分割数
     pub plane_grid_size: usize,
 
+    /// 平面グリッドの表示範囲（半径）
+    pub plane_grid_extent: f64,
+
+    /// 無限直線の表示範囲（両方向の長さ）
+    pub infinite_line_extent: f64,
+
+    /// 光線の表示範囲（一方向の長さ）
+    pub ray_extent: f64,
+
     /// LOD有効化フラグ（Phase 3で使用予定）
     pub enable_lod: bool,
 
@@ -71,6 +86,9 @@ impl Default for TessellationQuality {
             sphere_u_divisions: 32,
             sphere_v_divisions: 16,
             plane_grid_size: 10,
+            plane_grid_extent: 10.0,
+            infinite_line_extent: 100.0,
+            ray_extent: 100.0,
             enable_lod: false,
             lod_distance_threshold: 100.0,
         }
@@ -558,6 +576,424 @@ pub fn arc_to_wireframe_line_segments(
     }
 
     vertices
+}
+
+/// Plane3D を GPU用頂点データに変換（グリッド表示）
+///
+/// 平面を有限範囲のグリッド線として表示します。
+/// グリッドは平面のU軸（第一軸）とV軸（第二軸）に沿って配置されます。
+///
+/// # Arguments
+/// * `plane` - 平面（原点と座標軸を持つ）
+/// * `quality` - テッセレーション品質パラメータ
+///
+/// # Returns
+/// グリッド線の頂点データ（LineListトポロジ用）
+pub fn plane_to_grid_vertices(
+    plane: &Plane3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let grid_size = quality.plane_grid_size;
+    let extent = quality.plane_grid_extent;
+    let step = extent * 2.0 / grid_size as f64;
+
+    let origin_tuple = Plane3DProperties::origin(plane);
+    let u_axis_tuple = Plane3DProperties::u_axis(plane);
+    let v_axis_tuple = Plane3DProperties::v_axis(plane);
+    let normal_tuple = Plane3DProperties::normal(plane);
+
+    let origin = Point3D::new(origin_tuple.0, origin_tuple.1, origin_tuple.2);
+    let u_axis = Vector3D::new(u_axis_tuple.0, u_axis_tuple.1, u_axis_tuple.2);
+    let v_axis = Vector3D::new(v_axis_tuple.0, v_axis_tuple.1, v_axis_tuple.2);
+    let normal = Vector3D::new(normal_tuple.0, normal_tuple.1, normal_tuple.2);
+
+    let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
+
+    // グリッド線数は (grid_size + 1) × 2方向
+    let mut vertices = Vec::with_capacity((grid_size + 1) * 4 * 2);
+
+    // U方向の線（V軸に平行）を生成
+    for i in 0..=grid_size {
+        let u = -extent + step * i as f64;
+
+        // 始点: (u, -extent)
+        let start = Point3D::new(
+            origin.x() + u * u_axis.x() - extent * v_axis.x(),
+            origin.y() + u * u_axis.y() - extent * v_axis.y(),
+            origin.z() + u * u_axis.z() - extent * v_axis.z(),
+        );
+
+        // 終点: (u, +extent)
+        let end = Point3D::new(
+            origin.x() + u * u_axis.x() + extent * v_axis.x(),
+            origin.y() + u * u_axis.y() + extent * v_axis.y(),
+            origin.z() + u * u_axis.z() + extent * v_axis.z(),
+        );
+
+        vertices.push(VertexData::new(
+            [start.x() as f32, start.y() as f32, start.z() as f32],
+            normal_f32,
+        ));
+        vertices.push(VertexData::new(
+            [end.x() as f32, end.y() as f32, end.z() as f32],
+            normal_f32,
+        ));
+    }
+
+    // V方向の線（U軸に平行）を生成
+    for i in 0..=grid_size {
+        let v = -extent + step * i as f64;
+
+        // 始点: (-extent, v)
+        let start = Point3D::new(
+            origin.x() - extent * u_axis.x() + v * v_axis.x(),
+            origin.y() - extent * u_axis.y() + v * v_axis.y(),
+            origin.z() - extent * u_axis.z() + v * v_axis.z(),
+        );
+
+        // 終点: (+extent, v)
+        let end = Point3D::new(
+            origin.x() + extent * u_axis.x() + v * v_axis.x(),
+            origin.y() + extent * u_axis.y() + v * v_axis.y(),
+            origin.z() + extent * u_axis.z() + v * v_axis.z(),
+        );
+
+        vertices.push(VertexData::new(
+            [start.x() as f32, start.y() as f32, start.z() as f32],
+            normal_f32,
+        ));
+        vertices.push(VertexData::new(
+            [end.x() as f32, end.y() as f32, end.z() as f32],
+            normal_f32,
+        ));
+    }
+
+    vertices
+}
+
+/// Ellipse3D を GPU用頂点データに変換（ワイヤーフレーム）
+///
+/// 楕円を多角形近似して頂点列を生成します。
+/// セグメント数は品質パラメータで指定されます。
+pub fn ellipse_to_vertices(
+    ellipse: &Ellipse3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let segments = quality.circle_segments;
+    let mut vertices = Vec::with_capacity(segments + 1); // +1 for closing the loop
+
+    let center = ellipse.center();
+    let semi_major = ellipse.semi_major_axis();
+    let semi_minor = ellipse.semi_minor_axis();
+    let normal = ellipse.normal().as_vector();
+    let major_dir = ellipse.major_axis_direction().as_vector();
+    let minor_dir = ellipse.minor_axis_direction().as_vector();
+
+    let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
+
+    // 楕円周上の点を生成
+    for i in 0..=segments {
+        let angle = 2.0 * PI * (i as f64) / (segments as f64);
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        // 楕円周上の点 = center + a*cos(θ)*major_dir + b*sin(θ)*minor_dir
+        let point = Point3D::new(
+            center.x() + semi_major * cos_a * major_dir.x() + semi_minor * sin_a * minor_dir.x(),
+            center.y() + semi_major * cos_a * major_dir.y() + semi_minor * sin_a * minor_dir.y(),
+            center.z() + semi_major * cos_a * major_dir.z() + semi_minor * sin_a * minor_dir.z(),
+        );
+
+        vertices.push(VertexData::new(
+            [point.x() as f32, point.y() as f32, point.z() as f32],
+            normal_f32,
+        ));
+    }
+
+    vertices
+}
+
+/// Ellipse3D をワイヤーフレーム用LineList頂点データに変換
+///
+/// 楕円周を線分のリストとして表現します（LineListトポロジ用）。
+pub fn ellipse_to_wireframe_line_segments(
+    ellipse: &Ellipse3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let segments = quality.circle_segments;
+    let mut vertices = Vec::with_capacity(segments * 2);
+
+    let center = ellipse.center();
+    let semi_major = ellipse.semi_major_axis();
+    let semi_minor = ellipse.semi_minor_axis();
+    let normal = ellipse.normal().as_vector();
+    let major_dir = ellipse.major_axis_direction().as_vector();
+    let minor_dir = ellipse.minor_axis_direction().as_vector();
+
+    let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
+
+    // 楕円周を線分のペアとして生成
+    for i in 0..segments {
+        let angle1 = 2.0 * PI * (i as f64) / (segments as f64);
+        let angle2 = 2.0 * PI * ((i + 1) as f64) / (segments as f64);
+
+        // 始点
+        let point1 = Point3D::new(
+            center.x()
+                + semi_major * angle1.cos() * major_dir.x()
+                + semi_minor * angle1.sin() * minor_dir.x(),
+            center.y()
+                + semi_major * angle1.cos() * major_dir.y()
+                + semi_minor * angle1.sin() * minor_dir.y(),
+            center.z()
+                + semi_major * angle1.cos() * major_dir.z()
+                + semi_minor * angle1.sin() * minor_dir.z(),
+        );
+
+        // 終点
+        let point2 = Point3D::new(
+            center.x()
+                + semi_major * angle2.cos() * major_dir.x()
+                + semi_minor * angle2.sin() * minor_dir.x(),
+            center.y()
+                + semi_major * angle2.cos() * major_dir.y()
+                + semi_minor * angle2.sin() * minor_dir.y(),
+            center.z()
+                + semi_major * angle2.cos() * major_dir.z()
+                + semi_minor * angle2.sin() * minor_dir.z(),
+        );
+
+        vertices.push(VertexData::new(
+            [point1.x() as f32, point1.y() as f32, point1.z() as f32],
+            normal_f32,
+        ));
+        vertices.push(VertexData::new(
+            [point2.x() as f32, point2.y() as f32, point2.z() as f32],
+            normal_f32,
+        ));
+    }
+
+    vertices
+}
+
+/// EllipseArc3D を GPU用頂点データに変換（ワイヤーフレーム）
+///
+/// 楕円弧をセグメント分割して頂点列を生成します。
+pub fn ellipse_arc_to_vertices(
+    arc: &EllipseArc3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    // 楕円弧の角度範囲を取得
+    let start_angle: f64 = EllipseArc3DProperties::start_angle(arc);
+    let end_angle: f64 = EllipseArc3DProperties::end_angle(arc);
+
+    // 角度範囲を計算（CCW方向）
+    let mut angle_range: f64 = end_angle - start_angle;
+    if angle_range < 0.0 {
+        angle_range += 2.0 * PI;
+    }
+
+    // 角度範囲に基づいてセグメント数を決定
+    let segments = ((angle_range / (2.0 * PI)) * (quality.circle_segments as f64))
+        .ceil()
+        .max(quality.min_segments as f64) as usize;
+
+    let mut vertices = Vec::with_capacity(segments + 1);
+
+    let ellipse = arc.ellipse();
+    let center = ellipse.center();
+    let semi_major = ellipse.semi_major_axis();
+    let semi_minor = ellipse.semi_minor_axis();
+    let normal = ellipse.normal().as_vector();
+    let major_dir = ellipse.major_axis_direction().as_vector();
+    let minor_dir = ellipse.minor_axis_direction().as_vector();
+
+    let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
+
+    // 楕円弧上の点を生成
+    for i in 0..=segments {
+        let t = (i as f64) / (segments as f64);
+        let angle = start_angle + t * angle_range;
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        // 楕円弧上の点
+        let point = Point3D::new(
+            center.x() + semi_major * cos_a * major_dir.x() + semi_minor * sin_a * minor_dir.x(),
+            center.y() + semi_major * cos_a * major_dir.y() + semi_minor * sin_a * minor_dir.y(),
+            center.z() + semi_major * cos_a * major_dir.z() + semi_minor * sin_a * minor_dir.z(),
+        );
+
+        vertices.push(VertexData::new(
+            [point.x() as f32, point.y() as f32, point.z() as f32],
+            normal_f32,
+        ));
+    }
+
+    vertices
+}
+
+/// EllipseArc3D をワイヤーフレーム用LineList頂点データに変換
+///
+/// 楕円弧を線分のリストとして表現します（LineListトポロジ用）。
+pub fn ellipse_arc_to_wireframe_line_segments(
+    arc: &EllipseArc3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    // 角度範囲を取得
+    let start_angle: f64 = EllipseArc3DProperties::start_angle(arc);
+    let end_angle: f64 = EllipseArc3DProperties::end_angle(arc);
+
+    let mut angle_range: f64 = end_angle - start_angle;
+    if angle_range < 0.0 {
+        angle_range += 2.0 * PI;
+    }
+
+    let segments = ((angle_range / (2.0 * PI)) * (quality.circle_segments as f64))
+        .ceil()
+        .max(quality.min_segments as f64) as usize;
+
+    let mut vertices = Vec::with_capacity(segments * 2);
+
+    let ellipse = arc.ellipse();
+    let center = ellipse.center();
+    let semi_major = ellipse.semi_major_axis();
+    let semi_minor = ellipse.semi_minor_axis();
+    let normal = ellipse.normal().as_vector();
+    let major_dir = ellipse.major_axis_direction().as_vector();
+    let minor_dir = ellipse.minor_axis_direction().as_vector();
+
+    let normal_f32 = [normal.x() as f32, normal.y() as f32, normal.z() as f32];
+
+    // 楕円弧を線分として生成
+    for i in 0..segments {
+        let t1 = (i as f64) / (segments as f64);
+        let t2 = ((i + 1) as f64) / (segments as f64);
+
+        let angle1 = start_angle + t1 * angle_range;
+        let angle2 = start_angle + t2 * angle_range;
+
+        // 始点
+        let point1 = Point3D::new(
+            center.x()
+                + semi_major * angle1.cos() * major_dir.x()
+                + semi_minor * angle1.sin() * minor_dir.x(),
+            center.y()
+                + semi_major * angle1.cos() * major_dir.y()
+                + semi_minor * angle1.sin() * minor_dir.y(),
+            center.z()
+                + semi_major * angle1.cos() * major_dir.z()
+                + semi_minor * angle1.sin() * minor_dir.z(),
+        );
+
+        // 終点
+        let point2 = Point3D::new(
+            center.x()
+                + semi_major * angle2.cos() * major_dir.x()
+                + semi_minor * angle2.sin() * minor_dir.x(),
+            center.y()
+                + semi_major * angle2.cos() * major_dir.y()
+                + semi_minor * angle2.sin() * minor_dir.y(),
+            center.z()
+                + semi_major * angle2.cos() * major_dir.z()
+                + semi_minor * angle2.sin() * minor_dir.z(),
+        );
+
+        vertices.push(VertexData::new(
+            [point1.x() as f32, point1.y() as f32, point1.z() as f32],
+            normal_f32,
+        ));
+        vertices.push(VertexData::new(
+            [point2.x() as f32, point2.y() as f32, point2.z() as f32],
+            normal_f32,
+        ));
+    }
+
+    vertices
+}
+
+/// Ray3D を GPU用頂点データに変換（有限長表示）
+///
+/// 光線を起点から一方向へ延びる有限長の線分として表示します。
+///
+/// # Arguments
+/// * `ray` - 光線
+/// * `quality` - テッセレーション品質パラメータ（ray_extentを使用）
+///
+/// # Returns
+/// 2頂点の線分データ（LineListトポロジ用）
+pub fn ray_to_vertices(ray: &Ray3D<f64>, quality: &TessellationQuality) -> Vec<VertexData> {
+    let origin_point = Ray3DProperties::origin(ray);
+    let direction_vec = Ray3DProperties::direction(ray);
+    let extent = quality.ray_extent;
+
+    let origin = Point3D::new(origin_point.x(), origin_point.y(), origin_point.z());
+    let direction = Vector3D::new(direction_vec.x(), direction_vec.y(), direction_vec.z());
+
+    // 終点 = 起点 + 方向 × 表示範囲
+    let end = Point3D::new(
+        origin.x() + direction.x() * extent,
+        origin.y() + direction.y() * extent,
+        origin.z() + direction.z() * extent,
+    );
+
+    // 法線はゼロベクトル（線には法線が定義されない）
+    let normal = [0.0f32, 0.0, 0.0];
+
+    vec![
+        VertexData::new(
+            [origin.x() as f32, origin.y() as f32, origin.z() as f32],
+            normal,
+        ),
+        VertexData::new([end.x() as f32, end.y() as f32, end.z() as f32], normal),
+    ]
+}
+
+/// InfiniteLine3D を GPU用頂点データに変換（有限長表示）
+///
+/// 無限直線を両方向へ延びる有限長の線分として表示します。
+///
+/// # Arguments
+/// * `line` - 無限直線
+/// * `quality` - テッセレーション品質パラメータ（infinite_line_extentを使用）
+///
+/// # Returns
+/// 2頂点の線分データ（LineListトポロジ用）
+pub fn infinite_line_to_vertices(
+    line: &InfiniteLine3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let point_tuple = InfiniteLine3DProperties::point(line);
+    let direction_tuple = InfiniteLine3DProperties::direction(line);
+    let extent = quality.infinite_line_extent;
+
+    let point = Point3D::new(point_tuple.0, point_tuple.1, point_tuple.2);
+    let direction = Vector3D::new(direction_tuple.0, direction_tuple.1, direction_tuple.2);
+
+    // 始点 = 点 - 方向 × 表示範囲
+    let start = Point3D::new(
+        point.x() - direction.x() * extent,
+        point.y() - direction.y() * extent,
+        point.z() - direction.z() * extent,
+    );
+
+    // 終点 = 点 + 方向 × 表示範囲
+    let end = Point3D::new(
+        point.x() + direction.x() * extent,
+        point.y() + direction.y() * extent,
+        point.z() + direction.z() * extent,
+    );
+
+    // 法線はゼロベクトル（線には法線が定義されない）
+    let normal = [0.0f32, 0.0, 0.0];
+
+    vec![
+        VertexData::new(
+            [start.x() as f32, start.y() as f32, start.z() as f32],
+            normal,
+        ),
+        VertexData::new([end.x() as f32, end.y() as f32, end.z() as f32], normal),
+    ]
 }
 
 #[cfg(test)]
