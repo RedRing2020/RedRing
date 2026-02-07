@@ -2158,4 +2158,303 @@ mod tests {
             assert!((distance - radius as f32).abs() < 0.01);
         }
     }
+
+    // ========================================================================
+    // Issue #204 統合テスト: 全15形状の変換関数検証
+    // ========================================================================
+
+    #[test]
+    fn test_all_15_shapes_conversion() {
+        use geo_primitives::{Angle, ConicalSurface3D, Ellipse3D};
+
+        let quality = TessellationQuality::default();
+
+        // === 基本形状 (5種) ===
+
+        // 1. Plane3D
+        let plane = Plane3D::xy_plane(0.0);
+        let plane_vertices = plane_to_grid_vertices(&plane, &quality);
+        assert!(!plane_vertices.is_empty(), "Plane3D conversion failed");
+
+        // 2. Ellipse3D
+        let ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            2.0, // semi_major_axis
+            1.0, // semi_minor_axis
+            Vector3D::new(0.0, 0.0, 1.0), // normal
+            Vector3D::new(1.0, 0.0, 0.0), // major_axis_dir
+        )
+        .unwrap();
+        let ellipse_vertices = ellipse_to_vertices(&ellipse, &quality);
+        assert!(!ellipse_vertices.is_empty(), "Ellipse3D conversion failed");
+
+        // 3. EllipseArc3D
+        let base_ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            2.0,
+            1.0,
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ellipse_arc = EllipseArc3D::new(
+            base_ellipse,
+            Angle::from_radians(0.0),
+            Angle::from_radians(std::f64::consts::PI),
+        );
+        let ellipse_arc_vertices = ellipse_arc_to_vertices(&ellipse_arc, &quality);
+        assert!(
+            !ellipse_arc_vertices.is_empty(),
+            "EllipseArc3D conversion failed"
+        );
+
+        // 4. Ray3D
+        let ray = Ray3D::new(
+            Point3D::origin(),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray_vertices = ray_to_vertices(&ray, &quality);
+        assert_eq!(ray_vertices.len(), 2, "Ray3D should have 2 vertices");
+
+        // 5. InfiniteLine3D
+        let infinite_line = InfiniteLine3D::new(
+            Point3D::origin(),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let infinite_line_vertices = infinite_line_to_vertices(&infinite_line, &quality);
+        assert_eq!(
+            infinite_line_vertices.len(),
+            2,
+            "InfiniteLine3D should have 2 vertices"
+        );
+
+        // === Surface形状 (5種) ===
+
+        // 6. CylindricalSurface3D
+        let cyl_surface = CylindricalSurface3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+        )
+        .unwrap();
+        let cyl_surface_vertices = cylindrical_surface_to_vertices(&cyl_surface, &quality);
+        assert!(
+            !cyl_surface_vertices.is_empty(),
+            "CylindricalSurface3D conversion failed"
+        );
+
+        // 7. SphericalSurface3D
+        let sphere_surface = SphericalSurface3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+        )
+        .unwrap();
+        let sphere_surface_vertices = spherical_surface_to_vertices(&sphere_surface, &quality);
+        assert!(
+            !sphere_surface_vertices.is_empty(),
+            "SphericalSurface3D conversion failed"
+        );
+
+        // 8. ConicalSurface3D
+        let cone_surface = ConicalSurface3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),     // axis
+            Vector3D::new(1.0, 0.0, 0.0),     // ref_direction
+            1.0,                               // radius
+            std::f64::consts::PI / 6.0,        // semi_angle (30 degrees)
+        )
+        .unwrap();
+        let cone_surface_vertices = conical_surface_to_vertices(&cone_surface, &quality);
+        assert!(
+            !cone_surface_vertices.is_empty(),
+            "ConicalSurface3D conversion failed"
+        );
+
+        // 9. TorusSurface3D
+        let torus_surface = TorusSurface3D::standard(2.0, 0.5).unwrap();
+        let torus_surface_vertices = torus_surface_to_vertices(&torus_surface, &quality);
+        assert!(
+            !torus_surface_vertices.is_empty(),
+            "TorusSurface3D conversion failed"
+        );
+
+        // 10. EllipsoidalSurface3D
+        let ellipsoid_surface = EllipsoidalSurface3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+            1.5,
+            1.0,
+        )
+        .unwrap();
+        let ellipsoid_surface_vertices =
+            ellipsoidal_surface_to_vertices(&ellipsoid_surface, &quality);
+        assert!(
+            !ellipsoid_surface_vertices.is_empty(),
+            "EllipsoidalSurface3D conversion failed"
+        );
+
+        // === Solid形状 (5種) ===
+
+        // 11. CylindricalSolid3D
+        let cyl_solid = CylindricalSolid3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+            2.0,
+        )
+        .unwrap();
+        let cyl_solid_vertices = cylindrical_solid_to_vertices(&cyl_solid, &quality);
+        assert!(
+            !cyl_solid_vertices.is_empty(),
+            "CylindricalSolid3D conversion failed"
+        );
+
+        // 12. SphericalSolid3D
+        let sphere_solid = SphericalSolid3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+        )
+        .unwrap();
+        let sphere_solid_vertices = spherical_solid_to_vertices(&sphere_solid, &quality);
+        assert!(
+            !sphere_solid_vertices.is_empty(),
+            "SphericalSolid3D conversion failed"
+        );
+
+        // 13. ConicalSolid3D
+        let cone_solid = ConicalSolid3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+            2.0,
+        )
+        .unwrap();
+        let cone_solid_vertices = conical_solid_to_vertices(&cone_solid, &quality);
+        assert!(
+            !cone_solid_vertices.is_empty(),
+            "ConicalSolid3D conversion failed"
+        );
+
+        // 14. TorusSolid3D
+        let torus_solid = TorusSolid3D::standard(2.0, 0.5).unwrap();
+        let torus_solid_vertices = torus_solid_to_vertices(&torus_solid, &quality);
+        assert!(
+            !torus_solid_vertices.is_empty(),
+            "TorusSolid3D conversion failed"
+        );
+
+        // 15. EllipsoidalSolid3D
+        let ellipsoid_solid = EllipsoidalSolid3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+            1.5,
+            1.0,
+        )
+        .unwrap();
+        let ellipsoid_solid_vertices = ellipsoidal_solid_to_vertices(&ellipsoid_solid, &quality);
+        assert!(
+            !ellipsoid_solid_vertices.is_empty(),
+            "EllipsoidalSolid3D conversion failed"
+        );
+
+        // === 統計情報 ===
+        let total_vertices = plane_vertices.len()
+            + ellipse_vertices.len()
+            + ellipse_arc_vertices.len()
+            + ray_vertices.len()
+            + infinite_line_vertices.len()
+            + cyl_surface_vertices.len()
+            + sphere_surface_vertices.len()
+            + cone_surface_vertices.len()
+            + torus_surface_vertices.len()
+            + ellipsoid_surface_vertices.len()
+            + cyl_solid_vertices.len()
+            + sphere_solid_vertices.len()
+            + cone_solid_vertices.len()
+            + torus_solid_vertices.len()
+            + ellipsoid_solid_vertices.len();
+
+        println!("=== Issue #204 全15形状変換テスト完了 ===");
+        println!("総頂点数: {} vertices", total_vertices);
+        println!("基本形状: Plane({}) + Ellipse({}) + EllipseArc({}) + Ray({}) + InfiniteLine({})",
+            plane_vertices.len(),
+            ellipse_vertices.len(),
+            ellipse_arc_vertices.len(),
+            ray_vertices.len(),
+            infinite_line_vertices.len()
+        );
+        println!("Surface形状: Cylinder({}) + Sphere({}) + Cone({}) + Torus({}) + Ellipsoid({})",
+            cyl_surface_vertices.len(),
+            sphere_surface_vertices.len(),
+            cone_surface_vertices.len(),
+            torus_surface_vertices.len(),
+            ellipsoid_surface_vertices.len()
+        );
+        println!("Solid形状: Cylinder({}) + Sphere({}) + Cone({}) + Torus({}) + Ellipsoid({})",
+            cyl_solid_vertices.len(),
+            sphere_solid_vertices.len(),
+            cone_solid_vertices.len(),
+            torus_solid_vertices.len(),
+            ellipsoid_solid_vertices.len()
+        );
+    }
+
+    #[test]
+    fn test_tessellation_quality_parameters() {
+        // テッセレーション品質パラメータの妥当性確認
+        let quality = TessellationQuality::default();
+
+        // デフォルト値の検証
+        assert_eq!(quality.plane_grid_size, 10);
+        assert_eq!(quality.sphere_u_divisions, 32);
+        assert_eq!(quality.sphere_v_divisions, 16);
+        assert_eq!(quality.circle_segments, 32);
+        assert_eq!(quality.plane_grid_extent, 10.0);
+        assert_eq!(quality.infinite_line_extent, 100.0);
+        assert_eq!(quality.ray_extent, 100.0);
+
+        // カスタム品質パラメータ
+        let high_quality = TessellationQuality {
+            sphere_u_divisions: 64,
+            sphere_v_divisions: 32,
+            circle_segments: 64,
+            ..Default::default()
+        };
+
+        let sphere = SphericalSolid3D::new(
+            Point3D::origin(),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+        )
+        .unwrap();
+
+        let default_vertices = spherical_solid_to_vertices(&sphere, &quality);
+        let high_quality_vertices = spherical_solid_to_vertices(&sphere, &high_quality);
+
+        // 高品質設定では頂点数が増加することを確認
+        assert!(
+            high_quality_vertices.len() > default_vertices.len(),
+            "Higher quality should produce more vertices"
+        );
+
+        println!(
+            "Default quality: {} vertices, High quality: {} vertices",
+            default_vertices.len(),
+            high_quality_vertices.len()
+        );
+    }
 }
