@@ -23,12 +23,15 @@
 
 use crate::mesh_converter::VertexData;
 use geo_foundation::{
-    Arc3DProperties, Circle3DProperties, EllipseArc3DProperties, InfiniteLine3DProperties,
-    Plane3DProperties, PrimitiveKind, Ray3DProperties, Triangle3DProperties,
+    Arc3DProperties, Circle3DProperties, ConicalSurface3DProperties,
+    CylindricalSurface3DProperties, EllipseArc3DProperties, EllipsoidalSurface3DProperties,
+    InfiniteLine3DProperties, Plane3DProperties, Ray3DProperties, SphericalSurface3DProperties,
+    PrimitiveKind, Triangle3DProperties,
 };
 use geo_primitives::{
-    Arc3D, Circle3D, Ellipse3D, EllipseArc3D, InfiniteLine3D, LineSegment3D, Plane3D,
-    Point3D, Ray3D, Triangle3D, Vector3D,
+    Arc3D, Circle3D, ConicalSurface3D, CylindricalSurface3D, Ellipse3D, EllipseArc3D,
+    EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D,
+    SphericalSurface3D, TorusSurface3D, Triangle3D, Vector3D,
 };
 use std::f64::consts::PI;
 
@@ -993,6 +996,539 @@ pub fn infinite_line_to_vertices(
             normal,
         ),
         VertexData::new([end.x() as f32, end.y() as f32, end.z() as f32], normal),
+    ]
+}
+
+/// CylindricalSurface3D を GPU用頂点データに変換（ソリッド）
+///
+/// 円筒面をUVパラメトリック分割して三角形メッシュを生成します。
+///
+/// # Arguments
+/// * `surface` - 円筒面
+/// * `quality` - テッセレーション品質パラメータ
+///
+/// # Returns
+/// 三角形メッシュの頂点データ（TriangleListトポロジ用）
+pub fn cylindrical_surface_to_vertices(
+    surface: &CylindricalSurface3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let u_divisions = quality.circle_segments; // 円周方向
+    let v_divisions = quality.sphere_v_divisions; // 高さ方向
+    let height = 10.0; // デフォルト高さ（将来的にパラメータ化）
+
+    let center_tuple = CylindricalSurface3DProperties::center(surface);
+    let axis_tuple = CylindricalSurface3DProperties::axis(surface);
+    let ref_tuple = CylindricalSurface3DProperties::ref_direction(surface);
+    let radius = CylindricalSurface3DProperties::radius(surface);
+
+    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    let axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
+    let ref_dir = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
+
+    // Y軸 = Z軸 × X軸
+    let y_axis = axis.cross(&ref_dir).normalize();
+
+    let mut vertices = Vec::new();
+
+    // UV グリッドで円筒面を生成
+    for i in 0..v_divisions {
+        for j in 0..u_divisions {
+            let v1 = (i as f64 / v_divisions as f64) * height - height / 2.0;
+            let v2 = ((i + 1) as f64 / v_divisions as f64) * height - height / 2.0;
+            let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
+            let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
+
+            // 4頂点を計算
+            let p1 = calculate_cylinder_point(&center, &ref_dir, &y_axis, &axis, radius, u1, v1);
+            let p2 = calculate_cylinder_point(&center, &ref_dir, &y_axis, &axis, radius, u2, v1);
+            let p3 = calculate_cylinder_point(&center, &ref_dir, &y_axis, &axis, radius, u2, v2);
+            let p4 = calculate_cylinder_point(&center, &ref_dir, &y_axis, &axis, radius, u1, v2);
+
+            // 法線（外向き）
+            let n1 = calculate_cylinder_normal(&ref_dir, &y_axis, u1);
+            let n2 = calculate_cylinder_normal(&ref_dir, &y_axis, u2);
+
+            // 2つの三角形に分割
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n1));
+        }
+    }
+
+    vertices
+}
+
+#[inline]
+fn calculate_cylinder_point(
+    center: &Point3D<f64>,
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    radius: f64,
+    u: f64,
+    v: f64,
+) -> Point3D<f64> {
+    Point3D::new(
+        center.x() + radius * (u.cos() * x_axis.x() + u.sin() * y_axis.x()) + v * z_axis.x(),
+        center.y() + radius * (u.cos() * x_axis.y() + u.sin() * y_axis.y()) + v * z_axis.y(),
+        center.z() + radius * (u.cos() * x_axis.z() + u.sin() * y_axis.z()) + v * z_axis.z(),
+    )
+}
+
+#[inline]
+fn calculate_cylinder_normal(
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    u: f64,
+) -> [f32; 3] {
+    let nx = u.cos() * x_axis.x() + u.sin() * y_axis.x();
+    let ny = u.cos() * x_axis.y() + u.sin() * y_axis.y();
+    let nz = u.cos() * x_axis.z() + u.sin() * y_axis.z();
+    [nx as f32, ny as f32, nz as f32]
+}
+
+/// SphericalSurface3D を GPU用頂点データに変換（ソリッド）
+///
+/// 球面をUVパラメトリック分割して三角形メッシュを生成します。
+pub fn spherical_surface_to_vertices(
+    surface: &SphericalSurface3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let u_divisions = quality.sphere_u_divisions; // 経度方向
+    let v_divisions = quality.sphere_v_divisions; // 緯度方向
+
+    let center_tuple = SphericalSurface3DProperties::center(surface);
+    let axis_tuple = SphericalSurface3DProperties::axis(surface);
+    let ref_tuple = SphericalSurface3DProperties::ref_direction(surface);
+    let radius = SphericalSurface3DProperties::radius(surface);
+
+    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
+    let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
+    let y_axis = z_axis.cross(&x_axis).normalize();
+
+    let mut vertices = Vec::new();
+
+    // UV グリッドで球面を生成
+    for i in 0..v_divisions {
+        for j in 0..u_divisions {
+            let v1 = (i as f64 / v_divisions as f64) * PI - PI / 2.0; // -π/2 to π/2
+            let v2 = ((i + 1) as f64 / v_divisions as f64) * PI - PI / 2.0;
+            let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI; // 0 to 2π
+            let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
+
+            // 極点の退化処理
+            if i == 0 {
+                // 北極
+                let p_pole = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+                let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+                let p3 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v2);
+
+                let n_pole = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v2);
+
+                vertices.push(VertexData::new([p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32], n_pole));
+                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n_pole));
+                vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n_pole));
+                continue;
+            }
+
+            if i == v_divisions - 1 {
+                // 南極付近
+                let p1 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v1);
+                let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v1);
+                let p_pole = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+
+                let n1 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v1);
+
+                vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n1));
+                vertices.push(VertexData::new([p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32], n1));
+                continue;
+            }
+
+            // 通常の4頂点クワッド
+            let p1 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v1);
+            let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v1);
+            let p3 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v2);
+            let p4 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+
+            let n1 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v1);
+            let n2 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u2, v1);
+            let n3 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u2, v2);
+            let n4 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v2);
+
+            // 2つの三角形
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+        }
+    }
+
+    vertices
+}
+
+#[inline]
+fn calculate_sphere_point(
+    center: &Point3D<f64>,
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    radius: f64,
+    u: f64,
+    v: f64,
+) -> Point3D<f64> {
+    let cos_v = v.cos();
+    Point3D::new(
+        center.x() + radius * (cos_v * u.cos() * x_axis.x() + cos_v * u.sin() * y_axis.x() + v.sin() * z_axis.x()),
+        center.y() + radius * (cos_v * u.cos() * x_axis.y() + cos_v * u.sin() * y_axis.y() + v.sin() * z_axis.y()),
+        center.z() + radius * (cos_v * u.cos() * x_axis.z() + cos_v * u.sin() * y_axis.z() + v.sin() * z_axis.z()),
+    )
+}
+
+#[inline]
+fn calculate_sphere_normal(
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    u: f64,
+    v: f64,
+) -> [f32; 3] {
+    let cos_v = v.cos();
+    let nx = cos_v * u.cos() * x_axis.x() + cos_v * u.sin() * y_axis.x() + v.sin() * z_axis.x();
+    let ny = cos_v * u.cos() * x_axis.y() + cos_v * u.sin() * y_axis.y() + v.sin() * z_axis.y();
+    let nz = cos_v * u.cos() * x_axis.z() + cos_v * u.sin() * y_axis.z() + v.sin() * z_axis.z();
+    [nx as f32, ny as f32, nz as f32]
+}
+
+/// ConicalSurface3D を GPU用頂点データに変換（ソリッド）
+///
+/// 円錐面をUVパラメトリック分割して三角形メッシュを生成します。
+pub fn conical_surface_to_vertices(
+    surface: &ConicalSurface3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let u_divisions = quality.circle_segments; // 円周方向
+    let v_divisions = quality.sphere_v_divisions; // 高さ方向
+
+    let apex_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::apex(surface);
+    let base_center_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::base_center(surface);
+    let radius = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::radius(surface);
+    let height = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::height(surface);
+    let axis_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::axis(surface);
+    let ref_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::ref_direction(surface);
+
+    let apex = Point3D::new(apex_tuple.0, apex_tuple.1, apex_tuple.2);
+    let base_center = Point3D::new(base_center_tuple.0, base_center_tuple.1, base_center_tuple.2);
+    let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
+    let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
+    let y_axis = z_axis.cross(&x_axis).normalize();
+
+    // 頂点から底面へ向かう軸ベクトル
+    let axis_dir = Vector3D::new(
+        base_center.x() - apex.x(),
+        base_center.y() - apex.y(),
+        base_center.z() - apex.z(),
+    ).normalize();
+
+    // 半角の計算: tan(semi_angle) = radius / height
+    let semi_angle = (radius / height).atan();
+
+    let mut vertices = Vec::new();
+
+    for i in 0..v_divisions {
+        for j in 0..u_divisions {
+            let v1 = i as f64 / v_divisions as f64; // 0 to 1 (apex to base)
+            let v2 = (i + 1) as f64 / v_divisions as f64;
+            let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
+            let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
+
+            // v = 0が頂点、v = 1が底面
+            let h1 = v1 * height;
+            let h2 = v2 * height;
+            let r1 = v1 * radius; // v=0で0, v=1でradius
+            let r2 = v2 * radius;
+
+            let p1 = calculate_cone_point_from_apex(&apex, &x_axis, &y_axis, &axis_dir, r1, u1, h1);
+            let p2 = calculate_cone_point_from_apex(&apex, &x_axis, &y_axis, &axis_dir, r1, u2, h1);
+            let p3 = calculate_cone_point_from_apex(&apex, &x_axis, &y_axis, &axis_dir, r2, u2, h2);
+            let p4 = calculate_cone_point_from_apex(&apex, &x_axis, &y_axis, &axis_dir, r2, u1, h2);
+
+            let n1 = calculate_cone_normal(&x_axis, &y_axis, &axis_dir, u1, semi_angle);
+            let n2 = calculate_cone_normal(&x_axis, &y_axis, &axis_dir, u2, semi_angle);
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n1));
+        }
+    }
+
+    vertices
+}
+
+#[inline]
+fn calculate_cone_point_from_apex(
+    apex: &Point3D<f64>,
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    axis_dir: &Vector3D<f64>,
+    radius: f64,
+    u: f64,
+    h: f64,
+) -> Point3D<f64> {
+    Point3D::new(
+        apex.x() + radius * (u.cos() * x_axis.x() + u.sin() * y_axis.x()) + h * axis_dir.x(),
+        apex.y() + radius * (u.cos() * x_axis.y() + u.sin() * y_axis.y()) + h * axis_dir.y(),
+        apex.z() + radius * (u.cos() * x_axis.z() + u.sin() * y_axis.z()) + h * axis_dir.z(),
+    )
+}
+
+#[inline]
+fn calculate_cone_normal(
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    axis_dir: &Vector3D<f64>,
+    u: f64,
+    semi_angle: f64,
+) -> [f32; 3] {
+    let cos_angle = semi_angle.cos();
+    let sin_angle = semi_angle.sin();
+
+    let radial_x = u.cos() * x_axis.x() + u.sin() * y_axis.x();
+    let radial_y = u.cos() * x_axis.y() + u.sin() * y_axis.y();
+    let radial_z = u.cos() * x_axis.z() + u.sin() * y_axis.z();
+
+    let nx = cos_angle * radial_x - sin_angle * axis_dir.x();
+    let ny = cos_angle * radial_y - sin_angle * axis_dir.y();
+    let nz = cos_angle * radial_z - sin_angle * axis_dir.z();
+
+    let len = (nx * nx + ny * ny + nz * nz).sqrt();
+    [
+        (nx / len) as f32,
+        (ny / len) as f32,
+        (nz / len) as f32,
+    ]
+}
+
+/// TorusSurface3D を GPU用頂点データに変換（ソリッド）
+///
+/// トーラス面をUVパラメトリック分割して三角形メッシュを生成します。
+pub fn torus_surface_to_vertices(
+    surface: &TorusSurface3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let u_divisions = quality.circle_segments; // 主円周方向
+    let v_divisions = quality.circle_segments / 2; // 副円周方向
+
+    // TorusSurface3Dには直接アクセスするメソッドがないため、内部フィールドアクセスを使用
+    // 注: これは一時的な実装で、将来的にトレイトを追加する必要があります
+    let origin = surface.origin_internal();
+    let z_axis_dir = surface.z_axis_internal();
+    let x_axis_dir = surface.x_axis_internal();
+    let major_radius = surface.major_radius_internal();
+    let minor_radius = surface.minor_radius_internal();
+
+    let z_axis = Vector3D::new(z_axis_dir.x(), z_axis_dir.y(), z_axis_dir.z());
+    let x_axis = Vector3D::new(x_axis_dir.x(), x_axis_dir.y(), x_axis_dir.z());
+    let y_axis = z_axis.cross(&x_axis).normalize();
+
+    let mut vertices = Vec::new();
+
+    for i in 0..u_divisions {
+        for j in 0..v_divisions {
+            let u1 = (i as f64 / u_divisions as f64) * 2.0 * PI;
+            let u2 = ((i + 1) as f64 / u_divisions as f64) * 2.0 * PI;
+            let v1 = (j as f64 / v_divisions as f64) * 2.0 * PI;
+            let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
+
+            let p1 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v1);
+            let p2 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v1);
+            let p3 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v2);
+            let p4 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v2);
+
+            let n1 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v1);
+            let n2 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v1);
+            let n3 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v2);
+            let n4 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v2);
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+        }
+    }
+
+    vertices
+}
+
+#[inline]
+fn calculate_torus_point(
+    origin: &Point3D<f64>,
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    major_radius: f64,
+    minor_radius: f64,
+    u: f64,
+    v: f64,
+) -> Point3D<f64> {
+    let r = major_radius + minor_radius * v.cos();
+    Point3D::new(
+        origin.x() + r * (u.cos() * x_axis.x() + u.sin() * y_axis.x()) + minor_radius * v.sin() * z_axis.x(),
+        origin.y() + r * (u.cos() * x_axis.y() + u.sin() * y_axis.y()) + minor_radius * v.sin() * z_axis.y(),
+        origin.z() + r * (u.cos() * x_axis.z() + u.sin() * y_axis.z()) + minor_radius * v.sin() * z_axis.z(),
+    )
+}
+
+#[inline]
+fn calculate_torus_normal(
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    _major_radius: f64,
+    _minor_radius: f64,
+    u: f64,
+    v: f64,
+) -> [f32; 3] {
+    let nx = v.cos() * (u.cos() * x_axis.x() + u.sin() * y_axis.x()) + v.sin() * z_axis.x();
+    let ny = v.cos() * (u.cos() * x_axis.y() + u.sin() * y_axis.y()) + v.sin() * z_axis.y();
+    let nz = v.cos() * (u.cos() * x_axis.z() + u.sin() * y_axis.z()) + v.sin() * z_axis.z();
+    [nx as f32, ny as f32, nz as f32]
+}
+
+/// EllipsoidalSurface3D を GPU用頂点データに変換（ソリッド）
+///
+/// 楕円体面をUVパラメトリック分割して三角形メッシュを生成します。
+pub fn ellipsoidal_surface_to_vertices(
+    surface: &EllipsoidalSurface3D<f64>,
+    quality: &TessellationQuality,
+) -> Vec<VertexData> {
+    let u_divisions = quality.sphere_u_divisions; // 経度方向
+    let v_divisions = quality.sphere_v_divisions; // 緯度方向
+
+    let center_tuple = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::center(surface);
+    let axis_tuple = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::axis(surface);
+    let ref_tuple = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::ref_direction(surface);
+    let a_radius = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_a(surface);
+    let b_radius = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_b(surface);
+    let c_radius = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_c(surface);
+
+    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
+    let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
+    let y_axis = z_axis.cross(&x_axis).normalize();
+
+    let mut vertices = Vec::new();
+
+    for i in 0..v_divisions {
+        for j in 0..u_divisions {
+            let v1 = (i as f64 / v_divisions as f64) * PI - PI / 2.0;
+            let v2 = ((i + 1) as f64 / v_divisions as f64) * PI - PI / 2.0;
+            let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
+            let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
+
+            // 極点の退化処理（球面と同様）
+            if i == 0 || i == v_divisions - 1 {
+                let (p1, p2, p3) = if i == 0 {
+                    let pole = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+                    let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+                    let p3 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
+                    (pole, p2, p3)
+                } else {
+                    let p1 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
+                    let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
+                    let pole = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+                    (p1, p2, pole)
+                };
+
+                let n = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, if i == 0 { v2 } else { v1 });
+
+                vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n));
+                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n));
+                vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n));
+                continue;
+            }
+
+            let p1 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
+            let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
+            let p3 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
+            let p4 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+
+            let n1 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
+            let n2 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
+            let n3 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
+            let n4 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+
+            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
+            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+        }
+    }
+
+    vertices
+}
+
+#[inline]
+fn calculate_ellipsoid_point(
+    center: &Point3D<f64>,
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    a: f64,
+    b: f64,
+    c: f64,
+    u: f64,
+    v: f64,
+) -> Point3D<f64> {
+    let cos_v = v.cos();
+    Point3D::new(
+        center.x() + a * cos_v * u.cos() * x_axis.x() + b * cos_v * u.sin() * y_axis.x() + c * v.sin() * z_axis.x(),
+        center.y() + a * cos_v * u.cos() * x_axis.y() + b * cos_v * u.sin() * y_axis.y() + c * v.sin() * z_axis.y(),
+        center.z() + a * cos_v * u.cos() * x_axis.z() + b * cos_v * u.sin() * y_axis.z() + c * v.sin() * z_axis.z(),
+    )
+}
+
+#[inline]
+fn calculate_ellipsoid_normal(
+    x_axis: &Vector3D<f64>,
+    y_axis: &Vector3D<f64>,
+    z_axis: &Vector3D<f64>,
+    a: f64,
+    b: f64,
+    c: f64,
+    u: f64,
+    v: f64,
+) -> [f32; 3] {
+    let cos_v = v.cos();
+    // 楕円体の法線 = (x/a², y/b², z/c²) を正規化
+    let nx = (cos_v * u.cos() / a) * x_axis.x() + (cos_v * u.sin() / b) * y_axis.x() + (v.sin() / c) * z_axis.x();
+    let ny = (cos_v * u.cos() / a) * x_axis.y() + (cos_v * u.sin() / b) * y_axis.y() + (v.sin() / c) * z_axis.y();
+    let nz = (cos_v * u.cos() / a) * x_axis.z() + (cos_v * u.sin() / b) * y_axis.z() + (v.sin() / c) * z_axis.z();
+
+    let len = (nx * nx + ny * ny + nz * nz).sqrt();
+    [
+        (nx / len) as f32,
+        (ny / len) as f32,
+        (nz / len) as f32,
     ]
 }
 

@@ -86,22 +86,22 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 原点を取得
-    pub(crate) fn origin_internal(&self) -> Point3D<T> {
+    pub fn origin_internal(&self) -> Point3D<T> {
         self.origin
     }
 
     /// Z軸方向を取得
-    pub(crate) fn z_axis_internal(&self) -> Direction3D<T> {
+    pub fn z_axis_internal(&self) -> Direction3D<T> {
         self.z_axis
     }
 
     /// X軸方向を取得
-    pub(crate) fn x_axis_internal(&self) -> Direction3D<T> {
+    pub fn x_axis_internal(&self) -> Direction3D<T> {
         self.x_axis
     }
 
     /// Y軸方向を計算（右手座標系）
-    pub(crate) fn y_axis_internal(&self) -> Direction3D<T> {
+    pub fn y_axis_internal(&self) -> Direction3D<T> {
         let z_vec = Vector3D::new(self.z_axis.x(), self.z_axis.y(), self.z_axis.z());
         let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
         let y_vec = z_vec.cross(&x_vec);
@@ -111,12 +111,12 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 主半径を取得
-    pub(crate) fn major_radius_internal(&self) -> T {
+    pub fn major_radius_internal(&self) -> T {
         self.major_radius
     }
 
     /// 副半径を取得
-    pub(crate) fn minor_radius_internal(&self) -> T {
+    pub fn minor_radius_internal(&self) -> T {
         self.minor_radius
     }
 
