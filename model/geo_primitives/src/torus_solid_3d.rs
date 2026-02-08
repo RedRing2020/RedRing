@@ -102,19 +102,23 @@ impl<T: Scalar> TorusSolid3D<T> {
     }
 
     // アクセサメソッド
-    pub(crate) fn origin_internal(&self) -> &Point3D<T> {
+    pub fn origin_internal(&self) -> &Point3D<T> {
         &self.origin
     }
-    pub(crate) fn z_axis_internal(&self) -> &Direction3D<T> {
+
+    pub fn z_axis_internal(&self) -> &Direction3D<T> {
         &self.z_axis
     }
-    pub(crate) fn x_axis_internal(&self) -> &Direction3D<T> {
+
+    pub fn x_axis_internal(&self) -> &Direction3D<T> {
         &self.x_axis
     }
-    pub(crate) fn major_radius_internal(&self) -> T {
+
+    pub fn major_radius_internal(&self) -> T {
         self.major_radius
     }
-    pub(crate) fn minor_radius_internal(&self) -> T {
+
+    pub fn minor_radius_internal(&self) -> T {
         self.minor_radius
     }
 
