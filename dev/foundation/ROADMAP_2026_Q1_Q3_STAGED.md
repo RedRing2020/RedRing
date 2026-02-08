@@ -70,7 +70,8 @@ Octree可視化 (Issue #207):
 | Tier | 領域 | 項目 | Issue | 工数 | 依存関係 |
 |------|------|------|-------|------|----------|
 | 🔴 1 | デバッグ表示 | 形状可視化完成（15形状） | [#204](https://github.com/RedRing2020/RedRing/issues/204) | 2週間 | なし（最優先） |
-| 🔴 1 | CAM表示 | CAM可視化基礎版 | [#203](https://github.com/RedRing2020/RedRing/issues/203) | 1週間 | #204 |
+| � 1 | デバッグ表示 | NURBS GPU描画実装 | [#210](https://github.com/RedRing2020/RedRing/issues/210) | 3-4週間 | #204 |
+| �🔴 1 | CAM表示 | CAM可視化基礎版 | [#203](https://github.com/RedRing2020/RedRing/issues/203) | 1週間 | #204 |
 | 🟠 2 | 空間分割 | Octree実装 | [#206](https://github.com/RedRing2020/RedRing/issues/206) | 2週間 | #204, #203 |
 | 🟠 2 | デバッグ | Octree可視化 | [#207](https://github.com/RedRing2020/RedRing/issues/207) | 1週間 | #206 |
 | 🟠 2 | エンティティ | エンティティ層基礎（Phase 4.0） | [#208](https://github.com/RedRing2020/RedRing/issues/208) | 3.5週間 | #204, #203 |
@@ -120,6 +121,41 @@ Octree可視化 (Issue #207):
 
 **工数**: 1週間（5営業日）  
 **実施時期**: Week 3（2月第4週）
+
+---
+
+### 1.3 NURBS形状の適応的テッセレーション実装 (Issue #210)
+
+**目的**: NurbsCurve3D/NurbsSurface3DのGPU直接描画を実装
+
+**背景**:
+- 現状: NurbsCurve3DはSVG経由で表示（Issue #188で実装済み）
+- 課題: 3DビューワーでのリアルタイムNURBS表示が未対応
+- Issue #204で15形状の基盤が完成し、NURBS追加の準備が整った
+
+**実装内容**:
+
+**Phase 1: 固定分割実装（1週間）**:
+- `NurbsCurve3D` の固定分割テッセレーション
+- `NurbsSurface3D` の固定分割テッセレーション
+- `viewmodel/converter/src/shape_converter.rs` に変換関数追加
+
+**Phase 2: 適応的細分化（1-2週間）**:
+- 曲率ベース適応的細分化アルゴリズム
+- トレランスパラメータの導入（弦高誤差制御）
+- U/V独立分割数の最適化
+
+**Phase 3: パフォーマンス最適化（1週間）**:
+- メッシュキャッシング機構
+- LOD（Level of Detail）対応
+- ベンチマーク・最適化（10000制御点で60fps目標）
+
+**依存関係**:
+- Issue #204（形状可視化基盤）完了後
+- Issue #42（トレランス設計）は参考のみ
+
+**工数**: 3-4週間  
+**実施時期**: Week 6-9（3月第3週〜4月第2週）
 
 ---
 
@@ -257,11 +293,28 @@ Octree可視化 (Issue #207):
 
 ## 実施スケジュール
 
-### Week 1-2: Tier 1 - デバッグ表示基盤
-- **Week 1**: Issue #204（形状可視化）前半 - 基本形状5種
-- **Week 2**: Issue #204 後半 - サーフェス・ソリッド10種
+### Week 1-2: Tier 1 - デバッグ表示基盤（完了）
+- **Week 1-2**: Issue #204（形状可視化完成）✅ マージ完了
+  - 15形状のGPU変換実装完了
+  - ViewModelアーキテクチャ修正完了（-281行）
 
 ### Week 3: Tier 1 - CAM可視化基礎
+- **Week 3**: Issue #203（CAM可視化基礎版）実施予定
+  - 工具経路の基本表示機能
+
+### Week 4-5: Tier 2 - 空間データ構造
+- **Week 4-5**: Issue #206（Octree実装）実施予定
+  - 基本Octree + ボクセルOctree
+
+### Week 6-9: Tier 1 - NURBS GPU描画
+- **Week 6**: Issue #210 Phase 1（固定分割実装）
+  - NurbsCurve3D/NurbsSurface3D基本変換
+- **Week 7-8**: Issue #210 Phase 2（適応的細分化）
+  - 曲率ベース適応的細分化アルゴリズム
+- **Week 9**: Issue #210 Phase 3（最適化）
+  - メッシュキャッシング、LOD対応
+
+### Week 10以降: Tier 2-3タスク順次着手
 - **Week 3**: Issue #203（CAM可視化基礎版）
 
 ### Week 4-6: Tier 2 - Octree実装・可視化
@@ -391,7 +444,8 @@ Octree可視化 (Issue #207):
 - `dev/architecture/CAM_VISUALIZATION_REQUIREMENTS.md` - CAM可視化要件
 
 ### GitHub Issues
-- [#204](https://github.com/RedRing2020/RedRing/issues/204) - 形状可視化完成
+- [#204](https://github.com/RedRing2020/RedRing/issues/204) - 形状可視化完成（✅ 完了）
+- [#210](https://github.com/RedRing2020/RedRing/issues/210) - NURBS GPU描画実装
 - [#203](https://github.com/RedRing2020/RedRing/issues/203) - CAM可視化基礎
 - [#206](https://github.com/RedRing2020/RedRing/issues/206) - Octree実装
 - [#207](https://github.com/RedRing2020/RedRing/issues/207) - Octree可視化
