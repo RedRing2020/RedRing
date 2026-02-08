@@ -1052,13 +1052,31 @@ pub fn cylindrical_surface_to_vertices(
             let n2 = calculate_cylinder_normal(&ref_dir, &y_axis, u2);
 
             // 2つの三角形に分割
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n1));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n1,
+            ));
         }
     }
 
@@ -1083,11 +1101,7 @@ fn calculate_cylinder_point(
 }
 
 #[inline]
-fn calculate_cylinder_normal(
-    x_axis: &Vector3D<f64>,
-    y_axis: &Vector3D<f64>,
-    u: f64,
-) -> [f32; 3] {
+fn calculate_cylinder_normal(x_axis: &Vector3D<f64>, y_axis: &Vector3D<f64>, u: f64) -> [f32; 3] {
     let nx = u.cos() * x_axis.x() + u.sin() * y_axis.x();
     let ny = u.cos() * x_axis.y() + u.sin() * y_axis.y();
     let nz = u.cos() * x_axis.z() + u.sin() * y_axis.z();
@@ -1127,15 +1141,25 @@ pub fn spherical_surface_to_vertices(
             // 極点の退化処理
             if i == 0 {
                 // 北極
-                let p_pole = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+                let p_pole =
+                    calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
                 let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
                 let p3 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v2);
 
                 let n_pole = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v2);
 
-                vertices.push(VertexData::new([p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32], n_pole));
-                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n_pole));
-                vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n_pole));
+                vertices.push(VertexData::new(
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    n_pole,
+                ));
+                vertices.push(VertexData::new(
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    n_pole,
+                ));
+                vertices.push(VertexData::new(
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    n_pole,
+                ));
                 continue;
             }
 
@@ -1143,13 +1167,23 @@ pub fn spherical_surface_to_vertices(
                 // 南極付近
                 let p1 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v1);
                 let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v1);
-                let p_pole = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+                let p_pole =
+                    calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
 
                 let n1 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v1);
 
-                vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n1));
-                vertices.push(VertexData::new([p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32], n1));
+                vertices.push(VertexData::new(
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    n1,
+                ));
+                vertices.push(VertexData::new(
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    n1,
+                ));
+                vertices.push(VertexData::new(
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    n1,
+                ));
                 continue;
             }
 
@@ -1165,13 +1199,31 @@ pub fn spherical_surface_to_vertices(
             let n4 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v2);
 
             // 2つの三角形
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n4,
+            ));
         }
     }
 
@@ -1190,9 +1242,21 @@ fn calculate_sphere_point(
 ) -> Point3D<f64> {
     let cos_v = v.cos();
     Point3D::new(
-        center.x() + radius * (cos_v * u.cos() * x_axis.x() + cos_v * u.sin() * y_axis.x() + v.sin() * z_axis.x()),
-        center.y() + radius * (cos_v * u.cos() * x_axis.y() + cos_v * u.sin() * y_axis.y() + v.sin() * z_axis.y()),
-        center.z() + radius * (cos_v * u.cos() * x_axis.z() + cos_v * u.sin() * y_axis.z() + v.sin() * z_axis.z()),
+        center.x()
+            + radius
+                * (cos_v * u.cos() * x_axis.x()
+                    + cos_v * u.sin() * y_axis.x()
+                    + v.sin() * z_axis.x()),
+        center.y()
+            + radius
+                * (cos_v * u.cos() * x_axis.y()
+                    + cos_v * u.sin() * y_axis.y()
+                    + v.sin() * z_axis.y()),
+        center.z()
+            + radius
+                * (cos_v * u.cos() * x_axis.z()
+                    + cos_v * u.sin() * y_axis.z()
+                    + v.sin() * z_axis.z()),
     )
 }
 
@@ -1222,14 +1286,20 @@ pub fn conical_surface_to_vertices(
     let v_divisions = quality.sphere_v_divisions; // 高さ方向
 
     let apex_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::apex(surface);
-    let base_center_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::base_center(surface);
+    let base_center_tuple =
+        <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::base_center(surface);
     let radius = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::radius(surface);
     let height = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::height(surface);
     let axis_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::axis(surface);
-    let ref_tuple = <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::ref_direction(surface);
+    let ref_tuple =
+        <ConicalSurface3D<f64> as ConicalSurface3DProperties<f64>>::ref_direction(surface);
 
     let apex = Point3D::new(apex_tuple.0, apex_tuple.1, apex_tuple.2);
-    let base_center = Point3D::new(base_center_tuple.0, base_center_tuple.1, base_center_tuple.2);
+    let base_center = Point3D::new(
+        base_center_tuple.0,
+        base_center_tuple.1,
+        base_center_tuple.2,
+    );
     let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
     let x_axis = Vector3D::new(ref_tuple.0, ref_tuple.1, ref_tuple.2);
     let y_axis = z_axis.cross(&x_axis).normalize();
@@ -1239,7 +1309,8 @@ pub fn conical_surface_to_vertices(
         base_center.x() - apex.x(),
         base_center.y() - apex.y(),
         base_center.z() - apex.z(),
-    ).normalize();
+    )
+    .normalize();
 
     // 半角の計算: tan(semi_angle) = radius / height
     let semi_angle = (radius / height).atan();
@@ -1267,13 +1338,31 @@ pub fn conical_surface_to_vertices(
             let n1 = calculate_cone_normal(&x_axis, &y_axis, &axis_dir, u1, semi_angle);
             let n2 = calculate_cone_normal(&x_axis, &y_axis, &axis_dir, u2, semi_angle);
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n1));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n1,
+            ));
         }
     }
 
@@ -1317,11 +1406,7 @@ fn calculate_cone_normal(
     let nz = cos_angle * radial_z - sin_angle * axis_dir.z();
 
     let len = (nx * nx + ny * ny + nz * nz).sqrt();
-    [
-        (nx / len) as f32,
-        (ny / len) as f32,
-        (nz / len) as f32,
-    ]
+    [(nx / len) as f32, (ny / len) as f32, (nz / len) as f32]
 }
 
 /// TorusSurface3D を GPU用頂点データに変換（ソリッド）
@@ -1355,23 +1440,109 @@ pub fn torus_surface_to_vertices(
             let v1 = (j as f64 / v_divisions as f64) * 2.0 * PI;
             let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
 
-            let p1 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v1);
-            let p2 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v1);
-            let p3 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v2);
-            let p4 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v2);
+            let p1 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v1,
+            );
+            let p2 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v1,
+            );
+            let p3 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v2,
+            );
+            let p4 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v2,
+            );
 
-            let n1 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v1);
-            let n2 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v1);
-            let n3 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v2);
-            let n4 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v2);
+            let n1 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v1,
+            );
+            let n2 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v1,
+            );
+            let n3 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v2,
+            );
+            let n4 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v2,
+            );
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n4,
+            ));
         }
     }
 
@@ -1391,9 +1562,15 @@ fn calculate_torus_point(
 ) -> Point3D<f64> {
     let r = major_radius + minor_radius * v.cos();
     Point3D::new(
-        origin.x() + r * (u.cos() * x_axis.x() + u.sin() * y_axis.x()) + minor_radius * v.sin() * z_axis.x(),
-        origin.y() + r * (u.cos() * x_axis.y() + u.sin() * y_axis.y()) + minor_radius * v.sin() * z_axis.y(),
-        origin.z() + r * (u.cos() * x_axis.z() + u.sin() * y_axis.z()) + minor_radius * v.sin() * z_axis.z(),
+        origin.x()
+            + r * (u.cos() * x_axis.x() + u.sin() * y_axis.x())
+            + minor_radius * v.sin() * z_axis.x(),
+        origin.y()
+            + r * (u.cos() * x_axis.y() + u.sin() * y_axis.y())
+            + minor_radius * v.sin() * z_axis.y(),
+        origin.z()
+            + r * (u.cos() * x_axis.z() + u.sin() * y_axis.z())
+            + minor_radius * v.sin() * z_axis.z(),
     )
 }
 
@@ -1423,12 +1600,18 @@ pub fn ellipsoidal_surface_to_vertices(
     let u_divisions = quality.sphere_u_divisions; // 経度方向
     let v_divisions = quality.sphere_v_divisions; // 緯度方向
 
-    let center_tuple = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::center(surface);
-    let axis_tuple = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::axis(surface);
-    let ref_tuple = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::ref_direction(surface);
-    let a_radius = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_a(surface);
-    let b_radius = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_b(surface);
-    let c_radius = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_c(surface);
+    let center_tuple =
+        <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::center(surface);
+    let axis_tuple =
+        <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::axis(surface);
+    let ref_tuple =
+        <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::ref_direction(surface);
+    let a_radius =
+        <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_a(surface);
+    let b_radius =
+        <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_b(surface);
+    let c_radius =
+        <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DProperties<f64>>::semi_axis_c(surface);
 
     let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
     let z_axis = Vector3D::new(axis_tuple.0, axis_tuple.1, axis_tuple.2);
@@ -1447,42 +1630,106 @@ pub fn ellipsoidal_surface_to_vertices(
             // 極点の退化処理（球面と同様）
             if i == 0 || i == v_divisions - 1 {
                 let (p1, p2, p3) = if i == 0 {
-                    let pole = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
-                    let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
-                    let p3 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
+                    let pole = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+                    );
+                    let p2 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+                    );
+                    let p3 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2,
+                    );
                     (pole, p2, p3)
                 } else {
-                    let p1 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
-                    let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
-                    let pole = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+                    let p1 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1,
+                    );
+                    let p2 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1,
+                    );
+                    let pole = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+                    );
                     (p1, p2, pole)
                 };
 
-                let n = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, if i == 0 { v2 } else { v1 });
+                let n = calculate_ellipsoid_normal(
+                    &x_axis,
+                    &y_axis,
+                    &z_axis,
+                    a_radius,
+                    b_radius,
+                    c_radius,
+                    u1,
+                    if i == 0 { v2 } else { v1 },
+                );
 
-                vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n));
-                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n));
-                vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n));
+                vertices.push(VertexData::new(
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    n,
+                ));
+                vertices.push(VertexData::new(
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    n,
+                ));
+                vertices.push(VertexData::new(
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    n,
+                ));
                 continue;
             }
 
-            let p1 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
-            let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
-            let p3 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
-            let p4 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+            let p1 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1,
+            );
+            let p2 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1,
+            );
+            let p3 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2,
+            );
+            let p4 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+            );
 
-            let n1 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
-            let n2 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
-            let n3 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
-            let n4 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+            let n1 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1,
+            );
+            let n2 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1,
+            );
+            let n3 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2,
+            );
+            let n4 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+            );
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n4,
+            ));
         }
     }
 
@@ -1503,9 +1750,18 @@ fn calculate_ellipsoid_point(
 ) -> Point3D<f64> {
     let cos_v = v.cos();
     Point3D::new(
-        center.x() + a * cos_v * u.cos() * x_axis.x() + b * cos_v * u.sin() * y_axis.x() + c * v.sin() * z_axis.x(),
-        center.y() + a * cos_v * u.cos() * x_axis.y() + b * cos_v * u.sin() * y_axis.y() + c * v.sin() * z_axis.y(),
-        center.z() + a * cos_v * u.cos() * x_axis.z() + b * cos_v * u.sin() * y_axis.z() + c * v.sin() * z_axis.z(),
+        center.x()
+            + a * cos_v * u.cos() * x_axis.x()
+            + b * cos_v * u.sin() * y_axis.x()
+            + c * v.sin() * z_axis.x(),
+        center.y()
+            + a * cos_v * u.cos() * x_axis.y()
+            + b * cos_v * u.sin() * y_axis.y()
+            + c * v.sin() * z_axis.y(),
+        center.z()
+            + a * cos_v * u.cos() * x_axis.z()
+            + b * cos_v * u.sin() * y_axis.z()
+            + c * v.sin() * z_axis.z(),
     )
 }
 
@@ -1522,16 +1778,18 @@ fn calculate_ellipsoid_normal(
 ) -> [f32; 3] {
     let cos_v = v.cos();
     // 楕円体の法線 = (x/a², y/b², z/c²) を正規化
-    let nx = (cos_v * u.cos() / a) * x_axis.x() + (cos_v * u.sin() / b) * y_axis.x() + (v.sin() / c) * z_axis.x();
-    let ny = (cos_v * u.cos() / a) * x_axis.y() + (cos_v * u.sin() / b) * y_axis.y() + (v.sin() / c) * z_axis.y();
-    let nz = (cos_v * u.cos() / a) * x_axis.z() + (cos_v * u.sin() / b) * y_axis.z() + (v.sin() / c) * z_axis.z();
+    let nx = (cos_v * u.cos() / a) * x_axis.x()
+        + (cos_v * u.sin() / b) * y_axis.x()
+        + (v.sin() / c) * z_axis.x();
+    let ny = (cos_v * u.cos() / a) * x_axis.y()
+        + (cos_v * u.sin() / b) * y_axis.y()
+        + (v.sin() / c) * z_axis.y();
+    let nz = (cos_v * u.cos() / a) * x_axis.z()
+        + (cos_v * u.sin() / b) * y_axis.z()
+        + (v.sin() / c) * z_axis.z();
 
     let len = (nx * nx + ny * ny + nz * nz).sqrt();
-    [
-        (nx / len) as f32,
-        (ny / len) as f32,
-        (nz / len) as f32,
-    ]
+    [(nx / len) as f32, (ny / len) as f32, (nz / len) as f32]
 }
 
 // ============================================================================
@@ -1548,9 +1806,11 @@ pub fn cylindrical_solid_to_vertices(
     let u_divisions = quality.circle_segments;
     let v_divisions = quality.sphere_v_divisions;
 
-    let center_tuple = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::center(solid);
+    let center_tuple =
+        <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::center(solid);
     let axis_tuple = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::ref_direction(solid);
+    let ref_tuple =
+        <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::ref_direction(solid);
     let radius = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::radius(solid);
     let height = <CylindricalSolid3D<f64> as CylindricalSolid3DProperties<f64>>::height(solid);
 
@@ -1577,22 +1837,36 @@ pub fn cylindrical_solid_to_vertices(
             let n1 = calculate_cylinder_normal(&x_axis, &y_axis, u1);
             let n2 = calculate_cylinder_normal(&x_axis, &y_axis, u2);
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n1));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n1,
+            ));
         }
     }
 
     // 2. 底面キャップ（下向き法線）
-    let bottom_normal = [
-        -z_axis.x() as f32,
-        -z_axis.y() as f32,
-        -z_axis.z() as f32,
-    ];
+    let bottom_normal = [-z_axis.x() as f32, -z_axis.y() as f32, -z_axis.z() as f32];
     vertices.extend(generate_circle_cap(
         &center,
         &x_axis,
@@ -1630,7 +1904,8 @@ pub fn spherical_solid_to_vertices(
 ) -> Vec<VertexData> {
     let center_tuple = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::center(solid);
     let axis_tuple = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::ref_direction(solid);
+    let ref_tuple =
+        <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::ref_direction(solid);
     let radius = <SphericalSolid3D<f64> as SphericalSolid3DProperties<f64>>::radius(solid);
 
     let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
@@ -1650,26 +1925,46 @@ pub fn spherical_solid_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             if i == 0 {
-                let p_pole = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+                let p_pole =
+                    calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
                 let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
                 let p3 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v2);
                 let n_pole = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v2);
 
-                vertices.push(VertexData::new([p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32], n_pole));
-                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n_pole));
-                vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n_pole));
+                vertices.push(VertexData::new(
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    n_pole,
+                ));
+                vertices.push(VertexData::new(
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    n_pole,
+                ));
+                vertices.push(VertexData::new(
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    n_pole,
+                ));
                 continue;
             }
 
             if i == v_divisions - 1 {
                 let p1 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v1);
                 let p2 = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u2, v1);
-                let p_pole = calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
+                let p_pole =
+                    calculate_sphere_point(&center, &x_axis, &y_axis, &z_axis, radius, u1, v2);
                 let n1 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v1);
 
-                vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n1));
-                vertices.push(VertexData::new([p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32], n1));
+                vertices.push(VertexData::new(
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    n1,
+                ));
+                vertices.push(VertexData::new(
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    n1,
+                ));
+                vertices.push(VertexData::new(
+                    [p_pole.x() as f32, p_pole.y() as f32, p_pole.z() as f32],
+                    n1,
+                ));
                 continue;
             }
 
@@ -1683,13 +1978,31 @@ pub fn spherical_solid_to_vertices(
             let n3 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u2, v2);
             let n4 = calculate_sphere_normal(&x_axis, &y_axis, &z_axis, u1, v2);
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n4,
+            ));
         }
     }
 
@@ -1747,22 +2060,36 @@ pub fn conical_solid_to_vertices(
             let n1 = calculate_cone_normal(&x_axis, &y_axis, &z_axis, u1, semi_angle);
             let n2 = calculate_cone_normal(&x_axis, &y_axis, &z_axis, u2, semi_angle);
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n2));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n1));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n1,
+            ));
         }
     }
 
     // 2. 底面キャップ（下向き法線）
-    let bottom_normal = [
-        -z_axis.x() as f32,
-        -z_axis.y() as f32,
-        -z_axis.z() as f32,
-    ];
+    let bottom_normal = [-z_axis.x() as f32, -z_axis.y() as f32, -z_axis.z() as f32];
     vertices.extend(generate_circle_cap(
         &center,
         &x_axis,
@@ -1804,23 +2131,109 @@ pub fn torus_solid_to_vertices(
             let v1 = (j as f64 / v_divisions as f64) * 2.0 * PI;
             let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
 
-            let p1 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v1);
-            let p2 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v1);
-            let p3 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v2);
-            let p4 = calculate_torus_point(&origin, &x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v2);
+            let p1 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v1,
+            );
+            let p2 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v1,
+            );
+            let p3 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v2,
+            );
+            let p4 = calculate_torus_point(
+                &origin,
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v2,
+            );
 
-            let n1 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v1);
-            let n2 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v1);
-            let n3 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u2, v2);
-            let n4 = calculate_torus_normal(&x_axis, &y_axis, &z_axis, major_radius, minor_radius, u1, v2);
+            let n1 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v1,
+            );
+            let n2 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v1,
+            );
+            let n3 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u2,
+                v2,
+            );
+            let n4 = calculate_torus_normal(
+                &x_axis,
+                &y_axis,
+                &z_axis,
+                major_radius,
+                minor_radius,
+                u1,
+                v2,
+            );
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n4,
+            ));
         }
     }
 
@@ -1837,9 +2250,11 @@ pub fn ellipsoidal_solid_to_vertices(
     let u_divisions = quality.sphere_u_divisions;
     let v_divisions = quality.sphere_v_divisions;
 
-    let center_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::center(solid);
+    let center_tuple =
+        <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::center(solid);
     let axis_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::ref_direction(solid);
+    let ref_tuple =
+        <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::ref_direction(solid);
     let a_radius = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::a_radius(solid);
     let b_radius = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::b_radius(solid);
     let c_radius = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::c_radius(solid);
@@ -1860,42 +2275,106 @@ pub fn ellipsoidal_solid_to_vertices(
 
             if i == 0 || i == v_divisions - 1 {
                 let (p1, p2, p3) = if i == 0 {
-                    let pole = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
-                    let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
-                    let p3 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
+                    let pole = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+                    );
+                    let p2 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+                    );
+                    let p3 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2,
+                    );
                     (pole, p2, p3)
                 } else {
-                    let p1 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
-                    let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
-                    let pole = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+                    let p1 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1,
+                    );
+                    let p2 = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1,
+                    );
+                    let pole = calculate_ellipsoid_point(
+                        &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+                    );
                     (p1, p2, pole)
                 };
 
-                let n = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, if i == 0 { v2 } else { v1 });
+                let n = calculate_ellipsoid_normal(
+                    &x_axis,
+                    &y_axis,
+                    &z_axis,
+                    a_radius,
+                    b_radius,
+                    c_radius,
+                    u1,
+                    if i == 0 { v2 } else { v1 },
+                );
 
-                vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n));
-                vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n));
-                vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n));
+                vertices.push(VertexData::new(
+                    [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                    n,
+                ));
+                vertices.push(VertexData::new(
+                    [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                    n,
+                ));
+                vertices.push(VertexData::new(
+                    [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                    n,
+                ));
                 continue;
             }
 
-            let p1 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
-            let p2 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
-            let p3 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
-            let p4 = calculate_ellipsoid_point(&center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+            let p1 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1,
+            );
+            let p2 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1,
+            );
+            let p3 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2,
+            );
+            let p4 = calculate_ellipsoid_point(
+                &center, &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+            );
 
-            let n1 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1);
-            let n2 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1);
-            let n3 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2);
-            let n4 = calculate_ellipsoid_normal(&x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2);
+            let n1 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v1,
+            );
+            let n2 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v1,
+            );
+            let n3 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u2, v2,
+            );
+            let n4 = calculate_ellipsoid_normal(
+                &x_axis, &y_axis, &z_axis, a_radius, b_radius, c_radius, u1, v2,
+            );
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p2.x() as f32, p2.y() as f32, p2.z() as f32], n2));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p2.x() as f32, p2.y() as f32, p2.z() as f32],
+                n2,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
 
-            vertices.push(VertexData::new([p1.x() as f32, p1.y() as f32, p1.z() as f32], n1));
-            vertices.push(VertexData::new([p3.x() as f32, p3.y() as f32, p3.z() as f32], n3));
-            vertices.push(VertexData::new([p4.x() as f32, p4.y() as f32, p4.z() as f32], n4));
+            vertices.push(VertexData::new(
+                [p1.x() as f32, p1.y() as f32, p1.z() as f32],
+                n1,
+            ));
+            vertices.push(VertexData::new(
+                [p3.x() as f32, p3.y() as f32, p3.z() as f32],
+                n3,
+            ));
+            vertices.push(VertexData::new(
+                [p4.x() as f32, p4.y() as f32, p4.z() as f32],
+                n4,
+            ));
         }
     }
 
@@ -2179,8 +2658,8 @@ mod tests {
         // 2. Ellipse3D
         let ellipse = Ellipse3D::new(
             Point3D::origin(),
-            2.0, // semi_major_axis
-            1.0, // semi_minor_axis
+            2.0,                          // semi_major_axis
+            1.0,                          // semi_minor_axis
             Vector3D::new(0.0, 0.0, 1.0), // normal
             Vector3D::new(1.0, 0.0, 0.0), // major_axis_dir
         )
@@ -2209,20 +2688,13 @@ mod tests {
         );
 
         // 4. Ray3D
-        let ray = Ray3D::new(
-            Point3D::origin(),
-            Vector3D::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
+        let ray = Ray3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
         let ray_vertices = ray_to_vertices(&ray, &quality);
         assert_eq!(ray_vertices.len(), 2, "Ray3D should have 2 vertices");
 
         // 5. InfiniteLine3D
-        let infinite_line = InfiniteLine3D::new(
-            Point3D::origin(),
-            Vector3D::new(1.0, 0.0, 0.0),
-        )
-        .unwrap();
+        let infinite_line =
+            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
         let infinite_line_vertices = infinite_line_to_vertices(&infinite_line, &quality);
         assert_eq!(
             infinite_line_vertices.len(),
@@ -2263,10 +2735,10 @@ mod tests {
         // 8. ConicalSurface3D
         let cone_surface = ConicalSurface3D::new(
             Point3D::origin(),
-            Vector3D::new(0.0, 0.0, 1.0),     // axis
-            Vector3D::new(1.0, 0.0, 0.0),     // ref_direction
-            1.0,                               // radius
-            std::f64::consts::PI / 6.0,        // semi_angle (30 degrees)
+            Vector3D::new(0.0, 0.0, 1.0), // axis
+            Vector3D::new(1.0, 0.0, 0.0), // ref_direction
+            1.0,                          // radius
+            std::f64::consts::PI / 6.0,   // semi_angle (30 degrees)
         )
         .unwrap();
         let cone_surface_vertices = conical_surface_to_vertices(&cone_surface, &quality);
@@ -2389,21 +2861,24 @@ mod tests {
 
         println!("=== Issue #204 全15形状変換テスト完了 ===");
         println!("総頂点数: {} vertices", total_vertices);
-        println!("基本形状: Plane({}) + Ellipse({}) + EllipseArc({}) + Ray({}) + InfiniteLine({})",
+        println!(
+            "基本形状: Plane({}) + Ellipse({}) + EllipseArc({}) + Ray({}) + InfiniteLine({})",
             plane_vertices.len(),
             ellipse_vertices.len(),
             ellipse_arc_vertices.len(),
             ray_vertices.len(),
             infinite_line_vertices.len()
         );
-        println!("Surface形状: Cylinder({}) + Sphere({}) + Cone({}) + Torus({}) + Ellipsoid({})",
+        println!(
+            "Surface形状: Cylinder({}) + Sphere({}) + Cone({}) + Torus({}) + Ellipsoid({})",
             cyl_surface_vertices.len(),
             sphere_surface_vertices.len(),
             cone_surface_vertices.len(),
             torus_surface_vertices.len(),
             ellipsoid_surface_vertices.len()
         );
-        println!("Solid形状: Cylinder({}) + Sphere({}) + Cone({}) + Torus({}) + Ellipsoid({})",
+        println!(
+            "Solid形状: Cylinder({}) + Sphere({}) + Cone({}) + Torus({}) + Ellipsoid({})",
             cyl_solid_vertices.len(),
             sphere_solid_vertices.len(),
             cone_solid_vertices.len(),
