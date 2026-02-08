@@ -9,11 +9,13 @@
 //! - STL読み込み・変換統合
 //! - 境界ボックス計算・変換
 //! - 形状可視化データ変換（幾何プリミティブ → GPU頂点データ）
+//! - CAM工具経路の可視化データ変換（ToolPath → GPU頂点データ）
 
 pub mod mesh_converter;
 pub mod shape_converter;
 pub mod stl_loader;
 pub mod svg_loader;
+pub mod toolpath_converter;
 
 /// テスト用の関数（削除予定）
 pub fn add(left: u64, right: u64) -> u64 {
