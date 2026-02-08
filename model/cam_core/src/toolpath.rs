@@ -21,7 +21,6 @@
 //!     Point3D::new(0.0, 0.0, 0.0),
 //!     Point3D::new(10.0, 0.0, 0.0),
 //!     SegmentType::Cutting {
-//!         direction: CuttingDirection::Down,
 //!         feed_rate: 500.0,
 //!     },
 //! );
@@ -36,7 +35,10 @@
 //! // 工具経路作成
 //! let toolpath = ToolPath::new(
 //!     "tool1".to_string(),
+//!     CuttingDirection::Down,
+//!     vec![],  // approach_segments
 //!     vec![contour],
+//!     vec![],  // retract_segments
 //! );
 //! ```
 
@@ -108,24 +110,24 @@ impl<T: Scalar> PathGeometry<T> {
 /// 工具経路の各セグメントがどのような動作を表すか定義します。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SegmentType<T: Scalar = f64> {
-    /// 切削セグメント
+    /// 切削セグメント（G01/G02/G03）
     ///
     /// 実際に材料を切削する経路。
+    /// 切削方向（ダウンカット/アップカット）は `ToolPath.cutting_direction` で指定。
     Cutting {
-        /// 切削方向（ダウンカット/アップカット）
-        direction: CuttingDirection,
         /// 送り速度（mm/min）
         feed_rate: T,
     },
 
-    /// 早送りセグメント
+    /// 早送りセグメント（G00）
     ///
-    /// 材料に接触せずに高速移動する経路（エアカット）。
+    /// エアカット、周回間の水平移動など。
     Rapid,
 
     /// アプローチセグメント
     ///
-    /// 切削開始前に工具を材料に近づける経路。
+    /// 切削開始前の進入動作。
+    /// ToolPath開始時（`approach_segments`）または周回間で使用。
     Approach {
         /// 送り速度（mm/min）
         feed_rate: T,
@@ -133,8 +135,21 @@ pub enum SegmentType<T: Scalar = f64> {
 
     /// リトラクトセグメント
     ///
-    /// 切削終了後に工具を退避させる経路。
-    Retract,
+    /// 退避動作。低速で材料から離脱、または接触したまま移動。
+    /// ToolPath終了時（`retract_segments`）または周回間で使用。
+    Retract {
+        /// 送り速度（mm/min）
+        feed_rate: T,
+    },
+
+    /// 周回間リトラクト
+    ///
+    /// 周回間の退避動作。次に直接 Cutting へ遷移。
+    /// 平面切削など、直線1つの退避で済む場合に使用。
+    PassRetract {
+        /// 送り速度（mm/min）
+        feed_rate: T,
+    },
 }
 
 /// 切削方向
@@ -187,7 +202,6 @@ impl<T: Scalar> PathSegment<T> {
     ///     Point3D::new(0.0, 0.0, 0.0),
     ///     Point3D::new(10.0, 0.0, 0.0),
     ///     SegmentType::Cutting {
-    ///         direction: CuttingDirection::Down,
     ///         feed_rate: 500.0,
     ///     },
     /// );
@@ -378,27 +392,38 @@ impl<T: Scalar + std::iter::Sum> ContourLevelPath<T> {
 
 /// CAM工具経路全体
 ///
-/// 複数の等高線経路を含む工具経路全体を表します。
+/// 1つの島または輪郭の完全な加工シーケンス。
+/// Approach → Cutting → Retract の3フェーズ構造。
 ///
 /// # 例
 ///
 /// ```
-/// use cam_core::{ToolPath, ContourLevelPath};
+/// use cam_core::{ToolPath, ContourLevelPath, CuttingDirection};
 ///
-/// let contours = vec![
-///     ContourLevelPath::new(0, -5.0, vec![]),
-///     ContourLevelPath::new(1, -10.0, vec![]),
-/// ];
-///
-/// let toolpath = ToolPath::new("tool1".to_string(), contours);
+/// let toolpath = ToolPath::new(
+///     "tool1".to_string(),
+///     CuttingDirection::Down,
+///     vec![],  // approach_segments
+///     vec![ContourLevelPath::new(0, -5.0, vec![])],
+///     vec![],  // retract_segments
+/// );
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToolPath<T: Scalar = f64> {
     /// 使用工具のID
     pub tool_id: String,
 
-    /// 等高線経路のリスト（Z座標降順に並べることを推奨）
+    /// この経路の切削方向（経路全体で統一）
+    pub cutting_direction: CuttingDirection,
+
+    /// アプローチフェーズ（ToolPath開始部、編集可能）
+    pub approach_segments: Vec<PathSegment<T>>,
+
+    /// 切削フェーズ（等高線ごと）
     pub contour_levels: Vec<ContourLevelPath<T>>,
+
+    /// リトラクトフェーズ（ToolPath終了部、編集可能）
+    pub retract_segments: Vec<PathSegment<T>>,
 }
 
 impl<T: Scalar + std::iter::Sum> ToolPath<T> {
@@ -407,11 +432,23 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
     /// # 引数
     ///
     /// - `tool_id`: 使用工具のID
+    /// - `cutting_direction`: 切削方向
+    /// - `approach_segments`: アプローチセグメント
     /// - `contour_levels`: 等高線経路のリスト
-    pub fn new(tool_id: String, contour_levels: Vec<ContourLevelPath<T>>) -> Self {
+    /// - `retract_segments`: リトラクトセグメント
+    pub fn new(
+        tool_id: String,
+        cutting_direction: CuttingDirection,
+        approach_segments: Vec<PathSegment<T>>,
+        contour_levels: Vec<ContourLevelPath<T>>,
+        retract_segments: Vec<PathSegment<T>>,
+    ) -> Self {
         Self {
             tool_id,
+            cutting_direction,
+            approach_segments,
             contour_levels,
+            retract_segments,
         }
     }
 
@@ -446,7 +483,6 @@ mod tests {
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(10.0, 0.0, 0.0),
             SegmentType::Cutting {
-                direction: CuttingDirection::Down,
                 feed_rate: 500.0,
             },
         );
@@ -485,7 +521,6 @@ mod tests {
             Point3D::new(0.0, 0.0, 0.0),
             ArcDirection::Clockwise,
             SegmentType::Cutting {
-                direction: CuttingDirection::Down,
                 feed_rate: 500.0,
             },
         );
@@ -496,13 +531,29 @@ mod tests {
     }
 
     #[test]
+    fn test_retract_and_pass_retract() {
+        let retract = PathSegment::new_line(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(0.0, 0.0, 5.0),
+            SegmentType::Retract { feed_rate: 300.0 },
+        );
+        assert_eq!(retract.length(), 5.0);
+
+        let pass_retract = PathSegment::new_line(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(0.0, 0.0, 1.0),
+            SegmentType::PassRetract { feed_rate: 200.0 },
+        );
+        assert_eq!(pass_retract.length(), 1.0);
+    }
+
+    #[test]
     fn test_contour_level_path() {
         let segments = vec![
             PathSegment::new_line(
                 Point3D::new(0.0, 0.0, -5.0),
                 Point3D::new(10.0, 0.0, -5.0),
                 SegmentType::Cutting {
-                    direction: CuttingDirection::Down,
                     feed_rate: 500.0,
                 },
             ),
@@ -530,9 +581,16 @@ mod tests {
             ContourLevelPath::new(1, -10.0, vec![]),
         ];
 
-        let toolpath = ToolPath::new("tool1".to_string(), contours);
+        let toolpath = ToolPath::new(
+            "tool1".to_string(),
+            CuttingDirection::Down,
+            vec![],
+            contours,
+            vec![],
+        );
 
         assert_eq!(toolpath.tool_id, "tool1");
+        assert_eq!(toolpath.cutting_direction, CuttingDirection::Down);
         assert_eq!(toolpath.level_count(), 2);
     }
 }
