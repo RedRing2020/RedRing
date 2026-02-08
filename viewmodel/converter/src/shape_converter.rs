@@ -1550,6 +1550,7 @@ pub fn torus_surface_to_vertices(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn calculate_torus_point(
     origin: &Point3D<f64>,
     x_axis: &Vector3D<f64>,
@@ -1737,6 +1738,7 @@ pub fn ellipsoidal_surface_to_vertices(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn calculate_ellipsoid_point(
     center: &Point3D<f64>,
     x_axis: &Vector3D<f64>,
@@ -1766,6 +1768,7 @@ fn calculate_ellipsoid_point(
 }
 
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn calculate_ellipsoid_normal(
     x_axis: &Vector3D<f64>,
     y_axis: &Vector3D<f64>,
