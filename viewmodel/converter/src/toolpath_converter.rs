@@ -493,8 +493,10 @@ mod tests {
             vec![],
         );
 
-        let mut settings = ToolPathVisualizationSettings::default();
-        settings.color_by_cutting_direction = true;
+        let settings = ToolPathVisualizationSettings {
+            color_by_cutting_direction: true,
+            ..Default::default()
+        };
 
         let result_down = toolpath_to_vertices(&toolpath_down, &settings);
         assert_eq!(result_down.colors[0], settings.color_scheme.down_cut);

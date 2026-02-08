@@ -195,6 +195,7 @@ mod tests {
 
         let result = multiply_matrices(&identity, &identity);
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..4 {
             for j in 0..4 {
                 let expected = if i == j { 1.0 } else { 0.0 };
