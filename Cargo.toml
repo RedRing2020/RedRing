@@ -7,6 +7,7 @@ members = [
   "model/geo_algorithms", # Model層：幾何アルゴリズムクレート
   "model/geo_nurbs",      # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
   "model/geo_io",         # Model層：ファイルI/Oクレート
+  "model/cam_core",       # Model層：CAM基盤クレート（工具経路・工具定義）
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
   "view/render",          # View層：GPU描画基盤
