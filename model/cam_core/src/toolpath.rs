@@ -482,9 +482,7 @@ mod tests {
         let segment = PathSegment::new_line(
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(10.0, 0.0, 0.0),
-            SegmentType::Cutting {
-                feed_rate: 500.0,
-            },
+            SegmentType::Cutting { feed_rate: 500.0 },
         );
 
         assert!(segment.is_cutting());
@@ -520,9 +518,7 @@ mod tests {
             Point3D::new(-10.0, 0.0, 0.0),
             Point3D::new(0.0, 0.0, 0.0),
             ArcDirection::Clockwise,
-            SegmentType::Cutting {
-                feed_rate: 500.0,
-            },
+            SegmentType::Cutting { feed_rate: 500.0 },
         );
 
         // 円弧長 = 半径10 × π ≈ 31.416
@@ -553,9 +549,7 @@ mod tests {
             PathSegment::new_line(
                 Point3D::new(0.0, 0.0, -5.0),
                 Point3D::new(10.0, 0.0, -5.0),
-                SegmentType::Cutting {
-                    feed_rate: 500.0,
-                },
+                SegmentType::Cutting { feed_rate: 500.0 },
             ),
             PathSegment::new_line(
                 Point3D::new(10.0, 0.0, -5.0),

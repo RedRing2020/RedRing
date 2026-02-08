@@ -43,13 +43,13 @@ pub struct ToolPathColorScheme {
 impl Default for ToolPathColorScheme {
     fn default() -> Self {
         Self {
-            cutting: [1.0, 1.0, 1.0, 1.0],         // 白色
-            rapid: [0.2, 0.5, 1.0, 1.0],           // 青色
-            approach: [0.2, 1.0, 0.2, 1.0],        // 緑色
-            retract: [1.0, 1.0, 0.2, 1.0],         // 黄色
-            pass_retract: [1.0, 0.6, 0.2, 1.0],    // オレンジ色
-            down_cut: [1.0, 1.0, 1.0, 1.0],        // 白色
-            up_cut: [1.0, 0.5, 0.2, 1.0],          // オレンジ色
+            cutting: [1.0, 1.0, 1.0, 1.0],      // 白色
+            rapid: [0.2, 0.5, 1.0, 1.0],        // 青色
+            approach: [0.2, 1.0, 0.2, 1.0],     // 緑色
+            retract: [1.0, 1.0, 0.2, 1.0],      // 黄色
+            pass_retract: [1.0, 0.6, 0.2, 1.0], // オレンジ色
+            down_cut: [1.0, 1.0, 1.0, 1.0],     // 白色
+            up_cut: [1.0, 0.5, 0.2, 1.0],       // オレンジ色
         }
     }
 }
