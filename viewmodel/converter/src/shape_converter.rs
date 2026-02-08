@@ -27,8 +27,7 @@ use geo_foundation::{
     CylindricalSolid3DProperties, CylindricalSurface3DMeasure, EllipseArc3DProperties,
     EllipsoidalSolid3DProperties, EllipsoidalSurface3DMeasure, InfiniteLine3DProperties,
     Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
-    SphericalSurface3DMeasure, TorusSolid3DProperties, TorusSurface3DMeasure,
-    Triangle3DProperties,
+    SphericalSurface3DMeasure, TorusSolid3DProperties, TorusSurface3DMeasure, Triangle3DProperties,
 };
 use geo_primitives::{
     Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D,
@@ -1284,13 +1283,9 @@ pub fn conical_surface_to_vertices(
                 );
 
             let (n1x, n1y, n1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(
-                    surface, u1, v1,
-                );
+                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(surface, u1, v1);
             let (n2x, n2y, n2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(
-                    surface, u2, v1,
-                );
+                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(surface, u2, v1);
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],
@@ -1424,10 +1419,10 @@ pub fn ellipsoidal_surface_to_vertices(
                     (p1, p2, pole)
                 };
 
-                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    surface,
-                    u1,
-                    if i == 0 { v2 } else { v1 },
+                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<
+                    f64,
+                >>::normal_at(
+                    surface, u1, if i == 0 { v2 } else { v1 }
                 );
 
                 vertices.push(VertexData::new(
@@ -1990,9 +1985,11 @@ pub fn ellipsoidal_solid_to_vertices(
     let v_divisions = quality.sphere_v_divisions;
 
     // Solid プロパティから Surface 構築
-    let center_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::center(solid);
+    let center_tuple =
+        <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::center(solid);
     let axis_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::axis(solid);
-    let ref_tuple = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::ref_direction(solid);
+    let ref_tuple =
+        <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::ref_direction(solid);
     let a = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::a_radius(solid);
     let b = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::b_radius(solid);
     let c = <EllipsoidalSolid3D<f64> as EllipsoidalSolid3DProperties<f64>>::c_radius(solid);
@@ -2025,10 +2022,10 @@ pub fn ellipsoidal_solid_to_vertices(
                     (p1, p2, pole)
                 };
 
-                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    &surface,
-                    u1,
-                    if i == 0 { v2 } else { v1 },
+                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<
+                    f64,
+                >>::normal_at(
+                    &surface, u1, if i == 0 { v2 } else { v1 }
                 );
 
                 vertices.push(VertexData::new(
