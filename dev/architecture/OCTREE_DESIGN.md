@@ -666,6 +666,10 @@ impl AppState {
 
 ### 6.1 切削シミュレーション
 
+**詳細設計**: [CUTTING_SIMULATION_DESIGN.md](./CUTTING_SIMULATION_DESIGN.md)
+
+#### 基本的な使用例
+
 ```rust
 // 使用例
 let workpiece = BBox3D::new(
@@ -691,6 +695,45 @@ if !undercuts.is_empty() {
     eprintln!("Warning: {} undercut regions detected", undercuts.len());
 }
 ```
+
+#### 距離ベーススナップショット（推奨）
+
+セグメント数ではなく**実距離**に基づいてスナップショットを保存することで、
+長い直線と短い円弧が混在する場合でも均一な記録密度を実現します。
+
+```rust
+use geo_algorithms::octree::{CuttingSimulator, SnapshotInterval};
+
+// 固定10mm間隔 + セグメント端点を含める（推奨）
+let mut simulator = CuttingSimulator::new(
+    workpiece_bbox,
+    8,  // Octree深さ
+    SnapshotInterval::ByDistance {
+        interval_mm: 10.0,
+        include_segment_endpoints: true,
+    }
+);
+
+simulator.simulate(&toolpath, &tool)?;
+
+// 再生制御
+simulator.play();
+simulator.seek_to_distance(500.0);  // 500mm地点にジャンプ
+simulator.set_playback_speed(2.0);  // 2倍速
+
+// スナップショット情報
+println!("Total snapshots: {}", simulator.snapshot_count());
+println!("Memory usage: {:.2} MB", simulator.memory_usage_mb());
+```
+
+**主要な改善点**:
+
+1. **均一な記録密度**: 移動距離に対して一定間隔でスナップショット
+2. **セグメント端点保証**: 重要な境界点を確実に記録
+3. **自動計算支援**: 総距離から最適な間隔を提案
+4. **メモリ予測**: 事前にメモリ使用量を確認可能
+
+詳細は [CUTTING_SIMULATION_DESIGN.md](./CUTTING_SIMULATION_DESIGN.md) を参照してください。
 
 ### 6.2 衝突判定高速化
 
