@@ -9,7 +9,14 @@
 //! - **最近傍探索**: 枝刈り最適化による高速検索
 //! - **衝突判定高速化**: O(n²) → O(n log n)（粗判定フェーズ）
 //!
+//! ## モジュール
+//!
+//! - [`Octree`] - 汎用空間分割データ構造（データ挿入・検索）
+//! - [`voxel`] - 切削シミュレーション用ボクセルOctree（材料除去シミュレーション）
+//!
 //! ## 使用例
+//!
+//! ### 汎用Octree（衝突判定・検索）
 //!
 //! ```rust,ignore
 //! use geo_algorithms::octree::{Octree, HasBoundingBox, HasPosition};
@@ -31,20 +38,30 @@
 //! }
 //! ```
 //!
-//! ## 実装状況
+//! ### ボクセルOctree（切削シミュレーション）
 //!
-//! ✅ **Phase 1 完了**:
-//! - 基本データ構造（Octree, OctreeNode）
-//! - 完全な再帰挿入と自動分割
-//! - 範囲検索（query_region）
-//! - 最適化された最近傍探索（nearest）
-//! - ノード走査（traverse）
+//! ```rust,ignore
+//! use geo_algorithms::octree::voxel::VoxelOctree;
+//! use geo_core::{Aabb3D, Point3D};
 //!
-//! 🔄 **Phase 2 予定**:
-//! - k近傍探索（k-nearest neighbors）
-//! - ✅ ボクセルOctree（切削シミュレーション用） ← Phase 2 完了
-//! - デバッグ可視化対応
-//! - バルク挿入最適化
+//! // ワーク全体を表すボクセルOctree（100x100x100mm）
+//! let work_bounds = Aabb3D::new(
+//!     Point3D::new(0.0, 0.0, 0.0),
+//!     Point3D::new(100.0, 100.0, 100.0)
+//! );
+//! let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
+//!
+//! // 工具が通過した領域を除去
+//! let tool_region = Aabb3D::new(
+//!     Point3D::new(10.0, 10.0, 0.0),
+//!     Point3D::new(20.0, 20.0, 50.0)
+//! );
+//! voxel_tree.remove_material_box(&tool_region);
+//!
+//! // 残存材料の体積を計算
+//! let remaining = voxel_tree.remaining_volume();
+//! println!("残存体積: {} mm³", remaining);
+//! ```
 
 use geo_core::{Aabb3D, Point3D};
 use geo_foundation::Scalar;
