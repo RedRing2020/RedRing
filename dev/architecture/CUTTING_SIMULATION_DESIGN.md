@@ -3,7 +3,7 @@
 **作成日**: 2026年2月12日  
 **最終更新**: 2026年2月12日  
 **ステータス**: 設計フェーズ  
-**関連Issue**: TBD（Octree実装完了後に作成）
+**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214)
 
 ---
 
