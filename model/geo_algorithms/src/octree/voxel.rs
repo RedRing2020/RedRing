@@ -689,6 +689,45 @@ impl<T: Scalar> VoxelNode<T> {
                 .sum(),
         }
     }
+
+    /// 指定された領域の外側にあるSolidボクセルを収集（削り残し検出用）
+    ///
+    /// # Arguments
+    ///
+    /// * `target_region` - 目的形状の境界ボックス
+    /// * `undercut_voxels` - 検出された削り残しボクセルを格納するVec
+    ///
+    /// # Note
+    ///
+    /// このノードの境界ボックスが `target_region` と交差しない場合、
+    /// 全てのSolidボクセルが削り残しとして収集されます。
+    fn collect_solid_voxels_outside(&self, target_region: &Aabb3D<T>, undercut_voxels: &mut Vec<Aabb3D<T>>) {
+        match self.state {
+            VoxelState::Empty => {
+                // 空のボクセルは削り残しではない
+            }
+            VoxelState::Solid => {
+                // Solidボクセルが目的領域の外側にあるかチェック
+                if !self.bounds.intersects(target_region) {
+                    // 完全に領域外 = 削り残し
+                    undercut_voxels.push(self.bounds.clone());
+                } else if !target_region.contains_aabb(&self.bounds) {
+                    // 部分的に外側にある可能性がある
+                    // リーフノードなのでこのボクセル全体を削り残しとして扱う
+                    undercut_voxels.push(self.bounds.clone());
+                }
+                // target_region に完全に含まれる場合は削り残しではない
+            }
+            VoxelState::Mixed => {
+                // 子ノードを再帰的に探索
+                if let Some(ref children) = self.children {
+                    for child in children.iter() {
+                        child.collect_solid_voxels_outside(target_region, undercut_voxels);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<T: Scalar> VoxelOctree<T> {
@@ -871,6 +910,54 @@ impl<T: Scalar> VoxelOctree<T> {
     /// 最大深さを取得
     pub fn max_depth(&self) -> usize {
         self.max_depth
+    }
+
+    /// 削り残し検出
+    ///
+    /// 目的形状の境界ボックスの外側に残っているSolidボクセルを検出します。
+    /// これは、工具が到達できなかった領域や、意図しない材料の残存を示します。
+    ///
+    /// # Arguments
+    ///
+    /// * `target_region` - 目的形状の境界ボックス（この内側にあるべき領域）
+    ///
+    /// # Returns
+    ///
+    /// 削り残しとして検出されたボクセルの境界ボックスリスト。
+    /// 空のリストは、削り残しが存在しないことを示します。
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use geo_algorithms::octree::voxel::VoxelOctree;
+    /// use geo_core::{Aabb3D, Point3D};
+    ///
+    /// // ワークピース全体
+    /// let work_bounds = Aabb3D::new(
+    ///     Point3D::new(0.0, 0.0, 0.0),
+    ///     Point3D::new(100.0, 100.0, 100.0)
+    /// );
+    /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
+    ///
+    /// // 材料除去シミュレーション実行
+    /// // ... remove_material_* 呼び出し ...
+    ///
+    /// // 目的形状（この範囲外の材料は削り残し）
+    /// let target = Aabb3D::new(
+    ///     Point3D::new(10.0, 10.0, 10.0),
+    ///     Point3D::new(90.0, 90.0, 90.0)
+    /// );
+    ///
+    /// // 削り残し検出
+    /// let undercuts = voxel_tree.detect_undercut(&target);
+    /// if !undercuts.is_empty() {
+    ///     eprintln!("警告: {} 箇所の削り残しを検出", undercuts.len());
+    /// }
+    /// ```
+    pub fn detect_undercut(&self, target_region: &Aabb3D<T>) -> Vec<Aabb3D<T>> {
+        let mut undercut_voxels = Vec::new();
+        self.root.collect_solid_voxels_outside(target_region, &mut undercut_voxels);
+        undercut_voxels
     }
 }
 
@@ -1360,4 +1447,115 @@ mod tests {
         let expected_size_5 = 100.0 / 32.0; // 2^5 = 32
         assert!((voxel_tree_5.voxel_size_at_max_depth() - expected_size_5).abs() < 0.001);
     }
+
+    #[test]
+    fn test_detect_undercut_no_removal() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let voxel_tree = VoxelOctree::new(bounds, 4);
+
+        // 完全にワーク内の目的領域
+        let target = Aabb3D::new(
+            Point3D::new(10.0, 10.0, 10.0),
+            Point3D::new(90.0, 90.0, 90.0),
+        );
+
+        // 何も除去していないので、全てが削り残し
+        let undercuts = voxel_tree.detect_undercut(&target);
+        assert!(!undercuts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_undercut_complete_removal() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        // 全体を除去
+        voxel_tree.remove_material_box(&bounds);
+
+        // 目的領域（何でもいい）
+        let target = Aabb3D::new(
+            Point3D::new(10.0, 10.0, 10.0),
+            Point3D::new(90.0, 90.0, 90.0),
+        );
+
+        // 全て除去したので削り残しなし
+        let undercuts = voxel_tree.detect_undercut(&target);
+        assert!(undercuts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_undercut_partial_removal() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        // 中央部分のみ除去
+        let removed_region = Aabb3D::new(
+            Point3D::new(20.0, 20.0, 20.0),
+            Point3D::new(80.0, 80.0, 80.0),
+        );
+        voxel_tree.remove_material_box(&removed_region);
+
+        // 目的領域は除去した領域と同じ
+        let target = removed_region;
+
+        // 周辺部分が削り残しとして検出されるはず
+        let undercuts = voxel_tree.detect_undercut(&target);
+        assert!(!undercuts.is_empty());
+
+        // 削り残しボクセルは目的領域と交差しない
+        for undercut_bbox in &undercuts {
+            assert!(!undercut_bbox.intersects(&target));
+        }
+    }
+
+    #[test]
+    fn test_detect_undercut_z_axis_tool() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 5);
+
+        // Z軸方向の工具で中央を除去
+        voxel_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 20.0);
+
+        // 目的領域: 円柱内部を近似した直方体
+        let target = Aabb3D::new(
+            Point3D::new(30.0, 30.0, 0.0),
+            Point3D::new(70.0, 70.0, 100.0),
+        );
+
+        // 外側の角部分が削り残しとして検出されるはず
+        let undercuts = voxel_tree.detect_undercut(&target);
+        assert!(!undercuts.is_empty());
+    }
+
+    #[test]
+    fn test_detect_undercut_target_larger_than_work() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let voxel_tree = VoxelOctree::new(bounds, 4);
+
+        // 目的領域がワークより大きい場合
+        let target = Aabb3D::new(
+            Point3D::new(-50.0, -50.0, -50.0),
+            Point3D::new(150.0, 150.0, 150.0),
+        );
+
+        // ワーク全体が目的領域内なので削り残しなし
+        let undercuts = voxel_tree.detect_undercut(&target);
+        assert!(undercuts.is_empty());
+    }
 }
+
