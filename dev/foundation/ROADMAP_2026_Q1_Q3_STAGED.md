@@ -1,7 +1,7 @@
 # RedRing 開発ロードマップ 2026 Q1-Q3（段階的実装版）
 
 **作成日**: 2026年2月8日  
-**最終更新日**: 2026年2月8日  
+**最終更新日**: 2026年2月12日  
 **対象期間**: 2026年2月〜2026年8月（28週間）  
 **関連ドキュメント**: 
 - [PHASE3_COMPLETION_REPORT.md](PHASE3_COMPLETION_REPORT.md)
@@ -9,6 +9,20 @@
 - [OCTREE_DESIGN.md](../architecture/OCTREE_DESIGN.md)
 - [ENTITY_FOUNDATION_DESIGN.md](../architecture/ENTITY_FOUNDATION_DESIGN.md)
 - [CAM_VISUALIZATION_REQUIREMENTS.md](../architecture/CAM_VISUALIZATION_REQUIREMENTS.md)
+
+---
+
+## 📋 情報管理方針（役割分離）
+
+### ドキュメント階層と役割
+
+| ツール | 役割 | 記載内容 |
+|--------|------|---------|
+| **GitHub Issue** | タスク管理・進捗追跡 | 概要、チェックリスト、依存関係、**設計ドキュメントへのリンク** |
+| **設計ドキュメント** | 技術仕様（Single Source of Truth） | 詳細設計、データ構造、コード例、Phase詳細 |
+| **ROADMAP** | 全体計画・優先順位 | 俯瞰的スケジュール、優先順位マトリクス、**設計ドキュメントへのリンク** |
+
+**原則**: 詳細な技術情報は設計ドキュメントに一元化し、IssueとROADMAPはリンクで参照
 
 ---
 
@@ -167,22 +181,10 @@ Octree可視化 (Issue #207):
 
 **目的**: 切削シミュレーション・衝突判定高速化のための空間データ構造
 
-**Phase 1: 基本Octree（1週間）**:
-- データ構造（OctreeNode, Octree）
-- 基本操作（挿入、範囲検索、最近傍探索）
-- 性能検証（1000要素で99%削減確認）
-
-**Phase 2: ボクセルOctree（1週間）**:
-- VoxelOctree 構造
-- 材料除去シミュレーション
-- 削り残し検出
-
-**期待効果**:
-- ✅ 衝突判定: 99%の計算量削減（1000形状で）
-- ✅ 切削シミュレーション: リアルタイム可視化が可能
-
 **工数**: 2週間  
 **実施時期**: Week 4-5（3月第1週〜第2週）
+
+**詳細設計**: [OCTREE_DESIGN.md](../architecture/OCTREE_DESIGN.md)
 
 ---
 
@@ -190,13 +192,10 @@ Octree可視化 (Issue #207):
 
 **目的**: Octree構造のデバッグ用視覚化
 
-**実装内容**:
-- `octree_to_wireframe()` 変換器（ViewModel層）
-- Octree Stage（深さ範囲切り替え、アニメーション）
-- キーボード操作（`0`: 表示切替、`[`/`]`: 深さ変更、`P`: アニメーション）
-
 **工数**: 1週間  
 **実施時期**: Week 6（3月第3週）
+
+**詳細設計**: [OCTREE_DESIGN.md](../architecture/OCTREE_DESIGN.md)
 
 ---
 
@@ -204,41 +203,33 @@ Octree可視化 (Issue #207):
 
 **目的**: Phase 4.0 - エンティティ+属性のみの基礎実装
 
-**Phase 1: エンティティ基盤（2週間）**:
-- `geo_entity` クレート作成
-- EntityId（UUID ベース）
-- DisplayAttributes（色、線種、レイヤー）
-- Metadata（名前、タグ、作成日時）
-- GeometricEntity<T, G>
-- CAMEntity
-
-**Phase 2: ViewModel/App統合（1.5週間）**:
-- `entity_converter.rs`（エンティティ → 頂点変換）
-- EntityManager（エンティティ管理）
-- App層での選択・色変更機能
-
 **ECS移行判断（Week 9）**:
-- ECSプロトタイプ作成・ベンチマーク評価
+- ECSプロトタイプ作成・ベンチマーク評価（Issue #215）
 - 2倍以上高速化達成 → Phase 2からECS採用
-- 詳細: [ECS_EVALUATION.md](../architecture/ECS_EVALUATION.md)
-
-**Phase 4との関係**:
-- ✅ 実装: EntityId, DisplayAttributes, Metadata
-- ❌ 未実装（Phase 4.1で実施）: B-Rep, Euler操作, トポロジー検証
 
 **工数**: 3.5週間  
 **実施時期**: Week 7-10（4月第1週〜4月下旬）
 
+**詳細設計**:
+- [ENTITY_FOUNDATION_DESIGN.md](../architecture/ENTITY_FOUNDATION_DESIGN.md)
+- [ECS_EVALUATION.md](../architecture/ECS_EVALUATION.md)（ECS移行評価）
+
 ---
 
-### 2.4 レガシーAPI問題解決 (Issue #202)
+### 2.4 切削シミュレーション (Issue #214)
+
+**目的**: VoxelOctreeを用いた切削シミュレーション（距離ベーススナップショット方式）
+
+**工数**: 4-5週間  
+**実施時期**: Week 6-10（4月中旬〜5月中旬）
+
+**詳細設計**: [CUTTING_SIMULATION_DESIGN.md](../architecture/CUTTING_SIMULATION_DESIGN.md)
+
+---
+
+### 2.5 レガシーAPI問題解決 (Issue #202)
 
 **目的**: Foundation Pattern への完全移行
-
-**段階的移行**:
-- Phase 1: 高頻度形状（Circle, Ellipse）
-- Phase 2: 中頻度形状（Ray, LineSegment）
-- Phase 3: 低頻度形状（BBox, Direction）
 
 **工数**: 1週間（並行実施可能）  
 **実施時期**: Week 11（5月第1週）
@@ -278,65 +269,39 @@ Octree可視化 (Issue #207):
 
 ### 3.4 Phase 4 完全版 (Issue #205)
 
-**目的**: B-Repトポロジー層の完全実装
-
-**Phase 4.1: トポロジー層（3週間）**:
-- `geo_topology` クレート
-- B-Rep（Vertex/Edge/Wire/Face/Shell/Solid）
-- Euler操作（MEV/MEL/KEV）
-- **ECS版で実装**（Week 9で採用決定時）
-
-**Phase 4.2: エンティティ統合（2週間）**:
-- Phase 4.0（#208）との統合
-- TopologyEntity の実装
-- **ECS版トポロジーコンポーネント**
-
-**Phase 4.3: パラメータ管理（1週間）**:
-- ToleranceSettings
-- Foundation Pattern統合
+**目的**: B-Repトポロジー層の完全実装（ECS版で実装）
 
 **工数**: 6週間  
 **実施時期**: Week 19-24（7月第1週〜8月中旬）
+
+**詳細設計**: [PHASE4_TOPOLOGY_ENTITY_DESIGN.md](../architecture/PHASE4_TOPOLOGY_ENTITY_DESIGN.md)
 
 ---
 
 ## 実施スケジュール
 
 ### Week 1-2: Tier 1 - デバッグ表示基盤（完了）
-- **Week 1-2**: Issue #204（形状可視化完成）✅ マージ完了
-  - 15形状のGPU変換実装完了
-  - ViewModelアーキテクチャ修正完了（-281行）
+- **Issue #204**（形状可視化完成）✅ マージ完了
 
-### Week 3: Tier 1 - CAM可視化基礎
-- **Week 3**: Issue #203（CAM可視化基礎版）実施予定
-  - 工具経路の基本表示機能
+### Week 3: Tier 1 - CAM可視化基礎（完了）
+- **Issue #203**（CAM可視化基礎版）✅ マージ完了
 
 ### Week 4-5: Tier 2 - 空間データ構造
-- **Week 4-5**: Issue #206（Octree実装）実施予定
-  - 基本Octree + ボクセルOctree
+- **Issue #206**（Octree実装）
 
-### Week 6-9: Tier 1 - NURBS GPU描画
-- **Week 6**: Issue #210 Phase 1（固定分割実装）
-  - NurbsCurve3D/NurbsSurface3D基本変換
-- **Week 7-8**: Issue #210 Phase 2（適応的細分化）
-  - 曲率ベース適応的細分化アルゴリズム
-- **Week 9**: Issue #210 Phase 3（最適化）
-  - メッシュキャッシング、LOD対応
+### Week 6: Tier 2 - Octree可視化
+- **Issue #207**（Octree可視化）
 
-### Week 10以降: Tier 2-3タスク順次着手
-- **Week 3**: Issue #203（CAM可視化基礎版）
-
-### Week 4-6: Tier 2 - Octree実装・可視化
-- **Week 4-5**: Issue #206（Octree実装）
-- **Week 6**: Issue #207（Octree可視化）
+### Week 6-10: Tier 2 - 切削シミュレーション
+- **Issue #214**（切削シミュレーション Phase 1a/1b/1c/2/3）
 
 ### Week 7-10: Tier 2 - エンティティ層基礎
 - **Week 7-8**: Issue #208 Phase 1（エンティティ基盤）
-- **Week 9**: ECSプロトタイプ作成・評価（並行）
+- **Week 9**: Issue #215（ECSプロトタイプ作成・評価）← 判断ポイント
 - **Week 10**: Issue #208 Phase 2（ViewModel/App統合）← ECS採用判断
 
 ### Week 11: Tier 2 - リファクタリング
-- **Week 11**: Issue #202（レガシーAPI移行）
+- **Issue #202**（レガシーAPI移行）
 
 ### Week 12-16: Tier 3 - CAM演算基礎
 - **Week 12-13**: Issue #42（テセレーション）
@@ -349,9 +314,7 @@ Octree可視化 (Issue #207):
 - ドキュメント整備
 
 ### Week 19-24: Tier 3 - Phase 4完全版
-- **Week 19-21**: Issue #205 Phase 4.1（トポロジー層）
-- **Week 22-23**: Issue #205 Phase 4.2（エンティティ統合）
-- **Week 24**: Issue #205 Phase 4.3（パラメータ管理）
+- **Issue #205**（Phase 4.1/4.2/4.3、ECS版トポロジー）
 
 ### Week 25-28: 予備・統合・リリース準備
 - 全体統合テスト
