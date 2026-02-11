@@ -9,3 +9,4 @@ geo_foundation = { path = "../geo_foundation" }
 geo_primitives = { path = "../geo_primitives" }
 geo_nurbs = { path = "../geo_nurbs" }
 geo_core = { path = "../geo_core" }
+geo_commons = { path = "../geo_commons" }

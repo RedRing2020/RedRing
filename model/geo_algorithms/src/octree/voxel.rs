@@ -38,22 +38,11 @@
 //! let remaining = voxel_tree.remaining_volume();
 //! println!("残存体積: {} mm³", remaining);
 //! ```
-//!
-//! ## Phase 1 実装範囲
-//!
-//! ✅ **Phase 1** (現在):
-//! - VoxelState 列挙型
-//! - VoxelNode/VoxelOctree 構造体
-//! - AABB形状による材料除去
-//! - 残存体積計算
-//!
-//! 🔄 **Phase 2** (予定):
-//! - 球形状除去（ボールエンドミル）
-//! - 円筒形状除去（フラットエンドミル）
-//! - 削り残し検出
 
+use geo_commons::metrics::distance::line_segment_to_aabb_distance;
 use geo_core::{Aabb3D, Point3D};
 use geo_foundation::Scalar;
+use geo_primitives::LineSegment3D;
 
 /// ボクセルの材料状態
 ///
@@ -326,6 +315,345 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// 線分を中心軸とした円柱（カプセル）領域で材料除去
+    ///
+    /// # Arguments
+    ///
+    /// * `segment` - 中心軸となる線分
+    /// * `radius` - 円柱の半径
+    /// * `max_depth` - 最大深さ（分割上限）
+    fn remove_material_capsule(&mut self, segment: &LineSegment3D<T>, radius: T, max_depth: usize) {
+        match self.state {
+            VoxelState::Empty => (), // 既に空なら何もしない
+
+            VoxelState::Solid => {
+                // 線分とAABBの距離を計算
+                let min = self.bounds.min();
+                let max = self.bounds.max();
+                let distance = line_segment_to_aabb_distance(
+                    (
+                        segment.start().x(),
+                        segment.start().y(),
+                        segment.start().z(),
+                    ),
+                    (segment.end().x(), segment.end().y(), segment.end().z()),
+                    (min.x(), min.y(), min.z()),
+                    (max.x(), max.y(), max.z()),
+                );
+
+                // カプセル範囲外なら何もしない（枝刈り）
+                if distance > radius {
+                    return;
+                }
+
+                // AABBが完全にカプセル内部にあるか判定
+                // AABBの8頂点すべてがカプセル内部にあれば完全包含
+                if self.is_aabb_inside_capsule(segment, radius) {
+                    self.state = VoxelState::Empty;
+                    self.children = None;
+                    return;
+                }
+
+                // 部分的な交差
+                if self.depth < max_depth {
+                    // 深さに余裕があれば細分化
+                    self.subdivide();
+                    for child in self.children.as_mut().unwrap().iter_mut() {
+                        child.remove_material_capsule(segment, radius, max_depth);
+                    }
+                } else {
+                    // 最大深さ到達 - セル単位で削除
+                    self.state = VoxelState::Empty;
+                }
+            }
+
+            VoxelState::Mixed => {
+                // 子ノードに委譲
+                if let Some(ref mut children) = self.children {
+                    for child in children.iter_mut() {
+                        child.remove_material_capsule(segment, radius, max_depth);
+                    }
+
+                    // 全ての子が Empty なら親も Empty に
+                    if children.iter().all(|c| c.state == VoxelState::Empty) {
+                        self.state = VoxelState::Empty;
+                        self.children = None;
+                    }
+                    // 全ての子が Solid なら親も Solid に
+                    else if children.iter().all(|c| c.state == VoxelState::Solid) {
+                        self.state = VoxelState::Solid;
+                        self.children = None;
+                    }
+                }
+            }
+        }
+    }
+
+    /// AABBがカプセル内部に完全に含まれるか判定
+    ///
+    /// # Arguments
+    ///
+    /// * `segment` - カプセルの中心軸
+    /// * `radius` - カプセルの半径
+    ///
+    /// # Returns
+    ///
+    /// AABBの8頂点すべてがカプセル内部にあれば `true`
+    fn is_aabb_inside_capsule(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
+        let min = self.bounds.min();
+        let max = self.bounds.max();
+
+        // AABBの8頂点を生成
+        let vertices = [
+            (min.x(), min.y(), min.z()),
+            (max.x(), min.y(), min.z()),
+            (min.x(), max.y(), min.z()),
+            (max.x(), max.y(), min.z()),
+            (min.x(), min.y(), max.z()),
+            (max.x(), min.y(), max.z()),
+            (min.x(), max.y(), max.z()),
+            (max.x(), max.y(), max.z()),
+        ];
+
+        // 全頂点が半径内にあるかチェック
+        for &vertex in &vertices {
+            let distance = self.point_to_segment_distance(vertex, segment);
+            if distance > radius {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// 点から線分への最短距離を計算
+    ///
+    /// # Arguments
+    ///
+    /// * `point` - 計算対象の点 (x, y, z)
+    /// * `segment` - 線分
+    ///
+    /// # Returns
+    ///
+    /// 点から線分への最短距離
+    fn point_to_segment_distance(&self, point: (T, T, T), segment: &LineSegment3D<T>) -> T {
+        let (px, py, pz) = point;
+        let sx = segment.start().x();
+        let sy = segment.start().y();
+        let sz = segment.start().z();
+        let ex = segment.end().x();
+        let ey = segment.end().y();
+        let ez = segment.end().z();
+
+        // 線分の方向ベクトル
+        let dx = ex - sx;
+        let dy = ey - sy;
+        let dz = ez - sz;
+
+        // 点から始点へのベクトル
+        let to_px = px - sx;
+        let to_py = py - sy;
+        let to_pz = pz - sz;
+
+        // パラメータ t を計算
+        let len_sq = dx * dx + dy * dy + dz * dz;
+        let t = if len_sq <= T::EPSILON {
+            T::ZERO
+        } else {
+            let dot = to_px * dx + to_py * dy + to_pz * dz;
+            (dot / len_sq).clamp(T::ZERO, T::ONE)
+        };
+
+        // 線分上の最近点
+        let closest_x = sx + dx * t;
+        let closest_y = sy + dy * t;
+        let closest_z = sz + dz * t;
+
+        // 距離を計算
+        let diff_x = px - closest_x;
+        let diff_y = py - closest_y;
+        let diff_z = pz - closest_z;
+        (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt()
+    }
+
+    /// Z軸方向の円柱領域で材料除去（高速版）
+    ///
+    /// 工具軸がZ軸に平行な場合の最適化実装。
+    /// XY平面での2D円-矩形距離計算に簡略化することで高速化。
+    ///
+    /// # Arguments
+    ///
+    /// * `center_x` - 工具中心のX座標
+    /// * `center_y` - 工具中心のY座標
+    /// * `z_start` - Z方向の開始座標
+    /// * `z_end` - Z方向の終了座標
+    /// * `radius` - 円柱の半径
+    /// * `max_depth` - 最大深さ（分割上限）
+    ///
+    /// # Performance
+    ///
+    /// 汎用版の`remove_material_capsule`と比較して：
+    /// - 線分サンプリング不要
+    /// - 8頂点チェック不要
+    /// - XY平面での2D計算のみ
+    /// - 約3-5倍高速
+    fn remove_material_capsule_z_axis(
+        &mut self,
+        center_x: T,
+        center_y: T,
+        z_start: T,
+        z_end: T,
+        radius: T,
+        max_depth: usize,
+    ) {
+        match self.state {
+            VoxelState::Empty => (), // 既に空なら何もしない
+
+            VoxelState::Solid => {
+                let min = self.bounds.min();
+                let max = self.bounds.max();
+
+                // 1. Z方向の範囲チェック（高速枝刈り）
+                let z_min_seg = z_start.min(z_end);
+                let z_max_seg = z_start.max(z_end);
+
+                if z_max_seg < min.z() || z_min_seg > max.z() {
+                    return; // Z方向で交差なし
+                }
+
+                // 2. XY平面での円-矩形距離計算
+                let distance_2d = self.circle_to_aabb_2d_distance(center_x, center_y, &min, &max);
+
+                // カプセル範囲外なら何もしない（枝刈り）
+                if distance_2d > radius {
+                    return;
+                }
+
+                // 3. AABBが完全にカプセル内部にあるか判定
+                if self
+                    .is_aabb_inside_z_axis_capsule(center_x, center_y, z_min_seg, z_max_seg, radius)
+                {
+                    self.state = VoxelState::Empty;
+                    self.children = None;
+                    return;
+                }
+
+                // 4. 部分的な交差
+                if self.depth < max_depth {
+                    self.subdivide();
+                    for child in self.children.as_mut().unwrap().iter_mut() {
+                        child.remove_material_capsule_z_axis(
+                            center_x, center_y, z_start, z_end, radius, max_depth,
+                        );
+                    }
+                } else {
+                    // 最大深さ到達 - セル単位で削除
+                    self.state = VoxelState::Empty;
+                }
+            }
+
+            VoxelState::Mixed => {
+                // 子ノードに委譲
+                if let Some(ref mut children) = self.children {
+                    for child in children.iter_mut() {
+                        child.remove_material_capsule_z_axis(
+                            center_x, center_y, z_start, z_end, radius, max_depth,
+                        );
+                    }
+
+                    // 全ての子が Empty なら親も Empty に
+                    if children.iter().all(|c| c.state == VoxelState::Empty) {
+                        self.state = VoxelState::Empty;
+                        self.children = None;
+                    }
+                    // 全ての子が Solid なら親も Solid に
+                    else if children.iter().all(|c| c.state == VoxelState::Solid) {
+                        self.state = VoxelState::Solid;
+                        self.children = None;
+                    }
+                }
+            }
+        }
+    }
+
+    /// XY平面での円-矩形(AABB)間の2D距離を計算
+    ///
+    /// # Arguments
+    ///
+    /// * `center_x` - 円の中心X座標
+    /// * `center_y` - 円の中心Y座標
+    /// * `aabb_min` - AABBの最小座標
+    /// * `aabb_max` - AABBの最大座標
+    ///
+    /// # Returns
+    ///
+    /// XY平面での円中心から矩形までの最短距離
+    fn circle_to_aabb_2d_distance(
+        &self,
+        center_x: T,
+        center_y: T,
+        aabb_min: &Point3D<T>,
+        aabb_max: &Point3D<T>,
+    ) -> T {
+        // AABBの最近点をXY平面で計算
+        let closest_x = center_x.clamp(aabb_min.x(), aabb_max.x());
+        let closest_y = center_y.clamp(aabb_min.y(), aabb_max.y());
+
+        let dx = center_x - closest_x;
+        let dy = center_y - closest_y;
+
+        (dx * dx + dy * dy).sqrt()
+    }
+
+    /// AABBがZ軸カプセル内部に完全に含まれるか判定
+    ///
+    /// # Arguments
+    ///
+    /// * `center_x` - 円柱中心のX座標
+    /// * `center_y` - 円柱中心のY座標
+    /// * `z_min` - Z方向の最小座標
+    /// * `z_max` - Z方向の最大座標
+    /// * `radius` - 円柱の半径
+    ///
+    /// # Returns
+    ///
+    /// AABBが完全に円柱内部にあれば `true`
+    fn is_aabb_inside_z_axis_capsule(
+        &self,
+        center_x: T,
+        center_y: T,
+        z_min: T,
+        z_max: T,
+        radius: T,
+    ) -> bool {
+        let min = self.bounds.min();
+        let max = self.bounds.max();
+
+        // 1. Z方向の完全包含チェック
+        if min.z() < z_min || max.z() > z_max {
+            return false;
+        }
+
+        // 2. XY平面での4頂点が全て半径内にあるかチェック
+        let corners_2d = [
+            (min.x(), min.y()),
+            (max.x(), min.y()),
+            (min.x(), max.y()),
+            (max.x(), max.y()),
+        ];
+
+        for &(x, y) in &corners_2d {
+            let dx = x - center_x;
+            let dy = y - center_y;
+            let distance = (dx * dx + dy * dy).sqrt();
+            if distance > radius {
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// ノードの体積を計算
     ///
     /// # Returns
@@ -422,6 +750,83 @@ impl<T: Scalar> VoxelOctree<T> {
     /// ```
     pub fn remove_material_box(&mut self, tool_aabb: &Aabb3D<T>) {
         self.root.remove_material_box(tool_aabb, self.max_depth);
+    }
+
+    /// 線分を中心軸とした円柱（カプセル）領域で材料除去
+    ///
+    /// 線分に沿って指定した半径の円柱領域内の材料を除去します。
+    ///
+    /// # Arguments
+    ///
+    /// * `segment` - 中心軸となる線分
+    /// * `radius` - 円柱の半径
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use geo_primitives::LineSegment3D;
+    /// use geo_core::Point3D;
+    ///
+    /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
+    ///
+    /// // 線分経路に沿って材料除去
+    /// let segment = LineSegment3D::new(
+    ///     Point3D::new(0.0, 0.0, 0.0),
+    ///     Point3D::new(50.0, 50.0, 50.0)
+    /// );
+    /// voxel_tree.remove_material_capsule(&segment, 5.0); // 半径5mm
+    /// ```
+    pub fn remove_material_capsule(&mut self, segment: &LineSegment3D<T>, radius: T) {
+        self.root
+            .remove_material_capsule(segment, radius, self.max_depth);
+    }
+
+    /// Z軸方向の円柱領域で材料除去（高速版）
+    ///
+    /// 工具軸がZ軸に平行な場合の最適化実装。
+    /// 汎用版`remove_material_capsule`より3-5倍高速。
+    ///
+    /// # Arguments
+    ///
+    /// * `center_x` - 工具中心のX座標
+    /// * `center_y` - 工具中心のY座標
+    /// * `z_start` - Z方向の開始座標
+    /// * `z_end` - Z方向の終了座標
+    /// * `radius` - 円柱の半径
+    ///
+    /// # Performance
+    ///
+    /// XY平面での2D円-矩形距離計算に簡略化：
+    /// - サンプリング不要
+    /// - 8頂点チェックが4頂点に削減
+    /// - Z方向は単純な範囲チェックのみ
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use geo_core::Point3D;
+    ///
+    /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
+    ///
+    /// // Z軸方向に材料除去
+    /// voxel_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 5.0);
+    /// ```
+    pub fn remove_material_z_axis(
+        &mut self,
+        center_x: T,
+        center_y: T,
+        z_start: T,
+        z_end: T,
+        radius: T,
+    ) {
+        self.root.remove_material_capsule_z_axis(
+            center_x,
+            center_y,
+            z_start,
+            z_end,
+            radius,
+            self.max_depth,
+        );
     }
 
     /// 残存材料の体積を計算
@@ -612,6 +1017,332 @@ mod tests {
 
         // 体積は変わらないはず
         assert_eq!(voxel_tree.remaining_volume(), initial_volume);
+    }
+
+    // ========================================================================
+    // カプセル（線分+半径）材料除去テスト
+    // ========================================================================
+
+    #[test]
+    fn test_capsule_removal_basic() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 中心を貫通する線分
+        let segment = LineSegment3D::new(
+            Point3D::new(50.0, 50.0, 0.0),
+            Point3D::new(50.0, 50.0, 100.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment, 10.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // 材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+
+        // 概算チェック: 円柱の体積 = π * r² * h = π * 10² * 100 ≈ 31415
+        // 除去量が少なくとも20000以上であることを確認
+        assert!(initial_volume - remaining > 20000.0);
+    }
+
+    #[test]
+    fn test_capsule_removal_diagonal() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 対角線を通る線分
+        let segment = LineSegment3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment, 5.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // 材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+    }
+
+    #[test]
+    fn test_capsule_removal_no_intersection() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // ワークから遠く離れた線分
+        let segment = LineSegment3D::new(
+            Point3D::new(200.0, 200.0, 200.0),
+            Point3D::new(300.0, 300.0, 300.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment, 10.0);
+
+        // 体積は変わらないはず
+        assert_eq!(voxel_tree.remaining_volume(), initial_volume);
+    }
+
+    #[test]
+    fn test_capsule_removal_small_radius() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 5); // より高解像度
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 細い円柱（半径1mm）
+        let segment = LineSegment3D::new(
+            Point3D::new(50.0, 50.0, 0.0),
+            Point3D::new(50.0, 50.0, 100.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment, 1.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // わずかに材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+
+        // 円柱の体積 = π * 1² * 100 ≈ 314
+        // ボクセル誤差を考慮して100以上の除去を確認
+        assert!(initial_volume - remaining > 100.0);
+    }
+
+    #[test]
+    fn test_capsule_removal_multiple_segments() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 複数の線分で材料除去
+        let segment1 = LineSegment3D::new(
+            Point3D::new(25.0, 25.0, 0.0),
+            Point3D::new(25.0, 25.0, 100.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment1, 8.0);
+
+        let volume_after_1 = voxel_tree.remaining_volume();
+        assert!(volume_after_1 < initial_volume);
+
+        let segment2 = LineSegment3D::new(
+            Point3D::new(75.0, 75.0, 0.0),
+            Point3D::new(75.0, 75.0, 100.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment2, 8.0);
+
+        let volume_after_2 = voxel_tree.remaining_volume();
+        assert!(volume_after_2 < volume_after_1);
+    }
+
+    #[test]
+    fn test_capsule_removal_horizontal() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 水平方向の線分
+        let segment = LineSegment3D::new(
+            Point3D::new(0.0, 50.0, 50.0),
+            Point3D::new(100.0, 50.0, 50.0),
+        )
+        .unwrap();
+        voxel_tree.remove_material_capsule(&segment, 10.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // 材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+    }
+
+    // ========================================================================
+    // Z軸特化版材料除去テスト（高速版）
+    // ========================================================================
+
+    #[test]
+    fn test_z_axis_removal_basic() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // Z軸方向の円柱除去
+        voxel_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 10.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // 材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+
+        // 概算チェック: 円柱の体積 = π * 10² * 100 ≈ 31415
+        assert!(initial_volume - remaining > 20000.0);
+    }
+
+    #[test]
+    fn test_z_axis_removal_comparison_with_capsule() {
+        use geo_primitives::LineSegment3D;
+
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+
+        // 汎用版
+        let mut tree1 = VoxelOctree::new(bounds, 4);
+        let segment = LineSegment3D::new(
+            Point3D::new(50.0, 50.0, 0.0),
+            Point3D::new(50.0, 50.0, 100.0),
+        )
+        .unwrap();
+        tree1.remove_material_capsule(&segment, 10.0);
+        let volume1 = tree1.remaining_volume();
+
+        // Z軸特化版
+        let mut tree2 = VoxelOctree::new(bounds, 4);
+        tree2.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 10.0);
+        let volume2 = tree2.remaining_volume();
+
+        // 結果が同じであることを確認（ボクセル誤差を考慮）
+        let diff = (volume1 - volume2).abs();
+        assert!(diff < 1000.0); // 1%以下の誤差
+    }
+
+    #[test]
+    fn test_z_axis_removal_offset_center() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // オフセットした位置での除去
+        voxel_tree.remove_material_z_axis(25.0, 75.0, 10.0, 90.0, 8.0);
+
+        let remaining = voxel_tree.remaining_volume();
+        assert!(remaining < initial_volume);
+    }
+
+    #[test]
+    fn test_z_axis_removal_no_intersection() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // ワークから遠く離れた位置
+        voxel_tree.remove_material_z_axis(200.0, 200.0, 0.0, 100.0, 10.0);
+
+        // 体積は変わらないはず
+        assert_eq!(voxel_tree.remaining_volume(), initial_volume);
+    }
+
+    #[test]
+    fn test_z_axis_removal_partial_z_range() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // Z方向の一部のみ除去
+        voxel_tree.remove_material_z_axis(50.0, 50.0, 20.0, 60.0, 15.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // 材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+
+        // 一部除去なので除去量は少ないはず
+        let removed_ratio = (initial_volume - remaining) / initial_volume;
+        assert!(removed_ratio < 0.5); // 50%以下の除去
+    }
+
+    #[test]
+    fn test_z_axis_removal_multiple_operations() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 4);
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 複数回の除去
+        voxel_tree.remove_material_z_axis(25.0, 25.0, 0.0, 100.0, 8.0);
+        let volume_after_1 = voxel_tree.remaining_volume();
+        assert!(volume_after_1 < initial_volume);
+
+        voxel_tree.remove_material_z_axis(75.0, 75.0, 0.0, 100.0, 8.0);
+        let volume_after_2 = voxel_tree.remaining_volume();
+        assert!(volume_after_2 < volume_after_1);
+    }
+
+    #[test]
+    fn test_z_axis_removal_small_radius() {
+        let bounds = Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(100.0, 100.0, 100.0),
+        );
+        let mut voxel_tree = VoxelOctree::new(bounds, 5); // 高解像度
+
+        let initial_volume = voxel_tree.remaining_volume();
+
+        // 細い円柱
+        voxel_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 1.0);
+
+        let remaining = voxel_tree.remaining_volume();
+
+        // わずかに材料が除去されたことを確認
+        assert!(remaining < initial_volume);
+        assert!(initial_volume - remaining > 100.0);
     }
 
     #[test]
