@@ -169,12 +169,7 @@ impl<T: Scalar> Tool<T> {
     /// );
     /// assert_eq!(radius_mill.corner_radius(), 1.0);
     /// ```
-    pub fn radius_end_mill(
-        id: String,
-        diameter: T,
-        corner_radius: T,
-        cutting_length: T,
-    ) -> Self {
+    pub fn radius_end_mill(id: String, diameter: T, corner_radius: T, cutting_length: T) -> Self {
         let radius = diameter / T::from_f64(2.0);
         Self {
             id,
@@ -288,7 +283,7 @@ mod tests {
         let tool = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 50.0);
         assert_eq!(tool.radius(), 5.0);
         assert_eq!(tool.diameter(), 10.0);
-        
+
         // 半径は内部データなので計算コストなし
         let r1 = tool.radius();
         let r2 = tool.radius();
