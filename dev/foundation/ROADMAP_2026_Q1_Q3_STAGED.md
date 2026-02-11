@@ -74,7 +74,9 @@ Octree可視化 (Issue #207):
 | �🔴 1 | CAM表示 | CAM可視化基礎版 | [#203](https://github.com/RedRing2020/RedRing/issues/203) | 1週間 | #204 |
 | 🟠 2 | 空間分割 | Octree実装 | [#206](https://github.com/RedRing2020/RedRing/issues/206) | 2週間 | #204, #203 |
 | 🟠 2 | デバッグ | Octree可視化 | [#207](https://github.com/RedRing2020/RedRing/issues/207) | 1週間 | #206 |
+| 🟠 2 | CAM | 切削シミュレーション | TBD | 4-5週間 | #206 |
 | 🟠 2 | エンティティ | エンティティ層基礎（Phase 4.0） | [#208](https://github.com/RedRing2020/RedRing/issues/208) | 3.5週間 | #204, #203 |
+| 🟢 2 | アーキテクチャ | ECSプロトタイプ・評価 | TBD | 1週間 | #208 Phase 1 |
 | 🟠 2 | リファクタ | レガシーAPI移行 | [#202](https://github.com/RedRing2020/RedRing/issues/202) | 1週間 | 並行可能 |
 | 🟡 3 | CAM演算 | テセレーション機能 | [#42](https://github.com/RedRing2020/RedRing/issues/42) | 1-2週間 | #204, #208 |
 | 🟡 3 | CAM演算 | 2D輪郭線オフセット | [#40](https://github.com/RedRing2020/RedRing/issues/40) | 1週間 | #42 |
@@ -215,6 +217,11 @@ Octree可視化 (Issue #207):
 - EntityManager（エンティティ管理）
 - App層での選択・色変更機能
 
+**ECS移行判断（Week 9）**:
+- ECSプロトタイプ作成・ベンチマーク評価
+- 2倍以上高速化達成 → Phase 2からECS採用
+- 詳細: [ECS_EVALUATION.md](../architecture/ECS_EVALUATION.md)
+
 **Phase 4との関係**:
 - ✅ 実装: EntityId, DisplayAttributes, Metadata
 - ❌ 未実装（Phase 4.1で実施）: B-Rep, Euler操作, トポロジー検証
@@ -277,10 +284,12 @@ Octree可視化 (Issue #207):
 - `geo_topology` クレート
 - B-Rep（Vertex/Edge/Wire/Face/Shell/Solid）
 - Euler操作（MEV/MEL/KEV）
+- **ECS版で実装**（Week 9で採用決定時）
 
 **Phase 4.2: エンティティ統合（2週間）**:
 - Phase 4.0（#208）との統合
 - TopologyEntity の実装
+- **ECS版トポロジーコンポーネント**
 
 **Phase 4.3: パラメータ管理（1週間）**:
 - ToleranceSettings
@@ -323,7 +332,8 @@ Octree可視化 (Issue #207):
 
 ### Week 7-10: Tier 2 - エンティティ層基礎
 - **Week 7-8**: Issue #208 Phase 1（エンティティ基盤）
-- **Week 9-10**: Issue #208 Phase 2（ViewModel/App統合）
+- **Week 9**: ECSプロトタイプ作成・評価（並行）
+- **Week 10**: Issue #208 Phase 2（ViewModel/App統合）← ECS採用判断
 
 ### Week 11: Tier 2 - リファクタリング
 - **Week 11**: Issue #202（レガシーAPI移行）
