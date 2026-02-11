@@ -42,7 +42,7 @@
 //!
 //! 🔄 **Phase 2 予定**:
 //! - k近傍探索（k-nearest neighbors）
-//! - ボクセルOctree（切削シミュレーション用）
+//! - ✅ ボクセルOctree（切削シミュレーション用） ← Phase 2 完了
 //! - デバッグ可視化対応
 //! - バルク挿入最適化
 
@@ -50,8 +50,10 @@ use geo_core::{Aabb3D, Point3D};
 use geo_foundation::Scalar;
 
 pub mod node;
+pub mod voxel;
 
 pub use node::OctreeNode;
+pub use voxel::{VoxelNode, VoxelOctree, VoxelState};
 
 /// データが境界ボックスを持つことを示すトレイト
 pub trait HasBoundingBox<T: Scalar> {
