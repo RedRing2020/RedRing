@@ -714,11 +714,11 @@ impl<T: Scalar> VoxelNode<T> {
                 // Solidボクセルが目的領域の外側にあるかチェック
                 if !self.bounds.intersects(target_region) {
                     // 完全に領域外 = 削り残し
-                    undercut_voxels.push(self.bounds.clone());
+                    undercut_voxels.push(self.bounds);
                 } else if !target_region.contains_aabb(&self.bounds) {
                     // 部分的に外側にある可能性がある
                     // リーフノードなのでこのボクセル全体を削り残しとして扱う
-                    undercut_voxels.push(self.bounds.clone());
+                    undercut_voxels.push(self.bounds);
                 }
                 // target_region に完全に含まれる場合は削り残しではない
             }

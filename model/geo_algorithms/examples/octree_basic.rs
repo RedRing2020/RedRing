@@ -138,7 +138,7 @@ fn main() {
 
     // ========== 5. ノード走査 ==========
     println!("5. ノード走査（統計情報）");
-    let mut depth_counts = vec![0usize; 10];
+    let mut depth_counts = [0usize; 10];
     let mut total_data = 0;
 
     octree.traverse(|node, _depth| {

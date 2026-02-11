@@ -635,7 +635,7 @@ mod tests {
         let results = octree.query_region(&query_bbox);
 
         // 簡易実装では全データが返される
-        assert!(results.len() >= 1);
+        assert!(!results.is_empty());
     }
 
     #[test]
