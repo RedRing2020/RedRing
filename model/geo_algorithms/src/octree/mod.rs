@@ -70,7 +70,7 @@
 //! // 判定回数: 499,500回 → 約5,000回（99%削減）
 //!
 //! let mut octree = Octree::new(scene_bbox, 8, 10);
-//! 
+//!
 //! // 全形状をOctreeに挿入
 //! for shape in &shapes {
 //!     octree.insert(shape.clone());
@@ -806,20 +806,20 @@ mod tests {
         // 1000個のランダムな球を生成（簡易PRNG使用）
         let mut spheres = Vec::new();
         let mut seed = 12345u64;
-        
+
         for i in 0..1000 {
             // 簡易線形合同法
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let x = ((seed % 10000) as f64) / 100.0; // 0-100
-            
+
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let y = ((seed % 10000) as f64) / 100.0;
-            
+
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let z = ((seed % 10000) as f64) / 100.0;
-            
+
             let radius = 2.0 + (i % 5) as f64; // 半径2-6
-            
+
             spheres.push(Sphere {
                 center: Point3D::new(x, y, z),
                 radius,
@@ -832,8 +832,11 @@ mod tests {
         for i in 0..spheres.len() {
             for j in (i + 1)..spheres.len() {
                 brute_force_checks += 1; // 判定回数をカウント
-                // 球同士の衝突判定（境界ボックスの単純交差判定）
-                if spheres[i].bounding_box().intersects(&spheres[j].bounding_box()) {
+                                         // 球同士の衝突判定（境界ボックスの単純交差判定）
+                if spheres[i]
+                    .bounding_box()
+                    .intersects(&spheres[j].bounding_box())
+                {
                     brute_force_collisions += 1;
                 }
             }
@@ -860,7 +863,7 @@ mod tests {
         for sphere in &spheres {
             // 自分の境界ボックスで範囲検索
             let candidates = octree.query_region(&sphere.bounding_box());
-            
+
             // 候補に対してのみ衝突判定
             for candidate in candidates {
                 // 自分自身は除外
@@ -879,7 +882,7 @@ mod tests {
 
         // ========== パフォーマンス検証 ==========
         let reduction_ratio = 1.0 - (octree_checks as f64 / brute_force_checks as f64);
-        
+
         eprintln!("=== 衝突判定パフォーマンス ===");
         eprintln!("要素数: {}", spheres.len());
         eprintln!("総当たり判定回数: {} 回", brute_force_checks);
@@ -887,7 +890,7 @@ mod tests {
         eprintln!("Octree判定回数: {} 回", octree_checks);
         eprintln!("Octree衝突検出: {} ペア（参考値）", octree_collisions);
         eprintln!("削減率: {:.2}%", reduction_ratio * 100.0);
-        
+
         // Issue #206要件: 99%削減を確認
         // 実際の削減率は空間分布に依存するため、95%以上を要求
         assert!(
@@ -895,9 +898,8 @@ mod tests {
             "削減率が不十分: {:.2}% (期待: 95%以上)",
             reduction_ratio * 100.0
         );
-        
+
         // 削減率が99%に近いことを確認（実測値参考）
         eprintln!("✓ 削減率 {:.2}% を達成（目標99%）", reduction_ratio * 100.0);
     }
 }
-

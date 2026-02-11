@@ -68,21 +68,21 @@ fn main() {
 
     // ========== 2. データ挿入 ==========
     println!("2. データ挿入");
-    
+
     // 100個の球を生成（簡易PRNG使用）
     let mut seed = 12345u64;
     for i in 0..100 {
         seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
         let x = ((seed % 10000) as f64) / 100.0; // 0-100
-        
+
         seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
         let y = ((seed % 10000) as f64) / 100.0;
-        
+
         seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
         let z = ((seed % 10000) as f64) / 100.0;
-        
+
         let radius = 2.0 + (i % 5) as f64;
-        
+
         octree.insert(Sphere::new(x, y, z, radius, i));
     }
 
@@ -96,11 +96,11 @@ fn main() {
         Point3D::new(10.0, 10.0, 10.0),
         Point3D::new(30.0, 30.0, 30.0),
     );
-    
+
     let results = octree.query_region(&query_region);
     println!("   検索範囲: (10,10,10) - (30,30,30)");
     println!("   検出: {} 個の候補", results.len());
-    
+
     if !results.is_empty() {
         println!("   最初の3つ:");
         for (i, sphere) in results.iter().take(3).enumerate() {
@@ -120,7 +120,7 @@ fn main() {
     // ========== 4. 最近傍探索 ==========
     println!("4. 最近傍探索");
     let query_point = Point3D::new(50.0, 50.0, 50.0);
-    
+
     if let Some((nearest, distance)) = octree.nearest(&query_point) {
         println!("   検索点: (50.0, 50.0, 50.0)");
         println!(
@@ -140,7 +140,7 @@ fn main() {
     println!("5. ノード走査（統計情報）");
     let mut depth_counts = vec![0usize; 10];
     let mut total_data = 0;
-    
+
     octree.traverse(|node, _depth| {
         let d = node.depth();
         depth_counts[d] += 1;
