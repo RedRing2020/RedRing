@@ -635,6 +635,7 @@ name = "geo_algorithms"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "geo_commons",
  "geo_core",
  "geo_foundation",
  "geo_nurbs",

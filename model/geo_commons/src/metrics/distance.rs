@@ -294,6 +294,127 @@ pub fn sphere_to_line_segment_distance<T: Scalar>(
     }
 }
 
+/// 線分と軸平行境界ボックス（AABB）間の最短距離を計算
+///
+/// # Arguments
+///
+/// * `segment_start` - 線分の始点 (x, y, z)
+/// * `segment_end` - 線分の終点 (x, y, z)
+/// * `aabb_min` - AABBの最小座標 (x, y, z)
+/// * `aabb_max` - AABBの最大座標 (x, y, z)
+///
+/// # Returns
+///
+/// 線分とAABBの最短距離（線分がAABB内部を通過する場合は0）
+///
+/// # Algorithm
+///
+/// 1. 線分の両端点がAABB内部にあるかチェック
+/// 2. 線分上の各サンプル点をAABBにクランプして最短距離を計算
+/// 3. AABBの各頂点から線分への距離も考慮
+/// 4. これらの中で最小値を返す
+pub fn line_segment_to_aabb_distance<T: Scalar>(
+    segment_start: (T, T, T),
+    segment_end: (T, T, T),
+    aabb_min: (T, T, T),
+    aabb_max: (T, T, T),
+) -> T {
+    let (sx, sy, sz) = segment_start;
+    let (ex, ey, ez) = segment_end;
+    let (min_x, min_y, min_z) = aabb_min;
+    let (max_x, max_y, max_z) = aabb_max;
+
+    // ヘルパー関数: 点がAABB内部にあるかチェック
+    let point_in_aabb = |px: T, py: T, pz: T| -> bool {
+        px >= min_x && px <= max_x && py >= min_y && py <= max_y && pz >= min_z && pz <= max_z
+    };
+
+    // ヘルパー関数: 点をAABBの最近点にクランプ
+    let clamp_to_aabb = |px: T, py: T, pz: T| -> (T, T, T) {
+        let cx = px.clamp(min_x, max_x);
+        let cy = py.clamp(min_y, max_y);
+        let cz = pz.clamp(min_z, max_z);
+        (cx, cy, cz)
+    };
+
+    // ヘルパー関数: 2点間の距離
+    let distance = |p1x: T, p1y: T, p1z: T, p2x: T, p2y: T, p2z: T| -> T {
+        let dx = p1x - p2x;
+        let dy = p1y - p2y;
+        let dz = p1z - p2z;
+        (dx * dx + dy * dy + dz * dz).sqrt()
+    };
+
+    // 1. 線分の端点がAABB内部にあれば距離0
+    if point_in_aabb(sx, sy, sz) || point_in_aabb(ex, ey, ez) {
+        return T::ZERO;
+    }
+
+    // 2. 線分の方向ベクトル
+    let dx = ex - sx;
+    let dy = ey - sy;
+    let dz = ez - sz;
+
+    // 3. 線分をサンプリングして最短距離を計算
+    let num_samples = 10;
+    let mut min_distance = T::INFINITY;
+
+    for i in 0..=num_samples {
+        let t = T::from_usize(i) / T::from_usize(num_samples);
+        let px = sx + dx * t;
+        let py = sy + dy * t;
+        let pz = sz + dz * t;
+
+        // 線分上の点をAABBにクランプ
+        let (cx, cy, cz) = clamp_to_aabb(px, py, pz);
+        let dist = distance(px, py, pz, cx, cy, cz);
+        min_distance = min_distance.min(dist);
+
+        // 距離0なら即座に返す（交差している）
+        if dist <= T::EPSILON {
+            return T::ZERO;
+        }
+    }
+
+    // 4. AABBの8頂点から線分への距離も確認
+    let vertices = [
+        (min_x, min_y, min_z),
+        (max_x, min_y, min_z),
+        (min_x, max_y, min_z),
+        (max_x, max_y, min_z),
+        (min_x, min_y, max_z),
+        (max_x, min_y, max_z),
+        (min_x, max_y, max_z),
+        (max_x, max_y, max_z),
+    ];
+
+    for &(vx, vy, vz) in &vertices {
+        // 頂点から線分への距離
+        // 線分上の最近点のパラメータ t を計算
+        let to_vx = vx - sx;
+        let to_vy = vy - sy;
+        let to_vz = vz - sz;
+
+        let dot = to_vx * dx + to_vy * dy + to_vz * dz;
+        let len_sq = dx * dx + dy * dy + dz * dz;
+
+        let t = if len_sq <= T::EPSILON {
+            T::ZERO
+        } else {
+            (dot / len_sq).clamp(T::ZERO, T::ONE)
+        };
+
+        let closest_x = sx + dx * t;
+        let closest_y = sy + dy * t;
+        let closest_z = sz + dz * t;
+
+        let dist = distance(vx, vy, vz, closest_x, closest_y, closest_z);
+        min_distance = min_distance.min(dist);
+    }
+
+    min_distance
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -426,5 +547,70 @@ mod tests {
         let dist =
             sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
         assert!(dist.abs() < 1e-10); // 線分が球体を貫通
+    }
+
+    // 線分-AABB距離テスト
+    #[test]
+    fn test_line_segment_to_aabb_intersection() {
+        // 線分がAABBを貫通する場合
+        let segment_start = (-1.0, 0.0, 0.0);
+        let segment_end = (1.0, 0.0, 0.0);
+        let aabb_min = (-0.5, -0.5, -0.5);
+        let aabb_max = (0.5, 0.5, 0.5);
+
+        let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
+        assert!(dist < 1e-10);
+    }
+
+    #[test]
+    fn test_line_segment_to_aabb_endpoint_inside() {
+        // 線分の端点がAABB内部にある場合
+        let segment_start = (0.0, 0.0, 0.0);
+        let segment_end = (2.0, 0.0, 0.0);
+        let aabb_min = (-1.0, -1.0, -1.0);
+        let aabb_max = (1.0, 1.0, 1.0);
+
+        let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
+        assert!(dist < 1e-10);
+    }
+
+    #[test]
+    fn test_line_segment_to_aabb_parallel_offset() {
+        // 線分がAABBに平行でオフセットがある場合
+        let segment_start = (0.0, 2.0, 0.0);
+        let segment_end = (1.0, 2.0, 0.0);
+        let aabb_min = (0.0, 0.0, 0.0);
+        let aabb_max = (1.0, 1.0, 1.0);
+
+        let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
+        // Y方向に1.0離れている
+        assert!((dist - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_line_segment_to_aabb_diagonal() {
+        // 線分がAABBの角近くを通過
+        let segment_start = (2.0, 2.0, 2.0);
+        let segment_end = (3.0, 3.0, 3.0);
+        let aabb_min = (0.0, 0.0, 0.0);
+        let aabb_max = (1.0, 1.0, 1.0);
+
+        let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
+        // AABBの頂点 (1,1,1) から線分への距離
+        let expected = (3.0_f64).sqrt(); // sqrt((2-1)^2 + (2-1)^2 + (2-1)^2)
+        assert!((dist - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_line_segment_to_aabb_distant() {
+        // 線分がAABBから遠く離れている場合
+        let segment_start = (10.0, 0.0, 0.0);
+        let segment_end = (11.0, 0.0, 0.0);
+        let aabb_min = (0.0, 0.0, 0.0);
+        let aabb_max = (1.0, 1.0, 1.0);
+
+        let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
+        // AABBの最も近い点 (1,0,0) から線分始点 (10,0,0) への距離
+        assert!((dist - 9.0).abs() < 1e-6);
     }
 }

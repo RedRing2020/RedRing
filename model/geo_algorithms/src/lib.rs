@@ -31,8 +31,10 @@
 //! - `sampling`: サンプリング手法 (適応サンプリング、パターン解析)
 //! - `interpolation`: 補間・近似 (スプライン、ベジエ、NURBS基盤)
 //! - `collision`: 衝突判定・交差判定 (NURBS × Primitives, NURBS × NURBS)
+//! - `octree`: 空間分割データ構造 (衝突判定高速化、切削シミュレーション)
 
 pub mod collision;
+pub mod octree;
 
 // Point2D API互換性問題により一時的にコメントアウト
 // pub mod numerical;
@@ -46,6 +48,9 @@ pub mod collision;
 // pub use statistics::{BasicStats, PointCluster, RegressionResult};
 // pub use sampling::{SamplingResult, QualityMetrics, IntersectionCandidate};
 // pub use interpolation::{LinearInterpolator, BezierCurve, CatmullRomSpline};
+
+// Octree関連の公開API
+pub use octree::{Octree, OctreeNode};
 
 // geo_foundationからの基本型の再エクスポート
 
