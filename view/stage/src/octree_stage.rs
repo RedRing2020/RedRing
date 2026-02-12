@@ -83,10 +83,19 @@ impl OctreeStage {
     /// # 引数
     ///
     /// - `queue`: wgpu Queue
-    /// - `view_proj_matrix`: ビュー・プロジェクション結合行列
-    pub fn update_camera(&mut self, queue: &Queue, view_proj_matrix: [[f32; 4]; 4]) {
+    /// - `view_matrix`: ビュー行列
+    /// - `proj_matrix`: プロジェクション行列
+    pub fn update_camera(
+        &mut self,
+        queue: &Queue,
+        view_matrix: [[f32; 4]; 4],
+        proj_matrix: [[f32; 4]; 4],
+    ) {
+        // ビュー・プロジェクション行列を結合
+        let view_proj = multiply_matrices(&proj_matrix, &view_matrix);
+
         let uniforms = LineUniforms {
-            view_proj: view_proj_matrix,
+            view_proj,
             model: [
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
@@ -149,6 +158,20 @@ impl RenderStage for OctreeStage {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+}
+
+/// 4x4行列の乗算（簡易版）
+#[allow(clippy::needless_range_loop)]
+fn multiply_matrices(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    let mut result = [[0.0; 4]; 4];
+    for i in 0..4 {
+        for j in 0..4 {
+            for k in 0..4 {
+                result[i][j] += a[i][k] * b[k][j];
+            }
+        }
+    }
+    result
 }
 
 #[cfg(test)]

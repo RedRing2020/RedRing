@@ -519,14 +519,15 @@ impl AppState {
 
         tracing::debug!("カメラ行列更新: aspect={:.2}", aspect);
 
+        let stage = self.renderer.get_stage_mut();
+
         // ステージがMeshStageの場合にカメラを更新（メッシュと線の両方）
-        if let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        {
+        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
             mesh_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
+        }
+        // ステージがOctreeStageの場合にカメラを更新
+        else if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() {
+            octree_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
         }
     }
 }
