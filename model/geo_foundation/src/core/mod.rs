@@ -9,7 +9,6 @@
 
 // 基本図形 (Primitives)
 pub mod arc_traits; // Arc traits (Constructor/Properties/Measure)
-pub mod bbox_traits; // BBox traits (Constructor/Properties/Measure)
 pub mod circle_traits; // Circle traits (Constructor/Properties/Measure)
 pub mod direction_traits; // Direction traits (Constructor/Properties/Measure)
 pub mod ellipse_arc_traits; // EllipseArc traits (Constructor/Properties/Measure)

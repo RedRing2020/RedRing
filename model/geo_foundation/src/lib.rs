@@ -51,10 +51,6 @@ pub use core::{
         Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
         Arc3DMeasure, Arc3DProperties,
     },
-    bbox_traits::{
-        BBox2DConstructor, BBox2DCore, BBox2DMeasure, BBox2DProperties, BBox3DConstructor,
-        BBox3DCore, BBox3DMeasure, BBox3DProperties,
-    },
     circle_traits::{
         Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties,
         Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
