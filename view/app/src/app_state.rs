@@ -115,13 +115,15 @@ impl AppState {
         octree_stage.set_wireframe_data(&self.graphic.device, positions);
 
         // カメラをワークピース中心に設定（100x100x50mmのワークピース）
-        // 中心: (50, 50, 25)
+        // 平行投影で真上から見る視点
         self.camera.target = Vec3f::new(50.0, 50.0, 25.0);
-        self.camera.distance = 200.0; // ワークピース全体が見える距離
-        self.camera.rotation = Quaternionf::identity(); // 回転をリセット
+        self.camera.distance = 200.0;
+        self.camera.zoom = 1.0; // zoom=1でdistance=200が描画範囲（±100mm）
+        self.camera.rotation = Quaternionf::identity();
+        self.camera.set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
 
         tracing::info!(
-            "カメラ設定: target=(50, 50, 25), distance=200.0"
+            "カメラ設定: target=(50, 50, 25), distance=200.0, zoom=1.0, 平行投影・真上視点"
         );
 
         self.renderer.set_stage(octree_stage);

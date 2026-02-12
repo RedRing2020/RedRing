@@ -106,7 +106,7 @@ impl LineResources {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineStrip, // 連続した折れ線として描画
+                topology: wgpu::PrimitiveTopology::LineList, // 独立した線分として描画
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,

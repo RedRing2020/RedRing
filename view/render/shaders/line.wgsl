@@ -22,17 +22,19 @@ var<uniform> uniforms: Uniforms;
 fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    // モデル座標をワールド座標に変換（行列 × ベクトル）
-    let world_pos = uniforms.model * vec4<f32>(input.position, 1.0);
-
-    // ワールド座標をクリップ座標に変換（行列 × ベクトル）
-    out.clip_position = uniforms.view_proj * world_pos;
+    // デバッグ: カメラ行列を無視して、ワールド座標を直接クリップ空間にマッピング
+    // ワークピース範囲 (0-100, 0-100, 0-50) を (-1,1) の範囲にマッピング
+    let x = (input.position.x / 50.0) - 1.0;  // 0-100 → -1 to 1
+    let y = (input.position.y / 50.0) - 1.0;  // 0-100 → -1 to 1
+    let z = 0.0;  // Z座標は固定（深度なし）
+    
+    out.clip_position = vec4<f32>(x, y, z, 1.0);
 
     return out;
 }
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    // 白色の線
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    // 明るい黄色の線（暗い背景でもはっきり見える）
+    return vec4<f32>(1.0, 1.0, 0.0, 1.0);
 }

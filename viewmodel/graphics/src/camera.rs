@@ -83,33 +83,16 @@ impl Camera {
 
     /// ビュー行列を計算
     pub fn view_matrix(&self) -> [[f32; 4]; 4] {
-        // デバッグ: 回転を無視して固定位置にカメラを配置
-        // カメラ: (0, 0, 10) から原点 (0, 0, 0) を見る
-        let camera_pos = Vec3f::new(0.0, 0.0, 10.0);
-        let target = Vec3f::new(0.0, 0.0, 0.0);
-        let up = Vec3f::new(0.0, 1.0, 0.0);
-
-        let result = look_at(camera_pos, target, up);
-
-        tracing::info!(
-            "view_matrix: camera_pos=({:.2}, {:.2}, {:.2}), target=({:.2}, {:.2}, {:.2})",
-            camera_pos.x(),
-            camera_pos.y(),
-            camera_pos.z(),
-            target.x(),
-            target.y(),
-            target.z()
+        // カメラ位置を target, distance から計算（真上から見る視点）
+        let camera_pos = Vec3f::new(
+            self.target.x(),
+            self.target.y(),
+            self.target.z() + self.distance,
         );
+        
+        let up = Vec3f::new(0.0, 1.0, 0.0); // Y軸をupとする
 
-        tracing::info!(
-            "view_matrix result:\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]",
-            result[0][0], result[0][1], result[0][2], result[0][3],
-            result[1][0], result[1][1], result[1][2], result[1][3],
-            result[2][0], result[2][1], result[2][2], result[2][3],
-            result[3][0], result[3][1], result[3][2], result[3][3]
-        );
-
-        result
+        look_at(camera_pos, self.target, up)
     }
 
     /// プロジェクション行列を計算
@@ -454,7 +437,7 @@ fn look_at(eye: Vec3f, center: Vec3f, up: Vec3f) -> [[f32; 4]; 4] {
 
     let tx = -right.dot(&eye);
     let ty = -up_final.dot(&eye);
-    let tz = forward.dot(&eye);
+    let tz = -forward.dot(&eye);
 
     // 列優先(column-major): 配列は列方向に読む（下に向かって読む）
     [
