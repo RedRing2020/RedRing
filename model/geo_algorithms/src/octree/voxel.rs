@@ -732,6 +732,33 @@ impl<T: Scalar> VoxelNode<T> {
             }
         }
     }
+
+    /// 全てのSolidボクセルを収集（可視化用）
+    ///
+    /// このノード以下の全てのSolid状態のリーフノードの境界ボックスを収集します。
+    ///
+    /// # Arguments
+    ///
+    /// * `solid_voxels` - 収集先のベクタ
+    fn collect_solid_voxels(&self, solid_voxels: &mut Vec<Aabb3D<T>>) {
+        match self.state {
+            VoxelState::Empty => {
+                // 空のボクセルは収集しない
+            }
+            VoxelState::Solid => {
+                // Solidリーフノードの境界ボックスを追加
+                solid_voxels.push(self.bounds);
+            }
+            VoxelState::Mixed => {
+                // 子ノードを再帰的に探索
+                if let Some(ref children) = self.children {
+                    for child in children.iter() {
+                        child.collect_solid_voxels(solid_voxels);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<T: Scalar> VoxelOctree<T> {
@@ -963,6 +990,30 @@ impl<T: Scalar> VoxelOctree<T> {
         self.root
             .collect_solid_voxels_outside(target_region, &mut undercut_voxels);
         undercut_voxels
+    }
+
+    /// 全てのSolidボクセルの境界ボックスを収集（可視化用）
+    ///
+    /// VoxelOctree内の全てのSolid状態のリーフノード境界ボックスを取得します。
+    /// ワイヤーフレーム描画など、可視化目的で使用されます。
+    ///
+    /// # Returns
+    ///
+    /// Solid状態のボクセル境界ボックスのベクタ
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let voxel_tree = VoxelOctree::new(work_bounds, 6);
+    /// voxel_tree.remove_material_box(&tool_region);
+    ///
+    /// let solid_boxes = voxel_tree.collect_solid_voxel_bounds();
+    /// println!("Solid voxels: {}", solid_boxes.len());
+    /// ```
+    pub fn collect_solid_voxel_bounds(&self) -> Vec<Aabb3D<T>> {
+        let mut result = Vec::new();
+        self.root.collect_solid_voxels(&mut result);
+        result
     }
 
     /// 円弧経路による材料除去（線分近似版）

@@ -244,54 +244,29 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
 
     tracing::debug!("voxel_octree_to_wireframe: 開始");
 
-    // VoxelOctreeの全ノードを走査
-    traverse_voxel_octree(voxel_octree, 0, options, &mut vertices);
+    // 全てのSolidボクセルの境界ボックスを取得
+    let solid_bounds = voxel_octree.collect_solid_voxel_bounds();
 
-    tracing::debug!("voxel_octree_to_wireframe: {} vertices", vertices.len());
-
-    vertices
-}
-
-/// VoxelOctreeを再帰的に走査してワイヤーフレーム頂点を生成
-fn traverse_voxel_octree<T: Scalar>(
-    voxel_octree: &VoxelOctree<T>,
-    depth: usize,
-    options: &VoxelVisualizationOptions,
-    vertices: &mut Vec<WireframeVertex>,
-) {
-    // 深さフィルタリング
-    if !options.depth_range.contains(&depth) {
-        return;
-    }
-
-    // VoxelOctreeを走査してボクセルノードを取得
-    // 注: 現在のVoxelOctree実装では全ノードへのアクセスAPIが限定的なため、
-    // この実装は簡略化されています。実際にはVoxelOctreeにノードイテレータが必要です。
-
-    // ルートノードの境界ボックスを表示（プレースホルダー）
-    let bounds = voxel_octree.bounds();
-
-    tracing::debug!(
-        "traverse_voxel_octree: depth={}, bounds=[{:.1},{:.1},{:.1}] - [{:.1},{:.1},{:.1}]",
-        depth,
-        bounds.min().x().to_f32(),
-        bounds.min().y().to_f32(),
-        bounds.min().z().to_f32(),
-        bounds.max().x().to_f32(),
-        bounds.max().y().to_f32(),
-        bounds.max().z().to_f32()
+    tracing::info!(
+        "voxel_octree_to_wireframe: {} Solidボクセル検出",
+        solid_bounds.len()
     );
 
+    // 各Solidボクセルの境界ボックスをワイヤーフレーム化
     let color = if options.color_by_state {
-        state_to_color(VoxelState::Mixed) // デフォルト色
-    } else if options.color_by_depth {
-        depth_to_color(depth, options.max_depth)
+        state_to_color(VoxelState::Solid) // 青色
     } else {
         [1.0, 1.0, 1.0]
     };
 
-    let mut bbox_vertices = bbox_to_wireframe_vertices(bounds, color);
-    vertices.append(&mut bbox_vertices);
+    for bounds in solid_bounds {
+        let mut bbox_vertices = bbox_to_wireframe_vertices(&bounds, color);
+        vertices.append(&mut bbox_vertices);
+    }
+
+    tracing::debug!("voxel_octree_to_wireframe: {} vertices", vertices.len());
+
+    vertices
 }
 
 /// デバッグ/教育用：サンプルVoxelOctreeワイヤーフレームデータを生成
