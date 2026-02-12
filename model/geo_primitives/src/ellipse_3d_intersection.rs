@@ -210,9 +210,9 @@ impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for Ellipse3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, plane: &Plane3D<T>, tolerance: T) -> Option<Self::Point> {
-        let dist = plane.distance_to_point(self.center());
+        let dist = plane.distance_to_point(self.center_internal());
         if dist <= tolerance {
-            Some(self.center())
+            Some(self.center_internal())
         } else {
             None
         }
@@ -269,9 +269,9 @@ impl<T: Scalar> BasicIntersection<T, Ellipse3D<T>> for Ellipse3D<T> {
 
     fn intersection_with(&self, other: &Ellipse3D<T>, tolerance: T) -> Option<Self::Point> {
         let mid = Point3D::new(
-            (self.center().x() + other.center().x()) / T::from_f64(2.0),
-            (self.center().y() + other.center().y()) / T::from_f64(2.0),
-            (self.center().z() + other.center().z()) / T::from_f64(2.0),
+            (self.center_internal().x() + other.center_internal().x()) / T::from_f64(2.0),
+            (self.center_internal().y() + other.center_internal().y()) / T::from_f64(2.0),
+            (self.center_internal().z() + other.center_internal().z()) / T::from_f64(2.0),
         );
 
         if self.distance_to(&mid) <= tolerance {

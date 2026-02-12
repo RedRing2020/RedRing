@@ -3,6 +3,7 @@
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
+use geo_foundation::Ellipse3DProperties;
 
 #[cfg(test)]
 mod tests {
@@ -14,7 +15,7 @@ mod tests {
         let center = Point3D::new(1.0, 2.0, 3.0);
         let ellipse = Ellipse3D::xy_aligned(center, 5.0, 3.0).unwrap();
 
-        assert_eq!(ellipse.center(), center);
+        assert_eq!(ellipse.center_3d(), (center.x(), center.y(), center.z()));
         assert_eq!(ellipse.semi_major_axis(), 5.0);
         assert_eq!(ellipse.semi_minor_axis(), 3.0);
         assert_eq!(
@@ -40,7 +41,8 @@ mod tests {
         let circle = Circle3D::new_xy_plane(Point3D::new(1.0, 2.0, 3.0), 4.0).unwrap();
         let ellipse = Ellipse3D::from_circle(&circle).unwrap();
 
-        assert_eq!(ellipse.center(), circle.center_internal());
+        let c = circle.center_internal();
+        assert_eq!(ellipse.center_3d(), (c.x(), c.y(), c.z()));
         assert_eq!(ellipse.semi_major_axis(), circle.radius_internal());
         assert_eq!(ellipse.semi_minor_axis(), circle.radius_internal());
         assert_eq!(ellipse.normal(), circle.normal());

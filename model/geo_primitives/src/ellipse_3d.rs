@@ -98,18 +98,18 @@ impl<T: Scalar> Ellipse3D<T> {
     // Core Accessor Methods
     // ========================================================================
 
-    /// 楕円の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    /// 楕円の中心点を取得（内部使用）
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
-    /// 長半軸の長さを取得
-    pub fn semi_major_axis(&self) -> T {
+    /// 長半軸の長さを取得（内部使用）
+    pub(crate) fn semi_major_internal(&self) -> T {
         self.semi_major_axis
     }
 
-    /// 短半軸の長さを取得
-    pub fn semi_minor_axis(&self) -> T {
+    /// 短半軸の長さを取得（内部使用）
+    pub(crate) fn semi_minor_internal(&self) -> T {
         self.semi_minor_axis
     }
 

@@ -74,17 +74,17 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point3D<T> {
-        self.ellipse.center()
+        self.ellipse.center_internal()
     }
 
     /// 長半径を取得
     pub fn semi_major(&self) -> T {
-        self.ellipse.semi_major_axis()
+        self.ellipse.semi_major_internal()
     }
 
     /// 短半径を取得
     pub fn semi_minor(&self) -> T {
-        self.ellipse.semi_minor_axis()
+        self.ellipse.semi_minor_internal()
     }
 
     /// 法線方向を取得
@@ -152,8 +152,8 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 楕円弧の有効性を検証
     pub fn is_valid(&self) -> bool {
-        self.ellipse.semi_major_axis() > T::ZERO
-            && self.ellipse.semi_minor_axis() > T::ZERO
+        self.ellipse.semi_major_internal() > T::ZERO
+            && self.ellipse.semi_minor_internal() > T::ZERO
             && self.start_angle.to_radians().is_finite()
             && self.end_angle.to_radians().is_finite()
     }
@@ -201,9 +201,9 @@ impl<T: Scalar> EllipseArc3D<T> {
 
         // 楕円をスケールして新しいEllipseArc3Dを作成
         let scaled_ellipse = Ellipse3D::new(
-            self.ellipse.center(),
-            self.ellipse.semi_major_axis() * factor,
-            self.ellipse.semi_minor_axis() * factor,
+            self.ellipse.center_internal(),
+            self.ellipse.semi_major_internal() * factor,
+            self.ellipse.semi_minor_internal() * factor,
             self.ellipse.normal().as_vector(),
             self.ellipse.major_axis_direction().as_vector(),
         )?;
