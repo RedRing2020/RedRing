@@ -16,11 +16,11 @@ use geo_foundation::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc2D<T: Scalar> {
     /// 基底となる円
-    circle: Circle2D<T>,
+    pub(crate) circle: Circle2D<T>,
     /// 開始角度
-    start_angle: Angle<T>,
+    pub(crate) start_angle: Angle<T>,
     /// 終了角度
-    end_angle: Angle<T>,
+    pub(crate) end_angle: Angle<T>,
 }
 
 // ============================================================================
@@ -332,16 +332,17 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 
 impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
     fn measure(&self) -> T {
-        self.arc_length()
+        // arc_length の計算を直接展開: radius * angular_span
+        self.radius_internal() * self.angular_span()
     }
 
     fn start_point(&self) -> (T, T) {
-        let p = self.start_point();
+        let p = self.point_at_angle_internal(self.start_angle.to_radians());
         (p.x(), p.y())
     }
 
     fn end_point(&self) -> (T, T) {
-        let p = self.end_point();
+        let p = self.point_at_angle_internal(self.end_angle.to_radians());
         (p.x(), p.y())
     }
 

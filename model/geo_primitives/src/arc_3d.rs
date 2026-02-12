@@ -17,12 +17,12 @@ use geo_foundation::{
 /// - 基本的な幾何プロパティ
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc3D<T: Scalar> {
-    center: Point3D<T>,
-    radius: T,
-    normal: Direction3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
-    start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
-    start_angle: Angle<T>,     // 開始角度
-    end_angle: Angle<T>,       // 終了角度
+    pub(crate) center: Point3D<T>,
+    pub(crate) radius: T,
+    pub(crate) normal: Direction3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
+    pub(crate) start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
+    pub(crate) start_angle: Angle<T>,     // 開始角度
+    pub(crate) end_angle: Angle<T>,       // 終了角度
 }
 
 impl<T: Scalar> Arc3D<T> {
@@ -343,17 +343,21 @@ impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        let normal = *self.normal();
         let z_axis = Direction3D::positive_z();
-        (normal.x() - z_axis.x()).abs() <= T::EPSILON
-            && (normal.y() - z_axis.y()).abs() <= T::EPSILON
-            && (normal.z() - z_axis.z()).abs() <= T::EPSILON
+        (self.normal.x() - z_axis.x()).abs() <= T::EPSILON
+            && (self.normal.y() - z_axis.y()).abs() <= T::EPSILON
+            && (self.normal.z() - z_axis.z()).abs() <= T::EPSILON
     }
 }
 
 impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
     fn measure(&self) -> T {
-        self.arc_length()
+        // arc_length の計算を直接展開: radius * angle_span
+        let mut span = self.end_angle - self.start_angle;
+        if span.to_radians() < T::ZERO {
+            span += Angle::from_radians(T::from_f64(2.0) * T::PI);
+        }
+        self.radius * span.to_radians()
     }
 
     fn start_point(&self) -> (T, T, T) {
