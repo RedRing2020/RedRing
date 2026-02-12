@@ -12,6 +12,6 @@ impl<T: Scalar> ExtensionFoundation<T> for LineSegment3D<T> {
 
     fn measure(&self) -> Option<T> {
         // 線分の長さを測度として返す
-        Some(self.length())
+        Some(self.end_param - self.start_param)
     }
 }

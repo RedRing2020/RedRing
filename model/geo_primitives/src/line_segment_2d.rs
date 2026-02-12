@@ -17,9 +17,9 @@ use geo_foundation::{
 /// 内部的に InfiniteLine2D とパラメータ範囲を使用
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment2D<T: Scalar> {
-    line: InfiniteLine2D<T>, // 基盤となる無限直線
-    start_param: T,          // 始点のパラメータ
-    end_param: T,            // 終点のパラメータ
+    pub(crate) line: InfiniteLine2D<T>, // 基盤となる無限直線
+    pub(crate) start_param: T,          // 始点のパラメータ
+    pub(crate) end_param: T,            // 終点のパラメータ
 }
 
 // ============================================================================
@@ -286,22 +286,23 @@ impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
 
 impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
     fn start(&self) -> (T, T) {
-        let p = self.start_point();
+        let p = self.line.point_at_parameter(self.start_param);
         (p.x(), p.y())
     }
 
     fn end(&self) -> (T, T) {
-        let p = self.end_point();
+        let p = self.line.point_at_parameter(self.end_param);
         (p.x(), p.y())
     }
 
     fn midpoint(&self) -> (T, T) {
-        let p = self.midpoint();
+        let mid_param = (self.start_param + self.end_param) / (T::ONE + T::ONE);
+        let p = self.line.point_at_parameter(mid_param);
         (p.x(), p.y())
     }
 
     fn length(&self) -> T {
-        self.length()
+        (self.end_param - self.start_param).abs()
     }
 
     fn dimension(&self) -> u32 {
@@ -310,7 +311,8 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
 
     // Phase 2: 追加プロパティ
     fn is_unit_length(&self) -> bool {
-        (self.length() - T::ONE).abs() <= T::EPSILON
+        let length = (self.end_param - self.start_param).abs();
+        (length - T::ONE).abs() <= T::EPSILON
     }
 
     fn is_horizontal(&self) -> bool {
@@ -328,7 +330,7 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
 
 impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
     fn measure(&self) -> T {
-        self.length()
+        (self.end_param - self.start_param).abs()
     }
 
     fn distance_to_point(&self, point: (T, T)) -> T {

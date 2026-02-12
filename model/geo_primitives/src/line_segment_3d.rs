@@ -17,9 +17,9 @@ use geo_foundation::{
 /// 内部的に InfiniteLine3D とパラメータ範囲を使用
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment3D<T: Scalar> {
-    line: InfiniteLine3D<T>, // 基盤となる無限直線
-    start_param: T,          // 始点のパラメータ
-    end_param: T,            // 終点のパラメータ
+    pub(crate) line: InfiniteLine3D<T>, // 基盤となる無限直線
+    pub(crate) start_param: T,          // 始点のパラメータ
+    pub(crate) end_param: T,            // 終点のパラメータ
 }
 
 // ============================================================================
@@ -199,22 +199,23 @@ impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
 
 impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
     fn start(&self) -> (T, T, T) {
-        let p = self.start();
+        let p = self.line.point_at_parameter(self.start_param);
         (p.x(), p.y(), p.z())
     }
 
     fn end(&self) -> (T, T, T) {
-        let p = self.end();
+        let p = self.line.point_at_parameter(self.end_param);
         (p.x(), p.y(), p.z())
     }
 
     fn midpoint(&self) -> (T, T, T) {
-        let p = self.midpoint();
+        let mid_param = (self.start_param + self.end_param) / (T::ONE + T::ONE);
+        let p = self.line.point_at_parameter(mid_param);
         (p.x(), p.y(), p.z())
     }
 
     fn length(&self) -> T {
-        self.length()
+        self.end_param - self.start_param
     }
 
     fn dimension(&self) -> u32 {
@@ -223,25 +224,26 @@ impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
 
     // Phase 2: 追加プロパティ
     fn is_unit_length(&self) -> bool {
-        (self.length() - T::ONE).abs() <= T::EPSILON
+        let length = self.end_param - self.start_param;
+        (length - T::ONE).abs() <= T::EPSILON
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        let start = self.start();
-        let end = self.end();
+        let start = self.line.point_at_parameter(self.start_param);
+        let end = self.line.point_at_parameter(self.end_param);
         (start.z() - end.z()).abs() <= T::EPSILON
     }
 
     fn is_on_yz_plane(&self) -> bool {
-        let start = self.start();
-        let end = self.end();
+        let start = self.line.point_at_parameter(self.start_param);
+        let end = self.line.point_at_parameter(self.end_param);
         (start.x() - end.x()).abs() <= T::EPSILON
     }
 }
 
 impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
     fn measure(&self) -> T {
-        self.length()
+        self.end_param - self.start_param
     }
 
     fn distance_to_point(&self, point: (T, T, T)) -> T {
