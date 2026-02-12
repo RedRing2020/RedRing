@@ -21,16 +21,17 @@
 |------|----------|------------|--------|
 | Circle2D/3D | `circle_2d.rs`, `circle_3d.rs` | ✅ 正しいパターン | - |
 | Ray3D | `ray_3d.rs` | ✅ 正しいパターン | - |
-| Arc2D/3D | `arc_2d.rs`, `arc_3d.rs` | ❌ 問題パターン | 高 |
-| LineSegment2D/3D | `line_segment_2d.rs`, `line_segment_3d.rs` | ❌ 問題パターン | 最高 |
-| Ellipse2D/3D | `ellipse_2d.rs`, `ellipse_3d.rs` | 🔶 混合パターン | 高 |
-| Plane3D | `plane_3d.rs` | 🔶 混合パターン | 中 |
-| EllipseArc2D/3D | `ellipse_arc_2d.rs`, `ellipse_arc_3d.rs` | 🔍 要確認 | 高 |
-| Direction2D/3D | `direction_2d.rs`, `direction_3d.rs` | 🔍 要確認 | 中 |
+| InfiniteLine3D | `infinite_line_3d.rs` | ✅ 正しいパターン | - |
+| Arc2D/3D | `arc_2d.rs`, `arc_3d.rs` | ❌ 循環依存 | 高 |
+| LineSegment2D/3D | `line_segment_2d.rs`, `line_segment_3d.rs` | ❌ 循環依存 | 最高 |
+| EllipseArc2D/3D | `ellipse_arc_2d.rs`, `ellipse_arc_3d.rs` | ❌ 循環依存 | 高 |
+| Direction2D/3D | `direction_2d.rs`, `direction_3d.rs` | ❌ 循環依存 | 中 |
+| Ellipse2D/3D | `ellipse_2d.rs`, `ellipse_3d.rs` | 🔶 フィールドアクセス | 高 |
+| Plane3D | `plane_3d.rs` | 🔶 フィールドアクセス | 中 |
 | Point2D/3D | (geo_core) | ✅ 移行済み (Issue #218) | - |
 | Vector2D/3D/4D | (geo_core) | ✅ 移行済み (Issue #218) | - |
 | Aabb2D/3D | (geo_core) | ✅ 移行済み | - |
-| InfiniteLine2D/3D | `infinite_line_*d.rs` | 🔍 調査未実施 | 低 |
+| InfiniteLine2D | `infinite_line_2d.rs` | 🔍 調査未実施 | 低 |
 
 ### パターン分類の説明
 
@@ -209,36 +210,87 @@
 
 ---
 
-### 🔍 調査未完了（要確認）
+---
 
-#### 1. EllipseArc2D/3D
-- **レガシーメソッド発見** ([ellipse_arc_2d.rs](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\ellipse_arc_2d.rs)):
-  - L72: `pub fn center(&self) -> Point2D<T>`
-  - L77: `pub fn semi_major(&self) -> T`
-  - L82: `pub fn semi_minor(&self) -> T`
-  - L133: `pub fn arc_length(&self) -> T`
-- **Foundation実装**: 未確認
-- **優先度**: 高（arc_length使用あり）
+### ❌ 問題パターン（追加発見）
 
-#### 2. Direction2D/3D
-- **レガシーメソッド発見**:
-  - [direction_2d.rs:78-83](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_2d.rs#L78-L83): `pub fn x()`, `pub fn y()`
-  - [direction_3d.rs:83-93](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_3d.rs#L83-L93): `pub fn x()`, `pub fn y()`, `pub fn z()`
-  - [direction_3d.rs:130](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_3d.rs#L130): `pub fn normalize()`
-- **Foundation実装** (確認済み):
-  - `DirectionProperties` トレイト存在
-  - [direction_2d.rs:176](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_2d.rs#L176): `impl Direction2DProperties`
-  - [direction_3d.rs:235](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_3d.rs#L235): `impl Direction3DProperties`
-- **詳細調査**: Foundation実装の内容確認が必要
+#### 3. EllipseArc2D/3D - **Arc2Dと同一の問題**
+- **状態**: **Foundation実装がレガシーメソッドを呼び出している**
+- **パターン**: ❌ 循環依存パターン
+- **レガシーメソッド** ([ellipse_arc_2d.rs:72-133](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\ellipse_arc_2d.rs#L72-L133)):
+  ```rust
+  pub fn center(&self) -> Point2D<T> { self.ellipse.center() }
+  pub fn semi_major(&self) -> T { self.ellipse.semi_major() }
+  pub fn semi_minor(&self) -> T { self.ellipse.semi_minor() }
+  pub fn arc_length(&self) -> T { ... }
+  ```
+- **Foundation実装** ([ellipse_arc_2d.rs:366-380](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\ellipse_arc_2d.rs#L366-L380)):
+  ```rust
+  impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
+      fn center(&self) -> (T, T) {
+          let c = self.center();  // ❌ レガシーメソッド呼び出し
+          (c.x(), c.y())
+      }
+      fn semi_major_axis(&self) -> T { self.semi_major() }  // ❌
+      fn semi_minor_axis(&self) -> T { self.semi_minor() }  // ❌
+  }
+  ```
+- **EllipseArc3D**: 同一パターン ([ellipse_arc_3d.rs:388-400](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\ellipse_arc_3d.rs#L388-L400))
+- **評価**: Arc2D/3D と同じ修正が必要（Tier 1に昇格）
 
-#### 3. InfiniteLine2D/3D
-- **調査状況**: 未着手
-- **優先度**: 低
+#### 4. Direction2D/3D - **レガシーメソッド依存**
+- **状態**: **Foundation実装がレガシーメソッドを呼び出している**
+- **パターン**: ❌ 循環依存パターン
+- **構造** ([direction_3d.rs:1-95](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_3d.rs#L1-L95)):
+  ```rust
+  pub struct Direction3D<T> {
+      vector: Vector3D<T>,  // 内部フィールド
+  }
+  
+  // レガシーメソッド（公開アクセサ）
+  pub fn x(&self) -> T { self.vector.x() }
+  pub fn y(&self) -> T { self.vector.y() }
+  pub fn z(&self) -> T { self.vector.z() }
+  ```
+- **Foundation実装** ([direction_3d.rs:235-247](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_3d.rs#L235-L247)):
+  ```rust
+  impl<T: Scalar> Direction3DProperties<T> for Direction3D<T> {
+      fn x(&self) -> T { self.x() }  // ❌ レガシーメソッド呼び出し
+      fn y(&self) -> T { self.y() }  // ❌
+      fn z(&self) -> T { self.z() }  // ❌
+  }
+  ```
+- **Direction2D**: 同一パターン ([direction_2d.rs:176-183](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\direction_2d.rs#L176-L183))
+- **評価**: フィールド直接アクセスに変更すべき（Tier 2相当）
+
+---
+
+### ✅ 正しいパターン（追加確認）
+
+#### 4. InfiniteLine3D
+- **状態**: **Foundation Pattern準拠完了**
+- **パターン**: ✅ 内部メソッド方式
+- **内部メソッド** ([infinite_line_3d.rs:63-65](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\infinite_line_3d.rs#L63-L65)):
+  - `direction_internal() -> Direction3D<T>` - pub(crate)
+- **Foundation実装** ([infinite_line_3d.rs:401-410](c:\Users\takat\GitHub\RedRing\model\geo_primitives\src\infinite_line_3d.rs#L401-L410)):
+  ```rust
+  impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
+      fn point(&self) -> (T, T, T) {
+          let p = self.point_internal();  // ✅ 内部メソッド呼び出し
+          (p.x(), p.y(), p.z())
+      }
+      fn direction(&self) -> (T, T, T) {
+          let d = self.direction_internal();  // ✅ 内部メソッド呼び出し
+          (d.x(), d.y(), d.z())
+      }
+  }
+  ```
+- **評価**: Circle2D, Ray3D と同じ正しいパターン（修正不要）
 
 ## 🎯 修正パターンの分類と優先度
 
 ### パターン1: ✅ 正しいパターン（修正不要）
-**該当**: Circle2D, Ray3D, Point, Vector, Aabb
+**該当**: Circle2D/3D, Ray3D, InfiniteLine3D, Point, Vector, Aabb
 
 **特徴**:
 - 内部メソッド (`_internal()`) を使用
@@ -262,7 +314,7 @@ impl Circle2DProperties for Circle2D {
 ---
 
 ### パターン2: ❌ 循環依存パターン（最優先修正）
-**該当**: Arc2D/3D, LineSegment2D/3D
+**該当**: Arc2D/3D, LineSegment2D/3D, EllipseArc2D/3D, Direction2D/3D
 
 **問題構造**:
 ```rust
@@ -279,13 +331,15 @@ impl Arc2DProperties for Arc2D {
 ```
 
 **修正方針**:
-1. レガシーメソッド → `_internal()` に改名
-2. Foundation実装 → 内部メソッド呼び出しに変更
+1. レガシーメソッド → `_internal()` に改名（または削除）
+2. Foundation実装 → 内部メソッド/フィールド直接アクセスに変更
 3. 外部使用箇所 → Foundation トレイトに移行
 
 **影響範囲**:
 - **LineSegment2D/3D**: 20+ 箇所（最大規模）
 - **Arc2D/3D**: 複数テストファイル
+- **EllipseArc2D/3D**: arc_length使用あり
+- **Direction2D/3D**: 中規模（アクセサのみ）
 
 ---
 
@@ -314,39 +368,46 @@ impl Ellipse2DProperties for Ellipse2D {
 
 ---
 
-### パターン4: 🔍 要調査パターン
-**該当**: EllipseArc2D/3D, Direction2D/3D, InfiniteLine2D/3D
+### パターン4: 🔍 調査未完了
+**該当**: InfiniteLine2D
 
 **調査事項**:
-- Foundation実装の詳細確認
+- Foundation実装の詳細確認（InfiniteLine3Dは✅正しいパターン確認済み）
 - レガシーメソッド使用頻度
 - パターン1/2/3のどれに該当するか判定
 
 ---
 
-## 📊 移行優先度マトリックス
+## 📊 移行優先度マトリックス（更新版）
 
 | 優先度 | 形状 | パターン | 影響範囲 | 実装期間 |
 |--------|------|----------|----------|----------|
-| **Tier 0** (リファレンス) | Circle2D/3D, Ray3D | ✅ 正しい | - | - |
+| **Tier 0** (リファレンス) | Circle2D/3D, Ray3D, InfiniteLine3D | ✅ 正しい | - | - |
 | **Tier 1** (最優先) | LineSegment2D/3D | ❌ 循環依存 | 20+ 箇所 | 2-3日 |
 | **Tier 1** (最優先) | Arc2D/3D | ❌ 循環依存 | 複数ファイル | 1-2日 |
+| **Tier 1** (最優先) | EllipseArc2D/3D | ❌ 循環依存 | arc_length使用 | 1-2日 |
+| **Tier 2** (高優先) | Direction2D/3D | ❌ 循環依存 | 中規模 | 0.5-1日 |
 | **Tier 2** (高優先) | Ellipse2D/3D | 🔶 フィールド | 少 | 0.5日 |
 | **Tier 2** (高優先) | Plane3D | 🔶 フィールド | 1箇所 | 0.3日 |
-| **Tier 3** (要調査) | EllipseArc2D/3D | 🔍 未確認 | 不明 | 調査後決定 |
-| **Tier 3** (要調査) | Direction2D/3D | 🔍 未確認 | 不明 | 調査後決定 |
-| **Tier 4** (低優先) | InfiniteLine | 🔍 未着手 | 少 | 調査後決定 |
+| **Tier 3** (低優先) | InfiniteLine2D | 🔍 未確認 | 不明 | 調査後決定 |
+
+**総見積期間**: 6-10日（Phase 2: Tier 1 = 4-7日, Tier 2 = 1.3-2.5日, Tier 3 = 調査後）
 
 ---
 
-## 📈 実装戦略
+## 📈 実装戦略（更新版）
 
-### Phase 1: 調査完了（現在位置）
+### Phase 1: 調査完了 ✅ 完了（2026年2月13日）
 - [x] 主要形状の調査完了（Circle, Arc, LineSegment, Ellipse, Ray, Plane）
-- [ ] EllipseArc, Direction, InfiniteLine の詳細確認（残り作業）
+- [x] 追加形状調査（EllipseArc, Direction, InfiniteLine3D）
+- [x] パターン分類確定（正しい/循環依存/フィールドアクセス）
+- [x] 影響範囲特定（20+ 箇所のLineSegment使用）
+- [ ] InfiniteLine2D の詳細確認（低優先度）
+
+**実施期間**: 2026/02/13（0.5日目標 → 1日実績）
 
 ### Phase 2A: Tier 1 移行（循環依存解消）
-**目標**: Foundation実装の独立性確保
+**目標**: Foundation実装の独立性確保（見積: 4-7日）
 
 #### Step 1: Arc2D/3D 修正（1-2日）
 1. `center()` → `center_internal()` に改名
@@ -355,25 +416,44 @@ impl Ellipse2DProperties for Ellipse2D {
 4. テストコード修正（Foundation トレイト使用）
 5. `cargo test -p geo_primitives` で検証
 
-#### Step 2: LineSegment2D/3D 修正（2-3日）
+#### Step 2: EllipseArc2D/3D 修正（1-2日）
+1. `center()`, `semi_major()`, `semi_minor()` → `*_internal()` に改名
+2. Foundation実装を内部メソッド呼び出しに変更
+3. `arc_length()` 使用箇所の確認と修正
+4. テストコード修正
+5. `cargo test -p geo_primitives` で検証
+
+#### Step 3: LineSegment2D/3D 修正（2-3日） ⚠️ 最大影響範囲
 1. `start()` → `start_internal()` に改名
 2. `end()` → `end_internal()` に改名
 3. Foundation実装を内部メソッド呼び出しに変更
 4. **20+ 箇所の外部使用**を Foundation トレイトに移行
+   - voxel.rs の修正
+   - collision系ファイルの修正
+   - tests の修正
 5. 段階的コミット（形状ごと、ファイルグループごと）
 6. `cargo test --workspace` で全体検証
 
-### Phase 2B: Tier 2 移行（レガシー非推奨化）
-#### Step 3: Ellipse2D/3D 修正（0.5日）
+### Phase 2B: Tier 2 移行（レガシー非推奨化・循環依存解消）
+**見積**: 1.3-2.5日
+
+#### Step 4: Direction2D/3D 修正（0.5-1日）
+1. Foundation実装をフィールド直接アクセスに変更:
+   ```rust
+   fn x(&self) -> T { self.vector.x() }  // ✅ フィールド経由
+   ```
+2. レガシーメソッド `pub fn x/y/z()` を `#[deprecated]` マーク
+3. 使用箇所の確認と修正
+
+#### Step 5: Ellipse2D/3D 修正（0.5日）
 1. レガシーメソッドに `#[deprecated]` 追加
 2. 非推奨警告の対応（使用箇所があれば修正）
 
-#### Step 4: Plane3D 修正（0.3日）
+#### Step 6: Plane3D 修正（0.3日）
 1. レガシーメソッドに `#[deprecated]` 追加
 
-### Phase 3: Tier 3-4 調査・移行
-- EllipseArc, Direction, InfiniteLine の詳細調査
-- パターン分類後、適切な修正方針決定
+### Phase 3: Tier 3 調査・移行
+- InfiniteLine2D の詳細調査（必要に応じて）
 
 ---
 
@@ -640,22 +720,36 @@ fn some_function<T: Scalar, S: LineSegment3DProperties<T>>(seg: &S) {
 
 ---
 
-## 📊 進捗管理
+## 📊 進捗管理（更新版）
 
-### Phase 1: 影響範囲調査 ✅ 完了
+### Phase 1: 影響範囲調査 ✅ 完了（2026年2月13日）
 - [x] 主要形状調査（Circle, Arc, LineSegment, Ellipse, Ray, Plane）
-- [x] パターン分類（正しい/循環依存/フィールドアクセス/要調査）
+- [x] 追加形状調査（EllipseArc, Direction, InfiniteLine3D）
+- [x] パターン分類（正しい/循環依存/フィールドアクセス）
 - [x] 使用頻度分析
-- [ ] 残り形状調査（EllipseArc, Direction, InfiniteLine）
-- [ ] 調査レポート最終版作成
+- [x] 優先度決定
+- [x] 調査レポート完成版作成
+- [ ] InfiniteLine2D 調査（低優先度・Phase 3対応）
 
-**期間**: 2026/02/13（0.5日目標 → 0.7日実績見込み）
+**期間**: 2026/02/13（0.5日目標 → 1日実績）
+**成果物**: LEGACY_API_ANALYSIS.md 完成版
 
-### Phase 2: Tier 1 移行実装
+**主要発見**:
+- ✅ 正しいパターン: 4形状（Circle, Ray, InfiniteLine3D, Point/Vector/Aabb）
+- ❌ 循環依存パターン: 8形状（Arc, LineSegment, EllipseArc, Direction）
+- 🔶 フィールドアクセス: 2形状（Ellipse, Plane）
+- 🔍 調査未完了: 1形状（InfiniteLine2D）
+
+### Phase 2A: Tier 1 移行実装（循環依存解消）
 - [ ] Arc2D/3D 修正（見積: 1-2日）
   - [ ] 内部メソッド作成
   - [ ] Foundation実装修正
   - [ ] テストコード修正
+  - [ ] `cargo test -p geo_primitives`
+- [ ] EllipseArc2D/3D 修正（見積: 1-2日）
+  - [ ] 内部メソッド作成
+  - [ ] Foundation実装修正
+  - [ ] arc_length使用箇所修正
   - [ ] `cargo test -p geo_primitives`
 - [ ] LineSegment2D/3D 修正（見積: 2-3日）
   - [ ] 内部メソッド作成
@@ -663,18 +757,21 @@ fn some_function<T: Scalar, S: LineSegment3DProperties<T>>(seg: &S) {
   - [ ] 外部使用箇所修正（20+ 箇所）
   - [ ] `cargo test --workspace`
 
-**期間**: 見積 3-5日
+**期間**: 見積 4-7日
 
-### Phase 3: Tier 2 移行実装
+### Phase 2B: Tier 2 移行実装
+- [ ] Direction2D/3D フィールドアクセス修正（見積: 0.5-1日）
 - [ ] Ellipse2D/3D 非推奨化（見積: 0.5日）
 - [ ] Plane3D 非推奨化（見積: 0.3日）
 
-**期間**: 見積 0.8日
+**期間**: 見積 1.3-2.5日
 
-### Phase 4: Tier 3-4 対応
-- [ ] EllipseArc, Direction, InfiniteLine 調査・修正
+### Phase 3: Tier 3 対応
+- [ ] InfiniteLine2D 調査・修正（必要に応じて）
 
 **期間**: 調査後決定
+
+**総見積期間**: 6-10日（Phase 2A/2B合計）
 
 ---
 
@@ -689,20 +786,24 @@ fn some_function<T: Scalar, S: LineSegment3DProperties<T>>(seg: &S) {
 
 ---
 
-## 📌 次回作業タスク
+## 📌 次回作業タスク（更新版）
 
-### 即時実施（Phase 1 残り）
-1. [ ] EllipseArc2D/3D の Foundation実装詳細確認
-2. [ ] Direction2D/3D の Foundation実装詳細確認
-3. [ ] この調査レポートを最終版にコミット
+### Phase 2A 開始準備（即時実施可能）
+1. [ ] Arc2D 修正のための詳細設計書作成
+   - 内部メソッド命名規則確認
+   - テストコード修正方針策定
+2. [ ] LineSegment2D/3D 使用箇所の完全マップ作成（ファイル別リスト）
+3. [ ] EllipseArc2D/3D 使用箇所調査
+4. [ ] Direction2D/3D 使用箇所調査
+5. [ ] テスト戦略策定（段階的テスト方法）
 
-### Phase 2 開始準備
-4. [ ] Arc2D 修正のための詳細設計書作成
-5. [ ] LineSegment2D/3D 使用箇所の完全マップ作成（ファイル別リスト）
-6. [ ] テスト戦略策定（段階的テスト方法）
+### Phase 1 完全完了（低優先度）
+6. [ ] InfiniteLine2D の詳細確認（必要に応じて）
 
 ---
 
 **最終更新**: 2026年2月13日  
 **調査実施者**: AI開発者  
-**次回更新予定**: Phase 1 完全完了後（EllipseArc, Direction調査完了時）
+**Phase 1 完了**: ✅ 主要調査完了（12/13形状）
+**次フェーズ**: Phase 2A 開始（Tier 1修正実装）  
+**総見積期間**: Phase 2A/2B = 6-10日
