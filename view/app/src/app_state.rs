@@ -2,6 +2,7 @@ use crate::app_renderer::AppRenderer;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
+use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
 use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage};
 use std::path::Path;
@@ -113,8 +114,15 @@ impl AppState {
         ));
         octree_stage.set_wireframe_data(&self.graphic.device, positions);
 
-        // カメラを標準CAD視点に設定
-        self.camera.reset_to_standard_cad_view();
+        // カメラをワークピース中心に設定（100x100x50mmのワークピース）
+        // 中心: (50, 50, 25)
+        self.camera.target = Vec3f::new(50.0, 50.0, 25.0);
+        self.camera.distance = 200.0; // ワークピース全体が見える距離
+        self.camera.rotation = Quaternionf::identity(); // 回転をリセット
+
+        tracing::info!(
+            "カメラ設定: target=(50, 50, 25), distance=200.0"
+        );
 
         self.renderer.set_stage(octree_stage);
 

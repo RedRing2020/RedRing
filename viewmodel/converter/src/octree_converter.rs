@@ -242,8 +242,12 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
 ) -> Vec<WireframeVertex> {
     let mut vertices = Vec::new();
 
+    tracing::debug!("voxel_octree_to_wireframe: 開始");
+
     // VoxelOctreeの全ノードを走査
     traverse_voxel_octree(voxel_octree, 0, options, &mut vertices);
+
+    tracing::debug!("voxel_octree_to_wireframe: {} vertices", vertices.len());
 
     vertices
 }
@@ -266,6 +270,18 @@ fn traverse_voxel_octree<T: Scalar>(
 
     // ルートノードの境界ボックスを表示（プレースホルダー）
     let bounds = voxel_octree.bounds();
+
+    tracing::debug!(
+        "traverse_voxel_octree: depth={}, bounds=[{:.1},{:.1},{:.1}] - [{:.1},{:.1},{:.1}]",
+        depth,
+        bounds.min().x().to_f32(),
+        bounds.min().y().to_f32(),
+        bounds.min().z().to_f32(),
+        bounds.max().x().to_f32(),
+        bounds.max().y().to_f32(),
+        bounds.max().z().to_f32()
+    );
+
     let color = if options.color_by_state {
         state_to_color(VoxelState::Mixed) // デフォルト色
     } else if options.color_by_depth {
@@ -293,6 +309,8 @@ fn traverse_voxel_octree<T: Scalar>(
 pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     use geo_core::Point3D;
 
+    tracing::info!("create_sample_voxel_octree_wireframe: 開始");
+
     // ワークピース設定（100x100x50mm）
     let work_bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -301,6 +319,11 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
 
     let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
 
+    tracing::info!(
+        "初期VoxelOctree: 体積={:.1} mm³",
+        voxel_tree.remaining_volume()
+    );
+
     // 簡単な切削例：外縁10mm除去
     let outline_region = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -308,8 +331,19 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     );
     voxel_tree.remove_material_box(&outline_region);
 
+    tracing::info!(
+        "外縁除去後: 体積={:.1} mm³",
+        voxel_tree.remaining_volume()
+    );
+
     // 中央にポケット加工
     voxel_tree.remove_material_z_axis(50.0, 50.0, 10.0, 40.0, 10.0);
+
+    tracing::info!(
+        "ポケット加工後: 体積={:.1} mm³, Solidボクセル={}",
+        voxel_tree.remaining_volume(),
+        voxel_tree.solid_voxel_count()
+    );
 
     // ViewModel で変換（ワイヤーフレーム頂点に）
     let options = VoxelVisualizationOptions {
@@ -322,8 +356,22 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
 
     let wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
 
+    tracing::info!(
+        "voxel_octree_to_wireframe: {} 頂点生成",
+        wireframe_vertices.len()
+    );
+
     // 頂点を [[f32; 3]] 配列に変換
-    wireframe_vertices.iter().map(|v| v.position).collect()
+    let positions: Vec<[f32; 3]> = wireframe_vertices.iter().map(|v| v.position).collect();
+
+    // 最初の頂点をデバッグ出力
+    if let Some(first) = positions.first() {
+        tracing::info!("First vertex: [{:.1}, {:.1}, {:.1}]", first[0], first[1], first[2]);
+    }
+
+    tracing::info!("create_sample_voxel_octree_wireframe: 完了 ({} positions)", positions.len());
+
+    positions
 }
 
 #[cfg(test)]
