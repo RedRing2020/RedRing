@@ -24,14 +24,10 @@ impl<T: Scalar> ExtensionFoundation<T> for Ray3D<T> {
 impl<T: Scalar> TolerantEq<T> for Ray3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 起点の距離をチェック
-        let origin_distance = self.origin_internal().distance_to(&other.origin_internal());
+        let origin_distance = self.origin.distance_to(&other.origin);
 
         // 方向ベクトルの類似性をチェック（内積）
-        let direction_dot = self
-            .direction_internal()
-            .as_vector()
-            .dot(&other.direction_internal().as_vector())
-            .abs();
+        let direction_dot = self.direction.dot(&other.direction).abs();
         let direction_similar = direction_dot >= T::from_f64(0.999); // 約2.5度以内
 
         // 許容誤差として単一のスカラー値を使用

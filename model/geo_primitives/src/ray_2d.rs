@@ -27,9 +27,9 @@ use geo_foundation::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ray2D<T: Scalar> {
     /// 起点（t=0での点）
-    origin: Point2D<T>,
+    pub(crate) origin: Point2D<T>,
     /// 方向ベクトル（正規化済み）
-    direction: Vector2D<T>,
+    pub(crate) direction: Vector2D<T>,
 }
 
 impl<T: Scalar> Ray2D<T> {
@@ -279,29 +279,27 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
 /// Ray2DProperties トレイト実装
 impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     fn origin(&self) -> Point2<T> {
-        let origin = self.origin_internal();
-        Point2::new(origin.x(), origin.y())
+        Point2::new(self.origin.x(), self.origin.y())
     }
 
     fn direction(&self) -> Vector2<T> {
-        let direction = self.direction_internal();
-        Vector2::new(direction.x(), direction.y())
+        Vector2::new(self.direction.x(), self.direction.y())
     }
 
     fn origin_x(&self) -> T {
-        self.origin_internal().x()
+        self.origin.x()
     }
 
     fn origin_y(&self) -> T {
-        self.origin_internal().y()
+        self.origin.y()
     }
 
     fn direction_x(&self) -> T {
-        self.direction_internal().x()
+        self.direction.x()
     }
 
     fn direction_y(&self) -> T {
-        self.direction_internal().y()
+        self.direction.y()
     }
 
     fn is_valid(&self) -> bool {
@@ -312,18 +310,17 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     // ========== Phase 2 実装 ==========
 
     fn angle(&self) -> T {
-        let dir = self.direction_internal();
-        dir.y().atan2(dir.x())
+        self.direction.y().atan2(self.direction.x())
     }
 
     fn is_horizontal(&self) -> bool {
         use geo_foundation::tolerance_migration::DefaultTolerances;
-        self.direction_internal().y().abs() < DefaultTolerances::distance::<T>()
+        self.direction.y().abs() < DefaultTolerances::distance::<T>()
     }
 
     fn is_vertical(&self) -> bool {
         use geo_foundation::tolerance_migration::DefaultTolerances;
-        self.direction_internal().x().abs() < DefaultTolerances::distance::<T>()
+        self.direction.x().abs() < DefaultTolerances::distance::<T>()
     }
 }
 

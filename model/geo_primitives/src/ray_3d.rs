@@ -18,9 +18,9 @@ use geo_foundation::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ray3D<T: Scalar> {
     /// 起点（t=0での点）
-    origin: Point3D<T>,
+    pub(crate) origin: Point3D<T>,
     /// 方向ベクトル（正規化済み）
-    direction: Vector3D<T>,
+    pub(crate) direction: Vector3D<T>,
 }
 
 // ============================================================================
@@ -299,37 +299,35 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
 /// Ray3DProperties トレイト実装
 impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     fn origin(&self) -> Point3<T> {
-        let origin = self.origin_internal();
-        Point3::new(origin.x(), origin.y(), origin.z())
+        Point3::new(self.origin.x(), self.origin.y(), self.origin.z())
     }
 
     fn direction(&self) -> Vector3<T> {
-        let direction = self.direction_vector();
-        Vector3::new(direction.x(), direction.y(), direction.z())
+        Vector3::new(self.direction.x(), self.direction.y(), self.direction.z())
     }
 
     fn origin_x(&self) -> T {
-        self.origin_internal().x()
+        self.origin.x()
     }
 
     fn origin_y(&self) -> T {
-        self.origin_internal().y()
+        self.origin.y()
     }
 
     fn origin_z(&self) -> T {
-        self.origin_internal().z()
+        self.origin.z()
     }
 
     fn direction_x(&self) -> T {
-        self.direction_vector().x()
+        self.direction.x()
     }
 
     fn direction_y(&self) -> T {
-        self.direction_vector().y()
+        self.direction.y()
     }
 
     fn direction_z(&self) -> T {
-        self.direction_vector().z()
+        self.direction.z()
     }
 
     fn is_valid(&self) -> bool {
@@ -340,20 +338,18 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     // ========== Phase 2 実装 ==========
 
     fn azimuth(&self) -> T {
-        let dir = self.direction_vector();
-        dir.y().atan2(dir.x())
+        self.direction.y().atan2(self.direction.x())
     }
 
     fn elevation(&self) -> T {
-        let dir = self.direction_vector();
-        let xy_length = (dir.x() * dir.x() + dir.y() * dir.y()).sqrt();
-        dir.z().atan2(xy_length)
+        let xy_length = (self.direction.x() * self.direction.x() + self.direction.y() * self.direction.y()).sqrt();
+        self.direction.z().atan2(xy_length)
     }
 
     fn is_on_xy_plane(&self) -> bool {
         use geo_foundation::tolerance_migration::DefaultTolerances;
-        self.origin_internal().z().abs() < DefaultTolerances::distance::<T>()
-            && self.direction_vector().z().abs() < DefaultTolerances::distance::<T>()
+        self.origin.z().abs() < DefaultTolerances::distance::<T>()
+            && self.direction.z().abs() < DefaultTolerances::distance::<T>()
     }
 }
 
@@ -374,17 +370,17 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
 
     fn distance_to_point(&self, point: &Point3<T>) -> T {
         let target_point = Point3D::new(point.x(), point.y(), point.z());
-        let to_point = target_point - self.origin_internal();
-        let projection_length = self.direction_vector().dot(&to_point);
+        let to_point = target_point - self.origin;
+        let projection_length = self.direction.dot(&to_point);
 
         if projection_length <= T::ZERO {
-            self.origin_internal().distance_to(&target_point)
+            self.origin.distance_to(&target_point)
         } else {
-            let direction_offset = self.direction_vector() * projection_length;
+            let direction_offset = self.direction * projection_length;
             let projection = Point3D::new(
-                self.origin_internal().x() + direction_offset.x(),
-                self.origin_internal().y() + direction_offset.y(),
-                self.origin_internal().z() + direction_offset.z(),
+                self.origin.x() + direction_offset.x(),
+                self.origin.y() + direction_offset.y(),
+                self.origin.z() + direction_offset.z(),
             );
             target_point.distance_to(&projection)
         }
@@ -403,15 +399,12 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
 
     fn points_towards(&self, direction: &Vector3<T>) -> bool {
         let target_direction = Vector3D::new(direction.x(), direction.y(), direction.z());
-        let dot = self.direction_vector().dot(&target_direction);
+        let dot = self.direction.dot(&target_direction);
         dot > T::ZERO
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
-        let this_dir = self.direction_vector();
-        let other_dir = other.direction_vector();
-
-        let cross = this_dir.cross(&other_dir);
+        let cross = self.direction.cross(&other.direction);
         use geo_foundation::tolerance_migration::DefaultTolerances;
         cross.length() < DefaultTolerances::distance::<T>()
     }
@@ -421,7 +414,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
             return false;
         }
 
-        let dot = self.direction_vector().dot(&other.direction_vector());
+        let dot = self.direction.dot(&other.direction);
         dot > T::ZERO
     }
 
@@ -430,7 +423,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
             return false;
         }
 
-        let dot = self.direction_vector().dot(&other.direction_vector());
+        let dot = self.direction.dot(&other.direction);
         dot < T::ZERO
     }
 
@@ -446,26 +439,26 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         Self: Sized,
     {
         let offset_vector = Vector3D::new(offset.x(), offset.y(), offset.z());
-        let new_origin = self.origin_internal() + offset_vector;
+        let new_origin = self.origin + offset_vector;
 
-        Ray3D::new(new_origin, self.direction_vector()).unwrap()
+        Ray3D::new(new_origin, self.direction).unwrap()
     }
 
     // ========== Phase 2 実装 ==========
 
     fn distance_to_ray(&self, other: &Self) -> T {
-        let w = self.origin_internal() - other.origin_internal();
-        let a = self.direction_vector().dot(&self.direction_vector());
-        let b = self.direction_vector().dot(&other.direction_vector());
-        let c = other.direction_vector().dot(&other.direction_vector());
-        let d = self.direction_vector().dot(&w);
-        let e = other.direction_vector().dot(&w);
+        let w = self.origin - other.origin;
+        let a = self.direction.dot(&self.direction);
+        let b = self.direction.dot(&other.direction);
+        let c = other.direction.dot(&other.direction);
+        let d = self.direction.dot(&w);
+        let e = other.direction.dot(&w);
 
         let denom = a * c - b * b;
         use geo_foundation::tolerance_migration::DefaultTolerances;
         if denom.abs() < DefaultTolerances::distance::<T>() {
             // 平行: 片方の起点から他方への距離
-            let other_origin = other.origin_internal();
+            let other_origin = other.origin;
             return self.distance_to_point(&Point3D::new(
                 other_origin.x(),
                 other_origin.y(),
@@ -493,7 +486,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
     }
 
     fn angle_between(&self, other: &Self) -> T {
-        let dot = self.direction_vector().dot(&other.direction_vector());
+        let dot = self.direction.dot(&other.direction);
         let clamped = if dot > T::ONE {
             T::ONE
         } else if dot < -T::ONE {
@@ -523,8 +516,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let rotation_matrix = Matrix4x4::rotation_axis(&normalized_axis, angle);
 
         // 起点を回転
-        let origin = self.origin_internal();
-        let origin_analysis = Vector3::new(origin.x(), origin.y(), origin.z());
+        let origin_analysis = Vector3::new(self.origin.x(), self.origin.y(), self.origin.z());
         let rotated_origin_analysis = rotation_matrix.transform_point_3d(&origin_analysis);
         let rotated_origin = Point3D::new(
             rotated_origin_analysis.x(),
@@ -533,8 +525,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         );
 
         // 方向ベクトルを回転
-        let dir = self.direction_vector();
-        let dir_analysis = Vector3::new(dir.x(), dir.y(), dir.z());
+        let dir_analysis = Vector3::new(self.direction.x(), self.direction.y(), self.direction.z());
         let rotated_dir_analysis = rotation_matrix.transform_vector_3d(&dir_analysis);
         let rotated_dir = Vector3D::new(
             rotated_dir_analysis.x(),
