@@ -21,6 +21,7 @@
 //! // stage.update_camera(&queue, view_proj_matrix);
 //! ```
 
+use analysis::linalg::matrix::Matrix4x4;
 use render::toolpath::{ToolPathResources, ToolPathUniforms, ToolPathVertex};
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
@@ -102,7 +103,9 @@ impl ToolPathStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         // View * Projection の行列乗算
-        let view_proj = multiply_matrices(&view_matrix, &proj_matrix);
+        let view = Matrix4x4::from(view_matrix);
+        let proj = Matrix4x4::from(proj_matrix);
+        let view_proj = (view * proj).to_column_major();
         self.update_camera(queue, view_proj);
     }
 
@@ -157,71 +160,5 @@ impl RenderStage for ToolPathStage {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-/// 4x4行列の乗算（View * Projection）
-///
-/// # Note
-///
-/// 行優先（row-major）の行列を前提としています。
-#[allow(clippy::needless_range_loop)]
-fn multiply_matrices(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut result = [[0.0; 4]; 4];
-
-    for i in 0..4 {
-        for j in 0..4 {
-            for k in 0..4 {
-                result[i][j] += a[i][k] * b[k][j];
-            }
-        }
-    }
-
-    result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_identity_matrix_multiplication() {
-        let identity = [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ];
-
-        let result = multiply_matrices(&identity, &identity);
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..4 {
-            for j in 0..4 {
-                let expected = if i == j { 1.0 } else { 0.0 };
-                assert!((result[i][j] - expected).abs() < 1e-6);
-            }
-        }
-    }
-
-    #[test]
-    fn test_translation_matrix_multiplication() {
-        let identity = [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ];
-
-        let translation = [
-            [1.0, 0.0, 0.0, 10.0],
-            [0.0, 1.0, 0.0, 20.0],
-            [0.0, 0.0, 1.0, 30.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ];
-
-        let result = multiply_matrices(&identity, &translation);
-
-        assert_eq!(result, translation);
     }
 }

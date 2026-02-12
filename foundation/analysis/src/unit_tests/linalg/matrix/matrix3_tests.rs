@@ -149,7 +149,7 @@ mod tests {
         for i in 0..3 {
             for j in 0..3 {
                 assert!(
-                    (identity_result.data[i][j] - expected_identity.data[i][j]).abs() < TOLERANCE
+                    (identity_result[i][j] - expected_identity[i][j]).abs() < TOLERANCE
                 );
             }
         }
@@ -170,7 +170,7 @@ mod tests {
 
         // 射影変換（非アフィン）のシミュレーション
         let mut non_affine = Matrix3::identity();
-        non_affine.data[2][0] = 0.1; // 底行左を非ゼロにすると射影変換
+        non_affine[2][0] = 0.1; // 底行左を非ゼロにすると射影変換
         assert!(!non_affine.is_affine_transform());
     }
 
@@ -205,7 +205,7 @@ mod tests {
         let mut matrices_are_different = false;
         for i in 0..3 {
             for j in 0..3 {
-                if (trs.data[i][j] - rst.data[i][j]).abs() > TOLERANCE {
+                if (trs[i][j] - rst[i][j]).abs() > TOLERANCE {
                     matrices_are_different = true;
                     break;
                 }

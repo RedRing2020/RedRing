@@ -4,6 +4,7 @@
 //! Vector2との相互変換とトレイト共通化を提供
 
 use crate::{linalg::vector::Vector2, Scalar};
+use std::ops::Index;
 
 /// 2次元点
 ///
@@ -11,8 +12,8 @@ use crate::{linalg::vector::Vector2, Scalar};
 /// Vector2とは概念的に異なるが、数値的には同じ構造
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point2<T: Scalar> {
-    pub x: T,
-    pub y: T,
+    x: T,
+    y: T,
 }
 
 impl<T: Scalar> Point2<T> {
@@ -35,6 +36,38 @@ impl<T: Scalar> Point2<T> {
     pub fn y(&self) -> T {
         self.y
     }
+
+    /// X座標を設定
+    pub fn set_x(&mut self, x: T) {
+        self.x = x;
+    }
+
+    /// Y座標を設定
+    pub fn set_y(&mut self, y: T) {
+        self.y = y;
+    }
+
+    /// インデックスで座標を取得 (0=x, 1=y)
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        match index {
+            0 => self.x,
+            1 => self.y,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+
+    /// インデックスで座標を設定 (0=x, 1=y)
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        match index {
+            0 => self.x = value,
+            1 => self.y = value,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+
+    // === 変換 ===
 
     /// Vector2に変換
     pub fn to_vector(&self) -> Vector2<T> {
@@ -126,6 +159,31 @@ impl<T: Scalar> std::ops::Sub<Vector2<T>> for Point2<T> {
         Point2::new(self.x - rhs.x(), self.y - rhs.y())
     }
 }
+
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Point2<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 2]> for Point2<T> {
+    #[inline]
+    fn from(data: [T; 2]) -> Self {
+        Self::new(data[0], data[1])
+    }
+}
+
+// === トレイト実装 ===
 
 /// 2次元座標アクセスの共通トレイト
 ///

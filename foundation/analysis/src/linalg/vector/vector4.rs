@@ -3,12 +3,12 @@
 //! 4x4変換行列との演算、同次座標系での3D変換に使用
 //! 透視投影やアフィン変換での座標計算に最適化
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, Div, Index, IndexMut, Mul, Neg, Sub};
 
 /// 4次元固定サイズベクトル（同次座標系）
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector4<T: Scalar> {
-    pub data: [T; 4],
+    data: [T; 4],
 }
 
 impl<T: Scalar> Vector4<T> {
@@ -143,6 +143,35 @@ impl<T: Scalar> Vector4<T> {
     pub fn set_w(&mut self, w: T) {
         self.data[3] = w;
     }
+
+    // === 汎用アクセサ ===
+
+    /// インデックスで要素を取得
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        self.data[index]
+    }
+
+    /// インデックスで要素を設定
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        self.data[index] = value;
+    }
+
+    /// 内部配列への参照
+    #[inline]
+    pub fn as_array(&self) -> &[T; 4] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素をイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().copied()
+    }
+
+    // === 基本演算 ===
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
@@ -352,6 +381,32 @@ impl<T: Scalar> Neg for Vector4<T> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self::new(-self.data[0], -self.data[1], -self.data[2], -self.data[3])
+    }
+}
+
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Vector4<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        &self.data[index]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Vector4<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        &mut self.data[index]
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 4]> for Vector4<T> {
+    #[inline]
+    fn from(data: [T; 4]) -> Self {
+        Self { data }
     }
 }
 

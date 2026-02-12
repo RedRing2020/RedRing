@@ -21,6 +21,7 @@
 //! // stage.update_camera(&queue, view_proj_matrix);
 //! ```
 
+use analysis::linalg::matrix::Matrix4x4;
 use render::line::{LineResources, LineUniforms};
 use render::vertex_3d::MeshVertex;
 use std::any::Any;
@@ -92,7 +93,9 @@ impl OctreeStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         // ビュー・プロジェクション行列を結合
-        let view_proj = multiply_matrices(&proj_matrix, &view_matrix);
+        let proj = Matrix4x4::from(proj_matrix);
+        let view = Matrix4x4::from(view_matrix);
+        let view_proj = (proj * view).to_column_major();
 
         let uniforms = LineUniforms {
             view_proj,
@@ -163,20 +166,6 @@ impl RenderStage for OctreeStage {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-}
-
-/// 4x4行列の乗算（簡易版）
-#[allow(clippy::needless_range_loop)]
-fn multiply_matrices(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut result = [[0.0; 4]; 4];
-    for i in 0..4 {
-        for j in 0..4 {
-            for k in 0..4 {
-                result[i][j] += a[i][k] * b[k][j];
-            }
-        }
-    }
-    result
 }
 
 #[cfg(test)]

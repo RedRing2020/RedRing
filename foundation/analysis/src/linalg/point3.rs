@@ -4,6 +4,7 @@
 //! Vector3との相互変換とトレイト共通化を提供
 
 use crate::{linalg::vector::Vector3, Scalar};
+use std::ops::Index;
 
 /// 3次元点
 ///
@@ -11,9 +12,9 @@ use crate::{linalg::vector::Vector3, Scalar};
 /// Vector3とは概念的に異なるが、数値的には同じ構造
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point3<T: Scalar> {
-    pub x: T,
-    pub y: T,
-    pub z: T,
+    x: T,
+    y: T,
+    z: T,
 }
 
 impl<T: Scalar> Point3<T> {
@@ -41,6 +42,45 @@ impl<T: Scalar> Point3<T> {
     pub fn z(&self) -> T {
         self.z
     }
+
+    /// X座標を設定
+    pub fn set_x(&mut self, x: T) {
+        self.x = x;
+    }
+
+    /// Y座標を設定
+    pub fn set_y(&mut self, y: T) {
+        self.y = y;
+    }
+
+    /// Z座標を設定
+    pub fn set_z(&mut self, z: T) {
+        self.z = z;
+    }
+
+    /// インデックスで座標を取得 (0=x, 1=y, 2=z)
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        match index {
+            0 => self.x,
+            1 => self.y,
+            2 => self.z,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+
+    /// インデックスで座標を設定 (0=x, 1=y, 2=z)
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        match index {
+            0 => self.x = value,
+            1 => self.y = value,
+            2 => self.z = value,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+
+    // === 変換 ===
 
     /// Vector3に変換
     pub fn to_vector(&self) -> Vector3<T> {
@@ -134,6 +174,32 @@ impl<T: Scalar> std::ops::Sub<Vector3<T>> for Point3<T> {
         Point3::new(self.x - rhs.x(), self.y - rhs.y(), self.z - rhs.z())
     }
 }
+
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Point3<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 3]> for Point3<T> {
+    #[inline]
+    fn from(data: [T; 3]) -> Self {
+        Self::new(data[0], data[1], data[2])
+    }
+}
+
+// === トレイト実装 ===
 
 /// 3次元座標アクセスの共通トレイト
 ///
