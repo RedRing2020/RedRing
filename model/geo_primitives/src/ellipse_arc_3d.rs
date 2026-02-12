@@ -5,8 +5,11 @@
 
 use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_foundation::{
-    core::ellipse_arc_traits::{
-        EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
+    core::{
+        arc_traits::Arc3DProperties,
+        ellipse_arc_traits::{
+            EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
+        },
     },
     Angle, Scalar,
 };
@@ -42,7 +45,10 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 3D円弧から3D楕円弧を作成
     pub fn from_arc(arc: Arc3D<T>) -> Option<Self> {
-        let circle = Circle3D::new(arc.center(), arc.normal(), arc.radius())?;
+        let (cx, cy, cz) = Arc3DProperties::center(&arc);
+        let center = Point3D::new(cx, cy, cz);
+        let radius = Arc3DProperties::radius(&arc);
+        let circle = Circle3D::new(center, arc.normal(), radius)?;
         let ellipse = Ellipse3D::from_circle(&circle)?;
         Some(Self::new(ellipse, arc.start_angle(), arc.end_angle()))
     }

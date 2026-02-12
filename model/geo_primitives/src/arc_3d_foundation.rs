@@ -27,8 +27,8 @@ impl<T: Scalar> Bounded<T> for Arc3D<T> {
         let _end_point = self.end_point();
 
         // 円弧の中心と半径から包含する境界ボックスを計算
-        let center = self.center();
-        let radius = self.radius();
+        let center = self.center_internal();
+        let radius = self.radius_internal();
 
         // 単純化のため、円全体の境界ボックスを返す
         // 実際の実装では角度範囲を考慮する必要がある
@@ -50,8 +50,8 @@ impl<T: Scalar> Bounded<T> for Arc3D<T> {
 impl<T: Scalar> TolerantEq<T> for Arc3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点、半径、開始角、終了角の比較
-        let center_distance = self.center().distance_to(&other.center());
-        let radius_diff = (self.radius() - other.radius()).abs();
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
+        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
         let start_angle_diff = (self.start_angle() - other.start_angle())
             .to_radians()
             .abs();

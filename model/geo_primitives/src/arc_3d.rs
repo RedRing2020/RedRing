@@ -86,15 +86,15 @@ impl<T: Scalar> Arc3D<T> {
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
     }
 
-    // === 基本アクセサメソッド ===
+    // === 基本アクセサメソッド（内部使用） ===
 
-    /// 円弧の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    /// 円弧の中心点を取得（内部使用）
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
-    /// 円弧の半径を取得
-    pub fn radius(&self) -> T {
+    /// 円弧の半径を取得（内部使用）
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
@@ -313,12 +313,11 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
 
 impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center();
-        (c.x(), c.y(), c.z())
+        (self.center.x(), self.center.y(), self.center.z())
     }
 
     fn radius(&self) -> T {
-        self.radius()
+        self.radius
     }
 
     fn start_angle(&self) -> T {
@@ -387,21 +386,21 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
 
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         // 簡易実装: 円弧上の最近点までの距離
-        let center_pt = Arc3D::center(self);
+        let center_pt = self.center_internal();
         let dx = point.0 - center_pt.x();
         let dy = point.1 - center_pt.y();
         let dz = point.2 - center_pt.z();
-        ((dx * dx + dy * dy + dz * dz).sqrt() - self.radius()).abs()
+        ((dx * dx + dy * dy + dz * dz).sqrt() - self.radius_internal()).abs()
     }
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
         // 簡易実装: 半径と角度範囲をチェック
-        let center_pt = Arc3D::center(self);
+        let center_pt = self.center_internal();
         let dx = point.0 - center_pt.x();
         let dy = point.1 - center_pt.y();
         let dz = point.2 - center_pt.z();
         let dist = (dx * dx + dy * dy + dz * dz).sqrt();
-        (dist - self.radius()).abs() <= T::EPSILON
+        (dist - self.radius_internal()).abs() <= T::EPSILON
     }
 }
 

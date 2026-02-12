@@ -7,7 +7,7 @@ use crate::{
     Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
     Vector3D,
 };
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_foundation::{core::arc_traits::Arc3DProperties, extensions::BasicCollision, Scalar};
 
 // ============================================================================
 // Ellipse3D vs Point3D
@@ -60,8 +60,10 @@ impl<T: Scalar> BasicCollision<T, Arc3D<T>> for Ellipse3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, arc: &Arc3D<T>, tolerance: T) -> bool {
-        let dist = self.distance_to(&arc.center());
-        dist <= arc.radius() + tolerance
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let arc_center = Point3D::new(cx, cy, cz);
+        let dist = self.distance_to(&arc_center);
+        dist <= Arc3DProperties::radius(arc) + tolerance
     }
 
     fn overlaps(&self, _arc: &Arc3D<T>, _tolerance: T) -> bool {
@@ -69,8 +71,10 @@ impl<T: Scalar> BasicCollision<T, Arc3D<T>> for Ellipse3D<T> {
     }
 
     fn distance_to(&self, arc: &Arc3D<T>) -> T {
-        let dist = self.distance_to(&arc.center());
-        (dist - arc.radius()).max(T::ZERO)
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let arc_center = Point3D::new(cx, cy, cz);
+        let dist = self.distance_to(&arc_center);
+        (dist - Arc3DProperties::radius(arc)).max(T::ZERO)
     }
 }
 

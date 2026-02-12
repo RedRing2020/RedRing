@@ -7,6 +7,7 @@ use crate::{
     Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
 };
 use geo_foundation::{
+    core::arc_traits::Arc3DProperties,
     extensions::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection},
     Scalar,
 };
@@ -65,9 +66,10 @@ impl<T: Scalar> BasicIntersection<T, Arc3D<T>> for Ellipse3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, arc: &Arc3D<T>, tolerance: T) -> Option<Self::Point> {
-        let center = arc.center();
-        if self.distance_to(&center) <= arc.radius() + tolerance {
-            Some(center)
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let arc_center = Point3D::new(cx, cy, cz);
+        if self.distance_to(&arc_center) <= Arc3DProperties::radius(arc) + tolerance {
+            Some(arc_center)
         } else {
             None
         }
@@ -78,9 +80,10 @@ impl<T: Scalar> MultipleIntersection<T, Arc3D<T>> for Ellipse3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, arc: &Arc3D<T>, tolerance: T) -> Vec<Self::Point> {
-        let center = arc.center();
-        if self.distance_to(&center) <= arc.radius() + tolerance {
-            vec![center]
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let arc_center = Point3D::new(cx, cy, cz);
+        if self.distance_to(&arc_center) <= Arc3DProperties::radius(arc) + tolerance {
+            vec![arc_center]
         } else {
             Vec::new()
         }

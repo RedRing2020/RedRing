@@ -13,12 +13,12 @@ impl<T: Scalar> BasicIntersection<T, Point3D<T>> for Arc3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, point: &Point3D<T>, tolerance: T) -> Option<Self::Point> {
-        let center = self.center();
+        let center = self.center_internal();
         let to_center = *point - center;
         let distance = to_center.magnitude();
 
         // 1. 円周上にあるか確認
-        if (distance - self.radius()).abs() > tolerance {
+        if (distance - self.radius_internal()).abs() > tolerance {
             return None;
         }
 
