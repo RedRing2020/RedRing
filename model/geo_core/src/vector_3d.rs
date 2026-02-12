@@ -482,7 +482,7 @@ impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
     }
 
     fn components(&self) -> [T; 3] {
-        self.components()
+        [self.x, self.y, self.z]
     }
 
     fn to_tuple(&self) -> (T, T, T) {
@@ -494,24 +494,19 @@ impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
     }
 
     fn length(&self) -> T {
-        self.length()
+        Vector3D::length(self)
     }
 
     fn length_squared(&self) -> T {
-        self.length_squared()
+        Vector3D::length_squared(self)
     }
 
     fn normalize(&self) -> Self {
-        self.normalize()
+        Vector3D::normalize(self)
     }
 
     fn try_normalize(&self) -> Option<Self> {
-        let len = self.length();
-        if len <= T::ZERO {
-            None
-        } else {
-            Some(*self / len)
-        }
+        Vector3D::try_normalize(self)
     }
 }
 
