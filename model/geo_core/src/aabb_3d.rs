@@ -136,39 +136,56 @@ impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
     }
 
     fn width(&self) -> T {
-        self.width()
+        self.max.x() - self.min.x()
     }
 
     fn height(&self) -> T {
-        self.height()
+        self.max.y() - self.min.y()
     }
 
     fn depth(&self) -> T {
-        self.depth()
+        self.max.z() - self.min.z()
     }
 
     fn volume(&self) -> T {
-        self.volume()
+        (self.max.x() - self.min.x()) * (self.max.y() - self.min.y()) * (self.max.z() - self.min.z())
     }
 
     fn center(&self) -> Self::Point3D {
-        self.center()
+        let two = T::ONE + T::ONE;
+        Point3D::new(
+            (self.min.x() + self.max.x()) / two,
+            (self.min.y() + self.max.y()) / two,
+            (self.min.z() + self.max.z()) / two,
+        )
     }
 
     fn contains_point(&self, point: &Self::Point3D) -> bool {
-        self.contains(point)
+        (self.min.x() <= point.x() && point.x() <= self.max.x())
+            && (self.min.y() <= point.y() && point.y() <= self.max.y())
+            && (self.min.z() <= point.z() && point.z() <= self.max.z())
     }
 
     fn contains_bbox(&self, other: &Self) -> bool {
-        self.contains_aabb(other)
+        self.min.x() <= other.min.x()
+            && self.max.x() >= other.max.x()
+            && self.min.y() <= other.min.y()
+            && self.max.y() >= other.max.y()
+            && self.min.z() <= other.min.z()
+            && self.max.z() >= other.max.z()
     }
 
     fn intersects(&self, other: &Self) -> bool {
-        self.intersects(other)
+        self.min.x() <= other.max.x()
+            && self.max.x() >= other.min.x()
+            && self.min.y() <= other.max.y()
+            && self.max.y() >= other.min.y()
+            && self.min.z() <= other.max.z()
+            && self.max.z() >= other.min.z()
     }
 
     fn is_valid(&self) -> bool {
-        !self.is_empty()
+        !(self.min.x() > self.max.x() || self.min.y() > self.max.y() || self.min.z() > self.max.z())
     }
 }
 
