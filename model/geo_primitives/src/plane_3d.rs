@@ -20,16 +20,16 @@ use geo_foundation::Scalar;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Plane3D<T: Scalar> {
     /// 平面原点（STEP: location）
-    origin: Point3D<T>,
+    pub(crate) origin: Point3D<T>,
 
     /// Z軸方向 - 法線ベクトル（STEP: axis）
-    normal: Direction3D<T>,
+    pub(crate) normal: Direction3D<T>,
 
     /// X軸方向 - 第一軸（STEP: ref_direction）
-    u_axis: Direction3D<T>,
+    pub(crate) u_axis: Direction3D<T>,
 
     /// Y軸方向 - 第二軸（STEP: derived, normal × u_axis）
-    v_axis: Direction3D<T>,
+    pub(crate) v_axis: Direction3D<T>,
 }
 
 // ============================================================================
@@ -397,24 +397,48 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
     // ========== Phase 1 実装 ==========
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
-        let p = Point3D::new(point.0, point.1, point.2);
         let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
-        self.contains_point(p, tolerance)
+        // distance_to_point の計算を直接展開
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        let distance = relative.dot(&self.normal.as_vector()).abs();
+        distance <= tolerance
     }
 
     fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_point(p)
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        relative.dot(&self.normal.as_vector())
     }
 
     fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let projected = self.project_point(p);
-        (projected.x(), projected.y(), projected.z())
+        // distance_to_point の計算を直接展開
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        let distance = relative.dot(&self.normal.as_vector());
+        let offset = self.normal.as_vector() * distance;
+        (
+            point.0 - offset.x(),
+            point.1 - offset.y(),
+            point.2 - offset.z(),
+        )
     }
 
     fn equation_coefficients(&self) -> (T, T, T, T) {
-        self.equation_coefficients()
+        let a = self.normal.x();
+        let b = self.normal.y();
+        let c = self.normal.z();
+        let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
+        (a, b, c, d)
     }
 
     // ========== Phase 2 実装 ==========
@@ -434,11 +458,24 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
     }
 
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let projected = self.project_point(p);
+        // project_point の計算を直接展開
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        let distance = relative.dot(&self.normal.as_vector());
+        let offset = self.normal.as_vector() * distance;
+        let projected_x = point.0 - offset.x();
+        let projected_y = point.1 - offset.y();
+        let projected_z = point.2 - offset.z();
+        
         // 鏡面点 = 2 * 投影点 - 元の点
-        let mirrored = projected + (projected - p);
-        (mirrored.x(), mirrored.y(), mirrored.z())
+        (
+            projected_x + projected_x - point.0,
+            projected_y + projected_y - point.1,
+            projected_z + projected_z - point.2,
+        )
     }
 
     fn intersection_with_plane(
@@ -457,9 +494,13 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
 
         // 交線上の1点を求める（連立方程式を解く）
         // この実装は簡易版：原点に最も近い点を求める
-        let other_pt = Point3D::new(other_origin.0, other_origin.1, other_origin.2);
-        let (_, _, _, d1) = self.equation_coefficients();
-        let d2 = -(n2.x() * other_pt.x() + n2.y() * other_pt.y() + n2.z() * other_pt.z());
+        // equation_coefficients の計算を直接展開
+        let a1 = self.normal.x();
+        let b1 = self.normal.y();
+        let c1 = self.normal.z();
+        let d1 = -(a1 * self.origin.x() + b1 * self.origin.y() + c1 * self.origin.z());
+        
+        let d2 = -(n2.x() * other_origin.0 + n2.y() * other_origin.1 + n2.z() * other_origin.2);
 
         // 適当な座標を固定して解く（z=0として解く）
         let det = n1.x() * n2.y() - n1.y() * n2.x();
