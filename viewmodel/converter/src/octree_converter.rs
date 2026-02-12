@@ -278,6 +278,52 @@ fn traverse_voxel_octree<T: Scalar>(
     vertices.append(&mut bbox_vertices);
 }
 
+/// デバッグ/教育用：サンプルVoxelOctreeワイヤーフレームデータを生成
+///
+/// 100x100x50mmのワークピースに簡単な切削例を作成し、
+/// ワイヤーフレーム頂点データを返します。
+///
+/// # 生成される形状
+/// - ワークピース: 100x100x50mm
+/// - 外縁10mm除去
+/// - 中央にポケット加工（直径10mm、深さ30mm）
+///
+/// # Returns
+/// ワイヤーフレーム頂点の位置データ（[[f32; 3]]）
+pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
+    use geo_core::Point3D;
+
+    // ワークピース設定（100x100x50mm）
+    let work_bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(100.0, 100.0, 50.0));
+
+    let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
+
+    // 簡単な切削例：外縁10mm除去
+    let outline_region =
+        Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(100.0, 100.0, 10.0));
+    voxel_tree.remove_material_box(&outline_region);
+
+    // 中央にポケット加工
+    voxel_tree.remove_material_z_axis(50.0, 50.0, 10.0, 40.0, 10.0);
+
+    // ViewModel で変換（ワイヤーフレーム頂点に）
+    let options = VoxelVisualizationOptions {
+        depth_range: 0..8,
+        show_states: vec![VoxelState::Solid],
+        color_by_state: true,
+        color_by_depth: false,
+        max_depth: 6,
+    };
+
+    let wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
+
+    // 頂点を [[f32; 3]] 配列に変換
+    wireframe_vertices
+        .iter()
+        .map(|v| v.position)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -340,5 +386,28 @@ mod tests {
         assert_eq!(options.show_states.len(), 2);
         assert_eq!(options.color_by_state, true);
         assert_eq!(options.max_depth, 8);
+    }
+
+    #[test]
+    fn test_create_sample_voxel_octree_wireframe() {
+        let positions = create_sample_voxel_octree_wireframe();
+
+        // サンプルデータが生成されること
+        assert!(positions.len() > 0, "サンプルデータが生成されるべき");
+
+        // LineList形式（2頂点 = 1辺）なので偶数であること
+        assert_eq!(
+            positions.len() % 2,
+            0,
+            "LineList形式では頂点数は偶数であるべき"
+        );
+
+        // 全頂点が有効な座標値を持つこと
+        for pos in &positions {
+            assert!(
+                pos[0].is_finite() && pos[1].is_finite() && pos[2].is_finite(),
+                "全座標が有効な値であるべき"
+            );
+        }
     }
 }

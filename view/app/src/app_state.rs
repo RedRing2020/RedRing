@@ -3,7 +3,7 @@ use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
 use analysis::{LengthUnit, Tolerance};
-use stage::{DraftStage, MeshStage, OutlineStage, ShadingStage};
+use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage};
 use std::path::Path;
 use std::sync::Arc;
 use viewmodel_graphics::Camera;
@@ -93,6 +93,35 @@ impl AppState {
             self.graphic.config.format,
         ));
         self.renderer.set_stage(stage);
+    }
+
+    /// デバッグ用：VoxelOctree可視化を表示
+    pub fn load_debug_octree(&mut self) {
+        use viewmodel::octree_converter::create_sample_voxel_octree_wireframe;
+
+        tracing::info!("VoxelOctree可視化デバッグ開始");
+
+        // ViewModelでサンプルデータ生成（ワイヤーフレーム頂点）
+        let positions = create_sample_voxel_octree_wireframe();
+
+        tracing::info!("ワイヤーフレーム頂点数: {}", positions.len());
+
+        // OctreeStageを作成してデータ設定
+        let mut octree_stage = Box::new(OctreeStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        octree_stage.set_wireframe_data(&self.graphic.device, positions);
+
+        // カメラを標準CAD視点に設定
+        self.camera.reset_to_standard_cad_view();
+
+        self.renderer.set_stage(octree_stage);
+
+        // カメラユニフォーム更新
+        self.update_camera_uniforms();
+
+        tracing::info!("VoxelOctree可視化デバッグ完了");
     }
 
     /// STLファイルを読み込んでメッシュステージに設定

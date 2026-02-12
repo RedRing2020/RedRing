@@ -229,6 +229,31 @@ fn bbox_to_line_vertices<T: Scalar>(
 }
 ```
 
+#### サンプルデータ生成関数（Phase 1実装）
+
+```rust
+/// デバッグ/教育用：サンプルVoxelOctreeワイヤーフレームデータを生成
+///
+/// 100x100x50mmのワークピースに簡単な切削例を作成し、
+/// ワイヤーフレーム頂点データを返します。
+///
+/// # 生成される形状
+/// - ワークピース: 100x100x50mm
+/// - 外縁10mm除去
+/// - 中央にポケット加工（直径10mm、深さ30mm）
+///
+/// # Returns
+/// ワイヤーフレーム頂点の位置データ（[[f32; 3]]）
+pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
+    // VoxelOctree作成 → voxel_octree_to_wireframe() 変換
+    // → 位置データのみ抽出して返す
+}
+```
+
+**アーキテクチャ上の役割**:
+- View層（app）がModel層（geo_algorithms）に直接依存することを回避
+- ViewModel層でサンプルデータ生成を完結させる設計パターン
+
 ### テスト項目
 
 - [ ] 深さ0のみ表示（ルートノードのみ）
@@ -358,9 +383,66 @@ impl OctreeStage {
 
 ### ファイル: `view/app/src/app_state.rs`
 
-#### キーバインディング
+#### 実装内容（Phase 1）
+
+**追加メソッド**: `load_debug_octree()`
+
+```rust
+/// デバッグ用：VoxelOctree可視化を表示
+pub fn load_debug_octree(&mut self) {
+    use viewmodel::octree_converter::create_sample_voxel_octree_wireframe;
+
+    tracing::info!("VoxelOctree可視化デバッグ開始");
+
+    // ViewModelでサンプルデータ生成（ワイヤーフレーム頂点）
+    let positions = create_sample_voxel_octree_wireframe();
+
+    tracing::info!("ワイヤーフレーム頂点数: {}", positions.len());
+
+    // OctreeStageを作成してデータ設定
+    let mut octree_stage = Box::new(OctreeStage::new(
+        &self.graphic.device,
+        self.graphic.config.format,
+    ));
+    octree_stage.set_wireframe_data(&self.graphic.device, positions);
+
+    // カメラを標準CAD視点に設定
+    self.camera.reset_to_standard_cad_view();
+
+    self.renderer.set_stage(octree_stage);
+
+    // カメラユニフォーム更新
+    self.update_camera_uniforms();
+
+    tracing::info!("VoxelOctree可視化デバッグ完了");
+}
+```
+
+**アーキテクチャ遵守**:
+- View層（app）はViewModel層（viewmodel/converter）の関数のみ呼び出す
+- Model層（geo_algorithms, geo_core）への直接依存を回避
+- サンプルデータ生成は ViewModel の `create_sample_voxel_octree_wireframe()` で実装
+
+#### キーバインディング（Phase 1）
 
 | キー | 機能 | 説明 |
+|------|------|------|
+| `o` | VoxelOctree可視化 | サンプルデータ読み込み + ワイヤーフレーム表示 |
+
+**使用方法**:
+1. アプリ起動: `cargo run`
+2. `o` キーを押す → VoxelOctree 可視化表示
+3. マウスドラッグ: カメラ回転
+4. マウスホイール: カメラズーム
+5. `h` キー: 全キーバインド一覧表示
+
+---
+
+### 将来の拡張（Phase 2 以降）
+
+以下の機能は今後のイテレーションで追加予定：
+
+| キー | 機能（予定） | 説明 |
 |------|------|------|
 | `0` | Octree表示切替 | 表示/非表示トグル |
 | `[` | 深さ減少 | 表示深さを1つ浅く |
@@ -369,48 +451,6 @@ impl OctreeStage {
 | `S` | アニメーション停止 | アニメーション中断 |
 | `-` | 速度減速 | アニメーション速度を遅く |
 | `+` | 速度加速 | アニメーション速度を速く |
-
-#### 実装
-
-```rust
-impl AppState {
-    fn handle_octree_input(&mut self, key: KeyCode) {
-        match key {
-            KeyCode::Key0 => {
-                self.octree_visible = !self.octree_visible;
-                println!("Octree visible: {}", self.octree_visible);
-            }
-            KeyCode::BracketLeft => {
-                if self.octree_depth_end > 0 {
-                    self.octree_depth_end -= 1;
-                    self.update_octree_depth();
-                }
-            }
-            KeyCode::BracketRight => {
-                if self.octree_depth_end < self.octree_max_depth {
-                    self.octree_depth_end += 1;
-                    self.update_octree_depth();
-                }
-            }
-            KeyCode::KeyP => {
-                self.octree_stage.play_animation(1.0);
-                println!("Playing Octree animation");
-            }
-            KeyCode::KeyS => {
-                self.octree_stage.stop_animation();
-                println!("Stopped Octree animation");
-            }
-            _ => {}
-        }
-    }
-
-    fn update_octree_depth(&mut self) {
-        let range = 0..self.octree_depth_end;
-        self.octree_stage.set_depth_range(range.clone());
-        println!("Octree depth: {:?}", range);
-    }
-}
-```
 
 ## 📊 パフォーマンス設計
 
