@@ -168,8 +168,8 @@ impl<T: Scalar> BasicCollision<T, Ellipse2D<T>> for Ray2D<T> {
     type Point2D = Point2D<T>;
 
     fn intersects(&self, ellipse: &Ellipse2D<T>, tolerance: T) -> bool {
-        let center = ellipse.center();
-        self.distance_to_point(&center) <= ellipse.semi_major() + tolerance
+        let center = ellipse.center_internal();
+        self.distance_to_point(&center) <= ellipse.semi_major_internal() + tolerance
     }
 
     fn overlaps(&self, _ellipse: &Ellipse2D<T>, _tolerance: T) -> bool {

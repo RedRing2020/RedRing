@@ -71,18 +71,18 @@ impl<T: Scalar> Ellipse2D<T> {
     // Core Accessor Methods
     // ========================================================================
 
-    /// 中心点を取得
-    pub fn center(&self) -> Point2D<T> {
+    /// 中心点を取得（内部使用）
+    pub(crate) fn center_internal(&self) -> Point2D<T> {
         self.center
     }
 
-    /// 長半軸を取得
-    pub fn semi_major(&self) -> T {
+    /// 長半軸を取得（内部使用）
+    pub(crate) fn semi_major_internal(&self) -> T {
         self.semi_major
     }
 
-    /// 短半軸を取得
-    pub fn semi_minor(&self) -> T {
+    /// 短半軸を取得（内部使用）
+    pub(crate) fn semi_minor_internal(&self) -> T {
         self.semi_minor
     }
 
@@ -231,8 +231,8 @@ impl<T: Scalar> Ellipse2D<T> {
 
     /// 円に変換（可能な場合）
     pub fn to_circle(&self) -> Option<Circle2D<T>> {
-        if (self.semi_major - self.semi_minor).abs() <= T::EPSILON {
-            Circle2D::new(self.center, self.semi_major)
+        if (self.semi_major_internal() - self.semi_minor_internal()).abs() <= T::EPSILON {
+            Circle2D::new(self.center_internal(), self.semi_major_internal())
         } else {
             None
         }

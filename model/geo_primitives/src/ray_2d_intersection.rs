@@ -234,9 +234,9 @@ impl<T: Scalar> BasicIntersection<T, Ellipse2D<T>> for Ray2D<T> {
     type Point = Point2D<T>;
 
     fn intersection_with(&self, ellipse: &Ellipse2D<T>, tolerance: T) -> Option<Self::Point> {
-        let center = ellipse.center();
+        let center = ellipse.center_internal();
 
-        if self.distance_to_point(&center) <= ellipse.semi_major() + tolerance {
+        if self.distance_to_point(&center) <= ellipse.semi_major_internal() + tolerance {
             Some(center) // 簡易実装: 楕円の中心を返す
         } else {
             None
@@ -248,7 +248,7 @@ impl<T: Scalar> MultipleIntersection<T, Ellipse2D<T>> for Ray2D<T> {
     type Point = Point2D<T>;
 
     fn intersections_with(&self, ellipse: &Ellipse2D<T>, _tolerance: T) -> Vec<Self::Point> {
-        let center = ellipse.center();
+        let center = ellipse.center_internal();
 
         if self.contains_point(&center, T::EPSILON) {
             vec![center] // 簡易実装

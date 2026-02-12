@@ -153,8 +153,8 @@ impl<T: Scalar> BasicIntersection<T, Triangle2D<T>> for Ellipse2D<T> {
 
     fn intersection_with(&self, triangle: &Triangle2D<T>, tolerance: T) -> Option<Self::Point> {
         // 簡易実装: 楕円の中心を返す
-        if triangle.contains_point(&self.center()) {
-            Some(self.center())
+        if triangle.contains_point(&self.center_internal()) {
+            Some(self.center_internal())
         } else {
             let centroid = triangle.centroid();
             if self.distance_to_point(&centroid) <= tolerance {
@@ -201,8 +201,8 @@ impl<T: Scalar> BasicIntersection<T, Ellipse2D<T>> for Ellipse2D<T> {
     fn intersection_with(&self, other: &Ellipse2D<T>, tolerance: T) -> Option<Self::Point> {
         // 簡易実装: 中心間の中点を返す
         let mid = Point2D::new(
-            (self.center().x() + other.center().x()) / (T::ONE + T::ONE),
-            (self.center().y() + other.center().y()) / (T::ONE + T::ONE),
+            (self.center_internal().x() + other.center_internal().x()) / (T::ONE + T::ONE),
+            (self.center_internal().y() + other.center_internal().y()) / (T::ONE + T::ONE),
         );
 
         if self.distance_to_point(&mid) <= tolerance {

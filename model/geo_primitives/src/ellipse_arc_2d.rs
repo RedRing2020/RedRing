@@ -70,17 +70,17 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point2D<T> {
-        self.ellipse.center()
+        self.ellipse.center_internal()
     }
 
     /// 長半軸を取得
     pub fn semi_major(&self) -> T {
-        self.ellipse.semi_major()
+        self.ellipse.semi_major_internal()
     }
 
     /// 短半軸を取得
     pub fn semi_minor(&self) -> T {
-        self.ellipse.semi_minor()
+        self.ellipse.semi_minor_internal()
     }
 
     /// 回転角を取得
@@ -215,7 +215,7 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// 点が楕円弧の角度範囲内にあるかを判定
     pub fn point_in_angle_range(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        let center = self.ellipse.center();
+        let center = self.ellipse.center_internal();
         let to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
 
         if to_point.magnitude() <= tolerance {

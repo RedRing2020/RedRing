@@ -18,7 +18,7 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Ellipse2D<T> {
         // 中心点の変換
-        let center_vec = Vector2::new(ellipse.center().x(), ellipse.center().y());
+        let center_vec = Vector2::new(ellipse.center_internal().x(), ellipse.center_internal().y());
         let transformed_center_vec = matrix.transform_point_2d(&center_vec);
         let new_center = Point2D::new(transformed_center_vec.x(), transformed_center_vec.y());
 
@@ -53,8 +53,8 @@ pub mod analysis_transform {
             + transformed_minor.y() * transformed_minor.y())
         .sqrt();
 
-        let new_semi_major = ellipse.semi_major() * transformed_major_length;
-        let new_semi_minor = ellipse.semi_minor() * transformed_minor_length;
+        let new_semi_major = ellipse.semi_major_internal() * transformed_major_length;
+        let new_semi_minor = ellipse.semi_minor_internal() * transformed_minor_length;
 
         // 変換後の回転角計算
         let new_rotation = transformed_major.y().atan2(transformed_major.x());
@@ -181,7 +181,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ellipse2D<T> {
 
     fn rotate_analysis_2d(&self, center: &Self, angle: Angle<T>) -> Result<Self, TransformError> {
         // Ellipse2D を Point2D として中心点を使用
-        let center_point = center.center();
+        let center_point = center.center_internal();
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         Ok(self.transform_point_matrix_2d(&matrix))
     }
@@ -192,7 +192,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ellipse2D<T> {
         scale_x: T,
         scale_y: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.center();
+        let center_point = center.center_internal();
         let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         Ok(self.transform_point_matrix_2d(&matrix))
     }
@@ -202,7 +202,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ellipse2D<T> {
         center: &Self,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.center();
+        let center_point = center.center_internal();
         let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
         Ok(self.transform_point_matrix_2d(&matrix))
     }
@@ -241,11 +241,11 @@ mod tests {
 
         let result = ellipse.translate_analysis_2d(&translation).unwrap();
 
-        assert!((result.center().x() - 3.0).abs() < 1e-10);
-        assert!((result.center().y() - 4.0).abs() < 1e-10);
+        assert!((result.center_internal().x() - 3.0).abs() < 1e-10);
+        assert!((result.center_internal().y() - 4.0).abs() < 1e-10);
         // 軸長は変化しない
-        assert!((result.semi_major() - 2.0).abs() < 1e-10);
-        assert!((result.semi_minor() - 1.0).abs() < 1e-10);
+        assert!((result.semi_major_internal() - 2.0).abs() < 1e-10);
+        assert!((result.semi_minor_internal() - 1.0).abs() < 1e-10);
         // 回転は変化しない
         assert!((result.rotation() - 0.0).abs() < 1e-10);
     }
@@ -261,8 +261,8 @@ mod tests {
         // 回転により軸の向きが変わる
         assert!((result.rotation() - PI / 2.0).abs() < 1e-10);
         // 軸長は保持される
-        assert!((result.semi_major() - 2.0).abs() < 1e-10);
-        assert!((result.semi_minor() - 1.0).abs() < 1e-10);
+        assert!((result.semi_major_internal() - 2.0).abs() < 1e-10);
+        assert!((result.semi_minor_internal() - 1.0).abs() < 1e-10);
     }
 
     #[test]
@@ -273,8 +273,8 @@ mod tests {
         let result = ellipse.scale_analysis_2d(&center, 2.0, 3.0).unwrap();
 
         // 各軸が対応する方向にスケールされる
-        assert!((result.semi_major() - 4.0).abs() < 1e-10); // 2.0 * 2.0
-        assert!((result.semi_minor() - 3.0).abs() < 1e-10); // 1.0 * 3.0
+        assert!((result.semi_major_internal() - 4.0).abs() < 1e-10); // 2.0 * 2.0
+        assert!((result.semi_minor_internal() - 3.0).abs() < 1e-10); // 1.0 * 3.0
     }
 
     #[test]
@@ -285,8 +285,8 @@ mod tests {
         let result = ellipse.uniform_scale_analysis_2d(&center, 1.5).unwrap();
 
         // 両軸とも均等にスケールされる
-        assert!((result.semi_major() - 3.0).abs() < 1e-10); // 2.0 * 1.5
-        assert!((result.semi_minor() - 1.5).abs() < 1e-10); // 1.0 * 1.5
+        assert!((result.semi_major_internal() - 3.0).abs() < 1e-10); // 2.0 * 1.5
+        assert!((result.semi_minor_internal() - 1.5).abs() < 1e-10); // 1.0 * 1.5
     }
 
     #[test]
@@ -298,11 +298,11 @@ mod tests {
         let matrix = Matrix3x3::translation_2d(&translation_vec);
         let result = ellipse.transform_point_matrix_2d(&matrix);
 
-        assert!((result.center().x() - 2.0).abs() < 1e-10);
-        assert!((result.center().y() - 3.0).abs() < 1e-10);
+        assert!((result.center_internal().x() - 2.0).abs() < 1e-10);
+        assert!((result.center_internal().y() - 3.0).abs() < 1e-10);
         // 軸長は変化しない
-        assert!((result.semi_major() - 2.0).abs() < 1e-10);
-        assert!((result.semi_minor() - 1.0).abs() < 1e-10);
+        assert!((result.semi_major_internal() - 2.0).abs() < 1e-10);
+        assert!((result.semi_minor_internal() - 1.0).abs() < 1e-10);
     }
 
     #[test]
@@ -325,12 +325,12 @@ mod tests {
         assert_eq!(results.len(), 2);
 
         // 最初の楕円
-        assert!((results[0].center().x() - 1.0).abs() < 1e-10);
-        assert!((results[0].center().y() - 1.0).abs() < 1e-10);
+        assert!((results[0].center_internal().x() - 1.0).abs() < 1e-10);
+        assert!((results[0].center_internal().y() - 1.0).abs() < 1e-10);
 
         // 2番目の楕円
-        assert!((results[1].center().x() - 6.0).abs() < 1e-10);
-        assert!((results[1].center().y() - 6.0).abs() < 1e-10);
+        assert!((results[1].center_internal().x() - 6.0).abs() < 1e-10);
+        assert!((results[1].center_internal().y() - 6.0).abs() < 1e-10);
     }
 
     #[test]
