@@ -117,9 +117,9 @@ fn depth_to_color(depth: usize, max_depth: usize) -> [f32; 3] {
 /// VoxelStateに基づいた色を計算
 fn state_to_color(state: VoxelState) -> [f32; 3] {
     match state {
-        VoxelState::Solid => [0.2, 0.4, 1.0],  // 青
-        VoxelState::Mixed => [1.0, 0.8, 0.0],  // 黄
-        VoxelState::Empty => [0.3, 0.3, 0.3],  // グレー
+        VoxelState::Solid => [0.2, 0.4, 1.0], // 青
+        VoxelState::Mixed => [1.0, 0.8, 0.0], // 黄
+        VoxelState::Empty => [0.3, 0.3, 0.3], // グレー
     }
 }
 
@@ -191,7 +191,7 @@ pub fn octree_to_wireframe<T: Scalar, D: Clone>(
     traverse_octree(
         octree,
         0, // depth
-        &octree.bounds(),
+        octree.bounds(),
         options,
         &mut vertices,
     );
@@ -274,7 +274,7 @@ fn traverse_voxel_octree<T: Scalar>(
         [1.0, 1.0, 1.0]
     };
 
-    let mut bbox_vertices = bbox_to_wireframe_vertices(&bounds, color);
+    let mut bbox_vertices = bbox_to_wireframe_vertices(bounds, color);
     vertices.append(&mut bbox_vertices);
 }
 
@@ -294,13 +294,18 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     use geo_core::Point3D;
 
     // ワークピース設定（100x100x50mm）
-    let work_bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(100.0, 100.0, 50.0));
+    let work_bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 50.0),
+    );
 
     let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
 
     // 簡単な切削例：外縁10mm除去
-    let outline_region =
-        Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(100.0, 100.0, 10.0));
+    let outline_region = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 10.0),
+    );
     voxel_tree.remove_material_box(&outline_region);
 
     // 中央にポケット加工
@@ -318,10 +323,7 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     let wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
 
     // 頂点を [[f32; 3]] 配列に変換
-    wireframe_vertices
-        .iter()
-        .map(|v| v.position)
-        .collect()
+    wireframe_vertices.iter().map(|v| v.position).collect()
 }
 
 #[cfg(test)]
