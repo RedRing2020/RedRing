@@ -393,16 +393,16 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
 
 impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center();
+        let c = self.ellipse.center_internal();
         (c.x(), c.y(), c.z())
     }
 
     fn semi_major_axis(&self) -> T {
-        self.semi_major()
+        self.ellipse.semi_major_internal()
     }
 
     fn semi_minor_axis(&self) -> T {
-        self.semi_minor()
+        self.ellipse.semi_minor_internal()
     }
 
     fn start_angle(&self) -> T {
@@ -416,7 +416,7 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     // ========== Phase 2: 追加プロパティ ==========
 
     fn normal(&self) -> (T, T, T) {
-        let n = self.normal();
+        let n = self.ellipse.normal();
         (n.x(), n.y(), n.z())
     }
 
