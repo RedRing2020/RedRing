@@ -1966,6 +1966,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 name = "render"
 version = "0.1.0"
 dependencies = [
+ "analysis",
  "bytemuck",
  "pollster",
  "tracing",
@@ -2222,6 +2223,7 @@ dependencies = [
 name = "stage"
 version = "0.1.0"
 dependencies = [
+ "analysis",
  "bytemuck",
  "render",
  "tracing",
@@ -2528,6 +2530,7 @@ dependencies = [
  "analysis",
  "cam_core",
  "geo_algorithms",
+ "geo_core",
  "geo_foundation",
  "geo_io",
  "geo_primitives",

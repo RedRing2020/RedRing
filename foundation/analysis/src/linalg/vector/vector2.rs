@@ -3,12 +3,12 @@
 //! 2D幾何計算、グラフィックス、UI座標に最適化
 //! 高速な演算のためコンパイル時サイズ確定
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, Div, Index, IndexMut, Mul, Neg, Sub};
 
 /// 2次元固定サイズベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector2<T: Scalar> {
-    pub data: [T; 2],
+    data: [T; 2],
 }
 
 impl<T: Scalar> Vector2<T> {
@@ -68,6 +68,35 @@ impl<T: Scalar> Vector2<T> {
     pub fn set_y(&mut self, y: T) {
         self.data[1] = y;
     }
+
+    // === 汎用アクセサ ===
+
+    /// インデックスで要素を取得
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        self.data[index]
+    }
+
+    /// インデックスで要素を設定
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        self.data[index] = value;
+    }
+
+    /// 内部配列への参照
+    #[inline]
+    pub fn as_array(&self) -> &[T; 2] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素をイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().copied()
+    }
+
+    // === 基本演算 ===
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
@@ -215,6 +244,32 @@ impl<T: Scalar> Neg for Vector2<T> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self::new(-self.data[0], -self.data[1])
+    }
+}
+
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Vector2<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        &self.data[index]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Vector2<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        &mut self.data[index]
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 2]> for Vector2<T> {
+    #[inline]
+    fn from(data: [T; 2]) -> Self {
+        Self { data }
     }
 }
 

@@ -4,16 +4,19 @@
 //! CAD計算とグラフィックス処理の両方に対応
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector2, Vector3};
-use std::ops::{Add, Mul};
+use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};
 
 /// 2Dアフィン変換の分解結果
 /// (translation, rotation_angle, scale, shear)
 type AffineComponents2D<T> = (Vector2<T>, T, Vector2<T>, Vector2<T>);
 
-/// 3x3行列
+/// 3x3行列（行優先格納）
+///
+/// 内部データは行優先で格納されています。
+/// GPU転送時は `to_column_major()` で列優先に変換してください。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Matrix3x3<T: Scalar> {
-    pub data: [[T; 3]; 3],
+    data: [[T; 3]; 3],
 }
 
 impl<T: Scalar> Matrix3x3<T> {
@@ -128,14 +131,93 @@ impl<T: Scalar> Matrix3x3<T> {
     }
 
     /// 行列の要素にアクセス
+    // === アクセサメソッド ===
+    /// 要素を取得
+    #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {
         self.data[row][col]
     }
 
-    /// 行列の要素を設定
+    /// 要素を設定
+    #[inline]
     pub fn set(&mut self, row: usize, col: usize, value: T) {
         self.data[row][col] = value;
     }
+
+    /// 行を取得
+    #[inline]
+    pub fn get_row(&self, row: usize) -> [T; 3] {
+        self.data[row]
+    }
+
+    /// 列を取得
+    #[inline]
+    pub fn get_column(&self, col: usize) -> [T; 3] {
+        [self.data[0][col], self.data[1][col], self.data[2][col]]
+    }
+
+    /// 行を設定
+    #[inline]
+    pub fn set_row(&mut self, row: usize, values: [T; 3]) {
+        self.data[row] = values;
+    }
+
+    /// 列を設定
+    #[inline]
+    pub fn set_column(&mut self, col: usize, values: [T; 3]) {
+        self.data[0][col] = values[0];
+        self.data[1][col] = values[1];
+        self.data[2][col] = values[2];
+    }
+
+    /// 内部データへの参照（行優先）
+    #[inline]
+    pub fn as_row_major(&self) -> &[[T; 3]; 3] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素を行優先でイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().flat_map(|row| row.iter()).copied()
+    }
+
+    /// 各行をイテレート
+    pub fn rows(&self) -> impl Iterator<Item = [T; 3]> + '_ {
+        self.data.iter().copied()
+    }
+
+    /// 各列をイテレート
+    pub fn columns(&self) -> impl Iterator<Item = [T; 3]> + '_ {
+        (0..3).map(move |col| self.get_column(col))
+    }
+
+    // === GPU用変換 ===
+
+    /// 列優先形式に変換（wgpu/OpenGL用）
+    #[inline]
+    pub fn to_column_major(&self) -> [[T; 3]; 3] {
+        [
+            [self.data[0][0], self.data[1][0], self.data[2][0]],
+            [self.data[0][1], self.data[1][1], self.data[2][1]],
+            [self.data[0][2], self.data[1][2], self.data[2][2]],
+        ]
+    }
+
+    /// 列優先形式から構築（wgpu/OpenGL用）
+    #[inline]
+    pub fn from_column_major(data: [[T; 3]; 3]) -> Self {
+        Self {
+            data: [
+                [data[0][0], data[1][0], data[2][0]],
+                [data[0][1], data[1][1], data[2][1]],
+                [data[0][2], data[1][2], data[2][2]],
+            ],
+        }
+    }
+
+    // === 基本演算 ===
 
     /// フロベニウスノルム
     pub fn frobenius_norm(&self) -> T {
@@ -710,7 +792,25 @@ impl<T: Scalar> Matrix3x3<T> {
     }
 }
 
-// 演算子オーバーロード
+// === 添え字演算子（互換性維持） ===
+
+impl<T: Scalar> Index<usize> for Matrix3x3<T> {
+    type Output = [T; 3];
+    #[inline]
+    fn index(&self, row: usize) -> &[T; 3] {
+        &self.data[row]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Matrix3x3<T> {
+    #[inline]
+    fn index_mut(&mut self, row: usize) -> &mut [T; 3] {
+        &mut self.data[row]
+    }
+}
+
+// === 演算子オーバーロード ===
+
 impl<T: Scalar> Add for Matrix3x3<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
@@ -757,6 +857,42 @@ impl<T: Scalar> Mul<Vector3<T>> for Matrix3x3<T> {
     type Output = Vector3<T>;
     fn mul(self, vector: Vector3<T>) -> Self::Output {
         self.mul_vector(&vector)
+    }
+}
+
+impl<T: Scalar> Sub for Matrix3x3<T> {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self::Output {
+        let mut result = Self::zeros();
+        for i in 0..3 {
+            for j in 0..3 {
+                result.data[i][j] = self.data[i][j] - other.data[i][j];
+            }
+        }
+        result
+    }
+}
+
+impl<T: Scalar> Neg for Matrix3x3<T> {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        let mut result = Self::zeros();
+        for i in 0..3 {
+            for j in 0..3 {
+                result.data[i][j] = -self.data[i][j];
+            }
+        }
+        result
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[[T; 3]; 3]> for Matrix3x3<T> {
+    /// 行優先配列から構築
+    #[inline]
+    fn from(data: [[T; 3]; 3]) -> Self {
+        Self { data }
     }
 }
 

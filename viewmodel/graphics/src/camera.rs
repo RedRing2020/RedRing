@@ -1,4 +1,4 @@
-use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
+use analysis::linalg::{matrix::Matrix4x4, quaternion::Quaternionf, vector::Vec3f};
 use std::f32::consts::PI;
 
 /// 投影方式の種類
@@ -83,33 +83,18 @@ impl Camera {
 
     /// ビュー行列を計算
     pub fn view_matrix(&self) -> [[f32; 4]; 4] {
-        // デバッグ: 回転を無視して固定位置にカメラを配置
-        // カメラ: (0, 0, 10) から原点 (0, 0, 0) を見る
-        let camera_pos = Vec3f::new(0.0, 0.0, 10.0);
-        let target = Vec3f::new(0.0, 0.0, 0.0);
-        let up = Vec3f::new(0.0, 1.0, 0.0);
-
-        let result = look_at(camera_pos, target, up);
-
-        tracing::info!(
-            "view_matrix: camera_pos=({:.2}, {:.2}, {:.2}), target=({:.2}, {:.2}, {:.2})",
-            camera_pos.x(),
-            camera_pos.y(),
-            camera_pos.z(),
-            target.x(),
-            target.y(),
-            target.z()
+        // カメラ位置を target, distance から計算（真上から見る視点）
+        let camera_pos = Vec3f::new(
+            self.target.x(),
+            self.target.y(),
+            self.target.z() + self.distance,
         );
 
-        tracing::info!(
-            "view_matrix result:\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]\n  [{:.3}, {:.3}, {:.3}, {:.3}]",
-            result[0][0], result[0][1], result[0][2], result[0][3],
-            result[1][0], result[1][1], result[1][2], result[1][3],
-            result[2][0], result[2][1], result[2][2], result[2][3],
-            result[3][0], result[3][1], result[3][2], result[3][3]
-        );
+        let up = Vec3f::new(0.0, 1.0, 0.0); // Y軸をupとする
 
-        result
+        Matrix4x4::look_at(&camera_pos, &self.target, &up)
+            .unwrap_or_else(|_| Matrix4x4::identity())
+            .to_column_major()
     }
 
     /// プロジェクション行列を計算
@@ -120,7 +105,7 @@ impl Camera {
                 let near = (self.distance * 0.01).max(0.001); // 距離の1%、最小0.001
                 let far = (self.distance * 100.0).min(1000.0); // 距離の100倍、最大1000
 
-                perspective(45.0 * PI / 180.0, aspect, near, far)
+                Matrix4x4::perspective(45.0 * PI / 180.0, aspect, near, far).to_column_major()
             }
             ProjectionMode::Orthographic => {
                 // 平行投影：距離とズームに基づいてサイズを決定
@@ -132,7 +117,7 @@ impl Camera {
                 let near = -1000.0; // 平行投影では大きな範囲を使用
                 let far = 1000.0;
 
-                orthographic(left, right, bottom, top, near, far)
+                Matrix4x4::orthographic(left, right, bottom, top, near, far).to_column_major()
             }
         }
     }
@@ -437,70 +422,6 @@ fn quaternion_to_matrix(q: &Quaternionf) -> [[f32; 4]; 4] {
         [2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx), 0.0],
         [2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy), 0.0],
         [0.0, 0.0, 0.0, 1.0],
-    ]
-}
-
-/// Look-at ビュー行列を作成（analysisクレートのベクトルを使用）
-fn look_at(eye: Vec3f, center: Vec3f, up: Vec3f) -> [[f32; 4]; 4] {
-    let forward = (center - eye)
-        .normalize()
-        .unwrap_or(Vec3f::new(0.0, 0.0, -1.0));
-    let up_normalized = up.normalize().unwrap_or(Vec3f::new(0.0, 1.0, 0.0));
-    let right = forward
-        .cross(&up_normalized)
-        .normalize()
-        .unwrap_or(Vec3f::new(1.0, 0.0, 0.0));
-    let up_final = right.cross(&forward);
-
-    let tx = -right.dot(&eye);
-    let ty = -up_final.dot(&eye);
-    let tz = forward.dot(&eye);
-
-    // 列優先(column-major): 配列は列方向に読む（下に向かって読む）
-    [
-        [right.x(), up_final.x(), -forward.x(), 0.0], // column 0
-        [right.y(), up_final.y(), -forward.y(), 0.0], // column 1
-        [right.z(), up_final.z(), -forward.z(), 0.0], // column 2
-        [tx, ty, tz, 1.0],                            // column 3 (translation)
-    ]
-}
-
-/// 透視投影行列を作成
-fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> [[f32; 4]; 4] {
-    let f = 1.0 / (fovy / 2.0).tan();
-
-    // 列優先(column-major)形式でwgpuに渡す
-    // シェーダで matrix * vec4 を使用するため、列ベクトルとして扱う
-    // 各配列 = 列、配列内の要素 = 行0,1,2,3
-    [
-        [f / aspect, 0.0, 0.0, 0.0], // column 0: [row0, row1, row2, row3]
-        [0.0, f, 0.0, 0.0],          // column 1
-        [0.0, 0.0, (far + near) / (near - far), -1.0], // column 2 (w成分は-1)
-        [0.0, 0.0, (2.0 * far * near) / (near - far), 0.0], // column 3 (透視除算用)
-    ]
-}
-
-/// 平行投影行列を作成
-fn orthographic(
-    left: f32,
-    right: f32,
-    bottom: f32,
-    top: f32,
-    near: f32,
-    far: f32,
-) -> [[f32; 4]; 4] {
-    // 列優先(column-major)形式でwgpuに渡す
-    // 各配列 = 列、配列内の要素 = 行0,1,2,3
-    [
-        [2.0 / (right - left), 0.0, 0.0, 0.0], // column 0: スケールX
-        [0.0, 2.0 / (top - bottom), 0.0, 0.0], // column 1: スケールY
-        [0.0, 0.0, -2.0 / (far - near), 0.0],  // column 2: スケールZ
-        [
-            -(right + left) / (right - left),
-            -(top + bottom) / (top - bottom),
-            -(far + near) / (far - near),
-            1.0,
-        ], // column 3: 平行移動
     ]
 }
 

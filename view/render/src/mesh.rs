@@ -1,5 +1,6 @@
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
+use analysis::linalg::matrix::Matrix4x4;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -192,7 +193,9 @@ impl MeshResources {
         proj_matrix: [[f32; 4]; 4],
     ) {
         // ビュー・プロジェクション行列を計算
-        let view_proj = multiply_matrices(proj_matrix, view_matrix);
+        let proj = Matrix4x4::from(proj_matrix);
+        let view = Matrix4x4::from(view_matrix);
+        let view_proj = (proj * view).to_column_major();
 
         let uniforms = MeshUniforms {
             view_proj,
@@ -266,22 +269,4 @@ impl MeshResources {
             render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
     }
-}
-
-/// 4x4行列の乗算
-/// 4x4行列の乗算 (column-major)
-/// [[f32; 4]; 4] = [col0, col1, col2, col3]
-fn multiply_matrices(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut result = [[0.0; 4]; 4];
-
-    // column-major: result[col][row] = Σ a[k][row] * b[col][k]
-    for col in 0..4 {
-        for row in 0..4 {
-            for (k, a_column) in a.iter().enumerate() {
-                result[col][row] += a_column[row] * b[col][k];
-            }
-        }
-    }
-
-    result
 }

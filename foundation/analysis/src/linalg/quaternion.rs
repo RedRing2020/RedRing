@@ -7,7 +7,7 @@
 //! - 単位クォータニオンによる回転表現
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};
 
 /// 単位クォータニオン（回転表現用）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -15,7 +15,7 @@ pub struct Quaternion<T: Scalar> {
     /// クォータニオンの成分 [x, y, z, w] = [i, j, k, real]
     /// w: 実部（スカラー部）
     /// x, y, z: 虚部（ベクトル部）
-    pub data: [T; 4],
+    data: [T; 4],
 }
 
 impl<T: Scalar> Quaternion<T> {
@@ -142,6 +142,55 @@ impl<T: Scalar> Quaternion<T> {
     pub fn w(&self) -> T {
         self.data[3]
     }
+
+    /// X成分を設定
+    pub fn set_x(&mut self, x: T) {
+        self.data[0] = x;
+    }
+
+    /// Y成分を設定
+    pub fn set_y(&mut self, y: T) {
+        self.data[1] = y;
+    }
+
+    /// Z成分を設定
+    pub fn set_z(&mut self, z: T) {
+        self.data[2] = z;
+    }
+
+    /// W成分を設定
+    pub fn set_w(&mut self, w: T) {
+        self.data[3] = w;
+    }
+
+    // === 汎用アクセサ ===
+
+    /// インデックスで要素を取得
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        self.data[index]
+    }
+
+    /// インデックスで要素を設定
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        self.data[index] = value;
+    }
+
+    /// 内部配列への参照
+    #[inline]
+    pub fn as_array(&self) -> &[T; 4] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素をイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().copied()
+    }
+
+    // === ベクトル部分・スカラー部分 ===
 
     /// 虚部ベクトル (x, y, z) を取得
     pub fn vector_part(&self) -> Vector3<T> {
@@ -414,6 +463,32 @@ impl<T: Scalar> Neg for Quaternion<T> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self::new(-self.data[0], -self.data[1], -self.data[2], -self.data[3])
+    }
+}
+
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Quaternion<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        &self.data[index]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Quaternion<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        &mut self.data[index]
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 4]> for Quaternion<T> {
+    #[inline]
+    fn from(data: [T; 4]) -> Self {
+        Self { data }
     }
 }
 

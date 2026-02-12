@@ -3,12 +3,12 @@
 //! 3D幾何計算、物理シミュレーション、3Dグラフィックスに最適化
 //! CAD/CAMの座標変換や法線ベクトル計算に使用
 use crate::abstract_types::Scalar;
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, Div, Index, IndexMut, Mul, Neg, Sub};
 
 /// 3次元固定サイズベクトル
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector3<T: Scalar> {
-    pub data: [T; 3],
+    data: [T; 3],
 }
 
 impl<T: Scalar> Vector3<T> {
@@ -94,6 +94,35 @@ impl<T: Scalar> Vector3<T> {
     pub fn set_z(&mut self, z: T) {
         self.data[2] = z;
     }
+
+    // === 汎用アクセサ ===
+
+    /// インデックスで要素を取得
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        self.data[index]
+    }
+
+    /// インデックスで要素を設定
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        self.data[index] = value;
+    }
+
+    /// 内部配列への参照
+    #[inline]
+    pub fn as_array(&self) -> &[T; 3] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素をイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().copied()
+    }
+
+    // === 基本演算 ===
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
@@ -296,6 +325,32 @@ impl<T: Scalar> Neg for Vector3<T> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self::new(-self.data[0], -self.data[1], -self.data[2])
+    }
+}
+
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Vector3<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        &self.data[index]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Vector3<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        &mut self.data[index]
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 3]> for Vector3<T> {
+    #[inline]
+    fn from(data: [T; 3]) -> Self {
+        Self { data }
     }
 }
 

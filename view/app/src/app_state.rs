@@ -2,8 +2,9 @@ use crate::app_renderer::AppRenderer;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
+use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
-use stage::{DraftStage, MeshStage, OutlineStage, ShadingStage};
+use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage};
 use std::path::Path;
 use std::sync::Arc;
 use viewmodel_graphics::Camera;
@@ -93,6 +94,45 @@ impl AppState {
             self.graphic.config.format,
         ));
         self.renderer.set_stage(stage);
+    }
+
+    /// デバッグ用：VoxelOctree可視化を表示
+    pub fn load_debug_octree(&mut self) {
+        use viewmodel::octree_converter::create_sample_voxel_octree_wireframe;
+
+        tracing::info!("VoxelOctree可視化デバッグ開始");
+
+        // ViewModelでサンプルデータ生成（ワイヤーフレーム頂点）
+        let positions = create_sample_voxel_octree_wireframe();
+
+        tracing::info!("ワイヤーフレーム頂点数: {}", positions.len());
+
+        // OctreeStageを作成してデータ設定
+        let mut octree_stage = Box::new(OctreeStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        octree_stage.set_wireframe_data(&self.graphic.device, positions);
+
+        // カメラをワークピース中心に設定（100x100x50mmのワークピース）
+        // 平行投影で真上から見る視点
+        self.camera.target = Vec3f::new(50.0, 50.0, 25.0);
+        self.camera.distance = 200.0;
+        self.camera.zoom = 1.0; // zoom=1でdistance=200が描画範囲（±100mm）
+        self.camera.rotation = Quaternionf::identity();
+        self.camera
+            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
+
+        tracing::info!(
+            "カメラ設定: target=(50, 50, 25), distance=200.0, zoom=1.0, 平行投影・真上視点"
+        );
+
+        self.renderer.set_stage(octree_stage);
+
+        // カメラユニフォーム更新
+        self.update_camera_uniforms();
+
+        tracing::info!("VoxelOctree可視化デバッグ完了");
     }
 
     /// STLファイルを読み込んでメッシュステージに設定
@@ -490,14 +530,15 @@ impl AppState {
 
         tracing::debug!("カメラ行列更新: aspect={:.2}", aspect);
 
+        let stage = self.renderer.get_stage_mut();
+
         // ステージがMeshStageの場合にカメラを更新（メッシュと線の両方）
-        if let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        {
+        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
             mesh_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
+        }
+        // ステージがOctreeStageの場合にカメラを更新
+        else if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() {
+            octree_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
         }
     }
 }

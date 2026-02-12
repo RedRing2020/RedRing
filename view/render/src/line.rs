@@ -1,5 +1,6 @@
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
+use analysis::linalg::matrix::Matrix4x4;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -106,7 +107,7 @@ impl LineResources {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineStrip, // 連続した折れ線として描画
+                topology: wgpu::PrimitiveTopology::LineList, // 独立した線分として描画
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -177,7 +178,9 @@ impl LineResources {
         );
 
         // proj × view の順序でview-projection行列を計算
-        let view_proj = multiply_matrices(proj_matrix, view_matrix);
+        let proj = Matrix4x4::from(proj_matrix);
+        let view = Matrix4x4::from(view_matrix);
+        let view_proj = (proj * view).to_column_major();
 
         tracing::warn!(
             "  view_proj[3]: [{:.3}, {:.3}, {:.3}, {:.3}]",
@@ -243,21 +246,4 @@ impl LineResources {
             tracing::warn!("LineResources.render(): vertex_buffer が None");
         }
     }
-}
-
-/// 4x4行列の乗算 (column-major)
-/// [[f32; 4]; 4] = [col0, col1, col2, col3]
-fn multiply_matrices(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut result = [[0.0; 4]; 4];
-
-    // column-major: result[col][row] = Σ a[k][row] * b[col][k]
-    for col in 0..4 {
-        for row in 0..4 {
-            for (k, a_column) in a.iter().enumerate() {
-                result[col][row] += a_column[row] * b[col][k];
-            }
-        }
-    }
-
-    result
 }
