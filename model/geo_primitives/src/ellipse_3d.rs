@@ -523,80 +523,6 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
         self.semi_minor_axis
     }
 
-    /// ラマヌジャン近似式I（標準版）による周長計算
-    fn perimeter_ramanujan_i(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_ramanujan_i(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
-    /// ラマヌジャン近似式II（高精度版）による周長計算
-    fn perimeter_ramanujan_ii(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_ramanujan_ii(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
-    /// パダン近似による周長計算（中程度精度）
-    fn perimeter_pade(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_padé(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
-    /// カントレル近似による周長計算（高精度）
-    fn perimeter_cantrell(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_cantrell(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
-    /// 無限級数展開による周長計算（高精度版）
-    fn perimeter_series(&self, terms: usize) -> T {
-        geo_foundation::prelude::commons::ellipse_circumference_series(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-            terms,
-        )
-    }
-
-    /// 数値積分による周長計算（最高精度版）
-    fn perimeter_numerical(&self, n_points: usize) -> T {
-        geo_foundation::prelude::commons::ellipse_circumference_numerical(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-            n_points,
-        )
-    }
-
-    /// 楕円の離心率計算
-    fn eccentricity(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_eccentricity(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
-    /// 楕円の焦点距離計算
-    fn focal_distance(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_focal_distance(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
-    /// 楕円の面積計算
-    fn area(&self) -> T {
-        geo_foundation::prelude::commons::metrics::area_volume::ellipse_area(
-            self.semi_major_axis,
-            self.semi_minor_axis,
-        )
-    }
-
     /// 楕円の焦点座標を計算（3D空間）
     fn foci(&self) -> (Point3D<T>, Point3D<T>) {
         let foci_tuple = geo_foundation::prelude::commons::ellipse_foci(
@@ -615,6 +541,9 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
 
         (f1_final, f2_final)
     }
+
+    // 他のメソッド（perimeter_*, eccentricity, focal_distance, area）は
+    // EllipseCalculationトレイトのデフォルト実装を使用
 }
 
 impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {}
