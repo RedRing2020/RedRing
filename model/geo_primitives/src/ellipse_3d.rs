@@ -113,6 +113,21 @@ impl<T: Scalar> Ellipse3D<T> {
         self.semi_minor_axis
     }
 
+    /// 楕円の中心点を取得
+    pub fn center(&self) -> Point3D<T> {
+        self.center_internal()
+    }
+
+    /// 長半軸の長さを取得
+    pub fn semi_major_axis(&self) -> T {
+        self.semi_major_internal()
+    }
+
+    /// 短半軸の長さを取得
+    pub fn semi_minor_axis(&self) -> T {
+        self.semi_minor_internal()
+    }
+
     /// 楕円平面の法線ベクトルを取得
     pub fn normal(&self) -> Direction3D<T> {
         self.normal
