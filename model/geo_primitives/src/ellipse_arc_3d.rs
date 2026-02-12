@@ -20,9 +20,9 @@ use geo_foundation::{
 /// 開始角度と終了角度で定義される
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EllipseArc3D<T: Scalar> {
-    ellipse: Ellipse3D<T>, // 基底楕円
-    start_angle: Angle<T>, // 開始角度
-    end_angle: Angle<T>,   // 終了角度
+    pub(crate) ellipse: Ellipse3D<T>, // 基底楕円
+    pub(crate) start_angle: Angle<T>, // 開始角度
+    pub(crate) end_angle: Angle<T>,   // 終了角度
 }
 
 // ============================================================================
@@ -435,24 +435,32 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
 
 impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
     fn measure(&self) -> T {
-        // 楕円弧の長さの簡易近似
+        // 楕円弧の長さの簡易近似: angle_span計算を直接展開
         let full_perimeter = self.ellipse.perimeter();
-        let angle_ratio = self.angle_span() / T::TAU;
+        let diff = self.end_angle.to_radians() - self.start_angle.to_radians();
+        let angle_span = if diff >= T::ZERO {
+            diff
+        } else {
+            diff + T::from_f64(2.0 * std::f64::consts::PI)
+        };
+        let angle_ratio = angle_span / T::TAU;
         full_perimeter * angle_ratio
     }
 
     fn start_point(&self) -> (T, T, T) {
-        let p = self.start_point();
+        let p = self.ellipse.point_at_angle(self.start_angle);
         (p.x(), p.y(), p.z())
     }
 
     fn end_point(&self) -> (T, T, T) {
-        let p = self.end_point();
+        let p = self.ellipse.point_at_angle(self.end_angle);
         (p.x(), p.y(), p.z())
     }
 
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let p = self.point_at_parameter(t);
+        let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
+        let current_angle = self.start_angle.to_radians() + t * angle_diff;
+        let p = self.ellipse.point_at_angle(Angle::from_radians(current_angle));
         (p.x(), p.y(), p.z())
     }
 
