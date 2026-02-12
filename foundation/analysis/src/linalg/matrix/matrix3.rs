@@ -132,7 +132,6 @@ impl<T: Scalar> Matrix3x3<T> {
 
     /// 行列の要素にアクセス
     // === アクセサメソッド ===
-
     /// 要素を取得
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {

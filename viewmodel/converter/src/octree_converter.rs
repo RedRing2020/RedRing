@@ -404,8 +404,8 @@ mod tests {
     fn test_octree_visualization_options_default() {
         let options = OctreeVisualizationOptions::default();
         assert_eq!(options.depth_range, 0..8);
-        assert_eq!(options.color_by_depth, true);
-        assert_eq!(options.filter_empty, true);
+        assert!(options.color_by_depth);
+        assert!(options.filter_empty);
         assert_eq!(options.max_depth, 8);
     }
 
@@ -414,7 +414,7 @@ mod tests {
         let options = VoxelVisualizationOptions::default();
         assert_eq!(options.depth_range, 0..8);
         assert_eq!(options.show_states.len(), 2);
-        assert_eq!(options.color_by_state, true);
+        assert!(options.color_by_state);
         assert_eq!(options.max_depth, 8);
     }
 
@@ -423,7 +423,7 @@ mod tests {
         let positions = create_sample_voxel_octree_wireframe();
 
         // サンプルデータが生成されること
-        assert!(positions.len() > 0, "サンプルデータが生成されるべき");
+        assert!(!positions.is_empty(), "サンプルデータが生成されるべき");
 
         // LineList形式（2頂点 = 1辺）なので偶数であること
         assert_eq!(
