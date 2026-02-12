@@ -234,25 +234,25 @@ impl<T: Scalar> Direction3DConstructor<T> for Direction3D<T> {
 
 impl<T: Scalar> Direction3DProperties<T> for Direction3D<T> {
     fn x(&self) -> T {
-        self.x()
+        self.vector.x()
     }
     fn y(&self) -> T {
-        self.y()
+        self.vector.y()
     }
     fn z(&self) -> T {
-        self.z()
+        self.vector.z()
     }
     fn components(&self) -> [T; 3] {
-        [self.x(), self.y(), self.z()]
+        [self.vector.x(), self.vector.y(), self.vector.z()]
     }
     fn to_tuple(&self) -> (T, T, T) {
-        (self.x(), self.y(), self.z())
+        (self.vector.x(), self.vector.y(), self.vector.z())
     }
     fn to_analysis_vector(&self) -> Vector3<T> {
-        Vector3::new(self.x(), self.y(), self.z())
+        Vector3::new(self.vector.x(), self.vector.y(), self.vector.z())
     }
     fn as_vector(&self) -> Vector3<T> {
-        self.to_analysis_vector()
+        Vector3::new(self.vector.x(), self.vector.y(), self.vector.z())
     }
     fn length(&self) -> T {
         T::ONE
@@ -267,26 +267,25 @@ impl<T: Scalar> Direction3DProperties<T> for Direction3D<T> {
 
 impl<T: Scalar> Direction3DMeasure<T> for Direction3D<T> {
     fn dot(&self, other: &Self) -> T {
-        self.dot(other)
+        self.vector.dot(&other.vector)
     }
 
     fn angle_to(&self, other: &Self) -> T {
-        let dot_product = self.dot(other).max(-T::ONE).min(T::ONE);
+        let dot_product = self.vector.dot(&other.vector).max(-T::ONE).min(T::ONE);
         dot_product.acos()
     }
 
     fn cross(&self, other: &Self) -> Self {
-        let result_vector = self.as_vector().cross(&other.as_vector());
-        let vec3d = Vector3D::new(result_vector.x(), result_vector.y(), result_vector.z());
-        Direction3D::from_vector(vec3d).unwrap_or_else(|| Direction3D::positive_x())
+        let result_vector = self.vector.cross(&other.vector);
+        Direction3D::from_vector(result_vector).unwrap_or_else(|| Direction3D::positive_x())
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
-        (self.dot(other).abs() - T::ONE).abs() <= T::EPSILON
+        (self.vector.dot(&other.vector).abs() - T::ONE).abs() <= T::EPSILON
     }
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.dot(other).abs() <= T::EPSILON
+        self.vector.dot(&other.vector).abs() <= T::EPSILON
     }
 
     fn is_same_direction(&self, other: &Self) -> bool {
