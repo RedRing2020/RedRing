@@ -148,9 +148,7 @@ mod tests {
         let expected_identity = Matrix3::identity();
         for i in 0..3 {
             for j in 0..3 {
-                assert!(
-                    (identity_result[i][j] - expected_identity[i][j]).abs() < TOLERANCE
-                );
+                assert!((identity_result[i][j] - expected_identity[i][j]).abs() < TOLERANCE);
             }
         }
 

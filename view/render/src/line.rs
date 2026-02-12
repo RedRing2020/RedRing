@@ -1,6 +1,6 @@
-use analysis::linalg::matrix::Matrix4x4;
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
+use analysis::linalg::matrix::Matrix4x4;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 

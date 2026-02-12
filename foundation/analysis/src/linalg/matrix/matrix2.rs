@@ -135,7 +135,10 @@ impl<T: Scalar> Matrix2x2<T> {
     /// 列優先形式に変換（wgpu/OpenGL用）
     #[inline]
     pub fn to_column_major(&self) -> [[T; 2]; 2] {
-        [[self.data[0][0], self.data[1][0]], [self.data[0][1], self.data[1][1]]]
+        [
+            [self.data[0][0], self.data[1][0]],
+            [self.data[0][1], self.data[1][1]],
+        ]
     }
 
     /// 列優先形式から構築（wgpu/OpenGL用）

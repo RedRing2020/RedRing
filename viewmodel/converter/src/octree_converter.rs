@@ -306,10 +306,7 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     );
     voxel_tree.remove_material_box(&outline_region);
 
-    tracing::info!(
-        "外縁除去後: 体積={:.1} mm³",
-        voxel_tree.remaining_volume()
-    );
+    tracing::info!("外縁除去後: 体積={:.1} mm³", voxel_tree.remaining_volume());
 
     // 中央にポケット加工
     voxel_tree.remove_material_z_axis(50.0, 50.0, 10.0, 40.0, 10.0);
@@ -341,10 +338,18 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
 
     // 最初の頂点をデバッグ出力
     if let Some(first) = positions.first() {
-        tracing::info!("First vertex: [{:.1}, {:.1}, {:.1}]", first[0], first[1], first[2]);
+        tracing::info!(
+            "First vertex: [{:.1}, {:.1}, {:.1}]",
+            first[0],
+            first[1],
+            first[2]
+        );
     }
 
-    tracing::info!("create_sample_voxel_octree_wireframe: 完了 ({} positions)", positions.len());
+    tracing::info!(
+        "create_sample_voxel_octree_wireframe: 完了 ({} positions)",
+        positions.len()
+    );
 
     positions
 }

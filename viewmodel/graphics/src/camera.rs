@@ -89,7 +89,7 @@ impl Camera {
             self.target.y(),
             self.target.z() + self.distance,
         );
-        
+
         let up = Vec3f::new(0.0, 1.0, 0.0); // Y軸をupとする
 
         Matrix4x4::look_at(&camera_pos, &self.target, &up)
@@ -105,8 +105,7 @@ impl Camera {
                 let near = (self.distance * 0.01).max(0.001); // 距離の1%、最小0.001
                 let far = (self.distance * 100.0).min(1000.0); // 距離の100倍、最大1000
 
-                Matrix4x4::perspective(45.0 * PI / 180.0, aspect, near, far)
-                    .to_column_major()
+                Matrix4x4::perspective(45.0 * PI / 180.0, aspect, near, far).to_column_major()
             }
             ProjectionMode::Orthographic => {
                 // 平行投影：距離とズームに基づいてサイズを決定
@@ -118,8 +117,7 @@ impl Camera {
                 let near = -1000.0; // 平行投影では大きな範囲を使用
                 let far = 1000.0;
 
-                Matrix4x4::orthographic(left, right, bottom, top, near, far)
-                    .to_column_major()
+                Matrix4x4::orthographic(left, right, bottom, top, near, far).to_column_major()
             }
         }
     }

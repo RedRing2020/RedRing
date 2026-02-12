@@ -120,7 +120,8 @@ impl AppState {
         self.camera.distance = 200.0;
         self.camera.zoom = 1.0; // zoom=1でdistance=200が描画範囲（±100mm）
         self.camera.rotation = Quaternionf::identity();
-        self.camera.set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
+        self.camera
+            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
 
         tracing::info!(
             "カメラ設定: target=(50, 50, 25), distance=200.0, zoom=1.0, 平行投影・真上視点"
