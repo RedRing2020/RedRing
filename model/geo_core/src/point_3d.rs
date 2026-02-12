@@ -285,7 +285,7 @@ impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
     }
 
     fn coords(&self) -> [T; 3] {
-        Point3D::coords(self)
+        [self.x, self.y, self.z]
     }
 
     fn to_tuple(&self) -> (T, T, T) {
