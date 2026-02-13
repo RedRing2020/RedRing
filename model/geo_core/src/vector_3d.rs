@@ -129,6 +129,16 @@ impl<T: Scalar> Vector3D<T> {
         }
     }
 
+    /// 正規化を試行（ゼロベクトルの場合はNoneを返す）
+    pub fn try_normalize(&self) -> Option<Self> {
+        let len = self.length();
+        if len <= T::ZERO {
+            None
+        } else {
+            Some(Self::new(self.x / len, self.y / len, self.z / len))
+        }
+    }
+
     /// 内積
     ///
     /// # Examples
