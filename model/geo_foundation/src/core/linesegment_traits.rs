@@ -205,6 +205,41 @@ pub trait LineSegment3DMeasure<T: Scalar> {
 }
 
 // ============================================================================
+// 4. Collision Detection Traits - LineSegment衝突判定機能
+// ============================================================================
+
+/// LineSegment3DとAxisAlignedBoundingBox（AABB）の衝突検出トレイト
+///
+/// CAM機能（ボクセルツリー等）で使用される幾何計算機能を提供
+/// geo_algorithms が geo_commons に直接依存する状態を解消するため、
+/// Foundation Pattern に基づいてトレイトとして抽象化
+///
+/// # デフォルト実装
+///
+/// このトレイトはデフォルト実装を提供します。
+/// LineSegment3DProperties トレイトを実装している型は自動的にこの機能を使用できます。
+///
+/// 参照: Issue #222 - geo_commons使用状況調査
+pub trait LineSegment3DCollisionDetection<T: Scalar>: LineSegment3DProperties<T> {
+    /// 線分と軸並行境界ボックス（AABB）の最短距離を計算
+    ///
+    /// # 引数
+    /// * `aabb_min` - AABBの最小点 (x, y, z)
+    /// * `aabb_max` - AABBの最大点 (x, y, z)
+    ///
+    /// # 戻り値
+    /// 線分とAABBの最短距離（線分がAABBに交差する場合は0）
+    fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T {
+        // geo_commons の距離計算関数を使用（デフォルト実装）
+        let start = self.start();
+        let end = self.end();
+        geo_commons::metrics::distance::line_segment_to_aabb_distance(
+            start, end, aabb_min, aabb_max,
+        )
+    }
+}
+
+// ============================================================================
 // 統合Traitバンドル（利便性向上）
 // ============================================================================
 

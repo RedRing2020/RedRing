@@ -2,9 +2,16 @@
 //!
 //! BasicCollision トレイトの実装
 //! LineSegment3D と他の幾何形状との組み合わせを実装
+//!
+//! LineSegment3DCollisionDetection トレイト（Issue #222対応）
+//! geo_algorithms が geo_commons に直接依存する状態を解消するため、
+//! AABB距離計算をFoundation Patternに準拠したトレイトとして実装
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D};
-use geo_foundation::{extensions::BasicCollision, Scalar, SphericalSurface3DProperties};
+use geo_foundation::{
+    extensions::BasicCollision, LineSegment3DCollisionDetection, Scalar,
+    SphericalSurface3DProperties,
+};
 
 // ============================================================================
 // BasicCollision Implementations
@@ -147,5 +154,67 @@ impl<T: Scalar> LineSegment3D<T> {
         let d1 = line.distance_to_point(&self.start());
         let d2 = line.distance_to_point(&self.end());
         d1.min(d2)
+    }
+}
+
+// ============================================================================
+// LineSegment3DCollisionDetection Implementation (Issue #222)
+// ============================================================================
+
+/// LineSegment3D と AABB（軸並行境界ボックス）の衝突検出実装
+///
+/// LineSegment3DCollisionDetection トレイトはデフォルト実装を提供するため、
+/// LineSegment3D は明示的な実装なしで AABB距離計算が可能
+///
+/// このblanket implementationにより、LineSegment3Dが自動的にトレイトを実装
+impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {}
+
+#[cfg(test)]
+mod tests_aabb_distance {
+    use super::*;
+    use geo_foundation::LineSegment3DCollisionDetection;
+
+    #[test]
+    fn test_distance_to_aabb_intersecting() {
+        // 線分がAABB内を通過する場合、距離は0
+        let start = Point3D::new(-1.0, 0.0, 0.0);
+        let end = Point3D::new(1.0, 0.0, 0.0);
+        let segment = LineSegment3D::new(start, end).expect("Valid segment");
+        let distance = segment.distance_to_aabb((-0.5, -0.5, -0.5), (0.5, 0.5, 0.5));
+
+        assert!(
+            distance < 1e-6,
+            "Intersecting segment should have distance ~0"
+        );
+    }
+
+    #[test]
+    fn test_distance_to_aabb_outside() {
+        // 線分がAABBの外側にある場合
+        let start = Point3D::new(2.0, 0.0, 0.0);
+        let end = Point3D::new(3.0, 0.0, 0.0);
+        let segment = LineSegment3D::new(start, end).expect("Valid segment");
+        let distance = segment.distance_to_aabb((-0.5, -0.5, -0.5), (0.5, 0.5, 0.5));
+
+        // AABBの最右端(0.5)から線分の最左端(2.0)までの距離: 1.5
+        assert!(
+            (distance - 1.5).abs() < 1e-6,
+            "Distance should be ~1.5, got {}",
+            distance
+        );
+    }
+
+    #[test]
+    fn test_distance_to_aabb_touching() {
+        // 線分がAABBの表面に接触する場合
+        let start = Point3D::new(0.5, 0.0, 0.0);
+        let end = Point3D::new(1.5, 0.0, 0.0);
+        let segment = LineSegment3D::new(start, end).expect("Valid segment");
+        let distance = segment.distance_to_aabb((-0.5, -0.5, -0.5), (0.5, 0.5, 0.5));
+
+        assert!(
+            distance < 1e-6,
+            "Touching segment should have distance ~0"
+        );
     }
 }

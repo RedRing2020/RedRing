@@ -99,7 +99,8 @@ pub use core::{
     },
     linesegment_traits::{
         LineSegment2DConstructor, LineSegment2DCore, LineSegment2DMeasure, LineSegment2DProperties,
-        LineSegment3DConstructor, LineSegment3DCore, LineSegment3DMeasure, LineSegment3DProperties,
+        LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DCore,
+        LineSegment3DMeasure, LineSegment3DProperties,
     },
     // NURBS Core Traits
     nurbs_curve_2d_traits::{
