@@ -6,33 +6,38 @@ RedRing の幾何計算層とレンダリング層の構成について説明し
 
 ### 幾何計算層
 
-### 現在の実装状況（2025年11月11日更新）
+### 現在の実装状況（2026年2月13日更新）
 
 ```text
 analysis → geo_foundation
                 ↓
-           geo_core（ブリッジ役・開発中）
+           geo_commons（共通定義）
+                ↓
+           geo_core（ブリッジ役）
             ↓    ↓
-   geo_primitives  geo_nurbs（Foundation パターン違反）
+   geo_primitives  geo_nurbs（Foundation準拠）
             ↓         ↓
       geo_algorithms  geo_io
 ```
 
-| クレート         | 責務                                        | 現在の状態      | 目標状態    |
-| ---------------- | ------------------------------------------- | --------------- | ----------- |
-| `analysis`       | 数値解析・線形代数・微積分                  | ✅ 実装済み     | ✅ 完了     |
-| `geo_foundation` | 抽象型・トレイト定義（BasicTransform 等）   | ✅ 実装済み     | ✅ 完了     |
-| `geo_primitives` | プリミティブ幾何専用（独自 Transform 実装） | ✅ 実装済み     | ✅ 完了     |
-| `geo_nurbs`      | NURBS 幾何専用（Foundation パターン準拠）   | ⚠️ パターン違反 | 🔧 修正予定 |
-| `geo_core`       | Foundation ブリッジ・交差判定基盤           | 🚧 開発中       | 🔧 実装予定 |
-| `geo_algorithms` | 高レベル幾何アルゴリズム                    | 📋 計画中       | 📋 将来実装 |
-| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）              | 📋 計画中       | 📋 将来実装 |
+| クレート         | 責務                                        | 現在の状態  | 目標状態 |
+| ---------------- | ------------------------------------------- | ----------- | -------- |
+| `analysis`       | 数値解析・線形代数・微積分                  | ✅ 実装済み | ✅ 完了  |
+| `geo_foundation` | 抽象型・トレイト定義（BasicTransform 等）   | ✅ 実装済み | ✅ 完了  |
+| `geo_commons`    | 共通定義・ユーティリティ（Foundation準拠）  | ✅ 実装済み | ✅ 完了  |
+| `geo_primitives` | プリミティブ幾何専用（独自 Transform 実装） | ✅ 実装済み | ✅ 完了  |
+| `geo_nurbs`      | NURBS 幾何専用（Foundation パターン準拠）   | ✅ 実装済み | ✅ 完了  |
+| `geo_core`       | Foundation ブリッジ・交差判定基盤           | ✅ 実装済み | ✅ 完了  |
+| `geo_algorithms` | 高レベル幾何アルゴリズム・Octree空間分割    | ✅ 基本実装 | 🔧 拡張中 |
+| `geo_io`         | ファイル I/O（STL/OBJ/PLY 等）              | 📋 計画中   | 📋 将来  |
 
-### 重要な課題（2025年11月11日時点）
+### 主要な達成事項（2025年12月〜2026年2月）
 
-1. **geo_nurbs Foundation パターン違反**: 直接 geo_primitives をインポート
-2. **geo_core ブリッジ未完成**: Foundation トレイトと具体型の仲介が未実装
-3. **アーキテクチャチェック失敗**: 依存関係チェックで検出される違反状態
+1. **✅ Phase 3完了**（2025年12月21日）: 衝突判定・交差判定機能実装
+2. **✅ geo_nurbs Foundation準拠**（2026年1月）: アーキテクチャ違反解消
+3. **✅ 形状可視化システム完成**（2026年2月8日）: 15形状GPU描画対応
+4. **✅ geo_commons Foundation準拠**（2026年2月13日）: Issue #222完了
+5. **✅ レガシーAPI移行完了**（2026年2月13日）: Issue #202 Phase 2完了
 
 ### レンダリング層
 

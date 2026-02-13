@@ -75,6 +75,26 @@ let result = mesh.apply_composite_transform(
 )?;
 ```
 
+### Collision & Intersection（衝突判定・交差判定）✨ Phase 3完了
+
+```rust
+use geo_foundation::{BasicCollision, PointDistance, LineSegmentCollision};
+use geo_primitives::{Point3D, LineSegment3D, Triangle3D};
+
+// 点との最短距離計算
+let point = Point3D::new(1.0, 2.0, 3.0);
+let distance = triangle.distance_to(&point);
+
+// 線分との衝突判定
+let segment = LineSegment3D::new(start, end)?;
+let intersects = triangle.intersects(&segment);
+
+// AABB（境界ボックス）との距離計算
+let min = (0.0, 0.0, 0.0);
+let max = (10.0, 10.0, 10.0);
+let distance = segment.distance_to_aabb(min, max);
+```
+
 ## メリット
 
 1. **段階的実装**: 最小限から段階的に機能追加
