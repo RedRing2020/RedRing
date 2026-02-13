@@ -322,6 +322,52 @@ impl<T: Scalar> Tool<T> {
         self.tool_type == ToolType::BallEndMill
     }
 
+    /// 工具種別とパラメータの整合性を検証
+    ///
+    /// # 戻り値
+    ///
+    /// `true`: 工具種別とパラメータが一致している
+    /// `false`: 不整合がある
+    ///
+    /// # 検証ルール
+    ///
+    /// - フラットエンドミル: `corner_radius == 0`
+    /// - ボールエンドミル: `corner_radius == radius`
+    /// - ラジアスエンドミル: `0 < corner_radius < radius`
+    ///
+    /// # 例
+    ///
+    /// ```
+    /// use cam_core::{Tool, ToolType};
+    ///
+    /// // 正しい設定
+    /// let flat = Tool::flat_end_mill("EM10".to_string(), 10.0, 50.0);
+    /// assert!(flat.validate_parameters());
+    ///
+    /// // 不正な設定（フラットだがR≠0）
+    /// let invalid = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 1.0, 50.0);
+    /// assert!(!invalid.validate_parameters());
+    /// ```
+    pub fn validate_parameters(&self) -> bool {
+        let epsilon = T::from_f64(1e-10);
+        
+        match self.tool_type {
+            ToolType::FlatEndMill => {
+                // フラットエンドミル: corner_radius == 0
+                self.corner_radius.abs() < epsilon
+            }
+            ToolType::BallEndMill => {
+                // ボールエンドミル: corner_radius == radius
+                (self.corner_radius - self.radius).abs() < epsilon
+            }
+            ToolType::RadiusEndMill => {
+                // ラジアスエンドミル: 0 < corner_radius < radius
+                self.corner_radius > epsilon && 
+                self.corner_radius < self.radius - epsilon
+            }
+        }
+    }
+
     /// 工具中心から先端までのオフセット（Z軸方向）を取得
     ///
     /// # 戻り値
@@ -536,5 +582,35 @@ mod tests {
         assert!(radius.corner_radius() > 0.0);
         assert!(radius.corner_radius() < radius.radius());
         assert_eq!(radius.tool_type(), ToolType::RadiusEndMill);
+    }
+
+    #[test]
+    fn test_validate_parameters() {
+        // 正しいパラメータ
+        let flat = Tool::flat_end_mill("EM10".to_string(), 10.0, 50.0);
+        assert!(flat.validate_parameters());
+
+        let ball = Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0);
+        assert!(ball.validate_parameters());
+
+        let radius = Tool::radius_end_mill("REM10R1".to_string(), 10.0, 1.0, 50.0);
+        assert!(radius.validate_parameters());
+
+        // 不正なパラメータ
+        // フラットだがR≠0
+        let invalid_flat = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 1.0, 50.0);
+        assert!(!invalid_flat.validate_parameters());
+
+        // ボールだがR≠半径
+        let invalid_ball = Tool::new("BEM6".to_string(), ToolType::BallEndMill, 6.0, 2.0, 30.0);
+        assert!(!invalid_ball.validate_parameters());
+
+        // ラジアスだがR==0
+        let invalid_radius1 = Tool::new("REM10R0".to_string(), ToolType::RadiusEndMill, 10.0, 0.0, 50.0);
+        assert!(!invalid_radius1.validate_parameters());
+
+        // ラジアスだがR==半径
+        let invalid_radius2 = Tool::new("REM10R5".to_string(), ToolType::RadiusEndMill, 10.0, 5.0, 50.0);
+        assert!(!invalid_radius2.validate_parameters());
     }
 }
