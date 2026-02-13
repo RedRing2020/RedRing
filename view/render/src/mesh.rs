@@ -193,9 +193,13 @@ impl MeshResources {
         proj_matrix: [[f32; 4]; 4],
     ) {
         // ビュー・プロジェクション行列を計算
-        let proj = Matrix4x4::from(proj_matrix);
-        let view = Matrix4x4::from(view_matrix);
-        let view_proj = (proj * view).to_column_major();
+        // camera.rs から to_column_major() で列優先形式の配列が渡されるため、
+        // from_column_major() を使用して正しく行列を構築
+        //
+        // wgpu での行列乗算順序: view * proj（view先、projection後）
+        let proj = Matrix4x4::from_column_major(proj_matrix);
+        let view = Matrix4x4::from_column_major(view_matrix);
+        let view_proj = (view * proj).to_column_major();
 
         let uniforms = MeshUniforms {
             view_proj,
