@@ -1,17 +1,23 @@
 # Issue優先順位マトリクス（2026年Q1）
 
 **作成日**: 2026年2月8日  
-**最終更新**: 2026年2月8日  
+**最終更新**: 2026年2月13日  
 **対象期間**: 2026年2月〜4月  
 
 ---
 
 ## 📊 優先順位サマリー
 
-### ✅ 完了済み（Tier 1）
+### ✅ 完了済み（Tier 1-2）
 - **Issue #204**: 形状可視化システム完成（15形状）✅ マージ完了（2026/02/08）
   - 実績: 2週間（計画通り）
   - 成果: 15形状GPU変換実装、ViewModelアーキテクチャ修正（-281行）
+- **Issue #222**: geo_commons Foundation Pattern準拠 ✅ マージ完了（2026/02/13）
+  - 実績: 3日（計画通り）
+  - 成果: LineSegment3DCollisionDetection実装、geo_algorithms依存削除
+- **Issue #202**: レガシーAPI移行（Phase 2）✅ 実装完了（2026/02/13）
+  - 実績: 2-3日（見積の半分で完了）
+  - 成果: 13形状Foundation準拠、循環依存解消
 
 ### 🔴 Tier 1: 最優先（実施中・次期）
 
@@ -31,7 +37,8 @@
 | 🟠 2.1 | [#206](https://github.com/RedRing2020/RedRing/issues/206) | Octree空間分割実装 | 2週間 | Week 4-5 | #204, #203 | 📝 設計完了 |
 | 🟠 2.2 | [#207](https://github.com/RedRing2020/RedRing/issues/207) | Octree可視化（デバッグ用） | 1週間 | Week 6 | #206 | 📝 計画済 |
 | 🟠 2.3 | [#208](https://github.com/RedRing2020/RedRing/issues/208) | エンティティ層基礎（Phase 4.0） | 3.5週間 | Week 7-10 | #204, #203 | 📝 設計完了 |
-| 🟠 2.4 | [#202](https://github.com/RedRing2020/RedRing/issues/202) | レガシーAPI移行 | 1週間 | 並行実施 | - | ⏸ 保留中 |
+| ✅ 2.4 | [#202](https://github.com/RedRing2020/RedRing/issues/202) | レガシーAPI移行 | 1週間 | 並行実施 | - | ✅ Phase 2完了 |
+| ✅ 2.5 | [#222](https://github.com/RedRing2020/RedRing/issues/222) | geo_commons Foundation準拠 | 3日 | Week 3 | - | ✅ 完了（2/13） |
 
 **Tier 2の目的**: 空間データ構造、エンティティ管理基盤の確立
 
