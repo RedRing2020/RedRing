@@ -22,13 +22,10 @@ var<uniform> uniforms: Uniforms;
 fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    // デバッグ: カメラ行列を無視して、ワールド座標を直接クリップ空間にマッピング
-    // ワークピース範囲 (0-100, 0-100, 0-50) を (-1,1) の範囲にマッピング
-    let x = (input.position.x / 50.0) - 1.0;  // 0-100 → -1 to 1
-    let y = (input.position.y / 50.0) - 1.0;  // 0-100 → -1 to 1
-    let z = 0.0;  // Z座標は固定（深度なし）
-    
-    out.clip_position = vec4<f32>(x, y, z, 1.0);
+    // カメラ行列を適用して正しい3D変換を実施
+    // model 行列でワールド座標に変換 → view_proj 行列でクリップ空間に変換
+    let world_position = uniforms.model * vec4<f32>(input.position, 1.0);
+    out.clip_position = uniforms.view_proj * world_position;
 
     return out;
 }

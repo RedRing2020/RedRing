@@ -83,14 +83,18 @@ impl Camera {
 
     /// ビュー行列を計算
     pub fn view_matrix(&self) -> [[f32; 4]; 4] {
-        // カメラ位置を target, distance から計算（真上から見る視点）
-        let camera_pos = Vec3f::new(
-            self.target.x(),
-            self.target.y(),
-            self.target.z() + self.distance,
-        );
+        // カメラの基本方向ベクトル（Z軸の負方向を向く）
+        let forward_base = Vec3f::new(0.0, 0.0, -1.0);
 
-        let up = Vec3f::new(0.0, 1.0, 0.0); // Y軸をupとする
+        // クォータニオンで回転を適用
+        let forward = self.rotation.rotate_vector(&forward_base);
+
+        // カメラ位置 = target + (回転された方向 × 距離)
+        let camera_pos = self.target + forward * self.distance;
+
+        // Up ベクトルも回転を適用
+        let up_base = Vec3f::new(0.0, 1.0, 0.0);
+        let up = self.rotation.rotate_vector(&up_base);
 
         Matrix4x4::look_at(&camera_pos, &self.target, &up)
             .unwrap_or_else(|_| Matrix4x4::identity())
@@ -105,7 +109,8 @@ impl Camera {
                 let near = (self.distance * 0.01).max(0.001); // 距離の1%、最小0.001
                 let far = (self.distance * 100.0).min(1000.0); // 距離の100倍、最大1000
 
-                Matrix4x4::perspective(45.0 * PI / 180.0, aspect, near, far).to_column_major()
+                // wgpu は DirectX スタイル（Z範囲 [0, 1]）を使用
+                Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
             }
             ProjectionMode::Orthographic => {
                 // 平行投影：距離とズームに基づいてサイズを決定
@@ -117,9 +122,42 @@ impl Camera {
                 let near = -1000.0; // 平行投影では大きな範囲を使用
                 let far = 1000.0;
 
-                Matrix4x4::orthographic(left, right, bottom, top, near, far).to_column_major()
+                // wgpu 用の平行投影行列（Z範囲 [0, 1]）を手動構築
+                self.orthographic_rh_01(left, right, bottom, top, near, far)
             }
         }
+    }
+
+    /// wgpu 用の平行投影行列（Z範囲 [0, 1]、右手座標系）
+    ///
+    /// analysis::Matrix4x4 は汎用ライブラリなので wgpu 固有の実装は持たない。
+    /// View 層の責務として、ここで wgpu に適した行列を構築する。
+    fn orthographic_rh_01(
+        &self,
+        left: f32,
+        right: f32,
+        bottom: f32,
+        top: f32,
+        near: f32,
+        far: f32,
+    ) -> [[f32; 4]; 4] {
+        let rl_inv = 1.0 / (right - left);
+        let tb_inv = 1.0 / (top - bottom);
+        let fn_inv = 1.0 / (far - near);
+
+        // wgpu (DirectX) スタイル: Z範囲 [0, 1]
+        // OpenGL と異なり、Z成分は -1/(far-near) を使用
+        [
+            [2.0 * rl_inv, 0.0, 0.0, 0.0],
+            [0.0, 2.0 * tb_inv, 0.0, 0.0],
+            [0.0, 0.0, -fn_inv, 0.0],
+            [
+                -(right + left) * rl_inv,
+                -(top + bottom) * tb_inv,
+                -near * fn_inv,
+                1.0,
+            ],
+        ]
     }
 
     /// 投影モードを切り替え
