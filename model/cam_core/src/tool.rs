@@ -362,8 +362,7 @@ impl<T: Scalar> Tool<T> {
             }
             ToolType::RadiusEndMill => {
                 // ラジアスエンドミル: 0 < corner_radius < radius
-                self.corner_radius > epsilon && 
-                self.corner_radius < self.radius - epsilon
+                self.corner_radius > T::from_f64(0.0) && self.corner_radius < self.radius
             }
         }
     }
