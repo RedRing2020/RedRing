@@ -77,15 +77,13 @@ pub enum ToolReferencePoint {
 ///
 /// # 設計方針
 ///
-/// 3つの実数パラメータで工具形状を表現します：
+/// 工具種別と3つの実数パラメータで工具形状を表現します：
+/// - **tool_type**: 工具種別（明示的に指定）
 /// - **radius**: 工具半径（mm）
 /// - **corner_radius**: コーナーR（mm）
 /// - **cutting_length**: 工具長（mm）
 ///
-/// 工具種別は `corner_radius` の値から自動判定されます：
-/// - フラットエンドミル: `corner_radius == 0`
-/// - ボールエンドミル: `corner_radius == radius`
-/// - ラジアスエンドミル: `0 < corner_radius < radius`
+/// 工具種別を明示的に指定することで、将来的な拡張（ブルノーズ、Tスロット等）に対応可能。
 ///
 /// # 注意
 ///
@@ -95,6 +93,11 @@ pub enum ToolReferencePoint {
 pub struct Tool<T: Scalar = f64> {
     /// 工具識別子（例: "EM10", "BEM6", "REM3R1"）
     pub id: String,
+
+    /// 工具種別
+    ///
+    /// 将来の拡張（ブルノーズ、Tスロット等）を考慮し、明示的に指定。
+    pub tool_type: ToolType,
 
     /// 工具半径（mm）
     ///
@@ -115,39 +118,35 @@ pub struct Tool<T: Scalar = f64> {
 }
 
 impl<T: Scalar> Tool<T> {
-    /// 工具を作成（3つの実数パラメータで定義）
+    /// 工具を作成（工具種別と3つの実数パラメータで定義）
     ///
     /// # 引数
     ///
     /// - `id`: 工具識別子
+    /// - `tool_type`: 工具種別（明示的に指定）
     /// - `diameter`: 工具径（mm）
     /// - `corner_radius`: コーナーR（mm）
     /// - `cutting_length`: 刃長（mm）
     ///
-    /// # 工具種別の自動判定
-    ///
-    /// - `corner_radius == 0` → フラットエンドミル
-    /// - `corner_radius == radius` → ボールエンドミル
-    /// - `0 < corner_radius < radius` → ラジアスエンドミル
-    ///
     /// # 例
     ///
     /// ```
-    /// use cam_core::Tool;
+    /// use cam_core::{Tool, ToolType};
     ///
     /// // フラットエンドミル（R=0）
-    /// let flat = Tool::new("EM10".to_string(), 10.0, 0.0, 50.0);
+    /// let flat = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 50.0);
     ///
     /// // ボールエンドミル（R=半径）
-    /// let ball = Tool::new("BEM6".to_string(), 6.0, 3.0, 30.0);
+    /// let ball = Tool::new("BEM6".to_string(), ToolType::BallEndMill, 6.0, 3.0, 30.0);
     ///
     /// // ラジアスエンドミル（0 < R < 半径）
-    /// let radius = Tool::new("REM10R1".to_string(), 10.0, 1.0, 50.0);
+    /// let radius = Tool::new("REM10R1".to_string(), ToolType::RadiusEndMill, 10.0, 1.0, 50.0);
     /// ```
-    pub fn new(id: String, diameter: T, corner_radius: T, cutting_length: T) -> Self {
+    pub fn new(id: String, tool_type: ToolType, diameter: T, corner_radius: T, cutting_length: T) -> Self {
         let radius = diameter / T::from_f64(2.0);
         Self {
             id,
+            tool_type,
             radius,
             corner_radius,
             cutting_length,
@@ -171,7 +170,7 @@ impl<T: Scalar> Tool<T> {
     /// assert_eq!(flat.corner_radius(), 0.0);
     /// ```
     pub fn flat_end_mill(id: String, diameter: T, cutting_length: T) -> Self {
-        Self::new(id, diameter, T::from_f64(0.0), cutting_length)
+        Self::new(id, ToolType::FlatEndMill, diameter, T::from_f64(0.0), cutting_length)
     }
 
     /// ボールエンドミルを作成
@@ -192,7 +191,7 @@ impl<T: Scalar> Tool<T> {
     /// ```
     pub fn ball_end_mill(id: String, diameter: T, cutting_length: T) -> Self {
         let radius = diameter / T::from_f64(2.0);
-        Self::new(id, diameter, radius, cutting_length)
+        Self::new(id, ToolType::BallEndMill, diameter, radius, cutting_length)
     }
 
     /// ラジアスエンドミルを作成
@@ -213,7 +212,7 @@ impl<T: Scalar> Tool<T> {
     /// assert_eq!(radius.corner_radius(), 1.0);
     /// ```
     pub fn radius_end_mill(id: String, diameter: T, corner_radius: T, cutting_length: T) -> Self {
-        Self::new(id, diameter, corner_radius, cutting_length)
+        Self::new(id, ToolType::RadiusEndMill, diameter, corner_radius, cutting_length)
     }
 
     /// 工具半径を取得
@@ -284,15 +283,11 @@ impl<T: Scalar> Tool<T> {
         self.corner_radius
     }
 
-    /// 工具種別を判定
-    ///
-    /// `corner_radius` の値から自動判定します。
+    /// 工具種別を取得
     ///
     /// # 戻り値
     ///
-    /// - `corner_radius == 0` → FlatEndMill
-    /// - `corner_radius == radius` → BallEndMill
-    /// - `0 < corner_radius < radius` → RadiusEndMill
+    /// 工具種別
     ///
     /// # 例
     ///
@@ -309,29 +304,22 @@ impl<T: Scalar> Tool<T> {
     /// assert_eq!(radius.tool_type(), ToolType::RadiusEndMill);
     /// ```
     pub fn tool_type(&self) -> ToolType {
-        let epsilon = T::from_f64(1e-10);
-        if self.corner_radius.abs() < epsilon {
-            ToolType::FlatEndMill
-        } else if (self.corner_radius - self.radius).abs() < epsilon {
-            ToolType::BallEndMill
-        } else {
-            ToolType::RadiusEndMill
-        }
+        self.tool_type
     }
 
     /// フラットエンドミルかどうか判定
     pub fn is_flat_end_mill(&self) -> bool {
-        matches!(self.tool_type(), ToolType::FlatEndMill)
+        self.tool_type == ToolType::FlatEndMill
     }
 
     /// ラジアスエンドミルかどうか判定
     pub fn is_radius_end_mill(&self) -> bool {
-        matches!(self.tool_type(), ToolType::RadiusEndMill)
+        self.tool_type == ToolType::RadiusEndMill
     }
 
     /// ボールエンドミルかどうか判定
     pub fn is_ball_end_mill(&self) -> bool {
-        matches!(self.tool_type(), ToolType::BallEndMill)
+        self.tool_type == ToolType::BallEndMill
     }
 
     /// 工具中心から先端までのオフセット（Z軸方向）を取得
@@ -442,18 +430,18 @@ mod tests {
     #[test]
     fn test_new_with_parameters() {
         // フラット: R=0
-        let flat = Tool::new("EM10".to_string(), 10.0, 0.0, 50.0);
+        let flat = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 50.0);
         assert_eq!(flat.tool_type(), ToolType::FlatEndMill);
         assert_eq!(flat.corner_radius(), 0.0);
 
         // ボール: R=半径
-        let ball = Tool::new("BEM6".to_string(), 6.0, 3.0, 30.0);
+        let ball = Tool::new("BEM6".to_string(), ToolType::BallEndMill, 6.0, 3.0, 30.0);
         assert_eq!(ball.tool_type(), ToolType::BallEndMill);
         assert_eq!(ball.corner_radius(), 3.0);
         assert_eq!(ball.radius(), 3.0);
 
         // ラジアス: 0 < R < 半径
-        let radius = Tool::new("REM10R1".to_string(), 10.0, 1.0, 50.0);
+        let radius = Tool::new("REM10R1".to_string(), ToolType::RadiusEndMill, 10.0, 1.0, 50.0);
         assert_eq!(radius.tool_type(), ToolType::RadiusEndMill);
         assert_eq!(radius.corner_radius(), 1.0);
         assert!(radius.corner_radius() > 0.0);
@@ -533,17 +521,17 @@ mod tests {
     #[test]
     fn test_corner_radius_consistency() {
         // フラット: R=0
-        let flat = Tool::new("EM10".to_string(), 10.0, 0.0, 50.0);
+        let flat = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 50.0);
         assert_eq!(flat.corner_radius(), 0.0);
         assert_eq!(flat.tool_type(), ToolType::FlatEndMill);
 
         // ボール: R=半径
-        let ball = Tool::new("BEM6".to_string(), 6.0, 3.0, 30.0);
+        let ball = Tool::new("BEM6".to_string(), ToolType::BallEndMill, 6.0, 3.0, 30.0);
         assert_eq!(ball.corner_radius(), ball.radius());
         assert_eq!(ball.tool_type(), ToolType::BallEndMill);
 
         // ラジアス: 0 < R < 半径
-        let radius = Tool::new("REM8R2".to_string(), 8.0, 2.0, 40.0);
+        let radius = Tool::new("REM8R2".to_string(), ToolType::RadiusEndMill, 8.0, 2.0, 40.0);
         assert_eq!(radius.corner_radius(), 2.0);
         assert!(radius.corner_radius() > 0.0);
         assert!(radius.corner_radius() < radius.radius());
