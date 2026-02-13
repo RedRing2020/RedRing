@@ -110,8 +110,7 @@ impl Camera {
                 let far = (self.distance * 100.0).min(1000.0); // 距離の100倍、最大1000
 
                 // wgpu は DirectX スタイル（Z範囲 [0, 1]）を使用
-                Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far)
-                    .to_column_major()
+                Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
             }
             ProjectionMode::Orthographic => {
                 // 平行投影：距離とズームに基づいてサイズを決定

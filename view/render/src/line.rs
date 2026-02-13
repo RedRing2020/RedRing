@@ -180,7 +180,7 @@ impl LineResources {
         // proj × view の順序でview-projection行列を計算
         // camera.rs から to_column_major() で列優先形式の配列が渡されるため、
         // from_column_major() を使用して正しく行列を構築
-        // 
+        //
         // wgpu での行列乗算順序: view * proj（view先、projection後）
         // これは、ワールド座標をビュー空間に変換してから投影空間に変換するため
         let proj = Matrix4x4::from_column_major(proj_matrix);
