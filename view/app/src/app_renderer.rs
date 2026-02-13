@@ -34,6 +34,17 @@ impl AppRenderer {
         self.stage.render(encoder, view);
     }
 
+    /// 深度ビュー付き描画処理
+    pub fn render_with_depth(
+        &mut self,
+        encoder: &mut CommandEncoder,
+        view: &TextureView,
+        depth_view: &TextureView,
+    ) {
+        // 各ステージが depth を利用できるよう render_with_depth を呼ぶ
+        self.stage.render_with_depth(encoder, view, depth_view);
+    }
+
     pub fn update(&mut self) {
         self.stage.update();
     }

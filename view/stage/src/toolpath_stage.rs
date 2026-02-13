@@ -31,6 +31,11 @@ use crate::RenderStage;
 pub struct ToolPathStage {
     resources: ToolPathResources,
     has_data: bool,
+    #[allow(dead_code)]
+    depth_texture: wgpu::Texture,
+    depth_view: wgpu::TextureView,
+    #[allow(dead_code)]
+    surface_size: (u32, u32),
 }
 
 impl ToolPathStage {
@@ -43,10 +48,41 @@ impl ToolPathStage {
     pub fn new(device: &Device, format: TextureFormat) -> Self {
         let resources = ToolPathResources::new(device, format);
 
+        // 初期深度テクスチャ（800x600）
+        let size = (800, 600);
+        let (depth_texture, depth_view) = Self::create_depth_texture(device, size);
+
         Self {
             resources,
             has_data: false,
+            depth_texture,
+            depth_view,
+            surface_size: size,
         }
+    }
+
+    /// 深度テクスチャを作成
+    fn create_depth_texture(
+        device: &Device,
+        size: (u32, u32),
+    ) -> (wgpu::Texture, wgpu::TextureView) {
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("ToolPath Depth Texture"),
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+
+        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        (depth_texture, depth_view)
     }
 
     /// 工具経路データを設定
@@ -102,10 +138,12 @@ impl ToolPathStage {
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
-        // View * Projection の行列乗算
-        let view = Matrix4x4::from(view_matrix);
-        let proj = Matrix4x4::from(proj_matrix);
-        let view_proj = (view * proj).to_column_major();
+        // Projection * View の順序（OpenGL/wgpu標準）
+        // シェーダーでは: position_clip = projection * view * position_world
+        // camera.rs は列優先配列を返すため、列優先として復元する
+        let view = Matrix4x4::from_column_major(view_matrix);
+        let proj = Matrix4x4::from_column_major(proj_matrix);
+        let view_proj = (proj * view).to_column_major();
         self.update_camera(queue, view_proj);
     }
 
@@ -132,9 +170,6 @@ impl RenderStage for ToolPathStage {
             self.resources.vertex_count
         );
 
-        // Depth attachment用のテクスチャが必要
-        // Note: 現在は簡易実装のため、depth_stencil_attachment は None
-        // 実際の統合時には適切なDepthテクスチャを用意する必要がある
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("ToolPath Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -146,12 +181,28 @@ impl RenderStage for ToolPathStage {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None, // TODO: Depthバッファ統合時に修正
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             timestamp_writes: None,
             occlusion_query_set: None,
         });
 
         self.resources.render(&mut render_pass);
+    }
+
+    fn update_camera(
+        &mut self,
+        queue: &Queue,
+        view_matrix: [[f32; 4]; 4],
+        proj_matrix: [[f32; 4]; 4],
+    ) {
+        self.update_camera_separate(queue, view_matrix, proj_matrix);
     }
 
     fn update(&mut self) {

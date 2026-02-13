@@ -4,7 +4,7 @@ use crate::mouse_input::MouseInput;
 use crate::stl_loader;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
-use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage};
+use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage, ToolPathStage};
 use std::path::Path;
 use std::sync::Arc;
 use viewmodel_graphics::Camera;
@@ -63,6 +63,30 @@ impl AppState {
         self.graphic
             .surface
             .configure(&self.graphic.device, &self.graphic.config);
+
+        // Depth texture をリサイズ
+        self.graphic.depth_texture = self
+            .graphic
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("Depth Texture (Resized)"),
+                size: wgpu::Extent3d {
+                    width: size.width,
+                    height: size.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Depth32Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+        self.graphic.depth_view = self
+            .graphic
+            .depth_texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         // リサイズ時にカメラのアスペクト比も更新
         self.update_camera_uniforms();
@@ -133,6 +157,126 @@ impl AppState {
         self.update_camera_uniforms();
 
         tracing::info!("VoxelOctree可視化デバッグ完了");
+    }
+
+    /// デバッグ用：CAM工具経路可視化を表示
+    pub fn load_debug_toolpath(&mut self) {
+        use render::toolpath::ToolPathVertex;
+        use viewmodel::toolpath_converter::{
+            create_sample_toolpath, ToolPathVisualizationSettings,
+        };
+
+        tracing::info!("CAM工具経路可視化デバッグ開始");
+
+        // サンプルToolPathを生成
+        let toolpath = create_sample_toolpath();
+        tracing::info!(
+            "サンプル工具経路生成: approach={}, cutting_levels={}, retract={}",
+            toolpath.approach_segments.len(),
+            toolpath.contour_levels.len(),
+            toolpath.retract_segments.len()
+        );
+
+        // 可視化設定（全種別表示）
+        let settings = ToolPathVisualizationSettings::default();
+
+        // ViewModelで頂点データに変換
+        let toolpath_vertices =
+            viewmodel::toolpath_converter::toolpath_to_vertices(&toolpath, &settings);
+
+        tracing::info!(
+            "頂点データ変換完了: {} 頂点",
+            toolpath_vertices.vertices.len()
+        );
+        tracing::info!(
+            "フェーズ範囲 - approach: {:?}, cutting: {:?}, retract: {:?}",
+            toolpath_vertices.phase_ranges.approach,
+            toolpath_vertices.phase_ranges.cutting,
+            toolpath_vertices.phase_ranges.retract
+        );
+
+        // 頂点データを GPU 形式に変換（位置+色）
+        // 設計: 2頂点で1線分、1線分に1色が割り当てられている
+        // GPU描画: 各頂点に色が必要なので、1色を2頂点分に複製
+        let mut gpu_vertices = Vec::with_capacity(toolpath_vertices.vertices.len());
+        for (i, vertex) in toolpath_vertices.vertices.iter().enumerate() {
+            let color_index = i / 2; // 2頂点ごとに1色
+            let color = toolpath_vertices
+                .colors
+                .get(color_index)
+                .copied()
+                .unwrap_or([1.0, 1.0, 1.0, 1.0]); // フォールバック: 白色
+
+            gpu_vertices.push(ToolPathVertex {
+                position: vertex.position,
+                color,
+            });
+        }
+
+        tracing::info!(
+            "GPU頂点データ生成: {} 頂点（{} 線分）",
+            gpu_vertices.len(),
+            toolpath_vertices.colors.len()
+        );
+
+        // 全頂点をログ出力（デバッグ用）
+        if !gpu_vertices.is_empty() {
+            tracing::info!("=== 全22頂点の座標ダンプ ===");
+            for (i, v) in gpu_vertices.iter().enumerate() {
+                tracing::info!(
+                    "  [{}] pos=({:.1}, {:.1}, {:.1}), color={:?}",
+                    i,
+                    v.position[0],
+                    v.position[1],
+                    v.position[2],
+                    v.color
+                );
+            }
+            tracing::info!("=== ダンプ終了 ===");
+        }
+
+        // ToolPathStageを作成してデータ設定
+        let mut toolpath_stage = Box::new(ToolPathStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        toolpath_stage.set_toolpath_data(&self.graphic.device, gpu_vertices);
+
+        // カメラを原点中心に設定（デバッグ用：座標原点中心で生成したツールパスに対応）
+        self.camera.target = Vec3f::new(0.0, 0.0, 7.5); // ツールパスZ範囲の中央（0～15の中間）
+        self.camera.distance = 150.0; // クリッピングを避けるため適度な距離
+        self.camera.zoom = 1.0;
+
+        // 初期表示方向: Z正方向から負の方向（XY平面を真上から見下ろす）
+        // identity() のままで forward=(0,0,-1)、camera_pos計算修正により正しく配置される
+        self.camera.rotation = Quaternionf::identity();
+
+        self.camera
+            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
+
+        // 表示範囲を明示的に指定（±50、つまり 100mm × 100mm の正方形、マージン付き）
+        self.camera
+            .set_orthographic_bounds(-50.0, 50.0, -50.0, 50.0);
+
+        tracing::info!(
+            "カメラ設定: target=(0, 0, 7.5), distance={}, display_bounds=(-50～50, -50～50), 平行投影・Z正方向から負の方向",
+            self.camera.distance
+        );
+
+        // カメラ状態を詳細ログ出力（デバッグ用）
+        let view_matrix = self.camera.view_matrix();
+        let proj_matrix = self.camera.projection_matrix(
+            self.graphic.config.width as f32 / self.graphic.config.height as f32,
+        );
+        tracing::info!("📊 View行列: {:?}", view_matrix);
+        tracing::info!("📊 Projection行列: {:?}", proj_matrix);
+
+        self.renderer.set_stage(toolpath_stage);
+
+        // カメラユニフォーム更新
+        self.update_camera_uniforms();
+
+        tracing::info!("CAM工具経路可視化デバッグ完了");
     }
 
     /// STLファイルを読み込んでメッシュステージに設定
@@ -528,17 +672,19 @@ impl AppState {
         let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
         let projection_matrix = self.camera.projection_matrix(aspect);
 
-        tracing::debug!("カメラ行列更新: aspect={:.2}", aspect);
+        // 📊 システマティックなカメラ状態ログ（デバッグ時の問題特定用）
+        tracing::info!(
+            "🎥 カメラ更新: mode={:?}, aspect={:.3}, target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds={:?}",
+            self.camera.projection_mode,
+            aspect,
+            self.camera.target.x(),
+            self.camera.target.y(),
+            self.camera.target.z(),
+            self.camera.distance,
+            self.camera.orthographic_bounds
+        );
 
         let stage = self.renderer.get_stage_mut();
-
-        // ステージがMeshStageの場合にカメラを更新（メッシュと線の両方）
-        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
-            mesh_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
-        }
-        // ステージがOctreeStageの場合にカメラを更新
-        else if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() {
-            octree_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
-        }
+        stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
     }
 }
