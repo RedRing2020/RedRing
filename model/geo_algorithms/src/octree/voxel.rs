@@ -39,9 +39,8 @@
 //! println!("残存体積: {} mm³", remaining);
 //! ```
 
-use geo_commons::metrics::distance::line_segment_to_aabb_distance;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
+use geo_foundation::{LineSegment3DCollisionDetection, Scalar};
 use geo_primitives::{Arc3D, LineSegment3D};
 
 /// ボクセルの材料状態
@@ -327,19 +326,11 @@ impl<T: Scalar> VoxelNode<T> {
             VoxelState::Empty => (), // 既に空なら何もしない
 
             VoxelState::Solid => {
-                // 線分とAABBの距離を計算
+                // 線分とAABBの距離を計算（Foundation Pattern準拠）
                 let min = self.bounds.min();
                 let max = self.bounds.max();
-                let distance = line_segment_to_aabb_distance(
-                    (
-                        segment.start().x(),
-                        segment.start().y(),
-                        segment.start().z(),
-                    ),
-                    (segment.end().x(), segment.end().y(), segment.end().z()),
-                    (min.x(), min.y(), min.z()),
-                    (max.x(), max.y(), max.z()),
-                );
+                let distance = segment
+                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
 
                 // カプセル範囲外なら何もしない（枝刈り）
                 if distance > radius {
