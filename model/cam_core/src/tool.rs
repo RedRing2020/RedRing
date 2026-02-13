@@ -142,7 +142,13 @@ impl<T: Scalar> Tool<T> {
     /// // ラジアスエンドミル（0 < R < 半径）
     /// let radius = Tool::new("REM10R1".to_string(), ToolType::RadiusEndMill, 10.0, 1.0, 50.0);
     /// ```
-    pub fn new(id: String, tool_type: ToolType, diameter: T, corner_radius: T, cutting_length: T) -> Self {
+    pub fn new(
+        id: String,
+        tool_type: ToolType,
+        diameter: T,
+        corner_radius: T,
+        cutting_length: T,
+    ) -> Self {
         let radius = diameter / T::from_f64(2.0);
         Self {
             id,
@@ -170,7 +176,13 @@ impl<T: Scalar> Tool<T> {
     /// assert_eq!(flat.corner_radius(), 0.0);
     /// ```
     pub fn flat_end_mill(id: String, diameter: T, cutting_length: T) -> Self {
-        Self::new(id, ToolType::FlatEndMill, diameter, T::from_f64(0.0), cutting_length)
+        Self::new(
+            id,
+            ToolType::FlatEndMill,
+            diameter,
+            T::from_f64(0.0),
+            cutting_length,
+        )
     }
 
     /// ボールエンドミルを作成
@@ -212,7 +224,13 @@ impl<T: Scalar> Tool<T> {
     /// assert_eq!(radius.corner_radius(), 1.0);
     /// ```
     pub fn radius_end_mill(id: String, diameter: T, corner_radius: T, cutting_length: T) -> Self {
-        Self::new(id, ToolType::RadiusEndMill, diameter, corner_radius, cutting_length)
+        Self::new(
+            id,
+            ToolType::RadiusEndMill,
+            diameter,
+            corner_radius,
+            cutting_length,
+        )
     }
 
     /// 工具半径を取得
@@ -349,16 +367,14 @@ impl<T: Scalar> Tool<T> {
     /// assert!(!invalid.validate_parameters());
     /// ```
     pub fn validate_parameters(&self) -> bool {
-        let epsilon = T::from_f64(1e-10);
-        
         match self.tool_type {
             ToolType::FlatEndMill => {
                 // フラットエンドミル: corner_radius == 0
-                self.corner_radius.abs() < epsilon
+                self.corner_radius == T::from_f64(0.0)
             }
             ToolType::BallEndMill => {
                 // ボールエンドミル: corner_radius == radius
-                (self.corner_radius - self.radius).abs() < epsilon
+                self.corner_radius == self.radius
             }
             ToolType::RadiusEndMill => {
                 // ラジアスエンドミル: 0 < corner_radius < radius
@@ -486,7 +502,13 @@ mod tests {
         assert_eq!(ball.radius(), 3.0);
 
         // ラジアス: 0 < R < 半径
-        let radius = Tool::new("REM10R1".to_string(), ToolType::RadiusEndMill, 10.0, 1.0, 50.0);
+        let radius = Tool::new(
+            "REM10R1".to_string(),
+            ToolType::RadiusEndMill,
+            10.0,
+            1.0,
+            50.0,
+        );
         assert_eq!(radius.tool_type(), ToolType::RadiusEndMill);
         assert_eq!(radius.corner_radius(), 1.0);
         assert!(radius.corner_radius() > 0.0);
@@ -576,7 +598,13 @@ mod tests {
         assert_eq!(ball.tool_type(), ToolType::BallEndMill);
 
         // ラジアス: 0 < R < 半径
-        let radius = Tool::new("REM8R2".to_string(), ToolType::RadiusEndMill, 8.0, 2.0, 40.0);
+        let radius = Tool::new(
+            "REM8R2".to_string(),
+            ToolType::RadiusEndMill,
+            8.0,
+            2.0,
+            40.0,
+        );
         assert_eq!(radius.corner_radius(), 2.0);
         assert!(radius.corner_radius() > 0.0);
         assert!(radius.corner_radius() < radius.radius());
@@ -605,11 +633,23 @@ mod tests {
         assert!(!invalid_ball.validate_parameters());
 
         // ラジアスだがR==0
-        let invalid_radius1 = Tool::new("REM10R0".to_string(), ToolType::RadiusEndMill, 10.0, 0.0, 50.0);
+        let invalid_radius1 = Tool::new(
+            "REM10R0".to_string(),
+            ToolType::RadiusEndMill,
+            10.0,
+            0.0,
+            50.0,
+        );
         assert!(!invalid_radius1.validate_parameters());
 
         // ラジアスだがR==半径
-        let invalid_radius2 = Tool::new("REM10R5".to_string(), ToolType::RadiusEndMill, 10.0, 5.0, 50.0);
+        let invalid_radius2 = Tool::new(
+            "REM10R5".to_string(),
+            ToolType::RadiusEndMill,
+            10.0,
+            5.0,
+            50.0,
+        );
         assert!(!invalid_radius2.validate_parameters());
     }
 }
