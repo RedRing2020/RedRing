@@ -42,7 +42,8 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for Ellipse3D<T> {
     }
 
     fn overlaps(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
-        let center_dist = Vector3D::from_points(&self.center_internal(), &circle.center_internal()).length();
+        let center_dist =
+            Vector3D::from_points(&self.center_internal(), &circle.center_internal()).length();
         center_dist + self.semi_major_internal() <= circle.radius_internal() + tolerance
     }
 
@@ -228,7 +229,8 @@ impl<T: Scalar> BasicCollision<T, Ellipse3D<T>> for Ellipse3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, other: &Ellipse3D<T>, tolerance: T) -> bool {
-        let center_dist = Vector3D::from_points(&self.center_internal(), &other.center_internal()).length();
+        let center_dist =
+            Vector3D::from_points(&self.center_internal(), &other.center_internal()).length();
         let sum_semi_major = self.semi_major_internal() + other.semi_major_internal();
 
         center_dist <= sum_semi_major + tolerance
@@ -240,7 +242,8 @@ impl<T: Scalar> BasicCollision<T, Ellipse3D<T>> for Ellipse3D<T> {
     }
 
     fn distance_to(&self, other: &Ellipse3D<T>) -> T {
-        let center_dist = Vector3D::from_points(&self.center_internal(), &other.center_internal()).length();
+        let center_dist =
+            Vector3D::from_points(&self.center_internal(), &other.center_internal()).length();
         let radii_sum = self.semi_major_internal() + other.semi_major_internal();
         (center_dist - radii_sum).max(T::ZERO)
     }

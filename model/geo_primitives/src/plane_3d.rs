@@ -469,7 +469,7 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         let projected_x = point.0 - offset.x();
         let projected_y = point.1 - offset.y();
         let projected_z = point.2 - offset.z();
-        
+
         // 鏡面点 = 2 * 投影点 - 元の点
         (
             projected_x + projected_x - point.0,
@@ -499,7 +499,7 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         let b1 = self.normal.y();
         let c1 = self.normal.z();
         let d1 = -(a1 * self.origin.x() + b1 * self.origin.y() + c1 * self.origin.z());
-        
+
         let d2 = -(n2.x() * other_origin.0 + n2.y() * other_origin.1 + n2.z() * other_origin.2);
 
         // 適当な座標を固定して解く（z=0として解く）

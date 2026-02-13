@@ -19,10 +19,10 @@ use geo_foundation::{
 pub struct Arc3D<T: Scalar> {
     pub(crate) center: Point3D<T>,
     pub(crate) radius: T,
-    pub(crate) normal: Direction3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
+    pub(crate) normal: Direction3D<T>, // 円弧平面の法線ベクトル（正規化済み）
     pub(crate) start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
-    pub(crate) start_angle: Angle<T>,     // 開始角度
-    pub(crate) end_angle: Angle<T>,       // 終了角度
+    pub(crate) start_angle: Angle<T>,  // 開始角度
+    pub(crate) end_angle: Angle<T>,    // 終了角度
 }
 
 impl<T: Scalar> Arc3D<T> {

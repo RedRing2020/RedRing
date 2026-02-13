@@ -409,12 +409,15 @@ impl<T: Scalar> EllipseArc2DMeasure<T> for EllipseArc2D<T> {
     fn measure(&self) -> T {
         // arc_length の計算を直接展開: 楕円周囲長に角度比率を掛ける
         let full_perimeter = self.ellipse.perimeter();
-        let angle_ratio = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs() / T::TAU;
+        let angle_ratio =
+            (self.end_angle.to_radians() - self.start_angle.to_radians()).abs() / T::TAU;
         full_perimeter * angle_ratio
     }
 
     fn start_point(&self) -> (T, T) {
-        let p = self.ellipse.point_at_parameter(self.start_angle.to_radians());
+        let p = self
+            .ellipse
+            .point_at_parameter(self.start_angle.to_radians());
         (p.x(), p.y())
     }
 

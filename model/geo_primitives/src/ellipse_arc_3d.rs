@@ -460,7 +460,9 @@ impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
         let current_angle = self.start_angle.to_radians() + t * angle_diff;
-        let p = self.ellipse.point_at_angle(Angle::from_radians(current_angle));
+        let p = self
+            .ellipse
+            .point_at_angle(Angle::from_radians(current_angle));
         (p.x(), p.y(), p.z())
     }
 

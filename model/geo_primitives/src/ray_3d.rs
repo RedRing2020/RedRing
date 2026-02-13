@@ -342,7 +342,9 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     }
 
     fn elevation(&self) -> T {
-        let xy_length = (self.direction.x() * self.direction.x() + self.direction.y() * self.direction.y()).sqrt();
+        let xy_length = (self.direction.x() * self.direction.x()
+            + self.direction.y() * self.direction.y())
+        .sqrt();
         self.direction.z().atan2(xy_length)
     }
 

@@ -189,7 +189,8 @@ impl<T: Scalar> BasicCollision<T, Ellipse2D<T>> for Ellipse2D<T> {
 
     fn intersects(&self, other: &Ellipse2D<T>, tolerance: T) -> bool {
         // 簡易実装: 中心間距離と長軸の和を比較
-        let center_dist = Vector2D::from_points(self.center_internal(), other.center_internal()).length();
+        let center_dist =
+            Vector2D::from_points(self.center_internal(), other.center_internal()).length();
         let sum_semi_major = self.semi_major_internal() + other.semi_major_internal();
 
         center_dist <= sum_semi_major + tolerance
@@ -203,7 +204,8 @@ impl<T: Scalar> BasicCollision<T, Ellipse2D<T>> for Ellipse2D<T> {
 
     fn distance_to(&self, other: &Ellipse2D<T>) -> T {
         // 簡易実装: 中心間距離から長軸を引く
-        let center_dist = Vector2D::from_points(self.center_internal(), other.center_internal()).length();
+        let center_dist =
+            Vector2D::from_points(self.center_internal(), other.center_internal()).length();
         let radii_sum = self.semi_major_internal() + other.semi_major_internal();
         (center_dist - radii_sum).max(T::ZERO)
     }

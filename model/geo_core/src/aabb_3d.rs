@@ -148,7 +148,9 @@ impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
     }
 
     fn volume(&self) -> T {
-        (self.max.x() - self.min.x()) * (self.max.y() - self.min.y()) * (self.max.z() - self.min.z())
+        (self.max.x() - self.min.x())
+            * (self.max.y() - self.min.y())
+            * (self.max.z() - self.min.z())
     }
 
     fn center(&self) -> Self::Point3D {

@@ -339,7 +339,8 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
     }
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.direction.is_perpendicular(&other.direction, T::EPSILON)
+        self.direction
+            .is_perpendicular(&other.direction, T::EPSILON)
     }
 
     fn is_same_line(&self, other: &Self) -> bool {
@@ -382,12 +383,16 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
         let sin_a = angle.sin();
 
         // 点を回転
-        let rotated_point =
-            Point2D::new(self.point.x() * cos_a - self.point.y() * sin_a, self.point.x() * sin_a + self.point.y() * cos_a);
+        let rotated_point = Point2D::new(
+            self.point.x() * cos_a - self.point.y() * sin_a,
+            self.point.x() * sin_a + self.point.y() * cos_a,
+        );
 
         // 方向ベクトルを回転
-        let rotated_dir =
-            Vector2D::new(self.direction.x() * cos_a - self.direction.y() * sin_a, self.direction.x() * sin_a + self.direction.y() * cos_a);
+        let rotated_dir = Vector2D::new(
+            self.direction.x() * cos_a - self.direction.y() * sin_a,
+            self.direction.x() * sin_a + self.direction.y() * cos_a,
+        );
 
         Self::new(rotated_point, rotated_dir).unwrap()
     }
@@ -406,8 +411,10 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
         let rotated_point = center_pt + (rotated_relative - Point2D::origin());
 
         // 方向ベクトルを回転
-        let rotated_dir =
-            Vector2D::new(self.direction.x() * cos_a - self.direction.y() * sin_a, self.direction.x() * sin_a + self.direction.y() * cos_a);
+        let rotated_dir = Vector2D::new(
+            self.direction.x() * cos_a - self.direction.y() * sin_a,
+            self.direction.x() * sin_a + self.direction.y() * cos_a,
+        );
 
         Self::new(rotated_point, rotated_dir).unwrap()
     }
