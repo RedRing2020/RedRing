@@ -364,27 +364,27 @@ impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
 
 impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
     fn x(&self) -> T {
-        self.x()
+        self.x
     }
 
     fn y(&self) -> T {
-        self.y()
+        self.y
     }
 
     fn coords(&self) -> [T; 2] {
-        self.coords()
+        [self.x, self.y]
     }
 
     fn to_tuple(&self) -> (T, T) {
-        self.to_tuple()
+        (self.x, self.y)
     }
 
     fn to_analysis_vector(&self) -> Vector2<T> {
-        Vector2::new(self.x(), self.y())
+        Vector2::new(self.x, self.y)
     }
 
     fn polar_radius(&self) -> T {
-        self.polar_radius()
+        Point2D::polar_radius(self)
     }
 }
 

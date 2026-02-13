@@ -21,7 +21,7 @@ impl<T: Scalar> BasicCollision<T, Point2D<T>> for Arc2D<T> {
         let dy = point.y() - center_y;
         let distance = (dx * dx + dy * dy).sqrt();
 
-        (distance - self.radius()).abs() <= tolerance
+        (distance - self.radius_internal()).abs() <= tolerance
     }
 
     fn overlaps(&self, point: &Point2D<T>, tolerance: T) -> bool {
@@ -35,7 +35,7 @@ impl<T: Scalar> BasicCollision<T, Point2D<T>> for Arc2D<T> {
         let dy = point.y() - center_y;
         let distance = (dx * dx + dy * dy).sqrt();
 
-        (distance - self.radius()).abs()
+        (distance - self.radius_internal()).abs()
     }
 }
 
@@ -52,8 +52,8 @@ impl<T: Scalar> BasicCollision<T, Circle2D<T>> for Arc2D<T> {
         let dy = center2_y - center1_y;
         let center_distance = (dx * dx + dy * dy).sqrt();
 
-        let radii_sum = self.radius() + circle.radius();
-        let radii_diff = (self.radius() - circle.radius()).abs();
+        let radii_sum = self.radius_internal() + circle.radius();
+        let radii_diff = (self.radius_internal() - circle.radius()).abs();
 
         center_distance <= radii_sum + tolerance && center_distance >= radii_diff - tolerance
     }

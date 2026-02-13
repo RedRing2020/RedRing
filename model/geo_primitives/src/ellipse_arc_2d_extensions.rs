@@ -49,14 +49,14 @@ impl<T: Scalar> EllipseArc2D<T> {
     /// 中心を移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         let new_center = Point2D::new(
-            self.ellipse().center().x() + offset.x(),
-            self.ellipse().center().y() + offset.y(),
+            self.ellipse().center_internal().x() + offset.x(),
+            self.ellipse().center_internal().y() + offset.y(),
         );
 
         let new_ellipse = Ellipse2D::new(
             new_center,
-            self.ellipse().semi_major(),
-            self.ellipse().semi_minor(),
+            self.ellipse().semi_major_internal(),
+            self.ellipse().semi_minor_internal(),
             self.ellipse().rotation(),
         )
         .unwrap();
@@ -139,8 +139,8 @@ impl<T: Scalar> EllipseArc2D<T> {
         let angle = self.start_angle().to_radians()
             + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
 
-        let a = self.ellipse().semi_major();
-        let b = self.ellipse().semi_minor();
+        let a = self.ellipse().semi_major_internal();
+        let b = self.ellipse().semi_minor_internal();
 
         let cos_theta = angle.cos();
         let sin_theta = angle.sin();

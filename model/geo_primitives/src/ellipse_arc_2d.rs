@@ -16,9 +16,9 @@ use geo_foundation::{
 /// 開始角度と終了角度で定義される
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EllipseArc2D<T: Scalar> {
-    ellipse: Ellipse2D<T>, // 基底楕円
-    start_angle: Angle<T>, // 開始角度
-    end_angle: Angle<T>,   // 終了角度
+    pub(crate) ellipse: Ellipse2D<T>, // 基底楕円
+    pub(crate) start_angle: Angle<T>, // 開始角度
+    pub(crate) end_angle: Angle<T>,   // 終了角度
 }
 
 // ============================================================================
@@ -70,17 +70,17 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point2D<T> {
-        self.ellipse.center()
+        self.ellipse.center_internal()
     }
 
     /// 長半軸を取得
     pub fn semi_major(&self) -> T {
-        self.ellipse.semi_major()
+        self.ellipse.semi_major_internal()
     }
 
     /// 短半軸を取得
     pub fn semi_minor(&self) -> T {
-        self.ellipse.semi_minor()
+        self.ellipse.semi_minor_internal()
     }
 
     /// 回転角を取得
@@ -215,7 +215,7 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// 点が楕円弧の角度範囲内にあるかを判定
     pub fn point_in_angle_range(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        let center = self.ellipse.center();
+        let center = self.ellipse.center_internal();
         let to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
 
         if to_point.magnitude() <= tolerance {
@@ -365,16 +365,16 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
 
 impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
     fn center(&self) -> (T, T) {
-        let c = self.center();
+        let c = self.ellipse.center_internal();
         (c.x(), c.y())
     }
 
     fn semi_major_axis(&self) -> T {
-        self.semi_major()
+        self.ellipse.semi_major_internal()
     }
 
     fn semi_minor_axis(&self) -> T {
-        self.semi_minor()
+        self.ellipse.semi_minor_internal()
     }
 
     fn start_angle(&self) -> T {
@@ -407,21 +407,29 @@ impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
 
 impl<T: Scalar> EllipseArc2DMeasure<T> for EllipseArc2D<T> {
     fn measure(&self) -> T {
-        self.arc_length()
+        // arc_length の計算を直接展開: 楕円周囲長に角度比率を掛ける
+        let full_perimeter = self.ellipse.perimeter();
+        let angle_ratio =
+            (self.end_angle.to_radians() - self.start_angle.to_radians()).abs() / T::TAU;
+        full_perimeter * angle_ratio
     }
 
     fn start_point(&self) -> (T, T) {
-        let p = self.start_point();
+        let p = self
+            .ellipse
+            .point_at_parameter(self.start_angle.to_radians());
         (p.x(), p.y())
     }
 
     fn end_point(&self) -> (T, T) {
-        let p = self.end_point();
+        let p = self.ellipse.point_at_parameter(self.end_angle.to_radians());
         (p.x(), p.y())
     }
 
     fn point_at_parameter(&self, t: T) -> (T, T) {
-        let p = self.point_at_parameter(t);
+        let angle = self.start_angle.to_radians()
+            + (self.end_angle.to_radians() - self.start_angle.to_radians()) * t;
+        let p = self.ellipse.point_at_parameter(angle);
         (p.x(), p.y())
     }
 

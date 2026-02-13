@@ -14,8 +14,8 @@ use geo_foundation::{
 /// Core機能：基本構築、アクセサ、基本幾何計算
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct InfiniteLine3D<T: Scalar> {
-    point: Point3D<T>,         // 直線上の任意の点
-    direction: Direction3D<T>, // 方向ベクトル（正規化済み）
+    pub(crate) point: Point3D<T>,         // 直線上の任意の点
+    pub(crate) direction: Direction3D<T>, // 方向ベクトル（正規化済み）
 }
 
 // ============================================================================
@@ -400,49 +400,41 @@ impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
 
 impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
     fn point(&self) -> (T, T, T) {
-        let p = self.point_internal();
-        (p.x(), p.y(), p.z())
+        (self.point.x(), self.point.y(), self.point.z())
     }
 
     fn direction(&self) -> (T, T, T) {
-        let d = self.direction_internal();
-        (d.x(), d.y(), d.z())
+        (self.direction.x(), self.direction.y(), self.direction.z())
     }
 
     fn is_x_parallel(&self) -> bool {
-        let direction_obj = self.direction_internal();
         let tolerance = T::EPSILON;
-        direction_obj.y().abs() <= tolerance && direction_obj.z().abs() <= tolerance
+        self.direction.y().abs() <= tolerance && self.direction.z().abs() <= tolerance
     }
 
     fn is_y_parallel(&self) -> bool {
-        let direction_obj = self.direction_internal();
         let tolerance = T::EPSILON;
-        direction_obj.x().abs() <= tolerance && direction_obj.z().abs() <= tolerance
+        self.direction.x().abs() <= tolerance && self.direction.z().abs() <= tolerance
     }
 
     fn is_z_parallel(&self) -> bool {
-        let direction_obj = self.direction_internal();
         let tolerance = T::EPSILON;
-        direction_obj.x().abs() <= tolerance && direction_obj.y().abs() <= tolerance
+        self.direction.x().abs() <= tolerance && self.direction.y().abs() <= tolerance
     }
 
     fn is_xy_parallel(&self) -> bool {
-        let direction_obj = self.direction_internal();
         let tolerance = T::EPSILON;
-        direction_obj.z().abs() <= tolerance
+        self.direction.z().abs() <= tolerance
     }
 
     fn is_xz_parallel(&self) -> bool {
-        let direction_obj = self.direction_internal();
         let tolerance = T::EPSILON;
-        direction_obj.y().abs() <= tolerance
+        self.direction.y().abs() <= tolerance
     }
 
     fn is_yz_parallel(&self) -> bool {
-        let direction_obj = self.direction_internal();
         let tolerance = T::EPSILON;
-        direction_obj.x().abs() <= tolerance
+        self.direction.x().abs() <= tolerance
     }
 
     fn passes_through_origin(&self) -> bool {
@@ -457,14 +449,12 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
     // ========== Phase 2 実装 ==========
 
     fn xy_angle(&self) -> T {
-        let dir = self.direction_internal();
-        dir.y().atan2(dir.x())
+        self.direction.y().atan2(self.direction.x())
     }
 
     fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool {
-        let dir = self.direction_internal();
         let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-        let dir_vec = Vector3D::new(dir.x(), dir.y(), dir.z());
+        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
 
         // 方向ベクトルが法線に垂直かつ、直線上の点が平面上にある
         let dot = dir_vec.dot(&normal);
@@ -472,9 +462,8 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
             return false;
         }
 
-        let line_point = self.point_internal();
         let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_line = Vector3D::from_points(&plane_pt, &line_point);
+        let to_line = Vector3D::from_points(&plane_pt, &self.point);
         to_line.dot(&normal).abs() <= T::EPSILON
     }
 
@@ -613,9 +602,8 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         let rotation_matrix = Matrix4x4::rotation_axis(&axis_normalized, angle);
 
         // 軸上の点からの相対位置を計算して回転
-        let line_point = self.point_internal();
         let axis_pt = Point3D::new(axis_point.0, axis_point.1, axis_point.2);
-        let relative = Vector3D::from_points(&axis_pt, &line_point);
+        let relative = Vector3D::from_points(&axis_pt, &self.point);
         let relative_analysis = Vector3::new(relative.x(), relative.y(), relative.z());
         let rotated_relative = rotation_matrix.transform_point_3d(&relative_analysis);
 
@@ -626,8 +614,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         );
 
         // 方向ベクトルを回転
-        let dir = self.direction_internal();
-        let dir_analysis = Vector3::new(dir.x(), dir.y(), dir.z());
+        let dir_analysis = Vector3::new(self.direction.x(), self.direction.y(), self.direction.z());
         let rotated_dir_analysis = rotation_matrix.transform_vector_3d(&dir_analysis);
         let rotated_dir = Vector3D::new(
             rotated_dir_analysis.x(),
@@ -643,9 +630,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         plane_point: (T, T, T),
         plane_normal: (T, T, T),
     ) -> Option<(T, T, T)> {
-        let dir = self.direction_internal();
-        let line_point = self.point_internal();
-        let dir_vec = Vector3D::new(dir.x(), dir.y(), dir.z());
+        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
         let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
 
         let denom = dir_vec.dot(&normal);
@@ -654,7 +639,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         }
 
         let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_plane = Vector3D::from_points(&line_point, &plane_pt);
+        let to_plane = Vector3D::from_points(&self.point, &plane_pt);
 
         let t = to_plane.dot(&normal) / denom;
         let intersection = <Self as InfiniteLine3DMeasure<T>>::point_at_parameter(self, t);

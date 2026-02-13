@@ -414,7 +414,7 @@ impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
     }
 
     fn components(&self) -> [T; 2] {
-        self.components()
+        [self.x, self.y]
     }
 
     fn to_tuple(&self) -> (T, T) {
@@ -426,19 +426,19 @@ impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
     }
 
     fn length(&self) -> T {
-        self.length()
+        Vector2D::length(self)
     }
 
     fn length_squared(&self) -> T {
-        self.length_squared()
+        Vector2D::length_squared(self)
     }
 
     fn normalize(&self) -> Self {
-        self.normalize()
+        Vector2D::normalize(self)
     }
 
     fn try_normalize(&self) -> Option<Self> {
-        self.try_normalize()
+        Vector2D::try_normalize(self)
     }
 }
 

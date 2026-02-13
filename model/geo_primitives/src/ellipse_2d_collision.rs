@@ -45,8 +45,8 @@ impl<T: Scalar> BasicCollision<T, Circle2D<T>> for Ellipse2D<T> {
         let center = Point2D::new(circle.center().0, circle.center().1);
 
         // 簡易実装: 楕円の中心が円内にあるか確認
-        let dist = Vector2D::from_points(self.center(), center).length();
-        dist + self.semi_major() <= circle.radius() + tolerance
+        let dist = Vector2D::from_points(self.center_internal(), center).length();
+        dist + self.semi_major_internal() <= circle.radius() + tolerance
     }
 
     fn distance_to(&self, circle: &Circle2D<T>) -> T {
@@ -136,7 +136,7 @@ impl<T: Scalar> BasicCollision<T, Triangle2D<T>> for Ellipse2D<T> {
 
     fn intersects(&self, triangle: &Triangle2D<T>, tolerance: T) -> bool {
         // 楕円の中心が三角形内にある
-        if triangle.contains_point(&self.center()) {
+        if triangle.contains_point(&self.center_internal()) {
             return true;
         }
 
@@ -189,22 +189,24 @@ impl<T: Scalar> BasicCollision<T, Ellipse2D<T>> for Ellipse2D<T> {
 
     fn intersects(&self, other: &Ellipse2D<T>, tolerance: T) -> bool {
         // 簡易実装: 中心間距離と長軸の和を比較
-        let center_dist = Vector2D::from_points(self.center(), other.center()).length();
-        let sum_semi_major = self.semi_major() + other.semi_major();
+        let center_dist =
+            Vector2D::from_points(self.center_internal(), other.center_internal()).length();
+        let sum_semi_major = self.semi_major_internal() + other.semi_major_internal();
 
         center_dist <= sum_semi_major + tolerance
     }
 
     fn overlaps(&self, other: &Ellipse2D<T>, tolerance: T) -> bool {
         // 簡易実装: 一方の中心が他方の楕円内にある
-        let dist_to_other = self.distance_to_point(&other.center());
+        let dist_to_other = self.distance_to_point(&other.center_internal());
         dist_to_other <= tolerance
     }
 
     fn distance_to(&self, other: &Ellipse2D<T>) -> T {
         // 簡易実装: 中心間距離から長軸を引く
-        let center_dist = Vector2D::from_points(self.center(), other.center()).length();
-        let radii_sum = self.semi_major() + other.semi_major();
+        let center_dist =
+            Vector2D::from_points(self.center_internal(), other.center_internal()).length();
+        let radii_sum = self.semi_major_internal() + other.semi_major_internal();
         (center_dist - radii_sum).max(T::ZERO)
     }
 }

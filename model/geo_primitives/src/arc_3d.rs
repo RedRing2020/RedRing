@@ -17,12 +17,12 @@ use geo_foundation::{
 /// - 基本的な幾何プロパティ
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc3D<T: Scalar> {
-    center: Point3D<T>,
-    radius: T,
-    normal: Direction3D<T>,    // 円弧平面の法線ベクトル（正規化済み）
-    start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
-    start_angle: Angle<T>,     // 開始角度
-    end_angle: Angle<T>,       // 終了角度
+    pub(crate) center: Point3D<T>,
+    pub(crate) radius: T,
+    pub(crate) normal: Direction3D<T>, // 円弧平面の法線ベクトル（正規化済み）
+    pub(crate) start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
+    pub(crate) start_angle: Angle<T>,  // 開始角度
+    pub(crate) end_angle: Angle<T>,    // 終了角度
 }
 
 impl<T: Scalar> Arc3D<T> {
@@ -86,15 +86,15 @@ impl<T: Scalar> Arc3D<T> {
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
     }
 
-    // === 基本アクセサメソッド ===
+    // === 基本アクセサメソッド（内部使用） ===
 
-    /// 円弧の中心点を取得
-    pub fn center(&self) -> Point3D<T> {
+    /// 円弧の中心点を取得（内部使用）
+    pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
     }
 
-    /// 円弧の半径を取得
-    pub fn radius(&self) -> T {
+    /// 円弧の半径を取得（内部使用）
+    pub(crate) fn radius_internal(&self) -> T {
         self.radius
     }
 
@@ -313,12 +313,11 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
 
 impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center();
-        (c.x(), c.y(), c.z())
+        (self.center.x(), self.center.y(), self.center.z())
     }
 
     fn radius(&self) -> T {
-        self.radius()
+        self.radius
     }
 
     fn start_angle(&self) -> T {
@@ -344,17 +343,21 @@ impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        let normal = *self.normal();
         let z_axis = Direction3D::positive_z();
-        (normal.x() - z_axis.x()).abs() <= T::EPSILON
-            && (normal.y() - z_axis.y()).abs() <= T::EPSILON
-            && (normal.z() - z_axis.z()).abs() <= T::EPSILON
+        (self.normal.x() - z_axis.x()).abs() <= T::EPSILON
+            && (self.normal.y() - z_axis.y()).abs() <= T::EPSILON
+            && (self.normal.z() - z_axis.z()).abs() <= T::EPSILON
     }
 }
 
 impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
     fn measure(&self) -> T {
-        self.arc_length()
+        // arc_length の計算を直接展開: radius * angle_span
+        let mut span = self.end_angle - self.start_angle;
+        if span.to_radians() < T::ZERO {
+            span += Angle::from_radians(T::from_f64(2.0) * T::PI);
+        }
+        self.radius * span.to_radians()
     }
 
     fn start_point(&self) -> (T, T, T) {
@@ -387,21 +390,21 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
 
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         // 簡易実装: 円弧上の最近点までの距離
-        let center_pt = Arc3D::center(self);
+        let center_pt = self.center_internal();
         let dx = point.0 - center_pt.x();
         let dy = point.1 - center_pt.y();
         let dz = point.2 - center_pt.z();
-        ((dx * dx + dy * dy + dz * dz).sqrt() - self.radius()).abs()
+        ((dx * dx + dy * dy + dz * dz).sqrt() - self.radius_internal()).abs()
     }
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
         // 簡易実装: 半径と角度範囲をチェック
-        let center_pt = Arc3D::center(self);
+        let center_pt = self.center_internal();
         let dx = point.0 - center_pt.x();
         let dy = point.1 - center_pt.y();
         let dz = point.2 - center_pt.z();
         let dist = (dx * dx + dy * dy + dz * dz).sqrt();
-        (dist - self.radius()).abs() <= T::EPSILON
+        (dist - self.radius_internal()).abs() <= T::EPSILON
     }
 }
 

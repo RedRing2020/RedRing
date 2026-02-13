@@ -81,7 +81,8 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 退化した円弧かどうかを判定（非常に小さい半径または角度範囲）
     pub fn is_degenerate(&self) -> bool {
-        self.radius() <= DefaultTolerances::distance::<T>() || self.angular_span() <= T::EPSILON
+        self.radius_internal() <= DefaultTolerances::distance::<T>()
+            || self.angular_span() <= T::EPSILON
     }
 
     /// 指定角度が円弧の範囲内にあるかを判定
@@ -112,8 +113,8 @@ impl<T: Scalar> Arc2D<T> {
     pub fn to_circle(&self) -> Option<Circle2D<T>> {
         // 型安全な変換のみ許可
         if (self.angular_span() - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON {
-            let center = self.center();
-            let radius = self.radius();
+            let center = self.center_internal();
+            let radius = self.radius_internal();
             Some(Circle2D::new(center, radius)?)
         } else {
             None

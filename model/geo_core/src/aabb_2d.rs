@@ -125,31 +125,41 @@ impl<T: Scalar> Aabb2DTrait<T> for Aabb2D<T> {
     }
 
     fn width(&self) -> T {
-        self.width()
+        self.max.x() - self.min.x()
     }
 
     fn height(&self) -> T {
-        self.height()
+        self.max.y() - self.min.y()
     }
 
     fn area(&self) -> T {
-        self.area()
+        (self.max.x() - self.min.x()) * (self.max.y() - self.min.y())
     }
 
     fn center(&self) -> Self::Point2D {
-        self.center()
+        let two = T::ONE + T::ONE;
+        Point2D::new(
+            (self.min.x() + self.max.x()) / two,
+            (self.min.y() + self.max.y()) / two,
+        )
     }
 
     fn contains_point(&self, point: &Self::Point2D) -> bool {
-        self.contains_point(point)
+        point.x() >= self.min.x()
+            && point.x() <= self.max.x()
+            && point.y() >= self.min.y()
+            && point.y() <= self.max.y()
     }
 
     fn contains_bbox(&self, other: &Self) -> bool {
-        self.contains_aabb(other)
+        self.min.x() <= other.min.x()
+            && self.max.x() >= other.max.x()
+            && self.min.y() <= other.min.y()
+            && self.max.y() >= other.max.y()
     }
 
     fn is_valid(&self) -> bool {
-        !self.is_empty()
+        !(self.min.x() > self.max.x() || self.min.y() > self.max.y())
     }
 }
 

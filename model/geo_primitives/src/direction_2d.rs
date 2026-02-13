@@ -175,27 +175,27 @@ impl<T: Scalar> Direction2DConstructor<T> for Direction2D<T> {
 /// Direction2D Properties Trait Implementation
 impl<T: Scalar> Direction2DProperties<T> for Direction2D<T> {
     fn x(&self) -> T {
-        self.x()
+        self.vector.x()
     }
 
     fn y(&self) -> T {
-        self.y()
+        self.vector.y()
     }
 
     fn components(&self) -> [T; 2] {
-        [self.x(), self.y()]
+        [self.vector.x(), self.vector.y()]
     }
 
     fn to_tuple(&self) -> (T, T) {
-        (self.x(), self.y())
+        (self.vector.x(), self.vector.y())
     }
 
     fn to_analysis_vector(&self) -> Vector2<T> {
-        Vector2::new(self.x(), self.y())
+        Vector2::new(self.vector.x(), self.vector.y())
     }
 
     fn as_vector(&self) -> Vector2<T> {
-        Vector2::new(self.x(), self.y())
+        Vector2::new(self.vector.x(), self.vector.y())
     }
 
     fn length(&self) -> T {
@@ -214,23 +214,25 @@ impl<T: Scalar> Direction2DProperties<T> for Direction2D<T> {
 /// Direction2D Measure Trait Implementation
 impl<T: Scalar> Direction2DMeasure<T> for Direction2D<T> {
     fn dot(&self, other: &Self) -> T {
-        self.dot(other)
+        self.vector.dot(&other.vector)
     }
 
     fn angle_to(&self, other: &Self) -> T {
-        self.angle_to(other)
+        let dot_product = self.vector.dot(&other.vector);
+        let clamped = dot_product.max(-T::ONE).min(T::ONE);
+        clamped.acos()
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
-        self.is_parallel_to(other)
+        self.vector.is_parallel(&other.vector, T::EPSILON)
     }
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.is_perpendicular_to(other)
+        self.vector.is_perpendicular(&other.vector, T::EPSILON)
     }
 
     fn is_same_direction(&self, other: &Self) -> bool {
-        self.dot(other) > T::ONE - T::EPSILON
+        self.vector.dot(&other.vector) > T::ONE - T::EPSILON
     }
 
     fn is_opposite_direction(&self, other: &Self) -> bool {

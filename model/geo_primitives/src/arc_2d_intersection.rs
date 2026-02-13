@@ -25,7 +25,7 @@ impl<T: Scalar> BasicIntersection<T, Point2D<T>> for Arc2D<T> {
         let distance = (dx * dx + dy * dy).sqrt();
 
         // 1. 円周上にあるか確認
-        if (distance - self.radius()).abs() > tolerance {
+        if (distance - self.radius_internal()).abs() > tolerance {
             return None;
         }
 
@@ -90,7 +90,10 @@ fn calculate_arc_circle_intersections<T: Scalar>(
 
     // 基底円と円の交点を計算
     let (arc_center_x, arc_center_y) = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
-    let base_circle = Circle2D::new(Point2D::new(arc_center_x, arc_center_y), arc.radius());
+    let base_circle = Circle2D::new(
+        Point2D::new(arc_center_x, arc_center_y),
+        arc.radius_internal(),
+    );
 
     if let Some(base_circle) = base_circle {
         let circle_intersections = calculate_circle_circle_intersections(&base_circle, circle);

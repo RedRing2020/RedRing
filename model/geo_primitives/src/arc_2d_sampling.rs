@@ -177,7 +177,7 @@ impl<T: Scalar> Arc2D<T> {
 
         // 近似的に必要な分割数を計算
         let _angle_span = self.angle_span().to_radians();
-        let radius = self.radius();
+        let radius = self.radius_internal();
 
         // 小さな角度での弦長の近似: chord ≈ radius * angle
         let _estimated_chord_per_angle = radius;

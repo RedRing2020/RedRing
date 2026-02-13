@@ -5,8 +5,11 @@
 
 use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_foundation::{
-    core::ellipse_arc_traits::{
-        EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
+    core::{
+        arc_traits::Arc3DProperties,
+        ellipse_arc_traits::{
+            EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
+        },
     },
     Angle, Scalar,
 };
@@ -17,9 +20,9 @@ use geo_foundation::{
 /// 開始角度と終了角度で定義される
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EllipseArc3D<T: Scalar> {
-    ellipse: Ellipse3D<T>, // 基底楕円
-    start_angle: Angle<T>, // 開始角度
-    end_angle: Angle<T>,   // 終了角度
+    pub(crate) ellipse: Ellipse3D<T>, // 基底楕円
+    pub(crate) start_angle: Angle<T>, // 開始角度
+    pub(crate) end_angle: Angle<T>,   // 終了角度
 }
 
 // ============================================================================
@@ -42,7 +45,10 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 3D円弧から3D楕円弧を作成
     pub fn from_arc(arc: Arc3D<T>) -> Option<Self> {
-        let circle = Circle3D::new(arc.center(), arc.normal(), arc.radius())?;
+        let (cx, cy, cz) = Arc3DProperties::center(&arc);
+        let center = Point3D::new(cx, cy, cz);
+        let radius = Arc3DProperties::radius(&arc);
+        let circle = Circle3D::new(center, arc.normal(), radius)?;
         let ellipse = Ellipse3D::from_circle(&circle)?;
         Some(Self::new(ellipse, arc.start_angle(), arc.end_angle()))
     }
@@ -68,17 +74,17 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 中心点を取得
     pub fn center(&self) -> Point3D<T> {
-        self.ellipse.center()
+        self.ellipse.center_internal()
     }
 
     /// 長半径を取得
     pub fn semi_major(&self) -> T {
-        self.ellipse.semi_major_axis()
+        self.ellipse.semi_major_internal()
     }
 
     /// 短半径を取得
     pub fn semi_minor(&self) -> T {
-        self.ellipse.semi_minor_axis()
+        self.ellipse.semi_minor_internal()
     }
 
     /// 法線方向を取得
@@ -146,8 +152,8 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 楕円弧の有効性を検証
     pub fn is_valid(&self) -> bool {
-        self.ellipse.semi_major_axis() > T::ZERO
-            && self.ellipse.semi_minor_axis() > T::ZERO
+        self.ellipse.semi_major_internal() > T::ZERO
+            && self.ellipse.semi_minor_internal() > T::ZERO
             && self.start_angle.to_radians().is_finite()
             && self.end_angle.to_radians().is_finite()
     }
@@ -195,9 +201,9 @@ impl<T: Scalar> EllipseArc3D<T> {
 
         // 楕円をスケールして新しいEllipseArc3Dを作成
         let scaled_ellipse = Ellipse3D::new(
-            self.ellipse.center(),
-            self.ellipse.semi_major_axis() * factor,
-            self.ellipse.semi_minor_axis() * factor,
+            self.ellipse.center_internal(),
+            self.ellipse.semi_major_internal() * factor,
+            self.ellipse.semi_minor_internal() * factor,
             self.ellipse.normal().as_vector(),
             self.ellipse.major_axis_direction().as_vector(),
         )?;
@@ -387,16 +393,16 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
 
 impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     fn center(&self) -> (T, T, T) {
-        let c = self.center();
+        let c = self.ellipse.center_internal();
         (c.x(), c.y(), c.z())
     }
 
     fn semi_major_axis(&self) -> T {
-        self.semi_major()
+        self.ellipse.semi_major_internal()
     }
 
     fn semi_minor_axis(&self) -> T {
-        self.semi_minor()
+        self.ellipse.semi_minor_internal()
     }
 
     fn start_angle(&self) -> T {
@@ -410,7 +416,7 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     // ========== Phase 2: 追加プロパティ ==========
 
     fn normal(&self) -> (T, T, T) {
-        let n = self.normal();
+        let n = self.ellipse.normal();
         (n.x(), n.y(), n.z())
     }
 
@@ -429,24 +435,34 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
 
 impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
     fn measure(&self) -> T {
-        // 楕円弧の長さの簡易近似
+        // 楕円弧の長さの簡易近似: angle_span計算を直接展開
         let full_perimeter = self.ellipse.perimeter();
-        let angle_ratio = self.angle_span() / T::TAU;
+        let diff = self.end_angle.to_radians() - self.start_angle.to_radians();
+        let angle_span = if diff >= T::ZERO {
+            diff
+        } else {
+            diff + T::from_f64(2.0 * std::f64::consts::PI)
+        };
+        let angle_ratio = angle_span / T::TAU;
         full_perimeter * angle_ratio
     }
 
     fn start_point(&self) -> (T, T, T) {
-        let p = self.start_point();
+        let p = self.ellipse.point_at_angle(self.start_angle);
         (p.x(), p.y(), p.z())
     }
 
     fn end_point(&self) -> (T, T, T) {
-        let p = self.end_point();
+        let p = self.ellipse.point_at_angle(self.end_angle);
         (p.x(), p.y(), p.z())
     }
 
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let p = self.point_at_parameter(t);
+        let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
+        let current_angle = self.start_angle.to_radians() + t * angle_diff;
+        let p = self
+            .ellipse
+            .point_at_angle(Angle::from_radians(current_angle));
         (p.x(), p.y(), p.z())
     }
 

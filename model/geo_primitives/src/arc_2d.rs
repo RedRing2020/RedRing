@@ -16,11 +16,11 @@ use geo_foundation::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Arc2D<T: Scalar> {
     /// 基底となる円
-    circle: Circle2D<T>,
+    pub(crate) circle: Circle2D<T>,
     /// 開始角度
-    start_angle: Angle<T>,
+    pub(crate) start_angle: Angle<T>,
     /// 終了角度
-    end_angle: Angle<T>,
+    pub(crate) end_angle: Angle<T>,
 }
 
 // ============================================================================
@@ -89,14 +89,14 @@ impl<T: Scalar> Arc2D<T> {
         &self.circle
     }
 
-    /// 中心点を取得
-    pub fn center(&self) -> Point2D<T> {
+    /// 中心点を取得（内部用）
+    pub(crate) fn center_internal(&self) -> Point2D<T> {
         let (x, y) = self.circle.center();
         Point2D::new(x, y)
     }
 
-    /// 半径を取得
-    pub fn radius(&self) -> T {
+    /// 半径を取得（内部用）
+    pub(crate) fn radius_internal(&self) -> T {
         self.circle.radius()
     }
 
@@ -116,9 +116,9 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 指定角度における点を取得（内部用・ラジアン値）
     fn point_at_angle_internal(&self, angle: T) -> Point2D<T> {
-        let x = self.radius() * angle.cos();
-        let y = self.radius() * angle.sin();
-        self.center() + Vector2D::new(x, y)
+        let x = self.radius_internal() * angle.cos();
+        let y = self.radius_internal() * angle.sin();
+        self.center_internal() + Vector2D::new(x, y)
     }
 
     /// 開始点を取得
@@ -153,7 +153,7 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 円弧の長さを計算
     pub fn arc_length(&self) -> T {
-        self.radius() * self.angular_span()
+        self.radius_internal() * self.angular_span()
     }
 
     /// 完全な円かどうかを判定
@@ -170,7 +170,7 @@ impl<T: Scalar> Arc2D<T> {
             return true; // 完全円の場合は全ての角度を含む
         }
 
-        let center = self.center();
+        let center = self.center_internal();
         let dx = point.x() - center.x();
         let dy = point.y() - center.y();
 
@@ -295,12 +295,11 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
 
 impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
     fn center(&self) -> (T, T) {
-        let c = self.center();
-        (c.x(), c.y())
+        self.circle.center() // Circle2DのFoundationメソッド直接呼び出し
     }
 
     fn radius(&self) -> T {
-        self.radius()
+        self.circle.radius() // Circle2DのFoundationメソッド直接呼び出し
     }
 
     fn start_angle(&self) -> T {
@@ -333,16 +332,17 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 
 impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
     fn measure(&self) -> T {
-        self.arc_length()
+        // arc_length の計算を直接展開: radius * angular_span
+        self.radius_internal() * self.angular_span()
     }
 
     fn start_point(&self) -> (T, T) {
-        let p = self.start_point();
+        let p = self.point_at_angle_internal(self.start_angle.to_radians());
         (p.x(), p.y())
     }
 
     fn end_point(&self) -> (T, T) {
-        let p = self.end_point();
+        let p = self.point_at_angle_internal(self.end_angle.to_radians());
         (p.x(), p.y())
     }
 
@@ -369,11 +369,11 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
 
     fn distance_to_point(&self, point: (T, T)) -> T {
         // 簡易実装: 円弧の中心からの距離との差分
-        let center = self.center();
+        let center = self.center_internal();
         let dx = point.0 - center.x();
         let dy = point.1 - center.y();
         let distance_from_center = (dx * dx + dy * dy).sqrt();
-        (distance_from_center - self.radius()).abs()
+        (distance_from_center - self.radius_internal()).abs()
     }
 
     fn contains_point(&self, point: (T, T)) -> bool {
@@ -458,7 +458,9 @@ mod tests {
         let end = Angle::from_degrees(90.0);
 
         let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-        assert_eq!(arc.center(), center);
+        use geo_foundation::Arc2DProperties;
+        let (cx, cy) = arc.center();
+        assert_eq!((cx, cy), (center.x(), center.y()));
         assert_eq!(arc.radius(), radius);
         assert_eq!(arc.start_angle(), start);
         assert_eq!(arc.end_angle(), end);

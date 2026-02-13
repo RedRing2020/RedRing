@@ -7,7 +7,7 @@ use crate::{
     Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
     Vector3D,
 };
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_foundation::{core::arc_traits::Arc3DProperties, extensions::BasicCollision, Scalar};
 
 // ============================================================================
 // Ellipse3D vs Point3D
@@ -42,8 +42,9 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for Ellipse3D<T> {
     }
 
     fn overlaps(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
-        let center_dist = Vector3D::from_points(&self.center(), &circle.center_internal()).length();
-        center_dist + self.semi_major_axis() <= circle.radius_internal() + tolerance
+        let center_dist =
+            Vector3D::from_points(&self.center_internal(), &circle.center_internal()).length();
+        center_dist + self.semi_major_internal() <= circle.radius_internal() + tolerance
     }
 
     fn distance_to(&self, circle: &Circle3D<T>) -> T {
@@ -60,8 +61,10 @@ impl<T: Scalar> BasicCollision<T, Arc3D<T>> for Ellipse3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, arc: &Arc3D<T>, tolerance: T) -> bool {
-        let dist = self.distance_to(&arc.center());
-        dist <= arc.radius() + tolerance
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let arc_center = Point3D::new(cx, cy, cz);
+        let dist = self.distance_to(&arc_center);
+        dist <= Arc3DProperties::radius(arc) + tolerance
     }
 
     fn overlaps(&self, _arc: &Arc3D<T>, _tolerance: T) -> bool {
@@ -69,8 +72,10 @@ impl<T: Scalar> BasicCollision<T, Arc3D<T>> for Ellipse3D<T> {
     }
 
     fn distance_to(&self, arc: &Arc3D<T>) -> T {
-        let dist = self.distance_to(&arc.center());
-        (dist - arc.radius()).max(T::ZERO)
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let arc_center = Point3D::new(cx, cy, cz);
+        let dist = self.distance_to(&arc_center);
+        (dist - Arc3DProperties::radius(arc)).max(T::ZERO)
     }
 }
 
@@ -159,13 +164,13 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for Ellipse3D<T> {
 
     fn intersects(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
         // 楕円の中心から平面までの距離
-        let dist = plane.distance_to_point(self.center());
+        let dist = plane.distance_to_point(self.center_internal());
         dist <= tolerance
     }
 
     fn overlaps(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
         // 楕円が平面上にあるか確認
-        let dist = plane.distance_to_point(self.center());
+        let dist = plane.distance_to_point(self.center_internal());
         if dist > tolerance {
             return false;
         }
@@ -176,7 +181,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for Ellipse3D<T> {
     }
 
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
-        plane.distance_to_point(self.center())
+        plane.distance_to_point(self.center_internal())
     }
 }
 
@@ -224,20 +229,22 @@ impl<T: Scalar> BasicCollision<T, Ellipse3D<T>> for Ellipse3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, other: &Ellipse3D<T>, tolerance: T) -> bool {
-        let center_dist = Vector3D::from_points(&self.center(), &other.center()).length();
-        let sum_semi_major = self.semi_major_axis() + other.semi_major_axis();
+        let center_dist =
+            Vector3D::from_points(&self.center_internal(), &other.center_internal()).length();
+        let sum_semi_major = self.semi_major_internal() + other.semi_major_internal();
 
         center_dist <= sum_semi_major + tolerance
     }
 
     fn overlaps(&self, other: &Ellipse3D<T>, tolerance: T) -> bool {
-        let dist_to_other = self.distance_to(&other.center());
+        let dist_to_other = self.distance_to(&other.center_internal());
         dist_to_other <= tolerance
     }
 
     fn distance_to(&self, other: &Ellipse3D<T>) -> T {
-        let center_dist = Vector3D::from_points(&self.center(), &other.center()).length();
-        let radii_sum = self.semi_major_axis() + other.semi_major_axis();
+        let center_dist =
+            Vector3D::from_points(&self.center_internal(), &other.center_internal()).length();
+        let radii_sum = self.semi_major_internal() + other.semi_major_internal();
         (center_dist - radii_sum).max(T::ZERO)
     }
 }
