@@ -212,9 +212,6 @@ mod tests_aabb_distance {
         let segment = LineSegment3D::new(start, end).expect("Valid segment");
         let distance = segment.distance_to_aabb((-0.5, -0.5, -0.5), (0.5, 0.5, 0.5));
 
-        assert!(
-            distance < 1e-6,
-            "Touching segment should have distance ~0"
-        );
+        assert!(distance < 1e-6, "Touching segment should have distance ~0");
     }
 }

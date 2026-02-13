@@ -329,10 +329,8 @@ impl<T: Scalar> VoxelNode<T> {
                 // 線分とAABBの距離を計算（Foundation Pattern準拠）
                 let min = self.bounds.min();
                 let max = self.bounds.max();
-                let distance = segment.distance_to_aabb(
-                    (min.x(), min.y(), min.z()),
-                    (max.x(), max.y(), max.z()),
-                );
+                let distance = segment
+                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
 
                 // カプセル範囲外なら何もしない（枝刈り）
                 if distance > radius {
