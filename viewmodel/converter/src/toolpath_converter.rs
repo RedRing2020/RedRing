@@ -43,13 +43,13 @@ pub struct ToolPathColorScheme {
 impl Default for ToolPathColorScheme {
     fn default() -> Self {
         Self {
-            cutting: [1.0, 1.0, 1.0, 1.0],      // 白色
-            rapid: [0.2, 0.5, 1.0, 1.0],        // 青色
-            approach: [0.2, 1.0, 0.2, 1.0],     // 緑色
-            retract: [1.0, 1.0, 0.2, 1.0],      // 黄色
-            pass_retract: [1.0, 0.6, 0.2, 1.0], // オレンジ色
-            down_cut: [1.0, 1.0, 1.0, 1.0],     // 白色
-            up_cut: [1.0, 0.5, 0.2, 1.0],       // オレンジ色
+            cutting: [0.0, 0.55, 1.0, 1.0],      // 青みの強いシアン
+            rapid: [0.75, 0.75, 0.75, 1.0],      // ライトグレー
+            approach: [0.0, 0.2, 0.8, 1.0],      // 深いブルー
+            retract: [1.0, 0.4, 0.0, 1.0],       // 鮮やかなオレンジ
+            pass_retract: [1.0, 0.75, 0.0, 1.0], // アンバー
+            down_cut: [1.0, 1.0, 1.0, 1.0],      // 白色（未使用）
+            up_cut: [1.0, 0.5, 0.2, 1.0],        // オレンジ色（未使用）
         }
     }
 }
@@ -180,8 +180,15 @@ pub fn toolpath_to_vertices(
     let approach_end = vertices.len();
     let cutting_start = vertices.len();
 
+    tracing::debug!(
+        "Phase 1完了: アプローチ頂点 {} 個（{} 線分）",
+        approach_end - approach_start,
+        (approach_end - approach_start) / 2
+    );
+
     // Phase 2: 切削フェーズ（等高線ごと）
     for contour_level in &toolpath.contour_levels {
+        let before_count = vertices.len();
         convert_contour_level(
             contour_level,
             settings,
@@ -189,10 +196,22 @@ pub fn toolpath_to_vertices(
             &mut vertices,
             &mut colors,
         );
+        tracing::debug!(
+            "等高線レベル {}: 頂点 {} 個追加（合計 {} 線分）",
+            contour_level.level_index,
+            vertices.len() - before_count,
+            contour_level.segments.len()
+        );
     }
 
     let cutting_end = vertices.len();
     let retract_start = vertices.len();
+
+    tracing::debug!(
+        "Phase 2完了: 切削頂点 {} 個（{} 線分）",
+        cutting_end - cutting_start,
+        (cutting_end - cutting_start) / 2
+    );
 
     // Phase 3: リトラクトフェーズ
     if settings.show_retract {
@@ -210,6 +229,20 @@ pub fn toolpath_to_vertices(
     }
 
     let retract_end = vertices.len();
+
+    tracing::debug!(
+        "Phase 3完了: リトラクト頂点 {} 個（{} 線分）",
+        retract_end - retract_start,
+        (retract_end - retract_start) / 2
+    );
+
+    tracing::info!(
+        "ツールパス変換完了: 合計 {} 頂点（approach: {}, cutting: {}, retract: {}）",
+        vertices.len(),
+        (approach_end - approach_start) / 2,
+        (cutting_end - cutting_start) / 2,
+        (retract_end - retract_start) / 2
+    );
 
     ToolPathVertices {
         vertices,
@@ -400,6 +433,155 @@ fn tessellate_arc(
     result
 }
 
+/// デバッグ用：サンプル工具経路を生成
+///
+/// シンプルな矩形加工経路を返します（UI表示テスト用）
+pub fn create_sample_toolpath() -> ToolPath<f64> {
+    use geo_primitives::Point3D;
+
+    // エアカット高さ（切削パスより +20）
+    let aircut_z = 20.0;
+
+    // 開始位置から切削開始点までのRapid移動（XY平面で視認可能）
+    let rapid_to_start = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, aircut_z),
+        Point3D::new(-40.0, -40.0, aircut_z),
+        SegmentType::Rapid,
+    );
+
+    // アプローチセグメント: Z下降（切削面へ）
+    let approach = PathSegment::new_line(
+        Point3D::new(-40.0, -40.0, aircut_z),
+        Point3D::new(-40.0, -40.0, 0.0),
+        SegmentType::Approach { feed_rate: 300.0 },
+    );
+
+    // 最初の等高線レベル（Z = 0.0）- 外側周回
+    let contour1_segments = vec![
+        PathSegment::new_line(
+            Point3D::new(-40.0, -40.0, 0.0),
+            Point3D::new(40.0, -40.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(40.0, -40.0, 0.0),
+            Point3D::new(40.0, 40.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(40.0, 40.0, 0.0),
+            Point3D::new(-40.0, 40.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(-40.0, 40.0, 0.0),
+            Point3D::new(-40.0, -40.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+    ];
+    let contour1 = ContourLevelPath::new(0, 0.0, contour1_segments);
+
+    // 周回間リトラクト1: 内側周回へ直接移動（Z=0のまま斜め移動）
+    let pass_retract_1 = PathSegment::new_line(
+        Point3D::new(-40.0, -40.0, 0.0),
+        Point3D::new(-35.0, -35.0, 0.0),
+        SegmentType::PassRetract { feed_rate: 300.0 },
+    );
+
+    // 1層目内側周回（10mm短い正方形）
+    let contour1_inner_segments = vec![
+        PathSegment::new_line(
+            Point3D::new(-35.0, -35.0, 0.0),
+            Point3D::new(35.0, -35.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(35.0, -35.0, 0.0),
+            Point3D::new(35.0, 35.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(35.0, 35.0, 0.0),
+            Point3D::new(-35.0, 35.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(-35.0, 35.0, 0.0),
+            Point3D::new(-35.0, -35.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+    ];
+    let contour1_inner = ContourLevelPath::new(1, 0.0, contour1_inner_segments);
+
+    // 1層目終了後のリトラクト: Z=10まで上昇
+    let retract_1 = PathSegment::new_line(
+        Point3D::new(-35.0, -35.0, 0.0),
+        Point3D::new(-35.0, -35.0, 10.0),
+        SegmentType::Retract { feed_rate: 300.0 },
+    );
+
+    // 周回間Rapid2: 2層目始点へ移動（Z=10のまま）
+    let pass_rapid_2 = PathSegment::new_line(
+        Point3D::new(-35.0, -35.0, 10.0),
+        Point3D::new(-40.0, -40.0, 10.0),
+        SegmentType::Rapid,
+    );
+
+    // 周回間アプローチ2: 2層目へ下降
+    let pass_approach_2 = PathSegment::new_line(
+        Point3D::new(-40.0, -40.0, 10.0),
+        Point3D::new(-40.0, -40.0, -5.0),
+        SegmentType::Approach { feed_rate: 300.0 },
+    );
+
+    // 次の等高線レベル（Z = -5.0）
+    let contour2_segments = vec![
+        PathSegment::new_line(
+            Point3D::new(-40.0, -40.0, -5.0),
+            Point3D::new(40.0, -40.0, -5.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(40.0, -40.0, -5.0),
+            Point3D::new(40.0, 40.0, -5.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(40.0, 40.0, -5.0),
+            Point3D::new(-40.0, 40.0, -5.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        PathSegment::new_line(
+            Point3D::new(-40.0, 40.0, -5.0),
+            Point3D::new(-40.0, -40.0, -5.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+    ];
+    let contour2 = ContourLevelPath::new(2, -5.0, contour2_segments);
+
+    // 最終リトラクト: Z上昇
+    let final_retract = PathSegment::new_line(
+        Point3D::new(-40.0, -40.0, -5.0),
+        Point3D::new(-40.0, -40.0, aircut_z),
+        SegmentType::Retract { feed_rate: 300.0 },
+    );
+
+    // 終了位置へのRapid移動（XY平面で視認可能）
+    let rapid_to_end = PathSegment::new_line(
+        Point3D::new(-40.0, -40.0, aircut_z),
+        Point3D::new(0.0, 0.0, aircut_z),
+        SegmentType::Rapid,
+    );
+
+    ToolPath::new(
+        "endmill_3mm".to_string(),
+        CuttingDirection::Down,
+        vec![rapid_to_start, approach, pass_rapid_2, pass_approach_2],
+        vec![contour1, contour1_inner, contour2],
+        vec![pass_retract_1, retract_1, final_retract, rapid_to_end],
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -408,8 +590,8 @@ mod tests {
     #[test]
     fn test_default_color_scheme() {
         let scheme = ToolPathColorScheme::default();
-        assert_eq!(scheme.cutting, [1.0, 1.0, 1.0, 1.0]); // 白色
-        assert_eq!(scheme.rapid, [0.2, 0.5, 1.0, 1.0]); // 青色
+        assert_eq!(scheme.cutting, [0.0, 0.55, 1.0, 1.0]); // 青みの強いシアン
+        assert_eq!(scheme.rapid, [0.75, 0.75, 0.75, 1.0]); // ライトグレー
     }
 
     #[test]
@@ -468,8 +650,8 @@ mod tests {
         // 終点確認
         assert_eq!(result.vertices[1].position, [10.0, 0.0, 0.0]);
 
-        // 切削色確認（デフォルト: 白色）
-        assert_eq!(result.colors[0], [1.0, 1.0, 1.0, 1.0]);
+        // 切削色確認（デフォルト: 青みの強いシアン）
+        assert_eq!(result.colors[0], [0.0, 0.55, 1.0, 1.0]);
     }
 
     #[test]

@@ -32,6 +32,9 @@ pub struct Camera {
     pub distance: f32,
     /// 投影方式
     pub projection_mode: ProjectionMode,
+    /// 平行投影の明示的な表示範囲 (left, right, bottom, top)
+    /// Some が指定されている場合、distance と zoom の代わりにこれを使用
+    pub orthographic_bounds: Option<(f32, f32, f32, f32)>,
 }
 
 impl Camera {
@@ -44,6 +47,7 @@ impl Camera {
             target: Vec3f::new(0.0, 0.0, 0.0),
             distance: 5.0,
             projection_mode: ProjectionMode::Perspective,
+            orthographic_bounds: None,
         }
     }
 
@@ -56,6 +60,7 @@ impl Camera {
             target: Vec3f::new(0.0, 0.0, 0.0),
             distance: 5.0,
             projection_mode: ProjectionMode::Orthographic,
+            orthographic_bounds: None,
         }
     }
 
@@ -78,23 +83,37 @@ impl Camera {
             target: Vec3f::new(0.0, 0.0, 0.0),
             distance: 5.0,
             projection_mode: ProjectionMode::Orthographic,
+            orthographic_bounds: None,
         }
     }
 
     /// ビュー行列を計算
     pub fn view_matrix(&self) -> [[f32; 4]; 4] {
+        // 数値ドリフト対策：毎フレームクォータニオンをチェック・正規化
+        // 複数のベクトル回転の代わりに、クォータニオンを行列に変換してから操作
+        let normalized_rotation = self.rotation.normalize().unwrap_or(self.rotation);
+
+        // クォータニオンを回転行列に変換（複数ベクトル回転より数値安定性が高い）
+        let rotation_matrix = quaternion_to_matrix(&normalized_rotation);
+
         // カメラの基本方向ベクトル（Z軸の負方向を向く）
         let forward_base = Vec3f::new(0.0, 0.0, -1.0);
-
-        // クォータニオンで回転を適用
-        let forward = self.rotation.rotate_vector(&forward_base);
-
-        // カメラ位置 = target + (回転された方向 × 距離)
-        let camera_pos = self.target + forward * self.distance;
-
-        // Up ベクトルも回転を適用
         let up_base = Vec3f::new(0.0, 1.0, 0.0);
-        let up = self.rotation.rotate_vector(&up_base);
+
+        // 行列によるベクトル変換（一度の行列乗算で安定性向上）
+        let forward = matrix_transform_vector(&rotation_matrix, &forward_base);
+        let up = matrix_transform_vector(&rotation_matrix, &up_base);
+
+        // カメラ位置 = target - (カメラが向く方向 × 距離)
+        // forwardはカメラが向いている方向なので、カメラ位置はその逆方向に配置
+        let camera_pos = self.target - forward * self.distance;
+
+        tracing::debug!(
+            "🎥 view_matrix計算: forward=({:.3}, {:.3}, {:.3}), camera_pos=({:.1}, {:.1}, {:.1}), target=({:.1}, {:.1}, {:.1})",
+            forward.x(), forward.y(), forward.z(),
+            camera_pos.x(), camera_pos.y(), camera_pos.z(),
+            self.target.x(), self.target.y(), self.target.z()
+        );
 
         Matrix4x4::look_at(&camera_pos, &self.target, &up)
             .unwrap_or_else(|_| Matrix4x4::identity())
@@ -103,24 +122,85 @@ impl Camera {
 
     /// プロジェクション行列を計算
     pub fn projection_matrix(&self, aspect: f32) -> [[f32; 4]; 4] {
+        tracing::debug!(
+            "projection_matrix呼び出し: mode={:?}, aspect={:.3}, bounds={:?}",
+            self.projection_mode,
+            aspect,
+            self.orthographic_bounds
+        );
+
         match self.projection_mode {
             ProjectionMode::Perspective => {
                 // 距離に応じて適切なnear/farを設定
                 let near = (self.distance * 0.01).max(0.001); // 距離の1%、最小0.001
                 let far = (self.distance * 100.0).min(1000.0); // 距離の100倍、最大1000
 
+                tracing::warn!(
+                    "⚠️ 透視投影が使用されています！ CAM可視化では平行投影を使用すべきです"
+                );
+
                 // wgpu は DirectX スタイル（Z範囲 [0, 1]）を使用
                 Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
             }
             ProjectionMode::Orthographic => {
-                // 平行投影：距離とズームに基づいてサイズを決定
-                let size = self.distance * self.zoom;
-                let left = -size * aspect * 0.5;
-                let right = size * aspect * 0.5;
-                let bottom = -size * 0.5;
-                let top = size * 0.5;
-                let near = -1000.0; // 平行投影では大きな範囲を使用
-                let far = 1000.0;
+                let (left, right, bottom, top) = if let Some((bl, br, bb, bt)) =
+                    self.orthographic_bounds
+                {
+                    // CADモード：論理座標系を保持し、ウィンドウのアスペクト比に応じて表示範囲を調整
+                    // これにより、画面サイズが変わっても形状のアスペクト比が保たれる
+                    let logical_width = br - bl;
+                    let logical_height = bt - bb;
+                    let logical_aspect = logical_width / logical_height;
+
+                    if aspect > logical_aspect {
+                        // ウィンドウが横長：左右の表示範囲を広げる（論理座標を保持）
+                        let actual_width = logical_height * aspect;
+                        let expand = (actual_width - logical_width) * 0.5;
+                        tracing::debug!(
+                            "🔲 CAD表示モード（横長）: 論理範囲({}, {}, {}, {}) → 実表示範囲({:.1}, {:.1}, {:.1}, {:.1})",
+                            bl, br, bb, bt,
+                            bl - expand, br + expand, bb, bt
+                        );
+                        (bl - expand, br + expand, bb, bt)
+                    } else {
+                        // ウィンドウが縦長：上下の表示範囲を広げる（論理座標を保持）
+                        let actual_height = logical_width / aspect;
+                        let expand = (actual_height - logical_height) * 0.5;
+                        tracing::debug!(
+                            "🔲 CAD表示モード（縦長）: 論理範囲({}, {}, {}, {}) → 実表示範囲({:.1}, {:.1}, {:.1}, {:.1})",
+                            bl, br, bb, bt,
+                            bl, br, bb - expand, bt + expand
+                        );
+                        (bl, br, bb - expand, bt + expand)
+                    }
+                } else {
+                    // 平行投影：距離とズームに基づいてサイズを決定
+                    let size = self.distance * self.zoom;
+                    let left = -size * aspect * 0.5;
+                    let right = size * aspect * 0.5;
+                    let bottom = -size * 0.5;
+                    let top = size * 0.5;
+                    tracing::debug!(
+                        "平行投影: 距離ベース left={:.2}, right={:.2}, bottom={:.2}, top={:.2}",
+                        left,
+                        right,
+                        bottom,
+                        top
+                    );
+                    (left, right, bottom, top)
+                };
+                let near = -5000.0; // より広い範囲でクリッピングを防ぐ
+                let far = 5000.0;
+
+                tracing::info!(
+                    "✓ 平行投影行列生成: bounds=({:.1}, {:.1}, {:.1}, {:.1}), near={}, far={}",
+                    left,
+                    right,
+                    bottom,
+                    top,
+                    near,
+                    far
+                );
 
                 // wgpu 用の平行投影行列（Z範囲 [0, 1]）を手動構築
                 self.orthographic_rh_01(left, right, bottom, top, near, far)
@@ -162,8 +242,24 @@ impl Camera {
 
     /// 投影モードを切り替え
     pub fn set_projection_mode(&mut self, mode: ProjectionMode) {
+        let old_mode = self.projection_mode;
         self.projection_mode = mode;
-        tracing::info!("投影モード変更: {:?}", mode);
+        tracing::warn!("🔄 投影モード変更: {:?} → {:?}", old_mode, mode);
+    }
+
+    /// 直交投影モード時の表示範囲を設定
+    /// ペイントキャンバスサイズのような3D版の表示範囲を指定可能
+    pub fn set_orthographic_bounds(&mut self, left: f32, right: f32, bottom: f32, top: f32) {
+        self.orthographic_bounds = Some((left, right, bottom, top));
+        tracing::info!(
+            "📐 直交投影表示範囲設定: ({:.1}, {:.1}, {:.1}, {:.1}) - サイズ: {:.1}×{:.1}",
+            left,
+            right,
+            bottom,
+            top,
+            right - left,
+            top - bottom
+        );
     }
 
     /// マウス操作による回転（analysisクレートのクォータニオンを使用）
@@ -425,6 +521,7 @@ impl Camera {
             target: interpolated_target,
             distance: interpolated_distance,
             projection_mode: self.projection_mode, // 投影モードは変更しない
+            orthographic_bounds: self.orthographic_bounds, // 表示範囲も保持
         })
     }
 }
@@ -461,6 +558,16 @@ fn quaternion_to_matrix(q: &Quaternionf) -> [[f32; 4]; 4] {
         [2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy), 0.0],
         [0.0, 0.0, 0.0, 1.0],
     ]
+}
+
+/// 行列によるベクトル変換（3x3部分のみを使用）
+/// 数値的にロバストで、複数の個別ベクトル回転より安定性が高い
+fn matrix_transform_vector(matrix: &[[f32; 4]; 4], v: &Vec3f) -> Vec3f {
+    Vec3f::new(
+        matrix[0][0] * v.x() + matrix[0][1] * v.y() + matrix[0][2] * v.z(),
+        matrix[1][0] * v.x() + matrix[1][1] * v.y() + matrix[1][2] * v.z(),
+        matrix[2][0] * v.x() + matrix[2][1] * v.y() + matrix[2][2] * v.z(),
+    )
 }
 
 /// Vector3の線形補間

@@ -73,6 +73,7 @@ impl ApplicationHandler for App {
                                 tracing::info!("a: Arc3D表示");
                                 tracing::info!("n: NurbsCurve3D表示（SVGから）");
                                 tracing::info!("o: VoxelOctree可視化（ワイヤーフレーム）");
+                                tracing::info!("p: CAM工具経路可視化（ToolPath）");
                                 tracing::info!("--- カメラ操作 ---");
                                 tracing::info!("r: カメラリセット（基本位置）");
                                 tracing::info!("t: 標準CAD視点にリセット");
@@ -96,6 +97,9 @@ impl ApplicationHandler for App {
                             }
                             Key::Character(c) if c.as_str() == "o" => {
                                 state.load_debug_octree();
+                            }
+                            Key::Character(c) if c.as_str() == "p" => {
+                                state.load_debug_toolpath();
                             }
                             Key::Character(c) if c.as_str() == "d" => {
                                 state.log_camera_state();

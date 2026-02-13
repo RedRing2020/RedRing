@@ -128,6 +128,14 @@ git push -u origin feature/issue-123-add-sphere-primitive
 
 ## Pull Request (PR) 作成
 
+### 0. PR 作成前の手順
+
+- PR 作成前に必ず `cargo fmt --all` を実行（変更を整形してからPR作成）
+
+```bash
+cargo fmt --all
+```
+
 ### 1. GitHub CLI を使用した PR 作成
 
 ```bash
