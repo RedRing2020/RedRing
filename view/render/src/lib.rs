@@ -2,6 +2,7 @@ pub mod device;
 pub mod line;
 pub mod mesh;
 pub mod mesh_convert;
+pub mod nurbs_eval;
 pub mod pipeline;
 pub mod render_2d;
 pub mod render_3d;

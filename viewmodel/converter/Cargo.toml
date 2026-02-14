@@ -8,6 +8,7 @@ description = "Data conversion layer for MVVM architecture - Model to View trans
 geo_foundation = { path = "../../model/geo_foundation" }
 geo_core = { path = "../../model/geo_core" }
 geo_primitives = { path = "../../model/geo_primitives" }
+geo_nurbs = { path = "../../model/geo_nurbs" }
 geo_algorithms = { path = "../../model/geo_algorithms" }
 geo_io = { path = "../../model/geo_io" }
 cam_core = { path = "../../model/cam_core" }

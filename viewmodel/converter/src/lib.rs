@@ -11,8 +11,10 @@
 //! - 形状可視化データ変換（幾何プリミティブ → GPU頂点データ）
 //! - CAM工具経路の可視化データ変換（ToolPath → GPU頂点データ）
 //! - Octree可視化データ変換（Octree → GPU ワイヤーフレーム頂点データ）
+//! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
 
 pub mod mesh_converter;
+pub mod nurbs_view;
 pub mod octree_converter;
 pub mod shape_converter;
 pub mod stl_loader;

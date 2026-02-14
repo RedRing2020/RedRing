@@ -2606,6 +2606,7 @@ dependencies = [
  "geo_core",
  "geo_foundation",
  "geo_io",
+ "geo_nurbs",
  "geo_primitives",
  "tempfile",
  "thiserror 2.0.17",

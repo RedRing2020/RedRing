@@ -1,5 +1,9 @@
 //! `NurbsCurve3D` の拡張機能
 
+use crate::adaptive_tessellation::{
+    adaptive_params_axis, AdaptiveParamList, AdaptiveTessellationSettings,
+    NurbsCurveAdaptiveTessellation,
+};
 use crate::NurbsCurve3D;
 use geo_core::{Aabb3D, Point3D};
 use geo_foundation::Scalar;
@@ -154,6 +158,28 @@ impl<T: Scalar> NurbsCurve3D<T> {
     }
 }
 
+impl<T: Scalar> NurbsCurve3D<T> {
+    fn chord_error(&self, t0: T, t1: T) -> T {
+        let mid = (t0 + t1) / (T::ONE + T::ONE);
+        let p0 = self.evaluate_at(t0);
+        let p1 = self.evaluate_at(t1);
+        let pm = self.evaluate_at(mid);
+        let chord_mid = (p0 + p1) / (T::ONE + T::ONE);
+        (pm - chord_mid).norm()
+    }
+}
+
+impl<T: Scalar> NurbsCurveAdaptiveTessellation<T> for NurbsCurve3D<T> {
+    fn adaptive_params_curve(
+        &self,
+        settings: &AdaptiveTessellationSettings<T>,
+    ) -> AdaptiveParamList<T> {
+        let (t_min, t_max) = self.parameter_domain();
+        let params = adaptive_params_axis(t_min, t_max, settings, |a, b| self.chord_error(a, b));
+        AdaptiveParamList { params }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,5 +291,29 @@ mod tests {
         // Precise と Adaptive はほぼ同等（トレランス依存）
         let diff = (precise.max().y() - adaptive.max().y()).abs();
         assert!(diff < 0.1); // 適度な誤差範囲
+    }
+
+    #[test]
+    fn test_curve_adaptive_params_line() {
+        use geo_foundation::NurbsCurve3DConstructor;
+
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)];
+        let knots = clamped_knot_vector(1, 2);
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            knots,
+            control_points,
+            None,
+        )
+        .unwrap();
+
+        let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);
+        let params = curve.adaptive_params_curve(&settings);
+
+        assert!(params.params.len() >= settings.min_segments as usize + 1);
+
+        let (t_min, t_max) = curve.parameter_domain();
+        assert!((params.params.first().unwrap() - t_min).abs() < 1e-10);
+        assert!((params.params.last().unwrap() - t_max).abs() < 1e-10);
     }
 }
