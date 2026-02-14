@@ -98,8 +98,8 @@ mod tests {
         let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);
         let grid = surface.adaptive_params_surface(&settings);
 
-        assert!(grid.u_params.len() >= settings.min_segments as usize + 1);
-        assert!(grid.v_params.len() >= settings.min_segments as usize + 1);
+        assert!(grid.u_params.len() > settings.min_segments as usize);
+        assert!(grid.v_params.len() > settings.min_segments as usize);
 
         let (u_min, u_max) = surface.parameter_domain().0;
         let (v_min, v_max) = surface.parameter_domain().1;

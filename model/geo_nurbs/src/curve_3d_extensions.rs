@@ -310,7 +310,7 @@ mod tests {
         let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);
         let params = curve.adaptive_params_curve(&settings);
 
-        assert!(params.params.len() >= settings.min_segments as usize + 1);
+        assert!(params.params.len() > settings.min_segments as usize);
 
         let (t_min, t_max) = curve.parameter_domain();
         assert!((params.params.first().unwrap() - t_min).abs() < 1e-10);
