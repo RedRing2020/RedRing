@@ -1,6 +1,6 @@
 # Copilot Instructions for RedRing
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年2月14日
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
@@ -81,6 +81,10 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 **✅ Foundation パターン**: 実装完了
 **✅ Phase 3 完了**: 衝突判定・交差判定機能実装完了（2025年12月21日）
 **✅ Issue #222 完了**: geo_commons Foundation Pattern準拠（2026年2月13日）
+**✅ Issue #210 完了**: NURBS適応的テッセレーション実装（2026年2月14日）
+  - ハイブリッド方式（CPU分割 + GPU評価）
+  - NurbsCurve3D/NurbsSurface3D対応
+  - Foundation Pattern準拠（Extension Traits実装）
 **✅ geo_nurbs**: Foundation Pattern準拠完了（geo_foundation/geo_core のみに依存）
 **✅ 情報管理**: GitHub Issues/Projects 移行済み
 

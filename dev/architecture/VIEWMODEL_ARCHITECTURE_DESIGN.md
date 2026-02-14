@@ -472,9 +472,53 @@ let point = <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::poi
 
 ---
 
+## ✅ 実装済み機能（Issue #210対応）
+
+### NURBS適応的テッセレーション対応（2026年2月14日）
+
+**実装内容**:
+```rust
+// viewmodel/converter/src/nurbs_view.rs
+pub struct NurbsCurveEvalData {
+    pub params: Vec<f32>,           // CPU側adaptive tessellation結果
+    pub control_points: Vec<f32>,   // GPU評価用フラット配列
+    pub weights: Option<Vec<f32>>,
+    pub knots: Vec<f32>,
+    pub degree: u32,
+}
+
+impl NurbsCurveEvalData {
+    pub fn from_curve_params<T: Scalar>(
+        curve: &impl NurbsCurve3DProperties<T>,
+        param_list: &AdaptiveParamList<T>,
+    ) -> Self { ... }
+}
+```
+
+**アーキテクチャ遵守**:
+- ✅ View層（app）は直接geo_*に依存しない
+- ✅ ViewModel層（converter）でトレイト経由変換
+- ✅ GPU評価用データ（f32配列）への変換のみ実行
+- ✅ 幾何計算（NURBS評価、パラメータ分割）はModel層が実行
+
+**ファイル構成**:
+- `viewmodel/converter/src/nurbs_view.rs` - Model → GPU形式変換
+- `viewmodel/converter/src/nurbs_debug.rs` - デバッグ用データ生成
+- `view/app/src/app_state.rs` - ViewModel経由でNURBSデータ取得
+
+**設計原則との整合性**:
+- ViewModel層の責務: ✅ **データ形式変換** のみ実行
+- Model層の責務: ✅ **幾何計算** (adaptive tessellation, NURBS評価)
+- View層の責務: ✅ **GPU描画** (Vertex Shader評価、LineStrip描画)
+
+---
+
 ## 🔗 関連ドキュメント
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - 全体アーキテクチャ
 - [SHAPE_TESSELLATION_DESIGN.md](./SHAPE_TESSELLATION_DESIGN.md) - テッセレーション設計
+- [NURBS_ADAPTIVE_TESSELLATION_DESIGN.md](./NURBS_ADAPTIVE_TESSELLATION_DESIGN.md) - NURBS適応的テッセレーション
+- [NURBS_GPU_EVALUATION_DESIGN.md](./NURBS_GPU_EVALUATION_DESIGN.md) - NURBS GPU評価パイプライン
 - [FOUNDATION_PATTERN.md](../foundation/) - Foundation Pattern詳細
 - [Issue #204](https://github.com/RedRing2020/RedRing/issues/204) - 形状可視化システム完成
+- [Issue #210](https://github.com/RedRing2020/RedRing/issues/210) - NURBS適応的テッセレーション実装

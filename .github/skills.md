@@ -1,6 +1,6 @@
 # RedRing Development Skills Reference
 
-## 最終更新日: 2026年2月13日
+## 最終更新日: 2026年2月14日
 
 本ドキュメントは、RedRing開発における技術的な実装パターンと設計原則をまとめたAI開発者向けリファレンスです。
 
@@ -21,6 +21,14 @@
 
 ### 🎨 描画システム
 - **[rendering/skill.md](skills/rendering/skill.md)** - GPU描画、wgpu、シェーダ管理、RenderStage
+
+### 🧮 NURBS処理
+- **NURBS適応的テッセレーション** (Issue #210)
+  - CPU側で弦誤差ベースの適応的パラメータ分割を実行
+  - GPU Vertex Shaderで制御点・ノット・ウェイトからNURBS点を直接評価
+  - ハイブリッド方式（CPU分割 + GPU評価）による効率的な描画
+  - 詳細: `dev/architecture/NURBS_ADAPTIVE_TESSELLATION_DESIGN.md`
+  - 実装: `model/geo_nurbs/src/adaptive_tessellation.rs`, `view/render/src/nurbs_eval.rs`
 
 ### 🔀 Git/GitHub
 - **[git-workflow/skill.md](skills/git-workflow/skill.md)** - ブランチ戦略、コミット規則、PR作成手順
