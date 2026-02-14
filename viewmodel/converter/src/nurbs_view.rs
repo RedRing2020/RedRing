@@ -166,3 +166,217 @@ mod tests {
         assert!(eval_data.weights.is_none());
     }
 }
+
+/// NURBS曲面のGPU評価に必要なデータ
+///
+/// CPU側で生成した適応パラメータグリッドと、NURBS曲面定義を
+/// GPU（WGSL）で処理可能なf32配列に変換したデータ。
+///
+/// # メモリレイアウト最適化
+/// - 頂点パラメータ: インターリーブド配列 `[u0,v0, u1,v1, ...]`
+/// - 制御点: フラット配列 `[x0,y0,z0, x1,y1,z1, ...]`
+/// - Storage Buffer数を最小化
+#[derive(Debug, Clone)]
+pub struct NurbsSurfaceEvalData {
+    /// 頂点パラメータ（インターリーブド: [u0,v0, u1,v1, ...]）
+    /// 各頂点の(u,v)評価パラメータをグリッド順に格納
+    pub vertex_params: Vec<f32>,
+
+    /// 制御点グリッド（flattenされた配列: [x0,y0,z0, x1,y1,z1, ...]、u方向優先）
+    pub control_points: Vec<f32>,
+
+    /// 重み（有理NURBS用、Noneなら非有理として全て1.0のダミーを使用）
+    pub weights: Option<Vec<f32>>,
+
+    /// u方向ノットベクトル
+    pub u_knots: Vec<f32>,
+
+    /// v方向ノットベクトル
+    pub v_knots: Vec<f32>,
+
+    /// u方向次数
+    pub u_degree: u32,
+
+    /// v方向次数
+    pub v_degree: u32,
+
+    /// グリッドサイズ
+    pub u_count: u32,
+    pub v_count: u32,
+    
+    /// 評価グリッドサイズ（頂点数計算用）
+    num_u_params: usize,
+    num_v_params: usize,
+}
+
+impl NurbsSurfaceEvalData {
+    /// NurbsSurface3DとAdaptiveParamGridから生成
+    ///
+    /// # Arguments
+    /// * `surface` - NURBS曲面（任意のScalar型T）
+    /// * `param_grid` - CPU側適応分割結果のパラメータグリッド
+    ///
+    /// # Returns
+    /// GPU評価用のf32変換済みデータ（頂点バッファ最適化）
+    pub fn from_surface_params<T: Scalar>(
+        surface: &geo_nurbs::NurbsSurface3D<T>,
+        param_grid: &geo_nurbs::adaptive_tessellation::AdaptiveParamGrid<T>,
+    ) -> Self {
+        use geo_foundation::NurbsSurface3DProperties;
+
+        let u_degree = surface.u_degree() as u32;
+        let v_degree = surface.v_degree() as u32;
+        let u_count = surface.u_count() as u32;
+        let v_count = surface.v_count() as u32;
+
+        // u, v パラメータの変換（一時的）
+        let u_params: Vec<f32> = param_grid.u_params.iter().map(|p| p.to_f32()).collect();
+        let v_params: Vec<f32> = param_grid.v_params.iter().map(|p| p.to_f32()).collect();
+        
+        let num_u_params = u_params.len();
+        let num_v_params = v_params.len();
+
+        // 頂点パラメータをインターリーブド配列で生成: [u0,v0, u1,v1, ...]
+        // グリッド順（u方向優先）で各頂点の(u,v)を格納
+        let num_vertices = num_u_params * num_v_params;
+        let mut vertex_params = Vec::with_capacity(num_vertices * 2);
+        
+        for &u in &u_params {
+            for &v in &v_params {
+                vertex_params.push(u);
+                vertex_params.push(v);
+            }
+        }
+
+        // u方向ノットベクトルの変換
+        let u_knots: Vec<f32> = surface.u_knots().iter().map(|k| k.to_f32()).collect();
+
+        // v方向ノットベクトルの変換
+        let v_knots: Vec<f32> = surface.v_knots().iter().map(|k| k.to_f32()).collect();
+
+        // 制御点グリッドのflatten: u方向優先で[x,y,z, x,y,z, ...]に変換
+        let num_cp = (u_count * v_count) as usize;
+        let mut control_points = Vec::with_capacity(num_cp * 3);
+        
+        for u_idx in 0..u_count as usize {
+            for v_idx in 0..v_count as usize {
+                let cp = surface.control_point(u_idx, v_idx);
+                control_points.push(cp.x().to_f32());
+                control_points.push(cp.y().to_f32());
+                control_points.push(cp.z().to_f32());
+            }
+        }
+
+        // 重みの変換（NurbsSurface3DPropertiesトレイトメソッド使用）
+        let weights = match surface.weights() {
+            geo_nurbs::surface_3d::WeightStorage::Uniform => None,
+            geo_nurbs::surface_3d::WeightStorage::Individual(w_flat) => {
+                Some(w_flat.iter().map(|w| w.to_f32()).collect())
+            }
+        };
+
+        tracing::info!(
+            "📋 NurbsSurfaceEvalData 変換完了: vertices={}, control_points={}x{}, u_degree={}, v_degree={}",
+            num_vertices,
+            u_count,
+            v_count,
+            u_degree,
+            v_degree
+        );
+
+        Self {
+            vertex_params,
+            control_points,
+            weights,
+            u_knots,
+            v_knots,
+            u_degree,
+            v_degree,
+            u_count,
+            v_count,
+            num_u_params,
+            num_v_params,
+        }
+    }
+
+    /// 頂点総数を取得
+    pub fn num_vertices(&self) -> usize {
+        self.num_u_params * self.num_v_params
+    }
+
+    /// 三角形数を取得
+    pub fn num_triangles(&self) -> usize {
+        let u_segs = self.num_u_params.saturating_sub(1);
+        let v_segs = self.num_v_params.saturating_sub(1);
+        u_segs * v_segs * 2
+    }
+
+    /// 三角形インデックスバッファ生成
+    ///
+    /// グリッド状のパラメータ評価結果を三角形メッシュに変換
+    /// 各四角形を2つの三角形に分割（CCW巻き）
+    pub fn generate_indices(&self) -> Vec<u32> {
+        let u_len = self.num_u_params as u32;
+        let v_len = self.num_v_params as u32;
+        
+        if u_len < 2 || v_len < 2 {
+            return Vec::new();
+        }
+
+        let num_triangles = self.num_triangles();
+        let mut indices = Vec::with_capacity(num_triangles * 3);
+
+        for u_idx in 0..(u_len - 1) {
+            for v_idx in 0..(v_len - 1) {
+                let i0 = u_idx * v_len + v_idx;
+                let i1 = i0 + 1;
+                let i2 = (u_idx + 1) * v_len + v_idx;
+                let i3 = i2 + 1;
+
+                // 三角形1: CCW順（∂S/∂u × ∂S/∂v が外向き法線）
+                indices.push(i0);
+                indices.push(i2);
+                indices.push(i1);
+
+                // 三角形2: CCW順
+                indices.push(i1);
+                indices.push(i2);
+                indices.push(i3);
+            }
+        }
+
+        indices
+    }
+
+    /// ワイヤーフレーム用ラインインデックス生成
+    ///
+    /// u方向およびv方向の等パラメータ線を生成
+    pub fn generate_wireframe_indices(&self) -> Vec<u32> {
+        let u_len = self.num_u_params as u32;
+        let v_len = self.num_v_params as u32;
+
+        let mut indices = Vec::new();
+
+        // u方向の線（v固定）
+        for u_idx in 0..(u_len - 1) {
+            for v_idx in 0..v_len {
+                let i0 = u_idx * v_len + v_idx;
+                let i1 = (u_idx + 1) * v_len + v_idx;
+                indices.push(i0);
+                indices.push(i1);
+            }
+        }
+
+        // v方向の線（u固定）
+        for u_idx in 0..u_len {
+            for v_idx in 0..(v_len - 1) {
+                let i0 = u_idx * v_len + v_idx;
+                let i1 = i0 + 1;
+                indices.push(i0);
+                indices.push(i1);
+            }
+        }
+
+        indices
+    }
+}
