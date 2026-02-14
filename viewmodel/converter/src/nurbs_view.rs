@@ -49,10 +49,9 @@ impl NurbsCurveEvalData {
             .knot_vector()
             .iter()
             .map(|k| {
-                let f32_val = k.to_f32();
                 // Scalar::to_f32()はfallibleだが、通常のf64->f32変換なら問題ない
                 // 念のため、既にf32の場合と分ける
-                f32_val
+                k.to_f32()
             })
             .collect();
 
@@ -76,6 +75,33 @@ impl NurbsCurveEvalData {
             .iter()
             .map(|p| p.to_f32())
             .collect();
+
+        tracing::info!(
+            "📋 NurbsCurveEvalData 変換完了: {} params, {} control points, degree={}, {} knots",
+            params.len(),
+            num_cp,
+            degree,
+            knots.len()
+        );
+        
+        if !control_points.is_empty() {
+            tracing::info!(
+                "📋 制御点[0]: ({:.3}, {:.3}, {:.3})",
+                control_points[0],
+                control_points[1],
+                control_points[2]
+            );
+            if num_cp > 1 {
+                let last_idx = control_points.len() - 3;
+                tracing::info!(
+                    "📋 制御点[{}]: ({:.3}, {:.3}, {:.3})",
+                    num_cp - 1,
+                    control_points[last_idx],
+                    control_points[last_idx + 1],
+                    control_points[last_idx + 2]
+                );
+            }
+        }
 
         Self {
             params,

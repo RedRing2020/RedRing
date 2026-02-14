@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 wgpu = "27.0.1"
 render = { path = "../render" }
+viewmodel = { path = "../../viewmodel/converter" }
 bytemuck = "1.23.2"
 tracing = "0.1"
 analysis = { path = "../../foundation/analysis" }

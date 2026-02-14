@@ -28,7 +28,7 @@ var<storage, read> degree_storage: array<u32>; // [degree] (1要素配列)
 
 // === ヘルパー関数 ===
 
-/// ノットスパン検索（Cox-de Boor再帰用）
+/// ノットスパン検索（バイナリサーチ）
 fn find_knot_span(u: f32, degree: u32, num_cp: u32) -> u32 {
     let n = num_cp - 1u;
     let p = degree;
@@ -38,56 +38,65 @@ fn find_knot_span(u: f32, degree: u32, num_cp: u32) -> u32 {
         return n;
     }
     
-    // バイナリサーチ
+    // バイナリサーチ（無限ループ対策付き）
     var low = p;
     var high = n + 1u;
-    var mid = (low + high) / 2u;
     
-    while u < knots[mid] || u >= knots[mid + 1u] {
+    // high <= n を確認して無限ループを防止
+    let max_iterations = 32u; // log2(2^32) より十分大きい値
+    var iterations = 0u;
+    
+    while low < high && iterations < max_iterations {
+        let mid = (low + high) / 2u;
+        
         if u < knots[mid] {
             high = mid;
+        } else if u < knots[mid + 1u] || mid == n {
+            // 見つかった
+            return mid;
         } else {
-            low = mid;
+            low = mid + 1u;
         }
-        mid = (low + high) / 2u;
+        
+        iterations = iterations + 1u;
     }
     
-    return mid;
+    return low;
 }
 
-/// NURBS basis function (Cox-de Boor再帰)
-/// 注: WGSLでは再帰深度に制限がある可能性があるが、通常のdegree（3-5程度）なら許容範囲
-fn basis_function(i: u32, p: u32, u: f32) -> f32 {
-    // p=0の場合（ベース）
-    if p == 0u {
-        if u >= knots[i] && u < knots[i + 1u] {
-            return 1.0;
-        } else {
-            return 0.0;
+/// NURBS basis functions (反復型Cox-de Boor算法)
+/// ノットスパンに影響する基底関数値（degree個）を計算
+/// 戻り値: basis[0..degree] = N_{span-degree+j, degree}(u)
+fn basis_functions_iter(span: u32, p: u32, u: f32) -> array<f32, 6> {
+    var basis = array<f32, 6>(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    var left = array<f32, 6>(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    var right = array<f32, 6>(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    
+    basis[0] = 1.0;
+    
+    // j = 1..p の反復計算（通常p=3立方B-スプラインの場合）
+    for (var j = 1u; j <= p; j = j + 1u) {
+        left[j] = u - knots[span + 1u - j];
+        right[j] = knots[span + j] - u;
+        
+        var saved = 0.0;
+        for (var r = 0u; r < j; r = r + 1u) {
+            let temp = basis[r] / (right[r + 1u] + left[j - r]);
+            basis[r] = saved + right[r + 1u] * temp;
+            saved = left[j - r] * temp;
         }
+        basis[j] = saved;
     }
     
-    // 再帰的計算
-    let left_num = u - knots[i];
-    let left_den = knots[i + p] - knots[i];
-    var left = 0.0;
-    if abs(left_den) > 1e-10 {
-        left = left_num / left_den * basis_function(i, p - 1u, u);
-    }
-    
-    let right_num = knots[i + p + 1u] - u;
-    let right_den = knots[i + p + 1u] - knots[i + 1u];
-    var right = 0.0;
-    if abs(right_den) > 1e-10 {
-        right = right_num / right_den * basis_function(i + 1u, p - 1u, u);
-    }
-    
-    return left + right;
+    return basis;
 }
 
 /// NURBS曲線評価（有理・非有理両対応）
 fn evaluate_nurbs(u: f32, degree: u32, num_cp: u32) -> vec3<f32> {
     let span = find_knot_span(u, degree, num_cp);
+    
+    // 基底関数値を計算（反復型）
+    let basis = basis_functions_iter(span, degree, u);
     
     var numerator = vec3<f32>(0.0, 0.0, 0.0);
     var denominator = 0.0;
@@ -95,7 +104,7 @@ fn evaluate_nurbs(u: f32, degree: u32, num_cp: u32) -> vec3<f32> {
     // スパンに影響する制御点のみ計算（degree+1個）
     for (var j = 0u; j <= degree; j = j + 1u) {
         let idx = span - degree + j;
-        let N = basis_function(idx, degree, u);
+        let N = basis[j];
         let w = weights[idx];
         
         let cp_base = idx * 3u;
@@ -144,6 +153,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 // === Fragment Shader ===
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    // NURBS曲線は青色で表示
+    // 【確認用】曲線を青色で表示
     return vec4<f32>(0.0, 0.5, 1.0, 1.0);
 }

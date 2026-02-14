@@ -4,7 +4,10 @@ use crate::mouse_input::MouseInput;
 use crate::stl_loader;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
-use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage, ToolPathStage};
+use stage::{
+    DraftStage, MeshStage, NurbsCurveStage, OctreeStage, OutlineStage, ShadingStage,
+    ToolPathStage,
+};
 use std::path::Path;
 use std::sync::Arc;
 use viewmodel_graphics::Camera;
@@ -475,10 +478,15 @@ impl AppState {
 
     /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
     pub fn load_debug_nurbs(&mut self) {
+        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_io::svg::parse_svg_file;
+        use geo_nurbs::adaptive_tessellation::{
+            AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation,
+        };
         use std::path::Path;
 
         let tolerance = self.tolerance_in_current_unit();
-        tracing::info!("デバッグ形状: NurbsCurve3D表示（SVGから）");
+        tracing::info!("デバッグ形状: NurbsCurve3D表示（GPU評価）");
         tracing::info!(
             "表示トレランス: {:.6} (単位系: {:?})",
             tolerance,
@@ -486,28 +494,75 @@ impl AppState {
         );
 
         let svg_path = Path::new("tests/fixtures/shapes/nurbs_curve.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path, Some(tolerance)) {
-            Ok(vertices) => {
-                tracing::info!(
-                    "SVG読み込み成功: {} 頂点（テッセレーション済み）",
-                    vertices.len()
-                );
-
-                self.camera.reset_to_standard_cad_view();
-
-                let mut mesh_stage = Box::new(MeshStage::new(
-                    &self.graphic.device,
-                    self.graphic.config.format,
-                ));
-                mesh_stage.set_line_data(&self.graphic.device, vertices);
-
-                self.renderer.set_stage(mesh_stage);
-                self.update_camera_uniforms();
-            }
+        let svg_data = match parse_svg_file(svg_path) {
+            Ok(data) => data,
             Err(e) => {
                 tracing::error!("SVG読み込みエラー: {}", e);
+                return;
             }
+        };
+
+        let nurbs_data = match svg_data.nurbs_curves.first() {
+            Some(data) => data,
+            None => {
+                tracing::warn!("SVG内にNURBS曲線が見つかりません: {:?}", svg_path);
+                return;
+            }
+        };
+
+        let curve = match <geo_nurbs::NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            nurbs_data.degree,
+            nurbs_data.knots.clone(),
+            nurbs_data.control_points.clone(),
+            nurbs_data.weights.clone(),
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("NURBS曲線生成失敗: {}", e);
+                return;
+            }
+        };
+
+        let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance);
+        let param_list = curve.adaptive_params_curve(&settings);
+        
+        tracing::info!(
+            "適応分割結果: {} パラメータ点生成",
+            param_list.params.len()
+        );
+        if param_list.params.len() < 10 {
+            tracing::info!("  パラメータ値: {:?}", param_list.params);
+        } else {
+            tracing::info!(
+                "  最初5個: {:?}, 最後5個: {:?}",
+                &param_list.params[..5],
+                &param_list.params[param_list.params.len()-5..]
+            );
         }
+        
+        let eval_data = viewmodel::nurbs_view::NurbsCurveEvalData::from_curve_params(
+            &curve,
+            &param_list,
+        );
+
+        tracing::info!(
+            "GPU評価データ生成完了: params={}, control_points={}, degree={}, knots={}",
+            eval_data.num_eval_points(),
+            eval_data.num_control_points(),
+            eval_data.degree,
+            eval_data.knots.len()
+        );
+
+        self.camera.reset_to_standard_cad_view();
+
+        let mut nurbs_stage = Box::new(NurbsCurveStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        nurbs_stage.set_eval_data(&self.graphic.device, eval_data);
+
+        self.renderer.set_stage(nurbs_stage);
+        self.update_camera_uniforms();
     }
 
     /// カメラをリセット
@@ -628,6 +683,10 @@ impl AppState {
                 "a" => {
                     // デバッグ: Arc3D表示
                     self.load_debug_arc();
+                }
+                "n" => {
+                    // デバッグ: NurbsCurve3D表示（GPU評価）
+                    self.load_debug_nurbs();
                 }
                 _ => {}
             }

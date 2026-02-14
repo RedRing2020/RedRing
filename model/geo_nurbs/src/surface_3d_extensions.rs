@@ -51,11 +51,11 @@ impl<T: Scalar> NurbsSurfaceAdaptiveTessellation<T> for NurbsSurface3D<T> {
         settings: &AdaptiveTessellationSettings<T>,
     ) -> AdaptiveParamGrid<T> {
         let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
-        let u_mid = (u_min + u_max) / (T::ONE + T::ONE);
-        let v_mid = (v_min + v_max) / (T::ONE + T::ONE);
+        let u_middle = (u_min + u_max) / (T::ONE + T::ONE);
+        let v_middle = (v_min + v_max) / (T::ONE + T::ONE);
 
-        let v_samples = vec![v_min, v_mid, v_max];
-        let u_samples = vec![u_min, u_mid, u_max];
+        let v_samples = vec![v_min, v_middle, v_max];
+        let u_samples = vec![u_min, u_middle, u_max];
 
         let u_params = adaptive_params_axis(u_min, u_max, settings, |a, b| {
             self.chord_error_u(a, b, &v_samples)
