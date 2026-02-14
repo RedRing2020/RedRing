@@ -1950,9 +1950,6 @@ name = "redring"
 version = "0.1.0"
 dependencies = [
  "analysis",
- "geo_foundation",
- "geo_io",
- "geo_nurbs",
  "pollster",
  "render",
  "smol_str 0.3.4",

@@ -56,7 +56,8 @@ pub use octree::{Octree, OctreeNode};
 
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
 pub use geo_foundation::Scalar;
-pub use geo_nurbs::NurbsCurve3D;
+pub use geo_nurbs::adaptive_tessellation;
+pub use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 
 // geo_primitives の基本型を再エクスポート（ViewModel層がgeo_primitivesに直接依存しないように）
 // 基本ポイント・ベクトル型（geo_coreから）

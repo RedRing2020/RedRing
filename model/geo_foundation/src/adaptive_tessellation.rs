@@ -101,12 +101,7 @@ where
 }
 
 /// 最小分割数を満たすように均等分割を追加
-pub fn ensure_min_segments<T: Scalar>(
-    params: &mut Vec<T>,
-    t_min: T,
-    t_max: T,
-    min_segments: u32,
-) {
+pub fn ensure_min_segments<T: Scalar>(params: &mut Vec<T>, t_min: T, t_max: T, min_segments: u32) {
     if min_segments == 0 {
         return;
     }

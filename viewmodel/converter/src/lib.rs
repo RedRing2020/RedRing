@@ -14,6 +14,7 @@
 //! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
 
 pub mod mesh_converter;
+pub mod nurbs_debug;
 pub mod nurbs_view;
 pub mod octree_converter;
 pub mod shape_converter;

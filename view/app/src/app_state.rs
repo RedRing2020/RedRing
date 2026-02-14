@@ -477,13 +477,8 @@ impl AppState {
     }
 
     /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
-    /// TODO: ViewModelレイヤーに移動（アーキテクチャ依存規則違反）
+    /// ViewModelレイヤー経由で評価データを生成
     pub fn load_debug_nurbs(&mut self) {
-        use geo_foundation::NurbsCurve3DConstructor;
-        use geo_io::svg::parse_svg_file;
-        use geo_nurbs::adaptive_tessellation::{
-            AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation,
-        };
         use std::path::Path;
 
         let tolerance = self.tolerance_in_current_unit();
@@ -495,49 +490,14 @@ impl AppState {
         );
 
         let svg_path = Path::new("tests/fixtures/shapes/nurbs_curve.svg");
-        let svg_data = match parse_svg_file(svg_path) {
-            Ok(data) => data,
-            Err(e) => {
-                tracing::error!("SVG読み込みエラー: {}", e);
-                return;
-            }
-        };
-
-        let nurbs_data = match svg_data.nurbs_curves.first() {
-            Some(data) => data,
-            None => {
-                tracing::warn!("SVG内にNURBS曲線が見つかりません: {:?}", svg_path);
-                return;
-            }
-        };
-
-        let curve = match <geo_nurbs::NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
-            nurbs_data.degree,
-            nurbs_data.knots.clone(),
-            nurbs_data.control_points.clone(),
-            nurbs_data.weights.clone(),
-        ) {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("NURBS曲線生成失敗: {}", e);
-                return;
-            }
-        };
-
-        let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance);
-        let param_list = curve.adaptive_params_curve(&settings);
-
-        tracing::info!(
-            "適応分割結果: {} パラメータ点生成",
-            param_list.params.len()
-        );
-
-        let eval_data = viewmodel::nurbs_view::NurbsCurveEvalData::from_curve_params(
-            &curve,
-            &geo_foundation::adaptive_tessellation::AdaptiveParamList {
-                params: param_list.params.clone(),
-            },
-        );
+        let eval_data =
+            match viewmodel::nurbs_debug::load_nurbs_curve_eval_from_svg(svg_path, tolerance) {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("NURBS曲線データ生成失敗: {}", e);
+                    return;
+                }
+            };
 
         tracing::info!(
             "GPU評価データ生成完了: params={}, control_points={}, degree={}, knots={}",
@@ -560,78 +520,23 @@ impl AppState {
     }
 
     /// デバッグ用: NURBS曲面をGPU評価で表示（曲率のある曲面）
-    /// TODO: ViewModelレイヤーに移動（アーキテクチャ依存規則違反）
+    /// ViewModelレイヤー経由で評価データを生成
     pub fn load_debug_nurbs_surface(&mut self) {
-        use geo_foundation::NurbsSurface3DConstructor;
-        use geo_nurbs::adaptive_tessellation::{
-            AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation,
-        };
-        use geo_nurbs::NurbsSurface3D;
-
         tracing::info!("デバッグ形状: NurbsSurface3D表示（GPU評価）- 曲率のある曲面");
-
-        // 中央が盛り上がった2次曲面（3x3制御点グリッド）
-        let control_points = vec![
-            vec![
-                (0.0, 0.0, 0.0),
-                (0.0, 0.5, 0.0),
-                (0.0, 1.0, 0.0),
-            ],
-            vec![
-                (0.5, 0.0, 0.0),
-                (0.5, 0.5, 0.5), // 中央を盛り上げる
-                (0.5, 1.0, 0.0),
-            ],
-            vec![
-                (1.0, 0.0, 0.0),
-                (1.0, 0.5, 0.0),
-                (1.0, 1.0, 0.0),
-            ],
-        ];
-
-        let u_degree = 2;
-        let v_degree = 2;
-        let u_knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let v_knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-
-        let surface = NurbsSurface3D::<f64>::new(
-            control_points,
-            None,
-            u_knots,
-            v_knots,
-            u_degree,
-            v_degree,
-        )
-        .expect("曲面生成に失敗");
-
-        // 表示トレランスを使用（単位系を考慮）
         let tolerance_value = self.tolerance_in_current_unit();
-        let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance_value);
-
         tracing::info!(
             "表示トレランス: {:.6} (単位系: {:?})",
             tolerance_value,
             self.unit_system
         );
-
-        // 適応パラメータグリッド生成
-        let param_grid = surface.adaptive_params_surface(&settings);
-
-        tracing::info!(
-            "適応分割結果: u_params={}, v_params={} → {} vertices",
-            param_grid.u_params.len(),
-            param_grid.v_params.len(),
-            param_grid.u_params.len() * param_grid.v_params.len()
-        );
-
-        // GPU評価用データに変換
-        let eval_data = viewmodel::nurbs_view::NurbsSurfaceEvalData::from_surface_params(
-            &surface,
-            &geo_foundation::adaptive_tessellation::AdaptiveParamGrid {
-                u_params: param_grid.u_params.clone(),
-                v_params: param_grid.v_params.clone(),
-            },
-        );
+        let eval_data =
+            match viewmodel::nurbs_debug::create_sample_nurbs_surface_eval(tolerance_value) {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("NURBS曲面データ生成失敗: {}", e);
+                    return;
+                }
+            };
 
         tracing::info!(
             "GPU評価データ生成完了: vertices={}, triangles={}, u_degree={}, v_degree={}",
@@ -682,7 +587,7 @@ impl AppState {
     /// ワイヤーフレーム表示を切り替え
     pub fn toggle_wireframe(&mut self) {
         let stage = self.renderer.get_stage_mut();
-        
+
         // MeshStageの場合
         if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
             mesh_stage.toggle_wireframe();
@@ -694,7 +599,7 @@ impl AppState {
             tracing::info!("表示モードを{}に切り替え", mode);
             return;
         }
-        
+
         // NurbsSurfaceStageの場合
         if let Some(nurbs_stage) = stage.as_any_mut().downcast_mut::<NurbsSurfaceStage>() {
             nurbs_stage.toggle_wireframe();
@@ -706,7 +611,7 @@ impl AppState {
             tracing::info!("表示モードを{}に切り替え", mode);
             return;
         }
-        
+
         tracing::warn!("現在のステージはワイヤーフレーム表示に対応していません");
     }
 

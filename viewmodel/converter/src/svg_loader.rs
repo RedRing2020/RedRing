@@ -9,7 +9,9 @@ use crate::shape_converter::{
     triangle_to_solid_vertices, TessellationQuality,
 };
 // geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
-use geo_algorithms::{Arc3D, Circle3D, Direction3D, LineSegment3D, NurbsCurve3D, Point3D, Triangle3D, Vector3D};
+use geo_algorithms::{
+    Arc3D, Circle3D, Direction3D, LineSegment3D, NurbsCurve3D, Point3D, Triangle3D, Vector3D,
+};
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use std::path::Path;
 use thiserror::Error;

@@ -10,8 +10,8 @@
 #![allow(clippy::items_after_test_module)]
 
 // NURBS実装モジュール
-pub mod basis;
 pub mod adaptive_tessellation;
+pub mod basis;
 pub mod curve_2d;
 pub mod curve_2d_foundation;
 pub mod curve_2d_transform;
@@ -33,11 +33,11 @@ pub mod weight_storage;
 pub use analysis::Scalar;
 
 // 主要な型を再エクスポート
-pub use basis::{basis_function, basis_functions, rational_basis_functions};
 pub use adaptive_tessellation::{
     AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings,
     NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
 };
+pub use basis::{basis_function, basis_functions, rational_basis_functions};
 pub use curve_2d::NurbsCurve2D;
 pub use curve_3d::NurbsCurve3D;
 pub use curve_3d_extensions::AabbOptions;

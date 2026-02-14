@@ -374,6 +374,10 @@ view/app
 - geo_foundationのNURBSトレイト拡張はFoundationパターンの修正に該当
 - 既存の依存ルールに従い、**ViewModel→geo_algorithms**は許可されるが本方針では採用しない
 
+**移管方針（デバッグ表示）**:
+- app層のNURBSデバッグ表示は ViewModel に移管し、appは`viewmodel::nurbs_debug`経由で評価データを取得
+- app層の`geo_*`直接依存は削除し、アーキテクチャチェックに準拠
+
 ### 理想形（Phase 3完了時）
 
 ```text

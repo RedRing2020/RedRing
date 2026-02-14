@@ -41,32 +41,21 @@ impl NurbsCurveEvalData {
         param_list: &geo_foundation::adaptive_tessellation::AdaptiveParamList<T>,
     ) -> Self {
         let degree = curve.degree() as u32;
-        
+
         // ノットベクトルの変換
-        let knots: Vec<f32> = curve
-            .knot_vector()
-            .iter()
-            .map(|k| k.to_f32())
-            .collect();
+        let knots: Vec<f32> = curve.knot_vector().iter().map(|k| k.to_f32()).collect();
 
         // 制御点のflatten: coordinates()で直接フラット配列を取得
         let num_cp = curve.control_points_count();
-        let control_points: Vec<f32> = curve
-            .coordinates()
-            .iter()
-            .map(|c| c.to_f32())
-            .collect();
+        let control_points: Vec<f32> = curve.coordinates().iter().map(|c| c.to_f32()).collect();
 
-        // 重みの変換（Foundationトレイトメソッド使用）  
-        let weights = curve.weights()
+        // 重みの変換（Foundationトレイトメソッド使用）
+        let weights = curve
+            .weights()
             .map(|w_slice| w_slice.iter().map(|wi| wi.to_f32()).collect());
 
         // パラメータの変換（Vec<T> -> Vec<f32>）
-        let params: Vec<f32> = param_list
-            .params
-            .iter()
-            .map(|p| p.to_f32())
-            .collect();
+        let params: Vec<f32> = param_list.params.iter().map(|p| p.to_f32()).collect();
 
         tracing::info!(
             "📋 NurbsCurveEvalData 変換完了: {} params, {} control points, degree={}, {} knots",
@@ -75,7 +64,7 @@ impl NurbsCurveEvalData {
             degree,
             knots.len()
         );
-        
+
         if !control_points.is_empty() {
             tracing::info!(
                 "📋 制御点[0]: ({:.3}, {:.3}, {:.3})",
@@ -120,9 +109,7 @@ mod tests {
     use super::*;
     use geo_foundation::NurbsCurve3DConstructor;
     use geo_nurbs::{
-        adaptive_tessellation::{
-            AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation,
-        },
+        adaptive_tessellation::{AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation},
         NurbsCurve3D,
     };
 
@@ -134,7 +121,7 @@ mod tests {
         // 適応パラメータ生成
         let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);
         let param_list = curve.adaptive_params_curve(&settings);
-        
+
         // geo_foundation の型に変換
         let param_list_foundation = geo_foundation::adaptive_tessellation::AdaptiveParamList {
             params: param_list.params.clone(),
@@ -202,7 +189,7 @@ pub struct NurbsSurfaceEvalData {
     /// グリッドサイズ
     pub u_count: u32,
     pub v_count: u32,
-    
+
     /// 評価グリッドサイズ（頂点数計算用）
     num_u_params: usize,
     num_v_params: usize,
@@ -229,7 +216,7 @@ impl NurbsSurfaceEvalData {
         // u, v パラメータの変換（一時的）
         let u_params: Vec<f32> = param_grid.u_params.iter().map(|p| p.to_f32()).collect();
         let v_params: Vec<f32> = param_grid.v_params.iter().map(|p| p.to_f32()).collect();
-        
+
         let num_u_params = u_params.len();
         let num_v_params = v_params.len();
 
@@ -237,7 +224,7 @@ impl NurbsSurfaceEvalData {
         // グリッド順（u方向優先）で各頂点の(u,v)を格納
         let num_vertices = num_u_params * num_v_params;
         let mut vertex_params = Vec::with_capacity(num_vertices * 2);
-        
+
         for &u in &u_params {
             for &v in &v_params {
                 vertex_params.push(u);
@@ -252,14 +239,11 @@ impl NurbsSurfaceEvalData {
         let v_knots: Vec<f32> = surface.v_knots().iter().map(|k| k.to_f32()).collect();
 
         // 制御点グリッドのflatten: coordinates()で直接フラット配列を取得
-        let control_points: Vec<f32> = surface
-            .coordinates()
-            .iter()
-            .map(|c| c.to_f32())
-            .collect();
+        let control_points: Vec<f32> = surface.coordinates().iter().map(|c| c.to_f32()).collect();
 
         // 重みの変換（Foundationトレイトメソッド使用）
-        let weights = surface.weights()
+        let weights = surface
+            .weights()
             .map(|w_flat| w_flat.iter().map(|w| w.to_f32()).collect());
 
         tracing::info!(
@@ -305,7 +289,7 @@ impl NurbsSurfaceEvalData {
     pub fn generate_indices(&self) -> Vec<u32> {
         let u_len = self.num_u_params as u32;
         let v_len = self.num_v_params as u32;
-        
+
         if u_len < 2 || v_len < 2 {
             return Vec::new();
         }

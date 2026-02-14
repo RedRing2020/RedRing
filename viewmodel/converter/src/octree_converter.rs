@@ -386,11 +386,8 @@ mod tests {
     #[test]
     fn test_bbox_to_wireframe_vertices() {
         use geo_algorithms::Point3D;
-        
-        let bbox = Aabb3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 1.0, 1.0),
-        );
+
+        let bbox = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0));
         let color = [1.0, 0.0, 0.0];
 
         let vertices = bbox_to_wireframe_vertices(&bbox, color);

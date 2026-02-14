@@ -321,11 +321,7 @@ impl NurbsCurveEvalResources {
     /// * `queue` - wgpuキュー
     /// * `uniforms` - 更新するUniformデータ
     pub fn update_uniforms(&self, queue: &wgpu::Queue, uniforms: &NurbsEvalUniforms) {
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[*uniforms]),
-        );
+        queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[*uniforms]));
     }
 
     /// レンダリング実行
@@ -337,12 +333,12 @@ impl NurbsCurveEvalResources {
             "📊 NurbsCurveEvalResources.render(): pipeline設定、頂点数={}",
             self.num_eval_points
         );
-        
+
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
         render_pass.set_bind_group(1, &self.nurbs_bind_group, &[]);
         render_pass.draw(0..self.num_eval_points, 0..1);
-        
+
         tracing::info!(
             "📊 NurbsCurveEvalResources.render(): draw call実行 (0..{})",
             self.num_eval_points
@@ -593,12 +589,11 @@ impl NurbsSurfaceEvalResources {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let wireframe_index_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("NURBS Surface Wireframe Index Buffer"),
-                contents: bytemuck::cast_slice(&wireframe_indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let wireframe_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("NURBS Surface Wireframe Index Buffer"),
+            contents: bytemuck::cast_slice(&wireframe_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
 
         // === Pipeline Layout ===
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -722,11 +717,7 @@ impl NurbsSurfaceEvalResources {
 
     /// カメラ行列更新
     pub fn update_uniforms(&self, queue: &wgpu::Queue, uniforms: &NurbsEvalUniforms) {
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[*uniforms]),
-        );
+        queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&[*uniforms]));
     }
 
     /// レンダリング実行
@@ -752,10 +743,8 @@ impl NurbsSurfaceEvalResources {
             );
         } else {
             render_pass.set_pipeline(&self.solid_pipeline);
-            render_pass.set_index_buffer(
-                self.solid_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint32,
-            );
+            render_pass
+                .set_index_buffer(self.solid_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.num_solid_indices, 0, 0..1);
             tracing::info!(
                 "📊 NurbsSurfaceEvalResources.render(): solid, {} indices ({} triangles)",

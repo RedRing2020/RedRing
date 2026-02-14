@@ -35,20 +35,20 @@ impl NurbsCurveStage {
     ) {
         let num_evals = eval_data.num_eval_points();
         let num_cps = eval_data.num_control_points();
-        
+
         tracing::info!(
             "NURBS曲線GPU評価データ設定: {} eval points, {} control points, degree={}",
             num_evals,
             num_cps,
             eval_data.degree
         );
-        
+
         if num_evals == 0 {
             tracing::warn!("⚠️ 評価点が0個 - 曲線描画されません");
             self.has_data = false;
             return;
         }
-        
+
         if num_cps == 0 {
             tracing::warn!("⚠️ 制御点が0個 - 曲線描画されません");
             self.has_data = false;
@@ -58,7 +58,7 @@ impl NurbsCurveStage {
         let resources = NurbsCurveEvalResources::new(device, self.format, &eval_data);
         self.resources = Some(resources);
         self.has_data = true;
-        
+
         tracing::info!("✓ NurbsCurveStage: GPU評価データ設定完了、has_data=true");
     }
 
@@ -116,7 +116,10 @@ impl RenderStage for NurbsCurveStage {
             return;
         };
 
-        tracing::info!("🎨 NurbsCurveStage.render_with_depth(): {} 頂点を描画開始", resources.num_eval_points);
+        tracing::info!(
+            "🎨 NurbsCurveStage.render_with_depth(): {} 頂点を描画開始",
+            resources.num_eval_points
+        );
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("NURBS Curve Render Pass"),
@@ -147,7 +150,7 @@ impl RenderStage for NurbsCurveStage {
         });
 
         resources.render(&mut render_pass);
-        
+
         tracing::info!("🎨 NurbsCurveStage.render_with_depth(): 描画完了")
     }
 
