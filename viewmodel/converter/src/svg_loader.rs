@@ -8,9 +8,11 @@ use crate::shape_converter::{
     arc_to_wireframe_line_segments, circle_to_wireframe_line_segments, line_segment_to_vertices,
     triangle_to_solid_vertices, TessellationQuality,
 };
-use geo_algorithms::NurbsCurve3D;
+// geo_algorithms は geo_primitives を再エクスポート（アーキテクチャルール上許可）
+use geo_algorithms::{
+    Arc3D, Circle3D, Direction3D, LineSegment3D, NurbsCurve3D, Point3D, Triangle3D, Vector3D,
+};
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
-use geo_primitives::{Arc3D, Circle3D, Direction3D, LineSegment3D, Point3D, Triangle3D, Vector3D};
 use std::path::Path;
 use thiserror::Error;
 

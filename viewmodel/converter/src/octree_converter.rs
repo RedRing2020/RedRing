@@ -3,8 +3,10 @@
 //! MVVMアーキテクチャにおけるViewModel層の責務として、
 //! geo_algorithms の Octree を GPU レンダリング用のワイヤーフレーム頂点データに変換します。
 
-use geo_algorithms::octree::{Octree, VoxelOctree, VoxelState};
-use geo_core::Aabb3D;
+use geo_algorithms::{
+    octree::{Octree, VoxelOctree, VoxelState},
+    Aabb3D,
+};
 use geo_foundation::Scalar;
 use std::ops::Range;
 
@@ -282,7 +284,7 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
 /// # Returns
 /// ワイヤーフレーム頂点の位置データ（[[f32; 3]]）
 pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
-    use geo_core::Point3D;
+    use geo_algorithms::Point3D;
 
     tracing::info!("create_sample_voxel_octree_wireframe: 開始");
 
@@ -383,10 +385,9 @@ mod tests {
 
     #[test]
     fn test_bbox_to_wireframe_vertices() {
-        let bbox = Aabb3D::new(
-            geo_core::Point3D::new(0.0, 0.0, 0.0),
-            geo_core::Point3D::new(1.0, 1.0, 1.0),
-        );
+        use geo_algorithms::Point3D;
+
+        let bbox = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0));
         let color = [1.0, 0.0, 0.0];
 
         let vertices = bbox_to_wireframe_vertices(&bbox, color);

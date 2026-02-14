@@ -3,8 +3,8 @@
 //! MVVMアーキテクチャにおけるViewModel層の責務として、
 //! geo_primitives の具体型を使用して TriangleMesh3D を GPU レンダリング用の頂点データに変換します。
 
+use geo_algorithms::{Point3D, TriangleMesh3D, Vector3D};
 use geo_foundation::core::triangle_traits::Triangle3DProperties;
-use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 
 /// GPU用頂点データ（renderクレートのMeshVertexと同じ構造）
 #[repr(C)]
@@ -105,7 +105,7 @@ pub fn triangle_mesh_to_vertices_with_indices(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_primitives::{Point3D, TriangleMesh3D};
+    use geo_algorithms::{Point3D, TriangleMesh3D};
 
     #[test]
     fn test_triangle_mesh_conversion() {

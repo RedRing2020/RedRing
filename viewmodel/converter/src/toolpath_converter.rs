@@ -13,7 +13,7 @@ use cam_core::{
     ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
     ToolPath,
 };
-use geo_primitives::Point3D;
+use geo_algorithms::Point3D;
 
 /// 工具経路の色設定（App層から注入）
 #[derive(Debug, Clone, Copy)]
@@ -437,7 +437,7 @@ fn tessellate_arc(
 ///
 /// シンプルな矩形加工経路を返します（UI表示テスト用）
 pub fn create_sample_toolpath() -> ToolPath<f64> {
-    use geo_primitives::Point3D;
+    use geo_algorithms::Point3D;
 
     // エアカット高さ（切削パスより +20）
     let aircut_z = 20.0;

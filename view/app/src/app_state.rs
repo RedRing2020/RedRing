@@ -4,7 +4,10 @@ use crate::mouse_input::MouseInput;
 use crate::stl_loader;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
-use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage, ToolPathStage};
+use stage::{
+    DraftStage, MeshStage, NurbsCurveStage, NurbsSurfaceStage, OctreeStage, OutlineStage,
+    ShadingStage, ToolPathStage,
+};
 use std::path::Path;
 use std::sync::Arc;
 use viewmodel_graphics::Camera;
@@ -474,11 +477,12 @@ impl AppState {
     }
 
     /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
+    /// ViewModelレイヤー経由で評価データを生成
     pub fn load_debug_nurbs(&mut self) {
         use std::path::Path;
 
         let tolerance = self.tolerance_in_current_unit();
-        tracing::info!("デバッグ形状: NurbsCurve3D表示（SVGから）");
+        tracing::info!("デバッグ形状: NurbsCurve3D表示（GPU評価）");
         tracing::info!(
             "表示トレランス: {:.6} (単位系: {:?})",
             tolerance,
@@ -486,28 +490,72 @@ impl AppState {
         );
 
         let svg_path = Path::new("tests/fixtures/shapes/nurbs_curve.svg");
-        match crate::svg_loader::load_svg_for_rendering(svg_path, Some(tolerance)) {
-            Ok(vertices) => {
-                tracing::info!(
-                    "SVG読み込み成功: {} 頂点（テッセレーション済み）",
-                    vertices.len()
-                );
+        let eval_data =
+            match viewmodel::nurbs_debug::load_nurbs_curve_eval_from_svg(svg_path, tolerance) {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("NURBS曲線データ生成失敗: {}", e);
+                    return;
+                }
+            };
 
-                self.camera.reset_to_standard_cad_view();
+        tracing::info!(
+            "GPU評価データ生成完了: params={}, control_points={}, degree={}, knots={}",
+            eval_data.num_eval_points(),
+            eval_data.num_control_points(),
+            eval_data.degree,
+            eval_data.knots.len()
+        );
 
-                let mut mesh_stage = Box::new(MeshStage::new(
-                    &self.graphic.device,
-                    self.graphic.config.format,
-                ));
-                mesh_stage.set_line_data(&self.graphic.device, vertices);
+        self.camera.reset_to_standard_cad_view();
 
-                self.renderer.set_stage(mesh_stage);
-                self.update_camera_uniforms();
-            }
-            Err(e) => {
-                tracing::error!("SVG読み込みエラー: {}", e);
-            }
-        }
+        let mut nurbs_stage = Box::new(NurbsCurveStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        nurbs_stage.set_eval_data(&self.graphic.device, eval_data);
+
+        self.renderer.set_stage(nurbs_stage);
+        self.update_camera_uniforms();
+    }
+
+    /// デバッグ用: NURBS曲面をGPU評価で表示（曲率のある曲面）
+    /// ViewModelレイヤー経由で評価データを生成
+    pub fn load_debug_nurbs_surface(&mut self) {
+        tracing::info!("デバッグ形状: NurbsSurface3D表示（GPU評価）- 曲率のある曲面");
+        let tolerance_value = self.tolerance_in_current_unit();
+        tracing::info!(
+            "表示トレランス: {:.6} (単位系: {:?})",
+            tolerance_value,
+            self.unit_system
+        );
+        let eval_data =
+            match viewmodel::nurbs_debug::create_sample_nurbs_surface_eval(tolerance_value) {
+                Ok(data) => data,
+                Err(e) => {
+                    tracing::error!("NURBS曲面データ生成失敗: {}", e);
+                    return;
+                }
+            };
+
+        tracing::info!(
+            "GPU評価データ生成完了: vertices={}, triangles={}, u_degree={}, v_degree={}",
+            eval_data.num_vertices(),
+            eval_data.num_triangles(),
+            eval_data.u_degree,
+            eval_data.v_degree
+        );
+
+        self.camera.reset_to_standard_cad_view();
+
+        let mut nurbs_surface_stage = Box::new(NurbsSurfaceStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        nurbs_surface_stage.set_eval_data(&self.graphic.device, eval_data);
+
+        self.renderer.set_stage(nurbs_surface_stage);
+        self.update_camera_uniforms();
     }
 
     /// カメラをリセット
@@ -538,13 +586,10 @@ impl AppState {
 
     /// ワイヤーフレーム表示を切り替え
     pub fn toggle_wireframe(&mut self) {
-        // ステージがMeshStageの場合にワイヤーフレームを切り替え
-        if let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        {
+        let stage = self.renderer.get_stage_mut();
+
+        // MeshStageの場合
+        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
             mesh_stage.toggle_wireframe();
             let mode = if mesh_stage.is_wireframe() {
                 "ワイヤーフレーム"
@@ -552,7 +597,22 @@ impl AppState {
                 "ソリッド"
             };
             tracing::info!("表示モードを{}に切り替え", mode);
+            return;
         }
+
+        // NurbsSurfaceStageの場合
+        if let Some(nurbs_stage) = stage.as_any_mut().downcast_mut::<NurbsSurfaceStage>() {
+            nurbs_stage.toggle_wireframe();
+            let mode = if nurbs_stage.is_wireframe() {
+                "ワイヤーフレーム"
+            } else {
+                "ソリッド"
+            };
+            tracing::info!("表示モードを{}に切り替え", mode);
+            return;
+        }
+
+        tracing::warn!("現在のステージはワイヤーフレーム表示に対応していません");
     }
 
     /// キーボード入力を処理
@@ -604,6 +664,8 @@ impl AppState {
                     tracing::info!("c: Circle3D表示");
                     tracing::info!("t: Triangle3D表示 (shift+t推奨)");
                     tracing::info!("a: Arc3D表示");
+                    tracing::info!("n: NurbsCurve3D表示（GPU評価）");
+                    tracing::info!("m: NurbsSurface3D表示（GPU評価）");
                     tracing::info!("=== その他 ===");
                     tracing::info!(
                         "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
@@ -628,6 +690,14 @@ impl AppState {
                 "a" => {
                     // デバッグ: Arc3D表示
                     self.load_debug_arc();
+                }
+                "n" => {
+                    // デバッグ: NurbsCurve3D表示（GPU評価）
+                    self.load_debug_nurbs();
+                }
+                "m" => {
+                    // デバッグ: NurbsSurface3D表示（GPU評価）
+                    self.load_debug_nurbs_surface();
                 }
                 _ => {}
             }

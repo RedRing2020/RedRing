@@ -2257,6 +2257,7 @@ dependencies = [
  "bytemuck",
  "render",
  "tracing",
+ "viewmodel",
  "wgpu",
 ]
 
@@ -2603,9 +2604,9 @@ dependencies = [
  "analysis",
  "cam_core",
  "geo_algorithms",
- "geo_core",
  "geo_foundation",
  "geo_io",
+ "geo_nurbs",
  "geo_primitives",
  "tempfile",
  "thiserror 2.0.17",

@@ -558,6 +558,17 @@ impl<T: Scalar> NurbsSurface3DProperties<T> for NurbsSurface3D<T> {
     fn is_rational(&self) -> bool {
         matches!(self.weights, WeightStorage::Individual(_))
     }
+
+    fn coordinates(&self) -> &[T] {
+        &self.coordinates
+    }
+
+    fn weights(&self) -> Option<&[T]> {
+        match &self.weights {
+            WeightStorage::Uniform => None,
+            WeightStorage::Individual(w) => Some(w),
+        }
+    }
 }
 
 impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
