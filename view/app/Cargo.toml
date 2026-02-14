@@ -21,6 +21,7 @@ viewmodel-graphics = { path = "../../viewmodel/graphics" }
 render = { path = "../render" }
 stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
+# NURBS デバッグ機能用（TODO: ViewModel層に移動）
 geo_foundation = { path = "../../model/geo_foundation" }
 geo_io = { path = "../../model/geo_io" }
 geo_nurbs = { path = "../../model/geo_nurbs" }

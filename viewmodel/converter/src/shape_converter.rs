@@ -29,7 +29,10 @@ use geo_foundation::{
     Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
     SphericalSurface3DMeasure, TorusSolid3DProperties, TorusSurface3DMeasure, Triangle3DProperties,
 };
-use geo_primitives::{
+// geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
+// - 基本型 (Point3D, Vector3D from geo_core)
+// - 形状型 (Arc3D等 from geo_primitives)
+use geo_algorithms::{
     Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D,
     Direction3D, Ellipse3D, EllipseArc3D, EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D,
     LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSolid3D,
@@ -2155,7 +2158,7 @@ fn generate_circle_cap(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_primitives::Direction3D;
+    use geo_algorithms::Direction3D;
 
     #[test]
     fn test_line_segment_conversion() {
@@ -2300,7 +2303,7 @@ mod tests {
 
     #[test]
     fn test_arc_conversion() {
-        use geo_primitives::Angle;
+        use geo_algorithms::Angle;
 
         // XY平面上の90度の円弧（0度から90度）
         let center = Point3D::new(0.0, 0.0, 0.0);
@@ -2371,7 +2374,7 @@ mod tests {
 
     #[test]
     fn test_all_15_shapes_conversion() {
-        use geo_primitives::{Angle, ConicalSurface3D, Ellipse3D};
+        use geo_algorithms::{Angle, ConicalSurface3D, Ellipse3D};
 
         let quality = TessellationQuality::default();
 

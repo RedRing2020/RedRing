@@ -477,6 +477,7 @@ impl AppState {
     }
 
     /// デバッグ用：NurbsCurve3Dを表示（SVGから読み込み）
+    /// TODO: ViewModelレイヤーに移動（アーキテクチャ依存規則違反）
     pub fn load_debug_nurbs(&mut self) {
         use geo_foundation::NurbsCurve3DConstructor;
         use geo_io::svg::parse_svg_file;
@@ -525,24 +526,17 @@ impl AppState {
 
         let settings = AdaptiveTessellationSettings::default_with_tolerance(tolerance);
         let param_list = curve.adaptive_params_curve(&settings);
-        
+
         tracing::info!(
             "適応分割結果: {} パラメータ点生成",
             param_list.params.len()
         );
-        if param_list.params.len() < 10 {
-            tracing::info!("  パラメータ値: {:?}", param_list.params);
-        } else {
-            tracing::info!(
-                "  最初5個: {:?}, 最後5個: {:?}",
-                &param_list.params[..5],
-                &param_list.params[param_list.params.len()-5..]
-            );
-        }
-        
+
         let eval_data = viewmodel::nurbs_view::NurbsCurveEvalData::from_curve_params(
             &curve,
-            &param_list,
+            &geo_foundation::adaptive_tessellation::AdaptiveParamList {
+                params: param_list.params.clone(),
+            },
         );
 
         tracing::info!(
@@ -566,6 +560,7 @@ impl AppState {
     }
 
     /// デバッグ用: NURBS曲面をGPU評価で表示（曲率のある曲面）
+    /// TODO: ViewModelレイヤーに移動（アーキテクチャ依存規則違反）
     pub fn load_debug_nurbs_surface(&mut self) {
         use geo_foundation::NurbsSurface3DConstructor;
         use geo_nurbs::adaptive_tessellation::{
@@ -632,7 +627,10 @@ impl AppState {
         // GPU評価用データに変換
         let eval_data = viewmodel::nurbs_view::NurbsSurfaceEvalData::from_surface_params(
             &surface,
-            &param_grid,
+            &geo_foundation::adaptive_tessellation::AdaptiveParamGrid {
+                u_params: param_grid.u_params.clone(),
+                v_params: param_grid.v_params.clone(),
+            },
         );
 
         tracing::info!(

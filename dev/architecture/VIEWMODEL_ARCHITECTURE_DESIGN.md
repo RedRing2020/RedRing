@@ -349,6 +349,31 @@ viewmodel/converter
 - 重複コード削除
 - Foundation Pattern遵守
 
+### NURBS GPU評価データの責務整理（Issue #210）
+
+**方針**:
+- ViewModel層は**geo_nurbsに直接依存しない**
+- NURBS曲線・曲面の制御点/重み/ノット取得は**Foundationトレイト経由**で行う
+- App層は**geo_*クレートに直接依存しない**（viewmodel経由で評価データ生成）
+
+**実装イメージ**:
+```text
+viewmodel/converter
+├── geo_foundation (NURBSトレイト拡張: 制御点/重み/ノット取得)
+├── geo_core (低レイヤー型のみ)
+├── geo_primitives (必要最小限)
+├── geo_algorithms (許可されるがA方針では使用しない)
+└── analysis
+
+view/app
+├── viewmodel (評価データ生成を委譲)
+└── render/stage/graphics/analysis
+```
+
+**補足**:
+- geo_foundationのNURBSトレイト拡張はFoundationパターンの修正に該当
+- 既存の依存ルールに従い、**ViewModel→geo_algorithms**は許可されるが本方針では採用しない
+
 ### 理想形（Phase 3完了時）
 
 ```text

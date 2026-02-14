@@ -514,6 +514,10 @@ impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
     fn parameter_domain(&self) -> (T, T) {
         self.parameter_domain()
     }
+
+    fn coordinates(&self) -> &[T] {
+        &self.coordinates
+    }
 }
 
 impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {

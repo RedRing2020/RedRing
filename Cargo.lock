@@ -2607,7 +2607,6 @@ dependencies = [
  "analysis",
  "cam_core",
  "geo_algorithms",
- "geo_core",
  "geo_foundation",
  "geo_io",
  "geo_nurbs",

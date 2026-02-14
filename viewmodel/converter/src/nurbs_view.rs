@@ -37,36 +37,28 @@ impl NurbsCurveEvalData {
     /// # Returns
     /// GPU評価用のf32変換済みデータ
     pub fn from_curve_params<T: Scalar>(
-        curve: &geo_nurbs::NurbsCurve3D<T>,
-        param_list: &geo_nurbs::adaptive_tessellation::AdaptiveParamList<T>,
+        curve: &impl geo_foundation::NurbsCurve3DProperties<T>,
+        param_list: &geo_foundation::adaptive_tessellation::AdaptiveParamList<T>,
     ) -> Self {
-        use geo_foundation::NurbsCurve3DProperties;
-
         let degree = curve.degree() as u32;
         
         // ノットベクトルの変換
         let knots: Vec<f32> = curve
             .knot_vector()
             .iter()
-            .map(|k| {
-                // Scalar::to_f32()はfallibleだが、通常のf64->f32変換なら問題ない
-                // 念のため、既にf32の場合と分ける
-                k.to_f32()
-            })
+            .map(|k| k.to_f32())
             .collect();
 
-        // 制御点のflatten: control_point(i)を全て取得してflatten
+        // 制御点のflatten: coordinates()で直接フラット配列を取得
         let num_cp = curve.control_points_count();
-        let mut control_points = Vec::with_capacity(num_cp * 3);
-        for i in 0..num_cp {
-            let cp = curve.control_point(i);
-            control_points.push(cp.x().to_f32());
-            control_points.push(cp.y().to_f32());
-            control_points.push(cp.z().to_f32());
-        }
+        let control_points: Vec<f32> = curve
+            .coordinates()
+            .iter()
+            .map(|c| c.to_f32())
+            .collect();
 
-        // 重みの変換（NurbsCurve3DPropertiesトレイトメソッド使用）  
-        let weights = <geo_nurbs::NurbsCurve3D<T> as NurbsCurve3DProperties<T>>::weights(curve)
+        // 重みの変換（Foundationトレイトメソッド使用）  
+        let weights = curve.weights()
             .map(|w_slice| w_slice.iter().map(|wi| wi.to_f32()).collect());
 
         // パラメータの変換（Vec<T> -> Vec<f32>）
@@ -127,10 +119,12 @@ impl NurbsCurveEvalData {
 mod tests {
     use super::*;
     use geo_foundation::NurbsCurve3DConstructor;
-    use geo_nurbs::adaptive_tessellation::{
-        AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation,
+    use geo_nurbs::{
+        adaptive_tessellation::{
+            AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation,
+        },
+        NurbsCurve3D,
     };
-    use geo_nurbs::NurbsCurve3D;
 
     #[test]
     fn test_nurbs_curve_eval_data_from_line() {
@@ -140,9 +134,14 @@ mod tests {
         // 適応パラメータ生成
         let settings = AdaptiveTessellationSettings::default_with_tolerance(0.01);
         let param_list = curve.adaptive_params_curve(&settings);
+        
+        // geo_foundation の型に変換
+        let param_list_foundation = geo_foundation::adaptive_tessellation::AdaptiveParamList {
+            params: param_list.params.clone(),
+        };
 
         // GPU評価用データに変換
-        let eval_data = NurbsCurveEvalData::from_curve_params(&curve, &param_list);
+        let eval_data = NurbsCurveEvalData::from_curve_params(&curve, &param_list_foundation);
 
         // 検証
         assert_eq!(eval_data.degree, 1);
@@ -219,11 +218,9 @@ impl NurbsSurfaceEvalData {
     /// # Returns
     /// GPU評価用のf32変換済みデータ（頂点バッファ最適化）
     pub fn from_surface_params<T: Scalar>(
-        surface: &geo_nurbs::NurbsSurface3D<T>,
-        param_grid: &geo_nurbs::adaptive_tessellation::AdaptiveParamGrid<T>,
+        surface: &impl geo_foundation::NurbsSurface3DProperties<T>,
+        param_grid: &geo_foundation::adaptive_tessellation::AdaptiveParamGrid<T>,
     ) -> Self {
-        use geo_foundation::NurbsSurface3DProperties;
-
         let u_degree = surface.u_degree() as u32;
         let v_degree = surface.v_degree() as u32;
         let u_count = surface.u_count() as u32;
@@ -254,26 +251,16 @@ impl NurbsSurfaceEvalData {
         // v方向ノットベクトルの変換
         let v_knots: Vec<f32> = surface.v_knots().iter().map(|k| k.to_f32()).collect();
 
-        // 制御点グリッドのflatten: u方向優先で[x,y,z, x,y,z, ...]に変換
-        let num_cp = (u_count * v_count) as usize;
-        let mut control_points = Vec::with_capacity(num_cp * 3);
-        
-        for u_idx in 0..u_count as usize {
-            for v_idx in 0..v_count as usize {
-                let cp = surface.control_point(u_idx, v_idx);
-                control_points.push(cp.x().to_f32());
-                control_points.push(cp.y().to_f32());
-                control_points.push(cp.z().to_f32());
-            }
-        }
+        // 制御点グリッドのflatten: coordinates()で直接フラット配列を取得
+        let control_points: Vec<f32> = surface
+            .coordinates()
+            .iter()
+            .map(|c| c.to_f32())
+            .collect();
 
-        // 重みの変換（NurbsSurface3DPropertiesトレイトメソッド使用）
-        let weights = match surface.weights() {
-            geo_nurbs::surface_3d::WeightStorage::Uniform => None,
-            geo_nurbs::surface_3d::WeightStorage::Individual(w_flat) => {
-                Some(w_flat.iter().map(|w| w.to_f32()).collect())
-            }
-        };
+        // 重みの変換（Foundationトレイトメソッド使用）
+        let weights = surface.weights()
+            .map(|w_flat| w_flat.iter().map(|w| w.to_f32()).collect());
 
         tracing::info!(
             "📋 NurbsSurfaceEvalData 変換完了: vertices={}, control_points={}x{}, u_degree={}, v_degree={}",

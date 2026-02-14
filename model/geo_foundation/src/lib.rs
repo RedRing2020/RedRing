@@ -24,6 +24,9 @@ pub mod commons;
 // Extension Traits - 拡張操作トレイト群
 pub mod extensions;
 
+// NURBS 適応的テッセレーション
+pub mod adaptive_tessellation;
+
 // BBox - 境界ボックス実装（共通ユーティリティ）
 
 // 許容誤差管理モジュール
@@ -178,6 +181,12 @@ pub use extensions::{
     SelfIntersection,
     TolerantBooleanOperations,
     TransformError, // 既存ルート維持
+};
+
+// NURBS 適応的テッセレーションを再エクスポート
+pub use adaptive_tessellation::{
+    AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings,
+    NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
 };
 
 // Geometry Core Foundationを再エクスポート
