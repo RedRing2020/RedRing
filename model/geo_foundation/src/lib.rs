@@ -3,12 +3,6 @@
 //! geo_foundation は抽象化・インターフェース層
 //! geo_primitives の具体実装を抽象化して呼び出すためのトレイト定義
 
-// Core Foundation - 幾何形状の中核基盤トレイト
-pub mod core_foundation;
-
-// Extension Foundation - 幾何形状の拡張基盤トレイト
-pub mod extension_foundation;
-
 // Classification - 幾何プリミティブの分類システム
 pub mod classification;
 
@@ -21,6 +15,10 @@ pub mod geometry;
 
 // Core namespace (backward compatibility: alias to geometry::core)
 pub use geometry::core as core;
+
+// Foundation namespace (backward compatibility: alias to geometry::foundation)
+pub use geometry::foundation::core_foundation;
+pub use geometry::foundation::extension_foundation;
 
 // Entity namespace - エンティティ領域の構造化
 pub mod entity;
@@ -159,7 +157,7 @@ pub use geometry::core::{
 pub use entity::core::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties};
 
 // Extension Foundation Traitsを再エクスポート
-pub use extension_foundation::{
+pub use geometry::foundation::extension_foundation::{
     Bounded, CollectionExtension, ExtensionFoundation, MeasurableExtension, SpatialExtension,
     TransformableExtension,
 };
