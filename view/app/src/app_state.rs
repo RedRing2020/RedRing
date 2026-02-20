@@ -1,4 +1,5 @@
 use crate::app_renderer::AppRenderer;
+use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
@@ -19,6 +20,7 @@ pub struct AppState {
     pub renderer: AppRenderer,
     pub camera: Camera,
     pub mouse_input: MouseInput,
+    pub entity_manager: EntityManager,
 
     /// アプリケーション単位系（CAD標準: ミリメートル）
     ///
@@ -44,10 +46,33 @@ impl AppState {
             renderer,
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
+            entity_manager: EntityManager::new(),
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
         }
+    }
+
+    fn rebuild_stage_from_entities(&mut self) {
+        if !self.entity_manager.is_dirty() {
+            return;
+        }
+
+        let vertices = self.entity_manager.line_vertices();
+        if vertices.is_empty() {
+            self.entity_manager.clear_dirty();
+            return;
+        }
+
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.renderer.set_stage(mesh_stage);
+        self.update_camera_uniforms();
+        self.entity_manager.clear_dirty();
     }
 
     /// 現在の単位でのトレランス値を取得
@@ -338,23 +363,18 @@ impl AppState {
     pub fn load_debug_line(&mut self) {
         use std::path::Path;
 
-        tracing::info!("デバッグ形状: LineSegment3D表示（SVGから）");
+        tracing::info!("デバッグ形状: LineSegment3D表示（EntityManager経由）");
 
         let svg_path = Path::new("tests/fixtures/shapes/line.svg");
         match crate::svg_loader::load_svg_for_rendering(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
+                let id = self.entity_manager.add_line_entity(vertices);
+                let _ = self.entity_manager.select(id);
+
                 self.camera.reset_to_standard_cad_view();
-
-                let mut mesh_stage = Box::new(MeshStage::new(
-                    &self.graphic.device,
-                    self.graphic.config.format,
-                ));
-                mesh_stage.set_line_data(&self.graphic.device, vertices);
-
-                self.renderer.set_stage(mesh_stage);
-                self.update_camera_uniforms();
+                self.rebuild_stage_from_entities();
             }
             Err(e) => {
                 tracing::error!("SVG読み込みエラー: {}", e);

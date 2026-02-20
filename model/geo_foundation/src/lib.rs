@@ -3,26 +3,30 @@
 //! geo_foundation は抽象化・インターフェース層
 //! geo_primitives の具体実装を抽象化して呼び出すためのトレイト定義
 
-// Core Foundation - 幾何形状の中核基盤トレイト
-pub mod core_foundation;
-
-// Extension Foundation - 幾何形状の拡張基盤トレイト
-pub mod extension_foundation;
-
 // Classification - 幾何プリミティブの分類システム
 pub mod classification;
 
 // Classification - 幾何プリミティブの分類
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 
-// Core Traits - 基本機能抽象化（主要インターフェース）
-pub mod core;
+// Geometry namespace - 幾何形状領域の構造化
+pub mod geometry;
+
+// Core namespace (backward compatibility: alias to geometry::core)
+pub use geometry::core;
+
+// Foundation namespace (backward compatibility: alias to geometry::foundation)
+pub use geometry::foundation::core_foundation;
+pub use geometry::foundation::extension_foundation;
+
+// Entity namespace - エンティティ領域の構造化
+pub mod entity;
 
 // Commons - 共通計算トレイト
 pub mod commons;
 
-// Extension Traits - 拡張操作トレイト群
-pub mod extensions;
+// Extensions namespace (backward compatibility: alias to geometry::extensions)
+pub use geometry::extensions;
 
 // NURBS 適応的テッセレーション
 pub mod adaptive_tessellation;
@@ -48,8 +52,8 @@ pub use analysis::{
     GEOMETRIC_DISTANCE_TOLERANCE, PI, PI_2, PI_3, PI_4, PI_6, RAD_TO_DEG, TAU,
 };
 
-// Core Traitsを再エクスポート（主要インターフェース）
-pub use core::{
+// Geometry Core Traitsを再エクスポート（主要インターフェース）
+pub use geometry::core::{
     arc_traits::{
         Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
         Arc3DMeasure, Arc3DProperties,
@@ -148,27 +152,30 @@ pub use core::{
     },
 };
 
+// Entity Core Traitsを再エクスポート（Entity namespace）
+pub use entity::core::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties};
+
 // Extension Foundation Traitsを再エクスポート
-pub use extension_foundation::{
+pub use geometry::foundation::extension_foundation::{
     Bounded, CollectionExtension, ExtensionFoundation, MeasurableExtension, SpatialExtension,
     TransformableExtension,
 };
 
 // Commons Traitsを再エクスポート
 
-// Core Transform Traitsを再エクスポート（extensions → core移動）
-pub use core::transform::{
+// Geometry Core Transform Traitsを再エクスポート（extensions → core移動）
+pub use geometry::core::transform::{
     AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport, AnalysisTransformVector2D,
     AnalysisTransformVector3D,
 };
 
-// Core Transform Errorを再エクスポート（段階的移行: 両方からアクセス可能）
-pub use core::transform_error::{
+// Geometry Core Transform Errorを再エクスポート（段階的移行: 両方からアクセス可能）
+pub use geometry::core::transform_error::{
     SafeTransform as CoreSafeTransform, TransformError as CoreTransformError,
 };
 
 // Extension Traitsを再エクスポート(既存互換性維持)
-pub use extensions::{
+pub use geometry::extensions::{
     AdvancedCollision,
     BasicCollision,
     BasicIntersection,

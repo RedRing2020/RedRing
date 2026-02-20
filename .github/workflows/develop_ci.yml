@@ -57,20 +57,10 @@ jobs:
           echo "✅ Documentation built successfully (develop branch - no deployment)"
 
   architecture-dependency-check:
-    name: Architecture Dependency Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Architecture dependency validation
-        shell: pwsh
-        run: |
-          .\scripts\check_architecture_dependencies_simple.ps1 -ExitOnError
+    uses: ./.github/workflows/common_architecture_check.yml
+    with:
+      verbose: false
+      exit_on_error: true
 
   check-no-deployment:
     name: Development Branch Status

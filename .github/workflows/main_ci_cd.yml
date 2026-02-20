@@ -60,18 +60,10 @@ jobs:
         run: cargo fmt -- --check
 
   architecture-dependency-check:
-    name: Architecture Dependency Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify checkout
-        run: |
-          echo "Checking script version..."
-          grep -n "geo_foundation.*geo_commons" scripts/check_architecture_dependencies_simple.ps1 || echo "Pattern not found"
-      - name: Run Architecture Dependency Check
-        shell: pwsh
-        run: |
-          .\scripts\check_architecture_dependencies_simple.ps1 -ExitOnError
+    uses: ./.github/workflows/common_architecture_check.yml
+    with:
+      verbose: false
+      exit_on_error: true
 
   foundation-architecture-scan:
     name: Foundation Architecture Compliance Scan

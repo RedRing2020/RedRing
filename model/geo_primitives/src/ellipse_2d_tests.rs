@@ -364,7 +364,7 @@ mod tests {
 #[cfg(test)]
 mod foundation_tests {
     use super::*;
-    use geo_foundation::core::{EllipseCore, EllipseMetrics, UnifiedEllipseFoundation};
+    use geo_foundation::geometry::core::{EllipseCore, EllipseMetrics, UnifiedEllipseFoundation};
     use std::f64::consts::{PI, TAU};
 
     /// EllipseCore trait実装テスト

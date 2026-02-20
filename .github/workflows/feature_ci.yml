@@ -59,3 +59,9 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace --verbose
+
+  architecture-dependency-check:
+    uses: ./.github/workflows/common_architecture_check.yml
+    with:
+      verbose: true
+      exit_on_error: true
