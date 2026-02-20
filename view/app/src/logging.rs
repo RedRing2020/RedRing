@@ -5,8 +5,7 @@
 //! - 起動ごとにログファイルを新規作成（古いログは自動削除）
 //! - モジュール別のログレベルフィルタリング
 
-use std::fs;
-use std::path::PathBuf;
+use logging_foundation::{init_logging as init_with_foundation, LoggingInitConfig};
 
 /// ログディレクトリのパス
 const LOG_DIR: &str = "logs";
@@ -31,99 +30,25 @@ const DEFAULT_LOG_FILTER: &str = "warn,\
 ///
 /// ログファイルの作成に失敗した場合は、コンソールのみのログに自動的にフォールバックします。
 pub fn init_logging() {
-    let log_file_path = prepare_log_file();
-
-    match log_file_path {
-        Some(path) => init_dual_output_logging(&path),
-        None => init_console_only_logging(),
-    }
-}
-
-/// ログファイルを準備
-///
-/// ログディレクトリを作成し、古いログファイルを削除して新規ファイルを作成します。
-///
-/// # 戻り値
-///
-/// 成功した場合はログファイルのパス、失敗した場合は None
-fn prepare_log_file() -> Option<PathBuf> {
-    let log_dir = PathBuf::from(LOG_DIR);
-    let log_file_path = log_dir.join(LOG_FILE_NAME);
-
-    // ログディレクトリを作成
-    if let Err(e) = fs::create_dir_all(&log_dir) {
-        eprintln!("⚠ ログディレクトリ作成失敗: {}", e);
-        eprintln!("  コンソールログのみで続行します");
-        return None;
-    }
-
-    // 既存のログファイルを削除（起動ごとに新規作成）
-    if log_file_path.exists() {
-        if let Err(e) = fs::remove_file(&log_file_path) {
-            eprintln!("⚠ 古いログファイル削除失敗: {}", e);
-        }
-    }
-
-    Some(log_file_path)
-}
-
-/// コンソールとファイルの両方に出力するログシステムを初期化
-fn init_dual_output_logging(log_file_path: &PathBuf) {
-    // ログファイルを作成
-    let file = match fs::File::create(log_file_path) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("⚠ ログファイル作成失敗: {}", e);
-            eprintln!("  コンソールログのみで続行します");
-            init_console_only_logging();
-            return;
-        }
+    let config = LoggingInitConfig {
+        default_filter: DEFAULT_LOG_FILTER,
+        log_dir: LOG_DIR,
+        log_file_name: LOG_FILE_NAME,
+        app_name: "RedRing アプリケーション",
     };
-
-    // 環境変数からフィルタを取得（未設定時はデフォルト使用）
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| DEFAULT_LOG_FILTER.to_string());
-
-    // コンソールとファイルの両方に出力するレイヤーを設定
-    use tracing_subscriber::layer::SubscriberExt;
-    use tracing_subscriber::util::SubscriberInitExt;
-
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(filter))
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_writer(std::io::stdout)
-                .with_ansi(true), // コンソールにはカラー出力
-        )
-        .with(
-            tracing_subscriber::fmt::layer()
-                .with_writer(file)
-                .with_ansi(false), // ファイルには平文（カラーコードなし）
-        )
-        .init();
-
-    tracing::info!("RedRing アプリケーション起動");
-    tracing::info!("ログファイル: {}", log_file_path.display());
-}
-
-/// コンソールのみに出力するログシステムを初期化（フォールバック用）
-fn init_console_only_logging() {
-    let filter = std::env::var("RUST_LOG").unwrap_or_else(|_| DEFAULT_LOG_FILTER.to_string());
-
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::new(filter))
-        .init();
-
-    tracing::info!("RedRing アプリケーション起動（コンソールログのみ）");
+    init_with_foundation(&config);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    use logging_foundation::compose_log_file_path;
 
     #[test]
     fn test_log_file_path() {
-        let log_dir = PathBuf::from(LOG_DIR);
-        let log_file_path = log_dir.join(LOG_FILE_NAME);
+        let log_file_path = compose_log_file_path(LOG_DIR, LOG_FILE_NAME);
         assert_eq!(log_file_path, PathBuf::from("logs/redring.log"));
     }
 }

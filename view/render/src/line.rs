@@ -2,6 +2,7 @@ use crate::shader;
 use crate::vertex_3d::MeshVertex;
 use analysis::linalg::matrix::Matrix4x4;
 use bytemuck::{Pod, Zeroable};
+use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::util::DeviceExt;
 
@@ -9,16 +10,12 @@ static LINE_CAMERA_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
 static LINE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn frame_log_interval() -> u64 {
-    std::env::var("REDRING_LOG_FRAME_INTERVAL")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .filter(|&v| v > 0)
-        .unwrap_or(120)
+    frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120)
 }
 
 fn should_log(counter: &AtomicU64) -> bool {
     let frame = counter.fetch_add(1, Ordering::Relaxed) + 1;
-    frame % frame_log_interval() == 0
+    should_log_every_n_frames(frame, frame_log_interval())
 }
 
 /// ライン描画用のUniform構造体

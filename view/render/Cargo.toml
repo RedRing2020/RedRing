@@ -11,3 +11,4 @@ bytemuck = "1.23.2"
 pollster.workspace = true
 viewmodel = { path = "../../viewmodel/converter" }
 analysis = { path = "../../foundation/analysis" }
+logging_foundation = { path = "../../foundation/logging_foundation" }
