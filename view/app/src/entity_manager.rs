@@ -7,7 +7,7 @@ pub struct EntityViewId(u64);
 
 #[derive(Debug, Clone)]
 pub struct GeometricEntityItem {
-    id: EntityViewId,
+    pub id: EntityViewId,
     line_vertices: Vec<MeshVertex>,
     visible: bool,
     color: [f32; 4],
