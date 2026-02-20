@@ -1,0 +1,39 @@
+name: Common Architecture Dependency Check
+
+on:
+  workflow_call:
+    inputs:
+      verbose:
+        description: "Enable verbose dependency output"
+        required: false
+        type: boolean
+        default: false
+      exit_on_error:
+        description: "Fail workflow immediately when dependency violations are found"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-dependency-check:
+    name: Architecture Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Architecture Dependency Check
+        shell: pwsh
+        run: |
+          $args = @()
+          if ('${{ inputs.exit_on_error }}' -eq 'true') {
+            $args += '-ExitOnError'
+          }
+          if ('${{ inputs.verbose }}' -eq 'true') {
+            $args += '-Verbose'
+          }
+          ./scripts/check_architecture_dependencies.ps1 @args

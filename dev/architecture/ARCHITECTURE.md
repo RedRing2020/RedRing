@@ -49,6 +49,19 @@ analysis → geo_foundation
 - **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
 - **循環依存回避**: `geo_foundation` → `geo_core`の依存は禁止（循環依存を防ぐため）
 
+### CAD/CAM 境界ルール（2026年2月更新）
+
+- **原則**: `model/geo_*` から `model/cam_*` への依存は禁止
+- **許可**: `cam_core -> cam_entity`
+- **禁止**: `cam_core -> geo_entity`
+- **禁止**: `geo_core -> cam_entity`
+- **許可**: `geo_core -> geo_entity`
+
+### 依存チェック運用
+
+- 実行コマンド: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
+- CI/ローカルともに上記スクリプトで依存境界違反を検出する
+
 ## 🔧 修正方針
 
 ### レガシーAPIの段階的置き換え
