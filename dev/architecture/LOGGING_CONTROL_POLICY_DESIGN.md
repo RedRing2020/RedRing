@@ -36,6 +36,7 @@ redring=info,stage=info,viewmodel_graphics=info,viewmodel_converter=info,render=
 
 - Foundation配下にログ制御クレートを追加する設計検討
 - 各実装クレートへ共通組み込みし、実装者が毎回同様コードを書くことを避ける
+- 命名は `geo_*` を使わず、ドメイン非依存の名称を採用する
 
 ---
 
@@ -140,13 +141,16 @@ stage=warn,viewmodel_graphics=warn,viewmodel_converter=warn,render=warn,cam_core
 
 #### 想定クレート名
 
-- `model/geo_logging`（仮）
+- `foundation/logging_foundation`（仮）
+
+> `geo_logging` は Geometry ドメインに見えるため不採用。
+> Foundation層の汎用クレートとして、ドメイン非依存の命名を採用する。
 
 #### 依存方針
 
-- `geo_logging` は `tracing` / `tracing-subscriber` / `std` のみに依存
+- `logging_foundation` は `tracing` / `tracing-subscriber` / `std` のみに依存
 - 各実装クレート（`render`, `stage`, `viewmodel_*`, `geo_*`, `cam_*`）は
-   直接 `tracing_subscriber` を持たず、`geo_logging` のAPIを利用
+   直接 `tracing_subscriber` を持たず、`logging_foundation` のAPIを利用
 
 #### 提供API（最小）
 
@@ -179,13 +183,13 @@ log_rate_limited_info!(state.logger_key("camera"), 500, "camera={:?}", camera);
 #### 設定の集約
 
 - `RUST_LOG` は従来通り尊重
-- 未設定時は `geo_logging` 側の既定フィルタを適用
+- 未設定時は `logging_foundation` 側の既定フィルタを適用
 - 将来的に `REDRING_LOG_FRAME_INTERVAL` などの環境変数で間隔調整可能にする
 
 #### 導入ステップ（承認後）
 
-1. `geo_logging` クレート追加（基盤API + マクロ + 初期化）
-2. `view/app/src/logging.rs` を `geo_logging::init_app_logging` 呼び出しへ縮約
+1. `foundation/logging_foundation` クレート追加（基盤API + マクロ + 初期化）
+2. `view/app/src/logging.rs` を `logging_foundation::init_app_logging` 呼び出しへ縮約
 3. `render/stage/viewmodel_*` の高頻度ログをマクロへ置換
 4. 既存 `tracing_subscriber` 直接利用箇所を段階的に撤去
 
