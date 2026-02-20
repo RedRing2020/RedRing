@@ -42,7 +42,7 @@ impl MeshStage {
 
     /// メッシュデータを設定（ソリッド/ワイヤーフレーム用）
     pub fn set_mesh_data(&mut self, device: &Device, vertices: Vec<MeshVertex>, indices: Vec<u32>) {
-        tracing::info!(
+        tracing::debug!(
             "メッシュデータ設定: {} 頂点, {} インデックス",
             vertices.len(),
             indices.len()
@@ -55,7 +55,7 @@ impl MeshStage {
 
     /// 線分データを設定（Lines用）
     pub fn set_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
-        tracing::info!("線分データ設定: {} 頂点", vertices.len());
+        tracing::debug!("線分データ設定: {} 頂点", vertices.len());
 
         // LineResourcesが未初期化の場合は作成
         if self.line_resources.is_none() {
@@ -99,7 +99,7 @@ impl MeshStage {
 
 impl RenderStage for MeshStage {
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
-        tracing::warn!("MeshStage.render() called, mode={:?}", self.render_mode);
+        tracing::trace!("MeshStage.render() called, mode={:?}", self.render_mode);
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Mesh Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -128,10 +128,10 @@ impl RenderStage for MeshStage {
             }
             RenderMode::Lines => {
                 if let Some(line_res) = &self.line_resources {
-                    tracing::debug!("Lines描画: vertex_count={}", line_res.vertex_count);
+                    tracing::trace!("Lines描画: vertex_count={}", line_res.vertex_count);
                     line_res.render(&mut render_pass);
                 } else {
-                    tracing::warn!("LineResources が None");
+                    tracing::debug!("LineResources が None");
                 }
             }
         }

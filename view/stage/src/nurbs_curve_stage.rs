@@ -36,7 +36,7 @@ impl NurbsCurveStage {
         let num_evals = eval_data.num_eval_points();
         let num_cps = eval_data.num_control_points();
 
-        tracing::info!(
+        tracing::debug!(
             "NURBS曲線GPU評価データ設定: {} eval points, {} control points, degree={}",
             num_evals,
             num_cps,
@@ -59,7 +59,7 @@ impl NurbsCurveStage {
         self.resources = Some(resources);
         self.has_data = true;
 
-        tracing::info!("✓ NurbsCurveStage: GPU評価データ設定完了、has_data=true");
+        tracing::debug!("✓ NurbsCurveStage: GPU評価データ設定完了、has_data=true");
     }
 
     /// カメラ行列を更新
@@ -97,7 +97,7 @@ impl NurbsCurveStage {
 impl RenderStage for NurbsCurveStage {
     fn render(&mut self, _encoder: &mut CommandEncoder, _view: &TextureView) {
         // 深度バッファが必要なため、render_with_depthを使用してください
-        tracing::info!("NurbsCurveStage.render(): depth_view未指定のためスキップ");
+        tracing::trace!("NurbsCurveStage.render(): depth_view未指定のためスキップ");
     }
 
     fn render_with_depth(
@@ -107,7 +107,7 @@ impl RenderStage for NurbsCurveStage {
         depth_view: &TextureView,
     ) {
         if !self.has_data {
-            tracing::info!("NurbsCurveStage: データなし、描画スキップ");
+            tracing::trace!("NurbsCurveStage: データなし、描画スキップ");
             return;
         }
 
@@ -116,7 +116,7 @@ impl RenderStage for NurbsCurveStage {
             return;
         };
 
-        tracing::info!(
+        tracing::trace!(
             "🎨 NurbsCurveStage.render_with_depth(): {} 頂点を描画開始",
             resources.num_eval_points
         );
@@ -151,7 +151,7 @@ impl RenderStage for NurbsCurveStage {
 
         resources.render(&mut render_pass);
 
-        tracing::info!("🎨 NurbsCurveStage.render_with_depth(): 描画完了")
+        tracing::trace!("🎨 NurbsCurveStage.render_with_depth(): 描画完了")
     }
 
     fn update_camera(

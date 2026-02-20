@@ -16,10 +16,11 @@ const LOG_FILE_NAME: &str = "redring.log";
 
 /// デフォルトのログフィルタ設定
 ///
-/// wgpu/Vulkan関連は警告のみ、アプリケーションコードはinfo表示
+/// wgpu/Vulkan関連は警告のみ、フレーム高頻度層はwarnで抑制。
+/// 必要時は RUST_LOG で明示的に詳細化する。
 const DEFAULT_LOG_FILTER: &str = "warn,\
     wgpu=warn,wgpu_hal=warn,wgpu_core=warn,naga=warn,\
-    redring=info,stage=info,viewmodel_graphics=info,viewmodel_converter=info,render=info,cam_core=info";
+    redring=info,stage=warn,viewmodel_graphics=warn,viewmodel_converter=warn,render=warn,cam_core=info";
 
 /// ログシステムを初期化
 ///

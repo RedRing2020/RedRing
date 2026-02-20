@@ -37,7 +37,7 @@ impl NurbsSurfaceStage {
         let num_vertices = eval_data.num_vertices();
         let num_triangles = eval_data.num_triangles();
 
-        tracing::info!(
+        tracing::debug!(
             "NURBS曲面GPU評価データ設定: {} vertices ({} triangles), control grid={}x{}, u_degree={}, v_degree={}",
             num_vertices,
             num_triangles,
@@ -55,7 +55,7 @@ impl NurbsSurfaceStage {
 
         let resources = NurbsSurfaceEvalResources::new(device, self.format, &eval_data);
 
-        tracing::info!(
+        tracing::debug!(
             "✓ NurbsSurfaceStage: GPU評価データ設定完了、num_vertices={}, solid_indices={}, wireframe_indices={}",
             resources.num_vertices,
             resources.num_solid_indices,
@@ -106,7 +106,7 @@ impl NurbsSurfaceStage {
 impl RenderStage for NurbsSurfaceStage {
     fn render(&mut self, _encoder: &mut CommandEncoder, _view: &TextureView) {
         // 深度バッファが必要なため、render_with_depthを使用してください
-        tracing::info!("NurbsSurfaceStage.render(): depth_view未指定のためスキップ");
+        tracing::trace!("NurbsSurfaceStage.render(): depth_view未指定のためスキップ");
     }
 
     fn render_with_depth(
@@ -129,7 +129,7 @@ impl RenderStage for NurbsSurfaceStage {
             "solid"
         };
 
-        tracing::info!(
+        tracing::trace!(
             "🎨 NurbsSurfaceStage.render_with_depth(): {} 頂点を{}モードで描画開始",
             resources.num_vertices,
             mode_str
@@ -167,7 +167,7 @@ impl RenderStage for NurbsSurfaceStage {
 
         drop(render_pass);
 
-        tracing::info!("🎨 NurbsSurfaceStage.render_with_depth(): 描画完了");
+        tracing::trace!("🎨 NurbsSurfaceStage.render_with_depth(): 描画完了");
     }
 
     fn update_camera(
