@@ -352,7 +352,9 @@ pub use ray_2d::Ray2D;
 pub use triangle_2d::Triangle2D;
 
 // Core Traits統合エクスポート（Foundation経由）
-pub use geo_foundation::geometry::core::infinite_line_traits::{InfiniteLine2DCore, InfiniteLine3DCore};
+pub use geo_foundation::geometry::core::infinite_line_traits::{
+    InfiniteLine2DCore, InfiniteLine3DCore,
+};
 pub use geo_foundation::geometry::core::ray_traits::{Ray2DCore, Ray3DCore};
 
 // ============================================================================

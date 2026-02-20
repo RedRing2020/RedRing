@@ -9,12 +9,11 @@ pub mod classification;
 // Classification - 幾何プリミティブの分類
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 
-
 // Geometry namespace - 幾何形状領域の構造化
 pub mod geometry;
 
 // Core namespace (backward compatibility: alias to geometry::core)
-pub use geometry::core as core;
+pub use geometry::core;
 
 // Foundation namespace (backward compatibility: alias to geometry::foundation)
 pub use geometry::foundation::core_foundation;

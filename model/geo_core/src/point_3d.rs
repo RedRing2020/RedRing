@@ -4,7 +4,9 @@
 //! 基本機能、Foundation トレイト、Analysis 変換、演算子オーバーロードを含む。
 
 use geo_foundation::{
-    geometry::core::point_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties},
+    geometry::core::point_traits::{
+        Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties,
+    },
     Scalar,
 };
 

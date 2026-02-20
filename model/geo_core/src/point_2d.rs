@@ -5,7 +5,9 @@
 use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_foundation::{
-    geometry::core::point_traits::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties},
+    geometry::core::point_traits::{
+        Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties,
+    },
     Scalar,
 };
 
