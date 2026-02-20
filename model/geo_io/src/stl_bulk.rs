@@ -8,11 +8,16 @@
 use crate::error::StlError;
 use geo_foundation::Scalar;
 use geo_primitives::{Point3D, TriangleMesh3D};
+use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::str::FromStr;
+
+fn io_log_interval() -> u64 {
+    frame_interval_from_env("REDRING_LOG_IO_INTERVAL", 50_000)
+}
 
 /// STL高速バルク読み込み構造体
 ///
@@ -119,6 +124,8 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
 
     /// ASCII STLファイルから読み込み（可変精度対応）
     pub fn from_ascii_stl(path: &Path) -> Result<Self, StlError> {
+        tracing::debug!("ASCII STL読み込み開始: {:?}", path);
+
         let file = File::open(path)?;
         let reader = BufReader::new(file);
 
@@ -167,15 +174,32 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
                     if let Some(ref mut normals) = bulk.normals {
                         normals.extend_from_slice(&current_normal);
                     }
+
+                    let parsed_triangles = bulk.vertices.len() / 9;
+                    if should_log_every_n_frames(parsed_triangles as u64, io_log_interval()) {
+                        tracing::trace!(
+                            "ASCII STL読み込み進捗: {}/{} triangles",
+                            parsed_triangles,
+                            triangle_count
+                        );
+                    }
                 }
             }
         }
+
+        tracing::debug!(
+            "ASCII STL読み込み完了: {:?}, triangles={}",
+            path,
+            bulk.triangle_count()
+        );
 
         Ok(bulk)
     }
 
     /// Binary STLファイルから読み込み（汎用版、型変換あり）
     pub fn from_binary_stl(path: &Path) -> Result<Self, StlError> {
+        tracing::debug!("Binary STL読み込み開始: {:?}", path);
+
         let mut file = File::open(path)?;
 
         // Skip 80-byte header
@@ -190,7 +214,7 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
         let mut bulk = Self::new(triangle_count).with_normals();
 
         // Binary STL構造: [normal(3*f32), vertex1(3*f32), vertex2(3*f32), vertex3(3*f32), attribute(u16)] × count
-        for _ in 0..triangle_count {
+        for tri_idx in 0..triangle_count {
             // Normal (3 × f32)
             let mut normal = [0f32; 3];
             for value in &mut normal {
@@ -221,7 +245,22 @@ impl<T: Scalar + FromStr> StlTriangleBulk<T> {
                     normals.push(T::from_f64(n as f64));
                 }
             }
+
+            let parsed_triangles = tri_idx + 1;
+            if should_log_every_n_frames(parsed_triangles as u64, io_log_interval()) {
+                tracing::trace!(
+                    "Binary STL読み込み進捗: {}/{} triangles",
+                    parsed_triangles,
+                    triangle_count
+                );
+            }
         }
+
+        tracing::debug!(
+            "Binary STL読み込み完了: {:?}, triangles={}",
+            path,
+            bulk.triangle_count()
+        );
 
         Ok(bulk)
     }
@@ -268,6 +307,8 @@ impl StlTriangleBulk<f32> {
     ///
     /// Binary STLはf32固定仕様のため、直接メモリコピーで高速化
     pub fn from_binary_stl_fast(path: &Path) -> Result<Self, StlError> {
+        tracing::debug!("Binary STL高速読み込み開始: {:?}", path);
+
         let mut file = File::open(path)?;
 
         // Skip 80-byte header
@@ -308,7 +349,22 @@ impl StlTriangleBulk<f32> {
             }
 
             // 属性バイトはスキップ（既にバッファに含まれている）
+
+            let parsed_triangles = tri_idx + 1;
+            if should_log_every_n_frames(parsed_triangles as u64, io_log_interval()) {
+                tracing::trace!(
+                    "Binary STL高速読み込み進捗: {}/{} triangles",
+                    parsed_triangles,
+                    triangle_count
+                );
+            }
         }
+
+        tracing::debug!(
+            "Binary STL高速読み込み完了: {:?}, triangles={}",
+            path,
+            bulk.triangle_count()
+        );
 
         Ok(bulk)
     }

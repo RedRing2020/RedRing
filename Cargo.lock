@@ -739,10 +739,12 @@ version = "0.1.0"
 dependencies = [
  "geo_foundation",
  "geo_primitives",
+ "logging_foundation",
  "roxmltree",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1234,6 +1236,14 @@ name = "log"
 version = "0.4.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
+
+[[package]]
+name = "logging_foundation"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "malloc_buf"
@@ -2057,6 +2067,7 @@ name = "redring"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "logging_foundation",
  "pollster",
  "render",
  "smol_str 0.3.4",
@@ -2105,6 +2116,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "bytemuck",
+ "logging_foundation",
  "pollster",
  "tracing",
  "viewmodel",
@@ -2374,6 +2386,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "bytemuck",
+ "logging_foundation",
  "render",
  "tracing",
  "viewmodel",

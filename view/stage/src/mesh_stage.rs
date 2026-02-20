@@ -3,10 +3,20 @@
 //! STLファイルから読み込んだ3Dメッシュや幾何形状をレンダリングするステージです。
 //! Phase 2拡張: 線分描画モード（RenderMode::Lines）に対応しました。
 
+use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::{line::LineResources, mesh::MeshResources, vertex_3d::MeshVertex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::{CommandEncoder, Device, TextureFormat, TextureView};
 
 use crate::RenderStage;
+
+static MESH_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn should_log_render_trace() -> bool {
+    let frame = MESH_STAGE_RENDER_LOG_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+    let interval = frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120);
+    should_log_every_n_frames(frame, interval)
+}
 
 /// レンダリングモード
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +52,7 @@ impl MeshStage {
 
     /// メッシュデータを設定（ソリッド/ワイヤーフレーム用）
     pub fn set_mesh_data(&mut self, device: &Device, vertices: Vec<MeshVertex>, indices: Vec<u32>) {
-        tracing::info!(
+        tracing::debug!(
             "メッシュデータ設定: {} 頂点, {} インデックス",
             vertices.len(),
             indices.len()
@@ -55,7 +65,7 @@ impl MeshStage {
 
     /// 線分データを設定（Lines用）
     pub fn set_line_data(&mut self, device: &Device, vertices: Vec<MeshVertex>) {
-        tracing::info!("線分データ設定: {} 頂点", vertices.len());
+        tracing::debug!("線分データ設定: {} 頂点", vertices.len());
 
         // LineResourcesが未初期化の場合は作成
         if self.line_resources.is_none() {
@@ -99,7 +109,10 @@ impl MeshStage {
 
 impl RenderStage for MeshStage {
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
-        tracing::warn!("MeshStage.render() called, mode={:?}", self.render_mode);
+        let should_trace = should_log_render_trace();
+        if should_trace {
+            tracing::trace!("MeshStage.render() called, mode={:?}", self.render_mode);
+        }
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Mesh Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -128,10 +141,12 @@ impl RenderStage for MeshStage {
             }
             RenderMode::Lines => {
                 if let Some(line_res) = &self.line_resources {
-                    tracing::debug!("Lines描画: vertex_count={}", line_res.vertex_count);
+                    if should_trace {
+                        tracing::trace!("Lines描画: vertex_count={}", line_res.vertex_count);
+                    }
                     line_res.render(&mut render_pass);
                 } else {
-                    tracing::warn!("LineResources が None");
+                    tracing::debug!("LineResources が None");
                 }
             }
         }

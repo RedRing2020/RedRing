@@ -22,12 +22,22 @@
 //! ```
 
 use analysis::linalg::matrix::Matrix4x4;
+use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::line::{LineResources, LineUniforms};
 use render::vertex_3d::MeshVertex;
 use std::any::Any;
+use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
 use crate::RenderStage;
+
+static OCTREE_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn should_log_render_trace() -> bool {
+    let frame = OCTREE_STAGE_RENDER_LOG_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+    let interval = frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120);
+    should_log_every_n_frames(frame, interval)
+}
 
 /// Octree可視化ステージ
 pub struct OctreeStage {
@@ -123,15 +133,21 @@ impl OctreeStage {
 
 impl RenderStage for OctreeStage {
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
+        let should_trace = should_log_render_trace();
+
         if !self.has_data {
-            tracing::debug!("OctreeStage: データなし、描画スキップ");
+            if should_trace {
+                tracing::trace!("OctreeStage: データなし、描画スキップ");
+            }
             return;
         }
 
-        tracing::debug!(
-            "OctreeStage: 描画開始 ({} 頂点)",
-            self.resources.vertex_count
-        );
+        if should_trace {
+            tracing::trace!(
+                "OctreeStage: 描画開始 ({} 頂点)",
+                self.resources.vertex_count
+            );
+        }
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Octree Wireframe Render Pass"),
