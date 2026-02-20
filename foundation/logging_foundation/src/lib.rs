@@ -27,7 +27,7 @@ pub fn frame_interval_from_env(var_name: &str, default: u64) -> u64 {
 }
 
 pub fn should_log_every_n_frames(frame: u64, interval: u64) -> bool {
-    interval > 0 && frame % interval == 0
+    interval > 0 && frame.is_multiple_of(interval)
 }
 
 pub fn should_log_after(last: &mut Instant, interval: Duration) -> bool {
