@@ -28,9 +28,6 @@ pub mod commons;
 // Extensions namespace (backward compatibility: alias to geometry::extensions)
 pub use geometry::extensions;
 
-// NURBS 適応的テッセレーション
-pub mod adaptive_tessellation;
-
 // BBox - 境界ボックス実装（共通ユーティリティ）
 
 // 許容誤差管理モジュール
@@ -188,12 +185,6 @@ pub use geometry::extensions::{
     SelfIntersection,
     TolerantBooleanOperations,
     TransformError, // 既存ルート維持
-};
-
-// NURBS 適応的テッセレーションを再エクスポート
-pub use adaptive_tessellation::{
-    AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings,
-    NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
 };
 
 // Geometry Core Foundationを再エクスポート

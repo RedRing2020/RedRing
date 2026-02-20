@@ -6,9 +6,7 @@
 use std::path::Path;
 
 use geo_algorithms::{adaptive_tessellation as ga_tess, NurbsCurve3D, NurbsSurface3D};
-use geo_foundation::{
-    adaptive_tessellation as gf_tess, NurbsCurve3DConstructor, NurbsSurface3DConstructor,
-};
+use geo_foundation::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
 use geo_io::svg::{parse_svg_file, SvgError};
 use thiserror::Error;
 
@@ -50,7 +48,7 @@ pub fn load_nurbs_curve_eval_from_svg(
     let param_list =
         ga_tess::NurbsCurveAdaptiveTessellation::adaptive_params_curve(&curve, &settings);
 
-    let param_list_foundation = gf_tess::AdaptiveParamList {
+    let param_list_foundation = ga_tess::AdaptiveParamList {
         params: param_list.params,
     };
 
@@ -84,7 +82,7 @@ pub fn create_sample_nurbs_surface_eval(
     let param_grid =
         ga_tess::NurbsSurfaceAdaptiveTessellation::adaptive_params_surface(&surface, &settings);
 
-    let param_grid_foundation = gf_tess::AdaptiveParamGrid {
+    let param_grid_foundation = ga_tess::AdaptiveParamGrid {
         u_params: param_grid.u_params,
         v_params: param_grid.v_params,
     };

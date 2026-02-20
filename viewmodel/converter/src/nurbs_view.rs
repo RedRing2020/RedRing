@@ -3,6 +3,7 @@
 //! Model層（geo_nurbs）のNURBS形状とパラメータリストを、
 //! View層（render）でGPU評価可能な形式に変換します。
 
+use geo_algorithms::adaptive_tessellation;
 use geo_foundation::Scalar;
 
 /// NURBS曲線のGPU評価に必要なデータ
@@ -38,7 +39,7 @@ impl NurbsCurveEvalData {
     /// GPU評価用のf32変換済みデータ
     pub fn from_curve_params<T: Scalar>(
         curve: &impl geo_foundation::NurbsCurve3DProperties<T>,
-        param_list: &geo_foundation::adaptive_tessellation::AdaptiveParamList<T>,
+        param_list: &adaptive_tessellation::AdaptiveParamList<T>,
     ) -> Self {
         let degree = curve.degree() as u32;
 
@@ -123,7 +124,7 @@ mod tests {
         let param_list = curve.adaptive_params_curve(&settings);
 
         // geo_foundation の型に変換
-        let param_list_foundation = geo_foundation::adaptive_tessellation::AdaptiveParamList {
+        let param_list_foundation = adaptive_tessellation::AdaptiveParamList {
             params: param_list.params.clone(),
         };
 
@@ -206,7 +207,7 @@ impl NurbsSurfaceEvalData {
     /// GPU評価用のf32変換済みデータ（頂点バッファ最適化）
     pub fn from_surface_params<T: Scalar>(
         surface: &impl geo_foundation::NurbsSurface3DProperties<T>,
-        param_grid: &geo_foundation::adaptive_tessellation::AdaptiveParamGrid<T>,
+        param_grid: &adaptive_tessellation::AdaptiveParamGrid<T>,
     ) -> Self {
         let u_degree = surface.u_degree() as u32;
         let v_degree = surface.v_degree() as u32;
