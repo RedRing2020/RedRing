@@ -739,10 +739,12 @@ version = "0.1.0"
 dependencies = [
  "geo_foundation",
  "geo_primitives",
+ "logging_foundation",
  "roxmltree",
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
