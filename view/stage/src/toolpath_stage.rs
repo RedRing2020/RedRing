@@ -22,10 +22,20 @@
 //! ```
 
 use analysis::linalg::matrix::Matrix4x4;
+use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::toolpath::{ToolPathResources, ToolPathUniforms, ToolPathVertex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
 use crate::RenderStage;
+
+static TOOLPATH_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn should_log_render_trace() -> bool {
+    let frame = TOOLPATH_STAGE_RENDER_LOG_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+    let interval = frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120);
+    should_log_every_n_frames(frame, interval)
+}
 
 /// CAM工具経路レンダリングステージ
 pub struct ToolPathStage {
@@ -160,15 +170,21 @@ impl ToolPathStage {
 
 impl RenderStage for ToolPathStage {
     fn render(&mut self, encoder: &mut CommandEncoder, view: &TextureView) {
+        let should_trace = should_log_render_trace();
+
         if !self.has_data {
-            tracing::debug!("ToolPathStage: データなし、描画スキップ");
+            if should_trace {
+                tracing::trace!("ToolPathStage: データなし、描画スキップ");
+            }
             return;
         }
 
-        tracing::debug!(
-            "ToolPathStage: 描画開始 ({} 頂点)",
-            self.resources.vertex_count
-        );
+        if should_trace {
+            tracing::trace!(
+                "ToolPathStage: 描画開始 ({} 頂点)",
+                self.resources.vertex_count
+            );
+        }
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("ToolPath Render Pass"),

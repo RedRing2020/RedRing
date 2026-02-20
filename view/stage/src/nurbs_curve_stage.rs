@@ -4,11 +4,21 @@
 //! GPU上でNURBS曲線を直接評価・描画します。
 
 use analysis::linalg::matrix::Matrix4x4;
+use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::nurbs_eval::{NurbsCurveEvalResources, NurbsEvalUniforms};
 use std::any::Any;
+use std::sync::atomic::{AtomicU64, Ordering};
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
 use crate::RenderStage;
+
+static NURBS_CURVE_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn should_log_render_trace() -> bool {
+    let frame = NURBS_CURVE_STAGE_RENDER_LOG_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+    let interval = frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120);
+    should_log_every_n_frames(frame, interval)
+}
 
 /// NURBS曲線レンダリングステージ
 pub struct NurbsCurveStage {
@@ -97,7 +107,9 @@ impl NurbsCurveStage {
 impl RenderStage for NurbsCurveStage {
     fn render(&mut self, _encoder: &mut CommandEncoder, _view: &TextureView) {
         // 深度バッファが必要なため、render_with_depthを使用してください
-        tracing::trace!("NurbsCurveStage.render(): depth_view未指定のためスキップ");
+        if should_log_render_trace() {
+            tracing::trace!("NurbsCurveStage.render(): depth_view未指定のためスキップ");
+        }
     }
 
     fn render_with_depth(
@@ -106,8 +118,12 @@ impl RenderStage for NurbsCurveStage {
         view: &TextureView,
         depth_view: &TextureView,
     ) {
+        let should_trace = should_log_render_trace();
+
         if !self.has_data {
-            tracing::trace!("NurbsCurveStage: データなし、描画スキップ");
+            if should_trace {
+                tracing::trace!("NurbsCurveStage: データなし、描画スキップ");
+            }
             return;
         }
 
@@ -116,10 +132,12 @@ impl RenderStage for NurbsCurveStage {
             return;
         };
 
-        tracing::trace!(
-            "🎨 NurbsCurveStage.render_with_depth(): {} 頂点を描画開始",
-            resources.num_eval_points
-        );
+        if should_trace {
+            tracing::trace!(
+                "🎨 NurbsCurveStage.render_with_depth(): {} 頂点を描画開始",
+                resources.num_eval_points
+            );
+        }
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("NURBS Curve Render Pass"),
@@ -151,7 +169,9 @@ impl RenderStage for NurbsCurveStage {
 
         resources.render(&mut render_pass);
 
-        tracing::trace!("🎨 NurbsCurveStage.render_with_depth(): 描画完了")
+        if should_trace {
+            tracing::trace!("🎨 NurbsCurveStage.render_with_depth(): 描画完了")
+        }
     }
 
     fn update_camera(
