@@ -2741,6 +2741,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "cam_core",
+ "cam_entity",
  "geo_algorithms",
  "geo_foundation",
  "geo_io",

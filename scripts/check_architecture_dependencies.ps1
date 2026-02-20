@@ -31,7 +31,7 @@ $ARCHITECTURE_RULES = @{
         cam_entity     = @("cam_core", "geo_entity")
 
         # ViewModel
-        converter      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "analysis")
+        converter      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "analysis")
         graphics       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
 
         # View

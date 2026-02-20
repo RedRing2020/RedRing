@@ -1,5 +1,7 @@
 use crate::{Attributes, DisplayAttributes, EntityId, Metadata};
-use geo_foundation::Scalar;
+use geo_foundation::{
+    EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, Scalar,
+};
 
 #[derive(Debug, Clone)]
 pub struct GeometricEntity<T: Scalar, G> {
@@ -88,5 +90,35 @@ impl<T: Scalar, G> GeometricEntity<T, G> {
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
         self.metadata.touch();
+    }
+}
+
+impl<T: Scalar, G> EntityIdentity for GeometricEntity<T, G> {
+    type Id = EntityId;
+
+    fn entity_id(&self) -> Self::Id {
+        self.id
+    }
+}
+
+impl<T: Scalar, G> EntityDisplayProperties for GeometricEntity<T, G> {
+    fn entity_visible(&self) -> bool {
+        self.display.visible
+    }
+
+    fn entity_color(&self) -> [f32; 4] {
+        self.display.color
+    }
+}
+
+impl<T: Scalar> LineEntity3DProperties<T> for GeometricEntity<T, geo_primitives::LineSegment3D<T>> {
+    fn line_start(&self) -> (T, T, T) {
+        let point = self.geometry.start();
+        (point.x(), point.y(), point.z())
+    }
+
+    fn line_end(&self) -> (T, T, T) {
+        let point = self.geometry.end();
+        (point.x(), point.y(), point.z())
     }
 }

@@ -759,6 +759,7 @@ TopologyEntity<T> {
 
 - **設計文書**: `dev/architecture/PHASE4_TOPOLOGY_ENTITY_DESIGN.md`
 - **提案文書**: `dev/architecture/ENTITY_ATTRIBUTE_HIERARCHICAL_ID_PROPOSAL.md`
+- **View統合設計**: `dev/architecture/ENTITY_VIEW_INTEGRATION_DESIGN.md`
 - **ロードマップ**: `dev/foundation/ROADMAP_2026_Q1_Q2.md`
 - **関連Issue**: #206（基礎版）, #205（Phase 4完全版）
 - **将来バックログIssue**: #232（Persistent Naming / 自動再接続 / フィーチャー再実行堅牢化）

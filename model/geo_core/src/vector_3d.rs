@@ -422,7 +422,7 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
 // ============================================================================
 
 use analysis::linalg::vector::Vector3;
-use geo_foundation::core::vector_traits::{
+use geo_foundation::geometry::core::vector_traits::{
     Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
 };
 

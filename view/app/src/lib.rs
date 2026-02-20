@@ -1,4 +1,5 @@
 pub mod app;
+pub mod entity_manager;
 pub mod app_renderer;
 pub mod app_state;
 pub mod graphic;
