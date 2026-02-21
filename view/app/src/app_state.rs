@@ -925,7 +925,7 @@ impl AppState {
         }
     }
 
-    /// マウスホイールを処理（Ctrl+ホイールでズーム）
+    /// Ctrl+ホイールでズーム
     pub fn handle_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
         if !self.mouse_input.ctrl_pressed {
             return;
@@ -954,12 +954,12 @@ impl AppState {
         );
     }
 
-    /// Mainframe からカメラ操作感度を一括変更
+    /// カメラ操作感度を設定
     pub fn set_camera_control_sensitivity(&mut self, sensitivity: CameraControlSensitivity) {
         self.camera.set_control_sensitivity(sensitivity);
     }
 
-    /// 現在のカメラ操作感度を取得
+    /// カメラ操作感度を取得
     pub fn camera_control_sensitivity(&self) -> CameraControlSensitivity {
         self.camera.control_sensitivity()
     }

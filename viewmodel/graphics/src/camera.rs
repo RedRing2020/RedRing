@@ -283,8 +283,6 @@ impl Camera {
         let tb_inv = 1.0 / (top - bottom);
         let fn_inv = 1.0 / (far - near);
 
-        // wgpu (DirectX) スタイル: Z範囲 [0, 1]
-        // OpenGL と異なり、Z成分は -1/(far-near) を使用
         [
             [2.0 * rl_inv, 0.0, 0.0, 0.0],
             [0.0, 2.0 * tb_inv, 0.0, 0.0],
@@ -306,7 +304,6 @@ impl Camera {
     }
 
     /// 直交投影モード時の表示範囲を設定
-    /// ペイントキャンバスサイズのような3D版の表示範囲を指定可能
     pub fn set_orthographic_bounds(&mut self, left: f32, right: f32, bottom: f32, top: f32) {
         self.orthographic_bounds = Some((left, right, bottom, top));
         tracing::info!(
@@ -320,37 +317,13 @@ impl Camera {
         );
     }
 
-    // ============================================================================
-    // Arcball回転用の球面定義関数（Issue #242）
-    // ============================================================================
-
-    /// 画面座標を単位球面上の点にマッピングする
-    ///
-    /// # 説明
-    /// Arcball回転を実現するために、2D画面座標を3D単位球面上の点に投影します。
-    /// - ビューポート中心を原点とした正規化座標 (-1..1) に変換
-    /// - 単位球（半径1）の内側に座標があれば、球面内の点として使用
-    /// - 半径1を超える場合は、球面上に正規化された点を返す（Arcballの標準的な実装）
-    ///
-    /// # 引数
-    /// - `screen_x`: ビューポート内のマウスX座標（ピクセル）
-    /// - `screen_y`: ビューポート内のマウスY座標（ピクセル）
-    /// - `viewport_width`: ビューポート幅（ピクセル）
-    /// - `viewport_height`: ビューポート高さ（ピクセル）
-    ///
-    /// # 戻り値
-    /// 単位球面上の3D点（正規化済み）
-    ///
-    /// # 例
-    /// ビューポート 800×600 の中心をクリック → (0, 0, 1)
-    /// ビューポート左端をクリック → (-1, 0, 0) に近い点
+    /// 画面座標を Arcball 用の単位球面点へ変換
     pub fn project_on_sphere(
         screen_x: f32,
         screen_y: f32,
         viewport_width: f32,
         viewport_height: f32,
     ) -> Vec3f {
-        // ビューポート座標からスクリーン座標に変換（-1..1）
         let radius = (viewport_width.min(viewport_height)) * 0.5;
         let cx = screen_x - viewport_width * 0.5;
         let cy = screen_y - viewport_height * 0.5;
@@ -358,10 +331,7 @@ impl Camera {
         let x = cx / radius;
         let y = cy / radius;
 
-        // Trackball標準の球面+双曲面マッピング
-        // 球外を z=0 に潰すと境界付近で回転感が不連続になり、
-        // 長時間ドラッグ時に前後が入れ替わるような違和感を生みやすい。
-        // そのため、球外では双曲面で連続的に補間する。
+        // 球外は双曲面で連続補間
         let d = (x * x + y * y).sqrt();
         let z = if d < 0.70710677 {
             (1.0 - d * d).sqrt()
@@ -376,35 +346,16 @@ impl Camera {
     }
 
     /// 球面上の2点から回転クォータニオンを計算
-    ///
-    /// # 説明
-    /// Arcball回転の中心計算。sphere_from から sphere_to への回転をクォータニオンとして計算します。
-    /// 使用方式: `rotation = q_rotation * rotation_old`
-    ///
-    /// # 引数
-    /// - `sphere_from`: 回転前の球面上の点（正規化済み）
-    /// - `sphere_to`: 回転後の球面上の点（正規化済み）
-    ///
-    /// # 戻り値
-    /// 2点から計算されたクォータニオン（右から乗算する用）
     fn compute_rotation_from_sphere_points(sphere_from: Vec3f, sphere_to: Vec3f) -> Quaternionf {
-        // 2つの正規化ベクトル間の内積
         let dot = sphere_from.dot(&sphere_to).clamp(-1.0, 1.0);
-
-        // 回転角度（ラジアン）
         let angle = dot.acos();
-
-        // 回転軸（2つのベクトルの外積）
         let axis = sphere_from.cross(&sphere_to);
-
-        // 外積の大きさがほぼ0の場合（平行な場合）は回転なし
         let axis_magnitude = axis.dot(&axis).sqrt();
         if axis_magnitude < 1e-6 {
             tracing::debug!("球面回転: ベクトルがほぼ平行 (dot={:.4})", dot);
             return Quaternionf::identity();
         }
 
-        // 軸を正規化してクォータニオンを生成
         let axis_normalized = axis.normalize().unwrap_or(Vec3f::new(0.0, 0.0, 1.0));
         Quaternionf::from_axis_angle(&axis_normalized, angle)
     }
@@ -413,36 +364,16 @@ impl Camera {
     pub fn rotate(&mut self, delta_x: f32, delta_y: f32) {
         let sensitivity = self.control_sensitivity.rotate;
 
-        // Y軸回転（水平方向のマウス移動）
         let y_axis = Vec3f::new(0.0, 1.0, 0.0);
         let y_rotation = Quaternionf::from_axis_angle(&y_axis, -delta_x * sensitivity);
-
-        // X軸回転（垂直方向のマウス移動）
         let x_axis = Vec3f::new(1.0, 0.0, 0.0);
         let x_rotation = Quaternionf::from_axis_angle(&x_axis, -delta_y * sensitivity);
-
-        // 回転を合成（analysisクレートのクォータニオン乗算を使用）
         self.rotation = (y_rotation * self.rotation * x_rotation)
             .normalize()
             .unwrap_or(self.rotation);
     }
 
-    /// Arcball回転（球面マッピングを使用した直感的な回転）
-    ///
-    /// # 説明
-    /// マウス位置を仮想球面上にマッピングして、より直感的で安定した回転を実現します。
-    /// クリック始点と現在位置が両方ともビューポート空間において定義され、
-    /// 球面上での2点の角度差分から回転を計算します。
-    ///
-    /// # 使用シナリオ
-    /// - ユーザーがマウスをドラッグしている最中のリアルタイム回転
-    /// - 回転の中心が常に注視点（target）になる
-    /// - クリック点の深度（奥行き）が影響しない安定した回転
-    ///
-    /// # 引数
-    /// - `prev_x`, `prev_y`: 前フレームのマウス位置（ピクセル）
-    /// - `curr_x`, `curr_y`: 現在のマウス位置（ピクセル）
-    /// - `viewport_width`, `viewport_height`: ビューポート寸法（ピクセル）
+    /// Arcball回転（前後2点）
     pub fn rotate_arcball(
         &mut self,
         prev_x: f32,
@@ -452,14 +383,9 @@ impl Camera {
         viewport_width: f32,
         viewport_height: f32,
     ) {
-        // 画面座標を単位球面上の点にマッピング
         let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
         let sphere_to = Self::project_on_sphere(prev_x, prev_y, viewport_width, viewport_height);
-
-        // 球面上の2点から回転クォータニオンを計算
         let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
-
-        // 回転を適用（右から乗算）
         self.rotation = (q_rotation * self.rotation)
             .normalize()
             .unwrap_or(self.rotation);
@@ -473,16 +399,7 @@ impl Camera {
         );
     }
 
-    /// Arcball回転（デルタベース）- Issue #242 修正版
-    ///
-    /// # 説明
-    /// マウスデルタ(Δx, Δy)からArcball球面上の回転を直接計算します。
-    /// cursor_positionに依存しないため、DeviceEvent::MouseMotionでの遅延なく動作します。
-    ///
-    /// # 使用方法
-    /// - DeviceEvent::MouseMotion のdeltaを直接渡す
-    /// - ビューポートサイズに自動適応
-    /// - 旧rotate()の使いやすさを保ちつつ、直感的な操作感を実現
+    /// Arcball回転（デルタ入力）
     pub fn rotate_arcball_from_delta(
         &mut self,
         delta_x: f32,
@@ -490,8 +407,7 @@ impl Camera {
         viewport_width: f32,
         viewport_height: f32,
     ) {
-        // デルタを「画面中心からの相対移動」として扱う
-        // これにより、カーソル絶対座標に依存せず 3D 的な Arcball 回転を維持できる
+        // 画面中心からの相対移動として扱う
         let center_x = viewport_width * 0.5;
         let center_y = viewport_height * 0.5;
         let arcball_scale = self.control_sensitivity.arcball;
@@ -499,7 +415,7 @@ impl Camera {
         let curr_x = (center_x + delta_x * arcball_scale).clamp(0.0, viewport_width);
         let curr_y = (center_y + delta_y * arcball_scale).clamp(0.0, viewport_height);
 
-        // ドラッグ方向と回転方向を一致させるため、回転ベクトルの向きを反転
+        // ドラッグ方向と回転方向を一致
         let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
         let sphere_to =
             Self::project_on_sphere(center_x, center_y, viewport_width, viewport_height);
@@ -509,10 +425,7 @@ impl Camera {
         let angle_rad = dot.acos();
         let angle_deg = angle_rad.to_degrees();
 
-        // 球面上の2点から回転クォータニオンを計算
         let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
-
-        // 回転を適用
         let prev_rotation = self.rotation;
         self.rotation = (q_rotation * self.rotation)
             .normalize()
@@ -553,13 +466,11 @@ impl Camera {
         );
     }
 
-    /// パン操作（移動）- マウス座標系→カメラ座標系→ワールド座標系変換
+    /// パン操作
     pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
         let sensitivity = self.control_sensitivity.pan;
 
-        // 現在のカメラ回転からカメラ座標系の軸ベクトルを計算
         let rotation_matrix = quaternion_to_matrix(&self.rotation);
-        // カメラのローカル軸をワールドへ変換した基底ベクトル（列ベクトル）
         let right = Vec3f::new(
             rotation_matrix[0][0],
             rotation_matrix[1][0],
@@ -571,14 +482,10 @@ impl Camera {
             rotation_matrix[2][1],
         );
 
-        // マウス移動量をカメラ座標系での移動量に変換
-        // スクリーン座標系：右がX+、下がY+（通常）
-        // マウス右移動 → ターゲット右移動（画面上の見え方と一致）
-        // マウス上移動（Y-） → ターゲット上移動（画面上の見え方と一致）
+        // 画面上の見え方と一致する方向で移動
         let move_distance = sensitivity * self.distance;
         let offset = right * (-delta_x * move_distance) + up * (delta_y * move_distance);
 
-        // ワールド座標系でターゲット位置を更新
         self.target = self.target + offset;
 
         tracing::debug!(
@@ -596,9 +503,7 @@ impl Camera {
 
     /// ズーム操作（距離調整）
     pub fn zoom(&mut self, delta_x: f32, delta_y: f32) {
-        // 支配軸を使ってズーム方向を決定（相殺による無反応を防ぐ）
-        // - 縦移動が優勢: 上ドラッグ(delta_y<0)で拡大、下ドラッグで縮小
-        // - 横移動が優勢: 右ドラッグで拡大、左ドラッグで縮小
+        // 支配軸で方向を決め、相殺を避ける
         let dominant_delta = if delta_y.abs() >= delta_x.abs() {
             -delta_y
         } else {
@@ -610,12 +515,11 @@ impl Camera {
         }
 
         let sensitivity = self.control_sensitivity.zoom_drag;
-        // 線形スケールで反応を明確化
         let zoom_factor = (-dominant_delta * sensitivity).clamp(-0.8, 0.8);
 
         if self.projection_mode == ProjectionMode::Orthographic {
             if let Some((left, right, bottom, top)) = self.orthographic_bounds {
-                // 直交投影の固定表示範囲を中心基準で拡縮
+                // 固定表示範囲を中心基準で拡縮
                 let scale = (1.0 + zoom_factor).clamp(0.1, 10.0);
                 let center_x = (left + right) * 0.5;
                 let center_y = (bottom + top) * 0.5;
