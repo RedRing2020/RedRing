@@ -275,6 +275,90 @@ impl Camera {
         );
     }
 
+    // ============================================================================
+    // Arcball回転用の球面定義関数（Issue #242）
+    // ============================================================================
+
+    /// 画面座標を単位球面上の点にマッピングする
+    ///
+    /// # 説明
+    /// Arcball回転を実現するために、2D画面座標を3D単位球面上の点に投影します。
+    /// - ビューポート中心を原点とした正規化座標 (-1..1) に変換
+    /// - 単位球（半径1）の内側に座標があれば、球面内の点として使用
+    /// - 半径1を超える場合は、球面上に正規化された点を返す（Arcballの標準的な実装）
+    ///
+    /// # 引数
+    /// - `screen_x`: ビューポート内のマウスX座標（ピクセル）
+    /// - `screen_y`: ビューポート内のマウスY座標（ピクセル）
+    /// - `viewport_width`: ビューポート幅（ピクセル）
+    /// - `viewport_height`: ビューポート高さ（ピクセル）
+    ///
+    /// # 戻り値
+    /// 単位球面上の3D点（正規化済み）
+    ///
+    /// # 例
+    /// ビューポート 800×600 の中心をクリック → (0, 0, 1)
+    /// ビューポート左端をクリック → (-1, 0, 0) に近い点
+    pub fn project_on_sphere(
+        screen_x: f32,
+        screen_y: f32,
+        viewport_width: f32,
+        viewport_height: f32,
+    ) -> Vec3f {
+        // ビューポート座標からスクリーン座標に変換（-1..1）
+        let radius = (viewport_width.min(viewport_height)) * 0.5;
+        let cx = screen_x - viewport_width * 0.5;
+        let cy = screen_y - viewport_height * 0.5;
+
+        let x = cx / radius;
+        let y = cy / radius;
+
+        // 単位球への投影
+        let len_sq = x * x + y * y;
+        let z = if len_sq < 1.0 {
+            (1.0 - len_sq).sqrt()
+        } else {
+            0.0
+        };
+
+        let sphere_point = Vec3f::new(x, -y, z);
+        sphere_point.normalize().unwrap_or(Vec3f::new(0.0, 0.0, 1.0))
+    }
+
+    /// 球面上の2点から回転クォータニオンを計算
+    ///
+    /// # 説明
+    /// Arcball回転の中心計算。sphere_from から sphere_to への回転をクォータニオンとして計算します。
+    /// 使用方式: `rotation = q_rotation * rotation_old`
+    ///
+    /// # 引数
+    /// - `sphere_from`: 回転前の球面上の点（正規化済み）
+    /// - `sphere_to`: 回転後の球面上の点（正規化済み）
+    ///
+    /// # 戻り値
+    /// 2点から計算されたクォータニオン（右から乗算する用）
+    fn compute_rotation_from_sphere_points(sphere_from: Vec3f, sphere_to: Vec3f) -> Quaternionf {
+        // 2つの正規化ベクトル間の内積
+        let dot = sphere_from.dot(&sphere_to).clamp(-1.0, 1.0);
+
+        // 回転角度（ラジアン）
+        let angle = dot.acos();
+
+        // 回転軸（2つのベクトルの外積）
+        let axis = sphere_from.cross(&sphere_to);
+
+        // 外積の大きさがほぼ0の場合（平行な場合）は回転なし
+        let axis_magnitude = axis.dot(&axis).sqrt();
+        if axis_magnitude < 1e-6 {
+            tracing::debug!("球面回転: ベクトルがほぼ平行 (dot={:.4})", dot);
+            return Quaternionf::identity();
+        }
+
+        // 軸を正規化してクォータニオンを生成
+        let axis_normalized = axis.normalize().unwrap_or(Vec3f::new(0.0, 0.0, 1.0));
+        Quaternionf::from_axis_angle(&axis_normalized, angle)
+    }
+
     /// マウス操作による回転（analysisクレートのクォータニオンを使用）
     pub fn rotate(&mut self, delta_x: f32, delta_y: f32) {
         let sensitivity = 0.01;
@@ -291,6 +375,52 @@ impl Camera {
         self.rotation = (y_rotation * self.rotation * x_rotation)
             .normalize()
             .unwrap_or(self.rotation);
+    }
+
+    /// Arcball回転（球面マッピングを使用した直感的な回転）
+    ///
+    /// # 説明
+    /// マウス位置を仮想球面上にマッピングして、より直感的で安定した回転を実現します。
+    /// クリック始点と現在位置が両方ともビューポート空間において定義され、
+    /// 球面上での2点の角度差分から回転を計算します。
+    ///
+    /// # 使用シナリオ
+    /// - ユーザーがマウスをドラッグしている最中のリアルタイム回転
+    /// - 回転の中心が常に注視点（target）になる
+    /// - クリック点の深度（奥行き）が影響しない安定した回転
+    ///
+    /// # 引数
+    /// - `prev_x`, `prev_y`: 前フレームのマウス位置（ピクセル）
+    /// - `curr_x`, `curr_y`: 現在のマウス位置（ピクセル）
+    /// - `viewport_width`, `viewport_height`: ビューポート寸法（ピクセル）
+    pub fn rotate_arcball(
+        &mut self,
+        prev_x: f32,
+        prev_y: f32,
+        curr_x: f32,
+        curr_y: f32,
+        viewport_width: f32,
+        viewport_height: f32,
+    ) {
+        // 画面座標を単位球面上の点にマッピング
+        let sphere_from = Self::project_on_sphere(prev_x, prev_y, viewport_width, viewport_height);
+        let sphere_to = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
+
+        // 球面上の2点から回転クォータニオンを計算
+        let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
+
+        // 回転を適用（右から乗算）
+        self.rotation = (q_rotation * self.rotation)
+            .normalize()
+            .unwrap_or(self.rotation);
+
+        tracing::debug!(
+            "✓ Arcball回転: prev=({:.0},{:.0}) → curr=({:.0},{:.0})",
+            prev_x,
+            prev_y,
+            curr_x,
+            curr_y
+        );
     }
 
     /// パン操作（移動）- マウス座標系→カメラ座標系→ワールド座標系変換

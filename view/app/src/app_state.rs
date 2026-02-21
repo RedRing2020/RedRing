@@ -38,6 +38,7 @@ pub struct AppState {
     pub display_tolerance: Tolerance,
 
     cursor_position: Option<(f32, f32)>,
+    last_cursor_position: Option<(f32, f32)>,
     view_rect_drag_origin: Option<(f32, f32)>,
 }
 
@@ -59,6 +60,7 @@ impl AppState {
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
             cursor_position: None,
+            last_cursor_position: None,
             view_rect_drag_origin: None,
         }
     }
@@ -879,6 +881,7 @@ impl AppState {
     }
 
     pub fn handle_cursor_moved(&mut self, x: f32, y: f32) {
+        self.last_cursor_position = self.cursor_position;
         self.cursor_position = Some((x, y));
 
         if let Some(origin) = self.view_rect_drag_origin {
@@ -894,7 +897,24 @@ impl AppState {
 
         match self.mouse_input.operation {
             MouseOperation::Rotate => {
-                self.camera.rotate(delta_x, delta_y);
+                // Arcball回転：cursor_position の絶対座標を使用
+                if let (Some((prev_x, prev_y)), Some((curr_x, curr_y))) =
+                    (self.last_cursor_position, self.cursor_position)
+                {
+                    let viewport_width = self.graphic.config.width as f32;
+                    let viewport_height = self.graphic.config.height as f32;
+                    self.camera.rotate_arcball(
+                        prev_x,
+                        prev_y,
+                        curr_x,
+                        curr_y,
+                        viewport_width,
+                        viewport_height,
+                    );
+                } else {
+                    // フォールバック（cursor_position が設定されていない場合）
+                    self.camera.rotate(delta_x, delta_y);
+                }
                 self.update_camera_uniforms();
             }
             MouseOperation::Pan => {
