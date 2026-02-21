@@ -685,6 +685,7 @@ dependencies = [
  "geo_foundation",
  "geo_nurbs",
  "geo_primitives",
+ "rayon",
 ]
 
 [[package]]

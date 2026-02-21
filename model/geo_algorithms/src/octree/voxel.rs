@@ -750,6 +750,41 @@ impl<T: Scalar> VoxelNode<T> {
             }
         }
     }
+
+    /// 指定深さまでの「非Empty」ボクセルを収集（深さレンジ可視化用）
+    ///
+    /// `visible_depth` に達したら、そのノードを代表ボクセルとして追加して打ち切ります。
+    /// これにより、同一ツリーを粗→細へ段階表示できます。
+    fn collect_non_empty_voxels_up_to_depth(
+        &self,
+        visible_depth: usize,
+        voxels: &mut Vec<Aabb3D<T>>,
+    ) {
+        if self.state == VoxelState::Empty {
+            return;
+        }
+
+        if self.depth >= visible_depth {
+            voxels.push(self.bounds);
+            return;
+        }
+
+        match self.state {
+            VoxelState::Solid => {
+                voxels.push(self.bounds);
+            }
+            VoxelState::Mixed => {
+                if let Some(ref children) = self.children {
+                    for child in children.iter() {
+                        child.collect_non_empty_voxels_up_to_depth(visible_depth, voxels);
+                    }
+                } else {
+                    voxels.push(self.bounds);
+                }
+            }
+            VoxelState::Empty => {}
+        }
+    }
 }
 
 impl<T: Scalar> VoxelOctree<T> {
@@ -1004,6 +1039,22 @@ impl<T: Scalar> VoxelOctree<T> {
     pub fn collect_solid_voxel_bounds(&self) -> Vec<Aabb3D<T>> {
         let mut result = Vec::new();
         self.root.collect_solid_voxels(&mut result);
+        result
+    }
+
+    /// 指定深さまでの「非Empty」ボクセル境界ボックスを収集（可視化用）
+    ///
+    /// # Arguments
+    ///
+    /// * `visible_depth` - 表示したい最大深さ（0はルートのみ）
+    pub fn collect_non_empty_voxel_bounds_up_to_depth(
+        &self,
+        visible_depth: usize,
+    ) -> Vec<Aabb3D<T>> {
+        let mut result = Vec::new();
+        let clamped_depth = visible_depth.min(self.max_depth);
+        self.root
+            .collect_non_empty_voxels_up_to_depth(clamped_depth, &mut result);
         result
     }
 

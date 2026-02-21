@@ -8,8 +8,9 @@
 //! cargo run -p geo_algorithms --example octree_basic
 //! ```
 
-use geo_algorithms::octree::{HasBoundingBox, HasPosition, Octree};
+use geo_algorithms::octree::{HasBoundingBox, HasPosition, Octree, OctreeTolerance};
 use geo_core::{Aabb3D, Point3D};
+use geo_foundation::ToleranceSettings;
 
 /// サンプル用の3D球形状
 #[derive(Debug, Clone)]
@@ -61,10 +62,16 @@ fn main() {
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 100.0),
     );
-    let mut octree: Octree<f64, Sphere> = Octree::new(scene_bounds, 8, 10);
+    let base = ToleranceSettings::<f64>::relaxed().distance_tolerance;
+    let tolerance = OctreeTolerance::new(base, base, base * 0.5);
+    let mut octree: Octree<f64, Sphere> = Octree::with_tolerance(scene_bounds, 8, 10, tolerance);
     println!("   境界: (0,0,0) - (100,100,100)");
     println!("   最大深さ: 8");
     println!("   ノードあたり最大要素数: 10\n");
+    println!(
+        "   OctreeTolerance: half_extent={:.4}, query_expand={:.4}, prune_margin={:.4}\n",
+        tolerance.point_aabb_half_extent, tolerance.query_expand, tolerance.nearest_prune_margin
+    );
 
     // ========== 2. データ挿入 ==========
     println!("2. データ挿入");

@@ -4,7 +4,7 @@
 //! geo_algorithms の Octree を GPU レンダリング用のワイヤーフレーム頂点データに変換します。
 
 use geo_algorithms::{
-    octree::{Octree, VoxelOctree, VoxelState},
+    octree::{Octree, OctreeTolerance, VoxelOctree, VoxelState},
     Aabb3D,
 };
 use geo_foundation::Scalar;
@@ -69,6 +69,33 @@ pub struct VoxelVisualizationOptions {
 
     /// 最大深さ（カラーマップ正規化用）
     pub max_depth: usize,
+}
+
+/// Octreeデバッグ可視化設定（View側から保持・注入する想定）
+#[derive(Clone, Debug)]
+pub struct OctreeDebugVisualizationSettings {
+    /// 可視化する最大深さ
+    pub max_depth: usize,
+
+    /// 深さグラデーション開始色（浅い）
+    pub gradient_start: [f32; 3],
+
+    /// 深さグラデーション終了色（深い）
+    pub gradient_end: [f32; 3],
+
+    /// Octreeトレランス（将来のUI設定連携用）
+    pub octree_tolerance: OctreeTolerance<f64>,
+}
+
+impl Default for OctreeDebugVisualizationSettings {
+    fn default() -> Self {
+        Self {
+            max_depth: 4,
+            gradient_start: [0.2, 1.0, 1.0],
+            gradient_end: [1.0, 0.4, 0.4],
+            octree_tolerance: OctreeTolerance::default(),
+        }
+    }
 }
 
 impl Default for VoxelVisualizationOptions {
@@ -291,17 +318,25 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
 
     tracing::debug!("voxel_octree_to_wireframe: 開始");
 
-    // 全てのSolidボクセルの境界ボックスを取得
-    let solid_bounds = voxel_octree.collect_solid_voxel_bounds();
+    // 可視深さまでの非Emptyボクセル境界ボックスを取得
+    let visible_depth = options
+        .depth_range
+        .end
+        .saturating_sub(1)
+        .min(voxel_octree.max_depth());
+    let solid_bounds = voxel_octree.collect_non_empty_voxel_bounds_up_to_depth(visible_depth);
 
     tracing::info!(
         "voxel_octree_to_wireframe: {} Solidボクセル検出",
         solid_bounds.len()
     );
 
-    // 各Solidボクセルの境界ボックスをワイヤーフレーム化
+    // 各ボクセル境界ボックスをワイヤーフレーム化
+    let depth_hint = visible_depth;
     let color = if options.color_by_state {
-        state_to_color(VoxelState::Solid) // 青色
+        state_to_color(VoxelState::Solid)
+    } else if options.color_by_depth {
+        depth_to_color(depth_hint, options.max_depth.max(1))
     } else {
         [1.0, 1.0, 1.0]
     };
@@ -413,6 +448,107 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     positions
 }
 
+/// デバッグ用：深さごとのサンプルVoxelOctreeワイヤーフレームを生成
+///
+/// 返り値の index が深さレベルに対応します。
+pub fn create_sample_voxel_octree_wireframe_levels(max_depth: usize) -> Vec<Vec<[f32; 3]>> {
+    let colored_levels = create_sample_voxel_octree_wireframe_colored_levels(max_depth);
+    let levels: Vec<Vec<[f32; 3]>> = colored_levels
+        .iter()
+        .map(|vertices| vertices.iter().map(|v| v.position).collect())
+        .collect();
+
+    tracing::info!(
+        "create_sample_voxel_octree_wireframe_levels: {} レベル生成（0..{}）",
+        levels.len(),
+        max_depth
+    );
+
+    levels
+}
+
+/// デバッグ用：深さごとのサンプルVoxelOctreeワイヤーフレーム（色付き）を生成
+pub fn create_sample_voxel_octree_wireframe_colored_levels(
+    max_depth: usize,
+) -> Vec<Vec<WireframeVertex>> {
+    let settings = OctreeDebugVisualizationSettings {
+        max_depth,
+        ..OctreeDebugVisualizationSettings::default()
+    };
+    create_sample_voxel_octree_wireframe_colored_levels_with_settings(&settings)
+}
+
+/// デバッグ用：設定付きで深さごとのサンプルVoxelOctreeワイヤーフレーム（色付き）を生成
+pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
+    settings: &OctreeDebugVisualizationSettings,
+) -> Vec<Vec<WireframeVertex>> {
+    use geo_algorithms::Point3D;
+
+    let mut levels = Vec::new();
+    let max_depth = settings.max_depth;
+
+    let depth_color = |depth: usize, max_depth: usize| {
+        if max_depth == 0 {
+            return settings.gradient_start;
+        }
+        let t = (depth as f32 / max_depth as f32).clamp(0.0, 1.0);
+        [
+            settings.gradient_start[0]
+                + (settings.gradient_end[0] - settings.gradient_start[0]) * t,
+            settings.gradient_start[1]
+                + (settings.gradient_end[1] - settings.gradient_start[1]) * t,
+            settings.gradient_start[2]
+                + (settings.gradient_end[2] - settings.gradient_start[2]) * t,
+        ]
+    };
+
+    let eps = settings.octree_tolerance.query_expand;
+
+    let work_bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 50.0),
+    );
+
+    let mut voxel_tree = VoxelOctree::new(work_bounds, max_depth);
+
+    let center_pocket = Aabb3D::new(
+        Point3D::new(30.0 - eps, 30.0 - eps, 0.0),
+        Point3D::new(70.0 + eps, 70.0 + eps, 50.0),
+    );
+    voxel_tree.remove_material_box(&center_pocket);
+
+    let horizontal_slot = Aabb3D::new(
+        Point3D::new(0.0, 45.0 - eps, 0.0),
+        Point3D::new(100.0, 55.0 + eps, 50.0),
+    );
+    voxel_tree.remove_material_box(&horizontal_slot);
+
+    for depth in 0..=max_depth {
+        let options = VoxelVisualizationOptions {
+            depth_range: 0..(depth + 1),
+            show_states: vec![VoxelState::Solid],
+            color_by_state: false,
+            color_by_depth: true,
+            max_depth: max_depth.max(1),
+        };
+
+        let mut wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
+        let color = depth_color(depth, max_depth.max(1));
+        for vertex in &mut wireframe_vertices {
+            vertex.color = color;
+        }
+        levels.push(wireframe_vertices);
+    }
+
+    tracing::info!(
+        "create_sample_voxel_octree_wireframe_colored_levels_with_settings: {} レベル生成（0..{}）",
+        levels.len(),
+        max_depth
+    );
+
+    levels
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -504,6 +640,31 @@ mod tests {
                 "全座標が有効な値であるべき"
             );
         }
+    }
+
+    #[test]
+    fn test_create_sample_voxel_octree_wireframe_levels() {
+        let levels = create_sample_voxel_octree_wireframe_levels(3);
+        assert_eq!(levels.len(), 4);
+        assert!(
+            levels.iter().any(|positions| !positions.is_empty()),
+            "少なくとも1つの深さレベルでは可視化データが生成されるべき"
+        );
+    }
+
+    #[test]
+    fn test_create_sample_voxel_octree_wireframe_colored_levels() {
+        let levels = create_sample_voxel_octree_wireframe_colored_levels(3);
+        assert_eq!(levels.len(), 4);
+        assert!(levels.iter().any(|vertices| !vertices.is_empty()));
+    }
+
+    #[test]
+    fn test_octree_debug_visualization_settings_default() {
+        let settings = OctreeDebugVisualizationSettings::default();
+        assert_eq!(settings.max_depth, 4);
+        assert!(settings.gradient_start[1] > settings.gradient_start[0]);
+        assert!(settings.gradient_end[0] > settings.gradient_end[1]);
     }
 
     #[test]
