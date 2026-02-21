@@ -1,6 +1,19 @@
 use analysis::linalg::{matrix::Matrix4x4, quaternion::Quaternionf, vector::Vec3f};
 use std::f32::consts::PI;
 
+/// ビュー行列とプロジェクション行列から、GPU描画用のview-projection行列を生成
+///
+/// 入力は `to_column_major()` 形式の列優先配列を想定。
+/// シェーダーで `clip = view_proj * world` を使う前提で、`proj * view` の順に合成する。
+pub fn build_view_projection_matrix(
+    view_matrix: [[f32; 4]; 4],
+    proj_matrix: [[f32; 4]; 4],
+) -> [[f32; 4]; 4] {
+    let view = Matrix4x4::from_column_major(view_matrix);
+    let proj = Matrix4x4::from_column_major(proj_matrix);
+    (proj * view).to_column_major()
+}
+
 /// 投影方式の種類
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ProjectionMode {

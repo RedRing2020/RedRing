@@ -2121,6 +2121,7 @@ dependencies = [
  "pollster",
  "tracing",
  "viewmodel",
+ "viewmodel-graphics",
  "wgpu",
  "winit",
 ]
@@ -2391,6 +2392,7 @@ dependencies = [
  "render",
  "tracing",
  "viewmodel",
+ "viewmodel-graphics",
  "wgpu",
 ]
 

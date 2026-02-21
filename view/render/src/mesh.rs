@@ -1,7 +1,7 @@
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
-use analysis::linalg::matrix::Matrix4x4;
 use bytemuck::{Pod, Zeroable};
+use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::util::DeviceExt;
 
 /// メッシュレンダリング用のUniform構造体（簡略版）
@@ -192,14 +192,7 @@ impl MeshResources {
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
-        // ビュー・プロジェクション行列を計算
-        // camera.rs から to_column_major() で列優先形式の配列が渡されるため、
-        // from_column_major() を使用して正しく行列を構築
-        //
-        // wgpu での行列乗算順序: view * proj（view先、projection後）
-        let proj = Matrix4x4::from_column_major(proj_matrix);
-        let view = Matrix4x4::from_column_major(view_matrix);
-        let view_proj = (view * proj).to_column_major();
+        let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
 
         let uniforms = MeshUniforms {
             view_proj,

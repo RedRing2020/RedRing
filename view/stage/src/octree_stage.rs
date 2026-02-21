@@ -21,13 +21,12 @@
 //! // stage.update_camera(&queue, view_proj_matrix);
 //! ```
 
-use analysis::linalg::matrix::Matrix4x4;
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
-use render::line::{LineResources, LineUniforms};
+use render::line::LineResources;
 use render::vertex_3d::MeshVertex;
 use std::any::Any;
 use std::sync::atomic::{AtomicU64, Ordering};
-use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
+use wgpu::{CommandEncoder, Device, TextureFormat, TextureView};
 
 use crate::RenderStage;
 
@@ -89,37 +88,6 @@ impl OctreeStage {
         self.has_data = !mesh_vertices.is_empty();
     }
 
-    /// カメラ行列を更新
-    ///
-    /// # 引数
-    ///
-    /// - `queue`: wgpu Queue
-    /// - `view_matrix`: ビュー行列
-    /// - `proj_matrix`: プロジェクション行列
-    pub fn update_camera(
-        &mut self,
-        queue: &Queue,
-        view_matrix: [[f32; 4]; 4],
-        proj_matrix: [[f32; 4]; 4],
-    ) {
-        // ビュー・プロジェクション行列を結合
-        let proj = Matrix4x4::from(proj_matrix);
-        let view = Matrix4x4::from(view_matrix);
-        let view_proj = (proj * view).to_column_major();
-
-        let uniforms = LineUniforms {
-            view_proj,
-            model: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
-
-        self.resources.update_uniforms(queue, &uniforms);
-    }
-
     /// データが設定されているか確認
     pub fn has_data(&self) -> bool {
         self.has_data
@@ -136,11 +104,15 @@ impl RenderStage for OctreeStage {
         let should_trace = should_log_render_trace();
 
         if !self.has_data {
-            if should_trace {
-                tracing::trace!("OctreeStage: データなし、描画スキップ");
-            }
+            tracing::info!("🚨 OctreeStage: has_data=false, 描画スキップ");
             return;
         }
+
+        tracing::info!(
+            "✓ OctreeStage.render(): 描画実行, vertex_count={}, vertex_buffer is {}",
+            self.resources.vertex_count,
+            if self.resources.vertex_buffer.is_some() { "Some" } else { "None" }
+        );
 
         if should_trace {
             tracing::trace!(
@@ -177,6 +149,22 @@ impl RenderStage for OctreeStage {
             render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
             render_pass.draw(0..self.resources.vertex_count, 0..1);
         }
+    }
+
+    /// カメラ行列を更新（RenderStage trait override）
+    fn update_camera(
+        &mut self,
+        queue: &wgpu::Queue,
+        view_matrix: [[f32; 4]; 4],
+        proj_matrix: [[f32; 4]; 4],
+    ) {
+        tracing::info!("OctreeStage.update_camera() 呼び出し");
+        tracing::info!("  view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]", 
+            view_matrix[3][0], view_matrix[3][1], view_matrix[3][2], view_matrix[3][3]);
+        tracing::info!("  proj_matrix[0]: [{:.2}, {:.2}, {:.2}, {:.2}]", 
+            proj_matrix[0][0], proj_matrix[0][1], proj_matrix[0][2], proj_matrix[0][3]);
+        
+        self.resources.update_camera(queue, view_matrix, proj_matrix);
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {

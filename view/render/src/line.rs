@@ -1,9 +1,9 @@
 use crate::shader;
 use crate::vertex_3d::MeshVertex;
-use analysis::linalg::matrix::Matrix4x4;
 use bytemuck::{Pod, Zeroable};
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use std::sync::atomic::{AtomicU64, Ordering};
+use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::util::DeviceExt;
 
 static LINE_CAMERA_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -194,15 +194,7 @@ impl LineResources {
             );
         }
 
-        // proj × view の順序でview-projection行列を計算
-        // camera.rs から to_column_major() で列優先形式の配列が渡されるため、
-        // from_column_major() を使用して正しく行列を構築
-        //
-        // wgpu での行列乗算順序: view * proj（view先、projection後）
-        // これは、ワールド座標をビュー空間に変換してから投影空間に変換するため
-        let proj = Matrix4x4::from_column_major(proj_matrix);
-        let view = Matrix4x4::from_column_major(view_matrix);
-        let view_proj = (view * proj).to_column_major();
+        let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
 
         if should_dump {
             tracing::trace!(
