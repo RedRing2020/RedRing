@@ -1,8 +1,8 @@
 # Octree空間分割 設計・実装計画
 
 **作成日**: 2026年2月8日  
-**最終更新**: 2026年2月8日  
-**ステータス**: 設計フェーズ  
+**最終更新**: 2026年2月21日  
+**ステータス**: 実装進行中（Phase 1/2 基本機能は実装済み）  
 **優先度**: 🟠 Tier 2（形状可視化完了後に着手）  
 **関連Issue**: #207（Octree実装）, #208（Octree可視化）
 
@@ -27,6 +27,22 @@ Octree（八分木）は3D空間を再帰的に8つの子領域に分割する�
 - **衝突判定高速化**: 大量形状の粗判定（Phase 3の拡張）
 - **近傍検索**: 最近傍点・k近傍探索
 - **デバッグ可視化**: Octree構造の視覚的確認
+
+### 2026-02-21 時点の実装状況
+
+- 基本Octree（挿入・範囲検索・最近傍探索）実装済み
+- Octree 実装は責務分離済み（`mod.rs` + `core_impl.rs` + `insert_impl.rs` + `query_impl.rs` + `nearest_impl.rs` + `parallel_impl.rs`）
+- `model/geo_algorithms/src/octree/voxel.rs` にてVoxelOctree（材料除去・体積計算・undercut検出）実装済み
+- `model/geo_algorithms/src/octree/tolerance.rs` に `OctreeTolerance<T>` 実装済み（`Octree::with_tolerance(...)` で適用）
+- `model/geo_algorithms/tests/octree_parallel_integration.rs` に逐次/並列整合テストを追加済み
+- `model/geo_algorithms/examples/octree_basic.rs` に `with_tolerance(...)` 利用例あり
+
+### 今回ブランチ（feature/issue-206-octree-space-partition）の実施スコープ
+
+1. [x] 統合テストの追加（crate外からの利用経路確認）
+2. [x] Octreeクエリ/最近傍の並列処理API追加（安全な読み取り処理を対象）
+3. [x] トレランス管理を `OctreeTolerance<T>` へ分離
+4. [x] `cargo test -p geo_algorithms` による検証
 
 ---
 
@@ -352,9 +368,9 @@ pub struct VoxelNode<T: Scalar> {
 }
 
 impl<T: Scalar> VoxelOctree<T> {
-    /// 工具による材料除去
-    pub fn remove_material(&mut self, tool_shape: &impl Shape3D<T>) {
-        self.root.remove_material(tool_shape, self.max_depth);
+    /// 工具AABBによる材料除去
+    pub fn remove_material_box(&mut self, tool_aabb: &BBox3D<T>) {
+        self.root.remove_material_box(tool_aabb, self.max_depth);
     }
     
     /// 残存材料の体積計算
@@ -363,24 +379,24 @@ impl<T: Scalar> VoxelOctree<T> {
     }
     
     /// 削り残し検出
-    pub fn detect_undercut(&self, target_shape: &impl Shape3D<T>) -> Vec<BBox3D<T>> {
-        // target_shape と比較して削り残しを検出
+    pub fn detect_undercut(&self, target_region: &BBox3D<T>) -> Vec<BBox3D<T>> {
+        // target_region と比較して削り残しを検出
         // ...
     }
 }
 
 impl<T: Scalar> VoxelNode<T> {
-    fn remove_material(&mut self, tool: &impl Shape3D<T>, max_depth: usize) {
+    fn remove_material_box(&mut self, tool_aabb: &BBox3D<T>, max_depth: usize) {
         match self.state {
             VoxelState::Empty => return, // 既に空なら何もしない
             VoxelState::Solid => {
                 // 工具と交差判定
-                if tool.intersects_bbox(&self.bounds) {
+                if tool_aabb.intersects(&self.bounds) {
                     if self.depth < max_depth {
                         // 細分化して再帰
                         self.subdivide();
                         for child in self.children.as_mut().unwrap().iter_mut() {
-                            child.remove_material(tool, max_depth);
+                            child.remove_material_box(tool_aabb, max_depth);
                         }
                     } else {
                         // 最大深さ到達 - セル単位で削除
@@ -392,7 +408,7 @@ impl<T: Scalar> VoxelNode<T> {
                 // 子ノードに委譲
                 if let Some(ref mut children) = self.children {
                     for child in children.iter_mut() {
-                        child.remove_material(tool, max_depth);
+                        child.remove_material_box(tool_aabb, max_depth);
                     }
                 }
             }
@@ -426,7 +442,12 @@ impl<T: Scalar> VoxelNode<T> {
 - `model/geo_algorithms/Cargo.toml` - 依存関係追加
 - `model/geo_algorithms/src/octree/mod.rs` - モジュール定義
 - `model/geo_algorithms/src/octree/node.rs` - OctreeNode 実装
-- `model/geo_algorithms/src/octree/octree.rs` - Octree 実装
+- `model/geo_algorithms/src/octree/core_impl.rs` - Octree 基本API実装
+- `model/geo_algorithms/src/octree/insert_impl.rs` - 挿入ロジック
+- `model/geo_algorithms/src/octree/query_impl.rs` - 範囲検索/走査ロジック
+- `model/geo_algorithms/src/octree/nearest_impl.rs` - 最近傍探索ロジック
+- `model/geo_algorithms/src/octree/parallel_impl.rs` - 並列検索API
+- `model/geo_algorithms/src/octree/tolerance.rs` - Octree専用トレランス
 
 **実装項目**:
 - [x] `OctreeNode` 構造体
@@ -443,13 +464,13 @@ impl<T: Scalar> VoxelNode<T> {
 **実装項目**:
 - [x] `insert()` - データ挿入
 - [x] `query_region()` - 範囲検索
-- [x] `query_point()` - 点検索
 - [x] `nearest()` - 最近傍探索
 
 **テスト**:
 - ランダムデータでの挿入・検索
 - 境界条件テスト（空Octree、単一要素）
 - パフォーマンステスト（1000要素）
+- メモリ使用量回帰テスト（ノード数/要素数ベースの概算監視）
 
 #### ステップ3: 統合・ドキュメント（2日）
 
@@ -459,8 +480,9 @@ impl<T: Scalar> VoxelNode<T> {
 - パフォーマンス特性の文書化
 
 **統合テスト**:
-- 既存の衝突判定との統合テスト
-- メモリ使用量の測定
+- Octree単体の衝突候補削減テスト（1000要素）
+- 並列APIの逐次一致テスト（`octree_parallel_integration.rs`）
+- メモリ使用量の概算回帰テスト
 
 ---
 
@@ -479,7 +501,7 @@ impl<T: Scalar> VoxelNode<T> {
 #### ステップ2: 材料除去シミュレーション（3日）
 
 **実装項目**:
-- [x] `remove_material()` - 工具形状による除去
+- [x] `remove_material_box()` / `remove_material_capsule()` / `remove_material_z_axis()` / `remove_material_arc_polyline()`
 - [x] `remaining_volume()` - 残存体積計算
 - [x] `detect_undercut()` - 削り残し検出
 
@@ -491,8 +513,8 @@ impl<T: Scalar> VoxelNode<T> {
 #### ステップ3: 最適化・ドキュメント（2日）
 
 **最適化**:
-- メモリプール使用（ノード再利用）
-- 並列化（Rayon）
+- [ ] メモリプール使用（ノード再利用）
+- [ ] 並列化（Rayon, VoxelOctree側）
 
 **ドキュメント**:
 - 切削シミュレーションの使用例
@@ -681,8 +703,8 @@ let mut voxel_octree = VoxelOctree::new(workpiece, 8); // 深さ8 (256分割)
 
 // 工具経路に沿って材料除去
 for segment in toolpath.segments() {
-    let tool = CylindricalSolid3D::new(segment.start, segment.end, tool_diameter / 2.0);
-    voxel_octree.remove_material(&tool);
+    let tool_region = segment.bounding_box();
+    voxel_octree.remove_material_box(&tool_region);
 }
 
 // 残存体積の確認
@@ -690,7 +712,7 @@ let remaining = voxel_octree.remaining_volume();
 println!("Removed: {:.2}%", (1.0 - remaining / workpiece.volume()) * 100.0);
 
 // 削り残し検出
-let undercuts = voxel_octree.detect_undercut(&target_shape);
+let undercuts = voxel_octree.detect_undercut(&target_region);
 if !undercuts.is_empty() {
     eprintln!("Warning: {} undercut regions detected", undercuts.len());
 }
@@ -781,16 +803,16 @@ for sample_point in sample_points {
 ### 実装優先順位
 
 1. **Phase 1: 基本Octree** (1週間)
-   - Issue #207
+    - Issue #206
    - 衝突判定・近傍検索に即利用可能
 
-2. **Phase 2: Octree可視化** (1週間)
-   - Issue #208
-   - デバッグ効率向上
+2. **Phase 2: ボクセルOctree** (1週間)
+    - Issue #206
+    - 切削シミュレーション対応
 
-3. **Phase 3: ボクセルOctree** (1週間)
-   - 切削シミュレーション対応
-   - Phase 4以降で本格活用
+3. **次段階（別Issue）: Octree可視化** (1週間)
+    - Issue #207
+    - デバッグ効率向上
 
 ### 期待効果
 
@@ -803,6 +825,7 @@ for sample_point in sample_points {
 
 ## 関連情報
 
+- **トレランス設計メモ**: `dev/architecture/OCTREE_TOLERANCE_STRATEGY.md`
 - **先行技術**: PCL (Point Cloud Library), OpenVDB
 - **参考論文**: "Octree-Based Collision Detection" (Meagher, 1982)
 - **実装例**: Unity Octree, UE5 Octree

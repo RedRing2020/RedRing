@@ -50,7 +50,7 @@ pub mod octree;
 // pub use interpolation::{LinearInterpolator, BezierCurve, CatmullRomSpline};
 
 // Octree関連の公開API
-pub use octree::{Octree, OctreeNode};
+pub use octree::{Octree, OctreeNode, OctreeTolerance};
 
 // geo_foundationからの基本型の再エクスポート
 

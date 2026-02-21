@@ -12,8 +12,14 @@ use stage::{
 };
 use std::path::Path;
 use std::sync::Arc;
+use viewmodel::octree_converter::OctreeDebugVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ViewingOperationSettings {
+    pub camera_control_sensitivity: CameraControlSensitivity,
+}
 
 pub struct AppState {
     pub window: Arc<Window>,
@@ -37,6 +43,12 @@ pub struct AppState {
     /// この値により、曲線から生成される線分の精度が決まります。
     pub display_tolerance: Tolerance,
 
+    /// Octree可視化設定（setting画面向けの保持値）
+    pub octree_visualization_settings: OctreeDebugVisualizationSettings,
+
+    /// ビュー操作設定（setting画面向けの保持値）
+    pub viewing_operation_settings: ViewingOperationSettings,
+
     cursor_position: Option<(f32, f32)>,
     last_cursor_position: Option<(f32, f32)>,
     arcball_drag_start: Option<(f32, f32)>,
@@ -45,11 +57,17 @@ pub struct AppState {
 }
 
 impl AppState {
+    fn apply_viewing_operation_settings(&mut self) {
+        self.camera
+            .set_control_sensitivity(self.viewing_operation_settings.camera_control_sensitivity);
+    }
+
     pub fn new(window: Arc<Window>) -> Self {
         let graphic = init_graphic(window.clone());
         let renderer = AppRenderer::new_draft(&graphic.device, &graphic.config);
+        let viewing_operation_settings = ViewingOperationSettings::default();
 
-        Self {
+        let mut app_state = Self {
             window,
             graphic,
             renderer,
@@ -61,12 +79,17 @@ impl AppState {
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
+            octree_visualization_settings: OctreeDebugVisualizationSettings::default(),
+            viewing_operation_settings,
             cursor_position: None,
             last_cursor_position: None,
             arcball_drag_start: None,
             arcball_virtual_cursor: None,
             view_rect_drag_origin: None,
-        }
+        };
+
+        app_state.apply_viewing_operation_settings();
+        app_state
     }
 
     fn rebuild_stage_from_entities(&mut self) {
@@ -137,6 +160,15 @@ impl AppState {
     }
 
     pub fn render(&mut self) {
+        // ステージ固有の更新（Octree深さアニメーションなど）
+        self.renderer.update();
+        {
+            let stage = self.renderer.get_stage_mut();
+            if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() {
+                octree_stage.tick_animation(&self.graphic.device);
+            }
+        }
+
         // 毎フレーム カメラ行列を更新（Stage の transform をリアルタイム反映）
         self.update_camera_uniforms();
 
@@ -175,12 +207,24 @@ impl AppState {
 
     /// デバッグ用：VoxelOctree可視化を表示
     pub fn load_debug_octree(&mut self) {
-        use viewmodel::octree_converter::create_sample_voxel_octree_wireframe;
+        use viewmodel::octree_converter::create_sample_voxel_octree_wireframe_colored_levels_with_settings;
 
         tracing::info!("VoxelOctree可視化デバッグ開始");
 
-        // ViewModelでサンプルデータ生成（ワイヤーフレーム頂点）
-        let positions = create_sample_voxel_octree_wireframe();
+        // ViewModelでサンプルデータ生成（深さ別ワイヤーフレーム頂点）
+        let depth_levels = create_sample_voxel_octree_wireframe_colored_levels_with_settings(
+            &self.octree_visualization_settings,
+        );
+
+        let initial_depth = depth_levels
+            .iter()
+            .position(|vertices| !vertices.is_empty())
+            .unwrap_or(0);
+
+        let positions: Vec<[f32; 3]> = depth_levels
+            .get(initial_depth)
+            .map(|vertices| vertices.iter().map(|v| v.position).collect())
+            .unwrap_or_default();
 
         if positions.is_empty() {
             tracing::warn!("Octreeワイヤーフレーム頂点が空のため表示をスキップ");
@@ -225,7 +269,8 @@ impl AppState {
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        octree_stage.set_wireframe_data(&self.graphic.device, positions);
+        octree_stage.set_depth_levels(&self.graphic.device, depth_levels);
+        octree_stage.set_depth(&self.graphic.device, initial_depth);
 
         // カメラ設定（頂点範囲へ自動フィット）
         self.camera.target = Vec3f::new(center_x, center_y, center_z);
@@ -272,6 +317,8 @@ impl AppState {
         self.update_camera_uniforms();
 
         tracing::info!("VoxelOctree可視化デバッグ完了");
+        tracing::info!("初期表示深さ: {}", initial_depth);
+        tracing::info!("o: 深さを1段進める, Shift+O: 深さアニメーション再生");
     }
 
     /// デバッグ用：CAM工具経路可視化を表示
@@ -776,7 +823,8 @@ impl AppState {
                     tracing::info!("a: Arc3D表示");
                     tracing::info!("n: NurbsCurve3D表示（GPU評価）");
                     tracing::info!("m: NurbsSurface3D表示（GPU評価）");
-                    tracing::info!("o: Octree表示");
+                    tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
+                    tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
                     tracing::info!("p: ToolPath表示");
                     tracing::info!("=== その他 ===");
                     tracing::info!(
@@ -830,8 +878,48 @@ impl AppState {
                     self.load_debug_nurbs_surface();
                 }
                 "o" => {
-                    // デバッグ: Octree可視化表示
-                    self.load_debug_octree();
+                    // デバッグ: Octree可視化表示（表示中は深さ送り）
+                    let mut handled = false;
+                    {
+                        let stage = self.renderer.get_stage_mut();
+                        if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>()
+                        {
+                            octree_stage.cycle_next_depth(&self.graphic.device);
+                            tracing::info!(
+                                "Octree深さ表示: {}/{}",
+                                octree_stage.current_depth(),
+                                octree_stage.max_depth()
+                            );
+                            handled = true;
+                        }
+                    }
+
+                    if !handled {
+                        self.load_debug_octree();
+                    }
+                }
+                "O" => {
+                    // デバッグ: Octree深さアニメーション
+                    let mut handled = false;
+                    {
+                        let stage = self.renderer.get_stage_mut();
+                        if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>()
+                        {
+                            octree_stage.start_depth_animation();
+                            tracing::info!("Octree深さアニメーション再生開始");
+                            handled = true;
+                        }
+                    }
+
+                    if !handled {
+                        self.load_debug_octree();
+                        let stage = self.renderer.get_stage_mut();
+                        if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>()
+                        {
+                            octree_stage.start_depth_animation();
+                            tracing::info!("Octree深さアニメーション再生開始");
+                        }
+                    }
                 }
                 "p" => {
                     // デバッグ: CAM工具経路可視化表示
@@ -931,7 +1019,7 @@ impl AppState {
             return;
         }
 
-        let sensitivity = self.camera.control_sensitivity();
+        let sensitivity = self.viewing_operation_settings.camera_control_sensitivity;
         let scroll_y = match delta {
             winit::event::MouseScrollDelta::LineDelta(_, y) => y,
             winit::event::MouseScrollDelta::PixelDelta(pos) => {
@@ -956,12 +1044,211 @@ impl AppState {
 
     /// カメラ操作感度を設定
     pub fn set_camera_control_sensitivity(&mut self, sensitivity: CameraControlSensitivity) {
-        self.camera.set_control_sensitivity(sensitivity);
+        self.viewing_operation_settings.camera_control_sensitivity = sensitivity;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// Octree深さグラデーション開始色（浅い）を設定
+    pub fn set_octree_gradient_start(&mut self, color: [f32; 3]) {
+        self.octree_visualization_settings.gradient_start = color;
+    }
+
+    /// Octree表示色を単色で設定（開始色・終了色の両方に同じ色を適用）
+    pub fn set_octree_single_color(&mut self, color: [f32; 3]) {
+        self.octree_visualization_settings.gradient_start = color;
+        self.octree_visualization_settings.gradient_end = color;
+    }
+
+    /// Octree表示色をグラデーションで一括設定
+    pub fn set_octree_gradient_colors(&mut self, start: [f32; 3], end: [f32; 3]) {
+        self.octree_visualization_settings.gradient_start = start;
+        self.octree_visualization_settings.gradient_end = end;
+    }
+
+    /// Octree深さグラデーション終了色（深い）を設定
+    pub fn set_octree_gradient_end(&mut self, color: [f32; 3]) {
+        self.octree_visualization_settings.gradient_end = color;
+    }
+
+    /// Octree深さグラデーション開始色（浅い）を取得
+    pub fn octree_gradient_start(&self) -> [f32; 3] {
+        self.octree_visualization_settings.gradient_start
+    }
+
+    /// Octree深さグラデーション終了色（深い）を取得
+    pub fn octree_gradient_end(&self) -> [f32; 3] {
+        self.octree_visualization_settings.gradient_end
+    }
+
+    /// Octreeトレランス: point_aabb_half_extent を設定
+    pub fn set_octree_tolerance_point_aabb_half_extent(&mut self, value: f64) {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .point_aabb_half_extent = value;
+    }
+
+    /// Octreeトレランスを一括設定
+    pub fn set_octree_tolerance(
+        &mut self,
+        point_aabb_half_extent: f64,
+        query_expand: f64,
+        nearest_prune_margin: f64,
+    ) {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .point_aabb_half_extent = point_aabb_half_extent;
+        self.octree_visualization_settings
+            .octree_tolerance
+            .query_expand = query_expand;
+        self.octree_visualization_settings
+            .octree_tolerance
+            .nearest_prune_margin = nearest_prune_margin;
+    }
+
+    /// Octreeトレランスを単一値で一括設定（3項目に同値を適用）
+    pub fn set_octree_tolerance_uniform(&mut self, value: f64) {
+        self.set_octree_tolerance(value, value, value);
+    }
+
+    /// Octreeトレランス: query_expand を設定
+    pub fn set_octree_tolerance_query_expand(&mut self, value: f64) {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .query_expand = value;
+    }
+
+    /// Octreeトレランス: nearest_prune_margin を設定
+    pub fn set_octree_tolerance_nearest_prune_margin(&mut self, value: f64) {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .nearest_prune_margin = value;
+    }
+
+    /// Octreeトレランス: point_aabb_half_extent を取得
+    pub fn octree_tolerance_point_aabb_half_extent(&self) -> f64 {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .point_aabb_half_extent
+    }
+
+    /// Octreeトレランス: query_expand を取得
+    pub fn octree_tolerance_query_expand(&self) -> f64 {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .query_expand
+    }
+
+    /// Octreeトレランス: nearest_prune_margin を取得
+    pub fn octree_tolerance_nearest_prune_margin(&self) -> f64 {
+        self.octree_visualization_settings
+            .octree_tolerance
+            .nearest_prune_margin
+    }
+
+    /// 回転感度を更新
+    pub fn set_camera_rotate_sensitivity(&mut self, rotate: f32) {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .rotate = rotate;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// Arcballデルタ変換スケールを更新
+    pub fn set_camera_arcball_sensitivity(&mut self, arcball: f32) {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .arcball = arcball;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// パン感度を更新
+    pub fn set_camera_pan_sensitivity(&mut self, pan: f32) {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .pan = pan;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// ドラッグズーム感度を更新
+    pub fn set_camera_zoom_drag_sensitivity(&mut self, zoom_drag: f32) {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .zoom_drag = zoom_drag;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// ホイールズーム感度を更新
+    pub fn set_camera_zoom_wheel_sensitivity(&mut self, zoom_wheel: f32) {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .zoom_wheel = zoom_wheel;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// ピクセルホイール→ライン変換係数を更新
+    pub fn set_camera_wheel_pixel_to_line(&mut self, wheel_pixel_to_line: f32) {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .wheel_pixel_to_line = wheel_pixel_to_line;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// ビュー操作設定を一括設定
+    pub fn set_viewing_operation_settings(&mut self, settings: ViewingOperationSettings) {
+        self.viewing_operation_settings = settings;
+        self.apply_viewing_operation_settings();
+    }
+
+    /// ビュー操作設定を取得
+    pub fn viewing_operation_settings(&self) -> ViewingOperationSettings {
+        self.viewing_operation_settings
     }
 
     /// カメラ操作感度を取得
     pub fn camera_control_sensitivity(&self) -> CameraControlSensitivity {
-        self.camera.control_sensitivity()
+        self.viewing_operation_settings.camera_control_sensitivity
+    }
+
+    /// 回転感度を取得
+    pub fn camera_rotate_sensitivity(&self) -> f32 {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .rotate
+    }
+
+    /// Arcballデルタ変換スケールを取得
+    pub fn camera_arcball_sensitivity(&self) -> f32 {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .arcball
+    }
+
+    /// パン感度を取得
+    pub fn camera_pan_sensitivity(&self) -> f32 {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .pan
+    }
+
+    /// ドラッグズーム感度を取得
+    pub fn camera_zoom_drag_sensitivity(&self) -> f32 {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .zoom_drag
+    }
+
+    /// ホイールズーム感度を取得
+    pub fn camera_zoom_wheel_sensitivity(&self) -> f32 {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .zoom_wheel
+    }
+
+    /// ピクセルホイール→ライン変換係数を取得
+    pub fn camera_wheel_pixel_to_line(&self) -> f32 {
+        self.viewing_operation_settings
+            .camera_control_sensitivity
+            .wheel_pixel_to_line
     }
 
     /// マウス移動を処理
