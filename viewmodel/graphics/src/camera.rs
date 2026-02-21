@@ -370,7 +370,9 @@ impl Camera {
         };
 
         let sphere_point = Vec3f::new(x, -y, z);
-        sphere_point.normalize().unwrap_or(Vec3f::new(0.0, 0.0, 1.0))
+        sphere_point
+            .normalize()
+            .unwrap_or(Vec3f::new(0.0, 0.0, 1.0))
     }
 
     /// 球面上の2点から回転クォータニオンを計算
@@ -499,7 +501,8 @@ impl Camera {
 
         // ドラッグ方向と回転方向を一致させるため、回転ベクトルの向きを反転
         let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
-        let sphere_to = Self::project_on_sphere(center_x, center_y, viewport_width, viewport_height);
+        let sphere_to =
+            Self::project_on_sphere(center_x, center_y, viewport_width, viewport_height);
 
         let axis = sphere_from.cross(&sphere_to);
         let dot = sphere_from.dot(&sphere_to).clamp(-1.0, 1.0);
@@ -1165,8 +1168,6 @@ mod tests {
             || (q_rev.z() - identity.z()).abs() > 0.01;
         assert!(is_rev_not_identity, "逆方向も回転を生成");
     }
-
-
 
     #[test]
     fn test_issue_242_zoom_magnitude_sensitivity() {
