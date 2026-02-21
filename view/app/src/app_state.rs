@@ -12,7 +12,7 @@ use stage::{
 };
 use std::path::Path;
 use std::sync::Arc;
-use viewmodel_graphics::Camera;
+use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
 
 pub struct AppState {
@@ -38,6 +38,9 @@ pub struct AppState {
     pub display_tolerance: Tolerance,
 
     cursor_position: Option<(f32, f32)>,
+    last_cursor_position: Option<(f32, f32)>,
+    arcball_drag_start: Option<(f32, f32)>,
+    arcball_virtual_cursor: Option<(f32, f32)>,
     view_rect_drag_origin: Option<(f32, f32)>,
 }
 
@@ -59,6 +62,9 @@ impl AppState {
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
             cursor_position: None,
+            last_cursor_position: None,
+            arcball_drag_start: None,
+            arcball_virtual_cursor: None,
             view_rect_drag_origin: None,
         }
     }
@@ -855,7 +861,19 @@ impl AppState {
         match state {
             winit::event::ElementState::Pressed => {
                 if self.mouse_input.ctrl_pressed {
-                    tracing::info!("Ctrl+左ドラッグ: カメラ回転モード");
+                    self.arcball_drag_start = self.cursor_position;
+                    let viewport_width = self.graphic.config.width as f32;
+                    let viewport_height = self.graphic.config.height as f32;
+                    self.arcball_virtual_cursor = Some(
+                        self.cursor_position
+                            .unwrap_or((viewport_width * 0.5, viewport_height * 0.5)),
+                    );
+                    tracing::info!(
+                        "Ctrl+左ドラッグ: カメラ回転モード開始 start={:?} current={:?} virtual_start={:?}",
+                        self.arcball_drag_start,
+                        self.cursor_position,
+                        self.arcball_virtual_cursor
+                    );
                     return;
                 }
 
@@ -867,6 +885,16 @@ impl AppState {
                 }
             }
             winit::event::ElementState::Released => {
+                if let Some(start) = self.arcball_drag_start.take() {
+                    tracing::info!(
+                        "Ctrl+左ドラッグ: カメラ回転モード終了 start={:?} end={:?} virtual_end={:?}",
+                        start,
+                        self.cursor_position,
+                        self.arcball_virtual_cursor
+                    );
+                }
+                self.arcball_virtual_cursor = None;
+
                 if self.view_rect_drag_origin.take().is_some() {
                     if let Some(rect) = self.active_view_rect.take() {
                         if !rect.is_empty() {
@@ -879,11 +907,61 @@ impl AppState {
     }
 
     pub fn handle_cursor_moved(&mut self, x: f32, y: f32) {
+        self.last_cursor_position = self.cursor_position;
         self.cursor_position = Some((x, y));
+
+        if self.mouse_input.operation == crate::mouse_input::MouseOperation::Rotate {
+            tracing::debug!(
+                "🖱️ CursorMoved(rotate): last={:?} current=({:.1},{:.1}) start={:?}",
+                self.last_cursor_position,
+                x,
+                y,
+                self.arcball_drag_start
+            );
+        }
 
         if let Some(origin) = self.view_rect_drag_origin {
             self.active_view_rect = Some(ViewRect::from_points(origin, (x, y)));
         }
+    }
+
+    /// Ctrl+ホイールでズーム
+    pub fn handle_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+        if !self.mouse_input.ctrl_pressed {
+            return;
+        }
+
+        let sensitivity = self.camera.control_sensitivity();
+        let scroll_y = match delta {
+            winit::event::MouseScrollDelta::LineDelta(_, y) => y,
+            winit::event::MouseScrollDelta::PixelDelta(pos) => {
+                pos.y as f32 * sensitivity.wheel_pixel_to_line
+            }
+        };
+
+        if scroll_y.abs() < 1e-6 {
+            return;
+        }
+
+        self.camera.zoom_wheel(scroll_y);
+        self.update_camera_uniforms();
+
+        tracing::debug!(
+            "🖱️ MouseWheel(zoom): ctrl=true, scroll_y={:.3}, camera_distance={:.3}, bounds={:?}",
+            scroll_y,
+            self.camera.distance,
+            self.camera.orthographic_bounds
+        );
+    }
+
+    /// カメラ操作感度を設定
+    pub fn set_camera_control_sensitivity(&mut self, sensitivity: CameraControlSensitivity) {
+        self.camera.set_control_sensitivity(sensitivity);
+    }
+
+    /// カメラ操作感度を取得
+    pub fn camera_control_sensitivity(&self) -> CameraControlSensitivity {
+        self.camera.control_sensitivity()
     }
 
     /// マウス移動を処理
@@ -894,7 +972,38 @@ impl AppState {
 
         match self.mouse_input.operation {
             MouseOperation::Rotate => {
-                self.camera.rotate(delta_x, delta_y);
+                let viewport_width = self.graphic.config.width as f32;
+                let viewport_height = self.graphic.config.height as f32;
+                let (prev_x, prev_y) = self
+                    .arcball_virtual_cursor
+                    .unwrap_or((viewport_width * 0.5, viewport_height * 0.5));
+
+                let curr_x = (prev_x + delta_x).clamp(0.0, viewport_width);
+                let curr_y = (prev_y + delta_y).clamp(0.0, viewport_height);
+                self.arcball_virtual_cursor = Some((curr_x, curr_y));
+
+                tracing::debug!(
+                    "🎯 MouseMotion(rotate): delta=({:.2},{:.2}) start={:?} last={:?} current={:?} virtual_prev=({:.1},{:.1}) virtual_curr=({:.1},{:.1}) center=({:.1},{:.1})",
+                    delta_x,
+                    delta_y,
+                    self.arcball_drag_start,
+                    self.last_cursor_position,
+                    self.cursor_position,
+                    prev_x,
+                    prev_y,
+                    curr_x,
+                    curr_y,
+                    viewport_width * 0.5,
+                    viewport_height * 0.5
+                );
+                self.camera.rotate_arcball(
+                    prev_x,
+                    prev_y,
+                    curr_x,
+                    curr_y,
+                    viewport_width,
+                    viewport_height,
+                );
                 self.update_camera_uniforms();
             }
             MouseOperation::Pan => {

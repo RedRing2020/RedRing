@@ -54,6 +54,9 @@ impl ApplicationHandler for App {
                 WindowEvent::CursorMoved { position, .. } => {
                     state.handle_cursor_moved(position.x as f32, position.y as f32);
                 }
+                WindowEvent::MouseWheel { delta, .. } => {
+                    state.handle_mouse_wheel(delta);
+                }
                 _ => {}
             }
         }
