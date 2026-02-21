@@ -3,11 +3,11 @@
 //! ViewModel層で作成したGPU評価用データを受け取り、
 //! GPU上でNURBS曲線を直接評価・描画します。
 
-use analysis::linalg::matrix::Matrix4x4;
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::nurbs_eval::{NurbsCurveEvalResources, NurbsEvalUniforms};
 use std::any::Any;
 use std::sync::atomic::{AtomicU64, Ordering};
+use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
 use crate::RenderStage;
@@ -80,9 +80,7 @@ impl NurbsCurveStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         if let Some(resources) = &self.resources {
-            let proj = Matrix4x4::from_column_major(proj_matrix);
-            let view = Matrix4x4::from_column_major(view_matrix);
-            let view_proj = (proj * view).to_column_major(); // 修正: proj * view
+            let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
 
             let uniforms = NurbsEvalUniforms {
                 view_proj,

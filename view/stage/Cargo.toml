@@ -11,3 +11,4 @@ bytemuck = "1.23.2"
 tracing = "0.1"
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
+viewmodel-graphics = { path = "../../viewmodel/graphics" }

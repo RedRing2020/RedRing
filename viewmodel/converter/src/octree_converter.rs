@@ -8,6 +8,7 @@ use geo_algorithms::{
     Aabb3D,
 };
 use geo_foundation::Scalar;
+use std::collections::HashSet;
 use std::ops::Range;
 
 /// GPU用ワイヤーフレーム頂点データ（renderクレートのVertex3Dと同じ構造）
@@ -175,6 +176,50 @@ fn bbox_to_wireframe_vertices<T: Scalar>(
     ]
 }
 
+fn coord_bits(value: f32) -> u32 {
+    if value == 0.0 {
+        0
+    } else {
+        value.to_bits()
+    }
+}
+
+fn point_key(position: [f32; 3]) -> [u32; 3] {
+    [
+        coord_bits(position[0]),
+        coord_bits(position[1]),
+        coord_bits(position[2]),
+    ]
+}
+
+fn canonical_edge_key(a: [f32; 3], b: [f32; 3]) -> ([u32; 3], [u32; 3]) {
+    let pa = point_key(a);
+    let pb = point_key(b);
+    if pa <= pb {
+        (pa, pb)
+    } else {
+        (pb, pa)
+    }
+}
+
+fn deduplicate_exact_edges(vertices: Vec<WireframeVertex>) -> Vec<WireframeVertex> {
+    let mut unique_edges: HashSet<([u32; 3], [u32; 3])> = HashSet::new();
+    let mut deduped = Vec::with_capacity(vertices.len());
+
+    for edge in vertices.chunks_exact(2) {
+        let a = edge[0];
+        let b = edge[1];
+        let key = canonical_edge_key(a.position, b.position);
+
+        if unique_edges.insert(key) {
+            deduped.push(a);
+            deduped.push(b);
+        }
+    }
+
+    deduped
+}
+
 /// OctreeをGPU用ワイヤーフレーム頂点に変換
 ///
 /// # Arguments
@@ -266,9 +311,18 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
         vertices.append(&mut bbox_vertices);
     }
 
-    tracing::debug!("voxel_octree_to_wireframe: {} vertices", vertices.len());
+    let before = vertices.len();
+    let deduped = deduplicate_exact_edges(vertices);
+    let removed_edges = (before.saturating_sub(deduped.len())) / 2;
 
-    vertices
+    tracing::info!(
+        "voxel_octree_to_wireframe: {} 頂点 → {} 頂点（重複辺 {} 本削除）",
+        before,
+        deduped.len(),
+        removed_edges
+    );
+
+    deduped
 }
 
 /// デバッグ/教育用：サンプルVoxelOctreeワイヤーフレームデータを生成
@@ -294,27 +348,30 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
         Point3D::new(100.0, 100.0, 50.0),
     );
 
-    let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
+    let mut voxel_tree = VoxelOctree::new(work_bounds, 3); // depth 3 = 8ボクセル
 
     tracing::info!(
-        "初期VoxelOctree: 体積={:.1} mm³",
+        "初期VoxelOctree: depth=3, 体積={:.1} mm³, ボクセルサイズ=12.5×12.5×6.25 mm",
         voxel_tree.remaining_volume()
     );
 
-    // 簡単な切削例：外縁10mm除去
-    let outline_region = Aabb3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(100.0, 100.0, 10.0),
+    // デバッグ用：複数ボクセルを可視化するため、部分的に材料除去を適用
+    // 1) 中央ポケット除去（XY中央の大きな矩形領域）
+    let center_pocket = Aabb3D::new(
+        Point3D::new(30.0, 30.0, 0.0),
+        Point3D::new(70.0, 70.0, 50.0),
     );
-    voxel_tree.remove_material_box(&outline_region);
+    voxel_tree.remove_material_box(&center_pocket);
 
-    tracing::info!("外縁除去後: 体積={:.1} mm³", voxel_tree.remaining_volume());
-
-    // 中央にポケット加工
-    voxel_tree.remove_material_z_axis(50.0, 50.0, 10.0, 40.0, 10.0);
+    // 2) 横スロット除去（Y方向帯状）
+    let horizontal_slot = Aabb3D::new(
+        Point3D::new(0.0, 45.0, 0.0),
+        Point3D::new(100.0, 55.0, 50.0),
+    );
+    voxel_tree.remove_material_box(&horizontal_slot);
 
     tracing::info!(
-        "ポケット加工後: 体積={:.1} mm³, Solidボクセル={}",
+        "テスト加工後: 体積={:.1} mm³, Solidボクセル={}",
         voxel_tree.remaining_volume(),
         voxel_tree.solid_voxel_count()
     );
@@ -433,6 +490,13 @@ mod tests {
             "LineList形式では頂点数は偶数であるべき"
         );
 
+        // 単一ボックス(12辺=24頂点)ではなく、複数ボクセルが可視化されること
+        assert!(
+            positions.len() > 24,
+            "複数ボクセル可視化のため、24頂点を超えるべき（actual={})",
+            positions.len()
+        );
+
         // 全頂点が有効な座標値を持つこと
         for pos in &positions {
             assert!(
@@ -440,5 +504,22 @@ mod tests {
                 "全座標が有効な値であるべき"
             );
         }
+    }
+
+    #[test]
+    fn test_deduplicate_exact_edges_removes_reversed_and_identical_duplicates() {
+        let color = [1.0, 1.0, 0.0];
+        let vertices = vec![
+            WireframeVertex::new([0.0, 0.0, 0.0], color),
+            WireframeVertex::new([1.0, 0.0, 0.0], color),
+            WireframeVertex::new([1.0, 0.0, 0.0], color),
+            WireframeVertex::new([0.0, 0.0, 0.0], color),
+            WireframeVertex::new([0.0, 0.0, 0.0], color),
+            WireframeVertex::new([1.0, 0.0, 0.0], color),
+        ];
+
+        let deduped = deduplicate_exact_edges(vertices);
+
+        assert_eq!(deduped.len(), 2, "同一辺は1本分のみ残るべき");
     }
 }

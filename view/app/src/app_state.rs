@@ -131,6 +131,9 @@ impl AppState {
     }
 
     pub fn render(&mut self) {
+        // 毎フレーム カメラ行列を更新（Stage の transform をリアルタイム反映）
+        self.update_camera_uniforms();
+
         self.renderer.update_view_rect_overlay(
             &self.graphic.queue,
             self.active_view_rect,
@@ -173,7 +176,43 @@ impl AppState {
         // ViewModelでサンプルデータ生成（ワイヤーフレーム頂点）
         let positions = create_sample_voxel_octree_wireframe();
 
+        if positions.is_empty() {
+            tracing::warn!("Octreeワイヤーフレーム頂点が空のため表示をスキップ");
+            return;
+        }
+
+        // 生成頂点のAABBを計算（表示対象を確実に画角内に収めるため）
+        let mut min_x = f32::INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut min_z = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        let mut max_z = f32::NEG_INFINITY;
+
+        for pos in &positions {
+            min_x = min_x.min(pos[0]);
+            min_y = min_y.min(pos[1]);
+            min_z = min_z.min(pos[2]);
+            max_x = max_x.max(pos[0]);
+            max_y = max_y.max(pos[1]);
+            max_z = max_z.max(pos[2]);
+        }
+
+        let center_x = (min_x + max_x) * 0.5;
+        let center_y = (min_y + max_y) * 0.5;
+        let center_z = (min_z + max_z) * 0.5;
+
+        let size_x = (max_x - min_x).max(1.0);
+        let size_y = (max_y - min_y).max(1.0);
+        let size_z = (max_z - min_z).max(1.0);
+        let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0); // 40%マージン + 最小表示サイズ
+
         tracing::info!("ワイヤーフレーム頂点数: {}", positions.len());
+
+        // 最初の数頂点の座標をログ出力（デバッグ用）
+        for (i, pos) in positions.iter().take(8).enumerate() {
+            tracing::info!("頂点[{}]: [{:.1}, {:.1}, {:.1}]", i, pos[0], pos[1], pos[2]);
+        }
 
         // OctreeStageを作成してデータ設定
         let mut octree_stage = Box::new(OctreeStage::new(
@@ -182,17 +221,43 @@ impl AppState {
         ));
         octree_stage.set_wireframe_data(&self.graphic.device, positions);
 
-        // カメラをワークピース中心に設定（100x100x50mmのワークピース）
-        // 平行投影で真上から見る視点
-        self.camera.target = Vec3f::new(50.0, 50.0, 25.0);
-        self.camera.distance = 200.0;
-        self.camera.zoom = 1.0; // zoom=1でdistance=200が描画範囲（±100mm）
+        // カメラ設定（頂点範囲へ自動フィット）
+        self.camera.target = Vec3f::new(center_x, center_y, center_z);
+        self.camera.distance = (size_z * 6.0 + half_extent_xy).max(80.0);
+        self.camera.zoom = 1.0;
         self.camera.rotation = Quaternionf::identity();
         self.camera
             .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
 
+        // 直交投影範囲はカメラ空間基準で設定（view変換後の範囲）
+        // target でビュー行列側に平行移動されるため、ここで world center を足すと二重補正になる
+        self.camera.set_orthographic_bounds(
+            -half_extent_xy,
+            half_extent_xy,
+            -half_extent_xy,
+            half_extent_xy,
+        );
+
         tracing::info!(
-            "カメラ設定: target=(50, 50, 25), distance=200.0, zoom=1.0, 平行投影・真上視点"
+            "カメラ設定: target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds(camspace)=({:.1}..{:.1}, {:.1}..{:.1}), 平行投影",
+            center_x,
+            center_y,
+            center_z,
+            self.camera.distance,
+            -half_extent_xy,
+            half_extent_xy,
+            -half_extent_xy,
+            half_extent_xy,
+        );
+
+        // 実際のカメラ位置を計算して表示
+        let view_mat = self.camera.view_matrix();
+        tracing::info!(
+            "view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]",
+            view_mat[3][0],
+            view_mat[3][1],
+            view_mat[3][2],
+            view_mat[3][3]
         );
 
         self.renderer.set_stage(octree_stage);
@@ -709,7 +774,7 @@ impl AppState {
                     tracing::info!("p: ToolPath表示");
                     tracing::info!("=== その他 ===");
                     tracing::info!(
-                        "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
+                        "マウス操作: Ctrl+左ドラッグ=回転, Ctrl+中ドラッグ=パン, Ctrl+右ドラッグ=ズーム"
                     );
                 }
                 "w" => {
@@ -790,8 +855,11 @@ impl AppState {
         match state {
             winit::event::ElementState::Pressed => {
                 if self.mouse_input.ctrl_pressed {
+                    tracing::info!("Ctrl+左ドラッグ: カメラ回転モード");
                     return;
                 }
+
+                tracing::info!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
 
                 if let Some(cursor) = self.cursor_position {
                     self.view_rect_drag_origin = Some(cursor);
