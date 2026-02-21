@@ -348,7 +348,7 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
         Point3D::new(100.0, 100.0, 50.0),
     );
 
-    let mut voxel_tree = VoxelOctree::new(work_bounds, 3);  // depth 3 = 8ボクセル
+    let mut voxel_tree = VoxelOctree::new(work_bounds, 3); // depth 3 = 8ボクセル
 
     tracing::info!(
         "初期VoxelOctree: depth=3, 体積={:.1} mm³, ボクセルサイズ=12.5×12.5×6.25 mm",

@@ -111,7 +111,11 @@ impl RenderStage for OctreeStage {
         tracing::info!(
             "✓ OctreeStage.render(): 描画実行, vertex_count={}, vertex_buffer is {}",
             self.resources.vertex_count,
-            if self.resources.vertex_buffer.is_some() { "Some" } else { "None" }
+            if self.resources.vertex_buffer.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
         );
 
         if should_trace {
@@ -159,12 +163,23 @@ impl RenderStage for OctreeStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         tracing::info!("OctreeStage.update_camera() 呼び出し");
-        tracing::info!("  view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]", 
-            view_matrix[3][0], view_matrix[3][1], view_matrix[3][2], view_matrix[3][3]);
-        tracing::info!("  proj_matrix[0]: [{:.2}, {:.2}, {:.2}, {:.2}]", 
-            proj_matrix[0][0], proj_matrix[0][1], proj_matrix[0][2], proj_matrix[0][3]);
-        
-        self.resources.update_camera(queue, view_matrix, proj_matrix);
+        tracing::info!(
+            "  view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]",
+            view_matrix[3][0],
+            view_matrix[3][1],
+            view_matrix[3][2],
+            view_matrix[3][3]
+        );
+        tracing::info!(
+            "  proj_matrix[0]: [{:.2}, {:.2}, {:.2}, {:.2}]",
+            proj_matrix[0][0],
+            proj_matrix[0][1],
+            proj_matrix[0][2],
+            proj_matrix[0][3]
+        );
+
+        self.resources
+            .update_camera(queue, view_matrix, proj_matrix);
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {

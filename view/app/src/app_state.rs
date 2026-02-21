@@ -133,7 +133,7 @@ impl AppState {
     pub fn render(&mut self) {
         // 毎フレーム カメラ行列を更新（Stage の transform をリアルタイム反映）
         self.update_camera_uniforms();
-        
+
         self.renderer.update_view_rect_overlay(
             &self.graphic.queue,
             self.active_view_rect,
@@ -208,7 +208,7 @@ impl AppState {
         let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0); // 40%マージン + 最小表示サイズ
 
         tracing::info!("ワイヤーフレーム頂点数: {}", positions.len());
-        
+
         // 最初の数頂点の座標をログ出力（デバッグ用）
         for (i, pos) in positions.iter().take(8).enumerate() {
             tracing::info!("頂点[{}]: [{:.1}, {:.1}, {:.1}]", i, pos[0], pos[1], pos[2]);
@@ -249,11 +249,16 @@ impl AppState {
             -half_extent_xy,
             half_extent_xy,
         );
-        
+
         // 実際のカメラ位置を計算して表示
         let view_mat = self.camera.view_matrix();
-        tracing::info!("view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]", 
-            view_mat[3][0], view_mat[3][1], view_mat[3][2], view_mat[3][3]);
+        tracing::info!(
+            "view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]",
+            view_mat[3][0],
+            view_mat[3][1],
+            view_mat[3][2],
+            view_mat[3][3]
+        );
 
         self.renderer.set_stage(octree_stage);
 
