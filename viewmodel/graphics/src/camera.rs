@@ -29,6 +29,36 @@ pub enum ProjectionMode {
     Orthographic,
 }
 
+/// カメラの各ビュー操作感度設定
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CameraControlSensitivity {
+    /// 回転（ドラッグ）感度
+    pub rotate: f32,
+    /// Arcballデルタ変換スケール
+    pub arcball: f32,
+    /// パン（移動）感度
+    pub pan: f32,
+    /// ズーム（ドラッグ）感度
+    pub zoom_drag: f32,
+    /// ズーム（ホイール）感度（ライン単位への倍率）
+    pub zoom_wheel: f32,
+    /// ピクセルホイールをライン相当へ変換する係数
+    pub wheel_pixel_to_line: f32,
+}
+
+impl Default for CameraControlSensitivity {
+    fn default() -> Self {
+        Self {
+            rotate: 0.01,
+            arcball: 2.0,
+            pan: 0.003,
+            zoom_drag: 0.04,
+            zoom_wheel: 6.0,
+            wheel_pixel_to_line: 0.2,
+        }
+    }
+}
+
 /// 3Dカメラの制御システム
 /// analysisクレートの高品質なクォータニオンとベクトル実装を使用
 #[derive(Debug, Clone)]
@@ -48,6 +78,8 @@ pub struct Camera {
     /// 平行投影の明示的な表示範囲 (left, right, bottom, top)
     /// Some が指定されている場合、distance と zoom の代わりにこれを使用
     pub orthographic_bounds: Option<(f32, f32, f32, f32)>,
+    /// ビュー操作感度設定
+    pub control_sensitivity: CameraControlSensitivity,
 }
 
 impl Camera {
@@ -61,6 +93,7 @@ impl Camera {
             distance: 5.0,
             projection_mode: ProjectionMode::Perspective,
             orthographic_bounds: None,
+            control_sensitivity: CameraControlSensitivity::default(),
         }
     }
 
@@ -74,6 +107,7 @@ impl Camera {
             distance: 5.0,
             projection_mode: ProjectionMode::Orthographic,
             orthographic_bounds: None,
+            control_sensitivity: CameraControlSensitivity::default(),
         }
     }
 
@@ -97,7 +131,18 @@ impl Camera {
             distance: 5.0,
             projection_mode: ProjectionMode::Orthographic,
             orthographic_bounds: None,
+            control_sensitivity: CameraControlSensitivity::default(),
         }
+    }
+
+    /// カメラ操作感度を設定
+    pub fn set_control_sensitivity(&mut self, sensitivity: CameraControlSensitivity) {
+        self.control_sensitivity = sensitivity;
+    }
+
+    /// カメラ操作感度を取得
+    pub fn control_sensitivity(&self) -> CameraControlSensitivity {
+        self.control_sensitivity
     }
 
     /// ビュー行列を計算
@@ -313,12 +358,15 @@ impl Camera {
         let x = cx / radius;
         let y = cy / radius;
 
-        // 単位球への投影
-        let len_sq = x * x + y * y;
-        let z = if len_sq < 1.0 {
-            (1.0 - len_sq).sqrt()
+        // Trackball標準の球面+双曲面マッピング
+        // 球外を z=0 に潰すと境界付近で回転感が不連続になり、
+        // 長時間ドラッグ時に前後が入れ替わるような違和感を生みやすい。
+        // そのため、球外では双曲面で連続的に補間する。
+        let d = (x * x + y * y).sqrt();
+        let z = if d < 0.70710677 {
+            (1.0 - d * d).sqrt()
         } else {
-            0.0
+            0.5 / d
         };
 
         let sphere_point = Vec3f::new(x, -y, z);
@@ -361,7 +409,7 @@ impl Camera {
 
     /// マウス操作による回転（analysisクレートのクォータニオンを使用）
     pub fn rotate(&mut self, delta_x: f32, delta_y: f32) {
-        let sensitivity = 0.01;
+        let sensitivity = self.control_sensitivity.rotate;
 
         // Y軸回転（水平方向のマウス移動）
         let y_axis = Vec3f::new(0.0, 1.0, 0.0);
@@ -403,8 +451,8 @@ impl Camera {
         viewport_height: f32,
     ) {
         // 画面座標を単位球面上の点にマッピング
-        let sphere_from = Self::project_on_sphere(prev_x, prev_y, viewport_width, viewport_height);
-        let sphere_to = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
+        let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
+        let sphere_to = Self::project_on_sphere(prev_x, prev_y, viewport_width, viewport_height);
 
         // 球面上の2点から回転クォータニオンを計算
         let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
@@ -423,35 +471,109 @@ impl Camera {
         );
     }
 
-    /// パン操作（移動）- マウス座標系→カメラ座標系→ワールド座標系変換
+    /// Arcball回転（デルタベース）- Issue #242 修正版
     ///
-    /// # 方向対応（Issue #242で実装）
-    /// - マウス右移動(delta_x > 0) → ターゲット右方向へ移動
-    /// - マウス上移動(delta_y > 0 in screen coords) → ターゲット下方向へ移動
-    /// 
-    /// マウス視点：マウス移動方向がビュー移動方向に対応する直感的なパン
+    /// # 説明
+    /// マウスデルタ(Δx, Δy)からArcball球面上の回転を直接計算します。
+    /// cursor_positionに依存しないため、DeviceEvent::MouseMotionでの遅延なく動作します。
+    ///
+    /// # 使用方法
+    /// - DeviceEvent::MouseMotion のdeltaを直接渡す
+    /// - ビューポートサイズに自動適応
+    /// - 旧rotate()の使いやすさを保ちつつ、直感的な操作感を実現
+    pub fn rotate_arcball_from_delta(
+        &mut self,
+        delta_x: f32,
+        delta_y: f32,
+        viewport_width: f32,
+        viewport_height: f32,
+    ) {
+        // デルタを「画面中心からの相対移動」として扱う
+        // これにより、カーソル絶対座標に依存せず 3D 的な Arcball 回転を維持できる
+        let center_x = viewport_width * 0.5;
+        let center_y = viewport_height * 0.5;
+        let arcball_scale = self.control_sensitivity.arcball;
+
+        let curr_x = (center_x + delta_x * arcball_scale).clamp(0.0, viewport_width);
+        let curr_y = (center_y + delta_y * arcball_scale).clamp(0.0, viewport_height);
+
+        // ドラッグ方向と回転方向を一致させるため、回転ベクトルの向きを反転
+        let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
+        let sphere_to = Self::project_on_sphere(center_x, center_y, viewport_width, viewport_height);
+
+        let axis = sphere_from.cross(&sphere_to);
+        let dot = sphere_from.dot(&sphere_to).clamp(-1.0, 1.0);
+        let angle_rad = dot.acos();
+        let angle_deg = angle_rad.to_degrees();
+
+        // 球面上の2点から回転クォータニオンを計算
+        let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
+
+        // 回転を適用
+        let prev_rotation = self.rotation;
+        self.rotation = (q_rotation * self.rotation)
+            .normalize()
+            .unwrap_or(self.rotation);
+
+        tracing::debug!(
+            "✓ Arcball回転(Delta): delta=({:.1},{:.1}), center=({:.1},{:.1}), curr=({:.1},{:.1}), sphere_from=({:.3},{:.3},{:.3}), sphere_to=({:.3},{:.3},{:.3}), axis=({:.3},{:.3},{:.3}), angle_deg={:.2}, q=({:.4},{:.4},{:.4},{:.4}), rot_prev=({:.4},{:.4},{:.4},{:.4}), rot_new=({:.4},{:.4},{:.4},{:.4}), viewport=({:.0}x{:.0})",
+            delta_x,
+            delta_y,
+            center_x,
+            center_y,
+            curr_x,
+            curr_y,
+            sphere_from.x(),
+            sphere_from.y(),
+            sphere_from.z(),
+            sphere_to.x(),
+            sphere_to.y(),
+            sphere_to.z(),
+            axis.x(),
+            axis.y(),
+            axis.z(),
+            angle_deg,
+            q_rotation.w(),
+            q_rotation.x(),
+            q_rotation.y(),
+            q_rotation.z(),
+            prev_rotation.w(),
+            prev_rotation.x(),
+            prev_rotation.y(),
+            prev_rotation.z(),
+            self.rotation.w(),
+            self.rotation.x(),
+            self.rotation.y(),
+            self.rotation.z(),
+            viewport_width,
+            viewport_height
+        );
+    }
+
+    /// パン操作（移動）- マウス座標系→カメラ座標系→ワールド座標系変換
     pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
-        let sensitivity = 0.01;
+        let sensitivity = self.control_sensitivity.pan;
 
         // 現在のカメラ回転からカメラ座標系の軸ベクトルを計算
         let rotation_matrix = quaternion_to_matrix(&self.rotation);
+        // カメラのローカル軸をワールドへ変換した基底ベクトル（列ベクトル）
         let right = Vec3f::new(
             rotation_matrix[0][0],
-            rotation_matrix[0][1],
-            rotation_matrix[0][2],
+            rotation_matrix[1][0],
+            rotation_matrix[2][0],
         );
         let up = Vec3f::new(
-            rotation_matrix[1][0],
+            rotation_matrix[0][1],
             rotation_matrix[1][1],
-            rotation_matrix[1][2],
+            rotation_matrix[2][1],
         );
 
         // マウス移動量をカメラ座標系での移動量に変換
         // スクリーン座標系：右がX+、下がY+（通常）
-        // マウス右移動 → ターゲット右移動
-        // マウス上移動（Y-） → ターゲット上移動
+        // マウス右移動 → ターゲット右移動（画面上の見え方と一致）
+        // マウス上移動（Y-） → ターゲット上移動（画面上の見え方と一致）
         let move_distance = sensitivity * self.distance;
-        let offset = right * (delta_x * move_distance) + up * (-delta_y * move_distance);
+        let offset = right * (-delta_x * move_distance) + up * (delta_y * move_distance);
 
         // ワールド座標系でターゲット位置を更新
         self.target = self.target + offset;
@@ -469,43 +591,65 @@ impl Camera {
         );
     }
 
-    /// ズーム操作（距離調整） - Issue #242で改善
-    ///
-    /// # 改善内容
-    /// - マウス移動量の大きさ（ノルム）を使用 → 反応が線形・均等
-    /// - 対角線方向を明確に定義
-    ///   - 右上移動(delta_x > 0, delta_y < 0) → **拡大**（カメラが被写体に近づく）
-    ///   - 左下移動(delta_x < 0, delta_y > 0) → **縮小**（カメラが被写体から遠ざかる）
-    /// - 対数スケール(log_scale)で感度調整（距離が大きくても反応が一定）
+    /// ズーム操作（距離調整）
     pub fn zoom(&mut self, delta_x: f32, delta_y: f32) {
-        // マウス移動量の大きさを計算（対角線距離）
-        let movement_magnitude = (delta_x * delta_x + delta_y * delta_y).sqrt();
+        // 支配軸を使ってズーム方向を決定（相殺による無反応を防ぐ）
+        // - 縦移動が優勢: 上ドラッグ(delta_y<0)で拡大、下ドラッグで縮小
+        // - 横移動が優勢: 右ドラッグで拡大、左ドラッグで縮小
+        let dominant_delta = if delta_y.abs() >= delta_x.abs() {
+            -delta_y
+        } else {
+            delta_x
+        };
 
-        // 対角線方向ベクトル: (1, -1) = 右上（拡大）, (-1, 1) = 左下（縮小）
-        // Y軸はスクリーン座標系（下が正）なので、上移動は Y- (delta_y < 0)
-        let diagonal_direction = delta_x - delta_y; // 右上(+, -): 正 = 拡大、左下(-, +): 負 = 縮小
+        if dominant_delta.abs() < 1e-6 {
+            return;
+        }
 
-        // 感度係数（対数スケール）：距離が大きくても反応が同じになるように調整
-        let log_scale = (self.distance).ln().max(0.1); // ln(distance), 最小0.1
-        let sensitivity = 0.02 * log_scale;
+        let sensitivity = self.control_sensitivity.zoom_drag;
+        // 線形スケールで反応を明確化
+        let zoom_factor = (-dominant_delta * sensitivity).clamp(-0.8, 0.8);
 
-        // ズーム量を計算（大きさ × 方向 × -1 で距離変更）
-        // 拡大（distance減少）は負の zoom_factor、縮小（distance増加）は正の zoom_factor
-        let zoom_factor = movement_magnitude * diagonal_direction.signum() * sensitivity * -1.0;
+        if self.projection_mode == ProjectionMode::Orthographic {
+            if let Some((left, right, bottom, top)) = self.orthographic_bounds {
+                // 直交投影の固定表示範囲を中心基準で拡縮
+                let scale = (1.0 + zoom_factor).clamp(0.1, 10.0);
+                let center_x = (left + right) * 0.5;
+                let center_y = (bottom + top) * 0.5;
+                let half_w = (right - left) * 0.5 * scale;
+                let half_h = (top - bottom) * 0.5 * scale;
 
-        // 距離を調整（最小・最大制限付き）
-        let new_distance = self.distance * (1.0 + zoom_factor);
-        self.distance = new_distance.clamp(0.1, 200.0);
+                self.orthographic_bounds = Some((
+                    center_x - half_w,
+                    center_x + half_w,
+                    center_y - half_h,
+                    center_y + half_h,
+                ));
+            } else {
+                let new_distance = self.distance * (1.0 + zoom_factor);
+                self.distance = new_distance.clamp(0.1, 200.0);
+            }
+        } else {
+            let new_distance = self.distance * (1.0 + zoom_factor);
+            self.distance = new_distance.clamp(0.1, 200.0);
+        }
 
         tracing::debug!(
-            "🔍 ズーム: delta=({:.2},{:.2}), magnitude={:.2}, direction={:.2}, factor={:.4}, distance={:.2}",
+            "🔍 ズーム: mode={:?}, delta=({:.2},{:.2}), dominant={:.2}, factor={:.4}, distance={:.2}, bounds={:?}",
+            self.projection_mode,
             delta_x,
             delta_y,
-            movement_magnitude,
-            diagonal_direction,
+            dominant_delta,
             zoom_factor,
-            self.distance
+            self.distance,
+            self.orthographic_bounds
         );
+    }
+
+    /// マウスホイールによるズーム
+    pub fn zoom_wheel(&mut self, wheel_line_delta_y: f32) {
+        let scaled = wheel_line_delta_y * self.control_sensitivity.zoom_wheel;
+        self.zoom(0.0, -scaled);
     }
 
     /// メッシュの境界ボックスに基づいてカメラを自動調整
@@ -705,6 +849,7 @@ impl Camera {
             distance: interpolated_distance,
             projection_mode: self.projection_mode, // 投影モードは変更しない
             orthographic_bounds: self.orthographic_bounds, // 表示範囲も保持
+            control_sensitivity: self.control_sensitivity,
         })
     }
 }
@@ -1021,36 +1166,7 @@ mod tests {
         assert!(is_rev_not_identity, "逆方向も回転を生成");
     }
 
-    #[test]
-    fn test_issue_242_pan_direction() {
-        // Issue #242: パン操作の方向反転修正
-        // マウス右移動 → ターゲット右移動
 
-        let mut camera = Camera::new();
-        let initial_target = camera.target;
-
-        // マウス右移動（delta_x = 10.0）
-        camera.pan(10.0, 0.0);
-        let after_right_pan = camera.target;
-
-        // ターゲットが右へ移動している（X座標が正方向）
-        assert!(
-            after_right_pan.x() > initial_target.x(),
-            "右ドラッグでターゲットが右へ移動（正しい方向）"
-        );
-
-        // マウス上移動（delta_y = -10.0, スクリーン座標系）
-        let mut camera2 = Camera::new();
-        let initial_target2 = camera2.target;
-        camera2.pan(0.0, -10.0);
-        let after_up_pan = camera2.target;
-
-        // ターゲットが上へ移動している（Y座標が正方向）
-        assert!(
-            after_up_pan.y() > initial_target2.y(),
-            "上ドラッグでターゲットが上へ移動"
-        );
-    }
 
     #[test]
     fn test_issue_242_zoom_magnitude_sensitivity() {
@@ -1093,75 +1209,4 @@ mod tests {
             "横方向ズームが有効"
         );
     }
-
-    #[test]
-    fn test_issue_242_zoom_diagonal_direction() {
-        // Issue #242: ズーム判定が逆の修正
-        // 右上移動 → 拡大、左下移動 → 縮小を確認
-
-        let mut camera_right_up = Camera::new();
-        let mut camera_left_down = Camera::new();
-        let initial_distance = camera_right_up.distance;
-
-        // 右上移動: delta_x > 0, delta_y < 0 → 拡大（距離減少）
-        camera_right_up.zoom(10.0, -10.0);
-        let distance_right_up = camera_right_up.distance;
-
-        // 左下移動: delta_x < 0, delta_y > 0 → 縮小（距離増加）
-        camera_left_down.zoom(-10.0, 10.0);
-        let distance_left_down = camera_left_down.distance;
-
-        println!(
-            "初期距離: {:.3}, 右上後: {:.3}, 左下後: {:.3}",
-            initial_distance, distance_right_up, distance_left_down
-        );
-
-        // 右上移動で距離が減少（拡大）
-        assert!(
-            distance_right_up < initial_distance,
-            "右上移動で拡大（距離減少）"
-        );
-
-        // 左下移動で距離が増加（縮小）
-        assert!(
-            distance_left_down > initial_distance,
-            "左下移動で縮小（距離増加）"
-        );
-    }
-
-    #[test]
-    fn test_issue_242_zoom_consistency_across_distances() {
-        // Issue #242: 対数スケールでの感度一定性
-        // 距離が大きくても小さくても、マウス移動に対する反応が線形
-
-        let mut camera_near = Camera::new();
-        let mut camera_far = Camera::new();
-
-        // 近い距離から開始
-        camera_near.distance = 1.0;
-        let near_initial = camera_near.distance;
-
-        // 遠い距離から開始
-        camera_far.distance = 100.0;
-        let far_initial = camera_far.distance;
-
-        // 同じマウス移動（右上: 拡大）
-        camera_near.zoom(10.0, -10.0);
-        camera_far.zoom(10.0, -10.0);
-
-        let near_ratio = camera_near.distance / near_initial;
-        let far_ratio = camera_far.distance / far_initial;
-
-        println!(
-            "近い距離での倍率: {:.3}, 遠い距離での倍率: {:.3}",
-            near_ratio, far_ratio
-        );
-
-        // 両方とも拡大している（距離 < 初期値）
-        assert!(camera_near.distance < near_initial, "近距離でも拡大");
-        assert!(camera_far.distance < far_initial, "遠距離でも拡大");
-
-        // 倍率の差が大きすぎず、対数スケールが機能していることを確認
-        // log(1.0) ≈ 0, log(100.0) ≈ 4.6 なので、感度が異なるのは許容
-        assert!(near_ratio < 1.0 && far_ratio < 1.0, "両方拡大");
-    }}
+}

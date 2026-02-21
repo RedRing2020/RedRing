@@ -7,6 +7,7 @@ use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use render::nurbs_eval::{NurbsEvalUniforms, NurbsSurfaceEvalResources};
 use std::any::Any;
 use std::sync::atomic::{AtomicU64, Ordering};
+use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
 use crate::RenderStage;
@@ -104,9 +105,15 @@ impl NurbsSurfaceStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         if let Some(ref resources) = self.resources {
+            let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
             let uniforms = NurbsEvalUniforms {
-                view_proj: proj_matrix,
-                model: view_matrix,
+                view_proj,
+                model: [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
             };
             resources.update_uniforms(queue, &uniforms);
         }
