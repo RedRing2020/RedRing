@@ -161,6 +161,8 @@
     "infinite_line_3d.rs": "infinite_line_3d_collision.rs,infinite_line_3d_extensions.rs,infinite_line_3d_foundation.rs,infinite_line_3d_intersection.rs,infinite_line_3d_tests.rs,infinite_line_3d_transform.rs",
     "line_segment_2d.rs": "line_segment_2d_collision.rs,line_segment_2d_extensions.rs,line_segment_2d_foundation.rs,line_segment_2d_intersection.rs,line_segment_2d_tests.rs,line_segment_2d_transform.rs",
     "line_segment_3d.rs": "line_segment_3d_collision.rs,line_segment_3d_extensions.rs,line_segment_3d_foundation.rs,line_segment_3d_intersection.rs,line_segment_3d_tests.rs,line_segment_3d_transform.rs",
+    "rectangle_2d.rs": "rectangle_2d_foundation.rs,rectangle_2d_transform.rs",
+    "rectangle_3d.rs": "rectangle_3d_foundation.rs,rectangle_3d_transform.rs",
     "ray_2d.rs": "ray_2d_collision.rs,ray_2d_extensions.rs,ray_2d_foundation.rs,ray_2d_intersection.rs,ray_2d_tests.rs,ray_2d_transform.rs",
     "ray_3d.rs": "ray_3d_collision.rs,ray_3d_extensions.rs,ray_3d_foundation.rs,ray_3d_intersection.rs,ray_3d_tests.rs,ray_3d_transform.rs",
     "torus_surface_3d.rs": "torus_surface_3d_collision.rs,torus_surface_3d_extensions.rs,torus_surface_3d_foundation.rs,torus_surface_3d_intersection.rs,torus_surface_3d_tests.rs,torus_surface_3d_transform.rs,torus_surface_3d_transform_safe_tests.rs",

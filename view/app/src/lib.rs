@@ -7,3 +7,5 @@ pub mod logging;
 pub mod mouse_input;
 pub mod stl_loader;
 pub mod svg_loader;
+pub mod view_rect;
+pub mod view_rect_renderer;

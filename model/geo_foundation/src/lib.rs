@@ -124,6 +124,10 @@ pub use geometry::core::{
         Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
         Ray3DMeasure, Ray3DProperties,
     },
+    rectangle_traits::{
+        Rect2DConstructor, Rect2DCore, Rect2DMeasure, Rect2DProperties, Rect3DConstructor,
+        Rect3DCore, Rect3DMeasure, Rect3DProperties,
+    },
     spherical_solid_traits::{
         SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,
         SphericalSolid3DProperties,

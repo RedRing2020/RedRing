@@ -423,6 +423,7 @@ impl Camera {
         self.target = Vec3f::new(0.0, 0.0, 0.0);
         self.distance = 10.0;
         self.zoom = 1.0;
+        self.orthographic_bounds = None;
 
         // 初期表示は回転なし（Z軸正方向から真正面に見る）
         self.rotation = Quaternionf::identity();

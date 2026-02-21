@@ -3,6 +3,7 @@ use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::stl_loader;
+use crate::view_rect::ViewRect;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
 use stage::{
@@ -21,6 +22,8 @@ pub struct AppState {
     pub camera: Camera,
     pub mouse_input: MouseInput,
     pub entity_manager: EntityManager,
+    pub active_view_rect: Option<ViewRect>,
+    pub last_view_rect: Option<ViewRect>,
 
     /// アプリケーション単位系（CAD標準: ミリメートル）
     ///
@@ -33,6 +36,9 @@ pub struct AppState {
     /// 曲線のテッセレーション（分割）や近似計算で使用される許容誤差。
     /// この値により、曲線から生成される線分の精度が決まります。
     pub display_tolerance: Tolerance,
+
+    cursor_position: Option<(f32, f32)>,
+    view_rect_drag_origin: Option<(f32, f32)>,
 }
 
 impl AppState {
@@ -47,9 +53,13 @@ impl AppState {
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
             entity_manager: EntityManager::new(),
+            active_view_rect: None,
+            last_view_rect: None,
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
+            cursor_position: None,
+            view_rect_drag_origin: None,
         }
     }
 
@@ -121,6 +131,12 @@ impl AppState {
     }
 
     pub fn render(&mut self) {
+        self.renderer.update_view_rect_overlay(
+            &self.graphic.queue,
+            self.active_view_rect,
+            self.graphic.config.width,
+            self.graphic.config.height,
+        );
         self.graphic.render(&mut self.renderer);
     }
 
@@ -678,14 +694,19 @@ impl AppState {
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
                     tracing::info!("w: ワイヤーフレーム切替");
+                    tracing::info!("1: Draftステージ");
+                    tracing::info!("2: Outlineステージ");
+                    tracing::info!("3: Shadingステージ");
                     tracing::info!("=== デバッグ形状表示 ===");
                     tracing::info!("s: クリップ空間正方形（単位行列テスト）");
                     tracing::info!("l: LineSegment3D表示");
                     tracing::info!("c: Circle3D表示");
-                    tracing::info!("t: Triangle3D表示 (shift+t推奨)");
+                    tracing::info!("T: Triangle3D表示 (Shift+T)");
                     tracing::info!("a: Arc3D表示");
                     tracing::info!("n: NurbsCurve3D表示（GPU評価）");
                     tracing::info!("m: NurbsSurface3D表示（GPU評価）");
+                    tracing::info!("o: Octree表示");
+                    tracing::info!("p: ToolPath表示");
                     tracing::info!("=== その他 ===");
                     tracing::info!(
                         "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
@@ -698,6 +719,24 @@ impl AppState {
                 "q" => {
                     // デバッグ: クリップ空間正方形（単位行列テスト）
                     self.load_debug_clip_square();
+                }
+                "1" => {
+                    // ステージ切替: Draft
+                    self.set_stage_draft();
+                    self.update_camera_uniforms();
+                    tracing::info!("ステージ切替: Draft");
+                }
+                "2" => {
+                    // ステージ切替: Outline
+                    self.set_stage_outline();
+                    self.update_camera_uniforms();
+                    tracing::info!("ステージ切替: Outline");
+                }
+                "3" => {
+                    // ステージ切替: Shading
+                    self.set_stage_shading();
+                    self.update_camera_uniforms();
+                    tracing::info!("ステージ切替: Shading");
                 }
                 "l" => {
                     // デバッグ: LineSegment3D表示
@@ -719,6 +758,18 @@ impl AppState {
                     // デバッグ: NurbsSurface3D表示（GPU評価）
                     self.load_debug_nurbs_surface();
                 }
+                "o" => {
+                    // デバッグ: Octree可視化表示
+                    self.load_debug_octree();
+                }
+                "p" => {
+                    // デバッグ: CAM工具経路可視化表示
+                    self.load_debug_toolpath();
+                }
+                "T" => {
+                    // デバッグ: Triangle3D表示（Shift+T）
+                    self.load_debug_triangle();
+                }
                 _ => {}
             }
         }
@@ -731,6 +782,40 @@ impl AppState {
         state: winit::event::ElementState,
     ) {
         self.mouse_input.update_mouse_button(button, state);
+
+        if button != winit::event::MouseButton::Left {
+            return;
+        }
+
+        match state {
+            winit::event::ElementState::Pressed => {
+                if self.mouse_input.ctrl_pressed {
+                    return;
+                }
+
+                if let Some(cursor) = self.cursor_position {
+                    self.view_rect_drag_origin = Some(cursor);
+                    self.active_view_rect = Some(ViewRect::from_points(cursor, cursor));
+                }
+            }
+            winit::event::ElementState::Released => {
+                if self.view_rect_drag_origin.take().is_some() {
+                    if let Some(rect) = self.active_view_rect.take() {
+                        if !rect.is_empty() {
+                            self.last_view_rect = Some(rect);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn handle_cursor_moved(&mut self, x: f32, y: f32) {
+        self.cursor_position = Some((x, y));
+
+        if let Some(origin) = self.view_rect_drag_origin {
+            self.active_view_rect = Some(ViewRect::from_points(origin, (x, y)));
+        }
     }
 
     /// マウス移動を処理
