@@ -2067,6 +2067,7 @@ name = "redring"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "bytemuck",
  "logging_foundation",
  "pollster",
  "render",

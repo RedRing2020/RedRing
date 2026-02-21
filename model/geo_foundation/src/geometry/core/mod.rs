@@ -18,6 +18,7 @@ pub mod linesegment_traits; // LineSegment traits (Constructor/Properties/Measur
 pub mod plane_traits; // Plane traits (Constructor/Properties/Measure)
 pub mod point_traits; // Point traits (Constructor/Properties/Measure)
 pub mod ray_traits; // Ray traits (Constructor/Properties/Measure)
+pub mod rectangle_traits; // Rectangle traits (Constructor/Properties/Measure)
 pub mod triangle_traits; // Triangle traits (Constructor/Properties/Measure)
 pub mod vector_traits; // Vector traits (Constructor/Properties/Measure)
 

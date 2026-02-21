@@ -147,6 +147,9 @@ pub mod ray_3d_collision; // Ray3D の衝突検出実装
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
 pub mod ray_3d_intersection; // Ray3D の交点計算実装
+pub mod rectangle_3d; // Rect3D の新実装 (Core)
+pub mod rectangle_3d_foundation; // Rect3D のFoundation実装
+pub mod rectangle_3d_transform; // Rect3D の変換実装
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定
 #[cfg(test)]
@@ -271,6 +274,9 @@ pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_foundation; // Ray2D の Foundation 実装
 pub mod ray_2d_intersection; // Ray2D の交点計算実装
 pub mod ray_2d_transform; // Ray2D の変換実装
+pub mod rectangle_2d; // Rect2D の新実装 (Core)
+pub mod rectangle_2d_foundation; // Rect2D の Foundation 実装
+pub mod rectangle_2d_transform; // Rect2D の変換実装
 pub mod triangle_2d; // Triangle2D の新実装 (Core)
 pub mod triangle_2d_collision; // Triangle2D の衝突検出実装
 pub mod triangle_2d_foundation; // Triangle2D の Foundation 実装
@@ -331,6 +337,7 @@ pub use line_segment_3d::LineSegment3D;
 pub use plane_3d::Plane3D;
 // 削除: Plane3DCoordinateSystemはPlane3Dに統合済み
 pub use ray_3d::Ray3D;
+pub use rectangle_3d::Rect3D;
 pub use spherical_solid_3d::SphericalSolid3D; // 新式球ソリッド
 pub use spherical_surface_3d::SphericalSurface3D; // 新式球サーフェス
 pub use torus_solid_3d::TorusSolid3D; // 新式トーラスソリッド (3D CAM対応)
@@ -349,6 +356,7 @@ pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D};
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
 pub use ray_2d::Ray2D;
+pub use rectangle_2d::Rect2D;
 pub use triangle_2d::Triangle2D;
 
 // Core Traits統合エクスポート（Foundation経由）

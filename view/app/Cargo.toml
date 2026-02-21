@@ -22,3 +22,4 @@ render = { path = "../render" }
 stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
+bytemuck = { version = "1.24", features = ["derive"] }
