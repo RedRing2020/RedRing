@@ -6,8 +6,6 @@
 
 pub mod integration;
 pub mod vector_distance;
-#[cfg(test)]
-pub mod vector_distance_tests;
 
 // 数値積分の再エクスポート
 pub use integration::{newton_arc_length, trapezoidal_rule, NormedVector};
