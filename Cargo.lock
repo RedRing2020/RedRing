@@ -277,6 +277,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cam_sim"
+version = "0.1.0"
+dependencies = [
+ "analysis",
+ "cam_core",
+ "geo_algorithms",
+]
+
+[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

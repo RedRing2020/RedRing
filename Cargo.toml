@@ -11,6 +11,7 @@ members = [
   "model/geo_entity",     # Model層：エンティティ基盤クレート（Phase 4.0）
   "model/cam_core",       # Model層：CAM基盤クレート（工具経路・工具定義）
   "model/cam_entity",     # Model層：CAMエンティティクレート（geo_entityアドオン）
+  "model/cam_sim",        # Model層：CAMシミュレーション実行クレート
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
   "view/render",          # View層：GPU描画基盤
