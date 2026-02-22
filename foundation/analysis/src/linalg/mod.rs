@@ -23,8 +23,6 @@ pub mod point2_tests;
 pub mod point3_tests;
 #[cfg(test)]
 pub mod quaternion_tests;
-#[cfg(test)]
-pub mod scalar_tests;
 
 // 主要型の再エクスポート
 pub use matrix::{Matrix2x2, Matrix3x3, Matrix4x4};

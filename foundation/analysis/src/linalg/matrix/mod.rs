@@ -13,8 +13,6 @@ pub mod matrix2_tests;
 #[cfg(test)]
 pub mod matrix3_tests;
 #[cfg(test)]
-pub mod matrix3_affine_tests;
-#[cfg(test)]
 pub mod matrix4_tests;
 
 pub use matrix2::{Matrix2x2, Matrix2x2d, Matrix2x2f};

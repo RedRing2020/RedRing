@@ -61,4 +61,15 @@ mod tests {
 
         assert!((f32_val - back_to_f32).abs() < f32::EPSILON);
     }
+
+    #[test]
+    fn test_scalar_arithmetic() {
+        let a: f64 = 2.0;
+        let b: f64 = 3.0;
+
+        assert_eq!(a.powf(b), 8.0);
+        assert_eq!(a.max(b), 3.0);
+        assert_eq!(a.min(b), 2.0);
+        assert!((a.sin().powi(2) + a.cos().powi(2) - 1.0).abs() < f64::EPSILON);
+    }
 }

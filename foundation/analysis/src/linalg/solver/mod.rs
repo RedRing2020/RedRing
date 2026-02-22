@@ -32,7 +32,7 @@ pub mod lu_tests;
 #[cfg(test)]
 pub mod newton_tests;
 #[cfg(test)]
-pub mod solver_tests;
+pub mod mod_tests;
 
 pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;
