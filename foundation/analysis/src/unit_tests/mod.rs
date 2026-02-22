@@ -5,7 +5,7 @@
 //! 独立したテストファイルに分離している。
 pub mod interpolation_additional_tests;
 pub mod interpolation_tests;
-pub mod linalg;
+// pub mod linalg; - linalg配下のテストと重複するため無効化
 pub mod numerical_additional_tests;
 pub mod numerical_tests;
 // pub mod sampling_additional_tests; - 機能はgeo_algorithmsに移動済み
