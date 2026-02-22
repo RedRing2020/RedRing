@@ -3,6 +3,7 @@ use crate::sampling::IntersectionCandidate;
 ///
 /// 交差検出、近似、最適化問題の解法を提供
 use analysis::linalg::solver::newton::newton_solve_2d;
+use analysis::GEOMETRIC_DISTANCE_TOLERANCE;
 use geo_foundation::ToleranceContext;
 
 /// 2次元ベクトル（analysisのlinalgから独立）
@@ -27,7 +28,7 @@ impl Vector2 {
 
     pub fn normalize(&self) -> Option<Self> {
         let len = (self.x * self.x + self.y * self.y).sqrt();
-        if len > 1e-10 {
+        if len > GEOMETRIC_DISTANCE_TOLERANCE {
             Some(Self {
                 x: self.x / len,
                 y: self.y / len,

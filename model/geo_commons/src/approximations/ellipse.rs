@@ -212,6 +212,8 @@ pub fn ellipse_foci<T: Scalar>(a: T, b: T) -> ((T, T), (T, T)) {
 
 #[cfg(test)]
 mod tests {
+    use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
+
     use super::*;
     use approx::assert_abs_diff_eq;
 
@@ -285,7 +287,7 @@ mod tests {
         let eccentricity = ellipse_eccentricity(a, b);
 
         // e = sqrt(1 - (b/a)^2) = sqrt(1 - 9/25) = sqrt(16/25) = 0.8
-        assert_abs_diff_eq!(eccentricity, 0.8, epsilon = 1e-10);
+        assert_abs_diff_eq!(eccentricity, 0.8, epsilon = TOLERANCE_F64);
     }
 
     #[test]
@@ -295,7 +297,7 @@ mod tests {
         let focal_distance = ellipse_focal_distance(a, b);
 
         // c = sqrt(a^2 - b^2) = sqrt(25 - 9) = 4
-        assert_abs_diff_eq!(focal_distance, 4.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(focal_distance, 4.0, epsilon = TOLERANCE_F64);
     }
 
     #[test]
@@ -305,7 +307,7 @@ mod tests {
         let area = crate::metrics::area_volume::ellipse_area(a, b);
 
         // Area = π * a * b = π * 5 * 3 = 15π
-        assert_abs_diff_eq!(area, 15.0 * std::f64::consts::PI, epsilon = 1e-10);
+        assert_abs_diff_eq!(area, 15.0 * std::f64::consts::PI, epsilon = TOLERANCE_F64);
     }
 
     #[test]
@@ -315,10 +317,10 @@ mod tests {
         let ((x1, y1), (x2, y2)) = ellipse_foci(a, b);
 
         // 焦点は (±4, 0)
-        assert_abs_diff_eq!(x1, -4.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(y1, 0.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(x2, 4.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(y2, 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(x1, -4.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(y1, 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(x2, 4.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(y2, 0.0, epsilon = TOLERANCE_F64);
     }
 
     #[test]
@@ -329,13 +331,13 @@ mod tests {
 
         let perimeter = ellipse_perimeter_ramanujan_ii(a, b);
         let expected_circumference = 2.0 * std::f64::consts::PI * a;
-        assert_abs_diff_eq!(perimeter, expected_circumference, epsilon = 1e-10);
+        assert_abs_diff_eq!(perimeter, expected_circumference, epsilon = TOLERANCE_F64);
 
         let eccentricity = ellipse_eccentricity(a, b);
-        assert_abs_diff_eq!(eccentricity, 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(eccentricity, 0.0, epsilon = TOLERANCE_F64);
 
         let focal_distance = ellipse_focal_distance(a, b);
-        assert_abs_diff_eq!(focal_distance, 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(focal_distance, 0.0, epsilon = TOLERANCE_F64);
     }
 
     #[test]
@@ -349,7 +351,7 @@ mod tests {
 
         assert!(perimeter > 25.0f32);
         assert!(area > 47.0f32);
-        assert!((eccentricity - 0.8f32).abs() < 1e-6f32);
+        assert!((eccentricity - 0.8f32).abs() < TOLERANCE_F32);
     }
 
     #[test]

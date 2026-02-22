@@ -417,50 +417,52 @@ pub fn line_segment_to_aabb_distance<T: Scalar>(
 
 #[cfg(test)]
 mod tests {
+    use analysis::test_constants::{DISTANCE_TOLERANCE_F32, DISTANCE_TOLERANCE_F64};
+
     use super::*;
 
     // 楕円テスト（既存）
     #[test]
     fn test_ellipse_2d_distance_inside() {
         let dist = ellipse_2d_distance_to_point(1.0_f64, 0.5, 2.0, 1.0);
-        assert!(dist < 1e-10);
+        assert!(dist < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_2d_distance_outside() {
         let dist = ellipse_2d_distance_to_point(4.0_f64, 0.0, 2.0, 1.0);
-        assert!((dist - 2.0).abs() < 1e-10);
+        assert!((dist - 2.0).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_2d_distance_on_boundary() {
         let dist = ellipse_2d_distance_to_point(2.0_f64, 0.0, 2.0, 1.0);
-        assert!(dist < 1e-10);
+        assert!(dist < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_3d_distance_on_plane() {
         let dist = ellipse_3d_distance_to_point(1.0_f64, 0.5, 0.0, 2.0, 1.0);
-        assert!(dist < 1e-10);
+        assert!(dist < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_3d_distance_off_plane() {
         let dist = ellipse_3d_distance_to_point(0.0_f64, 0.0, 3.0, 2.0, 1.0);
-        assert!((dist - 3.0).abs() < 1e-10);
+        assert!((dist - 3.0).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_3d_distance_combined() {
         let dist = ellipse_3d_distance_to_point(4.0_f64, 0.0, 3.0, 2.0, 1.0);
         let expected = (4.0 + 9.0_f64).sqrt();
-        assert!((dist - expected).abs() < 1e-10);
+        assert!((dist - expected).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_f32_compatibility() {
         let dist = ellipse_2d_distance_to_point(1.0_f32, 0.5, 2.0, 1.0);
-        assert!(dist < 1e-6);
+        assert!(dist < DISTANCE_TOLERANCE_F32);
     }
 
     // 球と直線のテスト（新規）
@@ -473,7 +475,7 @@ mod tests {
 
         let dist =
             sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
-        assert!(dist.abs() < 1e-10); // 直線が球体を貫通
+        assert!(dist.abs() < DISTANCE_TOLERANCE_F64); // 直線が球体を貫通
     }
 
     #[test]
@@ -485,7 +487,7 @@ mod tests {
 
         let dist =
             sphere_to_infinite_line_distance(center, radius, line_point, line_direction, false);
-        assert!((dist - 1.0).abs() < 1e-10); // 球面まで距離1
+        assert!((dist - 1.0).abs() < DISTANCE_TOLERANCE_F64); // 球面まで距離1
     }
 
     #[test]
@@ -497,7 +499,7 @@ mod tests {
 
         let dist =
             sphere_to_infinite_line_distance(center, radius, line_point, line_direction, true);
-        assert!(dist.abs() < 1e-10); // 接線は衝突
+        assert!(dist.abs() < DISTANCE_TOLERANCE_F64); // 接線は衝突
     }
 
     #[test]
@@ -508,7 +510,7 @@ mod tests {
         let ray_direction = (1.0, 0.0, 0.0); // X軸正方向
 
         let dist = sphere_to_ray_distance(center, radius, ray_origin, ray_direction, true);
-        assert!((dist - 1.0).abs() < 1e-10); // 始点との距離 - 半径
+        assert!((dist - 1.0).abs() < DISTANCE_TOLERANCE_F64); // 始点との距離 - 半径
     }
 
     #[test]
@@ -519,7 +521,7 @@ mod tests {
         let ray_direction = (1.0, 0.0, 0.0);
 
         let dist = sphere_to_ray_distance(center, radius, ray_origin, ray_direction, true);
-        assert!(dist.abs() < 1e-10); // 光線が球体を貫通
+        assert!(dist.abs() < DISTANCE_TOLERANCE_F64); // 光線が球体を貫通
     }
 
     #[test]
@@ -534,7 +536,7 @@ mod tests {
         // 線分上の最近点は (0, 0, 0) → 中心からの距離は 2.0
         // 球体なので距離は 2.0 - 1.0 = 1.0
         let expected = 1.0;
-        assert!((dist - expected).abs() < 1e-10);
+        assert!((dist - expected).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -546,7 +548,7 @@ mod tests {
 
         let dist =
             sphere_to_line_segment_distance(center, radius, segment_start, segment_end, true);
-        assert!(dist.abs() < 1e-10); // 線分が球体を貫通
+        assert!(dist.abs() < DISTANCE_TOLERANCE_F64); // 線分が球体を貫通
     }
 
     // 線分-AABB距離テスト
@@ -559,7 +561,7 @@ mod tests {
         let aabb_max = (0.5, 0.5, 0.5);
 
         let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
-        assert!(dist < 1e-10);
+        assert!(dist < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -571,7 +573,7 @@ mod tests {
         let aabb_max = (1.0, 1.0, 1.0);
 
         let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
-        assert!(dist < 1e-10);
+        assert!(dist < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -584,7 +586,7 @@ mod tests {
 
         let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
         // Y方向に1.0離れている
-        assert!((dist - 1.0).abs() < 1e-6);
+        assert!((dist - 1.0).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -598,7 +600,7 @@ mod tests {
         let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
         // AABBの頂点 (1,1,1) から線分への距離
         let expected = (3.0_f64).sqrt(); // sqrt((2-1)^2 + (2-1)^2 + (2-1)^2)
-        assert!((dist - expected).abs() < 1e-6);
+        assert!((dist - expected).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -611,6 +613,6 @@ mod tests {
 
         let dist = line_segment_to_aabb_distance(segment_start, segment_end, aabb_min, aabb_max);
         // AABBの最も近い点 (1,0,0) から線分始点 (10,0,0) への距離
-        assert!((dist - 9.0).abs() < 1e-6);
+        assert!((dist - 9.0).abs() < DISTANCE_TOLERANCE_F64);
     }
 }

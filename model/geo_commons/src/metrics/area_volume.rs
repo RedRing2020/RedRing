@@ -65,6 +65,8 @@ pub fn cone_volume<T: Scalar>(radius: T, height: T) -> T {
 
 #[cfg(test)]
 mod tests {
+    use analysis::test_constants::TOLERANCE_F64;
+
     use super::*;
     use approx::assert_relative_eq;
 
@@ -72,22 +74,22 @@ mod tests {
     fn test_circle_area() {
         // 半径1の円
         let area = circle_area(1.0f64);
-        assert_relative_eq!(area, std::f64::consts::PI, epsilon = 1e-10);
+        assert_relative_eq!(area, std::f64::consts::PI, epsilon = TOLERANCE_F64);
 
         // 半径2の円
         let area = circle_area(2.0f64);
-        assert_relative_eq!(area, 4.0 * std::f64::consts::PI, epsilon = 1e-10);
+        assert_relative_eq!(area, 4.0 * std::f64::consts::PI, epsilon = TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_area() {
         // 円（a = b = 1）
         let area = ellipse_area(1.0f64, 1.0f64);
-        assert_relative_eq!(area, std::f64::consts::PI, epsilon = 1e-10);
+        assert_relative_eq!(area, std::f64::consts::PI, epsilon = TOLERANCE_F64);
 
         // 楕円（a = 2, b = 1）
         let area = ellipse_area(2.0f64, 1.0f64);
-        assert_relative_eq!(area, 2.0 * std::f64::consts::PI, epsilon = 1e-10);
+        assert_relative_eq!(area, 2.0 * std::f64::consts::PI, epsilon = TOLERANCE_F64);
     }
 
     #[test]
@@ -95,13 +97,13 @@ mod tests {
         // 半径1の球
         let volume = sphere_volume(1.0f64);
         let expected = 4.0 / 3.0 * std::f64::consts::PI;
-        assert_relative_eq!(volume, expected, epsilon = 1e-10);
+        assert_relative_eq!(volume, expected, epsilon = TOLERANCE_F64);
     }
 
     #[test]
     fn test_cylinder_volume() {
         // 半径1、高さ2の円柱
         let volume = cylinder_volume(1.0f64, 2.0f64);
-        assert_relative_eq!(volume, 2.0 * std::f64::consts::PI, epsilon = 1e-10);
+        assert_relative_eq!(volume, 2.0 * std::f64::consts::PI, epsilon = TOLERANCE_F64);
     }
 }
