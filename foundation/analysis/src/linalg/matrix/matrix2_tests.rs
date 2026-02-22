@@ -12,8 +12,8 @@ mod tests {
         let m2 = Matrix2x2::<f64>::new(5.0, 6.0, 7.0, 8.0);
 
         let sum = m1 + m2;
-        assert_eq!(sum.data[0][0], 6.0);
-        assert_eq!(sum.data[1][1], 12.0);
+        assert_eq!(sum.get(0, 0), 6.0);
+        assert_eq!(sum.get(1, 1), 12.0);
 
         let det = m1.determinant();
         assert_eq!(det, -2.0); // 1*4 - 2*3 = -2
@@ -25,8 +25,8 @@ mod tests {
         let m2 = Matrix2x2::<f32>::new(5.0, 6.0, 7.0, 8.0);
 
         let sum = m1 + m2;
-        assert_eq!(sum.data[0][0], 6.0);
-        assert_eq!(sum.data[1][1], 12.0);
+        assert_eq!(sum.get(0, 0), 6.0);
+        assert_eq!(sum.get(1, 1), 12.0);
 
         let det = m1.determinant();
         assert_eq!(det, -2.0); // 1*4 - 2*3 = -2
@@ -43,7 +43,7 @@ mod tests {
         // 結果が単位行列に近いことを確認
         for i in 0..2 {
             for j in 0..2 {
-                assert!((product.data[i][j] - identity.data[i][j]).abs() < 1e-10);
+                assert!((product.get(i, j) - identity.get(i, j)).abs() < 1e-10);
             }
         }
     }

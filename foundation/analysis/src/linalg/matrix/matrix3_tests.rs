@@ -42,7 +42,7 @@ mod tests {
 
         for i in 0..3 {
             for j in 0..3 {
-                assert!((inv.data[i][j] - expected.data[i][j]).abs() < 1e-10);
+                assert!((inv.get(i, j) - expected.get(i, j)).abs() < 1e-10);
             }
         }
     }
