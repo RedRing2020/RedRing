@@ -34,19 +34,19 @@
 
 pub mod tolerance;
 pub mod tool;
-pub mod toolset;
 pub mod toolpath;
+pub mod toolset;
 pub mod validation;
 
 // 主要型の再エクスポート
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};
-pub use toolset::{
-    Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,
-    ToolSetReferencePoint,
-};
 pub use toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
     ToolPath,
+};
+pub use toolset::{
+    Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,
+    ToolSetReferencePoint,
 };
 pub use validation::{ValidationError, validate_2d_contour};
