@@ -4,4 +4,7 @@
 
 pub mod plane3;
 
+#[cfg(test)]
+pub mod plane3_tests;
+
 pub use plane3::Plane3;

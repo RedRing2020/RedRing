@@ -18,9 +18,6 @@ pub mod units; // 単位系定義とトレランス管理
 
 // pub mod sampling; - 機能は geo_algorithms/sampling.rs に移動済み
 
-#[cfg(test)]
-mod unit_tests;
-
 // 基盤型の再エクスポート
 pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
 

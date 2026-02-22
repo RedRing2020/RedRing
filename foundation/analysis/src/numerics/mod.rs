@@ -6,6 +6,9 @@
 
 pub mod integration;
 pub mod vector_distance;
+
+#[cfg(test)]
+pub mod integration_tests;
 #[cfg(test)]
 pub mod vector_distance_tests;
 
