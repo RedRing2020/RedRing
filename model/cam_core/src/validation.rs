@@ -153,6 +153,7 @@ pub fn validate_2d_contour<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tolerance::CAM_DEFAULT_CLOSURE_TOLERANCE_F64;
 
     #[test]
     fn test_validate_closed_contour() {
@@ -202,7 +203,7 @@ mod tests {
         }) = result
         {
             assert_eq!(distance, 1.0);
-            assert_eq!(tol, 0.001);
+            assert_eq!(tol, CAM_DEFAULT_CLOSURE_TOLERANCE_F64);
         } else {
             panic!("Expected ContourNotClosed error");
         }

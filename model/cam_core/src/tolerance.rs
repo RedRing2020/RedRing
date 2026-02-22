@@ -29,6 +29,18 @@
 
 use analysis::Scalar;
 
+pub const CAM_DEFAULT_CLOSURE_TOLERANCE_F64: f64 = 0.001;
+pub const CAM_DEFAULT_TOOL_CLEARANCE_RATIO_F64: f64 = 0.1;
+pub const CAM_DEFAULT_MACHINE_ACCURACY_F64: f64 = 0.01;
+
+pub const CAM_HIGH_PRECISION_CLOSURE_TOLERANCE_F64: f64 = 0.0001;
+pub const CAM_HIGH_PRECISION_TOOL_CLEARANCE_RATIO_F64: f64 = 0.05;
+pub const CAM_HIGH_PRECISION_MACHINE_ACCURACY_F64: f64 = 0.001;
+
+pub const CAM_LOW_PRECISION_CLOSURE_TOLERANCE_F64: f64 = 0.01;
+pub const CAM_LOW_PRECISION_TOOL_CLEARANCE_RATIO_F64: f64 = 0.2;
+pub const CAM_LOW_PRECISION_MACHINE_ACCURACY_F64: f64 = 0.1;
+
 /// CAM用トレランス設定
 ///
 /// CAM演算における数値誤差許容値を管理します。
@@ -69,9 +81,9 @@ impl<T: Scalar> Default for CamTolerance<T> {
     /// - `machine_accuracy`: 0.01 mm（一般的なNCフライス）
     fn default() -> Self {
         Self {
-            closure_tolerance: T::from_f64(0.001),
-            tool_clearance_ratio: T::from_f64(0.1),
-            machine_accuracy: T::from_f64(0.01),
+            closure_tolerance: T::from_f64(CAM_DEFAULT_CLOSURE_TOLERANCE_F64),
+            tool_clearance_ratio: T::from_f64(CAM_DEFAULT_TOOL_CLEARANCE_RATIO_F64),
+            machine_accuracy: T::from_f64(CAM_DEFAULT_MACHINE_ACCURACY_F64),
         }
     }
 }
@@ -107,9 +119,9 @@ impl<T: Scalar> CamTolerance<T> {
     /// - `machine_accuracy`: 0.001 mm
     pub fn high_precision() -> Self {
         Self {
-            closure_tolerance: T::from_f64(0.0001),
-            tool_clearance_ratio: T::from_f64(0.05),
-            machine_accuracy: T::from_f64(0.001),
+            closure_tolerance: T::from_f64(CAM_HIGH_PRECISION_CLOSURE_TOLERANCE_F64),
+            tool_clearance_ratio: T::from_f64(CAM_HIGH_PRECISION_TOOL_CLEARANCE_RATIO_F64),
+            machine_accuracy: T::from_f64(CAM_HIGH_PRECISION_MACHINE_ACCURACY_F64),
         }
     }
 
@@ -120,9 +132,9 @@ impl<T: Scalar> CamTolerance<T> {
     /// - `machine_accuracy`: 0.1 mm
     pub fn low_precision() -> Self {
         Self {
-            closure_tolerance: T::from_f64(0.01),
-            tool_clearance_ratio: T::from_f64(0.2),
-            machine_accuracy: T::from_f64(0.1),
+            closure_tolerance: T::from_f64(CAM_LOW_PRECISION_CLOSURE_TOLERANCE_F64),
+            tool_clearance_ratio: T::from_f64(CAM_LOW_PRECISION_TOOL_CLEARANCE_RATIO_F64),
+            machine_accuracy: T::from_f64(CAM_LOW_PRECISION_MACHINE_ACCURACY_F64),
         }
     }
 
@@ -180,17 +192,32 @@ mod tests {
     #[test]
     fn test_default_tolerance() {
         let tolerance = CamTolerance::<f64>::default();
-        assert_eq!(tolerance.closure_tolerance, 0.001);
-        assert_eq!(tolerance.tool_clearance_ratio, 0.1);
-        assert_eq!(tolerance.machine_accuracy, 0.01);
+        assert_eq!(
+            tolerance.closure_tolerance,
+            CAM_DEFAULT_CLOSURE_TOLERANCE_F64
+        );
+        assert_eq!(
+            tolerance.tool_clearance_ratio,
+            CAM_DEFAULT_TOOL_CLEARANCE_RATIO_F64
+        );
+        assert_eq!(tolerance.machine_accuracy, CAM_DEFAULT_MACHINE_ACCURACY_F64);
     }
 
     #[test]
     fn test_high_precision() {
         let tolerance = CamTolerance::<f64>::high_precision();
-        assert_eq!(tolerance.closure_tolerance, 0.0001);
-        assert_eq!(tolerance.tool_clearance_ratio, 0.05);
-        assert_eq!(tolerance.machine_accuracy, 0.001);
+        assert_eq!(
+            tolerance.closure_tolerance,
+            CAM_HIGH_PRECISION_CLOSURE_TOLERANCE_F64
+        );
+        assert_eq!(
+            tolerance.tool_clearance_ratio,
+            CAM_HIGH_PRECISION_TOOL_CLEARANCE_RATIO_F64
+        );
+        assert_eq!(
+            tolerance.machine_accuracy,
+            CAM_HIGH_PRECISION_MACHINE_ACCURACY_F64
+        );
     }
 
     #[test]
