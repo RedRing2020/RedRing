@@ -7,6 +7,7 @@
 //!
 //! - [`tolerance`][]: CAM用トレランス管理
 //! - [`tool`][]: 工具定義（工具径、長さ、種別）
+//! - [`toolset`][]: ツールセット定義（工具＋ホルダー、干渉距離）
 //! - [`toolpath`][]: 工具経路データ構造（セグメント、経路全体）
 //! - [`validation`][]: CAM用検証機能（2D輪郭閉判定、トレランスチェック）
 //!
@@ -33,12 +34,17 @@
 
 pub mod tolerance;
 pub mod tool;
+pub mod toolset;
 pub mod toolpath;
 pub mod validation;
 
 // 主要型の再エクスポート
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};
+pub use toolset::{
+    Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,
+    ToolSetReferencePoint,
+};
 pub use toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
     ToolPath,
