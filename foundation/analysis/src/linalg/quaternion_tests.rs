@@ -1,5 +1,6 @@
 use crate::linalg::quaternion::Quaternion;
 use crate::linalg::vector::Vector3;
+use crate::test_constants::TOLERANCE_F64;
 use std::f64::consts::PI;
 
 #[cfg(test)]
@@ -32,10 +33,10 @@ mod tests {
     fn test_quaternion_norm_and_normalize() {
         let q = Quaternion::<f64>::new(1.0, 2.0, 3.0, 4.0);
         let expected_norm = (1.0 + 4.0 + 9.0 + 16.0_f64).sqrt();
-        assert!((q.norm() - expected_norm).abs() < 1e-10_f64);
+        assert!((q.norm() - expected_norm).abs() < TOLERANCE_F64);
 
         let normalized = q.normalize().unwrap();
-        assert!((normalized.norm() - 1.0).abs() < 1e-10_f64);
+        assert!((normalized.norm() - 1.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -48,10 +49,10 @@ mod tests {
         // 軸角表現に戻す
         let (recovered_axis, recovered_angle) = q.to_axis_angle().unwrap();
 
-        assert!((recovered_angle - angle).abs() < 1e-10_f64);
-        assert!((recovered_axis.x() - axis.x()).abs() < 1e-10_f64);
-        assert!((recovered_axis.y() - axis.y()).abs() < 1e-10_f64);
-        assert!((recovered_axis.z() - axis.z()).abs() < 1e-10_f64);
+        assert!((recovered_angle - angle).abs() < TOLERANCE_F64);
+        assert!((recovered_axis.x() - axis.x()).abs() < TOLERANCE_F64);
+        assert!((recovered_axis.y() - axis.y()).abs() < TOLERANCE_F64);
+        assert!((recovered_axis.z() - axis.z()).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -77,9 +78,9 @@ mod tests {
         let rotated = q.rotate_vector(&point);
 
         // Y軸がZ軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!(rotated.y().abs() < 1e-10);
-        assert!((rotated.z() - 1.0).abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() - 1.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -100,9 +101,9 @@ mod tests {
         let product = q * inverse;
 
         // q * q^-1 = identity
-        assert!((product.x() - 0.0).abs() < 1e-10);
-        assert!((product.y() - 0.0).abs() < 1e-10);
-        assert!((product.z() - 0.0).abs() < 1e-10);
-        assert!((product.w() - 1.0).abs() < 1e-10);
+        assert!((product.x() - 0.0).abs() < TOLERANCE_F64);
+        assert!((product.y() - 0.0).abs() < TOLERANCE_F64);
+        assert!((product.z() - 0.0).abs() < TOLERANCE_F64);
+        assert!((product.w() - 1.0).abs() < TOLERANCE_F64);
     }
 }
