@@ -1,4 +1,5 @@
 use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
+use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F64};
 
 #[cfg(test)]
 mod tests {
@@ -26,11 +27,11 @@ mod tests {
     #[test]
     fn test_gaussian_solver_2x2() {
         let (matrix, rhs, expected) = get_test_2x2();
-        let solver = GaussianSolver::new(1e-15);
+        let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
         let result = solver.solve(&matrix, &rhs).unwrap();
 
         for (i, &exp) in expected.iter().enumerate() {
-            assert!((result.solution[i] - exp).abs() < 1e-10);
+            assert!((result.solution[i] - exp).abs() < TOLERANCE_F64);
         }
         assert!(result.converged);
     }
@@ -38,11 +39,11 @@ mod tests {
     #[test]
     fn test_lu_solver_2x2() {
         let (matrix, rhs, expected) = get_test_2x2();
-        let solver = LUSolver::new(1e-15);
+        let solver = LUSolver::new(SOLVER_TOLERANCE_F64);
         let result = solver.solve(&matrix, &rhs).unwrap();
 
         for (i, &exp) in expected.iter().enumerate() {
-            assert!((result.solution[i] - exp).abs() < 1e-10);
+            assert!((result.solution[i] - exp).abs() < TOLERANCE_F64);
         }
         assert!(result.converged);
     }
@@ -50,11 +51,11 @@ mod tests {
     #[test]
     fn test_cramer_solver_2x2() {
         let (matrix, rhs, expected) = get_test_2x2();
-        let solver = CramerSolver::new(1e-15);
+        let solver = CramerSolver::new(SOLVER_TOLERANCE_F64);
         let result = solver.solve(&matrix, &rhs).unwrap();
 
         for (i, &exp) in expected.iter().enumerate() {
-            assert!((result.solution[i] - exp).abs() < 1e-10);
+            assert!((result.solution[i] - exp).abs() < TOLERANCE_F64);
         }
         assert!(result.converged);
     }
@@ -62,11 +63,11 @@ mod tests {
     #[test]
     fn test_gaussian_solver_3x3() {
         let (matrix, rhs, expected) = get_test_3x3();
-        let solver = GaussianSolver::new(1e-15);
+        let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
         let result = solver.solve(&matrix, &rhs).unwrap();
 
         for (i, &exp) in expected.iter().enumerate() {
-            assert!((result.solution[i] - exp).abs() < 1e-10);
+            assert!((result.solution[i] - exp).abs() < TOLERANCE_F64);
         }
         assert!(result.converged);
     }
@@ -74,11 +75,11 @@ mod tests {
     #[test]
     fn test_lu_solver_3x3() {
         let (matrix, rhs, expected) = get_test_3x3();
-        let solver = LUSolver::new(1e-15);
+        let solver = LUSolver::new(SOLVER_TOLERANCE_F64);
         let result = solver.solve(&matrix, &rhs).unwrap();
 
         for (i, &exp) in expected.iter().enumerate() {
-            assert!((result.solution[i] - exp).abs() < 1e-10);
+            assert!((result.solution[i] - exp).abs() < TOLERANCE_F64);
         }
         assert!(result.converged);
     }
@@ -88,7 +89,7 @@ mod tests {
         let matrix = vec![vec![1.0, 2.0], vec![2.0, 4.0]]; // 特異行列
         let rhs = vec![3.0, 6.0];
 
-        let solver = GaussianSolver::new(1e-15);
+        let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
         assert!(solver.solve(&matrix, &rhs).is_err());
     }
 

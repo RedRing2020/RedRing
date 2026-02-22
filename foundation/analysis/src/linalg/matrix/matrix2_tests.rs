@@ -5,6 +5,7 @@ use crate::linalg::{Mat2d, Mat2f};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consts::test_constants::TOLERANCE_F64;
 
     #[test]
     fn test_matrix2x2_operations_f64() {
@@ -43,7 +44,7 @@ mod tests {
         // 結果が単位行列に近いことを確認
         for i in 0..2 {
             for j in 0..2 {
-                assert!((product.get(i, j) - identity.get(i, j)).abs() < 1e-10);
+                assert!((product.get(i, j) - identity.get(i, j)).abs() < TOLERANCE_F64);
             }
         }
     }
@@ -67,8 +68,8 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // (1,0) が (0,1) になることを確認（誤差を考慮）
-        assert!(rotated.x().abs() < 1e-10);
-        assert!((rotated.y() - 1.0).abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!((rotated.y() - 1.0).abs() < TOLERANCE_F64);
     }
 
     #[test]

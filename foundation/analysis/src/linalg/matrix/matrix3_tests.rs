@@ -42,7 +42,7 @@ mod tests {
 
         for i in 0..3 {
             for j in 0..3 {
-                assert!((inv.get(i, j) - expected.get(i, j)).abs() < 1e-10);
+                assert!((inv.get(i, j) - expected.get(i, j)).abs() < TOLERANCE_F64);
             }
         }
     }
@@ -54,9 +54,9 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // Y軸が Z軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!(rotated.y().abs() < 1e-10);
-        assert!((rotated.z() - 1.0).abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() - 1.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -66,9 +66,9 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // X軸が -Z軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!(rotated.y().abs() < 1e-10);
-        assert!((rotated.z() + 1.0).abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() + 1.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -78,9 +78,9 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // X軸が Y軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!((rotated.y() - 1.0).abs() < 1e-10);
-        assert!(rotated.z().abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!((rotated.y() - 1.0).abs() < TOLERANCE_F64);
+        assert!(rotated.z().abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -200,8 +200,8 @@ mod tests {
         let expected_x = 10.0 + 2.0 * (PI / 4.0).cos();
         let expected_y = 5.0 + 2.0 * (PI / 4.0).sin();
 
-        assert!((result.x() - expected_x).abs() < 1e-10);
-        assert!((result.y() - expected_y).abs() < 1e-10);
+        assert!((result.x() - expected_x).abs() < TOLERANCE_F64);
+        assert!((result.y() - expected_y).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -270,8 +270,8 @@ mod tests {
         let expected_x = 2.0 / 1.1;
         let expected_y = 2.0 / 1.1;
 
-        assert!((result.x() - expected_x).abs() < 1e-10);
-        assert!((result.y() - expected_y).abs() < 1e-10);
+        assert!((result.x() - expected_x).abs() < TOLERANCE_F64);
+        assert!((result.y() - expected_y).abs() < TOLERANCE_F64);
     }
 
     #[test]

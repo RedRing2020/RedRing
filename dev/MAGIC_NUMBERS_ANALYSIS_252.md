@@ -8,7 +8,7 @@
 
 ## 📊 検出されたマジックナンバー
 
-### 🔴 **最優先対処（units.rs）**
+### 🔴 **最優先対処（units.rs - 5件）**
 
 単位変換係数がハードコードされており、保守性と可読性に影響。
 
@@ -43,7 +43,53 @@
 
 ---
 
-### 🟢 **対処不要（文脈上明確）**
+### � **テスト許容誤差値（98件）**
+
+テストファイル全体で許容誤差値がハードコードされており、精度要件の一元管理ができない。
+
+#### **検出パターン**
+
+| 許容誤差値 | 出現回数 | 主な用途 | 推奨定数 |
+|----------|---------|---------|---------|
+| `1e-10` | 65件 | 標準的な数値精度検証 | `consts::test_constants::TOLERANCE_F64` (既存) |
+| `1e-6` | 10件 | やや緩めの精度検証 | `consts::test_constants::TOLERANCE_F32` (既存) |
+| `1e-15` | 9件 | 非常に高精度（ソルバー） | `consts::test_constants::SOLVER_TOLERANCE_F64` (新規) |
+| `1e-4` | 2件 | 数値積分結果の精度 | `consts::test_constants::INTEGRATION_TOLERANCE` (新規) |
+| `1e-3` | 1件 | 積分の緩めの精度 | `consts::test_constants::TOLERANCE_LOOSE` (新規) |
+| `1e-12` | 1件 | 角度の高精度 | `consts::GEOMETRIC_ANGLE_TOLERANCE` (既存) |
+| `1e-8`, `1e-16` | 各1件 | ソルバー許容誤差設定 | 個別定数化 |
+
+#### **影響範囲**
+- solver テスト（cramer, gaussian, lu, newton）: 36件
+- matrix テスト（matrix2, matrix3, matrix4）: 22件
+- vector テスト: 11件
+- numerics テスト（integration, vector_distance）: 10件
+- その他（consts, units）: 19件
+
+**推奨対応**: `consts::test_constants` モジュールを拡張し、統一された許容誤差定数を提供
+
+```rust
+/// テスト用定数
+pub mod test_constants {
+    // 既存
+    pub const TOLERANCE_F64: f64 = 1e-10;
+    pub const TOLERANCE_F32: f32 = 1e-6;
+    
+    // 新規追加推奨
+    /// ソルバー用高精度許容誤差
+    pub const SOLVER_TOLERANCE_F64: f64 = 1e-15;
+    
+    /// 数値積分用許容誤差
+    pub const INTEGRATION_TOLERANCE: f64 = 1e-4;
+    
+    /// 緩めの許容誤差（積分粗い分割）
+    pub const TOLERANCE_LOOSE: f64 = 1e-3;
+}
+```
+
+---
+
+### �🟢 **対処不要（文脈上明確）**
 
 以下は数学的・文脈的に明確なため、定数化は任意。
 
@@ -68,23 +114,88 @@
 ### 1. units.rs の定数化
 
 ```rust
-// foundation/analysis/src/units.rs 冒頭に追加
+### 3. テスト許容誤差値の統一 ⭐ **新規**
 
-/// 単位変換係数
-mod conversion {
-    /// ミリメートル基準値
-    pub const MM_TO_MM_FACTOR: f64 = 1.0;
+```rust
+// foundation/analysis/src/consts.rs の test_constants モジュールを拡張
+
+/// テスト用定数
+pub mod test_constants {
+    // 既存定数（そのまま）
+    pub const TOLERANCE_F64: f64 = 1e-10;
+    pub const TOLERANCE_F32: f32 = 1e-6;
     
+    // 新規追加
+    /// ソルバー用高精度許容誤差
+    pub const SOLVER_TOLERANCE_F64: f64 = 1e-15;
+    
+    /// ソルバー用通常許容誤差
+    pub const SOLVER_TOLERANCE_NORMAL: f64 = 1e-10;
+    
+    /// 数値積分用許容誤差（標準精度）
+    pub const INTEGRATION_TOLERANCE: f64 = 1e-4;
+    
+    /// 数値積分用許容誤差（緩い精度）
+    pub const INTEGRATION_TOLERANCE_LOOSE: f64 = 1e-3;
+    
+    /// 数値積分用許容誤差（高精度）
+    pub const INTEGRATION_TOLERANCE_STRICT: f64 = 1e-6;
+}
+```
+
+**修正箇所**（98件）:
+- `foundation/analysis/src/linalg/solver/*_tests.rs`: 36件
+- `foundation/analysis/src/linalg/matrix/*_tests.rs`: 22件
+- `foundation/analysis/src/linalg/vector/*_tests.rs`: 11件
+- `foundation/analysis/src/numerics/*_tests.rs`: 10件
+- その他テストファイル: 19件
+
+**修正例**:
+```rust
+// Before
+assert!((result - expected).abs() < 1e-10);
+
+// After
+use crate::consts::test_constants::TOLERANCE_F64;
+assert!((result - expected).abs() < TOLERANCE_F64);
+```
+
+---
+
+## 📋 検証チェックリスト
+
+- [ ] units.rs: 単位変換係数を定数化（5件）
+- [ ] quaternion.rs: 閾値2件を定数化
+- [ ] consts.rs: test_constants モジュールを拡張（5つの新定数追加）
+- [ ] テストファイル: 許容誤差値を統一定数に置換（98件）
+  - [ ] solver テスト（36件）
+  - [ ] matrix テスト（22件）
+  - [ ] vector テスト（11件）
+  - [ ] numerics テスト（10件）
+  - [ ] その他（19件）
     /// メートル → ミリメートル変換係数
     pub const METER_TO_MM_FACTOR: f64 = 1000.0;
-    
-    /// センチメートル → ミリメートル変換係数
-    pub const CM_TO_MM_FACTOR: f64 = 10.0;
-    
-    /// インチ → ミリメートル変換係数 (1 inch = 25.4 mm)
-    pub const INCH_TO_MM_FACTOR: f64 = 25.4;
-}
+    （テストファイル含む）  
+**除外**: コメント行, use 文  
+**検出パターン**: 
+- 浮動小数点リテラル（`\d+\.\d+`）
+- 科学的記法（`1e-\d+`） ← **98件検出**
+- 特殊な閾値（0.9, 0.9995）
+- 単位変換係数（25.4, 1000.0, 10.0）
 
+**ツール**: grep_search + 手動コードレビュー
+
+---
+
+## 📊 統計サマリ
+
+| カテゴリ | 検出数 | 優先度 |
+|---------|-------|-------|
+| 単位変換係数（units.rs） | 5件 | 🔴 最優先 |
+| 四元数閾値（quaternion.rs） | 2件 | 🟡 推奨 |
+| テスト許容誤差値 | **98件** | 🟠 重要 |
+| 文脈上明確（対処不要） | - | 🟢 保留 |
+| **合計** | **105件** | - |
 /// デフォルトトレランス (ミリメートル単位)
 const DEFAULT_TOLERANCE_MM: f64 = 0.01;
 ```
@@ -129,9 +240,11 @@ mod thresholds {
 
 ## 🔍 分析手法
 
-**検索対象**: `foundation/analysis/src/**/*.rs`  
-**除外**: `*_tests.rs`, コメント行, use 文  
-**検出パターン**: 
+**~~テストコード内のマジックナンバーは対象外~~（削除: 実際には98件の許容誤差値を検出し、対処推奨とした）
+- テストの許容誤差値は統一定数化により、精度要件の一元管理と可読性向上が期待できる
+- consts.rs 内の定数定義は既に適切に管理されているが、test_constants モジュールを拡張する必要がある
+- 0, 1, -1 などの基本的な数値は文脈上自明なため対象外
+- テストデータの具体値（例: `Point3::new(1.0, 2.0, 3.0)` の座標）は意図的な値として定数化不要
 - 浮動小数点リテラル（`\d+\.\d+`）
 - 特殊な閾値（0.9, 0.9995）
 - 単位変換係数（25.4, 1000.0, 10.0）

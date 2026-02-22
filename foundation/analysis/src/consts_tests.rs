@@ -1,27 +1,28 @@
 use super::{special, GeometricTolerance};
+use crate::consts::test_constants::{TOLERANCE_F64, TOLERANCE_F32, SOLVER_TOLERANCE_F64};
 
 #[test]
 fn test_special_constants() {
     // 黄金比のテスト
     let golden_ratio_f64 = special::GOLDEN_RATIO_F64;
     let expected_golden_ratio = (1.0 + 5.0_f64.sqrt()) / 2.0;
-    assert!((golden_ratio_f64 - expected_golden_ratio).abs() < 1e-10);
+    assert!((golden_ratio_f64 - expected_golden_ratio).abs() < TOLERANCE_F64);
 
     let golden_ratio_f32 = special::GOLDEN_RATIO_F32;
     let expected_golden_ratio_f32 = (1.0 + 5.0_f32.sqrt()) / 2.0;
-    assert!((golden_ratio_f32 - expected_golden_ratio_f32).abs() < 1e-6);
+    assert!((golden_ratio_f32 - expected_golden_ratio_f32).abs() < TOLERANCE_F32);
 
     // ln(2)のテスト
     let ln_2_f64 = special::LN_2_F64;
-    assert!((ln_2_f64 - std::f64::consts::LN_2).abs() < 1e-15);
+    assert!((ln_2_f64 - std::f64::consts::LN_2).abs() < SOLVER_TOLERANCE_F64);
 
     // ln(10)のテスト
     let ln_10_f64 = special::LN_10_F64;
-    assert!((ln_10_f64 - std::f64::consts::LN_10).abs() < 1e-15);
+    assert!((ln_10_f64 - std::f64::consts::LN_10).abs() < SOLVER_TOLERANCE_F64);
 
     // √3のテスト
     let sqrt_3_f64 = special::SQRT_3_F64;
-    assert!((sqrt_3_f64 - 3.0_f64.sqrt()).abs() < 1e-15);
+    assert!((sqrt_3_f64 - 3.0_f64.sqrt()).abs() < SOLVER_TOLERANCE_F64);
 }
 
 #[test]

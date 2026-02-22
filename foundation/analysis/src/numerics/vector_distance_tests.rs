@@ -3,6 +3,7 @@ use super::vector_distance::{
     point_distance_3d, polyline_length, polyline_length_3d, vector_length, vector_length_2d,
     vector_length_3d, vector_length_squared,
 };
+use crate::consts::test_constants::TOLERANCE_F64;
 
 #[cfg(test)]
 mod tests {
@@ -11,16 +12,16 @@ mod tests {
     #[test]
     fn test_point_distance_calculations() {
         let distance = point_distance_2d(0.0_f64, 0.0, 3.0, 4.0);
-        assert!((distance - 5.0).abs() < 1e-10);
+        assert!((distance - 5.0).abs() < TOLERANCE_F64);
 
         let distance_3d = point_distance_3d(0.0_f64, 0.0, 0.0, 1.0, 1.0, 1.0);
         let expected = 3.0_f64.sqrt();
-        assert!((distance_3d - expected).abs() < 1e-10);
+        assert!((distance_3d - expected).abs() < TOLERANCE_F64);
 
         let p1 = [0.0, 0.0, 0.0];
         let p2 = [1.0, 1.0, 1.0];
         let distance = point_distance(&p1, &p2);
-        assert!((distance - 3.0_f64.sqrt()).abs() < 1e-10);
+        assert!((distance - 3.0_f64.sqrt()).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -36,7 +37,7 @@ mod tests {
 
         let minkowski = minkowski_distance(&p1, &p2, 2.0_f64);
         let euclidean = point_distance(&p1, &p2);
-        assert!((minkowski - euclidean).abs() < 1e-10);
+        assert!((minkowski - euclidean).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -50,7 +51,7 @@ mod tests {
 
         let length_3d = vector_length_3d(1.0, 1.0, 1.0);
         let expected = 3.0_f64.sqrt();
-        assert!((length_3d - expected).abs() < 1e-10);
+        assert!((length_3d - expected).abs() < TOLERANCE_F64);
 
         let length_squared = vector_length_squared(&components);
         assert_eq!(length_squared, 25.0);

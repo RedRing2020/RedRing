@@ -9,6 +9,21 @@ use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
 use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};
 
+/// 四元数計算用閾値
+mod thresholds {
+    /// ベクトル垂直判定閾値
+    ///
+    /// x成分の絶対値がこの値未満の場合、x軸と垂直と見なす。
+    /// from_to_rotation() で反対方向ベクトルの回転軸を求める際に使用。
+    pub const PERPENDICULAR_THRESHOLD: f64 = 0.9;
+
+    /// SLERP閾値
+    ///
+    /// 内積がこの値以上の場合、線形補間（LERP）を使用する。
+    /// 角度が非常に小さい場合の数値安定性を向上させる。
+    pub const SLERP_THRESHOLD: f64 = 0.9995;
+}
+
 /// 単位クォータニオン（回転表現用）
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Quaternion<T: Scalar> {
@@ -101,7 +116,7 @@ impl<T: Scalar> Quaternion<T> {
         // ベクトルが反対方向の場合
         if dot <= -T::ONE + T::EPSILON {
             // 垂直なベクトルを見つける
-            let axis = if from_normalized.x().abs() < T::from_f64(0.9) {
+            let axis = if from_normalized.x().abs() < T::from_f64(thresholds::PERPENDICULAR_THRESHOLD) {
                 Vector3::new(T::ONE, T::ZERO, T::ZERO).cross(&from_normalized)
             } else {
                 Vector3::new(T::ZERO, T::ONE, T::ZERO).cross(&from_normalized)
@@ -355,7 +370,7 @@ impl<T: Scalar> Quaternion<T> {
         };
 
         // 角度が小さい場合は線形補間
-        if dot > T::from_f64(0.9995) {
+        if dot > T::from_f64(thresholds::SLERP_THRESHOLD) {
             return Ok(self.lerp(&other, t));
         }
 

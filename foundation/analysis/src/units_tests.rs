@@ -1,4 +1,5 @@
 use super::*;
+use crate::consts::test_constants::TOLERANCE_F64;
 
 #[test]
 fn test_length_unit_conversions() {
@@ -11,7 +12,7 @@ fn test_length_unit_conversions() {
         LengthUnit::Millimeter.conversion_factor_to(LengthUnit::Centimeter),
         0.1
     );
-    assert!((LengthUnit::Millimeter.conversion_factor_to(LengthUnit::Inch) - 1.0 / 25.4).abs() < 1e-10);
+    assert!((LengthUnit::Millimeter.conversion_factor_to(LengthUnit::Inch) - 1.0 / 25.4).abs() < TOLERANCE_F64);
 
     // メートル → 他の単位
     assert_eq!(
@@ -66,7 +67,7 @@ fn test_tolerance_cross_unit() {
     assert_eq!(tol_m.in_millimeters(), 10.0);
 
     // 同じ値をメートル単位で表現すると全て0.01
-    assert!((tol_mm.in_unit(LengthUnit::Meter) - 0.01).abs() < 1e-10);
-    assert!((tol_cm.in_unit(LengthUnit::Meter) - 0.01).abs() < 1e-10);
-    assert!((tol_m.in_unit(LengthUnit::Meter) - 0.01).abs() < 1e-10);
+    assert!((tol_mm.in_unit(LengthUnit::Meter) - 0.01).abs() < TOLERANCE_F64);
+    assert!((tol_cm.in_unit(LengthUnit::Meter) - 0.01).abs() < TOLERANCE_F64);
+    assert!((tol_m.in_unit(LengthUnit::Meter) - 0.01).abs() < TOLERANCE_F64);
 }

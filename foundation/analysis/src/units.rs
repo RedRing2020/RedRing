@@ -3,6 +3,24 @@
 //! 物理量の単位変換とトレランス管理を提供します。
 //! このモジュールはアプリケーション非依存の汎用的な単位系実装です。
 
+/// 単位変換係数
+mod conversion {
+    /// ミリメートル基準値
+    pub const MM_TO_MM_FACTOR: f64 = 1.0;
+
+    /// メートル → ミリメートル変換係数
+    pub const METER_TO_MM_FACTOR: f64 = 1000.0;
+
+    /// センチメートル → ミリメートル変換係数
+    pub const CM_TO_MM_FACTOR: f64 = 10.0;
+
+    /// インチ → ミリメートル変換係数 (1 inch = 25.4 mm)
+    pub const INCH_TO_MM_FACTOR: f64 = 25.4;
+}
+
+/// デフォルトトレランス (ミリメートル単位)
+const DEFAULT_TOLERANCE_MM: f64 = 0.01;
+
 /// 長さの単位系
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LengthUnit {
@@ -34,10 +52,10 @@ impl LengthUnit {
     #[must_use]
     pub const fn to_millimeter_factor(&self) -> f64 {
         match self {
-            Self::Millimeter => 1.0,
-            Self::Meter => 1000.0,
-            Self::Centimeter => 10.0,
-            Self::Inch => 25.4,
+            Self::Millimeter => conversion::MM_TO_MM_FACTOR,
+            Self::Meter => conversion::METER_TO_MM_FACTOR,
+            Self::Centimeter => conversion::CM_TO_MM_FACTOR,
+            Self::Inch => conversion::INCH_TO_MM_FACTOR,
         }
     }
 
@@ -170,7 +188,7 @@ impl Default for Tolerance {
     ///
     /// 精密な幾何計算に適した値です。
     fn default() -> Self {
-        Self::new(0.01, LengthUnit::Millimeter)
+        Self::new(DEFAULT_TOLERANCE_MM, LengthUnit::Millimeter)
     }
 }
 

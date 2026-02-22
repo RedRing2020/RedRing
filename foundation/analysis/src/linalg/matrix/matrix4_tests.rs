@@ -5,6 +5,7 @@ use crate::linalg::{Mat4d, Mat4f};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consts::test_constants::TOLERANCE_F64;
     use std::f64::consts::PI;
 
     #[test]
@@ -50,9 +51,9 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // Y軸が Z軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!(rotated.y().abs() < 1e-10);
-        assert!((rotated.z() - 1.0).abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() - 1.0).abs() < TOLERANCE_F64);
         assert_eq!(rotated.w(), 1.0);
     }
 
@@ -63,9 +64,9 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // X軸が -Z軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!(rotated.y().abs() < 1e-10);
-        assert!((rotated.z() + 1.0).abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!(rotated.y().abs() < TOLERANCE_F64);
+        assert!((rotated.z() + 1.0).abs() < TOLERANCE_F64);
         assert_eq!(rotated.w(), 1.0);
     }
 
@@ -76,9 +77,9 @@ mod tests {
         let rotated = rotation.mul_vector(&v);
 
         // X軸が Y軸になることを確認
-        assert!(rotated.x().abs() < 1e-10);
-        assert!((rotated.y() - 1.0).abs() < 1e-10);
-        assert!(rotated.z().abs() < 1e-10);
+        assert!(rotated.x().abs() < TOLERANCE_F64);
+        assert!((rotated.y() - 1.0).abs() < TOLERANCE_F64);
+        assert!(rotated.z().abs() < TOLERANCE_F64);
         assert_eq!(rotated.w(), 1.0);
     }
 
