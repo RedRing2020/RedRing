@@ -24,6 +24,14 @@ pub use newton::{newton_inverse, newton_solve, newton_solve_2d};
 
 // テストモジュール
 #[cfg(test)]
+pub mod cramer_tests;
+#[cfg(test)]
+pub mod gaussian_tests;
+#[cfg(test)]
+pub mod lu_tests;
+#[cfg(test)]
+pub mod newton_tests;
+#[cfg(test)]
 pub mod solver_tests;
 
 pub use cramer::CramerSolver;
