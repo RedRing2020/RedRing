@@ -60,21 +60,21 @@ use geo_primitives::{Arc3D, LineSegment3D};
 /// - `Empty`: 材料が完全に除去されている
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VoxelState {
-	/// 材料あり（未加工）
-	///
-	/// このセル全体が材料で満たされています。
-	Solid,
+    /// 材料あり（未加工）
+    ///
+    /// このセル全体が材料で満たされています。
+    Solid,
 
-	/// 材料除去済み
-	///
-	/// このセル内の材料は完全に除去されています。
-	Empty,
+    /// 材料除去済み
+    ///
+    /// このセル内の材料は完全に除去されています。
+    Empty,
 
-	/// 部分的に除去（要細分化）
-	///
-	/// このセル内で一部の材料が除去されています。
-	/// より詳細な計算には、さらなる細分化（subdivide）が必要です。
-	Mixed,
+    /// 部分的に除去（要細分化）
+    ///
+    /// このセル内で一部の材料が除去されています。
+    /// より詳細な計算には、さらなる細分化（subdivide）が必要です。
+    Mixed,
 }
 
 /// ボクセルOctreeのノード
@@ -87,20 +87,20 @@ pub enum VoxelState {
 /// * `T` - 座標値の型（Scalarトレイト境界）
 #[derive(Debug, Clone)]
 pub struct VoxelNode<T: Scalar> {
-	/// ノードの境界ボックス
-	bounds: Aabb3D<T>,
+    /// ノードの境界ボックス
+    bounds: Aabb3D<T>,
 
-	/// ツリー内の深さ（ルート = 0）
-	depth: usize,
+    /// ツリー内の深さ（ルート = 0）
+    depth: usize,
 
-	/// 材料状態
-	state: VoxelState,
+    /// 材料状態
+    state: VoxelState,
 
-	/// 子ノード（Mixed状態の場合のみ存在）
-	///
-	/// 8つの子ノードを持つ配列。
-	/// インデックスは (z << 2) | (y << 1) | x で計算されます。
-	children: Option<Box<[VoxelNode<T>; 8]>>,
+    /// 子ノード（Mixed状態の場合のみ存在）
+    ///
+    /// 8つの子ノードを持つ配列。
+    /// インデックスは (z << 2) | (y << 1) | x で計算されます。
+    children: Option<Box<[VoxelNode<T>; 8]>>,
 }
 
 /// ボクセルOctree（切削シミュレーション用）
@@ -129,17 +129,17 @@ pub struct VoxelNode<T: Scalar> {
 /// ```
 #[derive(Debug, Clone)]
 pub struct VoxelOctree<T: Scalar> {
-	/// ルートノード
-	root: VoxelNode<T>,
+    /// ルートノード
+    root: VoxelNode<T>,
 
-	/// 最大深さ（分割の上限）
-	max_depth: usize,
+    /// 最大深さ（分割の上限）
+    max_depth: usize,
 
-	/// 最大深さでのボクセルサイズ
-	///
-	/// これはルート境界ボックスのサイズから計算されます：
-	/// `voxel_size = root_size / 2^max_depth`
-	voxel_size_at_max_depth: T,
+    /// 最大深さでのボクセルサイズ
+    ///
+    /// これはルート境界ボックスのサイズから計算されます：
+    /// `voxel_size = root_size / 2^max_depth`
+    voxel_size_at_max_depth: T,
 }
 
 mod node_impl;

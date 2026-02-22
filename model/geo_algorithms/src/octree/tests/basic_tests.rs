@@ -2,8 +2,11 @@ use super::*;
 
 #[test]
 fn test_octree_creation() {
-    let octree: Octree<f64, TestPoint> =
-        Octree::new(default_octree_bounds(), OCTREE_DEFAULT_MAX_DEPTH, OCTREE_DEFAULT_MAX_ITEMS);
+    let octree: Octree<f64, TestPoint> = Octree::new(
+        default_octree_bounds(),
+        OCTREE_DEFAULT_MAX_DEPTH,
+        OCTREE_DEFAULT_MAX_ITEMS,
+    );
 
     assert_eq!(octree.total_nodes(), 1);
     assert_eq!(octree.total_items(), 0);
@@ -88,8 +91,11 @@ fn test_clear() {
 
 #[test]
 fn test_traverse() {
-    let octree: Octree<f64, TestPoint> =
-        Octree::new(default_octree_bounds(), OCTREE_DEFAULT_MAX_DEPTH, OCTREE_DEFAULT_MAX_ITEMS);
+    let octree: Octree<f64, TestPoint> = Octree::new(
+        default_octree_bounds(),
+        OCTREE_DEFAULT_MAX_DEPTH,
+        OCTREE_DEFAULT_MAX_ITEMS,
+    );
 
     let mut visited_count = 0;
     octree.traverse(|_node, _depth| {

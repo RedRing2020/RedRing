@@ -35,13 +35,19 @@ fn test_performance_collision_detection_reduction() {
     let mut seed = LCG_INITIAL_SEED;
 
     for i in 0..PERFORMANCE_SAMPLE_COUNT {
-        seed = seed.wrapping_mul(LCG_MULTIPLIER).wrapping_add(LCG_INCREMENT);
+        seed = seed
+            .wrapping_mul(LCG_MULTIPLIER)
+            .wrapping_add(LCG_INCREMENT);
         let x = ((seed % LCG_VALUE_MOD) as f64) / POSITION_SCALE_DIVISOR;
 
-        seed = seed.wrapping_mul(LCG_MULTIPLIER).wrapping_add(LCG_INCREMENT);
+        seed = seed
+            .wrapping_mul(LCG_MULTIPLIER)
+            .wrapping_add(LCG_INCREMENT);
         let y = ((seed % LCG_VALUE_MOD) as f64) / POSITION_SCALE_DIVISOR;
 
-        seed = seed.wrapping_mul(LCG_MULTIPLIER).wrapping_add(LCG_INCREMENT);
+        seed = seed
+            .wrapping_mul(LCG_MULTIPLIER)
+            .wrapping_add(LCG_INCREMENT);
         let z = ((seed % LCG_VALUE_MOD) as f64) / POSITION_SCALE_DIVISOR;
 
         let radius = 2.0 + (i % 5) as f64;
