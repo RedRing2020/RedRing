@@ -1,7 +1,6 @@
 use super::integration::{newton_arc_length, trapezoidal_rule, NormedVector};
 use crate::consts::test_constants::{
-    INTEGRATION_TOLERANCE, INTEGRATION_TOLERANCE_LOOSE, INTEGRATION_TOLERANCE_STRICT,
-    TOLERANCE_F64,
+    INTEGRATION_TOLERANCE, INTEGRATION_TOLERANCE_LOOSE, INTEGRATION_TOLERANCE_STRICT, TOLERANCE_F64,
 };
 
 #[cfg(test)]

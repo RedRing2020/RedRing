@@ -116,11 +116,12 @@ impl<T: Scalar> Quaternion<T> {
         // ベクトルが反対方向の場合
         if dot <= -T::ONE + T::EPSILON {
             // 垂直なベクトルを見つける
-            let axis = if from_normalized.x().abs() < T::from_f64(thresholds::PERPENDICULAR_THRESHOLD) {
-                Vector3::new(T::ONE, T::ZERO, T::ZERO).cross(&from_normalized)
-            } else {
-                Vector3::new(T::ZERO, T::ONE, T::ZERO).cross(&from_normalized)
-            };
+            let axis =
+                if from_normalized.x().abs() < T::from_f64(thresholds::PERPENDICULAR_THRESHOLD) {
+                    Vector3::new(T::ONE, T::ZERO, T::ZERO).cross(&from_normalized)
+                } else {
+                    Vector3::new(T::ZERO, T::ONE, T::ZERO).cross(&from_normalized)
+                };
             let normalized_axis = axis.normalize()?;
             return Ok(Self::from_axis_angle(&normalized_axis, T::PI));
         }

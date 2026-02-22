@@ -37,10 +37,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_singular_matrix() {
-        let matrix = vec![
-            vec![1.0, 2.0],
-            vec![2.0, 4.0],
-        ];
+        let matrix = vec![vec![1.0, 2.0], vec![2.0, 4.0]];
         let rhs = vec![3.0, 6.0];
 
         let solver = GaussianSolver::<f64>::new(SOLVER_TOLERANCE_F64);

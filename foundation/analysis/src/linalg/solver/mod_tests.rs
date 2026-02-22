@@ -1,5 +1,5 @@
-use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
 use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F64};
+use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
 
 #[cfg(test)]
 mod tests {

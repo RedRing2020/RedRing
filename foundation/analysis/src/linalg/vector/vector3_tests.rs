@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::linalg::vector::Vector3;
     use crate::consts::test_constants::TOLERANCE_F64;
+    use crate::linalg::vector::Vector3;
 
     #[test]
     fn test_vector3_creation() {

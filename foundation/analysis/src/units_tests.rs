@@ -12,7 +12,10 @@ fn test_length_unit_conversions() {
         LengthUnit::Millimeter.conversion_factor_to(LengthUnit::Centimeter),
         0.1
     );
-    assert!((LengthUnit::Millimeter.conversion_factor_to(LengthUnit::Inch) - 1.0 / 25.4).abs() < TOLERANCE_F64);
+    assert!(
+        (LengthUnit::Millimeter.conversion_factor_to(LengthUnit::Inch) - 1.0 / 25.4).abs()
+            < TOLERANCE_F64
+    );
 
     // メートル → 他の単位
     assert_eq!(
@@ -25,7 +28,10 @@ fn test_length_unit_conversions() {
     );
 
     // 同一単位
-    assert_eq!(LengthUnit::Meter.conversion_factor_to(LengthUnit::Meter), 1.0);
+    assert_eq!(
+        LengthUnit::Meter.conversion_factor_to(LengthUnit::Meter),
+        1.0
+    );
     assert_eq!(LengthUnit::Inch.conversion_factor_to(LengthUnit::Inch), 1.0);
 }
 

@@ -1,5 +1,5 @@
 use super::{special, GeometricTolerance};
-use crate::consts::test_constants::{TOLERANCE_F64, TOLERANCE_F32, SOLVER_TOLERANCE_F64};
+use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F32, TOLERANCE_F64};
 
 #[test]
 fn test_special_constants() {

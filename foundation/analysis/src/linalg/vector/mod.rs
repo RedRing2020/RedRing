@@ -11,13 +11,13 @@ pub mod vector3; // Vector3<T> - 3Dベクトル
 pub mod vector4; // Vector4<T> - 4Dベクトル（同次座標）
 
 #[cfg(test)]
-pub mod vector_tests;
-#[cfg(test)]
 pub mod vector2_tests;
 #[cfg(test)]
 pub mod vector3_tests;
 #[cfg(test)]
 pub mod vector4_tests;
+#[cfg(test)]
+pub mod vector_tests;
 
 pub use vector::Vector;
 pub use vector2::Vector2;

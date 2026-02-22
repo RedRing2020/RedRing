@@ -30,9 +30,9 @@ pub mod gaussian_tests;
 #[cfg(test)]
 pub mod lu_tests;
 #[cfg(test)]
-pub mod newton_tests;
-#[cfg(test)]
 pub mod mod_tests;
+#[cfg(test)]
+pub mod newton_tests;
 
 pub use cramer::CramerSolver;
 pub use gaussian::GaussianSolver;

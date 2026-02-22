@@ -220,8 +220,7 @@ mod tests {
     fn test_rigid_body_detection() {
         let translation = Vec2::new(5.0, 3.0);
         let rotation = PI / 4.0;
-        let rigid_matrix =
-            Matrix3::translation_2d(&translation) * Matrix3::rotation_2d(rotation);
+        let rigid_matrix = Matrix3::translation_2d(&translation) * Matrix3::rotation_2d(rotation);
 
         assert!(rigid_matrix.is_rigid_2d());
 
@@ -232,8 +231,7 @@ mod tests {
 
     #[test]
     fn test_affine_transform_detection() {
-        let affine_matrix =
-            Matrix3::trs_2d(&Vec2::new(5.0, 3.0), PI / 4.0, &Vec2::new(2.0, 1.5));
+        let affine_matrix = Matrix3::trs_2d(&Vec2::new(5.0, 3.0), PI / 4.0, &Vec2::new(2.0, 1.5));
 
         assert!(affine_matrix.is_affine_transform());
         assert!(affine_matrix.is_pure_affine_2d());
