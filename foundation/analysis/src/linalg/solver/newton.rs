@@ -52,6 +52,77 @@ where
     None
 }
 
+/// 境界付きニュートン法による方程式求解
+///
+/// `newton_solve` と同様に f(x)=0 を解くが、各反復更新後に値を `[min, max]` にクランプする。
+/// パラメータ領域が有限な問題（例: NURBS パラメータ最適化）で使用する。
+pub fn newton_solve_bounded<F, G>(
+    f: F,
+    df: G,
+    initial: f64,
+    min: f64,
+    max: f64,
+    max_iter: usize,
+    tol: f64,
+) -> Option<f64>
+where
+    F: Fn(f64) -> f64,
+    G: Fn(f64) -> f64,
+{
+    let mut x = initial.clamp(min, max);
+    for _ in 0..max_iter {
+        let fx = f(x);
+        let dfx = df(x);
+        if dfx.abs() < DERIVATIVE_ZERO_THRESHOLD {
+            return None;
+        }
+
+        let next = (x - fx / dfx).clamp(min, max);
+        if (next - x).abs() < tol {
+            return Some(next);
+        }
+        x = next;
+    }
+    None
+}
+
+/// 数値微分（前進差分）を用いた境界付きニュートン法
+///
+/// 導関数を解析的に与えづらい場合に、`f(x+h)-f(x)` の差分で導関数を近似して解く。
+/// 反復制御と境界拘束は `newton_solve_bounded` に委譲する。
+pub fn newton_solve_with_numeric_derivative_bounded<F>(
+    f: F,
+    initial: f64,
+    min: f64,
+    max: f64,
+    max_iter: usize,
+    tol: f64,
+    diff_step: f64,
+) -> Option<f64>
+where
+    F: Fn(f64) -> f64,
+{
+    let df = |x: f64| {
+        let h = if diff_step.abs() < DERIVATIVE_ZERO_THRESHOLD {
+            DERIVATIVE_ZERO_THRESHOLD
+        } else {
+            diff_step
+        };
+        let x_plus = (x + h).min(max);
+        let fx = f(x);
+        let fx_plus = f(x_plus);
+        let effective_h = (x_plus - x).abs();
+
+        if effective_h < DERIVATIVE_ZERO_THRESHOLD {
+            0.0
+        } else {
+            (fx_plus - fx) / effective_h
+        }
+    };
+
+    newton_solve_bounded(&f, df, initial, min, max, max_iter, tol)
+}
+
 /// 単調関数 f(x) = y に対する逆関数 x をニュートン法で求める
 ///
 /// 既知の関数値 y に対して、f(x) = y を満たす x を求める。

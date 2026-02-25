@@ -17,6 +17,7 @@
 //! 3. **パフォーマンス**: BBox による事前スクリーニング
 //! 4. **ゼロコスト抽象化**: `#[repr(transparent)]` による Newtype
 
+use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
 use geo_core::Point3D;
 use geo_foundation::{
     core::{
@@ -72,52 +73,35 @@ impl<T: Scalar> NurbsCurveCollider<T> {
         u_max: T,
     ) -> T {
         let max_iter = 20;
-        let tolerance = T::from_f64(1e-10);
-        let mut u = initial_u;
+        let tolerance = 1e-10_f64;
+        let diff_step = 1e-7_f64;
 
-        for _ in 0..max_iter {
-            let c = self.0.evaluate_at(u);
-            let dc = self.0.derivative_at(u);
+        let objective = |u: f64| {
+            let u_t = T::from_f64(u);
+            let c = self.0.evaluate_at(u_t);
+            let dc = self.0.derivative_at(u_t);
 
-            // f(u) = (C(u) - P) · C'(u)
             let diff_x = c.x() - point.x();
             let diff_y = c.y() - point.y();
             let diff_z = c.z() - point.z();
 
-            let f = diff_x * dc.x() + diff_y * dc.y() + diff_z * dc.z();
+            let value_t = diff_x * dc.x() + diff_y * dc.y() + diff_z * dc.z();
+            value_t.to_f64()
+        };
 
-            // f'(u) の数値計算（2階導関数を避けるため）
-            let h = T::from_f64(1e-7);
-            let u_plus = (u + h).min(u_max);
+        let maybe_u = newton_solve_with_numeric_derivative_bounded(
+            objective,
+            initial_u.to_f64(),
+            u_min.to_f64(),
+            u_max.to_f64(),
+            max_iter,
+            tolerance,
+            diff_step,
+        );
 
-            let c_plus = self.0.evaluate_at(u_plus);
-            let dc_plus = self.0.derivative_at(u_plus);
-            let diff_plus_x = c_plus.x() - point.x();
-            let diff_plus_y = c_plus.y() - point.y();
-            let diff_plus_z = c_plus.z() - point.z();
-            let f_plus =
-                diff_plus_x * dc_plus.x() + diff_plus_y * dc_plus.y() + diff_plus_z * dc_plus.z();
-
-            let df = (f_plus - f) / h;
-
-            // 導関数が小さすぎる場合は収束したとみなす
-            if df.abs() < T::from_f64(1e-12) {
-                break;
-            }
-
-            // Newton更新: u_new = u - f(u) / f'(u)
-            let delta = f / df;
-            let u_new = (u - delta).clamp(u_min, u_max);
-
-            // 収束判定
-            if (u_new - u).abs() < tolerance {
-                return u_new;
-            }
-
-            u = u_new;
-        }
-
-        u
+        maybe_u
+            .map(T::from_f64)
+            .unwrap_or_else(|| initial_u.clamp(u_min, u_max))
     }
 }
 
