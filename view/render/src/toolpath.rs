@@ -10,6 +10,7 @@
 //! - View/Projection行列による3D表示
 
 use crate::shader;
+use crate::uniform_factory;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -94,38 +95,16 @@ impl ToolPathResources {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = shader::toolpath_shader(device);
 
-        // Uniform bind group layout
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("toolpath_bind_group_layout"),
-        });
-
-        // Uniform buffer
         let uniforms = ToolPathUniforms::default();
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("ToolPath Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        // Bind group
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("toolpath_bind_group"),
-        });
+        let (bind_group_layout, uniform_buffer, bind_group) =
+            uniform_factory::create_uniform_binding(
+                device,
+                &uniforms,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                "toolpath_bind_group_layout",
+                "ToolPath Uniform Buffer",
+                "toolpath_bind_group",
+            );
 
         // Render pipeline layout
         let render_pipeline_layout =
