@@ -121,8 +121,8 @@
 ## 11. ブランチ戦略（Phase6-2 分割推奨）
 
 - 推奨: **Phase6-2 を小粒で分割**
-  - `feature/issue-258-phase6-2a-toolpath-naming-20260226`
-    - 対応A（`ToolPath` 統一 + `load_debug_cutter_path_only` 改名）
+  - `feature/issue-258-phase6-2a-render-naming-20260226`
+    - 対応A（`render_2d` / `render_3d` 命名対称化）
   - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`
     - 対応B（設計ドキュメント名のリネームとリンク追従）
   - `feature/issue-258-phase6-2c-debug-prefix-policy-20260226`
@@ -170,3 +170,13 @@
 - 注意点
   - 公開 API 名変更になるため、呼び出し元追従を同一コミットで完結
   - ロジック変更を混在させない
+
+## 14. Phase6-2a 着手メモ（2026-02-26）
+
+- 着手ブランチ: `feature/issue-258-phase6-2a-render-naming-20260226`
+- 今回の適用範囲
+  - `view/render/src/render_3d.rs` の命名を `render_2d` 系に合わせて対称化
+  - `view/stage/src/shading.rs` の呼び出し名を追従
+- 非対象（別サブフェーズ）
+  - `Toolpath/ToolPath` 統一
+  - `debug_*` 接頭辞方針の適用
