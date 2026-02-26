@@ -1,11 +1,15 @@
 pub mod device;
+pub mod line;
 pub mod mesh;
 pub mod mesh_convert;
+pub mod nurbs_eval;
 pub mod pipeline;
 pub mod render_2d;
 pub mod render_3d;
 pub mod shader;
 pub mod surface;
+pub mod toolpath;
+pub mod uniform_factory;
 pub mod vertex_2d;
 pub mod vertex_3d;
 pub mod wireframe;

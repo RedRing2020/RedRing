@@ -1,4 +1,4 @@
-﻿//! Ellipse3D Extension 機能
+//! Ellipse3D Extension 機能
 //!
 //! Extension Foundation パターンに基づく Ellipse3D の拡張実装
 
@@ -59,8 +59,8 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 楕円の周囲長を近似計算（ラマヌジャンの公式）
     pub fn perimeter(&self) -> T {
-        let a = self.semi_major_axis();
-        let b = self.semi_minor_axis();
+        let a = self.semi_major_internal();
+        let b = self.semi_minor_internal();
         let h = ((a - b) / (a + b)).powi(2);
         let pi = T::PI;
 
@@ -72,8 +72,8 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 楕円上の点での曲率を計算
     pub fn curvature_at_parameter(&self, t: T) -> T {
-        let a = self.semi_major_axis();
-        let b = self.semi_minor_axis();
+        let a = self.semi_major_internal();
+        let b = self.semi_minor_internal();
 
         let cos_t = t.cos();
         let sin_t = t.sin();
@@ -95,8 +95,8 @@ impl<T: Scalar> Ellipse3D<T> {
 
         // 楕円の接線ベクトル
         let tangent_local = Vector3D::new(
-            -self.semi_major_axis() * sin_t,
-            self.semi_minor_axis() * cos_t,
+            -self.semi_major_internal() * sin_t,
+            self.semi_minor_internal() * cos_t,
             T::ZERO,
         );
 
@@ -104,7 +104,8 @@ impl<T: Scalar> Ellipse3D<T> {
         let u_axis = self.major_axis_direction();
         let v_axis = self.minor_axis_direction();
 
-        let tangent_world = u_axis * tangent_local.x() + v_axis * tangent_local.y();
+        let tangent_world =
+            u_axis.to_vector() * tangent_local.x() + v_axis.to_vector() * tangent_local.y();
 
         // 楕円平面内の法線（接線に直交）
         let tangent_dir =
@@ -119,15 +120,15 @@ impl<T: Scalar> Ellipse3D<T> {
     /// 楕円を平行移動
     pub fn translate(&self, offset: Vector3D<T>) -> Self {
         let new_center = Point3D::new(
-            self.center().x() + offset.x(),
-            self.center().y() + offset.y(),
-            self.center().z() + offset.z(),
+            self.center_internal().x() + offset.x(),
+            self.center_internal().y() + offset.y(),
+            self.center_internal().z() + offset.z(),
         );
 
         Self::new(
             new_center,
-            self.semi_major_axis(),
-            self.semi_minor_axis(),
+            self.semi_major_internal(),
+            self.semi_minor_internal(),
             self.normal().as_vector(),
             self.major_axis_direction().as_vector(),
         )
@@ -142,9 +143,9 @@ impl<T: Scalar> Ellipse3D<T> {
 
         Some(
             Self::new(
-                self.center(),
-                self.semi_major_axis() * factor,
-                self.semi_minor_axis() * factor,
+                self.center_internal(),
+                self.semi_major_internal() * factor,
+                self.semi_minor_internal() * factor,
                 self.normal().as_vector(),
                 self.major_axis_direction().as_vector(),
             )
@@ -158,14 +159,14 @@ impl<T: Scalar> Ellipse3D<T> {
             return None;
         }
 
-        let new_major = self.semi_major_axis() * major_scale;
-        let new_minor = self.semi_minor_axis() * minor_scale;
+        let new_major = self.semi_major_internal() * major_scale;
+        let new_minor = self.semi_minor_internal() * minor_scale;
 
         // 長軸と短軸の関係を保持
         if new_major >= new_minor {
             Some(
                 Self::new(
-                    self.center(),
+                    self.center_internal(),
                     new_major,
                     new_minor,
                     self.normal().as_vector(),
@@ -177,7 +178,7 @@ impl<T: Scalar> Ellipse3D<T> {
             // 軸が逆転した場合の調整
             Some(
                 Self::new(
-                    self.center(),
+                    self.center_internal(),
                     new_minor,
                     new_major,
                     self.normal().as_vector(),
@@ -196,9 +197,9 @@ impl<T: Scalar> Ellipse3D<T> {
     pub fn parameter_for_point(&self, point: &Point3D<T>) -> Option<T> {
         // 点が楕円平面上にあるかチェック
         let to_point = Vector3D::new(
-            point.x() - self.center().x(),
-            point.y() - self.center().y(),
-            point.z() - self.center().z(),
+            point.x() - self.center_internal().x(),
+            point.y() - self.center_internal().y(),
+            point.z() - self.center_internal().z(),
         );
 
         let distance_to_plane = to_point.dot(&self.normal()).abs();
@@ -218,9 +219,9 @@ impl<T: Scalar> Ellipse3D<T> {
     /// 点が楕円の内部にあるかを判定
     pub fn contains_point(&self, point: &Point3D<T>) -> bool {
         let to_point = Vector3D::new(
-            point.x() - self.center().x(),
-            point.y() - self.center().y(),
-            point.z() - self.center().z(),
+            point.x() - self.center_internal().x(),
+            point.y() - self.center_internal().y(),
+            point.z() - self.center_internal().z(),
         );
 
         // 楕円の局所座標系での座標
@@ -234,8 +235,8 @@ impl<T: Scalar> Ellipse3D<T> {
         }
 
         // 楕円の方程式: (u/a)² + (v/b)² <= 1
-        let u_normalized = u_coord / self.semi_major_axis();
-        let v_normalized = v_coord / self.semi_minor_axis();
+        let u_normalized = u_coord / self.semi_major_internal();
+        let v_normalized = v_coord / self.semi_minor_internal();
 
         u_normalized * u_normalized + v_normalized * v_normalized <= T::ONE
     }

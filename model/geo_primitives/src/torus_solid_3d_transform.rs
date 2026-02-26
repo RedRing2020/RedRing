@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// トーラス固体の行列変換（Matrix4x4）
     ///
     /// トーラスの原点、軸方向をMatrix変換し、半径をスケール変換して新しいトーラス固体を構築
@@ -40,19 +20,19 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<TorusSolid3D<T>, TransformError> {
         // 原点を変換
-        let origin_vec = point_to_analysis_vector(*torus_solid.origin());
+        let origin_vec: Vector3<T> = (*torus_solid.origin()).into();
         let transformed_origin_vec = matrix.transform_point_3d(&origin_vec);
-        let new_origin = analysis_vector_to_point(transformed_origin_vec);
+        let new_origin: Point3D<T> = transformed_origin_vec.into();
 
         // Z軸方向を変換
-        let z_axis_vec = vector_to_analysis_vector(torus_solid.z_axis().as_vector());
+        let z_axis_vec: Vector3<T> = torus_solid.z_axis().as_vector().into();
         let transformed_z_axis_vec = matrix.transform_vector_3d(&z_axis_vec);
-        let new_z_axis_vector = analysis_vector_to_vector(transformed_z_axis_vec);
+        let new_z_axis_vector: Vector3D<T> = transformed_z_axis_vec.into();
 
         // X軸方向を変換
-        let x_axis_vec = vector_to_analysis_vector(torus_solid.x_axis().as_vector());
+        let x_axis_vec: Vector3<T> = torus_solid.x_axis().as_vector().into();
         let transformed_x_axis_vec = matrix.transform_vector_3d(&x_axis_vec);
-        let new_x_axis_vector = analysis_vector_to_vector(transformed_x_axis_vec);
+        let new_x_axis_vector: Vector3D<T> = transformed_x_axis_vec.into();
 
         // スケール倍率を計算（半径の変換に使用）
         let original_z_length = torus_solid.z_axis().as_vector().length();
@@ -202,18 +182,19 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSolid3D<T> {
     /// 平行移動
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 原点のみ平行移動、他の属性は不変
+        let origin = self.origin_internal();
         let new_origin = Point3D::new(
-            self.origin().x() + translation.x(),
-            self.origin().y() + translation.y(),
-            self.origin().z() + translation.z(),
+            origin.x() + translation.x(),
+            origin.y() + translation.y(),
+            origin.z() + translation.z(),
         );
 
         TorusSolid3D::new(
             new_origin,
-            *self.z_axis(),
-            *self.x_axis(),
-            self.major_radius(),
-            self.minor_radius(),
+            *self.z_axis_internal(),
+            *self.x_axis_internal(),
+            self.major_radius_internal(),
+            self.minor_radius_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -225,7 +206,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSolid3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(center.origin(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(center.origin_internal(), axis, angle)?;;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -237,7 +218,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSolid3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(center.origin(), scale_x, scale_y, scale_z)?;
+        let matrix = analysis_transform::scale_matrix(center.origin_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 

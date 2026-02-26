@@ -1,0 +1,72 @@
+name: Common Architecture Dependency Check
+
+on:
+  workflow_call:
+    inputs:
+      verbose:
+        description: "Enable verbose dependency output"
+        required: false
+        type: boolean
+        default: false
+      exit_on_error:
+        description: "Fail workflow immediately when dependency violations are found"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-dependency-check:
+    name: Architecture Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Architecture Dependency Check
+        shell: pwsh
+        run: |
+          $args = @()
+          if ('${{ inputs.exit_on_error }}' -eq 'true') {
+            $args += '-ExitOnError'
+          }
+          if ('${{ inputs.verbose }}' -eq 'true') {
+            $args += '-Verbose'
+          }
+          ./scripts/check_architecture_dependencies.ps1 @args
+
+      - name: Check Core/Extension Foundation Pattern Compliance
+        shell: bash
+        run: |
+          set -e
+          echo "Checking Core/Extension Foundation pattern compliance..."
+
+          echo "Checking for forbidden direct primitive imports..."
+
+          FORBIDDEN_FOUND=""
+          for file in $(find . -name "*.rs" \
+            -not -path "./target/*" \
+            -not -path "./model/geo_primitives/*" \
+            -not -path "./docs/*" \
+            -not -path "*/tests/*" \
+            -not -name "*test*.rs" \
+            -not -name "*example*.rs"); do
+
+            if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
+              if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
+                echo "❌ Forbidden import in: $file"
+                grep -n "use geo_primitives::" "$file" | head -3
+                FORBIDDEN_FOUND="true"
+              fi
+            fi
+          done
+
+          if [ -n "$FORBIDDEN_FOUND" ]; then
+            echo "Forbidden direct geo_primitives import outside geo_primitives crate"
+            exit 1
+          fi
+
+          echo "✅ Foundation architecture compliance check passed!"

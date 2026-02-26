@@ -127,59 +127,7 @@ impl<T: Scalar> Point3D<T> {
 
 ## 使用例
 
-### 基本変換
-
-```rust
-use analysis::linalg::vector::Vector3;
-use geo_foundation::{AnalysisTransform3D, Angle};
-use geo_primitives::TriangleMesh3D;
-
-let mesh = TriangleMesh3D::new(vertices, indices)?;
-
-// 平行移動
-let translation = Vector3::new(1.0, 2.0, 3.0);
-let translated = mesh.translate_analysis(&translation)?;
-
-// 軸回転
-let axis = Vector3::new(0.0, 0.0, 1.0);  // Z軸
-let angle = Angle::from_degrees(90.0);
-let rotated = mesh.rotate_analysis(&mesh, &axis, angle)?;
-
-// 均等スケール
-let scaled = mesh.uniform_scale_analysis(&mesh, 2.0)?;
-```
-
-### 複合変換
-
-```rust
-// ワンステップ複合変換
-let result = mesh.apply_composite_transform(
-    Some(&Vector3::new(1.0, 0.0, 0.0)),           // 平行移動
-    Some((&mesh, &Vector3::z_axis(), angle)),      // Z軸回転
-    Some((2.0, 2.0, 2.0))                         // スケール
-)?;
-
-// 均等スケール版
-let result = mesh.apply_composite_transform_uniform(
-    Some(&translation),
-    Some((&mesh, &axis, angle)),
-    Some(2.0)                                     // 均等スケール
-)?;
-```
-
-### Matrix直接操作
-
-```rust
-use analysis::linalg::matrix::Matrix4x4;
-
-// カスタム変換マトリックス
-let custom_matrix = Matrix4x4::identity()
-    * Matrix4x4::translation_3d(&Vector3::new(1.0, 2.0, 3.0))
-    * Matrix4x4::rotation_axis(&Vector3::z_axis(), angle.to_radians())
-    * Matrix4x4::scale_3d(&Vector3::new(2.0, 2.0, 2.0));
-
-let transformed = mesh.transform_point_matrix(&custom_matrix);
-```
+詳細なコード例は [transform_examples.md](./transform_examples.md) を参照してください。
 
 ## エラーハンドリング
 
@@ -244,10 +192,10 @@ trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;  // analysis::Matrix4x4<T>
     type Angle;      // geo_foundation::Angle<T>
     type Output;     // 通常はSelf
-    
+
     // 直接Matrix変換
     fn transform_point_matrix(&self, matrix: &Self::Matrix4x4) -> Self::Output;
-    
+
     // Analysisベースの字全な変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
     fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;

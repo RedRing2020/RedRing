@@ -8,6 +8,14 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 geo_primitives = { path = "../geo_primitives" }
 geo_foundation = { path = "../geo_foundation" }
+logging_foundation = { path = "../../foundation/logging_foundation" }
+tracing.workspace = true
+
+# Error handling
+thiserror = "2.0"
+
+# SVG parsing
+roxmltree = "0.20"
 
 # Optional async support
 tokio = { version = "1.0", features = ["fs", "io-util"], optional = true }

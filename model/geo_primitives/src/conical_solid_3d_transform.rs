@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 円錐ソリッドの行列変換（Matrix4x4）
     ///
     /// 円錐の中心点、軸方向、参照方向をMatrix変換し、新しい円錐ソリッドを構築
@@ -40,19 +20,19 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<ConicalSolid3D<T>, TransformError> {
         // 中心点を変換
-        let center_vec = point_to_analysis_vector(conical_solid.center());
+        let center_vec: Vector3<T> = conical_solid.center().into();
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
-        let new_center = analysis_vector_to_point(transformed_center_vec);
+        let new_center: Point3D<T> = transformed_center_vec.into();
 
         // 軸方向を変換
-        let axis_vec = vector_to_analysis_vector(conical_solid.axis().as_vector());
+        let axis_vec: Vector3<T> = conical_solid.axis().as_vector().into();
         let transformed_axis_vec = matrix.transform_vector_3d(&axis_vec);
-        let new_axis_vector = analysis_vector_to_vector(transformed_axis_vec);
+        let new_axis_vector: Vector3D<T> = transformed_axis_vec.into();
 
         // 参照方向を変換
-        let ref_dir_vec = vector_to_analysis_vector(conical_solid.ref_direction().as_vector());
+        let ref_dir_vec: Vector3<T> = conical_solid.ref_direction().as_vector().into();
         let transformed_ref_dir_vec = matrix.transform_vector_3d(&ref_dir_vec);
-        let new_ref_direction_vector = analysis_vector_to_vector(transformed_ref_dir_vec);
+        let new_ref_direction_vector: Vector3D<T> = transformed_ref_dir_vec.into();
 
         // スケール倍率を軸方向から計算（半径と高さの変換に使用）
         let original_axis_length = conical_solid.axis().as_vector().length();
@@ -110,7 +90,7 @@ pub mod analysis_transform {
             axis.z() / axis_length,
         );
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
@@ -132,7 +112,7 @@ pub mod analysis_transform {
             ));
         }
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let scale_matrix = Matrix4x4::scale(scale_x, scale_y, scale_z);
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
@@ -189,18 +169,19 @@ impl<T: Scalar> AnalysisTransform3D<T> for ConicalSolid3D<T> {
     /// 平行移動
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 中心点のみ平行移動、他の属性は不変
+        let center = self.center_internal();
         let new_center = Point3D::new(
-            self.center().x() + translation.x(),
-            self.center().y() + translation.y(),
-            self.center().z() + translation.z(),
+            center.x() + translation.x(),
+            center.y() + translation.y(),
+            center.z() + translation.z(),
         );
 
         ConicalSolid3D::new(
             new_center,
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.radius(),
-            self.height(),
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.radius_internal(),
+            self.height_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -212,7 +193,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for ConicalSolid3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 

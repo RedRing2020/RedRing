@@ -1,12 +1,13 @@
 //! CylindricalSurface3D のテストスイート
 //!
 //! Core機能、パラメータ化、曲面解析、STEP準拠性の包括的テスト
+//! Core Traits経由でのAPI使用を推奨
 
 #[cfg(test)]
 mod tests {
     use crate::{CylindricalSurface3D, Point3D, Vector3D};
     use approx::assert_relative_eq;
-    use geo_foundation::Scalar;
+    use geo_foundation::{CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Scalar};
 
     fn create_test_surface() -> CylindricalSurface3D<f64> {
         CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap()
@@ -27,8 +28,9 @@ mod tests {
         assert!(surface.is_some());
 
         let surface = surface.unwrap();
-        assert_eq!(surface.center(), center);
-        assert_eq!(surface.radius(), radius);
+        let center_tuple = CylindricalSurface3DProperties::center(&surface);
+        assert_eq!(center_tuple, (0.0, 0.0, 0.0));
+        assert_eq!(CylindricalSurface3DProperties::radius(&surface), radius);
     }
 
     #[test]
@@ -70,8 +72,13 @@ mod tests {
         let surface: CylindricalSurface3D<f32> =
             CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap();
 
-        assert_relative_eq!(surface.radius(), 5.0f32, epsilon = 1e-6);
-        assert_eq!(surface.center(), Point3D::new(1.0f32, 2.0f32, 3.0f32));
+        assert_relative_eq!(
+            CylindricalSurface3DProperties::radius(&surface),
+            5.0f32,
+            epsilon = 1e-6
+        );
+        let center_tuple = CylindricalSurface3DProperties::center(&surface);
+        assert_eq!(center_tuple, (1.0f32, 2.0f32, 3.0f32));
     }
 
     #[test]
@@ -177,18 +184,18 @@ mod tests {
         let surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 5.0).unwrap();
 
         // サーフェス上の点（距離0）
-        let surface_point = Point3D::new(5.0, 0.0, 0.0);
-        let distance = surface.distance_to_surface(surface_point);
+        let surface_point = (5.0, 0.0, 0.0);
+        let distance = CylindricalSurface3DMeasure::distance_to_point(&surface, surface_point);
         assert_relative_eq!(distance, 0.0, epsilon = 1e-10);
 
         // 内部の点
-        let internal_point = Point3D::new(3.0, 0.0, 0.0);
-        let distance = surface.distance_to_surface(internal_point);
+        let internal_point = (3.0, 0.0, 0.0);
+        let distance = CylindricalSurface3DMeasure::distance_to_point(&surface, internal_point);
         assert_relative_eq!(distance, 2.0, epsilon = 1e-10);
 
         // 外部の点
-        let external_point = Point3D::new(8.0, 0.0, 0.0);
-        let distance = surface.distance_to_surface(external_point);
+        let external_point = (8.0, 0.0, 0.0);
+        let distance = CylindricalSurface3DMeasure::distance_to_point(&surface, external_point);
         assert_relative_eq!(distance, 3.0, epsilon = 1e-10);
     }
 
@@ -229,11 +236,18 @@ mod tests {
 
         let surface = CylindricalSurface3D::new(center, axis, ref_direction, radius).unwrap();
 
-        // STEP座標系の検証
-        assert_eq!(surface.center(), center);
-        assert_eq!(surface.axis().as_vector(), axis);
-        assert_eq!(surface.ref_direction().as_vector(), ref_direction);
-        assert_eq!(surface.radius(), radius);
+        // STEP座標系の検証（Core Traits経由）
+        let center_tuple = CylindricalSurface3DProperties::center(&surface);
+        assert_eq!(center_tuple, (10.0, 20.0, 30.0));
+
+        let axis_tuple = CylindricalSurface3DProperties::axis(&surface);
+        assert_eq!(axis_tuple, (0.0, 1.0, 0.0));
+
+        let ref_dir_tuple = CylindricalSurface3DProperties::ref_direction(&surface);
+        assert_eq!(ref_dir_tuple, (1.0, 0.0, 0.0));
+
+        let radius_value = CylindricalSurface3DProperties::radius(&surface);
+        assert_eq!(radius_value, radius);
 
         // Y軸（派生軸）の検証
         let y_axis = surface.y_axis();

@@ -6,7 +6,9 @@
 
 use crate::{Angle, Arc3D, Direction3D, Point3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Scalar, TransformError};
+use geo_foundation::{
+    core::arc_traits::Arc3DProperties, AnalysisTransform3D, Scalar, TransformError,
+};
 
 /// Arc3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
@@ -18,7 +20,8 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<Arc3D<T>, TransformError> {
         // 中心点の変換
-        let center_vec = Vector3::new(arc.center().x(), arc.center().y(), arc.center().z());
+        let (cx, cy, cz) = Arc3DProperties::center(arc);
+        let center_vec = Vector3::new(cx, cy, cz);
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
         let transformed_center = Point3D::new(
             transformed_center_vec.x(),
@@ -65,7 +68,7 @@ pub mod analysis_transform {
         let unit_x = Vector3::new(T::ONE, T::ZERO, T::ZERO);
         let transformed_x = matrix.transform_vector_3d(&unit_x);
         let scale_factor = transformed_x.norm();
-        let transformed_radius = arc.radius() * scale_factor;
+        let transformed_radius = Arc3DProperties::radius(arc) * scale_factor;
 
         if transformed_radius <= T::ZERO {
             return Err(TransformError::InvalidGeometry(
@@ -151,18 +154,10 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.center();
-        let to_origin = analysis_transform::translation_matrix_3d(
-            -center_point.x(),
-            -center_point.y(),
-            -center_point.z(),
-        );
+        let (cx, cy, cz) = Arc3DProperties::center(center);
+        let to_origin = analysis_transform::translation_matrix_3d(-cx, -cy, -cz);
         let rotation = analysis_transform::axis_rotation_matrix_3d(axis, angle);
-        let from_origin = analysis_transform::translation_matrix_3d(
-            center_point.x(),
-            center_point.y(),
-            center_point.z(),
-        );
+        let from_origin = analysis_transform::translation_matrix_3d(cx, cy, cz);
 
         let combined_matrix = from_origin.mul_matrix(&rotation.mul_matrix(&to_origin));
         analysis_transform::transform_arc_3d(self, &combined_matrix)
@@ -190,18 +185,10 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
             ));
         }
 
-        let center_point = center.center();
-        let to_origin = analysis_transform::translation_matrix_3d(
-            -center_point.x(),
-            -center_point.y(),
-            -center_point.z(),
-        );
+        let (cx, cy, cz) = Arc3DProperties::center(center);
+        let to_origin = analysis_transform::translation_matrix_3d(-cx, -cy, -cz);
         let scale = analysis_transform::scale_matrix_3d(scale_x, scale_y, scale_z);
-        let from_origin = analysis_transform::translation_matrix_3d(
-            center_point.x(),
-            center_point.y(),
-            center_point.z(),
-        );
+        let from_origin = analysis_transform::translation_matrix_3d(cx, cy, cz);
 
         let combined_matrix = from_origin.mul_matrix(&scale.mul_matrix(&to_origin));
         analysis_transform::transform_arc_3d(self, &combined_matrix)
@@ -304,9 +291,10 @@ mod tests {
 
         let result = arc.translate_analysis(&translation).unwrap();
 
-        assert_eq!(result.center().x(), 3.0);
-        assert_eq!(result.center().y(), -2.0);
-        assert_eq!(result.center().z(), 5.0);
+        let (cx, cy, cz) = result.center();
+        assert_eq!(cx, 3.0);
+        assert_eq!(cy, -2.0);
+        assert_eq!(cz, 5.0);
         assert_eq!(result.radius(), 2.0);
         assert_eq!(result.start_angle().to_degrees(), 0.0);
         assert_eq!(result.end_angle().to_degrees(), 90.0);
@@ -328,9 +316,10 @@ mod tests {
         assert_eq!(result.start_angle().to_degrees(), 0.0);
         assert_eq!(result.end_angle().to_degrees(), 90.0);
         // 中心は回転しない（原点中心）
-        assert!((result.center().x()).abs() < 1e-10);
-        assert!((result.center().y()).abs() < 1e-10);
-        assert!((result.center().z()).abs() < 1e-10);
+        let (cx, cy, cz) = result.center();
+        assert!(cx.abs() < 1e-10);
+        assert!(cy.abs() < 1e-10);
+        assert!(cz.abs() < 1e-10);
     }
 
     #[test]
@@ -361,9 +350,10 @@ mod tests {
         assert_eq!(result.start_angle().to_degrees(), 0.0);
         assert_eq!(result.end_angle().to_degrees(), 90.0);
         // 中心は原点なのでスケール後も原点
-        assert!((result.center().x()).abs() < 1e-10);
-        assert!((result.center().y()).abs() < 1e-10);
-        assert!((result.center().z()).abs() < 1e-10);
+        let (cx, cy, cz) = result.center();
+        assert!(cx.abs() < 1e-10);
+        assert!(cy.abs() < 1e-10);
+        assert!(cz.abs() < 1e-10);
     }
 
     #[test]
@@ -401,9 +391,10 @@ mod tests {
 
         let result = arc.transform_point_matrix(&matrix);
 
-        assert_eq!(result.center().x(), -1.0);
-        assert_eq!(result.center().y(), 4.0);
-        assert_eq!(result.center().z(), -2.0);
+        let (cx, cy, cz) = result.center();
+        assert_eq!(cx, -1.0);
+        assert_eq!(cy, 4.0);
+        assert_eq!(cz, -2.0);
         assert_eq!(result.radius(), 2.0);
     }
 

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="-10 -10 20 20">
+  <!-- NURBS曲線（3次、4制御点） -->
+  <path 
+    data-nurbs="true"
+    data-degree="3"
+    data-control-points="0,0,0; 3,0,0; 3,3,0; 0,3,0"
+    data-knots="0,0,0,0,1,1,1,1"
+    data-weights="1,1,1,1"
+    stroke="blue" 
+    stroke-width="0.1"
+    fill="none" />
+</svg>

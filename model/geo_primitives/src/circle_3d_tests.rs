@@ -23,9 +23,9 @@ mod tests {
         let radius = 5.0;
 
         let circle = Circle3D::new(center, normal, radius).unwrap();
-        assert_eq!(circle.center(), center);
-        assert_eq!(circle.normal(), normal);
-        assert_eq!(circle.radius(), radius);
+        assert_eq!(circle.center_internal(), center);
+        assert_eq!(circle.normal_internal(), normal);
+        assert_eq!(circle.radius_internal(), radius);
 
         // 無効な半径での作成失敗
         assert!(Circle3D::new(center, normal, 0.0).is_none());
@@ -40,21 +40,21 @@ mod tests {
         // XY平面の円
         let xy_circle = Circle3D::new_xy_plane(center, radius).unwrap();
         assert_eq!(
-            xy_circle.normal(),
+            xy_circle.normal_internal(),
             Direction3D::from_vector(Vector3D::unit_z()).unwrap()
         );
 
         // XZ平面の円
         let xz_circle = Circle3D::new_xz_plane(center, radius).unwrap();
         assert_eq!(
-            xz_circle.normal(),
+            xz_circle.normal_internal(),
             Direction3D::from_vector(Vector3D::unit_y()).unwrap()
         );
 
         // YZ平面の円
         let yz_circle = Circle3D::new_yz_plane(center, radius).unwrap();
         assert_eq!(
-            yz_circle.normal(),
+            yz_circle.normal_internal(),
             Direction3D::from_vector(Vector3D::unit_x()).unwrap()
         );
     }

@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 楕円体サーフェスの行列変換（Matrix4x4）
     ///
     /// 楕円体の中心点、軸方向、参照方向をMatrix変換し、新しい楕円体サーフェスを構築
@@ -40,33 +20,33 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<EllipsoidalSurface3D<T>, TransformError> {
         // 中心点を変換
-        let center_vec = point_to_analysis_vector(ellipsoidal_surface.center());
+        let center_vec: Vector3<T> = ellipsoidal_surface.center_internal().into();
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
-        let new_center = analysis_vector_to_point(transformed_center_vec);
+        let new_center: Point3D<T> = transformed_center_vec.into();
 
         // 軸方向を変換
-        let axis_vec = vector_to_analysis_vector(ellipsoidal_surface.axis().as_vector());
+        let axis_vec: Vector3<T> = ellipsoidal_surface.axis_internal().as_vector().into();
         let transformed_axis_vec = matrix.transform_vector_3d(&axis_vec);
-        let new_axis_vector = analysis_vector_to_vector(transformed_axis_vec);
+        let new_axis_vector: Vector3D<T> = transformed_axis_vec.into();
 
         // 参照方向を変換
-        let ref_dir_vec =
-            vector_to_analysis_vector(ellipsoidal_surface.ref_direction().as_vector());
+        let ref_dir_vec: Vector3<T> =
+            ellipsoidal_surface.ref_direction_internal().as_vector().into();
         let transformed_ref_dir_vec = matrix.transform_vector_3d(&ref_dir_vec);
-        let new_ref_direction_vector = analysis_vector_to_vector(transformed_ref_dir_vec);
+        let new_ref_direction_vector: Vector3D<T> = transformed_ref_dir_vec.into();
 
         // Y軸方向を変換（派生軸）
-        let y_axis_vec =
-            vector_to_analysis_vector(ellipsoidal_surface.derived_y_axis().as_vector());
+        let y_axis_vec: Vector3<T> =
+            ellipsoidal_surface.derived_y_axis_internal().as_vector().into();
         let transformed_y_axis_vec = matrix.transform_vector_3d(&y_axis_vec);
-        let new_y_axis_vector = analysis_vector_to_vector(transformed_y_axis_vec);
+        let new_y_axis_vector: Vector3D<T> = transformed_y_axis_vec.into();
 
         // スケール倍率を各軸方向から計算
-        let original_x_length = ellipsoidal_surface.ref_direction().as_vector().length();
+        let original_x_length = ellipsoidal_surface.ref_direction_internal().as_vector().length();
         let transformed_x_length = new_ref_direction_vector.length();
-        let original_y_length = ellipsoidal_surface.derived_y_axis().as_vector().length();
+        let original_y_length = ellipsoidal_surface.derived_y_axis_internal().as_vector().length();
         let transformed_y_length = new_y_axis_vector.length();
-        let original_z_length = ellipsoidal_surface.axis().as_vector().length();
+        let original_z_length = ellipsoidal_surface.axis_internal().as_vector().length();
         let transformed_z_length = new_axis_vector.length();
 
         if transformed_x_length.is_zero()
@@ -83,9 +63,9 @@ pub mod analysis_transform {
         let z_scale_factor = transformed_z_length / original_z_length;
 
         // 新しい半径を計算（各軸独立でスケール変換）
-        let new_a_radius = ellipsoidal_surface.a_radius() * x_scale_factor;
-        let new_b_radius = ellipsoidal_surface.b_radius() * y_scale_factor;
-        let new_c_radius = ellipsoidal_surface.c_radius() * z_scale_factor;
+        let new_a_radius = ellipsoidal_surface.a_radius_internal() * x_scale_factor;
+        let new_b_radius = ellipsoidal_surface.b_radius_internal() * y_scale_factor;
+        let new_c_radius = ellipsoidal_surface.c_radius_internal() * z_scale_factor;
 
         // 変換後の楕円体サーフェスを構築
         EllipsoidalSurface3D::new(
@@ -208,18 +188,18 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 中心点のみ平行移動、他の属性は不変
         let new_center = Point3D::new(
-            self.center().x() + translation.x(),
-            self.center().y() + translation.y(),
-            self.center().z() + translation.z(),
+            self.center_internal().x() + translation.x(),
+            self.center_internal().y() + translation.y(),
+            self.center_internal().z() + translation.z(),
         );
 
         EllipsoidalSurface3D::new(
             new_center,
-            self.axis().as_vector(),
-            self.ref_direction().as_vector(),
-            self.a_radius(),
-            self.b_radius(),
-            self.c_radius(),
+            self.axis_internal().as_vector(),
+            self.ref_direction_internal().as_vector(),
+            self.a_radius_internal(),
+            self.b_radius_internal(),
+            self.c_radius_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -231,7 +211,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -243,7 +223,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.center(), scale_x, scale_y, scale_z)?;
+        let matrix = analysis_transform::scale_matrix(&center.center_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -268,7 +248,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
         if let Some(scale_factors) = scale {
             let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
             let scale_mat = analysis_transform::scale_matrix(
-                &scale_center.center(),
+                &scale_center.center_internal(),
                 scale_factors.0,
                 scale_factors.1,
                 scale_factors.2,
@@ -277,7 +257,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.center(), axis, angle)?;
+            let rot_mat = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -326,19 +306,19 @@ mod tests {
 
         // 中心点が移動することを確認
         let expected_center = Point3D::new(5.0, 3.0, 1.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 軸と参照方向は変わらない
-        assert!((result.axis().x() - surface.axis().x()).abs() < f64::EPSILON);
-        assert!((result.axis().y() - surface.axis().y()).abs() < f64::EPSILON);
-        assert!((result.axis().z() - surface.axis().z()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().x() - surface.axis_internal().x()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().y() - surface.axis_internal().y()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().z() - surface.axis_internal().z()).abs() < f64::EPSILON);
 
         // 各軸の半径は変わらない
-        assert!((result.a_radius() - surface.a_radius()).abs() < f64::EPSILON);
-        assert!((result.b_radius() - surface.b_radius()).abs() < f64::EPSILON);
-        assert!((result.c_radius() - surface.c_radius()).abs() < f64::EPSILON);
+        assert!((result.a_radius_internal() - surface.a_radius_internal()).abs() < f64::EPSILON);
+        assert!((result.b_radius_internal() - surface.b_radius_internal()).abs() < f64::EPSILON);
+        assert!((result.c_radius_internal() - surface.c_radius_internal()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -354,14 +334,14 @@ mod tests {
 
         // 90度X軸回転後の中心点確認（原点なので変わらない）
         let expected_center = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.center().x() - expected_center.x()).abs() < 1e-10);
-        assert!((result.center().y() - expected_center.y()).abs() < 1e-10);
-        assert!((result.center().z() - expected_center.z()).abs() < 1e-10);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < 1e-10);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < 1e-10);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < 1e-10);
 
         // 軸方向が回転される（Z軸(0,0,1)をX軸周りに90度回転すると(0,-1,0)になる）
-        assert!((result.axis().x() - 0.0).abs() < 1e-10);
-        assert!((result.axis().y() - (-1.0)).abs() < 1e-10);
-        assert!((result.axis().z() - 0.0).abs() < 1e-10);
+        assert!((result.axis_internal().x() - 0.0).abs() < 1e-10);
+        assert!((result.axis_internal().y() - (-1.0)).abs() < 1e-10);
+        assert!((result.axis_internal().z() - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -378,14 +358,14 @@ mod tests {
 
         // 中心点がスケールされることを確認（原点なので変わらない）
         let expected_center = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 各軸の半径が独立してスケールされることを確認
-        assert!((result.a_radius() - surface.a_radius() * scale_x).abs() < f64::EPSILON);
-        assert!((result.b_radius() - surface.b_radius() * scale_y).abs() < f64::EPSILON);
-        assert!((result.c_radius() - surface.c_radius() * scale_z).abs() < f64::EPSILON);
+        assert!((result.a_radius_internal() - surface.a_radius_internal() * scale_x).abs() < f64::EPSILON);
+        assert!((result.b_radius_internal() - surface.b_radius_internal() * scale_y).abs() < f64::EPSILON);
+        assert!((result.c_radius_internal() - surface.c_radius_internal() * scale_z).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -400,14 +380,14 @@ mod tests {
 
         // 中心点がスケールされることを確認（原点なので変わらない）
         let expected_center = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 全ての半径が均等にスケールされることを確認
-        assert!((result.a_radius() - surface.a_radius() * scale_factor).abs() < f64::EPSILON);
-        assert!((result.b_radius() - surface.b_radius() * scale_factor).abs() < f64::EPSILON);
-        assert!((result.c_radius() - surface.c_radius() * scale_factor).abs() < f64::EPSILON);
+        assert!((result.a_radius_internal() - surface.a_radius_internal() * scale_factor).abs() < f64::EPSILON);
+        assert!((result.b_radius_internal() - surface.b_radius_internal() * scale_factor).abs() < f64::EPSILON);
+        assert!((result.c_radius_internal() - surface.c_radius_internal() * scale_factor).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -430,9 +410,9 @@ mod tests {
         // 複合変換の結果を確認
         // Scale(2,2,2) -> Rotate(0) -> Translate(1,1,1)
         let expected_center = Point3D::new(1.0, 1.0, 1.0); // (0*2+1, 0*2+1, 0*2+1)
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -464,14 +444,14 @@ mod tests {
 
         // 平行移動による中心点の変化を確認
         let expected_center = Point3D::new(2.0, 3.0, 4.0);
-        assert!((result.center().x() - expected_center.x()).abs() < f64::EPSILON);
-        assert!((result.center().y() - expected_center.y()).abs() < f64::EPSILON);
-        assert!((result.center().z() - expected_center.z()).abs() < f64::EPSILON);
+        assert!((result.center_internal().x() - expected_center.x()).abs() < f64::EPSILON);
+        assert!((result.center_internal().y() - expected_center.y()).abs() < f64::EPSILON);
+        assert!((result.center_internal().z() - expected_center.z()).abs() < f64::EPSILON);
 
         // 軸と参照方向は変わらない（平行移動のため）
-        assert!((result.axis().x() - surface.axis().x()).abs() < f64::EPSILON);
-        assert!((result.axis().y() - surface.axis().y()).abs() < f64::EPSILON);
-        assert!((result.axis().z() - surface.axis().z()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().x() - surface.axis_internal().x()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().y() - surface.axis_internal().y()).abs() < f64::EPSILON);
+        assert!((result.axis_internal().z() - surface.axis_internal().z()).abs() < f64::EPSILON);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-﻿//! Plane3DCoordinateSystem テストスイート
+//! Plane3DCoordinateSystem テストスイート
 //!
 //! **作成日: 2025年10月28日**
 //! **最終更新: 2025年10月29日**

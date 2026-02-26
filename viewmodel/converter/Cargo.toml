@@ -6,6 +6,19 @@ description = "Data conversion layer for MVVM architecture - Model to View trans
 
 [dependencies]
 geo_foundation = { path = "../../model/geo_foundation" }
-geo_primitives = { path = "../../model/geo_primitives" }
+# geo_core, geo_primitives は geo_algorithms 経由でアクセス（Foundation Pattern遵守）
+# - Point3D, Vector3D, Aabb3D (from geo_core)
+# - Arc3D, Circle3D等の形状 (from geo_primitives)
+geo_algorithms = { path = "../../model/geo_algorithms" }
 geo_io = { path = "../../model/geo_io" }
+cam_core = { path = "../../model/cam_core" }
+cam_entity = { path = "../../model/cam_entity" }
+cam_sim = { path = "../../model/cam_sim" }
+analysis = { path = "../../foundation/analysis" }
 tracing = "0.1"
+thiserror = "2.0"
+
+[dev-dependencies]
+tempfile = "3.0"
+geo_nurbs = { path = "../../model/geo_nurbs" }  # テスト用
+geo_primitives = { path = "../../model/geo_primitives" }  # テスト用（段階的移行中の型あり）

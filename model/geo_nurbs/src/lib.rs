@@ -7,13 +7,23 @@
 #![warn(clippy::all)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(clippy::items_after_test_module)]
 
 // NURBS実装モジュール
+pub mod adaptive_tessellation;
 pub mod basis;
 pub mod curve_2d;
+pub mod curve_2d_foundation;
+pub mod curve_2d_transform;
 pub mod curve_3d;
-pub mod surface;
-pub mod transform;
+pub mod curve_3d_extensions;
+pub mod curve_3d_foundation;
+pub mod curve_3d_transform;
+pub mod operations;
+pub mod surface_3d;
+pub mod surface_3d_extensions;
+pub mod surface_3d_foundation;
+pub mod surface_3d_transform;
 
 pub mod error;
 pub mod knot;
@@ -23,13 +33,18 @@ pub mod weight_storage;
 pub use analysis::Scalar;
 
 // 主要な型を再エクスポート
+pub use adaptive_tessellation::{
+    AdaptiveParamGrid, AdaptiveParamList, AdaptiveTessellationSettings,
+    NurbsCurveAdaptiveTessellation, NurbsSurfaceAdaptiveTessellation,
+};
 pub use basis::{basis_function, basis_functions, rational_basis_functions};
 pub use curve_2d::NurbsCurve2D;
 pub use curve_3d::NurbsCurve3D;
+pub use curve_3d_extensions::AabbOptions;
 pub use error::{NurbsError, Result};
-pub use knot::{validate_knot_vector, KnotVector};
-pub use surface::NurbsSurface3D;
-pub use transform::{CurveSplitting, DegreeElevation, KnotInsertion};
+pub use knot::{clamped_knot_vector, validate_knot_vector, KnotVector};
+pub use operations::{CurveSplitting, DegreeElevation, KnotInsertion};
+pub use surface_3d::NurbsSurface3D;
 pub use weight_storage::WeightStorage;
 
 /// NURBS関連の定数

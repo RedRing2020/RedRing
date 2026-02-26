@@ -1,11 +1,11 @@
-﻿//! Arc包含・角度判定拡張トレイト実装
+//! Arc包含・角度判定拡張トレイト実装
 //!
 //! 点の包含判定や角度範囲チェック機能
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
 use geo_foundation::{
-    abstracts::arc_traits::ArcContainment, tolerance_migration::DefaultTolerances, Angle, Scalar,
+    core::arc_traits::Arc2DContainment, tolerance_migration::DefaultTolerances, Angle, Scalar,
 };
 
 // ============================================================================
@@ -16,8 +16,8 @@ impl<T: Scalar> ArcContainment<T> for Arc2D<T> {
     /// 点が円弧上にあるかを判定
     fn contains_point(&self, point: &Point2D<T>) -> bool {
         // まず基底円上にあるかチェック
-        let distance_to_center = self.center().distance_to(point);
-        let radius_diff = (distance_to_center - self.radius()).abs();
+        let distance_to_center = self.center_internal().distance_to(point);
+        let radius_diff = (distance_to_center - self.radius_internal()).abs();
 
         if radius_diff > DefaultTolerances::distance::<T>() {
             return false;
@@ -56,7 +56,7 @@ impl<T: Scalar> ArcContainment<T> for Arc2D<T> {
 impl<T: Scalar> Arc2D<T> {
     /// 点から角度を計算
     pub fn point_to_angle(&self, point: &Point2D<T>) -> Angle<T> {
-        let center = self.center();
+        let center = self.center_internal();
         let dx = point.x() - center.x();
         let dy = point.y() - center.y();
         Angle::from_radians(dy.atan2(dx))
@@ -105,8 +105,8 @@ impl<T: Scalar> Arc2D<T> {
     /// 指定した tolerance での包含判定
     pub fn contains_point_with_tolerance(&self, point: &Point2D<T>, tolerance: T) -> bool {
         // 基底円からの距離チェック
-        let distance_to_center = self.center().distance_to(point);
-        let radius_diff = (distance_to_center - self.radius()).abs();
+        let distance_to_center = self.center_internal().distance_to(point);
+        let radius_diff = (distance_to_center - self.radius_internal()).abs();
 
         if radius_diff > tolerance {
             return false;

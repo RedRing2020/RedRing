@@ -1,29 +1,34 @@
 //! Arc3D の Foundation トレイト実装
 
-use crate::{Arc3D, BBox3D};
-use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
-};
+use crate::Arc3D;
+use geo_core::Aabb3D;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for Arc3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc
     }
 
-    fn bounding_box(&self) -> Self::BBox {
+    fn measure(&self) -> Option<T> {
+        Some(self.arc_length())
+    }
+}
+
+impl<T: Scalar> Bounded<T> for Arc3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
         // 円弧の開始点と終了点を含む境界ボックスを計算
         let _start_point = self.start_point();
         let _end_point = self.end_point();
 
         // 円弧の中心と半径から包含する境界ボックスを計算
-        let center = self.center();
-        let radius = self.radius();
+        let center = self.center_internal();
+        let radius = self.radius_internal();
 
         // 単純化のため、円全体の境界ボックスを返す
         // 実際の実装では角度範囲を考慮する必要がある
@@ -38,19 +43,15 @@ impl<T: Scalar> ExtensionFoundation<T> for Arc3D<T> {
             center.z() + radius,
         );
 
-        BBox3D::new(min_point, max_point)
-    }
-
-    fn measure(&self) -> Option<T> {
-        Some(self.arc_length())
+        Some(Aabb3D::new(min_point, max_point))
     }
 }
 
 impl<T: Scalar> TolerantEq<T> for Arc3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点、半径、開始角、終了角の比較
-        let center_distance = self.center().distance_to(&other.center());
-        let radius_diff = (self.radius() - other.radius()).abs();
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
+        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
         let start_angle_diff = (self.start_angle() - other.start_angle())
             .to_radians()
             .abs();
@@ -84,9 +85,9 @@ mod tests {
         assert!(arc.measure().is_some());
         assert_eq!(arc.measure().unwrap(), arc.arc_length());
 
-        let bbox = arc.bounding_box();
+        let aabb = arc.aabb().expect("Arc should have an AABB");
         // 中心を含む境界ボックス
-        assert!(bbox.min().x() <= center.x() && center.x() <= bbox.max().x());
+        assert!(aabb.min().x() <= center.x() && center.x() <= aabb.max().x());
     }
 
     #[test]

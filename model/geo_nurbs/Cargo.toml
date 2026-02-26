@@ -12,6 +12,7 @@ analysis = { path = "../../foundation/analysis" }
 
 # Model層の基盤（Foundation パターン準拠）
 geo_foundation = { path = "../geo_foundation" }
+geo_core = { path = "../geo_core" }
 
 # 数値計算
 nalgebra = "0.33.0"

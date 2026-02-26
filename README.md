@@ -203,6 +203,41 @@ cargo run
 cargo test --workspace
 ```
 
+### 🎮 Practical Key Bindings (after `cargo run`)
+
+> Note: `cargo run -h` shows Cargo help. The key bindings below are available **after launching the app**.
+
+#### Frequently Used
+
+| Key | Action |
+| --- | ------ |
+| `h` | Show in-app help in logs |
+| `r` | Reset camera |
+| `t` | Return to standard CAD view |
+| `w` | Toggle display mode (Wire/Solid in CAM view) |
+
+#### CAM Debug Workflow
+
+| Key | Action |
+| --- | ------ |
+| `p` | Show cutter path only (color-coded lines) |
+| `Shift+P` | Show CAM simulation visualization (ToolPath + Work + Removal) |
+| `k` | Next snapshot frame |
+| `j` | Previous snapshot frame |
+
+#### Octree Inspection
+
+| Key | Action |
+| --- | ------ |
+| `o` | Show Octree / advance depth |
+| `Shift+O` | Play Octree depth animation |
+
+#### Mouse Controls
+
+- `Ctrl + Left Drag`: Rotate
+- `Ctrl + Middle Drag`: Pan
+- `Ctrl + Right Drag`: Zoom
+
 #### 5. Generate Documentation (Optional)
 
 ```bash

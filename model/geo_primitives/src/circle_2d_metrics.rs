@@ -1,4 +1,4 @@
-﻿//! Circle2D 計量関連機能（ジェネリック版）
+//! Circle2D 計量関連機能（ジェネリック版）
 
 use crate::{Circle2D, Point2D};
 use geo_foundation::Scalar;
@@ -6,19 +6,19 @@ use geo_foundation::Scalar;
 impl<T: Scalar> Circle2D<T> {
     /// 直径を取得
     pub fn diameter(&self) -> T {
-        self.radius() + self.radius() // 2.0 * self.radius()と同等、但しT型対応
+        self.radius_internal() + self.radius_internal() // 2.0 * self.radius_internal()と同等、但しT型対応
     }
 
     /// 点から円の中心までの距離
     pub fn distance_to_center(&self, point: Point2D<T>) -> T {
-        let dx = point.x() - self.center().x();
-        let dy = point.y() - self.center().y();
+        let dx = point.x() - self.center_internal().x();
+        let dy = point.y() - self.center_internal().y();
         (dx * dx + dy * dy).sqrt()
     }
 
     /// 点から円周までの符号付き距離
     pub fn signed_distance_to_circle(&self, point: Point2D<T>) -> T {
-        self.distance_to_center(point) - self.radius()
+        self.distance_to_center(point) - self.radius_internal()
     }
 }
 

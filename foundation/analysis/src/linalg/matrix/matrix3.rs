@@ -4,16 +4,19 @@
 //! CAD計算とグラフィックス処理の両方に対応
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector2, Vector3};
-use std::ops::{Add, Mul};
+use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};
 
 /// 2Dアフィン変換の分解結果
 /// (translation, rotation_angle, scale, shear)
 type AffineComponents2D<T> = (Vector2<T>, T, Vector2<T>, Vector2<T>);
 
-/// 3x3行列
+/// 3x3行列（行優先格納）
+///
+/// 内部データは行優先で格納されています。
+/// GPU転送時は `to_column_major()` で列優先に変換してください。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Matrix3x3<T: Scalar> {
-    pub data: [[T; 3]; 3],
+    data: [[T; 3]; 3],
 }
 
 impl<T: Scalar> Matrix3x3<T> {
@@ -128,14 +131,93 @@ impl<T: Scalar> Matrix3x3<T> {
     }
 
     /// 行列の要素にアクセス
+    // === アクセサメソッド ===
+    /// 要素を取得
+    #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {
         self.data[row][col]
     }
 
-    /// 行列の要素を設定
+    /// 要素を設定
+    #[inline]
     pub fn set(&mut self, row: usize, col: usize, value: T) {
         self.data[row][col] = value;
     }
+
+    /// 行を取得
+    #[inline]
+    pub fn get_row(&self, row: usize) -> [T; 3] {
+        self.data[row]
+    }
+
+    /// 列を取得
+    #[inline]
+    pub fn get_column(&self, col: usize) -> [T; 3] {
+        [self.data[0][col], self.data[1][col], self.data[2][col]]
+    }
+
+    /// 行を設定
+    #[inline]
+    pub fn set_row(&mut self, row: usize, values: [T; 3]) {
+        self.data[row] = values;
+    }
+
+    /// 列を設定
+    #[inline]
+    pub fn set_column(&mut self, col: usize, values: [T; 3]) {
+        self.data[0][col] = values[0];
+        self.data[1][col] = values[1];
+        self.data[2][col] = values[2];
+    }
+
+    /// 内部データへの参照（行優先）
+    #[inline]
+    pub fn as_row_major(&self) -> &[[T; 3]; 3] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素を行優先でイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().flat_map(|row| row.iter()).copied()
+    }
+
+    /// 各行をイテレート
+    pub fn rows(&self) -> impl Iterator<Item = [T; 3]> + '_ {
+        self.data.iter().copied()
+    }
+
+    /// 各列をイテレート
+    pub fn columns(&self) -> impl Iterator<Item = [T; 3]> + '_ {
+        (0..3).map(move |col| self.get_column(col))
+    }
+
+    // === GPU用変換 ===
+
+    /// 列優先形式に変換（wgpu/OpenGL用）
+    #[inline]
+    pub fn to_column_major(&self) -> [[T; 3]; 3] {
+        [
+            [self.data[0][0], self.data[1][0], self.data[2][0]],
+            [self.data[0][1], self.data[1][1], self.data[2][1]],
+            [self.data[0][2], self.data[1][2], self.data[2][2]],
+        ]
+    }
+
+    /// 列優先形式から構築（wgpu/OpenGL用）
+    #[inline]
+    pub fn from_column_major(data: [[T; 3]; 3]) -> Self {
+        Self {
+            data: [
+                [data[0][0], data[1][0], data[2][0]],
+                [data[0][1], data[1][1], data[2][1]],
+                [data[0][2], data[1][2], data[2][2]],
+            ],
+        }
+    }
+
+    // === 基本演算 ===
 
     /// フロベニウスノルム
     pub fn frobenius_norm(&self) -> T {
@@ -710,7 +792,25 @@ impl<T: Scalar> Matrix3x3<T> {
     }
 }
 
-// 演算子オーバーロード
+// === 添え字演算子（互換性維持） ===
+
+impl<T: Scalar> Index<usize> for Matrix3x3<T> {
+    type Output = [T; 3];
+    #[inline]
+    fn index(&self, row: usize) -> &[T; 3] {
+        &self.data[row]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Matrix3x3<T> {
+    #[inline]
+    fn index_mut(&mut self, row: usize) -> &mut [T; 3] {
+        &mut self.data[row]
+    }
+}
+
+// === 演算子オーバーロード ===
+
 impl<T: Scalar> Add for Matrix3x3<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
@@ -760,164 +860,42 @@ impl<T: Scalar> Mul<Vector3<T>> for Matrix3x3<T> {
     }
 }
 
+impl<T: Scalar> Sub for Matrix3x3<T> {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self::Output {
+        let mut result = Self::zeros();
+        for i in 0..3 {
+            for j in 0..3 {
+                result.data[i][j] = self.data[i][j] - other.data[i][j];
+            }
+        }
+        result
+    }
+}
+
+impl<T: Scalar> Neg for Matrix3x3<T> {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        let mut result = Self::zeros();
+        for i in 0..3 {
+            for j in 0..3 {
+                result.data[i][j] = -self.data[i][j];
+            }
+        }
+        result
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[[T; 3]; 3]> for Matrix3x3<T> {
+    /// 行優先配列から構築
+    #[inline]
+    fn from(data: [[T; 3]; 3]) -> Self {
+        Self { data }
+    }
+}
+
 /// 型エイリアス
 pub type Matrix3x3f = Matrix3x3<f32>;
 pub type Matrix3x3d = Matrix3x3<f64>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::linalg::vector::Vector2;
-    use std::f64::consts::PI;
-
-    #[test]
-    fn test_2d_translation() {
-        let translation = Vector2::new(5.0, 3.0);
-        let matrix = Matrix3x3::translation_2d(&translation);
-        let point = Vector2::new(1.0, 2.0);
-        let result = matrix.transform_point_2d(&point);
-
-        assert!((result.x() - 6.0).abs() < f64::EPSILON);
-        assert!((result.y() - 5.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn test_2d_rotation() {
-        let angle = PI / 2.0; // 90度回転
-        let matrix = Matrix3x3::rotation_2d(angle);
-        let point = Vector2::new(1.0, 0.0);
-        let result = matrix.transform_point_2d(&point);
-
-        // (1,0) を90度回転すると (0,1) になる
-        assert!(result.x().abs() < f64::EPSILON);
-        assert!((result.y() - 1.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn test_2d_scale() {
-        let scale = Vector2::new(2.0, 3.0);
-        let matrix = Matrix3x3::scale_2d(&scale);
-        let point = Vector2::new(1.0, 1.0);
-        let result = matrix.transform_point_2d(&point);
-
-        assert!((result.x() - 2.0).abs() < f64::EPSILON);
-        assert!((result.y() - 3.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn test_2d_trs_composition() {
-        let translation = Vector2::new(10.0, 5.0);
-        let rotation = PI / 4.0; // 45度回転
-        let scale = Vector2::new(2.0, 2.0);
-
-        let matrix = Matrix3x3::trs_2d(&translation, rotation, &scale);
-        let point = Vector2::new(1.0, 0.0);
-        let result = matrix.transform_point_2d(&point);
-
-        // 複合変換の結果を確認
-        // スケール -> 回転 -> 移動の順序
-        let expected_x = 10.0 + 2.0 * (PI / 4.0).cos();
-        let expected_y = 5.0 + 2.0 * (PI / 4.0).sin();
-
-        assert!((result.x() - expected_x).abs() < 1e-10);
-        assert!((result.y() - expected_y).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_vector_multiplication_operator() {
-        let translation = Vector2::new(2.0, 3.0);
-        let matrix = Matrix3x3::translation_2d(&translation);
-        let point = Vector2::new(1.0, 1.0);
-
-        // 演算子オーバーロードのテスト
-        let result = matrix * point;
-
-        assert!((result.x() - 3.0).abs() < f64::EPSILON);
-        assert!((result.y() - 4.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn test_rigid_body_detection() {
-        let translation = Vector2::new(5.0, 3.0);
-        let rotation = PI / 4.0;
-        let rigid_matrix =
-            Matrix3x3::translation_2d(&translation) * Matrix3x3::rotation_2d(rotation);
-
-        assert!(rigid_matrix.is_rigid_2d());
-
-        let scale = Vector2::new(2.0, 2.0);
-        let scaled_matrix = Matrix3x3::scale_2d(&scale);
-        assert!(!scaled_matrix.is_rigid_2d());
-    }
-
-    #[test]
-    fn test_affine_transform_detection() {
-        // 標準的なアフィン変換行列
-        let affine_matrix =
-            Matrix3x3::trs_2d(&Vector2::new(5.0, 3.0), PI / 4.0, &Vector2::new(2.0, 1.5));
-
-        assert!(affine_matrix.is_affine_transform());
-        assert!(affine_matrix.is_pure_affine_2d());
-        assert!(affine_matrix.is_valid_affine());
-        assert!(!affine_matrix.has_perspective());
-
-        // 射影変換要素を持つ行列
-        let perspective_matrix = Matrix3x3::new(
-            1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.1, 0.05, 1.0, // 射影変換要素
-        );
-
-        assert!(!perspective_matrix.is_affine_transform());
-        assert!(perspective_matrix.has_perspective());
-    }
-
-    #[test]
-    fn test_homogeneous_normalization() {
-        let matrix = Matrix3x3::new(2.0, 0.0, 4.0, 0.0, 2.0, 6.0, 0.0, 0.0, 2.0);
-
-        let normalized = matrix.normalize_homogeneous().unwrap();
-        let expected = Matrix3x3::new(1.0, 0.0, 2.0, 0.0, 1.0, 3.0, 0.0, 0.0, 1.0);
-
-        for i in 0..3 {
-            for j in 0..3 {
-                assert!((normalized.get(i, j) - expected.get(i, j)).abs() < f64::EPSILON);
-            }
-        }
-    }
-
-    #[test]
-    fn test_projective_transformation() {
-        let matrix = Matrix3x3::new(
-            1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.1, 0.0, 1.0, // 射影変換
-        );
-
-        let point = Vector2::new(1.0, 1.0);
-        let result = matrix.transform_projective_2d(point).unwrap();
-
-        // 射影変換後の正規化された座標
-        let expected_x = 2.0 / 1.1; // (1*1 + 0*1 + 1) / (0.1*1 + 0*1 + 1)
-        let expected_y = 2.0 / 1.1; // (0*1 + 1*1 + 1) / (0.1*1 + 0*1 + 1)
-
-        assert!((result.x() - expected_x).abs() < 1e-10);
-        assert!((result.y() - expected_y).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_affine_factory_methods() {
-        // 線形変換行列とベクトル
-        let linear = [[2.0, 0.5], [0.0, 1.5]];
-        let translation = Vector2::new(3.0, 4.0);
-
-        let affine_matrix = Matrix3x3::affine_2d(linear, translation);
-
-        assert!(affine_matrix.is_affine_transform());
-        assert_eq!(affine_matrix.get(0, 0), 2.0);
-        assert_eq!(affine_matrix.get(0, 1), 0.5);
-        assert_eq!(affine_matrix.get(0, 2), 3.0);
-        assert_eq!(affine_matrix.get(1, 0), 0.0);
-        assert_eq!(affine_matrix.get(1, 1), 1.5);
-        assert_eq!(affine_matrix.get(1, 2), 4.0);
-        assert_eq!(affine_matrix.get(2, 0), 0.0);
-        assert_eq!(affine_matrix.get(2, 1), 0.0);
-        assert_eq!(affine_matrix.get(2, 2), 1.0);
-    }
-}

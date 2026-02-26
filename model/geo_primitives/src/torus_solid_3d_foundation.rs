@@ -4,78 +4,74 @@
 // ExtensionFoundation トレイトを実装し、統一されたインターフェースを提供します。
 // 境界ボックス計算、測度（体積）、プリミティブ種別の分類を行います。
 
-use crate::{BBox3D, Point3D, TorusSolid3D};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar};
+use crate::TorusSolid3D;
+use geo_core::Aabb3D;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TorusSolid3DMeasure};
 
 impl<T: Scalar> ExtensionFoundation<T> for TorusSolid3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::TorusSolid
     }
 
-    /// トーラス固体の境界ボックスを計算
-    ///
-    /// トーラス固体を完全に包含する最小の軸に平行な直方体を計算します。
-    /// 主半径と副半径の両方を考慮した正確な境界を提供します。
-    fn bounding_box(&self) -> Self::BBox {
-        let major_radius = self.major_radius();
-        let minor_radius = self.minor_radius();
+    fn measure(&self) -> Option<T> {
+        Some(self.volume())
+    }
+}
+
+impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        let major_radius = self.major_radius_internal();
+        let minor_radius = self.minor_radius_internal();
         let total_radius = major_radius + minor_radius;
 
-        let origin = self.origin();
+        let origin = self.origin_internal();
 
         // 標準的な軸配置の場合は簡易計算
-        let _x_axis = self.x_axis();
-        let _y_axis = self.y_axis();
-        let z_axis = self.z_axis();
+        let _x_axis = self.x_axis_internal();
+        let _y_axis = self.y_axis_internal();
+        let z_axis = self.z_axis_internal();
 
         // 主回転軸（Z軸）が標準軸の場合
         if (z_axis.z() - T::ONE).abs() < T::EPSILON {
             // XY平面でのトーラス：Z方向は副半径のみ
-            BBox3D::new(
-                Point3D::new(
+            Some(Aabb3D::new(
+                crate::Point3D::new(
                     origin.x() - total_radius,
                     origin.y() - total_radius,
                     origin.z() - minor_radius,
                 ),
-                Point3D::new(
+                crate::Point3D::new(
                     origin.x() + total_radius,
                     origin.y() + total_radius,
                     origin.z() + minor_radius,
                 ),
-            )
+            ))
         } else {
             // 回転されたトーラスの場合：保守的な境界ボックス
             let max_extent = total_radius;
-            BBox3D::new(
-                Point3D::new(
+            Some(Aabb3D::new(
+                crate::Point3D::new(
                     origin.x() - max_extent,
                     origin.y() - max_extent,
                     origin.z() - max_extent,
                 ),
-                Point3D::new(
+                crate::Point3D::new(
                     origin.x() + max_extent,
                     origin.y() + max_extent,
                     origin.z() + max_extent,
                 ),
-            )
+            ))
         }
-    }
-
-    /// トーラス固体の測度（体積）を返す
-    ///
-    /// # Returns
-    /// * `Some(T)` - トーラス固体の体積 (2π²R²r)
-    fn measure(&self) -> Option<T> {
-        Some(self.volume())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Direction3D, Vector3D};
+    use crate::{Direction3D, Point3D, Vector3D};
+    use geo_foundation::TorusSolid3DMeasure;
 
     #[test]
     fn test_primitive_kind() {
@@ -86,7 +82,7 @@ mod tests {
     #[test]
     fn test_bounding_box_standard_torus() {
         let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
-        let bbox = torus.bounding_box();
+        let bbox = torus.aabb().expect("should have aabb");
 
         // 標準トーラス（Z軸中心）の境界ボックス
         // 総半径 = 3.0 + 1.0 = 4.0
@@ -107,7 +103,7 @@ mod tests {
 
         let torus = TorusSolid3D::new(Point3D::origin(), z_axis, x_axis, 3.0, 1.0).unwrap();
 
-        let bbox = torus.bounding_box();
+        let bbox = torus.aabb().expect("should have aabb");
 
         // 回転により境界が変化することを確認
         assert!(bbox.max().x() > 3.5);
@@ -132,7 +128,7 @@ mod tests {
         assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSolid);
         assert!(torus.measure().is_some());
 
-        let bbox = torus.bounding_box();
+        let bbox = torus.aabb().expect("should have aabb");
         let bbox_volume = (bbox.max().x() - bbox.min().x())
             * (bbox.max().y() - bbox.min().y())
             * (bbox.max().z() - bbox.min().z());

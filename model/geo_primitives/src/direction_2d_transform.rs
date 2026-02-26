@@ -12,29 +12,17 @@ use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector2への変換
-    pub fn direction_to_analysis_vector<T: Scalar>(direction: &Direction2D<T>) -> Vector2<T> {
-        Vector2::new(direction.x(), direction.y())
-    }
-
-    /// Analysis Vector2からの変換（正規化保証）
-    pub fn analysis_vector_to_direction<T: Scalar>(
-        vector: Vector2<T>,
-    ) -> Result<Direction2D<T>, TransformError> {
-        let vector2d = Vector2D::new(vector.x(), vector.y());
-        Direction2D::from_vector(vector2d).ok_or_else(|| {
-            TransformError::ZeroVector("Transformed direction vector is zero".to_string())
-        })
-    }
-
     /// 単一方向ベクトルの3x3行列変換（方向ベクトルとして、平行移動成分を無視）
     pub fn transform_direction_2d<T: Scalar>(
         direction: &Direction2D<T>,
         matrix: &Matrix3x3<T>,
     ) -> Result<Direction2D<T>, TransformError> {
-        let vec = direction_to_analysis_vector(direction);
+        let vec: Vector2<T> = (*direction).into();
         let transformed = matrix.transform_vector_2d(&vec);
-        analysis_vector_to_direction(transformed)
+        let vector2d: Vector2D<T> = transformed.into();
+        Direction2D::from_vector(vector2d).ok_or_else(|| {
+            TransformError::ZeroVector("Transformed direction vector is zero".to_string())
+        })
     }
 
     /// 複数方向ベクトルの一括3x3行列変換

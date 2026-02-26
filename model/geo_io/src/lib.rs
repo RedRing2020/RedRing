@@ -8,21 +8,13 @@
 //! - PLY (予定)
 //!
 //! # 使用例
-//! ```rust,no_run
-//! use geo_io::stl;
-//! use geo_primitives::TriangleMesh3D;
-//! use std::path::Path;
-//!
-//! // STLファイルの読み込み
-//! let mesh: TriangleMesh3D<f64> = stl::load_stl(Path::new("model.stl"))?;
-//!
-//! // STLファイルの保存
-//! stl::save_stl(&mesh, Path::new("output.stl"))?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
+//! 詳細な使用例は `manual/geo_io_examples.md` を参照してください。
 
 pub mod error;
 pub mod stl;
+pub mod stl_bulk;
+pub mod svg;
 
 // Re-exports
 pub use error::{IoError, StlError};
+pub use stl_bulk::{StlIndexedBulk, StlTriangleBulk};

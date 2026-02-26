@@ -10,10 +10,11 @@ use geo_foundation::Scalar;
 impl<T: Scalar> CylindricalSolid3D<T> {
     /// 円柱ソリッドの上面の中心点を取得
     pub fn top_center(&self) -> Point3D<T> {
+        let center = self.center_internal();
         Point3D::new(
-            self.center().x() + self.axis().as_vector().x() * self.height(),
-            self.center().y() + self.axis().as_vector().y() * self.height(),
-            self.center().z() + self.axis().as_vector().z() * self.height(),
+            center.x() + self.axis().as_vector().x() * self.height(),
+            center.y() + self.axis().as_vector().y() * self.height(),
+            center.z() + self.axis().as_vector().z() * self.height(),
         )
     }
 
@@ -24,7 +25,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         let mut indices = Vec::new();
 
         // 底面と上面の中心点
-        let bottom_center = self.center();
+        let bottom_center = self.center_internal();
         let top_center = self.top_center();
 
         // 円形断面の頂点を生成
@@ -96,7 +97,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
 
     /// 質量特性計算（密度を指定）
     pub fn mass_properties(&self, density: T) -> MassProperties<T> {
-        let volume = self.volume();
+        let volume = self.volume_internal();
         let mass = volume * density;
 
         // 慣性モーメント（均質円柱）
@@ -112,7 +113,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
 
         MassProperties {
             mass,
-            center_of_mass: self.center(),
+            center_of_mass: self.center_internal(),
             inertia_local: [ixx_local, iyy_local, izz_local],
         }
     }

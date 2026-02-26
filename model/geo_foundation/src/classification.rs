@@ -13,8 +13,11 @@ pub enum PrimitiveKind {
     PolyLine,
     BezierCurve,
     NurbsCurve,
+    NurbsCurve2D,
+    NurbsCurve3D,
     Arc,
     Ray,
+    InfiniteLine,
 
     // 2次元: 面要素
     Circle,
@@ -27,6 +30,8 @@ pub enum PrimitiveKind {
     Sphere,
     SphericalSolid,     // 新式球ソリッド
     SphericalSurface,   // 新式球サーフェス
+    EllipsoidalSolid,   // 楕円体ソリッド
+    EllipsoidalSurface, // 楕円体サーフェス
     Cylinder,           // 旧式（互換性のため残存）
     CylindricalSolid,   // 新式ソリッド
     CylindricalSurface, // 新式サーフェス
@@ -39,6 +44,7 @@ pub enum PrimitiveKind {
     Plane,
     TriangleMesh,
     NurbsSurface,
+    NurbsSurface3D,
 
     // 複合要素
     Group,
@@ -69,8 +75,11 @@ impl PrimitiveKind {
             | PrimitiveKind::PolyLine
             | PrimitiveKind::BezierCurve
             | PrimitiveKind::NurbsCurve
+            | PrimitiveKind::NurbsCurve2D
+            | PrimitiveKind::NurbsCurve3D
             | PrimitiveKind::Arc
-            | PrimitiveKind::Ray => DimensionClass::One,
+            | PrimitiveKind::Ray
+            | PrimitiveKind::InfiniteLine => DimensionClass::One,
 
             PrimitiveKind::Circle
             | PrimitiveKind::Ellipse
@@ -80,12 +89,15 @@ impl PrimitiveKind {
             | PrimitiveKind::Plane
             | PrimitiveKind::CylindricalSurface  // サーフェスは2次元
             | PrimitiveKind::SphericalSurface    // 球サーフェスは2次元
+            | PrimitiveKind::EllipsoidalSurface  // 楕円体サーフェスは2次元
             | PrimitiveKind::ConicalSurface      // 円錐サーフェスは2次元
             | PrimitiveKind::TorusSurface        // トーラスサーフェスは2次元
-            | PrimitiveKind::NurbsSurface => DimensionClass::Two,
+            | PrimitiveKind::NurbsSurface
+            | PrimitiveKind::NurbsSurface3D => DimensionClass::Two,
 
             PrimitiveKind::Sphere
             | PrimitiveKind::SphericalSolid     // 新式球ソリッド
+            | PrimitiveKind::EllipsoidalSolid   // 楕円体ソリッド
             | PrimitiveKind::Cylinder           // 旧式（互換性）
             | PrimitiveKind::CylindricalSolid   // 新式ソリッド
             | PrimitiveKind::Cone
@@ -131,6 +143,8 @@ impl PrimitiveKind {
             PrimitiveKind::Circle
                 | PrimitiveKind::Ellipse
                 | PrimitiveKind::Sphere
+                | PrimitiveKind::EllipsoidalSolid
+                | PrimitiveKind::EllipsoidalSurface
                 | PrimitiveKind::SphericalSolid
                 | PrimitiveKind::SphericalSurface
                 | PrimitiveKind::Cylinder

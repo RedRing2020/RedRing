@@ -1,11 +1,11 @@
-﻿//! Arc点列生成拡張トレイト実装
+//! Arc点列生成拡張トレイト実装
 //!
 //! 円弧の分割や点列生成機能
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
 use geo_foundation::{
-    abstracts::arc_traits::{ArcMetrics, ArcSampling},
+    core::arc_traits::{Arc2DMeasure, Arc2DSampling},
     Scalar,
 };
 
@@ -177,7 +177,7 @@ impl<T: Scalar> Arc2D<T> {
 
         // 近似的に必要な分割数を計算
         let _angle_span = self.angle_span().to_radians();
-        let radius = self.radius();
+        let radius = self.radius_internal();
 
         // 小さな角度での弦長の近似: chord ≈ radius * angle
         let _estimated_chord_per_angle = radius;

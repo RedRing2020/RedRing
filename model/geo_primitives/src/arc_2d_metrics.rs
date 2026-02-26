@@ -1,10 +1,10 @@
-﻿//! Arc計量演算拡張トレイト実装
+//! Arc計量演算拡張トレイト実装
 //!
 //! 弧長・面積・中心角などの計算機能
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::Arc2D;
-use geo_foundation::{abstracts::arc_traits::ArcMetrics, Angle, Scalar};
+use geo_foundation::{core::arc_traits::Arc2DMeasure, Angle, Scalar};
 
 // ============================================================================
 // ArcMetrics Trait Implementation
@@ -13,13 +13,13 @@ use geo_foundation::{abstracts::arc_traits::ArcMetrics, Angle, Scalar};
 impl<T: Scalar> ArcMetrics<T> for Arc2D<T> {
     /// 弧長を計算
     fn arc_length(&self) -> T {
-        self.radius() * self.angle_span().to_radians()
+        self.radius_internal() * self.angle_span().to_radians()
     }
 
     /// 扇形の面積を計算
     fn sector_area(&self) -> T {
         let half = T::ONE / (T::ONE + T::ONE);
-        let radius = self.radius();
+        let radius = self.radius_internal();
         let angle_span = self.angle_span().to_radians();
         half * radius * radius * angle_span
     }
@@ -65,20 +65,20 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 扇形の周長を計算（弧長 + 2 × 半径）
     pub fn sector_perimeter(&self) -> T {
-        self.arc_length() + (T::ONE + T::ONE) * self.radius()
+        self.arc_length() + (T::ONE + T::ONE) * self.radius_internal()
     }
 
     /// 弦の長さを計算
     pub fn chord_length(&self) -> T {
         let angle_span = self.angle_span().to_radians();
         let half_angle = angle_span / (T::ONE + T::ONE);
-        (T::ONE + T::ONE) * self.radius() * half_angle.sin()
+        (T::ONE + T::ONE) * self.radius_internal() * half_angle.sin()
     }
 
     /// 矢高（sagitta）を計算
     pub fn sagitta(&self) -> T {
         let angle_span = self.angle_span().to_radians();
         let half_angle = angle_span / (T::ONE + T::ONE);
-        self.radius() * (T::ONE - half_angle.cos())
+        self.radius_internal() * (T::ONE - half_angle.cos())
     }
 }

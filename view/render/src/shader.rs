@@ -27,3 +27,17 @@ pub fn mesh_shader(device: &Device) -> wgpu::ShaderModule {
         source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/mesh.wgsl").into()),
     })
 }
+
+pub fn line_shader(device: &Device) -> wgpu::ShaderModule {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("Line Shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/line.wgsl").into()),
+    })
+}
+
+pub fn toolpath_shader(device: &Device) -> wgpu::ShaderModule {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("ToolPath Shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/toolpath.wgsl").into()),
+    })
+}

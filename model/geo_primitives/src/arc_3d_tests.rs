@@ -1,9 +1,9 @@
-﻿//! Arc3D の基本テスト
+//! Arc3D の基本テスト
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Arc3D, Point3D, Vector3D};
-use geo_foundation::Angle;
+use geo_foundation::{core::arc_traits::Arc3DProperties, Angle};
 
 #[cfg(test)]
 mod tests {
@@ -24,7 +24,8 @@ mod tests {
         let center = Point3D::new(0.0_f64, 0.0_f64, 0.0_f64);
         let arc = Arc3D::xy_arc(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
-        assert_eq!(arc.center(), center);
+        let (cx, cy, cz) = arc.center();
+        assert_eq!((cx, cy, cz), (center.x(), center.y(), center.z()));
         assert_eq!(arc.radius(), 5.0);
         assert_eq!(arc.normal(), Vector3D::unit_z());
         assert_eq!(arc.start_direction(), Vector3D::unit_x());
@@ -52,8 +53,9 @@ mod tests {
         let arc = Arc3D::from_three_points(start, middle, end).unwrap();
 
         // 中心は原点付近のはず
-        assert!((arc.center().x() - 0.0_f64).abs() < 1e-10);
-        assert!((arc.center().y() - 0.0_f64).abs() < 1e-10);
+        let (cx, cy, _cz) = arc.center();
+        assert!((cx - 0.0_f64).abs() < 1e-10);
+        assert!((cy - 0.0_f64).abs() < 1e-10);
         assert!((arc.radius() - 1.0_f64).abs() < 1e-10);
 
         // 一直線上の点では作成不可

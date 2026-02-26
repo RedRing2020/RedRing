@@ -1,9 +1,9 @@
-﻿//! Arc2D拡張メソッド
+//! Arc2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Arc2D の拡張機能
 //! 基本機能は arc_2d.rs を参照
 
-use crate::{Arc2D, Circle2D, Point2D};
+use crate::{arc_2d::Arc2D, Circle2D, Point2D};
 use geo_foundation::{tolerance_migration::DefaultTolerances, Angle, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
@@ -62,12 +62,7 @@ impl<T: Scalar> Arc2D<T> {
         let start_angle = start_dir.y().atan2(start_dir.x());
         let end_angle = end_dir.y().atan2(end_dir.x());
 
-        let center_f64 = geo_foundation::core::Point2D::new(
-            center.x().to_f64().unwrap_or(0.0),
-            center.y().to_f64().unwrap_or(0.0),
-        );
-        let radius_f64 = radius.to_f64().unwrap_or(0.0);
-        let circle = Circle2D::new(center_f64, radius_f64)?;
+        let circle = Circle2D::new(center, radius)?;
         Self::new(
             circle,
             Angle::from_radians(start_angle),
@@ -79,30 +74,27 @@ impl<T: Scalar> Arc2D<T> {
     // Extension Predicate Methods
     // ========================================================================
 
-    /// 完全円かどうかを判定
-    pub fn is_full_circle(&self) -> bool {
-        let span = self.angle_span();
-        let two_pi = Angle::from_radians(T::TAU);
-        span.is_equivalent_default(&two_pi)
-    }
+    // pub fn is_full_circle(&self) -> bool {
+    //     let span = self.angular_span();
+    //     (span - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON
+    // }
 
     /// 退化した円弧かどうかを判定（非常に小さい半径または角度範囲）
     pub fn is_degenerate(&self) -> bool {
-        self.radius() <= DefaultTolerances::distance::<T>()
-            || self.angle_span().to_radians() <= Angle::<T>::tolerance()
+        self.radius_internal() <= DefaultTolerances::distance::<T>()
+            || self.angular_span() <= T::EPSILON
     }
 
     /// 指定角度が円弧の範囲内にあるかを判定
     pub fn contains_angle(&self, angle: Angle<T>) -> bool {
-        let normalized_angle = self.normalize_angle(angle);
-        let normalized_start = self.normalize_angle(self.start_angle());
-        let normalized_end = self.normalize_angle(self.end_angle());
-
-        if normalized_start <= normalized_end {
-            normalized_angle >= normalized_start && normalized_angle <= normalized_end
+        // normalize_angle 未実装のため単純比較
+        let a = angle.to_radians();
+        let start = self.start_angle().to_radians();
+        let end = self.end_angle().to_radians();
+        if start <= end {
+            a >= start && a <= end
         } else {
-            // 0度をまたぐ場合
-            normalized_angle >= normalized_start || normalized_angle <= normalized_end
+            a >= start || a <= end
         }
     }
 
@@ -118,13 +110,12 @@ impl<T: Scalar> Arc2D<T> {
     // ========================================================================
 
     /// Circle2D に変換（完全円の場合のみ）
-    pub fn to_circle(&self) -> Option<Circle2D> {
-        if self.is_full_circle() {
-            let center_f64 = geo_foundation::core::Point2D::new(
-                self.center().x().to_f64().unwrap_or(0.0),
-                self.center().y().to_f64().unwrap_or(0.0),
-            );
-            Circle2D::new(center_f64, self.radius())
+    pub fn to_circle(&self) -> Option<Circle2D<T>> {
+        // 型安全な変換のみ許可
+        if (self.angular_span() - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON {
+            let center = self.center_internal();
+            let radius = self.radius_internal();
+            Some(Circle2D::new(center, radius)?)
         } else {
             None
         }

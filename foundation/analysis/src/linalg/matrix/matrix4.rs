@@ -4,12 +4,15 @@
 //! OpenGL/DirectX互換の行列演算を提供
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
-use std::ops::{Add, Mul};
+use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};
 
-/// 4x4行列
+/// 4x4行列（行優先格納）
+///
+/// 内部データは行優先で格納されています。
+/// GPU転送時は `to_column_major()` で列優先に変換してください。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Matrix4x4<T: Scalar> {
-    pub data: [[T; 4]; 4],
+    data: [[T; 4]; 4],
 }
 
 impl<T: Scalar> Matrix4x4<T> {
@@ -84,6 +87,125 @@ impl<T: Scalar> Matrix4x4<T> {
         )
     }
 
+    // === アクセサメソッド ===
+
+    /// 要素を取得
+    #[inline]
+    pub fn get(&self, row: usize, col: usize) -> T {
+        self.data[row][col]
+    }
+
+    /// 要素を設定
+    #[inline]
+    pub fn set(&mut self, row: usize, col: usize, value: T) {
+        self.data[row][col] = value;
+    }
+
+    /// 行を取得
+    #[inline]
+    pub fn get_row(&self, row: usize) -> [T; 4] {
+        self.data[row]
+    }
+
+    /// 列を取得
+    #[inline]
+    pub fn get_column(&self, col: usize) -> [T; 4] {
+        [
+            self.data[0][col],
+            self.data[1][col],
+            self.data[2][col],
+            self.data[3][col],
+        ]
+    }
+
+    /// 行を設定
+    #[inline]
+    pub fn set_row(&mut self, row: usize, values: [T; 4]) {
+        self.data[row] = values;
+    }
+
+    /// 列を設定
+    #[inline]
+    pub fn set_column(&mut self, col: usize, values: [T; 4]) {
+        self.data[0][col] = values[0];
+        self.data[1][col] = values[1];
+        self.data[2][col] = values[2];
+        self.data[3][col] = values[3];
+    }
+
+    /// 内部データへの参照（行優先）
+    #[inline]
+    pub fn as_row_major(&self) -> &[[T; 4]; 4] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素を行優先でイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().flat_map(|row| row.iter()).copied()
+    }
+
+    /// 各行をイテレート
+    pub fn rows(&self) -> impl Iterator<Item = [T; 4]> + '_ {
+        self.data.iter().copied()
+    }
+
+    /// 各列をイテレート
+    pub fn columns(&self) -> impl Iterator<Item = [T; 4]> + '_ {
+        (0..4).map(move |col| self.get_column(col))
+    }
+
+    // === GPU用変換 ===
+
+    /// 列優先形式に変換（wgpu/OpenGL用）
+    ///
+    /// GPU転送時はこのメソッドで列優先に変換してください。
+    #[inline]
+    pub fn to_column_major(&self) -> [[T; 4]; 4] {
+        [
+            [
+                self.data[0][0],
+                self.data[1][0],
+                self.data[2][0],
+                self.data[3][0],
+            ],
+            [
+                self.data[0][1],
+                self.data[1][1],
+                self.data[2][1],
+                self.data[3][1],
+            ],
+            [
+                self.data[0][2],
+                self.data[1][2],
+                self.data[2][2],
+                self.data[3][2],
+            ],
+            [
+                self.data[0][3],
+                self.data[1][3],
+                self.data[2][3],
+                self.data[3][3],
+            ],
+        ]
+    }
+
+    /// 列優先形式から構築（wgpu/OpenGL用）
+    #[inline]
+    pub fn from_column_major(data: [[T; 4]; 4]) -> Self {
+        Self {
+            data: [
+                [data[0][0], data[1][0], data[2][0], data[3][0]],
+                [data[0][1], data[1][1], data[2][1], data[3][1]],
+                [data[0][2], data[1][2], data[2][2], data[3][2]],
+                [data[0][3], data[1][3], data[2][3], data[3][3]],
+            ],
+        }
+    }
+
+    // === 基本演算 ===
+
     pub fn transpose(&self) -> Self {
         let mut result = Self::zeros();
         for i in 0..4 {
@@ -150,15 +272,6 @@ impl<T: Scalar> Matrix4x4<T> {
             }
         }
         result
-    }
-
-    /// 要素アクセス
-    pub fn get(&self, row: usize, col: usize) -> T {
-        self.data[row][col]
-    }
-
-    pub fn set(&mut self, row: usize, col: usize, value: T) {
-        self.data[row][col] = value;
     }
 
     /// 平行移動行列を作成
@@ -1252,7 +1365,25 @@ impl<T: Scalar> Matrix4x4<T> {
     }
 }
 
-// 演算子オーバーロード
+// === 添え字演算子（互換性維持） ===
+
+impl<T: Scalar> Index<usize> for Matrix4x4<T> {
+    type Output = [T; 4];
+    #[inline]
+    fn index(&self, row: usize) -> &[T; 4] {
+        &self.data[row]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Matrix4x4<T> {
+    #[inline]
+    fn index_mut(&mut self, row: usize) -> &mut [T; 4] {
+        &mut self.data[row]
+    }
+}
+
+// === 演算子オーバーロード ===
+
 impl<T: Scalar> Add for Matrix4x4<T> {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
@@ -1299,6 +1430,42 @@ impl<T: Scalar> Mul<Vector4<T>> for Matrix4x4<T> {
     type Output = Vector4<T>;
     fn mul(self, vector: Vector4<T>) -> Self::Output {
         self.mul_vector(&vector)
+    }
+}
+
+impl<T: Scalar> Sub for Matrix4x4<T> {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self::Output {
+        let mut result = Self::zeros();
+        for i in 0..4 {
+            for j in 0..4 {
+                result.data[i][j] = self.data[i][j] - other.data[i][j];
+            }
+        }
+        result
+    }
+}
+
+impl<T: Scalar> Neg for Matrix4x4<T> {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        let mut result = Self::zeros();
+        for i in 0..4 {
+            for j in 0..4 {
+                result.data[i][j] = -self.data[i][j];
+            }
+        }
+        result
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[[T; 4]; 4]> for Matrix4x4<T> {
+    /// 行優先配列から構築
+    #[inline]
+    fn from(data: [[T; 4]; 4]) -> Self {
+        Self { data }
     }
 }
 

@@ -1,0 +1,108 @@
+name: CI/CD
+
+on:
+  push:
+    # メインブランチのみでデプロイメントワークフローを実行
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# GitHub Pages デプロイ用の権限設定（mainブランチのみ）
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# GitHub Pages デプロイのコンカレンシー制御
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-test:
+    name: Build & Test (matrix)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature-set: [default, strict]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: |
+          if [ "${{ matrix.feature-set }}" = "strict" ]; then
+            # Deny deprecated symbols globally
+            export RUSTFLAGS="-D deprecated"
+            cargo build --workspace --all-targets
+          else
+            cargo build --workspace --all-targets
+          fi
+      - name: Clippy (deny warnings)
+        run: |
+          if [ "${{ matrix.feature-set }}" = "strict" ]; then
+            export RUSTFLAGS="-D deprecated"
+          fi
+          cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: |
+          if [ "${{ matrix.feature-set }}" = "strict" ]; then
+            export RUSTFLAGS="-D deprecated"
+            cargo test --workspace
+          else
+            cargo test --workspace
+          fi
+      - name: Format check
+        if: matrix.feature-set == 'default' || matrix.feature-set == 'strict'
+        run: cargo fmt -- --check
+
+  architecture-dependency-check:
+    uses: ./.github/workflows/common_architecture_check.yml
+    with:
+      verbose: false
+      exit_on_error: true
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    # Deploy documentation to GitHub Pages (mainブランチのみ)
+    if: github.ref == 'refs/heads/main'
+    needs: [build-test, architecture-dependency-check]
+
+    # GitHub Pages環境の指定（必須）
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # GitHub Pagesデプロイに必要な権限を設定
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: "latest"
+
+      - name: Build documentation
+        run: mdbook build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

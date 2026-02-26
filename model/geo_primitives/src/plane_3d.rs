@@ -4,6 +4,9 @@
 //! STEP AP214準拠の完全な平面座標系を提供
 
 use crate::{Direction3D, Point3D, Vector3D};
+use geo_foundation::geometry::core::plane_traits::{
+    Plane3DConstructor, Plane3DMeasure, Plane3DProperties,
+};
 use geo_foundation::Scalar;
 
 /// CAD用3次元平面（座標系付き）
@@ -19,16 +22,16 @@ use geo_foundation::Scalar;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Plane3D<T: Scalar> {
     /// 平面原点（STEP: location）
-    origin: Point3D<T>,
+    pub(crate) origin: Point3D<T>,
 
     /// Z軸方向 - 法線ベクトル（STEP: axis）
-    normal: Direction3D<T>,
+    pub(crate) normal: Direction3D<T>,
 
     /// X軸方向 - 第一軸（STEP: ref_direction）
-    u_axis: Direction3D<T>,
+    pub(crate) u_axis: Direction3D<T>,
 
     /// Y軸方向 - 第二軸（STEP: derived, normal × u_axis）
-    v_axis: Direction3D<T>,
+    pub(crate) v_axis: Direction3D<T>,
 }
 
 // ============================================================================
@@ -155,24 +158,19 @@ impl<T: Scalar> Plane3D<T> {
     // アクセサメソッド
     // ========================================================================
 
-    /// 平面原点を取得
+    /// 平面の原点を取得
     pub fn origin(&self) -> Point3D<T> {
         self.origin
     }
 
-    /// 法線方向（Z軸）を取得
+    /// 平面の法線方向を取得
     pub fn normal(&self) -> Direction3D<T> {
         self.normal
     }
 
-    /// U軸方向（X軸）を取得
-    pub fn u_axis(&self) -> Direction3D<T> {
-        self.u_axis
-    }
-
-    /// V軸方向（Y軸）を取得
-    pub fn v_axis(&self) -> Direction3D<T> {
-        self.v_axis
+    /// 法線方向（Z軸）を取得（内部用）
+    pub(crate) fn normal_internal(&self) -> Direction3D<T> {
+        self.normal
     }
 
     /// 従来の点+法線ベクトル形式で原点と法線を取得
@@ -304,5 +302,228 @@ impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
             self.v_axis.y(),
             self.v_axis.z()
         )
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation
+// ============================================================================
+
+impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
+    // ========== Phase 1 実装 ==========
+
+    fn from_origin_and_axes(
+        origin: (T, T, T),
+        normal: (T, T, T),
+        u_direction: (T, T, T),
+    ) -> Option<Self> {
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
+        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
+        let u_vec = Vector3D::new(u_direction.0, u_direction.1, u_direction.2);
+        Self::from_origin_and_axes(origin_point, normal_vec, u_vec)
+    }
+
+    fn from_three_points(p1: (T, T, T), p2: (T, T, T), p3: (T, T, T)) -> Option<Self> {
+        let point1 = Point3D::new(p1.0, p1.1, p1.2);
+        let point2 = Point3D::new(p2.0, p2.1, p2.2);
+        let point3 = Point3D::new(p3.0, p3.1, p3.2);
+        Self::from_three_points(point1, point2, point3)
+    }
+
+    fn xy_plane() -> Self {
+        Self::xy_plane(T::ZERO)
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn from_point_and_normal(point: (T, T, T), normal: (T, T, T)) -> Option<Self> {
+        let origin = Point3D::new(point.0, point.1, point.2);
+        let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
+        Self::from_point_and_normal(origin, normal_vec)
+    }
+
+    fn xz_plane() -> Self {
+        Self::xz_plane(T::ZERO)
+    }
+
+    fn yz_plane() -> Self {
+        Self::yz_plane(T::ZERO)
+    }
+}
+
+impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
+    // ========== Phase 1 実装 ==========
+
+    fn origin(&self) -> (T, T, T) {
+        (self.origin.x(), self.origin.y(), self.origin.z())
+    }
+
+    fn normal(&self) -> (T, T, T) {
+        (self.normal.x(), self.normal.y(), self.normal.z())
+    }
+
+    fn u_axis(&self) -> (T, T, T) {
+        (self.u_axis.x(), self.u_axis.y(), self.u_axis.z())
+    }
+
+    fn v_axis(&self) -> (T, T, T) {
+        (self.v_axis.x(), self.v_axis.y(), self.v_axis.z())
+    }
+
+    fn dimension(&self) -> u32 {
+        2 // 2次元多様体
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn is_xy_plane(&self) -> bool {
+        let tolerance = T::EPSILON;
+        let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
+        (self.normal.as_vector() - z_axis).length() < tolerance && self.origin.z().abs() < tolerance
+    }
+
+    fn is_xz_plane(&self) -> bool {
+        let tolerance = T::EPSILON;
+        let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
+        (self.normal.as_vector() - y_axis).length() < tolerance && self.origin.y().abs() < tolerance
+    }
+
+    fn is_yz_plane(&self) -> bool {
+        let tolerance = T::EPSILON;
+        let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
+        (self.normal.as_vector() - x_axis).length() < tolerance && self.origin.x().abs() < tolerance
+    }
+}
+
+impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
+    // ========== Phase 1 実装 ==========
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        // distance_to_point の計算を直接展開
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        let distance = relative.dot(&self.normal.as_vector()).abs();
+        distance <= tolerance
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        relative.dot(&self.normal.as_vector())
+    }
+
+    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
+        // distance_to_point の計算を直接展開
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        let distance = relative.dot(&self.normal.as_vector());
+        let offset = self.normal.as_vector() * distance;
+        (
+            point.0 - offset.x(),
+            point.1 - offset.y(),
+            point.2 - offset.z(),
+        )
+    }
+
+    fn equation_coefficients(&self) -> (T, T, T, T) {
+        let a = self.normal.x();
+        let b = self.normal.y();
+        let c = self.normal.z();
+        let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
+        (a, b, c, d)
+    }
+
+    // ========== Phase 2 実装 ==========
+
+    fn point_to_uv(&self, point: (T, T, T)) -> (T, T) {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let from_origin = Vector3D::from_points(&self.origin, &p);
+        let u = from_origin.dot(&self.u_axis.as_vector());
+        let v = from_origin.dot(&self.v_axis.as_vector());
+        (u, v)
+    }
+
+    fn uv_to_point(&self, u: T, v: T) -> (T, T, T) {
+        let offset = self.u_axis.as_vector() * u + self.v_axis.as_vector() * v;
+        let point = self.origin + offset;
+        (point.x(), point.y(), point.z())
+    }
+
+    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
+        // project_point の計算を直接展開
+        let relative = Vector3D::new(
+            point.0 - self.origin.x(),
+            point.1 - self.origin.y(),
+            point.2 - self.origin.z(),
+        );
+        let distance = relative.dot(&self.normal.as_vector());
+        let offset = self.normal.as_vector() * distance;
+        let projected_x = point.0 - offset.x();
+        let projected_y = point.1 - offset.y();
+        let projected_z = point.2 - offset.z();
+
+        // 鏡面点 = 2 * 投影点 - 元の点
+        (
+            projected_x + projected_x - point.0,
+            projected_y + projected_y - point.1,
+            projected_z + projected_z - point.2,
+        )
+    }
+
+    fn intersection_with_plane(
+        &self,
+        other_origin: (T, T, T),
+        other_normal: (T, T, T),
+    ) -> Option<((T, T, T), (T, T, T))> {
+        let n1 = self.normal.as_vector();
+        let n2 = Vector3D::new(other_normal.0, other_normal.1, other_normal.2);
+
+        // 交線の方向 = n1 × n2
+        let direction = n1.cross(&n2);
+        if direction.length() <= T::EPSILON {
+            return None; // 平行
+        }
+
+        // 交線上の1点を求める（連立方程式を解く）
+        // この実装は簡易版：原点に最も近い点を求める
+        // equation_coefficients の計算を直接展開
+        let a1 = self.normal.x();
+        let b1 = self.normal.y();
+        let c1 = self.normal.z();
+        let d1 = -(a1 * self.origin.x() + b1 * self.origin.y() + c1 * self.origin.z());
+
+        let d2 = -(n2.x() * other_origin.0 + n2.y() * other_origin.1 + n2.z() * other_origin.2);
+
+        // 適当な座標を固定して解く（z=0として解く）
+        let det = n1.x() * n2.y() - n1.y() * n2.x();
+        if det.abs() > T::EPSILON {
+            let x = (-d1 * n2.y() + d2 * n1.y()) / det;
+            let y = (n1.x() * -d2 - n2.x() * -d1) / det;
+            let point_on_line = (x, y, T::ZERO);
+            let dir = (direction.x(), direction.y(), direction.z());
+            Some((point_on_line, dir))
+        } else {
+            // x=0として解く
+            let det = n1.y() * n2.z() - n1.z() * n2.y();
+            if det.abs() > T::EPSILON {
+                let y = (-d1 * n2.z() + d2 * n1.z()) / det;
+                let z = (n1.y() * -d2 - n2.y() * -d1) / det;
+                let point_on_line = (T::ZERO, y, z);
+                let dir = (direction.x(), direction.y(), direction.z());
+                Some((point_on_line, dir))
+            } else {
+                None
+            }
+        }
     }
 }

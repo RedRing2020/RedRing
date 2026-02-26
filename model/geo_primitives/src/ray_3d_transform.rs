@@ -12,27 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        let vector3d = Vector3D::new(vector.x(), vector.y(), vector.z());
-        Point3D::from_vector(vector3d)
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// 半無限直線の行列変換（Matrix4x4）
     ///
     /// 起点と方向ベクトルをMatrix変換し、新しい半無限直線を構築
@@ -41,18 +20,18 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<Ray3D<T>, TransformError> {
         // 起点を変換
-        let origin_vec = point_to_analysis_vector(ray.origin());
+        let origin_vec: Vector3<T> = ray.origin_internal().into();
         let transformed_origin_vec = matrix.transform_point_3d(&origin_vec);
-        let new_origin = analysis_vector_to_point(transformed_origin_vec);
+        let new_origin: Point3D<T> = transformed_origin_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため方向ベクトル専用変換）
-        let direction_vec = vector_to_analysis_vector(Vector3D::new(
-            ray.direction().x(),
-            ray.direction().y(),
-            ray.direction().z(),
-        ));
+        let direction_vec: Vector3<T> = Vector3D::new(
+            ray.direction_internal().x(),
+            ray.direction_internal().y(),
+            ray.direction_internal().z(),
+        ).into();
         let transformed_direction_vec = matrix.transform_vector_3d(&direction_vec);
-        let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
+        let new_direction_vector: Vector3D<T> = transformed_direction_vec.into();
 
         // 変換後の半無限直線を構築
         Ray3D::new(new_origin, new_direction_vector).ok_or_else(|| {
@@ -85,7 +64,7 @@ pub mod analysis_transform {
             axis.z() / axis_length,
         );
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let rotation_matrix = Matrix4x4::rotation_axis_3d(normalized_axis, angle.to_radians());
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
@@ -107,7 +86,7 @@ pub mod analysis_transform {
             ));
         }
 
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector3<T> = (*center).into();
         let scale_matrix = Matrix4x4::scale(scale_x, scale_y, scale_z);
         let translation_to_origin =
             Matrix4x4::translation(-center_vec.x(), -center_vec.y(), -center_vec.z());
@@ -165,14 +144,14 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 起点のみ平行移動、方向ベクトルは不変
         let new_origin = Point3D::new(
-            self.origin().x() + translation.x(),
-            self.origin().y() + translation.y(),
-            self.origin().z() + translation.z(),
+            self.origin_internal().x() + translation.x(),
+            self.origin_internal().y() + translation.y(),
+            self.origin_internal().z() + translation.z(),
         );
         let direction_vec = Vector3D::new(
-            self.direction().x(),
-            self.direction().y(),
-            self.direction().z(),
+            self.direction_internal().x(),
+            self.direction_internal().y(),
+            self.direction_internal().z(),
         );
         Ray3D::new(new_origin, direction_vec).ok_or_else(|| {
             TransformError::InvalidGeometry("Direction vector became zero".to_string())
@@ -186,7 +165,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.origin(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(&center.origin_internal(), axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -198,7 +177,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.origin(), scale_x, scale_y, scale_z)?;
+        let matrix = analysis_transform::scale_matrix(&center.origin_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -223,7 +202,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
         if let Some(scale_factors) = scale {
             let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
             let scale_mat = analysis_transform::scale_matrix(
-                &scale_center.origin(),
+                &scale_center.origin_internal(),
                 scale_factors.0,
                 scale_factors.1,
                 scale_factors.2,
@@ -232,7 +211,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.origin(), axis, angle)?;
+            let rot_mat = analysis_transform::rotation_matrix(&center.origin_internal(), axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -281,14 +260,14 @@ mod tests {
 
         // 起点が移動することを確認
         let expected_origin = Point3D::new(6.0, 5.0, 4.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
 
         // 方向ベクトルは変わらない
-        assert!((result.direction().x() - 1.0).abs() < f64::EPSILON);
-        assert!((result.direction().y() - 0.0).abs() < f64::EPSILON);
-        assert!((result.direction().z() - 0.0).abs() < f64::EPSILON);
+        assert!((result.direction_internal().x() - 1.0).abs() < f64::EPSILON);
+        assert!((result.direction_internal().y() - 0.0).abs() < f64::EPSILON);
+        assert!((result.direction_internal().z() - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -304,14 +283,14 @@ mod tests {
 
         // 90度Z軸回転後の起点確認
         let expected_origin = Point3D::new(-2.0, 1.0, 3.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < 1e-10);
-        assert!((result.origin().y() - expected_origin.y()).abs() < 1e-10);
-        assert!((result.origin().z() - expected_origin.z()).abs() < 1e-10);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < 1e-10);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < 1e-10);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < 1e-10);
 
         // 90度Z軸回転後の方向ベクトル確認
-        assert!((result.direction().x() - 0.0).abs() < f64::EPSILON);
-        assert!((result.direction().y() - 1.0).abs() < f64::EPSILON);
-        assert!((result.direction().z() - 0.0).abs() < f64::EPSILON);
+        assert!((result.direction_internal().x() - 0.0).abs() < f64::EPSILON);
+        assert!((result.direction_internal().y() - 1.0).abs() < f64::EPSILON);
+        assert!((result.direction_internal().z() - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -329,15 +308,15 @@ mod tests {
 
         // スケール変換後の起点確認
         let expected_origin = Point3D::new(2.0, 6.0, 12.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
 
         // 方向ベクトルもスケール変換される（正規化される）
         // Direction3Dは常に正規化されている（norm = 1.0）
-        assert!((result.direction().x() - 1.0).abs() < f64::EPSILON); // x方向は保持
-        assert!((result.direction().y() - 0.0).abs() < f64::EPSILON); // y方向は0のまま
-        assert!((result.direction().z() - 0.0).abs() < f64::EPSILON); // z方向は0のまま
+        assert!((result.direction_internal().x() - 1.0).abs() < f64::EPSILON); // x方向は保持
+        assert!((result.direction_internal().y() - 0.0).abs() < f64::EPSILON); // y方向は0のまま
+        assert!((result.direction_internal().z() - 0.0).abs() < f64::EPSILON); // z方向は0のまま
     }
 
     #[test]
@@ -366,9 +345,9 @@ mod tests {
         // 複合変換の結果を確認
         // Scale(2,2,2) -> Rotate(0) -> Translate(1,1,1)
         let expected_origin = Point3D::new(3.0, 5.0, 7.0); // (1*2+1, 2*2+1, 3*2+1)
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
     }
 
     #[test]

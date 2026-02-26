@@ -19,9 +19,9 @@ pub mod analysis_transform {
     ) -> Ellipse3D<T> {
         // 中心点の変換
         let center_vec = Vector3::new(
-            ellipse.center().x(),
-            ellipse.center().y(),
-            ellipse.center().z(),
+            ellipse.center_internal().x(),
+            ellipse.center_internal().y(),
+            ellipse.center_internal().z(),
         );
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
         let new_center = Point3D::new(
@@ -62,7 +62,7 @@ pub mod analysis_transform {
             + transformed_major_axis.y() * transformed_major_axis.y()
             + transformed_major_axis.z() * transformed_major_axis.z())
         .sqrt();
-        let new_semi_major = ellipse.semi_major_axis() * major_scale_factor;
+        let new_semi_major = ellipse.semi_major_internal() * major_scale_factor;
 
         // 短軸ベクトルを計算（法線と長軸の外積）
         let minor_axis_vec = Vector3::new(
@@ -75,7 +75,7 @@ pub mod analysis_transform {
             + transformed_minor_axis.y() * transformed_minor_axis.y()
             + transformed_minor_axis.z() * transformed_minor_axis.z())
         .sqrt();
-        let new_semi_minor = ellipse.semi_minor_axis() * minor_scale_factor;
+        let new_semi_minor = ellipse.semi_minor_internal() * minor_scale_factor;
 
         // 変換後のベクトルをVector3Dに変換（正規化）
         let new_normal_vector3d = Vector3D::new(
@@ -228,7 +228,7 @@ pub mod analysis_transform {
 
     /// 楕円の中心を計算する補助関数
     pub fn ellipse_center_3d<T: Scalar>(ellipse: &Ellipse3D<T>) -> Point3D<T> {
-        ellipse.center()
+        ellipse.center_internal()
     }
 }
 
@@ -355,9 +355,9 @@ mod tests {
 
         let result = ellipse.translate_analysis(&translation).unwrap();
 
-        assert!((result.center().x() - 3.0).abs() < 1e-10);
-        assert!((result.center().y() - 4.0).abs() < 1e-10);
-        assert!((result.center().z() - 5.0).abs() < 1e-10);
+        assert!((result.center_internal().x() - 3.0).abs() < 1e-10);
+        assert!((result.center_internal().y() - 4.0).abs() < 1e-10);
+        assert!((result.center_internal().z() - 5.0).abs() < 1e-10);
         // 軸長は変化しない
         assert!((result.semi_major_axis() - 2.0).abs() < 1e-10);
         assert!((result.semi_minor_axis() - 1.0).abs() < 1e-10);
@@ -415,9 +415,9 @@ mod tests {
         let matrix = Matrix4x4::translation_3d(&translation_vec);
         let result = ellipse.transform_point_matrix(&matrix);
 
-        assert!((result.center().x() - 2.0).abs() < 1e-10);
-        assert!((result.center().y() - 3.0).abs() < 1e-10);
-        assert!((result.center().z() - 4.0).abs() < 1e-10);
+        assert!((result.center_internal().x() - 2.0).abs() < 1e-10);
+        assert!((result.center_internal().y() - 3.0).abs() < 1e-10);
+        assert!((result.center_internal().z() - 4.0).abs() < 1e-10);
         // 軸長は変化しない
         assert!((result.semi_major_axis() - 2.0).abs() < 1e-10);
         assert!((result.semi_minor_axis() - 1.0).abs() < 1e-10);

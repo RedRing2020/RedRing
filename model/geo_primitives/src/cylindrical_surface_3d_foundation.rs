@@ -3,30 +3,33 @@
 //! ExtensionFoundation と TolerantEq トレイトの実装
 //! ハイブリッドモデラーの分類システムとの統合
 
-use crate::{BBox3D, CylindricalSurface3D};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use crate::CylindricalSurface3D;
+use geo_core::Aabb3D;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // ExtensionFoundation Implementation
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for CylindricalSurface3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSurface
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        // サーフェスは無限軸方向のため、径方向の境界のみ
-        // 実際の用途では境界制約が必要
-        self.bounding_box_radial()
     }
 
     fn measure(&self) -> Option<T> {
         // サーフェスの測度は面積だが、無限サーフェスのため None
         // 境界制約された場合のみ有限の面積を持つ
         None
+    }
+}
+
+impl<T: Scalar> Bounded<T> for CylindricalSurface3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        // サーフェスは無限軸方向のため、径方向の境界のみ
+        // 実際の用途では境界制約が必要
+        Some(self.bounding_box_radial())
     }
 }
 
@@ -37,24 +40,37 @@ impl<T: Scalar> ExtensionFoundation<T> for CylindricalSurface3D<T> {
 impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の比較
-        let center_diff = self.center().to_vector() - other.center().to_vector();
-        if center_diff.length() > tolerance {
+        let dx = self.center_internal().x() - other.center_internal().x();
+        let dy = self.center_internal().y() - other.center_internal().y();
+        let dz = self.center_internal().z() - other.center_internal().z();
+        let center_dist_sq = dx * dx + dy * dy + dz * dz;
+        if center_dist_sq > tolerance * tolerance {
             return false;
         }
 
         // 軸の比較（方向は逆でも同じ軸）
-        let axis_diff = self.axis().as_vector() - other.axis().as_vector();
-        if axis_diff.length() > tolerance {
+        let axis_dx = self.axis().x() - other.axis().x();
+        let axis_dy = self.axis().y() - other.axis().y();
+        let axis_dz = self.axis().z() - other.axis().z();
+        let axis_dist_sq = axis_dx * axis_dx + axis_dy * axis_dy + axis_dz * axis_dz;
+        if axis_dist_sq > tolerance * tolerance {
             // 逆方向もチェック
-            let axis_diff_reversed = self.axis().as_vector() + other.axis().as_vector();
-            if axis_diff_reversed.length() > tolerance {
+            let axis_dx_rev = self.axis().x() + other.axis().x();
+            let axis_dy_rev = self.axis().y() + other.axis().y();
+            let axis_dz_rev = self.axis().z() + other.axis().z();
+            let axis_dist_sq_rev =
+                axis_dx_rev * axis_dx_rev + axis_dy_rev * axis_dy_rev + axis_dz_rev * axis_dz_rev;
+            if axis_dist_sq_rev > tolerance * tolerance {
                 return false;
             }
         }
 
         // 参照方向の比較
-        let ref_diff = self.ref_direction().as_vector() - other.ref_direction().as_vector();
-        if ref_diff.length() > tolerance {
+        let ref_dx = self.ref_direction().x() - other.ref_direction().x();
+        let ref_dy = self.ref_direction().y() - other.ref_direction().y();
+        let ref_dz = self.ref_direction().z() - other.ref_direction().z();
+        let ref_dist_sq = ref_dx * ref_dx + ref_dy * ref_dy + ref_dz * ref_dz;
+        if ref_dist_sq > tolerance * tolerance {
             return false;
         }
 
@@ -78,7 +94,7 @@ mod tests {
 
         assert_eq!(surface.primitive_kind(), PrimitiveKind::CylindricalSurface);
 
-        let bbox = surface.bounding_box();
+        let bbox = surface.aabb().expect("should have aabb");
         assert!(!bbox.is_empty());
 
         // 無限サーフェスのため測度は None

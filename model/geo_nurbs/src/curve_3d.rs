@@ -41,7 +41,7 @@ pub struct NurbsCurve3D<T: Scalar> {
 }
 
 impl<T: Scalar> NurbsCurve3D<T> {
-    /// 新しいNURBS 3D曲線を作成
+    /// 内部用コンストラクタ（クレート内専用）
     ///
     /// # 引数
     /// * `control_points` - 制御点配列
@@ -49,14 +49,11 @@ impl<T: Scalar> NurbsCurve3D<T> {
     /// * `knot_vector` - ノットベクトル
     /// * `degree` - NURBS次数
     ///
-    /// # エラー
-    /// 制御点と重みのサイズが一致しない場合など
-    ///
     /// # Errors
     /// * 制御点数が次数+1未満の場合
     /// * ノットベクトルが無効な場合
     /// * 重み配列のサイズが制御点数と一致しない場合
-    pub fn new(
+    pub(crate) fn new_internal(
         control_points: Vec<Vector3<T>>,
         weights: Option<Vec<T>>,
         knot_vector: KnotVector<T>,
@@ -287,16 +284,18 @@ mod tests {
 
     #[test]
     fn test_nurbs_curve_3d_creation() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 0.0),
-            Vector3::new(2.0, 0.0, 1.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 1.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve3D::new(control_points, weights, knot_vector, degree);
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        );
         assert!(curve.is_ok());
 
         let curve = curve.unwrap();
@@ -306,16 +305,19 @@ mod tests {
 
     #[test]
     fn test_curve_3d_evaluation() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 1.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve3D::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        )
+        .unwrap();
 
         // 開始点と終了点のテスト
         let start_point = curve.evaluate_at(0.0);
@@ -334,16 +336,19 @@ mod tests {
 
     #[test]
     fn test_tangent_calculation() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve3D::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        )
+        .unwrap();
         let tangent = curve.tangent_at(0.5);
 
         // 直線に近い曲線なのでX軸方向の接線
@@ -354,19 +359,243 @@ mod tests {
 
     #[test]
     fn test_approximate_length_3d() {
-        let control_points = vec![
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(2.0, 0.0, 0.0),
-        ];
+        use geo_foundation::NurbsCurve3DConstructor;
+        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let degree = 2;
 
-        let curve = NurbsCurve3D::new(control_points, weights, knot_vector, degree).unwrap();
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            degree,
+            knot_vector,
+            control_points,
+            weights,
+        )
+        .unwrap();
         let length = curve.approximate_length(100);
 
         // 直線に近い曲線なので長さは約2.0
         assert!((length - 2.0).abs() < 0.1);
+    }
+}
+
+// ============================================================================
+// Core Traits Implementation (Foundation Pattern)
+// ============================================================================
+
+use geo_foundation::core::nurbs_curve_3d_traits::{
+    NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties,
+};
+
+impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
+    fn new(
+        degree: usize,
+        knots: Vec<T>,
+        control_points: Vec<(T, T, T)>,
+        weights: Option<Vec<T>>,
+    ) -> std::result::Result<Self, String> {
+        let num_points = control_points.len();
+
+        // 基本的なバリデーション
+        if num_points < degree + 1 {
+            return Err(format!(
+                "Insufficient control points: need {}, got {}",
+                degree + 1,
+                num_points
+            ));
+        }
+
+        // フラット座標配列を構築
+        let mut coordinates = Vec::with_capacity(num_points * 3);
+        for (x, y, z) in &control_points {
+            coordinates.push(*x);
+            coordinates.push(*y);
+            coordinates.push(*z);
+        }
+
+        // 重み配列を処理
+        let weight_storage = if let Some(weight_vec) = weights {
+            if weight_vec.len() != num_points {
+                return Err(format!(
+                    "Weight count mismatch: expected {}, got {}",
+                    num_points,
+                    weight_vec.len()
+                ));
+            }
+
+            // 重みの検証
+            for &weight in &weight_vec {
+                if weight <= T::ZERO {
+                    return Err(format!("Invalid weight: {}", weight.to_f64()));
+                }
+            }
+
+            WeightStorage::Individual(weight_vec)
+        } else {
+            WeightStorage::Uniform
+        };
+
+        // KnotVectorを作成
+        let knot_vector = KnotVector::from(knots);
+
+        // ノットベクトルの検証
+        crate::knot::validate_knot_vector(&knot_vector, degree, num_points)
+            .map_err(|e| e.to_string())?;
+
+        Ok(NurbsCurve3D {
+            coordinates,
+            weights: weight_storage,
+            knot_vector,
+            degree,
+            num_points,
+        })
+    }
+
+    fn from_bezier(control_points: Vec<(T, T, T)>) -> std::result::Result<Self, String> {
+        if control_points.len() < 2 {
+            return Err("Bezier curve requires at least 2 control points".to_string());
+        }
+
+        let degree = control_points.len() - 1;
+
+        // クランプド・ノットベクトルを生成
+        let knots_vec = crate::knot::clamped_knot_vector(degree, control_points.len());
+        let knots: Vec<T> = knots_vec;
+
+        // トレイトのnewメソッドに転送（これは NurbsCurve3DConstructor::new）
+        <Self as NurbsCurve3DConstructor<T>>::new(degree, knots, control_points, None)
+    }
+
+    fn line_segment(start: (T, T, T), end: (T, T, T)) -> std::result::Result<Self, String> {
+        // 始点と終点が一致するかチェック
+        let dx = end.0 - start.0;
+        let dy = end.1 - start.1;
+        let dz = end.2 - start.2;
+        let distance_sq = dx * dx + dy * dy + dz * dz;
+
+        if distance_sq <= T::EPSILON * T::EPSILON {
+            return Err("Start and end points must be different".to_string());
+        }
+
+        // 1次NURBS（線分）: 次数1、制御点2個
+        let degree = 1;
+        let control_points = vec![start, end];
+        let knots = vec![T::ZERO, T::ZERO, T::ONE, T::ONE]; // クランプド・ノットベクトル
+
+        // トレイトのnewメソッドに転送（これは NurbsCurve3DConstructor::new）
+        <Self as NurbsCurve3DConstructor<T>>::new(degree, knots, control_points, None)
+    }
+}
+
+impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
+    fn degree(&self) -> usize {
+        self.degree
+    }
+
+    fn knot_vector(&self) -> &[T] {
+        &self.knot_vector
+    }
+
+    fn control_points_count(&self) -> usize {
+        self.num_points
+    }
+
+    fn weights(&self) -> Option<&[T]> {
+        match &self.weights {
+            WeightStorage::Uniform => None,
+            WeightStorage::Individual(w) => Some(w),
+        }
+    }
+
+    fn is_rational(&self) -> bool {
+        matches!(self.weights, WeightStorage::Individual(_))
+    }
+
+    fn parameter_domain(&self) -> (T, T) {
+        self.parameter_domain()
+    }
+
+    fn coordinates(&self) -> &[T] {
+        &self.coordinates
+    }
+}
+
+impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
+    fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T {
+        // 簡易実装：一定間隔でサンプリング
+        let tolerance_f64 = tolerance.to_f64();
+        let u_range_f64 = (u_end - u_start).to_f64();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let num_samples = ((u_range_f64 / tolerance_f64) as usize).clamp(10, 1000);
+        #[allow(clippy::cast_precision_loss)]
+        let step = (u_end - u_start) / T::from_f64(num_samples as f64);
+
+        let mut total_length = T::ZERO;
+        let mut prev_point = self.evaluate_at(u_start);
+
+        for i in 1..=num_samples {
+            #[allow(clippy::cast_precision_loss)]
+            let u = u_start + step * T::from_f64(i as f64);
+            let current_point = self.evaluate_at(u);
+
+            let dx = current_point.x() - prev_point.x();
+            let dy = current_point.y() - prev_point.y();
+            let dz = current_point.z() - prev_point.z();
+            let segment_length = (dx * dx + dy * dy + dz * dz).sqrt();
+
+            total_length += segment_length;
+            prev_point = current_point;
+        }
+
+        total_length
+    }
+
+    fn arc_length_total(&self, tolerance: T) -> T {
+        let (u_start, u_end) = self.parameter_domain();
+        self.arc_length(u_start, u_end, tolerance)
+    }
+
+    fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T> {
+        let (u_start, u_end) = self.parameter_domain();
+        let total_length = self.arc_length_total(tolerance);
+
+        if arc_length < T::ZERO || arc_length > total_length {
+            return None;
+        }
+
+        // 二分探索で対応するパラメータを見つける
+        let mut low = u_start;
+        let mut high = u_end;
+        let max_iterations = 50;
+        let two = T::ONE + T::ONE;
+
+        for _ in 0..max_iterations {
+            let mid = (low + high) / two;
+            let length_at_mid = self.arc_length(u_start, mid, tolerance);
+
+            if (length_at_mid - arc_length).abs() < tolerance {
+                return Some(mid);
+            }
+
+            if length_at_mid < arc_length {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        Some((low + high) / two)
+    }
+
+    fn evaluate(&self, u: T) -> Option<(T, T, T)> {
+        let (u_min, u_max) = self.parameter_domain();
+
+        // パラメータ範囲チェック
+        if u < u_min || u > u_max {
+            return None;
+        }
+
+        let point = self.evaluate_at(u);
+        Some((point.x(), point.y(), point.z()))
     }
 }

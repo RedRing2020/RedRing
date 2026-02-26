@@ -1,12 +1,58 @@
-use crate::app_renderer::AppRenderer;
+use crate::app_renderer::{AppRenderer, AppRendererFactory};
+use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
-use crate::stl_loader;
-use stage::{DraftStage, MeshStage, OutlineStage, ShadingStage};
-use std::path::Path;
+use crate::selection_rect::SelectionRect;
+use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
+use analysis::{LengthUnit, Tolerance};
+use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
-use viewmodel_graphics::Camera;
+use viewmodel::octree_converter::OctreeVisualizationSettings;
+use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
+
+// AppState の画面ライフサイクル処理（主にリサイズ）
+mod app_lifecycle;
+// AppState のデバッグスナップショット状態
+mod debug_snapshot_state;
+// AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
+mod debug_scene;
+// AppState の表示モード・カメラ制御
+mod display_controls;
+// AppState の基盤設定（単位系・トレランス）
+mod foundation_settings;
+// AppState のキーボード入力ハンドリング
+mod input_actions;
+// AppState のマウス入力ハンドリング
+mod mouse_actions;
+// AppState の設定アクセサ（種類別: Snapshot/Octree/Camera）
+mod settings_accessors;
+// AppState の Snapshot 再生・スクラブ制御
+mod snapshot_playback;
+// AppState のステージ更新オーケストレーション
+mod stage_orchestration;
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ViewingOperationSettings {
+    pub camera_control_sensitivity: CameraControlSensitivity,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SnapshotShadedColorSettings {
+    // Snapshotシェーディング時のワーク色（RGBA）
+    pub work_solid_color: [f32; 4],
+    // Snapshotシェーディング時の工具ワイヤー色（RGB）
+    pub tool_wire_color: [f32; 3],
+}
+
+impl Default for SnapshotShadedColorSettings {
+    fn default() -> Self {
+        Self {
+            work_solid_color: [0.95, 0.55, 0.25, 1.0],
+            tool_wire_color: [0.9, 0.95, 1.0],
+        }
+    }
+}
 
 pub struct AppState {
     pub window: Arc<Window>,
@@ -14,257 +60,82 @@ pub struct AppState {
     pub renderer: AppRenderer,
     pub camera: Camera,
     pub mouse_input: MouseInput,
+    pub entity_manager: EntityManager,
+    pub active_selection_rect: Option<SelectionRect>,
+    pub last_selection_rect: Option<SelectionRect>,
+
+    /// アプリケーション単位系（CAD標準: ミリメートル）
+    ///
+    /// 全ての幾何データはこの単位で解釈されます。
+    /// デフォルト: ミリメートル（浮動小数点誤差を最小化）
+    pub unit_system: LengthUnit,
+
+    /// 表示トレランス（CAD標準: 0.01mm）
+    ///
+    /// 曲線のテッセレーション（分割）や近似計算で使用される許容誤差。
+    /// この値により、曲線から生成される線分の精度が決まります。
+    pub display_tolerance: Tolerance,
+
+    /// Octree可視化設定（setting画面向けの保持値）
+    pub octree_visualization_settings: OctreeVisualizationSettings,
+
+    /// ビュー操作設定（setting画面向けの保持値）
+    pub viewing_operation_settings: ViewingOperationSettings,
+
+    /// Snapshot進捗バー表示設定
+    pub snapshot_overlay_style: SnapshotOverlayStyle,
+
+    /// Snapshotシェーディング時の色設定
+    pub snapshot_shaded_color_settings: SnapshotShadedColorSettings,
+
+    /// デバッグ用: シミュレーションスナップショット状態
+    debug_snapshot: DebugSnapshotState,
+    snapshot_scrub_active: bool,
+
+    cursor_position: Option<(f32, f32)>,
+    last_cursor_position: Option<(f32, f32)>,
+    arcball_drag_start: Option<(f32, f32)>,
+    arcball_virtual_cursor: Option<(f32, f32)>,
+    selection_rect_drag_origin: Option<(f32, f32)>,
 }
 
 impl AppState {
+    fn apply_viewing_operation_settings(&mut self) {
+        self.camera
+            .set_control_sensitivity(self.viewing_operation_settings.camera_control_sensitivity);
+    }
+
     pub fn new(window: Arc<Window>) -> Self {
         let graphic = init_graphic(window.clone());
-        let renderer = AppRenderer::new_draft(&graphic.device, &graphic.config);
+        let renderer = AppRendererFactory::create_draft(&graphic.device, &graphic.config);
+        let viewing_operation_settings = ViewingOperationSettings::default();
 
-        Self {
+        let mut app_state = Self {
             window,
             graphic,
             renderer,
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
-        }
-    }
+            entity_manager: EntityManager::new(),
+            active_selection_rect: None,
+            last_selection_rect: None,
+            // CAD標準設定
+            unit_system: LengthUnit::Millimeter,
+            display_tolerance: Tolerance::default(), // 0.01mm
+            octree_visualization_settings: OctreeVisualizationSettings::default(),
+            viewing_operation_settings,
+            snapshot_overlay_style: SnapshotOverlayStyle::default(),
+            snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
+            debug_snapshot: DebugSnapshotState::default(),
+            snapshot_scrub_active: false,
+            cursor_position: None,
+            last_cursor_position: None,
+            arcball_drag_start: None,
+            arcball_virtual_cursor: None,
+            selection_rect_drag_origin: None,
+        };
 
-    pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
-        self.graphic.config.width = size.width;
-        self.graphic.config.height = size.height;
-        self.graphic
-            .surface
-            .configure(&self.graphic.device, &self.graphic.config);
-    }
-
-    pub fn render(&mut self) {
-        self.graphic.render(&mut self.renderer);
-    }
-
-    pub fn set_stage_draft(&mut self) {
-        let stage = Box::new(DraftStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        self.renderer.set_stage(stage);
-    }
-
-    pub fn set_stage_outline(&mut self) {
-        let stage = Box::new(OutlineStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        self.renderer.set_stage(stage);
-    }
-
-    pub fn set_stage_shading(&mut self) {
-        let stage = Box::new(ShadingStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        self.renderer.set_stage(stage);
-    }
-
-    /// STLファイルを読み込んでメッシュステージに設定
-    pub fn load_stl_file(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        tracing::info!("STLファイル読み込み開始: {:?}", path);
-
-        // STLファイルを読み込み、レンダリング用データに変換
-        let (vertices, indices, _bounds) = stl_loader::load_stl_for_rendering(path)?;
-
-        // カメラを標準CAD視点に設定（固定値）
-        self.camera.reset_to_standard_cad_view();
-
-        // メッシュステージを作成してSTLデータを設定
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-
-        self.renderer.set_stage(mesh_stage);
-
-        tracing::info!("STLファイル読み込み完了");
-
-        // カメラのユニフォームを初期化
-        self.update_camera_uniforms();
-
-        Ok(())
-    }
-
-    /// サンプルSTLファイルを作成して読み込み
-    pub fn load_sample_stl(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let sample_path = std::env::temp_dir().join("redring_sample.stl");
-
-        // サンプルSTLファイルを作成して読み込み
-        let (vertices, indices, _bounds) = stl_loader::create_sample_stl_with_bounds(&sample_path)?;
-
-        // カメラを標準CAD視点に設定（固定値）
-        self.camera.reset_to_standard_cad_view();
-
-        // メッシュステージを作成してSTLデータを設定
-        let mut mesh_stage = Box::new(MeshStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-
-        self.renderer.set_stage(mesh_stage);
-
-        // カメラのユニフォームを初期化
-        self.update_camera_uniforms();
-
-        Ok(())
-    }
-
-    /// カメラをリセット
-    pub fn reset_camera(&mut self) {
-        self.camera.reset();
-        self.update_camera_uniforms();
-    }
-
-    /// 安全な視点にカメラをリセット（標準CAD視点）
-    pub fn reset_camera_to_safe_view(&mut self) {
-        // 固定の標準CAD視点にリセット
-        self.camera.reset_to_standard_cad_view();
-        self.update_camera_uniforms();
-        tracing::info!("カメラを標準CAD視点にリセット");
-    }
-
-    /// 緊急脱出：最小距離を強制確保
-    pub fn emergency_camera_escape(&mut self) {
-        self.camera.ensure_minimum_distance();
-        self.update_camera_uniforms();
-        tracing::warn!("緊急カメラ脱出実行");
-    }
-
-    /// カメラ状態をログ出力
-    pub fn log_camera_state(&self) {
-        self.camera.log_state();
-    }
-
-    /// ワイヤーフレーム表示を切り替え
-    pub fn toggle_wireframe(&mut self) {
-        // ステージがMeshStageの場合にワイヤーフレームを切り替え
-        if let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        {
-            mesh_stage.toggle_wireframe();
-            let mode = if mesh_stage.is_wireframe() {
-                "ワイヤーフレーム"
-            } else {
-                "ソリッド"
-            };
-            tracing::info!("表示モードを{}に切り替え", mode);
-        }
-    }
-
-    /// キーボード入力を処理
-    pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
-        self.mouse_input.update_key(key, pressed);
-
-        // キーが押された時のみ処理
-        if !pressed {
-            return;
-        }
-
-        if let winit::keyboard::Key::Character(ch) = key {
-            match ch.as_str() {
-                "r" => {
-                    // リセット（基本）
-                    self.camera.reset();
-                    self.update_camera_uniforms();
-                    tracing::info!("カメラをリセット（rキー）");
-                }
-                "t" => {
-                    // 標準CAD視点
-                    self.camera.reset_to_standard_cad_view();
-                    self.update_camera_uniforms();
-                    tracing::info!("標準CAD視点に設定（tキー）");
-                }
-                "f" => {
-                    // 正面視点（デバッグ用）
-                    self.camera.reset_to_front_view();
-                    self.update_camera_uniforms();
-                    tracing::info!("正面視点に設定（fキー）");
-                }
-                "e" => {
-                    // 緊急脱出
-                    self.camera.emergency_camera_escape();
-                    self.update_camera_uniforms();
-                    tracing::warn!("緊急カメラ脱出実行（eキー）");
-                }
-                "h" => {
-                    // ヘルプ表示
-                    tracing::info!("=== カメラ操作ヘルプ ===");
-                    tracing::info!("r: カメラリセット");
-                    tracing::info!("t: 標準CAD視点");
-                    tracing::info!("f: 正面視点");
-                    tracing::info!("e: 緊急脱出");
-                    tracing::info!("w: ワイヤーフレーム切替");
-                    tracing::info!(
-                        "マウス操作: 左ドラッグ=回転, 中ドラッグ=パン, 右ドラッグ=ズーム"
-                    );
-                }
-                "w" => {
-                    // ワイヤーフレーム切替
-                    self.toggle_wireframe();
-                }
-                _ => {}
-            }
-        }
-    }
-
-    /// マウスボタン入力を処理
-    pub fn handle_mouse_button(
-        &mut self,
-        button: winit::event::MouseButton,
-        state: winit::event::ElementState,
-    ) {
-        self.mouse_input.update_mouse_button(button, state);
-    }
-
-    /// マウス移動を処理
-    pub fn handle_mouse_motion(&mut self, delta: (f64, f64)) {
-        use crate::mouse_input::MouseOperation;
-
-        let (delta_x, delta_y) = (delta.0 as f32, delta.1 as f32);
-
-        match self.mouse_input.operation {
-            MouseOperation::Rotate => {
-                self.camera.rotate(delta_x, delta_y);
-                self.update_camera_uniforms();
-            }
-            MouseOperation::Pan => {
-                self.camera.pan(delta_x, delta_y);
-                self.update_camera_uniforms();
-            }
-            MouseOperation::Zoom => {
-                self.camera.zoom(delta_x, delta_y);
-                self.update_camera_uniforms();
-            }
-            MouseOperation::None => {}
-        }
-    }
-
-    /// カメラのユニフォームを更新
-    pub fn update_camera_uniforms(&mut self) {
-        let view_matrix = self.camera.view_matrix();
-        let aspect = self.graphic.config.width as f32 / self.graphic.config.height as f32;
-        let projection_matrix = self.camera.projection_matrix(aspect);
-
-        // ステージがMeshStageの場合にカメラを更新
-        if let Some(mesh_stage) = self
-            .renderer
-            .get_stage_mut()
-            .as_any_mut()
-            .downcast_mut::<MeshStage>()
-        {
-            mesh_stage.update_camera(&self.graphic.queue, view_matrix, projection_matrix);
-        }
+        app_state.apply_viewing_operation_settings();
+        app_state
     }
 }

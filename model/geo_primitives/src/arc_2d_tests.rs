@@ -1,9 +1,9 @@
-﻿//! Arc2D の基本テスト
+//! Arc2D の基本テスト
 //!
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Arc2D, Point2D, Vector2D};
-use geo_foundation::{abstracts::arc_traits::ArcMetrics, Angle};
+use geo_foundation::{core::arc_traits::Arc2DMeasure, Arc2DProperties, Angle};
 
 #[cfg(test)]
 mod tests {
@@ -24,7 +24,8 @@ mod tests {
         let center = Point2D::new(0.0_f64, 0.0_f64);
         let arc = Arc2D::xy_arc(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
 
-        assert_eq!(arc.center(), center);
+        let (cx, cy) = arc.center();
+        assert_eq!((cx, cy), (center.x(), center.y()));
         assert_eq!(arc.radius(), 5.0);
         assert_eq!(arc.start_direction(), Vector2D::unit_x());
         assert_eq!(arc.start_angle(), angle(0.0));
@@ -48,8 +49,9 @@ mod tests {
         let arc = Arc2D::from_three_points(start, middle, end).unwrap();
 
         // 中心は原点付近のはず
-        assert!((arc.center().x() - 0.0_f64).abs() < 1e-10);
-        assert!((arc.center().y() - 0.0_f64).abs() < 1e-10);
+        let (cx, cy) = arc.center();
+        assert!((cx - 0.0_f64).abs() < 1e-10);
+        assert!((cy - 0.0_f64).abs() < 1e-10);
         assert!((arc.radius() - 1.0_f64).abs() < 1e-10);
 
         // 一直線上の点では作成不可
@@ -214,7 +216,9 @@ mod tests {
         )
         .unwrap();
         let circle = full_arc.to_circle().unwrap();
-        assert_eq!(circle.center(), center);
+        use geo_foundation::Circle2DProperties;
+        let (cx, cy) = circle.center();
+        assert_eq!((cx, cy), (center.x(), center.y()));
         assert_eq!(circle.radius(), 3.0);
 
         // 部分円弧は変換不可

@@ -38,57 +38,10 @@ impl ApplicationHandler for App {
                     let pressed = event.state == ElementState::Pressed;
                     state.handle_keyboard_input(&event.logical_key, pressed);
 
-                    // 従来のキーボード処理も継続
-                    if pressed {
-                        match &event.logical_key {
-                            Key::Character(c) if c.as_str() == "1" => state.set_stage_draft(),
-                            Key::Character(c) if c.as_str() == "2" => state.set_stage_outline(),
-                            Key::Character(c) if c.as_str() == "3" => state.set_stage_shading(),
-                            Key::Character(c) if c.as_str() == "s" => {
-                                if let Err(e) = state.load_sample_stl() {
-                                    tracing::error!("サンプルSTL読み込み失敗: {}", e);
-                                }
-                            }
-                            Key::Character(c) if c.as_str() == "r" => {
-                                state.reset_camera();
-                                tracing::info!("カメラリセット");
-                            }
-                            Key::Character(c) if c.as_str() == "t" => {
-                                state.reset_camera_to_safe_view();
-                                tracing::info!("安全な視点にリセット");
-                            }
-                            Key::Character(c) if c.as_str() == "e" => {
-                                state.emergency_camera_escape();
-                                tracing::warn!("緊急カメラ脱出");
-                            }
-                            Key::Character(c) if c.as_str() == "h" => {
-                                tracing::info!("=== キーバインド ===");
-                                tracing::info!("1: ドラフトステージ");
-                                tracing::info!("2: アウトラインステージ");
-                                tracing::info!("3: シェーディングステージ");
-                                tracing::info!("s: サンプルSTL読み込み");
-                                tracing::info!("r: カメラリセット（基本位置）");
-                                tracing::info!("t: 標準CAD視点にリセット");
-                                tracing::info!("e: 緊急脱出（最小距離確保）");
-                                tracing::info!("d: カメラ状態ログ出力");
-                                tracing::info!("w: ワイヤーフレーム切り替え");
-                                tracing::info!("h: このヘルプ");
-                                tracing::info!("ESC: アプリ終了");
-                            }
-                            Key::Character(c) if c.as_str() == "d" => {
-                                state.log_camera_state();
-                                tracing::info!("カメラ状態ログ出力");
-                            }
-                            Key::Character(c) if c.as_str() == "w" => {
-                                state.toggle_wireframe();
-                                tracing::info!("ワイヤーフレーム表示切り替え");
-                            }
-                            Key::Named(NamedKey::Escape) => {
-                                self.should_exit = true;
-                                event_loop.exit();
-                            }
-                            _ => {}
-                        }
+                    // ESCキーのみここで処理（アプリ終了）
+                    if pressed && matches!(event.logical_key, Key::Named(NamedKey::Escape)) {
+                        self.should_exit = true;
+                        event_loop.exit();
                     }
                 }
                 WindowEvent::MouseInput {
@@ -97,6 +50,12 @@ impl ApplicationHandler for App {
                     ..
                 } => {
                     state.handle_mouse_button(button, button_state);
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    state.handle_cursor_moved(position.x as f32, position.y as f32);
+                }
+                WindowEvent::MouseWheel { delta, .. } => {
+                    state.handle_mouse_wheel(delta);
                 }
                 _ => {}
             }

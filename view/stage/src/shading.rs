@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use wgpu::{
     CommandEncoder, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
     TextureView,
@@ -8,16 +6,16 @@ use wgpu::{
 
 use crate::render_stage::RenderStage;
 
-use render::render_3d::{create_renderer_3d, draw_renderer_3d, Renderer3D};
+use render::render_3d::{create_render_3d_resources, draw_render_3d, Render3dResources};
 
 pub struct ShadingStage {
-    renderer: Renderer3D,
+    renderer: Render3dResources,
     frame_count: u64,
 }
 
 impl ShadingStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let renderer = create_renderer_3d(&Arc::new(device.clone()), format);
+        let renderer = create_render_3d_resources(device, format);
         Self {
             renderer,
             frame_count: 0,
@@ -52,7 +50,7 @@ impl RenderStage for ShadingStage {
 
         let mut render_pass = encoder.begin_render_pass(&render_pass_desc);
 
-        draw_renderer_3d(
+        draw_render_3d(
             &mut render_pass,
             &self.renderer.pipeline,
             &self.renderer.vertex_buffer,

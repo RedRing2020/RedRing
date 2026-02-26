@@ -2,7 +2,7 @@
 //!
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
-use crate::{Arc3D, BBox3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
+use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
 use geo_foundation::{Angle, Scalar};
 
 // ============================================================================
@@ -142,11 +142,72 @@ impl<T: Scalar> EllipseArc3D<T> {
     }
 
     // ========================================================================
+    // Helper Methods
+    // ========================================================================
+
+    /// 角度が楕円弧の範囲内にあるかを判定
+    pub fn angle_in_range(&self, angle: T) -> bool {
+        let start_rad = self.start_angle().to_radians();
+        let end_rad = self.end_angle().to_radians();
+
+        if start_rad <= end_rad {
+            angle >= start_rad && angle <= end_rad
+        } else {
+            // 角度が0を跨ぐ場合
+            angle >= start_rad || angle <= end_rad
+        }
+    }
+
+    /// 点が楕円弧の角度範囲内にあるかを判定
+    pub fn point_in_angle_range(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        let center = self.center();
+        let to_point = Vector3D::new(
+            point.x() - center.x(),
+            point.y() - center.y(),
+            point.z() - center.z(),
+        );
+
+        if to_point.magnitude() <= tolerance {
+            return true; // 中心点の場合
+        }
+
+        // 楕円平面上への投影
+        let major_axis = self.major_axis_direction().as_vector();
+        let minor_axis = self.minor_axis_direction().as_vector();
+
+        // 平面内での座標を計算
+        let x_comp = to_point.dot(&major_axis);
+        let y_comp = to_point.dot(&minor_axis);
+
+        // 角度を計算
+        let angle = y_comp.atan2(x_comp);
+
+        self.angle_in_range(angle)
+    }
+
+    /// 点から楕円弧への最短距離
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
+        // 点が角度範囲内にある場合
+        if self.point_in_angle_range(point, T::EPSILON) {
+            return self.ellipse().distance_to_point(point);
+        }
+
+        // 角度範囲外の場合は端点への距離
+        let start_point = self.start_point();
+        let end_point = self.end_point();
+
+        let dist_to_start = point.distance_to(&start_point);
+        let dist_to_end = point.distance_to(&end_point);
+
+        dist_to_start.min(dist_to_end)
+    }
+
+    // ========================================================================
     // Advanced Analysis Methods (Extension)
     // ========================================================================
 
     /// より詳細な境界ボックス計算（高精度版）
-    pub fn precise_bounding_box(&self, sample_points: usize) -> BBox3D<T> {
+    pub fn precise_bounding_box(&self, sample_points: usize) -> geo_core::Aabb3D<T> {
         let mut min_x = T::MAX;
         let mut max_x = T::MIN;
         let mut min_y = T::MAX;
@@ -171,9 +232,9 @@ impl<T: Scalar> EllipseArc3D<T> {
             max_z = max_z.max(point.z());
         }
 
-        BBox3D::new(
-            Point3D::new(min_x, min_y, min_z),
-            Point3D::new(max_x, max_y, max_z),
+        geo_core::Aabb3D::new(
+            geo_core::Point3D::new(min_x, min_y, min_z),
+            geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
 
@@ -247,7 +308,7 @@ impl<T: Scalar> EllipseArc3D<T> {
         }
 
         Self::new(
-            self.ellipse().clone(),
+            *self.ellipse(),
             Angle::from_radians(start_rad),
             Angle::from_radians(end_rad),
         )

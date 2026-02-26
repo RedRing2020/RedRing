@@ -13,9 +13,21 @@ RedRing は、責務分離と型安全性を重視したワークスペース設
   - `AnalysisTransform3D` - Matrix4x4による座標変換（平行移動・回転・スケール）
   - `AnalysisTransformVector3D` - 方向ベクトル専用変換
   - Analysis Vector3/Point3との効率的な型変換
+- **Collision & Intersection**: Phase 3完了（2025年12月21日）
+  - `BasicCollision<T, Other>` - 基本衝突検出
+  - `PointDistance<T>` - 点との距離計算
+  - `LineSegmentCollision<T>` - 線分との衝突判定
 - **許容誤差管理**: `ToleranceContext` による精度制御
-- **共通トレイト**: 衝突検出、交点計算、距離計算
 - **型安全抽象化**: Scalarトレイト境界による数値型統一
+
+### `geo_commons`
+
+#### 共通定義・ユーティリティ（✅ Foundation Pattern準拠）
+
+- **共通定義**: 幾何計算に必要な共通型定義
+- **Foundation準拠**: Issue #222完了（2026年2月13日）
+- **依存関係**: `analysis`, `geo_foundation`のみに依存
+- **使用例**: `LineSegment3DCollisionDetection`トレイト実装
 
 ### `geo_core`
 

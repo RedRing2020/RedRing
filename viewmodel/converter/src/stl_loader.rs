@@ -58,8 +58,8 @@ pub fn load_stl_mesh(path: &Path) -> Result<StlMeshData, Box<dyn std::error::Err
 
 /// サンプルSTLファイルを作成
 pub fn create_sample_stl_mesh(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Model層（geo_primitives経由）でメッシュを構築
-    use geo_primitives::{Point3D, TriangleMesh3D};
+    // Model層（geo_algorithms経由）でメッシュを構築
+    use geo_algorithms::{Point3D, TriangleMesh3D};
 
     // シンプルな立方体を作成
     let vertices = vec![
@@ -112,7 +112,7 @@ pub fn create_and_load_sample_stl(path: &Path) -> Result<StlMeshData, Box<dyn st
 }
 
 /// 境界ボックス計算のヘルパー関数
-fn calculate_bounds(mesh: &geo_primitives::TriangleMesh3D<f64>) -> ([f32; 3], [f32; 3]) {
+fn calculate_bounds(mesh: &geo_algorithms::TriangleMesh3D<f64>) -> ([f32; 3], [f32; 3]) {
     let bounds = mesh.bounding_box();
     if let Some((min_point, max_point)) = bounds {
         let min_bounds = [

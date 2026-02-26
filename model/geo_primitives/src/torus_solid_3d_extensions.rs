@@ -1,7 +1,6 @@
 // torus_solid_3d_extensions.rs
 // TorusSolid3D の拡張機能実装
 //
-// CAM固体加工計算に必要な高度な幾何学的機能を提供します。
 // 衝突検知、距離計算、工具経路計算などの実用的な機能を含みます。
 
 use crate::{Point3D, TorusSolid3D, Vector3D};
@@ -20,22 +19,23 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// * 固体表面までの符号付き距離（内部で負、外部で正）
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         // 原点からの相対位置ベクトル
+        let origin = self.origin_internal();
         let relative = Vector3D::new(
-            point.x() - self.origin().x(),
-            point.y() - self.origin().y(),
-            point.z() - self.origin().z(),
+            point.x() - origin.x(),
+            point.y() - origin.y(),
+            point.z() - origin.z(),
         );
 
         // ローカル座標系での成分
-        let z_component = relative.x() * self.z_axis().x()
-            + relative.y() * self.z_axis().y()
-            + relative.z() * self.z_axis().z();
+        let z_axis = self.z_axis_internal();
+        let z_component =
+            relative.x() * z_axis.x() + relative.y() * z_axis.y() + relative.z() * z_axis.z();
 
-        let x_component = relative.x() * self.x_axis().x()
-            + relative.y() * self.x_axis().y()
-            + relative.z() * self.x_axis().z();
+        let x_axis = self.x_axis_internal();
+        let x_component =
+            relative.x() * x_axis.x() + relative.y() * x_axis.y() + relative.z() * x_axis.z();
 
-        let y_axis = self.y_axis();
+        let y_axis = self.y_axis_internal();
         let y_component =
             relative.x() * y_axis.x() + relative.y() * y_axis.y() + relative.z() * y_axis.z();
 
@@ -43,13 +43,13 @@ impl<T: Scalar> TorusSolid3D<T> {
         let radial_distance = (x_component * x_component + y_component * y_component).sqrt();
 
         // トーラス中心線上の最近点からの距離
-        let torus_center_distance = radial_distance - self.major_radius();
+        let torus_center_distance = radial_distance - self.major_radius_internal();
 
         // 断面円での距離
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
 
-        cross_section_distance - self.minor_radius()
+        cross_section_distance - self.minor_radius_internal()
     }
 
     /// 固体表面の最近点を計算
@@ -67,7 +67,7 @@ impl<T: Scalar> TorusSolid3D<T> {
             surface.closest_point_to(*point)
         } else {
             // フォールバック: 単純化した計算
-            *self.origin()
+            *self.origin_internal()
         }
     }
 
@@ -92,12 +92,13 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// # Returns
     /// * (主半径, 副半径, 軸方向, 中心点)
     pub fn toolpath_parameters(&self) -> (T, T, Vector3D<T>, Point3D<T>) {
-        let axis_vector = Vector3D::new(self.z_axis().x(), self.z_axis().y(), self.z_axis().z());
+        let z_axis = self.z_axis_internal();
+        let axis_vector = Vector3D::new(z_axis.x(), z_axis.y(), z_axis.z());
         (
-            self.major_radius(),
-            self.minor_radius(),
+            self.major_radius_internal(),
+            self.minor_radius_internal(),
             axis_vector,
-            *self.origin(),
+            *self.origin_internal(),
         )
     }
 
@@ -113,19 +114,20 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// * `None` - 範囲外の場合
     pub fn cross_section_area(&self, z_offset: T) -> Option<T> {
         // Z軸方向のオフセットが副半径内にあるかチェック
-        if z_offset.abs() > self.minor_radius() {
+        if z_offset.abs() > self.minor_radius_internal() {
             return None;
         }
 
         // 楕円の断面積計算
-        let height_factor =
-            (self.minor_radius() * self.minor_radius() - z_offset * z_offset).sqrt();
-        let inner_radius = if self.major_radius() > height_factor {
-            self.major_radius() - height_factor
+        let height_factor = (self.minor_radius_internal() * self.minor_radius_internal()
+            - z_offset * z_offset)
+            .sqrt();
+        let inner_radius = if self.major_radius_internal() > height_factor {
+            self.major_radius_internal() - height_factor
         } else {
             T::ZERO
         };
-        let outer_radius = self.major_radius() + height_factor;
+        let outer_radius = self.major_radius_internal() + height_factor;
 
         let pi = T::from_f64(std::f64::consts::PI);
         Some(pi * (outer_radius * outer_radius - inner_radius * inner_radius))
@@ -138,9 +140,9 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// # Returns
     /// * Z軸回りの慣性モーメント
     pub fn moment_of_inertia_z(&self) -> T {
-        let volume = self.volume();
-        let major_sq = self.major_radius() * self.major_radius();
-        let minor_sq = self.minor_radius() * self.minor_radius();
+        let volume = self.volume_internal();
+        let major_sq = self.major_radius_internal() * self.major_radius_internal();
+        let minor_sq = self.minor_radius_internal() * self.minor_radius_internal();
 
         // Iz = V * (5/4 * R² + 3/4 * r²) where V = volume, R = major_radius, r = minor_radius
         let five_quarters = T::from_f64(1.25);
@@ -156,8 +158,8 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// # Returns
     /// * (中心点, 半径)
     pub fn bounding_sphere(&self) -> (Point3D<T>, T) {
-        let radius = self.major_radius() + self.minor_radius();
-        (*self.origin(), radius)
+        let radius = self.major_radius_internal() + self.minor_radius_internal();
+        (*self.origin_internal(), radius)
     }
 
     /// 複数点での内部判定（バッチ処理）

@@ -1,6 +1,8 @@
 use crate::shader;
+use crate::uniform_factory;
 use crate::vertex_3d::MeshVertex;
 use bytemuck::{Pod, Zeroable};
+use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::util::DeviceExt;
 
 /// メッシュレンダリング用のUniform構造体（簡略版）
@@ -9,6 +11,7 @@ use wgpu::util::DeviceExt;
 pub struct MeshUniforms {
     pub view_proj: [[f32; 4]; 4], // ビュー・プロジェクション行列
     pub model: [[f32; 4]; 4],     // モデル行列
+    pub base_color: [f32; 4],     // メッシュ基本色
 }
 
 impl Default for MeshUniforms {
@@ -26,6 +29,7 @@ impl Default for MeshUniforms {
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
+            base_color: [1.0, 0.5, 0.2, 1.0],
         }
     }
 }
@@ -41,44 +45,23 @@ pub struct MeshResources {
     pub index_buffer: Option<wgpu::Buffer>,
     pub index_count: u32,
     pub wireframe_mode: bool,
+    pub base_color: [f32; 4],
 }
 
 impl MeshResources {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = shader::mesh_shader(device);
 
-        // Uniform bind group layout
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("mesh_bind_group_layout"),
-        });
-
-        // Uniform buffer
         let uniforms = MeshUniforms::default();
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Mesh Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        // Bind group
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("mesh_bind_group"),
-        });
+        let (bind_group_layout, uniform_buffer, bind_group) =
+            uniform_factory::create_uniform_binding(
+                device,
+                &uniforms,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                "mesh_bind_group_layout",
+                "Mesh Uniform Buffer",
+                "mesh_bind_group",
+            );
 
         // Render pipeline layout
         let render_pipeline_layout =
@@ -112,12 +95,18 @@ impl MeshResources {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None, // カリング無効（両面表示）
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None, // 深度バッファ準備後に有効化
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -151,12 +140,18 @@ impl MeshResources {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,                       // カリング無効（両面表示）
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Line, // ワイヤーフレーム
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -176,6 +171,7 @@ impl MeshResources {
             index_buffer: None,
             index_count: 0,
             wireframe_mode: false,
+            base_color: [1.0, 0.5, 0.2, 1.0],
         }
     }
 
@@ -186,13 +182,12 @@ impl MeshResources {
 
     /// カメラ行列を更新
     pub fn update_camera(
-        &self,
+        &mut self,
         queue: &wgpu::Queue,
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
-        // ビュー・プロジェクション行列を計算
-        let view_proj = multiply_matrices(proj_matrix, view_matrix);
+        let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
 
         let uniforms = MeshUniforms {
             view_proj,
@@ -202,6 +197,7 @@ impl MeshResources {
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
+            base_color: self.base_color,
         };
 
         self.update_uniforms(queue, &uniforms);
@@ -248,6 +244,11 @@ impl MeshResources {
         self.wireframe_mode
     }
 
+    /// シェーディング時のメッシュ基本色を設定
+    pub fn set_base_color(&mut self, base_color: [f32; 4]) {
+        self.base_color = base_color;
+    }
+
     /// メッシュをレンダリング
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         if let (Some(vertex_buffer), Some(index_buffer)) = (&self.vertex_buffer, &self.index_buffer)
@@ -266,19 +267,4 @@ impl MeshResources {
             render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
     }
-}
-
-/// 4x4行列の乗算
-fn multiply_matrices(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut result = [[0.0; 4]; 4];
-
-    for i in 0..4 {
-        for j in 0..4 {
-            for (k, &b_elem) in b.iter().enumerate() {
-                result[i][j] += a[i][k] * b_elem[j];
-            }
-        }
-    }
-
-    result
 }

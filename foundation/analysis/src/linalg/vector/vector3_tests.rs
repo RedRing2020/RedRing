@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::consts::test_constants::TOLERANCE_F64;
     use crate::linalg::vector::Vector3;
 
     #[test]
@@ -30,9 +31,9 @@ mod tests {
     fn test_vector3_normalize() {
         let v = Vector3::<f64>::new(3.0, 4.0, 0.0);
         let normalized = v.normalize().unwrap();
-        assert!((normalized.norm() - 1.0_f64).abs() < 1e-10);
-        assert!((normalized.x() - 0.6_f64).abs() < 1e-10);
-        assert!((normalized.y() - 0.8_f64).abs() < 1e-10);
+        assert!((normalized.norm() - 1.0_f64).abs() < TOLERANCE_F64);
+        assert!((normalized.x() - 0.6_f64).abs() < TOLERANCE_F64);
+        assert!((normalized.y() - 0.8_f64).abs() < TOLERANCE_F64);
         assert_eq!(normalized.z(), 0.0);
     }
 

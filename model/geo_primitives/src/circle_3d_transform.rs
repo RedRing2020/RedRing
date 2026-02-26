@@ -21,9 +21,9 @@ pub mod analysis_transform {
     ) -> Result<Circle3D<T>, TransformError> {
         // 中心点の変換
         let center_vec: Vector3<T> = Vector3::new(
-            circle.center().x(),
-            circle.center().y(),
-            circle.center().z(),
+            circle.center_internal().x(),
+            circle.center_internal().y(),
+            circle.center_internal().z(),
         );
         let transformed_center_vec = matrix.transform_point_3d(&center_vec);
         let new_center = Point3D::new(
@@ -34,9 +34,9 @@ pub mod analysis_transform {
 
         // 法線ベクトルの変換（方向のみ、長さは保持）
         let normal_vec: Vector3<T> = Vector3::new(
-            circle.normal().x(),
-            circle.normal().y(),
-            circle.normal().z(),
+            circle.normal_internal().x(),
+            circle.normal_internal().y(),
+            circle.normal_internal().z(),
         );
         let transformed_normal_vec = matrix.transform_vector_3d(&normal_vec);
 
@@ -187,7 +187,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
             ));
         }
 
-        let matrix = analysis_transform::uniform_scale_matrix_3d(&center.center(), scale_x)?;
+        let matrix = analysis_transform::uniform_scale_matrix_3d(&center.center_internal(), scale_x)?;
         analysis_transform::transform_circle_3d(self, &matrix)
     }
 
@@ -197,7 +197,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
         center: &Self,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::uniform_scale_matrix_3d(&center.center(), scale_factor)?;
+        let matrix = analysis_transform::uniform_scale_matrix_3d(&center.center_internal(), scale_factor)?;
         analysis_transform::transform_circle_3d(self, &matrix)
     }
 
@@ -227,7 +227,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
                     "Non-uniform scale not supported for Circle3D".to_string(),
                 ));
             }
-            let center_circle = Circle3D::new(result.center(), result.normal(), T::ONE)
+            let center_circle = Circle3D::new(result.center_internal(), result.normal_internal(), T::ONE)
                 .ok_or_else(|| {
                     TransformError::InvalidGeometry("Failed to create center circle".to_string())
                 })?;
@@ -258,7 +258,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
 
         // 均等スケール
         if let Some(scale_factor) = scale {
-            let center_circle = Circle3D::new(result.center(), result.normal(), T::ONE)
+            let center_circle = Circle3D::new(result.center_internal(), result.normal_internal(), T::ONE)
                 .ok_or_else(|| {
                     TransformError::InvalidGeometry("Failed to create center circle".to_string())
                 })?;
@@ -307,8 +307,8 @@ impl<T: Scalar> Circle3D<T> {
             ));
         }
 
-        let new_radius = self.radius() * scale_factor;
-        Circle3D::new(self.center(), self.normal(), new_radius)
+        let new_radius = self.radius_internal() * scale_factor;
+        Circle3D::new(self.center_internal(), self.normal_internal(), new_radius)
             .ok_or_else(|| TransformError::InvalidGeometry("Invalid scaled radius".to_string()))
     }
 }
@@ -330,9 +330,9 @@ mod tests {
 
         let transformed = circle.translate_analysis(&translation).unwrap();
 
-        assert!((transformed.center().x() - 6.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 9.0).abs() < 1e-10);
-        assert!((transformed.center().z() - 14.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 6.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 9.0).abs() < 1e-10);
+        assert!((transformed.center_internal().z() - 14.0).abs() < 1e-10);
         assert!((transformed.radius() - 2.0).abs() < 1e-10);
     }
 
@@ -358,9 +358,9 @@ mod tests {
             .unwrap();
 
         // 90度回転で (1,0,0) -> (0,1,0)
-        assert!((transformed.center().x() - 0.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 1.0).abs() < 1e-10);
-        assert!((transformed.center().z() - 0.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 0.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 1.0).abs() < 1e-10);
+        assert!((transformed.center_internal().z() - 0.0).abs() < 1e-10);
         assert!((transformed.radius() - 2.0).abs() < 1e-10);
     }
 
@@ -384,9 +384,9 @@ mod tests {
             .uniform_scale_analysis(&center_circle, scale_factor)
             .unwrap();
 
-        assert!((transformed.center().x() - 4.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 8.0).abs() < 1e-10);
-        assert!((transformed.center().z() - 12.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 4.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 8.0).abs() < 1e-10);
+        assert!((transformed.center_internal().z() - 12.0).abs() < 1e-10);
         assert!((transformed.radius() - 6.0).abs() < 1e-10);
     }
 
@@ -403,10 +403,10 @@ mod tests {
         let transformed = circle.scale_radius_analysis(scale_factor).unwrap();
 
         // 中心点と法線は変化しない
-        assert!((transformed.center().x() - 1.0).abs() < 1e-10);
-        assert!((transformed.center().y() - 2.0).abs() < 1e-10);
-        assert!((transformed.center().z() - 3.0).abs() < 1e-10);
-        assert!((transformed.normal().x() - 1.0).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 1.0).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 2.0).abs() < 1e-10);
+        assert!((transformed.center_internal().z() - 3.0).abs() < 1e-10);
+        assert!((transformed.normal_internal().x() - 1.0).abs() < 1e-10);
         // 半径のみスケール
         assert!((transformed.radius() - 6.0).abs() < 1e-10);
     }
@@ -432,8 +432,8 @@ mod tests {
 
         for circle in circles {
             let transformed = circle.translate_analysis(&translation).unwrap();
-            assert!((transformed.center().x() - (circle.center().x() + 10.0)).abs() < 1e-10);
-            assert!((transformed.center().y() - (circle.center().y() + 20.0)).abs() < 1e-10);
+            assert!((transformed.center_internal().x() - (circle.center_internal().x() + 10.0)).abs() < 1e-10);
+            assert!((transformed.center_internal().y() - (circle.center_internal().y() + 20.0)).abs() < 1e-10);
             assert!((transformed.radius() - circle.radius()).abs() < 1e-10);
         }
     }
@@ -451,9 +451,9 @@ mod tests {
         let matrix = Matrix4x4::uniform_scale_3d(1.5_f64);
         let transformed = circle.transform_point_matrix(&matrix);
 
-        assert!((transformed.center().x() - 1.5).abs() < 1e-10);
-        assert!((transformed.center().y() - 1.5).abs() < 1e-10);
-        assert!((transformed.center().z() - 1.5).abs() < 1e-10);
+        assert!((transformed.center_internal().x() - 1.5).abs() < 1e-10);
+        assert!((transformed.center_internal().y() - 1.5).abs() < 1e-10);
+        assert!((transformed.center_internal().z() - 1.5).abs() < 1e-10);
         assert!((transformed.radius() - 3.0).abs() < 1e-10); // 2.0 * 1.5
     }
 

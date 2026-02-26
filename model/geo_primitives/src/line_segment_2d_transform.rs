@@ -11,16 +11,6 @@ use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector2への変換（LineSegment2D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point2D<T>) -> Vector2<T> {
-        Vector2::new(point.x(), point.y())
-    }
-
-    /// Analysis Vector2からの変換（LineSegment2D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector2<T>) -> Point2D<T> {
-        Point2D::new(vector.x(), vector.y())
-    }
-
     /// 単一線分の行列変換（Matrix3x3）
     ///
     /// 始点・終点をMatrix変換し、新しい線分を構築
@@ -29,14 +19,14 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Result<LineSegment2D<T>, TransformError> {
         // 始点の変換
-        let start_vec: Vector2<T> = point_to_analysis_vector(line_segment.start_point());
+        let start_vec: Vector2<T> = line_segment.start_point().into();
         let transformed_start_vec = matrix.transform_point_2d(&start_vec);
-        let new_start = analysis_vector_to_point(transformed_start_vec);
+        let new_start: Point2D<T> = transformed_start_vec.into();
 
         // 終点の変換
-        let end_vec: Vector2<T> = point_to_analysis_vector(line_segment.end_point());
+        let end_vec: Vector2<T> = line_segment.end_point().into();
         let transformed_end_vec = matrix.transform_point_2d(&end_vec);
-        let new_end = analysis_vector_to_point(transformed_end_vec);
+        let new_end: Point2D<T> = transformed_end_vec.into();
 
         // 変換後の線分を構築
         LineSegment2D::new(new_start, new_end).ok_or_else(|| {

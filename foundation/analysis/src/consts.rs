@@ -324,56 +324,48 @@ pub mod test_constants {
 
     /// 距離テスト用の許容誤差（f32）
     pub const DISTANCE_TOLERANCE_F32: f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
+
+    // --- 数値計算アルゴリズム専用の許容誤差 ---
+
+    /// ソルバー用高精度許容誤差
+    ///
+    /// ニュートン法、LU分解、ガウス消去法などの線形ソルバーで
+    /// 非常に高い精度が要求される場合に使用します。
+    ///
+    /// 用途例:
+    /// - ソルバーの初期化時の許容誤差設定
+    /// - 高精度数値計算の収束判定
+    pub const SOLVER_TOLERANCE_F64: f64 = 1e-15;
+
+    /// 数値積分用許容誤差（標準精度）
+    ///
+    /// 台形公式、シンプソン公式などの一般的な数値積分で
+    /// 標準的な精度が要求される場合に使用します。
+    ///
+    /// 用途例:
+    /// - 曲線の弧長計算の精度検証
+    /// - 面積・体積計算の収束判定
+    pub const INTEGRATION_TOLERANCE: f64 = 1e-4;
+
+    /// 数値積分用許容誤差（緩い精度）
+    ///
+    /// 粗い分割での積分や、概算が許容される場合に使用します。
+    ///
+    /// 用途例:
+    /// - プレビュー表示用の粗い計算
+    /// - 初期推定値の計算
+    pub const INTEGRATION_TOLERANCE_LOOSE: f64 = 1e-3;
+
+    /// 数値積分用許容誤差（高精度）
+    ///
+    /// 細かい分割での積分や、高精度が要求される場合に使用します。
+    ///
+    /// 用途例:
+    /// - 最終結果の高精度計算
+    /// - 精密な幾何計算
+    pub const INTEGRATION_TOLERANCE_STRICT: f64 = 1e-6;
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{special, GeometricTolerance};
-
-    #[test]
-    fn test_special_constants() {
-        // 黄金比のテスト
-        let golden_ratio_f64 = special::GOLDEN_RATIO_F64;
-        let expected_golden_ratio = (1.0 + 5.0_f64.sqrt()) / 2.0;
-        assert!((golden_ratio_f64 - expected_golden_ratio).abs() < 1e-10);
-
-        let golden_ratio_f32 = special::GOLDEN_RATIO_F32;
-        let expected_golden_ratio_f32 = (1.0 + 5.0_f32.sqrt()) / 2.0;
-        assert!((golden_ratio_f32 - expected_golden_ratio_f32).abs() < 1e-6);
-
-        // ln(2)のテスト
-        let ln_2_f64 = special::LN_2_F64;
-        assert!((ln_2_f64 - std::f64::consts::LN_2).abs() < 1e-15);
-
-        // ln(10)のテスト
-        let ln_10_f64 = special::LN_10_F64;
-        assert!((ln_10_f64 - std::f64::consts::LN_10).abs() < 1e-15);
-
-        // √3のテスト
-        let sqrt_3_f64 = special::SQRT_3_F64;
-        assert!((sqrt_3_f64 - 3.0_f64.sqrt()).abs() < 1e-15);
-    }
-
-    #[test]
-    fn test_tolerance_constants() {
-        // GeometricToleranceトレイトのテスト
-        let geometric_f64 = <f64 as GeometricTolerance>::TOLERANCE;
-        let geometric_f32 = <f32 as GeometricTolerance>::TOLERANCE;
-
-        // f64は高精度、f32は低精度であることを確認
-        assert!(geometric_f64 < geometric_f32 as f64);
-        assert_eq!(geometric_f64, 1e-10);
-        assert_eq!(geometric_f32, 1e-6);
-
-        // 角度・距離許容誤差もテスト
-        let angle_f64 = <f64 as GeometricTolerance>::ANGLE_TOLERANCE;
-        let distance_f64 = <f64 as GeometricTolerance>::DISTANCE_TOLERANCE;
-        assert_eq!(angle_f64, 1e-12);
-        assert_eq!(distance_f64, 1e-10);
-
-        let angle_f32 = <f32 as GeometricTolerance>::ANGLE_TOLERANCE;
-        let distance_f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
-        assert_eq!(angle_f32, 1e-6);
-        assert_eq!(distance_f32, 1e-6);
-    }
-}
+#[path = "consts_tests.rs"]
+mod consts_tests;

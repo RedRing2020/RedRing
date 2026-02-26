@@ -12,26 +12,6 @@ use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 pub mod analysis_transform {
     use super::*;
 
-    /// Analysis Vector3への変換（Point3D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point3D<T>) -> Vector3<T> {
-        Vector3::new(point.x(), point.y(), point.z())
-    }
-
-    /// Analysis Vector3からの変換（Point3D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector3<T>) -> Point3D<T> {
-        Point3D::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3への変換（Vector3D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector3D<T>) -> Vector3<T> {
-        Vector3::new(vector.x(), vector.y(), vector.z())
-    }
-
-    /// Analysis Vector3からの変換（Vector3D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector3<T>) -> Vector3D<T> {
-        Vector3D::new(vector.x(), vector.y(), vector.z())
-    }
-
     /// トーラス面の行列変換（Matrix4x4）
     ///
     /// トーラスの原点、軸方向をMatrix変換し、半径をスケール変換して新しいトーラス面を構築
@@ -40,24 +20,24 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> Result<TorusSurface3D<T>, TransformError> {
         // 原点を変換
-        let origin_vec = point_to_analysis_vector(torus_surface.origin());
+        let origin_vec: Vector3<T> = torus_surface.origin_internal().into();
         let transformed_origin_vec = matrix.transform_point_3d(&origin_vec);
-        let new_origin = analysis_vector_to_point(transformed_origin_vec);
+        let new_origin: Point3D<T> = transformed_origin_vec.into();
 
         // Z軸方向を変換
-        let z_axis_vec = vector_to_analysis_vector(torus_surface.z_axis().as_vector());
+        let z_axis_vec: Vector3<T> = torus_surface.z_axis_internal().as_vector().into();
         let transformed_z_axis_vec = matrix.transform_vector_3d(&z_axis_vec);
-        let new_z_axis_vector = analysis_vector_to_vector(transformed_z_axis_vec);
+        let new_z_axis_vector: Vector3D<T> = transformed_z_axis_vec.into();
 
         // X軸方向を変換
-        let x_axis_vec = vector_to_analysis_vector(torus_surface.x_axis().as_vector());
+        let x_axis_vec: Vector3<T> = torus_surface.x_axis_internal().as_vector().into();
         let transformed_x_axis_vec = matrix.transform_vector_3d(&x_axis_vec);
-        let new_x_axis_vector = analysis_vector_to_vector(transformed_x_axis_vec);
+        let new_x_axis_vector: Vector3D<T> = transformed_x_axis_vec.into();
 
         // スケール倍率を計算（半径の変換に使用）
-        let original_z_length = torus_surface.z_axis().as_vector().length();
+        let original_z_length = torus_surface.z_axis_internal().as_vector().length();
         let transformed_z_length = new_z_axis_vector.length();
-        let original_x_length = torus_surface.x_axis().as_vector().length();
+        let original_x_length = torus_surface.x_axis_internal().as_vector().length();
         let transformed_x_length = new_x_axis_vector.length();
 
         if transformed_z_length.is_zero() || transformed_x_length.is_zero() {
@@ -72,8 +52,8 @@ pub mod analysis_transform {
         let average_scale = (z_scale + x_scale) / T::from_f64(2.0);
 
         // 新しい半径を計算（スケール変換を考慮）
-        let new_major_radius = torus_surface.major_radius() * average_scale;
-        let new_minor_radius = torus_surface.minor_radius() * average_scale;
+        let new_major_radius = torus_surface.major_radius_internal() * average_scale;
+        let new_minor_radius = torus_surface.minor_radius_internal() * average_scale;
 
         // 正規化された軸を生成
         let normalized_z_axis =
@@ -205,17 +185,17 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSurface3D<T> {
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError> {
         // 高速化: 原点のみ平行移動、他の属性は不変
         let new_origin = Point3D::new(
-            self.origin().x() + translation.x(),
-            self.origin().y() + translation.y(),
-            self.origin().z() + translation.z(),
+            self.origin_internal().x() + translation.x(),
+            self.origin_internal().y() + translation.y(),
+            self.origin_internal().z() + translation.z(),
         );
 
         TorusSurface3D::new(
             new_origin,
-            self.z_axis(),
-            self.x_axis(),
-            self.major_radius(),
-            self.minor_radius(),
+            self.z_axis_internal(),
+            self.x_axis_internal(),
+            self.major_radius_internal(),
+            self.minor_radius_internal(),
         )
         .ok_or_else(|| TransformError::InvalidGeometry("Translation failed".to_string()))
     }
@@ -227,7 +207,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSurface3D<T> {
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.origin(), axis, angle)?;
+        let matrix = analysis_transform::rotation_matrix(&center.origin_internal(), axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -239,7 +219,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSurface3D<T> {
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.origin(), scale_x, scale_y, scale_z)?;
+        let matrix = analysis_transform::scale_matrix(&center.origin_internal(), scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
@@ -264,7 +244,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSurface3D<T> {
         if let Some(scale_factors) = scale {
             let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
             let scale_mat = analysis_transform::scale_matrix(
-                &scale_center.origin(),
+                &scale_center.origin_internal(),
                 scale_factors.0,
                 scale_factors.1,
                 scale_factors.2,
@@ -273,7 +253,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TorusSurface3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.origin(), axis, angle)?;
+            let rot_mat = analysis_transform::rotation_matrix(&center.origin_internal(), axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -321,18 +301,18 @@ mod tests {
 
         // 原点が移動することを確認
         let expected_origin = Point3D::new(5.0, 3.0, 1.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
 
         // 軸は変わらない
-        assert!((result.z_axis().x() - surface.z_axis().x()).abs() < f64::EPSILON);
-        assert!((result.z_axis().y() - surface.z_axis().y()).abs() < f64::EPSILON);
-        assert!((result.z_axis().z() - surface.z_axis().z()).abs() < f64::EPSILON);
+        assert!((result.z_axis_internal().x() - surface.z_axis_internal().x()).abs() < f64::EPSILON);
+        assert!((result.z_axis_internal().y() - surface.z_axis_internal().y()).abs() < f64::EPSILON);
+        assert!((result.z_axis_internal().z() - surface.z_axis_internal().z()).abs() < f64::EPSILON);
 
         // 半径は変わらない
-        assert!((result.major_radius() - surface.major_radius()).abs() < f64::EPSILON);
-        assert!((result.minor_radius() - surface.minor_radius()).abs() < f64::EPSILON);
+        assert!((result.major_radius_internal() - surface.major_radius_internal()).abs() < f64::EPSILON);
+        assert!((result.minor_radius_internal() - surface.minor_radius_internal()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -348,14 +328,14 @@ mod tests {
 
         // 90度X軸回転後の原点確認（原点なので変わらない）
         let expected_origin = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < 1e-10);
-        assert!((result.origin().y() - expected_origin.y()).abs() < 1e-10);
-        assert!((result.origin().z() - expected_origin.z()).abs() < 1e-10);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < 1e-10);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < 1e-10);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < 1e-10);
 
         // Z軸方向が回転される（Z軸(0,0,1)をX軸周りに90度回転すると(0,-1,0)になる）
-        assert!((result.z_axis().x() - 0.0).abs() < 1e-10);
-        assert!((result.z_axis().y() - (-1.0)).abs() < 1e-10);
-        assert!((result.z_axis().z() - 0.0).abs() < 1e-10);
+        assert!((result.z_axis_internal().x() - 0.0).abs() < 1e-10);
+        assert!((result.z_axis_internal().y() - (-1.0)).abs() < 1e-10);
+        assert!((result.z_axis_internal().z() - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -372,17 +352,17 @@ mod tests {
 
         // 原点がスケールされることを確認（原点なので変わらない）
         let expected_origin = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
 
         // 半径がスケールされることを確認
         let expected_scale = 2.0; // 均等スケール
         assert!(
-            (result.major_radius() - surface.major_radius() * expected_scale).abs() < f64::EPSILON
+            (result.major_radius_internal() - surface.major_radius_internal() * expected_scale).abs() < f64::EPSILON
         );
         assert!(
-            (result.minor_radius() - surface.minor_radius() * expected_scale).abs() < f64::EPSILON
+            (result.minor_radius_internal() - surface.minor_radius_internal() * expected_scale).abs() < f64::EPSILON
         );
     }
 
@@ -398,16 +378,16 @@ mod tests {
 
         // 原点がスケールされることを確認（原点なので変わらない）
         let expected_origin = Point3D::new(0.0, 0.0, 0.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
 
         // 半径が均等にスケールされることを確認
         assert!(
-            (result.major_radius() - surface.major_radius() * scale_factor).abs() < f64::EPSILON
+            (result.major_radius_internal() - surface.major_radius_internal() * scale_factor).abs() < f64::EPSILON
         );
         assert!(
-            (result.minor_radius() - surface.minor_radius() * scale_factor).abs() < f64::EPSILON
+            (result.minor_radius_internal() - surface.minor_radius_internal() * scale_factor).abs() < f64::EPSILON
         );
     }
 
@@ -431,9 +411,9 @@ mod tests {
         // 複合変換の結果を確認
         // Scale(2,2,2) -> Rotate(0) -> Translate(1,1,1)
         let expected_origin = Point3D::new(1.0, 1.0, 1.0); // (0*2+1, 0*2+1, 0*2+1)
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -465,14 +445,14 @@ mod tests {
 
         // 平行移動による原点の変化を確認
         let expected_origin = Point3D::new(2.0, 3.0, 4.0);
-        assert!((result.origin().x() - expected_origin.x()).abs() < f64::EPSILON);
-        assert!((result.origin().y() - expected_origin.y()).abs() < f64::EPSILON);
-        assert!((result.origin().z() - expected_origin.z()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().x() - expected_origin.x()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().y() - expected_origin.y()).abs() < f64::EPSILON);
+        assert!((result.origin_internal().z() - expected_origin.z()).abs() < f64::EPSILON);
 
         // 軸は変わらない（平行移動のため）
-        assert!((result.z_axis().x() - surface.z_axis().x()).abs() < f64::EPSILON);
-        assert!((result.z_axis().y() - surface.z_axis().y()).abs() < f64::EPSILON);
-        assert!((result.z_axis().z() - surface.z_axis().z()).abs() < f64::EPSILON);
+        assert!((result.z_axis_internal().x() - surface.z_axis_internal().x()).abs() < f64::EPSILON);
+        assert!((result.z_axis_internal().y() - surface.z_axis_internal().y()).abs() < f64::EPSILON);
+        assert!((result.z_axis_internal().z() - surface.z_axis_internal().z()).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -547,8 +527,8 @@ mod tests {
         assert!(result.is_valid());
 
         // 両方の半径が正の値であること
-        assert!(result.major_radius() > 0.0);
-        assert!(result.minor_radius() > 0.0);
+        assert!(result.major_radius_internal() > 0.0);
+        assert!(result.minor_radius_internal() > 0.0);
     }
 
     #[test]
@@ -562,8 +542,8 @@ mod tests {
             .unwrap();
 
         // CAM工具オフセット計算に重要な軸の直交性が保持されることを確認
-        let z_vec = result.z_axis().as_vector();
-        let x_vec = result.x_axis().as_vector();
+        let z_vec = result.z_axis_internal().as_vector();
+        let x_vec = result.x_axis_internal().as_vector();
         let dot_product = z_vec.dot(&x_vec);
 
         assert!(dot_product.abs() < f64::EPSILON * 10.0);

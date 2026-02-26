@@ -71,7 +71,7 @@ impl<T: Scalar> Arc3D<T> {
 
     /// 退化した円弧かどうか判定
     pub fn is_degenerate(&self) -> bool {
-        self.radius() <= DefaultTolerances::distance::<T>()
+        self.radius_internal() <= DefaultTolerances::distance::<T>()
             || self.angle_span().to_radians() <= DefaultTolerances::angle::<T>()
     }
 
@@ -94,13 +94,13 @@ impl<T: Scalar> Arc3D<T> {
         let v_axis =
             Direction3D::from_vector(self.normal().as_vector().cross(&u_axis.as_vector())).unwrap();
 
-        let point_on_circle = u_axis.as_vector() * (self.radius() * cos_angle)
-            + v_axis.as_vector() * (self.radius() * sin_angle);
+        let point_on_circle = u_axis.as_vector() * (self.radius_internal() * cos_angle)
+            + v_axis.as_vector() * (self.radius_internal() * sin_angle);
 
         Point3D::new(
-            self.center().x() + point_on_circle.x(),
-            self.center().y() + point_on_circle.y(),
-            self.center().z() + point_on_circle.z(),
+            self.center_internal().x() + point_on_circle.x(),
+            self.center_internal().y() + point_on_circle.y(),
+            self.center_internal().z() + point_on_circle.z(),
         )
     }
 

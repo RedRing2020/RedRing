@@ -11,14 +11,12 @@ pub mod linalg; // 高速線形代数モジュール（数値解析専用）
                 // pub mod numerical_methods; - numerics/solver に移動済み
 
 // 新しい分類構造
-pub mod approximations; // 幾何学的近似計算
-                        // pub mod metrics; - 距離・計量計算は numerics に統合されました
+// pub mod approximations; - 形状計算は geo_commons に移動済み
+// pub mod metrics; - 距離・計量計算は numerics に統合されました
 pub mod numerics; // 数値計算基盤
+pub mod units; // 単位系定義とトレランス管理
 
 // pub mod sampling; - 機能は geo_algorithms/sampling.rs に移動済み
-
-#[cfg(test)]
-mod unit_tests;
 
 // 基盤型の再エクスポート
 pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
@@ -37,4 +35,11 @@ pub use consts::{
 };
 
 // 数値計算関数の再エクスポート（numericsモジュールから）
-pub use crate::numerics::{newton_arc_length, newton_inverse, newton_solve, NormedVector};
+pub use crate::linalg::solver::newton::{
+    newton_inverse, newton_solve, newton_solve_bounded,
+    newton_solve_with_numeric_derivative_bounded,
+};
+pub use crate::numerics::{newton_arc_length, trapezoidal_rule, NormedVector};
+
+// 単位系の再エクスポート
+pub use units::{LengthUnit, Tolerance};

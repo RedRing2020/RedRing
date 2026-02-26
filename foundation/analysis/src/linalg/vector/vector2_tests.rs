@@ -4,6 +4,7 @@ use std::f64::consts::PI;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::consts::test_constants::TOLERANCE_F64;
 
     #[test]
     fn test_vector2_creation() {
@@ -36,8 +37,8 @@ mod tests {
         let v = Vector2::new(1.0_f64, 0.0_f64);
         let rotated = v.rotate(PI / 2.0);
 
-        assert!((rotated.x() - 0.0_f64).abs() < 1e-10);
-        assert!((rotated.y() - 1.0_f64).abs() < 1e-10);
+        assert!((rotated.x() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((rotated.y() - 1.0_f64).abs() < TOLERANCE_F64);
     }
 
     #[test]

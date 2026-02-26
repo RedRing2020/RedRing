@@ -1,12 +1,12 @@
-﻿//! Arc交点計算統一Foundation実装
+//! Arc2D 交点計算 Foundation 実装
 //!
-//! 統一Intersection Foundation システムによる交点計算
-//! 全幾何プリミティブで共通利用可能な統一インターフェース
+//! BasicIntersection, MultipleIntersection, SelfIntersection トレイトの実装
+//! Arc2D と他の幾何形状との組み合わせを実装
 
-use crate::{Arc2D, Circle2D, Point2D, Vector2D};
+use crate::{Arc2D, Circle2D, Point2D};
 use geo_foundation::{
-    traits::{BasicIntersection, MultipleIntersection, SelfIntersection},
-    PointDistance, Scalar,
+    Arc2DProperties, BasicIntersection, Circle2DProperties, MultipleIntersection, Scalar,
+    SelfIntersection,
 };
 
 // ============================================================================
@@ -17,12 +17,24 @@ use geo_foundation::{
 impl<T: Scalar> BasicIntersection<T, Point2D<T>> for Arc2D<T> {
     type Point = Point2D<T>;
 
-    fn intersection_with(&self, other: &Point2D<T>, tolerance: T) -> Option<Self::Point> {
-        if self.point_on_boundary(other, tolerance) {
-            Some(*other)
-        } else {
-            None
+    fn intersection_with(&self, point: &Point2D<T>, tolerance: T) -> Option<Self::Point> {
+        // 点が円弧上にあれば、その点を交点として返す
+        let (center_x, center_y) = <Self as Arc2DProperties<T>>::center(self);
+        let dx = point.x() - center_x;
+        let dy = point.y() - center_y;
+        let distance = (dx * dx + dy * dy).sqrt();
+
+        // 1. 円周上にあるか確認
+        if (distance - self.radius_internal()).abs() > tolerance {
+            return None;
         }
+
+        // 2. 角度範囲内にあるか確認
+        if !self.contains_point_angle(*point) {
+            return None;
+        }
+
+        Some(*point)
     }
 }
 
@@ -30,25 +42,10 @@ impl<T: Scalar> BasicIntersection<T, Point2D<T>> for Arc2D<T> {
 impl<T: Scalar> BasicIntersection<T, Circle2D<T>> for Arc2D<T> {
     type Point = Point2D<T>;
 
-    fn intersection_with(&self, other: &Circle2D<T>, tolerance: T) -> Option<Self::Point> {
-        // 複数交点計算の最初の要素を返す
+    fn intersection_with(&self, circle: &Circle2D<T>, tolerance: T) -> Option<Self::Point> {
         let intersections = <Self as MultipleIntersection<T, Circle2D<T>>>::intersections_with(
-            self, other, tolerance,
+            self, circle, tolerance,
         );
-
-        intersections.into_iter().next()
-    }
-}
-
-// Arc vs Arc（最初の交点のみ）
-impl<T: Scalar> BasicIntersection<T, Arc2D<T>> for Arc2D<T> {
-    type Point = Point2D<T>;
-
-    fn intersection_with(&self, other: &Arc2D<T>, tolerance: T) -> Option<Self::Point> {
-        // 複数交点計算の最初の要素を返す
-        let intersections =
-            <Self as MultipleIntersection<T, Arc2D<T>>>::intersections_with(self, other, tolerance);
-
         intersections.into_iter().next()
     }
 }
@@ -57,72 +54,13 @@ impl<T: Scalar> BasicIntersection<T, Arc2D<T>> for Arc2D<T> {
 // MultipleIntersection Implementations
 // ============================================================================
 
-// Arc vs Circle（複数交点）
+// Arc vs Circle（複数交点、最大2点）
 impl<T: Scalar> MultipleIntersection<T, Circle2D<T>> for Arc2D<T> {
     type Point = Point2D<T>;
 
-    fn intersections_with(&self, other: &Circle2D<T>, tolerance: T) -> Vec<Self::Point> {
-        let mut result = Vec::new();
-
-        // 1. 基底円同士の交点を計算
-        let base_circle = self.circle();
-        let circle_intersections = calculate_circle_circle_intersections(base_circle, other);
-
-        // 2. 交点が円弧の角度範囲内にあるかを確認
-        for intersection in circle_intersections {
-            let center = base_circle.center();
-            let to_intersection =
-                Vector2D::new(intersection.x() - center.x(), intersection.y() - center.y());
-            let angle = to_intersection.angle();
-
-            if self.angle_in_range_with_tolerance(angle, tolerance) {
-                result.push(intersection);
-            }
-        }
-
-        result
-    }
-}
-
-// Arc vs Arc（複数交点）
-impl<T: Scalar> MultipleIntersection<T, Arc2D<T>> for Arc2D<T> {
-    type Point = Point2D<T>;
-
-    fn intersections_with(&self, other: &Arc2D<T>, tolerance: T) -> Vec<Self::Point> {
-        let mut result = Vec::new();
-
-        // 1. 基底円同士の交点を計算
-        let base_circle1 = self.circle();
-        let base_circle2 = other.circle();
-        let circle_intersections =
-            calculate_circle_circle_intersections(base_circle1, base_circle2);
-
-        // 2. 交点が両方の円弧の角度範囲内にあるかを確認
-        for intersection in circle_intersections {
-            // 最初の円弧での角度確認
-            let center1 = base_circle1.center();
-            let to_intersection1 = Vector2D::new(
-                intersection.x() - center1.x(),
-                intersection.y() - center1.y(),
-            );
-            let angle1 = to_intersection1.angle();
-
-            // 2番目の円弧での角度確認
-            let center2 = base_circle2.center();
-            let to_intersection2 = Vector2D::new(
-                intersection.x() - center2.x(),
-                intersection.y() - center2.y(),
-            );
-            let angle2 = to_intersection2.angle();
-
-            if self.angle_in_range_with_tolerance(angle1, tolerance)
-                && other.angle_in_range_with_tolerance(angle2, tolerance)
-            {
-                result.push(intersection);
-            }
-        }
-
-        result
+    fn intersections_with(&self, circle: &Circle2D<T>, _tolerance: T) -> Vec<Self::Point> {
+        // 簡易実装：基底円と円の交点を計算
+        calculate_arc_circle_intersections(self, circle)
     }
 }
 
@@ -134,8 +72,7 @@ impl<T: Scalar> SelfIntersection<T> for Arc2D<T> {
     type Point = Point2D<T>;
 
     fn self_intersections(&self, _tolerance: T) -> Vec<Self::Point> {
-        // 通常の円弧は自己交差しない
-        // フル円弧（360度）の場合は開始点=終了点だが、これは通常自己交差とは考えない
+        // 円弧は自己交差しない
         Vec::new()
     }
 }
@@ -144,7 +81,35 @@ impl<T: Scalar> SelfIntersection<T> for Arc2D<T> {
 // 幾何計算ヘルパー関数
 // ============================================================================
 
-/// 円と円の交点を計算（最大2点）
+/// 円弧と円の交点を計算（角度範囲考慮版）
+fn calculate_arc_circle_intersections<T: Scalar>(
+    arc: &Arc2D<T>,
+    circle: &Circle2D<T>,
+) -> Vec<Point2D<T>> {
+    let mut result = Vec::new();
+
+    // 基底円と円の交点を計算
+    let (arc_center_x, arc_center_y) = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
+    let base_circle = Circle2D::new(
+        Point2D::new(arc_center_x, arc_center_y),
+        arc.radius_internal(),
+    );
+
+    if let Some(base_circle) = base_circle {
+        let circle_intersections = calculate_circle_circle_intersections(&base_circle, circle);
+
+        // 角度範囲内の交点のみをフィルタリング
+        for point in circle_intersections {
+            if arc.contains_point_angle(point) {
+                result.push(point);
+            }
+        }
+    }
+
+    result
+}
+
+/// 円と円の交点を計算（Circle2D から再利用）
 fn calculate_circle_circle_intersections<T: Scalar>(
     circle1: &Circle2D<T>,
     circle2: &Circle2D<T>,
@@ -156,45 +121,31 @@ fn calculate_circle_circle_intersections<T: Scalar>(
     let r1 = circle1.radius();
     let r2 = circle2.radius();
 
-    // 中心間距離
-    let dx = center2.x() - center1.x();
-    let dy = center2.y() - center1.y();
+    let dx = center2.0 - center1.0;
+    let dy = center2.1 - center1.1;
     let d = (dx * dx + dy * dy).sqrt();
 
-    // 交点判定
     if d > r1 + r2 || d < (r1 - r2).abs() || d == T::ZERO {
-        // 交点なし
         return result;
     }
 
-    // 交点計算
     let a = (r1 * r1 - r2 * r2 + d * d) / ((T::ONE + T::ONE) * d);
     let h_squared = r1 * r1 - a * a;
 
     if h_squared < T::ZERO {
-        // 交点なし（数値誤差対応）
         return result;
     }
 
     let h = h_squared.sqrt();
-
-    // 中点
-    let px = center1.x() + a * dx / d;
-    let py = center1.y() + a * dy / d;
+    let px = center1.0 + a * dx / d;
+    let py = center1.1 + a * dy / d;
 
     if h == T::ZERO {
-        // 接点（1点）
         result.push(Point2D::new(px, py));
     } else {
-        // 2交点
-        let intersection1 = Point2D::new(px + h * dy / d, py - h * dx / d);
-        let intersection2 = Point2D::new(px - h * dy / d, py + h * dx / d);
-
-        result.push(intersection1);
-        result.push(intersection2);
+        result.push(Point2D::new(px + h * dy / d, py - h * dx / d));
+        result.push(Point2D::new(px - h * dy / d, py + h * dx / d));
     }
 
     result
 }
-
-// angle_in_range methods are implemented in arc_2d_collision.rs

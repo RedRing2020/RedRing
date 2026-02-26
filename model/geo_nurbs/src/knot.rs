@@ -74,7 +74,7 @@ pub fn validate_knot_vector<T: Scalar>(
 ///
 /// # 戻り値
 /// 均等間隔のノットベクトル
-pub fn create_uniform_knot_vector<T: Scalar>(
+pub fn uniform_knot_vector<T: Scalar>(
     degree: usize,
     num_control_points: usize,
     start: T,
@@ -115,11 +115,8 @@ pub fn create_uniform_knot_vector<T: Scalar>(
 ///
 /// # 戻り値
 /// [0,1]区間のクランプノットベクトル
-pub fn create_clamped_knot_vector<T: Scalar>(
-    degree: usize,
-    num_control_points: usize,
-) -> KnotVector<T> {
-    create_uniform_knot_vector(degree, num_control_points, T::ZERO, T::ONE)
+pub fn clamped_knot_vector<T: Scalar>(degree: usize, num_control_points: usize) -> KnotVector<T> {
+    uniform_knot_vector(degree, num_control_points, T::ZERO, T::ONE)
 }
 
 /// オープンノットベクトルを生成（内部に重複なし）
@@ -131,10 +128,7 @@ pub fn create_clamped_knot_vector<T: Scalar>(
 /// # 戻り値
 /// 内部重複のないノットベクトル
 #[must_use]
-pub fn create_open_knot_vector<T: Scalar>(
-    degree: usize,
-    num_control_points: usize,
-) -> KnotVector<T> {
+pub fn open_knot_vector<T: Scalar>(degree: usize, num_control_points: usize) -> KnotVector<T> {
     let mut knots = Vec::new();
     let total_knots = num_control_points + degree + 1;
 
@@ -227,13 +221,13 @@ mod tests {
 
     #[test]
     fn test_uniform_knot_vector() {
-        let knots = create_uniform_knot_vector(2, 4, 0.0, 1.0);
+        let knots = uniform_knot_vector(2, 4, 0.0, 1.0);
         assert_eq!(knots, vec![0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0]);
     }
 
     #[test]
     fn test_clamped_knot_vector() {
-        let knots = create_clamped_knot_vector::<f64>(1, 3);
+        let knots = clamped_knot_vector::<f64>(1, 3);
         assert_eq!(knots, vec![0.0, 0.0, 0.5, 1.0, 1.0]);
     }
 

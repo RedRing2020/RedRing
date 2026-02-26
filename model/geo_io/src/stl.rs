@@ -4,6 +4,7 @@
 //! 自動フォーマット判定機能付き。
 
 use crate::error::StlError;
+use geo_foundation::core::triangle_traits::Triangle3DProperties;
 use geo_foundation::Scalar;
 use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 use std::fs::File;
@@ -194,26 +195,29 @@ pub fn save_ascii_stl<T: Scalar>(mesh: &TriangleMesh3D<T>, path: &Path) -> Resul
             )?;
             writeln!(file, "    outer loop")?;
 
+            let va = triangle.vertex_a();
+            let vb = triangle.vertex_b();
+            let vc = triangle.vertex_c();
             writeln!(
                 file,
                 "      vertex {} {} {}",
-                triangle.vertex_a().x().to_f64(),
-                triangle.vertex_a().y().to_f64(),
-                triangle.vertex_a().z().to_f64()
+                va.0.to_f64(),
+                va.1.to_f64(),
+                va.2.to_f64()
             )?;
             writeln!(
                 file,
                 "      vertex {} {} {}",
-                triangle.vertex_b().x().to_f64(),
-                triangle.vertex_b().y().to_f64(),
-                triangle.vertex_b().z().to_f64()
+                vb.0.to_f64(),
+                vb.1.to_f64(),
+                vb.2.to_f64()
             )?;
             writeln!(
                 file,
                 "      vertex {} {} {}",
-                triangle.vertex_c().x().to_f64(),
-                triangle.vertex_c().y().to_f64(),
-                triangle.vertex_c().z().to_f64()
+                vc.0.to_f64(),
+                vc.1.to_f64(),
+                vc.2.to_f64()
             )?;
 
             writeln!(file, "    endloop")?;

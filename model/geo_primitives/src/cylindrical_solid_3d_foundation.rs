@@ -1,8 +1,9 @@
 //! CylindricalSolid3D の Foundation トレイト実装
 
-use crate::{BBox3D, CylindricalSolid3D};
+use crate::CylindricalSolid3D;
+use geo_core::Aabb3D;
 use geo_foundation::{
-    extension_foundation::ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
+    Bounded, CylindricalSolid3DMeasure, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq,
 };
 
 // ============================================================================
@@ -10,14 +11,8 @@ use geo_foundation::{
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for CylindricalSolid3D<T> {
-    type BBox = BBox3D<T>;
-
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSolid
-    }
-
-    fn bounding_box(&self) -> Self::BBox {
-        self.bounding_box()
     }
 
     fn measure(&self) -> Option<T> {
@@ -25,10 +20,18 @@ impl<T: Scalar> ExtensionFoundation<T> for CylindricalSolid3D<T> {
     }
 }
 
+impl<T: Scalar> Bounded<T> for CylindricalSolid3D<T> {
+    type Aabb = Aabb3D<T>;
+
+    fn aabb(&self) -> Option<Self::Aabb> {
+        Some(self.bounding_box())
+    }
+}
+
 impl<T: Scalar> TolerantEq<T> for CylindricalSolid3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の距離を計算
-        let center_distance = self.center().distance_to(&other.center());
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
         let radius_diff = (self.radius() - other.radius()).abs();
         let height_diff = (self.height() - other.height()).abs();
 
@@ -81,7 +84,7 @@ mod tests {
         );
         assert!(cylindrical_solid.measure().is_some());
 
-        let bbox = cylindrical_solid.bounding_box();
+        let bbox = cylindrical_solid.aabb().expect("should have aabb");
         assert_eq!(bbox.min().x(), -4.0);
         assert_eq!(bbox.max().x(), 6.0);
     }

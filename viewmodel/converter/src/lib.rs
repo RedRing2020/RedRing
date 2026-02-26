@@ -8,9 +8,22 @@
 //! - メッシュデータ変換（Model → GPU形式）
 //! - STL読み込み・変換統合
 //! - 境界ボックス計算・変換
+//! - 形状可視化データ変換（幾何プリミティブ → GPU頂点データ）
+//! - CAM工具経路の可視化データ変換（ToolPath → GPU頂点データ）
+//! - Octree可視化データ変換（Octree → GPU ワイヤーフレーム頂点データ）
+//! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
 
+pub mod cam_sim_visualization_converter;
+pub mod entity_converter;
 pub mod mesh_converter;
+pub mod nurbs_eval_loader;
+pub mod nurbs_view;
+pub mod octree_converter;
+pub mod shape_converter;
+pub mod snapshot_converter;
 pub mod stl_loader;
+pub mod svg_loader;
+pub mod toolpath_converter;
 
 /// テスト用の関数（削除予定）
 pub fn add(left: u64, right: u64) -> u64 {

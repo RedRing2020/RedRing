@@ -32,7 +32,7 @@ function Get-CrateDependencies {
         if ($inDepsSection -and $line -match '^(\w+)\s*=') {
             $depName = $matches[1]
             # Check if it's a workspace crate
-            $workspaceCrates = @("analysis", "geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "converter", "graphics", "render", "stage", "app")
+            $workspaceCrates = @("analysis", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "converter", "graphics", "render", "stage", "app")
             if ($workspaceCrates -contains $depName) {
                 $dependencies += $depName
             }
@@ -54,6 +54,7 @@ function Test-ArchitectureDependencies {
     $workspaceCrates = @{
         "analysis"       = "foundation\analysis"
         "geo_foundation" = "model\geo_foundation"
+        "geo_commons"    = "model\geo_commons"
         "geo_core"       = "model\geo_core"
         "geo_primitives" = "model\geo_primitives"
         "geo_algorithms" = "model\geo_algorithms"
@@ -66,24 +67,25 @@ function Test-ArchitectureDependencies {
         "app"            = "view\app"
     }
 
-    # Define allowed dependencies
+    # Define allowed dependencies (Updated: 2025-12-25)
     $allowedDeps = @{
         "analysis"       = @()
-        "geo_foundation" = @("analysis")
-        "geo_core"       = @("geo_foundation", "analysis")
-        "geo_primitives" = @("geo_foundation", "geo_core", "analysis")
-        "geo_algorithms" = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
-        "geo_nurbs"      = @("geo_foundation", "geo_primitives", "analysis")  # 例外: 基本幾何型使用
+        "geo_foundation" = @("analysis", "geo_commons")  # geo_commons: 共通計算関数を再エクスポート
+        "geo_commons"    = @("analysis")  # 独立した計算関数クレート
+        "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
+        "geo_primitives" = @("geo_foundation", "geo_core", "analysis")  # geo_core の AABB型を使用
+        "geo_algorithms" = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")  # 共通計算関数・NURBS衝突判定のため geo_commons, geo_nurbs を追加
+        "geo_nurbs"      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
-        "converter"      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "analysis")
-        "graphics"       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
+        "converter"      = @("geo_foundation", "geo_algorithms", "geo_io", "analysis")  # geo_algorithms が geo_core/geo_primitives を再エクスポート
+        "graphics"       = @("analysis")
         "render"         = @("analysis")
         "stage"          = @("render", "analysis")
         "app"            = @("converter", "graphics", "render", "stage", "analysis")
     }
 
     Write-ColorText "1. Checking Model layer naming rules..." "Yellow"
-    $modelCrates = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io")
+    $modelCrates = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io")
     foreach ($crateName in $modelCrates) {
         if (Test-Path $workspaceCrates[$crateName]) {
             Write-ColorText "  OK: $crateName follows geo_ prefix rule" "Green"
@@ -96,6 +98,10 @@ function Test-ArchitectureDependencies {
     Write-Host ""
 
     Write-ColorText "2. Checking dependency rules..." "Yellow"
+    
+    # Debug: geo_foundation の許可依存先を表示
+    Write-ColorText "  DEBUG: geo_foundation allowed deps: $($allowedDeps['geo_foundation'] -join ', ')" "Gray"
+    
     foreach ($crateName in $workspaceCrates.Keys) {
         $cratePath = $workspaceCrates[$crateName]
 
@@ -131,7 +137,7 @@ function Test-ArchitectureDependencies {
     Write-ColorText "3. Layer summary:" "Yellow"
     $layers = @{
         "Analysis"  = @("analysis")
-        "Model"     = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
+        "Model"     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io")
         "ViewModel" = @("converter", "graphics")
         "View"      = @("render", "stage", "app")
     }

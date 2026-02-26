@@ -6,31 +6,14 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
+use geo_foundation::{
+    core::infinite_line_traits::InfiniteLine2DProperties, AnalysisTransform2D, Angle, Scalar,
+    TransformError,
+};
 
 /// InfiniteLine2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {
     use super::*;
-
-    /// Analysis Vector2への変換（Point2D専用）
-    pub fn point_to_analysis_vector<T: Scalar>(point: Point2D<T>) -> Vector2<T> {
-        Vector2::new(point.x(), point.y())
-    }
-
-    /// Analysis Vector2からの変換（Point2D専用）
-    pub fn analysis_vector_to_point<T: Scalar>(vector: Vector2<T>) -> Point2D<T> {
-        Point2D::new(vector.x(), vector.y())
-    }
-
-    /// Analysis Vector2への変換（Vector2D専用）
-    pub fn vector_to_analysis_vector<T: Scalar>(vector: Vector2D<T>) -> Vector2<T> {
-        Vector2::new(vector.x(), vector.y())
-    }
-
-    /// Analysis Vector2からの変換（Vector2D専用）
-    pub fn analysis_vector_to_vector<T: Scalar>(vector: Vector2<T>) -> Vector2D<T> {
-        Vector2D::new(vector.x(), vector.y())
-    }
 
     /// 無限直線の行列変換（Matrix3x3）
     ///
@@ -40,14 +23,16 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Result<InfiniteLine2D<T>, TransformError> {
         // 直線上の点を変換
-        let point_vec = point_to_analysis_vector(infinite_line.point());
+        let point_tuple = infinite_line.point();
+        let point_vec = Vector2::new(point_tuple.0, point_tuple.1);
         let transformed_point_vec = matrix.transform_point_2d(&point_vec);
-        let new_point = analysis_vector_to_point(transformed_point_vec);
+        let new_point: Point2D<T> = transformed_point_vec.into();
 
         // 方向ベクトルを変換（平行移動成分を除去するため原点中心変換）
-        let direction_vec = vector_to_analysis_vector(*infinite_line.direction());
+        let direction_tuple = infinite_line.direction();
+        let direction_vec = Vector2::new(direction_tuple.0, direction_tuple.1);
         let transformed_direction_vec = matrix.transform_vector_2d(&direction_vec);
-        let new_direction_vector = analysis_vector_to_vector(transformed_direction_vec);
+        let new_direction_vector: Vector2D<T> = transformed_direction_vec.into();
 
         // 変換後の無限直線を構築
         InfiniteLine2D::new(new_point, new_direction_vector).ok_or_else(|| {
@@ -63,7 +48,7 @@ pub mod analysis_transform {
 
     /// 回転行列を生成（中心点指定）
     pub fn rotation_matrix_2d<T: Scalar>(center: &Point2D<T>, angle: Angle<T>) -> Matrix3x3<T> {
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector2<T> = (*center).into();
         Matrix3x3::rotation_around_point_2d(&center_vec, angle.to_radians())
     }
 
@@ -78,7 +63,7 @@ pub mod analysis_transform {
                 "Scale factors cannot be zero".to_string(),
             ));
         }
-        let center_vec = point_to_analysis_vector(*center);
+        let center_vec: Vector2<T> = (*center).into();
         // Analysis Matrix3x3にはscale_around_point_2dがないので、手動で計算
         let translation_to_origin =
             Matrix3x3::translation_2d(&Vector2::new(-center_vec.x(), -center_vec.y()));
@@ -131,7 +116,8 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
         center: &Self,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.point();
+        let center_tuple = center.point();
+        let center_point = Point2D::new(center_tuple.0, center_tuple.1);
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         analysis_transform::transform_infinite_line_2d(self, &matrix)
     }
@@ -143,7 +129,8 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.point();
+        let center_tuple = center.point();
+        let center_point = Point2D::new(center_tuple.0, center_tuple.1);
         let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         analysis_transform::transform_infinite_line_2d(self, &matrix)
     }
@@ -154,7 +141,8 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
         center: &Self,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.point();
+        let center_tuple = center.point();
+        let center_point = Point2D::new(center_tuple.0, center_tuple.1);
         let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
         analysis_transform::transform_infinite_line_2d(self, &matrix)
     }
@@ -192,9 +180,12 @@ mod tests {
     #[test]
     fn test_default_infinite_line_2d() {
         let line = InfiniteLine2D::<f64>::default();
-        assert_eq!(line.point(), Point2D::origin());
-        assert_eq!(line.direction().x(), 1.0);
-        assert_eq!(line.direction().y(), 0.0);
+        let point = line.point();
+        let direction = line.direction();
+        assert_eq!(point.0, 0.0);
+        assert_eq!(point.1, 0.0);
+        assert_eq!(direction.0, 1.0);
+        assert_eq!(direction.1, 0.0);
     }
 
     #[test]
@@ -204,11 +195,13 @@ mod tests {
 
         let result = line.translate_analysis_2d(&translation).unwrap();
 
-        assert_eq!(result.point().x(), 1.0);
-        assert_eq!(result.point().y(), 2.0);
+        let result_point = result.point();
+        let result_direction = result.direction();
+        assert_eq!(result_point.0, 1.0);
+        assert_eq!(result_point.1, 2.0);
         // 方向ベクトルは変わらない
-        assert_eq!(result.direction().x(), 1.0);
-        assert_eq!(result.direction().y(), 0.0);
+        assert_eq!(result_direction.0, 1.0);
+        assert_eq!(result_direction.1, 0.0);
     }
 
     #[test]
@@ -221,11 +214,13 @@ mod tests {
 
         // 90度回転後、点 (1,0) は (0,1) になる
         const TOLERANCE: f64 = 1e-10;
-        assert!((result.point().x() - 0.0).abs() < TOLERANCE);
-        assert!((result.point().y() - 1.0).abs() < TOLERANCE);
+        let result_point = result.point();
+        let result_direction = result.direction();
+        assert!((result_point.0 - 0.0).abs() < TOLERANCE);
+        assert!((result_point.1 - 1.0).abs() < TOLERANCE);
         // 方向ベクトル (1,0) は (0,1) になる
-        assert!((result.direction().x() - 0.0).abs() < TOLERANCE);
-        assert!((result.direction().y() - 1.0).abs() < TOLERANCE);
+        assert!((result_direction.0 - 0.0).abs() < TOLERANCE);
+        assert!((result_direction.1 - 1.0).abs() < TOLERANCE);
     }
 
     #[test]
@@ -236,11 +231,13 @@ mod tests {
         let result = line.scale_analysis_2d(&center_line, 2.0, 3.0).unwrap();
 
         // 点 (2,1) が (4,3) になる
-        assert_eq!(result.point().x(), 4.0);
-        assert_eq!(result.point().y(), 3.0);
+        let result_point = result.point();
+        let result_direction = result.direction();
+        assert_eq!(result_point.0, 4.0);
+        assert_eq!(result_point.1, 3.0);
         // 方向ベクトル (1,0) が (2,0) になる
-        assert_eq!(result.direction().x(), 1.0); // 正規化されるため
-        assert_eq!(result.direction().y(), 0.0);
+        assert_eq!(result_direction.0, 1.0); // 正規化されるため
+        assert_eq!(result_direction.1, 0.0);
     }
 
     #[test]
@@ -251,11 +248,13 @@ mod tests {
         let result = line.uniform_scale_analysis_2d(&center_line, 2.0).unwrap();
 
         // 点 (1,1) が (2,2) になる
-        assert_eq!(result.point().x(), 2.0);
-        assert_eq!(result.point().y(), 2.0);
+        let result_point = result.point();
+        let result_direction = result.direction();
+        assert_eq!(result_point.0, 2.0);
+        assert_eq!(result_point.1, 2.0);
         // 方向ベクトルは変わらない（均等スケール）
-        assert_eq!(result.direction().x(), 1.0);
-        assert_eq!(result.direction().y(), 0.0);
+        assert_eq!(result_direction.0, 1.0);
+        assert_eq!(result_direction.1, 0.0);
     }
 
     #[test]
@@ -278,9 +277,11 @@ mod tests {
 
         let result = line.transform_point_matrix_2d(&matrix);
 
-        assert_eq!(result.point().x(), 3.0);
-        assert_eq!(result.point().y(), 3.0);
-        assert_eq!(result.direction().x(), 1.0);
-        assert_eq!(result.direction().y(), 0.0);
+        let result_point = result.point();
+        let result_direction = result.direction();
+        assert_eq!(result_point.0, 3.0);
+        assert_eq!(result_point.1, 3.0);
+        assert_eq!(result_direction.0, 1.0);
+        assert_eq!(result_direction.1, 0.0);
     }
 }

@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+analysis = { path = "../../foundation/analysis" }
 geo_foundation = { path = "../geo_foundation" }
 geo_primitives = { path = "../geo_primitives" }
+geo_nurbs = { path = "../geo_nurbs" }
+geo_core = { path = "../geo_core" }
+rayon = "1.10"
+

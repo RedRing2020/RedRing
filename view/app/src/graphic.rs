@@ -1,6 +1,6 @@
 use crate::app_renderer::AppRenderer;
 use std::sync::Arc;
-use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture};
+use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureView};
 use winit::window::Window;
 
 pub struct Graphic {
@@ -9,6 +9,8 @@ pub struct Graphic {
     pub surface: Surface<'static>,
     pub config: SurfaceConfiguration,
     pub surface_texture: Option<SurfaceTexture>,
+    pub depth_texture: Texture,
+    pub depth_view: TextureView,
 }
 
 pub fn init_graphic(window: Arc<Window>) -> Graphic {
@@ -55,12 +57,32 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
         desired_maximum_frame_latency: 2,
     };
 
+    // Depth texture を作成
+    let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Depth Texture"),
+        size: wgpu::Extent3d {
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Depth32Float,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+
+    let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
     Graphic {
         device,
         queue,
         surface,
         config,
         surface_texture: None,
+        depth_texture,
+        depth_view,
     }
 }
 
@@ -79,7 +101,9 @@ impl Graphic {
                             label: Some("Render Encoder"),
                         });
 
-                renderer.render(&mut encoder, &view);
+                // 深度ビューを渡してレンダリング
+                let depth_view = &self.depth_view;
+                renderer.render_with_depth(&mut encoder, &view, depth_view);
                 self.queue.submit(std::iter::once(encoder.finish()));
                 frame.present();
                 self.surface_texture = None;

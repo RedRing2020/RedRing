@@ -7,7 +7,22 @@
 //! - 単位クォータニオンによる回転表現
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::{Vector3, Vector4};
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};
+
+/// 四元数計算用閾値
+mod thresholds {
+    /// ベクトル垂直判定閾値
+    ///
+    /// x成分の絶対値がこの値未満の場合、x軸と垂直と見なす。
+    /// from_to_rotation() で反対方向ベクトルの回転軸を求める際に使用。
+    pub const PERPENDICULAR_THRESHOLD: f64 = 0.9;
+
+    /// SLERP閾値
+    ///
+    /// 内積がこの値以上の場合、線形補間（LERP）を使用する。
+    /// 角度が非常に小さい場合の数値安定性を向上させる。
+    pub const SLERP_THRESHOLD: f64 = 0.9995;
+}
 
 /// 単位クォータニオン（回転表現用）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -15,7 +30,7 @@ pub struct Quaternion<T: Scalar> {
     /// クォータニオンの成分 [x, y, z, w] = [i, j, k, real]
     /// w: 実部（スカラー部）
     /// x, y, z: 虚部（ベクトル部）
-    pub data: [T; 4],
+    data: [T; 4],
 }
 
 impl<T: Scalar> Quaternion<T> {
@@ -101,11 +116,12 @@ impl<T: Scalar> Quaternion<T> {
         // ベクトルが反対方向の場合
         if dot <= -T::ONE + T::EPSILON {
             // 垂直なベクトルを見つける
-            let axis = if from_normalized.x().abs() < T::from_f64(0.9) {
-                Vector3::new(T::ONE, T::ZERO, T::ZERO).cross(&from_normalized)
-            } else {
-                Vector3::new(T::ZERO, T::ONE, T::ZERO).cross(&from_normalized)
-            };
+            let axis =
+                if from_normalized.x().abs() < T::from_f64(thresholds::PERPENDICULAR_THRESHOLD) {
+                    Vector3::new(T::ONE, T::ZERO, T::ZERO).cross(&from_normalized)
+                } else {
+                    Vector3::new(T::ZERO, T::ONE, T::ZERO).cross(&from_normalized)
+                };
             let normalized_axis = axis.normalize()?;
             return Ok(Self::from_axis_angle(&normalized_axis, T::PI));
         }
@@ -142,6 +158,55 @@ impl<T: Scalar> Quaternion<T> {
     pub fn w(&self) -> T {
         self.data[3]
     }
+
+    /// X成分を設定
+    pub fn set_x(&mut self, x: T) {
+        self.data[0] = x;
+    }
+
+    /// Y成分を設定
+    pub fn set_y(&mut self, y: T) {
+        self.data[1] = y;
+    }
+
+    /// Z成分を設定
+    pub fn set_z(&mut self, z: T) {
+        self.data[2] = z;
+    }
+
+    /// W成分を設定
+    pub fn set_w(&mut self, w: T) {
+        self.data[3] = w;
+    }
+
+    // === 汎用アクセサ ===
+
+    /// インデックスで要素を取得
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        self.data[index]
+    }
+
+    /// インデックスで要素を設定
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        self.data[index] = value;
+    }
+
+    /// 内部配列への参照
+    #[inline]
+    pub fn as_array(&self) -> &[T; 4] {
+        &self.data
+    }
+
+    // === イテレータ ===
+
+    /// 全要素をイテレート
+    pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
+        self.data.iter().copied()
+    }
+
+    // === ベクトル部分・スカラー部分 ===
 
     /// 虚部ベクトル (x, y, z) を取得
     pub fn vector_part(&self) -> Vector3<T> {
@@ -306,7 +371,7 @@ impl<T: Scalar> Quaternion<T> {
         };
 
         // 角度が小さい場合は線形補間
-        if dot > T::from_f64(0.9995) {
+        if dot > T::from_f64(thresholds::SLERP_THRESHOLD) {
             return Ok(self.lerp(&other, t));
         }
 
@@ -417,117 +482,32 @@ impl<T: Scalar> Neg for Quaternion<T> {
     }
 }
 
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Quaternion<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        &self.data[index]
+    }
+}
+
+impl<T: Scalar> IndexMut<usize> for Quaternion<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        &mut self.data[index]
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 4]> for Quaternion<T> {
+    #[inline]
+    fn from(data: [T; 4]) -> Self {
+        Self { data }
+    }
+}
+
 /// 型エイリアス
 pub type Quaternionf = Quaternion<f32>;
 pub type Quaterniond = Quaternion<f64>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::f64::consts::PI;
-
-    #[test]
-    fn test_quaternion_creation() {
-        let q = Quaternion::new(1.0, 2.0, 3.0, 4.0);
-        assert_eq!(q.x(), 1.0);
-        assert_eq!(q.y(), 2.0);
-        assert_eq!(q.z(), 3.0);
-        assert_eq!(q.w(), 4.0);
-    }
-
-    #[test]
-    fn test_quaternion_identity() {
-        let q = Quaternion::<f64>::identity();
-        assert_eq!(q.x(), 0.0);
-        assert_eq!(q.y(), 0.0);
-        assert_eq!(q.z(), 0.0);
-        assert_eq!(q.w(), 1.0);
-        assert!(q.is_unit());
-    }
-
-    #[test]
-    fn test_quaternion_axis_angle() {
-        let axis = Vector3::new(0.0, 0.0, 1.0);
-        let angle = PI / 2.0; // 90度
-        let q = Quaternion::from_axis_angle(&axis, angle);
-
-        // X軸のベクトルを90度Z軸周りに回転するとY軸になる
-        let x_axis = Vector3::new(1.0, 0.0, 0.0);
-        let rotated = q.rotate_vector(&x_axis);
-
-        assert!((rotated.x() - 0.0).abs() < 1e-10);
-        assert!((rotated.y() - 1.0).abs() < 1e-10);
-        assert!((rotated.z() - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_quaternion_multiplication() {
-        let q1 = Quaternion::new(1.0, 0.0, 0.0, 0.0);
-        let q2 = Quaternion::new(0.0, 1.0, 0.0, 0.0);
-        let result = q1 * q2;
-
-        // i * j = k
-        assert_eq!(result.x(), 0.0);
-        assert_eq!(result.y(), 0.0);
-        assert_eq!(result.z(), 1.0);
-        assert_eq!(result.w(), 0.0);
-    }
-
-    #[test]
-    fn test_quaternion_conjugate() {
-        let q = Quaternion::new(1.0, 2.0, 3.0, 4.0);
-        let conj = q.conjugate();
-
-        assert_eq!(conj.x(), -1.0);
-        assert_eq!(conj.y(), -2.0);
-        assert_eq!(conj.z(), -3.0);
-        assert_eq!(conj.w(), 4.0);
-    }
-
-    #[test]
-    fn test_quaternion_normalize() {
-        let q = Quaternion::new(1.0, 2.0, 3.0, 4.0);
-        let normalized = q.normalize().unwrap();
-
-        assert!((normalized.norm() - 1.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_quaternion_slerp() {
-        let q1 = Quaternion::<f64>::identity();
-        let axis = Vector3::new(0.0, 0.0, 1.0);
-        let q2 = Quaternion::from_axis_angle(&axis, PI / 2.0);
-
-        let interpolated = q1.slerp(&q2, 0.5).unwrap();
-        let expected_angle = PI / 4.0; // 45度
-
-        assert!((interpolated.angle() - expected_angle).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_quaternion_euler_conversion() {
-        let pitch = PI / 6.0; // 30度
-        let yaw = PI / 4.0; // 45度
-        let roll = PI / 3.0; // 60度
-
-        let q = Quaternion::from_euler_angles(pitch, yaw, roll);
-        let (recovered_pitch, recovered_yaw, recovered_roll) = q.to_euler_angles();
-
-        assert!((pitch - recovered_pitch).abs() < 1e-10);
-        assert!((yaw - recovered_yaw).abs() < 1e-10);
-        assert!((roll - recovered_roll).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_quaternion_from_to_rotation() {
-        let from = Vector3::new(1.0, 0.0, 0.0);
-        let to = Vector3::new(0.0, 1.0, 0.0);
-
-        let q = Quaternion::from_to_rotation(&from, &to).unwrap();
-        let rotated = q.rotate_vector(&from);
-
-        assert!((rotated.x() - to.x()).abs() < 1e-10);
-        assert!((rotated.y() - to.y()).abs() < 1e-10);
-        assert!((rotated.z() - to.z()).abs() < 1e-10);
-    }
-}

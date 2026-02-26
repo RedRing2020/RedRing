@@ -1,4 +1,4 @@
-﻿//! Ellipse2D拡張メソッド
+//! Ellipse2D拡張メソッド
 //!
 //! Core Foundation パターンに基づく Ellipse2D の拡張機能
 //! 基本機能は ellipse_2d.rs を参照
@@ -115,7 +115,7 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 楕円を平行移動
     pub fn translate(&self, offset: &Vector2D<T>) -> Self {
         Self::new(
-            self.center() + *offset,
+            self.center_internal() + *offset,
             self.semi_major_axis(),
             self.semi_minor_axis(),
             self.rotation(),
@@ -127,7 +127,7 @@ impl<T: Scalar> Ellipse2D<T> {
     pub fn scale(&self, factor: T) -> Option<Self> {
         if factor > T::ZERO {
             Self::new(
-                self.center(),
+                self.center_internal(),
                 self.semi_major_axis() * factor,
                 self.semi_minor_axis() * factor,
                 self.rotation(),
@@ -140,7 +140,7 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 楕円を回転
     pub fn rotate(&self, angle: T) -> Self {
         Self::new(
-            self.center(),
+            self.center_internal(),
             self.semi_major_axis(),
             self.semi_minor_axis(),
             self.rotation() + angle,
@@ -154,8 +154,8 @@ impl<T: Scalar> Ellipse2D<T> {
         let sin_a = angle.sin();
 
         let new_center = Point2D::new(
-            self.center().x() * cos_a - self.center().y() * sin_a,
-            self.center().x() * sin_a + self.center().y() * cos_a,
+            self.center_internal().x() * cos_a - self.center_internal().y() * sin_a,
+            self.center_internal().x() * sin_a + self.center_internal().y() * cos_a,
         );
 
         Self::new(
@@ -174,7 +174,7 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 楕円を円に変換（可能な場合）
     pub fn to_circle(&self) -> Option<Circle2D<T>> {
         if self.is_circle() {
-            Circle2D::new(self.center(), self.semi_major_axis())
+            Circle2D::new(self.center_internal(), self.semi_major_axis())
         } else {
             None
         }
@@ -197,7 +197,7 @@ impl<T: Scalar> Ellipse2D<T> {
         }
 
         // アフィン変換: center' = point + (center - point) * factor
-        let offset = Vector2D::from_points(point, self.center());
+        let offset = Vector2D::from_points(point, self.center_internal());
         let new_center = point + (offset * factor);
         let new_major = self.semi_major_axis() * factor;
         let new_minor = self.semi_minor_axis() * factor;
@@ -207,7 +207,7 @@ impl<T: Scalar> Ellipse2D<T> {
 
     /// Foundation Collision統合での楕円同士の衝突解決
     pub fn foundation_resolve_collision(&self, other: &Self) -> Option<(Self, Self)> {
-        let center_distance = self.center().distance_to(&other.center());
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
         let self_avg_radius = (self.semi_major_axis() + self.semi_minor_axis()) / (T::ONE + T::ONE);
         let other_avg_radius =
             (other.semi_major_axis() + other.semi_minor_axis()) / (T::ONE + T::ONE);
@@ -223,7 +223,7 @@ impl<T: Scalar> Ellipse2D<T> {
             return Some((self.translate(&offset.negate()), other.translate(&offset)));
         }
 
-        let direction = Vector2D::from_points(self.center(), other.center()).normalize();
+        let direction = Vector2D::from_points(self.center_internal(), other.center_internal()).normalize();
         let separation = required_distance - center_distance;
         let half_separation = separation / (T::ONE + T::ONE);
 
@@ -246,14 +246,14 @@ impl<T: Scalar> Ellipse2D<T> {
         // 自分の重み（面積に基づく）
         let self_weight = self.area();
         total_weight = total_weight + self_weight;
-        weighted_x = weighted_x + (self.center().x() * self_weight);
-        weighted_y = weighted_y + (self.center().y() * self_weight);
+        weighted_x = weighted_x + (self.center_internal().x() * self_weight);
+        weighted_y = weighted_y + (self.center_internal().y() * self_weight);
 
         // 他の楕円の重み付き中心
         for (ellipse, &weight) in others.iter().zip(weights) {
             total_weight = total_weight + weight;
-            weighted_x = weighted_x + (ellipse.center().x() * weight);
-            weighted_y = weighted_y + (ellipse.center().y() * weight);
+            weighted_x = weighted_x + (ellipse.center_internal().x() * weight);
+            weighted_y = weighted_y + (ellipse.center_internal().y() * weight);
         }
 
         if total_weight > T::EPSILON {
@@ -270,7 +270,7 @@ impl<T: Scalar> Ellipse2D<T> {
     pub fn foundation_swap_axes(&self) -> Option<Self> {
         // 長軸と短軸を入れ替える（90度回転も含む）
         Self::new(
-            self.center(),
+            self.center_internal(),
             self.semi_minor_axis(),                      // 短軸が新しい長軸
             self.semi_major_axis(),                      // 長軸が新しい短軸
             self.rotation() + T::PI / (T::ONE + T::ONE), // 90度回転
@@ -288,7 +288,7 @@ impl<T: Scalar> Ellipse2D<T> {
             self.semi_major_axis() * (T::ONE - target_eccentricity * target_eccentricity).sqrt();
 
         Self::new(
-            self.center(),
+            self.center_internal(),
             self.semi_major_axis(),
             new_minor,
             self.rotation(),

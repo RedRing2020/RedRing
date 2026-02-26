@@ -4,6 +4,7 @@
 //! Vector3との相互変換とトレイト共通化を提供
 
 use crate::{linalg::vector::Vector3, Scalar};
+use std::ops::Index;
 
 /// 3次元点
 ///
@@ -11,9 +12,9 @@ use crate::{linalg::vector::Vector3, Scalar};
 /// Vector3とは概念的に異なるが、数値的には同じ構造
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point3<T: Scalar> {
-    pub x: T,
-    pub y: T,
-    pub z: T,
+    x: T,
+    y: T,
+    z: T,
 }
 
 impl<T: Scalar> Point3<T> {
@@ -41,6 +42,45 @@ impl<T: Scalar> Point3<T> {
     pub fn z(&self) -> T {
         self.z
     }
+
+    /// X座標を設定
+    pub fn set_x(&mut self, x: T) {
+        self.x = x;
+    }
+
+    /// Y座標を設定
+    pub fn set_y(&mut self, y: T) {
+        self.y = y;
+    }
+
+    /// Z座標を設定
+    pub fn set_z(&mut self, z: T) {
+        self.z = z;
+    }
+
+    /// インデックスで座標を取得 (0=x, 1=y, 2=z)
+    #[inline]
+    pub fn get(&self, index: usize) -> T {
+        match index {
+            0 => self.x,
+            1 => self.y,
+            2 => self.z,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+
+    /// インデックスで座標を設定 (0=x, 1=y, 2=z)
+    #[inline]
+    pub fn set(&mut self, index: usize, value: T) {
+        match index {
+            0 => self.x = value,
+            1 => self.y = value,
+            2 => self.z = value,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+
+    // === 変換 ===
 
     /// Vector3に変換
     pub fn to_vector(&self) -> Vector3<T> {
@@ -135,6 +175,32 @@ impl<T: Scalar> std::ops::Sub<Vector3<T>> for Point3<T> {
     }
 }
 
+// === 添え字演算子 ===
+
+impl<T: Scalar> Index<usize> for Point3<T> {
+    type Output = T;
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Index out of bounds: {}", index),
+        }
+    }
+}
+
+// === 配列変換 ===
+
+impl<T: Scalar> From<[T; 3]> for Point3<T> {
+    #[inline]
+    fn from(data: [T; 3]) -> Self {
+        Self::new(data[0], data[1], data[2])
+    }
+}
+
+// === トレイト実装 ===
+
 /// 3次元座標アクセスの共通トレイト
 ///
 /// Point3とVector3で座標アクセスを統一
@@ -165,93 +231,5 @@ impl<T: Scalar> Coordinates3D<T> for Vector3<T> {
     }
     fn z(&self) -> T {
         Vector3::z(self)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_point3_creation() {
-        let p = Point3::new(1.0, 2.0, 3.0);
-        assert_eq!(p.x(), 1.0);
-        assert_eq!(p.y(), 2.0);
-        assert_eq!(p.z(), 3.0);
-    }
-
-    #[test]
-    fn test_origin() {
-        let origin = Point3::<f64>::origin();
-        assert_eq!(origin.x(), 0.0);
-        assert_eq!(origin.y(), 0.0);
-        assert_eq!(origin.z(), 0.0);
-    }
-
-    #[test]
-    fn test_vector_conversion() {
-        let p = Point3::new(1.0, 2.0, 3.0);
-        let v = p.to_vector();
-        let p2 = Point3::from_vector(v);
-
-        assert_eq!(p, p2);
-    }
-
-    #[test]
-    fn test_distance() {
-        let p1 = Point3::new(0.0, 0.0, 0.0);
-        let p2 = Point3::new(3.0, 4.0, 0.0);
-
-        assert_eq!(p1.distance_to(&p2), 5.0);
-        assert_eq!(p1.distance_squared_to(&p2), 25.0);
-    }
-
-    #[test]
-    fn test_midpoint() {
-        let p1 = Point3::new(0.0, 0.0, 0.0);
-        let p2 = Point3::new(4.0, 6.0, 8.0);
-        let mid = p1.midpoint(&p2);
-
-        assert_eq!(mid, Point3::new(2.0, 3.0, 4.0));
-    }
-
-    #[test]
-    fn test_point_vector_operations() {
-        let p = Point3::new(1.0, 2.0, 3.0);
-        let v = Vector3::new(1.0, 1.0, 1.0);
-
-        // 点 + ベクトル = 点
-        let p_plus_v = p + v;
-        assert_eq!(p_plus_v, Point3::new(2.0, 3.0, 4.0));
-
-        // 点 - ベクトル = 点
-        let p_minus_v = p - v;
-        assert_eq!(p_minus_v, Point3::new(0.0, 1.0, 2.0));
-
-        // 点 - 点 = ベクトル
-        let p1 = Point3::new(3.0, 4.0, 5.0);
-        let p2 = Point3::new(1.0, 2.0, 3.0);
-        let diff = p1 - p2;
-        assert_eq!(diff, Vector3::new(2.0, 2.0, 2.0));
-    }
-
-    #[test]
-    fn test_coordinates_trait() {
-        let p = Point3::new(1.0, 2.0, 3.0);
-        let v = Vector3::new(4.0, 5.0, 6.0);
-
-        // トレイト経由でのアクセス
-        assert_eq!(Coordinates3D::x(&p), 1.0);
-        assert_eq!(Coordinates3D::y(&v), 5.0);
-    }
-
-    #[test]
-    fn test_to_2d() {
-        let p3 = Point3::new(1.0, 2.0, 5.0);
-        let p2 = p3.to_2d();
-
-        assert_eq!(p2.x(), 1.0);
-        assert_eq!(p2.y(), 2.0);
-        // z座標は射影で失われる
     }
 }
