@@ -1,6 +1,6 @@
 use crate::camera_math::{lerp_f32, lerp_vector3, matrix_transform_vector, quaternion_to_matrix};
+use crate::camera_projection::projection_matrix as build_projection_matrix;
 use analysis::linalg::{matrix::Matrix4x4, quaternion::Quaternionf, vector::Vec3f};
-use std::f32::consts::PI;
 
 /// ビュー行列とプロジェクション行列から、GPU描画用のview-projection行列を生成
 ///
@@ -181,120 +181,13 @@ impl Camera {
 
     /// プロジェクション行列を計算
     pub fn projection_matrix(&self, aspect: f32) -> [[f32; 4]; 4] {
-        tracing::debug!(
-            "projection_matrix呼び出し: mode={:?}, aspect={:.3}, bounds={:?}",
+        build_projection_matrix(
             self.projection_mode,
+            self.distance,
+            self.zoom,
+            self.orthographic_bounds,
             aspect,
-            self.orthographic_bounds
-        );
-
-        match self.projection_mode {
-            ProjectionMode::Perspective => {
-                // 距離に応じて適切なnear/farを設定
-                let near = (self.distance * 0.01).max(0.001); // 距離の1%、最小0.001
-                let far = (self.distance * 100.0).min(1000.0); // 距離の100倍、最大1000
-
-                tracing::warn!(
-                    "⚠️ 透視投影が使用されています！ CAM可視化では平行投影を使用すべきです"
-                );
-
-                // wgpu は DirectX スタイル（Z範囲 [0, 1]）を使用
-                Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
-            }
-            ProjectionMode::Orthographic => {
-                let (left, right, bottom, top) = if let Some((bl, br, bb, bt)) =
-                    self.orthographic_bounds
-                {
-                    // CADモード：論理座標系を保持し、ウィンドウのアスペクト比に応じて表示範囲を調整
-                    // これにより、画面サイズが変わっても形状のアスペクト比が保たれる
-                    let logical_width = br - bl;
-                    let logical_height = bt - bb;
-                    let logical_aspect = logical_width / logical_height;
-
-                    if aspect > logical_aspect {
-                        // ウィンドウが横長：左右の表示範囲を広げる（論理座標を保持）
-                        let actual_width = logical_height * aspect;
-                        let expand = (actual_width - logical_width) * 0.5;
-                        tracing::debug!(
-                            "🔲 CAD表示モード（横長）: 論理範囲({}, {}, {}, {}) → 実表示範囲({:.1}, {:.1}, {:.1}, {:.1})",
-                            bl, br, bb, bt,
-                            bl - expand, br + expand, bb, bt
-                        );
-                        (bl - expand, br + expand, bb, bt)
-                    } else {
-                        // ウィンドウが縦長：上下の表示範囲を広げる（論理座標を保持）
-                        let actual_height = logical_width / aspect;
-                        let expand = (actual_height - logical_height) * 0.5;
-                        tracing::debug!(
-                            "🔲 CAD表示モード（縦長）: 論理範囲({}, {}, {}, {}) → 実表示範囲({:.1}, {:.1}, {:.1}, {:.1})",
-                            bl, br, bb, bt,
-                            bl, br, bb - expand, bt + expand
-                        );
-                        (bl, br, bb - expand, bt + expand)
-                    }
-                } else {
-                    // 平行投影：距離とズームに基づいてサイズを決定
-                    let size = self.distance * self.zoom;
-                    let left = -size * aspect * 0.5;
-                    let right = size * aspect * 0.5;
-                    let bottom = -size * 0.5;
-                    let top = size * 0.5;
-                    tracing::debug!(
-                        "平行投影: 距離ベース left={:.2}, right={:.2}, bottom={:.2}, top={:.2}",
-                        left,
-                        right,
-                        bottom,
-                        top
-                    );
-                    (left, right, bottom, top)
-                };
-                let near = -5000.0; // より広い範囲でクリッピングを防ぐ
-                let far = 5000.0;
-
-                tracing::info!(
-                    "✓ 平行投影行列生成: bounds=({:.1}, {:.1}, {:.1}, {:.1}), near={}, far={}",
-                    left,
-                    right,
-                    bottom,
-                    top,
-                    near,
-                    far
-                );
-
-                // wgpu 用の平行投影行列（Z範囲 [0, 1]）を手動構築
-                self.orthographic_rh_01(left, right, bottom, top, near, far)
-            }
-        }
-    }
-
-    /// wgpu 用の平行投影行列（Z範囲 [0, 1]、右手座標系）
-    ///
-    /// analysis::Matrix4x4 は汎用ライブラリなので wgpu 固有の実装は持たない。
-    /// View 層の責務として、ここで wgpu に適した行列を構築する。
-    fn orthographic_rh_01(
-        &self,
-        left: f32,
-        right: f32,
-        bottom: f32,
-        top: f32,
-        near: f32,
-        far: f32,
-    ) -> [[f32; 4]; 4] {
-        let rl_inv = 1.0 / (right - left);
-        let tb_inv = 1.0 / (top - bottom);
-        let fn_inv = 1.0 / (far - near);
-
-        [
-            [2.0 * rl_inv, 0.0, 0.0, 0.0],
-            [0.0, 2.0 * tb_inv, 0.0, 0.0],
-            [0.0, 0.0, -fn_inv, 0.0],
-            [
-                -(right + left) * rl_inv,
-                -(top + bottom) * tb_inv,
-                -near * fn_inv,
-                1.0,
-            ],
-        ]
+        )
     }
 
     /// 投影モードを切り替え
