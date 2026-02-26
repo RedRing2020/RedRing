@@ -47,3 +47,23 @@ Uniformバッファ生成、BindGroupLayout作成、BindGroup生成の定型処�
 
 - リスク: 共通化により特定リソースの細かな設定差分が埋もれる
 - 対策: ヘルパは最小責務に限定し、差分設定は呼び出し側で明示
+
+## 7. Phase8 実施前準備（2026-02-26）
+
+- 現在地:
+  - Phase7（`render_2d`/`render_3d` 重複削減）は PR #267 でマージ済み
+  - 共通化の次段として、Uniform/BindGroup 初期化の重複削減に着手可能
+- 事前確認済み対象:
+  - `view/render/src/mesh.rs`
+  - `view/render/src/line.rs`
+  - `view/render/src/toolpath.rs`
+  - `view/render/src/nurbs_eval.rs`
+- 着手手順（推奨）:
+  1. Uniform/BindGroup 初期化の最小共通ヘルパを追加
+  2. `mesh` → `line` → `toolpath` の順で段階適用
+  3. 最後に `nurbs_eval` へ適用し、差分設定の保持を確認
+  4. 各段階で `cargo build -p redring` を実行
+- 非機能要件:
+  - 公開API名は維持
+  - 描画挙動は変更しない
+  - ログ方針は既存の抑制方針を維持
