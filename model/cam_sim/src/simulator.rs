@@ -155,8 +155,11 @@ impl<T: Scalar> CuttingSimulator<T> {
                 include_endpoints: true,
             });
 
-        let flagged: Vec<(LineSegment3D<T>, bool)> =
-            segments.iter().cloned().map(|segment| (segment, true)).collect();
+        let flagged: Vec<(LineSegment3D<T>, bool)> = segments
+            .iter()
+            .cloned()
+            .map(|segment| (segment, true))
+            .collect();
         self.simulate_segments_with_flags(&flagged, tool_radius, config);
     }
 }

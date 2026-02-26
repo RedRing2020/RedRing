@@ -67,8 +67,13 @@ impl AppRenderer {
         viewport_width: u32,
         viewport_height: u32,
     ) {
-        self.snapshot_overlay_renderer
-            .update_progress(queue, progress, style, viewport_width, viewport_height);
+        self.snapshot_overlay_renderer.update_progress(
+            queue,
+            progress,
+            style,
+            viewport_width,
+            viewport_height,
+        );
     }
 
     /// ステージ切り替え（将来的なイベント駆動対応）

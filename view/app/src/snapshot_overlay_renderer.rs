@@ -175,7 +175,13 @@ impl SnapshotOverlayRenderer {
 
         let mut vertices: Vec<OverlayVertex> = Vec::with_capacity(block_count * 6 + 18);
 
-        append_solid_quad(&mut vertices, &to_ndc, (left, top), (right, bottom), c_track);
+        append_solid_quad(
+            &mut vertices,
+            &to_ndc,
+            (left, top),
+            (right, bottom),
+            c_track,
+        );
 
         let filled_blocks = ((p * block_count as f32).floor() as usize).min(block_count);
 

@@ -118,16 +118,10 @@ fn test_include_segment_endpoints_changes_snapshot_count() {
         Point3D::new(100.0, 100.0, 100.0),
     );
 
-    let segment1 = LineSegment3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(60.0, 0.0, 0.0),
-    )
-    .unwrap();
-    let segment2 = LineSegment3D::new(
-        Point3D::new(60.0, 0.0, 0.0),
-        Point3D::new(100.0, 0.0, 0.0),
-    )
-    .unwrap();
+    let segment1 =
+        LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(60.0, 0.0, 0.0)).unwrap();
+    let segment2 =
+        LineSegment3D::new(Point3D::new(60.0, 0.0, 0.0), Point3D::new(100.0, 0.0, 0.0)).unwrap();
 
     let mut with_endpoints = CuttingSimulator::new(
         VoxelOctree::new(bounds, 4),
@@ -160,11 +154,8 @@ fn test_snapshot_exports_f64_maps_snapshot_fields() {
     let voxel = VoxelOctree::new(bounds, 4);
     let mut simulator = CuttingSimulator::new(voxel, SnapshotInterval::default());
 
-    let segment = LineSegment3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(40.0, 0.0, 0.0),
-    )
-    .unwrap();
+    let segment =
+        LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(40.0, 0.0, 0.0)).unwrap();
 
     simulator.simulate_line_segments(&[segment], 2.0);
     let exports = simulator.snapshot_exports_f64();

@@ -226,7 +226,10 @@ impl RenderStage for MeshStage {
     ) {
         let should_trace = should_log_render_trace();
         if should_trace {
-            tracing::trace!("MeshStage.render_with_depth() called, mode={:?}", self.render_mode);
+            tracing::trace!(
+                "MeshStage.render_with_depth() called, mode={:?}",
+                self.render_mode
+            );
         }
 
         if matches!(self.render_mode, RenderMode::Lines) {
@@ -253,7 +256,10 @@ impl RenderStage for MeshStage {
 
             if let Some(line_res) = &self.line_resources {
                 if should_trace {
-                    tracing::trace!("Lines描画(no depth): vertex_count={}", line_res.vertex_count);
+                    tracing::trace!(
+                        "Lines描画(no depth): vertex_count={}",
+                        line_res.vertex_count
+                    );
                 }
                 line_res.render(&mut line_pass);
             } else {

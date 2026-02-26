@@ -133,14 +133,16 @@ pub fn cam_export_rows_to_inputs(
     rows: &[(usize, f64, f64, f64)],
 ) -> Vec<CamSimulationSnapshotInput> {
     rows.iter()
-        .map(|(segment_index, segment_t, accumulated_distance_mm, remaining_volume_mm3)| {
-            CamSimulationSnapshotInput {
-                segment_index: *segment_index,
-                segment_t: *segment_t,
-                accumulated_distance_mm: *accumulated_distance_mm,
-                remaining_volume_mm3: *remaining_volume_mm3,
-            }
-        })
+        .map(
+            |(segment_index, segment_t, accumulated_distance_mm, remaining_volume_mm3)| {
+                CamSimulationSnapshotInput {
+                    segment_index: *segment_index,
+                    segment_t: *segment_t,
+                    accumulated_distance_mm: *accumulated_distance_mm,
+                    remaining_volume_mm3: *remaining_volume_mm3,
+                }
+            },
+        )
         .collect()
 }
 

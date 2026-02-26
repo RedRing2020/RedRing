@@ -11,15 +11,15 @@ mod simulator;
 pub use error::SimulationError;
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
-	CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
+    CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
 };
 
 /// 旧参照名との互換公開（段階移行用）。
 pub mod cutting_simulator {
-	pub use crate::{
-		CuttingSimulator, PathPosition, SimulationError, SimulationSnapshot, SimulationSnapshotExport,
-		SnapshotInterval,
-	};
+    pub use crate::{
+        CuttingSimulator, PathPosition, SimulationError, SimulationSnapshot,
+        SimulationSnapshotExport, SnapshotInterval,
+    };
 }
 
 #[cfg(test)]

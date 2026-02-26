@@ -148,7 +148,10 @@ impl AppState {
                 self.debug_snapshot_tool_lines = None;
                 self.debug_snapshot_shaded_mode = false;
                 self.debug_snapshot_cursor = 0;
-                tracing::info!("シミュレーションスナップショット読込完了: {} フレーム", frame_count);
+                tracing::info!(
+                    "シミュレーションスナップショット読込完了: {} フレーム",
+                    frame_count
+                );
                 self.log_current_snapshot_frame(true);
             }
             Err(error) => {
@@ -215,7 +218,10 @@ impl AppState {
             mesh_stage.set_mesh_base_color(self.snapshot_shaded_color_settings.work_solid_color);
             mesh_stage.clear_overlay_line_data();
 
-            let toolpath_lines = self.debug_snapshot_toolpath_lines.clone().unwrap_or_default();
+            let toolpath_lines = self
+                .debug_snapshot_toolpath_lines
+                .clone()
+                .unwrap_or_default();
             if let Some(tool_lines_per_frame) = &self.debug_snapshot_tool_lines {
                 let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
                 let tool_lines = tool_lines_per_frame[overlay_index].clone();
@@ -390,12 +396,14 @@ impl AppState {
             return None;
         }
 
-        Some(if series.frames.len() <= 1 {
-            1.0
-        } else {
-            (self.debug_snapshot_cursor as f32) / ((series.frames.len() - 1) as f32)
-        }
-        .clamp(0.0, 1.0))
+        Some(
+            if series.frames.len() <= 1 {
+                1.0
+            } else {
+                (self.debug_snapshot_cursor as f32) / ((series.frames.len() - 1) as f32)
+            }
+            .clamp(0.0, 1.0),
+        )
     }
 
     fn snapshot_track_rect(&self) -> ViewRect {
@@ -636,7 +644,10 @@ impl AppState {
         self.debug_snapshot_shaded_mode = false;
         self.debug_snapshot_cursor = 0;
 
-        let frame_wireframes = self.debug_snapshot_wireframes.as_ref().expect("frame wireframes");
+        let frame_wireframes = self
+            .debug_snapshot_wireframes
+            .as_ref()
+            .expect("frame wireframes");
         let frame_count = frame_wireframes.len();
         let positions: Vec<[f32; 3]> = frame_wireframes
             .last()
@@ -705,7 +716,9 @@ impl AppState {
 
     /// デバッグ用：カッターパスのみを表示（pキー）
     pub fn load_debug_cutter_path_only(&mut self) {
-        use viewmodel::toolpath_converter::{create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings};
+        use viewmodel::toolpath_converter::{
+            create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
+        };
 
         tracing::info!("カッターパス表示デバッグ開始（pキー）");
 
@@ -787,7 +800,10 @@ impl AppState {
         self.renderer.set_stage(mesh_stage);
         self.update_camera_uniforms();
 
-        tracing::info!("カッターパス表示デバッグ完了: 線分数={}", toolpath_vertices.colors.len());
+        tracing::info!(
+            "カッターパス表示デバッグ完了: 線分数={}",
+            toolpath_vertices.colors.len()
+        );
     }
 
     /// STLファイルを読み込んでメッシュステージに設定
@@ -1137,7 +1153,10 @@ impl AppState {
             mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
             mesh_stage.set_mesh_base_color(self.snapshot_shaded_color_settings.work_solid_color);
 
-            let toolpath_lines = self.debug_snapshot_toolpath_lines.clone().unwrap_or_default();
+            let toolpath_lines = self
+                .debug_snapshot_toolpath_lines
+                .clone()
+                .unwrap_or_default();
             if let Some(tool_lines_per_frame) = &self.debug_snapshot_tool_lines {
                 let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
                 let tool_lines = tool_lines_per_frame[overlay_index].clone();
@@ -1241,7 +1260,9 @@ impl AppState {
                     tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
                     tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
                     tracing::info!("p: カッターパスのみ表示（色分け線）");
-                    tracing::info!("Shift+P: CAMシミュレーション可視化（ToolPath + ワーク + 除去）");
+                    tracing::info!(
+                        "Shift+P: CAMシミュレーション可視化（ToolPath + ワーク + 除去）"
+                    );
                     tracing::info!("k/j: Snapshotフレーム送り/巻き戻し");
                     tracing::info!("w: Octree表示モード切替（Wire/Solid）");
                     tracing::info!("=== その他 ===");

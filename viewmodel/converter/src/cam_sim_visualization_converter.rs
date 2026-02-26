@@ -12,14 +12,14 @@ use geo_algorithms::{
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 
+use crate::mesh_converter::VertexData;
 use crate::octree_converter::{
     voxel_octree_to_wireframe, OctreeDebugVisualizationSettings, VoxelVisualizationOptions,
     WireframeVertex,
 };
-use crate::mesh_converter::VertexData;
 use crate::snapshot_converter::{
-    cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series, CamSimulationSnapshotInput,
-    DomainSnapshotSeries,
+    cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
+    CamSimulationSnapshotInput, DomainSnapshotSeries,
 };
 use crate::toolpath_converter::{
     create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
@@ -568,8 +568,11 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
 
         let mut tool_wireframe = Vec::new();
 
-        if let Some(tool_tip) = tool_tip_position(&segments, payload.segment_index, payload.segment_t) {
-            let tool_wire = create_flat_end_mill_wireframe(tool_tip, tool.radius(), tool.cutting_length);
+        if let Some(tool_tip) =
+            tool_tip_position(&segments, payload.segment_index, payload.segment_t)
+        {
+            let tool_wire =
+                create_flat_end_mill_wireframe(tool_tip, tool.radius(), tool.cutting_length);
             tool_wireframe = tool_wire;
             frame_vertices.extend(tool_wireframe.iter().copied());
             snapshot_solid_meshes.push(build_solid_mesh_from_voxel_tree(&replay_tree, max_depth));
@@ -616,17 +619,13 @@ mod tests {
             bundle.snapshot_solid_meshes.len(),
             bundle.snapshot_series.frames.len()
         );
-        assert!(
-            bundle
-                .snapshot_wireframes
-                .iter()
-                .any(|vertices| !vertices.is_empty())
-        );
-        assert!(
-            bundle
-                .snapshot_solid_meshes
-                .iter()
-                .any(|(vertices, indices)| !vertices.is_empty() && !indices.is_empty())
-        );
+        assert!(bundle
+            .snapshot_wireframes
+            .iter()
+            .any(|vertices| !vertices.is_empty()));
+        assert!(bundle
+            .snapshot_solid_meshes
+            .iter()
+            .any(|(vertices, indices)| !vertices.is_empty() && !indices.is_empty()));
     }
 }

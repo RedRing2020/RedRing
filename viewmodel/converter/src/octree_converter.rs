@@ -587,10 +587,7 @@ pub fn create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
             Point3D::new(-45.0, -25.0, 5.0),
             Point3D::new(45.0, -25.0, 5.0),
         ),
-        (
-            Point3D::new(-45.0, 0.0, 4.0),
-            Point3D::new(45.0, 0.0, 4.0),
-        ),
+        (Point3D::new(-45.0, 0.0, 4.0), Point3D::new(45.0, 0.0, 4.0)),
         (
             Point3D::new(-45.0, 25.0, 3.0),
             Point3D::new(45.0, 25.0, 3.0),
