@@ -37,7 +37,7 @@
 //! ## モジュール
 //!
 //! - [`Octree`] - 汎用空間分割データ構造（データ挿入・検索）
-//! - [`voxel`] - 切削シミュレーション用ボクセルOctree（材料除去シミュレーション）
+//! - [`voxel`] - ボリューム占有更新用ボクセルOctree（領域除去シミュレーション）
 //!
 //! ## 使用例
 //!
@@ -100,7 +100,7 @@
 //! );
 //! let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
 //!
-//! // 工具が通過した領域を除去
+//! // 掃引形状が通過した領域を除去
 //! let tool_region = Aabb3D::new(
 //!     Point3D::new(10.0, 10.0, 0.0),
 //!     Point3D::new(20.0, 20.0, 50.0)
@@ -111,14 +111,14 @@
 //! let remaining = voxel_tree.remaining_volume();
 //! println!("残存体積: {} mm³", remaining);
 //!
-//! // 削り残し検出
+//! // 未除去領域検出
 //! let target_shape = Aabb3D::new(
 //!     Point3D::new(15.0, 15.0, 5.0),
 //!     Point3D::new(85.0, 85.0, 95.0)
 //! );
 //! let undercuts = voxel_tree.detect_undercut(&target_shape);
 //! if !undercuts.is_empty() {
-//!     eprintln!("警告: {} 箇所の削り残しを検出", undercuts.len());
+//!     eprintln!("警告: {} 箇所の未除去領域を検出", undercuts.len());
 //! }
 //! ```
 //!

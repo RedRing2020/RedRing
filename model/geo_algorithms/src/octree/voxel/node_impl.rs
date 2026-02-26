@@ -114,11 +114,11 @@ impl<T: Scalar> VoxelNode<T> {
         self.state = VoxelState::Mixed;
     }
 
-    /// AABB形状による材料除去（再帰的）
+    /// AABB形状による占有除去（再帰的）
     ///
     /// # Arguments
     ///
-    /// * `tool_aabb` - 工具の境界ボックス
+    /// * `tool_aabb` - 除去対象形状の境界ボックス
     /// * `max_depth` - 最大深さ（分割上限）
     pub(super) fn remove_material_box(&mut self, tool_aabb: &Aabb3D<T>, max_depth: usize) {
         match self.state {
@@ -163,6 +163,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// 線分+半径（カプセル）領域との交差に基づいて材料を除去する。
     pub(super) fn remove_material_capsule(
         &mut self,
         segment: &LineSegment3D<T>,
@@ -214,6 +215,66 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// 線分端面を平端として扱う掃引円柱領域で材料を除去する。
+    pub(super) fn remove_material_swept_cylinder(
+        &mut self,
+        segment: &LineSegment3D<T>,
+        radius: T,
+        max_depth: usize,
+    ) {
+        match self.state {
+            VoxelState::Empty => (),
+            VoxelState::Solid => {
+                // 掃引区間の端面（2つのキャップ平面）から外れるAABBは早期除外。
+                if self.is_aabb_outside_swept_cylinder_cap_range(segment) {
+                    return;
+                }
+
+                let min = self.bounds.min();
+                let max = self.bounds.max();
+                let distance = segment
+                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
+
+                // 軸方向へ射影可能でも半径外なら非交差。
+                if distance > radius {
+                    return;
+                }
+
+                // AABB全体が掃引体内ならノードごとEmpty化して再帰を打ち切る。
+                if self.is_aabb_inside_swept_cylinder(segment, radius) {
+                    self.state = VoxelState::Empty;
+                    self.children = None;
+                    return;
+                }
+
+                if self.depth < max_depth {
+                    self.subdivide();
+                    for child in self.children.as_mut().unwrap().iter_mut() {
+                        child.remove_material_swept_cylinder(segment, radius, max_depth);
+                    }
+                } else {
+                    self.state = VoxelState::Empty;
+                }
+            }
+            VoxelState::Mixed => {
+                if let Some(ref mut children) = self.children {
+                    for child in children.iter_mut() {
+                        child.remove_material_swept_cylinder(segment, radius, max_depth);
+                    }
+
+                    if children.iter().all(|c| c.state == VoxelState::Empty) {
+                        self.state = VoxelState::Empty;
+                        self.children = None;
+                    } else if children.iter().all(|c| c.state == VoxelState::Solid) {
+                        self.state = VoxelState::Solid;
+                        self.children = None;
+                    }
+                }
+            }
+        }
+    }
+
+    /// AABBの8頂点がすべてカプセル内部にあるかを判定する。
     fn is_aabb_inside_capsule(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
         let min = self.bounds.min();
         let max = self.bounds.max();
@@ -239,6 +300,130 @@ impl<T: Scalar> VoxelNode<T> {
         true
     }
 
+    /// AABBの軸方向射影が掃引区間端面の外側かを判定する。
+    fn is_aabb_outside_swept_cylinder_cap_range(&self, segment: &LineSegment3D<T>) -> bool {
+        let sx = segment.start().x();
+        let sy = segment.start().y();
+        let sz = segment.start().z();
+        let ex = segment.end().x();
+        let ey = segment.end().y();
+        let ez = segment.end().z();
+
+        let axis_x = ex - sx;
+        let axis_y = ey - sy;
+        let axis_z = ez - sz;
+        let len_sq = axis_x * axis_x + axis_y * axis_y + axis_z * axis_z;
+        if len_sq <= T::EPSILON {
+            return false;
+        }
+
+        let min = self.bounds.min();
+        let max = self.bounds.max();
+        let vertices = [
+            (min.x(), min.y(), min.z()),
+            (max.x(), min.y(), min.z()),
+            (min.x(), max.y(), min.z()),
+            (max.x(), max.y(), min.z()),
+            (min.x(), min.y(), max.z()),
+            (max.x(), min.y(), max.z()),
+            (min.x(), max.y(), max.z()),
+            (max.x(), max.y(), max.z()),
+        ];
+
+        let (first_x, first_y, first_z) = vertices[0];
+        let first_rel_x = first_x - sx;
+        let first_rel_y = first_y - sy;
+        let first_rel_z = first_z - sz;
+        let first_proj = first_rel_x * axis_x + first_rel_y * axis_y + first_rel_z * axis_z;
+
+        let mut min_proj = first_proj;
+        let mut max_proj = first_proj;
+        for &(vx, vy, vz) in vertices.iter().skip(1) {
+            let rel_x = vx - sx;
+            let rel_y = vy - sy;
+            let rel_z = vz - sz;
+            let proj = rel_x * axis_x + rel_y * axis_y + rel_z * axis_z;
+            min_proj = min_proj.min(proj);
+            max_proj = max_proj.max(proj);
+        }
+
+        // AABBの射影区間が [0, |axis|^2] と重ならない場合、平端掃引体とは交差しない。
+        max_proj < T::ZERO || min_proj > len_sq
+    }
+
+    /// AABBの8頂点がすべて平端掃引円柱内部にあるかを判定する。
+    fn is_aabb_inside_swept_cylinder(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
+        let min = self.bounds.min();
+        let max = self.bounds.max();
+
+        let vertices = [
+            (min.x(), min.y(), min.z()),
+            (max.x(), min.y(), min.z()),
+            (min.x(), max.y(), min.z()),
+            (max.x(), max.y(), min.z()),
+            (min.x(), min.y(), max.z()),
+            (max.x(), min.y(), max.z()),
+            (min.x(), max.y(), max.z()),
+            (max.x(), max.y(), max.z()),
+        ];
+
+        // AABBの8頂点がすべて掃引体内にある場合のみ「完全内包」とみなす。
+        for &vertex in &vertices {
+            if !self.is_point_inside_swept_cylinder(vertex, segment, radius) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// 1点が平端掃引円柱内部にあるかを判定する。
+    fn is_point_inside_swept_cylinder(
+        &self,
+        point: (T, T, T),
+        segment: &LineSegment3D<T>,
+        radius: T,
+    ) -> bool {
+        let (px, py, pz) = point;
+        let sx = segment.start().x();
+        let sy = segment.start().y();
+        let sz = segment.start().z();
+        let ex = segment.end().x();
+        let ey = segment.end().y();
+        let ez = segment.end().z();
+
+        let axis_x = ex - sx;
+        let axis_y = ey - sy;
+        let axis_z = ez - sz;
+        let len_sq = axis_x * axis_x + axis_y * axis_y + axis_z * axis_z;
+        if len_sq <= T::EPSILON {
+            return false;
+        }
+
+        let rel_x = px - sx;
+        let rel_y = py - sy;
+        let rel_z = pz - sz;
+        let proj = rel_x * axis_x + rel_y * axis_y + rel_z * axis_z;
+
+        // 軸方向射影が端面範囲外なら、平端円柱の体積外。
+        if proj < T::ZERO || proj > len_sq {
+            return false;
+        }
+
+        let t = proj / len_sq;
+        let closest_x = sx + axis_x * t;
+        let closest_y = sy + axis_y * t;
+        let closest_z = sz + axis_z * t;
+
+        let dx = px - closest_x;
+        let dy = py - closest_y;
+        let dz = pz - closest_z;
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        // 半径方向距離で円柱断面内判定。
+        distance <= radius
+    }
+
+    /// 点と線分の最短距離を返す。
     fn point_to_segment_distance(&self, point: (T, T, T), segment: &LineSegment3D<T>) -> T {
         let (px, py, pz) = point;
         let sx = segment.start().x();
@@ -274,6 +459,7 @@ impl<T: Scalar> VoxelNode<T> {
         (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt()
     }
 
+    /// Z軸平行の軸付き形状に特化した高速除去を行う。
     pub(super) fn remove_material_capsule_z_axis(
         &mut self,
         center_x: T,
@@ -342,6 +528,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// XY平面で円中心とAABBの最短距離を返す。
     fn circle_to_aabb_2d_distance(
         &self,
         center_x: T,
@@ -358,6 +545,7 @@ impl<T: Scalar> VoxelNode<T> {
         (dx * dx + dy * dy).sqrt()
     }
 
+    /// Z軸平行カプセルにAABB全体が内包されるかを判定する。
     fn is_aabb_inside_z_axis_capsule(
         &self,
         center_x: T,
@@ -392,6 +580,7 @@ impl<T: Scalar> VoxelNode<T> {
         true
     }
 
+    /// このノード配下の残存体積を再帰集計する。
     pub(super) fn volume(&self) -> T {
         match self.state {
             VoxelState::Empty => T::from_f64(0.0),
@@ -406,6 +595,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// このノード配下のSolidリーフ数を再帰集計する。
     pub(super) fn solid_voxel_count(&self) -> usize {
         match self.state {
             VoxelState::Empty => 0,
@@ -420,6 +610,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// 指定領域外にあるSolidボクセル境界を収集する。
     pub(super) fn collect_solid_voxels_outside(
         &self,
         target_region: &Aabb3D<T>,
@@ -442,6 +633,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// Solid状態のボクセル境界を収集する。
     pub(super) fn collect_solid_voxels(&self, solid_voxels: &mut Vec<Aabb3D<T>>) {
         match self.state {
             VoxelState::Empty => {}
@@ -458,6 +650,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
+    /// 指定深さまでの非Emptyボクセル境界を収集する。
     pub(super) fn collect_non_empty_voxels_up_to_depth(
         &self,
         visible_depth: usize,

@@ -1,17 +1,17 @@
-//! ボクセルOctree（切削シミュレーション用）
+//! ボクセルOctree（領域除去シミュレーション用）
 //!
-//! このモジュールは、材料除去シミュレーションのためのボクセルベースOctreeを提供します。
+//! このモジュールは、領域除去シミュレーションのためのボクセルベースOctreeを提供します。
 //!
 //! ## 概要
 //!
 //! ボクセルOctreeは、3D空間を立方体セル（ボクセル）に分割し、
-//! 各セルの材料状態（Solid/Empty/Mixed）を管理します。
+//! 各セルの占有状態（Solid/Empty/Mixed）を管理します。
 //!
 //! ## 主要な機能
 //!
-//! - **材料除去**: 工具形状による材料の削り取り
+//! - **領域除去**: 除去形状による占有領域の更新
 //! - **適応的分割**: Mixed状態のセルを細分化
-//! - **体積計算**: 残存材料の体積を高速計算
+//! - **体積計算**: 残存体積を高速計算
 //! - **状態管理**: Solid/Empty/Mixedの3状態
 //!
 //! ## 使用例
@@ -27,14 +27,14 @@
 //! );
 //! let mut voxel_tree = VoxelOctree::new(work_bounds, 6); // 最大深さ6
 //!
-//! // 工具が通過した領域を除去（AABB近似）
+//! // 掃引形状が通過した領域を除去（AABB近似）
 //! let tool_region = Aabb3D::new(
 //!     Point3D::new(10.0, 10.0, 0.0),
 //!     Point3D::new(20.0, 20.0, 50.0)
 //! );
 //! voxel_tree.remove_material_box(&tool_region);
 //!
-//! // 残存材料の体積を計算
+//! // 残存体積を計算
 //! let remaining = voxel_tree.remaining_volume();
 //! println!("残存体積: {} mm³", remaining);
 //! ```
@@ -43,7 +43,7 @@ use geo_core::{Aabb3D, Point3D};
 use geo_foundation::{LineSegment3DCollisionDetection, Scalar};
 use geo_primitives::{Arc3D, LineSegment3D};
 
-/// ボクセルの材料状態
+/// ボクセルの占有状態
 ///
 /// 各ボクセルセルは以下の3状態のいずれかを持ちます。
 ///
@@ -55,31 +55,31 @@ use geo_primitives::{Arc3D, LineSegment3D};
 ///   └──────────────┘
 /// ```
 ///
-/// - `Solid`: 完全に材料で満たされている
-/// - `Mixed`: 部分的に材料がある（細分化が必要）
-/// - `Empty`: 材料が完全に除去されている
+/// - `Solid`: 完全に占有されている
+/// - `Mixed`: 部分的に占有されている（細分化が必要）
+/// - `Empty`: 占有が完全に除去されている
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VoxelState {
-    /// 材料あり（未加工）
+    /// 占有あり
     ///
-    /// このセル全体が材料で満たされています。
+    /// このセル全体が占有されています。
     Solid,
 
-    /// 材料除去済み
+    /// 占有除去済み
     ///
-    /// このセル内の材料は完全に除去されています。
+    /// このセル内の占有は完全に除去されています。
     Empty,
 
     /// 部分的に除去（要細分化）
     ///
-    /// このセル内で一部の材料が除去されています。
+    /// このセル内で一部の占有が除去されています。
     /// より詳細な計算には、さらなる細分化（subdivide）が必要です。
     Mixed,
 }
 
 /// ボクセルOctreeのノード
 ///
-/// 各ノードは3D境界ボックスと材料状態を持ちます。
+/// 各ノードは3D境界ボックスと占有状態を持ちます。
 /// Mixed状態の場合、8つの子ノードに細分化されます。
 ///
 /// # Type Parameters
@@ -93,7 +93,7 @@ pub struct VoxelNode<T: Scalar> {
     /// ツリー内の深さ（ルート = 0）
     depth: usize,
 
-    /// 材料状態
+    /// 占有状態
     state: VoxelState,
 
     /// 子ノード（Mixed状態の場合のみ存在）
@@ -103,9 +103,9 @@ pub struct VoxelNode<T: Scalar> {
     children: Option<Box<[VoxelNode<T>; 8]>>,
 }
 
-/// ボクセルOctree（切削シミュレーション用）
+/// ボクセルOctree（領域除去シミュレーション用）
 ///
-/// 3D空間をボクセル（立方体セル）に分割し、材料の状態を管理します。
+/// 3D空間をボクセル（立方体セル）に分割し、占有状態を管理します。
 ///
 /// # Type Parameters
 ///
@@ -121,7 +121,7 @@ pub struct VoxelNode<T: Scalar> {
 /// let bounds = Aabb3D::new(min_point, max_point);
 /// let mut voxel_tree = VoxelOctree::new(bounds, 6);
 ///
-/// // 材料除去
+/// // 領域除去
 /// voxel_tree.remove_material_box(&tool_aabb);
 ///
 /// // 残存体積

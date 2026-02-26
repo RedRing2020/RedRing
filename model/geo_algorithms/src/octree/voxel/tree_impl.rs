@@ -3,7 +3,7 @@ use super::*;
 impl<T: Scalar> VoxelOctree<T> {
     /// 新しいボクセルOctreeを作成
     ///
-    /// 初期状態では全体が Solid（材料あり）です。
+    /// 初期状態では全体が Solid（占有あり）です。
     ///
     /// # Arguments
     ///
@@ -37,20 +37,20 @@ impl<T: Scalar> VoxelOctree<T> {
         }
     }
 
-    /// AABB形状による材料除去
+    /// AABB形状による領域除去
     ///
-    /// 指定された境界ボックスと交差する領域の材料を除去します。
+    /// 指定された境界ボックスと交差する占有領域を除去します。
     ///
     /// # Arguments
     ///
-    /// * `tool_aabb` - 工具の境界ボックス
+    /// * `tool_aabb` - 除去対象形状の境界ボックス
     ///
     /// # Examples
     ///
     /// ```rust,ignore
     /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
     ///
-    /// // 工具が通過した領域を除去
+    /// // 掃引形状が通過した領域を除去
     /// let tool_region = Aabb3D::new(
     ///     Point3D::new(10.0, 10.0, 0.0),
     ///     Point3D::new(20.0, 20.0, 50.0)
@@ -61,9 +61,9 @@ impl<T: Scalar> VoxelOctree<T> {
         self.root.remove_material_box(tool_aabb, self.max_depth);
     }
 
-    /// 線分を中心軸とした円柱（カプセル）領域で材料除去
+    /// 線分を中心軸とした円柱（カプセル）領域で占有除去
     ///
-    /// 線分に沿って指定した半径の円柱領域内の材料を除去します。
+    /// 線分に沿って指定した半径の円柱領域内の占有を除去します。
     ///
     /// # Arguments
     ///
@@ -78,7 +78,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
     ///
-    /// // 線分経路に沿って材料除去
+    /// // 線分経路に沿って占有除去
     /// let segment = LineSegment3D::new(
     ///     Point3D::new(0.0, 0.0, 0.0),
     ///     Point3D::new(50.0, 50.0, 50.0)
@@ -90,15 +90,24 @@ impl<T: Scalar> VoxelOctree<T> {
             .remove_material_capsule(segment, radius, self.max_depth);
     }
 
-    /// Z軸方向の円柱領域で材料除去（高速版）
+    /// 線分を中心軸とした平端掃引円柱領域で占有除去
     ///
-    /// 工具軸がZ軸に平行な場合の最適化実装。
+    /// `remove_material_capsule` と異なり、線分端点の半球キャップを含みません。
+    /// 平端キャップを持つ掃引円柱に対応する除去モデルです。
+    pub fn remove_material_swept_cylinder(&mut self, segment: &LineSegment3D<T>, radius: T) {
+        self.root
+            .remove_material_swept_cylinder(segment, radius, self.max_depth);
+    }
+
+    /// Z軸方向の円柱領域で占有除去（高速版）
+    ///
+    /// 形状軸がZ軸に平行な場合の最適化実装。
     /// 汎用版`remove_material_capsule`より3-5倍高速。
     ///
     /// # Arguments
     ///
-    /// * `center_x` - 工具中心のX座標
-    /// * `center_y` - 工具中心のY座標
+    /// * `center_x` - 掃引円の中心X座標
+    /// * `center_y` - 掃引円の中心Y座標
     /// * `z_start` - Z方向の開始座標
     /// * `z_end` - Z方向の終了座標
     /// * `radius` - 円柱の半径
@@ -117,7 +126,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
     ///
-    /// // Z軸方向に材料除去
+    /// // Z軸方向に占有除去
     /// voxel_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 5.0);
     /// ```
     pub fn remove_material_z_axis(
@@ -138,11 +147,11 @@ impl<T: Scalar> VoxelOctree<T> {
         );
     }
 
-    /// 残存材料の体積を計算
+    /// 残存体積を計算
     ///
     /// # Returns
     ///
-    /// 残っている材料の総体積（単位: mm³）
+    /// 残存領域の総体積（単位: mm³）
     ///
     /// # Examples
     ///
@@ -182,10 +191,10 @@ impl<T: Scalar> VoxelOctree<T> {
         self.max_depth
     }
 
-    /// 削り残し検出
+    /// 未除去領域検出
     ///
     /// 目的形状の境界ボックスの外側に残っているSolidボクセルを検出します。
-    /// これは、工具が到達できなかった領域や、意図しない材料の残存を示します。
+    /// これは、除去形状が到達できなかった領域や、意図しない占有の残存を示します。
     ///
     /// # Arguments
     ///
@@ -193,8 +202,8 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// # Returns
     ///
-    /// 削り残しとして検出されたボクセルの境界ボックスリスト。
-    /// 空のリストは、削り残しが存在しないことを示します。
+    /// 未除去領域として検出されたボクセルの境界ボックスリスト。
+    /// 空のリストは、未除去領域が存在しないことを示します。
     ///
     /// # Examples
     ///
@@ -209,19 +218,19 @@ impl<T: Scalar> VoxelOctree<T> {
     /// );
     /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
     ///
-    /// // 材料除去シミュレーション実行
+    /// // 領域除去シミュレーション実行
     /// // ... remove_material_* 呼び出し ...
     ///
-    /// // 目的形状（この範囲外の材料は削り残し）
+    /// // 目的形状（この範囲外の占有は未除去領域）
     /// let target = Aabb3D::new(
     ///     Point3D::new(10.0, 10.0, 10.0),
     ///     Point3D::new(90.0, 90.0, 90.0)
     /// );
     ///
-    /// // 削り残し検出
+    /// // 未除去領域検出
     /// let undercuts = voxel_tree.detect_undercut(&target);
     /// if !undercuts.is_empty() {
-    ///     eprintln!("警告: {} 箇所の削り残しを検出", undercuts.len());
+    ///     eprintln!("警告: {} 箇所の未除去領域を検出", undercuts.len());
     /// }
     /// ```
     pub fn detect_undercut(&self, target_region: &Aabb3D<T>) -> Vec<Aabb3D<T>> {
@@ -271,15 +280,15 @@ impl<T: Scalar> VoxelOctree<T> {
         result
     }
 
-    /// 円弧経路による材料除去（線分近似版）
+    /// 円弧経路による占有除去（線分近似版）
     ///
-    /// CNCマシンの円弧補間（G02/G03）による工具経路を線分列に近似して材料を除去します。
+    /// 円弧経路を線分列に近似して占有を除去します。
     /// 円弧を等間隔でサンプリングし、隣接点間を線分として既存の`remove_material_capsule()`を適用します。
     ///
     /// # Arguments
     ///
-    /// * `arc` - 工具経路の円弧（Arc3D）
-    /// * `radius` - 工具半径
+    /// * `arc` - 掃引経路の円弧（Arc3D）
+    /// * `radius` - 掃引半径
     /// * `num_segments` - 近似に使用する線分数（推奨: 8-32）
     ///
     /// # Performance
@@ -287,13 +296,13 @@ impl<T: Scalar> VoxelOctree<T> {
     /// 線分数に比例して計算時間が増加します。
     ///
     /// **推奨パラメータ**:
-    /// - 粗加工: 8線分（速度重視）
-    /// - 仕上げ加工: 16-32線分（精度重視）
-    /// - 高精度: 64線分以上（特殊用途）
+    /// - 低分解能: 8線分（速度重視）
+    /// - 中分解能: 16-32線分（精度重視）
+    /// - 高分解能: 64線分以上（特殊用途）
     ///
     /// **精度とパフォーマンスのトレードオフ**:
     ///
-    /// | 線分数 | 誤差（10mm工具, 90度円弧） | 計算量 |
+    /// | 線分数 | 誤差（半径10mm, 90度円弧） | 計算量 |
     /// |--------|---------------------------|--------|
     /// | 8      | ~0.19mm (1.9%)            | 8回    |
     /// | 16     | ~0.05mm (0.5%)            | 16回   |
@@ -320,17 +329,17 @@ impl<T: Scalar> VoxelOctree<T> {
     ///     Angle::degrees(90.0)             // 終了角度
     /// ).unwrap();
     ///
-    /// // 工具半径5mm、16線分で近似（誤差0.5%）
+    /// // 掃引半径5mm、16線分で近似（誤差0.5%）
     /// voxel_tree.remove_material_arc_polyline(&arc, 5.0, 16);
     /// ```
     ///
-    /// # G-codeとの対応
+    /// # 円弧パラメータ表現との対応
     ///
     /// ```text
-    /// G02 X70.0 Y50.0 I20.0 J0.0 F500  ; 時計回り円弧
+    /// center/radius/start_angle/end_angle
     /// ↓
     /// Arc3D::xy_arc(center, radius, start_angle, end_angle)
-    /// → remove_material_arc_polyline(&arc, tool_radius, 16)
+    /// → remove_material_arc_polyline(&arc, radius, 16)
     /// ```
     ///
     /// # Notes

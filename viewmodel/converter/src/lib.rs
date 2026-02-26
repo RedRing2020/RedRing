@@ -13,12 +13,14 @@
 //! - Octree可視化データ変換（Octree → GPU ワイヤーフレーム頂点データ）
 //! - NURBS GPU評価用データ変換（NURBS形状 + パラメータリスト → GPU形式）
 
+pub mod cam_sim_visualization_converter;
 pub mod entity_converter;
 pub mod mesh_converter;
 pub mod nurbs_debug;
 pub mod nurbs_view;
 pub mod octree_converter;
 pub mod shape_converter;
+pub mod snapshot_converter;
 pub mod stl_loader;
 pub mod svg_loader;
 pub mod toolpath_converter;
