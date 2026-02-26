@@ -2,23 +2,41 @@ use crate::app_renderer::AppRenderer;
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
+use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use crate::stl_loader;
 use crate::view_rect::ViewRect;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use analysis::{LengthUnit, Tolerance};
+use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{
     DraftStage, MeshStage, NurbsCurveStage, NurbsSurfaceStage, OctreeStage, OutlineStage,
-    ShadingStage, ToolPathStage,
+    ShadingStage,
 };
 use std::path::Path;
 use std::sync::Arc;
-use viewmodel::octree_converter::OctreeDebugVisualizationSettings;
+use viewmodel::octree_converter::{OctreeDebugVisualizationSettings, WireframeVertex};
+use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ViewingOperationSettings {
     pub camera_control_sensitivity: CameraControlSensitivity,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SnapshotShadedColorSettings {
+    pub work_solid_color: [f32; 4],
+    pub tool_wire_color: [f32; 3],
+}
+
+impl Default for SnapshotShadedColorSettings {
+    fn default() -> Self {
+        Self {
+            work_solid_color: [0.95, 0.55, 0.25, 1.0],
+            tool_wire_color: [0.9, 0.95, 1.0],
+        }
+    }
 }
 
 pub struct AppState {
@@ -48,6 +66,22 @@ pub struct AppState {
 
     /// ビュー操作設定（setting画面向けの保持値）
     pub viewing_operation_settings: ViewingOperationSettings,
+
+    /// Snapshot進捗バー表示設定
+    pub snapshot_overlay_style: SnapshotOverlayStyle,
+
+    /// Snapshotシェーディング時の色設定
+    pub snapshot_shaded_color_settings: SnapshotShadedColorSettings,
+
+    /// デバッグ用: シミュレーションスナップショット系列
+    debug_snapshot_series: Option<DomainSnapshotSeries<CamSimulationSnapshotInput>>,
+    debug_snapshot_wireframes: Option<Vec<Vec<WireframeVertex>>>,
+    debug_snapshot_solids: Option<Vec<(Vec<MeshVertex>, Vec<u32>)>>,
+    debug_snapshot_toolpath_lines: Option<Vec<MeshVertex>>,
+    debug_snapshot_tool_lines: Option<Vec<Vec<MeshVertex>>>,
+    debug_snapshot_shaded_mode: bool,
+    debug_snapshot_cursor: usize,
+    snapshot_scrub_active: bool,
 
     cursor_position: Option<(f32, f32)>,
     last_cursor_position: Option<(f32, f32)>,
@@ -81,6 +115,16 @@ impl AppState {
             display_tolerance: Tolerance::default(), // 0.01mm
             octree_visualization_settings: OctreeDebugVisualizationSettings::default(),
             viewing_operation_settings,
+            snapshot_overlay_style: SnapshotOverlayStyle::default(),
+            snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
+            debug_snapshot_series: None,
+            debug_snapshot_wireframes: None,
+            debug_snapshot_solids: None,
+            debug_snapshot_toolpath_lines: None,
+            debug_snapshot_tool_lines: None,
+            debug_snapshot_shaded_mode: false,
+            debug_snapshot_cursor: 0,
+            snapshot_scrub_active: false,
             cursor_position: None,
             last_cursor_position: None,
             arcball_drag_start: None,
@@ -90,6 +134,158 @@ impl AppState {
 
         app_state.apply_viewing_operation_settings();
         app_state
+    }
+
+    /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
+    pub fn load_debug_simulation_snapshots(&mut self) {
+        match viewmodel::snapshot_converter::create_sample_cam_snapshot_domain_series() {
+            Ok(series) => {
+                let frame_count = series.frames.len();
+                self.debug_snapshot_series = Some(series);
+                self.debug_snapshot_wireframes = None;
+                self.debug_snapshot_solids = None;
+                self.debug_snapshot_toolpath_lines = None;
+                self.debug_snapshot_tool_lines = None;
+                self.debug_snapshot_shaded_mode = false;
+                self.debug_snapshot_cursor = 0;
+                tracing::info!("シミュレーションスナップショット読込完了: {} フレーム", frame_count);
+                self.log_current_snapshot_frame(true);
+            }
+            Err(error) => {
+                tracing::error!("シミュレーションスナップショット読込失敗: {}", error);
+            }
+        }
+    }
+
+    /// デバッグ用: 次フレームへ進めて内容をログ表示
+    pub fn cycle_debug_simulation_snapshot(&mut self) {
+        let Some(series) = &self.debug_snapshot_series else {
+            self.load_debug_simulation_snapshots();
+            return;
+        };
+
+        if series.frames.is_empty() {
+            tracing::warn!("スナップショット系列が空です");
+            return;
+        }
+
+        self.debug_snapshot_cursor = (self.debug_snapshot_cursor + 1) % series.frames.len();
+        self.log_current_snapshot_frame(true);
+    }
+
+    /// デバッグ用: 前フレームへ戻して内容をログ表示
+    pub fn rewind_debug_simulation_snapshot(&mut self) {
+        let Some(series) = &self.debug_snapshot_series else {
+            self.load_debug_simulation_snapshots();
+            return;
+        };
+
+        if series.frames.is_empty() {
+            tracing::warn!("スナップショット系列が空です");
+            return;
+        }
+
+        self.debug_snapshot_cursor = if self.debug_snapshot_cursor == 0 {
+            series.frames.len() - 1
+        } else {
+            self.debug_snapshot_cursor - 1
+        };
+        self.log_current_snapshot_frame(true);
+    }
+
+    fn sync_snapshot_visual_frame(&mut self) {
+        if self.debug_snapshot_shaded_mode {
+            let Some(snapshot_solids) = &self.debug_snapshot_solids else {
+                return;
+            };
+            if snapshot_solids.is_empty() {
+                return;
+            }
+
+            let frame_index = self
+                .debug_snapshot_cursor
+                .min(snapshot_solids.len().saturating_sub(1));
+            let (vertices, indices) = snapshot_solids[frame_index].clone();
+
+            let stage = self.renderer.get_stage_mut();
+            let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() else {
+                return;
+            };
+            mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
+            mesh_stage.set_mesh_base_color(self.snapshot_shaded_color_settings.work_solid_color);
+            mesh_stage.clear_overlay_line_data();
+
+            let toolpath_lines = self.debug_snapshot_toolpath_lines.clone().unwrap_or_default();
+            if let Some(tool_lines_per_frame) = &self.debug_snapshot_tool_lines {
+                let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
+                let tool_lines = tool_lines_per_frame[overlay_index].clone();
+                if !tool_lines.is_empty() {
+                    mesh_stage.set_overlay_tool_line_data(&self.graphic.device, tool_lines);
+                }
+            }
+            if !toolpath_lines.is_empty() {
+                mesh_stage.set_overlay_toolpath_line_data(&self.graphic.device, toolpath_lines);
+            }
+            return;
+        }
+
+        let Some(snapshot_wireframes) = &self.debug_snapshot_wireframes else {
+            return;
+        };
+        if snapshot_wireframes.is_empty() {
+            return;
+        }
+
+        let frame_index = self
+            .debug_snapshot_cursor
+            .min(snapshot_wireframes.len().saturating_sub(1));
+
+        let stage = self.renderer.get_stage_mut();
+        let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() else {
+            return;
+        };
+
+        if octree_stage.max_depth().saturating_add(1) != snapshot_wireframes.len() {
+            octree_stage.set_depth_levels(&self.graphic.device, snapshot_wireframes.clone());
+        }
+        octree_stage.set_depth(&self.graphic.device, frame_index);
+    }
+
+    fn log_current_snapshot_frame(&mut self, emit_log: bool) {
+        let Some(series) = &self.debug_snapshot_series else {
+            return;
+        };
+        if series.frames.is_empty() {
+            return;
+        }
+
+        let index = self.debug_snapshot_cursor.min(series.frames.len() - 1);
+        let frame = &series.frames[index];
+        let payload = frame.payload;
+
+        if emit_log {
+            tracing::info!(
+                "Snapshot frame {}/{}: seg={}, t={:.3}, dist={:.3}mm, remain={:.3}mm3",
+                index + 1,
+                series.frames.len(),
+                payload.segment_index,
+                payload.segment_t,
+                payload.accumulated_distance_mm,
+                payload.remaining_volume_mm3,
+            );
+        }
+
+        self.window.set_title(&format!(
+            "RedRing | Snapshot {}/{} | seg={} t={:.3} dist={:.3}mm remain={:.3}mm3",
+            index + 1,
+            series.frames.len(),
+            payload.segment_index,
+            payload.segment_t,
+            payload.accumulated_distance_mm,
+            payload.remaining_volume_mm3,
+        ));
+
+        self.sync_snapshot_visual_frame();
     }
 
     fn rebuild_stage_from_entities(&mut self) {
@@ -178,7 +374,63 @@ impl AppState {
             self.graphic.config.width,
             self.graphic.config.height,
         );
+        self.renderer.update_snapshot_overlay(
+            &self.graphic.queue,
+            self.snapshot_progress_ratio(),
+            &self.snapshot_overlay_style,
+            self.graphic.config.width,
+            self.graphic.config.height,
+        );
         self.graphic.render(&mut self.renderer);
+    }
+
+    fn snapshot_progress_ratio(&self) -> Option<f32> {
+        let series = self.debug_snapshot_series.as_ref()?;
+        if series.frames.is_empty() {
+            return None;
+        }
+
+        Some(if series.frames.len() <= 1 {
+            1.0
+        } else {
+            (self.debug_snapshot_cursor as f32) / ((series.frames.len() - 1) as f32)
+        }
+        .clamp(0.0, 1.0))
+    }
+
+    fn snapshot_track_rect(&self) -> ViewRect {
+        ViewRect {
+            x: 16.0,
+            y: 16.0,
+            width: 220.0,
+            height: 14.0,
+        }
+    }
+
+    fn is_cursor_on_snapshot_track(&self, cursor: (f32, f32)) -> bool {
+        self.snapshot_track_rect().contains(cursor)
+    }
+
+    fn set_snapshot_cursor_from_x(&mut self, x: f32, emit_log: bool) {
+        let Some(series) = &self.debug_snapshot_series else {
+            return;
+        };
+        if series.frames.is_empty() {
+            return;
+        }
+
+        let rect = self.snapshot_track_rect();
+        let progress = ((x - rect.x) / rect.width).clamp(0.0, 1.0);
+        let next_index = if series.frames.len() <= 1 {
+            0
+        } else {
+            (progress * (series.frames.len() as f32 - 1.0)).round() as usize
+        };
+
+        if next_index != self.debug_snapshot_cursor {
+            self.debug_snapshot_cursor = next_index;
+            self.log_current_snapshot_frame(emit_log);
+        }
     }
 
     pub fn set_stage_draft(&mut self) {
@@ -207,12 +459,12 @@ impl AppState {
 
     /// デバッグ用：VoxelOctree可視化を表示
     pub fn load_debug_octree(&mut self) {
-        use viewmodel::octree_converter::create_sample_voxel_octree_wireframe_colored_levels_with_settings;
+        use viewmodel::octree_converter::create_sample_swept_cylinder_wireframe_colored_levels_with_settings;
 
         tracing::info!("VoxelOctree可視化デバッグ開始");
 
         // ViewModelでサンプルデータ生成（深さ別ワイヤーフレーム頂点）
-        let depth_levels = create_sample_voxel_octree_wireframe_colored_levels_with_settings(
+        let depth_levels = create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
             &self.octree_visualization_settings,
         );
 
@@ -321,124 +573,221 @@ impl AppState {
         tracing::info!("o: 深さを1段進める, Shift+O: 深さアニメーション再生");
     }
 
-    /// デバッグ用：CAM工具経路可視化を表示
+    /// デバッグ用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
     pub fn load_debug_toolpath(&mut self) {
-        use render::toolpath::ToolPathVertex;
-        use viewmodel::toolpath_converter::{
-            create_sample_toolpath, ToolPathVisualizationSettings,
+        use viewmodel::cam_sim_visualization_converter::create_sample_cam_simulation_visualization_bundle_with_settings;
+
+        tracing::info!("CAMシミュレーション可視化デバッグ開始（pキー）");
+
+        let bundle = match create_sample_cam_simulation_visualization_bundle_with_settings(
+            &self.octree_visualization_settings,
+        ) {
+            Ok(bundle) => bundle,
+            Err(error) => {
+                tracing::error!("CAMシミュレーション可視化データ生成失敗: {}", error);
+                return;
+            }
         };
 
-        tracing::info!("CAM工具経路可視化デバッグ開始");
-
-        // サンプルToolPathを生成
-        let toolpath = create_sample_toolpath();
-        tracing::info!(
-            "サンプル工具経路生成: approach={}, cutting_levels={}, retract={}",
-            toolpath.approach_segments.len(),
-            toolpath.contour_levels.len(),
-            toolpath.retract_segments.len()
-        );
-
-        // 可視化設定（全種別表示）
-        let settings = ToolPathVisualizationSettings::default();
-
-        // ViewModelで頂点データに変換
-        let toolpath_vertices =
-            viewmodel::toolpath_converter::toolpath_to_vertices(&toolpath, &settings);
-
-        tracing::info!(
-            "頂点データ変換完了: {} 頂点",
-            toolpath_vertices.vertices.len()
-        );
-        tracing::info!(
-            "フェーズ範囲 - approach: {:?}, cutting: {:?}, retract: {:?}",
-            toolpath_vertices.phase_ranges.approach,
-            toolpath_vertices.phase_ranges.cutting,
-            toolpath_vertices.phase_ranges.retract
-        );
-
-        // 頂点データを GPU 形式に変換（位置+色）
-        // 設計: 2頂点で1線分、1線分に1色が割り当てられている
-        // GPU描画: 各頂点に色が必要なので、1色を2頂点分に複製
-        let mut gpu_vertices = Vec::with_capacity(toolpath_vertices.vertices.len());
-        for (i, vertex) in toolpath_vertices.vertices.iter().enumerate() {
-            let color_index = i / 2; // 2頂点ごとに1色
-            let color = toolpath_vertices
-                .colors
-                .get(color_index)
-                .copied()
-                .unwrap_or([1.0, 1.0, 1.0, 1.0]); // フォールバック: 白色
-
-            gpu_vertices.push(ToolPathVertex {
-                position: vertex.position,
-                color,
-            });
+        if bundle.snapshot_wireframes.is_empty() {
+            tracing::warn!("CAMシミュレーション可視化フレームが空のため表示をスキップ");
+            return;
         }
 
-        tracing::info!(
-            "GPU頂点データ生成: {} 頂点（{} 線分）",
-            gpu_vertices.len(),
-            toolpath_vertices.colors.len()
+        // 進捗表示・スクラブ用スナップショットを更新
+        self.debug_snapshot_series = Some(bundle.snapshot_series);
+        self.debug_snapshot_wireframes = Some(bundle.snapshot_wireframes);
+        self.debug_snapshot_solids = Some(
+            bundle
+                .snapshot_solid_meshes
+                .iter()
+                .map(|(vertex_data, indices)| {
+                    (
+                        convert_vertex_data_to_mesh_vertices(vertex_data),
+                        indices.clone(),
+                    )
+                })
+                .collect(),
         );
+        self.debug_snapshot_toolpath_lines = Some(
+            bundle
+                .toolpath_wireframe
+                .iter()
+                .map(|v| MeshVertex::new(v.position, v.color))
+                .collect(),
+        );
+        self.debug_snapshot_tool_lines = Some(
+            bundle
+                .snapshot_tool_wireframes
+                .iter()
+                .map(|frame| {
+                    frame
+                        .iter()
+                        .map(|v| {
+                            MeshVertex::new(
+                                v.position,
+                                self.snapshot_shaded_color_settings.tool_wire_color,
+                            )
+                        })
+                        .collect()
+                })
+                .collect(),
+        );
+        self.debug_snapshot_shaded_mode = false;
+        self.debug_snapshot_cursor = 0;
 
-        // 全頂点をログ出力（デバッグ用）
-        if !gpu_vertices.is_empty() {
-            tracing::info!("=== 全22頂点の座標ダンプ ===");
-            for (i, v) in gpu_vertices.iter().enumerate() {
-                tracing::info!(
-                    "  [{}] pos=({:.1}, {:.1}, {:.1}), color={:?}",
-                    i,
-                    v.position[0],
-                    v.position[1],
-                    v.position[2],
-                    v.color
-                );
-            }
-            tracing::info!("=== ダンプ終了 ===");
+        let frame_wireframes = self.debug_snapshot_wireframes.as_ref().expect("frame wireframes");
+        let frame_count = frame_wireframes.len();
+        let positions: Vec<[f32; 3]> = frame_wireframes
+            .last()
+            .map(|vertices| vertices.iter().map(|v| v.position).collect())
+            .unwrap_or_default();
+
+        if positions.is_empty() {
+            tracing::warn!("CAMシミュレーション可視化頂点が空のため表示をスキップ");
+            return;
         }
 
-        // ToolPathStageを作成してデータ設定
-        let mut toolpath_stage = Box::new(ToolPathStage::new(
+        let mut min_x = f32::INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut min_z = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        let mut max_z = f32::NEG_INFINITY;
+
+        for pos in &positions {
+            min_x = min_x.min(pos[0]);
+            min_y = min_y.min(pos[1]);
+            min_z = min_z.min(pos[2]);
+            max_x = max_x.max(pos[0]);
+            max_y = max_y.max(pos[1]);
+            max_z = max_z.max(pos[2]);
+        }
+
+        let center_x = (min_x + max_x) * 0.5;
+        let center_y = (min_y + max_y) * 0.5;
+        let center_z = (min_z + max_z) * 0.5;
+        let size_x = (max_x - min_x).max(1.0);
+        let size_y = (max_y - min_y).max(1.0);
+        let size_z = (max_z - min_z).max(1.0);
+        let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0);
+
+        let mut octree_stage = Box::new(OctreeStage::new(
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        toolpath_stage.set_toolpath_data(&self.graphic.device, gpu_vertices);
+        octree_stage.set_depth_levels(&self.graphic.device, frame_wireframes.clone());
+        octree_stage.set_depth(&self.graphic.device, 0);
 
-        // カメラを原点中心に設定（デバッグ用：座標原点中心で生成したツールパスに対応）
-        self.camera.target = Vec3f::new(0.0, 0.0, 7.5); // ツールパスZ範囲の中央（0～15の中間）
-        self.camera.distance = 150.0; // クリッピングを避けるため適度な距離
+        self.camera.target = Vec3f::new(center_x, center_y, center_z);
+        self.camera.distance = (size_z * 6.0 + half_extent_xy).max(80.0);
         self.camera.zoom = 1.0;
-
-        // 初期表示方向: Z正方向から負の方向（XY平面を真上から見下ろす）
-        // identity() のままで forward=(0,0,-1)、camera_pos計算修正により正しく配置される
         self.camera.rotation = Quaternionf::identity();
-
         self.camera
             .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
+        self.camera.set_orthographic_bounds(
+            -half_extent_xy,
+            half_extent_xy,
+            -half_extent_xy,
+            half_extent_xy,
+        );
 
-        // 表示範囲を明示的に指定（±50、つまり 100mm × 100mm の正方形、マージン付き）
-        self.camera
-            .set_orthographic_bounds(-50.0, 50.0, -50.0, 50.0);
+        self.renderer.set_stage(octree_stage);
+        self.update_camera_uniforms();
+        self.log_current_snapshot_frame(true);
 
         tracing::info!(
-            "カメラ設定: target=(0, 0, 7.5), distance={}, display_bounds=(-50～50, -50～50), 平行投影・Z正方向から負の方向",
-            self.camera.distance
+            "CAMシミュレーション可視化デバッグ完了: frame={}/{}（k/スクラブで時系列再生）",
+            1,
+            frame_count
+        );
+    }
+
+    /// デバッグ用：カッターパスのみを表示（pキー）
+    pub fn load_debug_cutter_path_only(&mut self) {
+        use viewmodel::toolpath_converter::{create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings};
+
+        tracing::info!("カッターパス表示デバッグ開始（pキー）");
+
+        let toolpath = create_sample_toolpath();
+        let settings = ToolPathVisualizationSettings::default();
+        let toolpath_vertices = toolpath_to_vertices(&toolpath, &settings);
+
+        let vertices: Vec<MeshVertex> = toolpath_vertices
+            .vertices
+            .iter()
+            .enumerate()
+            .map(|(index, vertex)| {
+                let color = toolpath_vertices
+                    .colors
+                    .get(index / 2)
+                    .copied()
+                    .unwrap_or([1.0, 1.0, 1.0, 1.0]);
+                MeshVertex::new(vertex.position, [color[0], color[1], color[2]])
+            })
+            .collect();
+
+        if vertices.is_empty() {
+            tracing::warn!("カッターパス頂点が空のため表示をスキップ");
+            return;
+        }
+
+        self.debug_snapshot_series = None;
+        self.debug_snapshot_wireframes = None;
+        self.debug_snapshot_solids = None;
+        self.debug_snapshot_toolpath_lines = None;
+        self.debug_snapshot_tool_lines = None;
+        self.debug_snapshot_shaded_mode = false;
+        self.debug_snapshot_cursor = 0;
+
+        let mut min_x = f32::INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut min_z = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        let mut max_z = f32::NEG_INFINITY;
+
+        for vertex in &vertices {
+            let pos = vertex.position;
+            min_x = min_x.min(pos[0]);
+            min_y = min_y.min(pos[1]);
+            min_z = min_z.min(pos[2]);
+            max_x = max_x.max(pos[0]);
+            max_y = max_y.max(pos[1]);
+            max_z = max_z.max(pos[2]);
+        }
+
+        let center_x = (min_x + max_x) * 0.5;
+        let center_y = (min_y + max_y) * 0.5;
+        let center_z = (min_z + max_z) * 0.5;
+        let size_x = (max_x - min_x).max(1.0);
+        let size_y = (max_y - min_y).max(1.0);
+        let size_z = (max_z - min_z).max(1.0);
+        let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0);
+
+        let mut mesh_stage = Box::new(MeshStage::new(
+            &self.graphic.device,
+            self.graphic.config.format,
+        ));
+        mesh_stage.set_line_data(&self.graphic.device, vertices);
+
+        self.camera.target = Vec3f::new(center_x, center_y, center_z);
+        self.camera.distance = (size_z * 6.0 + half_extent_xy).max(80.0);
+        self.camera.zoom = 1.0;
+        self.camera.rotation = Quaternionf::identity();
+        self.camera
+            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
+        self.camera.set_orthographic_bounds(
+            -half_extent_xy,
+            half_extent_xy,
+            -half_extent_xy,
+            half_extent_xy,
         );
 
-        // カメラ状態を詳細ログ出力（デバッグ用）
-        let view_matrix = self.camera.view_matrix();
-        let proj_matrix = self.camera.projection_matrix(
-            self.graphic.config.width as f32 / self.graphic.config.height as f32,
-        );
-        tracing::info!("📊 View行列: {:?}", view_matrix);
-        tracing::info!("📊 Projection行列: {:?}", proj_matrix);
-
-        self.renderer.set_stage(toolpath_stage);
-
-        // カメラユニフォーム更新
+        self.renderer.set_stage(mesh_stage);
         self.update_camera_uniforms();
 
-        tracing::info!("CAM工具経路可視化デバッグ完了");
+        tracing::info!("カッターパス表示デバッグ完了: 線分数={}", toolpath_vertices.colors.len());
     }
 
     /// STLファイルを読み込んでメッシュステージに設定
@@ -740,6 +1089,72 @@ impl AppState {
 
     /// ワイヤーフレーム表示を切り替え
     pub fn toggle_wireframe(&mut self) {
+        // CAMスナップショット可視化時: Octreeワイヤ ↔ ソリッドメッシュを切替
+        if self.debug_snapshot_series.is_some()
+            && self.debug_snapshot_wireframes.is_some()
+            && self.debug_snapshot_solids.is_some()
+        {
+            if self.debug_snapshot_shaded_mode {
+                let Some(snapshot_wireframes) = &self.debug_snapshot_wireframes else {
+                    return;
+                };
+                if snapshot_wireframes.is_empty() {
+                    return;
+                }
+
+                let mut octree_stage = Box::new(OctreeStage::new(
+                    &self.graphic.device,
+                    self.graphic.config.format,
+                ));
+                octree_stage.set_depth_levels(&self.graphic.device, snapshot_wireframes.clone());
+                let frame_index = self
+                    .debug_snapshot_cursor
+                    .min(snapshot_wireframes.len().saturating_sub(1));
+                octree_stage.set_depth(&self.graphic.device, frame_index);
+                self.renderer.set_stage(octree_stage);
+                self.debug_snapshot_shaded_mode = false;
+                self.update_camera_uniforms();
+                tracing::info!("Octree表示モード: ワイヤーフレーム");
+                return;
+            }
+
+            let Some(snapshot_solids) = &self.debug_snapshot_solids else {
+                return;
+            };
+            if snapshot_solids.is_empty() {
+                return;
+            }
+
+            let frame_index = self
+                .debug_snapshot_cursor
+                .min(snapshot_solids.len().saturating_sub(1));
+            let (vertices, indices) = snapshot_solids[frame_index].clone();
+
+            let mut mesh_stage = Box::new(MeshStage::new(
+                &self.graphic.device,
+                self.graphic.config.format,
+            ));
+            mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
+            mesh_stage.set_mesh_base_color(self.snapshot_shaded_color_settings.work_solid_color);
+
+            let toolpath_lines = self.debug_snapshot_toolpath_lines.clone().unwrap_or_default();
+            if let Some(tool_lines_per_frame) = &self.debug_snapshot_tool_lines {
+                let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
+                let tool_lines = tool_lines_per_frame[overlay_index].clone();
+                if !tool_lines.is_empty() {
+                    mesh_stage.set_overlay_tool_line_data(&self.graphic.device, tool_lines);
+                }
+            }
+            if !toolpath_lines.is_empty() {
+                mesh_stage.set_overlay_toolpath_line_data(&self.graphic.device, toolpath_lines);
+            }
+            self.renderer.set_stage(mesh_stage);
+            self.debug_snapshot_shaded_mode = true;
+            self.update_camera_uniforms();
+            tracing::info!("Octree表示モード: シェーディング（ソリッド）");
+            return;
+        }
+
         let stage = self.renderer.get_stage_mut();
 
         // MeshStageの場合
@@ -825,7 +1240,10 @@ impl AppState {
                     tracing::info!("m: NurbsSurface3D表示（GPU評価）");
                     tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
                     tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
-                    tracing::info!("p: ToolPath表示");
+                    tracing::info!("p: カッターパスのみ表示（色分け線）");
+                    tracing::info!("Shift+P: CAMシミュレーション可視化（ToolPath + ワーク + 除去）");
+                    tracing::info!("k/j: Snapshotフレーム送り/巻き戻し");
+                    tracing::info!("w: Octree表示モード切替（Wire/Solid）");
                     tracing::info!("=== その他 ===");
                     tracing::info!(
                         "マウス操作: Ctrl+左ドラッグ=回転, Ctrl+中ドラッグ=パン, Ctrl+右ドラッグ=ズーム"
@@ -922,8 +1340,28 @@ impl AppState {
                     }
                 }
                 "p" => {
-                    // デバッグ: CAM工具経路可視化表示
+                    // デバッグ: カッターパスのみ表示
+                    self.load_debug_cutter_path_only();
+                }
+                "P" => {
+                    // デバッグ: CAMシミュレーション可視化（ToolPath + ワーク + 除去）
                     self.load_debug_toolpath();
+                }
+                "k" => {
+                    // デバッグ: シミュレーションスナップショット読み込み/次フレーム
+                    if self.debug_snapshot_series.is_some() {
+                        self.cycle_debug_simulation_snapshot();
+                    } else {
+                        self.load_debug_simulation_snapshots();
+                    }
+                }
+                "j" => {
+                    // デバッグ: シミュレーションスナップショットを前フレームへ巻き戻し
+                    if self.debug_snapshot_series.is_some() {
+                        self.rewind_debug_simulation_snapshot();
+                    } else {
+                        self.load_debug_simulation_snapshots();
+                    }
                 }
                 "T" => {
                     // デバッグ: Triangle3D表示（Shift+T）
@@ -948,6 +1386,19 @@ impl AppState {
 
         match state {
             winit::event::ElementState::Pressed => {
+                if let Some(cursor) = self.cursor_position {
+                    if self.is_cursor_on_snapshot_track(cursor) {
+                        if self.debug_snapshot_series.is_none() {
+                            self.load_debug_simulation_snapshots();
+                        }
+                        self.snapshot_scrub_active = true;
+                        self.mouse_input.operation = crate::mouse_input::MouseOperation::None;
+                        self.set_snapshot_cursor_from_x(cursor.0, true);
+                        tracing::debug!("左クリック: snapshotスクラブ開始");
+                        return;
+                    }
+                }
+
                 if self.mouse_input.ctrl_pressed {
                     self.arcball_drag_start = self.cursor_position;
                     let viewport_width = self.graphic.config.width as f32;
@@ -973,6 +1424,13 @@ impl AppState {
                 }
             }
             winit::event::ElementState::Released => {
+                if self.snapshot_scrub_active {
+                    self.snapshot_scrub_active = false;
+                    tracing::debug!("左ドラッグ: snapshotスクラブ終了");
+                    self.log_current_snapshot_frame(true);
+                    return;
+                }
+
                 if let Some(start) = self.arcball_drag_start.take() {
                     tracing::info!(
                         "Ctrl+左ドラッグ: カメラ回転モード終了 start={:?} end={:?} virtual_end={:?}",
@@ -997,6 +1455,11 @@ impl AppState {
     pub fn handle_cursor_moved(&mut self, x: f32, y: f32) {
         self.last_cursor_position = self.cursor_position;
         self.cursor_position = Some((x, y));
+
+        if self.snapshot_scrub_active {
+            self.set_snapshot_cursor_from_x(x, false);
+            return;
+        }
 
         if self.mouse_input.operation == crate::mouse_input::MouseOperation::Rotate {
             tracing::debug!(
@@ -1046,6 +1509,56 @@ impl AppState {
     pub fn set_camera_control_sensitivity(&mut self, sensitivity: CameraControlSensitivity) {
         self.viewing_operation_settings.camera_control_sensitivity = sensitivity;
         self.apply_viewing_operation_settings();
+    }
+
+    /// Snapshotシェーディング時のワークソリッド色を設定
+    pub fn set_snapshot_work_solid_color(&mut self, color: [f32; 4]) {
+        self.snapshot_shaded_color_settings.work_solid_color = color;
+
+        if self.debug_snapshot_shaded_mode {
+            let stage = self.renderer.get_stage_mut();
+            if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
+                mesh_stage.set_mesh_base_color(color);
+            }
+        }
+    }
+
+    /// Snapshotシェーディング時の工具ワイヤー色を設定
+    pub fn set_snapshot_tool_wire_color(&mut self, color: [f32; 3]) {
+        self.snapshot_shaded_color_settings.tool_wire_color = color;
+
+        if let Some(tool_lines_per_frame) = &mut self.debug_snapshot_tool_lines {
+            for frame in tool_lines_per_frame.iter_mut() {
+                for vertex in frame.iter_mut() {
+                    vertex.normal = color;
+                }
+            }
+        }
+
+        if self.debug_snapshot_shaded_mode {
+            self.sync_snapshot_visual_frame();
+        }
+    }
+
+    /// Snapshotシェーディング色設定を一括更新
+    pub fn set_snapshot_shaded_color_settings(&mut self, settings: SnapshotShadedColorSettings) {
+        self.set_snapshot_work_solid_color(settings.work_solid_color);
+        self.set_snapshot_tool_wire_color(settings.tool_wire_color);
+    }
+
+    /// Snapshotシェーディング時のワークソリッド色を取得
+    pub fn snapshot_work_solid_color(&self) -> [f32; 4] {
+        self.snapshot_shaded_color_settings.work_solid_color
+    }
+
+    /// Snapshotシェーディング時の工具ワイヤー色を取得
+    pub fn snapshot_tool_wire_color(&self) -> [f32; 3] {
+        self.snapshot_shaded_color_settings.tool_wire_color
+    }
+
+    /// Snapshotシェーディング色設定を取得
+    pub fn snapshot_shaded_color_settings(&self) -> SnapshotShadedColorSettings {
+        self.snapshot_shaded_color_settings
     }
 
     /// Octree深さグラデーション開始色（浅い）を設定

@@ -10,6 +10,7 @@ use wgpu::util::DeviceExt;
 pub struct MeshUniforms {
     pub view_proj: [[f32; 4]; 4], // ビュー・プロジェクション行列
     pub model: [[f32; 4]; 4],     // モデル行列
+    pub base_color: [f32; 4],     // メッシュ基本色
 }
 
 impl Default for MeshUniforms {
@@ -27,6 +28,7 @@ impl Default for MeshUniforms {
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
+            base_color: [1.0, 0.5, 0.2, 1.0],
         }
     }
 }
@@ -42,6 +44,7 @@ pub struct MeshResources {
     pub index_buffer: Option<wgpu::Buffer>,
     pub index_count: u32,
     pub wireframe_mode: bool,
+    pub base_color: [f32; 4],
 }
 
 impl MeshResources {
@@ -113,12 +116,18 @@ impl MeshResources {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None, // カリング無効（両面表示）
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None, // 深度バッファ準備後に有効化
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -152,12 +161,18 @@ impl MeshResources {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: None,                       // カリング無効（両面表示）
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Line, // ワイヤーフレーム
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -177,6 +192,7 @@ impl MeshResources {
             index_buffer: None,
             index_count: 0,
             wireframe_mode: false,
+            base_color: [1.0, 0.5, 0.2, 1.0],
         }
     }
 
@@ -187,7 +203,7 @@ impl MeshResources {
 
     /// カメラ行列を更新
     pub fn update_camera(
-        &self,
+        &mut self,
         queue: &wgpu::Queue,
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
@@ -202,6 +218,7 @@ impl MeshResources {
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
+            base_color: self.base_color,
         };
 
         self.update_uniforms(queue, &uniforms);
@@ -246,6 +263,11 @@ impl MeshResources {
     /// ワイヤーフレームモードかどうか
     pub fn is_wireframe(&self) -> bool {
         self.wireframe_mode
+    }
+
+    /// シェーディング時のメッシュ基本色を設定
+    pub fn set_base_color(&mut self, base_color: [f32; 4]) {
+        self.base_color = base_color;
     }
 
     /// メッシュをレンダリング

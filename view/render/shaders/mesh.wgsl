@@ -15,6 +15,7 @@ struct VertexOutput {
 struct Uniforms {
     view_proj: mat4x4<f32>,
     model: mat4x4<f32>,
+    base_color: vec4<f32>,
 }
 
 @group(0) @binding(0)
@@ -46,8 +47,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let light_dir = normalize(vec3<f32>(1.0, 1.0, 1.0));
     let diffuse = max(dot(normal, light_dir), 0.1); // 最小値0.1でアンビエント効果
 
-    // 基本的なマテリアルカラー（オレンジ色で見えやすく）
-    let base_color = vec3<f32>(1.0, 0.5, 0.2);
+    // 基本マテリアルカラー（CPU側から設定）
+    let base_color = uniforms.base_color.xyz;
 
     // 最終カラー
     let final_color = base_color * diffuse;

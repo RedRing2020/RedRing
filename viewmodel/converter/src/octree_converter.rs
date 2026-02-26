@@ -549,6 +549,85 @@ pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
     levels
 }
 
+/// デバッグ用：ToolPath線分を平端掃引円柱で除去した結果を深さ別ワイヤーフレームで生成
+///
+/// `cam_sim` と同じ平端掃引円柱カーネル（`remove_material_swept_cylinder`）を使い、
+/// 可視確認用の頂点データを返します。
+pub fn create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
+    settings: &OctreeDebugVisualizationSettings,
+) -> Vec<Vec<WireframeVertex>> {
+    use geo_algorithms::{LineSegment3D, Point3D};
+
+    let mut levels = Vec::new();
+    let max_depth = settings.max_depth;
+
+    let depth_color = |depth: usize, max_depth: usize| {
+        if max_depth == 0 {
+            return settings.gradient_start;
+        }
+        let t = (depth as f32 / max_depth as f32).clamp(0.0, 1.0);
+        [
+            settings.gradient_start[0]
+                + (settings.gradient_end[0] - settings.gradient_start[0]) * t,
+            settings.gradient_start[1]
+                + (settings.gradient_end[1] - settings.gradient_start[1]) * t,
+            settings.gradient_start[2]
+                + (settings.gradient_end[2] - settings.gradient_start[2]) * t,
+        ]
+    };
+
+    let work_bounds = Aabb3D::new(
+        Point3D::new(-60.0, -60.0, -20.0),
+        Point3D::new(60.0, 60.0, 30.0),
+    );
+    let mut voxel_tree = VoxelOctree::new(work_bounds, max_depth);
+
+    let sample_segments = [
+        (
+            Point3D::new(-45.0, -25.0, 5.0),
+            Point3D::new(45.0, -25.0, 5.0),
+        ),
+        (
+            Point3D::new(-45.0, 0.0, 4.0),
+            Point3D::new(45.0, 0.0, 4.0),
+        ),
+        (
+            Point3D::new(-45.0, 25.0, 3.0),
+            Point3D::new(45.0, 25.0, 3.0),
+        ),
+    ];
+    for (start, end) in sample_segments {
+        if let Some(line) = LineSegment3D::new(start, end) {
+            voxel_tree.remove_material_swept_cylinder(&line, 5.0);
+        }
+    }
+
+    for depth in 0..=max_depth {
+        let options = VoxelVisualizationOptions {
+            depth_range: 0..(depth + 1),
+            show_states: vec![VoxelState::Solid],
+            color_by_state: false,
+            color_by_depth: true,
+            max_depth: max_depth.max(1),
+        };
+
+        let mut wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
+        let color = depth_color(depth, max_depth.max(1));
+        for vertex in &mut wireframe_vertices {
+            vertex.color = color;
+        }
+        levels.push(wireframe_vertices);
+    }
+
+    tracing::info!(
+        "create_sample_swept_cylinder_wireframe_colored_levels_with_settings: {} レベル生成（0..{}）",
+        levels.len(),
+        max_depth
+    );
+
+    levels
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -655,6 +734,18 @@ mod tests {
     #[test]
     fn test_create_sample_voxel_octree_wireframe_colored_levels() {
         let levels = create_sample_voxel_octree_wireframe_colored_levels(3);
+        assert_eq!(levels.len(), 4);
+        assert!(levels.iter().any(|vertices| !vertices.is_empty()));
+    }
+
+    #[test]
+    fn test_create_sample_swept_cylinder_wireframe_colored_levels_with_settings() {
+        let settings = OctreeDebugVisualizationSettings {
+            max_depth: 3,
+            ..OctreeDebugVisualizationSettings::default()
+        };
+
+        let levels = create_sample_swept_cylinder_wireframe_colored_levels_with_settings(&settings);
         assert_eq!(levels.len(), 4);
         assert!(levels.iter().any(|vertices| !vertices.is_empty()));
     }

@@ -24,6 +24,7 @@ fn should_log(counter: &AtomicU64) -> bool {
 pub struct LineUniforms {
     pub view_proj: [[f32; 4]; 4], // ビュー・プロジェクション行列
     pub model: [[f32; 4]; 4],     // モデル行列
+    pub color: [f32; 4],
 }
 
 impl Default for LineUniforms {
@@ -41,6 +42,7 @@ impl Default for LineUniforms {
                 [0.0, 0.0, 1.0, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
+            color: [1.0, 1.0, 0.0, 1.0],
         }
     }
 }
@@ -53,6 +55,7 @@ pub struct LineResources {
     pub bind_group: wgpu::BindGroup,
     pub vertex_buffer: Option<wgpu::Buffer>,
     pub vertex_count: u32,
+    pub color: [f32; 4],
 }
 
 impl LineResources {
@@ -146,6 +149,7 @@ impl LineResources {
             bind_group,
             vertex_buffer: None,
             vertex_count: 0,
+            color: [1.0, 1.0, 0.0, 1.0],
         }
     }
 
@@ -156,7 +160,7 @@ impl LineResources {
 
     /// カメラ行列を更新
     pub fn update_camera(
-        &self,
+        &mut self,
         queue: &wgpu::Queue,
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
@@ -213,8 +217,17 @@ impl LineResources {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        let uniforms = LineUniforms { view_proj, model };
+        let uniforms = LineUniforms {
+            view_proj,
+            model,
+            color: self.color,
+        };
         self.update_uniforms(queue, &uniforms);
+    }
+
+    /// 線分の描画色を設定
+    pub fn set_color(&mut self, color: [f32; 4]) {
+        self.color = color;
     }
 
     /// 線分データを更新
