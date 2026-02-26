@@ -49,13 +49,12 @@
 
 - 公式なタグ戦略の合意（初回タグ名・バンプ規則）
 - CHANGELOG 運用方式（Keep a Changelog 形式など）の確定
-- リリースノートテンプレートの固定化
 
 ### 直近TODO（優先順）
 
 - [x] `VERSIONING_POLICY.md` をルートに作成（SemVer + 0.x例外）
 - [x] `CHANGELOG.md` を追加（Unreleased セクション開始）
-- [ ] リリースノートのテンプレートを `dev/` に追加
+- [x] リリースノートのテンプレートを `dev/` に追加（`dev/RELEASE_NOTE_TEMPLATE.md`）
 - [ ] 次回 `develop -> main` 統合時に初回タグを運用開始
 
 ## 6. 補足
