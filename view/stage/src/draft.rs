@@ -81,13 +81,13 @@ impl RenderStage for DraftStage {
             },
         ];
 
-        self.resources.vertex_buffer = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Animated Vertex Buffer"),
-                contents: bytemuck::cast_slice(&animated_vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        self.resources.vertex_buffer =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Animated Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&animated_vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
 
         self.resources.vertex_count = animated_vertices.len() as u32;
     }
