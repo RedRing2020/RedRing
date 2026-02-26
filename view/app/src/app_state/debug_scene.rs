@@ -5,13 +5,91 @@ use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{MeshStage, NurbsCurveStage, NurbsSurfaceStage, OctreeStage};
 use std::path::Path;
+use viewmodel::octree_converter::WireframeVertex;
+use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
+
+#[derive(Clone, Copy)]
+struct CameraFit {
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+    size_z: f32,
+    half_extent_xy: f32,
+}
+
+struct OctreeDebugData {
+    depth_levels: Vec<Vec<WireframeVertex>>,
+    initial_depth: usize,
+    positions: Vec<[f32; 3]>,
+    fit: CameraFit,
+}
+
+struct ToolpathDebugData {
+    snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
+    snapshot_wireframes: Vec<Vec<WireframeVertex>>,
+    snapshot_solids: Vec<(Vec<MeshVertex>, Vec<u32>)>,
+    toolpath_lines: Vec<MeshVertex>,
+    tool_lines_per_frame: Vec<Vec<MeshVertex>>,
+    frame_count: usize,
+    fit: CameraFit,
+}
 
 impl AppState {
-    /// デバッグ用：VoxelOctree可視化を表示
-    pub fn load_debug_octree(&mut self) {
-        use viewmodel::octree_converter::create_sample_swept_cylinder_wireframe_colored_levels_with_settings;
+    fn build_camera_fit(positions: &[[f32; 3]]) -> Option<CameraFit> {
+        if positions.is_empty() {
+            return None;
+        }
 
-        tracing::info!("VoxelOctree可視化デバッグ開始");
+        let mut min_x = f32::INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut min_z = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+        let mut max_z = f32::NEG_INFINITY;
+
+        for pos in positions {
+            min_x = min_x.min(pos[0]);
+            min_y = min_y.min(pos[1]);
+            min_z = min_z.min(pos[2]);
+            max_x = max_x.max(pos[0]);
+            max_y = max_y.max(pos[1]);
+            max_z = max_z.max(pos[2]);
+        }
+
+        let center_x = (min_x + max_x) * 0.5;
+        let center_y = (min_y + max_y) * 0.5;
+        let center_z = (min_z + max_z) * 0.5;
+        let size_x = (max_x - min_x).max(1.0);
+        let size_y = (max_y - min_y).max(1.0);
+        let size_z = (max_z - min_z).max(1.0);
+        let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0);
+
+        Some(CameraFit {
+            center_x,
+            center_y,
+            center_z,
+            size_z,
+            half_extent_xy,
+        })
+    }
+
+    fn apply_camera_fit(&mut self, fit: CameraFit) {
+        self.camera.target = Vec3f::new(fit.center_x, fit.center_y, fit.center_z);
+        self.camera.distance = (fit.size_z * 6.0 + fit.half_extent_xy).max(80.0);
+        self.camera.zoom = 1.0;
+        self.camera.rotation = Quaternionf::identity();
+        self.camera
+            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
+        self.camera.set_orthographic_bounds(
+            -fit.half_extent_xy,
+            fit.half_extent_xy,
+            -fit.half_extent_xy,
+            fit.half_extent_xy,
+        );
+    }
+
+    fn build_octree_debug_data(&self) -> Option<OctreeDebugData> {
+        use viewmodel::octree_converter::create_sample_swept_cylinder_wireframe_colored_levels_with_settings;
 
         let depth_levels = create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
             &self.octree_visualization_settings,
@@ -27,73 +105,36 @@ impl AppState {
             .map(|vertices| vertices.iter().map(|v| v.position).collect())
             .unwrap_or_default();
 
-        if positions.is_empty() {
-            tracing::warn!("Octreeワイヤーフレーム頂点が空のため表示をスキップ");
-            return;
-        }
+        let fit = Self::build_camera_fit(&positions)?;
 
-        let mut min_x = f32::INFINITY;
-        let mut min_y = f32::INFINITY;
-        let mut min_z = f32::INFINITY;
-        let mut max_x = f32::NEG_INFINITY;
-        let mut max_y = f32::NEG_INFINITY;
-        let mut max_z = f32::NEG_INFINITY;
+        Some(OctreeDebugData {
+            depth_levels,
+            initial_depth,
+            positions,
+            fit,
+        })
+    }
 
-        for pos in &positions {
-            min_x = min_x.min(pos[0]);
-            min_y = min_y.min(pos[1]);
-            min_z = min_z.min(pos[2]);
-            max_x = max_x.max(pos[0]);
-            max_y = max_y.max(pos[1]);
-            max_z = max_z.max(pos[2]);
-        }
-
-        let center_x = (min_x + max_x) * 0.5;
-        let center_y = (min_y + max_y) * 0.5;
-        let center_z = (min_z + max_z) * 0.5;
-
-        let size_x = (max_x - min_x).max(1.0);
-        let size_y = (max_y - min_y).max(1.0);
-        let size_z = (max_z - min_z).max(1.0);
-        let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0);
-
-        tracing::info!("ワイヤーフレーム頂点数: {}", positions.len());
-
-        for (i, pos) in positions.iter().take(8).enumerate() {
-            tracing::info!("頂点[{}]: [{:.1}, {:.1}, {:.1}]", i, pos[0], pos[1], pos[2]);
-        }
-
+    fn apply_octree_debug_data(&mut self, data: OctreeDebugData) {
         let mut octree_stage = Box::new(OctreeStage::new(
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        octree_stage.set_depth_levels(&self.graphic.device, depth_levels);
-        octree_stage.set_depth(&self.graphic.device, initial_depth);
+        octree_stage.set_depth_levels(&self.graphic.device, data.depth_levels);
+        octree_stage.set_depth(&self.graphic.device, data.initial_depth);
 
-        self.camera.target = Vec3f::new(center_x, center_y, center_z);
-        self.camera.distance = (size_z * 6.0 + half_extent_xy).max(80.0);
-        self.camera.zoom = 1.0;
-        self.camera.rotation = Quaternionf::identity();
-        self.camera
-            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
-
-        self.camera.set_orthographic_bounds(
-            -half_extent_xy,
-            half_extent_xy,
-            -half_extent_xy,
-            half_extent_xy,
-        );
+        self.apply_camera_fit(data.fit);
 
         tracing::info!(
             "カメラ設定: target=({:.1}, {:.1}, {:.1}), distance={:.1}, bounds(camspace)=({:.1}..{:.1}, {:.1}..{:.1}), 平行投影",
-            center_x,
-            center_y,
-            center_z,
+            data.fit.center_x,
+            data.fit.center_y,
+            data.fit.center_z,
             self.camera.distance,
-            -half_extent_xy,
-            half_extent_xy,
-            -half_extent_xy,
-            half_extent_xy,
+            -data.fit.half_extent_xy,
+            data.fit.half_extent_xy,
+            -data.fit.half_extent_xy,
+            data.fit.half_extent_xy,
         );
 
         let view_mat = self.camera.view_matrix();
@@ -107,132 +148,92 @@ impl AppState {
 
         self.renderer.set_stage(octree_stage);
         self.update_camera_uniforms();
-
-        tracing::info!("VoxelOctree可視化デバッグ完了");
-        tracing::info!("初期表示深さ: {}", initial_depth);
-        tracing::info!("o: 深さを1段進める, Shift+O: 深さアニメーション再生");
     }
 
-    /// デバッグ用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
-    pub fn load_debug_toolpath(&mut self) {
+    fn build_toolpath_debug_data(&self) -> Result<ToolpathDebugData, String> {
         use viewmodel::cam_sim_visualization_converter::create_sample_cam_simulation_visualization_bundle_with_settings;
 
-        tracing::info!("CAMシミュレーション可視化デバッグ開始（pキー）");
-
-        let bundle = match create_sample_cam_simulation_visualization_bundle_with_settings(
+        let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(
             &self.octree_visualization_settings,
-        ) {
-            Ok(bundle) => bundle,
-            Err(error) => {
-                tracing::error!("CAMシミュレーション可視化データ生成失敗: {}", error);
-                return;
-            }
-        };
+        )
+        .map_err(|error| error.to_string())?;
 
         if bundle.snapshot_wireframes.is_empty() {
-            tracing::warn!("CAMシミュレーション可視化フレームが空のため表示をスキップ");
-            return;
+            return Err("CAMシミュレーション可視化フレームが空です".to_string());
         }
 
-        self.debug_snapshot_series = Some(bundle.snapshot_series);
-        self.debug_snapshot_wireframes = Some(bundle.snapshot_wireframes);
-        self.debug_snapshot_solids = Some(
-            bundle
-                .snapshot_solid_meshes
-                .iter()
-                .map(|(vertex_data, indices)| {
-                    (
-                        convert_vertex_data_to_mesh_vertices(vertex_data),
-                        indices.clone(),
-                    )
-                })
-                .collect(),
-        );
-        self.debug_snapshot_toolpath_lines = Some(
-            bundle
-                .toolpath_wireframe
-                .iter()
-                .map(|v| MeshVertex::new(v.position, v.color))
-                .collect(),
-        );
-        self.debug_snapshot_tool_lines = Some(
-            bundle
-                .snapshot_tool_wireframes
-                .iter()
-                .map(|frame| {
-                    frame
-                        .iter()
-                        .map(|v| {
-                            MeshVertex::new(
-                                v.position,
-                                self.snapshot_shaded_color_settings.tool_wire_color,
-                            )
-                        })
-                        .collect()
-                })
-                .collect(),
-        );
-        self.debug_snapshot_shaded_mode = false;
-        self.debug_snapshot_cursor = 0;
-
-        let frame_wireframes = self
-            .debug_snapshot_wireframes
-            .as_ref()
-            .expect("frame wireframes");
-        let frame_count = frame_wireframes.len();
-        let positions: Vec<[f32; 3]> = frame_wireframes
+        let frame_count = bundle.snapshot_wireframes.len();
+        let positions: Vec<[f32; 3]> = bundle
+            .snapshot_wireframes
             .last()
             .map(|vertices| vertices.iter().map(|v| v.position).collect())
             .unwrap_or_default();
+        let fit = Self::build_camera_fit(&positions)
+            .ok_or_else(|| "CAMシミュレーション可視化頂点が空です".to_string())?;
 
-        if positions.is_empty() {
-            tracing::warn!("CAMシミュレーション可視化頂点が空のため表示をスキップ");
-            return;
-        }
+        let snapshot_solids = bundle
+            .snapshot_solid_meshes
+            .iter()
+            .map(|(vertex_data, indices)| {
+                (
+                    convert_vertex_data_to_mesh_vertices(vertex_data),
+                    indices.clone(),
+                )
+            })
+            .collect();
 
-        let mut min_x = f32::INFINITY;
-        let mut min_y = f32::INFINITY;
-        let mut min_z = f32::INFINITY;
-        let mut max_x = f32::NEG_INFINITY;
-        let mut max_y = f32::NEG_INFINITY;
-        let mut max_z = f32::NEG_INFINITY;
+        let toolpath_lines = bundle
+            .toolpath_wireframe
+            .iter()
+            .map(|v| MeshVertex::new(v.position, v.color))
+            .collect();
 
-        for pos in &positions {
-            min_x = min_x.min(pos[0]);
-            min_y = min_y.min(pos[1]);
-            min_z = min_z.min(pos[2]);
-            max_x = max_x.max(pos[0]);
-            max_y = max_y.max(pos[1]);
-            max_z = max_z.max(pos[2]);
-        }
+        let tool_lines_per_frame = bundle
+            .snapshot_tool_wireframes
+            .iter()
+            .map(|frame| {
+                frame
+                    .iter()
+                    .map(|v| {
+                        MeshVertex::new(
+                            v.position,
+                            self.snapshot_shaded_color_settings.tool_wire_color,
+                        )
+                    })
+                    .collect()
+            })
+            .collect();
 
-        let center_x = (min_x + max_x) * 0.5;
-        let center_y = (min_y + max_y) * 0.5;
-        let center_z = (min_z + max_z) * 0.5;
-        let size_x = (max_x - min_x).max(1.0);
-        let size_y = (max_y - min_y).max(1.0);
-        let size_z = (max_z - min_z).max(1.0);
-        let half_extent_xy = (size_x.max(size_y) * 0.5 * 1.4).max(10.0);
+        Ok(ToolpathDebugData {
+            snapshot_series: bundle.snapshot_series,
+            snapshot_wireframes: bundle.snapshot_wireframes,
+            snapshot_solids,
+            toolpath_lines,
+            tool_lines_per_frame,
+            frame_count,
+            fit,
+        })
+    }
+
+    fn apply_toolpath_debug_data(&mut self, data: ToolpathDebugData) {
+        let stage_wireframes = data.snapshot_wireframes.clone();
+
+        self.debug_snapshot_series = Some(data.snapshot_series);
+        self.debug_snapshot_wireframes = Some(data.snapshot_wireframes);
+        self.debug_snapshot_solids = Some(data.snapshot_solids);
+        self.debug_snapshot_toolpath_lines = Some(data.toolpath_lines);
+        self.debug_snapshot_tool_lines = Some(data.tool_lines_per_frame);
+        self.debug_snapshot_shaded_mode = false;
+        self.debug_snapshot_cursor = 0;
 
         let mut octree_stage = Box::new(OctreeStage::new(
             &self.graphic.device,
             self.graphic.config.format,
         ));
-        octree_stage.set_depth_levels(&self.graphic.device, frame_wireframes.clone());
+        octree_stage.set_depth_levels(&self.graphic.device, stage_wireframes);
         octree_stage.set_depth(&self.graphic.device, 0);
 
-        self.camera.target = Vec3f::new(center_x, center_y, center_z);
-        self.camera.distance = (size_z * 6.0 + half_extent_xy).max(80.0);
-        self.camera.zoom = 1.0;
-        self.camera.rotation = Quaternionf::identity();
-        self.camera
-            .set_projection_mode(viewmodel_graphics::camera::ProjectionMode::Orthographic);
-        self.camera.set_orthographic_bounds(
-            -half_extent_xy,
-            half_extent_xy,
-            -half_extent_xy,
-            half_extent_xy,
-        );
+        self.apply_camera_fit(data.fit);
 
         self.renderer.set_stage(octree_stage);
         self.update_camera_uniforms();
@@ -241,8 +242,54 @@ impl AppState {
         tracing::info!(
             "CAMシミュレーション可視化デバッグ完了: frame={}/{}（k/スクラブで時系列再生）",
             1,
-            frame_count
+            data.frame_count
         );
+    }
+
+    /// デバッグ用：VoxelOctree可視化を表示
+    pub fn load_debug_octree(&mut self) {
+        tracing::info!("VoxelOctree可視化デバッグ開始");
+
+        let Some(data) = self.build_octree_debug_data() else {
+            tracing::warn!("Octreeワイヤーフレーム頂点が空のため表示をスキップ");
+            return;
+        };
+
+        tracing::info!("ワイヤーフレーム頂点数: {}", data.positions.len());
+
+        for (i, pos) in data.positions.iter().take(8).enumerate() {
+            tracing::info!("頂点[{}]: [{:.1}, {:.1}, {:.1}]", i, pos[0], pos[1], pos[2]);
+        }
+
+        let initial_depth = data.initial_depth;
+        self.apply_octree_debug_data(data);
+
+        tracing::info!("VoxelOctree可視化デバッグ完了");
+        tracing::info!("初期表示深さ: {}", initial_depth);
+        tracing::info!("o: 深さを1段進める, Shift+O: 深さアニメーション再生");
+    }
+
+    /// デバッグ用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
+    pub fn load_debug_toolpath(&mut self) {
+        tracing::info!("CAMシミュレーション可視化デバッグ開始（pキー）");
+
+        let data = match self.build_toolpath_debug_data() {
+            Ok(data) => data,
+            Err(error) if error.contains("フレームが空") => {
+                tracing::warn!("CAMシミュレーション可視化フレームが空のため表示をスキップ");
+                return;
+            }
+            Err(error) if error.contains("頂点が空") => {
+                tracing::warn!("CAMシミュレーション可視化頂点が空のため表示をスキップ");
+                return;
+            }
+            Err(error) => {
+                tracing::error!("CAMシミュレーション可視化データ生成失敗: {}", error);
+                return;
+            }
+        };
+
+        self.apply_toolpath_debug_data(data);
     }
 
     /// デバッグ用：カッターパスのみを表示（pキー）
