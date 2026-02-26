@@ -9,8 +9,8 @@
 //! ```
 
 use geo_algorithms::octree::voxel::VoxelOctree;
+use geo_algorithms::{Angle, Arc3D, LineSegment3D};
 use geo_core::{Aabb3D, Point3D};
-use geo_primitives::{Angle, Arc3D, LineSegment3D};
 
 fn main() {
     println!("=== VoxelOctree切削シミュレーション例 ===\n");

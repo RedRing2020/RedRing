@@ -12,7 +12,7 @@
 //!
 //! ```
 //! use cam_core::{validate_2d_contour, CamTolerance};
-//! use geo_primitives::Point2D;
+//! use geo_algorithms::Point2D;
 //!
 //! let points = vec![
 //!     Point2D::new(0.0, 0.0),
@@ -29,7 +29,7 @@
 
 use crate::tolerance::CamTolerance;
 use analysis::Scalar;
-use geo_primitives::Point2D;
+use geo_algorithms::Point2D;
 
 /// 検証エラー
 ///
@@ -103,7 +103,7 @@ impl std::error::Error for ValidationError {}
 ///
 /// ```
 /// use cam_core::{validate_2d_contour, CamTolerance};
-/// use geo_primitives::Point2D;
+/// use geo_algorithms::Point2D;
 ///
 /// let points = vec![
 ///     Point2D::new(0.0, 0.0),

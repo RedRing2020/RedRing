@@ -17,6 +17,10 @@
 //! 3. **パフォーマンス**: BBox による事前スクリーニング
 //! 4. **ゼロコスト抽象化**: `#[repr(transparent)]` による Newtype
 
+use crate::{
+    Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
+    Ray3D, SphericalSolid3D,
+};
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
 use geo_core::Point3D;
 use geo_foundation::{
@@ -28,10 +32,6 @@ use geo_foundation::{
     Scalar,
 };
 use geo_nurbs::NurbsCurve3D;
-use geo_primitives::{
-    Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
-    Ray3D, SphericalSolid3D,
-};
 
 // ============================================================================
 // Newtype Wrapper for NurbsCurve3D
@@ -747,7 +747,7 @@ mod tests {
         let collider = NurbsCurveCollider::new(curve);
 
         // 曲線の近くの円
-        use geo_primitives::Direction3D;
+        use crate::Direction3D;
         let circle = Circle3D::new(
             Point3D::new(0.5, 0.5, 0.0),
             Direction3D::from_vector(geo_core::Vector3D::new(0.0, 0.0, 1.0)).unwrap(),

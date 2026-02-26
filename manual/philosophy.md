@@ -29,39 +29,13 @@ RedRing では型安全性と保守性を重視したエラー処理パターン
 
 各幾何要素は独自のエラー型を定義し、具体的なエラー情報を提供します：
 
-```rust
-// ✅ 推奨: 専用エラー型
-impl Ellipse<T> {
-    pub fn from_radii(rx: T, ry: T) -> Result<Self, EllipseError> {
-        // 楕円固有の検証とエラー報告
-    }
-}
-
-// ❌ 非推奨: 汎用エラー型
-impl Ellipse<T> {
-    pub fn from_radii(rx: T, ry: T) -> Result<Self, GeometryError> {
-        // エラーの詳細が不明確
-    }
-}
-```
+詳細なコード例は [philosophy_examples.md](./philosophy_examples.md) を参照してください。
 
 ### 統合トレイトの活用
 
 重複する操作は統合トレイトで抽象化し、型安全性を保ちます：
 
-```rust
-// 正規化操作の統合
-pub trait Normalizable<T> {
-    type Output;
-    type Error;
-    fn normalize(&self) -> Result<Self::Output, Self::Error>;
-}
-
-// 距離計算の統合
-pub trait DistanceCalculation<T, Target> {
-    fn distance_to(&self, other: &Target) -> T;
-}
-```
+詳細なコード例は [philosophy_examples.md](./philosophy_examples.md) を参照してください。
 
 ### 実装原則
 
@@ -78,14 +52,7 @@ RedRing では、パフォーマンスと責務分離のバランスを取るた
 
 `geo_io` クレートは、他の `geo_*` クレートとは異なり、`geo_foundation` トレイトを経由せず、直接 `geo_primitives` にアクセスします：
 
-```rust
-// geo_io での直接アクセス（例外パターン）
-use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
-
-pub fn load_stl<T: Scalar>(path: &Path) -> Result<TriangleMesh3D<T>, IoError> {
-    // ファイル形式との直接的な変換処理
-}
-```
+詳細なコード例は [philosophy_examples.md](./philosophy_examples.md) を参照してください。
 
 ### 設計根拠
 
@@ -98,22 +65,12 @@ pub fn load_stl<T: Scalar>(path: &Path) -> Result<TriangleMesh3D<T>, IoError> {
 
 View 層（`redring`）は直接 `geo_io` にアクセスせず、ViewModel 層（`viewmodel`）を経由：
 
-```rust
-// ❌ View層での直接I/Oアクセス（禁止）
-// use geo_io::stl;
-
-// ✅ ViewModel経由のアクセス（推奨）
-use viewmodel::stl_loader::{load_stl_mesh, StlMeshData};
-```
+詳細なコード例は [philosophy_examples.md](./philosophy_examples.md) を参照してください。
 
 ### Analysis クレートの汎用性
 
 `analysis` クレートは数値計算ライブラリとして独立し、特定のドメインに依存しない汎用的な実装を提供：
 
-```rust
-// 汎用数値型とトレイト
-pub trait Scalar: Copy + Clone + PartialEq + PartialOrd + ... {}
-pub trait TolerantEq<T: Scalar> { ... }
-```
+詳細なコード例は [philosophy_examples.md](./philosophy_examples.md) を参照してください。
 
 この設計により、各層の責務が明確になり、パフォーマンスと保守性のバランスが実現されます。

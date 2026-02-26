@@ -39,9 +39,9 @@
 //! println!("残存体積: {} mm³", remaining);
 //! ```
 
+use crate::{Arc3D, LineSegment3D};
 use geo_core::{Aabb3D, Point3D};
 use geo_foundation::{LineSegment3DCollisionDetection, Scalar};
-use geo_primitives::{Arc3D, LineSegment3D};
 
 /// ボクセルの占有状態
 ///
