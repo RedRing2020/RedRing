@@ -11,14 +11,30 @@ pub type StlRenderLoadResult =
 
 pub type SvgRenderLoadResult = Result<Vec<MeshVertex>, Box<dyn std::error::Error>>;
 
+pub struct AppAssetLoaderFacade;
+
+impl AppAssetLoaderFacade {
+    pub fn load_stl(path: &Path) -> StlRenderLoadResult {
+        crate::stl_loader::load_stl_for_rendering(path)
+    }
+
+    pub fn load_sample_stl_with_bounds(path: &Path) -> StlRenderLoadResult {
+        crate::stl_loader::create_sample_stl_with_bounds(path)
+    }
+
+    pub fn load_svg(path: &Path, tolerance: Option<f64>) -> SvgRenderLoadResult {
+        crate::svg_loader::load_svg_for_rendering(path, tolerance)
+    }
+}
+
 pub fn load_stl(path: &Path) -> StlRenderLoadResult {
-    crate::stl_loader::load_stl_for_rendering(path)
+    AppAssetLoaderFacade::load_stl(path)
 }
 
 pub fn load_sample_stl_with_bounds(path: &Path) -> StlRenderLoadResult {
-    crate::stl_loader::create_sample_stl_with_bounds(path)
+    AppAssetLoaderFacade::load_sample_stl_with_bounds(path)
 }
 
 pub fn load_svg(path: &Path, tolerance: Option<f64>) -> SvgRenderLoadResult {
-    crate::svg_loader::load_svg_for_rendering(path, tolerance)
+    AppAssetLoaderFacade::load_svg(path, tolerance)
 }

@@ -11,37 +11,53 @@ pub struct AppRenderer {
     snapshot_overlay_renderer: SnapshotOverlayRenderer,
 }
 
-impl AppRenderer {
-    fn new_with_stage(
+pub struct AppRendererFactory;
+
+impl AppRendererFactory {
+    fn create_with_stage(
         device: &Device,
         config: &SurfaceConfiguration,
         stage: Box<dyn RenderStage>,
-    ) -> Self {
+    ) -> AppRenderer {
         let view_rect_renderer = ViewRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
-        Self {
+        AppRenderer {
             stage,
             view_rect_renderer,
             snapshot_overlay_renderer,
         }
     }
 
+    pub fn create_draft(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
+        let stage = Box::new(DraftStage::new(device, config.format));
+        Self::create_with_stage(device, config, stage)
+    }
+
+    pub fn create_outline(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
+        let stage = Box::new(OutlineStage::new(device, config.format));
+        Self::create_with_stage(device, config, stage)
+    }
+
+    pub fn create_shading(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
+        let stage = Box::new(ShadingStage::new(device, config.format));
+        Self::create_with_stage(device, config, stage)
+    }
+}
+
+impl AppRenderer {
     /// 初期化：Draftステージを生成
     pub fn new_draft(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let stage = Box::new(DraftStage::new(device, config.format));
-        Self::new_with_stage(device, config, stage)
+        AppRendererFactory::create_draft(device, config)
     }
 
     /// 初期化：Outlineステージを生成
     pub fn new_outline(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let stage = Box::new(OutlineStage::new(device, config.format));
-        Self::new_with_stage(device, config, stage)
+        AppRendererFactory::create_outline(device, config)
     }
 
     /// 初期化：Shadingステージを生成
     pub fn new_shading(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let stage = Box::new(ShadingStage::new(device, config.format));
-        Self::new_with_stage(device, config, stage)
+        AppRendererFactory::create_shading(device, config)
     }
 
     pub fn update_view_rect_overlay(
