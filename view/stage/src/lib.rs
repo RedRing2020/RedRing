@@ -6,6 +6,7 @@ pub mod octree_stage;
 pub mod outline;
 pub mod render_stage;
 pub mod shading;
+pub mod stage_common;
 pub mod toolpath_stage;
 
 pub use draft::DraftStage;

@@ -22,14 +22,14 @@
 //! ```
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
-use render::toolpath::{ToolPathResources, ToolPathUniforms, ToolPathVertex};
+use render::toolpath::{ToolPathResources, ToolPathVertex};
 use std::any::Any;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 use viewmodel::octree_converter::WireframeVertex;
-use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::{CommandEncoder, Device, TextureFormat, TextureView};
 
+use crate::stage_common::{build_toolpath_uniforms, create_depth_texture};
 use crate::RenderStage;
 
 static OCTREE_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -67,7 +67,8 @@ impl OctreeStage {
     pub fn new(device: &Device, format: TextureFormat) -> Self {
         let resources = ToolPathResources::new(device, format);
         let size = (800, 600);
-        let (depth_texture, depth_view) = Self::create_depth_texture(device, size);
+        let (depth_texture, depth_view) =
+            create_depth_texture(device, size, "Octree Depth Texture");
 
         Self {
             resources,
@@ -82,29 +83,6 @@ impl OctreeStage {
             depth_view,
             surface_size: size,
         }
-    }
-
-    fn create_depth_texture(
-        device: &Device,
-        size: (u32, u32),
-    ) -> (wgpu::Texture, wgpu::TextureView) {
-        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Octree Depth Texture"),
-            size: wgpu::Extent3d {
-                width: size.0,
-                height: size.1,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-
-        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        (depth_texture, depth_view)
     }
 
     /// ワイヤーフレームデータを設定（色無しバージョン）
@@ -338,16 +316,7 @@ impl RenderStage for OctreeStage {
             proj_matrix[0][3]
         );
 
-        let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
-        let uniforms = ToolPathUniforms {
-            view_proj,
-            model: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
+        let uniforms = build_toolpath_uniforms(view_matrix, proj_matrix);
         self.resources.update_uniforms(queue, &uniforms);
     }
 
