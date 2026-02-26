@@ -3,6 +3,7 @@
 //! CPU側で生成した適応パラメータリストを用いて、
 //! GPU上でNURBS曲線を直接評価・描画するためのリソース管理。
 
+use crate::uniform_factory;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -86,37 +87,16 @@ impl NurbsCurveEvalResources {
             ),
         });
 
-        // === @group(0): Uniform (view_proj, model) ===
-        let uniform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("nurbs_uniform_bind_group_layout"),
-            });
-
         let uniforms = NurbsEvalUniforms::default();
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("NURBS Eval Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &uniform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("nurbs_uniform_bind_group"),
-        });
+        let (uniform_bind_group_layout, uniform_buffer, uniform_bind_group) =
+            uniform_factory::create_uniform_binding(
+                device,
+                &uniforms,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                "nurbs_uniform_bind_group_layout",
+                "NURBS Eval Uniform Buffer",
+                "nurbs_uniform_bind_group",
+            );
 
         // === @group(1): NURBS Data (Storage Buffers) ===
         let param_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -401,37 +381,16 @@ impl NurbsSurfaceEvalResources {
             ),
         });
 
-        // === @group(0): Uniform (view_proj, model) ===
-        let uniform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("nurbs_surface_uniform_bind_group_layout"),
-            });
-
         let uniforms = NurbsEvalUniforms::default();
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("NURBS Surface Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &uniform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("nurbs_surface_uniform_bind_group"),
-        });
+        let (uniform_bind_group_layout, uniform_buffer, uniform_bind_group) =
+            uniform_factory::create_uniform_binding(
+                device,
+                &uniforms,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                "nurbs_surface_uniform_bind_group_layout",
+                "NURBS Surface Uniform Buffer",
+                "nurbs_surface_uniform_bind_group",
+            );
 
         // === 頂点バッファ: (u,v)パラメータをインターリーブド配列で格納 ===
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
