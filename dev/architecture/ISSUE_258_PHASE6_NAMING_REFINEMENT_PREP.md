@@ -85,8 +85,8 @@
 
 - 第4弾として以下の命名修正を適用
   - 設計ドキュメントの旧表記統一:
-    - `VIEW_RECT_STATE_DESIGN.md` の `ViewRECT/ViewRect` 表記を `SelectionRect` に統一
-    - `RECT_WORLD_VIEW_COORDINATE_DESIGN.md` の `ViewRECT` 表記を `SelectionRect` に統一
+    - `SELECTION_RECT_STATE_DESIGN.md` の `ViewRECT/ViewRect` 表記を `SelectionRect` に統一
+    - `RECT_WORLD_SELECTION_COORDINATE_DESIGN.md` の `ViewRECT` 表記を `SelectionRect` に統一
     - 旧ファイル参照 `view_rect.rs` を `selection_rect.rs` へ更新
 
 - 第2弾検証結果
@@ -102,7 +102,7 @@
 - `load_debug_cutter_path_only` の語彙が `toolpath` 系の主語と不一致
   - 同モジュール内で `toolpath` が主要語彙のため、命名統一余地あり
 - 設計ドキュメント名の旧語彙残存
-  - 例: `VIEW_RECT_STATE_DESIGN.md`（本文は更新済みだがファイル名が旧命名）
+  - 例: `SELECTION_RECT_STATE_DESIGN.md` / `RECT_WORLD_SELECTION_COORDINATE_DESIGN.md` へリネーム対応済み
 - `debug_*` 接頭辞の広域使用
   - 機能上は妥当だが、将来の運用規約として `debug/sample/dev` の使い分け方針を固定する余地あり
 
@@ -121,11 +121,13 @@
 ## 11. ブランチ戦略（Phase6-2 分割推奨）
 
 - 推奨: **Phase6-2 を小粒で分割**
-  - `feature/issue-258-phase6-2a-render-naming-20260226`
+  - `feature/issue-258-phase6-2a-render-naming-20260226`（完了 / PR #277）
     - 対応A（`render_2d` / `render_3d` 命名対称化）
   - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`
     - 対応B（設計ドキュメント名のリネームとリンク追従）
-  - `feature/issue-258-phase6-2c-debug-prefix-policy-20260226`
+  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`
+    - 対応A（`ToolPath` 統一 + `load_debug_cutter_path_only` 改名）
+  - `feature/issue-258-phase6-2d-debug-prefix-policy-20260226`
     - 対応C（命名規約定義 + 必要最小の適用）
 
 - 分割理由
@@ -171,12 +173,29 @@
   - 公開 API 名変更になるため、呼び出し元追従を同一コミットで完結
   - ロジック変更を混在させない
 
-## 14. Phase6-2a 着手メモ（2026-02-26）
+## 14. Phase6-2a 完了メモ（2026-02-26）
 
-- 着手ブランチ: `feature/issue-258-phase6-2a-render-naming-20260226`
+- 実施ブランチ: `feature/issue-258-phase6-2a-render-naming-20260226`
+- 反映PR: #277（merged）
 - 今回の適用範囲
   - `view/render/src/render_3d.rs` の命名を `render_2d` 系に合わせて対称化
   - `view/stage/src/shading.rs` の呼び出し名を追従
 - 非対象（別サブフェーズ）
   - `Toolpath/ToolPath` 統一
   - `debug_*` 接頭辞方針の適用
+
+## 15. 次修正（Phase6-2b）準備メモ（2026-02-26）
+
+- 目的
+  - 旧語彙が残る設計ドキュメントのファイル名を現行語彙へ整合
+- 対象ファイル（現状）
+  - `dev/architecture/SELECTION_RECT_STATE_DESIGN.md`
+  - `dev/architecture/RECT_WORLD_SELECTION_COORDINATE_DESIGN.md`
+- リネーム候補
+  - `VIEW_RECT_STATE_DESIGN.md` → `SELECTION_RECT_STATE_DESIGN.md`（適用済み）
+  - `RECT_WORLD_VIEW_COORDINATE_DESIGN.md` → `RECT_WORLD_SELECTION_COORDINATE_DESIGN.md`（適用済み）
+- 次修正時の実施手順
+  - ファイル名リネーム
+  - `**/*.md` の旧ファイル名参照を追従更新
+  - `mdbook build` でリンク整合性を確認
+  - 変更はドキュメントのみ（コード無変更）
