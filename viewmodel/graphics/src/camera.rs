@@ -1,4 +1,10 @@
 use crate::camera_math::{lerp_f32, lerp_vector3, matrix_transform_vector, quaternion_to_matrix};
+use crate::camera_navigation::{
+    pan as navigate_pan, project_on_sphere as project_arcball_on_sphere, rotate as navigate_rotate,
+    rotate_arcball as navigate_rotate_arcball,
+    rotate_arcball_from_delta as navigate_rotate_arcball_from_delta, zoom as navigate_zoom,
+    zoom_wheel as navigate_zoom_wheel,
+};
 use crate::camera_projection::projection_matrix as build_projection_matrix;
 use analysis::linalg::{matrix::Matrix4x4, quaternion::Quaternionf, vector::Vec3f};
 
@@ -218,53 +224,23 @@ impl Camera {
         viewport_width: f32,
         viewport_height: f32,
     ) -> Vec3f {
-        let radius = (viewport_width.min(viewport_height)) * 0.5;
-        let cx = screen_x - viewport_width * 0.5;
-        let cy = screen_y - viewport_height * 0.5;
-
-        let x = cx / radius;
-        let y = cy / radius;
-
-        // 球外は双曲面で連続補間
-        let d = (x * x + y * y).sqrt();
-        let z = if d < 0.70710677 {
-            (1.0 - d * d).sqrt()
-        } else {
-            0.5 / d
-        };
-
-        let sphere_point = Vec3f::new(x, -y, z);
-        sphere_point
-            .normalize()
-            .unwrap_or(Vec3f::new(0.0, 0.0, 1.0))
+        project_arcball_on_sphere(screen_x, screen_y, viewport_width, viewport_height)
     }
 
     /// 球面上の2点から回転クォータニオンを計算
+    #[cfg(test)]
     fn compute_rotation_from_sphere_points(sphere_from: Vec3f, sphere_to: Vec3f) -> Quaternionf {
-        let dot = sphere_from.dot(&sphere_to).clamp(-1.0, 1.0);
-        let angle = dot.acos();
-        let axis = sphere_from.cross(&sphere_to);
-        let axis_magnitude = axis.dot(&axis).sqrt();
-        if axis_magnitude < 1e-6 {
-            tracing::debug!("球面回転: ベクトルがほぼ平行 (dot={:.4})", dot);
-            return Quaternionf::identity();
-        }
-
-        let axis_normalized = axis.normalize().unwrap_or(Vec3f::new(0.0, 0.0, 1.0));
-        Quaternionf::from_axis_angle(&axis_normalized, angle)
+        crate::camera_navigation::compute_rotation_from_sphere_points(sphere_from, sphere_to)
     }
 
     /// マウス操作による回転（analysisクレートのクォータニオンを使用）
     pub fn rotate(&mut self, delta_x: f32, delta_y: f32) {
-        let sensitivity = self.control_sensitivity.rotate;
-
-        let y_axis = Vec3f::new(0.0, 1.0, 0.0);
-        let y_rotation = Quaternionf::from_axis_angle(&y_axis, -delta_x * sensitivity);
-        let x_axis = Vec3f::new(1.0, 0.0, 0.0);
-        let x_rotation = Quaternionf::from_axis_angle(&x_axis, -delta_y * sensitivity);
-        self.rotation = (y_rotation * self.rotation * x_rotation)
-            .normalize()
-            .unwrap_or(self.rotation);
+        navigate_rotate(
+            &mut self.rotation,
+            delta_x,
+            delta_y,
+            self.control_sensitivity.rotate,
+        );
     }
 
     /// Arcball回転（前後2点）
@@ -277,19 +253,14 @@ impl Camera {
         viewport_width: f32,
         viewport_height: f32,
     ) {
-        let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
-        let sphere_to = Self::project_on_sphere(prev_x, prev_y, viewport_width, viewport_height);
-        let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
-        self.rotation = (q_rotation * self.rotation)
-            .normalize()
-            .unwrap_or(self.rotation);
-
-        tracing::debug!(
-            "✓ Arcball回転: prev=({:.0},{:.0}) → curr=({:.0},{:.0})",
+        navigate_rotate_arcball(
+            &mut self.rotation,
             prev_x,
             prev_y,
             curr_x,
-            curr_y
+            curr_y,
+            viewport_width,
+            viewport_height,
         );
     }
 
@@ -301,156 +272,50 @@ impl Camera {
         viewport_width: f32,
         viewport_height: f32,
     ) {
-        // 画面中心からの相対移動として扱う
-        let center_x = viewport_width * 0.5;
-        let center_y = viewport_height * 0.5;
-        let arcball_scale = self.control_sensitivity.arcball;
-
-        let curr_x = (center_x + delta_x * arcball_scale).clamp(0.0, viewport_width);
-        let curr_y = (center_y + delta_y * arcball_scale).clamp(0.0, viewport_height);
-
-        // ドラッグ方向と回転方向を一致
-        let sphere_from = Self::project_on_sphere(curr_x, curr_y, viewport_width, viewport_height);
-        let sphere_to =
-            Self::project_on_sphere(center_x, center_y, viewport_width, viewport_height);
-
-        let axis = sphere_from.cross(&sphere_to);
-        let dot = sphere_from.dot(&sphere_to).clamp(-1.0, 1.0);
-        let angle_rad = dot.acos();
-        let angle_deg = angle_rad.to_degrees();
-
-        let q_rotation = Self::compute_rotation_from_sphere_points(sphere_from, sphere_to);
-        let prev_rotation = self.rotation;
-        self.rotation = (q_rotation * self.rotation)
-            .normalize()
-            .unwrap_or(self.rotation);
-
-        tracing::debug!(
-            "✓ Arcball回転(Delta): delta=({:.1},{:.1}), center=({:.1},{:.1}), curr=({:.1},{:.1}), sphere_from=({:.3},{:.3},{:.3}), sphere_to=({:.3},{:.3},{:.3}), axis=({:.3},{:.3},{:.3}), angle_deg={:.2}, q=({:.4},{:.4},{:.4},{:.4}), rot_prev=({:.4},{:.4},{:.4},{:.4}), rot_new=({:.4},{:.4},{:.4},{:.4}), viewport=({:.0}x{:.0})",
+        navigate_rotate_arcball_from_delta(
+            &mut self.rotation,
             delta_x,
             delta_y,
-            center_x,
-            center_y,
-            curr_x,
-            curr_y,
-            sphere_from.x(),
-            sphere_from.y(),
-            sphere_from.z(),
-            sphere_to.x(),
-            sphere_to.y(),
-            sphere_to.z(),
-            axis.x(),
-            axis.y(),
-            axis.z(),
-            angle_deg,
-            q_rotation.w(),
-            q_rotation.x(),
-            q_rotation.y(),
-            q_rotation.z(),
-            prev_rotation.w(),
-            prev_rotation.x(),
-            prev_rotation.y(),
-            prev_rotation.z(),
-            self.rotation.w(),
-            self.rotation.x(),
-            self.rotation.y(),
-            self.rotation.z(),
             viewport_width,
-            viewport_height
+            viewport_height,
+            self.control_sensitivity.arcball,
         );
     }
 
     /// パン操作
     pub fn pan(&mut self, delta_x: f32, delta_y: f32) {
-        let sensitivity = self.control_sensitivity.pan;
-
-        let rotation_matrix = quaternion_to_matrix(&self.rotation);
-        let right = Vec3f::new(
-            rotation_matrix[0][0],
-            rotation_matrix[1][0],
-            rotation_matrix[2][0],
-        );
-        let up = Vec3f::new(
-            rotation_matrix[0][1],
-            rotation_matrix[1][1],
-            rotation_matrix[2][1],
-        );
-
-        // 画面上の見え方と一致する方向で移動
-        let move_distance = sensitivity * self.distance;
-        let offset = right * (-delta_x * move_distance) + up * (delta_y * move_distance);
-
-        self.target = self.target + offset;
-
-        tracing::debug!(
-            "🎮 パン移動: delta=({:.1}, {:.1}), offset=({:.3}, {:.3}, {:.3}), target_new=({:.1}, {:.1}, {:.1})",
+        navigate_pan(
+            &mut self.target,
+            &self.rotation,
+            self.distance,
             delta_x,
             delta_y,
-            offset.x(),
-            offset.y(),
-            offset.z(),
-            self.target.x(),
-            self.target.y(),
-            self.target.z()
+            self.control_sensitivity.pan,
         );
     }
 
     /// ズーム操作（距離調整）
     pub fn zoom(&mut self, delta_x: f32, delta_y: f32) {
-        // 支配軸で方向を決め、相殺を避ける
-        let dominant_delta = if delta_y.abs() >= delta_x.abs() {
-            -delta_y
-        } else {
-            delta_x
-        };
-
-        if dominant_delta.abs() < 1e-6 {
-            return;
-        }
-
-        let sensitivity = self.control_sensitivity.zoom_drag;
-        let zoom_factor = (-dominant_delta * sensitivity).clamp(-0.8, 0.8);
-
-        if self.projection_mode == ProjectionMode::Orthographic {
-            if let Some((left, right, bottom, top)) = self.orthographic_bounds {
-                // 固定表示範囲を中心基準で拡縮
-                let scale = (1.0 + zoom_factor).clamp(0.1, 10.0);
-                let center_x = (left + right) * 0.5;
-                let center_y = (bottom + top) * 0.5;
-                let half_w = (right - left) * 0.5 * scale;
-                let half_h = (top - bottom) * 0.5 * scale;
-
-                self.orthographic_bounds = Some((
-                    center_x - half_w,
-                    center_x + half_w,
-                    center_y - half_h,
-                    center_y + half_h,
-                ));
-            } else {
-                let new_distance = self.distance * (1.0 + zoom_factor);
-                self.distance = new_distance.clamp(0.1, 200.0);
-            }
-        } else {
-            let new_distance = self.distance * (1.0 + zoom_factor);
-            self.distance = new_distance.clamp(0.1, 200.0);
-        }
-
-        tracing::debug!(
-            "🔍 ズーム: mode={:?}, delta=({:.2},{:.2}), dominant={:.2}, factor={:.4}, distance={:.2}, bounds={:?}",
+        navigate_zoom(
+            &mut self.distance,
+            &mut self.orthographic_bounds,
             self.projection_mode,
             delta_x,
             delta_y,
-            dominant_delta,
-            zoom_factor,
-            self.distance,
-            self.orthographic_bounds
+            self.control_sensitivity.zoom_drag,
         );
     }
 
     /// マウスホイールによるズーム
     pub fn zoom_wheel(&mut self, wheel_line_delta_y: f32) {
-        let scaled = wheel_line_delta_y * self.control_sensitivity.zoom_wheel;
-        self.zoom(0.0, -scaled);
+        navigate_zoom_wheel(
+            &mut self.distance,
+            &mut self.orthographic_bounds,
+            self.projection_mode,
+            wheel_line_delta_y,
+            self.control_sensitivity.zoom_wheel,
+            self.control_sensitivity.zoom_drag,
+        );
     }
 
     /// メッシュの境界ボックスに基づいてカメラを自動調整
@@ -725,7 +590,7 @@ mod tests {
     #[test]
     fn test_quaternion_to_matrix() {
         let q = Quaternionf::identity();
-        let matrix = quaternion_to_matrix(&q);
+        let matrix = crate::camera_math::quaternion_to_matrix(&q);
 
         // 単位行列のテスト
         assert!((matrix[0][0] - 1.0).abs() < 1e-6);
