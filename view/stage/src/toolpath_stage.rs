@@ -86,7 +86,7 @@ impl ToolPathStage {
     /// `vertices` は LineList トポロジー用のため、
     /// 2頂点で1線分を表現します。
     pub fn set_toolpath_data(&mut self, device: &Device, vertices: Vec<ToolPathVertex>) {
-        tracing::info!("工具経路データ設定: {} 頂点", vertices.len());
+        tracing::debug!("工具経路データ設定: {} 頂点", vertices.len());
 
         self.resources.update_vertices(device, &vertices);
         self.has_data = !vertices.is_empty();
@@ -129,6 +129,22 @@ impl ToolPathStage {
     /// 頂点数を取得
     pub fn vertex_count(&self) -> u32 {
         self.resources.vertex_count
+    }
+
+    fn resize_depth_resources(&mut self, device: &Device, size: (u32, u32)) {
+        if size.0 == 0 || size.1 == 0 || self.surface_size == size {
+            return;
+        }
+
+        let (depth_texture, depth_view) = crate::stage_common::create_depth_texture(
+            device,
+            size,
+            "ToolPath Depth Texture (Resized)",
+        );
+
+        self.depth_texture = depth_texture;
+        self.depth_view = depth_view;
+        self.surface_size = size;
     }
 }
 
@@ -187,6 +203,10 @@ impl RenderStage for ToolPathStage {
 
     fn update(&mut self) {
         // 必要に応じてアニメーション更新等を実装
+    }
+
+    fn on_surface_resized(&mut self, device: &Device, size: (u32, u32)) {
+        self.resize_depth_resources(device, size);
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {

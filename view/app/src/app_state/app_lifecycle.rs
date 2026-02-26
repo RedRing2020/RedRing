@@ -33,6 +33,11 @@ impl AppState {
             .depth_texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        {
+            let stage = self.renderer.get_stage_mut();
+            stage.on_surface_resized(&self.graphic.device, (size.width, size.height));
+        }
+
         self.update_camera_uniforms();
     }
 }

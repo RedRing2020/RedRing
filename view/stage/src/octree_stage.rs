@@ -33,11 +33,30 @@ use crate::stage_common::{build_toolpath_uniforms, create_depth_texture};
 use crate::RenderStage;
 
 static OCTREE_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+static OCTREE_STAGE_CAMERA_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn should_log_render_trace() -> bool {
     let frame = OCTREE_STAGE_RENDER_LOG_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
     let interval = frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120);
     should_log_every_n_frames(frame, interval)
+}
+
+fn should_log_camera_debug() -> bool {
+    let frame = OCTREE_STAGE_CAMERA_LOG_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+    let interval = frame_interval_from_env("REDRING_LOG_FRAME_INTERVAL", 120);
+    should_log_every_n_frames(frame, interval)
+}
+
+fn next_depth_index(current_depth: usize, max_depth: usize) -> usize {
+    if max_depth == 0 {
+        0
+    } else {
+        (current_depth + 1) % (max_depth + 1)
+    }
+}
+
+fn should_step_animation(elapsed_secs: f32, interval_secs: f32) -> bool {
+    elapsed_secs >= interval_secs
 }
 
 /// Octree可視化ステージ
@@ -101,7 +120,7 @@ impl OctreeStage {
     /// 2頂点で1線分を表現します。
     /// 指定されたデータは白色で描画されます。
     pub fn set_wireframe_data(&mut self, device: &Device, vertices: Vec<[f32; 3]>) {
-        tracing::info!("Octreeワイヤーフレームデータ設定: {} 頂点", vertices.len());
+        tracing::debug!("Octreeワイヤーフレームデータ設定: {} 頂点", vertices.len());
 
         self.depth_levels.clear();
         self.current_depth = 0;
@@ -156,7 +175,7 @@ impl OctreeStage {
         if self.max_depth == 0 {
             return;
         }
-        let next = (self.current_depth + 1) % (self.max_depth + 1);
+        let next = next_depth_index(self.current_depth, self.max_depth);
         self.set_depth(device, next);
     }
 
@@ -182,7 +201,10 @@ impl OctreeStage {
             return;
         };
 
-        if now.duration_since(last_step).as_secs_f32() < self.animation_interval_secs {
+        if !should_step_animation(
+            now.duration_since(last_step).as_secs_f32(),
+            self.animation_interval_secs,
+        ) {
             return;
         }
 
@@ -202,7 +224,7 @@ impl OctreeStage {
         }
 
         let vertices = self.depth_levels[self.current_depth].clone();
-        tracing::info!(
+        tracing::debug!(
             "Octree深さ表示更新: depth={}/{}, 頂点数={}",
             self.current_depth,
             self.max_depth,
@@ -229,6 +251,18 @@ impl OctreeStage {
     pub fn vertex_count(&self) -> u32 {
         self.resources.vertex_count
     }
+
+    fn resize_depth_resources(&mut self, device: &Device, size: (u32, u32)) {
+        if size.0 == 0 || size.1 == 0 || self.surface_size == size {
+            return;
+        }
+
+        let (depth_texture, depth_view) =
+            create_depth_texture(device, size, "Octree Depth Texture (Resized)");
+        self.depth_texture = depth_texture;
+        self.depth_view = depth_view;
+        self.surface_size = size;
+    }
 }
 
 impl RenderStage for OctreeStage {
@@ -246,18 +280,15 @@ impl RenderStage for OctreeStage {
         let should_trace = should_log_render_trace();
 
         if !self.has_data {
-            tracing::info!("🚨 OctreeStage: has_data=false, 描画スキップ");
+            if should_trace {
+                tracing::trace!("OctreeStage: has_data=false, 描画スキップ");
+            }
             return;
         }
 
-        tracing::info!(
-            "✓ OctreeStage.render(): 描画実行, vertex_count={}",
-            self.resources.vertex_count
-        );
-
         if should_trace {
             tracing::trace!(
-                "OctreeStage: 描画開始 ({} 頂点)",
+                "OctreeStage.render(): 描画実行, vertex_count={}",
                 self.resources.vertex_count
             );
         }
@@ -300,21 +331,23 @@ impl RenderStage for OctreeStage {
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
-        tracing::info!("OctreeStage.update_camera() 呼び出し");
-        tracing::info!(
-            "  view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]",
-            view_matrix[3][0],
-            view_matrix[3][1],
-            view_matrix[3][2],
-            view_matrix[3][3]
-        );
-        tracing::info!(
-            "  proj_matrix[0]: [{:.2}, {:.2}, {:.2}, {:.2}]",
-            proj_matrix[0][0],
-            proj_matrix[0][1],
-            proj_matrix[0][2],
-            proj_matrix[0][3]
-        );
+        if should_log_camera_debug() {
+            tracing::debug!("OctreeStage.update_camera() 呼び出し");
+            tracing::debug!(
+                "  view_matrix[3]: [{:.2}, {:.2}, {:.2}, {:.2}]",
+                view_matrix[3][0],
+                view_matrix[3][1],
+                view_matrix[3][2],
+                view_matrix[3][3]
+            );
+            tracing::debug!(
+                "  proj_matrix[0]: [{:.2}, {:.2}, {:.2}, {:.2}]",
+                proj_matrix[0][0],
+                proj_matrix[0][1],
+                proj_matrix[0][2],
+                proj_matrix[0][3]
+            );
+        }
 
         let uniforms = build_toolpath_uniforms(view_matrix, proj_matrix);
         self.resources.update_uniforms(queue, &uniforms);
@@ -326,6 +359,10 @@ impl RenderStage for OctreeStage {
 
     fn update_with_device(&mut self, device: &wgpu::Device) {
         self.tick_animation(device);
+    }
+
+    fn on_surface_resized(&mut self, device: &wgpu::Device, size: (u32, u32)) {
+        self.resize_depth_resources(device, size);
     }
 
     fn cycle_octree_depth(&mut self, device: &wgpu::Device) -> Option<(usize, usize)> {
@@ -360,14 +397,25 @@ impl RenderStage for OctreeStage {
 
 #[cfg(test)]
 mod tests {
+    use super::{next_depth_index, should_step_animation};
+
     #[test]
-    fn test_octree_stage_creation() {
-        // Note: wgpu Deviceが必要なため、実際のテストは統合テストで実施
-        // このテストは構造確認のみ
+    fn next_depth_index_wraps_at_max_depth() {
+        assert_eq!(next_depth_index(0, 3), 1);
+        assert_eq!(next_depth_index(2, 3), 3);
+        assert_eq!(next_depth_index(3, 3), 0);
     }
 
     #[test]
-    fn test_octree_stage_no_data_initially() {
-        // Note: wgpu Deviceが必要なため、実際のテストは統合テストで実施
+    fn next_depth_index_stays_zero_when_max_is_zero() {
+        assert_eq!(next_depth_index(0, 0), 0);
+        assert_eq!(next_depth_index(10, 0), 0);
+    }
+
+    #[test]
+    fn should_step_animation_respects_threshold() {
+        assert!(!should_step_animation(0.49, 0.5));
+        assert!(should_step_animation(0.5, 0.5));
+        assert!(should_step_animation(0.75, 0.5));
     }
 }
