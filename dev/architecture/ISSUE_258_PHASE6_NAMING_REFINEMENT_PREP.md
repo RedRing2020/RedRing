@@ -93,3 +93,80 @@
   - `cargo build` 成功
   - `cargo clippy -- -D warnings` 成功
   - `cargo fmt` 実行済み
+
+## 9. 追加で検出した命名課題（2026-02-26）
+
+- `Toolpath` / `ToolPath` の表記混在
+  - 例: `ToolpathDebugData`（型名）が `ToolPath*` 系APIと混在
+  - 対象の中心: `view/app/src/app_state/debug_scene/toolpath.rs`
+- `load_debug_cutter_path_only` の語彙が `toolpath` 系の主語と不一致
+  - 同モジュール内で `toolpath` が主要語彙のため、命名統一余地あり
+- 設計ドキュメント名の旧語彙残存
+  - 例: `VIEW_RECT_STATE_DESIGN.md`（本文は更新済みだがファイル名が旧命名）
+- `debug_*` 接頭辞の広域使用
+  - 機能上は妥当だが、将来の運用規約として `debug/sample/dev` の使い分け方針を固定する余地あり
+
+## 10. 対応内容（追記方針）
+
+- 対応A（優先・低リスク）
+  - `Toolpath` → `ToolPath` へ統一（型名・関数名・コメント）
+  - `load_debug_cutter_path_only` を `toolpath` 語彙と整合する名称へ改名
+- 対応B（中リスク）
+  - 旧設計ドキュメント名を現行語彙へリネーム
+  - 既存参照リンク（Issue/設計メモ）を追従更新
+- 対応C（方針策定）
+  - `debug_*` 接頭辞の命名規約を定義し、適用対象を段階化
+  - ただし広範囲影響があるため、別PRで独立管理
+
+## 11. ブランチ戦略（Phase6-2 分割推奨）
+
+- 推奨: **Phase6-2 を小粒で分割**
+  - `feature/issue-258-phase6-2a-toolpath-naming-20260226`
+    - 対応A（`ToolPath` 統一 + `load_debug_cutter_path_only` 改名）
+  - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`
+    - 対応B（設計ドキュメント名のリネームとリンク追従）
+  - `feature/issue-258-phase6-2c-debug-prefix-policy-20260226`
+    - 対応C（命名規約定義 + 必要最小の適用）
+
+- 分割理由
+  - 影響範囲とレビュー観点が異なるため、差分を明確化できる
+  - 挙動不変確認を段階化でき、リスク低減につながる
+
+## 12. render/stage 追加調査結果（2026-02-26）
+
+### 優先度: 高
+
+- `render_2d` と `render_3d` の命名軸が非対称
+  - 型名:
+    - `Render2dResources`（2D側）
+    - `Renderer3D`（3D側）
+  - 生成関数:
+    - `create_render_2d_resources`
+    - `create_renderer_3d`
+  - 描画関数:
+    - `draw_render_2d`
+    - `draw_renderer_3d`
+
+### 優先度: 中
+
+- 2D/3D の GPU ラベル文字列が非対称
+  - 2D: `Render 2D`, `Render 2D Vertex Buffer`
+  - 3D: `Renderer3D`, `Renderer3D Vertex Buffer`
+
+### 優先度: 低（現状維持可）
+
+- `toolpath`（モジュール名, snake_case）と `ToolPath`（型名, CamelCase）は Rust 規約上整合
+  - 命名揺れではなく、規約に沿った表記差と判断
+
+## 13. render/stage 対応案（Phase6-2A 候補）
+
+- 目的: `render_2d` / `render_3d` の命名を対称化し、可読性を向上（挙動変更なし）
+- 対応案（最小差分）
+  - 3D側を 2D 側に合わせる方向
+    - `Renderer3D` → `Render3dResources`（または `Render3DResources`）
+    - `create_renderer_3d` → `create_render_3d_resources`
+    - `draw_renderer_3d` → `draw_render_3d`
+  - 文字列ラベルも `Render 3D` 系へ統一
+- 注意点
+  - 公開 API 名変更になるため、呼び出し元追従を同一コミットで完結
+  - ロジック変更を混在させない
