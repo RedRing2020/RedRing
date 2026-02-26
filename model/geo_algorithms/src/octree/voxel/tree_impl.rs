@@ -72,19 +72,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use geo_primitives::LineSegment3D;
-    /// use geo_core::Point3D;
-    ///
-    /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
-    ///
-    /// // 線分経路に沿って占有除去
-    /// let segment = LineSegment3D::new(
-    ///     Point3D::new(0.0, 0.0, 0.0),
-    ///     Point3D::new(50.0, 50.0, 50.0)
-    /// );
-    /// voxel_tree.remove_material_capsule(&segment, 5.0); // 半径5mm
-    /// ```
+    /// 詳細な使用例は `manual/voxel_examples.md` を参照してください。
     pub fn remove_material_capsule(&mut self, segment: &LineSegment3D<T>, radius: T) {
         self.root
             .remove_material_capsule(segment, radius, self.max_depth);
@@ -310,28 +298,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use geo_algorithms::octree::voxel::VoxelOctree;
-    /// use geo_primitives::{Arc3D, Angle};
-    /// use geo_core::{Aabb3D, Point3D};
-    ///
-    /// let work_bounds = Aabb3D::new(
-    ///     Point3D::new(0.0, 0.0, 0.0),
-    ///     Point3D::new(100.0, 100.0, 100.0)
-    /// );
-    /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
-    ///
-    /// // XY平面上の90度円弧（G02/G03相当）
-    /// let arc = Arc3D::xy_arc(
-    ///     Point3D::new(50.0, 50.0, 0.0),  // 中心
-    ///     20.0,                            // 半径
-    ///     Angle::degrees(0.0),             // 開始角度
-    ///     Angle::degrees(90.0)             // 終了角度
-    /// ).unwrap();
-    ///
-    /// // 掃引半径5mm、16線分で近似（誤差0.5%）
-    /// voxel_tree.remove_material_arc_polyline(&arc, 5.0, 16);
-    /// ```
+    /// 詳細な使用例は `manual/voxel_examples.md` を参照してください。
     ///
     /// # 円弧パラメータ表現との対応
     ///

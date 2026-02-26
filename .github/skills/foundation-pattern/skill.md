@@ -323,3 +323,13 @@ impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
 - **Foundation 再設計**: `dev/foundation/FOUNDATION_CORE_EXTENSION_REDESIGN_PROPOSAL.md`
 - **NURBS Foundation**: `dev/architecture/NURBS_FOUNDATION_PATTERN.md`
 - **Issue #222 実装例**: PR #223（LineSegment3DCollisionDetection）
+
+---
+
+## 使用例コメントの配置方針（共通）
+
+- Foundation 実装ファイルでは、責務説明を優先し、詳細な使用例は `manual/` に集約する
+- import を含む実践サンプルはコメントで長文化せず、`manual/<topic>_examples.md` 参照へ置換する
+- 参照先ドキュメントを追加した場合は `manual/SUMMARY.md` に登録する
+- 詳細ルールは `.github/skills/implementation/skill.md` の
+    「使用例コメントの配置ルール（CI整合）」に従う

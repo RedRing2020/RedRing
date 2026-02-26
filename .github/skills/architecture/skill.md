@@ -114,3 +114,13 @@ analysis → geo_foundation
 - **詳細設計**: `dev/architecture/ARCHITECTURE.md`
 - **MVVM設計**: `dev/architecture/VIEWMODEL_ARCHITECTURE_DESIGN.md`
 - **依存関係図**: `dev/architecture/` 内の各種設計文書
+
+---
+
+## 使用例コメントの配置方針（共通）
+
+- 実装ファイル内の使用例は最小限に留め、詳細なサンプルは `manual/` に集約する
+- import を含む長い例はコメントに埋め込まず、`manual/<topic>_examples.md` への参照に置き換える
+- 使用例ページを追加した場合は `manual/SUMMARY.md` に必ず登録する
+- 具体的な運用ルールは `.github/skills/implementation/skill.md` の
+   「使用例コメントの配置ルール（CI整合）」に準拠する

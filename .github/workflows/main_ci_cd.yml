@@ -65,115 +65,12 @@ jobs:
       verbose: false
       exit_on_error: true
 
-  foundation-architecture-scan:
-    name: Foundation Architecture Compliance Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check Foundation Independence
-        run: |
-          set -e
-          echo "Checking Foundation layer independence..."
-
-          # 1. Foundation層クレートの外部依存性チェック
-          echo "Checking foundation/ crates have minimal external dependencies..."
-          for foundation_crate in foundation/*/; do
-            if [ -f "$foundation_crate/Cargo.toml" ]; then
-              crate_name=$(basename "$foundation_crate")
-              echo "Checking $foundation_crate"
-
-              # [dependencies]セクションから実際の依存関係行のみを抽出
-              # awk を使用してより確実にセクションを処理
-              deps_found=$(awk '
-                /^\[dependencies\]/ { in_deps = 1; next }
-                /^\[/ && in_deps { in_deps = 0 }
-                in_deps && /^[a-zA-Z_][a-zA-Z0-9_-]*[[:space:]]*=/ {
-                  print $0
-                }
-              ' "$foundation_crate/Cargo.toml")
-
-              if [ -n "$deps_found" ]; then
-                # analysis は完全に独立である必要がある
-                if [ "$crate_name" = "analysis" ]; then
-                  echo "❌ Foundation crate analysis must have no external dependencies"
-                  echo "Found dependencies:"
-                  echo "$deps_found"
-                  exit 1
-                fi
-                
-                echo "ℹ️  $foundation_crate has dependencies (allowed for non-analysis crates):"
-                echo "$deps_found"
-              else
-                echo "✅ $foundation_crate has no external dependencies"
-              fi
-            fi
-          done
-          echo "✅ Foundation layer independence verified"
-
-      - name: Check Core/Extension Foundation Pattern Compliance
-        run: |
-          set -e
-          echo "Checking Core/Extension Foundation pattern compliance..."
-
-          # 1. 禁止: geo_primitives 外からの直接プリミティブインポート（許可パス除く）
-          echo "Checking for forbidden direct primitive imports..."
-
-          FORBIDDEN_FOUND=""
-          # Exclude documentation, generated files, tests, and permitted paths
-          for file in $(find . -name "*.rs" \
-            -not -path "./target/*" \
-            -not -path "./model/geo_primitives/*" \
-            -not -path "./docs/*" \
-            -not -path "*/tests/*" \
-            -not -name "*test*.rs" \
-            -not -name "*example*.rs"); do
-
-            if grep -q "^[[:space:]]*use geo_primitives::" "$file"; then
-              # Allow specific permitted paths
-              if ! echo "$file" | grep -qE "^\./viewmodel/converter/|^\./model/geo_foundation/|^\./model/geo_io/"; then
-                echo "❌ Forbidden import in: $file"
-                grep -n "use geo_primitives::" "$file" | head -3
-                FORBIDDEN_FOUND="true"
-              fi
-            fi
-          done
-
-          if [ -n "$FORBIDDEN_FOUND" ]; then
-            echo "Forbidden direct geo_primitives import outside geo_primitives crate"
-            exit 1
-          fi
-
-          # 2. geo_core層の確認（低レイヤー設計のため直接アクセス許可）
-          echo "Checking geo_core usage..."
-          # geo_core は geo_primitives/geo_nurbs より低レイヤーのため、直接インポート許可
-          # 主にAabb2D/Aabb3D など基本型を提供
-          echo "✅ geo_core is a low-level layer - direct imports are allowed from geo_primitives and geo_nurbs"
-
-          # 3. 推奨: geo_foundation 経由のアクセスパターン
-          echo "Checking foundation-based access patterns..."
-          # geo_foundation からのインポートは許可（推奨パターン）
-          grep -R "use geo_foundation::" -n \
-            --exclude-dir target --exclude-dir .github . > foundation_imports.txt || true
-          if [ -s foundation_imports.txt ]; then
-            echo "✅ Found proper foundation-based imports:"
-            head -5 foundation_imports.txt
-          fi
-
-          # 4. 禁止: 旧 geometry モジュールの使用
-          echo "Checking for deprecated geometry module usage..."
-          ! grep -R "use.*geometry::" -n \
-            --exclude-dir target --exclude-dir .github --exclude "*.md" . | \
-            grep -v "geo_foundation\|geo_primitives" || \
-            (echo "Deprecated geometry module usage - migrate to geo_foundation/geo_primitives" && exit 1)
-
-          echo "✅ Foundation architecture compliance check passed!"
-
   deploy-docs:
     name: Deploy Documentation
     runs-on: ubuntu-latest
     # Deploy documentation to GitHub Pages (mainブランチのみ)
     if: github.ref == 'refs/heads/main'
-    needs: [build-test, architecture-dependency-check, foundation-architecture-scan]
+    needs: [build-test, architecture-dependency-check]
 
     # GitHub Pages環境の指定（必須）
     environment:

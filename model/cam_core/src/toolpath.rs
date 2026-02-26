@@ -14,7 +14,7 @@
 //!
 //! ```
 //! use cam_core::{ToolPath, ContourLevelPath, PathSegment, SegmentType, CuttingDirection};
-//! use geo_primitives::Point3D;
+//! use geo_algorithms::Point3D;
 //!
 //! // セグメント作成
 //! let segment = PathSegment::new_line(
@@ -43,7 +43,7 @@
 //! ```
 
 use analysis::Scalar;
-use geo_primitives::Point3D;
+use geo_algorithms::Point3D;
 
 /// 円弧方向
 ///
@@ -196,7 +196,7 @@ impl<T: Scalar> PathSegment<T> {
     ///
     /// ```
     /// use cam_core::{PathSegment, SegmentType, CuttingDirection};
-    /// use geo_primitives::Point3D;
+    /// use geo_algorithms::Point3D;
     ///
     /// let segment = PathSegment::new_line(
     ///     Point3D::new(0.0, 0.0, 0.0),
@@ -228,7 +228,7 @@ impl<T: Scalar> PathSegment<T> {
     ///
     /// ```
     /// use cam_core::{PathSegment, SegmentType, ArcDirection};
-    /// use geo_primitives::Point3D;
+    /// use geo_algorithms::Point3D;
     ///
     /// let segment = PathSegment::new_arc(
     ///     Point3D::new(0.0, 0.0, 0.0),
@@ -325,7 +325,7 @@ impl<T: Scalar> PathSegment<T> {
 ///
 /// ```
 /// use cam_core::{ContourLevelPath, PathSegment, SegmentType};
-/// use geo_primitives::Point3D;
+/// use geo_algorithms::Point3D;
 ///
 /// let segments = vec![
 ///     PathSegment::new_line(
