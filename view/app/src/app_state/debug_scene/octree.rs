@@ -1,7 +1,7 @@
 //! AppState のOctree系デバッグ表示を扱うモジュール。
 
-use super::debug_scene_camera_fit::CameraFit;
-use super::AppState;
+use super::super::AppState;
+use super::camera_fit::CameraFit;
 use stage::OctreeStage;
 use viewmodel::octree_converter::WireframeVertex;
 

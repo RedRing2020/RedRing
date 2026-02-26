@@ -1,6 +1,6 @@
 //! AppState のデバッグ表示向けカメラfit処理を扱うモジュール。
 
-use super::AppState;
+use super::super::AppState;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 
 #[derive(Clone, Copy)]

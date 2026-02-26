@@ -15,16 +15,8 @@ use winit::window::Window;
 mod app_lifecycle;
 // AppState のデバッグスナップショット状態
 mod debug_snapshot_state;
-// AppState のデバッグ表示ロード（共通カメラfit）
-mod debug_scene_camera_fit;
-// AppState のデバッグ表示ロード（Octree）
-mod debug_scene_octree;
-// AppState のデバッグ表示ロード（Toolpath/Snapshot）
-mod debug_scene_toolpath;
-// AppState のデバッグ表示ロード（STL/SVG形状）
-mod debug_scene_shapes;
-// AppState のデバッグ表示ロード（NURBS）
-mod debug_scene_nurbs;
+// AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
+mod debug_scene;
 // AppState の表示モード・カメラ制御
 mod display_controls;
 // AppState の基盤設定（単位系・トレランス）

@@ -1,6 +1,6 @@
 //! AppState のSTL/SVG形状デバッグ表示を扱うモジュール。
 
-use super::AppState;
+use super::super::AppState;
 use render::vertex_3d::MeshVertex;
 use stage::MeshStage;
 use std::path::Path;

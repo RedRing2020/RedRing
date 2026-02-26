@@ -1,7 +1,7 @@
 //! AppState のToolpath/Snapshot系デバッグ表示を扱うモジュール。
 
-use super::debug_scene_camera_fit::CameraFit;
-use super::AppState;
+use super::super::AppState;
+use super::camera_fit::CameraFit;
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{MeshStage, OctreeStage};
 use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};

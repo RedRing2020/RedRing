@@ -1,6 +1,6 @@
 //! AppState のNURBS系デバッグ表示を扱うモジュール。
 
-use super::AppState;
+use super::super::AppState;
 use stage::{NurbsCurveStage, NurbsSurfaceStage};
 use std::path::Path;
 
