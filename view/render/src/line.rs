@@ -1,4 +1,5 @@
 use crate::shader;
+use crate::uniform_factory;
 use crate::vertex_3d::MeshVertex;
 use bytemuck::{Pod, Zeroable};
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
@@ -62,38 +63,16 @@ impl LineResources {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = shader::line_shader(device);
 
-        // Uniform bind group layout
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("line_bind_group_layout"),
-        });
-
-        // Uniform buffer
         let uniforms = LineUniforms::default();
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Line Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        // Bind group
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("line_bind_group"),
-        });
+        let (bind_group_layout, uniform_buffer, bind_group) =
+            uniform_factory::create_uniform_binding(
+                device,
+                &uniforms,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                "line_bind_group_layout",
+                "Line Uniform Buffer",
+                "line_bind_group",
+            );
 
         // Render pipeline layout
         let render_pipeline_layout =
