@@ -46,3 +46,42 @@
 
 - リスク: 共通化で stage 固有の差分が見えづらくなる
 - 対策: ヘルパは最小責務に限定し、stage 固有分岐は呼び出し側に残す
+
+## 7. 事前確認結果（2026-02-26）
+
+- 深度テクスチャ生成の重複
+  - `toolpath_stage.rs` に `create_depth_texture` 実装あり
+  - `octree_stage.rs` に同等の `create_depth_texture` 実装あり
+  - いずれも `Depth32Float` / `RENDER_ATTACHMENT | TEXTURE_BINDING` / `TextureView::default()` の同一パターン
+- camera uniform 構築の重複
+  - `toolpath_stage.rs` の `update_camera`
+  - `octree_stage.rs` の `update_camera`
+  - `nurbs_curve_stage.rs` の `update_camera`
+  - `nurbs_surface_stage.rs` の `update_camera`
+  - いずれも `view_proj` 構築 + 単位 `model` 行列の組み立てを実施
+
+## 8. Phase10着手チェックリスト
+
+- [ ] 共通化対象を `depth texture` と `camera uniform` の2点に限定（スコープ固定）
+- [ ] `stage_common` のAPIは最小責務のみ（生成/構築のみ、描画分岐は持たない）
+- [ ] `render_stage` トレイト境界に変更を入れない（互換維持）
+- [ ] `octree_stage` のデバッグログ方針（現行 `info`）は Phase10では変更しない
+- [ ] 検証順序を固定（`cargo build -p redring` → `cargo clippy -p redring -- -D warnings`）
+
+## 9. 推奨実装順序（Phase10本体）
+
+1. `view/stage/src/stage_common.rs` 新規作成
+   - 深度テクスチャ生成ヘルパ
+   - `view_proj + model(identity)` 構築ヘルパ
+2. `view/stage/src/lib.rs` に `stage_common` を公開追加
+3. `toolpath_stage.rs` の `create_depth_texture` を共通ヘルパ利用へ置換
+4. `octree_stage.rs` の `create_depth_texture` を共通ヘルパ利用へ置換
+5. `toolpath/octree/nurbs_curve/nurbs_surface` の camera uniform 構築を共通ヘルパ利用へ置換
+6. `cargo build -p redring` / `cargo clippy -p redring -- -D warnings` で確認
+
+## 10. 非対象（Phase10で扱わないもの）
+
+- `render pass` 内の clear 色や描画順序
+- `RenderStage` trait のシグネチャ変更
+- `octree_stage` のログレベル調整（Phase12で扱う）
+- stage 生成経路の一本化（Phase11で扱う）
