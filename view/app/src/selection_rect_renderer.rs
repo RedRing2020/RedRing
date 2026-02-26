@@ -105,7 +105,7 @@ impl SelectionRectRenderer {
         }
     }
 
-    pub fn update_rect(
+    pub fn update_selection_rect(
         &mut self,
         queue: &wgpu::Queue,
         rect: Option<SelectionRect>,

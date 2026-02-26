@@ -34,7 +34,7 @@
 - `view/app/src/app_state/mouse_actions.rs`
 - `view/app/src/app_state/stage_orchestration.rs`
 - `view/app/src/app_renderer.rs`
-- `view/app/src/view_rect_overlay.rs`
+- `view/app/src/selection_rect_renderer.rs`
 - `view/render/src/*`
 
 ## 6. DoD
@@ -78,6 +78,10 @@
     - `update_view_rect_overlay` → `update_selection_rect_overlay`
   - 内部状態名:
     - `view_rect_drag_origin` → `selection_rect_drag_origin`
+
+- 第3弾として以下の命名修正を適用
+  - API名:
+    - `SelectionRectRenderer::update_rect` → `SelectionRectRenderer::update_selection_rect`
 
 - 第2弾検証結果
   - `cargo build` 成功

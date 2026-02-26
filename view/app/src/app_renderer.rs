@@ -68,8 +68,12 @@ impl AppRenderer {
         viewport_width: u32,
         viewport_height: u32,
     ) {
-        self.selection_rect_renderer
-            .update_rect(queue, rect, viewport_width, viewport_height);
+        self.selection_rect_renderer.update_selection_rect(
+            queue,
+            rect,
+            viewport_width,
+            viewport_height,
+        );
     }
 
     pub fn update_snapshot_overlay(
