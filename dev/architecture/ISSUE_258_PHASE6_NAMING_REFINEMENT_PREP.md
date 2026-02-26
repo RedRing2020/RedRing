@@ -123,9 +123,9 @@
 - 推奨: **Phase6-2 を小粒で分割**
   - `feature/issue-258-phase6-2a-render-naming-20260226`（完了 / PR #277）
     - 対応A（`render_2d` / `render_3d` 命名対称化）
-  - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`
+  - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`（完了 / PR #278）
     - 対応B（設計ドキュメント名のリネームとリンク追従）
-  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`
+  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`（実装完了 / PR未作成）
     - 対応A（`ToolPath` 統一 + `load_debug_cutter_path_only` 改名）
   - `feature/issue-258-phase6-2d-debug-prefix-policy-20260226`
     - 対応C（命名規約定義 + 必要最小の適用）
@@ -184,7 +184,7 @@
   - `Toolpath/ToolPath` 統一
   - `debug_*` 接頭辞方針の適用
 
-## 15. 次修正（Phase6-2b）準備メモ（2026-02-26）
+## 15. Phase6-2b 完了メモ（2026-02-26）
 
 - 目的
   - 旧語彙が残る設計ドキュメントのファイル名を現行語彙へ整合
@@ -199,3 +199,29 @@
   - `**/*.md` の旧ファイル名参照を追従更新
   - `mdbook build` でリンク整合性を確認
   - 変更はドキュメントのみ（コード無変更）
+
+## 16. Phase6-2c 完了メモ（2026-02-26）
+
+- 目的
+  - `toolpath` 周辺の命名軸を `ToolPath` 語彙へ統一し、読みやすさを向上（挙動変更なし）
+- 主要対象
+  - `view/app/src/app_state/debug_scene/toolpath.rs`
+  - `view/app/src/app_state/input_actions.rs`
+- 変更候補（最小差分）
+  - 型名: `ToolpathDebugData` → `ToolPathDebugData`
+  - 関数名:
+    - `build_toolpath_debug_data` の戻り型追従
+    - `apply_toolpath_debug_data` の引数型追従
+    - `load_debug_cutter_path_only` → `load_debug_toolpath_only`
+  - 呼び出し側: `input_actions.rs` のキー入力ハンドラ追従
+- 非対象
+  - `toolpath.rs`（モジュール名）など snake_case 命名の Rust 規約範囲は変更しない
+  - `debug_*` 接頭辞方針の再編は 2d で扱う
+- 実施結果
+  - 型名: `ToolpathDebugData` → `ToolPathDebugData`
+  - 関数名: `load_debug_cutter_path_only` → `load_debug_toolpath_only`
+  - 追従: `input_actions.rs` の呼び出し更新
+- 検証結果
+  - `cargo build` 成功
+  - `cargo clippy -- -D warnings` 成功
+  - `cargo fmt` 実行済み
