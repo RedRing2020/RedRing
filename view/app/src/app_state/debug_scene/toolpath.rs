@@ -113,8 +113,8 @@ impl AppState {
         );
     }
 
-    /// デバッグ用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
-    pub fn load_debug_toolpath(&mut self) {
+    /// サンプル表示用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
+    pub fn load_sample_toolpath(&mut self) {
         tracing::info!("CAMシミュレーション可視化デバッグ開始（pキー）");
 
         let data = match self.build_toolpath_debug_data() {
@@ -136,8 +136,8 @@ impl AppState {
         self.apply_toolpath_debug_data(data);
     }
 
-    /// デバッグ用：カッターパスのみを表示（pキー）
-    pub fn load_debug_toolpath_only(&mut self) {
+    /// サンプル表示用：カッターパスのみを表示（pキー）
+    pub fn load_sample_toolpath_only(&mut self) {
         use viewmodel::toolpath_converter::{
             create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
         };

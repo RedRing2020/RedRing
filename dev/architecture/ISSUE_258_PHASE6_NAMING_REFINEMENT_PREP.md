@@ -125,9 +125,9 @@
     - 対応A（`render_2d` / `render_3d` 命名対称化）
   - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`（完了 / PR #278）
     - 対応B（設計ドキュメント名のリネームとリンク追従）
-  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`（実装完了 / PR未作成）
+  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`（完了 / PR #279）
     - 対応A（`ToolPath` 統一 + `load_debug_cutter_path_only` 改名）
-  - `feature/issue-258-phase6-2d-debug-prefix-policy-20260226`
+  - `feature/issue-258-phase6-2d-debug-prefix-policy-20260226`（実装完了 / PR未作成）
     - 対応C（命名規約定義 + 必要最小の適用）
 
 - 分割理由
@@ -225,3 +225,37 @@
   - `cargo build` 成功
   - `cargo clippy -- -D warnings` 成功
   - `cargo fmt` 実行済み
+
+## 17. Phase6-2d 完了メモ（2026-02-26）
+
+- 目的
+  - `debug_*` 接頭辞の使い分け方針を明文化し、最小範囲で命名を適用
+- 命名規約（本PRで定義）
+  - `debug_*`: 状態遷移検証・診断・再生制御など、開発向けの動作切り替え
+  - `sample_*`: サンプルデータの読込・表示（ユーザーが表示対象を切り替える用途）
+  - `dev_*`: 一時検証コード（恒常APIには原則使わない）
+- 最小適用範囲
+  - `view/app/src/app_state/debug_scene/toolpath.rs`
+    - `load_debug_toolpath` → `load_sample_toolpath`
+    - `load_debug_toolpath_only` → `load_sample_toolpath_only`
+  - `view/app/src/app_state/input_actions.rs`
+    - `p` / `P` キーの呼び出しを新関数名へ追従
+- 非対象
+  - `debug_snapshot` 等の既存状態名は影響範囲が大きいため据え置き
+  - 他 `load_debug_*` API 群は別PRで段階適用
+
+  ## 17. Phase6-2d 完了メモ（2026-02-26）
+
+  - 目的
+    - `debug/sample/dev` 接頭辞の使い分けを明文化し、最小範囲で適用する
+  - 命名ポリシー（2d確定）
+    - `debug_*`: 状態再生・検証補助・診断操作など、デバッグ専用の運用操作
+    - `sample_*`: サンプルデータを読み込んで表示する操作
+    - `dev_*`: 開発中の一時実験用（恒久APIには原則残さない）
+  - 最小適用（本PR範囲）
+    - `load_debug_toolpath` → `load_sample_toolpath`
+    - `load_debug_toolpath_only` → `load_sample_toolpath_only`
+    - `input_actions.rs` の呼び出しを追従
+  - 非対象
+    - `debug_snapshot` など既存状態構造の命名変更は影響が広いため今回は対象外
+    - `load_debug_line` / `load_debug_circle` など他カテゴリの一括改名は別途段階適用

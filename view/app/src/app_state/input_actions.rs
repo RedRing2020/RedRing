@@ -132,10 +132,10 @@ impl AppState {
                     }
                 }
                 "p" => {
-                    self.load_debug_toolpath_only();
+                    self.load_sample_toolpath_only();
                 }
                 "P" => {
-                    self.load_debug_toolpath();
+                    self.load_sample_toolpath();
                 }
                 "k" => {
                     if self.debug_snapshot.series.is_some() {
