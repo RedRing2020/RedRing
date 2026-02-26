@@ -1,13 +1,10 @@
 use crate::pipeline;
 use crate::shader::render_2d_shader;
 use crate::vertex_2d::Vertex2D;
-use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, RenderPipeline};
 
 pub struct Render2dResources {
-    /// 頂点更新時に利用するデバイス参照
-    pub device: Arc<wgpu::Device>,
     /// 2D描画用パイプライン
     pub pipeline: wgpu::RenderPipeline,
     /// 三角形頂点バッファ
@@ -18,7 +15,7 @@ pub struct Render2dResources {
 
 /// 2Dサンプル描画リソースを作成する。
 pub fn create_render_2d_resources(
-    device: &Arc<wgpu::Device>,
+    device: &wgpu::Device,
     format: wgpu::TextureFormat,
 ) -> Render2dResources {
     let vertices: &[Vertex2D] = &[
@@ -52,7 +49,6 @@ pub fn create_render_2d_resources(
     let vertex_count = vertices.len() as u32;
 
     Render2dResources {
-        device: device.clone(),
         pipeline,
         vertex_buffer,
         vertex_count,

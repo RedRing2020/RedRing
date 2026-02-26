@@ -1,13 +1,10 @@
 use crate::pipeline;
 use crate::shader::render_3d_shader;
 use crate::vertex_3d::Vertex3D;
-use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, RenderPipeline};
 
 pub struct Renderer3D {
-    /// 頂点更新時に利用するデバイス参照
-    pub device: Arc<wgpu::Device>,
     /// 3D描画用パイプライン
     pub pipeline: wgpu::RenderPipeline,
     /// 三角形頂点バッファ
@@ -17,7 +14,7 @@ pub struct Renderer3D {
 }
 
 /// 3Dサンプル描画リソースを作成する。
-pub fn create_renderer_3d(device: &Arc<wgpu::Device>, format: wgpu::TextureFormat) -> Renderer3D {
+pub fn create_renderer_3d(device: &wgpu::Device, format: wgpu::TextureFormat) -> Renderer3D {
     let vertices: &[Vertex3D] = &[
         Vertex3D {
             position: [-0.5, -0.5, 0.0],
@@ -49,7 +46,6 @@ pub fn create_renderer_3d(device: &Arc<wgpu::Device>, format: wgpu::TextureForma
     let vertex_count = vertices.len() as u32;
 
     Renderer3D {
-        device: device.clone(),
         pipeline,
         vertex_buffer,
         vertex_count,
