@@ -1,5 +1,6 @@
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 
+/// 境界ボックス全体が見えるようにカメラ状態を調整する。
 pub(crate) fn fit_to_mesh(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -38,6 +39,7 @@ pub(crate) fn fit_to_mesh(
     );
 }
 
+/// 小さな境界ボックス向けにカメラ状態を調整する。
 pub(crate) fn fit_to_small_mesh(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -78,6 +80,7 @@ pub(crate) fn fit_to_small_mesh(
     );
 }
 
+/// 基本状態へカメラをリセットする。
 pub(crate) fn reset(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -91,6 +94,7 @@ pub(crate) fn reset(
     tracing::info!("カメラをリセット");
 }
 
+/// 標準の直交表示向け状態へリセットする。
 pub(crate) fn reset_to_standard_cad_view(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -110,6 +114,7 @@ pub(crate) fn reset_to_standard_cad_view(
     );
 }
 
+/// 正面向きの状態へリセットする。
 pub(crate) fn reset_to_front_view(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -127,6 +132,7 @@ pub(crate) fn reset_to_front_view(
     );
 }
 
+/// 境界ボックスに基づく安全な表示状態へリセットする。
 pub(crate) fn reset_to_safe_view(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -160,6 +166,7 @@ pub(crate) fn reset_to_safe_view(
     );
 }
 
+/// カメラ距離が下限未満の場合に補正する。
 pub(crate) fn ensure_minimum_distance(distance: &mut f32) {
     const MIN_SAFE_DISTANCE: f32 = 1.0;
     if *distance < MIN_SAFE_DISTANCE {
@@ -168,6 +175,7 @@ pub(crate) fn ensure_minimum_distance(distance: &mut f32) {
     }
 }
 
+/// 緊急復帰用の安全なカメラ状態を適用する。
 pub(crate) fn emergency_camera_escape(
     target: &mut Vec3f,
     distance: &mut f32,
@@ -182,6 +190,7 @@ pub(crate) fn emergency_camera_escape(
     tracing::warn!("緊急カメラ脱出実行（距離: {:.1}、正面視点）", *distance);
 }
 
+/// 現在のカメラ状態をログ出力する。
 pub(crate) fn log_state(target: &Vec3f, distance: f32, rotation: &Quaternionf) {
     tracing::info!(
         "カメラ状態 - target: {:?}, distance: {:.2}, rotation: [{:.3}, {:.3}, {:.3}, {:.3}]",

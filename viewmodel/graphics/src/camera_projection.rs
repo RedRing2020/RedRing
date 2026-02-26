@@ -2,6 +2,7 @@ use crate::camera::ProjectionMode;
 use analysis::linalg::matrix::Matrix4x4;
 use std::f32::consts::PI;
 
+/// 投影モードとカメラ状態から投影行列を生成する。
 pub(crate) fn projection_matrix(
     projection_mode: ProjectionMode,
     distance: f32,
@@ -83,6 +84,7 @@ pub(crate) fn projection_matrix(
     }
 }
 
+/// 右手座標系・Z範囲[0,1] の平行投影行列を構築する。
 fn orthographic_rh_01(
     left: f32,
     right: f32,
