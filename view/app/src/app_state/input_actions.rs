@@ -132,7 +132,7 @@ impl AppState {
                     }
                 }
                 "p" => {
-                    self.load_debug_cutter_path_only();
+                    self.load_debug_toolpath_only();
                 }
                 "P" => {
                     self.load_debug_toolpath();

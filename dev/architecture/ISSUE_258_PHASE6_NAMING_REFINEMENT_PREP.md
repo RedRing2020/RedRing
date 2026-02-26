@@ -125,7 +125,7 @@
     - 対応A（`render_2d` / `render_3d` 命名対称化）
   - `feature/issue-258-phase6-2b-doc-filename-alignment-20260226`（完了 / PR #278）
     - 対応B（設計ドキュメント名のリネームとリンク追従）
-  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`
+  - `feature/issue-258-phase6-2c-toolpath-naming-20260226`（実装完了 / PR未作成）
     - 対応A（`ToolPath` 統一 + `load_debug_cutter_path_only` 改名）
   - `feature/issue-258-phase6-2d-debug-prefix-policy-20260226`
     - 対応C（命名規約定義 + 必要最小の適用）
@@ -200,7 +200,7 @@
   - `mdbook build` でリンク整合性を確認
   - 変更はドキュメントのみ（コード無変更）
 
-## 16. 次修正（Phase6-2c）準備メモ（2026-02-26）
+## 16. Phase6-2c 完了メモ（2026-02-26）
 
 - 目的
   - `toolpath` 周辺の命名軸を `ToolPath` 語彙へ統一し、読みやすさを向上（挙動変更なし）
@@ -217,7 +217,11 @@
 - 非対象
   - `toolpath.rs`（モジュール名）など snake_case 命名の Rust 規約範囲は変更しない
   - `debug_*` 接頭辞方針の再編は 2d で扱う
-- 実施後チェック
-  - `cargo build`
-  - `cargo clippy -- -D warnings`
-  - `cargo fmt`
+- 実施結果
+  - 型名: `ToolpathDebugData` → `ToolPathDebugData`
+  - 関数名: `load_debug_cutter_path_only` → `load_debug_toolpath_only`
+  - 追従: `input_actions.rs` の呼び出し更新
+- 検証結果
+  - `cargo build` 成功
+  - `cargo clippy -- -D warnings` 成功
+  - `cargo fmt` 実行済み

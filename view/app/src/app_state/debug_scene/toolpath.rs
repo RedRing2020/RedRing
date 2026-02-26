@@ -6,7 +6,7 @@ use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{MeshStage, OctreeStage};
 use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
 
-struct ToolpathDebugData {
+struct ToolPathDebugData {
     snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
     snapshot_wireframes: Vec<Vec<viewmodel::octree_converter::WireframeVertex>>,
     snapshot_solids: Vec<(Vec<MeshVertex>, Vec<u32>)>,
@@ -17,7 +17,7 @@ struct ToolpathDebugData {
 }
 
 impl AppState {
-    fn build_toolpath_debug_data(&self) -> Result<ToolpathDebugData, String> {
+    fn build_toolpath_debug_data(&self) -> Result<ToolPathDebugData, String> {
         use viewmodel::cam_sim_visualization_converter::create_sample_cam_simulation_visualization_bundle_with_settings;
 
         let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(
@@ -71,7 +71,7 @@ impl AppState {
             })
             .collect();
 
-        Ok(ToolpathDebugData {
+        Ok(ToolPathDebugData {
             snapshot_series: bundle.snapshot_series,
             snapshot_wireframes: bundle.snapshot_wireframes,
             snapshot_solids,
@@ -82,7 +82,7 @@ impl AppState {
         })
     }
 
-    fn apply_toolpath_debug_data(&mut self, data: ToolpathDebugData) {
+    fn apply_toolpath_debug_data(&mut self, data: ToolPathDebugData) {
         let stage_wireframes = data.snapshot_wireframes.clone();
 
         self.debug_snapshot.series = Some(data.snapshot_series);
@@ -137,7 +137,7 @@ impl AppState {
     }
 
     /// デバッグ用：カッターパスのみを表示（pキー）
-    pub fn load_debug_cutter_path_only(&mut self) {
+    pub fn load_debug_toolpath_only(&mut self) {
         use viewmodel::toolpath_converter::{
             create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
         };
