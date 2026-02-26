@@ -83,6 +83,12 @@
   - API名:
     - `SelectionRectRenderer::update_rect` → `SelectionRectRenderer::update_selection_rect`
 
+- 第4弾として以下の命名修正を適用
+  - 設計ドキュメントの旧表記統一:
+    - `VIEW_RECT_STATE_DESIGN.md` の `ViewRECT/ViewRect` 表記を `SelectionRect` に統一
+    - `RECT_WORLD_VIEW_COORDINATE_DESIGN.md` の `ViewRECT` 表記を `SelectionRect` に統一
+    - 旧ファイル参照 `view_rect.rs` を `selection_rect.rs` へ更新
+
 - 第2弾検証結果
   - `cargo build` 成功
   - `cargo clippy -- -D warnings` 成功

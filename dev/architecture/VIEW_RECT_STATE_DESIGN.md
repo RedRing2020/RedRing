@@ -1,8 +1,8 @@
-# ViewRECT State 設計
+# SelectionRect State 設計
 
 ## 目的
 
-`ViewRECT` を画面座標（ピクセル）で扱う入力中間状態として `view/app` に実装する。
+`SelectionRect` を画面座標（ピクセル）で扱う入力中間状態として `view/app` に実装する。
 
 ## 責務
 
@@ -18,13 +18,13 @@
 
 ## 実装方針
 
-- `view/app/src/view_rect.rs` に `ViewRect` を追加
+- `view/app/src/selection_rect.rs` に `SelectionRect` を追加
   - `from_points(start, end)` で正規化
   - `contains(point)` を補助APIとして提供
 - `AppState` に以下の state を追加
-  - `active_view_rect: Option<ViewRect>`
-  - `last_view_rect: Option<ViewRect>`
+  - `active_selection_rect: Option<SelectionRect>`
+  - `last_selection_rect: Option<SelectionRect>`
   - `cursor_position: Option<(f32, f32)>`
-  - `view_rect_drag_origin: Option<(f32, f32)>`
+  - `selection_rect_drag_origin: Option<(f32, f32)>`
 - `app.rs` の `WindowEvent::CursorMoved` で `AppState::handle_cursor_moved` を呼ぶ
-- 左ドラッグ（Ctrl 非押下）で `ViewRect` 更新
+- 左ドラッグ（Ctrl 非押下）で `SelectionRect` 更新
