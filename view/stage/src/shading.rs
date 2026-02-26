@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use wgpu::{
     CommandEncoder, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
     TextureView,
@@ -17,7 +15,7 @@ pub struct ShadingStage {
 
 impl ShadingStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let renderer = create_renderer_3d(&Arc::new(device.clone()), format);
+        let renderer = create_renderer_3d(device, format);
         Self {
             renderer,
             frame_count: 0,

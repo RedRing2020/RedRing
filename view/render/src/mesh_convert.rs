@@ -15,15 +15,22 @@ pub fn triangle_mesh_to_mesh_vertices_generic(
 
 #[cfg(test)]
 mod tests {
+    use super::triangle_mesh_to_mesh_vertices_generic;
+    use viewmodel::mesh_converter::VertexData;
+
     #[test]
     fn test_mvvm_mesh_conversion() {
-        // 基本的な機能テスト：viewmodel経由でのメッシュ変換
-        // 実際のテストは統合テスト時に実行
+        let vertex_data = vec![
+            VertexData::new([1.0, 2.0, 3.0], [0.0, 0.0, 1.0]),
+            VertexData::new([-1.0, 0.5, 0.25], [0.0, 1.0, 0.0]),
+        ];
 
-        // テストデータ作成が viewmodel に依存するため、
-        // この段階では変換関数の存在確認のみ
+        let converted = triangle_mesh_to_mesh_vertices_generic(vertex_data);
 
-        // これは将来的に適切な VertexData で
-        // テストデータを作成して実行される予定
+        assert_eq!(converted.len(), 2);
+        assert_eq!(converted[0].position, [1.0, 2.0, 3.0]);
+        assert_eq!(converted[0].normal, [0.0, 0.0, 1.0]);
+        assert_eq!(converted[1].position, [-1.0, 0.5, 0.25]);
+        assert_eq!(converted[1].normal, [0.0, 1.0, 0.0]);
     }
 }

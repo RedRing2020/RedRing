@@ -309,7 +309,7 @@ impl NurbsCurveEvalResources {
     /// # Arguments
     /// * `render_pass` - wgpuレンダーパス
     pub fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        tracing::info!(
+        tracing::debug!(
             "📊 NurbsCurveEvalResources.render(): pipeline設定、頂点数={}",
             self.num_eval_points
         );
@@ -319,7 +319,7 @@ impl NurbsCurveEvalResources {
         render_pass.set_bind_group(1, &self.nurbs_bind_group, &[]);
         render_pass.draw(0..self.num_eval_points, 0..1);
 
-        tracing::info!(
+        tracing::debug!(
             "📊 NurbsCurveEvalResources.render(): draw call実行 (0..{})",
             self.num_eval_points
         );
@@ -696,7 +696,7 @@ impl NurbsSurfaceEvalResources {
                 wgpu::IndexFormat::Uint32,
             );
             render_pass.draw_indexed(0..self.num_wireframe_indices, 0, 0..1);
-            tracing::info!(
+            tracing::debug!(
                 "📊 NurbsSurfaceEvalResources.render(): wireframe, {} indices",
                 self.num_wireframe_indices
             );
@@ -705,7 +705,7 @@ impl NurbsSurfaceEvalResources {
             render_pass
                 .set_index_buffer(self.solid_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..self.num_solid_indices, 0, 0..1);
-            tracing::info!(
+            tracing::debug!(
                 "📊 NurbsSurfaceEvalResources.render(): solid, {} indices ({} triangles)",
                 self.num_solid_indices,
                 self.num_solid_indices / 3

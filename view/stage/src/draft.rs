@@ -13,15 +13,17 @@ use render::render_2d::{draw_render_2d, Render2dResources};
 use render::vertex_2d::Vertex2D;
 
 pub struct DraftStage {
+    device: Arc<wgpu::Device>,
     resources: Render2dResources,
     frame_count: u64,
 }
 
 impl DraftStage {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        let resources =
-            render::render_2d::create_render_2d_resources(&Arc::new(device.clone()), format);
+        let device = Arc::new(device.clone());
+        let resources = render::render_2d::create_render_2d_resources(device.as_ref(), format);
         Self {
+            device,
             resources,
             frame_count: 0,
         }
@@ -79,9 +81,9 @@ impl RenderStage for DraftStage {
             },
         ];
 
-        let device = &self.resources.device;
-        self.resources.vertex_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        self.resources.vertex_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Animated Vertex Buffer"),
                 contents: bytemuck::cast_slice(&animated_vertices),
                 usage: wgpu::BufferUsages::VERTEX,
