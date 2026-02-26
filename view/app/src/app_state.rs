@@ -5,17 +5,26 @@ use crate::mouse_input::MouseInput;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use crate::view_rect::ViewRect;
 use analysis::{LengthUnit, Tolerance};
-use render::vertex_3d::MeshVertex;
+use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
-use viewmodel::octree_converter::{OctreeDebugVisualizationSettings, WireframeVertex};
-use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
+use viewmodel::octree_converter::OctreeDebugVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
 
 // AppState の画面ライフサイクル処理（主にリサイズ）
 mod app_lifecycle;
-// AppState のデバッグ表示ロード（octree/toolpath/svg/nurbs）
-mod debug_scene;
+// AppState のデバッグスナップショット状態
+mod debug_snapshot_state;
+// AppState のデバッグ表示ロード（共通カメラfit）
+mod debug_scene_camera_fit;
+// AppState のデバッグ表示ロード（Octree）
+mod debug_scene_octree;
+// AppState のデバッグ表示ロード（Toolpath/Snapshot）
+mod debug_scene_toolpath;
+// AppState のデバッグ表示ロード（STL/SVG形状）
+mod debug_scene_shapes;
+// AppState のデバッグ表示ロード（NURBS）
+mod debug_scene_nurbs;
 // AppState の表示モード・カメラ制御
 mod display_controls;
 // AppState の基盤設定（単位系・トレランス）
@@ -87,14 +96,8 @@ pub struct AppState {
     /// Snapshotシェーディング時の色設定
     pub snapshot_shaded_color_settings: SnapshotShadedColorSettings,
 
-    /// デバッグ用: シミュレーションスナップショット系列
-    debug_snapshot_series: Option<DomainSnapshotSeries<CamSimulationSnapshotInput>>,
-    debug_snapshot_wireframes: Option<Vec<Vec<WireframeVertex>>>,
-    debug_snapshot_solids: Option<Vec<(Vec<MeshVertex>, Vec<u32>)>>,
-    debug_snapshot_toolpath_lines: Option<Vec<MeshVertex>>,
-    debug_snapshot_tool_lines: Option<Vec<Vec<MeshVertex>>>,
-    debug_snapshot_shaded_mode: bool,
-    debug_snapshot_cursor: usize,
+    /// デバッグ用: シミュレーションスナップショット状態
+    debug_snapshot: DebugSnapshotState,
     snapshot_scrub_active: bool,
 
     cursor_position: Option<(f32, f32)>,
@@ -131,13 +134,7 @@ impl AppState {
             viewing_operation_settings,
             snapshot_overlay_style: SnapshotOverlayStyle::default(),
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
-            debug_snapshot_series: None,
-            debug_snapshot_wireframes: None,
-            debug_snapshot_solids: None,
-            debug_snapshot_toolpath_lines: None,
-            debug_snapshot_tool_lines: None,
-            debug_snapshot_shaded_mode: false,
-            debug_snapshot_cursor: 0,
+            debug_snapshot: DebugSnapshotState::default(),
             snapshot_scrub_active: false,
             cursor_position: None,
             last_cursor_position: None,

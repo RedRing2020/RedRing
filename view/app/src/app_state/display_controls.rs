@@ -31,12 +31,12 @@ impl AppState {
 
     /// ワイヤーフレーム表示を切り替え
     pub fn toggle_wireframe(&mut self) {
-        if self.debug_snapshot_series.is_some()
-            && self.debug_snapshot_wireframes.is_some()
-            && self.debug_snapshot_solids.is_some()
+        if self.debug_snapshot.series.is_some()
+            && self.debug_snapshot.wireframes.is_some()
+            && self.debug_snapshot.solids.is_some()
         {
-            if self.debug_snapshot_shaded_mode {
-                let Some(snapshot_wireframes) = &self.debug_snapshot_wireframes else {
+            if self.debug_snapshot.shaded_mode {
+                let Some(snapshot_wireframes) = &self.debug_snapshot.wireframes else {
                     return;
                 };
                 if snapshot_wireframes.is_empty() {
@@ -49,17 +49,18 @@ impl AppState {
                 ));
                 octree_stage.set_depth_levels(&self.graphic.device, snapshot_wireframes.clone());
                 let frame_index = self
-                    .debug_snapshot_cursor
+                    .debug_snapshot
+                    .cursor
                     .min(snapshot_wireframes.len().saturating_sub(1));
                 octree_stage.set_depth(&self.graphic.device, frame_index);
                 self.renderer.set_stage(octree_stage);
-                self.debug_snapshot_shaded_mode = false;
+                self.debug_snapshot.shaded_mode = false;
                 self.update_camera_uniforms();
                 tracing::info!("Octree表示モード: ワイヤーフレーム");
                 return;
             }
 
-            let Some(snapshot_solids) = &self.debug_snapshot_solids else {
+            let Some(snapshot_solids) = &self.debug_snapshot.solids else {
                 return;
             };
             if snapshot_solids.is_empty() {
@@ -67,7 +68,8 @@ impl AppState {
             }
 
             let frame_index = self
-                .debug_snapshot_cursor
+                .debug_snapshot
+                .cursor
                 .min(snapshot_solids.len().saturating_sub(1));
             let (vertices, indices) = snapshot_solids[frame_index].clone();
 
@@ -79,10 +81,11 @@ impl AppState {
             mesh_stage.set_mesh_base_color(self.snapshot_shaded_color_settings.work_solid_color);
 
             let toolpath_lines = self
-                .debug_snapshot_toolpath_lines
+                .debug_snapshot
+                .toolpath_lines
                 .clone()
                 .unwrap_or_default();
-            if let Some(tool_lines_per_frame) = &self.debug_snapshot_tool_lines {
+            if let Some(tool_lines_per_frame) = &self.debug_snapshot.tool_lines {
                 let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
                 let tool_lines = tool_lines_per_frame[overlay_index].clone();
                 if !tool_lines.is_empty() {
@@ -93,7 +96,7 @@ impl AppState {
                 mesh_stage.set_overlay_toolpath_line_data(&self.graphic.device, toolpath_lines);
             }
             self.renderer.set_stage(mesh_stage);
-            self.debug_snapshot_shaded_mode = true;
+            self.debug_snapshot.shaded_mode = true;
             self.update_camera_uniforms();
             tracing::info!("Octree表示モード: シェーディング（ソリッド）");
             return;
