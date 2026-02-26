@@ -3,6 +3,7 @@
 - 対象Issue: #258 (Phase12準備)
 - 作成日: 2026-02-26
 - スコープ: 挙動不変の品質改善
+- 実装開始: 2026-02-26
 
 ## 1. 背景
 
@@ -25,6 +26,13 @@
   - GPU必須部分は統合テスト方針へ明記
 - 運用:
   - 深度リソースの resize ルールを実装/ドキュメント化
+
+### 実装メモ（着手時点）
+
+- `RenderStage` に `on_surface_resized(device, size)` を追加し、resize 時の stage 内リソース更新責務を明示する
+- `OctreeStage` / `ToolPathStage` は上記フックで depth texture を再生成する
+- フレームループ内ログは `info` 常時出力を避け、`debug/trace` と間引きログへ統一する
+- `octree_stage` のプレースホルダテストは純ロジック関数テストへ置換する
 
 ## 4. 対象ファイル（予定）
 

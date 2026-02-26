@@ -35,6 +35,9 @@ pub trait RenderStage {
         self.update();
     }
 
+    /// Surface resize 通知（デフォルトは空）
+    fn on_surface_resized(&mut self, _device: &wgpu::Device, _size: (u32, u32)) {}
+
     /// Octree深さを1段進める（未対応ならNone）
     fn cycle_octree_depth(&mut self, _device: &wgpu::Device) -> Option<(usize, usize)> {
         None
