@@ -68,3 +68,18 @@
   - `cargo build` 成功
   - `cargo clippy -- -D warnings` 成功
   - `cargo fmt` 実行済み
+
+- 第2弾として以下の命名修正を適用
+  - ファイル名:
+    - `view_rect.rs` → `selection_rect.rs`
+    - `view_rect_renderer.rs` → `selection_rect_renderer.rs`
+  - 型名/API名:
+    - `ViewRectRenderer` → `SelectionRectRenderer`
+    - `update_view_rect_overlay` → `update_selection_rect_overlay`
+  - 内部状態名:
+    - `view_rect_drag_origin` → `selection_rect_drag_origin`
+
+- 第2弾検証結果
+  - `cargo build` 成功
+  - `cargo clippy -- -D warnings` 成功
+  - `cargo fmt` 実行済み

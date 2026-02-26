@@ -1,7 +1,7 @@
 //! SelectionRect（選択矩形）オーバーレイを描画するレンダラー。
 
 use crate::overlay_coords::screen_to_ndc;
-use crate::view_rect::SelectionRect;
+use crate::selection_rect::SelectionRect;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -31,13 +31,13 @@ struct OverlayVertex {
     position: [f32; 2],
 }
 
-pub struct ViewRectRenderer {
+pub struct SelectionRectRenderer {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     vertex_count: u32,
 }
 
-impl ViewRectRenderer {
+impl SelectionRectRenderer {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("SelectionRect Overlay Shader"),

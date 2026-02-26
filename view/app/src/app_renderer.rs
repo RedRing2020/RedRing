@@ -1,14 +1,14 @@
 use stage::RenderStage;
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 
+use crate::selection_rect::SelectionRect;
+use crate::selection_rect_renderer::SelectionRectRenderer;
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
 use crate::stage_factory;
-use crate::view_rect::SelectionRect;
-use crate::view_rect_renderer::ViewRectRenderer;
 
 pub struct AppRenderer {
     stage: Box<dyn RenderStage>,
-    view_rect_renderer: ViewRectRenderer,
+    selection_rect_renderer: SelectionRectRenderer,
     snapshot_overlay_renderer: SnapshotOverlayRenderer,
 }
 
@@ -20,11 +20,11 @@ impl AppRendererFactory {
         config: &SurfaceConfiguration,
         stage: Box<dyn RenderStage>,
     ) -> AppRenderer {
-        let view_rect_renderer = ViewRectRenderer::new(device, config.format);
+        let selection_rect_renderer = SelectionRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
         AppRenderer {
             stage,
-            view_rect_renderer,
+            selection_rect_renderer,
             snapshot_overlay_renderer,
         }
     }
@@ -61,14 +61,14 @@ impl AppRenderer {
         AppRendererFactory::create_shading(device, config)
     }
 
-    pub fn update_view_rect_overlay(
+    pub fn update_selection_rect_overlay(
         &mut self,
         queue: &wgpu::Queue,
         rect: Option<SelectionRect>,
         viewport_width: u32,
         viewport_height: u32,
     ) {
-        self.view_rect_renderer
+        self.selection_rect_renderer
             .update_rect(queue, rect, viewport_width, viewport_height);
     }
 
@@ -108,7 +108,7 @@ impl AppRenderer {
     ) {
         // 各ステージが depth を利用できるよう render_with_depth を呼ぶ
         self.stage.render_with_depth(encoder, view, depth_view);
-        self.view_rect_renderer.render(encoder, view);
+        self.selection_rect_renderer.render(encoder, view);
         self.snapshot_overlay_renderer.render(encoder, view);
     }
 

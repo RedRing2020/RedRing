@@ -2,8 +2,8 @@ use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
+use crate::selection_rect::SelectionRect;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
-use crate::view_rect::SelectionRect;
 use analysis::{LengthUnit, Tolerance};
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
@@ -96,7 +96,7 @@ pub struct AppState {
     last_cursor_position: Option<(f32, f32)>,
     arcball_drag_start: Option<(f32, f32)>,
     arcball_virtual_cursor: Option<(f32, f32)>,
-    view_rect_drag_origin: Option<(f32, f32)>,
+    selection_rect_drag_origin: Option<(f32, f32)>,
 }
 
 impl AppState {
@@ -132,7 +132,7 @@ impl AppState {
             last_cursor_position: None,
             arcball_drag_start: None,
             arcball_virtual_cursor: None,
-            view_rect_drag_origin: None,
+            selection_rect_drag_origin: None,
         };
 
         app_state.apply_viewing_operation_settings();

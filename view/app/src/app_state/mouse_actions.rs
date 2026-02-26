@@ -1,7 +1,7 @@
 //! AppState のマウス入力ハンドリングを扱うモジュール。
 
 use super::AppState;
-use crate::view_rect::SelectionRect;
+use crate::selection_rect::SelectionRect;
 
 impl AppState {
     /// マウスボタン入力を処理
@@ -51,7 +51,7 @@ impl AppState {
                 tracing::info!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
 
                 if let Some(cursor) = self.cursor_position {
-                    self.view_rect_drag_origin = Some(cursor);
+                    self.selection_rect_drag_origin = Some(cursor);
                     self.active_selection_rect = Some(SelectionRect::from_points(cursor, cursor));
                 }
             }
@@ -73,7 +73,7 @@ impl AppState {
                 }
                 self.arcball_virtual_cursor = None;
 
-                if self.view_rect_drag_origin.take().is_some() {
+                if self.selection_rect_drag_origin.take().is_some() {
                     if let Some(rect) = self.active_selection_rect.take() {
                         if !rect.is_empty() {
                             self.last_selection_rect = Some(rect);
@@ -103,7 +103,7 @@ impl AppState {
             );
         }
 
-        if let Some(origin) = self.view_rect_drag_origin {
+        if let Some(origin) = self.selection_rect_drag_origin {
             self.active_selection_rect = Some(SelectionRect::from_points(origin, (x, y)));
         }
     }
