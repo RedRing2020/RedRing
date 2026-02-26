@@ -67,3 +67,15 @@ Uniformバッファ生成、BindGroupLayout作成、BindGroup生成の定型処�
   - 公開API名は維持
   - 描画挙動は変更しない
   - ログ方針は既存の抑制方針を維持
+
+## 8. 進捗更新（Phase8 2/4 着手準備）
+
+- 1/4 完了:
+  - PR #268 マージ済み（`mesh.rs` の Uniform初期化を共通化）
+  - `uniform_factory` モジュール導入済み
+- 2/4 着手対象:
+  - `view/render/src/line.rs`
+- 2/4 の実施方針:
+  - `line.rs` の Uniform/BindGroup 初期化を `uniform_factory` へ移行
+  - 公開APIと描画挙動は維持
+  - 実施後に `cargo build -p redring` で検証
