@@ -64,3 +64,14 @@
 - 小PR分割で段階適用する
 - 各段階で `cargo fmt` / `cargo build -p redring` / `cargo clippy -p redring -- -D warnings` を通す
 - 命名変更（Phase6）は責務分割PRと混ぜない
+
+## 4. Phase5-1 実施手順（2026-02-26）
+
+1. `MouseInput` の外部公開を「状態遷移API」中心へ寄せる
+	- `operation` / `ctrl_pressed` の直接参照を getter 経由へ置換
+	- 操作中断は専用メソッド（例: `cancel_operation`）経由へ統一
+2. `app_state/mouse_actions` の直接代入を廃止する
+	- `self.mouse_input.operation = ...` を禁止し、`MouseInput` API で遷移させる
+3. DeviceEvent経路は現行挙動を維持し、責務境界のみ整理する
+	- `AppState` 側はカメラ適用/スクラブ制御に限定
+	- `MouseInput` 側は操作状態の判定・保持に限定
