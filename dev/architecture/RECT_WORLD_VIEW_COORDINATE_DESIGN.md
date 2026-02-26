@@ -3,7 +3,7 @@
 ## 目的
 
 - `Rect2D` / `Rect3D` を **World 座標の幾何プリミティブ**として実装する。
-- `ViewRECT` は **画面座標の入力・表示 state** に限定し、幾何演算責務を持たせない。
+- `SelectionRect` は **画面座標の入力・表示 state** に限定し、幾何演算責務を持たせない。
 - Foundation Pattern（Core Traits + Primitive 実装 + Foundation + Transform）に準拠する。
 
 ## 設計方針
@@ -15,7 +15,7 @@
   - `u_axis` と `v_axis` は直交正規化して保持
   - 法線は `u_axis × v_axis`
 
-### 2. ViewRECT（view側）
+### 2. SelectionRect（view側）
 
 - 画面ピクセル座標の state（`x, y, width, height`）
 - 役割はドラッグ範囲の可視化と入力中間表現のみ
@@ -23,7 +23,7 @@
 
 ### 3. 画面→ワールドの橋渡し
 
-- `ViewRECT` からレイ生成/平面交点を通して `Rect3D` へ変換
+- `SelectionRect` からレイ生成/平面交点を通して `Rect3D` へ変換
 - 変換責務は ViewModel/Camera 側に置く
 
 ## Foundation Pattern 実装範囲
@@ -56,7 +56,7 @@
 
 ## 非ゴール
 
-- ViewRECT の描画実装・入力イベント統合は本Issueでは必須外
+- SelectionRect の描画実装・入力イベント統合は本Issueでは必須外
 - 画面→ワールド変換の最適化（SIMD等）は後続
 
 ## 検証

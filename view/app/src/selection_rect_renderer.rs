@@ -1,11 +1,11 @@
-//! ViewRect（選択矩形）オーバーレイを描画するレンダラー。
+//! SelectionRect（選択矩形）オーバーレイを描画するレンダラー。
 
 use crate::overlay_coords::screen_to_ndc;
-use crate::view_rect::ViewRect;
+use crate::selection_rect::SelectionRect;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
-const VIEW_RECT_SHADER: &str = r#"
+const SELECTION_RECT_SHADER: &str = r#"
 struct VsOut {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
@@ -31,27 +31,27 @@ struct OverlayVertex {
     position: [f32; 2],
 }
 
-pub struct ViewRectRenderer {
+pub struct SelectionRectRenderer {
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     vertex_count: u32,
 }
 
-impl ViewRectRenderer {
+impl SelectionRectRenderer {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("ViewRect Overlay Shader"),
-            source: wgpu::ShaderSource::Wgsl(VIEW_RECT_SHADER.into()),
+            label: Some("SelectionRect Overlay Shader"),
+            source: wgpu::ShaderSource::Wgsl(SELECTION_RECT_SHADER.into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("ViewRect Overlay Pipeline Layout"),
+            label: Some("SelectionRect Overlay Pipeline Layout"),
             bind_group_layouts: &[],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ViewRect Overlay Pipeline"),
+            label: Some("SelectionRect Overlay Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -93,7 +93,7 @@ impl ViewRectRenderer {
         });
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("ViewRect Overlay Vertex Buffer"),
+            label: Some("SelectionRect Overlay Vertex Buffer"),
             contents: &[0; std::mem::size_of::<OverlayVertex>() * 5],
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
@@ -105,10 +105,10 @@ impl ViewRectRenderer {
         }
     }
 
-    pub fn update_rect(
+    pub fn update_selection_rect(
         &mut self,
         queue: &wgpu::Queue,
-        rect: Option<ViewRect>,
+        rect: Option<SelectionRect>,
         viewport_width: u32,
         viewport_height: u32,
     ) {
@@ -158,7 +158,7 @@ impl ViewRectRenderer {
         }
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("ViewRect Overlay Pass"),
+            label: Some("SelectionRect Overlay Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view,
                 resolve_target: None,

@@ -40,9 +40,9 @@ impl AppState {
 
         self.update_camera_uniforms();
 
-        self.renderer.update_view_rect_overlay(
+        self.renderer.update_selection_rect_overlay(
             &self.graphic.queue,
-            self.active_view_rect,
+            self.active_selection_rect,
             self.graphic.config.width,
             self.graphic.config.height,
         );

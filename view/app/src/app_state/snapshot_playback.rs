@@ -1,7 +1,7 @@
 //! AppState のSnapshot再生・スクラブ制御を扱うモジュール。
 
 use super::AppState;
-use crate::view_rect::ViewRect;
+use crate::selection_rect::SelectionRect;
 
 impl AppState {
     /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
@@ -183,8 +183,8 @@ impl AppState {
         )
     }
 
-    fn snapshot_track_rect(&self) -> ViewRect {
-        ViewRect {
+    fn snapshot_track_rect(&self) -> SelectionRect {
+        SelectionRect {
             x: 16.0,
             y: 16.0,
             width: 220.0,

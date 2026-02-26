@@ -2,8 +2,8 @@ use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
+use crate::selection_rect::SelectionRect;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
-use crate::view_rect::ViewRect;
 use analysis::{LengthUnit, Tolerance};
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
@@ -61,8 +61,8 @@ pub struct AppState {
     pub camera: Camera,
     pub mouse_input: MouseInput,
     pub entity_manager: EntityManager,
-    pub active_view_rect: Option<ViewRect>,
-    pub last_view_rect: Option<ViewRect>,
+    pub active_selection_rect: Option<SelectionRect>,
+    pub last_selection_rect: Option<SelectionRect>,
 
     /// アプリケーション単位系（CAD標準: ミリメートル）
     ///
@@ -96,7 +96,7 @@ pub struct AppState {
     last_cursor_position: Option<(f32, f32)>,
     arcball_drag_start: Option<(f32, f32)>,
     arcball_virtual_cursor: Option<(f32, f32)>,
-    view_rect_drag_origin: Option<(f32, f32)>,
+    selection_rect_drag_origin: Option<(f32, f32)>,
 }
 
 impl AppState {
@@ -117,8 +117,8 @@ impl AppState {
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
             entity_manager: EntityManager::new(),
-            active_view_rect: None,
-            last_view_rect: None,
+            active_selection_rect: None,
+            last_selection_rect: None,
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
@@ -132,7 +132,7 @@ impl AppState {
             last_cursor_position: None,
             arcball_drag_start: None,
             arcball_virtual_cursor: None,
-            view_rect_drag_origin: None,
+            selection_rect_drag_origin: None,
         };
 
         app_state.apply_viewing_operation_settings();
