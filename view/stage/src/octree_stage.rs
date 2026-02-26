@@ -323,6 +323,39 @@ impl RenderStage for OctreeStage {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn update_with_device(&mut self, device: &wgpu::Device) {
+        self.tick_animation(device);
+    }
+
+    fn cycle_octree_depth(&mut self, device: &wgpu::Device) -> Option<(usize, usize)> {
+        self.cycle_next_depth(device);
+        Some((self.current_depth(), self.max_depth()))
+    }
+
+    fn start_octree_depth_animation(&mut self) -> bool {
+        self.start_depth_animation();
+        true
+    }
+
+    fn apply_snapshot_wireframe_frame(
+        &mut self,
+        device: &wgpu::Device,
+        snapshot_wireframes: Vec<Vec<WireframeVertex>>,
+        frame_index: usize,
+    ) -> bool {
+        if snapshot_wireframes.is_empty() {
+            return false;
+        }
+
+        if self.max_depth().saturating_add(1) != snapshot_wireframes.len() {
+            self.set_depth_levels(device, snapshot_wireframes.clone());
+        }
+
+        let index = frame_index.min(snapshot_wireframes.len().saturating_sub(1));
+        self.set_depth(device, index);
+        true
+    }
 }
 
 #[cfg(test)]
