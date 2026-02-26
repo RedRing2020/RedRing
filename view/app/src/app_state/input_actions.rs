@@ -73,17 +73,14 @@ impl AppState {
                 }
                 "1" => {
                     self.set_stage_draft();
-                    self.update_camera_uniforms();
                     tracing::info!("ステージ切替: Draft");
                 }
                 "2" => {
                     self.set_stage_outline();
-                    self.update_camera_uniforms();
                     tracing::info!("ステージ切替: Outline");
                 }
                 "3" => {
                     self.set_stage_shading();
-                    self.update_camera_uniforms();
                     tracing::info!("ステージ切替: Shading");
                 }
                 "l" => {
