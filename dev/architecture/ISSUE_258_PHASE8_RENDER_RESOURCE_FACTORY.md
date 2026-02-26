@@ -79,3 +79,14 @@ Uniformバッファ生成、BindGroupLayout作成、BindGroup生成の定型処�
   - `line.rs` の Uniform/BindGroup 初期化を `uniform_factory` へ移行
   - 公開APIと描画挙動は維持
   - 実施後に `cargo build -p redring` で検証
+
+## 9. 進捗更新（Phase8 3/4 着手準備）
+
+- 2/4 完了:
+  - PR #269 マージ済み（`line.rs` の Uniform初期化を共通化）
+- 3/4 着手対象:
+  - `view/render/src/toolpath.rs`
+- 3/4 の実施方針:
+  - `toolpath.rs` の Uniform/BindGroup 初期化を `uniform_factory` へ移行
+  - 公開APIと描画挙動は維持
+  - 実施後に `cargo build -p redring` で検証
