@@ -13,15 +13,15 @@ pub enum MouseOperation {
 #[derive(Debug, Clone)]
 pub struct MouseInput {
     /// 現在の操作種類
-    pub operation: MouseOperation,
+    operation: MouseOperation,
     /// 前回のマウス位置
-    pub last_position: Option<(f32, f32)>,
+    last_position: Option<(f32, f32)>,
     /// Ctrlキーが押されているか
-    pub ctrl_pressed: bool,
+    ctrl_pressed: bool,
     /// 各マウスボタンの状態
-    pub left_pressed: bool,
-    pub middle_pressed: bool,
-    pub right_pressed: bool,
+    left_pressed: bool,
+    middle_pressed: bool,
+    right_pressed: bool,
 }
 
 impl MouseInput {
@@ -129,6 +129,22 @@ impl MouseInput {
     /// 操作が有効かどうか
     pub fn is_active(&self) -> bool {
         self.operation != MouseOperation::None
+    }
+
+    /// 現在の操作種類を取得
+    pub fn operation(&self) -> MouseOperation {
+        self.operation
+    }
+
+    /// Ctrlキー押下状態を取得
+    pub fn is_ctrl_pressed(&self) -> bool {
+        self.ctrl_pressed
+    }
+
+    /// 現在の操作を中断
+    pub fn cancel_operation(&mut self) {
+        self.operation = MouseOperation::None;
+        self.last_position = None;
     }
 }
 

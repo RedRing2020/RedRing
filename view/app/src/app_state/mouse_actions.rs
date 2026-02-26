@@ -24,14 +24,14 @@ impl AppState {
                             self.load_debug_simulation_snapshots();
                         }
                         self.snapshot_scrub_active = true;
-                        self.mouse_input.operation = crate::mouse_input::MouseOperation::None;
+                        self.mouse_input.cancel_operation();
                         self.set_snapshot_cursor_from_x(cursor.0, true);
                         tracing::debug!("左クリック: snapshotスクラブ開始");
                         return;
                     }
                 }
 
-                if self.mouse_input.ctrl_pressed {
+                if self.mouse_input.is_ctrl_pressed() {
                     self.arcball_drag_start = self.cursor_position;
                     let viewport_width = self.graphic.config.width as f32;
                     let viewport_height = self.graphic.config.height as f32;
@@ -93,7 +93,7 @@ impl AppState {
             return;
         }
 
-        if self.mouse_input.operation == crate::mouse_input::MouseOperation::Rotate {
+        if self.mouse_input.operation() == crate::mouse_input::MouseOperation::Rotate {
             tracing::debug!(
                 "🖱️ CursorMoved(rotate): last={:?} current=({:.1},{:.1}) start={:?}",
                 self.last_cursor_position,
@@ -110,7 +110,7 @@ impl AppState {
 
     /// Ctrl+ホイールでズーム
     pub fn handle_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
-        if !self.mouse_input.ctrl_pressed {
+        if !self.mouse_input.is_ctrl_pressed() {
             return;
         }
 
@@ -143,7 +143,7 @@ impl AppState {
 
         let (delta_x, delta_y) = (delta.0 as f32, delta.1 as f32);
 
-        match self.mouse_input.operation {
+        match self.mouse_input.operation() {
             MouseOperation::Rotate => {
                 let viewport_width = self.graphic.config.width as f32;
                 let viewport_height = self.graphic.config.height as f32;
