@@ -52,3 +52,19 @@
   - 1つの命名グループごとに小PR化
   - `grep` で旧名の残存確認を必須化
   - 変更前後で API シグネチャ差分を確認
+
+## 8. 進捗（2026-02-26）
+
+- 第1弾として以下の命名修正を適用
+  - 型名: `ViewRect` → `SelectionRect`
+  - AppState フィールド: `active_view_rect` / `last_view_rect` → `active_selection_rect` / `last_selection_rect`
+- 追従更新済み
+  - `app_state/mouse_actions.rs`
+  - `app_state/stage_orchestration.rs`
+  - `app_renderer.rs`
+  - `view_rect_renderer.rs`
+  - `app_state/snapshot_playback.rs`
+- 検証結果
+  - `cargo build` 成功
+  - `cargo clippy -- -D warnings` 成功
+  - `cargo fmt` 実行済み

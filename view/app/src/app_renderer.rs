@@ -3,7 +3,7 @@ use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
 use crate::stage_factory;
-use crate::view_rect::ViewRect;
+use crate::view_rect::SelectionRect;
 use crate::view_rect_renderer::ViewRectRenderer;
 
 pub struct AppRenderer {
@@ -64,7 +64,7 @@ impl AppRenderer {
     pub fn update_view_rect_overlay(
         &mut self,
         queue: &wgpu::Queue,
-        rect: Option<ViewRect>,
+        rect: Option<SelectionRect>,
         viewport_width: u32,
         viewport_height: u32,
     ) {

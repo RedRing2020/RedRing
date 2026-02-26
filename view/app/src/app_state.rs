@@ -3,7 +3,7 @@ use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
-use crate::view_rect::ViewRect;
+use crate::view_rect::SelectionRect;
 use analysis::{LengthUnit, Tolerance};
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
@@ -61,8 +61,8 @@ pub struct AppState {
     pub camera: Camera,
     pub mouse_input: MouseInput,
     pub entity_manager: EntityManager,
-    pub active_view_rect: Option<ViewRect>,
-    pub last_view_rect: Option<ViewRect>,
+    pub active_selection_rect: Option<SelectionRect>,
+    pub last_selection_rect: Option<SelectionRect>,
 
     /// アプリケーション単位系（CAD標準: ミリメートル）
     ///
@@ -117,8 +117,8 @@ impl AppState {
             camera: Camera::new(),
             mouse_input: MouseInput::new(),
             entity_manager: EntityManager::new(),
-            active_view_rect: None,
-            last_view_rect: None,
+            active_selection_rect: None,
+            last_selection_rect: None,
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm

@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ViewRect {
+pub struct SelectionRect {
     pub x: f32,
     pub y: f32,
     pub width: f32,
     pub height: f32,
 }
 
-impl ViewRect {
+impl SelectionRect {
     pub fn from_points(start: (f32, f32), end: (f32, f32)) -> Self {
         let x = start.0.min(end.0);
         let y = start.1.min(end.1);
@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn normalizes_points() {
-        let rect = ViewRect::from_points((100.0, 200.0), (50.0, 120.0));
+        let rect = SelectionRect::from_points((100.0, 200.0), (50.0, 120.0));
         assert_eq!(rect.x, 50.0);
         assert_eq!(rect.y, 120.0);
         assert_eq!(rect.width, 50.0);
@@ -48,7 +48,7 @@ mod tests {
 
     #[test]
     fn contains_point() {
-        let rect = ViewRect::from_points((10.0, 10.0), (30.0, 20.0));
+        let rect = SelectionRect::from_points((10.0, 10.0), (30.0, 20.0));
         assert!(rect.contains((10.0, 10.0)));
         assert!(rect.contains((30.0, 20.0)));
         assert!(!rect.contains((31.0, 20.0)));
