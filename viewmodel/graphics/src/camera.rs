@@ -1,4 +1,4 @@
-use crate::camera_math::{lerp_f32, lerp_vector3, matrix_transform_vector, quaternion_to_matrix};
+use crate::camera_math::{matrix_transform_vector, quaternion_to_matrix};
 use crate::camera_navigation::{
     pan as navigate_pan, project_on_sphere as project_arcball_on_sphere, rotate as navigate_rotate,
     rotate_arcball as navigate_rotate_arcball,
@@ -14,6 +14,7 @@ use crate::camera_presets::{
     reset_to_standard_cad_view as apply_reset_to_standard_cad_view,
 };
 use crate::camera_projection::projection_matrix as build_projection_matrix;
+use crate::camera_transition::slerp_to as apply_camera_slerp_to;
 use analysis::linalg::{matrix::Matrix4x4, quaternion::Quaternionf, vector::Vec3f};
 
 /// ビュー行列とプロジェクション行列から、GPU描画用のview-projection行列を生成
@@ -413,20 +414,7 @@ impl Camera {
 
     /// 球面線形補間による滑らかなカメラ遷移
     pub fn slerp_to(&self, target_camera: &Camera, t: f32) -> Result<Camera, String> {
-        let interpolated_rotation = self.rotation.slerp(&target_camera.rotation, t)?;
-        let interpolated_target = lerp_vector3(self.target, target_camera.target, t);
-        let interpolated_distance = lerp_f32(self.distance, target_camera.distance, t);
-
-        Ok(Camera {
-            position: self.position, // 位置は計算で決まるので保持
-            rotation: interpolated_rotation,
-            zoom: lerp_f32(self.zoom, target_camera.zoom, t),
-            target: interpolated_target,
-            distance: interpolated_distance,
-            projection_mode: self.projection_mode, // 投影モードは変更しない
-            orthographic_bounds: self.orthographic_bounds, // 表示範囲も保持
-            control_sensitivity: self.control_sensitivity,
-        })
+        apply_camera_slerp_to(self, target_camera, t)
     }
 }
 
