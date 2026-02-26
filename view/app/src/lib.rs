@@ -1,10 +1,12 @@
 pub mod app;
+pub mod app_asset_loader;
 pub mod app_renderer;
 pub mod app_state;
 pub mod entity_manager;
 pub mod graphic;
 pub mod logging;
 pub mod mouse_input;
+pub mod overlay_coords;
 pub mod snapshot_overlay_renderer;
 pub mod stage_factory;
 pub mod stl_loader;

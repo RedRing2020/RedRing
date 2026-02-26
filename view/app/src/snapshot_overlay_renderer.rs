@@ -1,3 +1,6 @@
+//! Snapshot進捗オーバーレイを描画するレンダラー。
+
+use crate::overlay_coords::screen_to_ndc;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -162,11 +165,8 @@ impl SnapshotOverlayRenderer {
         let gap = 1.0f32;
         let block_width = (width - gap * (block_count as f32 - 1.0)) / block_count as f32;
 
-        let to_ndc = |x: f32, y: f32| -> [f32; 2] {
-            let ndc_x = (x / viewport_width as f32) * 2.0 - 1.0;
-            let ndc_y = 1.0 - (y / viewport_height as f32) * 2.0;
-            [ndc_x, ndc_y]
-        };
+        let to_ndc =
+            |x: f32, y: f32| -> [f32; 2] { screen_to_ndc(x, y, viewport_width, viewport_height) };
 
         let c_track = style.track_color;
         let c_done = style.done_color;
