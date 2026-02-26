@@ -5,6 +5,14 @@ use crate::camera_navigation::{
     rotate_arcball_from_delta as navigate_rotate_arcball_from_delta, zoom as navigate_zoom,
     zoom_wheel as navigate_zoom_wheel,
 };
+use crate::camera_presets::{
+    emergency_camera_escape as apply_emergency_camera_escape,
+    ensure_minimum_distance as apply_minimum_distance, fit_to_mesh as apply_fit_to_mesh,
+    fit_to_small_mesh as apply_fit_to_small_mesh, log_state as emit_camera_log_state,
+    reset as apply_reset, reset_to_front_view as apply_reset_to_front_view,
+    reset_to_safe_view as apply_reset_to_safe_view,
+    reset_to_standard_cad_view as apply_reset_to_standard_cad_view,
+};
 use crate::camera_projection::projection_matrix as build_projection_matrix;
 use analysis::linalg::{matrix::Matrix4x4, quaternion::Quaternionf, vector::Vec3f};
 
@@ -320,185 +328,87 @@ impl Camera {
 
     /// メッシュの境界ボックスに基づいてカメラを自動調整
     pub fn fit_to_mesh(&mut self, min_bounds: Vec3f, max_bounds: Vec3f) {
-        // メッシュの中心を計算
-        let center = (min_bounds + max_bounds) * 0.5;
-        self.target = center;
-
-        // メッシュのサイズを計算
-        let size = max_bounds - min_bounds;
-
-        // メッシュの最大サイズを計算（対角線長さ）
-        let diagonal = (size.x().powi(2) + size.y().powi(2) + size.z().powi(2)).sqrt();
-
-        // 視野角45度、適切なマージンを考慮してカメラ距離を計算
-        // distance = (diagonal * margin) / (2 * tan(fov/2))
-        let fov_rad = 45.0_f32.to_radians();
-        let margin = 2.5; // より余裕を持ったマージン
-        let distance = (diagonal * margin) / (2.0 * (fov_rad / 2.0).tan());
-
-        // 最小距離をdiagonalの0.1倍に設定（非常に小さなオブジェクト対応）
-        let min_distance = (diagonal * 0.1).max(0.01); // 最低0.01単位
-        let max_distance = 100.0; // 最大距離
-        self.distance = distance.clamp(min_distance, max_distance);
-
-        // アイソメトリック風の俯瞰視点を設定（オブジェクトが確実に見える角度）
-        // X軸回転: 約30度上から見下ろす
-        let x_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(1.0, 0.0, 0.0), -30.0_f32.to_radians());
-        // Y軸回転: 約45度斜めから
-        let y_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(0.0, 1.0, 0.0), 45.0_f32.to_radians());
-        // 正しい順序で回転を合成（Y軸回転後にX軸回転）
-        self.rotation = (y_rotation * x_rotation)
-            .normalize()
-            .unwrap_or(Quaternionf::identity());
-
-        tracing::info!(
-            "カメラをメッシュに適応: center={:?}, distance={:.2}, diagonal={:.2}, min_distance={:.4}",
-            [center.x(), center.y(), center.z()],
-            self.distance,
-            diagonal,
-            min_distance
+        apply_fit_to_mesh(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            min_bounds,
+            max_bounds,
         );
     }
 
     /// 小さなオブジェクト（マイクロメートル〜ミリメートル）専用のカメラ設定
     pub fn fit_to_small_mesh(&mut self, min_bounds: Vec3f, max_bounds: Vec3f) {
-        // メッシュの中心を計算
-        let center = (min_bounds + max_bounds) * 0.5;
-        self.target = center;
-
-        // メッシュのサイズを計算
-        let size = max_bounds - min_bounds;
-        let diagonal = (size.x().powi(2) + size.y().powi(2) + size.z().powi(2)).sqrt();
-
-        // 小さなオブジェクト専用：対角線の5〜10倍の距離に設定
-        let distance_factor = if diagonal < 0.01 {
-            15.0 // 非常に小さい場合
-        } else if diagonal < 0.1 {
-            10.0 // 小さい場合
-        } else {
-            5.0 // 通常の小オブジェクト
-        };
-
-        self.distance = diagonal * distance_factor;
-
-        // 真俯瞰に近い角度でオブジェクトを確実に捉える
-        let x_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(1.0, 0.0, 0.0), -60.0_f32.to_radians());
-        let y_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(0.0, 1.0, 0.0), 30.0_f32.to_radians());
-        self.rotation = (y_rotation * x_rotation)
-            .normalize()
-            .unwrap_or(Quaternionf::identity());
-
-        tracing::info!(
-            "小オブジェクト対応カメラ設定: center={:?}, distance={:.4}, diagonal={:.4}, factor={}",
-            [center.x(), center.y(), center.z()],
-            self.distance,
-            diagonal,
-            distance_factor
+        apply_fit_to_small_mesh(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            min_bounds,
+            max_bounds,
         );
     }
 
     /// カメラ状態をリセット
     pub fn reset(&mut self) {
-        self.target = Vec3f::new(0.0, 0.0, 0.0);
-        self.distance = 5.0;
-        self.rotation = Quaternionf::identity();
-        self.zoom = 1.0;
-        tracing::info!("カメラをリセット");
+        apply_reset(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            &mut self.zoom,
+        );
     }
 
     /// 標準CAD視点にリセット（固定の適切な距離と角度）
     pub fn reset_to_standard_cad_view(&mut self) {
-        self.target = Vec3f::new(0.0, 0.0, 0.0);
-        self.distance = 10.0;
-        self.zoom = 1.0;
-        self.orthographic_bounds = None;
-
-        // 初期表示は回転なし（Z軸正方向から真正面に見る）
-        self.rotation = Quaternionf::identity();
-
-        tracing::info!(
-            "カメラを標準CAD視点にリセット（距離: {:.1}、回転なし・Z正方向から正面）",
-            self.distance
+        apply_reset_to_standard_cad_view(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            &mut self.zoom,
+            &mut self.orthographic_bounds,
         );
     }
 
     /// 正面視点にリセット（デバッグ用・確実に見える）
     pub fn reset_to_front_view(&mut self) {
-        self.target = Vec3f::new(0.0, 0.0, 0.0);
-        self.distance = 15.0; // さらに遠い距離
-        self.zoom = 1.0;
-        self.rotation = Quaternionf::identity(); // 回転なし、正面から
-
-        tracing::info!(
-            "カメラを正面視点にリセット（距離: {:.1}、1単位立方体が確実に見える位置）",
-            self.distance
+        apply_reset_to_front_view(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            &mut self.zoom,
         );
     }
 
     /// メッシュ表示用の安全な初期位置にリセット
     pub fn reset_to_safe_view(&mut self, min_bounds: Vec3f, max_bounds: Vec3f) {
-        // メッシュの中心とサイズを計算
-        let center = (min_bounds + max_bounds) * 0.5;
-        let size = max_bounds - min_bounds;
-        let diagonal = (size.x().powi(2) + size.y().powi(2) + size.z().powi(2)).sqrt();
-
-        // 安全な距離（対角線の3倍）
-        let safe_distance = (diagonal * 3.0).max(2.0);
-
-        self.target = center;
-        self.distance = safe_distance;
-        self.zoom = 1.0;
-
-        // 斜め上からの標準視点
-        let x_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(1.0, 0.0, 0.0), -30.0_f32.to_radians());
-        let y_rotation =
-            Quaternionf::from_axis_angle(&Vec3f::new(0.0, 1.0, 0.0), 45.0_f32.to_radians());
-        self.rotation = (y_rotation * x_rotation)
-            .normalize()
-            .unwrap_or(Quaternionf::identity());
-
-        tracing::info!(
-            "安全な視点にリセット: center={:?}, distance={:.2}",
-            [center.x(), center.y(), center.z()],
-            safe_distance
+        apply_reset_to_safe_view(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            &mut self.zoom,
+            min_bounds,
+            max_bounds,
         );
     }
 
     /// 強制的に最小距離を確保（緊急脱出用）
     pub fn ensure_minimum_distance(&mut self) {
-        const MIN_SAFE_DISTANCE: f32 = 1.0;
-        if self.distance < MIN_SAFE_DISTANCE {
-            self.distance = MIN_SAFE_DISTANCE;
-            tracing::warn!("最小距離を強制適用: {:.2}", MIN_SAFE_DISTANCE);
-        }
+        apply_minimum_distance(&mut self.distance);
     }
 
     /// 緊急時のカメラ脱出（めり込み状態から強制回復）
     pub fn emergency_camera_escape(&mut self) {
-        self.target = Vec3f::new(0.0, 0.0, 0.0);
-        self.distance = 20.0; // 最も遠い距離
-        self.zoom = 1.0;
-        self.rotation = Quaternionf::identity(); // 正面視点で確実
-
-        tracing::warn!("緊急カメラ脱出実行（距離: {:.1}、正面視点）", self.distance);
+        apply_emergency_camera_escape(
+            &mut self.target,
+            &mut self.distance,
+            &mut self.rotation,
+            &mut self.zoom,
+        );
     }
 
     /// カメラの現在状態をログ出力（デバッグ用）
     pub fn log_state(&self) {
-        tracing::info!(
-            "カメラ状態 - target: {:?}, distance: {:.2}, rotation: [{:.3}, {:.3}, {:.3}, {:.3}]",
-            [self.target.x(), self.target.y(), self.target.z()],
-            self.distance,
-            self.rotation.x(),
-            self.rotation.y(),
-            self.rotation.z(),
-            self.rotation.w()
-        );
+        emit_camera_log_state(&self.target, self.distance, &self.rotation);
     }
 
     /// 球面線形補間による滑らかなカメラ遷移
