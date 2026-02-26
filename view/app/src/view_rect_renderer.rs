@@ -1,3 +1,6 @@
+//! ViewRect（選択矩形）オーバーレイを描画するレンダラー。
+
+use crate::overlay_coords::screen_to_ndc;
 use crate::view_rect::ViewRect;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
@@ -124,11 +127,8 @@ impl ViewRectRenderer {
         let right = rect.x + rect.width;
         let bottom = rect.y + rect.height;
 
-        let to_ndc = |x: f32, y: f32| -> [f32; 2] {
-            let ndc_x = (x / viewport_width as f32) * 2.0 - 1.0;
-            let ndc_y = 1.0 - (y / viewport_height as f32) * 2.0;
-            [ndc_x, ndc_y]
-        };
+        let to_ndc =
+            |x: f32, y: f32| -> [f32; 2] { screen_to_ndc(x, y, viewport_width, viewport_height) };
 
         let vertices = [
             OverlayVertex {

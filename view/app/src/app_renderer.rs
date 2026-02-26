@@ -12,9 +12,11 @@ pub struct AppRenderer {
 }
 
 impl AppRenderer {
-    /// 初期化：Draftステージを生成
-    pub fn new_draft(device: &Device, config: &SurfaceConfiguration) -> Self {
-        let stage = Box::new(DraftStage::new(device, config.format));
+    fn new_with_stage(
+        device: &Device,
+        config: &SurfaceConfiguration,
+        stage: Box<dyn RenderStage>,
+    ) -> Self {
         let view_rect_renderer = ViewRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
         Self {
@@ -22,30 +24,24 @@ impl AppRenderer {
             view_rect_renderer,
             snapshot_overlay_renderer,
         }
+    }
+
+    /// 初期化：Draftステージを生成
+    pub fn new_draft(device: &Device, config: &SurfaceConfiguration) -> Self {
+        let stage = Box::new(DraftStage::new(device, config.format));
+        Self::new_with_stage(device, config, stage)
     }
 
     /// 初期化：Outlineステージを生成
     pub fn new_outline(device: &Device, config: &SurfaceConfiguration) -> Self {
         let stage = Box::new(OutlineStage::new(device, config.format));
-        let view_rect_renderer = ViewRectRenderer::new(device, config.format);
-        let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
-        Self {
-            stage,
-            view_rect_renderer,
-            snapshot_overlay_renderer,
-        }
+        Self::new_with_stage(device, config, stage)
     }
 
     /// 初期化：Shadingステージを生成
     pub fn new_shading(device: &Device, config: &SurfaceConfiguration) -> Self {
         let stage = Box::new(ShadingStage::new(device, config.format));
-        let view_rect_renderer = ViewRectRenderer::new(device, config.format);
-        let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
-        Self {
-            stage,
-            view_rect_renderer,
-            snapshot_overlay_renderer,
-        }
+        Self::new_with_stage(device, config, stage)
     }
 
     pub fn update_view_rect_overlay(
