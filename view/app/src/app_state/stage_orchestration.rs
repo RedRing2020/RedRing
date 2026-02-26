@@ -1,9 +1,15 @@
 //! AppState のステージ更新オーケストレーションを扱うモジュール。
 
 use super::AppState;
-use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage};
+use crate::stage_factory;
+use stage::{MeshStage, OctreeStage, RenderStage};
 
 impl AppState {
+    fn set_stage_and_update_camera(&mut self, stage: Box<dyn RenderStage>) {
+        self.renderer.set_stage(stage);
+        self.update_camera_uniforms();
+    }
+
     pub(super) fn rebuild_stage_from_entities(&mut self) {
         if !self.entity_manager.is_dirty() {
             return;
@@ -21,8 +27,7 @@ impl AppState {
         ));
         mesh_stage.set_line_data(&self.graphic.device, vertices);
 
-        self.renderer.set_stage(mesh_stage);
-        self.update_camera_uniforms();
+        self.set_stage_and_update_camera(mesh_stage);
         self.entity_manager.clear_dirty();
     }
 
@@ -54,27 +59,21 @@ impl AppState {
     }
 
     pub fn set_stage_draft(&mut self) {
-        let stage = Box::new(DraftStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        self.renderer.set_stage(stage);
+        let stage =
+            stage_factory::create_draft_stage(&self.graphic.device, self.graphic.config.format);
+        self.set_stage_and_update_camera(stage);
     }
 
     pub fn set_stage_outline(&mut self) {
-        let stage = Box::new(OutlineStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        self.renderer.set_stage(stage);
+        let stage =
+            stage_factory::create_outline_stage(&self.graphic.device, self.graphic.config.format);
+        self.set_stage_and_update_camera(stage);
     }
 
     pub fn set_stage_shading(&mut self) {
-        let stage = Box::new(ShadingStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
-        self.renderer.set_stage(stage);
+        let stage =
+            stage_factory::create_shading_stage(&self.graphic.device, self.graphic.config.format);
+        self.set_stage_and_update_camera(stage);
     }
 
     /// カメラのユニフォームを更新

@@ -6,6 +6,7 @@ pub mod graphic;
 pub mod logging;
 pub mod mouse_input;
 pub mod snapshot_overlay_renderer;
+pub mod stage_factory;
 pub mod stl_loader;
 pub mod svg_loader;
 pub mod view_rect;
