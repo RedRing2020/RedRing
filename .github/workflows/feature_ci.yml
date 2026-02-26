@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: read
 
 concurrency:
   group: feature-ci-${{ github.ref }}
@@ -50,6 +51,12 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+      - name: Check issue document archive placement
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/check_issue_doc_archive.ps1 -Repository "${{ github.repository }}" -ExitOnError
 
       - name: Run clippy
         run: cargo clippy --all -- -D warnings

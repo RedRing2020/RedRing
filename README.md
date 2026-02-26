@@ -72,6 +72,7 @@ Development structure and responsibility separation designs are managed via GitH
 | ------------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------ |
 | `README.md`                                                        | General Users & New Developers | Project Overview & Build Instructions                        |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | Developers                     | Workspace Structure & Migration Status & Test Strategy       |
+| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | Maintainers                    | Issue Label Rules & Release/Phase Operation                  |
 | [`manual/philosophy.md`](manual/philosophy.md)                     | Contributors                   | Design Philosophy & Error Handling & Implementation Patterns |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | Geometry Library Developers    | Detailed Geometry Abstraction Specifications                 |
 | [`.github/ai_quick_reference.md`](.github/ai_quick_reference.md)   | 🤖 AI Developers               | Session Recovery & Development Continuity Support            |
