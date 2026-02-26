@@ -90,3 +90,14 @@ Uniformバッファ生成、BindGroupLayout作成、BindGroup生成の定型処�
   - `toolpath.rs` の Uniform/BindGroup 初期化を `uniform_factory` へ移行
   - 公開APIと描画挙動は維持
   - 実施後に `cargo build -p redring` で検証
+
+## 10. 進捗更新（Phase8 4/4 着手準備）
+
+- 3/4 完了:
+  - PR #270 マージ済み（`toolpath.rs` の Uniform初期化を共通化）
+- 4/4 着手対象:
+  - `view/render/src/nurbs_eval.rs`
+- 4/4 の実施方針:
+  - `nurbs_eval.rs` 内の Uniform/BindGroup 初期化を `uniform_factory` へ段階適用
+  - NURBS固有の複数BindGroup構成は維持し、共通化対象を Uniform系に限定
+  - 実施後に `cargo build -p redring` で検証
