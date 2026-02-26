@@ -14,7 +14,7 @@ use std::f64::consts::TAU;
 
 use crate::mesh_converter::VertexData;
 use crate::octree_converter::{
-    voxel_octree_to_wireframe, OctreeDebugVisualizationSettings, VoxelVisualizationOptions,
+    voxel_octree_to_wireframe, OctreeVisualizationSettings, VoxelVisualizationOptions,
     WireframeVertex,
 };
 use crate::snapshot_converter::{
@@ -503,7 +503,7 @@ fn apply_cutting_progress(
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
 pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
-    settings: &OctreeDebugVisualizationSettings,
+    settings: &OctreeVisualizationSettings,
 ) -> Result<CamSimulationVisualizationBundle, SimulationError> {
     let toolpath = create_sample_toolpath();
     let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
@@ -600,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_create_sample_cam_simulation_visualization_bundle_with_settings() {
-        let settings = OctreeDebugVisualizationSettings {
+        let settings = OctreeVisualizationSettings {
             max_depth: 3,
             gradient_start: [0.2, 1.0, 1.0],
             gradient_end: [1.0, 0.4, 0.4],
