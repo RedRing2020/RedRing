@@ -1,8 +1,13 @@
-# Issue #258 Phase5: Manager分割方針とloader配置方針
+# Issue #258 Phase5-1: Manager分割方針とloader配置方針
 
 - 日付: 2026-02-26
-- 対象Issue: #258 (Phase5準備)
+- 対象Issue: #258 (Phase5-1準備)
 - 目的: 実装前に、責務分割の判断基準を明文化する（方針のみ）
+
+## Phase番号整合
+
+- 本ドキュメントは Issue #258 の **Phase5-1**（入力/状態責務分離方針）に対応する。
+- **Phase5-2**（`debug_scene` の用途種別分離）は別ドキュメントで管理する。
 
 ## 1. Manager分割方針（AppState肥大化対策）
 
