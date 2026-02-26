@@ -7,7 +7,7 @@ use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
-use viewmodel::octree_converter::OctreeDebugVisualizationSettings;
+use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
 
@@ -77,7 +77,7 @@ pub struct AppState {
     pub display_tolerance: Tolerance,
 
     /// Octree可視化設定（setting画面向けの保持値）
-    pub octree_visualization_settings: OctreeDebugVisualizationSettings,
+    pub octree_visualization_settings: OctreeVisualizationSettings,
 
     /// ビュー操作設定（setting画面向けの保持値）
     pub viewing_operation_settings: ViewingOperationSettings,
@@ -122,7 +122,7 @@ impl AppState {
             // CAD標準設定
             unit_system: LengthUnit::Millimeter,
             display_tolerance: Tolerance::default(), // 0.01mm
-            octree_visualization_settings: OctreeDebugVisualizationSettings::default(),
+            octree_visualization_settings: OctreeVisualizationSettings::default(),
             viewing_operation_settings,
             snapshot_overlay_style: SnapshotOverlayStyle::default(),
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),

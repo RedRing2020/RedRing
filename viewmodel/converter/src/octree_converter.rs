@@ -73,7 +73,7 @@ pub struct VoxelVisualizationOptions {
 
 /// Octreeデバッグ可視化設定（View側から保持・注入する想定）
 #[derive(Clone, Debug)]
-pub struct OctreeDebugVisualizationSettings {
+pub struct OctreeVisualizationSettings {
     /// 可視化する最大深さ
     pub max_depth: usize,
 
@@ -87,7 +87,7 @@ pub struct OctreeDebugVisualizationSettings {
     pub octree_tolerance: OctreeTolerance<f64>,
 }
 
-impl Default for OctreeDebugVisualizationSettings {
+impl Default for OctreeVisualizationSettings {
     fn default() -> Self {
         Self {
             max_depth: 4,
@@ -471,16 +471,16 @@ pub fn create_sample_voxel_octree_wireframe_levels(max_depth: usize) -> Vec<Vec<
 pub fn create_sample_voxel_octree_wireframe_colored_levels(
     max_depth: usize,
 ) -> Vec<Vec<WireframeVertex>> {
-    let settings = OctreeDebugVisualizationSettings {
+    let settings = OctreeVisualizationSettings {
         max_depth,
-        ..OctreeDebugVisualizationSettings::default()
+        ..OctreeVisualizationSettings::default()
     };
     create_sample_voxel_octree_wireframe_colored_levels_with_settings(&settings)
 }
 
 /// デバッグ用：設定付きで深さごとのサンプルVoxelOctreeワイヤーフレーム（色付き）を生成
 pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
-    settings: &OctreeDebugVisualizationSettings,
+    settings: &OctreeVisualizationSettings,
 ) -> Vec<Vec<WireframeVertex>> {
     use geo_algorithms::Point3D;
 
@@ -554,7 +554,7 @@ pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
 /// `cam_sim` と同じ平端掃引円柱カーネル（`remove_material_swept_cylinder`）を使い、
 /// 可視確認用の頂点データを返します。
 pub fn create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
-    settings: &OctreeDebugVisualizationSettings,
+    settings: &OctreeVisualizationSettings,
 ) -> Vec<Vec<WireframeVertex>> {
     use geo_algorithms::{LineSegment3D, Point3D};
 
@@ -737,9 +737,9 @@ mod tests {
 
     #[test]
     fn test_create_sample_swept_cylinder_wireframe_colored_levels_with_settings() {
-        let settings = OctreeDebugVisualizationSettings {
+        let settings = OctreeVisualizationSettings {
             max_depth: 3,
-            ..OctreeDebugVisualizationSettings::default()
+            ..OctreeVisualizationSettings::default()
         };
 
         let levels = create_sample_swept_cylinder_wireframe_colored_levels_with_settings(&settings);
@@ -749,7 +749,7 @@ mod tests {
 
     #[test]
     fn test_octree_debug_visualization_settings_default() {
-        let settings = OctreeDebugVisualizationSettings::default();
+        let settings = OctreeVisualizationSettings::default();
         assert_eq!(settings.max_depth, 4);
         assert!(settings.gradient_start[1] > settings.gradient_start[0]);
         assert!(settings.gradient_end[0] > settings.gradient_end[1]);
