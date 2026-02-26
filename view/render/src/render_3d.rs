@@ -4,7 +4,7 @@ use crate::vertex_3d::Vertex3D;
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, RenderPipeline};
 
-pub struct Renderer3D {
+pub struct Render3dResources {
     /// 3D描画用パイプライン
     pub pipeline: wgpu::RenderPipeline,
     /// 三角形頂点バッファ
@@ -14,7 +14,10 @@ pub struct Renderer3D {
 }
 
 /// 3Dサンプル描画リソースを作成する。
-pub fn create_renderer_3d(device: &wgpu::Device, format: wgpu::TextureFormat) -> Renderer3D {
+pub fn create_render_3d_resources(
+    device: &wgpu::Device,
+    format: wgpu::TextureFormat,
+) -> Render3dResources {
     let vertices: &[Vertex3D] = &[
         Vertex3D {
             position: [-0.5, -0.5, 0.0],
@@ -28,7 +31,7 @@ pub fn create_renderer_3d(device: &wgpu::Device, format: wgpu::TextureFormat) ->
     ];
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Renderer3D Vertex Buffer"),
+        label: Some("Render 3D Vertex Buffer"),
         contents: bytemuck::cast_slice(vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });
@@ -40,12 +43,12 @@ pub fn create_renderer_3d(device: &wgpu::Device, format: wgpu::TextureFormat) ->
         &shader,
         format,
         &[Vertex3D::desc()],
-        "Renderer3D",
+        "Render 3D",
     );
 
     let vertex_count = vertices.len() as u32;
 
-    Renderer3D {
+    Render3dResources {
         pipeline,
         vertex_buffer,
         vertex_count,
@@ -53,7 +56,7 @@ pub fn create_renderer_3d(device: &wgpu::Device, format: wgpu::TextureFormat) ->
 }
 
 /// 3D頂点バッファを非インデックスで描画する。
-pub fn draw_renderer_3d<'a>(
+pub fn draw_render_3d<'a>(
     pass: &mut wgpu::RenderPass<'a>,
     pipeline: &'a RenderPipeline,
     vertex_buffer: &'a Buffer,
