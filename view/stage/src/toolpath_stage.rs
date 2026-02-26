@@ -22,11 +22,11 @@
 //! ```
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
-use render::toolpath::{ToolPathResources, ToolPathUniforms, ToolPathVertex};
+use render::toolpath::{ToolPathResources, ToolPathVertex};
 use std::sync::atomic::{AtomicU64, Ordering};
-use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
+use crate::stage_common::{build_toolpath_uniforms, build_toolpath_uniforms_from_view_proj};
 use crate::RenderStage;
 
 static TOOLPATH_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -60,7 +60,8 @@ impl ToolPathStage {
 
         // 初期深度テクスチャ（800x600）
         let size = (800, 600);
-        let (depth_texture, depth_view) = Self::create_depth_texture(device, size);
+        let (depth_texture, depth_view) =
+            crate::stage_common::create_depth_texture(device, size, "ToolPath Depth Texture");
 
         Self {
             resources,
@@ -69,30 +70,6 @@ impl ToolPathStage {
             depth_view,
             surface_size: size,
         }
-    }
-
-    /// 深度テクスチャを作成
-    fn create_depth_texture(
-        device: &Device,
-        size: (u32, u32),
-    ) -> (wgpu::Texture, wgpu::TextureView) {
-        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("ToolPath Depth Texture"),
-            size: wgpu::Extent3d {
-                width: size.0,
-                height: size.1,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-
-        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        (depth_texture, depth_view)
     }
 
     /// 工具経路データを設定
@@ -122,15 +99,7 @@ impl ToolPathStage {
     /// - `queue`: wgpu Queue
     /// - `view_proj_matrix`: ビュー・プロジェクション結合行列
     pub fn update_camera(&mut self, queue: &Queue, view_proj_matrix: [[f32; 4]; 4]) {
-        let uniforms = ToolPathUniforms {
-            view_proj: view_proj_matrix,
-            model: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-        };
+        let uniforms = build_toolpath_uniforms_from_view_proj(view_proj_matrix);
 
         self.resources.update_uniforms(queue, &uniforms);
     }
@@ -148,8 +117,8 @@ impl ToolPathStage {
         view_matrix: [[f32; 4]; 4],
         proj_matrix: [[f32; 4]; 4],
     ) {
-        let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
-        self.update_camera(queue, view_proj);
+        let uniforms = build_toolpath_uniforms(view_matrix, proj_matrix);
+        self.resources.update_uniforms(queue, &uniforms);
     }
 
     /// データが設定されているか確認

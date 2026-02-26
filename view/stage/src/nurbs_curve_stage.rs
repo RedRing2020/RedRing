@@ -4,12 +4,12 @@
 //! GPU上でNURBS曲線を直接評価・描画します。
 
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
-use render::nurbs_eval::{NurbsCurveEvalResources, NurbsEvalUniforms};
+use render::nurbs_eval::NurbsCurveEvalResources;
 use std::any::Any;
 use std::sync::atomic::{AtomicU64, Ordering};
-use viewmodel_graphics::build_view_projection_matrix;
 use wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 
+use crate::stage_common::build_nurbs_eval_uniforms;
 use crate::RenderStage;
 
 static NURBS_CURVE_STAGE_RENDER_LOG_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -80,17 +80,7 @@ impl NurbsCurveStage {
         proj_matrix: [[f32; 4]; 4],
     ) {
         if let Some(resources) = &self.resources {
-            let view_proj = build_view_projection_matrix(view_matrix, proj_matrix);
-
-            let uniforms = NurbsEvalUniforms {
-                view_proj,
-                model: [
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ],
-            };
+            let uniforms = build_nurbs_eval_uniforms(view_matrix, proj_matrix);
 
             resources.update_uniforms(queue, &uniforms);
         }
