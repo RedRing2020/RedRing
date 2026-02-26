@@ -1,7 +1,8 @@
-use stage::{DraftStage, OutlineStage, RenderStage, ShadingStage};
+use stage::RenderStage;
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
 
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
+use crate::stage_factory;
 use crate::view_rect::ViewRect;
 use crate::view_rect_renderer::ViewRectRenderer;
 
@@ -29,17 +30,17 @@ impl AppRendererFactory {
     }
 
     pub fn create_draft(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
-        let stage = Box::new(DraftStage::new(device, config.format));
+        let stage = stage_factory::create_draft_stage(device, config.format);
         Self::create_with_stage(device, config, stage)
     }
 
     pub fn create_outline(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
-        let stage = Box::new(OutlineStage::new(device, config.format));
+        let stage = stage_factory::create_outline_stage(device, config.format);
         Self::create_with_stage(device, config, stage)
     }
 
     pub fn create_shading(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
-        let stage = Box::new(ShadingStage::new(device, config.format));
+        let stage = stage_factory::create_shading_stage(device, config.format);
         Self::create_with_stage(device, config, stage)
     }
 }

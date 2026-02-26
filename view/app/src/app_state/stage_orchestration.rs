@@ -2,7 +2,7 @@
 
 use super::AppState;
 use crate::stage_factory;
-use stage::{MeshStage, OctreeStage, RenderStage};
+use stage::{MeshStage, RenderStage};
 
 impl AppState {
     fn set_stage_and_update_camera(&mut self, stage: Box<dyn RenderStage>) {
@@ -35,9 +35,7 @@ impl AppState {
         self.renderer.update();
         {
             let stage = self.renderer.get_stage_mut();
-            if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() {
-                octree_stage.tick_animation(&self.graphic.device);
-            }
+            stage.update_with_device(&self.graphic.device);
         }
 
         self.update_camera_uniforms();

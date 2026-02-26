@@ -1,7 +1,6 @@
 //! AppState のキーボード入力ハンドリングを扱うモジュール。
 
 use super::AppState;
-use stage::OctreeStage;
 
 impl AppState {
     /// キーボード入力を処理
@@ -102,14 +101,10 @@ impl AppState {
                     let mut handled = false;
                     {
                         let stage = self.renderer.get_stage_mut();
-                        if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>()
+                        if let Some((current_depth, max_depth)) =
+                            stage.cycle_octree_depth(&self.graphic.device)
                         {
-                            octree_stage.cycle_next_depth(&self.graphic.device);
-                            tracing::info!(
-                                "Octree深さ表示: {}/{}",
-                                octree_stage.current_depth(),
-                                octree_stage.max_depth()
-                            );
+                            tracing::info!("Octree深さ表示: {}/{}", current_depth, max_depth);
                             handled = true;
                         }
                     }
@@ -122,9 +117,7 @@ impl AppState {
                     let mut handled = false;
                     {
                         let stage = self.renderer.get_stage_mut();
-                        if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>()
-                        {
-                            octree_stage.start_depth_animation();
+                        if stage.start_octree_depth_animation() {
                             tracing::info!("Octree深さアニメーション再生開始");
                             handled = true;
                         }
@@ -133,9 +126,7 @@ impl AppState {
                     if !handled {
                         self.load_debug_octree();
                         let stage = self.renderer.get_stage_mut();
-                        if let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>()
-                        {
-                            octree_stage.start_depth_animation();
+                        if stage.start_octree_depth_animation() {
                             tracing::info!("Octree深さアニメーション再生開始");
                         }
                     }

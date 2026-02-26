@@ -363,4 +363,37 @@ impl RenderStage for MeshStage {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn toggle_wireframe_mode(&mut self) -> Option<bool> {
+        self.toggle_wireframe();
+        Some(self.is_wireframe())
+    }
+
+    fn set_mesh_base_color(&mut self, color: [f32; 4]) -> bool {
+        self.set_mesh_base_color(color);
+        true
+    }
+
+    fn apply_snapshot_solid_frame(
+        &mut self,
+        device: &wgpu::Device,
+        vertices: Vec<render::vertex_3d::MeshVertex>,
+        indices: Vec<u32>,
+        base_color: [f32; 4],
+        toolpath_lines: Vec<render::vertex_3d::MeshVertex>,
+        tool_lines: Vec<render::vertex_3d::MeshVertex>,
+    ) -> bool {
+        self.set_mesh_data(device, vertices, indices);
+        self.set_mesh_base_color(base_color);
+        self.clear_overlay_line_data();
+
+        if !tool_lines.is_empty() {
+            self.set_overlay_tool_line_data(device, tool_lines);
+        }
+        if !toolpath_lines.is_empty() {
+            self.set_overlay_toolpath_line_data(device, toolpath_lines);
+        }
+
+        true
+    }
 }

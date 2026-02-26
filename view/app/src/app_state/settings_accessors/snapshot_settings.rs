@@ -1,5 +1,4 @@
 use crate::app_state::{AppState, SnapshotShadedColorSettings};
-use stage::MeshStage;
 
 impl AppState {
     /// Snapshotシェーディング時のワークソリッド色を設定
@@ -8,9 +7,7 @@ impl AppState {
 
         if self.debug_snapshot.shaded_mode {
             let stage = self.renderer.get_stage_mut();
-            if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
-                mesh_stage.set_mesh_base_color(color);
-            }
+            stage.set_mesh_base_color(color);
         }
     }
 

@@ -198,4 +198,9 @@ impl RenderStage for NurbsSurfaceStage {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn toggle_wireframe_mode(&mut self) -> Option<bool> {
+        self.toggle_wireframe();
+        Some(self.is_wireframe())
+    }
 }

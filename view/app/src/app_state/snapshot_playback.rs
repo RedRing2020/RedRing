@@ -2,7 +2,6 @@
 
 use super::AppState;
 use crate::view_rect::ViewRect;
-use stage::{MeshStage, OctreeStage};
 
 impl AppState {
     /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
@@ -81,27 +80,29 @@ impl AppState {
             let (vertices, indices) = snapshot_solids[frame_index].clone();
 
             let stage = self.renderer.get_stage_mut();
-            let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() else {
-                return;
-            };
-            mesh_stage.set_mesh_data(&self.graphic.device, vertices, indices);
-            mesh_stage.set_mesh_base_color(self.snapshot_shaded_color_settings.work_solid_color);
-            mesh_stage.clear_overlay_line_data();
-
             let toolpath_lines = self
                 .debug_snapshot
                 .toolpath_lines
                 .clone()
                 .unwrap_or_default();
-            if let Some(tool_lines_per_frame) = &self.debug_snapshot.tool_lines {
+            let tool_lines = if let Some(tool_lines_per_frame) = &self.debug_snapshot.tool_lines {
                 let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
-                let tool_lines = tool_lines_per_frame[overlay_index].clone();
-                if !tool_lines.is_empty() {
-                    mesh_stage.set_overlay_tool_line_data(&self.graphic.device, tool_lines);
-                }
-            }
-            if !toolpath_lines.is_empty() {
-                mesh_stage.set_overlay_toolpath_line_data(&self.graphic.device, toolpath_lines);
+                tool_lines_per_frame[overlay_index].clone()
+            } else {
+                Vec::new()
+            };
+
+            let applied = stage.apply_snapshot_solid_frame(
+                &self.graphic.device,
+                vertices,
+                indices,
+                self.snapshot_shaded_color_settings.work_solid_color,
+                toolpath_lines,
+                tool_lines,
+            );
+
+            if !applied {
+                return;
             }
             return;
         }
@@ -119,14 +120,14 @@ impl AppState {
             .min(snapshot_wireframes.len().saturating_sub(1));
 
         let stage = self.renderer.get_stage_mut();
-        let Some(octree_stage) = stage.as_any_mut().downcast_mut::<OctreeStage>() else {
-            return;
-        };
-
-        if octree_stage.max_depth().saturating_add(1) != snapshot_wireframes.len() {
-            octree_stage.set_depth_levels(&self.graphic.device, snapshot_wireframes.clone());
+        let applied = stage.apply_snapshot_wireframe_frame(
+            &self.graphic.device,
+            snapshot_wireframes.clone(),
+            frame_index,
+        );
+        if !applied {
+            tracing::debug!("snapshot wireframe frameの適用対象ステージではありません");
         }
-        octree_stage.set_depth(&self.graphic.device, frame_index);
     }
 
     pub(super) fn log_current_snapshot_frame(&mut self, emit_log: bool) {

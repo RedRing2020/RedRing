@@ -1,7 +1,7 @@
 //! AppState の表示モード・カメラ制御を扱うモジュール。
 
 use super::AppState;
-use stage::{MeshStage, NurbsSurfaceStage, OctreeStage};
+use stage::{MeshStage, OctreeStage};
 
 impl AppState {
     /// カメラをリセット
@@ -103,21 +103,8 @@ impl AppState {
         }
 
         let stage = self.renderer.get_stage_mut();
-
-        if let Some(mesh_stage) = stage.as_any_mut().downcast_mut::<MeshStage>() {
-            mesh_stage.toggle_wireframe();
-            let mode = if mesh_stage.is_wireframe() {
-                "ワイヤーフレーム"
-            } else {
-                "ソリッド"
-            };
-            tracing::info!("表示モードを{}に切り替え", mode);
-            return;
-        }
-
-        if let Some(nurbs_stage) = stage.as_any_mut().downcast_mut::<NurbsSurfaceStage>() {
-            nurbs_stage.toggle_wireframe();
-            let mode = if nurbs_stage.is_wireframe() {
+        if let Some(is_wireframe) = stage.toggle_wireframe_mode() {
+            let mode = if is_wireframe {
                 "ワイヤーフレーム"
             } else {
                 "ソリッド"
