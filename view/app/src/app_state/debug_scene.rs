@@ -8,6 +8,8 @@ use std::path::Path;
 use viewmodel::octree_converter::WireframeVertex;
 use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
 
+use crate::app_asset_loader::AppAssetLoaderFacade;
+
 #[derive(Clone, Copy)]
 struct CameraFit {
     center_x: f32,
@@ -388,7 +390,7 @@ impl AppState {
     pub fn load_stl_file(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!("STLファイル読み込み開始: {:?}", path);
 
-        let (vertices, indices, _bounds) = crate::app_asset_loader::load_stl(path)?;
+        let (vertices, indices, _bounds) = AppAssetLoaderFacade::load_stl(path)?;
 
         self.camera.reset_to_standard_cad_view();
 
@@ -412,7 +414,7 @@ impl AppState {
         let sample_path = std::env::temp_dir().join("redring_sample.stl");
 
         let (vertices, indices, _bounds) =
-            crate::app_asset_loader::load_sample_stl_with_bounds(&sample_path)?;
+            AppAssetLoaderFacade::load_sample_stl_with_bounds(&sample_path)?;
 
         self.camera.reset_to_standard_cad_view();
 
@@ -433,7 +435,7 @@ impl AppState {
         tracing::info!("デバッグ形状: LineSegment3D表示（EntityManager経由）");
 
         let svg_path = Path::new("tests/fixtures/shapes/line.svg");
-        match crate::app_asset_loader::load_svg(svg_path, None) {
+        match AppAssetLoaderFacade::load_svg(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -454,7 +456,7 @@ impl AppState {
         tracing::info!("デバッグ形状: Circle3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/circle.svg");
-        match crate::app_asset_loader::load_svg(svg_path, None) {
+        match AppAssetLoaderFacade::load_svg(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -480,7 +482,7 @@ impl AppState {
         tracing::warn!("DEBUG: クリップ空間正方形を表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/clip_square.svg");
-        match crate::app_asset_loader::load_svg(svg_path, None) {
+        match AppAssetLoaderFacade::load_svg(svg_path, None) {
             Ok(vertices) => {
                 tracing::warn!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -505,7 +507,7 @@ impl AppState {
         tracing::info!("デバッグ形状: Triangle3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/triangle.svg");
-        match crate::app_asset_loader::load_svg(svg_path, None) {
+        match AppAssetLoaderFacade::load_svg(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 
@@ -533,7 +535,7 @@ impl AppState {
         tracing::info!("デバッグ形状: Arc3D表示（SVGから）");
 
         let svg_path = Path::new("tests/fixtures/shapes/arc.svg");
-        match crate::app_asset_loader::load_svg(svg_path, None) {
+        match AppAssetLoaderFacade::load_svg(svg_path, None) {
             Ok(vertices) => {
                 tracing::info!("SVG読み込み成功: {} 頂点", vertices.len());
 

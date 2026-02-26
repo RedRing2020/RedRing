@@ -1,4 +1,4 @@
-use crate::app_renderer::AppRenderer;
+use crate::app_renderer::{AppRenderer, AppRendererFactory};
 use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
@@ -112,7 +112,7 @@ impl AppState {
 
     pub fn new(window: Arc<Window>) -> Self {
         let graphic = init_graphic(window.clone());
-        let renderer = AppRenderer::new_draft(&graphic.device, &graphic.config);
+        let renderer = AppRendererFactory::create_draft(&graphic.device, &graphic.config);
         let viewing_operation_settings = ViewingOperationSettings::default();
 
         let mut app_state = Self {
