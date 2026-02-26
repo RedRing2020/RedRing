@@ -10,13 +10,13 @@ impl AppState {
         match viewmodel::snapshot_converter::create_sample_cam_snapshot_domain_series() {
             Ok(series) => {
                 let frame_count = series.frames.len();
-                self.debug_snapshot_series = Some(series);
-                self.debug_snapshot_wireframes = None;
-                self.debug_snapshot_solids = None;
-                self.debug_snapshot_toolpath_lines = None;
-                self.debug_snapshot_tool_lines = None;
-                self.debug_snapshot_shaded_mode = false;
-                self.debug_snapshot_cursor = 0;
+                self.debug_snapshot.series = Some(series);
+                self.debug_snapshot.wireframes = None;
+                self.debug_snapshot.solids = None;
+                self.debug_snapshot.toolpath_lines = None;
+                self.debug_snapshot.tool_lines = None;
+                self.debug_snapshot.shaded_mode = false;
+                self.debug_snapshot.cursor = 0;
                 tracing::info!(
                     "シミュレーションスナップショット読込完了: {} フレーム",
                     frame_count
@@ -31,7 +31,7 @@ impl AppState {
 
     /// デバッグ用: 次フレームへ進めて内容をログ表示
     pub fn cycle_debug_simulation_snapshot(&mut self) {
-        let Some(series) = &self.debug_snapshot_series else {
+        let Some(series) = &self.debug_snapshot.series else {
             self.load_debug_simulation_snapshots();
             return;
         };
@@ -41,13 +41,13 @@ impl AppState {
             return;
         }
 
-        self.debug_snapshot_cursor = (self.debug_snapshot_cursor + 1) % series.frames.len();
+        self.debug_snapshot.cursor = (self.debug_snapshot.cursor + 1) % series.frames.len();
         self.log_current_snapshot_frame(true);
     }
 
     /// デバッグ用: 前フレームへ戻して内容をログ表示
     pub fn rewind_debug_simulation_snapshot(&mut self) {
-        let Some(series) = &self.debug_snapshot_series else {
+        let Some(series) = &self.debug_snapshot.series else {
             self.load_debug_simulation_snapshots();
             return;
         };
@@ -57,17 +57,17 @@ impl AppState {
             return;
         }
 
-        self.debug_snapshot_cursor = if self.debug_snapshot_cursor == 0 {
+        self.debug_snapshot.cursor = if self.debug_snapshot.cursor == 0 {
             series.frames.len() - 1
         } else {
-            self.debug_snapshot_cursor - 1
+            self.debug_snapshot.cursor - 1
         };
         self.log_current_snapshot_frame(true);
     }
 
     pub(super) fn sync_snapshot_visual_frame(&mut self) {
-        if self.debug_snapshot_shaded_mode {
-            let Some(snapshot_solids) = &self.debug_snapshot_solids else {
+        if self.debug_snapshot.shaded_mode {
+            let Some(snapshot_solids) = &self.debug_snapshot.solids else {
                 return;
             };
             if snapshot_solids.is_empty() {
@@ -75,7 +75,8 @@ impl AppState {
             }
 
             let frame_index = self
-                .debug_snapshot_cursor
+                .debug_snapshot
+                .cursor
                 .min(snapshot_solids.len().saturating_sub(1));
             let (vertices, indices) = snapshot_solids[frame_index].clone();
 
@@ -88,10 +89,11 @@ impl AppState {
             mesh_stage.clear_overlay_line_data();
 
             let toolpath_lines = self
-                .debug_snapshot_toolpath_lines
+                .debug_snapshot
+                .toolpath_lines
                 .clone()
                 .unwrap_or_default();
-            if let Some(tool_lines_per_frame) = &self.debug_snapshot_tool_lines {
+            if let Some(tool_lines_per_frame) = &self.debug_snapshot.tool_lines {
                 let overlay_index = frame_index.min(tool_lines_per_frame.len().saturating_sub(1));
                 let tool_lines = tool_lines_per_frame[overlay_index].clone();
                 if !tool_lines.is_empty() {
@@ -104,7 +106,7 @@ impl AppState {
             return;
         }
 
-        let Some(snapshot_wireframes) = &self.debug_snapshot_wireframes else {
+        let Some(snapshot_wireframes) = &self.debug_snapshot.wireframes else {
             return;
         };
         if snapshot_wireframes.is_empty() {
@@ -112,7 +114,8 @@ impl AppState {
         }
 
         let frame_index = self
-            .debug_snapshot_cursor
+            .debug_snapshot
+            .cursor
             .min(snapshot_wireframes.len().saturating_sub(1));
 
         let stage = self.renderer.get_stage_mut();
@@ -127,14 +130,14 @@ impl AppState {
     }
 
     pub(super) fn log_current_snapshot_frame(&mut self, emit_log: bool) {
-        let Some(series) = &self.debug_snapshot_series else {
+        let Some(series) = &self.debug_snapshot.series else {
             return;
         };
         if series.frames.is_empty() {
             return;
         }
 
-        let index = self.debug_snapshot_cursor.min(series.frames.len() - 1);
+        let index = self.debug_snapshot.cursor.min(series.frames.len() - 1);
         let frame = &series.frames[index];
         let payload = frame.payload;
 
@@ -164,7 +167,7 @@ impl AppState {
     }
 
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {
-        let series = self.debug_snapshot_series.as_ref()?;
+        let series = self.debug_snapshot.series.as_ref()?;
         if series.frames.is_empty() {
             return None;
         }
@@ -173,7 +176,7 @@ impl AppState {
             if series.frames.len() <= 1 {
                 1.0
             } else {
-                (self.debug_snapshot_cursor as f32) / ((series.frames.len() - 1) as f32)
+                (self.debug_snapshot.cursor as f32) / ((series.frames.len() - 1) as f32)
             }
             .clamp(0.0, 1.0),
         )
@@ -193,7 +196,7 @@ impl AppState {
     }
 
     pub(super) fn set_snapshot_cursor_from_x(&mut self, x: f32, emit_log: bool) {
-        let Some(series) = &self.debug_snapshot_series else {
+        let Some(series) = &self.debug_snapshot.series else {
             return;
         };
         if series.frames.is_empty() {
@@ -208,8 +211,8 @@ impl AppState {
             (progress * (series.frames.len() as f32 - 1.0)).round() as usize
         };
 
-        if next_index != self.debug_snapshot_cursor {
-            self.debug_snapshot_cursor = next_index;
+        if next_index != self.debug_snapshot.cursor {
+            self.debug_snapshot.cursor = next_index;
             self.log_current_snapshot_frame(emit_log);
         }
     }

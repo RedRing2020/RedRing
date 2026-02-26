@@ -20,7 +20,7 @@ impl AppState {
             winit::event::ElementState::Pressed => {
                 if let Some(cursor) = self.cursor_position {
                     if self.is_cursor_on_snapshot_track(cursor) {
-                        if self.debug_snapshot_series.is_none() {
+                        if self.debug_snapshot.series.is_none() {
                             self.load_debug_simulation_snapshots();
                         }
                         self.snapshot_scrub_active = true;

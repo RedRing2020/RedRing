@@ -147,14 +147,14 @@ impl AppState {
                     self.load_debug_toolpath();
                 }
                 "k" => {
-                    if self.debug_snapshot_series.is_some() {
+                    if self.debug_snapshot.series.is_some() {
                         self.cycle_debug_simulation_snapshot();
                     } else {
                         self.load_debug_simulation_snapshots();
                     }
                 }
                 "j" => {
-                    if self.debug_snapshot_series.is_some() {
+                    if self.debug_snapshot.series.is_some() {
                         self.rewind_debug_simulation_snapshot();
                     } else {
                         self.load_debug_simulation_snapshots();
