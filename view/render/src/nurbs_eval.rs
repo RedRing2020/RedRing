@@ -3,8 +3,8 @@
 //! CPU側で生成した適応パラメータリストを用いて、
 //! GPU上でNURBS曲線を直接評価・描画するためのリソース管理。
 
-use bytemuck::{Pod, Zeroable};
 use crate::uniform_factory;
+use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
 /// NURBS評価用Uniform（カメラ行列）
