@@ -10,7 +10,7 @@
 - リポジトリの Git tag は現時点で **未作成**。
 - `origin/main` と `origin/develop` は乖離あり（`develop` 側に未統合コミットが存在）。
 
-## 2. 版数ポリシー（提案）
+## 2. 版数ポリシー（運用初版）
 
 ### 2.1 リポジトリ全体（アプリ/統合）
 
@@ -34,7 +34,7 @@
 5. `./scripts/check_architecture_dependencies_simple.ps1`
 6. `mdbook build`
 
-## 4. リリース運用フロー（提案）
+## 4. リリース運用フロー（運用初版）
 
 1. `develop` のリリース対象期間を確定（Issue/PRを凍結）
 2. `develop -> main` 統合PRを作成
@@ -53,13 +53,12 @@
 
 ### 直近TODO（優先順）
 
-- [ ] `VERSIONING_POLICY.md` をルートに作成（SemVer + 0.x例外）
-- [ ] `CHANGELOG.md` を追加（Unreleased セクション開始）
+- [x] `VERSIONING_POLICY.md` をルートに作成（SemVer + 0.x例外）
+- [x] `CHANGELOG.md` を追加（Unreleased セクション開始）
 - [ ] リリースノートのテンプレートを `dev/` に追加
 - [ ] 次回 `develop -> main` 統合時に初回タグを運用開始
 
 ## 6. 補足
 
-この文書は「初回リリース運用を開始するための草案」です。
-正式化時は、GitHub Project / Issue で承認履歴を残し、
-本ファイルを更新して運用版に昇格させてください。
+この文書は「初回リリース運用のベースライン（運用初版）」です。
+運用実績に応じて `VERSIONING_POLICY.md` と整合を取りながら更新してください。
