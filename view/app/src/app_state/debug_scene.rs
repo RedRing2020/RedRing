@@ -364,7 +364,8 @@ impl AppState {
     pub fn load_sample_stl(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let sample_path = std::env::temp_dir().join("redring_sample.stl");
 
-        let (vertices, indices, _bounds) = crate::stl_loader::create_sample_stl_with_bounds(&sample_path)?;
+        let (vertices, indices, _bounds) =
+            crate::stl_loader::create_sample_stl_with_bounds(&sample_path)?;
 
         self.camera.reset_to_standard_cad_view();
 

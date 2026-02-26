@@ -149,5 +149,4 @@ impl AppState {
         app_state.apply_viewing_operation_settings();
         app_state
     }
-
 }
