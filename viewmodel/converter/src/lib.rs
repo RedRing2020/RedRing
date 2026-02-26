@@ -16,7 +16,7 @@
 pub mod cam_sim_visualization_converter;
 pub mod entity_converter;
 pub mod mesh_converter;
-pub mod nurbs_debug;
+pub mod nurbs_eval_loader;
 pub mod nurbs_view;
 pub mod octree_converter;
 pub mod shape_converter;

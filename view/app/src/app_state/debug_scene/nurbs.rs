@@ -18,7 +18,8 @@ impl AppState {
 
         let svg_path = Path::new("tests/fixtures/shapes/nurbs_curve.svg");
         let eval_data =
-            match viewmodel::nurbs_debug::load_nurbs_curve_eval_from_svg(svg_path, tolerance) {
+            match viewmodel::nurbs_eval_loader::load_nurbs_curve_eval_from_svg(svg_path, tolerance)
+            {
                 Ok(data) => data,
                 Err(error) => {
                     tracing::error!("NURBS曲線データ生成失敗: {}", error);
@@ -57,7 +58,7 @@ impl AppState {
             self.unit_system
         );
         let eval_data =
-            match viewmodel::nurbs_debug::create_sample_nurbs_surface_eval(tolerance_value) {
+            match viewmodel::nurbs_eval_loader::create_sample_nurbs_surface_eval(tolerance_value) {
                 Ok(data) => data,
                 Err(error) => {
                     tracing::error!("NURBS曲面データ生成失敗: {}", error);

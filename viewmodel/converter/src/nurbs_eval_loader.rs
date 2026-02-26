@@ -1,4 +1,4 @@
-//! NURBSデバッグ表示用の評価データ生成
+//! NURBS評価データの読込・生成
 //!
 //! app層が直接geo_*に依存しないよう、
 //! ViewModel層でNURBS評価データを生成します。
@@ -12,9 +12,9 @@ use thiserror::Error;
 
 use crate::nurbs_view::{NurbsCurveEvalData, NurbsSurfaceEvalData};
 
-/// NURBSデバッグ用のエラー
+/// NURBS評価データ読込/生成用のエラー
 #[derive(Error, Debug)]
-pub enum NurbsDebugError {
+pub enum NurbsEvalLoaderError {
     #[error("SVG parsing error: {0}")]
     SvgError(#[from] SvgError),
 
@@ -29,12 +29,12 @@ pub enum NurbsDebugError {
 pub fn load_nurbs_curve_eval_from_svg(
     path: &Path,
     tolerance: f64,
-) -> Result<NurbsCurveEvalData, NurbsDebugError> {
+) -> Result<NurbsCurveEvalData, NurbsEvalLoaderError> {
     let svg_data = parse_svg_file(path)?;
     let nurbs_data = svg_data
         .nurbs_curves
         .first()
-        .ok_or(NurbsDebugError::MissingNurbsCurve)?;
+        .ok_or(NurbsEvalLoaderError::MissingNurbsCurve)?;
 
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
         nurbs_data.degree,
@@ -42,7 +42,7 @@ pub fn load_nurbs_curve_eval_from_svg(
         nurbs_data.control_points.clone(),
         nurbs_data.weights.clone(),
     )
-    .map_err(NurbsDebugError::ConstructionError)?;
+    .map_err(NurbsEvalLoaderError::ConstructionError)?;
 
     let settings = ga_tess::AdaptiveTessellationSettings::default_with_tolerance(tolerance);
     let param_list =
@@ -61,7 +61,7 @@ pub fn load_nurbs_curve_eval_from_svg(
 /// サンプルNURBS曲面のGPU評価データを生成
 pub fn create_sample_nurbs_surface_eval(
     tolerance: f64,
-) -> Result<NurbsSurfaceEvalData, NurbsDebugError> {
+) -> Result<NurbsSurfaceEvalData, NurbsEvalLoaderError> {
     // 中央が盛り上がった2次曲面（3x3制御点グリッド）
     let control_points = vec![
         vec![(0.0, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 1.0, 0.0)],
@@ -76,7 +76,7 @@ pub fn create_sample_nurbs_surface_eval(
 
     let surface =
         NurbsSurface3D::<f64>::new(control_points, None, u_knots, v_knots, u_degree, v_degree)
-            .map_err(NurbsDebugError::ConstructionError)?;
+            .map_err(NurbsEvalLoaderError::ConstructionError)?;
 
     let settings = ga_tess::AdaptiveTessellationSettings::default_with_tolerance(tolerance);
     let param_grid =
