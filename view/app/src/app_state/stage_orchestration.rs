@@ -1,7 +1,8 @@
 //! AppState のステージ更新オーケストレーションを扱うモジュール。
 
 use super::AppState;
-use stage::{DraftStage, MeshStage, OctreeStage, OutlineStage, ShadingStage};
+use crate::stage_factory;
+use stage::{MeshStage, OctreeStage};
 
 impl AppState {
     pub(super) fn rebuild_stage_from_entities(&mut self) {
@@ -54,26 +55,20 @@ impl AppState {
     }
 
     pub fn set_stage_draft(&mut self) {
-        let stage = Box::new(DraftStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
+        let stage =
+            stage_factory::create_draft_stage(&self.graphic.device, self.graphic.config.format);
         self.renderer.set_stage(stage);
     }
 
     pub fn set_stage_outline(&mut self) {
-        let stage = Box::new(OutlineStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
+        let stage =
+            stage_factory::create_outline_stage(&self.graphic.device, self.graphic.config.format);
         self.renderer.set_stage(stage);
     }
 
     pub fn set_stage_shading(&mut self) {
-        let stage = Box::new(ShadingStage::new(
-            &self.graphic.device,
-            self.graphic.config.format,
-        ));
+        let stage =
+            stage_factory::create_shading_stage(&self.graphic.device, self.graphic.config.format);
         self.renderer.set_stage(stage);
     }
 
