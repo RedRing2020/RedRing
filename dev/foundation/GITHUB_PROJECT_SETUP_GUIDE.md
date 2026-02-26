@@ -181,6 +181,7 @@ Phase 4 (トポロジー)
 - [GitHub Projects ドキュメント](https://docs.github.com/en/issues/planning-and-tracking-with-projects)
 - [Project テンプレートの選択](https://docs.github.com/en/issues/planning-and-tracking-with-projects/creating-a-project/creating-a-project)
 - [カスタムフィールドの追加](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-your-project/about-custom-fields)
+- [Issueラベル運用ガイド](../ISSUE_LABEL_OPERATION.md)
 
 ---
 
