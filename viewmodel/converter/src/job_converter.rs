@@ -1,5 +1,6 @@
 use job_runtime::{JobEvent, JobOutputValidity, JobRecord, JobStatus, JobType};
 
+/// UI表示用のジョブ状態（Modelの状態を直接公開しない境界型）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobStatusDto {
     Queued,
@@ -40,6 +41,8 @@ impl From<JobOutputValidity> for ArtifactValidityDto {
     }
 }
 
+/// 成果物参照をUIへ渡すときのラッパー。
+/// 生のref文字列ではなく有効性を含めて受け渡す。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArtifactRefDto {
     pub result_ref: String,
@@ -93,6 +96,7 @@ pub struct JobProgressDto {
     pub message: Option<UiMessage>,
 }
 
+/// `ProgressUpdated` が無い場合のフォールバック進捗。
 pub fn status_to_progress_percent(status: JobStatus) -> f32 {
     match status {
         JobStatus::Queued => 0.0,
@@ -102,6 +106,7 @@ pub fn status_to_progress_percent(status: JobStatus) -> f32 {
     }
 }
 
+/// イベント進捗を優先し、無ければ状態推定へフォールバックする。
 pub fn estimate_progress_percent(status: JobStatus, latest_progress_percent: Option<f32>) -> f32 {
     latest_progress_percent
         .map(|v| v.clamp(0.0, 100.0))
@@ -138,6 +143,7 @@ pub fn job_record_to_detail_dto(
     }
 }
 
+/// job_runtime のイベントを、UIが扱いやすい差分DTOへ変換する。
 pub fn job_event_to_progress_dto(event: &JobEvent) -> Option<JobProgressDto> {
     match event {
         JobEvent::StatusChanged { job_id, to, .. } => Some(JobProgressDto {
@@ -239,6 +245,8 @@ pub fn job_event_to_progress_dto(event: &JobEvent) -> Option<JobProgressDto> {
     }
 }
 
+/// 生エラーメッセージをUI向けのキー形式へ正規化する。
+/// 実表示は `resolve_ui_message` 側でロケール解決する。
 pub fn normalize_job_error_message(raw: &str) -> UiMessage {
     let code = if raw.contains("parent job not found") {
         "parent_job_not_found"
@@ -267,6 +275,7 @@ pub fn normalize_job_error_message(raw: &str) -> UiMessage {
     }
 }
 
+/// `message_key + args` をロケール別テンプレートへ適用する。
 pub fn resolve_ui_message(locale: UiLocale, message: &UiMessage) -> String {
     let template = match locale {
         UiLocale::Ja => resolve_ja_template(&message.key),
