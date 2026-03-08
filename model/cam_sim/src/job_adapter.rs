@@ -1,4 +1,4 @@
-use job_manager_core::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
+use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
 
 /// cam_sim から JobManager へ接続する初期アダプタ
 #[derive(Debug, Default, Clone, Copy)]

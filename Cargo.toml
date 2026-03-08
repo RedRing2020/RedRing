@@ -12,7 +12,7 @@ members = [
   "model/cam_core",       # Model層：CAM基盤クレート（工具経路・工具定義）
   "model/cam_entity",     # Model層：CAMエンティティクレート（geo_entityアドオン）
   "model/cam_sim",        # Model層：CAMシミュレーション実行クレート
-  "model/job_manager_core", # Model層：共通ジョブマネージャー基盤（CAD/CAM/CAE非依存）
+  "model/job_runtime", # Model層：共通ジョブマネージャー基盤（CAD/CAM/CAE非依存）
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
   "view/render",          # View層：GPU描画基盤

@@ -1,7 +1,7 @@
 use cam_core::{ContourLevelPath, CuttingDirection, SegmentType, Tool, ToolPath};
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
-use job_manager_core::{JobManager, JobSpec, JobStatus, JobType, RetryPolicy};
+use job_runtime::{JobManager, JobSpec, JobStatus, JobType, RetryPolicy};
 
 use crate::{CamJobExecutorAdapter, CuttingSimulator, SimulationError, SnapshotInterval};
 

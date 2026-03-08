@@ -59,13 +59,13 @@ analysis → geo_foundation
 
 ### 共通ジョブマネージャー方針（2026年3月更新）
 
-- **新規共通クレート**: `model/job_manager_core`
+- **新規共通クレート**: `model/job_runtime`
 - **目的**: CAD/CAM/CAEに依存しない実行制御（submit/status/cancel/retry）を提供
 - **責務**: `JobType`/`JobStatus`/`RetryPolicy`、状態遷移、イベント、Artifact参照契約
 - **非責務**: CAM計算・切削シミュレーション等のドメイン計算ロジック本体
 - **依存方針**:
-    - `job_manager_core` は `geo_*` / `cam_*` / View系へ依存しない
-    - `cam_*` / 将来のCAE側は `job_manager_core` をアダプタ経由で利用する
+    - `job_runtime` は `geo_*` / `cam_*` / View系へ依存しない
+    - `cam_*` / 将来のCAE側は `job_runtime` をアダプタ経由で利用する
 
 ### 依存チェック運用
 
