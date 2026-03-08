@@ -1,0 +1,7 @@
+{
+  "job": "sim",
+  "version": 1,
+  "input": {
+    "workpiece": "fixture-sim-min"
+  }
+}

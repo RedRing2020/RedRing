@@ -1,0 +1,16 @@
+FROM alpine:3.20
+
+# Runtime-only minimal image for batch execution smoke tests.
+RUN addgroup -S -g 10001 redring \
+    && adduser -S -D -u 10001 -G redring -h /home/redring -s /sbin/nologin redring
+
+WORKDIR /work
+
+COPY scripts/batch_runner_stub.sh /usr/local/bin/redring-batch-runner
+RUN chmod 0555 /usr/local/bin/redring-batch-runner \
+    && mkdir -p /work/input /work/output /work/logs \
+    && chown -R 10001:10001 /work
+
+USER 10001:10001
+
+ENTRYPOINT ["/usr/local/bin/redring-batch-runner"]

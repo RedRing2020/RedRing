@@ -63,6 +63,107 @@ jobs:
           cargo doc --workspace --no-deps --verbose
           echo "✅ Documentation built successfully (develop branch - no deployment)"
 
+  docker-build-batch-runner:
+    name: Docker Build Batch Runner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -f Dockerfile.batch -t redring-batch-runner:ci .
+
+      - name: Capture image digest
+        run: |
+          IMAGE_DIGEST=$(docker image inspect redring-batch-runner:ci --format '{{index .RepoDigests 0}}' || true)
+          if [ -z "$IMAGE_DIGEST" ]; then
+            IMAGE_ID=$(docker image inspect redring-batch-runner:ci --format '{{.Id}}')
+            IMAGE_DIGEST="redring-batch-runner@${IMAGE_ID}"
+          fi
+          echo "$IMAGE_DIGEST" > image-digest.txt
+
+      - name: Upload image digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-digest
+          path: image-digest.txt
+
+  docker-smoke-test-nonroot:
+    name: Docker Smoke Test (Non-root)
+    runs-on: ubuntu-latest
+    needs: [docker-build-batch-runner]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for smoke test
+        run: docker build -f Dockerfile.batch -t redring-batch-runner:ci .
+
+      - name: Prepare smoke test directories
+        run: |
+          mkdir -p tmp/input tmp/output tmp/logs
+          sudo chown -R 10001:10001 tmp/output tmp/logs
+
+      - name: Run CAM smoke test
+        run: |
+          docker run --rm \
+            --user 10001:10001 \
+            --read-only \
+            -v "$PWD/tests/fixtures/batch:/work/input:ro" \
+            -v "$PWD/tmp/output:/work/output" \
+            -v "$PWD/tmp/logs:/work/logs" \
+            redring-batch-runner:ci \
+            --job-type cam --input /work/input/min_cam.json --output /work/output --logs /work/logs
+
+      - name: Run SIM smoke test
+        run: |
+          docker run --rm \
+            --user 10001:10001 \
+            --read-only \
+            -v "$PWD/tests/fixtures/batch:/work/input:ro" \
+            -v "$PWD/tmp/output:/work/output" \
+            -v "$PWD/tmp/logs:/work/logs" \
+            redring-batch-runner:ci \
+            --job-type sim --input /work/input/min_sim.json --output /work/output --logs /work/logs
+
+      - name: Verify non-root execution
+        run: |
+          grep -q 'uid=10001 gid=10001' tmp/logs/cam.log
+          grep -q 'uid=10001 gid=10001' tmp/logs/sim.log
+
+      - name: Upload smoke test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-smoke-artifacts
+          path: |
+            tmp/output/*.json
+            tmp/logs/*.log
+
+  docker-security-scan:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    needs: [docker-build-batch-runner]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for scan
+        run: docker build -f Dockerfile.batch -t redring-batch-runner:ci .
+
+      - name: Run Trivy scan (HIGH/CRITICAL fail)
+        run: |
+          docker pull aquasec/trivy:0.57.1
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.57.1 image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            redring-batch-runner:ci
+
   architecture-dependency-check:
     uses: ./.github/workflows/common_architecture_check.yml
     with:
@@ -72,7 +173,7 @@ jobs:
   check-no-deployment:
     name: Development Branch Status
     runs-on: ubuntu-latest
-    needs: [build-test, architecture-dependency-check]
+    needs: [build-test, docker-build-batch-runner, docker-smoke-test-nonroot, docker-security-scan, architecture-dependency-check]
 
     steps:
       - name: Development branch notification
