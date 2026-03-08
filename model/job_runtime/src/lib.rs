@@ -10,4 +10,7 @@ pub mod types;
 pub use events::JobEvent;
 pub use executor::{JobExecutionResult, JobExecutor};
 pub use manager::JobManager;
-pub use types::{JobError, JobId, JobRecord, JobSpec, JobStatus, JobType, RetryPolicy};
+pub use types::{
+    JobError, JobGroupSummary, JobId, JobOutputRecord, JobOutputValidity, JobRecord, JobRelation,
+    JobSpec, JobStatus, JobType, RetryPolicy,
+};

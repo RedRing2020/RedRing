@@ -3,7 +3,28 @@ use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobManager, JobSpec, JobStatus, JobType, RetryPolicy};
 
-use crate::{CamJobExecutorAdapter, CuttingSimulator, SimulationError, SnapshotInterval};
+use crate::{
+    CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
+    SimulationError, SnapshotInterval,
+};
+
+fn cam_spec(input: &str) -> JobSpec {
+    JobSpec {
+        job_type: JobType::CamProcess,
+        input_ref: input.to_string(),
+        timeout_secs: 30,
+        retry_policy: RetryPolicy::default(),
+    }
+}
+
+fn sim_spec(input: &str) -> JobSpec {
+    JobSpec {
+        job_type: JobType::CuttingSimulation,
+        input_ref: input.to_string(),
+        timeout_secs: 30,
+        retry_policy: RetryPolicy::default(),
+    }
+}
 
 #[test]
 fn test_simulate_line_segments_removes_material() {
@@ -174,14 +195,14 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
     let adapter = CamJobExecutorAdapter;
 
     let cam_id = manager.submit(JobSpec {
-        job_type: JobType::CamProcessBatch,
+        job_type: JobType::CamProcess,
         input_ref: "input://cam/sample".to_string(),
         timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     });
 
     let sim_id = manager.submit(JobSpec {
-        job_type: JobType::CuttingSimulationBatch,
+        job_type: JobType::CuttingSimulation,
         input_ref: "input://sim/sample".to_string(),
         timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
@@ -196,17 +217,82 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
     assert_eq!(cam.status, JobStatus::Succeeded);
     assert_eq!(sim.status, JobStatus::Succeeded);
     assert!(
-        cam.result_ref
-            .as_deref()
+        manager
+            .active_result_ref(cam_id)
+            .unwrap()
             .unwrap_or_default()
             .starts_with("result://cam/")
     );
     assert!(
-        sim.result_ref
-            .as_deref()
+        manager
+            .active_result_ref(sim_id)
+            .unwrap()
             .unwrap_or_default()
             .starts_with("result://sim/")
     );
+}
+
+#[test]
+fn test_workflow_rejects_second_simulation_under_same_cam() {
+    let mut manager = JobManager::new();
+    let mut workflow = CamWorkflowSubmitter::new(&mut manager);
+
+    let cam_id = workflow
+        .submit_cam_process(cam_spec("input://cam/sample"))
+        .unwrap();
+    workflow
+        .submit_cutting_simulation(cam_id, sim_spec("input://sim/first"))
+        .unwrap();
+
+    let second = workflow.submit_cutting_simulation(cam_id, sim_spec("input://sim/second"));
+
+    assert!(matches!(
+        second,
+        Err(CamWorkflowError::SimulationAlreadyExists { parent_cam_job_id }) if parent_cam_job_id == cam_id
+    ));
+}
+
+#[test]
+fn test_workflow_rejects_simulation_without_cam_parent() {
+    let mut manager = JobManager::new();
+    let mut workflow = CamWorkflowSubmitter::new(&mut manager);
+
+    let non_cam_parent = workflow
+        .submit_cam_process(cam_spec("input://cam/parent"))
+        .unwrap();
+    let sim_parent = workflow
+        .submit_cutting_simulation(non_cam_parent, sim_spec("input://sim/parent"))
+        .unwrap();
+
+    let result = workflow.submit_cutting_simulation(sim_parent, sim_spec("input://sim/orphan"));
+
+    assert!(matches!(
+        result,
+        Err(CamWorkflowError::InvalidParentType {
+            expected: JobType::CamProcess,
+            actual: JobType::CuttingSimulation,
+        })
+    ));
+}
+
+#[test]
+fn test_workflow_rejects_child_under_simulation() {
+    let mut manager = JobManager::new();
+    let mut workflow = CamWorkflowSubmitter::new(&mut manager);
+
+    let cam_id = workflow
+        .submit_cam_process(cam_spec("input://cam/pipe"))
+        .unwrap();
+    let sim_id = workflow
+        .submit_cutting_simulation(cam_id, sim_spec("input://sim/pipe"))
+        .unwrap();
+
+    let result = workflow.submit_child_under(sim_id, cam_spec("input://cam/after-sim"));
+
+    assert!(matches!(
+        result,
+        Err(CamWorkflowError::SimulationCannotHaveChildren { simulation_job_id }) if simulation_job_id == sim_id
+    ));
 }
 
 #[test]
@@ -215,7 +301,7 @@ fn test_job_adapter_rejects_invalid_input_ref() {
     let adapter = CamJobExecutorAdapter;
 
     let id = manager.submit(JobSpec {
-        job_type: JobType::CuttingSimulationBatch,
+        job_type: JobType::CuttingSimulation,
         input_ref: "input://cam/wrong".to_string(),
         timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
