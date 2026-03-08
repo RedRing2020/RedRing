@@ -301,6 +301,32 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 親なし `CuttingSimulation` 投入は拒否される
 - `NcImport` 未実装期間は `NcImport -> CuttingSimulation` を受け付けない
 
+### 14.9 Job ViewModel 連携方針（#305）
+
+本節は #305 の設計合意を固定する。
+
+- 進捗はイベント値を優先しつつ、`JobStatus` からの推定を許可する
+  - `ProgressUpdated` 未着時でも UI が進捗表示可能なようにする
+  - 例: `Queued=0%`, `Running=推定値または直近値`, `Succeeded/Failed/Canceled=100%`
+- 成果物参照は生文字列を直接UIへ渡さず、`Option<ArtifactRefDto>` へ包んで受け渡す
+  - `ArtifactRefDto` は `result_ref` / `log_ref` / `validity` を保持する
+  - `None` は成果物未生成・参照不可を表現する
+- `JobError` の生メッセージを直接表示しない
+  - ViewModel でエラーコードへ正規化し、UI向け文言テーブルで解決する
+  - 文言は多言語対応を前提とし、表示時にロケールで選択する
+
+多言語対応基盤（最小要件）:
+
+- 文言キー形式: `job.error.<code>` / `job.status.<status>`
+- ViewModel は `message_key + args` を返し、最終文字列解決はUI層で実施
+- 英語・日本語を初期サポート対象とし、将来ロケール追加可能な構造にする
+
+受け入れ観点（#305追加合意）:
+
+- `ProgressUpdated` が無いジョブでも `JobStatus` 由来の進捗表示が可能
+- 成果物参照は `Option<ArtifactRefDto>` で受け渡される
+- 失敗表示は `JobError` 直出しではなく、文言キー解決経由になる
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）
