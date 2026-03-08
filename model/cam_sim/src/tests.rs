@@ -237,7 +237,9 @@ fn test_workflow_rejects_second_simulation_under_same_cam() {
     let mut manager = JobManager::new();
     let mut workflow = CamWorkflowSubmitter::new(&mut manager);
 
-    let cam_id = workflow.submit_cam_process(cam_spec("input://cam/sample")).unwrap();
+    let cam_id = workflow
+        .submit_cam_process(cam_spec("input://cam/sample"))
+        .unwrap();
     workflow
         .submit_cutting_simulation(cam_id, sim_spec("input://sim/first"))
         .unwrap();
@@ -278,7 +280,9 @@ fn test_workflow_rejects_child_under_simulation() {
     let mut manager = JobManager::new();
     let mut workflow = CamWorkflowSubmitter::new(&mut manager);
 
-    let cam_id = workflow.submit_cam_process(cam_spec("input://cam/pipe")).unwrap();
+    let cam_id = workflow
+        .submit_cam_process(cam_spec("input://cam/pipe"))
+        .unwrap();
     let sim_id = workflow
         .submit_cutting_simulation(cam_id, sim_spec("input://sim/pipe"))
         .unwrap();
