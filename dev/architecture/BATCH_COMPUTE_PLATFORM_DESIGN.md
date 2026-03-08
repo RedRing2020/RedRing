@@ -536,3 +536,66 @@ docker run --rm \
 - 非root UID/GID で実行されること
 - `/work/output` に結果JSONが出力されること
 - `/work/logs` に実行ログが出力されること
+
+---
+
+## 20. Dockerイメージタグ運用ルール（#297）
+
+### 20.1 タグ体系
+
+運用タグは次の3種類を使用する。
+
+- `main-<short_sha>`
+  - `main` ブランチ由来の継続タグ
+  - 例: `main-4ee01ba`
+- `develop-<short_sha>`
+  - `develop` ブランチ由来の検証タグ
+  - 例: `develop-4ee01ba`
+- `release-<version>`
+  - リリース固定タグ
+  - 例: `release-v0.1.0`
+
+補助タグ:
+
+- `pr-<number>-<short_sha>`
+  - PR検証専用の短期タグ
+  - 例: `pr-299-77e2bde`
+
+`latest` は再現性を下げるため運用しない。
+
+### 20.2 digest pin原則
+
+- 実行時はタグ参照ではなく `image@sha256:<digest>` を使用する
+- Job Manager は `ImageRef` に digest を保持する
+- タグは人間向けの識別子、実行同定は digest を正とする
+
+### 20.3 ブランチ別運用
+
+1. develop CI
+- イメージをビルド
+- `develop-<short_sha>` を付与
+- digest をアーティファクト保存
+
+2. main CI
+- イメージをビルド
+- `main-<short_sha>` を付与
+- digest をアーティファクト保存
+
+3. release作業
+- `release-<version>` を付与
+- リリースノートに digest を記録
+
+### 20.4 保持・クリーンアップ
+
+- `pr-*` タグ: 14日保持
+- `develop-*` タグ: 30日保持
+- `main-*` タグ: 90日保持
+- `release-*` タグ: 恒久保持
+
+削除時も digest とジョブ履歴の参照情報は監査期間中保持する。
+
+### 20.5 監査・追跡
+
+- すべてのジョブ結果に `image_digest` を記録する
+- ログ、結果アーティファクト、digest を同一 `job_id` に紐づける
+- digest 未記録ジョブは失敗扱いとして再投入対象にする
