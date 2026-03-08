@@ -2,6 +2,7 @@ use crate::camera::ProjectionMode;
 use crate::camera_math::quaternion_to_matrix;
 use analysis::linalg::{quaternion::Quaternionf, vector::Vec3f};
 
+/// 画面座標をArcball用の単位球面上の点へ変換する。
 pub(crate) fn project_on_sphere(
     screen_x: f32,
     screen_y: f32,
@@ -28,6 +29,7 @@ pub(crate) fn project_on_sphere(
         .unwrap_or(Vec3f::new(0.0, 0.0, 1.0))
 }
 
+/// 球面上の2点から回転クォータニオンを計算する。
 pub(crate) fn compute_rotation_from_sphere_points(
     sphere_from: Vec3f,
     sphere_to: Vec3f,
@@ -45,6 +47,7 @@ pub(crate) fn compute_rotation_from_sphere_points(
     Quaternionf::from_axis_angle(&axis_normalized, angle)
 }
 
+/// ドラッグ量に応じてカメラ回転を更新する。
 pub(crate) fn rotate(rotation: &mut Quaternionf, delta_x: f32, delta_y: f32, sensitivity: f32) {
     let y_axis = Vec3f::new(0.0, 1.0, 0.0);
     let y_rotation = Quaternionf::from_axis_angle(&y_axis, -delta_x * sensitivity);
@@ -55,6 +58,7 @@ pub(crate) fn rotate(rotation: &mut Quaternionf, delta_x: f32, delta_y: f32, sen
         .unwrap_or(*rotation);
 }
 
+/// Arcballの前後2点から回転を適用する。
 pub(crate) fn rotate_arcball(
     rotation: &mut Quaternionf,
     prev_x: f32,
@@ -78,6 +82,7 @@ pub(crate) fn rotate_arcball(
     );
 }
 
+/// Arcballのデルタ入力から回転を適用する。
 pub(crate) fn rotate_arcball_from_delta(
     rotation: &mut Quaternionf,
     delta_x: f32,
@@ -139,6 +144,7 @@ pub(crate) fn rotate_arcball_from_delta(
     );
 }
 
+/// 画面平面に沿って注視点を移動する。
 pub(crate) fn pan(
     target: &mut Vec3f,
     rotation: &Quaternionf,
@@ -177,6 +183,7 @@ pub(crate) fn pan(
     );
 }
 
+/// 入力デルタに応じて距離または表示範囲を更新する。
 pub(crate) fn zoom(
     distance: &mut f32,
     orthographic_bounds: &mut Option<(f32, f32, f32, f32)>,
@@ -232,6 +239,7 @@ pub(crate) fn zoom(
     );
 }
 
+/// ホイール入力をズーム操作へ変換して適用する。
 pub(crate) fn zoom_wheel(
     distance: &mut f32,
     orthographic_bounds: &mut Option<(f32, f32, f32, f32)>,

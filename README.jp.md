@@ -72,6 +72,7 @@ NURBS やプリミティブ形状などの幾何要素は現在開発中であ�
 | `README.jp.md` (本文書)                                            | 日本語利用者・新規開発者 | プロジェクト概要・ビルド方法                   |
 | `README.md`                                                        | 英語圏利用者・国際開発者 | Project Overview & Build Instructions          |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                               | 開発者                   | ワークスペース構成・移行ステータス・テスト戦略 |
+| [`dev/ISSUE_LABEL_OPERATION.md`](dev/ISSUE_LABEL_OPERATION.md)     | メンテナー               | Issueラベル運用・Release/Phase管理             |
 | [`manual/philosophy.md`](manual/philosophy.md)                     | コントリビューター       | 設計思想・エラー処理ガイドライン・実装パターン |
 | [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md)       | 幾何ライブラリ開発者     | 幾何抽象化の詳細仕様                           |
 | [`.github/ai_quick_reference.md`](.github/ai_quick_reference.md)   | 🤖 AI開発者              | セッション復旧・開発継続支援                   |

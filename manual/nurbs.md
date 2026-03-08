@@ -88,77 +88,7 @@ pub enum WeightStorage<T: Scalar> {
 
 ## 使用例 / Usage Examples
 
-### 2D NURBS曲線の作成
-
-```rust
-use geo_nurbs::{NurbsCurve2D, Point2D};
-
-// 制御点を定義
-let control_points = vec![
-    Point2D::new(0.0, 0.0),
-    Point2D::new(1.0, 1.0),
-    Point2D::new(2.0, 0.0),
-];
-
-// NURBS曲線を作成
-let curve = NurbsCurve2D::new(
-    control_points,
-    Some(vec![1.0, 1.0, 1.0]),           // 重み（Optional）
-    vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0], // ノットベクトル
-    2,                                    // 次数
-)?;
-
-// パラメータ評価
-let point = curve.evaluate_at(0.5);      // t=0.5での点
-let derivative = curve.derivative_at(0.5); // 1次導関数
-let length = curve.approximate_length(100); // 近似長さ
-```
-
-### 3D NURBSサーフェスの作成
-
-```rust
-use geo_nurbs::{NurbsSurface3D, Point3D};
-
-// 制御点グリッドを定義
-let control_grid = vec![
-    vec![Point3D::new(0.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 0.0)],
-    vec![Point3D::new(1.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 1.0)],
-];
-
-// NURBSサーフェスを作成
-let surface = NurbsSurface3D::new(
-    control_grid,
-    None,                                // 重み（非有理）
-    vec![0.0, 0.0, 1.0, 1.0],          // u方向ノット
-    vec![0.0, 0.0, 1.0, 1.0],          // v方向ノット
-    1, 1,                                // u,v次数
-)?;
-
-// パラメータ評価
-let point = surface.evaluate_at(0.5, 0.5);    // (u,v)=(0.5,0.5)での点
-let normal = surface.normal_at(0.5, 0.5);     // 法線ベクトル
-let area = surface.approximate_area(50, 50);  // 近似面積
-```
-
-### NURBS変換操作
-
-```rust
-use geo_nurbs::transform::{KnotInsertion, CurveSplitting, DegreeElevation};
-
-// ノット挿入
-let (new_points, new_weights, new_knots) = KnotInsertion::insert_knot_2d(
-    &control_points, &weights, &knots, degree, 0.5
-)?;
-
-// 曲線分割
-let (left_curve, right_curve) = CurveSplitting::split_curve_2d(
-    &control_points, &weights, &knots, degree, 0.5
-)?;
-
-// 次数上昇
-let (new_points, new_weights, new_knots, new_degree) =
-    DegreeElevation::elevate_degree_2d(&control_points, &weights, &knots, degree)?;
-```
+詳細なコード例は [nurbs_examples.md](./nurbs_examples.md) を参照してください。
 
 ## Foundation パターン統合 / Foundation Pattern Integration
 

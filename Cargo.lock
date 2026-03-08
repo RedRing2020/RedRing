@@ -283,6 +283,7 @@ dependencies = [
  "analysis",
  "cam_core",
  "geo_algorithms",
+ "job_manager_core",
 ]
 
 [[package]]
@@ -1131,6 +1132,10 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "job_manager_core"
+version = "0.1.0"
 
 [[package]]
 name = "jobserver"

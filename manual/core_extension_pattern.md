@@ -28,72 +28,12 @@ circle_2d_extensions.rs   // Extension実装（130行）
 ```
 
 ## 利用例
+- Core のみ使用（基本生成・計量）
+- Extension を含む使用（包含判定・便利API）
+- Analysis Transform（平行移動・回転・スケール）
+- Collision & Intersection（距離計算・衝突判定）
 
-### Core のみ使用
-
-```rust
-use geo_primitives::{Point2D, Circle2D};
-
-let center = Point2D::new(0.0, 0.0);
-let radius = 1.0;
-let circle = Circle2D::new(center, radius)?;
-let area = circle.area();
-```
-
-### Extension を含む使用
-
-```rust
-use geo_primitives::Circle2D;
-
-// Extension機能の利用例
-let unit_circle = Circle2D::unit_circle();  // Extension: 単位円作成
-let point = Point2D::new(0.5, 0.5);
-let contains = circle.contains_point(&point); // Extension: 点包含判定
-```
-
-### Analysis Transform（幾何変換拡張）
-
-```rust
-use analysis::linalg::vector::Vector3;
-use geo_foundation::AnalysisTransform3D;
-use geo_foundation::Angle;
-
-// 平行移動
-let translation = Vector3::new(1.0, 2.0, 3.0);
-let translated = mesh.translate_analysis(&translation)?;
-
-// 回転（軸回転）
-let axis = Vector3::new(0.0, 0.0, 1.0);
-let angle = Angle::from_degrees(90.0);
-let rotated = mesh.rotate_analysis(&mesh, &axis, angle)?;
-
-// 複合変換（平行移動 + 回転 + スケール）
-let result = mesh.apply_composite_transform(
-    Some(&translation),
-    Some((&mesh, &axis, angle)),
-    Some((2.0, 2.0, 2.0))
-)?;
-```
-
-### Collision & Intersection（衝突判定・交差判定）✨ Phase 3完了
-
-```rust
-use geo_foundation::{BasicCollision, PointDistance, LineSegmentCollision};
-use geo_primitives::{Point3D, LineSegment3D, Triangle3D};
-
-// 点との最短距離計算
-let point = Point3D::new(1.0, 2.0, 3.0);
-let distance = triangle.distance_to(&point);
-
-// 線分との衝突判定
-let segment = LineSegment3D::new(start, end)?;
-let intersects = triangle.intersects(&segment);
-
-// AABB（境界ボックス）との距離計算
-let min = (0.0, 0.0, 0.0);
-let max = (10.0, 10.0, 10.0);
-let distance = segment.distance_to_aabb(min, max);
-```
+詳細なコード例は [core_extension_examples.md](./core_extension_examples.md) を参照してください。
 
 ## メリット
 

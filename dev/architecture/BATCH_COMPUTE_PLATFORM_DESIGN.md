@@ -244,6 +244,21 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 進捗はイベントで通知（例: `ProgressUpdated`, `ArtifactReady`, `Completed`）
 - モジュール境界として、実行制御と計算ロジックを同一クレートに混在させない
 
+### 14.4 クレート配置方針（#298）
+
+- 共通実行制御は `model/job_manager_core` に配置する
+- `job_manager_core` は CAD/CAM/CAE の計算実装に依存しない
+- CAM/切削の実行接続は `cam_*` 側アダプタで担保する
+- 将来のNC Post/CAEジョブも同一契約へ接続できるよう、`JobType + InputRef -> ResultRef` を維持する
+
+### 14.5 初期接続実装方針（スタブ）
+
+- #298 の初期接続は `model/cam_sim` に `JobExecutor` アダプタを実装する
+- アダプタは `JobType::CamProcessBatch` / `JobType::CuttingSimulationBatch` の2系統を受け付ける
+- 初期段階では実計算を呼ばず、`InputRef` を検証して `ResultRef` を返すスタブ動作とする
+- タイムアウト/リトライ/キャンセルは `job_manager_core` 側の実行制御で検証する
+- 実計算への差し替えは後続Issueで行い、同じ契約を維持したまま移行する
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）
@@ -266,3 +281,336 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 夜間失敗サマリー
 - ジョブ遅延/失敗率の可視化
 - 翌朝確認を前提とした通知フロー
+
+---
+
+## 16. Docker実行イメージ設計（#297向け）
+
+本章は、Job Manager が実行するコンテナの最小構成とセキュリティ基準を定義する。
+
+### 16.1 設計方針（最小構成）
+
+- 目的は「ヘッドレス計算の再現実行」であり、開発ツール一式を本番実行イメージに含めない
+- イメージは `builder` と `runtime` の multi-stage を前提とする
+- runtime は必要最小限の依存のみを含み、シェルやパッケージマネージャを極力持たせない
+- 1コンテナ1プロセスを原則とし、Job Manager は実行と監視に専念する
+
+最小ランタイム構成（論理）:
+
+- `redring-batch-runner`（CAM/切削共通ランナー）
+- 読み取り専用の実行バイナリ
+- 入出力マウントポイント（`/work/input`, `/work/output`, `/work/logs`）
+- 実行時設定は環境変数ではなく、可能な限りジョブ定義（InputRef）経由で受け渡す
+
+### 16.2 非root実行とコンテナセキュリティ基準
+
+必須:
+
+- コンテナプロセスは root 以外の固定UID/GIDで実行する
+- `allowPrivilegeEscalation: false` を前提とする
+- Linux capabilities は `drop: ["ALL"]` を基本とする
+- ルートファイルシステムは read-only を基本とし、書き込みは `/work/output` と `/work/logs` のみ
+- 機密情報はイメージに埋め込まず、実行基盤のシークレット参照で注入する
+- イメージは digest pin（`image@sha256:...`）で実行し、タグ参照のみの実行を禁止する
+
+推奨:
+
+- ベースイメージはLTS系に限定し、定期スキャン（CVE High/Critical）をCIゲート化する
+- `seccomp` は default 以上、可能なら RuntimeDefault を強制する
+- 依存ライブラリSBOMを生成し、アーティファクトとして保存する
+
+### 16.3 Job Manager との責務接続
+
+- Job Manager は「どのイメージを、どの入力参照で実行するか」を決定する
+- コンテナ内の計算ロジック詳細（CAMアルゴリズム実装）は Model 側責務とし、Job Manager は介入しない
+- 契約は既存方針どおり `JobType + InputRef -> ResultRef` を維持する
+- 実行結果は終了コード + 成果物参照 + 構造化ログで返却し、Job Manager が状態遷移に反映する
+
+### 16.4 Docker対象の実施環境定義
+
+1. ローカル検証環境（Developer Local）
+- 目的: 再現確認、最小ジョブの手動実行
+- 要件: 同一イメージdigestでの起動、入力/出力ディレクトリの明示マウント
+
+2. CI検証環境（GitHub Actions等）
+- 目的: build/test/run の自動検証
+- 要件: イメージビルド、最小ジョブ実行、ログ/成果物保存、脆弱性スキャン
+
+3. 本番バッチ環境（Kubernetes）
+- 目的: 夜間バッチの実運用
+- 要件: 非root実行強制、read-only rootfs、リソース制限、再実行ポリシー、監査ログ保持
+
+環境ごとの差分は「リソース量」「並列度」「資格情報の供給方法」に限定し、
+実行イメージとジョブ契約は共通化する。
+
+### 16.5 受け入れ条件（#297設計観点）
+
+- [ ] 非root固定UID/GIDで CAM/切削の最小ジョブが両方成功する
+- [ ] 同一入力で local/CI/K8s の結果差異が許容範囲内である
+- [ ] High/Critical 脆弱性がCIで検知された場合にリリースを停止できる
+- [ ] 実行イメージのdigest、SBOM、実行ログを追跡可能である
+
+---
+
+## 17. 実装準備設計（ドラフト）
+
+本章は、#297を着手するための具体的な実装ドラフトを示す。
+
+### 17.1 Dockerfile構成案（multi-stage）
+
+`builder` ステージ:
+
+- Rust stable でワークスペースビルド
+- テストに必要な最小アセットのみ同梱
+- 出力バイナリを `redring-batch-runner` として配置
+
+`runtime` ステージ:
+
+- 最小ベースイメージ（LTS）
+- 固定 UID/GID（例: 10001:10001）ユーザー作成
+- `USER 10001:10001` で実行
+- `WORKDIR /work`
+- `/work/output` と `/work/logs` のみ書き込み可能
+- エントリポイントはバッチランナー固定（シェル起動を前提にしない）
+
+初期実装で避けるもの:
+
+- Docker-in-Docker
+- 特権モード
+- ルート権限での暫定運用
+- 実行時 `apt install` のような可変依存解決
+
+### 17.2 CIワークフロー構成案（Docker専用ジョブ）
+
+既存 `develop_ci.yml` に追加するジョブ候補:
+
+1. `docker-build-batch-runner`
+- Dockerイメージをbuild
+- イメージdigestを出力
+
+2. `docker-smoke-test-nonroot`
+- 非rootで最小CAMジョブを1件実行
+- 非rootで最小切削シミュレーションジョブを1件実行
+- `/work/output` と `/work/logs` に成果物が生成されることを検証
+
+3. `docker-security-scan`
+- イメージ脆弱性スキャン（High/Criticalでfail）
+- SBOM生成とアーティファクト保存
+
+4. `docker-archive-artifacts`
+- 実行ログ
+- 成果物ハッシュ一覧
+- イメージdigest
+
+依存関係:
+
+- `docker-smoke-test-nonroot` は `docker-build-batch-runner` 成功後
+- `docker-security-scan` は `docker-build-batch-runner` 成功後
+- どれか失敗時は develop CI 全体を fail にする
+
+### 17.3 Job Manager が扱う最小実行契約
+
+最小ジョブ入力:
+
+```text
+JobType: CamProcessBatch | CuttingSimulationBatch
+ImageRef: ghcr.io/redring2020/redring-batch-runner@sha256:...
+InputRef: object storage path or immutable artifact id
+OutputRef: destination path
+TimeoutSec: integer
+RetryPolicy: maxRetries + backoff
+```
+
+最小ジョブ出力:
+
+```text
+Status: succeeded | failed | canceled
+ExitCode: integer
+ResultRef: artifact reference
+LogRef: structured log reference
+Digest: executed image digest
+```
+
+### 17.4 #297着手時の実施順序（推奨）
+
+1. Dockerfile作成（非root + multi-stage）
+2. ローカルで最小ジョブ2種の動作確認（CAM/切削）
+3. develop CIへDockerジョブ追加
+4. 脆弱性スキャンとSBOMをCIゲート化
+5. 受け入れ条件チェックリストをIssue #297に反映
+
+### 17.5 設計上の保留事項
+
+- ランナー実体を既存クレートに置くか、新規バッチ用クレートを作るか
+- GPU依存ジョブを将来導入する場合のイメージ分離方針
+- CIの実行時間増加に対するキャッシュ戦略
+
+---
+
+## 18. 参考スニペット（実装時の叩き台）
+
+以下は設計意図を示す参考スニペットであり、そのまま本番適用する前に監査する。
+
+### 18.1 Dockerfile（非root + multi-stage）
+
+```dockerfile
+FROM rust:1.86-bookworm AS builder
+WORKDIR /src
+COPY . .
+RUN cargo build --workspace --release
+
+FROM debian:bookworm-slim AS runtime
+RUN groupadd -g 10001 redring && useradd -u 10001 -g 10001 -m -s /usr/sbin/nologin redring
+WORKDIR /work
+COPY --from=builder /src/target/release/redring-batch-runner /usr/local/bin/redring-batch-runner
+RUN mkdir -p /work/output /work/logs && chown -R 10001:10001 /work
+USER 10001:10001
+ENTRYPOINT ["/usr/local/bin/redring-batch-runner"]
+```
+
+注記:
+
+- 現在ワークスペースに `redring-batch-runner` バイナリは未定義のため、実体配置は別途決定する
+- rootfs read-only は実行基盤側（K8s/CI）で強制する
+
+### 18.2 GitHub Actions ジョブ断片（非rootスモークテスト）
+
+```yaml
+docker-build-batch-runner:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - name: Build image
+      run: docker build -t redring-batch-runner:ci .
+
+docker-smoke-test-nonroot:
+  runs-on: ubuntu-latest
+  needs: [docker-build-batch-runner]
+  steps:
+    - uses: actions/checkout@v4
+    - name: CAM smoke test
+      run: |
+        docker run --rm \
+          --user 10001:10001 \
+          --read-only \
+          -v ${{ github.workspace }}/tmp/input:/work/input:ro \
+          -v ${{ github.workspace }}/tmp/output:/work/output \
+          -v ${{ github.workspace }}/tmp/logs:/work/logs \
+          redring-batch-runner:ci \
+          --job-type cam --input /work/input/min_cam.json --output /work/output
+```
+
+### 18.3 Kubernetes securityContext 断片
+
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+```
+
+運用ルール:
+
+- securityContext の緩和は例外申請制とし、恒久設定にしない
+- 例外を入れる場合は理由・期間・代替策をIssueで明文化する
+
+---
+
+## 19. 最小版実装（現ブランチ）
+
+本設計に対応する最小版として、以下を追加した。
+
+- `Dockerfile.batch`
+- `.dockerignore`
+- `scripts/batch_runner_stub.sh`
+
+ローカル確認例:
+
+```bash
+docker build -f Dockerfile.batch -t redring-batch-runner:local .
+
+mkdir -p tmp/input tmp/output tmp/logs
+echo '{"example":true}' > tmp/input/min_cam.json
+
+docker run --rm \
+  --user 10001:10001 \
+  --read-only \
+  -v "$PWD/tmp/input:/work/input:ro" \
+  -v "$PWD/tmp/output:/work/output" \
+  -v "$PWD/tmp/logs:/work/logs" \
+  redring-batch-runner:local \
+  --job-type cam --input /work/input/min_cam.json --output /work/output
+```
+
+確認ポイント:
+
+- 非root UID/GID で実行されること
+- `/work/output` に結果JSONが出力されること
+- `/work/logs` に実行ログが出力されること
+
+---
+
+## 20. Dockerイメージタグ運用ルール（#297）
+
+### 20.1 タグ体系
+
+運用タグは次の3種類を使用する。
+
+- `main-<short_sha>`
+  - `main` ブランチ由来の継続タグ
+  - 例: `main-4ee01ba`
+- `develop-<short_sha>`
+  - `develop` ブランチ由来の検証タグ
+  - 例: `develop-4ee01ba`
+- `release-<version>`
+  - リリース固定タグ
+  - 例: `release-v0.1.0`
+
+補助タグ:
+
+- `pr-<number>-<short_sha>`
+  - PR検証専用の短期タグ
+  - 例: `pr-299-77e2bde`
+
+`latest` は再現性を下げるため運用しない。
+
+### 20.2 digest pin原則
+
+- 実行時はタグ参照ではなく `image@sha256:<digest>` を使用する
+- Job Manager は `ImageRef` に digest を保持する
+- タグは人間向けの識別子、実行同定は digest を正とする
+
+### 20.3 ブランチ別運用
+
+1. develop CI
+- イメージをビルド
+- `develop-<short_sha>` を付与
+- digest をアーティファクト保存
+
+2. main CI
+- イメージをビルド
+- `main-<short_sha>` を付与
+- digest をアーティファクト保存
+
+3. release作業
+- `release-<version>` を付与
+- リリースノートに digest を記録
+
+### 20.4 保持・クリーンアップ
+
+- `pr-*` タグ: 14日保持
+- `develop-*` タグ: 30日保持
+- `main-*` タグ: 90日保持
+- `release-*` タグ: 恒久保持
+
+削除時も digest とジョブ履歴の参照情報は監査期間中保持する。
+
+### 20.5 監査・追跡
+
+- すべてのジョブ結果に `image_digest` を記録する
+- ログ、結果アーティファクト、digest を同一 `job_id` に紐づける
+- digest 未記録ジョブは失敗扱いとして再投入対象にする
