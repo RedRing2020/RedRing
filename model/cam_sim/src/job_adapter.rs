@@ -55,8 +55,8 @@ impl CamJobExecutorAdapter {
 impl JobExecutor for CamJobExecutorAdapter {
     fn execute(&self, job: &JobRecord) -> JobExecutionResult {
         match job.spec.job_type {
-            JobType::CamProcessBatch => self.run_cam_process(job),
-            JobType::CuttingSimulationBatch => self.run_cutting_simulation(job),
+            JobType::CamProcess => self.run_cam_process(job),
+            JobType::CuttingSimulation => self.run_cutting_simulation(job),
         }
     }
 }

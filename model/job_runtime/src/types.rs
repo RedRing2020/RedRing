@@ -9,9 +9,9 @@ pub struct JobId(pub u64);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JobType {
     /// 加工計画ジョブ
-    CamProcessBatch,
+    CamProcess,
     /// シミュレーションジョブ
-    CuttingSimulationBatch,
+    CuttingSimulation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,6 +20,8 @@ pub enum JobStatus {
     Queued,
     /// 実行中
     Running,
+    /// 依存更新により再計算待ち
+    NeedsRecompute,
     /// 正常終了
     Succeeded,
     /// 異常終了
@@ -74,6 +76,30 @@ pub struct JobRelation {
     pub group_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 成果物の有効性
+pub enum JobOutputValidity {
+    /// 現在有効な成果物
+    Active,
+    /// 後続成果物により置き換え済み
+    Superseded,
+    /// 依存更新により無効化
+    InvalidatedByDependency,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// ジョブ成果物履歴
+pub struct JobOutputRecord {
+    /// 成果物参照
+    pub result_ref: String,
+    /// ログ参照
+    pub log_ref: Option<String>,
+    /// 生成時刻
+    pub produced_at: SystemTime,
+    /// 有効性
+    pub validity: JobOutputValidity,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// ジョブの実行状態
 pub struct JobRecord {
@@ -93,10 +119,8 @@ pub struct JobRecord {
     pub created_at: SystemTime,
     /// 最終更新時刻
     pub updated_at: SystemTime,
-    /// 結果参照
-    pub result_ref: Option<String>,
-    /// ログ参照
-    pub log_ref: Option<String>,
+    /// 成果物履歴
+    pub output_history: Vec<JobOutputRecord>,
     /// 直近エラー
     pub last_error: Option<String>,
 }
@@ -130,6 +154,8 @@ pub enum JobError {
     JobNotFound(JobId),
     /// 指定親ジョブが存在しない
     ParentJobNotFound(JobId),
+    /// 再実行が許可されていない
+    RerunNotAllowed(JobStatus),
     /// 状態遷移が許可されていない
     InvalidTransition { from: JobStatus, to: JobStatus },
     /// リトライ上限超過
@@ -143,6 +169,9 @@ impl Display for JobError {
         match self {
             Self::JobNotFound(id) => write!(f, "job not found: {}", id.0),
             Self::ParentJobNotFound(id) => write!(f, "parent job not found: {}", id.0),
+            Self::RerunNotAllowed(status) => {
+                write!(f, "rerun not allowed from status: {:?}", status)
+            }
             Self::InvalidTransition { from, to } => {
                 write!(f, "invalid transition: {:?} -> {:?}", from, to)
             }

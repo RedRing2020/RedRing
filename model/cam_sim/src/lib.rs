@@ -7,6 +7,7 @@
 mod error;
 mod job_adapter;
 mod simulator;
+mod workflow;
 
 /// シミュレーション実行時のエラー型。
 pub use error::SimulationError;
@@ -16,6 +17,8 @@ pub use job_adapter::CamJobExecutorAdapter;
 pub use simulator::{
     CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
 };
+/// CAM工程向けワークフロー制約ファサード。
+pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};
 
 /// 旧参照名との互換公開（段階移行用）。
 pub mod cutting_simulator {

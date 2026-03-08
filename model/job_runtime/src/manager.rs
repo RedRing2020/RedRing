@@ -3,7 +3,10 @@ use std::time::SystemTime;
 
 use crate::events::JobEvent;
 use crate::executor::JobExecutor;
-use crate::types::{JobError, JobGroupSummary, JobId, JobRecord, JobRelation, JobSpec, JobStatus};
+use crate::types::{
+    JobError, JobGroupSummary, JobId, JobOutputRecord, JobOutputValidity, JobRecord, JobRelation,
+    JobSpec, JobStatus,
+};
 
 #[derive(Debug, Default)]
 pub struct JobManager {
@@ -49,8 +52,7 @@ impl JobManager {
             attempts: 0,
             created_at: now,
             updated_at: now,
-            result_ref: None,
-            log_ref: None,
+            output_history: Vec::new(),
             last_error: None,
         };
 
@@ -68,6 +70,22 @@ impl JobManager {
     /// ジョブ情報を取得
     pub fn get(&self, id: JobId) -> Result<&JobRecord, JobError> {
         self.jobs.get(&id).ok_or(JobError::JobNotFound(id))
+    }
+
+    /// 現在有効な成果物参照を取得
+    pub fn active_result_ref(&self, id: JobId) -> Result<Option<&str>, JobError> {
+        let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
+        Ok(record
+            .output_history
+            .iter()
+            .find(|o| o.validity == JobOutputValidity::Active)
+            .map(|o| o.result_ref.as_str()))
+    }
+
+    /// 成果物履歴を新しい順で取得
+    pub fn output_history(&self, id: JobId) -> Result<Vec<&JobOutputRecord>, JobError> {
+        let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
+        Ok(record.output_history.iter().rev().collect())
     }
 
     /// ジョブ一覧をID順で取得
@@ -108,6 +126,7 @@ impl JobManager {
 
         let mut queued = 0usize;
         let mut running = 0usize;
+        let mut needs_recompute = 0usize;
         let mut succeeded = 0usize;
         let mut failed = 0usize;
         let mut canceled = 0usize;
@@ -116,6 +135,7 @@ impl JobManager {
             match record.status {
                 JobStatus::Queued => queued += 1,
                 JobStatus::Running => running += 1,
+                JobStatus::NeedsRecompute => needs_recompute += 1,
                 JobStatus::Succeeded => succeeded += 1,
                 JobStatus::Failed => failed += 1,
                 JobStatus::Canceled => canceled += 1,
@@ -127,6 +147,8 @@ impl JobManager {
             JobStatus::Failed
         } else if running > 0 {
             JobStatus::Running
+        } else if needs_recompute > 0 {
+            JobStatus::NeedsRecompute
         } else if queued > 0 {
             JobStatus::Queued
         } else if canceled == total {
@@ -169,15 +191,34 @@ impl JobManager {
         log_ref: Option<String>,
     ) -> Result<(), JobError> {
         self.transition(id, JobStatus::Succeeded)?;
-        let record = self.jobs.get_mut(&id).ok_or(JobError::JobNotFound(id))?;
-        record.result_ref = result_ref.clone();
-        record.log_ref = log_ref.clone();
+
+        if let Some(ref result_ref_value) = result_ref {
+            self.invalidate_active_output(id, JobOutputValidity::Superseded);
+
+            if let Some(record) = self.jobs.get_mut(&id) {
+                record.output_history.push(JobOutputRecord {
+                    result_ref: result_ref_value.clone(),
+                    log_ref: log_ref.clone(),
+                    produced_at: SystemTime::now(),
+                    validity: JobOutputValidity::Active,
+                });
+            }
+        }
+
         self.event_queue.push(JobEvent::Completed {
             job_id: id,
             status: JobStatus::Succeeded,
-            result_ref,
-            log_ref,
+            result_ref: result_ref.clone(),
+            log_ref: log_ref.clone(),
         });
+
+        self.supersede_parent_output_on_child_success(id);
+
+        let is_rerun = self.jobs.get(&id).map(|r| r.attempts > 0).unwrap_or(false);
+        if is_rerun {
+            self.mark_descendants_needs_recompute(id);
+        }
+
         self.emit_group_progress_if_needed(id);
         Ok(())
     }
@@ -192,7 +233,6 @@ impl JobManager {
         self.transition(id, JobStatus::Failed)?;
         let record = self.jobs.get_mut(&id).ok_or(JobError::JobNotFound(id))?;
         record.last_error = Some(error);
-        record.log_ref = log_ref.clone();
         self.event_queue.push(JobEvent::Completed {
             job_id: id,
             status: JobStatus::Failed,
@@ -235,6 +275,30 @@ impl JobManager {
         Ok(())
     }
 
+    /// 終端状態ジョブを再実行待ちへ戻す
+    pub fn rerun(&mut self, id: JobId) -> Result<(), JobError> {
+        let record = self.jobs.get_mut(&id).ok_or(JobError::JobNotFound(id))?;
+
+        if !record.status.is_terminal() && record.status != JobStatus::NeedsRecompute {
+            return Err(JobError::RerunNotAllowed(record.status));
+        }
+
+        let from = record.status;
+        record.status = JobStatus::Queued;
+        record.attempts += 1;
+        record.updated_at = SystemTime::now();
+        record.last_error = None;
+
+        self.event_queue.push(JobEvent::StatusChanged {
+            job_id: id,
+            from,
+            to: JobStatus::Queued,
+        });
+
+        self.emit_group_progress_if_needed(id);
+        Ok(())
+    }
+
     /// 進捗更新イベントを追加
     pub fn emit_progress(&mut self, id: JobId, progress: f32, message: Option<String>) {
         self.event_queue.push(JobEvent::ProgressUpdated {
@@ -263,6 +327,82 @@ impl JobManager {
                     total: summary.total,
                 });
             }
+        }
+    }
+
+    fn invalidate_active_output(&mut self, id: JobId, validity: JobOutputValidity) {
+        let mut changed_results = Vec::new();
+
+        if let Some(record) = self.jobs.get_mut(&id) {
+            for output in &mut record.output_history {
+                if output.validity == JobOutputValidity::Active {
+                    output.validity = validity;
+                    changed_results.push(output.result_ref.clone());
+                }
+            }
+        }
+
+        for result_ref in changed_results {
+            self.event_queue.push(JobEvent::OutputValidityChanged {
+                job_id: id,
+                result_ref,
+                validity,
+            });
+        }
+    }
+
+    fn supersede_parent_output_on_child_success(&mut self, id: JobId) {
+        let parent_id = self.jobs.get(&id).and_then(|r| r.parent_job_id);
+        if let Some(parent_id) = parent_id {
+            self.invalidate_active_output(parent_id, JobOutputValidity::Superseded);
+        }
+    }
+
+    fn collect_descendants(&self, root: JobId) -> Vec<JobId> {
+        let mut descendants = Vec::new();
+        let mut stack = vec![root];
+
+        while let Some(current) = stack.pop() {
+            for child in self
+                .jobs
+                .values()
+                .filter(|r| r.parent_job_id == Some(current))
+                .map(|r| r.id)
+            {
+                descendants.push(child);
+                stack.push(child);
+            }
+        }
+
+        descendants
+    }
+
+    fn mark_descendants_needs_recompute(&mut self, root: JobId) {
+        let descendants = self.collect_descendants(root);
+
+        for descendant_id in descendants {
+            self.invalidate_active_output(
+                descendant_id,
+                JobOutputValidity::InvalidatedByDependency,
+            );
+
+            let mut should_emit_status = false;
+            if let Some(record) = self.jobs.get_mut(&descendant_id) {
+                if record.status != JobStatus::NeedsRecompute {
+                    record.status = JobStatus::NeedsRecompute;
+                    record.updated_at = SystemTime::now();
+                    should_emit_status = true;
+                }
+            }
+
+            if should_emit_status {
+                self.event_queue.push(JobEvent::MarkedNeedsRecompute {
+                    job_id: descendant_id,
+                    by_job_id: root,
+                });
+            }
+
+            self.emit_group_progress_if_needed(descendant_id);
         }
     }
 
@@ -304,10 +444,12 @@ impl JobManager {
                 execution.log_ref,
             ),
             JobStatus::Canceled => self.cancel(id),
-            JobStatus::Queued | JobStatus::Running => Err(JobError::InvalidTransition {
-                from: JobStatus::Running,
-                to: execution.status,
-            }),
+            JobStatus::Queued | JobStatus::Running | JobStatus::NeedsRecompute => {
+                Err(JobError::InvalidTransition {
+                    from: JobStatus::Running,
+                    to: execution.status,
+                })
+            }
         }
     }
 
@@ -326,7 +468,9 @@ impl JobManager {
         let valid = matches!(
             (record.status, to),
             (JobStatus::Queued, JobStatus::Running)
+                | (JobStatus::NeedsRecompute, JobStatus::Running)
                 | (JobStatus::Queued, JobStatus::Canceled)
+                | (JobStatus::NeedsRecompute, JobStatus::Canceled)
                 | (JobStatus::Running, JobStatus::Succeeded)
                 | (JobStatus::Running, JobStatus::Failed)
                 | (JobStatus::Running, JobStatus::Canceled)
@@ -364,7 +508,7 @@ mod tests {
 
     fn sample_spec() -> JobSpec {
         JobSpec {
-            job_type: JobType::CamProcessBatch,
+            job_type: JobType::CamProcess,
             input_ref: "input://sample".to_string(),
             timeout_secs: 60,
             retry_policy: RetryPolicy {
@@ -376,7 +520,7 @@ mod tests {
 
     fn simulation_spec() -> JobSpec {
         JobSpec {
-            job_type: JobType::CuttingSimulationBatch,
+            job_type: JobType::CuttingSimulation,
             input_ref: "input://sim".to_string(),
             timeout_secs: 60,
             retry_policy: RetryPolicy {
@@ -394,8 +538,8 @@ mod tests {
     impl JobExecutor for StubExecutor {
         fn execute(&self, job: &JobRecord) -> JobExecutionResult {
             let result_ref = match job.spec.job_type {
-                JobType::CamProcessBatch => Some("result://cam".to_string()),
-                JobType::CuttingSimulationBatch => Some("result://sim".to_string()),
+                JobType::CamProcess => Some("result://cam".to_string()),
+                JobType::CuttingSimulation => Some("result://sim".to_string()),
             };
 
             if self.succeed {
@@ -464,8 +608,14 @@ mod tests {
         let sim = manager.get(sim_id).unwrap();
         assert_eq!(cam.status, JobStatus::Succeeded);
         assert_eq!(sim.status, JobStatus::Succeeded);
-        assert_eq!(cam.result_ref.as_deref(), Some("result://cam"));
-        assert_eq!(sim.result_ref.as_deref(), Some("result://sim"));
+        assert_eq!(
+            manager.active_result_ref(cam_id).unwrap(),
+            Some("result://cam")
+        );
+        assert_eq!(
+            manager.active_result_ref(sim_id).unwrap(),
+            Some("result://sim")
+        );
     }
 
     #[test]
@@ -637,5 +787,84 @@ mod tests {
                 } if group_id == "g3" && *status == JobStatus::Succeeded && *total == 1
             )
         }));
+    }
+
+    #[test]
+    fn child_success_supersedes_parent_active_output() {
+        let mut manager = JobManager::new();
+        let parent = manager.submit(sample_spec());
+        let child = manager
+            .submit_with_relation(
+                simulation_spec(),
+                JobRelation {
+                    parent_job_id: Some(parent),
+                    group_id: None,
+                },
+            )
+            .unwrap();
+
+        manager.start(parent).unwrap();
+        manager
+            .mark_succeeded(parent, Some("result://parent/v1".to_string()), None)
+            .unwrap();
+        assert_eq!(
+            manager.active_result_ref(parent).unwrap(),
+            Some("result://parent/v1")
+        );
+
+        manager.start(child).unwrap();
+        manager
+            .mark_succeeded(child, Some("result://child/v1".to_string()), None)
+            .unwrap();
+
+        assert_eq!(manager.active_result_ref(parent).unwrap(), None);
+        let parent_history = manager.output_history(parent).unwrap();
+        assert_eq!(parent_history.len(), 1);
+        assert_eq!(parent_history[0].validity, JobOutputValidity::Superseded);
+    }
+
+    #[test]
+    fn rerun_success_marks_descendants_needs_recompute() {
+        let mut manager = JobManager::new();
+        let root = manager.submit(sample_spec());
+        let child = manager
+            .submit_with_relation(
+                simulation_spec(),
+                JobRelation {
+                    parent_job_id: Some(root),
+                    group_id: None,
+                },
+            )
+            .unwrap();
+
+        manager.start(root).unwrap();
+        manager
+            .mark_succeeded(root, Some("result://root/v1".to_string()), None)
+            .unwrap();
+
+        manager.start(child).unwrap();
+        manager
+            .mark_succeeded(child, Some("result://child/v1".to_string()), None)
+            .unwrap();
+        assert_eq!(
+            manager.active_result_ref(child).unwrap(),
+            Some("result://child/v1")
+        );
+
+        manager.rerun(root).unwrap();
+        manager.start(root).unwrap();
+        manager
+            .mark_succeeded(root, Some("result://root/v2".to_string()), None)
+            .unwrap();
+
+        assert_eq!(manager.status(child).unwrap(), JobStatus::NeedsRecompute);
+        assert_eq!(manager.active_result_ref(child).unwrap(), None);
+
+        let child_history = manager.output_history(child).unwrap();
+        assert_eq!(child_history.len(), 1);
+        assert_eq!(
+            child_history[0].validity,
+            JobOutputValidity::InvalidatedByDependency
+        );
     }
 }

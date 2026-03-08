@@ -11,6 +11,6 @@ pub use events::JobEvent;
 pub use executor::{JobExecutionResult, JobExecutor};
 pub use manager::JobManager;
 pub use types::{
-    JobError, JobGroupSummary, JobId, JobRecord, JobRelation, JobSpec, JobStatus, JobType,
-    RetryPolicy,
+    JobError, JobGroupSummary, JobId, JobOutputRecord, JobOutputValidity, JobRecord, JobRelation,
+    JobSpec, JobStatus, JobType, RetryPolicy,
 };

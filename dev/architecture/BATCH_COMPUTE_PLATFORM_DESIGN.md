@@ -97,11 +97,11 @@ Observability
 
 ```text
 JobType:
-- CamProcessBatch
-- CuttingSimulationBatch
+- CamProcess
+- CuttingSimulation
 
 Option JobType:
-- CaeSpringbackBatch (future-ready)
+- CaeSpringback (future-ready)
 
 必須メタデータ:
 - job_id, tenant_id, project_id
@@ -254,7 +254,7 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 ### 14.5 初期接続実装方針（スタブ）
 
 - #298 の初期接続は `model/cam_sim` に `JobExecutor` アダプタを実装する
-- アダプタは `JobType::CamProcessBatch` / `JobType::CuttingSimulationBatch` の2系統を受け付ける
+- アダプタは `JobType::CamProcess` / `JobType::CuttingSimulation` の2系統を受け付ける
 - 初期段階では実計算を呼ばず、`InputRef` を検証して `ResultRef` を返すスタブ動作とする
 - タイムアウト/リトライ/キャンセルは `job_runtime` 側の実行制御で検証する
 - 実計算への差し替えは後続Issueで行い、同じ契約を維持したまま移行する
@@ -265,7 +265,41 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 取得APIとして `list_by_parent` / `list_by_group` を追加する
 - グループ単位の集約状態と進捗率を `JobGroupSummary` で提供する
 - グループ進捗更新を `GroupProgressUpdated` イベントで通知する
-- 既存API互換のため `submit` は維持し、関連付き投入は拡張APIで提供する
+- 互換性より基盤整理を優先し、必要に応じて破壊的変更を許容する
+
+### 14.7 成果物有効性と再計算伝播（#311追加）
+
+- `JobRecord` は単一 `result_ref` ではなく、成果物履歴 (`output_history`) を保持する
+- 各成果物には有効状態を持たせ、`Active` / `Superseded` / `InvalidatedByDependency` を識別する
+- 参照APIは分離し、現在有効成果物取得 (`active_result_ref`) と履歴取得 (`output_history`) を明示的に使い分ける
+- 子ジョブ成功時は親ジョブの有効成果物を `Superseded` に更新する
+- 親ジョブ再実行で新成果物が確定した場合、子孫ジョブは `NeedsRecompute` へ遷移し、既存成果物を `InvalidatedByDependency` とする
+
+### 14.8 ワークフロー制約の追加検討（3点目）
+
+- CAM工程における `CuttingSimulation` は 1 工程につき 1 件のみ許可する
+- `CuttingSimulation` は工程の末尾にのみ配置可能とする（後続子ジョブを持たない）
+- 親なし `CuttingSimulation` は禁止とし、`CamProcess` または許可された中間工程の子としてのみ投入可能とする
+- 上記の業務制約は `cam_sim` 側で検証し、`job_runtime` は汎用的な関係管理・状態遷移・再計算伝播を担当する
+
+現時点の許可パターン:
+
+- `CamProcess -> CuttingSimulation` は許可
+- `NcImport -> CuttingSimulation` は将来許可予定（`NcImport` 未実装のため現時点では未適用）
+- `CuttingSimulation` の親が上記以外になる投入は拒否
+- `CuttingSimulation` 自身を親にする投入は拒否（末尾制約）
+
+実装方針（段階適用）:
+
+- Phase A（現行）: `CamProcess -> CuttingSimulation` のみを `cam_sim` 側ファサードで強制
+- Phase B（NCimport実装後）: `NcImport -> CuttingSimulation` を同ファサードの許可テーブルへ追加
+
+受け入れ観点（3点目）:
+
+- 同一 CAM 工程に対して 2 件目の `CuttingSimulation` 投入は拒否される
+- `CuttingSimulation` の子ジョブ追加（末尾違反）は拒否される
+- 親なし `CuttingSimulation` 投入は拒否される
+- `NcImport` 未実装期間は `NcImport -> CuttingSimulation` を受け付けない
 
 ---
 
@@ -421,7 +455,7 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 最小ジョブ入力:
 
 ```text
-JobType: CamProcessBatch | CuttingSimulationBatch
+JobType: CamProcess | CuttingSimulation
 ImageRef: ghcr.io/redring2020/redring-batch-runner@sha256:...
 InputRef: object storage path or immutable artifact id
 OutputRef: destination path
