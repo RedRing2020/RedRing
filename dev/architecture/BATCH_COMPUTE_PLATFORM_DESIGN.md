@@ -329,7 +329,7 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 
 ### 14.10 Job管理ドメイン抽象化の段階移行（#315 Phase 0）
 
-本節は、現行の動作を維持しながら責務境界を再整理するための設計固定である。
+本節は、破壊的変更を許可したうえで責務境界を再整理するための設計固定である。
 
 現状課題:
 
@@ -343,13 +343,23 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - `cam_sim`: 計算接続アダプタ
 - `viewmodel`: 表示用DTO変換と文言解決
 
-段階移行計画（互換維持）:
+段階移行計画（破壊的変更許可）:
 
 - Phase 0: 設計固定（本節）
-- Phase 1: `job_domain` 最小導入 + 互換レイヤ
-- Phase 2: 投入制約を `cam_sim` から `job_domain` へ移設
-- Phase 3: bridge を `cam_sim` から境界層へ再配置
-- Phase 4: 互換レイヤ削除と依存ルール最終固定
+- Phase 1: `job_domain` 最小導入（互換レイヤは作らない）
+  - `cam_sim::workflow` / `cam_sim::job_view_bridge` を新設計へ置換する前提で進める
+- Phase 2: 投入制約とユースケースを `job_domain` へ移設
+  - `cam_sim` は計算接続アダプタ責務のみに縮退する
+- Phase 3: 境界DTOとメッセージ解決責務を最終配置へ再編
+  - `viewmodel` は表示変換に集中し、ドメイン投入制約を持たない
+- Phase 4: 旧経路の削除と依存ルール最終固定
+  - 旧API/旧bridge/暫定コードを削除し、アーキテクチャチェックを最終形へ更新
+
+優先順（冗長化を先に潰す）:
+
+1. `cam_sim` の責務集中解消（workflow移設）
+2. bridge再配置（`cam_sim` から切り離す）
+3. ViewModel文言基盤の汎用化（#314 と連携）
 
 Phaseごとの必須ゲート:
 
@@ -357,6 +367,11 @@ Phaseごとの必須ゲート:
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 - `cargo test --workspace`
 - アーキテクチャ依存チェックの通過
+
+運用ルール:
+
+- 各Phaseは小さなPRに分割してレビューする
+- 互換性維持より責務分離を優先し、不要コードは早期に削除する
 
 ---
 
