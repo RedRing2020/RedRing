@@ -327,6 +327,37 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 成果物参照は `Option<ArtifactRefDto>` で受け渡される
 - 失敗表示は `JobError` 直出しではなく、文言キー解決経由になる
 
+### 14.10 Job管理ドメイン抽象化の段階移行（#315 Phase 0）
+
+本節は、現行の動作を維持しながら責務境界を再整理するための設計固定である。
+
+現状課題:
+
+- 依存境界維持のため、`cam_sim` に bridge/投入制約が一時的に集約されている
+- この状態で機能追加を続けると、`cam_sim` の責務肥大化と境界劣化が進みやすい
+
+目標責務:
+
+- `job_runtime`: 実行基盤（状態遷移/イベント/再試行/履歴）
+- `job_domain`（新規想定）: 投入ポリシー/親子制約/ユースケース/境界DTO
+- `cam_sim`: 計算接続アダプタ
+- `viewmodel`: 表示用DTO変換と文言解決
+
+段階移行計画（互換維持）:
+
+- Phase 0: 設計固定（本節）
+- Phase 1: `job_domain` 最小導入 + 互換レイヤ
+- Phase 2: 投入制約を `cam_sim` から `job_domain` へ移設
+- Phase 3: bridge を `cam_sim` から境界層へ再配置
+- Phase 4: 互換レイヤ削除と依存ルール最終固定
+
+Phaseごとの必須ゲート:
+
+- `cargo check --workspace`
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+- `cargo test --workspace`
+- アーキテクチャ依存チェックの通過
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）
