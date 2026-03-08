@@ -33,10 +33,10 @@ impl JobManager {
         spec: JobSpec,
         relation: JobRelation,
     ) -> Result<JobId, JobError> {
-        if let Some(parent_id) = relation.parent_job_id {
-            if !self.jobs.contains_key(&parent_id) {
-                return Err(JobError::ParentJobNotFound(parent_id));
-            }
+        if let Some(parent_id) = relation.parent_job_id
+            && !self.jobs.contains_key(&parent_id)
+        {
+            return Err(JobError::ParentJobNotFound(parent_id));
         }
 
         self.next_id += 1;
@@ -318,15 +318,15 @@ impl JobManager {
 
     fn emit_group_progress_if_needed(&mut self, id: JobId) {
         let group_id = self.jobs.get(&id).and_then(|r| r.group_id.clone());
-        if let Some(group_id) = group_id {
-            if let Some(summary) = self.group_summary(&group_id) {
-                self.event_queue.push(JobEvent::GroupProgressUpdated {
-                    group_id,
-                    status: summary.status,
-                    progress: summary.progress,
-                    total: summary.total,
-                });
-            }
+        if let Some(group_id) = group_id
+            && let Some(summary) = self.group_summary(&group_id)
+        {
+            self.event_queue.push(JobEvent::GroupProgressUpdated {
+                group_id,
+                status: summary.status,
+                progress: summary.progress,
+                total: summary.total,
+            });
         }
     }
 
@@ -387,12 +387,12 @@ impl JobManager {
             );
 
             let mut should_emit_status = false;
-            if let Some(record) = self.jobs.get_mut(&descendant_id) {
-                if record.status != JobStatus::NeedsRecompute {
-                    record.status = JobStatus::NeedsRecompute;
-                    record.updated_at = SystemTime::now();
-                    should_emit_status = true;
-                }
+            if let Some(record) = self.jobs.get_mut(&descendant_id)
+                && record.status != JobStatus::NeedsRecompute
+            {
+                record.status = JobStatus::NeedsRecompute;
+                record.updated_at = SystemTime::now();
+                should_emit_status = true;
             }
 
             if should_emit_status {
