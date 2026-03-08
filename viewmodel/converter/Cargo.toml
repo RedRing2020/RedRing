@@ -14,7 +14,6 @@ geo_io = { path = "../../model/geo_io" }
 cam_core = { path = "../../model/cam_core" }
 cam_entity = { path = "../../model/cam_entity" }
 cam_sim = { path = "../../model/cam_sim" }
-job_runtime = { path = "../../model/job_runtime" }
 analysis = { path = "../../foundation/analysis" }
 tracing = "0.1"
 thiserror = "2.0"

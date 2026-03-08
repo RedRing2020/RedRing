@@ -6,6 +6,7 @@
 
 mod error;
 mod job_adapter;
+mod job_view_bridge;
 mod simulator;
 mod workflow;
 
@@ -13,6 +14,10 @@ mod workflow;
 pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
+pub use job_view_bridge::{
+    CamJobEvent, CamJobOutputRecord, CamJobOutputValidity, CamJobRecord, CamJobSpec, CamJobStatus,
+    CamJobType,
+};
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
     CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
