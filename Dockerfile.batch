@@ -1,0 +1,19 @@
+FROM debian:bookworm-slim
+
+# Runtime-only minimal image for batch execution smoke tests.
+RUN groupadd -g 10001 redring \
+    && useradd -u 10001 -g 10001 -m -s /usr/sbin/nologin redring \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends bash ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+
+COPY scripts/batch_runner_stub.sh /usr/local/bin/redring-batch-runner
+RUN chmod 0555 /usr/local/bin/redring-batch-runner \
+    && mkdir -p /work/input /work/output /work/logs \
+    && chown -R 10001:10001 /work
+
+USER 10001:10001
+
+ENTRYPOINT ["/usr/local/bin/redring-batch-runner"]
