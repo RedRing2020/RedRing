@@ -130,10 +130,11 @@ git push -u origin feature/issue-123-add-sphere-primitive
 
 ### 0. PR 作成前の手順
 
-- PR 作成前に必ず `cargo fmt --all` を実行（変更を整形してからPR作成）
+- PR 作成前に必ず preflight チェックを実行
+- PR作成後に追加コミットを push する場合も、push 前に同じ preflight を再実行
 
 ```bash
-cargo fmt --all
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
 ```
 
 ### 1. GitHub CLI を使用した PR 作成

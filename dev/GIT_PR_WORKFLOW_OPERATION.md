@@ -25,7 +25,11 @@
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace`
 
-5. PRマージ後の後処理を固定
+5. PR作成後の追いpush前にも同じ品質チェックを再実行
+- 追加コミットを push する前に、必ず preflight を再実行する
+- ルール対象: 「PR作成後の修正コミット」「レビュー指摘対応コミット」「fmt/clippy修正コミット」
+
+6. PRマージ後の後処理を固定
 - `git checkout develop`
 - `git pull --ff-only origin develop`
 - `git branch -d <feature-branch>`
@@ -39,6 +43,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight
 
 # 時短チェック（テスト省略）
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1 -SkipTests
+
+# PR作成後の追いpush前チェック（必須）
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight.ps1
 ```
 
 ## 運用メモ
@@ -46,3 +53,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight
 - `git pull` は原則 `--ff-only` を使う
 - 競合発生時は安易に続行せず、どちらを採用するか方針を先に決める
 - CIで `fmt` が落ちた場合は `cargo fmt --all` 実行後に再チェックする
+- PR作成後の追加コミットでも、push前に `check_pr_preflight.ps1` を再実行する
