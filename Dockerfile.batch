@@ -1,11 +1,8 @@
-FROM debian:bookworm-slim
+FROM alpine:3.20
 
 # Runtime-only minimal image for batch execution smoke tests.
-RUN groupadd -g 10001 redring \
-    && useradd -u 10001 -g 10001 -m -s /usr/sbin/nologin redring \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends bash ca-certificates tzdata \
-    && rm -rf /var/lib/apt/lists/*
+RUN addgroup -S -g 10001 redring \
+    && adduser -S -D -u 10001 -G redring -h /home/redring -s /sbin/nologin redring
 
 WORKDIR /work
 

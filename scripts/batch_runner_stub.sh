@@ -1,12 +1,12 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 JOB_TYPE=""
 INPUT_PATH=""
 OUTPUT_DIR="/work/output"
 LOG_DIR="/work/logs"
 
-while [[ $# -gt 0 ]]; do
+while [ "$#" -gt 0 ]; do
   case "$1" in
     --job-type)
       JOB_TYPE="$2"
@@ -31,22 +31,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$JOB_TYPE" ]]; then
+if [ -z "$JOB_TYPE" ]; then
   echo "--job-type is required (cam|sim)" >&2
   exit 2
 fi
 
-if [[ -z "$INPUT_PATH" ]]; then
+if [ -z "$INPUT_PATH" ]; then
   echo "--input is required" >&2
   exit 2
 fi
 
-if [[ "$JOB_TYPE" != "cam" && "$JOB_TYPE" != "sim" ]]; then
+if [ "$JOB_TYPE" != "cam" ] && [ "$JOB_TYPE" != "sim" ]; then
   echo "Unsupported --job-type: $JOB_TYPE" >&2
   exit 2
 fi
 
-if [[ ! -f "$INPUT_PATH" ]]; then
+if [ ! -f "$INPUT_PATH" ]; then
   echo "Input not found: $INPUT_PATH" >&2
   exit 3
 fi
