@@ -29,8 +29,8 @@ $ARCHITECTURE_RULES = @{
         # Model: cam_*
         cam_core       = @("analysis", "geo_foundation", "geo_primitives", "geo_algorithms", "cam_entity") # cam_core -> cam_entity: OK
         cam_entity     = @("cam_core", "geo_entity")
-        cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_manager_core")
-        job_manager_core = @("analysis")
+        cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime")
+        job_runtime = @("analysis")
 
         # ViewModel
         converter      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "analysis")
@@ -44,20 +44,20 @@ $ARCHITECTURE_RULES = @{
 
     ForbiddenDependencies = @{
         # geo_* -> cam_* is forbidden
-        geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
-        geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
-        geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core") # geo_core -> cam_entity: NG
-        geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
-        geo_algorithms = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
-        geo_nurbs      = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
-        geo_io         = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
-        geo_entity     = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
+        geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime") # geo_core -> cam_entity: NG
+        geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_algorithms = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_nurbs      = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_io         = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_entity     = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
 
         # cam_*
         cam_core       = @("converter", "graphics", "render", "stage", "app", "geo_entity", "cam_sim") # cam_core -> geo_entity: NG
         cam_entity     = @("converter", "graphics", "render", "stage", "app", "cam_sim")
         cam_sim        = @("converter", "graphics", "render", "stage", "app", "geo_entity", "geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "cam_entity")
-        job_manager_core = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
+        job_runtime = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
 
         # ViewModel -> View forbidden
         converter      = @("render", "stage", "app")
@@ -69,7 +69,7 @@ $ARCHITECTURE_RULES = @{
         app            = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim")
 
         # analysis isolation
-        analysis       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_manager_core", "converter", "graphics", "render", "stage", "app")
+        analysis       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
     }
 
     NamingRules = @{
@@ -125,7 +125,7 @@ function Get-WorkspaceCrates {
         cam_core       = "model/cam_core"
         cam_entity     = "model/cam_entity"
         cam_sim        = "model/cam_sim"
-        job_manager_core = "model/job_manager_core"
+        job_runtime = "model/job_runtime"
         converter      = "viewmodel/converter"
         graphics       = "viewmodel/graphics"
         render         = "view/render"
@@ -201,7 +201,7 @@ function Test-ArchitectureDependencies {
     Write-Info "3. Layer Dependency Summary"
     $layers = @{
         Analysis  = @("analysis")
-        Model     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_manager_core")
+        Model     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime")
         ViewModel = @("converter", "graphics")
         View      = @("render", "stage", "app")
     }

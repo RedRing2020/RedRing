@@ -12,4 +12,4 @@ categories.workspace = true
 analysis = { path = "../../foundation/analysis" }
 cam_core = { path = "../cam_core" }
 geo_algorithms = { path = "../geo_algorithms" }
-job_manager_core = { path = "../job_manager_core" }
+job_runtime = { path = "../job_runtime" }
