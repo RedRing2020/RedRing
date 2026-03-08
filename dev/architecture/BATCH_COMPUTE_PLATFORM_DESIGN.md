@@ -244,6 +244,21 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 進捗はイベントで通知（例: `ProgressUpdated`, `ArtifactReady`, `Completed`）
 - モジュール境界として、実行制御と計算ロジックを同一クレートに混在させない
 
+### 14.4 クレート配置方針（#298）
+
+- 共通実行制御は `model/job_manager_core` に配置する
+- `job_manager_core` は CAD/CAM/CAE の計算実装に依存しない
+- CAM/切削の実行接続は `cam_*` 側アダプタで担保する
+- 将来のNC Post/CAEジョブも同一契約へ接続できるよう、`JobType + InputRef -> ResultRef` を維持する
+
+### 14.5 初期接続実装方針（スタブ）
+
+- #298 の初期接続は `model/cam_sim` に `JobExecutor` アダプタを実装する
+- アダプタは `JobType::CamProcessBatch` / `JobType::CuttingSimulationBatch` の2系統を受け付ける
+- 初期段階では実計算を呼ばず、`InputRef` を検証して `ResultRef` を返すスタブ動作とする
+- タイムアウト/リトライ/キャンセルは `job_manager_core` 側の実行制御で検証する
+- 実計算への差し替えは後続Issueで行い、同じ契約を維持したまま移行する
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）

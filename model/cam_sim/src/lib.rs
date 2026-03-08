@@ -5,10 +5,13 @@
 //! Phase 1a では 3軸固定・フラットエンドミル限定の最小実装を提供します。
 
 mod error;
+mod job_adapter;
 mod simulator;
 
 /// シミュレーション実行時のエラー型。
 pub use error::SimulationError;
+/// Job Manager接続用アダプタ。
+pub use job_adapter::CamJobExecutorAdapter;
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
     CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,

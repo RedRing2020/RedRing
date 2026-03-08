@@ -1,8 +1,9 @@
 use cam_core::{ContourLevelPath, CuttingDirection, SegmentType, Tool, ToolPath};
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
+use job_manager_core::{JobManager, JobSpec, JobStatus, JobType, RetryPolicy};
 
-use crate::{CuttingSimulator, SimulationError, SnapshotInterval};
+use crate::{CamJobExecutorAdapter, CuttingSimulator, SimulationError, SnapshotInterval};
 
 #[test]
 fn test_simulate_line_segments_removes_material() {
@@ -165,4 +166,59 @@ fn test_snapshot_exports_f64_maps_snapshot_fields() {
     assert_eq!(first.segment_index, 0);
     assert!((0.0..=1.0).contains(&first.segment_t));
     assert!(first.remaining_volume_mm3.is_finite());
+}
+
+#[test]
+fn test_job_adapter_runs_cam_and_sim_jobs() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let cam_id = manager.submit(JobSpec {
+        job_type: JobType::CamProcessBatch,
+        input_ref: "input://cam/sample".to_string(),
+        timeout_secs: 30,
+        retry_policy: RetryPolicy::default(),
+    });
+
+    let sim_id = manager.submit(JobSpec {
+        job_type: JobType::CuttingSimulationBatch,
+        input_ref: "input://sim/sample".to_string(),
+        timeout_secs: 30,
+        retry_policy: RetryPolicy::default(),
+    });
+
+    manager.execute_with(cam_id, &adapter).unwrap();
+    manager.execute_with(sim_id, &adapter).unwrap();
+
+    let cam = manager.get(cam_id).unwrap();
+    let sim = manager.get(sim_id).unwrap();
+
+    assert_eq!(cam.status, JobStatus::Succeeded);
+    assert_eq!(sim.status, JobStatus::Succeeded);
+    assert!(cam.result_ref.as_deref().unwrap_or_default().starts_with("result://cam/"));
+    assert!(sim.result_ref.as_deref().unwrap_or_default().starts_with("result://sim/"));
+}
+
+#[test]
+fn test_job_adapter_rejects_invalid_input_ref() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(JobSpec {
+        job_type: JobType::CuttingSimulationBatch,
+        input_ref: "input://cam/wrong".to_string(),
+        timeout_secs: 30,
+        retry_policy: RetryPolicy::default(),
+    });
+
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("invalid input_ref")
+    );
 }
