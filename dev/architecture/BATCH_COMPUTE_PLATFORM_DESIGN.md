@@ -259,6 +259,14 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - タイムアウト/リトライ/キャンセルは `job_runtime` 側の実行制御で検証する
 - 実計算への差し替えは後続Issueで行い、同じ契約を維持したまま移行する
 
+### 14.6 ジョブ階層・グループ管理拡張（#311）
+
+- `JobRecord` に `parent_job_id` と `group_id` を持たせ、ツリー/一覧の両方を扱う
+- 取得APIとして `list_by_parent` / `list_by_group` を追加する
+- グループ単位の集約状態と進捗率を `JobGroupSummary` で提供する
+- グループ進捗更新を `GroupProgressUpdated` イベントで通知する
+- 既存API互換のため `submit` は維持し、関連付き投入は拡張APIで提供する
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）

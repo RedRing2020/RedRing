@@ -3,7 +3,7 @@ use std::time::SystemTime;
 
 use crate::events::JobEvent;
 use crate::executor::JobExecutor;
-use crate::types::{JobError, JobId, JobRecord, JobSpec, JobStatus};
+use crate::types::{JobError, JobGroupSummary, JobId, JobRecord, JobRelation, JobSpec, JobStatus};
 
 #[derive(Debug, Default)]
 pub struct JobManager {
@@ -20,6 +20,22 @@ impl JobManager {
 
     /// ジョブを登録してIDを返す
     pub fn submit(&mut self, spec: JobSpec) -> JobId {
+        self.submit_with_relation(spec, JobRelation::default())
+            .expect("default relation should be valid")
+    }
+
+    /// 関連情報付きでジョブを登録してIDを返す
+    pub fn submit_with_relation(
+        &mut self,
+        spec: JobSpec,
+        relation: JobRelation,
+    ) -> Result<JobId, JobError> {
+        if let Some(parent_id) = relation.parent_job_id {
+            if !self.jobs.contains_key(&parent_id) {
+                return Err(JobError::ParentJobNotFound(parent_id));
+            }
+        }
+
         self.next_id += 1;
         let id = JobId(self.next_id);
         let now = SystemTime::now();
@@ -27,6 +43,8 @@ impl JobManager {
         let record = JobRecord {
             id,
             spec,
+            parent_job_id: relation.parent_job_id,
+            group_id: relation.group_id,
             status: JobStatus::Queued,
             attempts: 0,
             created_at: now,
@@ -37,7 +55,8 @@ impl JobManager {
         };
 
         self.jobs.insert(id, record);
-        id
+        self.emit_group_progress_if_needed(id);
+        Ok(id)
     }
 
     /// 現在状態を取得
@@ -56,6 +75,80 @@ impl JobManager {
         let mut records: Vec<&JobRecord> = self.jobs.values().collect();
         records.sort_by_key(|r| r.id.0);
         records
+    }
+
+    /// 親ジョブ配下をID順で取得
+    pub fn list_by_parent(&self, parent_job_id: JobId) -> Vec<&JobRecord> {
+        let mut records: Vec<&JobRecord> = self
+            .jobs
+            .values()
+            .filter(|r| r.parent_job_id == Some(parent_job_id))
+            .collect();
+        records.sort_by_key(|r| r.id.0);
+        records
+    }
+
+    /// グループIDで一覧をID順で取得
+    pub fn list_by_group(&self, group_id: &str) -> Vec<&JobRecord> {
+        let mut records: Vec<&JobRecord> = self
+            .jobs
+            .values()
+            .filter(|r| r.group_id.as_deref() == Some(group_id))
+            .collect();
+        records.sort_by_key(|r| r.id.0);
+        records
+    }
+
+    /// グループ集約情報を取得
+    pub fn group_summary(&self, group_id: &str) -> Option<JobGroupSummary> {
+        let records = self.list_by_group(group_id);
+        if records.is_empty() {
+            return None;
+        }
+
+        let mut queued = 0usize;
+        let mut running = 0usize;
+        let mut succeeded = 0usize;
+        let mut failed = 0usize;
+        let mut canceled = 0usize;
+
+        for record in &records {
+            match record.status {
+                JobStatus::Queued => queued += 1,
+                JobStatus::Running => running += 1,
+                JobStatus::Succeeded => succeeded += 1,
+                JobStatus::Failed => failed += 1,
+                JobStatus::Canceled => canceled += 1,
+            }
+        }
+
+        let total = records.len();
+        let status = if failed > 0 {
+            JobStatus::Failed
+        } else if running > 0 {
+            JobStatus::Running
+        } else if queued > 0 {
+            JobStatus::Queued
+        } else if canceled == total {
+            JobStatus::Canceled
+        } else {
+            JobStatus::Succeeded
+        };
+
+        let terminal = succeeded + failed + canceled;
+        let progress = terminal as f32 / total as f32;
+
+        Some(JobGroupSummary {
+            group_id: group_id.to_string(),
+            total,
+            queued,
+            running,
+            succeeded,
+            failed,
+            canceled,
+            status,
+            progress,
+        })
     }
 
     /// 待機中ジョブを実行中へ遷移
@@ -85,6 +178,7 @@ impl JobManager {
             result_ref,
             log_ref,
         });
+        self.emit_group_progress_if_needed(id);
         Ok(())
     }
 
@@ -105,6 +199,7 @@ impl JobManager {
             result_ref: None,
             log_ref,
         });
+        self.emit_group_progress_if_needed(id);
         Ok(())
     }
 
@@ -136,6 +231,7 @@ impl JobManager {
             from,
             to: JobStatus::Queued,
         });
+        self.emit_group_progress_if_needed(id);
         Ok(())
     }
 
@@ -154,6 +250,20 @@ impl JobManager {
             job_id: id,
             result_ref,
         });
+    }
+
+    fn emit_group_progress_if_needed(&mut self, id: JobId) {
+        let group_id = self.jobs.get(&id).and_then(|r| r.group_id.clone());
+        if let Some(group_id) = group_id {
+            if let Some(summary) = self.group_summary(&group_id) {
+                self.event_queue.push(JobEvent::GroupProgressUpdated {
+                    group_id,
+                    status: summary.status,
+                    progress: summary.progress,
+                    total: summary.total,
+                });
+            }
+        }
     }
 
     /// スタブ実行器でジョブを1件実行
@@ -238,6 +348,8 @@ impl JobManager {
             from,
             to,
         });
+
+        self.emit_group_progress_if_needed(id);
 
         Ok(())
     }
@@ -407,5 +519,123 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e, JobEvent::Completed { job_id, .. } if *job_id == id))
         );
+    }
+
+    #[test]
+    fn related_jobs_can_be_registered_and_listed() {
+        let mut manager = JobManager::new();
+        let parent = manager.submit(sample_spec());
+
+        let child = manager
+            .submit_with_relation(
+                simulation_spec(),
+                JobRelation {
+                    parent_job_id: Some(parent),
+                    group_id: Some("g1".to_string()),
+                },
+            )
+            .unwrap();
+
+        let by_parent = manager.list_by_parent(parent);
+        let by_group = manager.list_by_group("g1");
+
+        assert_eq!(by_parent.len(), 1);
+        assert_eq!(by_parent[0].id, child);
+        assert_eq!(by_group.len(), 1);
+        assert_eq!(by_group[0].id, child);
+    }
+
+    #[test]
+    fn submit_with_unknown_parent_fails() {
+        let mut manager = JobManager::new();
+        let result = manager.submit_with_relation(
+            sample_spec(),
+            JobRelation {
+                parent_job_id: Some(JobId(999)),
+                group_id: None,
+            },
+        );
+
+        assert!(matches!(
+            result,
+            Err(JobError::ParentJobNotFound(JobId(999)))
+        ));
+    }
+
+    #[test]
+    fn group_summary_returns_aggregate_status_and_progress() {
+        let mut manager = JobManager::new();
+        let id1 = manager
+            .submit_with_relation(
+                sample_spec(),
+                JobRelation {
+                    parent_job_id: None,
+                    group_id: Some("g2".to_string()),
+                },
+            )
+            .unwrap();
+        let id2 = manager
+            .submit_with_relation(
+                simulation_spec(),
+                JobRelation {
+                    parent_job_id: None,
+                    group_id: Some("g2".to_string()),
+                },
+            )
+            .unwrap();
+
+        manager.start(id1).unwrap();
+        manager
+            .mark_succeeded(id1, Some("result://ok".to_string()), None)
+            .unwrap();
+
+        let summary = manager.group_summary("g2").unwrap();
+        assert_eq!(summary.total, 2);
+        assert_eq!(summary.succeeded, 1);
+        assert_eq!(summary.queued, 1);
+        assert_eq!(summary.status, JobStatus::Queued);
+        assert!((summary.progress - 0.5).abs() < f32::EPSILON);
+
+        manager.start(id2).unwrap();
+        manager
+            .mark_failed(id2, "ng".to_string(), Some("log://ng".to_string()))
+            .unwrap();
+
+        let summary2 = manager.group_summary("g2").unwrap();
+        assert_eq!(summary2.failed, 1);
+        assert_eq!(summary2.status, JobStatus::Failed);
+        assert!((summary2.progress - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn group_progress_event_is_emitted() {
+        let mut manager = JobManager::new();
+        let id = manager
+            .submit_with_relation(
+                sample_spec(),
+                JobRelation {
+                    parent_job_id: None,
+                    group_id: Some("g3".to_string()),
+                },
+            )
+            .unwrap();
+
+        manager.start(id).unwrap();
+        manager
+            .mark_succeeded(id, Some("result://ok".to_string()), None)
+            .unwrap();
+
+        let events = manager.take_events();
+        assert!(events.iter().any(|e| {
+            matches!(
+                e,
+                JobEvent::GroupProgressUpdated {
+                    group_id,
+                    status,
+                    total,
+                    ..
+                } if group_id == "g3" && *status == JobStatus::Succeeded && *total == 1
+            )
+        }));
     }
 }

@@ -14,6 +14,13 @@ pub enum JobEvent {
         progress: f32,
         message: Option<String>,
     },
+    /// グループ進捗更新イベント
+    GroupProgressUpdated {
+        group_id: String,
+        status: JobStatus,
+        progress: f32,
+        total: usize,
+    },
     /// 成果物準備完了イベント
     ArtifactReady { job_id: JobId, result_ref: String },
     /// 終了イベント

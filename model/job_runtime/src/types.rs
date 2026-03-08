@@ -65,6 +65,15 @@ pub struct JobSpec {
     pub retry_policy: RetryPolicy,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// ジョブ関連情報
+pub struct JobRelation {
+    /// 親ジョブID
+    pub parent_job_id: Option<JobId>,
+    /// グループID
+    pub group_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// ジョブの実行状態
 pub struct JobRecord {
@@ -72,6 +81,10 @@ pub struct JobRecord {
     pub id: JobId,
     /// 投入時の設定
     pub spec: JobSpec,
+    /// 親ジョブID
+    pub parent_job_id: Option<JobId>,
+    /// グループID
+    pub group_id: Option<String>,
     /// 現在状態
     pub status: JobStatus,
     /// 実施済みリトライ回数
@@ -88,10 +101,35 @@ pub struct JobRecord {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+/// グループ集約情報
+pub struct JobGroupSummary {
+    /// グループID
+    pub group_id: String,
+    /// ジョブ総数
+    pub total: usize,
+    /// 待機数
+    pub queued: usize,
+    /// 実行中数
+    pub running: usize,
+    /// 成功数
+    pub succeeded: usize,
+    /// 失敗数
+    pub failed: usize,
+    /// キャンセル数
+    pub canceled: usize,
+    /// 集約状態
+    pub status: JobStatus,
+    /// 進捗率
+    pub progress: f32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JobError {
     /// 指定ジョブが存在しない
     JobNotFound(JobId),
+    /// 指定親ジョブが存在しない
+    ParentJobNotFound(JobId),
     /// 状態遷移が許可されていない
     InvalidTransition { from: JobStatus, to: JobStatus },
     /// リトライ上限超過
@@ -104,6 +142,7 @@ impl Display for JobError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::JobNotFound(id) => write!(f, "job not found: {}", id.0),
+            Self::ParentJobNotFound(id) => write!(f, "parent job not found: {}", id.0),
             Self::InvalidTransition { from, to } => {
                 write!(f, "invalid transition: {:?} -> {:?}", from, to)
             }
