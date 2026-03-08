@@ -283,6 +283,7 @@ dependencies = [
  "analysis",
  "cam_core",
  "geo_algorithms",
+ "job_domain",
  "job_runtime",
 ]
 

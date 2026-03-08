@@ -29,7 +29,7 @@ $ARCHITECTURE_RULES = @{
         # Model: cam_*
         cam_core       = @("analysis", "geo_foundation", "geo_primitives", "geo_algorithms", "cam_entity") # cam_core -> cam_entity: OK
         cam_entity     = @("cam_core", "geo_entity")
-        cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime")
+        cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
         job_runtime = @("analysis")
         job_domain = @("analysis", "job_runtime", "cam_core", "cam_entity", "cam_sim")
 

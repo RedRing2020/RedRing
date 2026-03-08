@@ -373,6 +373,13 @@ Phaseごとの必須ゲート:
 - 各Phaseは小さなPRに分割してレビューする
 - 互換性維持より責務分離を優先し、不要コードは早期に削除する
 
+Phase 2 実装方針（2026-03-08 更新）:
+
+- `job_domain` に CAM ワークフローポリシー（SIM末尾制約/親種別制約/重複SIM制約）を実装する
+- `cam_sim::workflow` は `JobDomainService<CamWorkflowPolicy>` を呼び出す薄いファサードへ変更する
+- `cam_sim` 側は `job_runtime::JobType` と `job_domain` の文字列表現を相互変換する責務のみを持つ
+- 既存の `CamWorkflowError` 契約は維持し、`DomainRuleViolation` を同等エラーへマッピングする
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）

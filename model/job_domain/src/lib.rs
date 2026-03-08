@@ -2,10 +2,12 @@
 //!
 //! `job_runtime` の実行基盤とは分離し、ユースケース/ポリシー層を定義する。
 
+pub mod cam_policy;
 pub mod policy;
 pub mod service;
 pub mod types;
 
+pub use cam_policy::{CamWorkflowPolicy, JOB_TYPE_CAM_PROCESS, JOB_TYPE_CUTTING_SIMULATION};
 pub use policy::{DomainRuleViolation, WorkflowPolicy};
 pub use service::{DomainAction, JobDomainService};
 pub use types::{JobNode, JobSubmissionRequest, WorkflowSnapshot};
