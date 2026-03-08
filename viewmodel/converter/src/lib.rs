@@ -16,7 +16,10 @@
 pub mod cam_sim_visualization_converter;
 pub mod entity_converter;
 pub mod job_converter;
+pub mod job_message_catalog;
+pub mod job_message_mapper;
 pub mod mesh_converter;
+pub mod message_catalog;
 pub mod nurbs_eval_loader;
 pub mod nurbs_view;
 pub mod octree_converter;

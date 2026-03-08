@@ -380,6 +380,13 @@ Phase 2 実装方針（2026-03-08 更新）:
 - `cam_sim` 側は `job_runtime::JobType` と `job_domain` の文字列表現を相互変換する責務のみを持つ
 - 既存の `CamWorkflowError` 契約は維持し、`DomainRuleViolation` を同等エラーへマッピングする
 
+Phase 3 / #314 実装方針（2026-03-08 更新）:
+
+- `viewmodel/converter` に `MessageCatalog` trait を導入し、`message_key + args` 文字列解決を独立モジュール化する
+- `job_converter` は DTO 変換と message key 生成に集中し、テンプレート解決ロジックを持たない
+- `JobError` 文字列の `message_key` 正規化は `job_message_mapper` へ分離する
+- `ja/en` テンプレートは `job_message_catalog` として独立管理し、将来のドメイン拡張で差し替え可能にする
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）

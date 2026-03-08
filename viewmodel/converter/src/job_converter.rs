@@ -1,5 +1,8 @@
 use job_domain::{CamJobEvent, CamJobOutputValidity, CamJobRecord, CamJobStatus, CamJobType};
 
+use crate::job_message_mapper::normalize_job_error_message;
+use crate::message_catalog::{UiMessage, UiMessageArg};
+
 /// UI表示用のジョブ状態（Modelの状態を直接公開しない境界型）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobStatusDto {
@@ -48,24 +51,6 @@ pub struct ArtifactRefDto {
     pub result_ref: String,
     pub log_ref: Option<String>,
     pub validity: ArtifactValidityDto,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UiMessageArg {
-    pub name: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UiMessage {
-    pub key: String,
-    pub args: Vec<UiMessageArg>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UiLocale {
-    Ja,
-    En,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -248,50 +233,6 @@ pub fn job_event_to_progress_dto(event: &CamJobEvent) -> Option<JobProgressDto> 
     }
 }
 
-/// 生エラーメッセージをUI向けのキー形式へ正規化する。
-/// 実表示は `resolve_ui_message` 側でロケール解決する。
-pub fn normalize_job_error_message(raw: &str) -> UiMessage {
-    let code = if raw.contains("parent job not found") {
-        "parent_job_not_found"
-    } else if raw.contains("job not found") {
-        "job_not_found"
-    } else if raw.contains("retry limit exceeded") {
-        "retry_limit_exceeded"
-    } else if raw.contains("invalid transition") {
-        "invalid_transition"
-    } else if raw.contains("already terminal") {
-        "already_terminal"
-    } else if raw.contains("rerun not allowed") {
-        "rerun_not_allowed"
-    } else if raw.contains("invalid input_ref") {
-        "invalid_input_ref"
-    } else {
-        "unknown"
-    };
-
-    UiMessage {
-        key: format!("job.error.{code}"),
-        args: vec![UiMessageArg {
-            name: "raw".to_string(),
-            value: raw.to_string(),
-        }],
-    }
-}
-
-/// `message_key + args` をロケール別テンプレートへ適用する。
-pub fn resolve_ui_message(locale: UiLocale, message: &UiMessage) -> String {
-    let template = match locale {
-        UiLocale::Ja => resolve_ja_template(&message.key),
-        UiLocale::En => resolve_en_template(&message.key),
-    };
-
-    let mut resolved = template.to_string();
-    for arg in &message.args {
-        resolved = resolved.replace(&format!("{{{}}}", arg.name), &arg.value);
-    }
-    resolved
-}
-
 fn active_artifact_dto(record: &CamJobRecord) -> Option<ArtifactRefDto> {
     record
         .output_history
@@ -322,53 +263,11 @@ fn status_key(status: CamJobStatus) -> &'static str {
     }
 }
 
-fn resolve_ja_template(key: &str) -> &'static str {
-    match key {
-        "job.status.queued" => "ジョブは待機中です",
-        "job.status.running" => "ジョブを実行中です",
-        "job.status.needs_recompute" => "依存更新により再計算が必要です（起点: {by_job_id}）",
-        "job.status.succeeded" => "ジョブは正常終了しました",
-        "job.status.failed" => "ジョブは異常終了しました",
-        "job.status.canceled" => "ジョブはキャンセルされました",
-        "job.error.job_not_found" => "対象ジョブが見つかりません",
-        "job.error.parent_job_not_found" => "親ジョブが見つかりません",
-        "job.error.retry_limit_exceeded" => "リトライ上限を超えました",
-        "job.error.invalid_transition" => "許可されていない状態遷移です",
-        "job.error.already_terminal" => "終端状態のため操作できません",
-        "job.error.rerun_not_allowed" => "この状態から再実行できません",
-        "job.error.invalid_input_ref" => "入力参照が不正です",
-        "job.progress.message" => "進捗メッセージ: {message}",
-        "job.artifact.validity_changed" => "成果物状態が更新されました: {validity}",
-        _ => "不明なメッセージです",
-    }
-}
-
-fn resolve_en_template(key: &str) -> &'static str {
-    match key {
-        "job.status.queued" => "Job is queued",
-        "job.status.running" => "Job is running",
-        "job.status.needs_recompute" => {
-            "Recompute is required due to dependency change (source: {by_job_id})"
-        }
-        "job.status.succeeded" => "Job completed successfully",
-        "job.status.failed" => "Job failed",
-        "job.status.canceled" => "Job was canceled",
-        "job.error.job_not_found" => "Target job was not found",
-        "job.error.parent_job_not_found" => "Parent job was not found",
-        "job.error.retry_limit_exceeded" => "Retry limit exceeded",
-        "job.error.invalid_transition" => "Invalid status transition",
-        "job.error.already_terminal" => "Operation is not allowed on terminal status",
-        "job.error.rerun_not_allowed" => "Rerun is not allowed from current status",
-        "job.error.invalid_input_ref" => "Invalid input reference",
-        "job.progress.message" => "Progress message: {message}",
-        "job.artifact.validity_changed" => "Artifact validity updated: {validity}",
-        _ => "Unknown message",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::job_message_catalog::resolve_job_message;
+    use crate::message_catalog::UiLocale;
 
     fn sample_record(status: CamJobStatus) -> CamJobRecord {
         CamJobRecord {
@@ -381,7 +280,7 @@ mod tests {
             group_id: Some("g1".to_string()),
             status,
             attempts: 0,
-            output_history: vec![cam_sim::CamJobOutputRecord {
+            output_history: vec![job_domain::CamJobOutputRecord {
                 result_ref: "result://cam/1".to_string(),
                 log_ref: Some("log://cam/1".to_string()),
                 produced_at: std::time::SystemTime::now(),
@@ -423,8 +322,8 @@ mod tests {
             }],
         };
 
-        let ja = resolve_ui_message(UiLocale::Ja, &message);
-        let en = resolve_ui_message(UiLocale::En, &message);
+        let ja = resolve_job_message(UiLocale::Ja, &message);
+        let en = resolve_job_message(UiLocale::En, &message);
         assert!(ja.contains("42"));
         assert!(en.contains("42"));
     }
