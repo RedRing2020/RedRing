@@ -62,7 +62,7 @@ Write-Ok "Check git status"
 Run-Or-Throw "cargo fmt check" "cargo fmt --all -- --check"
 
 if (-not $SkipClippy) {
-    Run-Or-Throw "cargo clippy" "cargo clippy --workspace --all-targets -- -D warnings"
+    Run-Or-Throw "cargo clippy" "cargo clippy --workspace --all-targets --all-features -- -D warnings"
 } else {
     Write-Warn "Skip clippy because -SkipClippy is set"
 }
