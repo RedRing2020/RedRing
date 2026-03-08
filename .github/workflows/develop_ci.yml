@@ -154,14 +154,15 @@ jobs:
         run: docker build -f Dockerfile.batch -t redring-batch-runner:ci .
 
       - name: Run Trivy scan (HIGH/CRITICAL fail)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: redring-batch-runner:ci
-          format: table
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: 1
+        run: |
+          docker pull aquasec/trivy:0.57.1
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.57.1 image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            redring-batch-runner:ci
 
   architecture-dependency-check:
     uses: ./.github/workflows/common_architecture_check.yml
