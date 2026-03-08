@@ -566,6 +566,41 @@ LogRef: structured log reference
 Digest: executed image digest
 ```
 
+### 17.6 Artifact Manifest 契約（#302）
+
+`JobType + InputRef -> ResultRef` を実運用するため、artifact本体とは別に
+`artifact_manifest.json` を共通契約として扱う。
+
+最小スキーマ（v1）:
+
+```json
+{
+  "artifact_type": "toolpath|interference|generic",
+  "format": "binary|json|custom",
+  "format_version": "v1",
+  "producer_job_id": 123,
+  "image_digest": "sha256:...",
+  "sha256": "...",
+  "size_bytes": 1024,
+  "created_at_utc": "2026-03-08T09:00:00Z"
+}
+```
+
+責務分離:
+
+- Job Manager: メタデータ契約の検証のみを行う
+  - 必須項目の欠落
+  - digest/hash/size の形式検証
+  - `ResultRef` 不在時の reject
+- Worker / Domain: artifact本体生成と `artifact_manifest.json` 作成を担う
+- ViewModel / View: `ResultRef` / `LogRef` / manifest由来メタデータの表示に専念する
+
+運用ルール:
+
+- `format_version` 不一致は reject（非互換）を基本方針とする
+- hash不一致は改ざんまたは破損として即失敗扱い
+- 将来のNC/CAE拡張時も同一manifest契約を再利用する
+
 ### 17.4 #297着手時の実施順序（推奨）
 
 1. Dockerfile作成（非root + multi-stage）
