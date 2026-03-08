@@ -283,6 +283,7 @@ dependencies = [
  "analysis",
  "cam_core",
  "geo_algorithms",
+ "job_domain",
  "job_runtime",
 ]
 
@@ -1132,6 +1133,14 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "job_domain"
+version = "0.1.0"
+dependencies = [
+ "analysis",
+ "job_runtime",
+]
 
 [[package]]
 name = "job_runtime"
@@ -2779,6 +2788,7 @@ dependencies = [
  "geo_io",
  "geo_nurbs",
  "geo_primitives",
+ "job_domain",
  "tempfile",
  "thiserror 2.0.17",
  "tracing",

@@ -327,6 +327,73 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 成果物参照は `Option<ArtifactRefDto>` で受け渡される
 - 失敗表示は `JobError` 直出しではなく、文言キー解決経由になる
 
+### 14.10 Job管理ドメイン抽象化の段階移行（#315 Phase 0）
+
+本節は、破壊的変更を許可したうえで責務境界を再整理するための設計固定である。
+
+現状課題:
+
+- 依存境界維持のため、`cam_sim` に bridge/投入制約が一時的に集約されている
+- この状態で機能追加を続けると、`cam_sim` の責務肥大化と境界劣化が進みやすい
+
+目標責務:
+
+- `job_runtime`: 実行基盤（状態遷移/イベント/再試行/履歴）
+- `job_domain`（新規想定）: 投入ポリシー/親子制約/ユースケース/境界DTO
+- `cam_sim`: 計算接続アダプタ
+- `viewmodel`: 表示用DTO変換と文言解決
+
+段階移行計画（破壊的変更許可）:
+
+- Phase 0: 設計固定（本節）
+- Phase 1: `job_domain` 最小導入（互換レイヤは作らない）
+  - `cam_sim::workflow` / `cam_sim::job_view_bridge` を新設計へ置換する前提で進める
+- Phase 2: 投入制約とユースケースを `job_domain` へ移設
+  - `cam_sim` は計算接続アダプタ責務のみに縮退する
+- Phase 3: 境界DTOとメッセージ解決責務を最終配置へ再編
+  - `viewmodel` は表示変換に集中し、ドメイン投入制約を持たない
+- Phase 4: 旧経路の削除と依存ルール最終固定
+  - 旧API/旧bridge/暫定コードを削除し、アーキテクチャチェックを最終形へ更新
+
+優先順（冗長化を先に潰す）:
+
+1. `cam_sim` の責務集中解消（workflow移設）
+2. bridge再配置（`cam_sim` から切り離す）
+3. ViewModel文言基盤の汎用化（#314 と連携）
+
+Phaseごとの必須ゲート:
+
+- `cargo check --workspace`
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+- `cargo test --workspace`
+- アーキテクチャ依存チェックの通過
+
+運用ルール:
+
+- 各Phaseは小さなPRに分割してレビューする
+- 互換性維持より責務分離を優先し、不要コードは早期に削除する
+
+Phase 2 実装方針（2026-03-08 更新）:
+
+- `job_domain` に CAM ワークフローポリシー（SIM末尾制約/親種別制約/重複SIM制約）を実装する
+- `cam_sim::workflow` は `JobDomainService<CamWorkflowPolicy>` を呼び出す薄いファサードへ変更する
+- `cam_sim` 側は `job_runtime::JobType` と `job_domain` の文字列表現を相互変換する責務のみを持つ
+- 既存の `CamWorkflowError` 契約は維持し、`DomainRuleViolation` を同等エラーへマッピングする
+
+Phase 3 / #314 実装方針（2026-03-08 更新）:
+
+- `viewmodel/converter` に `MessageCatalog` trait を導入し、`message_key + args` 文字列解決を独立モジュール化する
+- `job_converter` は DTO 変換と message key 生成に集中し、テンプレート解決ロジックを持たない
+- `JobError` 文字列の `message_key` 正規化は `job_message_mapper` へ分離する
+- `ja/en` テンプレートは `job_message_catalog` として独立管理し、将来のドメイン拡張で差し替え可能にする
+
+Phase 4 後方整理（2026-03-08 更新）:
+
+- `cam_sim` に残っていた旧互換公開を削除する
+  - `CamJob*` の再公開を廃止（境界DTOは `job_domain` を正規公開先に統一）
+  - `cam_sim::cutting_simulator` 互換モジュールを削除
+- 依存ルールは現行最終形を維持し、`converter` は `job_domain` を直接参照する
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）

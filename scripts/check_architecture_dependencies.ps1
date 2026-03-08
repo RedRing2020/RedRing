@@ -29,11 +29,12 @@ $ARCHITECTURE_RULES = @{
         # Model: cam_*
         cam_core       = @("analysis", "geo_foundation", "geo_primitives", "geo_algorithms", "cam_entity") # cam_core -> cam_entity: OK
         cam_entity     = @("cam_core", "geo_entity")
-        cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime")
+        cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
         job_runtime = @("analysis")
+        job_domain = @("analysis", "job_runtime", "cam_core", "cam_entity", "cam_sim")
 
         # ViewModel
-        converter      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "analysis")
+        converter      = @("geo_foundation", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_domain", "analysis")
         graphics       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
 
         # View
@@ -58,6 +59,7 @@ $ARCHITECTURE_RULES = @{
         cam_entity     = @("converter", "graphics", "render", "stage", "app", "cam_sim")
         cam_sim        = @("converter", "graphics", "render", "stage", "app", "geo_entity", "geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "cam_entity")
         job_runtime = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
+        job_domain = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "converter", "graphics", "render", "stage", "app")
 
         # ViewModel -> View forbidden
         converter      = @("render", "stage", "app")
@@ -126,6 +128,7 @@ function Get-WorkspaceCrates {
         cam_entity     = "model/cam_entity"
         cam_sim        = "model/cam_sim"
         job_runtime = "model/job_runtime"
+        job_domain = "model/job_domain"
         converter      = "viewmodel/converter"
         graphics       = "viewmodel/graphics"
         render         = "view/render"
@@ -201,7 +204,7 @@ function Test-ArchitectureDependencies {
     Write-Info "3. Layer Dependency Summary"
     $layers = @{
         Analysis  = @("analysis")
-        Model     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        Model     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
         ViewModel = @("converter", "graphics")
         View      = @("render", "stage", "app")
     }

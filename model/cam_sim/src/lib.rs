@@ -6,7 +6,6 @@
 
 mod error;
 mod job_adapter;
-mod job_view_bridge;
 mod simulator;
 mod workflow;
 
@@ -14,24 +13,12 @@ mod workflow;
 pub use error::SimulationError;
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
-pub use job_view_bridge::{
-    CamJobEvent, CamJobOutputRecord, CamJobOutputValidity, CamJobRecord, CamJobSpec, CamJobStatus,
-    CamJobType,
-};
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
     CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
 };
 /// CAM工程向けワークフロー制約ファサード。
 pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};
-
-/// 旧参照名との互換公開（段階移行用）。
-pub mod cutting_simulator {
-    pub use crate::{
-        CuttingSimulator, PathPosition, SimulationError, SimulationSnapshot,
-        SimulationSnapshotExport, SnapshotInterval,
-    };
-}
 
 #[cfg(test)]
 mod tests;
