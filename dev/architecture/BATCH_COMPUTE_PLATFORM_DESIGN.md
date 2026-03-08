@@ -387,6 +387,13 @@ Phase 3 / #314 実装方針（2026-03-08 更新）:
 - `JobError` 文字列の `message_key` 正規化は `job_message_mapper` へ分離する
 - `ja/en` テンプレートは `job_message_catalog` として独立管理し、将来のドメイン拡張で差し替え可能にする
 
+Phase 4 後方整理（2026-03-08 更新）:
+
+- `cam_sim` に残っていた旧互換公開を削除する
+  - `CamJob*` の再公開を廃止（境界DTOは `job_domain` を正規公開先に統一）
+  - `cam_sim::cutting_simulator` 互換モジュールを削除
+- 依存ルールは現行最終形を維持し、`converter` は `job_domain` を直接参照する
+
 ---
 
 ## 15. Issue分割案（本ドキュメント起点）
