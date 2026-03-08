@@ -15,10 +15,7 @@ pub enum JobEvent {
         message: Option<String>,
     },
     /// 成果物準備完了イベント
-    ArtifactReady {
-        job_id: JobId,
-        result_ref: String,
-    },
+    ArtifactReady { job_id: JobId, result_ref: String },
     /// 終了イベント
     Completed {
         job_id: JobId,

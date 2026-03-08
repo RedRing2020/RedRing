@@ -195,8 +195,18 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
 
     assert_eq!(cam.status, JobStatus::Succeeded);
     assert_eq!(sim.status, JobStatus::Succeeded);
-    assert!(cam.result_ref.as_deref().unwrap_or_default().starts_with("result://cam/"));
-    assert!(sim.result_ref.as_deref().unwrap_or_default().starts_with("result://sim/"));
+    assert!(
+        cam.result_ref
+            .as_deref()
+            .unwrap_or_default()
+            .starts_with("result://cam/")
+    );
+    assert!(
+        sim.result_ref
+            .as_deref()
+            .unwrap_or_default()
+            .starts_with("result://sim/")
+    );
 }
 
 #[test]

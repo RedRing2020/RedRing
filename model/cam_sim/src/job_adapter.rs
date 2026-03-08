@@ -12,7 +12,10 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 log_ref: Some(format!("log://cam/{}/invalid", job.id.0)),
-                error: Some(format!("invalid input_ref for cam process: {}", job.spec.input_ref)),
+                error: Some(format!(
+                    "invalid input_ref for cam process: {}",
+                    job.spec.input_ref
+                )),
             };
         }
 
