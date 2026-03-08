@@ -32,7 +32,7 @@ function Get-CrateDependencies {
         if ($inDepsSection -and $line -match '^(\w+)\s*=') {
             $depName = $matches[1]
             # Check if it's a workspace crate
-            $workspaceCrates = @("analysis", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "job_domain", "converter", "graphics", "render", "stage", "app")
+            $workspaceCrates = @("analysis", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "job_runtime", "job_domain", "converter", "graphics", "render", "stage", "app")
             if ($workspaceCrates -contains $depName) {
                 $dependencies += $depName
             }
@@ -60,6 +60,7 @@ function Test-ArchitectureDependencies {
         "geo_algorithms" = "model\geo_algorithms"
         "geo_nurbs"      = "model\geo_nurbs"
         "geo_io"         = "model\geo_io"
+        "job_runtime"    = "model\job_runtime"
         "job_domain"     = "model\job_domain"
         "converter"      = "viewmodel\converter"
         "graphics"       = "viewmodel\graphics"
@@ -78,9 +79,10 @@ function Test-ArchitectureDependencies {
         "geo_algorithms" = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")  # 共通計算関数・NURBS衝突判定のため geo_commons, geo_nurbs を追加
         "geo_nurbs"      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
-        "job_domain"     = @("analysis")
+        "job_runtime"    = @("analysis")
+        "job_domain"     = @("analysis", "job_runtime")
         "cam_sim"        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
-        "converter"      = @("geo_foundation", "geo_algorithms", "geo_io", "analysis")  # geo_algorithms が geo_core/geo_primitives を再エクスポート
+        "converter"      = @("geo_foundation", "geo_algorithms", "geo_io", "job_domain", "analysis")  # geo_algorithms が geo_core/geo_primitives を再エクスポート
         "graphics"       = @("analysis")
         "render"         = @("analysis")
         "stage"          = @("render", "analysis")
@@ -140,7 +142,7 @@ function Test-ArchitectureDependencies {
     Write-ColorText "3. Layer summary:" "Yellow"
     $layers = @{
         "Analysis"  = @("analysis")
-        "Model"     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "job_domain")
+        "Model"     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
         "ViewModel" = @("converter", "graphics")
         "View"      = @("render", "stage", "app")
     }

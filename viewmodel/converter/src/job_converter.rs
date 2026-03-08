@@ -1,4 +1,4 @@
-use cam_sim::{CamJobEvent, CamJobOutputValidity, CamJobRecord, CamJobStatus, CamJobType};
+use job_domain::{CamJobEvent, CamJobOutputValidity, CamJobRecord, CamJobStatus, CamJobType};
 
 /// UI表示用のジョブ状態（Modelの状態を直接公開しない境界型）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -373,7 +373,7 @@ mod tests {
     fn sample_record(status: CamJobStatus) -> CamJobRecord {
         CamJobRecord {
             id: 10,
-            spec: cam_sim::CamJobSpec {
+            spec: job_domain::CamJobSpec {
                 job_type: CamJobType::CamProcess,
                 input_ref: "input://cam/a".to_string(),
             },

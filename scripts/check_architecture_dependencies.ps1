@@ -34,7 +34,7 @@ $ARCHITECTURE_RULES = @{
         job_domain = @("analysis", "job_runtime", "cam_core", "cam_entity", "cam_sim")
 
         # ViewModel
-        converter      = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "analysis")
+        converter      = @("geo_foundation", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_domain", "analysis")
         graphics       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
 
         # View

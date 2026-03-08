@@ -12,3 +12,4 @@ description = "Domain-level workflow policy and usecase abstractions for batch j
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
+job_runtime = { path = "../job_runtime" }
