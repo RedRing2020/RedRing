@@ -2,7 +2,7 @@
 //!
 //! geo_core内部実装として、全機能を統合
 
-use geo_foundation::{Angle, Scalar};
+use analysis::abstract_types::{Angle, Scalar};
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元ベクトル
@@ -361,10 +361,10 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use analysis::linalg::vector::Vector2;
-use geo_foundation::geometry::core::vector_traits::{
+use crate::vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
 };
+use analysis::linalg::vector::Vector2;
 
 impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
     fn new(x: T, y: T) -> Self {

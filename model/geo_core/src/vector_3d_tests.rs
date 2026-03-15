@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_basic_transform_rotate() {
-        use geo_foundation::Angle;
+        use analysis::abstract_types::Angle;
         use std::f64::consts::PI;
 
         let v = Vector3D::new(1.0, 0.0, 0.0);

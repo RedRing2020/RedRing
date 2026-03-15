@@ -3,9 +3,10 @@
 //! Analysis Matrix4x4を使用した効率的なVector3D変換
 //! Point3D Transform実装パターンに準拠
 
+use crate::TransformError;
 use crate::Vector3D;
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar, TransformError};
 
 /// Vector3D用Analysis Matrix4x4変換トレイト
 pub trait AnalysisTransformVector3D<T: Scalar> {

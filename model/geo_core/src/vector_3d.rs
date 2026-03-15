@@ -4,7 +4,7 @@
 //! 基本機能、Foundation トレイト、拡張機能、演算子オーバーロードを含む。
 
 use crate::Point3D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use analysis::abstract_types::{Scalar, TolerantEq};
 
 /// 3次元ベクトル
 ///
@@ -421,10 +421,10 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use analysis::linalg::vector::Vector3;
-use geo_foundation::geometry::core::vector_traits::{
+use crate::vector_traits::{
     Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
 };
+use analysis::linalg::vector::Vector3;
 
 impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
     fn new(x: T, y: T, z: T) -> Self {
@@ -568,20 +568,6 @@ impl<T: Scalar> Vector3DMeasure<T> for Vector3D<T> {
 }
 
 impl<T: Scalar> Vector3DCore<T> for Vector3D<T> {}
-
-// ============================================================================
-// Extension Foundation Implementation
-// ============================================================================
-
-impl<T: Scalar> ExtensionFoundation<T> for Vector3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::Vector
-    }
-
-    fn measure(&self) -> Option<T> {
-        Some(self.magnitude())
-    }
-}
 
 impl<T: Scalar> TolerantEq<T> for Vector3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {

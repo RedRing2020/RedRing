@@ -1,7 +1,7 @@
 //! Vector2D のテスト
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::Angle;
+use analysis::abstract_types::Angle;
 use std::f64;
 
 /// 基本作成テスト

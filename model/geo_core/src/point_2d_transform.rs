@@ -3,9 +3,10 @@
 //! Analysis Matrix3x3を直接使用した効率的な2D座標変換
 //! Point3D実装パターンを踏襲した統一設計
 
+use crate::{AnalysisTransform2D, TransformError};
 use crate::{Point2D, Vector2D};
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{AnalysisTransform2D, Angle, Scalar, TransformError};
 
 /// Point2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {
@@ -171,7 +172,7 @@ pub mod analysis_transform {
     }
 }
 
-/// Point2DでのAnalysisTransform2D実装（geo_foundation統一トレイト）
+/// Point2DでのAnalysisTransform2D実装（geo_core統一トレイト）
 impl<T: Scalar> AnalysisTransform2D<T> for Point2D<T> {
     type Matrix3x3 = Matrix3x3<T>;
     type Angle = Angle<T>;

@@ -2,11 +2,15 @@
 //!
 //! 実行制御（submit/status/cancel/retry）とイベント契約を提供
 
+pub mod artifact_manifest;
 pub mod events;
 pub mod executor;
 pub mod manager;
 pub mod types;
 
+pub use artifact_manifest::{
+    ArtifactManifest, ArtifactManifestError, ArtifactType, validate_output_contract,
+};
 pub use events::JobEvent;
 pub use executor::{JobExecutionResult, JobExecutor};
 pub use manager::JobManager;

@@ -3,9 +3,10 @@
 //! Analysis Matrix4x4を直接使用した効率的な3D座標変換
 //! Point2D実装パターンを踏襲した統一設計
 
+use crate::{AnalysisTransform3D, TransformError};
 use crate::{Point3D, Vector3D};
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
 
 /// Point3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
@@ -186,7 +187,7 @@ pub mod analysis_transform {
     }
 }
 
-/// Point3DでのAnalysisTransform3D実装（geo_foundation統一トレイト）
+/// Point3DでのAnalysisTransform3D実装（geo_core統一トレイト）
 impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
     type Matrix4x4 = Matrix4x4<T>;
     type Angle = Angle<T>;
