@@ -5,7 +5,7 @@
 
 use crate::Point2D;
 use analysis::abstract_types::Scalar;
-use geo_foundation::commons::Aabb2DTrait;
+use crate::aabb_traits::Aabb2DTrait;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Aabb2D<T: Scalar> {

@@ -17,7 +17,7 @@
 段階実施:
 
 - [x] Phase A: 型依存（`Scalar`, `Angle`, `TolerantEq`）を `analysis` 直参照へ置換
-- [ ] Phase B: Transform/AABB/Vector trait を `geo_core` 側へ再配置
+- [x] Phase B: Transform/AABB/Vector trait を `geo_core` 側へ再配置
 - [ ] Phase C: `geo_foundation` 依存削除 + 依存チェックスクリプト更新
 
 詳細チェックリスト:

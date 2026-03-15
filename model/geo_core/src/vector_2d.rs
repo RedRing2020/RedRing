@@ -362,7 +362,7 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
 // ============================================================================
 
 use analysis::linalg::vector::Vector2;
-use geo_foundation::geometry::core::vector_traits::{
+use crate::vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
 };
 

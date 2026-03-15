@@ -66,11 +66,11 @@
 
 ### Phase B: trait再配置（小PR）
 
-- [ ] Transform trait（`AnalysisTransform2D/3D` など）を `geo_core` 内へ移設
-- [ ] AABB trait を `geo_core` 内へ移設
-- [ ] `vector_traits` 依存を `geo_core` 側定義へ置換
-- [ ] `cargo check -p geo_core`
-- [ ] `cargo test -p geo_core`
+- [x] Transform trait（`AnalysisTransform2D/3D` など）を `geo_core` 内へ移設
+- [x] AABB trait を `geo_core` 内へ移設
+- [x] `vector_traits` 依存を `geo_core` 側定義へ置換
+- [x] `cargo check -p geo_core`
+- [x] `cargo test -p geo_core`
 
 ### Phase C: 依存定義除去（小PR）
 
@@ -104,6 +104,10 @@
 ## 7. 実施ログ
 
 - 2026-03-16: Phase A を実施済み（`geo_core` の `Scalar/Angle/TolerantEq` を `analysis` 直参照へ置換）
+- 検証結果:
+  - `cargo check -p geo_core`: pass
+  - `cargo test -p geo_core`: pass（110 unit tests + 12 doc tests）
+- 2026-03-16: Phase B を実施済み（Transform/AABB/Vector trait と TransformError を `geo_core` 側へ再配置）
 - 検証結果:
   - `cargo check -p geo_core`: pass
   - `cargo test -p geo_core`: pass（110 unit tests + 12 doc tests）

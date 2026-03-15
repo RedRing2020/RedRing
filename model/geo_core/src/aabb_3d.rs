@@ -4,7 +4,7 @@
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
 use analysis::abstract_types::Scalar;
-use geo_foundation::commons::Aabb3DTrait;
+use crate::aabb_traits::Aabb3DTrait;
 
 use crate::Point3D;
 
