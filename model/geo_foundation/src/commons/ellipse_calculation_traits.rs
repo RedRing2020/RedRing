@@ -61,10 +61,7 @@ pub trait EllipseCalculation<T: Scalar> {
 
     /// 楕円の面積計算
     fn area(&self) -> T {
-        geo_commons::metrics::area_volume::ellipse_area(
-            self.semi_major_axis(),
-            self.semi_minor_axis(),
-        )
+        super::area_volume::ellipse_area(self.semi_major_axis(), self.semi_minor_axis())
     }
 
     /// 楕円の焦点座標を計算

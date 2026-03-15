@@ -1,5 +1,6 @@
 mod aabb_2d_trait;
 mod aabb_3d_trait;
+pub mod area_volume;
 pub use aabb_2d_trait::Aabb2DTrait;
 pub use aabb_3d_trait::Aabb3DTrait;
 /// geo_foundation commons - 共通計算トレイト
@@ -9,6 +10,10 @@ pub use aabb_3d_trait::Aabb3DTrait;
 pub mod ellipse_calculation_traits;
 
 // 便利な再エクスポート
+pub use area_volume::{
+    circle_area, cone_volume, cylinder_volume, ellipse_area, polygon_area, sphere_volume,
+    triangle_area, triangle_area_from_coords,
+};
 pub use ellipse_calculation_traits::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
