@@ -716,7 +716,6 @@ dependencies = [
  "analysis",
  "approx",
  "criterion",
- "geo_foundation",
  "nalgebra 0.34.1",
  "num-traits",
  "quickcheck",

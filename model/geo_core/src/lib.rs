@@ -18,6 +18,7 @@
 
 // 基本型実装
 pub mod point_2d;
+pub mod point_traits;
 pub mod point_2d_transform;
 pub mod point_3d;
 pub mod point_3d_transform;

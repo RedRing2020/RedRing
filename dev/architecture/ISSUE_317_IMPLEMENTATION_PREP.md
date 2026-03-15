@@ -74,11 +74,11 @@
 
 ### Phase C: 依存定義除去（小PR）
 
-- [ ] `model/geo_core/Cargo.toml` から `geo_foundation` を削除
-- [ ] 依存チェックスクリプトの `AllowedDependencies` / `ForbiddenDependencies` を更新
-- [ ] `cargo check --workspace`
+- [x] `model/geo_core/Cargo.toml` から `geo_foundation` を削除
+- [x] 依存チェックスクリプトの `AllowedDependencies` / `ForbiddenDependencies` を更新
+- [x] `cargo check --workspace`
 - [ ] `cargo test --workspace`
-- [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check_architecture_dependencies.ps1 -ExitOnError`
+- [x] `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check_architecture_dependencies.ps1 -ExitOnError`
 
 ## 5. リスクと対策
 
@@ -111,3 +111,9 @@
 - 検証結果:
   - `cargo check -p geo_core`: pass
   - `cargo test -p geo_core`: pass（110 unit tests + 12 doc tests）
+- 2026-03-16: Phase C を実施済み（`geo_core` から `geo_foundation` 依存を削除）
+- 検証結果:
+  - `cargo check -p geo_core`: pass
+  - `cargo test -p geo_core`: pass（110 unit tests + 12 doc tests）
+  - `cargo check --workspace`: pass
+  - `check_architecture_dependencies.ps1 -ExitOnError`: pass

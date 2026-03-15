@@ -5,7 +5,6 @@
 
 use crate::Point3D;
 use analysis::abstract_types::{Scalar, TolerantEq};
-use geo_foundation::{ExtensionFoundation, PrimitiveKind};
 
 /// 3次元ベクトル
 ///
@@ -569,20 +568,6 @@ impl<T: Scalar> Vector3DMeasure<T> for Vector3D<T> {
 }
 
 impl<T: Scalar> Vector3DCore<T> for Vector3D<T> {}
-
-// ============================================================================
-// Extension Foundation Implementation
-// ============================================================================
-
-impl<T: Scalar> ExtensionFoundation<T> for Vector3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::Vector
-    }
-
-    fn measure(&self) -> Option<T> {
-        Some(self.magnitude())
-    }
-}
 
 impl<T: Scalar> TolerantEq<T> for Vector3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
