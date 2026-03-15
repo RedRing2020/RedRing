@@ -6,9 +6,8 @@
 
 use crate::{Angle, Arc3D, Direction3D, Point3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{
-    core::arc_traits::Arc3DProperties, AnalysisTransform3D, Scalar, TransformError,
-};
+use geo_foundation::{core::arc_traits::Arc3DProperties, Scalar};
+use geo_core::{AnalysisTransform3D, TransformError};
 
 /// Arc3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
@@ -464,3 +463,4 @@ mod tests {
         }
     }
 }
+

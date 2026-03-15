@@ -6,7 +6,8 @@
 
 use crate::{ConicalSurface3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
+use geo_foundation::{Angle, Scalar};
+use geo_core::{AnalysisTransform3D, TransformError};
 
 /// ConicalSurface3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
@@ -445,3 +446,4 @@ mod tests {
         assert!((result.axis().z() - surface.axis().z()).abs() < f64::EPSILON);
     }
 }
+

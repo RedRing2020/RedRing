@@ -6,7 +6,8 @@
 
 use crate::{Point3D, SphericalSolid3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
+use geo_foundation::{Angle, Scalar};
+use geo_core::{AnalysisTransform3D, TransformError};
 
 /// SphericalSolid3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
@@ -458,3 +459,4 @@ mod tests {
         assert!((actual_area_ratio - expected_area_ratio).abs() < f64::EPSILON * 10.0);
     }
 }
+

@@ -5,7 +5,8 @@
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
+use geo_foundation::{Angle, Scalar};
+use geo_core::{AnalysisTransform3D, TransformError};
 
 /// Circle3D用Analysis Matrix/Vector変換モジュール
 pub mod analysis_transform {
@@ -505,3 +506,4 @@ mod tests {
         }
     }
 }
+

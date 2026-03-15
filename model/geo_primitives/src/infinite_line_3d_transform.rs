@@ -6,7 +6,8 @@
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
+use geo_foundation::{Angle, Scalar};
+use geo_core::{AnalysisTransform3D, TransformError, AnalysisTransformSupport};
 
 /// InfiniteLine3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
@@ -234,7 +235,7 @@ impl<T: Scalar> Default for InfiniteLine3D<T> {
 // Analysis Transform Support Marker
 // ============================================================================
 
-impl<T: Scalar> geo_foundation::AnalysisTransformSupport for InfiniteLine3D<T> {
+impl<T: Scalar> AnalysisTransformSupport for InfiniteLine3D<T> {
     const HAS_ANALYSIS_INTEGRATION: bool = true;
     const PERFORMANCE_OPTIMIZED: bool = true;
 }
@@ -401,3 +402,4 @@ mod tests {
         assert_eq!(result.direction_internal().z(), 0.0);
     }
 }
+

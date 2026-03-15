@@ -6,10 +6,8 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{
-    core::infinite_line_traits::InfiniteLine2DProperties, AnalysisTransform2D, Angle, Scalar,
-    TransformError,
-};
+use geo_core::{AnalysisTransform2D, AnalysisTransformSupport, TransformError};
+use geo_foundation::{core::infinite_line_traits::InfiniteLine2DProperties, Angle, Scalar};
 
 /// InfiniteLine2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {
@@ -164,7 +162,7 @@ impl<T: Scalar> Default for InfiniteLine2D<T> {
 // Analysis Transform Support Marker
 // ============================================================================
 
-impl<T: Scalar> geo_foundation::AnalysisTransformSupport for InfiniteLine2D<T> {
+impl<T: Scalar> AnalysisTransformSupport for InfiniteLine2D<T> {
     const HAS_ANALYSIS_INTEGRATION: bool = true;
     const PERFORMANCE_OPTIMIZED: bool = true;
 }

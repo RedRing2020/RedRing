@@ -6,7 +6,8 @@
 
 use crate::{EllipsoidalSolid3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
+use geo_core::{AnalysisTransform3D, TransformError};
+use geo_foundation::{Angle, Scalar};
 
 /// EllipsoidalSolid3D用Analysis Matrix4x4変換モジュール
 pub mod analysis_transform {
