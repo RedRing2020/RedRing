@@ -2,7 +2,7 @@
 //!
 //! geo_core内部実装として、全機能を統合
 
-use geo_foundation::{Angle, Scalar};
+use analysis::abstract_types::{Angle, Scalar};
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元ベクトル

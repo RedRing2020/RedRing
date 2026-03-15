@@ -4,8 +4,9 @@
 //! Point2D Transform実装パターンに準拠
 
 use crate::Vector2D;
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{Angle, Scalar, TransformError};
+use geo_foundation::TransformError;
 
 /// Vector2D用Analysis Matrix3x3変換トレイト
 pub trait AnalysisTransformVector2D<T: Scalar> {

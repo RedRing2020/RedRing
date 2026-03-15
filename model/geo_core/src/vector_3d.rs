@@ -4,7 +4,8 @@
 //! 基本機能、Foundation トレイト、拡張機能、演算子オーバーロードを含む。
 
 use crate::Point3D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use analysis::abstract_types::{Scalar, TolerantEq};
+use geo_foundation::{ExtensionFoundation, PrimitiveKind};
 
 /// 3次元ベクトル
 ///

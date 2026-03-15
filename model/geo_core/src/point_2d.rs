@@ -3,12 +3,10 @@
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
 use crate::Vector2D;
+use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::vector::Vector2;
-use geo_foundation::{
-    geometry::core::point_traits::{
-        Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties,
-    },
-    Scalar,
+use geo_foundation::geometry::core::point_traits::{
+    Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties,
 };
 
 use std::ops::{Add, Mul, Neg, Sub};
@@ -193,7 +191,7 @@ impl<T: Scalar> Point2D<T> {
     }
 
     /// 指定点周りの回転（Angle<T>型角度）
-    pub fn rotate_around(&self, center: &Self, angle: geo_foundation::Angle<T>) -> Self {
+    pub fn rotate_around(&self, center: &Self, angle: Angle<T>) -> Self {
         let offset = Vector2D::new(self.x - center.x, self.y - center.y);
         let radians = angle.to_radians();
         let cos_a = radians.cos();
@@ -205,11 +203,11 @@ impl<T: Scalar> Point2D<T> {
 
     /// 指定点周りの回転（T型角度）- 後方互換性のため
     pub fn rotate_around_radians(&self, center: &Self, angle: T) -> Self {
-        self.rotate_around(center, geo_foundation::Angle::from_radians(angle))
+        self.rotate_around(center, Angle::from_radians(angle))
     }
 
     /// 原点周りの回転（Angle<T>型角度）
-    pub fn rotate(&self, angle: geo_foundation::Angle<T>) -> Self {
+    pub fn rotate(&self, angle: Angle<T>) -> Self {
         let radians = angle.to_radians();
         let cos_a = radians.cos();
         let sin_a = radians.sin();
@@ -220,7 +218,7 @@ impl<T: Scalar> Point2D<T> {
 
     /// 原点周りの回転（T型角度）- 後方互換性のため
     pub fn rotate_radians(&self, angle: T) -> Self {
-        self.rotate(geo_foundation::Angle::from_radians(angle))
+        self.rotate(Angle::from_radians(angle))
     }
 
     /// 3D点に変換（Z=0）
