@@ -421,10 +421,10 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use analysis::linalg::vector::Vector3;
 use crate::vector_traits::{
     Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
 };
+use analysis::linalg::vector::Vector3;
 
 impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
     fn new(x: T, y: T, z: T) -> Self {

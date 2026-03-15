@@ -3,8 +3,8 @@
 //! Analysis Matrix4x4を使用した効率的なVector3D変換
 //! Point3D Transform実装パターンに準拠
 
-use crate::Vector3D;
 use crate::TransformError;
+use crate::Vector3D;
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
 

@@ -3,8 +3,8 @@
 //! Foundation Pattern に基づく Aabb3D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
-use analysis::abstract_types::Scalar;
 use crate::aabb_traits::Aabb3DTrait;
+use analysis::abstract_types::Scalar;
 
 use crate::Point3D;
 

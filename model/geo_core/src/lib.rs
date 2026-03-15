@@ -18,10 +18,10 @@
 
 // 基本型実装
 pub mod point_2d;
-pub mod point_traits;
 pub mod point_2d_transform;
 pub mod point_3d;
 pub mod point_3d_transform;
+pub mod point_traits;
 pub mod transform_error;
 pub mod transform_traits;
 pub mod vector_2d;
@@ -41,9 +41,9 @@ mod vector_2d_tests;
 mod vector_3d_tests;
 
 // AABB型実装
-pub mod aabb_traits;
 pub mod aabb_2d;
 pub mod aabb_3d;
+pub mod aabb_traits;
 
 // 公開API
 pub use aabb_2d::Aabb2D;

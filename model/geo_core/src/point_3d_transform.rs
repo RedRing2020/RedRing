@@ -3,8 +3,8 @@
 //! Analysis Matrix4x4を直接使用した効率的な3D座標変換
 //! Point2D実装パターンを踏襲した統一設計
 
-use crate::{Point3D, Vector3D};
 use crate::{AnalysisTransform3D, TransformError};
+use crate::{Point3D, Vector3D};
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
 

@@ -3,9 +3,9 @@
 //! Foundation Pattern に基づく Aabb2D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
+use crate::aabb_traits::Aabb2DTrait;
 use crate::Point2D;
 use analysis::abstract_types::Scalar;
-use crate::aabb_traits::Aabb2DTrait;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Aabb2D<T: Scalar> {

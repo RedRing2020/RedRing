@@ -3,8 +3,8 @@
 //! Analysis Matrix3x3を使用した効率的なVector2D変換
 //! Point2D Transform実装パターンに準拠
 
-use crate::Vector2D;
 use crate::TransformError;
+use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
 
