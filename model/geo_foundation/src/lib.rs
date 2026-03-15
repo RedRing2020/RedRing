@@ -225,8 +225,8 @@ pub mod prelude {
         EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
     };
 
-    // Commons Bridge - geo_commons への Foundation Pattern準拠アクセス
-    pub use geo_commons as commons;
+    // Commons Bridge - Foundation commons へのアクセス
+    pub use crate::commons;
 
     // Note: AABB型は geo_core から直接 import してください
     // Note: 具体的な幾何型は geo_primitives から直接 import してください

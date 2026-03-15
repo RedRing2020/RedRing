@@ -13,27 +13,39 @@ pub trait EllipseCalculation<T: Scalar> {
 
     /// ラマヌジャン近似式I（標準版）による周長計算
     fn perimeter_ramanujan_i(&self) -> T {
-        geo_commons::ellipse_perimeter_ramanujan_i(self.semi_major_axis(), self.semi_minor_axis())
+        super::ellipse_approximations::ellipse_perimeter_ramanujan_i(
+            self.semi_major_axis(),
+            self.semi_minor_axis(),
+        )
     }
 
     /// ラマヌジャン近似式II（高精度版）による周長計算
     fn perimeter_ramanujan_ii(&self) -> T {
-        geo_commons::ellipse_perimeter_ramanujan_ii(self.semi_major_axis(), self.semi_minor_axis())
+        super::ellipse_approximations::ellipse_perimeter_ramanujan_ii(
+            self.semi_major_axis(),
+            self.semi_minor_axis(),
+        )
     }
 
     /// パダン近似による周長計算（中程度精度）
     fn perimeter_pade(&self) -> T {
-        geo_commons::ellipse_perimeter_padé(self.semi_major_axis(), self.semi_minor_axis())
+        super::ellipse_approximations::ellipse_perimeter_padé(
+            self.semi_major_axis(),
+            self.semi_minor_axis(),
+        )
     }
 
     /// カントレル近似による周長計算（高精度）
     fn perimeter_cantrell(&self) -> T {
-        geo_commons::ellipse_perimeter_cantrell(self.semi_major_axis(), self.semi_minor_axis())
+        super::ellipse_approximations::ellipse_perimeter_cantrell(
+            self.semi_major_axis(),
+            self.semi_minor_axis(),
+        )
     }
 
     /// 無限級数展開による周長計算（高精度版）
     fn perimeter_series(&self, terms: usize) -> T {
-        geo_commons::ellipse_circumference_series(
+        super::ellipse_approximations::ellipse_circumference_series(
             self.semi_major_axis(),
             self.semi_minor_axis(),
             terms,
@@ -42,7 +54,7 @@ pub trait EllipseCalculation<T: Scalar> {
 
     /// 数値積分による周長計算（最高精度版）
     fn perimeter_numerical(&self, n_points: usize) -> T {
-        geo_commons::ellipse_circumference_numerical(
+        super::ellipse_approximations::ellipse_circumference_numerical(
             self.semi_major_axis(),
             self.semi_minor_axis(),
             n_points,
@@ -51,12 +63,18 @@ pub trait EllipseCalculation<T: Scalar> {
 
     /// 楕円の離心率計算
     fn eccentricity(&self) -> T {
-        geo_commons::ellipse_eccentricity(self.semi_major_axis(), self.semi_minor_axis())
+        super::ellipse_approximations::ellipse_eccentricity(
+            self.semi_major_axis(),
+            self.semi_minor_axis(),
+        )
     }
 
     /// 楕円の焦点距離計算
     fn focal_distance(&self) -> T {
-        geo_commons::ellipse_focal_distance(self.semi_major_axis(), self.semi_minor_axis())
+        super::ellipse_approximations::ellipse_focal_distance(
+            self.semi_major_axis(),
+            self.semi_minor_axis(),
+        )
     }
 
     /// 楕円の面積計算
