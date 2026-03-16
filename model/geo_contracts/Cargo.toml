@@ -1,0 +1,10 @@
+[package]
+name = "geo_contracts"
+version = "0.1.0"
+edition = "2021"
+description = "Shape contract definitions for geometric model crates"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+analysis = { path = "../../foundation/analysis" }
+
