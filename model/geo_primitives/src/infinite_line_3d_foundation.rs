@@ -3,7 +3,8 @@
 //! ExtensionFoundation トレイトの実装
 
 use crate::InfiniteLine3D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_contracts::Scalar;
+use geo_foundation::{ExtensionFoundation, PrimitiveKind};
 
 impl<T: Scalar> ExtensionFoundation<T> for InfiniteLine3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {

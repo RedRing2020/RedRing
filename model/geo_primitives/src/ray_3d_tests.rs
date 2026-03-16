@@ -1,7 +1,7 @@
 //! Ray3D テストモジュール
 
 use crate::{Point3D, Ray3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // BasicTransformの実装を有効にするため
 #[allow(unused_imports)]

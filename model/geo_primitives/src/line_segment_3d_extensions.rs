@@ -4,7 +4,8 @@
 //! Core機能は line_segment_3d.rs を参照
 
 use crate::{LineSegment3D, Point3D, Vector3D};
-use geo_foundation::{core_foundation::*, Scalar};
+use geo_contracts::Scalar;
+use geo_foundation::core_foundation::*;
 
 // ============================================================================
 // Core trait implementations

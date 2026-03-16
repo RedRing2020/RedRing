@@ -1,7 +1,8 @@
 //! Ray3D の Foundation トレイト実装
 
 use crate::Ray3D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::Scalar;
+use geo_foundation::{ExtensionFoundation, PrimitiveKind, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation

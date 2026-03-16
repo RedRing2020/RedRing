@@ -4,7 +4,7 @@
 //! Core Foundation では提供しない拡張機能のみ
 
 use crate::{Direction2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Vector2D};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Ray2D<T> {
     // === 特殊作成メソッド ===
