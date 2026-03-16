@@ -1,6 +1,6 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2025年11月18日
+**最終更新日**: 2026年3月15日
 
 RedRing の幾何計算層とレンダリング層の構成、および現在の課題と解決策について説明します。
 
@@ -8,7 +8,7 @@ RedRing の幾何計算層とレンダリング層の構成、および現在の
 
 ### 幾何計算層
 
-## 🚨 現在の重大な課題（2025年11月18日更新）
+## 🚨 現在の重大な課題（2026年3月15日更新）
 
 ### 系統的な*_core_traits実装問題
 
@@ -16,38 +16,61 @@ RedRing の幾何計算層とレンダリング層の構成、および現在の
 
 - **メソッド名競合**: `center()`, `arc_length()`, `point_at_parameter()` 等
 - **型不一致**: `Point2D<T>` vs `(T, T)` のシグネチャ違い
-- **Foundation Patternの破綱**: 統一アクセスが実現できない
+- **Foundation Patternの破綻**: 統一アクセスが実現できない
 
 **対象形状**: point, vector, circle, ellipse_arc, direction, bbox, ray, line_segment, infinite_line
 
-### アーキテクチャ構成と責務
+### アーキテクチャ再編提案（geo_foundation 廃止）
 
 ```text
-analysis → geo_foundation
-            ↓
-        geo_commons
+foundation/analysis（将来改名候補）
             ↓
         geo_core（低レイヤー・基本型提供）
-            ↓    ↓
-   geo_primitives  geo_nurbs
+            ↓             ↓
+   geo_primitives      geo_nurbs
+      （trait+実装）     （trait+実装）
+            ↘           ↙
+            geo_algorithms（交差/衝突/幾何演算）
+                    ↓
+         application層クレート群
+    （tessellation / simulation / job manager）
 ```
 
 #### クレート責務定義
 
-- **`analysis`**: 数値解析・線形代数・微積分の基盤機能
-- **`geo_foundation`**: 抽象トレイト定義（*_core_traits 等）
-- **`geo_commons`**: 共通幾何計算機能、Foundation橋渡し
+- **`foundation/analysis`**: 線形代数などの純粋な数値解析のみを提供（将来改名検討）
 - **`geo_core`**: **低レイヤー基本型**（Aabb2D/Aabb3D等）- geo_primitives/geo_nurbsから直接アクセス可
-- **`geo_primitives`**: プリミティブ幾何実装（Point, Vector, Circle等）
-- **`geo_nurbs`**: NURBS 曲線・曲面実装
-- **`geo_algorithms`**: 高レベル幾何アルゴリズム
+- **`geo_primitives`**: プリミティブ形状のtrait定義と実装（Point, Vector, Circle等）
+- **`geo_nurbs`**: NURBS形状のtrait定義と実装（Curve/Surface等）
+- **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を利用した高レベル幾何アルゴリズム（intersect, collision 等）
+- **`application::*`（新設方針）**: テセレーション、シミュレーション、ジョブ管理など業務ユースケース
 - **`geo_io`**: ファイル I/O（STL/OBJ/PLY 等）
 
 #### レイヤー設計の重要ポイント
 
 - **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
 - **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
-- **循環依存回避**: `geo_foundation` → `geo_core`の依存は禁止（循環依存を防ぐため）
+- **`geo_foundation`廃止**: 形状traitは`geo_primitives`/`geo_nurbs`側へ再配置する
+- **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
+- **循環依存回避**: `geo_primitives` ↔ `geo_nurbs` の直接依存は禁止（交差処理は`geo_algorithms`に集約）
+
+### 段階移行計画（提案）
+
+1. **Phase 1: trait移設**
+- `geo_foundation` の形状traitを `geo_primitives` / `geo_nurbs` へ移設
+- 既存利用側を新trait参照へ置換
+
+2. **Phase 2: アルゴリズム統合**
+- `geo_algorithms` に `geo_primitives` と `geo_nurbs` の両依存を明示
+- Intersect/Collision等のクロス形状演算を `geo_algorithms` に統一
+
+3. **Phase 3: application層分離**
+- tessellation/simulation/job manager を application層クレートに移動
+- `geo_algorithms` は純粋幾何アルゴリズム責務に限定
+
+4. **Phase 4: analysis再編**
+- `foundation/analysis` の名称変更を検討
+- 内部実装を純粋数値解析（線形代数等）に整理し、ドメイン責務を排除
 
 ### CAD/CAM 境界ルール（2026年2月更新）
 
@@ -81,17 +104,17 @@ analysis → geo_foundation
 3. **最小限の実装から開始**: 1-2個のメソッドから段階的に実装
 4. **geo_commons機能の活用**: 共通計算で内部実装を再利用
 
-### Foundation Pattern の真の実現
+### 形状API統一の実現（新方針）
 
-**目標**: 全てのアクセスをFoundationトレイト経由に統一
+**目標**: 全てのアクセスを「各形状クレート内trait」経由に統一
 
 ```rust
-// ✅ 目標: Foundation経由のみアクセス可能
-use geo_foundation::EllipseArc2DMeasure;
+// ✅ 目標: 形状クレート内trait経由のみアクセス可能
+use geo_primitives::EllipseArc2DMeasure;
 
 let arc = EllipseArc2D::new(...);
-let length = arc.arc_length(); // Foundation実装を呼び出し
-let point = arc.point_at_parameter(0.5); // Foundation実装を呼び出し
+let length = arc.arc_length(); // trait実装を呼び出し
+let point = arc.point_at_parameter(0.5); // trait実装を呼び出し
 
 // ❌ 禁止: レガシー直接アクセス
 // arc.legacy_method() // コンパイルエラー
@@ -133,10 +156,10 @@ redring ← stage ← render
 
 ## 🎆 期待される成果
 
-- **統一アクセス**: 全てのAPIがFoundationトレイト経由
+- **統一アクセス**: 全てのAPIが各形状クレートのtrait経由
 - **型安全性**: コンパイル時のインターフェース統一
 - **保守性向上**: 明確な責務分離と依存関係
-- **拡張性**: 新しい形状や機能の追加が容易
+- **拡張性**: 新しい形状追加は各形状クレート、クロス演算は`geo_algorithms`に集約
 
 ## 🔗 関連ドキュメント
 
