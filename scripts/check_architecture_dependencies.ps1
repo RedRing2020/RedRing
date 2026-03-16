@@ -18,6 +18,7 @@ $ARCHITECTURE_RULES = @{
 
         # Model: geo_*
         geo_foundation = @("analysis", "geo_commons")
+        geo_contracts  = @("analysis")
         geo_commons    = @("geo_foundation", "analysis")
         geo_core       = @("analysis", "geo_entity") # geo_core -> geo_entity: OK
         geo_primitives = @("geo_foundation", "geo_core", "analysis")
@@ -46,6 +47,7 @@ $ARCHITECTURE_RULES = @{
     ForbiddenDependencies = @{
         # geo_* -> cam_* is forbidden
         geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
+        geo_contracts  = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
         geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
         geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime") # geo_core -> cam_entity: NG
         geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
@@ -76,7 +78,7 @@ $ARCHITECTURE_RULES = @{
 
     NamingRules = @{
         ModelPrefix = "geo_"
-        RequiredModelCrates = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
+        RequiredModelCrates = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
     }
 }
 
@@ -117,6 +119,7 @@ function Get-WorkspaceCrates {
     $layerMapping = @{
         analysis       = "foundation/analysis"
         geo_foundation = "model/geo_foundation"
+        geo_contracts  = "model/geo_contracts"
         geo_commons    = "model/geo_commons"
         geo_core       = "model/geo_core"
         geo_primitives = "model/geo_primitives"
@@ -204,7 +207,7 @@ function Test-ArchitectureDependencies {
     Write-Info "3. Layer Dependency Summary"
     $layers = @{
         Analysis  = @("analysis")
-        Model     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+        Model     = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
         ViewModel = @("converter", "graphics")
         View      = @("render", "stage", "app")
     }

@@ -13,7 +13,7 @@
 
 ## タスク
 
-- [ ] 新クレート `geo_contracts` を作成し、形状trait/契約を移設
+- [x] 新クレート `geo_contracts` を作成（trait/契約の移設は継続）
 - [ ] `geo_primitives` / `geo_nurbs` で各traitを実装
 - [ ] 参照側 import を `geo_contracts` 基準へ置換
 - [ ] `geo_foundation` の互換層を段階削除
