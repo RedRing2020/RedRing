@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく InfiniteLine3D の拡張実装
 
 use crate::{Direction3D, InfiniteLine3D, Point2D, Point3D, Vector2D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // Extension Methods Implementation

@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくInfiniteLine2Dの必須機能のみ
 
 use crate::{Direction2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 2次元無限直線（Core実装）
 #[derive(Debug, Clone, Copy, PartialEq)]

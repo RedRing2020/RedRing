@@ -4,7 +4,7 @@
 //! Core機能は ray_3d.rs を参照
 
 use crate::{InfiniteLine3D, Point3D, Ray3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // Display Implementation
