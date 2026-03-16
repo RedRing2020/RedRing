@@ -3,7 +3,7 @@
 //! 3次元方向ベクトルの基本実装とコンストラクタ、アクセサメソッド
 
 use crate::Vector3D;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::ops::{Deref, DerefMut, Mul, Neg};
 
 /// 3次元方向ベクトル（正規化済み）

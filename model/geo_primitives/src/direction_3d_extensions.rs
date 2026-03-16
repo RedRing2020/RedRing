@@ -4,7 +4,7 @@
 //! Core機能は direction_3d.rs を参照
 
 use crate::{Direction3D, Vector3D};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 
 // ============================================================================
 // Core trait implementations (moved from core)

@@ -61,7 +61,7 @@ mod tests {
         let dir2 = Direction2D::from_angle_radians(0.001); // 0.001ラジアン ≈ 0.057度の誤差
 
         // 新しいAngle型を使用したAPI（推奨）
-        use geo_foundation::Angle;
+        use geo_contracts::Angle;
 
         // ラジアン指定での角度許容誤差
         assert!(dir1.is_same_direction_within_angle(&dir2, Angle::from_radians(0.002))); // 0.002ラジアン許容誤差
@@ -83,7 +83,7 @@ mod tests {
         let right = Direction2D::<TestType>::positive_x();
         let left = Direction2D::<TestType>::negative_x();
 
-        use geo_foundation::Angle;
+        use geo_contracts::Angle;
         assert!(right.is_opposite_direction_within_angle(&left, Angle::from_degrees(1.0)));
     }
 
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn test_angle_api_usage_examples() {
         // 新しいAngle型APIの使用例をテスト
-        use geo_foundation::Angle;
+        use geo_contracts::Angle;
 
         let dir1 = Direction2D::<TestType>::positive_x();
         let dir2 = Direction2D::from_angle_radians(0.017453); // 約1度の誤差
