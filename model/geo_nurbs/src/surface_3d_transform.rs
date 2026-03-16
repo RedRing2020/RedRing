@@ -8,9 +8,8 @@ use analysis::linalg::{
     matrix::Matrix4x4,
     vector::{Vector3, Vector4},
 };
-use geo_foundation::{
-    AnalysisTransform3D, Angle, NurbsSurface3DProperties, Scalar, TransformError,
-};
+use geo_core::{AnalysisTransform3D, TransformError};
+use geo_foundation::{Angle, NurbsSurface3DProperties, Scalar};
 
 /// Matrix4x4による制御点変換の内部実装
 fn transform_control_points<T: Scalar>(

@@ -76,7 +76,7 @@ let bbox = curve.aabb()?; // Aabb3D<T>
 ### Transform Traits（変換操作）
 
 ```rust
-use geo_foundation::AnalysisTransform3D;
+use geo_core::AnalysisTransform3D;
 use analysis::vector::Vector3;
 
 // 平行移動
@@ -119,7 +119,8 @@ println!("Point at t=0.5: ({}, {})", point.x(), point.y());
 
 ```rust
 use geo_nurbs::NurbsCurve3D;
-use geo_foundation::{NurbsCurve3DConstructor, AnalysisTransform3D};
+use geo_core::AnalysisTransform3D;
+use geo_foundation::NurbsCurve3DConstructor;
 use analysis::vector::Vector3;
 
 // 線分を作成

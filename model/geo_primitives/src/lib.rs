@@ -5,8 +5,8 @@
 
 // 新実装用モジュール（次元中立設計）
 // 共通型とエラー
-// エラー型はgeo_foundationから公開されたものを使用
-pub use geo_foundation::TransformError;
+// Transformエラー型はgeo_coreを正規参照先とする
+pub use geo_core::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;

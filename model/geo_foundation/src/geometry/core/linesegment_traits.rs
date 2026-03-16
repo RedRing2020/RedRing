@@ -230,12 +230,10 @@ pub trait LineSegment3DCollisionDetection<T: Scalar>: LineSegment3DProperties<T>
     /// # 戻り値
     /// 線分とAABBの最短距離（線分がAABBに交差する場合は0）
     fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T {
-        // geo_commons の距離計算関数を使用（デフォルト実装）
+        // commons の距離計算関数を使用（デフォルト実装）
         let start = self.start();
         let end = self.end();
-        geo_commons::metrics::distance::line_segment_to_aabb_distance(
-            start, end, aabb_min, aabb_max,
-        )
+        crate::commons::line_segment_to_aabb_distance(start, end, aabb_min, aabb_max)
     }
 }
 

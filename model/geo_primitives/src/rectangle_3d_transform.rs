@@ -2,7 +2,8 @@
 
 use crate::{Point3D, Rect3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{AnalysisTransform3D, Angle, Scalar, TransformError};
+use geo_core::{AnalysisTransform3D, TransformError};
+use geo_foundation::{Angle, Scalar};
 
 pub mod analysis_transform {
     use super::*;
