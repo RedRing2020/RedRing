@@ -5,8 +5,8 @@ use crate::adaptive_tessellation::{
     NurbsCurveAdaptiveTessellation,
 };
 use crate::NurbsCurve3D;
+use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
 
 /// 境界ボックス計算オプション
 #[derive(Debug, Clone, Copy)]
