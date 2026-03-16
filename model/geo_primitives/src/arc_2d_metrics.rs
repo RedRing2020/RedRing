@@ -4,7 +4,8 @@
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::Arc2D;
-use geo_foundation::{core::arc_traits::Arc2DMeasure, Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
+use geo_foundation::core::arc_traits::Arc2DMeasure;
 
 // ============================================================================
 // ArcMetrics Trait Implementation
@@ -82,3 +83,4 @@ impl<T: Scalar> Arc2D<T> {
         self.radius_internal() * (T::ONE - half_angle.cos())
     }
 }
+

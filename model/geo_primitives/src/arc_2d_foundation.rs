@@ -3,7 +3,8 @@
 //! ExtensionFoundation トレイトの実装
 
 use crate::Arc2D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_contracts::Scalar;
+use geo_foundation::{ExtensionFoundation, PrimitiveKind};
 
 impl<T: Scalar> ExtensionFoundation<T> for Arc2D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {

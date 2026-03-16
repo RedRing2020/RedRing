@@ -1,7 +1,7 @@
 //! Circle2D 計量関連機能（ジェネリック版）
 
 use crate::{Circle2D, Point2D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 impl<T: Scalar> Circle2D<T> {
     /// 直径を取得

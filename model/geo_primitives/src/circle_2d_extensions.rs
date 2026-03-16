@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく Circle2D の拡張実装
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // Extension Methods Implementation
