@@ -22,7 +22,7 @@
 
 詳細チェックリスト:
 
-- `dev/architecture/ISSUE_317_IMPLEMENTATION_PREP.md`
+- `dev/archive/issues/architecture/ISSUE_317_IMPLEMENTATION_PREP.md`
 
 ## 受け入れ条件
 
