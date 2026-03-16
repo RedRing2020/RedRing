@@ -1,7 +1,7 @@
 //! ノットベクトル操作とバリデーション
 
 use crate::{NurbsError, Result};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// ノットベクトルの型エイリアス
 pub type KnotVector<T> = Vec<T>;

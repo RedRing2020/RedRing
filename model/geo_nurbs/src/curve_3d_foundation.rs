@@ -1,8 +1,9 @@
 //! `NurbsCurve3D` の Foundation パターン実装
 
 use crate::NurbsCurve3D;
+use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind};
 
 impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
