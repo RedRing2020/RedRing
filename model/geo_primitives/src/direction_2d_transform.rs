@@ -6,7 +6,7 @@
 
 use crate::{Direction2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
 
 /// Direction2D用Analysis Matrix3x3変換モジュール
@@ -212,4 +212,5 @@ mod tests {
         assert!((transformed[2].y() - (-1.0)).abs() < 1e-10);
     }
 }
+
 

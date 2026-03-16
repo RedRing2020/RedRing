@@ -6,7 +6,7 @@
 
 use crate::{EllipseArc3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// EllipseArc3D用Analysis Matrix4x4変換モジュール
@@ -196,7 +196,7 @@ mod tests {
     use super::*;
     use crate::{Ellipse3D, Point3D, Vector3D};
     use analysis::linalg::vector::Vector3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     /// テスト用の3D楕円弧を作成
     fn create_test_ellipse_arc() -> EllipseArc3D<f64> {
@@ -401,4 +401,5 @@ mod tests {
         ));
     }
 }
+
 

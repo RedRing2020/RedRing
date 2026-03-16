@@ -8,8 +8,9 @@ use analysis::linalg::{
     matrix::Matrix3x3,
     vector::{Vector2, Vector3},
 };
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
-use geo_foundation::{Angle, NurbsCurve2DProperties, Scalar};
+use geo_foundation::NurbsCurve2DProperties;
 
 /// Matrix3x3による制御点変換の内部実装
 fn transform_control_points<T: Scalar>(

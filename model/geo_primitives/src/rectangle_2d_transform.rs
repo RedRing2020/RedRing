@@ -2,8 +2,8 @@
 
 use crate::{Point2D, Rect2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
-use geo_foundation::{Angle, Scalar};
 
 pub mod analysis_transform {
     use super::*;

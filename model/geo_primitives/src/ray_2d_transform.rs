@@ -6,8 +6,8 @@
 
 use crate::{Point2D, Ray2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
-use geo_foundation::{Angle, Scalar};
 
 /// Ray2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {
@@ -159,7 +159,7 @@ mod tests {
     use super::*;
     use crate::{Point2D, Vector2D};
     use analysis::linalg::vector::Vector2;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_ray() -> Ray2D<f64> {
         Ray2D::new(

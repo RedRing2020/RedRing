@@ -5,8 +5,8 @@
 
 use crate::{Point3D, TriangleMesh3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
-use geo_foundation::{Angle, Scalar};
 
 /// TriangleMesh3D用Analysis変換モジュール
 pub mod analysis_transform {

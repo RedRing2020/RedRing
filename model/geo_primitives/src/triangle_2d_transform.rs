@@ -6,8 +6,8 @@
 
 use crate::{Point2D, Triangle2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
-use geo_foundation::{Angle, Scalar};
 
 /// Triangle2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {

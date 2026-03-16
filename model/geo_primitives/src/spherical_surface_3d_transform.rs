@@ -6,7 +6,7 @@
 
 use crate::{Point3D, SphericalSurface3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// SphericalSurface3D用Analysis Matrix4x4変換モジュール
@@ -266,7 +266,7 @@ mod tests {
     use super::*;
     use crate::Point3D;
     use analysis::linalg::vector::Vector3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_spherical_surface() -> SphericalSurface3D<f64> {
         SphericalSurface3D::new_at_origin(
@@ -482,4 +482,5 @@ mod tests {
         assert!((transformed_curvature - expected_curvature).abs() < f64::EPSILON * 10.0);
     }
 }
+
 

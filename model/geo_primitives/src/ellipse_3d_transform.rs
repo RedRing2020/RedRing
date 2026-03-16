@@ -6,7 +6,7 @@
 
 use crate::{Ellipse3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// Ellipse3D用Analysis Matrix4x4変換モジュール
@@ -480,4 +480,5 @@ mod tests {
         assert!(matches!(result.unwrap_err(), TransformError::ZeroVector(_)));
     }
 }
+
 

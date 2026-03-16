@@ -21,9 +21,9 @@ $ARCHITECTURE_RULES = @{
         geo_contracts  = @("analysis")
         geo_commons    = @("geo_foundation", "analysis")
         geo_core       = @("analysis", "geo_entity") # geo_core -> geo_entity: OK
-        geo_primitives = @("geo_foundation", "geo_core", "analysis")
+        geo_primitives = @("geo_foundation", "geo_contracts", "geo_core", "analysis")
         geo_algorithms = @("geo_foundation", "geo_core", "geo_primitives", "analysis", "geo_nurbs")
-        geo_nurbs      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
+        geo_nurbs      = @("geo_foundation", "geo_contracts", "geo_core", "geo_primitives", "analysis")
         geo_io         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
         geo_entity     = @("geo_foundation", "geo_primitives")
 

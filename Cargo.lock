@@ -760,6 +760,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
+ "geo_contracts",
  "geo_core",
  "geo_foundation",
  "nalgebra 0.33.2",
@@ -772,6 +773,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "approx",
+ "geo_contracts",
  "geo_core",
  "geo_foundation",
  "serde",

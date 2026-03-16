@@ -6,7 +6,7 @@
 
 use crate::{Point3D, SphericalSolid3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// SphericalSolid3D用Analysis Matrix4x4変換モジュール
@@ -266,7 +266,7 @@ mod tests {
     use super::*;
     use crate::Point3D;
     use analysis::linalg::vector::Vector3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_spherical_solid() -> SphericalSolid3D<f64> {
         SphericalSolid3D::new_at_origin(
@@ -459,4 +459,5 @@ mod tests {
         assert!((actual_area_ratio - expected_area_ratio).abs() < f64::EPSILON * 10.0);
     }
 }
+
 
