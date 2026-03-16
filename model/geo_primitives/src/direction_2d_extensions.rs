@@ -4,7 +4,7 @@
 //! Core機能は direction_2d.rs を参照
 
 use crate::Direction2D;
-use geo_foundation::Scalar;
+use geo_contracts::{Angle, Scalar};
 
 // ============================================================================
 // Extension Methods (Coreにない新機能のみ)
@@ -47,11 +47,7 @@ impl<T: Scalar> Direction2D<T> {
     }
 
     /// Angle型を使用した方向判定（角度またはラジアン指定可能）
-    pub fn is_same_direction_within_angle(
-        &self,
-        other: &Self,
-        angle_tolerance: geo_foundation::Angle<T>,
-    ) -> bool {
+    pub fn is_same_direction_within_angle(&self, other: &Self, angle_tolerance: Angle<T>) -> bool {
         let angle_diff = self.angle_between(other);
         angle_diff <= angle_tolerance.to_radians()
     }
@@ -60,7 +56,7 @@ impl<T: Scalar> Direction2D<T> {
     pub fn is_opposite_direction_within_angle(
         &self,
         other: &Self,
-        angle_tolerance: geo_foundation::Angle<T>,
+        angle_tolerance: Angle<T>,
     ) -> bool {
         let angle_diff = self.angle_between(other);
         // πラジアン（180度）に近いかを判定

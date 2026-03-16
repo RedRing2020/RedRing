@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{Direction3D, Vector3D};
-    use geo_foundation::Scalar;
+    use geo_contracts::Scalar;
 
     type TestType = f64;
 
@@ -40,7 +40,7 @@ mod tests {
         let dir2 = Direction3D::new(small_error.cos(), small_error.sin(), 0.0).unwrap();
 
         // 新しいAngle型を使用したAPI（推奨）
-        use geo_foundation::Angle;
+        use geo_contracts::Angle;
 
         // ラジアン指定での角度許容誤差
         assert!(dir1.is_same_direction_within_angle(&dir2, Angle::from_radians(0.002))); // 0.002ラジアン許容誤差
@@ -64,7 +64,7 @@ mod tests {
         let positive_x = Direction3D::<TestType>::positive_x();
         let negative_x = Direction3D::<TestType>::negative_x();
 
-        use geo_foundation::Angle;
+        use geo_contracts::Angle;
         assert!(
             positive_x.is_opposite_direction_within_angle(&negative_x, Angle::from_degrees(1.0))
         );
