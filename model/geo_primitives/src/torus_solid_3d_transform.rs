@@ -6,7 +6,7 @@
 
 use crate::{Point3D, TorusSolid3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// TorusSolid3D用Analysis Matrix4x4変換モジュール
@@ -282,7 +282,7 @@ mod tests {
     use super::*;
     use crate::Point3D;
     use analysis::linalg::vector::Vector3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_torus_solid() -> TorusSolid3D<f64> {
         TorusSolid3D::standard(
@@ -500,4 +500,5 @@ mod tests {
         assert!(result.minor_radius() > 0.0);
     }
 }
+
 

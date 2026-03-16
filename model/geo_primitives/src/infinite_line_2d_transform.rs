@@ -6,8 +6,9 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, AnalysisTransformSupport, TransformError};
-use geo_foundation::{core::infinite_line_traits::InfiniteLine2DProperties, Angle, Scalar};
+use geo_foundation::core::infinite_line_traits::InfiniteLine2DProperties;
 
 /// InfiniteLine2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {

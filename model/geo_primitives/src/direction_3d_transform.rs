@@ -6,7 +6,7 @@
 
 use crate::{Direction3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// Direction3D用Analysis Matrix4x4変換モジュール
@@ -336,4 +336,5 @@ mod tests {
         assert!((norm - 1.0).abs() < 1e-10);
     }
 }
+
 

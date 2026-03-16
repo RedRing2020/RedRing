@@ -5,7 +5,7 @@
 
 use crate::{Circle2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
 
 /// Circle2D用Analysis Matrix3x3変換モジュール
@@ -244,7 +244,7 @@ impl<T: Scalar> Circle2D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     #[test]
     fn test_analysis_translation() {
@@ -378,4 +378,5 @@ mod tests {
         ));
     }
 }
+
 

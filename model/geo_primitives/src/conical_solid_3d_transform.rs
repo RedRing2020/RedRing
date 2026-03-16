@@ -6,7 +6,7 @@
 
 use crate::{ConicalSolid3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// ConicalSolid3D用Analysis Matrix4x4変換モジュール
@@ -269,7 +269,7 @@ mod tests {
     use super::*;
     use crate::Point3D;
     use analysis::linalg::vector::Vector3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_conical_solid() -> ConicalSolid3D<f64> {
         ConicalSolid3D::new_standard(
@@ -439,4 +439,5 @@ mod tests {
         assert!((result.axis().z() - solid.axis().z()).abs() < f64::EPSILON);
     }
 }
+
 

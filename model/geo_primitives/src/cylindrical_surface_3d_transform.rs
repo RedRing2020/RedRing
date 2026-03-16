@@ -6,7 +6,7 @@
 
 use crate::{CylindricalSurface3D, Point3D, Vector3D};
 use analysis::linalg::{matrix::Matrix4x4, vector::Vector3};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
 
 /// CylindricalSurface3D用Analysis Matrix4x4変換モジュール
@@ -266,7 +266,7 @@ mod tests {
     use super::*;
     use crate::Point3D;
     use analysis::linalg::vector::Vector3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_cylindrical_surface() -> CylindricalSurface3D<f64> {
         CylindricalSurface3D::new_z_axis(
@@ -456,4 +456,5 @@ mod tests {
         assert!((scaled_point.z() - original_point.z() * scale_factor).abs() < f64::EPSILON * 10.0);
     }
 }
+
 

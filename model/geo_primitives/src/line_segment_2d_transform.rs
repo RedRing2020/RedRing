@@ -5,7 +5,7 @@
 
 use crate::{LineSegment2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError, AnalysisTransformSupport};
 
 /// LineSegment2D用Analysis Matrix3x3変換モジュール
@@ -259,7 +259,7 @@ mod tests {
     use super::*;
     use crate::Point2D;
     use analysis::linalg::matrix::Matrix3x3;
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
     use std::f64::consts::PI;
 
     /// 基本的な平行移動テスト
@@ -431,4 +431,5 @@ mod tests {
         }
     }
 }
+
 
