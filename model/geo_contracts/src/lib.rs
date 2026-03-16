@@ -4,4 +4,3 @@
 //! `geo_primitives`, `geo_nurbs`, and higher-level algorithm crates.
 
 pub use analysis::abstract_types::{Angle, Scalar};
-
