@@ -151,7 +151,7 @@ fn nurbs_curve_to_vertices(
     nurbs_data: &NurbsCurveData,
     tolerance: f64,
 ) -> Result<Vec<VertexData>, SvgLoaderError> {
-    use geo_foundation::NurbsCurve3DConstructor;
+    use geo_foundation::contracts::NurbsCurve3DConstructor;
 
     // NURBS曲線を生成
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
@@ -168,7 +168,7 @@ fn nurbs_curve_to_vertices(
     let (t_min, t_max) = curve.parameter_domain();
 
     // 曲線の全長を計算
-    use geo_foundation::NurbsCurve3DMeasure;
+    use geo_foundation::contracts::NurbsCurve3DMeasure;
     let arc_length = curve.arc_length_total(tolerance);
 
     // 分割数を決定（曲線長÷トレランス、最小10、最大10000）

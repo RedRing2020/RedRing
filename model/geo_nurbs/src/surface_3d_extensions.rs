@@ -73,7 +73,7 @@ impl<T: Scalar> NurbsSurfaceAdaptiveTessellation<T> for NurbsSurface3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use geo_foundation::NurbsSurface3DConstructor;
+    use geo_contracts::NurbsSurface3DConstructor;
 
     #[test]
     fn test_surface_adaptive_params_plane() {

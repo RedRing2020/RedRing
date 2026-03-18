@@ -3,7 +3,8 @@
 //! Extension Traits の実装とテスト
 
 use crate::{NurbsCurve2D, Scalar};
-use geo_foundation::{Bounded, ExtensionFoundation, NurbsCurve2DProperties, PrimitiveKind};
+use geo_contracts::NurbsCurve2DProperties;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind};
 
 // ============================================================================
 // Extension Foundation 実装
@@ -52,10 +53,8 @@ impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
 mod tests {
     use crate::knot::clamped_knot_vector;
     use crate::NurbsCurve2D;
-    use geo_foundation::{
-        ExtensionFoundation, NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties,
-        PrimitiveKind,
-    };
+    use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties};
+    use geo_foundation::{ExtensionFoundation, PrimitiveKind};
 
     // ============================================================================
     // Core Traits Constructor テスト

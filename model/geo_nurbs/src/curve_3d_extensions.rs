@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_rough_bbox() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 2.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_precise_bbox() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 2.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_adaptive_bbox() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 0.0)];
 
         let knots = clamped_knot_vector(2, 3);
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_bbox_comparison() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![
             (0.0, 0.0, 0.0),
             (1.0, 2.0, 1.0),
@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_curve_adaptive_params_line() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
 
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)];
         let knots = clamped_knot_vector(1, 2);

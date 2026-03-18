@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_nurbs_curve_3d_creation() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 1.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_curve_3d_evaluation() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_tangent_calculation() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_approximate_length_3d() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -383,9 +383,7 @@ mod tests {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::core::nurbs_curve_3d_traits::{
-    NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties,
-};
+use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties};
 
 impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
     fn new(

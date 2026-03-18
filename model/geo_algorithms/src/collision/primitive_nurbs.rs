@@ -595,7 +595,7 @@ mod tests {
 
         // Core Traits経由で生成（Foundation Pattern）
         // シグネチャ: new(degree, knots, control_points: Vec<(T,T,T)>, weights)
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_foundation::contracts::NurbsCurve3DConstructor;
         let control_points_tuples = control_points
             .into_iter()
             .map(|v| (v.x(), v.y(), v.z()))

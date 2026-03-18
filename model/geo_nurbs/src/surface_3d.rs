@@ -444,7 +444,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
 // Core Traits 実装
 // ============================================================================
 
-use geo_foundation::{
+use geo_contracts::{
     NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
 };
 
@@ -648,7 +648,7 @@ impl<T: Scalar> NurbsSurface3DCore<T> for NurbsSurface3D<T> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::NurbsSurface3DConstructor;
+    use geo_contracts::NurbsSurface3DConstructor;
 
     #[test]
     fn test_nurbs_surface_creation() {
