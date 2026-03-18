@@ -38,7 +38,7 @@ impl NurbsCurveEvalData {
     /// # Returns
     /// GPU評価用のf32変換済みデータ
     pub fn from_curve_params<T: Scalar>(
-        curve: &impl geo_foundation::NurbsCurve3DProperties<T>,
+        curve: &impl geo_foundation::contracts::NurbsCurve3DProperties<T>,
         param_list: &adaptive_tessellation::AdaptiveParamList<T>,
     ) -> Self {
         let degree = curve.degree() as u32;
@@ -108,7 +108,7 @@ impl NurbsCurveEvalData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::NurbsCurve3DConstructor;
+    use geo_foundation::contracts::NurbsCurve3DConstructor;
     use geo_nurbs::{
         adaptive_tessellation::{AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation},
         NurbsCurve3D,
@@ -206,7 +206,7 @@ impl NurbsSurfaceEvalData {
     /// # Returns
     /// GPU評価用のf32変換済みデータ（頂点バッファ最適化）
     pub fn from_surface_params<T: Scalar>(
-        surface: &impl geo_foundation::NurbsSurface3DProperties<T>,
+        surface: &impl geo_foundation::contracts::NurbsSurface3DProperties<T>,
         param_grid: &adaptive_tessellation::AdaptiveParamGrid<T>,
     ) -> Self {
         let u_degree = surface.u_degree() as u32;
