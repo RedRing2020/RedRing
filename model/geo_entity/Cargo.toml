@@ -9,7 +9,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-geo_contracts = { path = "../geo_contracts" }
+geo_foundation = { path = "../geo_foundation" }
 geo_primitives = { path = "../geo_primitives" }
 uuid = { version = "1.11", features = ["v4", "v5", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }

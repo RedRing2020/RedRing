@@ -6,7 +6,7 @@
 //! - ASCII STLは事前容量確保で再アロケーション回避
 
 use crate::error::StlError;
-use geo_contracts::Scalar;
+use geo_foundation::Scalar;
 use geo_primitives::{Point3D, TriangleMesh3D};
 use logging_foundation::{frame_interval_from_env, should_log_every_n_frames};
 use std::collections::HashMap;
