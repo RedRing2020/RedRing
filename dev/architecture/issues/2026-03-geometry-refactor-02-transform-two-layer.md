@@ -10,20 +10,27 @@ Transform責務を2層化する。
 - Transform 実装が分散しており、重複と境界の曖昧さがある
 - `geo_algorithms` はクロス形状演算に集中させ、形状固有Transform責務は持たせない
 
+## 現在地
+
+- `geo_primitives` / `geo_nurbs` の `*_transform.rs` から、`geo_foundation` 経由の `AnalysisTransform*` / `TransformError` 参照は解消済み
+- Transform 共通責務の正規参照先は `geo_core` に移っている
+- 一方で `geo_primitives/src/lib.rs` などの公開 re-export と README / コメント系には旧経路が残っている
+- したがって本Issueは「実装切替は完了、公開面の整理と全体検証が残り」という現在地
+
 ## タスク
 
 ### Phase A: NURBS先行切替
 
-- [ ] `curve_2d_transform.rs` / `curve_3d_transform.rs` / `surface_3d_transform.rs` の `AnalysisTransform*` と `TransformError` を `geo_core` 参照へ切替
-- [ ] `cargo check -p geo_nurbs`
-- [ ] `cargo test -p geo_nurbs`
+- [x] `curve_2d_transform.rs` / `curve_3d_transform.rs` / `surface_3d_transform.rs` の `AnalysisTransform*` と `TransformError` を `geo_core` 参照へ切替
+- [x] `cargo check -p geo_nurbs`
+- [x] `cargo test -p geo_nurbs`
 
 ### Phase B: Primitives展開
 
-- [ ] `model/geo_primitives/src/*_transform.rs`（32ファイル）の `AnalysisTransform*` / `AnalysisTransformSupport` / `TransformError` を `geo_core` 基準へ切替
-- [ ] 既存テストの import 置換
-- [ ] `cargo check -p geo_primitives`
-- [ ] `cargo test -p geo_primitives`
+- [x] `model/geo_primitives/src/*_transform.rs`（32ファイル）の `AnalysisTransform*` / `AnalysisTransformSupport` / `TransformError` を `geo_core` 基準へ切替
+- [x] 既存テストの import 置換
+- [x] `cargo check -p geo_primitives`
+- [x] `cargo test -p geo_primitives`
 
 ### Phase C: 呼び出し側整理
 
@@ -40,9 +47,9 @@ Transform責務を2層化する。
 
 ## 受け入れ条件
 
-- [ ] Transform共通核（trait/エラー/共通変換核）が `geo_core` に集約されている
-- [ ] 形状固有Transformが `geo_primitives` / `geo_nurbs` から利用できる
-- [ ] Transform実装35ファイル（Primitives 32 + NURBS 3）の参照が `geo_core` 基準に統一されている
+- [x] Transform共通核（trait/エラー/共通変換核）が `geo_core` に集約されている
+- [x] 形状固有Transformが `geo_primitives` / `geo_nurbs` から利用できる
+- [x] Transform実装35ファイル（Primitives 32 + NURBS 3）の参照が `geo_core` 基準に統一されている
 - [ ] `cargo fmt --all -- --check` が通る
 - [ ] `cargo check --workspace` が通る
 - [ ] `cargo test --workspace` が通る
@@ -52,3 +59,4 @@ Transform責務を2層化する。
 
 - API変更は破壊的でよい（移行優先）
 - `geo_foundation` 全廃自体は #318 のスコープで扱う
+- 残作業は lib.rs の公開面整理、README / コメント更新、workspace 全体の再検証

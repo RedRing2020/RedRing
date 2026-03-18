@@ -5,7 +5,7 @@
 
 use crate::Arc2D;
 use geo_contracts::{Angle, Scalar};
-use geo_foundation::core::arc_traits::Arc2DMeasure;
+use geo_contracts::Arc2DMeasure;
 
 // ============================================================================
 // ArcMetrics Trait Implementation

@@ -1,45 +1,17 @@
-# RedRing Architecture Dependency Check Script
+# RedRing Architecture Dependency Check Script (Simple)
+# Usage: powershell -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies_simple.ps1
+
 param(
     [switch]$Verbose,
     [switch]$ExitOnError
 )
 
+# 共有ルールデータ・共通関数を読み込む
+. (Join-Path $PSScriptRoot "_arch_rules_data.ps1")
+
 function Write-ColorText {
     param($Text, $Color = "White")
     Write-Host $Text -ForegroundColor $Color
-}
-
-function Get-CrateDependencies {
-    param([string]$CratePath)
-
-    $cargoToml = Join-Path $CratePath "Cargo.toml"
-    if (-not (Test-Path $cargoToml)) {
-        return @()
-    }
-
-    $dependencies = @()
-    $content = Get-Content $cargoToml
-    $inDepsSection = $false
-
-    foreach ($line in $content) {
-        if ($line -match '^\[dependencies\]') {
-            $inDepsSection = $true
-            continue
-        }
-        if ($line -match '^\[.*\]' -and $inDepsSection) {
-            break
-        }
-        if ($inDepsSection -and $line -match '^(\w+)\s*=') {
-            $depName = $matches[1]
-            # Check if it's a workspace crate
-            $workspaceCrates = @("analysis", "geo_contracts", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "job_runtime", "job_domain", "converter", "graphics", "render", "stage", "app")
-            if ($workspaceCrates -contains $depName) {
-                $dependencies += $depName
-            }
-        }
-    }
-
-    return $dependencies
 }
 
 function Test-ArchitectureDependencies {
@@ -47,54 +19,13 @@ function Test-ArchitectureDependencies {
     Write-ColorText "Date: $(Get-Date -Format 'yyyy/MM/dd HH:mm:ss')" "Gray"
     Write-Host ""
 
-    $errorCount = 0
+    $errorCount   = 0
     $warningCount = 0
-
-    # Define workspace structure
-    $workspaceCrates = @{
-        "analysis"       = "foundation\analysis"
-        "geo_contracts"  = "model\geo_contracts"
-        "geo_foundation" = "model\geo_foundation"
-        "geo_commons"    = "model\geo_commons"
-        "geo_core"       = "model\geo_core"
-        "geo_primitives" = "model\geo_primitives"
-        "geo_algorithms" = "model\geo_algorithms"
-        "geo_nurbs"      = "model\geo_nurbs"
-        "geo_io"         = "model\geo_io"
-        "job_runtime"    = "model\job_runtime"
-        "job_domain"     = "model\job_domain"
-        "converter"      = "viewmodel\converter"
-        "graphics"       = "viewmodel\graphics"
-        "render"         = "view\render"
-        "stage"          = "view\stage"
-        "app"            = "view\app"
-    }
-
-    # Define allowed dependencies (Updated: 2025-12-25)
-    $allowedDeps = @{
-        "analysis"       = @()
-        "geo_contracts"  = @("analysis")  # analysis の Scalar/Angle を re-export する形状契約クレート
-        "geo_foundation" = @("analysis", "geo_commons")  # geo_commons: 共通計算関数を再エクスポート
-        "geo_commons"    = @("analysis")  # 独立した計算関数クレート
-        "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
-        "geo_primitives" = @("geo_foundation", "geo_contracts", "geo_core", "analysis")  # geo_core の AABB型を使用
-        "geo_algorithms" = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")  # 共通計算関数・NURBS衝突判定のため geo_commons, geo_nurbs を追加
-        "geo_nurbs"      = @("geo_foundation", "geo_contracts", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
-        "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
-        "job_runtime"    = @("analysis")
-        "job_domain"     = @("analysis", "job_runtime")
-        "cam_sim"        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
-        "converter"      = @("geo_foundation", "geo_algorithms", "geo_io", "job_domain", "analysis")  # geo_algorithms が geo_core/geo_primitives を再エクスポート
-        "graphics"       = @("analysis")
-        "render"         = @("analysis")
-        "stage"          = @("render", "analysis")
-        "app"            = @("converter", "graphics", "render", "stage", "analysis")
-    }
+    $workspaceCrates = Get-WorkspaceCratesShared
 
     Write-ColorText "1. Checking Model layer naming rules..." "Yellow"
-    $modelCrates = @("geo_contracts", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io")
-    foreach ($crateName in $modelCrates) {
-        if (Test-Path $workspaceCrates[$crateName]) {
+    foreach ($crateName in $ARCH_REQUIRED_MODEL_CRATES) {
+        if ($workspaceCrates.ContainsKey($crateName)) {
             Write-ColorText "  OK: $crateName follows geo_ prefix rule" "Green"
         }
         else {
@@ -105,58 +36,40 @@ function Test-ArchitectureDependencies {
     Write-Host ""
 
     Write-ColorText "2. Checking dependency rules..." "Yellow"
-    
-    # Debug: geo_foundation の許可依存先を表示
-    Write-ColorText "  DEBUG: geo_foundation allowed deps: $($allowedDeps['geo_foundation'] -join ', ')" "Gray"
-    
+
     foreach ($crateName in $workspaceCrates.Keys) {
-        $cratePath = $workspaceCrates[$crateName]
+        $cratePath  = $workspaceCrates[$crateName]
+        $actualDeps = Get-CrateDependenciesShared $cratePath
+        $allowed    = $ARCH_ALLOWED_DEPS[$crateName]
 
-        if (Test-Path $cratePath) {
-            $actualDeps = Get-CrateDependencies $cratePath
-            $allowed = $allowedDeps[$crateName]
+        Write-ColorText "  Checking: $crateName" "Cyan"
 
-            Write-ColorText "  Checking: $crateName" "Cyan"
-
-            foreach ($dep in $actualDeps) {
-                if ($allowed -contains $dep) {
-                    if ($Verbose) {
-                        Write-ColorText "    OK: $crateName -> $dep (allowed)" "Green"
-                    }
-                }
-                else {
-                    Write-ColorText "    ERROR: $crateName -> $dep (not allowed)" "Red"
-                    $errorCount++
+        foreach ($dep in $actualDeps) {
+            if ($allowed -contains $dep) {
+                if ($Verbose) {
+                    Write-ColorText "    OK: $crateName -> $dep (allowed)" "Green"
                 }
             }
-
-            if ($actualDeps.Length -eq 0) {
-                Write-ColorText "    INFO: No workspace dependencies" "Gray"
+            else {
+                Write-ColorText "    ERROR: $crateName -> $dep (not allowed)" "Red"
+                $errorCount++
             }
         }
-        else {
-            Write-ColorText "  WARN: Crate path not found: $cratePath" "Yellow"
-            $warningCount++
+
+        if ($actualDeps.Length -eq 0) {
+            Write-ColorText "    INFO: No workspace dependencies" "Gray"
         }
     }
     Write-Host ""
 
     Write-ColorText "3. Layer summary:" "Yellow"
-    $layers = @{
-        "Analysis"  = @("analysis")
-        "Model"     = @("geo_contracts", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
-        "ViewModel" = @("converter", "graphics")
-        "View"      = @("render", "stage", "app")
-    }
-
-    foreach ($layerName in $layers.Keys) {
+    foreach ($layerName in $ARCH_LAYERS.Keys) {
         Write-ColorText "  $layerName layer:" "Cyan"
-        foreach ($crateName in $layers[$layerName]) {
-            if (Test-Path $workspaceCrates[$crateName]) {
-                $deps = Get-CrateDependencies $workspaceCrates[$crateName]
+        foreach ($crateName in $ARCH_LAYERS[$layerName]) {
+            if ($workspaceCrates.ContainsKey($crateName)) {
+                $deps = Get-CrateDependenciesShared $workspaceCrates[$crateName]
                 if ($deps.Length -gt 0) {
-                    $depsStr = $deps -join ", "
-                    Write-Host "    $crateName -> $depsStr"
+                    Write-Host "    $crateName -> $($deps -join ', ')"
                 }
                 else {
                     Write-Host "    $crateName -> (no deps)" -ForegroundColor Gray
@@ -190,11 +103,12 @@ function Test-ArchitectureDependencies {
     return @{ "Errors" = $errorCount; "Warnings" = $warningCount }
 }
 
-# Main execution
+# ヘルプ表示
 if ($args -contains "-Help" -or $args -contains "-h") {
-    Write-Host "RedRing Architecture Dependency Check Script" -ForegroundColor Cyan
+    Write-Host "RedRing Architecture Dependency Check Script (Simple)" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Usage: .\scripts\check_architecture_dependencies.ps1 [options]"
+    Write-Host "Usage:"
+    Write-Host "  .\scripts\check_architecture_dependencies_simple.ps1 [options]"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Verbose      Show detailed dependency information"

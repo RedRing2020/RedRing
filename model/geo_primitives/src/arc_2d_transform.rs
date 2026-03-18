@@ -38,7 +38,7 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Result<Circle2D<T>, TransformError> {
         // 中心点の変換
-        use geo_foundation::Circle2DProperties;
+        use geo_contracts::Circle2DProperties;
         let (cx, cy) = circle.center();
         let center_vec = Vector2::new(cx, cy);
         let transformed_center_vec = matrix.transform_point_2d(&center_vec);

@@ -217,7 +217,7 @@ mod tests {
         )
         .unwrap();
         let circle = full_arc.to_circle().unwrap();
-        use geo_foundation::Circle2DProperties;
+        use geo_contracts::Circle2DProperties;
         let (cx, cy) = circle.center();
         assert_eq!((cx, cy), (center.x(), center.y()));
         assert_eq!(circle.radius(), 3.0);

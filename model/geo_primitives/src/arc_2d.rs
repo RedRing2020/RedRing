@@ -458,7 +458,6 @@ mod tests {
         let end = Angle::from_degrees(90.0);
 
         let arc = Arc2D::from_center_radius(center, radius, start, end).unwrap();
-        use geo_foundation::Arc2DProperties;
         let (cx, cy) = arc.center();
         assert_eq!((cx, cy), (center.x(), center.y()));
         assert_eq!(arc.radius(), radius);
