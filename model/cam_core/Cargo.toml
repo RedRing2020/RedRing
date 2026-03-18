@@ -10,7 +10,6 @@ categories.workspace = true
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
 geo_primitives = { path = "../geo_primitives" }
 geo_algorithms = { path = "../geo_algorithms" }
 

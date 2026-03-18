@@ -7,6 +7,7 @@ pub mod nurbs_curve_2d_traits;
 pub mod nurbs_curve_3d_traits;
 pub mod nurbs_surface_3d_traits;
 pub mod point_traits;
+pub mod triangle_traits;
 pub mod vector_traits;
 
 pub use arc_traits::{
@@ -29,6 +30,10 @@ pub use nurbs_surface_3d_traits::{
 pub use point_traits::{
     Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties, Point3DConstructor,
     Point3DCore, Point3DMeasure, Point3DProperties,
+};
+pub use triangle_traits::{
+    Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
+    Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
 };
 pub use vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties, Vector3DConstructor,

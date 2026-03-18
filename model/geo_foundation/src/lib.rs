@@ -156,6 +156,9 @@ pub use geometry::core::{
 // #318 移行用ブリッジ: 既存公開名は維持し、contracts 版は別名前空間で併置する。
 pub mod contracts {
     pub use geo_contracts::classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
+    pub use geo_contracts::entity::{
+        EntityDisplayProperties, EntityIdentity, LineEntity3DProperties,
+    };
     pub use geo_contracts::geometry::core::{
         Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
         Arc3DMeasure, Arc3DProperties, Circle2DConstructor, Circle2DCore, Circle2DMeasure,
@@ -165,6 +168,8 @@ pub mod contracts {
         NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure,
         NurbsSurface3DProperties, Point2DConstructor, Point2DCore, Point2DMeasure,
         Point2DProperties, Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties,
+        Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
+        Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
         Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
         Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
     };

@@ -3,11 +3,11 @@
 use crate::NurbsCurve3D;
 use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind};
+use geo_foundation::{Bounded, ExtensionFoundation};
 
 impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::NurbsCurve3D
+    fn primitive_kind(&self) -> geo_foundation::PrimitiveKind {
+        geo_foundation::PrimitiveKind::NurbsCurve3D
     }
 
     /// 曲線の測度（曲線長）を返す
@@ -54,7 +54,7 @@ impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use geo_foundation::{Bounded, ExtensionFoundation};
+    use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind};
 
     #[test]
     fn test_nurbs_curve_3d_foundation() {
