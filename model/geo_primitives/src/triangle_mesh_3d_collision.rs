@@ -3,7 +3,8 @@
 //! BasicCollision トレイトの実装
 
 use crate::{Point3D, TriangleMesh3D};
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicCollision Implementations
@@ -50,7 +51,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for TriangleMesh3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     fn create_simple_quad_mesh() -> TriangleMesh3D<f64> {
         // XY平面上の四角形メッシュ（2つの三角形）

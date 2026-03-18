@@ -3,7 +3,8 @@
 //! BasicCollision トレイトの実装
 
 use crate::{EllipsoidalSurface3D, Point3D};
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicCollision Implementations
@@ -34,7 +35,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for EllipsoidalSurface3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     #[test]
     fn test_ellipsoidal_surface_collision_with_point() {

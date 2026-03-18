@@ -27,3 +27,7 @@ pub use geometry::core::{
     Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
     Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
 };
+pub use geometry::operations::{
+    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, MultipleIntersection,
+    PointDistance, SelfIntersection,
+};

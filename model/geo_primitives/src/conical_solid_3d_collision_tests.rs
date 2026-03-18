@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{ConicalSolid3D, LineSegment3D, Plane3D, Point3D, Vector3D};
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     /// テスト用の標準的な円錐ソリッドを作成
     /// - 底面中心: (0, 0, 0)

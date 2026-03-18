@@ -4,7 +4,8 @@
 //! 楕円体ソリッドは内部を持つ立体であり、距離計算は表面までの距離または内部からの距離を返す。
 
 use crate::{EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D};
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicCollision implementations for EllipsoidalSolid3D

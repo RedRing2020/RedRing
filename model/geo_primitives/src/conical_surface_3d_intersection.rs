@@ -18,7 +18,7 @@ impl<T: Scalar> BasicIntersection<T, Point3D<T>> for ConicalSurface3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, point: &Point3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(point, tolerance) {
             Some(*point)
         } else {
@@ -31,7 +31,8 @@ impl<T: Scalar> BasicIntersection<T, Circle3D<T>> for ConicalSurface3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, circle: &Circle3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::{extensions::BasicCollision, Circle3DProperties};
+        use geo_contracts::BasicCollision;
+        use geo_foundation::Circle3DProperties;
         if self.intersects(circle, tolerance) {
             let (cx, cy, cz) = circle.center();
             Some(Point3D::new(cx, cy, cz))
@@ -45,7 +46,7 @@ impl<T: Scalar> BasicIntersection<T, LineSegment3D<T>> for ConicalSurface3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, segment: &LineSegment3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(&segment.start(), tolerance) {
             Some(segment.start())
         } else if self.intersects(&segment.end(), tolerance) {
@@ -60,7 +61,7 @@ impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for ConicalSurface3D<T> 
     type Point = Point3D<T>;
 
     fn intersection_with(&self, line: &InfiniteLine3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         let ref_point = line.point_at_parameter(T::ZERO);
         if self.intersects(&ref_point, tolerance) {
             Some(ref_point)
@@ -74,7 +75,8 @@ impl<T: Scalar> BasicIntersection<T, Triangle3D<T>> for ConicalSurface3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::{extensions::BasicCollision, Triangle3DProperties};
+        use geo_contracts::BasicCollision;
+        use geo_foundation::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -99,7 +101,7 @@ impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for ConicalSurface3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, plane: &Plane3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(plane, tolerance) {
             Some(self.center_internal())
         } else {
@@ -168,7 +170,8 @@ impl<T: Scalar> MultipleIntersection<T, Triangle3D<T>> for ConicalSurface3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::{extensions::BasicCollision, Triangle3DProperties};
+        use geo_contracts::BasicCollision;
+        use geo_foundation::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -208,7 +211,7 @@ impl<T: Scalar> MultipleIntersection<T, ConicalSurface3D<T>> for ConicalSurface3
     type Point = Point3D<T>;
 
     fn intersections_with(&self, other: &ConicalSurface3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(other, tolerance) {
             vec![self.center_internal()]
         } else {

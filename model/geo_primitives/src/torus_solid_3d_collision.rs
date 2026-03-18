@@ -4,7 +4,8 @@
 //! トーラス立体は内部を持つ立体であり、距離計算は表面までの距離または内部からの距離を返す。
 
 use crate::{Point3D, TorusSolid3D};
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicCollision implementations for TorusSolid3D
@@ -42,7 +43,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for TorusSolid3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::BasicCollision; // トレイトを明示的にインポート
+    use geo_contracts::BasicCollision; // トレイトを明示的にインポート
 
     #[test]
     fn test_torus_solid_point_on_surface() {

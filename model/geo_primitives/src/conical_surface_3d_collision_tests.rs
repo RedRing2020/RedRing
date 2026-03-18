@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{ConicalSurface3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D};
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     const TOLERANCE: f64 = 1e-10;
 
