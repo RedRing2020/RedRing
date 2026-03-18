@@ -3,6 +3,9 @@
 
 pub mod arc_traits;
 pub mod circle_traits;
+pub mod nurbs_curve_2d_traits;
+pub mod nurbs_curve_3d_traits;
+pub mod nurbs_surface_3d_traits;
 pub mod point_traits;
 pub mod vector_traits;
 
@@ -13,6 +16,15 @@ pub use arc_traits::{
 pub use circle_traits::{
     Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties, Circle3DConstructor,
     Circle3DCore, Circle3DMeasure, Circle3DProperties,
+};
+pub use nurbs_curve_2d_traits::{
+    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
+};
+pub use nurbs_curve_3d_traits::{
+    NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DMeasure, NurbsCurve3DProperties,
+};
+pub use nurbs_surface_3d_traits::{
+    NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
 };
 pub use point_traits::{
     Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties, Point3DConstructor,

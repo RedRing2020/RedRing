@@ -4,7 +4,8 @@
 
 use crate::NurbsSurface3D;
 use crate::Scalar;
-use geo_foundation::{Bounded, ExtensionFoundation, NurbsSurface3DMeasure, PrimitiveKind};
+use geo_contracts::NurbsSurface3DMeasure;
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind};
 
 // ============================================================================
 // Extension Foundation 実装
@@ -58,7 +59,7 @@ impl<T: Scalar> Bounded<T> for NurbsSurface3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::{NurbsSurface3DConstructor, NurbsSurface3DProperties};
+    use geo_contracts::{NurbsSurface3DConstructor, NurbsSurface3DProperties};
 
     #[test]
     fn test_constructor_new() {

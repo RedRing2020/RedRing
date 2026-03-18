@@ -5,7 +5,7 @@
 
 use crate::{KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector2;
-use geo_foundation::{
+use geo_contracts::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
 };
 
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_nurbs_curve_2d_creation() {
-        use geo_foundation::NurbsCurve2DConstructor;
+        use geo_contracts::NurbsCurve2DConstructor;
         let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -408,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_curve_evaluation() {
-        use geo_foundation::NurbsCurve2DConstructor;
+        use geo_contracts::NurbsCurve2DConstructor;
         let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
@@ -437,7 +437,7 @@ mod tests {
 
     #[test]
     fn test_approximate_length() {
-        use geo_foundation::NurbsCurve2DConstructor;
+        use geo_contracts::NurbsCurve2DConstructor;
         let control_points = &[(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
         let weights = Some(vec![1.0, 1.0, 1.0]);
         let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];

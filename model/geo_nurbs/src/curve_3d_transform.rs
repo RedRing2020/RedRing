@@ -8,9 +8,9 @@ use analysis::linalg::{
     matrix::Matrix4x4,
     vector::{Vector3, Vector4},
 };
+use geo_contracts::NurbsCurve3DProperties;
 use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
-use geo_foundation::NurbsCurve3DProperties;
 
 /// Matrix4x4による制御点変換の内部実装
 fn transform_control_points<T: Scalar>(
@@ -248,7 +248,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
+    use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
 
     #[test]
     fn test_translate_analysis() {

@@ -37,7 +37,7 @@ impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
     fn aabb(&self) -> Option<Self::Aabb> {
         debug_assert!(self.num_points() > 0, "Control points should not be empty");
         let coords = self.coordinates();
-        let mut points = Vec::with_capacity(self.num_points());
+        let mut points = Vec::new();
         for i in 0..self.num_points() {
             let base = i * 3;
             points.push(Point3D::new(
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_nurbs_curve_3d_foundation() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
         // 簡単なNURBS曲線を作成
         let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 0.0)];
 
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_core_traits_constructor_new() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
 
         // トレイト経由で作成（型を明示）
         let degree = 2;
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_core_traits_from_bezier() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
 
         let control_points = vec![(0.0_f64, 0.0, 0.0), (0.5, 1.0, 0.0), (1.0, 0.0, 0.0)];
         let result =
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_core_traits_line_segment() {
-        use geo_foundation::NurbsCurve3DConstructor;
+        use geo_contracts::NurbsCurve3DConstructor;
 
         let start = (0.0_f64, 0.0, 0.0);
         let end = (1.0, 1.0, 1.0);
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_core_traits_properties() {
-        use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
+        use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
 
         let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::from_bezier(vec![
             (0.0, 0.0, 0.0),
@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_core_traits_measure() {
-        use geo_foundation::{NurbsCurve3DConstructor, NurbsCurve3DMeasure};
+        use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DMeasure};
 
         let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
             (0.0, 0.0, 0.0),
