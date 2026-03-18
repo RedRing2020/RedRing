@@ -282,6 +282,48 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
+pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
+    line1: &InfiniteLine3D<T>,
+    line2: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let point = line1.intersection_with_line(line2)?;
+    // 交点候補が両直線上に乗っているか数値誤差で確認
+    if line2.distance_to_point(&point) <= tolerance {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+pub fn infinite_line3d_line_segment3d_intersection<T: Scalar>(
+    line: &InfiniteLine3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let segment_line = segment.line();
+    let point = line.intersection_with_line(segment_line)?;
+    if segment.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
+    line: &InfiniteLine3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
+    let point = line.intersection_with_line(&ray_line)?;
+    if ray.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
 pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
     line: &InfiniteLine3D<T>,
     sphere: &SphericalSurface3D<T>,
@@ -395,9 +437,11 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
 mod tests {
     use super::{
         arc2d_circle2d_intersections, circle2d_circle2d_intersections,
-        circle2d_line_segment2d_intersections, infinite_line3d_spherical_surface3d_intersections,
-        line_segment2d_arc2d_intersections, line_segment2d_circle2d_intersections,
-        line_segment2d_line_segment2d_intersection, line_segment3d_line_segment3d_intersection,
+        circle2d_line_segment2d_intersections, infinite_line3d_infinite_line3d_intersection,
+        infinite_line3d_line_segment3d_intersection, infinite_line3d_ray3d_intersection,
+        infinite_line3d_spherical_surface3d_intersections, line_segment2d_arc2d_intersections,
+        line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
+        line_segment3d_line_segment3d_intersection,
         line_segment3d_spherical_surface3d_intersections, ray3d_spherical_surface3d_intersections,
     };
     use geo_primitives::{
@@ -537,5 +581,101 @@ mod tests {
 
         let points = ray3d_spherical_surface3d_intersections(&ray, &sphere);
         assert_eq!(points.len(), 0);
+    }
+
+    #[test]
+    fn infinite_line3d_infinite_line3d_returns_intersection() {
+        // XY平面上でX軸とY軸が交わる
+        let line1 = InfiniteLine3D::from_two_points(
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let line2 = InfiniteLine3D::from_two_points(
+            Point3D::new(0.0, -1.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let p = infinite_line3d_infinite_line3d_intersection(&line1, &line2, 1e-6);
+        assert!(p.is_some());
+        let p = p.unwrap();
+        assert!((p.x() as f64).abs() < 1e-6);
+        assert!((p.y() as f64).abs() < 1e-6);
+    }
+
+    #[test]
+    fn infinite_line3d_infinite_line3d_parallel_returns_none() {
+        let line1 = InfiniteLine3D::from_two_points(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let line2 = InfiniteLine3D::from_two_points(
+            Point3D::new(0.0, 1.0, 0.0),
+            Point3D::new(1.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let p = infinite_line3d_infinite_line3d_intersection(&line1, &line2, 1e-6);
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn infinite_line3d_line_segment3d_returns_intersection() {
+        // X軸の無限直線と、(0,-1,0)-(0,1,0) の線分が原点で交わる
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let segment =
+            LineSegment3D::new(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0)).unwrap();
+
+        let p = infinite_line3d_line_segment3d_intersection(&line, &segment, 1e-6);
+        assert!(p.is_some());
+    }
+
+    #[test]
+    fn infinite_line3d_line_segment3d_outside_segment_returns_none() {
+        // X軸の無限直線と、y=2 上の線分（交点が線分外）
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let segment =
+            LineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(0.0, 3.0, 0.0)).unwrap();
+
+        let p = infinite_line3d_line_segment3d_intersection(&line, &segment, 1e-6);
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn infinite_line3d_ray3d_returns_intersection() {
+        // X軸の無限直線と、(0,-2,0) から +y 方向の Ray が原点で交わる
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+
+        let p = infinite_line3d_ray3d_intersection(&line, &ray, 1e-6);
+        assert!(p.is_some());
+    }
+
+    #[test]
+    fn infinite_line3d_ray3d_behind_ray_returns_none() {
+        // X軸の無限直線と、(0,-2,0) から -y 方向の Ray（交点が後方）→ None
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
+
+        let p = infinite_line3d_ray3d_intersection(&line, &ray, 1e-6);
+        assert!(p.is_none());
     }
 }
