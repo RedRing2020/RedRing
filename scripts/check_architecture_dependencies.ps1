@@ -17,7 +17,7 @@ $ARCHITECTURE_RULES = @{
         analysis       = @()
 
         # Model: geo_*
-        geo_foundation = @("analysis", "geo_commons")
+        geo_foundation = @("analysis", "geo_commons", "geo_contracts")  # geo_contracts: #318移行期の互換ブリッジ
         geo_contracts  = @("analysis")
         geo_commons    = @("geo_foundation", "analysis")
         geo_core       = @("analysis", "geo_entity") # geo_core -> geo_entity: OK
