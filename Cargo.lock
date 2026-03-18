@@ -738,6 +738,7 @@ name = "geo_foundation"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "geo_contracts",
 ]
 
 [[package]]
