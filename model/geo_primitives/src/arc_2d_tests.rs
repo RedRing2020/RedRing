@@ -3,7 +3,8 @@
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Arc2D, Point2D, Vector2D};
-use geo_foundation::{core::arc_traits::Arc2DMeasure, Arc2DProperties, Angle};
+use geo_contracts::Angle;
+use geo_foundation::{core::arc_traits::Arc2DMeasure, Arc2DProperties};
 
 #[cfg(test)]
 mod tests {
@@ -250,3 +251,4 @@ mod tests {
         assert!((start.y() - 0.0f32).abs() < 1e-6);
     }
 }
+

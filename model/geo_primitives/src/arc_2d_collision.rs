@@ -4,7 +4,8 @@
 //! Arc2D と他の幾何形状との組み合わせを実装
 
 use crate::{Arc2D, Circle2D, Point2D};
-use geo_foundation::{Arc2DProperties, BasicCollision, Circle2DProperties, Scalar};
+use geo_contracts::Scalar;
+use geo_foundation::{Arc2DProperties, BasicCollision, Circle2DProperties};
 
 // ============================================================================
 // BasicCollision Implementations

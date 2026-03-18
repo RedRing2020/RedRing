@@ -1,8 +1,9 @@
 //! Arc3D の Foundation トレイト実装
 
 use crate::Arc3D;
+use geo_contracts::Scalar;
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
@@ -77,8 +78,8 @@ mod tests {
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
         let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let start_angle = geo_foundation::Angle::from_radians(0.0);
-        let end_angle = geo_foundation::Angle::from_radians(std::f64::consts::PI);
+        let start_angle = geo_contracts::Angle::from_radians(0.0);
+        let end_angle = geo_contracts::Angle::from_radians(std::f64::consts::PI);
         let arc = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
 
         assert_eq!(arc.primitive_kind(), PrimitiveKind::Arc);
@@ -95,8 +96,8 @@ mod tests {
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
         let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let start_angle = geo_foundation::Angle::from_radians(0.0);
-        let end_angle = geo_foundation::Angle::from_radians(std::f64::consts::PI);
+        let start_angle = geo_contracts::Angle::from_radians(0.0);
+        let end_angle = geo_contracts::Angle::from_radians(std::f64::consts::PI);
 
         let arc1 = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
         let arc2 = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();

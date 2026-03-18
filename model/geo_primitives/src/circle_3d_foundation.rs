@@ -1,8 +1,9 @@
 //! Circle3D の Foundation トレイト実装
 
 use crate::Circle3D;
+use geo_contracts::Scalar;
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
