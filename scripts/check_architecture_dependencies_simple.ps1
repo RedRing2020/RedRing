@@ -32,7 +32,7 @@ function Get-CrateDependencies {
         if ($inDepsSection -and $line -match '^(\w+)\s*=') {
             $depName = $matches[1]
             # Check if it's a workspace crate
-            $workspaceCrates = @("analysis", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "job_runtime", "job_domain", "converter", "graphics", "render", "stage", "app")
+            $workspaceCrates = @("analysis", "geo_contracts", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "job_runtime", "job_domain", "converter", "graphics", "render", "stage", "app")
             if ($workspaceCrates -contains $depName) {
                 $dependencies += $depName
             }
@@ -53,6 +53,7 @@ function Test-ArchitectureDependencies {
     # Define workspace structure
     $workspaceCrates = @{
         "analysis"       = "foundation\analysis"
+        "geo_contracts"  = "model\geo_contracts"
         "geo_foundation" = "model\geo_foundation"
         "geo_commons"    = "model\geo_commons"
         "geo_core"       = "model\geo_core"
@@ -72,12 +73,13 @@ function Test-ArchitectureDependencies {
     # Define allowed dependencies (Updated: 2025-12-25)
     $allowedDeps = @{
         "analysis"       = @()
+        "geo_contracts"  = @("analysis")  # analysis の Scalar/Angle を re-export する形状契約クレート
         "geo_foundation" = @("analysis", "geo_commons")  # geo_commons: 共通計算関数を再エクスポート
         "geo_commons"    = @("analysis")  # 独立した計算関数クレート
         "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
-        "geo_primitives" = @("geo_foundation", "geo_core", "analysis")  # geo_core の AABB型を使用
+        "geo_primitives" = @("geo_foundation", "geo_contracts", "geo_core", "analysis")  # geo_core の AABB型を使用
         "geo_algorithms" = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")  # 共通計算関数・NURBS衝突判定のため geo_commons, geo_nurbs を追加
-        "geo_nurbs"      = @("geo_foundation", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
+        "geo_nurbs"      = @("geo_foundation", "geo_contracts", "geo_core", "geo_primitives", "analysis")  # geo_core の AABB型を使用
         "geo_io"         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
         "job_runtime"    = @("analysis")
         "job_domain"     = @("analysis", "job_runtime")
@@ -90,7 +92,7 @@ function Test-ArchitectureDependencies {
     }
 
     Write-ColorText "1. Checking Model layer naming rules..." "Yellow"
-    $modelCrates = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io")
+    $modelCrates = @("geo_contracts", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io")
     foreach ($crateName in $modelCrates) {
         if (Test-Path $workspaceCrates[$crateName]) {
             Write-ColorText "  OK: $crateName follows geo_ prefix rule" "Green"
@@ -142,7 +144,7 @@ function Test-ArchitectureDependencies {
     Write-ColorText "3. Layer summary:" "Yellow"
     $layers = @{
         "Analysis"  = @("analysis")
-        "Model"     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
+        "Model"     = @("geo_contracts", "geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "job_runtime", "job_domain")
         "ViewModel" = @("converter", "graphics")
         "View"      = @("render", "stage", "app")
     }
