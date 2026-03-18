@@ -74,7 +74,7 @@ function Test-ArchitectureDependencies {
     $allowedDeps = @{
         "analysis"       = @()
         "geo_contracts"  = @("analysis")  # analysis の Scalar/Angle を re-export する形状契約クレート
-        "geo_foundation" = @("analysis", "geo_commons")  # geo_commons: 共通計算関数を再エクスポート
+        "geo_foundation" = @("analysis", "geo_commons", "geo_contracts")  # geo_commons: 共通計算関数を再エクスポート; geo_contracts: #318移行期の互換ブリッジ
         "geo_commons"    = @("analysis")  # 独立した計算関数クレート
         "geo_core"       = @("geo_foundation", "analysis")  # トレイト実装 + AABB型
         "geo_primitives" = @("geo_foundation", "geo_contracts", "geo_core", "analysis")  # geo_core の AABB型を使用
