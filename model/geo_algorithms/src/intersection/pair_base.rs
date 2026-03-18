@@ -7,8 +7,8 @@ use geo_foundation::{
     SphericalSurface3DProperties,
 };
 use geo_primitives::{
-    Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D, Ray3D,
-    SphericalSurface3D, Vector3D,
+    Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,
+    Ray3D, SphericalSurface3D, Vector3D,
 };
 
 pub fn circle2d_circle2d_intersections<T: Scalar>(
@@ -324,6 +324,108 @@ pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
     }
 }
 
+pub fn plane3d_line_segment3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let start = segment.start();
+    let end = segment.end();
+    let direction = Vector3D::from_points(&start, &end);
+
+    if direction.is_zero() {
+        return if plane.contains_point(start, tolerance) {
+            Some(start)
+        } else {
+            None
+        };
+    }
+
+    let normal = plane.normal().as_vector();
+    let denom = direction.dot(&normal);
+
+    if denom.abs() <= T::EPSILON {
+        return if plane.contains_point(start, tolerance) {
+            Some(start)
+        } else {
+            None
+        };
+    }
+
+    let to_plane = Vector3D::from_points(&start, &plane.origin());
+    let t = to_plane.dot(&normal) / denom;
+
+    if t >= T::ZERO && t <= T::ONE {
+        Some(Point3D::new(
+            start.x() + t * direction.x(),
+            start.y() + t * direction.y(),
+            start.z() + t * direction.z(),
+        ))
+    } else {
+        None
+    }
+}
+
+pub fn plane3d_ray3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let origin = ray.origin();
+    let direction = ray.direction_vector();
+    let normal = plane.normal().as_vector();
+    let denom = direction.dot(&normal);
+
+    if denom.abs() <= T::EPSILON {
+        return if plane.contains_point(origin, tolerance) {
+            Some(origin)
+        } else {
+            None
+        };
+    }
+
+    let to_plane = Vector3D::from_points(&origin, &plane.origin());
+    let t = to_plane.dot(&normal) / denom;
+
+    if t >= T::ZERO {
+        Some(Point3D::new(
+            origin.x() + t * direction.x(),
+            origin.y() + t * direction.y(),
+            origin.z() + t * direction.z(),
+        ))
+    } else {
+        None
+    }
+}
+
+pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    line: &InfiniteLine3D<T>,
+) -> Option<Point3D<T>> {
+    let lp = line.point();
+    let ld = line.direction();
+    let line_point = Point3D::new(lp.0, lp.1, lp.2);
+    let line_dir_vec = Vector3D::new(ld.0, ld.1, ld.2);
+    let normal = plane.normal().as_vector();
+    let denom = line_dir_vec.dot(&normal);
+
+    if denom.abs() <= T::EPSILON {
+        return if plane.distance_to_point(line_point).abs() <= T::EPSILON {
+            Some(line_point)
+        } else {
+            None
+        };
+    }
+
+    let to_plane = Vector3D::from_points(&line_point, &plane.origin());
+    let t = to_plane.dot(&normal) / denom;
+    Some(Point3D::new(
+        line_point.x() + t * line_dir_vec.x(),
+        line_point.y() + t * line_dir_vec.y(),
+        line_point.z() + t * line_dir_vec.z(),
+    ))
+}
+
 pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
     line: &InfiniteLine3D<T>,
     sphere: &SphericalSurface3D<T>,
@@ -444,6 +546,11 @@ mod tests {
         line_segment3d_line_segment3d_intersection,
         line_segment3d_spherical_surface3d_intersections, ray3d_spherical_surface3d_intersections,
     };
+    use super::{
+        plane3d_infinite_line3d_intersection, plane3d_line_segment3d_intersection,
+        plane3d_ray3d_intersection,
+    };
+    use geo_primitives::Plane3D;
     use geo_primitives::{
         Angle, Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D,
         Ray3D, SphericalSurface3D, Vector3D,
@@ -678,4 +785,62 @@ mod tests {
         let p = infinite_line3d_ray3d_intersection(&line, &ray, 1e-6);
         assert!(p.is_none());
     }
+}
+
+#[test]
+fn plane3d_line_segment3d_returns_intersection() {
+    // z=0 の XY平面と z=-1→z=1 の線分 → z=0 で交差
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let segment =
+        LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
+    let p = plane3d_line_segment3d_intersection(&plane, &segment, 1e-6);
+    assert!(p.is_some());
+    assert!((p.unwrap().z() as f64).abs() < 1e-6);
+}
+
+#[test]
+fn plane3d_line_segment3d_parallel_returns_none() {
+    // z=0 の XY平面と z=1 上の水平線分 → 平行で交点なし
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let segment =
+        LineSegment3D::new(Point3D::new(-1.0, 0.0, 1.0), Point3D::new(1.0, 0.0, 1.0)).unwrap();
+    let p = plane3d_line_segment3d_intersection(&plane, &segment, 1e-6);
+    assert!(p.is_none());
+}
+
+#[test]
+fn plane3d_ray3d_returns_intersection() {
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let ray = Ray3D::new(Point3D::new(0.0, 0.0, -2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    let p = plane3d_ray3d_intersection(&plane, &ray, 1e-6);
+    assert!(p.is_some());
+}
+
+#[test]
+fn plane3d_ray3d_behind_ray_returns_none() {
+    // 平面より先にある Ray が平面から遠ざかる方向 → None
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let ray = Ray3D::new(Point3D::new(0.0, 0.0, 2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    let p = plane3d_ray3d_intersection(&plane, &ray, 1e-6);
+    assert!(p.is_none());
+}
+
+#[test]
+fn plane3d_infinite_line3d_returns_intersection() {
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0))
+            .unwrap();
+    let p = plane3d_infinite_line3d_intersection(&plane, &line);
+    assert!(p.is_some());
+}
+
+#[test]
+fn plane3d_infinite_line3d_parallel_returns_none() {
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let line =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 1.0), Point3D::new(1.0, 0.0, 1.0))
+            .unwrap();
+    let p = plane3d_infinite_line3d_intersection(&plane, &line);
+    assert!(p.is_none());
 }
