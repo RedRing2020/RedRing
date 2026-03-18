@@ -5,8 +5,9 @@
 use crate::{
     Circle3D, CylindricalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Triangle3D,
 };
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
+    
     Scalar,
 };
 
@@ -119,7 +120,7 @@ impl<T: Scalar> MultipleIntersection<T, Point3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, point: &Point3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(point, tolerance) {
             vec![pt]
         } else {
@@ -132,7 +133,7 @@ impl<T: Scalar> MultipleIntersection<T, Circle3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, circle: &Circle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(circle, tolerance) {
             vec![pt]
         } else {
@@ -192,7 +193,7 @@ impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3
     type Point = Point3D<T>;
 
     fn intersections_with(&self, line: &InfiniteLine3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(line, tolerance) {
             vec![pt]
         } else {
@@ -205,7 +206,7 @@ impl<T: Scalar> MultipleIntersection<T, Plane3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, plane: &Plane3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(plane, tolerance) {
             vec![pt]
         } else {

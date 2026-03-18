@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{Ellipse3D, Point3D};
-    use geo_foundation::extensions::{BasicIntersection, SelfIntersection};
+    use geo_contracts::{BasicIntersection, SelfIntersection};
 
     #[test]
     fn test_ellipse3d_point_intersection() {

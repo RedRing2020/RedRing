@@ -5,10 +5,9 @@
 use crate::{
     Arc2D, Circle2D, Ellipse2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
 };
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 use geo_foundation::{
-    core::arc_traits::Arc2DProperties,
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
-    Circle2DProperties, LineSegment2DProperties, Scalar,
+    core::arc_traits::Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar,
 };
 
 // ============================================================================

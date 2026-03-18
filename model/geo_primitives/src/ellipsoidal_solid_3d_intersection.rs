@@ -3,10 +3,8 @@
 //! 楕円体ソリッドとの交点計算を提供する。
 
 use crate::{EllipsoidalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D};
-use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
-    Scalar,
-};
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection implementations for EllipsoidalSolid3D

@@ -4,10 +4,8 @@
 //! LineSegment2D と他の幾何形状との組み合わせを実装
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
-use geo_foundation::{
-    Arc2DProperties, BasicIntersection, Circle2DProperties, LineSegment2DProperties,
-    MultipleIntersection, Scalar, SelfIntersection,
-};
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
+use geo_foundation::{Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar};
 
 // ============================================================================
 // BasicIntersection Implementations

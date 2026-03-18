@@ -3,7 +3,8 @@
 //! BasicIntersection トレイトの実装
 
 use crate::{EllipsoidalSurface3D, Point3D};
-use geo_foundation::{extensions::BasicIntersection, Scalar};
+use geo_contracts::BasicIntersection;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection Implementations
@@ -30,7 +31,7 @@ impl<T: Scalar> BasicIntersection<T, Point3D<T>> for EllipsoidalSurface3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::BasicIntersection;
+    use geo_contracts::BasicIntersection;
 
     #[test]
     fn test_ellipsoidal_surface_intersection_with_point() {

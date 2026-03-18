@@ -3,11 +3,8 @@
 //! 円錐ソリッドとの交差計算を提供する。
 
 use crate::{ConicalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D};
-use geo_contracts::BasicCollision;
-use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
-    Scalar,
-};
+use geo_contracts::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection};
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection implementations for ConicalSolid3D

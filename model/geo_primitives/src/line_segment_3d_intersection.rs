@@ -4,10 +4,8 @@
 //! LineSegment3D と他の幾何形状との組み合わせを実装
 
 use crate::{LineSegment3D, Point3D, SphericalSurface3D, Vector3D};
-use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
-    Scalar, SphericalSurface3DProperties,
-};
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
+use geo_foundation::{Scalar, SphericalSurface3DProperties};
 
 // ============================================================================
 // BasicIntersection Implementations

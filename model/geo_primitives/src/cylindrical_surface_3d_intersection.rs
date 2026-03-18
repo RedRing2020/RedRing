@@ -5,10 +5,8 @@
 //! 円柱サーフェスは無限円柱面であり、複数の交点を持つことがある。
 
 use crate::{Circle3D, CylindricalSurface3D, LineSegment3D, Plane3D, Point3D, Triangle3D};
-use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
-    Scalar,
-};
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection Implementations
@@ -109,7 +107,7 @@ impl<T: Scalar> MultipleIntersection<T, Point3D<T>> for CylindricalSurface3D<T> 
     type Point = Point3D<T>;
 
     fn intersections_with(&self, point: &Point3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(point, tolerance) {
             vec![pt]
         } else {
@@ -122,7 +120,7 @@ impl<T: Scalar> MultipleIntersection<T, Circle3D<T>> for CylindricalSurface3D<T>
     type Point = Point3D<T>;
 
     fn intersections_with(&self, circle: &Circle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(circle, tolerance) {
             vec![pt]
         } else {
@@ -182,7 +180,7 @@ impl<T: Scalar> MultipleIntersection<T, Plane3D<T>> for CylindricalSurface3D<T> 
     type Point = Point3D<T>;
 
     fn intersections_with(&self, plane: &Plane3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(plane, tolerance) {
             vec![pt]
         } else {

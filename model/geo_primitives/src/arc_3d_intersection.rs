@@ -3,8 +3,8 @@
 //! 3次元円弧の交差計算実装
 
 use crate::{Arc3D, InfiniteLine3D, LineSegment3D, Point3D, Ray3D};
+use geo_contracts::BasicIntersection;
 use geo_contracts::Scalar;
-use geo_foundation::extensions::BasicIntersection;
 
 // ============================================================================
 // Arc3D vs Point3D
