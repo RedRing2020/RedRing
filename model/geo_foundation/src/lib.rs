@@ -159,11 +159,11 @@ pub mod contracts {
     pub use geo_contracts::geometry::core::{
         Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
         Arc3DMeasure, Arc3DProperties, Circle2DConstructor, Circle2DCore, Circle2DMeasure,
-        Circle2DProperties, Circle3DConstructor, Circle3DCore, Circle3DMeasure,
-        Circle3DProperties, Point2DConstructor, Point2DCore, Point2DMeasure,
-        Point2DProperties, Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties,
-        Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
-        Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
+        Circle2DProperties, Circle3DConstructor, Circle3DCore, Circle3DMeasure, Circle3DProperties,
+        Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties, Point3DConstructor,
+        Point3DCore, Point3DMeasure, Point3DProperties, Vector2DConstructor, Vector2DCore,
+        Vector2DMeasure, Vector2DProperties, Vector3DConstructor, Vector3DCore, Vector3DMeasure,
+        Vector3DProperties,
     };
 }
 
