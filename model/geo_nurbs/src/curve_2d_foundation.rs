@@ -4,15 +4,15 @@
 
 use crate::{NurbsCurve2D, Scalar};
 use geo_contracts::NurbsCurve2DProperties;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind};
+use geo_foundation::{Bounded, ExtensionFoundation};
 
 // ============================================================================
 // Extension Foundation 実装
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::NurbsCurve2D
+    fn primitive_kind(&self) -> geo_foundation::PrimitiveKind {
+        geo_foundation::PrimitiveKind::NurbsCurve2D
     }
 
     fn measure(&self) -> Option<T> {

@@ -264,7 +264,6 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "geo_algorithms",
- "geo_foundation",
  "geo_primitives",
 ]
 
