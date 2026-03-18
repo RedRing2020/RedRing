@@ -314,40 +314,105 @@
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check_architecture_dependencies_simple.ps1`
 - `rg "geo_foundation::|geo_foundation = \{ path = \"../geo_foundation\" \}" model/ Cargo.toml`
 
-## 6. 最初のPRスコープ（推奨）
+## 6. PR分割（実行計画）
 
-最初の PR は「全面移設」ではなく、以下に限定する。
+`#318` は 3PR で進める。Cross Operation の本格移設は `#332` 側で扱い、
+`#318` では依存置換と最終撤去に必要な最小差分に限定する。
 
-- `geo_contracts` に `classification` と `geometry::core` 骨格を追加
-- `arc` / `circle` 契約だけを先行移設
-- `geo_foundation` では同名 re-export を残して互換層化
-- `geo_primitives` の `arc` / `circle` 関連 import だけを `geo_contracts` に切替
+### PR-A: contracts骨格 + primitives先行切替（arc/circle）
 
-この切り方なら、#318 の方向性を固定しつつ差分を制御できる。
+目的:
 
-## 6.1 最初のPR 作業項目（実行用）
+- `geo_contracts` を形状契約の参照先として成立させる
+- `geo_primitives` の arc/circle 契約参照を先行置換する
+
+完了条件:
+
+- `geo_contracts` に `classification` / `geometry::core` 骨格がある
+- `point/vector/arc/circle` 契約が `geo_contracts` に存在する
+- `geo_primitives` の arc/circle import 切替が完了する
+- `cargo check -p geo_contracts -p geo_foundation -p geo_primitives` が通る
+- `cargo test -p geo_primitives arc_` / `circle_` が通る
+
+注意:
+
+- `conical_surface_3d_collision.rs` / `cylindrical_solid_3d_collision.rs` / `cylindrical_surface_3d_collision.rs` の cross collision 実装移設は `#332` で扱う
+
+### PR-B: nurbs + 利用側クレート置換
+
+目的:
+
+- `geo_nurbs` の契約参照を `geo_contracts` へ移行する
+- `geo_algorithms` / `geo_io` / `geo_entity` / `cam_core` の `geo_foundation` 参照を用途別に置換する
+
+完了条件:
+
+- `geo_nurbs` の NURBS 契約参照が `geo_contracts` 基準
+- 4クレートの `Cargo.toml` から `geo_foundation` 依存を削除
+- `cargo check -p geo_nurbs -p geo_algorithms -p geo_io -p geo_entity -p cam_core` が通る
+
+注意:
+
+- `collision/intersection` の本格移設は `#332` へ分離
+
+### PR-C: 互換層縮退 + 最終撤去判定
+
+目的:
+
+- `geo_foundation` の互換層を最小化し、撤去可能判定を行う
+
+完了条件:
+
+- workspace 内の `geo_foundation::` 参照が説明可能な最小残件またはゼロ
+- `cargo check --workspace` / `cargo test --workspace` が通る
+- 依存チェックスクリプトが通る
+- `model/geo_foundation` 削除準備が整う
+
+## 6.1 PR-A 作業項目（更新）
 
 - [x] `geo_contracts` に `classification` モジュール追加
 - [x] `geo_contracts` に `geometry/core` 骨格追加
 - [x] `point/vector` 契約を `geo_contracts` へ先行移設
 - [x] `arc/circle` 契約を `geo_contracts` へ先行移設
 - [x] `geo_foundation` の同名公開項目を `geo_contracts` 再エクスポートへ変更
-- [ ] `geo_primitives` の arc/circle 系 import を `geo_contracts` に切替
+- [x] `geo_primitives` の arc/circle 系 import を `geo_contracts` に先行切替
 - [x] `cargo check -p geo_contracts -p geo_foundation -p geo_primitives`
-- [ ] `cargo test -p geo_primitives arc_`
-- [ ] `cargo test -p geo_primitives circle_`
+- [x] `cargo test -p geo_primitives arc_`
+- [x] `cargo test -p geo_primitives circle_`
+- [ ] PR-A の差分をコミットしPR化
 
-## 6.2 PRレビュー用 境界チェック
+## 6.2 PR-B 作業項目（新設）
+
+- [ ] `geo_nurbs` の constructor/properties/measure 参照を `geo_contracts` へ置換
+- [ ] `geo_nurbs` README / doctest の旧 import を更新
+- [ ] `geo_algorithms` の `Scalar` / `Tolerance*` / 形状契約参照を用途別に置換
+- [ ] `geo_io` / `geo_entity` / `cam_core` の `geo_foundation` 参照を置換
+- [ ] 4クレートの `Cargo.toml` から `geo_foundation` 依存を削除
+- [ ] `cargo check -p geo_nurbs -p geo_algorithms -p geo_io -p geo_entity -p cam_core`
+
+## 6.3 PR-C 作業項目（新設）
+
+- [ ] `geo_foundation` の互換再エクスポートを最小化
+- [ ] workspace の `geo_foundation::` 参照をゼロ化または `#332` 対象として明文化
+- [ ] `cargo check --workspace`
+- [ ] `cargo test --workspace`
+- [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check_architecture_dependencies_simple.ps1`
+- [ ] `Cargo.toml` workspace members から `model/geo_foundation` 削除準備
+
+## 6.4 PRレビュー用 境界チェック
 
 - [ ] `geo_contracts` に計算アルゴリズム本体が入っていない
 - [ ] `geo_contracts` に transform 実装本体が入っていない
 - [ ] `geo_core` に形状固有語依存の trait 実装が増えていない
 - [ ] `geo_primitives` / `geo_nurbs` に共通契約の再定義を追加していない
+- [ ] `collision/intersection` の本格移設差分が `#332` 側に分離されている
 - [ ] 新規 public API が固定境界表（3.0節）に適合している
 
-## 7. 完了条件
+## 7. #318 クローズ条件（更新）
 
-- [ ] `geo_foundation` の公開 API ごとの所有先が明文化されている
 - [ ] `geo_contracts` が形状契約の正規参照先として成立している
-- [ ] `geo_foundation` 依存 6 クレートの切替順が確定している
-- [ ] 最初の PR スコープが縦切りで定義されている
+- [ ] `geo_primitives` / `geo_nurbs` が実装責務中心に整理されている
+- [ ] `geo_foundation` 依存 6 クレートの切替が完了している
+- [ ] `geo_foundation` なしで workspace build/test が通る
+- [ ] 依存チェックスクリプトが通る
+- [ ] `#332` との境界（cross operation 移設対象）が明文化されている

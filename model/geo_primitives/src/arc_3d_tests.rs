@@ -4,7 +4,7 @@
 
 use crate::{Arc3D, Point3D, Vector3D};
 use geo_contracts::Angle;
-use geo_foundation::core::arc_traits::Arc3DProperties;
+use geo_contracts::Arc3DProperties;
 
 #[cfg(test)]
 mod tests {
