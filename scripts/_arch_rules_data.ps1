@@ -2,7 +2,7 @@
 # This file is dot-sourced by check_architecture_dependencies*.ps1
 # DO NOT execute directly.
 
-# ワークスペース全クレートのパス定義
+# Workspace crate path mapping
 $ARCH_LAYER_MAPPING = @{
     analysis       = "foundation/analysis"
     geo_foundation = "model/geo_foundation"
@@ -26,7 +26,7 @@ $ARCH_LAYER_MAPPING = @{
     app            = "view/app"
 }
 
-# レイヤー分類
+# Layer groups
 $ARCH_LAYERS = @{
     Analysis  = @("analysis")
     Model     = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
@@ -34,19 +34,19 @@ $ARCH_LAYERS = @{
     View      = @("render", "stage", "app")
 }
 
-# チェック対象の Model クレート（命名規則）
+# Required model crates
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
-# 許可依存ルール
-# 最終更新: 2026-03-18
+# Allowed dependency rules
+# Last updated: 2026-03-18
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     geo_contracts  = @("analysis")
-    geo_foundation = @("analysis", "geo_commons", "geo_contracts")  # geo_contracts: #318移行期の互換ブリッジ
+    geo_foundation = @("analysis", "geo_commons", "geo_contracts")  # geo_contracts: temporary compatibility bridge for #318
     geo_commons    = @("analysis")
     geo_core       = @("analysis", "geo_entity")
     geo_primitives = @("geo_foundation", "geo_contracts", "geo_core", "analysis")
-    geo_algorithms = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")
+    geo_algorithms = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")
     geo_nurbs      = @("geo_foundation", "geo_contracts", "geo_core", "geo_primitives", "analysis")
     geo_io         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
     geo_entity     = @("geo_foundation", "geo_primitives")
@@ -62,10 +62,10 @@ $ARCH_ALLOWED_DEPS = @{
     app            = @("converter", "graphics", "render", "stage", "analysis")
 }
 
-# 禁止依存ルール（明示的に違反を検出）
+# Forbidden dependency rules
 $ARCH_FORBIDDEN_DEPS = @{
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_contracts  = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
+    geo_contracts  = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
     geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
@@ -86,7 +86,7 @@ $ARCH_FORBIDDEN_DEPS = @{
     analysis       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
 }
 
-# 共通関数: Cargo.toml からワークスペース依存を抽出
+# Shared helper: extract workspace dependencies from Cargo.toml
 function Get-CrateDependenciesShared {
     param([string]$CratePath)
 
@@ -119,7 +119,7 @@ function Get-CrateDependenciesShared {
     return $dependencies
 }
 
-# 共通関数: ワークスペースクレートのパスマップを返す
+# Shared helper: return workspace crate path map
 function Get-WorkspaceCratesShared {
     $result = @{}
     foreach ($crateName in $ARCH_LAYER_MAPPING.Keys) {
