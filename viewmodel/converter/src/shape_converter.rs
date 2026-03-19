@@ -27,8 +27,8 @@ use geo_foundation::{
     Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DMeasure,
     CylindricalSolid3DProperties, CylindricalSurface3DMeasure, EllipseArc3DProperties,
     EllipsoidalSolid3DProperties, EllipsoidalSurface3DMeasure, Plane3DProperties, PrimitiveKind,
-    Ray3DProperties, SphericalSolid3DProperties, SphericalSurface3DMeasure,
-    TorusSolid3DProperties, TorusSurface3DMeasure, Triangle3DProperties,
+    Ray3DProperties, SphericalSolid3DProperties, SphericalSurface3DMeasure, TorusSolid3DProperties,
+    TorusSurface3DMeasure, Triangle3DProperties,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)
