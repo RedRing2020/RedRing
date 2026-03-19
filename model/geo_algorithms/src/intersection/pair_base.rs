@@ -2,9 +2,9 @@
 //!
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
+use geo_contracts::{InfiniteLine3DProperties, Scalar};
 use geo_foundation::{
-    Arc2DProperties, Circle2DProperties, InfiniteLine3DProperties, LineSegment2DProperties, Scalar,
-    SphericalSurface3DProperties,
+    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, SphericalSurface3DProperties,
 };
 use geo_primitives::{
     Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,

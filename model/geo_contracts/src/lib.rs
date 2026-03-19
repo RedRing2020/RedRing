@@ -20,6 +20,7 @@ pub use geometry::core::{
     Vector2DMeasure, Vector2DProperties, Vector3DConstructor, Vector3DCore, Vector3DMeasure,
     Vector3DProperties,
 };
+pub use geometry::core::{InfiniteLine3DProperties, Plane3DProperties, Ray3DProperties};
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
     NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DMeasure, NurbsCurve3DProperties,
