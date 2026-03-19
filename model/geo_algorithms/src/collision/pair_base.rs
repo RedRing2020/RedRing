@@ -11,8 +11,8 @@ use crate::intersection::pair_base::{
     ray3d_line_segment3d_intersection, ray3d_ray3d_intersection,
     ray3d_spherical_surface3d_intersections,
 };
+use crate::{InfiniteLine3D, LineSegment3D, Plane3D, Ray3D, SphericalSurface3D};
 use geo_contracts::Scalar;
-use geo_primitives::{InfiniteLine3D, LineSegment3D, Plane3D, Ray3D, SphericalSurface3D};
 
 // collision 判定は intersection 側の判定ロジックを正本として再利用し、
 // 幾何条件の二重実装を避ける。
@@ -113,7 +113,7 @@ mod tests {
         line_segment3d_spherical_surface3d_collides, plane3d_ray3d_collides, ray3d_ray3d_collides,
         ray3d_spherical_surface3d_collides,
     };
-    use geo_primitives::{
+    use crate::{
         InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, Vector3D,
     };
 

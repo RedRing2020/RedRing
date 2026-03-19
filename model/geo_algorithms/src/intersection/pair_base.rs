@@ -2,13 +2,13 @@
 //!
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
+use crate::{
+    Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,
+    Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
+};
 use geo_contracts::{InfiniteLine3DProperties, Scalar, Triangle3DProperties};
 use geo_foundation::{
     Arc2DProperties, Circle2DProperties, LineSegment2DProperties, SphericalSurface3DProperties,
-};
-use geo_primitives::{
-    Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,
-    Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 
 pub fn circle2d_circle2d_intersections<T: Scalar>(
@@ -698,7 +698,7 @@ mod tests {
         ray3d_ray3d_intersection, triangle3d_line_segment3d_intersection,
         triangle3d_ray3d_intersection,
     };
-    use geo_primitives::{
+    use crate::{
         Angle, Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D,
         Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
     };

@@ -1,6 +1,6 @@
 use super::super::*;
+use crate::LineSegment3D;
 use geo_core::Point3D;
-use geo_primitives::LineSegment3D;
 
 #[test]
 fn test_capsule_removal_basic() {

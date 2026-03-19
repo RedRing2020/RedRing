@@ -25,8 +25,8 @@ pub use geo_primitives::{Angle, Direction3D};
 
 // 基本形状
 pub use geo_primitives::{
-    Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D,
-    Ellipse3D, EllipseArc3D, EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D,
-    LineSegment3D, Plane3D, Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSolid3D,
-    TorusSurface3D, Triangle3D, TriangleMesh3D,
+    Arc2D, Arc3D, Circle2D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSolid3D,
+    CylindricalSurface3D, Ellipse3D, EllipseArc3D, EllipsoidalSolid3D, EllipsoidalSurface3D,
+    InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Ray3D, SphericalSolid3D,
+    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
