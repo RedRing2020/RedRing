@@ -5,10 +5,11 @@ pub mod distance;
 pub mod ellipse_approximations;
 pub use aabb_2d_trait::Aabb2DTrait;
 pub use aabb_3d_trait::Aabb3DTrait;
-/// geo_foundation commons - 共通計算トレイト
+/// geo_foundation commons - compatibility surface
 ///
-/// geo_commons クレートで使用される共通計算トレイトを定義します。
-/// Foundation Pattern において、具体的な計算実装とトレイト定義を分離する役割を担います。
+/// Canonical implementations are hosted in `geo_commons`, and canonical
+/// ellipse-related trait definitions are hosted in `geo_contracts`.
+/// This module keeps backward-compatible export paths during migration.
 pub mod ellipse_calculation_traits;
 
 // 便利な再エクスポート

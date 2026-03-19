@@ -3,9 +3,7 @@
 //! 新しいtraitsシステムに対応したEllipse2Dの実装
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_foundation::prelude::{
-    EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
-};
+use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 use geo_foundation::{
     core::ellipse_traits::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties},
     Scalar,
@@ -158,12 +156,7 @@ impl<T: Scalar> Ellipse2D<T> {
         let y_rot = -translated.x() * sin_theta + translated.y() * cos_theta;
 
         // geo_commonsの共通実装を使用
-        geo_foundation::commons::ellipse_2d_distance_to_point(
-            x_rot,
-            y_rot,
-            self.semi_major,
-            self.semi_minor,
-        )
+        geo_commons::ellipse_2d_distance_to_point(x_rot, y_rot, self.semi_major, self.semi_minor)
     }
 
     /// パラメータ t での点を取得（0 <= t < 2π）
@@ -302,23 +295,17 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
 
     /// ラマヌジャン近似式II（高精度版）による周長計算
     fn perimeter_ramanujan_ii(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_ramanujan_ii(
-            self.semi_major,
-            self.semi_minor,
-        )
+        geo_commons::ellipse_perimeter_ramanujan_ii(self.semi_major, self.semi_minor)
     }
 
     /// パダン近似による周長計算（中程度精度）
     fn perimeter_pade(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_padé(self.semi_major, self.semi_minor)
+        geo_commons::ellipse_perimeter_padé(self.semi_major, self.semi_minor)
     }
 
     /// カントレル近似による周長計算（高精度）
     fn perimeter_cantrell(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_perimeter_cantrell(
-            self.semi_major,
-            self.semi_minor,
-        )
+        geo_commons::ellipse_perimeter_cantrell(self.semi_major, self.semi_minor)
     }
 
     /// 級数展開による周長計算（最高精度）
@@ -362,12 +349,12 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
 
     /// 楕円の離心率計算
     fn eccentricity(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_eccentricity(self.semi_major, self.semi_minor)
+        geo_commons::ellipse_eccentricity(self.semi_major, self.semi_minor)
     }
 
     /// 楕円の焦点距離計算
     fn focal_distance(&self) -> T {
-        geo_foundation::prelude::commons::ellipse_focal_distance(self.semi_major, self.semi_minor)
+        geo_commons::ellipse_focal_distance(self.semi_major, self.semi_minor)
     }
 
     /// 楕円の面積計算
@@ -528,7 +515,7 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
     // ========== Phase 2 実装 ==========
 
     fn focal_distance(&self) -> T {
-        geo_foundation::commons::EllipseCalculation::focal_distance(self)
+        geo_contracts::EllipseCalculation::focal_distance(self)
     }
 
     fn focus1(&self) -> (T, T) {

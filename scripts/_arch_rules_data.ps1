@@ -38,16 +38,16 @@ $ARCH_LAYERS = @{
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
-# Last updated: 2026-03-18
+# Last updated: 2026-03-19
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     geo_contracts  = @("analysis")
     geo_foundation = @("analysis", "geo_commons", "geo_contracts")  # geo_contracts: temporary compatibility bridge for #318
     geo_commons    = @("analysis")
     geo_core       = @("analysis", "geo_entity")
-    geo_primitives = @("geo_foundation", "geo_contracts", "geo_core", "analysis")
+    geo_primitives = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "analysis")
     geo_algorithms = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")
-    geo_nurbs      = @("geo_foundation", "geo_contracts", "geo_core", "geo_primitives", "analysis")
+    geo_nurbs      = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "analysis")
     geo_io         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
     geo_entity     = @("geo_foundation", "geo_primitives")
     cam_core       = @("analysis", "geo_foundation", "geo_primitives", "geo_algorithms")
