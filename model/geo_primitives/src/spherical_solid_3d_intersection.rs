@@ -3,8 +3,9 @@
 //! 球ソリッドとの交点計算を提供する。
 
 use crate::{InfiniteLine3D, Plane3D, Point3D, Ray3D, SphericalSolid3D};
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
+    
     Scalar,
 };
 

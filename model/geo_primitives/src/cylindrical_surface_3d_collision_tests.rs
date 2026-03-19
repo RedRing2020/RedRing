@@ -8,7 +8,7 @@ mod tests {
         Circle3D, CylindricalSurface3D, Direction3D, LineSegment3D, Plane3D, Point3D, Triangle3D,
         Vector3D,
     };
-    use geo_foundation::extensions::{AdvancedCollision, BasicCollision};
+    use geo_contracts::{AdvancedCollision, BasicCollision};
 
     const TOLERANCE: f64 = 1e-10;
 

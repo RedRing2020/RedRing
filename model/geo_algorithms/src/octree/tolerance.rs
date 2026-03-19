@@ -1,4 +1,5 @@
-use geo_foundation::{Scalar, ToleranceSettings};
+use geo_contracts::Scalar;
+use geo_foundation::ToleranceSettings;
 
 /// Octree専用トレランス設定
 #[derive(Debug, Clone, Copy, PartialEq)]

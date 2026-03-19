@@ -7,7 +7,8 @@ use crate::{
     Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, Triangle3D,
     Vector3D,
 };
-use geo_foundation::{extensions::BasicCollision, Circle3DProperties, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::{Circle3DProperties, Scalar};
 
 // ============================================================================
 // BasicCollision implementations for SphericalSolid3D

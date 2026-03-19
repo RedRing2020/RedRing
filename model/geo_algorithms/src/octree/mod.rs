@@ -140,8 +140,8 @@
 //! - 動的シーンは増分更新を検討（または再構築）
 //! - 並列処理時は Octree のクローンまたは Arc で共有
 
+use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
 
 mod core_impl;
 mod insert_impl;

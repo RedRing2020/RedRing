@@ -20,10 +20,15 @@ pub use geometry::core::{
     Vector2DMeasure, Vector2DProperties, Vector3DConstructor, Vector3DCore, Vector3DMeasure,
     Vector3DProperties,
 };
+pub use geometry::core::{InfiniteLine3DProperties, Plane3DProperties, Ray3DProperties};
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
     NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DMeasure, NurbsCurve3DProperties,
     NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
     Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
     Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
+};
+pub use geometry::operations::{
+    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, MultipleIntersection,
+    PointDistance, SelfIntersection,
 };

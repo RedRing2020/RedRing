@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{Ellipse3D, LineSegment3D, Point3D, Vector3D};
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     #[test]
     fn test_ellipse3d_point_collision() {

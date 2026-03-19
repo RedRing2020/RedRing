@@ -1,7 +1,8 @@
 /// 統計処理機能
 ///
 /// 基本統計量の計算、分布解析、回帰分析を提供する
-use geo_foundation::{Scalar, ToleranceContext};
+use geo_contracts::Scalar;
+use geo_foundation::ToleranceContext;
 
 /// 基本統計量
 #[derive(Debug, Clone)]

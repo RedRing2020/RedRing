@@ -5,8 +5,9 @@
 use crate::{
     Circle3D, CylindricalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Triangle3D,
 };
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
+    
     Scalar,
 };
 
@@ -18,7 +19,7 @@ impl<T: Scalar> BasicIntersection<T, Point3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, point: &Point3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(point, tolerance) {
             Some(*point)
         } else {
@@ -31,7 +32,8 @@ impl<T: Scalar> BasicIntersection<T, Circle3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, circle: &Circle3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::{extensions::BasicCollision, Circle3DProperties};
+        use geo_contracts::BasicCollision;
+        use geo_foundation::Circle3DProperties;
         if self.intersects(circle, tolerance) {
             let (cx, cy, cz) = circle.center();
             Some(Point3D::new(cx, cy, cz))
@@ -45,7 +47,7 @@ impl<T: Scalar> BasicIntersection<T, LineSegment3D<T>> for CylindricalSolid3D<T>
     type Point = Point3D<T>;
 
     fn intersection_with(&self, segment: &LineSegment3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(&segment.start(), tolerance) {
             Some(segment.start())
         } else if self.intersects(&segment.end(), tolerance) {
@@ -60,7 +62,8 @@ impl<T: Scalar> BasicIntersection<T, Triangle3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::{extensions::BasicCollision, Triangle3DProperties};
+        use geo_contracts::BasicCollision;
+        use geo_foundation::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -85,7 +88,7 @@ impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T
     type Point = Point3D<T>;
 
     fn intersection_with(&self, line: &InfiniteLine3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         let ref_point = line.point_at_parameter(T::ZERO);
         if self.intersects(&ref_point, tolerance) {
             Some(ref_point)
@@ -99,7 +102,7 @@ impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersection_with(&self, plane: &Plane3D<T>, tolerance: T) -> Option<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(plane, tolerance) {
             // 簡易実装：円柱の中心点を返す
             Some(self.center_internal())
@@ -117,7 +120,7 @@ impl<T: Scalar> MultipleIntersection<T, Point3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, point: &Point3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(point, tolerance) {
             vec![pt]
         } else {
@@ -130,7 +133,7 @@ impl<T: Scalar> MultipleIntersection<T, Circle3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, circle: &Circle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(circle, tolerance) {
             vec![pt]
         } else {
@@ -143,7 +146,7 @@ impl<T: Scalar> MultipleIntersection<T, LineSegment3D<T>> for CylindricalSolid3D
     type Point = Point3D<T>;
 
     fn intersections_with(&self, segment: &LineSegment3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         let mut results = Vec::new();
 
         if self.intersects(&segment.start(), tolerance) {
@@ -161,7 +164,8 @@ impl<T: Scalar> MultipleIntersection<T, Triangle3D<T>> for CylindricalSolid3D<T>
     type Point = Point3D<T>;
 
     fn intersections_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::{extensions::BasicCollision, Triangle3DProperties};
+        use geo_contracts::BasicCollision;
+        use geo_foundation::Triangle3DProperties;
         let mut results = Vec::new();
 
         let (ax, ay, az) = triangle.vertex_a();
@@ -189,7 +193,7 @@ impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3
     type Point = Point3D<T>;
 
     fn intersections_with(&self, line: &InfiniteLine3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(line, tolerance) {
             vec![pt]
         } else {
@@ -202,7 +206,7 @@ impl<T: Scalar> MultipleIntersection<T, Plane3D<T>> for CylindricalSolid3D<T> {
     type Point = Point3D<T>;
 
     fn intersections_with(&self, plane: &Plane3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicIntersection;
+        use geo_contracts::BasicIntersection;
         if let Some(pt) = self.intersection_with(plane, tolerance) {
             vec![pt]
         } else {
@@ -215,7 +219,7 @@ impl<T: Scalar> MultipleIntersection<T, CylindricalSolid3D<T>> for CylindricalSo
     type Point = Point3D<T>;
 
     fn intersections_with(&self, other: &CylindricalSolid3D<T>, tolerance: T) -> Vec<Point3D<T>> {
-        use geo_foundation::extensions::BasicCollision;
+        use geo_contracts::BasicCollision;
         if self.intersects(other, tolerance) {
             // 簡易実装：両方の中心点の中間点を返す
             let center1 = self.center_internal();

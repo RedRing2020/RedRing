@@ -3,8 +3,8 @@
 //! 3次元円弧の衝突判定実装
 
 use crate::{Arc3D, InfiniteLine3D, LineSegment3D, Point3D, Ray3D};
+use geo_contracts::BasicCollision;
 use geo_contracts::Scalar;
-use geo_foundation::extensions::BasicCollision;
 
 // ============================================================================
 // Arc3D vs Point3D

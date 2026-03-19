@@ -4,8 +4,9 @@
 //! 委譲パターンで Ellipse2D の実装を再利用
 
 use crate::{Arc2D, Circle2D, Ellipse2D, EllipseArc2D, LineSegment2D, Point2D, Triangle2D};
+use geo_contracts::BasicCollision;
 use geo_foundation::{
-    core::arc_traits::Arc2DProperties, extensions::BasicCollision, Circle2DProperties,
+    core::arc_traits::Arc2DProperties, Circle2DProperties,
     LineSegment2DProperties, Scalar,
 };
 

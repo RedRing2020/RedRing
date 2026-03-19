@@ -4,7 +4,8 @@
 //! トーラス曲面は表面のみを持ち、内部は考慮しない。
 
 use crate::{Point3D, TorusSurface3D};
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicCollision implementations for TorusSurface3D
@@ -43,7 +44,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for TorusSurface3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::BasicCollision; // トレイトを明示的にインポート
+    use geo_contracts::BasicCollision; // トレイトを明示的にインポート
 
     #[test]
     fn test_torus_surface_point_on_surface() {

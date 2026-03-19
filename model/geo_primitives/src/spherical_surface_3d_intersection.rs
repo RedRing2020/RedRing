@@ -3,7 +3,8 @@
 //! 3次元球面の交差計算実装
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
-use geo_foundation::{extensions::BasicIntersection, Scalar};
+use geo_contracts::BasicIntersection;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // SphericalSurface3D vs Point3D

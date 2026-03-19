@@ -6,7 +6,7 @@
 mod tests {
     use crate::{Arc2D, Circle2D, Ellipse2D, EllipseArc2D, LineSegment2D, Point2D, Triangle2D};
     use analysis::Angle;
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     // テスト用のヘルパー関数
     fn create_test_ellipse_arc() -> EllipseArc2D<f64> {

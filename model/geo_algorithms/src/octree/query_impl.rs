@@ -1,6 +1,6 @@
 use super::{Octree, OctreeNode};
+use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
 
 impl<T: Scalar, D: Clone> Octree<T, D> {
     /// 境界ボックスと交差するすべてのデータを取得

@@ -3,8 +3,8 @@
 //! 3次元円の交差計算実装
 
 use crate::{Circle3D, InfiniteLine3D, LineSegment3D, Point3D, Ray3D};
+use geo_contracts::BasicIntersection;
 use geo_contracts::Scalar;
-use geo_foundation::extensions::BasicIntersection;
 
 // ============================================================================
 // Circle3D vs Point3D

@@ -3,7 +3,8 @@
 //! トーラス曲面との交差判定を提供する。
 
 use crate::{Point3D, TorusSurface3D};
-use geo_foundation::{extensions::BasicIntersection, Scalar};
+use geo_contracts::BasicIntersection;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection implementations for TorusSurface3D

@@ -1,6 +1,6 @@
 use super::{HasPosition, Octree, OctreeNode};
+use geo_contracts::Scalar;
 use geo_core::Point3D;
-use geo_foundation::Scalar;
 
 impl<T: Scalar, D: Clone> Octree<T, D>
 where

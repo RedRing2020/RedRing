@@ -4,7 +4,8 @@
 //! Plane3D と他の幾何形状との組み合わせを実装
 
 use crate::{InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D};
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicCollision Implementations

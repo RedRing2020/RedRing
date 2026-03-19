@@ -8,10 +8,8 @@
 //! AABB距離計算をFoundation Patternに準拠したトレイトとして実装
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D};
-use geo_foundation::{
-    extensions::BasicCollision, LineSegment3DCollisionDetection, Scalar,
-    SphericalSurface3DProperties,
-};
+use geo_contracts::BasicCollision;
+use geo_foundation::{LineSegment3DCollisionDetection, Scalar, SphericalSurface3DProperties};
 
 // ============================================================================
 // BasicCollision Implementations

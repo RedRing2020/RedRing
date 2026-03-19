@@ -5,7 +5,8 @@ mod tests {
     use crate::{
         EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D,
     };
-    use geo_foundation::{extensions::BasicCollision, Scalar};
+    use geo_contracts::BasicCollision;
+    use geo_foundation::Scalar;
 
     fn create_test_ellipsoid<T: Scalar>() -> EllipsoidalSolid3D<T> {
         let center = Point3D::origin();

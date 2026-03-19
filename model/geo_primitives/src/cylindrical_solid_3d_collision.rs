@@ -8,7 +8,8 @@ use crate::{
     Circle3D, CylindricalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D,
     Triangle3D, Vector3D,
 };
-use geo_foundation::{extensions::BasicCollision, Scalar};
+use geo_contracts::BasicCollision;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // CylindricalSolid3D vs Point3D

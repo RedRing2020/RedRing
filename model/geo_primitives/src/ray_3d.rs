@@ -538,3 +538,58 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         Ray3D::new(rotated_origin, rotated_dir)
     }
 }
+
+impl<T: Scalar> geo_contracts::Ray3DProperties<T> for Ray3D<T> {
+    fn origin(&self) -> (T, T, T) {
+        (self.origin.x(), self.origin.y(), self.origin.z())
+    }
+
+    fn direction(&self) -> (T, T, T) {
+        (self.direction.x(), self.direction.y(), self.direction.z())
+    }
+
+    fn origin_x(&self) -> T {
+        self.origin.x()
+    }
+
+    fn origin_y(&self) -> T {
+        self.origin.y()
+    }
+
+    fn origin_z(&self) -> T {
+        self.origin.z()
+    }
+
+    fn direction_x(&self) -> T {
+        self.direction.x()
+    }
+
+    fn direction_y(&self) -> T {
+        self.direction.y()
+    }
+
+    fn direction_z(&self) -> T {
+        self.direction.z()
+    }
+
+    fn is_valid(&self) -> bool {
+        true
+    }
+
+    fn azimuth(&self) -> T {
+        self.direction.y().atan2(self.direction.x())
+    }
+
+    fn elevation(&self) -> T {
+        let xy_length = (self.direction.x() * self.direction.x()
+            + self.direction.y() * self.direction.y())
+        .sqrt();
+        self.direction.z().atan2(xy_length)
+    }
+
+    fn is_on_xy_plane(&self) -> bool {
+        use geo_foundation::tolerance_migration::DefaultTolerances;
+        self.origin.z().abs() < DefaultTolerances::distance::<T>()
+            && self.direction.z().abs() < DefaultTolerances::distance::<T>()
+    }
+}

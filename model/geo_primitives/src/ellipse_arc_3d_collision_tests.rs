@@ -9,7 +9,7 @@ mod tests {
         Triangle3D, Vector3D,
     };
     use analysis::Angle;
-    use geo_foundation::extensions::BasicCollision;
+    use geo_contracts::BasicCollision;
 
     // テスト用のヘルパー関数
     fn create_test_ellipse_arc() -> EllipseArc3D<f64> {

@@ -3,7 +3,8 @@
 //! BasicIntersection トレイトの実装
 
 use crate::{Point3D, TriangleMesh3D};
-use geo_foundation::{extensions::BasicIntersection, Scalar};
+use geo_contracts::BasicIntersection;
+use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection Implementations
@@ -34,7 +35,7 @@ impl<T: Scalar> BasicIntersection<T, Point3D<T>> for TriangleMesh3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::extensions::BasicIntersection;
+    use geo_contracts::BasicIntersection;
 
     fn create_simple_quad_mesh() -> TriangleMesh3D<f64> {
         // XY平面上の四角形メッシュ（2つの三角形）

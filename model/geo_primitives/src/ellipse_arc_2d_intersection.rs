@@ -4,8 +4,9 @@
 //! 委譲パターンで Ellipse2D の実装を再利用し、角度範囲でフィルタリング
 
 use crate::{Arc2D, Circle2D, Ellipse2D, EllipseArc2D, LineSegment2D, Point2D, Triangle2D};
+use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 use geo_foundation::{
-    extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
+    
     Scalar,
 };
 

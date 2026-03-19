@@ -4,9 +4,9 @@
 //! 委譲パターンで Ellipse3D の実装を再利用し、角度範囲でフィルタリング
 
 use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, LineSegment3D, Point3D, Triangle3D};
+use geo_contracts::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection};
 use geo_foundation::{
     core::{arc_traits::Arc3DProperties, triangle_traits::Triangle3DProperties},
-    extensions::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection},
     Circle3DProperties, Scalar,
 };
 

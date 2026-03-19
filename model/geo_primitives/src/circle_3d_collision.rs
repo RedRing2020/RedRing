@@ -3,8 +3,8 @@
 //! 3次元円の衝突判定実装
 
 use crate::{Circle3D, InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
+use geo_contracts::BasicCollision;
 use geo_contracts::Scalar;
-use geo_foundation::extensions::BasicCollision;
 
 // ============================================================================
 // Circle3D vs Point3D

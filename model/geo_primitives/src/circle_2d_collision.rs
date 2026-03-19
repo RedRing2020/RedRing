@@ -4,9 +4,8 @@
 //! Circle2D と他の幾何形状との組み合わせを実装
 
 use crate::{Circle2D, LineSegment2D, Point2D};
-use geo_foundation::{
-    extensions::BasicCollision, Circle2DProperties, LineSegment2DProperties, Scalar,
-};
+use geo_contracts::BasicCollision;
+use geo_foundation::{Circle2DProperties, LineSegment2DProperties, Scalar};
 
 // ============================================================================
 // BasicCollision Implementations

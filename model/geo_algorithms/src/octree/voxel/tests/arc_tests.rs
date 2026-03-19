@@ -1,6 +1,6 @@
 use super::super::*;
+use crate::{Angle, Arc3D, LineSegment3D};
 use geo_core::Point3D;
-use geo_primitives::{Angle, Arc3D, LineSegment3D};
 
 #[test]
 fn test_arc_polyline_removal_basic() {
