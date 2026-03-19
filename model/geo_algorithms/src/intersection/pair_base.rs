@@ -2,13 +2,13 @@
 //!
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
-use geo_contracts::{InfiniteLine3DProperties, Scalar};
+use geo_contracts::{InfiniteLine3DProperties, Scalar, Triangle3DProperties};
 use geo_foundation::{
     Arc2DProperties, Circle2DProperties, LineSegment2DProperties, SphericalSurface3DProperties,
 };
 use geo_primitives::{
     Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,
-    Ray3D, SphericalSurface3D, Vector3D,
+    Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 
 pub fn circle2d_circle2d_intersections<T: Scalar>(
@@ -535,6 +535,153 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     result
 }
 
+pub fn ray3d_ray3d_intersection<T: Scalar>(ray1: &Ray3D<T>, ray2: &Ray3D<T>) -> Option<Point3D<T>> {
+    let p1 = ray1.origin();
+    let p2 = ray2.origin();
+    let d1 = ray1.direction_vector();
+    let d2 = ray2.direction_vector();
+
+    let r = Vector3D::from_points(&p2, &p1);
+
+    let a = d1.dot(&d1);
+    let b = d1.dot(&d2);
+    let c = d2.dot(&d2);
+    let d = d1.dot(&r);
+    let e = d2.dot(&r);
+
+    let denom = a * c - b * b;
+    if denom.abs() < T::EPSILON {
+        return None; // 平行
+    }
+
+    let s = (b * e - c * d) / denom;
+    let t = (a * e - b * d) / denom;
+
+    if s < T::ZERO || t < T::ZERO {
+        return None; // Ray 範囲外
+    }
+
+    let point1 = ray1.point_at_parameter(s);
+    let point2 = ray2.point_at_parameter(t);
+
+    if point1.distance_to(&point2) <= T::EPSILON {
+        Some(point1)
+    } else {
+        None
+    }
+}
+
+pub fn ray3d_line_segment3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    segment: &LineSegment3D<T>,
+) -> Option<Point3D<T>> {
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
+    let segment_line = segment.line();
+
+    if ray_line.is_parallel_to(segment_line) || !ray_line.is_coplanar_with(segment_line) {
+        return None;
+    }
+
+    let point = ray_line.intersection_with_line(segment_line)?;
+    if ray.contains_point(&point, T::EPSILON) && segment.contains_point(&point, T::EPSILON) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    line: &InfiniteLine3D<T>,
+) -> Option<Point3D<T>> {
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
+
+    if ray_line.is_parallel_to(line) || !ray_line.is_coplanar_with(line) {
+        return None;
+    }
+
+    let point = ray_line.intersection_with_line(line)?;
+    if ray.contains_point(&point, T::EPSILON) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+pub fn triangle3d_ray3d_intersection<T: Scalar>(
+    triangle: &Triangle3D<T>,
+    ray: &Ray3D<T>,
+) -> Option<Point3D<T>> {
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
+
+    let v0 = Point3D::new(va.0, va.1, va.2);
+    let v1 = Point3D::new(vb.0, vb.1, vb.2);
+    let v2 = Point3D::new(vc.0, vc.1, vc.2);
+
+    let edge1 = Vector3D::from_points(&v0, &v1);
+    let edge2 = Vector3D::from_points(&v0, &v2);
+
+    let ray_dir = ray.direction_vector();
+    let h = ray_dir.cross(&edge2);
+    let a = edge1.dot(&h);
+
+    if a.abs() < T::EPSILON {
+        return None;
+    }
+
+    let f = T::ONE / a;
+    let s = Vector3D::from_points(&v0, &ray.origin());
+    let u = f * s.dot(&h);
+
+    if u < T::ZERO || u > T::ONE {
+        return None;
+    }
+
+    let q = s.cross(&edge1);
+    let v = f * ray_dir.dot(&q);
+
+    if v < T::ZERO || u + v > T::ONE {
+        return None;
+    }
+
+    let t = f * edge2.dot(&q);
+    if t < T::ZERO {
+        return None;
+    }
+
+    Some(Point3D::new(
+        ray.origin().x() + t * ray_dir.x(),
+        ray.origin().y() + t * ray_dir.y(),
+        ray.origin().z() + t * ray_dir.z(),
+    ))
+}
+
+pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
+    triangle: &Triangle3D<T>,
+    segment: &LineSegment3D<T>,
+) -> Option<Point3D<T>> {
+    // 線分をRayに変換してMöller-Trumboreで交点を計算し、線分範囲内かチェック
+    let start = segment.start();
+    let end = segment.end();
+    let dir = end - start;
+    let length = dir.length();
+    if length <= T::EPSILON {
+        return None;
+    }
+    let ray = Ray3D::new(start, dir)?;
+    let point = triangle3d_ray3d_intersection(triangle, &ray)?;
+
+    // 線分の範囲内（0 <= t <= length）かチェック
+    let t = ray.parameter_for_point(&point);
+    if t >= T::ZERO && t <= length {
+        Some(point)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -550,10 +697,15 @@ mod tests {
         plane3d_infinite_line3d_intersection, plane3d_line_segment3d_intersection,
         plane3d_ray3d_intersection,
     };
+    use super::{
+        ray3d_infinite_line3d_intersection, ray3d_line_segment3d_intersection,
+        ray3d_ray3d_intersection, triangle3d_line_segment3d_intersection,
+        triangle3d_ray3d_intersection,
+    };
     use geo_primitives::Plane3D;
     use geo_primitives::{
         Angle, Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D,
-        Ray3D, SphericalSurface3D, Vector3D,
+        Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
     };
 
     #[test]
@@ -784,6 +936,86 @@ mod tests {
 
         let p = infinite_line3d_ray3d_intersection(&line, &ray, 1e-6);
         assert!(p.is_none());
+    }
+
+    #[test]
+    fn ray3d_ray3d_returns_intersection() {
+        // (+x 方向) と (+y 方向) の Ray が原点で交わる
+        let ray1 = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let ray2 = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+
+        let p = ray3d_ray3d_intersection(&ray1, &ray2);
+        assert!(p.is_some());
+        let p = p.unwrap();
+        assert!((p.x() as f64).abs() < 1e-6);
+        assert!((p.y() as f64).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ray3d_ray3d_behind_origin_returns_none() {
+        // Ray が互いに反対方向を向いている → 交点なし
+        let ray1 = Ray3D::new(Point3D::new(1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let ray2 = Ray3D::new(Point3D::new(0.0, 1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+
+        let p = ray3d_ray3d_intersection(&ray1, &ray2);
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn ray3d_line_segment3d_returns_intersection() {
+        // +y 方向 Ray と y 軸上の線分 (-1,0,0)-(1,0,0) が原点で交わる
+        let ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+        let segment =
+            LineSegment3D::new(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+
+        let p = ray3d_line_segment3d_intersection(&ray, &segment);
+        assert!(p.is_some());
+    }
+
+    #[test]
+    fn ray3d_infinite_line3d_returns_intersection() {
+        // +y 方向 Ray と X 軸の無限直線が原点で交わる
+        let ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(-1.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        let p = ray3d_infinite_line3d_intersection(&ray, &line);
+        assert!(p.is_some());
+    }
+
+    #[test]
+    fn triangle3d_ray3d_returns_intersection() {
+        // XY平面上の三角形に +z から Ray を当てる → 交点あり
+        let triangle = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let ray = Ray3D::new(Point3D::new(0.2, 0.2, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
+
+        let p = triangle3d_ray3d_intersection(&triangle, &ray);
+        assert!(p.is_some());
+        assert!((p.unwrap().z() as f64).abs() < 1e-6);
+    }
+
+    #[test]
+    fn triangle3d_line_segment3d_returns_intersection() {
+        // XY平面上の三角形を z=-1→z=1 の線分が貫通する
+        let triangle = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let segment =
+            LineSegment3D::new(Point3D::new(0.2, 0.2, -1.0), Point3D::new(0.2, 0.2, 1.0)).unwrap();
+
+        let p = triangle3d_line_segment3d_intersection(&triangle, &segment);
+        assert!(p.is_some());
     }
 }
 
