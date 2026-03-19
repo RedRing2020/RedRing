@@ -29,6 +29,7 @@ pub use geometry::core::{
     Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
 };
 pub use geometry::operations::{
-    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, MultipleIntersection,
-    PointDistance, SelfIntersection,
+    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, EllipseAccuracyAnalysis,
+    EllipseAdaptiveCalculation, EllipseCalculation, MultipleIntersection, PointDistance,
+    SelfIntersection,
 };

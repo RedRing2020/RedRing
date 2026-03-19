@@ -3,9 +3,7 @@
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
 use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
-use geo_foundation::prelude::{
-    EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
-};
+use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 use geo_foundation::{
     tolerance_migration::DefaultTolerances, Ellipse3DConstructor, Ellipse3DMeasure,
     Ellipse3DProperties, Scalar,
@@ -250,7 +248,7 @@ impl<T: Scalar> Ellipse3D<T> {
         let z_local = translated.dot(&n);
 
         // geo_commonsの共通実装を使用
-        geo_foundation::commons::ellipse_3d_distance_to_point(
+        geo_commons::ellipse_3d_distance_to_point(
             x_local,
             y_local,
             z_local,
@@ -523,12 +521,56 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
         self.semi_minor_axis
     }
 
-    /// 楕円の焦点座標を計算（3D空間）
-    fn foci(&self) -> (Point3D<T>, Point3D<T>) {
-        let foci_tuple = geo_foundation::prelude::commons::ellipse_foci(
+    fn perimeter_ramanujan_i(&self) -> T {
+        let a = self.semi_major_axis;
+        let b = self.semi_minor_axis;
+        let h = ((a - b) / (a + b)).powi(2);
+        T::PI
+            * (a + b)
+            * (T::ONE
+                + (T::from_f64(3.0) * h)
+                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
+    }
+
+    fn perimeter_ramanujan_ii(&self) -> T {
+        geo_commons::ellipse_perimeter_ramanujan_ii(self.semi_major_axis, self.semi_minor_axis)
+    }
+
+    fn perimeter_pade(&self) -> T {
+        geo_commons::ellipse_perimeter_padé(self.semi_major_axis, self.semi_minor_axis)
+    }
+
+    fn perimeter_cantrell(&self) -> T {
+        geo_commons::ellipse_perimeter_cantrell(self.semi_major_axis, self.semi_minor_axis)
+    }
+
+    fn perimeter_series(&self, terms: usize) -> T {
+        geo_commons::ellipse_circumference_series(self.semi_major_axis, self.semi_minor_axis, terms)
+    }
+
+    fn perimeter_numerical(&self, n_points: usize) -> T {
+        geo_commons::ellipse_circumference_numerical(
             self.semi_major_axis,
             self.semi_minor_axis,
-        );
+            n_points,
+        )
+    }
+
+    fn eccentricity(&self) -> T {
+        geo_commons::ellipse_eccentricity(self.semi_major_axis, self.semi_minor_axis)
+    }
+
+    fn focal_distance(&self) -> T {
+        geo_commons::ellipse_focal_distance(self.semi_major_axis, self.semi_minor_axis)
+    }
+
+    fn area(&self) -> T {
+        T::PI * self.semi_major_axis * self.semi_minor_axis
+    }
+
+    /// 楕円の焦点座標を計算（3D空間）
+    fn foci(&self) -> (Point3D<T>, Point3D<T>) {
+        let foci_tuple = geo_commons::ellipse_foci(self.semi_major_axis, self.semi_minor_axis);
         let (f1_local, f2_local) = (foci_tuple.0, foci_tuple.1);
 
         // 楕円平面内での焦点（長軸方向に配置）
@@ -541,9 +583,6 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
 
         (f1_final, f2_final)
     }
-
-    // 他のメソッド（perimeter_*, eccentricity, focal_distance, area）は
-    // EllipseCalculationトレイトのデフォルト実装を使用
 }
 
 impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {}
