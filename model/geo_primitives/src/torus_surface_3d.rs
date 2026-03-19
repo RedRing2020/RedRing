@@ -7,7 +7,7 @@
 // パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス面
@@ -248,8 +248,9 @@ impl TorusSurface3D<f64> {
     }
 }
 
-use geo_foundation::{
-    TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure, TorusSurface3DProperties,
+use geo_contracts::{
+    TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure,
+    TorusSurface3DProperties as ContractsTorusSurface3DProperties,
 };
 
 impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
@@ -280,7 +281,7 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
     }
 }
 
-impl<T: Scalar> TorusSurface3DProperties<T> for TorusSurface3D<T> {
+impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         let o = self.origin_internal();
         (o.x(), o.y(), o.z())

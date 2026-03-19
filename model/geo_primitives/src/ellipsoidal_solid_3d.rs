@@ -17,7 +17,7 @@
 //! - c_radius: Z軸方向の半径
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元楕円体ソリッド（STEP準拠のCore実装）
 ///
@@ -371,9 +371,9 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
 // Core Traits Implementation
 // ============================================================================
 
-use geo_foundation::{
+use geo_contracts::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
-    EllipsoidalSolid3DProperties,
+    EllipsoidalSolid3DProperties as ContractsEllipsoidalSolid3DProperties,
 };
 
 impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
@@ -445,7 +445,7 @@ impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> EllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
+impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();
         (c.x(), c.y(), c.z())

@@ -5,10 +5,10 @@
 
 use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
-use geo_contracts::Scalar;
-use geo_foundation::core::direction_traits::{
+use geo_contracts::geometry::core::direction_traits::{
     Direction2DConstructor, Direction2DMeasure, Direction2DProperties,
 };
+use geo_contracts::Scalar;
 use std::ops::{Deref, DerefMut};
 
 /// 2次元方向ベクトル（正規化済み）

@@ -4,7 +4,8 @@
 //! 基本機能は ellipse_2d.rs を参照
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
-use geo_foundation::{tolerance_migration::DefaultTolerances, Scalar};
+use geo_contracts::Scalar;
+use geo_contracts::tolerance_migration::DefaultTolerances;
 
 impl<T: Scalar> Ellipse2D<T> {
     // ========================================================================
@@ -295,3 +296,4 @@ impl<T: Scalar> Ellipse2D<T> {
         )
     }
 }
+

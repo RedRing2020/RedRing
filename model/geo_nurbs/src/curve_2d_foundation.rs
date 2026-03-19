@@ -4,15 +4,15 @@
 
 use crate::{NurbsCurve2D, Scalar};
 use geo_contracts::NurbsCurve2DProperties;
-use geo_foundation::{Bounded, ExtensionFoundation};
+use geo_contracts::{Bounded, ExtensionFoundation};
 
 // ============================================================================
 // Extension Foundation 実装
 // ============================================================================
 
 impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
-    fn primitive_kind(&self) -> geo_foundation::PrimitiveKind {
-        geo_foundation::PrimitiveKind::NurbsCurve2D
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::NurbsCurve2D
     }
 
     fn measure(&self) -> Option<T> {
@@ -53,8 +53,8 @@ impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
 mod tests {
     use crate::knot::clamped_knot_vector;
     use crate::NurbsCurve2D;
+    use geo_contracts::{ExtensionFoundation, PrimitiveKind};
     use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties};
-    use geo_foundation::{ExtensionFoundation, PrimitiveKind};
 
     // ============================================================================
     // Core Traits Constructor テスト

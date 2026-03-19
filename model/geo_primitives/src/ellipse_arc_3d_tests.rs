@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{Arc3D, Direction3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
-    use geo_foundation::Angle;
+    use geo_contracts::Angle;
 
     fn create_test_ellipse_arc() -> EllipseArc3D<f64> {
         let center = Point3D::new(2.0, 3.0, 1.0);

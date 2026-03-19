@@ -4,8 +4,8 @@
 // Foundation パターンに従い、統一されたプリミティブインターフェースを提供します。
 
 use crate::{Point3D, TorusSurface3D};
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for TorusSurface3D<T> {
     /// プリミティブの種類を返す

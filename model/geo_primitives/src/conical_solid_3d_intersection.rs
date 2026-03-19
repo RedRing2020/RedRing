@@ -4,7 +4,7 @@
 
 use crate::{ConicalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D};
 use geo_contracts::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicIntersection implementations for ConicalSolid3D

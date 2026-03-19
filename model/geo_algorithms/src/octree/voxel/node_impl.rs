@@ -1,4 +1,5 @@
 use super::*;
+use geo_contracts::LineSegment3DCollisionDetection;
 
 impl<T: Scalar> VoxelNode<T> {
     /// 新しいソリッドノードを作成

@@ -16,7 +16,7 @@
 //! - height: 円柱高さ
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
 ///
@@ -344,9 +344,9 @@ impl<T: Scalar> std::fmt::Display for CylindricalSolid3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::{
+use geo_contracts::{
     CylindricalSolid3DConstructor, CylindricalSolid3DCore, CylindricalSolid3DMeasure,
-    CylindricalSolid3DProperties,
+    CylindricalSolid3DProperties as ContractsCylindricalSolid3DProperties,
 };
 
 impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
@@ -411,7 +411,7 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
+impl<T: Scalar> ContractsCylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())
     }
@@ -439,8 +439,6 @@ impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
     fn diameter(&self) -> T {
         self.radius * T::from_f64(2.0)
     }
-
-    // Phase 2: 追加プロパティ
 
     fn top_center(&self) -> (T, T, T) {
         let top_x = self.center.x() + self.axis.x() * self.height;

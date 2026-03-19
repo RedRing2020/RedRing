@@ -5,8 +5,8 @@
 // 境界ボックス計算、測度（体積）、プリミティブ種別の分類を行います。
 
 use crate::TorusSolid3D;
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TorusSolid3DMeasure};
 
 impl<T: Scalar> ExtensionFoundation<T> for TorusSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
@@ -14,7 +14,7 @@ impl<T: Scalar> ExtensionFoundation<T> for TorusSolid3D<T> {
     }
 
     fn measure(&self) -> Option<T> {
-        Some(self.volume())
+        Some(self.volume_internal())
     }
 }
 
@@ -71,7 +71,6 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
 mod tests {
     use super::*;
     use crate::{Direction3D, Point3D, Vector3D};
-    use geo_foundation::TorusSolid3DMeasure;
 
     #[test]
     fn test_primitive_kind() {
@@ -138,6 +137,6 @@ mod tests {
         // 境界ボックス: 5×5×1 = 25 （まだ小さい）
         // より現実的なアサーション：境界ボックス体積 > 0
         assert!(bbox_volume > 0.0);
-        assert!(bbox_volume > torus.volume() * 0.5); // 緩い条件
+        assert!(bbox_volume > torus.volume_internal() * 0.5); // 緩い条件
     }
 }

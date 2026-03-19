@@ -3,10 +3,7 @@
 //! Foundation統一システムに基づくTriangle3Dの必須機能のみ
 
 use crate::{Point3D, Vector3D};
-use geo_foundation::{
-    core::triangle_traits::{Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties},
-    Scalar,
-};
+use geo_contracts::{Scalar, Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties};
 
 /// 3次元三角形（Core実装）
 ///

@@ -1,8 +1,8 @@
 //! EllipseArc3D の Foundation トレイト実装
 
 use crate::EllipseArc3D;
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 // ============================================================================
 // Foundation Trait Implementation

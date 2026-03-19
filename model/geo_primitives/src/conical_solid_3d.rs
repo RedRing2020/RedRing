@@ -20,7 +20,7 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円錐ソリッド（STEP準拠のCore実装）
 ///
@@ -341,8 +341,9 @@ impl<T: Scalar> ConicalSolid3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::{
-    ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure, ConicalSolid3DProperties,
+use geo_contracts::{
+    ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure,
+    ConicalSolid3DProperties as ContractsConicalSolid3DProperties,
 };
 
 impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
@@ -420,7 +421,7 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
+impl<T: Scalar> ContractsConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     fn apex(&self) -> (T, T, T) {
         let a = self.apex_internal();
         (a.x(), a.y(), a.z())
@@ -460,7 +461,7 @@ impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     }
 
     fn lateral_surface_area(&self) -> T {
-        T::PI * self.radius_internal() * self.slant_height()
+        T::PI * self.radius_internal() * ContractsConicalSolid3DProperties::slant_height(self)
     }
 
     fn base_area(&self) -> T {

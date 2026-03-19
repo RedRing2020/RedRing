@@ -4,7 +4,7 @@
 // 衝突検知、距離計算、工具経路計算などの実用的な機能を含みます。
 
 use crate::{Point3D, TorusSolid3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 impl<T: Scalar> TorusSolid3D<T> {
     /// 点との最短距離を計算

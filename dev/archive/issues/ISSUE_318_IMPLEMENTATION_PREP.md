@@ -205,8 +205,8 @@
 | `BasicCollision`, `BasicIntersection` 等 extension | geometry::extensions | geo_contracts::operations | ✅ geo_contracts::operations に移設済み (#332) |
 | `Bounded`, `ExtensionFoundation` 等 | geometry::foundation::extension_foundation | → 暫定: geo_contracts | 🔲 Phase 1で判断 |
 | `EntityDisplayProperties`, `EntityIdentity`, `LineEntity3DProperties` | entity::core | geo_contracts::entity | ✅ geo_contracts に移設済み |
-| `ToleranceSettings`, `GeometryContext` | tolerance | → 暫定: geo_core | 🔲 Phase 4で整理 |
-| `tolerance_migration::DefaultTolerances` | tolerance_migration | 撤去（移設先なし） | 🔲 Phase 4で除去 |
+| `ToleranceSettings`, `GeometryContext` | tolerance | geo_contracts（共有） | ✅ 2026-03 方針確定 |
+| `tolerance_migration::DefaultTolerances` | tolerance_migration | geo_contracts（共有） | ✅ 2026-03 方針確定 |
 
 詳細:
 
@@ -273,7 +273,7 @@
 - 作業:
   - 全 `use geo_foundation::...` 参照を `geo_contracts::...` / `analysis::...` / `geo_core::...` 経由へ置換
   - `TransformError` / Transform trait は `geo_core` のまま維持
-  - `tolerance_migration::DefaultTolerances` は `analysis` または `geo_core::ToleranceSettings` へ切替
+  - `tolerance_migration::DefaultTolerances` は `geo_contracts::tolerance_migration::DefaultTolerances` へ切替（`geo_nurbs` でも共通利用可能な配置）
 - 完了条件:
   - `geo_primitives` 内に `geo_foundation` 参照ゼロ
   - `cargo check -p geo_primitives` 成功

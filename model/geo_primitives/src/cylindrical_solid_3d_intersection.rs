@@ -6,10 +6,7 @@ use crate::{
     Circle3D, CylindricalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Triangle3D,
 };
 use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{
-    
-    Scalar,
-};
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicIntersection Implementations
@@ -33,7 +30,7 @@ impl<T: Scalar> BasicIntersection<T, Circle3D<T>> for CylindricalSolid3D<T> {
 
     fn intersection_with(&self, circle: &Circle3D<T>, tolerance: T) -> Option<Point3D<T>> {
         use geo_contracts::BasicCollision;
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         if self.intersects(circle, tolerance) {
             let (cx, cy, cz) = circle.center();
             Some(Point3D::new(cx, cy, cz))
@@ -63,7 +60,7 @@ impl<T: Scalar> BasicIntersection<T, Triangle3D<T>> for CylindricalSolid3D<T> {
 
     fn intersection_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Option<Point3D<T>> {
         use geo_contracts::BasicCollision;
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -165,7 +162,7 @@ impl<T: Scalar> MultipleIntersection<T, Triangle3D<T>> for CylindricalSolid3D<T>
 
     fn intersections_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
         use geo_contracts::BasicCollision;
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
         let mut results = Vec::new();
 
         let (ax, ay, az) = triangle.vertex_a();

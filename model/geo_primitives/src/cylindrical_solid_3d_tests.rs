@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{CylindricalSolid3D, Direction3D, Point3D, Vector3D};
-    use geo_foundation::{CylindricalSolid3DMeasure, CylindricalSolid3DProperties};
+    use geo_contracts::{CylindricalSolid3DMeasure, CylindricalSolid3DProperties};
 
     #[test]
     fn test_cylindrical_solid_creation() {

@@ -20,7 +20,7 @@
 //! **最終更新: 2025年11月15日**
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元楕円体サーフェス（STEP準拠のCore実装）
 ///
@@ -454,9 +454,9 @@ impl<T: Scalar> std::fmt::Display for EllipsoidalSurface3D<T> {
     }
 }
 
-use geo_foundation::{
+use geo_contracts::{
     EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
-    EllipsoidalSurface3DProperties,
+    EllipsoidalSurface3DProperties as ContractsEllipsoidalSurface3DProperties,
 };
 
 impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
@@ -523,7 +523,7 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> EllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
+impl<T: Scalar> ContractsEllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();
         (c.x(), c.y(), c.z())

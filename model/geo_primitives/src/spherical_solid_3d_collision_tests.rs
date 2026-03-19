@@ -5,7 +5,7 @@ mod tests {
         Vector3D,
     };
     use geo_contracts::BasicCollision;
-    use geo_foundation::Scalar;
+    use geo_contracts::Scalar;
 
     fn create_test_sphere<T: Scalar>() -> SphericalSolid3D<T> {
         let center = Point3D::origin();

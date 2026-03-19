@@ -4,9 +4,8 @@
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
-use geo_foundation::{
-    core::arc_traits::Arc2DContainment, tolerance_migration::DefaultTolerances, Angle, Scalar,
-};
+use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::{Angle, Arc2DContainment, Scalar};
 
 // ============================================================================
 // ArcContainment Trait Implementation

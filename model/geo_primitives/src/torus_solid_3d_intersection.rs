@@ -4,7 +4,7 @@
 
 use crate::{Point3D, TorusSolid3D};
 use geo_contracts::BasicIntersection;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicIntersection implementations for TorusSolid3D

@@ -19,7 +19,7 @@
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元球サーフェス（STEP準拠のCore実装）
 ///
@@ -472,9 +472,9 @@ impl<T: Scalar> SphericalSurface3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::{
+use geo_contracts::{
     SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DMeasure,
-    SphericalSurface3DProperties,
+    SphericalSurface3DProperties as ContractsSphericalSurface3DProperties,
 };
 
 impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
@@ -540,7 +540,7 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> SphericalSurface3DProperties<T> for SphericalSurface3D<T> {
+impl<T: Scalar> ContractsSphericalSurface3DProperties<T> for SphericalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();
         (c.x(), c.y(), c.z())

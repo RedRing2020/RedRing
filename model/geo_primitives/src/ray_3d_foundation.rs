@@ -2,7 +2,7 @@
 
 use crate::Ray3D;
 use geo_contracts::Scalar;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, TolerantEq};
+use geo_contracts::{ExtensionFoundation, PrimitiveKind, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation

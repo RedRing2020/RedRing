@@ -1,10 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{InfiniteLine3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, Vector3D};
-    use geo_foundation::{
-        extensions::{BasicIntersection, MultipleIntersection, SelfIntersection},
-        Scalar,
-    };
+    use geo_contracts::{BasicIntersection, MultipleIntersection, Scalar, SelfIntersection};
 
     fn create_test_sphere<T: Scalar>() -> SphericalSolid3D<T> {
         let center = Point3D::origin();

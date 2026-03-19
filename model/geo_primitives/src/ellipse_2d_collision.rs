@@ -4,9 +4,7 @@
 
 use crate::{Arc2D, Circle2D, Ellipse2D, LineSegment2D, Point2D, Triangle2D, Vector2D};
 use geo_contracts::BasicCollision;
-use geo_foundation::{
-    core::arc_traits::Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar,
-};
+use geo_contracts::{Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar};
 
 // ============================================================================
 // Ellipse2D vs Point2D

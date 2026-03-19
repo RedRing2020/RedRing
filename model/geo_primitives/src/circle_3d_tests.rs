@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{Circle3D, Direction3D, Point3D, Vector3D};
-    use geo_foundation::tolerance_migration::DefaultTolerances;
+    use geo_contracts::tolerance_migration::DefaultTolerances;
 
     // テスト用のf64型別名
     type TestScalar = f64;

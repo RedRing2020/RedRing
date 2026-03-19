@@ -1,19 +1,6 @@
 //! Circle2D のテスト
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_foundation::{
-    core::{
-        BasicMeasurement,
-        // 新階層Foundation
-        GeometryShape,
-        NewBasicContainment as BasicContainment,
-        NewBasicParametric,
-        ParametricShape,
-        Shape2D,
-        SurfaceShape,
-    },
-    Scalar,
-};
 use std::f64::consts::{PI, TAU};
 
 /// 基本作成テスト
@@ -292,20 +279,16 @@ fn test_basic_metrics() {
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
 
     // 長さ（円周）
-    use geo_foundation::core_foundation::BasicMetrics;
-    let length = BasicMetrics::length(&circle).unwrap();
+    let length = circle.circumference();
     assert!((length - TAU * 2.0).abs() < 1e-10);
 
     // 面積
-    let area = BasicMetrics::area(&circle).unwrap();
+    let area = circle.area();
     assert!((area - PI * 4.0).abs() < 1e-10);
 
     // 周長（円周と同じ）
-    let perimeter = BasicMetrics::perimeter(&circle).unwrap();
+    let perimeter = circle.circumference();
     assert!((perimeter - TAU * 2.0).abs() < 1e-10);
-
-    // 体積は定義されない
-    assert!(BasicMetrics::volume(&circle).is_none());
 }
 
 /// Foundation trait - BasicContainmentテスト

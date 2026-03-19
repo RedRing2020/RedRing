@@ -4,10 +4,7 @@
 //! STEP (ISO 10303) 準拠の ref_direction フィールドでArc変換に対応
 
 use crate::{Direction2D, Point2D};
-use geo_foundation::{
-    core::circle_traits::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties},
-    Scalar,
-};
+use geo_contracts::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties, Scalar};
 
 /// 2次元円
 ///

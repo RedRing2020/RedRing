@@ -4,8 +4,10 @@
 //! Arc2D と他の幾何形状との組み合わせを実装
 
 use crate::{Arc2D, Circle2D, Point2D};
-use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{Arc2DProperties, Circle2DProperties, Scalar};
+use geo_contracts::{
+    Arc2DProperties, BasicIntersection, Circle2DProperties, MultipleIntersection, Scalar,
+    SelfIntersection,
+};
 
 // ============================================================================
 // BasicIntersection Implementations

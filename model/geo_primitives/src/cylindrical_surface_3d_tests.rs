@@ -7,7 +7,7 @@
 mod tests {
     use crate::{CylindricalSurface3D, Point3D, Vector3D};
     use approx::assert_relative_eq;
-    use geo_foundation::{CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Scalar};
+    use geo_contracts::{CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Scalar};
 
     fn create_test_surface() -> CylindricalSurface3D<f64> {
         CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap()

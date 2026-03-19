@@ -4,11 +4,8 @@
 //! 拡張機能は line_segment_3d_extensions.rs を参照
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
-use geo_foundation::{
-    core::linesegment_traits::{
-        LineSegment3DConstructor, LineSegment3DMeasure, LineSegment3DProperties,
-    },
-    Scalar,
+use geo_contracts::{
+    LineSegment3DConstructor, LineSegment3DMeasure, LineSegment3DProperties, Scalar,
 };
 
 /// 3次元空間の線分

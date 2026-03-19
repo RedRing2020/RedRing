@@ -128,7 +128,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     /// ```no_run
     /// # use geo_nurbs::{NurbsCurve3D, curve_3d_extensions::AabbOptions};
     /// # let curve: NurbsCurve3D<f64> = todo!();
-    /// use geo_foundation::ExtensionFoundation;
+    /// use geo_contracts::ExtensionFoundation;
     ///
     /// // 高速・保守的
     /// let rough_bbox = curve.bounding_box_with_options(AabbOptions::Rough);
@@ -147,7 +147,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
         match options {
             AabbOptions::Rough => {
                 // Bounded トレイトの実装を使用
-                use geo_foundation::Bounded;
+                use geo_contracts::Bounded;
                 self.aabb().expect("NURBS curve should have bounding box")
             }
             AabbOptions::Precise { tolerance } => self.precise_bounding_box(tolerance),

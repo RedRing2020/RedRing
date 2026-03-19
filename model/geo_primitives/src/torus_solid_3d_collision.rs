@@ -5,7 +5,7 @@
 
 use crate::{Point3D, TorusSolid3D};
 use geo_contracts::BasicCollision;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicCollision implementations for TorusSolid3D

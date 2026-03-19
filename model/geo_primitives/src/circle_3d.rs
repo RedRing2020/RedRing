@@ -4,10 +4,7 @@
 //! STEP (ISO 10303) 準拠の axis2_placement_3d スタイルで実装
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::{
-    core::circle_traits::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties},
-    Scalar,
-};
+use geo_contracts::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties, Scalar};
 
 /// 3次元空間の円
 ///

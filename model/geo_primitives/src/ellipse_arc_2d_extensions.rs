@@ -3,8 +3,7 @@
 //! Extension Foundation パターンに基づく EllipseArc2D の拡張実装
 
 use crate::{Ellipse2D, EllipseArc2D, Point2D, Vector2D};
-use geo_foundation::{Angle, Scalar};
-// use geo_foundation::core::arc_traits::Arc2D; // 未使用のため一時的にコメントアウト
+use geo_contracts::{Angle, Scalar};
 
 // ============================================================================
 // Extension Methods Implementation

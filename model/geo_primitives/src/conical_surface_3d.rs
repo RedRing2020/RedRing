@@ -16,7 +16,7 @@
 //! - semi_angle: 半頂角（ラジアン）
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円錐サーフェス（STEP準拠のCore実装）
 ///
@@ -476,9 +476,9 @@ impl<T: Scalar> ConicalSurface3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::{
+use geo_contracts::{
     ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DMeasure,
-    ConicalSurface3DProperties,
+    ConicalSurface3DProperties as ContractsConicalSurface3DProperties,
 };
 
 impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
@@ -509,7 +509,7 @@ impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
+impl<T: Scalar> ContractsConicalSurface3DProperties<T> for ConicalSurface3D<T> {
     fn apex(&self) -> (T, T, T) {
         let a = self.center_internal();
         (a.x(), a.y(), a.z())
@@ -556,7 +556,9 @@ impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
 
 impl<T: Scalar> ConicalSurface3DMeasure<T> for ConicalSurface3D<T> {
     fn surface_area(&self) -> T {
-        T::PI * self.radius() * self.slant_height()
+        T::PI
+            * ContractsConicalSurface3DProperties::radius(self)
+            * ContractsConicalSurface3DProperties::slant_height(self)
     }
 
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {

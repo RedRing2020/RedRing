@@ -5,7 +5,7 @@
 
 use crate::{Circle2D, LineSegment2D, Point2D};
 use geo_contracts::BasicCollision;
-use geo_foundation::{Circle2DProperties, LineSegment2DProperties, Scalar};
+use geo_contracts::{Circle2DProperties, LineSegment2DProperties, Scalar};
 
 // ============================================================================
 // BasicCollision Implementations

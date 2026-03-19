@@ -3,11 +3,8 @@
 //! Foundation統一システムに基づくEllipseArc2Dの必須機能のみ
 
 use crate::{Ellipse2D, Point2D, Vector2D};
-use geo_foundation::{
-    core::ellipse_arc_traits::{
-        EllipseArc2DConstructor, EllipseArc2DMeasure, EllipseArc2DProperties,
-    },
-    Angle, Scalar,
+use geo_contracts::{
+    Angle, EllipseArc2DConstructor, EllipseArc2DMeasure, EllipseArc2DProperties, Scalar,
 };
 
 /// 2次元楕円弧

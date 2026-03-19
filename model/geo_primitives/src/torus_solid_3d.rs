@@ -7,7 +7,7 @@
 // 固体としての体積と表面を持ちます。
 
 use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス固体
@@ -213,8 +213,9 @@ impl<T: Scalar> TorusSolid3D<T> {
     }
 }
 
-use geo_foundation::{
-    TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure, TorusSolid3DProperties,
+use geo_contracts::{
+    TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure,
+    TorusSolid3DProperties as ContractsTorusSolid3DProperties,
 };
 
 impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
@@ -288,7 +289,7 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
     }
 }
 
-impl<T: Scalar> TorusSolid3DProperties<T> for TorusSolid3D<T> {
+impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         let o = self.origin_internal();
         (o.x(), o.y(), o.z())

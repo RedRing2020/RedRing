@@ -4,7 +4,7 @@
 
 use crate::InfiniteLine3D;
 use geo_contracts::Scalar;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind};
+use geo_contracts::{ExtensionFoundation, PrimitiveKind};
 
 impl<T: Scalar> ExtensionFoundation<T> for InfiniteLine3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {

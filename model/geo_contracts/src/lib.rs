@@ -6,10 +6,16 @@
 pub mod classification;
 pub mod entity;
 pub mod geometry;
+pub mod tolerance;
+pub mod tolerance_migration;
 
 pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 pub use entity::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties};
+pub use geometry::core::arc_traits::{Arc2DContainment, Arc2DSampling};
+pub use geometry::core::plane3d_traits::{
+    Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties,
+};
 pub use geometry::core::{
     Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
     Arc3DMeasure, Arc3DProperties, Circle2DConstructor, Circle2DCore, Circle2DMeasure,
@@ -43,8 +49,8 @@ pub use geometry::core::{
     InfiniteLine3DConstructor, InfiniteLine3DCore, InfiniteLine3DMeasure, InfiniteLine3DProperties,
     LineSegment2DConstructor, LineSegment2DCore, LineSegment2DMeasure, LineSegment2DProperties,
     LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DCore,
-    LineSegment3DMeasure, LineSegment3DProperties, Plane3DProperties, Ray2DConstructor, Ray2DCore,
-    Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore, Ray3DMeasure, Ray3DProperties,
+    LineSegment3DMeasure, LineSegment3DProperties, Ray2DConstructor, Ray2DCore, Ray2DMeasure,
+    Ray2DProperties, Ray3DConstructor, Ray3DCore, Ray3DMeasure, Ray3DProperties,
 };
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
@@ -59,3 +65,5 @@ pub use geometry::operations::{
     EllipseAdaptiveCalculation, EllipseCalculation, MultipleIntersection, PointDistance,
     SelfIntersection,
 };
+pub use tolerance::{GeometryContext, ToleranceSettings};
+pub use tolerance_migration::{DefaultTolerances, ScalarToleranceExt};

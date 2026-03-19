@@ -1,10 +1,7 @@
 //! Rect3D Core 実装（任意平面）
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::{
-    geometry::core::rectangle_traits::{Rect3DConstructor, Rect3DMeasure, Rect3DProperties},
-    Scalar,
-};
+use geo_contracts::{Rect3DConstructor, Rect3DMeasure, Rect3DProperties, Scalar};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect3D<T: Scalar> {

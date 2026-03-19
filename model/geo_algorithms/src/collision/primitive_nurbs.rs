@@ -19,9 +19,10 @@ use crate::{
     Ray3D, SphericalSolid3D,
 };
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
-use geo_contracts::{BasicCollision, InfiniteLine3DProperties, Scalar};
+use geo_contracts::{
+    BasicCollision, Circle3DProperties, InfiniteLine3DProperties, Plane3DProperties, Scalar,
+};
 use geo_core::Point3D;
-use geo_foundation::core::{circle_traits::Circle3DProperties, plane_traits::Plane3DProperties};
 use geo_nurbs::NurbsCurve3D;
 
 // Newtype Wrapper for NurbsCurve3D

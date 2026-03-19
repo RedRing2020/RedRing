@@ -4,14 +4,9 @@
 //! 拡張機能は ellipse_arc_3d_extensions.rs を参照
 
 use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_foundation::{
-    core::{
-        arc_traits::Arc3DProperties,
-        ellipse_arc_traits::{
-            EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
-        },
-    },
-    Angle, Scalar,
+use geo_contracts::{
+    Angle, Arc3DProperties, EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
+    Scalar,
 };
 
 /// 3次元楕円弧

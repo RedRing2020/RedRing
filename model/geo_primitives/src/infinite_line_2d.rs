@@ -270,7 +270,7 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 
     fn passes_through_origin(&self) -> bool {
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         self.contains_point(&Point2D::origin(), DefaultTolerances::distance::<T>())
     }
 
@@ -311,7 +311,7 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         self.contains_point(&p, DefaultTolerances::distance::<T>())
     }
 
@@ -344,7 +344,7 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
     fn is_same_line(&self, other: &Self) -> bool {
         // 平行かつ同じ点を含む場合
         self.is_parallel_to(other) && {
-            use geo_foundation::tolerance_migration::DefaultTolerances;
+            use geo_contracts::tolerance_migration::DefaultTolerances;
             self.contains_point(&other.point, DefaultTolerances::distance::<T>())
         }
     }

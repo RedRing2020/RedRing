@@ -4,8 +4,8 @@
 //! 基本機能は arc_2d.rs を参照
 
 use crate::{arc_2d::Arc2D, Circle2D, Point2D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::{Angle, Scalar};
-use geo_foundation::tolerance_migration::DefaultTolerances;
 
 impl<T: Scalar> Arc2D<T> {
     // ========================================================================

@@ -9,7 +9,9 @@
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D};
 use geo_contracts::BasicCollision;
-use geo_foundation::{LineSegment3DCollisionDetection, Scalar, SphericalSurface3DProperties};
+use geo_contracts::LineSegment3DCollisionDetection;
+use geo_contracts::Scalar;
+use geo_contracts::SphericalSurface3DProperties;
 
 // ============================================================================
 // BasicCollision Implementations
@@ -160,17 +162,21 @@ impl<T: Scalar> LineSegment3D<T> {
 // ============================================================================
 
 /// LineSegment3D と AABB（軸並行境界ボックス）の衝突検出実装
-///
-/// LineSegment3DCollisionDetection トレイトはデフォルト実装を提供するため、
-/// LineSegment3D は明示的な実装なしで AABB距離計算が可能
-///
-/// このblanket implementationにより、LineSegment3Dが自動的にトレイトを実装
-impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {}
+impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {
+    fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T {
+        use geo_commons::line_segment_to_aabb_distance;
+        let start_point = self.start();
+        let end_point = self.end();
+        let start = (start_point.x(), start_point.y(), start_point.z());
+        let end = (end_point.x(), end_point.y(), end_point.z());
+        line_segment_to_aabb_distance(start, end, aabb_min, aabb_max)
+    }
+}
 
 #[cfg(test)]
 mod tests_aabb_distance {
     use super::*;
-    use geo_foundation::LineSegment3DCollisionDetection;
+    use geo_contracts::LineSegment3DCollisionDetection;
 
     #[test]
     fn test_distance_to_aabb_intersecting() {

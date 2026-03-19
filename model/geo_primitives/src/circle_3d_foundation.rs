@@ -2,8 +2,8 @@
 
 use crate::Circle3D;
 use geo_contracts::Scalar;
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, TolerantEq};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation

@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
 use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
-use geo_foundation::{Angle, Scalar};
+use geo_contracts::{Angle, Scalar};
 
 // ============================================================================
 // Extension Methods Implementation

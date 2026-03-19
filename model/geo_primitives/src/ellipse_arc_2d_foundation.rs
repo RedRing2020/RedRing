@@ -3,7 +3,7 @@
 //! ExtensionFoundation トレイトの実装
 
 use crate::EllipseArc2D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_contracts::{ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for EllipseArc2D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {

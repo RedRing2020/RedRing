@@ -3,11 +3,9 @@
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
 use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::{Ellipse3DConstructor, Ellipse3DMeasure, Ellipse3DProperties, Scalar};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
-use geo_foundation::{
-    tolerance_migration::DefaultTolerances, Ellipse3DConstructor, Ellipse3DMeasure,
-    Ellipse3DProperties, Scalar,
-};
 
 /// 3次元楕円（Core実装）
 ///
@@ -450,8 +448,7 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
 
     /// 3D空間での点が楕円内部にあるかを判定
     fn contains_point_3d(&self, point: (T, T, T)) -> bool {
-        self.distance_to_point_3d_internal(point)
-            <= geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into()
+        self.distance_to_point_3d_internal(point) <= analysis::GEOMETRIC_DISTANCE_TOLERANCE.into()
     }
 
     /// 3D空間での点から楕円への最短距離を計算
@@ -499,7 +496,7 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
 
     /// 楕円が円かどうか判定
     fn is_circle(&self) -> bool {
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
         (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
     }
 }

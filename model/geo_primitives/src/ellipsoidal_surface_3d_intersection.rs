@@ -4,7 +4,7 @@
 
 use crate::{EllipsoidalSurface3D, Point3D};
 use geo_contracts::BasicIntersection;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicIntersection Implementations

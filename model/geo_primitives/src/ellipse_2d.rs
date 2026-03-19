@@ -3,11 +3,8 @@
 //! 新しいtraitsシステムに対応したEllipse2Dの実装
 
 use crate::{Circle2D, Point2D, Vector2D};
+use geo_contracts::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Scalar};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
-use geo_foundation::{
-    core::ellipse_traits::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties},
-    Scalar,
-};
 
 /// 2次元楕円
 ///
@@ -542,12 +539,12 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
         self.contains_point(&p, tolerance)
     }
 
     fn is_circle(&self) -> bool {
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
         self.is_circle(tolerance)
     }
 
@@ -579,7 +576,7 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
 
     fn point_on_boundary(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
         // 点が楕円上にあるか判定：点から楕円周への距離が許容誤差以内
         let dist = self.distance_to_point(&p);
         dist <= tolerance

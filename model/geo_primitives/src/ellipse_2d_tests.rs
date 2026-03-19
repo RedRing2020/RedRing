@@ -1,7 +1,7 @@
 //! Ellipse2D のテスト
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 #[cfg(test)]
 mod tests {
@@ -364,7 +364,7 @@ mod tests {
 #[cfg(test)]
 mod foundation_tests {
     use super::*;
-    use geo_foundation::geometry::core::{EllipseCore, EllipseMetrics, UnifiedEllipseFoundation};
+    use geo_contracts::geometry::core::{EllipseCore, EllipseMetrics, UnifiedEllipseFoundation};
     use std::f64::consts::{PI, TAU};
 
     /// EllipseCore trait実装テスト

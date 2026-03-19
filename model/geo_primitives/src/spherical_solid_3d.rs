@@ -19,7 +19,7 @@
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元球ソリッド（STEP準拠のCore実装）
 ///
@@ -378,9 +378,9 @@ impl<T: Scalar> SphericalSolid3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
-use geo_foundation::{
+use geo_contracts::{
     SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,
-    SphericalSolid3DProperties,
+    SphericalSolid3DProperties as ContractsSphericalSolid3DProperties,
 };
 
 impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
@@ -458,7 +458,7 @@ impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> SphericalSolid3DProperties<T> for SphericalSolid3D<T> {
+impl<T: Scalar> ContractsSphericalSolid3DProperties<T> for SphericalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();
         (c.x(), c.y(), c.z())
@@ -481,8 +481,6 @@ impl<T: Scalar> SphericalSolid3DProperties<T> for SphericalSolid3D<T> {
     fn diameter(&self) -> T {
         self.radius_internal() * T::from_f64(2.0)
     }
-
-    // Phase 2: 追加プロパティ
 
     fn is_unit_sphere(&self) -> bool {
         (self.radius_internal() - T::ONE).abs() <= T::EPSILON

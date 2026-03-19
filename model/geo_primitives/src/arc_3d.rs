@@ -3,11 +3,9 @@
 //! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
-use geo_foundation::{
-    core::arc_traits::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties},
-    tolerance_migration::DefaultTolerances,
-    Scalar,
-};
+use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::Scalar;
+use geo_contracts::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties};
 
 /// 3次元円弧（基本実装）
 ///
@@ -311,7 +309,7 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
     }
 }
 
-impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
+impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
     fn center(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())
     }
@@ -332,7 +330,6 @@ impl<T: Scalar> Arc3DProperties<T> for Arc3D<T> {
         3
     }
 
-    // Phase 2: 追加プロパティ
     fn angle_span(&self) -> T {
         (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
     }

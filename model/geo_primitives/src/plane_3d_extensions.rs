@@ -3,7 +3,7 @@
 //! 平面の基本的な幾何操作と計算機能
 
 use crate::{Plane3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // Basic Geometric Operations
