@@ -418,7 +418,6 @@ impl<T: Scalar> CylindricalSurface3DConstructor<T> for CylindricalSurface3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsCylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())

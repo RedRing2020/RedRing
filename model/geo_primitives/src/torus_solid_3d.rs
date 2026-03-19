@@ -289,7 +289,6 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         let o = self.origin_internal();

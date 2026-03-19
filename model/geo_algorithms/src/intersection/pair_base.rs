@@ -7,8 +7,8 @@ use crate::{
     Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, InfiniteLine3DProperties, LineSegment2DProperties,
-    Scalar, SphericalSurface3DProperties, Triangle3DProperties,
+    Arc2DProperties, Circle2DProperties, InfiniteLine3DProperties, LineSegment2DProperties, Scalar,
+    SphericalSurface3DProperties, Triangle3DProperties,
 };
 
 pub fn circle2d_circle2d_intersections<T: Scalar>(

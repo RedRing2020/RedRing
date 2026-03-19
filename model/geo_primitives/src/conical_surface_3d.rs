@@ -509,7 +509,6 @@ impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsConicalSurface3DProperties<T> for ConicalSurface3D<T> {
     fn apex(&self) -> (T, T, T) {
         let a = self.center_internal();

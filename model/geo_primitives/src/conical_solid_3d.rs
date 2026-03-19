@@ -421,7 +421,6 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     fn apex(&self) -> (T, T, T) {
         let a = self.apex_internal();

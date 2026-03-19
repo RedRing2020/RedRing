@@ -523,7 +523,6 @@ impl<T: Scalar> EllipsoidalSurface3DConstructor<T> for EllipsoidalSurface3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsEllipsoidalSurface3DProperties<T> for EllipsoidalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();

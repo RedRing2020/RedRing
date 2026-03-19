@@ -445,7 +445,6 @@ impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();

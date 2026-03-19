@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests {
     use crate::{EllipsoidalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D, Vector3D};
-    use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
     use geo_contracts::Scalar;
+    use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 
     fn create_test_ellipsoid<T: Scalar>() -> EllipsoidalSolid3D<T> {
         let center = Point3D::origin();

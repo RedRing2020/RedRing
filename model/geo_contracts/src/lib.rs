@@ -49,8 +49,8 @@ pub use geometry::core::{
     InfiniteLine3DConstructor, InfiniteLine3DCore, InfiniteLine3DMeasure, InfiniteLine3DProperties,
     LineSegment2DConstructor, LineSegment2DCore, LineSegment2DMeasure, LineSegment2DProperties,
     LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DCore,
-    LineSegment3DMeasure, LineSegment3DProperties, Ray2DConstructor, Ray2DCore,
-    Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore, Ray3DMeasure, Ray3DProperties,
+    LineSegment3DMeasure, LineSegment3DProperties, Ray2DConstructor, Ray2DCore, Ray2DMeasure,
+    Ray2DProperties, Ray3DConstructor, Ray3DCore, Ray3DMeasure, Ray3DProperties,
 };
 pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,

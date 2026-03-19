@@ -458,7 +458,6 @@ impl<T: Scalar> SphericalSolid3DConstructor<T> for SphericalSolid3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsSphericalSolid3DProperties<T> for SphericalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();

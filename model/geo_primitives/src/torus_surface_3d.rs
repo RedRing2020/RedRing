@@ -281,7 +281,6 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
     }
 }
 
-
 impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         let o = self.origin_internal();

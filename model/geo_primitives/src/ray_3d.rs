@@ -5,11 +5,7 @@
 //! Core Traits実装（Constructor, Properties, Measure）も含む
 
 use crate::{Direction3D, Point3D, Vector3D};
-use analysis::linalg::{point3::Point3, vector::Vector3};
-use geo_foundation::{
-    core::ray_traits::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties},
-    Scalar,
-};
+use geo_contracts::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties, Scalar};
 
 /// 3次元半無限直線
 ///
@@ -171,71 +167,71 @@ impl<T: Scalar> Ray3D<T> {
 
 /// Ray3DConstructor トレイト実装
 impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
-    fn new(origin: Point3<T>, direction: Vector3<T>) -> Option<Self>
+    fn new(origin: (T, T, T), direction: (T, T, T)) -> Option<Self>
     where
         Self: Sized,
     {
-        let direction_vector = Vector3D::new(direction.x(), direction.y(), direction.z());
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let direction_vector = Vector3D::new(direction.0, direction.1, direction.2);
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         Ray3D::new(origin_point, direction_vector)
     }
 
-    fn from_points(start: Point3<T>, through: Point3<T>) -> Option<Self>
+    fn from_points(start: (T, T, T), through: (T, T, T)) -> Option<Self>
     where
         Self: Sized,
     {
-        let start_point = Point3D::new(start.x(), start.y(), start.z());
-        let through_point = Point3D::new(through.x(), through.y(), through.z());
+        let start_point = Point3D::new(start.0, start.1, start.2);
+        let through_point = Point3D::new(through.0, through.1, through.2);
         Ray3D::from_points(start_point, through_point)
     }
 
-    fn along_positive_x(origin: Point3<T>) -> Self
+    fn along_positive_x(origin: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         Ray3D::along_x_axis(origin_point)
     }
 
-    fn along_positive_y(origin: Point3<T>) -> Self
+    fn along_positive_y(origin: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         Ray3D::along_y_axis(origin_point)
     }
 
-    fn along_positive_z(origin: Point3<T>) -> Self
+    fn along_positive_z(origin: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         Ray3D::along_z_axis(origin_point)
     }
 
-    fn along_negative_x(origin: Point3<T>) -> Self
+    fn along_negative_x(origin: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         let neg_x_direction = Vector3D::new(-T::ONE, T::ZERO, T::ZERO);
         Ray3D::new(origin_point, neg_x_direction).unwrap()
     }
 
-    fn along_negative_y(origin: Point3<T>) -> Self
+    fn along_negative_y(origin: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         let neg_y_direction = Vector3D::new(T::ZERO, -T::ONE, T::ZERO);
         Ray3D::new(origin_point, neg_y_direction).unwrap()
     }
 
-    fn along_negative_z(origin: Point3<T>) -> Self
+    fn along_negative_z(origin: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         let neg_z_direction = Vector3D::new(T::ZERO, T::ZERO, -T::ONE);
         Ray3D::new(origin_point, neg_z_direction).unwrap()
     }
@@ -263,11 +259,11 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
 
     // ========== Phase 2 実装 ==========
 
-    fn from_spherical(origin: Point3<T>, azimuth: T, elevation: T) -> Self
+    fn from_spherical(origin: (T, T, T), azimuth: T, elevation: T) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         let cos_elev = elevation.cos();
         let sin_elev = elevation.sin();
         let cos_azim = azimuth.cos();
@@ -277,20 +273,20 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
         Ray3D::new(origin_point, direction).unwrap()
     }
 
-    fn xy_plane_angle(origin: Point3<T>, angle: T) -> Self
+    fn xy_plane_angle(origin: (T, T, T), angle: T) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
         Ray3D::new(origin_point, direction).unwrap()
     }
 
-    fn xz_plane_angle(origin: Point3<T>, angle: T) -> Self
+    fn xz_plane_angle(origin: (T, T, T), angle: T) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point3D::new(origin.x(), origin.y(), origin.z());
+        let origin_point = Point3D::new(origin.0, origin.1, origin.2);
         let direction = Vector3D::new(angle.cos(), T::ZERO, angle.sin());
         Ray3D::new(origin_point, direction).unwrap()
     }
@@ -298,12 +294,12 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
 
 /// Ray3DProperties トレイト実装
 impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
-    fn origin(&self) -> Point3<T> {
-        Point3::new(self.origin.x(), self.origin.y(), self.origin.z())
+    fn origin(&self) -> (T, T, T) {
+        (self.origin.x(), self.origin.y(), self.origin.z())
     }
 
-    fn direction(&self) -> Vector3<T> {
-        Vector3::new(self.direction.x(), self.direction.y(), self.direction.z())
+    fn direction(&self) -> (T, T, T) {
+        (self.direction.x(), self.direction.y(), self.direction.z())
     }
 
     fn origin_x(&self) -> T {
@@ -357,21 +353,21 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
 
 /// Ray3DMeasure トレイト実装
 impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
-    fn point_at_parameter(&self, t: T) -> Point3<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let point = self.point_at_parameter(t);
-        Point3::new(point.x(), point.y(), point.z())
+        (point.x(), point.y(), point.z())
     }
 
-    fn closest_point(&self, point: &Point3<T>) -> Point3<T> {
-        let target_point = Point3D::new(point.x(), point.y(), point.z());
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
+        let target_point = Point3D::new(point.0, point.1, point.2);
         let t = self.parameter_for_point(&target_point);
         let clamped_t = if t < T::ZERO { T::ZERO } else { t };
         let closest = self.point_at_parameter(clamped_t);
-        Point3::new(closest.x(), closest.y(), closest.z())
+        (closest.x(), closest.y(), closest.z())
     }
 
-    fn distance_to_point(&self, point: &Point3<T>) -> T {
-        let target_point = Point3D::new(point.x(), point.y(), point.z());
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let target_point = Point3D::new(point.0, point.1, point.2);
         let to_point = target_point - self.origin;
         let projection_length = self.direction.dot(&to_point);
 
@@ -388,19 +384,19 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         }
     }
 
-    fn contains_point(&self, point: &Point3<T>) -> bool {
-        let target_point = Point3D::new(point.x(), point.y(), point.z());
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let target_point = Point3D::new(point.0, point.1, point.2);
         use geo_contracts::tolerance_migration::DefaultTolerances;
         self.contains_point(&target_point, DefaultTolerances::distance::<T>())
     }
 
-    fn parameter_for_point(&self, point: &Point3<T>) -> T {
-        let target_point = Point3D::new(point.x(), point.y(), point.z());
+    fn parameter_for_point(&self, point: (T, T, T)) -> T {
+        let target_point = Point3D::new(point.0, point.1, point.2);
         self.parameter_for_point(&target_point)
     }
 
-    fn points_towards(&self, direction: &Vector3<T>) -> bool {
-        let target_direction = Vector3D::new(direction.x(), direction.y(), direction.z());
+    fn points_towards(&self, direction: (T, T, T)) -> bool {
+        let target_direction = Vector3D::new(direction.0, direction.1, direction.2);
         let dot = self.direction.dot(&target_direction);
         dot > T::ZERO
     }
@@ -436,11 +432,11 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         self.reverse_direction()
     }
 
-    fn translate(&self, offset: Vector3<T>) -> Self
+    fn translate(&self, offset: (T, T, T)) -> Self
     where
         Self: Sized,
     {
-        let offset_vector = Vector3D::new(offset.x(), offset.y(), offset.z());
+        let offset_vector = Vector3D::new(offset.0, offset.1, offset.2);
         let new_origin = self.origin + offset_vector;
 
         Ray3D::new(new_origin, self.direction).unwrap()
@@ -481,10 +477,10 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         diff.length()
     }
 
-    fn point_at_distance(&self, distance: T) -> Point3<T> {
+    fn point_at_distance(&self, distance: T) -> (T, T, T) {
         // 方向ベクトルは正規化済みなので、パラメータ = 距離
         let point = self.point_at_parameter(distance);
-        Point3::new(point.x(), point.y(), point.z())
+        (point.x(), point.y(), point.z())
     }
 
     fn angle_between(&self, other: &Self) -> T {
@@ -499,7 +495,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         clamped.acos()
     }
 
-    fn rotate_around_axis(&self, axis: &Vector3<T>, angle: T) -> Option<Self>
+    fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>
     where
         Self: Sized,
     {
@@ -507,7 +503,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         use analysis::linalg::vector::Vector3;
 
         // analysis::Vector3 に変換
-        let axis_analysis = Vector3::new(axis.x(), axis.y(), axis.z());
+        let axis_analysis = Vector3::new(axis.0, axis.1, axis.2);
         let norm = axis_analysis.norm();
         use geo_contracts::tolerance_migration::DefaultTolerances;
         if norm < DefaultTolerances::distance::<T>() {
@@ -536,60 +532,5 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         );
 
         Ray3D::new(rotated_origin, rotated_dir)
-    }
-}
-
-impl<T: Scalar> geo_contracts::Ray3DProperties<T> for Ray3D<T> {
-    fn origin(&self) -> (T, T, T) {
-        (self.origin.x(), self.origin.y(), self.origin.z())
-    }
-
-    fn direction(&self) -> (T, T, T) {
-        (self.direction.x(), self.direction.y(), self.direction.z())
-    }
-
-    fn origin_x(&self) -> T {
-        self.origin.x()
-    }
-
-    fn origin_y(&self) -> T {
-        self.origin.y()
-    }
-
-    fn origin_z(&self) -> T {
-        self.origin.z()
-    }
-
-    fn direction_x(&self) -> T {
-        self.direction.x()
-    }
-
-    fn direction_y(&self) -> T {
-        self.direction.y()
-    }
-
-    fn direction_z(&self) -> T {
-        self.direction.z()
-    }
-
-    fn is_valid(&self) -> bool {
-        true
-    }
-
-    fn azimuth(&self) -> T {
-        self.direction.y().atan2(self.direction.x())
-    }
-
-    fn elevation(&self) -> T {
-        let xy_length = (self.direction.x() * self.direction.x()
-            + self.direction.y() * self.direction.y())
-        .sqrt();
-        self.direction.z().atan2(xy_length)
-    }
-
-    fn is_on_xy_plane(&self) -> bool {
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        self.origin.z().abs() < DefaultTolerances::distance::<T>()
-            && self.direction.z().abs() < DefaultTolerances::distance::<T>()
     }
 }

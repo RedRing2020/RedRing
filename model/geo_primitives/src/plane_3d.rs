@@ -4,10 +4,7 @@
 //! STEP AP214準拠の完全な平面座標系を提供
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
-use geo_foundation::geometry::core::plane_traits::{
-    Plane3DConstructor, Plane3DMeasure, Plane3DProperties,
-};
+use geo_contracts::{Plane3DConstructor, Plane3DMeasure, Plane3DProperties, Scalar};
 
 /// CAD用3次元平面（座標系付き）
 ///
@@ -399,7 +396,7 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
     // ========== Phase 1 実装 ==========
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
-        let tolerance = geo_foundation::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
         // distance_to_point の計算を直接展開
         let relative = Vector3D::new(
             point.0 - self.origin.x(),

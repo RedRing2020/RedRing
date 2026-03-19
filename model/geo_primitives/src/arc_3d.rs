@@ -4,10 +4,8 @@
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
 use geo_contracts::tolerance_migration::DefaultTolerances;
-use geo_contracts::{
-    Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties,
-};
 use geo_contracts::Scalar;
+use geo_contracts::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties};
 
 /// 3次元円弧（基本実装）
 ///
