@@ -3,7 +3,7 @@
 //! 個々のOctreeノードのデータ構造と操作を提供します。
 
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// Octreeノード
 ///

@@ -1,6 +1,6 @@
 use super::{HasPosition, Octree};
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use rayon::prelude::*;
 
 impl<T: Scalar + Sync, D: Clone + Sync> Octree<T, D> {

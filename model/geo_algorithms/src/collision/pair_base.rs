@@ -14,6 +14,8 @@ use crate::intersection::pair_base::{
 use geo_contracts::Scalar;
 use geo_primitives::{InfiniteLine3D, LineSegment3D, Plane3D, Ray3D, SphericalSurface3D};
 
+// collision 判定は intersection 側の判定ロジックを正本として再利用し、
+// 幾何条件の二重実装を避ける。
 pub fn line_segment3d_spherical_surface3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     sphere: &SphericalSurface3D<T>,
@@ -40,6 +42,7 @@ pub fn line_segment3d_line_segment3d_collides<T: Scalar>(
     segment2: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
+    // 交点が一意に求まるケースを衝突ありとみなす。
     line_segment3d_line_segment3d_intersection(segment1, segment2, tolerance).is_some()
 }
 
@@ -68,6 +71,7 @@ pub fn infinite_line3d_ray3d_collides<T: Scalar>(
 }
 
 pub fn ray3d_ray3d_collides<T: Scalar>(ray1: &Ray3D<T>, ray2: &Ray3D<T>) -> bool {
+    // Ray の有効範囲（t >= 0）は intersection 側で判定済み。
     ray3d_ray3d_intersection(ray1, ray2).is_some()
 }
 
@@ -87,6 +91,7 @@ pub fn plane3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
+    // tolerance を伴う符号判定は intersection 側に統一する。
     plane3d_line_segment3d_intersection(plane, segment, tolerance).is_some()
 }
 

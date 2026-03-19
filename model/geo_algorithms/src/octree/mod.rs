@@ -141,7 +141,7 @@
 //! - 並列処理時は Octree のクローンまたは Arc で共有
 
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 mod core_impl;
 mod insert_impl;

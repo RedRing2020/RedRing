@@ -1,41 +1,33 @@
 //! NURBS × Primitives 衝突判定実装
 //!
-//! このモジュールは geo_primitives と geo_nurbs 間の衝突判定を実装します。
-//! アーキテクチャ設計により、各クレートは相互に依存できないため、
-//! geo_algorithms が両方に依存して衝突判定を実装します。
+//! geo_primitives と geo_nurbs 間の衝突判定を
+//! geo_algorithms で集約して実装するモジュールです。
 //!
 //! ## Orphan Rules への対応
 //!
-//! Rust の orphan rules により、外部トレイトを外部型に直接実装できません。
-//! そのため、Newtype パターンで NURBS 形状をラップした型を提供し、
-//! BasicCollision トレイトを実装しています。
+//! 外部 trait を外部型へ直接実装できないため、
+//! Newtype（NurbsCurveCollider）経由で BasicCollision を実装します。
 //!
 //! ## 設計方針
 //!
-//! 1. **段階的精度向上**: サンプリング → 数値最適化 → 解析的手法
-//! 2. **対称性の保証**: A vs B と B vs A の両方を実装
-//! 3. **パフォーマンス**: BBox による事前スクリーニング
-//! 4. **ゼロコスト抽象化**: `#[repr(transparent)]` による Newtype
+//! 1. サンプリング + 数値最適化で距離を評価
+//! 2. 形状ペアごとに BasicCollision を実装
+//! 3. `#[repr(transparent)]` による軽量ラップを維持
 
 use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
     Ray3D, SphericalSolid3D,
 };
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
-use geo_contracts::BasicCollision;
+use geo_contracts::{BasicCollision, Scalar};
 use geo_core::Point3D;
-use geo_foundation::{
-    core::{
-        circle_traits::Circle3DProperties, infinite_line_traits::InfiniteLine3DProperties,
-        plane_traits::Plane3DProperties,
-    },
-    Scalar,
+use geo_foundation::core::{
+    circle_traits::Circle3DProperties, infinite_line_traits::InfiniteLine3DProperties,
+    plane_traits::Plane3DProperties,
 };
 use geo_nurbs::NurbsCurve3D;
 
-// ============================================================================
 // Newtype Wrapper for NurbsCurve3D
-// ============================================================================
 
 /// NURBS曲線の衝突判定アダプタ（Newtype パターン）
 ///
@@ -105,9 +97,7 @@ impl<T: Scalar> NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs Point3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -162,9 +152,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs LineSegment3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -231,9 +219,7 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs Ray3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -290,9 +276,7 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs InfiniteLine3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -350,9 +334,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs Circle3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -397,9 +379,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs Plane3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -445,9 +425,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs SphericalSolid3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -485,9 +463,7 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T>
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs EllipsoidalSolid3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -525,9 +501,7 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<
     }
 }
 
-// ============================================================================
 // NurbsCurveCollider vs CylindricalSolid3D
-// ============================================================================
 
 impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<T> {
     type Point2D = Point3D<T>;
@@ -568,7 +542,7 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_foundation::Scalar;
+    use geo_contracts::NurbsCurve3DConstructor;
 
     fn create_test_curve<T: Scalar>() -> NurbsCurve3D<T> {
         use analysis::linalg::vector::vector3::Vector3;
@@ -593,9 +567,8 @@ mod tests {
             T::ONE,
         ];
 
-        // Core Traits経由で生成（Foundation Pattern）
+        // テスト用の NURBS 曲線を constructor trait で生成
         // シグネチャ: new(degree, knots, control_points: Vec<(T,T,T)>, weights)
-        use geo_foundation::contracts::NurbsCurve3DConstructor;
         let control_points_tuples = control_points
             .into_iter()
             .map(|v| (v.x(), v.y(), v.z()))
@@ -666,9 +639,7 @@ mod tests {
         assert_eq!(recovered_curve.parameter_domain(), curve.parameter_domain());
     }
 
-    // ========================================================================
     // LineSegment3D tests
-    // ========================================================================
 
     #[test]
     fn test_line_segment_intersecting() {
@@ -697,9 +668,7 @@ mod tests {
         assert!(distance < 1.0);
     }
 
-    // ========================================================================
     // Ray3D tests
-    // ========================================================================
 
     #[test]
     fn test_ray_intersecting() {
@@ -717,9 +686,7 @@ mod tests {
         assert!(collider.intersects(&ray, tolerance));
     }
 
-    // ========================================================================
     // InfiniteLine3D tests
-    // ========================================================================
 
     #[test]
     fn test_infinite_line_intersecting() {
@@ -737,9 +704,7 @@ mod tests {
         assert!(collider.intersects(&line, tolerance));
     }
 
-    // ========================================================================
     // Circle3D tests
-    // ========================================================================
 
     #[test]
     fn test_circle_near() {
@@ -759,9 +724,7 @@ mod tests {
         assert!(distance >= 0.0);
     }
 
-    // ========================================================================
     // Plane3D tests
-    // ========================================================================
 
     #[test]
     fn test_plane_intersecting() {
@@ -787,9 +750,7 @@ mod tests {
         assert!((distance - 1.0).abs() < 0.1); // 約1.0の距離
     }
 
-    // ========================================================================
     // SphericalSolid3D tests
-    // ========================================================================
 
     #[test]
     fn test_spherical_solid_intersecting() {
@@ -829,9 +790,7 @@ mod tests {
         assert!(distance > 10.0);
     }
 
-    // ========================================================================
     // EllipsoidalSolid3D tests
-    // ========================================================================
 
     #[test]
     fn test_ellipsoidal_solid_intersecting() {
@@ -854,9 +813,7 @@ mod tests {
         assert!(collider.intersects(&ellipsoid, tolerance));
     }
 
-    // ========================================================================
     // CylindricalSolid3D tests
-    // ========================================================================
 
     #[test]
     fn test_cylindrical_solid_near() {

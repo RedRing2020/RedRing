@@ -1,6 +1,6 @@
 use super::{Octree, OctreeNode, OctreeTolerance};
 use geo_core::Aabb3D;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 impl<T: Scalar, D: Clone> Octree<T, D> {
     /// 新しいOctreeを作成
