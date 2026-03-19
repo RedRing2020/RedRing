@@ -6,6 +6,7 @@ description = "Data conversion layer for MVVM architecture - Model to View trans
 
 [dependencies]
 geo_foundation = { path = "../../model/geo_foundation" }
+geo_contracts = { path = "../../model/geo_contracts" }
 # geo_core, geo_primitives は geo_algorithms 経由でアクセス（Foundation Pattern遵守）
 # - Point3D, Vector3D, Aabb3D (from geo_core)
 # - Arc3D, Circle3D等の形状 (from geo_primitives)
