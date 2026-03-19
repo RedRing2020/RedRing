@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{ConicalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D, Vector3D};
-    use geo_foundation::extensions::{BasicIntersection, SelfIntersection};
+    use geo_contracts::{BasicIntersection, SelfIntersection};
 
     /// テスト用の標準的な円錐ソリッドを作成
     fn create_test_cone() -> ConicalSolid3D<f64> {

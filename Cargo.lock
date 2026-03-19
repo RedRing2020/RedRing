@@ -714,6 +714,7 @@ name = "geo_contracts"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "geo_commons",
 ]
 
 [[package]]

@@ -5,10 +5,7 @@
 
 use crate::{Arc2D, Circle2D, Ellipse2D, EllipseArc2D, LineSegment2D, Point2D, Triangle2D};
 use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{
-    
-    Scalar,
-};
+use geo_contracts::Scalar;
 
 // ============================================================================
 // EllipseArc2D vs Point2D

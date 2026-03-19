@@ -9,7 +9,7 @@ mod tests {
         Vector3D,
     };
     use analysis::Angle;
-    use geo_foundation::extensions::{BasicIntersection, MultipleIntersection, SelfIntersection};
+    use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
 
     // テスト用のヘルパー関数
     fn create_test_ellipse_arc() -> EllipseArc3D<f64> {

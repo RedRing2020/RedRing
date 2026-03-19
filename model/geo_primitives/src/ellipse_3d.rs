@@ -3,11 +3,9 @@
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
 use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
-use geo_foundation::{
-    tolerance_migration::DefaultTolerances, Ellipse3DConstructor, Ellipse3DMeasure,
-    Ellipse3DProperties, Scalar,
-};
+use geo_contracts::{Ellipse3DConstructor, Ellipse3DMeasure, Ellipse3DProperties, Scalar};
 
 /// 3次元楕円（Core実装）
 ///

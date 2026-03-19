@@ -1,7 +1,6 @@
 //! LineSegment3D のテスト
 
 use crate::{LineSegment3D, Point3D, Vector3D};
-use geo_foundation::core_foundation::*;
 
 // BasicTransformの実装を有効にするため
 #[allow(unused_imports)]
@@ -258,7 +257,7 @@ mod tests {
         let segment =
             LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(3.0, 4.0, 0.0)).unwrap();
 
-        assert_eq!(BasicMetrics::length(&segment), Some(5.0));
+        assert_eq!(segment.length(), 5.0);
     }
 
     #[test]

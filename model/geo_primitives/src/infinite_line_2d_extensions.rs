@@ -3,8 +3,8 @@
 //! Extension Foundation パターンに基づく InfiniteLine2D の拡張実装
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::{Angle, Scalar};
-use geo_foundation::tolerance_migration::DefaultTolerances;
 
 // ============================================================================
 // Extension Methods Implementation

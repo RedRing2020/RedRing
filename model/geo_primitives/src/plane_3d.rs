@@ -527,38 +527,3 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         }
     }
 }
-impl<T: Scalar> geo_contracts::Plane3DProperties<T> for Plane3D<T> {
-    fn origin(&self) -> (T, T, T) {
-        (self.origin.x(), self.origin.y(), self.origin.z())
-    }
-
-    fn normal(&self) -> (T, T, T) {
-        (self.normal.x(), self.normal.y(), self.normal.z())
-    }
-
-    fn u_axis(&self) -> (T, T, T) {
-        (self.u_axis.x(), self.u_axis.y(), self.u_axis.z())
-    }
-
-    fn v_axis(&self) -> (T, T, T) {
-        (self.v_axis.x(), self.v_axis.y(), self.v_axis.z())
-    }
-
-    fn is_xy_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
-        let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        (self.normal.as_vector() - z_axis).length() < tolerance && self.origin.z().abs() < tolerance
-    }
-
-    fn is_xz_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
-        let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        (self.normal.as_vector() - y_axis).length() < tolerance && self.origin.y().abs() < tolerance
-    }
-
-    fn is_yz_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
-        let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        (self.normal.as_vector() - x_axis).length() < tolerance && self.origin.x().abs() < tolerance
-    }
-}

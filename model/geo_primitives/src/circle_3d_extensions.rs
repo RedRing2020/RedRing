@@ -3,8 +3,8 @@
 //! 3次元円の拡張メソッド：軸取得、点の計算、距離計算、平面基底計算など
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::Scalar;
-use geo_foundation::tolerance_migration::DefaultTolerances;
 
 impl<T: Scalar> Circle3D<T> {
     /// 円平面のU軸（基準軸）を取得

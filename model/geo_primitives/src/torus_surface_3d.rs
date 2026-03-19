@@ -248,10 +248,9 @@ impl TorusSurface3D<f64> {
     }
 }
 
-use geo_contracts::TorusSurface3DProperties as ContractsTorusSurface3DProperties;
-use geo_foundation::{
+use geo_contracts::{
     TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure,
-    TorusSurface3DProperties as FoundationTorusSurface3DProperties,
+    TorusSurface3DProperties as ContractsTorusSurface3DProperties,
 };
 
 impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
@@ -282,34 +281,6 @@ impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
     }
 }
 
-impl<T: Scalar> FoundationTorusSurface3DProperties<T> for TorusSurface3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let o = self.origin_internal();
-        (o.x(), o.y(), o.z())
-    }
-
-    fn axis(&self) -> (T, T, T) {
-        let a = self.z_axis_internal();
-        (a.x(), a.y(), a.z())
-    }
-
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.x_axis_internal();
-        (r.x(), r.y(), r.z())
-    }
-
-    fn major_radius(&self) -> T {
-        self.major_radius_internal()
-    }
-
-    fn minor_radius(&self) -> T {
-        self.minor_radius_internal()
-    }
-
-    fn tube_diameter(&self) -> T {
-        self.minor_radius_internal() * T::from_f64(2.0)
-    }
-}
 
 impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
     fn center(&self) -> (T, T, T) {

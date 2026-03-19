@@ -4,10 +4,7 @@
 
 use crate::{Circle2D, Point2D, Vector2D};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
-use geo_foundation::{
-    core::ellipse_traits::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties},
-    Scalar,
-};
+use geo_contracts::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Scalar};
 
 /// 2次元楕円
 ///

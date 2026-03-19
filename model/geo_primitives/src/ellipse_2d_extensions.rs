@@ -5,7 +5,7 @@
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_contracts::Scalar;
-use geo_foundation::tolerance_migration::DefaultTolerances;
+use geo_contracts::tolerance_migration::DefaultTolerances;
 
 impl<T: Scalar> Ellipse2D<T> {
     // ========================================================================
@@ -296,3 +296,4 @@ impl<T: Scalar> Ellipse2D<T> {
         )
     }
 }
+

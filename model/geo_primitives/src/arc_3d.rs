@@ -3,14 +3,11 @@
 //! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
-use geo_contracts::Arc3DProperties as ContractsArc3DProperties;
-use geo_foundation::{
-    core::arc_traits::{
-        Arc3DConstructor, Arc3DMeasure, Arc3DProperties as FoundationArc3DProperties,
-    },
-    tolerance_migration::DefaultTolerances,
-    Scalar,
+use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::{
+    Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties,
 };
+use geo_contracts::Scalar;
 
 /// 3次元円弧（基本実装）
 ///
@@ -311,45 +308,6 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
             Angle::from_radians(T::ZERO),
             Angle::from_radians(T::from_f64(2.0) * T::PI),
         )
-    }
-}
-
-impl<T: Scalar> FoundationArc3DProperties<T> for Arc3D<T> {
-    fn center(&self) -> (T, T, T) {
-        (self.center.x(), self.center.y(), self.center.z())
-    }
-
-    fn radius(&self) -> T {
-        self.radius
-    }
-
-    fn start_angle(&self) -> T {
-        self.start_angle.to_radians()
-    }
-
-    fn end_angle(&self) -> T {
-        self.end_angle.to_radians()
-    }
-
-    fn dimension(&self) -> u32 {
-        3
-    }
-
-    // Phase 2: 追加プロパティ
-    fn angle_span(&self) -> T {
-        (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
-    }
-
-    fn is_full_circle(&self) -> bool {
-        let span = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs();
-        (span - T::from_f64(2.0) * T::PI).abs() <= T::EPSILON
-    }
-
-    fn is_on_xy_plane(&self) -> bool {
-        let z_axis = Direction3D::positive_z();
-        (self.normal.x() - z_axis.x()).abs() <= T::EPSILON
-            && (self.normal.y() - z_axis.y()).abs() <= T::EPSILON
-            && (self.normal.z() - z_axis.z()).abs() <= T::EPSILON
     }
 }
 

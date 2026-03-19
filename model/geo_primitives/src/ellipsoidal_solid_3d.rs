@@ -371,10 +371,9 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
 // Core Traits Implementation
 // ============================================================================
 
-use geo_contracts::EllipsoidalSolid3DProperties as ContractsEllipsoidalSolid3DProperties;
-use geo_foundation::{
+use geo_contracts::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
-    EllipsoidalSolid3DProperties as FoundationEllipsoidalSolid3DProperties,
+    EllipsoidalSolid3DProperties as ContractsEllipsoidalSolid3DProperties,
 };
 
 impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
@@ -446,57 +445,6 @@ impl<T: Scalar> EllipsoidalSolid3DConstructor<T> for EllipsoidalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> FoundationEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let c = self.center_internal();
-        (c.x(), c.y(), c.z())
-    }
-
-    fn a_radius(&self) -> T {
-        self.a_radius_internal()
-    }
-
-    fn b_radius(&self) -> T {
-        self.b_radius_internal()
-    }
-
-    fn c_radius(&self) -> T {
-        self.c_radius_internal()
-    }
-
-    fn axis(&self) -> (T, T, T) {
-        let a = self.axis_internal();
-        (a.x(), a.y(), a.z())
-    }
-
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.ref_direction_internal();
-        (r.x(), r.y(), r.z())
-    }
-
-    fn radii(&self) -> (T, T, T) {
-        (self.a_radius, self.b_radius, self.c_radius)
-    }
-
-    fn is_sphere(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        (self.a_radius - self.b_radius).abs() < epsilon
-            && (self.b_radius - self.c_radius).abs() < epsilon
-    }
-
-    fn is_unit_ellipsoid(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        (self.a_radius - T::ONE).abs() < epsilon
-            && (self.b_radius - T::ONE).abs() < epsilon
-            && (self.c_radius - T::ONE).abs() < epsilon
-    }
-
-    fn is_centered_at_origin(&self) -> bool {
-        let epsilon = T::EPSILON * T::from_f64(10.0);
-        let c = self.center_internal();
-        c.x().abs() < epsilon && c.y().abs() < epsilon && c.z().abs() < epsilon
-    }
-}
 
 impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<T> {
     fn center(&self) -> (T, T, T) {

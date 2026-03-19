@@ -1,10 +1,7 @@
 //! Rect2D Core 実装
 
 use crate::Point2D;
-use geo_foundation::{
-    geometry::core::rectangle_traits::{Rect2DConstructor, Rect2DMeasure, Rect2DProperties},
-    Scalar,
-};
+use geo_contracts::{Rect2DConstructor, Rect2DMeasure, Rect2DProperties, Scalar};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect2D<T: Scalar> {

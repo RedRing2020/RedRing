@@ -213,10 +213,9 @@ impl<T: Scalar> TorusSolid3D<T> {
     }
 }
 
-use geo_contracts::TorusSolid3DProperties as ContractsTorusSolid3DProperties;
-use geo_foundation::{
+use geo_contracts::{
     TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure,
-    TorusSolid3DProperties as FoundationTorusSolid3DProperties,
+    TorusSolid3DProperties as ContractsTorusSolid3DProperties,
 };
 
 impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
@@ -290,46 +289,6 @@ impl<T: Scalar> TorusSolid3DConstructor<T> for TorusSolid3D<T> {
     }
 }
 
-impl<T: Scalar> FoundationTorusSolid3DProperties<T> for TorusSolid3D<T> {
-    fn center(&self) -> (T, T, T) {
-        let o = self.origin_internal();
-        (o.x(), o.y(), o.z())
-    }
-
-    fn axis(&self) -> (T, T, T) {
-        let a = self.z_axis_internal();
-        (a.x(), a.y(), a.z())
-    }
-
-    fn ref_direction(&self) -> (T, T, T) {
-        let r = self.x_axis_internal();
-        (r.x(), r.y(), r.z())
-    }
-
-    fn major_radius(&self) -> T {
-        self.major_radius_internal()
-    }
-
-    fn minor_radius(&self) -> T {
-        self.minor_radius_internal()
-    }
-
-    fn tube_diameter(&self) -> T {
-        self.minor_radius_internal() * T::from_f64(2.0)
-    }
-
-    fn aspect_ratio(&self) -> T {
-        self.major_radius_internal() / self.minor_radius_internal()
-    }
-
-    fn outer_radius(&self) -> T {
-        self.major_radius_internal() + self.minor_radius_internal()
-    }
-
-    fn inner_radius(&self) -> T {
-        (self.major_radius_internal() - self.minor_radius_internal()).max(T::ZERO)
-    }
-}
 
 impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
     fn center(&self) -> (T, T, T) {

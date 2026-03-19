@@ -3,7 +3,6 @@
 use crate::CylindricalSolid3D;
 use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 use geo_core::Aabb3D;
-use geo_foundation::CylindricalSolid3DMeasure;
 
 // ============================================================================
 // Foundation Trait Implementation
@@ -15,7 +14,7 @@ impl<T: Scalar> ExtensionFoundation<T> for CylindricalSolid3D<T> {
     }
 
     fn measure(&self) -> Option<T> {
-        Some(self.volume())
+        Some(self.volume_internal())
     }
 }
 

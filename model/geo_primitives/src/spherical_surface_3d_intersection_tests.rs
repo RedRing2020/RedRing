@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{InfiniteLine3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
-    use geo_foundation::extensions::BasicIntersection;
+    use geo_contracts::BasicIntersection;
 
     /// テスト用の標準的な球面サーフェスを作成
     fn create_test_sphere() -> SphericalSurface3D<f64> {

@@ -5,7 +5,6 @@
 
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
-use geo_foundation::core_foundation::*;
 
 // ============================================================================
 // Core trait implementations
@@ -175,9 +174,3 @@ impl<T: Scalar> LineSegment3D<T> {
 // ============================================================================
 // geo_foundation trait implementations (simplified)
 // ============================================================================
-
-impl<T: Scalar> BasicMetrics<T> for LineSegment3D<T> {
-    fn length(&self) -> Option<T> {
-        Some(self.length())
-    }
-}

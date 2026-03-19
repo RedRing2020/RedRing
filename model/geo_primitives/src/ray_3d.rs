@@ -349,7 +349,7 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         self.origin.z().abs() < DefaultTolerances::distance::<T>()
             && self.direction.z().abs() < DefaultTolerances::distance::<T>()
     }
@@ -390,7 +390,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
 
     fn contains_point(&self, point: &Point3<T>) -> bool {
         let target_point = Point3D::new(point.x(), point.y(), point.z());
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         self.contains_point(&target_point, DefaultTolerances::distance::<T>())
     }
 
@@ -407,7 +407,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
 
     fn is_parallel_to(&self, other: &Self) -> bool {
         let cross = self.direction.cross(&other.direction);
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         cross.length() < DefaultTolerances::distance::<T>()
     }
 
@@ -457,7 +457,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let e = other.direction.dot(&w);
 
         let denom = a * c - b * b;
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         if denom.abs() < DefaultTolerances::distance::<T>() {
             // 平行: 片方の起点から他方への距離
             let other_origin = other.origin;
@@ -509,7 +509,7 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         // analysis::Vector3 に変換
         let axis_analysis = Vector3::new(axis.x(), axis.y(), axis.z());
         let norm = axis_analysis.norm();
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         if norm < DefaultTolerances::distance::<T>() {
             return None;
         }
@@ -588,7 +588,7 @@ impl<T: Scalar> geo_contracts::Ray3DProperties<T> for Ray3D<T> {
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        use geo_foundation::tolerance_migration::DefaultTolerances;
+        use geo_contracts::tolerance_migration::DefaultTolerances;
         self.origin.z().abs() < DefaultTolerances::distance::<T>()
             && self.direction.z().abs() < DefaultTolerances::distance::<T>()
     }

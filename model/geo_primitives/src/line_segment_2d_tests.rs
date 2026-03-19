@@ -2,7 +2,6 @@
 
 use crate::{LineSegment2D, Point2D, Vector2D};
 use geo_contracts::{Angle, Scalar};
-use geo_foundation::core_foundation::*;
 
 // BasicTransformの実装を有効にするため
 #[allow(unused_imports)]

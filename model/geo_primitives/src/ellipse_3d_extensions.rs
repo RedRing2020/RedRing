@@ -3,8 +3,8 @@
 //! Extension Foundation パターンに基づく Ellipse3D の拡張実装
 
 use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::Scalar;
-use geo_foundation::tolerance_migration::DefaultTolerances;
 
 // ============================================================================
 // Extension Methods Implementation

@@ -184,9 +184,7 @@ pub trait LineSegment3DMeasure<T: Scalar> {
 }
 
 /// LineSegment3DとAxisAlignedBoundingBox（AABB）の衝突検出トレイト
-///
-/// デフォルト実装は実装クレート（geo_primitives）側で提供する。
-pub trait LineSegment3DCollisionDetection<T: Scalar>: LineSegment3DProperties<T> {
+pub trait LineSegment3DCollisionDetection<T: Scalar> {
     /// 線分と軸並行境界ボックス（AABB）の最短距離を計算
     fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T;
 }

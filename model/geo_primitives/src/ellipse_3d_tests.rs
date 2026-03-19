@@ -3,7 +3,7 @@
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_foundation::Ellipse3DProperties;
+use geo_contracts::Ellipse3DProperties;
 
 #[cfg(test)]
 mod tests {

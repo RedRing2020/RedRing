@@ -3,8 +3,8 @@
 //! 3次元円弧の拡張メソッド：点計算、コンストラクタ、幾何解析など
 
 use crate::{Angle, Arc3D, Direction3D, Point3D, Vector3D};
+use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::Scalar;
-use geo_foundation::tolerance_migration::DefaultTolerances;
 
 impl<T: Scalar> Arc3D<T> {
     /// 3点を通る円弧を作成

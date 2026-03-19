@@ -42,7 +42,6 @@
 use crate::{Arc3D, LineSegment3D};
 use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::LineSegment3DCollisionDetection;
 
 /// ボクセルの占有状態
 ///
