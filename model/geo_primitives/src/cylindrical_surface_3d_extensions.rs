@@ -4,7 +4,7 @@
 //! サーフェス特有の解析機能とCAD/CAM用途の実装
 
 use crate::{CylindricalSurface3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 境界制約された円柱サーフェス領域
 #[derive(Debug, Clone, PartialEq)]

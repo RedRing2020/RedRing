@@ -16,7 +16,7 @@
 //! - semi_angle: 半頂角（ラジアン）
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円錐サーフェス（STEP準拠のCore実装）
 ///
@@ -476,9 +476,10 @@ impl<T: Scalar> ConicalSurface3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
+use geo_contracts::ConicalSurface3DProperties as ContractsConicalSurface3DProperties;
 use geo_foundation::{
     ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DMeasure,
-    ConicalSurface3DProperties,
+    ConicalSurface3DProperties as FoundationConicalSurface3DProperties,
 };
 
 impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
@@ -509,7 +510,52 @@ impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
+impl<T: Scalar> FoundationConicalSurface3DProperties<T> for ConicalSurface3D<T> {
+    fn apex(&self) -> (T, T, T) {
+        let a = self.center_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn base_center(&self) -> (T, T, T) {
+        let axis_vec = self.axis_internal().as_vector();
+        let radius = self.radius_internal();
+        let semi_angle = self.semi_angle_internal();
+        let height = radius / semi_angle.tan();
+        let center = self.center_internal();
+        let b = Point3D::new(
+            center.x() + axis_vec.x() * height,
+            center.y() + axis_vec.y() * height,
+            center.z() + axis_vec.z() * height,
+        );
+        (b.x(), b.y(), b.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius_internal()
+    }
+
+    fn height(&self) -> T {
+        self.radius_internal() / self.semi_angle_internal().tan()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn slant_height(&self) -> T {
+        let height = self.radius_internal() / self.semi_angle_internal().tan();
+        let radius = self.radius_internal();
+        (height * height + radius * radius).sqrt()
+    }
+}
+
+impl<T: Scalar> ContractsConicalSurface3DProperties<T> for ConicalSurface3D<T> {
     fn apex(&self) -> (T, T, T) {
         let a = self.center_internal();
         (a.x(), a.y(), a.z())
@@ -556,7 +602,9 @@ impl<T: Scalar> ConicalSurface3DProperties<T> for ConicalSurface3D<T> {
 
 impl<T: Scalar> ConicalSurface3DMeasure<T> for ConicalSurface3D<T> {
     fn surface_area(&self) -> T {
-        T::PI * self.radius() * self.slant_height()
+        T::PI
+            * FoundationConicalSurface3DProperties::radius(self)
+            * FoundationConicalSurface3DProperties::slant_height(self)
     }
 
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {

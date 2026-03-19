@@ -3,8 +3,10 @@
 //! BasicIntersection, MultipleIntersection, SelfIntersection トレイトの実装
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D, Vector3D};
-use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{Scalar, SphericalSurface3DProperties};
+use geo_contracts::Scalar;
+use geo_contracts::{
+    BasicIntersection, MultipleIntersection, SelfIntersection, SphericalSurface3DProperties,
+};
 
 // ============================================================================
 // BasicIntersection Implementations

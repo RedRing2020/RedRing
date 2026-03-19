@@ -4,7 +4,8 @@
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D};
 use geo_contracts::BasicCollision;
-use geo_foundation::{Scalar, SphericalSurface3DProperties};
+use geo_contracts::Scalar;
+use geo_contracts::SphericalSurface3DProperties;
 
 // ============================================================================
 // BasicCollision Implementations

@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくTriangleMesh3Dの必須機能のみ
 
 use crate::{Point3D, Triangle3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元三角形メッシュ（Core実装）
 ///

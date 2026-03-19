@@ -19,7 +19,7 @@
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元球サーフェス（STEP準拠のCore実装）
 ///
@@ -472,9 +472,10 @@ impl<T: Scalar> SphericalSurface3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
+use geo_contracts::SphericalSurface3DProperties as ContractsSphericalSurface3DProperties;
 use geo_foundation::{
     SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DMeasure,
-    SphericalSurface3DProperties,
+    SphericalSurface3DProperties as FoundationSphericalSurface3DProperties,
 };
 
 impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
@@ -540,7 +541,45 @@ impl<T: Scalar> SphericalSurface3DConstructor<T> for SphericalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> SphericalSurface3DProperties<T> for SphericalSurface3D<T> {
+impl<T: Scalar> FoundationSphericalSurface3DProperties<T> for SphericalSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        let c = self.center_internal();
+        (c.x(), c.y(), c.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius_internal()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn diameter(&self) -> T {
+        self.radius_internal() * T::from_f64(2.0)
+    }
+
+    fn is_unit_sphere(&self) -> bool {
+        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
+    }
+
+    fn circumference(&self) -> T {
+        T::TAU * self.radius_internal()
+    }
+
+    fn is_centered_at_origin(&self) -> bool {
+        let c = self.center_internal();
+        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
+    }
+}
+
+impl<T: Scalar> ContractsSphericalSurface3DProperties<T> for SphericalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         let c = self.center_internal();
         (c.x(), c.y(), c.z())

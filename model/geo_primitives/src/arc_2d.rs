@@ -5,10 +5,7 @@
 
 use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
-use geo_foundation::{
-    core::arc_traits::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties},
-    Circle2DProperties, Scalar,
-};
+use geo_contracts::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Circle2DProperties, Scalar};
 
 /// 2次元円弧
 ///

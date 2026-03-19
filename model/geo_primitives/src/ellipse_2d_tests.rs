@@ -1,7 +1,7 @@
 //! Ellipse2D のテスト
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 #[cfg(test)]
 mod tests {

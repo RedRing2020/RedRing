@@ -3,7 +3,7 @@
 //
 
 use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::f64::consts::PI;
 
 impl<T: Scalar> TorusSurface3D<T> {

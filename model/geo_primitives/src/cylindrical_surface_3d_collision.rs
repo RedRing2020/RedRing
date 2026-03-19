@@ -9,8 +9,8 @@ use crate::{
     Circle3D, CylindricalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D,
     Triangle3D, Vector3D,
 };
+use geo_contracts::Scalar;
 use geo_contracts::{AdvancedCollision, BasicCollision};
-use geo_foundation::Scalar;
 
 // ============================================================================
 // CylindricalSurface3D vs Point3D
@@ -52,7 +52,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for CylindricalSurface3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         // 円の中心点との距離をチェック
         let (cx, cy, cz) = circle.center();
         let center_point = Point3D::new(cx, cy, cz);
@@ -64,7 +64,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for CylindricalSurface3D<T> {
     }
 
     fn distance_to(&self, circle: &Circle3D<T>) -> T {
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         // 簡易実装: 円の中心点との距離を返す
         let (cx, cy, cz) = circle.center();
         let center_point = Point3D::new(cx, cy, cz);
@@ -149,7 +149,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, triangle: &Triangle3D<T>, tolerance: T) -> bool {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         // 三角形の各頂点との距離をチェック
         let (ax, ay, az) = triangle.vertex_a();
@@ -169,7 +169,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> {
     }
 
     fn distance_to(&self, triangle: &Triangle3D<T>) -> T {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         // 簡易実装: 三角形の頂点との距離の最小値
         let (ax, ay, az) = triangle.vertex_a();
@@ -336,7 +336,7 @@ impl<T: Scalar> AdvancedCollision<T, Circle3D<T>> for CylindricalSurface3D<T> {
     type Vector2D = Vector3D<T>;
 
     fn closest_points(&self, circle: &Circle3D<T>) -> Self::PointPair {
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         // 簡易実装: 円の中心点に対する最近点を返す
         let (cx, cy, cz) = circle.center();
         let center_point = Point3D::new(cx, cy, cz);
@@ -349,7 +349,7 @@ impl<T: Scalar> AdvancedCollision<T, Circle3D<T>> for CylindricalSurface3D<T> {
     }
 
     fn separated_by_axis(&self, circle: &Circle3D<T>, axis: Self::Vector2D) -> bool {
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         let (cx, cy, cz) = circle.center();
         let center_point = Point3D::new(cx, cy, cz);
         self.separated_by_axis(&center_point, axis)
@@ -392,7 +392,7 @@ impl<T: Scalar> AdvancedCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> 
     type Vector2D = Vector3D<T>;
 
     fn closest_points(&self, triangle: &Triangle3D<T>) -> Self::PointPair {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
         // 簡易実装: 頂点Aに対する最近点を返す
         let (ax, ay, az) = triangle.vertex_a();
         let va = Point3D::new(ax, ay, az);
@@ -404,7 +404,7 @@ impl<T: Scalar> AdvancedCollision<T, Triangle3D<T>> for CylindricalSurface3D<T> 
     }
 
     fn separated_by_axis(&self, triangle: &Triangle3D<T>, axis: Self::Vector2D) -> bool {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
         // 三角形の全頂点が分離軸で分離されているかチェック
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();

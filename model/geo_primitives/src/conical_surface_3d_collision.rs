@@ -9,7 +9,7 @@ use crate::{
     Vector3D,
 };
 use geo_contracts::BasicCollision;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // ConicalSurface3D vs Point3D
@@ -57,7 +57,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for ConicalSurface3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         let (cx, cy, cz) = circle.center();
         let center_point = Point3D::new(cx, cy, cz);
         self.distance_to(&center_point) <= tolerance + circle.radius()
@@ -68,7 +68,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for ConicalSurface3D<T> {
     }
 
     fn distance_to(&self, circle: &Circle3D<T>) -> T {
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         let (cx, cy, cz) = circle.center();
         let center_point = Point3D::new(cx, cy, cz);
         let dist_to_center = self.distance_to(&center_point);
@@ -153,7 +153,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for ConicalSurface3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, triangle: &Triangle3D<T>, tolerance: T) -> bool {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -172,7 +172,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for ConicalSurface3D<T> {
     }
 
     fn distance_to(&self, triangle: &Triangle3D<T>) -> T {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();

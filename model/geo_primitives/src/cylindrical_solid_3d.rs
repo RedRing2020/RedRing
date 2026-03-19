@@ -16,7 +16,7 @@
 //! - height: 円柱高さ
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
 ///
@@ -344,9 +344,10 @@ impl<T: Scalar> std::fmt::Display for CylindricalSolid3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
+use geo_contracts::CylindricalSolid3DProperties as ContractsCylindricalSolid3DProperties;
 use geo_foundation::{
     CylindricalSolid3DConstructor, CylindricalSolid3DCore, CylindricalSolid3DMeasure,
-    CylindricalSolid3DProperties,
+    CylindricalSolid3DProperties as FoundationCylindricalSolid3DProperties,
 };
 
 impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
@@ -411,7 +412,7 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
+impl<T: Scalar> FoundationCylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
     fn center(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())
     }
@@ -441,6 +442,51 @@ impl<T: Scalar> CylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
     }
 
     // Phase 2: 追加プロパティ
+
+    fn top_center(&self) -> (T, T, T) {
+        let top_x = self.center.x() + self.axis.x() * self.height;
+        let top_y = self.center.y() + self.axis.y() * self.height;
+        let top_z = self.center.z() + self.axis.z() * self.height;
+        (top_x, top_y, top_z)
+    }
+
+    fn lateral_surface_area(&self) -> T {
+        T::TAU * self.radius * self.height
+    }
+
+    fn base_area(&self) -> T {
+        T::PI * self.radius * self.radius
+    }
+}
+
+impl<T: Scalar> ContractsCylindricalSolid3DProperties<T> for CylindricalSolid3D<T> {
+    fn center(&self) -> (T, T, T) {
+        (self.center.x(), self.center.y(), self.center.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+
+    fn height(&self) -> T {
+        self.height
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        (self.axis.x(), self.axis.y(), self.axis.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        (
+            self.ref_direction.x(),
+            self.ref_direction.y(),
+            self.ref_direction.z(),
+        )
+    }
+
+    fn diameter(&self) -> T {
+        self.radius * T::from_f64(2.0)
+    }
 
     fn top_center(&self) -> (T, T, T) {
         let top_x = self.center.x() + self.axis.x() * self.height;

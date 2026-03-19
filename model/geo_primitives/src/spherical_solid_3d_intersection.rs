@@ -4,10 +4,7 @@
 
 use crate::{InfiniteLine3D, Plane3D, Point3D, Ray3D, SphericalSolid3D};
 use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{
-    
-    Scalar,
-};
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicIntersection implementations for SphericalSolid3D
@@ -60,7 +57,7 @@ impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for SphericalSolid3D<
     type Point = Point3D<T>;
 
     fn intersections_with(&self, line: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
-        use geo_foundation::InfiniteLine3DProperties;
+        use geo_contracts::InfiniteLine3DProperties;
 
         let center = self.center_internal();
         let radius = self.radius_internal();

@@ -20,7 +20,7 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円錐ソリッド（STEP準拠のCore実装）
 ///
@@ -341,8 +341,10 @@ impl<T: Scalar> ConicalSolid3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
+use geo_contracts::ConicalSolid3DProperties as ContractsConicalSolid3DProperties;
 use geo_foundation::{
-    ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure, ConicalSolid3DProperties,
+    ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure,
+    ConicalSolid3DProperties as FoundationConicalSolid3DProperties,
 };
 
 impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
@@ -420,7 +422,7 @@ impl<T: Scalar> ConicalSolid3DConstructor<T> for ConicalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
+impl<T: Scalar> FoundationConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     fn apex(&self) -> (T, T, T) {
         let a = self.apex_internal();
         (a.x(), a.y(), a.z())
@@ -460,7 +462,55 @@ impl<T: Scalar> ConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     }
 
     fn lateral_surface_area(&self) -> T {
-        T::PI * self.radius_internal() * self.slant_height()
+        T::PI * self.radius_internal() * FoundationConicalSolid3DProperties::slant_height(self)
+    }
+
+    fn base_area(&self) -> T {
+        T::PI * self.radius_internal() * self.radius_internal()
+    }
+}
+
+impl<T: Scalar> ContractsConicalSolid3DProperties<T> for ConicalSolid3D<T> {
+    fn apex(&self) -> (T, T, T) {
+        let a = self.apex_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn base_center(&self) -> (T, T, T) {
+        let b = self.center_internal();
+        (b.x(), b.y(), b.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius_internal()
+    }
+
+    fn height(&self) -> T {
+        self.height_internal()
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        let a = self.axis_internal();
+        (a.x(), a.y(), a.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        let r = self.ref_direction_internal();
+        (r.x(), r.y(), r.z())
+    }
+
+    fn slant_height(&self) -> T {
+        let r = self.radius_internal();
+        let h = self.height_internal();
+        (r * r + h * h).sqrt()
+    }
+
+    fn half_angle(&self) -> T {
+        (self.radius_internal() / self.height_internal()).atan()
+    }
+
+    fn lateral_surface_area(&self) -> T {
+        T::PI * self.radius_internal() * ContractsConicalSolid3DProperties::slant_height(self)
     }
 
     fn base_area(&self) -> T {

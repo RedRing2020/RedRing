@@ -4,11 +4,8 @@
 //! 拡張機能は line_segment_2d_extensions.rs を参照
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_foundation::{
-    core::linesegment_traits::{
-        LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties,
-    },
-    Scalar,
+use geo_contracts::{
+    LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties, Scalar,
 };
 
 /// 2次元平面の線分

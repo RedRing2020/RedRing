@@ -3,7 +3,7 @@
 //! 円錐ソリッドの高度な幾何計算と解析機能
 
 use crate::{ConicalSolid3D, Plane3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // Geometric Analysis Extensions

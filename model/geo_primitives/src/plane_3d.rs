@@ -4,10 +4,10 @@
 //! STEP AP214準拠の完全な平面座標系を提供
 
 use crate::{Direction3D, Point3D, Vector3D};
+use geo_contracts::Scalar;
 use geo_foundation::geometry::core::plane_traits::{
     Plane3DConstructor, Plane3DMeasure, Plane3DProperties,
 };
-use geo_foundation::Scalar;
 
 /// CAD用3次元平面（座標系付き）
 ///

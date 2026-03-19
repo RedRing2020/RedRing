@@ -6,10 +6,8 @@
 use crate::{
     Arc3D, Circle3D, Ellipse3D, EllipseArc3D, LineSegment3D, Plane3D, Point3D, Triangle3D,
 };
-use geo_contracts::BasicCollision;
-use geo_foundation::{
-    core::{arc_traits::Arc3DProperties, triangle_traits::Triangle3DProperties},
-    Circle3DProperties, Scalar,
+use geo_contracts::{
+    Arc3DProperties, BasicCollision, Circle3DProperties, Scalar, Triangle3DProperties,
 };
 
 // ============================================================================

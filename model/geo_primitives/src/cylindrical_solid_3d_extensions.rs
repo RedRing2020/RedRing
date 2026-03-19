@@ -4,7 +4,7 @@
 //! ソリッド特有の体積的操作と表面的操作を含む
 
 use crate::{CylindricalSolid3D, Point3D, TriangleMesh3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// CylindricalSolid3D の拡張実装
 impl<T: Scalar> CylindricalSolid3D<T> {

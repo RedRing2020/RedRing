@@ -6,8 +6,10 @@
 use crate::{
     Arc3D, Circle3D, Ellipse3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
 };
-use geo_contracts::{BasicCollision, BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{core::arc_traits::Arc3DProperties, Scalar};
+use geo_contracts::{
+    Arc3DProperties, BasicCollision, BasicIntersection, MultipleIntersection, Scalar,
+    SelfIntersection,
+};
 
 // ============================================================================
 // Ellipse3D vs Point3D

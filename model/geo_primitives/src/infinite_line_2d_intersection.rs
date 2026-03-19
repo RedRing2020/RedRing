@@ -5,8 +5,10 @@
 use crate::{
     Arc2D, Circle2D, Ellipse2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
 };
-use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::{Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar};
+use geo_contracts::{
+    Arc2DProperties, BasicIntersection, Circle2DProperties, LineSegment2DProperties,
+    MultipleIntersection, Scalar, SelfIntersection,
+};
 
 // ============================================================================
 // InfiniteLine2D vs Point2D

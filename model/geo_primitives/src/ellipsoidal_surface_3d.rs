@@ -20,7 +20,7 @@
 //! **最終更新: 2025年11月15日**
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元楕円体サーフェス（STEP準拠のCore実装）
 ///

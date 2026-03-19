@@ -7,8 +7,7 @@ use crate::{
     Circle3D, ConicalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Triangle3D,
     Vector3D,
 };
-use geo_contracts::BasicCollision;
-use geo_foundation::{Circle3DProperties, Scalar};
+use geo_contracts::{BasicCollision, Circle3DProperties, Scalar};
 
 // ============================================================================
 // BasicCollision implementations for ConicalSolid3D
@@ -155,7 +154,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for ConicalSolid3D<T> {
     }
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
-        use geo_foundation::InfiniteLine3DProperties;
+        use geo_contracts::InfiniteLine3DProperties;
         // 簡易実装：通過点との距離
         // TODO: 無限直線と円錐ソリッドの正確な距離計算
         let (px, py, pz) = line.point();
@@ -169,7 +168,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for ConicalSolid3D<T> {
     type Point2D = Point3D<T>;
 
     fn intersects(&self, triangle: &Triangle3D<T>, tolerance: T) -> bool {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();
@@ -188,7 +187,7 @@ impl<T: Scalar> BasicCollision<T, Triangle3D<T>> for ConicalSolid3D<T> {
     }
 
     fn distance_to(&self, triangle: &Triangle3D<T>) -> T {
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         let (ax, ay, az) = triangle.vertex_a();
         let (bx, by, bz) = triangle.vertex_b();

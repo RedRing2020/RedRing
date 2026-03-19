@@ -5,8 +5,8 @@
 //! 円柱サーフェスは無限円柱面であり、複数の交点を持つことがある。
 
 use crate::{Circle3D, CylindricalSurface3D, LineSegment3D, Plane3D, Point3D, Triangle3D};
+use geo_contracts::Scalar;
 use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::Scalar;
 
 // ============================================================================
 // BasicIntersection Implementations
@@ -30,7 +30,7 @@ impl<T: Scalar> BasicIntersection<T, Circle3D<T>> for CylindricalSurface3D<T> {
 
     fn intersection_with(&self, circle: &Circle3D<T>, tolerance: T) -> Option<Point3D<T>> {
         use geo_contracts::BasicCollision;
-        use geo_foundation::Circle3DProperties;
+        use geo_contracts::Circle3DProperties;
         if self.intersects(circle, tolerance) {
             // 簡易実装: 円の中心点を返す
             let (cx, cy, cz) = circle.center();
@@ -62,7 +62,7 @@ impl<T: Scalar> BasicIntersection<T, Triangle3D<T>> for CylindricalSurface3D<T> 
 
     fn intersection_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Option<Point3D<T>> {
         use geo_contracts::BasicCollision;
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
 
         // 簡易実装: 最初に交差する頂点を返す
         let (ax, ay, az) = triangle.vertex_a();
@@ -152,7 +152,7 @@ impl<T: Scalar> MultipleIntersection<T, Triangle3D<T>> for CylindricalSurface3D<
 
     fn intersections_with(&self, triangle: &Triangle3D<T>, tolerance: T) -> Vec<Point3D<T>> {
         use geo_contracts::BasicCollision;
-        use geo_foundation::Triangle3DProperties;
+        use geo_contracts::Triangle3DProperties;
         let mut results = Vec::new();
 
         let (ax, ay, az) = triangle.vertex_a();

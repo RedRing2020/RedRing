@@ -4,7 +4,7 @@
 
 use crate::{EllipsoidalSurface3D, Point3D};
 use geo_contracts::BasicCollision;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 // ============================================================================
 // BasicCollision Implementations

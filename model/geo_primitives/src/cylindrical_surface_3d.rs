@@ -16,7 +16,7 @@
 //! - 高さは境界によって定義（無限円柱面）
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 3次元円柱サーフェス（STEP準拠のCore実装）
 ///
@@ -388,9 +388,10 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 // Core Traits Implementation (Foundation Pattern)
 // ============================================================================
 
+use geo_contracts::CylindricalSurface3DProperties as ContractsCylindricalSurface3DProperties;
 use geo_foundation::{
     CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DMeasure,
-    CylindricalSurface3DProperties,
+    CylindricalSurface3DProperties as FoundationCylindricalSurface3DProperties,
 };
 
 impl<T: Scalar> CylindricalSurface3DConstructor<T> for CylindricalSurface3D<T> {
@@ -418,7 +419,7 @@ impl<T: Scalar> CylindricalSurface3DConstructor<T> for CylindricalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> CylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
+impl<T: Scalar> FoundationCylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
     fn center(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())
     }
@@ -429,6 +430,36 @@ impl<T: Scalar> CylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
 
     fn height(&self) -> T {
         T::ZERO // サーフェスは高さを持たない
+    }
+
+    fn axis(&self) -> (T, T, T) {
+        (self.axis.x(), self.axis.y(), self.axis.z())
+    }
+
+    fn ref_direction(&self) -> (T, T, T) {
+        (
+            self.ref_direction.x(),
+            self.ref_direction.y(),
+            self.ref_direction.z(),
+        )
+    }
+
+    fn diameter(&self) -> T {
+        self.radius * T::from_f64(2.0)
+    }
+}
+
+impl<T: Scalar> ContractsCylindricalSurface3DProperties<T> for CylindricalSurface3D<T> {
+    fn center(&self) -> (T, T, T) {
+        (self.center.x(), self.center.y(), self.center.z())
+    }
+
+    fn radius(&self) -> T {
+        self.radius
+    }
+
+    fn height(&self) -> T {
+        T::ZERO
     }
 
     fn axis(&self) -> (T, T, T) {
@@ -550,7 +581,7 @@ impl<T: Scalar> std::fmt::Display for CylindricalSurface3D<T> {
         write!(
             f,
             "CylindricalSurface3D(center: {:?}, axis: {:?}, ref_direction: {:?}, radius: {:?})",
-            self.center(),
+            FoundationCylindricalSurface3DProperties::center(self),
             self.axis().as_vector(),
             self.ref_direction().as_vector(),
             self.radius()

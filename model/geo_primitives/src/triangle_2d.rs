@@ -3,10 +3,7 @@
 //! Foundation統一システムに基づくTriangle2Dの必須機能のみ
 
 use crate::{Point2D, Vector2D};
-use geo_foundation::{
-    core::triangle_traits::{Triangle2DConstructor, Triangle2DMeasure, Triangle2DProperties},
-    Scalar,
-};
+use geo_contracts::{Scalar, Triangle2DConstructor, Triangle2DMeasure, Triangle2DProperties};
 
 /// 2次元三角形（Core実装）
 ///

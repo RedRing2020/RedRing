@@ -9,7 +9,9 @@
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, SphericalSurface3D};
 use geo_contracts::BasicCollision;
-use geo_foundation::{LineSegment3DCollisionDetection, Scalar, SphericalSurface3DProperties};
+use geo_contracts::Scalar;
+use geo_contracts::SphericalSurface3DProperties;
+use geo_foundation::LineSegment3DCollisionDetection;
 
 // ============================================================================
 // BasicCollision Implementations
@@ -170,7 +172,7 @@ impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {}
 #[cfg(test)]
 mod tests_aabb_distance {
     use super::*;
-    use geo_foundation::LineSegment3DCollisionDetection;
+    use geo_contracts::LineSegment3DCollisionDetection;
 
     #[test]
     fn test_distance_to_aabb_intersecting() {
