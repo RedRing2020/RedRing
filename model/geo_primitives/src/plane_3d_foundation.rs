@@ -1,7 +1,7 @@
 //! Plane3D の Foundation トレイト実装
 
 use crate::Plane3D;
-use geo_foundation::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::{ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
@@ -46,7 +46,7 @@ impl<T: Scalar> TolerantEq<T> for Plane3D<T> {
 mod tests {
     use super::*;
     use crate::{Point3D, Vector3D};
-    use geo_foundation::{ExtensionFoundation, TolerantEq};
+    use geo_contracts::{ExtensionFoundation, TolerantEq};
 
     #[test]
     fn test_extension_foundation() {

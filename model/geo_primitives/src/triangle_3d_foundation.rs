@@ -1,8 +1,8 @@
 //! Triangle3D の Foundation トレイト実装
 
 use crate::Triangle3D;
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation

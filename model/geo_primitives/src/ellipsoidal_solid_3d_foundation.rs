@@ -3,8 +3,8 @@
 //! ExtensionFoundation トレイトによる統一インターフェースの実装
 
 use crate::{EllipsoidalSolid3D, Point3D};
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for EllipsoidalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {

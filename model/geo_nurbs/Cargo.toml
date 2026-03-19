@@ -11,7 +11,6 @@ license = "MIT OR Apache-2.0"
 analysis = { path = "../../foundation/analysis" }
 
 # Model層の基盤（Foundation パターン準拠）
-geo_foundation = { path = "../geo_foundation" }
 geo_contracts = { path = "../geo_contracts" }
 geo_core = { path = "../geo_core" }
 

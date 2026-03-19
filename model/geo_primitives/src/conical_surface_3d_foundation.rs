@@ -4,8 +4,8 @@
 //! 他の幾何プリミティブとの統一インターフェースを提供
 
 use crate::ConicalSurface3D;
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
 
 impl<T: Scalar> ExtensionFoundation<T> for ConicalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {

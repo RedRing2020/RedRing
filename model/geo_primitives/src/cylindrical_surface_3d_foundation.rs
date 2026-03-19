@@ -4,8 +4,8 @@
 //! ハイブリッドモデラーの分類システムとの統合
 
 use crate::CylindricalSurface3D;
+use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 use geo_core::Aabb3D;
-use geo_foundation::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
 
 // ============================================================================
 // ExtensionFoundation Implementation
