@@ -4,7 +4,7 @@
 //! Foundation Pattern: Constructor/Properties/Measure の3つのCore Traits実装
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_foundation::{
+use geo_contracts::{
     InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties, Scalar,
 };
 
@@ -657,71 +657,5 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
 
         // 交差する場合、最接近点が交点
         self.closest_points(other).map(|(p1, _)| p1)
-    }
-}
-
-impl<T: Scalar> geo_contracts::InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
-    fn point(&self) -> (T, T, T) {
-        (self.point.x(), self.point.y(), self.point.z())
-    }
-
-    fn direction(&self) -> (T, T, T) {
-        (self.direction.x(), self.direction.y(), self.direction.z())
-    }
-
-    fn is_x_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
-        self.direction.y().abs() <= tolerance && self.direction.z().abs() <= tolerance
-    }
-
-    fn is_y_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
-        self.direction.x().abs() <= tolerance && self.direction.z().abs() <= tolerance
-    }
-
-    fn is_z_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
-        self.direction.x().abs() <= tolerance && self.direction.y().abs() <= tolerance
-    }
-
-    fn is_xy_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
-        self.direction.z().abs() <= tolerance
-    }
-
-    fn is_xz_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
-        self.direction.y().abs() <= tolerance
-    }
-
-    fn is_yz_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
-        self.direction.x().abs() <= tolerance
-    }
-
-    fn passes_through_origin(&self) -> bool {
-        self.contains_point(&Point3D::origin(), T::EPSILON)
-    }
-
-    fn xy_angle(&self) -> T {
-        self.direction.y().atan2(self.direction.x())
-    }
-
-    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool {
-        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-        let dot = dir_vec.dot(&normal);
-        if dot.abs() > T::EPSILON {
-            return false;
-        }
-        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_line = Vector3D::from_points(&plane_pt, &self.point);
-        to_line.dot(&normal).abs() <= T::EPSILON
-    }
-
-    fn is_axis_aligned(&self) -> bool {
-        <Self as geo_contracts::InfiniteLine3DProperties<T>>::is_x_parallel(self)
-            || <Self as geo_contracts::InfiniteLine3DProperties<T>>::is_y_parallel(self)
-            || <Self as geo_contracts::InfiniteLine3DProperties<T>>::is_z_parallel(self)
     }
 }

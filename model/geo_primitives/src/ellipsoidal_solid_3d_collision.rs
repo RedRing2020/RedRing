@@ -4,8 +4,7 @@
 //! 楕円体ソリッドは内部を持つ立体であり、距離計算は表面までの距離または内部からの距離を返す。
 
 use crate::{EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, Vector3D};
-use geo_contracts::BasicCollision;
-use geo_foundation::Scalar;
+use geo_contracts::{BasicCollision, InfiniteLine3DProperties, Scalar};
 
 // ============================================================================
 // BasicCollision implementations for EllipsoidalSolid3D
@@ -91,7 +90,6 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for EllipsoidalSolid3D<T> {
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
         // 簡易実装: 直線上の点との距離
-        use geo_foundation::InfiniteLine3DProperties;
         let (px, py, pz) = line.point();
         let point_on_line = Point3D::new(px, py, pz);
         self.distance_to(&point_on_line)
