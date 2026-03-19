@@ -59,3 +59,4 @@
 | Issue | 状態 | 機能 | ファイル |
 |---|---|---|---|
 | #170 | CLOSED | 衝突判定・交差判定の数値計算精度改善 | `dev/archive/issues/foundation/ISSUE_170_IMPLEMENTATION_REPORT.md` |
+| #320 | CLOSED | geo_contracts 正規化と geo_foundation::commons 重複解消方針 | `dev/archive/issues/architecture/ISSUE_320_IMPLEMENTATION_PREP.md` |

@@ -3,8 +3,9 @@
 //! 楕円体ソリッドとの交点計算を提供する。
 
 use crate::{EllipsoidalSolid3D, InfiniteLine3D, Plane3D, Point3D, Ray3D};
-use geo_contracts::{BasicIntersection, MultipleIntersection, SelfIntersection};
-use geo_foundation::Scalar;
+use geo_contracts::{
+    BasicIntersection, InfiniteLine3DProperties, MultipleIntersection, Scalar, SelfIntersection,
+};
 
 // ============================================================================
 // BasicIntersection implementations for EllipsoidalSolid3D
@@ -57,8 +58,6 @@ impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for EllipsoidalSolid3
     type Point = Point3D<T>;
 
     fn intersections_with(&self, line: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
-        use geo_foundation::InfiniteLine3DProperties;
-
         // 簡易実装: 直線のパラメトリック表現と楕円体方程式の連立
         // 正確な実装には2次方程式の解が必要
         // TODO: より正確な楕円体と直線の交点計算

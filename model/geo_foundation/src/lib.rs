@@ -3,11 +3,11 @@
 //! geo_foundation は抽象化・インターフェース層
 //! geo_primitives の具体実装を抽象化して呼び出すためのトレイト定義
 
-// Classification - 幾何プリミティブの分類システム
-pub mod classification;
+// Classification - 幾何プリミティブの分類システム（#318: geo_contracts から再エクスポート）
+pub use geo_contracts::classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
 
-// Classification - 幾何プリミティブの分類
-pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
+// (old: pub mod classification;)
+// pub mod classification は削除予定（geo_contracts に統一）
 
 // Geometry namespace - 幾何形状領域の構造化
 pub mod geometry;
@@ -178,11 +178,9 @@ pub mod contracts {
 // Entity Core Traitsを再エクスポート（Entity namespace）
 pub use entity::core::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties};
 
-// Extension Foundation Traitsを再エクスポート
-pub use geometry::foundation::extension_foundation::{
-    Bounded, CollectionExtension, ExtensionFoundation, MeasurableExtension, SpatialExtension,
-    TransformableExtension,
-};
+// Extension Foundation Traitsを再エクスポート（#318: geo_contracts から再エクスポート）
+pub use geo_contracts::{Bounded, ExtensionFoundation};
+// 削除予定: CollectionExtension, MeasurableExtension, SpatialExtension, TransformableExtension (実装ゼロ)
 
 // Commons Traitsを再エクスポート
 

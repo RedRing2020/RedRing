@@ -14,11 +14,7 @@
 //! - Core Traits実装（Constructor, Properties, Measure）
 
 use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
-use analysis::linalg::{point2::Point2, vector::Vector2};
-use geo_foundation::{
-    core::ray_traits::{Ray2DConstructor, Ray2DMeasure, Ray2DProperties},
-    Scalar,
-};
+use geo_contracts::{Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Scalar};
 
 /// 2次元半無限直線
 ///
@@ -182,56 +178,56 @@ impl<T: Scalar> Ray2D<T> {
 
 /// Ray2DConstructor トレイト実装
 impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
-    fn new(origin: Point2<T>, direction: Vector2<T>) -> Option<Self>
+    fn new(origin: (T, T), direction: (T, T)) -> Option<Self>
     where
         Self: Sized,
     {
-        let direction_vector = Vector2D::new(direction.x(), direction.y());
-        let origin_point = Point2D::new(origin.x(), origin.y());
+        let direction_vector = Vector2D::new(direction.0, direction.1);
+        let origin_point = Point2D::new(origin.0, origin.1);
         Ray2D::new(origin_point, direction_vector)
     }
 
-    fn from_points(start: Point2<T>, through: Point2<T>) -> Option<Self>
+    fn from_points(start: (T, T), through: (T, T)) -> Option<Self>
     where
         Self: Sized,
     {
-        let start_point = Point2D::new(start.x(), start.y());
-        let through_point = Point2D::new(through.x(), through.y());
+        let start_point = Point2D::new(start.0, start.1);
+        let through_point = Point2D::new(through.0, through.1);
         Ray2D::from_points(start_point, through_point)
     }
 
-    fn along_positive_x(origin: Point2<T>) -> Self
+    fn along_positive_x(origin: (T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point2D::new(origin.x(), origin.y());
+        let origin_point = Point2D::new(origin.0, origin.1);
         let x_direction = Vector2D::new(T::ONE, T::ZERO);
         Ray2D::new(origin_point, x_direction).unwrap()
     }
 
-    fn along_positive_y(origin: Point2<T>) -> Self
+    fn along_positive_y(origin: (T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point2D::new(origin.x(), origin.y());
+        let origin_point = Point2D::new(origin.0, origin.1);
         let y_direction = Vector2D::new(T::ZERO, T::ONE);
         Ray2D::new(origin_point, y_direction).unwrap()
     }
 
-    fn along_negative_x(origin: Point2<T>) -> Self
+    fn along_negative_x(origin: (T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point2D::new(origin.x(), origin.y());
+        let origin_point = Point2D::new(origin.0, origin.1);
         let neg_x_direction = Vector2D::new(-T::ONE, T::ZERO);
         Ray2D::new(origin_point, neg_x_direction).unwrap()
     }
 
-    fn along_negative_y(origin: Point2<T>) -> Self
+    fn along_negative_y(origin: (T, T)) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point2D::new(origin.x(), origin.y());
+        let origin_point = Point2D::new(origin.0, origin.1);
         let neg_y_direction = Vector2D::new(T::ZERO, -T::ONE);
         Ray2D::new(origin_point, neg_y_direction).unwrap()
     }
@@ -240,23 +236,23 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
     where
         Self: Sized,
     {
-        Self::along_positive_x(Point2::origin())
+        Self::along_positive_x((T::ZERO, T::ZERO))
     }
 
     fn y_axis() -> Self
     where
         Self: Sized,
     {
-        Self::along_positive_y(Point2::origin())
+        Self::along_positive_y((T::ZERO, T::ZERO))
     }
 
     // ========== Phase 2 実装 ==========
 
-    fn from_angle(origin: Point2<T>, angle: T) -> Self
+    fn from_angle(origin: (T, T), angle: T) -> Self
     where
         Self: Sized,
     {
-        let origin_point = Point2D::new(origin.x(), origin.y());
+        let origin_point = Point2D::new(origin.0, origin.1);
         let direction = Vector2D::new(angle.cos(), angle.sin());
         Ray2D::new(origin_point, direction).unwrap()
     }
@@ -278,12 +274,12 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
 
 /// Ray2DProperties トレイト実装
 impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
-    fn origin(&self) -> Point2<T> {
-        Point2::new(self.origin.x(), self.origin.y())
+    fn origin(&self) -> (T, T) {
+        (self.origin.x(), self.origin.y())
     }
 
-    fn direction(&self) -> Vector2<T> {
-        Vector2::new(self.direction.x(), self.direction.y())
+    fn direction(&self) -> (T, T) {
+        (self.direction.x(), self.direction.y())
     }
 
     fn origin_x(&self) -> T {
@@ -326,37 +322,37 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
 
 /// Ray2DMeasure トレイト実装
 impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
-    fn point_at_parameter(&self, t: T) -> Point2<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T) {
         let point = self.point_at_parameter(t);
-        Point2::new(point.x(), point.y())
+        (point.x(), point.y())
     }
 
-    fn closest_point(&self, point: &Point2<T>) -> Point2<T> {
-        let target_point = Point2D::new(point.x(), point.y());
+    fn closest_point(&self, point: (T, T)) -> (T, T) {
+        let target_point = Point2D::new(point.0, point.1);
         let t = self.parameter_for_point(&target_point);
         let clamped_t = if t < T::ZERO { T::ZERO } else { t };
         let closest = self.point_at_parameter(clamped_t);
-        Point2::new(closest.x(), closest.y())
+        (closest.x(), closest.y())
     }
 
-    fn distance_to_point(&self, point: &Point2<T>) -> T {
-        let target_point = Point2D::new(point.x(), point.y());
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let target_point = Point2D::new(point.0, point.1);
         self.distance_to_point(&target_point)
     }
 
-    fn contains_point(&self, point: &Point2<T>) -> bool {
-        let target_point = Point2D::new(point.x(), point.y());
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let target_point = Point2D::new(point.0, point.1);
         use geo_foundation::tolerance_migration::DefaultTolerances;
         self.contains_point(&target_point, DefaultTolerances::distance::<T>())
     }
 
-    fn parameter_for_point(&self, point: &Point2<T>) -> T {
-        let target_point = Point2D::new(point.x(), point.y());
+    fn parameter_for_point(&self, point: (T, T)) -> T {
+        let target_point = Point2D::new(point.0, point.1);
         self.parameter_for_point(&target_point)
     }
 
-    fn points_towards(&self, direction: &Vector2<T>) -> bool {
-        let target_direction = Vector2D::new(direction.x(), direction.y());
+    fn points_towards(&self, direction: (T, T)) -> bool {
+        let target_direction = Vector2D::new(direction.0, direction.1);
         let self_direction =
             Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         let dot = self_direction.dot(&target_direction);
@@ -419,11 +415,11 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         Ray2D::new(self.origin_internal(), reversed_direction).unwrap()
     }
 
-    fn translate(&self, offset: Vector2<T>) -> Self
+    fn translate(&self, offset: (T, T)) -> Self
     where
         Self: Sized,
     {
-        let offset_vector = Vector2D::new(offset.x(), offset.y());
+        let offset_vector = Vector2D::new(offset.0, offset.1);
         let new_origin = self.origin_internal() + offset_vector;
         let direction_vec =
             Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
@@ -433,7 +429,7 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
 
     // ========== Phase 2 実装 ==========
 
-    fn intersection_with_ray(&self, other: &Self) -> Option<Point2<T>> {
+    fn intersection_with_ray(&self, other: &Self) -> Option<(T, T)> {
         let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         let other_dir = Vector2D::new(
             other.direction_internal().x(),
@@ -455,13 +451,13 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         }
 
         let intersection = self.point_at_parameter(t);
-        Some(Point2::new(intersection.x(), intersection.y()))
+        Some((intersection.x(), intersection.y()))
     }
 
-    fn point_at_distance(&self, distance: T) -> Point2<T> {
+    fn point_at_distance(&self, distance: T) -> (T, T) {
         // 方向ベクトルは正規化済みなので、パラメータ = 距離
         let point = self.point_at_parameter(distance);
-        Point2::new(point.x(), point.y())
+        (point.x(), point.y())
     }
 
     fn angle_between(&self, other: &Self) -> T {

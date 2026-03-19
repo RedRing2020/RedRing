@@ -38,7 +38,7 @@ $ARCH_LAYERS = @{
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
-# Last updated: 2026-03-19
+# Last updated: 2026-03-19 (#318 geo_foundation retirement transition)
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     geo_contracts  = @("analysis")
@@ -55,7 +55,7 @@ $ARCH_ALLOWED_DEPS = @{
     cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
     job_runtime    = @("analysis")
     job_domain     = @("analysis", "job_runtime")
-    converter      = @("geo_foundation", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_domain", "analysis")
+    converter      = @("geo_foundation", "geo_contracts", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_domain", "analysis")
     graphics       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
     render         = @("analysis")
     stage          = @("render", "analysis")
@@ -65,7 +65,7 @@ $ARCH_ALLOWED_DEPS = @{
 # Forbidden dependency rules
 $ARCH_FORBIDDEN_DEPS = @{
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_contracts  = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
+    geo_contracts  = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
     geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")

@@ -156,9 +156,7 @@ impl<T: Scalar> InfiniteLine2D<T> {
 // Foundation Pattern Core Traits Implementation
 // ============================================================================
 
-use geo_foundation::geometry::core::infinite_line_traits::{
-    InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
-};
+use geo_contracts::{InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties};
 
 /// InfiniteLine2D Constructor Trait Implementation
 impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {

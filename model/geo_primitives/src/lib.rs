@@ -213,11 +213,11 @@ pub mod circle_2d_intersection; // Circle2D の Intersection 実装
                                 // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
 
 // Circle Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
-pub use geo_foundation::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties};
+pub use geo_contracts::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
+pub use geo_contracts::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties};
 
 // Arc Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::geometry::core::arc_traits::{
+pub use geo_contracts::{
     Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DMeasure,
     Arc3DProperties,
 };
@@ -226,18 +226,16 @@ pub mod circle_2d_metrics; // Circle2D 計量演算
 pub mod direction_2d; // Direction2D の新実装 (Core)
 pub mod direction_2d_extensions;
 // pub mod direction_3d_core_traits; // Moved to direction_3d.rs
-pub use geo_foundation::geometry::core::direction_traits::{
-    Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
-}; // Direction3D の Core traits 公開
+pub use geo_contracts::{Direction3DConstructor, Direction3DMeasure, Direction3DProperties}; // Direction3D の Core traits 公開
 
 // InfiniteLine Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::geometry::core::infinite_line_traits::{
+pub use geo_contracts::{
     InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
     InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties,
 };
 
 // Ray Core Traits の公開 - Foundation Pattern実装完了
-pub use geo_foundation::geometry::core::ray_traits::{
+pub use geo_contracts::{
     Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DMeasure,
     Ray3DProperties,
 };
@@ -303,10 +301,10 @@ mod foundation_tests;
 // Point2D/Point3D/Vector2D/Vector3D関連のモジュールは geo_core に移動済み
 
 // 最小限の基盤のみ残す
-pub use geo_foundation::{Angle, Scalar};
+pub use geo_contracts::{Angle, Scalar};
 
 // Foundation システム統一トレイト
-pub use geo_foundation::extensions::{
+pub use geo_contracts::{
     AdvancedCollision,
     BBoxCollision,
     // Collision Foundation
@@ -360,10 +358,8 @@ pub use rectangle_2d::Rect2D;
 pub use triangle_2d::Triangle2D;
 
 // Core Traits統合エクスポート（Foundation経由）
-pub use geo_foundation::geometry::core::infinite_line_traits::{
-    InfiniteLine2DCore, InfiniteLine3DCore,
-};
-pub use geo_foundation::geometry::core::ray_traits::{Ray2DCore, Ray3DCore};
+pub use geo_contracts::{InfiniteLine2DCore, InfiniteLine3DCore};
+pub use geo_contracts::{Ray2DCore, Ray3DCore};
 
 // ============================================================================
 // Test Modules

@@ -130,7 +130,7 @@
 //!
 //! この設計により、コンパイル時の型チェックで適切なエラー処理が保証されます。
 
-use crate::classification::PrimitiveKind;
+use crate::PrimitiveKind;
 use crate::{Angle, Scalar};
 
 /// 全ての幾何プリミティブが実装する拡張基盤トレイト（ジェネリック版）

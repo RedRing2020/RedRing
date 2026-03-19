@@ -8,19 +8,27 @@
 - 形状契約の正規参照先を `geo_contracts` に一本化する
 - 数値抽象は `analysis`、Transform共通責務は `geo_core` に分離する
 
-## 2. 現在地
+## 2. 現在地（2026-03-19 更新）
 
-- `geo_contracts` クレートは存在するが、現状の公開 API は `Angle` / `Scalar` 再エクスポートのみ
+- `geo_contracts` には以下の形状契約が既に移設済み（#320等で整備）:
+  - `arc_traits`, `circle_traits`, `point_traits`, `vector_traits`, `triangle_traits`
+  - `nurbs_curve_2d_traits`, `nurbs_curve_3d_traits`, `nurbs_surface_3d_traits`
+  - `plane3d_traits`, `ray_traits`, `infinite_line_traits`
+  - `geometry::operations::*` (collision, intersection, EllipseCalculation等)
+  - `classification`, `entity` (EntityDisplayProperties 等)
 - `geo_core -> geo_foundation` 依存解消は #317 で完了済み
-- Transform の `geo_core` 基準化は #319 で実装側ほぼ完了
-- `geo_foundation` 直接依存は現時点で 6 クレートに残存
-  - `geo_primitives`
-  - `geo_nurbs`
-  - `geo_algorithms`
-  - `geo_io`
-  - `geo_entity`
-  - `cam_core`
-- `geo_primitives` / `geo_nurbs` では `geo_contracts::{Angle, Scalar}` 利用が部分的に始まっている
+- Transform の `geo_core` 基準化は #319 で実装側ほぼ完了。Extension Traits は #332 で整理完了
+- `geo_foundation` Cargo依存は現時点で 5 クレートに残存（cam_core は #332 で解消済み）:
+  - `geo_primitives`, `geo_nurbs`, `geo_algorithms`, `geo_io`, `geo_entity`
+  - `viewmodel/converter` にも `geo_foundation` 参照が残存
+- `geo_primitives` の `ellipse_*` は #320 で `geo_commons` 経由へ切替済み
+- `geo_contracts` にまだ移設されていない形状契約:
+  - `direction_traits`, `ellipse_traits`, `ellipse_arc_traits`, `linesegment_traits`
+  - `rectangle_traits`, `spherical_solid_traits`, `spherical_surface_traits`
+  - `conical_solid_traits`, `conical_surface_traits`
+  - `cylindrical_solid_traits`, `cylindrical_surface_traits`
+  - `ellipsoidal_solid_traits`, `ellipsoidal_surface_traits`
+  - `torus_solid_traits`, `torus_surface_traits`
 
 ## 3. geo_foundation 公開 API の分類方針
 
@@ -122,9 +130,10 @@
 
 ### 4.1 geo_primitives
 
-- 形状契約参照が大量に残存
+- 形状契約参照が大量に残存（200箇所超）
 - `extensions::*` / `core::*_traits` / `tolerance_migration::*` の参照が混在
 - `src/lib.rs` の公開 re-export で `geo_foundation` を正規ルートとして残している
+- `ellipse_*` は #320 で一部 `geo_commons` 経由へ切替済み
 
 ### 4.2 geo_nurbs
 
@@ -149,17 +158,55 @@
 - `LineEntity3DProperties`
 - `Scalar`
 
-### 4.6 cam_core
+### 4.6 cam_core（解消済み）
 
-- 現状は `Cargo.toml` 依存と説明文に `geo_foundation` が残る
-- 実コード参照は薄く、後半フェーズでまとめて切る候補
+- #332 で `Cargo.toml` 依存と実コード参照を除去済み
+
+### 4.7 viewmodel/converter
+
+- `geo_foundation::contracts::NurbsCurve3D*` / `NurbsSurface3D*` 参照が残存（6箇所）
+- `Triangle3DProperties`, `LineEntity3DProperties`, `Scalar` 等も残存
 
 ## 5. 推奨実施順
 
 ### Phase 0: 契約の棚卸し表を確定
 
-- [ ] `geo_foundation/src/lib.rs` の公開項目を、所有先ごとに表形式で確定
-- [ ] `要判断` 項目について、暫定所属を決める
+- [x] `geo_foundation/src/lib.rs` の公開項目を、所有先ごとに表形式で確定
+- [x] `要判断` 項目について、暫定所属を決める
+
+**棚卸し結果（2026-03-19確定）**:
+
+| 公開項目 | 現所在(geo_foundation) | 移設先 | ステータス |
+|---|---|---|---|
+| `Angle`, `Scalar`, `TolerantEq` | analysis 再エクスポート | analysis | ✅ 既に analysis が正 |
+| `PI`, `TAU`, `DEG_TO_RAD`, 定数群 | analysis 再エクスポート | analysis | ✅ 既に analysis が正 |
+| `PrimitiveKind`, `DimensionClass`, `GeometryPrimitive` | classification | geo_contracts | ✅ geo_contracts に移設済み |
+| `Arc2D*`, `Arc3D*` | geometry::core::arc_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Circle2D*`, `Circle3D*` | geometry::core::circle_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Point2D*`, `Point3D*` | geometry::core::point_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Vector2D*`, `Vector3D*` | geometry::core::vector_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Triangle2D*`, `Triangle3D*` | geometry::core::triangle_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `NurbsCurve2D*`, `NurbsCurve3D*`, `NurbsSurface3D*` | geometry::core::nurbs_*_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Plane3D*` | geometry::core::plane_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Ray2D*`, `Ray3D*` | geometry::core::ray_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `InfiniteLine2D*`, `InfiniteLine3D*` | geometry::core::infinite_line_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Direction2D*`, `Direction3D*` | geometry::core::direction_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Ellipse2D*`, `Ellipse3D*` | geometry::core::ellipse_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `EllipseArc2D*`, `EllipseArc3D*` | geometry::core::ellipse_arc_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `LineSegment2D*`, `LineSegment3D*` | geometry::core::linesegment_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `Rect2D*`, `Rect3D*` | geometry::core::rectangle_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `SphericalSolid3D*`, `SphericalSurface3D*` | geometry::core::spherical_*_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `ConicalSolid3D*`, `ConicalSurface3D*` | geometry::core::conical_*_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `CylindricalSolid3D*`, `CylindricalSurface3D*` | geometry::core::cylindrical_*_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `EllipsoidalSolid3D*`, `EllipsoidalSurface3D*` | geometry::core::ellipsoidal_*_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `TorusSolid3D*`, `TorusSurface3D*` | geometry::core::torus_*_traits | geo_contracts | ✅ geo_contracts に移設済み |
+| `AnalysisTransform2D`, `AnalysisTransform3D` 等 transform | geometry::core::transform | geo_core | ✅ geo_core に移設済み (#319) |
+| `TransformError`, `SafeTransform` | geometry::core::transform_error / extensions | geo_core | ✅ geo_core に移設済み (#319) |
+| `BasicCollision`, `BasicIntersection` 等 extension | geometry::extensions | geo_contracts::operations | ✅ geo_contracts::operations に移設済み (#332) |
+| `Bounded`, `ExtensionFoundation` 等 | geometry::foundation::extension_foundation | → 暫定: geo_contracts | 🔲 Phase 1で判断 |
+| `EntityDisplayProperties`, `EntityIdentity`, `LineEntity3DProperties` | entity::core | geo_contracts::entity | ✅ geo_contracts に移設済み |
+| `ToleranceSettings`, `GeometryContext` | tolerance | → 暫定: geo_core | 🔲 Phase 4で整理 |
+| `tolerance_migration::DefaultTolerances` | tolerance_migration | 撤去（移設先なし） | 🔲 Phase 4で除去 |
 
 詳細:
 
@@ -185,6 +232,11 @@
 - [x] `classification` を `geo_contracts` に追加
 - [x] `geometry::core` 相当のモジュール骨格を `geo_contracts` に追加
 - [x] `geo_foundation` 側は一時的に `geo_contracts` から再エクスポートする薄い層へ寄せる
+- [x] arc/circle/point/vector/triangle/nurbs/plane/ray/infinite_line 契約を `geo_contracts` に移設済み
+- [x] direction/ellipse/ellipse_arc/linesegment/rectangle 契約を `geo_contracts` に追加
+- [x] spherical/conical/cylindrical/ellipsoidal/torus の solid+surface 契約 (10種) を `geo_contracts` に追加
+- [ ] `Bounded` / `ExtensionFoundation` 系の所属先を確定し `geo_contracts` に追加（または geo_core）
+- [ ] `cargo check -p geo_contracts -p geo_foundation`
 
 詳細:
 
@@ -192,52 +244,50 @@
   - `model/geo_foundation/src/classification.rs`
   - `model/geo_foundation/src/geometry/core/*_traits.rs`
 - 作業:
-  - `geo_contracts` に `classification` / `geometry` / `core` のモジュール階層を追加
-  - 初期移設対象は `point_traits` / `vector_traits` / `arc_traits` / `circle_traits` を優先
+  - 未移設の14種の _traits ファイルを `geo_contracts/src/geometry/core/` に追加
   - `geo_foundation` は直接定義を減らし、`pub use geo_contracts::...` の互換再エクスポートへ寄せる
   - `geo_contracts` には計算本体・拡張処理を入れない
 - 完了条件:
-  - `geo_contracts` 単体で公開契約が解決できる
+  - `geo_contracts` 単体で全形状の公開契約が解決できる
   - `geo_foundation` 側で重複定義が増えていない
 
 確認コマンド:
 
 - `cargo check -p geo_contracts`
 - `cargo check -p geo_foundation`
-- `rg "geo_contracts::" model/geo_foundation/src/lib.rs`
 
-### Phase 2: 代表形状で縦切り検証
+### Phase 2: geo_primitives 全面切替（縦切りをすべての形状に拡張）
 
-- [ ] `arc` / `circle` 系 contract を `geo_contracts` へ移す
-- [ ] `geo_primitives` 側の対応 import を `geo_contracts` 基準へ切替
+- [x] arc/circle 系 contract: `geo_contracts` に移設済み、`geo_primitives` 側の一部切替済み
+- [ ] direction/ellipse/ellipse_arc/linesegment/rectangle/solid・surface系 import を `geo_contracts` 基準へ全面切替
+- [ ] `geo_primitives/src/lib.rs` の `pub use geo_foundation::*` 再エクスポートを `geo_contracts` 経路へ統一
+- [ ] `geo_primitives/Cargo.toml` から `geo_foundation` 依存を除去
 - [ ] `cargo check -p geo_primitives`
 - [ ] `cargo test -p geo_primitives`
 
 詳細:
 
 - 入力:
-  - `model/geo_primitives/src/arc_*`
-  - `model/geo_primitives/src/circle_*`
+  - `model/geo_primitives/src/**/*.rs`
   - `model/geo_primitives/src/lib.rs` の re-export
 - 作業:
-  - `core::arc_traits` / `core::circle_traits` の参照を段階的に `geo_contracts` へ置換
-  - `TransformError` や Transform trait は `geo_core` のまま維持
-  - `geo_primitives/src/lib.rs` で契約再エクスポート経路を統一
+  - 全 `use geo_foundation::...` 参照を `geo_contracts::...` / `analysis::...` / `geo_core::...` 経由へ置換
+  - `TransformError` / Transform trait は `geo_core` のまま維持
+  - `tolerance_migration::DefaultTolerances` は `analysis` または `geo_core::ToleranceSettings` へ切替
 - 完了条件:
-  - arc/circle 系で `geo_foundation::core::*_traits` 参照がゼロ
-  - arc/circle 系テストが通る
+  - `geo_primitives` 内に `geo_foundation` 参照ゼロ
+  - `cargo check -p geo_primitives` 成功
+  - `cargo test -p geo_primitives` 成功
 
 確認コマンド:
 
 - `cargo check -p geo_primitives`
-- `cargo test -p geo_primitives arc_`
-- `cargo test -p geo_primitives circle_`
-- `rg "geo_foundation::(core::arc_traits|core::circle_traits|Arc|Circle)" model/geo_primitives/src`
+- `cargo test -p geo_primitives`
 
 ### Phase 3: NURBS 契約切替
 
-- [ ] `NurbsCurve2D*` / `NurbsCurve3D*` / `NurbsSurface3D*` を `geo_contracts` へ移す
-- [ ] `geo_nurbs` の import を切替
+- [ ] `NurbsCurve2D*` / `NurbsCurve3D*` / `NurbsSurface3D*` は既に `geo_contracts` に存在; `geo_nurbs` の import を切替
+- [ ] `geo_nurbs/Cargo.toml` から `geo_foundation` 依存を除去
 - [ ] `cargo check -p geo_nurbs`
 - [ ] `cargo test -p geo_nurbs`
 
