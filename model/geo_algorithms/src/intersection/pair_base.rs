@@ -694,15 +694,10 @@ mod tests {
         line_segment3d_spherical_surface3d_intersections, ray3d_spherical_surface3d_intersections,
     };
     use super::{
-        plane3d_infinite_line3d_intersection, plane3d_line_segment3d_intersection,
-        plane3d_ray3d_intersection,
-    };
-    use super::{
         ray3d_infinite_line3d_intersection, ray3d_line_segment3d_intersection,
         ray3d_ray3d_intersection, triangle3d_line_segment3d_intersection,
         triangle3d_ray3d_intersection,
     };
-    use geo_primitives::Plane3D;
     use geo_primitives::{
         Angle, Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D,
         Ray3D, SphericalSurface3D, Triangle3D, Vector3D,

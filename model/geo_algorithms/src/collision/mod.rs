@@ -4,4 +4,5 @@
 //! - NURBS × Primitives
 //! - NURBS × NURBS (将来実装)
 
+pub mod pair_base;
 pub mod primitive_nurbs;
