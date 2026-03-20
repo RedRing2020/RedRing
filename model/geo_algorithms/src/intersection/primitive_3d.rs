@@ -8,14 +8,14 @@
 //! ラッパー、または `pair_base` に委譲する。
 
 use crate::intersection::pair_base;
-use geo_contracts::{
-    Arc3DMeasure, BasicIntersection, CylindricalSurface3DMeasure, Ellipse3DMeasure,
-    MultipleIntersection, Scalar, TorusSurface3DMeasure,
-};
-use geo_primitives::{
+use crate::{
     Arc3D, Circle3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D, EllipsoidalSurface3D,
     InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, TorusSolid3D,
     TorusSurface3D, Triangle3D, TriangleMesh3D,
+};
+use geo_contracts::{
+    Arc3DMeasure, BasicIntersection, CylindricalSurface3DMeasure, Ellipse3DMeasure,
+    MultipleIntersection, Scalar, TorusSurface3DMeasure,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -518,7 +518,7 @@ mod tests {
         torus_surface3d_point3d_intersection, triangle3d_point3d_intersection,
         triangle_mesh3d_point3d_intersection,
     };
-    use geo_primitives::{
+    use crate::{
         Angle, Arc3D, Circle3D, CylindricalSurface3D, Direction3D, Ellipse3D, InfiniteLine3D,
         LineSegment3D, Plane3D, Point3D, Ray3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
         Vector3D,

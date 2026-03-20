@@ -61,12 +61,19 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_contracts`）
 4. **依存関係不変**: `scripts/check_architecture_dependencies_simple.ps1` の改変は絶対禁止
 
+### 依存関係と import の運用ルール（重要）
+
+- `geo_algorithms` は設計上 `geo_primitives` / `geo_nurbs` の上位層であり、クレート依存は許可される
+- ただし `geo_algorithms` の実装ファイルでは `use geo_primitives::...` の直接 import を禁止し、`geo_algorithms::lib.rs` の再エクスポート経由（`use crate::...`）を使用する
+- `geo_algorithms` 以外の下位層で、レイヤールールに反する `geo_primitives` 直接依存は引き続き禁止
+
 ### 絶対禁止事項
 
 - ❌ ユーザー承認なしでの実装開始
 - ❌ Foundation パターンの破壊や迂回
 - ❌ 既存設計方針の無断変更
-- ❌ `geo_primitives` への直接依存の許可
+- ❌ レイヤールールに反する `geo_primitives` への直接依存の許可
+- ❌ `geo_algorithms` 実装ファイル内での `use geo_primitives::...` 直接 import
 - ❌ アーキテクチャチェックスクリプトの例外追加
 
 ### 実装許可が必要な作業

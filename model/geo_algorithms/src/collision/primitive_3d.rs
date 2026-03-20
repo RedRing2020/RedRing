@@ -6,14 +6,14 @@
 //! orphan rules により trait 実装ではなく形状ペア free-function を提供する。
 //! 各関数は既存の `BasicCollision` 実装を呼び出す薄いラッパー。
 
-use geo_contracts::{
-    Arc3DMeasure, BasicCollision, CylindricalSolid3DMeasure, CylindricalSurface3DMeasure,
-    Ellipse3DMeasure, Scalar, TorusSurface3DMeasure,
-};
-use geo_primitives::{
+use crate::{
     Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D,
     EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
     SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
+};
+use geo_contracts::{
+    Arc3DMeasure, BasicCollision, CylindricalSolid3DMeasure, CylindricalSurface3DMeasure,
+    Ellipse3DMeasure, Scalar, TorusSurface3DMeasure,
 };
 
 // ── SphericalSolid3D ──────────────────────────────────────────────────────────
@@ -668,7 +668,7 @@ mod tests {
         torus_solid3d_point3d_collides, torus_surface3d_point3d_collides,
         triangle3d_point3d_collides, triangle_mesh3d_point3d_collides,
     };
-    use geo_primitives::{
+    use crate::{
         Angle, Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Direction3D, Ellipse3D,
         InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, TorusSolid3D,
         TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,

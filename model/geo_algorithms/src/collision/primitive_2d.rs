@@ -6,11 +6,10 @@
 //! 注意: orphan rules により、ここでは trait 実装ではなく
 //! 形状ペア関数を提供する。
 
-use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
+use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D};
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DProperties,
 };
-use geo_primitives::{Ray2D, Triangle2D, Vector2D};
 
 pub fn circle2d_point2d_collides<T: Scalar>(
     circle: &Circle2D<T>,

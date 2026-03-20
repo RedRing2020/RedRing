@@ -8,12 +8,11 @@ use crate::intersection::pair_base::{
     circle2d_line_segment2d_intersections, line_segment2d_arc2d_intersections,
     line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
 };
-use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
+use crate::{Arc2D, Circle2D, Ellipse2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D};
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, Ellipse2DProperties, LineSegment2DProperties,
     Ray2DProperties, Scalar, Triangle2DProperties,
 };
-use geo_primitives::{Ellipse2D, Ray2D, Triangle2D, Vector2D};
 
 pub fn circle2d_point2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,

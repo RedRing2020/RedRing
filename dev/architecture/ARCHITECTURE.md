@@ -51,6 +51,7 @@ foundation/analysis（将来改名候補）
 - **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
 - **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
 - **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
+- **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
 - **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
 - **循環依存回避**: `geo_primitives` ↔ `geo_nurbs` の直接依存は禁止（交差処理は`geo_algorithms`に集約）
 
