@@ -80,7 +80,7 @@
   - 対策: `impl AnalysisTransformSupport` の存在確認を機械検索で実施
 
 - リスク: READMEやサンプルだけ古い import のまま残る
-  - 対策: Phase Cで `rg "geo_foundation::AnalysisTransform|geo_foundation::TransformError"` を最終チェック
+  - 対策: Phase Cで `rg "geo_foundation::(AnalysisTransform2D|AnalysisTransform3D|AnalysisTransformSupport|TransformError)|use\s+geo_foundation::.*(AnalysisTransform|TransformError)"` を最終チェック
 
 ## 7. 完了条件（#319）
 
