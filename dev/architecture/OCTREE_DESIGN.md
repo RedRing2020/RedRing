@@ -117,7 +117,7 @@ CAM演算でよく使う操作：
 // model/geo_algorithms/src/octree/mod.rs
 
 use geo_primitives::{Point3D, BBox3D};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// Octreeノード
 pub struct OctreeNode<T: Scalar, D> {
@@ -836,3 +836,4 @@ for sample_point in sample_points {
 - **先行技術**: PCL (Point Cloud Library), OpenVDB
 - **参考論文**: "Octree-Based Collision Detection" (Meagher, 1982)
 - **実装例**: Unity Octree, UE5 Octree
+

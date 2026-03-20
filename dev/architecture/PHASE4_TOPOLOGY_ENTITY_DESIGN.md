@@ -70,7 +70,7 @@ Phase 3（交差判定・衝突判定）の次に実装すべきコア機能と�
 └─────────────────────────────────────┘
               ↓
 ┌─────────────────────────────────────┐
-│  基盤層 (geo_foundation, analysis)   │
+│  基盤層 (geo_contracts, analysis)   │
 │  - トレイト定義、数値計算             │
 └─────────────────────────────────────┘
 ```
@@ -116,7 +116,7 @@ Solid（立体）
 // model/geo_topology/src/lib.rs
 
 use geo_primitives::Point3D;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::sync::Arc;
 
 /// トポロジー要素の一意識別子
@@ -515,7 +515,7 @@ pub mod euler {
 // model/geo_entity/src/lib.rs
 
 use geo_topology::{Solid, Face, Edge, Vertex, TopoId};
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -745,7 +745,7 @@ impl<T: Scalar> Model<T> {
 #### 3.1 トレランス管理
 
 ```rust
-// model/geo_foundation/src/tolerance.rs
+// model/geo_contracts/src/tolerance.rs
 
 use analysis::Scalar;
 
@@ -852,7 +852,7 @@ pub enum PrecisionMode {
 ```rust
 // viewmodel/converter/src/context.rs
 
-use geo_foundation::{ApplicationContext, ToleranceSettings, PrecisionMode};
+use geo_contracts::{ApplicationContext, ToleranceSettings, PrecisionMode};
 
 /// ViewModel変換コンテキスト
 /// 
@@ -1063,3 +1063,4 @@ Phase 4 を **Tier 3（中優先）** として追加：
    - [ ] 「Geometric and Solid Modeling」（学術書）
 
 **次回レビュー**: Phase 3完了時（2026年4月末予定）
+

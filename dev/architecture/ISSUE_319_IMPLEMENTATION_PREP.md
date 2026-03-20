@@ -6,7 +6,7 @@
 
 - Transformの共通責務を `geo_core` に統一する
 - 形状固有のTransform実装を `geo_primitives` / `geo_nurbs` に明確化する
-- `geo_foundation` 経由のTransform参照を段階的に除去し、#318の前提を揃える
+- `geo_contracts` 経由のTransform参照を段階的に除去し、#318の前提を揃える
 
 ## 2. 現状調査（Transform実装の依存）
 
@@ -15,7 +15,7 @@
 - `model/geo_primitives/src/*_transform.rs`: 32ファイル
 - `model/geo_nurbs/src/*_transform.rs`: 3ファイル
 - 総35ファイルすべてで `geo_foundation` 参照あり。
-- **細江**: 2026-03-20、geo_foundation 廃止完了によりを上記の参照を `geo_contracts` / `geo_core` へ切替。
+- **補足**: 2026-03-20、geo_foundation 廃止完了により上記参照は `geo_contracts` / `geo_core` へ切替済み。
 
 代表的な参照パターン:
 
@@ -67,7 +67,7 @@
 
 ## 5. スコープ外（本Issueではやらない）
 
-- ✅ `geo_foundation` 全廃（#318で実施、厳枠担観妨）- `geo_commons` 分解移管（#320で実施）
+- ✅ `geo_contracts` 全廃（#318で実施、厳枠担観妨）- `geo_commons` 分解移管（#320で実施）
 - `geo_algorithms` の責務再編そのもの
 
 ## 6. リスクと対策
@@ -79,7 +79,7 @@
   - 対策: `impl AnalysisTransformSupport` の存在確認を機械検索で実施
 
 - リスク: READMEやサンプルだけ古い import のまま残る
-  - 対策: Phase Cで `rg "geo_foundation::AnalysisTransform|geo_foundation::TransformError"` を最終チェック
+  - 対策: Phase Cで `rg "geo_contracts::AnalysisTransform|geo_contracts::TransformError"` を最終チェック
 
 ## 7. 完了条件（#319）
 
@@ -118,3 +118,4 @@
 - 3形状以上で同一意味・同一挙動・同一エラーモデルが成立するものだけ共通化する
 - 上記条件を満たさないものは重複を許容し、形状実装側に残す
 - 本Issueでは「全面抽象化」は行わず、「必要最小限の共通化」に限定する
+

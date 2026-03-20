@@ -159,7 +159,7 @@ impl<T: Scalar> From<(T, T, T)> for Point3D<T> { ... }
 # geo_core/Cargo.toml に追加
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 ```
 
 #### 1-2. geo_core への組み込み
@@ -196,7 +196,7 @@ cargo test -p geo_core
 pub use geo_core::Point3D;
 
 // Foundation トレイト実装は維持
-use geo_foundation::{
+use geo_contracts::{
     core::{
         point_core_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties},
         point_traits,
@@ -227,7 +227,7 @@ impl<T: Scalar> From<Point3D<T>> for analysis::linalg::point3::Point3<T> { ... }
 [dependencies]
 geo_core = { path = "../geo_core" }  # 追加
 analysis = { path = "../../foundation/analysis" }
-geo_foundation = { path = "../geo_foundation" }
+geo_contracts = { path = "../geo_contracts" }
 ```
 
 #### 2-3. 既存ファイルの維持
@@ -515,3 +515,4 @@ cargo test --workspace --release
 **作成者**: GitHub Copilot  
 **最終更新**: 2025年12月21日  
 **ステータス**: Phase 3 完了 → Phase 4 実施待ち
+

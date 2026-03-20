@@ -349,7 +349,7 @@ impl Metadata {
 ```rust
 // model/geo_entity/src/geometric_entity.rs
 
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 幾何エンティティ
 #[derive(Debug, Clone)]
@@ -441,7 +441,7 @@ pub type TriangleEntity<T> = GeometricEntity<T, geo_primitives::Triangle3D<T>>;
 // model/geo_entity/src/cam_entity.rs
 
 use geo_algorithms::toolpath::ToolPath;
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// 加工属性
 #[derive(Debug, Clone)]
@@ -548,7 +548,7 @@ impl<T: Scalar> CAMEntity<T> {
   edition = "2021"
   
   [dependencies]
-  geo_foundation = { path = "../geo_foundation" }
+  geo_contracts = { path = "../geo_contracts" }
   geo_primitives = { path = "../geo_primitives" }
   geo_algorithms = { path = "../geo_algorithms" }
   uuid = { version = "1.0", features = ["v4", "serde"] }
@@ -763,3 +763,4 @@ TopologyEntity<T> {
 - **ロードマップ**: `dev/foundation/ROADMAP_2026_Q1_Q2.md`
 - **関連Issue**: #206（基礎版）, #205（Phase 4完全版）
 - **将来バックログIssue**: #232（Persistent Naming / 自動再接続 / フィーチャー再実行堅牢化）
+

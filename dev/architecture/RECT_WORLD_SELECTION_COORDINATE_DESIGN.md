@@ -28,7 +28,7 @@
 
 ## Foundation Pattern 実装範囲
 
-- `geo_foundation/src/geometry/core/rectangle_traits.rs`
+- `geo_contracts/src/geometry/core/rectangle_traits.rs`
   - `Rect2DConstructor<T>` / `Rect2DProperties<T>` / `Rect2DMeasure<T>`
   - `Rect3DConstructor<T>` / `Rect3DProperties<T>` / `Rect3DMeasure<T>`
 - `geo_primitives/src/rectangle_2d.rs`（Core）
@@ -64,3 +64,4 @@
 - 単体テスト: contains / resize / 面積 / 角点
 - `cargo test --workspace`
 - `cargo clippy -- -D warnings`
+
