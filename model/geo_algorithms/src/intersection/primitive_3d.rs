@@ -340,12 +340,28 @@ pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
     pair_base::triangle3d_line_segment3d_intersection(triangle, segment)
 }
 
+pub fn line_segment3d_triangle3d_intersection<T: Scalar>(
+    segment: &LineSegment3D<T>,
+    triangle: &Triangle3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    triangle3d_line_segment3d_intersection(triangle, segment, tolerance)
+}
+
 pub fn triangle3d_ray3d_intersection<T: Scalar>(
     triangle: &Triangle3D<T>,
     ray: &Ray3D<T>,
     _tolerance: T,
 ) -> Option<Point3D<T>> {
     pair_base::triangle3d_ray3d_intersection(triangle, ray)
+}
+
+pub fn ray3d_triangle3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    triangle: &Triangle3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    triangle3d_ray3d_intersection(triangle, ray, tolerance)
 }
 
 // ── TriangleMesh3D ────────────────────────────────────────────────────────────
@@ -514,8 +530,10 @@ mod tests {
         arc3d_point3d_intersection, circle3d_point3d_intersection,
         cylindrical_surface3d_point3d_intersection, ellipse3d_point3d_intersection,
         infinite_line3d_point3d_intersection, line_segment3d_point3d_intersection,
-        plane3d_point3d_intersection, ray3d_point3d_intersection,
-        torus_surface3d_point3d_intersection, triangle3d_point3d_intersection,
+        line_segment3d_triangle3d_intersection, plane3d_point3d_intersection,
+        ray3d_point3d_intersection, ray3d_triangle3d_intersection,
+        torus_surface3d_point3d_intersection, triangle3d_line_segment3d_intersection,
+        triangle3d_point3d_intersection, triangle3d_ray3d_intersection,
         triangle_mesh3d_point3d_intersection,
     };
     use crate::{
@@ -740,6 +758,29 @@ mod tests {
         assert_eq!(
             triangle_mesh3d_point3d_intersection(&mesh, &off_triangle, 1e-6),
             None
+        );
+    }
+
+    #[test]
+    fn symmetric_triangle_intersection_wrappers_match_base_functions() {
+        let tri = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let seg =
+            LineSegment3D::new(Point3D::new(0.2, 0.2, -1.0), Point3D::new(0.2, 0.2, 1.0)).unwrap();
+        let ray = Ray3D::new(Point3D::new(0.2, 0.2, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
+
+        let tol = 1e-6;
+        assert_eq!(
+            line_segment3d_triangle3d_intersection(&seg, &tri, tol),
+            triangle3d_line_segment3d_intersection(&tri, &seg, tol)
+        );
+        assert_eq!(
+            ray3d_triangle3d_intersection(&ray, &tri, tol),
+            triangle3d_ray3d_intersection(&tri, &ray, tol)
         );
     }
 }

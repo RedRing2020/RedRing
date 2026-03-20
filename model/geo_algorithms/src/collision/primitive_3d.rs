@@ -398,12 +398,28 @@ pub fn triangle3d_line_segment3d_collides<T: Scalar>(
     triangle.intersects(segment, tolerance)
 }
 
+pub fn line_segment3d_triangle3d_collides<T: Scalar>(
+    segment: &LineSegment3D<T>,
+    triangle: &Triangle3D<T>,
+    tolerance: T,
+) -> bool {
+    triangle3d_line_segment3d_collides(triangle, segment, tolerance)
+}
+
 pub fn triangle3d_ray3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> bool {
     triangle.intersects(ray, tolerance)
+}
+
+pub fn ray3d_triangle3d_collides<T: Scalar>(
+    ray: &Ray3D<T>,
+    triangle: &Triangle3D<T>,
+    tolerance: T,
+) -> bool {
+    triangle3d_ray3d_collides(triangle, ray, tolerance)
 }
 
 pub fn triangle3d_triangle3d_collides<T: Scalar>(
@@ -664,9 +680,11 @@ mod tests {
         arc3d_point3d_collides, circle3d_point3d_collides, cylindrical_solid3d_point3d_collides,
         cylindrical_surface3d_point3d_collides, ellipse3d_point3d_collides,
         infinite_line3d_point3d_collides, line_segment3d_point3d_collides,
-        plane3d_point3d_collides, ray3d_point3d_collides, spherical_solid3d_point3d_collides,
+        line_segment3d_triangle3d_collides, plane3d_point3d_collides, ray3d_point3d_collides,
+        ray3d_triangle3d_collides, spherical_solid3d_point3d_collides,
         torus_solid3d_point3d_collides, torus_surface3d_point3d_collides,
-        triangle3d_point3d_collides, triangle_mesh3d_point3d_collides,
+        triangle3d_line_segment3d_collides, triangle3d_point3d_collides, triangle3d_ray3d_collides,
+        triangle_mesh3d_point3d_collides,
     };
     use crate::{
         Angle, Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Direction3D, Ellipse3D,
@@ -914,5 +932,28 @@ mod tests {
             &Point3D::new(0.2, 0.2, 0.3),
             1e-6
         ));
+    }
+
+    #[test]
+    fn symmetric_triangle_collision_wrappers_match_base_functions() {
+        let tri = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let seg =
+            LineSegment3D::new(Point3D::new(0.2, 0.2, -1.0), Point3D::new(0.2, 0.2, 1.0)).unwrap();
+        let ray = Ray3D::new(Point3D::new(0.2, 0.2, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
+
+        let tol = 1e-6;
+        assert_eq!(
+            line_segment3d_triangle3d_collides(&seg, &tri, tol),
+            triangle3d_line_segment3d_collides(&tri, &seg, tol)
+        );
+        assert_eq!(
+            ray3d_triangle3d_collides(&ray, &tri, tol),
+            triangle3d_ray3d_collides(&tri, &ray, tol)
+        );
     }
 }
