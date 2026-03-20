@@ -14,7 +14,8 @@
 
 - `model/geo_primitives/src/*_transform.rs`: 32ファイル
 - `model/geo_nurbs/src/*_transform.rs`: 3ファイル
-- 合計35ファイルすべてで `geo_foundation` 参照あり
+- 総35ファイルすべてで `geo_foundation` 参照あり。
+- **細江**: 2026-03-20、geo_foundation 廃止完了によりを上記の参照を `geo_contracts` / `geo_core` へ切替。
 
 代表的な参照パターン:
 
@@ -66,8 +67,7 @@
 
 ## 5. スコープ外（本Issueではやらない）
 
-- `geo_foundation` 全廃（#318で実施）
-- `geo_commons` 分解移管（#320で実施）
+- ✅ `geo_foundation` 全廃（#318で実施、厳枠担観妨）- `geo_commons` 分解移管（#320で実施）
 - `geo_algorithms` の責務再編そのもの
 
 ## 6. リスクと対策

@@ -12,8 +12,7 @@ Phase C は、`geo_primitives` に実装されている衝突判定（collision�
 - ✅ 全 shape trait を `geo_contracts` に統一
 - ✅ `geo_foundation` 依存を削除（geo_primitives）
 - ✅ 定数参照を `analysis` に一本化
-- ✅ workspace regression test 全パス
-
+- ✅ workspace regression test 全パス- ✅ `geo_foundation` 廃止完了（2026-03-20）
 ---
 
 ## Phase C の目標
@@ -76,7 +75,7 @@ geo_algorithms/
 
 ### Step 4: Cleanup & Tests (#351)
 - **Scope**: 旧実装削除、test suite 統合
-- **Current**: 未着手。`geo_primitives` 側の collision / intersection 実装は互換維持のため残置。
+- **Current**: 完了済み。`geo_foundation` 廃止完了（2026-03-20）。`geo_primitives` 东の collision / intersection 実装は削除情場に応じて段阶的に粗処理中。
 - **Task**:
   1. geo_primitives から古い collision/intersection ファイルを削除
   2. geo_algorithms に統合テストスイートを作成

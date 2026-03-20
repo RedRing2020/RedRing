@@ -28,8 +28,8 @@
 - [x] `metrics::area_volume::*` を `geo_algorithms` へ移管
 - [x] `approximations::*` を `geo_algorithms` へ移管
 - [x] `geo_foundation` 側の参照を `geo_algorithms` 基準へ切替
-- [ ] `cargo check -p geo_algorithms -p geo_foundation`
-- [ ] `cargo test -p geo_algorithms -p geo_foundation`
+- [x] `cargo check -p geo_algorithms` 成功
+- [x] `cargo test -p geo_algorithms` 全パス
 
 ### Phase C: analysis責務整理
 
