@@ -1,6 +1,5 @@
 //! 衝突検出・距離計算のtrait定義
 //!
-//! `geo_foundation::extensions` の衝突検出トレイトを `geo_contracts` へ移設。
 //! 実装は `geo_algorithms::collision` 以下に配置される。
 
 use analysis::abstract_types::Scalar;

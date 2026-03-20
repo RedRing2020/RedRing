@@ -1,6 +1,5 @@
 //! 交点計算のtrait定義
 //!
-//! `geo_foundation::extensions` の交点計算トレイトを `geo_contracts` へ移設。
 //! 実装は `geo_algorithms::intersection` 以下に配置される。
 
 use analysis::abstract_types::Scalar;
