@@ -38,7 +38,7 @@ $ARCH_LAYERS = @{
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
-# Last updated: 2026-03-20 (#318 Phase C: geo_contracts uses geo_commons)
+# Last updated: 2026-03-20 (#318 Phase C: contracts-first dependency alignment)
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     geo_contracts  = @("analysis", "geo_commons")
@@ -48,14 +48,14 @@ $ARCH_ALLOWED_DEPS = @{
     geo_primitives = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "analysis")
     geo_algorithms = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")
     geo_nurbs      = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "analysis")
-    geo_io         = @("geo_foundation", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
-    geo_entity     = @("geo_foundation", "geo_primitives")
+    geo_io         = @("geo_contracts", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
+    geo_entity     = @("geo_contracts", "geo_primitives")
     cam_core       = @("analysis", "geo_foundation", "geo_primitives", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
     cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
     job_runtime    = @("analysis")
     job_domain     = @("analysis", "job_runtime")
-    converter      = @("geo_foundation", "geo_contracts", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_domain", "analysis")
+    converter      = @("geo_contracts", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_domain", "analysis")
     graphics       = @("geo_foundation", "geo_core", "geo_primitives", "analysis")
     render         = @("analysis")
     stage          = @("render", "analysis")

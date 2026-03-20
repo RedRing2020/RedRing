@@ -2,14 +2,13 @@
 //!
 //! Phase C Step 1: `geo_primitives` から 2D 衝突判定ロジックを
 //! `geo_algorithms` 側へ集約するための受け皿。
-//! 
+//!
 //! 注意: orphan rules により、ここでは trait 実装ではなく
 //! 形状ペア関数を提供する。
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar,
-    Triangle2DProperties,
+    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DProperties,
 };
 use geo_primitives::{Ray2D, Triangle2D, Vector2D};
 
@@ -110,7 +109,11 @@ pub fn ray2d_point2d_collides<T: Scalar>(ray: &Ray2D<T>, point: &Point2D<T>, tol
     ray.contains_point(point, tolerance)
 }
 
-pub fn ray2d_circle2d_collides<T: Scalar>(ray: &Ray2D<T>, circle: &Circle2D<T>, tolerance: T) -> bool {
+pub fn ray2d_circle2d_collides<T: Scalar>(
+    ray: &Ray2D<T>,
+    circle: &Circle2D<T>,
+    tolerance: T,
+) -> bool {
     let center = Point2D::new(circle.center().0, circle.center().1);
     ray.distance_to_point(&center) <= circle.radius() + tolerance
 }
@@ -154,7 +157,10 @@ pub fn triangle2d_triangle2d_collides<T: Scalar>(
     let vb = Point2D::new(vb_tuple.0, vb_tuple.1);
     let vc = Point2D::new(vc_tuple.0, vc_tuple.1);
 
-    if triangle2.contains_point(&va) || triangle2.contains_point(&vb) || triangle2.contains_point(&vc) {
+    if triangle2.contains_point(&va)
+        || triangle2.contains_point(&vb)
+        || triangle2.contains_point(&vc)
+    {
         return true;
     }
 
@@ -165,7 +171,10 @@ pub fn triangle2d_triangle2d_collides<T: Scalar>(
     let ovb = Point2D::new(ovb_tuple.0, ovb_tuple.1);
     let ovc = Point2D::new(ovc_tuple.0, ovc_tuple.1);
 
-    if triangle1.contains_point(&ova) || triangle1.contains_point(&ovb) || triangle1.contains_point(&ovc) {
+    if triangle1.contains_point(&ova)
+        || triangle1.contains_point(&ovb)
+        || triangle1.contains_point(&ovc)
+    {
         return true;
     }
 

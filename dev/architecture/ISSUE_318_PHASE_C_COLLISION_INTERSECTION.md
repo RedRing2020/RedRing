@@ -1,6 +1,6 @@
 # Issue #318 Phase C: Collision/Intersection Trait Migration
 
-**Status**: 準備中 (2026-03-20)  
+**Status**: Step 1/2 部分移行中 (2026-03-20)  
 **Related Issues**: #318 (Parent), #347 (Phase C Overview), #350, #348, #349, #351  
 **Branch**: `issue-318-phase-c-collision-intersection`
 
@@ -50,6 +50,7 @@ geo_algorithms/
 
 ### Step 1: 2D Collision/Intersection (#350)
 - **Scope**: arc_2d, circle_2d, ellipse_2d, line_segment_2d, ray_2d, triangle_2d
+- **Current**: `geo_algorithms` 側に free-function ベースの受け皿を配置済み。今後はこのモジュールを正面 API とし、`geo_primitives` 側は段階的に縮退する。
 - **Task**:
   1. geo_algorithms/src/collision/2d_primitives.rs を設計
   2. 既存の geo_primitives/*_collision.rs から実装を抽出
@@ -59,6 +60,7 @@ geo_algorithms/
 
 ### Step 2: 3D Collision/Intersection (#348)
 - **Scope**: plane_3d, ray_3d, line_segment_3d, sphere_3d, cone_3d, cylinder_3d, torus_3d, ellipsoid_3d
+- **Current**: `geo_algorithms` 側に薄いラッパーを配置済み。3D は当面この層を正面 API とし、実体移設は段階実施とする。
 - **Task**:
   1. geo_algorithms/src/collision/3d_primitives.rs を設計
   2. Step 1 のパターンに従う
@@ -74,6 +76,7 @@ geo_algorithms/
 
 ### Step 4: Cleanup & Tests (#351)
 - **Scope**: 旧実装削除、test suite 統合
+- **Current**: 未着手。`geo_primitives` 側の collision / intersection 実装は互換維持のため残置。
 - **Task**:
   1. geo_primitives から古い collision/intersection ファイルを削除
   2. geo_algorithms に統合テストスイートを作成
@@ -121,6 +124,12 @@ geo_algorithms → consolidates all collision/intersection impl
 geo_primitives → clean shape definitions only
 ```
 
+### Transitional State (Current)
+```
+geo_algorithms → collision/intersection の正面 API
+geo_primitives → 互換維持のため旧 impl を一時保持
+```
+
 ### Allowed Dependency (Confirmed)
 - `geo_contracts` → `geo_commons` ✅ (決定済み)
 
@@ -136,6 +145,15 @@ geo_primitives → clean shape definitions only
 - [ ] `cargo fmt --check` フォーマット OK
 - [ ] `./scripts/check_architecture_dependencies_simple.ps1` 成功
 - [ ] `./scripts/check_issue_doc_archive.ps1` 成功
+
+### 2026-03-20 確認済み
+
+- [x] `cargo check -p geo_algorithms` 成功
+- [x] `./scripts/check_architecture_dependencies_simple.ps1` 成功
+- [ ] `cargo clippy -- -D warnings`
+- [ ] `cargo fmt --check`
+- [ ] `cargo test --workspace`
+- [ ] `./scripts/check_issue_doc_archive.ps1`
 
 ---
 

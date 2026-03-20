@@ -12,6 +12,7 @@ use crate::shape_converter::{
 use geo_algorithms::{
     Arc3D, Circle3D, Direction3D, LineSegment3D, NurbsCurve3D, Point3D, Triangle3D, Vector3D,
 };
+use geo_contracts::{Angle, NurbsCurve3DConstructor, NurbsCurve3DMeasure};
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use std::path::Path;
 use thiserror::Error;
@@ -113,8 +114,8 @@ fn convert_svg_to_vertices(
         ))
         .ok_or_else(|| SvgLoaderError::InvalidData("Invalid arc start direction".to_string()))?;
 
-        let start_angle = geo_foundation::Angle::from_radians(arc_data.start_angle);
-        let end_angle = geo_foundation::Angle::from_radians(arc_data.end_angle);
+        let start_angle = Angle::from_radians(arc_data.start_angle);
+        let end_angle = Angle::from_radians(arc_data.end_angle);
 
         let arc = Arc3D::new(
             center,
@@ -151,8 +152,6 @@ fn nurbs_curve_to_vertices(
     nurbs_data: &NurbsCurveData,
     tolerance: f64,
 ) -> Result<Vec<VertexData>, SvgLoaderError> {
-    use geo_foundation::contracts::NurbsCurve3DConstructor;
-
     // NURBS曲線を生成
     let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
         nurbs_data.degree,
@@ -168,7 +167,6 @@ fn nurbs_curve_to_vertices(
     let (t_min, t_max) = curve.parameter_domain();
 
     // 曲線の全長を計算
-    use geo_foundation::contracts::NurbsCurve3DMeasure;
     let arc_length = curve.arc_length_total(tolerance);
 
     // 分割数を決定（曲線長÷トレランス、最小10、最大10000）

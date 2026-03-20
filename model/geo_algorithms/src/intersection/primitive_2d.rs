@@ -11,8 +11,7 @@ use crate::intersection::pair_base::{
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, Ellipse2DProperties, LineSegment2DProperties,
-    Ray2DProperties, Scalar,
-    Triangle2DProperties,
+    Ray2DProperties, Scalar, Triangle2DProperties,
 };
 use geo_primitives::{Ellipse2D, Ray2D, Triangle2D, Vector2D};
 

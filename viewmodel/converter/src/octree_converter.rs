@@ -7,7 +7,7 @@ use geo_algorithms::{
     octree::{Octree, OctreeTolerance, VoxelOctree, VoxelState},
     Aabb3D,
 };
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 use std::collections::HashSet;
 use std::ops::Range;
 

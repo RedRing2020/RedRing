@@ -6,11 +6,10 @@
 pub mod collision;
 pub mod intersection;
 pub mod octree;
+pub mod tolerance;
 
 // Octree関連の公開API
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
-
-// geo_foundationからの基本型の再エクスポート
 
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
 pub use geo_contracts::Scalar;

@@ -7,3 +7,7 @@
 
 pub mod pair_base;
 pub mod primitive_2d;
+pub mod primitive_3d;
+
+pub use primitive_2d::*;
+pub use primitive_3d::*;

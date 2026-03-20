@@ -1,7 +1,7 @@
 /// 幾何サンプリングとパターン解析
 ///
 /// 2D/3D幾何要素のサンプリング、交差検出、パターン抽出機能
-use geo_foundation::ToleranceContext;
+use crate::tolerance::ToleranceContext;
 
 /// サンプリング結果
 #[derive(Debug, Clone)]

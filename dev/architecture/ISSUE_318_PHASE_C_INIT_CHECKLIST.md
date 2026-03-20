@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-20  
 **Branch**: `issue-318-phase-c-collision-intersection`  
-**Status**: 準備フェーズ
+**Status**: 初期化完了 / 段階移行開始
 
 ## Pre-Start Validation ✅
 
@@ -14,12 +14,12 @@
   - `issue-318-phase-c-collision-intersection` from develop
 
 - [ ] ビルド・テスト検証
-  - `cargo check --workspace`
-  - `cargo test --workspace`
-  - `cargo clippy -- -D warnings`
+  - [x] `cargo check -p geo_algorithms`
+  - [ ] `cargo test --workspace`
+  - [ ] `cargo clippy -- -D warnings`
 
 - [ ] アーキテクチャ検証
-  - `./scripts/check_architecture_dependencies_simple.ps1`
+  - [x] `./scripts/check_architecture_dependencies_simple.ps1`
   - `./scripts/check_issue_doc_archive.ps1`
 
 ---
@@ -147,19 +147,17 @@ model/geo_algorithms/src/intersection/
 
 ---
 
-## Next Action: Start Step 1
+## Next Action: Step 1 の正面 API 化
 
-Once fully validated, begin:
+段階移行として次を進める:
 
-1. Create skeleton files:
-   - `geo_algorithms/src/collision/2d_primitives.rs`
-   - `geo_algorithms/src/intersection/2d_primitives.rs`
+1. `geo_algorithms` 側から 2D / 3D collision・intersection free-function を再エクスポートし、呼び出し側の参照先を集約する
 
-2. Extract implementations from `geo_primitives/*_collision.rs` and `*_intersection.rs`
+2. 2D 実装のうち `geo_algorithms` に移せているロジックを優先して呼び出し側を切り替える
 
-3. Refactor imports to use `geo_contracts` trait definitions
+3. 3D はラッパー層を維持したまま正面 API だけ先に `geo_algorithms` へ寄せる
 
-4. Validate step completion with full test suite
+4. 互換維持のため `geo_primitives` 側の旧 impl は Cleanup フェーズまで残置する
 
 ---
 

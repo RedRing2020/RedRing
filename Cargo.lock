@@ -693,7 +693,6 @@ dependencies = [
  "analysis",
  "geo_contracts",
  "geo_core",
- "geo_foundation",
  "geo_nurbs",
  "geo_primitives",
  "rayon",
@@ -737,7 +736,7 @@ name = "geo_entity"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "geo_foundation",
+ "geo_contracts",
  "geo_primitives",
  "serde",
  "thiserror 2.0.17",
@@ -757,7 +756,7 @@ dependencies = [
 name = "geo_io"
 version = "0.1.0"
 dependencies = [
- "geo_foundation",
+ "geo_contracts",
  "geo_primitives",
  "logging_foundation",
  "roxmltree",
@@ -788,7 +787,6 @@ dependencies = [
  "geo_commons",
  "geo_contracts",
  "geo_core",
- "geo_foundation",
  "serde",
 ]
 
@@ -2795,7 +2793,6 @@ dependencies = [
  "cam_sim",
  "geo_algorithms",
  "geo_contracts",
- "geo_foundation",
  "geo_io",
  "geo_nurbs",
  "geo_primitives",

@@ -1,6 +1,6 @@
 /// 補間、曲線近似用関数群
 /// 線形、ベジェ、Catmull-Rom、NURBS風の補間、近似
-use geo_foundation::ToleranceContext;
+use crate::tolerance::ToleranceContext;
 
 /// 線形補間器
 pub struct LinearInterpolator {
