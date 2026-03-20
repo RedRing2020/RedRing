@@ -242,3 +242,49 @@ fn edge_segment_intersection<T: Scalar>(
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        circle2d_circle2d_intersections_algo, circle2d_point2d_intersection,
+        line_segment2d_line_segment2d_intersection_algo, ray2d_circle2d_intersections,
+    };
+    use crate::{Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
+
+    #[test]
+    fn circle_point_intersection_returns_same_point() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let point = Point2D::new(1.0, 0.0);
+
+        let intersection = circle2d_point2d_intersection(&circle, &point, 1e-9);
+        assert_eq!(intersection, Some(point));
+    }
+
+    #[test]
+    fn circle_circle_intersection_returns_two_points() {
+        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let circle2 = Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap();
+
+        let intersections = circle2d_circle2d_intersections_algo(&circle1, &circle2);
+        assert_eq!(intersections.len(), 2);
+    }
+
+    #[test]
+    fn line_segment_line_segment_intersection_returns_crossing_point() {
+        let segment1 = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+        let segment2 = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
+
+        let intersection = line_segment2d_line_segment2d_intersection_algo(&segment1, &segment2);
+        assert_eq!(intersection, Some(Point2D::new(1.0, 0.0)));
+    }
+
+    #[test]
+    fn ray_circle_intersection_returns_forward_hits_only() {
+        let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+
+        let intersections = ray2d_circle2d_intersections(&ray, &circle, 1e-9);
+        assert_eq!(intersections.len(), 2);
+        assert!(intersections.iter().all(|point| point.x() >= -1.0));
+    }
+}

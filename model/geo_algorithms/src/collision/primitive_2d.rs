@@ -213,3 +213,54 @@ fn edges_intersect<T: Scalar>(
     let upper = T::ONE + tolerance;
     t1 >= lower && t1 <= upper && t2 >= lower && t2 <= upper
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        circle2d_circle2d_collides, circle2d_point2d_collides, line_segment2d_circle2d_collides,
+        triangle2d_triangle2d_collides,
+    };
+    use crate::{Circle2D, LineSegment2D, Point2D, Triangle2D};
+
+    #[test]
+    fn circle_point_collision_detects_boundary_point() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let point = Point2D::new(1.0, 0.0);
+
+        assert!(circle2d_point2d_collides(&circle, &point, 1e-9));
+    }
+
+    #[test]
+    fn circle_circle_collision_detects_overlap() {
+        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let circle2 = Circle2D::new(Point2D::new(1.5, 0.0), 1.0).unwrap();
+
+        assert!(circle2d_circle2d_collides(&circle1, &circle2, 1e-9));
+    }
+
+    #[test]
+    fn line_segment_circle_collision_detects_crossing_segment() {
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+
+        assert!(line_segment2d_circle2d_collides(&segment, &circle, 1e-9));
+    }
+
+    #[test]
+    fn triangle_triangle_collision_detects_edge_crossing() {
+        let triangle1 = Triangle2D::new(
+            Point2D::new(0.0, 0.0),
+            Point2D::new(2.0, 0.0),
+            Point2D::new(1.0, 2.0),
+        )
+        .unwrap();
+        let triangle2 = Triangle2D::new(
+            Point2D::new(1.0, -1.0),
+            Point2D::new(3.0, 1.0),
+            Point2D::new(1.0, 1.0),
+        )
+        .unwrap();
+
+        assert!(triangle2d_triangle2d_collides(&triangle1, &triangle2, 1e-9));
+    }
+}
