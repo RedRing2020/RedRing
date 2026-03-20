@@ -20,11 +20,11 @@ Transform Traits (AnalysisTransform2D/3D)
 
 ---
 
-## 1. Core Traits（geo_foundation/src/core/）
+## 1. Core Traits（geo_contracts/src/geometry/solids/）
 
 ### 定義場所
 
-`geo_foundation/src/core/{shape}_core_traits.rs`
+`geo_contracts/src/geometry/solids/{shape}_core_traits.rs`
 
 ### 3つの基本トレイト
 
@@ -98,7 +98,7 @@ where
 
 ---
 
-## 2. Extension Traits（geo_foundation/src/extension_foundation.rs）
+## 2. Extension Traits（geo_contracts/src/geometry/extensions/）
 
 ### ExtensionFoundation - 基本拡張
 
@@ -193,16 +193,16 @@ pub enum TransformError {
 
 新規幾何プリミティブ実装時の必要ファイル：
 
-### geo_foundation（トレイト定義）
+### geo_contracts（トレイト定義）
 
-- [ ] `geo_foundation/src/core/{shape}_core_traits.rs`
+- [ ] `geo_contracts/src/geometry/solids/{shape}_core_traits.rs`
   - [ ] `{Shape}Constructor<T>` trait
   - [ ] `{Shape}Properties<T>` trait
   - [ ] `{Shape}Measure<T>` trait
   - [ ] `{Shape}Core<T>` trait（統合）
   - [ ] Blanket implementation
 
-- [ ] `geo_foundation/src/lib.rs` に再エクスポート追加
+- [ ] `geo_contracts/src/lib.rs` に再エクスポート追加
   ```rust
   pub use core::{shape}_traits::{
       {Shape}Constructor, {Shape}Properties,

@@ -88,7 +88,7 @@ pub fn geometric_entity_to_vertices<T, G>(
     quality: &shape_converter::TessellationQuality,
 ) -> Result<Vec<mesh_converter::VertexData>, EntityConvertError>
 where
-    T: geo_foundation::Scalar,
+    T: geo_contracts::Scalar,
     G: 'static;
 
 pub fn cam_entity_to_vertices(
@@ -211,3 +211,4 @@ impl EntityManager {
 - 高度な選択（BVH/レイピッキング）
 - 永続化フォーマット（ファイル保存）
 - パラメトリック制約
+

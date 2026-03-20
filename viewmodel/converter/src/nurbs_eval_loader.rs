@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use geo_algorithms::{adaptive_tessellation as ga_tess, NurbsCurve3D, NurbsSurface3D};
-use geo_foundation::contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
+use geo_contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
 use geo_io::svg::{parse_svg_file, SvgError};
 use thiserror::Error;
 

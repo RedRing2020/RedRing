@@ -11,7 +11,7 @@ RedRingプロジェクトのアーキテクチャ構成と依存関係ルール�
 ```text
 foundation/         # 基礎機能（analysis: 数値解析・線形代数）
 model/             # 幾何データ層
-├── geo_foundation # トレイト定義・型システム
+├── geo_contracts  # トレイト定義・型システム
 ├── geo_commons    # 共通計算関数（楕円近似、距離計算等）
 ├── geo_primitives # 基本幾何要素
 ├── geo_core      # 幾何計算基盤
@@ -34,15 +34,13 @@ viewmodel/         # ビュー変換ロジック
 ### 基本原則
 
 ```text
-analysis → geo_foundation
-                ↓
-           geo_commons
-                ↓
-           geo_core
-            ↓    ↓
-   geo_primitives  geo_nurbs
-            ↓         ↓
-      geo_algorithms  geo_io
+analysis → geo_contracts → geo_commons
+                         ↓
+                      geo_core
+                       ↓    ↓
+            geo_primitives  geo_nurbs
+                       ↓         ↓
+                 geo_algorithms  geo_io
             ↓
         viewmodel
             ↓
@@ -56,11 +54,11 @@ analysis → geo_foundation
    - 数値計算、線形代数、抽象型を提供
 
 2. **Model レイヤー** (`geo_*`)
-   - `geo_foundation`: analysis のみに依存
-   - `geo_commons`: analysis, geo_foundation に依存
-   - `geo_core`: analysis, geo_foundation に依存
-   - `geo_primitives`: geo_foundation, geo_core, analysis に依存
-   - `geo_nurbs`: geo_foundation, geo_core, analysis に依存（geo_primitives 直接依存禁止）
+   - `geo_contracts`: analysis, geo_commons に依存
+   - `geo_commons`: analysis のみに依存
+   - `geo_core`: analysis, geo_entity に依存
+   - `geo_primitives`: geo_contracts, geo_core, analysis に依存
+   - `geo_nurbs`: geo_contracts, geo_core, analysis に依存（geo_primitives 直接依存禁止）
    - `geo_algorithms`: 上記全て + geo_primitives, geo_nurbs に依存可能
 
 3. **ViewModel レイヤー** (`viewmodel`)

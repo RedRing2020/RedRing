@@ -117,12 +117,12 @@
 ### Foundation Pattern 3層構造
 
 ```rust
-// 1. Core Traits（geo_foundation/src/core/）
+// 1. Core Traits（geo_contracts/src/core/）
 pub trait {Shape}Constructor<T: Scalar> { ... }
 pub trait {Shape}Properties<T: Scalar> { ... }
 pub trait {Shape}Measure<T: Scalar> { ... }
 
-// 2. Extension（geo_foundation/src/extension_foundation.rs）
+// 2. Extension（geo_contracts/src/extension_foundation.rs）
 pub trait ExtensionFoundation<T: Scalar> {
     fn primitive_kind(&self) -> PrimitiveKind;
     fn measure(&self) -> Option<T>;
@@ -133,7 +133,7 @@ pub trait Bounded<T: Scalar>: ExtensionFoundation<T> {
     fn aabb(&self) -> Option<Self::Aabb>;
 }
 
-// 3. Transform（geo_foundation/src/core/transform.rs）
+// 3. Transform（geo_contracts/src/core/transform.rs）
 pub trait AnalysisTransform2D<T: Scalar> { ... }
 pub trait AnalysisTransform3D<T: Scalar> { ... }
 ```
@@ -178,7 +178,7 @@ geo_nurbs/src/
 ### エラー型の統一
 
 - `NurbsError` - NURBS固有のエラー（`geo_nurbs/src/error.rs`）
-- `TransformError` - 変換操作のエラー（`geo_foundation`）
+- `TransformError` - 変換操作のエラー（`geo_contracts`）
 - `weight_storage.rs` から `NurbsOperationError` 削除（21行削除）
 
 ## 技術的な実装詳細
@@ -260,7 +260,7 @@ NURBS変換では重み（weights）を適切に扱う必要があります：
 ### 依存関係
 
 ```text
-analysis → geo_foundation
+analysis → geo_contracts
             ↓
         geo_core
             ↓
@@ -276,7 +276,7 @@ analysis → geo_foundation
 
 - ✅ `geo_nurbs` → `geo_primitives` 依存なし
 - ✅ `geo_nurbs` → `geo_core` 依存あり（Aabb2D/Aabb3D, Point2D/Point3D等）
-- ✅ `geo_nurbs` → `geo_foundation` 依存あり（Core Traits, Transform Traits）
+- ✅ `geo_nurbs` → `geo_contracts` 依存あり（Core Traits, Transform Traits）
 - ✅ `geo_nurbs` → `analysis` 依存あり（Matrix, Vector, Scalar等）
 
 ## 次のステップ（Phase 2候補）
@@ -306,7 +306,7 @@ Foundation Patternの参考として以下の実装を参照：
 
 ## 完了条件チェックリスト
 
-- [x] Core Traits定義ファイルが`geo_foundation/src/core/`に存在
+- [x] Core Traits定義ファイルが`geo_contracts/src/core/`に存在
 - [x] `NurbsCurve2D<T>`がすべてのCore Traitsを実装
 - [x] `NurbsCurve3D<T>`がすべてのCore Traitsを実装
 - [x] `NurbsSurface3D<T>`がすべてのCore Traitsを実装
@@ -331,3 +331,4 @@ Issue #194 Phase 1として、geo_nurbsへのFoundation Pattern完全適用が�
 **作成日**: 2026年1月10日  
 **作成者**: GitHub Copilot  
 **レビュー**: 必要に応じて更新
+

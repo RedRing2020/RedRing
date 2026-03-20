@@ -6,3 +6,8 @@
 //! 現時点では受け皿のみを用意し、実装移設は後続コミットで行う。
 
 pub mod pair_base;
+pub mod primitive_2d;
+pub mod primitive_3d;
+
+pub use primitive_2d::*;
+pub use primitive_3d::*;

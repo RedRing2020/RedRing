@@ -32,13 +32,13 @@ RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームで
 #### ステップ1: 既存実装の確認
 ```bash
 # 同種の形状の完全な実装を確認
-ls model/geo_foundation/src/core/*_solid_core_traits.rs
+ls model/geo_contracts/src/geometry/solids/*_core_traits.rs
 ls model/geo_primitives/src/*_solid_3d*.rs
 ```
 
 #### ステップ2: Foundation Pattern の確認
 以下の全てが揃っているか確認：
-- [ ] `geo_foundation/src/core/{shape}_core_traits.rs` - Core Traits 定義
+- [ ] `geo_contracts/src/geometry/solids/{shape}_core_traits.rs` - Core Traits 定義
   - [ ] `{Shape}Constructor<T>` trait
   - [ ] `{Shape}Properties<T>` trait  
   - [ ] `{Shape}Measure<T>` trait
@@ -58,15 +58,22 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 
 1. **設計検討フェーズ**: 実装前に複数選択肢を提示し、ユーザー承認を得る
 2. **継続作業確認**: 既存の途中実装がないか `dev/` フォルダと `model/geo_core` を確認
-3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_foundation`）
+3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_contracts`）
 4. **依存関係不変**: `scripts/check_architecture_dependencies_simple.ps1` の改変は絶対禁止
+
+### 依存関係と import の運用ルール（重要）
+
+- `geo_algorithms` は設計上 `geo_primitives` / `geo_nurbs` の上位層であり、クレート依存は許可される
+- ただし `geo_algorithms` の実装ファイルでは `use geo_primitives::...` の直接 import を禁止し、`geo_algorithms::lib.rs` の再エクスポート経由（`use crate::...`）を使用する
+- `geo_algorithms` 以外の下位層で、レイヤールールに反する `geo_primitives` 直接依存は引き続き禁止
 
 ### 絶対禁止事項
 
 - ❌ ユーザー承認なしでの実装開始
 - ❌ Foundation パターンの破壊や迂回
 - ❌ 既存設計方針の無断変更
-- ❌ `geo_primitives` への直接依存の許可
+- ❌ レイヤールールに反する `geo_primitives` への直接依存の許可
+- ❌ `geo_algorithms` 実装ファイル内での `use geo_primitives::...` 直接 import
 - ❌ アーキテクチャチェックスクリプトの例外追加
 
 ### 実装許可が必要な作業
@@ -98,8 +105,9 @@ ls model/geo_primitives/src/*_solid_3d*.rs
   - ハイブリッド方式（CPU分割 + GPU評価）
   - NurbsCurve3D/NurbsSurface3D対応
   - Foundation Pattern準拠（Extension Traits実装）
-**✅ geo_nurbs**: Foundation Pattern準拠完了（geo_foundation/geo_core のみに依存）
+**✅ geo_nurbs**: Foundation Pattern準拠完了（geo_contracts/geo_core のみに依存）
 **✅ 情報管理**: GitHub Issues/Projects 移行済み
+**✅ geo_foundation**: 廃止完了（2026年3月20日）- trait定義はgeo_contractsへ統一
 
 ---
 

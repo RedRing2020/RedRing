@@ -50,14 +50,15 @@ foundation/analysis（将来改名候補）
 
 - **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
 - **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
-- **`geo_foundation`廃止**: 形状traitは`geo_primitives`/`geo_nurbs`側へ再配置する
+- **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
+- **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
 - **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
 - **循環依存回避**: `geo_primitives` ↔ `geo_nurbs` の直接依存は禁止（交差処理は`geo_algorithms`に集約）
 
 ### 段階移行計画（提案）
 
 1. **Phase 1: trait移設**
-- `geo_foundation` の形状traitを `geo_primitives` / `geo_nurbs` へ移設
+- `geo_foundation` の形状traitを `geo_contracts` へ移設
 - 既存利用側を新trait参照へ置換
 
 2. **Phase 2: アルゴリズム統合**
@@ -169,3 +170,4 @@ redring ← stage ← render
 - [`MIGRATION_VECTOR_F64.md`](MIGRATION_VECTOR_F64.md) - f64 正準化移行履歴
 - [`GITHUB_PAGES_SETUP.md`](GITHUB_PAGES_SETUP.md) - GitHub Pages 設定ガイド
 - [`dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md`](dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Dockerヘッドレス + Kubernetes）
+

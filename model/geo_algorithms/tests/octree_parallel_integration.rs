@@ -1,6 +1,6 @@
 use geo_algorithms::octree::{HasBoundingBox, HasPosition, Octree, OctreeTolerance};
+use geo_contracts::ToleranceSettings;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::ToleranceSettings;
 
 fn test_point_aabb_half_extent() -> f64 {
     ToleranceSettings::<f64>::relaxed().distance_tolerance

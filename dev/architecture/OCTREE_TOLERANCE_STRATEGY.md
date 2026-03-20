@@ -68,7 +68,7 @@ Octree のトレランスは、幾何判定トレランスや CAM トレラン�
 ## 4. 変換ルール（推奨）
 
 基準:
-- `geo_foundation::ToleranceSettings.distance_tolerance` を基準値 `d_geo` とする
+- `geo_contracts::ToleranceSettings.distance_tolerance` を基準値 `d_geo` とする
 - Octree側は用途係数で派生
 
 推奨初期値:
@@ -120,3 +120,4 @@ CAM 連携時:
 
 本メモは「分離して管理する」方針を定義するもの。
 値の最適化（係数チューニング）は、性能計測とCAM精度要件を見ながら別タスクで確定する。
+

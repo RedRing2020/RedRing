@@ -125,7 +125,7 @@ pub trait NurbsCurveAdaptiveTessellation<T: Scalar> {
 #### 3.2.1 データ構造
 
 ```rust
-use geo_foundation::Scalar;
+use geo_contracts::Scalar;
 
 /// NURBS曲線の評価に必要なデータ（GPU渡し用）
 #[derive(Debug, Clone)]
@@ -152,7 +152,7 @@ impl NurbsCurveEvalData {
         curve: &geo_nurbs::NurbsCurve3D<T>,
         param_list: &geo_nurbs::adaptive_tessellation::AdaptiveParamList<T>,
     ) -> Self {
-        use geo_foundation::core::NurbsCurve3DProperties;
+        use geo_contracts::core::NurbsCurve3DProperties;
         
         let degree = curve.degree() as u32;
         let knots = curve.knots().iter().map(|k| k.to_f32().unwrap()).collect();
@@ -782,3 +782,4 @@ Phase 2では**Vertex Shader評価（Plan D）**を実装し、CPU側の適応�
 ✅ **GPU直接レンダリング実現**: 中間メッシュ不要  
 ✅ **Foundation Pattern準拠**: viewmodel層での型変換、view層でのGPU処理  
 ✅ **将来拡張性**: Phase 3でCompute Shader化も可能
+

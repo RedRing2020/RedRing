@@ -241,7 +241,7 @@ segments = clamp(screen_size / 5.0, min_segments, max_segments)
 ### Foundation Patternとの統合
 
 ```rust
-use geo_foundation::{ExtensionFoundation, PrimitiveKind};
+use geo_contracts::{ExtensionFoundation, PrimitiveKind};
 
 pub fn shape_to_vertices<T: Scalar>(
     shape: &dyn ExtensionFoundation<T>
@@ -437,3 +437,4 @@ impl AdaptiveTessellation {
 
 **レビュー**: 実装完了後に実施  
 **承認**: エンドツーエンドテスト合格後
+

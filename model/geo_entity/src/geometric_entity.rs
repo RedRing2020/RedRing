@@ -1,10 +1,5 @@
 use crate::{Attributes, DisplayAttributes, EntityId, Metadata};
-use geo_foundation::{
-    Scalar,
-    entity::core::entity_traits::{
-        EntityDisplayProperties, EntityIdentity, LineEntity3DProperties,
-    },
-};
+use geo_contracts::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties, Scalar};
 
 #[derive(Debug, Clone)]
 pub struct GeometricEntity<T: Scalar, G> {

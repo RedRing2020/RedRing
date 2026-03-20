@@ -1,5 +1,5 @@
 use cam_entity::CAMEntity;
-use geo_foundation::LineEntity3DProperties;
+use geo_contracts::LineEntity3DProperties;
 
 use crate::mesh_converter::VertexData;
 use crate::shape_converter::TessellationQuality;
@@ -48,11 +48,12 @@ pub fn cam_entity_to_vertices(
 mod tests {
     use super::*;
     use crate::shape_converter::TessellationQuality;
+    use geo_contracts::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties};
 
     #[derive(Clone, Copy)]
     struct MockLineEntity;
 
-    impl geo_foundation::EntityIdentity for MockLineEntity {
+    impl EntityIdentity for MockLineEntity {
         type Id = u64;
 
         fn entity_id(&self) -> Self::Id {
@@ -60,7 +61,7 @@ mod tests {
         }
     }
 
-    impl geo_foundation::EntityDisplayProperties for MockLineEntity {
+    impl EntityDisplayProperties for MockLineEntity {
         fn entity_visible(&self) -> bool {
             true
         }
@@ -70,7 +71,7 @@ mod tests {
         }
     }
 
-    impl geo_foundation::LineEntity3DProperties<f64> for MockLineEntity {
+    impl LineEntity3DProperties<f64> for MockLineEntity {
         fn line_start(&self) -> (f64, f64, f64) {
             (0.0, 0.0, 0.0)
         }

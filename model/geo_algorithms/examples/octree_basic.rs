@@ -9,8 +9,8 @@
 //! ```
 
 use geo_algorithms::octree::{HasBoundingBox, HasPosition, Octree, OctreeTolerance};
+use geo_contracts::ToleranceSettings;
 use geo_core::{Aabb3D, Point3D};
-use geo_foundation::ToleranceSettings;
 
 /// サンプル用の3D球形状
 #[derive(Debug, Clone)]

@@ -108,3 +108,4 @@
 - #318 `geo_foundation廃止完了: geo_contracts導入と参照置換`
 - #319 `Transform再編: geo_core共通核 + geo_primitives/geo_nurbs形状実装の2層化`
 - #320 `geo_commons廃止: analysis/geo_algorithms への分解移管`
+

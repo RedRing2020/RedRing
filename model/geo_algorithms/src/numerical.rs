@@ -4,7 +4,7 @@ use crate::sampling::IntersectionCandidate;
 /// 交差検出、近似、最適化問題の解法を提供
 use analysis::linalg::solver::newton::newton_solve_2d;
 use analysis::GEOMETRIC_DISTANCE_TOLERANCE;
-use geo_foundation::ToleranceContext;
+use crate::tolerance::ToleranceContext;
 
 /// 2次元ベクトル（analysisのlinalgから独立）
 #[derive(Debug, Clone, Copy)]

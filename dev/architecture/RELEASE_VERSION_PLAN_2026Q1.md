@@ -79,7 +79,7 @@
   - mdbook build
 
 2. **Foundation Pattern 準拠の幾何基盤**
-  - `geo_foundation` / `geo_core` / `geo_primitives` の基礎API
+  - `geo_contracts` / `geo_core` / `geo_primitives` の基礎API
   - 直接 import ルールを含む依存整合
 
 3. **NURBS 実装（曲線・曲面 + 適応的テッセレーション）**
@@ -149,3 +149,4 @@ PRコメントのみで残すと参照されなくなるため、`v0.1.0` 判定
 - [ ] Experimental 範囲をリリースノートに明記
 - [ ] `CHANGELOG.md` と `VERSIONING_POLICY.md` の記述に矛盾がない
 - [ ] 次サイクルに送る項目を Issue/Milestone に登録済み
+
