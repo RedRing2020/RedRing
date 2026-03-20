@@ -40,7 +40,7 @@ Foundation Patternに完全準拠し、統一された型安全なインター�
 すべてのNURBS型は以下のCore Traitsを実装：
 
 ```rust
-use geo_foundation::{
+use geo_contracts::{
     NurbsCurve3DConstructor, NurbsCurve3DProperties, NurbsCurve3DMeasure
 };
 
@@ -61,7 +61,7 @@ let length = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::arc_length_total(&
 ### Extension Traits（拡張機能）
 
 ```rust
-use geo_foundation::{ExtensionFoundation, Bounded};
+use geo_contracts::{Bounded, ExtensionFoundation};
 
 // PrimitiveKind取得
 let kind = curve.primitive_kind(); // PrimitiveKind::NurbsCurve3D
@@ -97,7 +97,7 @@ let scaled = curve.uniform_scale_analysis(&curve, 2.0)?;
 
 ```rust
 use geo_nurbs::NurbsCurve2D;
-use geo_foundation::NurbsCurve2DConstructor;
+use geo_contracts::NurbsCurve2DConstructor;
 
 // 制御点（2D座標）
 let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
@@ -120,7 +120,7 @@ println!("Point at t=0.5: ({}, {})", point.x(), point.y());
 ```rust
 use geo_nurbs::NurbsCurve3D;
 use geo_core::AnalysisTransform3D;
-use geo_foundation::NurbsCurve3DConstructor;
+use geo_contracts::NurbsCurve3DConstructor;
 use analysis::vector::Vector3;
 
 // 線分を作成
@@ -143,7 +143,7 @@ let rotated = translated.rotate_analysis(&axis, angle)?;
 
 ```rust
 use geo_nurbs::NurbsSurface3D;
-use geo_foundation::{NurbsSurface3DConstructor, NurbsSurface3DMeasure};
+use geo_contracts::{NurbsSurface3DConstructor, NurbsSurface3DMeasure};
 
 // 単位平面を生成
 let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
@@ -209,7 +209,7 @@ geo_nurbs/src/
 ## アーキテクチャ依存関係
 
 ```text
-analysis → geo_foundation
+analysis → geo_contracts
             ↓
         geo_core (Point2D, Point3D, Aabb2D, Aabb3D)
             ↓
