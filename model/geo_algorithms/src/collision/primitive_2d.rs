@@ -6,6 +6,8 @@
 //! 注意: orphan rules により、ここでは trait 実装ではなく
 //! 形状ペア関数を提供する。
 
+use crate::intersection::pair_base::line_segment2d_arc2d_intersections;
+use crate::intersection::primitive_2d::triangle2d_line_segment2d_intersections;
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D};
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DProperties,
@@ -104,6 +106,21 @@ pub fn arc2d_circle2d_collides<T: Scalar>(
     center_distance <= radii_sum + tolerance && center_distance >= radii_diff - tolerance
 }
 
+pub fn circle2d_arc2d_collides<T: Scalar>(
+    circle: &Circle2D<T>,
+    arc: &Arc2D<T>,
+    tolerance: T,
+) -> bool {
+    arc2d_circle2d_collides(arc, circle, tolerance)
+}
+
+pub fn line_segment2d_arc2d_collides<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    arc: &Arc2D<T>,
+) -> bool {
+    !line_segment2d_arc2d_intersections(segment, arc).is_empty()
+}
+
 pub fn ray2d_point2d_collides<T: Scalar>(ray: &Ray2D<T>, point: &Point2D<T>, tolerance: T) -> bool {
     ray.contains_point(point, tolerance)
 }
@@ -191,6 +208,14 @@ pub fn triangle2d_triangle2d_collides<T: Scalar>(
     false
 }
 
+pub fn triangle2d_line_segment2d_collides<T: Scalar>(
+    triangle: &Triangle2D<T>,
+    segment: &LineSegment2D<T>,
+    tolerance: T,
+) -> bool {
+    !triangle2d_line_segment2d_intersections(triangle, segment, tolerance).is_empty()
+}
+
 fn edges_intersect<T: Scalar>(
     p1: Point2D<T>,
     p2: Point2D<T>,
@@ -217,10 +242,11 @@ fn edges_intersect<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::{
-        circle2d_circle2d_collides, circle2d_point2d_collides, line_segment2d_circle2d_collides,
-        triangle2d_triangle2d_collides,
+        circle2d_arc2d_collides, circle2d_circle2d_collides, circle2d_point2d_collides,
+        line_segment2d_arc2d_collides, line_segment2d_circle2d_collides,
+        triangle2d_line_segment2d_collides, triangle2d_triangle2d_collides,
     };
-    use crate::{Circle2D, LineSegment2D, Point2D, Triangle2D};
+    use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Triangle2D};
 
     #[test]
     fn circle_point_collision_detects_boundary_point() {
@@ -262,5 +288,38 @@ mod tests {
         .unwrap();
 
         assert!(triangle2d_triangle2d_collides(&triangle1, &triangle2, 1e-9));
+    }
+
+    #[test]
+    fn line_segment_arc_collision_detects_crossing_segment() {
+        let arc = Arc2D::new(
+            Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            crate::Angle::from_degrees(0.0),
+            crate::Angle::from_degrees(180.0),
+        )
+        .unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+
+        assert!(line_segment2d_arc2d_collides(&segment, &arc));
+        assert!(circle2d_arc2d_collides(
+            &Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            &arc,
+            1e-9
+        ));
+    }
+
+    #[test]
+    fn triangle_line_segment_collision_detects_intersection() {
+        let triangle = Triangle2D::new(
+            Point2D::new(0.0, 0.0),
+            Point2D::new(2.0, 0.0),
+            Point2D::new(1.0, 2.0),
+        )
+        .unwrap();
+        let segment = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
+
+        assert!(triangle2d_line_segment2d_collides(
+            &triangle, &segment, 1e-9
+        ));
     }
 }
