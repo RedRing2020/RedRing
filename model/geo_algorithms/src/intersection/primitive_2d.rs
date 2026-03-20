@@ -51,6 +51,13 @@ pub fn arc2d_circle2d_intersections_algo<T: Scalar>(
     arc2d_circle2d_intersections(arc, circle)
 }
 
+pub fn circle2d_arc2d_intersections_algo<T: Scalar>(
+    circle: &Circle2D<T>,
+    arc: &Arc2D<T>,
+) -> Vec<Point2D<T>> {
+    arc2d_circle2d_intersections(arc, circle)
+}
+
 pub fn line_segment2d_circle2d_intersections_algo<T: Scalar>(
     segment: &LineSegment2D<T>,
     circle: &Circle2D<T>,
@@ -61,6 +68,13 @@ pub fn line_segment2d_circle2d_intersections_algo<T: Scalar>(
 pub fn line_segment2d_arc2d_intersections_algo<T: Scalar>(
     segment: &LineSegment2D<T>,
     arc: &Arc2D<T>,
+) -> Vec<Point2D<T>> {
+    line_segment2d_arc2d_intersections(segment, arc)
+}
+
+pub fn arc2d_line_segment2d_intersections_algo<T: Scalar>(
+    arc: &Arc2D<T>,
+    segment: &LineSegment2D<T>,
 ) -> Vec<Point2D<T>> {
     line_segment2d_arc2d_intersections(segment, arc)
 }
@@ -240,5 +254,80 @@ fn edge_segment_intersection<T: Scalar>(
         Some(Point2D::new(s1.x() + t1 * d1.x(), s1.y() + t1 * d1.y()))
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        arc2d_line_segment2d_intersections_algo, circle2d_arc2d_intersections_algo,
+        circle2d_circle2d_intersections_algo, circle2d_point2d_intersection,
+        line_segment2d_line_segment2d_intersection_algo, ray2d_circle2d_intersections,
+    };
+    use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
+
+    #[test]
+    fn circle_point_intersection_returns_same_point() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let point = Point2D::new(1.0, 0.0);
+
+        let intersection = circle2d_point2d_intersection(&circle, &point, 1e-9);
+        assert_eq!(intersection, Some(point));
+    }
+
+    #[test]
+    fn circle_circle_intersection_returns_two_points() {
+        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let circle2 = Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap();
+
+        let intersections = circle2d_circle2d_intersections_algo(&circle1, &circle2);
+        assert_eq!(intersections.len(), 2);
+    }
+
+    #[test]
+    fn line_segment_line_segment_intersection_returns_crossing_point() {
+        let segment1 = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+        let segment2 = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
+
+        let intersection = line_segment2d_line_segment2d_intersection_algo(&segment1, &segment2);
+        assert_eq!(intersection, Some(Point2D::new(1.0, 0.0)));
+    }
+
+    #[test]
+    fn ray_circle_intersection_returns_forward_hits_only() {
+        let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+
+        let intersections = ray2d_circle2d_intersections(&ray, &circle, 1e-9);
+        assert_eq!(intersections.len(), 2);
+        assert!(intersections.iter().all(|point| point.x() >= -1.0));
+    }
+
+    #[test]
+    fn circle_arc_intersection_symmetric_entry_point_returns_hits() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let arc = Arc2D::new(
+            Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap(),
+            crate::Angle::from_degrees(0.0),
+            crate::Angle::from_degrees(360.0),
+        )
+        .unwrap();
+
+        let intersections = circle2d_arc2d_intersections_algo(&circle, &arc);
+        assert!(!intersections.is_empty());
+    }
+
+    #[test]
+    fn arc_line_segment_intersection_symmetric_entry_point_returns_hits() {
+        let arc = Arc2D::new(
+            Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            crate::Angle::from_degrees(0.0),
+            crate::Angle::from_degrees(180.0),
+        )
+        .unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+
+        let intersections = arc2d_line_segment2d_intersections_algo(&arc, &segment);
+        assert!(!intersections.is_empty());
     }
 }
