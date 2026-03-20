@@ -2,6 +2,8 @@
 
 対象Issue: [#350 [Phase C][#347] 2D collision/intersection trait実装をgeo_algorithmsへ移管](https://github.com/RedRing2020/RedRing/issues/350)
 
+関連設計論点: `dev/architecture/issues/2026-03-geometry-refactor-05-collision-intersection-responsibility.md`
+
 ## 1. 目的
 
 - 2D 形状間の collision/intersection trait実装責務を `geo_algorithms` に集約する
