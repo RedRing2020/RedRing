@@ -6,7 +6,7 @@
 
 - Transformの共通責務を `geo_core` に統一する
 - 形状固有のTransform実装を `geo_primitives` / `geo_nurbs` に明確化する
-- `geo_contracts` 経由のTransform参照を段階的に除去し、#318の前提を揃える
+- 旧 `geo_foundation` 由来のTransform参照を除去済み状態に保ちつつ、#319 の責務分離を完了させる
 
 ## 2. 現状調査（Transform実装の依存）
 
@@ -14,8 +14,8 @@
 
 - `model/geo_primitives/src/*_transform.rs`: 32ファイル
 - `model/geo_nurbs/src/*_transform.rs`: 3ファイル
-- 総35ファイルすべてで `geo_foundation` 参照あり。
-- **補足**: 2026-03-20、geo_foundation 廃止完了により上記参照は `geo_contracts` / `geo_core` へ切替済み。
+- 総35ファイルにおける `geo_foundation` 直接参照: **0件**（2026-03-21確認）
+- **補足**: 参照切替自体は完了済み。#319 では「2層責務の整理」と「公開API/ドキュメント整合」を継続タスクとする。
 
 代表的な参照パターン:
 
@@ -67,7 +67,8 @@
 
 ## 5. スコープ外（本Issueではやらない）
 
-- ✅ `geo_contracts` 全廃（#318で実施、厳枠担観妨）- `geo_commons` 分解移管（#320で実施）
+- ✅ `geo_foundation` 全廃（#318で実施）
+- `geo_commons` 分解移管（#320で実施）
 - `geo_algorithms` の責務再編そのもの
 
 ## 6. リスクと対策
@@ -79,7 +80,7 @@
   - 対策: `impl AnalysisTransformSupport` の存在確認を機械検索で実施
 
 - リスク: READMEやサンプルだけ古い import のまま残る
-  - 対策: Phase Cで `rg "geo_contracts::AnalysisTransform|geo_contracts::TransformError"` を最終チェック
+  - 対策: Phase Cで `rg "geo_foundation::(AnalysisTransform2D|AnalysisTransform3D|AnalysisTransformSupport|TransformError)|use\s+geo_foundation::.*(AnalysisTransform|TransformError)"` を最終チェック
 
 ## 7. 完了条件（#319）
 
@@ -98,6 +99,18 @@
   - `cargo check -p geo_primitives`: pass
   - `cargo test -p geo_primitives`: pass
   - `scripts/check_architecture_dependencies.ps1 -ExitOnError`: pass
+
+## 9. 実施準備ステータス（2026-03-21）
+
+- 作業ブランチ: `issue-319-execution-prep`
+- 開始前確認:
+  - `model/geo_primitives/src/*_transform.rs`: 32ファイル
+  - `model/geo_nurbs/src/*_transform.rs`: 3ファイル
+  - `geo_foundation` 直接参照（上記35ファイル）: 0件
+- 着手順（推奨）:
+  1. Phase C（公開APIとREADME/examplesの整合）
+  2. 依存チェック・全体検証（Phase D）
+  3. 未完了項目があれば Phase A/B の差分再調査
 
 ### 8.2 将来リファクタに向けた共通化候補（`geo_core`）
 
