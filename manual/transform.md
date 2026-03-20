@@ -1,6 +1,6 @@
 # Transform システム
 
-RedRingの幾何変換システムについて説明します。現在は`analysis`クレートのMatrix4x4とVectorを直接使用した効率的な変換システムを提供しています。
+RedRingの幾何変換システムについて説明します。Transform trait 定義とエラー型は `geo_core` に集約され、各図形クレートはそれらを再公開して利用します。
 
 ## 設計思想
 
@@ -8,7 +8,7 @@ RedRingの幾何変換システムについて説明します。現在は`analys
 
 - **Analysis統合**: `analysis`クレートのMatrix4x4/Vector3を直接使用
 - **型変換効率**: geo_primitives⇔analysis間の最適化された変換
-- **Foundation準拠**: ExtensionFoundationパターンとの統合
+- **2層責務分離**: 共通Transform責務は `geo_core`、形状適用は各図形クレート
 - **エラーハンドリング**: TransformErrorによる安全な変換操作
 
 ### シンプルな構成
@@ -35,7 +35,7 @@ RedRingの幾何変換システムについて説明します。現在は`analys
 ```rust
 pub trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;  // analysis::Matrix4x4
-    type Angle;      // geo_foundation::Angle
+    type Angle;      // analysis::Angle
     type Output;     // 通常はSelf
 
     // 直接Matrix変換
@@ -134,7 +134,7 @@ impl<T: Scalar> Point3D<T> {
 統一されたTransformErrorによる堅牢なエラー処理：
 
 ```rust
-use geo_foundation::TransformError;
+use geo_core::TransformError;
 
 match mesh.rotate_analysis(&center, &axis, angle) {
     Ok(rotated) => { /* 成功 */ }
@@ -190,7 +190,7 @@ match mesh.rotate_analysis(&center, &axis, angle) {
 // 現在のシンプルな設計
 trait AnalysisTransform3D<T: Scalar> {
     type Matrix4x4;  // analysis::Matrix4x4<T>
-    type Angle;      // geo_foundation::Angle<T>
+    type Angle;      // analysis::Angle<T>
     type Output;     // 通常はSelf
 
     // 直接Matrix変換
