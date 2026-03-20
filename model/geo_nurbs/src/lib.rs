@@ -31,6 +31,9 @@ pub mod weight_storage;
 
 // Analysis ライブラリの Scalar トレイトを使用
 pub use analysis::Scalar;
+pub use geo_core::{
+    AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport, TransformError,
+};
 
 // 主要な型を再エクスポート
 pub use adaptive_tessellation::{

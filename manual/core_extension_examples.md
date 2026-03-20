@@ -28,8 +28,9 @@ println!("contains: {}", contains);
 ## Analysis Transform（幾何変換拡張）
 
 ```rust
+use analysis::Angle;
 use analysis::linalg::vector::Vector3;
-use geo_foundation::{AnalysisTransform3D, Angle};
+use geo_primitives::AnalysisTransform3D;
 
 let translation = Vector3::new(1.0, 2.0, 3.0);
 let translated = mesh.translate_analysis(&translation)?;

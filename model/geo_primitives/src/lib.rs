@@ -5,8 +5,10 @@
 
 // 新実装用モジュール（次元中立設計）
 // 共通型とエラー
-// Transformエラー型はgeo_coreを正規参照先とする
-pub use geo_core::TransformError;
+// Transform trait とエラー型は geo_core を正規参照先とし、このクレートでも再公開する
+pub use geo_core::{
+    AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport, TransformError,
+};
 
 // 3D プリミティブ
 pub mod arc_3d;

@@ -76,8 +76,9 @@ let bbox = curve.aabb()?; // Aabb3D<T>
 ### Transform Traits（変換操作）
 
 ```rust
-use geo_core::AnalysisTransform3D;
+use analysis::Angle;
 use analysis::vector::Vector3;
+use geo_nurbs::AnalysisTransform3D;
 
 // 平行移動
 let translated = curve.translate_analysis(&Vector3::new(1.0, 2.0, 3.0))?;
@@ -85,7 +86,7 @@ let translated = curve.translate_analysis(&Vector3::new(1.0, 2.0, 3.0))?;
 // 回転
 let axis = Vector3::new(0.0, 0.0, 1.0);
 let angle = Angle::from_degrees(90.0);
-let rotated = curve.rotate_analysis(&axis, angle)?;
+let rotated = curve.rotate_analysis(&curve, &axis, angle)?;
 
 // スケール
 let scaled = curve.uniform_scale_analysis(&curve, 2.0)?;
@@ -118,10 +119,10 @@ println!("Point at t=0.5: ({}, {})", point.x(), point.y());
 ### 3次元NURBS曲線の変換
 
 ```rust
-use geo_nurbs::NurbsCurve3D;
-use geo_core::AnalysisTransform3D;
-use geo_contracts::NurbsCurve3DConstructor;
+use analysis::Angle;
 use analysis::vector::Vector3;
+use geo_contracts::NurbsCurve3DConstructor;
+use geo_nurbs::{AnalysisTransform3D, NurbsCurve3D};
 
 // 線分を作成
 let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
@@ -136,7 +137,7 @@ let translated = curve.translate_analysis(&translation)?;
 // Z軸周りに90度回転
 let axis = Vector3::new(0.0, 0.0, 1.0);
 let angle = Angle::from_degrees(90.0);
-let rotated = translated.rotate_analysis(&axis, angle)?;
+let rotated = translated.rotate_analysis(&translated, &axis, angle)?;
 ```
 
 ### NURBS曲面の作成と法線計算
