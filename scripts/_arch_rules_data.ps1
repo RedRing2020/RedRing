@@ -5,7 +5,6 @@
 # Workspace crate path mapping
 $ARCH_LAYER_MAPPING = @{
     analysis       = "foundation/analysis"
-    geo_foundation = "model/geo_foundation"
     geo_contracts  = "model/geo_contracts"
     geo_commons    = "model/geo_commons"
     geo_core       = "model/geo_core"
@@ -29,13 +28,13 @@ $ARCH_LAYER_MAPPING = @{
 # Layer groups
 $ARCH_LAYERS = @{
     Analysis  = @("analysis")
-    Model     = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+    Model     = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
     ViewModel = @("converter", "graphics")
     View      = @("render", "stage", "app")
 }
 
 # Required model crates
-$ARCH_REQUIRED_MODEL_CRATES = @("geo_foundation", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
+$ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
 # Last updated: 2026-03-20 (#318 Phase C: contracts-first dependency alignment)

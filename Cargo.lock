@@ -744,15 +744,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "geo_foundation"
-version = "0.1.0"
-dependencies = [
- "analysis",
- "geo_commons",
- "geo_contracts",
-]
-
-[[package]]
 name = "geo_io"
 version = "0.1.0"
 dependencies = [
