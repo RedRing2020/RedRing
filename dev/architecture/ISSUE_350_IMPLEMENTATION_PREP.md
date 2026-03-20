@@ -16,6 +16,14 @@
 - `model/geo_algorithms/src/intersection/primitive_2d.rs`: 既存あり
 - 親Issue #347 の分割Issueは #350（2D）, #348（3D）, #349（混在）, #351（削除・回帰）
 
+### 2.1 実装制約の確認
+
+- `BasicCollision` / `BasicIntersection` / `MultipleIntersection` は `geo_contracts` 側trait定義
+- 2D形状型は `geo_primitives` 側型定義
+- Rust の orphan rules により、`geo_algorithms` でこれらの trait を対象型へ直接実装することはできない
+- さらに依存方向は `geo_algorithms -> geo_primitives` であり、`geo_primitives -> geo_algorithms` は導入できない
+- したがって #350 の現実的な第一段階は、`geo_algorithms` に free-function / pair-base ロジックを集約し、`geo_primitives` 側trait実装の縮退候補を棚卸しすることになる
+
 ## 3. #350 の対象範囲
 
 ### 対象
@@ -38,9 +46,10 @@
 
 ## 4. 実施方針
 
-- 先に `geo_algorithms` 側の 2D 実装を充足させる
-- 呼び出し側が `geo_algorithms` 実装を使う状態を確認してから `geo_primitives` 側の重複削減範囲を確定する
-- 1PR で全削除までは狙わず、#350 では「実装移管と参照整合」を優先する
+- 先に `geo_algorithms` 側の 2D free-function / pair-base 実装を充足させる
+- trait実装そのものの物理移管ではなく、どのロジックを `geo_algorithms` 正本へ寄せられるかを優先して整理する
+- `geo_primitives` 側trait実装は、削除可能になるまでの暫定ラッパーまたは旧経路として段階的に縮退させる
+- 1PR で全削除までは狙わず、#350 では「ロジック集約先の明確化」と「削減対象の確定」を優先する
 
 ## 5. 推奨着手順
 
@@ -48,19 +57,21 @@
 
 - [ ] `primitive_2d.rs` で既に扱っている形状ペアと未移管ペアを一覧化
 - [ ] `geo_primitives/src/*_collision.rs` / `*_intersection.rs` 側で 2D trait実装の所在を確認
+- [ ] orphan rules と依存方向の制約に照らして「直接移管不可」な点を明文化
 - [ ] テスト所在を確認し、移設が必要か参照維持で足りるか判断
 
 ### Phase B: geo_algorithms 側実装補完
 
 - [ ] `model/geo_algorithms/src/collision/primitive_2d.rs` を補完
 - [ ] `model/geo_algorithms/src/intersection/primitive_2d.rs` を補完
+- [ ] `pair_base.rs` に寄せられる共通ロジックを抽出
 - [ ] 必要な型再エクスポートがあれば `model/geo_algorithms/src/lib.rs` を更新
 - [ ] `geo_algorithms` 実装ファイル内の import は `use crate::...` に統一
 
 ### Phase C: 呼び出し整合
 
-- [ ] 2D trait実装の解決先が `geo_algorithms` 側になるよう調整
-- [ ] `geo_primitives` 側に残すべき shape-local helper と削減候補を切り分け
+- [ ] `geo_primitives` 側に残すべき trait実装ラッパーと shape-local helper を切り分け
+- [ ] `geo_algorithms` を正本ロジックとみなせる形状ペアを確定
 - [ ] #351 に回す削除候補を明文化
 
 ### Phase D: 検証
@@ -74,7 +85,10 @@
 ## 6. リスクと対策
 
 - リスク: `geo_primitives` と `geo_algorithms` に同一 trait実装が併存し、衝突する
-  - 対策: 先に trait実装の定義位置を機械検索で確認し、1ペアずつ移管する
+  - 対策: trait実装の直接移管は行わず、まず free-function / pair-base の正本化で整理する
+
+- リスク: Issue 文言どおりに「trait実装を geo_algorithms へ移管」と解釈すると、orphan rules と依存方向に反する
+  - 対策: #350 では「ロジック集約先の移管」と「trait実装縮退候補の整理」に読み替え、必要なら親Issue #347 の受け入れ条件を補足する
 
 - リスク: `geo_algorithms` 実装側で `use geo_primitives::...` が再発する
   - 対策: `lib.rs` 再エクスポートを先に整え、実装ファイルは `use crate::...` のみ許可する
@@ -94,3 +108,46 @@
 - 次の実装着手 Issue は #350 を優先する
 - ブランチは `issue-350-execution-prep` を準備済み
 - 実装開始ブランチは、この準備PRマージ後に `issue-350-collision-2d-execution` を推奨する
+
+## 9. 初回棚卸しメモ
+
+### 9.1 `geo_algorithms` 側で既にある 2D collision 関数
+
+- `circle2d_point2d_collides`
+- `circle2d_circle2d_collides`
+- `line_segment2d_point2d_distance`
+- `line_segment2d_circle2d_collides`
+- `arc2d_point2d_collides`
+- `arc2d_circle2d_collides`
+- `ray2d_point2d_collides`
+- `ray2d_circle2d_collides`
+- `ray2d_line_segment2d_collides`
+- `triangle2d_circle2d_collides`
+- `triangle2d_triangle2d_collides`
+
+### 9.2 `geo_algorithms` 側で既にある 2D intersection 関数
+
+- `circle2d_point2d_intersection`
+- `circle2d_circle2d_intersections_algo`
+- `circle2d_line_segment2d_intersections_algo`
+- `arc2d_circle2d_intersections_algo`
+- `line_segment2d_circle2d_intersections_algo`
+- `line_segment2d_arc2d_intersections_algo`
+- `line_segment2d_line_segment2d_intersection_algo`
+- `ray2d_line_segment2d_intersection`
+- `ray2d_circle2d_intersections`
+- `triangle2d_line_segment2d_intersections`
+- `ray2d_ellipse2d_intersection`
+- `arc2d_point2d_intersection`
+
+### 9.3 `geo_primitives` 側に依然として残っている代表的な 2D trait実装
+
+- `Circle2D`: Point / Circle / LineSegment
+- `Arc2D`: Point / Circle
+- `LineSegment2D`: Point / Circle / Arc / LineSegment
+- `Ray2D`: Point / Circle / Arc / LineSegment / Triangle / Ellipse / Ray
+- `InfiniteLine2D`: Point / Circle / Arc / LineSegment / Triangle / Ellipse / Ray / InfiniteLine
+- `Triangle2D`: Point / Circle / Arc / LineSegment / Triangle
+- `Ellipse2D`, `EllipseArc2D`: 2D複数形状ペア
+
+この差から、#350 の最初の実装差分は `Circle2D` / `Arc2D` / `LineSegment2D` / `Ray2D` / `Triangle2D` 周辺を優先すると小さく始めやすい。
