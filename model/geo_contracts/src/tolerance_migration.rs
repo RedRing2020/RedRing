@@ -1,6 +1,7 @@
 //! 段階的移行のための許容誤差デフォルト値提供
 //!
 //! Scalar から許容誤差を分離するための過渡期的な仕組み。
+//! 廃止予定: #361（フェーズ2で `ToleranceSettings` 移行完了後に削除）
 
 use crate::{Scalar, ToleranceSettings};
 

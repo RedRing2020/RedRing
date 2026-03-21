@@ -2,6 +2,7 @@
 ///
 /// 旧アルゴリズム実装が参照していた `ToleranceContext` を
 /// 外部基盤クレート非依存で維持するための最小定義。
+/// 廃止予定: #361（フェーズ3で `ToleranceSettings` ベース移行後に削除）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ToleranceContext {
     pub linear: f64,
