@@ -13,8 +13,8 @@ use crate::{
     Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, BasicIntersection, Circle2DProperties, Ellipse2DProperties,
-    LineSegment2DProperties, MultipleIntersection, Ray2DProperties, Scalar, Triangle2DProperties,
+    Arc2DProperties, Circle2DProperties, Ellipse2DProperties, InfiniteLine2DProperties,
+    LineSegment2DProperties, Ray2DProperties, Scalar, Triangle2DProperties,
 };
 
 pub fn circle2d_point2d_intersection<T: Scalar>(
@@ -254,7 +254,11 @@ pub fn infinite_line2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    line.intersection_with(point, tolerance)
+    if line.contains_point(point, tolerance) {
+        Some(*point)
+    } else {
+        None
+    }
 }
 
 pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
@@ -262,7 +266,12 @@ pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    line.intersection_with(circle, tolerance)
+    let center = Point2D::new(circle.center().0, circle.center().1);
+    if line.distance_to_point(&center) <= circle.radius() + tolerance {
+        Some(center)
+    } else {
+        None
+    }
 }
 
 pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
@@ -270,7 +279,28 @@ pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> Vec<Point2D<T>> {
-    line.intersections_with(circle, tolerance)
+    let center = Point2D::new(circle.center().0, circle.center().1);
+    let projected = line.project_point(&center);
+    let dist_to_center = line.distance_to_point(&center);
+    let radius = circle.radius();
+    if dist_to_center > radius + tolerance {
+        return Vec::new();
+    }
+    if (dist_to_center - radius).abs() <= tolerance {
+        return vec![projected];
+    }
+    let half_chord = (radius * radius - dist_to_center * dist_to_center).sqrt();
+    let (dx, dy) = InfiniteLine2DProperties::direction(line);
+    vec![
+        Point2D::new(
+            projected.x() + half_chord * dx,
+            projected.y() + half_chord * dy,
+        ),
+        Point2D::new(
+            projected.x() - half_chord * dx,
+            projected.y() - half_chord * dy,
+        ),
+    ]
 }
 
 pub fn circle2d_infinite_line2d_intersection<T: Scalar>(
@@ -294,7 +324,22 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    line.intersection_with(segment, tolerance)
+    let (s1x, s1y) = LineSegment2DProperties::start(segment);
+    let (s2x, s2y) = LineSegment2DProperties::end(segment);
+    let (lx, ly) = InfiniteLine2DProperties::point(line);
+    let (ldx, ldy) = InfiniteLine2DProperties::direction(line);
+    let dx_seg = s2x - s1x;
+    let dy_seg = s2y - s1y;
+    let denominator = ldx * dy_seg - ldy * dx_seg;
+    if denominator.abs() < T::EPSILON {
+        return None;
+    }
+    let t2 = ((s1x - lx) * ldy - (s1y - ly) * ldx) / denominator;
+    if t2 >= T::ZERO - tolerance && t2 <= T::ONE + tolerance {
+        Some(Point2D::new(s1x + t2 * dx_seg, s1y + t2 * dy_seg))
+    } else {
+        None
+    }
 }
 
 pub fn line_segment2d_infinite_line2d_intersection<T: Scalar>(
@@ -310,7 +355,20 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
     ray: &Ray2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    line.intersection_with(ray, tolerance)
+    let (ox, oy) = Ray2DProperties::origin(ray);
+    let (rdx, rdy) = Ray2DProperties::direction(ray);
+    let (lx, ly) = InfiniteLine2DProperties::point(line);
+    let (ldx, ldy) = InfiniteLine2DProperties::direction(line);
+    let denominator = ldx * rdy - ldy * rdx;
+    if denominator.abs() < T::EPSILON {
+        return None;
+    }
+    let t2 = ((ox - lx) * ldy - (oy - ly) * ldx) / denominator;
+    if t2 >= T::ZERO - tolerance {
+        Some(Point2D::new(ox + t2 * rdx, oy + t2 * rdy))
+    } else {
+        None
+    }
 }
 
 pub fn ray2d_infinite_line2d_intersection<T: Scalar>(
@@ -326,7 +384,11 @@ pub fn ellipse2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    ellipse.intersection_with(point, tolerance)
+    if ellipse.distance_to_point(point) <= tolerance {
+        Some(*point)
+    } else {
+        None
+    }
 }
 
 pub fn ellipse2d_circle2d_intersection<T: Scalar>(
@@ -334,7 +396,12 @@ pub fn ellipse2d_circle2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    ellipse.intersection_with(circle, tolerance)
+    let center = Point2D::new(circle.center().0, circle.center().1);
+    if ellipse.distance_to_point(&center) <= circle.radius() + tolerance {
+        Some(center)
+    } else {
+        None
+    }
 }
 
 pub fn ellipse2d_circle2d_intersections<T: Scalar>(
@@ -342,7 +409,12 @@ pub fn ellipse2d_circle2d_intersections<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> Vec<Point2D<T>> {
-    ellipse.intersections_with(circle, tolerance)
+    let center = Point2D::new(circle.center().0, circle.center().1);
+    if ellipse.distance_to_point(&center) <= circle.radius() + tolerance {
+        vec![center]
+    } else {
+        Vec::new()
+    }
 }
 
 pub fn circle2d_ellipse2d_intersection<T: Scalar>(

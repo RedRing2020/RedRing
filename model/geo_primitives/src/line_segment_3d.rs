@@ -5,7 +5,8 @@
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    LineSegment3DConstructor, LineSegment3DMeasure, LineSegment3DProperties, Scalar,
+    LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DMeasure,
+    LineSegment3DProperties, Scalar,
 };
 
 /// 3次元空間の線分
@@ -308,5 +309,16 @@ impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
         let end = self.end();
         let v = Vector3D::from_points(&start, &end);
         (v.x(), v.y(), v.z())
+    }
+}
+
+impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {
+    fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T {
+        use geo_commons::line_segment_to_aabb_distance;
+        let start_point = self.start();
+        let end_point = self.end();
+        let start = (start_point.x(), start_point.y(), start_point.z());
+        let end = (end_point.x(), end_point.y(), end_point.z());
+        line_segment_to_aabb_distance(start, end, aabb_min, aabb_max)
     }
 }

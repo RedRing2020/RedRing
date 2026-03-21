@@ -6,7 +6,7 @@
 
 ## 現在ブランチ
 
-- `issue-351-phasec-cleanup`
+- `issue-351-main-cleanup`
 
 ## 棚卸し結果（要点）
 
@@ -136,3 +136,189 @@ Get-ChildItem -Path model -Filter *.rs -Recurse |
   - `cargo clippy -p geo_primitives -- -D warnings`: pass
   - `cargo fmt --all`: pass
   - `cargo test -p geo_primitives`: pass（316 passed, 0 failed）
+
+## 本丸着手準備（post PR #370 merge）
+
+### 前提確認
+
+- PR #370（dead code cleanup）は `develop` へマージ済み
+- #351 は open のまま継続（本丸タスク未着手）
+- ブランチは `issue-351-main-cleanup` で開始
+
+### 現在有効な collision/intersection モジュール（`lib.rs` の `mod` 宣言ベース）
+
+#### 2D
+
+- `arc_2d_collision`, `arc_2d_intersection`
+- `circle_2d_collision`, `circle_2d_intersection`
+- `ellipse_2d_collision`, `ellipse_2d_intersection`
+- `infinite_line_2d_collision`, `infinite_line_2d_intersection`
+- `line_segment_2d_collision`, `line_segment_2d_intersection`
+- `ray_2d_collision`, `ray_2d_intersection`
+- `triangle_2d_collision`, `triangle_2d_intersection`
+
+#### 3D
+
+- `arc_3d_collision`, `arc_3d_intersection`
+- `circle_3d_collision`, `circle_3d_intersection`
+- `cylindrical_solid_3d_collision`
+- `cylindrical_surface_3d_collision`, `cylindrical_surface_3d_intersection`
+- `ellipse_3d_collision`, `ellipse_3d_intersection`
+- `ellipsoidal_solid_3d_collision`, `ellipsoidal_solid_3d_intersection`
+- `ellipsoidal_surface_3d_collision`, `ellipsoidal_surface_3d_intersection`
+- `infinite_line_3d_collision`, `infinite_line_3d_intersection`
+- `line_segment_3d_collision`, `line_segment_3d_intersection`
+- `plane_3d_collision`, `plane_3d_intersection`
+- `ray_3d_collision`, `ray_3d_intersection`
+- `spherical_solid_3d_collision`
+- `torus_solid_3d_collision`, `torus_solid_3d_intersection`
+- `torus_surface_3d_collision`, `torus_surface_3d_intersection`
+- `triangle_3d_collision`, `triangle_3d_intersection`
+- `triangle_mesh_3d_collision`, `triangle_mesh_3d_intersection`
+
+### 実行順（本丸）
+
+1. 2D first: `arc/circle/line_segment/ray/triangle` から wrapper化・縮退
+2. 2D second: `infinite_line/ellipse` を同手順で縮退
+3. 3D first: `line_segment/plane/ray/infinite_line/circle/arc` の基礎ペアを縮退
+4. 3D second: `ellipse/ellipsoidal/cylindrical/spherical/torus/triangle_mesh` を縮退
+5. 段階ごとに `cargo clippy -p geo_primitives -- -D warnings` -> `cargo fmt --all` -> `cargo test -p geo_primitives`
+
+### 直近スライス（次コミット候補）
+
+- 対象: 2D `arc_2d_*`, `circle_2d_*`, `line_segment_2d_*`
+- 目標: `geo_algorithms` 正本関数への委譲に寄せるか、削除不能な shape-local 処理だけ残置
+- 完了判定:
+  - old 実装の重複ロジックが減っている
+  - `geo_algorithms` 正本経路で回帰しない
+  - #351 に差分サマリを追記済み
+
+### Slice 4: 2D `arc/circle/line_segment` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `arc_2d_collision.rs`, `arc_2d_intersection.rs`
+  - `circle_2d_collision.rs`, `circle_2d_intersection.rs`
+  - `line_segment_2d_collision.rs`, `line_segment_2d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象6ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（316 passed, 0 failed）
+
+### 次スライス候補（本丸継続）
+
+1. 2D `ray_2d_*`, `triangle_2d_*` の同手順適用
+2. 2D `infinite_line_2d_*`, `ellipse_2d_*` の同手順適用
+3. 各スライスごとに #351 へ差分要約を追記
+
+### Slice 5: 2D `ray/triangle` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `ray_2d_collision.rs`, `ray_2d_intersection.rs`
+  - `triangle_2d_collision.rs`, `triangle_2d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象4ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（316 passed, 0 failed）
+
+### 次スライス候補（更新）
+
+1. 2D `infinite_line_2d_*`, `ellipse_2d_*` の同手順適用
+2. 3D 基礎ペア（`line_segment_3d_*`, `plane_3d_*`, `ray_3d_*`, `infinite_line_3d_*`）の同手順適用
+
+### Slice 6: 2D `infinite_line/ellipse` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `infinite_line_2d_collision.rs`, `infinite_line_2d_intersection.rs`
+  - `ellipse_2d_collision.rs`, `ellipse_2d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象4ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（316 passed, 0 failed）
+
+### 次スライス候補（再更新）
+
+1. 3D 基礎ペア（`line_segment_3d_*`, `plane_3d_*`, `ray_3d_*`, `infinite_line_3d_*`）の同手順適用
+2. 3D 上位ペア（`ellipse_3d_*`, `ellipsoidal_*`, `cylindrical_*`, `torus_*`, `triangle_mesh_3d_*`）の同手順適用
+
+### Slice 7: 3D 基礎ペア `line_segment/plane/ray/infinite_line` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `line_segment_3d_collision.rs`, `line_segment_3d_intersection.rs`
+  - `plane_3d_collision.rs`, `plane_3d_intersection.rs`
+  - `ray_3d_collision.rs`, `ray_3d_intersection.rs`
+  - `infinite_line_3d_collision.rs`, `infinite_line_3d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象8ファイルを物理削除
+  - 付随修正: `cylindrical_*_collision.rs` 内の `Plane3D` 距離参照を `distance_to_point` に置換
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（313 passed, 0 failed）
+
+### 次スライス候補（更新）
+
+1. 3D 上位ペア（`ellipse_3d_*`, `ellipsoidal_*`, `cylindrical_*`）の同手順適用
+2. 3D 上位ペア（`torus_*`, `triangle_3d_*`, `triangle_mesh_3d_*`）の同手順適用
+
+### Slice 8: 3D 上位ペア（前半）`ellipse/ellipsoidal/cylindrical` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `cylindrical_solid_3d_collision.rs`
+  - `cylindrical_surface_3d_collision.rs`, `cylindrical_surface_3d_collision_tests.rs`, `cylindrical_surface_3d_intersection.rs`
+  - `ellipse_3d_collision.rs`, `ellipse_3d_collision_tests.rs`, `ellipse_3d_intersection.rs`, `ellipse_3d_intersection_tests.rs`
+  - `ellipsoidal_solid_3d_collision.rs`, `ellipsoidal_solid_3d_collision_tests.rs`, `ellipsoidal_solid_3d_intersection.rs`, `ellipsoidal_solid_3d_intersection_tests.rs`
+  - `ellipsoidal_surface_3d_collision.rs`, `ellipsoidal_surface_3d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` / `#[cfg(test)] pub mod` 宣言を切り離し
+  - 対象14ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（269 passed, 0 failed）
+
+### 次スライス候補（再更新）
+
+1. 3D 上位ペア（後半）`torus_*`, `triangle_3d_*`, `triangle_mesh_3d_*` の同手順適用
+2. 3D 上位ペア適用後に `cargo check --workspace` / `cargo test --workspace` で横断回帰確認
+
+### Slice 9: 3D 上位ペア（後半）`torus/triangle/triangle_mesh` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `torus_solid_3d_collision.rs`, `torus_solid_3d_intersection.rs`
+  - `torus_surface_3d_collision.rs`, `torus_surface_3d_intersection.rs`
+  - `triangle_3d_collision.rs`, `triangle_3d_intersection.rs`
+  - `triangle_mesh_3d_collision.rs`, `triangle_mesh_3d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - `geo_algorithms` 側で `triangle3d_*_collides` を `BasicCollision` 非依存へ移行
+  - 対象8ファイルを物理削除
+- 検証:
+  - `cargo check --workspace`: pass
+
+### Final Slice: `arc_3d/circle_3d/spherical_solid` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `arc_3d_collision.rs`, `arc_3d_intersection.rs`
+  - `circle_3d_collision.rs`, `circle_3d_intersection.rs`
+  - `spherical_solid_3d_collision.rs`, `spherical_solid_3d_collision_tests.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` / `#[cfg(test)] pub mod` 宣言を切り離し
+  - `geo_algorithms` 側で `arc3d_*` / `circle3d_*` / `spherical_solid3d_*` の
+    collision/intersection を `BasicCollision` / `BasicIntersection` 非依存へ移行
+  - 付随修正: `primitive_nurbs.rs` の `SphericalSolid3D` / `EllipsoidalSolid3D` 距離評価を
+    形状メソッド利用へ置換（内部点は距離0扱い）
+  - 対象6ファイルを物理削除
+- 検証:
+  - `cargo clippy -- -D warnings`: pass
+  - `cargo fmt`: pass
+  - `cargo test --workspace`: pass

@@ -20,7 +20,8 @@ use crate::{
 };
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
 use geo_contracts::{
-    BasicCollision, Circle3DProperties, InfiniteLine3DProperties, Plane3DProperties, Scalar,
+    BasicCollision, Circle3DProperties, CylindricalSolid3DMeasure, InfiniteLine3DProperties,
+    Plane3DProperties, Scalar,
 };
 use geo_core::Point3D;
 use geo_nurbs::NurbsCurve3D;
@@ -449,11 +450,7 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T>
             let curve_vec = self.0.evaluate_at(u);
             let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
 
-            // SphericalSolid3Dの distance_to メソッドを完全修飾構文で呼び出す
-            let distance = <SphericalSolid3D<T> as BasicCollision<T, Point3D<T>>>::distance_to(
-                sphere,
-                &curve_point,
-            );
+            let distance = sphere.distance_to_surface(curve_point);
             min_distance = min_distance.min(distance);
         }
 
@@ -487,11 +484,11 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<
             let curve_vec = self.0.evaluate_at(u);
             let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
 
-            // 楕円体の distance_to メソッドを完全修飾構文で呼び出す
-            let distance = <EllipsoidalSolid3D<T> as BasicCollision<T, Point3D<T>>>::distance_to(
-                ellipsoid,
-                &curve_point,
-            );
+            let distance = if ellipsoid.contains_point(&curve_point) {
+                T::ZERO
+            } else {
+                ellipsoid.distance_to_surface(&curve_point)
+            };
             min_distance = min_distance.min(distance);
         }
 
@@ -525,11 +522,12 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
             let curve_vec = self.0.evaluate_at(u);
             let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
 
-            // 円柱の distance_to メソッドを完全修飾構文で呼び出す
-            let distance = <CylindricalSolid3D<T> as BasicCollision<T, Point3D<T>>>::distance_to(
-                cylinder,
-                &curve_point,
-            );
+            // 円柱の distance_to_point メソッドを使用
+            let distance =
+                <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+                    cylinder,
+                    (curve_point.x(), curve_point.y(), curve_point.z()),
+                );
             min_distance = min_distance.min(distance);
         }
 
