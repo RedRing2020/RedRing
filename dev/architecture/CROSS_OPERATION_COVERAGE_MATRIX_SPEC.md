@@ -158,3 +158,20 @@ notes: string | null
 1. #364 で本仕様へのレビューコメントを反映して v1.0 確定
 2. #366 で「未登録/非対称/重複」検出テストを実装
 3. #367/#365/#363 で演算ごとに登録範囲を拡張
+
+## 11. #366 検証契約
+
+matrix-driven テストエンジンは、最低限以下を fail として検出する。
+
+- 必須未登録:
+	- 条件: `required=true` かつ `entrypoint_a_to_b=null`
+	- 出力: `missing required entrypoints` セクションに `id` 一覧を列挙
+- 非対称:
+	- 条件: `symmetric=true` で逆向きレコード `(shape_b, shape_a)` が存在しない
+	- 条件: `symmetric=true` で逆向きの `cardinality` が不一致
+	- 出力: `symmetry mismatch` セクションに mismatch 内容を列挙
+- 重複登録:
+	- 条件: 同一主キー `(dimension, operation, shape_a, shape_b)` が複数存在
+	- 出力: `duplicate matrix keys` セクションに重複キーを列挙
+
+失敗メッセージは、最初の1件のみではなく不足/不整合の一覧をまとめて表示する。
