@@ -12,15 +12,11 @@ pub use geo_core::{
 
 // 3D プリミティブ
 pub mod arc_3d;
-mod arc_3d_collision; // Arc3D の衝突判定
 pub mod arc_3d_extensions; // Arc3D の拡張機能 (Extension)
 pub mod arc_3d_foundation; // Arc3D のFoundation実装
-mod arc_3d_intersection; // Arc3D の交差計算
 pub mod circle_3d; // Circle3D の新実装
-mod circle_3d_collision; // Circle3D の衝突判定
 pub mod circle_3d_extensions; // Circle3D の拡張機能 (Extension)
 pub mod circle_3d_foundation; // Circle3D のFoundation実装
-mod circle_3d_intersection; // Circle3D の交差計算
 pub mod circle_3d_tests; // Circle3D のテスト
 pub mod conical_solid_3d; // ConicalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod conical_solid_3d_extensions; // ConicalSolid3D の拡張機能 (Extension)
@@ -101,30 +97,19 @@ pub mod rectangle_3d; // Rect3D の新実装 (Core)
 pub mod rectangle_3d_foundation; // Rect3D のFoundation実装
 pub mod rectangle_3d_transform; // Rect3D の変換実装
 pub mod spherical_solid_3d; // SphericalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-mod spherical_solid_3d_collision; // SphericalSolid3D の衝突判定
-#[cfg(test)]
-pub mod spherical_solid_3d_collision_tests; // SphericalSolid3D 衝突判定テスト
 pub mod spherical_solid_3d_foundation; // SphericalSolid3D のFoundation実装
 pub mod spherical_surface_3d; // SphericalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
 pub mod spherical_surface_3d_foundation; // SphericalSurface3D のFoundation実装
 pub mod torus_solid_3d; // TorusSolid3D の新実装 (Core) - 3D CAM 固体加工対応
-mod torus_solid_3d_collision; // TorusSolid3D の衝突判定実装
 pub mod torus_solid_3d_extensions; // TorusSolid3D の拡張機能 (Extension)
 pub mod torus_solid_3d_foundation; // TorusSolid3D のFoundation実装
-mod torus_solid_3d_intersection; // TorusSolid3D の交差判定実装
 pub mod torus_surface_3d; // TorusSurface3D の新実装 (Core) - 3D CAM 工具オフセット対応
-mod torus_surface_3d_collision; // TorusSurface3D の衝突判定実装
 pub mod torus_surface_3d_extensions; // TorusSurface3D の拡張機能 (Extension)
 pub mod torus_surface_3d_foundation; // TorusSurface3D のFoundation実装
-mod torus_surface_3d_intersection; // TorusSurface3D の交差判定実装
 pub mod triangle_3d; // Triangle3D の新実装 (Core)
-mod triangle_3d_collision; // Triangle3D の衝突検出実装
 pub mod triangle_3d_foundation; // Triangle3D のFoundation実装
-mod triangle_3d_intersection; // Triangle3D の交点計算実装
 pub mod triangle_mesh_3d; // TriangleMesh3D の新実装 (Core)
-mod triangle_mesh_3d_collision; // TriangleMesh3D の衝突検出実装
 pub mod triangle_mesh_3d_foundation; // TriangleMesh3D のFoundation実装
-mod triangle_mesh_3d_intersection; // TriangleMesh3D の交点計算実装
 pub mod triangle_mesh_3d_transform; // TriangleMesh3D のAnalysisTransform実装
 
 // Transform テストモジュール

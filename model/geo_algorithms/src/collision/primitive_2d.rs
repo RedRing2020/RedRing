@@ -13,7 +13,7 @@ use crate::{
     Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, BasicCollision, Circle2DProperties, LineSegment2DProperties, Scalar,
+    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Ray2DProperties, Scalar,
     Triangle2DProperties,
 };
 
@@ -264,7 +264,7 @@ pub fn infinite_line2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    line.intersects(point, tolerance)
+    line.contains_point(point, tolerance)
 }
 
 pub fn infinite_line2d_circle2d_collides<T: Scalar>(
@@ -272,7 +272,8 @@ pub fn infinite_line2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    line.intersects(circle, tolerance)
+    let center = Point2D::new(circle.center().0, circle.center().1);
+    line.distance_to_point(&center) <= circle.radius() + tolerance
 }
 
 pub fn circle2d_infinite_line2d_collides<T: Scalar>(
@@ -288,7 +289,9 @@ pub fn infinite_line2d_line_segment2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> bool {
-    line.intersects(segment, tolerance)
+    let start = Point2D::new(segment.start().0, segment.start().1);
+    let end = Point2D::new(segment.end().0, segment.end().1);
+    line.distance_to_point(&start) <= tolerance || line.distance_to_point(&end) <= tolerance
 }
 
 pub fn line_segment2d_infinite_line2d_collides<T: Scalar>(
@@ -304,7 +307,9 @@ pub fn infinite_line2d_ray2d_collides<T: Scalar>(
     ray: &Ray2D<T>,
     tolerance: T,
 ) -> bool {
-    line.intersects(ray, tolerance)
+    let (ox, oy) = ray.origin();
+    let origin = Point2D::new(ox, oy);
+    line.contains_point(&origin, tolerance)
 }
 
 pub fn ray2d_infinite_line2d_collides<T: Scalar>(
@@ -320,7 +325,7 @@ pub fn ellipse2d_point2d_collides<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> bool {
-    ellipse.intersects(point, tolerance)
+    ellipse.distance_to_point(point) <= tolerance
 }
 
 pub fn ellipse2d_circle2d_collides<T: Scalar>(
@@ -328,7 +333,8 @@ pub fn ellipse2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    ellipse.intersects(circle, tolerance)
+    let center = Point2D::new(circle.center().0, circle.center().1);
+    ellipse.distance_to_point(&center) <= circle.radius() + tolerance
 }
 
 pub fn circle2d_ellipse2d_collides<T: Scalar>(
@@ -352,7 +358,10 @@ pub fn ellipse_arc2d_circle2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
     tolerance: T,
 ) -> bool {
-    if !arc.ellipse().intersects(circle, tolerance) {
+    if !{
+        let center = Point2D::new(circle.center().0, circle.center().1);
+        arc.ellipse().distance_to_point(&center) <= circle.radius() + tolerance
+    } {
         return false;
     }
 

@@ -290,3 +290,35 @@ Get-ChildItem -Path model -Filter *.rs -Recurse |
 
 1. 3D 上位ペア（後半）`torus_*`, `triangle_3d_*`, `triangle_mesh_3d_*` の同手順適用
 2. 3D 上位ペア適用後に `cargo check --workspace` / `cargo test --workspace` で横断回帰確認
+
+### Slice 9: 3D 上位ペア（後半）`torus/triangle/triangle_mesh` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `torus_solid_3d_collision.rs`, `torus_solid_3d_intersection.rs`
+  - `torus_surface_3d_collision.rs`, `torus_surface_3d_intersection.rs`
+  - `triangle_3d_collision.rs`, `triangle_3d_intersection.rs`
+  - `triangle_mesh_3d_collision.rs`, `triangle_mesh_3d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - `geo_algorithms` 側で `triangle3d_*_collides` を `BasicCollision` 非依存へ移行
+  - 対象8ファイルを物理削除
+- 検証:
+  - `cargo check --workspace`: pass
+
+### Final Slice: `arc_3d/circle_3d/spherical_solid` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `arc_3d_collision.rs`, `arc_3d_intersection.rs`
+  - `circle_3d_collision.rs`, `circle_3d_intersection.rs`
+  - `spherical_solid_3d_collision.rs`, `spherical_solid_3d_collision_tests.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` / `#[cfg(test)] pub mod` 宣言を切り離し
+  - `geo_algorithms` 側で `arc3d_*` / `circle3d_*` / `spherical_solid3d_*` の
+    collision/intersection を `BasicCollision` / `BasicIntersection` 非依存へ移行
+  - 付随修正: `primitive_nurbs.rs` の `SphericalSolid3D` / `EllipsoidalSolid3D` 距離評価を
+    形状メソッド利用へ置換（内部点は距離0扱い）
+  - 対象6ファイルを物理削除
+- 検証:
+  - `cargo clippy -- -D warnings`: pass
+  - `cargo fmt`: pass
+  - `cargo test --workspace`: pass
