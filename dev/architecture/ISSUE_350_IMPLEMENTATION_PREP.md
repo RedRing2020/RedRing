@@ -18,6 +18,12 @@
 - `model/geo_algorithms/src/intersection/primitive_2d.rs`: 既存あり
 - 親Issue #347 の分割Issueは #350（2D）, #348（3D）, #349（混在）, #351（削除・回帰）
 
+### 2.2 進捗更新（2026-03-22）
+
+- 実装ブランチ `issue-350-next` を作成し初回スライスを投入済み
+- `geo_algorithms` 2D に対称 entry point を追加し、対称ラッパー一致性テストを追加
+- 検証結果: `cargo clippy -p geo_algorithms -- -D warnings` / `cargo fmt --all` / `cargo test -p geo_algorithms` 通過
+
 ### 2.1 実装制約の確認
 
 - `BasicCollision` / `BasicIntersection` / `MultipleIntersection` は `geo_contracts` 側trait定義
@@ -57,9 +63,9 @@
 
 ### Phase A: 棚卸し
 
-- [ ] `primitive_2d.rs` で既に扱っている形状ペアと未移管ペアを一覧化
-- [ ] `geo_primitives/src/*_collision.rs` / `*_intersection.rs` 側で 2D trait実装の所在を確認
-- [ ] orphan rules と依存方向の制約に照らして「直接移管不可」な点を明文化
+- [x] `primitive_2d.rs` で既に扱っている形状ペアと未移管ペアを一覧化
+- [x] `geo_primitives/src/*_collision.rs` / `*_intersection.rs` 側で 2D trait実装の所在を確認
+- [x] orphan rules と依存方向の制約に照らして「直接移管不可」な点を明文化
 - [ ] テスト所在を確認し、移設が必要か参照維持で足りるか判断
 
 ### Phase B: geo_algorithms 側実装補完
@@ -68,7 +74,7 @@
 - [ ] `model/geo_algorithms/src/intersection/primitive_2d.rs` を補完
 - [ ] `pair_base.rs` に寄せられる共通ロジックを抽出
 - [ ] 必要な型再エクスポートがあれば `model/geo_algorithms/src/lib.rs` を更新
-- [ ] `geo_algorithms` 実装ファイル内の import は `use crate::...` に統一
+- [x] `geo_algorithms` 実装ファイル内の import は `use crate::...` に統一
 
 ### Phase C: 呼び出し整合
 
@@ -78,10 +84,10 @@
 
 ### Phase D: 検証
 
-- [ ] `cargo fmt --all -- --check`
+- [x] `cargo fmt --all -- --check`（`cargo fmt --all` 実行で整形済み）
 - [ ] `cargo check --workspace`
 - [ ] `cargo test --workspace`
-- [ ] `cargo clippy -p geo_algorithms -- -D warnings`
+- [x] `cargo clippy -p geo_algorithms -- -D warnings`
 - [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
 
 ## 6. リスクと対策
@@ -126,6 +132,11 @@
 - `ray2d_line_segment2d_collides`
 - `triangle2d_circle2d_collides`
 - `triangle2d_triangle2d_collides`
+- `arc2d_line_segment2d_collides`（2026-03-22 追加）
+- `circle2d_ray2d_collides`（2026-03-22 追加）
+- `line_segment2d_ray2d_collides`（2026-03-22 追加）
+- `circle2d_triangle2d_collides`（2026-03-22 追加）
+- `line_segment2d_triangle2d_collides`（2026-03-22 追加）
 
 ### 9.2 `geo_algorithms` 側で既にある 2D intersection 関数
 
@@ -141,6 +152,8 @@
 - `triangle2d_line_segment2d_intersections`
 - `ray2d_ellipse2d_intersection`
 - `arc2d_point2d_intersection`
+- `line_segment2d_ray2d_intersection`（2026-03-22 追加）
+- `circle2d_ray2d_intersections`（2026-03-22 追加）
 
 ### 9.3 `geo_primitives` 側に依然として残っている代表的な 2D trait実装
 
@@ -153,3 +166,16 @@
 - `Ellipse2D`, `EllipseArc2D`: 2D複数形状ペア
 
 この差から、#350 の最初の実装差分は `Circle2D` / `Arc2D` / `LineSegment2D` / `Ray2D` / `Triangle2D` 周辺を優先すると小さく始めやすい。
+
+## 10. 実装スライス記録（2026-03-22）
+
+- コミット: `c5cf280`
+- 変更ファイル:
+  - `model/geo_algorithms/src/collision/primitive_2d.rs`
+  - `model/geo_algorithms/src/intersection/primitive_2d.rs`
+- 概要:
+  - 2D collision/intersection の対称 entry point 追加
+  - 対称ラッパー一致性テスト追加
+- 次アクション:
+  - `geo_primitives` 2D の削減候補を #351 へ一次連携
+  - 代表ペア以外（InfiniteLine2D / Ellipse2D / EllipseArc2D）の補完方針を確定
