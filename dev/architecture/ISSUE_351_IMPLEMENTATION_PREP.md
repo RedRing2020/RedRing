@@ -248,3 +248,24 @@ Get-ChildItem -Path model -Filter *.rs -Recurse |
 
 1. 3D 基礎ペア（`line_segment_3d_*`, `plane_3d_*`, `ray_3d_*`, `infinite_line_3d_*`）の同手順適用
 2. 3D 上位ペア（`ellipse_3d_*`, `ellipsoidal_*`, `cylindrical_*`, `torus_*`, `triangle_mesh_3d_*`）の同手順適用
+
+### Slice 7: 3D 基礎ペア `line_segment/plane/ray/infinite_line` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `line_segment_3d_collision.rs`, `line_segment_3d_intersection.rs`
+  - `plane_3d_collision.rs`, `plane_3d_intersection.rs`
+  - `ray_3d_collision.rs`, `ray_3d_intersection.rs`
+  - `infinite_line_3d_collision.rs`, `infinite_line_3d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象8ファイルを物理削除
+  - 付随修正: `cylindrical_*_collision.rs` 内の `Plane3D` 距離参照を `distance_to_point` に置換
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（313 passed, 0 failed）
+
+### 次スライス候補（更新）
+
+1. 3D 上位ペア（`ellipse_3d_*`, `ellipsoidal_*`, `cylindrical_*`）の同手順適用
+2. 3D 上位ペア（`torus_*`, `triangle_3d_*`, `triangle_mesh_3d_*`）の同手順適用

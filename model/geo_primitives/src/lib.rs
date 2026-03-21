@@ -74,20 +74,14 @@ pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - �
 mod ellipsoidal_surface_3d_collision; // EllipsoidalSurface3D の衝突検出実装
 mod ellipsoidal_surface_3d_intersection; // EllipsoidalSurface3D の交点計算実装
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
-mod infinite_line_3d_collision; // InfiniteLine3D の衝突検出実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_foundation; // InfiniteLine3D の Foundation 実装
-mod infinite_line_3d_intersection; // InfiniteLine3D の交点計算実装
 pub mod line_segment_3d; // LineSegment3D の新実装 (Core)
-mod line_segment_3d_collision; // LineSegment3D の衝突検出実装
 pub mod line_segment_3d_extensions; // LineSegment3D の拡張機能 (Extension)
 pub mod line_segment_3d_foundation; // LineSegment3D の Foundation 実装
-mod line_segment_3d_intersection; // LineSegment3D の交点計算実装
 pub mod plane_3d; // Plane3D の新実装 (Core)
-mod plane_3d_collision; // Plane3D の衝突検出実装
 pub mod plane_3d_extensions; // Plane3D の拡張機能 (Extension)
 pub mod plane_3d_foundation; // Plane3D のFoundation実装
-mod plane_3d_intersection; // Plane3D の交点計算実装
 #[cfg(test)]
 pub mod plane_3d_tests; // Plane3D のテスト
                         // 削除: plane_coordinate_systemはPlane3Dに統合済み
@@ -120,10 +114,8 @@ pub mod plane_3d_tests; // Plane3D のテスト
 // pub mod vector_3d_transform_tests;
 
 pub mod ray_3d; // Ray3D の新実装 (Core)
-mod ray_3d_collision; // Ray3D の衝突検出実装
 pub mod ray_3d_extensions; // Ray3D の拡張機能 (Extension)
 pub mod ray_3d_foundation; // Ray3D のFoundation実装
-mod ray_3d_intersection; // Ray3D の交点計算実装
 pub mod rectangle_3d; // Rect3D の新実装 (Core)
 pub mod rectangle_3d_foundation; // Rect3D のFoundation実装
 pub mod rectangle_3d_transform; // Rect3D の変換実装

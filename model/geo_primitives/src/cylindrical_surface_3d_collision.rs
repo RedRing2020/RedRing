@@ -196,7 +196,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for CylindricalSurface3D<T> {
     fn intersects(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
         // 円柱の中心点が平面に近いかチェック
         let center = self.center_internal();
-        plane.distance_to(&center).abs() <= tolerance + self.radius()
+        plane.distance_to_point(center).abs() <= tolerance + self.radius()
     }
 
     fn overlaps(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
@@ -206,7 +206,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for CylindricalSurface3D<T> {
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
         // 簡易実装: 中心点から平面への距離から半径を引いた値
         let center = self.center_internal();
-        let dist_to_plane = plane.distance_to(&center).abs();
+        let dist_to_plane = plane.distance_to_point(center).abs();
         if dist_to_plane > self.radius() {
             dist_to_plane - self.radius()
         } else {

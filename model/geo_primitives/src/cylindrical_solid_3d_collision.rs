@@ -216,7 +216,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for CylindricalSolid3D<T> {
     fn intersects(&self, plane: &Plane3D<T>, tolerance: T) -> bool {
         // 円柱の中心点が平面に近いかチェック
         let center = self.center_internal();
-        let dist_center = plane.distance_to(&center).abs();
+        let dist_center = plane.distance_to_point(center).abs();
 
         // 簡易判定：中心からの距離が半径+高さ以内
         let max_extent = self.radius() + self.height();
@@ -230,7 +230,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for CylindricalSolid3D<T> {
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
         // 簡易実装：中心点から平面への距離
         let center = self.center_internal();
-        let dist = plane.distance_to(&center).abs();
+        let dist = plane.distance_to_point(center).abs();
         let max_extent = self.radius() + self.height();
         if dist > max_extent {
             dist - max_extent
