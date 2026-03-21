@@ -541,13 +541,18 @@ mod tests {
         LineSegment3D, Plane3D, Point3D, Ray3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
         Vector3D,
     };
+    use geo_contracts::ToleranceSettings;
+
+    fn standard_distance_tol() -> f64 {
+        ToleranceSettings::<f64>::standard().distance_tolerance
+    }
 
     #[test]
     fn plane_point_intersection_returns_same_point() {
         let plane = Plane3D::xy_plane(0.0_f64);
         let point = Point3D::new(1.0, -2.0, 0.0);
 
-        let result = plane3d_point3d_intersection(&plane, &point, 1e-6);
+        let result = plane3d_point3d_intersection(&plane, &point, standard_distance_tol());
 
         assert_eq!(result, Some(point));
     }
@@ -559,10 +564,13 @@ mod tests {
         let behind_ray = Point3D::new(-1.0, 0.0, 0.0);
 
         assert_eq!(
-            ray3d_point3d_intersection(&ray, &on_ray, 1e-6),
+            ray3d_point3d_intersection(&ray, &on_ray, standard_distance_tol()),
             Some(on_ray)
         );
-        assert_eq!(ray3d_point3d_intersection(&ray, &behind_ray, 1e-6), None);
+        assert_eq!(
+            ray3d_point3d_intersection(&ray, &behind_ray, standard_distance_tol()),
+            None
+        );
     }
 
     #[test]
@@ -573,11 +581,15 @@ mod tests {
         let outside_segment = Point3D::new(3.0, 0.0, 0.0);
 
         assert_eq!(
-            line_segment3d_point3d_intersection(&segment, &on_segment, 1e-6),
+            line_segment3d_point3d_intersection(&segment, &on_segment, standard_distance_tol()),
             Some(on_segment)
         );
         assert_eq!(
-            line_segment3d_point3d_intersection(&segment, &outside_segment, 1e-6),
+            line_segment3d_point3d_intersection(
+                &segment,
+                &outside_segment,
+                standard_distance_tol()
+            ),
             None
         );
     }
@@ -593,11 +605,11 @@ mod tests {
         let off_line = Point3D::new(0.0, 1.0, 0.0);
 
         assert_eq!(
-            infinite_line3d_point3d_intersection(&line, &on_line, 1e-6),
+            infinite_line3d_point3d_intersection(&line, &on_line, standard_distance_tol()),
             Some(on_line)
         );
         assert_eq!(
-            infinite_line3d_point3d_intersection(&line, &off_line, 1e-6),
+            infinite_line3d_point3d_intersection(&line, &off_line, standard_distance_tol()),
             None
         );
     }
@@ -614,11 +626,11 @@ mod tests {
         let off_triangle = Point3D::new(0.2, 0.2, 0.5);
 
         assert_eq!(
-            triangle3d_point3d_intersection(&triangle, &on_triangle, 1e-6),
+            triangle3d_point3d_intersection(&triangle, &on_triangle, standard_distance_tol()),
             Some(on_triangle)
         );
         assert_eq!(
-            triangle3d_point3d_intersection(&triangle, &off_triangle, 1e-6),
+            triangle3d_point3d_intersection(&triangle, &off_triangle, standard_distance_tol()),
             None
         );
     }
@@ -635,11 +647,11 @@ mod tests {
         let inside_disk = Point3D::new(1.0, 0.0, 0.0);
 
         assert_eq!(
-            circle3d_point3d_intersection(&circle, &on_circle, 1e-6),
+            circle3d_point3d_intersection(&circle, &on_circle, standard_distance_tol()),
             Some(on_circle)
         );
         assert_eq!(
-            circle3d_point3d_intersection(&circle, &inside_disk, 1e-6),
+            circle3d_point3d_intersection(&circle, &inside_disk, standard_distance_tol()),
             None
         );
     }
@@ -660,10 +672,13 @@ mod tests {
         let out_of_angle = Point3D::new(-2.0, 0.0, 0.0);
 
         assert_eq!(
-            arc3d_point3d_intersection(&arc, &on_arc, 1e-6),
+            arc3d_point3d_intersection(&arc, &on_arc, standard_distance_tol()),
             Some(on_arc)
         );
-        assert_eq!(arc3d_point3d_intersection(&arc, &out_of_angle, 1e-6), None);
+        assert_eq!(
+            arc3d_point3d_intersection(&arc, &out_of_angle, standard_distance_tol()),
+            None
+        );
     }
 
     #[test]
@@ -682,15 +697,15 @@ mod tests {
         let outside_plane = Point3D::new(0.0, 0.0, 0.5);
 
         assert_eq!(
-            ellipse3d_point3d_intersection(&ellipse, &on_ellipse, 1e-6),
+            ellipse3d_point3d_intersection(&ellipse, &on_ellipse, standard_distance_tol()),
             Some(on_ellipse)
         );
         assert_eq!(
-            ellipse3d_point3d_intersection(&ellipse, &inside_ellipse, 1e-6),
+            ellipse3d_point3d_intersection(&ellipse, &inside_ellipse, standard_distance_tol()),
             Some(inside_ellipse)
         );
         assert_eq!(
-            ellipse3d_point3d_intersection(&ellipse, &outside_plane, 1e-6),
+            ellipse3d_point3d_intersection(&ellipse, &outside_plane, standard_distance_tol()),
             None
         );
     }
@@ -710,11 +725,11 @@ mod tests {
         let inside_tube = Point3D::new(3.0, 0.0, 0.0);
 
         assert_eq!(
-            torus_surface3d_point3d_intersection(&torus, &on_surface, 1e-6),
+            torus_surface3d_point3d_intersection(&torus, &on_surface, standard_distance_tol()),
             Some(on_surface)
         );
         assert_eq!(
-            torus_surface3d_point3d_intersection(&torus, &inside_tube, 1e-6),
+            torus_surface3d_point3d_intersection(&torus, &inside_tube, standard_distance_tol()),
             None
         );
     }
@@ -727,11 +742,11 @@ mod tests {
         let off_surface = Point3D::new(2.0, 0.0, 0.5);
 
         assert_eq!(
-            cylindrical_surface3d_point3d_intersection(&cyl, &on_surface, 1e-6),
+            cylindrical_surface3d_point3d_intersection(&cyl, &on_surface, standard_distance_tol()),
             Some(on_surface)
         );
         assert_eq!(
-            cylindrical_surface3d_point3d_intersection(&cyl, &off_surface, 1e-6),
+            cylindrical_surface3d_point3d_intersection(&cyl, &off_surface, standard_distance_tol()),
             None
         );
     }
@@ -752,11 +767,11 @@ mod tests {
         let off_triangle = Point3D::new(0.2, 0.2, 0.3);
 
         assert_eq!(
-            triangle_mesh3d_point3d_intersection(&mesh, &on_triangle, 1e-6),
+            triangle_mesh3d_point3d_intersection(&mesh, &on_triangle, standard_distance_tol()),
             Some(on_triangle)
         );
         assert_eq!(
-            triangle_mesh3d_point3d_intersection(&mesh, &off_triangle, 1e-6),
+            triangle_mesh3d_point3d_intersection(&mesh, &off_triangle, standard_distance_tol()),
             None
         );
     }
@@ -773,7 +788,7 @@ mod tests {
             LineSegment3D::new(Point3D::new(0.2, 0.2, -1.0), Point3D::new(0.2, 0.2, 1.0)).unwrap();
         let ray = Ray3D::new(Point3D::new(0.2, 0.2, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
 
-        let tol = 1e-6;
+        let tol = standard_distance_tol();
         assert_eq!(
             line_segment3d_triangle3d_intersection(&seg, &tri, tol),
             triangle3d_line_segment3d_intersection(&tri, &seg, tol)
