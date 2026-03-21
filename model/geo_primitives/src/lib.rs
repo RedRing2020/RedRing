@@ -223,18 +223,14 @@ pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_foundation; // LineSegment2D のFoundation実装
 pub mod ray_2d; // Ray2D の新実装 (Core)
-mod ray_2d_collision; // Ray2D の衝突検出実装
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
 pub mod ray_2d_foundation; // Ray2D の Foundation 実装
-mod ray_2d_intersection; // Ray2D の交点計算実装
 pub mod ray_2d_transform; // Ray2D の変換実装
 pub mod rectangle_2d; // Rect2D の新実装 (Core)
 pub mod rectangle_2d_foundation; // Rect2D の Foundation 実装
 pub mod rectangle_2d_transform; // Rect2D の変換実装
 pub mod triangle_2d; // Triangle2D の新実装 (Core)
-mod triangle_2d_collision; // Triangle2D の衝突検出実装
 pub mod triangle_2d_foundation; // Triangle2D の Foundation 実装
-mod triangle_2d_intersection; // Triangle2D の交点計算実装
 pub mod triangle_2d_transform; // Triangle2D の変換実装
 
 // テストモジュール（次元中立設計）

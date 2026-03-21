@@ -212,3 +212,21 @@ Get-ChildItem -Path model -Filter *.rs -Recurse |
 1. 2D `ray_2d_*`, `triangle_2d_*` の同手順適用
 2. 2D `infinite_line_2d_*`, `ellipse_2d_*` の同手順適用
 3. 各スライスごとに #351 へ差分要約を追記
+
+### Slice 5: 2D `ray/triangle` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `ray_2d_collision.rs`, `ray_2d_intersection.rs`
+  - `triangle_2d_collision.rs`, `triangle_2d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象4ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（316 passed, 0 failed）
+
+### 次スライス候補（更新）
+
+1. 2D `infinite_line_2d_*`, `ellipse_2d_*` の同手順適用
+2. 3D 基礎ペア（`line_segment_3d_*`, `plane_3d_*`, `ray_3d_*`, `infinite_line_3d_*`）の同手順適用
