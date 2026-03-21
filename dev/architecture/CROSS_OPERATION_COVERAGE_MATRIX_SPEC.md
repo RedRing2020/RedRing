@@ -1,4 +1,4 @@
-# Cross Operation Coverage Matrix Spec (Draft v0.1)
+# Cross Operation Coverage Matrix Spec (v1.0)
 
 対象Issue: #364
 関連: #362, #366, #367, #365, #363, #350, #351
@@ -19,7 +19,59 @@
 - 個別アルゴリズムの高精度化
 - Foundationパターンへの回帰
 
-## 3. 用語
+## 3. Taxonomy
+
+### 3.1 Shape taxonomy
+
+2D:
+- Arc2D
+- Circle2D
+- Ellipse2D
+- EllipseArc2D
+- InfiniteLine2D
+- LineSegment2D
+- Ray2D
+- Triangle2D
+
+3D:
+- Arc3D
+- Circle3D
+- CylindricalSolid3D
+- CylindricalSurface3D
+- Ellipse3D
+- EllipsoidalSolid3D
+- EllipsoidalSurface3D
+- InfiniteLine3D
+- LineSegment3D
+- Plane3D
+- Ray3D
+- SphericalSolid3D
+- SphericalSurface3D
+- TorusSolid3D
+- TorusSurface3D
+- Triangle3D
+- TriangleMesh3D
+
+### 3.2 Operation taxonomy
+
+- collision
+- intersection
+- distance
+
+### 3.3 Intersection cardinality taxonomy
+
+- none
+- single
+- multiple
+- optional
+
+### 3.4 Tolerance profile taxonomy
+
+- strict
+- standard
+- relaxed
+
+## 4. 用語
 
 - `shape pair`: 形状型の組（shape_a, shape_b）
 - `operation`: 演算種別（collision/intersection/distance）
@@ -27,7 +79,7 @@
 - `symmetric`: A-B と B-A の整合が必須であること
 - `cardinality`: intersection の期待交点種別（none/single/multiple/optional）
 
-## 4. データモデル（論理スキーマ）
+## 5. データモデル（論理スキーマ）
 
 1レコードは次の項目を持つ。
 
@@ -52,21 +104,23 @@ notes: string | null
 - `symmetric=true` のとき `entrypoint_a_to_b` と `entrypoint_b_to_a` は原則必須。
 - 同一 `(dimension, operation, shape_a, shape_b)` の重複登録は禁止。
 
-## 5. 判定ルール
+## 6. 判定ルール
 
 - 未登録検知: `required=true` レコードに対応エントリが未設定なら fail。
 - 対称性検知: `symmetric=true` で A-B/B-A の片側欠落または結果不一致なら fail。
 - 重複検知: 主キー重複を fail。
 - 交点種別検知: `intersection` で `cardinality` が期待外なら fail。
 
-## 6. 実装配置方針
+## 7. 実装配置方針
 
 #366 実装までの暫定方針:
 - 仕様正本: 本ドキュメント
 - 初期実装: Rust 定数配列（テストモジュール内）
 - 将来拡張: TOML/JSON外部化（必要時）
 
-## 7. 2Dシード（#350反映の最小セット）
+## 8. シードデータ（最小セット）
+
+### 8.1 2Dシード（#350反映）
 
 | id | op | shape_a | shape_b | required | symmetric | cardinality | a_to_b | b_to_a |
 |---|---|---|---|---|---|---|---|---|
@@ -77,13 +131,29 @@ notes: string | null
 | 2d:circle-ellipse:intersection | intersection | Circle2D | Ellipse2D | true | true | optional | circle2d_ellipse2d_intersection | ellipse2d_circle2d_intersection |
 | 2d:line-circle:intersection | intersection | InfiniteLine2D | Circle2D | true | true | multiple | infinite_line2d_circle2d_intersections | circle2d_infinite_line2d_intersections |
 
-## 8. #364 完了定義（DoD）
+### 8.2 3Dシード（#351反映）
 
-- 本仕様の項目定義と制約が合意される。
-- 2Dシード（最小セット）が #350 成果と整合する。
+| id | op | shape_a | shape_b | required | symmetric | cardinality | a_to_b | b_to_a |
+|---|---|---|---|---|---|---|---|---|
+| 3d:plane-segment:intersection | intersection | Plane3D | LineSegment3D | true | false | optional | plane3d_line_segment3d_intersection | null |
+| 3d:plane-ray:intersection | intersection | Plane3D | Ray3D | true | false | optional | plane3d_ray3d_intersection | null |
+| 3d:line-segment:intersection | intersection | InfiniteLine3D | LineSegment3D | true | false | optional | infinite_line3d_line_segment3d_intersection | null |
+| 3d:ray-line:intersection | intersection | Ray3D | InfiniteLine3D | true | false | optional | ray3d_infinite_line3d_intersection | null |
+| 3d:line-sphere:collision | collision | InfiniteLine3D | SphericalSurface3D | true | false | null | infinite_line3d_spherical_surface3d_collides | null |
+| 3d:segment-sphere:intersection | intersection | LineSegment3D | SphericalSurface3D | true | false | multiple | line_segment3d_spherical_surface3d_intersections | null |
+
+補足:
+- 上記3Dシードは #351 の移管後エントリで運用可能であることを最小確認するための起点。
+- distance は #366 実装時に collision/intersection と同等粒度へ拡張する。
+
+## 9. #364 完了定義（DoD）
+
+- schema が `dev/architecture` に文書化される。
+- 2D/3D 共通で運用可能な必須属性が確定する。
+- #350/#351 の現行対象を表現できる。
 - #366 がこの仕様を直接実装できるレベルで記述される。
 
-## 9. 次アクション
+## 10. 次アクション
 
 1. #364 で本仕様へのレビューコメントを反映して v1.0 確定
 2. #366 で「未登録/非対称/重複」検出テストを実装
