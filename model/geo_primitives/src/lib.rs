@@ -168,17 +168,13 @@ pub mod triangle_mesh_3d_tests;
 // 2D プリミティブ
 // Arc2D関連（ジェネリック実装完了により再有効化）
 pub mod arc_2d; // Arc2D の新実装 (Core)
-mod arc_2d_collision; // Arc2D の衝突検出実装
 pub mod arc_2d_extensions; // Arc2D の拡張機能 (Extension)
 pub mod arc_2d_foundation; // Arc2D のFoundation実装
-mod arc_2d_intersection; // Arc2D の交点計算実装
 
 pub mod circle_2d; // Circle2D の新実装 (Core)
-mod circle_2d_collision; // Circle2D の Collision 実装
 pub mod circle_2d_extensions; // Circle2D の拡張機能 (Extension - Phase 2 対応)
-mod circle_2d_intersection; // Circle2D の Intersection 実装
-                            // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
-                            // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
+                              // pub mod circle_2d_core_traits; // Moved to circle_2d.rs
+                              // pub mod circle_3d_core_traits; // Moved to circle_3d.rs
 
 // Circle Core Traits の公開 - Foundation Pattern実装完了
 pub use geo_contracts::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
@@ -224,10 +220,8 @@ pub mod infinite_line_2d_foundation; // InfiniteLine2D の Foundation 実装
 mod infinite_line_2d_intersection; // InfiniteLine2D の交点計算実装
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換実装
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
-mod line_segment_2d_collision; // LineSegment2D の衝突検出実装
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)
 pub mod line_segment_2d_foundation; // LineSegment2D のFoundation実装
-mod line_segment_2d_intersection; // LineSegment2D の交点計算実装
 pub mod ray_2d; // Ray2D の新実装 (Core)
 mod ray_2d_collision; // Ray2D の衝突検出実装
 pub mod ray_2d_extensions; // Ray2D の拡張機能 (Extension)
