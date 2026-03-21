@@ -121,6 +121,13 @@ pub fn line_segment2d_arc2d_collides<T: Scalar>(
     !line_segment2d_arc2d_intersections(segment, arc).is_empty()
 }
 
+pub fn arc2d_line_segment2d_collides<T: Scalar>(
+    arc: &Arc2D<T>,
+    segment: &LineSegment2D<T>,
+) -> bool {
+    line_segment2d_arc2d_collides(segment, arc)
+}
+
 pub fn ray2d_point2d_collides<T: Scalar>(ray: &Ray2D<T>, point: &Point2D<T>, tolerance: T) -> bool {
     ray.contains_point(point, tolerance)
 }
@@ -132,6 +139,14 @@ pub fn ray2d_circle2d_collides<T: Scalar>(
 ) -> bool {
     let center = Point2D::new(circle.center().0, circle.center().1);
     ray.distance_to_point(&center) <= circle.radius() + tolerance
+}
+
+pub fn circle2d_ray2d_collides<T: Scalar>(
+    circle: &Circle2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> bool {
+    ray2d_circle2d_collides(ray, circle, tolerance)
 }
 
 pub fn ray2d_line_segment2d_collides<T: Scalar>(
@@ -148,6 +163,14 @@ pub fn ray2d_line_segment2d_collides<T: Scalar>(
     dist_start <= tolerance || dist_end <= tolerance
 }
 
+pub fn line_segment2d_ray2d_collides<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> bool {
+    ray2d_line_segment2d_collides(ray, segment, tolerance)
+}
+
 pub fn triangle2d_circle2d_collides<T: Scalar>(
     triangle: &Triangle2D<T>,
     circle: &Circle2D<T>,
@@ -159,6 +182,14 @@ pub fn triangle2d_circle2d_collides<T: Scalar>(
     }
 
     triangle.distance_to_point(&center) <= circle.radius() + tolerance
+}
+
+pub fn circle2d_triangle2d_collides<T: Scalar>(
+    circle: &Circle2D<T>,
+    triangle: &Triangle2D<T>,
+    tolerance: T,
+) -> bool {
+    triangle2d_circle2d_collides(triangle, circle, tolerance)
 }
 
 pub fn triangle2d_triangle2d_collides<T: Scalar>(
@@ -216,6 +247,14 @@ pub fn triangle2d_line_segment2d_collides<T: Scalar>(
     !triangle2d_line_segment2d_intersections(triangle, segment, tolerance).is_empty()
 }
 
+pub fn line_segment2d_triangle2d_collides<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    triangle: &Triangle2D<T>,
+    tolerance: T,
+) -> bool {
+    triangle2d_line_segment2d_collides(triangle, segment, tolerance)
+}
+
 fn edges_intersect<T: Scalar>(
     p1: Point2D<T>,
     p2: Point2D<T>,
@@ -242,11 +281,14 @@ fn edges_intersect<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::{
-        circle2d_arc2d_collides, circle2d_circle2d_collides, circle2d_point2d_collides,
+        arc2d_line_segment2d_collides, circle2d_arc2d_collides, circle2d_circle2d_collides,
+        circle2d_point2d_collides, circle2d_ray2d_collides, circle2d_triangle2d_collides,
         line_segment2d_arc2d_collides, line_segment2d_circle2d_collides,
+        line_segment2d_ray2d_collides, line_segment2d_triangle2d_collides, ray2d_circle2d_collides,
+        ray2d_line_segment2d_collides, triangle2d_circle2d_collides,
         triangle2d_line_segment2d_collides, triangle2d_triangle2d_collides,
     };
-    use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Triangle2D};
+    use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D};
 
     #[test]
     fn circle_point_collision_detects_boundary_point() {
@@ -321,5 +363,46 @@ mod tests {
         assert!(triangle2d_line_segment2d_collides(
             &triangle, &segment, 1e-9
         ));
+    }
+
+    #[test]
+    fn symmetric_collision_wrappers_match_base_functions() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+        let triangle = Triangle2D::new(
+            Point2D::new(0.0, 0.0),
+            Point2D::new(2.0, 0.0),
+            Point2D::new(1.0, 2.0),
+        )
+        .unwrap();
+        let arc = Arc2D::new(
+            Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
+            crate::Angle::from_degrees(0.0),
+            crate::Angle::from_degrees(180.0),
+        )
+        .unwrap();
+
+        let tol = 1e-9;
+        assert_eq!(
+            circle2d_ray2d_collides(&circle, &ray, tol),
+            ray2d_circle2d_collides(&ray, &circle, tol)
+        );
+        assert_eq!(
+            line_segment2d_ray2d_collides(&segment, &ray, tol),
+            ray2d_line_segment2d_collides(&ray, &segment, tol)
+        );
+        assert_eq!(
+            circle2d_triangle2d_collides(&circle, &triangle, tol),
+            triangle2d_circle2d_collides(&triangle, &circle, tol)
+        );
+        assert_eq!(
+            line_segment2d_triangle2d_collides(&segment, &triangle, tol),
+            triangle2d_line_segment2d_collides(&triangle, &segment, tol)
+        );
+        assert_eq!(
+            arc2d_line_segment2d_collides(&arc, &segment),
+            line_segment2d_arc2d_collides(&segment, &arc)
+        );
     }
 }

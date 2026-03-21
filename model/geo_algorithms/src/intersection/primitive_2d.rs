@@ -120,6 +120,14 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
     }
 }
 
+pub fn line_segment2d_ray2d_intersection<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    ray2d_line_segment2d_intersection(ray, segment, tolerance)
+}
+
 pub fn ray2d_circle2d_intersections<T: Scalar>(
     ray: &Ray2D<T>,
     circle: &Circle2D<T>,
@@ -166,6 +174,14 @@ pub fn ray2d_circle2d_intersections<T: Scalar>(
     }
 
     intersections
+}
+
+pub fn circle2d_ray2d_intersections<T: Scalar>(
+    circle: &Circle2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    ray2d_circle2d_intersections(ray, circle, tolerance)
 }
 
 pub fn triangle2d_line_segment2d_intersections<T: Scalar>(
@@ -262,7 +278,9 @@ mod tests {
     use super::{
         arc2d_line_segment2d_intersections_algo, circle2d_arc2d_intersections_algo,
         circle2d_circle2d_intersections_algo, circle2d_point2d_intersection,
-        line_segment2d_line_segment2d_intersection_algo, ray2d_circle2d_intersections,
+        circle2d_ray2d_intersections, line_segment2d_line_segment2d_intersection_algo,
+        line_segment2d_ray2d_intersection, ray2d_circle2d_intersections,
+        ray2d_line_segment2d_intersection,
     };
     use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
 
@@ -329,5 +347,22 @@ mod tests {
 
         let intersections = arc2d_line_segment2d_intersections_algo(&arc, &segment);
         assert!(!intersections.is_empty());
+    }
+
+    #[test]
+    fn symmetric_intersection_wrappers_match_base_functions() {
+        let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+
+        let tol = 1e-9;
+        assert_eq!(
+            circle2d_ray2d_intersections(&circle, &ray, tol),
+            ray2d_circle2d_intersections(&ray, &circle, tol)
+        );
+        assert_eq!(
+            line_segment2d_ray2d_intersection(&segment, &ray, tol),
+            ray2d_line_segment2d_intersection(&ray, &segment, tol)
+        );
     }
 }
