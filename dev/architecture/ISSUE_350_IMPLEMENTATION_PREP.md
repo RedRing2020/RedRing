@@ -22,6 +22,8 @@
 
 - 実装ブランチ `issue-350-next` を作成し初回スライスを投入済み
 - `geo_algorithms` 2D に対称 entry point を追加し、対称ラッパー一致性テストを追加
+- `InfiniteLine2D` / `Ellipse2D` / `EllipseArc2D` について、2D entry point を追加し対称性を補完
+- `geo_algorithms/src/lib.rs` の再エクスポートに `InfiniteLine2D` / `EllipseArc2D` を追加
 - 検証結果: `cargo clippy -p geo_algorithms -- -D warnings` / `cargo fmt --all` / `cargo test -p geo_algorithms` 通過
 
 ### 2.1 実装制約の確認
@@ -70,10 +72,10 @@
 
 ### Phase B: geo_algorithms 側実装補完
 
-- [ ] `model/geo_algorithms/src/collision/primitive_2d.rs` を補完
-- [ ] `model/geo_algorithms/src/intersection/primitive_2d.rs` を補完
+- [x] `model/geo_algorithms/src/collision/primitive_2d.rs` を補完（対称entry + InfiniteLine2D/Ellipse2D/EllipseArc2D）
+- [x] `model/geo_algorithms/src/intersection/primitive_2d.rs` を補完（対称entry + InfiniteLine2D/Ellipse2D/EllipseArc2D）
 - [ ] `pair_base.rs` に寄せられる共通ロジックを抽出
-- [ ] 必要な型再エクスポートがあれば `model/geo_algorithms/src/lib.rs` を更新
+- [x] 必要な型再エクスポートがあれば `model/geo_algorithms/src/lib.rs` を更新
 - [x] `geo_algorithms` 実装ファイル内の import は `use crate::...` に統一
 
 ### Phase C: 呼び出し整合
@@ -137,6 +139,14 @@
 - `line_segment2d_ray2d_collides`（2026-03-22 追加）
 - `circle2d_triangle2d_collides`（2026-03-22 追加）
 - `line_segment2d_triangle2d_collides`（2026-03-22 追加）
+- `infinite_line2d_point2d_collides`（2026-03-22 追加）
+- `infinite_line2d_circle2d_collides` / `circle2d_infinite_line2d_collides`（2026-03-22 追加）
+- `infinite_line2d_line_segment2d_collides` / `line_segment2d_infinite_line2d_collides`（2026-03-22 追加）
+- `infinite_line2d_ray2d_collides` / `ray2d_infinite_line2d_collides`（2026-03-22 追加）
+- `ellipse2d_point2d_collides`（2026-03-22 追加）
+- `ellipse2d_circle2d_collides` / `circle2d_ellipse2d_collides`（2026-03-22 追加）
+- `ellipse_arc2d_point2d_collides`（2026-03-22 追加）
+- `ellipse_arc2d_circle2d_collides` / `circle2d_ellipse_arc2d_collides`（2026-03-22 追加）
 
 ### 9.2 `geo_algorithms` 側で既にある 2D intersection 関数
 
@@ -154,6 +164,15 @@
 - `arc2d_point2d_intersection`
 - `line_segment2d_ray2d_intersection`（2026-03-22 追加）
 - `circle2d_ray2d_intersections`（2026-03-22 追加）
+- `infinite_line2d_point2d_intersection`（2026-03-22 追加）
+- `infinite_line2d_circle2d_intersection` / `circle2d_infinite_line2d_intersection`（2026-03-22 追加）
+- `infinite_line2d_circle2d_intersections` / `circle2d_infinite_line2d_intersections`（2026-03-22 追加）
+- `infinite_line2d_line_segment2d_intersection` / `line_segment2d_infinite_line2d_intersection`（2026-03-22 追加）
+- `infinite_line2d_ray2d_intersection` / `ray2d_infinite_line2d_intersection`（2026-03-22 追加）
+- `ellipse2d_point2d_intersection`（2026-03-22 追加）
+- `ellipse2d_circle2d_intersection` / `circle2d_ellipse2d_intersection`（2026-03-22 追加）
+- `ellipse2d_circle2d_intersections` / `circle2d_ellipse2d_intersections`（2026-03-22 追加）
+- `ellipse_arc2d_point2d_intersection`（2026-03-22 追加）
 
 ### 9.3 `geo_primitives` 側に依然として残っている代表的な 2D trait実装
 
@@ -179,3 +198,21 @@
 - 次アクション:
   - `geo_primitives` 2D の削減候補を #351 へ一次連携
   - 代表ペア以外（InfiniteLine2D / Ellipse2D / EllipseArc2D）の補完方針を確定
+
+## 11. 実装スライス記録（2026-03-22 追補）
+
+- 変更ファイル:
+  - `model/geo_algorithms/src/collision/primitive_2d.rs`
+  - `model/geo_algorithms/src/intersection/primitive_2d.rs`
+  - `model/geo_algorithms/src/lib.rs`
+- 概要:
+  - `InfiniteLine2D` / `Ellipse2D` / `EllipseArc2D` の 2D collision/intersection entry point を追加
+  - `EllipseArc2D` については `geo_primitives` 側の未公開 collision/intersection モジュールに依存せず、
+    Core API（`contains_point`, `ellipse()`, `point_in_angle_range`, 端点判定）で判定を構成
+  - 対称ラッパーとエントリポイントのテストを追加
+- 検証:
+  - `cargo clippy -p geo_algorithms -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_algorithms`: pass
+- 次アクション:
+  - #351 へ 2D削減候補の詳細マッピング（関数対応表）を更新
