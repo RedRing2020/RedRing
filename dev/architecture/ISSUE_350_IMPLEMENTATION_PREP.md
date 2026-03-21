@@ -68,7 +68,7 @@
 - [x] `primitive_2d.rs` で既に扱っている形状ペアと未移管ペアを一覧化
 - [x] `geo_primitives/src/*_collision.rs` / `*_intersection.rs` 側で 2D trait実装の所在を確認
 - [x] orphan rules と依存方向の制約に照らして「直接移管不可」な点を明文化
-- [ ] テスト所在を確認し、移設が必要か参照維持で足りるか判断
+- [x] テスト所在を確認し、移設が必要か参照維持で足りるか判断（`geo_algorithms` 側単体テストを拡充し、`geo_primitives` 側既存テストは #351 で段階縮退）
 
 ### Phase B: geo_algorithms 側実装補完
 
@@ -80,17 +80,17 @@
 
 ### Phase C: 呼び出し整合
 
-- [ ] `geo_primitives` 側に残すべき trait実装ラッパーと shape-local helper を切り分け
-- [ ] `geo_algorithms` を正本ロジックとみなせる形状ペアを確定
-- [ ] #351 に回す削除候補を明文化
+- [x] `geo_primitives` 側に残すべき trait実装ラッパーと shape-local helper を切り分け
+- [x] `geo_algorithms` を正本ロジックとみなせる形状ペアを確定
+- [x] #351 に回す削除候補を明文化
 
 ### Phase D: 検証
 
 - [x] `cargo fmt --all -- --check`（`cargo fmt --all` 実行で整形済み）
-- [ ] `cargo check --workspace`
-- [ ] `cargo test --workspace`
+- [x] `cargo check --workspace`
+- [x] `cargo test --workspace`
 - [x] `cargo clippy -p geo_algorithms -- -D warnings`
-- [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
+- [x] `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
 
 ## 6. リスクと対策
 
@@ -108,10 +108,10 @@
 
 ## 7. 完了条件
 
-- [ ] 2D collision/intersection trait実装の主要責務が `geo_algorithms` に寄る
-- [ ] `geo_algorithms` の 2D 実装で必要な型・import 経路が安定する
-- [ ] #351 に送る削除対象が明確化される
-- [ ] `fmt/check/test/clippy` と依存チェックスクリプトが通る
+- [x] 2D collision/intersection trait実装の主要責務が `geo_algorithms` に寄る（対象7形状の代表ペアで free-function / pair-base 正本化を優先）
+- [x] `geo_algorithms` の 2D 実装で必要な型・import 経路が安定する
+- [x] #351 に送る削除対象が明確化される
+- [x] `fmt/check/test/clippy` と依存チェックスクリプトが通る
 
 ## 8. 準備完了時点の判断
 
@@ -216,3 +216,37 @@
   - `cargo test -p geo_algorithms`: pass
 - 次アクション:
   - #351 へ 2D削減候補の詳細マッピング（関数対応表）を更新
+
+## 12. #351 連携用 2D 削減候補対応表（一次）
+
+### 12.1 残置ポリシー
+
+- 残置対象: shape-local な補助計算や Core API 経由の判定（幾何プリミティブ固有実装）
+- 縮退対象: 多形状ペアの trait実装本体（`BasicCollision` / `BasicIntersection` / `MultipleIntersection`）
+- 実施単位: #351 で「wrapper化（`geo_algorithms` 呼び出し）」→ 回帰確認 → 段階削減
+
+### 12.2 マッピング（代表ペア）
+
+| geo_primitives 側（候補） | geo_algorithms 正本エントリ | #351 での扱い |
+|---|---|---|
+| `circle_2d_collision.rs` (`Circle2D-Point/Circle/LineSegment`) | `circle2d_point2d_collides`, `circle2d_circle2d_collides`, `line_segment2d_circle2d_collides` | wrapper化候補 |
+| `circle_2d_intersection.rs` (`Circle2D-Point/Circle/LineSegment`) | `circle2d_point2d_intersection`, `circle2d_circle2d_intersections_algo`, `circle2d_line_segment2d_intersections_algo` | wrapper化候補 |
+| `arc_2d_collision.rs` (`Arc2D-Point/Circle`) | `arc2d_point2d_collides`, `arc2d_circle2d_collides`, `circle2d_arc2d_collides` | wrapper化候補 |
+| `arc_2d_intersection.rs` (`Arc2D-Point/Circle`) | `arc2d_point2d_intersection`, `arc2d_circle2d_intersections_algo`, `circle2d_arc2d_intersections_algo` | wrapper化候補 |
+| `line_segment_2d_collision.rs` (`LineSegment2D-Circle/Arc/LineSegment`) | `line_segment2d_circle2d_collides`, `line_segment2d_arc2d_collides`, `arc2d_line_segment2d_collides` | wrapper化候補 |
+| `line_segment_2d_intersection.rs` (`LineSegment2D-Circle/Arc/LineSegment`) | `line_segment2d_circle2d_intersections_algo`, `line_segment2d_arc2d_intersections_algo`, `line_segment2d_line_segment2d_intersection_algo` | wrapper化候補 |
+| `ray_2d_collision.rs` (`Ray2D-Point/Circle/LineSegment`) | `ray2d_point2d_collides`, `ray2d_circle2d_collides`, `ray2d_line_segment2d_collides` | wrapper化候補 |
+| `ray_2d_intersection.rs` (`Ray2D-Circle/LineSegment`) | `ray2d_circle2d_intersections`, `ray2d_line_segment2d_intersection` | wrapper化候補 |
+| `triangle_2d_collision.rs` (`Triangle2D-Circle/LineSegment/Triangle`) | `triangle2d_circle2d_collides`, `triangle2d_line_segment2d_collides`, `triangle2d_triangle2d_collides` | wrapper化候補 |
+| `triangle_2d_intersection.rs` (`Triangle2D-LineSegment`) | `triangle2d_line_segment2d_intersections` | wrapper化候補 |
+| `infinite_line_2d_collision.rs` (`InfiniteLine2D-Point/Circle/LineSegment/Ray`) | `infinite_line2d_point2d_collides`, `infinite_line2d_circle2d_collides`, `infinite_line2d_line_segment2d_collides`, `infinite_line2d_ray2d_collides` | wrapper化候補 |
+| `infinite_line_2d_intersection.rs` (`InfiniteLine2D-Point/Circle/LineSegment/Ray`) | `infinite_line2d_point2d_intersection`, `infinite_line2d_circle2d_intersection`, `infinite_line2d_circle2d_intersections`, `infinite_line2d_line_segment2d_intersection`, `infinite_line2d_ray2d_intersection` | wrapper化候補 |
+| `ellipse_2d_collision.rs` (`Ellipse2D-Point/Circle`) | `ellipse2d_point2d_collides`, `ellipse2d_circle2d_collides`, `circle2d_ellipse2d_collides` | wrapper化候補 |
+| `ellipse_2d_intersection.rs` (`Ellipse2D-Point/Circle`) | `ellipse2d_point2d_intersection`, `ellipse2d_circle2d_intersection`, `ellipse2d_circle2d_intersections` | wrapper化候補 |
+| `ellipse_arc_2d_collision.rs` (`EllipseArc2D-Point/Circle`) | `ellipse_arc2d_point2d_collides`, `ellipse_arc2d_circle2d_collides`, `circle2d_ellipse_arc2d_collides` | wrapper化候補（未公開モジュール依存なしの現行実装に合わせる） |
+| `ellipse_arc_2d_intersection.rs` (`EllipseArc2D-Point`) | `ellipse_arc2d_point2d_intersection` | wrapper化候補（Point判定のみ先行） |
+
+### 12.3 #351 引き渡しメモ
+
+- `geo_primitives/src/ellipse_arc_2d_collision.rs` / `geo_primitives/src/ellipse_arc_2d_intersection.rs` は `lib.rs` 未公開設定との整合を確認してから削減。
+- `Arc2D` / `Triangle2D` / `Ellipse2D` の複数交点系で `pair_base` 抽出余地あり（#351 実施時に再確認）。
