@@ -8,10 +8,13 @@ use crate::intersection::pair_base::{
     circle2d_line_segment2d_intersections, line_segment2d_arc2d_intersections,
     line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
 };
-use crate::{Arc2D, Circle2D, Ellipse2D, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D};
+use crate::{
+    Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D,
+    Triangle2D, Vector2D,
+};
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, Ellipse2DProperties, LineSegment2DProperties,
-    Ray2DProperties, Scalar, Triangle2DProperties,
+    Arc2DProperties, BasicIntersection, Circle2DProperties, Ellipse2DProperties,
+    LineSegment2DProperties, MultipleIntersection, Ray2DProperties, Scalar, Triangle2DProperties,
 };
 
 pub fn circle2d_point2d_intersection<T: Scalar>(
@@ -120,6 +123,14 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
     }
 }
 
+pub fn line_segment2d_ray2d_intersection<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    ray2d_line_segment2d_intersection(ray, segment, tolerance)
+}
+
 pub fn ray2d_circle2d_intersections<T: Scalar>(
     ray: &Ray2D<T>,
     circle: &Circle2D<T>,
@@ -166,6 +177,14 @@ pub fn ray2d_circle2d_intersections<T: Scalar>(
     }
 
     intersections
+}
+
+pub fn circle2d_ray2d_intersections<T: Scalar>(
+    circle: &Circle2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    ray2d_circle2d_intersections(ray, circle, tolerance)
 }
 
 pub fn triangle2d_line_segment2d_intersections<T: Scalar>(
@@ -230,6 +249,130 @@ pub fn arc2d_point2d_intersection<T: Scalar>(
     Some(*point)
 }
 
+pub fn infinite_line2d_point2d_intersection<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    point: &Point2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    line.intersection_with(point, tolerance)
+}
+
+pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    circle: &Circle2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    line.intersection_with(circle, tolerance)
+}
+
+pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    circle: &Circle2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    line.intersections_with(circle, tolerance)
+}
+
+pub fn circle2d_infinite_line2d_intersection<T: Scalar>(
+    circle: &Circle2D<T>,
+    line: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    infinite_line2d_circle2d_intersection(line, circle, tolerance)
+}
+
+pub fn circle2d_infinite_line2d_intersections<T: Scalar>(
+    circle: &Circle2D<T>,
+    line: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    infinite_line2d_circle2d_intersections(line, circle, tolerance)
+}
+
+pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    segment: &LineSegment2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    line.intersection_with(segment, tolerance)
+}
+
+pub fn line_segment2d_infinite_line2d_intersection<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    line: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    infinite_line2d_line_segment2d_intersection(line, segment, tolerance)
+}
+
+pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    line.intersection_with(ray, tolerance)
+}
+
+pub fn ray2d_infinite_line2d_intersection<T: Scalar>(
+    ray: &Ray2D<T>,
+    line: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    infinite_line2d_ray2d_intersection(line, ray, tolerance)
+}
+
+pub fn ellipse2d_point2d_intersection<T: Scalar>(
+    ellipse: &Ellipse2D<T>,
+    point: &Point2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    ellipse.intersection_with(point, tolerance)
+}
+
+pub fn ellipse2d_circle2d_intersection<T: Scalar>(
+    ellipse: &Ellipse2D<T>,
+    circle: &Circle2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    ellipse.intersection_with(circle, tolerance)
+}
+
+pub fn ellipse2d_circle2d_intersections<T: Scalar>(
+    ellipse: &Ellipse2D<T>,
+    circle: &Circle2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    ellipse.intersections_with(circle, tolerance)
+}
+
+pub fn circle2d_ellipse2d_intersection<T: Scalar>(
+    circle: &Circle2D<T>,
+    ellipse: &Ellipse2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    ellipse2d_circle2d_intersection(ellipse, circle, tolerance)
+}
+
+pub fn circle2d_ellipse2d_intersections<T: Scalar>(
+    circle: &Circle2D<T>,
+    ellipse: &Ellipse2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    ellipse2d_circle2d_intersections(ellipse, circle, tolerance)
+}
+
+pub fn ellipse_arc2d_point2d_intersection<T: Scalar>(
+    arc: &EllipseArc2D<T>,
+    point: &Point2D<T>,
+    tolerance: T,
+) -> Option<Point2D<T>> {
+    if arc.contains_point(point, tolerance) {
+        Some(*point)
+    } else {
+        None
+    }
+}
+
 fn edge_segment_intersection<T: Scalar>(
     edge_p1: Point2D<T>,
     edge_p2: Point2D<T>,
@@ -261,10 +404,22 @@ fn edge_segment_intersection<T: Scalar>(
 mod tests {
     use super::{
         arc2d_line_segment2d_intersections_algo, circle2d_arc2d_intersections_algo,
-        circle2d_circle2d_intersections_algo, circle2d_point2d_intersection,
-        line_segment2d_line_segment2d_intersection_algo, ray2d_circle2d_intersections,
+        circle2d_circle2d_intersections_algo, circle2d_ellipse2d_intersection,
+        circle2d_ellipse2d_intersections, circle2d_infinite_line2d_intersection,
+        circle2d_infinite_line2d_intersections, circle2d_point2d_intersection,
+        circle2d_ray2d_intersections, ellipse2d_circle2d_intersection,
+        ellipse2d_circle2d_intersections, ellipse2d_point2d_intersection,
+        ellipse_arc2d_point2d_intersection, infinite_line2d_circle2d_intersection,
+        infinite_line2d_circle2d_intersections, infinite_line2d_line_segment2d_intersection,
+        infinite_line2d_ray2d_intersection, line_segment2d_infinite_line2d_intersection,
+        line_segment2d_line_segment2d_intersection_algo, line_segment2d_ray2d_intersection,
+        ray2d_circle2d_intersections, ray2d_infinite_line2d_intersection,
+        ray2d_line_segment2d_intersection,
     };
-    use crate::{Arc2D, Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
+    use crate::{
+        Angle, Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D,
+        Ray2D, Vector2D,
+    };
 
     #[test]
     fn circle_point_intersection_returns_same_point() {
@@ -329,5 +484,68 @@ mod tests {
 
         let intersections = arc2d_line_segment2d_intersections_algo(&arc, &segment);
         assert!(!intersections.is_empty());
+    }
+
+    #[test]
+    fn symmetric_intersection_wrappers_match_base_functions() {
+        let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+
+        let tol = 1e-9;
+        assert_eq!(
+            circle2d_ray2d_intersections(&circle, &ray, tol),
+            ray2d_circle2d_intersections(&ray, &circle, tol)
+        );
+        assert_eq!(
+            line_segment2d_ray2d_intersection(&segment, &ray, tol),
+            ray2d_line_segment2d_intersection(&ray, &segment, tol)
+        );
+        assert_eq!(
+            circle2d_infinite_line2d_intersection(&circle, &line, tol),
+            infinite_line2d_circle2d_intersection(&line, &circle, tol)
+        );
+        assert_eq!(
+            circle2d_infinite_line2d_intersections(&circle, &line, tol),
+            infinite_line2d_circle2d_intersections(&line, &circle, tol)
+        );
+        assert_eq!(
+            line_segment2d_infinite_line2d_intersection(&segment, &line, tol),
+            infinite_line2d_line_segment2d_intersection(&line, &segment, tol)
+        );
+        assert_eq!(
+            ray2d_infinite_line2d_intersection(&ray, &line, tol),
+            infinite_line2d_ray2d_intersection(&line, &ray, tol)
+        );
+    }
+
+    #[test]
+    fn ellipse_and_ellipse_arc_intersection_entry_points_work() {
+        let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 3.0, 2.0, 0.0).unwrap();
+        let ellipse_arc = EllipseArc2D::new(
+            ellipse,
+            Angle::from_degrees(0.0),
+            Angle::from_degrees(180.0),
+        );
+        let point = Point2D::new(3.0, 0.0);
+        let circle = Circle2D::new(Point2D::new(2.5, 0.0), 0.75).unwrap();
+
+        assert_eq!(
+            ellipse2d_circle2d_intersection(&ellipse, &circle, 1e-6),
+            circle2d_ellipse2d_intersection(&circle, &ellipse, 1e-6)
+        );
+        assert_eq!(
+            ellipse2d_circle2d_intersections(&ellipse, &circle, 1e-6),
+            circle2d_ellipse2d_intersections(&circle, &ellipse, 1e-6)
+        );
+        assert_eq!(
+            ellipse_arc2d_point2d_intersection(&ellipse_arc, &point, 1e-6),
+            Some(point)
+        );
+        assert_eq!(
+            ellipse2d_point2d_intersection(&ellipse, &point, 1e-6),
+            Some(point)
+        );
     }
 }
