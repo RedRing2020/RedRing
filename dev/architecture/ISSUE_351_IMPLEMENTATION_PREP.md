@@ -269,3 +269,24 @@ Get-ChildItem -Path model -Filter *.rs -Recurse |
 
 1. 3D 上位ペア（`ellipse_3d_*`, `ellipsoidal_*`, `cylindrical_*`）の同手順適用
 2. 3D 上位ペア（`torus_*`, `triangle_3d_*`, `triangle_mesh_3d_*`）の同手順適用
+
+### Slice 8: 3D 上位ペア（前半）`ellipse/ellipsoidal/cylindrical` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `cylindrical_solid_3d_collision.rs`
+  - `cylindrical_surface_3d_collision.rs`, `cylindrical_surface_3d_collision_tests.rs`, `cylindrical_surface_3d_intersection.rs`
+  - `ellipse_3d_collision.rs`, `ellipse_3d_collision_tests.rs`, `ellipse_3d_intersection.rs`, `ellipse_3d_intersection_tests.rs`
+  - `ellipsoidal_solid_3d_collision.rs`, `ellipsoidal_solid_3d_collision_tests.rs`, `ellipsoidal_solid_3d_intersection.rs`, `ellipsoidal_solid_3d_intersection_tests.rs`
+  - `ellipsoidal_surface_3d_collision.rs`, `ellipsoidal_surface_3d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` / `#[cfg(test)] pub mod` 宣言を切り離し
+  - 対象14ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（269 passed, 0 failed）
+
+### 次スライス候補（再更新）
+
+1. 3D 上位ペア（後半）`torus_*`, `triangle_3d_*`, `triangle_mesh_3d_*` の同手順適用
+2. 3D 上位ペア適用後に `cargo check --workspace` / `cargo test --workspace` で横断回帰確認

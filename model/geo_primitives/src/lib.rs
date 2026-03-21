@@ -33,46 +33,27 @@ pub mod conical_surface_3d_foundation; // ConicalSurface3D のFoundation実装
                                        // #[cfg(test)]
                                        // pub mod conical_surface_3d_tests; // ConicalSurface3D のテスト - 未実装Transform機能のため無効化
 pub mod cylindrical_solid_3d; // CylindricalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-mod cylindrical_solid_3d_collision; // CylindricalSolid3D の衝突判定
 pub mod cylindrical_solid_3d_extensions; // CylindricalSolid3D の拡張機能 (Extension)
 pub mod cylindrical_solid_3d_foundation; // CylindricalSolid3D のFoundation実装
 #[cfg(test)]
 pub mod cylindrical_solid_3d_tests; // CylindricalSolid3D のテスト
 pub mod cylindrical_surface_3d; // CylindricalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-mod cylindrical_surface_3d_collision; // CylindricalSurface3D の衝突判定・高度衝突判定
-#[cfg(test)]
-pub mod cylindrical_surface_3d_collision_tests; // CylindricalSurface3D の衝突判定テスト
 pub mod cylindrical_surface_3d_extensions; // CylindricalSurface3D の拡張機能 (Extension)
 pub mod cylindrical_surface_3d_foundation; // CylindricalSurface3D のFoundation実装
-mod cylindrical_surface_3d_intersection; // CylindricalSurface3D の交差計算
 #[cfg(test)]
 pub mod cylindrical_surface_3d_tests; // CylindricalSurface3D のテスト
 pub mod direction_3d; // Direction3D の新実装 (Core)
 pub mod direction_3d_extensions;
 pub mod ellipse_3d; // Ellipse3D の新実装 (Core)
-mod ellipse_3d_collision; // Ellipse3D の衝突判定
-#[cfg(test)]
-pub mod ellipse_3d_collision_tests; // Ellipse3D の衝突判定テスト
 pub mod ellipse_3d_extensions; // Ellipse3D の拡張機能 (Extension)
-mod ellipse_3d_intersection; // Ellipse3D の交差計算
-#[cfg(test)]
-pub mod ellipse_3d_intersection_tests; // Ellipse3D の交差計算テスト
 pub mod ellipse_arc_3d; // EllipseArc3D の実装 (Core)
 pub mod ellipse_arc_3d_extensions; // EllipseArc3D の拡張機能 (Extension)
 pub mod ellipse_arc_3d_foundation; // EllipseArc3D の Foundation 実装
 pub mod ellipse_arc_3d_tests; // EllipseArc3D のテスト
 pub mod ellipsoidal_solid_3d; // EllipsoidalSolid3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-mod ellipsoidal_solid_3d_collision; // EllipsoidalSolid3D の衝突判定
-#[cfg(test)]
-pub mod ellipsoidal_solid_3d_collision_tests; // EllipsoidalSolid3D の衝突判定テスト
 pub mod ellipsoidal_solid_3d_foundation; // EllipsoidalSolid3D のFoundation実装
-mod ellipsoidal_solid_3d_intersection; // EllipsoidalSolid3D の交差計算
-#[cfg(test)]
-pub mod ellipsoidal_solid_3d_intersection_tests; // EllipsoidalSolid3D の交差計算テスト
 pub mod ellipsoidal_solid_3d_transform; // EllipsoidalSolid3D の Transform 実装
 pub mod ellipsoidal_surface_3d; // EllipsoidalSurface3D の新実装 (Core) - 完全ハイブリッドモデラー対応
-mod ellipsoidal_surface_3d_collision; // EllipsoidalSurface3D の衝突検出実装
-mod ellipsoidal_surface_3d_intersection; // EllipsoidalSurface3D の交点計算実装
 pub mod infinite_line_3d; // InfiniteLine3D の新実装
 pub mod infinite_line_3d_extensions; // InfiniteLine3D の拡張機能 (Extension)
 pub mod infinite_line_3d_foundation; // InfiniteLine3D の Foundation 実装
