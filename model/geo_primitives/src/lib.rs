@@ -205,19 +205,15 @@ pub use geo_contracts::{
 };
 pub mod ellipse_2d; // Ellipse2D の実装 (新traitsシステム対応)
                     // pub mod ellipse_2d_additional_tests; // Ellipse2D の追加テスト
-mod ellipse_2d_collision; // Ellipse2D の衝突検出実装
 pub mod ellipse_2d_foundation; // Ellipse2D の Foundation 実装
-mod ellipse_2d_intersection; // Ellipse2D の交点計算実装
-                             // pub mod ellipse_2d_tests; // Ellipse2D のテスト
+                               // pub mod ellipse_2d_tests; // Ellipse2D のテスト
 pub mod ellipse_2d_transform; // Ellipse2D の変換実装
 pub mod ellipse_arc_2d; // EllipseArc2D の実装 (Core)
 pub mod ellipse_arc_2d_extensions; // EllipseArc2D の拡張機能 (Extension)
 pub mod ellipse_arc_2d_foundation; // EllipseArc2D の Foundation 実装
 pub mod infinite_line_2d; // InfiniteLine2D の新実装
-mod infinite_line_2d_collision; // InfiniteLine2D の衝突検出実装
 pub mod infinite_line_2d_extensions; // InfiniteLine2D の拡張機能 (Extension)
 pub mod infinite_line_2d_foundation; // InfiniteLine2D の Foundation 実装
-mod infinite_line_2d_intersection; // InfiniteLine2D の交点計算実装
 pub mod infinite_line_2d_transform; // InfiniteLine2D の変換実装
 pub mod line_segment_2d; // LineSegment2D の新実装 (Core)
 pub mod line_segment_2d_extensions; // LineSegment2D の拡張機能 (Extension)

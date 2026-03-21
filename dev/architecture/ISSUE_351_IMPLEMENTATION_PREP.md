@@ -230,3 +230,21 @@ Get-ChildItem -Path model -Filter *.rs -Recurse |
 
 1. 2D `infinite_line_2d_*`, `ellipse_2d_*` の同手順適用
 2. 3D 基礎ペア（`line_segment_3d_*`, `plane_3d_*`, `ray_3d_*`, `infinite_line_3d_*`）の同手順適用
+
+### Slice 6: 2D `infinite_line/ellipse` 旧実装削減（2026-03-22）
+
+- 対象:
+  - `infinite_line_2d_collision.rs`, `infinite_line_2d_intersection.rs`
+  - `ellipse_2d_collision.rs`, `ellipse_2d_intersection.rs`
+- 実施:
+  - `lib.rs` から対象 `mod` 宣言を切り離し
+  - 対象4ファイルを物理削除
+- 検証:
+  - `cargo clippy -p geo_primitives -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo test -p geo_primitives`: pass（316 passed, 0 failed）
+
+### 次スライス候補（再更新）
+
+1. 3D 基礎ペア（`line_segment_3d_*`, `plane_3d_*`, `ray_3d_*`, `infinite_line_3d_*`）の同手順適用
+2. 3D 上位ペア（`ellipse_3d_*`, `ellipsoidal_*`, `cylindrical_*`, `torus_*`, `triangle_mesh_3d_*`）の同手順適用
