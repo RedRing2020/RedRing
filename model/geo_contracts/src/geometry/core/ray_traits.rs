@@ -183,6 +183,10 @@ pub trait Ray3DMeasure<T: Scalar> {
     fn translate(&self, offset: (T, T, T)) -> Self
     where
         Self: Sized;
+    #[deprecated(
+        since = "0.1.0",
+        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
+    )]
     fn distance_to_ray(&self, other: &Self) -> T;
     fn point_at_distance(&self, distance: T) -> (T, T, T);
     fn angle_between(&self, other: &Self) -> T;

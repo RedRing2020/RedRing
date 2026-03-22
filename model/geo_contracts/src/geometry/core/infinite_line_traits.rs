@@ -166,6 +166,10 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
     fn contains_point(&self, point: (T, T, T)) -> bool;
     fn project_point(&self, point: (T, T, T)) -> (T, T, T);
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
+    #[deprecated(
+        since = "0.1.0",
+        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
+    )]
     fn distance_to_line(&self, other: &Self) -> T;
     fn closest_points(&self, other: &Self) -> Option<TwoPoints3D<T>>;
     fn is_parallel_to(&self, other: &Self) -> bool;

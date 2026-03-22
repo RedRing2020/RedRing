@@ -40,11 +40,23 @@
 
 ## #344 実装ステップ
 
-1. `operations` に distance 契約モジュールを追加
-2. `operations/mod.rs` で distance 契約を再エクスポート
-3. `lib.rs` で distance 契約の再エクスポートを統一
-4. `core` 側 cross-shape distance を `#[deprecated]` で段階縮退開始
-5. `cargo check -p geo_contracts` で契約整合を確認
+1. [x] `operations` に distance 契約モジュールを追加
+2. [x] `operations/mod.rs` で distance 契約を再エクスポート
+3. [x] `lib.rs` で distance 契約の再エクスポートを統一
+4. [x] `core` 側 cross-shape distance を `#[deprecated]` で段階縮退開始
+5. [x] `cargo check -p geo_contracts` で契約整合を確認
+
+## 進捗メモ（2026-03-23）
+
+- `core` の以下メソッドへ `#[deprecated]` を追加し、移行先を
+  `geometry::operations::CrossDistance` に統一:
+  - `Circle2DMeasure::distance_to_circle`
+  - `Circle3DMeasure::distance_to_circle`
+  - `InfiniteLine3DMeasure::distance_to_line`
+  - `LineSegment2DMeasure::distance_to_segment`
+  - `LineSegment3DMeasure::distance_to_segment`
+  - `LineSegment3DCollisionDetection::distance_to_aabb`
+  - `Ray3DMeasure::distance_to_ray`
 
 ## 互換方針
 
