@@ -50,6 +50,14 @@
 - `geo_algorithms` 内で `ToleranceContext` 依存箇所を `ToleranceSettings` ベースへ移行する。
 - 移行完了後に `model/geo_algorithms/src/tolerance.rs` を削除する。
 
+### フェーズ3 実績（Issue #377）
+
+- `interpolation.rs` / `numerical.rs` / `statistics.rs` / `sampling.rs` の
+	`ToleranceContext` 依存を `geo_contracts::ToleranceSettings<f64>` ベースへ移行。
+- `model/geo_algorithms/src/tolerance.rs` を削除。
+- `geo_algorithms` 側の新規トレランス定義追加は行わず、
+	呼び出し境界で `ToleranceSettings` を受け渡す方針に統一。
+
 ## 運用ルール
 
 - 新規コードでは `ToleranceSettings` を使用し、互換層APIを増やさない。

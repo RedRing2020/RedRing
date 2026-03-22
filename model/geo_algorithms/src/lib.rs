@@ -6,7 +6,6 @@
 pub mod collision;
 pub mod intersection;
 pub mod octree;
-pub mod tolerance;
 
 // Octree関連の公開API
 pub use octree::{Octree, OctreeNode, OctreeTolerance};

@@ -1,7 +1,7 @@
 /// 幾何サンプリングとパターン解析
 ///
 /// 2D/3D幾何要素のサンプリング、交差検出、パターン抽出機能
-use crate::tolerance::ToleranceContext;
+use geo_contracts::ToleranceSettings;
 
 /// サンプリング結果
 #[derive(Debug, Clone)]
@@ -30,13 +30,13 @@ pub struct IntersectionCandidate {
 
 /// 適応的サンプリング
 pub struct AdaptiveSampler {
-    tolerance: ToleranceContext,
+    tolerance: ToleranceSettings<f64>,
     max_recursion: usize,
     min_samples: usize,
 }
 
 impl AdaptiveSampler {
-    pub fn new(tolerance: ToleranceContext) -> Self {
+    pub fn new(tolerance: ToleranceSettings<f64>) -> Self {
         Self {
             tolerance,
             max_recursion: 8,
@@ -109,7 +109,7 @@ impl AdaptiveSampler {
 
         // 高曲率領域では細かくサンプリング
         // 許容誤差を調整：曲率の逆数を使用してより実用的な閾値にする
-        let curvature_threshold = 1.0 / self.tolerance.curvature; // 1000.0 相当
+        let curvature_threshold = 1.0 / self.tolerance.length_tolerance;
         let parametric_threshold = (end - start) > (2.0 * std::f64::consts::PI / 10.0); // パラメータ範囲の1/10
 
         let should_subdivide = curvature.abs() > curvature_threshold || parametric_threshold;

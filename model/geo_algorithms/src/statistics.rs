@@ -1,8 +1,7 @@
 /// 統計処理機能
 ///
 /// 基本統計量の計算、分布解析、回帰分析を提供する
-use crate::tolerance::ToleranceContext;
-use geo_contracts::Scalar;
+use geo_contracts::{Scalar, ToleranceSettings};
 
 /// 基本統計量
 #[derive(Debug, Clone)]
@@ -58,11 +57,11 @@ impl BasicStats {
 
 /// 2D点群の統計解析
 pub struct PointCluster {
-    tolerance: ToleranceContext,
+    tolerance: ToleranceSettings<f64>,
 }
 
 impl PointCluster {
-    pub fn new(tolerance: ToleranceContext) -> Self {
+    pub fn new(tolerance: ToleranceSettings<f64>) -> Self {
         Self { tolerance }
     }
 
@@ -132,7 +131,7 @@ impl PointCluster {
         let _lambda2 = (trace - discriminant.sqrt()) / 2.0;
 
         // 第1主成分方向
-        let direction = if cxy.abs() > self.tolerance.linear {
+        let direction = if cxy.abs() > self.tolerance.distance_tolerance {
             let angle = (2.0 * cxy / (cxx - cyy)).atan() / 2.0;
             Point2D::from_f64(angle.cos(), angle.sin())
         } else if cxx > cyy {

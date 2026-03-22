@@ -1,14 +1,14 @@
 /// 補間、曲線近似用関数群
 /// 線形、ベジェ、Catmull-Rom、NURBS風の補間、近似
-use crate::tolerance::ToleranceContext;
+use geo_contracts::ToleranceSettings;
 
 /// 線形補間器
 pub struct LinearInterpolator {
-    tolerance: ToleranceContext,
+    tolerance: ToleranceSettings<f64>,
 }
 
 impl LinearInterpolator {
-    pub fn new(tolerance: ToleranceContext) -> Self {
+    pub fn new(tolerance: ToleranceSettings<f64>) -> Self {
         Self { tolerance }
     }
 
@@ -50,7 +50,7 @@ impl LinearInterpolator {
                 let segment_start = lengths[i - 1];
                 let segment_length = lengths[i] - segment_start;
 
-                if segment_length < self.tolerance.linear {
+                if segment_length < self.tolerance.distance_tolerance {
                     return Some(points[i - 1]);
                 }
 

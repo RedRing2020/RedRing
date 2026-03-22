@@ -4,7 +4,7 @@ use crate::sampling::IntersectionCandidate;
 /// 交差検出、近似、最適化問題の解法を提供
 use analysis::linalg::solver::newton::newton_solve_2d;
 use analysis::GEOMETRIC_DISTANCE_TOLERANCE;
-use crate::tolerance::ToleranceContext;
+use geo_contracts::ToleranceSettings;
 
 /// 2次元ベクトル（analysisのlinalgから独立）
 #[derive(Debug, Clone, Copy)]
@@ -49,11 +49,11 @@ fn adaptive_step_size(x: f64) -> f64 {
 
 /// 曲線間交差検出
 pub struct CurveIntersection {
-    tolerance: ToleranceContext,
+    tolerance: ToleranceSettings<f64>,
 }
 
 impl CurveIntersection {
-    pub fn new(tolerance: ToleranceContext) -> Self {
+    pub fn new(tolerance: ToleranceSettings<f64>) -> Self {
         Self { tolerance }
     }
 
@@ -85,7 +85,7 @@ impl CurveIntersection {
                 let p2 = curve2(t2);
                 let distance = p1.distance_to(&p2).value();
 
-                if distance < self.tolerance.linear * 10.0 {
+                if distance < self.tolerance.distance_tolerance * 10.0 {
                     // Newton法で精密化
                     if let Some(refined) = self.refine_intersection(&curve1, &curve2, t1, t2) {
                         candidates.push(refined);
@@ -138,13 +138,18 @@ impl CurveIntersection {
         };
 
         // analysis の newton_solve_2d を使用
-        if let Some((t1, t2)) = newton_solve_2d(system, (initial_t1, initial_t2), 100, self.tolerance.parametric) {
+        if let Some((t1, t2)) = newton_solve_2d(
+            system,
+            (initial_t1, initial_t2),
+            100,
+            self.tolerance.length_tolerance,
+        ) {
             let intersection_point = curve1(t1);
             let verification_point = curve2(t2);
             let distance = intersection_point.distance_to(&verification_point).value();
 
             // 収束判定
-            if distance < self.tolerance.linear {
+            if distance < self.tolerance.distance_tolerance {
                 return Some(IntersectionCandidate {
                     point: intersection_point,
                     parameter: t1,
@@ -167,7 +172,7 @@ impl CurveIntersection {
         for candidate in candidates {
             let is_duplicate = unique.iter().any(|existing: &IntersectionCandidate| {
                 let distance = candidate.point.distance_to(&existing.point).value();
-                distance < self.tolerance.linear
+                distance < self.tolerance.distance_tolerance
             });
 
             if !is_duplicate {
@@ -183,11 +188,11 @@ impl CurveIntersection {
 ///
 /// 注意: 座標値と距離はmm単位で処理される
 pub struct LeastSquaresFitter {
-    tolerance: ToleranceContext,
+    tolerance: ToleranceSettings<f64>,
 }
 
 impl LeastSquaresFitter {
-    pub fn new(tolerance: ToleranceContext) -> Self {
+    pub fn new(tolerance: ToleranceSettings<f64>) -> Self {
         Self { tolerance }
     }
 
@@ -249,7 +254,7 @@ impl LeastSquaresFitter {
         let det = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31)
             + a13 * (a21 * a32 - a22 * a31);
 
-        if det.abs() < self.tolerance.parametric {
+        if det.abs() < self.tolerance.length_tolerance {
             return Err("Degenerate point set - singular matrix".to_string());
         }
 
@@ -296,7 +301,7 @@ impl LeastSquaresFitter {
         }
 
         let denom = n * sum_x2 - sum_x * sum_x;
-        if denom.abs() < self.tolerance.parametric {
+        if denom.abs() < self.tolerance.length_tolerance {
             // 垂直線の場合
             let avg_x = sum_x / n;
             let avg_y = sum_y / n;
