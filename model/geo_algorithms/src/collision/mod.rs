@@ -8,7 +8,9 @@ pub mod pair_base;
 pub mod primitive_2d;
 pub mod primitive_3d;
 pub mod primitive_nurbs;
+pub mod primitive_nurbs_surface;
 
 pub use primitive_2d::*;
 pub use primitive_3d::*;
 pub use primitive_nurbs::*;
+pub use primitive_nurbs_surface::*;
