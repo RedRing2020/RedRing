@@ -642,6 +642,66 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             entrypoint_b_to_a: Some("infinite_line2d_circle2d_intersections"),
         },
         MatrixEntry {
+            id: "2d:line-segment:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "InfiniteLine2D",
+            shape_b: "LineSegment2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("infinite_line2d_line_segment2d_intersection"),
+            entrypoint_b_to_a: Some("line_segment2d_infinite_line2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:segment-line:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "LineSegment2D",
+            shape_b: "InfiniteLine2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("line_segment2d_infinite_line2d_intersection"),
+            entrypoint_b_to_a: Some("infinite_line2d_line_segment2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:line-ray:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "InfiniteLine2D",
+            shape_b: "Ray2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("infinite_line2d_ray2d_intersection"),
+            entrypoint_b_to_a: Some("ray2d_infinite_line2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:ray-line:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Ray2D",
+            shape_b: "InfiniteLine2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("ray2d_infinite_line2d_intersection"),
+            entrypoint_b_to_a: Some("infinite_line2d_ray2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:triangle-segment:intersections",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Triangle2D",
+            shape_b: "LineSegment2D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("triangle2d_line_segment2d_intersections"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
             id: "2d:segment-point:distance",
             dimension: Dimension::D2,
             operation: Operation::Distance,
@@ -664,6 +724,18 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             cardinality: Some(Cardinality::Optional),
             entrypoint_a_to_b: Some("infinite_line3d_line_segment3d_intersection"),
             entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:line-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "InfiniteLine3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("infinite_line3d_ray3d_intersection"),
+            entrypoint_b_to_a: Some("ray3d_infinite_line3d_intersection"),
         },
         MatrixEntry {
             id: "3d:plane-segment:intersection",
@@ -696,9 +768,93 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             shape_a: "Ray3D",
             shape_b: "InfiniteLine3D",
             required: true,
-            symmetric: false,
+            symmetric: true,
             cardinality: Some(Cardinality::Optional),
             entrypoint_a_to_b: Some("ray3d_infinite_line3d_intersection"),
+            entrypoint_b_to_a: Some("infinite_line3d_ray3d_intersection"),
+        },
+        MatrixEntry {
+            id: "3d:triangle-segment:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Triangle3D",
+            shape_b: "LineSegment3D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("triangle3d_line_segment3d_intersection"),
+            entrypoint_b_to_a: Some("line_segment3d_triangle3d_intersection"),
+        },
+        MatrixEntry {
+            id: "3d:segment-triangle:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "LineSegment3D",
+            shape_b: "Triangle3D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("line_segment3d_triangle3d_intersection"),
+            entrypoint_b_to_a: Some("triangle3d_line_segment3d_intersection"),
+        },
+        MatrixEntry {
+            id: "3d:triangle-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Triangle3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("triangle3d_ray3d_intersection"),
+            entrypoint_b_to_a: Some("ray3d_triangle3d_intersection"),
+        },
+        MatrixEntry {
+            id: "3d:ray-triangle:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Ray3D",
+            shape_b: "Triangle3D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("ray3d_triangle3d_intersection"),
+            entrypoint_b_to_a: Some("triangle3d_ray3d_intersection"),
+        },
+        MatrixEntry {
+            id: "3d:line-line:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "InfiniteLine3D",
+            shape_b: "InfiniteLine3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("infinite_line3d_infinite_line3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:segment-segment:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "LineSegment3D",
+            shape_b: "LineSegment3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("line_segment3d_line_segment3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:ray-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Ray3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("ray3d_ray3d_intersection"),
             entrypoint_b_to_a: None,
         },
         MatrixEntry {
@@ -1045,7 +1201,8 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
 #[test]
 fn matrix_engine_passes_for_valid_seed() {
     let entries = valid_seed_entries();
-    assert!(validate_matrix(&entries).is_ok());
+    let result = validate_matrix(&entries);
+    assert!(result.is_ok(), "{}", result.unwrap_err());
 }
 
 #[test]
@@ -1057,6 +1214,20 @@ fn matrix_engine_seed_contains_distance_entries() {
             .any(|e| matches!(e.operation, Operation::Distance)),
         "distance シードが1件以上必要"
     );
+}
+
+#[test]
+fn matrix_engine_seed_contains_intersection_entries_for_2d_and_3d() {
+    let entries = valid_seed_entries();
+    let has_2d = entries.iter().any(|e| {
+        matches!(e.operation, Operation::Intersection) && matches!(e.dimension, Dimension::D2)
+    });
+    let has_3d = entries.iter().any(|e| {
+        matches!(e.operation, Operation::Intersection) && matches!(e.dimension, Dimension::D3)
+    });
+
+    assert!(has_2d, "2D intersection シードが1件以上必要");
+    assert!(has_3d, "3D intersection シードが1件以上必要");
 }
 
 #[test]
