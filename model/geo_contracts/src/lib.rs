@@ -60,8 +60,9 @@ pub use geometry::core::{
 };
 pub use geometry::foundation::{Bounded, ExtensionFoundation};
 pub use geometry::operations::{
-    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, EllipseAccuracyAnalysis,
-    EllipseAdaptiveCalculation, EllipseCalculation, MultipleIntersection, PointDistance,
+    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, CrossDistance,
+    DistanceConvergenceError, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation,
+    EllipseCalculation, FallibleCrossDistance, MultipleIntersection, PointDistance,
     SelfIntersection,
 };
 pub use tolerance::{
