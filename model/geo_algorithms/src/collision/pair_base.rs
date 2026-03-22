@@ -11,8 +11,64 @@ use crate::intersection::pair_base::{
     ray3d_line_segment3d_intersection, ray3d_ray3d_intersection,
     ray3d_spherical_surface3d_intersections,
 };
-use crate::{InfiniteLine3D, LineSegment3D, Plane3D, Ray3D, SphericalSurface3D};
+use crate::intersection::primitive_2d::{
+    infinite_line2d_line_segment2d_intersection as infinite_line2d_line_segment2d_intersection_2d,
+    infinite_line2d_ray2d_intersection as infinite_line2d_ray2d_intersection_2d,
+    ray2d_line_segment2d_intersection as ray2d_line_segment2d_intersection_2d,
+};
+use crate::{
+    InfiniteLine2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Ray2D, Ray3D,
+    SphericalSurface3D,
+};
 use geo_contracts::Scalar;
+
+pub fn ray2d_line_segment2d_collides<T: Scalar>(
+    ray: &Ray2D<T>,
+    segment: &LineSegment2D<T>,
+    tolerance: T,
+) -> bool {
+    ray2d_line_segment2d_intersection_2d(ray, segment, tolerance).is_some()
+}
+
+pub fn line_segment2d_ray2d_collides<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> bool {
+    ray2d_line_segment2d_collides(ray, segment, tolerance)
+}
+
+pub fn infinite_line2d_line_segment2d_collides<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    segment: &LineSegment2D<T>,
+    tolerance: T,
+) -> bool {
+    infinite_line2d_line_segment2d_intersection_2d(line, segment, tolerance).is_some()
+}
+
+pub fn line_segment2d_infinite_line2d_collides<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    line: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> bool {
+    infinite_line2d_line_segment2d_collides(line, segment, tolerance)
+}
+
+pub fn infinite_line2d_ray2d_collides<T: Scalar>(
+    line: &InfiniteLine2D<T>,
+    ray: &Ray2D<T>,
+    tolerance: T,
+) -> bool {
+    infinite_line2d_ray2d_intersection_2d(line, ray, tolerance).is_some()
+}
+
+pub fn ray2d_infinite_line2d_collides<T: Scalar>(
+    ray: &Ray2D<T>,
+    line: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> bool {
+    infinite_line2d_ray2d_collides(line, ray, tolerance)
+}
 
 // collision 判定は intersection 側の判定ロジックを正本として再利用し、
 // 幾何条件の二重実装を避ける。

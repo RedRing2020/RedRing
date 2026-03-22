@@ -250,3 +250,24 @@
 
 - `geo_primitives/src/ellipse_arc_2d_collision.rs` / `geo_primitives/src/ellipse_arc_2d_intersection.rs` は `lib.rs` 未公開設定との整合を確認してから削減。
 - `Arc2D` / `Triangle2D` / `Ellipse2D` の複数交点系で `pair_base` 抽出余地あり（#351 実施時に再確認）。
+
+## 13. 実装スライス記録（2026-03-22 追補2）
+
+- 変更ファイル:
+  - `model/geo_algorithms/src/collision/pair_base.rs`
+  - `model/geo_algorithms/src/collision/primitive_2d.rs`
+- 概要:
+  - 2D の `Ray2D-LineSegment2D` / `InfiniteLine2D-LineSegment2D` / `InfiniteLine2D-Ray2D` について、
+    collision 判定を intersection 正本（`intersection::primitive_2d`）へ委譲する pair-base 関数を追加。
+  - `primitive_2d` 側の該当 collision entry point を pair-base 呼び出しへ切り替え、
+    endpoint 偏重の判定経路を削減。
+  - 中点交差や ray-origin 以外での交差を検出する回帰テストを追加。
+- 検証:
+  - `cargo clippy -- -D warnings`: pass
+  - `cargo fmt --all`: pass
+  - `cargo check --workspace`: pass
+  - `cargo test --workspace`: pass
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check_architecture_dependencies_simple.ps1`: pass
+- #350 観点の更新:
+  - `pair_base.rs` への 2D 共通ロジック抽出を一部実施（線分・直線・半直線系）。
+  - 残る抽出余地は曲線ペア系（Arc/Ellipse/EllipseArc）中心で、#351 側で段階整理可能。

@@ -6,6 +6,11 @@
 //! 注意: orphan rules により、ここでは trait 実装ではなく
 //! 形状ペア関数を提供する。
 
+use crate::collision::pair_base::{
+    infinite_line2d_line_segment2d_collides as pair_base_infinite_line2d_line_segment2d_collides,
+    infinite_line2d_ray2d_collides as pair_base_infinite_line2d_ray2d_collides,
+    ray2d_line_segment2d_collides as pair_base_ray2d_line_segment2d_collides,
+};
 use crate::intersection::pair_base::line_segment2d_arc2d_intersections;
 use crate::intersection::primitive_2d::triangle2d_line_segment2d_intersections;
 use crate::{
@@ -13,8 +18,7 @@ use crate::{
     Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Ray2DProperties, Scalar,
-    Triangle2DProperties,
+    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DProperties,
 };
 
 pub fn circle2d_point2d_collides<T: Scalar>(
@@ -158,13 +162,7 @@ pub fn ray2d_line_segment2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> bool {
-    let start = Point2D::new(segment.start().0, segment.start().1);
-    let end = Point2D::new(segment.end().0, segment.end().1);
-
-    let dist_start = ray.distance_to_point(&start);
-    let dist_end = ray.distance_to_point(&end);
-
-    dist_start <= tolerance || dist_end <= tolerance
+    pair_base_ray2d_line_segment2d_collides(ray, segment, tolerance)
 }
 
 pub fn line_segment2d_ray2d_collides<T: Scalar>(
@@ -289,9 +287,7 @@ pub fn infinite_line2d_line_segment2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> bool {
-    let start = Point2D::new(segment.start().0, segment.start().1);
-    let end = Point2D::new(segment.end().0, segment.end().1);
-    line.distance_to_point(&start) <= tolerance || line.distance_to_point(&end) <= tolerance
+    pair_base_infinite_line2d_line_segment2d_collides(line, segment, tolerance)
 }
 
 pub fn line_segment2d_infinite_line2d_collides<T: Scalar>(
@@ -307,9 +303,7 @@ pub fn infinite_line2d_ray2d_collides<T: Scalar>(
     ray: &Ray2D<T>,
     tolerance: T,
 ) -> bool {
-    let (ox, oy) = ray.origin();
-    let origin = Point2D::new(ox, oy);
-    line.contains_point(&origin, tolerance)
+    pair_base_infinite_line2d_ray2d_collides(line, ray, tolerance)
 }
 
 pub fn ray2d_infinite_line2d_collides<T: Scalar>(
@@ -501,6 +495,37 @@ mod tests {
         assert!(triangle2d_line_segment2d_collides(
             &triangle, &segment, 1e-9
         ));
+    }
+
+    #[test]
+    fn ray_line_segment_collision_detects_midpoint_intersection() {
+        let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(0.0, -1.0), Point2D::new(0.0, 1.0)).unwrap();
+
+        assert!(ray2d_line_segment2d_collides(&ray, &segment, 1e-9));
+        assert!(line_segment2d_ray2d_collides(&segment, &ray, 1e-9));
+    }
+
+    #[test]
+    fn infinite_line_line_segment_collision_detects_midpoint_intersection() {
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
+
+        assert!(infinite_line2d_line_segment2d_collides(
+            &line, &segment, 1e-9
+        ));
+        assert!(line_segment2d_infinite_line2d_collides(
+            &segment, &line, 1e-9
+        ));
+    }
+
+    #[test]
+    fn infinite_line_ray_collision_detects_off_origin_intersection() {
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray = Ray2D::new(Point2D::new(1.0, 1.0), Vector2D::new(0.0, -1.0)).unwrap();
+
+        assert!(infinite_line2d_ray2d_collides(&line, &ray, 1e-9));
+        assert!(ray2d_infinite_line2d_collides(&ray, &line, 1e-9));
     }
 
     #[test]
