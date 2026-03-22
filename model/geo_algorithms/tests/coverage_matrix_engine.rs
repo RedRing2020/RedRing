@@ -10,6 +10,7 @@ enum Dimension {
 enum Operation {
     Collision,
     Intersection,
+    Distance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,6 +31,7 @@ struct MatrixEntry {
     symmetric: bool,
     cardinality: Option<Cardinality>,
     entrypoint_a_to_b: Option<&'static str>,
+    entrypoint_b_to_a: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -101,6 +103,119 @@ fn detect_missing_required(entries: &[MatrixEntry]) -> Result<(), String> {
     }
 }
 
+fn detect_invalid_cardinality(entries: &[MatrixEntry]) -> Result<(), String> {
+    let mut invalid = Vec::new();
+
+    for entry in entries {
+        match entry.operation {
+            Operation::Intersection => {
+                if entry.cardinality.is_none() {
+                    invalid.push(format!("{}: intersection requires cardinality", entry.id));
+                }
+            }
+            Operation::Collision | Operation::Distance => {
+                if entry.cardinality.is_some() {
+                    invalid.push(format!(
+                        "{}: non-intersection must have null cardinality",
+                        entry.id
+                    ));
+                }
+            }
+        }
+    }
+
+    if invalid.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "invalid cardinality rules:\n- {}",
+            invalid.join("\n- ")
+        ))
+    }
+}
+
+fn detect_missing_symmetric_entrypoints(entries: &[MatrixEntry]) -> Result<(), String> {
+    let missing: Vec<String> = entries
+        .iter()
+        .filter(|e| e.symmetric && (e.entrypoint_a_to_b.is_none() || e.entrypoint_b_to_a.is_none()))
+        .map(|e| e.id.to_string())
+        .collect();
+
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "missing symmetric entrypoints:\n- {}",
+            missing.join("\n- ")
+        ))
+    }
+}
+
+fn collect_pub_fn_names(source: &str) -> HashSet<String> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim_start();
+            if !line.starts_with("pub fn ") {
+                return None;
+            }
+
+            let rest = &line["pub fn ".len()..];
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+
+            if name.is_empty() {
+                None
+            } else {
+                Some(name)
+            }
+        })
+        .collect()
+}
+
+fn known_entrypoints() -> HashSet<String> {
+    let sources = [
+        include_str!("../src/collision/primitive_2d.rs"),
+        include_str!("../src/collision/primitive_3d.rs"),
+        include_str!("../src/collision/primitive_nurbs.rs"),
+        include_str!("../src/intersection/primitive_2d.rs"),
+        include_str!("../src/intersection/primitive_3d.rs"),
+    ];
+
+    let mut set = HashSet::new();
+    for source in sources {
+        set.extend(collect_pub_fn_names(source));
+    }
+
+    set
+}
+
+fn detect_unknown_entrypoints(entries: &[MatrixEntry]) -> Result<(), String> {
+    let known = known_entrypoints();
+    let mut unknown = Vec::new();
+
+    for entry in entries {
+        if let Some(ep) = entry.entrypoint_a_to_b {
+            if !known.contains(ep) {
+                unknown.push(format!("{}: {}", entry.id, ep));
+            }
+        }
+        if let Some(ep) = entry.entrypoint_b_to_a {
+            if !known.contains(ep) {
+                unknown.push(format!("{}: {}", entry.id, ep));
+            }
+        }
+    }
+
+    if unknown.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("unknown entrypoints:\n- {}", unknown.join("\n- ")))
+    }
+}
+
 fn detect_symmetry_mismatch(entries: &[MatrixEntry]) -> Result<(), String> {
     let by_key: HashMap<MatrixKey, &MatrixEntry> = entries.iter().map(|e| (e.key(), e)).collect();
     let mut mismatches = Vec::new();
@@ -142,7 +257,16 @@ fn validate_matrix(entries: &[MatrixEntry]) -> Result<(), String> {
     if let Err(err) = detect_missing_required(entries) {
         errors.push(err);
     }
+    if let Err(err) = detect_invalid_cardinality(entries) {
+        errors.push(err);
+    }
+    if let Err(err) = detect_missing_symmetric_entrypoints(entries) {
+        errors.push(err);
+    }
     if let Err(err) = detect_symmetry_mismatch(entries) {
+        errors.push(err);
+    }
+    if let Err(err) = detect_unknown_entrypoints(entries) {
         errors.push(err);
     }
 
@@ -165,6 +289,7 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             symmetric: true,
             cardinality: None,
             entrypoint_a_to_b: Some("circle2d_ray2d_collides"),
+            entrypoint_b_to_a: Some("ray2d_circle2d_collides"),
         },
         MatrixEntry {
             id: "2d:ray-circle:collision",
@@ -176,6 +301,139 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             symmetric: true,
             cardinality: None,
             entrypoint_a_to_b: Some("ray2d_circle2d_collides"),
+            entrypoint_b_to_a: Some("circle2d_ray2d_collides"),
+        },
+        MatrixEntry {
+            id: "2d:segment-ray:collision",
+            dimension: Dimension::D2,
+            operation: Operation::Collision,
+            shape_a: "LineSegment2D",
+            shape_b: "Ray2D",
+            required: true,
+            symmetric: true,
+            cardinality: None,
+            entrypoint_a_to_b: Some("line_segment2d_ray2d_collides"),
+            entrypoint_b_to_a: Some("ray2d_line_segment2d_collides"),
+        },
+        MatrixEntry {
+            id: "2d:ray-segment:collision",
+            dimension: Dimension::D2,
+            operation: Operation::Collision,
+            shape_a: "Ray2D",
+            shape_b: "LineSegment2D",
+            required: true,
+            symmetric: true,
+            cardinality: None,
+            entrypoint_a_to_b: Some("ray2d_line_segment2d_collides"),
+            entrypoint_b_to_a: Some("line_segment2d_ray2d_collides"),
+        },
+        MatrixEntry {
+            id: "2d:circle-ray:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Circle2D",
+            shape_b: "Ray2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("circle2d_ray2d_intersections"),
+            entrypoint_b_to_a: Some("ray2d_circle2d_intersections"),
+        },
+        MatrixEntry {
+            id: "2d:ray-circle:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Ray2D",
+            shape_b: "Circle2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("ray2d_circle2d_intersections"),
+            entrypoint_b_to_a: Some("circle2d_ray2d_intersections"),
+        },
+        MatrixEntry {
+            id: "2d:segment-ray:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "LineSegment2D",
+            shape_b: "Ray2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Single),
+            entrypoint_a_to_b: Some("line_segment2d_ray2d_intersection"),
+            entrypoint_b_to_a: Some("ray2d_line_segment2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:ray-segment:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Ray2D",
+            shape_b: "LineSegment2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Single),
+            entrypoint_a_to_b: Some("ray2d_line_segment2d_intersection"),
+            entrypoint_b_to_a: Some("line_segment2d_ray2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:circle-ellipse:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Circle2D",
+            shape_b: "Ellipse2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("circle2d_ellipse2d_intersection"),
+            entrypoint_b_to_a: Some("ellipse2d_circle2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:ellipse-circle:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Ellipse2D",
+            shape_b: "Circle2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("ellipse2d_circle2d_intersection"),
+            entrypoint_b_to_a: Some("circle2d_ellipse2d_intersection"),
+        },
+        MatrixEntry {
+            id: "2d:line-circle:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "InfiniteLine2D",
+            shape_b: "Circle2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("infinite_line2d_circle2d_intersections"),
+            entrypoint_b_to_a: Some("circle2d_infinite_line2d_intersections"),
+        },
+        MatrixEntry {
+            id: "2d:circle-line:intersection",
+            dimension: Dimension::D2,
+            operation: Operation::Intersection,
+            shape_a: "Circle2D",
+            shape_b: "InfiniteLine2D",
+            required: true,
+            symmetric: true,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("circle2d_infinite_line2d_intersections"),
+            entrypoint_b_to_a: Some("infinite_line2d_circle2d_intersections"),
+        },
+        MatrixEntry {
+            id: "2d:segment-point:distance",
+            dimension: Dimension::D2,
+            operation: Operation::Distance,
+            shape_a: "LineSegment2D",
+            shape_b: "Point2D",
+            required: true,
+            symmetric: false,
+            cardinality: None,
+            entrypoint_a_to_b: Some("line_segment2d_point2d_distance"),
+            entrypoint_b_to_a: None,
         },
         MatrixEntry {
             id: "3d:line-segment:intersection",
@@ -187,6 +445,67 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             symmetric: false,
             cardinality: Some(Cardinality::Optional),
             entrypoint_a_to_b: Some("infinite_line3d_line_segment3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:plane-segment:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Plane3D",
+            shape_b: "LineSegment3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("plane3d_line_segment3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:plane-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Plane3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("plane3d_ray3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:ray-line:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "Ray3D",
+            shape_b: "InfiniteLine3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("ray3d_infinite_line3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:line-sphere:collision",
+            dimension: Dimension::D3,
+            operation: Operation::Collision,
+            shape_a: "InfiniteLine3D",
+            shape_b: "SphericalSurface3D",
+            required: true,
+            symmetric: false,
+            cardinality: None,
+            entrypoint_a_to_b: Some("infinite_line3d_spherical_surface3d_collides"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:segment-sphere:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "LineSegment3D",
+            shape_b: "SphericalSurface3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("line_segment3d_spherical_surface3d_intersections"),
+            entrypoint_b_to_a: None,
         },
     ]
 }
@@ -195,6 +514,17 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
 fn matrix_engine_passes_for_valid_seed() {
     let entries = valid_seed_entries();
     assert!(validate_matrix(&entries).is_ok());
+}
+
+#[test]
+fn matrix_engine_seed_contains_distance_entries() {
+    let entries = valid_seed_entries();
+    assert!(
+        entries
+            .iter()
+            .any(|e| matches!(e.operation, Operation::Distance)),
+        "distance シードが1件以上必要"
+    );
 }
 
 #[test]
@@ -210,6 +540,7 @@ fn matrix_engine_fails_for_missing_required_entrypoint() {
         symmetric: false,
         cardinality: Some(Cardinality::Single),
         entrypoint_a_to_b: None,
+        entrypoint_b_to_a: None,
     });
 
     let err = validate_matrix(&entries).unwrap_err();
@@ -230,6 +561,7 @@ fn matrix_engine_fails_for_symmetry_mismatch() {
             symmetric: true,
             cardinality: Some(Cardinality::Multiple),
             entrypoint_a_to_b: Some("circle2d_ray2d_intersections"),
+            entrypoint_b_to_a: Some("ray2d_circle2d_intersections"),
         },
         MatrixEntry {
             id: "2d:ray-circle:intersection",
@@ -241,6 +573,7 @@ fn matrix_engine_fails_for_symmetry_mismatch() {
             symmetric: true,
             cardinality: Some(Cardinality::Single),
             entrypoint_a_to_b: Some("ray2d_circle2d_intersections"),
+            entrypoint_b_to_a: Some("circle2d_ray2d_intersections"),
         },
     ];
 
@@ -262,6 +595,7 @@ fn matrix_engine_fails_for_duplicate_registration() {
         symmetric: false,
         cardinality: None,
         entrypoint_a_to_b: Some("circle2d_ray2d_collides"),
+        entrypoint_b_to_a: None,
     });
 
     let err = validate_matrix(&entries).unwrap_err();
@@ -281,9 +615,91 @@ fn matrix_engine_fails_for_missing_reverse_pair() {
         symmetric: true,
         cardinality: None,
         entrypoint_a_to_b: Some("line_segment2d_ray2d_collides"),
+        entrypoint_b_to_a: Some("ray2d_line_segment2d_collides"),
     }];
 
     let err = validate_matrix(&entries).unwrap_err();
     assert!(err.contains("symmetry mismatch"));
     assert!(err.contains("missing reverse pair"));
+}
+
+#[test]
+fn matrix_engine_fails_when_intersection_cardinality_is_missing() {
+    let entries = vec![MatrixEntry {
+        id: "2d:circle-ray:intersection",
+        dimension: Dimension::D2,
+        operation: Operation::Intersection,
+        shape_a: "Circle2D",
+        shape_b: "Ray2D",
+        required: true,
+        symmetric: false,
+        cardinality: None,
+        entrypoint_a_to_b: Some("circle2d_ray2d_intersections"),
+        entrypoint_b_to_a: None,
+    }];
+
+    let err = validate_matrix(&entries).unwrap_err();
+    assert!(err.contains("invalid cardinality rules"));
+    assert!(err.contains("intersection requires cardinality"));
+}
+
+#[test]
+fn matrix_engine_fails_when_non_intersection_has_cardinality() {
+    let entries = vec![MatrixEntry {
+        id: "2d:circle-ray:distance",
+        dimension: Dimension::D2,
+        operation: Operation::Distance,
+        shape_a: "Circle2D",
+        shape_b: "Ray2D",
+        required: true,
+        symmetric: false,
+        cardinality: Some(Cardinality::Optional),
+        entrypoint_a_to_b: Some("circle2d_ray2d_distance"),
+        entrypoint_b_to_a: None,
+    }];
+
+    let err = validate_matrix(&entries).unwrap_err();
+    assert!(err.contains("invalid cardinality rules"));
+    assert!(err.contains("non-intersection must have null cardinality"));
+}
+
+#[test]
+fn matrix_engine_fails_when_symmetric_entrypoint_pair_is_missing() {
+    let entries = vec![MatrixEntry {
+        id: "2d:circle-ray:collision",
+        dimension: Dimension::D2,
+        operation: Operation::Collision,
+        shape_a: "Circle2D",
+        shape_b: "Ray2D",
+        required: true,
+        symmetric: true,
+        cardinality: None,
+        entrypoint_a_to_b: Some("circle2d_ray2d_collides"),
+        entrypoint_b_to_a: None,
+    }];
+
+    let err = validate_matrix(&entries).unwrap_err();
+    assert!(err.contains("missing symmetric entrypoints"));
+    assert!(err.contains("2d:circle-ray:collision"));
+}
+
+#[test]
+fn matrix_engine_fails_for_unknown_entrypoint_symbol() {
+    let mut entries = valid_seed_entries();
+    entries.push(MatrixEntry {
+        id: "2d:unknown:intersection",
+        dimension: Dimension::D2,
+        operation: Operation::Intersection,
+        shape_a: "Circle2D",
+        shape_b: "Ray2D",
+        required: true,
+        symmetric: false,
+        cardinality: Some(Cardinality::Single),
+        entrypoint_a_to_b: Some("does_not_exist_entrypoint"),
+        entrypoint_b_to_a: None,
+    });
+
+    let err = validate_matrix(&entries).unwrap_err();
+    assert!(err.contains("unknown entrypoints"));
+    assert!(err.contains("does_not_exist_entrypoint"));
 }
