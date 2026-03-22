@@ -5,8 +5,24 @@
 //!
 //! 命名規則: `{shape_a}_{shape_b}_distance`
 
-use crate::{Circle2D, InfiniteLine2D, Point2D, Ray2D};
+use crate::{Circle2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D};
 use geo_contracts::Scalar;
+
+/// LineSegment2D-点 間の最短距離（端点クランプあり）
+pub fn line_segment2d_point2d_distance<T: Scalar>(
+    segment: &LineSegment2D<T>,
+    point: &Point2D<T>,
+) -> T {
+    segment.distance_to_point(point)
+}
+
+/// 逆向きラッパー: point-segment
+pub fn point2d_line_segment2d_distance<T: Scalar>(
+    point: &Point2D<T>,
+    segment: &LineSegment2D<T>,
+) -> T {
+    segment.distance_to_point(point)
+}
 
 /// 無限直線-点 間の最短距離（垂直距離）
 pub fn infinite_line2d_point2d_distance<T: Scalar>(
