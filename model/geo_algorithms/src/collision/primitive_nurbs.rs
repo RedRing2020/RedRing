@@ -13,6 +13,12 @@
 //! 1. サンプリング + 数値最適化で距離を評価
 //! 2. 形状ペアごとに BasicCollision を実装
 //! 3. `#[repr(transparent)]` による軽量ラップを維持
+//!
+//! ## Public Interface (intersection側で使用)
+//!
+//! - `nurbscurve3d_XXX_distance`: NurbsCurve3D と各Primitive間の距離計算
+//!   - intersection/primitive_nurbs.rs から直接呼び出し可能
+//!   - collision 判定と intersection 判定（tolerance比較）で共有
 
 use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
@@ -52,11 +58,11 @@ impl<T: Scalar> NurbsCurveCollider<T> {
         self.0
     }
 
-    /// Newton法により点への最近接パラメータを精密化
+    /// Newton法により点への最近接パラメータを精密化（public）
     ///
     /// 目的関数: f(u) = (C(u) - P) · C'(u) = 0
     /// C(u)が点Pに最も近いとき、C(u)-P は C'(u) に直交する
-    fn newton_refine_closest_point(
+    pub fn newton_refine_closest_point(
         &self,
         point: &Point3D<T>,
         initial_u: T,
@@ -533,6 +539,71 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
 
         min_distance
     }
+}
+
+// ── Public Distance Functions (shared with intersection module) ──
+
+/// NurbsCurve3D から Point3D への距離を計算
+pub fn nurbscurve3d_point3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, point: &Point3D<T>) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(point)
+}
+
+/// NurbsCurve3D から LineSegment3D への距離を計算
+pub fn nurbscurve3d_line_segment3d_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    segment: &LineSegment3D<T>,
+) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(segment)
+}
+
+/// NurbsCurve3D から Ray3D への距離を計算
+pub fn nurbscurve3d_ray3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, ray: &Ray3D<T>) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(ray)
+}
+
+/// NurbsCurve3D から InfiniteLine3D への距離を計算
+pub fn nurbscurve3d_infinite_line3d_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    line: &InfiniteLine3D<T>,
+) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(line)
+}
+
+/// NurbsCurve3D から Circle3D への距離を計算
+pub fn nurbscurve3d_circle3d_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    circle: &Circle3D<T>,
+) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(circle)
+}
+
+/// NurbsCurve3D から Plane3D への距離を計算
+pub fn nurbscurve3d_plane3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, plane: &Plane3D<T>) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(plane)
+}
+
+/// NurbsCurve3D から SphericalSolid3D への距離を計算
+pub fn nurbscurve3d_spherical_solid3d_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    sphere: &SphericalSolid3D<T>,
+) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(sphere)
+}
+
+/// NurbsCurve3D から EllipsoidalSolid3D への距離を計算
+pub fn nurbscurve3d_ellipsoidal_solid3d_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    ellipsoid: &EllipsoidalSolid3D<T>,
+) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(ellipsoid)
+}
+
+/// NurbsCurve3D から CylindricalSolid3D への距離を計算
+pub fn nurbscurve3d_cylindrical_solid3d_distance<T: Scalar>(
+    curve: &NurbsCurve3D<T>,
+    cylinder: &CylindricalSolid3D<T>,
+) -> T {
+    NurbsCurveCollider::new(curve.clone()).distance_to(cylinder)
 }
 
 #[cfg(test)]
