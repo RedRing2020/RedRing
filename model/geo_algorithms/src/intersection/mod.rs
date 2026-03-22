@@ -1,9 +1,8 @@
 //! 交点計算アルゴリズム
 //!
-//! Phase C では、`geo_primitives` 側の交点計算 trait実装を
-//! 段階的にこのモジュール配下へ集約する。
-//!
-//! 現時点では受け皿のみを用意し、実装移設は後続コミットで行う。
+//! Phase C で `geo_primitives` 側の複数形状間交点計算ロジックを
+//! このモジュール配下へ集約した。
+//! pair_base と primitive_* モジュールが現行の正本である。
 
 pub mod pair_base;
 pub mod primitive_2d;

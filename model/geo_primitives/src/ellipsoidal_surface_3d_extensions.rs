@@ -1,8 +1,6 @@
 //! EllipsoidalSurface3D の拡張機能実装
 //!
-//! 注意:
-//! 衝突判定は `ellipsoidal_surface_3d_collision.rs`、
-//! 交差判定は `ellipsoidal_surface_3d_intersection.rs` を参照。
+//! 混在 collision/intersection の正本は `geo_algorithms` 側で管理する。
 
 use crate::EllipsoidalSurface3D;
 use geo_contracts::Scalar;
