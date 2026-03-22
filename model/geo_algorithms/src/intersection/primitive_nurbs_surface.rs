@@ -2,7 +2,7 @@
 //!
 //! Stage 1 では Point3D / Plane3D / Ray3D の最小セットを提供する。
 
-use crate::{Plane3D, Point3D, Ray3D};
+use crate::{Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D};
 use geo_contracts::Scalar;
 use geo_nurbs::NurbsSurface3D;
 
@@ -51,10 +51,54 @@ pub fn nurbssurface3d_ray3d_intersection<T: Scalar>(
     }
 }
 
+pub fn nurbssurface3d_line_segment3d_intersection<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let distance = crate::collision::nurbssurface3d_line_segment3d_distance(surface, segment);
+
+    if distance <= tolerance {
+        Some(segment.start())
+    } else {
+        None
+    }
+}
+
+pub fn nurbssurface3d_infinite_line3d_intersection<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let distance = crate::collision::nurbssurface3d_infinite_line3d_distance(surface, line);
+
+    if distance <= tolerance {
+        let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
+        Some(Point3D::new(px, py, pz))
+    } else {
+        None
+    }
+}
+
+pub fn nurbssurface3d_circle3d_intersection<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    circle: &Circle3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let distance = crate::collision::nurbssurface3d_circle3d_distance(surface, circle);
+
+    if distance <= tolerance {
+        let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
+        Some(Point3D::new(cx, cy, cz))
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Vector3D;
+    use crate::{Direction3D, Vector3D};
     use geo_contracts::NurbsSurface3DConstructor;
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {
@@ -82,6 +126,40 @@ mod tests {
         let surface = create_test_surface::<f64>();
         let ray = Ray3D::new(Point3D::new(0.5, 0.5, -1.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
         let result = nurbssurface3d_ray3d_intersection(&surface, &ray, 1e-6);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_line_segment3d_intersection_vertical_hit() {
+        let surface = create_test_surface::<f64>();
+        let segment =
+            LineSegment3D::new(Point3D::new(0.5, 0.5, -1.0), Point3D::new(0.5, 0.5, 1.0)).unwrap();
+        let result = nurbssurface3d_line_segment3d_intersection(&surface, &segment, 1e-6);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_infinite_line3d_intersection_vertical_hit() {
+        let surface = create_test_surface::<f64>();
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(0.5, 0.5, -1.0),
+            Point3D::new(0.5, 0.5, 1.0),
+        )
+        .unwrap();
+        let result = nurbssurface3d_infinite_line3d_intersection(&surface, &line, 1e-6);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_circle3d_intersection_same_plane() {
+        let surface = create_test_surface::<f64>();
+        let circle = Circle3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap(),
+            0.25,
+        )
+        .unwrap();
+        let result = nurbssurface3d_circle3d_intersection(&surface, &circle, 1e-6);
         assert!(result.is_some());
     }
 }
