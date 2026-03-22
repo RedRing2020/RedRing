@@ -1,5 +1,5 @@
 use super::*;
-use geo_contracts::LineSegment3DCollisionDetection;
+use geo_contracts::CrossDistance;
 
 impl<T: Scalar> VoxelNode<T> {
     /// 新しいソリッドノードを作成
@@ -177,7 +177,7 @@ impl<T: Scalar> VoxelNode<T> {
                 let min = self.bounds.min();
                 let max = self.bounds.max();
                 let distance = segment
-                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
+                    .distance_to(&((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z())));
 
                 if distance > radius {
                     return;
@@ -234,7 +234,7 @@ impl<T: Scalar> VoxelNode<T> {
                 let min = self.bounds.min();
                 let max = self.bounds.max();
                 let distance = segment
-                    .distance_to_aabb((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()));
+                    .distance_to(&((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z())));
 
                 // 軸方向へ射影可能でも半径外なら非交差。
                 if distance > radius {
