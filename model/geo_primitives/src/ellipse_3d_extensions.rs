@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく Ellipse3D の拡張実装
 
 use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::default_distance_tolerance;
 use geo_contracts::Scalar;
 
 // ============================================================================
@@ -204,7 +204,7 @@ impl<T: Scalar> Ellipse3D<T> {
         );
 
         let distance_to_plane = to_point.dot(&self.normal()).abs();
-        if distance_to_plane > DefaultTolerances::distance::<T>() {
+        if distance_to_plane > default_distance_tolerance::<T>() {
             return None; // 楕円平面上にない
         }
 
@@ -231,7 +231,7 @@ impl<T: Scalar> Ellipse3D<T> {
         let w_coord = to_point.dot(&self.normal());
 
         // 楕円平面からの距離チェック
-        if w_coord.abs() > DefaultTolerances::distance::<T>() {
+        if w_coord.abs() > default_distance_tolerance::<T>() {
             return false;
         }
 

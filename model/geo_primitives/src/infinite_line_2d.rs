@@ -95,7 +95,7 @@ impl<T: Scalar> InfiniteLine2D<T> {
     /// 他の直線との交点を計算
     pub fn intersection(&self, other: &Self) -> Option<Point2D<T>> {
         // 平行線の場合は交点なし
-        if self.direction.is_parallel(&other.direction, T::EPSILON) {
+        if self.direction.is_parallel_to(&other.direction) {
             return None;
         }
 
@@ -270,8 +270,8 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 
     fn passes_through_origin(&self) -> bool {
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        self.contains_point(&Point2D::origin(), DefaultTolerances::distance::<T>())
+        use geo_contracts::default_distance_tolerance;
+        self.contains_point(&Point2D::origin(), default_distance_tolerance::<T>())
     }
 
     fn dimension(&self) -> u32 {
@@ -311,8 +311,8 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        self.contains_point(&p, DefaultTolerances::distance::<T>())
+        use geo_contracts::default_distance_tolerance;
+        self.contains_point(&p, default_distance_tolerance::<T>())
     }
 
     fn project_point(&self, point: (T, T)) -> (T, T) {
@@ -333,19 +333,18 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
 
     fn is_parallel_to(&self, other: &Self) -> bool {
         self.direction_internal()
-            .is_parallel(&other.direction_internal(), T::EPSILON)
+            .is_parallel_to(&other.direction_internal())
     }
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.direction
-            .is_perpendicular(&other.direction, T::EPSILON)
+        self.direction.is_perpendicular_to(&other.direction)
     }
 
     fn is_same_line(&self, other: &Self) -> bool {
         // 平行かつ同じ点を含む場合
         self.is_parallel_to(other) && {
-            use geo_contracts::tolerance_migration::DefaultTolerances;
-            self.contains_point(&other.point, DefaultTolerances::distance::<T>())
+            use geo_contracts::default_distance_tolerance;
+            self.contains_point(&other.point, default_distance_tolerance::<T>())
         }
     }
 

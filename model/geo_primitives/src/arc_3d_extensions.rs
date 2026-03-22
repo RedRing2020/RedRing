@@ -3,8 +3,8 @@
 //! 3次元円弧の拡張メソッド：点計算、コンストラクタ、幾何解析など
 
 use crate::{Angle, Arc3D, Direction3D, Point3D, Vector3D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
 use geo_contracts::Scalar;
+use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 
 impl<T: Scalar> Arc3D<T> {
     /// 3点を通る円弧を作成
@@ -23,7 +23,7 @@ impl<T: Scalar> Arc3D<T> {
         let v2 = Vector3D::from_points(&middle, &end);
         let cross = v1.cross(&v2);
 
-        if cross.length() < DefaultTolerances::distance::<T>() {
+        if cross.length() < default_distance_tolerance::<T>() {
             return None; // 同一直線上
         }
 
@@ -72,8 +72,8 @@ impl<T: Scalar> Arc3D<T> {
 
     /// 退化した円弧かどうか判定
     pub fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= DefaultTolerances::distance::<T>()
-            || self.angle_span().to_radians() <= DefaultTolerances::angle::<T>()
+        self.radius_internal() <= default_distance_tolerance::<T>()
+            || self.angle_span().to_radians() <= default_angle_tolerance::<T>()
     }
 
     // === パラメトリック操作 ===

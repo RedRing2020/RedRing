@@ -122,14 +122,21 @@ impl<T: Scalar> Ray2D<T> {
 
     /// 他の Ray と平行かを判定
     pub fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
-        self.direction_internal()
-            .is_parallel(&other.direction_internal(), tolerance)
+        let angle = self
+            .direction_internal()
+            .angle_to(&other.direction_internal());
+        angle <= tolerance || (T::PI - angle).abs() <= tolerance
     }
 
     /// 他の Ray と垂直かを判定
     pub fn is_perpendicular_to(&self, other: &Self, tolerance: T) -> bool {
-        self.direction_internal()
-            .is_perpendicular(&other.direction_internal(), tolerance)
+        let right_angle = T::PI / (T::ONE + T::ONE);
+        (self
+            .direction_internal()
+            .angle_to(&other.direction_internal())
+            - right_angle)
+            .abs()
+            <= tolerance
     }
 
     /// Ray が同一の無限直線上にあるかを判定

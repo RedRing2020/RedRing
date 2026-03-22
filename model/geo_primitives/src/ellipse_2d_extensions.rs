@@ -5,7 +5,7 @@
 
 use crate::{Circle2D, Ellipse2D, Point2D, Vector2D};
 use geo_contracts::Scalar;
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::default_distance_tolerance;
 
 impl<T: Scalar> Ellipse2D<T> {
     // ========================================================================
@@ -83,19 +83,19 @@ impl<T: Scalar> Ellipse2D<T> {
 
     /// 楕円が円かどうかを判定
     pub fn is_circle(&self) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
+        let tolerance = default_distance_tolerance::<T>();
         (self.semi_major_axis() - self.semi_minor_axis()).abs() <= tolerance
     }
 
     /// 楕円が退化しているか（軸の長さが0に近い）を判定
     pub fn is_degenerate(&self) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
+        let tolerance = default_distance_tolerance::<T>();
         self.semi_major_axis() <= tolerance || self.semi_minor_axis() <= tolerance
     }
 
     /// 点が楕円境界上にあるかを判定
     pub fn on_boundary(&self, point: &Point2D<T>) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
+        let tolerance = default_distance_tolerance::<T>();
         let distance = self.distance_to_point(point);
         distance <= tolerance
     }

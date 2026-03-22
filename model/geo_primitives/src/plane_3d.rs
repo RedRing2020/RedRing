@@ -4,7 +4,9 @@
 //! STEP AP214準拠の完全な平面座標系を提供
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::{Plane3DConstructor, Plane3DMeasure, Plane3DProperties, Scalar};
+use geo_contracts::{
+    default_distance_tolerance, Plane3DConstructor, Plane3DMeasure, Plane3DProperties, Scalar,
+};
 
 /// CAD用3次元平面（座標系付き）
 ///
@@ -254,7 +256,7 @@ impl<T: Scalar> Plane3D<T> {
         let dot_un = self.u_axis.as_vector().dot(&self.normal.as_vector()).abs();
         let dot_vn = self.v_axis.as_vector().dot(&self.normal.as_vector()).abs();
 
-        let tolerance = T::from_f64(1e-10);
+        let tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
         dot_uv < tolerance && dot_un < tolerance && dot_vn < tolerance
     }
 }
@@ -374,21 +376,27 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     // ========== Phase 2 実装 ==========
 
     fn is_xy_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let distance_tolerance = default_distance_tolerance::<T>();
         let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
-        (self.normal.as_vector() - z_axis).length() < tolerance && self.origin.z().abs() < tolerance
+        (self.normal.as_vector().dot(&z_axis) - T::ONE).abs() <= angle_tolerance
+            && self.origin.z().abs() <= distance_tolerance
     }
 
     fn is_xz_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let distance_tolerance = default_distance_tolerance::<T>();
         let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
-        (self.normal.as_vector() - y_axis).length() < tolerance && self.origin.y().abs() < tolerance
+        (self.normal.as_vector().dot(&y_axis) - T::ONE).abs() <= angle_tolerance
+            && self.origin.y().abs() <= distance_tolerance
     }
 
     fn is_yz_plane(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let distance_tolerance = default_distance_tolerance::<T>();
         let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
-        (self.normal.as_vector() - x_axis).length() < tolerance && self.origin.x().abs() < tolerance
+        (self.normal.as_vector().dot(&x_axis) - T::ONE).abs() <= angle_tolerance
+            && self.origin.x().abs() <= distance_tolerance
     }
 }
 
@@ -396,7 +404,7 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
     // ========== Phase 1 実装 ==========
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
-        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = default_distance_tolerance::<T>();
         // distance_to_point の計算を直接展開
         let relative = Vector3D::new(
             point.0 - self.origin.x(),

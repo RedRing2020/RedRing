@@ -3,7 +3,7 @@
 //! 3次元円の拡張メソッド：軸取得、点の計算、距離計算、平面基底計算など
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::default_distance_tolerance;
 use geo_contracts::Scalar;
 
 impl<T: Scalar> Circle3D<T> {
@@ -58,23 +58,23 @@ impl<T: Scalar> Circle3D<T> {
     /// 法線ベクトルに垂直な正規直交基底
     pub fn get_plane_basis(&self) -> (Vector3D<T>, Vector3D<T>) {
         // Z軸方向の法線の場合は特別扱い（XY平面）
-        if (self.normal_internal().z() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
+        if (self.normal_internal().z() - T::ONE).abs() < default_distance_tolerance::<T>() {
             // XY平面：X軸とY軸を使用
             return (Vector3D::unit_x(), Vector3D::unit_y());
         }
 
         // Y軸方向の法線の場合（XZ平面）
-        if (self.normal_internal().y() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
+        if (self.normal_internal().y() - T::ONE).abs() < default_distance_tolerance::<T>() {
             return (Vector3D::unit_x(), Vector3D::unit_z());
         }
 
         // X軸方向の法線の場合（YZ平面）
-        if (self.normal_internal().x() - T::ONE).abs() < DefaultTolerances::distance::<T>() {
+        if (self.normal_internal().x() - T::ONE).abs() < default_distance_tolerance::<T>() {
             return (Vector3D::unit_y(), Vector3D::unit_z());
         }
 
         // 一般的な場合：Gram-Schmidt 過程で正規直交基底を作成
-        let temp = if self.normal_internal().z().abs() < DefaultTolerances::distance::<T>() {
+        let temp = if self.normal_internal().z().abs() < default_distance_tolerance::<T>() {
             Vector3D::unit_z()
         } else {
             Vector3D::unit_x()

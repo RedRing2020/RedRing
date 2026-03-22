@@ -194,13 +194,23 @@ impl<T: Scalar> Vector3D<T> {
 
     /// 他のベクトルと平行かどうかを判定
     pub fn is_parallel(&self, other: &Self) -> bool {
-        let cross = self.cross(other);
-        cross.length() <= T::EPSILON
+        self.is_parallel_with_error_tolerance(other, T::PARALLEL_CROSS_ERROR_TOLERANCE)
     }
 
     /// 他のベクトルと垂直かどうかを判定
     pub fn is_perpendicular(&self, other: &Self) -> bool {
-        self.dot(other).abs() <= T::EPSILON
+        self.is_perpendicular_with_error_tolerance(other, T::ORTHOGONALITY_DOT_ERROR_TOLERANCE)
+    }
+
+    /// 他のベクトルと平行かどうかを数値誤差閾値つきで判定
+    pub fn is_parallel_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
+        let cross = self.cross(other);
+        cross.length() <= tolerance
+    }
+
+    /// 他のベクトルと垂直かどうかを数値誤差閾値つきで判定
+    pub fn is_perpendicular_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
+        self.dot(other).abs() <= tolerance
     }
 
     // ========================================================================

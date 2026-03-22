@@ -3,7 +3,7 @@
 //! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::default_angle_tolerance;
 use geo_contracts::Scalar;
 use geo_contracts::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties};
 
@@ -52,7 +52,7 @@ impl<T: Scalar> Arc3D<T> {
 
         // 法線と開始方向の直交性チェック
         let dot_product = normal.as_vector().dot(&start_dir.as_vector()).abs();
-        if dot_product > DefaultTolerances::angle::<T>() {
+        if dot_product > default_angle_tolerance::<T>() {
             return None;
         }
 
@@ -134,7 +134,7 @@ impl<T: Scalar> Arc3D<T> {
     pub fn is_full_circle(&self) -> bool {
         let span = self.angle_span().to_radians();
         let two_pi = T::from_f64(2.0) * T::PI;
-        (span - two_pi).abs() < DefaultTolerances::angle::<T>()
+        (span - two_pi).abs() < default_angle_tolerance::<T>()
     }
 
     /// 点が円弧の角度範囲内にあるかを判定

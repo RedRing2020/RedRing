@@ -68,6 +68,26 @@ impl<T: Scalar> Default for ToleranceSettings<T> {
     }
 }
 
+/// `standard` プロファイルの距離トレランスを返す。
+pub fn default_distance_tolerance<T: Scalar>() -> T {
+    ToleranceSettings::<T>::standard().distance_tolerance
+}
+
+/// `standard` プロファイルの角度トレランスを返す。
+pub fn default_angle_tolerance<T: Scalar>() -> T {
+    ToleranceSettings::<T>::standard().angle_tolerance
+}
+
+/// 型に応じた平行判定（外積）誤差閾値を返す。
+pub fn default_parallel_cross_error_tolerance<T: Scalar>() -> T {
+    T::PARALLEL_CROSS_ERROR_TOLERANCE
+}
+
+/// 型に応じた直交判定（内積）誤差閘値を返す。
+pub fn default_orthogonality_dot_error_tolerance<T: Scalar>() -> T {
+    T::ORTHOGONALITY_DOT_ERROR_TOLERANCE
+}
+
 /// 幾何計算コンテキスト
 #[derive(Debug, Clone, Copy)]
 pub struct GeometryContext<T: Scalar> {

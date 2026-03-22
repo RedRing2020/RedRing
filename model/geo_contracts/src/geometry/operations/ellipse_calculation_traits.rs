@@ -1,5 +1,10 @@
 use analysis::abstract_types::Scalar;
 
+const ADAPTIVE_PERIMETER_LOOSE_ACCURACY_THRESHOLD: f64 = 1e-3;
+const ADAPTIVE_PERIMETER_MEDIUM_ACCURACY_THRESHOLD: f64 = 1e-6;
+const ADAPTIVE_PERIMETER_HIGH_ACCURACY_THRESHOLD: f64 = 1e-9;
+const ADAPTIVE_PERIMETER_SERIES_COST_THRESHOLD: f64 = 2.0;
+
 /// Unified contract for ellipse-oriented calculation capabilities.
 pub trait EllipseCalculation<T: Scalar> {
     /// Point type used by each concrete shape implementation.
@@ -23,14 +28,14 @@ pub trait EllipseCalculation<T: Scalar> {
 
 /// Strategy contract for adaptive perimeter calculation.
 pub trait EllipseAdaptiveCalculation<T: Scalar>: EllipseCalculation<T> {
-    fn perimeter_adaptive(&self, tolerance: T, max_computation_cost: T) -> T {
-        if tolerance >= T::from_f64(1e-3) {
+    fn perimeter_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
+        if target_accuracy >= T::from_f64(ADAPTIVE_PERIMETER_LOOSE_ACCURACY_THRESHOLD) {
             self.perimeter_pade()
-        } else if tolerance >= T::from_f64(1e-6) {
+        } else if target_accuracy >= T::from_f64(ADAPTIVE_PERIMETER_MEDIUM_ACCURACY_THRESHOLD) {
             self.perimeter_ramanujan_i()
-        } else if tolerance >= T::from_f64(1e-9) {
+        } else if target_accuracy >= T::from_f64(ADAPTIVE_PERIMETER_HIGH_ACCURACY_THRESHOLD) {
             self.perimeter_ramanujan_ii()
-        } else if max_computation_cost >= T::from_f64(2.0) {
+        } else if max_computation_cost >= T::from_f64(ADAPTIVE_PERIMETER_SERIES_COST_THRESHOLD) {
             self.perimeter_series(20)
         } else {
             self.perimeter_cantrell()

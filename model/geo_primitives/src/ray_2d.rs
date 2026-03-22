@@ -310,13 +310,13 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     }
 
     fn is_horizontal(&self) -> bool {
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        self.direction.y().abs() < DefaultTolerances::distance::<T>()
+        use geo_contracts::default_distance_tolerance;
+        self.direction.y().abs() < default_distance_tolerance::<T>()
     }
 
     fn is_vertical(&self) -> bool {
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        self.direction.x().abs() < DefaultTolerances::distance::<T>()
+        use geo_contracts::default_distance_tolerance;
+        self.direction.x().abs() < default_distance_tolerance::<T>()
     }
 }
 
@@ -342,8 +342,8 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let target_point = Point2D::new(point.0, point.1);
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        self.contains_point(&target_point, DefaultTolerances::distance::<T>())
+        use geo_contracts::default_distance_tolerance;
+        self.contains_point(&target_point, default_distance_tolerance::<T>())
     }
 
     fn parameter_for_point(&self, point: (T, T)) -> T {
@@ -367,8 +367,8 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         );
 
         let cross = this_dir.cross(&other_dir);
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        cross.abs() < DefaultTolerances::distance::<T>()
+        use geo_contracts::default_distance_tolerance;
+        cross.abs() < default_distance_tolerance::<T>()
     }
 
     fn is_same_direction(&self, other: &Self) -> bool {
@@ -379,8 +379,8 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         );
 
         let cross = this_dir.cross(&other_dir);
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        if cross.abs() >= DefaultTolerances::distance::<T>() {
+        use geo_contracts::default_distance_tolerance;
+        if cross.abs() >= default_distance_tolerance::<T>() {
             return false;
         }
 
@@ -396,8 +396,8 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         );
 
         let cross = this_dir.cross(&other_dir);
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        if cross.abs() >= DefaultTolerances::distance::<T>() {
+        use geo_contracts::default_distance_tolerance;
+        if cross.abs() >= default_distance_tolerance::<T>() {
             return false;
         }
 
@@ -437,8 +437,8 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         );
 
         let cross = this_dir.cross(&other_dir);
-        use geo_contracts::tolerance_migration::DefaultTolerances;
-        if cross.abs() < DefaultTolerances::distance::<T>() {
+        use geo_contracts::default_distance_tolerance;
+        if cross.abs() < default_distance_tolerance::<T>() {
             return None; // 平行または一致
         }
 
