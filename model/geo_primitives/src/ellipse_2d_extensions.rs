@@ -206,67 +206,6 @@ impl<T: Scalar> Ellipse2D<T> {
         Self::new(new_center, new_major, new_minor, self.rotation())
     }
 
-    /// Foundation Collision統合での楕円同士の衝突解決
-    pub fn foundation_resolve_collision(&self, other: &Self) -> Option<(Self, Self)> {
-        let center_distance = self.center_internal().distance_to(&other.center_internal());
-        let self_avg_radius = (self.semi_major_axis() + self.semi_minor_axis()) / (T::ONE + T::ONE);
-        let other_avg_radius =
-            (other.semi_major_axis() + other.semi_minor_axis()) / (T::ONE + T::ONE);
-        let required_distance = self_avg_radius + other_avg_radius;
-
-        if center_distance >= required_distance {
-            return None; // 衝突していない
-        }
-
-        if center_distance < T::EPSILON {
-            // 同心楕円の場合は少しずらす
-            let offset = Vector2D::new(required_distance / (T::ONE + T::ONE), T::ZERO);
-            return Some((self.translate(&offset.negate()), other.translate(&offset)));
-        }
-
-        let direction = Vector2D::from_points(self.center_internal(), other.center_internal()).normalize();
-        let separation = required_distance - center_distance;
-        let half_separation = separation / (T::ONE + T::ONE);
-
-        let self_offset = direction * (-half_separation);
-        let other_offset = direction * half_separation;
-
-        Some((self.translate(&self_offset), other.translate(&other_offset)))
-    }
-
-    /// Foundation Intersection統合での楕円群の重心計算
-    pub fn foundation_weighted_center(&self, others: &[Self], weights: &[T]) -> Option<Point2D<T>> {
-        if others.len() != weights.len() {
-            return None;
-        }
-
-        let mut total_weight = T::ZERO;
-        let mut weighted_x = T::ZERO;
-        let mut weighted_y = T::ZERO;
-
-        // 自分の重み（面積に基づく）
-        let self_weight = self.area();
-        total_weight = total_weight + self_weight;
-        weighted_x = weighted_x + (self.center_internal().x() * self_weight);
-        weighted_y = weighted_y + (self.center_internal().y() * self_weight);
-
-        // 他の楕円の重み付き中心
-        for (ellipse, &weight) in others.iter().zip(weights) {
-            total_weight = total_weight + weight;
-            weighted_x = weighted_x + (ellipse.center_internal().x() * weight);
-            weighted_y = weighted_y + (ellipse.center_internal().y() * weight);
-        }
-
-        if total_weight > T::EPSILON {
-            Some(Point2D::new(
-                weighted_x / total_weight,
-                weighted_y / total_weight,
-            ))
-        } else {
-            None
-        }
-    }
-
     /// Foundation系統での楕円の軸変換
     pub fn foundation_swap_axes(&self) -> Option<Self> {
         // 長軸と短軸を入れ替える（90度回転も含む）

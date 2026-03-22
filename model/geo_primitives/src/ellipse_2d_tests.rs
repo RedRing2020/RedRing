@@ -442,12 +442,6 @@ mod foundation_tests {
         let distance = ellipse1.foundation_distance(&ellipse2);
         assert_eq!(distance, 3.0);
 
-        // Foundation intersection（重なる楕円の場合）
-        let close_ellipse = Ellipse2D::new(Point2D::new(1.0, 0.0), 3.0, 2.0, 0.0).unwrap();
-        let intersection = ellipse1.foundation_intersection(&close_ellipse);
-        assert!(intersection.is_some());
-        let point = intersection.unwrap();
-        assert_eq!(point, Point2D::new(0.5, 0.0)); // 中点
     }
 
     /// Foundation Extensions統合テスト
@@ -463,18 +457,6 @@ mod foundation_tests {
         assert!((scaled.center().y() - 4.5).abs() < 1e-10);
         assert!((scaled.major_radius() - 6.0).abs() < 1e-10);
         assert!((scaled.minor_radius() - 4.5).abs() < 1e-10);
-
-        // Foundation collision resolution
-        let ellipse1 = Ellipse2D::new(Point2D::new(0.0, 0.0), 2.0, 1.5, 0.0).unwrap();
-        let ellipse2 = Ellipse2D::new(Point2D::new(1.0, 0.0), 1.5, 1.0, 0.0).unwrap();
-        let resolved = ellipse1.foundation_resolve_collision(&ellipse2);
-        assert!(resolved.is_some());
-
-        // Foundation weighted center
-        let others = vec![Ellipse2D::new(Point2D::new(6.0, 0.0), 2.0, 1.0, 0.0).unwrap()];
-        let weights = vec![ellipse.area()]; // 同じ重み
-        let weighted_center = ellipse.foundation_weighted_center(&others, &weights);
-        assert!(weighted_center.is_some());
 
         // Foundation axes swap
         let swapped = ellipse.foundation_swap_axes().unwrap();

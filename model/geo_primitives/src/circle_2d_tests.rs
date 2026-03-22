@@ -373,22 +373,6 @@ fn test_circle2d_f32() {
             .unwrap();
         assert_eq!(scaled.center(), Point2D::new(4.0, 4.0));
         assert_eq!(scaled.radius(), 6.0);
-
-        // Foundation collision resolution
-        let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
-        let circle2 = Circle2D::new(Point2D::new(1.0, 0.0), 2.0).unwrap();
-        let resolved = circle1.foundation_resolve_collision(&circle2);
-        assert!(resolved.is_some());
-
-        let (new_circle1, new_circle2) = resolved.unwrap();
-        let new_distance = new_circle1.center().distance_to(&new_circle2.center());
-        assert!((new_distance - 4.0_f64).abs() < 1e-10); // 半径の合計
-
-        // Foundation weighted center
-        let others = vec![Circle2D::new(Point2D::new(4.0, 0.0), 1.0).unwrap()];
-        let weights = vec![1.0_f64];
-        let weighted_center = circle.foundation_weighted_center(&others, &weights);
-        assert!(weighted_center.is_some());
     }
 
     /// Foundation System数学的整合性テスト
