@@ -4,6 +4,7 @@
 //! 設計方針と全体構成は `dev/architecture/ARCHITECTURE.md` を参照
 
 pub mod collision;
+pub mod distance;
 pub mod intersection;
 pub mod octree;
 
