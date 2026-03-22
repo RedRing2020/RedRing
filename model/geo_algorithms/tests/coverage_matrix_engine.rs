@@ -708,10 +708,22 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             shape_a: "LineSegment2D",
             shape_b: "Point2D",
             required: true,
-            symmetric: false,
+            symmetric: true,
             cardinality: None,
             entrypoint_a_to_b: Some("line_segment2d_point2d_distance"),
-            entrypoint_b_to_a: None,
+            entrypoint_b_to_a: Some("point2d_line_segment2d_distance"),
+        },
+        MatrixEntry {
+            id: "2d:point-segment:distance",
+            dimension: Dimension::D2,
+            operation: Operation::Distance,
+            shape_a: "Point2D",
+            shape_b: "LineSegment2D",
+            required: true,
+            symmetric: true,
+            cardinality: None,
+            entrypoint_a_to_b: Some("point2d_line_segment2d_distance"),
+            entrypoint_b_to_a: Some("line_segment2d_point2d_distance"),
         },
         MatrixEntry {
             id: "3d:line-segment:intersection",
@@ -1419,4 +1431,68 @@ fn matrix_engine_fails_for_unknown_entrypoint_symbol() {
     let err = validate_matrix(&entries).unwrap_err();
     assert!(err.contains("unknown entrypoints"));
     assert!(err.contains("does_not_exist_entrypoint"));
+}
+
+#[test]
+fn distance_tolerance_guard_circle2d_point2d() {
+    let circle =
+        geo_algorithms::Circle2D::new(geo_algorithms::Point2D::new(0.0, 0.0), 1.0).unwrap();
+    let on = geo_algorithms::Point2D::new(1.0, 0.0);
+    let near = geo_algorithms::Point2D::new(1.0 + 5e-7, 0.0);
+    let far = geo_algorithms::Point2D::new(1.0 + 1e-3, 0.0);
+    let tol = 1e-6;
+
+    let d_on = geo_algorithms::distance::circle2d_point2d_distance(&circle, &on);
+    let d_near = geo_algorithms::distance::circle2d_point2d_distance(&circle, &near);
+    let d_far = geo_algorithms::distance::circle2d_point2d_distance(&circle, &far);
+
+    assert!(
+        d_on <= tol,
+        "on-boundary distance should be within tolerance"
+    );
+    assert!(
+        d_near <= tol,
+        "near point distance should be within tolerance"
+    );
+    assert!(d_far > tol, "far point distance should exceed tolerance");
+}
+
+#[test]
+fn distance_collision_consistency_for_point_pairs() {
+    let tol: f64 = 1e-6;
+
+    let circle =
+        geo_algorithms::Circle2D::new(geo_algorithms::Point2D::new(0.0, 0.0), 1.0).unwrap();
+    let candidates_2d = [
+        geo_algorithms::Point2D::new(1.0, 0.0),
+        geo_algorithms::Point2D::new(1.0 + 5e-7, 0.0),
+        geo_algorithms::Point2D::new(1.2, 0.0),
+    ];
+
+    for point in candidates_2d {
+        let dist = geo_algorithms::distance::circle2d_point2d_distance(&circle, &point);
+        let collides = geo_algorithms::collision::circle2d_point2d_collides(&circle, &point, tol);
+        assert_eq!(
+            dist <= tol,
+            collides,
+            "2D circle-point consistency violated"
+        );
+    }
+
+    let plane = geo_algorithms::Plane3D::xy_plane(0.0);
+    let candidates_3d = [
+        geo_algorithms::Point3D::new(0.0, 0.0, 0.0),
+        geo_algorithms::Point3D::new(0.0, 0.0, 5e-7),
+        geo_algorithms::Point3D::new(0.0, 0.0, 1e-2),
+    ];
+
+    for point in candidates_3d {
+        let signed_dist: f64 = geo_algorithms::distance::plane3d_point3d_distance(&plane, &point);
+        let collides = geo_algorithms::collision::plane3d_point3d_collides(&plane, &point, tol);
+        assert_eq!(
+            signed_dist.abs() <= tol,
+            collides,
+            "3D plane-point consistency violated"
+        );
+    }
 }
