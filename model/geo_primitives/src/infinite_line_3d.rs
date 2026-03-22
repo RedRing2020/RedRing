@@ -5,7 +5,8 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties, Scalar,
+    default_angle_tolerance, default_distance_tolerance, InfiniteLine3DConstructor,
+    InfiniteLine3DMeasure, InfiniteLine3DProperties, Scalar,
 };
 
 /// 3次元空間の無限直線（Core実装）
@@ -98,7 +99,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 点が直線上にあるかを判定（デフォルトトレランス）
     pub fn contains_point_default(&self, point: &Point3D<T>) -> bool {
-        self.contains_point(point, T::EPSILON)
+        self.contains_point(point, default_distance_tolerance::<T>())
     }
 
     /// 点に最も近い直線上の点を取得
@@ -123,25 +124,12 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 他の直線と平行かを判定
     pub fn is_parallel_to(&self, other: &Self) -> bool {
-        let cross = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z())
-            .cross(&Vector3D::new(
-                other.direction.x(),
-                other.direction.y(),
-                other.direction.z(),
-            ));
-        cross.length() <= T::EPSILON
+        self.direction.is_parallel_to(&other.direction)
     }
 
     /// 他の直線と垂直かを判定
     pub fn is_perpendicular_to(&self, other: &Self) -> bool {
-        let dot = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z()).dot(
-            &Vector3D::new(
-                other.direction.x(),
-                other.direction.y(),
-                other.direction.z(),
-            ),
-        );
-        dot.abs() <= T::EPSILON
+        self.direction.is_perpendicular_to(&other.direction)
     }
 
     /// 他の直線とスキュー（ねじれ）関係にあるかを判定
@@ -161,7 +149,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
         // スカラー三重積が0なら同一平面上
         let scalar_triple = v1.cross(&v2).dot(&v3);
-        scalar_triple.abs() <= T::EPSILON
+        scalar_triple.abs() <= default_distance_tolerance::<T>()
     }
 
     /// 他の直線との交点を計算
@@ -237,7 +225,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
         let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
         let denom = line_dir.dot(plane_normal);
 
-        if denom.abs() <= T::EPSILON {
+        if denom.abs() <= T::ORTHOGONALITY_DOT_ERROR_TOLERANCE {
             return None; // 直線が平面と平行
         }
 
@@ -408,32 +396,32 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
     }
 
     fn is_x_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
         self.direction.y().abs() <= tolerance && self.direction.z().abs() <= tolerance
     }
 
     fn is_y_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
         self.direction.x().abs() <= tolerance && self.direction.z().abs() <= tolerance
     }
 
     fn is_z_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
         self.direction.x().abs() <= tolerance && self.direction.y().abs() <= tolerance
     }
 
     fn is_xy_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
         self.direction.z().abs() <= tolerance
     }
 
     fn is_xz_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
         self.direction.y().abs() <= tolerance
     }
 
     fn is_yz_parallel(&self) -> bool {
-        let tolerance = T::EPSILON;
+        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
         self.direction.x().abs() <= tolerance
     }
 
@@ -458,13 +446,13 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
 
         // 方向ベクトルが法線に垂直かつ、直線上の点が平面上にある
         let dot = dir_vec.dot(&normal);
-        if dot.abs() > T::EPSILON {
+        if dot.abs() > default_angle_tolerance::<T>() {
             return false;
         }
 
         let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
         let to_line = Vector3D::from_points(&plane_pt, &self.point);
-        to_line.dot(&normal).abs() <= T::EPSILON
+        to_line.dot(&normal).abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_axis_aligned(&self) -> bool {
@@ -489,7 +477,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point(&p, T::EPSILON)
+        self.contains_point(&p, default_distance_tolerance::<T>())
     }
 
     fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
@@ -530,7 +518,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
             let e = d2.dot(&w);
 
             let denom = a * c - b * b;
-            if denom.abs() <= T::EPSILON {
+            if denom.abs() <= T::PARALLEL_CROSS_ERROR_TOLERANCE {
                 None
             } else {
                 let t1 = (b * e - c * d) / denom;
@@ -559,7 +547,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
     }
 
     fn intersects(&self, other: &Self) -> bool {
-        self.distance_to_line(other) <= T::EPSILON
+        self.distance_to_line(other) <= default_distance_tolerance::<T>()
     }
 
     fn is_skew_to(&self, other: &Self) -> bool {
@@ -634,7 +622,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
 
         let denom = dir_vec.dot(&normal);
-        if denom.abs() <= T::EPSILON {
+        if denom.abs() <= T::ORTHOGONALITY_DOT_ERROR_TOLERANCE {
             return None; // 平行または平面内
         }
 

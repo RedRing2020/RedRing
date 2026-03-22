@@ -3,6 +3,7 @@
 //! 3次元方向ベクトルの基本実装とコンストラクタ、アクセサメソッド
 
 use crate::Vector3D;
+use geo_contracts::default_angle_tolerance;
 use geo_contracts::Scalar;
 use std::ops::{Deref, DerefMut, Mul, Neg};
 
@@ -13,6 +14,16 @@ pub struct Direction3D<T: Scalar> {
 }
 
 impl<T: Scalar> Direction3D<T> {
+    fn is_parallel_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
+        let angle = self.angle_to(other);
+        angle <= angle_tolerance || (T::PI - angle).abs() <= angle_tolerance
+    }
+
+    fn is_perpendicular_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
+        let right_angle = T::PI / (T::ONE + T::ONE);
+        (self.angle_to(other) - right_angle).abs() <= angle_tolerance
+    }
+
     // ========================================================================
     // Core Construction Methods
     // ========================================================================
@@ -134,6 +145,16 @@ impl<T: Scalar> Direction3D<T> {
     /// 符号反転（reverse()と同じ）
     pub fn negate(&self) -> Self {
         self.reverse()
+    }
+
+    /// 他の方向と平行かどうかを判定
+    pub fn is_parallel_to(&self, other: &Self) -> bool {
+        self.is_parallel_with_angle_tolerance(other, default_angle_tolerance::<T>())
+    }
+
+    /// 他の方向と垂直かどうかを判定
+    pub fn is_perpendicular_to(&self, other: &Self) -> bool {
+        self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 }
 
@@ -281,19 +302,19 @@ impl<T: Scalar> Direction3DMeasure<T> for Direction3D<T> {
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
-        (self.vector.dot(&other.vector).abs() - T::ONE).abs() <= T::EPSILON
+        self.is_parallel_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.vector.dot(&other.vector).abs() <= T::EPSILON
+        self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 
     fn is_same_direction(&self, other: &Self) -> bool {
-        self.dot(other) >= T::ONE - T::EPSILON
+        self.angle_to(other) <= default_angle_tolerance::<T>()
     }
 
     fn is_opposite_direction(&self, other: &Self) -> bool {
-        self.dot(other) <= -T::ONE + T::EPSILON
+        (self.angle_to(other) - T::PI).abs() <= default_angle_tolerance::<T>()
     }
 
     fn reverse(&self) -> Self {

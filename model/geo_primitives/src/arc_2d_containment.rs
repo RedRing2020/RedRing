@@ -4,7 +4,7 @@
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::default_distance_tolerance;
 use geo_contracts::{Angle, Arc2DContainment, Scalar};
 
 // ============================================================================
@@ -18,7 +18,7 @@ impl<T: Scalar> ArcContainment<T> for Arc2D<T> {
         let distance_to_center = self.center_internal().distance_to(point);
         let radius_diff = (distance_to_center - self.radius_internal()).abs();
 
-        if radius_diff > DefaultTolerances::distance::<T>() {
+        if radius_diff > default_distance_tolerance::<T>() {
             return false;
         }
 

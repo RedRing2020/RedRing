@@ -7,6 +7,7 @@
 // パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]
 
 use crate::{Direction3D, Point3D, Vector3D};
+use geo_contracts::default_angle_tolerance;
 use geo_contracts::Scalar;
 use std::f64::consts::PI;
 
@@ -59,7 +60,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         let x_vec = Vector3D::new(x_axis.x(), x_axis.y(), x_axis.z());
         let dot_product = z_vec.dot(&x_vec);
 
-        if dot_product.abs() > T::EPSILON {
+        if dot_product.abs() > default_angle_tolerance::<T>() {
             return None; // 軸が直交していない
         }
 
@@ -222,7 +223,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         let x_vec = Vector3D::new(self.x_axis.x(), self.x_axis.y(), self.x_axis.z());
         let dot_product = z_vec.dot(&x_vec);
 
-        dot_product.abs() <= T::EPSILON
+        dot_product.abs() <= default_angle_tolerance::<T>()
     }
 }
 

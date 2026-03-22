@@ -3,6 +3,7 @@
 //! geo_core内部実装として、全機能を統合
 
 use analysis::abstract_types::{Angle, Scalar};
+
 use std::ops::{Add, Mul, Neg, Sub};
 
 /// 2次元ベクトル
@@ -143,12 +144,22 @@ impl<T: Scalar> Vector2D<T> {
     }
 
     /// 2つのベクトルが平行かを判定
-    pub fn is_parallel(&self, other: &Self, tolerance: T) -> bool {
+    pub fn is_parallel(&self, other: &Self) -> bool {
+        self.is_parallel_with_error_tolerance(other, T::PARALLEL_CROSS_ERROR_TOLERANCE)
+    }
+
+    /// 2つのベクトルが平行かを数値誤差閾値つきで判定
+    pub fn is_parallel_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
         self.cross(other).abs() <= tolerance
     }
 
     /// 2つのベクトルが垂直かを判定
-    pub fn is_perpendicular(&self, other: &Self, tolerance: T) -> bool {
+    pub fn is_perpendicular(&self, other: &Self) -> bool {
+        self.is_perpendicular_with_error_tolerance(other, T::ORTHOGONALITY_DOT_ERROR_TOLERANCE)
+    }
+
+    /// 2つのベクトルが垂直かを数値誤差閾値つきで判定
+    pub fn is_perpendicular_with_error_tolerance(&self, other: &Self, tolerance: T) -> bool {
         self.dot(other).abs() <= tolerance
     }
 
@@ -472,11 +483,11 @@ impl<T: Scalar> Vector2DMeasure<T> for Vector2D<T> {
     }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
-        self.is_parallel(other, T::EPSILON)
+        self.is_parallel(other)
     }
 
     fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.is_perpendicular(other, T::EPSILON)
+        self.is_perpendicular(other)
     }
 
     fn project_onto(&self, other: &Self) -> Option<Self> {

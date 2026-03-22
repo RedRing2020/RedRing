@@ -4,7 +4,7 @@
 //! 基本機能は arc_2d.rs を参照
 
 use crate::{arc_2d::Arc2D, Circle2D, Point2D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::default_distance_tolerance;
 use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
@@ -29,7 +29,7 @@ impl<T: Scalar> Arc2D<T> {
 
         // 3点が一直線上にある場合は円弧を作成できない
         let cross = v1.cross(&v2);
-        if cross.abs() <= DefaultTolerances::distance::<T>() {
+        if cross.abs() <= default_distance_tolerance::<T>() {
             return None;
         }
 
@@ -39,7 +39,7 @@ impl<T: Scalar> Arc2D<T> {
             + end.x() * (start.y() - middle.y()))
             * (T::ONE + T::ONE);
 
-        if d.abs() <= DefaultTolerances::distance::<T>() {
+        if d.abs() <= default_distance_tolerance::<T>() {
             return None;
         }
 
@@ -82,7 +82,7 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 退化した円弧かどうかを判定（非常に小さい半径または角度範囲）
     pub fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= DefaultTolerances::distance::<T>()
+        self.radius_internal() <= default_distance_tolerance::<T>()
             || self.angular_span() <= T::EPSILON
     }
 

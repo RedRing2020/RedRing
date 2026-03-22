@@ -37,6 +37,7 @@ pub trait Scalar:
     + std::ops::MulAssign
     + std::ops::DivAssign
     + 'static
+    + crate::consts::GeometricTolerance
 {
     /// ゼロ値
     const ZERO: Self;
@@ -139,10 +140,7 @@ pub trait Scalar:
 
     /// ほぼ等しいかを許容誤差で判定
     /// 注意: GeometricTolerance trait が実装されている型でのみ使用可能
-    fn approx_eq(self, other: Self) -> bool
-    where
-        Self: crate::GeometricTolerance,
-    {
+    fn approx_eq(self, other: Self) -> bool {
         (self - other).abs() < Self::TOLERANCE
     }
 

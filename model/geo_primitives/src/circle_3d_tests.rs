@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{Circle3D, Direction3D, Point3D, Vector3D};
-    use geo_contracts::tolerance_migration::DefaultTolerances;
+    use geo_contracts::default_distance_tolerance;
 
     // テスト用のf64型別名
     type TestScalar = f64;
@@ -123,7 +123,7 @@ mod tests {
         let radius = 2.0;
         let circle = Circle3D::new(center, normal, radius).unwrap();
 
-        let tolerance = DefaultTolerances::distance::<TestScalar>();
+        let tolerance = default_distance_tolerance::<TestScalar>();
 
         // 平面上の点
         let point_on_plane = Point3D::new(1.0, 1.0, 5.0);

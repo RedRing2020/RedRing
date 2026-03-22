@@ -7,7 +7,6 @@ pub mod classification;
 pub mod entity;
 pub mod geometry;
 pub mod tolerance;
-pub mod tolerance_migration;
 
 pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
@@ -65,5 +64,7 @@ pub use geometry::operations::{
     EllipseAdaptiveCalculation, EllipseCalculation, MultipleIntersection, PointDistance,
     SelfIntersection,
 };
-pub use tolerance::{GeometryContext, ToleranceSettings};
-pub use tolerance_migration::{DefaultTolerances, ScalarToleranceExt};
+pub use tolerance::{
+    default_angle_tolerance, default_distance_tolerance, default_orthogonality_dot_error_tolerance,
+    default_parallel_cross_error_tolerance, GeometryContext, ToleranceSettings,
+};

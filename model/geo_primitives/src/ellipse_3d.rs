@@ -3,17 +3,11 @@
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
 use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
-use geo_contracts::tolerance_migration::DefaultTolerances;
+use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Ellipse3DConstructor, Ellipse3DMeasure, Ellipse3DProperties, Scalar};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
 /// 3次元楕円（Core実装）
-///
-/// Core機能のみ：
-/// - 基本構築・検証
-/// - アクセサメソッド
-/// - 基本的な幾何プロパティ
-/// - 基本パラメトリック操作
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ellipse3D<T: Scalar> {
     center: Point3D<T>,
@@ -23,14 +17,7 @@ pub struct Ellipse3D<T: Scalar> {
     major_axis_dir: Direction3D<T>, // 長軸方向ベクトル（正規化済み）
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Ellipse3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
     /// 新しい3D楕円を作成
     ///
     /// 基本的な検証のみ実行
@@ -52,7 +39,7 @@ impl<T: Scalar> Ellipse3D<T> {
 
         // 基本的な直交性チェック
         let dot_product = normal_dir.dot(&major_axis_dir);
-        if dot_product.abs() > DefaultTolerances::distance::<T>() {
+        if dot_product.abs() > default_angle_tolerance::<T>() {
             return None;
         }
 
@@ -89,11 +76,6 @@ impl<T: Scalar> Ellipse3D<T> {
             major_axis_dir: u_axis_dir,
         })
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 楕円の中心点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -139,11 +121,6 @@ impl<T: Scalar> Ellipse3D<T> {
         Direction3D::from_vector(self.normal.cross(&self.major_axis_dir))
             .expect("Cross product of normalized vectors should be valid")
     }
-
-    // ========================================================================
-    // Core Geometric Properties
-    // ========================================================================
-
     /// 離心率を計算
     pub fn eccentricity(&self) -> T {
         if self.semi_major_axis == T::ZERO {
@@ -160,13 +137,13 @@ impl<T: Scalar> Ellipse3D<T> {
 
     /// 楕円が円かどうかを判定
     pub fn is_circle(&self) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
+        let tolerance = default_distance_tolerance::<T>();
         (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
     }
 
     /// 楕円が退化しているかどうかを判定
     pub fn is_degenerate(&self) -> bool {
-        let tolerance = DefaultTolerances::distance::<T>();
+        let tolerance = default_distance_tolerance::<T>();
         self.semi_minor_axis <= tolerance
     }
 
@@ -178,11 +155,6 @@ impl<T: Scalar> Ellipse3D<T> {
             None
         }
     }
-
-    // ========================================================================
-    // Core Parametric Methods
-    // ========================================================================
-
     /// パラメータ t での楕円上の点を計算
     /// t ∈ [0, 2π]
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
@@ -256,13 +228,7 @@ impl<T: Scalar> Ellipse3D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Pattern: Core Traits Implementation (Phase 1 + Phase 2)
-// ============================================================================
-
 impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
-    // ========== Phase 1 実装 ==========
-
     /// 基本コンストラクタ（中心点、平面法線、長軸半径、短軸半径、長軸方向）
     fn new(
         center: (T, T, T),
@@ -335,9 +301,6 @@ impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
             major_dir,
         )
     }
-
-    // ========== Phase 2 実装 ==========
-
     /// XZ平面上の楕円作成
     fn new_xz_plane(
         center: (T, T, T),
@@ -393,8 +356,6 @@ impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
 }
 
 impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
-    // ========== Phase 1 実装 ==========
-
     /// 楕円が存在する平面の法線ベクトルを取得
     fn normal(&self) -> (T, T, T) {
         (self.normal.x(), self.normal.y(), self.normal.z())
@@ -424,9 +385,6 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
     fn center_3d_tuple(&self) -> (T, T, T) {
         (self.center.x(), self.center.y(), self.center.z())
     }
-
-    // ========== Phase 2 実装 ==========
-
     /// 長半軸の長さを取得
     fn semi_major_axis(&self) -> T {
         self.semi_major_axis
@@ -444,11 +402,9 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
 }
 
 impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
-    // ========== Phase 1 実装 ==========
-
     /// 3D空間での点が楕円内部にあるかを判定
     fn contains_point_3d(&self, point: (T, T, T)) -> bool {
-        self.distance_to_point_3d_internal(point) <= analysis::GEOMETRIC_DISTANCE_TOLERANCE.into()
+        self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
     }
 
     /// 3D空間での点から楕円への最短距離を計算
@@ -475,9 +431,6 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
         // 3D楕円と平面の交点計算は複雑
         Vec::new()
     }
-
-    // ========== Phase 2 実装 ==========
-
     /// 楕円の面積を計算
     fn measure(&self) -> T {
         self.area()
@@ -496,14 +449,10 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
 
     /// 楕円が円かどうか判定
     fn is_circle(&self) -> bool {
-        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = default_distance_tolerance::<T>();
         (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
     }
 }
-
-// ============================================================================
-// Advanced Calculation Traits Implementation
-// ============================================================================
 
 impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
     type Point = Point3D<T>;

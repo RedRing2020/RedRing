@@ -3,7 +3,9 @@
 //! 新しいtraitsシステムに対応したEllipse2Dの実装
 
 use crate::{Circle2D, Point2D, Vector2D};
-use geo_contracts::{Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Scalar};
+use geo_contracts::{
+    default_distance_tolerance, Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Scalar,
+};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
 /// 2次元楕円
@@ -402,26 +404,7 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
     }
 }
 
-impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse2D<T> {
-    /// 適応的周長計算（精度パラメータに基づく自動選択）
-    fn perimeter_adaptive(&self, tolerance: T, _max_computation_cost: T) -> T {
-        let eccentricity = self.eccentricity();
-
-        if tolerance > T::from_f64(1e-3) {
-            // 低精度の場合はラマヌジャンI
-            self.perimeter_ramanujan_i()
-        } else if tolerance > T::from_f64(1e-6) {
-            // 中精度の場合はラマヌジャンII
-            self.perimeter_ramanujan_ii()
-        } else if eccentricity < T::from_f64(0.8) {
-            // 高精度で離心率が低い場合はカントレル
-            self.perimeter_cantrell()
-        } else {
-            // 最高精度の場合は級数展開
-            self.perimeter_series(50)
-        }
-    }
-}
+impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse2D<T> {}
 
 impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse2D<T> {}
 
@@ -539,12 +522,12 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = default_distance_tolerance::<T>();
         self.contains_point(&p, tolerance)
     }
 
     fn is_circle(&self) -> bool {
-        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = default_distance_tolerance::<T>();
         self.is_circle(tolerance)
     }
 
@@ -576,7 +559,7 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
 
     fn point_on_boundary(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        let tolerance = analysis::GEOMETRIC_DISTANCE_TOLERANCE.into();
+        let tolerance = default_distance_tolerance::<T>();
         // 点が楕円上にあるか判定：点から楕円周への距離が許容誤差以内
         let dist = self.distance_to_point(&p);
         dist <= tolerance

@@ -4,6 +4,7 @@
 //! STEP (ISO 10303) 準拠の axis2_placement_3d スタイルで実装
 
 use crate::{Direction3D, Point3D, Vector3D};
+use geo_contracts::default_angle_tolerance;
 use geo_contracts::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties, Scalar};
 
 /// 3次元空間の円
@@ -62,7 +63,7 @@ impl<T: Scalar> Circle3D<T> {
         let dot_product = axis.x() * ref_direction.x()
             + axis.y() * ref_direction.y()
             + axis.z() * ref_direction.z();
-        if dot_product.abs() > T::EPSILON {
+        if dot_product.abs() > default_angle_tolerance::<T>() {
             return None; // 直交していない
         }
 
