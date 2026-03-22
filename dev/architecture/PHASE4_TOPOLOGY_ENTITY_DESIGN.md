@@ -1,7 +1,7 @@
 # Phase 4: トポロジー・エンティティ層の設計
 
 **作成日**: 2026年2月8日  
-**最終更新**: 2026年2月8日  
+**最終更新**: 2026年3月22日  
 **ステータス**: 設計フェーズ  
 **優先度**: 🟡 Tier 3（Phase 3完了後に着手）
 
@@ -14,6 +14,8 @@
 3. [アーキテクチャ設計](#アーキテクチャ設計)
 4. [実装計画](#実装計画)
 5. [ロードマップ統合](#ロードマップ統合)
+
+> **2026年3月追記**: PCurve・トリム表現・δ/2 トレランスモデルの設計方針を Phase 4.4 として追加
 
 ---
 
@@ -175,21 +177,30 @@ pub enum CurveRef<T: Scalar> {
 #[derive(Debug, Clone)]
 pub struct Edge<T: Scalar> {
     id: TopoId,
-    
-    /// 開始頂点
+
+    /// 開始頂点（トポロジー上の走査始点）
     start_vertex: Arc<Vertex<T>>,
-    
-    /// 終了頂点
+
+    /// 終了頂点（トポロジー上の走査終点）
     end_vertex: Arc<Vertex<T>>,
-    
-    /// 幾何曲線への参照
+
+    /// 母曲線への参照
+    ///
+    /// 母曲線自体の反転は行わない（Face の same_sense と同じ原則）。
+    /// 母曲線を変更すると共有 Edge 経由で隣接面に影響が波及し
+    /// 整合性破綻のリスクが高いため。
     curve: CurveRef<T>,
-    
+
     /// パラメータ範囲 [t_start, t_end]
     parameter_range: (T, T),
-    
-    /// 向き（順方向 or 逆方向）
-    orientation: Orientation,
+
+    /// 走査向きフラグ: 母曲線の自然方向と Edge の走査方向が一致するか
+    ///
+    /// - `true` : t_start → t_end が start_vertex → end_vertex と一致
+    /// - `false`: 母曲線の幾何は逆向き（ただしトポロジー上の向きは不変）
+    ///
+    /// 向き反転は常にこのフラグを切り替えるだけで実現する。
+    same_sense: bool,
 }
 
 impl<T: Scalar> Edge<T> {
@@ -205,15 +216,18 @@ impl<T: Scalar> Edge<T> {
             end_vertex: end,
             curve,
             parameter_range,
-            orientation: Orientation::Forward,
+            same_sense: true,
         }
     }
-    
+
     /// 辺上の点を取得（パラメータ t: 0.0-1.0）
+    ///
+    /// `same_sense` が false の場合はパラメータを反転して評価する。
     pub fn point_at(&self, t: T) -> Point3D<T> {
+        let t_mapped = if self.same_sense { t } else { T::ONE - t };
         let (t0, t1) = self.parameter_range;
-        let param = t0 + (t1 - t0) * t;
-        
+        let param = t0 + (t1 - t0) * t_mapped;
+
         match &self.curve {
             CurveRef::Line(line) => line.point_at_parameter(param),
             CurveRef::Circle(arc) => arc.point_at_parameter(param),
@@ -221,7 +235,7 @@ impl<T: Scalar> Edge<T> {
             CurveRef::Nurbs(nurbs) => nurbs.evaluate(param),
         }
     }
-    
+
     /// 辺の長さ
     pub fn length(&self) -> T {
         match &self.curve {
@@ -234,16 +248,32 @@ impl<T: Scalar> Edge<T> {
             CurveRef::Nurbs(nurbs) => nurbs.arc_length_total(),
         }
     }
+
+    /// 向き反転（母曲線は変更せず same_sense フラグのみ切り替える）
+    pub fn reverse(&mut self) {
+        self.same_sense = !self.same_sense;
+        // start_vertex と end_vertex も入れ替える
+        std::mem::swap(
+            Arc::get_mut(&mut self.start_vertex).unwrap(),
+            Arc::get_mut(&mut self.end_vertex).unwrap(),
+        );
+    }
+
+    pub fn same_sense(&self) -> bool {
+        self.same_sense
+    }
 }
 
-/// 向き
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Orientation {
-    Forward,  // 順方向
-    Reversed, // 逆方向
-}
-
-/// ワイヤー（Wire）- 接続されたエッジの列
+/// Wire（ワイヤー）- 向きが揃った Edge の連続列
+///
+/// ## 向きの整合性ルール
+///
+/// Wire 内の Edge は以下を満たす必要がある：
+/// - `edges[i].end_vertex` ≈ `edges[i+1].start_vertex`（δ/2 トレランス範囲内で一致）
+///
+/// これにより Wire を走査すると幾何的に連続したパスになる。
+/// CCW（外周）か CW（穴）かの巻き方向は Wire 自体は保持しない。
+/// 巻き方向の意味付けは Face に outer_loop/inner_loop として割り当てた時点で行う。
 #[derive(Debug, Clone)]
 pub struct Wire<T: Scalar> {
     id: TopoId,
@@ -256,32 +286,32 @@ impl<T: Scalar> Wire<T> {
         if edges.is_empty() {
             return Err(WireError::EmptyEdges);
         }
-        
-        // エッジの接続性をチェック
+
+        // Edge の向きが揃っているか（end → next.start が接続）をチェック
         for i in 0..edges.len() - 1 {
             let current_end = &edges[i].end_vertex;
             let next_start = &edges[i + 1].start_vertex;
-            
+
             if !current_end.is_coincident(next_start) {
                 return Err(WireError::DiscontinuousEdges);
             }
         }
-        
-        // 閉じているかチェック
+
+        // 閉じているかチェック（外周/内周ループの前提条件）
         let is_closed = edges.first().unwrap().start_vertex
             .is_coincident(&edges.last().unwrap().end_vertex);
-        
+
         Ok(Self {
             id: TopoId::new(),
             edges,
             is_closed,
         })
     }
-    
+
     pub fn is_closed(&self) -> bool {
         self.is_closed
     }
-    
+
     pub fn total_length(&self) -> T {
         self.edges.iter().map(|e| e.length()).sum()
     }
@@ -290,6 +320,7 @@ impl<T: Scalar> Wire<T> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WireError {
     EmptyEdges,
+    /// Edge の end_vertex と次 Edge の start_vertex が一致しない（向きが揃っていない）
     DiscontinuousEdges,
 }
 
@@ -307,18 +338,28 @@ pub enum SurfaceRef<T: Scalar> {
 #[derive(Debug, Clone)]
 pub struct Face<T: Scalar> {
     id: TopoId,
-    
-    /// 外側境界
+
+    /// 外側境界（常に 1 つのみ・型で強制）
     outer_loop: Arc<Wire<T>>,
-    
-    /// 内側境界（穴）のリスト
+
+    /// 内側境界（穴）のリスト（0 個以上）
     inner_loops: Vec<Arc<Wire<T>>>,
-    
-    /// 曲面への参照
+
+    /// 母曲面への参照
+    ///
+    /// 母曲面自体の表裏反転は行わない。
+    /// 母曲面を変更すると他の Face・接続 Edge への影響が伴い
+    /// 整合性破綻のリスクが高いため。
     surface: SurfaceRef<T>,
-    
-    /// 法線の向き
-    orientation: Orientation,
+
+    /// 法線向きフラグ: 母曲面の表方向と Face の表方向が一致するか
+    ///
+    /// - `true` : 母曲面の法線と同じ向き（表向き）
+    /// - `false`: 母曲面の法線と逆向き（裏向き）
+    ///
+    /// 表裏反転は常にこのフラグを切り替えるだけで実現する。
+    /// 母曲面のデータは変更しない。
+    same_sense: bool,
 }
 
 impl<T: Scalar> Face<T> {
@@ -330,31 +371,43 @@ impl<T: Scalar> Face<T> {
         if !outer_loop.is_closed() {
             return Err(FaceError::OuterLoopNotClosed);
         }
-        
+
         for inner in &inner_loops {
             if !inner.is_closed() {
                 return Err(FaceError::InnerLoopNotClosed);
             }
         }
-        
+
         Ok(Self {
             id: TopoId::new(),
             outer_loop,
             inner_loops,
             surface,
-            orientation: Orientation::Forward,
+            same_sense: true, // 新規作成時は母曲面の表向きと一致
         })
     }
-    
-    /// 面の法線ベクトル（UV座標での法線）
+
+    /// 面の法線ベクトル（UV 座標で評価）
+    ///
+    /// `same_sense` フラグに従い、必要に応じて反転する。
     pub fn normal_at(&self, u: T, v: T) -> Vector3D<T> {
-        match &self.surface {
+        let n = match &self.surface {
             SurfaceRef::Plane(plane) => plane.normal(),
             SurfaceRef::Cylinder(cyl) => cyl.normal_at(u, v),
             SurfaceRef::Cone(cone) => cone.normal_at(u, v),
             SurfaceRef::Sphere(sphere) => sphere.normal_at(u, v),
             SurfaceRef::Nurbs(nurbs) => nurbs.normal_at(u, v).unwrap_or_default(),
-        }
+        };
+        if self.same_sense { n } else { -n }
+    }
+
+    /// 表裏反転（母曲面は変更せず same_sense フラグのみ切り替える）
+    pub fn reverse(&mut self) {
+        self.same_sense = !self.same_sense;
+    }
+
+    pub fn same_sense(&self) -> bool {
+        self.same_sense
     }
 }
 
@@ -364,7 +417,15 @@ pub enum FaceError {
     InnerLoopNotClosed,
 }
 
-/// シェル（Shell）- 接続された面の集合
+/// シェル（Shell）- 接続された面の集合（シート面・複合面）
+///
+/// ## ⚠️ 詳細設計は別 Issue で扱う
+///
+/// 以下の処理は Vertex/Edge/Wire/Face の基本実装完了後に別 Issue で設計する：
+/// - **ニット処理**（複数 Face の Edge を縫合して Shell を構築）
+/// - **多様体検証**（各 Edge に Face が 1〜2 枚接続されているか確認）
+///
+/// これらは Wire 接続性と Face の same_sense 管理が完成していることを前提とする。
 #[derive(Debug, Clone)]
 pub struct Shell<T: Scalar> {
     id: TopoId,
@@ -374,29 +435,38 @@ pub struct Shell<T: Scalar> {
 
 impl<T: Scalar> Shell<T> {
     pub fn new(faces: Vec<Arc<Face<T>>>) -> Self {
-        // TODO: シェルの閉じ性を計算
+        // TODO: シェルの閉じ性を計算（別 Issue で設計）
         let is_closed = false; // 暫定
-        
+
         Self {
             id: TopoId::new(),
             faces,
             is_closed,
         }
     }
-    
+
     pub fn is_closed(&self) -> bool {
         self.is_closed
     }
 }
 
-/// 立体（Solid）- 閉じたシェルで囲まれた体積
+/// 立体（Solid）- 閉じたシェルで囲まれた体積（ボディ）
+///
+/// ## ⚠️ 詳細設計は別 Issue で扱う
+///
+/// 以下の処理は Shell の実装完了後に別 Issue で設計する：
+/// - **閉じた Shell の検証**（全 Edge に Face が正確に 2 枚接続）
+/// - **体積積分による法線向き確認**
+///   （Divergence Theorem: $V = \frac{1}{6}\sum_{\text{face}} \mathbf{n} \cdot \mathbf{p} \cdot A$
+///   で体積が正なら外側が表向き）
+/// - **ボディ化**（シート面 Shell → 閉じた Solid への変換処理）
 #[derive(Debug, Clone)]
 pub struct Solid<T: Scalar> {
     id: TopoId,
-    
+
     /// 外側シェル
     outer_shell: Arc<Shell<T>>,
-    
+
     /// 内側シェル（空洞）のリスト
     inner_shells: Vec<Arc<Shell<T>>>,
 }
@@ -409,13 +479,13 @@ impl<T: Scalar> Solid<T> {
         if !outer_shell.is_closed() {
             return Err(SolidError::OuterShellNotClosed);
         }
-        
+
         for inner in &inner_shells {
             if !inner.is_closed() {
                 return Err(SolidError::InnerShellNotClosed);
             }
         }
-        
+
         Ok(Self {
             id: TopoId::new(),
             outer_shell,
@@ -914,6 +984,156 @@ impl Default for DisplayOptions {
 
 ---
 
+### Phase 4.4: PCurve・トリム表現・トポロジー整合性モデル
+
+> **背景**: 2026年3月の設計議論で確認された方針。トリム曲線/曲面を正しく扱うために必須。
+
+#### 4.1 設計原則: トリム表現の二重幾何管理
+
+商用 CAD カーネルで実績のある設計を採用する。各 Edge は **3D 曲線** と **PCurve（面上の 2D パラメータ曲線）** の両方を独立して保持する。
+
+```
+Edge
+  ├── 3D Curve     : 3次元空間での幾何（NurbsCurve3D 等）
+  ├── PCurve on Face A : 面A のパラメータ空間での 2D 曲線
+  └── PCurve on Face B : 面B のパラメータ空間での 2D 曲線
+
+Face
+  ├── Surface      : 母曲面の幾何（NurbsSurface3D 等）
+  └── Loop
+        └── Edge → PCurve （面境界の 2D 表現）
+```
+
+これにより：
+- 面の境界をパラメータ空間で厳密に定義できる（トリム曲面）
+- 形状変更後は PCurve を母曲面で再評価するだけで 3D 位置を復元できる（フィーチャ編集耐性）
+- G1/G2 連続性確認は PCurve の微分をチェーンルール（曲面の Jacobian）で変換して実施できる
+
+#### 4.2 PCurve の定義
+
+```rust
+/// 面上の 2D パラメータ曲線（PCurve）
+///
+/// 母曲面の UV パラメータ空間における曲線定義。
+/// Edge が保持する PCurve と母曲面を組み合わせることで
+/// 稜線の 3D 位置を完全に復元できる。
+#[derive(Debug, Clone)]
+pub struct PCurve<T: Scalar> {
+    /// 母曲面の参照
+    surface: Arc<SurfaceRef<T>>,
+
+    /// UV パラメータ空間での曲線（常に [0,1] を使用）
+    curve_2d: Curve2DRef<T>,
+
+    /// パラメータ範囲
+    parameter_range: (T, T),
+}
+
+/// 2D 曲線の種別
+#[derive(Debug, Clone)]
+pub enum Curve2DRef<T: Scalar> {
+    Line(Line2D<T>),
+    Nurbs(NurbsCurve2D<T>),
+}
+
+impl<T: Scalar> PCurve<T> {
+    /// UV 座標を評価
+    pub fn evaluate_uv(&self, t: T) -> (T, T) { /* ... */ }
+
+    /// 母曲面上の 3D 点を評価
+    pub fn evaluate_3d(&self, t: T) -> Point3D<T> {
+        let (u, v) = self.evaluate_uv(t);
+        self.surface.evaluate(u, v)
+    }
+}
+```
+
+#### 4.3 トリム曲線・トリム曲面の定義
+
+```rust
+/// トリム曲線
+///
+/// 元の曲線（母曲線）にパラメータ範囲 [t_start, t_end] を適用した部分曲線。
+/// 幾何は母曲線で管理し、トリム情報として範囲のみを保持する。
+#[derive(Debug, Clone)]
+pub struct TrimmedCurve<T: Scalar> {
+    /// 母曲線（[0,1] ドメイン）
+    basis_curve: Arc<NurbsCurve3D<T>>,
+
+    /// トリム範囲（母曲線のパラメータ空間で指定）
+    t_start: T,
+    t_end: T,
+}
+
+impl<T: Scalar> TrimmedCurve<T> {
+    /// [0,1] ローカルパラメータで評価
+    pub fn evaluate(&self, t: T) -> Point3D<T> {
+        let param = self.t_start + (self.t_end - self.t_start) * t;
+        self.basis_curve.evaluate(param)
+    }
+}
+
+/// トリム曲面
+///
+/// 母曲面に閉じたループ（境界ワイヤー）を適用してトリムした曲面。
+/// 境界は PCurve で面のパラメータ空間に記述する。
+#[derive(Debug, Clone)]
+pub struct TrimmedSurface<T: Scalar> {
+    /// 母曲面
+    basis_surface: Arc<SurfaceRef<T>>,
+
+    /// 外側境界ループ（PCurve のリスト）
+    outer_loop: Vec<PCurve<T>>,
+
+    /// 内側境界ループ（穴）のリスト
+    inner_loops: Vec<Vec<PCurve<T>>>,
+}
+```
+
+#### 4.4 トレランス割り当て規則: δ/2 モデル
+
+稜線（Edge）に対してトレランスを割り当てる際は、**δ/2 モデル**を採用する。
+
+**原則**:
+$$d\bigl(E_{\text{3D}},\; S_{uv \to xyz}\bigr) \leq \frac{\delta_{\text{dist}}}{2}$$
+
+- Edge の 3D 曲線と PCurve を母曲面で評価した 3D 点の距離が `distance_tolerance / 2` 以内
+- 隣接する 2 つの Face がそれぞれ `distance_tolerance / 2` の誤差を持っていても、稜線共有部での最大ギャップは `distance_tolerance` 以内に自動的に収まる
+
+**効果**: 面間のウォータータイトネス（隙間なし条件）を代数的に保証できる。
+
+```rust
+impl<T: Scalar> Edge<T> {
+    /// Edge の 3D 曲線と PCurve の整合性をチェック
+    ///
+    /// δ/2 モデルに基づき、3D 曲線と PCurve（→母曲面評価）の距離が
+    /// distance_tolerance / 2 以内であることを確認する。
+    pub fn validate_pcurve_consistency(
+        &self,
+        tolerance: &ToleranceSettings<T>,
+        num_samples: usize,
+    ) -> bool {
+        let half_tol = tolerance.distance_tolerance / T::from_f64(2.0).unwrap();
+        // サンプル点で 3D 曲線 と PCurve 評価点の距離を検証
+        // ...
+        true // TODO: 実装
+    }
+}
+```
+
+#### 4.5 G1/G2 連続性の確認アプローチ
+
+パラメータ空間の PCurve に対してチェーンルールを適用し、3D 接続条件を得る。
+
+$$\frac{d\mathbf{r}}{dt} = \frac{\partial \mathbf{S}}{\partial u} \cdot \frac{du}{dt} + \frac{\partial \mathbf{S}}{\partial v} \cdot \frac{dv}{dt}$$
+
+- **G1 確認**: 隣接エッジ端点での接線方向（正規化）が一致するか
+- **G2 確認**: 曲率ベクトルの一致まで確認（自動車意匠面 Class A サーフェス要件）
+
+[0,1] 正規化はリパラメータ化であり G1・G2 は不変なので、正規化後の PCurve でそのまま確認できる。
+
+---
+
 ## 実装計画
 
 ### Phase 4.1: トポロジー層実装（2-3週間）
@@ -955,6 +1175,21 @@ impl Default for DisplayOptions {
 - [ ] ApplicationContext 実装
 - [ ] ConversionContext 実装
 - [ ] アプリケーション層統合
+
+### Phase 4.4: PCurve・トリム表現実装（2週間）
+
+#### Week 7: PCurve とトリム曲線
+- [ ] `PCurve<T>` 構造体実装（Curve2DRef, evaluate_uv, evaluate_3d）
+- [ ] `TrimmedCurve<T>` 実装（母曲線 + パラメータ範囲）
+- [ ] δ/2 整合性チェック（`validate_pcurve_consistency`）
+- [ ] 単体テスト
+
+#### Week 8: トリム曲面と連続性確認
+- [ ] `TrimmedSurface<T>` 実装（母曲面 + 外側/内側ループ）
+- [ ] `Edge` への PCurve フィールド追加（`pcurve_on_faces`）
+- [ ] G1 連続性確認（接線方向比較）
+- [ ] G2 連続性確認（曲率ベクトル比較、Class A 面要件）
+- [ ] 統合テスト
 
 ---
 
