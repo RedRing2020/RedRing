@@ -895,6 +895,10 @@ pub fn ray3d_infinite_line3d_collides<T: Scalar>(
     line.distance_to_point(&ray.origin()) <= tolerance
 }
 
+pub fn ray3d_plane3d_collides<T: Scalar>(ray: &Ray3D<T>, plane: &Plane3D<T>, tolerance: T) -> bool {
+    plane3d_ray3d_collides(plane, ray, tolerance)
+}
+
 // ── LineSegment3D ─────────────────────────────────────────────────────────────
 
 pub fn line_segment3d_point3d_collides<T: Scalar>(
@@ -949,6 +953,14 @@ pub fn line_segment3d_infinite_line3d_collides<T: Scalar>(
     d1.min(d2) <= tolerance
 }
 
+pub fn line_segment3d_plane3d_collides<T: Scalar>(
+    segment: &LineSegment3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> bool {
+    plane3d_line_segment3d_collides(plane, segment, tolerance)
+}
+
 // ── InfiniteLine3D ────────────────────────────────────────────────────────────
 
 pub fn infinite_line3d_point3d_collides<T: Scalar>(
@@ -995,17 +1007,27 @@ pub fn infinite_line3d_ray3d_collides<T: Scalar>(
     line.distance_to_point(&ray.origin()) <= tolerance
 }
 
+pub fn infinite_line3d_plane3d_collides<T: Scalar>(
+    line: &InfiniteLine3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> bool {
+    plane3d_infinite_line3d_collides(plane, line, tolerance)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         arc3d_point3d_collides, circle3d_point3d_collides, cylindrical_solid3d_point3d_collides,
         cylindrical_surface3d_point3d_collides, ellipse3d_point3d_collides,
-        infinite_line3d_point3d_collides, line_segment3d_point3d_collides,
-        line_segment3d_triangle3d_collides, plane3d_point3d_collides, ray3d_point3d_collides,
-        ray3d_triangle3d_collides, spherical_solid3d_point3d_collides,
-        torus_solid3d_point3d_collides, torus_surface3d_point3d_collides,
-        triangle3d_line_segment3d_collides, triangle3d_point3d_collides, triangle3d_ray3d_collides,
-        triangle_mesh3d_point3d_collides,
+        infinite_line3d_plane3d_collides, infinite_line3d_point3d_collides,
+        line_segment3d_plane3d_collides, line_segment3d_point3d_collides,
+        line_segment3d_triangle3d_collides, plane3d_infinite_line3d_collides,
+        plane3d_line_segment3d_collides, plane3d_point3d_collides, plane3d_ray3d_collides,
+        ray3d_plane3d_collides, ray3d_point3d_collides, ray3d_triangle3d_collides,
+        spherical_solid3d_point3d_collides, torus_solid3d_point3d_collides,
+        torus_surface3d_point3d_collides, triangle3d_line_segment3d_collides,
+        triangle3d_point3d_collides, triangle3d_ray3d_collides, triangle_mesh3d_point3d_collides,
     };
     use crate::{
         Angle, Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Direction3D, Ellipse3D,
@@ -1283,6 +1305,33 @@ mod tests {
         assert_eq!(
             ray3d_triangle3d_collides(&ray, &tri, tol),
             triangle3d_ray3d_collides(&tri, &ray, tol)
+        );
+    }
+
+    #[test]
+    fn symmetric_plane_collision_wrappers_match_base_functions() {
+        let tol = standard_distance_tol();
+        let plane = Plane3D::xy_plane(0.0_f64);
+        let ray = Ray3D::new(Point3D::new(0.0, 0.0, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
+        let seg =
+            LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(0.0, 0.0, -1.0),
+            Point3D::new(0.0, 0.0, 1.0),
+        )
+        .unwrap();
+
+        assert_eq!(
+            ray3d_plane3d_collides(&ray, &plane, tol),
+            plane3d_ray3d_collides(&plane, &ray, tol)
+        );
+        assert_eq!(
+            line_segment3d_plane3d_collides(&seg, &plane, tol),
+            plane3d_line_segment3d_collides(&plane, &seg, tol)
+        );
+        assert_eq!(
+            infinite_line3d_plane3d_collides(&line, &plane, tol),
+            plane3d_infinite_line3d_collides(&plane, &line, tol)
         );
     }
 }
