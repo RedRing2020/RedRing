@@ -2,9 +2,13 @@
 //!
 //! Stage 1 では Point3D / Plane3D / Ray3D の最小セットを提供する。
 
-use crate::{Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D};
+use crate::{
+    Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
+    Point3D, Ray3D, SphericalSolid3D,
+};
 use geo_contracts::{
-    BasicCollision, Circle3DProperties, InfiniteLine3DProperties, Plane3DProperties, Scalar,
+    BasicCollision, Circle3DProperties, CylindricalSolid3DMeasure, InfiniteLine3DProperties,
+    Plane3DProperties, Scalar,
 };
 use geo_nurbs::NurbsSurface3D;
 
@@ -234,6 +238,82 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
         min_dist
     }
+
+    fn min_distance_to_spherical_solid(&self, sphere: &SphericalSolid3D<T>) -> T {
+        let samples_u = 24;
+        let samples_v = 24;
+        let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
+        let du = (u_max - u_min) / T::from_usize(samples_u);
+        let dv = (v_max - v_min) / T::from_usize(samples_v);
+
+        let mut min_dist = T::INFINITY;
+
+        for i in 0..=samples_u {
+            for j in 0..=samples_v {
+                let u = u_min + du * T::from_usize(i);
+                let v = v_min + dv * T::from_usize(j);
+                let p = self.0.evaluate_at(u, v);
+                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+                min_dist = min_dist.min(sphere.distance_to_surface(surface_point));
+            }
+        }
+
+        min_dist
+    }
+
+    fn min_distance_to_ellipsoidal_solid(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
+        let samples_u = 24;
+        let samples_v = 24;
+        let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
+        let du = (u_max - u_min) / T::from_usize(samples_u);
+        let dv = (v_max - v_min) / T::from_usize(samples_v);
+
+        let mut min_dist = T::INFINITY;
+
+        for i in 0..=samples_u {
+            for j in 0..=samples_v {
+                let u = u_min + du * T::from_usize(i);
+                let v = v_min + dv * T::from_usize(j);
+                let p = self.0.evaluate_at(u, v);
+                let surface_point = Point3D::new(p.x(), p.y(), p.z());
+
+                let d = if ellipsoid.contains_point(&surface_point) {
+                    T::ZERO
+                } else {
+                    ellipsoid.distance_to_surface(&surface_point)
+                };
+                min_dist = min_dist.min(d);
+            }
+        }
+
+        min_dist
+    }
+
+    fn min_distance_to_cylindrical_solid(&self, cylinder: &CylindricalSolid3D<T>) -> T {
+        let samples_u = 24;
+        let samples_v = 24;
+        let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
+        let du = (u_max - u_min) / T::from_usize(samples_u);
+        let dv = (v_max - v_min) / T::from_usize(samples_v);
+
+        let mut min_dist = T::INFINITY;
+
+        for i in 0..=samples_u {
+            for j in 0..=samples_v {
+                let u = u_min + du * T::from_usize(i);
+                let v = v_min + dv * T::from_usize(j);
+                let p = self.0.evaluate_at(u, v);
+
+                let d = <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+                    cylinder,
+                    (p.x(), p.y(), p.z()),
+                );
+                min_dist = min_dist.min(d);
+            }
+        }
+
+        min_dist
+    }
 }
 
 impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsSurfaceCollider<T> {
@@ -332,6 +412,54 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsSurfaceCollider<T> {
     }
 }
 
+impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsSurfaceCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, sphere: &SphericalSolid3D<T>, tolerance: T) -> bool {
+        self.distance_to(sphere) <= tolerance
+    }
+
+    fn overlaps(&self, sphere: &SphericalSolid3D<T>, tolerance: T) -> bool {
+        self.intersects(sphere, tolerance)
+    }
+
+    fn distance_to(&self, sphere: &SphericalSolid3D<T>) -> T {
+        self.min_distance_to_spherical_solid(sphere)
+    }
+}
+
+impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsSurfaceCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
+        self.distance_to(ellipsoid) <= tolerance
+    }
+
+    fn overlaps(&self, ellipsoid: &EllipsoidalSolid3D<T>, tolerance: T) -> bool {
+        self.intersects(ellipsoid, tolerance)
+    }
+
+    fn distance_to(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
+        self.min_distance_to_ellipsoidal_solid(ellipsoid)
+    }
+}
+
+impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsSurfaceCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
+        self.distance_to(cylinder) <= tolerance
+    }
+
+    fn overlaps(&self, cylinder: &CylindricalSolid3D<T>, tolerance: T) -> bool {
+        self.intersects(cylinder, tolerance)
+    }
+
+    fn distance_to(&self, cylinder: &CylindricalSolid3D<T>) -> T {
+        self.min_distance_to_cylindrical_solid(cylinder)
+    }
+}
+
 // Public distance functions shared by intersection module.
 
 pub fn nurbssurface3d_point3d_distance<T: Scalar>(
@@ -371,6 +499,27 @@ pub fn nurbssurface3d_circle3d_distance<T: Scalar>(
     circle: &Circle3D<T>,
 ) -> T {
     NurbsSurfaceCollider::new(surface.clone()).distance_to(circle)
+}
+
+pub fn nurbssurface3d_spherical_solid3d_distance<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    sphere: &SphericalSolid3D<T>,
+) -> T {
+    NurbsSurfaceCollider::new(surface.clone()).distance_to(sphere)
+}
+
+pub fn nurbssurface3d_ellipsoidal_solid3d_distance<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    ellipsoid: &EllipsoidalSolid3D<T>,
+) -> T {
+    NurbsSurfaceCollider::new(surface.clone()).distance_to(ellipsoid)
+}
+
+pub fn nurbssurface3d_cylindrical_solid3d_distance<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    cylinder: &CylindricalSolid3D<T>,
+) -> T {
+    NurbsSurfaceCollider::new(surface.clone()).distance_to(cylinder)
 }
 
 #[cfg(test)]
@@ -438,6 +587,51 @@ mod tests {
         )
         .unwrap();
         let d = nurbssurface3d_circle3d_distance(&surface, &circle);
+        assert!(d <= 1e-6);
+    }
+
+    #[test]
+    fn test_nurbssurface3d_spherical_solid3d_distance_zero_for_enclosing_sphere() {
+        let surface = create_test_surface::<f64>();
+        let sphere = SphericalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+        )
+        .unwrap();
+        let d = nurbssurface3d_spherical_solid3d_distance(&surface, &sphere);
+        assert!(d <= 1e-6);
+    }
+
+    #[test]
+    fn test_nurbssurface3d_ellipsoidal_solid3d_distance_zero_for_enclosing_ellipsoid() {
+        let surface = create_test_surface::<f64>();
+        let ellipsoid = EllipsoidalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+            2.0,
+            2.0,
+        )
+        .unwrap();
+        let d = nurbssurface3d_ellipsoidal_solid3d_distance(&surface, &ellipsoid);
+        assert!(d <= 1e-6);
+    }
+
+    #[test]
+    fn test_nurbssurface3d_cylindrical_solid3d_distance_zero_for_enclosing_cylinder() {
+        let surface = create_test_surface::<f64>();
+        let cylinder = CylindricalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+            4.0,
+        )
+        .unwrap();
+        let d = nurbssurface3d_cylindrical_solid3d_distance(&surface, &cylinder);
         assert!(d <= 1e-6);
     }
 }

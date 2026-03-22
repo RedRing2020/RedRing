@@ -2,7 +2,10 @@
 //!
 //! Stage 1 では Point3D / Plane3D / Ray3D の最小セットを提供する。
 
-use crate::{Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D};
+use crate::{
+    Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
+    Point3D, Ray3D, SphericalSolid3D,
+};
 use geo_contracts::Scalar;
 use geo_nurbs::NurbsSurface3D;
 
@@ -95,6 +98,55 @@ pub fn nurbssurface3d_circle3d_intersection<T: Scalar>(
     }
 }
 
+pub fn nurbssurface3d_spherical_solid3d_intersection<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    sphere: &SphericalSolid3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let distance = crate::collision::nurbssurface3d_spherical_solid3d_distance(surface, sphere);
+
+    if distance <= tolerance {
+        let ((u_min, _), (v_min, _)) = surface.parameter_domain();
+        let p = surface.evaluate_at(u_min, v_min);
+        Some(Point3D::new(p.x(), p.y(), p.z()))
+    } else {
+        None
+    }
+}
+
+pub fn nurbssurface3d_ellipsoidal_solid3d_intersection<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    ellipsoid: &EllipsoidalSolid3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let distance =
+        crate::collision::nurbssurface3d_ellipsoidal_solid3d_distance(surface, ellipsoid);
+
+    if distance <= tolerance {
+        let ((u_min, _), (v_min, _)) = surface.parameter_domain();
+        let p = surface.evaluate_at(u_min, v_min);
+        Some(Point3D::new(p.x(), p.y(), p.z()))
+    } else {
+        None
+    }
+}
+
+pub fn nurbssurface3d_cylindrical_solid3d_intersection<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    cylinder: &CylindricalSolid3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let distance = crate::collision::nurbssurface3d_cylindrical_solid3d_distance(surface, cylinder);
+
+    if distance <= tolerance {
+        let ((u_min, _), (v_min, _)) = surface.parameter_domain();
+        let p = surface.evaluate_at(u_min, v_min);
+        Some(Point3D::new(p.x(), p.y(), p.z()))
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,6 +212,51 @@ mod tests {
         )
         .unwrap();
         let result = nurbssurface3d_circle3d_intersection(&surface, &circle, 1e-6);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_spherical_solid3d_intersection_enclosing() {
+        let surface = create_test_surface::<f64>();
+        let sphere = SphericalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+        )
+        .unwrap();
+        let result = nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, 1e-6);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_ellipsoidal_solid3d_intersection_enclosing() {
+        let surface = create_test_surface::<f64>();
+        let ellipsoid = EllipsoidalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+            2.0,
+            2.0,
+        )
+        .unwrap();
+        let result = nurbssurface3d_ellipsoidal_solid3d_intersection(&surface, &ellipsoid, 1e-6);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_cylindrical_solid3d_intersection_enclosing() {
+        let surface = create_test_surface::<f64>();
+        let cylinder = CylindricalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+            4.0,
+        )
+        .unwrap();
+        let result = nurbssurface3d_cylindrical_solid3d_intersection(&surface, &cylinder, 1e-6);
         assert!(result.is_some());
     }
 }
