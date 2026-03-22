@@ -2,8 +2,10 @@
 //!
 //! Stage 1 では Point3D / Plane3D / Ray3D の最小セットを提供する。
 
-use crate::{Plane3D, Point3D, Ray3D};
-use geo_contracts::{BasicCollision, Plane3DProperties, Scalar};
+use crate::{Circle3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D};
+use geo_contracts::{
+    BasicCollision, Circle3DProperties, InfiniteLine3DProperties, Plane3DProperties, Scalar,
+};
 use geo_nurbs::NurbsSurface3D;
 
 #[repr(transparent)]
@@ -116,6 +118,122 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
 
         min_dist
     }
+
+    fn min_distance_to_line_segment(&self, segment: &LineSegment3D<T>) -> T {
+        let samples_u = 24;
+        let samples_v = 24;
+        let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
+        let du = (u_max - u_min) / T::from_usize(samples_u);
+        let dv = (v_max - v_min) / T::from_usize(samples_v);
+
+        let start = segment.start();
+        let end = segment.end();
+        let seg_dx = end.x() - start.x();
+        let seg_dy = end.y() - start.y();
+        let seg_dz = end.z() - start.z();
+        let seg_len_sq = seg_dx * seg_dx + seg_dy * seg_dy + seg_dz * seg_dz;
+
+        let mut min_dist = T::INFINITY;
+
+        for i in 0..=samples_u {
+            for j in 0..=samples_v {
+                let u = u_min + du * T::from_usize(i);
+                let v = v_min + dv * T::from_usize(j);
+                let p = self.0.evaluate_at(u, v);
+
+                let to_px = p.x() - start.x();
+                let to_py = p.y() - start.y();
+                let to_pz = p.z() - start.z();
+
+                let t = if seg_len_sq.is_zero() {
+                    T::ZERO
+                } else {
+                    ((to_px * seg_dx + to_py * seg_dy + to_pz * seg_dz) / seg_len_sq)
+                        .clamp(T::ZERO, T::ONE)
+                };
+
+                let cx = start.x() + t * seg_dx;
+                let cy = start.y() + t * seg_dy;
+                let cz = start.z() + t * seg_dz;
+
+                let dx = p.x() - cx;
+                let dy = p.y() - cy;
+                let dz = p.z() - cz;
+                let d = (dx * dx + dy * dy + dz * dz).sqrt();
+                min_dist = min_dist.min(d);
+            }
+        }
+
+        min_dist
+    }
+
+    fn min_distance_to_infinite_line(&self, line: &InfiniteLine3D<T>) -> T {
+        let samples_u = 24;
+        let samples_v = 24;
+        let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
+        let du = (u_max - u_min) / T::from_usize(samples_u);
+        let dv = (v_max - v_min) / T::from_usize(samples_v);
+
+        let (px, py, pz) = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::point(line);
+        let (dx, dy, dz) = <InfiniteLine3D<T> as InfiniteLine3DProperties<T>>::direction(line);
+
+        let mut min_dist = T::INFINITY;
+
+        for i in 0..=samples_u {
+            for j in 0..=samples_v {
+                let u = u_min + du * T::from_usize(i);
+                let v = v_min + dv * T::from_usize(j);
+                let p = self.0.evaluate_at(u, v);
+
+                let tx = p.x() - px;
+                let ty = p.y() - py;
+                let tz = p.z() - pz;
+                let t = tx * dx + ty * dy + tz * dz;
+
+                let cx = px + t * dx;
+                let cy = py + t * dy;
+                let cz = pz + t * dz;
+
+                let ddx = p.x() - cx;
+                let ddy = p.y() - cy;
+                let ddz = p.z() - cz;
+                let d = (ddx * ddx + ddy * ddy + ddz * ddz).sqrt();
+                min_dist = min_dist.min(d);
+            }
+        }
+
+        min_dist
+    }
+
+    fn min_distance_to_circle(&self, circle: &Circle3D<T>) -> T {
+        let samples_u = 24;
+        let samples_v = 24;
+        let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
+        let du = (u_max - u_min) / T::from_usize(samples_u);
+        let dv = (v_max - v_min) / T::from_usize(samples_v);
+
+        let (cx, cy, cz) = <Circle3D<T> as Circle3DProperties<T>>::center(circle);
+        let radius = <Circle3D<T> as Circle3DProperties<T>>::radius(circle);
+
+        let mut min_dist = T::INFINITY;
+
+        for i in 0..=samples_u {
+            for j in 0..=samples_v {
+                let u = u_min + du * T::from_usize(i);
+                let v = v_min + dv * T::from_usize(j);
+                let p = self.0.evaluate_at(u, v);
+
+                let dx = p.x() - cx;
+                let dy = p.y() - cy;
+                let dz = p.z() - cz;
+                let distance_to_center = (dx * dx + dy * dy + dz * dz).sqrt();
+                let d = (distance_to_center - radius).abs();
+                min_dist = min_dist.min(d);
+            }
+        }
+
+        min_dist
+    }
 }
 
 impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsSurfaceCollider<T> {
@@ -166,6 +284,54 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsSurfaceCollider<T> {
     }
 }
 
+impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsSurfaceCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, segment: &LineSegment3D<T>, tolerance: T) -> bool {
+        self.distance_to(segment) <= tolerance
+    }
+
+    fn overlaps(&self, segment: &LineSegment3D<T>, tolerance: T) -> bool {
+        self.intersects(segment, tolerance)
+    }
+
+    fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
+        self.min_distance_to_line_segment(segment)
+    }
+}
+
+impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsSurfaceCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
+        self.distance_to(line) <= tolerance
+    }
+
+    fn overlaps(&self, line: &InfiniteLine3D<T>, tolerance: T) -> bool {
+        self.intersects(line, tolerance)
+    }
+
+    fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
+        self.min_distance_to_infinite_line(line)
+    }
+}
+
+impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsSurfaceCollider<T> {
+    type Point2D = Point3D<T>;
+
+    fn intersects(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
+        self.distance_to(circle) <= tolerance
+    }
+
+    fn overlaps(&self, circle: &Circle3D<T>, tolerance: T) -> bool {
+        self.intersects(circle, tolerance)
+    }
+
+    fn distance_to(&self, circle: &Circle3D<T>) -> T {
+        self.min_distance_to_circle(circle)
+    }
+}
+
 // Public distance functions shared by intersection module.
 
 pub fn nurbssurface3d_point3d_distance<T: Scalar>(
@@ -186,10 +352,31 @@ pub fn nurbssurface3d_ray3d_distance<T: Scalar>(surface: &NurbsSurface3D<T>, ray
     NurbsSurfaceCollider::new(surface.clone()).distance_to(ray)
 }
 
+pub fn nurbssurface3d_line_segment3d_distance<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    segment: &LineSegment3D<T>,
+) -> T {
+    NurbsSurfaceCollider::new(surface.clone()).distance_to(segment)
+}
+
+pub fn nurbssurface3d_infinite_line3d_distance<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    line: &InfiniteLine3D<T>,
+) -> T {
+    NurbsSurfaceCollider::new(surface.clone()).distance_to(line)
+}
+
+pub fn nurbssurface3d_circle3d_distance<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+    circle: &Circle3D<T>,
+) -> T {
+    NurbsSurfaceCollider::new(surface.clone()).distance_to(circle)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Vector3D;
+    use crate::{Direction3D, Vector3D};
     use geo_contracts::NurbsSurface3DConstructor;
 
     fn create_test_surface<T: Scalar>() -> NurbsSurface3D<T> {
@@ -217,6 +404,40 @@ mod tests {
         let surface = create_test_surface::<f64>();
         let ray = Ray3D::new(Point3D::new(0.5, 0.5, -1.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
         let d = nurbssurface3d_ray3d_distance(&surface, &ray);
+        assert!(d <= 1e-6);
+    }
+
+    #[test]
+    fn test_nurbssurface3d_line_segment3d_distance_zero_for_vertical_hit() {
+        let surface = create_test_surface::<f64>();
+        let segment =
+            LineSegment3D::new(Point3D::new(0.5, 0.5, -1.0), Point3D::new(0.5, 0.5, 1.0)).unwrap();
+        let d = nurbssurface3d_line_segment3d_distance(&surface, &segment);
+        assert!(d <= 1e-6);
+    }
+
+    #[test]
+    fn test_nurbssurface3d_infinite_line3d_distance_zero_for_vertical_hit() {
+        let surface = create_test_surface::<f64>();
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(0.5, 0.5, -1.0),
+            Point3D::new(0.5, 0.5, 1.0),
+        )
+        .unwrap();
+        let d = nurbssurface3d_infinite_line3d_distance(&surface, &line);
+        assert!(d <= 1e-6);
+    }
+
+    #[test]
+    fn test_nurbssurface3d_circle3d_distance_zero_for_same_plane_circle() {
+        let surface = create_test_surface::<f64>();
+        let circle = Circle3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap(),
+            0.25,
+        )
+        .unwrap();
+        let d = nurbssurface3d_circle3d_distance(&surface, &circle);
         assert!(d <= 1e-6);
     }
 }
