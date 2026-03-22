@@ -15,7 +15,7 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
     Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{BasicCollision, Scalar};
+use geo_contracts::Scalar;
 use geo_core::Point3D;
 use geo_nurbs::NurbsCurve3D;
 
@@ -37,10 +37,7 @@ pub fn nurbscurve3d_point3d_intersection<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    // 距離がtolerance 以内なら交点と判定
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(point);
+    let distance = crate::collision::nurbscurve3d_point3d_distance(curve, point);
     point_intersection_if(point, distance <= tolerance)
 }
 
@@ -51,11 +48,8 @@ pub fn nurbscurve3d_line_segment3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(segment);
+    let distance = crate::collision::nurbscurve3d_line_segment3d_distance(curve, segment);
 
-    // 交差の場合、とりあえず線分の始点を返す（Step C で改良）
     if distance <= tolerance {
         Some(segment.start())
     } else {
@@ -70,9 +64,7 @@ pub fn nurbscurve3d_ray3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(ray);
+    let distance = crate::collision::nurbscurve3d_ray3d_distance(curve, ray);
 
     if distance <= tolerance {
         Some(ray.origin())
@@ -88,9 +80,7 @@ pub fn nurbscurve3d_infinite_line3d_intersection<T: Scalar>(
     line: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(line);
+    let distance = crate::collision::nurbscurve3d_infinite_line3d_distance(curve, line);
 
     if distance <= tolerance {
         let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
@@ -107,9 +97,7 @@ pub fn nurbscurve3d_circle3d_intersection<T: Scalar>(
     circle: &Circle3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(circle);
+    let distance = crate::collision::nurbscurve3d_circle3d_distance(curve, circle);
 
     if distance <= tolerance {
         let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
@@ -126,9 +114,7 @@ pub fn nurbscurve3d_plane3d_intersection<T: Scalar>(
     plane: &Plane3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(plane);
+    let distance = crate::collision::nurbscurve3d_plane3d_distance(curve, plane);
 
     if distance <= tolerance {
         Some(plane.origin())
@@ -144,9 +130,7 @@ pub fn nurbscurve3d_spherical_solid3d_intersection<T: Scalar>(
     sphere: &SphericalSolid3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(sphere);
+    let distance = crate::collision::nurbscurve3d_spherical_solid3d_distance(curve, sphere);
 
     if distance <= tolerance {
         // 曲線の始点を返す（Step C で改良）
@@ -165,9 +149,7 @@ pub fn nurbscurve3d_ellipsoidal_solid3d_intersection<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(ellipsoid);
+    let distance = crate::collision::nurbscurve3d_ellipsoidal_solid3d_distance(curve, ellipsoid);
 
     if distance <= tolerance {
         // 曲線の始点を返す（Step C で改良）
@@ -186,9 +168,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_intersection<T: Scalar>(
     cylinder: &CylindricalSolid3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    // collision の distance_to を使用
-    let curve_collider = crate::collision::NurbsCurveCollider::new(curve.clone());
-    let distance = curve_collider.distance_to(cylinder);
+    let distance = crate::collision::nurbscurve3d_cylindrical_solid3d_distance(curve, cylinder);
 
     if distance <= tolerance {
         // 曲線の始点を返す（Step C で改良）
