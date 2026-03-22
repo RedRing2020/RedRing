@@ -5,7 +5,7 @@
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DMeasure,
+    CrossDistance, LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DMeasure,
     LineSegment3DProperties, Scalar,
 };
 
@@ -320,5 +320,18 @@ impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {
         let start = (start_point.x(), start_point.y(), start_point.z());
         let end = (end_point.x(), end_point.y(), end_point.z());
         line_segment_to_aabb_distance(start, end, aabb_min, aabb_max)
+    }
+}
+
+impl<T: Scalar> CrossDistance<T, ((T, T, T), (T, T, T))> for LineSegment3D<T> {
+    fn distance_to(&self, other: &((T, T, T), (T, T, T))) -> T {
+        use geo_commons::line_segment_to_aabb_distance;
+
+        let start_point = self.start();
+        let end_point = self.end();
+        let start = (start_point.x(), start_point.y(), start_point.z());
+        let end = (end_point.x(), end_point.y(), end_point.z());
+
+        line_segment_to_aabb_distance(start, end, other.0, other.1)
     }
 }
