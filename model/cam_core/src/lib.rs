@@ -32,6 +32,7 @@
 //! analysis (数値計算基盤)
 //! ```
 
+pub mod artifact_binary;
 pub mod tolerance;
 pub mod tool;
 pub mod toolpath;
@@ -39,6 +40,10 @@ pub mod toolset;
 pub mod validation;
 
 // 主要型の再エクスポート
+pub use artifact_binary::{
+    ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, FORMAT_VERSION_MAJOR_V1,
+    FORMAT_VERSION_MINOR_V1, INTERFERENCE_MAGIC, LengthUnit, TOOLPATH_MAGIC,
+};
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};
 pub use toolpath::{
