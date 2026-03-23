@@ -6,8 +6,10 @@
 //! - 各関数は形状と点の組み合わせを受け取り、最短距離を返す
 //! - 命名規則: `{shape_a}_{shape_b}_distance`
 
+pub mod nurbs_3d;
 pub mod primitive_2d;
 pub mod primitive_3d;
 
+pub use nurbs_3d::*;
 pub use primitive_2d::*;
 pub use primitive_3d::*;

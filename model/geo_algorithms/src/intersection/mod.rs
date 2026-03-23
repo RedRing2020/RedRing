@@ -4,13 +4,11 @@
 //! このモジュール配下へ集約した。
 //! pair_base と primitive_* モジュールが現行の正本である。
 
+pub mod nurbs_3d;
 pub mod pair_base;
 pub mod primitive_2d;
 pub mod primitive_3d;
-pub mod primitive_nurbs;
-pub mod primitive_nurbs_surface;
 
+pub use nurbs_3d::*;
 pub use primitive_2d::*;
 pub use primitive_3d::*;
-pub use primitive_nurbs::*;
-pub use primitive_nurbs_surface::*;
