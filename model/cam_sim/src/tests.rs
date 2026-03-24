@@ -1,4 +1,9 @@
-use cam_core::{ContourLevelPath, CuttingDirection, SegmentType, Tool, ToolPath};
+use std::io::Cursor;
+
+use cam_core::{
+    ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
+    ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
+};
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobManager, JobSpec, JobStatus, JobType, RetryPolicy};
@@ -24,6 +29,21 @@ fn sim_spec(input: &str) -> JobSpec {
         timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     }
+}
+
+fn roundtrip_toolpath_via_artifact(toolpath: &ToolPath<f64>) -> ToolPath<f64> {
+    let mut payload_bytes = Vec::new();
+    write_toolpath_payload_v1(&mut payload_bytes, toolpath).unwrap();
+
+    let header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload_bytes.len() as u64);
+    let mut bytes = Vec::new();
+    header.write_to(&mut bytes).unwrap();
+    bytes.extend_from_slice(&payload_bytes);
+
+    let mut cursor = Cursor::new(bytes);
+    let (read_header, read_toolpath) = read_toolpath_artifact_v1(&mut cursor).unwrap();
+    assert_eq!(read_header.kind, ArtifactKind::ToolPath);
+    read_toolpath
 }
 
 #[test]
@@ -89,13 +109,14 @@ fn test_simulate_toolpath_flat_end_mill() {
         SegmentType::Cutting { feed_rate: 300.0 },
     );
 
-    let toolpath = ToolPath::new(
+    let source_toolpath = ToolPath::new(
         "flat-tool".to_string(),
         CuttingDirection::Down,
         vec![],
         vec![ContourLevelPath::new(0, 10.0, vec![cutting])],
         vec![],
     );
+    let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
 
     let tool = Tool::flat_end_mill("flat-tool".to_string(), 10.0, 30.0);
     let result = simulator.simulate(&toolpath, &tool);
@@ -119,13 +140,14 @@ fn test_simulate_toolpath_non_flat_is_rejected() {
         SegmentType::Cutting { feed_rate: 300.0 },
     );
 
-    let toolpath = ToolPath::new(
+    let source_toolpath = ToolPath::new(
         "ball-tool".to_string(),
         CuttingDirection::Down,
         vec![],
         vec![ContourLevelPath::new(0, 10.0, vec![cutting])],
         vec![],
     );
+    let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
 
     let tool = Tool::ball_end_mill("ball-tool".to_string(), 10.0, 30.0);
     let result = simulator.simulate(&toolpath, &tool);

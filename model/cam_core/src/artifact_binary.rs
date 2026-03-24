@@ -91,6 +91,10 @@ impl CoordinateFrame {
 pub enum BinaryFormatError {
     Io(std::io::Error),
     UnknownMagic([u8; 4]),
+    ArtifactKindMismatch {
+        expected: ArtifactKind,
+        found: ArtifactKind,
+    },
     UnsupportedMajorVersion {
         found: u16,
         supported: u16,
@@ -119,6 +123,12 @@ impl fmt::Display for BinaryFormatError {
         match self {
             Self::Io(err) => write!(f, "I/O error: {err}"),
             Self::UnknownMagic(magic) => write!(f, "unknown artifact magic: {magic:?}"),
+            Self::ArtifactKindMismatch { expected, found } => {
+                write!(
+                    f,
+                    "artifact kind mismatch: expected={expected:?}, found={found:?}"
+                )
+            }
             Self::UnsupportedMajorVersion { found, supported } => {
                 write!(
                     f,
@@ -505,6 +515,32 @@ pub fn read_artifact_v1<R: Read>(
         }
     };
     Ok((header, payload))
+}
+
+pub fn read_toolpath_artifact_v1<R: Read>(
+    reader: &mut R,
+) -> Result<(ArtifactHeaderV1, ToolPath<f64>), BinaryFormatError> {
+    let (header, payload) = read_artifact_v1(reader)?;
+    match payload {
+        ArtifactPayload::ToolPath(toolpath) => Ok((header, toolpath)),
+        ArtifactPayload::Interference(_) => Err(BinaryFormatError::ArtifactKindMismatch {
+            expected: ArtifactKind::ToolPath,
+            found: header.kind,
+        }),
+    }
+}
+
+pub fn read_interference_artifact_v1<R: Read>(
+    reader: &mut R,
+) -> Result<(ArtifactHeaderV1, InterferencePayload), BinaryFormatError> {
+    let (header, payload) = read_artifact_v1(reader)?;
+    match payload {
+        ArtifactPayload::Interference(interference) => Ok((header, interference)),
+        ArtifactPayload::ToolPath(_) => Err(BinaryFormatError::ArtifactKindMismatch {
+            expected: ArtifactKind::Interference,
+            found: header.kind,
+        }),
+    }
 }
 
 fn write_segments<W: Write>(
@@ -1230,6 +1266,20 @@ mod tests {
         bytes
     }
 
+    fn make_interference_artifact_bytes(minor: u16) -> Vec<u8> {
+        let interference = make_minimal_interference();
+        let mut payload_bytes = Vec::new();
+        write_interference_payload_v1(&mut payload_bytes, &interference).unwrap();
+
+        let mut header =
+            ArtifactHeaderV1::new(ArtifactKind::Interference, payload_bytes.len() as u64);
+        header.version_minor = minor;
+        let mut bytes = Vec::new();
+        header.write_to(&mut bytes).unwrap();
+        bytes.extend_from_slice(&payload_bytes);
+        bytes
+    }
+
     #[test]
     fn read_artifact_v1_returns_toolpath_payload() {
         let bytes = make_toolpath_artifact_bytes(FORMAT_VERSION_MINOR_V1);
@@ -1256,5 +1306,51 @@ mod tests {
             ),
             "バージョン不一致は payload に達する前に Err を返す必要があります"
         );
+    }
+
+    #[test]
+    fn read_toolpath_artifact_v1_returns_toolpath() {
+        let bytes = make_toolpath_artifact_bytes(FORMAT_VERSION_MINOR_V1);
+        let (header, toolpath) = read_toolpath_artifact_v1(&mut bytes.as_slice()).unwrap();
+
+        assert_eq!(header.kind, ArtifactKind::ToolPath);
+        assert_eq!(toolpath, make_minimal_toolpath());
+    }
+
+    #[test]
+    fn read_interference_artifact_v1_returns_interference() {
+        let bytes = make_interference_artifact_bytes(FORMAT_VERSION_MINOR_V1);
+        let (header, interference) = read_interference_artifact_v1(&mut bytes.as_slice()).unwrap();
+
+        assert_eq!(header.kind, ArtifactKind::Interference);
+        assert_eq!(interference, make_minimal_interference());
+    }
+
+    #[test]
+    fn read_toolpath_artifact_v1_rejects_interference_payload() {
+        let bytes = make_interference_artifact_bytes(FORMAT_VERSION_MINOR_V1);
+        let result = read_toolpath_artifact_v1(&mut bytes.as_slice());
+
+        assert!(matches!(
+            result,
+            Err(BinaryFormatError::ArtifactKindMismatch {
+                expected: ArtifactKind::ToolPath,
+                found: ArtifactKind::Interference,
+            })
+        ));
+    }
+
+    #[test]
+    fn read_interference_artifact_v1_rejects_toolpath_payload() {
+        let bytes = make_toolpath_artifact_bytes(FORMAT_VERSION_MINOR_V1);
+        let result = read_interference_artifact_v1(&mut bytes.as_slice());
+
+        assert!(matches!(
+            result,
+            Err(BinaryFormatError::ArtifactKindMismatch {
+                expected: ArtifactKind::Interference,
+                found: ArtifactKind::ToolPath,
+            })
+        ));
     }
 }
