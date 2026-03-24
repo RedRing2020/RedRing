@@ -190,3 +190,14 @@ Issue本文の可読性を維持しつつ、実施機能の埋没を防ぐため
 - AC2: Reader/Writer責務境界の明文化 -> Section 2
 - AC3: 互換性ポリシー（accept/reject/convert） -> Section 6
 - AC4: `NcPostFromCam` 参照可能な入出力契約 -> 関連Issue/後続タスクにリンク
+
+## 11. 命名運用注記（#412 決定反映）
+
+- `read_artifact_v1` / `ArtifactHeaderV1` の `V1` は API 世代識別子を表す
+- wire format の判定は `version_major` / `version_minor` の実値で行う（現行 v0.1）
+- 標準注記テンプレート:
+
+```text
+注記: `*_v1` は API 世代識別子を表す。wire format の実バージョンは
+`version_major` / `version_minor` の実値で判定する（現行は v0.1）。
+```
