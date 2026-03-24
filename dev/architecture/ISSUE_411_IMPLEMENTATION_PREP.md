@@ -161,6 +161,23 @@
 - kind mismatch は `BinaryFormatError` で明示的に返す
 - `cam_sim` 本体 API の変更は次段階に回し、初回は `cam_core` 側の読込面を先に固める
 
+### 6.5 `cam_sim` 薄い facade 再評価（2026-03-25）
+
+結論:
+
+- 現段階では `cam_sim` に artifact 読込用の薄い facade は追加しない
+
+判断理由:
+
+- `cam_sim` 本体（`CuttingSimulator`）は `ToolPath` 消費責務に限定され、バイナリI/O境界を持たない
+- `cam_sim` のジョブ連携は `input_ref` の妥当性確認に留まり、artifact 本体解釈は行っていない
+- kind 固定読込は `cam_core` の adapter で既に表現でき、責務重複を避けられる
+
+再評価トリガー:
+
+- `cam_sim` が `input_ref` から実バイト列を取得して自前で復元する責務を持つ場合
+- 同一復元手順が `cam_sim` 内で複数箇所に増え、呼び出し側の重複が顕在化した場合
+
 ## 7. 初回実装スコープ
 
 - [x] `cam_sim` で artifact 読込 facade を必要とする具体的ユースケースを列挙する
