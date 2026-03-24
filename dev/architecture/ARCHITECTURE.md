@@ -91,6 +91,25 @@ foundation/analysis（将来改名候補）
     - `job_runtime` は `geo_*` / `cam_*` / View系へ依存しない
     - `cam_*` / 将来のCAE側は `job_runtime` をアダプタ経由で利用する
 
+### Artifact API 命名運用ルール（2026年3月更新, #415）
+
+- 運用原則: `*_v1` は wire format v1.0 を意味せず、API 世代識別子を表す
+- wire format 判定原則: `version_major` / `version_minor` の実値で判定する（現行 v0.1）
+- 改名方針: 現時点では公開 API 互換を優先し、実コード改名は行わない
+
+#### 標準注記テンプレート
+
+```text
+注記: `*_v1` は API 世代識別子を表す。wire format の実バージョンは
+`version_major` / `version_minor` の実値で判定する（現行は v0.1）。
+```
+
+#### 改名再評価トリガー
+
+- `version_minor` 増加（例: v0.2）で API 名と wire format 名の混同が顕著化した場合
+- `cam_sim` / 将来 `cam_algorithms` で命名誤解による障害が発生した場合
+- 破壊的変更を許容できるリリース計画が確保された場合
+
 ### 依存チェック運用
 
 - 実行コマンド: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
@@ -171,4 +190,5 @@ redring ← stage ← render
 - [`GITHUB_PAGES_SETUP.md`](GITHUB_PAGES_SETUP.md) - GitHub Pages 設定ガイド
 - [`dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md`](dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Dockerヘッドレス + Kubernetes）
 - [`dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md`](dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md) - geo_algorithms の分割ルール（primitive_2d/3d/NURBS/pair_base の統一規約）
+- [`dev/archive/issues/ISSUE_412_IMPLEMENTATION_PREP.md`](dev/archive/issues/ISSUE_412_IMPLEMENTATION_PREP.md) - artifact API命名整理の判断記録
 
