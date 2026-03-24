@@ -29,6 +29,11 @@
 - 命名の完全整理（例: `read_artifact_v0_1` への改名）は別判断とし、本 Issue の初回スコープには含めない
 - 命名整理の検討は Issue #412 で扱う
 
+注記（#412 決定反映）:
+
+- `*_v1` は API 世代識別子を表す
+- wire format の判定は `version_major` / `version_minor` の実値で行う（現行 v0.1）
+
 関連ドキュメント:
 - `dev/architecture/ISSUE_300_IMPLEMENTATION_PREP.md`
 
