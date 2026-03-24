@@ -163,11 +163,11 @@
 
 ## 7. 初回実装スコープ
 
-- [ ] `cam_sim` で artifact 読込 facade を必要とする具体的ユースケースを列挙する
-- [ ] `cam_core` に kind 固定 adapter を追加する前提で API 形状を確定する
-- [ ] kind 不一致時のエラー契約を定義する
-- [ ] `cam_sim` テストデータを「直接 `ToolPath::new`」から「artifact 読込経由」に置換すべき範囲を整理する
-- [ ] `job_runtime` 境界で解釈しない原則を再確認する
+- [x] `cam_sim` で artifact 読込 facade を必要とする具体的ユースケースを列挙する
+- [x] `cam_core` に kind 固定 adapter を追加する前提で API 形状を確定する
+- [x] kind 不一致時のエラー契約を定義する
+- [x] `cam_sim` テストデータを「直接 `ToolPath::new`」から「artifact 読込経由」に置換すべき範囲を整理する（`simulate` 系テスト2件で先行導入）
+- [x] `job_runtime` 境界で解釈しない原則を再確認する
 
 ## 8. out-of-scope
 
