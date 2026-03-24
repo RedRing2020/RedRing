@@ -41,14 +41,18 @@ pub mod validation;
 
 // 主要型の再エクスポート
 pub use artifact_binary::{
-    ArtifactHeaderV1, ArtifactKind, BinaryFormatError, CoordinateFrame, FORMAT_VERSION_MAJOR_V1,
-    FORMAT_VERSION_MINOR_V1, INTERFERENCE_MAGIC, LengthUnit, TOOLPATH_MAGIC,
+    ArtifactHeaderV1, ArtifactKind, ArtifactPayload, BinaryFormatError, CompatibilityDecision,
+    CoordinateFrame, ExtAttribute, FORMAT_VERSION_MAJOR_V1, FORMAT_VERSION_MINOR_V1,
+    INTERFERENCE_MAGIC, InterferenceEvent, InterferenceKind, InterferencePayload,
+    KNOWN_MINOR_VERSIONS_V0, LengthUnit, TOOLPATH_MAGIC, read_artifact_v1,
+    read_interference_payload_v1, read_toolpath_payload_v1, write_interference_payload_v1,
+    write_toolpath_payload_v1,
 };
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};
 pub use toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
-    ToolPath,
+    TOOLPATH_SCHEMA_VERSION_V0_1, ToolPath,
 };
 pub use toolset::{
     Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,

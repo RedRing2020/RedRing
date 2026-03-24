@@ -64,6 +64,9 @@ jobs:
       - name: Build
         run: cargo build --verbose
 
+      - name: Verify artifact binary wire format (cam_core)
+        run: cargo test -p cam_core -- artifact_binary
+
       - name: Run tests
         run: cargo test --workspace --verbose
 

@@ -42,8 +42,12 @@
 //! );
 //! ```
 
+use crate::ExtAttribute;
 use analysis::Scalar;
 use geo_algorithms::Point3D;
+
+/// ToolPath wire schema version used by artifact binary v0.1.
+pub const TOOLPATH_SCHEMA_VERSION_V0_1: (u16, u16) = (0, 1);
 
 /// 円弧方向
 ///
@@ -171,6 +175,7 @@ pub enum CuttingDirection {
 /// 工具経路セグメント
 ///
 /// 工具経路の最小単位。始点、幾何形状、およびセグメント種別を持ちます。
+/// 拡張属性により、ユーザースクリプトが独自情報を追加できます。
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathSegment<T: Scalar = f64> {
     /// セグメント始点（絶対座標）
@@ -181,6 +186,9 @@ pub struct PathSegment<T: Scalar = f64> {
 
     /// セグメント種別
     pub segment_type: SegmentType<T>,
+
+    /// セグメント拡張属性（ユーザーが付与可能）
+    pub ext_attributes: Vec<ExtAttribute>,
 }
 
 impl<T: Scalar> PathSegment<T> {
@@ -211,6 +219,7 @@ impl<T: Scalar> PathSegment<T> {
             start,
             geometry: PathGeometry::Line { end },
             segment_type,
+            ext_attributes: Vec::new(),
         }
     }
 
@@ -253,6 +262,7 @@ impl<T: Scalar> PathSegment<T> {
                 direction,
             },
             segment_type,
+            ext_attributes: Vec::new(),
         }
     }
 
@@ -394,6 +404,7 @@ impl<T: Scalar + std::iter::Sum> ContourLevelPath<T> {
 ///
 /// 1つの島または輪郭の完全な加工シーケンス。
 /// Approach → Cutting → Retract の3フェーズ構造。
+/// 拡張属性により、ユーザースクリプトが独自情報を追加できます。
 ///
 /// # 例
 ///
@@ -424,6 +435,9 @@ pub struct ToolPath<T: Scalar = f64> {
 
     /// リトラクトフェーズ（ToolPath終了部、編集可能）
     pub retract_segments: Vec<PathSegment<T>>,
+
+    /// ToolPath全体の拡張属性（ユーザーが付与可能）
+    pub ext_attributes: Vec<ExtAttribute>,
 }
 
 impl<T: Scalar + std::iter::Sum> ToolPath<T> {
@@ -449,6 +463,7 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
             approach_segments,
             contour_levels,
             retract_segments,
+            ext_attributes: Vec::new(),
         }
     }
 
