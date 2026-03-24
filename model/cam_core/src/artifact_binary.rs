@@ -1182,7 +1182,8 @@ mod tests {
 
     #[test]
     fn toolpath_wire_read_regression() {
-        let decoded = read_toolpath_payload_v1(&mut GOLDEN_TOOLPATH_MINIMAL.as_ref()).unwrap();
+        let mut bytes = GOLDEN_TOOLPATH_MINIMAL;
+        let decoded = read_toolpath_payload_v1(&mut bytes).unwrap();
         assert_eq!(
             decoded,
             make_minimal_toolpath(),
@@ -1204,8 +1205,8 @@ mod tests {
 
     #[test]
     fn interference_wire_read_regression() {
-        let decoded =
-            read_interference_payload_v1(&mut GOLDEN_INTERFERENCE_MINIMAL.as_ref()).unwrap();
+        let mut bytes = GOLDEN_INTERFERENCE_MINIMAL;
+        let decoded = read_interference_payload_v1(&mut bytes).unwrap();
         assert_eq!(
             decoded,
             make_minimal_interference(),
