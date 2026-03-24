@@ -28,6 +28,25 @@
 - 初見で「v1.0 を読む API」に見える
 - `ArtifactHeaderV1` が `version_major == 1` を想定しているように見える
 
+### 2.3 API 名称と wire format 表記の対応表（確定）
+
+| 区分 | 現行シンボル | 実際の意味 | wire format 実値 | 根拠 |
+| --- | --- | --- | --- | --- |
+| 定数 | `FORMAT_VERSION_MAJOR_V1` | 現行実装が受理する major の基準値 | `0` | `artifact_binary.rs` 定義 |
+| 定数 | `FORMAT_VERSION_MINOR_V1` | 現行実装が受理する minor の基準値 | `1` | `artifact_binary.rs` 定義 |
+| 定数 | `KNOWN_MINOR_VERSIONS_V0` | major=0 系で受理する minor 一覧 | `[1]` | `artifact_binary.rs` 定義 |
+| 型 | `ArtifactHeaderV1` | 現行 API 世代のヘッダ型 | `version_major=0`, `version_minor=1` を内包 | `ArtifactHeaderV1::new` の初期化値 |
+| 関数 | `read_artifact_v1` | 現行 API 世代の統合 reader | 入力の `v0.1` を strict accept | `ensure_acceptable_version` 呼び出し |
+| 関数 | `read_toolpath_artifact_v1` | ToolPath 向け adapter reader | 内部で `read_artifact_v1` を使用 | `artifact_binary.rs` 実装 |
+| 関数 | `read_interference_artifact_v1` | Interference 向け adapter reader | 内部で `read_artifact_v1` を使用 | `artifact_binary.rs` 実装 |
+| 関数 | `write_toolpath_payload_v1` | ToolPath payload writer | payload 自体に version は持たない（ヘッダ別管理） | `artifact_binary.rs` 実装 |
+| 関数 | `write_interference_payload_v1` | Interference payload writer | payload 自体に version は持たない（ヘッダ別管理） | `artifact_binary.rs` 実装 |
+
+補足:
+
+- 本対応表の確定により、`*_v1` 命名は「wire format v1.0」ではなく「API 世代識別子」として扱う暫定運用を採用する
+- wire format のバージョン判定は引き続き `version_major/minor` の実値で行う
+
 ## 3. 命名整理の選択肢
 
 ### 選択肢A: 現行名称維持 + 意味を明文化
@@ -89,7 +108,7 @@
 
 ## 6. #412 で決めるべきこと
 
-- [ ] `V1` の正式意味（API 初版 or wire format 版）
+- [x] `V1` の正式意味（API 初版 or wire format 版）
 - [ ] 改名する/しないの判定基準
 - [ ] 改名しない場合の注記テンプレート
 - [ ] 改名する場合の移行手順（互換期間、deprecation 方針）
@@ -97,7 +116,7 @@
 
 ## 7. #412 の完了条件
 
-- [ ] API 名称と wire format 表記の対応表が確定する
+- [x] API 名称と wire format 表記の対応表が確定する
 - [ ] 命名方針（維持 or 改名）が採択される
 - [ ] 採択方針に応じた後続 Issue 分割が可能な状態になる
 
