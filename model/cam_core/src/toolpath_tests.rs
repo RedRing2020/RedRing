@@ -186,8 +186,56 @@ fn test_three_axis_position_only_policy_behavior() {
 }
 
 #[test]
+fn test_two_axis_convenience_fns() {
+    let two_axis = ToolPathKinematicMeta::two_axis_position_only();
+    assert_eq!(
+        two_axis.configuration_class,
+        MachineConfigurationClass::TwoAxis
+    );
+    assert_eq!(two_axis.kinematic_mode, KinematicMode::PureTwoAxis);
+    assert!(two_axis.is_position_only_compatible());
+    assert!(two_axis.allows_optional_pose_layer());
+    assert!(!two_axis.requires_pose_layer());
+
+    let two_point_five = ToolPathKinematicMeta::two_point_five_axis_position_only();
+    assert_eq!(
+        two_point_five.configuration_class,
+        MachineConfigurationClass::TwoAxis
+    );
+    assert_eq!(
+        two_point_five.kinematic_mode,
+        KinematicMode::TwoPointFiveAxis
+    );
+    assert!(two_point_five.is_position_only_compatible());
+    assert!(two_point_five.allows_optional_pose_layer());
+    assert!(!two_point_five.requires_pose_layer());
+}
+
+#[test]
 fn test_toolpath_kinematic_meta_matrix() {
     let cases = [
+        (
+            "2-axis",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::TwoAxis,
+                KinematicMode::PureTwoAxis,
+                PoseDataPolicy::PositionOnlyCompatible,
+            ),
+            true,
+            true,
+            false,
+        ),
+        (
+            "2.5-axis",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::TwoAxis,
+                KinematicMode::TwoPointFiveAxis,
+                PoseDataPolicy::PositionOnlyCompatible,
+            ),
+            true,
+            true,
+            false,
+        ),
         (
             "3-axis",
             ToolPathKinematicMeta::new(
