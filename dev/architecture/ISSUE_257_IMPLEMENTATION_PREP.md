@@ -34,9 +34,10 @@
 - 工具姿勢（少なくとも start/end pose）
 - 姿勢補間ポリシー
 - 0/360 同値・巻き戻し（rewind）情報
-- 回転軸制約（min/max、速度、加速度）
+- 機械軸制約（回転軸/直動軸の min/max、速度、加速度）
 - 特異点近傍や軸反転の扱い方針
 - 3+2 と同時5軸を区別する表現
+- レーザー加工のような変則軸構成（例: A/C, U/W）を吸収する機械依存情報
 
 ## 3. 責務境界
 
@@ -114,18 +115,79 @@
 候補フィールド:
 
 - `position: Point3D<T>`
-- `tool_axis: Vector3D<T>` または `Direction3D<T>` 相当
-- `rotary_axes: Option<RotaryAxisState<T>>`
+- `process_axis: Vector3D<T>` または `Direction3D<T>` 相当
+- `machine_axes: Option<Vec<MachineAxisValue<T>>>`
 - `machine_frame: Option<String>`
 
-### 6.2 RotaryAxisState
+### 6.1.1 最小フィールド集合（B案の基準）
+
+選択肢Bを前提にした初回の最小集合は以下とする。
+
+- `position: Point3D<T>`
+  - 現行 `PathSegment` の位置幾何と突き合わせる基準点
+- `process_axis: Vector3D<T>` 相当
+  - 工具軸方向またはレーザーヘッド方向を表す。3軸では固定方向、5軸では姿勢差分を表す
+- `machine_axes: Option<Vec<MachineAxisValue<T>>>`
+  - A/B/C のような回転軸だけでなく、U/V/W のような補助軸も軸名付きで保持する
+
+初回は以下を `ToolPose` へ持ち込まない。
+
+- `machine_frame`
+  - 加工機依存の文脈が強く、pose 本体より上位コンテキストで保持した方が整理しやすい
+- 速度・加速度制約
+  - `MachineConstraint` 側へ分離する
+
+### 6.1.2 B案の具体API草案
+
+```rust
+ToolPose<T> {
+    position: Point3D<T>,
+  process_axis: Vector3D<T>,
+  machine_axes: Option<Vec<MachineAxisValue<T>>>,
+}
+
+ToolPoseSpan<T> {
+    start_pose: ToolPose<T>,
+    end_pose: ToolPose<T>,
+    interpolation_policy: PoseInterpolationPolicy,
+}
+
+PoseAnnotatedSegment<T> {
+    segment: PathSegment<T>,
+    pose_span: ToolPoseSpan<T>,
+}
+
+MachineAxisValue<T> {
+  axis_name: String,
+  axis_kind: MachineAxisKind,
+  value: T,
+}
+```
+
+意図:
+
+- `PathSegment` 自体は 3軸互換のまま維持する
+- 5軸が必要な箇所だけ `PoseAnnotatedSegment` を使う
+- 3+2 と同時5軸の差分は `pose_span` の start/end と補間ポリシーで吸収する
+- 回転軸名を固定せず、レーザー加工の変則軸構成も `machine_axes` で吸収する
+
+### 6.2 MachineAxisValue / MachineAxisKind
 
 候補フィールド:
 
-- `a_axis_deg: Option<T>`
-- `b_axis_deg: Option<T>`
-- `c_axis_deg: Option<T>`
-- `rewind_required: bool`
+- `axis_name: String`
+- `axis_kind: MachineAxisKind`
+- `value: T`
+
+`MachineAxisKind` 候補:
+
+- `Linear`
+- `Rotary`
+
+注記:
+
+- `A/B/C` 固定ではなく、`U/V/W` を含む任意軸名を扱えるようにする
+- 巻き戻し（rewind）は軸値自体ではなく、補間/機械制約評価の結果として扱う方針を優先する
 
 ### 6.3 PoseInterpolationPolicy
 
@@ -140,10 +202,14 @@
 
 候補フィールド:
 
-- 軸ごとの `min_deg` / `max_deg`
-- `max_velocity_deg_per_sec`
-- `max_acceleration_deg_per_sec2`
+- 軸ごとの `min_value` / `max_value`
+- `max_velocity_per_sec`
+- `max_acceleration_per_sec2`
 - 特異点回避フラグ
+
+注記:
+
+- 回転軸では度、直動軸では長さ単位を使うため、単位は軸定義側で持つ想定とする
 
 ## 7. 代表ケース（準備段階）
 
@@ -153,6 +219,97 @@
   - セグメント内姿勢固定、セグメント間でのみ姿勢変更
 - 同時5軸
   - start/end pose が異なり、補間ポリシーが必要なケース
+
+### 7.1 3軸ケース
+
+```rust
+PoseAnnotatedSegment {
+  segment: PathSegment::new_line(...),
+  pose_span: ToolPoseSpan {
+    start_pose: ToolPose { position: P0, process_axis: (0, 0, -1), machine_axes: None },
+    end_pose: ToolPose { position: P1, process_axis: (0, 0, -1), machine_axes: None },
+    interpolation_policy: FixedOrientation,
+  },
+}
+```
+
+解釈:
+
+- 位置は移動するが姿勢は固定
+- 現行3軸 `ToolPath` とほぼ同義の表現になる
+
+### 7.2 3+2 ケース
+
+```rust
+PoseAnnotatedSegment {
+  segment: PathSegment::new_line(...),
+  pose_span: ToolPoseSpan {
+    start_pose: ToolPose { position: P0, process_axis: TiltA, machine_axes: Some([A=30, C=90]) },
+    end_pose: ToolPose { position: P1, process_axis: TiltA, machine_axes: Some([A=30, C=90]) },
+    interpolation_policy: FixedOrientation,
+  },
+}
+```
+
+解釈:
+
+- セグメント内は姿勢固定
+- 次セグメントへ移る前後でのみ角度変更が起きる
+
+### 7.3 同時5軸ケース
+
+```rust
+PoseAnnotatedSegment {
+  segment: PathSegment::new_arc(...),
+  pose_span: ToolPoseSpan {
+    start_pose: ToolPose { position: P0, process_axis: Axis0, machine_axes: Some([B=10, C=20]) },
+    end_pose: ToolPose { position: P1, process_axis: Axis1, machine_axes: Some([B=35, C=70]) },
+    interpolation_policy: MachineConstrained,
+  },
+}
+```
+
+解釈:
+
+- セグメント内で位置と姿勢が同時に変化する
+- 最短角だけでなく機械制約を考慮した補間が必要になる
+
+### 7.4 レーザー加工の変則軸ケース
+
+```rust
+PoseAnnotatedSegment {
+  segment: PathSegment::new_line(...),
+  pose_span: ToolPoseSpan {
+    start_pose: ToolPose {
+      position: P0,
+      process_axis: Beam0,
+      machine_axes: Some([
+        A=15,
+        C=120,
+        U=25,
+        W=5,
+      ]),
+    },
+    end_pose: ToolPose {
+      position: P1,
+      process_axis: Beam1,
+      machine_axes: Some([
+        A=20,
+        C=135,
+        U=40,
+        W=8,
+      ]),
+    },
+    interpolation_policy: MachineConstrained,
+  },
+}
+```
+
+解釈:
+
+- `process_axis` は工具軸ではなくビーム方向として読める
+- `machine_axes` は A/C の回転軸と U/W の補助軸を同一枠で保持する
+- これにより、フライス前提の固定軸名に縛られない中間表現を維持できる
 
 ## 8. 影響ファイル候補
 
@@ -165,22 +322,22 @@
 
 ## 9. 実装前に詰める論点
 
-- 姿勢表現を方向ベクトルにするか、回転軸角中心にするか
+- 姿勢表現を `process_axis` 中心にするか、機械軸角中心にするか
 - 3軸 API と 5軸 API を同一型で持つか、別型へ分離するか
 - 3+2 を `FixedOrientation` の特殊ケースとして扱うか
 - Gコード互換評価に必要な最小情報をどこまで中間モデルに持つか
 - 機械制約を `ToolPath` 側に持つか、post 前の別コンテキストに持つか
+- レーザー加工のような非フライス系プロセスでも `process_axis` で十分抽象化できるか
 
 ## 10. 初回完了条件
 
-- [ ] 現行 `ToolPath` の拡張ポイントが整理される
-- [ ] `ToolPose` / 姿勢補間 / 機械制約の API 草案がある
-- [ ] 3軸 / 3+2 / 同時5軸の3ケース表現例が揃う
+- [x] 現行 `ToolPath` の拡張ポイントが整理される
+- [x] `ToolPose` / 姿勢補間 / 機械制約の API 草案がある
+- [x] 3軸 / 3+2 / 同時5軸の3ケース表現例が揃う
 - [ ] 実装フェーズへ移れる候補ファイルと変更順が整理される
 
 ## 11. 次アクション
 
-1. `ToolPose` の最小フィールド集合を確定する
-2. 選択肢A/B/Cの比較を絞り込み、採択案を決める
-3. 3ケースの具体例を文書へ追加する
-4. 実装開始前にユーザー承認を得る
+1. 選択肢Bを採択案として維持できるか、A/C にしか解けない論点が残るか確認する
+2. `MachineConstraint` を pose 本体ではなく別コンテキストで持つ方針を確定する
+3. 実装開始前にユーザー承認を得る
