@@ -2,6 +2,15 @@
 //!
 //! Issue #300 の初回実装として、共通ヘッダの Reader/Writer と
 //! 互換性チェックを提供する。
+//!
+//! # Multi-axis 拡張ポリシー（Issue #257 PR-3）
+//!
+//! - 本モジュールは現時点で `version_major=0, version_minor=1` の
+//!   3軸相当 payload を安定対象として扱う。
+//! - multi-axis 向け payload は将来の version 追加で導入し、
+//!   `v0.1` wire layout は改変しない。
+//! - API名に含まれる `*_v1` は API 世代名であり、wire format の実値は
+//!   ヘッダの `version_major`/`version_minor` で判定する。
 
 use std::fmt;
 use std::io::{Read, Write};

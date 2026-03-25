@@ -477,6 +477,27 @@ PoseAnnotatedSegment {
 
 - #300/#411 の既存契約に反しない移行案になっている
 
+PR-3 で確定した方針:
+
+- 現行 artifact は `v0.1`（`version_major=0`, `version_minor=1`）を唯一の安定 reader/writer 対象として維持する
+- multi-axis 向け拡張は **新しい minor/major の追加** で扱い、`v0.1` の wire layout は改変しない
+- 3軸データは引き続き `PositionOnlyCompatible` な payload を前提にし、pose レイヤーの必須化を行わない
+- 3軸以外の姿勢情報は将来の拡張 payload に閉じ込め、`v0.1` reader が誤読しないよう `version` で分岐させる
+- `read_toolpath_artifact_v1` / `write_toolpath_payload_v1` の意味は「API世代名」であり、wire format 実値はヘッダの version で判定する
+
+非目標（PR-3時点）:
+
+- `artifact_binary` への新payload実装追加
+- `v0.2` / `v1.0` の wire layout 確定
+- `cam_sim` 側の multi-axis 読み取り対応
+
+将来移行の最小手順（方針）:
+
+1. 新版ヘッダ version（例: `0.2` もしくは `1.0`）を導入
+2. 新payload reader/writer を追加し、`v0.1` との共存を保証
+3. `compatibility_decision` に新版判定を追加
+4. 3軸運用の既存ジョブが `v0.1` のまま通ることを回帰テストで固定
+
 ### 12.4 推奨実施順
 
 1. PR-1（型追加）
@@ -487,3 +508,9 @@ PoseAnnotatedSegment {
 
 - 実装開始時はこの順序で小さく分割し、各PRは `Refs #257` を使用する
 - 最終的に #257 を閉じるPRのみ `Closes #257` を使用する
+
+### 12.5 進捗ステータス（2026-03-25）
+
+- [x] PR-1: `cam_core` 型追加（最小）
+- [x] PR-2: 3軸軽量方針のテスト固定
+- [x] PR-3: artifact 連携方針の文書化（実装変更なし）
