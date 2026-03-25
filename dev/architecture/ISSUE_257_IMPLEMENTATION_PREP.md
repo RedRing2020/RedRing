@@ -403,10 +403,87 @@ PoseAnnotatedSegment {
 - [x] `ToolPose` / 姿勢補間 / 機械制約の API 草案がある
 - [x] 3軸 / 4軸 / 3+2 / 同時5軸のケース表現例が揃う
 - [x] 3軸軽量維持と軸分類メタの方針が整理される
-- [ ] 実装フェーズへ移れる候補ファイルと変更順が整理される
+- [x] 実装フェーズへ移れる候補ファイルと変更順が整理される
 
 ## 11. 次アクション
 
 1. 選択肢Bを採択案として維持できるか、A/C にしか解けない論点が残るか確認する
 2. `ToolPathKinematicMeta` と `MachineConstraint` を `ToolPath` 本体に持つか、別コンテキストで持つか切り分ける
 3. 実装開始前にユーザー承認を得る
+
+## 12. 実装フェーズ分割（PR分離案）
+
+### 12.1 PR-1: `cam_core` 型追加（最小）
+
+目的:
+
+- Option B の中核型を `cam_core` に最小追加し、既存3軸 API を壊さないことを確認する
+
+対象ファイル:
+
+- `model/cam_core/src/toolpath.rs`
+- `model/cam_core/src/lib.rs`
+- `model/cam_core/src/toolpath_tests.rs`
+
+実装範囲:
+
+- `ToolPose<T>` / `ToolPoseSpan<T>` / `PoseAnnotatedSegment<T>` 追加
+- `MachineAxisValue<T>` / `MachineAxisKind` 追加
+- `ToolPathKinematicMeta` / `MachineConfigurationClass` / `KinematicMode` / `PoseDataPolicy` 追加
+- 3軸既存 API への破壊的変更を行わない
+
+受け入れ条件:
+
+- 既存 `ToolPath` 利用コードが修正なしでビルドできる
+- 新規型の基本生成と比較をテストで確認できる
+
+### 12.2 PR-2: 3軸軽量方針のテスト固定
+
+目的:
+
+- 3軸ケースで pose レイヤーが必須でないことをテストで固定し、将来拡張時の肥大化を防ぐ
+
+対象ファイル:
+
+- `model/cam_core/src/toolpath_tests.rs`
+
+実装範囲:
+
+- `PoseDataPolicy::PositionOnlyCompatible` の期待動作テスト追加
+- 3軸 / 4軸 / 3+2 / 同時5軸のメタ分類テーブルテスト追加
+
+受け入れ条件:
+
+- 分類メタの誤設定をテストで検出できる
+- 3軸ケースの軽量運用（pose optional）を明示的に検証できる
+
+### 12.3 PR-3: artifact 連携方針（別フェーズ設計）
+
+目的:
+
+- #300 v0.1 を維持したまま、将来の multi-axis wire format 拡張方針を整理する
+
+対象ファイル:
+
+- `model/cam_core/src/artifact_binary.rs`
+- `dev/architecture/ISSUE_257_IMPLEMENTATION_PREP.md`
+
+実装範囲:
+
+- 初回は実装せず、互換ポリシーと version 戦略のみ文書化する
+- `v0.1` 読み書き互換を壊さない前提を固定する
+
+受け入れ条件:
+
+- #300/#411 の既存契約に反しない移行案になっている
+
+### 12.4 推奨実施順
+
+1. PR-1（型追加）
+2. PR-2（テスト固定）
+3. PR-3（artifact 拡張設計）
+
+注記:
+
+- 実装開始時はこの順序で小さく分割し、各PRは `Refs #257` を使用する
+- 最終的に #257 を閉じるPRのみ `Closes #257` を使用する

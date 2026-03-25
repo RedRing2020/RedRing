@@ -51,8 +51,10 @@ pub use artifact_binary::{
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};
 pub use toolpath::{
-    ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
-    TOOLPATH_SCHEMA_VERSION_V0_1, ToolPath,
+    ArcDirection, ContourLevelPath, CuttingDirection, KinematicMode, MachineAxisKind,
+    MachineAxisValue, MachineConfigurationClass, PathGeometry, PathSegment, PoseAnnotatedSegment,
+    PoseDataPolicy, PoseInterpolationPolicy, SegmentType, TOOLPATH_SCHEMA_VERSION_V0_1, ToolPath,
+    ToolPathKinematicMeta, ToolPose, ToolPoseSpan,
 };
 pub use toolset::{
     Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,
