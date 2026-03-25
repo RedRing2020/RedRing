@@ -33,11 +33,30 @@ $ARCH_LAYERS = @{
     View      = @("render", "stage", "app")
 }
 
+# Issue #413 design note:
+# `cam_algorithms` 新設時は以下を同一変更セットで反映する。
+# 1. ARCH_LAYER_MAPPING に `cam_algorithms = "model/cam_algorithms"` を追加
+# 2. ARCH_LAYERS.Model に `cam_algorithms` を追加
+# 3. ARCH_ALLOWED_DEPS に以下を追加
+#    cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs")
+# 4. 既存クレート側の許可依存を更新
+#    - cam_sim: `cam_algorithms` を限定的に許可
+#    - converter: 必要になるまで `cam_algorithms` は許可しない
+#    - cam_entity: `cam_algorithms` は許可しない
+# 5. ARCH_FORBIDDEN_DEPS に以下を反映
+#    - cam_core -> cam_algorithms を禁止
+#    - cam_entity -> cam_algorithms を禁止
+#    - cam_algorithms -> cam_sim を禁止
+#    - geo_* -> cam_algorithms を禁止
+# 6. クレート作成後に ARCH_REQUIRED_MODEL_CRATES へ追加する
+# 注意: クレート未作成の段階で ARCH_REQUIRED_MODEL_CRATES へ追加すると、依存チェックが必須クレート不足で失敗する。
+
 # Required model crates
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
 # Last updated: 2026-03-20 (#318 Phase C: contracts-first dependency alignment)
+# Pending update: Issue #413 で `cam_algorithms` 新設時に CAM 依存ルールを追加する。
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     geo_contracts  = @("analysis", "geo_commons")
@@ -61,6 +80,7 @@ $ARCH_ALLOWED_DEPS = @{
 }
 
 # Forbidden dependency rules
+# Pending update: `cam_algorithms` 新設時は CAM 内の逆依存禁止をここへ追加する。
 $ARCH_FORBIDDEN_DEPS = @{
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_contracts  = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
