@@ -154,7 +154,8 @@
 
 正規参照ドキュメント:
 
-- 本書（`dev/architecture/ISSUE_412_IMPLEMENTATION_PREP.md`）
+- `dev/architecture/ARCHITECTURE.md` の「Artifact API 命名運用ルール（#415）」
+- 本書（判断経緯）
 - 運用ルール固定 Issue（#415）
 
 ## 7. #412 の完了条件

@@ -33,6 +33,7 @@
 
 - `*_v1` は API 世代識別子を表す
 - wire format の判定は `version_major` / `version_minor` の実値で行う（現行 v0.1）
+- 正規参照先: `dev/architecture/ARCHITECTURE.md` の「Artifact API 命名運用ルール（#415）」
 
 関連ドキュメント:
 - `dev/architecture/ISSUE_300_IMPLEMENTATION_PREP.md`

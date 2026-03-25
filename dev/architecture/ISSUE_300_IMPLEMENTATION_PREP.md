@@ -195,6 +195,7 @@ Issue本文の可読性を維持しつつ、実施機能の埋没を防ぐため
 
 - `read_artifact_v1` / `ArtifactHeaderV1` の `V1` は API 世代識別子を表す
 - wire format の判定は `version_major` / `version_minor` の実値で行う（現行 v0.1）
+- 正規参照先: `dev/architecture/ARCHITECTURE.md` の「Artifact API 命名運用ルール（#415）」
 - 標準注記テンプレート:
 
 ```text
