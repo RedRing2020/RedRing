@@ -192,16 +192,19 @@ MachineAxisValue<T> {
 
 `MachineConfigurationClass` 候補:
 
+- `TwoAxis`（PR-5 追加）
 - `ThreeAxis`
 - `FourAxis`
 - `FiveAxisOrMore`
 
 `KinematicMode` 候補:
 
-- `PureThreeAxis`
-- `IndexedMultiAxis`
-- `ContinuousFourAxis`
-- `ContinuousFiveAxis`
+- `TwoAxis`（PR-5 追加） — 2軸（1平面内の輪郭加工）
+- `TwoPointFiveAxis`（PR-5 追加） — 2.5軸（Z段付き2軸）
+- `ThreeAxis`
+- `IndexedMultiAxis`（割り出し多軸 / 3+2）
+- `SimultaneousFourAxis`（同時4軸）
+- `SimultaneousFiveAxis`（同時5軸）
 
 `PoseDataPolicy` 候補:
 
@@ -215,6 +218,8 @@ MachineAxisValue<T> {
 - `kinematic_mode` は同じ5軸以上でも 3+2 と同時多軸を区別する
 - `pose_data_policy` はデータ量要件の表明であり、3軸では `PositionOnlyCompatible` を基本にする
 - このメタは `ToolPath` 全体、または `ToolPath` に付随する上位コンテキストへ持たせる想定とし、各 pose に重複保持しない
+- `TwoAxis` は XY 平面など1平面内の加工機構成を表し、Z軸を持つ `ThreeAxis` と明示的に区別する
+- `TwoAxis` と `TwoPointFiveAxis` の差は「Z軸が固定か段階変化か」であり、両方とも `PositionOnlyCompatible` で運用できる
 
 ### 6.3 MachineAxisValue / MachineAxisKind
 
@@ -282,7 +287,7 @@ PoseAnnotatedSegment {
 
 - 位置は移動するが姿勢は固定
 - 現行3軸 `ToolPath` とほぼ同義の表現になる
-- `ToolPathKinematicMeta { configuration_class: ThreeAxis, kinematic_mode: PureThreeAxis, pose_data_policy: PositionOnlyCompatible }` を付けることで、binary では pose レイヤー省略可能と判断できる
+- `ToolPathKinematicMeta { configuration_class: ThreeAxis, kinematic_mode: ThreeAxis, pose_data_policy: PositionOnlyCompatible }` を付けることで、binary では pose レイヤー省略可能と判断できる
 
 ### 7.2 4軸ケース
 
@@ -300,7 +305,7 @@ PoseAnnotatedSegment {
 解釈:
 
 - 回転軸が1本だけ連続変化する 4軸ケースを表す
-- `ToolPathKinematicMeta { configuration_class: FourAxis, kinematic_mode: ContinuousFourAxis, pose_data_policy: PoseLayerOptional }` により、3軸との差分を明示できる
+- `ToolPathKinematicMeta { configuration_class: FourAxis, kinematic_mode: SimultaneousFourAxis, pose_data_policy: PoseLayerOptional }` により、3軸との差分を明示できる
 
 ### 7.3 3+2 ケース
 
@@ -338,7 +343,7 @@ PoseAnnotatedSegment {
 
 - セグメント内で位置と姿勢が同時に変化する
 - 最短角だけでなく機械制約を考慮した補間が必要になる
-- `ToolPathKinematicMeta { configuration_class: FiveAxisOrMore, kinematic_mode: ContinuousFiveAxis, pose_data_policy: PoseLayerRequired }` により、姿勢レイヤー必須のケースだと表明できる
+- `ToolPathKinematicMeta { configuration_class: FiveAxisOrMore, kinematic_mode: SimultaneousFiveAxis, pose_data_policy: PoseLayerRequired }`（= 同時5軸）により、姿勢レイヤー必須のケースだと表明できる
 
 ### 7.5 レーザー加工の変則軸ケース
 
@@ -516,6 +521,7 @@ PR-3 で確定した方針:
 - [x] PR-2: 3軸軽量方針のテスト固定
 - [x] PR-3: artifact 連携方針の文書化（実装変更なし）
 - [x] PR-4: `ToolPath` 本体へ `kinematic_meta` を追加（既定は3軸互換）
+- [x] PR-5: `MachineConfigurationClass`/`KinematicMode` に2軸・2.5軸バリアントを追加
 
 ### 12.6 PR-4 実施内容
 
@@ -541,3 +547,30 @@ PR-3 で確定した方針:
 - 既存 `ToolPath::new` 呼び出しは修正なしで利用できる
 - 明示メタ指定の `ToolPath` をテストで検証できる
 - `v0.1` 読み取りが3軸互換メタで初期化される
+
+### 12.7 PR-5 実施内容
+
+目的:
+
+- 2軸（XY平面加工）および 2.5軸（Z段付き2軸）を `ToolPathKinematicMeta` で明示区別できるようにする
+- 既存の3軸以上のバリアントとの整合を保つ
+
+対象ファイル:
+
+- `model/cam_core/src/toolpath.rs`
+- `model/cam_core/src/toolpath_tests.rs`
+
+実装範囲:
+
+- `MachineConfigurationClass` に `TwoAxis` バリアントを追加
+- `KinematicMode` に `TwoAxis` / `TwoPointFiveAxis` バリアントを追加
+- `ToolPathKinematicMeta::two_axis_position_only()` convenience fn を追加
+- `ToolPathKinematicMeta::two_point_five_axis_position_only()` convenience fn を追加
+- `test_two_axis_convenience_fns` テストを追加
+- `test_toolpath_kinematic_meta_matrix` に 2軸 / 2.5軸ケースを追加
+
+受け入れ条件:
+
+- 既存バリアント（`ThreeAxis`, `IndexedMultiAxis` 等）の挙動に変更なし
+- 2軸・2.5軸どちらも `is_position_only_compatible()` が `true` を返す
+- `cargo test -p cam_core --lib`: 64 passed（PR-4 の 63 から +1）

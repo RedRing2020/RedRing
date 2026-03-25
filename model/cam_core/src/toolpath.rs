@@ -300,18 +300,18 @@ pub enum MachineConfigurationClass {
 /// 加工時の運動モード分類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KinematicMode {
-    /// 純2軸（1平面内の輪郭加工）
-    PureTwoAxis,
+    /// 2軸（1平面内の輪郭加工）
+    TwoAxis,
     /// 2.5軸（Z段付き2軸）
     TwoPointFiveAxis,
-    /// 純3軸
-    PureThreeAxis,
-    /// 3+2 のような indexed 多軸
+    /// 3軸
+    ThreeAxis,
+    /// 割り出し多軸（3+2）
     IndexedMultiAxis,
-    /// 連続4軸
-    ContinuousFourAxis,
-    /// 連続5軸
-    ContinuousFiveAxis,
+    /// 同時4軸
+    SimultaneousFourAxis,
+    /// 同時5軸
+    SimultaneousFiveAxis,
 }
 
 /// 姿勢データ保持ポリシー
@@ -354,7 +354,7 @@ impl ToolPathKinematicMeta {
     pub const fn three_axis_position_only() -> Self {
         Self {
             configuration_class: MachineConfigurationClass::ThreeAxis,
-            kinematic_mode: KinematicMode::PureThreeAxis,
+            kinematic_mode: KinematicMode::ThreeAxis,
             pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
         }
     }
@@ -363,7 +363,7 @@ impl ToolPathKinematicMeta {
     pub const fn two_axis_position_only() -> Self {
         Self {
             configuration_class: MachineConfigurationClass::TwoAxis,
-            kinematic_mode: KinematicMode::PureTwoAxis,
+            kinematic_mode: KinematicMode::TwoAxis,
             pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
         }
     }

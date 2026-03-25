@@ -115,7 +115,7 @@ fn test_tool_path() {
 fn test_tool_path_with_kinematic_meta() {
     let custom_meta = ToolPathKinematicMeta::new(
         MachineConfigurationClass::FourAxis,
-        KinematicMode::ContinuousFourAxis,
+        KinematicMode::SimultaneousFourAxis,
         PoseDataPolicy::PoseLayerOptional,
     );
 
@@ -156,14 +156,14 @@ fn test_toolpath_kinematic_meta_classification() {
         three_axis,
         ToolPathKinematicMeta::new(
             MachineConfigurationClass::ThreeAxis,
-            KinematicMode::PureThreeAxis,
+            KinematicMode::ThreeAxis,
             PoseDataPolicy::PositionOnlyCompatible,
         )
     );
 
     let continuous_four_axis = ToolPathKinematicMeta::new(
         MachineConfigurationClass::FourAxis,
-        KinematicMode::ContinuousFourAxis,
+        KinematicMode::SimultaneousFourAxis,
         PoseDataPolicy::PoseLayerOptional,
     );
     assert_eq!(
@@ -172,7 +172,7 @@ fn test_toolpath_kinematic_meta_classification() {
     );
     assert_eq!(
         continuous_four_axis.kinematic_mode,
-        KinematicMode::ContinuousFourAxis
+        KinematicMode::SimultaneousFourAxis
     );
 }
 
@@ -192,7 +192,7 @@ fn test_two_axis_convenience_fns() {
         two_axis.configuration_class,
         MachineConfigurationClass::TwoAxis
     );
-    assert_eq!(two_axis.kinematic_mode, KinematicMode::PureTwoAxis);
+    assert_eq!(two_axis.kinematic_mode, KinematicMode::TwoAxis);
     assert!(two_axis.is_position_only_compatible());
     assert!(two_axis.allows_optional_pose_layer());
     assert!(!two_axis.requires_pose_layer());
@@ -218,7 +218,7 @@ fn test_toolpath_kinematic_meta_matrix() {
             "2-axis",
             ToolPathKinematicMeta::new(
                 MachineConfigurationClass::TwoAxis,
-                KinematicMode::PureTwoAxis,
+                KinematicMode::TwoAxis,
                 PoseDataPolicy::PositionOnlyCompatible,
             ),
             true,
@@ -240,7 +240,7 @@ fn test_toolpath_kinematic_meta_matrix() {
             "3-axis",
             ToolPathKinematicMeta::new(
                 MachineConfigurationClass::ThreeAxis,
-                KinematicMode::PureThreeAxis,
+                KinematicMode::ThreeAxis,
                 PoseDataPolicy::PositionOnlyCompatible,
             ),
             true,
@@ -248,10 +248,10 @@ fn test_toolpath_kinematic_meta_matrix() {
             false,
         ),
         (
-            "4-axis continuous",
+            "4-axis simultaneous",
             ToolPathKinematicMeta::new(
                 MachineConfigurationClass::FourAxis,
-                KinematicMode::ContinuousFourAxis,
+                KinematicMode::SimultaneousFourAxis,
                 PoseDataPolicy::PoseLayerOptional,
             ),
             false,
@@ -270,10 +270,10 @@ fn test_toolpath_kinematic_meta_matrix() {
             false,
         ),
         (
-            "5-axis continuous",
+            "5-axis simultaneous",
             ToolPathKinematicMeta::new(
                 MachineConfigurationClass::FiveAxisOrMore,
-                KinematicMode::ContinuousFiveAxis,
+                KinematicMode::SimultaneousFiveAxis,
                 PoseDataPolicy::PoseLayerRequired,
             ),
             false,
