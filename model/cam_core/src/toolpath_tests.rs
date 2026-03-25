@@ -105,6 +105,31 @@ fn test_tool_path() {
     assert_eq!(toolpath.tool_id, "tool1");
     assert_eq!(toolpath.cutting_direction, CuttingDirection::Down);
     assert_eq!(toolpath.level_count(), 2);
+    assert_eq!(
+        toolpath.kinematic_meta,
+        ToolPathKinematicMeta::three_axis_position_only()
+    );
+}
+
+#[test]
+fn test_tool_path_with_kinematic_meta() {
+    let custom_meta = ToolPathKinematicMeta::new(
+        MachineConfigurationClass::FourAxis,
+        KinematicMode::ContinuousFourAxis,
+        PoseDataPolicy::PoseLayerOptional,
+    );
+
+    let toolpath = ToolPath::<f64>::new_with_kinematic_meta(
+        "tool2".to_string(),
+        CuttingDirection::Up,
+        vec![],
+        vec![],
+        vec![],
+        custom_meta,
+    );
+
+    assert_eq!(toolpath.kinematic_meta, custom_meta);
+    assert_eq!(toolpath.cutting_direction, CuttingDirection::Up);
 }
 
 #[test]

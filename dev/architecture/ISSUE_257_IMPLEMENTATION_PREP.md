@@ -503,6 +503,7 @@ PR-3 で確定した方針:
 1. PR-1（型追加）
 2. PR-2（テスト固定）
 3. PR-3（artifact 拡張設計）
+4. PR-4（`ToolPath` 本体への運動学メタ搭載）
 
 注記:
 
@@ -514,3 +515,29 @@ PR-3 で確定した方針:
 - [x] PR-1: `cam_core` 型追加（最小）
 - [x] PR-2: 3軸軽量方針のテスト固定
 - [x] PR-3: artifact 連携方針の文書化（実装変更なし）
+- [x] PR-4: `ToolPath` 本体へ `kinematic_meta` を追加（既定は3軸互換）
+
+### 12.6 PR-4 実施内容
+
+目的:
+
+- 未解決論点だった「`ToolPathKinematicMeta` の保持場所」を `ToolPath` 本体に確定する
+
+対象ファイル:
+
+- `model/cam_core/src/toolpath.rs`
+- `model/cam_core/src/toolpath_tests.rs`
+- `model/cam_core/src/artifact_binary.rs`
+
+実装範囲:
+
+- `ToolPath` に `kinematic_meta: ToolPathKinematicMeta` を追加
+- 既存 `ToolPath::new` は `three_axis_position_only()` を既定設定し、既存呼び出し互換を維持
+- `ToolPath::new_with_kinematic_meta` を追加し、multi-axis メタの明示指定を可能にする
+- `read_toolpath_payload_v1` で `v0.1` 読み取り時に3軸既定メタを設定する
+
+受け入れ条件:
+
+- 既存 `ToolPath::new` 呼び出しは修正なしで利用できる
+- 明示メタ指定の `ToolPath` をテストで検証できる
+- `v0.1` 読み取りが3軸互換メタで初期化される

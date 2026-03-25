@@ -638,6 +638,9 @@ pub struct ToolPath<T: Scalar = f64> {
 
     /// ToolPath全体の拡張属性（ユーザーが付与可能）
     pub ext_attributes: Vec<ExtAttribute>,
+
+    /// ToolPath全体の運動学メタ情報
+    pub kinematic_meta: ToolPathKinematicMeta,
 }
 
 impl<T: Scalar + std::iter::Sum> ToolPath<T> {
@@ -657,6 +660,25 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
         contour_levels: Vec<ContourLevelPath<T>>,
         retract_segments: Vec<PathSegment<T>>,
     ) -> Self {
+        Self::new_with_kinematic_meta(
+            tool_id,
+            cutting_direction,
+            approach_segments,
+            contour_levels,
+            retract_segments,
+            ToolPathKinematicMeta::three_axis_position_only(),
+        )
+    }
+
+    /// 運動学メタを明示して新しい工具経路を作成
+    pub fn new_with_kinematic_meta(
+        tool_id: String,
+        cutting_direction: CuttingDirection,
+        approach_segments: Vec<PathSegment<T>>,
+        contour_levels: Vec<ContourLevelPath<T>>,
+        retract_segments: Vec<PathSegment<T>>,
+        kinematic_meta: ToolPathKinematicMeta,
+    ) -> Self {
         Self {
             tool_id,
             cutting_direction,
@@ -664,6 +686,7 @@ impl<T: Scalar + std::iter::Sum> ToolPath<T> {
             contour_levels,
             retract_segments,
             ext_attributes: Vec::new(),
+            kinematic_meta,
         }
     }
 
