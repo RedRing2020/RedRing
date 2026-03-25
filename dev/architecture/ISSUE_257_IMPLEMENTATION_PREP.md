@@ -37,6 +37,8 @@
 - 機械軸制約（回転軸/直動軸の min/max、速度、加速度）
 - 特異点近傍や軸反転の扱い方針
 - 3+2 と同時5軸を区別する表現
+- 3軸 / 4軸 / 5軸以上を明示する構成分類メタ
+- indexed / continuous を明示する運動モードメタ
 - レーザー加工のような変則軸構成（例: A/C, U/W）を吸収する機械依存情報
 
 ## 3. 責務境界
@@ -102,6 +104,7 @@
 - 現行 `ToolPath` / `PathSegment` を即座に破壊せず、3軸利用を温存できる
 - 5軸用の姿勢モデルだけを独立に設計しやすい
 - #214 / `cam_sim` / artifact v0.1 へ影響を波及させずに設計を先行できる
+- 3軸ケースでは pose レイヤーを必須化せず、将来の binary 追加時も軽量表現を維持しやすい
 
 検討の進め方:
 
@@ -146,6 +149,12 @@ ToolPose<T> {
   machine_axes: Option<Vec<MachineAxisValue<T>>>,
 }
 
+ToolPathKinematicMeta {
+  configuration_class: MachineConfigurationClass,
+  kinematic_mode: KinematicMode,
+  pose_data_policy: PoseDataPolicy,
+}
+
 ToolPoseSpan<T> {
     start_pose: ToolPose<T>,
     end_pose: ToolPose<T>,
@@ -170,8 +179,44 @@ MachineAxisValue<T> {
 - 5軸が必要な箇所だけ `PoseAnnotatedSegment` を使う
 - 3+2 と同時5軸の差分は `pose_span` の start/end と補間ポリシーで吸収する
 - 回転軸名を固定せず、レーザー加工の変則軸構成も `machine_axes` で吸収する
+- 3軸 / 4軸 / 5軸以上の区分は `ToolPose` ではなく `ToolPathKinematicMeta` 側で明示する
+- 3軸の軽量維持は `pose_data_policy` で「位置中心データのみで成立する」ことを宣言する
 
-### 6.2 MachineAxisValue / MachineAxisKind
+### 6.2 ToolPathKinematicMeta
+
+候補フィールド:
+
+- `configuration_class: MachineConfigurationClass`
+- `kinematic_mode: KinematicMode`
+- `pose_data_policy: PoseDataPolicy`
+
+`MachineConfigurationClass` 候補:
+
+- `ThreeAxis`
+- `FourAxis`
+- `FiveAxisOrMore`
+
+`KinematicMode` 候補:
+
+- `PureThreeAxis`
+- `IndexedMultiAxis`
+- `ContinuousFourAxis`
+- `ContinuousFiveAxis`
+
+`PoseDataPolicy` 候補:
+
+- `PositionOnlyCompatible`
+- `PoseLayerOptional`
+- `PoseLayerRequired`
+
+注記:
+
+- `configuration_class` は機械構成の大分類を示す
+- `kinematic_mode` は同じ5軸以上でも 3+2 と同時多軸を区別する
+- `pose_data_policy` はデータ量要件の表明であり、3軸では `PositionOnlyCompatible` を基本にする
+- このメタは `ToolPath` 全体、または `ToolPath` に付随する上位コンテキストへ持たせる想定とし、各 pose に重複保持しない
+
+### 6.3 MachineAxisValue / MachineAxisKind
 
 候補フィールド:
 
@@ -189,7 +234,7 @@ MachineAxisValue<T> {
 - `A/B/C` 固定ではなく、`U/V/W` を含む任意軸名を扱えるようにする
 - 巻き戻し（rewind）は軸値自体ではなく、補間/機械制約評価の結果として扱う方針を優先する
 
-### 6.3 PoseInterpolationPolicy
+### 6.4 PoseInterpolationPolicy
 
 候補:
 
@@ -198,7 +243,7 @@ MachineAxisValue<T> {
 - `ContinuousPreferred`
 - `MachineConstrained`
 
-### 6.4 MachineConstraint
+### 6.5 MachineConstraint
 
 候補フィールド:
 
@@ -237,8 +282,27 @@ PoseAnnotatedSegment {
 
 - 位置は移動するが姿勢は固定
 - 現行3軸 `ToolPath` とほぼ同義の表現になる
+- `ToolPathKinematicMeta { configuration_class: ThreeAxis, kinematic_mode: PureThreeAxis, pose_data_policy: PositionOnlyCompatible }` を付けることで、binary では pose レイヤー省略可能と判断できる
 
-### 7.2 3+2 ケース
+### 7.2 4軸ケース
+
+```rust
+PoseAnnotatedSegment {
+  segment: PathSegment::new_line(...),
+  pose_span: ToolPoseSpan {
+    start_pose: ToolPose { position: P0, process_axis: Axis0, machine_axes: Some([C=10]) },
+    end_pose: ToolPose { position: P1, process_axis: Axis1, machine_axes: Some([C=40]) },
+    interpolation_policy: ContinuousPreferred,
+  },
+}
+```
+
+解釈:
+
+- 回転軸が1本だけ連続変化する 4軸ケースを表す
+- `ToolPathKinematicMeta { configuration_class: FourAxis, kinematic_mode: ContinuousFourAxis, pose_data_policy: PoseLayerOptional }` により、3軸との差分を明示できる
+
+### 7.3 3+2 ケース
 
 ```rust
 PoseAnnotatedSegment {
@@ -255,8 +319,9 @@ PoseAnnotatedSegment {
 
 - セグメント内は姿勢固定
 - 次セグメントへ移る前後でのみ角度変更が起きる
+- `ToolPathKinematicMeta { configuration_class: FiveAxisOrMore, kinematic_mode: IndexedMultiAxis, pose_data_policy: PoseLayerOptional }` を付けると、同時5軸と混同しない
 
-### 7.3 同時5軸ケース
+### 7.4 同時5軸ケース
 
 ```rust
 PoseAnnotatedSegment {
@@ -273,8 +338,9 @@ PoseAnnotatedSegment {
 
 - セグメント内で位置と姿勢が同時に変化する
 - 最短角だけでなく機械制約を考慮した補間が必要になる
+- `ToolPathKinematicMeta { configuration_class: FiveAxisOrMore, kinematic_mode: ContinuousFiveAxis, pose_data_policy: PoseLayerRequired }` により、姿勢レイヤー必須のケースだと表明できる
 
-### 7.4 レーザー加工の変則軸ケース
+### 7.5 レーザー加工の変則軸ケース
 
 ```rust
 PoseAnnotatedSegment {
@@ -310,6 +376,7 @@ PoseAnnotatedSegment {
 - `process_axis` は工具軸ではなくビーム方向として読める
 - `machine_axes` は A/C の回転軸と U/W の補助軸を同一枠で保持する
 - これにより、フライス前提の固定軸名に縛られない中間表現を維持できる
+- `ToolPathKinematicMeta` を併記すれば、レーザーでも 4軸相当か 5軸以上かを分類できる
 
 ## 8. 影響ファイル候補
 
@@ -328,16 +395,18 @@ PoseAnnotatedSegment {
 - Gコード互換評価に必要な最小情報をどこまで中間モデルに持つか
 - 機械制約を `ToolPath` 側に持つか、post 前の別コンテキストに持つか
 - レーザー加工のような非フライス系プロセスでも `process_axis` で十分抽象化できるか
+- `ToolPathKinematicMeta` を `ToolPath` 本体へ持つか、artifact/ジョブ文脈へ持つか
 
 ## 10. 初回完了条件
 
 - [x] 現行 `ToolPath` の拡張ポイントが整理される
 - [x] `ToolPose` / 姿勢補間 / 機械制約の API 草案がある
-- [x] 3軸 / 3+2 / 同時5軸の3ケース表現例が揃う
+- [x] 3軸 / 4軸 / 3+2 / 同時5軸のケース表現例が揃う
+- [x] 3軸軽量維持と軸分類メタの方針が整理される
 - [ ] 実装フェーズへ移れる候補ファイルと変更順が整理される
 
 ## 11. 次アクション
 
 1. 選択肢Bを採択案として維持できるか、A/C にしか解けない論点が残るか確認する
-2. `MachineConstraint` を pose 本体ではなく別コンテキストで持つ方針を確定する
+2. `ToolPathKinematicMeta` と `MachineConstraint` を `ToolPath` 本体に持つか、別コンテキストで持つか切り分ける
 3. 実装開始前にユーザー承認を得る
