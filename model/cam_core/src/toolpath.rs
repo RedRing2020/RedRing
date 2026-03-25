@@ -287,6 +287,8 @@ impl<T: Scalar> PoseAnnotatedSegment<T> {
 /// 機械構成の大分類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MachineConfigurationClass {
+    /// 2軸（XY平面など）
+    TwoAxis,
     /// 3軸
     ThreeAxis,
     /// 4軸
@@ -298,6 +300,10 @@ pub enum MachineConfigurationClass {
 /// 加工時の運動モード分類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KinematicMode {
+    /// 純2軸（1平面内の輪郭加工）
+    PureTwoAxis,
+    /// 2.5軸（Z段付き2軸）
+    TwoPointFiveAxis,
     /// 純3軸
     PureThreeAxis,
     /// 3+2 のような indexed 多軸
@@ -349,6 +355,24 @@ impl ToolPathKinematicMeta {
         Self {
             configuration_class: MachineConfigurationClass::ThreeAxis,
             kinematic_mode: KinematicMode::PureThreeAxis,
+            pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
+        }
+    }
+
+    /// 2軸（平面輪郭加工）向けの既定メタ
+    pub const fn two_axis_position_only() -> Self {
+        Self {
+            configuration_class: MachineConfigurationClass::TwoAxis,
+            kinematic_mode: KinematicMode::PureTwoAxis,
+            pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
+        }
+    }
+
+    /// 2.5軸（Z段付き輪郭加工）向けの既定メタ
+    pub const fn two_point_five_axis_position_only() -> Self {
+        Self {
+            configuration_class: MachineConfigurationClass::TwoAxis,
+            kinematic_mode: KinematicMode::TwoPointFiveAxis,
             pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
         }
     }
