@@ -106,3 +106,81 @@ fn test_tool_path() {
     assert_eq!(toolpath.cutting_direction, CuttingDirection::Down);
     assert_eq!(toolpath.level_count(), 2);
 }
+
+#[test]
+fn test_tool_pose_and_machine_axis_value_creation() {
+    let machine_axes = vec![
+        MachineAxisValue::new("C".to_string(), MachineAxisKind::Rotary, 30.0),
+        MachineAxisValue::new("U".to_string(), MachineAxisKind::Linear, 12.5),
+    ];
+    let pose = ToolPose::new(
+        Point3D::new(1.0, 2.0, 3.0),
+        Vector3D::new(0.0, 0.0, -1.0),
+        Some(machine_axes.clone()),
+    );
+
+    assert_eq!(pose.position, Point3D::new(1.0, 2.0, 3.0));
+    assert_eq!(pose.process_axis, Vector3D::new(0.0, 0.0, -1.0));
+    assert_eq!(pose.machine_axes, Some(machine_axes));
+}
+
+#[test]
+fn test_toolpath_kinematic_meta_classification() {
+    let three_axis = ToolPathKinematicMeta::three_axis_position_only();
+    assert_eq!(
+        three_axis,
+        ToolPathKinematicMeta::new(
+            MachineConfigurationClass::ThreeAxis,
+            KinematicMode::PureThreeAxis,
+            PoseDataPolicy::PositionOnlyCompatible,
+        )
+    );
+
+    let continuous_four_axis = ToolPathKinematicMeta::new(
+        MachineConfigurationClass::FourAxis,
+        KinematicMode::ContinuousFourAxis,
+        PoseDataPolicy::PoseLayerOptional,
+    );
+    assert_eq!(
+        continuous_four_axis.configuration_class,
+        MachineConfigurationClass::FourAxis
+    );
+    assert_eq!(
+        continuous_four_axis.kinematic_mode,
+        KinematicMode::ContinuousFourAxis
+    );
+}
+
+#[test]
+fn test_pose_annotated_segment_creation() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(5.0, 0.0, 0.0),
+        SegmentType::Cutting { feed_rate: 400.0 },
+    );
+    let start_pose = ToolPose::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Vector3D::new(0.0, 0.0, -1.0),
+        None,
+    );
+    let end_pose = ToolPose::new(
+        Point3D::new(5.0, 0.0, 0.0),
+        Vector3D::new(0.1, 0.0, -0.9),
+        Some(vec![MachineAxisValue::new(
+            "A".to_string(),
+            MachineAxisKind::Rotary,
+            12.0,
+        )]),
+    );
+    let pose_span = ToolPoseSpan::new(
+        start_pose.clone(),
+        end_pose.clone(),
+        PoseInterpolationPolicy::MachineConstrained,
+    );
+    let annotated = PoseAnnotatedSegment::new(segment.clone(), pose_span.clone());
+
+    assert_eq!(annotated.segment, segment);
+    assert_eq!(annotated.pose_span, pose_span);
+    assert_eq!(annotated.pose_span.start_pose, start_pose);
+    assert_eq!(annotated.pose_span.end_pose, end_pose);
+}

@@ -44,7 +44,7 @@
 
 use crate::ExtAttribute;
 use analysis::Scalar;
-use geo_algorithms::Point3D;
+use geo_algorithms::{Point3D, Vector3D};
 
 /// ToolPath wire schema version used by artifact binary v0.1.
 pub const TOOLPATH_SCHEMA_VERSION_V0_1: (u16, u16) = (0, 1);
@@ -170,6 +170,188 @@ pub enum CuttingDirection {
     ///
     /// 工具回転方向と送り方向が逆。荒加工向き。
     Up,
+}
+
+/// 機械軸種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachineAxisKind {
+    /// 直動軸（X/Y/Z/U/V/W など）
+    Linear,
+    /// 回転軸（A/B/C など）
+    Rotary,
+}
+
+/// 任意名称の機械軸値
+#[derive(Debug, Clone, PartialEq)]
+pub struct MachineAxisValue<T: Scalar = f64> {
+    /// 軸名（例: A, C, U, W）
+    pub axis_name: String,
+    /// 軸種別（直動/回転）
+    pub axis_kind: MachineAxisKind,
+    /// 軸値
+    pub value: T,
+}
+
+impl<T: Scalar> MachineAxisValue<T> {
+    /// 機械軸値を作成
+    pub fn new(axis_name: String, axis_kind: MachineAxisKind, value: T) -> Self {
+        Self {
+            axis_name,
+            axis_kind,
+            value,
+        }
+    }
+}
+
+/// 姿勢補間ポリシー
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PoseInterpolationPolicy {
+    /// セグメント内で姿勢固定（3+2 相当）
+    FixedOrientation,
+    /// 角度変化の最短経路を優先
+    ShortestAngularPath,
+    /// 連続変化を優先
+    ContinuousPreferred,
+    /// 機械制約を優先
+    MachineConstrained,
+}
+
+/// 工具/プロセス姿勢
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolPose<T: Scalar = f64> {
+    /// 姿勢評価時の位置
+    pub position: Point3D<T>,
+    /// 工具軸またはプロセス軸方向
+    pub process_axis: Vector3D<T>,
+    /// 任意軸名で管理される機械軸値
+    pub machine_axes: Option<Vec<MachineAxisValue<T>>>,
+}
+
+impl<T: Scalar> ToolPose<T> {
+    /// 姿勢を作成
+    pub fn new(
+        position: Point3D<T>,
+        process_axis: Vector3D<T>,
+        machine_axes: Option<Vec<MachineAxisValue<T>>>,
+    ) -> Self {
+        Self {
+            position,
+            process_axis,
+            machine_axes,
+        }
+    }
+}
+
+/// 姿勢スパン
+#[derive(Debug, Clone, PartialEq)]
+pub struct ToolPoseSpan<T: Scalar = f64> {
+    /// 始点姿勢
+    pub start_pose: ToolPose<T>,
+    /// 終点姿勢
+    pub end_pose: ToolPose<T>,
+    /// 姿勢補間ポリシー
+    pub interpolation_policy: PoseInterpolationPolicy,
+}
+
+impl<T: Scalar> ToolPoseSpan<T> {
+    /// 姿勢スパンを作成
+    pub fn new(
+        start_pose: ToolPose<T>,
+        end_pose: ToolPose<T>,
+        interpolation_policy: PoseInterpolationPolicy,
+    ) -> Self {
+        Self {
+            start_pose,
+            end_pose,
+            interpolation_policy,
+        }
+    }
+}
+
+/// 姿勢付きセグメント
+#[derive(Debug, Clone, PartialEq)]
+pub struct PoseAnnotatedSegment<T: Scalar = f64> {
+    /// 位置幾何セグメント
+    pub segment: PathSegment<T>,
+    /// セグメントに対応する姿勢情報
+    pub pose_span: ToolPoseSpan<T>,
+}
+
+impl<T: Scalar> PoseAnnotatedSegment<T> {
+    /// 姿勢付きセグメントを作成
+    pub fn new(segment: PathSegment<T>, pose_span: ToolPoseSpan<T>) -> Self {
+        Self { segment, pose_span }
+    }
+}
+
+/// 機械構成の大分類
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MachineConfigurationClass {
+    /// 3軸
+    ThreeAxis,
+    /// 4軸
+    FourAxis,
+    /// 5軸以上
+    FiveAxisOrMore,
+}
+
+/// 加工時の運動モード分類
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KinematicMode {
+    /// 純3軸
+    PureThreeAxis,
+    /// 3+2 のような indexed 多軸
+    IndexedMultiAxis,
+    /// 連続4軸
+    ContinuousFourAxis,
+    /// 連続5軸
+    ContinuousFiveAxis,
+}
+
+/// 姿勢データ保持ポリシー
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PoseDataPolicy {
+    /// 位置中心データだけで互換運用可能
+    PositionOnlyCompatible,
+    /// 姿勢レイヤーは任意
+    PoseLayerOptional,
+    /// 姿勢レイヤーが必須
+    PoseLayerRequired,
+}
+
+/// ToolPath の運動学メタ情報
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolPathKinematicMeta {
+    /// 機械構成の大分類
+    pub configuration_class: MachineConfigurationClass,
+    /// 加工時の運動モード
+    pub kinematic_mode: KinematicMode,
+    /// 姿勢データ保持ポリシー
+    pub pose_data_policy: PoseDataPolicy,
+}
+
+impl ToolPathKinematicMeta {
+    /// 運動学メタ情報を作成
+    pub const fn new(
+        configuration_class: MachineConfigurationClass,
+        kinematic_mode: KinematicMode,
+        pose_data_policy: PoseDataPolicy,
+    ) -> Self {
+        Self {
+            configuration_class,
+            kinematic_mode,
+            pose_data_policy,
+        }
+    }
+
+    /// 既存3軸互換向けの既定メタ
+    pub const fn three_axis_position_only() -> Self {
+        Self {
+            configuration_class: MachineConfigurationClass::ThreeAxis,
+            kinematic_mode: KinematicMode::PureThreeAxis,
+            pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
+        }
+    }
 }
 
 /// 工具経路セグメント
