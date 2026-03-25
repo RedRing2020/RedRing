@@ -192,12 +192,15 @@ MachineAxisValue<T> {
 
 `MachineConfigurationClass` 候補:
 
+- `TwoAxis`（PR-5 追加）
 - `ThreeAxis`
 - `FourAxis`
 - `FiveAxisOrMore`
 
 `KinematicMode` 候補:
 
+- `PureTwoAxis`（PR-5 追加） — 純2軸（1平面内の輪郭加工）
+- `TwoPointFiveAxis`（PR-5 追加） — 2.5軸（Z段付き2軸）
 - `PureThreeAxis`
 - `IndexedMultiAxis`
 - `ContinuousFourAxis`
@@ -215,6 +218,8 @@ MachineAxisValue<T> {
 - `kinematic_mode` は同じ5軸以上でも 3+2 と同時多軸を区別する
 - `pose_data_policy` はデータ量要件の表明であり、3軸では `PositionOnlyCompatible` を基本にする
 - このメタは `ToolPath` 全体、または `ToolPath` に付随する上位コンテキストへ持たせる想定とし、各 pose に重複保持しない
+- `TwoAxis` は XY 平面など1平面内の加工機構成を表し、Z軸を持つ `ThreeAxis` と明示的に区別する
+- `PureTwoAxis` と `TwoPointFiveAxis` の差は「Z軸が固定か段階変化か」であり、両方とも `PositionOnlyCompatible` で運用できる
 
 ### 6.3 MachineAxisValue / MachineAxisKind
 
@@ -516,6 +521,7 @@ PR-3 で確定した方針:
 - [x] PR-2: 3軸軽量方針のテスト固定
 - [x] PR-3: artifact 連携方針の文書化（実装変更なし）
 - [x] PR-4: `ToolPath` 本体へ `kinematic_meta` を追加（既定は3軸互換）
+- [x] PR-5: `MachineConfigurationClass`/`KinematicMode` に2軸・2.5軸バリアントを追加
 
 ### 12.6 PR-4 実施内容
 
@@ -541,3 +547,30 @@ PR-3 で確定した方針:
 - 既存 `ToolPath::new` 呼び出しは修正なしで利用できる
 - 明示メタ指定の `ToolPath` をテストで検証できる
 - `v0.1` 読み取りが3軸互換メタで初期化される
+
+### 12.7 PR-5 実施内容
+
+目的:
+
+- 2軸（XY平面加工）および 2.5軸（Z段付き2軸）を `ToolPathKinematicMeta` で明示区別できるようにする
+- 既存の3軸以上のバリアントとの整合を保つ
+
+対象ファイル:
+
+- `model/cam_core/src/toolpath.rs`
+- `model/cam_core/src/toolpath_tests.rs`
+
+実装範囲:
+
+- `MachineConfigurationClass` に `TwoAxis` バリアントを追加
+- `KinematicMode` に `PureTwoAxis` / `TwoPointFiveAxis` バリアントを追加
+- `ToolPathKinematicMeta::two_axis_position_only()` convenience fn を追加
+- `ToolPathKinematicMeta::two_point_five_axis_position_only()` convenience fn を追加
+- `test_two_axis_convenience_fns` テストを追加
+- `test_toolpath_kinematic_meta_matrix` に 2軸 / 2.5軸ケースを追加
+
+受け入れ条件:
+
+- 既存バリアント（`ThreeAxis`, `PureThreeAxis` 等）の挙動に変更なし
+- 2軸・2.5軸どちらも `is_position_only_compatible()` が `true` を返す
+- `cargo test -p cam_core --lib`: 64 passed（PR-4 の 63 から +1）
