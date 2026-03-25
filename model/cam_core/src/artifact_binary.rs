@@ -19,7 +19,7 @@ use geo_algorithms::Point3D;
 
 use crate::toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, PathGeometry, PathSegment, SegmentType,
-    ToolPath,
+    ToolPath, ToolPathKinematicMeta,
 };
 
 /// toolpath artifact magic: `RRTP`
@@ -417,6 +417,7 @@ pub fn read_toolpath_payload_v1<R: Read>(
         contour_levels,
         retract_segments,
         ext_attributes,
+        kinematic_meta: ToolPathKinematicMeta::three_axis_position_only(),
     })
 }
 
