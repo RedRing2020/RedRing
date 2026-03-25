@@ -300,11 +300,11 @@ pub enum MachineConfigurationClass {
 /// 加工時の運動モード分類
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KinematicMode {
-    /// 純2軸（1平面内の輪郭加工）
+    /// 2軸（1平面内の輪郭加工）
     PureTwoAxis,
     /// 2.5軸（Z段付き2軸）
     TwoPointFiveAxis,
-    /// 純3軸
+    /// 3軸
     PureThreeAxis,
     /// 割り出し多軸（3+2）
     IndexedMultiAxis,

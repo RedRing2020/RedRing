@@ -199,7 +199,7 @@ MachineAxisValue<T> {
 
 `KinematicMode` 候補:
 
-- `PureTwoAxis`（PR-5 追加） — 純2軸（1平面内の輪郭加工）
+- `PureTwoAxis`（PR-5 追加） — 2軸（1平面内の輪郭加工）
 - `TwoPointFiveAxis`（PR-5 追加） — 2.5軸（Z段付き2軸）
 - `PureThreeAxis`
 - `IndexedMultiAxis`（割り出し多軸 / 3+2）
