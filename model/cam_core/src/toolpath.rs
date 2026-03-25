@@ -352,6 +352,24 @@ impl ToolPathKinematicMeta {
             pose_data_policy: PoseDataPolicy::PositionOnlyCompatible,
         }
     }
+
+    /// 位置中心データのみで互換運用可能か
+    pub const fn is_position_only_compatible(&self) -> bool {
+        matches!(
+            self.pose_data_policy,
+            PoseDataPolicy::PositionOnlyCompatible
+        )
+    }
+
+    /// 姿勢レイヤーを省略可能か
+    pub const fn allows_optional_pose_layer(&self) -> bool {
+        !self.requires_pose_layer()
+    }
+
+    /// 姿勢レイヤーが必須か
+    pub const fn requires_pose_layer(&self) -> bool {
+        matches!(self.pose_data_policy, PoseDataPolicy::PoseLayerRequired)
+    }
 }
 
 /// 工具経路セグメント
