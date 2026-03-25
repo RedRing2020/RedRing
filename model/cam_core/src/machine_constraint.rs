@@ -118,7 +118,7 @@ impl<T: Scalar> RotaryAxisLimit<T> {
 /// ToolPathとは独立に管理する機械の物理制約
 #[derive(Debug, Clone, PartialEq)]
 pub struct MachineConstraint<T: Scalar = f64> {
-    /// 直動軸のトラベル範囲定義
+    /// 直動軸の移動範囲定義
     pub linear_axis_limits: Vec<LinearAxisLimit<T>>,
     /// 回転軸の旋回範囲定義
     pub rotary_axis_limits: Vec<RotaryAxisLimit<T>>,
