@@ -248,7 +248,7 @@ fn test_toolpath_kinematic_meta_matrix() {
             false,
         ),
         (
-            "4-axis continuous",
+            "4-axis simultaneous",
             ToolPathKinematicMeta::new(
                 MachineConfigurationClass::FourAxis,
                 KinematicMode::ContinuousFourAxis,
@@ -270,7 +270,7 @@ fn test_toolpath_kinematic_meta_matrix() {
             false,
         ),
         (
-            "5-axis continuous",
+            "5-axis simultaneous",
             ToolPathKinematicMeta::new(
                 MachineConfigurationClass::FiveAxisOrMore,
                 KinematicMode::ContinuousFiveAxis,

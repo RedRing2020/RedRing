@@ -202,9 +202,9 @@ MachineAxisValue<T> {
 - `PureTwoAxis`（PR-5 追加） — 純2軸（1平面内の輪郭加工）
 - `TwoPointFiveAxis`（PR-5 追加） — 2.5軸（Z段付き2軸）
 - `PureThreeAxis`
-- `IndexedMultiAxis`
-- `ContinuousFourAxis`
-- `ContinuousFiveAxis`
+- `IndexedMultiAxis`（割り出し多軸 / 3+2）
+- `ContinuousFourAxis`（同時4軸）
+- `ContinuousFiveAxis`（同時5軸）
 
 `PoseDataPolicy` 候補:
 
@@ -343,7 +343,7 @@ PoseAnnotatedSegment {
 
 - セグメント内で位置と姿勢が同時に変化する
 - 最短角だけでなく機械制約を考慮した補間が必要になる
-- `ToolPathKinematicMeta { configuration_class: FiveAxisOrMore, kinematic_mode: ContinuousFiveAxis, pose_data_policy: PoseLayerRequired }` により、姿勢レイヤー必須のケースだと表明できる
+- `ToolPathKinematicMeta { configuration_class: FiveAxisOrMore, kinematic_mode: ContinuousFiveAxis, pose_data_policy: PoseLayerRequired }`（= 同時5軸）により、姿勢レイヤー必須のケースだと表明できる
 
 ### 7.5 レーザー加工の変則軸ケース
 

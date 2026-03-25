@@ -306,11 +306,11 @@ pub enum KinematicMode {
     TwoPointFiveAxis,
     /// 純3軸
     PureThreeAxis,
-    /// 3+2 のような indexed 多軸
+    /// 割り出し多軸（3+2）
     IndexedMultiAxis,
-    /// 連続4軸
+    /// 同時4軸
     ContinuousFourAxis,
-    /// 連続5軸
+    /// 同時5軸
     ContinuousFiveAxis,
 }
 
