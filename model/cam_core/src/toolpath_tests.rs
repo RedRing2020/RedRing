@@ -152,6 +152,83 @@ fn test_toolpath_kinematic_meta_classification() {
 }
 
 #[test]
+fn test_three_axis_position_only_policy_behavior() {
+    let three_axis = ToolPathKinematicMeta::three_axis_position_only();
+
+    assert!(three_axis.is_position_only_compatible());
+    assert!(three_axis.allows_optional_pose_layer());
+    assert!(!three_axis.requires_pose_layer());
+}
+
+#[test]
+fn test_toolpath_kinematic_meta_matrix() {
+    let cases = [
+        (
+            "3-axis",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::ThreeAxis,
+                KinematicMode::PureThreeAxis,
+                PoseDataPolicy::PositionOnlyCompatible,
+            ),
+            true,
+            true,
+            false,
+        ),
+        (
+            "4-axis continuous",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::FourAxis,
+                KinematicMode::ContinuousFourAxis,
+                PoseDataPolicy::PoseLayerOptional,
+            ),
+            false,
+            true,
+            false,
+        ),
+        (
+            "3+2 indexed",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::FiveAxisOrMore,
+                KinematicMode::IndexedMultiAxis,
+                PoseDataPolicy::PoseLayerOptional,
+            ),
+            false,
+            true,
+            false,
+        ),
+        (
+            "5-axis continuous",
+            ToolPathKinematicMeta::new(
+                MachineConfigurationClass::FiveAxisOrMore,
+                KinematicMode::ContinuousFiveAxis,
+                PoseDataPolicy::PoseLayerRequired,
+            ),
+            false,
+            false,
+            true,
+        ),
+    ];
+
+    for (name, meta, expected_position_only, expected_optional, expected_required) in cases {
+        assert_eq!(
+            meta.is_position_only_compatible(),
+            expected_position_only,
+            "unexpected position_only result for {name}"
+        );
+        assert_eq!(
+            meta.allows_optional_pose_layer(),
+            expected_optional,
+            "unexpected optional_pose result for {name}"
+        );
+        assert_eq!(
+            meta.requires_pose_layer(),
+            expected_required,
+            "unexpected required_pose result for {name}"
+        );
+    }
+}
+
+#[test]
 fn test_pose_annotated_segment_creation() {
     let segment = PathSegment::new_line(
         Point3D::new(0.0, 0.0, 0.0),
