@@ -1,6 +1,6 @@
 # Git/PR運用ルール
 
-最終更新: 2026-03-08
+最終更新: 2026-03-26
 
 ## 目的
 
@@ -54,3 +54,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight
 - 競合発生時は安易に続行せず、どちらを採用するか方針を先に決める
 - CIで `fmt` が落ちた場合は `cargo fmt --all` 実行後に再チェックする
 - PR作成後の追加コミットでも、push前に `check_pr_preflight.ps1` を再実行する
+- コメントや命名規則の用語は `dev/AI_TERMINOLOGY_GLOSSARY.md` を参照し、業界用語を優先する
