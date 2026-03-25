@@ -1,6 +1,6 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2026年3月15日
+**最終更新日**: 2026年3月25日
 
 RedRing の幾何計算層とレンダリング層の構成、および現在の課題と解決策について説明します。
 
@@ -34,6 +34,18 @@ foundation/analysis（将来改名候補）
                     ↓
          application層クレート群
     （tessellation / simulation / job manager）
+
+        CAM側の責務分離（設計更新）
+
+            geo_*（汎用幾何演算）
+                ↓
+            cam_core（中立データ基盤）
+               ↙          ↘
+        cam_algorithms      cam_entity
+        （CAM固有計算）     （表示/統合）
+               ↓
+              cam_sim
+        （CAM特化ユースケース実行）
 ```
 
 #### クレート責務定義
@@ -45,6 +57,10 @@ foundation/analysis（将来改名候補）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を利用した高レベル幾何アルゴリズム（intersect, collision 等）
 - **`application::*`（新設方針）**: テセレーション、シミュレーション、ジョブ管理など業務ユースケース
 - **`geo_io`**: ファイル I/O（STL/OBJ/PLY 等）
+- **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小機械制約）
+- **`cam_algorithms`（新設方針）**: CAM 固有アルゴリズム（経路生成、順序最適化、干渉回避、機械制約検証）
+- **`cam_sim`**: CAM 特化の実行・ユースケース層（ToolPath 実行、除去量更新、結果キャッシュ）
+- **`cam_entity`**: CAM 向け表示/属性統合層
 
 #### レイヤー設計の重要ポイント
 
@@ -53,6 +69,8 @@ foundation/analysis（将来改名候補）
 - **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
 - **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
 - **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
+- **CAM責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` はCAM特化ユースケース実行として分離する
+- **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋データ層ではなく CAM ドメイン専用の application 層に近い
 - **循環依存回避**: `geo_primitives` ↔ `geo_nurbs` の直接依存は禁止（交差処理は`geo_algorithms`に集約）
 
 ### 段階移行計画（提案）
@@ -73,13 +91,22 @@ foundation/analysis（将来改名候補）
 - `foundation/analysis` の名称変更を検討
 - 内部実装を純粋数値解析（線形代数等）に整理し、ドメイン責務を排除
 
-### CAD/CAM 境界ルール（2026年2月更新）
+### CAD/CAM 境界ルール（2026年3月更新）
 
 - **原則**: `model/geo_*` から `model/cam_*` への依存は禁止
-- **許可**: `cam_core -> cam_entity`
+- **CAM内部の基準依存**: `cam_algorithms -> cam_core` は許可、`cam_core -> cam_algorithms` は禁止
+- **CAM内部の実行依存**: `cam_sim -> cam_core` は許可、`cam_sim -> cam_algorithms` は限定的に許可
+- **CAM内部の表示依存**: `cam_entity -> cam_core` は許可、`cam_entity -> cam_algorithms` は禁止
 - **禁止**: `cam_core -> geo_entity`
 - **禁止**: `geo_core -> cam_entity`
 - **許可**: `geo_core -> geo_entity`
+
+#### CAMクレート責務の補足
+
+- **`cam_core`**: 他CAMクレートから参照される中立データのみを保持する
+- **`cam_algorithms`**: 生成・最適化・検証・干渉回避などの CAM 計算を集約する
+- **`cam_sim`**: シミュレーション実行を担う。`cam_algorithms` への依存は実行前後の問い合わせに限定する
+- **`cam_entity`**: UI/可視化向け属性統合を担い、計算ロジックは保持しない
 
 ### 共通ジョブマネージャー方針（2026年3月更新）
 
@@ -114,6 +141,7 @@ foundation/analysis（将来改名候補）
 
 - 実行コマンド: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_architecture_dependencies.ps1 -ExitOnError`
 - CI/ローカルともに上記スクリプトで依存境界違反を検出する
+- `cam_algorithms` 新設時は、workspace 参加、`scripts/_arch_rules_data.ps1` の依存ルール更新、関連ドキュメント更新を同一変更セットで行う
 
 ## 🔧 修正方針
 
