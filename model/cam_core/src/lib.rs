@@ -51,7 +51,8 @@ pub use artifact_binary::{
     read_toolpath_payload_v1, write_interference_payload_v1, write_toolpath_payload_v1,
 };
 pub use machine_constraint::{
-    MachineAxisLabel, MachineConstraint, RotaryAxisLabel, RotaryAxisLimit,
+    LinearAxisLabel, LinearAxisLimit, MachineAxisLabel, MachineConstraint, RotaryAxisLabel,
+    RotaryAxisLimit,
 };
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};
