@@ -8,6 +8,7 @@
 //! - [`tolerance`][]: CAM用トレランス管理
 //! - [`tool`][]: 工具定義（工具径、長さ、種別）
 //! - [`toolset`][]: ツールセット定義（工具＋ホルダー、干渉距離）
+//! - [`machine_constraint`][]: 機械の最小制約定義（軸ラベル、回転軸旋回範囲）
 //! - [`toolpath`][]: 工具経路データ構造（セグメント、経路全体）
 //! - [`validation`][]: CAM用検証機能（2D輪郭閉判定、トレランスチェック）
 //!
@@ -33,6 +34,7 @@
 //! ```
 
 pub mod artifact_binary;
+pub mod machine_constraint;
 pub mod tolerance;
 pub mod tool;
 pub mod toolpath;
@@ -47,6 +49,9 @@ pub use artifact_binary::{
     KNOWN_MINOR_VERSIONS_V0, LengthUnit, TOOLPATH_MAGIC, read_artifact_v1,
     read_interference_artifact_v1, read_interference_payload_v1, read_toolpath_artifact_v1,
     read_toolpath_payload_v1, write_interference_payload_v1, write_toolpath_payload_v1,
+};
+pub use machine_constraint::{
+    MachineAxisLabel, MachineConstraint, RotaryAxisLabel, RotaryAxisLimit,
 };
 pub use tolerance::CamTolerance;
 pub use tool::{Tool, ToolType};

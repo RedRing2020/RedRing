@@ -574,3 +574,59 @@ PR-3 で確定した方針:
 - 既存バリアント（`ThreeAxis`, `IndexedMultiAxis` 等）の挙動に変更なし
 - 2軸・2.5軸どちらも `is_position_only_compatible()` が `true` を返す
 - `cargo test -p cam_core --lib`: 64 passed（PR-4 の 63 から +1）
+
+### 12.8 MachineConstraint スコープ確定（2026-03-25）
+
+目的:
+
+- `MachineConstraint` の責務を「機械の物理的制約」に限定し、CL/工程パラメータとの混在を防ぐ
+
+確定事項:
+
+- 軸名は初期実装で `enum` を採用する
+- 対象は商用機で一般的な軸命名（例: X/Y/Z/A/B/C/U/V/W）を優先し、特殊命名が必要になった時点で拡張を検討する
+- 現フェーズでは回転軸の旋回範囲（角度 min/max）を最小スコープとして扱う
+- `F` 値（送り速度）と加速度は `MachineConstraint` へ入れず、別責務として扱う
+- 機械/工具のDB的実体（ユーザー入力で再現する形状・パラメータ）は `cam_core` 直置きせず、上位層（例: `cam_entity`）で管理する
+
+実装方針（Option 1）:
+
+- `cam_core` には中立な最小データ型（軸ラベル・旋回範囲）だけを追加する
+- 機械本体定義や工具DB統合は将来フェーズで上位層へ分離する
+
+### 12.9 Gコード互換チェック観点（最小セット）（2026-03-25）
+
+目的:
+
+- 5軸表現を導入しても、post前提の中間モデルとして Gコード出力可能性を早期に判定できるようにする
+- 実装段階で互換性の後戻りを防ぐため、最小限の確認観点を固定する
+
+最小チェック項目:
+
+- 運動学メタ整合:
+  - `ToolPathKinematicMeta.configuration_class` と `kinematic_mode` の組み合わせが矛盾しない
+  - 例: `TwoAxis` + `SimultaneousFiveAxis` のような不整合を禁止
+- 姿勢データ要件整合:
+  - `pose_data_policy` が `PoseLayerRequired` の場合、姿勢レイヤー無し出力を禁止
+  - `PositionOnlyCompatible` の場合、姿勢レイヤー省略を許容
+- セグメント種別変換可能性:
+  - `PathGeometry::Line/Arc` と `SegmentType` が G00/G01/G02/G03 へ写像可能
+  - 未対応補間（将来の NURBS 等）は現フェーズで非対応として明示的に弾く
+- 回転軸範囲整合（最小）:
+  - `MachineConstraint.rotary_axis_limits` がある場合、出力候補角度が範囲内かを事前検査
+  - 範囲外時は post処理へ渡さず、互換エラーとして扱う
+- バージョン互換:
+  - artifact `v0.1` reader/writer の既存挙動を維持し、3軸既定経路を壊さない
+  - multi-axis 拡張は version 分岐前提で扱い、`v0.1` wire layout は改変しない
+
+非目標（このチェックに含めない）:
+
+- コントローラ固有最適化（Fanuc/Siemens/Heidenhain 個別差）
+- 0/360同値・rewind・最短回転の詳細解法（Issue #426 側で扱う）
+- 加速度/ジャークに基づく動的最適化
+
+受け入れ条件（文書タスク）:
+
+- 上記5項目が「判定可能/非判定」を含めて明文化されている
+- #257 の完了条件にある「Gコード互換チェック観点（最小セット）」を参照可能
+- #426 へ分離した詳細仕様との責務境界が矛盾しない
