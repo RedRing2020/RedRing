@@ -865,7 +865,6 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 - `ToolSet` に `shank_diameter` / `shank_length` を保持
 - `shank_diameter` / `shank_length` は `0` を未指定として扱う
 - `shank_length > 0` かつ `shank_length >= stickout_length` は無効
-- 本時点では `ToolSet` の専用シリアライズ境界（読込/書込/round-trip）は未導入
 
 ### 用語定義
 
@@ -934,6 +933,6 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 
 | 日付 | 変更内容 | 担当 |
 |------|---------|------|
-| 2026-03-26 | Issue #260 反映（shank_length 追加、ToolSet I/O境界未導入を明記） | AI開発者 |
+| 2026-03-26 | Issue #260 反映（shank_length 追加、shank属性の検証規約を追記） | AI開発者 |
 | 2026-02-22 | Issue #246 ツールセット定義（ホルダー多段、参照点、干渉距離）を追記 | AI開発者 |
 | 2026-02-12 | 初版作成（距離ベーススナップショット設計） | AI開発者 |
