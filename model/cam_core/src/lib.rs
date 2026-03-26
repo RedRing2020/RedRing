@@ -59,11 +59,15 @@ pub use tool::{Tool, ToolType};
 pub use toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, KinematicMode, MachineAxisKind,
     MachineAxisValue, MachineConfigurationClass, PathGeometry, PathSegment, PoseAnnotatedSegment,
-    PoseDataPolicy, PoseInterpolationPolicy, SegmentType, TOOLPATH_SCHEMA_VERSION_V0_1, ToolPath,
+    PoseDataPolicy, PoseInterpolationPolicy, SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2,
+    SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2, SegmentType, TOOLPATH_SCHEMA_VERSION_V0_1, ToolPath,
     ToolPathKinematicMeta, ToolPose, ToolPoseSpan,
 };
 pub use toolset::{
     Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,
     ToolSetReferencePoint,
 };
-pub use validation::{ValidationError, validate_2d_contour};
+pub use validation::{
+    ValidationError, validate_2d_contour, validate_pose_segments_machine_constraints,
+    validate_toolpath_machine_constraints,
+};

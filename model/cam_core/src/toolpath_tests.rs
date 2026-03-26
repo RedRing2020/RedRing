@@ -334,3 +334,40 @@ fn test_pose_annotated_segment_creation() {
     assert_eq!(annotated.pose_span.start_pose, start_pose);
     assert_eq!(annotated.pose_span.end_pose, end_pose);
 }
+
+#[test]
+fn test_path_segment_acceleration_hints_round_trip() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        SegmentType::Rapid,
+    )
+    .with_linear_acceleration_hint_mm_per_sec2(25.5)
+    .with_rotary_acceleration_hint_deg_per_sec2(120.25);
+
+    assert_eq!(segment.linear_acceleration_hint_mm_per_sec2(), Some(25.5));
+    assert_eq!(
+        segment.rotary_acceleration_hint_deg_per_sec2(),
+        Some(120.25)
+    );
+}
+
+#[test]
+fn test_path_segment_acceleration_hint_overwrite() {
+    let segment = PathSegment::new_line(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        SegmentType::Rapid,
+    )
+    .with_linear_acceleration_hint_mm_per_sec2(10.0)
+    .with_linear_acceleration_hint_mm_per_sec2(30.0);
+
+    assert_eq!(segment.linear_acceleration_hint_mm_per_sec2(), Some(30.0));
+
+    let linear_tag_count = segment
+        .ext_attributes
+        .iter()
+        .filter(|attr| attr.tag == SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2)
+        .count();
+    assert_eq!(linear_tag_count, 1);
+}
