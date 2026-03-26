@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "foundation/analysis",  # Foundation層：数値解析クレート（ドメイン非依存基盤）
+  "foundation/i18n_foundation", # Foundation層：ローカライズ共通基盤
   "foundation/logging_foundation", # Foundation層：ログ初期化・レート制御基盤
   "model/geo_contracts",  # Model層：幾何形状契約（trait定義）
   "model/geo_core",       # Model層：幾何計算基盤

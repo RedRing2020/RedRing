@@ -16,6 +16,7 @@ cam_entity = { path = "../../model/cam_entity" }
 cam_sim = { path = "../../model/cam_sim" }
 job_domain = { path = "../../model/job_domain" }
 analysis = { path = "../../foundation/analysis" }
+i18n_foundation = { path = "../../foundation/i18n_foundation" }
 tracing = "0.1"
 thiserror = "2.0"
 

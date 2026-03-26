@@ -1,7 +1,7 @@
 use job_domain::{CamJobEvent, CamJobOutputValidity, CamJobRecord, CamJobStatus, CamJobType};
 
 use crate::job_message_mapper::normalize_job_error_message;
-use crate::message_catalog::{UiMessage, UiMessageArg};
+use i18n_foundation::{UiMessage, UiMessageArg};
 
 /// UI表示用のジョブ状態（Modelの状態を直接公開しない境界型）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -267,7 +267,7 @@ fn status_key(status: CamJobStatus) -> &'static str {
 mod tests {
     use super::*;
     use crate::job_message_catalog::resolve_job_message;
-    use crate::message_catalog::UiLocale;
+    use i18n_foundation::UiLocale;
 
     fn sample_record(status: CamJobStatus) -> CamJobRecord {
         CamJobRecord {
