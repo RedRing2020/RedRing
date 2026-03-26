@@ -1,4 +1,4 @@
-use crate::message_catalog::{UiMessage, UiMessageArg};
+use i18n_foundation::{UiMessage, UiMessageArg};
 
 /// JobError相当の生文字列を、Job専用の message key へ正規化する。
 pub fn normalize_job_error_message(raw: &str) -> UiMessage {

@@ -1,4 +1,4 @@
-use crate::message_catalog::{resolve_message, TableMessageCatalog, UiLocale, UiMessage};
+use i18n_foundation::{resolve_message, TableMessageCatalog, UiLocale, UiMessage};
 
 const JOB_TEMPLATE_JA: &[(&str, &str)] = &[
     ("job.status.queued", "ジョブは待機中です"),

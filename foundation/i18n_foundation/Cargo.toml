@@ -1,0 +1,10 @@
+[package]
+name = "i18n_foundation"
+version = "0.1.0"
+edition = "2024"
+description = "Localization foundation for RedRing"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
