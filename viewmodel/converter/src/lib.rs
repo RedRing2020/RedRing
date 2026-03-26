@@ -28,6 +28,8 @@ pub mod snapshot_converter;
 pub mod stl_loader;
 pub mod svg_loader;
 pub mod toolpath_converter;
+pub mod validation_message_catalog;
+pub mod validation_message_mapper;
 
 /// テスト用の関数（削除予定）
 pub fn add(left: u64, right: u64) -> u64 {

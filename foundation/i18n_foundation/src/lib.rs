@@ -52,6 +52,13 @@ impl TableMessageCatalog {
             .find(|(candidate, _)| *candidate == key)
             .map(|(_, template)| *template)
     }
+
+    pub fn template_or_none(&self, locale: UiLocale, key: &str) -> Option<&'static str> {
+        match locale {
+            UiLocale::Ja => Self::lookup(self.ja, key),
+            UiLocale::En => Self::lookup(self.en, key),
+        }
+    }
 }
 
 impl MessageCatalog for TableMessageCatalog {
@@ -70,8 +77,12 @@ pub fn resolve_message<C: MessageCatalog>(
 ) -> String {
     let template = catalog.template(locale, &message.key);
 
+    render_template(template, &message.args)
+}
+
+pub fn render_template(template: &str, args: &[UiMessageArg]) -> String {
     let mut resolved = template.to_string();
-    for arg in &message.args {
+    for arg in args {
         resolved = resolved.replace(&format!("{{{}}}", arg.name), &arg.value);
     }
     resolved
