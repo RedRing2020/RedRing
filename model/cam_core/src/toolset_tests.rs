@@ -85,6 +85,7 @@ fn test_toolset_validation() {
         40.0,
         10.0,
     )
+    .with_shank_length(25.0)
     .with_reference_point(ToolSetReferencePoint::Gauge);
 
     assert!(toolset.validate_parameters());
@@ -107,7 +108,53 @@ fn test_toolset_validation_rejects_invalid_lengths() {
         40.0,
         50.0,
         10.0,
-    );
+    )
+    .with_shank_length(25.0);
 
     assert!(!toolset.validate_parameters());
+}
+
+#[test]
+fn test_toolset_validation_rejects_invalid_shank_length() {
+    let tool = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 30.0);
+    let holder = Holder::new(
+        "HOLDER-E".to_string(),
+        vec![HolderSegment::cylinder(20.0, 30.0, 0.0, 0.0)],
+    );
+
+    let valid_unspecified = ToolSet::new(
+        "TS-003".to_string(),
+        "Valid Unspecified Shank Length".to_string(),
+        tool.clone(),
+        holder.clone(),
+        70.0,
+        40.0,
+        10.0,
+    )
+    .with_shank_length(0.0);
+    assert!(valid_unspecified.validate_parameters());
+
+    let invalid_equal_stickout = ToolSet::new(
+        "TS-004".to_string(),
+        "Invalid Equal Stickout Shank Length".to_string(),
+        tool.clone(),
+        holder.clone(),
+        70.0,
+        40.0,
+        10.0,
+    )
+    .with_shank_length(40.0);
+    assert!(!invalid_equal_stickout.validate_parameters());
+
+    let invalid_too_long = ToolSet::new(
+        "TS-005".to_string(),
+        "Invalid Too Long Shank Length".to_string(),
+        tool,
+        holder,
+        70.0,
+        40.0,
+        10.0,
+    )
+    .with_shank_length(45.0);
+    assert!(!invalid_too_long.validate_parameters());
 }

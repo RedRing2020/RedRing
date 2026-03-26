@@ -29,5 +29,6 @@ pub fn sample_toolset() -> ToolSet<f64> {
         40.0,
         10.0,
     )
+    .with_shank_length(25.0)
     .with_reference_point(ToolSetReferencePoint::Tip)
 }
