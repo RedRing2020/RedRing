@@ -279,7 +279,7 @@ pub struct ToolSet<T: Scalar = f64> {
 
     /// シャンク長（mm）
     ///
-    /// `0` は「未指定」を意味する後方互換値。
+    /// `0` は「未指定」を意味する
     pub shank_length: T,
 
     /// 有効フラグ
@@ -294,7 +294,6 @@ impl<T: Scalar> ToolSet<T> {
         holder: Holder<T>,
         overall_length: T,
         stickout_length: T,
-        shank_diameter: T,
     ) -> Self {
         Self {
             id,
@@ -304,11 +303,17 @@ impl<T: Scalar> ToolSet<T> {
             reference_point: ToolSetReferencePoint::Tip,
             overall_length,
             stickout_length,
-            shank_diameter,
+            // 既定値は未指定（0）とする。
+            shank_diameter: T::ZERO,
             // 既定値は未指定（0）とする。
             shank_length: T::ZERO,
             enabled: true,
         }
+    }
+
+    pub fn with_shank_diameter(mut self, shank_diameter: T) -> Self {
+        self.shank_diameter = shank_diameter;
+        self
     }
 
     pub fn with_shank_length(mut self, shank_length: T) -> Self {
@@ -341,7 +346,7 @@ impl<T: Scalar> ToolSet<T> {
         if self.stickout_length > self.overall_length {
             return false;
         }
-        if self.shank_diameter <= T::ZERO {
+        if self.shank_diameter < T::ZERO {
             return false;
         }
         if self.shank_length < T::ZERO {

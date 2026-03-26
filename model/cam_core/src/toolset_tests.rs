@@ -83,8 +83,8 @@ fn test_toolset_validation() {
         holder,
         75.0,
         40.0,
-        10.0,
     )
+    .with_shank_diameter(10.0)
     .with_shank_length(25.0)
     .with_reference_point(ToolSetReferencePoint::Gauge);
 
@@ -107,8 +107,8 @@ fn test_toolset_validation_rejects_invalid_lengths() {
         holder,
         40.0,
         50.0,
-        10.0,
     )
+    .with_shank_diameter(10.0)
     .with_shank_length(25.0);
 
     assert!(!toolset.validate_parameters());
@@ -129,8 +129,8 @@ fn test_toolset_validation_rejects_invalid_shank_length() {
         holder.clone(),
         70.0,
         40.0,
-        10.0,
     )
+    .with_shank_diameter(10.0)
     .with_shank_length(0.0);
     assert!(valid_unspecified.validate_parameters());
 
@@ -141,8 +141,8 @@ fn test_toolset_validation_rejects_invalid_shank_length() {
         holder.clone(),
         70.0,
         40.0,
-        10.0,
     )
+    .with_shank_diameter(10.0)
     .with_shank_length(40.0);
     assert!(!invalid_equal_stickout.validate_parameters());
 
@@ -153,8 +153,8 @@ fn test_toolset_validation_rejects_invalid_shank_length() {
         holder,
         70.0,
         40.0,
-        10.0,
     )
+    .with_shank_diameter(10.0)
     .with_shank_length(45.0);
     assert!(!invalid_too_long.validate_parameters());
 }
