@@ -49,6 +49,11 @@ use geo_algorithms::{Point3D, Vector3D};
 /// ToolPath wire schema version used by artifact binary v0.1.
 pub const TOOLPATH_SCHEMA_VERSION_V0_1: (u16, u16) = (0, 1);
 
+/// セグメント拡張属性タグ: 線形加速度ヒント [mm/s^2]
+pub const SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2: i16 = -101;
+/// セグメント拡張属性タグ: 回転加速度ヒント [deg/s^2]
+pub const SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2: i16 = -102;
+
 /// 円弧方向
 ///
 /// Gコードの円弧補間（G02/G03）に対応します。
@@ -549,6 +554,68 @@ impl<T: Scalar> PathSegment<T> {
             }
         }
     }
+
+    /// 線形加速度ヒントを拡張属性として設定する。
+    pub fn with_linear_acceleration_hint_mm_per_sec2(
+        mut self,
+        acceleration_mm_per_sec2: f64,
+    ) -> Self {
+        upsert_ext_attr_f64(
+            &mut self.ext_attributes,
+            SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2,
+            acceleration_mm_per_sec2,
+        );
+        self
+    }
+
+    /// 回転加速度ヒントを拡張属性として設定する。
+    pub fn with_rotary_acceleration_hint_deg_per_sec2(
+        mut self,
+        acceleration_deg_per_sec2: f64,
+    ) -> Self {
+        upsert_ext_attr_f64(
+            &mut self.ext_attributes,
+            SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2,
+            acceleration_deg_per_sec2,
+        );
+        self
+    }
+
+    /// 線形加速度ヒント [mm/s^2] を取得する。
+    pub fn linear_acceleration_hint_mm_per_sec2(&self) -> Option<f64> {
+        read_ext_attr_f64(
+            &self.ext_attributes,
+            SEGMENT_EXT_TAG_LINEAR_ACCEL_MM_PER_SEC2,
+        )
+    }
+
+    /// 回転加速度ヒント [deg/s^2] を取得する。
+    pub fn rotary_acceleration_hint_deg_per_sec2(&self) -> Option<f64> {
+        read_ext_attr_f64(
+            &self.ext_attributes,
+            SEGMENT_EXT_TAG_ROTARY_ACCEL_DEG_PER_SEC2,
+        )
+    }
+}
+
+fn upsert_ext_attr_f64(ext_attributes: &mut Vec<ExtAttribute>, tag: i16, value: f64) {
+    let encoded = value.to_le_bytes().to_vec();
+    if let Some(existing) = ext_attributes.iter_mut().find(|attr| attr.tag == tag) {
+        existing.data = encoded;
+    } else {
+        ext_attributes.push(ExtAttribute::new(tag, encoded));
+    }
+}
+
+fn read_ext_attr_f64(ext_attributes: &[ExtAttribute], tag: i16) -> Option<f64> {
+    let attr = ext_attributes.iter().find(|attr| attr.tag == tag)?;
+    if attr.data.len() != 8 {
+        return None;
+    }
+
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&attr.data);
+    Some(f64::from_le_bytes(bytes))
 }
 
 /// 等高線レベル経路

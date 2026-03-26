@@ -3,13 +3,25 @@
 //! このクレートは、衝突判定・交点計算・空間分割などの幾何アルゴリズムを提供する
 //! 設計方針と全体構成は `dev/architecture/ARCHITECTURE.md` を参照
 
+pub mod angle_utils;
 pub mod collision;
+pub mod constraint_validation;
 pub mod distance;
 pub mod intersection;
 pub mod octree;
 
 // Octree関連の公開API
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
+
+pub use angle_utils::{
+    are_angles_equivalent_deg, normalize_angle_deg, normalize_angle_signed_deg, rewound_target_deg,
+    shortest_angular_delta_deg, unwind_angles_deg, RewindPolicy,
+};
+pub use constraint_validation::{
+    validate_linear_acceleration_mm_per_s2, validate_linear_speed_mm_per_min,
+    validate_linear_travel_mm, validate_rotary_acceleration_deg_per_s2, validate_rotary_angle_deg,
+    validate_rotary_speed_deg_per_min, ConstraintViolation, ValidationResult,
+};
 
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
 pub use geo_contracts::Scalar;
