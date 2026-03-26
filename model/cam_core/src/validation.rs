@@ -140,6 +140,27 @@ pub enum ValidationError {
     },
 }
 
+impl ValidationError {
+    /// ValidationError をロケール非依存の安定キーへ変換する。
+    pub fn message_key(&self) -> &'static str {
+        match self {
+            Self::ContourNotClosed { .. } => "validation.contour.not_closed",
+            Self::InsufficientPoints { .. } => "validation.contour.insufficient_points",
+            Self::EmptyContour => "validation.contour.empty",
+            Self::FeedRateLimitExceeded { .. } => "validation.machine.feed_rate_limit_exceeded",
+            Self::LinearAccelerationLimitExceeded { .. } => {
+                "validation.machine.linear_acceleration_limit_exceeded"
+            }
+            Self::RotaryAccelerationLimitExceeded { .. } => {
+                "validation.machine.rotary_acceleration_limit_exceeded"
+            }
+            Self::LinearAxisLimitExceeded { .. } => "validation.machine.linear_axis_limit_exceeded",
+            Self::RotaryAxisLimitExceeded { .. } => "validation.machine.rotary_axis_limit_exceeded",
+            Self::UnsupportedMachineAxis { .. } => "validation.machine.unsupported_axis",
+        }
+    }
+}
+
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -837,5 +858,86 @@ mod tests {
             result,
             Err(ValidationError::UnsupportedMachineAxis { .. })
         ));
+    }
+
+    #[test]
+    fn test_validation_error_message_key_mapping() {
+        assert_eq!(
+            ValidationError::ContourNotClosed {
+                distance: 1.0,
+                tolerance: 0.001
+            }
+            .message_key(),
+            "validation.contour.not_closed"
+        );
+        assert_eq!(
+            ValidationError::InsufficientPoints { point_count: 2 }.message_key(),
+            "validation.contour.insufficient_points"
+        );
+        assert_eq!(
+            ValidationError::EmptyContour.message_key(),
+            "validation.contour.empty"
+        );
+        assert_eq!(
+            ValidationError::FeedRateLimitExceeded {
+                segment_index: 0,
+                feed_rate: 1000.0,
+                max_feed_rate: 500.0
+            }
+            .message_key(),
+            "validation.machine.feed_rate_limit_exceeded"
+        );
+        assert_eq!(
+            ValidationError::LinearAccelerationLimitExceeded {
+                segment_index: 0,
+                acceleration_mm_per_sec2: 80.0,
+                max_acceleration_mm_per_sec2: 50.0
+            }
+            .message_key(),
+            "validation.machine.linear_acceleration_limit_exceeded"
+        );
+        assert_eq!(
+            ValidationError::RotaryAccelerationLimitExceeded {
+                segment_index: 0,
+                acceleration_deg_per_sec2: 180.0,
+                max_acceleration_deg_per_sec2: 120.0
+            }
+            .message_key(),
+            "validation.machine.rotary_acceleration_limit_exceeded"
+        );
+        assert_eq!(
+            ValidationError::LinearAxisLimitExceeded {
+                segment_index: 0,
+                pose_endpoint: "start",
+                axis_name: "X".to_string(),
+                value_mm: 120.0,
+                min_mm: 0.0,
+                max_mm: 100.0
+            }
+            .message_key(),
+            "validation.machine.linear_axis_limit_exceeded"
+        );
+        assert_eq!(
+            ValidationError::RotaryAxisLimitExceeded {
+                segment_index: 0,
+                pose_endpoint: "end",
+                axis_name: "A".to_string(),
+                value_deg: 200.0,
+                min_deg: -120.0,
+                max_deg: 120.0
+            }
+            .message_key(),
+            "validation.machine.rotary_axis_limit_exceeded"
+        );
+        assert_eq!(
+            ValidationError::UnsupportedMachineAxis {
+                segment_index: 0,
+                pose_endpoint: "start",
+                axis_name: "Q".to_string(),
+                axis_kind: MachineAxisKind::Linear,
+            }
+            .message_key(),
+            "validation.machine.unsupported_axis"
+        );
     }
 }
