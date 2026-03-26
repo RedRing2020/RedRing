@@ -132,6 +132,11 @@ ValidationError のロケール非依存表現:
 - ValidationError 用 message catalog（JA/EN）を追加
 - フォールバック規約を実装
 
+2026-03-26 追記（#442 残タスク）:
+- `validation_message_mapper` で `ValidationError -> UiMessage` を一元化する
+- `validation_message_catalog` で JA/EN テーブルを提供する
+- フォールバックは `指定ロケール -> En -> key文字列` をテストで担保する
+
 ### Phase 3
 
 - UI/ログの呼び出し経路を新経路へ段階移行
