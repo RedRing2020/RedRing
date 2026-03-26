@@ -2,13 +2,14 @@
 
 **作成日**: 2026年2月22日  
 **対象Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214)  
-**前提Issue**: [#246](https://github.com/RedRing2020/RedRing/issues/246)（完了）
+**前提Issue**: [#246](https://github.com/RedRing2020/RedRing/issues/246)（完了）、[#260](https://github.com/RedRing2020/RedRing/issues/260)（ToolSet shank属性補完）
 
 ---
 
 ## 1. 着手ゲート確認
 
 - [x] #246 ツールセット定義が実装済み（`ToolSet` / `Holder` / 干渉距離）
+- [x] #260 shank 属性が実装済み（`shank_diameter` / `shank_length`）
 - [x] #246 の定義がドキュメント化済み
 - [x] #214 側に #246 前提コメント連携済み
 - [x] `develop` ブランチにマージ済み

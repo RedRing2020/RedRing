@@ -48,6 +48,7 @@ Issue #214 の初回着手を **Phase 1a（計算コア最小実装）** に限�
 - [ ] `develop` 最新を取り込み済み
 - [ ] 作業ブランチ `feature/issue-214-design` で開始
 - [ ] #246 完了前提（ToolSet/Holder定義）を再確認
+- [ ] #260 完了前提（`shank_diameter` / `shank_length` 定義）を再確認
 - [ ] `cargo test --workspace` の現状グリーンを確認
 - [ ] `scripts/check_architecture_dependencies_simple.ps1` が成功
 
