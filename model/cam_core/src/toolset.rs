@@ -277,6 +277,11 @@ pub struct ToolSet<T: Scalar = f64> {
     /// シャンク径（mm）
     pub shank_diameter: T,
 
+    /// シャンク長（mm）
+    ///
+    /// `0` は「未指定」を意味する
+    pub shank_length: T,
+
     /// 有効フラグ
     pub enabled: bool,
 }
@@ -289,7 +294,6 @@ impl<T: Scalar> ToolSet<T> {
         holder: Holder<T>,
         overall_length: T,
         stickout_length: T,
-        shank_diameter: T,
     ) -> Self {
         Self {
             id,
@@ -299,9 +303,22 @@ impl<T: Scalar> ToolSet<T> {
             reference_point: ToolSetReferencePoint::Tip,
             overall_length,
             stickout_length,
-            shank_diameter,
+            // 既定値は未指定（0）とする。
+            shank_diameter: T::ZERO,
+            // 既定値は未指定（0）とする。
+            shank_length: T::ZERO,
             enabled: true,
         }
+    }
+
+    pub fn with_shank_diameter(mut self, shank_diameter: T) -> Self {
+        self.shank_diameter = shank_diameter;
+        self
+    }
+
+    pub fn with_shank_length(mut self, shank_length: T) -> Self {
+        self.shank_length = shank_length;
+        self
     }
 
     pub fn with_reference_point(mut self, reference_point: ToolSetReferencePoint) -> Self {
@@ -329,7 +346,15 @@ impl<T: Scalar> ToolSet<T> {
         if self.stickout_length > self.overall_length {
             return false;
         }
-        if self.shank_diameter <= T::ZERO {
+        if self.shank_diameter < T::ZERO {
+            return false;
+        }
+        if self.shank_length < T::ZERO {
+            return false;
+        }
+        // shank_length が指定された場合、突き出し長と同値以上は
+        // 「突出部が全て非切削部」を意味し、実用上の干渉判定前提を満たさない。
+        if self.shank_length > T::ZERO && self.shank_length >= self.stickout_length {
             return false;
         }
 
