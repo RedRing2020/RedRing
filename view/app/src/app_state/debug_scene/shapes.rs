@@ -15,7 +15,11 @@ impl AppState {
                 Some(vertices)
             }
             Err(error) => {
-                tracing::error!("SVG読み込みエラー: {}", error);
+                tracing::error!(
+                    error_kind = logging_foundation::ERROR_KIND_APP,
+                    "svg load failed: {}",
+                    error
+                );
                 None
             }
         }

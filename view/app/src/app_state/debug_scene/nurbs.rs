@@ -22,7 +22,11 @@ impl AppState {
             {
                 Ok(data) => data,
                 Err(error) => {
-                    tracing::error!("NURBS曲線データ生成失敗: {}", error);
+                    tracing::error!(
+                        error_kind = logging_foundation::ERROR_KIND_APP,
+                        "nurbs curve eval data generation failed: {}",
+                        error
+                    );
                     return;
                 }
             };
@@ -61,7 +65,11 @@ impl AppState {
             match viewmodel::nurbs_eval_loader::create_sample_nurbs_surface_eval(tolerance_value) {
                 Ok(data) => data,
                 Err(error) => {
-                    tracing::error!("NURBS曲面データ生成失敗: {}", error);
+                    tracing::error!(
+                        error_kind = logging_foundation::ERROR_KIND_APP,
+                        "nurbs surface eval data generation failed: {}",
+                        error
+                    );
                     return;
                 }
             };

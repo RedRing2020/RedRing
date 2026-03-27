@@ -54,13 +54,19 @@ impl NurbsCurveStage {
         );
 
         if num_evals == 0 {
-            tracing::warn!("⚠️ 評価点が0個 - 曲線描画されません");
+            tracing::warn!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "nurbs curve stage: no eval points, skip draw"
+            );
             self.has_data = false;
             return;
         }
 
         if num_cps == 0 {
-            tracing::warn!("⚠️ 制御点が0個 - 曲線描画されません");
+            tracing::warn!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "nurbs curve stage: no control points, skip draw"
+            );
             self.has_data = false;
             return;
         }
@@ -116,7 +122,10 @@ impl RenderStage for NurbsCurveStage {
         }
 
         let Some(resources) = &self.resources else {
-            tracing::warn!("NurbsCurveStage: リソース未初期化");
+            tracing::warn!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "nurbs curve stage: resources not initialized"
+            );
             return;
         };
 
