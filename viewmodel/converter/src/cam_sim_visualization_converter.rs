@@ -3,7 +3,10 @@
 //! CAMシミュレーション（toolpath + tool + work octree）の実行と、
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
-use cam_core::{PathGeometry, Tool, ToolPath};
+use cam_core::{
+    validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, PathGeometry, Tool,
+    ToolPath, ValidationError,
+};
 use cam_sim::{CuttingSimulator, SimulationError, SnapshotInterval};
 use geo_algorithms::{
     octree::{VoxelOctree, VoxelState},
@@ -24,6 +27,35 @@ use crate::snapshot_converter::{
 use crate::toolpath_converter::{
     create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CamSimulationVisualizationError {
+    Validation(ValidationError),
+    Simulation(SimulationError),
+}
+
+impl std::fmt::Display for CamSimulationVisualizationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Validation(error) => write!(f, "{}", error),
+            Self::Simulation(error) => write!(f, "{}", error),
+        }
+    }
+}
+
+impl std::error::Error for CamSimulationVisualizationError {}
+
+impl From<ValidationError> for CamSimulationVisualizationError {
+    fn from(value: ValidationError) -> Self {
+        Self::Validation(value)
+    }
+}
+
+impl From<SimulationError> for CamSimulationVisualizationError {
+    fn from(value: SimulationError) -> Self {
+        Self::Simulation(value)
+    }
+}
 
 /// CAMシミュレーション可視化用の結合データ。
 ///
@@ -504,9 +536,13 @@ fn apply_cutting_progress(
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
 pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
     settings: &OctreeVisualizationSettings,
-) -> Result<CamSimulationVisualizationBundle, SimulationError> {
+) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
     let toolpath = create_sample_toolpath();
     let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
+    let tolerance = CamTolerance::default();
+    let machine_constraint = MachineConstraint::empty();
+    validate_toolpath_machine_constraints(&toolpath, &machine_constraint, &tolerance)?;
+
     let segments = collect_line_segments_with_flags(&toolpath)?;
 
     let work_bounds = compute_work_bounds_from_toolpath(&segments, tool.radius());
