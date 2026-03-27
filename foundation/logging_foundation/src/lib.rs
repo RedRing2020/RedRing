@@ -1,3 +1,7 @@
+//! RedRing ワークスペース共通のロギング基盤。
+//!
+//! 初期化・レート制御・パス生成・構造化フィールド定数を再エクスポートする。
+
 pub mod filter;
 pub mod init;
 pub mod path;

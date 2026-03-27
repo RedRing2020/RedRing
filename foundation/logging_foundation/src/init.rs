@@ -3,6 +3,7 @@ use std::path::Path;
 
 use crate::path::prepare_log_file;
 
+/// ロギング初期化時の設定値。
 pub struct LoggingInitConfig<'a> {
     pub default_filter: &'a str,
     pub log_dir: &'a str,
@@ -10,6 +11,7 @@ pub struct LoggingInitConfig<'a> {
     pub app_name: &'a str,
 }
 
+/// ログ出力先を準備して subscriber を初期化する。
 pub fn init_logging(config: &LoggingInitConfig<'_>) {
     let log_file_path = prepare_log_file(config.log_dir, config.log_file_name);
 
@@ -35,6 +37,7 @@ fn init_dual_output_logging(config: &LoggingInitConfig<'_>, log_file_path: &Path
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
 
+    // コンソールとファイルへ同時出力する。
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(filter))
         .with(

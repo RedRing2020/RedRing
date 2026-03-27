@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+/// 環境変数からフレーム間隔を取得する。
 pub fn frame_interval_from_env(var_name: &str, default: u64) -> u64 {
     std::env::var(var_name)
         .ok()
@@ -8,10 +9,12 @@ pub fn frame_interval_from_env(var_name: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+/// Nフレームごとにログを出すべきか判定する。
 pub fn should_log_every_n_frames(frame: u64, interval: u64) -> bool {
     interval > 0 && frame.is_multiple_of(interval)
 }
 
+/// 前回ログ時刻から指定時間が経過したか判定する。
 pub fn should_log_after(last: &mut Instant, interval: Duration) -> bool {
     if last.elapsed() >= interval {
         *last = Instant::now();
