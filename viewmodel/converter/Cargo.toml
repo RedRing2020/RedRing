@@ -17,6 +17,7 @@ cam_sim = { path = "../../model/cam_sim" }
 job_domain = { path = "../../model/job_domain" }
 analysis = { path = "../../foundation/analysis" }
 i18n_foundation = { path = "../../foundation/i18n_foundation" }
+logging_foundation = { path = "../../foundation/logging_foundation" }
 tracing = "0.1"
 thiserror = "2.0"
 
