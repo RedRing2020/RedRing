@@ -23,7 +23,11 @@ impl AppState {
                 self.log_current_snapshot_frame(true);
             }
             Err(error) => {
-                tracing::error!("シミュレーションスナップショット読込失敗: {}", error);
+                tracing::error!(
+                    error_kind = logging_foundation::ERROR_KIND_SIMULATION,
+                    "cam simulation snapshot load failed: {}",
+                    error
+                );
             }
         }
     }

@@ -128,7 +128,10 @@ fn calculate_bounds(mesh: &geo_algorithms::TriangleMesh3D<f64>) -> ([f32; 3], [f
         (min_bounds, max_bounds)
     } else {
         // デフォルトの境界ボックス（空のメッシュの場合）
-        tracing::warn!("メッシュが空のため、デフォルト境界ボックスを使用");
+        tracing::warn!(
+            error_kind = logging_foundation::ERROR_KIND_APP,
+            "mesh is empty, falling back to default bounding box"
+        );
         ([-1.0, -1.0, -1.0], [1.0, 1.0, 1.0])
     }
 }

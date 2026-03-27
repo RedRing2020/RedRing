@@ -59,7 +59,10 @@ impl NurbsSurfaceStage {
         );
 
         if num_vertices == 0 {
-            tracing::warn!("⚠️ 評価点が0個 - 曲面描画されません");
+            tracing::warn!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "nurbs surface stage: no eval points, skip draw"
+            );
             self.has_data = false;
             return;
         }
