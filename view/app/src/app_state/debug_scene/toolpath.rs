@@ -2,9 +2,17 @@
 
 use super::super::AppState;
 use super::camera_fit::CameraFit;
+use logging_foundation::{ERROR_KIND_SIMULATION, ERROR_KIND_VALIDATION};
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{MeshStage, OctreeStage};
+use viewmodel::cam_sim_visualization_converter::CamSimulationVisualizationError;
 use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
+
+enum ToolPathBuildError {
+    Converter(CamSimulationVisualizationError),
+    EmptyFrames,
+    EmptyVertices,
+}
 
 struct ToolPathDebugData {
     snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
@@ -17,26 +25,16 @@ struct ToolPathDebugData {
 }
 
 impl AppState {
-    fn build_toolpath_debug_data(&self) -> Result<ToolPathDebugData, String> {
-        use viewmodel::cam_sim_visualization_converter::{
-            create_sample_cam_simulation_visualization_bundle_with_settings,
-            CamSimulationVisualizationError,
-        };
-        use viewmodel::message_catalog::UiLocale;
-        use viewmodel::validation_message_catalog::resolve_validation_error;
+    fn build_toolpath_debug_data(&self) -> Result<ToolPathDebugData, ToolPathBuildError> {
+        use viewmodel::cam_sim_visualization_converter::create_sample_cam_simulation_visualization_bundle_with_settings;
 
         let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(
             &self.octree_visualization_settings,
         )
-        .map_err(|error| match error {
-            CamSimulationVisualizationError::Validation(validation_error) => {
-                resolve_validation_error(UiLocale::Ja, &validation_error)
-            }
-            CamSimulationVisualizationError::Simulation(sim_error) => sim_error.to_string(),
-        })?;
+        .map_err(ToolPathBuildError::Converter)?;
 
         if bundle.snapshot_wireframes.is_empty() {
-            return Err("CAMシミュレーション可視化フレームが空です".to_string());
+            return Err(ToolPathBuildError::EmptyFrames);
         }
 
         let frame_count = bundle.snapshot_wireframes.len();
@@ -45,8 +43,7 @@ impl AppState {
             .last()
             .map(|vertices| vertices.iter().map(|v| v.position).collect())
             .unwrap_or_default();
-        let fit = Self::build_camera_fit(&positions)
-            .ok_or_else(|| "CAMシミュレーション可視化頂点が空です".to_string())?;
+        let fit = Self::build_camera_fit(&positions).ok_or(ToolPathBuildError::EmptyVertices)?;
 
         let snapshot_solids = bundle
             .snapshot_solid_meshes
@@ -129,16 +126,38 @@ impl AppState {
 
         let data = match self.build_toolpath_debug_data() {
             Ok(data) => data,
-            Err(error) if error.contains("フレームが空") => {
+            Err(ToolPathBuildError::EmptyFrames) => {
                 tracing::warn!("CAMシミュレーション可視化フレームが空のため表示をスキップ");
                 return;
             }
-            Err(error) if error.contains("頂点が空") => {
+            Err(ToolPathBuildError::EmptyVertices) => {
                 tracing::warn!("CAMシミュレーション可視化頂点が空のため表示をスキップ");
                 return;
             }
-            Err(error) => {
-                tracing::error!("CAMシミュレーション可視化データ生成失敗: {}", error);
+            Err(ToolPathBuildError::Converter(CamSimulationVisualizationError::Validation(
+                ref err,
+            ))) => {
+                use viewmodel::message_catalog::UiLocale;
+                use viewmodel::validation_message_catalog::resolve_validation_error;
+                use viewmodel::validation_message_mapper::validation_error_to_ui_message;
+                let error_key = validation_error_to_ui_message(err).key;
+                let message_en = resolve_validation_error(UiLocale::En, err);
+                tracing::error!(
+                    error_key = %error_key,
+                    error_kind = ERROR_KIND_VALIDATION,
+                    message = %message_en,
+                    "cam simulation visualization failed"
+                );
+                return;
+            }
+            Err(ToolPathBuildError::Converter(CamSimulationVisualizationError::Simulation(
+                ref err,
+            ))) => {
+                tracing::error!(
+                    error_kind = ERROR_KIND_SIMULATION,
+                    "cam simulation visualization failed: {}",
+                    err
+                );
                 return;
             }
         };

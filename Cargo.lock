@@ -2793,6 +2793,7 @@ dependencies = [
  "geo_primitives",
  "i18n_foundation",
  "job_domain",
+ "logging_foundation",
  "tempfile",
  "thiserror 2.0.17",
  "tracing",

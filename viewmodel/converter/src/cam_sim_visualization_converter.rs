@@ -27,6 +27,7 @@ use crate::snapshot_converter::{
 use crate::toolpath_converter::{
     create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
 };
+use logging_foundation::ERROR_KIND_SIMULATION;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamSimulationVisualizationError {
@@ -552,8 +553,9 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
         count_non_cutting_interference_segments(&segments, &work_bounds, tool.radius());
     if non_cutting_interference_count > 0 {
         tracing::warn!(
-            "非切削セグメントとワークの干渉候補を検出: {} 件（現在は干渉回避計算未実装）",
-            non_cutting_interference_count
+            error_kind = ERROR_KIND_SIMULATION,
+            count = non_cutting_interference_count,
+            "non-cutting segments may interfere with workpiece (collision avoidance not yet implemented)"
         );
     }
 
