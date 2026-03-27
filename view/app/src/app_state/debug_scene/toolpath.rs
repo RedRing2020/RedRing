@@ -18,12 +18,22 @@ struct ToolPathDebugData {
 
 impl AppState {
     fn build_toolpath_debug_data(&self) -> Result<ToolPathDebugData, String> {
-        use viewmodel::cam_sim_visualization_converter::create_sample_cam_simulation_visualization_bundle_with_settings;
+        use viewmodel::cam_sim_visualization_converter::{
+            create_sample_cam_simulation_visualization_bundle_with_settings,
+            CamSimulationVisualizationError,
+        };
+        use viewmodel::message_catalog::UiLocale;
+        use viewmodel::validation_message_catalog::resolve_validation_error;
 
         let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(
             &self.octree_visualization_settings,
         )
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| match error {
+            CamSimulationVisualizationError::Validation(validation_error) => {
+                resolve_validation_error(UiLocale::Ja, &validation_error)
+            }
+            CamSimulationVisualizationError::Simulation(sim_error) => sim_error.to_string(),
+        })?;
 
         if bundle.snapshot_wireframes.is_empty() {
             return Err("CAMシミュレーション可視化フレームが空です".to_string());
