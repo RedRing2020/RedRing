@@ -14,10 +14,9 @@ use crate::{
     TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DMeasure, Arc3DProperties, Circle3DProperties,
-    CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Ellipse3DMeasure,
-    EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar, TorusSurface3DMeasure,
-    Triangle3DProperties,
+    Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSurface3DMeasure,
+    CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
+    InfiniteLine3DProperties, Scalar, TorusSurface3DMeasure, Triangle3DProperties,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
