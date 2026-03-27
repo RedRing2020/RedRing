@@ -14,9 +14,10 @@ use crate::{
     TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSurface3DMeasure,
-    CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
-    InfiniteLine3DProperties, Scalar, TorusSurface3DMeasure, Triangle3DProperties,
+    default_orthogonality_dot_error_tolerance, Arc3DMeasure, Arc3DProperties, Circle3DProperties,
+    CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Ellipse3DMeasure,
+    EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar, TorusSurface3DMeasure,
+    Triangle3DProperties,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -558,17 +559,17 @@ pub fn triangle3d_point3d_intersection<T: Scalar>(
 pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
     triangle: &Triangle3D<T>,
     segment: &LineSegment3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let start = segment.start();
     let end = segment.end();
     let dir = end - start;
     let length = dir.length();
-    if length <= T::EPSILON {
+    if length <= tolerance {
         return None;
     }
     let ray = Ray3D::new(start, dir)?;
-    let point = triangle3d_ray3d_intersection(triangle, &ray, _tolerance)?;
+    let point = triangle3d_ray3d_intersection(triangle, &ray, tolerance)?;
 
     let t = ray.parameter_for_point(&point);
     if t >= T::ZERO && t <= length {
@@ -606,7 +607,8 @@ pub fn triangle3d_ray3d_intersection<T: Scalar>(
     let h = ray_dir.cross(&edge2);
     let a = edge1.dot(&h);
 
-    if a.abs() < T::EPSILON {
+    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
+    if a.abs() <= dot_tolerance {
         return None;
     }
 
@@ -694,8 +696,9 @@ pub fn plane3d_line_segment3d_intersection<T: Scalar>(
 
     let normal = plane.normal().as_vector();
     let denom = direction.dot(&normal);
+    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
 
-    if denom.abs() <= T::EPSILON {
+    if denom.abs() <= dot_tolerance {
         return if plane.contains_point(start, tolerance) {
             Some(start)
         } else {
@@ -726,8 +729,9 @@ pub fn plane3d_ray3d_intersection<T: Scalar>(
     let direction = ray.direction_vector();
     let normal = plane.normal().as_vector();
     let denom = direction.dot(&normal);
+    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
 
-    if denom.abs() <= T::EPSILON {
+    if denom.abs() <= dot_tolerance {
         return if plane.contains_point(origin, tolerance) {
             Some(origin)
         } else {
@@ -752,7 +756,7 @@ pub fn plane3d_ray3d_intersection<T: Scalar>(
 pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
     plane: &Plane3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let lp = line.point();
     let ld = line.direction();
@@ -760,9 +764,10 @@ pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
     let line_dir_vec = crate::Vector3D::new(ld.0, ld.1, ld.2);
     let normal = plane.normal().as_vector();
     let denom = line_dir_vec.dot(&normal);
+    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
 
-    if denom.abs() <= T::EPSILON {
-        return if plane.distance_to_point(line_point).abs() <= T::EPSILON {
+    if denom.abs() <= dot_tolerance {
+        return if plane.distance_to_point(line_point).abs() <= tolerance {
             Some(line_point)
         } else {
             None
@@ -805,7 +810,7 @@ pub fn ray3d_ray3d_intersection<T: Scalar>(
 pub fn ray3d_line_segment3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     segment: &LineSegment3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
     let segment_line = segment.line();
@@ -815,7 +820,7 @@ pub fn ray3d_line_segment3d_intersection<T: Scalar>(
     }
 
     let point = ray_line.intersection_with_line(segment_line)?;
-    if ray.contains_point(&point, T::EPSILON) && segment.contains_point(&point, T::EPSILON) {
+    if ray.contains_point(&point, tolerance) && segment.contains_point(&point, tolerance) {
         Some(point)
     } else {
         None
@@ -825,7 +830,7 @@ pub fn ray3d_line_segment3d_intersection<T: Scalar>(
 pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
 
@@ -834,7 +839,7 @@ pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
     }
 
     let point = ray_line.intersection_with_line(line)?;
-    if ray.contains_point(&point, T::EPSILON) {
+    if ray.contains_point(&point, tolerance) {
         Some(point)
     } else {
         None
@@ -887,7 +892,8 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
     let e = d2.dot(&r);
 
     let denom = a * c - b * b;
-    if denom.abs() < T::EPSILON {
+    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
+    if denom.abs() <= dot_tolerance {
         return None;
     }
 
