@@ -14,7 +14,7 @@ use crate::{
     TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    default_orthogonality_dot_error_tolerance, Arc3DMeasure, Arc3DProperties, Circle3DProperties,
+    Arc3DMeasure, Arc3DProperties, Circle3DProperties,
     CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Ellipse3DMeasure,
     EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar, TorusSurface3DMeasure,
     Triangle3DProperties,
@@ -590,7 +590,7 @@ pub fn line_segment3d_triangle3d_intersection<T: Scalar>(
 pub fn triangle3d_ray3d_intersection<T: Scalar>(
     triangle: &Triangle3D<T>,
     ray: &Ray3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let va = triangle.vertex_a();
     let vb = triangle.vertex_b();
@@ -607,8 +607,7 @@ pub fn triangle3d_ray3d_intersection<T: Scalar>(
     let h = ray_dir.cross(&edge2);
     let a = edge1.dot(&h);
 
-    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
-    if a.abs() <= dot_tolerance {
+    if a.abs() <= tolerance {
         return None;
     }
 
@@ -696,9 +695,8 @@ pub fn plane3d_line_segment3d_intersection<T: Scalar>(
 
     let normal = plane.normal().as_vector();
     let denom = direction.dot(&normal);
-    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
 
-    if denom.abs() <= dot_tolerance {
+    if denom.abs() <= tolerance {
         return if plane.contains_point(start, tolerance) {
             Some(start)
         } else {
@@ -729,9 +727,8 @@ pub fn plane3d_ray3d_intersection<T: Scalar>(
     let direction = ray.direction_vector();
     let normal = plane.normal().as_vector();
     let denom = direction.dot(&normal);
-    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
 
-    if denom.abs() <= dot_tolerance {
+    if denom.abs() <= tolerance {
         return if plane.contains_point(origin, tolerance) {
             Some(origin)
         } else {
@@ -764,9 +761,8 @@ pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
     let line_dir_vec = crate::Vector3D::new(ld.0, ld.1, ld.2);
     let normal = plane.normal().as_vector();
     let denom = line_dir_vec.dot(&normal);
-    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
 
-    if denom.abs() <= dot_tolerance {
+    if denom.abs() <= tolerance {
         return if plane.distance_to_point(line_point).abs() <= tolerance {
             Some(line_point)
         } else {
@@ -892,8 +888,7 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
     let e = d2.dot(&r);
 
     let denom = a * c - b * b;
-    let dot_tolerance = default_orthogonality_dot_error_tolerance::<T>();
-    if denom.abs() <= dot_tolerance {
+    if denom.abs() <= tolerance {
         return None;
     }
 
