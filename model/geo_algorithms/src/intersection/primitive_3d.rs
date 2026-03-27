@@ -558,9 +558,24 @@ pub fn triangle3d_point3d_intersection<T: Scalar>(
 pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
     triangle: &Triangle3D<T>,
     segment: &LineSegment3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::triangle3d_line_segment3d_intersection(triangle, segment)
+    let start = segment.start();
+    let end = segment.end();
+    let dir = end - start;
+    let length = dir.length();
+    if length <= tolerance {
+        return None;
+    }
+    let ray = Ray3D::new(start, dir)?;
+    let point = triangle3d_ray3d_intersection(triangle, &ray, tolerance)?;
+
+    let t = ray.parameter_for_point(&point);
+    if t >= T::ZERO && t <= length {
+        Some(point)
+    } else {
+        None
+    }
 }
 
 pub fn line_segment3d_triangle3d_intersection<T: Scalar>(
@@ -574,9 +589,52 @@ pub fn line_segment3d_triangle3d_intersection<T: Scalar>(
 pub fn triangle3d_ray3d_intersection<T: Scalar>(
     triangle: &Triangle3D<T>,
     ray: &Ray3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::triangle3d_ray3d_intersection(triangle, ray)
+    let va = triangle.vertex_a();
+    let vb = triangle.vertex_b();
+    let vc = triangle.vertex_c();
+
+    let v0 = Point3D::new(va.0, va.1, va.2);
+    let v1 = Point3D::new(vb.0, vb.1, vb.2);
+    let v2 = Point3D::new(vc.0, vc.1, vc.2);
+
+    let edge1 = crate::Vector3D::from_points(&v0, &v1);
+    let edge2 = crate::Vector3D::from_points(&v0, &v2);
+
+    let ray_dir = ray.direction_vector();
+    let h = ray_dir.cross(&edge2);
+    let a = edge1.dot(&h);
+
+    if a.abs() <= tolerance {
+        return None;
+    }
+
+    let f = T::ONE / a;
+    let s = crate::Vector3D::from_points(&v0, &ray.origin());
+    let u = f * s.dot(&h);
+
+    if u < T::ZERO || u > T::ONE {
+        return None;
+    }
+
+    let q = s.cross(&edge1);
+    let v = f * ray_dir.dot(&q);
+
+    if v < T::ZERO || u + v > T::ONE {
+        return None;
+    }
+
+    let t = f * edge2.dot(&q);
+    if t < T::ZERO {
+        return None;
+    }
+
+    Some(Point3D::new(
+        ray.origin().x() + t * ray_dir.x(),
+        ray.origin().y() + t * ray_dir.y(),
+        ray.origin().z() + t * ray_dir.z(),
+    ))
 }
 
 pub fn ray3d_triangle3d_intersection<T: Scalar>(
@@ -622,7 +680,41 @@ pub fn plane3d_line_segment3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::plane3d_line_segment3d_intersection(plane, segment, tolerance)
+    let start = segment.start();
+    let end = segment.end();
+    let direction = crate::Vector3D::from_points(&start, &end);
+
+    if direction.is_zero() {
+        return if plane.contains_point(start, tolerance) {
+            Some(start)
+        } else {
+            None
+        };
+    }
+
+    let normal = plane.normal().as_vector();
+    let denom = direction.dot(&normal);
+
+    if denom.abs() <= tolerance {
+        return if plane.contains_point(start, tolerance) {
+            Some(start)
+        } else {
+            None
+        };
+    }
+
+    let to_plane = crate::Vector3D::from_points(&start, &plane.origin());
+    let t = to_plane.dot(&normal) / denom;
+
+    if t >= T::ZERO && t <= T::ONE {
+        Some(Point3D::new(
+            start.x() + t * direction.x(),
+            start.y() + t * direction.y(),
+            start.z() + t * direction.z(),
+        ))
+    } else {
+        None
+    }
 }
 
 pub fn plane3d_ray3d_intersection<T: Scalar>(
@@ -630,15 +722,60 @@ pub fn plane3d_ray3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::plane3d_ray3d_intersection(plane, ray, tolerance)
+    let origin = ray.origin();
+    let direction = ray.direction_vector();
+    let normal = plane.normal().as_vector();
+    let denom = direction.dot(&normal);
+
+    if denom.abs() <= tolerance {
+        return if plane.contains_point(origin, tolerance) {
+            Some(origin)
+        } else {
+            None
+        };
+    }
+
+    let to_plane = crate::Vector3D::from_points(&origin, &plane.origin());
+    let t = to_plane.dot(&normal) / denom;
+
+    if t >= T::ZERO {
+        Some(Point3D::new(
+            origin.x() + t * direction.x(),
+            origin.y() + t * direction.y(),
+            origin.z() + t * direction.z(),
+        ))
+    } else {
+        None
+    }
 }
 
 pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
     plane: &Plane3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::plane3d_infinite_line3d_intersection(plane, line)
+    let lp = line.point();
+    let ld = line.direction();
+    let line_point = Point3D::new(lp.0, lp.1, lp.2);
+    let line_dir_vec = crate::Vector3D::new(ld.0, ld.1, ld.2);
+    let normal = plane.normal().as_vector();
+    let denom = line_dir_vec.dot(&normal);
+
+    if denom.abs() <= tolerance {
+        return if plane.distance_to_point(line_point).abs() <= tolerance {
+            Some(line_point)
+        } else {
+            None
+        };
+    }
+
+    let to_plane = crate::Vector3D::from_points(&line_point, &plane.origin());
+    let t = to_plane.dot(&normal) / denom;
+    Some(Point3D::new(
+        line_point.x() + t * line_dir_vec.x(),
+        line_point.y() + t * line_dir_vec.y(),
+        line_point.z() + t * line_dir_vec.z(),
+    ))
 }
 
 // ── Ray3D ─────────────────────────────────────────────────────────────────────
@@ -668,17 +805,40 @@ pub fn ray3d_ray3d_intersection<T: Scalar>(
 pub fn ray3d_line_segment3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     segment: &LineSegment3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::ray3d_line_segment3d_intersection(ray, segment)
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
+    let segment_line = segment.line();
+
+    if ray_line.is_parallel_to(segment_line) || !ray_line.is_coplanar_with(segment_line) {
+        return None;
+    }
+
+    let point = ray_line.intersection_with_line(segment_line)?;
+    if ray.contains_point(&point, tolerance) && segment.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
 }
 
 pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::ray3d_infinite_line3d_intersection(ray, line)
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
+
+    if ray_line.is_parallel_to(line) || !ray_line.is_coplanar_with(line) {
+        return None;
+    }
+
+    let point = ray_line.intersection_with_line(line)?;
+    if ray.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
 }
 
 pub fn ray3d_plane3d_intersection<T: Scalar>(
@@ -711,7 +871,49 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
     seg_b: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::line_segment3d_line_segment3d_intersection(seg_a, seg_b, tolerance)
+    let p1 = seg_a.start();
+    let p2 = seg_a.end();
+    let p3 = seg_b.start();
+    let p4 = seg_b.end();
+
+    let d1 = crate::Vector3D::from_points(&p1, &p2);
+    let d2 = crate::Vector3D::from_points(&p3, &p4);
+    let r = crate::Vector3D::from_points(&p3, &p1);
+
+    let a = d1.dot(&d1);
+    let b = d1.dot(&d2);
+    let c = d2.dot(&d2);
+    let d = d1.dot(&r);
+    let e = d2.dot(&r);
+
+    let denom = a * c - b * b;
+    if denom.abs() <= tolerance {
+        return None;
+    }
+
+    let s = (b * e - c * d) / denom;
+    let t = (a * e - b * d) / denom;
+
+    if s >= T::ZERO && s <= T::ONE && t >= T::ZERO && t <= T::ONE {
+        let point1 = Point3D::new(
+            p1.x() + s * d1.x(),
+            p1.y() + s * d1.y(),
+            p1.z() + s * d1.z(),
+        );
+        let point2 = Point3D::new(
+            p3.x() + t * d2.x(),
+            p3.y() + t * d2.y(),
+            p3.z() + t * d2.z(),
+        );
+
+        if point1.distance_to(&point2) <= tolerance {
+            Some(point1)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 pub fn line_segment3d_ray3d_intersection<T: Scalar>(
@@ -760,7 +962,12 @@ pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
     line_b: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::infinite_line3d_infinite_line3d_intersection(line_a, line_b, tolerance)
+    let point = line_a.intersection_with_line(line_b)?;
+    if line_b.distance_to_point(&point) <= tolerance {
+        Some(point)
+    } else {
+        None
+    }
 }
 
 pub fn infinite_line3d_line_segment3d_intersection<T: Scalar>(
@@ -768,7 +975,13 @@ pub fn infinite_line3d_line_segment3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::infinite_line3d_line_segment3d_intersection(line, segment, tolerance)
+    let segment_line = segment.line();
+    let point = line.intersection_with_line(segment_line)?;
+    if segment.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
 }
 
 pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
@@ -776,7 +989,13 @@ pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::infinite_line3d_ray3d_intersection(line, ray, tolerance)
+    let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
+    let point = line.intersection_with_line(&ray_line)?;
+    if ray.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
