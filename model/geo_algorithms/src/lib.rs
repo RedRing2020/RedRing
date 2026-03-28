@@ -9,6 +9,7 @@ pub mod constraint_validation;
 pub mod distance;
 pub mod intersection;
 pub mod octree;
+pub mod result;
 
 // Octree関連の公開API
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
@@ -23,10 +24,16 @@ pub use constraint_validation::{
     validate_rotary_speed_deg_per_min, ConstraintViolation, ValidationResult,
 };
 
+// geo_algorithms が提供する交差結果型
+pub use result::{IntersectionGeometry, IntersectionResult, IntersectionTopology};
+
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
 pub use geo_contracts::Scalar;
 pub use geo_nurbs::adaptive_tessellation;
 pub use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
+
+// Topology types from geo_topology
+pub use geo_topology::{CompositeCurve3D, CurveSegment3D};
 
 // geo_primitives の基本型を再エクスポート（ViewModel層がgeo_primitivesに直接依存しないように）
 // 基本ポイント・ベクトル型（geo_coreから）

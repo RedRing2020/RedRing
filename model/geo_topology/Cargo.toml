@@ -1,0 +1,13 @@
+[package]
+name = "geo_topology"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+geo_contracts = { path = "../geo_contracts", version = "0.1.0" }
+geo_commons = { path = "../geo_commons", version = "0.1.0" }
+geo_core = { path = "../geo_core", version = "0.1.0" }
+geo_primitives = { path = "../geo_primitives", version = "0.1.0" }
+analysis = { path = "../../foundation/analysis", version = "0.1.0" }
+
+[dev-dependencies]

@@ -6,6 +6,7 @@ members = [
   "model/geo_contracts",  # Model層：幾何形状契約（trait定義）
   "model/geo_core",       # Model層：幾何計算基盤
   "model/geo_primitives", # Model層：幾何プリミティブクレート
+  "model/geo_topology",   # Model層：位相構造クレート（CompositeCurve等）
   "model/geo_algorithms", # Model層：幾何アルゴリズムクレート
   "model/geo_nurbs",      # Model層：NURBS曲線・曲面クレート（高レベルアルゴリズム）
   "model/geo_io",         # Model層：ファイルI/Oクレート

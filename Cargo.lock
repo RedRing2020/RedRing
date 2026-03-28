@@ -695,6 +695,7 @@ dependencies = [
  "geo_core",
  "geo_nurbs",
  "geo_primitives",
+ "geo_topology",
  "rayon",
 ]
 
@@ -779,6 +780,17 @@ dependencies = [
  "geo_contracts",
  "geo_core",
  "serde",
+]
+
+[[package]]
+name = "geo_topology"
+version = "0.1.0"
+dependencies = [
+ "analysis",
+ "geo_commons",
+ "geo_contracts",
+ "geo_core",
+ "geo_primitives",
 ]
 
 [[package]]
