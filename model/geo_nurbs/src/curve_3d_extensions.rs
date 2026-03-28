@@ -5,6 +5,7 @@ use crate::adaptive_tessellation::{
     NurbsCurveAdaptiveTessellation,
 };
 use crate::NurbsCurve3D;
+use geo_contracts::default_kernel_numerical_zero_tolerance;
 use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
 
@@ -65,7 +66,8 @@ impl<T: Scalar> NurbsCurve3D<T> {
         // トレランスから適切なサンプル数を決定
         // より小さいトレランス → より多くのサンプル
         let base_subdivisions = 100;
-        let tolerance_factor = T::ONE / tolerance.max(T::EPSILON);
+        let tolerance_factor =
+            T::ONE / tolerance.max(default_kernel_numerical_zero_tolerance::<T>());
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let subdivisions = (f64::from(base_subdivisions) * tolerance_factor.to_f64().sqrt())
             .min(10000.0)

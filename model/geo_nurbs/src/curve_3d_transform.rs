@@ -8,6 +8,7 @@ use analysis::linalg::{
     matrix::Matrix4x4,
     vector::{Vector3, Vector4},
 };
+use geo_contracts::default_kernel_numerical_zero_tolerance;
 use geo_contracts::NurbsCurve3DProperties;
 use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
@@ -30,7 +31,7 @@ fn transform_control_points<T: Scalar>(
 
         // w成分で除算（透視投影対応）
         let w = transformed.w();
-        if w.abs() < T::EPSILON {
+        if w.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             return Err(TransformError::InvalidGeometry(
                 "Transform resulted in zero w component".to_string(),
             ));
@@ -79,7 +80,8 @@ fn rotation_matrix_3d<T: Scalar>(
     angle: Angle<T>,
 ) -> Result<Matrix4x4<T>, TransformError> {
     let axis_norm_sq = axis.x() * axis.x() + axis.y() * axis.y() + axis.z() * axis.z();
-    if axis_norm_sq < T::EPSILON * T::EPSILON {
+    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+    if axis_norm_sq < zero_tol * zero_tol {
         return Err(TransformError::ZeroVector(
             "Rotation axis cannot be zero".to_string(),
         ));
@@ -93,7 +95,10 @@ fn rotation_matrix_3d<T: Scalar>(
 
 /// スケール行列を生成
 fn scale_matrix_3d<T: Scalar>(sx: T, sy: T, sz: T) -> Result<Matrix4x4<T>, TransformError> {
-    if sx.abs() < T::EPSILON || sy.abs() < T::EPSILON || sz.abs() < T::EPSILON {
+    if sx.abs() < default_kernel_numerical_zero_tolerance::<T>()
+        || sy.abs() < default_kernel_numerical_zero_tolerance::<T>()
+        || sz.abs() < default_kernel_numerical_zero_tolerance::<T>()
+    {
         return Err(TransformError::InvalidScaleFactor(
             "Scale factors cannot be zero".to_string(),
         ));
