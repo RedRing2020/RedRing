@@ -330,3 +330,138 @@ fn multipoint_tangent_is_touching() {
 2. **空返却は必ず Disjoint** → 自動処理（`from_option_points()` 利用）
 3. **is_tangent は局所判定 + 統一** → 2 点以上ある場合、全て同じ値
 4. **逆向け委譲** → `{shape_b}_{shape_a}_intersections()` は `{shape_a}_{shape_b}_intersections()` へ委譲
+
+## 12. #472 2D 公開 API の Result 型統一方針
+
+### 12.1 現状棚卸し（`intersection/primitive_2d.rs`）
+
+- `Option<Point2D<T>>` 返却: 18 関数
+- `Vec<Point2D<T>>` 返却: 14 関数
+- 合計 31 公開関数のうち 32 戻り値（委譲関数を含む）で Option/Vec が使われている
+
+主な対象カテゴリ:
+
+- point系: `circle2d_point2d_intersection`, `arc2d_point2d_intersection`, `ellipse2d_point2d_intersection` ほか
+- 線分/直線/ray 系: `ray2d_line_segment2d_intersection`, `infinite_line2d_ray2d_intersection` ほか
+- 円/楕円/弧 系: `circle2d_circle2d_intersections_algo`, `ellipse2d_circle2d_intersections` ほか
+
+### 12.2 型設計オプション（A/B/C）
+
+#### Option A: 既存 `IntersectionResult<T>` を 2D に直接流用
+
+概要:
+- 2D 点群を z=0 へ昇格して `Point3D<T>` として格納し、既存 `IntersectionGeometry` を再利用
+
+利点:
+- 呼び出し側インターフェイスを最短で統一可能
+- 既存 Topology と helper (`from_option_point(s)`) を再利用できる
+
+欠点:
+- 2D の意味論に 3D 型を混入させるため、モデルの説明力が低下
+- `z=0` 前提が暗黙になり、将来の 2D 層責務を曖昧にする
+
+#### Option B: `IntersectionGeometry` を 2D/3D 共通に拡張
+
+概要:
+- `IntersectionGeometry` に `Point2D` / `Points2D`（必要なら `Segment2D`）を追加
+- `IntersectionResult<T>` 本体は維持しつつ geometry を次元対応させる
+
+利点:
+- 2D/3D 共通 API を維持しながら型意味を保てる
+- 呼び出し側は `topology` 統一を享受しつつ、幾何型も正確
+
+欠点:
+- `result.rs` と既存 match 分岐の改修範囲が広い
+- 3D 既存コードへの影響確認が必要
+
+#### Option C: 2D 専用 Result 型（`IntersectionResult2D<T>`）を新設
+
+概要:
+- 2D 専用 enum/struct を追加し、3D とは別系統で段階移行
+
+利点:
+- 2D の意味論を最も明瞭に保持
+- 既存 3D 実装への影響が小さい
+
+欠点:
+- 2D/3D で API が再び分岐し、統一目的が弱まる
+- 中長期で bridge trait か wrapper が必要
+
+### 12.3 #472 の推奨案
+
+推奨: **Option B（共通 Result の次元拡張）**
+
+理由:
+
+1. #338/#470 で進めた「公開 API の Result 型統一」という方向性と整合する
+2. Option A の 2D->3D 昇格は短期回避策としては有効だが、幾何意味の劣化が大きい
+3. Option C は短期安全だが、2D/3D 統一という #472 の目的を満たしにくい
+
+#### 12.3.1 追加する `IntersectionGeometry` バリアント一覧
+
+`result.rs` の `IntersectionGeometry<T>` に以下を追加する:
+
+| バリアント | 型 | 用途 |
+|---|---|---|
+| `Point2D(Point2D<T>)` | `geo_primitives::Point2D<T>` | 単一交点（2D） |
+| `Points2D(Vec<Point2D<T>>)` | `Vec<geo_primitives::Point2D<T>>` | 複数交点（2D、例: 円同士の 2 交点） |
+| `Segment2D(LineSegment2D<T>)` | `geo_primitives::LineSegment2D<T>` | 部分重複区間（2D、例: コリニア線分の重複部分） |
+
+既存の 3D バリアント（`Segment(LineSegment3D<T>)`, `Coincident` 等）との対称性を維持する。
+
+#### 12.3.2 `Segment2D` バリアントの使用ルール（重複区間の扱い）
+
+2D 線分同士がコリニア（同一直線上）かつ区間が部分重複する場合は「線が返却される」ケースとなる。
+3D の `Segment(LineSegment3D<T>)` と同じルールで以下のように分類する:
+
+| 状態 | `topology` | `geometry` |
+|---|---|---|
+| 独立（交差なし） | `Disjoint` | `None` |
+| 端点のみ接触 | `Touching` | `Point2D(pt)` |
+| 1 点で横断交差 | `Crossing` | `Point2D(pt)` |
+| 部分重複（有限区間） | `Coincident` | `Segment2D(seg)` |
+| 完全一致 | `Coincident` | `Coincident` |
+
+- `Segment2D` は **部分重複（有限区間の重なり）** のみに使用する
+- 形状全体が完全一致する場合は引き続き `Coincident` バリアントを使用する
+- `dimension()` と `description()` 実装も 3D Segment と対称に更新する
+
+### 12.4 Topology 対応ルール（2D）
+
+- `Disjoint`: 交差なし（空集合）
+- `Touching`: 接線接触または端点接触
+- `Crossing`: 横断交差（交点 1 以上）
+- `Coincident`: 同一直線・同一円弧区間など、連続重なり
+
+補足:
+- 2 点交差でも形状ペア全体の関係は `Crossing` として単一分類
+- `is_tangent` は 3D と同様に `Touching/Crossing` の補助判定として維持
+
+### 12.5 段階移行計画（設計）
+
+Phase D1: Result 型拡張の最小導入
+
+- `result.rs` に `Point2D` / `Points2D` / `Segment2D` の 3 バリアントを追加
+- `dimension()` / `description()` / `is_empty()` / `is_multiple()` を 3D と対称に実装
+- 変換 helper（2D 用 `from_option_point2d()` / `from_option_points2d()`）の API 署名を確定
+
+Phase D2: 2D point系から先行置換
+
+- `*_point2d_intersection` を先行対象
+- 1～2 ペア単位の小 PR で置換・テスト
+
+Phase D3: 線分/直線/ray 系置換
+
+- `ray/line/segment` 系関数を順次置換
+- 逆方向委譲を同時更新
+
+Phase D4: 円/楕円/弧の多点関数置換
+
+- `*_intersections` の Vec 返却を Result 化
+- Touching/Crossing/Coincident テストを追加
+
+### 12.6 実装前提（#472 完了条件）
+
+- 本セクションで設計案（Option B）を確定
+- 実装は別 Issue で実施
+- #472 は「設計確定 + 移行順序確定」でクローズ可能
