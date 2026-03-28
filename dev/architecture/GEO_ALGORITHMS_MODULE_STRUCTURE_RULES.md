@@ -1,6 +1,6 @@
 # geo_algorithms モジュール分割ルール
 
-最終更新: 2026-03-23
+最終更新: 2026-03-28
 適用範囲: `model/geo_algorithms/src/{collision,intersection,distance}`
 
 ## 1. 目的
@@ -138,3 +138,28 @@
 - #403 Phase2 では、当面 `distance/primitive_3d.rs` に NURBS×3D primitive を集約する。
 - ただし将来整理で `distance/nurbs_curve_3d.rs` / `distance/nurbs_surface_3d.rs` へ分離可能。
 - その際は本ルールを正として移行する。
+
+## 10. #338 再開時の戻り値移行ルール
+
+`#338` では、`Option<Point3D<T>>` を返す既存関数を一括置換せず、
+`IntersectionResult<T>` への段階移行を行う。
+
+### 10.1 基本方針
+
+- 既存の `*_intersection` 関数は互換のため当面維持する。
+- 新規に `*_intersection_result` 関数を追加し、呼び出し側を段階的に移行する。
+- `IntersectionResult::from_option_point()` / `from_option_points()` を使用して変換規約を統一する。
+- 一度に多数ペアを移行せず、1～2ペア単位の小PRで進める。
+
+### 10.2 初期スライス（Phase C 再開の最小単位）
+
+- `intersection/primitive_3d.rs` の point系ペアから開始する。
+  - `arc3d_point3d_intersection_result`
+  - `circle3d_point3d_intersection_result`
+
+### 10.3 実装順序
+
+1. `*_intersection_result` 追加（旧APIは変更しない）
+2. 変換規約テスト追加（Disjoint / Crossing を最低限確認）
+3. 呼び出し側を1箇所ずつ移行
+4. 十分な移行完了後に旧API整理を検討
