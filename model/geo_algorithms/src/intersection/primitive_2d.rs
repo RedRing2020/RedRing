@@ -9,8 +9,8 @@ use crate::intersection::pair_base::{
     line_segment2d_circle2d_intersections, line_segment2d_line_segment2d_intersection,
 };
 use crate::{
-    Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D,
-    Triangle2D, Vector2D,
+    Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, IntersectionResult, LineSegment2D,
+    Point2D, Ray2D, Triangle2D, Vector2D,
 };
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, Ellipse2DProperties, InfiniteLine2DProperties,
@@ -21,16 +21,17 @@ pub fn circle2d_point2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     point: &Point2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let dx = point.x() - circle.center().0;
     let dy = point.y() - circle.center().1;
     let distance = (dx * dx + dy * dy).sqrt();
 
-    if (distance - circle.radius()).abs() <= tolerance {
+    let opt = if (distance - circle.radius()).abs() <= tolerance {
         Some(*point)
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn circle2d_circle2d_intersections_algo<T: Scalar>(
@@ -232,33 +233,34 @@ pub fn arc2d_point2d_intersection<T: Scalar>(
     arc: &Arc2D<T>,
     point: &Point2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let (center_x, center_y) = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
     let dx = point.x() - center_x;
     let dy = point.y() - center_y;
     let distance = (dx * dx + dy * dy).sqrt();
 
     if (distance - arc.radius()).abs() > tolerance {
-        return None;
+        return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
     if !arc.contains_point_angle(*point) {
-        return None;
+        return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
-    Some(*point)
+    IntersectionResult::from_option_point2d(Some(*point), false, tolerance)
 }
 
 pub fn infinite_line2d_point2d_intersection<T: Scalar>(
     line: &InfiniteLine2D<T>,
     point: &Point2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
-    if line.contains_point(point, tolerance) {
+) -> IntersectionResult<T> {
+    let opt = if line.contains_point(point, tolerance) {
         Some(*point)
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
@@ -383,12 +385,13 @@ pub fn ellipse2d_point2d_intersection<T: Scalar>(
     ellipse: &Ellipse2D<T>,
     point: &Point2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
-    if ellipse.distance_to_point(point) <= tolerance {
+) -> IntersectionResult<T> {
+    let opt = if ellipse.distance_to_point(point) <= tolerance {
         Some(*point)
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn ellipse2d_circle2d_intersection<T: Scalar>(
@@ -437,12 +440,13 @@ pub fn ellipse_arc2d_point2d_intersection<T: Scalar>(
     arc: &EllipseArc2D<T>,
     point: &Point2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
-    if arc.contains_point(point, tolerance) {
+) -> IntersectionResult<T> {
+    let opt = if arc.contains_point(point, tolerance) {
         Some(*point)
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 fn edge_segment_intersection<T: Scalar>(
@@ -475,31 +479,85 @@ fn edge_segment_intersection<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::{
-        arc2d_line_segment2d_intersections_algo, circle2d_arc2d_intersections_algo,
-        circle2d_circle2d_intersections_algo, circle2d_ellipse2d_intersection,
-        circle2d_ellipse2d_intersections, circle2d_infinite_line2d_intersection,
-        circle2d_infinite_line2d_intersections, circle2d_point2d_intersection,
-        circle2d_ray2d_intersections, ellipse2d_circle2d_intersection,
-        ellipse2d_circle2d_intersections, ellipse2d_point2d_intersection,
-        ellipse_arc2d_point2d_intersection, infinite_line2d_circle2d_intersection,
-        infinite_line2d_circle2d_intersections, infinite_line2d_line_segment2d_intersection,
+        arc2d_line_segment2d_intersections_algo, arc2d_point2d_intersection,
+        circle2d_arc2d_intersections_algo, circle2d_circle2d_intersections_algo,
+        circle2d_ellipse2d_intersection, circle2d_ellipse2d_intersections,
+        circle2d_infinite_line2d_intersection, circle2d_infinite_line2d_intersections,
+        circle2d_point2d_intersection, circle2d_ray2d_intersections,
+        ellipse2d_circle2d_intersection, ellipse2d_circle2d_intersections,
+        ellipse2d_point2d_intersection, ellipse_arc2d_point2d_intersection,
+        infinite_line2d_circle2d_intersection, infinite_line2d_circle2d_intersections,
+        infinite_line2d_line_segment2d_intersection, infinite_line2d_point2d_intersection,
         infinite_line2d_ray2d_intersection, line_segment2d_infinite_line2d_intersection,
         line_segment2d_line_segment2d_intersection_algo, line_segment2d_ray2d_intersection,
         ray2d_circle2d_intersections, ray2d_infinite_line2d_intersection,
         ray2d_line_segment2d_intersection,
     };
     use crate::{
-        Angle, Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D,
-        Ray2D, Vector2D,
+        Angle, Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, IntersectionTopology,
+        LineSegment2D, Point2D, Ray2D, Vector2D,
     };
 
     #[test]
-    fn circle_point_intersection_returns_same_point() {
+    fn circle_point_intersection_on_boundary_is_crossing() {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let point = Point2D::new(1.0, 0.0);
 
-        let intersection = circle2d_point2d_intersection(&circle, &point, 1e-9);
-        assert_eq!(intersection, Some(point));
+        let result = circle2d_point2d_intersection(&circle, &point, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+    }
+
+    #[test]
+    fn circle_point_intersection_outside_is_disjoint() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let point = Point2D::new(2.0, 0.0);
+
+        let result = circle2d_point2d_intersection(&circle, &point, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn arc_point_intersection_on_arc_is_crossing() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let arc = Arc2D::new(circle, Angle::from_degrees(0.0), Angle::from_degrees(180.0)).unwrap();
+        let point = Point2D::new(0.0, 1.0);
+
+        let result = arc2d_point2d_intersection(&arc, &point, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+    }
+
+    #[test]
+    fn arc_point_intersection_outside_arc_range_is_disjoint() {
+        let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let arc = Arc2D::new(circle, Angle::from_degrees(0.0), Angle::from_degrees(90.0)).unwrap();
+        let point = Point2D::new(-1.0, 0.0);
+
+        let result = arc2d_point2d_intersection(&arc, &point, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn infinite_line_point_intersection_on_line_is_crossing() {
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let point = Point2D::new(5.0, 0.0);
+
+        let result = infinite_line2d_point2d_intersection(&line, &point, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+    }
+
+    #[test]
+    fn infinite_line_point_intersection_off_line_is_disjoint() {
+        let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let point = Point2D::new(0.0, 1.0);
+
+        let result = infinite_line2d_point2d_intersection(&line, &point, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -611,13 +669,7 @@ mod tests {
             ellipse2d_circle2d_intersections(&ellipse, &circle, 1e-6),
             circle2d_ellipse2d_intersections(&circle, &ellipse, 1e-6)
         );
-        assert_eq!(
-            ellipse_arc2d_point2d_intersection(&ellipse_arc, &point, 1e-6),
-            Some(point)
-        );
-        assert_eq!(
-            ellipse2d_point2d_intersection(&ellipse, &point, 1e-6),
-            Some(point)
-        );
+        assert!(ellipse_arc2d_point2d_intersection(&ellipse_arc, &point, 1e-6).intersects());
+        assert!(ellipse2d_point2d_intersection(&ellipse, &point, 1e-6).intersects());
     }
 }
