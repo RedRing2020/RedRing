@@ -281,7 +281,7 @@ fn validate_matrix(entries: &[MatrixEntry]) -> Result<(), String> {
     }
 }
 
-fn valid_seed_entries() -> Vec<MatrixEntry> {
+fn seed_entries_raw() -> Vec<MatrixEntry> {
     vec![
         MatrixEntry {
             id: "2d:circle-ray:collision",
@@ -884,6 +884,114 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             entrypoint_b_to_a: None,
         },
         MatrixEntry {
+            id: "3d:conical_solid-point:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSolid3D",
+            shape_b: "Point3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("conical_solid3d_point3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_solid-line:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSolid3D",
+            shape_b: "InfiniteLine3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("conical_solid3d_line3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_solid-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSolid3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("conical_solid3d_ray3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_solid-segment:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSolid3D",
+            shape_b: "LineSegment3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("conical_solid3d_line_segment3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_solid-plane:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSolid3D",
+            shape_b: "Plane3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("conical_solid3d_plane3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_surface-point:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSurface3D",
+            shape_b: "Point3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Optional),
+            entrypoint_a_to_b: Some("conical_surface3d_point3d_intersection"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_surface-line:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSurface3D",
+            shape_b: "InfiniteLine3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("conical_surface3d_infinite_line3d_intersections"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_surface-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSurface3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("conical_surface3d_ray3d_intersections"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
+            id: "3d:conical_surface-segment:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "ConicalSurface3D",
+            shape_b: "LineSegment3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("conical_surface3d_line_segment3d_intersections"),
+            entrypoint_b_to_a: None,
+        },
+        MatrixEntry {
             id: "3d:spherical_solid-point:intersection",
             dimension: Dimension::D3,
             operation: Operation::Intersection,
@@ -918,114 +1026,6 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             cardinality: Some(Cardinality::Optional),
             entrypoint_a_to_b: Some("spherical_solid3d_ray3d_intersection"),
             entrypoint_b_to_a: None,
-        },
-        MatrixEntry {
-            id: "3d:spherical_solid-segment:intersection",
-            dimension: Dimension::D3,
-            operation: Operation::Intersection,
-            shape_a: "SphericalSolid3D",
-            shape_b: "LineSegment3D",
-            required: true,
-            symmetric: false,
-            cardinality: Some(Cardinality::Optional),
-            entrypoint_a_to_b: Some("spherical_solid3d_line_segment3d_intersection"),
-            entrypoint_b_to_a: None,
-        },
-        MatrixEntry {
-            id: "3d:spherical_solid-plane:intersection",
-            dimension: Dimension::D3,
-            operation: Operation::Intersection,
-            shape_a: "SphericalSolid3D",
-            shape_b: "Plane3D",
-            required: true,
-            symmetric: false,
-            cardinality: Some(Cardinality::Optional),
-            entrypoint_a_to_b: Some("spherical_solid3d_plane3d_intersection"),
-            entrypoint_b_to_a: None,
-        },
-        MatrixEntry {
-            id: "3d:line-sphere:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "InfiniteLine3D",
-            shape_b: "SphericalSurface3D",
-            required: true,
-            symmetric: false,
-            cardinality: None,
-            entrypoint_a_to_b: Some("infinite_line3d_spherical_surface3d_collides"),
-            entrypoint_b_to_a: None,
-        },
-        MatrixEntry {
-            id: "3d:triangle-segment:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "Triangle3D",
-            shape_b: "LineSegment3D",
-            required: true,
-            symmetric: true,
-            cardinality: None,
-            entrypoint_a_to_b: Some("triangle3d_line_segment3d_collides"),
-            entrypoint_b_to_a: Some("line_segment3d_triangle3d_collides"),
-        },
-        MatrixEntry {
-            id: "3d:segment-triangle:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "LineSegment3D",
-            shape_b: "Triangle3D",
-            required: true,
-            symmetric: true,
-            cardinality: None,
-            entrypoint_a_to_b: Some("line_segment3d_triangle3d_collides"),
-            entrypoint_b_to_a: Some("triangle3d_line_segment3d_collides"),
-        },
-        MatrixEntry {
-            id: "3d:triangle-ray:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "Triangle3D",
-            shape_b: "Ray3D",
-            required: true,
-            symmetric: true,
-            cardinality: None,
-            entrypoint_a_to_b: Some("triangle3d_ray3d_collides"),
-            entrypoint_b_to_a: Some("ray3d_triangle3d_collides"),
-        },
-        MatrixEntry {
-            id: "3d:ray-triangle:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "Ray3D",
-            shape_b: "Triangle3D",
-            required: true,
-            symmetric: true,
-            cardinality: None,
-            entrypoint_a_to_b: Some("ray3d_triangle3d_collides"),
-            entrypoint_b_to_a: Some("triangle3d_ray3d_collides"),
-        },
-        MatrixEntry {
-            id: "3d:ray-segment:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "Ray3D",
-            shape_b: "LineSegment3D",
-            required: true,
-            symmetric: true,
-            cardinality: None,
-            entrypoint_a_to_b: Some("ray3d_line_segment3d_collides"),
-            entrypoint_b_to_a: Some("line_segment3d_ray3d_collides"),
-        },
-        MatrixEntry {
-            id: "3d:segment-ray:collision",
-            dimension: Dimension::D3,
-            operation: Operation::Collision,
-            shape_a: "LineSegment3D",
-            shape_b: "Ray3D",
-            required: true,
-            symmetric: true,
-            cardinality: None,
-            entrypoint_a_to_b: Some("line_segment3d_ray3d_collides"),
-            entrypoint_b_to_a: Some("ray3d_line_segment3d_collides"),
         },
         MatrixEntry {
             id: "3d:line-segment:collision",
@@ -1510,6 +1510,56 @@ fn valid_seed_entries() -> Vec<MatrixEntry> {
             entrypoint_b_to_a: Some("nurbscurve3d_cylindrical_solid3d_distance"),
         },
     ]
+}
+
+fn entries_by_dimension_and_operation(
+    entries: &[MatrixEntry],
+    dimension: Dimension,
+    operation: Operation,
+) -> Vec<MatrixEntry> {
+    entries
+        .iter()
+        .filter(|e| e.dimension == dimension && e.operation == operation)
+        .cloned()
+        .collect()
+}
+
+fn valid_seed_entries() -> Vec<MatrixEntry> {
+    let raw = seed_entries_raw();
+    let mut ordered = Vec::with_capacity(raw.len());
+
+    ordered.extend(entries_by_dimension_and_operation(
+        &raw,
+        Dimension::D2,
+        Operation::Collision,
+    ));
+    ordered.extend(entries_by_dimension_and_operation(
+        &raw,
+        Dimension::D2,
+        Operation::Intersection,
+    ));
+    ordered.extend(entries_by_dimension_and_operation(
+        &raw,
+        Dimension::D2,
+        Operation::Distance,
+    ));
+    ordered.extend(entries_by_dimension_and_operation(
+        &raw,
+        Dimension::D3,
+        Operation::Collision,
+    ));
+    ordered.extend(entries_by_dimension_and_operation(
+        &raw,
+        Dimension::D3,
+        Operation::Intersection,
+    ));
+    ordered.extend(entries_by_dimension_and_operation(
+        &raw,
+        Dimension::D3,
+        Operation::Distance,
+    ));
+
+    ordered
 }
 
 #[test]

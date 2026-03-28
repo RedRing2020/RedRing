@@ -8,12 +8,14 @@
 //! ラッパー、または `pair_base` に委譲する。
 
 use crate::{
-    Arc3D, Circle3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D, EllipsoidalSurface3D,
-    InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
-    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
+    Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSurface3D, Ellipse3D,
+    EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D, IntersectionResult, LineSegment3D,
+    Plane3D, Point3D, Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSolid3D, TorusSurface3D,
+    Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSurface3DMeasure,
+    Arc3DMeasure, Arc3DProperties, Circle3DProperties, ConicalSolid3DMeasure,
+    ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DMeasure,
     CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
     InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
     TorusSurface3DMeasure, Triangle3DProperties,
@@ -836,6 +838,330 @@ pub fn ellipsoidal_surface3d_point3d_intersection<T: Scalar>(
 ) -> IntersectionResult<T> {
     IntersectionResult::from_option_point(
         ellipsoidal_surface3d_point3d_intersection_raw(ellipsoid, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+// ── ConicalSolid3D ────────────────────────────────────────────────────────────
+
+fn conical_solid3d_point3d_intersection_raw<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    point_intersection_if(
+        point,
+        ConicalSolid3DMeasure::contains_point_tolerance(
+            cone,
+            (point.x(), point.y(), point.z()),
+            tolerance,
+        ),
+    )
+}
+
+pub fn conical_solid3d_point3d_intersection<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        conical_solid3d_point3d_intersection_raw(cone, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn conical_solid3d_line3d_intersection_raw<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let (px, py, pz) = InfiniteLine3DProperties::point(line);
+    let point_on_line = Point3D::new(px, py, pz);
+    point_intersection_if(
+        &point_on_line,
+        ConicalSolid3DMeasure::contains_point_tolerance(cone, (px, py, pz), tolerance),
+    )
+}
+
+pub fn conical_solid3d_line3d_intersection<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        conical_solid3d_line3d_intersection_raw(cone, line, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn conical_solid3d_ray3d_intersection_raw<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let origin = ray.origin();
+    point_intersection_if(
+        &origin,
+        ConicalSolid3DMeasure::contains_point_tolerance(
+            cone,
+            (origin.x(), origin.y(), origin.z()),
+            tolerance,
+        ),
+    )
+}
+
+pub fn conical_solid3d_ray3d_intersection<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        conical_solid3d_ray3d_intersection_raw(cone, ray, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn conical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let start = segment.start();
+    point_intersection_if(
+        &start,
+        ConicalSolid3DMeasure::contains_point_tolerance(
+            cone,
+            (start.x(), start.y(), start.z()),
+            tolerance,
+        ),
+    )
+}
+
+pub fn conical_solid3d_line_segment3d_intersection<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        conical_solid3d_line_segment3d_intersection_raw(cone, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn conical_solid3d_plane3d_intersection_raw<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    plane: &Plane3D<T>,
+    _tolerance: T,
+) -> Option<Point3D<T>> {
+    let (ax, ay, az) = ConicalSolid3DProperties::apex(cone);
+    let (bx, by, bz) = ConicalSolid3DProperties::base_center(cone);
+    let apex = Point3D::new(ax, ay, az);
+    let base = Point3D::new(bx, by, bz);
+    let radius = ConicalSolid3DProperties::radius(cone);
+    let dist_apex = plane.distance_to_point(apex);
+    let dist_base = plane.distance_to_point(base);
+    if dist_apex * dist_base <= T::ZERO || dist_base.abs() <= radius {
+        Some(base)
+    } else {
+        None
+    }
+}
+
+pub fn conical_solid3d_plane3d_intersection<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        conical_solid3d_plane3d_intersection_raw(cone, plane, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+// ── ConicalSurface3D ──────────────────────────────────────────────────────────
+
+/// 円錐面と直線の交差パラメータを解析的に求める（2次方程式）。
+/// 返値: 直線 P(t) = origin + t*direction の有効な t 値 (最大2個)。
+/// `ConicalSurface3DProperties::apex()` は実装上 center (参照点) を返すため、
+/// `height()` を用いて幾何学的頂点を再構築している。
+fn conical_surface3d_intersect_params<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    origin: &Point3D<T>,
+    direction: &crate::Vector3D<T>,
+    tolerance: T,
+) -> [Option<T>; 2] {
+    let (cx, cy, cz) = ConicalSurface3DProperties::apex(cone);
+    let h = ConicalSurface3DProperties::height(cone);
+    let (dx, dy, dz) = ConicalSurface3DProperties::axis(cone);
+    let r = ConicalSurface3DProperties::radius(cone);
+
+    if h.abs() <= tolerance || r.abs() <= tolerance {
+        return [None, None];
+    }
+
+    // 幾何学的頂点: center - height * axis
+    let apex_x = cx - h * dx;
+    let apex_y = cy - h * dy;
+    let apex_z = cz - h * dz;
+
+    // cos²(semi_angle) = h² / (h² + r²)
+    let k = (h * h) / (h * h + r * r);
+
+    // δ = origin - apex
+    let det_x = origin.x() - apex_x;
+    let det_y = origin.y() - apex_y;
+    let det_z = origin.z() - apex_z;
+
+    let ld = direction.x() * dx + direction.y() * dy + direction.z() * dz;
+    let dd = det_x * dx + det_y * dy + det_z * dz;
+    let ll = direction.x() * direction.x()
+        + direction.y() * direction.y()
+        + direction.z() * direction.z();
+    let dl = det_x * direction.x() + det_y * direction.y() + det_z * direction.z();
+    let dd_sq = det_x * det_x + det_y * det_y + det_z * det_z;
+
+    let two = T::ONE + T::ONE;
+    let four = two + two;
+    let qa = ld * ld - k * ll;
+    let qb = two * (dd * ld - k * dl);
+    let qc = dd * dd - k * dd_sq;
+
+    if qa.abs() <= tolerance {
+        if qb.abs() > tolerance {
+            return [Some(-qc / qb), None];
+        }
+        return [None, None];
+    }
+
+    let discriminant = qb * qb - four * qa * qc;
+    if discriminant < T::ZERO {
+        return [None, None];
+    }
+
+    let sqrt_d = discriminant.sqrt();
+    let two_a = two * qa;
+    [Some((-qb - sqrt_d) / two_a), Some((-qb + sqrt_d) / two_a)]
+}
+
+fn conical_surface3d_filter_params<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    origin: &Point3D<T>,
+    direction: &crate::Vector3D<T>,
+    params: [Option<T>; 2],
+    t_min: T,
+    t_max: T,
+    tolerance: T,
+) -> Vec<Point3D<T>> {
+    let mut pts = Vec::new();
+    for maybe_t in params {
+        let Some(t) = maybe_t else { continue };
+        if t < t_min - tolerance || t > t_max + tolerance {
+            continue;
+        }
+        let p = Point3D::new(
+            origin.x() + t * direction.x(),
+            origin.y() + t * direction.y(),
+            origin.z() + t * direction.z(),
+        );
+        if cone.contains_point(&p, tolerance) {
+            pts.push(p);
+        }
+    }
+    if pts.len() == 2 && pts[0].distance_to(&pts[1]) <= tolerance {
+        pts.truncate(1);
+    }
+    pts
+}
+
+fn conical_surface3d_point3d_intersection_raw<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    point_intersection_if(point, cone.contains_point(point, tolerance))
+}
+
+pub fn conical_surface3d_point3d_intersection<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        conical_surface3d_point3d_intersection_raw(cone, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+pub fn conical_surface3d_infinite_line3d_intersections<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let (px, py, pz) = InfiniteLine3DProperties::point(line);
+    let (lx, ly, lz) = InfiniteLine3DProperties::direction(line);
+    let origin = Point3D::new(px, py, pz);
+    let direction = crate::Vector3D::new(lx, ly, lz);
+    let params = conical_surface3d_intersect_params(cone, &origin, &direction, tolerance);
+    let t_inf = T::ONE / tolerance;
+    IntersectionResult::from_option_points(
+        conical_surface3d_filter_params(
+            cone, &origin, &direction, params, -t_inf, t_inf, tolerance,
+        ),
+        false,
+        tolerance,
+    )
+}
+
+pub fn conical_surface3d_ray3d_intersections<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let origin = ray.origin();
+    let direction = ray.direction_vector();
+    let params = conical_surface3d_intersect_params(cone, &origin, &direction, tolerance);
+    let t_inf = T::ONE / tolerance;
+    IntersectionResult::from_option_points(
+        conical_surface3d_filter_params(
+            cone,
+            &origin,
+            &direction,
+            params,
+            T::ZERO,
+            t_inf,
+            tolerance,
+        ),
+        false,
+        tolerance,
+    )
+}
+
+pub fn conical_surface3d_line_segment3d_intersections<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let start = segment.start();
+    let end = segment.end();
+    let direction = crate::Vector3D::from_points(&start, &end);
+    let params = conical_surface3d_intersect_params(cone, &start, &direction, tolerance);
+    IntersectionResult::from_option_points(
+        conical_surface3d_filter_params(
+            cone,
+            &start,
+            &direction,
+            params,
+            T::ZERO,
+            T::ONE,
+            tolerance,
+        ),
         false,
         tolerance,
     )
