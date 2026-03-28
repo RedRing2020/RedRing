@@ -67,16 +67,28 @@
 ### PR-B
 
 対象:
-- `circle_2d.rs`, `circle_3d.rs`, `infinite_line_2d.rs`, `infinite_line_3d.rs`, `ray_2d.rs`, `ray_3d.rs`
+- `circle_2d.rs`, `circle_3d.rs`
 
 作業:
 - `default_distance_tolerance::<T>()` 依存を呼び出し境界へ寄せる。
 - `T::EPSILON` は数値安定化用途へ限定し、可能な限り意味付き固定定数へ置換。
 
 完了条件:
-- line/circle/ray の包含・平行・交点系テストが通過。
+- circle の包含・退化・近傍判定テストが通過。
 
 ### PR-C
+
+対象:
+- `infinite_line_2d.rs`, `infinite_line_3d.rs`, `ray_2d.rs`, `ray_3d.rs`
+
+作業:
+- `T::EPSILON` の用途を「数値安定化」に限定し、幾何意味判定は意味付きトレランスへ置換。
+- contains/coplanar/parallel 系の判定で、距離許容差と数値安定化ガードを分離。
+
+完了条件:
+- line/ray の包含・平行・交点系テストが通過。
+
+### PR-D（追従）
 
 対象:
 - `geo_nurbs` 変換・拡張系（`*_transform.rs`, `curve_3d_extensions.rs`, `curve_3d_foundation.rs`）
@@ -88,7 +100,7 @@
 完了条件:
 - `geo_nurbs` の既存テスト通過、変換系の退化ケース回帰なし。
 
-### PR-D（追従）
+### PR-E（追従）
 
 対象:
 - `geo_primitives`/`geo_nurbs` テストの生数値整理

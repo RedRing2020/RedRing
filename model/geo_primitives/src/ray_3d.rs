@@ -453,8 +453,8 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let e = other.direction.dot(&w);
 
         let denom = a * c - b * b;
-        use geo_contracts::default_distance_tolerance;
-        if denom.abs() < default_distance_tolerance::<T>() {
+        use geo_contracts::default_kernel_numerical_zero_tolerance;
+        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             // 平行: 片方の起点から他方への距離
             let other_origin = other.origin;
             return self.distance_to_point(&Point3D::new(
@@ -505,8 +505,8 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         // analysis::Vector3 に変換
         let axis_analysis = Vector3::new(axis.0, axis.1, axis.2);
         let norm = axis_analysis.norm();
-        use geo_contracts::default_distance_tolerance;
-        if norm < default_distance_tolerance::<T>() {
+        use geo_contracts::default_kernel_numerical_zero_tolerance;
+        if norm < default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
 

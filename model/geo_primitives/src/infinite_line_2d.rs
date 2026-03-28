@@ -108,7 +108,7 @@ impl<T: Scalar> InfiniteLine2D<T> {
         // |dp.x  -D1.x|   |D2.x  -D1.x|
         // |dp.y  -D1.y| / |D2.y  -D1.y|
         let det = other.direction.cross(&(-self.direction));
-        if det.abs() <= T::EPSILON {
+        if det.abs() <= geo_contracts::default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 平行（実際上はありえない）
         }
 
@@ -235,7 +235,7 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 
     fn slope(&self) -> Option<T> {
-        if self.direction.x().abs() <= T::EPSILON {
+        if self.direction.x().abs() <= geo_contracts::default_distance_tolerance::<T>() {
             None // 垂直線
         } else {
             Some(self.direction.y() / self.direction.x())
@@ -248,7 +248,7 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 
     fn x_intercept(&self) -> Option<T> {
-        if self.direction.y().abs() <= T::EPSILON {
+        if self.direction.y().abs() <= geo_contracts::default_distance_tolerance::<T>() {
             None // 水平線
         } else {
             // x = (y - b) / m, y=0のときのx
@@ -262,11 +262,11 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 
     fn is_horizontal(&self) -> bool {
-        self.direction.y().abs() <= T::EPSILON
+        self.direction.y().abs() <= geo_contracts::default_distance_tolerance::<T>()
     }
 
     fn is_vertical(&self) -> bool {
-        self.direction.x().abs() <= T::EPSILON
+        self.direction.x().abs() <= geo_contracts::default_distance_tolerance::<T>()
     }
 
     fn passes_through_origin(&self) -> bool {
@@ -293,7 +293,8 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
 
     fn is_below(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        !self.is_above(point) && !self.contains_point(&p, T::EPSILON)
+        !self.is_above(point)
+            && !self.contains_point(&p, geo_contracts::default_distance_tolerance::<T>())
     }
 }
 
