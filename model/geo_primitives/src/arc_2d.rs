@@ -195,14 +195,17 @@ impl<T: Scalar> Arc2D<T> {
         let point_normalized = normalize(point_angle);
         let start_normalized = normalize(start_rad);
         let end_normalized = normalize(end_rad);
+        let angle_tol = default_angle_tolerance::<T>();
 
         // 角度範囲の判定
         if start_normalized <= end_normalized {
             // 通常のケース（例：30度から150度）
-            point_normalized >= start_normalized && point_normalized <= end_normalized
+            point_normalized + angle_tol >= start_normalized
+                && point_normalized <= end_normalized + angle_tol
         } else {
             // 0度をまたぐケース（例：330度から30度）
-            point_normalized >= start_normalized || point_normalized <= end_normalized
+            point_normalized + angle_tol >= start_normalized
+                || point_normalized <= end_normalized + angle_tol
         }
     }
 }

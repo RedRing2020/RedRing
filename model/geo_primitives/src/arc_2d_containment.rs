@@ -4,7 +4,7 @@
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
-use geo_contracts::default_distance_tolerance;
+use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Angle, Arc2DContainment, Scalar};
 
 // ============================================================================
@@ -32,13 +32,16 @@ impl<T: Scalar> ArcContainment<T> for Arc2D<T> {
         let normalized_angle = self.normalize_angle(angle);
         let normalized_start = self.normalize_angle(self.start_angle());
         let normalized_end = self.normalize_angle(self.end_angle());
+        let angle_tol = default_angle_tolerance::<T>();
 
         if normalized_start <= normalized_end {
             // 通常の範囲（例：30°から90°）
-            normalized_angle >= normalized_start && normalized_angle <= normalized_end
+            normalized_angle + angle_tol >= normalized_start
+                && normalized_angle <= normalized_end + angle_tol
         } else {
             // 0°をまたぐ範囲（例：300°から60°）
-            normalized_angle >= normalized_start || normalized_angle <= normalized_end
+            normalized_angle + angle_tol >= normalized_start
+                || normalized_angle <= normalized_end + angle_tol
         }
     }
 

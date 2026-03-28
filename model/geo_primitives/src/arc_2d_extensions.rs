@@ -92,10 +92,11 @@ impl<T: Scalar> Arc2D<T> {
         let a = angle.to_radians();
         let start = self.start_angle().to_radians();
         let end = self.end_angle().to_radians();
+        let angle_tol = default_angle_tolerance::<T>();
         if start <= end {
-            a >= start && a <= end
+            a + angle_tol >= start && a <= end + angle_tol
         } else {
-            a >= start || a <= end
+            a + angle_tol >= start || a <= end + angle_tol
         }
     }
 

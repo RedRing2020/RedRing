@@ -134,14 +134,15 @@ impl<T: Scalar> Arc3D<T> {
         let normalized_angle = self.normalize_angle(angle);
         let start = self.normalize_angle(self.start_angle());
         let end = self.normalize_angle(self.end_angle());
+        let angle_tol = default_angle_tolerance::<T>();
 
         if start.to_radians() <= end.to_radians() {
-            normalized_angle.to_radians() >= start.to_radians()
-                && normalized_angle.to_radians() <= end.to_radians()
+            normalized_angle.to_radians() + angle_tol >= start.to_radians()
+                && normalized_angle.to_radians() <= end.to_radians() + angle_tol
         } else {
             // 0度をまたぐ場合
-            normalized_angle.to_radians() >= start.to_radians()
-                || normalized_angle.to_radians() <= end.to_radians()
+            normalized_angle.to_radians() + angle_tol >= start.to_radians()
+                || normalized_angle.to_radians() <= end.to_radians() + angle_tol
         }
     }
 

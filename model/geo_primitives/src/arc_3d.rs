@@ -180,12 +180,15 @@ impl<T: Scalar> Arc3D<T> {
         let point_normalized = normalize(point_angle);
         let start_normalized = normalize(self.start_angle.to_radians());
         let end_normalized = normalize(self.end_angle.to_radians());
+        let angle_tol = default_angle_tolerance::<T>();
 
         // 角度範囲の判定
         if start_normalized <= end_normalized {
-            point_normalized >= start_normalized && point_normalized <= end_normalized
+            point_normalized + angle_tol >= start_normalized
+                && point_normalized <= end_normalized + angle_tol
         } else {
-            point_normalized >= start_normalized || point_normalized <= end_normalized
+            point_normalized + angle_tol >= start_normalized
+                || point_normalized <= end_normalized + angle_tol
         }
     }
 
