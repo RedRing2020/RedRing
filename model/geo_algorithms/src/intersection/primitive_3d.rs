@@ -507,8 +507,10 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
     rhs: &CylindricalSurface3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let lhs_center_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(lhs);
-    let rhs_center_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(rhs);
+    let lhs_center_tuple =
+        <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(lhs);
+    let rhs_center_tuple =
+        <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(rhs);
     let lhs_center = Point3D::new(lhs_center_tuple.0, lhs_center_tuple.1, lhs_center_tuple.2);
     let rhs_center = Point3D::new(rhs_center_tuple.0, rhs_center_tuple.1, rhs_center_tuple.2);
 
@@ -534,10 +536,8 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
     };
     let axes_parallel = (lhs_axis.dot(&rhs_axis).abs() - T::ONE).abs() <= angle_tolerance;
     let axis_distance = center_delta.cross(&lhs_axis).magnitude();
-    let radii_match = (
-        <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(lhs)
-            - <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(rhs)
-    )
+    let radii_match = (<CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(lhs)
+        - <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(rhs))
     .abs()
         <= tolerance;
     let coincident = axes_parallel && axis_distance <= tolerance && radii_match;
