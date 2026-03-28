@@ -536,35 +536,37 @@ pub fn ellipse3d_circle3d_intersections<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     circle: &Circle3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
     let dist = <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
-    if dist <= Circle3DProperties::radius(circle) + tolerance {
+    let points = if dist <= Circle3DProperties::radius(circle) + tolerance {
         vec![Point3D::new(cx, cy, cz)]
     } else {
         Vec::new()
-    }
+    };
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 pub fn ellipse3d_arc3d_intersections<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     arc: &Arc3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let (cx, cy, cz) = Arc3DProperties::center(arc);
     let dist = <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
-    if dist <= Arc3DProperties::radius(arc) + tolerance {
+    let points = if dist <= Arc3DProperties::radius(arc) + tolerance {
         vec![Point3D::new(cx, cy, cz)]
     } else {
         Vec::new()
-    }
+    };
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 pub fn ellipse3d_line_segment3d_intersections<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     segment: &LineSegment3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let start = segment.start();
     let end = segment.end();
     let mut intersections = Vec::new();
@@ -582,36 +584,38 @@ pub fn ellipse3d_line_segment3d_intersections<T: Scalar + From<f64>>(
     {
         intersections.push(end);
     }
-    intersections
+    IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
 pub fn ellipse3d_infinite_line3d_intersections<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     line: &InfiniteLine3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let dist = <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (px, py, pz));
-    if dist <= tolerance {
+    let points = if dist <= tolerance {
         vec![Point3D::new(px, py, pz)]
     } else {
         Vec::new()
-    }
+    };
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 pub fn ellipse3d_ray3d_intersections<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     ray: &Ray3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let o = ray.origin();
     let dist =
         <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (o.x(), o.y(), o.z()));
-    if dist <= tolerance {
+    let points = if dist <= tolerance {
         vec![o]
     } else {
         Vec::new()
-    }
+    };
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 fn ellipse3d_plane3d_intersection_raw<T: Scalar>(
@@ -643,7 +647,7 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     triangle: &Triangle3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let (ax, ay, az) = Triangle3DProperties::vertex_a(triangle);
     let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle);
@@ -663,15 +667,15 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     {
         intersections.push(Point3D::new(cx, cy, cz));
     }
-    intersections
+    IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
 pub fn ellipse3d_ellipse3d_intersections<T: Scalar>(
     _ellipse_a: &Ellipse3D<T>,
     _ellipse_b: &Ellipse3D<T>,
     _tolerance: T,
-) -> Vec<Point3D<T>> {
-    Vec::new()
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_points(Vec::new(), false, _tolerance)
 }
 
 // ── EllipsoidalSolid3D ────────────────────────────────────────────────────────
@@ -728,28 +732,30 @@ pub fn ellipsoidal_solid3d_plane3d_intersection<T: Scalar>(
 pub fn ellipsoidal_solid3d_infinite_line3d_intersections<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
-) -> Vec<Point3D<T>> {
+    tolerance: T,
+) -> IntersectionResult<T> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let point_on_line = Point3D::new(px, py, pz);
-    if ellipsoid.contains_point(&point_on_line) {
+    let points = if ellipsoid.contains_point(&point_on_line) {
         vec![point_on_line]
     } else {
         vec![]
-    }
+    };
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 pub fn ellipsoidal_solid3d_ray3d_intersections<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     ray: &Ray3D<T>,
-    _tolerance: T,
-) -> Vec<Point3D<T>> {
+    tolerance: T,
+) -> IntersectionResult<T> {
     let origin = ray.origin();
-    if ellipsoid.contains_point(&origin) {
+    let points = if ellipsoid.contains_point(&origin) {
         vec![origin]
     } else {
         vec![]
-    }
+    };
+    IntersectionResult::from_option_points(points, false, tolerance)
 }
 
 // ── EllipsoidalSurface3D ──────────────────────────────────────────────────────
@@ -1183,7 +1189,7 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     ray: &Ray3D<T>,
     sphere: &SphericalSurface3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let mut intersections = Vec::new();
     let start = ray.origin();
     let direction = ray.direction_vector();
@@ -1191,7 +1197,7 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     let Some((t1, t2)) =
         spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
     else {
-        return intersections;
+        return IntersectionResult::from_option_points(intersections, false, tolerance);
     };
 
     if t1 >= T::ZERO {
@@ -1210,7 +1216,7 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
         ));
     }
 
-    intersections
+    IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
 fn ray3d_ray3d_intersection_raw<T: Scalar>(
@@ -1359,7 +1365,7 @@ pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
     segment: &LineSegment3D<T>,
     sphere: &SphericalSurface3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let mut intersections = Vec::new();
     let start = segment.start();
     let end = segment.end();
@@ -1368,7 +1374,7 @@ pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
     let Some((t1, t2)) =
         spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
     else {
-        return intersections;
+        return IntersectionResult::from_option_points(intersections, false, tolerance);
     };
 
     if t1 >= T::ZERO && t1 <= T::ONE {
@@ -1387,7 +1393,7 @@ pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
         ));
     }
 
-    intersections
+    IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
 fn line_segment3d_line_segment3d_intersection_raw<T: Scalar>(
@@ -1502,7 +1508,7 @@ pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
     line: &InfiniteLine3D<T>,
     sphere: &SphericalSurface3D<T>,
     tolerance: T,
-) -> Vec<Point3D<T>> {
+) -> IntersectionResult<T> {
     let mut intersections = Vec::new();
     let point = line.point();
     let direction = line.direction();
@@ -1512,7 +1518,7 @@ pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
     let Some((t1, t2)) =
         spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
     else {
-        return intersections;
+        return IntersectionResult::from_option_points(intersections, false, tolerance);
     };
 
     intersections.push(Point3D::new(
@@ -1529,7 +1535,7 @@ pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
         ));
     }
 
-    intersections
+    IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
 fn infinite_line3d_infinite_line3d_intersection_raw<T: Scalar>(
@@ -2100,18 +2106,37 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            line_segment3d_spherical_surface3d_intersections(&segment, &sphere, tolerance),
-            vec![Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)]
-        );
-        assert_eq!(
-            ray3d_spherical_surface3d_intersections(&ray, &sphere, tolerance),
-            vec![Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)]
-        );
-        assert_eq!(
-            infinite_line3d_spherical_surface3d_intersections(&line, &sphere, tolerance),
-            vec![Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)]
-        );
+        let seg_result =
+            line_segment3d_spherical_surface3d_intersections(&segment, &sphere, tolerance);
+        assert_eq!(seg_result.topology, IntersectionTopology::Crossing);
+        if let IntersectionGeometry::Points(ref pts) = seg_result.geometry {
+            assert_eq!(pts.len(), 2);
+            assert_eq!(pts[0], Point3D::new(-1.0, 0.0, 0.0));
+            assert_eq!(pts[1], Point3D::new(1.0, 0.0, 0.0));
+        } else {
+            panic!("Expected Points geometry");
+        }
+
+        let ray_result = ray3d_spherical_surface3d_intersections(&ray, &sphere, tolerance);
+        assert_eq!(ray_result.topology, IntersectionTopology::Crossing);
+        if let IntersectionGeometry::Points(ref pts) = ray_result.geometry {
+            assert_eq!(pts.len(), 2);
+            assert_eq!(pts[0], Point3D::new(-1.0, 0.0, 0.0));
+            assert_eq!(pts[1], Point3D::new(1.0, 0.0, 0.0));
+        } else {
+            panic!("Expected Points geometry");
+        }
+
+        let line_result =
+            infinite_line3d_spherical_surface3d_intersections(&line, &sphere, tolerance);
+        assert_eq!(line_result.topology, IntersectionTopology::Crossing);
+        if let IntersectionGeometry::Points(ref pts) = line_result.geometry {
+            assert_eq!(pts.len(), 2);
+            assert_eq!(pts[0], Point3D::new(-1.0, 0.0, 0.0));
+            assert_eq!(pts[1], Point3D::new(1.0, 0.0, 0.0));
+        } else {
+            panic!("Expected Points geometry");
+        }
     }
 
     #[test]
