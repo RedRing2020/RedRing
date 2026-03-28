@@ -12,9 +12,14 @@
 //! - HalfEdge: 隣接情報を持つ有向エッジ
 
 pub mod composite_curve;
+pub mod topology_core;
+pub mod wire;
 
 pub use composite_curve::{CompositeCurve3D, CurveSegment3D};
 pub use geo_core::{Point3D, Vector3D};
+pub use topology_core::{CurveRef, Edge, TopoId, Vertex};
+pub use wire::Wire;
 
 pub type TopoArc3D<T> = geo_primitives::Arc3D<T>;
+pub type TopoEllipseArc3D<T> = geo_primitives::EllipseArc3D<T>;
 pub type TopoLineSegment3D<T> = geo_primitives::LineSegment3D<T>;
