@@ -2,16 +2,16 @@
 //!
 //! Naming: Follows Solidworks conv ention (Rhino uses PolyCurve, ISO STEP uses CompositeCurve)
 
+use crate::{Point3D, TopoArc3D, TopoLineSegment3D, Vector3D};
 use geo_contracts::Scalar;
-use geo_primitives::{Arc3D, LineSegment3D, Point3D, Vector3D};
 
 /// Individual curve segment in a composite curve
 #[derive(Clone, Debug)]
 pub enum CurveSegment3D<T: Scalar> {
     /// Line segment from start to end point
-    Line(LineSegment3D<T>),
+    Line(TopoLineSegment3D<T>),
     /// Arc segment (circular arc in 3D)
-    Arc(Arc3D<T>),
+    Arc(TopoArc3D<T>),
     // Future: Nurbs(NurbsCurve3D<T>)  ← add after geo_nurbs dependency is confirmed
 }
 
@@ -118,8 +118,8 @@ mod tests {
 
     #[test]
     fn curve_segment_line_start_end() {
-        let seg =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+        let seg = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
         let curve_seg = CurveSegment3D::Line(seg);
 
         assert_eq!(curve_seg.start(), Point3D::new(0.0, 0.0, 0.0));
@@ -128,8 +128,8 @@ mod tests {
 
     #[test]
     fn curve_segment_line_length() {
-        let seg =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(3.0, 4.0, 0.0)).unwrap();
+        let seg = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(3.0, 4.0, 0.0))
+            .unwrap();
         let curve_seg = CurveSegment3D::Line(seg);
 
         assert_eq!(curve_seg.length(), 5.0);
@@ -137,8 +137,8 @@ mod tests {
 
     #[test]
     fn composite_curve_single_segment() {
-        let seg =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+        let seg = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
         let composite = CompositeCurve3D::new(vec![CurveSegment3D::Line(seg)]).unwrap();
 
         assert_eq!(composite.start_point(), Point3D::new(0.0, 0.0, 0.0));
@@ -148,10 +148,10 @@ mod tests {
 
     #[test]
     fn composite_curve_two_segments_connected() {
-        let seg1 =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
-        let seg2 =
-            LineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0)).unwrap();
+        let seg1 = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 = TopoLineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
+            .unwrap();
         let composite =
             CompositeCurve3D::new(vec![CurveSegment3D::Line(seg1), CurveSegment3D::Line(seg2)])
                 .unwrap();
@@ -164,10 +164,10 @@ mod tests {
 
     #[test]
     fn composite_curve_disconnected_segments_fails() {
-        let seg1 =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
-        let seg2 =
-            LineSegment3D::new(Point3D::new(2.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0)).unwrap();
+        let seg1 = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 = TopoLineSegment3D::new(Point3D::new(2.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0))
+            .unwrap();
 
         assert!(CompositeCurve3D::new(vec![
             CurveSegment3D::Line(seg1),
@@ -183,12 +183,12 @@ mod tests {
 
     #[test]
     fn composite_curve_is_closed() {
-        let seg1 =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
-        let seg2 =
-            LineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 0.0)).unwrap();
-        let seg3 =
-            LineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(0.0, 0.0, 0.0)).unwrap();
+        let seg1 = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 = TopoLineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 0.0))
+            .unwrap();
+        let seg3 = TopoLineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(0.0, 0.0, 0.0))
+            .unwrap();
 
         let composite = CompositeCurve3D::new(vec![
             CurveSegment3D::Line(seg1),

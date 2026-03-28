@@ -14,3 +14,7 @@
 pub mod composite_curve;
 
 pub use composite_curve::{CompositeCurve3D, CurveSegment3D};
+pub use geo_core::{Point3D, Vector3D};
+
+pub type TopoArc3D<T> = geo_primitives::Arc3D<T>;
+pub type TopoLineSegment3D<T> = geo_primitives::LineSegment3D<T>;
