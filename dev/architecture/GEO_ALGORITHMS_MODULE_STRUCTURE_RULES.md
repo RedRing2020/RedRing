@@ -157,6 +157,22 @@
   - `arc3d_point3d_intersection_result`
   - `circle3d_point3d_intersection_result`
 
+### 10.2.1 継続スライス（同一PR系列で拡張する範囲）
+
+- point系の次は、同じ形状対の 1次元入力を対象に広げる。
+  - `arc3d_line_segment3d_intersection_result`
+  - `arc3d_ray3d_intersection_result`
+  - `arc3d_infinite_line3d_intersection_result`
+  - `circle3d_line_segment3d_intersection_result`
+  - `circle3d_ray3d_intersection_result`
+  - `circle3d_infinite_line3d_intersection_result`
+
+選定理由:
+
+- 既存実装が `Option<Point3D<T>>` の単一点返却で揃っている
+- `IntersectionResult::from_option_point()` をそのまま適用できる
+- `arc` / `circle` 系で命名・テストパターンを揃えやすい
+
 ### 10.3 実装順序
 
 1. `*_intersection_result` 追加（旧APIは変更しない）
