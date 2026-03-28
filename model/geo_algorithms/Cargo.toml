@@ -7,6 +7,7 @@ edition = "2021"
 analysis = { path = "../../foundation/analysis" }
 geo_contracts = { path = "../geo_contracts" }
 geo_primitives = { path = "../geo_primitives" }
+geo_topology = { path = "../geo_topology" }
 geo_nurbs = { path = "../geo_nurbs" }
 geo_core = { path = "../geo_core" }
 rayon = "1.10"
