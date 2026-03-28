@@ -166,6 +166,37 @@ impl<T: Scalar> IntersectionResult<T> {
     }
 
     /// 「複数点交差」結果を構築する
+    ///
+    /// 複数の孤立点で交差する場合の結果を構築する。
+    /// 例: 楕円と別の楕円が 2 点で交差、円柱面と直線が複数点で交差
+    ///
+    /// # Topology 分類
+    ///
+    /// - `is_tangent=false` → `Topology::Crossing`（横断交差）
+    /// - `is_tangent=true`  → `Topology::Touching`（接線接触、1 重根など）
+    ///
+    /// # 規約
+    ///
+    /// - 呼び出し元は `points` の点群から 接線性（微分整合）を判定し、
+    ///   `is_tangent` フラグで通知すること。
+    /// - 点群が複数ある場合、全体の関係が統一された Topology 値になること。
+    ///   例: 2 つの孤立点がある場合、全て Crossing または全て Touching。
+    ///   混合は想定外。
+    /// - 点群が空の場合は `Self::disjoint()` を使用。`points()` に空を渡さない。
+    ///
+    /// # 使用例
+    ///
+    /// ```text
+    /// // 楕円と円が 2 点で横断交差
+    /// let pts = vec![Point3D::new(1.0, 0.0, 0.0), Point3D::new(-1.0, 0.0, 0.0)];
+    /// let result = IntersectionResult::points(pts, false, 1e-9);
+    /// assert_eq!(result.topology, IntersectionTopology::Crossing);
+    ///
+    /// // 円柱面と直線が接線接触（1重根の多重度）
+    /// let pts = vec![Point3D::new(1.0, 1.0, 0.0), Point3D::new(1.0, -1.0, 0.0)];
+    /// let result = IntersectionResult::points(pts, true, 1e-9);
+    /// assert_eq!(result.topology, IntersectionTopology::Touching);
+    /// ```
     pub fn points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
         IntersectionResult {
             geometry: IntersectionGeometry::Points(points),
@@ -209,10 +240,22 @@ impl<T: Scalar> IntersectionResult<T> {
     /// `Vec<Point3D<T>>` から変換する互換アダプタ
     ///
     /// 既存 API（複数点を返す交差関数）からの変換規約。
+    /// 段階移行期間に旧 API（`Vec<Point3D<T>>`）から新 API（`IntersectionResult<T>`）へ
+    /// 変換するために使用する。
     ///
-    /// 変換規約:
-    /// - 空ベクタ   → `Disjoint`
+    /// # 変換規約
+    ///
+    /// - 空ベクタ   → `Disjoint`（交差なし）
     /// - 1点以上   → `Crossing` または `Touching`（`is_tangent` で制御）
+    ///
+    /// # 使用例
+    ///
+    /// ```text
+    /// // 既存関数が Vec<Point3D<T>> を返す場合
+    /// let points: Vec<Point3D<f64>> = ellipse3d_circle3d_intersections(...);
+    /// let result = IntersectionResult::from_option_points(points, false, 1e-9);
+    /// // result は IntersectionResult に統一された形式
+    /// ```
     pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
         if points.is_empty() {
             return Self::disjoint(tolerance);
