@@ -427,7 +427,7 @@ impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
     fn point_on_circumference(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
         let distance = self.distance_to_point_3d(p);
-        distance.abs() <= T::EPSILON
+        distance.abs() <= default_distance_tolerance::<T>()
     }
 
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
@@ -446,7 +446,7 @@ impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
         let in_plane = to_point - axis_vec * projection;
 
         let distance = in_plane.magnitude();
-        if distance <= T::EPSILON {
+        if distance <= default_kernel_numerical_zero_tolerance::<T>() {
             // 点が中心軸上にある場合、参照方向の点を返す
             let closest = self.center + self.ref_direction.as_vector() * self.radius;
             (closest.x(), closest.y(), closest.z())
