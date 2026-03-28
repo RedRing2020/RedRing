@@ -1,36 +1,36 @@
-//! Intersection Result Types
+//! 交差結果型
 //!
-//! Provides generalized result types for geometric intersection operations.
+//! 幾何交差演算で利用する汎用結果型を提供する。
 //!
-//! Architecture:
-//! - `IntersectionGeometry`: Describes what was found geometrically
-//! - `IntersectionTopology`: Describes the topological relationship
-//! - `IntersectionResult`: Complete result combining geometry and topology
+//! 構成:
+//! - `IntersectionGeometry`: 幾何的に何が得られたか
+//! - `IntersectionTopology`: 位相的な関係
+//! - `IntersectionResult`: 幾何と位相を統合した結果
 
 use crate::{CompositeCurve3D, InfiniteLine3D, LineSegment3D, Point3D};
 use geo_contracts::Scalar;
 
-/// Geometric content of an intersection result
+/// 交差結果の幾何内容
 #[derive(Clone, Debug)]
 pub enum IntersectionGeometry<T: Scalar> {
-    /// No intersection
+    /// 交差なし
     None,
-    /// Single point intersection
+    /// 単一点交差
     Point(Point3D<T>),
-    /// Multiple isolated points
+    /// 複数の孤立点
     Points(Vec<Point3D<T>>),
-    /// Infinite line (e.g., plane-plane intersection when not parallel)
+    /// 無限直線（例: 非平行な平面同士の交差）
     InfiniteLine(InfiniteLine3D<T>),
-    /// Line segment (e.g., surface-surface intersection bounded)
+    /// 線分（例: 有界な面同士の交差）
     Segment(LineSegment3D<T>),
-    /// Composite curve (e.g., multiple connected segments)
+    /// 複合曲線（例: 連結した複数セグメント）
     CompositeCurve(CompositeCurve3D<T>),
-    /// Complete coincidence (shapes overlap completely)
+    /// 完全一致（形状が全域で重なる）
     Coincident,
 }
 
 impl<T: Scalar> IntersectionGeometry<T> {
-    /// Get a human-readable description of the geometry type
+    /// 幾何タイプの説明文字列を返す
     pub fn description(&self) -> &'static str {
         match self {
             Self::None => "no intersection",
@@ -43,21 +43,21 @@ impl<T: Scalar> IntersectionGeometry<T> {
         }
     }
 
-    /// Check if the intersection is empty
+    /// 交差が空かを返す
     pub fn is_empty(&self) -> bool {
         matches!(self, Self::None)
     }
 
-    /// Check if the intersection contains multiple geometric elements
+    /// 複数要素を含むかを返す
     pub fn is_multiple(&self) -> bool {
         matches!(self, Self::Points(_) | Self::CompositeCurve(_))
     }
 
-    /// Get the dimension of the intersection
-    /// - -1: Empty
-    /// - 0: Point(s)
-    /// - 1: Curve(s)
-    /// - 2: Surface (Coincident)
+    /// 交差集合の次元を返す
+    /// - -1: 空集合
+    /// - 0: 点
+    /// - 1: 曲線
+    /// - 2: 面（Coincident）
     pub fn dimension(&self) -> i32 {
         match self {
             Self::None => -1,
@@ -68,28 +68,28 @@ impl<T: Scalar> IntersectionGeometry<T> {
     }
 }
 
-/// Topological classification of the intersection
+/// 交差の位相分類
 ///
-/// Describes how the shapes relate positionally:
+/// 形状間の位置関係を表す。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum IntersectionTopology {
-    /// Shapes do not touch
+    /// 形状が接していない
     Disjoint,
-    /// Shapes touch at isolated points (e.g., tangent)
+    /// 孤立点で接する（例: 接線接触）
     Touching,
-    /// Shapes cross (transverse intersection)
+    /// 形状が交差する（横断交差）
     Crossing,
-    /// Shapes overlap completely (all points coincide)
+    /// 形状が完全に一致する
     Coincident,
 }
 
 impl IntersectionTopology {
-    /// Check if shapes intersect (excluding purely disjoint)
+    /// 交差しているかを返す（Disjoint を除く）
     pub fn intersects(&self) -> bool {
         !matches!(self, Self::Disjoint)
     }
 
-    /// Get a human-readable description
+    /// 説明文字列を返す
     pub fn description(&self) -> &'static str {
         match self {
             Self::Disjoint => "disjoint",
@@ -100,37 +100,37 @@ impl IntersectionTopology {
     }
 }
 
-/// Complete intersection result combining geometry and topology
+/// 幾何と位相を統合した交差結果
 ///
-/// # Invariants
+/// # 不変条件
 ///
-/// The following rules are maintained by the intersection computation layer:
+/// 交差計算層では以下の規約を維持する。
 ///
-/// 1. **Priority order for classification**: Coincident > Crossing > Touching > Disjoint
-/// 2. **Geometry-Topology consistency**:
-///    - `Coincident`: geometry must be `Self::Coincident`
-///    - `Touching`: geometry dimension must be 0 (point(s))
-///    - `Crossing`: geometry dimension must be >= 1
-///    - `Disjoint`: geometry must be `Self::None`
-/// 3. **Tolerance usage**: `tolerance_used` must match caller's input tolerance
-///    (or system default if caller provided none)
+/// 1. **判定優先順位**: Coincident > Crossing > Touching > Disjoint
+/// 2. **幾何と位相の整合**:
+///    - `Coincident`: geometry は `Self::Coincident`
+///    - `Touching`: geometry の次元は 0（点）
+///    - `Crossing`: geometry の次元は 1 以上
+///    - `Disjoint`: geometry は `Self::None`
+/// 3. **トレランス運用**: `tolerance_used` は呼び出し元入力と一致すること
+///    （未指定時はシステム既定値）
 #[derive(Clone, Debug)]
 pub struct IntersectionResult<T: Scalar> {
-    /// The geometric intersection
+    /// 幾何交差結果
     pub geometry: IntersectionGeometry<T>,
 
-    /// The topological relationship
+    /// 位相的関係
     pub topology: IntersectionTopology,
 
-    /// Whether the surfaces are tangent (derivative-aligned but not coincident)
+    /// 接触が接線的か（導関数整合だが一致ではない）
     pub is_tangent: bool,
 
-    /// The tolerance value used in the computation
+    /// 計算で使用したトレランス値
     pub tolerance_used: T,
 }
 
 impl<T: Scalar> IntersectionResult<T> {
-    /// Create a new intersection result
+    /// 交差結果を構築する
     pub fn new(
         geometry: IntersectionGeometry<T>,
         topology: IntersectionTopology,
@@ -145,7 +145,7 @@ impl<T: Scalar> IntersectionResult<T> {
         }
     }
 
-    /// Create a "no intersection" result
+    /// 「交差なし」結果を構築する
     pub fn disjoint(tolerance: T) -> Self {
         IntersectionResult {
             geometry: IntersectionGeometry::None,
@@ -155,7 +155,7 @@ impl<T: Scalar> IntersectionResult<T> {
         }
     }
 
-    /// Create a "single point intersection" result
+    /// 「単一点交差」結果を構築する
     pub fn point(point: Point3D<T>, is_tangent: bool, tolerance: T) -> Self {
         IntersectionResult {
             geometry: IntersectionGeometry::Point(point),
@@ -165,7 +165,7 @@ impl<T: Scalar> IntersectionResult<T> {
         }
     }
 
-    /// Create a "multiple points intersection" result
+    /// 「複数点交差」結果を構築する
     pub fn points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
         IntersectionResult {
             geometry: IntersectionGeometry::Points(points),
@@ -179,12 +179,12 @@ impl<T: Scalar> IntersectionResult<T> {
         }
     }
 
-    /// Check if shapes intersect
+    /// 交差しているかを返す
     pub fn intersects(&self) -> bool {
         self.topology.intersects()
     }
 
-    /// Get a human-readable description
+    /// 人が読める説明文字列を返す
     pub fn description(&self) -> String {
         format!(
             "{} ({}, tangent: {}, tol: {:?})",
