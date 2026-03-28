@@ -9,14 +9,14 @@
 
 use crate::{
     Arc3D, Circle3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D, EllipsoidalSurface3D,
-    InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D,
-    TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
+    InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
+    SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
     Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSurface3DMeasure,
     CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
-    InfiniteLine3DProperties, Scalar, SphericalSurface3DProperties, TorusSurface3DMeasure,
-    Triangle3DProperties,
+    InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
+    TorusSurface3DMeasure, Triangle3DProperties,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -502,7 +502,68 @@ pub fn cylindrical_surface3d_plane3d_intersection<T: Scalar>(
     )
 }
 
-// cylindrical_surface3d_cylindrical_surface3d_intersection: BasicIntersection<T, CylindricalSurface3D<T>> は未実装のため対象外
+fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
+    lhs: &CylindricalSurface3D<T>,
+    rhs: &CylindricalSurface3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let lhs_center_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(lhs);
+    let rhs_center_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(rhs);
+    let lhs_center = Point3D::new(lhs_center_tuple.0, lhs_center_tuple.1, lhs_center_tuple.2);
+    let rhs_center = Point3D::new(rhs_center_tuple.0, rhs_center_tuple.1, rhs_center_tuple.2);
+
+    let lhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+        lhs,
+        rhs_center_tuple,
+    );
+    let rhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+        rhs,
+        lhs_center_tuple,
+    );
+
+    let lhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(lhs);
+    let rhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(rhs);
+    let lhs_axis = crate::Vector3D::new(lhs_axis_tuple.0, lhs_axis_tuple.1, lhs_axis_tuple.2);
+    let rhs_axis = crate::Vector3D::new(rhs_axis_tuple.0, rhs_axis_tuple.1, rhs_axis_tuple.2);
+    let center_delta = crate::Vector3D::from_points(&lhs_center, &rhs_center);
+
+    let angle_tolerance = if tolerance > T::from_f64(1.0e-6) {
+        tolerance
+    } else {
+        T::from_f64(1.0e-6)
+    };
+    let axes_parallel = (lhs_axis.dot(&rhs_axis).abs() - T::ONE).abs() <= angle_tolerance;
+    let axis_distance = center_delta.cross(&lhs_axis).magnitude();
+    let radii_match = (
+        <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(lhs)
+            - <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(rhs)
+    )
+    .abs()
+        <= tolerance;
+    let coincident = axes_parallel && axis_distance <= tolerance && radii_match;
+
+    if lhs_dist <= tolerance || rhs_dist <= tolerance || coincident {
+        Some(Point3D::new(
+            (lhs_center.x() + rhs_center.x()) / (T::ONE + T::ONE),
+            (lhs_center.y() + rhs_center.y()) / (T::ONE + T::ONE),
+            (lhs_center.z() + rhs_center.z()) / (T::ONE + T::ONE),
+        ))
+    } else {
+        None
+    }
+}
+
+pub fn cylindrical_surface3d_cylindrical_surface3d_intersection<T: Scalar>(
+    lhs: &CylindricalSurface3D<T>,
+    rhs: &CylindricalSurface3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        cylindrical_surface3d_cylindrical_surface3d_intersection_raw(lhs, rhs, tolerance),
+        false,
+        tolerance,
+    )
+}
 
 // ── Ellipse3D ─────────────────────────────────────────────────────────────────
 
@@ -780,9 +841,151 @@ pub fn ellipsoidal_surface3d_point3d_intersection<T: Scalar>(
     )
 }
 
-// SphericalSolid3D の intersection: spherical_solid_3d_intersection モジュールが
-// lib.rs でコメントアウトされているため BasicIntersection/MultipleIntersection は未実装。
-// collision 側（primitive_3d.rs）の spherical_solid3d_*_collides を使用すること。
+// ── SphericalSolid3D ─────────────────────────────────────────────────────────
+
+fn spherical_solid3d_point3d_intersection_raw<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    point: &Point3D<T>,
+    _tolerance: T,
+) -> Option<Point3D<T>> {
+    point_intersection_if(point, sphere.contains_point(*point))
+}
+
+pub fn spherical_solid3d_point3d_intersection<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        spherical_solid3d_point3d_intersection_raw(sphere, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn spherical_solid3d_line3d_intersection_raw<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
+    let center = Point3D::new(cx, cy, cz);
+    let line_point_tuple = InfiniteLine3DProperties::point(line);
+    let line_dir_tuple = InfiniteLine3DProperties::direction(line);
+    let line_point = Point3D::new(line_point_tuple.0, line_point_tuple.1, line_point_tuple.2);
+    let line_dir = crate::Vector3D::new(line_dir_tuple.0, line_dir_tuple.1, line_dir_tuple.2);
+    if sphere.distance_to_infinite_line(&line_point, &line_dir) <= tolerance {
+        Some(line.project_point(&center))
+    } else {
+        None
+    }
+}
+
+pub fn spherical_solid3d_line3d_intersection<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        spherical_solid3d_line3d_intersection_raw(sphere, line, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn spherical_solid3d_ray3d_intersection_raw<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
+    let center = Point3D::new(cx, cy, cz);
+    let ray_direction = ray.direction_vector();
+    if sphere.distance_to_ray(&ray.origin(), &ray_direction) <= tolerance {
+        let parameter = ray.parameter_for_point(&center);
+        let clamped = if parameter < T::ZERO {
+            T::ZERO
+        } else {
+            parameter
+        };
+        Some(ray.point_at_parameter(clamped))
+    } else {
+        None
+    }
+}
+
+pub fn spherical_solid3d_ray3d_intersection<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        spherical_solid3d_ray3d_intersection_raw(sphere, ray, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
+    let center = Point3D::new(cx, cy, cz);
+    if sphere.distance_to_line_segment(&segment.start(), &segment.end()) <= tolerance {
+        let parameter = segment.line().parameter_for_point(&center);
+        let clamped = if parameter < segment.start_param() {
+            segment.start_param()
+        } else if parameter > segment.end_param() {
+            segment.end_param()
+        } else {
+            parameter
+        };
+        Some(segment.line().point_at_parameter(clamped))
+    } else {
+        None
+    }
+}
+
+pub fn spherical_solid3d_line_segment3d_intersection<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        spherical_solid3d_line_segment3d_intersection_raw(sphere, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn spherical_solid3d_plane3d_intersection_raw<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
+    let center = Point3D::new(cx, cy, cz);
+    let radius = SphericalSolid3DProperties::radius(sphere);
+    if plane.distance_to_point(center).abs() <= radius + tolerance {
+        Some(plane.project_point(center))
+    } else {
+        None
+    }
+}
+
+pub fn spherical_solid3d_plane3d_intersection<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        spherical_solid3d_plane3d_intersection_raw(sphere, plane, tolerance),
+        false,
+        tolerance,
+    )
+}
 
 // ── TorusSolid3D ──────────────────────────────────────────────────────────────
 
