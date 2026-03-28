@@ -246,7 +246,7 @@ pub fn triangle2d_line_segment2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> bool {
-    !triangle2d_line_segment2d_intersections(triangle, segment, tolerance).is_empty()
+    triangle2d_line_segment2d_intersections(triangle, segment, tolerance).intersects()
 }
 
 pub fn line_segment2d_triangle2d_collides<T: Scalar>(
