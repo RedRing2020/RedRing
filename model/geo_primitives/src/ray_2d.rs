@@ -38,7 +38,7 @@ impl<T: Scalar> Ray2D<T> {
     /// # 戻り値
     /// 方向ベクトルがゼロベクトルの場合は None を返す
     pub fn new(origin: Point2D<T>, direction: Vector2D<T>) -> Option<Self> {
-        if direction.is_zero(T::EPSILON) {
+        if direction.is_zero(geo_contracts::default_kernel_numerical_zero_tolerance::<T>()) {
             return None;
         }
 
