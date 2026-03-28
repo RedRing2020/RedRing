@@ -179,6 +179,47 @@ impl<T: Scalar> IntersectionResult<T> {
         }
     }
 
+    /// `Option<Point3D<T>>` から変換する互換アダプタ
+    ///
+    /// 既存 API（`Option<Point3D<T>>` を返す交差関数）から
+    /// `IntersectionResult<T>` へ段階移行するための変換規約。
+    ///
+    /// 変換規約:
+    /// - `None`    → `Disjoint`（交差なし）
+    /// - `Some(p)` → `Crossing` / 単一点（接線かどうかは呼び出し元が指定）
+    pub fn from_option_point(opt: Option<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
+        match opt {
+            None => Self::disjoint(tolerance),
+            Some(p) => {
+                let topology = if is_tangent {
+                    IntersectionTopology::Touching
+                } else {
+                    IntersectionTopology::Crossing
+                };
+                IntersectionResult {
+                    geometry: IntersectionGeometry::Point(p),
+                    topology,
+                    is_tangent,
+                    tolerance_used: tolerance,
+                }
+            }
+        }
+    }
+
+    /// `Vec<Point3D<T>>` から変換する互換アダプタ
+    ///
+    /// 既存 API（複数点を返す交差関数）からの変換規約。
+    ///
+    /// 変換規約:
+    /// - 空ベクタ   → `Disjoint`
+    /// - 1点以上   → `Crossing` または `Touching`（`is_tangent` で制御）
+    pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
+        if points.is_empty() {
+            return Self::disjoint(tolerance);
+        }
+        Self::points(points, is_tangent, tolerance)
+    }
+
     /// 交差しているかを返す
     pub fn intersects(&self) -> bool {
         self.topology.intersects()
@@ -230,5 +271,64 @@ mod tests {
         let result = IntersectionResult::point(pt, false, 1e-9);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
+    }
+
+    // --- from_option_point 変換規約テスト ---
+
+    #[test]
+    fn compat_from_option_point_none_is_disjoint() {
+        // None → Disjoint
+        let result = IntersectionResult::<f64>::from_option_point(None, false, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+        assert!(result.geometry.is_empty());
+    }
+
+    #[test]
+    fn compat_from_option_point_some_is_crossing() {
+        // Some(p)、非接線 → Crossing
+        let pt = Point3D::new(1.0, 0.0, 0.0);
+        let result = IntersectionResult::from_option_point(Some(pt), false, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+        assert!(!result.is_tangent);
+    }
+
+    #[test]
+    fn compat_from_option_point_tangent_is_touching() {
+        // Some(p)、接線 → Touching
+        let pt = Point3D::new(0.0, 1.0, 0.0);
+        let result = IntersectionResult::from_option_point(Some(pt), true, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Touching);
+        assert!(result.is_tangent);
+    }
+
+    // --- from_option_points 変換規約テスト ---
+
+    #[test]
+    fn compat_from_option_points_empty_is_disjoint() {
+        // 空ベクタ → Disjoint
+        let result = IntersectionResult::<f64>::from_option_points(vec![], false, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn compat_from_option_points_multi_is_crossing() {
+        // 複数点、非接線 → Crossing
+        let pts = vec![Point3D::new(1.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)];
+        let result = IntersectionResult::from_option_points(pts, false, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+    }
+
+    #[test]
+    fn compat_from_option_points_multi_tangent_is_touching() {
+        // 複数点、接線 → Touching
+        let pts = vec![Point3D::new(0.0, 1.0, 0.0)];
+        let result = IntersectionResult::from_option_points(pts, true, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Touching);
     }
 }
