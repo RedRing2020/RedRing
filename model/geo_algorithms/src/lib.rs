@@ -24,7 +24,7 @@ pub use constraint_validation::{
     validate_rotary_speed_deg_per_min, ConstraintViolation, ValidationResult,
 };
 
-// Intersection Result types from geo_algorithms
+// geo_algorithms が提供する交差結果型
 pub use result::{IntersectionGeometry, IntersectionResult, IntersectionTopology};
 
 // NURBS型の再エクスポート（ViewModel層からのアクセス用）
