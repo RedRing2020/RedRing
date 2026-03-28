@@ -3,6 +3,7 @@
 //! Extension Foundation パターンに基づく Circle2D の拡張実装
 
 use crate::{Circle2D, Point2D, Vector2D};
+use geo_contracts::default_kernel_numerical_zero_tolerance;
 use geo_contracts::Scalar;
 
 // ============================================================================
@@ -21,7 +22,7 @@ impl<T: Scalar> Circle2D<T> {
         let v2 = Vector2D::from_points(p1, p3);
 
         let cross = v1.cross(&v2);
-        if cross.abs() <= T::EPSILON {
+        if cross.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 共線点
         }
 
@@ -38,7 +39,7 @@ impl<T: Scalar> Circle2D<T> {
                 + p2.x() * (p3.y() - p1.y())
                 + p3.x() * (p1.y() - p2.y()));
 
-        if div.abs() <= T::EPSILON {
+        if div.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
 

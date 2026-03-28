@@ -4,6 +4,7 @@
 //! STEP (ISO 10303) 準拠の ref_direction フィールドでArc変換に対応
 
 use crate::{Direction2D, Point2D};
+use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties, Scalar};
 
 /// 2次元円
@@ -107,7 +108,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点円（半径がゼロに近い）かどうか
     pub fn is_point(&self) -> bool {
-        self.radius <= T::EPSILON
+        self.radius <= default_distance_tolerance::<T>()
     }
 
     /// 点が円周上にあるか判定
@@ -115,7 +116,7 @@ impl<T: Scalar> Circle2D<T> {
         let dx = point.x() - self.center.x();
         let dy = point.y() - self.center.y();
         let distance = (dx * dx + dy * dy).sqrt();
-        (distance - self.radius).abs() <= T::EPSILON
+        (distance - self.radius).abs() <= default_distance_tolerance::<T>()
     }
 
     /// 点に最も近い円周上の点を取得
@@ -124,7 +125,7 @@ impl<T: Scalar> Circle2D<T> {
         let dy = point.y() - self.center.y();
         let distance = (dx * dx + dy * dy).sqrt();
 
-        if distance <= T::EPSILON {
+        if distance <= default_kernel_numerical_zero_tolerance::<T>() {
             // 点が中心にある場合、任意の円周上の点を返す
             Point2D::new(self.center.x() + self.radius, self.center.y())
         } else {
@@ -188,7 +189,7 @@ impl<T: Scalar> Circle2D<T> {
         let dy2 = point3.y() - point2.y();
 
         let cross = dx1 * dy2 - dy1 * dx2;
-        if cross.abs() <= T::EPSILON {
+        if cross.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 3点が一直線上
         }
 
@@ -198,7 +199,7 @@ impl<T: Scalar> Circle2D<T> {
                 + point2.x() * (point3.y() - point1.y())
                 + point3.x() * (point1.y() - point2.y()));
 
-        if d.abs() <= T::EPSILON {
+        if d.abs() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
 
@@ -304,16 +305,17 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     // Phase 2 メソッド実装
 
     fn is_unit_circle(&self) -> bool {
-        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
+        (self.radius_internal() - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_centered_at_origin(&self) -> bool {
         let c = self.center_internal();
-        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON
+        c.x().abs() <= default_distance_tolerance::<T>()
+            && c.y().abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= T::EPSILON
+        self.radius_internal() <= default_distance_tolerance::<T>()
     }
 }
 
