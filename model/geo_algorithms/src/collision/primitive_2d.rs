@@ -125,15 +125,17 @@ pub fn circle2d_arc2d_collides<T: Scalar>(
 pub fn line_segment2d_arc2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     arc: &Arc2D<T>,
+    tolerance: T,
 ) -> bool {
-    !line_segment2d_arc2d_intersections(segment, arc).is_empty()
+    !line_segment2d_arc2d_intersections(segment, arc, tolerance).is_empty()
 }
 
 pub fn arc2d_line_segment2d_collides<T: Scalar>(
     arc: &Arc2D<T>,
     segment: &LineSegment2D<T>,
+    tolerance: T,
 ) -> bool {
-    line_segment2d_arc2d_collides(segment, arc)
+    line_segment2d_arc2d_collides(segment, arc, tolerance)
 }
 
 pub fn ray2d_point2d_collides<T: Scalar>(ray: &Ray2D<T>, point: &Point2D<T>, tolerance: T) -> bool {
@@ -421,13 +423,21 @@ mod tests {
         Angle, Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D,
         Ray2D, Triangle2D, Vector2D,
     };
+    use analysis::test_constants;
+
+    const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
+    const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
 
     #[test]
     fn circle_point_collision_detects_boundary_point() {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let point = Point2D::new(1.0, 0.0);
 
-        assert!(circle2d_point2d_collides(&circle, &point, 1e-9));
+        assert!(circle2d_point2d_collides(
+            &circle,
+            &point,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -435,7 +445,11 @@ mod tests {
         let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let circle2 = Circle2D::new(Point2D::new(1.5, 0.0), 1.0).unwrap();
 
-        assert!(circle2d_circle2d_collides(&circle1, &circle2, 1e-9));
+        assert!(circle2d_circle2d_collides(
+            &circle1,
+            &circle2,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -443,7 +457,11 @@ mod tests {
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
 
-        assert!(line_segment2d_circle2d_collides(&segment, &circle, 1e-9));
+        assert!(line_segment2d_circle2d_collides(
+            &segment,
+            &circle,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -461,7 +479,11 @@ mod tests {
         )
         .unwrap();
 
-        assert!(triangle2d_triangle2d_collides(&triangle1, &triangle2, 1e-9));
+        assert!(triangle2d_triangle2d_collides(
+            &triangle1,
+            &triangle2,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -474,11 +496,15 @@ mod tests {
         .unwrap();
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
 
-        assert!(line_segment2d_arc2d_collides(&segment, &arc));
+        assert!(line_segment2d_arc2d_collides(
+            &segment,
+            &arc,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
         assert!(circle2d_arc2d_collides(
             &Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap(),
             &arc,
-            1e-9
+            STANDARD_TEST_TOLERANCE_F64
         ));
     }
 
@@ -493,7 +519,9 @@ mod tests {
         let segment = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
         assert!(triangle2d_line_segment2d_collides(
-            &triangle, &segment, 1e-9
+            &triangle,
+            &segment,
+            STANDARD_TEST_TOLERANCE_F64
         ));
     }
 
@@ -502,8 +530,16 @@ mod tests {
         let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let segment = LineSegment2D::new(Point2D::new(0.0, -1.0), Point2D::new(0.0, 1.0)).unwrap();
 
-        assert!(ray2d_line_segment2d_collides(&ray, &segment, 1e-9));
-        assert!(line_segment2d_ray2d_collides(&segment, &ray, 1e-9));
+        assert!(ray2d_line_segment2d_collides(
+            &ray,
+            &segment,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
+        assert!(line_segment2d_ray2d_collides(
+            &segment,
+            &ray,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -512,10 +548,14 @@ mod tests {
         let segment = LineSegment2D::new(Point2D::new(-1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
         assert!(infinite_line2d_line_segment2d_collides(
-            &line, &segment, 1e-9
+            &line,
+            &segment,
+            STANDARD_TEST_TOLERANCE_F64
         ));
         assert!(line_segment2d_infinite_line2d_collides(
-            &segment, &line, 1e-9
+            &segment,
+            &line,
+            STANDARD_TEST_TOLERANCE_F64
         ));
     }
 
@@ -524,8 +564,16 @@ mod tests {
         let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let ray = Ray2D::new(Point2D::new(1.0, 1.0), Vector2D::new(0.0, -1.0)).unwrap();
 
-        assert!(infinite_line2d_ray2d_collides(&line, &ray, 1e-9));
-        assert!(ray2d_infinite_line2d_collides(&ray, &line, 1e-9));
+        assert!(infinite_line2d_ray2d_collides(
+            &line,
+            &ray,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
+        assert!(ray2d_infinite_line2d_collides(
+            &ray,
+            &line,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -546,7 +594,7 @@ mod tests {
         )
         .unwrap();
 
-        let tol = 1e-9;
+        let tol = STANDARD_TEST_TOLERANCE_F64;
         assert_eq!(
             circle2d_ray2d_collides(&circle, &ray, tol),
             ray2d_circle2d_collides(&ray, &circle, tol)
@@ -564,8 +612,8 @@ mod tests {
             triangle2d_line_segment2d_collides(&triangle, &segment, tol)
         );
         assert_eq!(
-            arc2d_line_segment2d_collides(&arc, &segment),
-            line_segment2d_arc2d_collides(&segment, &arc)
+            arc2d_line_segment2d_collides(&arc, &segment, STANDARD_TEST_TOLERANCE_F64),
+            line_segment2d_arc2d_collides(&segment, &arc, STANDARD_TEST_TOLERANCE_F64)
         );
 
         let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
@@ -594,15 +642,31 @@ mod tests {
         let point = Point2D::new(3.0, 0.0);
         let circle = Circle2D::new(Point2D::new(2.5, 0.0), 0.75).unwrap();
 
-        assert!(ellipse2d_point2d_collides(&ellipse, &point, 1e-6));
-        assert!(ellipse_arc2d_point2d_collides(&ellipse_arc, &point, 1e-6));
+        assert!(ellipse2d_point2d_collides(
+            &ellipse,
+            &point,
+            ELLIPSE_ENTRY_TEST_TOLERANCE_F64
+        ));
+        assert!(ellipse_arc2d_point2d_collides(
+            &ellipse_arc,
+            &point,
+            ELLIPSE_ENTRY_TEST_TOLERANCE_F64
+        ));
         assert_eq!(
-            circle2d_ellipse2d_collides(&circle, &ellipse, 1e-6),
-            ellipse2d_circle2d_collides(&ellipse, &circle, 1e-6)
+            circle2d_ellipse2d_collides(&circle, &ellipse, ELLIPSE_ENTRY_TEST_TOLERANCE_F64),
+            ellipse2d_circle2d_collides(&ellipse, &circle, ELLIPSE_ENTRY_TEST_TOLERANCE_F64)
         );
         assert_eq!(
-            circle2d_ellipse_arc2d_collides(&circle, &ellipse_arc, 1e-6),
-            ellipse_arc2d_circle2d_collides(&ellipse_arc, &circle, 1e-6)
+            circle2d_ellipse_arc2d_collides(
+                &circle,
+                &ellipse_arc,
+                ELLIPSE_ENTRY_TEST_TOLERANCE_F64,
+            ),
+            ellipse_arc2d_circle2d_collides(
+                &ellipse_arc,
+                &circle,
+                ELLIPSE_ENTRY_TEST_TOLERANCE_F64,
+            )
         );
     }
 }
