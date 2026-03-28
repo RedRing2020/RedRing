@@ -815,7 +815,7 @@ pub fn plane3d_ray3d_collides<T: Scalar>(plane: &Plane3D<T>, ray: &Ray3D<T>, tol
     let ray_dir = ray.direction_vector();
     let normal_vec = plane.normal().as_vector();
     let denom = ray_dir.dot(&normal_vec);
-    if denom.abs() > T::EPSILON {
+    if denom.abs() > tolerance {
         let origin_dist = plane.distance_to_point(ray.origin());
         origin_dist.abs() <= tolerance || (origin_dist * denom <= T::ZERO)
     } else {
@@ -832,7 +832,7 @@ pub fn plane3d_infinite_line3d_collides<T: Scalar>(
     let line_dir_vec = crate::Vector3D::new(dx, dy, dz);
     let normal_vec = plane.normal().as_vector();
     let denom = line_dir_vec.dot(&normal_vec);
-    if denom.abs() > T::EPSILON {
+    if denom.abs() > tolerance {
         true
     } else {
         let (px, py, pz) = InfiniteLine3DProperties::point(line);
@@ -848,7 +848,7 @@ pub fn plane3d_plane3d_collides<T: Scalar>(
     let normal1 = plane_a.normal().as_vector();
     let normal2 = plane_b.normal().as_vector();
     let cross = normal1.cross(&normal2);
-    if cross.length() > T::EPSILON {
+    if cross.length() > tolerance {
         true
     } else {
         let dist = plane_a.distance_to_point(plane_b.origin());

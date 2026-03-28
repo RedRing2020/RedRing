@@ -126,20 +126,25 @@ pub fn infinite_line3d_ray3d_collides<T: Scalar>(
     infinite_line3d_ray3d_intersection(line, ray, tolerance).is_some()
 }
 
-pub fn ray3d_ray3d_collides<T: Scalar>(ray1: &Ray3D<T>, ray2: &Ray3D<T>) -> bool {
+pub fn ray3d_ray3d_collides<T: Scalar>(ray1: &Ray3D<T>, ray2: &Ray3D<T>, tolerance: T) -> bool {
     // Ray の有効範囲（t >= 0）は intersection 側で判定済み。
-    ray3d_ray3d_intersection(ray1, ray2).is_some()
+    ray3d_ray3d_intersection(ray1, ray2, tolerance).is_some()
 }
 
 pub fn ray3d_line_segment3d_collides<T: Scalar>(
     ray: &Ray3D<T>,
     segment: &LineSegment3D<T>,
+    tolerance: T,
 ) -> bool {
-    ray3d_line_segment3d_intersection(ray, segment).is_some()
+    ray3d_line_segment3d_intersection(ray, segment, tolerance).is_some()
 }
 
-pub fn ray3d_infinite_line3d_collides<T: Scalar>(ray: &Ray3D<T>, line: &InfiniteLine3D<T>) -> bool {
-    ray3d_infinite_line3d_intersection(ray, line).is_some()
+pub fn ray3d_infinite_line3d_collides<T: Scalar>(
+    ray: &Ray3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> bool {
+    ray3d_infinite_line3d_intersection(ray, line, tolerance).is_some()
 }
 
 pub fn plane3d_line_segment3d_collides<T: Scalar>(
@@ -158,8 +163,9 @@ pub fn plane3d_ray3d_collides<T: Scalar>(plane: &Plane3D<T>, ray: &Ray3D<T>, tol
 pub fn plane3d_infinite_line3d_collides<T: Scalar>(
     plane: &Plane3D<T>,
     line: &InfiniteLine3D<T>,
+    tolerance: T,
 ) -> bool {
-    plane3d_infinite_line3d_intersection(plane, line).is_some()
+    plane3d_infinite_line3d_intersection(plane, line, tolerance).is_some()
 }
 
 #[cfg(test)]
@@ -172,6 +178,9 @@ mod tests {
     use crate::{
         InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, Vector3D,
     };
+    use analysis::test_constants;
+
+    const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
 
     #[test]
     fn line_segment3d_spherical_surface_collides_true() {
@@ -197,7 +206,9 @@ mod tests {
         let segment2 =
             LineSegment3D::new(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0)).unwrap();
         assert!(line_segment3d_line_segment3d_collides(
-            &segment1, &segment2, 1e-6
+            &segment1,
+            &segment2,
+            STANDARD_TEST_TOLERANCE_F64
         ));
     }
 
@@ -205,7 +216,11 @@ mod tests {
     fn ray3d_ray3d_collides_true() {
         let ray1 = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
         let ray2 = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
-        assert!(ray3d_ray3d_collides(&ray1, &ray2));
+        assert!(ray3d_ray3d_collides(
+            &ray1,
+            &ray2,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
@@ -216,13 +231,21 @@ mod tests {
         )
         .unwrap();
         let ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
-        assert!(!infinite_line3d_ray3d_collides(&line, &ray, 1e-6));
+        assert!(!infinite_line3d_ray3d_collides(
+            &line,
+            &ray,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 
     #[test]
     fn plane3d_ray3d_collides_true() {
         let plane = Plane3D::xy_plane(0.0_f64);
         let ray = Ray3D::new(Point3D::new(0.0, 0.0, -2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-        assert!(plane3d_ray3d_collides(&plane, &ray, 1e-6));
+        assert!(plane3d_ray3d_collides(
+            &plane,
+            &ray,
+            STANDARD_TEST_TOLERANCE_F64
+        ));
     }
 }

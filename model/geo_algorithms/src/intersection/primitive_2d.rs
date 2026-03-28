@@ -37,65 +37,73 @@ pub fn circle2d_point2d_intersection<T: Scalar>(
 pub fn circle2d_circle2d_intersections_algo<T: Scalar>(
     circle1: &Circle2D<T>,
     circle2: &Circle2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = circle2d_circle2d_intersections(circle1, circle2);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = circle2d_circle2d_intersections(circle1, circle2, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn circle2d_line_segment2d_intersections_algo<T: Scalar>(
     circle: &Circle2D<T>,
     segment: &LineSegment2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = circle2d_line_segment2d_intersections(circle, segment);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = circle2d_line_segment2d_intersections(circle, segment, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn arc2d_circle2d_intersections_algo<T: Scalar>(
     arc: &Arc2D<T>,
     circle: &Circle2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = arc2d_circle2d_intersections(arc, circle);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = arc2d_circle2d_intersections(arc, circle, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn circle2d_arc2d_intersections_algo<T: Scalar>(
     circle: &Circle2D<T>,
     arc: &Arc2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = arc2d_circle2d_intersections(arc, circle);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = arc2d_circle2d_intersections(arc, circle, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn line_segment2d_circle2d_intersections_algo<T: Scalar>(
     segment: &LineSegment2D<T>,
     circle: &Circle2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = line_segment2d_circle2d_intersections(segment, circle);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = line_segment2d_circle2d_intersections(segment, circle, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn line_segment2d_arc2d_intersections_algo<T: Scalar>(
     segment: &LineSegment2D<T>,
     arc: &Arc2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = line_segment2d_arc2d_intersections(segment, arc);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = line_segment2d_arc2d_intersections(segment, arc, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn arc2d_line_segment2d_intersections_algo<T: Scalar>(
     arc: &Arc2D<T>,
     segment: &LineSegment2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = line_segment2d_arc2d_intersections(segment, arc);
-    IntersectionResult::from_option_points2d(points, false, T::EPSILON)
+    let points = line_segment2d_arc2d_intersections(segment, arc, tolerance);
+    IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
 pub fn line_segment2d_line_segment2d_intersection_algo<T: Scalar>(
     segment1: &LineSegment2D<T>,
     segment2: &LineSegment2D<T>,
+    tolerance: T,
 ) -> IntersectionResult<T> {
-    let opt = line_segment2d_line_segment2d_intersection(segment1, segment2);
-    IntersectionResult::from_option_point2d(opt, false, T::EPSILON)
+    let opt = line_segment2d_line_segment2d_intersection(segment1, segment2, tolerance);
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn ray2d_line_segment2d_intersection<T: Scalar>(
@@ -115,7 +123,7 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
     let d2 = Vector2D::from_points(s1, s2);
 
     let denominator = d1.x() * d2.y() - d1.y() * d2.x();
-    if denominator.abs() < T::EPSILON {
+    if denominator.abs() <= tolerance {
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
@@ -514,13 +522,17 @@ mod tests {
         Angle, Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, IntersectionGeometry,
         IntersectionTopology, LineSegment2D, Point2D, Ray2D, Vector2D,
     };
+    use analysis::test_constants;
+
+    const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
+    const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
 
     #[test]
     fn circle_point_intersection_on_boundary_is_crossing() {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let point = Point2D::new(1.0, 0.0);
 
-        let result = circle2d_point2d_intersection(&circle, &point, 1e-9);
+        let result = circle2d_point2d_intersection(&circle, &point, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
     }
@@ -530,7 +542,7 @@ mod tests {
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let point = Point2D::new(2.0, 0.0);
 
-        let result = circle2d_point2d_intersection(&circle, &point, 1e-9);
+        let result = circle2d_point2d_intersection(&circle, &point, STANDARD_TEST_TOLERANCE_F64);
         assert!(!result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Disjoint);
     }
@@ -541,7 +553,7 @@ mod tests {
         let arc = Arc2D::new(circle, Angle::from_degrees(0.0), Angle::from_degrees(180.0)).unwrap();
         let point = Point2D::new(0.0, 1.0);
 
-        let result = arc2d_point2d_intersection(&arc, &point, 1e-9);
+        let result = arc2d_point2d_intersection(&arc, &point, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
     }
@@ -552,7 +564,7 @@ mod tests {
         let arc = Arc2D::new(circle, Angle::from_degrees(0.0), Angle::from_degrees(90.0)).unwrap();
         let point = Point2D::new(-1.0, 0.0);
 
-        let result = arc2d_point2d_intersection(&arc, &point, 1e-9);
+        let result = arc2d_point2d_intersection(&arc, &point, STANDARD_TEST_TOLERANCE_F64);
         assert!(!result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Disjoint);
     }
@@ -562,7 +574,8 @@ mod tests {
         let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let point = Point2D::new(5.0, 0.0);
 
-        let result = infinite_line2d_point2d_intersection(&line, &point, 1e-9);
+        let result =
+            infinite_line2d_point2d_intersection(&line, &point, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
     }
@@ -572,7 +585,8 @@ mod tests {
         let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let point = Point2D::new(0.0, 1.0);
 
-        let result = infinite_line2d_point2d_intersection(&line, &point, 1e-9);
+        let result =
+            infinite_line2d_point2d_intersection(&line, &point, STANDARD_TEST_TOLERANCE_F64);
         assert!(!result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Disjoint);
     }
@@ -582,7 +596,8 @@ mod tests {
         let circle1 = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
         let circle2 = Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap();
 
-        let result = circle2d_circle2d_intersections_algo(&circle1, &circle2);
+        let result =
+            circle2d_circle2d_intersections_algo(&circle1, &circle2, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
         match &result.geometry {
@@ -596,7 +611,11 @@ mod tests {
         let segment1 = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
         let segment2 = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
 
-        let result = line_segment2d_line_segment2d_intersection_algo(&segment1, &segment2);
+        let result = line_segment2d_line_segment2d_intersection_algo(
+            &segment1,
+            &segment2,
+            STANDARD_TEST_TOLERANCE_F64,
+        );
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Crossing);
     }
@@ -606,7 +625,7 @@ mod tests {
         let ray = Ray2D::new(Point2D::new(-2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
         let circle = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
 
-        let result = ray2d_circle2d_intersections(&ray, &circle, 1e-9);
+        let result = ray2d_circle2d_intersections(&ray, &circle, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
         match &result.geometry {
             IntersectionGeometry::Points2D(points) => {
@@ -627,7 +646,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = circle2d_arc2d_intersections_algo(&circle, &arc);
+        let result = circle2d_arc2d_intersections_algo(&circle, &arc, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
     }
 
@@ -641,7 +660,8 @@ mod tests {
         .unwrap();
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
 
-        let result = arc2d_line_segment2d_intersections_algo(&arc, &segment);
+        let result =
+            arc2d_line_segment2d_intersections_algo(&arc, &segment, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.intersects());
     }
 
@@ -652,7 +672,7 @@ mod tests {
         let segment = LineSegment2D::new(Point2D::new(-2.0, 0.0), Point2D::new(2.0, 0.0)).unwrap();
         let line = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
 
-        let tol = 1e-9;
+        let tol = STANDARD_TEST_TOLERANCE_F64;
         let circle_ray = circle2d_ray2d_intersections(&circle, &ray, tol);
         let ray_circle = ray2d_circle2d_intersections(&ray, &circle, tol);
         assert_eq!(circle_ray.topology, ray_circle.topology);
@@ -690,12 +710,16 @@ mod tests {
         let point = Point2D::new(3.0, 0.0);
         let circle = Circle2D::new(Point2D::new(2.5, 0.0), 0.75).unwrap();
 
-        let ellipse_circle = ellipse2d_circle2d_intersection(&ellipse, &circle, 1e-6);
-        let circle_ellipse = circle2d_ellipse2d_intersection(&circle, &ellipse, 1e-6);
+        let ellipse_circle =
+            ellipse2d_circle2d_intersection(&ellipse, &circle, ELLIPSE_ENTRY_TEST_TOLERANCE_F64);
+        let circle_ellipse =
+            circle2d_ellipse2d_intersection(&circle, &ellipse, ELLIPSE_ENTRY_TEST_TOLERANCE_F64);
         assert_eq!(ellipse_circle.topology, circle_ellipse.topology);
         assert_eq!(ellipse_circle.is_tangent, circle_ellipse.is_tangent);
-        let ellipse_circle_points = ellipse2d_circle2d_intersections(&ellipse, &circle, 1e-6);
-        let circle_ellipse_points = circle2d_ellipse2d_intersections(&circle, &ellipse, 1e-6);
+        let ellipse_circle_points =
+            ellipse2d_circle2d_intersections(&ellipse, &circle, ELLIPSE_ENTRY_TEST_TOLERANCE_F64);
+        let circle_ellipse_points =
+            circle2d_ellipse2d_intersections(&circle, &ellipse, ELLIPSE_ENTRY_TEST_TOLERANCE_F64);
         assert_eq!(
             ellipse_circle_points.topology,
             circle_ellipse_points.topology
@@ -704,7 +728,15 @@ mod tests {
             ellipse_circle_points.is_tangent,
             circle_ellipse_points.is_tangent
         );
-        assert!(ellipse_arc2d_point2d_intersection(&ellipse_arc, &point, 1e-6).intersects());
-        assert!(ellipse2d_point2d_intersection(&ellipse, &point, 1e-6).intersects());
+        assert!(ellipse_arc2d_point2d_intersection(
+            &ellipse_arc,
+            &point,
+            ELLIPSE_ENTRY_TEST_TOLERANCE_F64
+        )
+        .intersects());
+        assert!(
+            ellipse2d_point2d_intersection(&ellipse, &point, ELLIPSE_ENTRY_TEST_TOLERANCE_F64)
+                .intersects()
+        );
     }
 }
