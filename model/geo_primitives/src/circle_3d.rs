@@ -5,6 +5,7 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::default_angle_tolerance;
+use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties, Scalar};
 
 /// 3次元空間の円
@@ -86,7 +87,7 @@ impl<T: Scalar> Circle3D<T> {
             axis.x() * x_axis.y() - axis.y() * x_axis.x(),
         );
 
-        if cross_x.length() > T::EPSILON {
+        if cross_x.length() > default_kernel_numerical_zero_tolerance::<T>() {
             Direction3D::from_vector(cross_x).unwrap()
         } else {
             // axisがX軸と平行な場合はY軸との外積を使用
@@ -191,7 +192,7 @@ impl<T: Scalar> Circle3D<T> {
         let axis_vec = self.axis.as_vector();
         let dot =
             to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z();
-        if dot.abs() > T::EPSILON {
+        if dot.abs() > default_distance_tolerance::<T>() {
             return false; // 平面上にない
         }
 
@@ -249,7 +250,7 @@ impl<T: Scalar> Circle3D<T> {
         );
 
         let normal = v1.cross(&v2);
-        if normal.magnitude() <= T::EPSILON {
+        if normal.magnitude() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 3点が一直線上
         }
         let axis = Direction3D::from_vector(normal)?;
@@ -387,22 +388,24 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
     // Phase 2 メソッド実装
 
     fn is_unit_circle(&self) -> bool {
-        (self.radius_internal() - T::ONE).abs() <= T::EPSILON
+        (self.radius_internal() - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_centered_at_origin(&self) -> bool {
         let c = self.center_internal();
-        c.x().abs() <= T::EPSILON && c.y().abs() <= T::EPSILON && c.z().abs() <= T::EPSILON
+        c.x().abs() <= default_distance_tolerance::<T>()
+            && c.y().abs() <= default_distance_tolerance::<T>()
+            && c.z().abs() <= default_distance_tolerance::<T>()
     }
 
     fn is_degenerate(&self) -> bool {
-        self.radius_internal() <= T::EPSILON
+        self.radius_internal() <= default_distance_tolerance::<T>()
     }
 
     fn is_on_xy_plane(&self) -> bool {
         // Z軸に平行かどうかを確認
         let z_component = self.axis_internal().z().abs();
-        (z_component - T::ONE).abs() <= T::EPSILON
+        (z_component - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
 }
 
