@@ -397,6 +397,35 @@ fn multipoint_tangent_is_touching() {
 2. Option A の 2D->3D 昇格は短期回避策としては有効だが、幾何意味の劣化が大きい
 3. Option C は短期安全だが、2D/3D 統一という #472 の目的を満たしにくい
 
+#### 12.3.1 追加する `IntersectionGeometry` バリアント一覧
+
+`result.rs` の `IntersectionGeometry<T>` に以下を追加する:
+
+| バリアント | 型 | 用途 |
+|---|---|---|
+| `Point2D(Point2D<T>)` | `geo_primitives::Point2D<T>` | 単一交点（2D） |
+| `Points2D(Vec<Point2D<T>>)` | `Vec<geo_primitives::Point2D<T>>` | 複数交点（2D、例: 円同士の 2 交点） |
+| `Segment2D(LineSegment2D<T>)` | `geo_primitives::LineSegment2D<T>` | 部分重複区間（2D、例: コリニア線分の重複部分） |
+
+既存の 3D バリアント（`Segment(LineSegment3D<T>)`, `Coincident` 等）との対称性を維持する。
+
+#### 12.3.2 `Segment2D` バリアントの使用ルール（重複区間の扱い）
+
+2D 線分同士がコリニア（同一直線上）かつ区間が部分重複する場合は「線が返却される」ケースとなる。
+3D の `Segment(LineSegment3D<T>)` と同じルールで以下のように分類する:
+
+| 状態 | `topology` | `geometry` |
+|---|---|---|
+| 独立（交差なし） | `Disjoint` | `None` |
+| 端点のみ接触 | `Touching` | `Point2D(pt)` |
+| 1 点で横断交差 | `Crossing` | `Point2D(pt)` |
+| 部分重複（有限区間） | `Coincident` | `Segment2D(seg)` |
+| 完全一致 | `Coincident` | `Coincident` |
+
+- `Segment2D` は **部分重複（有限区間の重なり）** のみに使用する
+- 形状全体が完全一致する場合は引き続き `Coincident` バリアントを使用する
+- `dimension()` と `description()` 実装も 3D Segment と対称に更新する
+
 ### 12.4 Topology 対応ルール（2D）
 
 - `Disjoint`: 交差なし（空集合）
@@ -412,8 +441,9 @@ fn multipoint_tangent_is_touching() {
 
 Phase D1: Result 型拡張の最小導入
 
-- `result.rs` に 2D geometry バリアント追加方針を設計確定
-- 変換 helper（2D 用 from_option_point(s)）の API 署名を確定
+- `result.rs` に `Point2D` / `Points2D` / `Segment2D` の 3 バリアントを追加
+- `dimension()` / `description()` / `is_empty()` / `is_multiple()` を 3D と対称に実装
+- 変換 helper（2D 用 `from_option_point2d()` / `from_option_points2d()`）の API 署名を確定
 
 Phase D2: 2D point系から先行置換
 
