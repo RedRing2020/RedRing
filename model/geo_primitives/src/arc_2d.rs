@@ -5,7 +5,10 @@
 
 use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
-use geo_contracts::{Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Circle2DProperties, Scalar};
+use geo_contracts::{
+    default_angle_tolerance, default_distance_tolerance, Arc2DConstructor, Arc2DMeasure,
+    Arc2DProperties, Circle2DProperties, Scalar,
+};
 
 /// 2次元円弧
 ///
@@ -156,7 +159,7 @@ impl<T: Scalar> Arc2D<T> {
     /// 完全な円かどうかを判定
     pub fn is_full_circle(&self) -> bool {
         let span = self.angular_span();
-        (span - T::TAU).abs() < T::EPSILON
+        (span - T::TAU).abs() <= default_angle_tolerance::<T>()
     }
 
     /// 点が円弧の角度範囲内にあるかを判定
@@ -318,12 +321,12 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 
     fn is_full_circle(&self) -> bool {
         let span = self.angle_span();
-        (span - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON
+        (span - (T::ONE + T::ONE) * T::PI).abs() <= default_angle_tolerance::<T>()
     }
 
     fn is_semicircle(&self) -> bool {
         let span = self.angle_span();
-        (span - T::PI).abs() <= T::EPSILON
+        (span - T::PI).abs() <= default_angle_tolerance::<T>()
     }
 }
 
@@ -375,7 +378,7 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let distance = self.distance_to_point(point);
-        distance <= T::EPSILON
+        distance <= default_distance_tolerance::<T>()
     }
 }
 
@@ -394,7 +397,7 @@ impl<T: Scalar> Arc2D<T> {
         let y3 = p3.y();
 
         let d = (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
-        if d.abs() < T::EPSILON {
+        if d.abs() < default_distance_tolerance::<T>() {
             return None; // 3点が一直線上にある
         }
 

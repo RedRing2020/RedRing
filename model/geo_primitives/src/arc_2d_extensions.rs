@@ -4,7 +4,7 @@
 //! 基本機能は arc_2d.rs を参照
 
 use crate::{arc_2d::Arc2D, Circle2D, Point2D};
-use geo_contracts::default_distance_tolerance;
+use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
@@ -83,7 +83,7 @@ impl<T: Scalar> Arc2D<T> {
     /// 退化した円弧かどうかを判定（非常に小さい半径または角度範囲）
     pub fn is_degenerate(&self) -> bool {
         self.radius_internal() <= default_distance_tolerance::<T>()
-            || self.angular_span() <= T::EPSILON
+            || self.angular_span() <= default_angle_tolerance::<T>()
     }
 
     /// 指定角度が円弧の範囲内にあるかを判定
@@ -113,7 +113,8 @@ impl<T: Scalar> Arc2D<T> {
     /// Circle2D に変換（完全円の場合のみ）
     pub fn to_circle(&self) -> Option<Circle2D<T>> {
         // 型安全な変換のみ許可
-        if (self.angular_span() - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON {
+        if (self.angular_span() - (T::ONE + T::ONE) * T::PI).abs() <= default_angle_tolerance::<T>()
+        {
             let center = self.center_internal();
             let radius = self.radius_internal();
             Some(Circle2D::new(center, radius)?)
