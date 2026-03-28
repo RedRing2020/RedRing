@@ -7,7 +7,7 @@
 //! - `IntersectionTopology`: 位相的な関係
 //! - `IntersectionResult`: 幾何と位相を統合した結果
 
-use crate::{CompositeCurve3D, InfiniteLine3D, LineSegment3D, Point3D};
+use crate::{CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D};
 use geo_contracts::Scalar;
 
 /// 交差結果の幾何内容
@@ -27,6 +27,12 @@ pub enum IntersectionGeometry<T: Scalar> {
     CompositeCurve(CompositeCurve3D<T>),
     /// 完全一致（形状が全域で重なる）
     Coincident,
+    /// 単一点交差（2D）
+    Point2D(Point2D<T>),
+    /// 複数の孤立点（2D）
+    Points2D(Vec<Point2D<T>>),
+    /// 部分重複区間（2D、例: コリニア線分の有限重複）
+    Segment2D(LineSegment2D<T>),
 }
 
 impl<T: Scalar> IntersectionGeometry<T> {
@@ -40,6 +46,9 @@ impl<T: Scalar> IntersectionGeometry<T> {
             Self::Segment(_) => "line segment",
             Self::CompositeCurve(_) => "composite curve",
             Self::Coincident => "coincident (complete overlap)",
+            Self::Point2D(_) => "single point (2D)",
+            Self::Points2D(_) => "multiple points (2D)",
+            Self::Segment2D(_) => "line segment (2D)",
         }
     }
 
@@ -50,7 +59,10 @@ impl<T: Scalar> IntersectionGeometry<T> {
 
     /// 複数要素を含むかを返す
     pub fn is_multiple(&self) -> bool {
-        matches!(self, Self::Points(_) | Self::CompositeCurve(_))
+        matches!(
+            self,
+            Self::Points(_) | Self::CompositeCurve(_) | Self::Points2D(_)
+        )
     }
 
     /// 交差集合の次元を返す
@@ -61,8 +73,11 @@ impl<T: Scalar> IntersectionGeometry<T> {
     pub fn dimension(&self) -> i32 {
         match self {
             Self::None => -1,
-            Self::Point(_) | Self::Points(_) => 0,
-            Self::InfiniteLine(_) | Self::Segment(_) | Self::CompositeCurve(_) => 1,
+            Self::Point(_) | Self::Points(_) | Self::Point2D(_) | Self::Points2D(_) => 0,
+            Self::InfiniteLine(_)
+            | Self::Segment(_)
+            | Self::CompositeCurve(_)
+            | Self::Segment2D(_) => 1,
             Self::Coincident => 2,
         }
     }
@@ -263,6 +278,52 @@ impl<T: Scalar> IntersectionResult<T> {
         Self::points(points, is_tangent, tolerance)
     }
 
+    /// `Option<Point2D<T>>` から変換する 2D 互換アダプタ
+    ///
+    /// 変換規約:
+    /// - `None`    → `Disjoint`（交差なし）
+    /// - `Some(p)` → 単一 2D 点交差（`is_tangent` で `Touching` / `Crossing` を制御）
+    pub fn from_option_point2d(opt: Option<Point2D<T>>, is_tangent: bool, tolerance: T) -> Self {
+        match opt {
+            None => Self::disjoint(tolerance),
+            Some(p) => {
+                let topology = if is_tangent {
+                    IntersectionTopology::Touching
+                } else {
+                    IntersectionTopology::Crossing
+                };
+                IntersectionResult {
+                    geometry: IntersectionGeometry::Point2D(p),
+                    topology,
+                    is_tangent,
+                    tolerance_used: tolerance,
+                }
+            }
+        }
+    }
+
+    /// `Vec<Point2D<T>>` から変換する 2D 互換アダプタ
+    ///
+    /// 変換規約:
+    /// - 空ベクタ   → `Disjoint`（交差なし）
+    /// - 1 点以上  → `Crossing` または `Touching`（`is_tangent` で制御）
+    pub fn from_option_points2d(points: Vec<Point2D<T>>, is_tangent: bool, tolerance: T) -> Self {
+        if points.is_empty() {
+            return Self::disjoint(tolerance);
+        }
+        let topology = if is_tangent {
+            IntersectionTopology::Touching
+        } else {
+            IntersectionTopology::Crossing
+        };
+        IntersectionResult {
+            geometry: IntersectionGeometry::Points2D(points),
+            topology,
+            is_tangent,
+            tolerance_used: tolerance,
+        }
+    }
+
     /// 交差しているかを返す
     pub fn intersects(&self) -> bool {
         self.topology.intersects()
@@ -373,5 +434,81 @@ mod tests {
         let result = IntersectionResult::from_option_points(pts, true, 1e-9);
         assert!(result.intersects());
         assert_eq!(result.topology, IntersectionTopology::Touching);
+    }
+
+    // --- from_option_point2d 変換規約テスト ---
+
+    #[test]
+    fn compat_2d_from_option_point2d_none_is_disjoint() {
+        let result = IntersectionResult::<f64>::from_option_point2d(None, false, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+        assert!(result.geometry.is_empty());
+    }
+
+    #[test]
+    fn compat_2d_from_option_point2d_some_is_crossing() {
+        let pt = crate::Point2D::new(1.0, 2.0);
+        let result = IntersectionResult::from_option_point2d(Some(pt), false, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+        assert!(!result.is_tangent);
+        assert_eq!(result.geometry.dimension(), 0);
+    }
+
+    #[test]
+    fn compat_2d_from_option_point2d_tangent_is_touching() {
+        let pt = crate::Point2D::new(0.0, 1.0);
+        let result = IntersectionResult::from_option_point2d(Some(pt), true, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Touching);
+        assert!(result.is_tangent);
+    }
+
+    // --- from_option_points2d 変換規約テスト ---
+
+    #[test]
+    fn compat_2d_from_option_points2d_empty_is_disjoint() {
+        let result = IntersectionResult::<f64>::from_option_points2d(vec![], false, 1e-9);
+        assert!(!result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn compat_2d_from_option_points2d_multi_is_crossing() {
+        let pts = vec![
+            crate::Point2D::new(1.0, 0.0),
+            crate::Point2D::new(-1.0, 0.0),
+        ];
+        let result = IntersectionResult::from_option_points2d(pts, false, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+        assert!(result.geometry.is_multiple());
+        assert_eq!(result.geometry.dimension(), 0);
+    }
+
+    #[test]
+    fn compat_2d_from_option_points2d_tangent_is_touching() {
+        let pts = vec![crate::Point2D::new(0.0, 1.0)];
+        let result = IntersectionResult::from_option_points2d(pts, true, 1e-9);
+        assert!(result.intersects());
+        assert_eq!(result.topology, IntersectionTopology::Touching);
+        assert!(result.is_tangent);
+    }
+
+    // --- 2D Segment バリアント確認テスト ---
+
+    #[test]
+    fn geometry_2d_segment_dimension_is_1() {
+        use crate::{LineSegment2D, Point2D};
+        let start = Point2D::new(0.0_f64, 0.0);
+        let end = Point2D::new(1.0, 0.0);
+        if let Some(seg) = LineSegment2D::new(start, end) {
+            let geom = IntersectionGeometry::Segment2D(seg);
+            assert_eq!(geom.dimension(), 1);
+            assert_eq!(geom.description(), "line segment (2D)");
+            assert!(!geom.is_empty());
+            assert!(!geom.is_multiple());
+        }
     }
 }
