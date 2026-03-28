@@ -179,3 +179,154 @@
 2. private helper 化で旧単一点ロジックを局所化
 3. 変換規約テスト追加（Disjoint / Crossing を最低限確認）
 4. 次ペアへ同じ置換を展開
+
+## 11. #466 多点関数の IntersectionResult 拡張戦略
+
+### 11.1 概要
+
+`#338` で単点関数（`Option<Point3D<T>>` → `IntersectionResult<T>`）の置換が完了した。
+次段階として、複数孤立点を返す関数（`Vec<Point3D<T>>` → `IntersectionResult<T>`）の統一を進める。
+
+### 11.2 既存 Points 実装の確認
+
+`result.rs` には以下が既に実装済み:
+
+- `IntersectionGeometry::Points(Vec<Point3D<T>>)` バリアント
+- `IntersectionResult::points(points, is_tangent, tolerance) -> Self`
+- `IntersectionResult::from_option_points(points, is_tangent, tolerance) -> Self`
+- topology 自動分類: `is_tangent=true` → Touching、`false` → Crossing
+
+#### 11.2.1 多点コンストラクタの仕様
+
+```rust
+pub fn points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
+    IntersectionResult {
+        geometry: IntersectionGeometry::Points(points),
+        topology: if is_tangent {
+            IntersectionTopology::Touching
+        } else {
+            IntersectionTopology::Crossing
+        },
+        is_tangent,
+        tolerance_used: tolerance,
+    }
+}
+
+pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
+    if points.is_empty() {
+        return Self::disjoint(tolerance);
+    }
+    Self::points(points, is_tangent, tolerance)
+}
+```
+
+規約:
+- 空ベクタ → `Disjoint`
+- 1点以上 → `Touching` または `Crossing`（`is_tangent` で制御）
+
+### 11.3 多点関数の対象一覧（12 個）
+
+`intersection/primitive_3d.rs` で複数孤立点を返す関数:
+
+#### Ellipse3D 系 7 個
+- L539:  `pub fn ellipse3d_circle3d_intersections`
+- L553:  `pub fn ellipse3d_arc3d_intersections`
+- L567:  `pub fn ellipse3d_line_segment3d_intersections`
+- L592:  `pub fn ellipse3d_infinite_line3d_intersections`
+- L606:  `pub fn ellipse3d_ray3d_intersections`
+- L646:  `pub fn ellipse3d_triangle3d_intersections`
+- L673:  `pub fn ellipse3d_ellipse3d_intersections`
+
+#### EllipsoidalSolid3D 系 2 個
+- L732:  `pub fn ellipsoidal_solid3d_infinite_line3d_intersections`
+- L746:  `pub fn ellipsoidal_solid3d_ray3d_intersections`
+
+#### SphericalSurface3D 系 3 個
+- L1186: `pub fn ray3d_spherical_surface3d_intersections`
+- L1362: `pub fn line_segment3d_spherical_surface3d_intersections`
+- L1505: `pub fn infinite_line3d_spherical_surface3d_intersections`
+
+### 11.4 Topology 分類ルール
+
+**多点交差の position 判定基準** （参考: Ellipse3D との交差パターン）:
+
+| パターン | 返却点数 | is_tangent | 結果 Topology | 寄与 |
+|:------:|:------:|:---------:|:-----:|:---|
+| 横断交差 | 2 | false | Crossing | 2 つの孤立点が交差 |
+| 接線接触（2点） | 2 | true | Touching | 微分一致だが 1 点扱い（数値的に 2 重根） |
+| 接線接触（1点）| 1 | true | Touching | 接線接触 |
+| 横断交差（1点）| 1 | false | Crossing | 1 孤立点（例: 退化形状) |
+
+**実装の原則**:
+
+1. **幾何から is_tangent を決定**: 孤立点の法線ベクタを調べ、接線条件（`dot(tangent_A, normal_B)` 等）を検証
+2. **空返却は Disjoint**: `from_option_points()` で自動処理
+3. **複数点の場合は `is_tangent` を統一**: 2 つ以上の孤立点がある場合、全て同じ `is_tangent` フラグを付与
+   - 理由: Topology は形状ペア全体の関係を表すため。一部だけ接線は想定外
+
+### 11.5 実装順序（段階的移行）
+
+### 11.5.1 Phase 1: 設計固定（現在 = #466）
+
+- [ ] MultiPoint Topology ルール確定（本セクション 11.4）
+- [ ] 多点関数群の一覧表を公開（上記 11.3）
+- [ ] 変換規約テストの雛形作成（下記参照）
+- [ ] ドキュメント整備完了
+
+**出力**: GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md へこれらを記載（#466 で完了）
+
+### 11.5.2 Phase 2: Ellipse3D 系実装（別 Issue 予定）
+
+1. 関数宣言を `Vec<Point3D<T>>` → `IntersectionResult<T>` に変更
+2. 内部計算は変わらず、返却時に `IntersectionResult::from_option_points()` で変換
+3. テスト追加: Crossing / Touching 両ケース確認
+4. 逆向け委譲関数も同時更新
+
+**対象**: 7 個関数（ellipse3d_*）
+
+### 11.5.3 Phase 3: EllipsoidalSolid3D + SphericalSurface 実装
+
+同じプロセスで残り 5 個関数を置換。
+
+### 11.6 変換規約テストの例
+
+```rust
+#[test]
+fn multipoint_from_option_points_empty_is_disjoint() {
+    let result = IntersectionResult::<f64>::from_option_points(vec![], false, 1e-9);
+    assert!(!result.intersects());
+    assert_eq!(result.topology, IntersectionTopology::Disjoint);
+}
+
+#[test]
+fn multipoint_crossing() {
+    let pts = vec![
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(-1.0, 0.0, 0.0),
+    ];
+    let result = IntersectionResult::from_option_points(pts, false, 1e-9);
+    assert!(result.intersects());
+    assert_eq!(result.topology, IntersectionTopology::Crossing);
+    assert!(!result.is_tangent);
+    assert_eq!(result.geometry.dimension(), 0); // points
+}
+
+#[test]
+fn multipoint_tangent_is_touching() {
+    let pts = vec![
+        Point3D::new(1.0, 1.0, 0.0),
+        Point3D::new(1.0, -1.0, 0.0),
+    ];
+    let result = IntersectionResult::from_option_points(pts, true, 1e-9);
+    assert!(result.intersects());
+    assert_eq!(result.topology, IntersectionTopology::Touching);
+    assert!(result.is_tangent);
+}
+```
+
+### 11.7 注意点
+
+1. **Topology は形状ペア全体の関係** → 複数点でも単一分類
+2. **空返却は必ず Disjoint** → 自動処理（`from_option_points()` 利用）
+3. **is_tangent は局所判定 + 統一** → 2 点以上ある場合、全て同じ値
+4. **逆向け委譲** → `{shape_b}_{shape_a}_intersections()` は `{shape_a}_{shape_b}_intersections()` へ委譲
