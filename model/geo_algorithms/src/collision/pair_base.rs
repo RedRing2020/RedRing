@@ -27,7 +27,7 @@ pub fn ray2d_line_segment2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> bool {
-    ray2d_line_segment2d_intersection_2d(ray, segment, tolerance).is_some()
+    ray2d_line_segment2d_intersection_2d(ray, segment, tolerance).intersects()
 }
 
 pub fn line_segment2d_ray2d_collides<T: Scalar>(
@@ -43,7 +43,7 @@ pub fn infinite_line2d_line_segment2d_collides<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> bool {
-    infinite_line2d_line_segment2d_intersection_2d(line, segment, tolerance).is_some()
+    infinite_line2d_line_segment2d_intersection_2d(line, segment, tolerance).intersects()
 }
 
 pub fn line_segment2d_infinite_line2d_collides<T: Scalar>(
@@ -59,7 +59,7 @@ pub fn infinite_line2d_ray2d_collides<T: Scalar>(
     ray: &Ray2D<T>,
     tolerance: T,
 ) -> bool {
-    infinite_line2d_ray2d_intersection_2d(line, ray, tolerance).is_some()
+    infinite_line2d_ray2d_intersection_2d(line, ray, tolerance).intersects()
 }
 
 pub fn ray2d_infinite_line2d_collides<T: Scalar>(

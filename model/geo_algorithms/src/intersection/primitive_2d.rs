@@ -94,7 +94,7 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
     ray: &Ray2D<T>,
     segment: &LineSegment2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let s1 = Point2D::new(segment.start().0, segment.start().1);
     let s2 = Point2D::new(segment.end().0, segment.end().1);
 
@@ -108,27 +108,29 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
 
     let denominator = d1.x() * d2.y() - d1.y() * d2.x();
     if denominator.abs() < T::EPSILON {
-        return None;
+        return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
     let t1 = ((s1.x() - origin.x()) * d2.y() - (s1.y() - origin.y()) * d2.x()) / denominator;
     let t2 = ((s1.x() - origin.x()) * d1.y() - (s1.y() - origin.y()) * d1.x()) / denominator;
 
-    if t1 >= T::ZERO - tolerance && t2 >= T::ZERO - tolerance && t2 <= T::ONE + tolerance {
+    let opt = if t1 >= T::ZERO - tolerance && t2 >= T::ZERO - tolerance && t2 <= T::ONE + tolerance
+    {
         Some(Point2D::new(
             origin.x() + t1 * d1.x(),
             origin.y() + t1 * d1.y(),
         ))
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn line_segment2d_ray2d_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     ray: &Ray2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     ray2d_line_segment2d_intersection(ray, segment, tolerance)
 }
 
@@ -219,14 +221,15 @@ pub fn ray2d_ellipse2d_intersection<T: Scalar>(
     ray: &Ray2D<T>,
     ellipse: &Ellipse2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let center_tuple = ellipse.center();
     let center = Point2D::new(center_tuple.0, center_tuple.1);
-    if ray.distance_to_point(&center) <= ellipse.semi_major_axis() + tolerance {
+    let opt = if ray.distance_to_point(&center) <= ellipse.semi_major_axis() + tolerance {
         Some(center)
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn arc2d_point2d_intersection<T: Scalar>(
@@ -267,13 +270,14 @@ pub fn infinite_line2d_circle2d_intersection<T: Scalar>(
     line: &InfiniteLine2D<T>,
     circle: &Circle2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    if line.distance_to_point(&center) <= circle.radius() + tolerance {
+    let opt = if line.distance_to_point(&center) <= circle.radius() + tolerance {
         Some(center)
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
@@ -309,7 +313,7 @@ pub fn circle2d_infinite_line2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     line: &InfiniteLine2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     infinite_line2d_circle2d_intersection(line, circle, tolerance)
 }
 
@@ -325,7 +329,7 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
     line: &InfiniteLine2D<T>,
     segment: &LineSegment2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let (s1x, s1y) = LineSegment2DProperties::start(segment);
     let (s2x, s2y) = LineSegment2DProperties::end(segment);
     let (lx, ly) = InfiniteLine2DProperties::point(line);
@@ -334,21 +338,22 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
     let dy_seg = s2y - s1y;
     let denominator = ldx * dy_seg - ldy * dx_seg;
     if denominator.abs() < T::EPSILON {
-        return None;
+        return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
     let t2 = ((s1x - lx) * ldy - (s1y - ly) * ldx) / denominator;
-    if t2 >= T::ZERO - tolerance && t2 <= T::ONE + tolerance {
+    let opt = if t2 >= T::ZERO - tolerance && t2 <= T::ONE + tolerance {
         Some(Point2D::new(s1x + t2 * dx_seg, s1y + t2 * dy_seg))
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn line_segment2d_infinite_line2d_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     line: &InfiniteLine2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     infinite_line2d_line_segment2d_intersection(line, segment, tolerance)
 }
 
@@ -356,28 +361,29 @@ pub fn infinite_line2d_ray2d_intersection<T: Scalar>(
     line: &InfiniteLine2D<T>,
     ray: &Ray2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     let (ox, oy) = Ray2DProperties::origin(ray);
     let (rdx, rdy) = Ray2DProperties::direction(ray);
     let (lx, ly) = InfiniteLine2DProperties::point(line);
     let (ldx, ldy) = InfiniteLine2DProperties::direction(line);
     let denominator = ldx * rdy - ldy * rdx;
     if denominator.abs() < T::EPSILON {
-        return None;
+        return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
     let t2 = ((ox - lx) * ldy - (oy - ly) * ldx) / denominator;
-    if t2 >= T::ZERO - tolerance {
+    let opt = if t2 >= T::ZERO - tolerance {
         Some(Point2D::new(ox + t2 * rdx, oy + t2 * rdy))
     } else {
         None
-    }
+    };
+    IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
 pub fn ray2d_infinite_line2d_intersection<T: Scalar>(
     ray: &Ray2D<T>,
     line: &InfiniteLine2D<T>,
     tolerance: T,
-) -> Option<Point2D<T>> {
+) -> IntersectionResult<T> {
     infinite_line2d_ray2d_intersection(line, ray, tolerance)
 }
 
@@ -628,26 +634,26 @@ mod tests {
             circle2d_ray2d_intersections(&circle, &ray, tol),
             ray2d_circle2d_intersections(&ray, &circle, tol)
         );
-        assert_eq!(
-            line_segment2d_ray2d_intersection(&segment, &ray, tol),
-            ray2d_line_segment2d_intersection(&ray, &segment, tol)
-        );
-        assert_eq!(
-            circle2d_infinite_line2d_intersection(&circle, &line, tol),
-            infinite_line2d_circle2d_intersection(&line, &circle, tol)
-        );
+        let seg_ray = line_segment2d_ray2d_intersection(&segment, &ray, tol);
+        let ray_seg = ray2d_line_segment2d_intersection(&ray, &segment, tol);
+        assert_eq!(seg_ray.topology, ray_seg.topology);
+        assert_eq!(seg_ray.is_tangent, ray_seg.is_tangent);
+        let circ_line = circle2d_infinite_line2d_intersection(&circle, &line, tol);
+        let line_circ = infinite_line2d_circle2d_intersection(&line, &circle, tol);
+        assert_eq!(circ_line.topology, line_circ.topology);
+        assert_eq!(circ_line.is_tangent, line_circ.is_tangent);
         assert_eq!(
             circle2d_infinite_line2d_intersections(&circle, &line, tol),
             infinite_line2d_circle2d_intersections(&line, &circle, tol)
         );
-        assert_eq!(
-            line_segment2d_infinite_line2d_intersection(&segment, &line, tol),
-            infinite_line2d_line_segment2d_intersection(&line, &segment, tol)
-        );
-        assert_eq!(
-            ray2d_infinite_line2d_intersection(&ray, &line, tol),
-            infinite_line2d_ray2d_intersection(&line, &ray, tol)
-        );
+        let seg_line = line_segment2d_infinite_line2d_intersection(&segment, &line, tol);
+        let line_seg = infinite_line2d_line_segment2d_intersection(&line, &segment, tol);
+        assert_eq!(seg_line.topology, line_seg.topology);
+        assert_eq!(seg_line.is_tangent, line_seg.is_tangent);
+        let ray_line = ray2d_infinite_line2d_intersection(&ray, &line, tol);
+        let line_ray = infinite_line2d_ray2d_intersection(&line, &ray, tol);
+        assert_eq!(ray_line.topology, line_ray.topology);
+        assert_eq!(ray_line.is_tangent, line_ray.is_tangent);
     }
 
     #[test]
