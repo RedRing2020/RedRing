@@ -286,7 +286,7 @@ impl<T: Scalar> Circle3D<T> {
 }
 
 // ============================================================================
-// Core Traits Implementation (Phase 1)
+// Core Traits Implementation
 // ============================================================================
 
 impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
@@ -306,8 +306,6 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
         let center = Point3D::origin();
         Self::new_xy_plane(center, T::ONE).unwrap()
     }
-
-    // Phase 2 メソッド実装
 
     fn from_center_and_point(
         center: (T, T, T),
@@ -385,8 +383,6 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
         3
     }
 
-    // Phase 2 メソッド実装
-
     fn is_unit_circle(&self) -> bool {
         (self.radius_internal() - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
@@ -427,8 +423,6 @@ impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
         let p = Point3D::new(point.0, point.1, point.2);
         self.distance_to_point_3d(p)
     }
-
-    // Phase 2 メソッド実装
 
     fn point_on_circumference(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);

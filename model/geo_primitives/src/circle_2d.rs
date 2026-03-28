@@ -228,7 +228,7 @@ impl<T: Scalar> Circle2D<T> {
 }
 
 // ============================================================================
-// Core Traits Implementation (Phase 1)
+// Core Traits Implementation
 // ============================================================================
 
 impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
@@ -247,8 +247,6 @@ impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
         let center = Point2D::origin();
         Self::new(center, T::ONE).unwrap()
     }
-
-    // Phase 2 メソッド実装
 
     fn from_center_and_point(center: (T, T), point_on_circle: (T, T)) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
@@ -302,8 +300,6 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
         2
     }
 
-    // Phase 2 メソッド実装
-
     fn is_unit_circle(&self) -> bool {
         (self.radius_internal() - T::ONE).abs() <= default_distance_tolerance::<T>()
     }
@@ -337,8 +333,6 @@ impl<T: Scalar> Circle2DMeasure<T> for Circle2D<T> {
         let p = Point2D::new(point.0, point.1);
         self.distance_to_point(p)
     }
-
-    // Phase 2 メソッド実装
 
     fn point_on_circumference(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
