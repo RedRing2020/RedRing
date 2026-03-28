@@ -1,22 +1,23 @@
-//! CompositeCurve3D: A curve composed of multiple connected segments
+//! CompositeCurve3D: 複数セグメントから構成される複合曲線
 //!
-//! Naming: Follows Solidworks conv ention (Rhino uses PolyCurve, ISO STEP uses CompositeCurve)
+//! 命名は Solidworks 系の CompositeCurve に合わせる
+//! （Rhino: PolyCurve、ISO STEP: CompositeCurve）
 
 use crate::{Point3D, TopoArc3D, TopoLineSegment3D, Vector3D};
 use geo_contracts::Scalar;
 
-/// Individual curve segment in a composite curve
+/// 複合曲線を構成する個別セグメント
 #[derive(Clone, Debug)]
 pub enum CurveSegment3D<T: Scalar> {
-    /// Line segment from start to end point
+    /// 始点から終点を持つ線分セグメント
     Line(TopoLineSegment3D<T>),
-    /// Arc segment (circular arc in 3D)
+    /// 3D円弧セグメント
     Arc(TopoArc3D<T>),
-    // Future: Nurbs(NurbsCurve3D<T>)  ← add after geo_nurbs dependency is confirmed
+    // 将来: Nurbs(NurbsCurve3D<T>)  ← geo_nurbs 依存方針確定後に追加
 }
 
 impl<T: Scalar> CurveSegment3D<T> {
-    /// Get the start point of this segment
+    /// セグメント始点を返す
     pub fn start(&self) -> Point3D<T> {
         match self {
             Self::Line(seg) => seg.start(),
@@ -24,7 +25,7 @@ impl<T: Scalar> CurveSegment3D<T> {
         }
     }
 
-    /// Get the end point of this segment
+    /// セグメント終点を返す
     pub fn end(&self) -> Point3D<T> {
         match self {
             Self::Line(seg) => seg.end(),
@@ -32,7 +33,7 @@ impl<T: Scalar> CurveSegment3D<T> {
         }
     }
 
-    /// Get the length of this segment
+    /// セグメント長を返す
     pub fn length(&self) -> T {
         match self {
             Self::Line(seg) => {
@@ -44,35 +45,35 @@ impl<T: Scalar> CurveSegment3D<T> {
     }
 }
 
-/// Composite curve: multiple curve segments connected at endpoints
+/// 端点で連結された複数セグメントからなる複合曲線
 ///
-/// Invariants maintained:
-/// - All segments form a continuous curve (end of segment N == start of segment N+1)
-/// - At least 1 segment
-/// - Segments are ordered sequentially
+/// 保持する不変条件:
+/// - 全セグメントが連続している（N番目終点 == N+1番目始点）
+/// - セグメント数は1以上
+/// - セグメントは順序付き
 #[derive(Clone, Debug)]
 pub struct CompositeCurve3D<T: Scalar> {
     segments: Vec<CurveSegment3D<T>>,
 }
 
 impl<T: Scalar> CompositeCurve3D<T> {
-    /// Create a new composite curve from segments
+    /// セグメント列から複合曲線を生成
     ///
-    /// Returns None if:
-    /// - segments is empty
-    /// - segments are not connected (endpoint of N != startpoint of N+1)
+    /// 次の場合は None を返す:
+    /// - segments が空
+    /// - セグメントが連続していない（N番目終点 != N+1番目始点）
     pub fn new(segments: Vec<CurveSegment3D<T>>) -> Option<Self> {
         if segments.is_empty() {
             return None;
         }
 
-        // Verify continuity: end of segment N should equal start of segment N+1
+        // 連続性検証: N番目終点とN+1番目始点が一致すること
         for i in 0..segments.len() - 1 {
             let end = segments[i].end();
             let next_start = segments[i + 1].start();
 
-            // Use explicit coordinate comparison for connectivity check
-            // (tolerance-based checks belong in validation layer, not construction)
+            // 接続判定は明示的な座標比較で行う
+            // （トレランス考慮は構築処理ではなく検証層の責務）
             if end.x() != next_start.x() || end.y() != next_start.y() || end.z() != next_start.z() {
                 return None;
             }
@@ -81,22 +82,22 @@ impl<T: Scalar> CompositeCurve3D<T> {
         Some(CompositeCurve3D { segments })
     }
 
-    /// Get the segments of this composite curve
+    /// セグメント列を返す
     pub fn segments(&self) -> &[CurveSegment3D<T>] {
         &self.segments
     }
 
-    /// Get start point of the entire composite curve
+    /// 複合曲線全体の始点を返す
     pub fn start_point(&self) -> Point3D<T> {
         self.segments[0].start()
     }
 
-    /// Get end point of the entire composite curve
+    /// 複合曲線全体の終点を返す
     pub fn end_point(&self) -> Point3D<T> {
         self.segments[self.segments.len() - 1].end()
     }
 
-    /// Get total length of all segments
+    /// 全セグメント長の合計を返す
     pub fn total_length(&self) -> T {
         self.segments
             .iter()
@@ -104,7 +105,7 @@ impl<T: Scalar> CompositeCurve3D<T> {
             .fold(T::ZERO, |acc, len| acc + len)
     }
 
-    /// Check if this curve is closed (start == end point)
+    /// 閉曲線かどうかを返す（始点 == 終点）
     pub fn is_closed(&self) -> bool {
         let start = self.start_point();
         let end = self.end_point();
