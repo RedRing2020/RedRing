@@ -7,7 +7,6 @@
 //! `geo_primitives` の `BasicIntersection`/`MultipleIntersection` を呼び出す薄い
 //! ラッパー、または `pair_base` に委譲する。
 
-use crate::intersection::pair_base;
 use crate::{
     Arc3D, Circle3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D, EllipsoidalSurface3D,
     InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, TorusSolid3D,
@@ -16,7 +15,8 @@ use crate::{
 use geo_contracts::{
     Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSurface3DMeasure,
     CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
-    InfiniteLine3DProperties, Scalar, TorusSurface3DMeasure, Triangle3DProperties,
+    InfiniteLine3DProperties, Scalar, SphericalSurface3DProperties, TorusSurface3DMeasure,
+    Triangle3DProperties,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -25,6 +25,37 @@ fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Opti
     } else {
         None
     }
+}
+
+fn spherical_surface_intersection_parameters<T: Scalar>(
+    start: &Point3D<T>,
+    direction: &crate::Vector3D<T>,
+    sphere: &SphericalSurface3D<T>,
+    tolerance: T,
+) -> Option<(T, T)> {
+    let center_tuple = SphericalSurface3DProperties::center(sphere);
+    let center = Point3D::new(center_tuple.0, center_tuple.1, center_tuple.2);
+    let radius = SphericalSurface3DProperties::radius(sphere);
+    let offset = crate::Vector3D::from_points(&center, start);
+
+    let a = direction.dot(direction);
+    if a.abs() <= tolerance {
+        return None;
+    }
+
+    let b = offset.dot(direction) * (T::ONE + T::ONE);
+    let c = offset.dot(&offset) - radius * radius;
+    let discriminant = b * b - (T::ONE + T::ONE + T::ONE + T::ONE) * a * c;
+    if discriminant < T::ZERO {
+        return None;
+    }
+
+    let sqrt_discriminant = discriminant.sqrt();
+    let two_a = (T::ONE + T::ONE) * a;
+    Some((
+        (-b - sqrt_discriminant) / two_a,
+        (-b + sqrt_discriminant) / two_a,
+    ))
 }
 
 // ── Arc3D ─────────────────────────────────────────────────────────────────────
@@ -791,15 +822,72 @@ pub fn ray3d_point3d_intersection<T: Scalar>(
 pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     ray: &Ray3D<T>,
     sphere: &SphericalSurface3D<T>,
+    tolerance: T,
 ) -> Vec<Point3D<T>> {
-    pair_base::ray3d_spherical_surface3d_intersections(ray, sphere)
+    let mut intersections = Vec::new();
+    let start = ray.origin();
+    let direction = ray.direction_vector();
+
+    let Some((t1, t2)) =
+        spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
+    else {
+        return intersections;
+    };
+
+    if t1 >= T::ZERO {
+        intersections.push(Point3D::new(
+            start.x() + t1 * direction.x(),
+            start.y() + t1 * direction.y(),
+            start.z() + t1 * direction.z(),
+        ));
+    }
+
+    if t2 >= T::ZERO && (t2 - t1).abs() > tolerance {
+        intersections.push(Point3D::new(
+            start.x() + t2 * direction.x(),
+            start.y() + t2 * direction.y(),
+            start.z() + t2 * direction.z(),
+        ));
+    }
+
+    intersections
 }
 
 pub fn ray3d_ray3d_intersection<T: Scalar>(
     ray_a: &Ray3D<T>,
     ray_b: &Ray3D<T>,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    pair_base::ray3d_ray3d_intersection(ray_a, ray_b)
+    let origin_a = ray_a.origin();
+    let origin_b = ray_b.origin();
+    let direction_a = ray_a.direction_vector();
+    let direction_b = ray_b.direction_vector();
+    let origin_offset = crate::Vector3D::from_points(&origin_b, &origin_a);
+
+    let a = direction_a.dot(&direction_a);
+    let b = direction_a.dot(&direction_b);
+    let c = direction_b.dot(&direction_b);
+    let d = direction_a.dot(&origin_offset);
+    let e = direction_b.dot(&origin_offset);
+
+    let denominator = a * c - b * b;
+    if denominator.abs() <= tolerance {
+        return None;
+    }
+
+    let s = (b * e - c * d) / denominator;
+    let t = (a * e - b * d) / denominator;
+    if s < T::ZERO || t < T::ZERO {
+        return None;
+    }
+
+    let point_a = ray_a.point_at_parameter(s);
+    let point_b = ray_b.point_at_parameter(t);
+    if point_a.distance_to(&point_b) <= tolerance {
+        Some(point_a)
+    } else {
+        None
+    }
 }
 
 pub fn ray3d_line_segment3d_intersection<T: Scalar>(
@@ -862,8 +950,36 @@ pub fn line_segment3d_point3d_intersection<T: Scalar>(
 pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
     segment: &LineSegment3D<T>,
     sphere: &SphericalSurface3D<T>,
+    tolerance: T,
 ) -> Vec<Point3D<T>> {
-    pair_base::line_segment3d_spherical_surface3d_intersections(segment, sphere)
+    let mut intersections = Vec::new();
+    let start = segment.start();
+    let end = segment.end();
+    let direction = crate::Vector3D::from_points(&start, &end);
+
+    let Some((t1, t2)) =
+        spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
+    else {
+        return intersections;
+    };
+
+    if t1 >= T::ZERO && t1 <= T::ONE {
+        intersections.push(Point3D::new(
+            start.x() + t1 * direction.x(),
+            start.y() + t1 * direction.y(),
+            start.z() + t1 * direction.z(),
+        ));
+    }
+
+    if t2 >= T::ZERO && t2 <= T::ONE && (t2 - t1).abs() > tolerance {
+        intersections.push(Point3D::new(
+            start.x() + t2 * direction.x(),
+            start.y() + t2 * direction.y(),
+            start.z() + t2 * direction.z(),
+        ));
+    }
+
+    intersections
 }
 
 pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
@@ -953,8 +1069,35 @@ pub fn infinite_line3d_point3d_intersection<T: Scalar>(
 pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
     line: &InfiniteLine3D<T>,
     sphere: &SphericalSurface3D<T>,
+    tolerance: T,
 ) -> Vec<Point3D<T>> {
-    pair_base::infinite_line3d_spherical_surface3d_intersections(line, sphere)
+    let mut intersections = Vec::new();
+    let point = line.point();
+    let direction = line.direction();
+    let start = Point3D::new(point.0, point.1, point.2);
+    let direction = crate::Vector3D::new(direction.0, direction.1, direction.2);
+
+    let Some((t1, t2)) =
+        spherical_surface_intersection_parameters(&start, &direction, sphere, tolerance)
+    else {
+        return intersections;
+    };
+
+    intersections.push(Point3D::new(
+        start.x() + t1 * direction.x(),
+        start.y() + t1 * direction.y(),
+        start.z() + t1 * direction.z(),
+    ));
+
+    if (t2 - t1).abs() > tolerance {
+        intersections.push(Point3D::new(
+            start.x() + t2 * direction.x(),
+            start.y() + t2 * direction.y(),
+            start.z() + t2 * direction.z(),
+        ));
+    }
+
+    intersections
 }
 
 pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
@@ -1004,19 +1147,22 @@ mod tests {
         arc3d_point3d_intersection, circle3d_point3d_intersection,
         cylindrical_surface3d_point3d_intersection, ellipse3d_point3d_intersection,
         infinite_line3d_line_segment3d_intersection, infinite_line3d_point3d_intersection,
+        infinite_line3d_spherical_surface3d_intersections,
         line_segment3d_infinite_line3d_intersection, line_segment3d_plane3d_intersection,
         line_segment3d_point3d_intersection, line_segment3d_ray3d_intersection,
-        line_segment3d_triangle3d_intersection, plane3d_line_segment3d_intersection,
-        plane3d_point3d_intersection, plane3d_ray3d_intersection,
-        ray3d_line_segment3d_intersection, ray3d_plane3d_intersection, ray3d_point3d_intersection,
-        ray3d_triangle3d_intersection, torus_surface3d_point3d_intersection,
-        triangle3d_line_segment3d_intersection, triangle3d_point3d_intersection,
-        triangle3d_ray3d_intersection, triangle_mesh3d_point3d_intersection,
+        line_segment3d_spherical_surface3d_intersections, line_segment3d_triangle3d_intersection,
+        plane3d_line_segment3d_intersection, plane3d_point3d_intersection,
+        plane3d_ray3d_intersection, ray3d_line_segment3d_intersection, ray3d_plane3d_intersection,
+        ray3d_point3d_intersection, ray3d_ray3d_intersection,
+        ray3d_spherical_surface3d_intersections, ray3d_triangle3d_intersection,
+        torus_surface3d_point3d_intersection, triangle3d_line_segment3d_intersection,
+        triangle3d_point3d_intersection, triangle3d_ray3d_intersection,
+        triangle_mesh3d_point3d_intersection,
     };
     use crate::{
         Angle, Arc3D, Circle3D, CylindricalSurface3D, Direction3D, Ellipse3D, InfiniteLine3D,
-        LineSegment3D, Plane3D, Point3D, Ray3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
-        Vector3D,
+        LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, TorusSurface3D, Triangle3D,
+        TriangleMesh3D, Vector3D,
     };
     use geo_contracts::ToleranceSettings;
 
@@ -1314,5 +1460,54 @@ mod tests {
             line_segment3d_infinite_line3d_intersection(&seg, &line, tol),
             infinite_line3d_line_segment3d_intersection(&line, &seg, tol)
         );
+    }
+
+    #[test]
+    fn spherical_surface_line_like_intersections_return_expected_points() {
+        let tolerance = 1e-9;
+        let sphere = SphericalSurface3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            1.0,
+        )
+        .unwrap();
+
+        let segment =
+            LineSegment3D::new(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
+        let ray = Ray3D::new(Point3D::new(-2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let line = InfiniteLine3D::from_two_points(
+            Point3D::new(-2.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        assert_eq!(
+            line_segment3d_spherical_surface3d_intersections(&segment, &sphere, tolerance),
+            vec![Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)]
+        );
+        assert_eq!(
+            ray3d_spherical_surface3d_intersections(&ray, &sphere, tolerance),
+            vec![Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)]
+        );
+        assert_eq!(
+            infinite_line3d_spherical_surface3d_intersections(&line, &sphere, tolerance),
+            vec![Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)]
+        );
+    }
+
+    #[test]
+    fn ray_ray_intersection_returns_shared_point_only_for_forward_rays() {
+        let tolerance = 1e-9;
+        let ray_a = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let ray_b = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+        let opposite =
+            Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
+
+        assert_eq!(
+            ray3d_ray3d_intersection(&ray_a, &ray_b, tolerance),
+            Some(Point3D::new(0.0, 0.0, 0.0))
+        );
+        assert_eq!(ray3d_ray3d_intersection(&ray_a, &opposite, tolerance), None);
     }
 }
