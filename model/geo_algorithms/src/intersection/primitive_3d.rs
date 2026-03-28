@@ -9,8 +9,8 @@
 
 use crate::{
     Arc3D, Circle3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D, EllipsoidalSurface3D,
-    InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, TorusSolid3D,
-    TorusSurface3D, Triangle3D, TriangleMesh3D,
+    InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D,
+    TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
     Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSurface3DMeasure,
@@ -70,6 +70,19 @@ pub fn arc3d_point3d_intersection<T: Scalar>(
         point,
         <Arc3D<T> as Arc3DMeasure<T>>::distance_to_point(arc, point_tuple) <= tolerance
             && arc.contains_point_angle(Point3D::new(point.x(), point.y(), point.z())),
+    )
+}
+
+/// `arc3d_point3d_intersection` の `IntersectionResult<T>` 版
+pub fn arc3d_point3d_intersection_result<T: Scalar>(
+    arc: &Arc3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        arc3d_point3d_intersection(arc, point, tolerance),
+        false,
+        tolerance,
     )
 }
 
@@ -179,6 +192,19 @@ pub fn circle3d_point3d_intersection<T: Scalar>(
     point_intersection_if(
         point,
         circle.distance_to_point_3d(Point3D::new(point.x(), point.y(), point.z())) <= tolerance,
+    )
+}
+
+/// `circle3d_point3d_intersection` の `IntersectionResult<T>` 版
+pub fn circle3d_point3d_intersection_result<T: Scalar>(
+    circle: &Circle3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        circle3d_point3d_intersection(circle, point, tolerance),
+        false,
+        tolerance,
     )
 }
 
@@ -1144,7 +1170,8 @@ pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::{
-        arc3d_point3d_intersection, circle3d_point3d_intersection,
+        arc3d_point3d_intersection, arc3d_point3d_intersection_result,
+        circle3d_point3d_intersection, circle3d_point3d_intersection_result,
         cylindrical_surface3d_point3d_intersection, ellipse3d_point3d_intersection,
         infinite_line3d_line_segment3d_intersection, infinite_line3d_point3d_intersection,
         infinite_line3d_spherical_surface3d_intersections,
@@ -1161,8 +1188,8 @@ mod tests {
     };
     use crate::{
         Angle, Arc3D, Circle3D, CylindricalSurface3D, Direction3D, Ellipse3D, InfiniteLine3D,
-        LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D, TorusSurface3D, Triangle3D,
-        TriangleMesh3D, Vector3D,
+        IntersectionGeometry, IntersectionTopology, LineSegment3D, Plane3D, Point3D, Ray3D,
+        SphericalSurface3D, TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
     };
     use geo_contracts::ToleranceSettings;
 
@@ -1280,6 +1307,28 @@ mod tests {
     }
 
     #[test]
+    fn circle_point_intersection_result_converts_to_topology() {
+        let circle = Circle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Direction3D::new(0.0, 0.0, 1.0).unwrap(),
+            2.0,
+        )
+        .unwrap();
+        let on_circle = Point3D::new(2.0, 0.0, 0.0);
+        let off_circle = Point3D::new(1.0, 0.0, 0.0);
+
+        let hit =
+            circle3d_point3d_intersection_result(&circle, &on_circle, standard_distance_tol());
+        let miss =
+            circle3d_point3d_intersection_result(&circle, &off_circle, standard_distance_tol());
+
+        assert_eq!(hit.topology, IntersectionTopology::Crossing);
+        assert!(matches!(hit.geometry, IntersectionGeometry::Point(_)));
+        assert_eq!(miss.topology, IntersectionTopology::Disjoint);
+        assert!(matches!(miss.geometry, IntersectionGeometry::None));
+    }
+
+    #[test]
     fn arc_point_intersection_checks_angle_range() {
         let arc = Arc3D::new(
             Point3D::new(0.0, 0.0, 0.0),
@@ -1302,6 +1351,29 @@ mod tests {
             arc3d_point3d_intersection(&arc, &out_of_angle, standard_distance_tol()),
             None
         );
+    }
+
+    #[test]
+    fn arc_point_intersection_result_converts_to_topology() {
+        let arc = Arc3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            2.0,
+            Direction3D::new(0.0, 0.0, 1.0).unwrap(),
+            Direction3D::new(1.0, 0.0, 0.0).unwrap(),
+            Angle::from_radians(0.0),
+            Angle::from_radians(std::f64::consts::FRAC_PI_2),
+        )
+        .unwrap();
+
+        let on_arc = Point3D::new(2.0, 0.0, 0.0);
+        let off_arc = Point3D::new(-2.0, 0.0, 0.0);
+        let hit = arc3d_point3d_intersection_result(&arc, &on_arc, standard_distance_tol());
+        let miss = arc3d_point3d_intersection_result(&arc, &off_arc, standard_distance_tol());
+
+        assert_eq!(hit.topology, IntersectionTopology::Crossing);
+        assert!(matches!(hit.geometry, IntersectionGeometry::Point(_)));
+        assert_eq!(miss.topology, IntersectionTopology::Disjoint);
+        assert!(matches!(miss.geometry, IntersectionGeometry::None));
     }
 
     #[test]
