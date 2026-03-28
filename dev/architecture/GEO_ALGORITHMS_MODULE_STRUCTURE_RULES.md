@@ -141,31 +141,31 @@
 
 ## 10. #338 再開時の戻り値移行ルール
 
-`#338` では、`Option<Point3D<T>>` を返す既存関数を一括置換せず、
-`IntersectionResult<T>` への段階移行を行う。
+`#338` では、公開関数の戻り値を `IntersectionResult<T>` へ直接置換する。
+互換層として公開 API を二重化しない。
 
 ### 10.1 基本方針
 
-- 既存の `*_intersection` 関数は互換のため当面維持する。
-- 新規に `*_intersection_result` 関数を追加し、呼び出し側を段階的に移行する。
+- 既存の `*_intersection` 関数名は維持しつつ、戻り値型を `IntersectionResult<T>` に切り替える。
+- 旧 `Option<Point3D<T>>` ロジックが必要な場合は private helper へ下げ、公開面には残さない。
 - `IntersectionResult::from_option_point()` / `from_option_points()` を使用して変換規約を統一する。
 - 一度に多数ペアを移行せず、1～2ペア単位の小PRで進める。
 
 ### 10.2 初期スライス（Phase C 再開の最小単位）
 
 - `intersection/primitive_3d.rs` の point系ペアから開始する。
-  - `arc3d_point3d_intersection_result`
-  - `circle3d_point3d_intersection_result`
+  - `arc3d_point3d_intersection`
+  - `circle3d_point3d_intersection`
 
 ### 10.2.1 継続スライス（同一PR系列で拡張する範囲）
 
 - point系の次は、同じ形状対の 1次元入力を対象に広げる。
-  - `arc3d_line_segment3d_intersection_result`
-  - `arc3d_ray3d_intersection_result`
-  - `arc3d_infinite_line3d_intersection_result`
-  - `circle3d_line_segment3d_intersection_result`
-  - `circle3d_ray3d_intersection_result`
-  - `circle3d_infinite_line3d_intersection_result`
+  - `arc3d_line_segment3d_intersection`
+  - `arc3d_ray3d_intersection`
+  - `arc3d_infinite_line3d_intersection`
+  - `circle3d_line_segment3d_intersection`
+  - `circle3d_ray3d_intersection`
+  - `circle3d_infinite_line3d_intersection`
 
 選定理由:
 
@@ -175,7 +175,7 @@
 
 ### 10.3 実装順序
 
-1. `*_intersection_result` 追加（旧APIは変更しない）
-2. 変換規約テスト追加（Disjoint / Crossing を最低限確認）
-3. 呼び出し側を1箇所ずつ移行
-4. 十分な移行完了後に旧API整理を検討
+1. 公開 `*_intersection` の戻り値を `IntersectionResult<T>` へ変更
+2. private helper 化で旧単一点ロジックを局所化
+3. 変換規約テスト追加（Disjoint / Crossing を最低限確認）
+4. 次ペアへ同じ置換を展開
