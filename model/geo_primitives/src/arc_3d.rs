@@ -4,7 +4,9 @@
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
-use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
+use geo_contracts::{
+    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
+};
 use geo_contracts::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties};
 
 /// 3次元円弧（基本実装）
@@ -153,7 +155,7 @@ impl<T: Scalar> Arc3D<T> {
         let projection = to_point - normal_vec * to_point.dot(&normal_vec);
 
         // 投影ベクトルがゼロの場合（点が円弧の中心軸上にある）
-        if projection.magnitude() < default_distance_tolerance::<T>() {
+        if projection.magnitude() < default_kernel_numerical_zero_tolerance::<T>() {
             return false;
         }
 
@@ -421,7 +423,7 @@ impl<T: Scalar> Arc3D<T> {
         let x_axis = Vector3D::unit_x();
         let perp1 = n.cross(&x_axis);
 
-        if perp1.length() > default_distance_tolerance::<T>() {
+        if perp1.length() > default_kernel_numerical_zero_tolerance::<T>() {
             Direction3D::from_vector(perp1)
         } else {
             // X軸と平行な場合、Y軸を使用
@@ -446,7 +448,7 @@ impl<T: Scalar> Arc3D<T> {
         let v1_v2 = v1.dot(&v2);
 
         let denom = (T::ONE + T::ONE) * (v1_sq * v2_sq - v1_v2 * v1_v2);
-        if denom.abs() < default_distance_tolerance::<T>() {
+        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
 

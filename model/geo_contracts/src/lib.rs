@@ -66,6 +66,7 @@ pub use geometry::operations::{
     SelfIntersection,
 };
 pub use tolerance::{
-    default_angle_tolerance, default_distance_tolerance, default_orthogonality_dot_error_tolerance,
-    default_parallel_cross_error_tolerance, GeometryContext, ToleranceSettings,
+    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
+    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
+    GeometryContext, ToleranceSettings,
 };
