@@ -155,7 +155,7 @@ impl<T: Scalar> Arc3D<T> {
         let projection = to_point - normal_vec * to_point.dot(&normal_vec);
 
         // 投影ベクトルがゼロの場合（点が円弧の中心軸上にある）
-        if projection.magnitude() < default_kernel_numerical_zero_tolerance::<T>() {
+        if projection.magnitude() < default_distance_tolerance::<T>() {
             return false;
         }
 
