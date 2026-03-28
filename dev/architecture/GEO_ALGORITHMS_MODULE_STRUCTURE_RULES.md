@@ -437,31 +437,45 @@ fn multipoint_tangent_is_touching() {
 - 2 点交差でも形状ペア全体の関係は `Crossing` として単一分類
 - `is_tangent` は 3D と同様に `Touching/Crossing` の補助判定として維持
 
-### 12.5 段階移行計画（設計）
+### 12.5 段階移行計画（実装反映済み）
 
-Phase D1: Result 型拡張の最小導入
+Phase D1: Result 型拡張の最小導入（完了）
 
-- `result.rs` に `Point2D` / `Points2D` / `Segment2D` の 3 バリアントを追加
-- `dimension()` / `description()` / `is_empty()` / `is_multiple()` を 3D と対称に実装
-- 変換 helper（2D 用 `from_option_point2d()` / `from_option_points2d()`）の API 署名を確定
+- `result.rs` に `Point2D` / `Points2D` / `Segment2D` の 3 バリアントを追加済み
+- `dimension()` / `description()` / `is_empty()` / `is_multiple()` を 3D と対称に実装済み
+- 変換 helper（2D 用 `from_option_point2d()` / `from_option_points2d()`）を導入済み
 
-Phase D2: 2D point系から先行置換
+Phase D2: 2D point系から先行置換（完了）
 
-- `*_point2d_intersection` を先行対象
-- 1～2 ペア単位の小 PR で置換・テスト
+- `*_point2d_intersection` の Result 型移行を完了
+- 小粒度 PR で置換・回帰確認を実施済み
 
-Phase D3: 線分/直線/ray 系置換
+Phase D3: 線分/直線/ray 系置換（完了）
 
-- `ray/line/segment` 系関数を順次置換
-- 逆方向委譲を同時更新
+- `ray/line/segment` 系関数の Result 型移行を完了
+- 逆方向委譲の更新を完了
 
-Phase D4: 円/楕円/弧の多点関数置換
+Phase D4: 円/楕円/弧の多点関数置換（完了）
 
-- `*_intersections` の Vec 返却を Result 化
-- Touching/Crossing/Coincident テストを追加
+- `*_intersections` の Vec 返却を Result 型へ移行完了
+- Touching/Crossing/Coincident の分類テストを追加済み
+- PR #481 マージ時点で 2D 側公開 API の置換を完了
 
-### 12.6 実装前提（#472 完了条件）
+Phase D5: 状況同期と運用固定（本タスク）
 
-- 本セクションで設計案（Option B）を確定
-- 実装は別 Issue で実施
-- #472 は「設計確定 + 移行順序確定」でクローズ可能
+- 目的:
+  - D1〜D4 完了状態と実装実態の乖離をドキュメント上で解消する
+  - フリーズ/再開時の再調査コストを最小化する
+- 実施項目:
+  - 本セクションの完了ステータス更新（D1〜D4）
+  - `primitive_2d.rs` / `primitive_3d.rs` の返り値方針を `IntersectionResult<T>` へ統一済みとして明記
+  - 旧 WIP ブランチの記録は履歴として保持し、現行正本は `develop` とする方針を明記
+- 完了条件:
+  - 本ドキュメントのステータスが実コードと一致していること
+  - 次回作業開始時に「どこまで完了か」を本ドキュメント単体で判断できること
+
+### 12.6 現在ステータス（2026-03-28）
+
+- 現行正本: `develop`
+- 2D/3D intersection 公開 API の返り値は `IntersectionResult<T>` へ統一済み
+- D5 は「設計更新と運用同期」のタスクとして継続管理し、追加実装を要求しない
