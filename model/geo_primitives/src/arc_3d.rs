@@ -3,8 +3,10 @@
 //! 3次元円弧の基本実装とコンストラクタ、アクセサメソッド
 
 use crate::{Angle, Direction3D, Point3D, Vector3D};
-use geo_contracts::default_angle_tolerance;
 use geo_contracts::Scalar;
+use geo_contracts::{
+    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
+};
 use geo_contracts::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties};
 
 /// 3次元円弧（基本実装）
@@ -153,7 +155,7 @@ impl<T: Scalar> Arc3D<T> {
         let projection = to_point - normal_vec * to_point.dot(&normal_vec);
 
         // 投影ベクトルがゼロの場合（点が円弧の中心軸上にある）
-        if projection.magnitude() < T::EPSILON {
+        if projection.magnitude() < default_distance_tolerance::<T>() {
             return false;
         }
 
@@ -180,12 +182,15 @@ impl<T: Scalar> Arc3D<T> {
         let point_normalized = normalize(point_angle);
         let start_normalized = normalize(self.start_angle.to_radians());
         let end_normalized = normalize(self.end_angle.to_radians());
+        let angle_tol = default_angle_tolerance::<T>();
 
         // 角度範囲の判定
         if start_normalized <= end_normalized {
-            point_normalized >= start_normalized && point_normalized <= end_normalized
+            point_normalized + angle_tol >= start_normalized
+                && point_normalized <= end_normalized + angle_tol
         } else {
-            point_normalized >= start_normalized || point_normalized <= end_normalized
+            point_normalized + angle_tol >= start_normalized
+                || point_normalized <= end_normalized + angle_tol
         }
     }
 
@@ -336,14 +341,14 @@ impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
 
     fn is_full_circle(&self) -> bool {
         let span = (self.end_angle.to_radians() - self.start_angle.to_radians()).abs();
-        (span - T::from_f64(2.0) * T::PI).abs() <= T::EPSILON
+        (span - T::from_f64(2.0) * T::PI).abs() <= default_angle_tolerance::<T>()
     }
 
     fn is_on_xy_plane(&self) -> bool {
         let z_axis = Direction3D::positive_z();
-        (self.normal.x() - z_axis.x()).abs() <= T::EPSILON
-            && (self.normal.y() - z_axis.y()).abs() <= T::EPSILON
-            && (self.normal.z() - z_axis.z()).abs() <= T::EPSILON
+        (self.normal.x() - z_axis.x()).abs() <= default_distance_tolerance::<T>()
+            && (self.normal.y() - z_axis.y()).abs() <= default_distance_tolerance::<T>()
+            && (self.normal.z() - z_axis.z()).abs() <= default_distance_tolerance::<T>()
     }
 }
 
@@ -401,7 +406,7 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
         let dy = point.1 - center_pt.y();
         let dz = point.2 - center_pt.z();
         let dist = (dx * dx + dy * dy + dz * dz).sqrt();
-        (dist - self.radius_internal()).abs() <= T::EPSILON
+        (dist - self.radius_internal()).abs() <= default_distance_tolerance::<T>()
     }
 }
 
@@ -418,7 +423,7 @@ impl<T: Scalar> Arc3D<T> {
         let x_axis = Vector3D::unit_x();
         let perp1 = n.cross(&x_axis);
 
-        if perp1.length() > T::EPSILON {
+        if perp1.length() > default_kernel_numerical_zero_tolerance::<T>() {
             Direction3D::from_vector(perp1)
         } else {
             // X軸と平行な場合、Y軸を使用
@@ -443,7 +448,7 @@ impl<T: Scalar> Arc3D<T> {
         let v1_v2 = v1.dot(&v2);
 
         let denom = (T::ONE + T::ONE) * (v1_sq * v2_sq - v1_v2 * v1_v2);
-        if denom.abs() < T::EPSILON {
+        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
 

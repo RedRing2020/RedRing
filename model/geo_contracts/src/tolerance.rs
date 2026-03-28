@@ -88,6 +88,13 @@ pub fn default_orthogonality_dot_error_tolerance<T: Scalar>() -> T {
     T::ORTHOGONALITY_DOT_ERROR_TOLERANCE
 }
 
+/// カーネル内部の数値安定化ガード（ゼロ判定）に使う固定閾値を返す。
+///
+/// `ToleranceSettings` とは独立しており、アプリケーション設定で変更しない。
+pub fn default_kernel_numerical_zero_tolerance<T: Scalar>() -> T {
+    T::from_f64(analysis::consts::numerical::KERNEL_NUMERICAL_ZERO_THRESHOLD_F64)
+}
+
 /// 幾何計算コンテキスト
 #[derive(Debug, Clone, Copy)]
 pub struct GeometryContext<T: Scalar> {

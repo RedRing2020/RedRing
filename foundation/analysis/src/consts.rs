@@ -8,6 +8,12 @@ pub mod numerical {
     /// ニュートン法で微分がゼロとみなされる閾値
     pub const DERIVATIVE_ZERO_THRESHOLD: f64 = 1e-12;
 
+    /// カーネル内部のゼロ判定（ゼロベクトル長・分母ゼロ近傍）用固定閾値（f64）
+    pub const KERNEL_NUMERICAL_ZERO_THRESHOLD_F64: f64 = 1e-12;
+
+    /// カーネル内部のゼロ判定（ゼロベクトル長・分母ゼロ近傍）用固定閾値（f32）
+    pub const KERNEL_NUMERICAL_ZERO_THRESHOLD_F32: f32 = 1e-6;
+
     /// 正規化済みベクトルの外積を 0 とみなす数値誤差閾値（f64）
     pub const PARALLEL_CROSS_ERROR_TOLERANCE_F64: f64 = 1e-10;
 
