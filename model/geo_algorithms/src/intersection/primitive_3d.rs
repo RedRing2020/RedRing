@@ -189,7 +189,7 @@ pub fn arc3d_infinite_line3d_intersection<T: Scalar>(
     )
 }
 
-pub fn arc3d_arc3d_intersection<T: Scalar>(
+fn arc3d_arc3d_intersection_raw<T: Scalar>(
     arc_a: &Arc3D<T>,
     arc_b: &Arc3D<T>,
     tolerance: T,
@@ -215,6 +215,18 @@ pub fn arc3d_arc3d_intersection<T: Scalar>(
         return Some(pb);
     }
     None
+}
+
+pub fn arc3d_arc3d_intersection<T: Scalar>(
+    arc_a: &Arc3D<T>,
+    arc_b: &Arc3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        arc3d_arc3d_intersection_raw(arc_a, arc_b, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 // ── Circle3D ──────────────────────────────────────────────────────────────────
@@ -322,14 +334,14 @@ pub fn circle3d_infinite_line3d_intersection<T: Scalar>(
 pub fn circle3d_circle3d_intersection<T: Scalar>(
     _circle_a: &Circle3D<T>,
     _circle_b: &Circle3D<T>,
-    _tolerance: T,
-) -> Option<Point3D<T>> {
-    None
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(None, false, tolerance)
 }
 
 // ── CylindricalSurface3D ──────────────────────────────────────────────────────
 
-pub fn cylindrical_surface3d_point3d_intersection<T: Scalar>(
+fn cylindrical_surface3d_point3d_intersection_raw<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
     point: &Point3D<T>,
     tolerance: T,
@@ -343,7 +355,19 @@ pub fn cylindrical_surface3d_point3d_intersection<T: Scalar>(
     )
 }
 
-pub fn cylindrical_surface3d_circle3d_intersection<T: Scalar>(
+pub fn cylindrical_surface3d_point3d_intersection<T: Scalar>(
+    cyl: &CylindricalSurface3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        cylindrical_surface3d_point3d_intersection_raw(cyl, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn cylindrical_surface3d_circle3d_intersection_raw<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
     circle: &Circle3D<T>,
     tolerance: T,
@@ -360,7 +384,19 @@ pub fn cylindrical_surface3d_circle3d_intersection<T: Scalar>(
     }
 }
 
-pub fn cylindrical_surface3d_line_segment3d_intersection<T: Scalar>(
+pub fn cylindrical_surface3d_circle3d_intersection<T: Scalar>(
+    cyl: &CylindricalSurface3D<T>,
+    circle: &Circle3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        cylindrical_surface3d_circle3d_intersection_raw(cyl, circle, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn cylindrical_surface3d_line_segment3d_intersection_raw<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
     segment: &LineSegment3D<T>,
     tolerance: T,
@@ -384,7 +420,19 @@ pub fn cylindrical_surface3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
-pub fn cylindrical_surface3d_triangle3d_intersection<T: Scalar>(
+pub fn cylindrical_surface3d_line_segment3d_intersection<T: Scalar>(
+    cyl: &CylindricalSurface3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        cylindrical_surface3d_line_segment3d_intersection_raw(cyl, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn cylindrical_surface3d_triangle3d_intersection_raw<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
     triangle: &Triangle3D<T>,
     tolerance: T,
@@ -415,7 +463,19 @@ pub fn cylindrical_surface3d_triangle3d_intersection<T: Scalar>(
     }
 }
 
-pub fn cylindrical_surface3d_plane3d_intersection<T: Scalar>(
+pub fn cylindrical_surface3d_triangle3d_intersection<T: Scalar>(
+    cyl: &CylindricalSurface3D<T>,
+    triangle: &Triangle3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        cylindrical_surface3d_triangle3d_intersection_raw(cyl, triangle, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn cylindrical_surface3d_plane3d_intersection_raw<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
     plane: &Plane3D<T>,
     tolerance: T,
@@ -430,11 +490,23 @@ pub fn cylindrical_surface3d_plane3d_intersection<T: Scalar>(
     }
 }
 
+pub fn cylindrical_surface3d_plane3d_intersection<T: Scalar>(
+    cyl: &CylindricalSurface3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        cylindrical_surface3d_plane3d_intersection_raw(cyl, plane, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 // cylindrical_surface3d_cylindrical_surface3d_intersection: BasicIntersection<T, CylindricalSurface3D<T>> は未実装のため対象外
 
 // ── Ellipse3D ─────────────────────────────────────────────────────────────────
 
-pub fn ellipse3d_point3d_intersection<T: Scalar + From<f64>>(
+fn ellipse3d_point3d_intersection_raw<T: Scalar + From<f64>>(
     ellipse: &Ellipse3D<T>,
     point: &Point3D<T>,
     tolerance: T,
@@ -445,6 +517,18 @@ pub fn ellipse3d_point3d_intersection<T: Scalar + From<f64>>(
             ellipse,
             (point.x(), point.y(), point.z()),
         ) <= tolerance,
+    )
+}
+
+pub fn ellipse3d_point3d_intersection<T: Scalar + From<f64>>(
+    ellipse: &Ellipse3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ellipse3d_point3d_intersection_raw(ellipse, point, tolerance),
+        false,
+        tolerance,
     )
 }
 
@@ -530,7 +614,7 @@ pub fn ellipse3d_ray3d_intersections<T: Scalar + From<f64>>(
     }
 }
 
-pub fn ellipse3d_plane3d_intersection<T: Scalar>(
+fn ellipse3d_plane3d_intersection_raw<T: Scalar>(
     ellipse: &Ellipse3D<T>,
     plane: &Plane3D<T>,
     tolerance: T,
@@ -541,6 +625,18 @@ pub fn ellipse3d_plane3d_intersection<T: Scalar>(
     } else {
         None
     }
+}
+
+pub fn ellipse3d_plane3d_intersection<T: Scalar>(
+    ellipse: &Ellipse3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ellipse3d_plane3d_intersection_raw(ellipse, plane, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
@@ -580,7 +676,7 @@ pub fn ellipse3d_ellipse3d_intersections<T: Scalar>(
 
 // ── EllipsoidalSolid3D ────────────────────────────────────────────────────────
 
-pub fn ellipsoidal_solid3d_point3d_intersection<T: Scalar>(
+fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     point: &Point3D<T>,
     _tolerance: T,
@@ -588,7 +684,19 @@ pub fn ellipsoidal_solid3d_point3d_intersection<T: Scalar>(
     point_intersection_if(point, ellipsoid.contains_point(point))
 }
 
-pub fn ellipsoidal_solid3d_plane3d_intersection<T: Scalar>(
+pub fn ellipsoidal_solid3d_point3d_intersection<T: Scalar>(
+    ellipsoid: &EllipsoidalSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ellipsoidal_solid3d_point3d_intersection_raw(ellipsoid, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn ellipsoidal_solid3d_plane3d_intersection_raw<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     plane: &Plane3D<T>,
     _tolerance: T,
@@ -603,6 +711,18 @@ pub fn ellipsoidal_solid3d_plane3d_intersection<T: Scalar>(
     } else {
         None
     }
+}
+
+pub fn ellipsoidal_solid3d_plane3d_intersection<T: Scalar>(
+    ellipsoid: &EllipsoidalSolid3D<T>,
+    plane: &Plane3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ellipsoidal_solid3d_plane3d_intersection_raw(ellipsoid, plane, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn ellipsoidal_solid3d_infinite_line3d_intersections<T: Scalar>(
@@ -634,12 +754,24 @@ pub fn ellipsoidal_solid3d_ray3d_intersections<T: Scalar>(
 
 // ── EllipsoidalSurface3D ──────────────────────────────────────────────────────
 
-pub fn ellipsoidal_surface3d_point3d_intersection<T: Scalar>(
+fn ellipsoidal_surface3d_point3d_intersection_raw<T: Scalar>(
     ellipsoid: &EllipsoidalSurface3D<T>,
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
     point_intersection_if(point, ellipsoid.contains_point(point, tolerance))
+}
+
+pub fn ellipsoidal_surface3d_point3d_intersection<T: Scalar>(
+    ellipsoid: &EllipsoidalSurface3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ellipsoidal_surface3d_point3d_intersection_raw(ellipsoid, point, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 // SphericalSolid3D の intersection: spherical_solid_3d_intersection モジュールが
@@ -648,7 +780,7 @@ pub fn ellipsoidal_surface3d_point3d_intersection<T: Scalar>(
 
 // ── TorusSolid3D ──────────────────────────────────────────────────────────────
 
-pub fn torus_solid3d_point3d_intersection<T: Scalar>(
+fn torus_solid3d_point3d_intersection_raw<T: Scalar>(
     torus: &TorusSolid3D<T>,
     point: &Point3D<T>,
     _tolerance: T,
@@ -656,9 +788,21 @@ pub fn torus_solid3d_point3d_intersection<T: Scalar>(
     point_intersection_if(point, torus.contains_point(point))
 }
 
+pub fn torus_solid3d_point3d_intersection<T: Scalar>(
+    torus: &TorusSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        torus_solid3d_point3d_intersection_raw(torus, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 // ── TorusSurface3D ────────────────────────────────────────────────────────────
 
-pub fn torus_surface3d_point3d_intersection<T: Scalar>(
+fn torus_surface3d_point3d_intersection_raw<T: Scalar>(
     torus: &TorusSurface3D<T>,
     point: &Point3D<T>,
     tolerance: T,
@@ -672,9 +816,21 @@ pub fn torus_surface3d_point3d_intersection<T: Scalar>(
     )
 }
 
+pub fn torus_surface3d_point3d_intersection<T: Scalar>(
+    torus: &TorusSurface3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        torus_surface3d_point3d_intersection_raw(torus, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 // ── Triangle3D ────────────────────────────────────────────────────────────────
 
-pub fn triangle3d_point3d_intersection<T: Scalar>(
+fn triangle3d_point3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
     point: &Point3D<T>,
     tolerance: T,
@@ -682,7 +838,19 @@ pub fn triangle3d_point3d_intersection<T: Scalar>(
     point_intersection_if(point, triangle.distance_to_point(point) <= tolerance)
 }
 
-pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
+pub fn triangle3d_point3d_intersection<T: Scalar>(
+    triangle: &Triangle3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        triangle3d_point3d_intersection_raw(triangle, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn triangle3d_line_segment3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
     segment: &LineSegment3D<T>,
     tolerance: T,
@@ -695,7 +863,7 @@ pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
         return None;
     }
     let ray = Ray3D::new(start, dir)?;
-    let point = triangle3d_ray3d_intersection(triangle, &ray, tolerance)?;
+    let point = triangle3d_ray3d_intersection_raw(triangle, &ray, tolerance)?;
 
     let t = ray.parameter_for_point(&point);
     if t >= T::ZERO && t <= length {
@@ -705,15 +873,27 @@ pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
+pub fn triangle3d_line_segment3d_intersection<T: Scalar>(
+    triangle: &Triangle3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        triangle3d_line_segment3d_intersection_raw(triangle, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 pub fn line_segment3d_triangle3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     triangle: &Triangle3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
+) -> IntersectionResult<T> {
     triangle3d_line_segment3d_intersection(triangle, segment, tolerance)
 }
 
-pub fn triangle3d_ray3d_intersection<T: Scalar>(
+fn triangle3d_ray3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
     ray: &Ray3D<T>,
     tolerance: T,
@@ -764,17 +944,29 @@ pub fn triangle3d_ray3d_intersection<T: Scalar>(
     ))
 }
 
+pub fn triangle3d_ray3d_intersection<T: Scalar>(
+    triangle: &Triangle3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        triangle3d_ray3d_intersection_raw(triangle, ray, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 pub fn ray3d_triangle3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     triangle: &Triangle3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
+) -> IntersectionResult<T> {
     triangle3d_ray3d_intersection(triangle, ray, tolerance)
 }
 
 // ── TriangleMesh3D ────────────────────────────────────────────────────────────
 
-pub fn triangle_mesh3d_point3d_intersection<T: Scalar>(
+fn triangle_mesh3d_point3d_intersection_raw<T: Scalar>(
     mesh: &TriangleMesh3D<T>,
     point: &Point3D<T>,
     tolerance: T,
@@ -789,9 +981,21 @@ pub fn triangle_mesh3d_point3d_intersection<T: Scalar>(
     )
 }
 
+pub fn triangle_mesh3d_point3d_intersection<T: Scalar>(
+    mesh: &TriangleMesh3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        triangle_mesh3d_point3d_intersection_raw(mesh, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 // ── Plane3D ───────────────────────────────────────────────────────────────────
 
-pub fn plane3d_point3d_intersection<T: Scalar>(
+fn plane3d_point3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     point: &Point3D<T>,
     tolerance: T,
@@ -802,7 +1006,19 @@ pub fn plane3d_point3d_intersection<T: Scalar>(
     )
 }
 
-pub fn plane3d_line_segment3d_intersection<T: Scalar>(
+pub fn plane3d_point3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        plane3d_point3d_intersection_raw(plane, point, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     segment: &LineSegment3D<T>,
     tolerance: T,
@@ -844,7 +1060,19 @@ pub fn plane3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
-pub fn plane3d_ray3d_intersection<T: Scalar>(
+pub fn plane3d_line_segment3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        plane3d_line_segment3d_intersection_raw(plane, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn plane3d_ray3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     ray: &Ray3D<T>,
     tolerance: T,
@@ -876,7 +1104,19 @@ pub fn plane3d_ray3d_intersection<T: Scalar>(
     }
 }
 
-pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
+pub fn plane3d_ray3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        plane3d_ray3d_intersection_raw(plane, ray, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn plane3d_infinite_line3d_intersection_raw<T: Scalar>(
     plane: &Plane3D<T>,
     line: &InfiniteLine3D<T>,
     tolerance: T,
@@ -905,14 +1145,38 @@ pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
     ))
 }
 
+pub fn plane3d_infinite_line3d_intersection<T: Scalar>(
+    plane: &Plane3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        plane3d_infinite_line3d_intersection_raw(plane, line, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 // ── Ray3D ─────────────────────────────────────────────────────────────────────
 
-pub fn ray3d_point3d_intersection<T: Scalar>(
+fn ray3d_point3d_intersection_raw<T: Scalar>(
     ray: &Ray3D<T>,
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
     point_intersection_if(point, ray.contains_point(point, tolerance))
+}
+
+pub fn ray3d_point3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ray3d_point3d_intersection_raw(ray, point, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
@@ -949,7 +1213,7 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     intersections
 }
 
-pub fn ray3d_ray3d_intersection<T: Scalar>(
+fn ray3d_ray3d_intersection_raw<T: Scalar>(
     ray_a: &Ray3D<T>,
     ray_b: &Ray3D<T>,
     tolerance: T,
@@ -986,7 +1250,19 @@ pub fn ray3d_ray3d_intersection<T: Scalar>(
     }
 }
 
-pub fn ray3d_line_segment3d_intersection<T: Scalar>(
+pub fn ray3d_ray3d_intersection<T: Scalar>(
+    ray_a: &Ray3D<T>,
+    ray_b: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ray3d_ray3d_intersection_raw(ray_a, ray_b, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn ray3d_line_segment3d_intersection_raw<T: Scalar>(
     ray: &Ray3D<T>,
     segment: &LineSegment3D<T>,
     tolerance: T,
@@ -1006,7 +1282,19 @@ pub fn ray3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
-pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
+pub fn ray3d_line_segment3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ray3d_line_segment3d_intersection_raw(ray, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn ray3d_infinite_line3d_intersection_raw<T: Scalar>(
     ray: &Ray3D<T>,
     line: &InfiniteLine3D<T>,
     tolerance: T,
@@ -1025,22 +1313,46 @@ pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
     }
 }
 
+pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    line: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ray3d_infinite_line3d_intersection_raw(ray, line, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 pub fn ray3d_plane3d_intersection<T: Scalar>(
     ray: &Ray3D<T>,
     plane: &Plane3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
+) -> IntersectionResult<T> {
     plane3d_ray3d_intersection(plane, ray, tolerance)
 }
 
 // ── LineSegment3D ─────────────────────────────────────────────────────────────
 
-pub fn line_segment3d_point3d_intersection<T: Scalar>(
+fn line_segment3d_point3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
     point_intersection_if(point, segment.contains_point(point, tolerance))
+}
+
+pub fn line_segment3d_point3d_intersection<T: Scalar>(
+    segment: &LineSegment3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        line_segment3d_point3d_intersection_raw(segment, point, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
@@ -1078,7 +1390,7 @@ pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
     intersections
 }
 
-pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
+fn line_segment3d_line_segment3d_intersection_raw<T: Scalar>(
     seg_a: &LineSegment3D<T>,
     seg_b: &LineSegment3D<T>,
     tolerance: T,
@@ -1128,11 +1440,23 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
+pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
+    seg_a: &LineSegment3D<T>,
+    seg_b: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        line_segment3d_line_segment3d_intersection_raw(seg_a, seg_b, tolerance),
+        false,
+        tolerance,
+    )
+}
+
 pub fn line_segment3d_ray3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     ray: &Ray3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
+) -> IntersectionResult<T> {
     ray3d_line_segment3d_intersection(ray, segment, tolerance)
 }
 
@@ -1140,7 +1464,7 @@ pub fn line_segment3d_infinite_line3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     line: &InfiniteLine3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
+) -> IntersectionResult<T> {
     infinite_line3d_line_segment3d_intersection(line, segment, tolerance)
 }
 
@@ -1148,18 +1472,30 @@ pub fn line_segment3d_plane3d_intersection<T: Scalar>(
     segment: &LineSegment3D<T>,
     plane: &Plane3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
+) -> IntersectionResult<T> {
     plane3d_line_segment3d_intersection(plane, segment, tolerance)
 }
 
 // ── InfiniteLine3D ────────────────────────────────────────────────────────────
 
-pub fn infinite_line3d_point3d_intersection<T: Scalar>(
+fn infinite_line3d_point3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
     point_intersection_if(point, line.contains_point(point, tolerance))
+}
+
+pub fn infinite_line3d_point3d_intersection<T: Scalar>(
+    line: &InfiniteLine3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        infinite_line3d_point3d_intersection_raw(line, point, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
@@ -1196,7 +1532,7 @@ pub fn infinite_line3d_spherical_surface3d_intersections<T: Scalar>(
     intersections
 }
 
-pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
+fn infinite_line3d_infinite_line3d_intersection_raw<T: Scalar>(
     line_a: &InfiniteLine3D<T>,
     line_b: &InfiniteLine3D<T>,
     tolerance: T,
@@ -1209,7 +1545,19 @@ pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
     }
 }
 
-pub fn infinite_line3d_line_segment3d_intersection<T: Scalar>(
+pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
+    line_a: &InfiniteLine3D<T>,
+    line_b: &InfiniteLine3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        infinite_line3d_infinite_line3d_intersection_raw(line_a, line_b, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn infinite_line3d_line_segment3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     segment: &LineSegment3D<T>,
     tolerance: T,
@@ -1223,7 +1571,19 @@ pub fn infinite_line3d_line_segment3d_intersection<T: Scalar>(
     }
 }
 
-pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
+pub fn infinite_line3d_line_segment3d_intersection<T: Scalar>(
+    line: &InfiniteLine3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        infinite_line3d_line_segment3d_intersection_raw(line, segment, tolerance),
+        false,
+        tolerance,
+    )
+}
+
+fn infinite_line3d_ray3d_intersection_raw<T: Scalar>(
     line: &InfiniteLine3D<T>,
     ray: &Ray3D<T>,
     tolerance: T,
@@ -1235,6 +1595,18 @@ pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
     } else {
         None
     }
+}
+
+pub fn infinite_line3d_ray3d_intersection<T: Scalar>(
+    line: &InfiniteLine3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        infinite_line3d_ray3d_intersection_raw(line, ray, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 #[cfg(test)]
@@ -1276,7 +1648,8 @@ mod tests {
 
         let result = plane3d_point3d_intersection(&plane, &point, standard_distance_tol());
 
-        assert_eq!(result, Some(point));
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+        assert!(matches!(result.geometry, IntersectionGeometry::Point(p) if p == point));
     }
 
     #[test]
@@ -1285,14 +1658,11 @@ mod tests {
         let on_ray = Point3D::new(2.0, 0.0, 0.0);
         let behind_ray = Point3D::new(-1.0, 0.0, 0.0);
 
-        assert_eq!(
-            ray3d_point3d_intersection(&ray, &on_ray, standard_distance_tol()),
-            Some(on_ray)
-        );
-        assert_eq!(
-            ray3d_point3d_intersection(&ray, &behind_ray, standard_distance_tol()),
-            None
-        );
+        let on = ray3d_point3d_intersection(&ray, &on_ray, standard_distance_tol());
+        let behind = ray3d_point3d_intersection(&ray, &behind_ray, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_ray));
+        assert_eq!(behind.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1302,18 +1672,16 @@ mod tests {
         let on_segment = Point3D::new(1.0, 0.0, 0.0);
         let outside_segment = Point3D::new(3.0, 0.0, 0.0);
 
-        assert_eq!(
-            line_segment3d_point3d_intersection(&segment, &on_segment, standard_distance_tol()),
-            Some(on_segment)
+        let on =
+            line_segment3d_point3d_intersection(&segment, &on_segment, standard_distance_tol());
+        let outside = line_segment3d_point3d_intersection(
+            &segment,
+            &outside_segment,
+            standard_distance_tol(),
         );
-        assert_eq!(
-            line_segment3d_point3d_intersection(
-                &segment,
-                &outside_segment,
-                standard_distance_tol()
-            ),
-            None
-        );
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_segment));
+        assert_eq!(outside.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1326,14 +1694,11 @@ mod tests {
         let on_line = Point3D::new(5.0, 0.0, 0.0);
         let off_line = Point3D::new(0.0, 1.0, 0.0);
 
-        assert_eq!(
-            infinite_line3d_point3d_intersection(&line, &on_line, standard_distance_tol()),
-            Some(on_line)
-        );
-        assert_eq!(
-            infinite_line3d_point3d_intersection(&line, &off_line, standard_distance_tol()),
-            None
-        );
+        let on = infinite_line3d_point3d_intersection(&line, &on_line, standard_distance_tol());
+        let off = infinite_line3d_point3d_intersection(&line, &off_line, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_line));
+        assert_eq!(off.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1347,14 +1712,12 @@ mod tests {
         let on_triangle = Point3D::new(0.2, 0.2, 0.0);
         let off_triangle = Point3D::new(0.2, 0.2, 0.5);
 
-        assert_eq!(
-            triangle3d_point3d_intersection(&triangle, &on_triangle, standard_distance_tol()),
-            Some(on_triangle)
-        );
-        assert_eq!(
-            triangle3d_point3d_intersection(&triangle, &off_triangle, standard_distance_tol()),
-            None
-        );
+        let on = triangle3d_point3d_intersection(&triangle, &on_triangle, standard_distance_tol());
+        let off =
+            triangle3d_point3d_intersection(&triangle, &off_triangle, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_triangle));
+        assert_eq!(off.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1530,18 +1893,16 @@ mod tests {
         let inside_ellipse = Point3D::new(1.0, 0.0, 0.0);
         let outside_plane = Point3D::new(0.0, 0.0, 0.5);
 
-        assert_eq!(
-            ellipse3d_point3d_intersection(&ellipse, &on_ellipse, standard_distance_tol()),
-            Some(on_ellipse)
-        );
-        assert_eq!(
-            ellipse3d_point3d_intersection(&ellipse, &inside_ellipse, standard_distance_tol()),
-            Some(inside_ellipse)
-        );
-        assert_eq!(
-            ellipse3d_point3d_intersection(&ellipse, &outside_plane, standard_distance_tol()),
-            None
-        );
+        let on = ellipse3d_point3d_intersection(&ellipse, &on_ellipse, standard_distance_tol());
+        let inside =
+            ellipse3d_point3d_intersection(&ellipse, &inside_ellipse, standard_distance_tol());
+        let outside =
+            ellipse3d_point3d_intersection(&ellipse, &outside_plane, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_ellipse));
+        assert_eq!(inside.topology, IntersectionTopology::Crossing);
+        assert!(matches!(inside.geometry, IntersectionGeometry::Point(p) if p == inside_ellipse));
+        assert_eq!(outside.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1609,14 +1970,12 @@ mod tests {
         let on_surface = Point3D::new(4.0, 0.0, 0.0);
         let inside_tube = Point3D::new(3.0, 0.0, 0.0);
 
-        assert_eq!(
-            torus_surface3d_point3d_intersection(&torus, &on_surface, standard_distance_tol()),
-            Some(on_surface)
-        );
-        assert_eq!(
-            torus_surface3d_point3d_intersection(&torus, &inside_tube, standard_distance_tol()),
-            None
-        );
+        let on = torus_surface3d_point3d_intersection(&torus, &on_surface, standard_distance_tol());
+        let inside =
+            torus_surface3d_point3d_intersection(&torus, &inside_tube, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_surface));
+        assert_eq!(inside.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1626,14 +1985,13 @@ mod tests {
         let on_surface = Point3D::new(1.0, 0.0, 0.5);
         let off_surface = Point3D::new(2.0, 0.0, 0.5);
 
-        assert_eq!(
-            cylindrical_surface3d_point3d_intersection(&cyl, &on_surface, standard_distance_tol()),
-            Some(on_surface)
-        );
-        assert_eq!(
-            cylindrical_surface3d_point3d_intersection(&cyl, &off_surface, standard_distance_tol()),
-            None
-        );
+        let on =
+            cylindrical_surface3d_point3d_intersection(&cyl, &on_surface, standard_distance_tol());
+        let off =
+            cylindrical_surface3d_point3d_intersection(&cyl, &off_surface, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_surface));
+        assert_eq!(off.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1651,14 +2009,12 @@ mod tests {
         let on_triangle = Point3D::new(0.2, 0.2, 0.0);
         let off_triangle = Point3D::new(0.2, 0.2, 0.3);
 
-        assert_eq!(
-            triangle_mesh3d_point3d_intersection(&mesh, &on_triangle, standard_distance_tol()),
-            Some(on_triangle)
-        );
-        assert_eq!(
-            triangle_mesh3d_point3d_intersection(&mesh, &off_triangle, standard_distance_tol()),
-            None
-        );
+        let on = triangle_mesh3d_point3d_intersection(&mesh, &on_triangle, standard_distance_tol());
+        let off =
+            triangle_mesh3d_point3d_intersection(&mesh, &off_triangle, standard_distance_tol());
+        assert_eq!(on.topology, IntersectionTopology::Crossing);
+        assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_triangle));
+        assert_eq!(off.topology, IntersectionTopology::Disjoint);
     }
 
     #[test]
@@ -1675,12 +2031,12 @@ mod tests {
 
         let tol = standard_distance_tol();
         assert_eq!(
-            line_segment3d_triangle3d_intersection(&seg, &tri, tol),
-            triangle3d_line_segment3d_intersection(&tri, &seg, tol)
+            line_segment3d_triangle3d_intersection(&seg, &tri, tol).topology,
+            triangle3d_line_segment3d_intersection(&tri, &seg, tol).topology
         );
         assert_eq!(
-            ray3d_triangle3d_intersection(&ray, &tri, tol),
-            triangle3d_ray3d_intersection(&tri, &ray, tol)
+            ray3d_triangle3d_intersection(&ray, &tri, tol).topology,
+            triangle3d_ray3d_intersection(&tri, &ray, tol).topology
         );
     }
 
@@ -1693,12 +2049,12 @@ mod tests {
             LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
 
         assert_eq!(
-            ray3d_plane3d_intersection(&ray, &plane, tol),
-            plane3d_ray3d_intersection(&plane, &ray, tol)
+            ray3d_plane3d_intersection(&ray, &plane, tol).topology,
+            plane3d_ray3d_intersection(&plane, &ray, tol).topology
         );
         assert_eq!(
-            line_segment3d_plane3d_intersection(&seg, &plane, tol),
-            plane3d_line_segment3d_intersection(&plane, &seg, tol)
+            line_segment3d_plane3d_intersection(&seg, &plane, tol).topology,
+            plane3d_line_segment3d_intersection(&plane, &seg, tol).topology
         );
     }
 
@@ -1715,12 +2071,12 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            line_segment3d_ray3d_intersection(&seg, &ray, tol),
-            ray3d_line_segment3d_intersection(&ray, &seg, tol)
+            line_segment3d_ray3d_intersection(&seg, &ray, tol).topology,
+            ray3d_line_segment3d_intersection(&ray, &seg, tol).topology
         );
         assert_eq!(
-            line_segment3d_infinite_line3d_intersection(&seg, &line, tol),
-            infinite_line3d_line_segment3d_intersection(&line, &seg, tol)
+            line_segment3d_infinite_line3d_intersection(&seg, &line, tol).topology,
+            infinite_line3d_line_segment3d_intersection(&line, &seg, tol).topology
         );
     }
 
@@ -1766,10 +2122,15 @@ mod tests {
         let opposite =
             Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
 
-        assert_eq!(
-            ray3d_ray3d_intersection(&ray_a, &ray_b, tolerance),
-            Some(Point3D::new(0.0, 0.0, 0.0))
-        );
-        assert_eq!(ray3d_ray3d_intersection(&ray_a, &opposite, tolerance), None);
+        let crossing = ray3d_ray3d_intersection(&ray_a, &ray_b, tolerance);
+        let disjoint = ray3d_ray3d_intersection(&ray_a, &opposite, tolerance);
+        assert_eq!(crossing.topology, IntersectionTopology::Crossing);
+        let origin = Point3D::new(0.0_f64, 0.0, 0.0);
+        if let IntersectionGeometry::Point(ref p) = crossing.geometry {
+            assert!(p.distance_to(&origin) < 1e-9);
+        } else {
+            panic!("Expected IntersectionGeometry::Point for crossing");
+        }
+        assert_eq!(disjoint.topology, IntersectionTopology::Disjoint);
     }
 }
