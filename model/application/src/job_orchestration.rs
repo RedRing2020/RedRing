@@ -1,19 +1,19 @@
-//! Job orchestration boundaries.
+//! Job向け orchestration 境界。
 
-/// Request boundary for a generic workflow submission.
+/// 汎用 workflow 送信の入力境界。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JobWorkflowSubmitRequest {
     pub job_type: String,
     pub input_ref: String,
 }
 
-/// Result boundary for a workflow submission.
+/// workflow 送信の出力境界。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JobWorkflowSubmitResult {
     pub job_id: u64,
 }
 
-/// Orchestration port for job submission use cases.
+/// job 送信ユースケースの orchestration port。
 pub trait JobWorkflowOrchestration {
     fn submit_workflow(
         &self,

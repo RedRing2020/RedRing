@@ -1,4 +1,4 @@
-//! CAM-specific orchestration boundaries.
+//! CAM向け orchestration 境界。
 
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
@@ -13,14 +13,14 @@ pub struct CamSnapshotFrame {
     pub remaining_volume_mm3: f64,
 }
 
-/// Request boundary for CAM snapshot series generation.
+/// CAMスナップショット系列生成の入力境界。
 #[derive(Debug, Clone, PartialEq)]
 pub struct CamSnapshotSeriesRequest {
     pub source: String,
     pub frames: Vec<CamSnapshotFrame>,
 }
 
-/// Result boundary for CAM snapshot series generation.
+/// CAMスナップショット系列生成の出力境界。
 #[derive(Debug, Clone, PartialEq)]
 pub struct CamSnapshotSeriesResult {
     pub frame_count: usize,
@@ -28,7 +28,7 @@ pub struct CamSnapshotSeriesResult {
     pub frames: Vec<CamSnapshotFrame>,
 }
 
-/// Orchestration port for CAM snapshot-related use cases.
+/// CAMスナップショット関連ユースケースの orchestration port。
 pub trait CamSnapshotSeriesOrchestration {
     fn create_snapshot_series(
         &self,
@@ -36,7 +36,7 @@ pub trait CamSnapshotSeriesOrchestration {
     ) -> Result<CamSnapshotSeriesResult, String>;
 }
 
-/// Default implementation for snapshot series orchestration.
+/// スナップショット系列 orchestration の既定実装。
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CamSnapshotSeriesOrchestrator;
 
@@ -77,7 +77,7 @@ pub fn create_snapshot_series_from_exports(
     })
 }
 
-/// Request boundary for cam_sim snapshot execution.
+/// cam_sim スナップショット実行の入力境界。
 #[derive(Debug, Clone)]
 pub struct CamSimulationExecutionRequest {
     pub toolpath: ToolPath<f64>,
@@ -87,13 +87,13 @@ pub struct CamSimulationExecutionRequest {
     pub snapshot_interval: SnapshotInterval,
 }
 
-/// Result boundary for cam_sim snapshot execution.
+/// cam_sim スナップショット実行の出力境界。
 #[derive(Debug, Clone, PartialEq)]
 pub struct CamSimulationExecutionResult {
     pub exports: Vec<SimulationSnapshotExport>,
 }
 
-/// Execute cam_sim and return snapshot exports as an application boundary result.
+/// cam_sim を実行し、スナップショット出力を Application 境界結果として返す。
 pub fn execute_simulation_snapshot_exports(
     request: CamSimulationExecutionRequest,
 ) -> Result<CamSimulationExecutionResult, SimulationError> {
