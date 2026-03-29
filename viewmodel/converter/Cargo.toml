@@ -14,6 +14,7 @@ geo_io = { path = "../../model/geo_io" }
 cam_core = { path = "../../model/cam_core" }
 cam_entity = { path = "../../model/cam_entity" }
 cam_sim = { path = "../../model/cam_sim" }
+application = { path = "../../model/application" }
 job_domain = { path = "../../model/job_domain" }
 analysis = { path = "../../foundation/analysis" }
 i18n_foundation = { path = "../../foundation/i18n_foundation" }

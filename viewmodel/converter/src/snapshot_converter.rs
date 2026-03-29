@@ -4,6 +4,7 @@
 //! ドメイン固有情報は `payload` に閉じ込め、CAM以外（例: プレス）にも
 //! 同じ構造で適用できることを目的とします。
 
+use application::cam_orchestration::create_snapshot_series_from_exports;
 use cam_core::Tool;
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, Point3D};
@@ -150,13 +151,17 @@ pub fn cam_export_rows_to_inputs(
 pub fn cam_snapshot_exports_to_inputs(
     exports: &[SimulationSnapshotExport],
 ) -> Vec<CamSimulationSnapshotInput> {
-    exports
-        .iter()
-        .map(|export| CamSimulationSnapshotInput {
-            segment_index: export.segment_index,
-            segment_t: export.segment_t,
-            accumulated_distance_mm: export.accumulated_distance_mm,
-            remaining_volume_mm3: export.remaining_volume_mm3,
+    let result = create_snapshot_series_from_exports("cam_sim", exports)
+        .expect("snapshot series conversion in application layer should not fail");
+
+    result
+        .frames
+        .into_iter()
+        .map(|frame| CamSimulationSnapshotInput {
+            segment_index: frame.segment_index,
+            segment_t: frame.segment_t,
+            accumulated_distance_mm: frame.accumulated_distance_mm,
+            remaining_volume_mm3: frame.remaining_volume_mm3,
         })
         .collect()
 }
