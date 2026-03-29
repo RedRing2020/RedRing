@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
 use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
-use geo_contracts::{Angle, Scalar};
+use geo_contracts::{default_angle_tolerance, Angle, Scalar};
 
 // ============================================================================
 // Extension Methods Implementation
@@ -188,7 +188,7 @@ impl<T: Scalar> EllipseArc3D<T> {
     /// 点から楕円弧への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         // 点が角度範囲内にある場合
-        if self.point_in_angle_range(point, T::EPSILON) {
+        if self.point_in_angle_range(point, default_angle_tolerance::<T>()) {
             return self.ellipse().distance_to_point(point);
         }
 
