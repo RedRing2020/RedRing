@@ -3,11 +3,14 @@
 //! CAMシミュレーション（toolpath + tool + work octree）の実行と、
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
+use application::cam_orchestration::{
+    execute_simulation_snapshot_exports, CamSimulationExecutionRequest,
+};
 use cam_core::{
     validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, PathGeometry, Tool,
     ToolPath, ValidationError,
 };
-use cam_sim::{CuttingSimulator, SimulationError, SnapshotInterval};
+use cam_sim::{SimulationError, SnapshotInterval};
 use geo_algorithms::{
     octree::{VoxelOctree, VoxelState},
     Aabb3D, LineSegment3D, Point3D,
@@ -547,8 +550,6 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
     let segments = collect_line_segments_with_flags(&toolpath)?;
 
     let work_bounds = compute_work_bounds_from_toolpath(&segments, tool.radius());
-    let voxel_tree = VoxelOctree::new(work_bounds, settings.max_depth);
-
     let non_cutting_interference_count =
         count_non_cutting_interference_segments(&segments, &work_bounds, tool.radius());
     if non_cutting_interference_count > 0 {
@@ -559,10 +560,14 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
         );
     }
 
-    let mut simulator = CuttingSimulator::new(voxel_tree, SnapshotInterval::default());
-    simulator.simulate(&toolpath, &tool)?;
-
-    let exports = simulator.snapshot_exports_f64();
+    let exports = execute_simulation_snapshot_exports(CamSimulationExecutionRequest {
+        toolpath: toolpath.clone(),
+        tool: tool.clone(),
+        work_bounds,
+        max_depth: settings.max_depth,
+        snapshot_interval: SnapshotInterval::default(),
+    })?
+    .exports;
     let snapshot_inputs = cam_snapshot_exports_to_inputs(&exports);
     let snapshot_series = cam_snapshot_inputs_to_domain_series("cam_sim", &snapshot_inputs);
 

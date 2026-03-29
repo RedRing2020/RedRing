@@ -4,8 +4,12 @@
 //! ドメイン固有情報は `payload` に閉じ込め、CAM以外（例: プレス）にも
 //! 同じ構造で適用できることを目的とします。
 
+use application::cam_orchestration::{
+    create_snapshot_series_from_exports, execute_simulation_snapshot_exports,
+    CamSimulationExecutionRequest,
+};
 use cam_core::Tool;
-use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
+use cam_sim::{SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, Point3D};
 
 use crate::toolpath_converter::create_sample_toolpath;
@@ -150,13 +154,17 @@ pub fn cam_export_rows_to_inputs(
 pub fn cam_snapshot_exports_to_inputs(
     exports: &[SimulationSnapshotExport],
 ) -> Vec<CamSimulationSnapshotInput> {
-    exports
-        .iter()
-        .map(|export| CamSimulationSnapshotInput {
-            segment_index: export.segment_index,
-            segment_t: export.segment_t,
-            accumulated_distance_mm: export.accumulated_distance_mm,
-            remaining_volume_mm3: export.remaining_volume_mm3,
+    let result = create_snapshot_series_from_exports("cam_sim", exports)
+        .expect("snapshot series conversion in application layer should not fail");
+
+    result
+        .frames
+        .into_iter()
+        .map(|frame| CamSimulationSnapshotInput {
+            segment_index: frame.segment_index,
+            segment_t: frame.segment_t,
+            accumulated_distance_mm: frame.accumulated_distance_mm,
+            remaining_volume_mm3: frame.remaining_volume_mm3,
         })
         .collect()
 }
@@ -168,14 +176,17 @@ pub fn create_sample_cam_snapshot_domain_series(
         Point3D::new(-60.0, -60.0, -20.0),
         Point3D::new(60.0, 60.0, 30.0),
     );
-    let voxel = geo_algorithms::octree::VoxelOctree::new(bounds, 4);
-
-    let mut simulator = CuttingSimulator::new(voxel, SnapshotInterval::default());
     let toolpath = create_sample_toolpath();
     let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
 
-    simulator.simulate(&toolpath, &tool)?;
-    let exports = simulator.snapshot_exports_f64();
+    let exports = execute_simulation_snapshot_exports(CamSimulationExecutionRequest {
+        toolpath,
+        tool,
+        work_bounds: bounds,
+        max_depth: 4,
+        snapshot_interval: SnapshotInterval::default(),
+    })?
+    .exports;
     let inputs = cam_snapshot_exports_to_inputs(&exports);
 
     Ok(cam_snapshot_inputs_to_domain_series("cam_sim", &inputs))

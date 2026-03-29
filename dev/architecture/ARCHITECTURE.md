@@ -56,6 +56,8 @@ foundation/analysis（将来改名候補）
 - **`geo_nurbs`**: NURBS形状のtrait定義と実装（Curve/Surface等）
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を利用した高レベル幾何アルゴリズム（intersect, collision 等）
 - **`application::*`（新設方針）**: テセレーション、シミュレーション、ジョブ管理など業務ユースケース
+    - Application Layer の主要責務は orchestration とし、入口API、委譲順序、境界DTO、port/adapter 切り替えを集約する
+    - 詳細方針は `dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md` を参照
 - **`geo_io`**: ファイル I/O（STL/OBJ/PLY 等）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小機械制約）
 - **`cam_algorithms`（新設方針）**: CAM 固有アルゴリズム（経路生成、順序最適化、干渉回避、機械制約検証）
@@ -69,6 +71,7 @@ foundation/analysis（将来改名候補）
 - **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
 - **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
 - **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
+- **Application Layer の役割**: 非同期実装詳細そのものは持たず、同期/非同期/job投入の実行方式境界だけを管理する
 - **CAM責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` はCAM特化ユースケース実行として分離する
 - **`cam_sim` の位置づけ**: 物理配置は `model/` 配下だが、責務としては純粋データ層ではなく CAM ドメイン専用の application 層に近い
 - **循環依存回避**: `geo_primitives` ↔ `geo_nurbs` の直接依存は禁止（交差処理は`geo_algorithms`に集約）
@@ -86,6 +89,8 @@ foundation/analysis（将来改名候補）
 3. **Phase 3: application層分離**
 - tessellation/simulation/job manager を application層クレートに移動
 - `geo_algorithms` は純粋幾何アルゴリズム責務に限定
+- 初期導入は PoC から段階適用とし、初手は単一受け皿 + module 分割を優先する
+- `*_orchestration` の独立クレート化は、責務境界と依存分岐が安定した段階で判断する
 
 4. **Phase 4: analysis再編**
 - `foundation/analysis` の名称変更を検討
@@ -212,6 +217,7 @@ redring ← stage ← render
 ## 🔗 関連ドキュメント
 
 - **[📖 オンラインドキュメント](https://redring2020.github.io/RedRing/)** - GitHub Pages（自動更新）
+- [`dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`](dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md) - Application Layer / orchestration 層の責務定義
 - [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md) - 幾何抽象化の詳細仕様
 - [`manual/philosophy.md`](manual/philosophy.md) - 設計思想・エラー処理ガイドライン
 - [`MIGRATION_VECTOR_F64.md`](MIGRATION_VECTOR_F64.md) - f64 正準化移行履歴
