@@ -164,6 +164,7 @@ mod tests {
 
     #[test]
     fn test_core_traits_measure() {
+        use analysis::test_constants::INTEGRATION_TOLERANCE_STRICT;
         use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DMeasure};
 
         let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
@@ -173,7 +174,7 @@ mod tests {
         .unwrap();
 
         // Measureトレイトメソッド確認
-        let tolerance = 1e-6;
+        let tolerance = INTEGRATION_TOLERANCE_STRICT;
         let total_length = curve.arc_length_total(tolerance);
         assert!((total_length - 3.0).abs() < 1e-3);
 

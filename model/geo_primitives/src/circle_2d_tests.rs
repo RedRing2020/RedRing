@@ -1,6 +1,7 @@
 //! Circle2D のテスト
 
 use crate::{Circle2D, Point2D, Vector2D};
+use analysis::test_constants::TOLERANCE_F32;
 use std::f64::consts::{PI, TAU};
 
 /// 基本作成テスト
@@ -352,7 +353,7 @@ fn test_circle2d_f32() {
     assert_eq!(circle.diameter(), 6.0f32);
 
     let area = circle.area();
-    assert!((area - (std::f32::consts::PI * 9.0f32)).abs() < 1e-6);
+    assert!((area - (std::f32::consts::PI * 9.0f32)).abs() < TOLERANCE_F32);
 }
 
 // ============================================================================
