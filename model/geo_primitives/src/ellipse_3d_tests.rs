@@ -8,6 +8,7 @@ use geo_contracts::Ellipse3DProperties;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use analysis::test_constants::TOLERANCE_F32;
 
     #[test]
     fn test_basic_creation() {
@@ -141,6 +142,6 @@ mod tests {
 
         let area = ellipse.area();
         let expected_area = std::f32::consts::PI * 3.0f32 * 2.0f32;
-        assert!((area - expected_area).abs() < 1e-6);
+        assert!((area - expected_area).abs() < TOLERANCE_F32);
     }
 }

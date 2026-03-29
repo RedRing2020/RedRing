@@ -8,6 +8,7 @@ use geo_contracts::Arc3DProperties;
 
 #[cfg(test)]
 mod tests {
+    use analysis::test_constants::TOLERANCE_F32;
     use super::*;
 
     // ヘルパー関数：ラジアンから Angle を作成
@@ -228,11 +229,11 @@ mod tests {
 
         let length = arc.arc_length();
         let expected_length = 3.0f32 * std::f32::consts::PI;
-        assert!((length - expected_length).abs() < 1e-6);
+        assert!((length - expected_length).abs() < TOLERANCE_F32);
 
         let start = arc.start_point();
-        assert!((start.x() - 3.0f32).abs() < 1e-6);
-        assert!((start.y() - 0.0f32).abs() < 1e-6);
+        assert!((start.x() - 3.0f32).abs() < TOLERANCE_F32);
+        assert!((start.y() - 0.0f32).abs() < TOLERANCE_F32);
     }
 }
 

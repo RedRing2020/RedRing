@@ -5,6 +5,7 @@ use geo_contracts::Scalar;
 
 #[cfg(test)]
 mod tests {
+    use analysis::test_constants::TOLERANCE_F32;
     use super::*;
 
     #[test]
@@ -346,7 +347,7 @@ mod tests {
 
         let area = ellipse.area();
         let expected_area = std::f32::consts::PI * 3.0f32 * 2.0f32;
-        assert!((area - expected_area).abs() < 1e-6);
+        assert!((area - expected_area).abs() < TOLERANCE_F32);
 
         // foundation トレイト
         let bbox = ellipse.bounding_box();

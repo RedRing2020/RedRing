@@ -226,6 +226,8 @@ impl<T: Scalar> Rect3DMeasure<T> for Rect3D<T> {
 mod tests {
     use super::*;
 
+    const POINT_CONTAINMENT_TOLERANCE: f64 = 1e-9;
+
     #[test]
     fn contains_and_resize() {
         let mut rect = Rect3D::new(
@@ -237,8 +239,8 @@ mod tests {
         )
         .unwrap();
 
-        assert!(rect.contains_point(&Point3D::new(5.0, 2.5, 0.0), 1e-9));
-        assert!(!rect.contains_point(&Point3D::new(11.0, 2.5, 0.0), 1e-9));
+        assert!(rect.contains_point(&Point3D::new(5.0, 2.5, 0.0), POINT_CONTAINMENT_TOLERANCE,));
+        assert!(!rect.contains_point(&Point3D::new(11.0, 2.5, 0.0), POINT_CONTAINMENT_TOLERANCE,));
         assert!(!rect.contains_point(&Point3D::new(5.0, 2.5, 0.1), 1e-3));
 
         assert!(rect.resize(20.0, 10.0));

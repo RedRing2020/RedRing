@@ -6,6 +6,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{CylindricalSurface3D, Point3D, Vector3D};
+    use analysis::test_constants::TOLERANCE_F32;
     use approx::assert_relative_eq;
     use geo_contracts::{CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Scalar};
 
@@ -75,7 +76,7 @@ mod tests {
         assert_relative_eq!(
             CylindricalSurface3DProperties::radius(&surface),
             5.0f32,
-            epsilon = 1e-6
+            epsilon = TOLERANCE_F32
         );
         let center_tuple = CylindricalSurface3DProperties::center(&surface);
         assert_eq!(center_tuple, (1.0f32, 2.0f32, 3.0f32));
