@@ -5,7 +5,8 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
-    LineSegment2DConstructor, LineSegment2DMeasure, LineSegment2DProperties, Scalar,
+    default_distance_tolerance, LineSegment2DConstructor, LineSegment2DMeasure,
+    LineSegment2DProperties, Scalar,
 };
 
 /// 2次元平面の線分
@@ -337,7 +338,7 @@ impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
 
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        self.contains_point(&p, T::EPSILON)
+        self.contains_point(&p, default_distance_tolerance::<T>())
     }
 
     fn point_at_parameter(&self, t: T) -> (T, T) {

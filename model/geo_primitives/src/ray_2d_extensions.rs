@@ -4,7 +4,7 @@
 //! Core Foundation では提供しない拡張機能のみ
 
 use crate::{Direction2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Vector2D};
-use geo_contracts::{Angle, Scalar};
+use geo_contracts::{default_distance_tolerance, Angle, Scalar};
 
 impl<T: Scalar> Ray2D<T> {
     // === 特殊作成メソッド ===
@@ -67,7 +67,7 @@ impl<T: Scalar> Ray2D<T> {
             return None;
         }
 
-        let tolerance = T::EPSILON;
+        let tolerance = default_distance_tolerance::<T>();
         if segment.contains_point(&line_intersection, tolerance) {
             Some(line_intersection)
         } else {

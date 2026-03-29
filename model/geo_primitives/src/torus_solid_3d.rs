@@ -7,7 +7,7 @@
 // 固体としての体積と表面を持ちます。
 
 use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{default_kernel_numerical_zero_tolerance, Scalar};
 use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス固体
@@ -63,7 +63,7 @@ impl<T: Scalar> TorusSolid3D<T> {
         // 軸の直交性チェック
         let dot_product =
             x_axis.x() * z_axis.x() + x_axis.y() * z_axis.y() + x_axis.z() * z_axis.z();
-        let tolerance = T::EPSILON;
+        let tolerance = default_kernel_numerical_zero_tolerance::<T>();
         if dot_product.abs() > tolerance {
             return None;
         }

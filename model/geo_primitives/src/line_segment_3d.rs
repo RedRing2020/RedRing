@@ -5,8 +5,8 @@
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    CrossDistance, LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DMeasure,
-    LineSegment3DProperties, Scalar,
+    default_distance_tolerance, CrossDistance, LineSegment3DCollisionDetection,
+    LineSegment3DConstructor, LineSegment3DMeasure, LineSegment3DProperties, Scalar,
 };
 
 /// 3次元空間の線分
@@ -251,7 +251,7 @@ impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point(&p, T::EPSILON)
+        self.contains_point(&p, default_distance_tolerance::<T>())
     }
 
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
