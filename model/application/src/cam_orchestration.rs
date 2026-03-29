@@ -1,6 +1,8 @@
 //! CAM-specific orchestration boundaries.
 
-use cam_sim::SimulationSnapshotExport;
+use cam_core::{Tool, ToolPath};
+use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
+use geo_algorithms::{Aabb3D, octree::VoxelOctree};
 
 /// CAMシミュレーション由来の最小スナップショットDTO。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -75,9 +77,40 @@ pub fn create_snapshot_series_from_exports(
     })
 }
 
+/// Request boundary for cam_sim snapshot execution.
+#[derive(Debug, Clone)]
+pub struct CamSimulationExecutionRequest {
+    pub toolpath: ToolPath<f64>,
+    pub tool: Tool<f64>,
+    pub work_bounds: Aabb3D<f64>,
+    pub max_depth: usize,
+    pub snapshot_interval: SnapshotInterval,
+}
+
+/// Result boundary for cam_sim snapshot execution.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CamSimulationExecutionResult {
+    pub exports: Vec<SimulationSnapshotExport>,
+}
+
+/// Execute cam_sim and return snapshot exports as an application boundary result.
+pub fn execute_simulation_snapshot_exports(
+    request: CamSimulationExecutionRequest,
+) -> Result<CamSimulationExecutionResult, SimulationError> {
+    let voxel_tree = VoxelOctree::new(request.work_bounds, request.max_depth);
+    let mut simulator = CuttingSimulator::new(voxel_tree, request.snapshot_interval);
+    simulator.simulate(&request.toolpath, &request.tool)?;
+
+    Ok(CamSimulationExecutionResult {
+        exports: simulator.snapshot_exports_f64(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cam_core::CuttingDirection;
+    use geo_algorithms::Point3D;
 
     #[test]
     fn test_create_snapshot_series_from_frames() {
@@ -115,5 +148,28 @@ mod tests {
         assert_eq!(result.frame_count, 1);
         assert_eq!(result.frames[0].segment_index, 2);
         assert_eq!(result.frames[0].segment_t, 0.75);
+    }
+
+    #[test]
+    fn test_execute_simulation_snapshot_exports() {
+        let request = CamSimulationExecutionRequest {
+            toolpath: ToolPath::new(
+                "endmill_3mm".to_string(),
+                CuttingDirection::Down,
+                vec![],
+                vec![],
+                vec![],
+            ),
+            tool: Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0),
+            work_bounds: Aabb3D::new(
+                Point3D::new(-60.0, -60.0, -20.0),
+                Point3D::new(60.0, 60.0, 30.0),
+            ),
+            max_depth: 4,
+            snapshot_interval: SnapshotInterval::default(),
+        };
+
+        let result = execute_simulation_snapshot_exports(request);
+        assert!(matches!(result, Err(SimulationError::EmptyToolpath)));
     }
 }
