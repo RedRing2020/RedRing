@@ -8,6 +8,7 @@ use analysis::linalg::{
     matrix::Matrix3x3,
     vector::{Vector2, Vector3},
 };
+use geo_contracts::default_kernel_numerical_zero_tolerance;
 use geo_contracts::NurbsCurve2DProperties;
 use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform2D, TransformError};
@@ -30,7 +31,7 @@ fn transform_control_points<T: Scalar>(
 
         // w成分で除算（透視投影対応）
         let w = transformed.z();
-        if w.abs() < T::EPSILON {
+        if w.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             return Err(TransformError::InvalidGeometry(
                 "Transform resulted in zero w component".to_string(),
             ));
@@ -76,7 +77,9 @@ fn rotation_matrix_2d<T: Scalar>(angle: Angle<T>) -> Matrix3x3<T> {
 
 /// スケール行列を生成
 fn scale_matrix_2d<T: Scalar>(sx: T, sy: T) -> Result<Matrix3x3<T>, TransformError> {
-    if sx.abs() < T::EPSILON || sy.abs() < T::EPSILON {
+    if sx.abs() < default_kernel_numerical_zero_tolerance::<T>()
+        || sy.abs() < default_kernel_numerical_zero_tolerance::<T>()
+    {
         return Err(TransformError::InvalidScaleFactor(
             "Scale factors cannot be zero".to_string(),
         ));
