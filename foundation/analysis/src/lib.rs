@@ -5,18 +5,10 @@
 
 pub mod abstract_types; // 数値計算の基盤型（Scalar, Angle, Tolerance等）
 pub mod consts;
-// pub mod curves; - 楕円機能は geo_core に統合されました
 pub mod geometry; // 純粋数学的幾何図形
 pub mod linalg; // 高速線形代数モジュール（数値解析専用）
-                // pub mod numerical_methods; - numerics/solver に移動済み
-
-// 新しい分類構造
-// pub mod approximations; - 形状計算は geo_commons に移動済み
-// pub mod metrics; - 距離・計量計算は numerics に統合されました
 pub mod numerics; // 数値計算基盤
 pub mod units; // 単位系定義とトレランス管理
-
-// pub mod sampling; - 機能は geo_algorithms/sampling.rs に移動済み
 
 // 基盤型の再エクスポート
 pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};

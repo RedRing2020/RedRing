@@ -33,7 +33,12 @@ use geo_contracts::{
     Plane3DProperties, Scalar,
 };
 use geo_core::Point3D as CorePoint3D;
-use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
+use geo_nurbs::{constants, NurbsCurve3D, NurbsSurface3D};
+
+const NURBS_CURVE_POINT_BOOTSTRAP_SAMPLES: usize = 20;
+const NURBS_CURVE_DISTANCE_SAMPLES: usize = 100;
+const NURBS_SURFACE_DISTANCE_SAMPLES_U: usize = 24;
+const NURBS_SURFACE_DISTANCE_SAMPLES_V: usize = 24;
 
 // ─────────────────────────────────────────────────────────────────────────
 // NurbsCurveCollider Newtype Wrapper
@@ -74,10 +79,6 @@ impl<T: Scalar> NurbsCurveCollider<T> {
         u_min: T,
         u_max: T,
     ) -> T {
-        let max_iter = 20;
-        let tolerance = 1e-10_f64;
-        let diff_step = 1e-7_f64;
-
         let objective = |u: f64| {
             let u_t = T::from_f64(u);
             let c = self.0.evaluate_at(u_t);
@@ -96,9 +97,9 @@ impl<T: Scalar> NurbsCurveCollider<T> {
             initial_u.to_f64(),
             u_min.to_f64(),
             u_max.to_f64(),
-            max_iter,
-            tolerance,
-            diff_step,
+            constants::NEWTON_MAX_ITER,
+            constants::NEWTON_TOLERANCE,
+            constants::NEWTON_DIFF_STEP,
         );
 
         maybe_u
@@ -125,7 +126,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
         // 1. サンプリングで初期推定値を見つける
         // 2. Newton法で最近接点を精密計算
 
-        let num_samples = 20; // サンプル数を削減（Newton法で精密化するため）
+        let num_samples = NURBS_CURVE_POINT_BOOTSTRAP_SAMPLES; // サンプル数を削減（Newton法で精密化するため）
         let (u_min, u_max) = self.0.parameter_domain();
         let delta_u = (u_max - u_min) / T::from_usize(num_samples);
 
@@ -177,7 +178,7 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
 
     fn distance_to(&self, segment: &LineSegment3D<T>) -> T {
         // 2段階アプローチ: NURBS曲線と線分の両方をサンプリング
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -244,7 +245,7 @@ impl<T: Scalar> BasicCollision<T, Ray3D<T>> for NurbsCurveCollider<T> {
 
     fn distance_to(&self, ray: &Ray3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点からRayへの距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -301,7 +302,7 @@ impl<T: Scalar> BasicCollision<T, InfiniteLine3D<T>> for NurbsCurveCollider<T> {
 
     fn distance_to(&self, line: &InfiniteLine3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点から無限直線への距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -359,7 +360,7 @@ impl<T: Scalar> BasicCollision<T, Circle3D<T>> for NurbsCurveCollider<T> {
 
     fn distance_to(&self, circle: &Circle3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点からCircle3Dへの距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -404,7 +405,7 @@ impl<T: Scalar> BasicCollision<T, Plane3D<T>> for NurbsCurveCollider<T> {
 
     fn distance_to(&self, plane: &Plane3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点から平面への距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -450,7 +451,7 @@ impl<T: Scalar> BasicCollision<T, SphericalSolid3D<T>> for NurbsCurveCollider<T>
 
     fn distance_to(&self, sphere: &SphericalSolid3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点から球への距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -484,7 +485,7 @@ impl<T: Scalar> BasicCollision<T, EllipsoidalSolid3D<T>> for NurbsCurveCollider<
 
     fn distance_to(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点から楕円体への距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -522,7 +523,7 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
 
     fn distance_to(&self, cylinder: &CylindricalSolid3D<T>) -> T {
         // NURBS曲線をサンプリングして、各点から円柱への距離を計算
-        let num_samples = 100;
+        let num_samples = NURBS_CURVE_DISTANCE_SAMPLES;
         let mut min_distance = T::INFINITY;
 
         let (u_min, u_max) = self.0.parameter_domain();
@@ -560,8 +561,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn nearest_sample_to_point(&self, point: &Point3D<T>) -> (Point3D<T>, T) {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -592,8 +593,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_plane(&self, plane: &Plane3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -621,8 +622,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_ray(&self, ray: &Ray3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -662,8 +663,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_line_segment(&self, segment: &LineSegment3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -710,8 +711,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_infinite_line(&self, line: &InfiniteLine3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -748,8 +749,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_circle(&self, circle: &Circle3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -778,8 +779,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_spherical_solid(&self, sphere: &SphericalSolid3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -800,8 +801,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_ellipsoidal_solid(&self, ellipsoid: &EllipsoidalSolid3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -828,8 +829,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
     }
 
     fn min_distance_to_cylindrical_solid(&self, cylinder: &CylindricalSolid3D<T>) -> T {
-        let samples_u = 24;
-        let samples_v = 24;
+        let samples_u = NURBS_SURFACE_DISTANCE_SAMPLES_U;
+        let samples_v = NURBS_SURFACE_DISTANCE_SAMPLES_V;
         let ((u_min, u_max), (v_min, v_max)) = self.0.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
@@ -1127,6 +1128,10 @@ mod tests {
     use geo_contracts::NurbsSurface3DConstructor;
     use geo_nurbs::NurbsCurve3D;
 
+    const TEST_TOLERANCE: f64 = 1e-6;
+    const TEST_FAR_POINT_COORD: f64 = 10.0;
+    const TEST_MIN_FAR_DISTANCE: f64 = 10.0;
+
     fn create_test_curve<T: Scalar>() -> NurbsCurve3D<T> {
         use analysis::linalg::vector::vector3::Vector3;
         use geo_contracts::NurbsCurve3DConstructor;
@@ -1173,7 +1178,7 @@ mod tests {
         let curve = create_test_curve::<f64>();
         let collider = NurbsCurveCollider::new(curve);
         let point = CorePoint3D::new(0.0, 0.0, 0.0);
-        let tolerance = 1e-6;
+        let tolerance = TEST_TOLERANCE;
 
         assert!(collider.intersects(&point, tolerance));
     }
@@ -1182,10 +1187,14 @@ mod tests {
     fn test_nurbscurve3d_point3d_distance_far() {
         let curve = create_test_curve::<f64>();
         let collider = NurbsCurveCollider::new(curve);
-        let point = CorePoint3D::new(10.0, 10.0, 10.0);
+        let point = CorePoint3D::new(
+            TEST_FAR_POINT_COORD,
+            TEST_FAR_POINT_COORD,
+            TEST_FAR_POINT_COORD,
+        );
         let distance = collider.distance_to(&point);
 
-        assert!(distance > 10.0);
+        assert!(distance > TEST_MIN_FAR_DISTANCE);
     }
 
     #[test]
@@ -1193,7 +1202,7 @@ mod tests {
         let surface = create_test_surface::<f64>();
         let point = Point3D::new(0.5, 0.5, 0.0);
         let d = nurbssurface3d_point3d_distance(&surface, &point);
-        assert!(d <= 1e-6);
+        assert!(d <= TEST_TOLERANCE);
     }
 
     #[test]
@@ -1201,7 +1210,7 @@ mod tests {
         let surface = create_test_surface::<f64>();
         let plane = Plane3D::xy_plane(0.0);
         let d = nurbssurface3d_plane3d_distance(&surface, &plane);
-        assert!(d <= 1e-6);
+        assert!(d <= TEST_TOLERANCE);
     }
 
     #[test]
@@ -1213,6 +1222,6 @@ mod tests {
         )
         .unwrap();
         let d = nurbssurface3d_ray3d_distance(&surface, &ray);
-        assert!(d <= 1e-6);
+        assert!(d <= TEST_TOLERANCE);
     }
 }

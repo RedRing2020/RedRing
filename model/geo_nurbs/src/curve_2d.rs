@@ -3,7 +3,7 @@
 //! Non-Uniform Rational B-Spline 2D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{KnotVector, NurbsError, Result, Scalar};
+use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector2;
 use geo_contracts::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
@@ -201,7 +201,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
 
     /// 指定パラメータでの1次導関数を計算
     pub fn derivative_at(&self, t: T) -> Vector2<T> {
-        let h = T::from_f64(1e-8);
+        let h = T::from_f64(constants::DERIVATIVE_STEP);
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
 
@@ -349,12 +349,12 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
     }
 
     fn length(&self) -> T {
-        self.approximate_length(100)
+        self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS)
     }
 
     #[allow(clippy::similar_names)]
     fn curvature_at(&self, t: T) -> T {
-        let h = T::from_f64(1e-8);
+        let h = T::from_f64(constants::DERIVATIVE_STEP);
         let d1 = self.derivative_at(t);
         let d2_plus = self.derivative_at(t + h);
         let d2_minus = self.derivative_at(t - h);
