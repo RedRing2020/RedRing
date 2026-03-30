@@ -3,7 +3,7 @@
 //! Non-Uniform Rational B-Spline surfaces の基本実装です。
 //! 制御点の2次元グリッド、重み、2方向のノットベクトルを使用して自由形状曲面を表現します。
 
-use crate::{KnotVector, NurbsError, Result, Scalar};
+use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector3;
 
 /// 重み配列の効率的管理
@@ -297,7 +297,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     /// # 戻り値
     /// u方向接線ベクトル
     pub fn u_derivative_at(&self, u: T, v: T) -> Vector3<T> {
-        let h = T::from_f64(1e-8);
+        let h = T::from_f64(constants::DERIVATIVE_STEP);
         let p1 = self.evaluate_at(u - h, v);
         let p2 = self.evaluate_at(u + h, v);
 
@@ -313,7 +313,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     /// # 戻り値
     /// v方向接線ベクトル
     pub fn v_derivative_at(&self, u: T, v: T) -> Vector3<T> {
-        let h = T::from_f64(1e-8);
+        let h = T::from_f64(constants::DERIVATIVE_STEP);
         let p1 = self.evaluate_at(u, v - h);
         let p2 = self.evaluate_at(u, v + h);
 
@@ -578,7 +578,7 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
     }
 
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        let _h = T::from_f64(1e-8);
+        let _h = T::from_f64(constants::DERIVATIVE_STEP);
 
         // 偏導関数を数値微分で近似
         let du = self.u_derivative_at(u, v);
@@ -603,7 +603,7 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
     #[allow(clippy::similar_names)]
     fn surface_area(&self) -> T {
         // 簡易実装: 中央差分で近似
-        let subdivisions = 20;
+        let subdivisions = constants::SURFACE_AREA_SUBDIVISIONS;
         let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
         let du = (u_max - u_min) / T::from_usize(subdivisions);
         let dv = (v_max - v_min) / T::from_usize(subdivisions);

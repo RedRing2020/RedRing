@@ -3,7 +3,7 @@
 //! Non-Uniform Rational B-Spline 3D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{KnotVector, NurbsError, Result, Scalar};
+use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector3;
 
 /// 重み配列の効率的管理（3D曲線用）
@@ -209,7 +209,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
 
     /// 指定パラメータでの1次導関数を計算
     pub fn derivative_at(&self, t: T) -> Vector3<T> {
-        let h = T::from_f64(1e-8);
+        let h = T::from_f64(constants::DERIVATIVE_STEP);
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
 
@@ -524,7 +524,10 @@ impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
         let tolerance_f64 = tolerance.to_f64();
         let u_range_f64 = (u_end - u_start).to_f64();
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let num_samples = ((u_range_f64 / tolerance_f64) as usize).clamp(10, 1000);
+        let num_samples = ((u_range_f64 / tolerance_f64) as usize).clamp(
+            constants::ARC_LENGTH_MIN_SAMPLES,
+            constants::ARC_LENGTH_MAX_SAMPLES,
+        );
         #[allow(clippy::cast_precision_loss)]
         let step = (u_end - u_start) / T::from_f64(num_samples as f64);
 
@@ -564,7 +567,7 @@ impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
         // 二分探索で対応するパラメータを見つける
         let mut low = u_start;
         let mut high = u_end;
-        let max_iterations = 50;
+        let max_iterations = constants::PARAMETER_AT_LENGTH_MAX_ITER;
         let two = T::ONE + T::ONE;
 
         for _ in 0..max_iterations {

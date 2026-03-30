@@ -1,6 +1,6 @@
 //! `NurbsCurve3D` の Foundation パターン実装
 
-use crate::NurbsCurve3D;
+use crate::{constants, NurbsCurve3D};
 use geo_contracts::Scalar;
 use geo_contracts::{Bounded, ExtensionFoundation};
 use geo_core::{Aabb3D, Point3D};
@@ -16,7 +16,7 @@ impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve3D<T> {
     /// 近似値を返します（100分割でのサンプリング）
     /// より精密な計算が必要な場合は `approximate_length()` を直接使用
     fn measure(&self) -> Option<T> {
-        Some(self.approximate_length(100))
+        Some(self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS))
     }
 }
 

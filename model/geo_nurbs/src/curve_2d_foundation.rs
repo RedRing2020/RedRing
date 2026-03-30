@@ -2,7 +2,7 @@
 //!
 //! Extension Traits の実装とテスト
 
-use crate::{NurbsCurve2D, Scalar};
+use crate::{constants, NurbsCurve2D, Scalar};
 use geo_contracts::NurbsCurve2DProperties;
 use geo_contracts::{Bounded, ExtensionFoundation};
 
@@ -16,7 +16,7 @@ impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
     }
 
     fn measure(&self) -> Option<T> {
-        Some(self.approximate_length(100))
+        Some(self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS))
     }
 }
 

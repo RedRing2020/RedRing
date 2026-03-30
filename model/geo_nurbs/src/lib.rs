@@ -63,6 +63,33 @@ pub mod constants {
 
     /// 最小制御点数（線形曲線の場合）
     pub const MIN_CONTROL_POINTS: usize = 2;
+
+    /// NURBS最近接パラメータ探索で使う境界付きニュートン法の最大反復回数
+    pub const NEWTON_MAX_ITER: usize = 20;
+
+    /// NURBS最近接パラメータ探索で使う境界付きニュートン法の収束許容誤差
+    pub const NEWTON_TOLERANCE: f64 = 1e-10;
+
+    /// NURBS最近接パラメータ探索で使う数値微分ステップ幅
+    pub const NEWTON_DIFF_STEP: f64 = 1e-7;
+
+    /// NURBS導関数の中央差分近似で使う微小ステップ幅
+    pub const DERIVATIVE_STEP: f64 = 1e-8;
+
+    /// 曲線長近似で使うデフォルト分割数
+    pub const CURVE_LENGTH_SUBDIVISIONS: usize = 100;
+
+    /// 曲面積近似で使うデフォルト分割数
+    pub const SURFACE_AREA_SUBDIVISIONS: usize = 20;
+
+    /// 弧長近似サンプリング数の最小値
+    pub const ARC_LENGTH_MIN_SAMPLES: usize = 10;
+
+    /// 弧長近似サンプリング数の最大値
+    pub const ARC_LENGTH_MAX_SAMPLES: usize = 1000;
+
+    /// 弧長->パラメータ逆算時の最大反復回数
+    pub const PARAMETER_AT_LENGTH_MAX_ITER: usize = 50;
 }
 
 #[cfg(test)]
