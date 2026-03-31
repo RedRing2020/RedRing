@@ -16,7 +16,7 @@ impl Display for SimulationError {
         match self {
             SimulationError::EmptyToolpath => write!(f, "toolpath is empty"),
             SimulationError::UnsupportedToolType => {
-                write!(f, "only flat end mill is supported in Phase 1a")
+                write!(f, "only flat and ball end mills are supported")
             }
             SimulationError::UnsupportedGeometry => {
                 write!(f, "unsupported geometry type in toolpath")

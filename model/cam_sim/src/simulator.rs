@@ -4,9 +4,12 @@ use geo_algorithms::{LineSegment3D, Scalar};
 
 use crate::error::SimulationError;
 
+mod behavior;
 mod config;
 mod engine;
 mod segments;
+
+use behavior::{FlatEndMillBehavior, tool_cutting_behavior};
 
 /// スナップショット保存間隔の指定方法。
 #[derive(Debug, Clone)]
@@ -118,29 +121,29 @@ impl<T: Scalar> CuttingSimulator<T> {
         self.snapshots.clear();
     }
 
-    /// ToolPathをシミュレーションする（Phase 1a: フラットエンドミル限定）。
+    /// ToolPathをシミュレーションする。
     pub fn simulate(
         &mut self,
         toolpath: &ToolPath<T>,
         tool: &Tool<T>,
     ) -> Result<(), SimulationError> {
-        if !tool.is_flat_end_mill() {
-            return Err(SimulationError::UnsupportedToolType);
-        }
+        let behavior = tool_cutting_behavior(tool)?;
 
         let segments = self.collect_line_segments(toolpath)?;
         if segments.is_empty() {
             return Err(SimulationError::EmptyToolpath);
         }
 
+        let simulation_segments = behavior.prepare_segments(segments);
+
         let config = self.calculate_snapshot_config(
-            segments
+            simulation_segments
                 .iter()
                 .map(|(segment, _)| self.segment_length(segment))
                 .sum(),
         )?;
 
-        self.simulate_segments_with_flags(&segments, tool.radius(), config);
+        self.simulate_segments_with_flags(&simulation_segments, behavior.as_ref(), config);
         Ok(())
     }
 
@@ -163,6 +166,9 @@ impl<T: Scalar> CuttingSimulator<T> {
             .cloned()
             .map(|segment| (segment, true))
             .collect();
-        self.simulate_segments_with_flags(&flagged, tool_radius, config);
+        let behavior = FlatEndMillBehavior {
+            radius: tool_radius,
+        };
+        self.simulate_segments_with_flags(&flagged, &behavior, config);
     }
 }

@@ -126,7 +126,7 @@ fn test_simulate_toolpath_flat_end_mill() {
 }
 
 #[test]
-fn test_simulate_toolpath_non_flat_is_rejected() {
+fn test_simulate_toolpath_ball_end_mill() {
     let bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 100.0),
@@ -150,6 +150,37 @@ fn test_simulate_toolpath_non_flat_is_rejected() {
     let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
 
     let tool = Tool::ball_end_mill("ball-tool".to_string(), 10.0, 30.0);
+    let result = simulator.simulate(&toolpath, &tool);
+
+    assert!(result.is_ok());
+    assert!(!simulator.snapshots().is_empty());
+}
+
+#[test]
+fn test_simulate_toolpath_radius_end_mill_is_rejected() {
+    let bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+    let voxel = VoxelOctree::new(bounds, 4);
+    let mut simulator = CuttingSimulator::new(voxel, SnapshotInterval::default());
+
+    let cutting = cam_core::PathSegment::new_line(
+        Point3D::new(10.0, 10.0, 10.0),
+        Point3D::new(80.0, 10.0, 10.0),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+
+    let source_toolpath = ToolPath::new(
+        "radius-tool".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 10.0, vec![cutting])],
+        vec![],
+    );
+    let toolpath = roundtrip_toolpath_via_artifact(&source_toolpath);
+
+    let tool = Tool::radius_end_mill("radius-tool".to_string(), 10.0, 1.0, 30.0);
     let result = simulator.simulate(&toolpath, &tool);
 
     assert_eq!(result, Err(SimulationError::UnsupportedToolType));

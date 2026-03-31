@@ -1,3 +1,4 @@
+use super::behavior::ToolCuttingBehavior;
 use super::{PathPosition, SimulationSnapshot, SnapshotConfig};
 
 impl<T: geo_algorithms::Scalar> super::CuttingSimulator<T> {
@@ -5,7 +6,7 @@ impl<T: geo_algorithms::Scalar> super::CuttingSimulator<T> {
     pub(super) fn simulate_segments_with_flags(
         &mut self,
         segments: &[(geo_algorithms::LineSegment3D<T>, bool)],
-        tool_radius: T,
+        behavior: &dyn ToolCuttingBehavior<T>,
         config: SnapshotConfig,
     ) {
         self.snapshots.clear();
@@ -46,8 +47,7 @@ impl<T: geo_algorithms::Scalar> super::CuttingSimulator<T> {
             }
 
             if *is_cutting {
-                self.voxel_tree
-                    .remove_material_swept_cylinder(segment, tool_radius);
+                behavior.remove_material(&mut self.voxel_tree, segment);
             }
             accumulated_distance += seg_length;
 
