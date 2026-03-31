@@ -38,6 +38,11 @@ impl AppState {
             stage.update_with_device(&self.graphic.device);
         }
 
+        let mut settings_panel_state = self.prepare_settings_panel_state();
+        self.renderer
+            .prepare_settings_panel(&self.window, &mut settings_panel_state);
+        self.apply_settings_panel_state(settings_panel_state);
+
         self.update_camera_uniforms();
 
         self.renderer.update_selection_rect_overlay(

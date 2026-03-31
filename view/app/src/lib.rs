@@ -9,6 +9,8 @@ pub mod mouse_input;
 pub mod overlay_coords;
 pub mod selection_rect;
 pub mod selection_rect_renderer;
+pub(crate) mod settings_panel_renderer;
+pub(crate) mod settings_panel_ui;
 pub mod snapshot_overlay_renderer;
 pub mod stage_factory;
 pub mod stl_loader;

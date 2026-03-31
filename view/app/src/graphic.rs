@@ -103,7 +103,15 @@ impl Graphic {
 
                 // 深度ビューを渡してレンダリング
                 let depth_view = &self.depth_view;
-                renderer.render_with_depth(&mut encoder, &view, depth_view);
+                renderer.render_with_depth(
+                    &self.device,
+                    &self.queue,
+                    &mut encoder,
+                    &view,
+                    depth_view,
+                    self.config.width,
+                    self.config.height,
+                );
                 self.queue.submit(std::iter::once(encoder.finish()));
                 frame.present();
                 self.surface_texture = None;

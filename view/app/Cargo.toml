@@ -23,3 +23,7 @@ stage = { path = "../stage" }
 analysis = { path = "../../foundation/analysis" }
 logging_foundation = { path = "../../foundation/logging_foundation" }
 bytemuck = { version = "1.24", features = ["derive"] }
+egui = "0.33.0"
+egui-wgpu = "0.33.0"
+egui-winit = "0.33.0"
+fontdb = "0.23"

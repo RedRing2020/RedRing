@@ -88,7 +88,27 @@ pub struct CamSimulationVisualizationBundle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CamSimulationDemoScenario {
     Success,
+    SuccessFlatEndMill,
     FailureEmptyToolpath,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolWireframeVisualizationSettings {
+    pub flat_circle_divisions: usize,
+    pub ball_circle_divisions: usize,
+    pub ball_hemisphere_divisions: usize,
+    pub ball_meridian_count: usize,
+}
+
+impl Default for ToolWireframeVisualizationSettings {
+    fn default() -> Self {
+        Self {
+            flat_circle_divisions: 24,
+            ball_circle_divisions: 48,
+            ball_hemisphere_divisions: 8,
+            ball_meridian_count: 12,
+        }
+    }
 }
 
 fn push_face(
@@ -539,9 +559,10 @@ fn create_flat_end_mill_wireframe(
     tip: Point3D<f64>,
     radius: f64,
     cutting_length: f64,
+    settings: &ToolWireframeVisualizationSettings,
 ) -> Vec<WireframeVertex> {
     let mut vertices = Vec::new();
-    let circle_divisions = 24usize;
+    let circle_divisions = settings.flat_circle_divisions.max(6);
     let tool_color = [0.9, 0.95, 1.0];
 
     let z0 = tip.z();
@@ -578,6 +599,252 @@ fn create_flat_end_mill_wireframe(
     vertices
 }
 
+fn create_ball_end_mill_wireframe(
+    tip: Point3D<f64>,
+    radius: f64,
+    cutting_length: f64,
+    settings: &ToolWireframeVisualizationSettings,
+) -> Vec<WireframeVertex> {
+    let mut vertices = Vec::new();
+    let circle_divisions = settings.ball_circle_divisions.max(8);
+    let hemisphere_divisions = settings.ball_hemisphere_divisions.max(2);
+    let meridian_count = settings.ball_meridian_count.max(4);
+    let tool_color = [0.9, 0.95, 1.0];
+
+    let center_z = tip.z() + radius;
+    let z1 = center_z + cutting_length.max(1.0);
+    let cx = tip.x();
+    let cy = tip.y();
+
+    // 円筒部（外周リング + 上端リング + 軸方向補助線）
+    for i in 0..circle_divisions {
+        let theta0 = TAU * (i as f64) / (circle_divisions as f64);
+        let theta1 = TAU * ((i + 1) as f64) / (circle_divisions as f64);
+
+        let x0 = cx + radius * theta0.cos();
+        let y0 = cy + radius * theta0.sin();
+        let x1 = cx + radius * theta1.cos();
+        let y1 = cy + radius * theta1.sin();
+
+        let equator0 = [x0 as f32, y0 as f32, center_z as f32];
+        let equator1 = [x1 as f32, y1 as f32, center_z as f32];
+        let top0 = [x0 as f32, y0 as f32, z1 as f32];
+        let top1 = [x1 as f32, y1 as f32, z1 as f32];
+
+        vertices.push(WireframeVertex::new(equator0, tool_color));
+        vertices.push(WireframeVertex::new(equator1, tool_color));
+
+        vertices.push(WireframeVertex::new(top0, tool_color));
+        vertices.push(WireframeVertex::new(top1, tool_color));
+
+        if i % 3 == 0 {
+            vertices.push(WireframeVertex::new(equator0, tool_color));
+            vertices.push(WireframeVertex::new(top0, tool_color));
+        }
+    }
+
+    // 半球部（緯線）
+    for lat in 1..hemisphere_divisions {
+        let phi = (lat as f64) * (std::f64::consts::FRAC_PI_2 / hemisphere_divisions as f64);
+        let ring_radius = radius * phi.cos();
+        let ring_z = center_z - radius * phi.sin();
+
+        for i in 0..circle_divisions {
+            let theta0 = TAU * (i as f64) / (circle_divisions as f64);
+            let theta1 = TAU * ((i + 1) as f64) / (circle_divisions as f64);
+
+            let p0 = [
+                (cx + ring_radius * theta0.cos()) as f32,
+                (cy + ring_radius * theta0.sin()) as f32,
+                ring_z as f32,
+            ];
+            let p1 = [
+                (cx + ring_radius * theta1.cos()) as f32,
+                (cy + ring_radius * theta1.sin()) as f32,
+                ring_z as f32,
+            ];
+
+            vertices.push(WireframeVertex::new(p0, tool_color));
+            vertices.push(WireframeVertex::new(p1, tool_color));
+        }
+    }
+
+    // 半球部（経線）
+    for meridian in 0..meridian_count {
+        let theta = TAU * (meridian as f64) / (meridian_count as f64);
+        let mut prev = [cx as f32, cy as f32, tip.z() as f32];
+
+        for lat in (0..=hemisphere_divisions).rev() {
+            let phi = (lat as f64) * (std::f64::consts::FRAC_PI_2 / hemisphere_divisions as f64);
+            let ring_radius = radius * phi.cos();
+            let ring_z = center_z - radius * phi.sin();
+
+            let curr = [
+                (cx + ring_radius * theta.cos()) as f32,
+                (cy + ring_radius * theta.sin()) as f32,
+                ring_z as f32,
+            ];
+
+            vertices.push(WireframeVertex::new(prev, tool_color));
+            vertices.push(WireframeVertex::new(curr, tool_color));
+            prev = curr;
+        }
+    }
+
+    vertices
+}
+
+fn create_demo_tool(scenario: CamSimulationDemoScenario) -> Tool<f64> {
+    match scenario {
+        CamSimulationDemoScenario::Success | CamSimulationDemoScenario::FailureEmptyToolpath => {
+            Tool::ball_end_mill("ball_endmill_10mm".to_string(), 10.0, 50.0)
+        }
+        CamSimulationDemoScenario::SuccessFlatEndMill => {
+            Tool::flat_end_mill("flat_endmill_10mm".to_string(), 10.0, 50.0)
+        }
+    }
+}
+
+trait DemoToolBehavior {
+    fn radius(&self) -> f64;
+    fn remove_cut_segment(
+        &self,
+        voxel_tree: &mut VoxelOctree<f64>,
+        start_point: Point3D<f64>,
+        end_point: Point3D<f64>,
+    );
+    fn build_tool_wireframe(
+        &self,
+        tip: Point3D<f64>,
+        settings: &ToolWireframeVisualizationSettings,
+    ) -> Vec<WireframeVertex>;
+}
+
+struct FlatDemoToolBehavior {
+    radius: f64,
+    cutting_length: f64,
+}
+
+impl DemoToolBehavior for FlatDemoToolBehavior {
+    fn radius(&self) -> f64 {
+        self.radius
+    }
+
+    fn remove_cut_segment(
+        &self,
+        voxel_tree: &mut VoxelOctree<f64>,
+        start_point: Point3D<f64>,
+        end_point: Point3D<f64>,
+    ) {
+        let Some(cut_segment) = LineSegment3D::new(start_point, end_point) else {
+            return;
+        };
+
+        voxel_tree.remove_material_swept_cylinder(&cut_segment, self.radius);
+
+        let blend_half = (self.radius * 0.25).max(0.5);
+        let sx = start_point.x();
+        let sy = start_point.y();
+        let sz = start_point.z();
+        let ex = end_point.x();
+        let ey = end_point.y();
+        let ez = end_point.z();
+
+        let corner_axes = [
+            (
+                Point3D::new(sx - blend_half, sy, sz),
+                Point3D::new(sx + blend_half, sy, sz),
+            ),
+            (
+                Point3D::new(sx, sy - blend_half, sz),
+                Point3D::new(sx, sy + blend_half, sz),
+            ),
+            (
+                Point3D::new(ex - blend_half, ey, ez),
+                Point3D::new(ex + blend_half, ey, ez),
+            ),
+            (
+                Point3D::new(ex, ey - blend_half, ez),
+                Point3D::new(ex, ey + blend_half, ez),
+            ),
+        ];
+
+        for (a, b) in corner_axes {
+            if let Some(blend_segment) = LineSegment3D::new(a, b) {
+                voxel_tree.remove_material_swept_cylinder(&blend_segment, self.radius);
+            }
+        }
+    }
+
+    fn build_tool_wireframe(
+        &self,
+        tip: Point3D<f64>,
+        settings: &ToolWireframeVisualizationSettings,
+    ) -> Vec<WireframeVertex> {
+        create_flat_end_mill_wireframe(tip, self.radius, self.cutting_length, settings)
+    }
+}
+
+struct BallDemoToolBehavior {
+    radius: f64,
+    cutting_length: f64,
+    tip_offset: f64,
+}
+
+impl DemoToolBehavior for BallDemoToolBehavior {
+    fn radius(&self) -> f64 {
+        self.radius
+    }
+
+    fn remove_cut_segment(
+        &self,
+        voxel_tree: &mut VoxelOctree<f64>,
+        start_point: Point3D<f64>,
+        end_point: Point3D<f64>,
+    ) {
+        let start_center = Point3D::new(
+            start_point.x(),
+            start_point.y(),
+            start_point.z() + self.tip_offset,
+        );
+        let end_center = Point3D::new(
+            end_point.x(),
+            end_point.y(),
+            end_point.z() + self.tip_offset,
+        );
+        if let Some(center_segment) = LineSegment3D::new(start_center, end_center) {
+            voxel_tree.remove_material_capsule(&center_segment, self.radius);
+        }
+    }
+
+    fn build_tool_wireframe(
+        &self,
+        tip: Point3D<f64>,
+        settings: &ToolWireframeVisualizationSettings,
+    ) -> Vec<WireframeVertex> {
+        create_ball_end_mill_wireframe(tip, self.radius, self.cutting_length, settings)
+    }
+}
+
+fn demo_tool_behavior(
+    tool: &Tool<f64>,
+) -> Result<Box<dyn DemoToolBehavior>, CamSimulationVisualizationError> {
+    if tool.is_flat_end_mill() {
+        Ok(Box::new(FlatDemoToolBehavior {
+            radius: tool.radius(),
+            cutting_length: tool.cutting_length,
+        }))
+    } else if tool.is_ball_end_mill() {
+        Ok(Box::new(BallDemoToolBehavior {
+            radius: tool.radius(),
+            cutting_length: tool.cutting_length,
+            tip_offset: tool.tip_offset(),
+        }))
+    } else {
+        Err(SimulationError::UnsupportedToolType.into())
+    }
+}
+
 fn apply_cutting_progress(
     voxel_tree: &mut VoxelOctree<f64>,
     segments: &[(LineSegment3D<f64>, bool)],
@@ -585,7 +852,7 @@ fn apply_cutting_progress(
     from_t: f64,
     to_segment_index: usize,
     to_t: f64,
-    tool_radius: f64,
+    behavior: &dyn DemoToolBehavior,
 ) {
     if segments.is_empty() {
         return;
@@ -597,8 +864,6 @@ fn apply_cutting_progress(
     if end_index < start_index {
         return;
     }
-
-    let blend_half = (tool_radius * 0.25).max(0.5);
 
     for (index, (segment, is_cutting)) in segments
         .iter()
@@ -618,41 +883,7 @@ fn apply_cutting_progress(
 
         let start_point = lerp_point_on_segment(segment, start_t);
         let end_point = lerp_point_on_segment(segment, end_t);
-        if let Some(cut_segment) = LineSegment3D::new(start_point, end_point) {
-            voxel_tree.remove_material_swept_cylinder(&cut_segment, tool_radius);
-
-            let sx = start_point.x();
-            let sy = start_point.y();
-            let sz = start_point.z();
-            let ex = end_point.x();
-            let ey = end_point.y();
-            let ez = end_point.z();
-
-            let corner_axes = [
-                (
-                    Point3D::new(sx - blend_half, sy, sz),
-                    Point3D::new(sx + blend_half, sy, sz),
-                ),
-                (
-                    Point3D::new(sx, sy - blend_half, sz),
-                    Point3D::new(sx, sy + blend_half, sz),
-                ),
-                (
-                    Point3D::new(ex - blend_half, ey, ez),
-                    Point3D::new(ex + blend_half, ey, ez),
-                ),
-                (
-                    Point3D::new(ex, ey - blend_half, ez),
-                    Point3D::new(ex, ey + blend_half, ez),
-                ),
-            ];
-
-            for (a, b) in corner_axes {
-                if let Some(blend_segment) = LineSegment3D::new(a, b) {
-                    voxel_tree.remove_material_swept_cylinder(&blend_segment, tool_radius);
-                }
-            }
-        }
+        behavior.remove_cut_segment(voxel_tree, start_point, end_point);
     }
 }
 
@@ -662,8 +893,23 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
     settings: &OctreeVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
+    create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+        settings,
+        &ToolWireframeVisualizationSettings::default(),
+        scenario,
+    )
+}
+
+/// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
+/// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
+pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+    settings: &OctreeVisualizationSettings,
+    tool_wireframe_settings: &ToolWireframeVisualizationSettings,
+    scenario: CamSimulationDemoScenario,
+) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
     let toolpath = match scenario {
         CamSimulationDemoScenario::Success => create_sample_toolpath(),
+        CamSimulationDemoScenario::SuccessFlatEndMill => create_sample_toolpath(),
         CamSimulationDemoScenario::FailureEmptyToolpath => ToolPath::new(
             "endmill_3mm".to_string(),
             cam_core::CuttingDirection::Down,
@@ -672,7 +918,8 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
             vec![],
         ),
     };
-    let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
+    let tool = create_demo_tool(scenario);
+    let behavior = demo_tool_behavior(&tool)?;
     let tool_entity_result =
         ToolEntityManagementOrchestrator.add_tool_to_storage(AddToolToEntityStorageRequest {
             tool: tool.clone(),
@@ -680,6 +927,7 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
             output_index: match scenario {
                 CamSimulationDemoScenario::Success => 0,
                 CamSimulationDemoScenario::FailureEmptyToolpath => 1,
+                CamSimulationDemoScenario::SuccessFlatEndMill => 2,
             },
             local_key: "sample_tool".to_string(),
             description: Some("CAM simulation sample tool".to_string()),
@@ -690,9 +938,9 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
 
     let segments = collect_line_segments_with_flags(&toolpath)?;
 
-    let work_bounds = compute_work_bounds_from_toolpath(&segments, tool.radius());
+    let work_bounds = compute_work_bounds_from_toolpath(&segments, behavior.radius());
     let non_cutting_interference_count =
-        count_non_cutting_interference_segments(&segments, &work_bounds, tool.radius());
+        count_non_cutting_interference_segments(&segments, &work_bounds, behavior.radius());
     if non_cutting_interference_count > 0 {
         tracing::warn!(
             error_kind = ERROR_KIND_SIMULATION,
@@ -734,7 +982,7 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
             replay_t,
             payload.segment_index,
             payload.segment_t,
-            tool.radius(),
+            behavior.as_ref(),
         );
 
         replay_segment_index = payload.segment_index;
@@ -756,8 +1004,7 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
         if let Some(tool_tip) =
             tool_tip_position(&segments, payload.segment_index, payload.segment_t)
         {
-            let tool_wire =
-                create_flat_end_mill_wireframe(tool_tip, tool.radius(), tool.cutting_length);
+            let tool_wire = behavior.build_tool_wireframe(tool_tip, tool_wireframe_settings);
             tool_wireframe = tool_wire;
             frame_vertices.extend(tool_wireframe.iter().copied());
             snapshot_solid_meshes.push(build_solid_mesh_from_voxel_tree(&replay_tree, max_depth));

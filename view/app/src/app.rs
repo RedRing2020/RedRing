@@ -24,12 +24,13 @@ impl ApplicationHandler for App {
         );
         self.state = Some(AppState::new(window));
         tracing::info!("=== RedRing 起動完了 ===");
-        tracing::info!("切削シミュレーションデモを開始するには Shift+P を押してください");
+        tracing::info!("切削シミュレーションデモ開始: Shift+P/Shift+B=ボール, Shift+F=フラット");
         tracing::info!("操作ヘルプ全体は h キーで確認できます");
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         if let Some(state) = &mut self.state {
+            let settings_ui_consumed = state.handle_settings_window_event(&event);
             match event {
                 WindowEvent::CloseRequested => {
                     self.should_exit = true;
@@ -52,13 +53,19 @@ impl ApplicationHandler for App {
                     state: button_state,
                     ..
                 } => {
-                    state.handle_mouse_button(button, button_state);
+                    if !settings_ui_consumed {
+                        state.handle_mouse_button(button, button_state);
+                    }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    state.handle_cursor_moved(position.x as f32, position.y as f32);
+                    if !settings_ui_consumed {
+                        state.handle_cursor_moved(position.x as f32, position.y as f32);
+                    }
                 }
                 WindowEvent::MouseWheel { delta, .. } => {
-                    state.handle_mouse_wheel(delta);
+                    if !settings_ui_consumed {
+                        state.handle_mouse_wheel(delta);
+                    }
                 }
                 _ => {}
             }
@@ -73,6 +80,7 @@ impl ApplicationHandler for App {
     ) {
         if let Some(state) = &mut self.state {
             if let DeviceEvent::MouseMotion { delta } = event {
+                state.handle_settings_mouse_motion(delta);
                 state.handle_mouse_motion(delta);
             }
         }
