@@ -4,7 +4,8 @@
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
 use application::cam_orchestration::{
-    execute_simulation_snapshot_exports, CamSimulationExecutionRequest,
+    ApplicationError, CamSimulationExecutionOrchestration, CamSimulationExecutionOrchestrator,
+    CamSimulationExecutionRequest,
 };
 use cam_core::{
     validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, PathGeometry, Tool,
@@ -35,6 +36,7 @@ use logging_foundation::ERROR_KIND_SIMULATION;
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamSimulationVisualizationError {
     Validation(ValidationError),
+    Application(ApplicationError),
     Simulation(SimulationError),
 }
 
@@ -42,6 +44,7 @@ impl std::fmt::Display for CamSimulationVisualizationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Validation(error) => write!(f, "{}", error),
+            Self::Application(error) => write!(f, "{}", error),
             Self::Simulation(error) => write!(f, "{}", error),
         }
     }
@@ -52,6 +55,12 @@ impl std::error::Error for CamSimulationVisualizationError {}
 impl From<ValidationError> for CamSimulationVisualizationError {
     fn from(value: ValidationError) -> Self {
         Self::Validation(value)
+    }
+}
+
+impl From<ApplicationError> for CamSimulationVisualizationError {
+    fn from(value: ApplicationError) -> Self {
+        Self::Application(value)
     }
 }
 
@@ -560,14 +569,15 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
         );
     }
 
-    let exports = execute_simulation_snapshot_exports(CamSimulationExecutionRequest {
-        toolpath: toolpath.clone(),
-        tool: tool.clone(),
-        work_bounds,
-        max_depth: settings.max_depth,
-        snapshot_interval: SnapshotInterval::default(),
-    })?
-    .exports;
+    let exports = CamSimulationExecutionOrchestrator
+        .execute_simulation_snapshot_exports(CamSimulationExecutionRequest {
+            toolpath: toolpath.clone(),
+            tool: tool.clone(),
+            work_bounds,
+            max_depth: settings.max_depth,
+            snapshot_interval: SnapshotInterval::default(),
+        })?
+        .exports;
     let snapshot_inputs = cam_snapshot_exports_to_inputs(&exports);
     let snapshot_series = cam_snapshot_inputs_to_domain_series("cam_sim", &snapshot_inputs);
 

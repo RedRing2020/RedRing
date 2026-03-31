@@ -160,6 +160,16 @@ impl AppState {
                 );
                 return;
             }
+            Err(ToolPathBuildError::Converter(CamSimulationVisualizationError::Application(
+                ref err,
+            ))) => {
+                tracing::error!(
+                    error_kind = ERROR_KIND_SIMULATION,
+                    "cam simulation visualization failed: {}",
+                    err
+                );
+                return;
+            }
         };
 
         self.apply_toolpath_debug_data(data);

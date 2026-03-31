@@ -4,6 +4,28 @@ use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, octree::VoxelOctree};
 
+/// Application境界で返却する統一エラー。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplicationError {
+    Simulation(String),
+}
+
+impl std::fmt::Display for ApplicationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Simulation(message) => write!(f, "{}", message),
+        }
+    }
+}
+
+impl std::error::Error for ApplicationError {}
+
+impl From<SimulationError> for ApplicationError {
+    fn from(value: SimulationError) -> Self {
+        Self::Simulation(value.to_string())
+    }
+}
+
 /// CAMシミュレーション由来の最小スナップショットDTO。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CamSnapshotFrame {
@@ -93,6 +115,27 @@ pub struct CamSimulationExecutionResult {
     pub exports: Vec<SimulationSnapshotExport>,
 }
 
+/// CAMシミュレーション実行ユースケースの orchestration port。
+pub trait CamSimulationExecutionOrchestration {
+    fn execute_simulation_snapshot_exports(
+        &self,
+        request: CamSimulationExecutionRequest,
+    ) -> Result<CamSimulationExecutionResult, ApplicationError>;
+}
+
+/// CAMシミュレーション実行 orchestration の既定実装。
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CamSimulationExecutionOrchestrator;
+
+impl CamSimulationExecutionOrchestration for CamSimulationExecutionOrchestrator {
+    fn execute_simulation_snapshot_exports(
+        &self,
+        request: CamSimulationExecutionRequest,
+    ) -> Result<CamSimulationExecutionResult, ApplicationError> {
+        execute_simulation_snapshot_exports(request).map_err(ApplicationError::from)
+    }
+}
+
 /// cam_sim を実行し、スナップショット出力を Application 境界結果として返す。
 pub fn execute_simulation_snapshot_exports(
     request: CamSimulationExecutionRequest,
@@ -171,5 +214,34 @@ mod tests {
 
         let result = execute_simulation_snapshot_exports(request);
         assert!(matches!(result, Err(SimulationError::EmptyToolpath)));
+    }
+
+    #[test]
+    fn test_cam_simulation_execution_orchestrator_normalizes_error() {
+        let request = CamSimulationExecutionRequest {
+            toolpath: ToolPath::new(
+                "endmill_3mm".to_string(),
+                CuttingDirection::Down,
+                vec![],
+                vec![],
+                vec![],
+            ),
+            tool: Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0),
+            work_bounds: Aabb3D::new(
+                Point3D::new(-60.0, -60.0, -20.0),
+                Point3D::new(60.0, 60.0, 30.0),
+            ),
+            max_depth: 4,
+            snapshot_interval: SnapshotInterval::default(),
+        };
+
+        let result =
+            CamSimulationExecutionOrchestrator.execute_simulation_snapshot_exports(request);
+        assert_eq!(
+            result,
+            Err(ApplicationError::Simulation(
+                SimulationError::EmptyToolpath.to_string()
+            ))
+        );
     }
 }
