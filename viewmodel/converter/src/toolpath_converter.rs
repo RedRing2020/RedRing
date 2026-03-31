@@ -465,7 +465,7 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
     //  │(-32,40)CCW(-40,32) │(-40,32)→(-40,-32)    left
     //  │ (-40,-32)CCW(-32,-40)          ┐
     //  └─ bottom  (-32,-40)→(32,-40) ──┘
-    let contour1_segments = vec![
+    let mut contour1_segments = vec![
         // 下辺
         PathSegment::new_line(
             Point3D::new(-40.0 + r, -40.0, 0.0),
@@ -523,17 +523,18 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
             SegmentType::Cutting { feed_rate: 500.0 },
         ),
     ];
-    let contour1 = ContourLevelPath::new(0, 0.0, contour1_segments);
-
     // 周回間リトラクト1: 内側周回へ直接移動（Z=0のまま斜め移動）
+    // contour1 の終点と contour1_inner の始点を連続接続する。
     let pass_retract_1 = PathSegment::new_line(
         Point3D::new(-40.0 + r, -40.0, 0.0),
         Point3D::new(-35.0, -35.0, 0.0),
         SegmentType::PassRetract { feed_rate: 300.0 },
     );
+    contour1_segments.push(pass_retract_1);
+    let contour1 = ContourLevelPath::new(0, 0.0, contour1_segments);
 
     // 1層目内側周回（10mm短い正方形）
-    let contour1_inner_segments = vec![
+    let mut contour1_inner_segments = vec![
         PathSegment::new_line(
             Point3D::new(-35.0, -35.0, 0.0),
             Point3D::new(35.0, -35.0, 0.0),
@@ -555,8 +556,6 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
             SegmentType::Cutting { feed_rate: 500.0 },
         ),
     ];
-    let contour1_inner = ContourLevelPath::new(1, 0.0, contour1_inner_segments);
-
     // 1層目終了後のリトラクト: Z=10まで上昇
     let retract_1 = PathSegment::new_line(
         Point3D::new(-35.0, -35.0, 0.0),
@@ -577,6 +576,13 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
         Point3D::new(-40.0, -40.0, -5.0),
         SegmentType::Approach { feed_rate: 300.0 },
     );
+
+    // 次の等高線レベル（Z = -5.0）へ遷移する非切削移動を
+    // contour1_inner の末尾へ含めて、時系列の連続性を保つ。
+    contour1_inner_segments.push(retract_1);
+    contour1_inner_segments.push(pass_rapid_2);
+    contour1_inner_segments.push(pass_approach_2);
+    let contour1_inner = ContourLevelPath::new(1, 0.0, contour1_inner_segments);
 
     // 次の等高線レベル（Z = -5.0）
     let contour2_segments = vec![
@@ -620,9 +626,9 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
     ToolPath::new(
         "endmill_3mm".to_string(),
         CuttingDirection::Down,
-        vec![rapid_to_start, approach, pass_rapid_2, pass_approach_2],
+        vec![rapid_to_start, approach],
         vec![contour1, contour1_inner, contour2],
-        vec![pass_retract_1, retract_1, final_retract, rapid_to_end],
+        vec![final_retract, rapid_to_end],
     )
 }
 
@@ -759,5 +765,44 @@ mod tests {
         // 終点確認
         assert!((vertices[8].position[0] - (-10.0)).abs() < 0.01);
         assert!((vertices[8].position[1] - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_sample_toolpath_is_time_continuous() {
+        fn segment_end(segment: &PathSegment<f64>) -> Point3D<f64> {
+            match segment.geometry {
+                PathGeometry::Line { end } | PathGeometry::Arc { end, .. } => end,
+            }
+        }
+
+        let toolpath = create_sample_toolpath();
+        let mut ordered = Vec::new();
+        ordered.extend(toolpath.approach_segments.iter());
+        for contour in &toolpath.contour_levels {
+            ordered.extend(contour.segments.iter());
+        }
+        ordered.extend(toolpath.retract_segments.iter());
+
+        for pair in ordered.windows(2) {
+            let prev = pair[0];
+            let next = pair[1];
+            let prev_end = segment_end(prev);
+            let next_start = next.start;
+
+            let dx = (prev_end.x() - next_start.x()).abs();
+            let dy = (prev_end.y() - next_start.y()).abs();
+            let dz = (prev_end.z() - next_start.z()).abs();
+
+            assert!(
+                dx <= 1e-9 && dy <= 1e-9 && dz <= 1e-9,
+                "toolpath discontinuity: prev_end=({:.6},{:.6},{:.6}) next_start=({:.6},{:.6},{:.6})",
+                prev_end.x(),
+                prev_end.y(),
+                prev_end.z(),
+                next_start.x(),
+                next_start.y(),
+                next_start.z()
+            );
+        }
     }
 }
