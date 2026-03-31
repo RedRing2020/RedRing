@@ -127,6 +127,17 @@ View:
 - ViewModelで表示キーへ変換
 - converterごとの個別エラー列挙を段階的に収束させる
 
+### 7.1 ID境界方針（Phase2追記）
+
+- Entityの内部同一性はModel側の型付きID（`geo_entity::EntityId`）を正本とする
+- Application境界DTOではIDを文字列表現で返却してよい
+- ただし、フィーチャ再実行でIDが変化しないことを優先し、`new_random` の常用は避ける
+- フィーチャ管理対象の生成では `from_feature_output(feature_id, output_index, local_key)` を優先する
+
+補助ルール:
+- 画面表示・ログ・外部I/Oは文字列IDを用いる
+- ドメイン内部比較・整合性検証は型付きIDで行う
+
 ## 8. 受け入れ条件（#500）
 
 - ViewModel -> Model最小導線が文章定義されている

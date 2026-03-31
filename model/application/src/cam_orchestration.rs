@@ -156,6 +156,9 @@ pub fn execute_simulation_snapshot_exports(
 #[derive(Debug, Clone)]
 pub struct AddToolToEntityStorageRequest {
     pub tool: Tool<f64>,
+    pub feature_id: String,
+    pub output_index: u32,
+    pub local_key: String,
     pub description: Option<String>,
 }
 
@@ -185,7 +188,12 @@ impl ToolEntityManagementOrchestration for ToolEntityManagementOrchestrator {
         request: AddToolToEntityStorageRequest,
     ) -> Result<AddToolToEntityStorageResult, ApplicationError> {
         let tool_name = request.tool.id.clone();
-        let entity = GeometricEntity::<f64, Tool<f64>>::new(request.tool);
+        let entity = GeometricEntity::<f64, Tool<f64>>::from_feature_output(
+            request.tool,
+            &request.feature_id,
+            request.output_index,
+            &request.local_key,
+        );
         let entity_id = entity.id().to_string();
 
         Ok(AddToolToEntityStorageResult {
@@ -303,6 +311,9 @@ mod tests {
         let tool = Tool::flat_end_mill("test_tool".to_string(), 10.0, 50.0);
         let request = AddToolToEntityStorageRequest {
             tool,
+            feature_id: "tool_import".to_string(),
+            output_index: 0,
+            local_key: "primary".to_string(),
             description: Some("Test Tool".to_string()),
         };
 
@@ -312,6 +323,26 @@ mod tests {
 
         assert_eq!(result.tool_name, "test_tool");
         assert_eq!(result.description, Some("Test Tool".to_string()));
-        assert!(result.entity_id.starts_with("tool-"));
+        assert!(!result.entity_id.is_empty());
+    }
+
+    #[test]
+    fn test_tool_entity_management_add_tool_to_storage_is_deterministic_for_same_feature_key() {
+        let make_request = || AddToolToEntityStorageRequest {
+            tool: Tool::flat_end_mill("test_tool".to_string(), 10.0, 50.0),
+            feature_id: "tool_import".to_string(),
+            output_index: 1,
+            local_key: "primary".to_string(),
+            description: Some("Test Tool".to_string()),
+        };
+
+        let first = ToolEntityManagementOrchestrator
+            .add_tool_to_storage(make_request())
+            .expect("first tool addition should succeed");
+        let second = ToolEntityManagementOrchestrator
+            .add_tool_to_storage(make_request())
+            .expect("second tool addition should succeed");
+
+        assert_eq!(first.entity_id, second.entity_id);
     }
 }
