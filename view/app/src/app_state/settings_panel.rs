@@ -93,6 +93,14 @@ impl AppState {
     }
 }
 
+fn demo_scenario_label(scenario: CamSimulationDemoScenario) -> String {
+    match scenario {
+        CamSimulationDemoScenario::Success => "ボールエンドミル".to_string(),
+        CamSimulationDemoScenario::SuccessFlatEndMill => "フラットエンドミル".to_string(),
+        CamSimulationDemoScenario::FailureEmptyToolpath => "空ToolPath".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::restore_cursor_with_fallback;
@@ -110,13 +118,5 @@ mod tests {
     #[test]
     fn restore_cursor_resets_to_zero_when_empty() {
         assert_eq!(restore_cursor_with_fallback(3, 0), 0);
-    }
-}
-
-fn demo_scenario_label(scenario: CamSimulationDemoScenario) -> String {
-    match scenario {
-        CamSimulationDemoScenario::Success => "ボールエンドミル".to_string(),
-        CamSimulationDemoScenario::SuccessFlatEndMill => "フラットエンドミル".to_string(),
-        CamSimulationDemoScenario::FailureEmptyToolpath => "空ToolPath".to_string(),
     }
 }

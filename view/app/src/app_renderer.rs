@@ -9,6 +9,13 @@ use crate::settings_panel_ui::SettingsPanelUiState;
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
 use crate::stage_factory;
 
+pub struct RenderFrameContext<'a> {
+    pub device: &'a Device,
+    pub queue: &'a wgpu::Queue,
+    pub viewport_width: u32,
+    pub viewport_height: u32,
+}
+
 pub struct AppRenderer {
     stage: Box<dyn RenderStage>,
     selection_rect_renderer: SelectionRectRenderer,
@@ -138,25 +145,22 @@ impl AppRenderer {
     /// 深度ビュー付き描画処理
     pub fn render_with_depth(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &RenderFrameContext<'_>,
         encoder: &mut CommandEncoder,
         view: &TextureView,
         depth_view: &TextureView,
-        viewport_width: u32,
-        viewport_height: u32,
     ) {
         // 各ステージが depth を利用できるよう render_with_depth を呼ぶ
         self.stage.render_with_depth(encoder, view, depth_view);
         self.selection_rect_renderer.render(encoder, view);
         self.snapshot_overlay_renderer.render(encoder, view);
         self.settings_panel_renderer.render(
-            device,
-            queue,
+            context.device,
+            context.queue,
             encoder,
             view,
-            viewport_width,
-            viewport_height,
+            context.viewport_width,
+            context.viewport_height,
         );
     }
 
