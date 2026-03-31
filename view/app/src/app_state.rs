@@ -7,6 +7,9 @@ use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
+use viewmodel::cam_sim_visualization_converter::{
+    CamSimulationDemoScenario, ToolWireframeVisualizationSettings,
+};
 use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
@@ -27,6 +30,8 @@ mod input_actions;
 mod mouse_actions;
 // AppState の設定アクセサ（種類別: Snapshot/Octree/Camera）
 mod settings_accessors;
+// AppState の設定パネル状態と適用
+mod settings_panel;
 // AppState の Snapshot 再生・スクラブ制御
 mod snapshot_playback;
 // AppState のステージ更新オーケストレーション
@@ -88,6 +93,15 @@ pub struct AppState {
     /// Snapshotシェーディング時の色設定
     pub snapshot_shaded_color_settings: SnapshotShadedColorSettings,
 
+    /// Toolワイヤーフレーム可視化設定
+    tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings,
+
+    /// 最後に表示したCAMデモの種別
+    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
+
+    /// 設定パネル表示状態
+    settings_panel_open: bool,
+
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
     snapshot_scrub_active: bool,
@@ -107,7 +121,7 @@ impl AppState {
 
     pub fn new(window: Arc<Window>) -> Self {
         let graphic = init_graphic(window.clone());
-        let renderer = AppRendererFactory::create_draft(&graphic.device, &graphic.config);
+        let renderer = AppRendererFactory::create_draft(&window, &graphic.device, &graphic.config);
         let viewing_operation_settings = ViewingOperationSettings::default();
 
         let mut app_state = Self {
@@ -126,6 +140,9 @@ impl AppState {
             viewing_operation_settings,
             snapshot_overlay_style: SnapshotOverlayStyle::default(),
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
+            tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
+            current_cam_demo_scenario: None,
+            settings_panel_open: false,
             debug_snapshot: DebugSnapshotState::default(),
             snapshot_scrub_active: false,
             cursor_position: None,

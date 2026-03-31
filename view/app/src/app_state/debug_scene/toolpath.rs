@@ -32,10 +32,11 @@ impl AppState {
         &self,
         scenario: CamSimulationDemoScenario,
     ) -> Result<ToolPathDebugData, ToolPathBuildError> {
-        use viewmodel::cam_sim_visualization_converter::create_cam_simulation_visualization_bundle_for_demo;
+        use viewmodel::cam_sim_visualization_converter::create_cam_simulation_visualization_bundle_for_demo_with_tool_settings;
 
-        let bundle = create_cam_simulation_visualization_bundle_for_demo(
+        let bundle = create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
             &self.octree_visualization_settings,
+            &self.tool_wireframe_visualization_settings,
             scenario,
         )
         .map_err(ToolPathBuildError::Converter)?;
@@ -185,6 +186,7 @@ impl AppState {
         };
 
         self.apply_toolpath_debug_data(data);
+        self.current_cam_demo_scenario = Some(scenario);
     }
 
     /// サンプル表示用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
@@ -194,7 +196,7 @@ impl AppState {
 
     /// サンプル表示用：ボールエンドミルでCAMシミュレーション可視化を表示
     pub fn load_sample_toolpath_ball_end_mill(&mut self) {
-        self.load_sample_toolpath_with_scenario(CamSimulationDemoScenario::Success, "Shift+B");
+        self.load_sample_toolpath_with_scenario(CamSimulationDemoScenario::Success, "Shift+P");
     }
 
     /// サンプル表示用：フラットエンドミルでCAMシミュレーション可視化を表示
@@ -237,6 +239,7 @@ impl AppState {
         }
 
         self.debug_snapshot.clear();
+        self.current_cam_demo_scenario = None;
 
         let positions: Vec<[f32; 3]> = vertices.iter().map(|v| v.position).collect();
         let Some(fit) = Self::build_camera_fit(&positions) else {

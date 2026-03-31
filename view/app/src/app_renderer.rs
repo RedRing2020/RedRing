@@ -1,64 +1,103 @@
 use stage::RenderStage;
 use wgpu::{CommandEncoder, Device, SurfaceConfiguration, TextureView};
+use winit::{event::WindowEvent, window::Window};
 
 use crate::selection_rect::SelectionRect;
 use crate::selection_rect_renderer::SelectionRectRenderer;
+use crate::settings_panel_renderer::SettingsPanelRenderer;
+use crate::settings_panel_ui::SettingsPanelUiState;
 use crate::snapshot_overlay_renderer::{SnapshotOverlayRenderer, SnapshotOverlayStyle};
 use crate::stage_factory;
+
+pub struct RenderFrameContext<'a> {
+    pub device: &'a Device,
+    pub queue: &'a wgpu::Queue,
+    pub viewport_width: u32,
+    pub viewport_height: u32,
+}
 
 pub struct AppRenderer {
     stage: Box<dyn RenderStage>,
     selection_rect_renderer: SelectionRectRenderer,
     snapshot_overlay_renderer: SnapshotOverlayRenderer,
+    settings_panel_renderer: SettingsPanelRenderer,
 }
 
 pub struct AppRendererFactory;
 
 impl AppRendererFactory {
     fn create_with_stage(
+        window: &Window,
         device: &Device,
         config: &SurfaceConfiguration,
         stage: Box<dyn RenderStage>,
     ) -> AppRenderer {
         let selection_rect_renderer = SelectionRectRenderer::new(device, config.format);
         let snapshot_overlay_renderer = SnapshotOverlayRenderer::new(device, config.format);
+        let settings_panel_renderer = SettingsPanelRenderer::new(window, device, config.format);
         AppRenderer {
             stage,
             selection_rect_renderer,
             snapshot_overlay_renderer,
+            settings_panel_renderer,
         }
     }
 
-    pub fn create_draft(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
+    pub fn create_draft(
+        window: &Window,
+        device: &Device,
+        config: &SurfaceConfiguration,
+    ) -> AppRenderer {
         let stage = stage_factory::create_draft_stage(device, config.format);
-        Self::create_with_stage(device, config, stage)
+        Self::create_with_stage(window, device, config, stage)
     }
 
-    pub fn create_outline(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
+    pub fn create_outline(
+        window: &Window,
+        device: &Device,
+        config: &SurfaceConfiguration,
+    ) -> AppRenderer {
         let stage = stage_factory::create_outline_stage(device, config.format);
-        Self::create_with_stage(device, config, stage)
+        Self::create_with_stage(window, device, config, stage)
     }
 
-    pub fn create_shading(device: &Device, config: &SurfaceConfiguration) -> AppRenderer {
+    pub fn create_shading(
+        window: &Window,
+        device: &Device,
+        config: &SurfaceConfiguration,
+    ) -> AppRenderer {
         let stage = stage_factory::create_shading_stage(device, config.format);
-        Self::create_with_stage(device, config, stage)
+        Self::create_with_stage(window, device, config, stage)
     }
 }
 
 impl AppRenderer {
     /// 初期化：Draftステージを生成
-    pub fn new_draft(device: &Device, config: &SurfaceConfiguration) -> Self {
-        AppRendererFactory::create_draft(device, config)
+    pub fn new_draft(window: &Window, device: &Device, config: &SurfaceConfiguration) -> Self {
+        AppRendererFactory::create_draft(window, device, config)
     }
 
     /// 初期化：Outlineステージを生成
-    pub fn new_outline(device: &Device, config: &SurfaceConfiguration) -> Self {
-        AppRendererFactory::create_outline(device, config)
+    pub fn new_outline(window: &Window, device: &Device, config: &SurfaceConfiguration) -> Self {
+        AppRendererFactory::create_outline(window, device, config)
     }
 
     /// 初期化：Shadingステージを生成
-    pub fn new_shading(device: &Device, config: &SurfaceConfiguration) -> Self {
-        AppRendererFactory::create_shading(device, config)
+    pub fn new_shading(window: &Window, device: &Device, config: &SurfaceConfiguration) -> Self {
+        AppRendererFactory::create_shading(window, device, config)
+    }
+
+    pub fn handle_settings_window_event(&mut self, window: &Window, event: &WindowEvent) -> bool {
+        self.settings_panel_renderer
+            .handle_window_event(window, event)
+    }
+
+    pub fn handle_settings_mouse_motion(&mut self, delta: (f64, f64)) {
+        self.settings_panel_renderer.handle_mouse_motion(delta);
+    }
+
+    pub fn prepare_settings_panel(&mut self, window: &Window, panel: &mut SettingsPanelUiState) {
+        self.settings_panel_renderer.prepare(window, panel);
     }
 
     pub fn update_selection_rect_overlay(
@@ -106,6 +145,7 @@ impl AppRenderer {
     /// 深度ビュー付き描画処理
     pub fn render_with_depth(
         &mut self,
+        context: &RenderFrameContext<'_>,
         encoder: &mut CommandEncoder,
         view: &TextureView,
         depth_view: &TextureView,
@@ -114,6 +154,14 @@ impl AppRenderer {
         self.stage.render_with_depth(encoder, view, depth_view);
         self.selection_rect_renderer.render(encoder, view);
         self.snapshot_overlay_renderer.render(encoder, view);
+        self.settings_panel_renderer.render(
+            context.device,
+            context.queue,
+            encoder,
+            view,
+            context.viewport_width,
+            context.viewport_height,
+        );
     }
 
     pub fn update(&mut self) {

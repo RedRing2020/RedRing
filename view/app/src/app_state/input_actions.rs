@@ -43,10 +43,12 @@ impl AppState {
                     tracing::info!("2: Outlineステージ");
                     tracing::info!("3: Shadingステージ");
                     tracing::info!("=== 切削シミュレーション ===");
+                    tracing::info!("【開始】 Shift+P: ボールエンドミルのシミュレーションデモ開始");
                     tracing::info!(
                         "【開始】 Shift+F: フラットエンドミルのシミュレーションデモ開始"
                     );
                     tracing::info!("【開始】 Shift+B: ボールエンドミルのシミュレーションデモ開始");
+                    tracing::info!("【設定】 Shift+S: 設定パネル表示切替");
                     tracing::info!("【開始】 p: ToolPath のみ表示（シミュレーションなし）");
                     tracing::info!("【移動】 k: 次のスナップショットフレームへ");
                     tracing::info!("【移動】 j: 前のスナップショットフレームへ");
@@ -137,11 +139,17 @@ impl AppState {
                 "p" => {
                     self.load_sample_toolpath_only();
                 }
+                "P" => {
+                    self.load_sample_toolpath_ball_end_mill();
+                }
                 "F" => {
                     self.load_sample_toolpath_flat_end_mill();
                 }
                 "B" => {
                     self.load_sample_toolpath_ball_end_mill();
+                }
+                "S" => {
+                    self.toggle_settings_panel();
                 }
                 "k" => {
                     if self.debug_snapshot.series.is_some() {

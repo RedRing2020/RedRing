@@ -1,4 +1,4 @@
-use crate::app_renderer::AppRenderer;
+use crate::app_renderer::{AppRenderer, RenderFrameContext};
 use std::sync::Arc;
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureView};
 use winit::window::Window;
@@ -103,7 +103,13 @@ impl Graphic {
 
                 // 深度ビューを渡してレンダリング
                 let depth_view = &self.depth_view;
-                renderer.render_with_depth(&mut encoder, &view, depth_view);
+                let render_context = RenderFrameContext {
+                    device: &self.device,
+                    queue: &self.queue,
+                    viewport_width: self.config.width,
+                    viewport_height: self.config.height,
+                };
+                renderer.render_with_depth(&render_context, &mut encoder, &view, depth_view);
                 self.queue.submit(std::iter::once(encoder.finish()));
                 frame.present();
                 self.surface_texture = None;

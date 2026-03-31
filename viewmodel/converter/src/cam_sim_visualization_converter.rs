@@ -92,6 +92,25 @@ pub enum CamSimulationDemoScenario {
     FailureEmptyToolpath,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolWireframeVisualizationSettings {
+    pub flat_circle_divisions: usize,
+    pub ball_circle_divisions: usize,
+    pub ball_hemisphere_divisions: usize,
+    pub ball_meridian_count: usize,
+}
+
+impl Default for ToolWireframeVisualizationSettings {
+    fn default() -> Self {
+        Self {
+            flat_circle_divisions: 24,
+            ball_circle_divisions: 48,
+            ball_hemisphere_divisions: 8,
+            ball_meridian_count: 12,
+        }
+    }
+}
+
 fn push_face(
     vertices: &mut Vec<VertexData>,
     indices: &mut Vec<u32>,
@@ -540,9 +559,10 @@ fn create_flat_end_mill_wireframe(
     tip: Point3D<f64>,
     radius: f64,
     cutting_length: f64,
+    settings: &ToolWireframeVisualizationSettings,
 ) -> Vec<WireframeVertex> {
     let mut vertices = Vec::new();
-    let circle_divisions = 24usize;
+    let circle_divisions = settings.flat_circle_divisions.max(6);
     let tool_color = [0.9, 0.95, 1.0];
 
     let z0 = tip.z();
@@ -583,11 +603,12 @@ fn create_ball_end_mill_wireframe(
     tip: Point3D<f64>,
     radius: f64,
     cutting_length: f64,
+    settings: &ToolWireframeVisualizationSettings,
 ) -> Vec<WireframeVertex> {
     let mut vertices = Vec::new();
-    let circle_divisions = 48usize;
-    let hemisphere_divisions = 8usize;
-    let meridian_count = 12usize;
+    let circle_divisions = settings.ball_circle_divisions.max(8);
+    let hemisphere_divisions = settings.ball_hemisphere_divisions.max(2);
+    let meridian_count = settings.ball_meridian_count.max(4);
     let tool_color = [0.9, 0.95, 1.0];
 
     let center_z = tip.z() + radius;
@@ -595,6 +616,7 @@ fn create_ball_end_mill_wireframe(
     let cx = tip.x();
     let cy = tip.y();
 
+    // 円筒部（外周リング + 上端リング + 軸方向補助線）
     for i in 0..circle_divisions {
         let theta0 = TAU * (i as f64) / (circle_divisions as f64);
         let theta1 = TAU * ((i + 1) as f64) / (circle_divisions as f64);
@@ -621,6 +643,7 @@ fn create_ball_end_mill_wireframe(
         }
     }
 
+    // 半球部（緯線）
     for lat in 1..hemisphere_divisions {
         let phi = (lat as f64) * (std::f64::consts::FRAC_PI_2 / hemisphere_divisions as f64);
         let ring_radius = radius * phi.cos();
@@ -646,6 +669,7 @@ fn create_ball_end_mill_wireframe(
         }
     }
 
+    // 半球部（経線）
     for meridian in 0..meridian_count {
         let theta = TAU * (meridian as f64) / (meridian_count as f64);
         let mut prev = [cx as f32, cy as f32, tip.z() as f32];
@@ -689,7 +713,11 @@ trait DemoToolBehavior {
         start_point: Point3D<f64>,
         end_point: Point3D<f64>,
     );
-    fn build_tool_wireframe(&self, tip: Point3D<f64>) -> Vec<WireframeVertex>;
+    fn build_tool_wireframe(
+        &self,
+        tip: Point3D<f64>,
+        settings: &ToolWireframeVisualizationSettings,
+    ) -> Vec<WireframeVertex>;
 }
 
 struct FlatDemoToolBehavior {
@@ -748,8 +776,12 @@ impl DemoToolBehavior for FlatDemoToolBehavior {
         }
     }
 
-    fn build_tool_wireframe(&self, tip: Point3D<f64>) -> Vec<WireframeVertex> {
-        create_flat_end_mill_wireframe(tip, self.radius, self.cutting_length)
+    fn build_tool_wireframe(
+        &self,
+        tip: Point3D<f64>,
+        settings: &ToolWireframeVisualizationSettings,
+    ) -> Vec<WireframeVertex> {
+        create_flat_end_mill_wireframe(tip, self.radius, self.cutting_length, settings)
     }
 }
 
@@ -785,8 +817,12 @@ impl DemoToolBehavior for BallDemoToolBehavior {
         }
     }
 
-    fn build_tool_wireframe(&self, tip: Point3D<f64>) -> Vec<WireframeVertex> {
-        create_ball_end_mill_wireframe(tip, self.radius, self.cutting_length)
+    fn build_tool_wireframe(
+        &self,
+        tip: Point3D<f64>,
+        settings: &ToolWireframeVisualizationSettings,
+    ) -> Vec<WireframeVertex> {
+        create_ball_end_mill_wireframe(tip, self.radius, self.cutting_length, settings)
     }
 }
 
@@ -855,6 +891,20 @@ fn apply_cutting_progress(
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
 pub fn create_cam_simulation_visualization_bundle_for_demo(
     settings: &OctreeVisualizationSettings,
+    scenario: CamSimulationDemoScenario,
+) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
+    create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+        settings,
+        &ToolWireframeVisualizationSettings::default(),
+        scenario,
+    )
+}
+
+/// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
+/// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
+pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+    settings: &OctreeVisualizationSettings,
+    tool_wireframe_settings: &ToolWireframeVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
     let toolpath = match scenario {
@@ -954,7 +1004,7 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
         if let Some(tool_tip) =
             tool_tip_position(&segments, payload.segment_index, payload.segment_t)
         {
-            let tool_wire = behavior.build_tool_wireframe(tool_tip);
+            let tool_wire = behavior.build_tool_wireframe(tool_tip, tool_wireframe_settings);
             tool_wireframe = tool_wire;
             frame_vertices.extend(tool_wireframe.iter().copied());
             snapshot_solid_meshes.push(build_solid_mesh_from_voxel_tree(&replay_tree, max_depth));
