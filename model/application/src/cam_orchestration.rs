@@ -3,17 +3,20 @@
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, octree::VoxelOctree};
+use geo_entity::GeometricEntity;
 
 /// Application境界で返却する統一エラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApplicationError {
     Simulation(String),
+    ToolEntity(String),
 }
 
 impl std::fmt::Display for ApplicationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Simulation(message) => write!(f, "{}", message),
+            Self::ToolEntity(message) => write!(f, "{}", message),
         }
     }
 }
@@ -149,6 +152,50 @@ pub fn execute_simulation_snapshot_exports(
     })
 }
 
+/// Tool を Entity ストレージに追加するための入力DTO。
+#[derive(Debug, Clone)]
+pub struct AddToolToEntityStorageRequest {
+    pub tool: Tool<f64>,
+    pub description: Option<String>,
+}
+
+/// Tool を Entity ストレージに追加した結果のDTO。
+#[derive(Debug, Clone)]
+pub struct AddToolToEntityStorageResult {
+    pub entity_id: String,
+    pub tool_name: String,
+    pub description: Option<String>,
+}
+
+/// Tool エンティティ管理ユースケースの orchestration port。
+pub trait ToolEntityManagementOrchestration {
+    fn add_tool_to_storage(
+        &self,
+        request: AddToolToEntityStorageRequest,
+    ) -> Result<AddToolToEntityStorageResult, ApplicationError>;
+}
+
+/// Tool エンティティ管理の既定実装。
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ToolEntityManagementOrchestrator;
+
+impl ToolEntityManagementOrchestration for ToolEntityManagementOrchestrator {
+    fn add_tool_to_storage(
+        &self,
+        request: AddToolToEntityStorageRequest,
+    ) -> Result<AddToolToEntityStorageResult, ApplicationError> {
+        let tool_name = request.tool.id.clone();
+        let entity = GeometricEntity::<f64, Tool<f64>>::new(request.tool);
+        let entity_id = entity.id().to_string();
+
+        Ok(AddToolToEntityStorageResult {
+            entity_id,
+            tool_name,
+            description: request.description,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,5 +290,28 @@ mod tests {
                 SimulationError::EmptyToolpath.to_string()
             ))
         );
+    }
+
+    #[test]
+    fn test_application_error_displays_tool_entity_error() {
+        let err = ApplicationError::ToolEntity("invalid tool".to_string());
+        assert_eq!(err.to_string(), "invalid tool");
+    }
+
+    #[test]
+    fn test_tool_entity_management_add_tool_to_storage() {
+        let tool = Tool::flat_end_mill("test_tool".to_string(), 10.0, 50.0);
+        let request = AddToolToEntityStorageRequest {
+            tool,
+            description: Some("Test Tool".to_string()),
+        };
+
+        let result = ToolEntityManagementOrchestrator
+            .add_tool_to_storage(request)
+            .expect("tool addition should succeed");
+
+        assert_eq!(result.tool_name, "test_tool");
+        assert_eq!(result.description, Some("Test Tool".to_string()));
+        assert!(result.entity_id.starts_with("tool-"));
     }
 }
