@@ -167,10 +167,11 @@ Phase3:
 ## 11. Phase3 最小E2Eデモ手順（#509）
 
 デモ対象操作:
-- `p` キーで `load_sample_toolpath` を実行し、ViewModel -> Application -> Model更新結果DTO -> View反映を確認する
+- `Shift+P`（大文字 `P`）で `load_sample_toolpath` を実行し、ViewModel -> Application -> Model更新結果DTO -> View反映を確認する
+- `p`（小文字）は `load_sample_toolpath_only` であり、ツールパス線のみ表示する（Entity更新観測対象外）
 
 成功ケース確認:
-1. アプリ起動後に `p` キーを押す
+1. アプリ起動後に `Shift+P`（大文字 `P`）を押す
 2. CAMシミュレーション可視化が表示されることを確認する
 3. ログに `entity_id=` を含む完了メッセージが出ることを確認する
 
