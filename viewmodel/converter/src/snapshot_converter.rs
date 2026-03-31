@@ -5,11 +5,11 @@
 //! 同じ構造で適用できることを目的とします。
 
 use application::cam_orchestration::{
-    create_snapshot_series_from_exports, execute_simulation_snapshot_exports,
-    CamSimulationExecutionRequest,
+    create_snapshot_series_from_exports, ApplicationError, CamSimulationExecutionOrchestration,
+    CamSimulationExecutionOrchestrator, CamSimulationExecutionRequest,
 };
 use cam_core::Tool;
-use cam_sim::{SimulationError, SimulationSnapshotExport, SnapshotInterval};
+use cam_sim::{SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, Point3D};
 
 use crate::toolpath_converter::create_sample_toolpath;
@@ -171,7 +171,7 @@ pub fn cam_snapshot_exports_to_inputs(
 
 /// デバッグ用：cam_sim 実行結果からドメインスナップショット系列を生成する。
 pub fn create_sample_cam_snapshot_domain_series(
-) -> Result<DomainSnapshotSeries<CamSimulationSnapshotInput>, SimulationError> {
+) -> Result<DomainSnapshotSeries<CamSimulationSnapshotInput>, ApplicationError> {
     let bounds = Aabb3D::new(
         Point3D::new(-60.0, -60.0, -20.0),
         Point3D::new(60.0, 60.0, 30.0),
@@ -179,14 +179,15 @@ pub fn create_sample_cam_snapshot_domain_series(
     let toolpath = create_sample_toolpath();
     let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
 
-    let exports = execute_simulation_snapshot_exports(CamSimulationExecutionRequest {
-        toolpath,
-        tool,
-        work_bounds: bounds,
-        max_depth: 4,
-        snapshot_interval: SnapshotInterval::default(),
-    })?
-    .exports;
+    let exports = CamSimulationExecutionOrchestrator
+        .execute_simulation_snapshot_exports(CamSimulationExecutionRequest {
+            toolpath,
+            tool,
+            work_bounds: bounds,
+            max_depth: 4,
+            snapshot_interval: SnapshotInterval::default(),
+        })?
+        .exports;
     let inputs = cam_snapshot_exports_to_inputs(&exports);
 
     Ok(cam_snapshot_inputs_to_domain_series("cam_sim", &inputs))
