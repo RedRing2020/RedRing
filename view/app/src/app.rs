@@ -24,7 +24,7 @@ impl ApplicationHandler for App {
         );
         self.state = Some(AppState::new(window));
         tracing::info!("=== RedRing 起動完了 ===");
-        tracing::info!("切削シミュレーションデモを開始するには Shift+P を押してください");
+        tracing::info!("切削シミュレーションデモを開始するには Shift+B を押してください");
         tracing::info!("操作ヘルプ全体は h キーで確認できます");
     }
 

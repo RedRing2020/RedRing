@@ -371,3 +371,143 @@ fn test_job_adapter_rejects_invalid_input_ref() {
             .contains("invalid input_ref")
     );
 }
+
+// --- フラット vs ボール除去比較テスト ---
+
+/// 同一経路・同一径で、フラットとボールが異なる体積を除去することを検証する。
+///
+/// - フラット: `remove_material_swept_cylinder`（掃引円柱）
+/// - ボール: Z+radius 補正後に `remove_material_capsule`（掃引カプセル）
+///
+/// 形状が異なるため、VoxelOctree 上の残存体積に差が生じる。
+#[test]
+fn test_flat_vs_ball_end_mill_remaining_volume_differs() {
+    let bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+
+    let cutting_flat = cam_core::PathSegment::new_line(
+        Point3D::new(10.0, 50.0, 50.0),
+        Point3D::new(90.0, 50.0, 50.0),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+    let cutting_ball = cutting_flat.clone();
+
+    let toolpath_flat = roundtrip_toolpath_via_artifact(&ToolPath::new(
+        "flat".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 50.0, vec![cutting_flat])],
+        vec![],
+    ));
+    let toolpath_ball = roundtrip_toolpath_via_artifact(&ToolPath::new(
+        "ball".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 50.0, vec![cutting_ball])],
+        vec![],
+    ));
+
+    let initial_volume = VoxelOctree::<f64>::new(bounds, 5).remaining_volume();
+
+    let mut sim_flat =
+        CuttingSimulator::new(VoxelOctree::new(bounds, 5), SnapshotInterval::default());
+    sim_flat
+        .simulate(
+            &toolpath_flat,
+            &Tool::flat_end_mill("flat".to_string(), 10.0, 30.0),
+        )
+        .unwrap();
+
+    let mut sim_ball =
+        CuttingSimulator::new(VoxelOctree::new(bounds, 5), SnapshotInterval::default());
+    sim_ball
+        .simulate(
+            &toolpath_ball,
+            &Tool::ball_end_mill("ball".to_string(), 10.0, 30.0),
+        )
+        .unwrap();
+
+    let flat_remaining = sim_flat.voxel_tree().remaining_volume();
+    let ball_remaining = sim_ball.voxel_tree().remaining_volume();
+
+    assert!(
+        flat_remaining < initial_volume,
+        "フラットエンドミルが材料を除去していない: remaining={flat_remaining}, initial={initial_volume}"
+    );
+    assert!(
+        ball_remaining < initial_volume,
+        "ボールエンドミルが材料を除去していない: remaining={ball_remaining}, initial={initial_volume}"
+    );
+    assert_ne!(
+        flat_remaining, ball_remaining,
+        "フラット(swept_cylinder)とボール(capsule+Z補正)は異なる形状で除去するため残存体積が異なるはず: \
+         flat={flat_remaining}, ball={ball_remaining}"
+    );
+}
+
+/// ボールエンドミルの Z+radius 補正が正しく機能することを検証する。
+///
+/// 先端基準の水平経路（Z=10）に対して、ボールは中心経路を Z=10+radius=15 に補正して
+/// カプセル除去を行う。フラットエンドミルとは異なる位置を除去するため、残存体積が異なる。
+#[test]
+fn test_ball_end_mill_z_offset_removes_material_at_shifted_z() {
+    let bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+
+    let segment_at_low_z = |seg_type: SegmentType<f64>| {
+        cam_core::PathSegment::new_line(
+            Point3D::new(10.0, 50.0, 10.0),
+            Point3D::new(90.0, 50.0, 10.0),
+            seg_type,
+        )
+    };
+
+    let cutting_flat = segment_at_low_z(SegmentType::Cutting { feed_rate: 300.0 });
+    let cutting_ball = segment_at_low_z(SegmentType::Cutting { feed_rate: 300.0 });
+
+    let toolpath_flat = roundtrip_toolpath_via_artifact(&ToolPath::new(
+        "flat-z".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 10.0, vec![cutting_flat])],
+        vec![],
+    ));
+    let toolpath_ball = roundtrip_toolpath_via_artifact(&ToolPath::new(
+        "ball-z".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 10.0, vec![cutting_ball])],
+        vec![],
+    ));
+
+    let mut sim_flat =
+        CuttingSimulator::new(VoxelOctree::new(bounds, 5), SnapshotInterval::default());
+    sim_flat
+        .simulate(
+            &toolpath_flat,
+            &Tool::flat_end_mill("flat-z".to_string(), 10.0, 30.0),
+        )
+        .unwrap();
+
+    let mut sim_ball =
+        CuttingSimulator::new(VoxelOctree::new(bounds, 5), SnapshotInterval::default());
+    sim_ball
+        .simulate(
+            &toolpath_ball,
+            &Tool::ball_end_mill("ball-z".to_string(), 10.0, 30.0),
+        )
+        .unwrap();
+
+    let flat_remaining = sim_flat.voxel_tree().remaining_volume();
+    let ball_remaining = sim_ball.voxel_tree().remaining_volume();
+
+    assert_ne!(
+        flat_remaining, ball_remaining,
+        "Z=10 の水平経路でフラット(Z=10 で円柱)とボール(Z=15 でカプセル)は除去位置が異なるはず: \
+         flat={flat_remaining}, ball={ball_remaining}"
+    );
+}
