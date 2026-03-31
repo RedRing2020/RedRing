@@ -18,7 +18,9 @@ impl Display for SimulationError {
             SimulationError::UnsupportedToolType => {
                 write!(f, "only flat end mill is supported in Phase 1a")
             }
-            SimulationError::UnsupportedGeometry => write!(f, "only line segments are supported"),
+            SimulationError::UnsupportedGeometry => {
+                write!(f, "unsupported geometry type in toolpath")
+            }
             SimulationError::InvalidInterval => write!(f, "snapshot interval is invalid"),
         }
     }

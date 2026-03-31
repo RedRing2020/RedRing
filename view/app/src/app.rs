@@ -23,6 +23,9 @@ impl ApplicationHandler for App {
                 .expect("Window creation failed"),
         );
         self.state = Some(AppState::new(window));
+        tracing::info!("=== RedRing 起動完了 ===");
+        tracing::info!("切削シミュレーションデモを開始するには Shift+P を押してください");
+        tracing::info!("操作ヘルプ全体は h キーで確認できます");
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {

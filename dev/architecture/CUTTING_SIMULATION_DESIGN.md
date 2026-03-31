@@ -1,8 +1,8 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年2月22日  
-**ステータス**: 設計フェーズ  
+**最終更新**: 2026年3月31日  
+**ステータス**: 設計・段階実装中  
 **関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246)
 
 ---
@@ -527,6 +527,101 @@ impl AppState {
 
 ## 実装計画
 
+### 現在地（2026年3月31日時点）
+
+- Phase 1a のフラットエンドミル向け切削シミュレーションは `cam_sim` で実装済み
+- 最小デモ操作は実装済み
+- 最小デモ操作の内訳: `Shift+P` でデモ開始
+- 最小デモ操作の内訳: `k` / `j` でコマ送り / 巻き戻し
+- 最小デモ操作の内訳: 左上進捗バーの左ドラッグでスクラブ
+- 最小デモ操作の内訳: `w` でワイヤー表示 / ソリッド表示切替
+- デモ操作マニュアルは [manual/cutting_simulation_demo.md](../../manual/cutting_simulation_demo.md) に整理済み
+- 一方で、Issue #214 は「ボールエンドミル対応」と「デモ開始導線の整理」が未完了のため、未クローズとする
+
+### 残件再整理
+
+Issue #214 の残件は、以降は次の2系列で管理する。
+
+#### 系列A: デモ操作改善
+
+- A1. デモ開始導線の明確化
+- A1-1. アプリ起動直後に切削シミュレーションデモの開始方法を把握できるようにする
+- A1-2. `Shift+P` がデモ開始であることを起動時ログまたはヘルプ表示で明示する
+- A1-3. ショートカット未記憶でも開始できる最低限の導線を用意する
+- A2. デモ操作語彙の統一
+- A2-1. マニュアル、ヘルプログ、実装ログを同じ操作語彙に揃える
+- A2-2. `ワイヤー表示` / `ソリッド表示` / `スクラブ` / `コマ送り` の表記を固定する
+- A2-3. `p` と `Shift+P` の役割差を明示して誤操作を減らす
+- A3. 表示状態の可観測性向上
+- A3-1. 現在がワイヤー表示かソリッド表示かを判別しやすくする
+- A3-2. 現在フレーム番号と総フレーム数を常に把握できる状態を維持する
+- A3-3. スクラブ可能領域が画面上で認識しやすいことを確認する
+- A4. デモ操作の検証整備
+- A4-1. デモ開始後に最低限確認すべき観点をマニュアルへ固定する
+- A4-2. `Shift+P` -> `k/j` -> `w` -> スクラブ、の一連操作で破綻しないことを確認する
+- A4-3. ワイヤー表示 / ソリッド表示切替後も同一フレームを維持できることを確認する
+- A5. 後続拡張の切り分け
+- A5-1. 自動再生は別タスクとして切り離し、現デモの必須要件から除外する
+- A5-2. 再生速度変更は別タスクとして切り離し、現デモの必須要件から除外する
+- A5-3. ボールエンドミル対応と操作改善を別レビュー単位に維持する
+
+##### A1 実装タスク分解
+
+- A1-T1. 起動時ログの整備
+- A1-T1a. アプリ起動直後に `Shift+P` で切削シミュレーションデモを開始できることをログ出力する
+- A1-T1b. `p` は ToolPath のみ、`Shift+P` は切削シミュレーション全体、という差分をログで明示する
+- A1-T1c. 対象ファイル: `view/app/src/app.rs`, `view/app/src/app_state.rs`, `view/app/src/app_state/input_actions.rs`
+
+- A1-T2. ヘルプ表示の整理
+- A1-T2a. `h` で表示されるヘルプ内で、切削シミュレーションの開始手順を独立したまとまりとして出す
+- A1-T2b. `Shift+P` -> `k/j` -> `w` -> 左上進捗バー、の利用順を読める文面へ整理する
+- A1-T2c. 対象ファイル: `view/app/src/app_state/input_actions.rs`
+
+- A1-T3. 画面内導線の追加
+- A1-T3a. デモ未開始時だけ表示される簡易案内を画面上に載せるかを判断する
+- A1-T3b. 既存の snapshot overlay を拡張するか、別 overlay を追加するかを決める
+- A1-T3c. 最小方針は「デモ未開始時のみ `Shift+P: 切削シミュレーション` を表示し、開始後は消す」とする
+- A1-T3d. 対象ファイル候補: `view/app/src/snapshot_overlay_renderer.rs`, `view/app/src/app_renderer.rs`, `view/app/src/app_state/stage_orchestration.rs`
+
+- A1-T4. ウィンドウタイトルの扱い整理
+- A1-T4a. デモ未開始時タイトルと、デモ開始後タイトルの責務を分ける
+- A1-T4b. デモ開始後は現在の `Snapshot x/N` 表示を維持し、未開始時は開始方法を示せるか検討する
+- A1-T4c. 対象ファイル: `view/app/src/app_state/snapshot_playback.rs`, `view/app/src/app_state.rs`
+
+- A1-T5. 動作確認手順の固定
+- A1-T5a. 起動直後にログまたは画面から `Shift+P` が分かることを確認する
+- A1-T5b. `Shift+P` 実行後に進捗バー、タイトル、初期フレーム表示が揃うことを確認する
+- A1-T5c. `p` と `Shift+P` の挙動差が誤認されないことを確認する
+- A1-T5d. 対象ファイル: `manual/cutting_simulation_demo.md`, `view/app/src/app_state/debug_scene/toolpath.rs`
+
+##### A1 実装順の推奨
+
+- Step 1. `A1-T1` と `A1-T2` を先に実施し、起動直後にログだけで辿れる状態を作る
+- Step 2. その後 `A1-T4` を調整し、タイトルの責務を明確化する
+- Step 3. なお導線不足が残る場合のみ `A1-T3` の画面内案内を追加する
+- Step 4. 最後に `A1-T5` でマニュアルと実装の一致を確認する
+
+#### 系列B: 工具形状拡張
+
+- B1. ボールエンドミル除去の `cam_sim` 統合
+- B2. ボールエンドミル用サンプルデータとデモ確認手順の追加
+- B3. フラットエンドミルとの差分検証
+
+#### 補足: フラットエンドミル円弧パス除去改善の実現性
+
+- 実現は可能
+- ただし、現状の `cam_sim` は `PathGeometry::Arc` を `UnsupportedGeometry` として拒否している
+- 一方で `geo_algorithms::octree::voxel` には `remove_material_arc_polyline()` があり、円弧を線分群へ分割して除去する近似 API は既に存在する
+- したがって最小実装としては、`cam_sim` 側で Arc セグメントを受け付け、円弧長ベースで分割数を決めて `remove_material_arc_polyline()` へ接続する方針が最短である
+- ご提示の「円柱と平面を同心円の円弧、端部を工具系の円弧としたループ面で除去する」方式は、フラットエンドミルの円弧掃引体をより幾何学的に近く表現する拡張として考えられる
+- この方式は線分近似より高精度化が見込めるが、Voxel との交差判定に専用の掃引体判定を追加する必要があり、実装コストは高い
+- 優先順位としては以下を推奨する
+- 優先1: Arc セグメントを polyline 近似で `cam_sim` に統合する
+- 優先2: 必要精度を測定し、過剰除去が問題になる場合だけ専用の円弧掃引体を検討する
+- 優先3: 専用掃引体を導入する場合は、円柱側面、端面円板、始終端の工具輪郭をどう閉じるかを先に数式と判定条件へ落とす
+
+自動再生・一時停止・再生速度変更は、現時点では必須残件に含めない。現在のデモは手動コマ送り前提で成立しており、優先度は起動導線整理とボールエンドミル対応より下位とする。
+
 ### 前提条件
 
 - ✅ Octree基本実装完了（Issue #207）
@@ -554,38 +649,131 @@ impl AppState {
 ### Phase 1b: ボールエンドミル対応（1週間）
 
 **実装項目**:
-- [x] `SphericalSolid3D` - 球形状（半球除去用）
-- [x] `TorusSolid3D` - トーラス形状（角のフィレット用）
-- [x] ツール形状の統一インターフェース
+
+- [ ] `cam_sim` で `BallEndMill` を受け付ける
+- [ ] ボール先端を考慮した除去形状を `simulate()` に統合する
+- [ ] ボールエンドミル用のサンプルデータをデモへ追加する
+
+#### Phase 1b 詳細化（2026年3月31日）
+
+##### 既存実装との比較
+
+- Phase 1a はフラットエンドミル限定で、`CuttingSimulator::simulate()` が `FlatEndMill` 以外を拒否している
+- Phase 1a の除去本体は `simulate_segments_with_flags()` 内の `remove_material_swept_cylinder()` 呼び出しであり、平底工具の掃引体を前提にしている
+- `cam_core::Tool` には `BallEndMill` と `ToolReferencePoint` / `convert_z()` が既に定義されている
+- `VoxelOctree` には `remove_material_capsule()` があり、球を線分に沿って掃引した近似除去に利用できる
+- 未実装なのは、工具種別に応じた分岐、参照点補正、デモデータ差し替え、比較検証、およびデモ画面への加工サマリ表示である
+
+##### 実装選択肢
+
+- 選択肢1: 最小実装として、ボールエンドミルを「球の掃引」として扱い、工具先端経路を球中心経路へ補正して `remove_material_capsule()` に接続する
+- 選択肢2: ボール先端に加えて同径シャンク部も含む厳密な掃引形状を導入する
+
+現時点の推奨は選択肢1とする。理由は、既存 API を活用して最小差分で `BallEndMill` を `cam_sim` に統合でき、Phase 1b のレビュー単位を適切な大きさに保てるためである。
+
+##### 実装が必要なファイル
+
+- `model/cam_sim/src/simulator.rs` - `BallEndMill` の受け入れと参照点補正ヘルパー追加
+- `model/cam_sim/src/simulator/engine.rs` - 工具種別ごとの除去分岐
+- `model/geo_algorithms/src/octree/voxel/tree_impl.rs` - 既存 `remove_material_capsule()` の利用方針確認、必要ならラッパー追加
+- `model/geo_algorithms/src/octree/voxel/node_impl.rs` - 新規除去 API が必要な場合のみ更新
+- `viewmodel/converter/src/toolpath_converter.rs` - ボールエンドミル用サンプル ToolPath / サンプル工具定義
+- `viewmodel/converter/src/cam_sim_visualization_converter.rs` - 工具線オーバーレイと参照点整合の確認
+- `view/app/src/app_state/debug_scene/toolpath.rs` - デモ起動時に使用するサンプルの切替点
+- `view/app/src/app_state/snapshot_playback.rs` - 画面表示する加工サマリの更新点
+- `view/app/src/snapshot_overlay_renderer.rs` - 加工サマリ表示を overlay へ出す場合の描画拡張候補
+- `manual/cutting_simulation_demo.md` - 対応工具と表示項目の更新
+
+##### タスク分解
+
+- B1. 工具種別分岐の追加
+- B1-1. `FlatEndMill` と `BallEndMill` を `simulate()` で受け付ける
+- B1-2. `RadiusEndMill` は引き続き未対応として明示的に拒否する
+- B1-3. フラット側の既存動作を回帰させないことを確認する
+
+- B2. 参照点の正規化
+- B2-1. 現行デモの ToolPath 座標は実質的に工具先端基準として扱う
+- B2-2. `BallEndMill` では `Tool::convert_z(..., Tip, Center)` 相当の補正を用いて、除去計算に渡す中心経路を生成する
+- B2-3. 参照点補正はまず Z 軸方向のみを対象とし、5軸の姿勢付き ToolPath への一般化は後続タスクとする
+
+- B3. 除去モデルの統合
+- B3-1. フラットエンドミルは従来どおり `remove_material_swept_cylinder()` を使う
+- B3-2. ボールエンドミルは中心経路に対して `remove_material_capsule()` を使う
+- B3-3. シャンク・ホルダー干渉やラジアスエンドミルの扱いは Phase 1b の対象外とする
+
+- B4. デモデータ整備
+- B4-1. ボールエンドミル用のサンプル工具をデモ経路へ接続する
+- B4-2. フラットとの差が視認できるよう、少なくとも1本は Z 変化を含むセグメントを持つサンプル経路を用意する
+- B4-3. 既存フラットサンプルは比較用として維持する
+
+- B5. 画面表示する加工サマリ
+- B5-1. 全体の距離
+- B5-2. 切削時間（現時点では固定送り前提の単純方式）
+- B5-3. 各軸の Min / Max（X / Y / Z）
+- B5-4. 5軸時の回転軸 Min / Max（A / B / C など存在する軸のみ）
+- B5-5. 現在フレームの累積時間と残り推定時間
+- B5-6. 現在セグメント種別（Cutting / Rapid / Approach / Retract / PassRetract）
+- B5-7. 工具接触中フラグ（切削中か空走中か）
+- B5-8. 除去体積率（初期体積比の進捗）
+
+- B6. テスト整備
+- B6-1. `BallEndMill` が `UnsupportedToolType` にならないこと
+- B6-2. 先端基準の水平経路に対し、中心補正後の除去が実行されること
+- B6-3. 同一経路・同一半径で、フラットとボールの残存体積差が観測できること
+- B6-4. 既存フラット経路のスナップショット件数と進捗表示が回帰しないこと
+
+##### 実装順の推奨
+
+- Step 1. `B1` と `B2` を先に実装し、`cam_sim` 単体で `BallEndMill` を受け付ける状態を作る
+- Step 2. 続けて `B3` を実装し、フラット / ボールで除去 API が分岐する状態を作る
+- Step 3. その後 `B4` を実施し、比較しやすいデモ経路とサンプル工具を用意する
+- Step 4. 次に `B5` を実施し、デモ画面で加工サマリを確認できるようにする
+- Step 5. 最後に `B6` と `manual/cutting_simulation_demo.md` 更新を行い、比較観点と制約を固定する
 
 **テスト**:
+
 - ボールエンドミル特有の削り残し検証
 - フラットエンドミルとの比較
+
+**補足**:
+
+- `SphericalSolid3D` / `TorusSolid3D` などの幾何プリミティブ自体は別途存在する
+- 未完了なのは、それらを切削シミュレーションへ接続する工程
 
 ### Phase 1c: 動作シミュレーション（2週間）
 
 **実装ファイル**:
-- `model/geo_algorithms/src/octree/playback.rs` - 再生制御
-- `viewmodel/graphics/src/cutting_simulator_view.rs` - ViewModel変換
-- `view/stage/src/cutting_simulation_stage.rs` - レンダリング
+
+- `view/app/src/app_state/debug_scene/toolpath.rs` - デモ開始
+- `view/app/src/app_state/snapshot_playback.rs` - コマ送り / 巻き戻し / スクラブ
+- `view/app/src/app_state/display_controls.rs` - ワイヤー表示 / ソリッド表示切替
+- `view/app/src/app_state/mouse_actions.rs` - スクラブ入力
+- `view/app/src/snapshot_overlay_renderer.rs` - 左上進捗バー描画
 
 **実装項目**:
-- [x] `PlaybackController` - 再生/一時停止/巻き戻し
+
+- [x] コマ送り / 巻き戻し
 - [x] スライダーによる任意時点移動
-- [x] 速度調整（0.1x～10x）
-- [x] スナップショット間の補間（スムーズ再生）
-- [x] 距離計算支援UI（IntervalRecommender）
+- [x] ワイヤー表示 / ソリッド表示切替
+- [x] スナップショット進捗バー表示
+- [ ] ショートカット依存を弱めた起動導線の整理
+- [ ] 自動再生
+- [ ] 再生速度調整（0.1x～10x）
+- [ ] スナップショット間の補間（スムーズ再生）
+- [ ] 距離計算支援UI（IntervalRecommender）
 
 **UI機能**:
-- スナップショット間隔設定ダイアログ
-- 推奨値の自動計算・表示
-- カスタム値の妥当性チェック
-- メモリ使用量の予測表示
+
+- 左上進捗バー
+- ウィンドウタイトルへの現在フレーム表示
+- ワイヤー表示 / ソリッド表示切替
+- 将来拡張候補: スナップショット間隔設定ダイアログ、推奨値自動計算、メモリ使用量表示
 
 **テスト**:
-- 再生速度の正確性
-- スナップショット間補間の滑らかさ
-- メモリ使用量の実測
+
+- コマ送り / 巻き戻しで同一系列を往復できること
+- スクラブ時に任意フレームへ移動できること
+- ワイヤー表示 / ソリッド表示切替時に同一フレームを維持できること
 
 ### Phase 2: メッシュベース削り込み判定（2週間）
 

@@ -9,8 +9,8 @@ use application::cam_orchestration::{
     ToolEntityManagementOrchestration, ToolEntityManagementOrchestrator,
 };
 use cam_core::{
-    validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, PathGeometry, Tool,
-    ToolPath, ValidationError,
+    validate_toolpath_machine_constraints, ArcDirection, CamTolerance, MachineConstraint,
+    PathGeometry, Tool, ToolPath, ValidationError,
 };
 use cam_sim::{SimulationError, SnapshotInterval};
 use geo_algorithms::{
@@ -266,7 +266,15 @@ fn collect_line_segments_with_flags(
                     out.push((line_segment, false));
                 }
             }
-            PathGeometry::Arc { .. } => return Err(SimulationError::UnsupportedGeometry),
+            PathGeometry::Arc {
+                end,
+                center,
+                direction,
+            } => {
+                for line in arc_to_lines_f64(segment.start, end, center, direction) {
+                    out.push((line, false));
+                }
+            }
         }
     }
 
@@ -278,7 +286,16 @@ fn collect_line_segments_with_flags(
                         out.push((line_segment, segment.is_cutting()));
                     }
                 }
-                PathGeometry::Arc { .. } => return Err(SimulationError::UnsupportedGeometry),
+                PathGeometry::Arc {
+                    end,
+                    center,
+                    direction,
+                } => {
+                    let is_cutting = segment.is_cutting();
+                    for line in arc_to_lines_f64(segment.start, end, center, direction) {
+                        out.push((line, is_cutting));
+                    }
+                }
             }
         }
     }
@@ -290,11 +307,97 @@ fn collect_line_segments_with_flags(
                     out.push((line_segment, false));
                 }
             }
-            PathGeometry::Arc { .. } => return Err(SimulationError::UnsupportedGeometry),
+            PathGeometry::Arc {
+                end,
+                center,
+                direction,
+            } => {
+                for line in arc_to_lines_f64(segment.start, end, center, direction) {
+                    out.push((line, false));
+                }
+            }
         }
     }
 
     Ok(out)
+}
+
+/// Arc を polyline 近似する（可視化側の f64 専用版）。
+///
+/// 弦誤差 0.1mm 基準、最小分割数 4。
+fn arc_to_lines_f64(
+    start: Point3D<f64>,
+    end: Point3D<f64>,
+    center: Point3D<f64>,
+    direction: ArcDirection,
+) -> Vec<LineSegment3D<f64>> {
+    const CHORD_TOLERANCE: f64 = 0.1;
+    const MIN_DIVISIONS: usize = 4;
+
+    let dx1 = start.x() - center.x();
+    let dy1 = start.y() - center.y();
+    let r = (dx1 * dx1 + dy1 * dy1).sqrt();
+    if r < f64::EPSILON {
+        return Vec::new();
+    }
+
+    let dx2 = end.x() - center.x();
+    let dy2 = end.y() - center.y();
+    let angle_start = dy1.atan2(dx1);
+    let angle_end = dy2.atan2(dx2);
+
+    let sweep = match direction {
+        ArcDirection::CounterClockwise => {
+            let mut s = angle_end - angle_start;
+            if s < f64::EPSILON {
+                s += TAU;
+            }
+            s
+        }
+        ArcDirection::Clockwise => {
+            let mut s = angle_start - angle_end;
+            if s < f64::EPSILON {
+                s += TAU;
+            }
+            s
+        }
+    };
+
+    let n = if CHORD_TOLERANCE > f64::EPSILON {
+        let cos_val = (1.0 - CHORD_TOLERANCE / r).clamp(-1.0, 1.0);
+        let half_angle = cos_val.acos();
+        let divisions = (sweep / (2.0 * half_angle)).ceil() as usize;
+        divisions.max(MIN_DIVISIONS)
+    } else {
+        MIN_DIVISIONS
+    };
+
+    let cx = center.x();
+    let cy = center.y();
+    let z_start = start.z();
+    let z_end = end.z();
+
+    let sign = match direction {
+        ArcDirection::CounterClockwise => 1.0_f64,
+        ArcDirection::Clockwise => -1.0_f64,
+    };
+    let angle_step = sign * sweep / n as f64;
+
+    let mut segments = Vec::with_capacity(n);
+    let mut prev = start;
+    for i in 1..=n {
+        let angle = angle_start + angle_step * i as f64;
+        let next = Point3D::new(
+            cx + r * angle.cos(),
+            cy + r * angle.sin(),
+            z_start + (z_end - z_start) * (i as f64 / n as f64),
+        );
+        if let Some(line) = LineSegment3D::new(prev, next) {
+            segments.push(line);
+        }
+        prev = next;
+    }
+    segments
 }
 
 fn compute_work_bounds_from_toolpath(

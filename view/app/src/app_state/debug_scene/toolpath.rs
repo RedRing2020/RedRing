@@ -116,7 +116,7 @@ impl AppState {
         self.log_current_snapshot_frame(true);
 
         tracing::info!(
-            "CAMシミュレーション可視化デバッグ完了: entity_id={}, frame={}/{}（k/スクラブで時系列再生）",
+            "CAMシミュレーション可視化デバッグ完了: entity_id={}, frame={}/{}（k/j/左上進捗バーで時系列確認、wでWire/Solid切替）",
             data.tool_entity_id,
             1,
             data.frame_count
@@ -125,7 +125,7 @@ impl AppState {
 
     /// サンプル表示用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
     pub fn load_sample_toolpath(&mut self) {
-        tracing::info!("CAMシミュレーション可視化デバッグ開始（pキー）");
+        tracing::info!("CAMシミュレーション可視化デバッグ開始（Shift+P）");
 
         let data = match self.build_toolpath_debug_data() {
             Ok(data) => data,

@@ -34,15 +34,21 @@ impl AppState {
                     tracing::warn!("緊急カメラ脱出実行（eキー）");
                 }
                 "h" => {
-                    tracing::info!("=== カメラ操作ヘルプ ===");
+                    tracing::info!("=== カメラ操作 ===");
                     tracing::info!("r: カメラリセット");
                     tracing::info!("t: 標準CAD視点");
                     tracing::info!("f: 正面視点");
                     tracing::info!("e: 緊急脱出");
-                    tracing::info!("w: ワイヤーフレーム切替");
                     tracing::info!("1: Draftステージ");
                     tracing::info!("2: Outlineステージ");
                     tracing::info!("3: Shadingステージ");
+                    tracing::info!("=== 切削シミュレーション ===");
+                    tracing::info!("【開始】 Shift+P: 切削シミュレーションデモ開始（ToolPath + ワーク + 除去表示）");
+                    tracing::info!("【開始】 p: ToolPath のみ表示（シミュレーションなし）");
+                    tracing::info!("【移動】 k: 次のスナップショットフレームへ");
+                    tracing::info!("【移動】 j: 前のスナップショットフレームへ");
+                    tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
+                    tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
                     tracing::info!("=== デバッグ形状表示 ===");
                     tracing::info!("s: クリップ空間正方形（単位行列テスト）");
                     tracing::info!("l: LineSegment3D表示");
@@ -53,12 +59,6 @@ impl AppState {
                     tracing::info!("m: NurbsSurface3D表示（GPU評価）");
                     tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
                     tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
-                    tracing::info!("p: カッターパスのみ表示（色分け線）");
-                    tracing::info!(
-                        "Shift+P: CAMシミュレーション可視化（ToolPath + ワーク + 除去）"
-                    );
-                    tracing::info!("k/j: Snapshotフレーム送り/巻き戻し");
-                    tracing::info!("w: Octree表示モード切替（Wire/Solid）");
                     tracing::info!("=== その他 ===");
                     tracing::info!(
                         "マウス操作: Ctrl+左ドラッグ=回転, Ctrl+中ドラッグ=パン, Ctrl+右ドラッグ=ズーム"

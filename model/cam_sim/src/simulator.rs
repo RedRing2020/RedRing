@@ -64,6 +64,8 @@ pub struct CuttingSimulator<T: Scalar> {
     voxel_tree: VoxelOctree<T>,
     interval: SnapshotInterval,
     snapshots: Vec<SimulationSnapshot<T>>,
+    /// Arc セグメントを polyline 近似する際の弦誤差上限（mm）。
+    arc_chord_tolerance_mm: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -79,6 +81,7 @@ impl<T: Scalar> CuttingSimulator<T> {
             voxel_tree,
             interval,
             snapshots: Vec::new(),
+            arc_chord_tolerance_mm: segments::DEFAULT_ARC_CHORD_TOLERANCE_MM,
         }
     }
 
