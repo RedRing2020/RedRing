@@ -4,8 +4,9 @@
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
 use application::cam_orchestration::{
-    ApplicationError, CamSimulationExecutionOrchestration, CamSimulationExecutionOrchestrator,
-    CamSimulationExecutionRequest,
+    AddToolToEntityStorageRequest, ApplicationError, CamSimulationExecutionOrchestration,
+    CamSimulationExecutionOrchestrator, CamSimulationExecutionRequest,
+    ToolEntityManagementOrchestration, ToolEntityManagementOrchestrator,
 };
 use cam_core::{
     validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, PathGeometry, Tool,
@@ -76,6 +77,7 @@ impl From<SimulationError> for CamSimulationVisualizationError {
 /// - `snapshot_series`: 進捗表示・スクラブに使う時系列スナップショット
 #[derive(Debug, Clone)]
 pub struct CamSimulationVisualizationBundle {
+    pub tool_entity_id: String,
     pub snapshot_wireframes: Vec<Vec<WireframeVertex>>,
     pub snapshot_solid_meshes: Vec<(Vec<VertexData>, Vec<u32>)>,
     pub snapshot_tool_wireframes: Vec<Vec<WireframeVertex>>,
@@ -552,6 +554,14 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
     let toolpath = create_sample_toolpath();
     let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
+    let tool_entity_result =
+        ToolEntityManagementOrchestrator.add_tool_to_storage(AddToolToEntityStorageRequest {
+            tool: tool.clone(),
+            feature_id: "cam_sim_visualization".to_string(),
+            output_index: 0,
+            local_key: "sample_tool".to_string(),
+            description: Some("CAM simulation sample tool".to_string()),
+        })?;
     let tolerance = CamTolerance::default();
     let machine_constraint = MachineConstraint::empty();
     validate_toolpath_machine_constraints(&toolpath, &machine_constraint, &tolerance)?;
@@ -638,6 +648,7 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
     }
 
     Ok(CamSimulationVisualizationBundle {
+        tool_entity_id: tool_entity_result.entity_id,
         snapshot_wireframes,
         snapshot_solid_meshes,
         snapshot_tool_wireframes,
@@ -663,6 +674,7 @@ mod tests {
         let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(&settings)
             .expect("cam simulation visualization should be created");
 
+        assert!(!bundle.tool_entity_id.is_empty());
         assert!(!bundle.snapshot_series.frames.is_empty());
         assert_eq!(
             bundle.snapshot_wireframes.len(),
