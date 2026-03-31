@@ -12,5 +12,6 @@
 - [Transform 使用例 / Transform Examples](./transform_examples.md)
 - [NURBS 曲線・曲面システム / NURBS Curves and Surfaces](./nurbs.md)
 - [NURBS 使用例 / NURBS Examples](./nurbs_examples.md)
+- [切削シミュレーション デモ操作 / Cutting Simulation Demo](./cutting_simulation_demo.md)
 - [VoxelOctree 使用例 / VoxelOctree Examples](./voxel_examples.md)
 - [geo_io 使用例 / geo_io Examples](./geo_io_examples.md)

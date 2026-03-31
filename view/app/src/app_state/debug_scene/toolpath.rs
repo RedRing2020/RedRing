@@ -5,7 +5,9 @@ use super::camera_fit::CameraFit;
 use logging_foundation::{ERROR_KIND_SIMULATION, ERROR_KIND_VALIDATION};
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{MeshStage, OctreeStage};
-use viewmodel::cam_sim_visualization_converter::CamSimulationVisualizationError;
+use viewmodel::cam_sim_visualization_converter::{
+    CamSimulationDemoScenario, CamSimulationVisualizationError,
+};
 use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
 
 enum ToolPathBuildError {
@@ -26,11 +28,15 @@ struct ToolPathDebugData {
 }
 
 impl AppState {
-    fn build_toolpath_debug_data(&self) -> Result<ToolPathDebugData, ToolPathBuildError> {
-        use viewmodel::cam_sim_visualization_converter::create_sample_cam_simulation_visualization_bundle_with_settings;
+    fn build_toolpath_debug_data(
+        &self,
+        scenario: CamSimulationDemoScenario,
+    ) -> Result<ToolPathDebugData, ToolPathBuildError> {
+        use viewmodel::cam_sim_visualization_converter::create_cam_simulation_visualization_bundle_for_demo;
 
-        let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(
+        let bundle = create_cam_simulation_visualization_bundle_for_demo(
             &self.octree_visualization_settings,
+            scenario,
         )
         .map_err(ToolPathBuildError::Converter)?;
 
@@ -116,18 +122,21 @@ impl AppState {
         self.log_current_snapshot_frame(true);
 
         tracing::info!(
-            "CAMシミュレーション可視化デバッグ完了: entity_id={}, frame={}/{}（k/スクラブで時系列再生）",
+            "CAMシミュレーション可視化デバッグ完了: entity_id={}, frame={}/{}（k/j/左上進捗バーで時系列確認、wでWire/Solid切替）",
             data.tool_entity_id,
             1,
             data.frame_count
         );
     }
 
-    /// サンプル表示用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
-    pub fn load_sample_toolpath(&mut self) {
-        tracing::info!("CAMシミュレーション可視化デバッグ開始（pキー）");
+    pub(crate) fn load_sample_toolpath_with_scenario(
+        &mut self,
+        scenario: CamSimulationDemoScenario,
+        trigger_label: &str,
+    ) {
+        tracing::info!("CAMシミュレーション可視化デバッグ開始（{}）", trigger_label);
 
-        let data = match self.build_toolpath_debug_data() {
+        let data = match self.build_toolpath_debug_data(scenario) {
             Ok(data) => data,
             Err(ToolPathBuildError::EmptyFrames) => {
                 tracing::warn!("CAMシミュレーション可視化フレームが空のため表示をスキップ");
@@ -176,6 +185,24 @@ impl AppState {
         };
 
         self.apply_toolpath_debug_data(data);
+    }
+
+    /// サンプル表示用：CAMシミュレーション可視化（ToolPath + ワークOctree + 除去結果）を表示
+    pub fn load_sample_toolpath(&mut self) {
+        self.load_sample_toolpath_ball_end_mill();
+    }
+
+    /// サンプル表示用：ボールエンドミルでCAMシミュレーション可視化を表示
+    pub fn load_sample_toolpath_ball_end_mill(&mut self) {
+        self.load_sample_toolpath_with_scenario(CamSimulationDemoScenario::Success, "Shift+B");
+    }
+
+    /// サンプル表示用：フラットエンドミルでCAMシミュレーション可視化を表示
+    pub fn load_sample_toolpath_flat_end_mill(&mut self) {
+        self.load_sample_toolpath_with_scenario(
+            CamSimulationDemoScenario::SuccessFlatEndMill,
+            "Shift+F",
+        );
     }
 
     /// サンプル表示用：カッターパスのみを表示（pキー）

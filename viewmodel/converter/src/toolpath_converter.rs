@@ -441,41 +441,85 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
 
     // エアカット高さ（切削パスより +20）
     let aircut_z = 20.0;
+    // contour1 コーナー円弧半径（R=8mm で視認可能な丸み）
+    let r = 8.0_f64;
 
     // 開始位置から切削開始点までのRapid移動（XY平面で視認可能）
     let rapid_to_start = PathSegment::new_line(
         Point3D::new(0.0, 0.0, aircut_z),
-        Point3D::new(-40.0, -40.0, aircut_z),
+        Point3D::new(-40.0 + r, -40.0, aircut_z),
         SegmentType::Rapid,
     );
 
     // アプローチセグメント: Z下降（切削面へ）
     let approach = PathSegment::new_line(
-        Point3D::new(-40.0, -40.0, aircut_z),
-        Point3D::new(-40.0, -40.0, 0.0),
+        Point3D::new(-40.0 + r, -40.0, aircut_z),
+        Point3D::new(-40.0 + r, -40.0, 0.0),
         SegmentType::Approach { feed_rate: 300.0 },
     );
 
-    // 最初の等高線レベル（Z = 0.0）- 外側周回
+    // 最初の等高線レベル（Z = 0.0）- 外側周回（コーナーが円弧）
+    //
+    //  各コーナーの円弧は CCW（反時計回り）90°。
+    //  ┌─────── top ────────┐
+    //  │(-32,40)CCW(-40,32) │(-40,32)→(-40,-32)    left
+    //  │ (-40,-32)CCW(-32,-40)          ┐
+    //  └─ bottom  (-32,-40)→(32,-40) ──┘
     let contour1_segments = vec![
+        // 下辺
         PathSegment::new_line(
-            Point3D::new(-40.0, -40.0, 0.0),
-            Point3D::new(40.0, -40.0, 0.0),
+            Point3D::new(-40.0 + r, -40.0, 0.0),
+            Point3D::new(40.0 - r, -40.0, 0.0),
             SegmentType::Cutting { feed_rate: 500.0 },
         ),
-        PathSegment::new_line(
-            Point3D::new(40.0, -40.0, 0.0),
-            Point3D::new(40.0, 40.0, 0.0),
+        // コーナー (40,-40): CCW, center=(40-r, -40+r)
+        PathSegment::new_arc(
+            Point3D::new(40.0 - r, -40.0, 0.0),
+            Point3D::new(40.0, -40.0 + r, 0.0),
+            Point3D::new(40.0 - r, -40.0 + r, 0.0),
+            ArcDirection::CounterClockwise,
             SegmentType::Cutting { feed_rate: 500.0 },
         ),
+        // 右辺
         PathSegment::new_line(
-            Point3D::new(40.0, 40.0, 0.0),
-            Point3D::new(-40.0, 40.0, 0.0),
+            Point3D::new(40.0, -40.0 + r, 0.0),
+            Point3D::new(40.0, 40.0 - r, 0.0),
             SegmentType::Cutting { feed_rate: 500.0 },
         ),
+        // コーナー (40,40): CCW, center=(40-r, 40-r)
+        PathSegment::new_arc(
+            Point3D::new(40.0, 40.0 - r, 0.0),
+            Point3D::new(40.0 - r, 40.0, 0.0),
+            Point3D::new(40.0 - r, 40.0 - r, 0.0),
+            ArcDirection::CounterClockwise,
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        // 上辺
         PathSegment::new_line(
-            Point3D::new(-40.0, 40.0, 0.0),
-            Point3D::new(-40.0, -40.0, 0.0),
+            Point3D::new(40.0 - r, 40.0, 0.0),
+            Point3D::new(-40.0 + r, 40.0, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        // コーナー (-40,40): CCW, center=(-40+r, 40-r)
+        PathSegment::new_arc(
+            Point3D::new(-40.0 + r, 40.0, 0.0),
+            Point3D::new(-40.0, 40.0 - r, 0.0),
+            Point3D::new(-40.0 + r, 40.0 - r, 0.0),
+            ArcDirection::CounterClockwise,
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        // 左辺
+        PathSegment::new_line(
+            Point3D::new(-40.0, 40.0 - r, 0.0),
+            Point3D::new(-40.0, -40.0 + r, 0.0),
+            SegmentType::Cutting { feed_rate: 500.0 },
+        ),
+        // コーナー (-40,-40): CCW, center=(-40+r, -40+r)
+        PathSegment::new_arc(
+            Point3D::new(-40.0, -40.0 + r, 0.0),
+            Point3D::new(-40.0 + r, -40.0, 0.0),
+            Point3D::new(-40.0 + r, -40.0 + r, 0.0),
+            ArcDirection::CounterClockwise,
             SegmentType::Cutting { feed_rate: 500.0 },
         ),
     ];
@@ -483,7 +527,7 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
 
     // 周回間リトラクト1: 内側周回へ直接移動（Z=0のまま斜め移動）
     let pass_retract_1 = PathSegment::new_line(
-        Point3D::new(-40.0, -40.0, 0.0),
+        Point3D::new(-40.0 + r, -40.0, 0.0),
         Point3D::new(-35.0, -35.0, 0.0),
         SegmentType::PassRetract { feed_rate: 300.0 },
     );
