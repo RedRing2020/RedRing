@@ -84,8 +84,11 @@ fn test_toolset_validation() {
         75.0,
         40.0,
     )
-    .with_shank_diameter(10.0)
-    .with_shank_length(25.0)
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(15.0, 10.0),
+        ShankSegment::taper(10.0, 10.0, 12.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.0))
     .with_reference_point(ToolSetReferencePoint::Gauge);
 
     assert!(toolset.validate_parameters());
@@ -108,53 +111,170 @@ fn test_toolset_validation_rejects_invalid_lengths() {
         40.0,
         50.0,
     )
-    .with_shank_diameter(10.0)
-    .with_shank_length(25.0);
+    .with_shank_segments(vec![ShankSegment::cylinder(10.0, 10.0)]);
 
     assert!(!toolset.validate_parameters());
 }
 
 #[test]
-fn test_toolset_validation_rejects_invalid_shank_length() {
+fn test_toolset_validation_rejects_invalid_shank_definition() {
     let tool = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 30.0);
     let holder = Holder::new(
         "HOLDER-E".to_string(),
         vec![HolderSegment::cylinder(20.0, 30.0, 0.0, 0.0)],
     );
 
-    let valid_unspecified = ToolSet::new(
+    let valid = ToolSet::new(
         "TS-003".to_string(),
-        "Valid Unspecified Shank Length".to_string(),
+        "Valid Shank".to_string(),
         tool.clone(),
         holder.clone(),
         70.0,
         40.0,
     )
-    .with_shank_diameter(10.0)
-    .with_shank_length(0.0);
-    assert!(valid_unspecified.validate_parameters());
+    .with_shank_segments(vec![ShankSegment::cylinder(20.0, 10.0)]);
+    assert!(valid.validate_parameters());
 
-    let invalid_equal_stickout = ToolSet::new(
+    let invalid_missing_segments = ToolSet::new(
         "TS-004".to_string(),
-        "Invalid Equal Stickout Shank Length".to_string(),
+        "Invalid Missing Shank".to_string(),
         tool.clone(),
         holder.clone(),
         70.0,
         40.0,
-    )
-    .with_shank_diameter(10.0)
-    .with_shank_length(40.0);
-    assert!(!invalid_equal_stickout.validate_parameters());
+    );
+    assert!(!invalid_missing_segments.validate_parameters());
 
     let invalid_too_long = ToolSet::new(
         "TS-005".to_string(),
-        "Invalid Too Long Shank Length".to_string(),
+        "Invalid Too Long Shank".to_string(),
         tool,
         holder,
         70.0,
         40.0,
     )
-    .with_shank_diameter(10.0)
-    .with_shank_length(45.0);
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(30.0, 10.0),
+        ShankSegment::cylinder(10.0, 12.0),
+    ]);
     assert!(!invalid_too_long.validate_parameters());
+
+    let valid_taper_with_bottom_disabled = ToolSet::new(
+        "TS-006".to_string(),
+        "Valid Taper Bottom Clearance Disabled".to_string(),
+        Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 30.0),
+        Holder::new(
+            "HOLDER-F".to_string(),
+            vec![HolderSegment::cylinder(20.0, 30.0, 0.0, 0.0)],
+        ),
+        70.0,
+        40.0,
+    )
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(12.0, 10.0),
+        ShankSegment::taper(8.0, 10.0, 12.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.5));
+    assert!(valid_taper_with_bottom_disabled.validate_parameters());
+}
+
+#[test]
+fn test_shank_segment_kind_validation() {
+    let invalid_cylinder = ShankSegment::taper(10.0, 10.0, 10.0);
+    assert!(!invalid_cylinder.validate_parameters());
+
+    let invalid_taper = ShankSegment::cylinder(10.0, 10.0);
+    let mut invalid_taper = invalid_taper;
+    invalid_taper.kind = ShankSegmentKind::Taper;
+    assert!(!invalid_taper.validate_parameters());
+}
+
+#[test]
+fn test_shank_interference_shape_applies_bottom_to_last_segment_only() {
+    let tool = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 30.0);
+    let holder = Holder::new(
+        "HOLDER-F".to_string(),
+        vec![HolderSegment::cylinder(20.0, 30.0, 0.0, 0.0)],
+    );
+
+    let toolset = ToolSet::new(
+        "TS-007".to_string(),
+        "Shank Interference Shape".to_string(),
+        tool,
+        holder,
+        70.0,
+        40.0,
+    )
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(12.0, 10.0),
+        ShankSegment::cylinder(8.0, 12.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.5));
+
+    let offset_shape = toolset.shank_interference_shape();
+    assert_eq!(offset_shape.len(), 2);
+    assert_eq!(offset_shape[0].top_diameter, 10.2);
+    assert_eq!(offset_shape[0].bottom_diameter, 10.2);
+    assert_eq!(offset_shape[0].length, 12.0);
+    assert_eq!(offset_shape[1].top_diameter, 12.2);
+    assert_eq!(offset_shape[1].bottom_diameter, 12.2);
+    assert_eq!(offset_shape[1].length, 8.5);
+}
+
+#[test]
+fn test_shank_interference_shape_ignores_bottom_when_taper_is_present() {
+    let tool = Tool::new("EM10".to_string(), ToolType::FlatEndMill, 10.0, 0.0, 30.0);
+    let holder = Holder::new(
+        "HOLDER-G".to_string(),
+        vec![HolderSegment::cylinder(20.0, 30.0, 0.0, 0.0)],
+    );
+
+    let toolset = ToolSet::new(
+        "TS-008".to_string(),
+        "Shank Interference Shape Taper".to_string(),
+        tool,
+        holder,
+        70.0,
+        40.0,
+    )
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(12.0, 10.0),
+        ShankSegment::taper(8.0, 10.0, 12.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.5));
+
+    let offset_shape = toolset.shank_interference_shape();
+    assert_eq!(offset_shape.len(), 2);
+    assert_eq!(offset_shape[0].length, 12.0);
+    assert_eq!(offset_shape[1].length, 8.0);
+}
+
+#[test]
+fn test_shank_interference_shape_ignores_bottom_when_tool_diameter_exceeds_last_shank_diameter() {
+    let tool = Tool::new("EM12".to_string(), ToolType::FlatEndMill, 12.0, 0.0, 30.0);
+    let holder = Holder::new(
+        "HOLDER-H".to_string(),
+        vec![HolderSegment::cylinder(20.0, 30.0, 0.0, 0.0)],
+    );
+
+    let toolset = ToolSet::new(
+        "TS-009".to_string(),
+        "Shank Interference Shape Diameter Guard".to_string(),
+        tool,
+        holder,
+        70.0,
+        40.0,
+    )
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(12.0, 12.0),
+        ShankSegment::cylinder(8.0, 10.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.5));
+
+    assert!(toolset.validate_parameters());
+
+    let offset_shape = toolset.shank_interference_shape();
+    assert_eq!(offset_shape.len(), 2);
+    assert_eq!(offset_shape[0].length, 12.0);
+    assert_eq!(offset_shape[1].length, 8.0);
 }

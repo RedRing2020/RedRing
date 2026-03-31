@@ -3,8 +3,8 @@
 //! テストや検証用途で使用できるサンプルツールセットを提供します。
 
 use cam_core::{
-    Holder, HolderInterferenceOffset, HolderSegment, Tool, ToolSet, ToolSetReferencePoint,
-    ToolType,
+    Holder, HolderInterferenceOffset, HolderSegment, ShankInterferenceOffset, ShankSegment, Tool,
+    ToolSet, ToolSetReferencePoint, ToolType,
 };
 
 /// 2段ホルダー + フラットエンドミルのサンプルツールセット
@@ -28,8 +28,11 @@ pub fn sample_flat_toolset() -> ToolSet<f64> {
         75.0,
         40.0,
     )
-    .with_shank_diameter(10.0)
-    .with_shank_length(25.0)
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(15.0, 10.0),
+        ShankSegment::taper(10.0, 10.0, 12.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.0))
     .with_reference_point(ToolSetReferencePoint::Tip)
 }
 
@@ -54,8 +57,11 @@ pub fn sample_ball_toolset() -> ToolSet<f64> {
         62.0,
         30.0,
     )
-    .with_shank_diameter(6.0)
-    .with_shank_length(18.0)
+    .with_shank_segments(vec![
+        ShankSegment::cylinder(10.0, 6.0),
+        ShankSegment::taper(8.0, 6.0, 8.0),
+    ])
+    .with_shank_interference_offset(ShankInterferenceOffset::new(0.1, 0.0))
     .with_reference_point(ToolSetReferencePoint::Tip)
 }
 
