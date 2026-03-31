@@ -85,6 +85,12 @@ pub struct CamSimulationVisualizationBundle {
     pub snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CamSimulationDemoScenario {
+    Success,
+    FailureEmptyToolpath,
+}
+
 fn push_face(
     vertices: &mut Vec<VertexData>,
     indices: &mut Vec<u32>,
@@ -549,16 +555,29 @@ fn apply_cutting_progress(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
+pub fn create_cam_simulation_visualization_bundle_for_demo(
     settings: &OctreeVisualizationSettings,
+    scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    let toolpath = create_sample_toolpath();
+    let toolpath = match scenario {
+        CamSimulationDemoScenario::Success => create_sample_toolpath(),
+        CamSimulationDemoScenario::FailureEmptyToolpath => ToolPath::new(
+            "endmill_3mm".to_string(),
+            cam_core::CuttingDirection::Down,
+            vec![],
+            vec![],
+            vec![],
+        ),
+    };
     let tool = Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0);
     let tool_entity_result =
         ToolEntityManagementOrchestrator.add_tool_to_storage(AddToolToEntityStorageRequest {
             tool: tool.clone(),
             feature_id: "cam_sim_visualization".to_string(),
-            output_index: 0,
+            output_index: match scenario {
+                CamSimulationDemoScenario::Success => 0,
+                CamSimulationDemoScenario::FailureEmptyToolpath => 1,
+            },
             local_key: "sample_tool".to_string(),
             description: Some("CAM simulation sample tool".to_string()),
         })?;
@@ -657,6 +676,17 @@ pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
     })
 }
 
+/// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
+/// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
+pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
+    settings: &OctreeVisualizationSettings,
+) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
+    create_cam_simulation_visualization_bundle_for_demo(
+        settings,
+        CamSimulationDemoScenario::Success,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -692,5 +722,27 @@ mod tests {
             .snapshot_solid_meshes
             .iter()
             .any(|(vertices, indices)| !vertices.is_empty() && !indices.is_empty()));
+    }
+
+    #[test]
+    fn test_create_cam_simulation_visualization_bundle_for_demo_failure_empty_toolpath() {
+        let settings = OctreeVisualizationSettings {
+            max_depth: 3,
+            gradient_start: [0.2, 1.0, 1.0],
+            gradient_end: [1.0, 0.4, 0.4],
+            octree_tolerance: OctreeTolerance::default(),
+        };
+
+        let result = create_cam_simulation_visualization_bundle_for_demo(
+            &settings,
+            CamSimulationDemoScenario::FailureEmptyToolpath,
+        );
+
+        assert!(matches!(
+            result,
+            Err(CamSimulationVisualizationError::Application(
+                ApplicationError::Simulation(_)
+            ))
+        ));
     }
 }
