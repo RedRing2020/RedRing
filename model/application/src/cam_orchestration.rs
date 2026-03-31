@@ -3,7 +3,6 @@
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, octree::VoxelOctree};
-use geo_entity::GeometricEntity;
 
 /// Application境界で返却する統一エラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -188,13 +187,10 @@ impl ToolEntityManagementOrchestration for ToolEntityManagementOrchestrator {
         request: AddToolToEntityStorageRequest,
     ) -> Result<AddToolToEntityStorageResult, ApplicationError> {
         let tool_name = request.tool.id.clone();
-        let entity = GeometricEntity::<f64, Tool<f64>>::from_feature_output(
-            request.tool,
-            &request.feature_id,
-            request.output_index,
-            &request.local_key,
+        let entity_id = format!(
+            "redring.entity:{}:{}:{}:{}",
+            request.feature_id, request.output_index, request.local_key, tool_name
         );
-        let entity_id = entity.id().to_string();
 
         Ok(AddToolToEntityStorageResult {
             entity_id,

@@ -14,6 +14,5 @@ analysis = { path = "../../foundation/analysis" }
 geo_algorithms = { path = "../geo_algorithms" }
 cam_core = { path = "../cam_core" }
 cam_sim = { path = "../cam_sim" }
-geo_entity = { path = "../geo_entity" }
 job_runtime = { path = "../job_runtime" }
 job_domain = { path = "../job_domain" }

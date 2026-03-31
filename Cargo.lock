@@ -109,7 +109,6 @@ dependencies = [
  "cam_core",
  "cam_sim",
  "geo_algorithms",
- "geo_entity",
  "job_domain",
  "job_runtime",
 ]
