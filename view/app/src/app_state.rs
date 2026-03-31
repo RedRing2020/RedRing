@@ -34,6 +34,8 @@ mod settings_accessors;
 mod settings_panel;
 // AppState の Snapshot 再生・スクラブ制御
 mod snapshot_playback;
+// AppState の stage復元スナップショット
+mod stage_restore;
 // AppState のステージ更新オーケストレーション
 mod stage_orchestration;
 
