@@ -15,6 +15,7 @@ enum ToolPathBuildError {
 }
 
 struct ToolPathDebugData {
+    tool_entity_id: String,
     snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
     snapshot_wireframes: Vec<Vec<viewmodel::octree_converter::WireframeVertex>>,
     snapshot_solids: Vec<(Vec<MeshVertex>, Vec<u32>)>,
@@ -79,6 +80,7 @@ impl AppState {
             .collect();
 
         Ok(ToolPathDebugData {
+            tool_entity_id: bundle.tool_entity_id,
             snapshot_series: bundle.snapshot_series,
             snapshot_wireframes: bundle.snapshot_wireframes,
             snapshot_solids,
@@ -114,7 +116,8 @@ impl AppState {
         self.log_current_snapshot_frame(true);
 
         tracing::info!(
-            "CAMシミュレーション可視化デバッグ完了: frame={}/{}（k/スクラブで時系列再生）",
+            "CAMシミュレーション可視化デバッグ完了: entity_id={}, frame={}/{}（k/スクラブで時系列再生）",
+            data.tool_entity_id,
             1,
             data.frame_count
         );

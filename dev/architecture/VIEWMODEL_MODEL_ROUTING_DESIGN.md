@@ -163,3 +163,22 @@ Phase3:
 2. 合意後に実装Issueへ分解して起票
 3. #502を先行実施（最小実装 + デモリリース）
 4. 実測結果を入力に #215 のECS評価/実装へ進む
+
+## 11. Phase3 最小E2Eデモ手順（#509）
+
+デモ対象操作:
+- `Shift+P`（大文字 `P`）で `load_sample_toolpath` を実行し、ViewModel -> Application -> Model更新結果DTO -> View反映を確認する
+- `p`（小文字）は `load_sample_toolpath_only` であり、ツールパス線のみ表示する（Entity更新観測対象外）
+
+成功ケース確認:
+1. アプリ起動後に `Shift+P`（大文字 `P`）を押す
+2. CAMシミュレーション可視化が表示されることを確認する
+3. ログに `entity_id=` を含む完了メッセージが出ることを確認する
+
+失敗ケース確認:
+1. `cargo test --workspace cam_sim_visualization_converter::tests::test_create_cam_simulation_visualization_bundle_for_demo_failure_empty_toolpath`
+2. 空ToolPathシナリオで `ApplicationError::Simulation` が返ることを確認する
+
+観測ポイント:
+- 成功時: `CamSimulationVisualizationBundle.tool_entity_id` が非空
+- 失敗時: Application境界で失敗が正規化され、ViewModelで `CamSimulationVisualizationError::Application` として観測できる
