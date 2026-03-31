@@ -250,6 +250,122 @@ impl<T: Scalar> Holder<T> {
     }
 }
 
+/// シャンク段形状種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShankSegmentKind {
+    /// 円柱段
+    Cylinder,
+
+    /// テーパー段
+    Taper,
+}
+
+/// シャンク1段分の定義
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShankSegment<T: Scalar = f64> {
+    /// 段形状（円柱/テーパー）
+    pub kind: ShankSegmentKind,
+
+    /// 段長さ（mm）
+    pub length: T,
+
+    /// 上端径（mm）
+    pub top_diameter: T,
+
+    /// 下端径（mm）
+    pub bottom_diameter: T,
+}
+
+impl<T: Scalar> ShankSegment<T> {
+    /// 円柱段を作成
+    pub fn cylinder(length: T, diameter: T) -> Self {
+        Self {
+            kind: ShankSegmentKind::Cylinder,
+            length,
+            top_diameter: diameter,
+            bottom_diameter: diameter,
+        }
+    }
+
+    /// テーパー段を作成
+    pub fn taper(length: T, top_diameter: T, bottom_diameter: T) -> Self {
+        Self {
+            kind: ShankSegmentKind::Taper,
+            length,
+            top_diameter,
+            bottom_diameter,
+        }
+    }
+
+    /// 形状パラメータ妥当性を検証
+    pub fn validate_parameters(&self) -> bool {
+        if self.length <= T::ZERO {
+            return false;
+        }
+        if self.top_diameter <= T::ZERO || self.bottom_diameter <= T::ZERO {
+            return false;
+        }
+
+        let is_cylinder = self.top_diameter == self.bottom_diameter;
+        match self.kind {
+            ShankSegmentKind::Cylinder => {
+                if !is_cylinder {
+                    return false;
+                }
+            }
+            ShankSegmentKind::Taper => {
+                if is_cylinder {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    /// 側面干渉距離を反映した段を返す
+    fn apply_side_offset(&self, side_offset: T) -> Self {
+        let double_offset = side_offset * T::from_f64(2.0);
+        Self {
+            kind: self.kind,
+            length: self.length,
+            top_diameter: self.top_diameter + double_offset,
+            bottom_diameter: self.bottom_diameter + double_offset,
+        }
+    }
+}
+
+/// シャンク干渉距離定義
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShankInterferenceOffset<T: Scalar = f64> {
+    /// 側面干渉距離（半径方向）
+    pub side: T,
+
+    /// 底面干渉距離（軸方向）
+    ///
+    /// 多段時は最下面（最終段の下端面）のみに適用します。
+    pub bottom: T,
+}
+
+impl<T: Scalar> ShankInterferenceOffset<T> {
+    pub fn new(side: T, bottom: T) -> Self {
+        Self { side, bottom }
+    }
+
+    pub fn validate_parameters(&self) -> bool {
+        self.side >= T::ZERO && self.bottom >= T::ZERO
+    }
+}
+
+impl<T: Scalar> Default for ShankInterferenceOffset<T> {
+    fn default() -> Self {
+        Self {
+            side: T::ZERO,
+            bottom: T::ZERO,
+        }
+    }
+}
+
 /// ツールセット定義（工具 + ホルダー）
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToolSet<T: Scalar = f64> {
@@ -274,13 +390,11 @@ pub struct ToolSet<T: Scalar = f64> {
     /// 突き出し長（mm）
     pub stickout_length: T,
 
-    /// シャンク径（mm）
-    pub shank_diameter: T,
+    /// 上端→下端順のシャンク段配列
+    pub shank_segments: Vec<ShankSegment<T>>,
 
-    /// シャンク長（mm）
-    ///
-    /// `0` は「未指定」を意味する
-    pub shank_length: T,
+    /// シャンク専用干渉距離
+    pub shank_interference_offset: ShankInterferenceOffset<T>,
 
     /// 有効フラグ
     pub enabled: bool,
@@ -303,21 +417,24 @@ impl<T: Scalar> ToolSet<T> {
             reference_point: ToolSetReferencePoint::Tip,
             overall_length,
             stickout_length,
-            // 既定値は未指定（0）とする。
-            shank_diameter: T::ZERO,
-            // 既定値は未指定（0）とする。
-            shank_length: T::ZERO,
+            shank_segments: Vec::new(),
+            shank_interference_offset: ShankInterferenceOffset::default(),
             enabled: true,
         }
     }
 
-    pub fn with_shank_diameter(mut self, shank_diameter: T) -> Self {
-        self.shank_diameter = shank_diameter;
+    pub fn with_shank_segments(mut self, shank_segments: Vec<ShankSegment<T>>) -> Self {
+        self.shank_segments = shank_segments;
         self
     }
 
-    pub fn with_shank_length(mut self, shank_length: T) -> Self {
-        self.shank_length = shank_length;
+    pub fn with_shank_segment(mut self, shank_segment: ShankSegment<T>) -> Self {
+        self.shank_segments.push(shank_segment);
+        self
+    }
+
+    pub fn with_shank_interference_offset(mut self, offset: ShankInterferenceOffset<T>) -> Self {
+        self.shank_interference_offset = offset;
         self
     }
 
@@ -329,6 +446,32 @@ impl<T: Scalar> ToolSet<T> {
     pub fn with_enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
+    }
+
+    /// シャンク底面クリアランスの実効値を返す
+    ///
+    /// 無効化条件:
+    /// - 最下段がテーパー
+    /// - 工具径 > 最下段シャンク径
+    fn effective_shank_bottom_clearance(&self) -> T {
+        if self.shank_interference_offset.bottom <= T::ZERO {
+            return T::ZERO;
+        }
+
+        let Some(last_segment) = self.shank_segments.last() else {
+            return T::ZERO;
+        };
+
+        if last_segment.kind != ShankSegmentKind::Cylinder {
+            return T::ZERO;
+        }
+
+        let epsilon = T::from_f64(1.0e-9);
+        if self.tool.diameter() > last_segment.bottom_diameter + epsilon {
+            return T::ZERO;
+        }
+
+        self.shank_interference_offset.bottom
     }
 
     /// ツールセット定義全体の妥当性を検証
@@ -346,15 +489,27 @@ impl<T: Scalar> ToolSet<T> {
         if self.stickout_length > self.overall_length {
             return false;
         }
-        if self.shank_diameter < T::ZERO {
+        if self.shank_segments.is_empty() {
             return false;
         }
-        if self.shank_length < T::ZERO {
+        if !self.shank_interference_offset.validate_parameters() {
             return false;
         }
-        // shank_length が指定された場合、突き出し長と同値以上は
-        // 「突出部が全て非切削部」を意味し、実用上の干渉判定前提を満たさない。
-        if self.shank_length > T::ZERO && self.shank_length >= self.stickout_length {
+
+        if !self
+            .shank_segments
+            .iter()
+            .all(ShankSegment::validate_parameters)
+        {
+            return false;
+        }
+
+        let mut shank_total_length = T::ZERO;
+        for segment in &self.shank_segments {
+            shank_total_length += segment.length;
+        }
+        // シャンク全長が突き出し長と同値以上の場合、突出部が全て非切削部になる。
+        if shank_total_length >= self.stickout_length {
             return false;
         }
 
@@ -364,6 +519,27 @@ impl<T: Scalar> ToolSet<T> {
     /// 干渉判定用ホルダー形状を取得
     pub fn holder_interference_shape(&self) -> Holder<T> {
         self.holder.to_interference_shape()
+    }
+
+    /// 干渉判定用シャンク形状を取得
+    pub fn shank_interference_shape(&self) -> Vec<ShankSegment<T>> {
+        if self.shank_segments.is_empty() {
+            return Vec::new();
+        }
+
+        let mut segments: Vec<ShankSegment<T>> = self
+            .shank_segments
+            .iter()
+            .map(|segment| segment.apply_side_offset(self.shank_interference_offset.side))
+            .collect();
+
+        let effective_bottom = self.effective_shank_bottom_clearance();
+
+        if let Some(last_segment) = segments.last_mut() {
+            last_segment.length += effective_bottom;
+        }
+
+        segments
     }
 }
 

@@ -64,8 +64,8 @@ pub use toolpath::{
     ToolPathKinematicMeta, ToolPose, ToolPoseSpan,
 };
 pub use toolset::{
-    Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ToolSet,
-    ToolSetReferencePoint,
+    Holder, HolderInterferenceOffset, HolderSegment, HolderSegmentKind, ShankInterferenceOffset,
+    ShankSegment, ShankSegmentKind, ToolSet, ToolSetReferencePoint,
 };
 pub use validation::{
     ValidationError, validate_2d_contour, validate_pose_segments_machine_constraints,
