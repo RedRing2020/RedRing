@@ -1,9 +1,38 @@
 use crate::shader::wireframe_shader;
+use crate::uniform_factory;
+use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, Device, RenderPipeline};
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+struct WireframeUniforms {
+    view_proj: [[f32; 4]; 4],
+    model: [[f32; 4]; 4],
+}
+
+impl Default for WireframeUniforms {
+    fn default() -> Self {
+        Self {
+            view_proj: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            model: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        }
+    }
+}
+
 pub struct WireframeResources {
     pub pipeline: wgpu::RenderPipeline,
+    pub bind_group: wgpu::BindGroup,
     pub vertex_buffer: wgpu::Buffer,
     pub vertex_count: u32,
 }
@@ -22,9 +51,19 @@ pub fn create_wireframe_resources(
 
     let shader = wireframe_shader(device);
 
+    let uniforms = WireframeUniforms::default();
+    let (bind_group_layout, _uniform_buffer, bind_group) = uniform_factory::create_uniform_binding(
+        device,
+        &uniforms,
+        wgpu::ShaderStages::VERTEX,
+        "wireframe_bind_group_layout",
+        "Wireframe Uniform Buffer",
+        "wireframe_bind_group",
+    );
+
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Wireframe Pipeline Layout"),
-        bind_group_layouts: &[],
+        bind_group_layouts: &[Some(&bind_group_layout)],
         immediate_size: 0,
     });
 
@@ -69,6 +108,7 @@ pub fn create_wireframe_resources(
 
     WireframeResources {
         pipeline,
+        bind_group,
         vertex_buffer,
         vertex_count,
     }
@@ -77,10 +117,12 @@ pub fn create_wireframe_resources(
 pub fn draw_wireframe<'a>(
     pass: &mut wgpu::RenderPass<'a>,
     pipeline: &'a RenderPipeline,
+    bind_group: &'a wgpu::BindGroup,
     vertex_buffer: &'a Buffer,
     vertex_count: u32,
 ) {
     pass.set_pipeline(pipeline);
+    pass.set_bind_group(0, bind_group, &[]);
     pass.set_vertex_buffer(0, vertex_buffer.slice(..));
     pass.draw(0..vertex_count, 0..1);
 }

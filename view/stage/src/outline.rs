@@ -48,6 +48,7 @@ impl RenderStage for OutlineStage {
         draw_wireframe(
             &mut render_pass,
             &self.resources.pipeline,
+            &self.resources.bind_group,
             &self.resources.vertex_buffer,
             self.resources.vertex_count,
         );

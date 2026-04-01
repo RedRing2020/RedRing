@@ -1,4 +1,5 @@
 use winit::event::{DeviceEvent, ElementState, MouseButton};
+use winit::keyboard::ModifiersState;
 
 /// マウス操作の種類
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -45,6 +46,16 @@ impl MouseInput {
                 self.operation = MouseOperation::None;
                 self.last_position = None;
             }
+        }
+    }
+
+    /// ModifiersChangedイベントからCtrl押下状態を更新
+    pub fn update_modifiers(&mut self, modifiers: ModifiersState) {
+        self.ctrl_pressed = modifiers.control_key();
+        self.update_operation();
+
+        if !self.ctrl_pressed {
+            self.last_position = None;
         }
     }
 

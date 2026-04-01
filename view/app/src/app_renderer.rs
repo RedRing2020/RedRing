@@ -92,6 +92,10 @@ impl AppRenderer {
             .handle_window_event(window, event)
     }
 
+    pub fn is_settings_using_pointer(&self) -> bool {
+        self.settings_panel_renderer.is_using_pointer()
+    }
+
     pub fn handle_settings_mouse_motion(&mut self, delta: (f64, f64)) {
         self.settings_panel_renderer.handle_mouse_motion(delta);
     }

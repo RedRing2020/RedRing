@@ -222,9 +222,14 @@ cargo test --workspace
 | Key | Action |
 | --- | ------ |
 | `p` | Show cutter path only (color-coded lines) |
-| `Shift+P` | Show CAM simulation visualization (ToolPath + Work + Removal) |
+| `Shift+B` | Show ball end mill CAM simulation visualization |
+| `Shift+F` | Show flat end mill CAM simulation visualization |
 | `k` | Next snapshot frame |
 | `j` | Previous snapshot frame |
+| `Space` | Toggle autoplay / pause |
+| `Shift+J` | Stop autoplay and return to the first frame |
+| `+` / `-` | Adjust playback speed (current multiplier is shown in the title) |
+| `Shift+S` | Toggle settings panel |
 
 #### Octree Inspection
 
