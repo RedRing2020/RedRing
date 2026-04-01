@@ -34,6 +34,7 @@
 //! ```
 
 pub mod artifact_binary;
+pub mod fixtures;
 pub mod machine_constraint;
 pub mod tolerance;
 pub mod tool;

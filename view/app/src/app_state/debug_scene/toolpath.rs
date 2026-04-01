@@ -32,9 +32,9 @@ impl AppState {
         &self,
         scenario: CamSimulationDemoScenario,
     ) -> Result<ToolPathDebugData, ToolPathBuildError> {
-        use viewmodel::cam_sim_visualization_converter::create_cam_simulation_visualization_bundle_for_demo_with_tool_settings;
+        use viewmodel::cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle_with_tool_settings;
 
-        let bundle = create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+        let bundle = build_demo_cam_simulation_visualization_bundle_with_tool_settings(
             &self.octree_visualization_settings,
             &self.tool_wireframe_visualization_settings,
             scenario,
@@ -210,12 +210,12 @@ impl AppState {
     /// サンプル表示用：カッターパスのみを表示（pキー）
     pub fn load_sample_toolpath_only(&mut self) {
         use viewmodel::toolpath_converter::{
-            create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
+            load_demo_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
         };
 
         tracing::info!("カッターパス表示デバッグ開始（pキー）");
 
-        let toolpath = create_sample_toolpath();
+        let toolpath = load_demo_toolpath();
         let settings = ToolPathVisualizationSettings::default();
         let toolpath_vertices = toolpath_to_vertices(&toolpath, &settings);
 

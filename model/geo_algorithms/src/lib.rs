@@ -8,6 +8,7 @@ pub mod collision;
 pub mod constraint_validation;
 pub mod distance;
 pub mod intersection;
+pub mod nurbs_fixtures;
 pub mod octree;
 pub mod result;
 

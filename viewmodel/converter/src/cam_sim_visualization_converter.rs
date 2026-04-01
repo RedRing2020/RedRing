@@ -4,9 +4,11 @@
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
 use application::cam_orchestration::{
-    AddToolToEntityStorageRequest, ApplicationError, CamSimulationExecutionOrchestration,
-    CamSimulationExecutionOrchestrator, CamSimulationExecutionRequest,
-    ToolEntityManagementOrchestration, ToolEntityManagementOrchestrator,
+    build_demo_artifacts_for_cam_simulation, compute_toolpath_work_bounds,
+    count_non_cutting_interference_segments, AddToolToEntityStorageRequest, ApplicationError,
+    CamSimulationExecutionOrchestration, CamSimulationExecutionOrchestrator,
+    CamSimulationExecutionRequest, ToolEntityManagementOrchestration,
+    ToolEntityManagementOrchestrator,
 };
 use cam_core::{
     validate_toolpath_machine_constraints, ArcDirection, CamTolerance, MachineConstraint,
@@ -15,7 +17,7 @@ use cam_core::{
 use cam_sim::{SimulationError, SnapshotInterval};
 use geo_algorithms::{
     octree::{VoxelOctree, VoxelState},
-    Aabb3D, LineSegment3D, Point3D,
+    LineSegment3D, Point3D,
 };
 use std::collections::HashMap;
 use std::f64::consts::TAU;
@@ -29,10 +31,10 @@ use crate::snapshot_converter::{
     cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
     CamSimulationSnapshotInput, DomainSnapshotSeries,
 };
-use crate::toolpath_converter::{
-    create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
-};
+use crate::toolpath_converter::{toolpath_to_vertices, ToolPathVisualizationSettings};
 use logging_foundation::ERROR_KIND_SIMULATION;
+
+pub use application::cam_orchestration::CamSimulationDemoScenario;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamSimulationVisualizationError {
@@ -83,13 +85,6 @@ pub struct CamSimulationVisualizationBundle {
     pub snapshot_tool_wireframes: Vec<Vec<WireframeVertex>>,
     pub toolpath_wireframe: Vec<WireframeVertex>,
     pub snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CamSimulationDemoScenario {
-    Success,
-    SuccessFlatEndMill,
-    FailureEmptyToolpath,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -420,97 +415,6 @@ fn arc_to_lines_f64(
     segments
 }
 
-fn compute_work_bounds_from_toolpath(
-    segments: &[(LineSegment3D<f64>, bool)],
-    tool_radius: f64,
-) -> Aabb3D<f64> {
-    if segments.is_empty() {
-        return Aabb3D::new(
-            Point3D::new(-60.0, -60.0, -20.0),
-            Point3D::new(60.0, 60.0, 5.0),
-        );
-    }
-
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut min_z = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-    let mut max_z = f64::NEG_INFINITY;
-
-    let mut cutting_min_z = f64::INFINITY;
-    let mut cutting_max_z = f64::NEG_INFINITY;
-
-    for (segment, is_cutting) in segments {
-        let points = [segment.start(), segment.end()];
-        for point in points {
-            min_x = min_x.min(point.x());
-            min_y = min_y.min(point.y());
-            min_z = min_z.min(point.z());
-            max_x = max_x.max(point.x());
-            max_y = max_y.max(point.y());
-            max_z = max_z.max(point.z());
-
-            if *is_cutting {
-                cutting_min_z = cutting_min_z.min(point.z());
-                cutting_max_z = cutting_max_z.max(point.z());
-            }
-        }
-    }
-
-    if !cutting_min_z.is_finite() || !cutting_max_z.is_finite() {
-        cutting_min_z = min_z;
-        cutting_max_z = max_z;
-    }
-
-    let xy_margin = (tool_radius * 3.0).max(10.0);
-    let z_top_margin = (tool_radius * 0.2).max(0.5);
-    let z_bottom_margin = (tool_radius * 4.0).max(10.0);
-
-    Aabb3D::new(
-        Point3D::new(
-            min_x - xy_margin,
-            min_y - xy_margin,
-            cutting_min_z - z_bottom_margin,
-        ),
-        Point3D::new(
-            max_x + xy_margin,
-            max_y + xy_margin,
-            cutting_max_z + z_top_margin,
-        ),
-    )
-}
-
-fn count_non_cutting_interference_segments(
-    segments: &[(LineSegment3D<f64>, bool)],
-    work_bounds: &Aabb3D<f64>,
-    tool_radius: f64,
-) -> usize {
-    let stock_min = work_bounds.min();
-    let stock_max = work_bounds.max();
-
-    segments
-        .iter()
-        .filter(|(_, is_cutting)| !*is_cutting)
-        .filter(|(segment, _)| {
-            let seg_min_x = segment.start().x().min(segment.end().x()) - tool_radius;
-            let seg_min_y = segment.start().y().min(segment.end().y()) - tool_radius;
-            let seg_min_z = segment.start().z().min(segment.end().z());
-
-            let seg_max_x = segment.start().x().max(segment.end().x()) + tool_radius;
-            let seg_max_y = segment.start().y().max(segment.end().y()) + tool_radius;
-            let seg_max_z = segment.start().z().max(segment.end().z()) + 0.0001;
-
-            !(seg_max_x < stock_min.x()
-                || seg_min_x > stock_max.x()
-                || seg_max_y < stock_min.y()
-                || seg_min_y > stock_max.y()
-                || seg_max_z < stock_min.z()
-                || seg_min_z > stock_max.z())
-        })
-        .count()
-}
-
 fn lerp_point_on_segment(segment: &LineSegment3D<f64>, t: f64) -> Point3D<f64> {
     let tt = t.clamp(0.0, 1.0);
     let sx = segment.start().x();
@@ -692,17 +596,6 @@ fn create_ball_end_mill_wireframe(
     }
 
     vertices
-}
-
-fn create_demo_tool(scenario: CamSimulationDemoScenario) -> Tool<f64> {
-    match scenario {
-        CamSimulationDemoScenario::Success | CamSimulationDemoScenario::FailureEmptyToolpath => {
-            Tool::ball_end_mill("ball_endmill_10mm".to_string(), 10.0, 50.0)
-        }
-        CamSimulationDemoScenario::SuccessFlatEndMill => {
-            Tool::flat_end_mill("flat_endmill_10mm".to_string(), 10.0, 50.0)
-        }
-    }
 }
 
 trait DemoToolBehavior {
@@ -889,11 +782,11 @@ fn apply_cutting_progress(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_cam_simulation_visualization_bundle_for_demo(
+pub fn build_demo_cam_simulation_visualization_bundle(
     settings: &OctreeVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+    build_demo_cam_simulation_visualization_bundle_with_tool_settings(
         settings,
         &ToolWireframeVisualizationSettings::default(),
         scenario,
@@ -902,35 +795,22 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
     settings: &OctreeVisualizationSettings,
     tool_wireframe_settings: &ToolWireframeVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    let toolpath = match scenario {
-        CamSimulationDemoScenario::Success => create_sample_toolpath(),
-        CamSimulationDemoScenario::SuccessFlatEndMill => create_sample_toolpath(),
-        CamSimulationDemoScenario::FailureEmptyToolpath => ToolPath::new(
-            "endmill_3mm".to_string(),
-            cam_core::CuttingDirection::Down,
-            vec![],
-            vec![],
-            vec![],
-        ),
-    };
-    let tool = create_demo_tool(scenario);
+    let demo = build_demo_artifacts_for_cam_simulation(scenario);
+    let toolpath = demo.toolpath;
+    let tool = demo.tool;
     let behavior = demo_tool_behavior(&tool)?;
     let tool_entity_result =
         ToolEntityManagementOrchestrator.add_tool_to_storage(AddToolToEntityStorageRequest {
             tool: tool.clone(),
             feature_id: "cam_sim_visualization".to_string(),
-            output_index: match scenario {
-                CamSimulationDemoScenario::Success => 0,
-                CamSimulationDemoScenario::FailureEmptyToolpath => 1,
-                CamSimulationDemoScenario::SuccessFlatEndMill => 2,
-            },
-            local_key: "sample_tool".to_string(),
-            description: Some("CAM simulation sample tool".to_string()),
+            output_index: demo.output_index,
+            local_key: demo.local_key,
+            description: demo.description,
         })?;
     let tolerance = CamTolerance::default();
     let machine_constraint = MachineConstraint::empty();
@@ -938,7 +818,7 @@ pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
 
     let segments = collect_line_segments_with_flags(&toolpath)?;
 
-    let work_bounds = compute_work_bounds_from_toolpath(&segments, behavior.radius());
+    let work_bounds = compute_toolpath_work_bounds(&segments, behavior.radius());
     let non_cutting_interference_count =
         count_non_cutting_interference_segments(&segments, &work_bounds, behavior.radius());
     if non_cutting_interference_count > 0 {
@@ -1028,13 +908,10 @@ pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
+pub fn load_demo_cam_simulation_visualization_bundle_with_settings(
     settings: &OctreeVisualizationSettings,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    create_cam_simulation_visualization_bundle_for_demo(
-        settings,
-        CamSimulationDemoScenario::Success,
-    )
+    build_demo_cam_simulation_visualization_bundle(settings, CamSimulationDemoScenario::Success)
 }
 
 #[cfg(test)]
@@ -1043,7 +920,7 @@ mod tests {
     use geo_algorithms::octree::OctreeTolerance;
 
     #[test]
-    fn test_create_sample_cam_simulation_visualization_bundle_with_settings() {
+    fn test_load_demo_cam_simulation_visualization_bundle_with_settings() {
         let settings = OctreeVisualizationSettings {
             max_depth: 3,
             gradient_start: [0.2, 1.0, 1.0],
@@ -1051,7 +928,7 @@ mod tests {
             octree_tolerance: OctreeTolerance::default(),
         };
 
-        let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(&settings)
+        let bundle = load_demo_cam_simulation_visualization_bundle_with_settings(&settings)
             .expect("cam simulation visualization should be created");
 
         assert!(!bundle.tool_entity_id.is_empty());
@@ -1075,7 +952,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_cam_simulation_visualization_bundle_for_demo_failure_empty_toolpath() {
+    fn test_build_demo_cam_simulation_visualization_bundle_failure_empty_toolpath() {
         let settings = OctreeVisualizationSettings {
             max_depth: 3,
             gradient_start: [0.2, 1.0, 1.0],
@@ -1083,7 +960,7 @@ mod tests {
             octree_tolerance: OctreeTolerance::default(),
         };
 
-        let result = create_cam_simulation_visualization_bundle_for_demo(
+        let result = build_demo_cam_simulation_visualization_bundle(
             &settings,
             CamSimulationDemoScenario::FailureEmptyToolpath,
         );

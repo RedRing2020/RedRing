@@ -144,6 +144,7 @@ use geo_contracts::Scalar;
 use geo_core::{Aabb3D, Point3D};
 
 mod core_impl;
+pub mod fixtures;
 mod insert_impl;
 mod nearest_impl;
 pub mod node;

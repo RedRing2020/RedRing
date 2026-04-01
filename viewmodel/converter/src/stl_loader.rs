@@ -6,7 +6,7 @@
 use crate::mesh_converter::{
     triangle_mesh_to_vertices, triangle_mesh_to_vertices_with_indices, VertexData,
 };
-use geo_io::stl;
+use geo_io::{fixtures, stl};
 use std::path::Path;
 
 /// STL読み込み結果
@@ -58,51 +58,7 @@ pub fn load_stl_mesh(path: &Path) -> Result<StlMeshData, Box<dyn std::error::Err
 
 /// サンプルSTLファイルを作成
 pub fn create_sample_stl_mesh(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    // Model層（geo_algorithms経由）でメッシュを構築
-    use geo_algorithms::{Point3D, TriangleMesh3D};
-
-    // シンプルな立方体を作成
-    let vertices = vec![
-        // 底面の4頂点
-        Point3D::new(-0.5, -0.5, -0.5), // 0: 左下後
-        Point3D::new(0.5, -0.5, -0.5),  // 1: 右下後
-        Point3D::new(0.5, 0.5, -0.5),   // 2: 右上後
-        Point3D::new(-0.5, 0.5, -0.5),  // 3: 左上後
-        // 上面の4頂点
-        Point3D::new(-0.5, -0.5, 0.5), // 4: 左下前
-        Point3D::new(0.5, -0.5, 0.5),  // 5: 右下前
-        Point3D::new(0.5, 0.5, 0.5),   // 6: 右上前
-        Point3D::new(-0.5, 0.5, 0.5),  // 7: 左上前
-    ];
-
-    let indices = vec![
-        // 底面 (-Z) - 外向き法線のためCCW順序
-        [0, 2, 1],
-        [0, 3, 2],
-        // 上面 (+Z) - 外向き法線のためCCW順序
-        [4, 5, 6],
-        [4, 6, 7],
-        // 左面 (-X) - 外向き法線のためCCW順序
-        [0, 4, 7],
-        [0, 7, 3],
-        // 右面 (+X) - 外向き法線のためCCW順序
-        [1, 2, 6],
-        [1, 6, 5],
-        // 前面 (-Y) - 外向き法線のためCCW順序
-        [0, 1, 5],
-        [0, 5, 4],
-        // 後面 (+Y) - 外向き法線のためCCW順序
-        [3, 7, 6],
-        [3, 6, 2],
-    ];
-
-    let mesh = TriangleMesh3D::new(vertices, indices)?;
-
-    // Model層（geo_io）でファイル保存
-    stl::save_stl(&mesh, path)?;
-
-    tracing::info!("サンプルSTLファイル作成（立方体）: {:?}", path);
-    Ok(())
+    fixtures::create_sample_stl_mesh(path)
 }
 
 /// サンプル作成と読み込みを同時実行
