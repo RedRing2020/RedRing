@@ -373,37 +373,14 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
 /// # Returns
 /// ワイヤーフレーム頂点の位置データ（[[f32; 3]]）
 pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
-    use geo_algorithms::Point3D;
-
     tracing::info!("create_sample_voxel_octree_wireframe: 開始");
 
-    // ワークピース設定（100x100x50mm）
-    let work_bounds = Aabb3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(100.0, 100.0, 50.0),
-    );
-
-    let mut voxel_tree = VoxelOctree::new(work_bounds, 3); // depth 3 = 8ボクセル
+    let voxel_tree = geo_algorithms::octree::fixtures::create_sample_voxel_octree(3, 0.0);
 
     tracing::info!(
         "初期VoxelOctree: depth=3, 体積={:.1} mm³, ボクセルサイズ=12.5×12.5×6.25 mm",
         voxel_tree.remaining_volume()
     );
-
-    // デバッグ用：複数ボクセルを可視化するため、部分的に材料除去を適用
-    // 1) 中央ポケット除去（XY中央の大きな矩形領域）
-    let center_pocket = Aabb3D::new(
-        Point3D::new(30.0, 30.0, 0.0),
-        Point3D::new(70.0, 70.0, 50.0),
-    );
-    voxel_tree.remove_material_box(&center_pocket);
-
-    // 2) 横スロット除去（Y方向帯状）
-    let horizontal_slot = Aabb3D::new(
-        Point3D::new(0.0, 45.0, 0.0),
-        Point3D::new(100.0, 55.0, 50.0),
-    );
-    voxel_tree.remove_material_box(&horizontal_slot);
 
     tracing::info!(
         "テスト加工後: 体積={:.1} mm³, Solidボクセル={}",
@@ -482,8 +459,6 @@ pub fn create_sample_voxel_octree_wireframe_colored_levels(
 pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
     settings: &OctreeVisualizationSettings,
 ) -> Vec<Vec<WireframeVertex>> {
-    use geo_algorithms::Point3D;
-
     let mut levels = Vec::new();
     let max_depth = settings.max_depth;
 
@@ -502,26 +477,10 @@ pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
         ]
     };
 
-    let eps = settings.octree_tolerance.query_expand;
-
-    let work_bounds = Aabb3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(100.0, 100.0, 50.0),
+    let voxel_tree = geo_algorithms::octree::fixtures::create_sample_voxel_octree(
+        max_depth,
+        settings.octree_tolerance.query_expand,
     );
-
-    let mut voxel_tree = VoxelOctree::new(work_bounds, max_depth);
-
-    let center_pocket = Aabb3D::new(
-        Point3D::new(30.0 - eps, 30.0 - eps, 0.0),
-        Point3D::new(70.0 + eps, 70.0 + eps, 50.0),
-    );
-    voxel_tree.remove_material_box(&center_pocket);
-
-    let horizontal_slot = Aabb3D::new(
-        Point3D::new(0.0, 45.0 - eps, 0.0),
-        Point3D::new(100.0, 55.0 + eps, 50.0),
-    );
-    voxel_tree.remove_material_box(&horizontal_slot);
 
     for depth in 0..=max_depth {
         let options = VoxelVisualizationOptions {
@@ -556,8 +515,6 @@ pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
 pub fn create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
     settings: &OctreeVisualizationSettings,
 ) -> Vec<Vec<WireframeVertex>> {
-    use geo_algorithms::{LineSegment3D, Point3D};
-
     let mut levels = Vec::new();
     let max_depth = settings.max_depth;
 
@@ -576,28 +533,8 @@ pub fn create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
         ]
     };
 
-    let work_bounds = Aabb3D::new(
-        Point3D::new(-60.0, -60.0, -20.0),
-        Point3D::new(60.0, 60.0, 30.0),
-    );
-    let mut voxel_tree = VoxelOctree::new(work_bounds, max_depth);
-
-    let sample_segments = [
-        (
-            Point3D::new(-45.0, -25.0, 5.0),
-            Point3D::new(45.0, -25.0, 5.0),
-        ),
-        (Point3D::new(-45.0, 0.0, 4.0), Point3D::new(45.0, 0.0, 4.0)),
-        (
-            Point3D::new(-45.0, 25.0, 3.0),
-            Point3D::new(45.0, 25.0, 3.0),
-        ),
-    ];
-    for (start, end) in sample_segments {
-        if let Some(line) = LineSegment3D::new(start, end) {
-            voxel_tree.remove_material_swept_cylinder(&line, 5.0);
-        }
-    }
+    let voxel_tree =
+        geo_algorithms::octree::fixtures::create_sample_swept_cylinder_voxel_octree(max_depth);
 
     for depth in 0..=max_depth {
         let options = VoxelVisualizationOptions {
