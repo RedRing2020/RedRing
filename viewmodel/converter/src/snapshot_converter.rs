@@ -8,11 +8,9 @@ use application::cam_orchestration::{
     create_snapshot_series_from_exports, ApplicationError, CamSimulationExecutionOrchestration,
     CamSimulationExecutionOrchestrator, CamSimulationExecutionRequest,
 };
-use cam_core::Tool;
+use cam_core::{fixtures::create_sample_toolpath, Tool};
 use cam_sim::{SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, Point3D};
-
-use crate::toolpath_converter::create_sample_toolpath;
 
 /// 3D姿勢情報（位置 + 任意の姿勢）
 #[derive(Debug, Clone, Copy, PartialEq)]

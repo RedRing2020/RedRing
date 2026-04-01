@@ -9,8 +9,8 @@ use application::cam_orchestration::{
     ToolEntityManagementOrchestration, ToolEntityManagementOrchestrator,
 };
 use cam_core::{
-    validate_toolpath_machine_constraints, ArcDirection, CamTolerance, MachineConstraint,
-    PathGeometry, Tool, ToolPath, ValidationError,
+    fixtures::create_sample_toolpath, validate_toolpath_machine_constraints, ArcDirection,
+    CamTolerance, MachineConstraint, PathGeometry, Tool, ToolPath, ValidationError,
 };
 use cam_sim::{SimulationError, SnapshotInterval};
 use geo_algorithms::{
@@ -29,9 +29,7 @@ use crate::snapshot_converter::{
     cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
     CamSimulationSnapshotInput, DomainSnapshotSeries,
 };
-use crate::toolpath_converter::{
-    create_sample_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
-};
+use crate::toolpath_converter::{toolpath_to_vertices, ToolPathVisualizationSettings};
 use logging_foundation::ERROR_KIND_SIMULATION;
 
 #[derive(Debug, Clone, PartialEq)]
