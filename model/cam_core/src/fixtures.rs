@@ -2,7 +2,9 @@
 
 use geo_algorithms::Point3D;
 
-use crate::{ArcDirection, ContourLevelPath, CuttingDirection, PathSegment, SegmentType, ToolPath};
+use crate::{
+    ArcDirection, ContourLevelPath, CuttingDirection, PathSegment, SegmentType, Tool, ToolPath,
+};
 
 /// デバッグ用：サンプル工具経路を生成。
 ///
@@ -192,4 +194,25 @@ pub fn create_sample_toolpath() -> ToolPath<f64> {
         vec![contour1, contour1_inner, contour2],
         vec![final_retract, rapid_to_end],
     )
+}
+
+/// デバッグ用：空の工具経路を生成する。
+pub fn create_empty_toolpath() -> ToolPath<f64> {
+    ToolPath::new(
+        "endmill_3mm".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![],
+        vec![],
+    )
+}
+
+/// デバッグ用：ボールエンドミル工具を生成する。
+pub fn create_sample_ball_end_mill_tool() -> Tool<f64> {
+    Tool::ball_end_mill("ball_endmill_10mm".to_string(), 10.0, 50.0)
+}
+
+/// デバッグ用：フラットエンドミル工具を生成する。
+pub fn create_sample_flat_end_mill_tool() -> Tool<f64> {
+    Tool::flat_end_mill("flat_endmill_10mm".to_string(), 10.0, 50.0)
 }
