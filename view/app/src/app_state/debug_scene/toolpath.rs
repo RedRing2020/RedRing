@@ -196,7 +196,7 @@ impl AppState {
 
     /// サンプル表示用：ボールエンドミルでCAMシミュレーション可視化を表示
     pub fn load_sample_toolpath_ball_end_mill(&mut self) {
-        self.load_sample_toolpath_with_scenario(CamSimulationDemoScenario::Success, "Shift+P");
+        self.load_sample_toolpath_with_scenario(CamSimulationDemoScenario::Success, "Shift+B");
     }
 
     /// サンプル表示用：フラットエンドミルでCAMシミュレーション可視化を表示

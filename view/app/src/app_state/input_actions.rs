@@ -11,6 +11,14 @@ impl AppState {
             return;
         }
 
+        if matches!(
+            key,
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::Space)
+        ) {
+            self.toggle_auto_snapshot_playback();
+            return;
+        }
+
         if let winit::keyboard::Key::Character(ch) = key {
             match ch.as_str() {
                 "r" => {
@@ -43,7 +51,6 @@ impl AppState {
                     tracing::info!("2: Outlineステージ");
                     tracing::info!("3: Shadingステージ");
                     tracing::info!("=== 切削シミュレーション ===");
-                    tracing::info!("【開始】 Shift+P: ボールエンドミルのシミュレーションデモ開始");
                     tracing::info!(
                         "【開始】 Shift+F: フラットエンドミルのシミュレーションデモ開始"
                     );
@@ -53,6 +60,9 @@ impl AppState {
                     tracing::info!("【移動】 k: 次のスナップショットフレームへ");
                     tracing::info!("【移動】 j: 前のスナップショットフレームへ");
                     tracing::info!("【移動】 左ドラッグ（左上進捗バー）: 任意フレームへスクラブ");
+                    tracing::info!("【再生】 Space: 自動再生/一時停止");
+                    tracing::info!("【再生】 Shift+J: 自動再生停止（先頭へ）");
+                    tracing::info!("【再生】 + / - : 再生速度変更（現在倍率はタイトル表示）");
                     tracing::info!("【表示】 w: ワイヤー表示 / ソリッド表示を切り替え");
                     tracing::info!("=== デバッグ形状表示 ===");
                     tracing::info!("s: クリップ空間正方形（単位行列テスト）");
@@ -139,9 +149,6 @@ impl AppState {
                 "p" => {
                     self.load_sample_toolpath_only();
                 }
-                "P" => {
-                    self.load_sample_toolpath_ball_end_mill();
-                }
                 "F" => {
                     self.load_sample_toolpath_flat_end_mill();
                 }
@@ -164,6 +171,15 @@ impl AppState {
                     } else {
                         self.load_debug_simulation_snapshots();
                     }
+                }
+                "J" => {
+                    self.stop_auto_snapshot_playback();
+                }
+                "+" | "=" => {
+                    self.adjust_snapshot_playback_speed(0.1);
+                }
+                "-" | "_" => {
+                    self.adjust_snapshot_playback_speed(-0.1);
                 }
                 "T" => {
                     self.load_debug_triangle();

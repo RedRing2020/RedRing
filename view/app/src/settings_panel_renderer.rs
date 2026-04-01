@@ -47,6 +47,11 @@ impl SettingsPanelRenderer {
         self.egui_state.on_window_event(window, event).consumed
     }
 
+    /// eguiが現在マウスポインタを独占使用中（スライダードラッグ等）
+    pub(crate) fn is_using_pointer(&self) -> bool {
+        self.egui_context.egui_is_using_pointer()
+    }
+
     pub(crate) fn handle_mouse_motion(&mut self, delta: (f64, f64)) {
         self.egui_state.on_mouse_motion(delta);
     }

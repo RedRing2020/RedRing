@@ -3,6 +3,10 @@ use crate::settings_panel_ui::SettingsPanelUiState;
 use viewmodel::cam_sim_visualization_converter::CamSimulationDemoScenario;
 
 impl AppState {
+    pub fn is_settings_panel_open(&self) -> bool {
+        self.settings_panel_open
+    }
+
     pub fn toggle_settings_panel(&mut self) {
         self.settings_panel_open = !self.settings_panel_open;
         tracing::info!(
@@ -18,6 +22,10 @@ impl AppState {
     pub fn handle_settings_window_event(&mut self, event: &winit::event::WindowEvent) -> bool {
         self.renderer
             .handle_settings_window_event(&self.window, event)
+    }
+
+    pub fn is_settings_using_pointer(&self) -> bool {
+        self.renderer.is_settings_using_pointer()
     }
 
     pub fn handle_settings_mouse_motion(&mut self, delta: (f64, f64)) {

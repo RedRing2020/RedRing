@@ -24,13 +24,18 @@ impl ApplicationHandler for App {
         );
         self.state = Some(AppState::new(window));
         tracing::info!("=== RedRing 起動完了 ===");
-        tracing::info!("切削シミュレーションデモ開始: Shift+P/Shift+B=ボール, Shift+F=フラット");
+        tracing::info!("切削シミュレーションデモ開始: Shift+B=ボール, Shift+F=フラット");
         tracing::info!("操作ヘルプ全体は h キーで確認できます");
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         if let Some(state) = &mut self.state {
-            let settings_ui_consumed = state.handle_settings_window_event(&event);
+            let settings_ui_consumed = if state.is_settings_panel_open() {
+                state.handle_settings_window_event(&event);
+                state.is_settings_using_pointer()
+            } else {
+                false
+            };
             match event {
                 WindowEvent::CloseRequested => {
                     self.should_exit = true;
@@ -47,6 +52,9 @@ impl ApplicationHandler for App {
                         self.should_exit = true;
                         event_loop.exit();
                     }
+                }
+                WindowEvent::ModifiersChanged(modifiers) => {
+                    state.mouse_input.update_modifiers(modifiers.state());
                 }
                 WindowEvent::MouseInput {
                     button,
@@ -80,14 +88,17 @@ impl ApplicationHandler for App {
     ) {
         if let Some(state) = &mut self.state {
             if let DeviceEvent::MouseMotion { delta } = event {
-                state.handle_settings_mouse_motion(delta);
+                if state.is_settings_panel_open() {
+                    state.handle_settings_mouse_motion(delta);
+                }
                 state.handle_mouse_motion(delta);
             }
         }
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(state) = &self.state {
+        if let Some(state) = &mut self.state {
+            state.tick_snapshot_playback(std::time::Instant::now());
             state.window.request_redraw();
         }
     }

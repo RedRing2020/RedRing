@@ -18,19 +18,6 @@ impl AppState {
 
         match state {
             winit::event::ElementState::Pressed => {
-                if let Some(cursor) = self.cursor_position {
-                    if self.is_cursor_on_snapshot_track(cursor) {
-                        if self.debug_snapshot.series.is_none() {
-                            self.load_debug_simulation_snapshots();
-                        }
-                        self.snapshot_scrub_active = true;
-                        self.mouse_input.cancel_operation();
-                        self.set_snapshot_cursor_from_x(cursor.0, true);
-                        tracing::debug!("左クリック: snapshotスクラブ開始");
-                        return;
-                    }
-                }
-
                 if self.mouse_input.is_ctrl_pressed() {
                     self.arcball_drag_start = self.cursor_position;
                     let viewport_width = self.graphic.config.width as f32;
@@ -46,6 +33,19 @@ impl AppState {
                         self.arcball_virtual_cursor
                     );
                     return;
+                }
+
+                if let Some(cursor) = self.cursor_position {
+                    if self.is_cursor_on_snapshot_track(cursor) {
+                        if self.debug_snapshot.series.is_none() {
+                            self.load_debug_simulation_snapshots();
+                        }
+                        self.snapshot_scrub_active = true;
+                        self.mouse_input.cancel_operation();
+                        self.set_snapshot_cursor_from_x(cursor.0, true);
+                        tracing::debug!("左クリック: snapshotスクラブ開始");
+                        return;
+                    }
                 }
 
                 tracing::info!("左ドラッグ: ビュー矩形選択モード（カメラ操作はCtrl+ドラッグ）");
