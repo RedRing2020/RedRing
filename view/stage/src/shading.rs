@@ -46,6 +46,7 @@ impl RenderStage for ShadingStage {
             depth_stencil_attachment: None, // 後で追加可能
             occlusion_query_set: None,
             timestamp_writes: None,
+            multiview_mask: None,
         };
 
         let mut render_pass = encoder.begin_render_pass(&render_pass_desc);

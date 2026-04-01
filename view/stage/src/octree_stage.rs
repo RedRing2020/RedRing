@@ -319,6 +319,7 @@ impl RenderStage for OctreeStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         self.resources.render(&mut render_pass);

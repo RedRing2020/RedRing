@@ -191,6 +191,7 @@ impl RenderStage for MeshStage {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         // レンダリングモードに応じた描画
@@ -252,6 +253,7 @@ impl RenderStage for MeshStage {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             if let Some(line_res) = &self.line_resources {
@@ -294,6 +296,7 @@ impl RenderStage for MeshStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         // レンダリングモードに応じた描画
@@ -333,6 +336,7 @@ impl RenderStage for MeshStage {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             if let Some(line_res) = &self.overlay_line_resources {

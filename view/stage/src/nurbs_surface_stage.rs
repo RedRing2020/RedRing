@@ -178,6 +178,7 @@ impl RenderStage for NurbsSurfaceStage {
             }),
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         resources.render(&mut render_pass, self.wireframe_mode);
