@@ -1,6 +1,6 @@
 //! CAM向け orchestration 境界。
 
-use cam_core::{Tool, ToolPath};
+use cam_core::{Tool, ToolPath, fixtures::create_sample_toolpath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, octree::VoxelOctree};
 
@@ -151,6 +151,23 @@ pub fn execute_simulation_snapshot_exports(
     })
 }
 
+/// デバッグ用：CAMスナップショットサンプルを実行し、export DTO を返す。
+pub fn create_sample_snapshot_exports_for_demo()
+-> Result<CamSimulationExecutionResult, ApplicationError> {
+    let request = CamSimulationExecutionRequest {
+        toolpath: create_sample_toolpath(),
+        tool: Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0),
+        work_bounds: Aabb3D::new(
+            geo_algorithms::Point3D::new(-60.0, -60.0, -20.0),
+            geo_algorithms::Point3D::new(60.0, 60.0, 30.0),
+        ),
+        max_depth: 4,
+        snapshot_interval: SnapshotInterval::default(),
+    };
+
+    CamSimulationExecutionOrchestrator.execute_simulation_snapshot_exports(request)
+}
+
 /// Tool を Entity ストレージに追加するための入力DTO。
 #[derive(Debug, Clone)]
 pub struct AddToolToEntityStorageRequest {
@@ -294,6 +311,13 @@ mod tests {
                 SimulationError::EmptyToolpath.to_string()
             ))
         );
+    }
+
+    #[test]
+    fn test_create_sample_snapshot_exports_for_demo() {
+        let result = create_sample_snapshot_exports_for_demo()
+            .expect("sample snapshot exports for demo should succeed");
+        assert!(!result.exports.is_empty());
     }
 
     #[test]
