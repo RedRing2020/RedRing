@@ -16,12 +16,14 @@ pub mod result;
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
 
 pub use angle_utils::{
-    are_angles_equivalent_deg, normalize_angle_deg, normalize_angle_signed_deg, rewound_target_deg,
-    shortest_angular_delta_deg, unwind_angles_deg, RewindPolicy,
+    are_angles_equivalent_deg, is_equivalent_0_360, normalize_angle_deg,
+    normalize_angle_signed_deg, normalize_to_0_360, normalize_to_minus180_180, rewound_target_deg,
+    shortest_angle, shortest_angular_delta_deg, unwind_angles_deg, AngularPosition, RewindPolicy,
 };
 pub use constraint_validation::{
-    validate_linear_acceleration_mm_per_s2, validate_linear_speed_mm_per_min,
-    validate_linear_travel_mm, validate_rotary_acceleration_deg_per_s2, validate_rotary_angle_deg,
+    validate_acceleration, validate_feed_rate, validate_linear_acceleration_mm_per_s2,
+    validate_linear_speed_mm_per_min, validate_linear_travel, validate_linear_travel_mm,
+    validate_rotary_acceleration_deg_per_s2, validate_rotary_angle, validate_rotary_angle_deg,
     validate_rotary_speed_deg_per_min, ConstraintViolation, ValidationResult,
 };
 
