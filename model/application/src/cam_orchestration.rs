@@ -2,7 +2,7 @@
 
 use cam_core::{Tool, ToolPath, fixtures::create_sample_toolpath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
-use geo_algorithms::{Aabb3D, octree::VoxelOctree};
+use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, octree::VoxelOctree};
 
 /// Application境界で返却する統一エラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,8 +158,8 @@ pub fn create_sample_snapshot_exports_for_demo()
         toolpath: create_sample_toolpath(),
         tool: Tool::flat_end_mill("endmill_3mm".to_string(), 10.0, 50.0),
         work_bounds: Aabb3D::new(
-            geo_algorithms::Point3D::new(-60.0, -60.0, -20.0),
-            geo_algorithms::Point3D::new(60.0, 60.0, 30.0),
+            Point3D::new(-60.0, -60.0, -20.0),
+            Point3D::new(60.0, 60.0, 30.0),
         ),
         max_depth: 4,
         snapshot_interval: SnapshotInterval::default(),
@@ -217,11 +217,103 @@ impl ToolEntityManagementOrchestration for ToolEntityManagementOrchestrator {
     }
 }
 
+/// ToolPath セグメント列から、シミュレーション用ワーク境界 AABB を推定する。
+///
+/// セグメントが空の場合はデフォルト境界（X/Y ±60mm、Z -20..5mm）を返す。
+pub fn compute_toolpath_work_bounds(
+    segments: &[(LineSegment3D<f64>, bool)],
+    tool_radius: f64,
+) -> Aabb3D<f64> {
+    if segments.is_empty() {
+        return Aabb3D::new(
+            Point3D::new(-60.0, -60.0, -20.0),
+            Point3D::new(60.0, 60.0, 5.0),
+        );
+    }
+
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut min_z = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    let mut max_z = f64::NEG_INFINITY;
+    let mut cutting_min_z = f64::INFINITY;
+    let mut cutting_max_z = f64::NEG_INFINITY;
+
+    for (segment, is_cutting) in segments {
+        let points = [segment.start(), segment.end()];
+        for point in points {
+            min_x = min_x.min(point.x());
+            min_y = min_y.min(point.y());
+            min_z = min_z.min(point.z());
+            max_x = max_x.max(point.x());
+            max_y = max_y.max(point.y());
+            max_z = max_z.max(point.z());
+            if *is_cutting {
+                cutting_min_z = cutting_min_z.min(point.z());
+                cutting_max_z = cutting_max_z.max(point.z());
+            }
+        }
+    }
+
+    if !cutting_min_z.is_finite() || !cutting_max_z.is_finite() {
+        cutting_min_z = min_z;
+        cutting_max_z = max_z;
+    }
+
+    let xy_margin = (tool_radius * 3.0).max(10.0);
+    let z_top_margin = (tool_radius * 0.2).max(0.5);
+    let z_bottom_margin = (tool_radius * 4.0).max(10.0);
+
+    Aabb3D::new(
+        Point3D::new(
+            min_x - xy_margin,
+            min_y - xy_margin,
+            cutting_min_z - z_bottom_margin,
+        ),
+        Point3D::new(
+            max_x + xy_margin,
+            max_y + xy_margin,
+            cutting_max_z + z_top_margin,
+        ),
+    )
+}
+
+/// work_bounds 内に入り込む非切削セグメント数を数える（干渉確認用）。
+pub fn count_non_cutting_interference_segments(
+    segments: &[(LineSegment3D<f64>, bool)],
+    work_bounds: &Aabb3D<f64>,
+    tool_radius: f64,
+) -> usize {
+    let stock_min = work_bounds.min();
+    let stock_max = work_bounds.max();
+
+    segments
+        .iter()
+        .filter(|(_, is_cutting)| !*is_cutting)
+        .filter(|(segment, _)| {
+            let seg_min_x = segment.start().x().min(segment.end().x()) - tool_radius;
+            let seg_min_y = segment.start().y().min(segment.end().y()) - tool_radius;
+            let seg_min_z = segment.start().z().min(segment.end().z());
+
+            let seg_max_x = segment.start().x().max(segment.end().x()) + tool_radius;
+            let seg_max_y = segment.start().y().max(segment.end().y()) + tool_radius;
+            let seg_max_z = segment.start().z().max(segment.end().z()) + 0.0001;
+
+            !(seg_max_x < stock_min.x()
+                || seg_min_x > stock_max.x()
+                || seg_max_y < stock_min.y()
+                || seg_min_y > stock_max.y()
+                || seg_max_z < stock_min.z()
+                || seg_min_z > stock_max.z())
+        })
+        .count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use cam_core::CuttingDirection;
-    use geo_algorithms::Point3D;
 
     #[test]
     fn test_create_snapshot_series_from_frames() {
