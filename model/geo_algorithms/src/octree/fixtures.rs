@@ -1,7 +1,8 @@
 //! Octree向けサンプルデータ生成。
 
 use geo_core::{Aabb3D, Point3D};
-use geo_primitives::LineSegment3D;
+
+use crate::LineSegment3D;
 
 use super::VoxelOctree;
 
