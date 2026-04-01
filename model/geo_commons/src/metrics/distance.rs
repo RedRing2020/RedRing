@@ -2,6 +2,7 @@
 //!
 //! 幾何形状間の距離計算アルゴリズムを提供します。
 
+use analysis::linalg::vector::Vector3;
 use analysis::Scalar;
 
 /// 2D楕円上の点から任意の点への距離を計算
@@ -111,7 +112,7 @@ pub fn sphere_to_infinite_line_distance<T: Scalar>(
     let to_cz = cz - pz;
 
     // direction の内積
-    let dir_dot = dx * dx + dy * dy + dz * dz;
+    let dir_dot = Vector3::new(dx, dy, dz).norm_squared();
 
     // パラメータ t = to_center · direction / |direction|²
     let t = (to_cx * dx + to_cy * dy + to_cz * dz) / dir_dot;
@@ -176,7 +177,7 @@ pub fn sphere_to_ray_distance<T: Scalar>(
     let to_cz = cz - oz;
 
     // direction の内積
-    let dir_dot = dx * dx + dy * dy + dz * dz;
+    let dir_dot = Vector3::new(dx, dy, dz).norm_squared();
 
     // パラメータ t
     let t = (to_cx * dx + to_cy * dy + to_cz * dz) / dir_dot;
@@ -260,7 +261,7 @@ pub fn sphere_to_line_segment_distance<T: Scalar>(
     let to_cz = cz - sz;
 
     // direction の内積
-    let dir_dot = dx * dx + dy * dy + dz * dz;
+    let dir_dot = Vector3::new(dx, dy, dz).norm_squared();
 
     // パラメータ t
     let t = (to_cx * dx + to_cy * dy + to_cz * dz) / dir_dot;
@@ -339,10 +340,7 @@ pub fn line_segment_to_aabb_distance<T: Scalar>(
 
     // ヘルパー関数: 2点間の距離
     let distance = |p1x: T, p1y: T, p1z: T, p2x: T, p2y: T, p2z: T| -> T {
-        let dx = p1x - p2x;
-        let dy = p1y - p2y;
-        let dz = p1z - p2z;
-        (dx * dx + dy * dy + dz * dz).sqrt()
+        Vector3::new(p1x - p2x, p1y - p2y, p1z - p2z).norm()
     };
 
     // 1. 線分の端点がAABB内部にあれば距離0
@@ -396,7 +394,7 @@ pub fn line_segment_to_aabb_distance<T: Scalar>(
         let to_vz = vz - sz;
 
         let dot = to_vx * dx + to_vy * dy + to_vz * dz;
-        let len_sq = dx * dx + dy * dy + dz * dz;
+        let len_sq = Vector3::new(dx, dy, dz).norm_squared();
 
         let t = if len_sq <= T::EPSILON {
             T::ZERO

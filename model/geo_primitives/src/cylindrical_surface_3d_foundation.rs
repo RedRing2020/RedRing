@@ -40,10 +40,9 @@ impl<T: Scalar> Bounded<T> for CylindricalSurface3D<T> {
 impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 中心点の比較
-        let dx = self.center_internal().x() - other.center_internal().x();
-        let dy = self.center_internal().y() - other.center_internal().y();
-        let dz = self.center_internal().z() - other.center_internal().z();
-        let center_dist_sq = dx * dx + dy * dy + dz * dz;
+        let center_dist_sq = self
+            .center_internal()
+            .distance_squared_to(&other.center_internal());
         if center_dist_sq > tolerance * tolerance {
             return false;
         }

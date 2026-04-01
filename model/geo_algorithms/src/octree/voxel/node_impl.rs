@@ -1,4 +1,5 @@
 use super::*;
+use analysis::linalg::vector::Vector2;
 use geo_contracts::CrossDistance;
 
 impl<T: Scalar> VoxelNode<T> {
@@ -416,10 +417,9 @@ impl<T: Scalar> VoxelNode<T> {
         let closest_y = sy + axis_y * t;
         let closest_z = sz + axis_z * t;
 
-        let dx = px - closest_x;
-        let dy = py - closest_y;
-        let dz = pz - closest_z;
-        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let point = Point3D::new(px, py, pz);
+        let closest = Point3D::new(closest_x, closest_y, closest_z);
+        let distance = point.distance_to(&closest);
         // 半径方向距離で円柱断面内判定。
         distance <= radius
     }
@@ -442,7 +442,9 @@ impl<T: Scalar> VoxelNode<T> {
         let to_py = py - sy;
         let to_pz = pz - sz;
 
-        let len_sq = dx * dx + dy * dy + dz * dz;
+        let start_point = Point3D::new(sx, sy, sz);
+        let end_point = Point3D::new(ex, ey, ez);
+        let len_sq = start_point.distance_squared_to(&end_point);
         let t = if len_sq <= T::EPSILON {
             T::ZERO
         } else {
@@ -454,10 +456,9 @@ impl<T: Scalar> VoxelNode<T> {
         let closest_y = sy + dy * t;
         let closest_z = sz + dz * t;
 
-        let diff_x = px - closest_x;
-        let diff_y = py - closest_y;
-        let diff_z = pz - closest_z;
-        (diff_x * diff_x + diff_y * diff_y + diff_z * diff_z).sqrt()
+        let point = Point3D::new(px, py, pz);
+        let closest = Point3D::new(closest_x, closest_y, closest_z);
+        point.distance_to(&closest)
     }
 
     /// Z軸平行の軸付き形状に特化した高速除去を行う。
@@ -542,8 +543,7 @@ impl<T: Scalar> VoxelNode<T> {
 
         let dx = center_x - closest_x;
         let dy = center_y - closest_y;
-
-        (dx * dx + dy * dy).sqrt()
+        Vector2::new(dx, dy).norm()
     }
 
     /// Z軸平行カプセルにAABB全体が内包されるかを判定する。
@@ -570,9 +570,7 @@ impl<T: Scalar> VoxelNode<T> {
         ];
 
         for &(x, y) in &corners_2d {
-            let dx = x - center_x;
-            let dy = y - center_y;
-            let distance = (dx * dx + dy * dy).sqrt();
+            let distance = Vector2::new(x - center_x, y - center_y).norm();
             if distance > radius {
                 return false;
             }

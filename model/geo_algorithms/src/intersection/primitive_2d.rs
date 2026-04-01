@@ -22,9 +22,8 @@ pub fn circle2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let dx = point.x() - circle.center().0;
-    let dy = point.y() - circle.center().1;
-    let distance = (dx * dx + dy * dy).sqrt();
+    let center = Point2D::from_tuple(circle.center());
+    let distance = point.distance_to(&center);
 
     let opt = if (distance - circle.radius()).abs() <= tolerance {
         Some(*point)
@@ -39,9 +38,9 @@ pub fn circle2d_circle2d_intersections_algo<T: Scalar>(
     circle2: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let dx = circle2.center().0 - circle1.center().0;
-    let dy = circle2.center().1 - circle1.center().1;
-    let center_distance = (dx * dx + dy * dy).sqrt();
+    let center1 = Point2D::from_tuple(circle1.center());
+    let center2 = Point2D::from_tuple(circle2.center());
+    let center_distance = center1.distance_to(&center2);
 
     if center_distance <= tolerance {
         if (circle1.radius() - circle2.radius()).abs() <= tolerance {
@@ -278,10 +277,8 @@ pub fn arc2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (center_x, center_y) = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
-    let dx = point.x() - center_x;
-    let dy = point.y() - center_y;
-    let distance = (dx * dx + dy * dy).sqrt();
+    let center = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
+    let distance = point.distance_to(&center);
 
     if (distance - arc.radius()).abs() > tolerance {
         return IntersectionResult::from_option_point2d(None, false, tolerance);

@@ -373,9 +373,7 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         // 簡易実装: 円弧の中心からの距離との差分
         let center = self.center_internal();
-        let dx = point.0 - center.x();
-        let dy = point.1 - center.y();
-        let distance_from_center = (dx * dx + dy * dy).sqrt();
+        let distance_from_center = center.distance_to(&Point2D::new(point.0, point.1));
         (distance_from_center - self.radius_internal()).abs()
     }
 

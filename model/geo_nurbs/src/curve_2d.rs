@@ -228,9 +228,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
             let t = t_min + dt * T::from_usize(i);
             let current_point = self.evaluate_at(t);
 
-            let dx = current_point.x() - prev_point.x();
-            let dy = current_point.y() - prev_point.y();
-            let segment_length = (dx * dx + dy * dy).sqrt();
+            let segment_length = (current_point - prev_point).norm();
 
             total_length += segment_length;
             prev_point = current_point;
