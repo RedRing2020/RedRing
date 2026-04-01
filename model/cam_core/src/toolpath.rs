@@ -518,20 +518,10 @@ impl<T: Scalar> PathSegment<T> {
     /// 円弧の場合は円弧長。
     pub fn length(&self) -> T {
         match &self.geometry {
-            PathGeometry::Line { end } => {
-                let dx = end.x() - self.start.x();
-                let dy = end.y() - self.start.y();
-                let dz = end.z() - self.start.z();
-                (dx * dx + dy * dy + dz * dz).sqrt()
-            }
+            PathGeometry::Line { end } => self.start.distance_to(end),
             PathGeometry::Arc { end, center, .. } => {
                 // 円弧長 = 半径 × 中心角
-                let radius = {
-                    let dx = self.start.x() - center.x();
-                    let dy = self.start.y() - center.y();
-                    let dz = self.start.z() - center.z();
-                    (dx * dx + dy * dy + dz * dz).sqrt()
-                };
+                let radius = self.start.distance_to(center);
 
                 // 始点→中心、終点→中心のベクトル
                 let v1_x = self.start.x() - center.x();

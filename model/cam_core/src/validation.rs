@@ -299,9 +299,7 @@ pub fn validate_2d_contour<T: Scalar>(
     let start = &points[0];
     let end = &points[points.len() - 1];
 
-    let dx = end.x() - start.x();
-    let dy = end.y() - start.y();
-    let distance = (dx * dx + dy * dy).sqrt();
+    let distance = start.distance_to(end);
 
     // トレランス比較
     if distance > tolerance.closure_tolerance {
