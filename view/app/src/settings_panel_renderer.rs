@@ -53,7 +53,7 @@ impl SettingsPanelRenderer {
 
     pub(crate) fn prepare(&mut self, window: &Window, panel: &mut SettingsPanelUiState) {
         let raw_input = self.egui_state.take_egui_input(window);
-        let full_output = self.egui_context.run(raw_input, |ctx| panel.show(ctx));
+        let full_output = self.egui_context.run_ui(raw_input, |ctx| panel.show(ctx));
         let pixels_per_point = full_output.pixels_per_point;
         let paint_jobs = self
             .egui_context
@@ -122,6 +122,7 @@ impl SettingsPanelRenderer {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             let mut render_pass = render_pass.forget_lifetime();
             self.egui_renderer

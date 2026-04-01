@@ -89,7 +89,7 @@ pub fn init_graphic(window: Arc<Window>) -> Graphic {
 impl Graphic {
     pub fn render(&mut self, renderer: &mut AppRenderer) {
         match self.surface.get_current_texture() {
-            Ok(frame) => {
+            wgpu::CurrentSurfaceTexture::Success(frame) => {
                 let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
                     dimension: Some(wgpu::TextureViewDimension::D2),
                     ..Default::default()
@@ -114,7 +114,7 @@ impl Graphic {
                 frame.present();
                 self.surface_texture = None;
             }
-            Err(e) => {
+            e => {
                 eprintln!("Failed to acquire surface texture: {:?}", e);
             }
         }
