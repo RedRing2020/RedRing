@@ -360,35 +360,69 @@ pub fn voxel_octree_to_wireframe<T: Scalar>(
     deduped
 }
 
+pub fn voxel_octree_to_wireframe_positions<T: Scalar>(
+    voxel_octree: &VoxelOctree<T>,
+    options: &VoxelVisualizationOptions,
+) -> Vec<[f32; 3]> {
+    voxel_octree_to_wireframe(voxel_octree, options)
+        .iter()
+        .map(|vertex| vertex.position)
+        .collect()
+}
+
+pub fn voxel_octree_to_wireframe_colored_levels_with_settings<T: Scalar>(
+    voxel_octree: &VoxelOctree<T>,
+    settings: &OctreeVisualizationSettings,
+) -> Vec<Vec<WireframeVertex>> {
+    let mut levels = Vec::new();
+    let max_depth = settings.max_depth;
+
+    let depth_color = |depth: usize, max_depth: usize| {
+        if max_depth == 0 {
+            return settings.gradient_start;
+        }
+        let t = (depth as f32 / max_depth as f32).clamp(0.0, 1.0);
+        [
+            settings.gradient_start[0]
+                + (settings.gradient_end[0] - settings.gradient_start[0]) * t,
+            settings.gradient_start[1]
+                + (settings.gradient_end[1] - settings.gradient_start[1]) * t,
+            settings.gradient_start[2]
+                + (settings.gradient_end[2] - settings.gradient_start[2]) * t,
+        ]
+    };
+
+    for depth in 0..=max_depth {
+        let options = VoxelVisualizationOptions {
+            depth_range: 0..(depth + 1),
+            show_states: vec![VoxelState::Solid],
+            color_by_state: false,
+            color_by_depth: true,
+            max_depth: max_depth.max(1),
+        };
+
+        let mut wireframe_vertices = voxel_octree_to_wireframe(voxel_octree, &options);
+        let color = depth_color(depth, max_depth.max(1));
+        for vertex in &mut wireframe_vertices {
+            vertex.color = color;
+        }
+        levels.push(wireframe_vertices);
+    }
+
+    tracing::info!(
+        "create_sample_voxel_octree_wireframe_colored_levels_with_settings: {} レベル生成（0..{}）",
+        levels.len(),
+        max_depth
+    );
+
+    levels
+}
+
 /// デバッグ/教育用：サンプルVoxelOctreeワイヤーフレームデータを生成
-///
-/// 100x100x50mmのワークピースに簡単な切削例を作成し、
-/// ワイヤーフレーム頂点データを返します。
-///
-/// # 生成される形状
-/// - ワークピース: 100x100x50mm
-/// - 外縁10mm除去
-/// - 中央にポケット加工（直径10mm、深さ30mm）
-///
-/// # Returns
-/// ワイヤーフレーム頂点の位置データ（[[f32; 3]]）
 pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
     tracing::info!("create_sample_voxel_octree_wireframe: 開始");
 
     let voxel_tree = geo_algorithms::octree::fixtures::create_sample_voxel_octree(3, 0.0);
-
-    tracing::info!(
-        "初期VoxelOctree: depth=3, 体積={:.1} mm³, ボクセルサイズ=12.5×12.5×6.25 mm",
-        voxel_tree.remaining_volume()
-    );
-
-    tracing::info!(
-        "テスト加工後: 体積={:.1} mm³, Solidボクセル={}",
-        voxel_tree.remaining_volume(),
-        voxel_tree.solid_voxel_count()
-    );
-
-    // ViewModel で変換（ワイヤーフレーム頂点に）
     let options = VoxelVisualizationOptions {
         depth_range: 0..8,
         show_states: vec![VoxelState::Solid],
@@ -396,26 +430,7 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
         color_by_depth: false,
         max_depth: 6,
     };
-
-    let wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
-
-    tracing::info!(
-        "voxel_octree_to_wireframe: {} 頂点生成",
-        wireframe_vertices.len()
-    );
-
-    // 頂点を [[f32; 3]] 配列に変換
-    let positions: Vec<[f32; 3]> = wireframe_vertices.iter().map(|v| v.position).collect();
-
-    // 最初の頂点をデバッグ出力
-    if let Some(first) = positions.first() {
-        tracing::info!(
-            "First vertex: [{:.1}, {:.1}, {:.1}]",
-            first[0],
-            first[1],
-            first[2]
-        );
-    }
+    let positions = voxel_octree_to_wireframe_positions(&voxel_tree, &options);
 
     tracing::info!(
         "create_sample_voxel_octree_wireframe: 完了 ({} positions)",
@@ -426,22 +441,12 @@ pub fn create_sample_voxel_octree_wireframe() -> Vec<[f32; 3]> {
 }
 
 /// デバッグ用：深さごとのサンプルVoxelOctreeワイヤーフレームを生成
-///
-/// 返り値の index が深さレベルに対応します。
 pub fn create_sample_voxel_octree_wireframe_levels(max_depth: usize) -> Vec<Vec<[f32; 3]>> {
     let colored_levels = create_sample_voxel_octree_wireframe_colored_levels(max_depth);
-    let levels: Vec<Vec<[f32; 3]>> = colored_levels
+    colored_levels
         .iter()
         .map(|vertices| vertices.iter().map(|v| v.position).collect())
-        .collect();
-
-    tracing::info!(
-        "create_sample_voxel_octree_wireframe_levels: {} レベル生成（0..{}）",
-        levels.len(),
-        max_depth
-    );
-
-    levels
+        .collect()
 }
 
 /// デバッグ用：深さごとのサンプルVoxelOctreeワイヤーフレーム（色付き）を生成
@@ -459,112 +464,36 @@ pub fn create_sample_voxel_octree_wireframe_colored_levels(
 pub fn create_sample_voxel_octree_wireframe_colored_levels_with_settings(
     settings: &OctreeVisualizationSettings,
 ) -> Vec<Vec<WireframeVertex>> {
-    let mut levels = Vec::new();
-    let max_depth = settings.max_depth;
-
-    let depth_color = |depth: usize, max_depth: usize| {
-        if max_depth == 0 {
-            return settings.gradient_start;
-        }
-        let t = (depth as f32 / max_depth as f32).clamp(0.0, 1.0);
-        [
-            settings.gradient_start[0]
-                + (settings.gradient_end[0] - settings.gradient_start[0]) * t,
-            settings.gradient_start[1]
-                + (settings.gradient_end[1] - settings.gradient_start[1]) * t,
-            settings.gradient_start[2]
-                + (settings.gradient_end[2] - settings.gradient_start[2]) * t,
-        ]
-    };
-
     let voxel_tree = geo_algorithms::octree::fixtures::create_sample_voxel_octree(
-        max_depth,
+        settings.max_depth,
         settings.octree_tolerance.query_expand,
     );
-
-    for depth in 0..=max_depth {
-        let options = VoxelVisualizationOptions {
-            depth_range: 0..(depth + 1),
-            show_states: vec![VoxelState::Solid],
-            color_by_state: false,
-            color_by_depth: true,
-            max_depth: max_depth.max(1),
-        };
-
-        let mut wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
-        let color = depth_color(depth, max_depth.max(1));
-        for vertex in &mut wireframe_vertices {
-            vertex.color = color;
-        }
-        levels.push(wireframe_vertices);
-    }
-
-    tracing::info!(
-        "create_sample_voxel_octree_wireframe_colored_levels_with_settings: {} レベル生成（0..{}）",
-        levels.len(),
-        max_depth
-    );
-
-    levels
+    voxel_octree_to_wireframe_colored_levels_with_settings(&voxel_tree, settings)
 }
 
-/// デバッグ用：ToolPath線分を平端掃引円柱で除去した結果を深さ別ワイヤーフレームで生成
-///
-/// `cam_sim` と同じ平端掃引円柱カーネル（`remove_material_swept_cylinder`）を使い、
-/// 可視確認用の頂点データを返します。
+/// デバッグ用：掃引円柱除去サンプルの深さ別ワイヤーフレームを生成
 pub fn create_sample_swept_cylinder_wireframe_colored_levels_with_settings(
     settings: &OctreeVisualizationSettings,
 ) -> Vec<Vec<WireframeVertex>> {
-    let mut levels = Vec::new();
-    let max_depth = settings.max_depth;
-
-    let depth_color = |depth: usize, max_depth: usize| {
-        if max_depth == 0 {
-            return settings.gradient_start;
-        }
-        let t = (depth as f32 / max_depth as f32).clamp(0.0, 1.0);
-        [
-            settings.gradient_start[0]
-                + (settings.gradient_end[0] - settings.gradient_start[0]) * t,
-            settings.gradient_start[1]
-                + (settings.gradient_end[1] - settings.gradient_start[1]) * t,
-            settings.gradient_start[2]
-                + (settings.gradient_end[2] - settings.gradient_start[2]) * t,
-        ]
-    };
-
-    let voxel_tree =
-        geo_algorithms::octree::fixtures::create_sample_swept_cylinder_voxel_octree(max_depth);
-
-    for depth in 0..=max_depth {
-        let options = VoxelVisualizationOptions {
-            depth_range: 0..(depth + 1),
-            show_states: vec![VoxelState::Solid],
-            color_by_state: false,
-            color_by_depth: true,
-            max_depth: max_depth.max(1),
-        };
-
-        let mut wireframe_vertices = voxel_octree_to_wireframe(&voxel_tree, &options);
-        let color = depth_color(depth, max_depth.max(1));
-        for vertex in &mut wireframe_vertices {
-            vertex.color = color;
-        }
-        levels.push(wireframe_vertices);
-    }
-
-    tracing::info!(
-        "create_sample_swept_cylinder_wireframe_colored_levels_with_settings: {} レベル生成（0..{}）",
-        levels.len(),
-        max_depth
+    let voxel_tree = geo_algorithms::octree::fixtures::create_sample_swept_cylinder_voxel_octree(
+        settings.max_depth,
     );
+    voxel_octree_to_wireframe_colored_levels_with_settings(&voxel_tree, settings)
+}
 
-    levels
+/// デバッグ用 facade: 掃引円柱除去サンプルの深さ別ワイヤーフレームを生成
+pub fn load_demo_swept_cylinder_wireframe_colored_levels_with_settings(
+    settings: &OctreeVisualizationSettings,
+) -> Vec<Vec<WireframeVertex>> {
+    create_sample_swept_cylinder_wireframe_colored_levels_with_settings(settings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use geo_algorithms::octree::fixtures::{
+        create_sample_swept_cylinder_voxel_octree, create_sample_voxel_octree,
+    };
 
     #[test]
     fn test_depth_to_color() {
@@ -626,8 +555,16 @@ mod tests {
     }
 
     #[test]
-    fn test_create_sample_voxel_octree_wireframe() {
-        let positions = create_sample_voxel_octree_wireframe();
+    fn test_voxel_octree_to_wireframe_positions() {
+        let voxel_tree = create_sample_voxel_octree(3, 0.0);
+        let options = VoxelVisualizationOptions {
+            depth_range: 0..8,
+            show_states: vec![VoxelState::Solid],
+            color_by_state: true,
+            color_by_depth: false,
+            max_depth: 6,
+        };
+        let positions = voxel_octree_to_wireframe_positions(&voxel_tree, &options);
 
         // サンプルデータが生成されること
         assert!(!positions.is_empty(), "サンプルデータが生成されるべき");
@@ -656,30 +593,26 @@ mod tests {
     }
 
     #[test]
-    fn test_create_sample_voxel_octree_wireframe_levels() {
-        let levels = create_sample_voxel_octree_wireframe_levels(3);
-        assert_eq!(levels.len(), 4);
-        assert!(
-            levels.iter().any(|positions| !positions.is_empty()),
-            "少なくとも1つの深さレベルでは可視化データが生成されるべき"
-        );
-    }
-
-    #[test]
-    fn test_create_sample_voxel_octree_wireframe_colored_levels() {
-        let levels = create_sample_voxel_octree_wireframe_colored_levels(3);
+    fn test_voxel_octree_to_wireframe_colored_levels_with_settings() {
+        let settings = OctreeVisualizationSettings {
+            max_depth: 3,
+            ..OctreeVisualizationSettings::default()
+        };
+        let voxel_tree = create_sample_voxel_octree(3, settings.octree_tolerance.query_expand);
+        let levels = voxel_octree_to_wireframe_colored_levels_with_settings(&voxel_tree, &settings);
         assert_eq!(levels.len(), 4);
         assert!(levels.iter().any(|vertices| !vertices.is_empty()));
     }
 
     #[test]
-    fn test_create_sample_swept_cylinder_wireframe_colored_levels_with_settings() {
+    fn test_voxel_octree_to_wireframe_colored_levels_with_swept_cylinder_fixture() {
         let settings = OctreeVisualizationSettings {
             max_depth: 3,
             ..OctreeVisualizationSettings::default()
         };
 
-        let levels = create_sample_swept_cylinder_wireframe_colored_levels_with_settings(&settings);
+        let voxel_tree = create_sample_swept_cylinder_voxel_octree(settings.max_depth);
+        let levels = voxel_octree_to_wireframe_colored_levels_with_settings(&voxel_tree, &settings);
         assert_eq!(levels.len(), 4);
         assert!(levels.iter().any(|vertices| !vertices.is_empty()));
     }

@@ -433,10 +433,10 @@ fn tessellate_arc(
     result
 }
 
-/// デバッグ用：サンプル工具経路を生成
+/// デバッグ用：サンプル工具経路を取得
 ///
-/// シンプルな矩形加工経路を返します（UI表示テスト用）
-pub fn create_sample_toolpath() -> ToolPath<f64> {
+/// 生成本体は `cam_core::fixtures` に置き、ViewModel は層境界の薄い中継だけを担う。
+pub fn load_demo_toolpath() -> ToolPath<f64> {
     cam_core::fixtures::create_sample_toolpath()
 }
 
@@ -583,7 +583,7 @@ mod tests {
             }
         }
 
-        let toolpath = create_sample_toolpath();
+        let toolpath = load_demo_toolpath();
         let mut ordered = Vec::new();
         ordered.extend(toolpath.approach_segments.iter());
         for contour in &toolpath.contour_levels {

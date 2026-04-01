@@ -5,7 +5,8 @@
 //! 同じ構造で適用できることを目的とします。
 
 use application::cam_orchestration::{
-    create_sample_snapshot_exports_for_demo, create_snapshot_series_from_exports, ApplicationError,
+    create_demo_snapshot_exports_for_scenario, create_snapshot_series_from_exports,
+    ApplicationError, CamSimulationDemoScenario,
 };
 use cam_sim::SimulationSnapshotExport;
 
@@ -165,9 +166,10 @@ pub fn cam_snapshot_exports_to_inputs(
 }
 
 /// デバッグ用：cam_sim 実行結果からドメインスナップショット系列を生成する。
-pub fn create_sample_cam_snapshot_domain_series(
+pub fn load_demo_cam_snapshot_domain_series(
 ) -> Result<DomainSnapshotSeries<CamSimulationSnapshotInput>, ApplicationError> {
-    let exports = create_sample_snapshot_exports_for_demo()?.exports;
+    let exports =
+        create_demo_snapshot_exports_for_scenario(CamSimulationDemoScenario::Success)?.exports;
     let inputs = cam_snapshot_exports_to_inputs(&exports);
 
     Ok(cam_snapshot_inputs_to_domain_series("cam_sim", &inputs))
@@ -248,8 +250,8 @@ mod tests {
     }
 
     #[test]
-    fn test_create_sample_cam_snapshot_domain_series() {
-        let series = create_sample_cam_snapshot_domain_series().expect("cam_sim sample should run");
+    fn test_load_demo_cam_snapshot_domain_series() {
+        let series = load_demo_cam_snapshot_domain_series().expect("cam_sim sample should run");
         assert_eq!(series.source, "cam_sim");
         assert!(!series.frames.is_empty());
     }

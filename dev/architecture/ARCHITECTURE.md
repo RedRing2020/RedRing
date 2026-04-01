@@ -218,6 +218,7 @@ redring ← stage ← render
 
 - **[📖 オンラインドキュメント](https://redring2020.github.io/RedRing/)** - GitHub Pages（自動更新）
 - [`dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md`](dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md) - Application Layer / orchestration 層の責務定義
+- [`dev/architecture/FIXTURE_SEPARATION_DESIGN.md`](dev/architecture/FIXTURE_SEPARATION_DESIGN.md) - Model fixtures 分離方針（Issue #516）
 - [`model/GEOMETRY_README.ja.md`](model/GEOMETRY_README.ja.md) - 幾何抽象化の詳細仕様
 - [`manual/philosophy.md`](manual/philosophy.md) - 設計思想・エラー処理ガイドライン
 - [`MIGRATION_VECTOR_F64.md`](MIGRATION_VECTOR_F64.md) - f64 正準化移行履歴

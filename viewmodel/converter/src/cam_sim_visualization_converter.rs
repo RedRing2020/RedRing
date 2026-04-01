@@ -4,16 +4,13 @@
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
 use application::cam_orchestration::{
-    compute_toolpath_work_bounds, count_non_cutting_interference_segments,
-    AddToolToEntityStorageRequest, ApplicationError, CamSimulationExecutionOrchestration,
-    CamSimulationExecutionOrchestrator, CamSimulationExecutionRequest,
-    ToolEntityManagementOrchestration, ToolEntityManagementOrchestrator,
+    build_demo_artifacts_for_cam_simulation, compute_toolpath_work_bounds,
+    count_non_cutting_interference_segments, AddToolToEntityStorageRequest, ApplicationError,
+    CamSimulationExecutionOrchestration, CamSimulationExecutionOrchestrator,
+    CamSimulationExecutionRequest, ToolEntityManagementOrchestration,
+    ToolEntityManagementOrchestrator,
 };
 use cam_core::{
-    fixtures::{
-        create_empty_toolpath, create_sample_ball_end_mill_tool, create_sample_flat_end_mill_tool,
-        create_sample_toolpath,
-    },
     validate_toolpath_machine_constraints, ArcDirection, CamTolerance, MachineConstraint,
     PathGeometry, Tool, ToolPath, ValidationError,
 };
@@ -36,6 +33,8 @@ use crate::snapshot_converter::{
 };
 use crate::toolpath_converter::{toolpath_to_vertices, ToolPathVisualizationSettings};
 use logging_foundation::ERROR_KIND_SIMULATION;
+
+pub use application::cam_orchestration::CamSimulationDemoScenario;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamSimulationVisualizationError {
@@ -86,13 +85,6 @@ pub struct CamSimulationVisualizationBundle {
     pub snapshot_tool_wireframes: Vec<Vec<WireframeVertex>>,
     pub toolpath_wireframe: Vec<WireframeVertex>,
     pub snapshot_series: DomainSnapshotSeries<CamSimulationSnapshotInput>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CamSimulationDemoScenario {
-    Success,
-    SuccessFlatEndMill,
-    FailureEmptyToolpath,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -606,15 +598,6 @@ fn create_ball_end_mill_wireframe(
     vertices
 }
 
-fn create_demo_tool(scenario: CamSimulationDemoScenario) -> Tool<f64> {
-    match scenario {
-        CamSimulationDemoScenario::Success | CamSimulationDemoScenario::FailureEmptyToolpath => {
-            create_sample_ball_end_mill_tool()
-        }
-        CamSimulationDemoScenario::SuccessFlatEndMill => create_sample_flat_end_mill_tool(),
-    }
-}
-
 trait DemoToolBehavior {
     fn radius(&self) -> f64;
     fn remove_cut_segment(
@@ -799,11 +782,11 @@ fn apply_cutting_progress(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_cam_simulation_visualization_bundle_for_demo(
+pub fn build_demo_cam_simulation_visualization_bundle(
     settings: &OctreeVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+    build_demo_cam_simulation_visualization_bundle_with_tool_settings(
         settings,
         &ToolWireframeVisualizationSettings::default(),
         scenario,
@@ -812,29 +795,22 @@ pub fn create_cam_simulation_visualization_bundle_for_demo(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
+pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
     settings: &OctreeVisualizationSettings,
     tool_wireframe_settings: &ToolWireframeVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    let toolpath = match scenario {
-        CamSimulationDemoScenario::Success => create_sample_toolpath(),
-        CamSimulationDemoScenario::SuccessFlatEndMill => create_sample_toolpath(),
-        CamSimulationDemoScenario::FailureEmptyToolpath => create_empty_toolpath(),
-    };
-    let tool = create_demo_tool(scenario);
+    let demo = build_demo_artifacts_for_cam_simulation(scenario);
+    let toolpath = demo.toolpath;
+    let tool = demo.tool;
     let behavior = demo_tool_behavior(&tool)?;
     let tool_entity_result =
         ToolEntityManagementOrchestrator.add_tool_to_storage(AddToolToEntityStorageRequest {
             tool: tool.clone(),
             feature_id: "cam_sim_visualization".to_string(),
-            output_index: match scenario {
-                CamSimulationDemoScenario::Success => 0,
-                CamSimulationDemoScenario::FailureEmptyToolpath => 1,
-                CamSimulationDemoScenario::SuccessFlatEndMill => 2,
-            },
-            local_key: "sample_tool".to_string(),
-            description: Some("CAM simulation sample tool".to_string()),
+            output_index: demo.output_index,
+            local_key: demo.local_key,
+            description: demo.description,
         })?;
     let tolerance = CamTolerance::default();
     let machine_constraint = MachineConstraint::empty();
@@ -932,13 +908,10 @@ pub fn create_cam_simulation_visualization_bundle_for_demo_with_tool_settings(
 
 /// デバッグ用：テストToolPath + Tool + ワークOctreeで切削シミュレーションを実行し、
 /// 可視化に必要な深さ別ワイヤーフレームとスナップショット系列を返す。
-pub fn create_sample_cam_simulation_visualization_bundle_with_settings(
+pub fn load_demo_cam_simulation_visualization_bundle_with_settings(
     settings: &OctreeVisualizationSettings,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
-    create_cam_simulation_visualization_bundle_for_demo(
-        settings,
-        CamSimulationDemoScenario::Success,
-    )
+    build_demo_cam_simulation_visualization_bundle(settings, CamSimulationDemoScenario::Success)
 }
 
 #[cfg(test)]
@@ -947,7 +920,7 @@ mod tests {
     use geo_algorithms::octree::OctreeTolerance;
 
     #[test]
-    fn test_create_sample_cam_simulation_visualization_bundle_with_settings() {
+    fn test_load_demo_cam_simulation_visualization_bundle_with_settings() {
         let settings = OctreeVisualizationSettings {
             max_depth: 3,
             gradient_start: [0.2, 1.0, 1.0],
@@ -955,7 +928,7 @@ mod tests {
             octree_tolerance: OctreeTolerance::default(),
         };
 
-        let bundle = create_sample_cam_simulation_visualization_bundle_with_settings(&settings)
+        let bundle = load_demo_cam_simulation_visualization_bundle_with_settings(&settings)
             .expect("cam simulation visualization should be created");
 
         assert!(!bundle.tool_entity_id.is_empty());
@@ -979,7 +952,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_cam_simulation_visualization_bundle_for_demo_failure_empty_toolpath() {
+    fn test_build_demo_cam_simulation_visualization_bundle_failure_empty_toolpath() {
         let settings = OctreeVisualizationSettings {
             max_depth: 3,
             gradient_start: [0.2, 1.0, 1.0],
@@ -987,7 +960,7 @@ mod tests {
             octree_tolerance: OctreeTolerance::default(),
         };
 
-        let result = create_cam_simulation_visualization_bundle_for_demo(
+        let result = build_demo_cam_simulation_visualization_bundle(
             &settings,
             CamSimulationDemoScenario::FailureEmptyToolpath,
         );
