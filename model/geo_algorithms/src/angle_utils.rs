@@ -5,6 +5,32 @@
 pub const FULL_TURN_DEG: f64 = 360.0;
 pub const HALF_TURN_DEG: f64 = 180.0;
 
+/// 回転軸の実移動量を「周数 + 剰余角」で保持する。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AngularPosition {
+    /// 完全回転の周数（負値は逆方向）
+    pub full_rotations: i32,
+    /// 剰余角 [deg], 常に 0 <= remainder_deg < 360
+    pub remainder_deg: f64,
+}
+
+impl AngularPosition {
+    /// 総角度 [deg] を返す。
+    pub fn total_deg(self) -> f64 {
+        self.full_rotations as f64 * FULL_TURN_DEG + self.remainder_deg
+    }
+
+    /// 総角度 [deg] から AngularPosition を構築する。
+    pub fn from_total_deg(total_deg: f64) -> Self {
+        let full_rotations = (total_deg / FULL_TURN_DEG).floor() as i32;
+        let remainder = total_deg.rem_euclid(FULL_TURN_DEG);
+        Self {
+            full_rotations,
+            remainder_deg: remainder,
+        }
+    }
+}
+
 /// [0, 360) に正規化する。
 pub fn normalize_angle_deg(angle_deg: f64) -> f64 {
     let normalized = angle_deg.rem_euclid(FULL_TURN_DEG);
@@ -13,6 +39,13 @@ pub fn normalize_angle_deg(angle_deg: f64) -> f64 {
     } else {
         normalized
     }
+}
+
+/// [0, 360) に正規化する。
+///
+/// 設計側で使用する用語に合わせた公開名。挙動は `normalize_angle_deg` と同じ。
+pub fn normalize_to_0_360(angle_deg: f64) -> f64 {
+    normalize_angle_deg(angle_deg)
 }
 
 /// (-180, 180] に正規化する。
@@ -24,6 +57,13 @@ pub fn normalize_angle_signed_deg(angle_deg: f64) -> f64 {
     normalized
 }
 
+/// (-180, 180] に正規化する。
+///
+/// 設計側で使用する用語に合わせた公開名。挙動は `normalize_angle_signed_deg` と同じ。
+pub fn normalize_to_minus180_180(angle_deg: f64) -> f64 {
+    normalize_angle_signed_deg(angle_deg)
+}
+
 /// `from_deg` から `to_deg` への最短角差を返す。
 ///
 /// 戻り値は [-180, 180]。
@@ -31,9 +71,23 @@ pub fn shortest_angular_delta_deg(from_deg: f64, to_deg: f64) -> f64 {
     normalize_angle_signed_deg(to_deg - from_deg)
 }
 
+/// from から to への最短角度差を返す。
+///
+/// 設計側で使用する用語に合わせた公開名。挙動は `shortest_angular_delta_deg` と同じ。
+pub fn shortest_angle(from_deg: f64, to_deg: f64) -> f64 {
+    shortest_angular_delta_deg(from_deg, to_deg)
+}
+
 /// 許容誤差付きで角度同値を判定する。
 pub fn are_angles_equivalent_deg(a_deg: f64, b_deg: f64, tolerance_deg: f64) -> bool {
     shortest_angular_delta_deg(a_deg, b_deg).abs() <= tolerance_deg.abs()
+}
+
+/// 0/360 同値を許容誤差付きで判定する。
+///
+/// 設計側で使用する用語に合わせた公開名。挙動は `are_angles_equivalent_deg` と同じ。
+pub fn is_equivalent_0_360(a_deg: f64, b_deg: f64, tolerance_deg: f64) -> bool {
+    are_angles_equivalent_deg(a_deg, b_deg, tolerance_deg)
 }
 
 /// 巻き戻し（rewind）方針。
@@ -128,5 +182,31 @@ mod tests {
         assert!((unwound[2] - 362.0).abs() < 1e-12);
         assert!((unwound[3] - 368.0).abs() < 1e-12);
         assert!((unwound[4] - 355.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn angular_position_roundtrip_examples() {
+        let p450 = AngularPosition::from_total_deg(450.0);
+        assert_eq!(p450.full_rotations, 1);
+        assert!((p450.remainder_deg - 90.0).abs() < 1e-12);
+        assert!((p450.total_deg() - 450.0).abs() < 1e-12);
+
+        let pneg90 = AngularPosition::from_total_deg(-90.0);
+        assert_eq!(pneg90.full_rotations, -1);
+        assert!((pneg90.remainder_deg - 270.0).abs() < 1e-12);
+        assert!((pneg90.total_deg() - (-90.0)).abs() < 1e-12);
+
+        let p720 = AngularPosition::from_total_deg(720.0);
+        assert_eq!(p720.full_rotations, 2);
+        assert!((p720.remainder_deg - 0.0).abs() < 1e-12);
+        assert!((p720.total_deg() - 720.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn design_named_helpers_delegate_correctly() {
+        assert!((normalize_to_0_360(370.0) - 10.0).abs() < 1e-12);
+        assert!((normalize_to_minus180_180(350.0) + 10.0).abs() < 1e-12);
+        assert!((shortest_angle(350.0, 10.0) - 20.0).abs() < 1e-12);
+        assert!(is_equivalent_0_360(0.0, 360.0, 1e-9));
     }
 }
