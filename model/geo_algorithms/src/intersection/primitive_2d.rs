@@ -524,21 +524,13 @@ pub fn ellipse_arc2d_point2d_intersection<T: Scalar>(
     IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
-fn squared_norm<T: Scalar>(v: Vector2D<T>) -> T {
-    v.x() * v.x() + v.y() * v.y()
-}
-
-fn cross_2d<T: Scalar>(a: Vector2D<T>, b: Vector2D<T>) -> T {
-    a.x() * b.y() - a.y() * b.x()
-}
-
 fn is_point_on_line<T: Scalar>(
     line_point: Point2D<T>,
     line_dir: Vector2D<T>,
     p: Point2D<T>,
     tolerance: T,
 ) -> bool {
-    cross_2d(Vector2D::from_points(line_point, p), line_dir).abs() <= tolerance
+    Vector2D::from_points(line_point, p).cross(&line_dir).abs() <= tolerance
 }
 
 fn points_near<T: Scalar>(a: Point2D<T>, b: Point2D<T>, tolerance: T) -> bool {
@@ -557,14 +549,14 @@ fn collinear_segment_overlap_result<T: Scalar>(
     let d1 = Vector2D::from_points(p1, p2);
     let d2 = Vector2D::from_points(p3, p4);
 
-    if cross_2d(d1, d2).abs() > tolerance {
+    if d1.cross(&d2).abs() > tolerance {
         return None;
     }
-    if cross_2d(Vector2D::from_points(p1, p3), d1).abs() > tolerance {
+    if Vector2D::from_points(p1, p3).cross(&d1).abs() > tolerance {
         return None;
     }
 
-    let d1_norm = squared_norm(d1);
+    let d1_norm = d1.length_squared();
     if d1_norm <= tolerance * tolerance {
         return Some(IntersectionResult::disjoint(tolerance));
     }
@@ -625,7 +617,7 @@ fn collinear_ray_segment_overlap_result<T: Scalar>(
     let direction = Vector2D::new(ray.direction().0, ray.direction().1);
     let s1 = Point2D::new(segment.start().0, segment.start().1);
     let s2 = Point2D::new(segment.end().0, segment.end().1);
-    let dir_norm = squared_norm(direction);
+    let dir_norm = direction.length_squared();
 
     if dir_norm <= tolerance * tolerance {
         return IntersectionResult::disjoint(tolerance);
