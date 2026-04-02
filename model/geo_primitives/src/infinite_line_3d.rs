@@ -3,10 +3,10 @@
 //! Foundation統一システムに基づくInfiniteLine3Dの必須機能のみ
 //! Foundation Pattern: Constructor/Properties/Measure の3つのCore Traits実装
 
-use crate::{Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, InfiniteLine3DConstructor,
-    InfiniteLine3DMeasure, InfiniteLine3DProperties, Scalar,
+    default_angle_tolerance, default_distance_tolerance, BasicIntersection, CrossDistance,
+    InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties, Scalar,
 };
 
 /// 3次元空間の無限直線（Core実装）
@@ -491,10 +491,6 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         InfiniteLine3D::parameter_for_point(self, &p)
     }
 
-    fn distance_to_line(&self, other: &Self) -> T {
-        InfiniteLine3D::distance_to_line(self, other)
-    }
-
     fn closest_points(&self, other: &Self) -> Option<((T, T, T), (T, T, T))> {
         if self.is_parallel_to(other) {
             None
@@ -547,7 +543,7 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
     }
 
     fn intersects(&self, other: &Self) -> bool {
-        self.distance_to_line(other) <= default_distance_tolerance::<T>()
+        InfiniteLine3D::distance_to_line(self, other) <= default_distance_tolerance::<T>()
     }
 
     fn is_skew_to(&self, other: &Self) -> bool {
@@ -612,38 +608,28 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
 
         InfiniteLine3D::new(rotated_point, rotated_dir)
     }
+}
 
-    fn intersection_with_plane(
-        &self,
-        plane_point: (T, T, T),
-        plane_normal: (T, T, T),
-    ) -> Option<(T, T, T)> {
-        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-
-        let denom = dir_vec.dot(&normal);
-        if denom.abs() <= T::ORTHOGONALITY_DOT_ERROR_TOLERANCE {
-            return None; // 平行または平面内
-        }
-
-        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_plane = Vector3D::from_points(&self.point, &plane_pt);
-
-        let t = to_plane.dot(&normal) / denom;
-        let intersection = <Self as InfiniteLine3DMeasure<T>>::point_at_parameter(self, t);
-        Some(intersection)
+impl<T: Scalar> CrossDistance<T, Self> for InfiniteLine3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        InfiniteLine3D::distance_to_line(self, other)
     }
+}
 
-    fn intersection_with_line(&self, other: &Self) -> Option<(T, T, T)> {
-        if self.is_parallel_to(other) {
-            return None;
-        }
+impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine3D<T> {
+    type Point = (T, T, T);
 
-        if !self.intersects(other) {
-            return None; // スキュー線
-        }
+    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+        InfiniteLine3D::intersection_with_line(self, other)
+            .map(|point| (point.x(), point.y(), point.z()))
+    }
+}
 
-        // 交差する場合、最接近点が交点
-        self.closest_points(other).map(|(p1, _)| p1)
+impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for InfiniteLine3D<T> {
+    type Point = (T, T, T);
+
+    fn intersection_with(&self, other: &Plane3D<T>, _tolerance: T) -> Option<Self::Point> {
+        InfiniteLine3D::intersection_with_plane(self, &other.origin(), &other.normal().as_vector())
+            .map(|point| (point.x(), point.y(), point.z()))
     }
 }

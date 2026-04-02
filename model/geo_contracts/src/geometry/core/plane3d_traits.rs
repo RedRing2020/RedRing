@@ -78,14 +78,6 @@ pub trait Plane3DMeasure<T: Scalar> {
 
     /// 点を平面に対して鏡面反射
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
-
-    /// 他の平面との交線を計算（方向ベクトルと通過点を返す）
-    #[allow(clippy::type_complexity)]
-    fn intersection_with_plane(
-        &self,
-        other_origin: (T, T, T),
-        other_normal: (T, T, T),
-    ) -> Option<((T, T, T), (T, T, T))>;
 }
 
 /// Plane3D Core トレイト（統合インターフェース）

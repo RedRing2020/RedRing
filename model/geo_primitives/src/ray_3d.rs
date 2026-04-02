@@ -5,7 +5,7 @@
 //! Core Traits実装（Constructor, Properties, Measure）も含む
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties, Scalar};
+use geo_contracts::{CrossDistance, Ray3DConstructor, Ray3DMeasure, Ray3DProperties, Scalar};
 
 /// 3次元半無限直線
 ///
@@ -442,41 +442,6 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         Ray3D::new(new_origin, self.direction).unwrap()
     }
 
-    // ========== Phase 2 実装 ==========
-
-    fn distance_to_ray(&self, other: &Self) -> T {
-        let w = self.origin - other.origin;
-        let a = self.direction.dot(&self.direction);
-        let b = self.direction.dot(&other.direction);
-        let c = other.direction.dot(&other.direction);
-        let d = self.direction.dot(&w);
-        let e = other.direction.dot(&w);
-
-        let denom = a * c - b * b;
-        use geo_contracts::default_kernel_numerical_zero_tolerance;
-        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
-            // 平行: 片方の起点から他方への距離
-            let other_origin = other.origin;
-            return self.distance_to_point(&Point3D::new(
-                other_origin.x(),
-                other_origin.y(),
-                other_origin.z(),
-            ));
-        }
-
-        let sc = (b * e - c * d) / denom;
-        let tc = (a * e - b * d) / denom;
-
-        let sc_clamped = if sc < T::ZERO { T::ZERO } else { sc };
-        let tc_clamped = if tc < T::ZERO { T::ZERO } else { tc };
-
-        let p1 = self.point_at_parameter(sc_clamped);
-        let p2 = other.point_at_parameter(tc_clamped);
-
-        let diff = Vector3D::new(p1.x() - p2.x(), p1.y() - p2.y(), p1.z() - p2.z());
-        diff.length()
-    }
-
     fn point_at_distance(&self, distance: T) -> (T, T, T) {
         // 方向ベクトルは正規化済みなので、パラメータ = 距離
         let point = self.point_at_parameter(distance);
@@ -532,5 +497,39 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         );
 
         Ray3D::new(rotated_origin, rotated_dir)
+    }
+}
+
+impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        let w = self.origin - other.origin;
+        let a = self.direction.dot(&self.direction);
+        let b = self.direction.dot(&other.direction);
+        let c = other.direction.dot(&other.direction);
+        let d = self.direction.dot(&w);
+        let e = other.direction.dot(&w);
+
+        let denom = a * c - b * b;
+        use geo_contracts::default_kernel_numerical_zero_tolerance;
+        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
+            let other_origin = other.origin;
+            return self.distance_to_point(&Point3D::new(
+                other_origin.x(),
+                other_origin.y(),
+                other_origin.z(),
+            ));
+        }
+
+        let sc = (b * e - c * d) / denom;
+        let tc = (a * e - b * d) / denom;
+
+        let sc_clamped = if sc < T::ZERO { T::ZERO } else { sc };
+        let tc_clamped = if tc < T::ZERO { T::ZERO } else { tc };
+
+        let p1 = self.point_at_parameter(sc_clamped);
+        let p2 = other.point_at_parameter(tc_clamped);
+
+        let diff = Vector3D::new(p1.x() - p2.x(), p1.y() - p2.y(), p1.z() - p2.z());
+        diff.length()
     }
 }

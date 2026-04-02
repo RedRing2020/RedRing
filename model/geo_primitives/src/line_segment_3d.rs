@@ -5,8 +5,8 @@
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, LineSegment3DCollisionDetection,
-    LineSegment3DConstructor, LineSegment3DMeasure, LineSegment3DProperties, Scalar,
+    default_distance_tolerance, CrossDistance, LineSegment3DConstructor, LineSegment3DMeasure,
+    LineSegment3DProperties, Scalar,
 };
 
 /// 3次元空間の線分
@@ -278,8 +278,21 @@ impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
         (result.x(), result.y(), result.z())
     }
 
-    fn distance_to_segment(&self, other: &Self) -> T {
-        // 簡易実装: 各端点から他方の線分への最短距離の最小値
+    fn direction_vector(&self) -> (T, T, T) {
+        let dir = self.direction();
+        (dir.x(), dir.y(), dir.z())
+    }
+
+    fn as_vector(&self) -> (T, T, T) {
+        let start = self.start();
+        let end = self.end();
+        let v = Vector3D::from_points(&start, &end);
+        (v.x(), v.y(), v.z())
+    }
+}
+
+impl<T: Scalar> CrossDistance<T, Self> for LineSegment3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
         let other_start_pt = other.start();
         let other_end_pt = other.end();
         let self_start_pt = self.start();
@@ -297,29 +310,6 @@ impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
         } else {
             min2
         }
-    }
-
-    fn direction_vector(&self) -> (T, T, T) {
-        let dir = self.direction();
-        (dir.x(), dir.y(), dir.z())
-    }
-
-    fn as_vector(&self) -> (T, T, T) {
-        let start = self.start();
-        let end = self.end();
-        let v = Vector3D::from_points(&start, &end);
-        (v.x(), v.y(), v.z())
-    }
-}
-
-impl<T: Scalar> LineSegment3DCollisionDetection<T> for LineSegment3D<T> {
-    fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T {
-        use geo_commons::line_segment_to_aabb_distance;
-        let start_point = self.start();
-        let end_point = self.end();
-        let start = (start_point.x(), start_point.y(), start_point.z());
-        let end = (end_point.x(), end_point.y(), end_point.z());
-        line_segment_to_aabb_distance(start, end, aabb_min, aabb_max)
     }
 }
 

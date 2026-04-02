@@ -146,13 +146,6 @@ pub trait LineSegment2DMeasure<T: Scalar> {
     /// 点から線分への最近点を計算
     fn closest_point_to(&self, point: (T, T)) -> (T, T);
 
-    /// 2つの線分間の最短距離
-    #[deprecated(
-        since = "0.1.0",
-        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
-    )]
-    fn distance_to_segment(&self, other: &Self) -> T;
-
     /// 方向ベクトルを取得
     fn direction_vector(&self) -> (T, T);
 
@@ -177,28 +170,11 @@ pub trait LineSegment3DMeasure<T: Scalar> {
     /// 点から線分への最近点を計算
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
 
-    /// 2つの線分間の最短距離
-    #[deprecated(
-        since = "0.1.0",
-        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
-    )]
-    fn distance_to_segment(&self, other: &Self) -> T;
-
     /// 方向ベクトルを取得
     fn direction_vector(&self) -> (T, T, T);
 
     /// 線分のベクトル表現（始点から終点）
     fn as_vector(&self) -> (T, T, T);
-}
-
-/// LineSegment3DとAxisAlignedBoundingBox（AABB）の衝突検出トレイト
-pub trait LineSegment3DCollisionDetection<T: Scalar> {
-    /// 線分と軸並行境界ボックス（AABB）の最短距離を計算
-    #[deprecated(
-        since = "0.1.0",
-        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
-    )]
-    fn distance_to_aabb(&self, aabb_min: (T, T, T), aabb_max: (T, T, T)) -> T;
 }
 
 /// LineSegment2Dの3つのCore機能統合トレイト

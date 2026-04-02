@@ -178,20 +178,6 @@ pub trait Ellipse3DMeasure<T: Scalar> {
     /// 3D空間での点から楕円への最短距離を計算
     fn distance_to_point_3d(&self, point: (T, T, T)) -> T;
 
-    /// 3D空間での直線との交点を計算
-    fn intersection_with_line_3d(
-        &self,
-        line_point: (T, T, T),
-        line_direction: (T, T, T),
-    ) -> Vec<(T, T, T)>;
-
-    /// 平面との交点を計算
-    fn intersection_with_plane(
-        &self,
-        plane_point: (T, T, T),
-        plane_normal: (T, T, T),
-    ) -> Vec<(T, T, T)>;
-
     /// 楕円の面積を計算
     fn measure(&self) -> T;
 

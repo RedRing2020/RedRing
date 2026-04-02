@@ -79,8 +79,7 @@ pub use infinite_line_traits::{
 };
 pub use linesegment_traits::{
     LineSegment2DConstructor, LineSegment2DCore, LineSegment2DMeasure, LineSegment2DProperties,
-    LineSegment3DCollisionDetection, LineSegment3DConstructor, LineSegment3DCore,
-    LineSegment3DMeasure, LineSegment3DProperties,
+    LineSegment3DConstructor, LineSegment3DCore, LineSegment3DMeasure, LineSegment3DProperties,
 };
 pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,

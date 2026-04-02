@@ -6,7 +6,9 @@
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::default_angle_tolerance;
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
-use geo_contracts::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties, Scalar};
+use geo_contracts::{
+    Circle3DConstructor, Circle3DMeasure, Circle3DProperties, CrossDistance, Scalar,
+};
 
 /// 3次元空間の円
 ///
@@ -470,17 +472,17 @@ impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
 
         (point.x(), point.y(), point.z())
     }
+}
 
-    fn distance_to_circle(&self, other: &Self) -> T {
-        // 簡易実装：中心間距離から半径を考慮
+impl<T: Scalar> CrossDistance<T, Self> for Circle3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
         let center_distance = self.center.distance_to(&other.center);
-
         let radii_sum = self.radius + other.radius;
 
         if center_distance >= radii_sum {
             center_distance - radii_sum
         } else {
-            T::ZERO // 交差または包含
+            T::ZERO
         }
     }
 }

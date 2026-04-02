@@ -5,7 +5,7 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, LineSegment2DConstructor, LineSegment2DMeasure,
+    default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DMeasure,
     LineSegment2DProperties, Scalar,
 };
 
@@ -229,6 +229,27 @@ impl<T: Scalar> LineSegment2D<T> {
     pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.contains_point(point, tolerance)
     }
+
+    /// 他の線分との最短距離を計算
+    pub fn distance_to_segment(&self, other: &Self) -> T {
+        let other_start_pt = other.start_point();
+        let other_end_pt = other.end_point();
+        let self_start_pt = self.start_point();
+        let self_end_pt = self.end_point();
+
+        let d1 = self.distance_to_point(&other_start_pt);
+        let d2 = self.distance_to_point(&other_end_pt);
+        let d3 = other.distance_to_point(&self_start_pt);
+        let d4 = other.distance_to_point(&self_end_pt);
+
+        let min1 = if d1 < d2 { d1 } else { d2 };
+        let min2 = if d3 < d4 { d3 } else { d4 };
+        if min1 < min2 {
+            min1
+        } else {
+            min2
+        }
+    }
 }
 
 // ============================================================================
@@ -361,27 +382,6 @@ impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
         self.point_at_parameter(clamped_t)
     }
 
-    fn distance_to_segment(&self, other: &Self) -> T {
-        // 簡易実装: 各端点から他方の線分への最短距離の最小値
-        let other_start_pt = other.start_point();
-        let other_end_pt = other.end_point();
-        let self_start_pt = self.start_point();
-        let self_end_pt = self.end_point();
-
-        let d1 = self.distance_to_point(&other_start_pt);
-        let d2 = self.distance_to_point(&other_end_pt);
-        let d3 = other.distance_to_point(&self_start_pt);
-        let d4 = other.distance_to_point(&self_end_pt);
-
-        let min1 = if d1 < d2 { d1 } else { d2 };
-        let min2 = if d3 < d4 { d3 } else { d4 };
-        if min1 < min2 {
-            min1
-        } else {
-            min2
-        }
-    }
-
     fn direction_vector(&self) -> (T, T) {
         let dir = self.direction();
         (dir.x(), dir.y())
@@ -390,5 +390,11 @@ impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
     fn as_vector(&self) -> (T, T) {
         let v = self.vector();
         (v.x(), v.y())
+    }
+}
+
+impl<T: Scalar> CrossDistance<T, Self> for LineSegment2D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        LineSegment2D::distance_to_segment(self, other)
     }
 }

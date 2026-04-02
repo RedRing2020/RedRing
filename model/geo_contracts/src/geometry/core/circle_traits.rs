@@ -98,11 +98,6 @@ pub trait Circle2DMeasure<T: Scalar> {
     fn point_on_circumference(&self, point: (T, T)) -> bool;
     fn closest_point_to(&self, point: (T, T)) -> (T, T);
     fn point_at_parameter(&self, t: T) -> (T, T);
-    #[deprecated(
-        since = "0.1.0",
-        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
-    )]
-    fn distance_to_circle(&self, other: &Self) -> T;
 }
 
 pub trait Circle3DMeasure<T: Scalar> {
@@ -113,11 +108,6 @@ pub trait Circle3DMeasure<T: Scalar> {
     fn point_on_circumference(&self, point: (T, T, T)) -> bool;
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
     fn point_at_parameter(&self, t: T) -> (T, T, T);
-    #[deprecated(
-        since = "0.1.0",
-        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
-    )]
-    fn distance_to_circle(&self, other: &Self) -> T;
 }
 
 pub trait Circle2DCore<T: Scalar>:

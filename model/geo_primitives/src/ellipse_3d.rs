@@ -2,7 +2,8 @@
 //!
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
-use crate::{Angle, Circle3D, Direction3D, Point3D, Vector3D};
+use crate::{Angle, Circle3D, Direction3D, InfiniteLine3D, Plane3D, Point3D, Vector3D};
+use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Ellipse3DConstructor, Ellipse3DMeasure, Ellipse3DProperties, Scalar};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
@@ -412,25 +413,6 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
         self.distance_to_point_3d_internal(point)
     }
 
-    /// 3D空間での直線との交点を計算（未実装）
-    fn intersection_with_line_3d(
-        &self,
-        _line_point: (T, T, T),
-        _line_direction: (T, T, T),
-    ) -> Vec<(T, T, T)> {
-        // 3D楕円と3D直線の交点計算は複雑
-        Vec::new()
-    }
-
-    /// 平面との交点を計算（未実装）
-    fn intersection_with_plane(
-        &self,
-        _plane_point: (T, T, T),
-        _plane_normal: (T, T, T),
-    ) -> Vec<(T, T, T)> {
-        // 3D楕円と平面の交点計算は複雑
-        Vec::new()
-    }
     /// 楕円の面積を計算
     fn measure(&self) -> T {
         self.area()
@@ -451,6 +433,22 @@ impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
     fn is_circle(&self) -> bool {
         let tolerance = default_distance_tolerance::<T>();
         (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
+    }
+}
+
+impl<T: Scalar + From<f64>> MultipleIntersection<T, InfiniteLine3D<T>> for Ellipse3D<T> {
+    type Point = (T, T, T);
+
+    fn intersections_with(&self, _other: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
+        Vec::new()
+    }
+}
+
+impl<T: Scalar + From<f64>> MultipleIntersection<T, Plane3D<T>> for Ellipse3D<T> {
+    type Point = (T, T, T);
+
+    fn intersections_with(&self, _other: &Plane3D<T>, _tolerance: T) -> Vec<Self::Point> {
+        Vec::new()
     }
 }
 
