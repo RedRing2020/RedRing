@@ -111,12 +111,6 @@ pub trait Point3DMeasure<T: Scalar> {
     }
 }
 
-pub trait Point2DCore<T: Scalar>:
-    Point2DConstructor<T> + Point2DProperties<T> + Point2DMeasure<T>
-{
-}
+pub trait Point2DCore<T: Scalar>: Point2DConstructor<T> + Point2DProperties<T> {}
 
-pub trait Point3DCore<T: Scalar>:
-    Point3DConstructor<T> + Point3DProperties<T> + Point3DMeasure<T>
-{
-}
+pub trait Point3DCore<T: Scalar>: Point3DConstructor<T> + Point3DProperties<T> {}
