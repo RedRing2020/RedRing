@@ -139,12 +139,6 @@ pub trait Vector3DMeasure<T: Scalar> {
     }
 }
 
-pub trait Vector2DCore<T: Scalar>:
-    Vector2DConstructor<T> + Vector2DProperties<T> + Vector2DMeasure<T>
-{
-}
+pub trait Vector2DCore<T: Scalar>: Vector2DConstructor<T> + Vector2DProperties<T> {}
 
-pub trait Vector3DCore<T: Scalar>:
-    Vector3DConstructor<T> + Vector3DProperties<T> + Vector3DMeasure<T>
-{
-}
+pub trait Vector3DCore<T: Scalar>: Vector3DConstructor<T> + Vector3DProperties<T> {}
