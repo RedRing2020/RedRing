@@ -11,10 +11,9 @@ const MIN_ARC_DIVISIONS: usize = 4;
 impl<T: geo_algorithms::Scalar> super::CuttingSimulator<T> {
     /// 線分長を `f64` で計算する（距離ベース間隔計算用）。
     pub(super) fn segment_length(&self, segment: &geo_algorithms::LineSegment3D<T>) -> f64 {
-        let dx = segment.end().x() - segment.start().x();
-        let dy = segment.end().y() - segment.start().y();
-        let dz = segment.end().z() - segment.start().z();
-        (dx * dx + dy * dy + dz * dz).sqrt().to_f64()
+        let start = segment.start();
+        let end = segment.end();
+        start.distance_to(&end).to_f64()
     }
 
     /// ToolPathから線分セグメントを抽出し、切削フラグ付きで返す。

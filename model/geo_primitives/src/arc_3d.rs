@@ -393,19 +393,14 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         // 簡易実装: 円弧上の最近点までの距離
         let center_pt = self.center_internal();
-        let dx = point.0 - center_pt.x();
-        let dy = point.1 - center_pt.y();
-        let dz = point.2 - center_pt.z();
-        ((dx * dx + dy * dy + dz * dz).sqrt() - self.radius_internal()).abs()
+        (center_pt.distance_to(&Point3D::new(point.0, point.1, point.2)) - self.radius_internal())
+            .abs()
     }
 
     fn contains_point(&self, point: (T, T, T)) -> bool {
         // 簡易実装: 半径と角度範囲をチェック
         let center_pt = self.center_internal();
-        let dx = point.0 - center_pt.x();
-        let dy = point.1 - center_pt.y();
-        let dz = point.2 - center_pt.z();
-        let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+        let dist = center_pt.distance_to(&Point3D::new(point.0, point.1, point.2));
         (dist - self.radius_internal()).abs() <= default_distance_tolerance::<T>()
     }
 }

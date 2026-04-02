@@ -64,14 +64,14 @@ pub mod analysis_transform {
     }
 
     /// 回転行列の生成（中心点指定版）
-    pub fn rotation_matrix_2d<T: Scalar>(center: &Point2D<T>, angle: Angle<T>) -> Matrix3x3<T> {
+    pub fn rotation_matrix_2d<T: Scalar>(center: &Vector2<T>, angle: Angle<T>) -> Matrix3x3<T> {
         let center_vec = Vector2::new(center.x(), center.y());
         Matrix3x3::rotation_around_point_2d(&center_vec, angle.to_radians())
     }
 
     /// スケール行列の生成（中心点・個別軸指定版）
     pub fn scale_matrix_2d<T: Scalar>(
-        center: &Point2D<T>,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Matrix3x3<T>, TransformError> {
@@ -93,7 +93,7 @@ pub mod analysis_transform {
 
     /// 均等スケール行列の生成（中心点指定版）
     pub fn uniform_scale_matrix_2d<T: Scalar>(
-        center: &Point2D<T>,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Matrix3x3<T>, TransformError> {
         if scale_factor.is_zero() {
@@ -114,14 +114,14 @@ pub mod analysis_transform {
     /// 複合変換行列の構築
     pub fn composite_point_transform_2d<T: Scalar>(
         translation: Option<&Vector2D<T>>,
-        rotation: Option<(&Point2D<T>, Angle<T>)>,
+        rotation: Option<(&Vector2<T>, Angle<T>)>,
         scale: Option<(T, T)>,
     ) -> Result<Matrix3x3<T>, TransformError> {
         let mut result = Matrix3x3::identity();
 
         // スケール適用
         if let Some((sx, sy)) = scale {
-            let origin = Point2D::origin();
+            let origin = Vector2::new(T::ZERO, T::ZERO);
             let scale_matrix = scale_matrix_2d(&origin, sx, sy)?;
             result = result * scale_matrix;
         }
@@ -144,14 +144,14 @@ pub mod analysis_transform {
     /// 複合変換行列の構築（均等スケール版）
     pub fn composite_point_transform_uniform_2d<T: Scalar>(
         translation: Option<&Vector2D<T>>,
-        rotation: Option<(&Point2D<T>, Angle<T>)>,
+        rotation: Option<(&Vector2<T>, Angle<T>)>,
         scale: Option<T>,
     ) -> Result<Matrix3x3<T>, TransformError> {
         let mut result = Matrix3x3::identity();
 
         // 均等スケール適用
         if let Some(scale_factor) = scale {
-            let origin = Point2D::origin();
+            let origin = Vector2::new(T::ZERO, T::ZERO);
             let scale_matrix = uniform_scale_matrix_2d(&origin, scale_factor)?;
             result = result * scale_matrix;
         }
@@ -189,14 +189,18 @@ impl<T: Scalar> AnalysisTransform2D<T> for Point2D<T> {
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
-    fn rotate_analysis_2d(&self, center: &Self, angle: Angle<T>) -> Result<Self, TransformError> {
+    fn rotate_analysis_2d(
+        &self,
+        center: &Vector2<T>,
+        angle: Angle<T>,
+    ) -> Result<Self, TransformError> {
         let matrix = analysis_transform::rotation_matrix_2d(center, angle);
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self, TransformError> {
@@ -206,7 +210,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Point2D<T> {
 
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
         let matrix = analysis_transform::uniform_scale_matrix_2d(center, scale_factor)?;
@@ -231,7 +235,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation_2d() {
         let point = Point2D::new(1.0, 0.0);
-        let center = Point2D::origin();
+        let center = Vector2::new(0.0, 0.0);
         let angle = Angle::from_radians(std::f64::consts::PI / 2.0); // 90度
 
         let result = point.rotate_analysis_2d(&center, angle).unwrap();
@@ -244,7 +248,7 @@ mod tests {
     #[test]
     fn test_analysis_scale_2d() {
         let point = Point2D::new(2.0, 3.0);
-        let center = Point2D::origin();
+        let center = Vector2::new(0.0, 0.0);
 
         // 個別スケール
         let result = point.scale_analysis_2d(&center, 2.0, 3.0).unwrap();
@@ -259,7 +263,7 @@ mod tests {
     fn test_composite_transform_2d() {
         let point = Point2D::new(1.0, 0.0);
         let translation_vector2d = Vector2D::new(1.0, 1.0);
-        let center = Point2D::origin();
+        let center = Vector2::new(0.0, 0.0);
         let angle = Angle::from_radians(std::f64::consts::PI / 2.0);
         let scale = (2.0, 2.0);
 
@@ -301,7 +305,7 @@ mod tests {
     #[test]
     fn test_error_handling_2d() {
         let point = Point2D::new(1.0, 2.0);
-        let center = Point2D::origin();
+        let center = Vector2::new(0.0, 0.0);
 
         // ゼロスケール（個別）
         assert!(point.scale_analysis_2d(&center, 0.0, 1.0).is_err());

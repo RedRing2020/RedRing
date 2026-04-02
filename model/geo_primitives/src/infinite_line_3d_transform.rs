@@ -129,11 +129,11 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
     /// Analysis統合軸回転（中心点指定）
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.point_internal();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = analysis_transform::rotation_matrix(&center_point, axis, angle)?;
         analysis_transform::transform_infinite_line_3d(self, &matrix)
     }
@@ -141,12 +141,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
     /// Analysis統合スケール（中心点指定）
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.point_internal();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = analysis_transform::scale_matrix(&center_point, scale_x, scale_y, scale_z)?;
         analysis_transform::transform_infinite_line_3d(self, &matrix)
     }
@@ -154,10 +154,10 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
     /// Analysis統合均等スケール（中心点指定）
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.point_internal();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = analysis_transform::uniform_scale_matrix(&center_point, scale_factor)?;
         analysis_transform::transform_infinite_line_3d(self, &matrix)
     }
@@ -166,10 +166,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut result = self.clone();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
+        let scale_center = rotation.as_ref().map(|(center, _, _)| *center);
 
         // 平行移動を適用
         if let Some(t) = translation {
@@ -183,8 +185,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
 
         // スケールを適用
         if let Some((sx, sy, sz)) = scale {
-            let center = result; // 自己中心スケール
-            result = center.scale_analysis(&center, sx, sy, sz)?;
+            result = result.scale_analysis(scale_center.unwrap_or(&origin), sx, sy, sz)?;
         }
 
         Ok(result)
@@ -194,10 +195,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let mut result = self.clone();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
+        let scale_center = rotation.as_ref().map(|(center, _, _)| *center);
 
         // 平行移動を適用
         if let Some(t) = translation {
@@ -211,8 +214,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for InfiniteLine3D<T> {
 
         // 均等スケールを適用
         if let Some(scale_factor) = scale {
-            let center = result.clone(); // 自己中心スケール
-            result = result.uniform_scale_analysis(&center, scale_factor)?;
+            result = result.uniform_scale_analysis(scale_center.unwrap_or(&origin), scale_factor)?;
         }
 
         Ok(result)
@@ -279,12 +281,11 @@ mod tests {
     fn test_analysis_transform_rotate() {
         let line =
             InfiniteLine3D::new(Point3D::new(1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let center_line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸回転
         let angle = Angle::from_degrees(90.0);
 
-        let result = line.rotate_analysis(&center_line, &axis, angle).unwrap();
+        let result = line.rotate_analysis(&center, &axis, angle).unwrap();
 
         // 90度Z軸回転後、点 (1,0,0) は (0,1,0) になる
         assert!((result.point_internal().x() - 0.0).abs() < TOLERANCE);
@@ -300,10 +301,9 @@ mod tests {
     fn test_analysis_transform_scale() {
         let line =
             InfiniteLine3D::new(Point3D::new(2.0, 1.0, 1.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let center_line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = line.scale_analysis(&center_line, 2.0, 3.0, 4.0).unwrap();
+        let result = line.scale_analysis(&center, 2.0, 3.0, 4.0).unwrap();
 
         // 点 (2,1,1) が (4,3,4) になる
         assert_eq!(result.point_internal().x(), 4.0);
@@ -319,10 +319,9 @@ mod tests {
     fn test_analysis_transform_uniform_scale() {
         let line =
             InfiniteLine3D::new(Point3D::new(1.0, 1.0, 1.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let center_line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = line.uniform_scale_analysis(&center_line, 2.0).unwrap();
+        let result = line.uniform_scale_analysis(&center, 2.0).unwrap();
 
         // 点 (1,1,1) が (2,2,2) になる
         assert_eq!(result.point_internal().x(), 2.0);
@@ -338,8 +337,7 @@ mod tests {
     fn test_composite_transform() {
         let line =
             InfiniteLine3D::new(Point3D::new(1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let center_line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
         let translation = Vector3::new(1.0, 1.0, 1.0);
         let axis = Vector3::new(0.0, 0.0, 1.0);
@@ -348,7 +346,7 @@ mod tests {
         let result = line
             .apply_composite_transform_uniform(
                 Some(&translation),
-                Some((&center_line, &axis, angle)),
+                Some((&center, &axis, angle)),
                 Some(2.0),
             )
             .unwrap();
@@ -363,13 +361,12 @@ mod tests {
     fn test_transform_zero_scale_error() {
         let line =
             InfiniteLine3D::new(Point3D::new(1.0, 1.0, 1.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let center_line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = line.scale_analysis(&center_line, 0.0, 1.0, 1.0);
+        let result = line.scale_analysis(&center, 0.0, 1.0, 1.0);
         assert!(result.is_err());
 
-        let result = line.uniform_scale_analysis(&center_line, 0.0);
+        let result = line.uniform_scale_analysis(&center, 0.0);
         assert!(result.is_err());
     }
 
@@ -377,12 +374,11 @@ mod tests {
     fn test_transform_zero_axis_error() {
         let line =
             InfiniteLine3D::new(Point3D::new(1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let center_line =
-            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let zero_axis = Vector3::new(0.0, 0.0, 0.0);
         let angle = Angle::from_degrees(90.0);
 
-        let result = line.rotate_analysis(&center_line, &zero_axis, angle);
+        let result = line.rotate_analysis(&center, &zero_axis, angle);
         assert!(result.is_err());
     }
 

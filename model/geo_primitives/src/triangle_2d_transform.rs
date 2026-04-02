@@ -139,32 +139,33 @@ impl<T: Scalar> AnalysisTransform2D<T> for Triangle2D<T> {
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
-    fn rotate_analysis_2d(&self, center: &Self, angle: Angle<T>) -> Result<Self, TransformError> {
-        // Triangle2D を Point2D として中心点を使用（重心）
-        let center_point = center.centroid();
+    fn rotate_analysis_2d(
+        &self,
+        center: &Vector2<T>,
+        angle: Angle<T>,
+    ) -> Result<Self, TransformError> {
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.centroid();
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.centroid();
-        let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
-        Ok(self.transform_point_matrix_2d(&matrix))
+        self.scale_analysis_2d(center, scale_factor, scale_factor)
     }
 }
 
@@ -181,14 +182,8 @@ mod tests {
         .unwrap()
     }
 
-    fn create_center_triangle() -> Triangle2D<f64> {
-        // 原点周辺の小さな正三角形
-        Triangle2D::new(
-            Point2D::new(-0.1, -0.1),
-            Point2D::new(0.1, -0.1),
-            Point2D::new(0.0, 0.1),
-        )
-        .unwrap()
+    fn create_center_vector() -> Vector2<f64> {
+        Vector2::new(0.0, 0.0)
     }
 
     #[test]
@@ -209,7 +204,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation() {
         let triangle = create_test_triangle();
-        let center = create_center_triangle();
+        let center = create_center_vector();
         let angle = Angle::from_degrees(90.0);
 
         let result = triangle.rotate_analysis_2d(&center, angle).unwrap();
@@ -227,12 +222,11 @@ mod tests {
         let result_centroid = result.centroid();
 
         // 重心の距離は保存される（回転だけなので）
-        let rotation_center = center.centroid();
-        let original_distance = ((original_centroid.x() - rotation_center.x()).powi(2)
-            + (original_centroid.y() - rotation_center.y()).powi(2))
+        let original_distance = ((original_centroid.x() - center.x()).powi(2)
+            + (original_centroid.y() - center.y()).powi(2))
         .sqrt();
-        let result_distance = ((result_centroid.x() - rotation_center.x()).powi(2)
-            + (result_centroid.y() - rotation_center.y()).powi(2))
+        let result_distance = ((result_centroid.x() - center.x()).powi(2)
+            + (result_centroid.y() - center.y()).powi(2))
         .sqrt();
 
         assert!((original_distance - result_distance).abs() < 1e-10);
@@ -241,7 +235,7 @@ mod tests {
     #[test]
     fn test_analysis_scale() {
         let triangle = create_test_triangle();
-        let center = create_center_triangle();
+        let center = create_center_vector();
 
         let result = triangle.scale_analysis_2d(&center, 2.0, 2.0).unwrap();
 
@@ -256,7 +250,7 @@ mod tests {
     #[test]
     fn test_analysis_uniform_scale() {
         let triangle = create_test_triangle();
-        let center = create_center_triangle();
+        let center = create_center_vector();
 
         let result = triangle.uniform_scale_analysis_2d(&center, 3.0).unwrap();
 
@@ -315,7 +309,7 @@ mod tests {
     #[test]
     fn test_error_handling_zero_scale() {
         let triangle = create_test_triangle();
-        let center = create_center_triangle();
+        let center = create_center_vector();
 
         let result = triangle.scale_analysis_2d(&center, 0.0, 1.0);
         assert!(result.is_err());

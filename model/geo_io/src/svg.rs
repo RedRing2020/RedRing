@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn test_parse_nurbs_curve() {
         let svg = r#"<svg xmlns="http://www.w3.org/2000/svg">
-                <path 
+                <path
                     data-nurbs="true"
                     data-degree="3"
                     data-control-points="0,0,0; 1,0,0; 1,1,0; 0,1,0"
@@ -493,7 +493,7 @@ mod tests {
     #[test]
     fn test_parse_nurbs_without_weights() {
         let svg = r#"<svg xmlns="http://www.w3.org/2000/svg">
-                <path 
+                <path
                     data-nurbs="true"
                     data-degree="2"
                     data-control-points="0,0,0; 1,0,0; 1,1,0"

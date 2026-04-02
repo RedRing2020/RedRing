@@ -159,12 +159,11 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
 
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
-        // LineSegment3D を Point3D として中心点を使用（midpoint）
-        let center_point = center.midpoint();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
         let matrix = analysis_transform::rotation_matrix_3d(&center_point, &axis_vector3d, angle)?;
         Ok(self.transform_point_matrix(&matrix))
@@ -172,22 +171,22 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
 
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.midpoint();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = analysis_transform::scale_matrix_3d(&center_point, scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.midpoint();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = analysis_transform::uniform_scale_matrix_3d(&center_point, scale_factor)?;
         Ok(self.transform_point_matrix(&matrix))
     }
@@ -195,14 +194,13 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
-        let center = self.midpoint();
+        let center = Point3D::origin();
 
-        // rotation の型変換
         let rotation_converted = rotation.map(|(rot_center, axis, angle)| {
-            let center_point = rot_center.midpoint();
+            let center_point = Point3D::new(rot_center.x(), rot_center.y(), rot_center.z());
             let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
             (center_point, axis_vector3d, angle)
         });
@@ -219,7 +217,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for LineSegment3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
@@ -235,13 +233,8 @@ mod tests {
         LineSegment3D::new(Point3D::new(1.0, 2.0, 3.0), Point3D::new(4.0, 5.0, 6.0)).unwrap()
     }
 
-    fn create_center_segment() -> LineSegment3D<f64> {
-        // 極小線分で原点周辺の中心を表現
-        LineSegment3D::new(
-            Point3D::new(-1e-10, -1e-10, -1e-10),
-            Point3D::new(1e-10, 1e-10, 1e-10),
-        )
-        .unwrap()
+    fn create_center_vector() -> Vector3<f64> {
+        Vector3::new(0.0, 0.0, 0.0)
     }
 
     #[test]
@@ -262,7 +255,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation() {
         let segment = create_test_segment();
-        let center = create_center_segment();
+        let center = create_center_vector();
         let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸周り
         let angle = Angle::from_degrees(90.0);
 
@@ -280,7 +273,7 @@ mod tests {
     #[test]
     fn test_analysis_scale() {
         let segment = create_test_segment();
-        let center = create_center_segment();
+        let center = create_center_vector();
 
         let result = segment.scale_analysis(&center, 2.0, 2.0, 2.0).unwrap();
 
@@ -295,7 +288,7 @@ mod tests {
     #[test]
     fn test_analysis_uniform_scale() {
         let segment = create_test_segment();
-        let center = create_center_segment();
+        let center = create_center_vector();
 
         let result = segment.uniform_scale_analysis(&center, 3.0).unwrap();
 

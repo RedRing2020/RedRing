@@ -18,7 +18,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError>
@@ -27,7 +27,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -37,7 +37,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError>
     where
@@ -46,7 +46,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError>
     where
@@ -55,7 +55,7 @@ pub trait AnalysisTransform3D<T: Scalar> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError>
     where
@@ -79,7 +79,7 @@ pub trait AnalysisTransform2D<T: Scalar> {
 
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError>
     where
@@ -87,7 +87,7 @@ pub trait AnalysisTransform2D<T: Scalar> {
 
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError>
@@ -96,7 +96,7 @@ pub trait AnalysisTransform2D<T: Scalar> {
 
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError>
     where

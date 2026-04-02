@@ -9,6 +9,8 @@ use analysis::linalg::{
     vector::{Vector3, Vector4},
 };
 use geo_contracts::default_kernel_numerical_zero_tolerance;
+#[cfg(test)]
+use geo_contracts::Bounded;
 use geo_contracts::NurbsSurface3DProperties;
 use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
@@ -119,6 +121,19 @@ fn scale_matrix_3d<T: Scalar>(sx: T, sy: T, sz: T) -> Result<Matrix4x4<T>, Trans
     Ok(Matrix4x4::scale_3d(&scale))
 }
 
+#[cfg(test)]
+fn pivot_from_surface_aabb<T: Scalar>(
+    surface: &NurbsSurface3D<T>,
+) -> Result<Vector3<T>, TransformError> {
+    let center = surface
+        .aabb()
+        .ok_or_else(|| {
+            TransformError::InvalidGeometry("Center surface has no bounding box".to_string())
+        })?
+        .center();
+    Ok(Vector3::new(center.x(), center.y(), center.z()))
+}
+
 // ============================================================================
 // AnalysisTransform3D Implementation
 // ============================================================================
@@ -142,19 +157,14 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     /// 軸回転変換（Analysis Matrix4x4使用）
     fn rotate_analysis(
         &self,
-        _center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        // centerからNurbsSurface3Dの重心を計算
-        let centroid = self.compute_centroid();
-
-        // 回転行列を生成
         let rotation = rotation_matrix_3d(axis, angle)?;
 
-        // 複合変換: center → 原点 → 回転 → 元の位置
-        let to_origin = translation_matrix_3d(-centroid.x(), -centroid.y(), -centroid.z());
-        let from_origin = translation_matrix_3d(centroid.x(), centroid.y(), centroid.z());
+        let to_origin = translation_matrix_3d(-center.x(), -center.y(), -center.z());
+        let from_origin = translation_matrix_3d(center.x(), center.y(), center.z());
 
         let combined = from_origin * rotation * to_origin;
         transform_control_points(self, &combined)
@@ -163,20 +173,15 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     /// スケール変換（Analysis Matrix4x4使用）
     fn scale_analysis(
         &self,
-        _center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        // centerからNurbsSurface3Dの重心を計算
-        let centroid = self.compute_centroid();
-
-        // スケール行列を生成
         let scale = scale_matrix_3d(scale_x, scale_y, scale_z)?;
 
-        // 複合変換: center → 原点 → スケール → 元の位置
-        let to_origin = translation_matrix_3d(-centroid.x(), -centroid.y(), -centroid.z());
-        let from_origin = translation_matrix_3d(centroid.x(), centroid.y(), centroid.z());
+        let to_origin = translation_matrix_3d(-center.x(), -center.y(), -center.z());
+        let from_origin = translation_matrix_3d(center.x(), center.y(), center.z());
 
         let combined = from_origin * scale * to_origin;
         transform_control_points(self, &combined)
@@ -185,7 +190,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     /// 均等スケール変換（Analysis Matrix4x4使用）
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -195,7 +200,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut matrix = Matrix4x4::identity();
@@ -207,18 +212,17 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
         }
 
         // 回転適用
-        if let Some((_center, axis, angle)) = rotation {
-            let centroid = self.compute_centroid();
+        if let Some((center, axis, angle)) = rotation {
             let rotation_mat = rotation_matrix_3d(axis, angle)?;
-            let to_origin = translation_matrix_3d(-centroid.x(), -centroid.y(), -centroid.z());
-            let from_origin = translation_matrix_3d(centroid.x(), centroid.y(), centroid.z());
+            let to_origin = translation_matrix_3d(-center.x(), -center.y(), -center.z());
+            let from_origin = translation_matrix_3d(center.x(), center.y(), center.z());
             matrix = matrix * from_origin * rotation_mat * to_origin;
         }
 
         // 平行移動適用
         if let Some(trans) = translation {
             let trans_mat = translation_matrix_3d(trans.x(), trans.y(), trans.z());
-            matrix = trans_mat * matrix;
+            matrix = matrix * trans_mat;
         }
 
         transform_control_points(self, &matrix)
@@ -228,40 +232,11 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
         self.apply_composite_transform(translation, rotation, scale_tuple)
-    }
-}
-
-// ============================================================================
-// Helper Methods
-// ============================================================================
-
-impl<T: Scalar> NurbsSurface3D<T> {
-    /// 制御点の重心を計算
-    fn compute_centroid(&self) -> Vector3<T> {
-        let u_count = self.u_count();
-        let v_count = self.v_count();
-        let total_points = u_count * v_count;
-
-        let mut sum_x = T::ZERO;
-        let mut sum_y = T::ZERO;
-        let mut sum_z = T::ZERO;
-
-        for u in 0..u_count {
-            for v in 0..v_count {
-                let point = self.control_point(u, v);
-                sum_x += point.x();
-                sum_y += point.y();
-                sum_z += point.z();
-            }
-        }
-
-        let count = T::from_usize(total_points);
-        Vector3::new(sum_x / count, sum_y / count, sum_z / count)
     }
 }
 
@@ -294,51 +269,51 @@ mod tests {
     #[test]
     fn test_rotate_analysis_z_axis() {
         let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let center_surface = surface
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center surface should translate");
+        let center =
+            pivot_from_surface_aabb(&center_surface).expect("center surface should have pivot");
 
         let axis = Vector3::new(0.0, 0.0, 1.0);
         let angle = Angle::from_degrees(90.0);
 
         let result = <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::rotate_analysis(
-            &surface, &surface, &axis, angle,
+            &surface, &center, &axis, angle,
         );
 
         assert!(result.is_ok());
         let rotated = result.unwrap();
 
-        // 回転が適用されたことを確認（具体的な座標は重心回転のため複雑）
-        // 少なくとも制御点が変化していることを確認
-        let original_p10 = surface.control_point(1, 0);
         let rotated_p10 = rotated.control_point(1, 0);
-
-        // 何らかの変化があることを確認
-        let changed = (original_p10.x() - rotated_p10.x()).abs() > 1e-10
-            || (original_p10.y() - rotated_p10.y()).abs() > 1e-10;
-        assert!(changed, "Control point should change after rotation");
+        assert!((rotated_p10.x() - 11.0).abs() < 1e-10);
+        assert!((rotated_p10.y() + 9.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_uniform_scale_analysis() {
         let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let center_surface = surface
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center surface should translate");
+        let center =
+            pivot_from_surface_aabb(&center_surface).expect("center surface should have pivot");
 
         let scale_factor = 2.0;
         let result = <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::uniform_scale_analysis(
             &surface,
-            &surface,
+            &center,
             scale_factor,
         );
 
         assert!(result.is_ok());
         let scaled = result.unwrap();
 
-        // 重心からの距離が2倍になっているか確認
-        let centroid = surface.compute_centroid();
-        let original_p10 = surface.control_point(1, 0);
+        let scaled_p00 = scaled.control_point(0, 0);
         let scaled_p10 = scaled.control_point(1, 0);
 
-        let original_dist_x = (original_p10.x() - centroid.x()).abs();
-        let scaled_dist_x = (scaled_p10.x() - centroid.x()).abs();
-
-        assert!((scaled_dist_x - original_dist_x * 2.0).abs() < 1e-10);
+        assert!((scaled_p00.x() + 10.5).abs() < 1e-10);
+        assert!((scaled_p10.x() + 8.5).abs() < 1e-10);
     }
 
     #[test]
@@ -365,17 +340,64 @@ mod tests {
 
         let translation = Vector3::new(1.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 0.0, 1.0);
-        let angle = Angle::from_degrees(45.0);
+        let angle = Angle::from_degrees(90.0);
         let scale = (2.0, 2.0, 2.0);
+        let center_surface = surface
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center surface should translate");
+        let center =
+            pivot_from_surface_aabb(&center_surface).expect("center surface should have pivot");
 
         let result = <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::apply_composite_transform(
             &surface,
             Some(&translation),
-            Some((&surface, &axis, angle)),
+            Some((&center, &axis, angle)),
             Some(scale),
         );
 
         assert!(result.is_ok());
-        // 複合変換が成功すればOK（詳細な検証は省略）
+        let transformed = result.unwrap();
+        let p00 = transformed.control_point(0, 0);
+        assert!((p00.x() - 22.0).abs() < 1e-10);
+        assert!((p00.y() + 18.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_apply_composite_transform_matches_sequential_operations() {
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
+        let translation = Vector3::new(1.0, 0.0, 0.0);
+        let axis = Vector3::new(0.0, 0.0, 1.0);
+        let angle = Angle::from_degrees(90.0);
+        let scale = (2.0, 2.0, 2.0);
+        let center_surface = surface
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center surface should translate");
+        let center =
+            pivot_from_surface_aabb(&center_surface).expect("center surface should have pivot");
+
+        let composite =
+            <NurbsSurface3D<f64> as AnalysisTransform3D<f64>>::apply_composite_transform(
+                &surface,
+                Some(&translation),
+                Some((&center, &axis, angle)),
+                Some(scale),
+            )
+            .expect("composite transform should succeed");
+
+        let sequential = surface
+            .translate_analysis(&translation)
+            .and_then(|translated| translated.rotate_analysis(&center, &axis, angle))
+            .and_then(|rotated| {
+                rotated.scale_analysis(&Vector3::new(0.0, 0.0, 0.0), scale.0, scale.1, scale.2)
+            })
+            .expect("sequential transform should succeed");
+
+        for (u, v) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+            let composite_point = composite.control_point(u, v);
+            let sequential_point = sequential.control_point(u, v);
+            assert!((composite_point.x() - sequential_point.x()).abs() < 1e-10);
+            assert!((composite_point.y() - sequential_point.y()).abs() < 1e-10);
+            assert!((composite_point.z() - sequential_point.z()).abs() < 1e-10);
+        }
     }
 }

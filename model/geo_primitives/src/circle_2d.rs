@@ -83,9 +83,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点が円内部にあるか判定
     pub fn contains_point(&self, point: Point2D<T>) -> bool {
-        let dx = point.x() - self.center.x();
-        let dy = point.y() - self.center.y();
-        let distance_squared = dx * dx + dy * dy;
+        let distance_squared = point.distance_squared_to(&self.center);
         distance_squared < self.radius * self.radius
     }
 
@@ -100,9 +98,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点から円周への距離
     pub fn distance_to_point(&self, point: Point2D<T>) -> T {
-        let dx = point.x() - self.center.x();
-        let dy = point.y() - self.center.y();
-        let center_distance = (dx * dx + dy * dy).sqrt();
+        let center_distance = point.distance_to(&self.center);
         (center_distance - self.radius).abs()
     }
 
@@ -113,9 +109,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点が円周上にあるか判定
     pub fn point_on_circumference(&self, point: Point2D<T>) -> bool {
-        let dx = point.x() - self.center.x();
-        let dy = point.y() - self.center.y();
-        let distance = (dx * dx + dy * dy).sqrt();
+        let distance = point.distance_to(&self.center);
         (distance - self.radius).abs() <= default_distance_tolerance::<T>()
     }
 
@@ -123,7 +117,7 @@ impl<T: Scalar> Circle2D<T> {
     pub fn closest_point_to(&self, point: Point2D<T>) -> Point2D<T> {
         let dx = point.x() - self.center.x();
         let dy = point.y() - self.center.y();
-        let distance = (dx * dx + dy * dy).sqrt();
+        let distance = point.distance_to(&self.center);
 
         if distance <= default_kernel_numerical_zero_tolerance::<T>() {
             // 点が中心にある場合、任意の円周上の点を返す
@@ -156,11 +150,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 2つの円の距離
     pub fn distance_to_circle(&self, other: &Self) -> T {
-        let center_distance = {
-            let dx = other.center.x() - self.center.x();
-            let dy = other.center.y() - self.center.y();
-            (dx * dx + dy * dy).sqrt()
-        };
+        let center_distance = self.center.distance_to(&other.center);
 
         let radii_sum = self.radius + other.radius;
 
@@ -219,9 +209,7 @@ impl<T: Scalar> Circle2D<T> {
         let center = Point2D::new(cx, cy);
 
         // 半径を計算
-        let dx = point1.x() - cx;
-        let dy = point1.y() - cy;
-        let radius = (dx * dx + dy * dy).sqrt();
+        let radius = center.distance_to(&point1);
 
         Self::new(center, radius)
     }
@@ -252,9 +240,7 @@ impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
         let center_point = Point2D::new(center.0, center.1);
         let point = Point2D::new(point_on_circle.0, point_on_circle.1);
 
-        let dx = point.x() - center_point.x();
-        let dy = point.y() - center_point.y();
-        let radius = (dx * dx + dy * dy).sqrt();
+        let radius = point.distance_to(&center_point);
 
         if radius <= T::ZERO {
             None

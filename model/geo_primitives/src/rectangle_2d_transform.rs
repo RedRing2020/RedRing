@@ -86,28 +86,28 @@ impl<T: Scalar> AnalysisTransform2D<T> for Rect2D<T> {
 
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let c = center.center_point();
+        let c = Point2D::new(center.x(), center.y());
         let m = analysis_transform::rotation_matrix_2d(&c, angle);
         analysis_transform::transform_rect_2d(self, &m)
     }
 
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        let c = center.center_point();
+        let c = Point2D::new(center.x(), center.y());
         let m = analysis_transform::scale_matrix_2d(&c, scale_x, scale_y)?;
         analysis_transform::transform_rect_2d(self, &m)
     }
 
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis_2d(center, scale_factor, scale_factor)

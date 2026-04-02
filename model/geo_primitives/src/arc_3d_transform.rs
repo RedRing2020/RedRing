@@ -150,14 +150,13 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
     /// 軸回転変換（Analysis Matrix4x4使用）
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let (cx, cy, cz) = Arc3DProperties::center(center);
-        let to_origin = analysis_transform::translation_matrix_3d(-cx, -cy, -cz);
+        let to_origin = analysis_transform::translation_matrix_3d(-center.x(), -center.y(), -center.z());
         let rotation = analysis_transform::axis_rotation_matrix_3d(axis, angle);
-        let from_origin = analysis_transform::translation_matrix_3d(cx, cy, cz);
+        let from_origin = analysis_transform::translation_matrix_3d(center.x(), center.y(), center.z());
 
         let combined_matrix = from_origin.mul_matrix(&rotation.mul_matrix(&to_origin));
         analysis_transform::transform_arc_3d(self, &combined_matrix)
@@ -166,7 +165,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
     /// スケール変換
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -185,10 +184,9 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
             ));
         }
 
-        let (cx, cy, cz) = Arc3DProperties::center(center);
-        let to_origin = analysis_transform::translation_matrix_3d(-cx, -cy, -cz);
+        let to_origin = analysis_transform::translation_matrix_3d(-center.x(), -center.y(), -center.z());
         let scale = analysis_transform::scale_matrix_3d(scale_x, scale_y, scale_z);
-        let from_origin = analysis_transform::translation_matrix_3d(cx, cy, cz);
+        let from_origin = analysis_transform::translation_matrix_3d(center.x(), center.y(), center.z());
 
         let combined_matrix = from_origin.mul_matrix(&scale.mul_matrix(&to_origin));
         analysis_transform::transform_arc_3d(self, &combined_matrix)
@@ -197,7 +195,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
     /// 均等スケール変換
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -207,10 +205,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut result = self.clone();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
+        let scale_center = rotation.as_ref().map(|(center, _, _)| *center);
 
         // 平行移動
         if let Some(trans) = translation {
@@ -229,8 +229,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
                     "Arc3D requires uniform scaling".to_string(),
                 ));
             }
-            let center = result.clone(); // 現在の円弧を中心として使用
-            result = result.uniform_scale_analysis(&center, sx)?;
+            result = result.uniform_scale_analysis(scale_center.unwrap_or(&origin), sx)?;
         }
 
         Ok(result)
@@ -240,7 +239,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
@@ -303,12 +302,12 @@ mod tests {
     #[test]
     fn test_rotation_analysis_transform() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let z_axis = Vector3::new(0.0, 0.0, 1.0);
         let rotation_angle = Angle::from_degrees(45.0);
 
         let result = arc
-            .rotate_analysis(&center_arc, &z_axis, rotation_angle)
+            .rotate_analysis(&center, &z_axis, rotation_angle)
             .unwrap();
 
         // Z軸回転後も半径と角度範囲は保持
@@ -325,12 +324,12 @@ mod tests {
     #[test]
     fn test_arbitrary_axis_rotation() {
         let arc = create_xz_arc();
-        let center_arc = create_xz_arc();
+        let center = Vector3::new(1.0, 2.0, 3.0);
         let axis = Vector3::new(1.0, 0.0, 0.0); // X軸回転
         let rotation_angle = Angle::from_degrees(90.0);
 
         let result = arc
-            .rotate_analysis(&center_arc, &axis, rotation_angle)
+            .rotate_analysis(&center, &axis, rotation_angle)
             .unwrap();
 
         // 半径と角度は保持
@@ -342,9 +341,9 @@ mod tests {
     #[test]
     fn test_uniform_scale_analysis_transform() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = arc.uniform_scale_analysis(&center_arc, 2.5).unwrap();
+        let result = arc.uniform_scale_analysis(&center, 2.5).unwrap();
 
         assert_eq!(result.radius(), 5.0); // 2.0 * 2.5
         assert_eq!(result.start_angle().to_degrees(), 0.0);
@@ -359,9 +358,9 @@ mod tests {
     #[test]
     fn test_non_uniform_scale_error() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = arc.scale_analysis(&center_arc, 2.0, 1.5, 2.0);
+        let result = arc.scale_analysis(&center, 2.0, 1.5, 2.0);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -373,9 +372,9 @@ mod tests {
     #[test]
     fn test_zero_scale_error() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = arc.scale_analysis(&center_arc, 0.0, 1.0, 1.0);
+        let result = arc.scale_analysis(&center, 0.0, 1.0, 1.0);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -414,7 +413,7 @@ mod tests {
     fn test_composite_transform() {
         let arc = create_test_arc();
         let translation = Vector3::new(2.0, 1.0, -1.0);
-        let center_arc = create_test_arc();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 1.0, 0.0); // Y軸回転
         let rotation_angle = Angle::from_degrees(45.0);
         let scale = 1.5;
@@ -422,7 +421,7 @@ mod tests {
         let result = arc
             .apply_composite_transform_uniform(
                 Some(&translation),
-                Some((&center_arc, &axis, rotation_angle)),
+                Some((&center, &axis, rotation_angle)),
                 Some(scale),
             )
             .unwrap();
@@ -436,9 +435,9 @@ mod tests {
     #[test]
     fn test_negative_scale_transform() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
-        let result = arc.uniform_scale_analysis(&center_arc, -2.0).unwrap();
+        let result = arc.uniform_scale_analysis(&center, -2.0).unwrap();
 
         // 負のスケールでも半径は正
         assert_eq!(result.radius(), 4.0); // abs(-2.0) * 2.0

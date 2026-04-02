@@ -60,6 +60,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 2. **継続作業確認**: 既存の途中実装がないか `dev/` フォルダと `model/geo_core` を確認
 3. **アーキテクチャ遵守**: `geo_core` ブリッジパターンを厳守（例: `geo_nurbs → geo_core → geo_contracts`）
 4. **依存関係不変**: `scripts/check_architecture_dependencies_simple.ps1` の改変は絶対禁止
+5. **表示不具合とカーネル変換の分離確認**: wgpu表示の症状だけを根拠に `geo_core` / `geo_nurbs` の行列積順や transform 実装を変更しない。変更前に、対象の transform 経路が実際に呼ばれていることを確認する
 
 ### 依存関係と import の運用ルール（重要）
 
@@ -75,6 +76,7 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 - ❌ レイヤールールに反する `geo_primitives` への直接依存の許可
 - ❌ `geo_algorithms` 実装ファイル内での `use geo_primitives::...` 直接 import
 - ❌ アーキテクチャチェックスクリプトの例外追加
+- ❌ 表示の見え方だけを理由に、呼び出し経路未確認のまま transform の積順・座標変換カーネルを変更すること
 
 ### 実装許可が必要な作業
 

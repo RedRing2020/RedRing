@@ -97,10 +97,9 @@ pub fn spherical_solid3d_spherical_solid3d_collides<T: Scalar>(
 ) -> bool {
     let (ax, ay, az) = SphericalSolid3DProperties::center(sphere_a);
     let (bx, by, bz) = SphericalSolid3DProperties::center(sphere_b);
-    let dx = bx - ax;
-    let dy = by - ay;
-    let dz = bz - az;
-    let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+    let center_a = Point3D::new(ax, ay, az);
+    let center_b = Point3D::new(bx, by, bz);
+    let dist = center_a.distance_to(&center_b);
     let r1 = SphericalSolid3DProperties::radius(sphere_a);
     let r2 = SphericalSolid3DProperties::radius(sphere_b);
     dist <= r1 + r2 + tolerance
@@ -208,10 +207,9 @@ pub fn cylindrical_solid3d_cylindrical_solid3d_collides<T: Scalar>(
 ) -> bool {
     let (ax, ay, az) = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::center(cyl_a);
     let (bx, by, bz) = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::center(cyl_b);
-    let dx = bx - ax;
-    let dy = by - ay;
-    let dz = bz - az;
-    let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+    let center_a = Point3D::new(ax, ay, az);
+    let center_b = Point3D::new(bx, by, bz);
+    let dist = center_a.distance_to(&center_b);
     let max_a = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::radius(cyl_a)
         + <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::height(cyl_a);
     let max_b = <CylindricalSolid3D<T> as CylindricalSolid3DProperties<T>>::radius(cyl_b)
@@ -328,10 +326,9 @@ pub fn cylindrical_surface3d_cylindrical_surface3d_collides<T: Scalar>(
         <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(cyl_a);
     let (bx, by, bz) =
         <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::center(cyl_b);
-    let dx = bx - ax;
-    let dy = by - ay;
-    let dz = bz - az;
-    let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+    let center_a = Point3D::new(ax, ay, az);
+    let center_b = Point3D::new(bx, by, bz);
+    let dist = center_a.distance_to(&center_b);
     let radius_sum = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(cyl_a)
         + <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(cyl_b);
     dist <= radius_sum + tolerance
@@ -448,10 +445,7 @@ pub fn ellipse3d_ellipse3d_collides<T: Scalar>(
 ) -> bool {
     let c1 = ellipse_a.center();
     let c2 = ellipse_b.center();
-    let dx = c2.x() - c1.x();
-    let dy = c2.y() - c1.y();
-    let dz = c2.z() - c1.z();
-    let center_dist = (dx * dx + dy * dy + dz * dz).sqrt();
+    let center_dist = c1.distance_to(&c2);
     let sum_semi_major = ellipse_a.semi_major_axis() + ellipse_b.semi_major_axis();
     center_dist <= sum_semi_major + tolerance
 }
@@ -538,10 +532,9 @@ pub fn ellipsoidal_solid3d_ellipsoidal_solid3d_collides<T: Scalar>(
 ) -> bool {
     let (ax, ay, az) = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_a);
     let (bx, by, bz) = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::center(ell_b);
-    let dx = bx - ax;
-    let dy = by - ay;
-    let dz = bz - az;
-    let center_dist = (dx * dx + dy * dy + dz * dz).sqrt();
+    let center_a = Point3D::new(ax, ay, az);
+    let center_b = Point3D::new(bx, by, bz);
+    let center_dist = center_a.distance_to(&center_b);
     let max_1 = {
         let a = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::a_radius(ell_a);
         let b = <EllipsoidalSolid3D<T> as EllipsoidalSolid3DProperties<T>>::b_radius(ell_a);
@@ -782,10 +775,9 @@ pub fn circle3d_circle3d_collides<T: Scalar>(
 ) -> bool {
     let (ax, ay, az) = circle_a.center();
     let (bx, by, bz) = circle_b.center();
-    let dx = bx - ax;
-    let dy = by - ay;
-    let dz = bz - az;
-    let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+    let center_a = Point3D::new(ax, ay, az);
+    let center_b = Point3D::new(bx, by, bz);
+    let dist = center_a.distance_to(&center_b);
     dist <= circle_a.radius() + circle_b.radius() + tolerance
 }
 

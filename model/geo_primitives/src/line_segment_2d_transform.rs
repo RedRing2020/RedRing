@@ -197,10 +197,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for LineSegment2D<T> {
     /// Analysis統合回転（中心点指定）
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = center.midpoint();
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         analysis_transform::transform_line_segment_2d(self, &matrix)
     }
@@ -208,11 +208,11 @@ impl<T: Scalar> AnalysisTransform2D<T> for LineSegment2D<T> {
     /// Analysis統合スケール（中心点指定）
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = center.midpoint();
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         analysis_transform::transform_line_segment_2d(self, &matrix)
     }
@@ -220,12 +220,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for LineSegment2D<T> {
     /// Analysis統合均等スケール（中心点指定）
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = center.midpoint();
-        let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
-        analysis_transform::transform_line_segment_2d(self, &matrix)
+        self.scale_analysis_2d(center, scale_factor, scale_factor)
     }
 }
 
@@ -288,14 +286,10 @@ mod tests {
             LineSegment2D::new(Point2D::new(1.0_f64, 0.0), Point2D::new(3.0, 0.0)).unwrap();
 
         // 原点中心で回転させるための中心線分を原点に配置
-        let center_segment = LineSegment2D::new(
-            Point2D::origin(),
-            Point2D::new(1e-10, 0.0), // 極小線分で原点中心を表現
-        )
-        .unwrap();
+        let center = Vector2::new(0.0, 0.0);
 
         let angle = Angle::from_radians(PI / 2.0);
-        let result = segment.rotate_analysis_2d(&center_segment, angle).unwrap();
+        let result = segment.rotate_analysis_2d(&center, angle).unwrap();
 
         // 90度回転後、Y軸方向になるはず
         assert!((result.start_point().x() - 0.0).abs() < 1e-10);
@@ -311,14 +305,10 @@ mod tests {
             LineSegment2D::new(Point2D::new(1.0_f64, 1.0), Point2D::new(3.0, 3.0)).unwrap();
 
         // スケール中心を原点に設定
-        let center_segment = LineSegment2D::new(
-            Point2D::origin(),
-            Point2D::new(1e-10, 0.0), // 極小線分で原点中心を表現
-        )
-        .unwrap();
+        let center = Vector2::new(0.0, 0.0);
 
         let result = segment
-            .scale_analysis_2d(&center_segment, 2.0, 2.0)
+            .scale_analysis_2d(&center, 2.0, 2.0)
             .unwrap();
 
         // 原点中心で2倍スケール（浮動小数点誤差を考慮した許容値を使用）
@@ -334,9 +324,9 @@ mod tests {
         let segment =
             LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0)).unwrap();
 
-        let center_segment = segment;
+        let center = Vector2::new(1.0, 0.0);
         let result = segment
-            .uniform_scale_analysis_2d(&center_segment, 1.5)
+            .uniform_scale_analysis_2d(&center, 1.5)
             .unwrap();
 
         // 中心からスケールされるため、長さが1.5倍になる
@@ -403,7 +393,7 @@ mod tests {
         let segment =
             LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(1.0, 0.0)).unwrap();
 
-        let center = segment;
+        let center = Vector2::new(0.5, 0.0);
         let result = segment.scale_analysis_2d(&center, 0.0, 1.0);
 
         assert!(result.is_err());

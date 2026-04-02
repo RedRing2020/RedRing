@@ -61,7 +61,7 @@ pub mod analysis_transform {
 
     /// 回転行列生成（軸回転版）
     pub fn rotation_matrix_3d<T: Scalar>(
-        _center: &TriangleMesh3D<T>,
+        _center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Matrix4x4<T>, TransformError> {
@@ -81,7 +81,7 @@ pub mod analysis_transform {
 
     /// スケール行列生成（中心点指定版）
     pub fn scale_matrix_3d<T: Scalar>(
-        center: &TriangleMesh3D<T>,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -92,8 +92,7 @@ pub mod analysis_transform {
             ));
         }
 
-        // メッシュの重心を計算
-        let centroid = mesh_centroid_3d(center);
+        let centroid = *center;
         let scale_vec = Vector3::new(scale_x, scale_y, scale_z);
         let translate_to_origin = Matrix4x4::translation_3d(&(-centroid));
         let scale = Matrix4x4::scale_3d(&scale_vec);
@@ -135,7 +134,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
 
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
@@ -145,7 +144,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
 
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -156,7 +155,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
 
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -165,10 +164,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Angle<T>)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
         let mut result = self.clone();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
+        let scale_center = rotation.as_ref().map(|(center, _, _)| *center);
 
         // 平行移動
         if let Some(trans) = translation {
@@ -182,7 +183,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
 
         // スケール
         if let Some((sx, sy, sz)) = scale {
-            result = result.scale_analysis(&result, sx, sy, sz)?;
+            result = result.scale_analysis(scale_center.unwrap_or(&origin), sx, sy, sz)?;
         }
 
         Ok(result)
@@ -191,7 +192,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for TriangleMesh3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Angle<T>)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
@@ -243,7 +244,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation_z() {
         let mesh = create_test_mesh();
-        let center = mesh.clone();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸
         let angle = Angle::from_degrees(90.0);
 
@@ -257,7 +258,7 @@ mod tests {
     #[test]
     fn test_analysis_uniform_scale() {
         let mesh = create_test_mesh();
-        let center = mesh.clone();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
         let result = mesh.uniform_scale_analysis(&center, 2.0).unwrap();
 

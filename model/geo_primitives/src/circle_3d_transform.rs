@@ -165,18 +165,22 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
     /// 軸回転変換
     fn rotate_analysis(
         &self,
-        _center: &Self, // 現在の実装では原点中心回転のみサポート
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix_3d(axis, angle)?;
+        let rotation = analysis_transform::rotation_matrix_3d(axis, angle)?;
+        let center_vec = Vector3::new(center.x(), center.y(), center.z());
+        let to_origin = Matrix4x4::translation_3d(&(-center_vec));
+        let back_to_center = Matrix4x4::translation_3d(&center_vec);
+        let matrix = back_to_center * rotation * to_origin;
         analysis_transform::transform_circle_3d(self, &matrix)
     }
 
     /// 非均等スケール変換
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -188,17 +192,19 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
             ));
         }
 
-        let matrix = analysis_transform::uniform_scale_matrix_3d(&center.center_internal(), scale_x)?;
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
+        let matrix = analysis_transform::uniform_scale_matrix_3d(&center_point, scale_x)?;
         analysis_transform::transform_circle_3d(self, &matrix)
     }
 
     /// 均等スケール変換
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::uniform_scale_matrix_3d(&center.center_internal(), scale_factor)?;
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
+        let matrix = analysis_transform::uniform_scale_matrix_3d(&center_point, scale_factor)?;
         analysis_transform::transform_circle_3d(self, &matrix)
     }
 
@@ -206,10 +212,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut result = self.clone();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
+        let scale_center = rotation.as_ref().map(|(center, _, _)| *center);
 
         // 平行移動
         if let Some(trans) = translation {
@@ -228,11 +236,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
                     "Non-uniform scale not supported for Circle3D".to_string(),
                 ));
             }
-            let center_circle = Circle3D::new(result.center_internal(), result.normal_internal(), T::ONE)
-                .ok_or_else(|| {
-                    TransformError::InvalidGeometry("Failed to create center circle".to_string())
-                })?;
-            result = result.uniform_scale_analysis(&center_circle, sx)?;
+            result = result.uniform_scale_analysis(scale_center.unwrap_or(&origin), sx)?;
         }
 
         Ok(result)
@@ -242,10 +246,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let mut result = self.clone();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
+        let scale_center = rotation.as_ref().map(|(center, _, _)| *center);
 
         // 平行移動
         if let Some(trans) = translation {
@@ -259,11 +265,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Circle3D<T> {
 
         // 均等スケール
         if let Some(scale_factor) = scale {
-            let center_circle = Circle3D::new(result.center_internal(), result.normal_internal(), T::ONE)
-                .ok_or_else(|| {
-                    TransformError::InvalidGeometry("Failed to create center circle".to_string())
-                })?;
-            result = result.uniform_scale_analysis(&center_circle, scale_factor)?;
+            result = result.uniform_scale_analysis(scale_center.unwrap_or(&origin), scale_factor)?;
         }
 
         Ok(result)
@@ -285,17 +287,9 @@ impl<T: Scalar> Circle3D<T> {
     ///
     /// Z軸を中心とした回転の最適化版
     pub fn rotate_z_analysis_origin(&self, angle: Angle<T>) -> Result<Self, TransformError> {
-        let origin = Point3D::origin();
+        let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
         let z_axis = Vector3::new(T::ZERO, T::ZERO, T::ONE);
-        let center_circle = Circle3D::new(
-            origin,
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            T::ONE,
-        )
-        .ok_or_else(|| {
-            TransformError::InvalidGeometry("Failed to create center circle".to_string())
-        })?;
-        self.rotate_analysis(&center_circle, &z_axis, angle)
+        self.rotate_analysis(&origin, &z_axis, angle)
     }
 
     /// 半径のみのスケール変換
@@ -345,18 +339,11 @@ mod tests {
             2.0,
         )
         .unwrap();
-        let center_circle = Circle3D::new(
-            Point3D::<f64>::origin(),
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            1.0,
-        )
-        .unwrap();
+        let center = Vector3::new(0.0_f64, 0.0, 0.0);
         let z_axis = Vector3::new(0.0_f64, 0.0, 1.0);
         let angle = Angle::from_degrees(90.0_f64);
 
-        let transformed = circle
-            .rotate_analysis(&center_circle, &z_axis, angle)
-            .unwrap();
+        let transformed = circle.rotate_analysis(&center, &z_axis, angle).unwrap();
 
         // 90度回転で (1,0,0) -> (0,1,0)
         assert!((transformed.center_internal().x() - 0.0).abs() < 1e-10);
@@ -373,17 +360,10 @@ mod tests {
             3.0,
         )
         .unwrap();
-        let center_circle = Circle3D::new(
-            Point3D::<f64>::origin(),
-            Direction3D::from_vector(Vector3D::unit_y()).unwrap(),
-            1.0,
-        )
-        .unwrap();
+        let center = Vector3::new(0.0_f64, 0.0, 0.0);
         let scale_factor = 2.0_f64;
 
-        let transformed = circle
-            .uniform_scale_analysis(&center_circle, scale_factor)
-            .unwrap();
+        let transformed = circle.uniform_scale_analysis(&center, scale_factor).unwrap();
 
         assert!((transformed.center_internal().x() - 4.0).abs() < 1e-10);
         assert!((transformed.center_internal().y() - 8.0).abs() < 1e-10);
@@ -466,14 +446,9 @@ mod tests {
             2.0,
         )
         .unwrap();
-        let center_circle = Circle3D::new(
-            Point3D::<f64>::origin(),
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            1.0,
-        )
-        .unwrap();
+        let center = Vector3::new(0.0_f64, 0.0, 0.0);
 
-        let result = circle.uniform_scale_analysis(&center_circle, 0.0);
+        let result = circle.uniform_scale_analysis(&center, 0.0);
 
         assert!(result.is_err());
         match result {
@@ -490,14 +465,9 @@ mod tests {
             2.0,
         )
         .unwrap();
-        let center_circle = Circle3D::new(
-            Point3D::<f64>::origin(),
-            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
-            1.0,
-        )
-        .unwrap();
+        let center = Vector3::new(0.0_f64, 0.0, 0.0);
 
-        let result = circle.scale_analysis(&center_circle, 2.0, 3.0, 2.0); // 非均等スケール
+        let result = circle.scale_analysis(&center, 2.0, 3.0, 2.0); // 非均等スケール
 
         assert!(result.is_err());
         match result {

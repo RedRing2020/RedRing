@@ -9,6 +9,8 @@ use analysis::linalg::{
     vector::{Vector3, Vector4},
 };
 use geo_contracts::default_kernel_numerical_zero_tolerance;
+#[cfg(test)]
+use geo_contracts::Bounded;
 use geo_contracts::NurbsCurve3DProperties;
 use geo_contracts::{Angle, Scalar};
 use geo_core::{AnalysisTransform3D, TransformError};
@@ -108,6 +110,17 @@ fn scale_matrix_3d<T: Scalar>(sx: T, sy: T, sz: T) -> Result<Matrix4x4<T>, Trans
     Ok(Matrix4x4::scale_3d(&scale))
 }
 
+#[cfg(test)]
+fn pivot_from_curve_aabb<T: Scalar>(curve: &NurbsCurve3D<T>) -> Result<Vector3<T>, TransformError> {
+    let center = curve
+        .aabb()
+        .ok_or_else(|| {
+            TransformError::InvalidGeometry("Center curve has no bounding box".to_string())
+        })?
+        .center();
+    Ok(Vector3::new(center.x(), center.y(), center.z()))
+}
+
 // ============================================================================
 // AnalysisTransform3D Implementation
 // ============================================================================
@@ -131,19 +144,14 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
     /// 軸回転変換（Analysis Matrix4x4使用）
     fn rotate_analysis(
         &self,
-        _center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        // centerからNurbsCurve3Dの重心を計算
-        let centroid = self.compute_centroid();
-
-        // 回転行列を生成
         let rotation = rotation_matrix_3d(axis, angle)?;
 
-        // 複合変換: center → 原点 → 回転 → 元の位置
-        let to_origin = translation_matrix_3d(-centroid.x(), -centroid.y(), -centroid.z());
-        let from_origin = translation_matrix_3d(centroid.x(), centroid.y(), centroid.z());
+        let to_origin = translation_matrix_3d(-center.x(), -center.y(), -center.z());
+        let from_origin = translation_matrix_3d(center.x(), center.y(), center.z());
 
         let combined = from_origin * rotation * to_origin;
         transform_control_points(self, &combined)
@@ -152,20 +160,15 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
     /// スケール変換（Analysis Matrix4x4使用）
     fn scale_analysis(
         &self,
-        _center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        // centerからNurbsCurve3Dの重心を計算
-        let centroid = self.compute_centroid();
-
-        // スケール行列を生成
         let scale = scale_matrix_3d(scale_x, scale_y, scale_z)?;
 
-        // 複合変換: center → 原点 → スケール → 元の位置
-        let to_origin = translation_matrix_3d(-centroid.x(), -centroid.y(), -centroid.z());
-        let from_origin = translation_matrix_3d(centroid.x(), centroid.y(), centroid.z());
+        let to_origin = translation_matrix_3d(-center.x(), -center.y(), -center.z());
+        let from_origin = translation_matrix_3d(center.x(), center.y(), center.z());
 
         let combined = from_origin * scale * to_origin;
         transform_control_points(self, &combined)
@@ -174,7 +177,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
     /// 均等スケール変換（Analysis Matrix4x4使用）
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -184,7 +187,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut matrix = Matrix4x4::identity();
@@ -196,11 +199,10 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
         }
 
         // 回転適用
-        if let Some((_center, axis, angle)) = rotation {
-            let centroid = self.compute_centroid();
+        if let Some((center, axis, angle)) = rotation {
             let rotation_mat = rotation_matrix_3d(axis, angle)?;
-            let to_origin = translation_matrix_3d(-centroid.x(), -centroid.y(), -centroid.z());
-            let from_origin = translation_matrix_3d(centroid.x(), centroid.y(), centroid.z());
+            let to_origin = translation_matrix_3d(-center.x(), -center.y(), -center.z());
+            let from_origin = translation_matrix_3d(center.x(), center.y(), center.z());
             matrix = matrix * from_origin * rotation_mat * to_origin;
         }
 
@@ -217,36 +219,11 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
         self.apply_composite_transform(translation, rotation, scale_tuple)
-    }
-}
-
-// ============================================================================
-// Helper Methods
-// ============================================================================
-
-impl<T: Scalar> NurbsCurve3D<T> {
-    /// 制御点の重心を計算
-    fn compute_centroid(&self) -> Vector3<T> {
-        let num_points = self.num_points();
-        let mut sum_x = T::ZERO;
-        let mut sum_y = T::ZERO;
-        let mut sum_z = T::ZERO;
-
-        for i in 0..num_points {
-            let point = self.control_point(i);
-            sum_x += point.x();
-            sum_y += point.y();
-            sum_z += point.z();
-        }
-
-        #[allow(clippy::cast_precision_loss)]
-        let n = T::from_f64(num_points as f64);
-        Vector3::new(sum_x / n, sum_y / n, sum_z / n)
     }
 }
 
@@ -291,13 +268,19 @@ mod tests {
         )
         .unwrap();
 
-        let center = curve.clone(); // 自身を中心として使用
+        let center_curve = curve
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center curve should translate");
+        let center = pivot_from_curve_aabb(&center_curve).expect("center curve should have pivot");
         let result = curve.uniform_scale_analysis(&center, 2.0);
         assert!(result.is_ok());
 
         let transformed = result.unwrap();
-        // スケール2倍後、元の長さの2倍になる
+        let p0 = transformed.control_point(0);
+        let p1 = transformed.control_point(1);
         assert_eq!(transformed.num_points(), 2);
+        assert!((p0.x() + 11.0).abs() < 1e-10);
+        assert!((p1.x() + 7.0).abs() < 1e-10);
     }
 
     #[test]
@@ -308,7 +291,10 @@ mod tests {
         )
         .unwrap();
 
-        let center = curve.clone();
+        let center_curve = curve
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center curve should translate");
+        let center = pivot_from_curve_aabb(&center_curve).expect("center curve should have pivot");
         let z_axis = Vector3::new(0.0, 0.0, 1.0);
         let angle = Angle::from_degrees(90.0);
 
@@ -316,10 +302,13 @@ mod tests {
         assert!(result.is_ok());
 
         let transformed = result.unwrap();
-        // Z軸周りに90度回転 → X方向がY方向へ
-        // (1,0,0) と (2,0,0) の平num_points
-        // 回転後は約 (0, 1.5, 0) 付近に分布
+        let p0 = transformed.control_point(0);
+        let p1 = transformed.control_point(1);
         assert_eq!(transformed.control_points_count(), 2);
+        assert!((p0.x() - 11.5).abs() < 1e-10);
+        assert!((p0.y() + 10.5).abs() < 1e-10);
+        assert!((p1.x() - 11.5).abs() < 1e-10);
+        assert!((p1.y() + 9.5).abs() < 1e-10);
     }
 
     #[test]
@@ -331,9 +320,12 @@ mod tests {
         .unwrap();
 
         let translation = Vector3::new(5.0, 0.0, 0.0);
-        let center = curve.clone();
+        let center_curve = curve
+            .translate_analysis(&Vector3::new(10.0, 0.0, 0.0))
+            .expect("center curve should translate");
+        let center = pivot_from_curve_aabb(&center_curve).expect("center curve should have pivot");
         let z_axis = Vector3::new(0.0, 0.0, 1.0);
-        let angle = Angle::from_degrees(0.0);
+        let angle = Angle::from_degrees(90.0);
 
         let result = curve.apply_composite_transform(
             Some(&translation),
@@ -344,6 +336,9 @@ mod tests {
 
         let transformed = result.unwrap();
         assert_eq!(transformed.num_points(), 2);
+        let p0 = transformed.control_point(0);
+        assert!((p0.x() - 21.0).abs() < 1e-10);
+        assert!((p0.y() + 11.0).abs() < 1e-10);
     }
 
     #[test]

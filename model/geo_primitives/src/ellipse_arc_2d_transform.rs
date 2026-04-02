@@ -72,10 +72,10 @@ where
 
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.center();
+        let center_point = crate::Point2D::new(center.x(), center.y());
         let matrix = crate::ellipse_2d_analysis_transform::analysis_transform::rotation_matrix_2d(
             &center_point,
             angle,
@@ -85,11 +85,11 @@ where
 
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.center();
+        let center_point = crate::Point2D::new(center.x(), center.y());
         let matrix = crate::ellipse_2d_analysis_transform::analysis_transform::scale_matrix_2d(
             &center_point,
             scale_x,
@@ -100,7 +100,7 @@ where
 
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis_2d(center, scale_factor, scale_factor)
@@ -151,13 +151,8 @@ mod tests {
         let arc = create_test_ellipse_arc();
         let rotation_center = Point2D::origin();
         let rotation_angle = Angle::from_degrees(90.0);
-
-        let center_arc = EllipseArc2D::new(
-            Ellipse2D::axis_aligned(rotation_center, 1.0, 1.0).unwrap(),
-            Angle::from_degrees(0.0),
-            Angle::from_degrees(360.0),
-        );
-        let result = arc.rotate_analysis_2d(&center_arc, rotation_angle).unwrap();
+        let center = Vector2::new(rotation_center.x(), rotation_center.y());
+        let result = arc.rotate_analysis_2d(&center, rotation_angle).unwrap();
 
         // 中心点が回転することを確認（(1,2) -> (-2,1)）
         let expected_center = Point2D::new(-2.0, 1.0);
@@ -176,14 +171,9 @@ mod tests {
         let scale_center = Point2D::origin();
         let scale_x = 2.0;
         let scale_y = 3.0;
-
-        let center_arc = EllipseArc2D::new(
-            Ellipse2D::axis_aligned(scale_center, 1.0, 1.0).unwrap(),
-            Angle::from_degrees(0.0),
-            Angle::from_degrees(360.0),
-        );
+        let center = Vector2::new(scale_center.x(), scale_center.y());
         let result = arc
-            .scale_analysis_2d(&center_arc, scale_x, scale_y)
+            .scale_analysis_2d(&center, scale_x, scale_y)
             .unwrap();
 
         // 中心点がスケールされることを確認
@@ -201,14 +191,9 @@ mod tests {
         let arc = create_test_ellipse_arc();
         let scale_center = Point2D::origin();
         let scale_factor = 2.0;
-
-        let center_arc = EllipseArc2D::new(
-            Ellipse2D::axis_aligned(scale_center, 1.0, 1.0).unwrap(),
-            Angle::from_degrees(0.0),
-            Angle::from_degrees(360.0),
-        );
+        let center = Vector2::new(scale_center.x(), scale_center.y());
         let result = arc
-            .uniform_scale_analysis_2d(&center_arc, scale_factor)
+            .uniform_scale_analysis_2d(&center, scale_factor)
             .unwrap();
 
         // 中心点がスケールされることを確認
@@ -268,26 +253,22 @@ mod tests {
     fn test_error_handling_zero_scale() {
         let arc = create_test_ellipse_arc();
         let scale_center = Point2D::origin();
+        let center = Vector2::new(scale_center.x(), scale_center.y());
 
         // ゼロスケールのテスト
-        let center_arc = EllipseArc2D::new(
-            Ellipse2D::axis_aligned(scale_center, 1.0, 1.0).unwrap(),
-            Angle::from_degrees(0.0),
-            Angle::from_degrees(360.0),
-        );
-        let result_x = arc.scale_analysis_2d(&center_arc, 0.0, 2.0);
+        let result_x = arc.scale_analysis_2d(&center, 0.0, 2.0);
         assert!(matches!(
             result_x,
             Err(TransformError::InvalidScaleFactor(_))
         ));
 
-        let result_y = arc.scale_analysis_2d(&arc, 2.0, 0.0);
+        let result_y = arc.scale_analysis_2d(&center, 2.0, 0.0);
         assert!(matches!(
             result_y,
             Err(TransformError::InvalidScaleFactor(_))
         ));
 
-        let result_uniform = arc.uniform_scale_analysis_2d(&arc, 0.0);
+        let result_uniform = arc.uniform_scale_analysis_2d(&center, 0.0);
         assert!(matches!(
             result_uniform,
             Err(TransformError::InvalidScaleFactor(_))

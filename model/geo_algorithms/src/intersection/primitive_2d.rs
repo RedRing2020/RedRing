@@ -22,9 +22,8 @@ pub fn circle2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let dx = point.x() - circle.center().0;
-    let dy = point.y() - circle.center().1;
-    let distance = (dx * dx + dy * dy).sqrt();
+    let center = Point2D::from_tuple(circle.center());
+    let distance = point.distance_to(&center);
 
     let opt = if (distance - circle.radius()).abs() <= tolerance {
         Some(*point)
@@ -39,9 +38,9 @@ pub fn circle2d_circle2d_intersections_algo<T: Scalar>(
     circle2: &Circle2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let dx = circle2.center().0 - circle1.center().0;
-    let dy = circle2.center().1 - circle1.center().1;
-    let center_distance = (dx * dx + dy * dy).sqrt();
+    let center1 = Point2D::from_tuple(circle1.center());
+    let center2 = Point2D::from_tuple(circle2.center());
+    let center_distance = center1.distance_to(&center2);
 
     if center_distance <= tolerance {
         if (circle1.radius() - circle2.radius()).abs() <= tolerance {
@@ -278,10 +277,8 @@ pub fn arc2d_point2d_intersection<T: Scalar>(
     point: &Point2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (center_x, center_y) = <Arc2D<T> as Arc2DProperties<T>>::center(arc);
-    let dx = point.x() - center_x;
-    let dy = point.y() - center_y;
-    let distance = (dx * dx + dy * dy).sqrt();
+    let center = Point2D::from_tuple(<Arc2D<T> as Arc2DProperties<T>>::center(arc));
+    let distance = point.distance_to(&center);
 
     if (distance - arc.radius()).abs() > tolerance {
         return IntersectionResult::from_option_point2d(None, false, tolerance);
@@ -527,21 +524,13 @@ pub fn ellipse_arc2d_point2d_intersection<T: Scalar>(
     IntersectionResult::from_option_point2d(opt, false, tolerance)
 }
 
-fn squared_norm<T: Scalar>(v: Vector2D<T>) -> T {
-    v.x() * v.x() + v.y() * v.y()
-}
-
-fn cross_2d<T: Scalar>(a: Vector2D<T>, b: Vector2D<T>) -> T {
-    a.x() * b.y() - a.y() * b.x()
-}
-
 fn is_point_on_line<T: Scalar>(
     line_point: Point2D<T>,
     line_dir: Vector2D<T>,
     p: Point2D<T>,
     tolerance: T,
 ) -> bool {
-    cross_2d(Vector2D::from_points(line_point, p), line_dir).abs() <= tolerance
+    Vector2D::from_points(line_point, p).cross(&line_dir).abs() <= tolerance
 }
 
 fn points_near<T: Scalar>(a: Point2D<T>, b: Point2D<T>, tolerance: T) -> bool {
@@ -560,14 +549,14 @@ fn collinear_segment_overlap_result<T: Scalar>(
     let d1 = Vector2D::from_points(p1, p2);
     let d2 = Vector2D::from_points(p3, p4);
 
-    if cross_2d(d1, d2).abs() > tolerance {
+    if d1.cross(&d2).abs() > tolerance {
         return None;
     }
-    if cross_2d(Vector2D::from_points(p1, p3), d1).abs() > tolerance {
+    if Vector2D::from_points(p1, p3).cross(&d1).abs() > tolerance {
         return None;
     }
 
-    let d1_norm = squared_norm(d1);
+    let d1_norm = d1.length_squared();
     if d1_norm <= tolerance * tolerance {
         return Some(IntersectionResult::disjoint(tolerance));
     }
@@ -628,7 +617,7 @@ fn collinear_ray_segment_overlap_result<T: Scalar>(
     let direction = Vector2D::new(ray.direction().0, ray.direction().1);
     let s1 = Point2D::new(segment.start().0, segment.start().1);
     let s2 = Point2D::new(segment.end().0, segment.end().1);
-    let dir_norm = squared_norm(direction);
+    let dir_norm = direction.length_squared();
 
     if dir_norm <= tolerance * tolerance {
         return IntersectionResult::disjoint(tolerance);

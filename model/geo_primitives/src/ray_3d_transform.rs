@@ -162,30 +162,32 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
     /// 軸回転（中心点指定）
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.origin_internal(), axis, angle)?;
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
+        let matrix = analysis_transform::rotation_matrix(&center_point, axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     /// スケール変換（中心点指定）
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.origin_internal(), scale_x, scale_y, scale_z)?;
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
+        let matrix = analysis_transform::scale_matrix(&center_point, scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     /// 均等スケール変換
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -195,15 +197,18 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut matrix = Matrix4x4::identity();
+        let origin = Point3D::origin();
 
         if let Some(scale_factors) = scale {
-            let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
+            let scale_center = rotation
+                .as_ref()
+                .map(|(center, _, _)| Point3D::new(center.x(), center.y(), center.z()));
             let scale_mat = analysis_transform::scale_matrix(
-                &scale_center.origin_internal(),
+                scale_center.as_ref().unwrap_or(&origin),
                 scale_factors.0,
                 scale_factors.1,
                 scale_factors.2,
@@ -212,7 +217,8 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.origin_internal(), axis, angle)?;
+            let center_point = Point3D::new(center.x(), center.y(), center.z());
+            let rot_mat = analysis_transform::rotation_matrix(&center_point, axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -228,7 +234,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Ray3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
@@ -278,9 +284,9 @@ mod tests {
         let axis = Vector3D::new(0.0, 0.0, 1.0); // z軸回転
         let angle = Angle::from_degrees(90.0);
 
-        let center_ray = Ray3D::new(center, Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center_vec = Vector3::new(center.x(), center.y(), center.z());
         let axis_vec = Vector3::new(axis.x(), axis.y(), axis.z());
-        let result = ray.rotate_analysis(&center_ray, &axis_vec, angle).unwrap();
+        let result = ray.rotate_analysis(&center_vec, &axis_vec, angle).unwrap();
 
         // 90度Z軸回転後の起点確認
         let expected_origin = Point3D::new(-2.0, 1.0, 3.0);
@@ -302,9 +308,9 @@ mod tests {
         let scale_y = 3.0;
         let scale_z = 4.0;
 
-        let center_ray = Ray3D::new(center, Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center_vec = Vector3::new(center.x(), center.y(), center.z());
         let result = ray
-            .scale_analysis(&center_ray, scale_x, scale_y, scale_z)
+            .scale_analysis(&center_vec, scale_x, scale_y, scale_z)
             .unwrap();
 
         // スケール変換後の起点確認
@@ -333,12 +339,12 @@ mod tests {
         let scale_z = 2.0;
 
         let translation_vec = Vector3::new(translation.x(), translation.y(), translation.z());
-        let rotation_center_ray = Ray3D::new(rotation_center, rotation_axis).unwrap();
+        let rotation_center_vec = Vector3::new(rotation_center.x(), rotation_center.y(), rotation_center.z());
         let axis_vec = Vector3::new(rotation_axis.x(), rotation_axis.y(), rotation_axis.z());
         let result = ray
             .apply_composite_transform(
                 Some(&translation_vec),
-                Some((&rotation_center_ray, &axis_vec, rotation_angle)),
+                Some((&rotation_center_vec, &axis_vec, rotation_angle)),
                 Some((scale_x, scale_y, scale_z)),
             )
             .unwrap();
@@ -356,8 +362,8 @@ mod tests {
         let ray = create_test_ray();
         let center = Point3D::new(0.0, 0.0, 0.0);
 
-        let center_ray = Ray3D::new(center, Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let result = ray.scale_analysis(&center_ray, 0.0, 1.0, 1.0);
+        let center_vec = Vector3::new(center.x(), center.y(), center.z());
+        let result = ray.scale_analysis(&center_vec, 0.0, 1.0, 1.0);
         assert!(matches!(result, Err(TransformError::InvalidScaleFactor(_))));
     }
 
@@ -368,9 +374,9 @@ mod tests {
         let zero_axis = Vector3D::new(0.0, 0.0, 0.0);
         let angle = Angle::from_degrees(90.0);
 
-        let center_ray = Ray3D::new(center, Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let center_vec = Vector3::new(center.x(), center.y(), center.z());
         let zero_axis_vec = Vector3::new(zero_axis.x(), zero_axis.y(), zero_axis.z());
-        let result = ray.rotate_analysis(&center_ray, &zero_axis_vec, angle);
+        let result = ray.rotate_analysis(&center_vec, &zero_axis_vec, angle);
         assert!(matches!(result, Err(TransformError::InvalidRotation(_))));
     }
 }

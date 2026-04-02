@@ -161,10 +161,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
     /// Analysis統合回転（中心点指定）
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = Point2D::new(center.center_internal().x(), center.center_internal().y());
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         analysis_transform::transform_circle_2d(self, &matrix)
     }
@@ -172,7 +172,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
     /// Analysis統合スケール（中心点指定）
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, crate::TransformError> {
@@ -188,10 +188,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
     /// Analysis統合均等スケール（中心点指定）
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, crate::TransformError> {
-        let center_point = Point2D::new(center.center_internal().x(), center.center_internal().y());
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
         analysis_transform::transform_circle_2d(self, &matrix)
     }
@@ -261,10 +261,10 @@ mod tests {
     #[test]
     fn test_analysis_rotation() {
         let circle = Circle2D::new(Point2D::new(1.0, 0.0), 2.0).unwrap();
-        let center_circle = Circle2D::new(Point2D::origin(), 1.0).unwrap(); // 中心として使用する円
+        let center = Vector2::new(0.0, 0.0);
         let angle = Angle::from_degrees(90.0);
 
-        let transformed = circle.rotate_analysis_2d(&center_circle, angle).unwrap();
+        let transformed = circle.rotate_analysis_2d(&center, angle).unwrap();
 
         // 90度回転で (1,0) -> (0,1)
         assert!((transformed.center_internal().x() - 0.0).abs() < 1e-10);
@@ -275,11 +275,11 @@ mod tests {
     #[test]
     fn test_analysis_scale() {
         let circle = Circle2D::new(Point2D::new(2.0, 4.0), 3.0).unwrap();
-        let center_circle = Circle2D::new(Point2D::origin(), 1.0).unwrap(); // 中心として使用する円
+        let center = Vector2::new(0.0, 0.0);
         let scale_factor = 2.0;
 
         let transformed = circle
-            .uniform_scale_analysis_2d(&center_circle, scale_factor)
+            .uniform_scale_analysis_2d(&center, scale_factor)
             .unwrap();
 
         assert!((transformed.center_internal().x() - 4.0).abs() < 1e-10);
@@ -355,10 +355,8 @@ mod tests {
     #[test]
     fn test_error_handling_zero_scale() {
         let circle = Circle2D::new(Point2D::new(1.0, 1.0), 2.0).unwrap();
-        let center = Point2D::origin();
-
-        let center_circle = Circle2D::new(center, 1.0).unwrap();
-        let result = circle.uniform_scale_analysis_2d(&center_circle, 0.0);
+        let center = Vector2::new(0.0, 0.0);
+        let result = circle.uniform_scale_analysis_2d(&center, 0.0);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),

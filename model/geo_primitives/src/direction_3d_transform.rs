@@ -93,7 +93,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Direction3D<T> {
 
     fn rotate_analysis(
         &self,
-        _center: &Self,
+        _center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
@@ -104,7 +104,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Direction3D<T> {
 
     fn scale_analysis(
         &self,
-        _center: &Self,
+        _center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -116,7 +116,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Direction3D<T> {
 
     fn uniform_scale_analysis(
         &self,
-        _center: &Self,
+        _center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
         // 均等スケール（方向ベクトルは中心点に依存しない）
@@ -127,7 +127,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Direction3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
         // 平行移動は無視（方向ベクトルの特性）
@@ -153,7 +153,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Direction3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
         // 平行移動は無視（方向ベクトルの特性）

@@ -466,10 +466,8 @@ impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
 
     fn line_segment(start: (T, T, T), end: (T, T, T)) -> std::result::Result<Self, String> {
         // 始点と終点が一致するかチェック
-        let dx = end.0 - start.0;
-        let dy = end.1 - start.1;
-        let dz = end.2 - start.2;
-        let distance_sq = dx * dx + dy * dy + dz * dz;
+        let segment = Vector3::new(end.0 - start.0, end.1 - start.1, end.2 - start.2);
+        let distance_sq = segment.norm_squared();
 
         if distance_sq <= T::EPSILON * T::EPSILON {
             return Err("Start and end points must be different".to_string());
@@ -539,10 +537,7 @@ impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
             let u = u_start + step * T::from_f64(i as f64);
             let current_point = self.evaluate_at(u);
 
-            let dx = current_point.x() - prev_point.x();
-            let dy = current_point.y() - prev_point.y();
-            let dz = current_point.z() - prev_point.z();
-            let segment_length = (dx * dx + dy * dy + dz * dz).sqrt();
+            let segment_length = (current_point - prev_point).norm();
 
             total_length += segment_length;
             prev_point = current_point;

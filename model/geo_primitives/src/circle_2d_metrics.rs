@@ -11,9 +11,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点から円の中心までの距離
     pub fn distance_to_center(&self, point: Point2D<T>) -> T {
-        let dx = point.x() - self.center_internal().x();
-        let dy = point.y() - self.center_internal().y();
-        (dx * dx + dy * dy).sqrt()
+        point.distance_to(&self.center_internal())
     }
 
     /// 点から円周までの符号付き距離

@@ -195,13 +195,11 @@ impl<T: Scalar> AnalysisTransform3D<T> for Triangle3D<T> {
 
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
-        // Triangle3Dから重心を取得（3頂点の平均）
-        let center_point = analysis_transform::triangle_centroid_3d(center);
-        // Vector3からVector3Dへの変換
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
         let matrix = analysis_transform::rotation_matrix_3d(&center_point, &axis_vector3d, angle)?;
         Ok(self.transform_point_matrix(&matrix))
@@ -209,20 +207,19 @@ impl<T: Scalar> AnalysisTransform3D<T> for Triangle3D<T> {
 
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self, TransformError> {
-        // Triangle3Dから重心を取得（3頂点の平均）
-        let center_point = analysis_transform::triangle_centroid_3d(center);
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = analysis_transform::scale_matrix_3d(&center_point, scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -231,13 +228,12 @@ impl<T: Scalar> AnalysisTransform3D<T> for Triangle3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Angle<T>)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
-        // Vector3をVector3Dに変換（所有権の問題を回避）
         let translation_vector3d = translation.map(|t| Vector3D::new(t.x(), t.y(), t.z()));
         let rotation_adapted = rotation.map(|(rot_center, axis, angle)| {
-            let center_point = analysis_transform::triangle_centroid_3d(rot_center);
+            let center_point = Point3D::new(rot_center.x(), rot_center.y(), rot_center.z());
             let axis_vector3d = Vector3D::new(axis.x(), axis.y(), axis.z());
             (center_point, axis_vector3d, angle)
         });
@@ -257,7 +253,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Triangle3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Angle<T>)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));
@@ -278,14 +274,8 @@ mod tests {
         .unwrap()
     }
 
-    fn create_center_triangle() -> Triangle3D<f64> {
-        // 原点周辺の小さな正三角形
-        Triangle3D::new(
-            Point3D::new(-0.1, -0.1, 0.0),
-            Point3D::new(0.1, -0.1, 0.0),
-            Point3D::new(0.0, 0.1, 0.0),
-        )
-        .unwrap()
+    fn create_center_vector() -> Vector3<f64> {
+        Vector3::new(0.0, 0.0, 0.0)
     }
 
     #[test]
@@ -309,7 +299,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation_z() {
         let triangle = create_test_triangle();
-        let center = create_center_triangle();
+        let center = create_center_vector();
         let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸
         let angle = Angle::from_degrees(90.0);
 
@@ -330,7 +320,7 @@ mod tests {
     #[test]
     fn test_analysis_scale() {
         let triangle = create_test_triangle();
-        let center = create_center_triangle();
+        let center = create_center_vector();
 
         let result = triangle.scale_analysis(&center, 2.0, 2.0, 2.0).unwrap();
 

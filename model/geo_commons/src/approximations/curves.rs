@@ -1,6 +1,7 @@
 //! 曲線長計算の近似
 
 use analysis::abstract_types::Scalar;
+use analysis::linalg::vector::Vector2;
 
 /// ベジェ曲線の長さ近似（分割近似法）
 pub fn bezier_length_approximation<T: Scalar>(control_points: &[[T; 2]], num_segments: usize) -> T {
@@ -17,10 +18,7 @@ pub fn bezier_length_approximation<T: Scalar>(control_points: &[[T; 2]], num_seg
 
         let p1 = evaluate_bezier(control_points, t1);
         let p2 = evaluate_bezier(control_points, t2);
-
-        let dx = p2[0] - p1[0];
-        let dy = p2[1] - p1[1];
-        total_length += (dx * dx + dy * dy).sqrt();
+        total_length += Vector2::new(p2[0] - p1[0], p2[1] - p1[1]).norm();
     }
 
     total_length
@@ -79,9 +77,11 @@ pub fn spline_length_approximation<T: Scalar>(
     // 簡単な近似：各点間を直線で結んだ長さ
     let mut total_length = T::ZERO;
     for i in 0..points.len() - 1 {
-        let dx = points[i + 1][0] - points[i][0];
-        let dy = points[i + 1][1] - points[i][1];
-        total_length += (dx * dx + dy * dy).sqrt();
+        total_length += Vector2::new(
+            points[i + 1][0] - points[i][0],
+            points[i + 1][1] - points[i][1],
+        )
+        .norm();
     }
 
     // スプライン補正係数（経験的な値）
@@ -107,10 +107,7 @@ where
 
         let p1 = curve_fn(t1);
         let p2 = curve_fn(t2);
-
-        let dx = p2[0] - p1[0];
-        let dy = p2[1] - p1[1];
-        total_length += (dx * dx + dy * dy).sqrt();
+        total_length += Vector2::new(p2[0] - p1[0], p2[1] - p1[1]).norm();
     }
 
     total_length

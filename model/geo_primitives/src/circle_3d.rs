@@ -274,12 +274,8 @@ impl<T: Scalar> Circle3D<T> {
         // パラメトリック方程式を解く
         // mid1 + t * perp1 = mid2 + s * perp2
         // 簡易実装：点1からの距離が等しい点を中心とする
-        let dx = point1.x() - mid1.x();
-        let dy = point1.y() - mid1.y();
-        let dz = point1.z() - mid1.z();
-
         let center = mid1; // 簡易的に中点を使用
-        let radius = (dx * dx + dy * dy + dz * dz).sqrt();
+        let radius = center.distance_to(&point1);
 
         Self::new(center, axis, radius)
     }
@@ -477,10 +473,7 @@ impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
 
     fn distance_to_circle(&self, other: &Self) -> T {
         // 簡易実装：中心間距離から半径を考慮
-        let dx = other.center.x() - self.center.x();
-        let dy = other.center.y() - self.center.y();
-        let dz = other.center.z() - self.center.z();
-        let center_distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let center_distance = self.center.distance_to(&other.center);
 
         let radii_sum = self.radius + other.radius;
 
