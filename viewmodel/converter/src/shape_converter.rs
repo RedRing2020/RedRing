@@ -18,7 +18,7 @@
 //!
 //! ## Foundation Patternとの統合
 //!
-//! `ExtensionFoundation` トレイトの `primitive_kind()` を活用して、
+//! `PrimitiveMetadata` trait の `primitive_kind()` を活用して、
 //! 型消去された形状オブジェクトを適切に変換します。
 
 use crate::mesh_converter::VertexData;

@@ -1,18 +1,22 @@
 //! CylindricalSolid3D の Foundation トレイト実装
 
 use crate::CylindricalSolid3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::{
+    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+};
 use geo_core::Aabb3D;
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for CylindricalSolid3D<T> {
+impl<T: Scalar> PrimitiveMetadata for CylindricalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSolid
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for CylindricalSolid3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.volume_internal())
     }

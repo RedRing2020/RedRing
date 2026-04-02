@@ -1,4 +1,4 @@
-//! Vector measure capability traits.
+//! Vector 向けの measure capability trait群。
 
 use crate::Scalar;
 

@@ -6,14 +6,18 @@
 //! **最終更新: 2025年11月1日**
 
 use crate::ConicalSolid3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::{
+    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+};
 use geo_core::Aabb3D;
 
-impl<T: Scalar> ExtensionFoundation<T> for ConicalSolid3D<T> {
+impl<T: Scalar> PrimitiveMetadata for ConicalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::ConicalSolid
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for ConicalSolid3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.volume_internal())
     }

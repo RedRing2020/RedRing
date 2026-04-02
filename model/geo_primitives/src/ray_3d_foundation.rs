@@ -2,17 +2,19 @@
 
 use crate::Ray3D;
 use geo_contracts::Scalar;
-use geo_contracts::{ExtensionFoundation, PrimitiveKind, TolerantEq};
+use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for Ray3D<T> {
+impl<T: Scalar> PrimitiveMetadata for Ray3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Ray
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for Ray3D<T> {
     fn measure(&self) -> Option<T> {
         // レイの測度は無限大（長さがない）
         None // 無限大なので None を返す

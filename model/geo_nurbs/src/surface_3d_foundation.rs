@@ -5,17 +5,19 @@
 use crate::NurbsSurface3D;
 use crate::Scalar;
 use geo_contracts::NurbsSurface3DMeasure;
-use geo_contracts::{Bounded, ExtensionFoundation};
+use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
 
 // ============================================================================
 // Extension Foundation 実装
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for NurbsSurface3D<T> {
+impl<T: Scalar> PrimitiveMetadata for NurbsSurface3D<T> {
     fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
         geo_contracts::PrimitiveKind::NurbsSurface3D
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for NurbsSurface3D<T> {
     fn measure(&self) -> Option<T> {
         Some(<Self as NurbsSurface3DMeasure<T>>::surface_area(self))
     }
@@ -326,11 +328,11 @@ mod tests {
         let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         // PrimitiveKind
-        let kind = <NurbsSurface3D<f64> as ExtensionFoundation<f64>>::primitive_kind(&surface);
+        let kind = <NurbsSurface3D<f64> as PrimitiveMetadata>::primitive_kind(&surface);
         assert_eq!(kind, PrimitiveKind::NurbsSurface3D);
 
         // Measure (面積)
-        let measure = <NurbsSurface3D<f64> as ExtensionFoundation<f64>>::measure(&surface);
+        let measure = <NurbsSurface3D<f64> as MeasureFoundation<f64>>::measure(&surface);
         assert!(measure.is_some());
         let area = measure.unwrap();
         assert!((area - 1.0).abs() < 0.1); // 単位平面の面積は1.0

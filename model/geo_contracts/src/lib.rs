@@ -59,7 +59,8 @@ pub use geometry::core::{
     Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
 };
 pub use geometry::foundation::{
-    Bounded, ExtensionFoundation, Point2DMeasure, Point3DMeasure, Vector2DMeasure, Vector3DMeasure,
+    Bounded, ExtensionFoundation, MeasureFoundation, Point2DMeasure, Point3DMeasure,
+    PrimitiveMetadata, Vector2DMeasure, Vector3DMeasure,
 };
 pub use geometry::operations::{
     AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, CrossDistance,
