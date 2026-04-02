@@ -4,8 +4,14 @@
 //! - `ExtensionFoundation<T>`: Primitive kind identification and measurement
 //! - `Bounded<T>`: Axis-aligned bounding box (AABB)
 
+pub mod point_measure_traits;
+pub mod vector_measure_traits;
+
 use crate::classification::PrimitiveKind;
 use analysis::abstract_types::Scalar;
+
+pub use point_measure_traits::{Point2DMeasure, Point3DMeasure};
+pub use vector_measure_traits::{Vector2DMeasure, Vector3DMeasure};
 
 /// Base trait for all geometric primitives (Extension Foundation).
 ///

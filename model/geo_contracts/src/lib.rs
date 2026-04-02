@@ -34,15 +34,14 @@ pub use geometry::core::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
     EllipsoidalSolid3DProperties, EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore,
     EllipsoidalSurface3DMeasure, EllipsoidalSurface3DProperties, Point2DConstructor, Point2DCore,
-    Point2DMeasure, Point2DProperties, Point3DConstructor, Point3DCore, Point3DMeasure,
-    Point3DProperties, Rect2DConstructor, Rect2DCore, Rect2DMeasure, Rect2DProperties,
-    Rect3DConstructor, Rect3DCore, Rect3DMeasure, Rect3DProperties, SphericalSolid3DConstructor,
-    SphericalSolid3DCore, SphericalSolid3DMeasure, SphericalSolid3DProperties,
-    SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DMeasure,
-    SphericalSurface3DProperties, TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure,
-    TorusSolid3DProperties, TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure,
-    TorusSurface3DProperties, Vector2DConstructor, Vector2DCore, Vector2DMeasure,
-    Vector2DProperties, Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
+    Point2DProperties, Point3DConstructor, Point3DCore, Point3DProperties, Rect2DConstructor,
+    Rect2DCore, Rect2DMeasure, Rect2DProperties, Rect3DConstructor, Rect3DCore, Rect3DMeasure,
+    Rect3DProperties, SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,
+    SphericalSolid3DProperties, SphericalSurface3DConstructor, SphericalSurface3DCore,
+    SphericalSurface3DMeasure, SphericalSurface3DProperties, TorusSolid3DConstructor,
+    TorusSolid3DCore, TorusSolid3DMeasure, TorusSolid3DProperties, TorusSurface3DConstructor,
+    TorusSurface3DCore, TorusSurface3DMeasure, TorusSurface3DProperties, Vector2DConstructor,
+    Vector2DCore, Vector2DProperties, Vector3DConstructor, Vector3DCore, Vector3DProperties,
 };
 pub use geometry::core::{
     InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure, InfiniteLine2DProperties,
@@ -59,7 +58,9 @@ pub use geometry::core::{
     Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
     Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
 };
-pub use geometry::foundation::{Bounded, ExtensionFoundation};
+pub use geometry::foundation::{
+    Bounded, ExtensionFoundation, Point2DMeasure, Point3DMeasure, Vector2DMeasure, Vector3DMeasure,
+};
 pub use geometry::operations::{
     AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, CrossDistance,
     DistanceConvergenceError, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation,
