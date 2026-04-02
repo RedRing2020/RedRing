@@ -1092,6 +1092,7 @@ dependencies = [
  "analysis",
  "approx",
  "criterion",
+ "geo_contracts",
  "nalgebra 0.34.2",
  "num-traits",
  "quickcheck",

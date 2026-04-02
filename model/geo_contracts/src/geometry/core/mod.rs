@@ -1,6 +1,7 @@
 //! Geometry core contracts.
 // 実装ロジックは置かず、shape contract の定義だけを保持する。
 
+pub mod aabb_traits;
 pub mod arc_traits;
 pub mod circle_traits;
 pub mod conical_solid_traits;
@@ -28,6 +29,7 @@ pub mod torus_surface_traits;
 pub mod triangle_traits;
 pub mod vector_traits;
 
+pub use aabb_traits::{Aabb2DTrait, Aabb3DTrait};
 pub use arc_traits::{
     Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
     Arc3DMeasure, Arc3DProperties,
