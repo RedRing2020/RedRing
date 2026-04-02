@@ -4,17 +4,19 @@
 
 use crate::{constants, NurbsCurve2D, Scalar};
 use geo_contracts::NurbsCurve2DProperties;
-use geo_contracts::{Bounded, ExtensionFoundation};
+use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
 
 // ============================================================================
 // Extension Foundation 実装
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for NurbsCurve2D<T> {
+impl<T: Scalar> PrimitiveMetadata for NurbsCurve2D<T> {
     fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
         geo_contracts::PrimitiveKind::NurbsCurve2D
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for NurbsCurve2D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS))
     }
@@ -53,7 +55,7 @@ impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
 mod tests {
     use crate::knot::clamped_knot_vector;
     use crate::NurbsCurve2D;
-    use geo_contracts::{ExtensionFoundation, PrimitiveKind};
+    use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata};
     use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties};
 
     // ============================================================================

@@ -1,18 +1,22 @@
 //! TriangleMesh3D の Foundation トレイト実装
 
 use crate::TriangleMesh3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::{
+    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+};
 use geo_core::Aabb3D;
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for TriangleMesh3D<T> {
+impl<T: Scalar> PrimitiveMetadata for TriangleMesh3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Mesh
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for TriangleMesh3D<T> {
     fn measure(&self) -> Option<T> {
         // 三角形の面積の合計を計算
         let mut total_area = T::ZERO;

@@ -4,18 +4,22 @@
 //! ハイブリッドモデラーの分類システムとの統合
 
 use crate::CylindricalSurface3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::{
+    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+};
 use geo_core::Aabb3D;
 
 // ============================================================================
 // ExtensionFoundation Implementation
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for CylindricalSurface3D<T> {
+impl<T: Scalar> PrimitiveMetadata for CylindricalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSurface
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for CylindricalSurface3D<T> {
     fn measure(&self) -> Option<T> {
         // サーフェスの測度は面積だが、無限サーフェスのため None
         // 境界制約された場合のみ有限の面積を持つ

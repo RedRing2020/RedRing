@@ -1,18 +1,22 @@
 //! Triangle3D の Foundation トレイト実装
 
 use crate::Triangle3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar, TolerantEq};
+use geo_contracts::{
+    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
+};
 use geo_core::Aabb3D;
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for Triangle3D<T> {
+impl<T: Scalar> PrimitiveMetadata for Triangle3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Triangle
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for Triangle3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.area())
     }

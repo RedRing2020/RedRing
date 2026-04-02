@@ -2,18 +2,20 @@
 
 use crate::Arc3D;
 use geo_contracts::Scalar;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, TolerantEq};
+use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 use geo_core::Aabb3D;
 
 // ============================================================================
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> ExtensionFoundation<T> for Arc3D<T> {
+impl<T: Scalar> PrimitiveMetadata for Arc3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for Arc3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.arc_length())
     }

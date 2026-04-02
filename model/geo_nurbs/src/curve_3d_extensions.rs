@@ -130,7 +130,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     /// ```no_run
     /// # use geo_nurbs::{NurbsCurve3D, curve_3d_extensions::AabbOptions};
     /// # let curve: NurbsCurve3D<f64> = todo!();
-    /// use geo_contracts::ExtensionFoundation;
+    /// use geo_contracts::PrimitiveMetadata;
     ///
     /// // 高速・保守的
     /// let rough_bbox = curve.bounding_box_with_options(AabbOptions::Rough);

@@ -5,14 +5,16 @@
 // 境界ボックス計算、測度（体積）、プリミティブ種別の分類を行います。
 
 use crate::TorusSolid3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
-impl<T: Scalar> ExtensionFoundation<T> for TorusSolid3D<T> {
+impl<T: Scalar> PrimitiveMetadata for TorusSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::TorusSolid
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for TorusSolid3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.volume_internal())
     }

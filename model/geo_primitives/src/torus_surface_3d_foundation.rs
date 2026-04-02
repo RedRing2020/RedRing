@@ -4,15 +4,17 @@
 // Foundation パターンに従い、統一されたプリミティブインターフェースを提供します。
 
 use crate::{Point3D, TorusSurface3D};
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
-impl<T: Scalar> ExtensionFoundation<T> for TorusSurface3D<T> {
+impl<T: Scalar> PrimitiveMetadata for TorusSurface3D<T> {
     /// プリミティブの種類を返す
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::TorusSurface
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for TorusSurface3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.surface_area())
     }

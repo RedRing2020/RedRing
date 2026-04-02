@@ -1,4 +1,4 @@
-//! Point measure capability traits.
+//! Point 向けの measure capability trait群。
 
 use crate::Scalar;
 

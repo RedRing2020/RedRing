@@ -6,14 +6,16 @@
 //! **最終更新: 2025年11月1日**
 
 use crate::SphericalSolid3D;
-use geo_contracts::{Bounded, ExtensionFoundation, PrimitiveKind, Scalar};
+use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
-impl<T: Scalar> ExtensionFoundation<T> for SphericalSolid3D<T> {
+impl<T: Scalar> PrimitiveMetadata for SphericalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::SphericalSolid
     }
+}
 
+impl<T: Scalar> MeasureFoundation<T> for SphericalSolid3D<T> {
     fn measure(&self) -> Option<T> {
         Some(self.volume())
     }
