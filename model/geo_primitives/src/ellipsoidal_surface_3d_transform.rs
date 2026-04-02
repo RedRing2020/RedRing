@@ -208,30 +208,32 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
     /// 軸回転（中心点指定）
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
+        let matrix = analysis_transform::rotation_matrix(&center_point, axis, angle)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     /// スケール変換（中心点指定）
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::scale_matrix(&center.center_internal(), scale_x, scale_y, scale_z)?;
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
+        let matrix = analysis_transform::scale_matrix(&center_point, scale_x, scale_y, scale_z)?;
         Ok(self.transform_point_matrix(&matrix))
     }
 
     /// 均等スケール変換
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -241,15 +243,18 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         let mut matrix = Matrix4x4::identity();
+        let origin = Point3D::origin();
 
         if let Some(scale_factors) = scale {
-            let scale_center = rotation.as_ref().map_or(self, |(center, _, _)| center);
+            let scale_center = rotation
+                .as_ref()
+                .map(|(center, _, _)| Point3D::new(center.x(), center.y(), center.z()));
             let scale_mat = analysis_transform::scale_matrix(
-                &scale_center.center_internal(),
+                scale_center.as_ref().unwrap_or(&origin),
                 scale_factors.0,
                 scale_factors.1,
                 scale_factors.2,
@@ -258,7 +263,8 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
         }
 
         if let Some((center, axis, angle)) = rotation {
-            let rot_mat = analysis_transform::rotation_matrix(&center.center_internal(), axis, angle)?;
+            let center_point = Point3D::new(center.x(), center.y(), center.z());
+            let rot_mat = analysis_transform::rotation_matrix(&center_point, axis, angle)?;
             matrix = rot_mat * matrix;
         }
 
@@ -274,7 +280,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for EllipsoidalSurface3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         let scale_tuple = scale.map(|s| (s, s, s));

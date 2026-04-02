@@ -115,18 +115,13 @@ impl<T: Scalar> AnalysisTransform2D<T> for NurbsCurve2D<T> {
     /// 回転変換（Analysis Matrix3x3使用）
     fn rotate_analysis_2d(
         &self,
-        _center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        // centerからNurbsCurve2Dの重心を計算
-        let centroid = self.compute_centroid();
-
-        // 回転行列を生成
         let rotation = rotation_matrix_2d(angle);
 
-        // 複合変換: center → 原点 → 回転 → 元の位置
-        let to_origin = translation_matrix_2d(-centroid.x(), -centroid.y());
-        let from_origin = translation_matrix_2d(centroid.x(), centroid.y());
+        let to_origin = translation_matrix_2d(-center.x(), -center.y());
+        let from_origin = translation_matrix_2d(center.x(), center.y());
 
         let combined = from_origin * rotation * to_origin;
         transform_control_points(self, &combined)
@@ -135,19 +130,14 @@ impl<T: Scalar> AnalysisTransform2D<T> for NurbsCurve2D<T> {
     /// スケール変換（Analysis Matrix3x3使用）
     fn scale_analysis_2d(
         &self,
-        _center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        // centerからNurbsCurve2Dの重心を計算
-        let centroid = self.compute_centroid();
-
-        // スケール行列を生成
         let scale = scale_matrix_2d(scale_x, scale_y)?;
 
-        // 複合変換: center → 原点 → スケール → 元の位置
-        let to_origin = translation_matrix_2d(-centroid.x(), -centroid.y());
-        let from_origin = translation_matrix_2d(centroid.x(), centroid.y());
+        let to_origin = translation_matrix_2d(-center.x(), -center.y());
+        let from_origin = translation_matrix_2d(center.x(), center.y());
 
         let combined = from_origin * scale * to_origin;
         transform_control_points(self, &combined)
@@ -156,32 +146,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for NurbsCurve2D<T> {
     /// 均等スケール変換（Analysis Matrix3x3使用）
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis_2d(center, scale_factor, scale_factor)
-    }
-}
-
-// ============================================================================
-// Helper Methods
-// ============================================================================
-
-impl<T: Scalar> NurbsCurve2D<T> {
-    /// 制御点の重心を計算
-    fn compute_centroid(&self) -> Vector2<T> {
-        let num_points = self.num_points();
-        let mut sum_x = T::ZERO;
-        let mut sum_y = T::ZERO;
-
-        for i in 0..num_points {
-            let point = self.control_point(i);
-            sum_x += point.x();
-            sum_y += point.y();
-        }
-
-        let n = T::from_usize(num_points);
-        Vector2::new(sum_x / n, sum_y / n)
     }
 }
 
@@ -212,47 +180,46 @@ mod tests {
     #[test]
     fn test_rotate_analysis_2d() {
         let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::unit_line();
+        let center = Vector2::new(10.0, 0.0);
 
         let angle = Angle::from_degrees(90.0);
         let result = <NurbsCurve2D<f64> as AnalysisTransform2D<f64>>::rotate_analysis_2d(
-            &curve, &curve, angle,
+            &curve, &center, angle,
         );
 
         assert!(result.is_ok());
         let rotated = result.unwrap();
 
-        // 90度回転後、制御点が変化していることを確認
-        let original_p1 = curve.control_point(1);
-        let rotated_p1 = rotated.control_point(1);
-
-        let changed = (original_p1.x() - rotated_p1.x()).abs() > 1e-10
-            || (original_p1.y() - rotated_p1.y()).abs() > 1e-10;
-        assert!(changed, "Control point should change after rotation");
+        let p0 = rotated.control_point(0);
+        let p1 = rotated.control_point(1);
+        assert!((p0.x() - 10.0).abs() < 1e-10);
+        assert!((p0.y() + 10.0).abs() < 1e-10);
+        assert!((p1.x() - 10.0).abs() < 1e-10);
+        assert!((p1.y() + 9.0).abs() < 1e-10);
     }
 
     #[test]
     fn test_uniform_scale_analysis_2d() {
         let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::unit_line();
+        let center = Vector2::new(10.0, 0.0);
 
         let scale_factor = 2.0;
         let result = <NurbsCurve2D<f64> as AnalysisTransform2D<f64>>::uniform_scale_analysis_2d(
             &curve,
-            &curve,
+            &center,
             scale_factor,
         );
 
         assert!(result.is_ok());
         let scaled = result.unwrap();
 
-        // 重心からの距離が2倍になっているか確認
-        let centroid = curve.compute_centroid();
-        let original_p1 = curve.control_point(1);
+        let scaled_p0 = scaled.control_point(0);
         let scaled_p1 = scaled.control_point(1);
 
-        let original_dist = (original_p1.x() - centroid.x()).abs();
-        let scaled_dist = (scaled_p1.x() - centroid.x()).abs();
-
-        assert!((scaled_dist - original_dist * 2.0).abs() < 1e-10);
+        assert!((scaled_p0.x() + 10.0).abs() < 1e-10);
+        assert!((scaled_p0.y() - 0.0).abs() < 1e-10);
+        assert!((scaled_p1.x() + 8.0).abs() < 1e-10);
+        assert!((scaled_p1.y() - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -276,9 +243,10 @@ mod tests {
     #[test]
     fn test_scale_analysis_2d() {
         let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::unit_line();
+        let center = Vector2::new(0.0, 0.0);
 
         let result = <NurbsCurve2D<f64> as AnalysisTransform2D<f64>>::scale_analysis_2d(
-            &curve, &curve, 2.0, 3.0,
+            &curve, &center, 2.0, 3.0,
         );
 
         assert!(result.is_ok());

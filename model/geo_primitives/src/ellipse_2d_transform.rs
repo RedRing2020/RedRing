@@ -180,32 +180,33 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ellipse2D<T> {
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
-    fn rotate_analysis_2d(&self, center: &Self, angle: Angle<T>) -> Result<Self, TransformError> {
-        // Ellipse2D を Point2D として中心点を使用
-        let center_point = center.center_internal();
+    fn rotate_analysis_2d(
+        &self,
+        center: &Vector2<T>,
+        angle: Angle<T>,
+    ) -> Result<Self, TransformError> {
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.center_internal();
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
-        let center_point = center.center_internal();
-        let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
-        Ok(self.transform_point_matrix_2d(&matrix))
+        self.scale_analysis_2d(center, scale_factor, scale_factor)
     }
 }
 
@@ -224,15 +225,8 @@ mod tests {
         .unwrap()
     }
 
-    fn create_center_ellipse() -> Ellipse2D<f64> {
-        // 原点周辺の小さな楕円
-        Ellipse2D::new(
-            Point2D::new(0.0, 0.0),
-            0.1,  // semi_major
-            0.05, // semi_minor
-            0.0,  // rotation
-        )
-        .unwrap()
+    fn create_center_vector() -> Vector2<f64> {
+        Vector2::new(0.0, 0.0)
     }
 
     #[test]
@@ -254,7 +248,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation() {
         let ellipse = create_test_ellipse();
-        let center = create_center_ellipse();
+        let center = create_center_vector();
         let angle = Angle::from_degrees(90.0);
 
         let result = ellipse.rotate_analysis_2d(&center, angle).unwrap();
@@ -269,7 +263,7 @@ mod tests {
     #[test]
     fn test_analysis_scale() {
         let ellipse = create_test_ellipse();
-        let center = create_center_ellipse();
+        let center = create_center_vector();
 
         let result = ellipse.scale_analysis_2d(&center, 2.0, 3.0).unwrap();
 
@@ -281,7 +275,7 @@ mod tests {
     #[test]
     fn test_analysis_uniform_scale() {
         let ellipse = create_test_ellipse();
-        let center = create_center_ellipse();
+        let center = create_center_vector();
 
         let result = ellipse.uniform_scale_analysis_2d(&center, 1.5).unwrap();
 
@@ -337,7 +331,7 @@ mod tests {
     #[test]
     fn test_error_handling_zero_scale() {
         let ellipse = create_test_ellipse();
-        let center = create_center_ellipse();
+        let center = create_center_vector();
 
         let result = ellipse.scale_analysis_2d(&center, 0.0, 1.0);
         assert!(result.is_err());

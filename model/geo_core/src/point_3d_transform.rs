@@ -87,7 +87,7 @@ pub mod analysis_transform {
 
     /// スケール行列の生成（中心点・個別軸指定版）
     pub fn scale_matrix_3d<T: Scalar>(
-        center: &Point3D<T>,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -109,7 +109,7 @@ pub mod analysis_transform {
 
     /// 均等スケール行列の生成（中心点指定版）
     pub fn uniform_scale_matrix_3d<T: Scalar>(
-        center: &Point3D<T>,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Matrix4x4<T>, TransformError> {
         if scale_factor.is_zero() {
@@ -136,7 +136,7 @@ pub mod analysis_transform {
 
         // スケール適用
         if let Some((sx, sy, sz)) = scale {
-            let origin = Point3D::origin();
+            let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
             let scale_matrix = scale_matrix_3d(&origin, sx, sy, sz)?;
             result = result * scale_matrix;
         }
@@ -166,7 +166,7 @@ pub mod analysis_transform {
 
         // 均等スケール適用
         if let Some(scale_factor) = scale {
-            let origin = Point3D::origin();
+            let origin = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
             let scale_matrix = uniform_scale_matrix_3d(&origin, scale_factor)?;
             result = result * scale_matrix;
         }
@@ -205,7 +205,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
 
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Angle<T>,
     ) -> Result<Self, TransformError> {
@@ -230,7 +230,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
 
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
@@ -241,7 +241,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
 
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
         let matrix = analysis_transform::uniform_scale_matrix_3d(center, scale_factor)?;
@@ -251,7 +251,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Angle<T>)>,
         scale: Option<(T, T, T)>,
     ) -> Result<Self, TransformError> {
         let mut matrix = Matrix4x4::identity();
@@ -285,7 +285,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
 
         // スケールを最後に適用（逆順なので最初に適用される）
         if let Some((sx, sy, sz)) = scale {
-            let center = Point3D::origin();
+            let center = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
             let scale_matrix = analysis_transform::scale_matrix_3d(&center, sx, sy, sz)?;
             matrix = scale_matrix * matrix;
         }
@@ -296,7 +296,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
     fn apply_composite_transform_uniform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Angle<T>)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Angle<T>)>,
         scale: Option<T>,
     ) -> Result<Self, TransformError> {
         let mut matrix = Matrix4x4::identity();
@@ -330,7 +330,7 @@ impl<T: Scalar> AnalysisTransform3D<T> for Point3D<T> {
 
         // 均等スケールを最後に適用（逆順なので最初に適用される）
         if let Some(scale_factor) = scale {
-            let center = Point3D::origin();
+            let center = Vector3::new(T::ZERO, T::ZERO, T::ZERO);
             let scale_matrix = analysis_transform::uniform_scale_matrix_3d(&center, scale_factor)?;
             matrix = scale_matrix * matrix;
         }
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn test_analysis_rotation_axis_3d() {
         let point = Point3D::new(1.0, 0.0, 0.0);
-        let center = Point3D::origin();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸
         let angle = Angle::from_radians(PI / 2.0); // 90度
 
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn test_analysis_scale_3d() {
         let point = Point3D::new(2.0, 3.0, 4.0);
-        let center = Point3D::origin();
+        let center = Vector3::new(0.0, 0.0, 0.0);
 
         // 個別スケール
         let result = point.scale_analysis(&center, 2.0, 3.0, 4.0).unwrap();
@@ -388,7 +388,7 @@ mod tests {
     fn test_composite_transform_3d() {
         let point = Point3D::new(1.0, 0.0, 0.0);
         let translation = Vector3::new(1.0, 1.0, 1.0);
-        let center = Point3D::origin();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let axis = Vector3::new(0.0, 0.0, 1.0); // Z軸
         let angle = Angle::from_radians(PI / 2.0);
         let scale = (2.0, 2.0, 2.0);
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn test_error_handling_3d() {
         let point = Point3D::new(1.0, 2.0, 3.0);
-        let center = Point3D::origin();
+        let center = Vector3::new(0.0, 0.0, 0.0);
         let zero_axis = Vector3::new(0.0, 0.0, 0.0);
         let angle = Angle::from_radians(PI / 4.0);
 

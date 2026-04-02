@@ -125,29 +125,30 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ray2D<T> {
     /// 中心点指定回転
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let matrix = analysis_transform::rotation_matrix_2d(&center.origin_internal(), angle);
+        let center_point = Point2D::new(center.x(), center.y());
+        let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     /// 中心点指定スケール変換
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        let matrix =
-            analysis_transform::scale_matrix_2d(&center.origin_internal(), scale_x, scale_y)?;
+        let center_point = Point2D::new(center.x(), center.y());
+        let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         Ok(self.transform_point_matrix_2d(&matrix))
     }
 
     /// 均等スケール変換
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis_2d(center, scale_factor, scale_factor)
@@ -193,8 +194,8 @@ mod tests {
         let center = Point2D::new(0.0, 0.0);
         let angle = Angle::from_degrees(90.0);
 
-        let center_ray = Ray2D::new(center, Vector2D::new(1.0, 0.0)).unwrap();
-        let result = ray.rotate_analysis_2d(&center_ray, angle).unwrap();
+        let center_vec = Vector2::new(center.x(), center.y());
+        let result = ray.rotate_analysis_2d(&center_vec, angle).unwrap();
 
         // 90度回転後の起点確認
         let expected_origin = Point2D::new(-2.0, 1.0);
@@ -213,9 +214,9 @@ mod tests {
         let scale_x = 2.0;
         let scale_y = 3.0;
 
-        let center_ray = Ray2D::new(center, Vector2D::new(1.0, 0.0)).unwrap();
+        let center_vec = Vector2::new(center.x(), center.y());
         let result = ray
-            .scale_analysis_2d(&center_ray, scale_x, scale_y)
+            .scale_analysis_2d(&center_vec, scale_x, scale_y)
             .unwrap();
 
         // スケール変換後の起点確認
@@ -264,8 +265,8 @@ mod tests {
         let ray = create_test_ray();
         let center = Point2D::new(0.0, 0.0);
 
-        let center_ray = Ray2D::new(center, Vector2D::new(1.0, 0.0)).unwrap();
-        let result = ray.scale_analysis_2d(&center_ray, 0.0, 1.0);
+        let center_vec = Vector2::new(center.x(), center.y());
+        let result = ray.scale_analysis_2d(&center_vec, 0.0, 1.0);
         assert!(matches!(result, Err(TransformError::InvalidScaleFactor(_))));
     }
 }

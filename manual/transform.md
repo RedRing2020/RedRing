@@ -10,6 +10,7 @@ RedRingの幾何変換システムについて説明します。Transform trait 
 - **型変換効率**: geo_primitives⇔analysis間の最適化された変換
 - **2層責務分離**: 共通Transform責務は `geo_core`、形状適用は各図形クレート
 - **エラーハンドリング**: TransformErrorによる安全な変換操作
+- **汎用座標変換**: 支点や平行移動量は `analysis::Vector2/Vector3` で明示指定
 
 ### シンプルな構成
 
@@ -43,15 +44,15 @@ pub trait AnalysisTransform3D<T: Scalar> {
 
     // 基本変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
-    fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
-    fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
-    fn uniform_scale_analysis(&self, center: &Self, scale_factor: T) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(&self, center: &Vector3<T>, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(&self, center: &Vector3<T>, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
+    fn uniform_scale_analysis(&self, center: &Vector3<T>, scale_factor: T) -> Result<Self::Output, TransformError>;
 
     // 複合変換
     fn apply_composite_transform(
         &self,
         translation: Option<&Vector3<T>>,
-        rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         scale: Option<(T, T, T)>
     ) -> Result<Self::Output, TransformError>;
 }
@@ -198,8 +199,8 @@ trait AnalysisTransform3D<T: Scalar> {
 
     // Analysisベースの字全な変換操作
     fn translate_analysis(&self, translation: &Vector3<T>) -> Result<Self::Output, TransformError>;
-    fn rotate_analysis(&self, center: &Self, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
-    fn scale_analysis(&self, center: &Self, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
+    fn rotate_analysis(&self, center: &Vector3<T>, axis: &Vector3<T>, angle: Self::Angle) -> Result<Self::Output, TransformError>;
+    fn scale_analysis(&self, center: &Vector3<T>, scale_x: T, scale_y: T, scale_z: T) -> Result<Self::Output, TransformError>;
 }
 ```
 

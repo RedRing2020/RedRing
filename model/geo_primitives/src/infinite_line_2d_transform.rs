@@ -112,11 +112,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
     /// Analysis統合回転（中心点指定）
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
-        let center_tuple = center.point();
-        let center_point = Point2D::new(center_tuple.0, center_tuple.1);
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::rotation_matrix_2d(&center_point, angle);
         analysis_transform::transform_infinite_line_2d(self, &matrix)
     }
@@ -124,12 +123,11 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
     /// Analysis統合スケール（中心点指定）
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_tuple = center.point();
-        let center_point = Point2D::new(center_tuple.0, center_tuple.1);
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::scale_matrix_2d(&center_point, scale_x, scale_y)?;
         analysis_transform::transform_infinite_line_2d(self, &matrix)
     }
@@ -137,11 +135,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
     /// Analysis統合均等スケール（中心点指定）
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_tuple = center.point();
-        let center_point = Point2D::new(center_tuple.0, center_tuple.1);
+        let center_point = Point2D::new(center.x(), center.y());
         let matrix = analysis_transform::uniform_scale_matrix_2d(&center_point, scale_factor)?;
         analysis_transform::transform_infinite_line_2d(self, &matrix)
     }
@@ -206,10 +203,10 @@ mod tests {
     #[test]
     fn test_analysis_transform_rotate() {
         let line = InfiniteLine2D::new(Point2D::new(1.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let center_line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(0.0, 0.0);
         let angle = Angle::from_degrees(90.0);
 
-        let result = line.rotate_analysis_2d(&center_line, angle).unwrap();
+        let result = line.rotate_analysis_2d(&center, angle).unwrap();
 
         // 90度回転後、点 (1,0) は (0,1) になる
         const TOLERANCE: f64 = 1e-10;
@@ -225,9 +222,9 @@ mod tests {
     #[test]
     fn test_analysis_transform_scale() {
         let line = InfiniteLine2D::new(Point2D::new(2.0, 1.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let center_line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(0.0, 0.0);
 
-        let result = line.scale_analysis_2d(&center_line, 2.0, 3.0).unwrap();
+        let result = line.scale_analysis_2d(&center, 2.0, 3.0).unwrap();
 
         // 点 (2,1) が (4,3) になる
         let result_point = result.point();
@@ -242,9 +239,9 @@ mod tests {
     #[test]
     fn test_analysis_transform_uniform_scale() {
         let line = InfiniteLine2D::new(Point2D::new(1.0, 1.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let center_line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(0.0, 0.0);
 
-        let result = line.uniform_scale_analysis_2d(&center_line, 2.0).unwrap();
+        let result = line.uniform_scale_analysis_2d(&center, 2.0).unwrap();
 
         // 点 (1,1) が (2,2) になる
         let result_point = result.point();
@@ -259,12 +256,12 @@ mod tests {
     #[test]
     fn test_transform_zero_scale_error() {
         let line = InfiniteLine2D::new(Point2D::new(1.0, 1.0), Vector2D::new(1.0, 0.0)).unwrap();
-        let center_line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(0.0, 0.0);
 
-        let result = line.scale_analysis_2d(&center_line, 0.0, 1.0);
+        let result = line.scale_analysis_2d(&center, 0.0, 1.0);
         assert!(result.is_err());
 
-        let result = line.uniform_scale_analysis_2d(&center_line, 0.0);
+        let result = line.uniform_scale_analysis_2d(&center, 0.0);
         assert!(result.is_err());
     }
 

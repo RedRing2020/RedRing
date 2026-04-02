@@ -127,7 +127,7 @@ where
 
     fn rotate_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         axis: &Vector3<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
@@ -135,7 +135,7 @@ where
             return Err(TransformError::ZeroVector("Zero rotation axis".to_string()));
         }
 
-        let center_point = center.center();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let axis_vec = Vector3D::new(axis.x(), axis.y(), axis.z());
         let matrix = crate::ellipse_3d_analysis_transform::analysis_transform::rotation_matrix_3d(
             &center_point,
@@ -147,12 +147,12 @@ where
 
     fn scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_x: T,
         scale_y: T,
         scale_z: T,
     ) -> Result<Self::Output, TransformError> {
-        let center_point = center.center();
+        let center_point = Point3D::new(center.x(), center.y(), center.z());
         let matrix = crate::ellipse_3d_analysis_transform::analysis_transform::scale_matrix_3d(
             &center_point,
             scale_x,
@@ -164,7 +164,7 @@ where
 
     fn uniform_scale_analysis(
         &self,
-        center: &Self,
+        center: &Vector3<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis(center, scale_factor, scale_factor, scale_factor)
@@ -173,7 +173,7 @@ where
     fn apply_composite_transform(
         &self,
         _translation: Option<&Vector3<T>>,
-        _rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        _rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         _scale: Option<(T, T, T)>,
     ) -> Result<Self::Output, TransformError> {
         // 簡易実装: 単位行列変換
@@ -183,7 +183,7 @@ where
     fn apply_composite_transform_uniform(
         &self,
         _translation: Option<&Vector3<T>>,
-        _rotation: Option<(&Self, &Vector3<T>, Self::Angle)>,
+        _rotation: Option<(&Vector3<T>, &Vector3<T>, Self::Angle)>,
         _scale: Option<T>,
     ) -> Result<Self::Output, TransformError> {
         // 簡易実装: 単位行列変換
@@ -237,15 +237,9 @@ mod tests {
         let rotation_axis = Vector3D::new(0.0, 0.0, 1.0); // Z軸回り
         let rotation_angle = Angle::from_degrees(90.0);
 
-        let center_arc = EllipseArc3D::new(
-            Ellipse3D::xy_aligned(rotation_center, 1.0, 1.0).unwrap(),
-            Angle::from_degrees(0.0),
-            Angle::from_degrees(360.0),
-        );
+        let center = Vector3::new(rotation_center.x(), rotation_center.y(), rotation_center.z());
         let axis_vec = Vector3::new(rotation_axis.x(), rotation_axis.y(), rotation_axis.z());
-        let result = arc
-            .rotate_analysis(&center_arc, &axis_vec, rotation_angle)
-            .unwrap();
+        let result = arc.rotate_analysis(&center, &axis_vec, rotation_angle).unwrap();
 
         // 中心点が回転することを確認（(1,2,3) -> (-2,1,3)）
         let expected_center = Point3D::new(-2.0, 1.0, 3.0);

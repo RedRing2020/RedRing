@@ -115,11 +115,11 @@ impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
     /// 回転変換（中心点指定）
     fn rotate_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         angle: Self::Angle,
     ) -> Result<Self::Output, TransformError> {
         // 中心点への移動 -> 回転 -> 元位置への移動の合成変換
-        let center_point = center.circle().center();
+        let center_point = Point2D::new(center.x(), center.y());
         let to_origin =
             analysis_transform::translation_matrix_2d(-center_point.x(), -center_point.y());
         let rotation = analysis_transform::rotation_matrix_2d(angle);
@@ -133,7 +133,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
     /// スケール変換
     fn scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self::Output, TransformError> {
@@ -143,7 +143,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
             ));
         }
 
-        let center_point = center.circle().center();
+        let center_point = Point2D::new(center.x(), center.y());
         let to_origin =
             analysis_transform::translation_matrix_2d(-center_point.x(), -center_point.y());
         let scale = analysis_transform::scale_matrix_2d(scale_x, scale_y);
@@ -157,7 +157,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
     /// 均等スケール変換
     fn uniform_scale_analysis_2d(
         &self,
-        center: &Self,
+        center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self::Output, TransformError> {
         self.scale_analysis_2d(center, scale_factor, scale_factor)
@@ -199,10 +199,10 @@ mod tests {
     #[test]
     fn test_rotation_analysis_transform() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector2::new(0.0, 0.0);
         let rotation_angle = Angle::from_degrees(45.0);
 
-        let result = arc.rotate_analysis_2d(&center_arc, rotation_angle).unwrap();
+        let result = arc.rotate_analysis_2d(&center, rotation_angle).unwrap();
 
         // 回転後の角度チェック
         assert!((result.start_angle().to_degrees() - 45.0).abs() < 1e-10);
@@ -213,9 +213,9 @@ mod tests {
     #[test]
     fn test_scale_analysis_transform() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector2::new(0.0, 0.0);
 
-        let result = arc.scale_analysis_2d(&center_arc, 2.0, 2.0).unwrap();
+        let result = arc.scale_analysis_2d(&center, 2.0, 2.0).unwrap();
 
         assert_eq!(result.circle().radius(), 2.0);
         assert_eq!(result.start_angle().to_degrees(), 0.0);
@@ -225,9 +225,9 @@ mod tests {
     #[test]
     fn test_uniform_scale_analysis_transform() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector2::new(0.0, 0.0);
 
-        let result = arc.uniform_scale_analysis_2d(&center_arc, 3.0).unwrap();
+        let result = arc.uniform_scale_analysis_2d(&center, 3.0).unwrap();
 
         assert_eq!(result.circle().radius(), 3.0);
     }
@@ -246,9 +246,9 @@ mod tests {
     #[test]
     fn test_zero_scale_error() {
         let arc = create_test_arc();
-        let center_arc = create_test_arc();
+        let center = Vector2::new(0.0, 0.0);
 
-        let result = arc.scale_analysis_2d(&center_arc, 0.0, 1.0);
+        let result = arc.scale_analysis_2d(&center, 0.0, 1.0);
 
         assert!(result.is_err());
     }

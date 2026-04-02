@@ -75,7 +75,11 @@ impl<T: Scalar> AnalysisTransform2D<T> for Direction2D<T> {
         Ok(*self)
     }
 
-    fn rotate_analysis_2d(&self, _center: &Self, angle: Angle<T>) -> Result<Self, TransformError> {
+    fn rotate_analysis_2d(
+        &self,
+        _center: &Vector2<T>,
+        angle: Angle<T>,
+    ) -> Result<Self, TransformError> {
         // 方向ベクトルは中心点に依存しない
         let matrix = analysis_transform::rotation_matrix_2d(angle);
         analysis_transform::transform_direction_2d(self, &matrix)
@@ -83,7 +87,7 @@ impl<T: Scalar> AnalysisTransform2D<T> for Direction2D<T> {
 
     fn scale_analysis_2d(
         &self,
-        _center: &Self,
+        _center: &Vector2<T>,
         scale_x: T,
         scale_y: T,
     ) -> Result<Self, TransformError> {
@@ -94,12 +98,10 @@ impl<T: Scalar> AnalysisTransform2D<T> for Direction2D<T> {
 
     fn uniform_scale_analysis_2d(
         &self,
-        _center: &Self,
+        _center: &Vector2<T>,
         scale_factor: T,
     ) -> Result<Self, TransformError> {
-        // 均等スケール（方向ベクトルは中心点に依存しない）
-        let matrix = analysis_transform::scale_matrix_2d(scale_factor, scale_factor)?;
-        analysis_transform::transform_direction_2d(self, &matrix)
+        self.scale_analysis_2d(_center, scale_factor, scale_factor)
     }
 }
 
@@ -126,7 +128,7 @@ mod tests {
     fn test_direction_rotation() {
         let direction = Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap();
         let angle = Angle::from_radians(PI / 2.0);
-        let center = Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap(); // 単位ベクトル使用
+        let center = Vector2::new(1.0, 0.0);
 
         let rotated = direction.rotate_analysis_2d(&center, angle).unwrap();
 
@@ -138,7 +140,7 @@ mod tests {
     #[test]
     fn test_direction_scale() {
         let direction = Direction2D::from_vector(Vector2D::new(3.0, 4.0)).unwrap();
-        let center = Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(1.0, 0.0);
 
         let scaled = direction.scale_analysis_2d(&center, 2.0, 0.5).unwrap();
 
@@ -161,7 +163,7 @@ mod tests {
     #[test]
     fn test_zero_scale_error() {
         let direction = Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap();
-        let center = Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(1.0, 0.0);
 
         let result = direction.scale_analysis_2d(&center, 0.0, 1.0);
         assert!(result.is_err());
@@ -173,7 +175,7 @@ mod tests {
     #[test]
     fn test_uniform_scale() {
         let direction = Direction2D::from_vector(Vector2D::new(3.0, 4.0)).unwrap();
-        let center = Direction2D::from_vector(Vector2D::new(1.0, 0.0)).unwrap();
+        let center = Vector2::new(1.0, 0.0);
 
         let scaled = direction.uniform_scale_analysis_2d(&center, 2.0).unwrap();
 
