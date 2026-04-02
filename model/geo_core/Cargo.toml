@@ -10,6 +10,7 @@ license = "MIT"
 num-traits = "0.2"
 analysis = { path = "../../foundation/analysis" }
 approx = "0.5"                                    # 許容誤差ベース比較
+geo_contracts = { path = "../geo_contracts" }
 
 # パフォーマンス（オプション）
 nalgebra = { version = "0.34.1", optional = true }

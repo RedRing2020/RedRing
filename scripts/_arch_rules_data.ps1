@@ -49,14 +49,14 @@ $ARCH_LAYERS = @{
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
-# Last updated: 2026-03-20 (#318 Phase C: contracts-first dependency alignment)
+# Last updated: 2026-04-02 (#533 Phase 1: allow geo_core -> geo_contracts for contracts-first Vector migration)
 # Pending update: add CAM dependency rules when `cam_algorithms` is created.
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     application    = @("analysis", "geo_algorithms", "cam_core", "cam_sim", "job_runtime", "job_domain")
     geo_contracts  = @("analysis", "geo_commons")
     geo_commons    = @("analysis")
-    geo_core       = @("analysis", "geo_entity")
+    geo_core       = @("analysis", "geo_contracts", "geo_entity")
     geo_primitives = @("geo_contracts", "geo_commons", "geo_core", "analysis")
     geo_topology   = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "analysis")
     geo_algorithms = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_topology", "geo_nurbs", "analysis")

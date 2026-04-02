@@ -15,6 +15,7 @@ pub use geometry::core::arc_traits::{Arc2DContainment, Arc2DSampling};
 pub use geometry::core::plane3d_traits::{
     Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties,
 };
+pub use geometry::core::{Aabb2DTrait, Aabb3DTrait};
 pub use geometry::core::{
     Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
     Arc3DMeasure, Arc3DProperties, Circle2DConstructor, Circle2DCore, Circle2DMeasure,
