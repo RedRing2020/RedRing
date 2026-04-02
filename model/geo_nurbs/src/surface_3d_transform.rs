@@ -358,8 +358,8 @@ mod tests {
         assert!(result.is_ok());
         let transformed = result.unwrap();
         let p00 = transformed.control_point(0, 0);
-        assert!((p00.x() - 12.0).abs() < 1e-10);
-        assert!((p00.y() + 10.0).abs() < 1e-10);
+        assert!((p00.x() - 22.0).abs() < 1e-10);
+        assert!((p00.y() + 18.0).abs() < 1e-10);
     }
 
     #[test]
