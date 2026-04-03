@@ -7,7 +7,8 @@
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
     AngleBetween, CrossDistance, DirectionalRelation, ParallelRelation, PointsTowards,
-    Ray3DConstructor, Ray3DMeasure, Ray3DProperties, Scalar,
+    Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation, Ray3DProjection,
+    Ray3DProperties, Ray3DTransform, Scalar,
 };
 
 /// 3次元半無限直線
@@ -383,13 +384,24 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
     }
 }
 
-/// Ray3DMeasure トレイト実装
-impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
+impl<T: Scalar> Ray3DEvaluation<T> for Ray3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let point = self.point_at_parameter(t);
         (point.x(), point.y(), point.z())
     }
 
+    fn parameter_for_point(&self, point: (T, T, T)) -> T {
+        let target_point = Point3D::new(point.0, point.1, point.2);
+        self.parameter_for_point(&target_point)
+    }
+
+    fn point_at_distance(&self, distance: T) -> (T, T, T) {
+        let point = self.point_at_parameter(distance);
+        (point.x(), point.y(), point.z())
+    }
+}
+
+impl<T: Scalar> Ray3DProjection<T> for Ray3D<T> {
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
         let target_point = Point3D::new(point.0, point.1, point.2);
         let t = self.parameter_for_point(&target_point);
@@ -397,7 +409,9 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let closest = self.point_at_parameter(clamped_t);
         (closest.x(), closest.y(), closest.z())
     }
+}
 
+impl<T: Scalar> Ray3DDistance<T> for Ray3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let target_point = Point3D::new(point.0, point.1, point.2);
         let to_point = target_point - self.origin;
@@ -415,18 +429,17 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
             target_point.distance_to(&projection)
         }
     }
+}
 
+impl<T: Scalar> Ray3DContainment<T> for Ray3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let target_point = Point3D::new(point.0, point.1, point.2);
         use geo_contracts::default_distance_tolerance;
         self.contains_point(&target_point, default_distance_tolerance::<T>())
     }
+}
 
-    fn parameter_for_point(&self, point: (T, T, T)) -> T {
-        let target_point = Point3D::new(point.0, point.1, point.2);
-        self.parameter_for_point(&target_point)
-    }
-
+impl<T: Scalar> Ray3DTransform<T> for Ray3D<T> {
     fn reverse(&self) -> Self
     where
         Self: Sized,
@@ -442,12 +455,6 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         let new_origin = self.origin + offset_vector;
 
         Ray3D::new(new_origin, self.direction).unwrap()
-    }
-
-    fn point_at_distance(&self, distance: T) -> (T, T, T) {
-        // 方向ベクトルは正規化済みなので、パラメータ = 距離
-        let point = self.point_at_parameter(distance);
-        (point.x(), point.y(), point.z())
     }
 
     fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>

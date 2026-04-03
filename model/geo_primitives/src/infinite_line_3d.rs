@@ -7,8 +7,10 @@ use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, default_orthogonality_dot_error_tolerance, AngularRelation,
     BasicIntersection, ClosestPointPair, CrossDistance, InfiniteLine3DConstructor,
-    InfiniteLine3DMeasure, InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation,
-    ParallelRelation, PerpendicularRelation, SameLineRelation, Scalar, SkewRelation,
+    InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
+    InfiniteLine3DMeasure, InfiniteLine3DProjection, InfiniteLine3DProperties,
+    InfiniteLine3DTransform, IntersectsRelation, OnPlaneRelation, ParallelRelation,
+    PerpendicularRelation, SameLineRelation, Scalar, SkewRelation,
 };
 
 type LinePointPair3D<T> = ((T, T, T), (T, T, T));
@@ -509,38 +511,37 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
 // Measure トレイト実装
 // ============================================================================
 
-impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
+impl<T: Scalar> InfiniteLine3DEvaluation<T> for InfiniteLine3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let param_point = InfiniteLine3D::point_at_parameter(self, t);
         (param_point.x(), param_point.y(), param_point.z())
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        InfiniteLine3D::distance_to_point(self, &p)
-    }
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point(&p, default_distance_tolerance::<T>())
-    }
-
-    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let projected = InfiniteLine3D::project_point(self, &p);
-        (projected.x(), projected.y(), projected.z())
     }
 
     fn parameter_for_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         InfiniteLine3D::parameter_for_point(self, &p)
     }
+}
 
-    fn reverse(&self) -> Self {
-        let self_dir = <Self as InfiniteLine3DProperties<T>>::direction(self);
-        let self_point = <Self as InfiniteLine3DProperties<T>>::point(self);
-        let reversed_dir = (-self_dir.0, -self_dir.1, -self_dir.2);
-        <Self as InfiniteLine3DConstructor<T>>::new(self_point, reversed_dir).unwrap()
+impl<T: Scalar> InfiniteLine3DDistance<T> for InfiniteLine3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        InfiniteLine3D::distance_to_point(self, &p)
+    }
+}
+
+impl<T: Scalar> InfiniteLine3DContainment<T> for InfiniteLine3D<T> {
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.contains_point(&p, default_distance_tolerance::<T>())
+    }
+}
+
+impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
+    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let projected = InfiniteLine3D::project_point(self, &p);
+        (projected.x(), projected.y(), projected.z())
     }
 
     // ========== Phase 2 実装 ==========
@@ -551,6 +552,15 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
         // 鏡面点 = 2 * 投影点 - 元の点
         let mirrored = projected + (projected - p);
         (mirrored.x(), mirrored.y(), mirrored.z())
+    }
+}
+
+impl<T: Scalar> InfiniteLine3DTransform<T> for InfiniteLine3D<T> {
+    fn reverse(&self) -> Self {
+        let self_dir = <Self as InfiniteLine3DProperties<T>>::direction(self);
+        let self_point = <Self as InfiniteLine3DProperties<T>>::point(self);
+        let reversed_dir = (-self_dir.0, -self_dir.1, -self_dir.2);
+        <Self as InfiniteLine3DConstructor<T>>::new(self_point, reversed_dir).unwrap()
     }
 
     fn rotate_around_axis(

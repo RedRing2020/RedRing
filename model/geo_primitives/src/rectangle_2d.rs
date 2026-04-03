@@ -1,7 +1,9 @@
 //! Rect2D Core 実装
 
 use crate::Point2D;
-use geo_contracts::{Rect2DConstructor, Rect2DMeasure, Rect2DProperties, Scalar};
+use geo_contracts::{
+    Rect2DConstructor, Rect2DContainment, Rect2DDerived, Rect2DProperties, Scalar,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect2D<T: Scalar> {
@@ -127,11 +129,13 @@ impl<T: Scalar> Rect2DProperties<T> for Rect2D<T> {
     }
 }
 
-impl<T: Scalar> Rect2DMeasure<T> for Rect2D<T> {
+impl<T: Scalar> Rect2DContainment<T> for Rect2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         Self::contains_point(self, &Point2D::new(point.0, point.1))
     }
+}
 
+impl<T: Scalar> Rect2DDerived<T> for Rect2D<T> {
     fn area(&self) -> T {
         Self::area(self)
     }

@@ -159,7 +159,11 @@ impl<T: Scalar> InfiniteLine2D<T> {
 // Foundation Pattern Core Traits Implementation
 // ============================================================================
 
-use geo_contracts::{InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties};
+use geo_contracts::{
+    InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
+    InfiniteLine2DEvaluation, InfiniteLine2DProjection, InfiniteLine2DProperties,
+    InfiniteLine2DTransform,
+};
 
 /// InfiniteLine2D Constructor Trait Implementation
 impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
@@ -301,37 +305,38 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 }
 
-/// InfiniteLine2D Measure Trait Implementation
-impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
+impl<T: Scalar> InfiniteLine2DEvaluation<T> for InfiniteLine2D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T) {
         let p = self.point_at_parameter(t);
         (p.x(), p.y())
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        let p = Point2D::new(point.0, point.1);
-        self.distance_to_point(&p)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        use geo_contracts::default_distance_tolerance;
-        self.contains_point(&p, default_distance_tolerance::<T>())
-    }
-
-    fn project_point(&self, point: (T, T)) -> (T, T) {
-        let p = Point2D::new(point.0, point.1);
-        let projected = self.project_point(&p);
-        (projected.x(), projected.y())
     }
 
     fn parameter_for_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
         self.parameter_for_point(&p)
     }
+}
 
-    fn reverse(&self) -> Self {
-        Self::new(self.point, -(*self.direction)).unwrap()
+impl<T: Scalar> InfiniteLine2DDistance<T> for InfiniteLine2D<T> {
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
+    }
+}
+
+impl<T: Scalar> InfiniteLine2DContainment<T> for InfiniteLine2D<T> {
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        use geo_contracts::default_distance_tolerance;
+        self.contains_point(&p, default_distance_tolerance::<T>())
+    }
+}
+
+impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
+    fn project_point(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let projected = self.project_point(&p);
+        (projected.x(), projected.y())
     }
 
     // ========== Phase 2 実装 ==========
@@ -342,6 +347,12 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
         // 鏡面点 = 2 * 投影点 - 元の点
         let mirrored = projected + (projected - p);
         (mirrored.x(), mirrored.y())
+    }
+}
+
+impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
+    fn reverse(&self) -> Self {
+        Self::new(self.point, -(*self.direction)).unwrap()
     }
 
     fn offset(&self, distance: T) -> Self {

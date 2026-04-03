@@ -57,31 +57,92 @@ pub trait Plane3DProperties<T: Scalar> {
 }
 
 /// Plane3D Measure トレイト
-pub trait Plane3DMeasure<T: Scalar> {
+pub trait Plane3DMeasure<T: Scalar>:
+    Plane3DContainment<T>
+    + Plane3DDistance<T>
+    + Plane3DProjection<T>
+    + Plane3DDerived<T>
+    + Plane3DEvaluation<T>
+    + Plane3DTransform<T>
+{
     /// 点が平面上にあるか判定
-    fn contains_point(&self, point: (T, T, T)) -> bool;
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        <Self as Plane3DContainment<T>>::contains_point(self, point)
+    }
 
     /// 点から平面への距離
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        <Self as Plane3DDistance<T>>::distance_to_point(self, point)
+    }
 
     /// 点を平面に投影
-    fn project_point(&self, point: (T, T, T)) -> (T, T, T);
+    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
+        <Self as Plane3DProjection<T>>::project_point(self, point)
+    }
 
     /// 平面の方程式係数を取得（Ax + By + Cz + D = 0）
-    fn equation_coefficients(&self) -> (T, T, T, T);
+    fn equation_coefficients(&self) -> (T, T, T, T) {
+        <Self as Plane3DDerived<T>>::equation_coefficients(self)
+    }
 
+    /// 点の平面座標（UV座標）を取得
+    fn point_to_uv(&self, point: (T, T, T)) -> (T, T) {
+        <Self as Plane3DEvaluation<T>>::point_to_uv(self, point)
+    }
+
+    /// UV座標から3D点を取得
+    fn uv_to_point(&self, u: T, v: T) -> (T, T, T) {
+        <Self as Plane3DEvaluation<T>>::uv_to_point(self, u, v)
+    }
+
+    /// 点を平面に対して鏡面反射
+    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
+        <Self as Plane3DTransform<T>>::mirror_point(self, point)
+    }
+}
+
+pub trait Plane3DContainment<T: Scalar> {
+    /// 点が平面上にあるか判定
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait Plane3DDistance<T: Scalar> {
+    /// 点から平面への距離
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait Plane3DProjection<T: Scalar> {
+    /// 点を平面に投影
+    fn project_point(&self, point: (T, T, T)) -> (T, T, T);
+}
+
+pub trait Plane3DDerived<T: Scalar> {
+    /// 平面の方程式係数を取得（Ax + By + Cz + D = 0）
+    fn equation_coefficients(&self) -> (T, T, T, T);
+}
+
+pub trait Plane3DEvaluation<T: Scalar> {
     /// 点の平面座標（UV座標）を取得
     fn point_to_uv(&self, point: (T, T, T)) -> (T, T);
 
     /// UV座標から3D点を取得
     fn uv_to_point(&self, u: T, v: T) -> (T, T, T);
+}
 
+pub trait Plane3DTransform<T: Scalar> {
     /// 点を平面に対して鏡面反射
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
 }
 
-/// Plane3D Core トレイト（統合インターフェース）
-pub trait Plane3DCore<T: Scalar>:
-    Plane3DConstructor<T> + Plane3DProperties<T> + Plane3DMeasure<T>
+impl<T: Scalar, P> Plane3DMeasure<T> for P where
+    P: Plane3DContainment<T>
+        + Plane3DDistance<T>
+        + Plane3DProjection<T>
+        + Plane3DDerived<T>
+        + Plane3DEvaluation<T>
+        + Plane3DTransform<T>
 {
 }
+
+/// Plane3D Core トレイト（統合インターフェース）
+pub trait Plane3DCore<T: Scalar>: Plane3DConstructor<T> + Plane3DProperties<T> {}

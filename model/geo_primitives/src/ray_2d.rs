@@ -16,7 +16,8 @@
 use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
     AngleBetween, BasicIntersection, DirectionalRelation, ParallelRelation, PointsTowards,
-    Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Scalar,
+    Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
+    Ray2DProperties, Ray2DTransform, Scalar,
 };
 
 /// 2次元半無限直線
@@ -341,30 +342,10 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
     }
 }
 
-/// Ray2DMeasure トレイト実装
-impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
+impl<T: Scalar> Ray2DEvaluation<T> for Ray2D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T) {
         let point = self.point_at_parameter(t);
         (point.x(), point.y())
-    }
-
-    fn closest_point(&self, point: (T, T)) -> (T, T) {
-        let target_point = Point2D::new(point.0, point.1);
-        let t = self.parameter_for_point(&target_point);
-        let clamped_t = if t < T::ZERO { T::ZERO } else { t };
-        let closest = self.point_at_parameter(clamped_t);
-        (closest.x(), closest.y())
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        let target_point = Point2D::new(point.0, point.1);
-        self.distance_to_point(&target_point)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let target_point = Point2D::new(point.0, point.1);
-        use geo_contracts::default_distance_tolerance;
-        self.contains_point(&target_point, default_distance_tolerance::<T>())
     }
 
     fn parameter_for_point(&self, point: (T, T)) -> T {
@@ -372,6 +353,38 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         self.parameter_for_point(&target_point)
     }
 
+    fn point_at_distance(&self, distance: T) -> (T, T) {
+        let point = self.point_at_parameter(distance);
+        (point.x(), point.y())
+    }
+}
+
+impl<T: Scalar> Ray2DProjection<T> for Ray2D<T> {
+    fn closest_point(&self, point: (T, T)) -> (T, T) {
+        let target_point = Point2D::new(point.0, point.1);
+        let t = self.parameter_for_point(&target_point);
+        let clamped_t = if t < T::ZERO { T::ZERO } else { t };
+        let closest = self.point_at_parameter(clamped_t);
+        (closest.x(), closest.y())
+    }
+}
+
+impl<T: Scalar> Ray2DDistance<T> for Ray2D<T> {
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let target_point = Point2D::new(point.0, point.1);
+        self.distance_to_point(&target_point)
+    }
+}
+
+impl<T: Scalar> Ray2DContainment<T> for Ray2D<T> {
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let target_point = Point2D::new(point.0, point.1);
+        use geo_contracts::default_distance_tolerance;
+        self.contains_point(&target_point, default_distance_tolerance::<T>())
+    }
+}
+
+impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
     fn reverse(&self) -> Self
     where
         Self: Sized,
@@ -392,12 +405,6 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
             Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
 
         Ray2D::new(new_origin, direction_vec).unwrap()
-    }
-
-    fn point_at_distance(&self, distance: T) -> (T, T) {
-        // 方向ベクトルは正規化済みなので、パラメータ = 距離
-        let point = self.point_at_parameter(distance);
-        (point.x(), point.y())
     }
 
     fn rotate_around_origin(&self, angle: T) -> Self
