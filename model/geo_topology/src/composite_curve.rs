@@ -57,24 +57,31 @@ pub struct CompositeCurve3D<T: Scalar> {
 }
 
 impl<T: Scalar> CompositeCurve3D<T> {
+    fn points_are_connected(start: Point3D<T>, end: Point3D<T>, tolerance: T) -> bool {
+        start.distance_to(&end) <= tolerance
+    }
+
     /// セグメント列から複合曲線を生成
     ///
     /// 次の場合は None を返す:
     /// - segments が空
     /// - セグメントが連続していない（N番目終点 != N+1番目始点）
     pub fn new(segments: Vec<CurveSegment3D<T>>) -> Option<Self> {
+        Self::new_with_tolerance(segments, T::ZERO)
+    }
+
+    /// 許容誤差付きでセグメント列から複合曲線を生成
+    pub fn new_with_tolerance(segments: Vec<CurveSegment3D<T>>, tolerance: T) -> Option<Self> {
         if segments.is_empty() {
             return None;
         }
 
-        // 連続性検証: N番目終点とN+1番目始点が一致すること
+        // 連続性検証: N番目終点とN+1番目始点が許容差内で接続すること
         for i in 0..segments.len() - 1 {
             let end = segments[i].end();
             let next_start = segments[i + 1].start();
 
-            // 接続判定は明示的な座標比較で行う
-            // （トレランス考慮は構築処理ではなく検証層の責務）
-            if end.x() != next_start.x() || end.y() != next_start.y() || end.z() != next_start.z() {
+            if !Self::points_are_connected(end, next_start, tolerance) {
                 return None;
             }
         }
@@ -107,9 +114,14 @@ impl<T: Scalar> CompositeCurve3D<T> {
 
     /// 閉曲線かどうかを返す（始点 == 終点）
     pub fn is_closed(&self) -> bool {
+        self.is_closed_with_tolerance(T::ZERO)
+    }
+
+    /// 許容誤差付きで閉曲線かどうかを返す
+    pub fn is_closed_with_tolerance(&self, tolerance: T) -> bool {
         let start = self.start_point();
         let end = self.end_point();
-        start.x() == end.x() && start.y() == end.y() && start.z() == end.z()
+        Self::points_are_connected(start, end, tolerance)
     }
 }
 
@@ -178,6 +190,44 @@ mod tests {
     }
 
     #[test]
+    fn composite_curve_tolerance_allows_near_connected_segments() {
+        let seg1 = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 = TopoLineSegment3D::new(
+            Point3D::new(1.0, 0.0, 1.0e-4),
+            Point3D::new(2.0, 0.0, 1.0e-4),
+        )
+        .unwrap();
+
+        assert!(CompositeCurve3D::new(vec![
+            CurveSegment3D::Line(seg1),
+            CurveSegment3D::Line(seg2),
+        ])
+        .is_none());
+
+        assert!(CompositeCurve3D::new_with_tolerance(
+            vec![
+                CurveSegment3D::Line(
+                    TopoLineSegment3D::new(
+                        Point3D::new(0.0, 0.0, 0.0),
+                        Point3D::new(1.0, 0.0, 0.0),
+                    )
+                    .unwrap()
+                ),
+                CurveSegment3D::Line(
+                    TopoLineSegment3D::new(
+                        Point3D::new(1.0, 0.0, 1.0e-4),
+                        Point3D::new(2.0, 0.0, 1.0e-4),
+                    )
+                    .unwrap(),
+                ),
+            ],
+            1.0e-3,
+        )
+        .is_some());
+    }
+
+    #[test]
     fn composite_curve_empty_fails() {
         assert!(CompositeCurve3D::<f64>::new(vec![]).is_none());
     }
@@ -199,5 +249,23 @@ mod tests {
         .unwrap();
 
         assert!(composite.is_closed());
+    }
+
+    #[test]
+    fn composite_curve_closed_with_tolerance() {
+        let seg1 = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 =
+            TopoLineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 0.0, 5.0e-4))
+                .unwrap();
+
+        let composite = CompositeCurve3D::new_with_tolerance(
+            vec![CurveSegment3D::Line(seg1), CurveSegment3D::Line(seg2)],
+            1.0e-3,
+        )
+        .unwrap();
+
+        assert!(!composite.is_closed());
+        assert!(composite.is_closed_with_tolerance(1.0e-3));
     }
 }
