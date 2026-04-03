@@ -1,4 +1,4 @@
-# Issue #319 実施準備チェックリスト
+# Transform 2層化移行計画
 
 対象Issue: [#319 Transform再編: geo_core共通核 + geo_primitives/geo_nurbs形状実装の2層化](https://github.com/RedRing2020/RedRing/issues/319)
 
@@ -100,7 +100,7 @@
   - `cargo test -p geo_primitives`: pass
   - `scripts/check_architecture_dependencies.ps1 -ExitOnError`: pass
 
-## 9. 実施準備ステータス（2026-03-21）
+## 9. 移行ステータス（2026-03-21）
 
 - 作業ブランチ: `issue-319-execution-prep`
 - 開始前確認:

@@ -29,7 +29,7 @@
 
 詳細チェックリスト:
 
-- `dev/archive/issues/architecture/ISSUE_317_IMPLEMENTATION_PREP.md`
+- `dev/archive/issues/architecture/issue-317-geo-core-dependency-inversion-archive-note.md`
 
 ## 受け入れ条件
 

@@ -1,6 +1,6 @@
 # RedRing アーキテクチャ構成
 
-**最終更新日**: 2026年3月25日
+**最終更新日**: 2026年4月3日
 
 RedRing の幾何計算層とレンダリング層の構成、および現在の課題と解決策について説明します。
 
@@ -25,12 +25,14 @@ RedRing の幾何計算層とレンダリング層の構成、および現在の
 ```text
 foundation/analysis（将来改名候補）
             ↓
-        geo_core（低レイヤー・基本型提供）
-            ↓             ↓
-   geo_primitives      geo_nurbs
-      （trait+実装）     （trait+実装）
-            ↘           ↙
-            geo_algorithms（交差/衝突/幾何演算）
+        geo_contracts（trait定義の正本）
+          ↓        ↓
+ geo_commons     geo_core（低レイヤー・基本型提供）
+  （analysisのみ依存の   ↓             ↓
+   数値カーネル）  geo_primitives      geo_nurbs
+                      （impl入口）       （impl入口）
+                            ↘           ↙
+                    geo_algorithms（交差/衝突/幾何演算）
                     ↓
          application層クレート群
     （tessellation / simulation / job manager）
@@ -51,9 +53,11 @@ foundation/analysis（将来改名候補）
 #### クレート責務定義
 
 - **`foundation/analysis`**: 線形代数などの純粋な数値解析のみを提供（将来改名検討）
+- **`geo_contracts`**: 幾何 trait定義の正本。shape definition core / extension / operations の公開境界を定義する
+- **`geo_commons`**: `analysis` のみに依存する、再利用可能な幾何数値カーネル置き場。ellipse 近似や距離計算など、trait定義でも高レベル戦略でもない共通数値処理を置く
 - **`geo_core`**: **低レイヤー基本型**（Aabb2D/Aabb3D等）- geo_primitives/geo_nurbsから直接アクセス可
-- **`geo_primitives`**: プリミティブ形状のtrait定義と実装（Point, Vector, Circle等）
-- **`geo_nurbs`**: NURBS形状のtrait定義と実装（Curve/Surface等）
+- **`geo_primitives`**: プリミティブ形状の実装入口。`geo_contracts` の trait を実装し、必要に応じて `geo_commons` の数値カーネルへ薄く委譲する
+- **`geo_nurbs`**: NURBS形状の実装入口。`geo_contracts` の trait を実装し、`geo_core` 経由で具体型へ接続する
 - **`geo_algorithms`**: `geo_primitives` / `geo_nurbs` を利用した高レベル幾何アルゴリズム（intersect, collision 等）
 - **`application::*`（新設方針）**: テセレーション、シミュレーション、ジョブ管理など業務ユースケース
     - Application Layer の主要責務は orchestration とし、入口API、委譲順序、境界DTO、port/adapter 切り替えを集約する
@@ -66,9 +70,12 @@ foundation/analysis（将来改名候補）
 
 #### レイヤー設計の重要ポイント
 
+- **`geo_contracts` は境界定義層**: shape definition core / extension / operations の公開面は `geo_contracts` を正本とする
+- **`geo_commons` は存続対象**: `analysis` のみに依存する数値カーネル置き場として意図的に維持する。`geo_algorithms` の代替でも、廃止前提の移行対象でもない
 - **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
 - **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可
 - **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
+- **`geo_primitives` / `geo_nurbs` の役割**: 自 crate 型に対する impl entry point を担い、重い自由関数アルゴリズムは `geo_algorithms`、形状非依存の数値カーネルは `geo_commons` へ分離する
 - **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
 - **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
 - **Application Layer の役割**: 非同期実装詳細そのものは持たず、同期/非同期/job投入の実行方式境界だけを管理する
@@ -157,6 +164,30 @@ foundation/analysis（将来改名候補）
 3. **最小限の実装から開始**: 1-2個のメソッドから段階的に実装
 4. **geo_commons機能の活用**: 共通計算で内部実装を再利用
 
+## geo_commons の位置づけ
+
+### 現在方針
+
+- `geo_commons` は廃止前提ではなく、`analysis` のみに依存する再利用可能な幾何数値カーネル層として維持する
+- `geo_contracts` は trait定義の正本であり、数値アルゴリズム本体は持たない
+- `geo_primitives` / `geo_nurbs` は自 crate 型の impl entry point を担い、必要に応じて `geo_commons` へ薄く委譲する
+- `geo_algorithms` は cross-shape 演算や高レベル戦略を置く層であり、`geo_commons` の置き換えではない
+
+### 置くもの
+
+- ellipse 周長近似、焦点、離心率のような shape 非依存の数値式
+- ellipse 距離計算のような、具体 shape 型を要求しない共通数値カーネル
+- trait定義や orchestration を含まない、純粋関数ベースの幾何補助計算
+
+### 置かないもの
+
+- trait定義そのもの
+- cross-shape capability の公開契約
+- shape 実装の entry point
+- heavy strategy / solver orchestration
+
+この位置づけを正本とし、`geo_commons` 廃止前提で書かれた旧設計メモがある場合は、個別 Issue で現行方針へ更新する。
+
 ### 形状API統一の実現（新方針）
 
 **目標**: 全てのアクセスを「各形状クレート内trait」経由に統一
@@ -225,5 +256,5 @@ redring ← stage ← render
 - [`GITHUB_PAGES_SETUP.md`](GITHUB_PAGES_SETUP.md) - GitHub Pages 設定ガイド
 - [`dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md`](dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Dockerヘッドレス + Kubernetes）
 - [`dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md`](dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md) - geo_algorithms の分割ルール（primitive_2d/3d/NURBS/pair_base の統一規約）
-- [`dev/archive/issues/ISSUE_412_IMPLEMENTATION_PREP.md`](dev/archive/issues/ISSUE_412_IMPLEMENTATION_PREP.md) - artifact API命名整理の判断記録
+- [`dev/archive/issues/issue-412-artifact-api-naming-archive-note.md`](dev/archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API命名整理の判断記録
 

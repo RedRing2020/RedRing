@@ -1,4 +1,4 @@
-# Issue #435 ValidationError i18n 設計
+# ValidationError i18n 設計
 
 作成日: 2026-03-26  
 対象Issue: [#435](https://github.com/RedRing2020/RedRing/issues/435)

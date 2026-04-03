@@ -36,7 +36,7 @@
 - 正規参照先: `dev/architecture/ARCHITECTURE.md` の「Artifact API 命名運用ルール（#415）」
 
 関連ドキュメント:
-- `dev/architecture/ISSUE_300_IMPLEMENTATION_PREP.md`
+- `dev/architecture/ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md`
 
 関連Issue:
 - #412 artifact binary API 名称と wire format バージョン表記を整理

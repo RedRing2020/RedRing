@@ -1,7 +1,7 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年4月1日  
+**最終更新**: 2026年4月3日  
 **ステータス**: 設計・段階実装中  
 **関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246)
 
@@ -13,9 +13,10 @@
 2. [背景と課題](#背景と課題)
 3. [ハイブリッドスナップショット方式](#ハイブリッドスナップショット方式)
 4. [距離計算支援機能](#距離計算支援機能)
-5. [実装計画](#実装計画)
-6. [技術仕様](#技術仕様)
-7. [パフォーマンス目標](#パフォーマンス目標)
+5. [クレート配置と依存境界](#クレート配置と依存境界)
+6. [実装計画](#実装計画)
+7. [技術仕様](#技術仕様)
+8. [パフォーマンス目標](#パフォーマンス目標)
 
 ---
 
@@ -91,6 +92,41 @@ VoxelOctreeを用いたCAM工具経路の切削シミュレーション機能を
 ### UI例（疑似コード）
 
 UI実装コードは `view/app` を正本とし、本書は入力項目（間隔、推定件数、メモリ目安、妥当性警告）の要件のみを保持する。
+
+---
+
+## クレート配置と依存境界
+
+### 配置方針
+
+- `CuttingSimulator` と `SnapshotInterval` の正本実装は `model/cam_sim` に置く
+- `cam_sim` は切削シミュレーションの進行管理、スナップショット保持、工具種別分岐を担う
+- `geo_algorithms` は材料除去や距離評価などの幾何カーネルのみを保持し、CAMドメインの進行制御は持たない
+
+主な配置先:
+
+- `model/cam_sim/src/lib.rs`
+- `model/cam_sim/src/simulator.rs`
+- `model/cam_sim/src/simulator/behavior.rs`
+- `model/geo_algorithms/src/octree/voxel.rs`
+
+### 許可依存
+
+- `cam_sim -> cam_core`
+- `cam_sim -> geo_algorithms`
+- `cam_sim -> analysis`（数値補助が必要な範囲のみ）
+
+### 禁止依存
+
+- `geo_* -> cam_sim`
+- `cam_core -> cam_sim`
+
+### 統合時の固定ルール
+
+- `scripts/check_architecture_dependencies_simple.ps1` は例外追加で迂回しない
+- `cam_sim` を追加・拡張する場合も、workspace 全体の build/test と依存チェックスクリプトが通る状態を維持する
+- UI 連携は `view/app` 側に留め、`cam_sim` は計算コアとスナップショット管理へ責務を限定する
+- `ToolPath` / `ToolSet` / `Tool` を入力境界とし、表示都合の state を `cam_sim` に持ち込まない
 
 ---
 
@@ -380,7 +416,6 @@ Issue #214 の必須範囲は完了済みとし、以下は別タスクへ切り
 - [OCTREE_DESIGN.md](./OCTREE_DESIGN.md) - Octree基本設計
 - [CAM_VISUALIZATION_REQUIREMENTS.md](./CAM_VISUALIZATION_REQUIREMENTS.md) - CAM可視化要求
 - [CAM_CRATE_DESIGN_PROPOSAL.md](./CAM_CRATE_DESIGN_PROPOSAL.md) - cam_core設計
-- [ISSUE_214_IMPLEMENTATION_PREP.md](./ISSUE_214_IMPLEMENTATION_PREP.md) - #214着手準備チェックリスト
 
 ---
 

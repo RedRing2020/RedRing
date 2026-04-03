@@ -132,8 +132,8 @@
 
 - `model/cam_core/src/artifact_binary.rs`
 - `model/cam_core/src/lib.rs`
-- `dev/architecture/ISSUE_300_IMPLEMENTATION_PREP.md`
-- `dev/architecture/ISSUE_411_IMPLEMENTATION_PREP.md`
+- `dev/architecture/ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md`
+- `dev/archive/issues/issue-411-artifact-read-entrypoint-archive-note.md`
 - 利用側（将来）:
   - `cam_sim`
   - `cam_algorithms`（新設検討中）
