@@ -3,7 +3,7 @@
 //! Foundation Pattern に基づく Aabb3D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
-use crate::aabb_traits::Aabb3DTrait;
+use crate::aabb_traits::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
 use analysis::abstract_types::Scalar;
 
 use crate::Point3D;
@@ -124,7 +124,7 @@ impl<T: Scalar> Aabb3D<T> {
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
+impl<T: Scalar> Aabb3DProperties<T> for Aabb3D<T> {
     type Point3D = Point3D<T>;
 
     fn min(&self) -> Self::Point3D {
@@ -134,7 +134,9 @@ impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
     fn max(&self) -> Self::Point3D {
         self.max
     }
+}
 
+impl<T: Scalar> Aabb3DDerived<T> for Aabb3D<T> {
     fn width(&self) -> T {
         self.max.x() - self.min.x()
     }
@@ -162,6 +164,14 @@ impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
         )
     }
 
+    fn is_valid(&self) -> bool {
+        !(self.min.x() > self.max.x() || self.min.y() > self.max.y() || self.min.z() > self.max.z())
+    }
+}
+
+impl<T: Scalar> Aabb3DRelation<T> for Aabb3D<T> {
+    type Point3D = Point3D<T>;
+
     fn contains_point(&self, point: &Self::Point3D) -> bool {
         (self.min.x() <= point.x() && point.x() <= self.max.x())
             && (self.min.y() <= point.y() && point.y() <= self.max.y())
@@ -185,15 +195,12 @@ impl<T: Scalar> Aabb3DTrait<T> for Aabb3D<T> {
             && self.min.z() <= other.max.z()
             && self.max.z() >= other.min.z()
     }
-
-    fn is_valid(&self) -> bool {
-        !(self.min.x() > self.max.x() || self.min.y() > self.max.y() || self.min.z() > self.max.z())
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::aabb_traits::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
 
     #[test]
     fn test_aabb3d_creation() {
@@ -255,5 +262,26 @@ mod tests {
         let invalid = Aabb3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 1.0));
         assert!(!valid.is_empty());
         assert!(invalid.is_empty());
+    }
+
+    #[test]
+    fn test_aabb3d_capability_traits() {
+        let outer = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 6.0, 8.0));
+        let inner = Aabb3D::new(Point3D::new(1.0, 2.0, 3.0), Point3D::new(3.0, 5.0, 7.0));
+
+        assert_eq!(Aabb3DProperties::min(&outer), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(Aabb3DProperties::max(&outer), Point3D::new(4.0, 6.0, 8.0));
+        assert_eq!(Aabb3DDerived::width(&outer), 4.0);
+        assert_eq!(Aabb3DDerived::height(&outer), 6.0);
+        assert_eq!(Aabb3DDerived::depth(&outer), 8.0);
+        assert_eq!(Aabb3DDerived::volume(&outer), 192.0);
+        assert_eq!(Aabb3DDerived::center(&outer), Point3D::new(2.0, 3.0, 4.0));
+        assert!(Aabb3DDerived::is_valid(&outer));
+        assert!(Aabb3DRelation::contains_point(
+            &outer,
+            &Point3D::new(2.0, 3.0, 4.0)
+        ));
+        assert!(Aabb3DRelation::contains_bbox(&outer, &inner));
+        assert!(Aabb3DRelation::intersects(&outer, &inner));
     }
 }

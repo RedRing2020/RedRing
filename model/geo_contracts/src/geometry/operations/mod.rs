@@ -1,4 +1,4 @@
-//! Geometry operation contracts (collision, intersection).
+//! Geometry operation contracts (collision, intersection, relation).
 
 pub mod collision;
 pub mod distance;
@@ -13,7 +13,7 @@ pub use ellipse_calculation_traits::{
 };
 pub use intersection::{BasicIntersection, MultipleIntersection, SelfIntersection};
 pub use relation::{
-    AngleBetween, AngularRelation, ClosestPointPair, DirectionalRelation, IntersectsRelation,
-    OnPlaneRelation, ParallelRelation, PerpendicularRelation, PointsTowards, SameLineRelation,
-    SkewRelation,
+    Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, ClosestPointPair,
+    DirectionalRelation, IntersectsRelation, OnPlaneRelation, ParallelRelation,
+    PerpendicularRelation, PointsTowards, SameLineRelation, SkewRelation,
 };

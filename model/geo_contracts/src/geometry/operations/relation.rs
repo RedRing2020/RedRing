@@ -2,7 +2,37 @@
 //!
 //! 平行・垂直・同一直線・向き一致のような、相手との関係を返す契約を集約する。
 
-use analysis::abstract_types::Scalar;
+use crate::Scalar;
+
+/// AABB 2D relation
+pub trait Aabb2DRelation<T: Scalar> {
+    /// 点型
+    type Point2D;
+
+    /// 点を包含するかを返す
+    fn contains_point(&self, point: &Self::Point2D) -> bool;
+
+    /// 他方の AABB を包含するかを返す
+    fn contains_bbox(&self, other: &Self) -> bool;
+
+    /// 他方の AABB と交差するかを返す
+    fn intersects(&self, other: &Self) -> bool;
+}
+
+/// AABB 3D relation
+pub trait Aabb3DRelation<T: Scalar> {
+    /// 点型
+    type Point3D;
+
+    /// 点を包含するかを返す
+    fn contains_point(&self, point: &Self::Point3D) -> bool;
+
+    /// 他方の AABB を包含するかを返す
+    fn contains_bbox(&self, other: &Self) -> bool;
+
+    /// 他方の AABB と交差するかを返す
+    fn intersects(&self, other: &Self) -> bool;
+}
 
 /// 最近点対を返す relation
 pub trait ClosestPointPair<Other> {

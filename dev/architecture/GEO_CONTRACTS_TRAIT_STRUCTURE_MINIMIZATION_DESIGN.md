@@ -247,6 +247,8 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `Aabb*Properties`: `min`, `max`
 - `Aabb*Derived`: `width`, `height`, `depth`, `center`, `area`, `volume`, `is_valid`
 - `contains_point`, `contains_bbox`, `intersects` は extension または operations へ移す
+- 既存 `Aabb2DTrait` / `Aabb3DTrait` の延命は前提にせず、新規 capability 群として再定義してよい
+- AABB 単体で参照系 / derived / relation の意味を再設計し、旧 trait 命名との互換維持より責務境界の明確化を優先する
 
 ### 10. `EllipseCalculation*` は extension か operations か
 
