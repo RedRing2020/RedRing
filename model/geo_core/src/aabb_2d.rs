@@ -3,7 +3,7 @@
 //! Foundation Pattern に基づく Aabb2D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
-use crate::aabb_traits::Aabb2DTrait;
+use crate::aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
 use crate::Point2D;
 use analysis::abstract_types::Scalar;
 
@@ -113,7 +113,7 @@ impl<T: Scalar> Aabb2D<T> {
 // Foundation Trait Implementation
 // ============================================================================
 
-impl<T: Scalar> Aabb2DTrait<T> for Aabb2D<T> {
+impl<T: Scalar> Aabb2DProperties<T> for Aabb2D<T> {
     type Point2D = Point2D<T>;
 
     fn min(&self) -> Self::Point2D {
@@ -123,7 +123,9 @@ impl<T: Scalar> Aabb2DTrait<T> for Aabb2D<T> {
     fn max(&self) -> Self::Point2D {
         self.max
     }
+}
 
+impl<T: Scalar> Aabb2DDerived<T> for Aabb2D<T> {
     fn width(&self) -> T {
         self.max.x() - self.min.x()
     }
@@ -144,6 +146,14 @@ impl<T: Scalar> Aabb2DTrait<T> for Aabb2D<T> {
         )
     }
 
+    fn is_valid(&self) -> bool {
+        !(self.min.x() > self.max.x() || self.min.y() > self.max.y())
+    }
+}
+
+impl<T: Scalar> Aabb2DRelation<T> for Aabb2D<T> {
+    type Point2D = Point2D<T>;
+
     fn contains_point(&self, point: &Self::Point2D) -> bool {
         point.x() >= self.min.x()
             && point.x() <= self.max.x()
@@ -158,14 +168,18 @@ impl<T: Scalar> Aabb2DTrait<T> for Aabb2D<T> {
             && self.max.y() >= other.max.y()
     }
 
-    fn is_valid(&self) -> bool {
-        !(self.min.x() > self.max.x() || self.min.y() > self.max.y())
+    fn intersects(&self, other: &Self) -> bool {
+        self.min.x() <= other.max.x()
+            && self.max.x() >= other.min.x()
+            && self.min.y() <= other.max.y()
+            && self.max.y() >= other.min.y()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
 
     #[test]
     fn test_aabb2d_creation() {
@@ -260,5 +274,25 @@ mod tests {
     fn test_from_empty_points() {
         let points: Vec<Point2D<f64>> = vec![];
         assert!(Aabb2D::from_points(&points).is_none());
+    }
+
+    #[test]
+    fn test_aabb2d_capability_traits() {
+        let outer = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 6.0));
+        let inner = Aabb2D::new(Point2D::new(1.0, 2.0), Point2D::new(3.0, 5.0));
+
+        assert_eq!(Aabb2DProperties::min(&outer), Point2D::new(0.0, 0.0));
+        assert_eq!(Aabb2DProperties::max(&outer), Point2D::new(4.0, 6.0));
+        assert_eq!(Aabb2DDerived::width(&outer), 4.0);
+        assert_eq!(Aabb2DDerived::height(&outer), 6.0);
+        assert_eq!(Aabb2DDerived::area(&outer), 24.0);
+        assert_eq!(Aabb2DDerived::center(&outer), Point2D::new(2.0, 3.0));
+        assert!(Aabb2DDerived::is_valid(&outer));
+        assert!(Aabb2DRelation::contains_point(
+            &outer,
+            &Point2D::new(2.0, 3.0)
+        ));
+        assert!(Aabb2DRelation::contains_bbox(&outer, &inner));
+        assert!(Aabb2DRelation::intersects(&outer, &inner));
     }
 }

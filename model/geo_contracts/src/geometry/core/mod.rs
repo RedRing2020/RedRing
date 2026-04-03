@@ -29,7 +29,7 @@ pub mod torus_surface_traits;
 pub mod triangle_traits;
 pub mod vector_traits;
 
-pub use aabb_traits::{Aabb2DTrait, Aabb3DTrait};
+pub use aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb3DDerived, Aabb3DProperties};
 pub use arc_traits::{
     Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
     Arc3DMeasure, Arc3DProperties,
