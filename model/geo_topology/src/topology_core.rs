@@ -262,7 +262,7 @@ impl<T: Scalar> Edge<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_primitives::InfiniteLine3D;
+    use crate::TopoInfiniteLine3D;
 
     #[test]
     fn edge_new_rejects_invalid_range() {
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn edge_binding_and_support_consistency_are_separated() {
-        let support_line = InfiniteLine3D::from_two_points(
+        let support_line = TopoInfiniteLine3D::from_two_points(
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(2.0, 0.0, 0.0),
         )
