@@ -1,9 +1,6 @@
-//! SphericalSolid3D Foundation Implementation
+//! SphericalSolid3D の Foundation 実装
 //!
-//! ExtensionFoundation トレイトによる統一インターフェースの実装
-//!
-//! **作成日: 2025年11月1日**
-//! **最終更新: 2025年11月1日**
+//! Foundation 系 trait への適合
 
 use crate::SphericalSolid3D;
 use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
@@ -39,7 +36,6 @@ mod tests {
         let center = Point3D::new(1.0, 2.0, 3.0);
         let solid = SphericalSolid3D::new_standard(center, 2.0).unwrap();
 
-        // Foundation トレイトのテスト
         assert_eq!(solid.primitive_kind(), PrimitiveKind::SphericalSolid);
 
         let bbox = solid.aabb().expect("should have aabb");
@@ -47,7 +43,7 @@ mod tests {
         assert_eq!(bbox.max(), Point3D::new(3.0, 4.0, 5.0));
 
         let volume = solid.measure().unwrap();
-        let expected_volume = 4.0 * std::f64::consts::PI * 8.0 / 3.0; // 4/3 * π * r³
+        let expected_volume = 4.0 * std::f64::consts::PI * 8.0 / 3.0;
         assert!((volume - expected_volume).abs() < 1e-10);
     }
 
