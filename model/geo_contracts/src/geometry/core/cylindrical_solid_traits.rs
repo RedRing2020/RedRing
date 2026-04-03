@@ -62,7 +62,6 @@ pub trait CylindricalSolid3DMeasure<T: Scalar> {
     fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T);
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-    fn intersects_line(&self, line_point: (T, T, T), line_dir: (T, T, T)) -> Option<(T, T, T)>;
 }
 
 pub trait CylindricalSolid3DCore<T: Scalar>:

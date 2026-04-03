@@ -3,8 +3,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{CylindricalSolid3D, Direction3D, Point3D, Vector3D};
-    use geo_contracts::{CylindricalSolid3DMeasure, CylindricalSolid3DProperties};
+    use crate::{CylindricalSolid3D, Direction3D, InfiniteLine3D, Point3D, Vector3D};
+    use geo_contracts::{
+        BasicIntersection, CylindricalSolid3DMeasure, CylindricalSolid3DProperties,
+    };
 
     #[test]
     fn test_cylindrical_solid_creation() {
@@ -278,5 +280,22 @@ mod tests {
         let actual_distance =
             CylindricalSolid3DMeasure::distance_to_point(&cylindrical_solid, external_point);
         assert!((actual_distance - expected_distance).abs() < 1e-10_f64);
+    }
+
+    #[test]
+    fn test_cylindrical_solid_line_intersection_is_exposed_via_basic_intersection() {
+        let cylindrical_solid = CylindricalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            5.0,
+            10.0,
+        )
+        .unwrap();
+        let line = InfiniteLine3D::new(Point3D::new(-10.0, 0.0, 5.0), Vector3D::unit_x()).unwrap();
+
+        let intersection = BasicIntersection::intersection_with(&cylindrical_solid, &line, 1e-10);
+
+        assert!(intersection.is_none());
     }
 }

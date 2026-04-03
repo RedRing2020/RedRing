@@ -51,7 +51,6 @@ pub trait SphericalSolid3DMeasure<T: Scalar> {
     fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T);
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-    fn intersects_sphere(&self, other_center: (T, T, T), other_radius: T) -> bool;
 }
 
 pub trait SphericalSolid3DCore<T: Scalar>:

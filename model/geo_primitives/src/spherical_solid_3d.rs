@@ -19,7 +19,7 @@
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{IntersectsRelation, Scalar};
 
 /// 3次元球ソリッド（STEP準拠のCore実装）
 ///
@@ -565,19 +565,17 @@ impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
 
         (surface_point.x(), surface_point.y(), surface_point.z())
     }
-
-    fn intersects_sphere(&self, other_center: (T, T, T), other_radius: T) -> bool {
-        let c1 = self.center_internal();
-        let c2 = Point3D::new(other_center.0, other_center.1, other_center.2);
-        let r1 = self.radius_internal();
-        let r2 = other_radius;
-
-        let distance = c1.distance_to(&c2);
-        distance <= (r1 + r2)
-    }
 }
 
 impl<T: Scalar> SphericalSolid3DCore<T> for SphericalSolid3D<T> {}
+
+impl<T: Scalar> IntersectsRelation<Self> for SphericalSolid3D<T> {
+    fn intersects(&self, other: &Self) -> bool {
+        let center = other.center_internal();
+        let radius = other.radius_internal();
+        self.center_internal().distance_to(&center) <= (self.radius_internal() + radius)
+    }
+}
 
 // ============================================================================
 // Display Implementation

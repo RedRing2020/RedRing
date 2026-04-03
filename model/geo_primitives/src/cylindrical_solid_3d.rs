@@ -15,8 +15,8 @@
 //! - radius: 円柱半径
 //! - height: 円柱高さ
 
-use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
+use geo_contracts::{BasicIntersection, Scalar};
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
 ///
@@ -607,13 +607,17 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
             )
         }
     }
-
-    fn intersects_line(&self, _line_point: (T, T, T), _line_dir: (T, T, T)) -> Option<(T, T, T)> {
-        None
-    }
 }
 
 impl<T: Scalar> CylindricalSolid3DCore<T> for CylindricalSolid3D<T> {}
+
+impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T> {
+    type Point = (T, T, T);
+
+    fn intersection_with(&self, _other: &InfiniteLine3D<T>, _tolerance: T) -> Option<Self::Point> {
+        None
+    }
+}
 
 // ============================================================================
 // Backward Compatibility (移行期間中のみ)

@@ -67,6 +67,8 @@ pub mod rectangle_3d_foundation;
 pub mod rectangle_3d_transform;
 pub mod spherical_solid_3d;
 pub mod spherical_solid_3d_foundation;
+#[cfg(test)]
+pub mod spherical_solid_3d_tests;
 pub mod spherical_surface_3d;
 pub mod spherical_surface_3d_foundation;
 pub mod torus_solid_3d;
