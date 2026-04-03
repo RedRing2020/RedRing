@@ -15,7 +15,7 @@ pub use geometry::core::arc_traits::{Arc2DContainment, Arc2DSampling};
 pub use geometry::core::plane3d_traits::{
     Plane3DConstructor, Plane3DCore, Plane3DMeasure, Plane3DProperties,
 };
-pub use geometry::core::{Aabb2DTrait, Aabb3DTrait};
+pub use geometry::core::{Aabb2DDerived, Aabb2DProperties, Aabb3DDerived, Aabb3DProperties};
 pub use geometry::core::{
     Arc2DConstructor, Arc2DCore, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DCore,
     Arc3DMeasure, Arc3DProperties, Circle2DConstructor, Circle2DCore, Circle2DMeasure,
@@ -63,10 +63,10 @@ pub use geometry::foundation::{
     PrimitiveMetadata, Vector2DMeasure, Vector3DMeasure,
 };
 pub use geometry::operations::{
-    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, CrossDistance,
-    DistanceConvergenceError, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation,
-    EllipseCalculation, FallibleCrossDistance, MultipleIntersection, PointDistance,
-    SelfIntersection,
+    Aabb2DRelation, Aabb3DRelation, AdvancedCollision, BBoxCollision, BasicCollision,
+    BasicIntersection, CrossDistance, DistanceConvergenceError, EllipseAccuracyAnalysis,
+    EllipseAdaptiveCalculation, EllipseCalculation, FallibleCrossDistance, MultipleIntersection,
+    PointDistance, SelfIntersection,
 };
 pub use tolerance::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
