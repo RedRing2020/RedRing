@@ -258,6 +258,37 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 理由:
 
+### 14. Rect と linear shape への適用方針
+
+判定:
+
+- #540 の AABB で使った `properties / derived / relation` の説明軸を、そのまま Rect と linear shape 群へ拡張する
+- ただし linear shape 群では `evaluation / projection / transform` も明示的に分離する
+
+対象:
+
+- `Rect2D/3D`
+- `InfiniteLine2D/3D`
+- `Ray2D/3D`
+- `LineSegment2D/3D`
+- `Plane3D`
+
+設計反映:
+
+- `*Core` は `Constructor + Properties` の統合 alias に縮小する
+- 旧 `*Measure` は後方互換のために集約 trait として残してよいが、新規実装の責務配置はそこで説明しない
+- `contains_point` は `Containment`
+- `point_at_parameter` / `parameter_for_point` / `point_to_uv` / `uv_to_point` は `Evaluation`
+- `closest_point` / `project_point` は `Projection`
+- `mirror_point` / `rotate_*` / `translate` / `reverse` / `offset` は `Transform`
+- `area` / `perimeter` / `corners` / `direction_vector` / `as_vector` / `equation_coefficients` は `Derived`
+- `distance_to_point` のような単一点相手の距離は unary capability として `Distance` に分ける
+
+理由:
+
+- `Measure` という名前のまま unary measure, relation, projection, transform を混在させると、AABB 後に採用した taxonomy と説明軸が揃わないから
+- 先行対象で capability taxonomy を分けておくと、後続の `Circle` / `Triangle` / solid / surface にも同じ軸で横展開できるから
+
 - これは shape の定義でも一般的な単一 shape metadata でもなく、近似式・数値計算戦略の選択そのものだから
 - capability としても algorithm 寄りであり、他の operations 群と同じ層に置く方が自然だから
 

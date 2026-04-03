@@ -5,7 +5,8 @@
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DMeasure,
+    default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DContainment,
+    LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
     LineSegment2DProperties, Scalar,
 };
 
@@ -20,15 +21,7 @@ pub struct LineSegment2D<T: Scalar> {
     pub(crate) end_param: T,            // 終点のパラメータ
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> LineSegment2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 始点と終点から線分を作成
     pub fn new(start: Point2D<T>, end: Point2D<T>) -> Option<Self> {
         let line = InfiniteLine2D::from_two_points(start, end)?;
@@ -58,10 +51,6 @@ impl<T: Scalar> LineSegment2D<T> {
             end_param: length,
         })
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 始点を取得
     pub fn start_point(&self) -> Point2D<T> {
@@ -100,10 +89,6 @@ impl<T: Scalar> LineSegment2D<T> {
         Vector2D::from_points(start, end)
     }
 
-    // ========================================================================
-    // Core Parametric Methods
-    // ========================================================================
-
     /// 正規化されたパラメータ（0〜1）での点を取得
     pub fn point_at_normalized_parameter(&self, t: T) -> Point2D<T> {
         if t < T::ZERO || t > T::ONE {
@@ -130,10 +115,6 @@ impl<T: Scalar> LineSegment2D<T> {
             (line_param - self.start_param) / segment_length
         }
     }
-
-    // ========================================================================
-    // Core Containment Methods
-    // ========================================================================
 
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
@@ -180,10 +161,6 @@ impl<T: Scalar> LineSegment2D<T> {
         )
     }
 
-    // ========================================================================
-    // Internal Accessor Methods (for Extension implementation)
-    // ========================================================================
-
     /// 基盤となる無限直線を取得（Extension用）
     pub fn line(&self) -> &InfiniteLine2D<T> {
         &self.line
@@ -199,11 +176,6 @@ impl<T: Scalar> LineSegment2D<T> {
         self.end_param
     }
 }
-
-// ============================================================================
-// ============================================================================
-// Helper Methods (Foundation traits converted to methods)
-// ============================================================================
 
 impl<T: Scalar> LineSegment2D<T> {
     /// 方向を反転
@@ -251,10 +223,6 @@ impl<T: Scalar> LineSegment2D<T> {
         }
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
 
 impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
     fn new(start: (T, T), end: (T, T)) -> Option<Self> {
@@ -347,27 +315,44 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
     }
 }
 
-impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
+impl<T: Scalar> LineSegment2DDerived<T> for LineSegment2D<T> {
     fn measure(&self) -> T {
         (self.end_param - self.start_param).abs()
     }
 
+    fn direction_vector(&self) -> (T, T) {
+        let dir = self.direction();
+        (dir.x(), dir.y())
+    }
+
+    fn as_vector(&self) -> (T, T) {
+        let v = self.vector();
+        (v.x(), v.y())
+    }
+}
+
+impl<T: Scalar> LineSegment2DDistance<T> for LineSegment2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
         self.distance_to_point(&p)
     }
+}
 
+impl<T: Scalar> LineSegment2DContainment<T> for LineSegment2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
         self.contains_point(&p, default_distance_tolerance::<T>())
     }
+}
 
+impl<T: Scalar> LineSegment2DEvaluation<T> for LineSegment2D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T) {
         let p = self.point_at_normalized_parameter(t);
         (p.x(), p.y())
     }
+}
 
-    // Phase 2: 追加測度メソッド
+impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {
     fn closest_point_to(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
         let t = self.parameter_for_point(&p);
@@ -380,16 +365,6 @@ impl<T: Scalar> LineSegment2DMeasure<T> for LineSegment2D<T> {
             t
         };
         self.point_at_parameter(clamped_t)
-    }
-
-    fn direction_vector(&self) -> (T, T) {
-        let dir = self.direction();
-        (dir.x(), dir.y())
-    }
-
-    fn as_vector(&self) -> (T, T) {
-        let v = self.vector();
-        (v.x(), v.y())
     }
 }
 

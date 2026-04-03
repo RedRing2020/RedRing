@@ -5,8 +5,9 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, BasicIntersection, Plane3DConstructor, Plane3DMeasure,
-    Plane3DProperties, Scalar,
+    default_distance_tolerance, BasicIntersection, Plane3DConstructor, Plane3DContainment,
+    Plane3DDerived, Plane3DDistance, Plane3DEvaluation, Plane3DProjection, Plane3DProperties,
+    Plane3DTransform, Scalar,
 };
 
 /// CAD用3次元平面（座標系付き）
@@ -34,15 +35,7 @@ pub struct Plane3D<T: Scalar> {
     pub(crate) v_axis: Direction3D<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Plane3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で平面座標系を作成
     ///
     /// # Arguments
@@ -154,10 +147,6 @@ impl<T: Scalar> Plane3D<T> {
         Self::from_origin_and_axes(point, normal, candidate_u)
     }
 
-    // ========================================================================
-    // アクセサメソッド
-    // ========================================================================
-
     /// 平面の原点を取得
     pub fn origin(&self) -> Point3D<T> {
         self.origin
@@ -177,10 +166,6 @@ impl<T: Scalar> Plane3D<T> {
     pub fn point(&self) -> Point3D<T> {
         self.origin
     }
-
-    // ========================================================================
-    // Core Geometric Operations
-    // ========================================================================
 
     /// 点が平面上にあるかチェック
     pub fn contains_point(&self, point: Point3D<T>, tolerance: T) -> bool {
@@ -269,20 +254,12 @@ impl<T: Scalar> Default for Plane3D<T> {
     }
 }
 
-// ============================================================================
-// Constants (注: ジェネリック型では const は制限があるため、メソッドで提供)
-// ============================================================================
-
 impl<T: Scalar> Plane3D<T> {
     /// XY平面（z = 0）の参照
     pub fn xy() -> Self {
         Self::xy_plane(T::ZERO)
     }
 }
-
-// ============================================================================
-// Display Implementation
-// ============================================================================
 
 impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -305,13 +282,7 @@ impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
-
 impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn from_origin_and_axes(
         origin: (T, T, T),
         normal: (T, T, T),
@@ -334,8 +305,6 @@ impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
         Self::xy_plane(T::ZERO)
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn from_point_and_normal(point: (T, T, T), normal: (T, T, T)) -> Option<Self> {
         let origin = Point3D::new(point.0, point.1, point.2);
         let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
@@ -352,8 +321,6 @@ impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
 }
 
 impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn origin(&self) -> (T, T, T) {
         (self.origin.x(), self.origin.y(), self.origin.z())
     }
@@ -373,8 +340,6 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     fn dimension(&self) -> u32 {
         2 // 2次元多様体
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn is_xy_plane(&self) -> bool {
         let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
@@ -401,9 +366,7 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
+impl<T: Scalar + From<f64>> Plane3DContainment<T> for Plane3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let tolerance = default_distance_tolerance::<T>();
         // distance_to_point の計算を直接展開
@@ -415,7 +378,9 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         let distance = relative.dot(&self.normal.as_vector()).abs();
         distance <= tolerance
     }
+}
 
+impl<T: Scalar + From<f64>> Plane3DDistance<T> for Plane3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let relative = Vector3D::new(
             point.0 - self.origin.x(),
@@ -424,7 +389,9 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         );
         relative.dot(&self.normal.as_vector())
     }
+}
 
+impl<T: Scalar + From<f64>> Plane3DProjection<T> for Plane3D<T> {
     fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
         // distance_to_point の計算を直接展開
         let relative = Vector3D::new(
@@ -440,7 +407,9 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
             point.2 - offset.z(),
         )
     }
+}
 
+impl<T: Scalar + From<f64>> Plane3DDerived<T> for Plane3D<T> {
     fn equation_coefficients(&self) -> (T, T, T, T) {
         let a = self.normal.x();
         let b = self.normal.y();
@@ -448,9 +417,9 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
         (a, b, c, d)
     }
+}
 
-    // ========== Phase 2 実装 ==========
-
+impl<T: Scalar + From<f64>> Plane3DEvaluation<T> for Plane3D<T> {
     fn point_to_uv(&self, point: (T, T, T)) -> (T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
         let from_origin = Vector3D::from_points(&self.origin, &p);
@@ -464,7 +433,9 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         let point = self.origin + offset;
         (point.x(), point.y(), point.z())
     }
+}
 
+impl<T: Scalar + From<f64>> Plane3DTransform<T> for Plane3D<T> {
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
         // project_point の計算を直接展開
         let relative = Vector3D::new(

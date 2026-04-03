@@ -133,16 +133,88 @@ pub trait InfiniteLine3DProperties<T: Scalar> {
     fn is_axis_aligned(&self) -> bool;
 }
 
-pub trait InfiniteLine2DMeasure<T: Scalar> {
+pub trait InfiniteLine2DMeasure<T: Scalar>:
+    InfiniteLine2DEvaluation<T>
+    + InfiniteLine2DDistance<T>
+    + InfiniteLine2DContainment<T>
+    + InfiniteLine2DProjection<T>
+    + InfiniteLine2DTransform<T>
+{
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        <Self as InfiniteLine2DEvaluation<T>>::point_at_parameter(self, t)
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        <Self as InfiniteLine2DDistance<T>>::distance_to_point(self, point)
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        <Self as InfiniteLine2DContainment<T>>::contains_point(self, point)
+    }
+
+    fn project_point(&self, point: (T, T)) -> (T, T) {
+        <Self as InfiniteLine2DProjection<T>>::project_point(self, point)
+    }
+
+    fn parameter_for_point(&self, point: (T, T)) -> T {
+        <Self as InfiniteLine2DEvaluation<T>>::parameter_for_point(self, point)
+    }
+
+    fn reverse(&self) -> Self
+    where
+        Self: Sized,
+    {
+        <Self as InfiniteLine2DTransform<T>>::reverse(self)
+    }
+
+    fn mirror_point(&self, point: (T, T)) -> (T, T) {
+        <Self as InfiniteLine2DProjection<T>>::mirror_point(self, point)
+    }
+
+    fn offset(&self, distance: T) -> Self
+    where
+        Self: Sized,
+    {
+        <Self as InfiniteLine2DTransform<T>>::offset(self, distance)
+    }
+
+    fn rotate_around_origin(&self, angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        <Self as InfiniteLine2DTransform<T>>::rotate_around_origin(self, angle)
+    }
+
+    fn rotate_around_point(&self, center: (T, T), angle: T) -> Self
+    where
+        Self: Sized,
+    {
+        <Self as InfiniteLine2DTransform<T>>::rotate_around_point(self, center, angle)
+    }
+}
+
+pub trait InfiniteLine2DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T);
-    fn distance_to_point(&self, point: (T, T)) -> T;
-    fn contains_point(&self, point: (T, T)) -> bool;
-    fn project_point(&self, point: (T, T)) -> (T, T);
     fn parameter_for_point(&self, point: (T, T)) -> T;
+}
+
+pub trait InfiniteLine2DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T)) -> T;
+}
+
+pub trait InfiniteLine2DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T)) -> bool;
+}
+
+pub trait InfiniteLine2DProjection<T: Scalar> {
+    fn project_point(&self, point: (T, T)) -> (T, T);
+    fn mirror_point(&self, point: (T, T)) -> (T, T);
+}
+
+pub trait InfiniteLine2DTransform<T: Scalar> {
     fn reverse(&self) -> Self
     where
         Self: Sized;
-    fn mirror_point(&self, point: (T, T)) -> (T, T);
     fn offset(&self, distance: T) -> Self
     where
         Self: Sized;
@@ -154,16 +226,93 @@ pub trait InfiniteLine2DMeasure<T: Scalar> {
         Self: Sized;
 }
 
-pub trait InfiniteLine3DMeasure<T: Scalar> {
+impl<T: Scalar, L> InfiniteLine2DMeasure<T> for L where
+    L: InfiniteLine2DEvaluation<T>
+        + InfiniteLine2DDistance<T>
+        + InfiniteLine2DContainment<T>
+        + InfiniteLine2DProjection<T>
+        + InfiniteLine2DTransform<T>
+{
+}
+
+pub trait InfiniteLine3DMeasure<T: Scalar>:
+    InfiniteLine3DEvaluation<T>
+    + InfiniteLine3DDistance<T>
+    + InfiniteLine3DContainment<T>
+    + InfiniteLine3DProjection<T>
+    + InfiniteLine3DTransform<T>
+{
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        <Self as InfiniteLine3DEvaluation<T>>::point_at_parameter(self, t)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        <Self as InfiniteLine3DDistance<T>>::distance_to_point(self, point)
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        <Self as InfiniteLine3DContainment<T>>::contains_point(self, point)
+    }
+
+    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
+        <Self as InfiniteLine3DProjection<T>>::project_point(self, point)
+    }
+
+    fn parameter_for_point(&self, point: (T, T, T)) -> T {
+        <Self as InfiniteLine3DEvaluation<T>>::parameter_for_point(self, point)
+    }
+
+    fn reverse(&self) -> Self
+    where
+        Self: Sized,
+    {
+        <Self as InfiniteLine3DTransform<T>>::reverse(self)
+    }
+
+    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
+        <Self as InfiniteLine3DProjection<T>>::mirror_point(self, point)
+    }
+
+    fn rotate_around_axis(
+        &self,
+        axis_point: (T, T, T),
+        axis_direction: (T, T, T),
+        angle: T,
+    ) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        <Self as InfiniteLine3DTransform<T>>::rotate_around_axis(
+            self,
+            axis_point,
+            axis_direction,
+            angle,
+        )
+    }
+}
+
+pub trait InfiniteLine3DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T, T);
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn project_point(&self, point: (T, T, T)) -> (T, T, T);
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait InfiniteLine3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait InfiniteLine3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait InfiniteLine3DProjection<T: Scalar> {
+    fn project_point(&self, point: (T, T, T)) -> (T, T, T);
+    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
+}
+
+pub trait InfiniteLine3DTransform<T: Scalar> {
     fn reverse(&self) -> Self
     where
         Self: Sized;
-    fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
     fn rotate_around_axis(
         &self,
         axis_point: (T, T, T),
@@ -174,22 +323,31 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
         Self: Sized;
 }
 
+impl<T: Scalar, L> InfiniteLine3DMeasure<T> for L where
+    L: InfiniteLine3DEvaluation<T>
+        + InfiniteLine3DDistance<T>
+        + InfiniteLine3DContainment<T>
+        + InfiniteLine3DProjection<T>
+        + InfiniteLine3DTransform<T>
+{
+}
+
 pub trait InfiniteLine2DCore<T: Scalar>:
-    InfiniteLine2DConstructor<T> + InfiniteLine2DProperties<T> + InfiniteLine2DMeasure<T>
+    InfiniteLine2DConstructor<T> + InfiniteLine2DProperties<T>
 {
 }
 
 pub trait InfiniteLine3DCore<T: Scalar>:
-    InfiniteLine3DConstructor<T> + InfiniteLine3DProperties<T> + InfiniteLine3DMeasure<T>
+    InfiniteLine3DConstructor<T> + InfiniteLine3DProperties<T>
 {
 }
 
 impl<T: Scalar, L> InfiniteLine2DCore<T> for L where
-    L: InfiniteLine2DConstructor<T> + InfiniteLine2DProperties<T> + InfiniteLine2DMeasure<T>
+    L: InfiniteLine2DConstructor<T> + InfiniteLine2DProperties<T>
 {
 }
 
 impl<T: Scalar, L> InfiniteLine3DCore<T> for L where
-    L: InfiniteLine3DConstructor<T> + InfiniteLine3DProperties<T> + InfiniteLine3DMeasure<T>
+    L: InfiniteLine3DConstructor<T> + InfiniteLine3DProperties<T>
 {
 }

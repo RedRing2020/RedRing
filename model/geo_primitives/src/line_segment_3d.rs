@@ -5,7 +5,8 @@
 
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, CrossDistance, LineSegment3DConstructor, LineSegment3DMeasure,
+    default_distance_tolerance, CrossDistance, LineSegment3DConstructor, LineSegment3DContainment,
+    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
     LineSegment3DProperties, Scalar,
 };
 
@@ -20,15 +21,7 @@ pub struct LineSegment3D<T: Scalar> {
     pub(crate) end_param: T,            // 終点のパラメータ
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> LineSegment3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 始点と終点から線分を作成
     pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
         let line = InfiniteLine3D::from_two_points(start, end)?;
@@ -58,10 +51,6 @@ impl<T: Scalar> LineSegment3D<T> {
             end_param: length,
         })
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 始点を取得
     pub fn start(&self) -> Point3D<T> {
@@ -104,10 +93,6 @@ impl<T: Scalar> LineSegment3D<T> {
         self.end_param
     }
 
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
-
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         let to_point = Vector3D::from_points(&self.line.point_internal(), point);
@@ -143,10 +128,6 @@ impl<T: Scalar> LineSegment3D<T> {
         self.length() <= tolerance
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
 
 impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
     fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self> {
@@ -239,29 +220,48 @@ impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
     }
 }
 
-impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
+impl<T: Scalar> LineSegment3DDerived<T> for LineSegment3D<T> {
     fn measure(&self) -> T {
         self.end_param - self.start_param
     }
 
+    fn direction_vector(&self) -> (T, T, T) {
+        let dir = self.direction();
+        (dir.x(), dir.y(), dir.z())
+    }
+
+    fn as_vector(&self) -> (T, T, T) {
+        let start = self.start();
+        let end = self.end();
+        let v = Vector3D::from_points(&start, &end);
+        (v.x(), v.y(), v.z())
+    }
+}
+
+impl<T: Scalar> LineSegment3DDistance<T> for LineSegment3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         self.distance_to_point(&p)
     }
+}
 
+impl<T: Scalar> LineSegment3DContainment<T> for LineSegment3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
         self.contains_point(&p, default_distance_tolerance::<T>())
     }
+}
 
+impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         // 正規化パラメータ（0〜1）で線分上の点を取得
         let param = self.start_param + t * (self.end_param - self.start_param);
         let p = self.line.point_at_parameter(param);
         (p.x(), p.y(), p.z())
     }
+}
 
-    // Phase 2: 追加測度メソッド
+impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
         // 直線上のパラメータを計算
@@ -276,18 +276,6 @@ impl<T: Scalar> LineSegment3DMeasure<T> for LineSegment3D<T> {
         };
         let result = self.line.point_at_parameter(clamped_param);
         (result.x(), result.y(), result.z())
-    }
-
-    fn direction_vector(&self) -> (T, T, T) {
-        let dir = self.direction();
-        (dir.x(), dir.y(), dir.z())
-    }
-
-    fn as_vector(&self) -> (T, T, T) {
-        let start = self.start();
-        let end = self.end();
-        let v = Vector3D::from_points(&start, &end);
-        (v.x(), v.y(), v.z())
     }
 }
 

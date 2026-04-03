@@ -1,7 +1,9 @@
 //! Rect3D Core 実装（任意平面）
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::{Rect3DConstructor, Rect3DMeasure, Rect3DProperties, Scalar};
+use geo_contracts::{
+    Rect3DConstructor, Rect3DContainment, Rect3DDerived, Rect3DEvaluation, Rect3DProperties, Scalar,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect3D<T: Scalar> {
@@ -194,11 +196,13 @@ impl<T: Scalar> Rect3DProperties<T> for Rect3D<T> {
     }
 }
 
-impl<T: Scalar> Rect3DMeasure<T> for Rect3D<T> {
+impl<T: Scalar> Rect3DContainment<T> for Rect3D<T> {
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool {
         Self::contains_point(self, &Point3D::new(point.0, point.1, point.2), tolerance)
     }
+}
 
+impl<T: Scalar> Rect3DDerived<T> for Rect3D<T> {
     fn area(&self) -> T {
         Self::area(self)
     }
@@ -213,12 +217,14 @@ impl<T: Scalar> Rect3DMeasure<T> for Rect3D<T> {
         ]
     }
 
-    fn distance_to_plane(&self, point: (T, T, T)) -> T {
-        Self::distance_to_plane(self, Point3D::new(point.0, point.1, point.2))
-    }
-
     fn is_valid(&self) -> bool {
         self.width >= T::ZERO && self.height >= T::ZERO
+    }
+}
+
+impl<T: Scalar> Rect3DEvaluation<T> for Rect3D<T> {
+    fn distance_to_plane(&self, point: (T, T, T)) -> T {
+        Self::distance_to_plane(self, Point3D::new(point.0, point.1, point.2))
     }
 }
 

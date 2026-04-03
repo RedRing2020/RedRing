@@ -74,12 +74,19 @@ pub use ellipsoidal_surface_traits::{
     EllipsoidalSurface3DProperties,
 };
 pub use infinite_line_traits::{
-    InfiniteLine2DConstructor, InfiniteLine2DCore, InfiniteLine2DMeasure, InfiniteLine2DProperties,
-    InfiniteLine3DConstructor, InfiniteLine3DCore, InfiniteLine3DMeasure, InfiniteLine3DProperties,
+    InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DCore,
+    InfiniteLine2DDistance, InfiniteLine2DEvaluation, InfiniteLine2DMeasure,
+    InfiniteLine2DProjection, InfiniteLine2DProperties, InfiniteLine2DTransform,
+    InfiniteLine3DConstructor, InfiniteLine3DContainment, InfiniteLine3DCore,
+    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DMeasure,
+    InfiniteLine3DProjection, InfiniteLine3DProperties, InfiniteLine3DTransform,
 };
 pub use linesegment_traits::{
-    LineSegment2DConstructor, LineSegment2DCore, LineSegment2DMeasure, LineSegment2DProperties,
-    LineSegment3DConstructor, LineSegment3DCore, LineSegment3DMeasure, LineSegment3DProperties,
+    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,
+    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DMeasure, LineSegment2DProjection,
+    LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DCore,
+    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DMeasure,
+    LineSegment3DProjection, LineSegment3DProperties,
 };
 pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
@@ -90,18 +97,24 @@ pub use nurbs_curve_3d_traits::{
 pub use nurbs_surface_3d_traits::{
     NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
 };
-pub use plane3d_traits::Plane3DProperties;
+pub use plane3d_traits::{
+    Plane3DConstructor, Plane3DContainment, Plane3DCore, Plane3DDerived, Plane3DDistance,
+    Plane3DEvaluation, Plane3DMeasure, Plane3DProjection, Plane3DProperties, Plane3DTransform,
+};
 pub use point_traits::{
     Point2DConstructor, Point2DCore, Point2DProperties, Point3DConstructor, Point3DCore,
     Point3DProperties,
 };
 pub use ray_traits::{
-    Ray2DConstructor, Ray2DCore, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DCore,
-    Ray3DMeasure, Ray3DProperties,
+    Ray2DConstructor, Ray2DContainment, Ray2DCore, Ray2DDistance, Ray2DEvaluation, Ray2DMeasure,
+    Ray2DProjection, Ray2DProperties, Ray2DTransform, Ray3DConstructor, Ray3DContainment,
+    Ray3DCore, Ray3DDistance, Ray3DEvaluation, Ray3DMeasure, Ray3DProjection, Ray3DProperties,
+    Ray3DTransform,
 };
 pub use rectangle_traits::{
-    Rect2DConstructor, Rect2DCore, Rect2DMeasure, Rect2DProperties, Rect3DConstructor, Rect3DCore,
-    Rect3DMeasure, Rect3DProperties,
+    Rect2DConstructor, Rect2DContainment, Rect2DCore, Rect2DDerived, Rect2DMeasure,
+    Rect2DProperties, Rect3DConstructor, Rect3DContainment, Rect3DCore, Rect3DDerived,
+    Rect3DEvaluation, Rect3DMeasure, Rect3DProperties,
 };
 pub use spherical_solid_traits::{
     SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,

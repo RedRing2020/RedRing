@@ -15,14 +15,7 @@ pub struct InfiniteLine2D<T: Scalar> {
     pub(crate) direction: Direction2D<T>, // 正規化された方向ベクトル
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> InfiniteLine2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
     /// 点と方向ベクトルから無限直線を作成
     pub fn new(point: Point2D<T>, direction: Vector2D<T>) -> Option<Self> {
         Direction2D::from_vector(direction).map(|dir| Self {
@@ -36,14 +29,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         let direction = Vector2D::from_points(p1, p2);
         Self::new(p1, direction)
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 直線上の点を取得（内部用）
     pub(crate) fn point_internal(&self) -> Point2D<T> {
@@ -60,10 +45,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         Direction2D::from_vector(self.direction.rotate_neg_90())
             .expect("Rotated direction should be valid")
     }
-
-    // ========================================================================
-    // Core Geometric Methods
-    // ========================================================================
 
     /// 指定パラメータでの点を取得（point + t * direction）
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
@@ -119,10 +100,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         Some(other.point_at_parameter(t1))
     }
 
-    // ========================================================================
-    // Core Helper Methods
-    // ========================================================================
-
     /// 境界ボックスを取得（起点を含む十分大きな範囲）
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
         use geo_core::Point2D;
@@ -155,11 +132,11 @@ impl<T: Scalar> InfiniteLine2D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Pattern Core Traits Implementation
-// ============================================================================
-
-use geo_contracts::{InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties};
+use geo_contracts::{
+    InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DDistance,
+    InfiniteLine2DEvaluation, InfiniteLine2DProjection, InfiniteLine2DProperties,
+    InfiniteLine2DTransform,
+};
 
 /// InfiniteLine2D Constructor Trait Implementation
 impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
@@ -198,8 +175,6 @@ impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
         let direction_vec = Vector2D::new(direction.0, direction.1);
         Self::new(origin, direction_vec)
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn from_angle(angle: T) -> Self {
         let direction = Vector2D::new(angle.cos(), angle.sin());
@@ -281,8 +256,6 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
         2
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn angle(&self) -> T {
         self.direction.y().atan2(self.direction.x())
     }
@@ -301,40 +274,39 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
     }
 }
 
-/// InfiniteLine2D Measure Trait Implementation
-impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
+impl<T: Scalar> InfiniteLine2DEvaluation<T> for InfiniteLine2D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T) {
         let p = self.point_at_parameter(t);
         (p.x(), p.y())
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        let p = Point2D::new(point.0, point.1);
-        self.distance_to_point(&p)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        use geo_contracts::default_distance_tolerance;
-        self.contains_point(&p, default_distance_tolerance::<T>())
-    }
-
-    fn project_point(&self, point: (T, T)) -> (T, T) {
-        let p = Point2D::new(point.0, point.1);
-        let projected = self.project_point(&p);
-        (projected.x(), projected.y())
     }
 
     fn parameter_for_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
         self.parameter_for_point(&p)
     }
+}
 
-    fn reverse(&self) -> Self {
-        Self::new(self.point, -(*self.direction)).unwrap()
+impl<T: Scalar> InfiniteLine2DDistance<T> for InfiniteLine2D<T> {
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        self.distance_to_point(&p)
     }
+}
 
-    // ========== Phase 2 実装 ==========
+impl<T: Scalar> InfiniteLine2DContainment<T> for InfiniteLine2D<T> {
+    fn contains_point(&self, point: (T, T)) -> bool {
+        let p = Point2D::new(point.0, point.1);
+        use geo_contracts::default_distance_tolerance;
+        self.contains_point(&p, default_distance_tolerance::<T>())
+    }
+}
+
+impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
+    fn project_point(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let projected = self.project_point(&p);
+        (projected.x(), projected.y())
+    }
 
     fn mirror_point(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
@@ -342,6 +314,12 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
         // 鏡面点 = 2 * 投影点 - 元の点
         let mirrored = projected + (projected - p);
         (mirrored.x(), mirrored.y())
+    }
+}
+
+impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
+    fn reverse(&self) -> Self {
+        Self::new(self.point, -(*self.direction)).unwrap()
     }
 
     fn offset(&self, distance: T) -> Self {
