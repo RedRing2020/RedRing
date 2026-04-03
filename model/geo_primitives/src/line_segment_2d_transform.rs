@@ -29,8 +29,27 @@ pub mod analysis_transform {
         let transformed_end_vec = matrix.transform_point_2d(&end_vec);
         let new_end: Point2D<T> = transformed_end_vec.into();
 
+        let ideal_start_vec: Vector2<T> = line_segment.ideal_start().into();
+        let transformed_ideal_start_vec = matrix.transform_point_2d(&ideal_start_vec);
+        let transformed_ideal_start: Point2D<T> = transformed_ideal_start_vec.into();
+
+        let ideal_end_vec: Vector2<T> = line_segment.ideal_end().into();
+        let transformed_ideal_end_vec = matrix.transform_point_2d(&ideal_end_vec);
+        let transformed_ideal_end: Point2D<T> = transformed_ideal_end_vec.into();
+
+        let support_line = crate::InfiniteLine2D::from_two_points(
+            transformed_ideal_start,
+            transformed_ideal_end,
+        )
+        .ok_or_else(|| {
+            TransformError::InvalidGeometry(
+                "Transformed support line has coincident ideal points".to_string(),
+            )
+        })?;
+
         // 変換後の線分を構築
-        LineSegment2D::new(new_start, new_end).ok_or_else(|| {
+        LineSegment2D::from_support_line_and_constraint_points(support_line, new_start, new_end)
+            .ok_or_else(|| {
             TransformError::InvalidGeometry(
                 "Transformed line segment has coincident points".to_string(),
             )

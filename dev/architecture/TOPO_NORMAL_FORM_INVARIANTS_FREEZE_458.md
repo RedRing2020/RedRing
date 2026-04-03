@@ -1,4 +1,4 @@
-# topo正規形不変条件 凍結ドキュメント（Issue #458）
+# topo正規形不変条件 凍結スナップショット（Issue #458）
 
 作成日: 2026-03-28
 対象Issue: #458
@@ -7,12 +7,14 @@
 
 ## 目的
 
-Issue #406 の完了条件「正規形不変条件の合意」を、#338 再開前提として参照可能な形で明文化・凍結する。
+Issue #406 の完了条件「正規形不変条件の合意」を、#338 再開前提として参照可能な形で明文化し、#458 時点の判断として凍結する。
 
 ## ドキュメント状態
 
 - 状態: レビュー提出版（凍結候補 v0.1）
 - 本版の目的: #338 再開前に「正規形の判定軸」を固定する
+- 現在の位置付け: #458 時点の簡易実装前提スナップショット
+- 現行 topology 設計の正本: `TOPOLOGY_ENTITY_LAYER_DESIGN.md`
 
 ## 完了条件チェック
 
@@ -26,11 +28,17 @@ Issue #406 の完了条件「正規形不変条件の合意」を、#338 再開�
 - 交差結果との整合ルール（IntersectionTopology / IntersectionGeometry）
 - 設計レビューで判断可能なDoDの明文化
 
+補足:
+
+- 本書は #458 時点の凍結内容を保存するための文書である
+- LineSegment semantics 更新後の topology binding invariant や位相専用 tolerance の最終設計は本書では扱わない
+
 ## 非スコープ
 
 - コード実装
 - 既存APIの挙動変更
 - full B-Rep 実装詳細
+- 現行 topology entity layer の正本管理
 
 ## 用語定義（凍結）
 
@@ -86,7 +94,7 @@ Issue #406 の完了条件「正規形不変条件の合意」を、#338 再開�
 ## 境界ケース規約表（凍結候補 v0.1）
 
 | ケース | Topology | Geometry | 最低保証 | 備考 |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 非交差 | Disjoint | None | 結果空であること | 早期終了可 |
 | 点接触 | Touching | Point / Points | 0次元で表現可能 | 接線判定を併記 |
 | 点交差 | Crossing | Point / Points | 交点集合が得られること | 線×線/線×面で発生 |
@@ -96,7 +104,7 @@ Issue #406 の完了条件「正規形不変条件の合意」を、#338 再開�
 ## 組み合わせ別返却規約（#405 整合）
 
 | 組み合わせ | 非交差 | 点接触/点交差 | 線/曲線交差 | 一致 |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 線×線 | None+Disjoint | Point+Crossing | InfiniteLine+Coincident | - |
 | 線×面 | None+Disjoint | Point+Crossing | Segment+Coincident | - |
 | 面×面 | None+Disjoint | Point+Touching | InfiniteLine/CompositeCurve+Crossing | Coincident |

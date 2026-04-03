@@ -40,7 +40,35 @@ pub mod analysis_transform {
             transformed_end.z(),
         );
 
-        LineSegment3D::new(new_start, new_end).unwrap()
+        let ideal_start_vec = Vector3::new(
+            segment.ideal_start().x(),
+            segment.ideal_start().y(),
+            segment.ideal_start().z(),
+        );
+        let transformed_ideal_start = matrix.transform_point_3d(&ideal_start_vec);
+        let new_ideal_start = Point3D::new(
+            transformed_ideal_start.x(),
+            transformed_ideal_start.y(),
+            transformed_ideal_start.z(),
+        );
+
+        let ideal_end_vec = Vector3::new(
+            segment.ideal_end().x(),
+            segment.ideal_end().y(),
+            segment.ideal_end().z(),
+        );
+        let transformed_ideal_end = matrix.transform_point_3d(&ideal_end_vec);
+        let new_ideal_end = Point3D::new(
+            transformed_ideal_end.x(),
+            transformed_ideal_end.y(),
+            transformed_ideal_end.z(),
+        );
+
+        let support_line = crate::InfiniteLine3D::from_two_points(new_ideal_start, new_ideal_end)
+            .expect("Transformed support line should remain valid");
+
+        LineSegment3D::from_support_line_and_constraint_points(support_line, new_start, new_end)
+            .unwrap()
     }
 
     /// 複数線分の一括行列変換

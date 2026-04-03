@@ -10,15 +10,16 @@ use geo_contracts::{
     LineSegment3DProperties, Scalar,
 };
 
-/// 3次元空間の線分
+/// 3次元空間の線分。
 ///
-/// 始点と終点を持つ有限の線分
-/// 内部的に InfiniteLine3D とパラメータ範囲を使用
+/// support line と拘束点を併せ持つ有限線形 shape を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment3D<T: Scalar> {
-    pub(crate) line: InfiniteLine3D<T>, // 基盤となる無限直線
-    pub(crate) start_param: T,          // 始点のパラメータ
-    pub(crate) end_param: T,            // 終点のパラメータ
+    pub(crate) line: InfiniteLine3D<T>,
+    pub(crate) start_param: T,
+    pub(crate) end_param: T,
+    pub(crate) start_point: Point3D<T>,
+    pub(crate) end_point: Point3D<T>,
 }
 
 impl<T: Scalar> LineSegment3D<T> {
@@ -26,10 +27,28 @@ impl<T: Scalar> LineSegment3D<T> {
     pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
         let line = InfiniteLine3D::from_two_points(start, end)?;
 
+        Self::from_support_line_and_constraint_points(line, start, end)
+    }
+
+    /// support line と拘束点から線分を作成
+    pub fn from_support_line_and_constraint_points(
+        line: InfiniteLine3D<T>,
+        start_point: Point3D<T>,
+        end_point: Point3D<T>,
+    ) -> Option<Self> {
+        let start_param = line.parameter_for_point(&start_point);
+        let end_param = line.parameter_for_point(&end_point);
+
+        if (end_param - start_param).abs() <= T::EPSILON {
+            return None;
+        }
+
         Some(Self {
             line,
-            start_param: T::ZERO,
-            end_param: start.distance_to(&end),
+            start_param,
+            end_param,
+            start_point,
+            end_point,
         })
     }
 
@@ -44,42 +63,77 @@ impl<T: Scalar> LineSegment3D<T> {
         }
 
         let line = InfiniteLine3D::new(start, direction)?;
+        let end = line.point_at_parameter(length);
 
-        Some(Self {
-            line,
-            start_param: T::ZERO,
-            end_param: length,
-        })
+        Self::from_support_line_and_constraint_points(line, start, end)
+    }
+
+    fn ordered_params(&self) -> (T, T) {
+        if self.start_param <= self.end_param {
+            (self.start_param, self.end_param)
+        } else {
+            (self.end_param, self.start_param)
+        }
+    }
+
+    /// support line 上の理想始点を取得
+    pub fn ideal_start(&self) -> Point3D<T> {
+        self.line.point_at_parameter(self.start_param)
+    }
+
+    /// support line 上の理想終点を取得
+    pub fn ideal_end(&self) -> Point3D<T> {
+        self.line.point_at_parameter(self.end_param)
+    }
+
+    /// support line 上の理想長を取得
+    pub fn ideal_length(&self) -> T {
+        (self.end_param - self.start_param).abs()
     }
 
     /// 始点を取得
     pub fn start(&self) -> Point3D<T> {
-        self.line.point_at_parameter(self.start_param)
+        self.start_point
     }
 
     /// 終点を取得
     pub fn end(&self) -> Point3D<T> {
-        self.line.point_at_parameter(self.end_param)
+        self.end_point
     }
 
     /// 中点を取得
     pub fn midpoint(&self) -> Point3D<T> {
-        let mid_param = (self.start_param + self.end_param) / (T::ONE + T::ONE);
-        self.line.point_at_parameter(mid_param)
+        let two = T::from_f64(2.0);
+        let start = self.start();
+        let end = self.end();
+        Point3D::new(
+            (start.x() + end.x()) / two,
+            (start.y() + end.y()) / two,
+            (start.z() + end.z()) / two,
+        )
     }
 
     /// 線分の長さを取得
     pub fn length(&self) -> T {
-        self.end_param - self.start_param
+        self.start_point.distance_to(&self.end_point)
     }
 
     /// 方向ベクトルを取得
     pub fn direction(&self) -> Vector3D<T> {
-        *self.line.direction_internal()
+        if self.end_param >= self.start_param {
+            *self.line.direction_internal()
+        } else {
+            (*self.line.direction_internal()).negate()
+        }
     }
 
     /// 基盤となる無限直線を取得
     pub fn line(&self) -> &InfiniteLine3D<T> {
+        &self.line
+    }
+
+    /// 基盤となる support line を取得
+    pub fn support_line(&self) -> &InfiniteLine3D<T> {
         &self.line
     }
 
@@ -97,12 +151,12 @@ impl<T: Scalar> LineSegment3D<T> {
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         let to_point = Vector3D::from_points(&self.line.point_internal(), point);
         let t = to_point.dot(&self.line.direction_internal());
+        let (min_param, max_param) = self.ordered_params();
 
-        // パラメータを線分の範囲内に制限
-        let clamped_param = if t < self.start_param {
-            self.start_param
-        } else if t > self.end_param {
-            self.end_param
+        let clamped_param = if t < min_param {
+            min_param
+        } else if t > max_param {
+            max_param
         } else {
             t
         };
@@ -113,14 +167,13 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        // まず無限直線上にあるかチェック
         if !self.line.contains_point(point, tolerance) {
             return false;
         }
 
-        // パラメータが線分の範囲内にあるかチェック
         let param = self.line.parameter_for_point(point);
-        param >= self.start_param - tolerance && param <= self.end_param + tolerance
+        let (min_param, max_param) = self.ordered_params();
+        param >= min_param - tolerance && param <= max_param + tolerance
     }
 
     /// 線分が退化しているか（長さが0）を判定
@@ -152,7 +205,6 @@ impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
         Self::new(start, end).unwrap()
     }
 
-    // Phase 2: 追加コンストラクタ
     fn unit_y() -> Self {
         let start = Point3D::origin();
         let end = Point3D::new(T::ZERO, T::ONE, T::ZERO);
@@ -178,51 +230,49 @@ impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
 
 impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
     fn start(&self) -> (T, T, T) {
-        let p = self.line.point_at_parameter(self.start_param);
+        let p = self.start();
         (p.x(), p.y(), p.z())
     }
 
     fn end(&self) -> (T, T, T) {
-        let p = self.line.point_at_parameter(self.end_param);
+        let p = self.end();
         (p.x(), p.y(), p.z())
     }
 
     fn midpoint(&self) -> (T, T, T) {
-        let mid_param = (self.start_param + self.end_param) / (T::ONE + T::ONE);
-        let p = self.line.point_at_parameter(mid_param);
+        let p = self.midpoint();
         (p.x(), p.y(), p.z())
     }
 
     fn length(&self) -> T {
-        self.end_param - self.start_param
+        self.length()
     }
 
     fn dimension(&self) -> u32 {
         3
     }
 
-    // Phase 2: 追加プロパティ
     fn is_unit_length(&self) -> bool {
-        let length = self.end_param - self.start_param;
+        let length = self.length();
         (length - T::ONE).abs() <= T::EPSILON
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        let start = self.line.point_at_parameter(self.start_param);
-        let end = self.line.point_at_parameter(self.end_param);
+        let start = self.start();
+        let end = self.end();
         (start.z() - end.z()).abs() <= T::EPSILON
     }
 
     fn is_on_yz_plane(&self) -> bool {
-        let start = self.line.point_at_parameter(self.start_param);
-        let end = self.line.point_at_parameter(self.end_param);
+        let start = self.start();
+        let end = self.end();
         (start.x() - end.x()).abs() <= T::EPSILON
     }
 }
 
 impl<T: Scalar> LineSegment3DDerived<T> for LineSegment3D<T> {
     fn measure(&self) -> T {
-        self.end_param - self.start_param
+        self.length()
     }
 
     fn direction_vector(&self) -> (T, T, T) {
@@ -254,7 +304,6 @@ impl<T: Scalar> LineSegment3DContainment<T> for LineSegment3D<T> {
 
 impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        // 正規化パラメータ（0〜1）で線分上の点を取得
         let param = self.start_param + t * (self.end_param - self.start_param);
         let p = self.line.point_at_parameter(param);
         (p.x(), p.y(), p.z())
@@ -264,13 +313,12 @@ impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
 impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
-        // 直線上のパラメータを計算
         let line_param = self.line.parameter_for_point(&p);
-        // 線分範囲にクランプ
-        let clamped_param = if line_param < self.start_param {
-            self.start_param
-        } else if line_param > self.end_param {
-            self.end_param
+        let (min_param, max_param) = self.ordered_params();
+        let clamped_param = if line_param < min_param {
+            min_param
+        } else if line_param > max_param {
+            max_param
         } else {
             line_param
         };
@@ -311,5 +359,29 @@ impl<T: Scalar> CrossDistance<T, ((T, T, T), (T, T, T))> for LineSegment3D<T> {
         let end = (end_point.x(), end_point.y(), end_point.z());
 
         line_segment_to_aabb_distance(start, end, other.0, other.1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn support_line_and_constraint_points_are_distinct() {
+        let line =
+            InfiniteLine3D::new(Point3D::origin(), Vector3D::new(1.0_f64, 0.0, 0.0)).unwrap();
+        let start = Point3D::new(0.0, 1.0, 0.0);
+        let end = Point3D::new(2.0, 1.0, 0.0);
+
+        let segment =
+            LineSegment3D::from_support_line_and_constraint_points(line, start, end).unwrap();
+
+        assert_eq!(segment.start(), start);
+        assert_eq!(segment.end(), end);
+        assert_eq!(segment.ideal_start(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(segment.ideal_end(), Point3D::new(2.0, 0.0, 0.0));
+        assert_eq!(segment.point_at_parameter(0.5), Point3D::new(1.0, 0.0, 0.0));
+        assert_eq!(segment.length(), 2.0);
+        assert_eq!(segment.ideal_length(), 2.0);
     }
 }
