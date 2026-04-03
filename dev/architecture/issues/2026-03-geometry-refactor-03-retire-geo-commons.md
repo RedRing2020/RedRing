@@ -1,21 +1,25 @@
+# geo_commons 撤去メモ（旧方針）
+
 ## 概要
 
-`geo_commons` を廃止し、責務を `analysis` と `geo_algorithms` に分解移管する。
+この文書は旧方針メモであり、**現在の正本方針では `geo_commons` は廃止対象ではない**。
+
+現行方針では、`geo_commons` は `analysis` のみに依存する再利用可能な幾何数値カーネル層として意図的に維持する。したがって本メモの「撤去計画」は実施対象ではなく、旧検討経緯としてのみ参照する。
 
 ## 背景
 
-- `geo_commons` が中間層として残っており、責務と依存が追いにくい
-- `geo_foundation` 廃止と同時に構成を単純化したい
+- 起票当時は `geo_commons` を `analysis` / `geo_algorithms` へ分解移管する案を検討していた
+- その後、`geo_commons` は shape 非依存の幾何数値カーネル置き場として維持する方針へ変更された
+- 現在の配置ルールは [dev/architecture/ARCHITECTURE.md](../ARCHITECTURE.md) と `#547` の整理方針を正とする
 
 ## 現在地
 
-- `geo_commons` は workspace member から既に外れている
-- `Cargo.toml` 上、他クレートからの `geo_commons` 依存は解消済み
-- `geo_foundation` からの `geo_commons` 依存も解消済み
-- 現在残っているのは `model/geo_commons` ディレクトリ自体と、コメント / ドキュメント上の言及整理
-- したがって本Issueは「依存撤去はほぼ完了、残りは物理削除と痕跡整理」という現在地
+- 現在は `geo_commons` を削除しない
+- ellipse 周長近似、焦点、離心率、ellipse 距離計算のような shape 非依存カーネルは `geo_commons` に残す
+- `geo_contracts` は trait定義の正本、`geo_primitives` は impl entry point、`geo_algorithms` は cross-shape / heavy strategy を担う
+- したがって本メモにある「物理削除と痕跡整理」は現行タスクではなく、旧案の記録として扱う
 
-## タスク
+## 旧タスク（現行では非採用）
 
 ### Phase A: API棚卸し
 
@@ -48,7 +52,7 @@
 - [ ] `cargo test --workspace`
 - [ ] `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check_architecture_dependencies.ps1 -ExitOnError`
 
-## 受け入れ条件
+## 旧受け入れ条件（現行では非採用）
 
 - [x] ワークスペースに `geo_commons` 依存が存在しない
 - [x] `analysis` は形状を含まない純粋数値計算のみを保持
@@ -61,5 +65,6 @@
 
 ## 備考
 
-- 分割移管の途中で中間PRを許容する
-- 実施詳細は `dev/archive/issues/architecture/issue-320-contracts-commons-normalization-archive-note.md` を参照
+- 分割移管の途中で中間PRを許容する、という当時の前提は記録として残す
+- 現在の正本は [dev/architecture/ARCHITECTURE.md](../ARCHITECTURE.md) と `#547` の責務整理を参照する
+- `geo_commons` の位置づけ更新経緯は [dev/archive/issues/architecture/issue-320-contracts-commons-normalization-archive-note.md](../../archive/issues/architecture/issue-320-contracts-commons-normalization-archive-note.md) を参照

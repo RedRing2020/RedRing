@@ -2,7 +2,10 @@
 //!
 //! Foundation統一システムに基づくEllipse3Dの必須機能のみ
 
-use crate::{Angle, Circle3D, Direction3D, InfiniteLine3D, Plane3D, Point3D, Vector3D};
+use crate::{
+    ellipse_calculation_analysis, ellipse_calculation_strategy, Angle, Circle3D, Direction3D,
+    InfiniteLine3D, Plane3D, Point3D, Vector3D,
+};
 use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Ellipse3DConstructor, Ellipse3DMeasure, Ellipse3DProperties, Scalar};
@@ -466,14 +469,7 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
     }
 
     fn perimeter_ramanujan_i(&self) -> T {
-        let a = self.semi_major_axis;
-        let b = self.semi_minor_axis;
-        let h = ((a - b) / (a + b)).powi(2);
-        T::PI
-            * (a + b)
-            * (T::ONE
-                + (T::from_f64(3.0) * h)
-                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
+        geo_commons::ellipse_perimeter_ramanujan_i(self.semi_major_axis, self.semi_minor_axis)
     }
 
     fn perimeter_ramanujan_ii(&self) -> T {
@@ -529,5 +525,18 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {}
-impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse3D<T> {}
+impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {
+    fn perimeter_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
+        ellipse_calculation_strategy::perimeter_adaptive(
+            self,
+            target_accuracy,
+            max_computation_cost,
+        )
+    }
+}
+
+impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse3D<T> {
+    fn compare_approximation_methods(&self) -> Vec<(&'static str, T, T)> {
+        ellipse_calculation_analysis::compare_approximation_methods(self)
+    }
+}

@@ -264,6 +264,9 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 設計反映:
 
 - `EllipseCalculation`, `EllipseAdaptiveCalculation`, `EllipseAccuracyAnalysis` は operations 側に残す
+- ただし `geo_contracts` に置くのは trait定義の正本までとし、adaptive 選択や比較分析の default 実装は持ち込まない
+- strategy の実装本体は `geo_primitives` の impl entry point または将来的な `geo_algorithms` 側 helper へ置く
+- 近似式・距離計算の数値カーネル自体は `geo_commons` に維持し、`geo_contracts` は数値閾値や比較ロジックを保持しない
 
 ### 11. `LineSegment3DCollisionDetection` は extension か operations か
 

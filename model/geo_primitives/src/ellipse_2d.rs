@@ -2,7 +2,9 @@
 //!
 //! 新しいtraitsシステムに対応したEllipse2Dの実装
 
-use crate::{Circle2D, Point2D, Vector2D};
+use crate::{
+    ellipse_calculation_analysis, ellipse_calculation_strategy, Circle2D, Point2D, Vector2D,
+};
 use geo_contracts::{
     default_distance_tolerance, Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Scalar,
 };
@@ -282,14 +284,7 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
 
     /// ラマヌジャン近似式I（標準版）による周長計算
     fn perimeter_ramanujan_i(&self) -> T {
-        let a = self.semi_major;
-        let b = self.semi_minor;
-        let h = ((a - b) / (a + b)).powi(2);
-        T::PI
-            * (a + b)
-            * (T::ONE
-                + (T::from_f64(3.0) * h)
-                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
+        geo_commons::ellipse_perimeter_ramanujan_i(self.semi_major, self.semi_minor)
     }
 
     /// ラマヌジャン近似式II（高精度版）による周長計算
@@ -309,41 +304,12 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
 
     /// 級数展開による周長計算（最高精度）
     fn perimeter_series(&self, terms: usize) -> T {
-        let a = self.semi_major;
-        let b = self.semi_minor;
-        let m = ((a - b) / (a + b)).powi(2);
-
-        let mut result = T::ONE;
-        let mut coefficient = T::ONE;
-        let mut m_power = m;
-
-        for n in 1..=terms {
-            coefficient *= T::from_f64((2.0 * n as f64 - 1.0) / (2.0 * n as f64));
-            result += coefficient.powi(2) * m_power / T::from_f64(2.0 * n as f64 - 1.0);
-            m_power *= m;
-        }
-
-        T::PI * (a + b) * result
+        geo_commons::ellipse_circumference_series(self.semi_major, self.semi_minor, terms)
     }
 
     /// 数値積分による周長計算（最高精度版）
     fn perimeter_numerical(&self, n_points: usize) -> T {
-        let a = self.semi_major;
-        let b = self.semi_minor;
-        let dt = T::PI / T::from_f64(2.0 * n_points as f64);
-        let mut sum = T::ZERO;
-
-        for i in 0..n_points {
-            let t = T::from_f64(i as f64) * dt;
-            let sin_t = t.sin();
-            let cos_t = t.cos();
-            let dx_dt = -a * sin_t;
-            let dy_dt = b * cos_t;
-            let ds = (dx_dt * dx_dt + dy_dt * dy_dt).sqrt();
-            sum += ds;
-        }
-
-        T::from_f64(4.0) * sum * dt
+        geo_commons::ellipse_circumference_numerical(self.semi_major, self.semi_minor, n_points)
     }
 
     /// 楕円の離心率計算
@@ -404,9 +370,21 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
     }
 }
 
-impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse2D<T> {}
+impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse2D<T> {
+    fn perimeter_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
+        ellipse_calculation_strategy::perimeter_adaptive(
+            self,
+            target_accuracy,
+            max_computation_cost,
+        )
+    }
+}
 
-impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse2D<T> {}
+impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse2D<T> {
+    fn compare_approximation_methods(&self) -> Vec<(&'static str, T, T)> {
+        ellipse_calculation_analysis::compare_approximation_methods(self)
+    }
+}
 
 // ============================================================================
 // Core Traits Implementation (Phase 1)
