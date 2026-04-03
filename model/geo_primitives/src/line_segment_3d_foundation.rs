@@ -15,6 +15,6 @@ impl<T: Scalar> PrimitiveMetadata for LineSegment3D<T> {
 impl<T: Scalar> MeasureFoundation<T> for LineSegment3D<T> {
     fn measure(&self) -> Option<T> {
         // 線分の長さを測度として返す
-        Some(self.end_param - self.start_param)
+        Some(self.length())
     }
 }

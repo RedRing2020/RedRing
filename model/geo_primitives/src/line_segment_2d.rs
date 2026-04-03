@@ -10,15 +10,16 @@ use geo_contracts::{
     LineSegment2DProperties, Scalar,
 };
 
-/// 2次元平面の線分
+/// 2次元平面の線分。
 ///
-/// 始点と終点を持つ有限の線分
-/// 内部的に InfiniteLine2D とパラメータ範囲を使用
+/// support line と拘束点を併せ持つ有限線形 shape を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment2D<T: Scalar> {
-    pub(crate) line: InfiniteLine2D<T>, // 基盤となる無限直線
-    pub(crate) start_param: T,          // 始点のパラメータ
-    pub(crate) end_param: T,            // 終点のパラメータ
+    pub(crate) line: InfiniteLine2D<T>,
+    pub(crate) start_param: T,
+    pub(crate) end_param: T,
+    pub(crate) start_point: Point2D<T>,
+    pub(crate) end_point: Point2D<T>,
 }
 
 impl<T: Scalar> LineSegment2D<T> {
@@ -26,10 +27,28 @@ impl<T: Scalar> LineSegment2D<T> {
     pub fn new(start: Point2D<T>, end: Point2D<T>) -> Option<Self> {
         let line = InfiniteLine2D::from_two_points(start, end)?;
 
+        Self::from_support_line_and_constraint_points(line, start, end)
+    }
+
+    /// support line と拘束点から線分を作成
+    pub fn from_support_line_and_constraint_points(
+        line: InfiniteLine2D<T>,
+        start_point: Point2D<T>,
+        end_point: Point2D<T>,
+    ) -> Option<Self> {
+        let start_param = line.parameter_for_point(&start_point);
+        let end_param = line.parameter_for_point(&end_point);
+
+        if (end_param - start_param).abs() <= T::EPSILON {
+            return None;
+        }
+
         Some(Self {
             line,
-            start_param: T::ZERO,
-            end_param: start.distance_to(&end),
+            start_param,
+            end_param,
+            start_point,
+            end_point,
         })
     }
 
@@ -44,33 +63,55 @@ impl<T: Scalar> LineSegment2D<T> {
         }
 
         let line = InfiniteLine2D::new(start, direction)?;
+        let end = line.point_at_parameter(length);
 
-        Some(Self {
-            line,
-            start_param: T::ZERO,
-            end_param: length,
-        })
+        Self::from_support_line_and_constraint_points(line, start, end)
+    }
+
+    fn ordered_params(&self) -> (T, T) {
+        if self.start_param <= self.end_param {
+            (self.start_param, self.end_param)
+        } else {
+            (self.end_param, self.start_param)
+        }
+    }
+
+    /// support line 上の理想始点を取得
+    pub fn ideal_start(&self) -> Point2D<T> {
+        self.line.point_at_parameter(self.start_param)
+    }
+
+    /// support line 上の理想終点を取得
+    pub fn ideal_end(&self) -> Point2D<T> {
+        self.line.point_at_parameter(self.end_param)
+    }
+
+    /// support line 上の理想長を取得
+    pub fn ideal_length(&self) -> T {
+        (self.end_param - self.start_param).abs()
     }
 
     /// 始点を取得
     pub fn start_point(&self) -> Point2D<T> {
-        self.line.point_at_parameter(self.start_param)
+        self.start_point
     }
 
     /// 終点を取得
     pub fn end_point(&self) -> Point2D<T> {
-        self.line.point_at_parameter(self.end_param)
+        self.end_point
     }
 
     /// 中点を取得
     pub fn midpoint(&self) -> Point2D<T> {
-        let mid_param = (self.start_param + self.end_param) / (T::ONE + T::ONE);
-        self.line.point_at_parameter(mid_param)
+        let two = T::from_f64(2.0);
+        let start = self.start_point();
+        let end = self.end_point();
+        Point2D::new((start.x() + end.x()) / two, (start.y() + end.y()) / two)
     }
 
     /// 線分の長さを取得
     pub fn length(&self) -> T {
-        (self.end_param - self.start_param).abs()
+        self.start_point.distance_to(&self.end_point)
     }
 
     /// 方向ベクトルを取得（正規化済み）
@@ -92,11 +133,10 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 正規化されたパラメータ（0〜1）での点を取得
     pub fn point_at_normalized_parameter(&self, t: T) -> Point2D<T> {
         if t < T::ZERO || t > T::ONE {
-            // パラメータが範囲外の場合は最も近い端点を返す
             if t < T::ZERO {
-                return self.start_point();
+                return self.ideal_start();
             } else {
-                return self.end_point();
+                return self.ideal_end();
             }
         }
 
@@ -123,20 +163,20 @@ impl<T: Scalar> LineSegment2D<T> {
             return false;
         }
 
-        // パラメータが線分の範囲内にあるかチェック
         let param = self.line.parameter_for_point(point);
-        param >= self.start_param - tolerance && param <= self.end_param + tolerance
+        let (min_param, max_param) = self.ordered_params();
+        param >= min_param - tolerance && param <= max_param + tolerance
     }
 
     /// 点を線分に投影（線分内に制限）
     pub fn project_point_to_segment(&self, point: &Point2D<T>) -> Point2D<T> {
         let projected_param = self.line.parameter_for_point(point);
+        let (min_param, max_param) = self.ordered_params();
 
-        // パラメータを線分の範囲内に制限
-        let clamped_param = if projected_param < self.start_param {
-            self.start_param
-        } else if projected_param > self.end_param {
-            self.end_param
+        let clamped_param = if projected_param < min_param {
+            min_param
+        } else if projected_param > max_param {
+            max_param
         } else {
             projected_param
         };
@@ -166,6 +206,11 @@ impl<T: Scalar> LineSegment2D<T> {
         &self.line
     }
 
+    /// 基盤となる support line を取得
+    pub fn support_line(&self) -> &InfiniteLine2D<T> {
+        &self.line
+    }
+
     /// 開始パラメータを取得（Extension用）
     pub fn start_parameter(&self) -> T {
         self.start_param
@@ -184,6 +229,8 @@ impl<T: Scalar> LineSegment2D<T> {
             line: self.line,
             start_param: self.end_param,
             end_param: self.start_param,
+            start_point: self.end_point,
+            end_point: self.start_point,
         }
     }
 
@@ -243,7 +290,6 @@ impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
         Self::new(start, end).unwrap()
     }
 
-    // Phase 2: 追加コンストラクタ
     fn from_midpoint_length_horizontal(midpoint: (T, T), length: T) -> Option<Self> {
         if length <= T::ZERO {
             return None;
@@ -273,23 +319,22 @@ impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
 
 impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
     fn start(&self) -> (T, T) {
-        let p = self.line.point_at_parameter(self.start_param);
+        let p = self.start_point();
         (p.x(), p.y())
     }
 
     fn end(&self) -> (T, T) {
-        let p = self.line.point_at_parameter(self.end_param);
+        let p = self.end_point();
         (p.x(), p.y())
     }
 
     fn midpoint(&self) -> (T, T) {
-        let mid_param = (self.start_param + self.end_param) / (T::ONE + T::ONE);
-        let p = self.line.point_at_parameter(mid_param);
+        let p = self.midpoint();
         (p.x(), p.y())
     }
 
     fn length(&self) -> T {
-        (self.end_param - self.start_param).abs()
+        self.length()
     }
 
     fn dimension(&self) -> u32 {
@@ -298,7 +343,7 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
 
     // Phase 2: 追加プロパティ
     fn is_unit_length(&self) -> bool {
-        let length = (self.end_param - self.start_param).abs();
+        let length = self.length();
         (length - T::ONE).abs() <= T::EPSILON
     }
 
@@ -317,7 +362,7 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
 
 impl<T: Scalar> LineSegment2DDerived<T> for LineSegment2D<T> {
     fn measure(&self) -> T {
-        (self.end_param - self.start_param).abs()
+        self.length()
     }
 
     fn direction_vector(&self) -> (T, T) {
@@ -371,5 +416,31 @@ impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {
 impl<T: Scalar> CrossDistance<T, Self> for LineSegment2D<T> {
     fn distance_to(&self, other: &Self) -> T {
         LineSegment2D::distance_to_segment(self, other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn support_line_and_constraint_points_are_distinct() {
+        let line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
+        let start = Point2D::new(0.0, 1.0);
+        let end = Point2D::new(2.0, 1.0);
+
+        let segment =
+            LineSegment2D::from_support_line_and_constraint_points(line, start, end).unwrap();
+
+        assert_eq!(segment.start_point(), start);
+        assert_eq!(segment.end_point(), end);
+        assert_eq!(segment.ideal_start(), Point2D::new(0.0, 0.0));
+        assert_eq!(segment.ideal_end(), Point2D::new(2.0, 0.0));
+        assert_eq!(
+            segment.point_at_normalized_parameter(0.5),
+            Point2D::new(1.0, 0.0)
+        );
+        assert_eq!(segment.length(), 2.0);
+        assert_eq!(segment.ideal_length(), 2.0);
     }
 }

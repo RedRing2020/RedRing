@@ -16,15 +16,16 @@
 5. [ロードマップ統合](#ロードマップ統合)
 
 関連設計ドキュメント:
-- topo正規形不変条件凍結（#458）: `dev/architecture/TOPO_NORMAL_FORM_INVARIANTS_FREEZE_458.md`
 
-> 本ドキュメントは #458 の凍結内容を参照する実装設計書であり、
-> topo正規形の定義そのものは `TOPO_NORMAL_FORM_INVARIANTS_FREEZE_458.md` を正本とする。
+- topology entity layer 設計正本: `dev/architecture/TOPOLOGY_ENTITY_LAYER_DESIGN.md`
+- topo正規形不変条件凍結（#458 時点のスナップショット）: `dev/architecture/TOPO_NORMAL_FORM_INVARIANTS_FREEZE_458.md`
 
+> 本ドキュメントは topology entity layer の実装計画・補助設計書であり、
+> topology 設計の正本は `TOPOLOGY_ENTITY_LAYER_DESIGN.md` を参照する。
+> `TOPO_NORMAL_FORM_INVARIANTS_FREEZE_458.md` は #458 時点の簡易実装前提でまとめた凍結スナップショットであり、
+> 現行 topology 設計の単独正本とはみなさない。
 > 2026年3月28日更新: #458 向けに「正規形不変条件 凍結候補 v0.1」を作成
-
 > 2026年3月28日更新: #407 向けに「モデリング用正規形」と「表示用トリム表現」の境界を明文化
-
 > **2026年3月追記**: PCurve・トリム表現・δ/2 トレランスモデルの設計方針を Phase 4.4 として追加
 
 ---
@@ -47,7 +48,7 @@ Phase 3（交差判定・衝突判定）の次に実装すべきコア機能と�
 
 現在の `geo_primitives` は**幾何情報のみ**を扱います：
 - Circle3D は「数学的な円」
-- LineSegment3D は「数学的な線分」
+- LineSegment3D は線形 shape 実装であり、意味論の正本は `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を参照する
 
 しかし、実際のCADシステムでは：
 - 「この円弧は、この平面の境界の一部」
@@ -1044,6 +1045,8 @@ Face
 - PCurve は Face 側の境界表現であり、Edge の正規形そのものではない。
 - `TrimmedCurve<T>` / `TrimmedSurface<T>` は表示・交換・評価補助の派生表現であり、トポロジー比較の正本として扱わない。
 - 交差演算や編集演算で必要な場合は、まず母曲線/母曲面と parameter range に正規化してから処理する。
+- `LineSegment` の `support_line` / 拘束点 / `length()` / `point_at_parameter()` の意味論は、本書ではなく `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とする。
+- `#557` の段階では topology 現行構造の暫定維持を許容するが、vertex binding invariant と位相専用 tolerance は未確定論点として別管理する。
 
 #### 4.2 PCurve の定義
 

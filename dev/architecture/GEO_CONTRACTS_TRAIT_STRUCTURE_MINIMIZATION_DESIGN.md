@@ -10,6 +10,12 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 本書は、その前提として現行 trait を棚卸しし、一次分類と曖昧境界の個別判定を明文化する。
 
+補足:
+
+- 本書は shape の意味論そのものの正本ではない
+- 個別 shape の意味と API 意図は `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とする
+- 本書はその意味論を前提に、trait の責務分担と配置境界を定義する
+
 ## 現行構造の棚卸し
 
 ### `geometry/core`

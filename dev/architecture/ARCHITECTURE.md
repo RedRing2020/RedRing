@@ -71,6 +71,7 @@ foundation/analysis（将来改名候補）
 #### レイヤー設計の重要ポイント
 
 - **`geo_contracts` は境界定義層**: shape definition core / extension / operations の公開面は `geo_contracts` を正本とする
+- **shape 意味論の正本は別文書**: 個別 shape の意味と API 意図は `dev/architecture/GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とし、`geo_contracts` の責務分離文書とは分けて管理する
 - **`geo_commons` は存続対象**: `analysis` のみに依存する数値カーネル置き場として意図的に維持する。`geo_algorithms` の代替でも、廃止前提の移行対象でもない
 - **`geo_core`は低レイヤー**: `geo_primitives`と`geo_nurbs`より下位に位置
 - **直接アクセス許可**: `geo_core`からのインポート（特にAabb2D/Aabb3D）は許可

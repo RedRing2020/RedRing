@@ -54,7 +54,13 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 線分の逆方向を作成
     pub fn reverse(&self) -> Self {
-        Self::new(self.end(), self.start()).expect("Valid segment should always reverse")
+        Self {
+            line: self.line,
+            start_param: self.end_param,
+            end_param: self.start_param,
+            start_point: self.end(),
+            end_point: self.start(),
+        }
     }
 
     /// 境界上判定（線分では contains_point と同じ）

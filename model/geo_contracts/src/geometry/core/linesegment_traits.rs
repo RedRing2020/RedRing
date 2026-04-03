@@ -77,16 +77,16 @@ pub trait LineSegment3DConstructor<T: Scalar> {
 
 /// LineSegment2D基本プロパティ取得トレイト
 pub trait LineSegment2DProperties<T: Scalar> {
-    /// 開始点を取得
+    /// 拘束点としての開始点を取得
     fn start(&self) -> (T, T);
 
-    /// 終了点を取得
+    /// 拘束点としての終了点を取得
     fn end(&self) -> (T, T);
 
     /// 中点を取得
     fn midpoint(&self) -> (T, T);
 
-    /// 線分の長さを取得
+    /// 拘束点間距離としての長さを取得
     fn length(&self) -> T;
 
     /// 形状の次元数（2）
@@ -104,16 +104,16 @@ pub trait LineSegment2DProperties<T: Scalar> {
 
 /// LineSegment3D基本プロパティ取得トレイト
 pub trait LineSegment3DProperties<T: Scalar> {
-    /// 開始点を取得
+    /// 拘束点としての開始点を取得
     fn start(&self) -> (T, T, T);
 
-    /// 終了点を取得
+    /// 拘束点としての終了点を取得
     fn end(&self) -> (T, T, T);
 
     /// 中点を取得
     fn midpoint(&self) -> (T, T, T);
 
-    /// 線分の長さを取得
+    /// 拘束点間距離としての長さを取得
     fn length(&self) -> T;
 
     /// 形状の次元数（3）
@@ -152,7 +152,7 @@ pub trait LineSegment2DMeasure<T: Scalar>:
         <Self as LineSegment2DContainment<T>>::contains_point(self, point)
     }
 
-    /// パラメータt（0<=t<=1）での点を取得
+    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
     fn point_at_parameter(&self, t: T) -> (T, T) {
         <Self as LineSegment2DEvaluation<T>>::point_at_parameter(self, t)
     }
@@ -174,7 +174,7 @@ pub trait LineSegment2DMeasure<T: Scalar>:
 }
 
 pub trait LineSegment2DDerived<T: Scalar> {
-    /// 線分の長さ（測度）
+    /// 互換目的の測度。意味は拘束点間距離とする
     fn measure(&self) -> T;
 
     /// 方向ベクトルを取得
@@ -195,7 +195,7 @@ pub trait LineSegment2DContainment<T: Scalar> {
 }
 
 pub trait LineSegment2DEvaluation<T: Scalar> {
-    /// パラメータt（0<=t<=1）での点を取得
+    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
     fn point_at_parameter(&self, t: T) -> (T, T);
 }
 
@@ -236,7 +236,7 @@ pub trait LineSegment3DMeasure<T: Scalar>:
         <Self as LineSegment3DContainment<T>>::contains_point(self, point)
     }
 
-    /// パラメータt（0<=t<=1）での点を取得
+    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         <Self as LineSegment3DEvaluation<T>>::point_at_parameter(self, t)
     }
@@ -258,7 +258,7 @@ pub trait LineSegment3DMeasure<T: Scalar>:
 }
 
 pub trait LineSegment3DDerived<T: Scalar> {
-    /// 線分の長さ（測度）
+    /// 互換目的の測度。意味は拘束点間距離とする
     fn measure(&self) -> T;
 
     /// 方向ベクトルを取得
@@ -279,7 +279,7 @@ pub trait LineSegment3DContainment<T: Scalar> {
 }
 
 pub trait LineSegment3DEvaluation<T: Scalar> {
-    /// パラメータt（0<=t<=1）での点を取得
+    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 
