@@ -5,7 +5,10 @@
 //! Core Traits実装（Constructor, Properties, Measure）も含む
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::{Ray3DConstructor, Ray3DMeasure, Ray3DProperties, Scalar};
+use geo_contracts::{
+    AngleBetween, CrossDistance, DirectionalRelation, ParallelRelation, PointsTowards,
+    Ray3DConstructor, Ray3DMeasure, Ray3DProperties, Scalar,
+};
 
 /// 3次元半無限直線
 ///
@@ -139,6 +142,35 @@ impl<T: Scalar> Ray3D<T> {
             origin: self.origin,
             direction: -self.direction,
         }
+    }
+
+    /// 他の Ray と平行かを判定
+    pub fn is_parallel_to(&self, other: &Self) -> bool {
+        let cross = self.direction.cross(&other.direction);
+        cross.length() < geo_contracts::default_distance_tolerance::<T>()
+    }
+
+    /// 他の Ray と同方向かを判定
+    pub fn is_same_direction(&self, other: &Self) -> bool {
+        self.is_parallel_to(other) && self.direction.dot(&other.direction) > T::ZERO
+    }
+
+    /// 他の Ray と逆方向かを判定
+    pub fn is_opposite_direction(&self, other: &Self) -> bool {
+        self.is_parallel_to(other) && self.direction.dot(&other.direction) < T::ZERO
+    }
+
+    /// 他の Ray との角度を返す
+    pub fn angle_between(&self, other: &Self) -> T {
+        let dot = self.direction.dot(&other.direction);
+        let clamped = if dot > T::ONE {
+            T::ONE
+        } else if dot < -T::ONE {
+            -T::ONE
+        } else {
+            dot
+        };
+        clamped.acos()
     }
 
     // ========================================================================
@@ -395,36 +427,6 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         self.parameter_for_point(&target_point)
     }
 
-    fn points_towards(&self, direction: (T, T, T)) -> bool {
-        let target_direction = Vector3D::new(direction.0, direction.1, direction.2);
-        let dot = self.direction.dot(&target_direction);
-        dot > T::ZERO
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        let cross = self.direction.cross(&other.direction);
-        use geo_contracts::default_distance_tolerance;
-        cross.length() < default_distance_tolerance::<T>()
-    }
-
-    fn is_same_direction(&self, other: &Self) -> bool {
-        if !self.is_parallel_to(other) {
-            return false;
-        }
-
-        let dot = self.direction.dot(&other.direction);
-        dot > T::ZERO
-    }
-
-    fn is_opposite_direction(&self, other: &Self) -> bool {
-        if !self.is_parallel_to(other) {
-            return false;
-        }
-
-        let dot = self.direction.dot(&other.direction);
-        dot < T::ZERO
-    }
-
     fn reverse(&self) -> Self
     where
         Self: Sized,
@@ -442,57 +444,10 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         Ray3D::new(new_origin, self.direction).unwrap()
     }
 
-    // ========== Phase 2 実装 ==========
-
-    fn distance_to_ray(&self, other: &Self) -> T {
-        let w = self.origin - other.origin;
-        let a = self.direction.dot(&self.direction);
-        let b = self.direction.dot(&other.direction);
-        let c = other.direction.dot(&other.direction);
-        let d = self.direction.dot(&w);
-        let e = other.direction.dot(&w);
-
-        let denom = a * c - b * b;
-        use geo_contracts::default_kernel_numerical_zero_tolerance;
-        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
-            // 平行: 片方の起点から他方への距離
-            let other_origin = other.origin;
-            return self.distance_to_point(&Point3D::new(
-                other_origin.x(),
-                other_origin.y(),
-                other_origin.z(),
-            ));
-        }
-
-        let sc = (b * e - c * d) / denom;
-        let tc = (a * e - b * d) / denom;
-
-        let sc_clamped = if sc < T::ZERO { T::ZERO } else { sc };
-        let tc_clamped = if tc < T::ZERO { T::ZERO } else { tc };
-
-        let p1 = self.point_at_parameter(sc_clamped);
-        let p2 = other.point_at_parameter(tc_clamped);
-
-        let diff = Vector3D::new(p1.x() - p2.x(), p1.y() - p2.y(), p1.z() - p2.z());
-        diff.length()
-    }
-
     fn point_at_distance(&self, distance: T) -> (T, T, T) {
         // 方向ベクトルは正規化済みなので、パラメータ = 距離
         let point = self.point_at_parameter(distance);
         (point.x(), point.y(), point.z())
-    }
-
-    fn angle_between(&self, other: &Self) -> T {
-        let dot = self.direction.dot(&other.direction);
-        let clamped = if dot > T::ONE {
-            T::ONE
-        } else if dot < -T::ONE {
-            -T::ONE
-        } else {
-            dot
-        };
-        clamped.acos()
     }
 
     fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>
@@ -532,5 +487,68 @@ impl<T: Scalar> Ray3DMeasure<T> for Ray3D<T> {
         );
 
         Ray3D::new(rotated_origin, rotated_dir)
+    }
+}
+
+impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        let w = self.origin - other.origin;
+        let a = self.direction.dot(&self.direction);
+        let b = self.direction.dot(&other.direction);
+        let c = other.direction.dot(&other.direction);
+        let d = self.direction.dot(&w);
+        let e = other.direction.dot(&w);
+
+        let denom = a * c - b * b;
+        use geo_contracts::default_kernel_numerical_zero_tolerance;
+        if denom.abs() < default_kernel_numerical_zero_tolerance::<T>() {
+            let other_origin = other.origin;
+            return self.distance_to_point(&Point3D::new(
+                other_origin.x(),
+                other_origin.y(),
+                other_origin.z(),
+            ));
+        }
+
+        let sc = (b * e - c * d) / denom;
+        let tc = (a * e - b * d) / denom;
+
+        let sc_clamped = if sc < T::ZERO { T::ZERO } else { sc };
+        let tc_clamped = if tc < T::ZERO { T::ZERO } else { tc };
+
+        let p1 = self.point_at_parameter(sc_clamped);
+        let p2 = other.point_at_parameter(tc_clamped);
+
+        let diff = Vector3D::new(p1.x() - p2.x(), p1.y() - p2.y(), p1.z() - p2.z());
+        diff.length()
+    }
+}
+
+impl<T: Scalar> PointsTowards<(T, T, T)> for Ray3D<T> {
+    fn points_towards(&self, target: (T, T, T)) -> bool {
+        let target_direction = Vector3D::new(target.0, target.1, target.2);
+        self.direction.dot(&target_direction) > T::ZERO
+    }
+}
+
+impl<T: Scalar> ParallelRelation<Self> for Ray3D<T> {
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        Ray3D::is_parallel_to(self, other)
+    }
+}
+
+impl<T: Scalar> DirectionalRelation<Self> for Ray3D<T> {
+    fn is_same_direction(&self, other: &Self) -> bool {
+        Ray3D::is_same_direction(self, other)
+    }
+
+    fn is_opposite_direction(&self, other: &Self) -> bool {
+        Ray3D::is_opposite_direction(self, other)
+    }
+}
+
+impl<T: Scalar> AngleBetween<T, Self> for Ray3D<T> {
+    fn angle_between(&self, other: &Self) -> T {
+        Ray3D::angle_between(self, other)
     }
 }

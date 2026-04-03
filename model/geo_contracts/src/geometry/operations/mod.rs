@@ -12,4 +12,8 @@ pub use ellipse_calculation_traits::{
     EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation,
 };
 pub use intersection::{BasicIntersection, MultipleIntersection, SelfIntersection};
-pub use relation::{Aabb2DRelation, Aabb3DRelation};
+pub use relation::{
+    Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, ClosestPointPair,
+    DirectionalRelation, IntersectsRelation, OnPlaneRelation, ParallelRelation,
+    PerpendicularRelation, PointsTowards, SameLineRelation, SkewRelation,
+};

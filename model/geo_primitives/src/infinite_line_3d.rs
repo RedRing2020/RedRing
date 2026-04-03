@@ -3,11 +3,15 @@
 //! Foundation統一システムに基づくInfiniteLine3Dの必須機能のみ
 //! Foundation Pattern: Constructor/Properties/Measure の3つのCore Traits実装
 
-use crate::{Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, InfiniteLine3DConstructor,
-    InfiniteLine3DMeasure, InfiniteLine3DProperties, Scalar,
+    default_distance_tolerance, default_orthogonality_dot_error_tolerance, AngularRelation,
+    BasicIntersection, ClosestPointPair, CrossDistance, InfiniteLine3DConstructor,
+    InfiniteLine3DMeasure, InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation,
+    ParallelRelation, PerpendicularRelation, SameLineRelation, Scalar, SkewRelation,
 };
+
+type LinePointPair3D<T> = ((T, T, T), (T, T, T));
 
 /// 3次元空間の無限直線（Core実装）
 ///
@@ -135,6 +139,62 @@ impl<T: Scalar> InfiniteLine3D<T> {
     /// 他の直線とスキュー（ねじれ）関係にあるかを判定
     pub fn is_skew_to(&self, other: &Self) -> bool {
         !self.is_parallel_to(other) && !self.is_coplanar_with(other)
+    }
+
+    /// 他の直線との最近点対を取得
+    pub fn closest_points(&self, other: &Self) -> Option<LinePointPair3D<T>> {
+        if self.is_parallel_to(other) {
+            return None;
+        }
+
+        let self_dir = <Self as InfiniteLine3DProperties<T>>::direction(self);
+        let other_dir = <Self as InfiniteLine3DProperties<T>>::direction(other);
+        let self_point = <Self as InfiniteLine3DProperties<T>>::point(self);
+        let other_point = <Self as InfiniteLine3DProperties<T>>::point(other);
+
+        let d1 = Vector3D::new(self_dir.0, self_dir.1, self_dir.2);
+        let d2 = Vector3D::new(other_dir.0, other_dir.1, other_dir.2);
+        let p1 = Point3D::new(self_point.0, self_point.1, self_point.2);
+        let p2 = Point3D::new(other_point.0, other_point.1, other_point.2);
+        let w = Vector3D::from_points(&p2, &p1);
+
+        let a = d1.dot(&d1);
+        let b = d1.dot(&d2);
+        let c = d2.dot(&d2);
+        let d = d1.dot(&w);
+        let e = d2.dot(&w);
+
+        let denom = a * c - b * b;
+        if denom.abs() <= T::PARALLEL_CROSS_ERROR_TOLERANCE {
+            return None;
+        }
+
+        let t1 = (b * e - c * d) / denom;
+        let t2 = (a * e - b * d) / denom;
+        let closest1 = self.point_at_parameter(t1);
+        let closest2 = other.point_at_parameter(t2);
+        Some((
+            (closest1.x(), closest1.y(), closest1.z()),
+            (closest2.x(), closest2.y(), closest2.z()),
+        ))
+    }
+
+    /// 他の直線と同一直線かを判定
+    pub fn is_same_line(&self, other: &Self) -> bool {
+        self.is_parallel_to(other) && {
+            let other_point = <Self as InfiniteLine3DProperties<T>>::point(other);
+            <Self as InfiniteLine3DMeasure<T>>::contains_point(self, other_point)
+        }
+    }
+
+    /// 他の直線と交差するかを判定
+    pub fn intersects(&self, other: &Self) -> bool {
+        InfiniteLine3D::distance_to_line(self, other) <= default_distance_tolerance::<T>()
+    }
+
+    /// 他の直線との角度を返す
+    pub fn angle_to(&self, other: &Self) -> T {
+        InfiniteLine3D::angle_with_line(self, other)
     }
 
     /// 他の直線と同一平面上にあるかを判定
@@ -440,21 +500,6 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
         self.direction.y().atan2(self.direction.x())
     }
 
-    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool {
-        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-
-        // 方向ベクトルが法線に垂直かつ、直線上の点が平面上にある
-        let dot = dir_vec.dot(&normal);
-        if dot.abs() > default_angle_tolerance::<T>() {
-            return false;
-        }
-
-        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_line = Vector3D::from_points(&plane_pt, &self.point);
-        to_line.dot(&normal).abs() <= default_distance_tolerance::<T>()
-    }
-
     fn is_axis_aligned(&self) -> bool {
         self.is_x_parallel() || self.is_y_parallel() || self.is_z_parallel()
     }
@@ -489,73 +534,6 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
     fn parameter_for_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         InfiniteLine3D::parameter_for_point(self, &p)
-    }
-
-    fn distance_to_line(&self, other: &Self) -> T {
-        InfiniteLine3D::distance_to_line(self, other)
-    }
-
-    fn closest_points(&self, other: &Self) -> Option<((T, T, T), (T, T, T))> {
-        if self.is_parallel_to(other) {
-            None
-        } else {
-            // 実装：最接近点の計算
-            let self_dir = <Self as InfiniteLine3DProperties<T>>::direction(self);
-            let other_dir = <Self as InfiniteLine3DProperties<T>>::direction(other);
-            let self_point = <Self as InfiniteLine3DProperties<T>>::point(self);
-            let other_point = <Self as InfiniteLine3DProperties<T>>::point(other);
-
-            let d1 = Vector3D::new(self_dir.0, self_dir.1, self_dir.2);
-            let d2 = Vector3D::new(other_dir.0, other_dir.1, other_dir.2);
-            let p1 = Point3D::new(self_point.0, self_point.1, self_point.2);
-            let p2 = Point3D::new(other_point.0, other_point.1, other_point.2);
-            let w = Vector3D::from_points(&p2, &p1);
-
-            let a = d1.dot(&d1);
-            let b = d1.dot(&d2);
-            let c = d2.dot(&d2);
-            let d = d1.dot(&w);
-            let e = d2.dot(&w);
-
-            let denom = a * c - b * b;
-            if denom.abs() <= T::PARALLEL_CROSS_ERROR_TOLERANCE {
-                None
-            } else {
-                let t1 = (b * e - c * d) / denom;
-                let t2 = (a * e - b * d) / denom;
-
-                let closest1 = <Self as InfiniteLine3DMeasure<T>>::point_at_parameter(self, t1);
-                let closest2 = <Self as InfiniteLine3DMeasure<T>>::point_at_parameter(other, t2);
-                Some((closest1, closest2))
-            }
-        }
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        InfiniteLine3D::is_parallel_to(self, other)
-    }
-
-    fn is_perpendicular_to(&self, other: &Self) -> bool {
-        InfiniteLine3D::is_perpendicular_to(self, other)
-    }
-
-    fn is_same_line(&self, other: &Self) -> bool {
-        self.is_parallel_to(other) && {
-            let other_point = <Self as InfiniteLine3DProperties<T>>::point(other);
-            <Self as InfiniteLine3DMeasure<T>>::contains_point(self, other_point)
-        }
-    }
-
-    fn intersects(&self, other: &Self) -> bool {
-        self.distance_to_line(other) <= default_distance_tolerance::<T>()
-    }
-
-    fn is_skew_to(&self, other: &Self) -> bool {
-        InfiniteLine3D::is_skew_to(self, other)
-    }
-
-    fn angle_to(&self, other: &Self) -> T {
-        InfiniteLine3D::angle_with_line(self, other)
     }
 
     fn reverse(&self) -> Self {
@@ -612,38 +590,87 @@ impl<T: Scalar> InfiniteLine3DMeasure<T> for InfiniteLine3D<T> {
 
         InfiniteLine3D::new(rotated_point, rotated_dir)
     }
+}
 
-    fn intersection_with_plane(
-        &self,
-        plane_point: (T, T, T),
-        plane_normal: (T, T, T),
-    ) -> Option<(T, T, T)> {
-        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-
-        let denom = dir_vec.dot(&normal);
-        if denom.abs() <= T::ORTHOGONALITY_DOT_ERROR_TOLERANCE {
-            return None; // 平行または平面内
-        }
-
-        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_plane = Vector3D::from_points(&self.point, &plane_pt);
-
-        let t = to_plane.dot(&normal) / denom;
-        let intersection = <Self as InfiniteLine3DMeasure<T>>::point_at_parameter(self, t);
-        Some(intersection)
+impl<T: Scalar> CrossDistance<T, Self> for InfiniteLine3D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        InfiniteLine3D::distance_to_line(self, other)
     }
+}
 
-    fn intersection_with_line(&self, other: &Self) -> Option<(T, T, T)> {
-        if self.is_parallel_to(other) {
-            return None;
+impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine3D<T> {
+    type Point = (T, T, T);
+
+    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+        InfiniteLine3D::intersection_with_line(self, other)
+            .map(|point| (point.x(), point.y(), point.z()))
+    }
+}
+
+impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for InfiniteLine3D<T> {
+    type Point = (T, T, T);
+
+    fn intersection_with(&self, other: &Plane3D<T>, _tolerance: T) -> Option<Self::Point> {
+        InfiniteLine3D::intersection_with_plane(self, &other.origin(), &other.normal().as_vector())
+            .map(|point| (point.x(), point.y(), point.z()))
+    }
+}
+
+impl<T: Scalar> ClosestPointPair<Self> for InfiniteLine3D<T> {
+    type PointPair = ((T, T, T), (T, T, T));
+
+    fn closest_points(&self, other: &Self) -> Option<Self::PointPair> {
+        InfiniteLine3D::closest_points(self, other)
+    }
+}
+
+impl<T: Scalar> ParallelRelation<Self> for InfiniteLine3D<T> {
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        InfiniteLine3D::is_parallel_to(self, other)
+    }
+}
+
+impl<T: Scalar> PerpendicularRelation<Self> for InfiniteLine3D<T> {
+    fn is_perpendicular_to(&self, other: &Self) -> bool {
+        InfiniteLine3D::is_perpendicular_to(self, other)
+    }
+}
+
+impl<T: Scalar> SameLineRelation<Self> for InfiniteLine3D<T> {
+    fn is_same_line(&self, other: &Self) -> bool {
+        InfiniteLine3D::is_same_line(self, other)
+    }
+}
+
+impl<T: Scalar> IntersectsRelation<Self> for InfiniteLine3D<T> {
+    fn intersects(&self, other: &Self) -> bool {
+        InfiniteLine3D::intersects(self, other)
+    }
+}
+
+impl<T: Scalar> SkewRelation<Self> for InfiniteLine3D<T> {
+    fn is_skew_to(&self, other: &Self) -> bool {
+        InfiniteLine3D::is_skew_to(self, other)
+    }
+}
+
+impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine3D<T> {
+    fn angle_to(&self, other: &Self) -> T {
+        InfiniteLine3D::angle_to(self, other)
+    }
+}
+
+impl<T: Scalar> OnPlaneRelation<Plane3D<T>> for InfiniteLine3D<T> {
+    fn is_on_plane(&self, other: &Plane3D<T>) -> bool {
+        let normal = other.normal().as_vector();
+        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
+
+        if dir_vec.dot(&normal).abs() > default_orthogonality_dot_error_tolerance::<T>() {
+            return false;
         }
 
-        if !self.intersects(other) {
-            return None; // スキュー線
-        }
-
-        // 交差する場合、最接近点が交点
-        self.closest_points(other).map(|(p1, _)| p1)
+        let plane_pt = other.origin();
+        let to_line = Vector3D::from_points(&plane_pt, &self.point);
+        to_line.dot(&normal).abs() <= default_distance_tolerance::<T>()
     }
 }

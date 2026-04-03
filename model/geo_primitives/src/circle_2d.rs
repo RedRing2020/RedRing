@@ -5,7 +5,9 @@
 
 use crate::{Direction2D, Point2D};
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
-use geo_contracts::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties, Scalar};
+use geo_contracts::{
+    Circle2DConstructor, Circle2DMeasure, Circle2DProperties, CrossDistance, Scalar,
+};
 
 /// 2次元円
 ///
@@ -335,8 +337,10 @@ impl<T: Scalar> Circle2DMeasure<T> for Circle2D<T> {
         let point = self.point_at_parameter(t);
         (point.x(), point.y())
     }
+}
 
-    fn distance_to_circle(&self, other: &Self) -> T {
-        self.distance_to_circle(other)
+impl<T: Scalar> CrossDistance<T, Self> for Circle2D<T> {
+    fn distance_to(&self, other: &Self) -> T {
+        Circle2D::distance_to_circle(self, other)
     }
 }

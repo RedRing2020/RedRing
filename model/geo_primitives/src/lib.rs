@@ -46,6 +46,8 @@ pub mod ellipsoidal_surface_3d;
 pub mod infinite_line_3d;
 pub mod infinite_line_3d_extensions;
 pub mod infinite_line_3d_foundation;
+#[cfg(test)]
+pub mod infinite_line_3d_tests;
 pub mod line_segment_3d;
 pub mod line_segment_3d_extensions;
 pub mod line_segment_3d_foundation;
@@ -65,6 +67,8 @@ pub mod rectangle_3d_foundation;
 pub mod rectangle_3d_transform;
 pub mod spherical_solid_3d;
 pub mod spherical_solid_3d_foundation;
+#[cfg(test)]
+pub mod spherical_solid_3d_tests;
 pub mod spherical_surface_3d;
 pub mod spherical_surface_3d_foundation;
 pub mod torus_solid_3d;
@@ -112,14 +116,16 @@ pub use geo_contracts::{Direction3DConstructor, Direction3DMeasure, Direction3DP
 
 // InfiniteLine の Core trait定義 再公開
 pub use geo_contracts::{
-    InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
-    InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties,
+    AngularRelation, ClosestPointPair, InfiniteLine2DConstructor, InfiniteLine2DMeasure,
+    InfiniteLine2DProperties, InfiniteLine3DConstructor, InfiniteLine3DMeasure,
+    InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation, ParallelRelation,
+    PerpendicularRelation, SameLineRelation, SkewRelation,
 };
 
 // Ray の Core trait定義 再公開
 pub use geo_contracts::{
-    Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DMeasure,
-    Ray3DProperties,
+    AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DMeasure,
+    Ray2DProperties, Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
 };
 pub mod ellipse_2d;
 pub mod ellipse_2d_foundation;

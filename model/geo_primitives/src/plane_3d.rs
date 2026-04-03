@@ -5,7 +5,8 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, Plane3DConstructor, Plane3DMeasure, Plane3DProperties, Scalar,
+    default_distance_tolerance, BasicIntersection, Plane3DConstructor, Plane3DMeasure,
+    Plane3DProperties, Scalar,
 };
 
 /// CAD用3次元平面（座標系付き）
@@ -484,14 +485,14 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
             projected_z + projected_z - point.2,
         )
     }
+}
 
-    fn intersection_with_plane(
-        &self,
-        other_origin: (T, T, T),
-        other_normal: (T, T, T),
-    ) -> Option<((T, T, T), (T, T, T))> {
+impl<T: Scalar + From<f64>> BasicIntersection<T, Self> for Plane3D<T> {
+    type Point = ((T, T, T), (T, T, T));
+
+    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
         let n1 = self.normal.as_vector();
-        let n2 = Vector3D::new(other_normal.0, other_normal.1, other_normal.2);
+        let n2 = other.normal.as_vector();
 
         // 交線の方向 = n1 × n2
         let direction = n1.cross(&n2);
@@ -507,7 +508,8 @@ impl<T: Scalar + From<f64>> Plane3DMeasure<T> for Plane3D<T> {
         let c1 = self.normal.z();
         let d1 = -(a1 * self.origin.x() + b1 * self.origin.y() + c1 * self.origin.z());
 
-        let d2 = -(n2.x() * other_origin.0 + n2.y() * other_origin.1 + n2.z() * other_origin.2);
+        let d2 =
+            -(n2.x() * other.origin.x() + n2.y() * other.origin.y() + n2.z() * other.origin.z());
 
         // 適当な座標を固定して解く（z=0として解く）
         let det = n1.x() * n2.y() - n1.y() * n2.x();

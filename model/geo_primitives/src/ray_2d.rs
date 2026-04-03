@@ -14,7 +14,10 @@
 //! - Core Traits実装（Constructor, Properties, Measure）
 
 use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
-use geo_contracts::{Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Scalar};
+use geo_contracts::{
+    AngleBetween, BasicIntersection, DirectionalRelation, ParallelRelation, PointsTowards,
+    Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Scalar,
+};
 
 /// 2次元半無限直線
 ///
@@ -113,6 +116,24 @@ impl<T: Scalar> Ray2D<T> {
     pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
         let to_point = *point - self.origin;
         to_point.dot(&self.direction)
+    }
+
+    /// 指定方向を向いているかを判定
+    pub fn points_towards_direction(&self, direction: (T, T)) -> bool {
+        let target_direction = Vector2D::new(direction.0, direction.1);
+        let self_direction =
+            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        self_direction.dot(&target_direction) > T::ZERO
+    }
+
+    /// 他の Ray との角度を返す
+    pub fn angle_between(&self, other: &Self) -> T {
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
+        this_dir.dot(&other_dir).acos()
     }
 }
 
@@ -351,60 +372,6 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         self.parameter_for_point(&target_point)
     }
 
-    fn points_towards(&self, direction: (T, T)) -> bool {
-        let target_direction = Vector2D::new(direction.0, direction.1);
-        let self_direction =
-            Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let dot = self_direction.dot(&target_direction);
-        dot > T::ZERO
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
-
-        let cross = this_dir.cross(&other_dir);
-        use geo_contracts::default_distance_tolerance;
-        cross.abs() < default_distance_tolerance::<T>()
-    }
-
-    fn is_same_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
-
-        let cross = this_dir.cross(&other_dir);
-        use geo_contracts::default_distance_tolerance;
-        if cross.abs() >= default_distance_tolerance::<T>() {
-            return false;
-        }
-
-        let dot = this_dir.dot(&other_dir);
-        dot > T::ZERO
-    }
-
-    fn is_opposite_direction(&self, other: &Self) -> bool {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
-
-        let cross = this_dir.cross(&other_dir);
-        use geo_contracts::default_distance_tolerance;
-        if cross.abs() >= default_distance_tolerance::<T>() {
-            return false;
-        }
-
-        let dot = this_dir.dot(&other_dir);
-        dot < T::ZERO
-    }
-
     fn reverse(&self) -> Self
     where
         Self: Sized,
@@ -427,47 +394,10 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         Ray2D::new(new_origin, direction_vec).unwrap()
     }
 
-    // ========== Phase 2 実装 ==========
-
-    fn intersection_with_ray(&self, other: &Self) -> Option<(T, T)> {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
-
-        let cross = this_dir.cross(&other_dir);
-        use geo_contracts::default_distance_tolerance;
-        if cross.abs() < default_distance_tolerance::<T>() {
-            return None; // 平行または一致
-        }
-
-        let diff = other.origin_internal() - self.origin_internal();
-        let diff_vec = Vector2D::new(diff.x(), diff.y());
-        let t = diff_vec.cross(&other_dir) / cross;
-
-        if t < T::ZERO {
-            return None; // Rayの逆方向
-        }
-
-        let intersection = self.point_at_parameter(t);
-        Some((intersection.x(), intersection.y()))
-    }
-
     fn point_at_distance(&self, distance: T) -> (T, T) {
         // 方向ベクトルは正規化済みなので、パラメータ = 距離
         let point = self.point_at_parameter(distance);
         (point.x(), point.y())
-    }
-
-    fn angle_between(&self, other: &Self) -> T {
-        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
-        let other_dir = Vector2D::new(
-            other.direction_internal().x(),
-            other.direction_internal().y(),
-        );
-        let dot = this_dir.dot(&other_dir);
-        dot.acos()
     }
 
     fn rotate_around_origin(&self, angle: T) -> Self
@@ -492,5 +422,86 @@ impl<T: Scalar> Ray2DMeasure<T> for Ray2D<T> {
         let new_direction = Vector2D::new(new_dx, new_dy);
 
         Ray2D::new(new_origin, new_direction).unwrap()
+    }
+}
+
+impl<T: Scalar> BasicIntersection<T, Self> for Ray2D<T> {
+    type Point = (T, T);
+
+    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
+
+        let cross = this_dir.cross(&other_dir);
+        use geo_contracts::default_distance_tolerance;
+        if cross.abs() < default_distance_tolerance::<T>() {
+            return None;
+        }
+
+        let diff = other.origin_internal() - self.origin_internal();
+        let diff_vec = Vector2D::new(diff.x(), diff.y());
+        let t = diff_vec.cross(&other_dir) / cross;
+
+        if t < T::ZERO {
+            return None;
+        }
+
+        let intersection = self.point_at_parameter(t);
+        Some((intersection.x(), intersection.y()))
+    }
+}
+
+impl<T: Scalar> PointsTowards<(T, T)> for Ray2D<T> {
+    fn points_towards(&self, target: (T, T)) -> bool {
+        Ray2D::points_towards_direction(self, target)
+    }
+}
+
+impl<T: Scalar> ParallelRelation<Self> for Ray2D<T> {
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
+        let cross = this_dir.cross(&other_dir);
+        cross.abs() < geo_contracts::default_distance_tolerance::<T>()
+    }
+}
+
+impl<T: Scalar> DirectionalRelation<Self> for Ray2D<T> {
+    fn is_same_direction(&self, other: &Self) -> bool {
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
+        let cross = this_dir.cross(&other_dir);
+        if cross.abs() >= geo_contracts::default_distance_tolerance::<T>() {
+            return false;
+        }
+        this_dir.dot(&other_dir) > T::ZERO
+    }
+
+    fn is_opposite_direction(&self, other: &Self) -> bool {
+        let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
+        let other_dir = Vector2D::new(
+            other.direction_internal().x(),
+            other.direction_internal().y(),
+        );
+        let cross = this_dir.cross(&other_dir);
+        if cross.abs() >= geo_contracts::default_distance_tolerance::<T>() {
+            return false;
+        }
+        this_dir.dot(&other_dir) < T::ZERO
+    }
+}
+
+impl<T: Scalar> AngleBetween<T, Self> for Ray2D<T> {
+    fn angle_between(&self, other: &Self) -> T {
+        Ray2D::angle_between(self, other)
     }
 }

@@ -3,7 +3,10 @@
 //! Foundation統一システムに基づくInfiniteLine2Dの必須機能のみ
 
 use crate::{Direction2D, Point2D, Vector2D};
-use geo_contracts::Scalar;
+use geo_contracts::{
+    AngularRelation, BasicIntersection, ParallelRelation, PerpendicularRelation, SameLineRelation,
+    Scalar,
+};
 
 /// 2次元無限直線（Core実装）
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -327,34 +330,6 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
         self.parameter_for_point(&p)
     }
 
-    fn intersection(&self, other: &Self) -> Option<(T, T)> {
-        self.intersection(other)
-            .map(|intersection_point| (intersection_point.x(), intersection_point.y()))
-    }
-
-    fn is_parallel_to(&self, other: &Self) -> bool {
-        self.direction_internal()
-            .is_parallel_to(&other.direction_internal())
-    }
-
-    fn is_perpendicular_to(&self, other: &Self) -> bool {
-        self.direction.is_perpendicular_to(&other.direction)
-    }
-
-    fn is_same_line(&self, other: &Self) -> bool {
-        // 平行かつ同じ点を含む場合
-        self.is_parallel_to(other) && {
-            use geo_contracts::default_distance_tolerance;
-            self.contains_point(&other.point, default_distance_tolerance::<T>())
-        }
-    }
-
-    fn angle_to(&self, other: &Self) -> T {
-        let dot = self.direction.dot(&other.direction);
-        let clamped = dot.max(-T::ONE).min(T::ONE);
-        clamped.acos()
-    }
-
     fn reverse(&self) -> Self {
         Self::new(self.point, -(*self.direction)).unwrap()
     }
@@ -415,5 +390,45 @@ impl<T: Scalar> InfiniteLine2DMeasure<T> for InfiniteLine2D<T> {
         );
 
         Self::new(rotated_point, rotated_dir).unwrap()
+    }
+}
+
+impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine2D<T> {
+    type Point = (T, T);
+
+    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+        InfiniteLine2D::intersection(self, other).map(|point| (point.x(), point.y()))
+    }
+}
+
+impl<T: Scalar> ParallelRelation<Self> for InfiniteLine2D<T> {
+    fn is_parallel_to(&self, other: &Self) -> bool {
+        self.direction_internal()
+            .is_parallel_to(&other.direction_internal())
+    }
+}
+
+impl<T: Scalar> PerpendicularRelation<Self> for InfiniteLine2D<T> {
+    fn is_perpendicular_to(&self, other: &Self) -> bool {
+        self.direction.is_perpendicular_to(&other.direction)
+    }
+}
+
+impl<T: Scalar> SameLineRelation<Self> for InfiniteLine2D<T> {
+    fn is_same_line(&self, other: &Self) -> bool {
+        self.direction_internal()
+            .is_parallel_to(&other.direction_internal())
+            && {
+                use geo_contracts::default_distance_tolerance;
+                self.contains_point(&other.point, default_distance_tolerance::<T>())
+            }
+    }
+}
+
+impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine2D<T> {
+    fn angle_to(&self, other: &Self) -> T {
+        let dot = self.direction.dot(&other.direction);
+        let clamped = dot.max(-T::ONE).min(T::ONE);
+        clamped.acos()
     }
 }

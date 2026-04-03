@@ -130,7 +130,6 @@ pub trait InfiniteLine3DProperties<T: Scalar> {
     fn passes_through_origin(&self) -> bool;
     fn dimension(&self) -> u32;
     fn xy_angle(&self) -> T;
-    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool;
     fn is_axis_aligned(&self) -> bool;
 }
 
@@ -140,11 +139,6 @@ pub trait InfiniteLine2DMeasure<T: Scalar> {
     fn contains_point(&self, point: (T, T)) -> bool;
     fn project_point(&self, point: (T, T)) -> (T, T);
     fn parameter_for_point(&self, point: (T, T)) -> T;
-    fn intersection(&self, other: &Self) -> Option<(T, T)>;
-    fn is_parallel_to(&self, other: &Self) -> bool;
-    fn is_perpendicular_to(&self, other: &Self) -> bool;
-    fn is_same_line(&self, other: &Self) -> bool;
-    fn angle_to(&self, other: &Self) -> T;
     fn reverse(&self) -> Self
     where
         Self: Sized;
@@ -166,18 +160,6 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
     fn contains_point(&self, point: (T, T, T)) -> bool;
     fn project_point(&self, point: (T, T, T)) -> (T, T, T);
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
-    #[deprecated(
-        since = "0.1.0",
-        note = "cross-shape distance contracts are migrating to geometry::operations::CrossDistance"
-    )]
-    fn distance_to_line(&self, other: &Self) -> T;
-    fn closest_points(&self, other: &Self) -> Option<TwoPoints3D<T>>;
-    fn is_parallel_to(&self, other: &Self) -> bool;
-    fn is_perpendicular_to(&self, other: &Self) -> bool;
-    fn is_same_line(&self, other: &Self) -> bool;
-    fn intersects(&self, other: &Self) -> bool;
-    fn is_skew_to(&self, other: &Self) -> bool;
-    fn angle_to(&self, other: &Self) -> T;
     fn reverse(&self) -> Self
     where
         Self: Sized;
@@ -190,12 +172,6 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
     ) -> Option<Self>
     where
         Self: Sized;
-    fn intersection_with_plane(
-        &self,
-        plane_point: (T, T, T),
-        plane_normal: (T, T, T),
-    ) -> Option<(T, T, T)>;
-    fn intersection_with_line(&self, other: &Self) -> Option<(T, T, T)>;
 }
 
 pub trait InfiniteLine2DCore<T: Scalar>:

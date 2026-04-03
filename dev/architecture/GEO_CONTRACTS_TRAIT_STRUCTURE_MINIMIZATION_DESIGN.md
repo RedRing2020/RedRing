@@ -279,6 +279,53 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 - `geometry/core` から外し、operations 側へ寄せる
 
+### 12. #541 で優先して移す対象
+
+Issue #541 では、まず既存の `geometry::operations` trait に自然に載るものから移す。
+
+- deprecated な same-shape distance API
+- `LineSegment3D` と AABB の距離
+- `InfiniteLine3D` / `Plane3D` / `Ellipse3D` が持つ明示的な交点計算
+
+設計反映:
+
+- 距離は `CrossDistance`
+- 単一点交差は `BasicIntersection`
+- 複数交点は `MultipleIntersection`
+- concrete 型の convenience method は必要最小限だけ残し、trait定義の正本は `operations` 側に寄せる
+
+### 13. relation 系メソッドは独立に厳格判定する
+
+判定:
+
+- optional ではなく、責務分離の中核ルールとして扱う
+- 相手 shape の存在を前提にし、幾何学的な関係を返す API は relation 系として個別判定する
+
+relation 系の代表例:
+
+- `is_parallel_to`
+- `is_perpendicular_to`
+- `is_same_line`
+- `intersects`
+- `is_skew_to`
+- `is_same_direction`
+- `is_opposite_direction`
+- `angle_to`
+- `angle_between`
+- `closest_points`
+
+理由:
+
+- unary な measure / evaluation / metadata と、binary な relation が混在すると `core` と `minimal extension` の責務が再び曖昧になるから
+- 相手 shape を取る relation API を曖昧に残すと、same-shape distance や intersection と同様に `operations` へ寄せるべき責務が再流入するから
+- #541 の完了条件は、cross-shape の計算だけでなく relation API の所属も一貫して説明できる状態にすることだから
+
+設計反映:
+
+- relation 系メソッドは `measure` の残余として扱わない
+- `other: &Self` や他 shape 引数を取り、関係判定・角度・最近点対を返す API は relation 系候補として必ず棚卸しする
+- relation 系を `minimal extension` に残す場合でも、`operations` に寄せない理由を Issue / PR で明示する
+
 ## 採用する境界線
 
 最終的な境界線は次のとおりとする。
@@ -296,11 +343,17 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - sampling / evaluation / containment のような単一 shape capability
 - `primitive_kind()` のような lightweight metadata capability
 
+補足:
+
+- relation 系メソッドはこの層へ無批判に残さない
+- 相手 shape を取る API は、まず `operations` 候補として判定する
+
 ### operations
 
 - collision / distance / intersection
 - strategy / approximation / solver oriented capability
 - cross-shape specialized contracts
+- relation API
 
 ## 次段で必要な作業
 
@@ -340,6 +393,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - [ ] `Properties` の各メソッドが参照系に残せるか確認した
 - [ ] `Measure` 系 API を definition core に残していない
 - [ ] `contains_point` / `distance_to_point` / `point_at_parameter` / sampling 系を個別判定した
+- [ ] relation 系メソッド（平行・垂直・交差・同方向・角度・最近点対）を個別判定した
 
 ### 3. 配置変更
 
@@ -359,6 +413,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - [ ] extension と operations の境界が今回の変更で曖昧になっていない
 - [ ] metadata capability と measure capability を混在させていない
 - [ ] cross-shape 演算を definition core に持ち込んでいない
+- [ ] relation 系メソッドを "measure のついで" で残していない
 - [ ] shape 参照と capability の責務を文章で説明できる
 
 ### 6. 検証
