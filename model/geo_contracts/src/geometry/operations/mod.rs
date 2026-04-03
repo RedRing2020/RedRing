@@ -14,5 +14,6 @@ pub use ellipse_calculation_traits::{
 pub use intersection::{BasicIntersection, MultipleIntersection, SelfIntersection};
 pub use relation::{
     AngleBetween, AngularRelation, ClosestPointPair, DirectionalRelation, IntersectsRelation,
-    ParallelRelation, PerpendicularRelation, PointsTowards, SameLineRelation, SkewRelation,
+    OnPlaneRelation, ParallelRelation, PerpendicularRelation, PointsTowards, SameLineRelation,
+    SkewRelation,
 };

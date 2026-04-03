@@ -5,10 +5,10 @@
 
 use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, AngularRelation, BasicIntersection,
-    ClosestPointPair, CrossDistance, InfiniteLine3DConstructor, InfiniteLine3DMeasure,
-    InfiniteLine3DProperties, IntersectsRelation, ParallelRelation, PerpendicularRelation,
-    SameLineRelation, Scalar, SkewRelation,
+    default_distance_tolerance, default_orthogonality_dot_error_tolerance, AngularRelation,
+    BasicIntersection, ClosestPointPair, CrossDistance, InfiniteLine3DConstructor,
+    InfiniteLine3DMeasure, InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation,
+    ParallelRelation, PerpendicularRelation, SameLineRelation, Scalar, SkewRelation,
 };
 
 type LinePointPair3D<T> = ((T, T, T), (T, T, T));
@@ -500,21 +500,6 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
         self.direction.y().atan2(self.direction.x())
     }
 
-    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool {
-        let normal = Vector3D::new(plane_normal.0, plane_normal.1, plane_normal.2);
-        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-
-        // 方向ベクトルが法線に垂直かつ、直線上の点が平面上にある
-        let dot = dir_vec.dot(&normal);
-        if dot.abs() > default_angle_tolerance::<T>() {
-            return false;
-        }
-
-        let plane_pt = Point3D::new(plane_point.0, plane_point.1, plane_point.2);
-        let to_line = Vector3D::from_points(&plane_pt, &self.point);
-        to_line.dot(&normal).abs() <= default_distance_tolerance::<T>()
-    }
-
     fn is_axis_aligned(&self) -> bool {
         self.is_x_parallel() || self.is_y_parallel() || self.is_z_parallel()
     }
@@ -672,5 +657,20 @@ impl<T: Scalar> SkewRelation<Self> for InfiniteLine3D<T> {
 impl<T: Scalar> AngularRelation<T, Self> for InfiniteLine3D<T> {
     fn angle_to(&self, other: &Self) -> T {
         InfiniteLine3D::angle_to(self, other)
+    }
+}
+
+impl<T: Scalar> OnPlaneRelation<Plane3D<T>> for InfiniteLine3D<T> {
+    fn is_on_plane(&self, other: &Plane3D<T>) -> bool {
+        let normal = other.normal().as_vector();
+        let dir_vec = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
+
+        if dir_vec.dot(&normal).abs() > default_orthogonality_dot_error_tolerance::<T>() {
+            return false;
+        }
+
+        let plane_pt = other.origin();
+        let to_line = Vector3D::from_points(&plane_pt, &self.point);
+        to_line.dot(&normal).abs() <= default_distance_tolerance::<T>()
     }
 }

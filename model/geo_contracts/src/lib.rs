@@ -67,8 +67,8 @@ pub use geometry::operations::{
     BasicIntersection, ClosestPointPair, CrossDistance, DirectionalRelation,
     DistanceConvergenceError, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation,
     EllipseCalculation, FallibleCrossDistance, IntersectsRelation, MultipleIntersection,
-    ParallelRelation, PerpendicularRelation, PointDistance, PointsTowards, SameLineRelation,
-    SelfIntersection, SkewRelation,
+    OnPlaneRelation, ParallelRelation, PerpendicularRelation, PointDistance, PointsTowards,
+    SameLineRelation, SelfIntersection, SkewRelation,
 };
 pub use tolerance::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,

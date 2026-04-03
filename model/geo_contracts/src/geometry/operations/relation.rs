@@ -64,6 +64,12 @@ pub trait PointsTowards<Target> {
     fn points_towards(&self, target: Target) -> bool;
 }
 
+/// 平面上に存在するかを判定する relation
+pub trait OnPlaneRelation<Other> {
+    /// 相手の平面上にあるかを返す
+    fn is_on_plane(&self, other: &Other) -> bool;
+}
+
 /// 相手との角度を返す relation
 pub trait AngleBetween<T: Scalar, Other> {
     /// 相手との角度を返す

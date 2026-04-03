@@ -130,7 +130,6 @@ pub trait InfiniteLine3DProperties<T: Scalar> {
     fn passes_through_origin(&self) -> bool;
     fn dimension(&self) -> u32;
     fn xy_angle(&self) -> T;
-    fn is_on_plane(&self, plane_normal: (T, T, T), plane_point: (T, T, T)) -> bool;
     fn is_axis_aligned(&self) -> bool;
 }
 
