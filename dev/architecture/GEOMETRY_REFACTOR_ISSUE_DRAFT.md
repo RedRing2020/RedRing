@@ -6,7 +6,7 @@
 
 1. `geo_core` の依存逆転解消（`geo_core -> geo_foundation` を撤去）
 2. Transform の2層化（共通核を `geo_core`、形状適用を `geo_primitives` / `geo_nurbs`）
-3. `geo_commons` の分解移管（`analysis` と `geo_algorithms` へ）
+3. `geo_commons` の責務明確化
 4. `geo_foundation` の段階的廃止完了
 
 ---
@@ -20,9 +20,9 @@
 
 ### 1.2 geo_commonsの扱い
 
-- `geo_commons` は独立クレートとしては廃止可能
-- 純粋数値近似・数学関数は `foundation/analysis` へ移管
-- 形状横断の演算ロジックは `geo_algorithms` へ移管
+- 現在方針では `geo_commons` は独立クレートとして維持する
+- `geo_commons` は `analysis` のみに依存する shape 非依存の幾何数値カーネル置き場とする
+- 純粋な trait定義は `geo_contracts`、impl entry point は `geo_primitives` / `geo_nurbs`、cross-shape や heavy strategy は `geo_algorithms` に置く
 
 ### 1.3 geo_coreの再定義
 
@@ -60,16 +60,16 @@
 
 ### Issue 3
 
-- タイトル案: `geo_commons廃止: analysis/geo_algorithms への分解移管`
-- 目的: 中間層を削減し責務を明確化する
+- タイトル案: `geo_commons責務整理: 幾何数値カーネルの配置を明確化`
+- 目的: `geo_commons` を廃止せず、現行レイヤ方針に沿って責務を明確化する
 - 主タスク:
   - `geo_commons` の公開API棚卸し
-  - 数値近似を `analysis` へ移管
-  - 形状横断計算を `geo_algorithms` へ移管
-  - `geo_foundation` 経由の再エクスポート整理
+  - `geo_commons` に残す数値カーネルと、`geo_algorithms` へ置く heavy strategy を分類
+  - `geo_contracts` / `geo_primitives` / `geo_algorithms` との境界を文書化
+  - 旧 `geo_commons` 廃止前提文書を現行方針へ更新
 - DoD:
-  - `geo_commons` 依存がワークスペースから消える
-  - 移管後APIで既存利用箇所がビルド通過
+  - `geo_commons` の役割が現行方針に沿って説明可能になる
+  - 配置ルール更新後も既存利用箇所がビルド通過する
 
 ### Issue 4
 
@@ -107,5 +107,7 @@
 - #317 `geo_core依存逆転解消: geo_core -> geo_foundation を撤去`
 - #318 `geo_foundation廃止完了: geo_contracts導入と参照置換`
 - #319 `Transform再編: geo_core共通核 + geo_primitives/geo_nurbs形状実装の2層化`
-- #320 `geo_commons廃止: analysis/geo_algorithms への分解移管`
+- #320 `geo_commons責務整理: 幾何数値カーネルの配置を明確化`
+
+本書は当時の起票案を記録する legacy draft として保持する。
 
