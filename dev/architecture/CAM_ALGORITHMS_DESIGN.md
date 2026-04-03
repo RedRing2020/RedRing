@@ -365,7 +365,7 @@ $forbidden = @(
 
 - `dev/architecture/ARCHITECTURE.md` - 全体レイヤー構成
 - `dev/architecture/CAM_CRATE_DESIGN_PROPOSAL.md` - 旧設計（参考）
-- `dev/archive/issues/ISSUE_257_IMPLEMENTATION_PREP.md` - 5軸表現設計（完了）
+- `dev/archive/issues/issue-257-five-axis-toolpath-archive-note.md` - 5軸表現設計（完了）
 - Issue #411 - `read_artifact_v1` 導線統一
 - Issue #412 - artifact API 命名整理
 - Issue #426 - MachineConstraint拡張（本設計に依存）

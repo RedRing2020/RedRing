@@ -2,7 +2,14 @@
 
 **作成日**: 2026年2月25日  
 **対象Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214)  
-**前提ドキュメント**: `dev/architecture/ISSUE_214_IMPLEMENTATION_PREP.md`
+**現行正本**: `dev/architecture/CUTTING_SIMULATION_DESIGN.md`
+
+---
+
+## 位置づけ
+
+本書は Phase 1a 着手時点のチェックリストと実装メモを保持する archive note である。  
+現行の設計判断・責務境界・実装計画は `dev/architecture/CUTTING_SIMULATION_DESIGN.md` を参照する。
 
 ---
 
@@ -218,13 +225,3 @@ pub enum SimulationError {
 ### 視覚的シミュレーション確認に向けた次段
 
 1. `cam_sim` 実行後に `collect_solid_voxel_bounds()` を利用し、可視化入力へボクセル境界群を渡す
-2. `view/render` 側でワイヤーフレーム/ソリッド表示の切替を追加し、フレームごとの差分を確認
-3. 同一ツールパスで「カプセル版」と「平端掃引版」の表示を比較し、端点近傍の形状差を検証
-4. 比較結果を Issue #214 にスクリーンショット付きで記録し、Phase 1a 完了判定に反映
-
-### スナップショットのドメインモデル方針（2026-02-25）
-
-- `snapshot_converter` を ViewModel 層の独立モジュールとして追加する
-- モデルは `frame_index / time / pose / metrics / events / domain_payload` を基本要素とする
-- CAM 固有情報は `domain_payload` に閉じ込め、他ドメイン（例: プレス）へ再利用可能にする
-- 変換責務は「ドメインスナップショット → 表示向けDTO」へ限定し、物理計算ロジックは持たせない

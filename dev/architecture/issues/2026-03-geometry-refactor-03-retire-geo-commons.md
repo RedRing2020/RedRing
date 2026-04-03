@@ -62,4 +62,4 @@
 ## 備考
 
 - 分割移管の途中で中間PRを許容する
-- 実施詳細は `dev/architecture/ISSUE_320_IMPLEMENTATION_PREP.md` を参照
+- 実施詳細は `dev/archive/issues/architecture/issue-320-contracts-commons-normalization-archive-note.md` を参照

@@ -33,7 +33,7 @@
 - `Scalar` / `Angle` / `TolerantEq` など数値抽象は `analysis` を正とする
 - Transform trait / error など共通変換責務は `geo_core` を正とする
 - 置換順は、契約移設 -> 実装クレート切替 -> 利用側切替 -> 互換層縮退 -> 最終削除 とする
-- 境界判断は `dev/architecture/ISSUE_318_IMPLEMENTATION_PREP.md` の固定境界表（3.0節）を正とする
+- 境界判断は `dev/archive/issues/issue-318-retire-geo-foundation-archive-note.md` の固定境界表（3.0節）を正とする
 
 ## タスク
 
@@ -111,5 +111,5 @@
 
 - 破壊的変更許容を前提に進める
 - 最初にやるべきなのは `geo_contracts` API 拡充であり、ここを固めずに import 置換を始めない
-- 実施準備の詳細は `dev/architecture/ISSUE_318_IMPLEMENTATION_PREP.md` を参照
+- 実施準備の詳細は `dev/archive/issues/issue-318-retire-geo-foundation-archive-note.md` を参照
 - 実行時は同ファイルの `Phase詳細` と `6.1/6.2` チェックリストをPRテンプレとして利用する

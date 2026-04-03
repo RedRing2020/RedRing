@@ -375,7 +375,7 @@ grep -r "DistanceConvergenceError" geo_contracts/src/
 
 - Issue #403: https://github.com/RedRing2020/RedRing/issues/403
 - Issue #342 (Phase1): https://github.com/RedRing2020/RedRing/issues/342
-- Phase1 Prep Doc: `dev/architecture/ISSUE_342_IMPLEMENTATION_PREP.md`
+- Phase1 Prep Doc: `dev/archive/issues/issue-342-distance-algorithms-migration-archive-note.md`
 - Distance Module: `model/geo_algorithms/src/distance/`
 - Collision Module: `model/geo_algorithms/src/collision/primitive_nurbs.rs`
 - Coverage Matrix: `model/geo_algorithms/tests/coverage_matrix_engine.rs`

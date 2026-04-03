@@ -471,7 +471,7 @@ PoseAnnotatedSegment {
 対象ファイル:
 
 - `model/cam_core/src/artifact_binary.rs`
-- `dev/architecture/ISSUE_257_IMPLEMENTATION_PREP.md`
+- `dev/archive/issues/issue-257-five-axis-toolpath-archive-note.md`
 
 実装範囲:
 
