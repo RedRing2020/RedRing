@@ -140,11 +140,6 @@ pub trait InfiniteLine2DMeasure<T: Scalar> {
     fn contains_point(&self, point: (T, T)) -> bool;
     fn project_point(&self, point: (T, T)) -> (T, T);
     fn parameter_for_point(&self, point: (T, T)) -> T;
-    fn intersection(&self, other: &Self) -> Option<(T, T)>;
-    fn is_parallel_to(&self, other: &Self) -> bool;
-    fn is_perpendicular_to(&self, other: &Self) -> bool;
-    fn is_same_line(&self, other: &Self) -> bool;
-    fn angle_to(&self, other: &Self) -> T;
     fn reverse(&self) -> Self
     where
         Self: Sized;
@@ -166,13 +161,6 @@ pub trait InfiniteLine3DMeasure<T: Scalar> {
     fn contains_point(&self, point: (T, T, T)) -> bool;
     fn project_point(&self, point: (T, T, T)) -> (T, T, T);
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
-    fn closest_points(&self, other: &Self) -> Option<TwoPoints3D<T>>;
-    fn is_parallel_to(&self, other: &Self) -> bool;
-    fn is_perpendicular_to(&self, other: &Self) -> bool;
-    fn is_same_line(&self, other: &Self) -> bool;
-    fn intersects(&self, other: &Self) -> bool;
-    fn is_skew_to(&self, other: &Self) -> bool;
-    fn angle_to(&self, other: &Self) -> T;
     fn reverse(&self) -> Self
     where
         Self: Sized;

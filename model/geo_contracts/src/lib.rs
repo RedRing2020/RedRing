@@ -63,10 +63,12 @@ pub use geometry::foundation::{
     PrimitiveMetadata, Vector2DMeasure, Vector3DMeasure,
 };
 pub use geometry::operations::{
-    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, CrossDistance,
+    AdvancedCollision, AngleBetween, AngularRelation, BBoxCollision, BasicCollision,
+    BasicIntersection, ClosestPointPair, CrossDistance, DirectionalRelation,
     DistanceConvergenceError, EllipseAccuracyAnalysis, EllipseAdaptiveCalculation,
-    EllipseCalculation, FallibleCrossDistance, MultipleIntersection, PointDistance,
-    SelfIntersection,
+    EllipseCalculation, FallibleCrossDistance, IntersectsRelation, MultipleIntersection,
+    ParallelRelation, PerpendicularRelation, PointDistance, PointsTowards, SameLineRelation,
+    SelfIntersection, SkewRelation,
 };
 pub use tolerance::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,

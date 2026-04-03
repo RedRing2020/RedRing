@@ -149,19 +149,13 @@ pub trait Ray2DMeasure<T: Scalar> {
     fn distance_to_point(&self, point: (T, T)) -> T;
     fn contains_point(&self, point: (T, T)) -> bool;
     fn parameter_for_point(&self, point: (T, T)) -> T;
-    fn points_towards(&self, direction: (T, T)) -> bool;
-    fn is_parallel_to(&self, other: &Self) -> bool;
-    fn is_same_direction(&self, other: &Self) -> bool;
-    fn is_opposite_direction(&self, other: &Self) -> bool;
     fn reverse(&self) -> Self
     where
         Self: Sized;
     fn translate(&self, offset: (T, T)) -> Self
     where
         Self: Sized;
-    fn intersection_with_ray(&self, other: &Self) -> Option<(T, T)>;
     fn point_at_distance(&self, distance: T) -> (T, T);
-    fn angle_between(&self, other: &Self) -> T;
     fn rotate_around_origin(&self, angle: T) -> Self
     where
         Self: Sized;
@@ -173,10 +167,6 @@ pub trait Ray3DMeasure<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
     fn contains_point(&self, point: (T, T, T)) -> bool;
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
-    fn points_towards(&self, direction: (T, T, T)) -> bool;
-    fn is_parallel_to(&self, other: &Self) -> bool;
-    fn is_same_direction(&self, other: &Self) -> bool;
-    fn is_opposite_direction(&self, other: &Self) -> bool;
     fn reverse(&self) -> Self
     where
         Self: Sized;
@@ -184,7 +174,6 @@ pub trait Ray3DMeasure<T: Scalar> {
     where
         Self: Sized;
     fn point_at_distance(&self, distance: T) -> (T, T, T);
-    fn angle_between(&self, other: &Self) -> T;
     fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>
     where
         Self: Sized;

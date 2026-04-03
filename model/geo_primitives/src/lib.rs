@@ -112,14 +112,16 @@ pub use geo_contracts::{Direction3DConstructor, Direction3DMeasure, Direction3DP
 
 // InfiniteLine の Core trait定義 再公開
 pub use geo_contracts::{
-    InfiniteLine2DConstructor, InfiniteLine2DMeasure, InfiniteLine2DProperties,
-    InfiniteLine3DConstructor, InfiniteLine3DMeasure, InfiniteLine3DProperties,
+    AngularRelation, ClosestPointPair, InfiniteLine2DConstructor, InfiniteLine2DMeasure,
+    InfiniteLine2DProperties, InfiniteLine3DConstructor, InfiniteLine3DMeasure,
+    InfiniteLine3DProperties, IntersectsRelation, ParallelRelation, PerpendicularRelation,
+    SameLineRelation, SkewRelation,
 };
 
 // Ray の Core trait定義 再公開
 pub use geo_contracts::{
-    Ray2DConstructor, Ray2DMeasure, Ray2DProperties, Ray3DConstructor, Ray3DMeasure,
-    Ray3DProperties,
+    AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DMeasure,
+    Ray2DProperties, Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
 };
 pub mod ellipse_2d;
 pub mod ellipse_2d_foundation;
