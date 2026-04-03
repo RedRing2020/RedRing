@@ -194,6 +194,30 @@ impl<T: Scalar> Edge<T> {
         self.end_vertex.point()
     }
 
+    fn oriented_curve_points(
+        &self,
+        start: Point3D<T>,
+        end: Point3D<T>,
+    ) -> (Point3D<T>, Point3D<T>) {
+        if self.same_sense {
+            (start, end)
+        } else {
+            (end, start)
+        }
+    }
+
+    fn oriented_constraint_points(&self) -> (Point3D<T>, Point3D<T>) {
+        self.oriented_curve_points(self.curve.start_point(), self.curve.end_point())
+    }
+
+    fn oriented_ideal_points(&self) -> (Point3D<T>, Point3D<T>) {
+        let (t0, t1) = self.parameter_range;
+        let ideal_start = self.curve.point_at_parameter(t0);
+        let ideal_end = self.curve.point_at_parameter(t1);
+
+        self.oriented_curve_points(ideal_start, ideal_end)
+    }
+
     /// 曲線評価（0..1 のローカルパラメータ）
     pub fn point_at(&self, local_t: T) -> Option<Point3D<T>> {
         if local_t < T::ZERO || local_t > T::ONE {
@@ -210,26 +234,35 @@ impl<T: Scalar> Edge<T> {
         Some(self.curve.point_at_parameter(mapped_t))
     }
 
-    /// Edge が保持する頂点と幾何端点の整合を確認する
-    pub fn is_vertex_binding_consistent(&self, tolerance: T) -> bool {
-        let (t0, t1) = self.parameter_range;
-        let curve_start = self.curve.point_at_parameter(t0);
-        let curve_end = self.curve.point_at_parameter(t1);
+    /// 拘束点と Vertex の整合を確認する
+    pub fn is_binding_consistent(&self, bind_tolerance: T) -> bool {
+        let (constraint_start, constraint_end) = self.oriented_constraint_points();
 
-        let (expected_start, expected_end) = if self.same_sense {
-            (curve_start, curve_end)
-        } else {
-            (curve_end, curve_start)
-        };
+        self.start_vertex.point().distance_to(&constraint_start) <= bind_tolerance
+            && self.end_vertex.point().distance_to(&constraint_end) <= bind_tolerance
+    }
 
-        self.start_vertex.point().distance_to(&expected_start) <= tolerance
-            && self.end_vertex.point().distance_to(&expected_end) <= tolerance
+    /// 母曲線 ideal endpoint と拘束点の整合を確認する
+    pub fn is_support_consistent(&self, support_tolerance: T) -> bool {
+        let (constraint_start, constraint_end) = self.oriented_constraint_points();
+        let (ideal_start, ideal_end) = self.oriented_ideal_points();
+
+        ideal_start.distance_to(&constraint_start) <= support_tolerance
+            && ideal_end.distance_to(&constraint_end) <= support_tolerance
+    }
+
+    /// Edge の局所整合を確認する
+    pub fn is_vertex_binding_consistent(&self, edge_tolerance: T) -> bool {
+        let half_tolerance = edge_tolerance / T::from_f64(2.0);
+
+        self.is_binding_consistent(half_tolerance) && self.is_support_consistent(half_tolerance)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::TopoInfiniteLine3D;
 
     #[test]
     fn edge_new_rejects_invalid_range() {
@@ -262,5 +295,31 @@ mod tests {
         let edge = Edge::new(v0, v1, CurveRef::Line(line), (0.0, 1.0)).unwrap();
 
         assert!(edge.is_vertex_binding_consistent(1e-9));
+    }
+
+    #[test]
+    fn edge_binding_and_support_consistency_are_separated() {
+        let support_line = TopoInfiniteLine3D::from_two_points(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let start = Point3D::new(0.0, 0.0, 0.1);
+        let end = Point3D::new(2.0, 0.0, 0.1);
+        let line =
+            TopoLineSegment3D::from_support_line_and_constraint_points(support_line, start, end)
+                .unwrap();
+        let edge = Edge::new(
+            Arc::new(Vertex::new(start)),
+            Arc::new(Vertex::new(end)),
+            CurveRef::Line(line),
+            (0.0, 2.0),
+        )
+        .unwrap();
+
+        assert!(edge.is_binding_consistent(1e-9));
+        assert!(!edge.is_support_consistent(1e-9));
+        assert!(edge.is_vertex_binding_consistent(0.25));
+        assert!(!edge.is_vertex_binding_consistent(0.1));
     }
 }
