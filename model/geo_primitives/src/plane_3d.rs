@@ -35,15 +35,7 @@ pub struct Plane3D<T: Scalar> {
     pub(crate) v_axis: Direction3D<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Plane3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で平面座標系を作成
     ///
     /// # Arguments
@@ -155,10 +147,6 @@ impl<T: Scalar> Plane3D<T> {
         Self::from_origin_and_axes(point, normal, candidate_u)
     }
 
-    // ========================================================================
-    // アクセサメソッド
-    // ========================================================================
-
     /// 平面の原点を取得
     pub fn origin(&self) -> Point3D<T> {
         self.origin
@@ -178,10 +166,6 @@ impl<T: Scalar> Plane3D<T> {
     pub fn point(&self) -> Point3D<T> {
         self.origin
     }
-
-    // ========================================================================
-    // Core Geometric Operations
-    // ========================================================================
 
     /// 点が平面上にあるかチェック
     pub fn contains_point(&self, point: Point3D<T>, tolerance: T) -> bool {
@@ -270,20 +254,12 @@ impl<T: Scalar> Default for Plane3D<T> {
     }
 }
 
-// ============================================================================
-// Constants (注: ジェネリック型では const は制限があるため、メソッドで提供)
-// ============================================================================
-
 impl<T: Scalar> Plane3D<T> {
     /// XY平面（z = 0）の参照
     pub fn xy() -> Self {
         Self::xy_plane(T::ZERO)
     }
 }
-
-// ============================================================================
-// Display Implementation
-// ============================================================================
 
 impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -306,13 +282,7 @@ impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
-
 impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn from_origin_and_axes(
         origin: (T, T, T),
         normal: (T, T, T),
@@ -335,8 +305,6 @@ impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
         Self::xy_plane(T::ZERO)
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn from_point_and_normal(point: (T, T, T), normal: (T, T, T)) -> Option<Self> {
         let origin = Point3D::new(point.0, point.1, point.2);
         let normal_vec = Vector3D::new(normal.0, normal.1, normal.2);
@@ -353,8 +321,6 @@ impl<T: Scalar> Plane3DConstructor<T> for Plane3D<T> {
 }
 
 impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn origin(&self) -> (T, T, T) {
         (self.origin.x(), self.origin.y(), self.origin.z())
     }
@@ -374,8 +340,6 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     fn dimension(&self) -> u32 {
         2 // 2次元多様体
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn is_xy_plane(&self) -> bool {
         let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;

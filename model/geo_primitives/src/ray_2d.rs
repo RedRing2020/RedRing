@@ -138,7 +138,6 @@ impl<T: Scalar> Ray2D<T> {
     }
 }
 
-// === Helper methods ===
 impl<T: Scalar> Ray2D<T> {
     /// 境界ボックスを取得（起点のみ）
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
@@ -193,10 +192,6 @@ impl<T: Scalar> Ray2D<T> {
         }
     }
 }
-
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
 
 /// Ray2DConstructor トレイト実装
 impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
@@ -268,8 +263,6 @@ impl<T: Scalar> Ray2DConstructor<T> for Ray2D<T> {
         Self::along_positive_y((T::ZERO, T::ZERO))
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn from_angle(origin: (T, T), angle: T) -> Self
     where
         Self: Sized,
@@ -324,8 +317,6 @@ impl<T: Scalar> Ray2DProperties<T> for Ray2D<T> {
         // Ray2D::new がSomeを返した時点で有効性は保証されている
         true
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn angle(&self) -> T {
         self.direction.y().atan2(self.direction.x())

@@ -22,15 +22,7 @@ pub struct Ellipse2D<T: Scalar> {
     rotation: T,        // 回転角（ラジアン、X軸からの回転）
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Ellipse2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい楕円を作成
     ///
     /// # 引数
@@ -65,10 +57,6 @@ impl<T: Scalar> Ellipse2D<T> {
     pub fn axis_aligned(center: Point2D<T>, semi_major: T, semi_minor: T) -> Option<Self> {
         Self::new(center, semi_major, semi_minor, T::ZERO)
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 中心点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point2D<T> {
@@ -133,10 +121,6 @@ impl<T: Scalar> Ellipse2D<T> {
 
         T::PI * (a + b) * (T::ONE + (three * h) / (ten + (four - three * h).sqrt()))
     }
-
-    // ========================================================================
-    // Core Geometric Methods
-    // ========================================================================
 
     /// 点が楕円内に含まれるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
@@ -219,10 +203,6 @@ impl<T: Scalar> Ellipse2D<T> {
         )
     }
 
-    // ========================================================================
-    // Conversion Methods
-    // ========================================================================
-
     /// 円に変換（可能な場合）
     pub fn to_circle(&self) -> Option<Circle2D<T>> {
         if (self.semi_major_internal() - self.semi_minor_internal()).abs() <= T::EPSILON {
@@ -237,10 +217,6 @@ impl<T: Scalar> Ellipse2D<T> {
         (self.semi_major - self.semi_minor).abs() <= tolerance
     }
 }
-
-// ============================================================================
-// Helper Methods
-// ============================================================================
 
 impl<T: Scalar> Ellipse2D<T> {
     /// 境界上の点かどうかを判定
@@ -264,10 +240,6 @@ impl<T: Scalar> Ellipse2D<T> {
         Vector2D::new(-self.rotation.sin(), self.rotation.cos())
     }
 }
-
-// ============================================================================
-// Advanced Calculation Traits Implementation
-// ============================================================================
 
 impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
     type Point = Point2D<T>;
@@ -386,13 +358,7 @@ impl<T: Scalar> EllipseAccuracyAnalysis<T> for Ellipse2D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
-
 impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn new(center: (T, T), semi_major: T, semi_minor: T, rotation: T) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
         Self::new(center_point, semi_major, semi_minor, rotation)
@@ -407,8 +373,6 @@ impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
         let c = Point2D::new(center.0, center.1);
         Self::new(c, semi_major, semi_minor, T::ZERO)
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn from_circle(center: (T, T), radius: T) -> Self {
         let c = Point2D::new(center.0, center.1);
@@ -448,8 +412,6 @@ impl<T: Scalar> Ellipse2DConstructor<T> for Ellipse2D<T> {
 }
 
 impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn center(&self) -> (T, T) {
         (self.center.x(), self.center.y())
     }
@@ -470,8 +432,6 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
         self.eccentricity()
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn focal_distance(&self) -> T {
         geo_contracts::EllipseCalculation::focal_distance(self)
     }
@@ -488,8 +448,6 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
 }
 
 impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
-    // ========== Phase 1 実装 ==========
-
     fn measure(&self) -> T {
         self.area()
     }
@@ -508,8 +466,6 @@ impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
         let tolerance = default_distance_tolerance::<T>();
         self.is_circle(tolerance)
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn point_at_parameter(&self, t: T) -> (T, T) {
         // パラメトリック方程式で楕円上の点を計算

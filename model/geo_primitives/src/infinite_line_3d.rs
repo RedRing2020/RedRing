@@ -25,14 +25,7 @@ pub struct InfiniteLine3D<T: Scalar> {
     pub(crate) direction: Direction3D<T>, // 方向ベクトル（正規化済み）
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> InfiniteLine3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
     /// 新しい無限直線を作成
     ///
     /// # 引数
@@ -57,10 +50,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
         Self::new(p1, direction)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 直線上の点を取得（内部用）
     pub(crate) fn point_internal(&self) -> Point3D<T> {
         self.point
@@ -70,10 +59,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub(crate) fn direction_internal(&self) -> Direction3D<T> {
         self.direction
     }
-
-    // ========================================================================
-    // Core Geometric Methods
-    // ========================================================================
 
     /// パラメータtでの直線上の点を取得
     /// 点 = point + t * direction
@@ -349,14 +334,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Pattern - Core Traits Implementation
-// ============================================================================
-
-// ============================================================================
-// Constructor トレイト実装
-// ============================================================================
-
 impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
     fn new(point: (T, T, T), direction: (T, T, T)) -> Option<Self> {
         let p = Point3D::new(point.0, point.1, point.2);
@@ -412,8 +389,6 @@ impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
         InfiniteLine3D::new(origin, dir)
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn from_xy_angle(angle: T) -> Self {
         let direction = Vector3D::new(angle.cos(), angle.sin(), T::ZERO);
         InfiniteLine3D::new(Point3D::origin(), direction).unwrap()
@@ -443,10 +418,6 @@ impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {
         InfiniteLine3D::new(p, perp_dir)
     }
 }
-
-// ============================================================================
-// Properties トレイト実装
-// ============================================================================
 
 impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
     fn point(&self) -> (T, T, T) {
@@ -496,8 +467,6 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
         3
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn xy_angle(&self) -> T {
         self.direction.y().atan2(self.direction.x())
     }
@@ -506,10 +475,6 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
         self.is_x_parallel() || self.is_y_parallel() || self.is_z_parallel()
     }
 }
-
-// ============================================================================
-// Measure トレイト実装
-// ============================================================================
 
 impl<T: Scalar> InfiniteLine3DEvaluation<T> for InfiniteLine3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
@@ -543,8 +508,6 @@ impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
         let projected = InfiniteLine3D::project_point(self, &p);
         (projected.x(), projected.y(), projected.z())
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);

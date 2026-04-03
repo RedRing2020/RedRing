@@ -23,15 +23,7 @@ pub struct Ray3D<T: Scalar> {
     pub(crate) direction: Vector3D<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Ray3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 起点と方向ベクトルから Ray3D を作成
     ///
     /// # 引数
@@ -65,10 +57,6 @@ impl<T: Scalar> Ray3D<T> {
         Self::new(start, direction)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 起点を取得
     pub fn origin(&self) -> Point3D<T> {
         self.origin
@@ -88,10 +76,6 @@ impl<T: Scalar> Ray3D<T> {
     pub fn direction_vector(&self) -> Vector3D<T> {
         self.direction
     }
-
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
 
     /// パラメータ t での点を計算
     ///
@@ -174,10 +158,6 @@ impl<T: Scalar> Ray3D<T> {
         clamped.acos()
     }
 
-    // ========================================================================
-    // Core Axis-Aligned Ray Constructors
-    // ========================================================================
-
     /// X軸に平行な Ray を作成
     pub fn along_x_axis(origin: Point3D<T>) -> Self {
         Self::new(origin, Vector3D::unit_x()).unwrap()
@@ -193,10 +173,6 @@ impl<T: Scalar> Ray3D<T> {
         Self::new(origin, Vector3D::unit_z()).unwrap()
     }
 }
-
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
 
 /// Ray3DConstructor トレイト実装
 impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
@@ -290,8 +266,6 @@ impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
         Ray3D::along_z_axis(Point3D::origin())
     }
 
-    // ========== Phase 2 実装 ==========
-
     fn from_spherical(origin: (T, T, T), azimuth: T, elevation: T) -> Self
     where
         Self: Sized,
@@ -363,8 +337,6 @@ impl<T: Scalar> Ray3DProperties<T> for Ray3D<T> {
         // Ray3D::new がSomeを返した時点で有効性は保証されている
         true
     }
-
-    // ========== Phase 2 実装 ==========
 
     fn azimuth(&self) -> T {
         self.direction.y().atan2(self.direction.x())

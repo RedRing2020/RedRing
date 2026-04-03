@@ -21,15 +21,7 @@ pub struct LineSegment2D<T: Scalar> {
     pub(crate) end_param: T,            // 終点のパラメータ
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> LineSegment2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 始点と終点から線分を作成
     pub fn new(start: Point2D<T>, end: Point2D<T>) -> Option<Self> {
         let line = InfiniteLine2D::from_two_points(start, end)?;
@@ -59,10 +51,6 @@ impl<T: Scalar> LineSegment2D<T> {
             end_param: length,
         })
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 始点を取得
     pub fn start_point(&self) -> Point2D<T> {
@@ -101,10 +89,6 @@ impl<T: Scalar> LineSegment2D<T> {
         Vector2D::from_points(start, end)
     }
 
-    // ========================================================================
-    // Core Parametric Methods
-    // ========================================================================
-
     /// 正規化されたパラメータ（0〜1）での点を取得
     pub fn point_at_normalized_parameter(&self, t: T) -> Point2D<T> {
         if t < T::ZERO || t > T::ONE {
@@ -131,10 +115,6 @@ impl<T: Scalar> LineSegment2D<T> {
             (line_param - self.start_param) / segment_length
         }
     }
-
-    // ========================================================================
-    // Core Containment Methods
-    // ========================================================================
 
     /// 点が線分上にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
@@ -181,10 +161,6 @@ impl<T: Scalar> LineSegment2D<T> {
         )
     }
 
-    // ========================================================================
-    // Internal Accessor Methods (for Extension implementation)
-    // ========================================================================
-
     /// 基盤となる無限直線を取得（Extension用）
     pub fn line(&self) -> &InfiniteLine2D<T> {
         &self.line
@@ -200,11 +176,6 @@ impl<T: Scalar> LineSegment2D<T> {
         self.end_param
     }
 }
-
-// ============================================================================
-// ============================================================================
-// Helper Methods (Foundation traits converted to methods)
-// ============================================================================
 
 impl<T: Scalar> LineSegment2D<T> {
     /// 方向を反転
@@ -252,10 +223,6 @@ impl<T: Scalar> LineSegment2D<T> {
         }
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
 
 impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
     fn new(start: (T, T), end: (T, T)) -> Option<Self> {

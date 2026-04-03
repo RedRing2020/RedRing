@@ -21,15 +21,7 @@ pub struct LineSegment3D<T: Scalar> {
     pub(crate) end_param: T,            // 終点のパラメータ
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> LineSegment3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 始点と終点から線分を作成
     pub fn new(start: Point3D<T>, end: Point3D<T>) -> Option<Self> {
         let line = InfiniteLine3D::from_two_points(start, end)?;
@@ -59,10 +51,6 @@ impl<T: Scalar> LineSegment3D<T> {
             end_param: length,
         })
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 始点を取得
     pub fn start(&self) -> Point3D<T> {
@@ -105,10 +93,6 @@ impl<T: Scalar> LineSegment3D<T> {
         self.end_param
     }
 
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
-
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         let to_point = Vector3D::from_points(&self.line.point_internal(), point);
@@ -144,10 +128,6 @@ impl<T: Scalar> LineSegment3D<T> {
         self.length() <= tolerance
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
 
 impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
     fn new(start: (T, T, T), end: (T, T, T)) -> Option<Self> {
