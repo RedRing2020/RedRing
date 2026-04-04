@@ -1,8 +1,4 @@
-//! CylindricalSolid Core Traits - 円柱ソリッドの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! CylindricalSolid trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -54,17 +50,34 @@ pub trait CylindricalSolid3DProperties<T: Scalar> {
     fn base_area(&self) -> T;
 }
 
-pub trait CylindricalSolid3DMeasure<T: Scalar> {
+pub trait CylindricalSolid3DDerived<T: Scalar> {
     fn volume(&self) -> T;
     fn surface_area(&self) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-    fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T);
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+}
+
+pub trait CylindricalSolid3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait CylindricalSolid3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait CylindricalSolid3DEvaluation<T: Scalar> {
+    fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T);
+}
+
+pub trait CylindricalSolid3DProjection<T: Scalar> {
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
 }
 
 pub trait CylindricalSolid3DCore<T: Scalar>:
-    CylindricalSolid3DConstructor<T> + CylindricalSolid3DProperties<T> + CylindricalSolid3DMeasure<T>
+    CylindricalSolid3DConstructor<T> + CylindricalSolid3DProperties<T>
+{
+}
+
+impl<T: Scalar, Solid> CylindricalSolid3DCore<T> for Solid where
+    Solid: CylindricalSolid3DConstructor<T> + CylindricalSolid3DProperties<T>
 {
 }

@@ -1,8 +1,4 @@
-//! SphericalSolid Core Traits - 球ソリッドの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! SphericalSolid trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -43,17 +39,34 @@ pub trait SphericalSolid3DProperties<T: Scalar> {
     fn is_centered_at_origin(&self) -> bool;
 }
 
-pub trait SphericalSolid3DMeasure<T: Scalar> {
+pub trait SphericalSolid3DDerived<T: Scalar> {
     fn volume(&self) -> T;
     fn surface_area(&self) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T);
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
+}
+
+pub trait SphericalSolid3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait SphericalSolid3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait SphericalSolid3DEvaluation<T: Scalar> {
+    fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T);
+}
+
+pub trait SphericalSolid3DProjection<T: Scalar> {
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
 }
 
 pub trait SphericalSolid3DCore<T: Scalar>:
-    SphericalSolid3DConstructor<T> + SphericalSolid3DProperties<T> + SphericalSolid3DMeasure<T>
+    SphericalSolid3DConstructor<T> + SphericalSolid3DProperties<T>
+{
+}
+
+impl<T: Scalar, Solid> SphericalSolid3DCore<T> for Solid where
+    Solid: SphericalSolid3DConstructor<T> + SphericalSolid3DProperties<T>
 {
 }

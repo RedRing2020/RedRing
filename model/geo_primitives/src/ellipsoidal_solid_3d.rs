@@ -372,7 +372,8 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
+    EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived,
+    EllipsoidalSolid3DDistance, EllipsoidalSolid3DProjection,
     EllipsoidalSolid3DProperties as ContractsEllipsoidalSolid3DProperties,
 };
 
@@ -497,21 +498,13 @@ impl<T: Scalar> ContractsEllipsoidalSolid3DProperties<T> for EllipsoidalSolid3D<
     }
 }
 
-impl<T: Scalar> EllipsoidalSolid3DMeasure<T> for EllipsoidalSolid3D<T> {
+impl<T: Scalar> EllipsoidalSolid3DDerived<T> for EllipsoidalSolid3D<T> {
     fn volume(&self) -> T {
         self.volume()
     }
 
     fn surface_area(&self) -> T {
         self.surface_area()
-    }
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        self.contains_point(&Point3D::new(point.0, point.1, point.2))
-    }
-
-    fn distance_to_surface(&self, point: (T, T, T)) -> T {
-        self.distance_to_surface(&Point3D::new(point.0, point.1, point.2))
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
@@ -521,21 +514,33 @@ impl<T: Scalar> EllipsoidalSolid3DMeasure<T> for EllipsoidalSolid3D<T> {
         ((min.x(), min.y(), min.z()), (max.x(), max.y(), max.z()))
     }
 
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = self.closest_point_on_surface(&Point3D::new(point.0, point.1, point.2));
-        (p.x(), p.y(), p.z())
-    }
-
-    fn is_on_surface(&self, point: (T, T, T)) -> bool {
-        self.is_on_surface(&Point3D::new(point.0, point.1, point.2))
-    }
-
     fn is_degenerate(&self) -> bool {
         self.is_degenerate()
     }
 }
 
-impl<T: Scalar> EllipsoidalSolid3DCore<T> for EllipsoidalSolid3D<T> {}
+impl<T: Scalar> EllipsoidalSolid3DContainment<T> for EllipsoidalSolid3D<T> {
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        self.contains_point(&Point3D::new(point.0, point.1, point.2))
+    }
+
+    fn is_on_surface(&self, point: (T, T, T)) -> bool {
+        self.is_on_surface(&Point3D::new(point.0, point.1, point.2))
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DDistance<T> for EllipsoidalSolid3D<T> {
+    fn distance_to_surface(&self, point: (T, T, T)) -> T {
+        self.distance_to_surface(&Point3D::new(point.0, point.1, point.2))
+    }
+}
+
+impl<T: Scalar> EllipsoidalSolid3DProjection<T> for EllipsoidalSolid3D<T> {
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = self.closest_point_on_surface(&Point3D::new(point.0, point.1, point.2));
+        (p.x(), p.y(), p.z())
+    }
+}
 
 // ============================================================================
 // Tests

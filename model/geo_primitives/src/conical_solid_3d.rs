@@ -342,7 +342,8 @@ impl<T: Scalar> ConicalSolid3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure,
+    ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DDerived,
+    ConicalSolid3DDistance, ConicalSolid3DEvaluation, ConicalSolid3DProjection,
     ConicalSolid3DProperties as ContractsConicalSolid3DProperties,
 };
 
@@ -469,7 +470,7 @@ impl<T: Scalar> ContractsConicalSolid3DProperties<T> for ConicalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
+impl<T: Scalar> ConicalSolid3DDerived<T> for ConicalSolid3D<T> {
     fn volume(&self) -> T {
         self.volume_internal()
     }
@@ -478,16 +479,44 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
         self.surface_area_internal()
     }
 
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let r = self.radius_internal();
+        let h = self.height_internal();
+
+        let min_x = self.center.x() - r;
+        let max_x = self.center.x() + r;
+        let min_y = self.center.y() - r;
+        let max_y = self.center.y() + r;
+
+        let base_z = self.center.z();
+        let apex_z = base_z + h * self.axis_internal().z();
+        let min_z = base_z.min(apex_z);
+        let max_z = base_z.max(apex_z);
+
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+}
+
+impl<T: Scalar> ConicalSolid3DContainment<T> for ConicalSolid3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.contains_point(point_3d)
     }
 
+    fn contains_point_tolerance(&self, point: (T, T, T), tolerance: T) -> bool {
+        let distance = self.distance_to_point(point);
+        distance <= tolerance
+    }
+}
+
+impl<T: Scalar> ConicalSolid3DDistance<T> for ConicalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(point_3d).abs()
     }
+}
 
+impl<T: Scalar> ConicalSolid3DEvaluation<T> for ConicalSolid3D<T> {
     fn point_at_conical(&self, r: T, theta: T, z: T) -> (T, T, T) {
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
@@ -511,24 +540,9 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
 
         (x, y, z_coord)
     }
+}
 
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let r = self.radius_internal();
-        let h = self.height_internal();
-
-        let min_x = self.center.x() - r;
-        let max_x = self.center.x() + r;
-        let min_y = self.center.y() - r;
-        let max_y = self.center.y() + r;
-
-        let base_z = self.center.z();
-        let apex_z = base_z + h * self.axis_internal().z();
-        let min_z = base_z.min(apex_z);
-        let max_z = base_z.max(apex_z);
-
-        ((min_x, min_y, min_z), (max_x, max_y, max_z))
-    }
-
+impl<T: Scalar> ConicalSolid3DProjection<T> for ConicalSolid3D<T> {
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
         let apex = self.apex_internal();
         let to_point_x = point.0 - apex.x();
@@ -600,14 +614,7 @@ impl<T: Scalar> ConicalSolid3DMeasure<T> for ConicalSolid3D<T> {
             }
         }
     }
-
-    fn contains_point_tolerance(&self, point: (T, T, T), tolerance: T) -> bool {
-        let distance = self.distance_to_point(point);
-        distance <= tolerance
-    }
 }
-
-impl<T: Scalar> ConicalSolid3DCore<T> for ConicalSolid3D<T> {}
 
 // ============================================================================
 // Display Implementation

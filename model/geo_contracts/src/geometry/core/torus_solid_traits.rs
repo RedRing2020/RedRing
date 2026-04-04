@@ -1,8 +1,4 @@
-//! TorusSolid Core Traits - トーラスソリッドの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! TorusSolid trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -60,18 +56,35 @@ pub trait TorusSolid3DProperties<T: Scalar> {
     fn inner_radius(&self) -> T;
 }
 
-pub trait TorusSolid3DMeasure<T: Scalar> {
+pub trait TorusSolid3DDerived<T: Scalar> {
     fn volume(&self) -> T;
     fn surface_area(&self) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-    fn point_at_toroidal(&self, u: T, v: T) -> (T, T, T);
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
     fn is_self_intersecting(&self) -> bool;
 }
 
+pub trait TorusSolid3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait TorusSolid3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait TorusSolid3DEvaluation<T: Scalar> {
+    fn point_at_toroidal(&self, u: T, v: T) -> (T, T, T);
+}
+
+pub trait TorusSolid3DProjection<T: Scalar> {
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
+}
+
 pub trait TorusSolid3DCore<T: Scalar>:
-    TorusSolid3DConstructor<T> + TorusSolid3DProperties<T> + TorusSolid3DMeasure<T>
+    TorusSolid3DConstructor<T> + TorusSolid3DProperties<T>
+{
+}
+
+impl<T: Scalar, Solid> TorusSolid3DCore<T> for Solid where
+    Solid: TorusSolid3DConstructor<T> + TorusSolid3DProperties<T>
 {
 }

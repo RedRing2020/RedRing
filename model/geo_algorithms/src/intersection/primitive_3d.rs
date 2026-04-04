@@ -14,7 +14,7 @@ use crate::{
     Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DMeasure, Arc3DProperties, Circle3DProperties, ConicalSolid3DMeasure,
+    Arc3DMeasure, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
     ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
     CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
     InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
@@ -852,7 +852,7 @@ fn conical_solid3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        ConicalSolid3DMeasure::contains_point_tolerance(
+        ConicalSolid3DContainment::contains_point_tolerance(
             cone,
             (point.x(), point.y(), point.z()),
             tolerance,
@@ -881,7 +881,7 @@ fn conical_solid3d_line3d_intersection_raw<T: Scalar>(
     let point_on_line = Point3D::new(px, py, pz);
     point_intersection_if(
         &point_on_line,
-        ConicalSolid3DMeasure::contains_point_tolerance(cone, (px, py, pz), tolerance),
+        ConicalSolid3DContainment::contains_point_tolerance(cone, (px, py, pz), tolerance),
     )
 }
 
@@ -905,7 +905,7 @@ fn conical_solid3d_ray3d_intersection_raw<T: Scalar>(
     let origin = ray.origin();
     point_intersection_if(
         &origin,
-        ConicalSolid3DMeasure::contains_point_tolerance(
+        ConicalSolid3DContainment::contains_point_tolerance(
             cone,
             (origin.x(), origin.y(), origin.z()),
             tolerance,
@@ -933,7 +933,7 @@ fn conical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     let start = segment.start();
     point_intersection_if(
         &start,
-        ConicalSolid3DMeasure::contains_point_tolerance(
+        ConicalSolid3DContainment::contains_point_tolerance(
             cone,
             (start.x(), start.y(), start.z()),
             tolerance,

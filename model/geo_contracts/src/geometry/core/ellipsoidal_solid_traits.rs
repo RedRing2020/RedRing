@@ -1,8 +1,4 @@
-//! EllipsoidalSolid Core Traits - 楕円体ソリッドの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! EllipsoidalSolid trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -57,18 +53,32 @@ pub trait EllipsoidalSolid3DProperties<T: Scalar> {
     fn is_centered_at_origin(&self) -> bool;
 }
 
-pub trait EllipsoidalSolid3DMeasure<T: Scalar> {
+pub trait EllipsoidalSolid3DDerived<T: Scalar> {
     fn volume(&self) -> T;
     fn surface_area(&self) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn distance_to_surface(&self, point: (T, T, T)) -> T;
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
-    fn is_on_surface(&self, point: (T, T, T)) -> bool;
     fn is_degenerate(&self) -> bool;
 }
 
+pub trait EllipsoidalSolid3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+    fn is_on_surface(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait EllipsoidalSolid3DDistance<T: Scalar> {
+    fn distance_to_surface(&self, point: (T, T, T)) -> T;
+}
+
+pub trait EllipsoidalSolid3DProjection<T: Scalar> {
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
+}
+
 pub trait EllipsoidalSolid3DCore<T: Scalar>:
-    EllipsoidalSolid3DConstructor<T> + EllipsoidalSolid3DProperties<T> + EllipsoidalSolid3DMeasure<T>
+    EllipsoidalSolid3DConstructor<T> + EllipsoidalSolid3DProperties<T>
+{
+}
+
+impl<T: Scalar, Solid> EllipsoidalSolid3DCore<T> for Solid where
+    Solid: EllipsoidalSolid3DConstructor<T> + EllipsoidalSolid3DProperties<T>
 {
 }

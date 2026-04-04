@@ -12,7 +12,7 @@ use crate::{
     SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSolid3DMeasure,
+    Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSolid3DDistance,
     CylindricalSolid3DProperties, CylindricalSurface3DDistance, CylindricalSurface3DProperties,
     Ellipse3DMeasure, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
     SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
@@ -112,7 +112,7 @@ pub fn cylindrical_solid3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
         cyl,
         (point.x(), point.y(), point.z()),
     ) <= tolerance
@@ -124,7 +124,7 @@ pub fn cylindrical_solid3d_circle3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (cx, cy, cz) = circle.center();
-    <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(cyl, (cx, cy, cz))
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(cyl, (cx, cy, cz))
         <= tolerance
 }
 
@@ -135,11 +135,11 @@ pub fn cylindrical_solid3d_line_segment3d_collides<T: Scalar>(
 ) -> bool {
     let s = segment.start();
     let e = segment.end();
-    <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
         cyl,
         (s.x(), s.y(), s.z()),
     ) <= tolerance
-        || <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+        || <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
             cyl,
             (e.x(), e.y(), e.z()),
         ) <= tolerance
@@ -151,7 +151,7 @@ pub fn cylindrical_solid3d_infinite_line3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (px, py, pz) = line.point();
-    <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(cyl, (px, py, pz))
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(cyl, (px, py, pz))
         <= tolerance
 }
 
@@ -161,7 +161,7 @@ pub fn cylindrical_solid3d_ray3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let o = ray.origin();
-    <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
         cyl,
         (o.x(), o.y(), o.z()),
     ) <= tolerance
@@ -175,13 +175,13 @@ pub fn cylindrical_solid3d_triangle3d_collides<T: Scalar>(
     let (ax, ay, az) = triangle.vertex_a();
     let (bx, by, bz) = triangle.vertex_b();
     let (cx, cy, cz) = triangle.vertex_c();
-    <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(cyl, (ax, ay, az))
+    <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(cyl, (ax, ay, az))
         <= tolerance
-        || <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+        || <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
             cyl,
             (bx, by, bz),
         ) <= tolerance
-        || <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+        || <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
             cyl,
             (cx, cy, cz),
         ) <= tolerance

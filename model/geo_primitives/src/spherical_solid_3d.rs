@@ -276,7 +276,8 @@ impl<T: Scalar> SphericalSolid3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    SphericalSolid3DConstructor, SphericalSolid3DCore, SphericalSolid3DMeasure,
+    SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDerived,
+    SphericalSolid3DDistance, SphericalSolid3DEvaluation, SphericalSolid3DProjection,
     SphericalSolid3DProperties as ContractsSphericalSolid3DProperties,
 };
 
@@ -390,7 +391,7 @@ impl<T: Scalar> ContractsSphericalSolid3DProperties<T> for SphericalSolid3D<T> {
     }
 }
 
-impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
+impl<T: Scalar> SphericalSolid3DDerived<T> for SphericalSolid3D<T> {
     fn volume(&self) -> T {
         self.volume()
     }
@@ -399,16 +400,32 @@ impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
         self.surface_area()
     }
 
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let c = self.center_internal();
+        let r = self.radius_internal();
+
+        let min = (c.x() - r, c.y() - r, c.z() - r);
+        let max = (c.x() + r, c.y() + r, c.z() + r);
+
+        (min, max)
+    }
+}
+
+impl<T: Scalar> SphericalSolid3DContainment<T> for SphericalSolid3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.contains_point(point_3d)
     }
+}
 
+impl<T: Scalar> SphericalSolid3DDistance<T> for SphericalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(point_3d).abs()
     }
+}
 
+impl<T: Scalar> SphericalSolid3DEvaluation<T> for SphericalSolid3D<T> {
     fn point_at_latlong(&self, latitude: T, longitude: T) -> (T, T, T) {
         let c = self.center_internal();
         let r = self.radius_internal();
@@ -424,17 +441,9 @@ impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
 
         (x, y, z)
     }
+}
 
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let c = self.center_internal();
-        let r = self.radius_internal();
-
-        let min = (c.x() - r, c.y() - r, c.z() - r);
-        let max = (c.x() + r, c.y() + r, c.z() + r);
-
-        (min, max)
-    }
-
+impl<T: Scalar> SphericalSolid3DProjection<T> for SphericalSolid3D<T> {
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
         let c = self.center_internal();
         let r = self.radius_internal();
@@ -457,8 +466,6 @@ impl<T: Scalar> SphericalSolid3DMeasure<T> for SphericalSolid3D<T> {
         (surface_point.x(), surface_point.y(), surface_point.z())
     }
 }
-
-impl<T: Scalar> SphericalSolid3DCore<T> for SphericalSolid3D<T> {}
 
 impl<T: Scalar> IntersectsRelation<Self> for SphericalSolid3D<T> {
     fn intersects(&self, other: &Self) -> bool {

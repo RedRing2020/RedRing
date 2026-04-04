@@ -29,7 +29,7 @@ use crate::{
 };
 use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
 use geo_contracts::{
-    BasicCollision, Circle3DProperties, CylindricalSolid3DMeasure, InfiniteLine3DProperties,
+    BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, InfiniteLine3DProperties,
     Plane3DProperties, Scalar,
 };
 use geo_core::Point3D as CorePoint3D;
@@ -527,7 +527,7 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
 
             // 円柱の distance_to_point メソッドを使用
             let distance =
-                <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+                <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
                     cylinder,
                     (curve_point.x(), curve_point.y(), curve_point.z()),
                 );
@@ -827,7 +827,7 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
                 let v = v_min + dv * T::from_usize(j);
                 let p = self.0.evaluate_at(u, v);
 
-                let d = <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+                let d = <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
                     cylinder,
                     (p.x(), p.y(), p.z()),
                 );

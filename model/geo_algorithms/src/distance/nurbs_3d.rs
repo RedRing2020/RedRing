@@ -8,7 +8,7 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, NurbsCurve3D,
     Plane3D, Point3D, Ray3D, SphericalSolid3D,
 };
-use geo_contracts::{CylindricalSolid3DMeasure, DistanceConvergenceError, Scalar};
+use geo_contracts::{CylindricalSolid3DDistance, DistanceConvergenceError, Scalar};
 
 /// NurbsCurve3D-点 間の最短距離（フォールバック付き）
 pub fn nurbscurve3d_point3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, point: &Point3D<T>) -> T {
@@ -473,7 +473,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_try_distance<T: Scalar>(
         let u = u_min + delta_u * T::from_usize(i);
         let curve_vec = curve.evaluate_at(u);
         let curve_point = Point3D::new(curve_vec.x(), curve_vec.y(), curve_vec.z());
-        let d = <CylindricalSolid3D<T> as CylindricalSolid3DMeasure<T>>::distance_to_point(
+        let d = <CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point(
             cylinder,
             (curve_point.x(), curve_point.y(), curve_point.z()),
         );

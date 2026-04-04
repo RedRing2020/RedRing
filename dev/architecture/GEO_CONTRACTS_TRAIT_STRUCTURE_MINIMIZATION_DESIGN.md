@@ -418,6 +418,32 @@ analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`Spherical
 - `point_at_latlong` と `point_at_spherical` は補助 parameter 系だが、いずれも surface evaluation capability として扱う
 - `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は維持し、trait再分類だけを理由に module 増殖は行わない
 
+### Solid の再分類
+
+solid 群は `ConicalSolid3D`、`CylindricalSolid3D`、`SphericalSolid3D`、`TorusSolid3D`、`EllipsoidalSolid3D` を対象とする。
+これらは従来 `*Measure` に体積、表面積、包含判定、距離、境界箱、最近点、parameter 評価が混在していたため、surface 群と同様に capability を分離する。
+
+本整理では、solid family では primary measure vocabulary として `volume` と `surface_area` を `derived` に置き、点包含は `containment`、距離は `distance`、parameter 評価は `evaluation`、最近点は `projection` として扱う。旧 `*Measure` 集約 trait は保持しない。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| 各 `*Solid3DConstructor` | `definition` |
+| 各 `*Solid3DProperties` の定義パラメータ | `definition` |
+| `volume/surface_area/bounding_box` | `derived` |
+| `contains_point` / `contains_point_tolerance` / `is_on_surface` | `containment` |
+| `distance_to_point` / `distance_to_surface` | `distance` |
+| `point_at_conical` / `point_at_cylindrical` / `point_at_latlong` / `point_at_toroidal` | `evaluation` |
+| `closest_point_on_surface` | `projection` |
+| `is_self_intersecting` / `is_degenerate` | `derived` |
+| 各 `*Solid3DCore` | `Constructor + Properties` |
+
+補足:
+
+- solid でも `bounding_box` は relation ではなく unary `derived` capability とみなす
+- `is_on_surface` は点の境界 membership 判定なので containment に含める
+- `distance_to_surface` と `distance_to_point` は名称差を維持しつつ distance capability にまとめる
+- `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は現状維持を優先し、taxonomy 変更を理由に新規 module は追加しない
+
 ### Circle の再分類
 
 Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。
