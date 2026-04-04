@@ -89,43 +89,144 @@ pub trait Circle3DProperties<T: Scalar> {
     fn is_on_xy_plane(&self) -> bool;
 }
 
-// TODO(#318): Measure 契約は責務分離フェーズで shape definition から分離する。
-pub trait Circle2DMeasure<T: Scalar> {
+pub trait Circle2DDerived<T: Scalar> {
     fn circumference(&self) -> T;
     fn area(&self) -> T;
-    fn contains_point(&self, point: (T, T)) -> bool;
-    fn distance_to_point(&self, point: (T, T)) -> T;
-    fn point_on_circumference(&self, point: (T, T)) -> bool;
-    fn closest_point_to(&self, point: (T, T)) -> (T, T);
+}
+
+pub trait Circle2DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T);
 }
 
-pub trait Circle3DMeasure<T: Scalar> {
+pub trait Circle2DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T)) -> bool;
+    fn point_on_circumference(&self, point: (T, T)) -> bool;
+}
+
+pub trait Circle2DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T)) -> T;
+}
+
+pub trait Circle2DProjection<T: Scalar> {
+    fn closest_point_to(&self, point: (T, T)) -> (T, T);
+}
+
+pub trait Circle3DDerived<T: Scalar> {
     fn circumference(&self) -> T;
     fn area(&self) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-    fn point_on_circumference(&self, point: (T, T, T)) -> bool;
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
+}
+
+pub trait Circle3DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 
-pub trait Circle2DCore<T: Scalar>:
-    Circle2DConstructor<T> + Circle2DProperties<T> + Circle2DMeasure<T>
+pub trait Circle3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+    fn point_on_circumference(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait Circle3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait Circle3DProjection<T: Scalar> {
+    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
+}
+
+pub trait Circle2DMeasure<T: Scalar>:
+    Circle2DDerived<T>
+    + Circle2DEvaluation<T>
+    + Circle2DContainment<T>
+    + Circle2DDistance<T>
+    + Circle2DProjection<T>
+{
+    fn circumference(&self) -> T {
+        <Self as Circle2DDerived<T>>::circumference(self)
+    }
+
+    fn area(&self) -> T {
+        <Self as Circle2DDerived<T>>::area(self)
+    }
+
+    fn contains_point(&self, point: (T, T)) -> bool {
+        <Self as Circle2DContainment<T>>::contains_point(self, point)
+    }
+
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        <Self as Circle2DDistance<T>>::distance_to_point(self, point)
+    }
+
+    fn point_on_circumference(&self, point: (T, T)) -> bool {
+        <Self as Circle2DContainment<T>>::point_on_circumference(self, point)
+    }
+
+    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
+        <Self as Circle2DProjection<T>>::closest_point_to(self, point)
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        <Self as Circle2DEvaluation<T>>::point_at_parameter(self, t)
+    }
+}
+
+pub trait Circle3DMeasure<T: Scalar>:
+    Circle3DDerived<T>
+    + Circle3DEvaluation<T>
+    + Circle3DContainment<T>
+    + Circle3DDistance<T>
+    + Circle3DProjection<T>
+{
+    fn circumference(&self) -> T {
+        <Self as Circle3DDerived<T>>::circumference(self)
+    }
+
+    fn area(&self) -> T {
+        <Self as Circle3DDerived<T>>::area(self)
+    }
+
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        <Self as Circle3DContainment<T>>::contains_point(self, point)
+    }
+
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        <Self as Circle3DDistance<T>>::distance_to_point(self, point)
+    }
+
+    fn point_on_circumference(&self, point: (T, T, T)) -> bool {
+        <Self as Circle3DContainment<T>>::point_on_circumference(self, point)
+    }
+
+    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
+        <Self as Circle3DProjection<T>>::closest_point_to(self, point)
+    }
+
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        <Self as Circle3DEvaluation<T>>::point_at_parameter(self, t)
+    }
+}
+
+impl<T: Scalar, C> Circle2DMeasure<T> for C where
+    C: Circle2DDerived<T>
+        + Circle2DEvaluation<T>
+        + Circle2DContainment<T>
+        + Circle2DDistance<T>
+        + Circle2DProjection<T>
 {
 }
 
-pub trait Circle3DCore<T: Scalar>:
-    Circle3DConstructor<T> + Circle3DProperties<T> + Circle3DMeasure<T>
+impl<T: Scalar, C> Circle3DMeasure<T> for C where
+    C: Circle3DDerived<T>
+        + Circle3DEvaluation<T>
+        + Circle3DContainment<T>
+        + Circle3DDistance<T>
+        + Circle3DProjection<T>
 {
 }
 
-impl<T: Scalar, C> Circle2DCore<T> for C where
-    C: Circle2DConstructor<T> + Circle2DProperties<T> + Circle2DMeasure<T>
-{
-}
+pub trait Circle2DCore<T: Scalar>: Circle2DConstructor<T> + Circle2DProperties<T> {}
 
-impl<T: Scalar, C> Circle3DCore<T> for C where
-    C: Circle3DConstructor<T> + Circle3DProperties<T> + Circle3DMeasure<T>
-{
-}
+pub trait Circle3DCore<T: Scalar>: Circle3DConstructor<T> + Circle3DProperties<T> {}
+
+impl<T: Scalar, C> Circle2DCore<T> for C where C: Circle2DConstructor<T> + Circle2DProperties<T> {}
+
+impl<T: Scalar, C> Circle3DCore<T> for C where C: Circle3DConstructor<T> + Circle3DProperties<T> {}

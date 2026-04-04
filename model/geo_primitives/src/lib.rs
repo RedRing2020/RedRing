@@ -103,8 +103,14 @@ pub mod circle_2d;
 pub mod circle_2d_extensions;
 
 // Circle の Core trait定義 再公開
-pub use geo_contracts::{Circle2DConstructor, Circle2DMeasure, Circle2DProperties};
-pub use geo_contracts::{Circle3DConstructor, Circle3DMeasure, Circle3DProperties};
+pub use geo_contracts::{
+    Circle2DConstructor, Circle2DContainment, Circle2DCore, Circle2DDerived, Circle2DDistance,
+    Circle2DEvaluation, Circle2DMeasure, Circle2DProjection, Circle2DProperties,
+};
+pub use geo_contracts::{
+    Circle3DConstructor, Circle3DContainment, Circle3DCore, Circle3DDerived, Circle3DDistance,
+    Circle3DEvaluation, Circle3DMeasure, Circle3DProjection, Circle3DProperties,
+};
 
 // Arc の Core trait定義 再公開
 pub use geo_contracts::{
@@ -129,6 +135,12 @@ pub use geo_contracts::{
 pub use geo_contracts::{
     AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DMeasure,
     Ray2DProperties, Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
+};
+pub use geo_contracts::{
+    Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
+    Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties, Triangle3DConstructor,
+    Triangle3DContainment, Triangle3DCore, Triangle3DDerived, Triangle3DDistance,
+    Triangle3DMeasure, Triangle3DProperties,
 };
 pub mod ellipse_2d;
 pub mod ellipse_2d_foundation;
