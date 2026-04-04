@@ -304,6 +304,38 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 - `contains_point(point, tolerance)` の tolerance 引数は unary containment capability 側の責務として扱う
 - `bounding_box` は relation ではないため `operations` ではなく unary `derived` 側へ置く
 
+### Ellipse の再分類
+
+Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability は持たない。
+一方で、現行 API は `perimeter` と `measure` を併存させており、閉曲線の主語彙が曖昧である。
+
+本整理では、Ellipse の周回長語彙は `length` へ寄せず、閉曲線 family の primary vocabulary として `circumference` を採用する。
+`perimeter` は既存 API との互換語彙、`measure` は集約互換 API として後退させる。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `Ellipse2DConstructor` / `Ellipse3DConstructor` | `definition` |
+| `Ellipse2DProperties::center/semi_major_axis/semi_minor_axis/rotation` | `definition` |
+| `Ellipse3DProperties::center_3d/center_3d_tuple/normal/major_axis_direction/minor_axis_direction/semi_major_axis/semi_minor_axis` | `definition` |
+| `Ellipse2DDerived::eccentricity/focal_distance/focus1/focus2/linear_eccentricity/is_circle` | `derived` |
+| `Ellipse3DDerived::eccentricity/focal_distance/is_circle` | `derived` |
+| `Ellipse2DDerived::circumference/perimeter/measure/area` | `derived` |
+| `Ellipse3DDerived::circumference/perimeter/measure/area` | `derived` |
+| `Ellipse2DEvaluation::point_at_parameter` | `evaluation` |
+| `Ellipse3DEvaluation::point_at_parameter` | `evaluation` |
+| `Ellipse2DContainment::contains_point/point_on_boundary` | `containment` |
+| `Ellipse3DContainment::contains_point_3d` | `containment` |
+| `Ellipse2DDistance::distance_to_point` | `distance` |
+| `Ellipse3DDistance::distance_to_point_3d` | `distance` |
+| `Ellipse2DCore` / `Ellipse3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- Ellipse の周回長は `length` ではなく `circumference` を主語彙とする
+- `perimeter` は段階廃止候補だが、当面は `circumference` への互換 alias として残してよい
+- `measure` は新規責務説明には使わず、後方互換の集約 API としてのみ扱う
+- `focus1/focus2/focal_distance/eccentricity/linear_eccentricity/is_circle` は定義パラメータではなく unary `derived` とみなす
+
 ### Circle の再分類
 
 Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。

@@ -6,7 +6,8 @@ use crate::{
     ellipse_calculation_analysis, ellipse_calculation_strategy, Circle2D, Point2D, Vector2D,
 };
 use geo_contracts::{
-    default_distance_tolerance, Ellipse2DConstructor, Ellipse2DMeasure, Ellipse2DProperties, Scalar,
+    default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDerived,
+    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProperties, Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -427,9 +428,27 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
     fn rotation(&self) -> T {
         self.rotation
     }
+}
+
+impl<T: Scalar + From<f64>> Ellipse2DDerived<T> for Ellipse2D<T> {
+    fn area(&self) -> T {
+        Ellipse2D::area(self)
+    }
+
+    fn circumference(&self) -> T {
+        <Self as geo_contracts::EllipseCalculation<T>>::perimeter_ramanujan_ii(self)
+    }
+
+    fn perimeter(&self) -> T {
+        <Self as Ellipse2DDerived<T>>::circumference(self)
+    }
+
+    fn measure(&self) -> T {
+        <Self as Ellipse2DDerived<T>>::area(self)
+    }
 
     fn eccentricity(&self) -> T {
-        self.eccentricity()
+        Ellipse2D::eccentricity(self)
     }
 
     fn focal_distance(&self) -> T {
@@ -445,64 +464,44 @@ impl<T: Scalar> Ellipse2DProperties<T> for Ellipse2D<T> {
         let (_, f2) = self.foci();
         (f2.x(), f2.y())
     }
-}
-
-impl<T: Scalar + From<f64>> Ellipse2DMeasure<T> for Ellipse2D<T> {
-    fn measure(&self) -> T {
-        self.area()
-    }
-
-    fn perimeter(&self) -> T {
-        self.perimeter_ramanujan_ii()
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        let tolerance = default_distance_tolerance::<T>();
-        self.contains_point(&p, tolerance)
-    }
 
     fn is_circle(&self) -> bool {
         let tolerance = default_distance_tolerance::<T>();
         self.is_circle(tolerance)
     }
 
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        // パラメトリック方程式で楕円上の点を計算
-        let cos_t = t.cos();
-        let sin_t = t.sin();
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
-
-        // ローカル座標系での点
-        let x_local = self.semi_major * cos_t;
-        let y_local = self.semi_minor * sin_t;
-
-        // 回転変換
-        let x_rotated = x_local * cos_rot - y_local * sin_rot;
-        let y_rotated = x_local * sin_rot + y_local * cos_rot;
-
-        // 中心移動
-        (self.center.x() + x_rotated, self.center.y() + y_rotated)
+    fn linear_eccentricity(&self) -> T {
+        let a = self.semi_major;
+        let b = self.semi_minor;
+        (a * a - b * b).sqrt()
     }
+}
 
-    fn distance_to_point(&self, point: (T, T)) -> T {
+impl<T: Scalar + From<f64>> Ellipse2DEvaluation<T> for Ellipse2D<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let point = Ellipse2D::point_at_parameter(self, t);
+        (point.x(), point.y())
+    }
+}
+
+impl<T: Scalar + From<f64>> Ellipse2DContainment<T> for Ellipse2D<T> {
+    fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        self.distance_to_point(&p)
+        let tolerance = default_distance_tolerance::<T>();
+        Ellipse2D::contains_point(self, &p, tolerance)
     }
 
     fn point_on_boundary(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
         let tolerance = default_distance_tolerance::<T>();
-        // 点が楕円上にあるか判定：点から楕円周への距離が許容誤差以内
-        let dist = self.distance_to_point(&p);
+        let dist = Ellipse2D::distance_to_point(self, &p);
         dist <= tolerance
     }
+}
 
-    fn linear_eccentricity(&self) -> T {
-        // 線形離心率 c = sqrt(a^2 - b^2)
-        let a = self.semi_major;
-        let b = self.semi_minor;
-        (a * a - b * b).sqrt()
+impl<T: Scalar + From<f64>> Ellipse2DDistance<T> for Ellipse2D<T> {
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        Ellipse2D::distance_to_point(self, &p)
     }
 }

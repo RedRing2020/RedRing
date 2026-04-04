@@ -139,6 +139,12 @@ pub use geo_contracts::{
     Ray2DProperties, Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
 };
 pub use geo_contracts::{
+    Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
+    Ellipse2DEvaluation, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
+    Ellipse3DContainment, Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation,
+    Ellipse3DMeasure, Ellipse3DProperties,
+};
+pub use geo_contracts::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
     EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DMeasure, EllipseArc2DProperties,
     EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived,

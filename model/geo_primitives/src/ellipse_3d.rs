@@ -8,7 +8,10 @@ use crate::{
 };
 use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
-use geo_contracts::{Ellipse3DConstructor, Ellipse3DMeasure, Ellipse3DProperties, Scalar};
+use geo_contracts::{
+    Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
+    Ellipse3DEvaluation, Ellipse3DProperties, Scalar,
+};
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
 /// 3次元楕円（Core実装）
@@ -398,44 +401,57 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
     fn semi_minor_axis(&self) -> T {
         self.semi_minor_axis
     }
+}
+
+impl<T: Scalar + From<f64>> Ellipse3DDerived<T> for Ellipse3D<T> {
+    fn area(&self) -> T {
+        Ellipse3D::area(self)
+    }
+
+    fn circumference(&self) -> T {
+        <Self as geo_contracts::EllipseCalculation<T>>::perimeter_ramanujan_ii(self)
+    }
+
+    fn perimeter(&self) -> T {
+        <Self as Ellipse3DDerived<T>>::circumference(self)
+    }
+
+    fn measure(&self) -> T {
+        <Self as Ellipse3DDerived<T>>::area(self)
+    }
 
     /// 離心率を取得
     fn eccentricity(&self) -> T {
-        self.eccentricity()
-    }
-}
-
-impl<T: Scalar + From<f64>> Ellipse3DMeasure<T> for Ellipse3D<T> {
-    /// 3D空間での点が楕円内部にあるかを判定
-    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
-        self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
+        Ellipse3D::eccentricity(self)
     }
 
-    /// 3D空間での点から楕円への最短距離を計算
-    fn distance_to_point_3d(&self, point: (T, T, T)) -> T {
-        self.distance_to_point_3d_internal(point)
-    }
-
-    /// 楕円の面積を計算
-    fn measure(&self) -> T {
-        self.area()
-    }
-
-    /// 楕円の周長を計算（近似）
-    fn perimeter(&self) -> T {
-        self.perimeter_ramanujan_ii()
-    }
-
-    /// パラメータ t における楕円上の点を取得（0 <= t < 2π）
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let p = self.point_at_parameter(t);
-        (p.x(), p.y(), p.z())
+    fn focal_distance(&self) -> T {
+        geo_contracts::EllipseCalculation::focal_distance(self)
     }
 
     /// 楕円が円かどうか判定
     fn is_circle(&self) -> bool {
         let tolerance = default_distance_tolerance::<T>();
         (self.semi_major_axis - self.semi_minor_axis).abs() <= tolerance
+    }
+}
+
+impl<T: Scalar + From<f64>> Ellipse3DEvaluation<T> for Ellipse3D<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        let p = Ellipse3D::point_at_parameter(self, t);
+        (p.x(), p.y(), p.z())
+    }
+}
+
+impl<T: Scalar + From<f64>> Ellipse3DContainment<T> for Ellipse3D<T> {
+    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
+        self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
+    }
+}
+
+impl<T: Scalar + From<f64>> Ellipse3DDistance<T> for Ellipse3D<T> {
+    fn distance_to_point_3d(&self, point: (T, T, T)) -> T {
+        self.distance_to_point_3d_internal(point)
     }
 }
 
