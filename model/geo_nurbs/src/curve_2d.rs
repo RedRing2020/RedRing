@@ -6,7 +6,7 @@
 use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector2;
 use geo_contracts::{
-    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
+    NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
 };
 
 /// 重み配列の効率的管理（2D曲線用）
@@ -262,10 +262,6 @@ impl<T: Scalar> NurbsCurve2D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits 実装
-// ============================================================================
-
 impl<T: Scalar> NurbsCurve2DConstructor<T> for NurbsCurve2D<T> {
     fn new(
         control_points: &[(T, T)],
@@ -328,7 +324,7 @@ impl<T: Scalar> NurbsCurve2DProperties<T> for NurbsCurve2D<T> {
     }
 }
 
-impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
+impl<T: Scalar> NurbsCurve2DEvaluation<T> for NurbsCurve2D<T> {
     fn point_at(&self, t: T) -> (T, T) {
         let point = self.evaluate_at(t);
         (point.x(), point.y())
@@ -345,7 +341,9 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
             (derivative.x() / len, derivative.y() / len)
         }
     }
+}
 
+impl<T: Scalar> NurbsCurve2DDerived<T> for NurbsCurve2D<T> {
     fn length(&self) -> T {
         self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS)
     }
@@ -372,12 +370,6 @@ impl<T: Scalar> NurbsCurve2DMeasure<T> for NurbsCurve2D<T> {
         }
     }
 }
-
-impl<T: Scalar> NurbsCurve2DCore<T> for NurbsCurve2D<T> {}
-
-// ============================================================================
-// テスト
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

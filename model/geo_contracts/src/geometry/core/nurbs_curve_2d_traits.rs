@@ -1,15 +1,8 @@
-//! NurbsCurve2D Core Traits - NURBS 2D曲線の3つのCore機能統合
-//!
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! NurbsCurve2D の trait定義を capability taxonomy に沿って分離する。
 
 use crate::Scalar;
 
-// ============================================================================
-// 1. Constructor Traits - NurbsCurve2D生成機能
-// ============================================================================
-
-/// NurbsCurve2D生成のためのConstructorトレイト
+/// NurbsCurve2D の生成 trait
 pub trait NurbsCurve2DConstructor<T: Scalar> {
     /// NURBS曲線を作成
     ///
@@ -45,11 +38,7 @@ pub trait NurbsCurve2DConstructor<T: Scalar> {
         Self: Sized;
 }
 
-// ============================================================================
-// 2. Properties Traits - NurbsCurve2D基本情報取得
-// ============================================================================
-
-/// NurbsCurve2D基本プロパティ取得トレイト
+/// NurbsCurve2D の定義パラメータ
 pub trait NurbsCurve2DProperties<T: Scalar> {
     /// NURBS次数を取得
     fn degree(&self) -> usize;
@@ -69,18 +58,17 @@ pub trait NurbsCurve2DProperties<T: Scalar> {
     }
 }
 
-// ============================================================================
-// 3. Measure Traits - NurbsCurve2D測定・評価機能
-// ============================================================================
-
-/// NurbsCurve2D測定・評価機能トレイト
-pub trait NurbsCurve2DMeasure<T: Scalar> {
+/// NurbsCurve2D の評価
+pub trait NurbsCurve2DEvaluation<T: Scalar> {
     /// パラメータ t での曲線上の点を計算
     fn point_at(&self, t: T) -> (T, T);
 
     /// パラメータ t での接線ベクトルを計算
     fn tangent_at(&self, t: T) -> (T, T);
+}
 
+/// NurbsCurve2D の派生量
+pub trait NurbsCurve2DDerived<T: Scalar> {
     /// 曲線の長さを計算（数値積分により近似計算）
     fn length(&self) -> T;
 
@@ -88,12 +76,39 @@ pub trait NurbsCurve2DMeasure<T: Scalar> {
     fn curvature_at(&self, t: T) -> T;
 }
 
-// ============================================================================
-// 4. Core統合トレイト
-// ============================================================================
+/// NurbsCurve2D の後方互換集約 trait
+pub trait NurbsCurve2DMeasure<T: Scalar>:
+    NurbsCurve2DEvaluation<T> + NurbsCurve2DDerived<T>
+{
+    fn point_at(&self, t: T) -> (T, T) {
+        <Self as NurbsCurve2DEvaluation<T>>::point_at(self, t)
+    }
 
-/// NurbsCurve2DのCore機能を統合するトレイト
+    fn tangent_at(&self, t: T) -> (T, T) {
+        <Self as NurbsCurve2DEvaluation<T>>::tangent_at(self, t)
+    }
+
+    fn length(&self) -> T {
+        <Self as NurbsCurve2DDerived<T>>::length(self)
+    }
+
+    fn curvature_at(&self, t: T) -> T {
+        <Self as NurbsCurve2DDerived<T>>::curvature_at(self, t)
+    }
+}
+
+/// NurbsCurve2D の互換 Core trait
 pub trait NurbsCurve2DCore<T: Scalar>:
-    NurbsCurve2DConstructor<T> + NurbsCurve2DProperties<T> + NurbsCurve2DMeasure<T>
+    NurbsCurve2DConstructor<T> + NurbsCurve2DProperties<T>
+{
+}
+
+impl<T: Scalar, Curve> NurbsCurve2DMeasure<T> for Curve where
+    Curve: NurbsCurve2DEvaluation<T> + NurbsCurve2DDerived<T>
+{
+}
+
+impl<T: Scalar, Curve> NurbsCurve2DCore<T> for Curve where
+    Curve: NurbsCurve2DConstructor<T> + NurbsCurve2DProperties<T>
 {
 }

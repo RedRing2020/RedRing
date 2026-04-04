@@ -1,15 +1,8 @@
-//! NurbsCurve3D Core Traits - NURBS曲線の3つのCore機能統合
-//!
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! NurbsCurve3D の trait定義を capability taxonomy に沿って分離する。
 
 use crate::Scalar;
 
-// ============================================================================
-// 1. Constructor Traits - NURBS Curve生成機能
-// ============================================================================
-
-/// NurbsCurve3D生成のためのConstructorトレイト
+/// NurbsCurve3D の生成 trait
 pub trait NurbsCurve3DConstructor<T: Scalar> {
     /// 基本コンストラクタ（次数、ノット、制御点、重み）
     ///
@@ -38,11 +31,7 @@ pub trait NurbsCurve3DConstructor<T: Scalar> {
         Self: Sized;
 }
 
-// ============================================================================
-// 2. Properties Traits - NURBS Curve基本情報取得
-// ============================================================================
-
-/// NurbsCurve3D基本プロパティ取得トレイト
+/// NurbsCurve3D の定義パラメータ
 pub trait NurbsCurve3DProperties<T: Scalar> {
     /// NURBS曲線の次数を取得
     fn degree(&self) -> usize;
@@ -68,18 +57,17 @@ pub trait NurbsCurve3DProperties<T: Scalar> {
     fn coordinates(&self) -> &[T];
 }
 
-// ============================================================================
-// 3. Measure Traits - NURBS Curve計量・評価機能
-// ============================================================================
-
-/// NurbsCurve3D計量・評価トレイト
-pub trait NurbsCurve3DMeasure<T: Scalar> {
+/// NurbsCurve3D の派生量
+pub trait NurbsCurve3DDerived<T: Scalar> {
     /// 指定されたパラメータ範囲の曲線長を計算（数値積分）
     fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T;
 
     /// 曲線全体の長さを計算
     fn arc_length_total(&self, tolerance: T) -> T;
+}
 
+/// NurbsCurve3D の評価
+pub trait NurbsCurve3DEvaluation<T: Scalar> {
     /// 指定された曲線長に対応するパラメータ値を計算
     fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T>;
 
@@ -87,12 +75,39 @@ pub trait NurbsCurve3DMeasure<T: Scalar> {
     fn evaluate(&self, u: T) -> Option<(T, T, T)>;
 }
 
-// ============================================================================
-// 4. Core統合トレイト
-// ============================================================================
+/// NurbsCurve3D の後方互換集約 trait
+pub trait NurbsCurve3DMeasure<T: Scalar>:
+    NurbsCurve3DDerived<T> + NurbsCurve3DEvaluation<T>
+{
+    fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T {
+        <Self as NurbsCurve3DDerived<T>>::arc_length(self, u_start, u_end, tolerance)
+    }
 
-/// NurbsCurve3DのCore機能を統合するトレイト
+    fn arc_length_total(&self, tolerance: T) -> T {
+        <Self as NurbsCurve3DDerived<T>>::arc_length_total(self, tolerance)
+    }
+
+    fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T> {
+        <Self as NurbsCurve3DEvaluation<T>>::parameter_at_length(self, arc_length, tolerance)
+    }
+
+    fn evaluate(&self, u: T) -> Option<(T, T, T)> {
+        <Self as NurbsCurve3DEvaluation<T>>::evaluate(self, u)
+    }
+}
+
+/// NurbsCurve3D の互換 Core trait
 pub trait NurbsCurve3DCore<T: Scalar>:
-    NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T> + NurbsCurve3DMeasure<T>
+    NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>
+{
+}
+
+impl<T: Scalar, Curve> NurbsCurve3DMeasure<T> for Curve where
+    Curve: NurbsCurve3DDerived<T> + NurbsCurve3DEvaluation<T>
+{
+}
+
+impl<T: Scalar, Curve> NurbsCurve3DCore<T> for Curve where
+    Curve: NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>
 {
 }
