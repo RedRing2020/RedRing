@@ -361,6 +361,27 @@ NURBS curve は endpoint を shape 意味論の正本として持たず、parame
 - `arc_length(u_start, u_end, tolerance)` は区間に対する unary derived quantity とみなし、後方互換の `*Measure` から分離する
 - adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
 
+### NURBS Surface の再分類
+
+NURBS surface は curve family と異なり、UV parameter evaluation と surface area 語彙を中心に整理する。
+既存 API は `*Measure` に point evaluation、normal/tangent evaluation、surface area が混在しているため、少なくとも evaluation と derived を分ける必要がある。
+
+本整理では、surface family の primary measure vocabulary として `surface_area` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `NurbsSurface3DConstructor` | `definition` |
+| `NurbsSurface3DProperties::u_degree/v_degree/u_count/v_count/u_knots/v_knots/is_rational/coordinates/weights` | `definition` |
+| `NurbsSurface3DEvaluation::point_at_uv/normal_at/tangent_vectors_at` | `evaluation` |
+| `NurbsSurface3DDerived::surface_area` | `derived` |
+| `NurbsSurface3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- NURBS surface では `surface_area` を primary vocabulary とし、`measure` は新規責務説明の中心に置かない
+- `normal_at` と `tangent_vectors_at` は unary derived quantity ではなく、UV parameter に依存する evaluation capability として扱う
+- adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
+
 ### Circle の再分類
 
 Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。

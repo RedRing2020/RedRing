@@ -1,15 +1,8 @@
-//! NurbsSurface3D Core Traits - NURBSサーフェスの3つのCore機能統合
-//!
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! NurbsSurface3D の trait定義を capability taxonomy に沿って分離する。
 
 use crate::Scalar;
 
-// ============================================================================
-// 1. Constructor Traits - NurbsSurface3D生成機能
-// ============================================================================
-
-/// NurbsSurface3D生成のためのConstructorトレイト
+/// NurbsSurface3D の生成 trait
 pub trait NurbsSurface3DConstructor<T: Scalar> {
     /// NURBSサーフェスを作成
     ///
@@ -46,11 +39,7 @@ pub trait NurbsSurface3DConstructor<T: Scalar> {
         Self: Sized;
 }
 
-// ============================================================================
-// 2. Properties Traits - NurbsSurface3D基本情報取得
-// ============================================================================
-
-/// NurbsSurface3D基本プロパティ取得トレイト
+/// NurbsSurface3D の定義パラメータ
 pub trait NurbsSurface3DProperties<T: Scalar> {
     /// u方向のNURBS次数を取得
     fn u_degree(&self) -> usize;
@@ -80,31 +69,57 @@ pub trait NurbsSurface3DProperties<T: Scalar> {
     fn weights(&self) -> Option<&[T]>;
 }
 
-// ============================================================================
-// 3. Measure Traits - NurbsSurface3D測定・評価機能
-// ============================================================================
-
-/// NurbsSurface3D測定・評価機能トレイト
-pub trait NurbsSurface3DMeasure<T: Scalar> {
+/// NurbsSurface3D の評価
+pub trait NurbsSurface3DEvaluation<T: Scalar> {
     /// パラメータ座標(u, v)でのサーフェス上の点を計算
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
 
     /// パラメータ座標(u, v)での法線ベクトルを計算
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
 
-    /// サーフェスの表面積を計算（数値積分により近似計算）
-    fn surface_area(&self) -> T;
-
     /// パラメータ座標(u, v)での接線ベクトル(du, dv)を計算
     fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T));
 }
 
-// ============================================================================
-// 4. Core統合トレイト
-// ============================================================================
+/// NurbsSurface3D の派生量
+pub trait NurbsSurface3DDerived<T: Scalar> {
+    /// サーフェスの表面積を計算（数値積分により近似計算）
+    fn surface_area(&self) -> T;
+}
 
-/// NurbsSurface3DのCore機能を統合するトレイト
+/// NurbsSurface3D の後方互換集約 trait
+pub trait NurbsSurface3DMeasure<T: Scalar>:
+    NurbsSurface3DEvaluation<T> + NurbsSurface3DDerived<T>
+{
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        <Self as NurbsSurface3DEvaluation<T>>::point_at_uv(self, u, v)
+    }
+
+    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
+        <Self as NurbsSurface3DEvaluation<T>>::normal_at(self, u, v)
+    }
+
+    fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
+        <Self as NurbsSurface3DEvaluation<T>>::tangent_vectors_at(self, u, v)
+    }
+
+    fn surface_area(&self) -> T {
+        <Self as NurbsSurface3DDerived<T>>::surface_area(self)
+    }
+}
+
+/// NurbsSurface3D の互換 Core trait
 pub trait NurbsSurface3DCore<T: Scalar>:
-    NurbsSurface3DConstructor<T> + NurbsSurface3DProperties<T> + NurbsSurface3DMeasure<T>
+    NurbsSurface3DConstructor<T> + NurbsSurface3DProperties<T>
+{
+}
+
+impl<T: Scalar, Surface> NurbsSurface3DMeasure<T> for Surface where
+    Surface: NurbsSurface3DEvaluation<T> + NurbsSurface3DDerived<T>
+{
+}
+
+impl<T: Scalar, Surface> NurbsSurface3DCore<T> for Surface where
+    Surface: NurbsSurface3DConstructor<T> + NurbsSurface3DProperties<T>
 {
 }

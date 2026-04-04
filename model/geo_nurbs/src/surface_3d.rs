@@ -5,6 +5,10 @@
 
 use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector3;
+use geo_contracts::{
+    NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
+    NurbsSurface3DProperties,
+};
 
 /// 重み配列の効率的管理
 #[derive(Debug, Clone)]
@@ -440,14 +444,6 @@ impl<T: Scalar> NurbsSurface3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits 実装
-// ============================================================================
-
-use geo_contracts::{
-    NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
-};
-
 impl<T: Scalar> NurbsSurface3DConstructor<T> for NurbsSurface3D<T> {
     fn new(
         control_points: Vec<Vec<(T, T, T)>>,
@@ -571,7 +567,7 @@ impl<T: Scalar> NurbsSurface3DProperties<T> for NurbsSurface3D<T> {
     }
 }
 
-impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
+impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
         let point = self.evaluate_at(u, v);
         (point.x(), point.y(), point.z())
@@ -600,6 +596,15 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
         }
     }
 
+    fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
+        let du = self.u_derivative_at(u, v);
+        let dv = self.v_derivative_at(u, v);
+
+        ((du.x(), du.y(), du.z()), (dv.x(), dv.y(), dv.z()))
+    }
+}
+
+impl<T: Scalar> NurbsSurface3DDerived<T> for NurbsSurface3D<T> {
     #[allow(clippy::similar_names)]
     fn surface_area(&self) -> T {
         // 簡易実装: 中央差分で近似
@@ -630,16 +635,7 @@ impl<T: Scalar> NurbsSurface3DMeasure<T> for NurbsSurface3D<T> {
 
         total_area
     }
-
-    fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
-        let du = self.u_derivative_at(u, v);
-        let dv = self.v_derivative_at(u, v);
-
-        ((du.x(), du.y(), du.z()), (dv.x(), dv.y(), dv.z()))
-    }
 }
-
-impl<T: Scalar> NurbsSurface3DCore<T> for NurbsSurface3D<T> {}
 
 // ============================================================================
 // テスト
