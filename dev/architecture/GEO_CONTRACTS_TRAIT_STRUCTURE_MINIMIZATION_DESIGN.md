@@ -243,6 +243,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 - `LineSegment` では endpoint が shape 意味論上の正本なので、`start/end/midpoint/length` を `Properties` に残す方針を維持する
 - `measure` は primary vocabulary ではなく、`derived` 側の互換 API とみなす
+- 実装進捗として `LineSegment2DMeasure` / `LineSegment3DMeasure` は削除済みで、export は capability trait のみとする
 
 ### Arc の再分類
 
@@ -782,7 +783,8 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 設計反映:
 
 - `*Core` は `Constructor + Properties` の統合 alias に縮小する
-- 旧 `*Measure` は後方互換のために集約 trait として残してよいが、新規実装の責務配置はそこで説明しない
+- 実装進捗として `InfiniteLine2D/3D` と `Ray2D/3D` の旧 `*Measure` 集約 trait は削除済みで、責務は capability trait に直接分離する
+- 実装進捗として `Rect2D/3D` と `Plane3D` の旧 `*Measure` 集約 trait は削除済みで、責務は capability trait に直接分離する
 - `contains_point` は `Containment`
 - `point_at_parameter` / `parameter_for_point` / `point_to_uv` / `uv_to_point` は `Evaluation`
 - `closest_point` / `project_point` は `Projection`
@@ -794,6 +796,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `Measure` という名前のまま unary measure, relation, projection, transform を混在させると、AABB 後に採用した taxonomy と説明軸が揃わないから
 - 先行対象で capability taxonomy を分けておくと、後続の `Circle` / `Triangle` / solid / surface にも同じ軸で横展開できるから
+- 実装進捗として `Triangle2D/3D` の旧 `*Measure` 集約 trait は削除済みで、面 shape でも同じ capability 軸へ統一できるから
 
 - これは shape の定義でも一般的な単一 shape metadata でもなく、近似式・数値計算戦略の選択そのものだから
 - capability としても algorithm 寄りであり、他の operations 群と同じ層に置く方が自然だから

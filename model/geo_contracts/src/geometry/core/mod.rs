@@ -86,18 +86,18 @@ pub use ellipsoidal_surface_traits::{
 };
 pub use infinite_line_traits::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DCore,
-    InfiniteLine2DDistance, InfiniteLine2DEvaluation, InfiniteLine2DMeasure,
-    InfiniteLine2DProjection, InfiniteLine2DProperties, InfiniteLine2DTransform,
-    InfiniteLine3DConstructor, InfiniteLine3DContainment, InfiniteLine3DCore,
-    InfiniteLine3DDistance, InfiniteLine3DEvaluation, InfiniteLine3DMeasure,
-    InfiniteLine3DProjection, InfiniteLine3DProperties, InfiniteLine3DTransform,
+    InfiniteLine2DDistance, InfiniteLine2DEvaluation, InfiniteLine2DProjection,
+    InfiniteLine2DProperties, InfiniteLine2DTransform, InfiniteLine3DConstructor,
+    InfiniteLine3DContainment, InfiniteLine3DCore, InfiniteLine3DDistance,
+    InfiniteLine3DEvaluation, InfiniteLine3DProjection, InfiniteLine3DProperties,
+    InfiniteLine3DTransform,
 };
 pub use linesegment_traits::{
     LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,
-    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DMeasure, LineSegment2DProjection,
+    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
     LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DCore,
-    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DMeasure,
-    LineSegment3DProjection, LineSegment3DProperties,
+    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
+    LineSegment3DProperties,
 };
 pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
@@ -113,22 +113,21 @@ pub use nurbs_surface_3d_traits::{
 };
 pub use plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DCore, Plane3DDerived, Plane3DDistance,
-    Plane3DEvaluation, Plane3DMeasure, Plane3DProjection, Plane3DProperties, Plane3DTransform,
+    Plane3DEvaluation, Plane3DProjection, Plane3DProperties, Plane3DTransform,
 };
 pub use point_traits::{
     Point2DConstructor, Point2DCore, Point2DProperties, Point3DConstructor, Point3DCore,
     Point3DProperties,
 };
 pub use ray_traits::{
-    Ray2DConstructor, Ray2DContainment, Ray2DCore, Ray2DDistance, Ray2DEvaluation, Ray2DMeasure,
-    Ray2DProjection, Ray2DProperties, Ray2DTransform, Ray3DConstructor, Ray3DContainment,
-    Ray3DCore, Ray3DDistance, Ray3DEvaluation, Ray3DMeasure, Ray3DProjection, Ray3DProperties,
-    Ray3DTransform,
+    Ray2DConstructor, Ray2DContainment, Ray2DCore, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
+    Ray2DProperties, Ray2DTransform, Ray3DConstructor, Ray3DContainment, Ray3DCore, Ray3DDistance,
+    Ray3DEvaluation, Ray3DProjection, Ray3DProperties, Ray3DTransform,
 };
 pub use rectangle_traits::{
-    Rect2DConstructor, Rect2DContainment, Rect2DCore, Rect2DDerived, Rect2DMeasure,
-    Rect2DProperties, Rect3DConstructor, Rect3DContainment, Rect3DCore, Rect3DDerived,
-    Rect3DEvaluation, Rect3DMeasure, Rect3DProperties,
+    Rect2DConstructor, Rect2DContainment, Rect2DCore, Rect2DDerived, Rect2DProperties,
+    Rect3DConstructor, Rect3DContainment, Rect3DCore, Rect3DDerived, Rect3DEvaluation,
+    Rect3DProperties,
 };
 pub use spherical_solid_traits::{
     SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DCore,
@@ -150,9 +149,8 @@ pub use torus_surface_traits::{
 };
 pub use triangle_traits::{
     Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
-    Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties, Triangle3DConstructor,
-    Triangle3DContainment, Triangle3DCore, Triangle3DDerived, Triangle3DDistance,
-    Triangle3DMeasure, Triangle3DProperties,
+    Triangle2DDistance, Triangle2DProperties, Triangle3DConstructor, Triangle3DContainment,
+    Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
 };
 pub use vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DProperties, Vector3DConstructor, Vector3DCore,

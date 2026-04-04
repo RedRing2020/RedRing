@@ -129,50 +129,6 @@ pub trait LineSegment3DProperties<T: Scalar> {
     fn is_on_yz_plane(&self) -> bool;
 }
 
-/// LineSegment2D計量・関係演算機能トレイト
-pub trait LineSegment2DMeasure<T: Scalar>:
-    LineSegment2DDerived<T>
-    + LineSegment2DDistance<T>
-    + LineSegment2DContainment<T>
-    + LineSegment2DEvaluation<T>
-    + LineSegment2DProjection<T>
-{
-    /// 線分の長さ（測度）
-    fn measure(&self) -> T {
-        <Self as LineSegment2DDerived<T>>::measure(self)
-    }
-
-    /// 点から線分への最短距離を計算
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        <Self as LineSegment2DDistance<T>>::distance_to_point(self, point)
-    }
-
-    /// 点が線分上にあるかを判定
-    fn contains_point(&self, point: (T, T)) -> bool {
-        <Self as LineSegment2DContainment<T>>::contains_point(self, point)
-    }
-
-    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        <Self as LineSegment2DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    /// 点から線分への最近点を計算
-    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
-        <Self as LineSegment2DProjection<T>>::closest_point_to(self, point)
-    }
-
-    /// 方向ベクトルを取得
-    fn direction_vector(&self) -> (T, T) {
-        <Self as LineSegment2DDerived<T>>::direction_vector(self)
-    }
-
-    /// 線分のベクトル表現（始点から終点）
-    fn as_vector(&self) -> (T, T) {
-        <Self as LineSegment2DDerived<T>>::as_vector(self)
-    }
-}
-
 pub trait LineSegment2DDerived<T: Scalar> {
     /// 互換目的の測度。意味は拘束点間距離とする
     fn measure(&self) -> T;
@@ -204,59 +160,6 @@ pub trait LineSegment2DProjection<T: Scalar> {
     fn closest_point_to(&self, point: (T, T)) -> (T, T);
 }
 
-impl<T: Scalar, L> LineSegment2DMeasure<T> for L where
-    L: LineSegment2DDerived<T>
-        + LineSegment2DDistance<T>
-        + LineSegment2DContainment<T>
-        + LineSegment2DEvaluation<T>
-        + LineSegment2DProjection<T>
-{
-}
-
-/// LineSegment3D計量・関係演算機能トレイト
-pub trait LineSegment3DMeasure<T: Scalar>:
-    LineSegment3DDerived<T>
-    + LineSegment3DDistance<T>
-    + LineSegment3DContainment<T>
-    + LineSegment3DEvaluation<T>
-    + LineSegment3DProjection<T>
-{
-    /// 線分の長さ（測度）
-    fn measure(&self) -> T {
-        <Self as LineSegment3DDerived<T>>::measure(self)
-    }
-
-    /// 点から線分への最短距離を計算
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        <Self as LineSegment3DDistance<T>>::distance_to_point(self, point)
-    }
-
-    /// 点が線分上にあるかを判定
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        <Self as LineSegment3DContainment<T>>::contains_point(self, point)
-    }
-
-    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        <Self as LineSegment3DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    /// 点から線分への最近点を計算
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
-        <Self as LineSegment3DProjection<T>>::closest_point_to(self, point)
-    }
-
-    /// 方向ベクトルを取得
-    fn direction_vector(&self) -> (T, T, T) {
-        <Self as LineSegment3DDerived<T>>::direction_vector(self)
-    }
-
-    /// 線分のベクトル表現（始点から終点）
-    fn as_vector(&self) -> (T, T, T) {
-        <Self as LineSegment3DDerived<T>>::as_vector(self)
-    }
-}
-
 pub trait LineSegment3DDerived<T: Scalar> {
     /// 互換目的の測度。意味は拘束点間距離とする
     fn measure(&self) -> T;
@@ -286,15 +189,6 @@ pub trait LineSegment3DEvaluation<T: Scalar> {
 pub trait LineSegment3DProjection<T: Scalar> {
     /// 点から線分への最近点を計算
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
-}
-
-impl<T: Scalar, L> LineSegment3DMeasure<T> for L where
-    L: LineSegment3DDerived<T>
-        + LineSegment3DDistance<T>
-        + LineSegment3DContainment<T>
-        + LineSegment3DEvaluation<T>
-        + LineSegment3DProjection<T>
-{
 }
 
 /// LineSegment2Dの3つのCore機能統合トレイト

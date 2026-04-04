@@ -143,55 +143,6 @@ pub trait Ray3DProperties<T: Scalar> {
     fn is_on_xy_plane(&self) -> bool;
 }
 
-pub trait Ray2DMeasure<T: Scalar>:
-    Ray2DEvaluation<T> + Ray2DProjection<T> + Ray2DDistance<T> + Ray2DContainment<T> + Ray2DTransform<T>
-{
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        <Self as Ray2DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn closest_point(&self, point: (T, T)) -> (T, T) {
-        <Self as Ray2DProjection<T>>::closest_point(self, point)
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        <Self as Ray2DDistance<T>>::distance_to_point(self, point)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        <Self as Ray2DContainment<T>>::contains_point(self, point)
-    }
-
-    fn parameter_for_point(&self, point: (T, T)) -> T {
-        <Self as Ray2DEvaluation<T>>::parameter_for_point(self, point)
-    }
-
-    fn reverse(&self) -> Self
-    where
-        Self: Sized,
-    {
-        <Self as Ray2DTransform<T>>::reverse(self)
-    }
-
-    fn translate(&self, offset: (T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        <Self as Ray2DTransform<T>>::translate(self, offset)
-    }
-
-    fn point_at_distance(&self, distance: T) -> (T, T) {
-        <Self as Ray2DEvaluation<T>>::point_at_distance(self, distance)
-    }
-
-    fn rotate_around_origin(&self, angle: T) -> Self
-    where
-        Self: Sized,
-    {
-        <Self as Ray2DTransform<T>>::rotate_around_origin(self, angle)
-    }
-}
-
 pub trait Ray2DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T);
     fn parameter_for_point(&self, point: (T, T)) -> T;
@@ -222,64 +173,6 @@ pub trait Ray2DTransform<T: Scalar> {
         Self: Sized;
 }
 
-impl<T: Scalar, R> Ray2DMeasure<T> for R where
-    R: Ray2DEvaluation<T>
-        + Ray2DProjection<T>
-        + Ray2DDistance<T>
-        + Ray2DContainment<T>
-        + Ray2DTransform<T>
-{
-}
-
-pub trait Ray3DMeasure<T: Scalar>:
-    Ray3DEvaluation<T> + Ray3DProjection<T> + Ray3DDistance<T> + Ray3DContainment<T> + Ray3DTransform<T>
-{
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        <Self as Ray3DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
-        <Self as Ray3DProjection<T>>::closest_point(self, point)
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        <Self as Ray3DDistance<T>>::distance_to_point(self, point)
-    }
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        <Self as Ray3DContainment<T>>::contains_point(self, point)
-    }
-
-    fn parameter_for_point(&self, point: (T, T, T)) -> T {
-        <Self as Ray3DEvaluation<T>>::parameter_for_point(self, point)
-    }
-
-    fn reverse(&self) -> Self
-    where
-        Self: Sized,
-    {
-        <Self as Ray3DTransform<T>>::reverse(self)
-    }
-
-    fn translate(&self, offset: (T, T, T)) -> Self
-    where
-        Self: Sized,
-    {
-        <Self as Ray3DTransform<T>>::translate(self, offset)
-    }
-
-    fn point_at_distance(&self, distance: T) -> (T, T, T) {
-        <Self as Ray3DEvaluation<T>>::point_at_distance(self, distance)
-    }
-
-    fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        <Self as Ray3DTransform<T>>::rotate_around_axis(self, axis, angle)
-    }
-}
-
 pub trait Ray3DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T, T);
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
@@ -308,15 +201,6 @@ pub trait Ray3DTransform<T: Scalar> {
     fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>
     where
         Self: Sized;
-}
-
-impl<T: Scalar, R> Ray3DMeasure<T> for R where
-    R: Ray3DEvaluation<T>
-        + Ray3DProjection<T>
-        + Ray3DDistance<T>
-        + Ray3DContainment<T>
-        + Ray3DTransform<T>
-{
 }
 
 pub trait Ray2DCore<T: Scalar>: Ray2DConstructor<T> + Ray2DProperties<T> {}

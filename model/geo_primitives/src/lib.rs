@@ -128,16 +128,15 @@ pub use geo_contracts::{
 
 // InfiniteLine の Core trait定義 再公開
 pub use geo_contracts::{
-    AngularRelation, ClosestPointPair, InfiniteLine2DConstructor, InfiniteLine2DMeasure,
-    InfiniteLine2DProperties, InfiniteLine3DConstructor, InfiniteLine3DMeasure,
-    InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation, ParallelRelation,
-    PerpendicularRelation, SameLineRelation, SkewRelation,
+    AngularRelation, ClosestPointPair, InfiniteLine2DConstructor, InfiniteLine2DProperties,
+    InfiniteLine3DConstructor, InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation,
+    ParallelRelation, PerpendicularRelation, SameLineRelation, SkewRelation,
 };
 
 // Ray の Core trait定義 再公開
 pub use geo_contracts::{
-    AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DMeasure,
-    Ray2DProperties, Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
+    AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DProperties,
+    Ray3DConstructor, Ray3DProperties,
 };
 pub use geo_contracts::{
     Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
@@ -152,16 +151,15 @@ pub use geo_contracts::{
 };
 pub use geo_contracts::{
     LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,
-    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DMeasure, LineSegment2DProjection,
+    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
     LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DCore,
-    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DMeasure,
-    LineSegment3DProjection, LineSegment3DProperties,
+    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
+    LineSegment3DProperties,
 };
 pub use geo_contracts::{
     Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
-    Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties, Triangle3DConstructor,
-    Triangle3DContainment, Triangle3DCore, Triangle3DDerived, Triangle3DDistance,
-    Triangle3DMeasure, Triangle3DProperties,
+    Triangle2DDistance, Triangle2DProperties, Triangle3DConstructor, Triangle3DContainment,
+    Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
 };
 pub mod ellipse_2d;
 pub mod ellipse_2d_foundation;
