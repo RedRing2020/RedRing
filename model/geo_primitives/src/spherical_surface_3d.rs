@@ -473,7 +473,8 @@ impl<T: Scalar> SphericalSurface3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DMeasure,
+    SphericalSurface3DConstructor, SphericalSurface3DDerived, SphericalSurface3DDistance,
+    SphericalSurface3DEvaluation, SphericalSurface3DProjection,
     SphericalSurface3DProperties as ContractsSphericalSurface3DProperties,
 };
 
@@ -578,11 +579,23 @@ impl<T: Scalar> ContractsSphericalSurface3DProperties<T> for SphericalSurface3D<
     }
 }
 
-impl<T: Scalar> SphericalSurface3DMeasure<T> for SphericalSurface3D<T> {
+impl<T: Scalar> SphericalSurface3DDerived<T> for SphericalSurface3D<T> {
     fn surface_area(&self) -> T {
         self.surface_area()
     }
 
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let c = self.center_internal();
+        let r = self.radius_internal();
+
+        let min = (c.x() - r, c.y() - r, c.z() - r);
+        let max = (c.x() + r, c.y() + r, c.z() + r);
+
+        (min, max)
+    }
+}
+
+impl<T: Scalar> SphericalSurface3DEvaluation<T> for SphericalSurface3D<T> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
         let point = self.point_at(u, v);
         (point.x(), point.y(), point.z())
@@ -591,11 +604,6 @@ impl<T: Scalar> SphericalSurface3DMeasure<T> for SphericalSurface3D<T> {
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
         let normal = self.normal_at(u, v);
         (normal.x(), normal.y(), normal.z())
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let point_3d = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_surface(point_3d).abs()
     }
 
     // Phase 2: 追加測定
@@ -614,38 +622,6 @@ impl<T: Scalar> SphericalSurface3DMeasure<T> for SphericalSurface3D<T> {
         let z = c.z() + r * sin_lat;
 
         (x, y, z)
-    }
-
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let c = self.center_internal();
-        let r = self.radius_internal();
-
-        let min = (c.x() - r, c.y() - r, c.z() - r);
-        let max = (c.x() + r, c.y() + r, c.z() + r);
-
-        (min, max)
-    }
-
-    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
-        let c = self.center_internal();
-        let r = self.radius_internal();
-        let p = Point3D::new(point.0, point.1, point.2);
-
-        let dir = Vector3D::from_points(&c, &p);
-        let len = dir.length();
-
-        if len < T::EPSILON {
-            return (c.x() + r, c.y(), c.z());
-        }
-
-        let normalized = dir / len;
-        let surface_point = Point3D::new(
-            c.x() + normalized.x() * r,
-            c.y() + normalized.y() * r,
-            c.z() + normalized.z() * r,
-        );
-
-        (surface_point.x(), surface_point.y(), surface_point.z())
     }
 
     fn tangent_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
@@ -668,7 +644,36 @@ impl<T: Scalar> SphericalSurface3DMeasure<T> for SphericalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> SphericalSurface3DCore<T> for SphericalSurface3D<T> {}
+impl<T: Scalar> SphericalSurface3DDistance<T> for SphericalSurface3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(point_3d).abs()
+    }
+}
+
+impl<T: Scalar> SphericalSurface3DProjection<T> for SphericalSurface3D<T> {
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
+        let c = self.center_internal();
+        let r = self.radius_internal();
+        let p = Point3D::new(point.0, point.1, point.2);
+
+        let dir = Vector3D::from_points(&c, &p);
+        let len = dir.length();
+
+        if len < T::EPSILON {
+            return (c.x() + r, c.y(), c.z());
+        }
+
+        let normalized = dir / len;
+        let surface_point = Point3D::new(
+            c.x() + normalized.x() * r,
+            c.y() + normalized.y() * r,
+            c.z() + normalized.z() * r,
+        );
+
+        (surface_point.x(), surface_point.y(), surface_point.z())
+    }
+}
 
 // ============================================================================
 // Display Implementation

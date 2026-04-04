@@ -13,9 +13,9 @@ use crate::{
 };
 use geo_contracts::{
     Arc3DMeasure, Arc3DProperties, Circle3DProperties, CylindricalSolid3DMeasure,
-    CylindricalSolid3DProperties, CylindricalSurface3DMeasure, CylindricalSurface3DProperties,
+    CylindricalSolid3DProperties, CylindricalSurface3DDistance, CylindricalSurface3DProperties,
     Ellipse3DMeasure, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DMeasure,
+    SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
     Triangle3DProperties,
 };
 
@@ -224,7 +224,7 @@ pub fn cylindrical_surface3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (point.x(), point.y(), point.z()),
     ) <= tolerance
@@ -236,7 +236,7 @@ pub fn cylindrical_surface3d_circle3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (cx, cy, cz) = circle.center();
-    <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (cx, cy, cz),
     ) <= tolerance
@@ -249,11 +249,11 @@ pub fn cylindrical_surface3d_line_segment3d_collides<T: Scalar>(
 ) -> bool {
     let s = segment.start();
     let e = segment.end();
-    <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (s.x(), s.y(), s.z()),
     ) <= tolerance
-        || <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+        || <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
             cyl,
             (e.x(), e.y(), e.z()),
         ) <= tolerance
@@ -265,7 +265,7 @@ pub fn cylindrical_surface3d_ray3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let o = ray.origin();
-    <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (o.x(), o.y(), o.z()),
     ) <= tolerance
@@ -277,7 +277,7 @@ pub fn cylindrical_surface3d_infinite_line3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (px, py, pz) = line.point();
-    <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (px, py, pz),
     ) <= tolerance
@@ -291,15 +291,15 @@ pub fn cylindrical_surface3d_triangle3d_collides<T: Scalar>(
     let (ax, ay, az) = triangle.vertex_a();
     let (bx, by, bz) = triangle.vertex_b();
     let (cx, cy, cz) = triangle.vertex_c();
-    <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (ax, ay, az),
     ) <= tolerance
-        || <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+        || <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
             cyl,
             (bx, by, bz),
         ) <= tolerance
-        || <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+        || <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
             cyl,
             (cx, cy, cz),
         ) <= tolerance
@@ -577,7 +577,7 @@ pub fn torus_surface3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <TorusSurface3D<T> as TorusSurface3DMeasure<T>>::distance_to_point(
+    <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
         torus,
         (point.x(), point.y(), point.z()),
     ) <= tolerance

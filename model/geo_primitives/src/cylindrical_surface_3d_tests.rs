@@ -8,7 +8,7 @@ mod tests {
     use crate::{CylindricalSurface3D, Point3D, Vector3D};
     use analysis::test_constants::TOLERANCE_F32;
     use approx::assert_relative_eq;
-    use geo_contracts::{CylindricalSurface3DMeasure, CylindricalSurface3DProperties, Scalar};
+    use geo_contracts::{CylindricalSurface3DDistance, CylindricalSurface3DProperties, Scalar};
 
     fn create_test_surface() -> CylindricalSurface3D<f64> {
         CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap()
@@ -186,17 +186,17 @@ mod tests {
 
         // サーフェス上の点（距離0）
         let surface_point = (5.0, 0.0, 0.0);
-        let distance = CylindricalSurface3DMeasure::distance_to_point(&surface, surface_point);
+        let distance = CylindricalSurface3DDistance::distance_to_point(&surface, surface_point);
         assert_relative_eq!(distance, 0.0, epsilon = 1e-10);
 
         // 内部の点
         let internal_point = (3.0, 0.0, 0.0);
-        let distance = CylindricalSurface3DMeasure::distance_to_point(&surface, internal_point);
+        let distance = CylindricalSurface3DDistance::distance_to_point(&surface, internal_point);
         assert_relative_eq!(distance, 2.0, epsilon = 1e-10);
 
         // 外部の点
         let external_point = (8.0, 0.0, 0.0);
-        let distance = CylindricalSurface3DMeasure::distance_to_point(&surface, external_point);
+        let distance = CylindricalSurface3DDistance::distance_to_point(&surface, external_point);
         assert_relative_eq!(distance, 3.0, epsilon = 1e-10);
     }
 

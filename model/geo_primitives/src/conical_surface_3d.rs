@@ -477,8 +477,8 @@ impl<T: Scalar> ConicalSurface3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DMeasure,
-    ConicalSurface3DProperties as ContractsConicalSurface3DProperties,
+    ConicalSurface3DConstructor, ConicalSurface3DDerived, ConicalSurface3DDistance,
+    ConicalSurface3DEvaluation, ConicalSurface3DProperties as ContractsConicalSurface3DProperties,
 };
 
 impl<T: Scalar> ConicalSurface3DConstructor<T> for ConicalSurface3D<T> {
@@ -554,13 +554,15 @@ impl<T: Scalar> ContractsConicalSurface3DProperties<T> for ConicalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> ConicalSurface3DMeasure<T> for ConicalSurface3D<T> {
+impl<T: Scalar> ConicalSurface3DDerived<T> for ConicalSurface3D<T> {
     fn surface_area(&self) -> T {
         T::PI
             * ContractsConicalSurface3DProperties::radius(self)
             * ContractsConicalSurface3DProperties::slant_height(self)
     }
+}
 
+impl<T: Scalar> ConicalSurface3DEvaluation<T> for ConicalSurface3D<T> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
         let p = self.point_at_uv(u, v);
         (p.x(), p.y(), p.z())
@@ -573,14 +575,14 @@ impl<T: Scalar> ConicalSurface3DMeasure<T> for ConicalSurface3D<T> {
             (T::ZERO, T::ZERO, T::ONE) // フォールバック
         }
     }
+}
 
+impl<T: Scalar> ConicalSurface3DDistance<T> for ConicalSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.distance_to_surface(&point_3d)
     }
 }
-
-impl<T: Scalar> ConicalSurface3DCore<T> for ConicalSurface3D<T> {}
 
 // ============================================================================
 // Standard Traits

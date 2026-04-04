@@ -1,8 +1,4 @@
-//! TorusSurface Core Traits - トーラスサーフェスの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! TorusSurface trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -35,14 +31,25 @@ pub trait TorusSurface3DProperties<T: Scalar> {
     fn tube_diameter(&self) -> T;
 }
 
-pub trait TorusSurface3DMeasure<T: Scalar> {
-    fn surface_area(&self) -> T;
+pub trait TorusSurface3DEvaluation<T: Scalar> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
+}
+
+pub trait TorusSurface3DDerived<T: Scalar> {
+    fn surface_area(&self) -> T;
+}
+
+pub trait TorusSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
 
 pub trait TorusSurface3DCore<T: Scalar>:
-    TorusSurface3DConstructor<T> + TorusSurface3DProperties<T> + TorusSurface3DMeasure<T>
+    TorusSurface3DConstructor<T> + TorusSurface3DProperties<T>
+{
+}
+
+impl<T: Scalar, Surface> TorusSurface3DCore<T> for Surface where
+    Surface: TorusSurface3DConstructor<T> + TorusSurface3DProperties<T>
 {
 }

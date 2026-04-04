@@ -250,8 +250,8 @@ impl TorusSurface3D<f64> {
 }
 
 use geo_contracts::{
-    TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure,
-    TorusSurface3DProperties as ContractsTorusSurface3DProperties,
+    TorusSurface3DConstructor, TorusSurface3DDerived, TorusSurface3DDistance,
+    TorusSurface3DEvaluation, TorusSurface3DProperties as ContractsTorusSurface3DProperties,
 };
 
 impl<T: Scalar> TorusSurface3DConstructor<T> for TorusSurface3D<T> {
@@ -311,11 +311,13 @@ impl<T: Scalar> ContractsTorusSurface3DProperties<T> for TorusSurface3D<T> {
     }
 }
 
-impl<T: Scalar> TorusSurface3DMeasure<T> for TorusSurface3D<T> {
+impl<T: Scalar> TorusSurface3DDerived<T> for TorusSurface3D<T> {
     fn surface_area(&self) -> T {
         self.surface_area()
     }
+}
 
+impl<T: Scalar> TorusSurface3DEvaluation<T> for TorusSurface3D<T> {
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
         let n = self.normal_at(u, v);
         (n.x(), n.y(), n.z())
@@ -350,7 +352,9 @@ impl<T: Scalar> TorusSurface3DMeasure<T> for TorusSurface3D<T> {
             origin.z() + total_offset.z(),
         )
     }
+}
 
+impl<T: Scalar> TorusSurface3DDistance<T> for TorusSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         // 簡易実装: トーラス表面への最短距離の近似計算
@@ -369,5 +373,3 @@ impl<T: Scalar> TorusSurface3DMeasure<T> for TorusSurface3D<T> {
         (cross_section_distance - self.minor_radius_internal()).abs()
     }
 }
-
-impl<T: Scalar> TorusSurface3DCore<T> for TorusSurface3D<T> {}

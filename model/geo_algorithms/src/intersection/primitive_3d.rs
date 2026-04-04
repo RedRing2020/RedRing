@@ -15,10 +15,10 @@ use crate::{
 };
 use geo_contracts::{
     Arc3DMeasure, Arc3DProperties, Circle3DProperties, ConicalSolid3DMeasure,
-    ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DMeasure,
+    ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
     CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
     InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
-    TorusSurface3DMeasure, Triangle3DProperties,
+    TorusSurface3DDistance, Triangle3DProperties,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -350,7 +350,7 @@ fn cylindrical_surface3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+        <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
             cyl,
             (point.x(), point.y(), point.z()),
         ) <= tolerance,
@@ -375,7 +375,7 @@ fn cylindrical_surface3d_circle3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let dist = <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    let dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (cx, cy, cz),
     );
@@ -405,13 +405,13 @@ fn cylindrical_surface3d_line_segment3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let s = segment.start();
     let e = segment.end();
-    if <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (s.x(), s.y(), s.z()),
     ) <= tolerance
     {
         Some(s)
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (e.x(), e.y(), e.z()),
     ) <= tolerance
@@ -442,19 +442,19 @@ fn cylindrical_surface3d_triangle3d_intersection_raw<T: Scalar>(
     let (ax, ay, az) = Triangle3DProperties::vertex_a(triangle);
     let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle);
-    if <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (ax, ay, az),
     ) <= tolerance
     {
         Some(Point3D::new(ax, ay, az))
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (bx, by, bz),
     ) <= tolerance
     {
         Some(Point3D::new(bx, by, bz))
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (cx, cy, cz),
     ) <= tolerance
@@ -516,11 +516,11 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
     let lhs_center = Point3D::new(lhs_center_tuple.0, lhs_center_tuple.1, lhs_center_tuple.2);
     let rhs_center = Point3D::new(rhs_center_tuple.0, rhs_center_tuple.1, rhs_center_tuple.2);
 
-    let lhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    let lhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         lhs,
         rhs_center_tuple,
     );
-    let rhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DMeasure<T>>::distance_to_point(
+    let rhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         rhs,
         lhs_center_tuple,
     );
@@ -1344,7 +1344,7 @@ fn torus_surface3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <TorusSurface3D<T> as TorusSurface3DMeasure<T>>::distance_to_point(
+        <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
             torus,
             (point.x(), point.y(), point.z()),
         ) <= tolerance,

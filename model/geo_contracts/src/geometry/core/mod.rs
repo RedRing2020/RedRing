@@ -46,16 +46,16 @@ pub use conical_solid_traits::{
     ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure, ConicalSolid3DProperties,
 };
 pub use conical_surface_traits::{
-    ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DMeasure,
-    ConicalSurface3DProperties,
+    ConicalSurface3DConstructor, ConicalSurface3DCore, ConicalSurface3DDerived,
+    ConicalSurface3DDistance, ConicalSurface3DEvaluation, ConicalSurface3DProperties,
 };
 pub use cylindrical_solid_traits::{
     CylindricalSolid3DConstructor, CylindricalSolid3DCore, CylindricalSolid3DMeasure,
     CylindricalSolid3DProperties,
 };
 pub use cylindrical_surface_traits::{
-    CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DMeasure,
-    CylindricalSurface3DProperties,
+    CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DDerived,
+    CylindricalSurface3DDistance, CylindricalSurface3DEvaluation, CylindricalSurface3DProperties,
 };
 pub use direction_traits::{
     Direction2DConstructor, Direction2DCore, Direction2DMeasure, Direction2DProperties,
@@ -78,8 +78,8 @@ pub use ellipsoidal_solid_traits::{
     EllipsoidalSolid3DProperties,
 };
 pub use ellipsoidal_surface_traits::{
-    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
-    EllipsoidalSurface3DProperties,
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DDerived,
+    EllipsoidalSurface3DDistance, EllipsoidalSurface3DEvaluation, EllipsoidalSurface3DProperties,
 };
 pub use infinite_line_traits::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DCore,
@@ -132,14 +132,16 @@ pub use spherical_solid_traits::{
     SphericalSolid3DProperties,
 };
 pub use spherical_surface_traits::{
-    SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DMeasure,
+    SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DDerived,
+    SphericalSurface3DDistance, SphericalSurface3DEvaluation, SphericalSurface3DProjection,
     SphericalSurface3DProperties,
 };
 pub use torus_solid_traits::{
     TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure, TorusSolid3DProperties,
 };
 pub use torus_surface_traits::{
-    TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure, TorusSurface3DProperties,
+    TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DDerived, TorusSurface3DDistance,
+    TorusSurface3DEvaluation, TorusSurface3DProperties,
 };
 pub use triangle_traits::{
     Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,

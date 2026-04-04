@@ -382,6 +382,42 @@ NURBS surface は curve family と異なり、UV parameter evaluation と surfac
 - `normal_at` と `tangent_vectors_at` は unary derived quantity ではなく、UV parameter に依存する evaluation capability として扱う
 - adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
 
+### Analytic Surface の再分類
+
+analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`SphericalSurface3D`、`TorusSurface3D`、`EllipsoidalSurface3D` を対象とする。
+これらは従来 `*Measure` に UV evaluation、表面積、距離、最近点、補助 parameter 系が混在していたが、pre-release 方針に従い旧 `*Measure` 集約 trait は保持しない。
+
+本整理では、surface family の primary measure vocabulary は `surface_area` を維持しつつ、analytic surface ごとに `evaluation`、`derived`、`distance`、必要に応じて `projection` へ分離する。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `ConicalSurface3DConstructor` / `CylindricalSurface3DConstructor` / `SphericalSurface3DConstructor` / `TorusSurface3DConstructor` / `EllipsoidalSurface3DConstructor` | `definition` |
+| 各 `*Surface3DProperties` の定義パラメータ | `definition` |
+| `ConicalSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `ConicalSurface3D::surface_area/slant_height` | `derived` |
+| `ConicalSurface3D::distance_to_point` | `distance` |
+| `CylindricalSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `CylindricalSurface3D::surface_area` | `derived` |
+| `CylindricalSurface3D::distance_to_point` | `distance` |
+| `SphericalSurface3D::point_at_uv/normal_at/point_at_latlong/tangent_at` | `evaluation` |
+| `SphericalSurface3D::surface_area/bounding_box` | `derived` |
+| `SphericalSurface3D::distance_to_point` | `distance` |
+| `SphericalSurface3D::closest_point` | `projection` |
+| `TorusSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `TorusSurface3D::surface_area` | `derived` |
+| `TorusSurface3D::distance_to_point` | `distance` |
+| `EllipsoidalSurface3D::point_at_uv/normal_at/point_at_spherical` | `evaluation` |
+| `EllipsoidalSurface3D::surface_area/bounding_box/volume/surface_area_knud_thomsen` | `derived` |
+| `EllipsoidalSurface3D::distance_to_point` | `distance` |
+| 各 `*Surface3DCore` | `Constructor + Properties` |
+
+補足:
+
+- analytic surface では `bounding_box` を relation ではなく unary `derived` capability とみなす
+- `closest_point` は `distance` に含めず、projection capability として独立させる
+- `point_at_latlong` と `point_at_spherical` は補助 parameter 系だが、いずれも surface evaluation capability として扱う
+- `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は維持し、trait再分類だけを理由に module 増殖は行わない
+
 ### Circle の再分類
 
 Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。

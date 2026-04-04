@@ -1,8 +1,4 @@
-//! EllipsoidalSurface Core Traits - 楕円体サーフェスの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! EllipsoidalSurface trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -56,20 +52,29 @@ pub trait EllipsoidalSurface3DProperties<T: Scalar> {
     fn is_oblate(&self) -> bool;
 }
 
-pub trait EllipsoidalSurface3DMeasure<T: Scalar> {
-    fn surface_area(&self) -> T;
+pub trait EllipsoidalSurface3DEvaluation<T: Scalar> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
     fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T);
+}
+
+pub trait EllipsoidalSurface3DDerived<T: Scalar> {
+    fn surface_area(&self) -> T;
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
     fn volume(&self) -> T;
     fn surface_area_knud_thomsen(&self) -> T;
 }
 
+pub trait EllipsoidalSurface3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
 pub trait EllipsoidalSurface3DCore<T: Scalar>:
-    EllipsoidalSurface3DConstructor<T>
-    + EllipsoidalSurface3DProperties<T>
-    + EllipsoidalSurface3DMeasure<T>
+    EllipsoidalSurface3DConstructor<T> + EllipsoidalSurface3DProperties<T>
+{
+}
+
+impl<T: Scalar, Surface> EllipsoidalSurface3DCore<T> for Surface where
+    Surface: EllipsoidalSurface3DConstructor<T> + EllipsoidalSurface3DProperties<T>
 {
 }
