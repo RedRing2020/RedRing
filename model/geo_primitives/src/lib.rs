@@ -114,8 +114,10 @@ pub use geo_contracts::{
 
 // Arc の Core trait定義 再公開
 pub use geo_contracts::{
-    Arc2DConstructor, Arc2DMeasure, Arc2DProperties, Arc3DConstructor, Arc3DMeasure,
-    Arc3DProperties,
+    Arc2DConstructor, Arc2DContainment, Arc2DCore, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
+    Arc2DEvaluation, Arc2DMeasure, Arc2DProperties, Arc2DSampling, Arc3DConstructor,
+    Arc3DContainment, Arc3DCore, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation,
+    Arc3DMeasure, Arc3DProperties,
 };
 
 pub mod circle_2d_metrics;
@@ -135,6 +137,19 @@ pub use geo_contracts::{
 pub use geo_contracts::{
     AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DMeasure,
     Ray2DProperties, Ray3DConstructor, Ray3DMeasure, Ray3DProperties,
+};
+pub use geo_contracts::{
+    EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
+    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DMeasure, EllipseArc2DProperties,
+    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DMeasure, EllipseArc3DProperties,
+};
+pub use geo_contracts::{
+    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,
+    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DMeasure, LineSegment2DProjection,
+    LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DCore,
+    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DMeasure,
+    LineSegment3DProjection, LineSegment3DProperties,
 };
 pub use geo_contracts::{
     Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
