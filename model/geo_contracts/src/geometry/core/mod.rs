@@ -68,8 +68,10 @@ pub use ellipse_arc_traits::{
     EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DMeasure, EllipseArc3DProperties,
 };
 pub use ellipse_traits::{
-    Ellipse2DConstructor, Ellipse2DCore, Ellipse2DMeasure, Ellipse2DProperties,
-    Ellipse3DConstructor, Ellipse3DCore, Ellipse3DMeasure, Ellipse3DProperties,
+    Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
+    Ellipse2DEvaluation, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
+    Ellipse3DContainment, Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation,
+    Ellipse3DMeasure, Ellipse3DProperties,
 };
 pub use ellipsoidal_solid_traits::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DCore, EllipsoidalSolid3DMeasure,
