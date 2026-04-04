@@ -61,8 +61,9 @@ pub use cylindrical_surface_traits::{
     CylindricalSurface3DDistance, CylindricalSurface3DEvaluation, CylindricalSurface3DProperties,
 };
 pub use direction_traits::{
-    Direction2DConstructor, Direction2DCore, Direction2DMeasure, Direction2DProperties,
-    Direction3DConstructor, Direction3DCore, Direction3DMeasure, Direction3DProperties,
+    Direction2DConstructor, Direction2DCore, Direction2DProperties, Direction2DRelation,
+    Direction2DTransform, Direction3DConstructor, Direction3DCore, Direction3DProperties,
+    Direction3DRelation, Direction3DTransform,
 };
 pub use ellipse_arc_traits::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
@@ -102,15 +103,15 @@ pub use linesegment_traits::{
 };
 pub use nurbs_curve_2d_traits::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
-    NurbsCurve2DMeasure, NurbsCurve2DProperties,
+    NurbsCurve2DProperties,
 };
 pub use nurbs_curve_3d_traits::{
     NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DDerived, NurbsCurve3DEvaluation,
-    NurbsCurve3DMeasure, NurbsCurve3DProperties,
+    NurbsCurve3DProperties,
 };
 pub use nurbs_surface_3d_traits::{
     NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
-    NurbsSurface3DMeasure, NurbsSurface3DProperties,
+    NurbsSurface3DProperties,
 };
 pub use plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DCore, Plane3DDerived, Plane3DDistance,

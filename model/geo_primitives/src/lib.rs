@@ -123,7 +123,9 @@ pub use geo_contracts::{
 pub mod circle_2d_metrics;
 pub mod direction_2d;
 pub mod direction_2d_extensions;
-pub use geo_contracts::{Direction3DConstructor, Direction3DMeasure, Direction3DProperties};
+pub use geo_contracts::{
+    Direction3DConstructor, Direction3DProperties, Direction3DRelation, Direction3DTransform,
+};
 
 // InfiniteLine の Core trait定義 再公開
 pub use geo_contracts::{

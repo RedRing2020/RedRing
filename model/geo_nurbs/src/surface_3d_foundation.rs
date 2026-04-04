@@ -4,7 +4,7 @@
 
 use crate::NurbsSurface3D;
 use crate::Scalar;
-use geo_contracts::NurbsSurface3DMeasure;
+use geo_contracts::NurbsSurface3DDerived;
 use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
 
 // ============================================================================
@@ -19,7 +19,7 @@ impl<T: Scalar> PrimitiveMetadata for NurbsSurface3D<T> {
 
 impl<T: Scalar> MeasureFoundation<T> for NurbsSurface3D<T> {
     fn measure(&self) -> Option<T> {
-        Some(<Self as NurbsSurface3DMeasure<T>>::surface_area(self))
+        Some(<Self as NurbsSurface3DDerived<T>>::surface_area(self))
     }
 }
 
@@ -161,7 +161,9 @@ mod tests {
 
         // 単位平面の点評価
         let (x, y, z) =
-            <NurbsSurface3D<f64> as NurbsSurface3DMeasure<f64>>::point_at_uv(&surface, 0.5, 0.5);
+            <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, 0.5, 0.5,
+            );
         assert!((x - 0.5).abs() < 1e-10);
         assert!((y - 0.5).abs() < 1e-10);
         assert!(z.abs() < 1e-10);
@@ -216,13 +218,17 @@ mod tests {
 
         // 平面上の点評価
         let (x, y, z) =
-            <NurbsSurface3D<f64> as NurbsSurface3DMeasure<f64>>::point_at_uv(&surface, 0.0, 0.0);
+            <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, 0.0, 0.0,
+            );
         assert!((x - 0.0).abs() < 1e-10);
         assert!((y - 0.0).abs() < 1e-10);
         assert!(z.abs() < 1e-10);
 
         let (x, y, z) =
-            <NurbsSurface3D<f64> as NurbsSurface3DMeasure<f64>>::point_at_uv(&surface, 1.0, 1.0);
+            <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::point_at_uv(
+                &surface, 1.0, 1.0,
+            );
         assert!((x - 1.0).abs() < 1e-10);
         assert!((y - 1.0).abs() < 1e-10);
         assert!(z.abs() < 1e-10);
@@ -250,7 +256,9 @@ mod tests {
 
         // 平面の法線ベクトルはz方向
         let (nx, ny, nz) =
-            <NurbsSurface3D<f64> as NurbsSurface3DMeasure<f64>>::normal_at(&surface, 0.5, 0.5);
+            <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::normal_at(
+                &surface, 0.5, 0.5,
+            );
 
         // 正規化確認
         let len = (nx * nx + ny * ny + nz * nz).sqrt();
@@ -281,7 +289,7 @@ mod tests {
         .unwrap();
 
         // 1x1 平面の面積は約1.0
-        let area = <NurbsSurface3D<f64> as NurbsSurface3DMeasure<f64>>::surface_area(&surface);
+        let area = <NurbsSurface3D<f64> as NurbsSurface3DDerived<f64>>::surface_area(&surface);
         assert!((area - 1.0).abs() < 0.1); // 数値積分の誤差を許容
     }
 
@@ -307,7 +315,7 @@ mod tests {
         .unwrap();
 
         let ((du_x, du_y, du_z), (dv_x, dv_y, dv_z)) =
-            <NurbsSurface3D<f64> as NurbsSurface3DMeasure<f64>>::tangent_vectors_at(
+            <NurbsSurface3D<f64> as geo_contracts::NurbsSurface3DEvaluation<f64>>::tangent_vectors_at(
                 &surface, 0.5, 0.5,
             );
 

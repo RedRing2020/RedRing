@@ -75,35 +75,9 @@ pub trait NurbsCurve3DEvaluation<T: Scalar> {
     fn evaluate(&self, u: T) -> Option<(T, T, T)>;
 }
 
-/// NurbsCurve3D の後方互換集約 trait
-pub trait NurbsCurve3DMeasure<T: Scalar>:
-    NurbsCurve3DDerived<T> + NurbsCurve3DEvaluation<T>
-{
-    fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T {
-        <Self as NurbsCurve3DDerived<T>>::arc_length(self, u_start, u_end, tolerance)
-    }
-
-    fn arc_length_total(&self, tolerance: T) -> T {
-        <Self as NurbsCurve3DDerived<T>>::arc_length_total(self, tolerance)
-    }
-
-    fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T> {
-        <Self as NurbsCurve3DEvaluation<T>>::parameter_at_length(self, arc_length, tolerance)
-    }
-
-    fn evaluate(&self, u: T) -> Option<(T, T, T)> {
-        <Self as NurbsCurve3DEvaluation<T>>::evaluate(self, u)
-    }
-}
-
 /// NurbsCurve3D の互換 Core trait
 pub trait NurbsCurve3DCore<T: Scalar>:
     NurbsCurve3DConstructor<T> + NurbsCurve3DProperties<T>
-{
-}
-
-impl<T: Scalar, Curve> NurbsCurve3DMeasure<T> for Curve where
-    Curve: NurbsCurve3DDerived<T> + NurbsCurve3DEvaluation<T>
 {
 }
 

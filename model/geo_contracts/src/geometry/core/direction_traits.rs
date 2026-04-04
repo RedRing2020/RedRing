@@ -166,8 +166,8 @@ pub trait Direction3DProperties<T: Scalar> {
     fn dimension(&self) -> u32;
 }
 
-/// Direction2D計量・関係演算機能トレイト
-pub trait Direction2DMeasure<T: Scalar> {
+/// Direction2D関係演算機能トレイト
+pub trait Direction2DRelation<T: Scalar> {
     /// 他の方向との内積
     fn dot(&self, other: &Self) -> T;
 
@@ -185,7 +185,10 @@ pub trait Direction2DMeasure<T: Scalar> {
 
     /// 他の方向と反対方向かどうか
     fn is_opposite_direction(&self, other: &Self) -> bool;
+}
 
+/// Direction2D変換機能トレイト
+pub trait Direction2DTransform<T: Scalar> {
     /// 反転（逆方向）
     fn reverse(&self) -> Self;
 
@@ -196,8 +199,8 @@ pub trait Direction2DMeasure<T: Scalar> {
     fn rotate(&self, angle: T) -> Self;
 }
 
-/// Direction3D計量・関係演算機能トレイト
-pub trait Direction3DMeasure<T: Scalar> {
+/// Direction3D関係演算機能トレイト
+pub trait Direction3DRelation<T: Scalar> {
     /// 他の方向との内積
     fn dot(&self, other: &Self) -> T;
 
@@ -218,7 +221,10 @@ pub trait Direction3DMeasure<T: Scalar> {
 
     /// 他の方向と反対方向かどうか
     fn is_opposite_direction(&self, other: &Self) -> bool;
+}
 
+/// Direction3D変換機能トレイト
+pub trait Direction3DTransform<T: Scalar> {
     /// 反転（逆方向）
     fn reverse(&self) -> Self;
 
@@ -228,14 +234,18 @@ pub trait Direction3DMeasure<T: Scalar> {
 
 /// Direction2Dの3つのCore機能統合トレイト
 /// Transform機能はAnalysisTransform2D<T>を別途使用
-pub trait Direction2DCore<T: Scalar>:
-    Direction2DConstructor<T> + Direction2DProperties<T> + Direction2DMeasure<T>
-{
-}
+pub trait Direction2DCore<T: Scalar>: Direction2DConstructor<T> + Direction2DProperties<T> {}
 
 /// Direction3Dの3つのCore機能統合トレイト
 /// Transform機能はAnalysisTransform3D<T>を別途使用
-pub trait Direction3DCore<T: Scalar>:
-    Direction3DConstructor<T> + Direction3DProperties<T> + Direction3DMeasure<T>
+pub trait Direction3DCore<T: Scalar>: Direction3DConstructor<T> + Direction3DProperties<T> {}
+
+impl<T: Scalar, Direction> Direction2DCore<T> for Direction where
+    Direction: Direction2DConstructor<T> + Direction2DProperties<T>
+{
+}
+
+impl<T: Scalar, Direction> Direction3DCore<T> for Direction where
+    Direction: Direction3DConstructor<T> + Direction3DProperties<T>
 {
 }

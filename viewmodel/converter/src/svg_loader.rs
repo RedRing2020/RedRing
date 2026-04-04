@@ -12,7 +12,7 @@ use crate::shape_converter::{
 use geo_algorithms::{
     Arc3D, Circle3D, Direction3D, LineSegment3D, NurbsCurve3D, Point3D, Triangle3D, Vector3D,
 };
-use geo_contracts::{Angle, NurbsCurve3DConstructor, NurbsCurve3DMeasure};
+use geo_contracts::{Angle, NurbsCurve3DConstructor, NurbsCurve3DDerived};
 use geo_io::svg::{parse_svg_file, NurbsCurveData, SvgError, SvgShapeData};
 use std::path::Path;
 use thiserror::Error;

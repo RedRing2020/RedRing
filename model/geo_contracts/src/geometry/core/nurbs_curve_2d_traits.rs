@@ -76,35 +76,9 @@ pub trait NurbsCurve2DDerived<T: Scalar> {
     fn curvature_at(&self, t: T) -> T;
 }
 
-/// NurbsCurve2D の後方互換集約 trait
-pub trait NurbsCurve2DMeasure<T: Scalar>:
-    NurbsCurve2DEvaluation<T> + NurbsCurve2DDerived<T>
-{
-    fn point_at(&self, t: T) -> (T, T) {
-        <Self as NurbsCurve2DEvaluation<T>>::point_at(self, t)
-    }
-
-    fn tangent_at(&self, t: T) -> (T, T) {
-        <Self as NurbsCurve2DEvaluation<T>>::tangent_at(self, t)
-    }
-
-    fn length(&self) -> T {
-        <Self as NurbsCurve2DDerived<T>>::length(self)
-    }
-
-    fn curvature_at(&self, t: T) -> T {
-        <Self as NurbsCurve2DDerived<T>>::curvature_at(self, t)
-    }
-}
-
 /// NurbsCurve2D の互換 Core trait
 pub trait NurbsCurve2DCore<T: Scalar>:
     NurbsCurve2DConstructor<T> + NurbsCurve2DProperties<T>
-{
-}
-
-impl<T: Scalar, Curve> NurbsCurve2DMeasure<T> for Curve where
-    Curve: NurbsCurve2DEvaluation<T> + NurbsCurve2DDerived<T>
 {
 }
 

@@ -56,7 +56,10 @@ mod tests {
     use crate::knot::clamped_knot_vector;
     use crate::NurbsCurve2D;
     use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata};
-    use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DMeasure, NurbsCurve2DProperties};
+    use geo_contracts::{
+        NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
+        NurbsCurve2DProperties,
+    };
 
     // ============================================================================
     // Core Traits Constructor テスト
@@ -115,8 +118,8 @@ mod tests {
             1
         );
 
-        let start = <NurbsCurve2D<f64> as NurbsCurve2DMeasure<f64>>::point_at(&curve, 0.0);
-        let end = <NurbsCurve2D<f64> as NurbsCurve2DMeasure<f64>>::point_at(&curve, 1.0);
+        let start = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 0.0);
+        let end = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 1.0);
 
         assert!((start.0 - 0.0).abs() < 1e-10);
         assert!((start.1 - 0.0).abs() < 1e-10);
@@ -172,19 +175,19 @@ mod tests {
         .unwrap();
 
         // point_at テスト
-        let mid_point = <NurbsCurve2D<f64> as NurbsCurve2DMeasure<f64>>::point_at(&curve, 0.5);
+        let mid_point = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 0.5);
         assert!((mid_point.0 - 1.0).abs() < 0.1);
 
         // tangent_at テスト
-        let tangent = <NurbsCurve2D<f64> as NurbsCurve2DMeasure<f64>>::tangent_at(&curve, 0.5);
+        let tangent = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::tangent_at(&curve, 0.5);
         assert!((tangent.0 - 1.0).abs() < 0.1); // X方向の接線
 
         // length テスト
-        let length = <NurbsCurve2D<f64> as NurbsCurve2DMeasure<f64>>::length(&curve);
+        let length = <NurbsCurve2D<f64> as NurbsCurve2DDerived<f64>>::length(&curve);
         assert!((length - 2.0).abs() < 0.1); // 直線なので約2.0
 
         // curvature_at テスト
-        let curvature = <NurbsCurve2D<f64> as NurbsCurve2DMeasure<f64>>::curvature_at(&curve, 0.5);
+        let curvature = <NurbsCurve2D<f64> as NurbsCurve2DDerived<f64>>::curvature_at(&curve, 0.5);
         assert!(curvature.abs() < 0.1); // 直線なので曲率は0に近い
     }
 

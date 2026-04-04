@@ -87,35 +87,9 @@ pub trait NurbsSurface3DDerived<T: Scalar> {
     fn surface_area(&self) -> T;
 }
 
-/// NurbsSurface3D の後方互換集約 trait
-pub trait NurbsSurface3DMeasure<T: Scalar>:
-    NurbsSurface3DEvaluation<T> + NurbsSurface3DDerived<T>
-{
-    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
-        <Self as NurbsSurface3DEvaluation<T>>::point_at_uv(self, u, v)
-    }
-
-    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        <Self as NurbsSurface3DEvaluation<T>>::normal_at(self, u, v)
-    }
-
-    fn tangent_vectors_at(&self, u: T, v: T) -> ((T, T, T), (T, T, T)) {
-        <Self as NurbsSurface3DEvaluation<T>>::tangent_vectors_at(self, u, v)
-    }
-
-    fn surface_area(&self) -> T {
-        <Self as NurbsSurface3DDerived<T>>::surface_area(self)
-    }
-}
-
 /// NurbsSurface3D の互換 Core trait
 pub trait NurbsSurface3DCore<T: Scalar>:
     NurbsSurface3DConstructor<T> + NurbsSurface3DProperties<T>
-{
-}
-
-impl<T: Scalar, Surface> NurbsSurface3DMeasure<T> for Surface where
-    Surface: NurbsSurface3DEvaluation<T> + NurbsSurface3DDerived<T>
 {
 }
 

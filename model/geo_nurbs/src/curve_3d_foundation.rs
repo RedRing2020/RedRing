@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_core_traits_measure() {
         use analysis::test_constants::INTEGRATION_TOLERANCE_STRICT;
-        use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DMeasure};
+        use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation};
 
         let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
             (0.0, 0.0, 0.0),
