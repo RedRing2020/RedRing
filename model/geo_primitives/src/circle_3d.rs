@@ -7,7 +7,8 @@ use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::default_angle_tolerance;
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
-    Circle3DConstructor, Circle3DMeasure, Circle3DProperties, CrossDistance, Scalar,
+    Circle3DConstructor, Circle3DContainment, Circle3DDerived, Circle3DDistance,
+    Circle3DEvaluation, Circle3DProjection, Circle3DProperties, CrossDistance, Scalar,
 };
 
 /// 3次元空間の円
@@ -283,10 +284,6 @@ impl<T: Scalar> Circle3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
-
 impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
     fn new(center: (T, T, T), axis: (T, T, T), radius: T) -> Option<Self> {
         let center_point = Point3D::new(center.0, center.1, center.2);
@@ -403,31 +400,37 @@ impl<T: Scalar> Circle3DProperties<T> for Circle3D<T> {
     }
 }
 
-impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
+impl<T: Scalar> Circle3DDerived<T> for Circle3D<T> {
     fn circumference(&self) -> T {
-        self.circumference()
+        Circle3D::circumference(self)
     }
 
     fn area(&self) -> T {
-        self.area()
+        Circle3D::area(self)
     }
+}
 
+impl<T: Scalar> Circle3DContainment<T> for Circle3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point_3d(p)
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_point_3d(p)
+        Circle3D::contains_point_3d(self, p)
     }
 
     fn point_on_circumference(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
-        let distance = self.distance_to_point_3d(p);
+        let distance = Circle3D::distance_to_point_3d(self, p);
         distance.abs() <= default_distance_tolerance::<T>()
     }
+}
 
+impl<T: Scalar> Circle3DDistance<T> for Circle3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        Circle3D::distance_to_point_3d(self, p)
+    }
+}
+
+impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
 
@@ -454,7 +457,9 @@ impl<T: Scalar> Circle3DMeasure<T> for Circle3D<T> {
             (closest.x(), closest.y(), closest.z())
         }
     }
+}
 
+impl<T: Scalar> Circle3DEvaluation<T> for Circle3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let angle = t * T::TAU;
         let cos_angle = angle.cos();

@@ -6,7 +6,8 @@
 use crate::{Direction2D, Point2D};
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
-    Circle2DConstructor, Circle2DMeasure, Circle2DProperties, CrossDistance, Scalar,
+    Circle2DConstructor, Circle2DContainment, Circle2DDerived, Circle2DDistance,
+    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance, Scalar,
 };
 
 /// 2次元円
@@ -217,10 +218,6 @@ impl<T: Scalar> Circle2D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
-
 impl<T: Scalar> Circle2DConstructor<T> for Circle2D<T> {
     fn new(center: (T, T), radius: T) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
@@ -303,38 +300,46 @@ impl<T: Scalar> Circle2DProperties<T> for Circle2D<T> {
     }
 }
 
-impl<T: Scalar> Circle2DMeasure<T> for Circle2D<T> {
+impl<T: Scalar> Circle2DDerived<T> for Circle2D<T> {
     fn circumference(&self) -> T {
-        self.circumference()
+        Circle2D::circumference(self)
     }
 
     fn area(&self) -> T {
-        self.area()
+        Circle2D::area(self)
     }
+}
 
+impl<T: Scalar> Circle2DContainment<T> for Circle2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        self.contains_point(p)
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        let p = Point2D::new(point.0, point.1);
-        self.distance_to_point(p)
+        Circle2D::contains_point(self, p)
     }
 
     fn point_on_circumference(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        self.point_on_circumference(p)
+        Circle2D::point_on_circumference(self, p)
     }
+}
 
+impl<T: Scalar> Circle2DDistance<T> for Circle2D<T> {
+    fn distance_to_point(&self, point: (T, T)) -> T {
+        let p = Point2D::new(point.0, point.1);
+        Circle2D::distance_to_point(self, p)
+    }
+}
+
+impl<T: Scalar> Circle2DProjection<T> for Circle2D<T> {
     fn closest_point_to(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
-        let closest = self.closest_point_to(p);
+        let closest = Circle2D::closest_point_to(self, p);
         (closest.x(), closest.y())
     }
+}
 
+impl<T: Scalar> Circle2DEvaluation<T> for Circle2D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T) {
-        let point = self.point_at_parameter(t);
+        let point = Circle2D::point_at_parameter(self, t);
         (point.x(), point.y())
     }
 }

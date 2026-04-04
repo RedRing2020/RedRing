@@ -37,8 +37,10 @@ pub use arc_traits::{
     Arc3DMeasure, Arc3DProperties,
 };
 pub use circle_traits::{
-    Circle2DConstructor, Circle2DCore, Circle2DMeasure, Circle2DProperties, Circle3DConstructor,
-    Circle3DCore, Circle3DMeasure, Circle3DProperties,
+    Circle2DConstructor, Circle2DContainment, Circle2DCore, Circle2DDerived, Circle2DDistance,
+    Circle2DEvaluation, Circle2DMeasure, Circle2DProjection, Circle2DProperties,
+    Circle3DConstructor, Circle3DContainment, Circle3DCore, Circle3DDerived, Circle3DDistance,
+    Circle3DEvaluation, Circle3DMeasure, Circle3DProjection, Circle3DProperties,
 };
 pub use conical_solid_traits::{
     ConicalSolid3DConstructor, ConicalSolid3DCore, ConicalSolid3DMeasure, ConicalSolid3DProperties,
@@ -135,8 +137,10 @@ pub use torus_surface_traits::{
     TorusSurface3DConstructor, TorusSurface3DCore, TorusSurface3DMeasure, TorusSurface3DProperties,
 };
 pub use triangle_traits::{
-    Triangle2DConstructor, Triangle2DCore, Triangle2DMeasure, Triangle2DProperties,
-    Triangle3DConstructor, Triangle3DCore, Triangle3DMeasure, Triangle3DProperties,
+    Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
+    Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties, Triangle3DConstructor,
+    Triangle3DContainment, Triangle3DCore, Triangle3DDerived, Triangle3DDistance,
+    Triangle3DMeasure, Triangle3DProperties,
 };
 pub use vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DProperties, Vector3DConstructor, Vector3DCore,

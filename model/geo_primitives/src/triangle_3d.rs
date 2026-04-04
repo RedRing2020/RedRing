@@ -3,15 +3,12 @@
 //! Foundation統一システムに基づくTriangle3Dの必須機能のみ
 
 use crate::{Point3D, Vector3D};
-use geo_contracts::{Scalar, Triangle3DConstructor, Triangle3DMeasure, Triangle3DProperties};
+use geo_contracts::{
+    Scalar, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
+    Triangle3DProperties,
+};
 
 /// 3次元三角形（Core実装）
-///
-/// Core機能のみ：
-/// - 基本構築・検証
-/// - アクセサメソッド
-/// - 基本的な幾何プロパティ（面積、法線）
-/// - 重心計算
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle3D<T: Scalar> {
     vertex_a: Point3D<T>,
@@ -19,15 +16,7 @@ pub struct Triangle3D<T: Scalar> {
     vertex_c: Point3D<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Triangle3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい3D三角形を作成
     ///
     /// 基本的な検証のみ実行（退化三角形チェック）
@@ -53,10 +42,6 @@ impl<T: Scalar> Triangle3D<T> {
         Self::new(points.0, points.1, points.2)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 頂点Aを取得（内部用）
     pub(crate) fn vertex_a_internal(&self) -> Point3D<T> {
         self.vertex_a
@@ -71,10 +56,6 @@ impl<T: Scalar> Triangle3D<T> {
     pub(crate) fn vertex_c_internal(&self) -> Point3D<T> {
         self.vertex_c
     }
-
-    // ========================================================================
-    // Core Geometric Properties
-    // ========================================================================
 
     /// 辺ABのベクトルを取得
     pub fn edge_ab(&self) -> Vector3D<T> {
@@ -131,10 +112,6 @@ impl<T: Scalar> Triangle3D<T> {
         ab_length + bc_length + ca_length
     }
 
-    // ========================================================================
-    // Core Validation Methods
-    // ========================================================================
-
     /// 三角形が退化していないかチェック
     pub fn is_valid(&self) -> bool {
         let area: T = self.area();
@@ -162,10 +139,6 @@ impl<T: Scalar> Triangle3D<T> {
         // 三角形内部の条件
         u >= T::ZERO && v >= T::ZERO && (u + v) <= T::ONE
     }
-
-    // ========================================================================
-    // Phase 2 Constructor Methods
-    // ========================================================================
 
     /// xz平面上の単位正三角形を生成
     pub fn unit_triangle_xz() -> Self {
@@ -197,10 +170,6 @@ impl<T: Scalar> Triangle3D<T> {
             vertex_c: self.vertex_b,
         }
     }
-
-    // ========================================================================
-    // Phase 2 Properties Methods
-    // ========================================================================
 
     /// 外心座標を計算（三角形を含む平面上）
     pub fn circumcenter(&self) -> Option<Point3D<T>> {
@@ -262,10 +231,6 @@ impl<T: Scalar> Triangle3D<T> {
         let perimeter = self.perimeter();
         (area * (T::ONE + T::ONE)) / perimeter
     }
-
-    // ========================================================================
-    // Phase 2 Measure Methods
-    // ========================================================================
 
     /// 点から三角形までの最短距離を計算
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
@@ -330,10 +295,6 @@ impl<T: Scalar> Triangle3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation (Phase 1 + Phase 2)
-// ============================================================================
-
 impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
     fn new(a: (T, T, T), b: (T, T, T), c: (T, T, T)) -> Option<Self> {
         let pa = Point3D::new(a.0, a.1, a.2);
@@ -385,69 +346,69 @@ impl<T: Scalar> Triangle3DProperties<T> for Triangle3D<T> {
         let p = self.vertex_c_internal();
         (p.x(), p.y(), p.z())
     }
+}
 
+impl<T: Scalar> Triangle3DDerived<T> for Triangle3D<T> {
     fn centroid(&self) -> (T, T, T) {
-        let c = self.centroid();
+        let c = Triangle3D::centroid(self);
         (c.x(), c.y(), c.z())
     }
 
     fn normal(&self) -> (T, T, T) {
-        let n = self.normal().unwrap_or(Vector3D::unit_z());
+        let n = Triangle3D::normal(self).unwrap_or(Vector3D::unit_z());
         (n.x(), n.y(), n.z())
     }
 
     fn circumcenter(&self) -> Option<(T, T, T)> {
-        self.circumcenter().map(|c| (c.x(), c.y(), c.z()))
+        Triangle3D::circumcenter(self).map(|c| (c.x(), c.y(), c.z()))
     }
 
     fn circumradius(&self) -> Option<T> {
-        self.circumradius()
+        Triangle3D::circumradius(self)
     }
 
     fn inradius(&self) -> T {
-        self.inradius()
+        Triangle3D::inradius(self)
     }
-}
 
-impl<T: Scalar> Triangle3DMeasure<T> for Triangle3D<T> {
     fn measure(&self) -> T {
-        self.area()
+        Triangle3D::area(self)
     }
 
     fn edge_ab_length(&self) -> T {
-        self.edge_ab().length()
+        Triangle3D::edge_ab(self).length()
     }
 
     fn edge_bc_length(&self) -> T {
-        self.edge_bc().length()
+        Triangle3D::edge_bc(self).length()
     }
 
     fn edge_ca_length(&self) -> T {
-        self.edge_ca().length()
+        Triangle3D::edge_ca(self).length()
     }
 
     fn perimeter(&self) -> T {
-        self.perimeter()
-    }
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.contains_point_on_plane(p)
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_point(&p)
+        Triangle3D::perimeter(self)
     }
 
     fn is_planar(&self) -> bool {
-        self.is_planar()
+        Triangle3D::is_planar(self)
     }
 }
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
+impl<T: Scalar> Triangle3DContainment<T> for Triangle3D<T> {
+    fn contains_point(&self, point: (T, T, T)) -> bool {
+        let p = Point3D::new(point.0, point.1, point.2);
+        Triangle3D::contains_point_on_plane(self, p)
+    }
+}
+
+impl<T: Scalar> Triangle3DDistance<T> for Triangle3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        Triangle3D::distance_to_point(self, &p)
+    }
+}
 
 impl<T: Scalar> std::fmt::Display for Triangle3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
