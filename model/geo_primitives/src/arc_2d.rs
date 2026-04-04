@@ -6,8 +6,9 @@
 use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
 use geo_contracts::{
-    default_angle_tolerance, default_distance_tolerance, Arc2DConstructor, Arc2DMeasure,
-    Arc2DProperties, Circle2DProperties, Scalar,
+    default_angle_tolerance, default_distance_tolerance, Arc2DConstructor, Arc2DContainment,
+    Arc2DDerived, Arc2DDistance, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties,
+    Circle2DProperties, Scalar,
 };
 
 /// 2次元円弧
@@ -333,12 +334,14 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
     }
 }
 
-impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
+impl<T: Scalar> Arc2DDerived<T> for Arc2D<T> {
     fn measure(&self) -> T {
         // arc_length の計算を直接展開: radius * angular_span
         self.radius_internal() * self.angular_span()
     }
+}
 
+impl<T: Scalar> Arc2DEndpoint<T> for Arc2D<T> {
     fn start_point(&self) -> (T, T) {
         let p = self.point_at_angle_internal(self.start_angle.to_radians());
         (p.x(), p.y())
@@ -349,6 +352,15 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
         (p.x(), p.y())
     }
 
+    fn midpoint(&self) -> (T, T) {
+        let mid_angle =
+            (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
+        let p = self.point_at_angle_internal(mid_angle);
+        (p.x(), p.y())
+    }
+}
+
+impl<T: Scalar> Arc2DEvaluation<T> for Arc2D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T) {
         let start_rad = self.start_angle.to_radians();
         let end_rad = self.end_angle.to_radians();
@@ -357,29 +369,49 @@ impl<T: Scalar> Arc2DMeasure<T> for Arc2D<T> {
         (p.x(), p.y())
     }
 
-    // Phase 2: 追加測度メソッド
-    fn midpoint(&self) -> (T, T) {
-        let mid_angle =
-            (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
-        let p = self.point_at_angle_internal(mid_angle);
-        (p.x(), p.y())
-    }
-
     fn point_at_angle(&self, angle: T) -> (T, T) {
         let p = self.point_at_angle_internal(angle);
         (p.x(), p.y())
     }
+}
 
+impl<T: Scalar> Arc2DDistance<T> for Arc2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         // 簡易実装: 円弧の中心からの距離との差分
         let center = self.center_internal();
         let distance_from_center = center.distance_to(&Point2D::new(point.0, point.1));
         (distance_from_center - self.radius_internal()).abs()
     }
+}
 
+impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
-        let distance = self.distance_to_point(point);
-        distance <= default_distance_tolerance::<T>()
+        let point = Point2D::new(point.0, point.1);
+        let distance = <Self as Arc2DDistance<T>>::distance_to_point(self, (point.x(), point.y()));
+        distance <= default_distance_tolerance::<T>() && self.contains_point_angle(point)
+    }
+
+    fn contains_angle(&self, angle: T) -> bool {
+        let normalize = |mut value: T| {
+            while value < T::ZERO {
+                value += T::TAU;
+            }
+            while value >= T::TAU {
+                value -= T::TAU;
+            }
+            value
+        };
+
+        let angle = normalize(angle);
+        let start = normalize(self.start_angle.to_radians());
+        let end = normalize(self.end_angle.to_radians());
+        let tolerance = default_angle_tolerance::<T>();
+
+        if start <= end {
+            angle + tolerance >= start && angle <= end + tolerance
+        } else {
+            angle + tolerance >= start || angle <= end + tolerance
+        }
     }
 }
 

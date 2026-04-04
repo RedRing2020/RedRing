@@ -4,8 +4,9 @@
 
 use crate::{Ellipse2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_angle_tolerance, Angle, EllipseArc2DConstructor, EllipseArc2DMeasure,
-    EllipseArc2DProperties, Scalar,
+    default_angle_tolerance, Angle, EllipseArc2DConstructor, EllipseArc2DContainment,
+    EllipseArc2DDerived, EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties,
+    Scalar,
 };
 
 /// 2次元楕円弧
@@ -403,105 +404,13 @@ impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
     }
 }
 
-impl<T: Scalar> EllipseArc2DMeasure<T> for EllipseArc2D<T> {
+impl<T: Scalar> EllipseArc2DDerived<T> for EllipseArc2D<T> {
     fn measure(&self) -> T {
         // arc_length の計算を直接展開: 楕円周囲長に角度比率を掛ける
         let full_perimeter = self.ellipse.perimeter();
         let angle_ratio =
             (self.end_angle.to_radians() - self.start_angle.to_radians()).abs() / T::TAU;
         full_perimeter * angle_ratio
-    }
-
-    fn start_point(&self) -> (T, T) {
-        let p = self
-            .ellipse
-            .point_at_parameter(self.start_angle.to_radians());
-        (p.x(), p.y())
-    }
-
-    fn end_point(&self) -> (T, T) {
-        let p = self.ellipse.point_at_parameter(self.end_angle.to_radians());
-        (p.x(), p.y())
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        let angle = self.start_angle.to_radians()
-            + (self.end_angle.to_radians() - self.start_angle.to_radians()) * t;
-        let p = self.ellipse.point_at_parameter(angle);
-        (p.x(), p.y())
-    }
-
-    // ========== Phase 2: 追加計量 ==========
-
-    fn mid_point(&self) -> (T, T) {
-        let p = self.point_at_parameter(T::ONE / (T::ONE + T::ONE));
-        (p.x(), p.y())
-    }
-
-    fn point_at_angle(&self, angle: T) -> Option<(T, T)> {
-        // 角度が範囲内かチェック
-        let normalized_angle = if angle < T::ZERO {
-            angle + T::TAU
-        } else if angle >= T::TAU {
-            angle - T::TAU
-        } else {
-            angle
-        };
-
-        let start = self.start_angle.to_radians();
-        let end = self.end_angle.to_radians();
-
-        let in_range = if start <= end {
-            normalized_angle >= start && normalized_angle <= end
-        } else {
-            normalized_angle >= start || normalized_angle <= end
-        };
-
-        if !in_range {
-            return None;
-        }
-
-        // 楕円上の点を計算
-        let a = self.semi_major();
-        let b = self.semi_minor();
-        let rot = self.ellipse.rotation();
-        let center = self.center();
-
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-        let cos_r = rot.cos();
-        let sin_r = rot.sin();
-
-        let x_local = a * cos_a;
-        let y_local = b * sin_a;
-
-        let x = center.x() + x_local * cos_r - y_local * sin_r;
-        let y = center.y() + x_local * sin_r + y_local * cos_r;
-
-        Some((x, y))
-    }
-
-    fn contains_point(&self, point: (T, T), tolerance: T) -> bool {
-        let p = Point2D::new(point.0, point.1);
-
-        // まず楕円上にあるかチェック
-        if !self.ellipse.contains_point(&p, tolerance) {
-            return false;
-        }
-
-        // 次に角度範囲内かチェック
-        let center = self.center();
-        let vec = Vector2D::from_points(center, p);
-        let angle = vec.y().atan2(vec.x());
-
-        let start = self.start_angle.to_radians();
-        let end = self.end_angle.to_radians();
-
-        if start <= end {
-            angle >= start - tolerance && angle <= end + tolerance
-        } else {
-            angle >= start - tolerance || angle <= end + tolerance
-        }
     }
 
     fn bounding_box(&self) -> ((T, T), (T, T)) {
@@ -552,5 +461,101 @@ impl<T: Scalar> EllipseArc2DMeasure<T> for EllipseArc2D<T> {
         }
 
         ((min_x, min_y), (max_x, max_y))
+    }
+}
+
+impl<T: Scalar> EllipseArc2DEndpoint<T> for EllipseArc2D<T> {
+    fn start_point(&self) -> (T, T) {
+        let p = self
+            .ellipse
+            .point_at_parameter(self.start_angle.to_radians());
+        (p.x(), p.y())
+    }
+
+    fn end_point(&self) -> (T, T) {
+        let p = self.ellipse.point_at_parameter(self.end_angle.to_radians());
+        (p.x(), p.y())
+    }
+
+    fn mid_point(&self) -> (T, T) {
+        let p = self.point_at_parameter(T::ONE / (T::ONE + T::ONE));
+        (p.x(), p.y())
+    }
+}
+
+impl<T: Scalar> EllipseArc2DEvaluation<T> for EllipseArc2D<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T) {
+        let angle = self.start_angle.to_radians()
+            + (self.end_angle.to_radians() - self.start_angle.to_radians()) * t;
+        let p = self.ellipse.point_at_parameter(angle);
+        (p.x(), p.y())
+    }
+
+    fn point_at_angle(&self, angle: T) -> Option<(T, T)> {
+        // 角度が範囲内かチェック
+        let normalized_angle = if angle < T::ZERO {
+            angle + T::TAU
+        } else if angle >= T::TAU {
+            angle - T::TAU
+        } else {
+            angle
+        };
+
+        let start = self.start_angle.to_radians();
+        let end = self.end_angle.to_radians();
+
+        let in_range = if start <= end {
+            normalized_angle >= start && normalized_angle <= end
+        } else {
+            normalized_angle >= start || normalized_angle <= end
+        };
+
+        if !in_range {
+            return None;
+        }
+
+        // 楕円上の点を計算
+        let a = self.semi_major();
+        let b = self.semi_minor();
+        let rot = self.ellipse.rotation();
+        let center = self.center();
+
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        let cos_r = rot.cos();
+        let sin_r = rot.sin();
+
+        let x_local = a * cos_a;
+        let y_local = b * sin_a;
+
+        let x = center.x() + x_local * cos_r - y_local * sin_r;
+        let y = center.y() + x_local * sin_r + y_local * cos_r;
+
+        Some((x, y))
+    }
+}
+
+impl<T: Scalar> EllipseArc2DContainment<T> for EllipseArc2D<T> {
+    fn contains_point(&self, point: (T, T), tolerance: T) -> bool {
+        let p = Point2D::new(point.0, point.1);
+
+        // まず楕円上にあるかチェック
+        if !self.ellipse.contains_point(&p, tolerance) {
+            return false;
+        }
+
+        // 次に角度範囲内かチェック
+        let center = self.center();
+        let vec = Vector2D::from_points(center, p);
+        let angle = vec.y().atan2(vec.x());
+
+        let start = self.start_angle.to_radians();
+        let end = self.end_angle.to_radians();
+
+        if start <= end {
+            angle >= start - tolerance && angle <= end + tolerance
+        } else {
+            angle >= start - tolerance || angle <= end + tolerance
+        }
     }
 }

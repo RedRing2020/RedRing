@@ -7,7 +7,10 @@ use geo_contracts::Scalar;
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
 };
-use geo_contracts::{Arc3DConstructor, Arc3DMeasure, Arc3DProperties as ContractsArc3DProperties};
+use geo_contracts::{
+    Arc3DConstructor, Arc3DContainment, Arc3DDerived, Arc3DDistance, Arc3DEndpoint,
+    Arc3DEvaluation, Arc3DProperties as ContractsArc3DProperties,
+};
 
 /// 3次元円弧（基本実装）
 ///
@@ -352,7 +355,7 @@ impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
     }
 }
 
-impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
+impl<T: Scalar> Arc3DDerived<T> for Arc3D<T> {
     fn measure(&self) -> T {
         // arc_length の計算を直接展開: radius * angle_span
         let mut span = self.end_angle - self.start_angle;
@@ -361,7 +364,9 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
         }
         self.radius * span.to_radians()
     }
+}
 
+impl<T: Scalar> Arc3DEndpoint<T> for Arc3D<T> {
     fn start_point(&self) -> (T, T, T) {
         let p = self.point_at_angle_internal(self.start_angle);
         (p.x(), p.y(), p.z())
@@ -372,16 +377,17 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
         (p.x(), p.y(), p.z())
     }
 
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
-        let p = self.point_at_angle_internal(angle);
-        (p.x(), p.y(), p.z())
-    }
-
-    // Phase 2: 追加測度メソッド
     fn midpoint(&self) -> (T, T, T) {
         let mid_angle = (self.start_angle + self.end_angle) / (T::ONE + T::ONE);
         let p = self.point_at_angle_internal(mid_angle);
+        (p.x(), p.y(), p.z())
+    }
+}
+
+impl<T: Scalar> Arc3DEvaluation<T> for Arc3D<T> {
+    fn point_at_parameter(&self, t: T) -> (T, T, T) {
+        let angle = self.start_angle + (self.end_angle - self.start_angle) * t;
+        let p = self.point_at_angle_internal(angle);
         (p.x(), p.y(), p.z())
     }
 
@@ -389,14 +395,18 @@ impl<T: Scalar> Arc3DMeasure<T> for Arc3D<T> {
         let p = self.point_at_angle_internal(Angle::from_radians(angle));
         (p.x(), p.y(), p.z())
     }
+}
 
+impl<T: Scalar> Arc3DDistance<T> for Arc3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         // 簡易実装: 円弧上の最近点までの距離
         let center_pt = self.center_internal();
         (center_pt.distance_to(&Point3D::new(point.0, point.1, point.2)) - self.radius_internal())
             .abs()
     }
+}
 
+impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         // 簡易実装: 半径と角度範囲をチェック
         let center_pt = self.center_internal();

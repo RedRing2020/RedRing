@@ -5,8 +5,8 @@
 
 use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::{
-    Angle, Arc3DProperties, EllipseArc3DConstructor, EllipseArc3DMeasure, EllipseArc3DProperties,
-    Scalar,
+    Angle, Arc3DProperties, EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DDerived,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, Scalar,
 };
 
 /// 3次元楕円弧
@@ -428,7 +428,7 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
     }
 }
 
-impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
+impl<T: Scalar> EllipseArc3DDerived<T> for EllipseArc3D<T> {
     fn measure(&self) -> T {
         // 楕円弧の長さの簡易近似: angle_span計算を直接展開
         let full_perimeter = self.ellipse.perimeter();
@@ -442,6 +442,56 @@ impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
         full_perimeter * angle_ratio
     }
 
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let start = <Self as EllipseArc3DEndpoint<T>>::start_point(self);
+        let end = <Self as EllipseArc3DEndpoint<T>>::end_point(self);
+
+        let mut min_x = start.0.min(end.0);
+        let mut max_x = start.0.max(end.0);
+        let mut min_y = start.1.min(end.1);
+        let mut max_y = start.1.max(end.1);
+        let mut min_z = start.2.min(end.2);
+        let mut max_z = start.2.max(end.2);
+
+        let t_values = [
+            T::ZERO,
+            T::ONE
+                / (T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE
+                    + T::ONE),
+            T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE),
+            T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE),
+            T::ONE / (T::ONE + T::ONE),
+            T::ONE,
+        ];
+        for &t in &t_values {
+            let p = <Self as EllipseArc3DEvaluation<T>>::point_at_parameter(self, t);
+            min_x = min_x.min(p.0);
+            max_x = max_x.max(p.0);
+            min_y = min_y.min(p.1);
+            max_y = max_y.max(p.1);
+            min_z = min_z.min(p.2);
+            max_z = max_z.max(p.2);
+        }
+
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+}
+
+impl<T: Scalar> EllipseArc3DEndpoint<T> for EllipseArc3D<T> {
     fn start_point(&self) -> (T, T, T) {
         let p = self.ellipse.point_at_angle(self.start_angle);
         (p.x(), p.y(), p.z())
@@ -452,19 +502,18 @@ impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
         (p.x(), p.y(), p.z())
     }
 
+    fn mid_point(&self) -> (T, T, T) {
+        <Self as EllipseArc3DEvaluation<T>>::point_at_parameter(self, T::ONE / (T::ONE + T::ONE))
+    }
+}
+
+impl<T: Scalar> EllipseArc3DEvaluation<T> for EllipseArc3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
         let current_angle = self.start_angle.to_radians() + t * angle_diff;
         let p = self
             .ellipse
             .point_at_angle(Angle::from_radians(current_angle));
-        (p.x(), p.y(), p.z())
-    }
-
-    // ========== Phase 2: 追加計量 ==========
-
-    fn mid_point(&self) -> (T, T, T) {
-        let p = self.point_at_parameter(T::ONE / (T::ONE + T::ONE));
         (p.x(), p.y(), p.z())
     }
 
@@ -491,10 +540,13 @@ impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
         }
 
         let t = (normalized_angle - start) / (end - start);
-        let p = self.point_at_parameter(t);
-        Some((p.x(), p.y(), p.z()))
+        Some(<Self as EllipseArc3DEvaluation<T>>::point_at_parameter(
+            self, t,
+        ))
     }
+}
 
+impl<T: Scalar> EllipseArc3DContainment<T> for EllipseArc3D<T> {
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
         let center = self.center();
@@ -516,54 +568,5 @@ impl<T: Scalar> EllipseArc3DMeasure<T> for EllipseArc3D<T> {
         } else {
             angle >= start - tolerance || angle <= end + tolerance
         }
-    }
-
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let start = self.start_point();
-        let end = self.end_point();
-
-        let mut min_x = start.x().min(end.x());
-        let mut max_x = start.x().max(end.x());
-        let mut min_y = start.y().min(end.y());
-        let mut max_y = start.y().max(end.y());
-        let mut min_z = start.z().min(end.z());
-        let mut max_z = start.z().max(end.z());
-
-        // 16分割でサンプリング
-        let t_values = [
-            T::ZERO,
-            T::ONE
-                / (T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE
-                    + T::ONE),
-            T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE + T::ONE),
-            T::ONE / (T::ONE + T::ONE + T::ONE + T::ONE),
-            T::ONE / (T::ONE + T::ONE),
-            T::ONE,
-        ];
-        for &t in &t_values {
-            let p = self.point_at_parameter(t);
-            min_x = min_x.min(p.x());
-            max_x = max_x.max(p.x());
-            min_y = min_y.min(p.y());
-            max_y = max_y.max(p.y());
-            min_z = min_z.min(p.z());
-            max_z = max_z.max(p.z());
-        }
-
-        ((min_x, min_y, min_z), (max_x, max_y, max_z))
     }
 }
