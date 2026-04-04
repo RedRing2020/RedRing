@@ -29,8 +29,8 @@
 ## Foundation Pattern 実装範囲
 
 - `geo_contracts/src/geometry/core/rectangle_traits.rs`
-  - `Rect2DConstructor<T>` / `Rect2DProperties<T>` / `Rect2DMeasure<T>`
-  - `Rect3DConstructor<T>` / `Rect3DProperties<T>` / `Rect3DMeasure<T>`
+  - `Rect2DConstructor<T>` / `Rect2DProperties<T>` / `Rect2DContainment<T>` / `Rect2DDerived<T>`
+  - `Rect3DConstructor<T>` / `Rect3DProperties<T>` / `Rect3DContainment<T>` / `Rect3DDerived<T>` / `Rect3DEvaluation<T>`
 - `geo_primitives/src/rectangle_2d.rs`（Core）
 - `geo_primitives/src/rectangle_2d_foundation.rs`（ExtensionFoundation）
 - `geo_primitives/src/rectangle_2d_transform.rs`（AnalysisTransform2D）
@@ -55,7 +55,6 @@
 - `area()`, `normal()`, `corners()`
 
 ## 非ゴール
-
 - SelectionRect の描画実装・入力イベント統合は本Issueでは必須外
 - 画面→ワールド変換の最適化（SIMD等）は後続
 

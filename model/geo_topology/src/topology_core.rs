@@ -3,7 +3,10 @@
 //! #408 の最小導入として、Vertex/Edge/CurveRef を提供する。
 
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D};
-use geo_contracts::{Arc3DMeasure, EllipseArc3DMeasure, Scalar};
+use geo_contracts::{
+    Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
+    EllipseArc3DEvaluation, Scalar,
+};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -73,11 +76,11 @@ impl<T: Scalar> CurveRef<T> {
         match self {
             Self::Line(line) => line.start(),
             Self::Arc(arc) => {
-                let (x, y, z) = <TopoArc3D<T> as Arc3DMeasure<T>>::start_point(arc);
+                let (x, y, z) = <TopoArc3D<T> as Arc3DEndpoint<T>>::start_point(arc);
                 Point3D::new(x, y, z)
             }
             Self::EllipseArc(arc) => {
-                let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DMeasure<T>>::start_point(arc);
+                let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::start_point(arc);
                 Point3D::new(x, y, z)
             }
         }
@@ -87,11 +90,11 @@ impl<T: Scalar> CurveRef<T> {
         match self {
             Self::Line(line) => line.end(),
             Self::Arc(arc) => {
-                let (x, y, z) = <TopoArc3D<T> as Arc3DMeasure<T>>::end_point(arc);
+                let (x, y, z) = <TopoArc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
                 Point3D::new(x, y, z)
             }
             Self::EllipseArc(arc) => {
-                let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DMeasure<T>>::end_point(arc);
+                let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::end_point(arc);
                 Point3D::new(x, y, z)
             }
         }
@@ -101,12 +104,12 @@ impl<T: Scalar> CurveRef<T> {
         match self {
             Self::Line(line) => line.line().point_at_parameter(t),
             Self::Arc(arc) => {
-                let (x, y, z) = <TopoArc3D<T> as Arc3DMeasure<T>>::point_at_parameter(arc, t);
+                let (x, y, z) = <TopoArc3D<T> as Arc3DEvaluation<T>>::point_at_parameter(arc, t);
                 Point3D::new(x, y, z)
             }
             Self::EllipseArc(arc) => {
                 let (x, y, z) =
-                    <TopoEllipseArc3D<T> as EllipseArc3DMeasure<T>>::point_at_parameter(arc, t);
+                    <TopoEllipseArc3D<T> as EllipseArc3DEvaluation<T>>::point_at_parameter(arc, t);
                 Point3D::new(x, y, z)
             }
         }

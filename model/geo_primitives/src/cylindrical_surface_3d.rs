@@ -389,7 +389,8 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    CylindricalSurface3DConstructor, CylindricalSurface3DCore, CylindricalSurface3DMeasure,
+    CylindricalSurface3DConstructor, CylindricalSurface3DDerived, CylindricalSurface3DDistance,
+    CylindricalSurface3DEvaluation,
     CylindricalSurface3DProperties as ContractsCylindricalSurface3DProperties,
 };
 
@@ -448,11 +449,13 @@ impl<T: Scalar> ContractsCylindricalSurface3DProperties<T> for CylindricalSurfac
     }
 }
 
-impl<T: Scalar> CylindricalSurface3DMeasure<T> for CylindricalSurface3D<T> {
+impl<T: Scalar> CylindricalSurface3DDerived<T> for CylindricalSurface3D<T> {
     fn surface_area(&self) -> T {
         T::ZERO // 無限円柱面は無限大の表面積
     }
+}
 
+impl<T: Scalar> CylindricalSurface3DEvaluation<T> for CylindricalSurface3D<T> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
         let cos_u = u.cos();
         let sin_u = u.sin();
@@ -509,7 +512,9 @@ impl<T: Scalar> CylindricalSurface3DMeasure<T> for CylindricalSurface3D<T> {
             x_axis_z * cos_u + y_axis_z * sin_u,
         )
     }
+}
 
+impl<T: Scalar> CylindricalSurface3DDistance<T> for CylindricalSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         // 点から軸上の基準点へのベクトル
         let to_point_x = point.0 - self.center.x();
@@ -538,8 +543,6 @@ impl<T: Scalar> CylindricalSurface3DMeasure<T> for CylindricalSurface3D<T> {
         (radial_distance - self.radius).abs()
     }
 }
-
-impl<T: Scalar> CylindricalSurface3DCore<T> for CylindricalSurface3D<T> {}
 
 // ============================================================================
 // Display Implementation

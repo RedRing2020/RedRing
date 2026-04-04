@@ -213,7 +213,7 @@ impl<T: Scalar> Neg for Direction3D<T> {
 
 use analysis::linalg::Vector3;
 use geo_contracts::geometry::core::direction_traits::{
-    Direction3DConstructor, Direction3DMeasure, Direction3DProperties,
+    Direction3DConstructor, Direction3DProperties, Direction3DRelation, Direction3DTransform,
 };
 
 impl<T: Scalar> Direction3DConstructor<T> for Direction3D<T> {
@@ -286,7 +286,7 @@ impl<T: Scalar> Direction3DProperties<T> for Direction3D<T> {
     }
 }
 
-impl<T: Scalar> Direction3DMeasure<T> for Direction3D<T> {
+impl<T: Scalar> Direction3DRelation<T> for Direction3D<T> {
     fn dot(&self, other: &Self) -> T {
         self.vector.dot(&other.vector)
     }
@@ -316,7 +316,9 @@ impl<T: Scalar> Direction3DMeasure<T> for Direction3D<T> {
     fn is_opposite_direction(&self, other: &Self) -> bool {
         (self.angle_to(other) - T::PI).abs() <= default_angle_tolerance::<T>()
     }
+}
 
+impl<T: Scalar> Direction3DTransform<T> for Direction3D<T> {
     fn reverse(&self) -> Self {
         self.reverse()
     }

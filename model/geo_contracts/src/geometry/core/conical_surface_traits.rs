@@ -1,8 +1,4 @@
-//! ConicalSurface Core Traits - 円錐サーフェスの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! ConicalSurface trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -37,14 +33,25 @@ pub trait ConicalSurface3DProperties<T: Scalar> {
     fn slant_height(&self) -> T;
 }
 
-pub trait ConicalSurface3DMeasure<T: Scalar> {
-    fn surface_area(&self) -> T;
+pub trait ConicalSurface3DEvaluation<T: Scalar> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
+}
+
+pub trait ConicalSurface3DDerived<T: Scalar> {
+    fn surface_area(&self) -> T;
+}
+
+pub trait ConicalSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
 
 pub trait ConicalSurface3DCore<T: Scalar>:
-    ConicalSurface3DConstructor<T> + ConicalSurface3DProperties<T> + ConicalSurface3DMeasure<T>
+    ConicalSurface3DConstructor<T> + ConicalSurface3DProperties<T>
+{
+}
+
+impl<T: Scalar, Surface> ConicalSurface3DCore<T> for Surface where
+    Surface: ConicalSurface3DConstructor<T> + ConicalSurface3DProperties<T>
 {
 }

@@ -7,7 +7,7 @@ use crate::Vector2D;
 use analysis::linalg::vector::Vector2;
 use geo_contracts::default_angle_tolerance;
 use geo_contracts::geometry::core::direction_traits::{
-    Direction2DConstructor, Direction2DMeasure, Direction2DProperties,
+    Direction2DConstructor, Direction2DProperties, Direction2DRelation, Direction2DTransform,
 };
 use geo_contracts::Scalar;
 use std::ops::{Deref, DerefMut};
@@ -222,8 +222,8 @@ impl<T: Scalar> Direction2DProperties<T> for Direction2D<T> {
     }
 }
 
-/// Direction2D Measure Trait Implementation
-impl<T: Scalar> Direction2DMeasure<T> for Direction2D<T> {
+/// Direction2D Relation Trait Implementation
+impl<T: Scalar> Direction2DRelation<T> for Direction2D<T> {
     fn dot(&self, other: &Self) -> T {
         self.vector.dot(&other.vector)
     }
@@ -249,7 +249,10 @@ impl<T: Scalar> Direction2DMeasure<T> for Direction2D<T> {
     fn is_opposite_direction(&self, other: &Self) -> bool {
         (self.angle_to(other) - T::PI).abs() <= default_angle_tolerance::<T>()
     }
+}
 
+/// Direction2D Transform Trait Implementation
+impl<T: Scalar> Direction2DTransform<T> for Direction2D<T> {
     fn reverse(&self) -> Self {
         Self::from_vector(Vector2D::new(-self.x(), -self.y())).unwrap()
     }

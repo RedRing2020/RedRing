@@ -1,8 +1,4 @@
-//! ConicalSolid Core Traits - 円錐ソリッドの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! ConicalSolid trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -61,18 +57,35 @@ pub trait ConicalSolid3DProperties<T: Scalar> {
     fn base_area(&self) -> T;
 }
 
-pub trait ConicalSolid3DMeasure<T: Scalar> {
+pub trait ConicalSolid3DDerived<T: Scalar> {
     fn volume(&self) -> T;
     fn surface_area(&self) -> T;
-    fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn distance_to_point(&self, point: (T, T, T)) -> T;
-    fn point_at_conical(&self, r_ratio: T, theta: T, h_ratio: T) -> (T, T, T);
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
-    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
+}
+
+pub trait ConicalSolid3DContainment<T: Scalar> {
+    fn contains_point(&self, point: (T, T, T)) -> bool;
     fn contains_point_tolerance(&self, point: (T, T, T), tolerance: T) -> bool;
 }
 
+pub trait ConicalSolid3DDistance<T: Scalar> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+}
+
+pub trait ConicalSolid3DEvaluation<T: Scalar> {
+    fn point_at_conical(&self, r_ratio: T, theta: T, h_ratio: T) -> (T, T, T);
+}
+
+pub trait ConicalSolid3DProjection<T: Scalar> {
+    fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T);
+}
+
 pub trait ConicalSolid3DCore<T: Scalar>:
-    ConicalSolid3DConstructor<T> + ConicalSolid3DProperties<T> + ConicalSolid3DMeasure<T>
+    ConicalSolid3DConstructor<T> + ConicalSolid3DProperties<T>
+{
+}
+
+impl<T: Scalar, Solid> ConicalSolid3DCore<T> for Solid where
+    Solid: ConicalSolid3DConstructor<T> + ConicalSolid3DProperties<T>
 {
 }

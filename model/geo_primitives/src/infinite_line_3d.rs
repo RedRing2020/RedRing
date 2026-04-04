@@ -1,16 +1,16 @@
 //! 3次元無限直線（InfiniteLine3D）のCore実装
 //!
 //! Foundation統一システムに基づくInfiniteLine3Dの必須機能のみ
-//! Foundation Pattern: Constructor/Properties/Measure の3つのCore Traits実装
+//! Foundation Pattern: Constructor/Properties を中心に capability trait を実装
 
 use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, default_orthogonality_dot_error_tolerance, AngularRelation,
     BasicIntersection, ClosestPointPair, CrossDistance, InfiniteLine3DConstructor,
     InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
-    InfiniteLine3DMeasure, InfiniteLine3DProjection, InfiniteLine3DProperties,
-    InfiniteLine3DTransform, IntersectsRelation, OnPlaneRelation, ParallelRelation,
-    PerpendicularRelation, SameLineRelation, Scalar, SkewRelation,
+    InfiniteLine3DProjection, InfiniteLine3DProperties, InfiniteLine3DTransform,
+    IntersectsRelation, OnPlaneRelation, ParallelRelation, PerpendicularRelation, SameLineRelation,
+    Scalar, SkewRelation,
 };
 
 type LinePointPair3D<T> = ((T, T, T), (T, T, T));
@@ -170,7 +170,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn is_same_line(&self, other: &Self) -> bool {
         self.is_parallel_to(other) && {
             let other_point = <Self as InfiniteLine3DProperties<T>>::point(other);
-            <Self as InfiniteLine3DMeasure<T>>::contains_point(self, other_point)
+            <Self as InfiniteLine3DContainment<T>>::contains_point(self, other_point)
         }
     }
 
@@ -460,7 +460,7 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
 
     fn passes_through_origin(&self) -> bool {
         let origin = (T::ZERO, T::ZERO, T::ZERO);
-        <Self as InfiniteLine3DMeasure<T>>::contains_point(self, origin)
+        <Self as InfiniteLine3DContainment<T>>::contains_point(self, origin)
     }
 
     fn dimension(&self) -> u32 {

@@ -23,11 +23,12 @@
 
 use crate::mesh_converter::VertexData;
 use geo_contracts::{
-    Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DMeasure,
-    CylindricalSolid3DProperties, CylindricalSurface3DMeasure, EllipseArc3DProperties,
-    EllipsoidalSolid3DProperties, EllipsoidalSurface3DMeasure, InfiniteLine3DProperties,
+    Arc3DProperties, Circle3DProperties, ConicalSolid3DProperties, ConicalSurface3DEvaluation,
+    CylindricalSolid3DProperties, CylindricalSurface3DEvaluation, EllipseArc3DProperties,
+    EllipsoidalSolid3DProperties, EllipsoidalSurface3DEvaluation, InfiniteLine3DProperties,
     Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
-    SphericalSurface3DMeasure, TorusSolid3DProperties, TorusSurface3DMeasure, Triangle3DProperties,
+    SphericalSurface3DEvaluation, TorusSolid3DProperties, TorusSurface3DEvaluation,
+    Triangle3DProperties,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)
@@ -1033,31 +1034,25 @@ pub fn cylindrical_surface_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             // Foundation Traits経由でパラメトリック評価
-            let (p1x, p1y, p1z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u1, v2,
-                );
+            let (p1x, p1y, p1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u1, v1);
+            let (p2x, p2y, p2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u2, v1);
+            let (p3x, p3y, p3z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u2, v2);
+            let (p4x, p4y, p4z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u1, v2);
 
-            let (n1x, n1y, n1z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::normal_at(
-                    surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::normal_at(
-                    surface, u2, v1,
-                );
+            let (n1x, n1y, n1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::normal_at(surface, u1, v1);
+            let (n2x, n2y, n2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::normal_at(surface, u2, v1);
 
             // 2つの三角形に分割
             vertices.push(VertexData::new(
@@ -1115,20 +1110,18 @@ pub fn spherical_surface_to_vertices(
             if i == 0 {
                 // 北極
                 let (p_pole_x, p_pole_y, p_pole_z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         surface, u1, v2,
                     );
-                let (p2x, p2y, p2z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        surface, u1, v2,
-                    );
-                let (p3x, p3y, p3z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        surface, u2, v2,
-                    );
+                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(surface, u1, v2);
+                let (p3x, p3y, p3z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(surface, u2, v2);
 
                 let (n_pole_x, n_pole_y, n_pole_z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                         surface, u1, v2,
                     );
 
@@ -1149,23 +1142,20 @@ pub fn spherical_surface_to_vertices(
 
             if i == v_divisions - 1 {
                 // 南極付近
-                let (p1x, p1y, p1z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        surface, u1, v1,
-                    );
-                let (p2x, p2y, p2z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        surface, u2, v1,
-                    );
+                let (p1x, p1y, p1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(surface, u1, v1);
+                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(surface, u2, v1);
                 let (p_pole_x, p_pole_y, p_pole_z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         surface, u1, v2,
                     );
 
-                let (n1x, n1y, n1z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
-                        surface, u1, v1,
-                    );
+                let (n1x, n1y, n1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::normal_at(surface, u1, v1);
 
                 vertices.push(VertexData::new(
                     [p1x as f32, p1y as f32, p1z as f32],
@@ -1184,36 +1174,36 @@ pub fn spherical_surface_to_vertices(
 
             // 通常の4頂点クワッド
             let (p1x, p1y, p1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u1, v1,
                 );
             let (p2x, p2y, p2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u2, v1,
                 );
             let (p3x, p3y, p3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u2, v2,
                 );
             let (p4x, p4y, p4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u1, v2,
                 );
 
             let (n1x, n1y, n1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     surface, u1, v1,
                 );
             let (n2x, n2y, n2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     surface, u2, v1,
                 );
             let (n3x, n3y, n3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     surface, u2, v2,
                 );
             let (n4x, n4y, n4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     surface, u1, v2,
                 );
 
@@ -1269,26 +1259,30 @@ pub fn conical_surface_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             let (p1x, p1y, p1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u1, v1,
                 );
             let (p2x, p2y, p2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u2, v1,
                 );
             let (p3x, p3y, p3z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u2, v2,
                 );
             let (p4x, p4y, p4z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     surface, u1, v2,
                 );
 
             let (n1x, n1y, n1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(surface, u1, v1);
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
+                    surface, u1, v1,
+                );
             let (n2x, n2y, n2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(surface, u2, v1);
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
+                    surface, u2, v1,
+                );
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],
@@ -1341,22 +1335,30 @@ pub fn torus_surface_to_vertices(
             let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
 
             let (p1x, p1y, p1z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(surface, u1, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u1, v1,
+                );
             let (p2x, p2y, p2z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(surface, u2, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u2, v1,
+                );
             let (p3x, p3y, p3z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(surface, u2, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u2, v2,
+                );
             let (p4x, p4y, p4z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(surface, u1, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    surface, u1, v2,
+                );
 
             let (n1x, n1y, n1z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(surface, u1, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u1, v1);
             let (n2x, n2y, n2z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(surface, u2, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u2, v1);
             let (n3x, n3y, n3z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(surface, u2, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u2, v2);
             let (n4x, n4y, n4z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(surface, u1, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(surface, u1, v2);
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],
@@ -1411,18 +1413,18 @@ pub fn ellipsoidal_surface_to_vertices(
             // 極点の退化処理（球面と同様）
             if i == 0 || i == v_divisions - 1 {
                 let ((p1x, p1y, p1z), (p2x, p2y, p2z), (p3x, p3y, p3z)) = if i == 0 {
-                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(surface, u1, v2);
-                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(surface, u1, v2);
-                    let p3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(surface, u2, v2);
+                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u1, v2);
+                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u1, v2);
+                    let p3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u2, v2);
                     (pole, p2, p3)
                 } else {
-                    let p1 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(surface, u1, v1);
-                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(surface, u2, v1);
-                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(surface, u1, v2);
+                    let p1 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u1, v1);
+                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u2, v1);
+                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(surface, u1, v2);
                     (p1, p2, pole)
                 };
 
-                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<
+                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
                     f64,
                 >>::normal_at(
                     surface, u1, if i == 0 { v2 } else { v1 }
@@ -1443,39 +1445,31 @@ pub fn ellipsoidal_surface_to_vertices(
                 continue;
             }
 
-            let (p1x, p1y, p1z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    surface, u1, v2,
-                );
+            let (p1x, p1y, p1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u1, v1);
+            let (p2x, p2y, p2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u2, v1);
+            let (p3x, p3y, p3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u2, v2);
+            let (p4x, p4y, p4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(surface, u1, v2);
 
-            let (n1x, n1y, n1z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    surface, u2, v1,
-                );
-            let (n3x, n3y, n3z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    surface, u2, v2,
-                );
-            let (n4x, n4y, n4z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    surface, u1, v2,
-                );
+            let (n1x, n1y, n1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(surface, u1, v1);
+            let (n2x, n2y, n2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(surface, u2, v1);
+            let (n3x, n3y, n3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(surface, u2, v2);
+            let (n4x, n4y, n4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(surface, u1, v2);
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],
@@ -1546,31 +1540,25 @@ pub fn cylindrical_solid_to_vertices(
             let u1 = (j as f64 / u_divisions as f64) * 2.0 * PI;
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
-            let (p1x, p1y, p1z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u1, v2,
-                );
+            let (p1x, p1y, p1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u1, v1);
+            let (p2x, p2y, p2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u2, v1);
+            let (p3x, p3y, p3z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u2, v2);
+            let (p4x, p4y, p4z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u1, v2);
 
-            let (n1x, n1y, n1z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::normal_at(
-                    &surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <CylindricalSurface3D<f64> as CylindricalSurface3DMeasure<f64>>::normal_at(
-                    &surface, u2, v1,
-                );
+            let (n1x, n1y, n1z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::normal_at(&surface, u1, v1);
+            let (n2x, n2y, n2z) = <CylindricalSurface3D<f64> as CylindricalSurface3DEvaluation<
+                f64,
+            >>::normal_at(&surface, u2, v1);
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],
@@ -1664,19 +1652,17 @@ pub fn spherical_solid_to_vertices(
 
             if i == 0 {
                 let (p_pole_x, p_pole_y, p_pole_z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         &surface, u1, v2,
                     );
-                let (p2x, p2y, p2z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        &surface, u1, v2,
-                    );
-                let (p3x, p3y, p3z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        &surface, u2, v2,
-                    );
+                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(&surface, u1, v2);
+                let (p3x, p3y, p3z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(&surface, u2, v2);
                 let (n_pole_x, n_pole_y, n_pole_z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                         &surface, u1, v2,
                     );
 
@@ -1696,22 +1682,19 @@ pub fn spherical_solid_to_vertices(
             }
 
             if i == v_divisions - 1 {
-                let (p1x, p1y, p1z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        &surface, u1, v1,
-                    );
-                let (p2x, p2y, p2z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
-                        &surface, u2, v1,
-                    );
+                let (p1x, p1y, p1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(&surface, u1, v1);
+                let (p2x, p2y, p2z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::point_at_uv(&surface, u2, v1);
                 let (p_pole_x, p_pole_y, p_pole_z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                    <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                         &surface, u1, v2,
                     );
-                let (n1x, n1y, n1z) =
-                    <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
-                        &surface, u1, v1,
-                    );
+                let (n1x, n1y, n1z) = <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<
+                    f64,
+                >>::normal_at(&surface, u1, v1);
 
                 vertices.push(VertexData::new(
                     [p1x as f32, p1y as f32, p1z as f32],
@@ -1729,36 +1712,36 @@ pub fn spherical_solid_to_vertices(
             }
 
             let (p1x, p1y, p1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u1, v1,
                 );
             let (p2x, p2y, p2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u2, v1,
                 );
             let (p3x, p3y, p3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u2, v2,
                 );
             let (p4x, p4y, p4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::point_at_uv(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u1, v2,
                 );
 
             let (n1x, n1y, n1z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     &surface, u1, v1,
                 );
             let (n2x, n2y, n2z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     &surface, u2, v1,
                 );
             let (n3x, n3y, n3z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     &surface, u2, v2,
                 );
             let (n4x, n4y, n4z) =
-                <SphericalSurface3D<f64> as SphericalSurface3DMeasure<f64>>::normal_at(
+                <SphericalSurface3D<f64> as SphericalSurface3DEvaluation<f64>>::normal_at(
                     &surface, u1, v2,
                 );
 
@@ -1826,28 +1809,28 @@ pub fn conical_solid_to_vertices(
             let u2 = ((j + 1) as f64 / u_divisions as f64) * 2.0 * PI;
 
             let (p1x, p1y, p1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u1, v1,
                 );
             let (p2x, p2y, p2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u2, v1,
                 );
             let (p3x, p3y, p3z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u2, v2,
                 );
             let (p4x, p4y, p4z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::point_at_uv(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::point_at_uv(
                     &surface, u1, v2,
                 );
 
             let (n1x, n1y, n1z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
                     &surface, u1, v1,
                 );
             let (n2x, n2y, n2z) =
-                <ConicalSurface3D<f64> as ConicalSurface3DMeasure<f64>>::normal_at(
+                <ConicalSurface3D<f64> as ConicalSurface3DEvaluation<f64>>::normal_at(
                     &surface, u2, v1,
                 );
 
@@ -1929,22 +1912,30 @@ pub fn torus_solid_to_vertices(
             let v2 = ((j + 1) as f64 / v_divisions as f64) * 2.0 * PI;
 
             let (p1x, p1y, p1z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(&surface, u1, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u1, v1,
+                );
             let (p2x, p2y, p2z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(&surface, u2, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u2, v1,
+                );
             let (p3x, p3y, p3z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(&surface, u2, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u2, v2,
+                );
             let (p4x, p4y, p4z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::point_at_uv(&surface, u1, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::point_at_uv(
+                    &surface, u1, v2,
+                );
 
             let (n1x, n1y, n1z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(&surface, u1, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u1, v1);
             let (n2x, n2y, n2z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(&surface, u2, v1);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u2, v1);
             let (n3x, n3y, n3z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(&surface, u2, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u2, v2);
             let (n4x, n4y, n4z) =
-                <TorusSurface3D<f64> as TorusSurface3DMeasure<f64>>::normal_at(&surface, u1, v2);
+                <TorusSurface3D<f64> as TorusSurface3DEvaluation<f64>>::normal_at(&surface, u1, v2);
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],
@@ -2014,18 +2005,18 @@ pub fn ellipsoidal_solid_to_vertices(
 
             if i == 0 || i == v_divisions - 1 {
                 let ((p1x, p1y, p1z), (p2x, p2y, p2z), (p3x, p3y, p3z)) = if i == 0 {
-                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(&surface, u1, v2);
-                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(&surface, u1, v2);
-                    let p3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(&surface, u2, v2);
+                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u1, v2);
+                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u1, v2);
+                    let p3 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u2, v2);
                     (pole, p2, p3)
                 } else {
-                    let p1 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(&surface, u1, v1);
-                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(&surface, u2, v1);
-                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(&surface, u1, v2);
+                    let p1 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u1, v1);
+                    let p2 = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u2, v1);
+                    let pole = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<f64>>::point_at_uv(&surface, u1, v2);
                     (p1, p2, pole)
                 };
 
-                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<
+                let (nx, ny, nz) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
                     f64,
                 >>::normal_at(
                     &surface, u1, if i == 0 { v2 } else { v1 }
@@ -2046,39 +2037,31 @@ pub fn ellipsoidal_solid_to_vertices(
                 continue;
             }
 
-            let (p1x, p1y, p1z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u1, v1,
-                );
-            let (p2x, p2y, p2z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u2, v1,
-                );
-            let (p3x, p3y, p3z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u2, v2,
-                );
-            let (p4x, p4y, p4z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::point_at_uv(
-                    &surface, u1, v2,
-                );
+            let (p1x, p1y, p1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u1, v1);
+            let (p2x, p2y, p2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u2, v1);
+            let (p3x, p3y, p3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u2, v2);
+            let (p4x, p4y, p4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::point_at_uv(&surface, u1, v2);
 
-            let (n1x, n1y, n1z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    &surface, u1, v1,
-                );
-            let (n2x, n2y, n2z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    &surface, u2, v1,
-                );
-            let (n3x, n3y, n3z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    &surface, u2, v2,
-                );
-            let (n4x, n4y, n4z) =
-                <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DMeasure<f64>>::normal_at(
-                    &surface, u1, v2,
-                );
+            let (n1x, n1y, n1z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(&surface, u1, v1);
+            let (n2x, n2y, n2z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(&surface, u2, v1);
+            let (n3x, n3y, n3z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(&surface, u2, v2);
+            let (n4x, n4y, n4z) = <EllipsoidalSurface3D<f64> as EllipsoidalSurface3DEvaluation<
+                f64,
+            >>::normal_at(&surface, u1, v2);
 
             vertices.push(VertexData::new(
                 [p1x as f32, p1y as f32, p1z as f32],

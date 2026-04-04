@@ -237,12 +237,13 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 | `LineSegment3DDistance::distance_to_point` | `distance` |
 | `LineSegment2DProjection::closest_point_to` | `projection` |
 | `LineSegment3DProjection::closest_point_to` | `projection` |
-| `LineSegment2DMeasure` / `LineSegment3DMeasure` | 後方互換の集約 trait |
+| 旧 `LineSegment2DMeasure` / `LineSegment3DMeasure` | `derived` / `distance` / `containment` / `evaluation` / `projection` へ分離済み |
 
 補足:
 
 - `LineSegment` では endpoint が shape 意味論上の正本なので、`start/end/midpoint/length` を `Properties` に残す方針を維持する
 - `measure` は primary vocabulary ではなく、`derived` 側の互換 API とみなす
+- 実装進捗として `LineSegment2DMeasure` / `LineSegment3DMeasure` は削除済みで、export は capability trait のみとする
 
 ### Arc の再分類
 
@@ -275,6 +276,7 @@ Arc は `Measure` に endpoint / evaluation / containment / distance が集中�
 - `start_point/end_point/midpoint` は Arc では endpoint capability として自然に存在する
 - `point_at_angle` は endpoint ではなく angle evaluation として分ける
 - `Arc2DContainment` は現行の時点で `contains_*` と `point_at_angle` を混在しているため、分割候補として扱う
+- 実装進捗として `Arc2DMeasure` / `Arc3DMeasure` は削除済みで、downstream では `Arc2DEndpoint` / `Arc2DContainment` / `Arc3DEndpoint` / `Arc3DDistance` を直接使う
 
 ### EllipseArc の再分類
 
@@ -303,6 +305,7 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 
 - `contains_point(point, tolerance)` の tolerance 引数は unary containment capability 側の責務として扱う
 - `bounding_box` は relation ではないため `operations` ではなく unary `derived` 側へ置く
+- 実装進捗として `EllipseArc2DMeasure` / `EllipseArc3DMeasure` は削除済みで、downstream では capability trait を直接使う
 
 ### Ellipse の再分類
 
@@ -382,6 +385,68 @@ NURBS surface は curve family と異なり、UV parameter evaluation と surfac
 - `normal_at` と `tangent_vectors_at` は unary derived quantity ではなく、UV parameter に依存する evaluation capability として扱う
 - adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
 
+### Analytic Surface の再分類
+
+analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`SphericalSurface3D`、`TorusSurface3D`、`EllipsoidalSurface3D` を対象とする。
+これらは従来 `*Measure` に UV evaluation、表面積、距離、最近点、補助 parameter 系が混在していたが、pre-release 方針に従い旧 `*Measure` 集約 trait は保持しない。
+
+本整理では、surface family の primary measure vocabulary は `surface_area` を維持しつつ、analytic surface ごとに `evaluation`、`derived`、`distance`、必要に応じて `projection` へ分離する。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `ConicalSurface3DConstructor` / `CylindricalSurface3DConstructor` / `SphericalSurface3DConstructor` / `TorusSurface3DConstructor` / `EllipsoidalSurface3DConstructor` | `definition` |
+| 各 `*Surface3DProperties` の定義パラメータ | `definition` |
+| `ConicalSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `ConicalSurface3D::surface_area/slant_height` | `derived` |
+| `ConicalSurface3D::distance_to_point` | `distance` |
+| `CylindricalSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `CylindricalSurface3D::surface_area` | `derived` |
+| `CylindricalSurface3D::distance_to_point` | `distance` |
+| `SphericalSurface3D::point_at_uv/normal_at/point_at_latlong/tangent_at` | `evaluation` |
+| `SphericalSurface3D::surface_area/bounding_box` | `derived` |
+| `SphericalSurface3D::distance_to_point` | `distance` |
+| `SphericalSurface3D::closest_point` | `projection` |
+| `TorusSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `TorusSurface3D::surface_area` | `derived` |
+| `TorusSurface3D::distance_to_point` | `distance` |
+| `EllipsoidalSurface3D::point_at_uv/normal_at/point_at_spherical` | `evaluation` |
+| `EllipsoidalSurface3D::surface_area/bounding_box/volume/surface_area_knud_thomsen` | `derived` |
+| `EllipsoidalSurface3D::distance_to_point` | `distance` |
+| 各 `*Surface3DCore` | `Constructor + Properties` |
+
+補足:
+
+- analytic surface では `bounding_box` を relation ではなく unary `derived` capability とみなす
+- `closest_point` は `distance` に含めず、projection capability として独立させる
+- `point_at_latlong` と `point_at_spherical` は補助 parameter 系だが、いずれも surface evaluation capability として扱う
+- `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は維持し、trait再分類だけを理由に module 増殖は行わない
+
+### Solid の再分類
+
+solid 群は `ConicalSolid3D`、`CylindricalSolid3D`、`SphericalSolid3D`、`TorusSolid3D`、`EllipsoidalSolid3D` を対象とする。
+これらは従来 `*Measure` に体積、表面積、包含判定、距離、境界箱、最近点、parameter 評価が混在していたため、surface 群と同様に capability を分離する。
+
+本整理では、solid family では primary measure vocabulary として `volume` と `surface_area` を `derived` に置き、点包含は `containment`、距離は `distance`、parameter 評価は `evaluation`、最近点は `projection` として扱う。旧 `*Measure` 集約 trait は保持しない。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| 各 `*Solid3DConstructor` | `definition` |
+| 各 `*Solid3DProperties` の定義パラメータ | `definition` |
+| `volume/surface_area/bounding_box` | `derived` |
+| `contains_point` / `contains_point_tolerance` / `is_on_surface` | `containment` |
+| `distance_to_point` / `distance_to_surface` | `distance` |
+| `point_at_conical` / `point_at_cylindrical` / `point_at_latlong` / `point_at_toroidal` | `evaluation` |
+| `closest_point_on_surface` | `projection` |
+| `is_self_intersecting` / `is_degenerate` | `derived` |
+| 各 `*Solid3DCore` | `Constructor + Properties` |
+
+補足:
+
+- solid でも `bounding_box` は relation ではなく unary `derived` capability とみなす
+- `is_on_surface` は点の境界 membership 判定なので containment に含める
+- `distance_to_surface` と `distance_to_point` は名称差を維持しつつ distance capability にまとめる
+- `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は現状維持を優先し、taxonomy 変更を理由に新規 module は追加しない
+
 ### Circle の再分類
 
 Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。
@@ -409,6 +474,8 @@ Circle は閉曲線であり、parameter evaluation を持っても endpoint cap
 
 - `area` は閉曲線そのものの評価というより、その interior を伴う派生量として扱う
 - `ref_direction` は parameter 原点の便宜的基準として使えても、endpoint capability の根拠には使わない
+- 実装進捗として `Circle2DMeasure` / `Circle3DMeasure` は削除済みで、capability trait のみを export する
+- 実装進捗として `Ellipse2DMeasure` / `Ellipse3DMeasure` も削除済みで、派生量・評価・包含・距離を個別 trait で公開する
 
 ### Triangle の再分類
 
@@ -421,18 +488,18 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 | `Triangle3DProperties::vertex_a/vertex_b/vertex_c` | `definition` |
 | `Triangle2DProperties::centroid/circumcenter/incenter/circumradius/inradius` | `derived` |
 | `Triangle3DProperties::centroid/normal/circumcenter/circumradius/inradius` | `derived` |
-| `Triangle2DMeasure::measure` | `derived` |
-| `Triangle3DMeasure::measure` | `derived` |
-| `Triangle2DMeasure::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
-| `Triangle3DMeasure::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
-| `Triangle2DMeasure::perimeter` | `derived` |
-| `Triangle3DMeasure::perimeter` | `derived` |
-| `Triangle2DMeasure::contains_point` | `containment` |
-| `Triangle3DMeasure::contains_point` | `containment` |
-| `Triangle2DMeasure::distance_to_point` | `distance` |
-| `Triangle3DMeasure::distance_to_point` | `distance` |
-| `Triangle2DMeasure::is_clockwise` | `derived` |
-| `Triangle3DMeasure::is_planar` | `derived` |
+| `Triangle2DDerived::measure` | `derived` |
+| `Triangle3DDerived::measure` | `derived` |
+| `Triangle2DDerived::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
+| `Triangle3DDerived::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
+| `Triangle2DDerived::perimeter` | `derived` |
+| `Triangle3DDerived::perimeter` | `derived` |
+| `Triangle2DContainment::contains_point` | `containment` |
+| `Triangle3DContainment::contains_point` | `containment` |
+| `Triangle2DDistance::distance_to_point` | `distance` |
+| `Triangle3DDistance::distance_to_point` | `distance` |
+| `Triangle2DDerived::is_clockwise` | `derived` |
+| `Triangle3DDerived::is_planar` | `derived` |
 | `Triangle2DCore` / `Triangle3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
@@ -458,14 +525,14 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `*Constructor`
 - `*Properties`
-- `*Measure`
+- shape ごとの capability trait 群
 - `*Core`
 
 代表例:
 
 - `point_traits.rs`: `Point2DConstructor` / `Point2DProperties` / `Point2DMeasure` / `Point2DCore`
 - `vector_traits.rs`: `Vector2DConstructor` / `Vector2DProperties` / `Vector2DMeasure` / `Vector2DCore`
-- `circle_traits.rs`: `Circle2DConstructor` / `Circle2DProperties` / `Circle2DMeasure` / `Circle2DCore`
+- `triangle_traits.rs`: `Triangle2DConstructor` / `Triangle2DProperties` / capability trait 群 / `Triangle2DCore`
 
 ただし、現行 `core` には shape 定義以外も混在している。
 
@@ -582,7 +649,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 理由:
 
 - 長さ、面積、体積、距離、補間、射影、法線評価は shape の定義そのものではなく capability だから
-- 現行ソースにも `TODO(#318): Measure contracts are temporarily colocated and will be split by responsibility.` が残っているから
+- 旧 TODO ベースの暫定整理ではなく、責務分離後の capability 構成を正本として固定する必要があるから
 
 設計反映:
 
@@ -716,7 +783,8 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 設計反映:
 
 - `*Core` は `Constructor + Properties` の統合 alias に縮小する
-- 旧 `*Measure` は後方互換のために集約 trait として残してよいが、新規実装の責務配置はそこで説明しない
+- 実装進捗として `InfiniteLine2D/3D` と `Ray2D/3D` の旧 `*Measure` 集約 trait は削除済みで、責務は capability trait に直接分離する
+- 実装進捗として `Rect2D/3D` と `Plane3D` の旧 `*Measure` 集約 trait は削除済みで、責務は capability trait に直接分離する
 - `contains_point` は `Containment`
 - `point_at_parameter` / `parameter_for_point` / `point_to_uv` / `uv_to_point` は `Evaluation`
 - `closest_point` / `project_point` は `Projection`
@@ -728,6 +796,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `Measure` という名前のまま unary measure, relation, projection, transform を混在させると、AABB 後に採用した taxonomy と説明軸が揃わないから
 - 先行対象で capability taxonomy を分けておくと、後続の `Circle` / `Triangle` / solid / surface にも同じ軸で横展開できるから
+- 実装進捗として `Triangle2D/3D` の旧 `*Measure` 集約 trait は削除済みで、面 shape でも同じ capability 軸へ統一できるから
 
 - これは shape の定義でも一般的な単一 shape metadata でもなく、近似式・数値計算戦略の選択そのものだから
 - capability としても algorithm 寄りであり、他の operations 群と同じ層に置く方が自然だから

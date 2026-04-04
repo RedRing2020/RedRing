@@ -345,7 +345,8 @@ impl<T: Scalar> std::fmt::Display for CylindricalSolid3D<T> {
 // ============================================================================
 
 use geo_contracts::{
-    CylindricalSolid3DConstructor, CylindricalSolid3DCore, CylindricalSolid3DMeasure,
+    CylindricalSolid3DConstructor, CylindricalSolid3DContainment, CylindricalSolid3DDerived,
+    CylindricalSolid3DDistance, CylindricalSolid3DEvaluation, CylindricalSolid3DProjection,
     CylindricalSolid3DProperties as ContractsCylindricalSolid3DProperties,
 };
 
@@ -456,7 +457,7 @@ impl<T: Scalar> ContractsCylindricalSolid3DProperties<T> for CylindricalSolid3D<
     }
 }
 
-impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
+impl<T: Scalar> CylindricalSolid3DDerived<T> for CylindricalSolid3D<T> {
     fn volume(&self) -> T {
         T::PI * self.radius * self.radius * self.height
     }
@@ -467,6 +468,25 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
         T::from_f64(2.0) * base_area + side_area
     }
 
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let r = self.radius;
+        let h = self.height;
+
+        let min_x = self.center.x() - r;
+        let max_x = self.center.x() + r;
+        let min_y = self.center.y() - r;
+        let max_y = self.center.y() + r;
+
+        let base_z = self.center.z();
+        let top_z = base_z + h * self.axis.z();
+        let min_z = base_z.min(top_z);
+        let max_z = base_z.max(top_z);
+
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+}
+
+impl<T: Scalar> CylindricalSolid3DContainment<T> for CylindricalSolid3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         // 点から底面への投影を計算
         let to_point_x = point.0 - self.center.x();
@@ -494,7 +514,9 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
 
         radial_distance_sq <= self.radius * self.radius
     }
+}
 
+impl<T: Scalar> CylindricalSolid3DDistance<T> for CylindricalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let to_point_x = point.0 - self.center.x();
         let to_point_y = point.1 - self.center.y();
@@ -529,9 +551,9 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
         // 軸方向と半径方向の距離を合成
         (axis_distance * axis_distance + radial_excess * radial_excess).sqrt()
     }
+}
 
-    // Phase 2: 追加測定
-
+impl<T: Scalar> CylindricalSolid3DEvaluation<T> for CylindricalSolid3D<T> {
     fn point_at_cylindrical(&self, r: T, theta: T, z: T) -> (T, T, T) {
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
@@ -555,24 +577,9 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
 
         (x, y, z_coord)
     }
+}
 
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let r = self.radius;
-        let h = self.height;
-
-        let min_x = self.center.x() - r;
-        let max_x = self.center.x() + r;
-        let min_y = self.center.y() - r;
-        let max_y = self.center.y() + r;
-
-        let base_z = self.center.z();
-        let top_z = base_z + h * self.axis.z();
-        let min_z = base_z.min(top_z);
-        let max_z = base_z.max(top_z);
-
-        ((min_x, min_y, min_z), (max_x, max_y, max_z))
-    }
-
+impl<T: Scalar> CylindricalSolid3DProjection<T> for CylindricalSolid3D<T> {
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
         let to_point_x = point.0 - self.center.x();
         let to_point_y = point.1 - self.center.y();
@@ -608,8 +615,6 @@ impl<T: Scalar> CylindricalSolid3DMeasure<T> for CylindricalSolid3D<T> {
         }
     }
 }
-
-impl<T: Scalar> CylindricalSolid3DCore<T> for CylindricalSolid3D<T> {}
 
 impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T> {
     type Point = (T, T, T);

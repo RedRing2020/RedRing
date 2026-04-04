@@ -1,8 +1,4 @@
-//! CylindricalSurface Core Traits - 円柱サーフェスの3つのCore機能統合
-//!
-//! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
-//! Transform機能は共通のAnalysisTransformトレイトを使用
+//! CylindricalSurface trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
@@ -35,16 +31,25 @@ pub trait CylindricalSurface3DProperties<T: Scalar> {
     fn diameter(&self) -> T;
 }
 
-pub trait CylindricalSurface3DMeasure<T: Scalar> {
-    fn surface_area(&self) -> T;
+pub trait CylindricalSurface3DEvaluation<T: Scalar> {
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
+}
+
+pub trait CylindricalSurface3DDerived<T: Scalar> {
+    fn surface_area(&self) -> T;
+}
+
+pub trait CylindricalSurface3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
 
 pub trait CylindricalSurface3DCore<T: Scalar>:
-    CylindricalSurface3DConstructor<T>
-    + CylindricalSurface3DProperties<T>
-    + CylindricalSurface3DMeasure<T>
+    CylindricalSurface3DConstructor<T> + CylindricalSurface3DProperties<T>
+{
+}
+
+impl<T: Scalar, Surface> CylindricalSurface3DCore<T> for Surface where
+    Surface: CylindricalSurface3DConstructor<T> + CylindricalSurface3DProperties<T>
 {
 }

@@ -5,7 +5,8 @@
 mod tests {
     use crate::{CylindricalSolid3D, Direction3D, InfiniteLine3D, Point3D, Vector3D};
     use geo_contracts::{
-        BasicIntersection, CylindricalSolid3DMeasure, CylindricalSolid3DProperties,
+        BasicIntersection, CylindricalSolid3DContainment, CylindricalSolid3DDerived,
+        CylindricalSolid3DDistance, CylindricalSolid3DProperties,
     };
 
     #[test]
@@ -135,7 +136,7 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         let expected_volume = std::f64::consts::PI * radius * radius * height;
-        let actual_volume = CylindricalSolid3DMeasure::volume(&cylindrical_solid);
+        let actual_volume = CylindricalSolid3DDerived::volume(&cylindrical_solid);
         assert!((actual_volume - expected_volume).abs() < 1e-10_f64);
     }
 
@@ -151,7 +152,7 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         let expected_surface_area = 2.0 * std::f64::consts::PI * radius * (radius + height);
-        let actual_area = CylindricalSolid3DMeasure::surface_area(&cylindrical_solid);
+        let actual_area = CylindricalSolid3DDerived::surface_area(&cylindrical_solid);
         assert!((actual_area - expected_surface_area).abs() < 1e-10);
     }
 
@@ -168,21 +169,21 @@ mod tests {
 
         // 円柱内部の点
         let inside_point = (2.0, 2.0, 3.0);
-        assert!(CylindricalSolid3DMeasure::contains_point(
+        assert!(CylindricalSolid3DContainment::contains_point(
             &cylindrical_solid,
             inside_point
         ));
 
         // 円柱外部の点
         let outside_point = (10.0, 0.0, 0.0);
-        assert!(!CylindricalSolid3DMeasure::contains_point(
+        assert!(!CylindricalSolid3DContainment::contains_point(
             &cylindrical_solid,
             outside_point
         ));
 
         // 高さ範囲外の点
         let too_high_point = (0.0, 0.0, 15.0);
-        assert!(!CylindricalSolid3DMeasure::contains_point(
+        assert!(!CylindricalSolid3DContainment::contains_point(
             &cylindrical_solid,
             too_high_point
         ));
@@ -242,8 +243,8 @@ mod tests {
             CylindricalSolid3D::new(center, axis, ref_direction, radius, height).unwrap();
 
         // ソリッド特有のプロパティ
-        let volume = CylindricalSolid3DMeasure::volume(&cylindrical_solid);
-        let surface_area = CylindricalSolid3DMeasure::surface_area(&cylindrical_solid);
+        let volume = CylindricalSolid3DDerived::volume(&cylindrical_solid);
+        let surface_area = CylindricalSolid3DDerived::surface_area(&cylindrical_solid);
         let bbox = cylindrical_solid.bounding_box();
 
         // 体積が正の値
@@ -271,14 +272,14 @@ mod tests {
         // 内部の点（距離は0に近い）
         let internal_point = (0.0, 0.0, 5.0);
         let distance =
-            CylindricalSolid3DMeasure::distance_to_point(&cylindrical_solid, internal_point);
+            CylindricalSolid3DDistance::distance_to_point(&cylindrical_solid, internal_point);
         assert!(distance < 1e-10);
 
         // 外部の点
         let external_point = (8.0, 0.0, 5.0);
         let expected_distance = 3.0_f64; // 8 - 5 = 3
         let actual_distance =
-            CylindricalSolid3DMeasure::distance_to_point(&cylindrical_solid, external_point);
+            CylindricalSolid3DDistance::distance_to_point(&cylindrical_solid, external_point);
         assert!((actual_distance - expected_distance).abs() < 1e-10_f64);
     }
 

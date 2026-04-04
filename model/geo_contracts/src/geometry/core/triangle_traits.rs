@@ -85,43 +85,6 @@ pub trait Triangle2DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T)) -> T;
 }
 
-/// Triangle2D Measure トレイト（互換集約）
-pub trait Triangle2DMeasure<T: Scalar>:
-    Triangle2DDerived<T> + Triangle2DContainment<T> + Triangle2DDistance<T>
-{
-    fn measure(&self) -> T {
-        <Self as Triangle2DDerived<T>>::measure(self)
-    }
-
-    fn edge_ab_length(&self) -> T {
-        <Self as Triangle2DDerived<T>>::edge_ab_length(self)
-    }
-
-    fn edge_bc_length(&self) -> T {
-        <Self as Triangle2DDerived<T>>::edge_bc_length(self)
-    }
-
-    fn edge_ca_length(&self) -> T {
-        <Self as Triangle2DDerived<T>>::edge_ca_length(self)
-    }
-
-    fn perimeter(&self) -> T {
-        <Self as Triangle2DDerived<T>>::perimeter(self)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        <Self as Triangle2DContainment<T>>::contains_point(self, point)
-    }
-
-    fn is_clockwise(&self) -> bool {
-        <Self as Triangle2DDerived<T>>::is_clockwise(self)
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        <Self as Triangle2DDistance<T>>::distance_to_point(self, point)
-    }
-}
-
 /// Triangle2D Core トレイト（統合インターフェース）
 pub trait Triangle2DCore<T: Scalar>: Triangle2DConstructor<T> + Triangle2DProperties<T> {}
 
@@ -205,55 +168,8 @@ pub trait Triangle3DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T, T)) -> T;
 }
 
-/// Triangle3D Measure トレイト（互換集約）
-pub trait Triangle3DMeasure<T: Scalar>:
-    Triangle3DDerived<T> + Triangle3DContainment<T> + Triangle3DDistance<T>
-{
-    fn measure(&self) -> T {
-        <Self as Triangle3DDerived<T>>::measure(self)
-    }
-
-    fn edge_ab_length(&self) -> T {
-        <Self as Triangle3DDerived<T>>::edge_ab_length(self)
-    }
-
-    fn edge_bc_length(&self) -> T {
-        <Self as Triangle3DDerived<T>>::edge_bc_length(self)
-    }
-
-    fn edge_ca_length(&self) -> T {
-        <Self as Triangle3DDerived<T>>::edge_ca_length(self)
-    }
-
-    fn perimeter(&self) -> T {
-        <Self as Triangle3DDerived<T>>::perimeter(self)
-    }
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        <Self as Triangle3DContainment<T>>::contains_point(self, point)
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        <Self as Triangle3DDistance<T>>::distance_to_point(self, point)
-    }
-
-    fn is_planar(&self) -> bool {
-        <Self as Triangle3DDerived<T>>::is_planar(self)
-    }
-}
-
 /// Triangle3D Core トレイト（統合インターフェース）
 pub trait Triangle3DCore<T: Scalar>: Triangle3DConstructor<T> + Triangle3DProperties<T> {}
-
-impl<T: Scalar, Triangle> Triangle2DMeasure<T> for Triangle where
-    Triangle: Triangle2DDerived<T> + Triangle2DContainment<T> + Triangle2DDistance<T>
-{
-}
-
-impl<T: Scalar, Triangle> Triangle3DMeasure<T> for Triangle where
-    Triangle: Triangle3DDerived<T> + Triangle3DContainment<T> + Triangle3DDistance<T>
-{
-}
 
 impl<T: Scalar, Triangle> Triangle2DCore<T> for Triangle where
     Triangle: Triangle2DConstructor<T> + Triangle2DProperties<T>

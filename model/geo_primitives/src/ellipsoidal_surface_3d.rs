@@ -455,7 +455,8 @@ impl<T: Scalar> std::fmt::Display for EllipsoidalSurface3D<T> {
 }
 
 use geo_contracts::{
-    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DMeasure,
+    EllipsoidalSurface3DConstructor, EllipsoidalSurface3DDerived, EllipsoidalSurface3DDistance,
+    EllipsoidalSurface3DEvaluation,
     EllipsoidalSurface3DProperties as ContractsEllipsoidalSurface3DProperties,
 };
 
@@ -573,7 +574,7 @@ impl<T: Scalar> ContractsEllipsoidalSurface3DProperties<T> for EllipsoidalSurfac
     }
 }
 
-impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
+impl<T: Scalar> EllipsoidalSurface3DDerived<T> for EllipsoidalSurface3D<T> {
     fn surface_area(&self) -> T {
         // 楕円体の表面積は解析解がないため、近似値を返す
         // Knud Thomsen's formula を使用
@@ -589,42 +590,6 @@ impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
         let three = T::from_f64(3.0);
         let pi = T::from_f64(std::f64::consts::PI);
         four * pi * (numerator / three).powf(T::ONE / p)
-    }
-
-    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        if let Some(n) = self.normal_at_uv(u, v) {
-            (n.x(), n.y(), n.z())
-        } else {
-            (T::ZERO, T::ZERO, T::ONE)
-        }
-    }
-
-    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
-        let p = self.point_at_uv(u, v);
-        (p.x(), p.y(), p.z())
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_surface(&p)
-    }
-
-    fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T) {
-        let cos_phi = phi.cos();
-        let sin_phi = phi.sin();
-        let cos_theta = theta.cos();
-        let sin_theta = theta.sin();
-
-        let c = self.center_internal();
-        let a = self.a_radius_internal();
-        let b = self.b_radius_internal();
-        let c_radius = self.c_radius_internal();
-
-        (
-            c.x() + a * cos_theta * sin_phi,
-            c.y() + b * sin_theta * sin_phi,
-            c.z() + c_radius * cos_phi,
-        )
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
@@ -651,4 +616,42 @@ impl<T: Scalar> EllipsoidalSurface3DMeasure<T> for EllipsoidalSurface3D<T> {
     }
 }
 
-impl<T: Scalar> EllipsoidalSurface3DCore<T> for EllipsoidalSurface3D<T> {}
+impl<T: Scalar> EllipsoidalSurface3DEvaluation<T> for EllipsoidalSurface3D<T> {
+    fn normal_at(&self, u: T, v: T) -> (T, T, T) {
+        if let Some(n) = self.normal_at_uv(u, v) {
+            (n.x(), n.y(), n.z())
+        } else {
+            (T::ZERO, T::ZERO, T::ONE)
+        }
+    }
+
+    fn point_at_uv(&self, u: T, v: T) -> (T, T, T) {
+        let p = self.point_at_uv(u, v);
+        (p.x(), p.y(), p.z())
+    }
+
+    fn point_at_spherical(&self, theta: T, phi: T) -> (T, T, T) {
+        let cos_phi = phi.cos();
+        let sin_phi = phi.sin();
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+
+        let c = self.center_internal();
+        let a = self.a_radius_internal();
+        let b = self.b_radius_internal();
+        let c_radius = self.c_radius_internal();
+
+        (
+            c.x() + a * cos_theta * sin_phi,
+            c.y() + b * sin_theta * sin_phi,
+            c.z() + c_radius * cos_phi,
+        )
+    }
+}
+
+impl<T: Scalar> EllipsoidalSurface3DDistance<T> for EllipsoidalSurface3D<T> {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
+        let p = Point3D::new(point.0, point.1, point.2);
+        self.distance_to_surface(&p)
+    }
+}

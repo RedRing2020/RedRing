@@ -214,7 +214,8 @@ impl<T: Scalar> TorusSolid3D<T> {
 }
 
 use geo_contracts::{
-    TorusSolid3DConstructor, TorusSolid3DCore, TorusSolid3DMeasure,
+    TorusSolid3DConstructor, TorusSolid3DContainment, TorusSolid3DDerived, TorusSolid3DDistance,
+    TorusSolid3DEvaluation, TorusSolid3DProjection,
     TorusSolid3DProperties as ContractsTorusSolid3DProperties,
 };
 
@@ -330,7 +331,7 @@ impl<T: Scalar> ContractsTorusSolid3DProperties<T> for TorusSolid3D<T> {
     }
 }
 
-impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
+impl<T: Scalar> TorusSolid3DDerived<T> for TorusSolid3D<T> {
     fn volume(&self) -> T {
         self.volume_internal()
     }
@@ -339,11 +340,33 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
         self.surface_area_internal()
     }
 
+    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
+        let o = self.origin_internal();
+        let r_outer = self.major_radius_internal() + self.minor_radius_internal();
+
+        let min_x = o.x() - r_outer;
+        let max_x = o.x() + r_outer;
+        let min_y = o.y() - r_outer;
+        let max_y = o.y() + r_outer;
+        let min_z = o.z() - self.minor_radius_internal();
+        let max_z = o.z() + self.minor_radius_internal();
+
+        ((min_x, min_y, min_z), (max_x, max_y, max_z))
+    }
+
+    fn is_self_intersecting(&self) -> bool {
+        self.major_radius_internal() < self.minor_radius_internal()
+    }
+}
+
+impl<T: Scalar> TorusSolid3DContainment<T> for TorusSolid3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
         self.contains_point(&p)
     }
+}
 
+impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
         // 簡易実装: トーラス表面への最短距離の近似計算
@@ -360,7 +383,9 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
         (cross_section_distance - self.minor_radius_internal()).abs()
     }
+}
 
+impl<T: Scalar> TorusSolid3DEvaluation<T> for TorusSolid3D<T> {
     fn point_at_toroidal(&self, u: T, v: T) -> (T, T, T) {
         let cos_u = u.cos();
         let sin_u = u.sin();
@@ -392,21 +417,9 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
 
         (x, y, z)
     }
+}
 
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        let o = self.origin_internal();
-        let r_outer = self.major_radius_internal() + self.minor_radius_internal();
-
-        let min_x = o.x() - r_outer;
-        let max_x = o.x() + r_outer;
-        let min_y = o.y() - r_outer;
-        let max_y = o.y() + r_outer;
-        let min_z = o.z() - self.minor_radius_internal();
-        let max_z = o.z() + self.minor_radius_internal();
-
-        ((min_x, min_y, min_z), (max_x, max_y, max_z))
-    }
-
+impl<T: Scalar> TorusSolid3DProjection<T> for TorusSolid3D<T> {
     fn closest_point_on_surface(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
         let local = p - *self.origin_internal();
@@ -444,10 +457,4 @@ impl<T: Scalar> TorusSolid3DMeasure<T> for TorusSolid3D<T> {
             o.z() + surface_point.z(),
         )
     }
-
-    fn is_self_intersecting(&self) -> bool {
-        self.major_radius_internal() < self.minor_radius_internal()
-    }
 }
-
-impl<T: Scalar> TorusSolid3DCore<T> for TorusSolid3D<T> {}

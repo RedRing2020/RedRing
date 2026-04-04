@@ -4,7 +4,7 @@
 //! 他の幾何プリミティブでも共通利用可能な抽象化
 
 use crate::{Arc2D, Point2D};
-use geo_contracts::{Arc2DMeasure, Arc2DSampling, Scalar};
+use geo_contracts::{Arc2DContainment, Arc2DEndpoint, Arc2DSampling, Scalar};
 
 // ============================================================================
 // ArcSampling Trait Implementation
