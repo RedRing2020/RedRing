@@ -72,11 +72,11 @@ pub use geometry::core::{
     NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
     NurbsCurve2DMeasure, NurbsCurve2DProperties, NurbsCurve3DConstructor, NurbsCurve3DCore,
     NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DMeasure, NurbsCurve3DProperties,
-    NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
-    Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
-    Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties, Triangle3DConstructor,
-    Triangle3DContainment, Triangle3DCore, Triangle3DDerived, Triangle3DDistance,
-    Triangle3DMeasure, Triangle3DProperties,
+    NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
+    NurbsSurface3DMeasure, NurbsSurface3DProperties, Triangle2DConstructor, Triangle2DContainment,
+    Triangle2DCore, Triangle2DDerived, Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties,
+    Triangle3DConstructor, Triangle3DContainment, Triangle3DCore, Triangle3DDerived,
+    Triangle3DDistance, Triangle3DMeasure, Triangle3DProperties,
 };
 pub use geometry::foundation::{
     Bounded, ExtensionFoundation, MeasureFoundation, Point2DMeasure, Point3DMeasure,
