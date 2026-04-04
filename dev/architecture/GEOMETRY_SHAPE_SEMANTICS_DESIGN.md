@@ -33,6 +33,121 @@
 
 Arc / EllipseArc / Circle / Triangle などを含む shape 横断の `Measure / parameter / endpoint` capability 論点は `#558` で別途整理する。
 
+## `#558` の現状棚卸し
+
+`#558` 着手時点の `geo_contracts` では、Arc / EllipseArc / Circle / Triangle / LineSegment の各 trait が、shape ごとに異なる粒度で `Measure / endpoint / evaluation / containment / distance` を抱えている。
+
+少なくとも、次の非対称が存在する。
+
+| Shape | 現状の主な意味要素 | 現状の混在状況 |
+| --- | --- | --- |
+| `LineSegment` | support line、拘束端点、長さ、parameter 評価 | endpoint は `Properties`、evaluation / containment / distance / projection は `Measure` 系から分離済み |
+| `Arc` | 中心、半径、角度区間、始終点、parameter 評価 | `Measure` に始終点、midpoint、angle 評価、distance、containment が同居 |
+| `EllipseArc` | 中心、主軸情報、角度区間、始終点、parameter 評価 | `Measure` に始終点、midpoint、angle 評価、containment、bounding box が同居 |
+| `Circle` | 中心、半径、周回 parameter 評価、閉曲線性 | `Measure` に circumference、area、containment、distance、projection、parameter 評価が同居 |
+| `Triangle` | 3頂点、面積、周長、面内判定 | `Measure` に edge length、perimeter、containment、distance、向き/planarity 判定が同居 |
+
+この棚卸しから、現状の `Measure` は単なる測度ではなく、shape ごとに次の異種 capability を束ねていることが分かる。
+
+- 測度: `length` / `measure` / `area` / `circumference` / `perimeter`
+- 境界参照: `start_point` / `end_point` / 頂点参照 / edge length
+- 評価: `point_at_parameter` / `point_at_angle` / midpoint
+- 関係判定: `contains_point`
+- 距離・射影: `distance_to_point` / `closest_point_to`
+- 形状固有派生: `direction_vector` / `bounding_box` / `is_clockwise` / `is_planar`
+
+重要なのは、これは trait 分割の問題である前に、shape ごとに「どの capability が本質的に存在するか」が揃っていない問題だという点である。
+
+## `#558` で固定したい shape 横断分類
+
+本書では trait 名や配置を先に固定せず、まず shape 意味論として次の分類を採用する。
+
+### 1. 境界付き曲線 shape
+
+明確な始点・終点を持ち、評価 parameter の両端が境界点と対応する shape である。
+
+対象:
+
+- `LineSegment`
+- `Arc`
+- `EllipseArc`
+
+意味論上の共通点:
+
+- 始点・終点が意味を持つ
+- `point_at_parameter(0/1)` に境界端の意味を与えやすい
+- 長さ系の測度を持つ
+
+### 2. 閉曲線 shape
+
+周回 parameter を持つが、標準の始点・終点を本質意味としては持たない shape である。
+
+対象:
+
+- `Circle`
+
+意味論上の共通点:
+
+- `point_at_parameter` は定義できる
+- ただし `start` / `end` は shape の本質語彙ではない
+- 測度としては長さ系と面積系の両方を持ちうる
+
+### 3. 面 shape
+
+境界頂点や辺は持つが、単一の曲線 parameter で代表しない shape である。
+
+対象:
+
+- `Triangle`
+
+意味論上の共通点:
+
+- 面積や周長は定義できる
+- 頂点参照はできる
+- しかし `curve parameter` や `start/end point` を標準 capability とみなすべきではない
+
+## `#558` における意味論上の一次結論
+
+### `point_at_parameter` は全 shape 共通 capability ではない
+
+`point_at_parameter` は少なくとも「単一の連続 support 表現を持つ shape」にだけ自然に定義される。
+
+したがって、LineSegment / Arc / EllipseArc / Circle には自然だが、Triangle へそのまま横展開する前提は置かない。
+
+### `start` / `end` は全 curve に共通ではない
+
+`start` / `end` は、境界付き曲線 shape に対してだけ本質語彙として扱う。
+
+Circle のような閉曲線では、parameter の基準位置を便宜的に定められても、それを shape 意味論上の正本 endpoint とみなしてはならない。
+
+### `measure` は単一語で統一しない
+
+shape 横断で `measure` だけを共通語彙にすると、長さ、面積、周長、拘束点間距離が同じ名前に吸い込まれ、意味が弱くなる。
+
+したがって本書では、shape 意味論上の主語彙は次を優先する。
+
+- 線状 shape: `length`
+- 閉曲線: `circumference`
+- 面 shape: `area`
+- 多義的な互換 API: `measure`
+
+### 境界参照と評価は分けて扱う
+
+`start/end`、頂点参照、edge 長などの「境界の語彙」と、`point_at_parameter` や `point_at_angle` のような「評価の語彙」は同じではない。
+
+今後の capability 分離では、少なくともこの 2 系統を別物として扱う。
+
+## 今回の棚卸しで見えた #558 の設計対象
+
+次段では、上記の shape 横断分類を前提に、少なくとも次を trait 境界文書側で整理する必要がある。
+
+- 境界付き曲線 shape にだけ与える endpoint capability
+- curve family にだけ与える parameter evaluation capability
+- 閉曲線に対する periodic parameter の扱い
+- 面 shape に対する vertex / boundary access の語彙
+- `length` / `circumference` / `area` と `measure` の関係
+- containment / distance / projection を shape definition からどこまで外すか
+
 ## 横展開前提の論点
 
 `#557` で固定する内容は、将来的に他 shape へ横展開が必要な論点として扱う。

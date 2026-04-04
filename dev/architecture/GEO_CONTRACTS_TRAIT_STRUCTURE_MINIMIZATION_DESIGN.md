@@ -16,6 +16,362 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - 個別 shape の意味と API 意図は `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` を正本とする
 - 本書はその意味論を前提に、trait の責務分担と配置境界を定義する
 
+## `#558` の前提: shape 意味論に基づく capability 付与条件
+
+`#558` では、trait の置き場所を決める前に、「どの shape にどの capability を付与してよいか」を shape 意味論に基づいて固定する。
+
+`GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` で整理した分類を、本書では次の capability 境界前提として採用する。
+
+### 1. endpoint capability は境界付き曲線 shape に限定する
+
+対象:
+
+- `LineSegment`
+- `Arc`
+- `EllipseArc`
+
+ここでいう endpoint capability は、少なくとも次を指す。
+
+- `start` / `end`
+- `start_point` / `end_point`
+- 端点に意味を持つ `midpoint` のような区間由来語彙
+
+設計反映:
+
+- endpoint capability は、閉曲線や面 shape へ共通 capability として持ち込まない
+- `Circle` は parameter の基準位置を持てても、shape 意味論上の正本 endpoint は持たない
+- `Triangle` は頂点を持つが、curve endpoint capability の対象ではない
+
+### 2. parameter evaluation capability は curve family に限定する
+
+対象:
+
+- `LineSegment`
+- `Arc`
+- `EllipseArc`
+- `Circle`
+
+ここでいう parameter evaluation capability は、少なくとも次を指す。
+
+- `point_at_parameter`
+- `parameter_for_point`
+- `point_at_angle`
+- `point_to_uv` / `uv_to_point` のような連続 parameter 座標評価
+
+設計反映:
+
+- `point_at_parameter` は全 shape 共通 capability とみなさない
+- `Triangle` のような面 shape に、curve parameter capability を横展開しない
+- surface family を扱う場合は、curve parameter と surface parameter を同一 trait に混在させない
+
+### 3. periodic parameter は閉曲線 shape の個別論点として扱う
+
+対象:
+
+- `Circle`
+
+設計反映:
+
+- 閉曲線の parameter capability は、境界付き曲線と同一視しない
+- `Circle` の parameter は評価 capability として許容するが、`start/end` を導く根拠には使わない
+- periodic curve を導入する場合、endpoint capability とは別の分岐として扱う
+
+### 4. boundary access は curve endpoint と polygon vertex を分ける
+
+対象:
+
+- curve endpoint: `LineSegment`, `Arc`, `EllipseArc`
+- vertex/boundary access: `Triangle`
+
+設計反映:
+
+- `Triangle` の `vertex_a/b/c` や edge length は、curve endpoint capability ではなく polygon / face boundary access として扱う
+- 面 shape の boundary access は、curve endpoint と同じ trait 群へ混在させない
+
+### 5. primary measure vocabulary は shape family ごとに分ける
+
+優先語彙:
+
+- 境界付き曲線 shape: `length`
+- 閉曲線: `circumference`
+- 面 shape: `area`
+- 互換 API: `measure`
+
+設計反映:
+
+- `measure` は単一の意味語彙として新設 capability の中心に置かない
+- `*Measure` を後方互換の集約 trait として残す場合でも、新設 capability の説明単位は `length` / `circumference` / `area` のような具体語彙を優先する
+
+## `#558` の一次配置方針
+
+上記前提を踏まえ、`#558` では少なくとも次の capability 群を区別して扱う。
+
+### shape definition core に残すもの
+
+- `*Constructor`
+- `*Properties`
+- lightweight metadata
+
+補足:
+
+- `Properties` に残すのは、shape の定義パラメータと、その場で読める lightweight metadata に限定する
+- endpoint capability は、shape にとって正本境界参照である場合に限って `Properties` 側へ残す余地がある
+
+### minimal extension に置くもの
+
+- curve parameter evaluation
+- surface parameter evaluation
+- containment
+- unary distance
+- projection
+- sampling
+- shape 固有 derived capability
+
+補足:
+
+- endpoint capability を `Properties` に残さない shape では、この層に独立 capability として置く
+- `Circle` の periodic evaluation は、この層の curve evaluation 分岐として扱う
+- `Triangle` の vertex / edge / perimeter は、面 shape 向け boundary / derived capability としてここで扱う
+
+### operations に置くもの
+
+- cross-shape distance
+- collision
+- intersection
+- relation API
+- solver / approximation / strategy oriented capability
+
+## `#558` で特に分離対象とする混在
+
+現状棚卸しから、少なくとも次の混在を解く必要がある。
+
+### Arc / EllipseArc
+
+- `start_point` / `end_point`
+- `point_at_parameter`
+- `point_at_angle`
+- `midpoint` / `mid_point`
+- `contains_point`
+- `distance_to_point`
+
+方針:
+
+- endpoint
+- parameter evaluation
+- angle evaluation
+- containment
+- unary distance
+
+を別 capability として説明できる状態へ分解する。
+
+### Circle
+
+- `circumference`
+- `area`
+- `contains_point`
+- `distance_to_point`
+- `closest_point_to`
+- `point_at_parameter`
+
+方針:
+
+- 閉曲線の評価 capability
+- 閉曲線の長さ語彙
+- 面積語彙
+- unary relation / projection
+
+を分離し、endpoint 系 capability は導入しない。
+
+### Triangle
+
+- `measure`
+- `edge_ab_length` / `edge_bc_length` / `edge_ca_length`
+- `perimeter`
+- `contains_point`
+- `distance_to_point`
+- `is_clockwise` / `is_planar`
+
+方針:
+
+- 面 shape の primary measure
+- boundary / vertex access
+- derived
+- containment
+- unary distance
+
+を分離し、curve parameter capability と同列には扱わない。
+
+## `#558` の具体的な trait 再分類一覧
+
+ここでは、現行 trait を直ちに分割実装するのではなく、各 API をどの capability 群へ属させるべきかを shape ごとに一次分類する。
+
+凡例:
+
+- `definition`: `Constructor` / `Properties` に残す候補
+- `endpoint`: 境界付き曲線の端点参照 capability
+- `evaluation`: parameter または angle による評価 capability
+- `derived`: unary な派生値 capability
+- `containment`: 単一点に対する包含判定
+- `distance`: 単一点に対する距離 capability
+- `projection`: 単一点に対する最近点・射影 capability
+- `sampling`: 離散化 capability
+
+### LineSegment の再分類
+
+基準形として、LineSegment はすでにかなり分離済みである。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `LineSegment2DConstructor` / `LineSegment3DConstructor` | `definition` |
+| `LineSegment2DProperties::start/end/midpoint/length` | `definition` |
+| `LineSegment3DProperties::start/end/midpoint/length` | `definition` |
+| `LineSegment2DProperties::dimension/is_unit_length/is_horizontal/is_vertical` | `definition` |
+| `LineSegment3DProperties::dimension/is_unit_length/is_on_xy_plane/is_on_yz_plane` | `definition` |
+| `LineSegment2DDerived::measure/direction_vector/as_vector` | `derived` |
+| `LineSegment3DDerived::measure/direction_vector/as_vector` | `derived` |
+| `LineSegment2DEvaluation::point_at_parameter` | `evaluation` |
+| `LineSegment3DEvaluation::point_at_parameter` | `evaluation` |
+| `LineSegment2DContainment::contains_point` | `containment` |
+| `LineSegment3DContainment::contains_point` | `containment` |
+| `LineSegment2DDistance::distance_to_point` | `distance` |
+| `LineSegment3DDistance::distance_to_point` | `distance` |
+| `LineSegment2DProjection::closest_point_to` | `projection` |
+| `LineSegment3DProjection::closest_point_to` | `projection` |
+| `LineSegment2DMeasure` / `LineSegment3DMeasure` | 後方互換の集約 trait |
+
+補足:
+
+- `LineSegment` では endpoint が shape 意味論上の正本なので、`start/end/midpoint/length` を `Properties` に残す方針を維持する
+- `measure` は primary vocabulary ではなく、`derived` 側の互換 API とみなす
+
+### Arc の再分類
+
+Arc は `Measure` に endpoint / evaluation / containment / distance が集中しているため、最優先の分離対象である。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `Arc2DConstructor` / `Arc3DConstructor` | `definition` |
+| `Arc2DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_semicircle` | `definition` |
+| `Arc3DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_on_xy_plane` | `definition` |
+| `Arc2DMeasure::measure` | `derived` |
+| `Arc3DMeasure::measure` | `derived` |
+| `Arc2DMeasure::start_point/end_point/midpoint` | `endpoint` |
+| `Arc3DMeasure::start_point/end_point/midpoint` | `endpoint` |
+| `Arc2DMeasure::point_at_parameter` | `evaluation` |
+| `Arc3DMeasure::point_at_parameter` | `evaluation` |
+| `Arc2DMeasure::point_at_angle` | `evaluation` |
+| `Arc3DMeasure::point_at_angle` | `evaluation` |
+| `Arc2DMeasure::contains_point` | `containment` |
+| `Arc3DMeasure::contains_point` | `containment` |
+| `Arc2DMeasure::distance_to_point` | `distance` |
+| `Arc3DMeasure::distance_to_point` | `distance` |
+| `Arc2DSampling::sample_points/sample_by_arc_length` | `sampling` |
+| `Arc2DContainment::contains_point/contains_angle` | `containment` |
+| `Arc2DContainment::point_at_angle` | `evaluation` |
+| `Arc2DCore` / `Arc3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- `start_point/end_point/midpoint` は Arc では endpoint capability として自然に存在する
+- `point_at_angle` は endpoint ではなく angle evaluation として分ける
+- `Arc2DContainment` は現行の時点で `contains_*` と `point_at_angle` を混在しているため、分割候補として扱う
+
+### EllipseArc の再分類
+
+EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き containment が混在している点が追加論点である。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `EllipseArc2DConstructor` / `EllipseArc3DConstructor` | `definition` |
+| `EllipseArc2DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/rotation/sweep_angle/eccentricity` | `definition` |
+| `EllipseArc3DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/normal/sweep_angle/eccentricity` | `definition` |
+| `EllipseArc2DMeasure::measure` | `derived` |
+| `EllipseArc3DMeasure::measure` | `derived` |
+| `EllipseArc2DMeasure::start_point/end_point/mid_point` | `endpoint` |
+| `EllipseArc3DMeasure::start_point/end_point/mid_point` | `endpoint` |
+| `EllipseArc2DMeasure::point_at_parameter` | `evaluation` |
+| `EllipseArc3DMeasure::point_at_parameter` | `evaluation` |
+| `EllipseArc2DMeasure::point_at_angle` | `evaluation` |
+| `EllipseArc3DMeasure::point_at_angle` | `evaluation` |
+| `EllipseArc2DMeasure::contains_point` | `containment` |
+| `EllipseArc3DMeasure::contains_point` | `containment` |
+| `EllipseArc2DMeasure::bounding_box` | `derived` |
+| `EllipseArc3DMeasure::bounding_box` | `derived` |
+| `EllipseArc2DCore` / `EllipseArc3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- `contains_point(point, tolerance)` の tolerance 引数は unary containment capability 側の責務として扱う
+- `bounding_box` は relation ではないため `operations` ではなく unary `derived` 側へ置く
+
+### Circle の再分類
+
+Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `Circle2DConstructor` / `Circle3DConstructor` | `definition` |
+| `Circle2DProperties::center/radius/ref_direction/diameter/dimension/is_unit_circle/is_centered_at_origin/is_degenerate` | `definition` |
+| `Circle3DProperties::center/radius/axis/ref_direction/dimension/is_unit_circle/is_centered_at_origin/is_degenerate/is_on_xy_plane` | `definition` |
+| `Circle2DMeasure::circumference` | `derived` |
+| `Circle3DMeasure::circumference` | `derived` |
+| `Circle2DMeasure::area` | `derived` |
+| `Circle3DMeasure::area` | `derived` |
+| `Circle2DMeasure::point_at_parameter` | `evaluation` |
+| `Circle3DMeasure::point_at_parameter` | `evaluation` |
+| `Circle2DMeasure::contains_point/point_on_circumference` | `containment` |
+| `Circle3DMeasure::contains_point/point_on_circumference` | `containment` |
+| `Circle2DMeasure::distance_to_point` | `distance` |
+| `Circle3DMeasure::distance_to_point` | `distance` |
+| `Circle2DMeasure::closest_point_to` | `projection` |
+| `Circle3DMeasure::closest_point_to` | `projection` |
+| `Circle2DCore` / `Circle3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- `area` は閉曲線そのものの評価というより、その interior を伴う派生量として扱う
+- `ref_direction` は parameter 原点の便宜的基準として使えても、endpoint capability の根拠には使わない
+
+### Triangle の再分類
+
+Triangle は面 shape であり、curve endpoint や curve parameter capability と切り離して扱う必要がある。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `Triangle2DConstructor` / `Triangle3DConstructor` | `definition` |
+| `Triangle2DProperties::vertex_a/vertex_b/vertex_c` | `definition` |
+| `Triangle3DProperties::vertex_a/vertex_b/vertex_c` | `definition` |
+| `Triangle2DProperties::centroid/circumcenter/incenter/circumradius/inradius` | `derived` |
+| `Triangle3DProperties::centroid/normal/circumcenter/circumradius/inradius` | `derived` |
+| `Triangle2DMeasure::measure` | `derived` |
+| `Triangle3DMeasure::measure` | `derived` |
+| `Triangle2DMeasure::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
+| `Triangle3DMeasure::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
+| `Triangle2DMeasure::perimeter` | `derived` |
+| `Triangle3DMeasure::perimeter` | `derived` |
+| `Triangle2DMeasure::contains_point` | `containment` |
+| `Triangle3DMeasure::contains_point` | `containment` |
+| `Triangle2DMeasure::distance_to_point` | `distance` |
+| `Triangle3DMeasure::distance_to_point` | `distance` |
+| `Triangle2DMeasure::is_clockwise` | `derived` |
+| `Triangle3DMeasure::is_planar` | `derived` |
+| `Triangle2DCore` / `Triangle3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- `vertex_a/b/c` は面 shape の boundary access であり、curve endpoint capability とは別物として扱う
+- `centroid` や `normal` は lightweight metadata ではなく、実質的には unary `derived` capability とみなす
+
+## `#558` の一次結論: `Properties` に残すものと出すもの
+
+今回の再分類から、少なくとも次をルール化できる。
+
+- `Properties` に残すのは、shape の定義パラメータと軽量な状態参照だけに絞る
+- 境界付き曲線の `start/end/length` は、shape 意味論上の正本境界なら `Properties` に残してよい
+- `centroid`、`normal`、`circumradius`、`bounding_box` のような unary 派生量は `Properties` から `derived` へ出す
+- `contains_point`、`distance_to_point`、`closest_point_to`、`point_at_parameter`、`point_at_angle` は `Properties` に残さない
+- `*Core` は新設 capability の説明単位ではなく、互換のための `Constructor + Properties` alias としてのみ残す
+
 ## 現行構造の棚卸し
 
 ### `geometry/core`
