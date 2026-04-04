@@ -237,7 +237,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 | `LineSegment3DDistance::distance_to_point` | `distance` |
 | `LineSegment2DProjection::closest_point_to` | `projection` |
 | `LineSegment3DProjection::closest_point_to` | `projection` |
-| `LineSegment2DMeasure` / `LineSegment3DMeasure` | 後方互換の集約 trait |
+| 旧 `LineSegment2DMeasure` / `LineSegment3DMeasure` | `derived` / `distance` / `containment` / `evaluation` / `projection` へ分離済み |
 
 補足:
 
@@ -488,18 +488,18 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 | `Triangle3DProperties::vertex_a/vertex_b/vertex_c` | `definition` |
 | `Triangle2DProperties::centroid/circumcenter/incenter/circumradius/inradius` | `derived` |
 | `Triangle3DProperties::centroid/normal/circumcenter/circumradius/inradius` | `derived` |
-| `Triangle2DMeasure::measure` | `derived` |
-| `Triangle3DMeasure::measure` | `derived` |
-| `Triangle2DMeasure::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
-| `Triangle3DMeasure::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
-| `Triangle2DMeasure::perimeter` | `derived` |
-| `Triangle3DMeasure::perimeter` | `derived` |
-| `Triangle2DMeasure::contains_point` | `containment` |
-| `Triangle3DMeasure::contains_point` | `containment` |
-| `Triangle2DMeasure::distance_to_point` | `distance` |
-| `Triangle3DMeasure::distance_to_point` | `distance` |
-| `Triangle2DMeasure::is_clockwise` | `derived` |
-| `Triangle3DMeasure::is_planar` | `derived` |
+| `Triangle2DDerived::measure` | `derived` |
+| `Triangle3DDerived::measure` | `derived` |
+| `Triangle2DDerived::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
+| `Triangle3DDerived::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
+| `Triangle2DDerived::perimeter` | `derived` |
+| `Triangle3DDerived::perimeter` | `derived` |
+| `Triangle2DContainment::contains_point` | `containment` |
+| `Triangle3DContainment::contains_point` | `containment` |
+| `Triangle2DDistance::distance_to_point` | `distance` |
+| `Triangle3DDistance::distance_to_point` | `distance` |
+| `Triangle2DDerived::is_clockwise` | `derived` |
+| `Triangle3DDerived::is_planar` | `derived` |
 | `Triangle2DCore` / `Triangle3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
@@ -525,14 +525,14 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `*Constructor`
 - `*Properties`
-- `*Measure`
+- shape ごとの capability trait 群
 - `*Core`
 
 代表例:
 
 - `point_traits.rs`: `Point2DConstructor` / `Point2DProperties` / `Point2DMeasure` / `Point2DCore`
 - `vector_traits.rs`: `Vector2DConstructor` / `Vector2DProperties` / `Vector2DMeasure` / `Vector2DCore`
-- `triangle_traits.rs`: `Triangle2DConstructor` / `Triangle2DProperties` / `Triangle2DMeasure` / `Triangle2DCore`
+- `triangle_traits.rs`: `Triangle2DConstructor` / `Triangle2DProperties` / capability trait 群 / `Triangle2DCore`
 
 ただし、現行 `core` には shape 定義以外も混在している。
 
@@ -649,7 +649,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 理由:
 
 - 長さ、面積、体積、距離、補間、射影、法線評価は shape の定義そのものではなく capability だから
-- 現行ソースにも `TODO(#318): Measure contracts are temporarily colocated and will be split by responsibility.` が残っているから
+- 旧 TODO ベースの暫定整理ではなく、責務分離後の capability 構成を正本として固定する必要があるから
 
 設計反映:
 

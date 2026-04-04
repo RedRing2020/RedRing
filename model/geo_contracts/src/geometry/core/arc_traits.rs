@@ -82,7 +82,6 @@ pub trait Arc3DProperties<T: Scalar> {
     fn is_on_xy_plane(&self) -> bool;
 }
 
-// TODO(#318): Measure 契約は責務分離フェーズで shape definition から分離する。
 pub trait Arc2DDerived<T: Scalar> {
     fn measure(&self) -> T;
 }
