@@ -4,7 +4,7 @@
 
 use crate::{Arc2D, Point2D, Vector2D};
 use geo_contracts::Angle;
-use geo_contracts::{Arc2DMeasure, Arc2DProperties};
+use geo_contracts::Arc2DProperties;
 
 #[cfg(test)]
 mod tests {

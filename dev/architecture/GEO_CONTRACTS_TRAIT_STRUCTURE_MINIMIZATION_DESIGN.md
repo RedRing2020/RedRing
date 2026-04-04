@@ -275,6 +275,7 @@ Arc は `Measure` に endpoint / evaluation / containment / distance が集中�
 - `start_point/end_point/midpoint` は Arc では endpoint capability として自然に存在する
 - `point_at_angle` は endpoint ではなく angle evaluation として分ける
 - `Arc2DContainment` は現行の時点で `contains_*` と `point_at_angle` を混在しているため、分割候補として扱う
+- 実装進捗として `Arc2DMeasure` / `Arc3DMeasure` は削除済みで、downstream では `Arc2DEndpoint` / `Arc2DContainment` / `Arc3DEndpoint` / `Arc3DDistance` を直接使う
 
 ### EllipseArc の再分類
 
@@ -303,6 +304,7 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 
 - `contains_point(point, tolerance)` の tolerance 引数は unary containment capability 側の責務として扱う
 - `bounding_box` は relation ではないため `operations` ではなく unary `derived` 側へ置く
+- 実装進捗として `EllipseArc2DMeasure` / `EllipseArc3DMeasure` は削除済みで、downstream では capability trait を直接使う
 
 ### Ellipse の再分類
 
@@ -471,6 +473,8 @@ Circle は閉曲線であり、parameter evaluation を持っても endpoint cap
 
 - `area` は閉曲線そのものの評価というより、その interior を伴う派生量として扱う
 - `ref_direction` は parameter 原点の便宜的基準として使えても、endpoint capability の根拠には使わない
+- 実装進捗として `Circle2DMeasure` / `Circle3DMeasure` は削除済みで、capability trait のみを export する
+- 実装進捗として `Ellipse2DMeasure` / `Ellipse3DMeasure` も削除済みで、派生量・評価・包含・距離を個別 trait で公開する
 
 ### Triangle の再分類
 
@@ -527,7 +531,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `point_traits.rs`: `Point2DConstructor` / `Point2DProperties` / `Point2DMeasure` / `Point2DCore`
 - `vector_traits.rs`: `Vector2DConstructor` / `Vector2DProperties` / `Vector2DMeasure` / `Vector2DCore`
-- `circle_traits.rs`: `Circle2DConstructor` / `Circle2DProperties` / `Circle2DMeasure` / `Circle2DCore`
+- `triangle_traits.rs`: `Triangle2DConstructor` / `Triangle2DProperties` / `Triangle2DMeasure` / `Triangle2DCore`
 
 ただし、現行 `core` には shape 定義以外も混在している。
 

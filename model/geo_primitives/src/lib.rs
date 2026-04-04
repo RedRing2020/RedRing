@@ -105,19 +105,18 @@ pub mod circle_2d_extensions;
 // Circle の Core trait定義 再公開
 pub use geo_contracts::{
     Circle2DConstructor, Circle2DContainment, Circle2DCore, Circle2DDerived, Circle2DDistance,
-    Circle2DEvaluation, Circle2DMeasure, Circle2DProjection, Circle2DProperties,
+    Circle2DEvaluation, Circle2DProjection, Circle2DProperties,
 };
 pub use geo_contracts::{
     Circle3DConstructor, Circle3DContainment, Circle3DCore, Circle3DDerived, Circle3DDistance,
-    Circle3DEvaluation, Circle3DMeasure, Circle3DProjection, Circle3DProperties,
+    Circle3DEvaluation, Circle3DProjection, Circle3DProperties,
 };
 
 // Arc の Core trait定義 再公開
 pub use geo_contracts::{
     Arc2DConstructor, Arc2DContainment, Arc2DCore, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
-    Arc2DEvaluation, Arc2DMeasure, Arc2DProperties, Arc2DSampling, Arc3DConstructor,
-    Arc3DContainment, Arc3DCore, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation,
-    Arc3DMeasure, Arc3DProperties,
+    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc3DConstructor, Arc3DContainment, Arc3DCore,
+    Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties,
 };
 
 pub mod circle_2d_metrics;
@@ -142,15 +141,14 @@ pub use geo_contracts::{
 };
 pub use geo_contracts::{
     Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
-    Ellipse2DEvaluation, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
-    Ellipse3DContainment, Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation,
-    Ellipse3DMeasure, Ellipse3DProperties,
+    Ellipse2DEvaluation, Ellipse2DProperties, Ellipse3DConstructor, Ellipse3DContainment,
+    Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProperties,
 };
 pub use geo_contracts::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
-    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DMeasure, EllipseArc2DProperties,
-    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DMeasure, EllipseArc3DProperties,
+    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc3DConstructor,
+    EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived, EllipseArc3DEndpoint,
+    EllipseArc3DEvaluation, EllipseArc3DProperties,
 };
 pub use geo_contracts::{
     LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,

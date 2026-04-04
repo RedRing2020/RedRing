@@ -107,42 +107,6 @@ pub trait Arc2DContainment<T: Scalar> {
     fn contains_angle(&self, angle: T) -> bool;
 }
 
-pub trait Arc2DMeasure<T: Scalar>:
-    Arc2DDerived<T> + Arc2DEndpoint<T> + Arc2DEvaluation<T> + Arc2DDistance<T> + Arc2DContainment<T>
-{
-    fn measure(&self) -> T {
-        <Self as Arc2DDerived<T>>::measure(self)
-    }
-
-    fn start_point(&self) -> (T, T) {
-        <Self as Arc2DEndpoint<T>>::start_point(self)
-    }
-
-    fn end_point(&self) -> (T, T) {
-        <Self as Arc2DEndpoint<T>>::end_point(self)
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        <Self as Arc2DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn midpoint(&self) -> (T, T) {
-        <Self as Arc2DEndpoint<T>>::midpoint(self)
-    }
-
-    fn point_at_angle(&self, angle: T) -> (T, T) {
-        <Self as Arc2DEvaluation<T>>::point_at_angle(self, angle)
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        <Self as Arc2DDistance<T>>::distance_to_point(self, point)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        <Self as Arc2DContainment<T>>::contains_point(self, point)
-    }
-}
-
 pub trait Arc3DDerived<T: Scalar> {
     fn measure(&self) -> T;
 }
@@ -169,60 +133,6 @@ pub trait Arc3DContainment<T: Scalar> {
 pub trait Arc2DSampling<T: Scalar> {
     fn sample_points(&self, num_points: usize) -> Vec<(T, T)>;
     fn sample_by_arc_length(&self, arc_length_step: T) -> Vec<(T, T)>;
-}
-
-pub trait Arc3DMeasure<T: Scalar>:
-    Arc3DDerived<T> + Arc3DEndpoint<T> + Arc3DEvaluation<T> + Arc3DDistance<T> + Arc3DContainment<T>
-{
-    fn measure(&self) -> T {
-        <Self as Arc3DDerived<T>>::measure(self)
-    }
-
-    fn start_point(&self) -> (T, T, T) {
-        <Self as Arc3DEndpoint<T>>::start_point(self)
-    }
-
-    fn end_point(&self) -> (T, T, T) {
-        <Self as Arc3DEndpoint<T>>::end_point(self)
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        <Self as Arc3DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn midpoint(&self) -> (T, T, T) {
-        <Self as Arc3DEndpoint<T>>::midpoint(self)
-    }
-
-    fn point_at_angle(&self, angle: T) -> (T, T, T) {
-        <Self as Arc3DEvaluation<T>>::point_at_angle(self, angle)
-    }
-
-    fn distance_to_point(&self, point: (T, T, T)) -> T {
-        <Self as Arc3DDistance<T>>::distance_to_point(self, point)
-    }
-
-    fn contains_point(&self, point: (T, T, T)) -> bool {
-        <Self as Arc3DContainment<T>>::contains_point(self, point)
-    }
-}
-
-impl<T: Scalar, A> Arc2DMeasure<T> for A where
-    A: Arc2DDerived<T>
-        + Arc2DEndpoint<T>
-        + Arc2DEvaluation<T>
-        + Arc2DDistance<T>
-        + Arc2DContainment<T>
-{
-}
-
-impl<T: Scalar, A> Arc3DMeasure<T> for A where
-    A: Arc3DDerived<T>
-        + Arc3DEndpoint<T>
-        + Arc3DEvaluation<T>
-        + Arc3DDistance<T>
-        + Arc3DContainment<T>
-{
 }
 
 pub trait Arc2DCore<T: Scalar>: Arc2DConstructor<T> + Arc2DProperties<T> {}

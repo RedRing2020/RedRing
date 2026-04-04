@@ -200,46 +200,6 @@ pub trait EllipseArc2DContainment<T: Scalar> {
     fn contains_point(&self, point: (T, T), tolerance: T) -> bool;
 }
 
-/// EllipseArc2D計量・関係演算機能トレイト（Phase 1 + Phase 2）
-pub trait EllipseArc2DMeasure<T: Scalar>:
-    EllipseArc2DDerived<T>
-    + EllipseArc2DEndpoint<T>
-    + EllipseArc2DEvaluation<T>
-    + EllipseArc2DContainment<T>
-{
-    fn measure(&self) -> T {
-        <Self as EllipseArc2DDerived<T>>::measure(self)
-    }
-
-    fn start_point(&self) -> (T, T) {
-        <Self as EllipseArc2DEndpoint<T>>::start_point(self)
-    }
-
-    fn end_point(&self) -> (T, T) {
-        <Self as EllipseArc2DEndpoint<T>>::end_point(self)
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        <Self as EllipseArc2DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn mid_point(&self) -> (T, T) {
-        <Self as EllipseArc2DEndpoint<T>>::mid_point(self)
-    }
-
-    fn point_at_angle(&self, angle: T) -> Option<(T, T)> {
-        <Self as EllipseArc2DEvaluation<T>>::point_at_angle(self, angle)
-    }
-
-    fn contains_point(&self, point: (T, T), tolerance: T) -> bool {
-        <Self as EllipseArc2DContainment<T>>::contains_point(self, point, tolerance)
-    }
-
-    fn bounding_box(&self) -> ((T, T), (T, T)) {
-        <Self as EllipseArc2DDerived<T>>::bounding_box(self)
-    }
-}
-
 /// EllipseArc3D計量・関係演算機能トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc3DDerived<T: Scalar> {
     /// 楕円弧の長さ（測度）
@@ -273,45 +233,6 @@ pub trait EllipseArc3DContainment<T: Scalar> {
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool;
 }
 
-pub trait EllipseArc3DMeasure<T: Scalar>:
-    EllipseArc3DDerived<T>
-    + EllipseArc3DEndpoint<T>
-    + EllipseArc3DEvaluation<T>
-    + EllipseArc3DContainment<T>
-{
-    fn measure(&self) -> T {
-        <Self as EllipseArc3DDerived<T>>::measure(self)
-    }
-
-    fn start_point(&self) -> (T, T, T) {
-        <Self as EllipseArc3DEndpoint<T>>::start_point(self)
-    }
-
-    fn end_point(&self) -> (T, T, T) {
-        <Self as EllipseArc3DEndpoint<T>>::end_point(self)
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        <Self as EllipseArc3DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn mid_point(&self) -> (T, T, T) {
-        <Self as EllipseArc3DEndpoint<T>>::mid_point(self)
-    }
-
-    fn point_at_angle(&self, angle: T) -> Option<(T, T, T)> {
-        <Self as EllipseArc3DEvaluation<T>>::point_at_angle(self, angle)
-    }
-
-    fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool {
-        <Self as EllipseArc3DContainment<T>>::contains_point(self, point, tolerance)
-    }
-
-    fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
-        <Self as EllipseArc3DDerived<T>>::bounding_box(self)
-    }
-}
-
 /// EllipseArc2Dの3つのCore機能統合トレイト
 pub trait EllipseArc2DCore<T: Scalar>:
     EllipseArc2DConstructor<T> + EllipseArc2DProperties<T>
@@ -321,22 +242,6 @@ pub trait EllipseArc2DCore<T: Scalar>:
 /// EllipseArc3Dの3つのCore機能統合トレイト
 pub trait EllipseArc3DCore<T: Scalar>:
     EllipseArc3DConstructor<T> + EllipseArc3DProperties<T>
-{
-}
-
-impl<T: Scalar, E> EllipseArc2DMeasure<T> for E where
-    E: EllipseArc2DDerived<T>
-        + EllipseArc2DEndpoint<T>
-        + EllipseArc2DEvaluation<T>
-        + EllipseArc2DContainment<T>
-{
-}
-
-impl<T: Scalar, E> EllipseArc3DMeasure<T> for E where
-    E: EllipseArc3DDerived<T>
-        + EllipseArc3DEndpoint<T>
-        + EllipseArc3DEvaluation<T>
-        + EllipseArc3DContainment<T>
 {
 }
 

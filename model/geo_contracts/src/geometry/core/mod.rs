@@ -32,15 +32,14 @@ pub mod vector_traits;
 pub use aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb3DDerived, Aabb3DProperties};
 pub use arc_traits::{
     Arc2DConstructor, Arc2DContainment, Arc2DCore, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
-    Arc2DEvaluation, Arc2DMeasure, Arc2DProperties, Arc2DSampling, Arc3DConstructor,
-    Arc3DContainment, Arc3DCore, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation,
-    Arc3DMeasure, Arc3DProperties,
+    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc3DConstructor, Arc3DContainment, Arc3DCore,
+    Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties,
 };
 pub use circle_traits::{
     Circle2DConstructor, Circle2DContainment, Circle2DCore, Circle2DDerived, Circle2DDistance,
-    Circle2DEvaluation, Circle2DMeasure, Circle2DProjection, Circle2DProperties,
-    Circle3DConstructor, Circle3DContainment, Circle3DCore, Circle3DDerived, Circle3DDistance,
-    Circle3DEvaluation, Circle3DMeasure, Circle3DProjection, Circle3DProperties,
+    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, Circle3DConstructor,
+    Circle3DContainment, Circle3DCore, Circle3DDerived, Circle3DDistance, Circle3DEvaluation,
+    Circle3DProjection, Circle3DProperties,
 };
 pub use conical_solid_traits::{
     ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DCore,
@@ -67,15 +66,14 @@ pub use direction_traits::{
 };
 pub use ellipse_arc_traits::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
-    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DMeasure, EllipseArc2DProperties,
-    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DMeasure, EllipseArc3DProperties,
+    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc3DConstructor,
+    EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived, EllipseArc3DEndpoint,
+    EllipseArc3DEvaluation, EllipseArc3DProperties,
 };
 pub use ellipse_traits::{
     Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
-    Ellipse2DEvaluation, Ellipse2DMeasure, Ellipse2DProperties, Ellipse3DConstructor,
-    Ellipse3DContainment, Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation,
-    Ellipse3DMeasure, Ellipse3DProperties,
+    Ellipse2DEvaluation, Ellipse2DProperties, Ellipse3DConstructor, Ellipse3DContainment,
+    Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProperties,
 };
 pub use ellipsoidal_solid_traits::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DCore,

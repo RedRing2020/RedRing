@@ -14,9 +14,9 @@ use crate::{
     Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DMeasure, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
+    Arc3DDistance, Arc3DEndpoint, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
     ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
-    CylindricalSurface3DProperties, Ellipse3DMeasure, EllipsoidalSolid3DProperties,
+    CylindricalSurface3DProperties, Ellipse3DDistance, EllipsoidalSolid3DProperties,
     InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
     TorusSurface3DDistance, Triangle3DProperties,
 };
@@ -70,7 +70,7 @@ fn arc3d_point3d_intersection_raw<T: Scalar>(
     let point_tuple = (point.x(), point.y(), point.z());
     point_intersection_if(
         point,
-        <Arc3D<T> as Arc3DMeasure<T>>::distance_to_point(arc, point_tuple) <= tolerance
+        <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, point_tuple) <= tolerance
             && arc.contains_point_angle(Point3D::new(point.x(), point.y(), point.z())),
     )
 }
@@ -92,11 +92,11 @@ fn arc3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (sx, sy, sz) = <Arc3D<T> as Arc3DMeasure<T>>::start_point(arc);
-    let (ex, ey, ez) = <Arc3D<T> as Arc3DMeasure<T>>::end_point(arc);
+    let (sx, sy, sz) = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc);
+    let (ex, ey, ez) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
     let arc_start = Point3D::new(sx, sy, sz);
     let arc_end = Point3D::new(ex, ey, ez);
-    let d_seg_s = <Arc3D<T> as Arc3DMeasure<T>>::distance_to_point(
+    let d_seg_s = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
         arc,
         (
             segment.start().x(),
@@ -104,7 +104,7 @@ fn arc3d_line_segment3d_intersection_raw<T: Scalar>(
             segment.start().z(),
         ),
     );
-    let d_seg_e = <Arc3D<T> as Arc3DMeasure<T>>::distance_to_point(
+    let d_seg_e = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
         arc,
         (segment.end().x(), segment.end().y(), segment.end().z()),
     );
@@ -143,8 +143,10 @@ fn arc3d_ray3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let origin = ray.origin();
-    let d =
-        <Arc3D<T> as Arc3DMeasure<T>>::distance_to_point(arc, (origin.x(), origin.y(), origin.z()));
+    let d = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
+        arc,
+        (origin.x(), origin.y(), origin.z()),
+    );
     if d <= tolerance {
         Some(origin)
     } else {
@@ -171,7 +173,7 @@ fn arc3d_infinite_line3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let pt = Point3D::new(px, py, pz);
-    let d = <Arc3D<T> as Arc3DMeasure<T>>::distance_to_point(arc, (px, py, pz));
+    let d = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, (px, py, pz));
     if d <= tolerance {
         Some(pt)
     } else {
@@ -196,10 +198,10 @@ fn arc3d_arc3d_intersection_raw<T: Scalar>(
     arc_b: &Arc3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (s1x, s1y, s1z) = <Arc3D<T> as Arc3DMeasure<T>>::start_point(arc_a);
-    let (e1x, e1y, e1z) = <Arc3D<T> as Arc3DMeasure<T>>::end_point(arc_a);
-    let (s2x, s2y, s2z) = <Arc3D<T> as Arc3DMeasure<T>>::start_point(arc_b);
-    let (e2x, e2y, e2z) = <Arc3D<T> as Arc3DMeasure<T>>::end_point(arc_b);
+    let (s1x, s1y, s1z) = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc_a);
+    let (e1x, e1y, e1z) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc_a);
+    let (s2x, s2y, s2z) = <Arc3D<T> as Arc3DEndpoint<T>>::start_point(arc_b);
+    let (e2x, e2y, e2z) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc_b);
     let pa = Point3D::new(s1x, s1y, s1z);
     let pb = Point3D::new(e1x, e1y, e1z);
     let pc = Point3D::new(s2x, s2y, s2z);
@@ -576,7 +578,7 @@ fn ellipse3d_point3d_intersection_raw<T: Scalar + From<f64>>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(
+        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
             ellipse,
             (point.x(), point.y(), point.z()),
         ) <= tolerance,
@@ -601,7 +603,7 @@ pub fn ellipse3d_circle3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let dist = <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
     let points = if dist <= Circle3DProperties::radius(circle) + tolerance {
         vec![Point3D::new(cx, cy, cz)]
     } else {
@@ -616,7 +618,7 @@ pub fn ellipse3d_arc3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (cx, cy, cz) = Arc3DProperties::center(arc);
-    let dist = <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
     let points = if dist <= Arc3DProperties::radius(arc) + tolerance {
         vec![Point3D::new(cx, cy, cz)]
     } else {
@@ -633,14 +635,14 @@ pub fn ellipse3d_line_segment3d_intersections<T: Scalar + From<f64>>(
     let start = segment.start();
     let end = segment.end();
     let mut intersections = Vec::new();
-    if <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
         ellipse,
         (start.x(), start.y(), start.z()),
     ) <= tolerance
     {
         intersections.push(start);
     }
-    if <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
         ellipse,
         (end.x(), end.y(), end.z()),
     ) <= tolerance
@@ -656,7 +658,7 @@ pub fn ellipse3d_infinite_line3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let dist = <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (px, py, pz));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (px, py, pz));
     let points = if dist <= tolerance {
         vec![Point3D::new(px, py, pz)]
     } else {
@@ -671,8 +673,10 @@ pub fn ellipse3d_ray3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let o = ray.origin();
-    let dist =
-        <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (o.x(), o.y(), o.z()));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
+        ellipse,
+        (o.x(), o.y(), o.z()),
+    );
     let points = if dist <= tolerance {
         vec![o]
     } else {
@@ -715,17 +719,17 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle);
     let mut intersections = Vec::new();
-    if <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (ax, ay, az))
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (ax, ay, az))
         <= tolerance
     {
         intersections.push(Point3D::new(ax, ay, az));
     }
-    if <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (bx, by, bz))
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (bx, by, bz))
         <= tolerance
     {
         intersections.push(Point3D::new(bx, by, bz));
     }
-    if <Ellipse3D<T> as Ellipse3DMeasure<T>>::distance_to_point_3d(ellipse, (cx, cy, cz))
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz))
         <= tolerance
     {
         intersections.push(Point3D::new(cx, cy, cz));

@@ -89,67 +89,6 @@ pub trait Ellipse2DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T)) -> T;
 }
 
-/// Ellipse2D の後方互換集約 trait
-pub trait Ellipse2DMeasure<T: Scalar>:
-    Ellipse2DDerived<T> + Ellipse2DEvaluation<T> + Ellipse2DContainment<T> + Ellipse2DDistance<T>
-{
-    fn area(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::area(self)
-    }
-
-    fn circumference(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::circumference(self)
-    }
-
-    fn perimeter(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::perimeter(self)
-    }
-
-    fn measure(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::measure(self)
-    }
-
-    fn eccentricity(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::eccentricity(self)
-    }
-
-    fn focal_distance(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::focal_distance(self)
-    }
-
-    fn focus1(&self) -> (T, T) {
-        <Self as Ellipse2DDerived<T>>::focus1(self)
-    }
-
-    fn focus2(&self) -> (T, T) {
-        <Self as Ellipse2DDerived<T>>::focus2(self)
-    }
-
-    fn linear_eccentricity(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::linear_eccentricity(self)
-    }
-
-    fn is_circle(&self) -> bool {
-        <Self as Ellipse2DDerived<T>>::is_circle(self)
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        <Self as Ellipse2DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn contains_point(&self, point: (T, T)) -> bool {
-        <Self as Ellipse2DContainment<T>>::contains_point(self, point)
-    }
-
-    fn point_on_boundary(&self, point: (T, T)) -> bool {
-        <Self as Ellipse2DContainment<T>>::point_on_boundary(self, point)
-    }
-
-    fn distance_to_point(&self, point: (T, T)) -> T {
-        <Self as Ellipse2DDistance<T>>::distance_to_point(self, point)
-    }
-}
-
 /// Ellipse2D の互換 Core trait
 pub trait Ellipse2DCore<T: Scalar>: Ellipse2DConstructor<T> + Ellipse2DProperties<T> {}
 
@@ -265,69 +204,8 @@ pub trait Ellipse3DDistance<T: Scalar> {
     fn distance_to_point_3d(&self, point: (T, T, T)) -> T;
 }
 
-/// Ellipse3D の後方互換集約 trait
-pub trait Ellipse3DMeasure<T: Scalar>:
-    Ellipse3DDerived<T> + Ellipse3DEvaluation<T> + Ellipse3DContainment<T> + Ellipse3DDistance<T>
-{
-    fn area(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::area(self)
-    }
-
-    fn circumference(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::circumference(self)
-    }
-
-    fn perimeter(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::perimeter(self)
-    }
-
-    fn measure(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::measure(self)
-    }
-
-    fn eccentricity(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::eccentricity(self)
-    }
-
-    fn focal_distance(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::focal_distance(self)
-    }
-
-    fn is_circle(&self) -> bool {
-        <Self as Ellipse3DDerived<T>>::is_circle(self)
-    }
-
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        <Self as Ellipse3DEvaluation<T>>::point_at_parameter(self, t)
-    }
-
-    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
-        <Self as Ellipse3DContainment<T>>::contains_point_3d(self, point)
-    }
-
-    fn distance_to_point_3d(&self, point: (T, T, T)) -> T {
-        <Self as Ellipse3DDistance<T>>::distance_to_point_3d(self, point)
-    }
-}
-
 /// Ellipse3D の互換 Core trait
 pub trait Ellipse3DCore<T: Scalar>: Ellipse3DConstructor<T> + Ellipse3DProperties<T> {}
-
-impl<T: Scalar, Ellipse> Ellipse2DMeasure<T> for Ellipse where
-    Ellipse: Ellipse2DDerived<T>
-        + Ellipse2DEvaluation<T>
-        + Ellipse2DContainment<T>
-        + Ellipse2DDistance<T>
-{
-}
-
-impl<T: Scalar, Ellipse> Ellipse3DMeasure<T> for Ellipse where
-    Ellipse: Ellipse3DDerived<T>
-        + Ellipse3DEvaluation<T>
-        + Ellipse3DContainment<T>
-        + Ellipse3DDistance<T>
-{
-}
 
 impl<T: Scalar, Ellipse> Ellipse2DCore<T> for Ellipse where
     Ellipse: Ellipse2DConstructor<T> + Ellipse2DProperties<T>
