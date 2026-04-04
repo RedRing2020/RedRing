@@ -336,6 +336,31 @@ Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability �
 - `measure` は新規責務説明には使わず、後方互換の集約 API としてのみ扱う
 - `focus1/focus2/focal_distance/eccentricity/linear_eccentricity/is_circle` は定義パラメータではなく unary `derived` とみなす
 
+### NURBS Curve の再分類
+
+NURBS curve は endpoint を shape 意味論の正本として持たず、parameter evaluation と length 語彙を中心に整理する。
+既存 API は 2D/3D ともに `*Measure` へ point evaluation、接線、長さ、曲率、弧長逆算が混在しているため、少なくとも evaluation と derived を分ける必要がある。
+
+本整理では、curve family の primary measure vocabulary として `length` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `NurbsCurve2DConstructor` / `NurbsCurve3DConstructor` | `definition` |
+| `NurbsCurve2DProperties::degree/num_control_points/knot_vector/is_rational/dimension` | `definition` |
+| `NurbsCurve3DProperties::degree/knot_vector/control_points_count/weights/is_rational/parameter_domain/coordinates` | `definition` |
+| `NurbsCurve2DEvaluation::point_at/tangent_at` | `evaluation` |
+| `NurbsCurve3DEvaluation::evaluate/parameter_at_length` | `evaluation` |
+| `NurbsCurve2DDerived::length/curvature_at` | `derived` |
+| `NurbsCurve3DDerived::arc_length/arc_length_total` | `derived` |
+| `NurbsCurve2DCore` / `NurbsCurve3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- NURBS curve は `Circle` のような closed curve ではないため、主語彙は `circumference` ではなく `length` を維持する
+- `parameter_at_length` は endpoint ではなく、length から parameter を求める evaluation capability として扱う
+- `arc_length(u_start, u_end, tolerance)` は区間に対する unary derived quantity とみなし、後方互換の `*Measure` から分離する
+- adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
+
 ### Circle の再分類
 
 Circle は閉曲線であり、parameter evaluation を持っても endpoint capability は持たない。

@@ -69,8 +69,9 @@ pub use geometry::core::{
     Ray3DMeasure, Ray3DProjection, Ray3DProperties, Ray3DTransform,
 };
 pub use geometry::core::{
-    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
-    NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DMeasure, NurbsCurve3DProperties,
+    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
+    NurbsCurve2DMeasure, NurbsCurve2DProperties, NurbsCurve3DConstructor, NurbsCurve3DCore,
+    NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DMeasure, NurbsCurve3DProperties,
     NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,
     Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
     Triangle2DDistance, Triangle2DMeasure, Triangle2DProperties, Triangle3DConstructor,

@@ -97,10 +97,12 @@ pub use linesegment_traits::{
     LineSegment3DProjection, LineSegment3DProperties,
 };
 pub use nurbs_curve_2d_traits::{
-    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DMeasure, NurbsCurve2DProperties,
+    NurbsCurve2DConstructor, NurbsCurve2DCore, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
+    NurbsCurve2DMeasure, NurbsCurve2DProperties,
 };
 pub use nurbs_curve_3d_traits::{
-    NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DMeasure, NurbsCurve3DProperties,
+    NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DDerived, NurbsCurve3DEvaluation,
+    NurbsCurve3DMeasure, NurbsCurve3DProperties,
 };
 pub use nurbs_surface_3d_traits::{
     NurbsSurface3DConstructor, NurbsSurface3DCore, NurbsSurface3DMeasure, NurbsSurface3DProperties,

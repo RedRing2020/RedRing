@@ -5,6 +5,9 @@
 
 use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector3;
+use geo_contracts::{
+    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+};
 
 /// 重み配列の効率的管理（3D曲線用）
 #[derive(Debug, Clone)]
@@ -379,12 +382,6 @@ mod tests {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
-
-use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DMeasure, NurbsCurve3DProperties};
-
 impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
     fn new(
         degree: usize,
@@ -516,7 +513,7 @@ impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
     }
 }
 
-impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
+impl<T: Scalar> NurbsCurve3DDerived<T> for NurbsCurve3D<T> {
     fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T {
         // 簡易実装：一定間隔でサンプリング
         let tolerance_f64 = tolerance.to_f64();
@@ -550,7 +547,9 @@ impl<T: Scalar> NurbsCurve3DMeasure<T> for NurbsCurve3D<T> {
         let (u_start, u_end) = self.parameter_domain();
         self.arc_length(u_start, u_end, tolerance)
     }
+}
 
+impl<T: Scalar> NurbsCurve3DEvaluation<T> for NurbsCurve3D<T> {
     fn parameter_at_length(&self, arc_length: T, tolerance: T) -> Option<T> {
         let (u_start, u_end) = self.parameter_domain();
         let total_length = self.arc_length_total(tolerance);
