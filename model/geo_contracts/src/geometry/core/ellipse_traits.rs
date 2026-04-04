@@ -1,16 +1,10 @@
 //! Ellipse Core Traits - Ellipse形状のCore機能統合
 //!
-//! Foundation Pattern Phase 1 + Phase 2 実装
-//! Ellipse は capability taxonomy に従い、Constructor / Properties と
-//! Derived / Evaluation / Containment / Distance へ責務分離する。
+//! Ellipse の trait定義を capability taxonomy に沿って分離する。
 
 use analysis::abstract_types::Scalar;
 
-// ============================================================================
-// Ellipse2D Core Traits
-// ============================================================================
-
-/// Ellipse2D Constructor トレイト（3+3メソッド）
+/// Ellipse2D の生成 trait
 pub trait Ellipse2DConstructor<T: Scalar>: Sized {
     /// 中心、長軸、短軸、回転角から楕円を作成
     fn new(center: (T, T), semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;
@@ -31,7 +25,7 @@ pub trait Ellipse2DConstructor<T: Scalar>: Sized {
     fn centered_at_origin(semi_major: T, semi_minor: T, rotation: T) -> Option<Self>;
 }
 
-/// Ellipse2D の定義パラメータ参照トレイト
+/// Ellipse2D の定義パラメータ
 pub trait Ellipse2DProperties<T: Scalar> {
     /// 中心座標を取得
     fn center(&self) -> (T, T);
@@ -46,6 +40,7 @@ pub trait Ellipse2DProperties<T: Scalar> {
     fn rotation(&self) -> T;
 }
 
+/// Ellipse2D の派生量
 pub trait Ellipse2DDerived<T: Scalar> {
     /// 面積を返す
     fn area(&self) -> T;
@@ -78,15 +73,18 @@ pub trait Ellipse2DDerived<T: Scalar> {
     fn is_circle(&self) -> bool;
 }
 
+/// Ellipse2D の評価
 pub trait Ellipse2DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T);
 }
 
+/// Ellipse2D の包含判定
 pub trait Ellipse2DContainment<T: Scalar> {
     fn contains_point(&self, point: (T, T)) -> bool;
     fn point_on_boundary(&self, point: (T, T)) -> bool;
 }
 
+/// Ellipse2D の距離計算
 pub trait Ellipse2DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T)) -> T;
 }
@@ -152,14 +150,10 @@ pub trait Ellipse2DMeasure<T: Scalar>:
     }
 }
 
-/// Ellipse2D Core トレイト（Constructor + Properties の互換 alias）
+/// Ellipse2D の互換 Core trait
 pub trait Ellipse2DCore<T: Scalar>: Ellipse2DConstructor<T> + Ellipse2DProperties<T> {}
 
-// ============================================================================
-// Ellipse3D Core Traits
-// ============================================================================
-
-/// Ellipse3D Constructor トレイト（3+3メソッド）
+/// Ellipse3D の生成 trait
 pub trait Ellipse3DConstructor<T: Scalar>: Sized {
     /// 中心、法線、長軸、短軸、長軸方向から楕円を作成
     fn new(
@@ -208,7 +202,7 @@ pub trait Ellipse3DConstructor<T: Scalar>: Sized {
     fn unit_ellipse_xy() -> Self;
 }
 
-/// Ellipse3D の定義パラメータ参照トレイト
+/// Ellipse3D の定義パラメータ
 pub trait Ellipse3DProperties<T: Scalar> {
     /// 楕円平面の法線ベクトルを取得
     fn normal(&self) -> (T, T, T);
@@ -232,6 +226,7 @@ pub trait Ellipse3DProperties<T: Scalar> {
     fn semi_minor_axis(&self) -> T;
 }
 
+/// Ellipse3D の派生量
 pub trait Ellipse3DDerived<T: Scalar> {
     /// 面積を返す
     fn area(&self) -> T;
@@ -255,14 +250,17 @@ pub trait Ellipse3DDerived<T: Scalar> {
     fn is_circle(&self) -> bool;
 }
 
+/// Ellipse3D の評価
 pub trait Ellipse3DEvaluation<T: Scalar> {
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 
+/// Ellipse3D の包含判定
 pub trait Ellipse3DContainment<T: Scalar> {
     fn contains_point_3d(&self, point: (T, T, T)) -> bool;
 }
 
+/// Ellipse3D の距離計算
 pub trait Ellipse3DDistance<T: Scalar> {
     fn distance_to_point_3d(&self, point: (T, T, T)) -> T;
 }
@@ -312,7 +310,7 @@ pub trait Ellipse3DMeasure<T: Scalar>:
     }
 }
 
-/// Ellipse3D Core トレイト（Constructor + Properties の互換 alias）
+/// Ellipse3D の互換 Core trait
 pub trait Ellipse3DCore<T: Scalar>: Ellipse3DConstructor<T> + Ellipse3DProperties<T> {}
 
 impl<T: Scalar, Ellipse> Ellipse2DMeasure<T> for Ellipse where
