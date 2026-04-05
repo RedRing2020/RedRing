@@ -3,7 +3,7 @@
 //! 基本機能のみテスト：作成、アクセサ、基本プロパティ
 
 use crate::{Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_contracts::Ellipse3DProperties;
+use geo_contracts::{Ellipse3DProjection, Ellipse3DProperties};
 
 #[cfg(test)]
 mod tests {
@@ -143,5 +143,18 @@ mod tests {
         let area = ellipse.area();
         let expected_area = std::f32::consts::PI * 3.0f32 * 2.0f32;
         assert!((area - expected_area).abs() < TOLERANCE_F32);
+    }
+
+    #[test]
+    fn test_closest_point_projection() {
+        let ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 4.0, 2.0).unwrap();
+        let closest = <Ellipse3D<f64> as Ellipse3DProjection<f64>>::closest_point_to(
+            &ellipse,
+            (10.0, 0.0, 3.0),
+        );
+
+        assert!((closest.0 - 4.0).abs() < 1e-4);
+        assert!(closest.1.abs() < 1e-4);
+        assert!(closest.2.abs() < 1e-4);
     }
 }

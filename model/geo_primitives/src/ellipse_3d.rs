@@ -10,7 +10,8 @@ use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
-    Ellipse3DEvaluation, Ellipse3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PrimitiveKind,
+    PrimitiveMetadata, Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -252,6 +253,63 @@ impl<T: Scalar> Ellipse3D<T> {
             self.semi_minor_axis,
         )
     }
+
+    /// 点に最も近い楕円境界上の点を取得
+    pub fn closest_point_to(&self, point: Point3D<T>) -> Point3D<T> {
+        let mut best_parameter = T::ZERO;
+        let mut best_point = self.point_at_parameter(T::ZERO);
+        let mut best_distance_sq = point.distance_squared_to(&best_point);
+        let sample_count = 180usize;
+
+        for index in 1..sample_count {
+            let parameter =
+                T::from_f64((index as f64) * std::f64::consts::TAU / sample_count as f64);
+            let candidate = self.point_at_parameter(parameter);
+            let candidate_distance_sq = point.distance_squared_to(&candidate);
+            if candidate_distance_sq < best_distance_sq {
+                best_parameter = parameter;
+                best_point = candidate;
+                best_distance_sq = candidate_distance_sq;
+            }
+        }
+
+        let mut delta = T::TAU / T::from_f64(sample_count as f64);
+        for _ in 0..24 {
+            let prev_parameter = Self::normalize_parameter(best_parameter - delta);
+            let next_parameter = Self::normalize_parameter(best_parameter + delta);
+
+            let prev_point = self.point_at_parameter(prev_parameter);
+            let prev_distance_sq = point.distance_squared_to(&prev_point);
+            if prev_distance_sq < best_distance_sq {
+                best_parameter = prev_parameter;
+                best_point = prev_point;
+                best_distance_sq = prev_distance_sq;
+            }
+
+            let next_point = self.point_at_parameter(next_parameter);
+            let next_distance_sq = point.distance_squared_to(&next_point);
+            if next_distance_sq < best_distance_sq {
+                best_parameter = next_parameter;
+                best_point = next_point;
+                best_distance_sq = next_distance_sq;
+            }
+
+            delta /= T::from_f64(2.0);
+        }
+
+        best_point
+    }
+
+    fn normalize_parameter(parameter: T) -> T {
+        let mut normalized = parameter;
+        while normalized < T::ZERO {
+            normalized += T::TAU;
+        }
+        while normalized >= T::TAU {
+            normalized -= T::TAU;
+        }
+        normalized
+    }
 }
 
 impl<T: Scalar> Ellipse3DConstructor<T> for Ellipse3D<T> {
@@ -455,14 +513,22 @@ impl<T: Scalar + From<f64>> Ellipse3DEvaluation<T> for Ellipse3D<T> {
 }
 
 impl<T: Scalar + From<f64>> Ellipse3DContainment<T> for Ellipse3D<T> {
-    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
+    fn contains_point(&self, point: (T, T, T)) -> bool {
         self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
     }
 }
 
 impl<T: Scalar + From<f64>> Ellipse3DDistance<T> for Ellipse3D<T> {
-    fn distance_to_point_3d(&self, point: (T, T, T)) -> T {
+    fn distance_to_point(&self, point: (T, T, T)) -> T {
         self.distance_to_point_3d_internal(point)
+    }
+}
+
+impl<T: Scalar + From<f64>> Ellipse3DProjection<T> for Ellipse3D<T> {
+    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = Point3D::new(point.0, point.1, point.2);
+        let closest = Ellipse3D::closest_point_to(self, p);
+        (closest.x(), closest.y(), closest.z())
     }
 }
 

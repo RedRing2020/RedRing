@@ -83,6 +83,10 @@ pub trait Ellipse2DDistance<T: Scalar> {
     fn distance_to_point(&self, point: (T, T)) -> T;
 }
 
+pub trait Ellipse2DProjection<T: Scalar> {
+    fn closest_point_to(&self, point: (T, T)) -> (T, T);
+}
+
 /// Ellipse2D の互換 Core trait
 pub trait Ellipse2DCore<T: Scalar>: Ellipse2DConstructor<T> + Ellipse2DProperties<T> {}
 
@@ -184,12 +188,25 @@ pub trait Ellipse3DEvaluation<T: Scalar> {
 
 /// Ellipse3D の包含判定
 pub trait Ellipse3DContainment<T: Scalar> {
-    fn contains_point_3d(&self, point: (T, T, T)) -> bool;
+    fn contains_point(&self, point: (T, T, T)) -> bool;
+
+    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
+        self.contains_point(point)
+    }
 }
 
 /// Ellipse3D の距離計算
 pub trait Ellipse3DDistance<T: Scalar> {
-    fn distance_to_point_3d(&self, point: (T, T, T)) -> T;
+    fn distance_to_point(&self, point: (T, T, T)) -> T;
+
+    fn distance_to_point_3d(&self, point: (T, T, T)) -> T {
+        self.distance_to_point(point)
+    }
+}
+
+/// Ellipse3D の射影
+pub trait Ellipse3DProjection<T: Scalar> {
+    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
 }
 
 /// Ellipse3D の互換 Core trait

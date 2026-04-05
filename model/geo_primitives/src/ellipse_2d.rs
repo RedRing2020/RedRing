@@ -7,8 +7,8 @@ use crate::{
 };
 use geo_contracts::{
     default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDerived,
-    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProperties, PrimitiveKind, PrimitiveMetadata,
-    Scalar,
+    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -152,6 +152,52 @@ impl<T: Scalar> Ellipse2D<T> {
         geo_commons::ellipse_2d_distance_to_point(x_rot, y_rot, self.semi_major, self.semi_minor)
     }
 
+    /// 点に最も近い楕円境界上の点を取得
+    pub fn closest_point_to(&self, point: &Point2D<T>) -> Point2D<T> {
+        let mut best_parameter = T::ZERO;
+        let mut best_point = self.point_at_parameter(T::ZERO);
+        let mut best_distance_sq = point.distance_squared_to(&best_point);
+        let sample_count = 180usize;
+
+        for index in 1..sample_count {
+            let parameter =
+                T::from_f64((index as f64) * std::f64::consts::TAU / sample_count as f64);
+            let candidate = self.point_at_parameter(parameter);
+            let candidate_distance_sq = point.distance_squared_to(&candidate);
+            if candidate_distance_sq < best_distance_sq {
+                best_parameter = parameter;
+                best_point = candidate;
+                best_distance_sq = candidate_distance_sq;
+            }
+        }
+
+        let mut delta = T::TAU / T::from_f64(sample_count as f64);
+        for _ in 0..24 {
+            let prev_parameter = Self::normalize_parameter(best_parameter - delta);
+            let next_parameter = Self::normalize_parameter(best_parameter + delta);
+
+            let prev_point = self.point_at_parameter(prev_parameter);
+            let prev_distance_sq = point.distance_squared_to(&prev_point);
+            if prev_distance_sq < best_distance_sq {
+                best_parameter = prev_parameter;
+                best_point = prev_point;
+                best_distance_sq = prev_distance_sq;
+            }
+
+            let next_point = self.point_at_parameter(next_parameter);
+            let next_distance_sq = point.distance_squared_to(&next_point);
+            if next_distance_sq < best_distance_sq {
+                best_parameter = next_parameter;
+                best_point = next_point;
+                best_distance_sq = next_distance_sq;
+            }
+
+            delta /= T::from_f64(2.0);
+        }
+
+        best_point
+    }
+
     /// パラメータ t での点を取得（0 <= t < 2π）
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
         let cos_t = t.cos();
@@ -246,6 +292,17 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 短軸方向の単位ベクトルを取得
     pub fn minor_axis_direction(&self) -> Vector2D<T> {
         Vector2D::new(-self.rotation.sin(), self.rotation.cos())
+    }
+
+    fn normalize_parameter(parameter: T) -> T {
+        let mut normalized = parameter;
+        while normalized < T::ZERO {
+            normalized += T::TAU;
+        }
+        while normalized >= T::TAU {
+            normalized -= T::TAU;
+        }
+        normalized
     }
 }
 
@@ -502,5 +559,13 @@ impl<T: Scalar + From<f64>> Ellipse2DDistance<T> for Ellipse2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
         Ellipse2D::distance_to_point(self, &p)
+    }
+}
+
+impl<T: Scalar + From<f64>> Ellipse2DProjection<T> for Ellipse2D<T> {
+    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
+        let p = Point2D::new(point.0, point.1);
+        let closest = Ellipse2D::closest_point_to(self, &p);
+        (closest.x(), closest.y())
     }
 }
