@@ -134,10 +134,6 @@ fn pivot_from_surface_aabb<T: Scalar>(
     Ok(Vector3::new(center.x(), center.y(), center.z()))
 }
 
-// ============================================================================
-// AnalysisTransform3D Implementation
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     type Matrix4x4 = Matrix4x4<T>;
     type Angle = Angle<T>;

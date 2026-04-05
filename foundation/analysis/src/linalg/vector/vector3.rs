@@ -95,8 +95,6 @@ impl<T: Scalar> Vector3<T> {
         self.data[2] = z;
     }
 
-    // === 汎用アクセサ ===
-
     /// インデックスで要素を取得
     #[inline]
     pub fn get(&self, index: usize) -> T {
@@ -115,14 +113,10 @@ impl<T: Scalar> Vector3<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素をイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().copied()
     }
-
-    // === 基本演算 ===
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
@@ -328,8 +322,6 @@ impl<T: Scalar> Neg for Vector3<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Vector3<T> {
     type Output = T;
     #[inline]
@@ -344,8 +336,6 @@ impl<T: Scalar> IndexMut<usize> for Vector3<T> {
         &mut self.data[index]
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[T; 3]> for Vector3<T> {
     #[inline]

@@ -20,15 +20,7 @@ pub struct EllipseArc2D<T: Scalar> {
     pub(crate) end_angle: Angle<T>,   // 終了角度
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> EllipseArc2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい楕円弧を作成
     ///
     /// # 引数
@@ -43,15 +35,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         }
     }
 
-    /// 円弧から楕円弧を作成
-    // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
-    // pub fn from_arc(arc: Arc2D<T>) -> Self {
-    //     let ellipse = Ellipse2D::from_circle(*arc.circle());
-    //     Self::new(ellipse, arc.start_angle(), arc.end_angle())
-    // }
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
     /// 基底楕円を取得
     pub fn ellipse(&self) -> &Ellipse2D<T> {
         &self.ellipse
@@ -92,10 +75,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         self.end_angle - self.start_angle
     }
 
-    // ========================================================================
-    // Core Geometric Methods
-    // ========================================================================
-
     /// 開始点を取得
     pub fn start_point(&self) -> Point2D<T> {
         self.ellipse
@@ -105,13 +84,6 @@ impl<T: Scalar> EllipseArc2D<T> {
     /// 終了点を取得
     pub fn end_point(&self) -> Point2D<T> {
         self.ellipse.point_at_parameter(self.end_angle.to_radians())
-    }
-
-    /// 中点を取得
-    pub fn midpoint(&self) -> Point2D<T> {
-        let half = T::ONE / (T::ONE + T::ONE); // 1/2
-        let mid_angle = (self.start_angle + self.end_angle) * half;
-        self.ellipse.point_at_parameter(mid_angle.to_radians())
     }
 
     /// パラメータ t での点を取得（0 <= t <= 1）
@@ -130,10 +102,10 @@ impl<T: Scalar> EllipseArc2D<T> {
 
     /// 弧長を取得（近似値）
     pub fn arc_length(&self) -> T {
-        // 簡易近似：楕円周囲長に角度比率を掛ける
-        let full_perimeter = self.ellipse.perimeter();
+        // 簡易近似: 楕円周回長に角度比率を掛ける
+        let full_circumference = self.ellipse.circumference();
         let angle_ratio = self.angle_span().to_radians().abs() / T::TAU;
-        full_perimeter * angle_ratio
+        full_circumference * angle_ratio
     }
 
     /// 点が楕円弧上にあるかを判定
@@ -195,10 +167,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         geo_core::Aabb2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
     }
 
-    // ========================================================================
-    // Helper Methods
-    // ========================================================================
-
     /// 角度が楕円弧の範囲内にあるかを判定
     pub fn angle_in_range(&self, angle: T) -> bool {
         let start_rad = self.start_angle.to_radians();
@@ -235,10 +203,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         self.contains_point(point, tolerance)
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
 
 impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
     fn new(
@@ -278,8 +242,6 @@ impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {
         let end = Angle::from_radians(end_angle);
         Some(Self::new(ellipse, start, end))
     }
-
-    // ========== Phase 2: 追加コンストラクタ ==========
 
     fn from_circle_arc(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
         // 円弧は楕円弧の特殊ケース（a = b = radius）
@@ -384,8 +346,6 @@ impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
         self.end_angle.to_radians()
     }
 
-    // ========== Phase 2: 追加プロパティ ==========
-
     fn rotation(&self) -> T {
         self.ellipse.rotation()
     }
@@ -405,12 +365,12 @@ impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
 }
 
 impl<T: Scalar> EllipseArc2DDerived<T> for EllipseArc2D<T> {
-    fn measure(&self) -> T {
-        // arc_length の計算を直接展開: 楕円周囲長に角度比率を掛ける
-        let full_perimeter = self.ellipse.perimeter();
+    fn length(&self) -> T {
+        // arc_length の計算を直接展開: 楕円周回長に角度比率を掛ける
+        let full_circumference = self.ellipse.circumference();
         let angle_ratio =
             (self.end_angle.to_radians() - self.start_angle.to_radians()).abs() / T::TAU;
-        full_perimeter * angle_ratio
+        full_circumference * angle_ratio
     }
 
     fn bounding_box(&self) -> ((T, T), (T, T)) {
@@ -476,11 +436,6 @@ impl<T: Scalar> EllipseArc2DEndpoint<T> for EllipseArc2D<T> {
         let p = self.ellipse.point_at_parameter(self.end_angle.to_radians());
         (p.x(), p.y())
     }
-
-    fn mid_point(&self) -> (T, T) {
-        let p = self.point_at_parameter(T::ONE / (T::ONE + T::ONE));
-        (p.x(), p.y())
-    }
 }
 
 impl<T: Scalar> EllipseArc2DEvaluation<T> for EllipseArc2D<T> {
@@ -491,30 +446,7 @@ impl<T: Scalar> EllipseArc2DEvaluation<T> for EllipseArc2D<T> {
         (p.x(), p.y())
     }
 
-    fn point_at_angle(&self, angle: T) -> Option<(T, T)> {
-        // 角度が範囲内かチェック
-        let normalized_angle = if angle < T::ZERO {
-            angle + T::TAU
-        } else if angle >= T::TAU {
-            angle - T::TAU
-        } else {
-            angle
-        };
-
-        let start = self.start_angle.to_radians();
-        let end = self.end_angle.to_radians();
-
-        let in_range = if start <= end {
-            normalized_angle >= start && normalized_angle <= end
-        } else {
-            normalized_angle >= start || normalized_angle <= end
-        };
-
-        if !in_range {
-            return None;
-        }
-
-        // 楕円上の点を計算
+    fn point_at_angle(&self, angle: T) -> (T, T) {
         let a = self.semi_major();
         let b = self.semi_minor();
         let rot = self.ellipse.rotation();
@@ -531,7 +463,7 @@ impl<T: Scalar> EllipseArc2DEvaluation<T> for EllipseArc2D<T> {
         let x = center.x() + x_local * cos_r - y_local * sin_r;
         let y = center.y() + x_local * sin_r + y_local * cos_r;
 
-        Some((x, y))
+        (x, y)
     }
 }
 
@@ -557,5 +489,9 @@ impl<T: Scalar> EllipseArc2DContainment<T> for EllipseArc2D<T> {
         } else {
             angle >= start - tolerance || angle <= end + tolerance
         }
+    }
+
+    fn contains_angle(&self, angle: T) -> bool {
+        self.angle_in_range(angle)
     }
 }

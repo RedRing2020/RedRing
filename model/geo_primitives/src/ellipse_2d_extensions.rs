@@ -8,10 +8,6 @@ use geo_contracts::Scalar;
 use geo_contracts::default_distance_tolerance;
 
 impl<T: Scalar> Ellipse2D<T> {
-    // ========================================================================
-    // Extension Construction Methods
-    // ========================================================================
-
     /// 単位楕円を作成（中心が原点、a=1、b指定）
     pub fn unit_ellipse(semi_minor: T) -> Option<Self> {
         Self::axis_aligned(Point2D::origin(), T::ONE, semi_minor)
@@ -61,10 +57,6 @@ impl<T: Scalar> Ellipse2D<T> {
         }
     }
 
-    // ========================================================================
-    // Extension Predicate Methods
-    // ========================================================================
-
     /// 離心率を計算
     pub fn eccentricity(&self) -> T {
         if self.semi_major_axis() <= T::ZERO {
@@ -100,18 +92,10 @@ impl<T: Scalar> Ellipse2D<T> {
         distance <= tolerance
     }
 
-    // ========================================================================
-    // Extension Geometric Methods
-    // ========================================================================
-
     /// 指定角度での点を取得
     pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
         self.point_at_parameter(angle)
     }
-
-    // ========================================================================
-    // Extension Transformation Methods
-    // ========================================================================
 
     /// 楕円を平行移動
     pub fn translate(&self, offset: &Vector2D<T>) -> Self {
@@ -168,10 +152,6 @@ impl<T: Scalar> Ellipse2D<T> {
         .unwrap() // Core で作成された楕円なので常に有効
     }
 
-    // ========================================================================
-    // Extension Type Conversion Methods
-    // ========================================================================
-
     /// 楕円を円に変換（可能な場合）
     pub fn to_circle(&self) -> Option<Circle2D<T>> {
         if self.is_circle() {
@@ -186,10 +166,6 @@ impl<T: Scalar> Ellipse2D<T> {
     //     // Z=0平面上の楕円として3D楕円を作成
     //     // 実装は3D楕円の実装後に追加予定
     // }
-
-    // ========================================================================
-    // Foundation Integration Methods (Extension)
-    // ========================================================================
 
     /// Foundation Transform統合での高度な楕円変換
     pub fn foundation_scale_from_point(&self, point: Point2D<T>, factor: T) -> Option<Self> {

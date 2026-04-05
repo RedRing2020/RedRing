@@ -49,9 +49,9 @@ Arc / EllipseArc / Circle / Triangle などを含む shape 横断の `Measure / 
 
 この棚卸しから、現状の `Measure` は単なる測度ではなく、shape ごとに次の異種 capability を束ねていることが分かる。
 
-- 測度: `length` / `measure` / `area` / `circumference` / `perimeter`
+- 測度: 単独線 shape の `length` / 閉曲線 shape の `circumference` / 複数辺境界 shape の `perimeter` / 面の `area`
 - 境界参照: `start_point` / `end_point` / 頂点参照 / edge length
-- 評価: `point_at_parameter` / `point_at_angle` / midpoint
+- 評価: `point_at_parameter` / `point_at_angle`
 - 関係判定: `contains_point`
 - 距離・射影: `distance_to_point` / `closest_point_to`
 - 形状固有派生: `direction_vector` / `bounding_box` / `is_clockwise` / `is_planar`
@@ -252,7 +252,7 @@ topology 側の Edge 正規形は、shape 意味論を前提に、接続・向�
 本書は以下を直接の対象としない。
 
 - `Measure` の shape 横断 taxonomy の最終確定
-- Arc / EllipseArc / Circle / Triangle など各 shape の個別 semantics 確定
+- 各 shape の数値アルゴリズムや個別補助 API の完全確定
 - topology 正規形の完全仕様
 - tolerance 値そのものの単一正本化
 
@@ -275,3 +275,85 @@ topology 側の Edge 正規形は、shape 意味論を前提に、接続・向�
 - NURBS curve / surface
 
 ただしその追加は、shape 横断 capability 整理を扱う `#558` の方針確定後に行う。
+
+## `#558` の設計結論
+
+`#558` では、shape 横断の capability 命名を次の意味論で固定する。
+
+### 1. Arc / EllipseArc の endpoint は ideal endpoint として扱う
+
+- `Arc` / `EllipseArc` の `start_point` / `end_point` は、母曲線上の ideal endpoint を返す語彙として扱う
+- `midpoint` / `mid_point` は endpoint capability の正本語彙としては採用しない
+- 利用者が中間点を必要とする場合は、parameter 評価か、将来の弧長比評価のような明示 API を使う
+- topology 上の拘束端点とは同一視せず、拘束端点の語彙は topology 層で別管理する
+
+### 2. Circle / Ellipse は endpoint capability を持たない
+
+- `Circle` / `Ellipse` は閉曲線として `point_at_parameter` を持てる
+- ただし parameter 原点を与える `ref_direction` や `rotation` は endpoint の根拠にしない
+- 閉曲線では `start` / `end` を正本語彙として導入しない
+
+### 3. Triangle は curve endpoint ではなく boundary access を持つ
+
+- `Triangle` の `vertex_a/b/c` は面 shape の boundary access であり、curve endpoint capability とは別に扱う
+- `edge_*_length` や `perimeter` も vertex/boundary 由来の派生量として扱う
+- `Triangle` には curve parameter evaluation capability を持ち込まない
+
+### 4. primary measure vocabulary は shape family ごとに固定する
+
+- `LineSegment` / `Arc` / `EllipseArc` のような単独線 shape は `length` を正本語彙とする
+- `Circle` / `Ellipse` は閉曲線 shape として `circumference` を正本語彙とし、`area` は interior を伴う派生量として扱う
+- `Triangle` など複数辺からなる境界 shape は `perimeter` を使い、`area` などの面積系語彙とは分離する
+- `measure` は新規の正本語彙にせず、互換 API としてのみ残してよい
+
+### 5. evaluation と boundary access は別 capability とする
+
+- `point_at_parameter` / `point_at_angle` は evaluation capability に置く
+- `start_point` / `end_point` は境界付き曲線に限って endpoint capability に置く
+- `point_at_parameter(0.5)` のような parameter midpoint は evaluation の一例であり、endpoint 語彙へ昇格させない
+- 将来的に support curve evaluation と拘束点補間を併存させる場合は、同じ `point_at_parameter` 名に押し込めず名称で分ける
+
+補足:
+
+- 中点が重要なユースケースでも、`midpoint` のような convenience 名ではなく、何の中点かを API 名で明示する
+- 特に楕円弧や NURBS では、parameter 中点と弧長中点が一致しないため、曖昧な `midpoint` は導入しない
+
+## `#558` 実装単位 A の詳細設計
+
+実装単位 A では、`Arc` / `EllipseArc` に対して「primitive の endpoint semantics を維持したまま、topology の拘束端点要求と衝突しないこと」を設計目標とする。
+
+### primitive 側で固定すること
+
+- `Arc` / `EllipseArc` の `start_point` / `end_point` は ideal endpoint を返す
+- `Arc` / `EllipseArc` の長さ語彙は `length` を使い、`perimeter` は導入しない
+- `point_at_parameter` は curve evaluation であり、拘束点補間 API ではない
+- `point_at_angle` は angle evaluation であり、endpoint capability の一部ではない
+- `point_at_parameter` の `t` は Arc / EllipseArc のトリム区間を `0..1` へ正規化した parameter として扱う
+- `point_at_angle` の `angle` は primitive 局所角度系の評価入力として扱い、world 空間の極角や拘束角度と混同しない
+- どちらの evaluation も返すのは ideal evaluation point であり、拘束端点や拘束点補間結果ではない
+
+補足:
+
+- Arc で円弧中点を取りたい場合でも、`midpoint` は置かず `point_at_parameter(0.5)` または `point_at_angle((start+end)/2)` を呼び出し側で明示する
+- EllipseArc で弧長中点が必要な場合は、将来 `point_at_normalized_arc_length(0.5)` 相当の明示 API を検討する
+- parameter midpoint 専用 API を追加する場合も、`midpoint` ではなく parameter を名称に含める
+- Arc / EllipseArc ともに `point_at_angle` は total な support evaluation として扱い、角度範囲検証は containment 側で担う
+- トリム区間内かどうかを見たい場合は `contains_angle` 相当の containment 語彙を使う
+
+### topology 側へ委譲すること
+
+- trim や binding に必要な拘束端点は topology 層で保持する
+- primitive の `start_point` / `end_point` を拘束端点へ再定義しない
+- `parameter_range` は母曲線上の evaluated endpoint を導くための位相情報として扱う
+
+### 実装単位 A の命名ルール
+
+- primitive / contract では `start_point` / `end_point` を ideal endpoint 語彙として使う
+- topology では `constraint_start_point` / `constraint_end_point`、`ideal_start_point` / `ideal_end_point`、`evaluated_start_point` / `evaluated_end_point` のように役割を名前へ出す
+- 同じ `start/end` で ideal と constraint を兼用しない
+
+### 実装単位 A の非目標
+
+- Arc / EllipseArc primitive の endpoint semantics を拘束端点へ変更すること
+- `point_at_parameter(0/1)` と `start_point/end_point` の常時一致を不変条件にすること
+- Topology の trim / binding 完全仕様をこの段階で完了すること

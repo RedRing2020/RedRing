@@ -88,10 +88,6 @@ pub mod analysis_transform {
     }
 }
 
-// ============================================================================
-// AnalysisTransform2D Implementation
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
     type Matrix3x3 = Matrix3x3<T>;
     type Angle = Angle<T>;
@@ -163,10 +159,6 @@ impl<T: Scalar> AnalysisTransform2D<T> for Arc2D<T> {
         self.scale_analysis_2d(center, scale_factor, scale_factor)
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

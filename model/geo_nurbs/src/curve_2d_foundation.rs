@@ -6,10 +6,6 @@ use crate::{constants, NurbsCurve2D, Scalar};
 use geo_contracts::NurbsCurve2DProperties;
 use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
 
-// ============================================================================
-// Extension Foundation 実装
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for NurbsCurve2D<T> {
     fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
         geo_contracts::PrimitiveKind::NurbsCurve2D
@@ -47,10 +43,6 @@ impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Pattern 統合テスト
-// ============================================================================
-
 #[cfg(test)]
 mod tests {
     use crate::knot::clamped_knot_vector;
@@ -60,10 +52,6 @@ mod tests {
         NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
         NurbsCurve2DProperties,
     };
-
-    // ============================================================================
-    // Core Traits Constructor テスト
-    // ============================================================================
 
     #[test]
     fn test_core_traits_constructor_new() {
@@ -127,10 +115,6 @@ mod tests {
         assert!((end.1 - 0.0).abs() < 1e-10);
     }
 
-    // ============================================================================
-    // Core Traits Properties テスト
-    // ============================================================================
-
     #[test]
     fn test_core_traits_properties() {
         let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
@@ -158,12 +142,8 @@ mod tests {
         );
     }
 
-    // ============================================================================
-    // Core Traits Measure テスト
-    // ============================================================================
-
     #[test]
-    fn test_core_traits_measure() {
+    fn test_core_traits_evaluation_and_derived() {
         let control_points = &[(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
         let knots = clamped_knot_vector(2, 3);
         let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
@@ -174,13 +154,18 @@ mod tests {
         )
         .unwrap();
 
-        // point_at テスト
-        let mid_point = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 0.5);
-        assert!((mid_point.0 - 1.0).abs() < 0.1);
+        // Evaluation trait 経由で端点評価できることを確認
+        let start = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 0.0);
+        let end = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at(&curve, 1.0);
+        assert!((start.0 - 0.0).abs() < 1e-10);
+        assert!(start.1.abs() < 1e-10);
+        assert!((end.0 - 2.0).abs() < 1e-10);
+        assert!(end.1.abs() < 1e-10);
 
         // tangent_at テスト
         let tangent = <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::tangent_at(&curve, 0.5);
         assert!((tangent.0 - 1.0).abs() < 0.1); // X方向の接線
+        assert!(tangent.1.abs() < 0.1);
 
         // length テスト
         let length = <NurbsCurve2D<f64> as NurbsCurve2DDerived<f64>>::length(&curve);
@@ -190,10 +175,6 @@ mod tests {
         let curvature = <NurbsCurve2D<f64> as NurbsCurve2DDerived<f64>>::curvature_at(&curve, 0.5);
         assert!(curvature.abs() < 0.1); // 直線なので曲率は0に近い
     }
-
-    // ============================================================================
-    // Extension Foundation テスト
-    // ============================================================================
 
     #[test]
     fn test_nurbs_curve_2d_foundation() {

@@ -21,9 +21,9 @@ pub mod metrics;
 // 便利な再エクスポート - 名前衝突回避のため明示的にエクスポート
 pub use approximations::curves::*;
 pub use approximations::ellipse::{
-    ellipse_circumference_numerical, ellipse_circumference_series, ellipse_eccentricity,
-    ellipse_focal_distance, ellipse_foci, ellipse_perimeter_cantrell, ellipse_perimeter_padé,
-    ellipse_perimeter_ramanujan_i, ellipse_perimeter_ramanujan_ii,
+    ellipse_circumference_cantrell, ellipse_circumference_numerical, ellipse_circumference_padé,
+    ellipse_circumference_ramanujan_i, ellipse_circumference_ramanujan_ii,
+    ellipse_circumference_series, ellipse_eccentricity, ellipse_focal_distance, ellipse_foci,
 };
 pub use metrics::area_volume::{
     circle_area, cone_volume, cylinder_volume, ellipse_area, polygon_area, sphere_volume,

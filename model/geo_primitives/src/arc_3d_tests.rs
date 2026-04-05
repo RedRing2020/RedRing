@@ -4,6 +4,7 @@
 
 use crate::{Arc3D, Point3D, Vector3D};
 use geo_contracts::Angle;
+use geo_contracts::Arc3DEvaluation;
 use geo_contracts::Arc3DProperties;
 
 #[cfg(test)]
@@ -169,7 +170,7 @@ mod tests {
         assert!((end.y() - 3.0_f64).abs() < 1e-10);
 
         // 中点
-        let mid = arc.mid_point();
+        let mid = <Arc3D<f64> as Arc3DEvaluation<f64>>::point_at_parameter(&arc, 0.5);
         let expected_mid_angle = std::f64::consts::PI / 4.0;
         let expected_x = 3.0 * expected_mid_angle.cos();
         let expected_y = 3.0 * expected_mid_angle.sin();

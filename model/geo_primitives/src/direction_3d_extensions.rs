@@ -6,11 +6,7 @@
 use crate::{Direction3D, Vector3D};
 use geo_contracts::{Angle, Scalar};
 
-// ============================================================================
-// Core trait implementations (moved from core)
-// ============================================================================
-
-// Derive traits now handled by #[derive] macro in main struct definition
+// Derive traits are handled by #[derive] on the main struct.
 
 impl<T: Scalar> std::fmt::Display for Direction3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -23,10 +19,6 @@ impl<T: Scalar> From<Direction3D<T>> for Vector3D<T> {
         direction.as_vector()
     }
 }
-
-// ============================================================================
-// Extended vector operations (additional methods)
-// ============================================================================
 
 impl<T: Scalar> Direction3D<T> {
     /// 他の方向と直交しているかをチェック

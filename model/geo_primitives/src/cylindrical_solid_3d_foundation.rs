@@ -6,10 +6,6 @@ use geo_contracts::{
 };
 use geo_core::Aabb3D;
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for CylindricalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSolid
@@ -57,10 +53,6 @@ impl<T: Scalar> TolerantEq<T> for CylindricalSolid3D<T> {
             && ref_similar
     }
 }
-
-// ============================================================================
-// Backward Compatibility (移行期間中のみ) - 重複回避のためコメントアウト
-// ============================================================================
 
 /*
 /// 旧Cylinder3D向けのFoundation実装は既存のcylinder_3d_foundation.rsで提供されるため

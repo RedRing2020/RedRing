@@ -3,10 +3,6 @@
 use crate::Plane3D;
 use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for Plane3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Plane

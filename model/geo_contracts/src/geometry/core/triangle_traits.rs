@@ -57,7 +57,7 @@ pub trait Triangle2DDerived<T: Scalar> {
     fn inradius(&self) -> T;
 
     /// 三角形の面積を計算
-    fn measure(&self) -> T;
+    fn area(&self) -> T;
 
     /// 辺ABの長さ
     fn edge_ab_length(&self) -> T;
@@ -140,7 +140,7 @@ pub trait Triangle3DDerived<T: Scalar> {
     fn inradius(&self) -> T;
 
     /// 三角形の面積を計算
-    fn measure(&self) -> T;
+    fn area(&self) -> T;
 
     /// 辺ABの長さ
     fn edge_ab_length(&self) -> T;

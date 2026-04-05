@@ -69,8 +69,6 @@ impl<T: Scalar> Vector2<T> {
         self.data[1] = y;
     }
 
-    // === 汎用アクセサ ===
-
     /// インデックスで要素を取得
     #[inline]
     pub fn get(&self, index: usize) -> T {
@@ -89,14 +87,10 @@ impl<T: Scalar> Vector2<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素をイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().copied()
     }
-
-    // === 基本演算 ===
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
@@ -247,8 +241,6 @@ impl<T: Scalar> Neg for Vector2<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Vector2<T> {
     type Output = T;
     #[inline]
@@ -263,8 +255,6 @@ impl<T: Scalar> IndexMut<usize> for Vector2<T> {
         &mut self.data[index]
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[T; 2]> for Vector2<T> {
     #[inline]

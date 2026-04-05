@@ -4,10 +4,6 @@ use crate::Ray3D;
 use geo_contracts::Scalar;
 use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for Ray3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Ray

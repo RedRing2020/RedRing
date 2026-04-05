@@ -169,68 +169,72 @@ pub trait EllipseArc3DProperties<T: Scalar> {
 
 /// EllipseArc2D計量・関係演算機能トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc2DDerived<T: Scalar> {
-    /// 楕円弧の長さ（測度）
-    fn measure(&self) -> T;
+    /// 楕円弧の長さ
+    fn length(&self) -> T;
 
     /// 楕円弧の境界ボックスを取得（最小点、最大点）
     fn bounding_box(&self) -> ((T, T), (T, T));
 }
 
 pub trait EllipseArc2DEndpoint<T: Scalar> {
-    /// 開始点を取得
+    /// 母曲線上の ideal な開始点を取得
     fn start_point(&self) -> (T, T);
 
-    /// 終了点を取得
+    /// 母曲線上の ideal な終了点を取得
     fn end_point(&self) -> (T, T);
-
-    /// 中点を取得（パラメータt=0.5の点）
-    fn mid_point(&self) -> (T, T);
 }
 
 pub trait EllipseArc2DEvaluation<T: Scalar> {
-    /// パラメータt（0<=t<=1）での点を取得
+    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
+    ///
+    /// `t=0/1` は EllipseArc のトリム区間の両端を指すが、拘束端点補間を意味しない。
     fn point_at_parameter(&self, t: T) -> (T, T);
 
-    /// 指定角度での点を取得（ラジアン）
-    fn point_at_angle(&self, angle: T) -> Option<(T, T)>;
+    /// Primitive 局所角度系の角度で ideal evaluation point を取得
+    fn point_at_angle(&self, angle: T) -> (T, T);
 }
 
 pub trait EllipseArc2DContainment<T: Scalar> {
     /// 点が楕円弧上にあるか判定（許容誤差付き）
     fn contains_point(&self, point: (T, T), tolerance: T) -> bool;
+
+    /// Primitive 局所角度系の角度がトリム区間内か判定
+    fn contains_angle(&self, angle: T) -> bool;
 }
 
 /// EllipseArc3D計量・関係演算機能トレイト（Phase 1 + Phase 2）
 pub trait EllipseArc3DDerived<T: Scalar> {
-    /// 楕円弧の長さ（測度）
-    fn measure(&self) -> T;
+    /// 楕円弧の長さ
+    fn length(&self) -> T;
 
     /// 楕円弧の境界ボックスを取得（最小点、最大点）
     fn bounding_box(&self) -> ((T, T, T), (T, T, T));
 }
 
 pub trait EllipseArc3DEndpoint<T: Scalar> {
-    /// 開始点を取得
+    /// 母曲線上の ideal な開始点を取得
     fn start_point(&self) -> (T, T, T);
 
-    /// 終了点を取得
+    /// 母曲線上の ideal な終了点を取得
     fn end_point(&self) -> (T, T, T);
-
-    /// 中点を取得（パラメータt=0.5の点）
-    fn mid_point(&self) -> (T, T, T);
 }
 
 pub trait EllipseArc3DEvaluation<T: Scalar> {
-    /// パラメータt（0<=t<=1）での点を取得
+    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
+    ///
+    /// `t=0/1` は EllipseArc のトリム区間の両端を指すが、拘束端点補間を意味しない。
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 
-    /// 指定角度での点を取得（ラジアン）
-    fn point_at_angle(&self, angle: T) -> Option<(T, T, T)>;
+    /// Primitive 局所角度系の角度で ideal evaluation point を取得
+    fn point_at_angle(&self, angle: T) -> (T, T, T);
 }
 
 pub trait EllipseArc3DContainment<T: Scalar> {
     /// 点が楕円弧上にあるか判定（許容誤差付き）
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool;
+
+    /// Primitive 局所角度系の角度がトリム区間内か判定
+    fn contains_angle(&self, angle: T) -> bool;
 }
 
 /// EllipseArc2Dの3つのCore機能統合トレイト

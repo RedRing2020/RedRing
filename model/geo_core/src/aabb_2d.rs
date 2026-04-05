@@ -109,10 +109,6 @@ impl<T: Scalar> Aabb2D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> Aabb2DProperties<T> for Aabb2D<T> {
     type Point2D = Point2D<T>;
 

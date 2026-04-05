@@ -54,8 +54,6 @@ mod tests {
         assert_eq!(point_f64.x(), 1.0f64);
     }
 
-    // === foundation トレイトテスト ===
-
     #[test]
     fn test_basic_operations() {
         let point = Point3D::new(1.0, 2.0, 3.0);
@@ -75,11 +73,6 @@ mod tests {
         assert_eq!(point.distance_to(&same_point), 0.0);
         assert_eq!(point.distance_to(&Point3D::new(1.0, 2.0, 6.0)), 3.0);
     }
-
-    // ============================================================================
-    // ============================================================================
-    // Transform テスト（基本機能のみ）
-    // ============================================================================
 
     #[test]
     fn test_coordinate_arithmetic() {

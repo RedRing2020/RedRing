@@ -89,8 +89,6 @@ impl<T: Scalar> Arc3D<T> {
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
     }
 
-    // === 基本アクセサメソッド（内部使用） ===
-
     /// 円弧の中心点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -216,10 +214,6 @@ impl<T: Scalar> Arc3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
-
 impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
     fn new(
         center: (T, T, T),
@@ -282,7 +276,6 @@ impl<T: Scalar> Arc3DConstructor<T> for Arc3D<T> {
         )
     }
 
-    // Phase 2: 追加コンストラクタ
     fn xz_arc(center: (T, T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
         let center_point = Point3D::new(center.0, center.1, center.2);
         let normal_dir = Direction3D::positive_y(); // XZ平面の法線はY軸
@@ -356,7 +349,7 @@ impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
 }
 
 impl<T: Scalar> Arc3DDerived<T> for Arc3D<T> {
-    fn measure(&self) -> T {
+    fn length(&self) -> T {
         // arc_length の計算を直接展開: radius * angle_span
         let mut span = self.end_angle - self.start_angle;
         if span.to_radians() < T::ZERO {
@@ -374,12 +367,6 @@ impl<T: Scalar> Arc3DEndpoint<T> for Arc3D<T> {
 
     fn end_point(&self) -> (T, T, T) {
         let p = self.point_at_angle_internal(self.end_angle);
-        (p.x(), p.y(), p.z())
-    }
-
-    fn midpoint(&self) -> (T, T, T) {
-        let mid_angle = (self.start_angle + self.end_angle) / (T::ONE + T::ONE);
-        let p = self.point_at_angle_internal(mid_angle);
         (p.x(), p.y(), p.z())
     }
 }
@@ -414,10 +401,6 @@ impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
         (dist - self.radius_internal()).abs() <= default_distance_tolerance::<T>()
     }
 }
-
-// ============================================================================
-// Helper methods for Arc3D
-// ============================================================================
 
 impl<T: Scalar> Arc3D<T> {
     /// 法線に垂直なベクトルを計算

@@ -2,10 +2,6 @@
 
 use crate::abstract_types::Scalar;
 
-// =============================================================================
-// Distance Functions (点間距離計算)
-// =============================================================================
-
 /// 点と点の距離計算（汎用N次元）
 pub fn point_distance<T: Scalar>(p1: &[T], p2: &[T]) -> T {
     assert_eq!(p1.len(), p2.len(), "Points must have same dimension");
@@ -76,10 +72,6 @@ pub fn minkowski_distance<T: Scalar>(p1: &[T], p2: &[T], p: T) -> T {
 
     sum.powf(T::ONE / p)
 }
-
-// =============================================================================
-// Length Functions (ベクトル・線分長さ計算)
-// =============================================================================
 
 /// ベクトルの長さ（ノルム）
 pub fn vector_length<T: Scalar>(components: &[T]) -> T {

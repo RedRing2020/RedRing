@@ -6,10 +6,6 @@
 use crate::Direction2D;
 use geo_contracts::{Angle, Scalar};
 
-// ============================================================================
-// Extension Methods (Coreにない新機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Direction2D<T> {
     /// 角度から方向を作成（ラジアン）
     pub fn from_angle_radians(angle: T) -> Self {

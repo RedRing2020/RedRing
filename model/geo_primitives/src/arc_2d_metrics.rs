@@ -6,10 +6,6 @@
 use crate::Arc2D;
 use geo_contracts::{Angle, Scalar};
 
-// ============================================================================
-// ArcMetrics Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> ArcMetrics<T> for Arc2D<T> {
     /// 弧長を計算
     fn arc_length(&self) -> T {
@@ -42,16 +38,7 @@ impl<T: Scalar> ArcMetrics<T> for Arc2D<T> {
         Angle::from_radians(mid)
     }
 
-    /// 中点を取得
-    fn mid_point(&self) -> Self::Point {
-        let mid_angle = self.mid_angle();
-        self.circle().point_at_angle(mid_angle.to_radians())
-    }
 }
-
-// ============================================================================
-// Arc2D用の計量関連ヘルパーメソッド
-// ============================================================================
 
 impl<T: Scalar> Arc2D<T> {
     /// 角度範囲を取得

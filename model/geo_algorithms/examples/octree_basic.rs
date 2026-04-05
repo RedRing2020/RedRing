@@ -56,7 +56,6 @@ impl HasPosition<f64> for Sphere {
 fn main() {
     println!("=== Octree基本使用例 ===\n");
 
-    // ========== 1. Octree作成 ==========
     println!("1. Octree作成");
     let scene_bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -73,7 +72,6 @@ fn main() {
         tolerance.point_aabb_half_extent, tolerance.query_expand, tolerance.nearest_prune_margin
     );
 
-    // ========== 2. データ挿入 ==========
     println!("2. データ挿入");
 
     // 100個の球を生成（簡易PRNG使用）
@@ -97,7 +95,6 @@ fn main() {
     println!("   総ノード数: {}", octree.total_nodes());
     println!();
 
-    // ========== 3. 範囲検索 ==========
     println!("3. 範囲検索");
     let query_region = Aabb3D::new(
         Point3D::new(10.0, 10.0, 10.0),
@@ -124,7 +121,6 @@ fn main() {
     }
     println!();
 
-    // ========== 4. 最近傍探索 ==========
     println!("4. 最近傍探索");
     let query_point = Point3D::new(50.0, 50.0, 50.0);
 
@@ -143,7 +139,6 @@ fn main() {
     }
     println!();
 
-    // ========== 5. ノード走査 ==========
     println!("5. ノード走査（統計情報）");
     let mut depth_counts = [0usize; 10];
     let mut total_data = 0;

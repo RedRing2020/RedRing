@@ -4,10 +4,6 @@ use crate::EllipseArc3D;
 use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for EllipseArc3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc

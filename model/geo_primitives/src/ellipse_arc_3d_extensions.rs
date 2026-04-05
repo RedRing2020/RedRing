@@ -5,15 +5,7 @@
 use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
 use geo_contracts::{default_angle_tolerance, Angle, Scalar};
 
-// ============================================================================
-// Extension Methods Implementation
-// ============================================================================
-
 impl<T: Scalar> EllipseArc3D<T> {
-    // ========================================================================
-    // Advanced Construction Methods (Extension)
-    // ========================================================================
-
     /// 楕円の一部分として3D楕円弧を作成（高度構築）
     pub fn from_ellipse_sector(
         center: Point3D<T>,
@@ -41,10 +33,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         let ellipse = Ellipse3D::from_circle(&circle)?;
         Some(Self::new(ellipse, start_angle, end_angle))
     }
-
-    // ========================================================================
-    // Advanced Geometry Methods (Extension)
-    // ========================================================================
 
     /// 楕円弧から円弧に変換（可能な場合）
     pub fn to_arc(&self) -> Option<Arc3D<T>> {
@@ -141,10 +129,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         tangent.cross(&normal).normalize()
     }
 
-    // ========================================================================
-    // Helper Methods
-    // ========================================================================
-
     /// 角度が楕円弧の範囲内にあるかを判定
     pub fn angle_in_range(&self, angle: T) -> bool {
         let start_rad = self.start_angle().to_radians();
@@ -201,10 +185,6 @@ impl<T: Scalar> EllipseArc3D<T> {
 
         dist_to_start.min(dist_to_end)
     }
-
-    // ========================================================================
-    // Advanced Analysis Methods (Extension)
-    // ========================================================================
 
     /// より詳細な境界ボックス計算（高精度版）
     pub fn precise_bounding_box(&self, sample_points: usize) -> geo_core::Aabb3D<T> {
@@ -271,10 +251,6 @@ impl<T: Scalar> EllipseArc3D<T> {
 
         tangents
     }
-
-    // ========================================================================
-    // Utility Methods (Extension)
-    // ========================================================================
 
     /// 楕円弧の方向を反転（拡張版）
     pub fn reverse_advanced(&self) -> Self {

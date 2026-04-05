@@ -1502,10 +1502,6 @@ pub fn ellipsoidal_surface_to_vertices(
     vertices
 }
 
-// ============================================================================
-// Solid形状の変換関数
-// ============================================================================
-
 /// CylindricalSolid3D を GPU用頂点データに変換
 ///
 /// 円筒ソリッドを側面 + 上下キャップの三角形メッシュに変換します。
@@ -2351,17 +2347,11 @@ mod tests {
         }
     }
 
-    // ========================================================================
-    // Issue #204 統合テスト: 全15形状の変換関数検証
-    // ========================================================================
-
     #[test]
     fn test_all_15_shapes_conversion() {
         use geo_algorithms::{Angle, ConicalSurface3D, Ellipse3D};
 
         let quality = TessellationQuality::default();
-
-        // === 基本形状 (5種) ===
 
         // 1. Plane3D
         let plane = Plane3D::xy_plane(0.0);
@@ -2414,8 +2404,6 @@ mod tests {
             2,
             "InfiniteLine3D should have 2 vertices"
         );
-
-        // === Surface形状 (5種) ===
 
         // 6. CylindricalSurface3D
         let cyl_surface = CylindricalSurface3D::new(
@@ -2485,8 +2473,6 @@ mod tests {
             "EllipsoidalSurface3D conversion failed"
         );
 
-        // === Solid形状 (5種) ===
-
         // 11. CylindricalSolid3D
         let cyl_solid = CylindricalSolid3D::new(
             Point3D::origin(),
@@ -2555,7 +2541,6 @@ mod tests {
             "EllipsoidalSolid3D conversion failed"
         );
 
-        // === 統計情報 ===
         let total_vertices = plane_vertices.len()
             + ellipse_vertices.len()
             + ellipse_arc_vertices.len()

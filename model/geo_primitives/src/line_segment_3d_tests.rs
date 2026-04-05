@@ -240,8 +240,6 @@ mod tests {
         assert!((second.length() - 7.0).abs() < 1e-10);
     }
 
-    // === foundation トレイトテスト ===
-
     #[test]
     fn test_geometry_foundation() {
         let segment =

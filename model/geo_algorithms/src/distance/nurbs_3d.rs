@@ -871,8 +871,6 @@ mod tests {
         ));
     }
 
-    // ===== SphericalSolid3D テスト =====
-
     #[test]
     fn nurbscurve3d_spherical_solid3d_distance_normal() {
         let curve = create_test_curve();
@@ -942,8 +940,6 @@ mod tests {
             Err(DistanceConvergenceError::NotConverged { iterations: 1, .. })
         ));
     }
-
-    // ===== EllipsoidalSolid3D テスト =====
 
     #[test]
     fn nurbscurve3d_ellipsoidal_solid3d_distance_normal() {
@@ -1030,8 +1026,6 @@ mod tests {
             Err(DistanceConvergenceError::NotConverged { iterations: 1, .. })
         ));
     }
-
-    // ===== CylindricalSolid3D テスト =====
 
     #[test]
     fn nurbscurve3d_cylindrical_solid3d_distance_normal() {

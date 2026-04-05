@@ -8,10 +8,6 @@ use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
-    // ========================================================================
-    // Extension Construction Methods
-    // ========================================================================
-
     /// 3点を通る円弧を作成
     ///
     /// # 引数
@@ -71,10 +67,6 @@ impl<T: Scalar> Arc2D<T> {
         )
     }
 
-    // ========================================================================
-    // Extension Predicate Methods
-    // ========================================================================
-
     // pub fn is_full_circle(&self) -> bool {
     //     let span = self.angular_span();
     //     (span - (T::ONE + T::ONE) * T::PI).abs() <= T::EPSILON
@@ -100,16 +92,7 @@ impl<T: Scalar> Arc2D<T> {
         }
     }
 
-    // ========================================================================
-    // Extension Geometric Methods
-    // ========================================================================
-
-    // mid_point is implemented in arc_2d_sampling.rs
     // normalize_angle is implemented in arc_2d_containment.rs
-
-    // ========================================================================
-    // Extension Type Conversion Methods
-    // ========================================================================
 
     /// Circle2D に変換（完全円の場合のみ）
     pub fn to_circle(&self) -> Option<Circle2D<T>> {

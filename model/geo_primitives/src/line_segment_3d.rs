@@ -271,10 +271,6 @@ impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
 }
 
 impl<T: Scalar> LineSegment3DDerived<T> for LineSegment3D<T> {
-    fn measure(&self) -> T {
-        self.length()
-    }
-
     fn direction_vector(&self) -> (T, T, T) {
         let dir = self.direction();
         (dir.x(), dir.y(), dir.z())

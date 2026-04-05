@@ -109,8 +109,8 @@ impl<T: Scalar> Ellipse2D<T> {
         T::PI * self.semi_major * self.semi_minor
     }
 
-    /// 周囲長を取得（ラマヌジャンの近似式）
-    pub fn perimeter(&self) -> T {
+    /// 周回長を取得（ラマヌジャンの近似式）
+    pub fn circumference(&self) -> T {
         let a = self.semi_major;
         let b = self.semi_minor;
         let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
@@ -255,33 +255,33 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
         self.semi_minor
     }
 
-    /// ラマヌジャン近似式I（標準版）による周長計算
-    fn perimeter_ramanujan_i(&self) -> T {
-        geo_commons::ellipse_perimeter_ramanujan_i(self.semi_major, self.semi_minor)
+    /// ラマヌジャン近似式I（標準版）による周回長計算
+    fn circumference_ramanujan_i(&self) -> T {
+        geo_commons::ellipse_circumference_ramanujan_i(self.semi_major, self.semi_minor)
     }
 
-    /// ラマヌジャン近似式II（高精度版）による周長計算
-    fn perimeter_ramanujan_ii(&self) -> T {
-        geo_commons::ellipse_perimeter_ramanujan_ii(self.semi_major, self.semi_minor)
+    /// ラマヌジャン近似式II（高精度版）による周回長計算
+    fn circumference_ramanujan_ii(&self) -> T {
+        geo_commons::ellipse_circumference_ramanujan_ii(self.semi_major, self.semi_minor)
     }
 
-    /// パダン近似による周長計算（中程度精度）
-    fn perimeter_pade(&self) -> T {
-        geo_commons::ellipse_perimeter_padé(self.semi_major, self.semi_minor)
+    /// パダン近似による周回長計算（中程度精度）
+    fn circumference_pade(&self) -> T {
+        geo_commons::ellipse_circumference_padé(self.semi_major, self.semi_minor)
     }
 
-    /// カントレル近似による周長計算（高精度）
-    fn perimeter_cantrell(&self) -> T {
-        geo_commons::ellipse_perimeter_cantrell(self.semi_major, self.semi_minor)
+    /// カントレル近似による周回長計算（高精度）
+    fn circumference_cantrell(&self) -> T {
+        geo_commons::ellipse_circumference_cantrell(self.semi_major, self.semi_minor)
     }
 
-    /// 級数展開による周長計算（最高精度）
-    fn perimeter_series(&self, terms: usize) -> T {
+    /// 級数展開による周回長計算（最高精度）
+    fn circumference_series(&self, terms: usize) -> T {
         geo_commons::ellipse_circumference_series(self.semi_major, self.semi_minor, terms)
     }
 
-    /// 数値積分による周長計算（最高精度版）
-    fn perimeter_numerical(&self, n_points: usize) -> T {
+    /// 数値積分による周回長計算（最高精度版）
+    fn circumference_numerical(&self, n_points: usize) -> T {
         geo_commons::ellipse_circumference_numerical(self.semi_major, self.semi_minor, n_points)
     }
 
@@ -344,8 +344,8 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse2D<T> {
 }
 
 impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse2D<T> {
-    fn perimeter_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
-        ellipse_calculation_strategy::perimeter_adaptive(
+    fn circumference_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
+        ellipse_calculation_strategy::circumference_adaptive(
             self,
             target_accuracy,
             max_computation_cost,
@@ -436,15 +436,7 @@ impl<T: Scalar + From<f64>> Ellipse2DDerived<T> for Ellipse2D<T> {
     }
 
     fn circumference(&self) -> T {
-        <Self as geo_contracts::EllipseCalculation<T>>::perimeter_ramanujan_ii(self)
-    }
-
-    fn perimeter(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::circumference(self)
-    }
-
-    fn measure(&self) -> T {
-        <Self as Ellipse2DDerived<T>>::area(self)
+        Ellipse2D::circumference(self)
     }
 
     fn eccentricity(&self) -> T {

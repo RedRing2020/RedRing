@@ -363,10 +363,6 @@ fn test_vector2d_f32() {
     assert!((normalized.length() - 1.0f32).abs() < f32::EPSILON);
 }
 
-// ============================================================================
-// Transform テスト (vector_2d_transform.rs の機能テスト)
-// ============================================================================
-
 // 旧Transform API テストはコメントアウト（新Analysis Matrix APIへ移行予定）
 // 詳細はvector_2d_transform.rs内のテストを参照
 

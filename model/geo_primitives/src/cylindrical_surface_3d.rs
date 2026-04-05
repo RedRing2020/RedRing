@@ -65,15 +65,7 @@ pub struct CylindricalSurface3D<T: Scalar> {
     radius: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> CylindricalSurface3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で円柱サーフェスを作成
     ///
     /// # Arguments
@@ -147,10 +139,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         )
     }
 
-    // ========================================================================
-    // Core Accessor Methods (Internal use only)
-    // ========================================================================
-
     /// 軸上の基準点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -177,10 +165,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     pub fn radius(&self) -> T {
         self.radius
     }
-
-    // ========================================================================
-    // Core Parametric Surface Methods (サーフェス特性)
-    // ========================================================================
 
     /// パラメータ (u, v) から3D点を計算
     ///
@@ -255,10 +239,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         self.axis.as_vector()
     }
 
-    // ========================================================================
-    // Core Surface Analysis Methods
-    // ========================================================================
-
     /// パラメータ (u, v) での主曲率を計算
     ///
     /// 円柱サーフェスの場合：
@@ -284,10 +264,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         let (k1, k2) = self.curvature_at_uv(u, v);
         k1 * k2
     }
-
-    // ========================================================================
-    // Core Geometric Properties (サーフェス特性)
-    // ========================================================================
 
     /// 円柱サーフェスの境界ボックスを計算（無限軸方向のため制限が必要）
     ///
@@ -318,10 +294,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
             geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
-
-    // ========================================================================
-    // Core Distance and Projection Methods (Internal use only)
-    // ========================================================================
 
     /// 点からサーフェスへの最短距離を計算（内部使用）
     #[allow(dead_code)]
@@ -383,10 +355,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         (closest_point, u, v)
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use geo_contracts::{
     CylindricalSurface3DConstructor, CylindricalSurface3DDerived, CylindricalSurface3DDistance,
@@ -543,10 +511,6 @@ impl<T: Scalar> CylindricalSurface3DDistance<T> for CylindricalSurface3D<T> {
         (radial_distance - self.radius).abs()
     }
 }
-
-// ============================================================================
-// Display Implementation
-// ============================================================================
 
 impl<T: Scalar> std::fmt::Display for CylindricalSurface3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

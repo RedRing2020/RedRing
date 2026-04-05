@@ -5,15 +5,7 @@
 use crate::{Direction3D, InfiniteLine3D, Point2D, Point3D, Vector2D, Vector3D};
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Extension Methods Implementation
-// ============================================================================
-
 impl<T: Scalar> InfiniteLine3D<T> {
-    // ========================================================================
-    // Advanced Construction Methods (Extension)
-    // ========================================================================
-
     /// X軸に平行な直線を作成
     pub fn x_axis(point: Point3D<T>) -> Self {
         Self::new(point, Vector3D::unit_x()).unwrap()
@@ -44,10 +36,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
         Self::z_axis(Point3D::origin())
     }
 
-    // ========================================================================
-    // Advanced Geometric Analysis (Extension)
-    // ========================================================================
-
     /// 軸に平行かどうかを判定
     pub fn is_parallel_to_axis(&self, axis: Vector3D<T>, tolerance: T) -> bool {
         let normalized_axis =
@@ -70,10 +58,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn is_parallel_to_z_axis(&self, tolerance: T) -> bool {
         self.is_parallel_to_axis(Vector3D::unit_z(), tolerance)
     }
-
-    // ========================================================================
-    // Advanced Relationship Analysis (Extension)
-    // ========================================================================
 
     /// 他の直線との関係を判定
     pub fn relationship_with(&self, other: &Self, tolerance: T) -> LineRelationship {
@@ -141,10 +125,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
             LineRelationship::Skew
         )
     }
-
-    // ========================================================================
-    // Transformation Methods (Extension)
-    // ========================================================================
 
     /// 直線を平行移動
     pub fn translate(&self, offset: Vector3D<T>) -> Self {
@@ -220,10 +200,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
         self.rotate_around_point(Point3D::origin(), axis, angle)
     }
 
-    // ========================================================================
-    // Conversion Methods (Extension)
-    // ========================================================================
-
     /// 2次元投影（Z成分を無視）
     pub fn to_2d(&self) -> crate::InfiniteLine2D<T> {
         let point_2d = Point2D::new(self.point_internal().x(), self.point_internal().y());
@@ -252,10 +228,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
             Vector2D::new(self.direction_internal().y(), self.direction_internal().z());
         crate::InfiniteLine2D::new(projected_point, projected_direction).unwrap()
     }
-
-    // ========================================================================
-    // Advanced Helper Methods (Extension)
-    // ========================================================================
 
     /// 直線上の最も近い点を取得（project_pointのエイリアス）
     pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {

@@ -7,10 +7,6 @@ use crate::Scalar;
 use geo_contracts::NurbsSurface3DDerived;
 use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
 
-// ============================================================================
-// Extension Foundation 実装
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for NurbsSurface3D<T> {
     fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
         geo_contracts::PrimitiveKind::NurbsSurface3D
@@ -53,10 +49,6 @@ impl<T: Scalar> Bounded<T> for NurbsSurface3D<T> {
         ))
     }
 }
-
-// ============================================================================
-// Foundation Pattern 統合テスト
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

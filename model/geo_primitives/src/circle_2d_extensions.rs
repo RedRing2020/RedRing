@@ -6,15 +6,7 @@ use crate::{Circle2D, Point2D, Vector2D};
 use geo_contracts::default_kernel_numerical_zero_tolerance;
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Extension Methods Implementation
-// ============================================================================
-
 impl<T: Scalar> Circle2D<T> {
-    // ========================================================================
-    // Advanced Construction Methods (Extension)
-    // ========================================================================
-
     /// 3点から円を作成（外接円）
     pub fn from_three_points(p1: Point2D<T>, p2: Point2D<T>, p3: Point2D<T>) -> Option<Self> {
         // 3点が一直線上にある場合は円を作れない
@@ -54,10 +46,6 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(Point2D::new(T::ZERO, T::ZERO), T::ONE).unwrap()
     }
 
-    // ========================================================================
-    // Convenience Methods (Extension)
-    // ========================================================================
-
     /// 指定角度での点を取得（ラジアン）
     pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
         let cos_a = angle.cos();
@@ -67,10 +55,6 @@ impl<T: Scalar> Circle2D<T> {
             self.center_internal().y() + self.radius_internal() * sin_a,
         )
     }
-
-    // ========================================================================
-    // Transformation Methods (Extension)
-    // ========================================================================
 
     /// 円を指定倍率でスケール
     pub fn scale(&self, factor: T) -> Option<Self> {
@@ -91,10 +75,6 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(new_center, self.radius_internal()).unwrap()
     }
 
-    // ========================================================================
-    // Spatial Relationship Methods (Extension)
-    // ========================================================================
-
     /// 他の円と交差するかを判定
     pub fn intersects_circle(&self, other: &Self) -> bool {
         let distance = self.center_internal().distance_to(&other.center_internal());
@@ -109,10 +89,6 @@ impl<T: Scalar> Circle2D<T> {
         let distance = self.center_internal().distance_to(&other.center_internal());
         distance + other.radius_internal() <= self.radius_internal()
     }
-
-    // ========================================================================
-    // Dimension Extension Methods (Extension)
-    // ========================================================================
 
     /// 3次元円に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::Circle3D<T> {
@@ -135,10 +111,6 @@ impl<T: Scalar> Circle2D<T> {
         )
         .unwrap()
     }
-
-    // ========================================================================
-    // Foundation Integration Methods (Extension)
-    // ========================================================================
 
     /// Foundation Transform統合での高度な変換
     pub fn foundation_scale_from_point(&self, point: Point2D<T>, factor: T) -> Option<Self> {

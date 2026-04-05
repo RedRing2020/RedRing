@@ -9,10 +9,6 @@ use geo_contracts::{
 };
 use geo_core::Aabb3D;
 
-// ============================================================================
-// ExtensionFoundation Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for CylindricalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSurface
@@ -36,10 +32,6 @@ impl<T: Scalar> Bounded<T> for CylindricalSurface3D<T> {
         Some(self.bounding_box_radial())
     }
 }
-
-// ============================================================================
-// TolerantEq Implementation
-// ============================================================================
 
 impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
@@ -81,10 +73,6 @@ impl<T: Scalar> TolerantEq<T> for CylindricalSurface3D<T> {
         (self.radius() - other.radius()).abs() <= tolerance
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

@@ -80,8 +80,6 @@ impl<T: Scalar> Point3<T> {
         }
     }
 
-    // === 変換 ===
-
     /// Vector3に変換
     pub fn to_vector(&self) -> Vector3<T> {
         Vector3::new(self.x, self.y, self.z)
@@ -175,8 +173,6 @@ impl<T: Scalar> std::ops::Sub<Vector3<T>> for Point3<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Point3<T> {
     type Output = T;
     #[inline]
@@ -190,16 +186,12 @@ impl<T: Scalar> Index<usize> for Point3<T> {
     }
 }
 
-// === 配列変換 ===
-
 impl<T: Scalar> From<[T; 3]> for Point3<T> {
     #[inline]
     fn from(data: [T; 3]) -> Self {
         Self::new(data[0], data[1], data[2])
     }
 }
-
-// === トレイト実装 ===
 
 /// 3次元座標アクセスの共通トレイト
 ///

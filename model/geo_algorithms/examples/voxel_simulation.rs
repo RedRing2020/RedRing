@@ -15,7 +15,6 @@ use geo_core::{Aabb3D, Point3D};
 fn main() {
     println!("=== VoxelOctree切削シミュレーション例 ===\n");
 
-    // ========== 1. ワークピース設定 ==========
     println!("1. ワークピース設定");
     let work_bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -34,7 +33,6 @@ fn main() {
     );
     println!();
 
-    // ========== 2. 工具経路1: 外周切削 ==========
     println!("2. 外周切削（ボックス除去）");
 
     // 外側10mmを除去
@@ -56,7 +54,6 @@ fn main() {
     );
     println!();
 
-    // ========== 3. 工具経路2: ポケット加工（Z軸） ==========
     println!("3. ポケット加工（Z軸工具）");
 
     // 中央に直径20mmのポケット（深さ30mm）
@@ -84,7 +81,6 @@ fn main() {
     println!("   残存体積: {:.1} mm³", volume_after_pocket);
     println!();
 
-    // ========== 4. 工具経路3: 斜め切削（カプセル） ==========
     println!("4. 斜め切削（5軸加工）");
 
     let segment = LineSegment3D::new(
@@ -106,7 +102,6 @@ fn main() {
     println!("   残存体積: {:.1} mm³", volume_after_diagonal);
     println!();
 
-    // ========== 4.5. 工具経路4: 円弧補間（G02/G03相当） ==========
     println!("4.5. 円弧補間切削（G02/G03相当）");
 
     // XY平面上の90度円弧（中心: (25, 75), 半径: 15mm, Z: 15-25mm）
@@ -148,7 +143,6 @@ fn main() {
     println!("   円弧長: {:.2} mm", arc_length);
     println!();
 
-    // ========== 5. 削り残し検出 ==========
     println!("5. 削り残し検出");
 
     // 目的形状: 内側80x80x30mmの領域以外は削り残し
@@ -186,7 +180,6 @@ fn main() {
     }
     println!();
 
-    // ========== 6. 最終統計 ==========
     println!("6. 最終統計");
     let total_removed = initial_volume - volume_after_arc;
     let removal_rate = (total_removed / initial_volume) * 100.0;

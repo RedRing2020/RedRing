@@ -131,10 +131,6 @@ pub mod analysis_transform {
     }
 }
 
-// ============================================================================
-// AnalysisTransform2D Trait Implementation for Circle2D
-// ============================================================================
-
 /// Circle2DでのAnalysisTransform2D実装（geo_foundation統一トレイト）
 impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
     type Matrix3x3 = Matrix3x3<T>;
@@ -197,10 +193,6 @@ impl<T: Scalar> AnalysisTransform2D<T> for Circle2D<T> {
     }
 }
 
-// ============================================================================
-// Circle2D Analysis Transform拡張メソッド
-// ============================================================================
-
 impl<T: Scalar> Circle2D<T> {
     /// Analysis Matrix3x3による一括複数円変換
     ///
@@ -236,10 +228,6 @@ impl<T: Scalar> Circle2D<T> {
         transformation_count > 1
     }
 }
-
-// ============================================================================
-// Tests Module
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

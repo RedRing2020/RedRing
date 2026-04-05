@@ -5,10 +5,6 @@ use geo_contracts::Scalar;
 use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 use geo_core::Aabb3D;
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for Arc3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc

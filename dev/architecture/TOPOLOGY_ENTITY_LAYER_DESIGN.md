@@ -120,6 +120,31 @@ topology で保持する vertex は、shape の拘束点と接続して扱う。
 
 このため、support line 上の ideal endpoint と vertex が一致しない場合を許容できる topology invariant が必要になる。
 
+## Arc / EllipseArc と topology の接続
+
+`#558` と `#567` の前提として、Arc / EllipseArc では primitive endpoint と topology 上の拘束端点を区別して扱う。
+
+固定方針:
+
+- `CurveRef::Arc::start_point/end_point` は primitive の ideal endpoint を返す
+- `CurveRef::EllipseArc::start_point/end_point` も primitive の ideal endpoint を返す
+- `parameter_range` は evaluated endpoint 対を導くための位相情報として使う
+- `start_vertex` / `end_vertex` は拘束端点との binding を表す
+
+したがって、Arc / EllipseArc の Edge では少なくとも次の 3 種類の点を区別する。
+
+- `constraint endpoint`: topology が binding の正本として扱う拘束端点
+- `ideal endpoint`: primitive の endpoint capability が返す母曲線上の端点
+- `evaluation endpoint`: `parameter_range` の両端を母曲線評価した点
+
+設計上の既定値:
+
+- primitive の `start_point/end_point` は ideal endpoint のまま維持する
+- topology が拘束端点を必要とする場合は、Edge 側の責務として保持する
+- primitive の endpoint semantics は topology 要件だけを理由に変更しない
+
+この方針により、Arc / EllipseArc でも `binding consistency`、`ideal endpoint consistency`、`evaluation endpoint consistency` を topology 語彙で分けて定義できる。
+
 ## vertex binding invariant の設計方針
 
 現時点では、次を固定する。
@@ -130,30 +155,32 @@ topology で保持する vertex は、shape の拘束点と接続して扱う。
 - ideal endpoint は binding の正本ではなく、補助検証として扱う
 - binding の許容条件には topology 専用 tolerance を用いる
 
-したがって、`Edge::is_vertex_binding_consistent` 相当の判定は少なくとも次の二段を分離できる形が望ましい。
+したがって、`Edge::is_vertex_binding_consistent` 相当の判定は少なくとも次の三段を分離できる形が望ましい。
 
 - binding consistency: 拘束点と vertex の整合を判定する
-- support consistency: ideal endpoint と拘束点のずれが許容範囲内かを補助検証する
+- ideal endpoint consistency: primitive endpoint capability が返す ideal endpoint と拘束点のずれを補助検証する
+- evaluation endpoint consistency: `parameter_range` の両端を評価した endpoint と拘束点のずれを補助検証する
 
 このとき、1 本の Edge の局所整合に使う局所予算（局所許容誤差） `\delta_{edge}` は、少なくとも次の部分予算へ分解できる形が望ましい。
 
-- `\delta_{support}`: ideal endpoint と拘束点の整合に使う予算
+- `\delta_{ideal}`: ideal endpoint と拘束点の整合に使う予算
+- `\delta_{eval}`: evaluated endpoint と拘束点の整合に使う予算
 - `\delta_{bind}`: 拘束点と vertex の整合に使う予算
 
 基本条件は次とする。
 
 $$
-\delta_{support} + \delta_{bind} \le \delta_{edge}
+\delta_{ideal} + \delta_{eval} + \delta_{bind} \le \delta_{edge}
 $$
 
-すなわち、support consistency と binding consistency は独立した局所判定として扱うが、その許容差の総和は単一 Edge の局所予算 `\delta_{edge}` の範囲で閉じなければならない。
+すなわち、ideal endpoint consistency、evaluation endpoint consistency、binding consistency は独立した局所判定として扱うが、その許容差の総和は単一 Edge の局所予算 `\delta_{edge}` の範囲で閉じなければならない。
 
-現時点では、shape 種別、拘束の意味、評価カーネルの性質に応じて `\delta_{support}` と `\delta_{bind}` の配分余地を残す。
+現時点では、shape 種別、拘束の意味、評価カーネルの性質に応じて `\delta_{ideal}`、`\delta_{eval}`、`\delta_{bind}` の配分余地を残す。
 
 ただし、shape 固有の根拠や別途の配分規約が存在しない場合の fallback として、対称配分を採用してよい。
 
 $$
-\delta_{support} = \delta_{bind} = \delta_{edge} / 2
+\delta_{ideal} = \delta_{eval} = \delta_{bind} = \delta_{edge} / 3
 $$
 
 この対称配分は、単一 Edge の局所整合に限定した既定値である。shared vertex を介した連続性整合にそのまま流用してはならず、`\delta_{shared}` は別予算として扱う。
@@ -163,16 +190,16 @@ $$
 fallback を上書きできる判断基準は、少なくとも次とする。
 
 - 拘束点が単なる端点ではなく、編集拘束やスナップ結果として強い位相的意味を持つか
-- ideal endpoint の評価誤差が、拘束点側より大きくなりやすい評価カーネルを使うか
-- 数値反復、近似、投影により support consistency 側へ追加の誤差源が入るか
-- 下流の continuity / point-on-surface / pitch 判定が、support 側誤差と binding 側誤差のどちらにより敏感か
+- ideal endpoint の評価誤差が、拘束点側より大きくなりやすい primitive を使うか
+- 数値反復、近似、投影により evaluation endpoint consistency 側へ追加の誤差源が入るか
+- 下流の continuity / point-on-surface / pitch 判定が、ideal 側誤差、evaluation 側誤差、binding 側誤差のどれにより敏感か
 
-上記のいずれかに明確な偏りがある場合は、`\delta_{support}` と `\delta_{bind}` を非対称に配分してよい。ただし、その場合でも配分根拠を shape 仕様または判定仕様で明示し、`\delta_{support} + \delta_{bind} \le \delta_{edge}` を維持する。
+上記のいずれかに明確な偏りがある場合は、`\delta_{ideal}`、`\delta_{eval}`、`\delta_{bind}` を非対称に配分してよい。ただし、その場合でも配分根拠を shape 仕様または判定仕様で明示し、`\delta_{ideal} + \delta_{eval} + \delta_{bind} \le \delta_{edge}` を維持する。
 
 未確定項目:
 
 - `Edge::is_vertex_binding_consistent` 相当 API を `Edge` メソッドとして残すか、validator 系へ分離するか
-- support consistency を常時必須にするか、診断系チェックとして分離するか
+- ideal endpoint consistency と evaluation endpoint consistency を常時必須にするか、診断系チェックとして分離するか
 - tolerance を結果へどこまで記録するか
 - 上書き判断基準を shape 別ガイドとして独立管理するか
 
@@ -181,13 +208,16 @@ fallback を上書きできる判断基準は、少なくとも次とする。
 `Edge` の binding invariant は、少なくとも次の順で判定する。
 
 1. `curve`、`parameter_range`、`same_sense`、`start_vertex`、`end_vertex` を入力として受け取る。
-2. `CurveRef::start_point()` / `end_point()` から、shape 意味論上の拘束点を取得する。
-3. `same_sense` を適用し、Edge の向きに沿った拘束点対 `(oriented_constraint_start, oriented_constraint_end)` を決定する。
-4. `start_vertex` / `end_vertex` と拘束点対を `\delta_{bind}` で比較し、binding consistency を判定する。
-5. `parameter_range` から母曲線上の ideal endpoint 対を評価する。
+2. `start_vertex` / `end_vertex` から、Edge の拘束端点対 `(constraint_start_point, constraint_end_point)` を取得する。
+3. `same_sense` を適用し、Edge の向きに沿った拘束端点対 `(oriented_constraint_start, oriented_constraint_end)` を決定する。
+4. `start_vertex` / `end_vertex` と拘束端点対を `\delta_{bind}` で比較し、binding consistency を判定する。
+5. `CurveRef::start_point()` / `end_point()` から primitive の ideal endpoint 対を取得する。
 6. `same_sense` を適用し、Edge の向きに沿った ideal endpoint 対 `(oriented_ideal_start, oriented_ideal_end)` を決定する。
-7. ideal endpoint 対と拘束点対を `\delta_{support}` で比較し、support consistency を判定する。
-8. full edge invariant は、binding consistency と support consistency の両方が成立したときにのみ通過とする。
+7. ideal endpoint 対と拘束端点対を `\delta_{ideal}` で比較し、ideal endpoint consistency を判定する。
+8. `parameter_range` から evaluated endpoint 対を評価する。
+9. `same_sense` を適用し、Edge の向きに沿った evaluated endpoint 対 `(oriented_evaluated_start, oriented_evaluated_end)` を決定する。
+10. evaluated endpoint 対と拘束端点対を `\delta_{eval}` で比較し、evaluation endpoint consistency を判定する。
+11. full edge invariant は、binding consistency、ideal endpoint consistency、evaluation endpoint consistency の全てが成立したときにのみ通過とする。
 
 重要:
 
@@ -198,18 +228,21 @@ fallback を上書きできる判断基準は、少なくとも次とする。
 擬似フロー:
 
 ```text
-input: edge, δ_bind, δ_support
+input: edge, δ_bind, δ_ideal, δ_eval
 
 constraint_pair = oriented_constraint_points(edge.curve, edge.same_sense)
 binding_ok = compare_vertices_to_constraints(edge.vertices, constraint_pair, δ_bind)
 
-ideal_pair = oriented_ideal_points(edge.curve, edge.parameter_range, edge.same_sense)
-support_ok = compare_ideal_to_constraints(ideal_pair, constraint_pair, δ_support)
+ideal_pair = oriented_ideal_points(edge.curve, edge.same_sense)
+ideal_ok = compare_ideal_to_constraints(ideal_pair, constraint_pair, δ_ideal)
 
-edge_ok = binding_ok && support_ok
+evaluated_pair = oriented_evaluated_points(edge.curve, edge.parameter_range, edge.same_sense)
+evaluation_ok = compare_evaluated_to_constraints(evaluated_pair, constraint_pair, δ_eval)
+
+edge_ok = binding_ok && ideal_ok && evaluation_ok
 ```
 
-このフローにより、Edge は「拘束点と vertex の整合」と「母曲線 ideal endpoint と拘束点の整合」を明示的に分けて検証する。一方で、shared vertex を介した連続性は次段の Wire 判定へ委譲する。
+このフローにより、Edge は「拘束端点と vertex の整合」「primitive ideal endpoint と拘束端点の整合」「parameter_range 由来の evaluated endpoint と拘束端点の整合」を明示的に分けて検証する。一方で、shared vertex を介した連続性は次段の Wire 判定へ委譲する。
 
 ## topology 専用 tolerance の方針
 
@@ -243,21 +276,22 @@ vertex 一致判定では、単一の許容差をそのまま全ての段へ使�
 
 さらに $\delta_{edge}$ の内訳として、少なくとも次を区別する。
 
-- $\delta_{support}$: ideal endpoint と拘束点の整合に使う部分予算
+- $\delta_{ideal}$: ideal endpoint と拘束点の整合に使う部分予算
+- $\delta_{eval}$: evaluated endpoint と拘束点の整合に使う部分予算
 - $\delta_{bind}$: 拘束点と vertex の整合に使う部分予算
 
 基本関係は次とする。
 
 $$
-\delta_{support} + \delta_{bind} \le \delta_{edge}
+\delta_{ideal} + \delta_{eval} + \delta_{bind} \le \delta_{edge}
 $$
 
-このとき、binding consistency と support consistency の配分は、少なくとも $\delta_{edge}$ の範囲で閉じるように設計する。
+このとき、binding consistency、ideal endpoint consistency、evaluation endpoint consistency の配分は、少なくとも $\delta_{edge}$ の範囲で閉じるように設計する。
 
 shape 固有の配分根拠がない場合の fallback は、次とする。
 
 $$
-\delta_{support} = \delta_{bind} = \delta_{edge} / 2
+\delta_{ideal} = \delta_{eval} = \delta_{bind} = \delta_{edge} / 3
 $$
 
 ただし、この対称配分は単一 Edge 内の局所整合にのみ適用し、shared vertex を介した連続性整合へそのまま拡張しない。

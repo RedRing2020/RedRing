@@ -19,15 +19,7 @@ pub struct Vector3D<T: Scalar> {
     z: T,
 }
 
-// ============================================================================
-// Core Implementation
-// ============================================================================
-
 impl<T: Scalar> Vector3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しいベクトルを作成
     ///
     /// # Examples
@@ -68,10 +60,6 @@ impl<T: Scalar> Vector3D<T> {
         Self::new(components.0, components.1, components.2)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// x成分を取得
     pub fn x(&self) -> T {
         self.x
@@ -91,10 +79,6 @@ impl<T: Scalar> Vector3D<T> {
     pub fn components(&self) -> [T; 3] {
         [self.x, self.y, self.z]
     }
-
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
 
     /// ベクトルの長さの二乗
     pub fn length_squared(&self) -> T {
@@ -213,10 +197,6 @@ impl<T: Scalar> Vector3D<T> {
         self.dot(other).abs() <= tolerance
     }
 
-    // ========================================================================
-    // Extended Methods
-    // ========================================================================
-
     /// ベクトルの線形補間
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         *self + (*other - *self) * t
@@ -312,10 +292,6 @@ impl<T: Scalar> Vector3D<T> {
     }
 }
 
-// ============================================================================
-// Helper Enums
-// ============================================================================
-
 /// ベクトル間の関係性
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VectorRelationship {
@@ -339,10 +315,6 @@ pub enum DominantAxis {
     /// Z軸
     Z,
 }
-
-// ============================================================================
-// Operator Implementations
-// ============================================================================
 
 impl<T: Scalar> std::ops::Add for Vector3D<T> {
     type Output = Self;
@@ -384,10 +356,6 @@ impl<T: Scalar> std::ops::Neg for Vector3D<T> {
     }
 }
 
-// ============================================================================
-// Point3D との演算子オーバーロード
-// ============================================================================
-
 // Point - Point = Vector (2点間のベクトル)
 impl<T: Scalar> std::ops::Sub for Point3D<T> {
     type Output = Vector3D<T>;
@@ -427,15 +395,10 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
-
 use crate::vector_traits::{
     Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
 };
 use analysis::linalg::vector::Vector3;
-
 impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
     fn new(x: T, y: T, z: T) -> Self {
         Self::new(x, y, z)
@@ -586,10 +549,6 @@ impl<T: Scalar> TolerantEq<T> for Vector3D<T> {
         diff_magnitude <= tolerance
     }
 }
-
-// ============================================================================
-// From trait implementations
-// ============================================================================
 
 /// タプルからの変換
 impl<T: Scalar> From<(T, T, T)> for Vector3D<T> {

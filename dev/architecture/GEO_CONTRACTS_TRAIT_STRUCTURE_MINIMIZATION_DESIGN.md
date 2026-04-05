@@ -34,7 +34,11 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 - `start` / `end`
 - `start_point` / `end_point`
-- 端点に意味を持つ `midpoint` のような区間由来語彙
+
+補足:
+
+- `midpoint` / `mid_point` のような convenience API は endpoint capability の正本語彙に含めない
+- `point_at_parameter(0.5)` は evaluation capability 側の parameter 評価であり、endpoint capability と混在させない
 
 設計反映:
 
@@ -150,7 +154,6 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `start_point` / `end_point`
 - `point_at_parameter`
 - `point_at_angle`
-- `midpoint` / `mid_point`
 - `contains_point`
 - `distance_to_point`
 
@@ -247,35 +250,34 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 ### Arc の再分類
 
-Arc は `Measure` に endpoint / evaluation / containment / distance が集中しているため、最優先の分離対象である。
+Arc はもともと `Measure` に endpoint / evaluation / containment / distance が集中していたため、最優先の分離対象である。
 
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `Arc2DConstructor` / `Arc3DConstructor` | `definition` |
 | `Arc2DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_semicircle` | `definition` |
 | `Arc3DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_on_xy_plane` | `definition` |
-| `Arc2DMeasure::measure` | `derived` |
-| `Arc3DMeasure::measure` | `derived` |
-| `Arc2DMeasure::start_point/end_point/midpoint` | `endpoint` |
-| `Arc3DMeasure::start_point/end_point/midpoint` | `endpoint` |
-| `Arc2DMeasure::point_at_parameter` | `evaluation` |
-| `Arc3DMeasure::point_at_parameter` | `evaluation` |
-| `Arc2DMeasure::point_at_angle` | `evaluation` |
-| `Arc3DMeasure::point_at_angle` | `evaluation` |
-| `Arc2DMeasure::contains_point` | `containment` |
-| `Arc3DMeasure::contains_point` | `containment` |
-| `Arc2DMeasure::distance_to_point` | `distance` |
-| `Arc3DMeasure::distance_to_point` | `distance` |
-| `Arc2DSampling::sample_points/sample_by_arc_length` | `sampling` |
+| `Arc2DDerived::measure` | `derived` |
+| `Arc3DDerived::measure` | `derived` |
+| `Arc2DEndpoint::start_point/end_point` | `endpoint` |
+| `Arc3DEndpoint::start_point/end_point` | `endpoint` |
+| `Arc2DEvaluation::point_at_parameter` | `evaluation` |
+| `Arc3DEvaluation::point_at_parameter` | `evaluation` |
+| `Arc2DEvaluation::point_at_angle` | `evaluation` |
+| `Arc3DEvaluation::point_at_angle` | `evaluation` |
 | `Arc2DContainment::contains_point/contains_angle` | `containment` |
-| `Arc2DContainment::point_at_angle` | `evaluation` |
+| `Arc3DContainment::contains_point` | `containment` |
+| `Arc2DDistance::distance_to_point` | `distance` |
+| `Arc3DDistance::distance_to_point` | `distance` |
+| `Arc2DSampling::sample_points/sample_by_arc_length` | `sampling` |
 | `Arc2DCore` / `Arc3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
-- `start_point/end_point/midpoint` は Arc では endpoint capability として自然に存在する
+- `start_point/end_point` は Arc では endpoint capability として自然に存在する
+- Arc の中間点取得は endpoint capability に含めず、`point_at_parameter` または `point_at_angle` の明示呼び出しへ寄せる
 - `point_at_angle` は endpoint ではなく angle evaluation として分ける
-- `Arc2DContainment` は現行の時点で `contains_*` と `point_at_angle` を混在しているため、分割候補として扱う
+- Arc の endpoint は primitive 上では ideal endpoint として扱い、拘束端点の語彙は topology 層へ持ち込む
 - 実装進捗として `Arc2DMeasure` / `Arc3DMeasure` は削除済みで、downstream では `Arc2DEndpoint` / `Arc2DContainment` / `Arc3DEndpoint` / `Arc3DDistance` を直接使う
 
 ### EllipseArc の再分類
@@ -287,24 +289,22 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 | `EllipseArc2DConstructor` / `EllipseArc3DConstructor` | `definition` |
 | `EllipseArc2DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/rotation/sweep_angle/eccentricity` | `definition` |
 | `EllipseArc3DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/normal/sweep_angle/eccentricity` | `definition` |
-| `EllipseArc2DMeasure::measure` | `derived` |
-| `EllipseArc3DMeasure::measure` | `derived` |
-| `EllipseArc2DMeasure::start_point/end_point/mid_point` | `endpoint` |
-| `EllipseArc3DMeasure::start_point/end_point/mid_point` | `endpoint` |
-| `EllipseArc2DMeasure::point_at_parameter` | `evaluation` |
-| `EllipseArc3DMeasure::point_at_parameter` | `evaluation` |
-| `EllipseArc2DMeasure::point_at_angle` | `evaluation` |
-| `EllipseArc3DMeasure::point_at_angle` | `evaluation` |
-| `EllipseArc2DMeasure::contains_point` | `containment` |
-| `EllipseArc3DMeasure::contains_point` | `containment` |
-| `EllipseArc2DMeasure::bounding_box` | `derived` |
-| `EllipseArc3DMeasure::bounding_box` | `derived` |
+| `EllipseArc2DDerived::measure/bounding_box` | `derived` |
+| `EllipseArc3DDerived::measure/bounding_box` | `derived` |
+| `EllipseArc2DEndpoint::start_point/end_point` | `endpoint` |
+| `EllipseArc3DEndpoint::start_point/end_point` | `endpoint` |
+| `EllipseArc2DEvaluation::point_at_parameter/point_at_angle` | `evaluation` |
+| `EllipseArc3DEvaluation::point_at_parameter/point_at_angle` | `evaluation` |
+| `EllipseArc2DContainment::contains_point` | `containment` |
+| `EllipseArc3DContainment::contains_point` | `containment` |
 | `EllipseArc2DCore` / `EllipseArc3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
 - `contains_point(point, tolerance)` の tolerance 引数は unary containment capability 側の責務として扱う
 - `bounding_box` は relation ではないため `operations` ではなく unary `derived` 側へ置く
+- EllipseArc の中間点取得は endpoint capability に含めず、parameter 評価と弧長評価を明示的に区別できる API へ寄せる
+- EllipseArc の endpoint も primitive 上では ideal endpoint として扱い、拘束端点の語彙は topology 層で別管理する
 - 実装進捗として `EllipseArc2DMeasure` / `EllipseArc3DMeasure` は削除済みで、downstream では capability trait を直接使う
 
 ### Ellipse の再分類
@@ -322,8 +322,8 @@ Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability �
 | `Ellipse3DProperties::center_3d/center_3d_tuple/normal/major_axis_direction/minor_axis_direction/semi_major_axis/semi_minor_axis` | `definition` |
 | `Ellipse2DDerived::eccentricity/focal_distance/focus1/focus2/linear_eccentricity/is_circle` | `derived` |
 | `Ellipse3DDerived::eccentricity/focal_distance/is_circle` | `derived` |
-| `Ellipse2DDerived::circumference/perimeter/measure/area` | `derived` |
-| `Ellipse3DDerived::circumference/perimeter/measure/area` | `derived` |
+| `Ellipse2DDerived::circumference/area` | `derived` |
+| `Ellipse3DDerived::circumference/area` | `derived` |
 | `Ellipse2DEvaluation::point_at_parameter` | `evaluation` |
 | `Ellipse3DEvaluation::point_at_parameter` | `evaluation` |
 | `Ellipse2DContainment::contains_point/point_on_boundary` | `containment` |
@@ -335,7 +335,7 @@ Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability �
 補足:
 
 - Ellipse の周回長は `length` ではなく `circumference` を主語彙とする
-- `perimeter` は段階廃止候補だが、当面は `circumference` への互換 alias として残してよい
+- `perimeter` は Ellipse の公開語彙から削除し、`circumference` に統一する
 - `measure` は新規責務説明には使わず、後方互換の集約 API としてのみ扱う
 - `focus1/focus2/focal_distance/eccentricity/linear_eccentricity/is_circle` は定義パラメータではなく unary `derived` とみなす
 
@@ -517,6 +517,17 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `contains_point`、`distance_to_point`、`closest_point_to`、`point_at_parameter`、`point_at_angle` は `Properties` に残さない
 - `*Core` は新設 capability の説明単位ではなく、互換のための `Constructor + Properties` alias としてのみ残す
 
+## `#558` の固定ルール
+
+今回の整理で、少なくとも次を設計上の固定ルールとして扱う。
+
+- `LineSegment` の `start/end/midpoint/length` は拘束点ベースの definition 語彙として `Properties` に残す
+- `Arc` / `EllipseArc` の endpoint capability は `start_point/end_point` のみに絞り、中間点取得は evaluation 側の明示 API へ委譲する
+- `Circle` / `Ellipse` は閉曲線 shape として endpoint capability を持たず、`ref_direction` や `rotation` は parameter 原点の基準に限定する
+- `Triangle` は curve endpoint capability を持たず、`vertex_a/b/c` と edge length は面 shape の boundary / derived 語彙として扱う
+- 新規責務説明では `measure` を主語彙にせず、単独線 shape には `length`、閉曲線 shape には `circumference`、複数辺境界 shape には `perimeter`、面や立体には `area` / `volume` / `surface_area` を優先する
+- `point_at_parameter` と `point_at_angle` は evaluation capability に限定し、boundary access と混在させない
+
 ## 現行構造の棚卸し
 
 ### `geometry/core`
@@ -692,6 +703,122 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 判定:
 
 - shape definition には置かない
+
+## `#558` の実装切り出し
+
+`#558` は shape 横断の設計 Issue だが、実装は一括で進めず、少なくとも次の単位へ切り出して扱う。
+
+### 実装単位 A: Arc / EllipseArc の endpoint と evaluation の固定
+
+目的:
+
+- 境界付き曲線としての endpoint capability を Arc / EllipseArc で揃える
+- `point_at_parameter` / `point_at_angle` を endpoint 語彙と混在させない
+- primitive 上の endpoint を ideal endpoint として固定し、拘束端点は topology 層へ持ち込む
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/arc_traits.rs`
+- `model/geo_contracts/src/geometry/core/ellipse_arc_traits.rs`
+- 必要に応じて `model/geo_primitives/src/arc_2d.rs`
+- 必要に応じて `model/geo_primitives/src/arc_3d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_arc_2d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_arc_3d.rs`
+- 必要に応じて `model/geo_topology/src/topology_core.rs`
+
+実装観点:
+
+- endpoint capability は `Arc*Endpoint` / `EllipseArc*Endpoint` に限定する
+- `Arc` / `EllipseArc` の単独線の測度語彙は `length` を正本とし、`perimeter` は導入しない
+- evaluation capability は `Arc*Evaluation` / `EllipseArc*Evaluation` に限定する
+- `midpoint` / `mid_point` は endpoint capability から削除し、中間点が必要な場合は `point_at_parameter` や将来の弧長比 API のような明示評価へ寄せる
+- `point_at_parameter` はトリム区間を `0..1` へ正規化した parameter evaluation として扱う
+- `point_at_angle` は primitive 局所角度系による angle evaluation として扱い、constraint angle や world 極角とは分ける
+- evaluation が返すのは ideal evaluation point であり、拘束端点や拘束点補間結果ではない
+- Arc / EllipseArc の `point_at_angle` はともに total な support evaluation として扱い、トリム区間判定は `contains_angle` 側へ寄せる
+- containment と distance は endpoint/evaluation と同居させない
+- topology が拘束端点を必要とする場合でも、primitive の endpoint semantics は直ちに変更しない
+
+### 実装単位 B: Circle / Ellipse の closed curve vocabulary 固定
+
+目的:
+
+- closed curve に endpoint capability を導入しない方針を Circle / Ellipse で揃える
+- `circumference` を閉曲線の primary measure vocabulary として固定する
+- `measure` を互換語彙へ後退させ、`perimeter` は Circle / Ellipse の正本語彙にしない
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/circle_traits.rs`
+- `model/geo_contracts/src/geometry/core/ellipse_traits.rs`
+- 必要に応じて `model/geo_primitives/src/circle_2d.rs`
+- 必要に応じて `model/geo_primitives/src/circle_3d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_2d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_3d.rs`
+
+実装観点:
+
+- `ref_direction` / `rotation` は parameter 原点の基準に限定する
+- `point_at_parameter` は evaluation に置く
+- `circumference` / `area` は derived に置く
+- endpoint 語彙は追加しない
+
+### 実装単位 C: Triangle の boundary access と derived の固定
+
+目的:
+
+- Triangle を curve endpoint capability から明確に切り離す
+- vertex access と edge/perimeter/area の位置づけを面 shape の boundary / derived として固定する
+- `perimeter` を複数辺境界 shape の語彙として明示し、単独線 shape の `length` と混在させない
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/triangle_traits.rs`
+- 必要に応じて `model/geo_primitives/src/triangle_2d.rs`
+- 必要に応じて `model/geo_primitives/src/triangle_3d.rs`
+
+実装観点:
+
+- `vertex_a/b/c` は definition 側に残す
+- `edge_*_length` / `perimeter` / `measure` / `is_clockwise` / `is_planar` は derived に置く
+- `contains_point` は containment、`distance_to_point` は distance に置く
+- curve parameter capability は導入しない
+
+### 実装単位 D: 横断 cleanup と公開面追従
+
+目的:
+
+- shape ごとの capability 分離を export 面と下流利用側へ反映する
+- 旧 `*Measure` 語彙の残存を最小化する
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/mod.rs`
+- `model/geo_contracts/src/lib.rs`
+- `model/geo_primitives/src/lib.rs`
+- 必要に応じて `model/geo_topology/src/topology_core.rs`
+- 必要に応じて `model/geo_algorithms/src/**`
+
+実装観点:
+
+- capability trait のみを再公開する
+- downstream は個別 capability trait を直接使う
+- `measure` を新規責務説明の中心に戻さない
+- topology 側の語彙は `constraint_*` / `ideal_*` / `evaluated_*` のように役割を明示する
+
+### 推奨実装順
+
+1. 実装単位 A: Arc / EllipseArc
+2. 実装単位 B: Circle / Ellipse
+3. 実装単位 C: Triangle
+4. 実装単位 D: 横断 cleanup
+
+理由:
+
+- Arc / EllipseArc は `#567` の topology endpoint 論点と隣接しており、先に primitive semantics を固定しておく価値が高い
+- Circle / Ellipse は closed curve family として endpoint 非導入の基準形になる
+- Triangle は面 shape として curve family から切り離す最後の基準形になる
+- export cleanup は各 family の結論が揃ってから一括で行う方が差分が読みやすい
 - cross-shape を含むものは `operations`
 - 単一点を相手にするものも definition 層には置かない
 

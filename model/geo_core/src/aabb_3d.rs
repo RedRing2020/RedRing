@@ -120,10 +120,6 @@ impl<T: Scalar> Aabb3D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> Aabb3DProperties<T> for Aabb3D<T> {
     type Point3D = Point3D<T>;
 

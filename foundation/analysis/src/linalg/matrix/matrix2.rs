@@ -68,8 +68,6 @@ impl<T: Scalar> Matrix2x2<T> {
         )
     }
 
-    // === アクセサメソッド ===
-
     /// 要素を取得
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {
@@ -113,8 +111,6 @@ impl<T: Scalar> Matrix2x2<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素を行優先でイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().flat_map(|row| row.iter()).copied()
@@ -129,8 +125,6 @@ impl<T: Scalar> Matrix2x2<T> {
     pub fn columns(&self) -> impl Iterator<Item = [T; 2]> + '_ {
         (0..2).map(move |col| self.get_column(col))
     }
-
-    // === GPU用変換 ===
 
     /// 列優先形式に変換（wgpu/OpenGL用）
     #[inline]
@@ -148,8 +142,6 @@ impl<T: Scalar> Matrix2x2<T> {
             data: [[data[0][0], data[1][0]], [data[0][1], data[1][1]]],
         }
     }
-
-    // === 基本演算 ===
 
     /// フロベニウスノルム
     pub fn frobenius_norm(&self) -> T {
@@ -175,8 +167,6 @@ impl<T: Scalar> Matrix2x2<T> {
     }
 }
 
-// === 添え字演算子（互換性維持） ===
-
 impl<T: Scalar> Index<usize> for Matrix2x2<T> {
     type Output = [T; 2];
     #[inline]
@@ -191,8 +181,6 @@ impl<T: Scalar> IndexMut<usize> for Matrix2x2<T> {
         &mut self.data[row]
     }
 }
-
-// === 演算子オーバーロード ===
 
 impl<T: Scalar> Add for Matrix2x2<T> {
     type Output = Self;
@@ -253,8 +241,6 @@ impl<T: Scalar> Neg for Matrix2x2<T> {
         )
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[[T; 2]; 2]> for Matrix2x2<T> {
     /// 行優先配列から構築

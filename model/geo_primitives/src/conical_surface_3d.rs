@@ -69,15 +69,7 @@ pub struct ConicalSurface3D<T: Scalar> {
     semi_angle: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> ConicalSurface3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で円錐サーフェスを作成
     ///
     /// # Arguments
@@ -176,10 +168,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         Self::new(center, z_axis, x_axis, radius, semi_angle)
     }
 
-    // ========================================================================
-    // アクセサメソッド
-    // ========================================================================
-
     /// 基準点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -222,10 +210,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         // Direction3D は正規化を保証する
         Direction3D::from_vector(y).expect("Y軸の計算は常に成功する（直交軸系のため）")
     }
-
-    // ========================================================================
-    // 幾何計算
-    // ========================================================================
 
     /// 指定した軸方向距離での半径を計算
     ///
@@ -393,10 +377,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         (radial_distance - expected_radius).abs()
     }
 
-    // ========================================================================
-    // 検証メソッド
-    // ========================================================================
-
     /// サーフェスの有効性を検証
     pub fn is_valid(&self) -> bool {
         // 基本的な有効性チェック
@@ -471,10 +451,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use geo_contracts::{
     ConicalSurface3DConstructor, ConicalSurface3DDerived, ConicalSurface3DDistance,
@@ -583,10 +559,6 @@ impl<T: Scalar> ConicalSurface3DDistance<T> for ConicalSurface3D<T> {
         self.distance_to_surface(&point_3d)
     }
 }
-
-// ============================================================================
-// Standard Traits
-// ============================================================================
 
 impl<T: Scalar> std::fmt::Display for ConicalSurface3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -6,10 +6,6 @@ use geo_contracts::{
 };
 use geo_core::Aabb3D;
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> PrimitiveMetadata for Triangle3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Triangle

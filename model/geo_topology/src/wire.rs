@@ -52,8 +52,8 @@ impl<T: Scalar> Wire<T> {
         }
 
         for i in 0..self.edges.len() - 1 {
-            let end = self.edges[i].oriented_end_point();
-            let next_start = self.edges[i + 1].oriented_start_point();
+            let end = self.edges[i].oriented_constraint_end_point();
+            let next_start = self.edges[i + 1].oriented_constraint_start_point();
             if end.distance_to(&next_start) > shared_tolerance {
                 return false;
             }
@@ -67,8 +67,8 @@ impl<T: Scalar> Wire<T> {
         let first = self.edges.first().expect("wire has at least one edge");
         let last = self.edges.last().expect("wire has at least one edge");
         first
-            .oriented_start_point()
-            .distance_to(&last.oriented_end_point())
+            .oriented_constraint_start_point()
+            .distance_to(&last.oriented_constraint_end_point())
             <= shared_tolerance
     }
 }
@@ -146,7 +146,7 @@ mod tests {
         let e1 = make_offset_support_edge(start, middle);
         let e2 = make_offset_support_edge(middle, end);
 
-        assert!(Wire::new(vec![e1.clone(), e2.clone()], 0.25, 1e-9).is_some());
-        assert!(Wire::new(vec![e1, e2], 0.1, 1e-9).is_none());
+        assert!(Wire::new(vec![e1.clone(), e2.clone()], 0.31, 1e-9).is_some());
+        assert!(Wire::new(vec![e1, e2], 0.29, 1e-9).is_none());
     }
 }

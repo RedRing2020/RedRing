@@ -34,8 +34,6 @@ pub struct Quaternion<T: Scalar> {
 }
 
 impl<T: Scalar> Quaternion<T> {
-    // === 定数 ===
-
     /// 単位クォータニオン（回転なし）
     pub const IDENTITY: Quaternion<f64> = Quaternion {
         data: [0.0, 0.0, 0.0, 1.0],
@@ -45,8 +43,6 @@ impl<T: Scalar> Quaternion<T> {
     pub const ZERO: Quaternion<f64> = Quaternion {
         data: [0.0, 0.0, 0.0, 0.0],
     };
-
-    // === コンストラクタ ===
 
     /// 新しいクォータニオンを作成 (x, y, z, w)
     pub fn new(x: T, y: T, z: T, w: T) -> Self {
@@ -137,8 +133,6 @@ impl<T: Scalar> Quaternion<T> {
         Self::new(v.x(), v.y(), v.z(), v.w())
     }
 
-    // === アクセサ ===
-
     /// X成分（i）を取得
     pub fn x(&self) -> T {
         self.data[0]
@@ -179,8 +173,6 @@ impl<T: Scalar> Quaternion<T> {
         self.data[3] = w;
     }
 
-    // === 汎用アクセサ ===
-
     /// インデックスで要素を取得
     #[inline]
     pub fn get(&self, index: usize) -> T {
@@ -199,14 +191,10 @@ impl<T: Scalar> Quaternion<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素をイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().copied()
     }
-
-    // === ベクトル部分・スカラー部分 ===
 
     /// 虚部ベクトル (x, y, z) を取得
     pub fn vector_part(&self) -> Vector3<T> {
@@ -222,8 +210,6 @@ impl<T: Scalar> Quaternion<T> {
     pub fn to_vector4(&self) -> Vector4<T> {
         Vector4::new(self.data[0], self.data[1], self.data[2], self.data[3])
     }
-
-    // === 演算 ===
 
     /// ノルム（大きさ）を計算
     pub fn norm(&self) -> T {
@@ -283,8 +269,6 @@ impl<T: Scalar> Quaternion<T> {
             + self.data[2] * other.data[2]
             + self.data[3] * other.data[3]
     }
-
-    // === 回転操作 ===
 
     /// ベクトルを回転
     pub fn rotate_vector(&self, v: &Vector3<T>) -> Vector3<T> {
@@ -350,8 +334,6 @@ impl<T: Scalar> Quaternion<T> {
         (pitch, yaw, roll)
     }
 
-    // === 補間 ===
-
     /// 線形補間（LERP）
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         let result = *self * (T::ONE - t) + *other * t;
@@ -393,8 +375,6 @@ impl<T: Scalar> Quaternion<T> {
         self.lerp(other, t).normalize()
     }
 
-    // === ユーティリティ ===
-
     /// 単位クォータニオンかどうか判定
     pub fn is_unit(&self) -> bool {
         (self.norm() - T::ONE).abs() < T::EPSILON
@@ -413,8 +393,6 @@ impl<T: Scalar> Quaternion<T> {
         T::from_f64(2.0) * self.w().abs().clamp(T::ZERO, T::ONE).acos()
     }
 }
-
-// === 演算子オーバーロード ===
 
 impl<T: Scalar> Add for Quaternion<T> {
     type Output = Self;
@@ -482,8 +460,6 @@ impl<T: Scalar> Neg for Quaternion<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Quaternion<T> {
     type Output = T;
     #[inline]
@@ -498,8 +474,6 @@ impl<T: Scalar> IndexMut<usize> for Quaternion<T> {
         &mut self.data[index]
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[T; 4]> for Quaternion<T> {
     #[inline]

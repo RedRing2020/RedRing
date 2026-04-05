@@ -63,15 +63,7 @@ pub struct CylindricalSolid3D<T: Scalar> {
     height: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> CylindricalSolid3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で円柱ソリッドを作成
     ///
     /// # Arguments
@@ -153,10 +145,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         )
     }
 
-    // ========================================================================
-    // Core Accessor Methods (Internal use only)
-    // ========================================================================
-
     /// 底面の中心点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -188,10 +176,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     pub fn height(&self) -> T {
         self.height
     }
-
-    // ========================================================================
-    // Core Geometric Properties (Internal use only)
-    // ========================================================================
 
     /// 円柱ソリッドの体積を計算（内部使用）
     ///
@@ -240,10 +224,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             geo_core::Point3D::new(max_x, max_y, max_z),
         )
     }
-
-    // ========================================================================
-    // Core Containment and Distance Methods (Internal use only)
-    // ========================================================================
 
     /// 点が円柱ソリッド内部に含まれるかを判定（内部使用）
     #[allow(dead_code)]
@@ -317,10 +297,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     }
 }
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
-
 impl<T: Scalar> std::fmt::Display for CylindricalSolid3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -338,11 +314,6 @@ impl<T: Scalar> std::fmt::Display for CylindricalSolid3D<T> {
         )
     }
 }
-
-// ============================================================================
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use geo_contracts::{
     CylindricalSolid3DConstructor, CylindricalSolid3DContainment, CylindricalSolid3DDerived,
@@ -373,8 +344,6 @@ impl<T: Scalar> CylindricalSolid3DConstructor<T> for CylindricalSolid3D<T> {
         Self::new_z_axis(Point3D::origin(), T::ONE, T::from_f64(2.0))
             .expect("Unit cylinder should always be valid")
     }
-
-    // Phase 2: 追加コンストラクタ
 
     fn from_axis_and_radius(
         start_point: (T, T, T),
@@ -623,10 +592,6 @@ impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T
         None
     }
 }
-
-// ============================================================================
-// Backward Compatibility (移行期間中のみ)
-// ============================================================================
 
 /// 旧名前との互換性のためのエイリアス
 /// 将来のバージョンで削除予定

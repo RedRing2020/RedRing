@@ -123,10 +123,6 @@ pub mod analysis_transform {
     }
 }
 
-// ============================================================================
-// AnalysisTransform3D Implementation
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
     type Matrix4x4 = Matrix4x4<T>;
     type Angle = Angle<T>;
@@ -246,10 +242,6 @@ impl<T: Scalar> AnalysisTransform3D<T> for Arc3D<T> {
         self.apply_composite_transform(translation, rotation, scale_tuple)
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

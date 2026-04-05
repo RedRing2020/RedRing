@@ -6,15 +6,7 @@ use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::default_distance_tolerance;
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Extension Methods Implementation
-// ============================================================================
-
 impl<T: Scalar> Ellipse3D<T> {
-    // ========================================================================
-    // Advanced Construction Methods (Extension)
-    // ========================================================================
-
     /// XZ平面上の軸に平行な楕円を作成
     pub fn xz_aligned(center: Point3D<T>, semi_major_axis: T, semi_minor_axis: T) -> Option<Self> {
         Self::new(
@@ -52,23 +44,6 @@ impl<T: Scalar> Ellipse3D<T> {
             normal,
             major_axis_direction,
         )
-    }
-
-    // ========================================================================
-    // Advanced Geometric Analysis (Extension)
-    // ========================================================================
-
-    /// 楕円の周囲長を近似計算（ラマヌジャンの公式）
-    pub fn perimeter(&self) -> T {
-        let a = self.semi_major_internal();
-        let b = self.semi_minor_internal();
-        let h = ((a - b) / (a + b)).powi(2);
-        let pi = T::PI;
-
-        pi * (a + b)
-            * (T::ONE
-                + (T::from_f64(3.0) * h)
-                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
     }
 
     /// 楕円上の点での曲率を計算
@@ -113,10 +88,6 @@ impl<T: Scalar> Ellipse3D<T> {
             Direction3D::from_vector(tangent_world).unwrap_or(Direction3D::positive_x());
         self.normal().cross(&tangent_dir)
     }
-
-    // ========================================================================
-    // Transformation Methods (Extension)
-    // ========================================================================
 
     /// 楕円を平行移動
     pub fn translate(&self, offset: Vector3D<T>) -> Self {
@@ -189,10 +160,6 @@ impl<T: Scalar> Ellipse3D<T> {
             )
         }
     }
-
-    // ========================================================================
-    // Advanced Analysis Methods (Extension)
-    // ========================================================================
 
     /// 楕円上の点のパラメータを逆算（近似）
     pub fn parameter_for_point(&self, point: &Point3D<T>) -> Option<T> {

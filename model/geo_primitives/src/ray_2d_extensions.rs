@@ -7,8 +7,6 @@ use crate::{Direction2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Vector2D
 use geo_contracts::{default_distance_tolerance, Angle, Scalar};
 
 impl<T: Scalar> Ray2D<T> {
-    // === 特殊作成メソッド ===
-
     /// X軸正方向の Ray を作成
     pub fn x_axis_ray(x: T, y: T) -> Self {
         let direction = Direction2D::new(T::ONE, T::ZERO).unwrap();
@@ -37,8 +35,6 @@ impl<T: Scalar> Ray2D<T> {
         let direction = Vector2D::new(angle.cos(), angle.sin());
         Self::new(origin, direction).unwrap()
     }
-
-    // === 交点計算（基本機能以上の複雑な演算） ===
 
     /// 他の Ray との交点を計算
     pub fn intersection_with_ray(&self, other: &Self) -> Option<Point2D<T>> {
@@ -87,8 +83,6 @@ impl<T: Scalar> Ray2D<T> {
         }
     }
 
-    // === 変換操作（Extension で提供） ===
-
     /// Ray を回転
     pub fn rotate(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
         let rotated_origin = self.origin_internal().rotate_around(center, angle);
@@ -118,8 +112,6 @@ impl<T: Scalar> Ray2D<T> {
         .unwrap()
     }
 
-    // === 幾何関係判定（Extension で提供） ===
-
     /// 他の Ray と平行かを判定
     pub fn is_parallel_to(&self, other: &Self, tolerance: T) -> bool {
         let angle = self
@@ -146,8 +138,6 @@ impl<T: Scalar> Ray2D<T> {
             && self.is_parallel_to(other, tolerance)
     }
 
-    // === 距離計算（Extension で提供） ===
-
     /// 他の Ray との最短距離
     pub fn distance_to_ray(&self, other: &Self) -> T {
         if self.intersection_with_ray(other).is_some() {
@@ -172,8 +162,6 @@ impl<T: Scalar> Ray2D<T> {
         dist_to_segment.min(dist_start_to_ray).min(dist_end_to_ray)
     }
 
-    // === 特殊な点の取得（Extension で提供） ===
-
     /// Ray を指定した長さで切った時の終点を取得
     pub fn point_at_distance(&self, length: T) -> Option<Point2D<T>> {
         if length < T::ZERO {
@@ -188,8 +176,6 @@ impl<T: Scalar> Ray2D<T> {
         let dir = self.direction_internal();
         Angle::from_radians(dir.y().atan2(dir.x()))
     }
-
-    // === 拡張変換機能（Extension で提供） ===
 
     /// 平行移動（BasicTransformより柔軟）
     pub fn translate(&self, offset: Vector2D<T>) -> Self {

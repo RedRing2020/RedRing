@@ -13,15 +13,7 @@ pub struct Vector2D<T: Scalar> {
     y: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Vector2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しいベクトルを作成
     pub fn new(x: T, y: T) -> Self {
         Self { x, y }
@@ -42,10 +34,6 @@ impl<T: Scalar> Vector2D<T> {
         Self::new(T::ZERO, T::ONE)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// X成分を取得
     pub fn x(&self) -> T {
         self.x
@@ -60,10 +48,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn components(&self) -> [T; 2] {
         [self.x, self.y]
     }
-
-    // ========================================================================
-    // Core Metrics Methods
-    // ========================================================================
 
     /// ベクトルの長さの二乗を取得
     pub fn length_squared(&self) -> T {
@@ -90,10 +74,6 @@ impl<T: Scalar> Vector2D<T> {
         }
     }
 
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
-
     /// 内積を計算
     pub fn dot(&self, other: &Self) -> T {
         self.x * other.x + self.y * other.y
@@ -103,10 +83,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn cross(&self, other: &Self) -> T {
         self.x * other.y - self.y * other.x
     }
-
-    // ========================================================================
-    // Extension Construction Methods
-    // ========================================================================
 
     /// 角度からベクトルを作成（単位ベクトル）
     pub fn from_angle(angle: Angle<T>) -> Self {
@@ -127,10 +103,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn from_point(point: &crate::Point2D<T>) -> Self {
         Self::new(point.x(), point.y())
     }
-
-    // ========================================================================
-    // Extension Predicate Methods
-    // ========================================================================
 
     /// ベクトルが単位ベクトルかを判定
     pub fn is_unit(&self, tolerance: T) -> bool {
@@ -163,10 +135,6 @@ impl<T: Scalar> Vector2D<T> {
         self.dot(other).abs() <= tolerance
     }
 
-    // ========================================================================
-    // Extension Normalization Methods
-    // ========================================================================
-
     /// 正規化を試行（ゼロベクトルの場合はNoneを返す）
     pub fn try_normalize(&self) -> Option<Self> {
         let len = self.length();
@@ -181,10 +149,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn with_length(&self, new_length: T) -> Option<Self> {
         self.try_normalize().map(|unit| unit * new_length)
     }
-
-    // ========================================================================
-    // Extension Transformation Methods
-    // ========================================================================
 
     /// ベクトルを指定角度回転
     pub fn rotate(&self, angle: Angle<T>) -> Self {
@@ -219,10 +183,6 @@ impl<T: Scalar> Vector2D<T> {
         Self::new(-self.x, -self.y)
     }
 
-    // ========================================================================
-    // Extension Angle Methods
-    // ========================================================================
-
     /// ベクトル間の角度を取得
     pub fn angle_to(&self, other: &Self) -> Angle<T> {
         let dot = self.dot(other);
@@ -234,10 +194,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn angle(&self) -> Angle<T> {
         Angle::from_radians(self.y.atan2(self.x))
     }
-
-    // ========================================================================
-    // Extension Linear Operations
-    // ========================================================================
 
     /// 2つのベクトル間で線形補間
     pub fn lerp(&self, other: &Self, t: T) -> Self {
@@ -262,10 +218,6 @@ impl<T: Scalar> Vector2D<T> {
         *self - self.project_onto(other)
     }
 
-    // ========================================================================
-    // Extension Component Operations
-    // ========================================================================
-
     /// 成分ごとの最小値
     pub fn min(&self, other: &Self) -> Self {
         Self::new(self.x.min(other.x), self.y.min(other.y))
@@ -281,10 +233,6 @@ impl<T: Scalar> Vector2D<T> {
         Self::new(self.x.abs(), self.y.abs())
     }
 
-    // ========================================================================
-    // Extension Type Conversion Methods
-    // ========================================================================
-
     /// Vector2D を Point2D に変換（ベクトルを位置として解釈）
     pub fn to_point(&self) -> crate::Point2D<T> {
         crate::Point2D::new(self.x, self.y)
@@ -294,10 +242,6 @@ impl<T: Scalar> Vector2D<T> {
     pub fn apply_to_point(&self, point: &crate::Point2D<T>) -> crate::Point2D<T> {
         crate::Point2D::new(point.x() + self.x, point.y() + self.y)
     }
-
-    // ========================================================================
-    // Extension Dimension Conversion Methods
-    // ========================================================================
 
     /// 3次元ベクトルに拡張（Z=0）
     pub fn to_3d(&self) -> crate::Vector3D<T> {
@@ -309,18 +253,6 @@ impl<T: Scalar> Vector2D<T> {
         crate::Vector3D::new(self.x, self.y, z)
     }
 }
-
-// ============================================================================
-// Core Foundation Trait Implementations
-// ============================================================================
-
-// ============================================================================
-// Legacy Foundation Trait Implementations (Temporarily Disabled)
-// ============================================================================
-
-// ============================================================================
-// 基本演算子実装 (Basic Operator Implementations)
-// ============================================================================
 
 impl<T: Scalar> Add for Vector2D<T> {
     type Output = Self;
@@ -367,10 +299,6 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
         Self::new(tuple.0, tuple.1)
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use crate::vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
