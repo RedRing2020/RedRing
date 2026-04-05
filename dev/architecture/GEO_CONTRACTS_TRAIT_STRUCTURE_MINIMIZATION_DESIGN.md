@@ -88,7 +88,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `Triangle` の `vertex_a/b/c` や edge length は、curve endpoint capability ではなく polygon / face boundary access として扱う
 - 面 shape の boundary access は、curve endpoint と同じ trait 群へ混在させない
 
-### 5. primary measure vocabulary は shape family ごとに分ける
+### 5. primary quantity vocabulary は shape family ごとに分ける
 
 優先語彙:
 
@@ -140,6 +140,32 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - intersection
 - relation API
 - solver / approximation / strategy oriented capability
+
+## 将来 shape 追加時の capability 配置チェックリスト草案
+
+`#558` で固める taxonomy は、将来の shape 追加時に capability をどこへ置くかを判断する基準として使う。
+
+新しい shape を trait 群へ落とし込む前に、少なくとも次を確認する。
+
+1. definition core に残す正本 parameter は何か
+2. endpoint capability を持つのか、単なる boundary access に留まるのか
+3. parameter evaluation は curve family か surface family のどちらに属するか
+4. periodic parameter と trimmed range を別 capability に分ける必要があるか
+5. shape 全体の primary quantity と boundary element の局所 quantity を分ける必要があるか
+6. centroid や circumcenter のような補助量を Derived に置けるか
+7. orientation / normal / trim-range を独立 capability にすべきか
+8. containment / distance / projection を core から外して minimal extension に置くべきか
+9. cross-shape relation を operations 側へ送るべきか
+
+個別判定の原則:
+
+- shape 全体の primary quantity は、その shape family の正本語彙で扱う
+- edge length など boundary element ひとつの局所 quantity は、shape 全体の primary quantity と混在させない
+- support shape 上の評価と trimmed domain の有効判定は別 capability とする
+- closed / periodic shape では evaluation を許容しても endpoint を自動付与しない
+- face element として使われる shape では boundary access、boundary quantity、orientation を独立候補として検討する
+
+このチェックリストにより、既存 shape の整理だけでなく、sweep surface、rotation surface、fillet surface、trimmed surface 等を追加する際の trait 配置判断を一貫させる。
 
 ## `#558` で特に分離対象とする混在
 
@@ -193,7 +219,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 方針:
 
-- 面 shape の primary measure
+- 面 shape の primary quantity
 - boundary / vertex access
 - derived
 - containment
@@ -303,6 +329,149 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 
 - `contains_point(point, tolerance)` の tolerance 引数は unary containment capability 側の責務として扱う
 - `bounding_box` は relation ではないため `operations` ではなく unary `derived` 側へ置く
+- EllipseArc の中間点取得は endpoint capability に含めず、parameter 評価と弧長評価を明示的に区別できる API へ寄せる
+- EllipseArc の endpoint も primitive 上では ideal endpoint として扱い、拘束端点の語彙は topology 層で別管理する
+- 実装進捗として `EllipseArc2DMeasure` / `EllipseArc3DMeasure` は削除済みで、downstream では capability trait を直接使う
+
+### Ellipse の再分類
+
+Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability は持たない。
+一方で、現行 API は `perimeter` と `measure` を併存させており、閉曲線の主語彙が曖昧である。
+
+本整理では、Ellipse の周回長語彙は `length` へ寄せず、閉曲線 family の primary vocabulary として `circumference` を採用する。
+`perimeter` は既存 API との互換語彙、`measure` は集約互換 API として後退させる。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `Ellipse2DConstructor` / `Ellipse3DConstructor` | `definition` |
+| `Ellipse2DProperties::center/semi_major_axis/semi_minor_axis/rotation` | `definition` |
+| `Ellipse3DProperties::center_3d/center_3d_tuple/normal/major_axis_direction/minor_axis_direction/semi_major_axis/semi_minor_axis` | `definition` |
+| `Ellipse2DDerived::eccentricity/focal_distance/focus1/focus2/linear_eccentricity/is_circle` | `derived` |
+| `Ellipse3DDerived::eccentricity/focal_distance/is_circle` | `derived` |
+| `Ellipse2DDerived::circumference/area` | `derived` |
+| `Ellipse3DDerived::circumference/area` | `derived` |
+| `Ellipse2DEvaluation::point_at_parameter` | `evaluation` |
+| `Ellipse3DEvaluation::point_at_parameter` | `evaluation` |
+| `Ellipse2DContainment::contains_point/point_on_boundary` | `containment` |
+| `Ellipse3DContainment::contains_point_3d` | `containment` |
+| `Ellipse2DDistance::distance_to_point` | `distance` |
+| `Ellipse3DDistance::distance_to_point_3d` | `distance` |
+| `Ellipse2DCore` / `Ellipse3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- Ellipse の周回長は `length` ではなく `circumference` を主語彙とする
+- `perimeter` は Ellipse の公開語彙から削除し、`circumference` に統一する
+- `measure` は新規責務説明には使わず、後方互換の集約 API としてのみ扱う
+- `focus1/focus2/focal_distance/eccentricity/linear_eccentricity/is_circle` は定義パラメータではなく unary `derived` とみなす
+
+### NURBS Curve の再分類
+
+NURBS curve は endpoint を shape 意味論の正本として持たず、parameter evaluation と length 語彙を中心に整理する。
+既存 API は 2D/3D ともに `*Measure` へ point evaluation、接線、長さ、曲率、弧長逆算が混在しているため、少なくとも evaluation と derived を分ける必要がある。
+
+本整理では、curve family の primary quantity vocabulary として `length` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `NurbsCurve2DConstructor` / `NurbsCurve3DConstructor` | `definition` |
+| `NurbsCurve2DProperties::degree/num_control_points/knot_vector/is_rational/dimension` | `definition` |
+| `NurbsCurve3DProperties::degree/knot_vector/control_points_count/weights/is_rational/parameter_domain/coordinates` | `definition` |
+| `NurbsCurve2DEvaluation::point_at/tangent_at` | `evaluation` |
+| `NurbsCurve3DEvaluation::evaluate/parameter_at_length` | `evaluation` |
+| `NurbsCurve2DDerived::length/curvature_at` | `derived` |
+| `NurbsCurve3DDerived::arc_length/arc_length_total` | `derived` |
+| `NurbsCurve2DCore` / `NurbsCurve3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- NURBS curve は `Circle` のような closed curve ではないため、主語彙は `circumference` ではなく `length` を維持する
+- `parameter_at_length` は endpoint ではなく、length から parameter を求める evaluation capability として扱う
+- `arc_length(u_start, u_end, tolerance)` は区間に対する unary derived quantity とみなし、後方互換の `*Measure` から分離する
+- adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
+
+### NURBS Surface の再分類
+
+NURBS surface は curve family と異なり、UV parameter evaluation と surface area 語彙を中心に整理する。
+既存 API は `*Measure` に point evaluation、normal/tangent evaluation、surface area が混在しているため、少なくとも evaluation と derived を分ける必要がある。
+
+本整理では、surface family の primary quantity vocabulary として `surface_area` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `NurbsSurface3DConstructor` | `definition` |
+| `NurbsSurface3DProperties::u_degree/v_degree/u_count/v_count/u_knots/v_knots/is_rational/coordinates/weights` | `definition` |
+| `NurbsSurface3DEvaluation::point_at_uv/normal_at/tangent_vectors_at` | `evaluation` |
+| `NurbsSurface3DDerived::surface_area` | `derived` |
+| `NurbsSurface3DCore` | `Constructor + Properties` へ縮退候補 |
+
+補足:
+
+- NURBS surface では `surface_area` を primary vocabulary とし、`measure` は新規責務説明の中心に置かない
+- `normal_at` と `tangent_vectors_at` は unary derived quantity ではなく、UV parameter に依存する evaluation capability として扱う
+- adaptive tessellation や近似戦略は operations/strategy 側の論点であり、本整理では core capability へ持ち込まない
+
+### Analytic Surface の再分類
+
+analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`SphericalSurface3D`、`TorusSurface3D`、`EllipsoidalSurface3D` を対象とする。
+これらは従来 `*Measure` に UV evaluation、表面積、距離、最近点、補助 parameter 系が混在していたが、pre-release 方針に従い旧 `*Measure` 集約 trait は保持しない。
+
+本整理では、surface family の primary quantity vocabulary は `surface_area` を維持しつつ、analytic surface ごとに `evaluation`、`derived`、`distance`、必要に応じて `projection` へ分離する。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| `ConicalSurface3DConstructor` / `CylindricalSurface3DConstructor` / `SphericalSurface3DConstructor` / `TorusSurface3DConstructor` / `EllipsoidalSurface3DConstructor` | `definition` |
+| 各 `*Surface3DProperties` の定義パラメータ | `definition` |
+| `ConicalSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `ConicalSurface3D::surface_area/slant_height` | `derived` |
+| `ConicalSurface3D::distance_to_point` | `distance` |
+| `CylindricalSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `CylindricalSurface3D::surface_area` | `derived` |
+| `CylindricalSurface3D::distance_to_point` | `distance` |
+| `SphericalSurface3D::point_at_uv/normal_at/point_at_latlong/tangent_at` | `evaluation` |
+| `SphericalSurface3D::surface_area/bounding_box` | `derived` |
+| `SphericalSurface3D::distance_to_point` | `distance` |
+| `SphericalSurface3D::closest_point` | `projection` |
+| `TorusSurface3D::point_at_uv/normal_at` | `evaluation` |
+| `TorusSurface3D::surface_area` | `derived` |
+| `TorusSurface3D::distance_to_point` | `distance` |
+| `EllipsoidalSurface3D::point_at_uv/normal_at/point_at_spherical` | `evaluation` |
+| `EllipsoidalSurface3D::surface_area/bounding_box/volume/surface_area_knud_thomsen` | `derived` |
+| `EllipsoidalSurface3D::distance_to_point` | `distance` |
+| 各 `*Surface3DCore` | `Constructor + Properties` |
+
+補足:
+
+- analytic surface では `bounding_box` を relation ではなく unary `derived` capability とみなす
+- `closest_point` は `distance` に含めず、projection capability として独立させる
+- `point_at_latlong` と `point_at_spherical` は補助 parameter 系だが、いずれも surface evaluation capability として扱う
+- `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は維持し、trait再分類だけを理由に module 増殖は行わない
+
+### Solid の再分類
+
+solid 群は `ConicalSolid3D`、`CylindricalSolid3D`、`SphericalSolid3D`、`TorusSolid3D`、`EllipsoidalSolid3D` を対象とする。
+これらは従来 `*Measure` に体積、表面積、包含判定、距離、境界箱、最近点、parameter 評価が混在していたため、surface 群と同様に capability を分離する。
+
+本整理では、solid family では primary quantity vocabulary として `volume` と `surface_area` を `derived` に置き、点包含は `containment`、距離は `distance`、parameter 評価は `evaluation`、最近点は `projection` として扱う。旧 `*Measure` 集約 trait は保持しない。
+
+| 現行 trait / API | 再分類 |
+| --- | --- |
+| 各 `*Solid3DConstructor` | `definition` |
+| 各 `*Solid3DProperties` の定義パラメータ | `definition` |
+| `volume/surface_area/bounding_box` | `derived` |
+| `contains_point` / `contains_point_tolerance` / `is_on_surface` | `containment` |
+| `distance_to_point` / `distance_to_surface` | `distance` |
+| `point_at_conical` / `point_at_cylindrical` / `point_at_latlong` / `point_at_toroidal` | `evaluation` |
+| `closest_point_on_surface` | `projection` |
+| `is_self_intersecting` / `is_degenerate` | `derived` |
+| 各 `*Solid3DCore` | `Constructor + Properties` |
+
+補足:
+
+- solid でも `bounding_box` は relation ではなく unary `derived` capability とみなす
+- `is_on_surface` は点の境界 membership 判定なので containment に含める
+- `distance_to_surface` と `distance_to_point` は名称差を維持しつつ distance capability にまとめる
+- `*_foundation.rs` / `*_extensions.rs` / `*_transform.rs` の分割は現状維持を優先し、taxonomy 変更を理由に新規 module は追加しない
 
 ### Circle の再分類
 
@@ -359,7 +528,11 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 補足:
 
+- Triangle は pre-topology の単一 face primitive として扱い、オイラー操作を前提にしない mesh 表現は TriangleMesh 側で扱う
 - `vertex_a/b/c` は面 shape の boundary access であり、curve endpoint capability とは別物として扱う
+- 各辺長は boundary quantity、`perimeter` は boundary 全体の derived quantity、`area` は Triangle 全体の primary quantity として分ける
+- Triangle の parameter evaluation を導入する場合は curve family ではなく surface family の evaluation として扱う
+- Triangle には trimmed range と periodic parameter を導入しない
 - `centroid` や `normal` は lightweight metadata ではなく、実質的には unary `derived` capability とみなす
 
 ## `#558` の一次結論: `Properties` に残すものと出すもの
@@ -547,6 +720,124 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 判定:
 
 - shape definition には置かない
+
+## `#558` の実装切り出し
+
+`#558` は shape 横断の設計 Issue だが、実装は一括で進めず、少なくとも次の単位へ切り出して扱う。
+
+### 実装単位 A: Arc / EllipseArc の endpoint と evaluation の固定
+
+目的:
+
+- 境界付き曲線としての endpoint capability を Arc / EllipseArc で揃える
+- `point_at_parameter` / `point_at_angle` を endpoint 語彙と混在させない
+- primitive 上の endpoint を ideal endpoint として固定し、拘束端点は topology 層へ持ち込む
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/arc_traits.rs`
+- `model/geo_contracts/src/geometry/core/ellipse_arc_traits.rs`
+- 必要に応じて `model/geo_primitives/src/arc_2d.rs`
+- 必要に応じて `model/geo_primitives/src/arc_3d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_arc_2d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_arc_3d.rs`
+- 必要に応じて `model/geo_topology/src/topology_core.rs`
+
+実装観点:
+
+- endpoint capability は `Arc*Endpoint` / `EllipseArc*Endpoint` に限定する
+- `Arc` / `EllipseArc` の単独線の測度語彙は `length` を正本とし、`perimeter` は導入しない
+- evaluation capability は `Arc*Evaluation` / `EllipseArc*Evaluation` に限定する
+- `midpoint` / `mid_point` は endpoint capability から削除し、中間点が必要な場合は `point_at_parameter` や将来の弧長比 API のような明示評価へ寄せる
+- `point_at_parameter` はトリム区間を `0..1` へ正規化した parameter evaluation として扱う
+- `point_at_angle` は primitive 局所角度系による angle evaluation として扱い、constraint angle や world 極角とは分ける
+- evaluation が返すのは ideal evaluation point であり、拘束端点や拘束点補間結果ではない
+- Arc / EllipseArc の `point_at_angle` はともに total な support evaluation として扱い、トリム区間判定は `contains_angle` 側へ寄せる
+- containment と distance は endpoint/evaluation と同居させない
+- topology が拘束端点を必要とする場合でも、primitive の endpoint semantics は直ちに変更しない
+
+### 実装単位 B: Circle / Ellipse の closed curve vocabulary 固定
+
+目的:
+
+- closed curve に endpoint capability を導入しない方針を Circle / Ellipse で揃える
+- `circumference` を閉曲線の primary quantity vocabulary として固定する
+- `measure` を互換語彙へ後退させ、`perimeter` は Circle / Ellipse の正本語彙にしない
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/circle_traits.rs`
+- `model/geo_contracts/src/geometry/core/ellipse_traits.rs`
+- 必要に応じて `model/geo_primitives/src/circle_2d.rs`
+- 必要に応じて `model/geo_primitives/src/circle_3d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_2d.rs`
+- 必要に応じて `model/geo_primitives/src/ellipse_3d.rs`
+
+実装観点:
+
+- `ref_direction` / `rotation` は parameter 原点の基準に限定する
+- `point_at_parameter` は evaluation に置く
+- `circumference` / `area` は derived に置く
+- endpoint 語彙は追加しない
+
+### 実装単位 C: Triangle の boundary access と derived の固定
+
+目的:
+
+- Triangle を curve endpoint capability から明確に切り離す
+- vertex access と edge/perimeter/area の位置づけを面 shape の boundary / derived として固定する
+- `perimeter` を複数辺境界 shape の語彙として明示し、単独線 shape の `length` と混在させない
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/triangle_traits.rs`
+- 必要に応じて `model/geo_primitives/src/triangle_2d.rs`
+- 必要に応じて `model/geo_primitives/src/triangle_3d.rs`
+
+実装観点:
+
+- `vertex_a/b/c` は definition 側に残す
+- Triangle は pre-topology の単一 face primitive とし、オイラー操作を前提にしない mesh 表現は TriangleMesh 側で扱う
+- `edge_*_length` / `perimeter` / `measure` / `is_clockwise` / `is_planar` は derived に置く
+- `area` は Triangle 全体の primary quantity、`edge_*_length` は boundary quantity、`perimeter` は boundary 全体の derived quantity として扱う
+- `contains_point` は containment、`distance_to_point` は distance に置く
+- parameter evaluation を導入する場合は surface family の evaluation として扱い、trimmed range と periodic parameter は導入しない
+
+### 実装単位 D: 横断 cleanup と公開面追従
+
+目的:
+
+- shape ごとの capability 分離を export 面と下流利用側へ反映する
+- 旧 `*Measure` 語彙の残存を最小化する
+
+対象ファイル:
+
+- `model/geo_contracts/src/geometry/core/mod.rs`
+- `model/geo_contracts/src/lib.rs`
+- `model/geo_primitives/src/lib.rs`
+- 必要に応じて `model/geo_topology/src/topology_core.rs`
+- 必要に応じて `model/geo_algorithms/src/**`
+
+実装観点:
+
+- capability trait のみを再公開する
+- downstream は個別 capability trait を直接使う
+- `measure` を新規責務説明の中心に戻さない
+- topology 側の語彙は `constraint_*` / `ideal_*` / `evaluated_*` のように役割を明示する
+
+### 推奨実装順
+
+1. 実装単位 A: Arc / EllipseArc
+2. 実装単位 B: Circle / Ellipse
+3. 実装単位 C: Triangle
+4. 実装単位 D: 横断 cleanup
+
+理由:
+
+- Arc / EllipseArc は `#567` の topology endpoint 論点と隣接しており、先に primitive semantics を固定しておく価値が高い
+- Circle / Ellipse は closed curve family として endpoint 非導入の基準形になる
+- Triangle は面 shape として curve family から切り離す最後の基準形になる
+- export cleanup は各 family の結論が揃ってから一括で行う方が差分が読みやすい
 - cross-shape を含むものは `operations`
 - 単一点を相手にするものも definition 層には置かない
 
