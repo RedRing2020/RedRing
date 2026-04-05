@@ -3,8 +3,8 @@
 //! Foundation Pattern に基づく Aabb3D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
-use crate::aabb_traits::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
 use analysis::abstract_types::Scalar;
+use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
 
 use crate::Point3D;
 
@@ -196,7 +196,7 @@ impl<T: Scalar> Aabb3DRelation<T> for Aabb3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aabb_traits::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
+    use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
 
     #[test]
     fn test_aabb3d_creation() {
