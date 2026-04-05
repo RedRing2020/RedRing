@@ -141,8 +141,9 @@ pub use geo_contracts::{
 };
 pub use geo_contracts::{
     Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
-    Ellipse2DEvaluation, Ellipse2DProperties, Ellipse3DConstructor, Ellipse3DContainment,
-    Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation, Ellipse3DProperties,
+    Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties, Ellipse3DConstructor,
+    Ellipse3DContainment, Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation,
+    Ellipse3DProjection, Ellipse3DProperties,
 };
 pub use geo_contracts::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,

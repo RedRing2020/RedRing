@@ -199,6 +199,15 @@ mod tests {
     }
 
     #[test]
+    fn test_closest_point_to() {
+        let ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 4.0, 2.0).unwrap();
+        let closest = ellipse.closest_point_to(&Point2D::new(10.0, 0.0));
+
+        assert!((closest.x() - 4.0).abs() < 1e-4);
+        assert!(closest.y().abs() < 1e-4);
+    }
+
+    #[test]
     fn test_transformations() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::new(1.0, 1.0), 3.0, 2.0).unwrap();
 
