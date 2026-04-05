@@ -986,9 +986,10 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 実装観点:
 
-- `vertex_a/b/c` は definition 側に残す
+- `vertex_a/b/c` は face boundary access として独立 trait に分離する
 - Triangle は pre-topology の単一 face primitive とし、オイラー操作を前提にしない mesh 表現は TriangleMesh 側で扱う
-- `edge_*_length` / `perimeter` / `measure` / `is_clockwise` / `is_planar` は derived に置く
+- `edge_*_length` は boundary quantity、`perimeter` は boundary 全体の derived quantity として boundary 側に置く
+- `is_clockwise` / `is_planar` は derived に置く
 - `area` は Triangle 全体の primary quantity、`edge_*_length` は boundary quantity、`perimeter` は boundary 全体の derived quantity として扱う
 - `contains_point` は containment、`distance_to_point` は distance に置く
 - parameter evaluation を導入する場合は surface family の evaluation として扱い、trimmed range と periodic parameter は導入しない

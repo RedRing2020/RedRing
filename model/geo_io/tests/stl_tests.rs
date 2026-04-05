@@ -1,6 +1,6 @@
 //! STLローダーのテスト
 
-use geo_contracts::Triangle3DProperties;
+use geo_contracts::Triangle3DBoundaryAccess;
 use geo_io::stl;
 use geo_primitives::{Point3D, TriangleMesh3D};
 use std::io::Write;

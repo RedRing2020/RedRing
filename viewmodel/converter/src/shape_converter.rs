@@ -28,7 +28,7 @@ use geo_contracts::{
     EllipsoidalSolid3DProperties, EllipsoidalSurface3DEvaluation, InfiniteLine3DProperties,
     Plane3DProperties, PrimitiveKind, Ray3DProperties, SphericalSolid3DProperties,
     SphericalSurface3DEvaluation, TorusSolid3DProperties, TorusSurface3DEvaluation,
-    Triangle3DProperties,
+    Triangle3DBoundaryAccess,
 };
 // geo_algorithms を経由して全ての型にアクセス（Foundation Pattern遵守）
 // - 基本型 (Point3D, Vector3D from geo_core)

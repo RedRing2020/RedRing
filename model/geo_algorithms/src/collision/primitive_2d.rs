@@ -18,7 +18,7 @@ use crate::{
     Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DProperties,
+    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DBoundaryAccess,
 };
 
 pub fn circle2d_point2d_collides<T: Scalar>(

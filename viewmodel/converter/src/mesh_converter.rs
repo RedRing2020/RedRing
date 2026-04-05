@@ -4,7 +4,7 @@
 //! geo_primitives の具体型を使用して TriangleMesh3D を GPU レンダリング用の頂点データに変換します。
 
 use geo_algorithms::{Point3D, TriangleMesh3D, Vector3D};
-use geo_contracts::Triangle3DProperties;
+use geo_contracts::Triangle3DBoundaryAccess;
 
 /// GPU用頂点データ（renderクレートのMeshVertexと同じ構造）
 #[repr(C)]

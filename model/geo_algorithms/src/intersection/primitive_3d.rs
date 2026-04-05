@@ -18,7 +18,7 @@ use geo_contracts::{
     ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
     CylindricalSurface3DProperties, Ellipse3DDistance, EllipsoidalSolid3DProperties,
     InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
-    TorusSurface3DDistance, Triangle3DProperties,
+    TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -441,9 +441,9 @@ fn cylindrical_surface3d_triangle3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (ax, ay, az) = Triangle3DProperties::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle);
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
     if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
         cyl,
         (ax, ay, az),
@@ -715,9 +715,9 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (ax, ay, az) = Triangle3DProperties::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle);
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
     let mut intersections = Vec::new();
     if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (ax, ay, az))
         <= tolerance
