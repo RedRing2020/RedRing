@@ -5,15 +5,7 @@
 use crate::{Ellipse2D, EllipseArc2D, Point2D, Vector2D};
 use geo_contracts::{Angle, Scalar};
 
-// ============================================================================
-// Extension Methods Implementation
-// ============================================================================
-
 impl<T: Scalar> EllipseArc2D<T> {
-    // ========================================================================
-    // Advanced Construction Methods (Extension)
-    // ========================================================================
-
     /// 楕円の一部分として楕円弧を作成（高度構築）
     pub fn from_ellipse_sector(
         center: Point2D<T>,
@@ -27,24 +19,18 @@ impl<T: Scalar> EllipseArc2D<T> {
         Some(Self::new(ellipse, start_angle, end_angle))
     }
 
-    // ========================================================================
-    // Advanced Geometry Methods (Extension)
-    // ========================================================================
-
     /// 楕円弧が円弧かどうかを判定
     pub fn is_circular_arc(&self, tolerance: T) -> bool {
         self.ellipse().is_circle(tolerance)
     }
 
-    /// 円弧に変換（可能な場合）
+    // 円弧への変換候補。Arc2D は trait のため具象型が確定するまで保留。
     // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
     // pub fn to_arc(&self) -> Option<Arc2D<T>> {
     //     let circle = self.ellipse().to_circle()?;
     //     Arc2D::new(circle, self.start_angle(), self.end_angle())
     // }
-    // ========================================================================
-    // Transformation Methods (Extension)
-    // ========================================================================
+
     /// 中心を移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         let new_center = Point2D::new(
@@ -77,10 +63,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         *self
     }
 
-    // ========================================================================
-    // Utility Methods (Extension)
-    // ========================================================================
-
     /// 楕円弧の方向を反転
     pub fn reverse(&self) -> Self {
         Self::new(*self.ellipse(), self.end_angle(), self.start_angle())
@@ -101,10 +83,6 @@ impl<T: Scalar> EllipseArc2D<T> {
 
         points
     }
-
-    // ========================================================================
-    // Advanced Analysis Methods (Extension)
-    // ========================================================================
 
     /// より詳細な境界ボックス計算（高精度版）
     pub fn precise_bounding_box(&self, sample_points: usize) -> geo_core::Aabb2D<T> {

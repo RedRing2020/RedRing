@@ -37,10 +37,6 @@ pub enum IsoType<T: Scalar> {
 
 /// CylindricalSurface3D の拡張実装
 impl<T: Scalar> CylindricalSurface3D<T> {
-    // ========================================================================
-    // 境界操作
-    // ========================================================================
-
     /// 境界制約を適用してBoundedCylindricalSurface3Dを作成
     pub fn with_bounds(
         &self,
@@ -72,10 +68,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         self.with_bounds(T::ZERO, T::PI * T::from_f64(2.0), v_min, v_max)
     }
 
-    // ========================================================================
-    // ISO曲線抽出
-    // ========================================================================
-
     /// V固定のISO曲線（円）を取得
     pub fn iso_curve_u(&self, v: T) -> IsoCurve3D<T> {
         IsoCurve3D {
@@ -91,10 +83,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
             iso_type: IsoType::ConstantU(u),
         }
     }
-
-    // ========================================================================
-    // サーフェス解析
-    // ========================================================================
 
     /// 指定された境界内の表面積を計算
     pub fn surface_area_region(&self, u_min: T, u_max: T, v_min: T, v_max: T) -> T {
@@ -112,10 +100,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         // 円柱サーフェスは理想的な2次曲面なので品質は常に最高
         T::ZERO
     }
-
-    // ========================================================================
-    // メッシュ生成（サーフェス用）
-    // ========================================================================
 
     /// パラメトリックメッシュを生成
     pub fn to_parametric_mesh(
@@ -181,10 +165,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
 
         patches
     }
-
-    // ========================================================================
-    // NURBS変換（準備）
-    // ========================================================================
 
     /// NURBS表現への変換準備（制御点の計算）
     pub fn nurbs_control_points(&self, _u_degree: usize, v_degree: usize) -> Vec<Vec<Point3D<T>>> {
@@ -295,10 +275,6 @@ pub struct QuadPatch<T: Scalar> {
     pub v_range: (T, T),
 }
 
-// ============================================================================
-// BoundedCylindricalSurface3D の実装
-// ============================================================================
-
 impl<T: Scalar> BoundedCylindricalSurface3D<T> {
     /// 境界内の点かを判定
     pub fn contains_uv(&self, u: T, v: T) -> bool {
@@ -344,10 +320,6 @@ impl<T: Scalar> BoundedCylindricalSurface3D<T> {
     }
 }
 
-// ============================================================================
-// IsoCurve3D の実装
-// ============================================================================
-
 impl<T: Scalar> IsoCurve3D<T> {
     /// パラメータtでの曲線上の点を取得
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
@@ -377,10 +349,6 @@ impl<T: Scalar> IsoCurve3D<T> {
         }
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

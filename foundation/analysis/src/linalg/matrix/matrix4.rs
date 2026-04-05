@@ -87,8 +87,6 @@ impl<T: Scalar> Matrix4x4<T> {
         )
     }
 
-    // === アクセサメソッド ===
-
     /// 要素を取得
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {
@@ -139,8 +137,6 @@ impl<T: Scalar> Matrix4x4<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素を行優先でイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().flat_map(|row| row.iter()).copied()
@@ -155,8 +151,6 @@ impl<T: Scalar> Matrix4x4<T> {
     pub fn columns(&self) -> impl Iterator<Item = [T; 4]> + '_ {
         (0..4).map(move |col| self.get_column(col))
     }
-
-    // === GPU用変換 ===
 
     /// 列優先形式に変換（wgpu/OpenGL用）
     ///
@@ -203,8 +197,6 @@ impl<T: Scalar> Matrix4x4<T> {
             ],
         }
     }
-
-    // === 基本演算 ===
 
     pub fn transpose(&self) -> Self {
         let mut result = Self::zeros();
@@ -593,8 +585,6 @@ impl<T: Scalar> Matrix4x4<T> {
         ])
     }
 
-    // === 3D アフィン変換メソッド ===
-
     /// 3Dベクトルを同次座標として変換（点として扱う）
     /// Vector3を(x, y, z, 1)として扱い、4x4行列で変換
     pub fn transform_point_3d(&self, point: &Vector3<T>) -> Vector3<T> {
@@ -656,8 +646,6 @@ impl<T: Scalar> Matrix4x4<T> {
             .collect()
     }
 
-    // === 3D変換行列の構築メソッド ===
-
     /// Vector3による平行移動行列を作成
     pub fn translation_3d(translation: &Vector3<T>) -> Self {
         Self::translation(translation.x(), translation.y(), translation.z())
@@ -702,8 +690,6 @@ impl<T: Scalar> Matrix4x4<T> {
         let rz = Self::rotation_z(z);
         rx * ry * rz
     }
-
-    // === 3Dアフィン変換の分解・抽出メソッド ===
 
     /// 3D変換行列から平行移動成分を抽出
     pub fn extract_translation_3d(&self) -> Vector3<T> {
@@ -757,8 +743,6 @@ impl<T: Scalar> Matrix4x4<T> {
         let rotation = self.extract_rotation_3d();
         (translation, rotation, scale)
     }
-
-    // === 3Dアフィン変換・同次座標系の判定 ===
 
     /// 同次座標系での3Dアフィン変換行列かどうかを判定
     /// 4x4行列の最下行が [0, 0, 0, 1] であることを確認
@@ -856,8 +840,6 @@ impl<T: Scalar> Matrix4x4<T> {
         ]
     }
 
-    // === 同次座標系での変換 ===
-
     /// 同次座標系での正規化（最下行右下を1にスケール）
     pub fn normalize_homogeneous_3d(&self) -> Result<Self, String> {
         let w = self.data[3][3];
@@ -914,8 +896,6 @@ impl<T: Scalar> Matrix4x4<T> {
             transformed.z() / w,
         ))
     }
-
-    // === 3Dアフィン変換専用の構築メソッド ===
 
     /// 一般的な3Dアフィン変換行列を作成
     /// linear_transform: 3x3線形変換行列, translation: 平行移動ベクトル
@@ -992,8 +972,6 @@ impl<T: Scalar> Matrix4x4<T> {
 
         Ok(s_inv * inv_rotation * t_inv)
     }
-
-    // === 特殊な3D変換 ===
 
     /// X軸周りの回転行列
     pub fn rotation_x_3d(angle: T) -> Self {
@@ -1231,8 +1209,6 @@ impl<T: Scalar> Matrix4x4<T> {
         )
     }
 
-    // === デバッグ・ユーティリティ ===
-
     /// Matrix4x4の詳細情報を文字列として取得
     pub fn debug_string(&self) -> String {
         format!(
@@ -1365,8 +1341,6 @@ impl<T: Scalar> Matrix4x4<T> {
     }
 }
 
-// === 添え字演算子（互換性維持） ===
-
 impl<T: Scalar> Index<usize> for Matrix4x4<T> {
     type Output = [T; 4];
     #[inline]
@@ -1381,8 +1355,6 @@ impl<T: Scalar> IndexMut<usize> for Matrix4x4<T> {
         &mut self.data[row]
     }
 }
-
-// === 演算子オーバーロード ===
 
 impl<T: Scalar> Add for Matrix4x4<T> {
     type Output = Self;
@@ -1458,8 +1430,6 @@ impl<T: Scalar> Neg for Matrix4x4<T> {
         result
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[[T; 4]; 4]> for Matrix4x4<T> {
     /// 行優先配列から構築

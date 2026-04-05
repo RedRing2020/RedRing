@@ -24,15 +24,7 @@ pub struct Arc2D<T: Scalar> {
     pub(crate) end_angle: Angle<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Arc2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい円弧を作成
     ///
     /// # 引数
@@ -81,10 +73,6 @@ impl<T: Scalar> Arc2D<T> {
         Self::from_center_radius(center, radius, start_angle, end_angle)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 基底円を取得
     pub fn circle(&self) -> &Circle2D<T> {
         &self.circle
@@ -110,10 +98,6 @@ impl<T: Scalar> Arc2D<T> {
     pub fn end_angle(&self) -> Angle<T> {
         self.end_angle
     }
-
-    // ========================================================================
-    // Core Geometric Methods
-    // ========================================================================
 
     /// 指定角度における点を取得（内部用・ラジアン値）
     fn point_at_angle_internal(&self, angle: T) -> Point2D<T> {
@@ -153,7 +137,7 @@ impl<T: Scalar> Arc2D<T> {
     }
 
     /// 円弧の長さを計算
-    pub fn arc_length(&self) -> T {
+    pub fn length(&self) -> T {
         self.radius_internal() * self.angular_span()
     }
 
@@ -211,14 +195,6 @@ impl<T: Scalar> Arc2D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits実装（arc_core_traits準拠）
-// ============================================================================
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
-
 impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
     fn new(center: (T, T), radius: T, start_angle: T, end_angle: T) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
@@ -266,7 +242,6 @@ impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
         Self::new(circle, start, end).unwrap()
     }
 
-    // Phase 2: 追加コンストラクタ
     fn from_center_and_points(center: (T, T), start: (T, T), end: (T, T)) -> Option<Self> {
         let center_point = Point2D::new(center.0, center.1);
         let start_point = Point2D::new(start.0, start.1);
@@ -318,7 +293,6 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
         2
     }
 
-    // Phase 2: 追加プロパティ
     fn angle_span(&self) -> T {
         (self.end_angle.to_radians() - self.start_angle.to_radians()).abs()
     }
@@ -335,9 +309,8 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 }
 
 impl<T: Scalar> Arc2DDerived<T> for Arc2D<T> {
-    fn measure(&self) -> T {
-        // arc_length の計算を直接展開: radius * angular_span
-        self.radius_internal() * self.angular_span()
+    fn length(&self) -> T {
+        Arc2D::length(self)
     }
 }
 
@@ -349,13 +322,6 @@ impl<T: Scalar> Arc2DEndpoint<T> for Arc2D<T> {
 
     fn end_point(&self) -> (T, T) {
         let p = self.point_at_angle_internal(self.end_angle.to_radians());
-        (p.x(), p.y())
-    }
-
-    fn midpoint(&self) -> (T, T) {
-        let mid_angle =
-            (self.start_angle.to_radians() + self.end_angle.to_radians()) / (T::ONE + T::ONE);
-        let p = self.point_at_angle_internal(mid_angle);
         (p.x(), p.y())
     }
 }
@@ -414,10 +380,6 @@ impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
         }
     }
 }
-
-// ============================================================================
-// Helper methods for Arc2D
-// ============================================================================
 
 impl<T: Scalar> Arc2D<T> {
     /// 3点の外接円の中心を計算
@@ -520,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arc_length() {
+    fn test_length() {
         let center = Point2D::new(0.0, 0.0);
         let radius = 1.0;
         let start = Angle::from_degrees(0.0);
@@ -530,7 +492,7 @@ mod tests {
 
         // 90度円弧の長さ = π/2
         let expected_length = std::f64::consts::PI / 2.0;
-        assert!((arc.arc_length() - expected_length).abs() < 1e-10);
+        assert!((arc.length() - expected_length).abs() < 1e-10);
     }
 
     #[test]

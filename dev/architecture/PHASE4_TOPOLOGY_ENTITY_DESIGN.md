@@ -254,7 +254,7 @@ impl<T: Scalar> Edge<T> {
                 let (t0, t1) = self.parameter_range;
                 line.length() * (t1 - t0).abs()
             },
-            CurveRef::Circle(arc) => arc.arc_length(),
+            CurveRef::Circle(arc) => arc.length(),
             CurveRef::Ellipse(ellipse) => ellipse.arc_length(),
             CurveRef::Nurbs(nurbs) => nurbs.arc_length_total(),
         }

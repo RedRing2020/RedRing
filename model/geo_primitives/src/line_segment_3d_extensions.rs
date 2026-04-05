@@ -6,10 +6,6 @@
 use crate::{LineSegment3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Core trait implementations
-// ============================================================================
-
 // Note: Copy trait cannot be implemented due to InfiniteLine3D field not implementing Copy
 
 impl<T: Scalar> std::fmt::Display for LineSegment3D<T> {
@@ -22,10 +18,6 @@ impl<T: Scalar> std::fmt::Display for LineSegment3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Extended geometric operations (moved from core)
-// ============================================================================
 
 impl<T: Scalar> LineSegment3D<T> {
     /// 境界ボックスを取得
@@ -176,7 +168,3 @@ impl<T: Scalar> LineSegment3D<T> {
         points
     }
 }
-
-// ============================================================================
-// geo_foundation trait implementations (simplified)
-// ============================================================================

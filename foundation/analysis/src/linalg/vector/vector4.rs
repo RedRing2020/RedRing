@@ -144,8 +144,6 @@ impl<T: Scalar> Vector4<T> {
         self.data[3] = w;
     }
 
-    // === 汎用アクセサ ===
-
     /// インデックスで要素を取得
     #[inline]
     pub fn get(&self, index: usize) -> T {
@@ -164,14 +162,10 @@ impl<T: Scalar> Vector4<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素をイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().copied()
     }
-
-    // === 基本演算 ===
 
     /// 内積
     pub fn dot(&self, other: &Self) -> T {
@@ -384,8 +378,6 @@ impl<T: Scalar> Neg for Vector4<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Vector4<T> {
     type Output = T;
     #[inline]
@@ -400,8 +392,6 @@ impl<T: Scalar> IndexMut<usize> for Vector4<T> {
         &mut self.data[index]
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[T; 4]> for Vector4<T> {
     #[inline]

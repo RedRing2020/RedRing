@@ -371,7 +371,7 @@ impl<T: Scalar> Triangle3DDerived<T> for Triangle3D<T> {
         Triangle3D::inradius(self)
     }
 
-    fn measure(&self) -> T {
+    fn area(&self) -> T {
         Triangle3D::area(self)
     }
 

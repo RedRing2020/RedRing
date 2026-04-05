@@ -19,15 +19,7 @@ pub struct Vector3D<T: Scalar> {
     z: T,
 }
 
-// ============================================================================
-// Core Implementation
-// ============================================================================
-
 impl<T: Scalar> Vector3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しいベクトルを作成
     ///
     /// # Examples
@@ -68,10 +60,6 @@ impl<T: Scalar> Vector3D<T> {
         Self::new(components.0, components.1, components.2)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// x成分を取得
     pub fn x(&self) -> T {
         self.x
@@ -91,10 +79,6 @@ impl<T: Scalar> Vector3D<T> {
     pub fn components(&self) -> [T; 3] {
         [self.x, self.y, self.z]
     }
-
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
 
     /// ベクトルの長さの二乗
     pub fn length_squared(&self) -> T {
@@ -213,10 +197,6 @@ impl<T: Scalar> Vector3D<T> {
         self.dot(other).abs() <= tolerance
     }
 
-    // ========================================================================
-    // Extended Methods
-    // ========================================================================
-
     /// ベクトルの線形補間
     pub fn lerp(&self, other: &Self, t: T) -> Self {
         *self + (*other - *self) * t
@@ -312,10 +292,6 @@ impl<T: Scalar> Vector3D<T> {
     }
 }
 
-// ============================================================================
-// Helper Enums
-// ============================================================================
-
 /// ベクトル間の関係性
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VectorRelationship {
@@ -339,10 +315,6 @@ pub enum DominantAxis {
     /// Z軸
     Z,
 }
-
-// ============================================================================
-// Operator Implementations
-// ============================================================================
 
 impl<T: Scalar> std::ops::Add for Vector3D<T> {
     type Output = Self;
@@ -384,10 +356,6 @@ impl<T: Scalar> std::ops::Neg for Vector3D<T> {
     }
 }
 
-// ============================================================================
-// Point3D との演算子オーバーロード
-// ============================================================================
-
 // Point - Point = Vector (2点間のベクトル)
 impl<T: Scalar> std::ops::Sub for Point3D<T> {
     type Output = Vector3D<T>;
@@ -427,14 +395,11 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
     }
 }
 
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
-
-use crate::vector_traits::{
-    Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
-};
 use analysis::linalg::vector::Vector3;
+use geo_contracts::{
+    Vector3DConstructor, Vector3DCore, Vector3DMetric, Vector3DProduct, Vector3DProjection,
+    Vector3DProperties, Vector3DRelation,
+};
 
 impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
     fn new(x: T, y: T, z: T) -> Self {
@@ -512,7 +477,9 @@ impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
     fn to_analysis_vector(&self) -> Vector3<T> {
         Vector3::new(self.x, self.y, self.z)
     }
+}
 
+impl<T: Scalar> Vector3DMetric<T> for Vector3D<T> {
     fn length(&self) -> T {
         Vector3D::length(self)
     }
@@ -527,20 +494,6 @@ impl<T: Scalar> Vector3DProperties<T> for Vector3D<T> {
 
     fn try_normalize(&self) -> Option<Self> {
         Vector3D::try_normalize(self)
-    }
-}
-
-impl<T: Scalar> Vector3DMeasure<T> for Vector3D<T> {
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
-    }
-
-    fn cross_3d(&self, other: &Self) -> Self {
-        self.cross(other)
-    }
-
-    fn angle_to(&self, other: &Self) -> Option<T> {
-        Some(self.angle_between(other))
     }
 
     fn distance_to(&self, other: &Self) -> T {
@@ -558,6 +511,22 @@ impl<T: Scalar> Vector3DMeasure<T> for Vector3D<T> {
     fn manhattan_distance(&self) -> T {
         self.x.abs() + self.y.abs() + self.z.abs()
     }
+}
+
+impl<T: Scalar> Vector3DProduct<T> for Vector3D<T> {
+    fn dot(&self, other: &Self) -> T {
+        self.dot(other)
+    }
+
+    fn cross_3d(&self, other: &Self) -> Self {
+        self.cross(other)
+    }
+}
+
+impl<T: Scalar> Vector3DRelation<T> for Vector3D<T> {
+    fn angle_to(&self, other: &Self) -> Option<T> {
+        Some(self.angle_between(other))
+    }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
         self.is_parallel(other)
@@ -566,7 +535,9 @@ impl<T: Scalar> Vector3DMeasure<T> for Vector3D<T> {
     fn is_perpendicular_to(&self, other: &Self) -> bool {
         self.is_perpendicular(other)
     }
+}
 
+impl<T: Scalar> Vector3DProjection<T> for Vector3D<T> {
     fn project_onto(&self, other: &Self) -> Option<Self> {
         Some(self.project_onto(other))
     }
@@ -586,10 +557,6 @@ impl<T: Scalar> TolerantEq<T> for Vector3D<T> {
         diff_magnitude <= tolerance
     }
 }
-
-// ============================================================================
-// From trait implementations
-// ============================================================================
 
 /// タプルからの変換
 impl<T: Scalar> From<(T, T, T)> for Vector3D<T> {

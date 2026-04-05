@@ -1,24 +1,12 @@
 //! CylindricalSolid3D の Foundation トレイト実装
 
 use crate::CylindricalSolid3D;
-use geo_contracts::{
-    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
-};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 use geo_core::Aabb3D;
-
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
 
 impl<T: Scalar> PrimitiveMetadata for CylindricalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSolid
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for CylindricalSolid3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.volume_internal())
     }
 }
 
@@ -58,10 +46,6 @@ impl<T: Scalar> TolerantEq<T> for CylindricalSolid3D<T> {
     }
 }
 
-// ============================================================================
-// Backward Compatibility (移行期間中のみ) - 重複回避のためコメントアウト
-// ============================================================================
-
 /*
 /// 旧Cylinder3D向けのFoundation実装は既存のcylinder_3d_foundation.rsで提供されるため
 /// 重複を避けるためここでは実装しない
@@ -84,7 +68,7 @@ mod tests {
             cylindrical_solid.primitive_kind(),
             PrimitiveKind::CylindricalSolid
         );
-        assert!(cylindrical_solid.measure().is_some());
+        assert!(cylindrical_solid.volume_internal() > 0.0);
 
         let bbox = cylindrical_solid.aabb().expect("should have aabb");
         assert_eq!(bbox.min().x(), -4.0);

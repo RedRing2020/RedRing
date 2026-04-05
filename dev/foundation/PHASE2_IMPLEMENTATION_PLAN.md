@@ -180,13 +180,13 @@ Phase 2 では既存の高度な計算トレイトも整理・統合：
 pub trait EllipseCalculation<T: Scalar> {
     type Point;
     
-    // 周長計算（複数の近似式）
-    fn perimeter_ramanujan_i(&self) -> T;
-    fn perimeter_ramanujan_ii(&self) -> T;
-    fn perimeter_pade(&self) -> T;
-    fn perimeter_cantrell(&self) -> T;
-    fn perimeter_series(&self, terms: usize) -> T;
-    fn perimeter_numerical(&self, n_points: usize) -> T;
+   // 周回長計算（複数の近似式）
+   fn circumference_ramanujan_i(&self) -> T;
+   fn circumference_ramanujan_ii(&self) -> T;
+   fn circumference_pade(&self) -> T;
+   fn circumference_cantrell(&self) -> T;
+   fn circumference_series(&self, terms: usize) -> T;
+   fn circumference_numerical(&self, n_points: usize) -> T;
     
     // 幾何パラメータ
     fn eccentricity(&self) -> T;

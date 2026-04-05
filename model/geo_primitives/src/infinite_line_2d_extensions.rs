@@ -6,15 +6,7 @@ use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::default_distance_tolerance;
 use geo_contracts::{Angle, Scalar};
 
-// ============================================================================
-// Extension Methods Implementation
-// ============================================================================
-
 impl<T: Scalar> InfiniteLine2D<T> {
-    // ========================================================================
-    // Advanced Construction Methods (Extension)
-    // ========================================================================
-
     /// X軸に平行な直線を作成（y = y0）
     pub fn horizontal(y: T) -> Self {
         Self::new(Point2D::new(T::ZERO, y), Vector2D::unit_x())
@@ -33,10 +25,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         Self::new(Point2D::new(T::ZERO, intercept), direction)
             .expect("Non-zero direction vector should always be valid for InfiniteLine2D")
     }
-
-    // ========================================================================
-    // Advanced Geometric Analysis (Extension)
-    // ========================================================================
 
     /// 傾きを取得（垂直線の場合はNone）
     pub fn slope(&self) -> Option<T> {
@@ -78,10 +66,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
     pub fn angle(&self) -> T {
         self.direction_internal().angle().to_radians()
     }
-
-    // ========================================================================
-    // Advanced Relationship Analysis (Extension)
-    // ========================================================================
 
     /// 直線が平行かを判定（角度許容誤差使用）
     pub fn is_parallel(&self, other: &Self) -> bool {
@@ -130,10 +114,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         self.is_parallel(other) && self.contains_point(&other.point_internal(), tolerance)
     }
 
-    // ========================================================================
-    // Transformation Methods (Extension)
-    // ========================================================================
-
     /// 直線を平行移動
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         Self::new(self.point_internal() + offset, *self.direction_internal())
@@ -171,10 +151,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         self.rotate_around_origin(Angle::from_radians(angle))
     }
 
-    // ========================================================================
-    // Conversion Methods (Extension)
-    // ========================================================================
-
     /// 3次元無限直線に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::InfiniteLine3D<T> {
         crate::InfiniteLine3D::new(
@@ -192,10 +168,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         )
         .unwrap()
     }
-
-    // ========================================================================
-    // Advanced Helper Methods (Extension)
-    // ========================================================================
 
     /// 直線上の最も近い点を取得（project_pointのエイリアス）
     pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {

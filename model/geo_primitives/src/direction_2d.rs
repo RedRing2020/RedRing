@@ -18,10 +18,6 @@ pub struct Direction2D<T: Scalar> {
     vector: Vector2D<T>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Direction2D<T> {
     fn is_parallel_with_angle_tolerance(&self, other: &Self, angle_tolerance: T) -> bool {
         let angle = self.angle_to(other);
@@ -32,10 +28,6 @@ impl<T: Scalar> Direction2D<T> {
         let right_angle = T::PI / (T::ONE + T::ONE);
         (self.angle_to(other) - right_angle).abs() <= angle_tolerance
     }
-
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
 
     /// ベクトルから方向を作成（正規化）
     pub fn from_vector(vector: Vector2D<T>) -> Option<Self> {
@@ -81,10 +73,6 @@ impl<T: Scalar> Direction2D<T> {
         }
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// X成分を取得
     pub fn x(&self) -> T {
         self.vector.x()
@@ -99,10 +87,6 @@ impl<T: Scalar> Direction2D<T> {
     pub fn as_vector(&self) -> Vector2D<T> {
         self.vector
     }
-
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
 
     /// 他の方向との内積を計算
     pub fn dot(&self, other: &Self) -> T {
@@ -141,10 +125,6 @@ impl<T: Scalar> Direction2D<T> {
         self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 }
-
-// ============================================================================
-// Foundation Pattern Core Traits Implementation
-// ============================================================================
 
 /// Direction2D Constructor Trait Implementation
 impl<T: Scalar> Direction2DConstructor<T> for Direction2D<T> {
@@ -270,10 +250,6 @@ impl<T: Scalar> Direction2DTransform<T> for Direction2D<T> {
     }
 }
 
-// ============================================================================
-// Deref implementations - Vector2Dメソッドを透過的に使用可能
-// ============================================================================
-
 /// Direction2DをVector2Dとして扱えるようにする
 impl<T: Scalar> Deref for Direction2D<T> {
     type Target = Vector2D<T>;
@@ -290,10 +266,6 @@ impl<T: Scalar> DerefMut for Direction2D<T> {
     }
 }
 
-// ============================================================================
-// From trait implementations
-// ============================================================================
-
 /// Vector2Dからの変換（失敗する可能性があるためOptionを返す）
 impl<T: Scalar> TryFrom<Vector2D<T>> for Direction2D<T> {
     type Error = ();
@@ -302,10 +274,6 @@ impl<T: Scalar> TryFrom<Vector2D<T>> for Direction2D<T> {
         Self::from_vector(vector).ok_or(())
     }
 }
-
-// ============================================================================
-// Arithmetic Operators
-// ============================================================================
 
 /// スカラー乗算（Direction2D * T = Vector2D）
 impl<T: Scalar> std::ops::Mul<T> for Direction2D<T> {

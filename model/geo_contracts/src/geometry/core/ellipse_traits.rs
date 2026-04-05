@@ -48,12 +48,6 @@ pub trait Ellipse2DDerived<T: Scalar> {
     /// 閉曲線の主語彙としての周回長を返す
     fn circumference(&self) -> T;
 
-    /// 互換語彙としての周長を返す
-    fn perimeter(&self) -> T;
-
-    /// 互換集約 API として面積を返す
-    fn measure(&self) -> T;
-
     /// 離心率を返す
     fn eccentricity(&self) -> T;
 
@@ -172,12 +166,6 @@ pub trait Ellipse3DDerived<T: Scalar> {
 
     /// 閉曲線の主語彙としての周回長を返す
     fn circumference(&self) -> T;
-
-    /// 互換語彙としての周長を返す
-    fn perimeter(&self) -> T;
-
-    /// 互換集約 API として面積を返す
-    fn measure(&self) -> T;
 
     /// 離心率を返す
     fn eccentricity(&self) -> T;

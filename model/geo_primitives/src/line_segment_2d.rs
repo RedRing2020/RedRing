@@ -361,10 +361,6 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
 }
 
 impl<T: Scalar> LineSegment2DDerived<T> for LineSegment2D<T> {
-    fn measure(&self) -> T {
-        self.length()
-    }
-
     fn direction_vector(&self) -> (T, T) {
         let dir = self.direction();
         (dir.x(), dir.y())

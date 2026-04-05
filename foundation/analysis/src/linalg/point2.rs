@@ -67,8 +67,6 @@ impl<T: Scalar> Point2<T> {
         }
     }
 
-    // === 変換 ===
-
     /// Vector2に変換
     pub fn to_vector(&self) -> Vector2<T> {
         Vector2::new(self.x, self.y)
@@ -160,8 +158,6 @@ impl<T: Scalar> std::ops::Sub<Vector2<T>> for Point2<T> {
     }
 }
 
-// === 添え字演算子 ===
-
 impl<T: Scalar> Index<usize> for Point2<T> {
     type Output = T;
     #[inline]
@@ -174,16 +170,12 @@ impl<T: Scalar> Index<usize> for Point2<T> {
     }
 }
 
-// === 配列変換 ===
-
 impl<T: Scalar> From<[T; 2]> for Point2<T> {
     #[inline]
     fn from(data: [T; 2]) -> Self {
         Self::new(data[0], data[1])
     }
 }
-
-// === トレイト実装 ===
 
 /// 2次元座標アクセスの共通トレイト
 ///

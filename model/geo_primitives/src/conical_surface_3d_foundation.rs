@@ -4,20 +4,12 @@
 //! 他の幾何プリミティブとの統一インターフェースを提供
 
 use crate::ConicalSurface3D;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for ConicalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::ConicalSurface
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for ConicalSurface3D<T> {
-    fn measure(&self) -> Option<T> {
-        // 円錐サーフェスの表面積は無限大（無制限範囲）
-        // 境界が指定された場合のみ計算可能
-        None
     }
 }
 

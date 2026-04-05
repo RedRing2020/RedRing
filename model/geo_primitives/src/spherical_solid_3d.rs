@@ -26,10 +26,6 @@ pub struct SphericalSolid3D<T: Scalar> {
     radius: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> SphericalSolid3D<T> {
     /// STEP 配置情報からの球ソリッド生成
     ///
@@ -86,10 +82,6 @@ impl<T: Scalar> SphericalSolid3D<T> {
         }
         Self::new(center, axis, ref_direction, diameter / T::from_f64(2.0))
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 球の中心点の取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
@@ -270,10 +262,6 @@ impl<T: Scalar> SphericalSolid3D<T> {
         self.point_on_surface_in_direction(direction)
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use geo_contracts::{
     SphericalSolid3DConstructor, SphericalSolid3DContainment, SphericalSolid3DDerived,
@@ -475,10 +463,6 @@ impl<T: Scalar> IntersectsRelation<Self> for SphericalSolid3D<T> {
     }
 }
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
-
 impl<T: Scalar> std::fmt::Display for SphericalSolid3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -497,10 +481,6 @@ impl<T: Scalar> std::fmt::Display for SphericalSolid3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Backward Compatibility (移行期間中のみ)
-// ============================================================================
 
 /// 旧名前との互換性のためのエイリアス
 /// 将来のバージョンで削除予定

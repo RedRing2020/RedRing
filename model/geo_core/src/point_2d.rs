@@ -2,10 +2,12 @@
 //!
 //! Foundation統一システムに基づくPoint2Dの必須機能のみ
 
-use crate::point_traits::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties};
 use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::vector::Vector2;
+use geo_contracts::{
+    Point2DConstructor, Point2DCore, Point2DDistance, Point2DInterpolation, Point2DProperties,
+};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -16,15 +18,7 @@ pub struct Point2D<T: Scalar> {
     y: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Point2D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい点を作成
     pub fn new(x: T, y: T) -> Self {
         Self { x, y }
@@ -39,10 +33,6 @@ impl<T: Scalar> Point2D<T> {
     pub fn from_tuple(coords: (T, T)) -> Self {
         Self::new(coords.0, coords.1)
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// X座標を取得
     pub fn x(&self) -> T {
@@ -63,10 +53,6 @@ impl<T: Scalar> Point2D<T> {
     pub fn to_tuple(&self) -> (T, T) {
         (self.x, self.y)
     }
-
-    // ========================================================================
-    // Core Distance Methods (基本距離計算)
-    // ========================================================================
 
     /// 他の点との距離を計算
     pub fn distance_to(&self, other: &Self) -> T {
@@ -90,18 +76,10 @@ impl<T: Scalar> Point2D<T> {
         self.x * self.x + self.y * self.y
     }
 
-    // ========================================================================
-    // Phase 2 Constructor Methods
-    // ========================================================================
-
     /// 極座標から点を作成（r: 半径, theta: 角度）
     pub fn from_polar(r: T, theta: T) -> Self {
         Self::new(r * theta.cos(), r * theta.sin())
     }
-
-    // ========================================================================
-    // Phase 2 Properties Methods
-    // ========================================================================
 
     /// 極座標の半径成分を取得
     pub fn polar_radius(&self) -> T {
@@ -112,10 +90,6 @@ impl<T: Scalar> Point2D<T> {
     pub fn polar_angle(&self) -> T {
         self.y.atan2(self.x)
     }
-
-    // ========================================================================
-    // Phase 2 Measure Methods
-    // ========================================================================
 
     /// 2点の中点を計算
     pub fn midpoint(&self, other: &Self) -> Self {
@@ -146,10 +120,7 @@ impl<T: Scalar> Point2D<T> {
     }
 }
 
-// ============================================================================
-// ============================================================================
-// Legacy Foundation Trait Implementation (Temporarily Disabled)
-// ============================================================================
+// 一時的に無効化した旧 Foundation 実装
 
 /*
 impl<T: Scalar> Point2DTrait<T> for Point2D<T> {
@@ -177,10 +148,6 @@ impl<T: Scalar> BasicContainment<T> for Point2D<T> {
     }
 }
 */
-
-// ============================================================================
-// Extension Methods (既存コード互換性のため)
-// ============================================================================
 
 impl<T: Scalar> Point2D<T> {
     /// 他の点へのベクトル
@@ -280,10 +247,6 @@ impl<T: Scalar> Point2D<T> {
     }
 }
 
-// ============================================================================
-// 基本演算子実装 (Basic Operator Implementations)
-// ============================================================================
-
 impl<T: Scalar> Add<Vector2D<T>> for Point2D<T> {
     type Output = Self;
 
@@ -329,10 +292,6 @@ impl<T: Scalar> Default for Point2D<T> {
         Self::origin()
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 impl<T: Scalar> Point2DConstructor<T> for Point2D<T> {
     fn new(x: T, y: T) -> Self {
@@ -386,7 +345,7 @@ impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
+impl<T: Scalar> Point2DDistance<T> for Point2D<T> {
     fn distance_to(&self, other: &Self) -> T {
         self.distance_to(other)
     }
@@ -405,20 +364,22 @@ impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
         self.distance_squared_to(&origin)
     }
 
-    fn midpoint(&self, other: &Self) -> Self {
-        self.midpoint(other)
-    }
-
-    fn lerp(&self, other: &Self, t: T) -> Self {
-        self.lerp(other, t)
-    }
-
     fn manhattan_distance_to(&self, other: &Self) -> T {
         self.manhattan_distance_to(other)
     }
 
     fn chebyshev_distance_to(&self, other: &Self) -> T {
         self.chebyshev_distance_to(other)
+    }
+}
+
+impl<T: Scalar> Point2DInterpolation<T> for Point2D<T> {
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
     }
 }
 

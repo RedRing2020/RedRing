@@ -9,12 +9,12 @@ where
     T: Scalar,
     E: EllipseCalculation<T> + ?Sized,
 {
-    let numerical_ref = ellipse.perimeter_numerical(ANALYSIS_NUMERICAL_REFERENCE_POINTS);
-    let ramanujan_i = ellipse.perimeter_ramanujan_i();
-    let ramanujan_ii = ellipse.perimeter_ramanujan_ii();
-    let pade = ellipse.perimeter_pade();
-    let cantrell = ellipse.perimeter_cantrell();
-    let series = ellipse.perimeter_series(ANALYSIS_SERIES_TERMS);
+    let numerical_ref = ellipse.circumference_numerical(ANALYSIS_NUMERICAL_REFERENCE_POINTS);
+    let ramanujan_i = ellipse.circumference_ramanujan_i();
+    let ramanujan_ii = ellipse.circumference_ramanujan_ii();
+    let pade = ellipse.circumference_pade();
+    let cantrell = ellipse.circumference_cantrell();
+    let series = ellipse.circumference_series(ANALYSIS_SERIES_TERMS);
 
     vec![
         (

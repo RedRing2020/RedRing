@@ -3,9 +3,9 @@
 //! Foundation Pattern に基づく Aabb2D の実装。
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
-use crate::aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
 use crate::Point2D;
 use analysis::abstract_types::Scalar;
+use geo_contracts::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Aabb2D<T: Scalar> {
@@ -109,10 +109,6 @@ impl<T: Scalar> Aabb2D<T> {
     }
 }
 
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> Aabb2DProperties<T> for Aabb2D<T> {
     type Point2D = Point2D<T>;
 
@@ -179,7 +175,7 @@ impl<T: Scalar> Aabb2DRelation<T> for Aabb2D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aabb_traits::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
+    use geo_contracts::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
 
     #[test]
     fn test_aabb2d_creation() {

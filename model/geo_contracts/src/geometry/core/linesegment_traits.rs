@@ -130,9 +130,6 @@ pub trait LineSegment3DProperties<T: Scalar> {
 }
 
 pub trait LineSegment2DDerived<T: Scalar> {
-    /// 互換目的の測度。意味は拘束点間距離とする
-    fn measure(&self) -> T;
-
     /// 方向ベクトルを取得
     fn direction_vector(&self) -> (T, T);
 
@@ -161,9 +158,6 @@ pub trait LineSegment2DProjection<T: Scalar> {
 }
 
 pub trait LineSegment3DDerived<T: Scalar> {
-    /// 互換目的の測度。意味は拘束点間距離とする
-    fn measure(&self) -> T;
-
     /// 方向ベクトルを取得
     fn direction_vector(&self) -> (T, T, T);
 

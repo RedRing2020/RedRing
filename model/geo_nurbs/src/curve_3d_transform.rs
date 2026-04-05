@@ -121,10 +121,6 @@ fn pivot_from_curve_aabb<T: Scalar>(curve: &NurbsCurve3D<T>) -> Result<Vector3<T
     Ok(Vector3::new(center.x(), center.y(), center.z()))
 }
 
-// ============================================================================
-// AnalysisTransform3D Implementation
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransform3D<T> for NurbsCurve3D<T> {
     type Matrix4x4 = Matrix4x4<T>;
     type Angle = Angle<T>;

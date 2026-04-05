@@ -3,18 +3,12 @@
 //! Foundation 系 trait への適合
 
 use crate::SphericalSolid3D;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for SphericalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::SphericalSolid
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for SphericalSolid3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.volume())
     }
 }
 
@@ -42,7 +36,7 @@ mod tests {
         assert_eq!(bbox.min(), Point3D::new(-1.0, 0.0, 1.0));
         assert_eq!(bbox.max(), Point3D::new(3.0, 4.0, 5.0));
 
-        let volume = solid.measure().unwrap();
+        let volume = solid.volume();
         let expected_volume = 4.0 * std::f64::consts::PI * 8.0 / 3.0;
         assert!((volume - expected_volume).abs() < 1e-10);
     }

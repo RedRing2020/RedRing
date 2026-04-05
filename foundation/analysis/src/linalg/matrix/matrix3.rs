@@ -131,7 +131,7 @@ impl<T: Scalar> Matrix3x3<T> {
     }
 
     /// 行列の要素にアクセス
-    // === アクセサメソッド ===
+    ///
     /// 要素を取得
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> T {
@@ -176,8 +176,6 @@ impl<T: Scalar> Matrix3x3<T> {
         &self.data
     }
 
-    // === イテレータ ===
-
     /// 全要素を行優先でイテレート
     pub fn iter(&self) -> impl Iterator<Item = T> + '_ {
         self.data.iter().flat_map(|row| row.iter()).copied()
@@ -192,8 +190,6 @@ impl<T: Scalar> Matrix3x3<T> {
     pub fn columns(&self) -> impl Iterator<Item = [T; 3]> + '_ {
         (0..3).map(move |col| self.get_column(col))
     }
-
-    // === GPU用変換 ===
 
     /// 列優先形式に変換（wgpu/OpenGL用）
     #[inline]
@@ -216,8 +212,6 @@ impl<T: Scalar> Matrix3x3<T> {
             ],
         }
     }
-
-    // === 基本演算 ===
 
     /// フロベニウスノルム
     pub fn frobenius_norm(&self) -> T {
@@ -311,8 +305,6 @@ impl<T: Scalar> Matrix3x3<T> {
         )
     }
 
-    // === 2D変換メソッド（Vector2対応） ===
-
     /// 2Dベクトルを同次座標として変換（点として扱う）
     /// Vector2を(x, y, 1)として扱い、3x3行列で変換
     pub fn transform_point_2d(&self, point: &Vector2<T>) -> Vector2<T> {
@@ -341,8 +333,6 @@ impl<T: Scalar> Matrix3x3<T> {
             .map(|v| self.transform_vector_2d(v))
             .collect()
     }
-
-    // === 2D変換行列の構築メソッド ===
 
     /// Vector2による平行移動行列を作成
     pub fn translation_2d(translation: &Vector2<T>) -> Self {
@@ -402,8 +392,6 @@ impl<T: Scalar> Matrix3x3<T> {
         t * r * s
     }
 
-    // === 2D変換の抽出・分解メソッド ===
-
     /// 2D変換行列から平行移動成分を抽出
     pub fn extract_translation_2d(&self) -> Vector2<T> {
         Vector2::new(self.data[0][2], self.data[1][2])
@@ -457,8 +445,6 @@ impl<T: Scalar> Matrix3x3<T> {
         let scale = self.extract_scale_2d();
         (scale.x() - scale.y()).abs() < T::EPSILON
     }
-
-    // === 2D幾何学的操作 ===
 
     /// 2D反射行列を作成（X軸）
     pub fn reflection_x_2d() -> Self {
@@ -538,8 +524,6 @@ impl<T: Scalar> Matrix3x3<T> {
         )
     }
 
-    // === 3D空間での2D変換サポート ===
-
     /// 3DベクトルのXY成分に2D変換を適用（Z成分は保持）
     pub fn transform_vector3_as_2d(&self, vector: &Vector3<T>) -> Vector3<T> {
         let transformed_2d = self.transform_point_2d(&Vector2::new(vector.x(), vector.y()));
@@ -553,8 +537,6 @@ impl<T: Scalar> Matrix3x3<T> {
             .map(|v| self.transform_vector3_as_2d(v))
             .collect()
     }
-
-    // === 便利メソッド・ユーティリティ ===
 
     /// 2D変換行列の逆変換を計算（より効率的な実装）
     pub fn inverse_2d(&self) -> Result<Self, String> {
@@ -583,8 +565,6 @@ impl<T: Scalar> Matrix3x3<T> {
     pub fn preserves_orientation_2d(&self) -> bool {
         self.determinant_2d() > T::ZERO
     }
-
-    // === アフィン変換・同次座標系の判定 ===
 
     /// 同次座標系でのアフィン変換行列かどうかを判定
     /// 3x3行列の最下行が [0, 0, 1] であることを確認
@@ -691,8 +671,6 @@ impl<T: Scalar> Matrix3x3<T> {
         Ok((translation, rotation, scale, shear))
     }
 
-    // === アフィン変換専用の構築メソッド ===
-
     /// 一般的なアフィン変換行列を作成
     /// linear_transform: 2x2線形変換行列, translation: 平行移動ベクトル
     pub fn affine_2d(linear_transform: [[T; 2]; 2], translation: Vector2<T>) -> Self {
@@ -792,8 +770,6 @@ impl<T: Scalar> Matrix3x3<T> {
     }
 }
 
-// === 添え字演算子（互換性維持） ===
-
 impl<T: Scalar> Index<usize> for Matrix3x3<T> {
     type Output = [T; 3];
     #[inline]
@@ -808,8 +784,6 @@ impl<T: Scalar> IndexMut<usize> for Matrix3x3<T> {
         &mut self.data[row]
     }
 }
-
-// === 演算子オーバーロード ===
 
 impl<T: Scalar> Add for Matrix3x3<T> {
     type Output = Self;
@@ -885,8 +859,6 @@ impl<T: Scalar> Neg for Matrix3x3<T> {
         result
     }
 }
-
-// === 配列変換 ===
 
 impl<T: Scalar> From<[[T; 3]; 3]> for Matrix3x3<T> {
     /// 行優先配列から構築

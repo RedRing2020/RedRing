@@ -6,7 +6,7 @@
 use crate::{LineSegment2D, Point2D, Vector2D};
 use analysis::linalg::{matrix::Matrix3x3, vector::Vector2};
 use geo_contracts::{Angle, Scalar};
-use geo_core::{AnalysisTransform2D, TransformError, AnalysisTransformSupport};
+use geo_core::{AnalysisTransform2D, AnalysisTransformSupport, TransformError};
 
 /// LineSegment2D用Analysis Matrix3x3変換モジュール
 pub mod analysis_transform {
@@ -37,23 +37,21 @@ pub mod analysis_transform {
         let transformed_ideal_end_vec = matrix.transform_point_2d(&ideal_end_vec);
         let transformed_ideal_end: Point2D<T> = transformed_ideal_end_vec.into();
 
-        let support_line = crate::InfiniteLine2D::from_two_points(
-            transformed_ideal_start,
-            transformed_ideal_end,
-        )
-        .ok_or_else(|| {
-            TransformError::InvalidGeometry(
-                "Transformed support line has coincident ideal points".to_string(),
-            )
-        })?;
+        let support_line =
+            crate::InfiniteLine2D::from_two_points(transformed_ideal_start, transformed_ideal_end)
+                .ok_or_else(|| {
+                    TransformError::InvalidGeometry(
+                        "Transformed support line has coincident ideal points".to_string(),
+                    )
+                })?;
 
         // 変換後の線分を構築
         LineSegment2D::from_support_line_and_constraint_points(support_line, new_start, new_end)
             .ok_or_else(|| {
-            TransformError::InvalidGeometry(
-                "Transformed line segment has coincident points".to_string(),
-            )
-        })
+                TransformError::InvalidGeometry(
+                    "Transformed line segment has coincident points".to_string(),
+                )
+            })
     }
 
     /// 複数線分の一括行列変換
@@ -186,10 +184,6 @@ pub mod analysis_transform {
     }
 }
 
-// ============================================================================
-// AnalysisTransform2D Trait Implementation for LineSegment2D
-// ============================================================================
-
 /// LineSegment2DでのAnalysisTransform2D実装（geo_foundation統一トレイト）
 impl<T: Scalar> AnalysisTransform2D<T> for LineSegment2D<T> {
     type Matrix3x3 = Matrix3x3<T>;
@@ -246,10 +240,6 @@ impl<T: Scalar> AnalysisTransform2D<T> for LineSegment2D<T> {
     }
 }
 
-// ============================================================================
-// Default Implementation for LineSegment2D
-// ============================================================================
-
 impl<T: Scalar> Default for LineSegment2D<T> {
     fn default() -> Self {
         // デフォルト線分: X軸方向の単位線分
@@ -258,18 +248,10 @@ impl<T: Scalar> Default for LineSegment2D<T> {
     }
 }
 
-// ============================================================================
-// Analysis Transform Support Marker
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransformSupport for LineSegment2D<T> {
     const HAS_ANALYSIS_INTEGRATION: bool = true;
     const PERFORMANCE_OPTIMIZED: bool = true;
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {
@@ -326,9 +308,7 @@ mod tests {
         // スケール中心を原点に設定
         let center = Vector2::new(0.0, 0.0);
 
-        let result = segment
-            .scale_analysis_2d(&center, 2.0, 2.0)
-            .unwrap();
+        let result = segment.scale_analysis_2d(&center, 2.0, 2.0).unwrap();
 
         // 原点中心で2倍スケール（浮動小数点誤差を考慮した許容値を使用）
         assert!((result.start_point().x() - 2.0).abs() < 1e-10);
@@ -344,9 +324,7 @@ mod tests {
             LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0)).unwrap();
 
         let center = Vector2::new(1.0, 0.0);
-        let result = segment
-            .uniform_scale_analysis_2d(&center, 1.5)
-            .unwrap();
+        let result = segment.uniform_scale_analysis_2d(&center, 1.5).unwrap();
 
         // 中心からスケールされるため、長さが1.5倍になる
         assert!((result.length() - 3.0).abs() < f64::EPSILON);
@@ -440,5 +418,3 @@ mod tests {
         }
     }
 }
-
-

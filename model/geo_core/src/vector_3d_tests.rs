@@ -97,7 +97,6 @@ mod tests {
         assert!(!v1.is_perpendicular(&v2));
     }
 
-    // === foundation トレイトテスト ===
     /*
     #[test]
     fn test_geometry_foundation() {
@@ -137,9 +136,6 @@ mod tests {
         assert_eq!(vec_f64.length(), 3.7416573867739413f64);
     }
 
-    // ============================================================================
-    // Transform テスト (旧APIのため現在は無効化)
-    // ============================================================================
     // 注: これらのテストは BasicTransform と rotate_x/rotate_z/rotate_y メソッドを使用しており、
     // 現在の Analysis Transform API に移行する必要があります。
     /*

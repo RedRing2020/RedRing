@@ -56,10 +56,6 @@ pub trait AnalysisTransformVector3D<T: Scalar> {
         Self: Sized;
 }
 
-// ============================================================================
-// Analysis Vector3 型変換
-// ============================================================================
-
 impl<T: Scalar> From<Vector3D<T>> for Vector3<T> {
     fn from(vector: Vector3D<T>) -> Self {
         Vector3::new(vector.x(), vector.y(), vector.z())
@@ -71,10 +67,6 @@ impl<T: Scalar> From<Vector3<T>> for Vector3D<T> {
         Vector3D::new(vector.x(), vector.y(), vector.z())
     }
 }
-
-// ============================================================================
-// AnalysisTransformVector3D Implementation
-// ============================================================================
 
 impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
     fn transform_vector_matrix(&self, matrix: &Matrix4x4<T>) -> Self {
@@ -184,10 +176,6 @@ impl<T: Scalar> AnalysisTransformVector3D<T> for Vector3D<T> {
         Ok(self.transform_vector_matrix(&composite))
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

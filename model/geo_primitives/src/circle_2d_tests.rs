@@ -356,11 +356,9 @@ fn test_circle2d_f32() {
     assert!((area - (std::f32::consts::PI * 9.0f32)).abs() < TOLERANCE_F32);
 }
 
-// ============================================================================
-// Foundation System Tests
-// ============================================================================
-
 #[cfg(test)]
+mod foundation_tests {
+    use super::*;
 
 
     /// Foundation Extensions統合テスト
@@ -400,10 +398,6 @@ fn test_circle2d_f32() {
         assert!((doubled.area() - expected_area).abs() < 1e-10);
     }
 }
-
-// ============================================================================
-// 新階層Foundation システムテスト
-// ============================================================================
 
 #[cfg(test)]
 mod hierarchy_foundation_tests {

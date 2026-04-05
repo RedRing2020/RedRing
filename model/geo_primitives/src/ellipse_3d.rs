@@ -142,6 +142,19 @@ impl<T: Scalar> Ellipse3D<T> {
         T::PI * self.semi_major_axis * self.semi_minor_axis
     }
 
+    /// 楕円の周回長を近似計算（ラマヌジャンの公式）
+    pub fn circumference(&self) -> T {
+        let a = self.semi_major_internal();
+        let b = self.semi_minor_internal();
+        let h = ((a - b) / (a + b)).powi(2);
+
+        T::PI
+            * (a + b)
+            * (T::ONE
+                + (T::from_f64(3.0) * h)
+                    / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
+    }
+
     /// 楕円が円かどうかを判定
     pub fn is_circle(&self) -> bool {
         let tolerance = default_distance_tolerance::<T>();
@@ -409,15 +422,7 @@ impl<T: Scalar + From<f64>> Ellipse3DDerived<T> for Ellipse3D<T> {
     }
 
     fn circumference(&self) -> T {
-        <Self as geo_contracts::EllipseCalculation<T>>::perimeter_ramanujan_ii(self)
-    }
-
-    fn perimeter(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::circumference(self)
-    }
-
-    fn measure(&self) -> T {
-        <Self as Ellipse3DDerived<T>>::area(self)
+        Ellipse3D::circumference(self)
     }
 
     /// 離心率を取得
@@ -484,27 +489,27 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
         self.semi_minor_axis
     }
 
-    fn perimeter_ramanujan_i(&self) -> T {
-        geo_commons::ellipse_perimeter_ramanujan_i(self.semi_major_axis, self.semi_minor_axis)
+    fn circumference_ramanujan_i(&self) -> T {
+        geo_commons::ellipse_circumference_ramanujan_i(self.semi_major_axis, self.semi_minor_axis)
     }
 
-    fn perimeter_ramanujan_ii(&self) -> T {
-        geo_commons::ellipse_perimeter_ramanujan_ii(self.semi_major_axis, self.semi_minor_axis)
+    fn circumference_ramanujan_ii(&self) -> T {
+        geo_commons::ellipse_circumference_ramanujan_ii(self.semi_major_axis, self.semi_minor_axis)
     }
 
-    fn perimeter_pade(&self) -> T {
-        geo_commons::ellipse_perimeter_padé(self.semi_major_axis, self.semi_minor_axis)
+    fn circumference_pade(&self) -> T {
+        geo_commons::ellipse_circumference_padé(self.semi_major_axis, self.semi_minor_axis)
     }
 
-    fn perimeter_cantrell(&self) -> T {
-        geo_commons::ellipse_perimeter_cantrell(self.semi_major_axis, self.semi_minor_axis)
+    fn circumference_cantrell(&self) -> T {
+        geo_commons::ellipse_circumference_cantrell(self.semi_major_axis, self.semi_minor_axis)
     }
 
-    fn perimeter_series(&self, terms: usize) -> T {
+    fn circumference_series(&self, terms: usize) -> T {
         geo_commons::ellipse_circumference_series(self.semi_major_axis, self.semi_minor_axis, terms)
     }
 
-    fn perimeter_numerical(&self, n_points: usize) -> T {
+    fn circumference_numerical(&self, n_points: usize) -> T {
         geo_commons::ellipse_circumference_numerical(
             self.semi_major_axis,
             self.semi_minor_axis,
@@ -542,8 +547,8 @@ impl<T: Scalar> EllipseCalculation<T> for Ellipse3D<T> {
 }
 
 impl<T: Scalar> EllipseAdaptiveCalculation<T> for Ellipse3D<T> {
-    fn perimeter_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
-        ellipse_calculation_strategy::perimeter_adaptive(
+    fn circumference_adaptive(&self, target_accuracy: T, max_computation_cost: T) -> T {
+        ellipse_calculation_strategy::circumference_adaptive(
             self,
             target_accuracy,
             max_computation_cost,

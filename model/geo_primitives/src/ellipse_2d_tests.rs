@@ -263,24 +263,24 @@ mod tests {
     }
 
     #[test]
-    fn test_perimeter_approximation() {
+    fn test_circumference_approximation() {
         // 円の場合
         let circle_ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 3.0, 3.0).unwrap();
-        let circle_perimeter = circle_ellipse.perimeter();
-        let expected_circle_perimeter = 2.0 * std::f64::consts::PI * 3.0;
+        let circle_circumference = circle_ellipse.circumference();
+        let expected_circle_circumference = 2.0 * std::f64::consts::PI * 3.0;
         assert!(
-            (circle_perimeter - expected_circle_perimeter).abs() / expected_circle_perimeter < 0.01
+            (circle_circumference - expected_circle_circumference).abs()
+                / expected_circle_circumference
+                < 0.01
         );
 
         // 一般的な楕円
         let ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 5.0, 3.0).unwrap();
-        let perimeter = ellipse.perimeter();
-        assert!(perimeter > 0.0);
-        assert!(perimeter > 2.0 * std::f64::consts::PI * 3.0); // 最小の円周より大きい
-        assert!(perimeter < 2.0 * std::f64::consts::PI * 5.0); // 最大の円周より小さい
+        let circumference = ellipse.circumference();
+        assert!(circumference > 0.0);
+        assert!(circumference > 2.0 * std::f64::consts::PI * 3.0);
+        assert!(circumference < 2.0 * std::f64::consts::PI * 5.0);
     }
-
-    // === Foundation トレイトのテスト ===
 
     #[test]
     fn test_geometry_foundation() {
@@ -299,7 +299,7 @@ mod tests {
         // BasicMetrics
         let length = ellipse.length().unwrap();
         assert!(length > 0.0);
-        assert_eq!(length, ellipse.perimeter());
+        assert_eq!(length, ellipse.circumference());
     }
 
     #[test]
@@ -356,10 +356,6 @@ mod tests {
     }
 }
 
-// ============================================================================
-// Foundation System Tests for Ellipse2D
-// ============================================================================
-
 // 注: Foundation システムの変更により、以下のテストは一時的にコメントアウト
 /*
 #[cfg(test)]
@@ -392,14 +388,14 @@ mod foundation_tests {
         let ellipse = Ellipse2D::new(Point2D::new(0.0, 0.0), 5.0, 3.0, 0.0).unwrap();
 
         // EllipseMetrics trait経由でのアクセス
-        let perimeter = ellipse.perimeter();
+        let circumference = ellipse.circumference();
         let area = ellipse.area();
         let eccentricity = ellipse.eccentricity();
         let focal_distance = ellipse.focal_distance();
         let focus1 = ellipse.focus1();
         let focus2 = ellipse.focus2();
 
-        assert!(perimeter > 0.0);
+        assert!(circumference > 0.0);
         assert!(area > 0.0);
         assert!(eccentricity >= 0.0);
         assert!(focal_distance >= 0.0);

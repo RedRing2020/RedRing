@@ -5,10 +5,6 @@
 use crate::{ConicalSolid3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Geometric Analysis Extensions
-// ============================================================================
-
 impl<T: Scalar> ConicalSolid3D<T> {
     /// 点が円錐ソリッド内部に含まれるかチェック
     ///

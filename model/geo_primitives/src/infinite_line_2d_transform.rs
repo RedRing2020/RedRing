@@ -81,10 +81,6 @@ pub mod analysis_transform {
     }
 }
 
-// ============================================================================
-// AnalysisTransform2D Trait Implementation for InfiniteLine2D
-// ============================================================================
-
 /// InfiniteLine2DでのAnalysisTransform2D実装（geo_foundation統一トレイト）
 impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
     type Matrix3x3 = Matrix3x3<T>;
@@ -144,10 +140,6 @@ impl<T: Scalar> AnalysisTransform2D<T> for InfiniteLine2D<T> {
     }
 }
 
-// ============================================================================
-// Default Implementation for InfiniteLine2D
-// ============================================================================
-
 impl<T: Scalar> Default for InfiniteLine2D<T> {
     fn default() -> Self {
         // デフォルト無限直線: X軸方向の原点を通る直線
@@ -156,18 +148,10 @@ impl<T: Scalar> Default for InfiniteLine2D<T> {
     }
 }
 
-// ============================================================================
-// Analysis Transform Support Marker
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransformSupport for InfiniteLine2D<T> {
     const HAS_ANALYSIS_INTEGRATION: bool = true;
     const PERFORMANCE_OPTIMIZED: bool = true;
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

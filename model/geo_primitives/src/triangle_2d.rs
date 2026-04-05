@@ -348,7 +348,7 @@ impl<T: Scalar> Triangle2DDerived<T> for Triangle2D<T> {
         Triangle2D::inradius(self)
     }
 
-    fn measure(&self) -> T {
+    fn area(&self) -> T {
         Triangle2D::area(self)
     }
 

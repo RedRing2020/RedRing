@@ -6,18 +6,12 @@
 //! **最終更新: 2025年11月1日**
 
 use crate::SphericalSurface3D;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for SphericalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::SphericalSurface
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for SphericalSurface3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.surface_area())
     }
 }
 
@@ -46,7 +40,7 @@ mod tests {
         assert_eq!(bbox.min(), Point3D::new(-1.0, 0.0, 1.0));
         assert_eq!(bbox.max(), Point3D::new(3.0, 4.0, 5.0));
 
-        let area = surface.measure().unwrap();
+        let area = surface.surface_area();
         let expected_area = 4.0 * std::f64::consts::PI * 4.0; // 4π * r²
         assert!((area - expected_area).abs() < 1e-10);
     }

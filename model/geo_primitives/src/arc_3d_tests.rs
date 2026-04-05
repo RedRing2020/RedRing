@@ -4,6 +4,7 @@
 
 use crate::{Arc3D, Point3D, Vector3D};
 use geo_contracts::Angle;
+use geo_contracts::Arc3DEvaluation;
 use geo_contracts::Arc3DProperties;
 
 #[cfg(test)]
@@ -80,7 +81,7 @@ mod tests {
         assert!(span.is_equivalent_default(&expected_span));
 
         // 円弧長
-        let length = arc.arc_length();
+        let length = arc.length();
         let expected_length = 2.0 * std::f64::consts::PI; // 半円
         assert!((length - expected_length).abs() < 1e-10);
 
@@ -104,7 +105,7 @@ mod tests {
 
         assert!(full_arc.is_full_circle());
 
-        let arc_length = full_arc.arc_length();
+        let arc_length = full_arc.length();
         let expected_circumference = 2.0 * std::f64::consts::PI * 3.0;
         assert!((arc_length - expected_circumference).abs() < 1e-10);
     }
@@ -169,7 +170,7 @@ mod tests {
         assert!((end.y() - 3.0_f64).abs() < 1e-10);
 
         // 中点
-        let mid = arc.mid_point();
+        let mid = <Arc3D<f64> as Arc3DEvaluation<f64>>::point_at_parameter(&arc, 0.5);
         let expected_mid_angle = std::f64::consts::PI / 4.0;
         let expected_x = 3.0 * expected_mid_angle.cos();
         let expected_y = 3.0 * expected_mid_angle.sin();
@@ -227,7 +228,7 @@ mod tests {
 
         assert_eq!(arc.radius(), 3.0f32);
 
-        let length = arc.arc_length();
+        let length = arc.length();
         let expected_length = 3.0f32 * std::f32::consts::PI;
         assert!((length - expected_length).abs() < TOLERANCE_F32);
 

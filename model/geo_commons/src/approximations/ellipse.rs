@@ -1,10 +1,10 @@
 //! 楕円の近似計算・数値計算モジュール
 //!
-//! 楕円の周囲長、面積、焦点などの計算を提供します。
+//! 楕円の周回長、面積、焦点などの計算を提供します。
 //! 複数の近似手法と数値積分による高精度計算をサポート。
 //!
 //! ## 主要機能
-//! - **周囲長近似**: ラマヌジャン近似I/II、パダン近似、カントレル近似
+//! - **周回長近似**: ラマヌジャン近似I/II、パダン近似、カントレル近似
 //! - **数値計算**: 級数展開、数値積分による高精度計算
 //! - **基本要素**: 離心率、焦点距離、面積、焦点座標
 //!
@@ -15,7 +15,7 @@
 //! let a = 5.0f64; // 長半径
 //! let b = 3.0f64; // 短半径
 //!
-//! let perimeter = ellipse_perimeter_ramanujan_ii(a, b);
+//! let circumference = ellipse_circumference_ramanujan_ii(a, b);
 //! let area = geo_commons::ellipse_area(a, b);
 //! let eccentricity = ellipse_eccentricity(a, b);
 //! ```
@@ -25,7 +25,7 @@
 
 use analysis::abstract_types::Scalar;
 
-/// ラマヌジャン近似I による楕円周囲長計算
+/// ラマヌジャン近似I による楕円周回長計算
 ///
 /// 精度: 中程度（通常の用途に適用）
 /// 計算コスト: 低
@@ -35,8 +35,8 @@ use analysis::abstract_types::Scalar;
 /// * `b` - 短半径（b > 0）
 ///
 /// # Returns
-/// 楕円の周囲長の近似値
-pub fn ellipse_perimeter_ramanujan_i<T: Scalar>(a: T, b: T) -> T {
+/// 楕円の周回長の近似値
+pub fn ellipse_circumference_ramanujan_i<T: Scalar>(a: T, b: T) -> T {
     let h = ((a - b) / (a + b)).powi(2);
     let pi = T::PI;
     (a + b)
@@ -46,7 +46,7 @@ pub fn ellipse_perimeter_ramanujan_i<T: Scalar>(a: T, b: T) -> T {
                 / (T::from_f64(10.0) + (T::from_f64(4.0) - T::from_f64(3.0) * h).sqrt()))
 }
 
-/// ラマヌジャン近似II による楕円周囲長計算
+/// ラマヌジャン近似II による楕円周回長計算
 ///
 /// 精度: 高（ほぼ全ての実用目的に適用）
 /// 計算コスト: 中
@@ -56,8 +56,8 @@ pub fn ellipse_perimeter_ramanujan_i<T: Scalar>(a: T, b: T) -> T {
 /// * `b` - 短半径（b > 0）
 ///
 /// # Returns
-/// 楕円の周囲長の高精度近似値
-pub fn ellipse_perimeter_ramanujan_ii<T: Scalar>(a: T, b: T) -> T {
+/// 楕円の周回長の高精度近似値
+pub fn ellipse_circumference_ramanujan_ii<T: Scalar>(a: T, b: T) -> T {
     let h = ((a - b) / (a + b)).powi(2);
     let pi = T::PI;
     let numerator = T::from_f64(3.0) * h;
@@ -66,7 +66,7 @@ pub fn ellipse_perimeter_ramanujan_ii<T: Scalar>(a: T, b: T) -> T {
     (a + b) * pi * (T::ONE + numerator / denominator)
 }
 
-/// パダン近似による楕円周囲長計算
+/// パダン近似による楕円周回長計算
 ///
 /// 精度: 非常に高（科学技術計算向け）
 /// 計算コスト: 高
@@ -76,8 +76,8 @@ pub fn ellipse_perimeter_ramanujan_ii<T: Scalar>(a: T, b: T) -> T {
 /// * `b` - 短半径（b > 0）
 ///
 /// # Returns
-/// 楕円の周囲長の高精度近似値
-pub fn ellipse_perimeter_padé<T: Scalar>(a: T, b: T) -> T {
+/// 楕円の周回長の高精度近似値
+pub fn ellipse_circumference_padé<T: Scalar>(a: T, b: T) -> T {
     let h = ((a - b) / (a + b)).powi(2);
     let pi = T::PI;
 
@@ -87,7 +87,7 @@ pub fn ellipse_perimeter_padé<T: Scalar>(a: T, b: T) -> T {
     (a + b) * pi * (T::ONE + h * term1 / term2)
 }
 
-/// カントレル近似による楕円周囲長計算
+/// カントレル近似による楕円周回長計算
 ///
 /// 精度: 高（工学計算向け）
 /// 計算コスト: 中
@@ -97,8 +97,8 @@ pub fn ellipse_perimeter_padé<T: Scalar>(a: T, b: T) -> T {
 /// * `b` - 短半径（b > 0）
 ///
 /// # Returns
-/// 楕円の周囲長の近似値
-pub fn ellipse_perimeter_cantrell<T: Scalar>(a: T, b: T) -> T {
+/// 楕円の周回長の近似値
+pub fn ellipse_circumference_cantrell<T: Scalar>(a: T, b: T) -> T {
     let pi = T::PI;
     let a_plus_b = a + b;
     let _a_minus_b = a - b;
@@ -107,7 +107,7 @@ pub fn ellipse_perimeter_cantrell<T: Scalar>(a: T, b: T) -> T {
     pi * (T::from_f64(1.5) * a_plus_b - sqrt_ab)
 }
 
-/// 級数展開による楕円周囲長計算
+/// 級数展開による楕円周回長計算
 ///
 /// 精度: 可変（項数に依存）
 /// 計算コスト: 高（項数に比例）
@@ -118,7 +118,7 @@ pub fn ellipse_perimeter_cantrell<T: Scalar>(a: T, b: T) -> T {
 /// * `terms` - 級数の項数（推奨: 10-50）
 ///
 /// # Returns
-/// 楕円の周囲長の級数近似値
+/// 楕円の周回長の級数近似値
 pub fn ellipse_circumference_series<T: Scalar>(a: T, b: T, terms: usize) -> T {
     let h = ((a - b) / (a + b)).powi(2);
     let pi = T::PI;
@@ -137,7 +137,7 @@ pub fn ellipse_circumference_series<T: Scalar>(a: T, b: T, terms: usize) -> T {
     pi * (a + b) * sum
 }
 
-/// 数値積分による楕円周囲長計算（シンプソン法）
+/// 数値積分による楕円周回長計算（シンプソン法）
 ///
 /// 精度: 非常に高（数値誤差のみ）
 /// 計算コスト: 非常に高
@@ -148,7 +148,7 @@ pub fn ellipse_circumference_series<T: Scalar>(a: T, b: T, terms: usize) -> T {
 /// * `n_intervals` - 積分区間数（推奨: 1000以上）
 ///
 /// # Returns
-/// 楕円の周囲長の数値積分値
+/// 楕円の周回長の数値積分値
 pub fn ellipse_circumference_numerical<T: Scalar>(a: T, b: T, n_intervals: usize) -> T {
     let pi_2 = T::PI / T::from_f64(2.0);
     let h = pi_2 / T::from_usize(n_intervals);
@@ -218,66 +218,66 @@ mod tests {
     use approx::assert_abs_diff_eq;
 
     #[test]
-    fn test_ellipse_perimeter_ramanujan_i() {
+    fn test_ellipse_circumference_ramanujan_i() {
         let a = 5.0;
         let b = 3.0;
-        let perimeter = ellipse_perimeter_ramanujan_i(a, b);
+        let circumference = ellipse_circumference_ramanujan_i(a, b);
 
         // 期待値は約25.53(参考値)
-        assert!(perimeter > 25.0 && perimeter < 26.0);
-        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.01);
+        assert!(circumference > 25.0 && circumference < 26.0);
+        assert_abs_diff_eq!(circumference, 25.526_999_519_494_66, epsilon = 0.01);
     }
 
     #[test]
-    fn test_ellipse_perimeter_ramanujan_ii() {
+    fn test_ellipse_circumference_ramanujan_ii() {
         let a = 5.0;
         let b = 3.0;
-        let perimeter = ellipse_perimeter_ramanujan_ii(a, b);
+        let circumference = ellipse_circumference_ramanujan_ii(a, b);
 
         // ラマヌジャンII近似は高精度
-        assert!(perimeter > 25.5 && perimeter < 25.6);
-        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.001);
+        assert!(circumference > 25.5 && circumference < 25.6);
+        assert_abs_diff_eq!(circumference, 25.526_999_519_494_66, epsilon = 0.001);
     }
 
     #[test]
-    fn test_ellipse_perimeter_pade() {
+    fn test_ellipse_circumference_pade() {
         let a = 5.0;
         let b = 3.0;
-        let perimeter = ellipse_perimeter_padé(a, b);
+        let circumference = ellipse_circumference_padé(a, b);
 
         // パダン近似は非常に高精度
-        assert!(perimeter > 25.52 && perimeter < 25.54);
+        assert!(circumference > 25.52 && circumference < 25.54);
     }
 
     #[test]
-    fn test_ellipse_perimeter_cantrell() {
+    fn test_ellipse_circumference_cantrell() {
         let a = 5.0;
         let b = 3.0;
-        let perimeter = ellipse_perimeter_cantrell(a, b);
+        let circumference = ellipse_circumference_cantrell(a, b);
 
         // カントレル近似の妥当性確認
-        assert!(perimeter > 24.0 && perimeter < 27.0);
+        assert!(circumference > 24.0 && circumference < 27.0);
     }
 
     #[test]
     fn test_ellipse_circumference_series() {
         let a = 5.0;
         let b = 3.0;
-        let perimeter = ellipse_circumference_series(a, b, 20);
+        let circumference = ellipse_circumference_series(a, b, 20);
 
         // 級数展開は項数が多いほど高精度
-        assert!(perimeter > 25.0 && perimeter < 26.0);
-        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.1);
+        assert!(circumference > 25.0 && circumference < 26.0);
+        assert_abs_diff_eq!(circumference, 25.526_999_519_494_66, epsilon = 0.1);
     }
 
     #[test]
     fn test_ellipse_circumference_numerical() {
         let a = 5.0;
         let b = 3.0;
-        let perimeter = ellipse_circumference_numerical(a, b, 1000);
+        let circumference = ellipse_circumference_numerical(a, b, 1000);
 
         // 数値積分は最も高精度
-        assert_abs_diff_eq!(perimeter, 25.526_999_519_494_66, epsilon = 0.01);
+        assert_abs_diff_eq!(circumference, 25.526_999_519_494_66, epsilon = 0.01);
     }
 
     #[test]
@@ -329,9 +329,13 @@ mod tests {
         let a = 3.0;
         let b = 3.0;
 
-        let perimeter = ellipse_perimeter_ramanujan_ii(a, b);
+        let circumference = ellipse_circumference_ramanujan_ii(a, b);
         let expected_circumference = 2.0 * std::f64::consts::PI * a;
-        assert_abs_diff_eq!(perimeter, expected_circumference, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(
+            circumference,
+            expected_circumference,
+            epsilon = TOLERANCE_F64
+        );
 
         let eccentricity = ellipse_eccentricity(a, b);
         assert_abs_diff_eq!(eccentricity, 0.0, epsilon = TOLERANCE_F64);
@@ -345,11 +349,11 @@ mod tests {
         let a = 5.0f32;
         let b = 3.0f32;
 
-        let perimeter = ellipse_perimeter_ramanujan_ii(a, b);
+        let circumference = ellipse_circumference_ramanujan_ii(a, b);
         let area = crate::metrics::area_volume::ellipse_area(a, b);
         let eccentricity = ellipse_eccentricity(a, b);
 
-        assert!(perimeter > 25.0f32);
+        assert!(circumference > 25.0f32);
         assert!(area > 47.0f32);
         assert!((eccentricity - 0.8f32).abs() < TOLERANCE_F32);
     }

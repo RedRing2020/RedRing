@@ -7,10 +7,6 @@ use crate::{Arc2D, Point2D};
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Angle, Arc2DContainment, Scalar};
 
-// ============================================================================
-// ArcContainment Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> ArcContainment<T> for Arc2D<T> {
     /// 点が円弧上にあるかを判定
     fn contains_point(&self, point: &Point2D<T>) -> bool {
@@ -50,10 +46,6 @@ impl<T: Scalar> ArcContainment<T> for Arc2D<T> {
         self.point_at_angle(angle.to_radians())
     }
 }
-
-// ============================================================================
-// Arc2D用の包含判定ヘルパーメソッド
-// ============================================================================
 
 impl<T: Scalar> Arc2D<T> {
     /// 点から角度を計算

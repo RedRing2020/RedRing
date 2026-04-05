@@ -3,8 +3,10 @@
 //! geo_core における Point3D の完全実装。
 //! 基本機能、Foundation トレイト、Analysis 変換、演算子オーバーロードを含む。
 
-use crate::point_traits::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties};
 use analysis::abstract_types::Scalar;
+use geo_contracts::{
+    Point3DConstructor, Point3DCore, Point3DDistance, Point3DInterpolation, Point3DProperties,
+};
 
 /// 3次元空間の点
 ///
@@ -19,15 +21,7 @@ pub struct Point3D<T: Scalar> {
     z: T,
 }
 
-// ============================================================================
-// Core Implementation (基本機能のみ)
-// ============================================================================
-
 impl<T: Scalar> Point3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい点を作成
     ///
     /// # Examples
@@ -74,10 +68,6 @@ impl<T: Scalar> Point3D<T> {
         Self::new(coords.0, coords.1, coords.2)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// X座標を取得
     #[inline]
     pub fn x(&self) -> T {
@@ -101,10 +91,6 @@ impl<T: Scalar> Point3D<T> {
     pub fn coords(&self) -> [T; 3] {
         [self.x, self.y, self.z]
     }
-
-    // ========================================================================
-    // Core Calculation Methods
-    // ========================================================================
 
     /// 他の点との距離を計算
     ///
@@ -199,10 +185,6 @@ impl<T: Scalar> Point3D<T> {
         )
     }
 
-    // ========================================================================
-    // Extended Methods (Phase 2)
-    // ========================================================================
-
     /// 球面座標から点を作成（r: 半径, theta: 方位角, phi: 仰角）
     /// theta: xy平面での角度（0 = +x軸）
     /// phi: z軸からの角度（0 = +z軸, π/2 = xy平面）
@@ -238,10 +220,6 @@ impl<T: Scalar> Point3D<T> {
         self == point
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 impl<T: Scalar> Point3DConstructor<T> for Point3D<T> {
     fn new(x: T, y: T, z: T) -> Self {
@@ -295,7 +273,7 @@ impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
+impl<T: Scalar> Point3DDistance<T> for Point3D<T> {
     fn distance_to(&self, other: &Self) -> T {
         Point3D::distance_to(self, other)
     }
@@ -312,14 +290,6 @@ impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
         self.norm()
     }
 
-    fn midpoint(&self, other: &Self) -> Self {
-        Point3D::midpoint(self, other)
-    }
-
-    fn lerp(&self, other: &Self, t: T) -> Self {
-        Point3D::lerp(self, other, t)
-    }
-
     fn manhattan_distance_to(&self, other: &Self) -> T {
         Point3D::manhattan_distance_to(self, other)
     }
@@ -329,18 +299,20 @@ impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> Point3DCore<T> for Point3D<T> {}
+impl<T: Scalar> Point3DInterpolation<T> for Point3D<T> {
+    fn midpoint(&self, other: &Self) -> Self {
+        Point3D::midpoint(self, other)
+    }
 
-// ============================================================================
-// Operator Implementations
-// ============================================================================
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        Point3D::lerp(self, other, t)
+    }
+}
+
+impl<T: Scalar> Point3DCore<T> for Point3D<T> {}
 
 // Note: Vector3D は geo_primitives で定義されるため、
 // 演算子オーバーロードは geo_primitives で実装します
-
-// ============================================================================
-// From trait implementations
-// ============================================================================
 
 /// タプルからの変換
 impl<T: Scalar> From<(T, T, T)> for Point3D<T> {
@@ -348,10 +320,6 @@ impl<T: Scalar> From<(T, T, T)> for Point3D<T> {
         Self::new(tuple.0, tuple.1, tuple.2)
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

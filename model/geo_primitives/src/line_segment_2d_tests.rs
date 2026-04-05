@@ -288,8 +288,6 @@ mod tests {
         assert!((distance - 3.0).abs() < f64::EPSILON);
     }
 
-    // === Foundation トレイトのテスト ===
-
     #[test]
     fn test_geometry_foundation_traits() {
         let segment = LineSegment2D::new(Point2D::new(1.0, 2.0), Point2D::new(5.0, 6.0)).unwrap();

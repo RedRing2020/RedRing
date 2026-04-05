@@ -5,10 +5,6 @@
 use crate::{Plane3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Basic Geometric Operations
-// ============================================================================
-
 impl<T: Scalar> Plane3D<T> {
     /// 平面による点の鏡像反転
     pub fn mirror_point(&self, point: &Point3D<T>) -> Point3D<T> {

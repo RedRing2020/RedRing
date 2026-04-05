@@ -67,15 +67,7 @@ pub struct ConicalSolid3D<T: Scalar> {
     height: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> ConicalSolid3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で円錐ソリッドを作成
     ///
     /// # Arguments
@@ -181,10 +173,6 @@ impl<T: Scalar> ConicalSolid3D<T> {
         Self::new(base_center, axis, ref_direction, radius, height)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 円錐の底面中心点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -230,10 +218,6 @@ impl<T: Scalar> ConicalSolid3D<T> {
         let y_vector = self.axis.as_vector().cross(&self.ref_direction.as_vector());
         Direction3D::from_vector(y_vector).unwrap() // 直交ベクトルなので常に成功
     }
-
-    // ========================================================================
-    // Core Geometric Methods
-    // ========================================================================
 
     /// 円錐の体積を計算
     ///
@@ -318,10 +302,6 @@ impl<T: Scalar> ConicalSolid3D<T> {
         )
     }
 
-    // ========================================================================
-    // Core Validation Methods
-    // ========================================================================
-
     /// 円錐が有効かチェック
     ///
     /// # Returns
@@ -336,10 +316,6 @@ impl<T: Scalar> ConicalSolid3D<T> {
             && self.height > T::ZERO
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use geo_contracts::{
     ConicalSolid3DConstructor, ConicalSolid3DContainment, ConicalSolid3DDerived,
@@ -616,10 +592,6 @@ impl<T: Scalar> ConicalSolid3DProjection<T> for ConicalSolid3D<T> {
     }
 }
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
-
 impl<T: Scalar> std::fmt::Display for ConicalSolid3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -636,10 +608,6 @@ impl<T: Scalar> std::fmt::Display for ConicalSolid3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Backward Compatibility (移行期間中のみ)
-// ============================================================================
 
 /// 旧名前との互換性のためのエイリアス
 /// 将来的には削除予定

@@ -73,7 +73,7 @@ mod tests {
 
         let start_point = ellipse_arc.start_point();
         let end_point = ellipse_arc.end_point();
-        let midpoint = ellipse_arc.midpoint();
+        let point_at_half_parameter = ellipse_arc.point_at_parameter(0.5);
 
         // 点が有限値であることを確認
         assert!(start_point.x().is_finite());
@@ -82,9 +82,9 @@ mod tests {
         assert!(end_point.x().is_finite());
         assert!(end_point.y().is_finite());
         assert!(end_point.z().is_finite());
-        assert!(midpoint.x().is_finite());
-        assert!(midpoint.y().is_finite());
-        assert!(midpoint.z().is_finite());
+        assert!(point_at_half_parameter.x().is_finite());
+        assert!(point_at_half_parameter.y().is_finite());
+        assert!(point_at_half_parameter.z().is_finite());
     }
 
     #[test]

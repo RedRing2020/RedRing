@@ -36,21 +36,6 @@ pub trait Vector2DProperties<T: Scalar> {
     fn components(&self) -> [T; 2];
     fn to_tuple(&self) -> (T, T);
     fn to_analysis_vector(&self) -> Vector2<T>;
-    fn length(&self) -> T;
-    fn length_squared(&self) -> T;
-    fn normalize(&self) -> Self;
-    fn try_normalize(&self) -> Option<Self>
-    where
-        Self: Sized;
-
-    fn is_zero(&self) -> bool {
-        self.length_squared().is_zero()
-    }
-
-    fn is_unit(&self) -> bool {
-        let len_sq = self.length_squared();
-        (len_sq - T::ONE).abs() < T::EPSILON
-    }
 
     fn dimension(&self) -> u32 {
         1
@@ -64,12 +49,23 @@ pub trait Vector3DProperties<T: Scalar> {
     fn components(&self) -> [T; 3];
     fn to_tuple(&self) -> (T, T, T);
     fn to_analysis_vector(&self) -> Vector3<T>;
+
+    fn dimension(&self) -> u32 {
+        1
+    }
+}
+
+pub trait Vector2DMetric<T: Scalar> {
     fn length(&self) -> T;
     fn length_squared(&self) -> T;
     fn normalize(&self) -> Self;
     fn try_normalize(&self) -> Option<Self>
     where
         Self: Sized;
+    fn magnitude(&self) -> T;
+    fn distance_to(&self, other: &Self) -> T;
+    fn distance_squared_to(&self, other: &Self) -> T;
+    fn manhattan_distance(&self) -> T;
 
     fn is_zero(&self) -> bool {
         self.length_squared().is_zero()
@@ -79,10 +75,66 @@ pub trait Vector3DProperties<T: Scalar> {
         let len_sq = self.length_squared();
         (len_sq - T::ONE).abs() < T::EPSILON
     }
+}
 
-    fn dimension(&self) -> u32 {
-        1
+pub trait Vector3DMetric<T: Scalar> {
+    fn length(&self) -> T;
+    fn length_squared(&self) -> T;
+    fn normalize(&self) -> Self;
+    fn try_normalize(&self) -> Option<Self>
+    where
+        Self: Sized;
+    fn magnitude(&self) -> T;
+    fn distance_to(&self, other: &Self) -> T;
+    fn distance_squared_to(&self, other: &Self) -> T;
+    fn manhattan_distance(&self) -> T;
+
+    fn is_zero(&self) -> bool {
+        self.length_squared().is_zero()
     }
+
+    fn is_unit(&self) -> bool {
+        let len_sq = self.length_squared();
+        (len_sq - T::ONE).abs() < T::EPSILON
+    }
+}
+
+pub trait Vector2DProduct<T: Scalar> {
+    fn dot(&self, other: &Self) -> T;
+    fn cross_2d(&self, other: &Self) -> T;
+}
+
+pub trait Vector3DProduct<T: Scalar> {
+    fn dot(&self, other: &Self) -> T;
+    fn cross_3d(&self, other: &Self) -> Self;
+}
+
+pub trait Vector2DRelation<T: Scalar> {
+    fn angle_to(&self, other: &Self) -> Option<T>;
+    fn is_parallel_to(&self, other: &Self) -> bool;
+    fn is_perpendicular_to(&self, other: &Self) -> bool;
+}
+
+pub trait Vector3DRelation<T: Scalar> {
+    fn angle_to(&self, other: &Self) -> Option<T>;
+    fn is_parallel_to(&self, other: &Self) -> bool;
+    fn is_perpendicular_to(&self, other: &Self) -> bool;
+}
+
+pub trait Vector2DProjection<T: Scalar> {
+    fn project_onto(&self, other: &Self) -> Option<Self>
+    where
+        Self: Sized;
+}
+
+pub trait Vector3DProjection<T: Scalar> {
+    fn project_onto(&self, other: &Self) -> Option<Self>
+    where
+        Self: Sized;
+
+    fn project_onto_plane(&self, normal: &Self) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 pub trait Vector2DCore<T: Scalar>: Vector2DConstructor<T> + Vector2DProperties<T> {}

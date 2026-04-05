@@ -24,10 +24,6 @@ impl<T: Scalar> Direction3D<T> {
         (self.angle_to(other) - right_angle).abs() <= angle_tolerance
     }
 
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// ベクトルから方向を作成（正規化）
     pub fn from_vector(vector: Vector3D<T>) -> Option<Self> {
         let len = vector.length();
@@ -86,10 +82,6 @@ impl<T: Scalar> Direction3D<T> {
         }
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// X成分を取得
     pub fn x(&self) -> T {
         self.vector.x()
@@ -115,10 +107,6 @@ impl<T: Scalar> Direction3D<T> {
     pub fn to_vector(&self) -> Vector3D<T> {
         self.vector
     }
-
-    // ========================================================================
-    // Core Basic Operations
-    // ========================================================================
 
     /// 他の方向との内積を計算
     pub fn dot(&self, other: &Self) -> T {
@@ -157,10 +145,6 @@ impl<T: Scalar> Direction3D<T> {
         self.is_perpendicular_with_angle_tolerance(other, default_angle_tolerance::<T>())
     }
 }
-
-// ============================================================================
-// Core Trait Implementations
-// ============================================================================
 
 /// Direction3DをVector3Dとして扱えるようにする
 impl<T: Scalar> Deref for Direction3D<T> {
@@ -206,10 +190,6 @@ impl<T: Scalar> Neg for Direction3D<T> {
         }
     }
 }
-
-// ============================================================================
-// Foundation Pattern Core Traits Implementation
-// ============================================================================
 
 use analysis::linalg::Vector3;
 use geo_contracts::geometry::core::direction_traits::{

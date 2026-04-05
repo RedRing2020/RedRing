@@ -3,18 +3,12 @@
 //! ExtensionFoundation トレイトによる統一インターフェースの実装
 
 use crate::{EllipsoidalSolid3D, Point3D};
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for EllipsoidalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::EllipsoidalSolid
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for EllipsoidalSolid3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.volume())
     }
 }
 
@@ -114,7 +108,7 @@ mod tests {
         assert_eq!(bbox.min(), Point3D::new(-1.0, -1.0, -1.0));
         assert_eq!(bbox.max(), Point3D::new(3.0, 5.0, 7.0));
 
-        let volume = solid.measure().unwrap();
+        let volume = solid.volume();
         // V = (4/3)π × 2 × 3 × 4 = 32π
         let expected_volume = (4.0 / 3.0) * std::f64::consts::PI * 2.0 * 3.0 * 4.0;
         assert!((volume - expected_volume).abs() < 1e-10);
@@ -164,7 +158,7 @@ mod tests {
 
         // 球の体積: V = (4/3)π × r³
         let expected_volume = (4.0 / 3.0) * std::f64::consts::PI * 5.0_f64.powi(3);
-        let volume = solid.measure().unwrap();
+        let volume = solid.volume();
         assert!((volume - expected_volume).abs() < 1e-10);
 
         // 境界ボックスは中心 ± 半径

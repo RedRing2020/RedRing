@@ -20,15 +20,7 @@ pub struct EllipseArc3D<T: Scalar> {
     pub(crate) end_angle: Angle<T>,   // 終了角度
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> EllipseArc3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しい3D楕円弧を作成
     pub fn new(ellipse: Ellipse3D<T>, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
         Self {
@@ -47,10 +39,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         let ellipse = Ellipse3D::from_circle(&circle)?;
         Some(Self::new(ellipse, arc.start_angle(), arc.end_angle()))
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 基底楕円を取得
     pub fn ellipse(&self) -> &Ellipse3D<T> {
@@ -97,10 +85,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         self.ellipse.minor_axis_direction()
     }
 
-    // ========================================================================
-    // Core Geometric Properties
-    // ========================================================================
-
     /// 開始点を取得
     pub fn start_point(&self) -> Point3D<T> {
         self.ellipse.point_at_angle(self.start_angle)
@@ -117,11 +101,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         let current_angle = self.start_angle.to_radians() + t * angle_diff;
         self.ellipse
             .point_at_angle(Angle::from_radians(current_angle))
-    }
-
-    /// 弧の中点を取得
-    pub fn midpoint(&self) -> Point3D<T> {
-        self.point_at_parameter(T::from_f64(0.5))
     }
 
     /// 弧の角度スパンを取得
@@ -152,10 +131,6 @@ impl<T: Scalar> EllipseArc3D<T> {
             && self.start_angle.to_radians().is_finite()
             && self.end_angle.to_radians().is_finite()
     }
-
-    // ========================================================================
-    // Core Transform Methods
-    // ========================================================================
 
     /// 平行移動
     pub fn translate(&self, vector: Vector3D<T>) -> Self {
@@ -228,7 +203,7 @@ impl<T: Scalar> EllipseArc3D<T> {
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
         let start = self.start_point();
         let end = self.end_point();
-        let mid = self.midpoint();
+        let mid = self.point_at_parameter(T::ONE / (T::ONE + T::ONE));
 
         geo_core::Aabb3D::from_points(&[start, end, mid]).unwrap_or_else(|| {
             // フォールバック: ゼロサイズのボックス
@@ -236,10 +211,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         })
     }
 }
-
-// ============================================================================
-// Default Implementations
-// ============================================================================
 
 impl<T: Scalar> Default for EllipseArc3D<T> {
     fn default() -> Self {
@@ -256,10 +227,6 @@ impl<T: Scalar> Default for EllipseArc3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Phase 1)
-// ============================================================================
 
 impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
     fn new(
@@ -312,8 +279,6 @@ impl<T: Scalar> EllipseArc3DConstructor<T> for EllipseArc3D<T> {
         let end = Angle::from_radians(T::PI / (T::ONE + T::ONE)); // π/2
         Self::new(ellipse, start, end)
     }
-
-    // ========== Phase 2: 追加コンストラクタ ==========
 
     fn xz_plane(
         center: (T, T, T),
@@ -408,8 +373,6 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
         self.end_angle.to_radians()
     }
 
-    // ========== Phase 2: 追加プロパティ ==========
-
     fn normal(&self) -> (T, T, T) {
         let n = self.ellipse.normal();
         (n.x(), n.y(), n.z())
@@ -429,9 +392,9 @@ impl<T: Scalar> EllipseArc3DProperties<T> for EllipseArc3D<T> {
 }
 
 impl<T: Scalar> EllipseArc3DDerived<T> for EllipseArc3D<T> {
-    fn measure(&self) -> T {
+    fn length(&self) -> T {
         // 楕円弧の長さの簡易近似: angle_span計算を直接展開
-        let full_perimeter = self.ellipse.perimeter();
+        let full_circumference = self.ellipse.circumference();
         let diff = self.end_angle.to_radians() - self.start_angle.to_radians();
         let angle_span = if diff >= T::ZERO {
             diff
@@ -439,7 +402,7 @@ impl<T: Scalar> EllipseArc3DDerived<T> for EllipseArc3D<T> {
             diff + T::from_f64(2.0 * std::f64::consts::PI)
         };
         let angle_ratio = angle_span / T::TAU;
-        full_perimeter * angle_ratio
+        full_circumference * angle_ratio
     }
 
     fn bounding_box(&self) -> ((T, T, T), (T, T, T)) {
@@ -501,10 +464,6 @@ impl<T: Scalar> EllipseArc3DEndpoint<T> for EllipseArc3D<T> {
         let p = self.ellipse.point_at_angle(self.end_angle);
         (p.x(), p.y(), p.z())
     }
-
-    fn mid_point(&self) -> (T, T, T) {
-        <Self as EllipseArc3DEvaluation<T>>::point_at_parameter(self, T::ONE / (T::ONE + T::ONE))
-    }
 }
 
 impl<T: Scalar> EllipseArc3DEvaluation<T> for EllipseArc3D<T> {
@@ -517,32 +476,9 @@ impl<T: Scalar> EllipseArc3DEvaluation<T> for EllipseArc3D<T> {
         (p.x(), p.y(), p.z())
     }
 
-    fn point_at_angle(&self, angle: T) -> Option<(T, T, T)> {
-        let normalized_angle = if angle < T::ZERO {
-            angle + T::TAU
-        } else if angle >= T::TAU {
-            angle - T::TAU
-        } else {
-            angle
-        };
-
-        let start = self.start_angle.to_radians();
-        let end = self.end_angle.to_radians();
-
-        let in_range = if start <= end {
-            normalized_angle >= start && normalized_angle <= end
-        } else {
-            normalized_angle >= start || normalized_angle <= end
-        };
-
-        if !in_range {
-            return None;
-        }
-
-        let t = (normalized_angle - start) / (end - start);
-        Some(<Self as EllipseArc3DEvaluation<T>>::point_at_parameter(
-            self, t,
-        ))
+    fn point_at_angle(&self, angle: T) -> (T, T, T) {
+        let p = self.ellipse.point_at_angle(Angle::from_radians(angle));
+        (p.x(), p.y(), p.z())
     }
 }
 
@@ -567,6 +503,25 @@ impl<T: Scalar> EllipseArc3DContainment<T> for EllipseArc3D<T> {
             angle >= start - tolerance && angle <= end + tolerance
         } else {
             angle >= start - tolerance || angle <= end + tolerance
+        }
+    }
+
+    fn contains_angle(&self, angle: T) -> bool {
+        let normalized_angle = if angle < T::ZERO {
+            angle + T::TAU
+        } else if angle >= T::TAU {
+            angle - T::TAU
+        } else {
+            angle
+        };
+
+        let start = self.start_angle.to_radians();
+        let end = self.end_angle.to_radians();
+
+        if start <= end {
+            normalized_angle >= start && normalized_angle <= end
+        } else {
+            normalized_angle >= start || normalized_angle <= end
         }
     }
 }

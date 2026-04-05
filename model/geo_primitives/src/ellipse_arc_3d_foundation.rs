@@ -1,24 +1,12 @@
 //! EllipseArc3D の Foundation トレイト実装
 
 use crate::EllipseArc3D;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
-
-// ============================================================================
-// Foundation Trait Implementation
-// ============================================================================
 
 impl<T: Scalar> PrimitiveMetadata for EllipseArc3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for EllipseArc3D<T> {
-    fn measure(&self) -> Option<T> {
-        // 楕円弧の測度は arc_length() メソッドが実装されていないため None を返す
-        // TODO: EllipseArc3D に arc_length() メソッドを実装する必要がある
-        None
     }
 }
 

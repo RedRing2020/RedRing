@@ -83,17 +83,26 @@ pub trait Arc3DProperties<T: Scalar> {
 }
 
 pub trait Arc2DDerived<T: Scalar> {
-    fn measure(&self) -> T;
+    fn length(&self) -> T;
 }
 
 pub trait Arc2DEndpoint<T: Scalar> {
+    /// 母曲線上の ideal な開始点を取得
     fn start_point(&self) -> (T, T);
+
+    /// 母曲線上の ideal な終了点を取得
     fn end_point(&self) -> (T, T);
-    fn midpoint(&self) -> (T, T);
 }
 
 pub trait Arc2DEvaluation<T: Scalar> {
+    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
+    ///
+    /// `t=0/1` は Arc のトリム区間の両端を指すが、拘束端点補間を意味しない。
     fn point_at_parameter(&self, t: T) -> (T, T);
+
+    /// Primitive 局所角度系の角度で ideal evaluation point を取得
+    ///
+    /// 角度範囲内かどうかの判定は `contains_angle` 側の責務とし、この API は角度指定評価を表す。
     fn point_at_angle(&self, angle: T) -> (T, T);
 }
 
@@ -107,17 +116,24 @@ pub trait Arc2DContainment<T: Scalar> {
 }
 
 pub trait Arc3DDerived<T: Scalar> {
-    fn measure(&self) -> T;
+    fn length(&self) -> T;
 }
 
 pub trait Arc3DEndpoint<T: Scalar> {
+    /// 母曲線上の ideal な開始点を取得
     fn start_point(&self) -> (T, T, T);
+
+    /// 母曲線上の ideal な終了点を取得
     fn end_point(&self) -> (T, T, T);
-    fn midpoint(&self) -> (T, T, T);
 }
 
 pub trait Arc3DEvaluation<T: Scalar> {
+    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
+    ///
+    /// `t=0/1` は Arc のトリム区間の両端を指すが、拘束端点補間を意味しない。
     fn point_at_parameter(&self, t: T) -> (T, T, T);
+
+    /// Primitive 局所角度系の角度で ideal evaluation point を取得
     fn point_at_angle(&self, angle: T) -> (T, T, T);
 }
 

@@ -6,10 +6,6 @@
 use crate::{InfiniteLine3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::Scalar;
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
-
 impl<T: Scalar> std::fmt::Display for Ray3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -20,10 +16,6 @@ impl<T: Scalar> std::fmt::Display for Ray3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Extended geometric operations (moved from core)
-// ============================================================================
 
 impl<T: Scalar> Ray3D<T> {
     /// InfiniteLine3D への変換
@@ -121,10 +113,6 @@ impl<T: Scalar> Ray3D<T> {
         t.max(T::ZERO) // t < 0 の場合は 0 (起点) を返す
     }
 
-    // ========================================================================
-    // Transform Methods
-    // ========================================================================
-
     /// 平行移動
     pub fn translate(&self, offset: &Vector3D<T>) -> Self {
         let new_origin = Point3D::new(
@@ -179,10 +167,6 @@ impl<T: Scalar> Ray3D<T> {
         geo_core::Aabb3D::from_points(&[start_point, end_point])
             .unwrap_or_else(|| geo_core::Aabb3D::new(start_point, start_point))
     }
-
-    // ========================================================================
-    // Advanced Geometric Operations
-    // ========================================================================
 
     /// 指定した平面との交点を計算
     ///

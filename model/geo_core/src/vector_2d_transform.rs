@@ -39,10 +39,6 @@ pub trait AnalysisTransformVector2D<T: Scalar> {
         Self: Sized;
 }
 
-// ============================================================================
-// AnalysisTransformVector2D Implementation
-// ============================================================================
-//
 // Note: Vector2D <-> Vector2 の From実装は point_2d_transform.rs に存在します
 
 impl<T: Scalar> AnalysisTransformVector2D<T> for Vector2D<T> {
@@ -109,10 +105,6 @@ impl<T: Scalar> AnalysisTransformVector2D<T> for Vector2D<T> {
         Ok(self.transform_vector_matrix(&composite))
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

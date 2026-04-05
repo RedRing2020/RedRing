@@ -68,15 +68,7 @@ pub struct EllipsoidalSolid3D<T: Scalar> {
     c_radius: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> EllipsoidalSolid3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で楕円体ソリッドを作成
     ///
     /// # Arguments
@@ -160,10 +152,6 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         Self::new(center, axis, ref_direction, radius, radius, radius)
     }
 
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
-
     /// 楕円体の中心点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -200,10 +188,6 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
     pub(crate) fn c_radius_internal(&self) -> T {
         self.c_radius
     }
-
-    // ========================================================================
-    // Core Geometric Properties (ソリッド特性)
-    // ========================================================================
 
     /// 楕円体ソリッドの体積を計算
     ///
@@ -366,10 +350,6 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         self.center + x_axis * surface_x + y_axis * surface_y + z_axis * surface_z
     }
 }
-
-// ============================================================================
-// Core Traits Implementation
-// ============================================================================
 
 use geo_contracts::{
     EllipsoidalSolid3DConstructor, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDerived,
@@ -541,10 +521,6 @@ impl<T: Scalar> EllipsoidalSolid3DProjection<T> for EllipsoidalSolid3D<T> {
         (p.x(), p.y(), p.z())
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {

@@ -68,15 +68,7 @@ pub struct SphericalSurface3D<T: Scalar> {
     radius: T,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> SphericalSurface3D<T> {
-    // ========================================================================
-    // STEP準拠のコンストラクタ
-    // ========================================================================
-
     /// STEP AXIS2_PLACEMENT_3D 形式で球サーフェスを作成
     ///
     /// # Arguments
@@ -149,10 +141,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         }
         Self::new(center, axis, ref_direction, diameter / T::from_f64(2.0))
     }
-
-    // ========================================================================
-    // Core Accessor Methods
-    // ========================================================================
 
     /// 球の中心点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
@@ -247,10 +235,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         T::from_f64(4.0) * T::PI * self.radius * self.radius
     }
 
-    // ========================================================================
-    // 距離計算メソッド（sphere_metricsから移動）
-    // ========================================================================
-
     /// 球面から無限直線までの最短距離を計算
     ///
     /// # Arguments
@@ -325,10 +309,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         (distance_from_center - self.radius).abs()
     }
 
-    // ========================================================================
-    // Core Geometric Properties (サーフェス特性)
-    // ========================================================================
-
     /// 球サーフェスの表面積を計算
     ///
     /// 表面積 = 4π × r²
@@ -356,10 +336,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         self.radius <= T::EPSILON
     }
 
-    // ========================================================================
-    // Surface Distance and Proximity Methods
-    // ========================================================================
-
     /// 点から球サーフェスまでの最短距離を計算
     /// 球内部の点の場合は負の値を返す
     pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
@@ -372,10 +348,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         let distance = self.distance_to_surface(point).abs();
         distance <= tolerance
     }
-
-    // ========================================================================
-    // Parametric Surface Operations
-    // ========================================================================
 
     /// パラメータ(u, v)から球サーフェス上の点を計算
     /// u: 方位角 [0, 2π], v: 仰角 [-π/2, π/2]
@@ -444,10 +416,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         self.point_on_surface_in_direction(direction)
     }
 
-    // ========================================================================
-    // Curvature Analysis (曲率解析)
-    // ========================================================================
-
     /// 球サーフェスの主曲率を計算（どの点でも同じ）
     /// 球の場合、両方の主曲率は 1/radius
     pub fn principal_curvatures(&self) -> (T, T) {
@@ -467,10 +435,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         T::ONE / (self.radius * self.radius)
     }
 }
-
-// ============================================================================
-// Core Traits Implementation (Foundation Pattern)
-// ============================================================================
 
 use geo_contracts::{
     SphericalSurface3DConstructor, SphericalSurface3DDerived, SphericalSurface3DDistance,
@@ -675,10 +639,6 @@ impl<T: Scalar> SphericalSurface3DProjection<T> for SphericalSurface3D<T> {
     }
 }
 
-// ============================================================================
-// Display Implementation
-// ============================================================================
-
 impl<T: Scalar> std::fmt::Display for SphericalSurface3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -697,10 +657,6 @@ impl<T: Scalar> std::fmt::Display for SphericalSurface3D<T> {
         )
     }
 }
-
-// ============================================================================
-// Backward Compatibility (移行期間中のみ)
-// ============================================================================
 
 /// 旧名前との互換性のためのエイリアス
 /// 将来のバージョンで削除予定

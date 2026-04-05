@@ -1,6 +1,4 @@
 //! Angle - 角度計算のユーティリティ
-//!
-//! CAD/CAM システムで使用される角度計算機能
 
 use crate::abstract_types::Scalar;
 use std::fmt;
@@ -120,8 +118,6 @@ impl<T: Scalar> Angle<T> {
             normalized
         }
     }
-
-    // === 定数メソッド（単精度・倍精度両対応） ===
 
     /// 0度
     pub fn zero() -> Self {

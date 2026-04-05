@@ -195,10 +195,10 @@ foundation/analysis（将来改名候補）
 
 ```rust
 // ✅ 目標: 形状クレート内trait経由のみアクセス可能
-use geo_primitives::EllipseArc2DMeasure;
+use geo_primitives::EllipseArc2DDerived;
 
 let arc = EllipseArc2D::new(...);
-let length = arc.arc_length(); // trait実装を呼び出し
+let length = arc.length(); // trait実装を呼び出し
 let point = arc.point_at_parameter(0.5); // trait実装を呼び出し
 
 // ❌ 禁止: レガシー直接アクセス

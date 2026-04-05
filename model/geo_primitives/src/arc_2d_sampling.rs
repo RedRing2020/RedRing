@@ -6,10 +6,6 @@
 use crate::{Arc2D, Point2D};
 use geo_contracts::{Arc2DContainment, Arc2DEndpoint, Arc2DSampling, Scalar};
 
-// ============================================================================
-// ArcSampling Trait Implementation
-// ============================================================================
-
 impl<T: Scalar> ArcSampling<T> for Arc2D<T> {
     /// 円弧を指定数に分割した点列を生成
     fn sample_points(&self, num_points: usize) -> Vec<Point2D<T>> {
@@ -41,7 +37,7 @@ impl<T: Scalar> ArcSampling<T> for Arc2D<T> {
             return vec![self.start_point()];
         }
 
-        let _total_length = self.arc_length();
+        let _total_length = self.length();
         let num_segments = 16; // 固定値として一時的に対応
 
         if num_segments <= 1 {
@@ -61,10 +57,6 @@ impl<T: Scalar> ArcSampling<T> for Arc2D<T> {
         points
     }
 }
-
-// ============================================================================
-// Arc2D用の点列生成ヘルパーメソッド
-// ============================================================================
 
 impl<T: Scalar> Arc2D<T> {
     /// 指定角度間隔で点列を生成
@@ -113,7 +105,7 @@ impl<T: Scalar> Arc2D<T> {
     ) {
         let mid_angle = (start_angle + end_angle) / (T::ONE + T::ONE);
         let start_point = self.point_at_angle(start_angle);
-        let mid_point = self.point_at_angle(mid_angle);
+        let point_at_mid_angle = self.point_at_angle(mid_angle);
         let end_point = self.point_at_angle(end_angle);
 
         // 線形補間点と実際の中点の偏差を計算
@@ -122,21 +114,14 @@ impl<T: Scalar> Arc2D<T> {
             (start_point.y() + end_point.y()) / (T::ONE + T::ONE),
         );
 
-        let deviation = mid_point.distance_to(&linear_mid);
+        let deviation = point_at_mid_angle.distance_to(&linear_mid);
 
         if deviation > max_deviation {
             // 偏差が大きい場合、分割して再帰処理
             self.adaptive_sample_recursive(start_angle, mid_angle, max_deviation, points);
-            points.push(mid_point);
+            points.push(point_at_mid_angle);
             self.adaptive_sample_recursive(mid_angle, end_angle, max_deviation, points);
         }
-    }
-
-    /// 中点を取得
-    pub fn mid_point(&self) -> Point2D<T> {
-        let mid_angle =
-            (self.start_angle().to_radians() + self.end_angle().to_radians()) / (T::ONE + T::ONE);
-        self.point_at_angle(mid_angle)
     }
 
     /// 指定されたパラメータでの分割点を取得

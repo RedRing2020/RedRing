@@ -386,10 +386,6 @@ fn count_ascii_triangles(path: &Path) -> Result<usize, StlError> {
     Ok(count)
 }
 
-// ============================================================================
-// StlIndexedBulk 実装（頂点重複削減版）
-// ============================================================================
-
 impl<T: Scalar + FromStr> StlIndexedBulk<T> {
     /// ASCII STLから読み込み（重複削減）
     pub fn from_ascii_stl(path: &Path) -> Result<Self, StlError> {
@@ -752,10 +748,6 @@ endsolid test"
         assert_eq!(mesh.vertex_count(), 3);
         assert_eq!(mesh.triangle_count(), 1);
     }
-
-    // ========================================================================
-    // StlIndexedBulk テスト
-    // ========================================================================
 
     #[test]
     fn test_indexed_bulk_structure() {

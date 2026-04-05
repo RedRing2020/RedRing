@@ -4,14 +4,23 @@
 
 Issue #533 では、`geo_core` と `geo_contracts` にまたがって残っている基本型 trait定義の二重管理を整理する。
 
-`#339` の `H-2` 調査時点で、少なくとも以下の状態が確認されている。
+`#339` の `H-2` 調査時点では、少なくとも以下の状態が確認されていた。
 
 - `Point` / `Vector` の trait定義は `geo_contracts` と `geo_core` の双方に存在する
 - `geo_contracts` 側の方が既に公開窓口として整っており、既定メソッドも一部多い
 - `geo_core` 側ではローカル trait を `Point2D` / `Point3D` / `Vector2D` / `Vector3D` 実装の足場として保持している
-- `AABB` 系 trait は現時点で `geo_core` にしか存在せず、`geo_contracts` 側には窓口がない
+- `AABB` 系 trait は当時 `geo_core` にしか存在せず、`geo_contracts` 側には窓口がなかった
 
 この状態では、基本型 trait定義の source of truth が曖昧であり、個別メソッド整理や利用側の import 整理を進めても根本解決にならない。
+
+## 2026-04-05 時点の更新状況
+
+- `geo_contracts` 側の `Point` / `Vector` trait定義を正本とする方針は維持する
+- `geo_core::point_traits` / `geo_core::vector_traits` は duplicate trait定義ではなく、互換再エクスポート層として扱う
+- 残課題は、`geo_core` の concrete type 実装が互換再エクスポート経由で trait を参照している点であり、最小整理ではここを `geo_contracts` 直接参照へ切り替える
+- `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` 自体の capability 再設計は、2026-04-05 合意により別設計で破壊的変更として進める
+- `geo_contracts` には既に `geometry/core/aabb_traits.rs` が追加済みであり、AABB trait定義の正本は contracts 側へ移管済みである
+- AABB の残課題は、`geo_core::Aabb2D` / `Aabb3D` の concrete 実装とテストが互換再エクスポート経由で trait を参照している点であり、最小整理ではここを `geo_contracts` 直接参照へ切り替える
 
 ## 前提
 
@@ -27,17 +36,24 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 ### Point / Vector
 
 - `geo_contracts` には `Point2DCore` / `Point3DCore` / `Vector2DCore` / `Vector3DCore` が既に存在する
-- `geo_core` にも同名の trait が残っている
+- `geo_core` 側の `point_traits` / `vector_traits` は互換再エクスポート層として残っている
 - `geo_contracts` 側には `position` / `dimension` / `is_zero` / `is_unit` / `area` / `volume` / `length` など、`geo_core` 側にない既定メソッドがある
-- `geo_core` 側 trait は主に `geo_core` 自身の concrete type 実装にしか使われていない
+- `geo_core` の concrete type 実装はなお互換再エクスポート経由の import を一部残している
 
 ### AABB
 
-- `geo_core` には `Aabb2DTrait` / `Aabb3DTrait` と concrete type `Aabb2D` / `Aabb3D` が存在する
-- `geo_contracts` には `AABB` 系 trait定義が存在しない
+- `geo_core` には concrete type `Aabb2D` / `Aabb3D` と互換再エクスポート層 `aabb_traits` が存在する
+- `geo_contracts` には `Aabb2DProperties` / `Aabb2DDerived` / `Aabb3DProperties` / `Aabb3DDerived` が既に存在する
 - `Bounded` は `geo_contracts` 側に存在し、associated type `Aabb` を介して concrete type を返せる設計になっている
 
-このため、AABB も trait定義だけを `geo_contracts` に追加し、concrete type を `geo_core` に残す構成が成立する。
+このため、AABB も trait定義を `geo_contracts`、concrete type を `geo_core` に残す構成へ既に移行しており、残る整理は concrete 実装の参照先統一である。
+
+## 2026-04-05 時点の補足
+
+- source of truth 整理の最小段階は完了し、`geo_core` の concrete type 実装は Point / Vector / AABB とも `geo_contracts` 直接参照へ切り替え済みである
+- 次段は source of truth の所在変更ではなく、`geo_contracts` 正本 trait 群そのものの capability 再分類である
+- この capability 再分類では `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` を互換維持せず削除する
+- 具体的な再分類方針は [GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md](GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md) を正本とする
 
 ## 採用方針
 
@@ -80,7 +96,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 実施内容:
 
 - `geo_contracts` 側の `vector_traits.rs` を正本として確定する
-- `geo_core::vector_traits` の役割を再エクスポートへ縮退するか削除する
+- `geo_core::vector_traits` の役割を互換再エクスポートへ縮退した上で、concrete 実装からは直接参照しない
 - `geo_core::Vector2D` / `Vector3D` が `geo_contracts` trait を実装するよう切り替える
 - 利用側 import を `geo_contracts` 基準へ寄せる
 
@@ -99,7 +115,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 実施内容:
 
 - `geo_contracts` 側の `point_traits.rs` を正本として確定する
-- `geo_core::point_traits` を縮退または削除する
+- `geo_core::point_traits` を互換再エクスポート層として残しつつ、concrete 実装からは直接参照しない
 - `geo_core::Point2D` / `Point3D` が `geo_contracts` trait を実装するよう切り替える
 - Point に依存する AABB 実装が次段で切り替えられるようにする
 
@@ -116,11 +132,10 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 
 実施内容:
 
-- `geo_contracts` に `aabb_traits.rs` を追加する
-- `geometry/core/mod.rs` と `lib.rs` から公開する
+- `geo_contracts` 側の `aabb_traits.rs` を正本として維持する
 - `geo_core::Aabb2D` / `Aabb3D` が `geo_contracts` 側 AABB trait を実装するよう切り替える
 - `Bounded::Aabb` は引き続き `geo_core::Aabb2D` / `geo_core::Aabb3D` を返してよい
-- `geo_core::aabb_traits` は互換再エクスポートへ縮退するか最終的に削除する
+- `geo_core::aabb_traits` は互換再エクスポート層として残しつつ、concrete 実装からは直接参照しない
 
 完了条件:
 
@@ -186,7 +201,6 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - `model/geo_core/src/aabb_traits.rs`
 - `model/geo_core/src/aabb_2d.rs`
 - `model/geo_core/src/aabb_3d.rs`
-- `model/geo_contracts/src/geometry/core/aabb_traits.rs` 新規
 - `model/geo_contracts/src/geometry/core/mod.rs`
 - `model/geo_contracts/src/lib.rs`
 - `model/geo_contracts/src/geometry/foundation/mod.rs` 必要に応じて注記更新
@@ -202,6 +216,5 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 ## 実装前チェック
 
 - `geo_core -> geo_contracts` 依存追加をアーキテクチャルール上で許可するか確認する
-- `geo_contracts` に AABB trait を追加する配置先を `geometry/core` で確定する
 - 互換再エクスポートを許容する期間を PR 単位で定義する
 - 各 Phase を個別 PR に分ける

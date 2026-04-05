@@ -89,10 +89,6 @@ fn scale_matrix_2d<T: Scalar>(sx: T, sy: T) -> Result<Matrix3x3<T>, TransformErr
     Ok(Matrix3x3::scale_2d(&scale))
 }
 
-// ============================================================================
-// AnalysisTransform2D Implementation
-// ============================================================================
-
 impl<T: Scalar> AnalysisTransform2D<T> for NurbsCurve2D<T> {
     type Matrix3x3 = Matrix3x3<T>;
     type Angle = Angle<T>;

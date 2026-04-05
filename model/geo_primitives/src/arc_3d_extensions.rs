@@ -76,8 +76,6 @@ impl<T: Scalar> Arc3D<T> {
             || self.angle_span().to_radians() <= default_angle_tolerance::<T>()
     }
 
-    // === パラメトリック操作 ===
-
     /// パラメータ t での円弧上の点を計算
     /// t ∈ [0, 1] で正規化
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
@@ -115,19 +113,10 @@ impl<T: Scalar> Arc3D<T> {
         self.point_at_angle(self.end_angle().to_radians())
     }
 
-    /// 中点を取得
-    pub fn mid_point(&self) -> Point3D<T> {
-        let mid_angle =
-            self.start_angle().to_radians() + self.angle_span().to_radians() / T::from_f64(2.0);
-        self.point_at_angle(mid_angle)
-    }
-
     /// パラメータ範囲を取得
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::ONE)
     }
-
-    // === 角度と検証メソッド ===
 
     /// 角度が円弧の範囲内にあるかチェック
     pub fn contains_angle(&self, angle: Angle<T>) -> bool {
@@ -158,8 +147,6 @@ impl<T: Scalar> Arc3D<T> {
         }
         normalized
     }
-
-    // === 内部ヘルパーメソッド ===
 
     /// 3点から円の中心を計算
     fn calculate_circle_center(

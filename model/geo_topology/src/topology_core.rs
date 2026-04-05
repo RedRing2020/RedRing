@@ -72,7 +72,7 @@ pub enum CurveRef<T: Scalar> {
 }
 
 impl<T: Scalar> CurveRef<T> {
-    pub fn start_point(&self) -> Point3D<T> {
+    pub fn ideal_start_point(&self) -> Point3D<T> {
         match self {
             Self::Line(line) => line.start(),
             Self::Arc(arc) => {
@@ -86,7 +86,7 @@ impl<T: Scalar> CurveRef<T> {
         }
     }
 
-    pub fn end_point(&self) -> Point3D<T> {
+    pub fn ideal_end_point(&self) -> Point3D<T> {
         match self {
             Self::Line(line) => line.end(),
             Self::Arc(arc) => {
@@ -118,8 +118,8 @@ impl<T: Scalar> CurveRef<T> {
     pub fn length(&self) -> T {
         match self {
             Self::Line(line) => line.length(),
-            Self::Arc(arc) => arc.arc_length(),
-            Self::EllipseArc(arc) => arc.measure(),
+            Self::Arc(arc) => <TopoArc3D<T> as geo_contracts::Arc3DDerived<T>>::length(arc),
+            Self::EllipseArc(arc) => <TopoEllipseArc3D<T> as EllipseArc3DDerived<T>>::length(arc),
         }
     }
 }
@@ -188,12 +188,12 @@ impl<T: Scalar> Edge<T> {
     }
 
     /// Edge の始端点（向き適用後）
-    pub fn oriented_start_point(&self) -> Point3D<T> {
+    pub fn oriented_constraint_start_point(&self) -> Point3D<T> {
         self.start_vertex.point()
     }
 
     /// Edge の終端点（向き適用後）
-    pub fn oriented_end_point(&self) -> Point3D<T> {
+    pub fn oriented_constraint_end_point(&self) -> Point3D<T> {
         self.end_vertex.point()
     }
 
@@ -210,15 +210,22 @@ impl<T: Scalar> Edge<T> {
     }
 
     fn oriented_constraint_points(&self) -> (Point3D<T>, Point3D<T>) {
-        self.oriented_curve_points(self.curve.start_point(), self.curve.end_point())
+        (
+            self.oriented_constraint_start_point(),
+            self.oriented_constraint_end_point(),
+        )
     }
 
     fn oriented_ideal_points(&self) -> (Point3D<T>, Point3D<T>) {
-        let (t0, t1) = self.parameter_range;
-        let ideal_start = self.curve.point_at_parameter(t0);
-        let ideal_end = self.curve.point_at_parameter(t1);
+        self.oriented_curve_points(self.curve.ideal_start_point(), self.curve.ideal_end_point())
+    }
 
-        self.oriented_curve_points(ideal_start, ideal_end)
+    fn oriented_evaluated_points(&self) -> (Point3D<T>, Point3D<T>) {
+        let (t0, t1) = self.parameter_range;
+        let evaluated_start = self.curve.point_at_parameter(t0);
+        let evaluated_end = self.curve.point_at_parameter(t1);
+
+        self.oriented_curve_points(evaluated_start, evaluated_end)
     }
 
     /// 曲線評価（0..1 のローカルパラメータ）
@@ -245,20 +252,31 @@ impl<T: Scalar> Edge<T> {
             && self.end_vertex.point().distance_to(&constraint_end) <= bind_tolerance
     }
 
-    /// 母曲線 ideal endpoint と拘束点の整合を確認する
-    pub fn is_support_consistent(&self, support_tolerance: T) -> bool {
+    /// primitive の ideal endpoint と拘束端点の整合を確認する
+    pub fn is_ideal_endpoint_consistent(&self, ideal_tolerance: T) -> bool {
         let (constraint_start, constraint_end) = self.oriented_constraint_points();
         let (ideal_start, ideal_end) = self.oriented_ideal_points();
 
-        ideal_start.distance_to(&constraint_start) <= support_tolerance
-            && ideal_end.distance_to(&constraint_end) <= support_tolerance
+        ideal_start.distance_to(&constraint_start) <= ideal_tolerance
+            && ideal_end.distance_to(&constraint_end) <= ideal_tolerance
+    }
+
+    /// parameter_range から評価した endpoint と拘束端点の整合を確認する
+    pub fn is_evaluated_endpoint_consistent(&self, eval_tolerance: T) -> bool {
+        let (constraint_start, constraint_end) = self.oriented_constraint_points();
+        let (evaluated_start, evaluated_end) = self.oriented_evaluated_points();
+
+        evaluated_start.distance_to(&constraint_start) <= eval_tolerance
+            && evaluated_end.distance_to(&constraint_end) <= eval_tolerance
     }
 
     /// Edge の局所整合を確認する
     pub fn is_vertex_binding_consistent(&self, edge_tolerance: T) -> bool {
-        let half_tolerance = edge_tolerance / T::from_f64(2.0);
+        let third_tolerance = edge_tolerance / T::from_f64(3.0);
 
-        self.is_binding_consistent(half_tolerance) && self.is_support_consistent(half_tolerance)
+        self.is_binding_consistent(third_tolerance)
+            && self.is_ideal_endpoint_consistent(third_tolerance)
+            && self.is_evaluated_endpoint_consistent(third_tolerance)
     }
 }
 
@@ -301,7 +319,7 @@ mod tests {
     }
 
     #[test]
-    fn edge_binding_and_support_consistency_are_separated() {
+    fn edge_binding_ideal_and_evaluated_consistency_are_separated() {
         let support_line = TopoInfiniteLine3D::from_two_points(
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(2.0, 0.0, 0.0),
@@ -321,8 +339,9 @@ mod tests {
         .unwrap();
 
         assert!(edge.is_binding_consistent(1e-9));
-        assert!(!edge.is_support_consistent(1e-9));
-        assert!(edge.is_vertex_binding_consistent(0.25));
-        assert!(!edge.is_vertex_binding_consistent(0.1));
+        assert!(edge.is_ideal_endpoint_consistent(1e-9));
+        assert!(!edge.is_evaluated_endpoint_consistent(1e-9));
+        assert!(edge.is_vertex_binding_consistent(0.31));
+        assert!(!edge.is_vertex_binding_consistent(0.29));
     }
 }

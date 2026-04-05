@@ -24,15 +24,7 @@ pub struct TriangleMesh3D<T: Scalar> {
     normals: Option<Vec<Vector3D<T>>>,
 }
 
-// ============================================================================
-// Core Implementation (必須機能のみ)
-// ============================================================================
-
 impl<T: Scalar> TriangleMesh3D<T> {
-    // ========================================================================
-    // Core Construction Methods
-    // ========================================================================
-
     /// 新しいメッシュを作成
     pub fn new(vertices: Vec<Point3D<T>>, indices: Vec<[usize; 3]>) -> Result<Self, String> {
         // インデックスの有効性を検証
@@ -63,10 +55,6 @@ impl<T: Scalar> TriangleMesh3D<T> {
             normals: None,
         }
     }
-
-    // ========================================================================
-    // Core Access Methods
-    // ========================================================================
 
     /// 頂点数を取得
     pub fn vertex_count(&self) -> usize {
@@ -113,10 +101,6 @@ impl<T: Scalar> TriangleMesh3D<T> {
         Triangle3D::new(a, b, c)
     }
 
-    // ========================================================================
-    // Core Validation Methods
-    // ========================================================================
-
     /// メッシュが有効かどうかを判定
     pub fn is_valid(&self) -> bool {
         // 空のメッシュは有効
@@ -159,10 +143,6 @@ impl<T: Scalar> TriangleMesh3D<T> {
             })
             .count()
     }
-
-    // ========================================================================
-    // Core Utility Methods
-    // ========================================================================
 
     /// メッシュが空かどうかを判定
     pub fn is_empty(&self) -> bool {
@@ -208,10 +188,6 @@ impl<T: Scalar> TriangleMesh3D<T> {
         Some((min_point, max_point))
     }
 }
-
-// ============================================================================
-// Display Implementation
-// ============================================================================
 
 impl<T: Scalar> std::fmt::Display for TriangleMesh3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
