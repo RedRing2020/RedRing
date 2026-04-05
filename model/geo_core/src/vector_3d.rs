@@ -395,10 +395,9 @@ impl<T: Scalar> std::ops::Sub<Vector3D<T>> for Point3D<T> {
     }
 }
 
-use crate::vector_traits::{
-    Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties,
-};
 use analysis::linalg::vector::Vector3;
+use geo_contracts::{Vector3DConstructor, Vector3DCore, Vector3DMeasure, Vector3DProperties};
+
 impl<T: Scalar> Vector3DConstructor<T> for Vector3D<T> {
     fn new(x: T, y: T, z: T) -> Self {
         Self::new(x, y, z)

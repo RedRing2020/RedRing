@@ -300,10 +300,8 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
     }
 }
 
-use crate::vector_traits::{
-    Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties,
-};
 use analysis::linalg::vector::Vector2;
+use geo_contracts::{Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties};
 
 impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
     fn new(x: T, y: T) -> Self {

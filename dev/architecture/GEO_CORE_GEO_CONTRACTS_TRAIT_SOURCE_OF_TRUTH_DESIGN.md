@@ -13,6 +13,13 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 
 この状態では、基本型 trait定義の source of truth が曖昧であり、個別メソッド整理や利用側の import 整理を進めても根本解決にならない。
 
+## 2026-04-05 時点の更新状況
+
+- `geo_contracts` 側の `Point` / `Vector` trait定義を正本とする方針は維持する
+- `geo_core::point_traits` / `geo_core::vector_traits` は duplicate trait定義ではなく、互換再エクスポート層として扱う
+- 残課題は、`geo_core` の concrete type 実装が互換再エクスポート経由で trait を参照している点であり、最小整理ではここを `geo_contracts` 直接参照へ切り替える
+- `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` 自体の capability 再設計は本書の対象外とし、別段で扱う
+
 ## 前提
 
 本設計では、`geo_contracts` の責務を次のように扱う。
@@ -27,9 +34,9 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 ### Point / Vector
 
 - `geo_contracts` には `Point2DCore` / `Point3DCore` / `Vector2DCore` / `Vector3DCore` が既に存在する
-- `geo_core` にも同名の trait が残っている
+- `geo_core` 側の `point_traits` / `vector_traits` は互換再エクスポート層として残っている
 - `geo_contracts` 側には `position` / `dimension` / `is_zero` / `is_unit` / `area` / `volume` / `length` など、`geo_core` 側にない既定メソッドがある
-- `geo_core` 側 trait は主に `geo_core` 自身の concrete type 実装にしか使われていない
+- `geo_core` の concrete type 実装はなお互換再エクスポート経由の import を一部残している
 
 ### AABB
 
@@ -80,7 +87,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 実施内容:
 
 - `geo_contracts` 側の `vector_traits.rs` を正本として確定する
-- `geo_core::vector_traits` の役割を再エクスポートへ縮退するか削除する
+- `geo_core::vector_traits` の役割を互換再エクスポートへ縮退した上で、concrete 実装からは直接参照しない
 - `geo_core::Vector2D` / `Vector3D` が `geo_contracts` trait を実装するよう切り替える
 - 利用側 import を `geo_contracts` 基準へ寄せる
 
@@ -99,7 +106,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 実施内容:
 
 - `geo_contracts` 側の `point_traits.rs` を正本として確定する
-- `geo_core::point_traits` を縮退または削除する
+- `geo_core::point_traits` を互換再エクスポート層として残しつつ、concrete 実装からは直接参照しない
 - `geo_core::Point2D` / `Point3D` が `geo_contracts` trait を実装するよう切り替える
 - Point に依存する AABB 実装が次段で切り替えられるようにする
 
