@@ -9,8 +9,8 @@ use geo_contracts::{
     BasicIntersection, ClosestPointPair, CrossDistance, InfiniteLine3DConstructor,
     InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
     InfiniteLine3DProjection, InfiniteLine3DProperties, InfiniteLine3DTransform,
-    IntersectsRelation, OnPlaneRelation, ParallelRelation, PerpendicularRelation, SameLineRelation,
-    Scalar, SkewRelation,
+    IntersectsRelation, OnPlaneRelation, ParallelRelation, PerpendicularRelation, PrimitiveKind,
+    PrimitiveMetadata, SameLineRelation, Scalar, SkewRelation,
 };
 
 type LinePointPair3D<T> = ((T, T, T), (T, T, T));
@@ -23,6 +23,12 @@ type LinePointPair3D<T> = ((T, T, T), (T, T, T));
 pub struct InfiniteLine3D<T: Scalar> {
     pub(crate) point: Point3D<T>,         // 直線上の任意の点
     pub(crate) direction: Direction3D<T>, // 方向ベクトル（正規化済み）
+}
+
+impl<T: Scalar> PrimitiveMetadata for InfiniteLine3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::InfiniteLine
+    }
 }
 
 impl<T: Scalar> InfiniteLine3D<T> {

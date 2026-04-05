@@ -261,6 +261,29 @@ impl<T: Scalar> Plane3D<T> {
     }
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for Plane3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Plane
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for Plane3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let normal1 = self.normal_internal();
+        let normal2 = other.normal_internal();
+
+        let dot_product = normal1.dot(&normal2).abs();
+        if (dot_product - T::ONE).abs() > tolerance {
+            return false;
+        }
+
+        let point_on_plane1 = self.point();
+        let distance = other.distance_to_point(point_on_plane1);
+
+        distance <= tolerance
+    }
+}
+
 impl<T: Scalar + std::fmt::Display> std::fmt::Display for Plane3D<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -503,5 +526,56 @@ impl<T: Scalar + From<f64>> BasicIntersection<T, Self> for Plane3D<T> {
                 None
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata, TolerantEq};
+
+    #[test]
+    fn test_plane_metadata() {
+        let point = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let plane = Plane3D::from_point_and_normal(point, normal).unwrap();
+
+        assert_eq!(plane.primitive_kind(), PrimitiveKind::Plane);
+    }
+
+    #[test]
+    fn test_plane_tolerant_eq() {
+        let plane1 = Plane3D::from_point_and_normal(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+        )
+        .unwrap();
+        let plane2 = Plane3D::from_point_and_normal(
+            Point3D::new(0.0, 0.0, 0.001),
+            Vector3D::new(0.0, 0.0, 1.0),
+        )
+        .unwrap();
+
+        assert!(plane1.tolerant_eq(&plane2, 0.01));
+        assert_eq!(
+            plane1.tolerant_eq(&plane2, 0.01),
+            plane2.tolerant_eq(&plane1, 0.01)
+        );
+    }
+
+    #[test]
+    fn test_plane_tolerant_eq_different_planes() {
+        let plane1 = Plane3D::from_point_and_normal(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+        )
+        .unwrap();
+        let plane2 = Plane3D::from_point_and_normal(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        assert!(!plane1.tolerant_eq(&plane2, 0.01));
     }
 }

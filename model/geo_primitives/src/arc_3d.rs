@@ -9,7 +9,7 @@ use geo_contracts::{
 };
 use geo_contracts::{
     Arc3DConstructor, Arc3DContainment, Arc3DDerived, Arc3DDistance, Arc3DEndpoint,
-    Arc3DEvaluation, Arc3DProperties as ContractsArc3DProperties,
+    Arc3DEvaluation, Arc3DProperties as ContractsArc3DProperties, Arc3DTrimRange,
 };
 
 /// 3次元円弧（基本実装）
@@ -26,6 +26,29 @@ pub struct Arc3D<T: Scalar> {
     pub(crate) start_dir: Direction3D<T>, // 開始方向ベクトル（正規化済み）
     pub(crate) start_angle: Angle<T>,  // 開始角度
     pub(crate) end_angle: Angle<T>,    // 終了角度
+}
+
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for Arc3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Arc
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for Arc3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
+        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
+        let start_angle_diff = (self.start_angle() - other.start_angle())
+            .to_radians()
+            .abs();
+        let end_angle_diff = (self.end_angle() - other.end_angle()).to_radians().abs();
+        let tolerance_angle = T::from_f64(0.01);
+
+        center_distance <= tolerance
+            && radius_diff <= tolerance
+            && start_angle_diff <= tolerance_angle
+            && end_angle_diff <= tolerance_angle
+    }
 }
 
 impl<T: Scalar> Arc3D<T> {
@@ -390,10 +413,36 @@ impl<T: Scalar> Arc3DDistance<T> for Arc3D<T> {
 
 impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
-        // 簡易実装: 半径と角度範囲をチェック
+        let point = Point3D::new(point.0, point.1, point.2);
         let center_pt = self.center_internal();
-        let dist = center_pt.distance_to(&Point3D::new(point.0, point.1, point.2));
+        let dist = center_pt.distance_to(&point);
         (dist - self.radius_internal()).abs() <= default_distance_tolerance::<T>()
+            && self.contains_point_angle(point)
+    }
+}
+
+impl<T: Scalar> Arc3DTrimRange<T> for Arc3D<T> {
+    fn contains_angle(&self, angle: T) -> bool {
+        let normalize = |mut value: T| {
+            while value < T::ZERO {
+                value += T::TAU;
+            }
+            while value >= T::TAU {
+                value -= T::TAU;
+            }
+            value
+        };
+
+        let angle = normalize(angle);
+        let start = normalize(self.start_angle.to_radians());
+        let end = normalize(self.end_angle.to_radians());
+        let tolerance = default_angle_tolerance::<T>();
+
+        if start <= end {
+            angle + tolerance >= start && angle <= end + tolerance
+        } else {
+            angle + tolerance >= start || angle <= end + tolerance
+        }
     }
 }
 
@@ -453,5 +502,36 @@ impl<T: Scalar> Arc3D<T> {
         } else {
             Angle::from_radians(angle)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Direction3D, Point3D, Vector3D};
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+        let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let start_angle = geo_contracts::Angle::from_radians(0.0);
+        let end_angle = geo_contracts::Angle::from_radians(std::f64::consts::PI);
+
+        let arc1 = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
+        let arc2 = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
+        let arc3 = Arc3D::new(
+            Point3D::new(1.0, 0.0, 0.0),
+            5.0,
+            normal,
+            start_dir,
+            start_angle,
+            end_angle,
+        )
+        .unwrap();
+
+        assert!(arc1.tolerant_eq(&arc2, 0.01));
+        assert!(!arc1.tolerant_eq(&arc3, 0.01));
     }
 }

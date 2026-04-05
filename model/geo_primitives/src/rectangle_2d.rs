@@ -2,7 +2,8 @@
 
 use crate::Point2D;
 use geo_contracts::{
-    Rect2DConstructor, Rect2DContainment, Rect2DDerived, Rect2DProperties, Scalar,
+    PrimitiveKind, PrimitiveMetadata, Rect2DConstructor, Rect2DContainment, Rect2DDerived,
+    Rect2DProperties, Scalar,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -10,6 +11,12 @@ pub struct Rect2D<T: Scalar> {
     origin: Point2D<T>,
     width: T,
     height: T,
+}
+
+impl<T: Scalar> PrimitiveMetadata for Rect2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Rectangle
+    }
 }
 
 impl<T: Scalar> Rect2D<T> {

@@ -197,7 +197,9 @@ pub trait EllipseArc2DEvaluation<T: Scalar> {
 pub trait EllipseArc2DContainment<T: Scalar> {
     /// 点が楕円弧上にあるか判定（許容誤差付き）
     fn contains_point(&self, point: (T, T), tolerance: T) -> bool;
+}
 
+pub trait EllipseArc2DTrimRange<T: Scalar> {
     /// Primitive 局所角度系の角度がトリム区間内か判定
     fn contains_angle(&self, angle: T) -> bool;
 }
@@ -232,7 +234,9 @@ pub trait EllipseArc3DEvaluation<T: Scalar> {
 pub trait EllipseArc3DContainment<T: Scalar> {
     /// 点が楕円弧上にあるか判定（許容誤差付き）
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool;
+}
 
+pub trait EllipseArc3DTrimRange<T: Scalar> {
     /// Primitive 局所角度系の角度がトリム区間内か判定
     fn contains_angle(&self, angle: T) -> bool;
 }

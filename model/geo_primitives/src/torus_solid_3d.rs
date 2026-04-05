@@ -29,6 +29,12 @@ pub struct TorusSolid3D<T: Scalar> {
     minor_radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for TorusSolid3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::TorusSolid
+    }
+}
+
 impl<T: Scalar> TorusSolid3D<T> {
     /// 新しいトーラス固体を作成
     ///

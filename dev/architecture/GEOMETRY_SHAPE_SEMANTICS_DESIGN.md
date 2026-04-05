@@ -337,8 +337,8 @@ topology 側の Edge 正規形は、shape 意味論を前提に、接続・向�
 - Arc で円弧中点を取りたい場合でも、`midpoint` は置かず `point_at_parameter(0.5)` または `point_at_angle((start+end)/2)` を呼び出し側で明示する
 - EllipseArc で弧長中点が必要な場合は、将来 `point_at_normalized_arc_length(0.5)` 相当の明示 API を検討する
 - parameter midpoint 専用 API を追加する場合も、`midpoint` ではなく parameter を名称に含める
-- Arc / EllipseArc ともに `point_at_angle` は total な support evaluation として扱い、角度範囲検証は containment 側で担う
-- トリム区間内かどうかを見たい場合は `contains_angle` 相当の containment 語彙を使う
+- Arc / EllipseArc ともに `point_at_angle` は total な support evaluation として扱い、角度範囲検証は trim-range 側で担う
+- トリム区間内かどうかを見たい場合は `contains_angle` 相当の trim-range 語彙を使う
 
 ### topology 側へ委譲すること
 

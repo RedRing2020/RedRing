@@ -4,8 +4,8 @@
 
 use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
-    AngularRelation, BasicIntersection, ParallelRelation, PerpendicularRelation, SameLineRelation,
-    Scalar,
+    AngularRelation, BasicIntersection, ParallelRelation, PerpendicularRelation, PrimitiveKind,
+    PrimitiveMetadata, SameLineRelation, Scalar,
 };
 
 /// 2次元無限直線（Core実装）
@@ -13,6 +13,12 @@ use geo_contracts::{
 pub struct InfiniteLine2D<T: Scalar> {
     pub(crate) point: Point2D<T>,         // 直線上の点
     pub(crate) direction: Direction2D<T>, // 正規化された方向ベクトル
+}
+
+impl<T: Scalar> PrimitiveMetadata for InfiniteLine2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::InfiniteLine
+    }
 }
 
 impl<T: Scalar> InfiniteLine2D<T> {

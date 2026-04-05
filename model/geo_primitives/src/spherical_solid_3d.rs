@@ -26,6 +26,12 @@ pub struct SphericalSolid3D<T: Scalar> {
     radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for SphericalSolid3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::SphericalSolid
+    }
+}
+
 impl<T: Scalar> SphericalSolid3D<T> {
     /// STEP 配置情報からの球ソリッド生成
     ///

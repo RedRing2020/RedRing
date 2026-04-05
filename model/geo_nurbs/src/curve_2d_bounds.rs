@@ -1,16 +1,10 @@
-//! `NurbsCurve2D` Foundation Pattern 統合
+//! `NurbsCurve2D` の Bounds 実装
 //!
-//! Extension Traits の実装とテスト
+//! `Bounded` trait と関連テストを提供する。
 
 use crate::{NurbsCurve2D, Scalar};
+use geo_contracts::Bounded;
 use geo_contracts::NurbsCurve2DProperties;
-use geo_contracts::{Bounded, PrimitiveMetadata};
-
-impl<T: Scalar> PrimitiveMetadata for NurbsCurve2D<T> {
-    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
-        geo_contracts::PrimitiveKind::NurbsCurve2D
-    }
-}
 
 impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
     type Aabb = geo_core::Aabb2D<T>;

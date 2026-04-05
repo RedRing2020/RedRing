@@ -24,6 +24,48 @@ pub struct TriangleMesh3D<T: Scalar> {
     normals: Option<Vec<Vector3D<T>>>,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for TriangleMesh3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Mesh
+    }
+}
+
+fn total_mesh_area<T: Scalar>(mesh: &TriangleMesh3D<T>) -> T {
+    let mut total_area = T::ZERO;
+
+    for triangle_indices in mesh.indices() {
+        if let (Some(v0), Some(v1), Some(v2)) = (
+            mesh.vertices().get(triangle_indices[0]),
+            mesh.vertices().get(triangle_indices[1]),
+            mesh.vertices().get(triangle_indices[2]),
+        ) {
+            let edge1 = crate::Vector3D::new(v1.x() - v0.x(), v1.y() - v0.y(), v1.z() - v0.z());
+            let edge2 = crate::Vector3D::new(v2.x() - v0.x(), v2.y() - v0.y(), v2.z() - v0.z());
+            let cross_product = edge1.cross(&edge2);
+            let triangle_area = cross_product.length() / T::from_f64(2.0);
+            total_area += triangle_area;
+        }
+    }
+
+    total_area
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for TriangleMesh3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        if self.vertex_count() != other.vertex_count()
+            || self.triangle_count() != other.triangle_count()
+        {
+            return false;
+        }
+
+        let self_area = total_mesh_area(self);
+        let other_area = total_mesh_area(other);
+        let area_diff = (self_area - other_area).abs();
+
+        area_diff <= tolerance
+    }
+}
+
 impl<T: Scalar> TriangleMesh3D<T> {
     /// 新しいメッシュを作成
     pub fn new(vertices: Vec<Point3D<T>>, indices: Vec<[usize; 3]>) -> Result<Self, String> {
@@ -197,5 +239,33 @@ impl<T: Scalar> std::fmt::Display for TriangleMesh3D<T> {
             self.vertex_count(),
             self.triangle_count()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Point3D;
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let vertices1 = vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        ];
+        let indices1 = vec![[0, 1, 2]];
+        let vertices2 = vec![
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        ];
+        let indices2 = vec![[0, 1, 2]];
+
+        let mesh1 = TriangleMesh3D::new(vertices1, indices1).unwrap();
+        let mesh2 = TriangleMesh3D::new(vertices2, indices2).unwrap();
+
+        assert!(mesh1.tolerant_eq(&mesh2, 0.01));
     }
 }

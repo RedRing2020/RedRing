@@ -1,18 +1,11 @@
-// torus_surface_3d_foundation.rs
-// TorusSurface3D の ExtensionFoundation トレイト実装
+// torus_surface_3d_bounds.rs
+// TorusSurface3D の Bounds 実装
 //
-// Foundation パターンに従い、統一されたプリミティブインターフェースを提供します。
+// `Bounded` trait により境界ボックス計算を提供します。
 
 use crate::{Point3D, TorusSurface3D};
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for TorusSurface3D<T> {
-    /// プリミティブの種類を返す
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::TorusSurface
-    }
-}
 
 impl<T: Scalar> Bounded<T> for TorusSurface3D<T> {
     type Aabb = Aabb3D<T>;
@@ -74,6 +67,7 @@ impl<T: Scalar> Bounded<T> for TorusSurface3D<T> {
 mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
     use std::f64::consts::PI;
 
     #[test]

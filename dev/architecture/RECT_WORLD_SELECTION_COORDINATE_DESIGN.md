@@ -32,10 +32,10 @@
   - `Rect2DConstructor<T>` / `Rect2DProperties<T>` / `Rect2DContainment<T>` / `Rect2DDerived<T>`
   - `Rect3DConstructor<T>` / `Rect3DProperties<T>` / `Rect3DContainment<T>` / `Rect3DDerived<T>` / `Rect3DEvaluation<T>`
 - `geo_primitives/src/rectangle_2d.rs`（Core）
-- `geo_primitives/src/rectangle_2d_foundation.rs`（ExtensionFoundation）
+- `geo_primitives/src/rectangle_2d.rs`（PrimitiveMetadata を含む Core）
 - `geo_primitives/src/rectangle_2d_transform.rs`（AnalysisTransform2D）
 - `geo_primitives/src/rectangle_3d.rs`（Core）
-- `geo_primitives/src/rectangle_3d_foundation.rs`（ExtensionFoundation）
+- `geo_primitives/src/rectangle_3d.rs`（PrimitiveMetadata を含む Core）
 - `geo_primitives/src/rectangle_3d_transform.rs`（AnalysisTransform3D）
 
 ## API 最小仕様

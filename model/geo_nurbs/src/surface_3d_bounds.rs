@@ -1,16 +1,10 @@
-//! `NurbsSurface3D` Foundation Pattern 統合
+//! `NurbsSurface3D` の Bounds 実装
 //!
-//! Extension Traits の実装とテスト
+//! `Bounded` trait と関連テストを提供する。
 
 use crate::NurbsSurface3D;
 use crate::Scalar;
-use geo_contracts::{Bounded, PrimitiveMetadata};
-
-impl<T: Scalar> PrimitiveMetadata for NurbsSurface3D<T> {
-    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
-        geo_contracts::PrimitiveKind::NurbsSurface3D
-    }
-}
+use geo_contracts::Bounded;
 
 impl<T: Scalar> Bounded<T> for NurbsSurface3D<T> {
     type Aabb = geo_core::Aabb3D<T>;
@@ -46,10 +40,10 @@ impl<T: Scalar> Bounded<T> for NurbsSurface3D<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::PrimitiveKind;
     use geo_contracts::{
         NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DProperties,
     };
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_constructor_new() {

@@ -12,51 +12,51 @@ pub use geo_core::{
 
 // 3D プリミティブ
 pub mod arc_3d;
+pub mod arc_3d_bounds;
 pub mod arc_3d_extensions;
-pub mod arc_3d_foundation;
 pub mod circle_3d;
+pub mod circle_3d_bounds;
 pub mod circle_3d_extensions;
-pub mod circle_3d_foundation;
 pub mod circle_3d_tests;
 pub mod conical_solid_3d;
+pub mod conical_solid_3d_bounds;
 pub mod conical_solid_3d_extensions;
-pub mod conical_solid_3d_foundation;
 pub mod conical_surface_3d;
+pub mod conical_surface_3d_bounds;
 pub mod conical_surface_3d_extensions;
-pub mod conical_surface_3d_foundation;
 pub mod cylindrical_solid_3d;
+pub mod cylindrical_solid_3d_bounds;
 pub mod cylindrical_solid_3d_extensions;
-pub mod cylindrical_solid_3d_foundation;
 #[cfg(test)]
 pub mod cylindrical_solid_3d_tests;
 pub mod cylindrical_surface_3d;
+pub mod cylindrical_surface_3d_bounds;
 pub mod cylindrical_surface_3d_extensions;
-pub mod cylindrical_surface_3d_foundation;
 #[cfg(test)]
 pub mod cylindrical_surface_3d_tests;
 pub mod direction_3d;
 pub mod direction_3d_extensions;
 pub mod ellipse_3d;
+pub mod ellipse_3d_bounds;
 pub mod ellipse_3d_extensions;
 pub mod ellipse_arc_3d;
+pub mod ellipse_arc_3d_bounds;
 pub mod ellipse_arc_3d_extensions;
-pub mod ellipse_arc_3d_foundation;
 pub mod ellipse_arc_3d_tests;
 pub mod ellipsoidal_solid_3d;
-pub mod ellipsoidal_solid_3d_foundation;
+pub mod ellipsoidal_solid_3d_bounds;
 pub mod ellipsoidal_solid_3d_transform;
 pub mod ellipsoidal_surface_3d;
+pub mod ellipsoidal_surface_3d_bounds;
 pub mod infinite_line_3d;
 pub mod infinite_line_3d_extensions;
-pub mod infinite_line_3d_foundation;
 #[cfg(test)]
 pub mod infinite_line_3d_tests;
 pub mod line_segment_3d;
+pub mod line_segment_3d_bounds;
 pub mod line_segment_3d_extensions;
-pub mod line_segment_3d_foundation;
 pub mod plane_3d;
 pub mod plane_3d_extensions;
-pub mod plane_3d_foundation;
 #[cfg(test)]
 pub mod plane_3d_tests;
 
@@ -64,26 +64,25 @@ pub mod plane_3d_tests;
 
 pub mod ray_3d;
 pub mod ray_3d_extensions;
-pub mod ray_3d_foundation;
 pub mod rectangle_3d;
-pub mod rectangle_3d_foundation;
+pub mod rectangle_3d_bounds;
 pub mod rectangle_3d_transform;
 pub mod spherical_solid_3d;
-pub mod spherical_solid_3d_foundation;
+pub mod spherical_solid_3d_bounds;
 #[cfg(test)]
 pub mod spherical_solid_3d_tests;
 pub mod spherical_surface_3d;
-pub mod spherical_surface_3d_foundation;
+pub mod spherical_surface_3d_bounds;
 pub mod torus_solid_3d;
+pub mod torus_solid_3d_bounds;
 pub mod torus_solid_3d_extensions;
-pub mod torus_solid_3d_foundation;
 pub mod torus_surface_3d;
+pub mod torus_surface_3d_bounds;
 pub mod torus_surface_3d_extensions;
-pub mod torus_surface_3d_foundation;
 pub mod triangle_3d;
-pub mod triangle_3d_foundation;
+pub mod triangle_3d_bounds;
 pub mod triangle_mesh_3d;
-pub mod triangle_mesh_3d_foundation;
+pub mod triangle_mesh_3d_bounds;
 pub mod triangle_mesh_3d_transform;
 
 // 3D テストモジュール
@@ -96,10 +95,11 @@ pub mod triangle_mesh_3d_tests;
 
 // 2D プリミティブ
 pub mod arc_2d;
+pub mod arc_2d_bounds;
 pub mod arc_2d_extensions;
-pub mod arc_2d_foundation;
 
 pub mod circle_2d;
+pub mod circle_2d_bounds;
 pub mod circle_2d_extensions;
 
 // Circle の Core trait定義 再公開
@@ -115,8 +115,9 @@ pub use geo_contracts::{
 // Arc の Core trait定義 再公開
 pub use geo_contracts::{
     Arc2DConstructor, Arc2DContainment, Arc2DCore, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
-    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc3DConstructor, Arc3DContainment, Arc3DCore,
-    Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation, Arc3DProperties,
+    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc2DTrimRange, Arc3DConstructor,
+    Arc3DContainment, Arc3DCore, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation,
+    Arc3DProperties, Arc3DTrimRange,
 };
 
 pub mod circle_2d_metrics;
@@ -145,9 +146,9 @@ pub use geo_contracts::{
 };
 pub use geo_contracts::{
     EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
-    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc3DConstructor,
-    EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived, EllipseArc3DEndpoint,
-    EllipseArc3DEvaluation, EllipseArc3DProperties,
+    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange,
+    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange,
 };
 pub use geo_contracts::{
     LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,
@@ -162,27 +163,25 @@ pub use geo_contracts::{
     Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
 };
 pub mod ellipse_2d;
-pub mod ellipse_2d_foundation;
+pub mod ellipse_2d_bounds;
 pub mod ellipse_2d_transform;
 pub mod ellipse_arc_2d;
+pub mod ellipse_arc_2d_bounds;
 pub mod ellipse_arc_2d_extensions;
-pub mod ellipse_arc_2d_foundation;
 pub mod infinite_line_2d;
 pub mod infinite_line_2d_extensions;
-pub mod infinite_line_2d_foundation;
 pub mod infinite_line_2d_transform;
 pub mod line_segment_2d;
+pub mod line_segment_2d_bounds;
 pub mod line_segment_2d_extensions;
-pub mod line_segment_2d_foundation;
 pub mod ray_2d;
 pub mod ray_2d_extensions;
-pub mod ray_2d_foundation;
 pub mod ray_2d_transform;
 pub mod rectangle_2d;
-pub mod rectangle_2d_foundation;
+pub mod rectangle_2d_bounds;
 pub mod rectangle_2d_transform;
 pub mod triangle_2d;
-pub mod triangle_2d_foundation;
+pub mod triangle_2d_bounds;
 pub mod triangle_2d_transform;
 
 // テストモジュール

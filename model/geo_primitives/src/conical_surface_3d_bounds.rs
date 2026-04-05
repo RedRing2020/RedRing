@@ -1,17 +1,10 @@
-//! ConicalSurface3D の Foundation パターン実装
+//! ConicalSurface3D の Bounds 実装
 //!
-//! ExtensionFoundation トレイトの実装により、
-//! 他の幾何プリミティブとの統一インターフェースを提供
+//! `Bounded` trait と境界計算補助を提供する。
 
 use crate::ConicalSurface3D;
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for ConicalSurface3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::ConicalSurface
-    }
-}
 
 impl<T: Scalar> Bounded<T> for ConicalSurface3D<T> {
     type Aabb = Aabb3D<T>;

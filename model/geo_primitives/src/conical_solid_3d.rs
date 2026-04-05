@@ -14,9 +14,6 @@
 //! - derived Y軸: axis × ref_direction で自動計算
 //! - radius: 底面の半径
 //! - height: 円錐の高さ（軸方向の長さ）
-//!
-//! **作成日: 2025年11月1日**
-//! **最終更新: 2025年11月1日**
 
 use crate::{Direction3D, Point3D, Vector3D};
 
@@ -65,6 +62,43 @@ pub struct ConicalSolid3D<T: Scalar> {
 
     /// 円錐の高さ（軸方向の長さ、正の値）
     height: T,
+}
+
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for ConicalSolid3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::ConicalSolid
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for ConicalSolid3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let center_self = self.center_internal();
+        let center_other = other.center_internal();
+        let center_diff = (center_self.x() - center_other.x()).abs()
+            + (center_self.y() - center_other.y()).abs()
+            + (center_self.z() - center_other.z()).abs();
+
+        let axis_self = self.axis_internal();
+        let axis_other = other.axis_internal();
+        let axis_diff = (axis_self.x() - axis_other.x()).abs()
+            + (axis_self.y() - axis_other.y()).abs()
+            + (axis_self.z() - axis_other.z()).abs();
+
+        let ref_self = self.ref_direction_internal();
+        let ref_other = other.ref_direction_internal();
+        let ref_diff = (ref_self.x() - ref_other.x()).abs()
+            + (ref_self.y() - ref_other.y()).abs()
+            + (ref_self.z() - ref_other.z()).abs();
+
+        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
+        let height_diff = (self.height_internal() - other.height_internal()).abs();
+
+        center_diff <= tolerance
+            && axis_diff <= tolerance
+            && ref_diff <= tolerance
+            && radius_diff <= tolerance
+            && height_diff <= tolerance
+    }
 }
 
 impl<T: Scalar> ConicalSolid3D<T> {
@@ -612,3 +646,42 @@ impl<T: Scalar> std::fmt::Display for ConicalSolid3D<T> {
 /// 旧名前との互換性のためのエイリアス
 /// 将来的には削除予定
 pub type Cone3D<T> = ConicalSolid3D<T>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Point3D, Vector3D};
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let ref_direction = Vector3D::new(1.0, 0.0, 0.0);
+        let solid1 = ConicalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            ref_direction,
+            5.0,
+            10.0,
+        )
+        .unwrap();
+        let solid2 = ConicalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            ref_direction,
+            5.0,
+            10.0,
+        )
+        .unwrap();
+        let solid3 = ConicalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            ref_direction,
+            3.0,
+            10.0,
+        )
+        .unwrap();
+
+        assert!(solid1.tolerant_eq(&solid2, 0.01));
+        assert!(!solid1.tolerant_eq(&solid3, 0.01));
+    }
+}

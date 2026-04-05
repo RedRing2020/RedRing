@@ -441,7 +441,7 @@ pub struct MeshStage {
 
 - 各形状の変換関数は `shape_converter.rs` に集約
 - `PrimitiveKind` を使った型消去パターンに対応
-- `ExtensionFoundation` トレイトとの整合性を保つ
+- `PrimitiveMetadata` / `Bounded` の再整理方針と整合させる
 
 ### 13.2 コード重複の回避
 

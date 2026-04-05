@@ -26,10 +26,9 @@
   - `point_at()`, `tangent_at()`, `curvature_at()`
   - `length()` - 弧長計算
 
-**Extension** (`curve_2d_foundation.rs`)
-- `ExtensionFoundation<T>` - 基本拡張
+**Metadata / Bounds** (`curve_2d.rs` + `curve_2d_bounds.rs`)
+- `PrimitiveMetadata` - 形状種別 metadata
   - `primitive_kind()` → `PrimitiveKind::NurbsCurve2D`
-  - `measure()` → 全体長さ
 - `Bounded<T>` - 境界ボックス
   - `aabb()` → 制御点ベースの境界ボックス
 
@@ -57,10 +56,9 @@
   - `evaluate()`, `tangent()`, `curvature()`
   - `arc_length_total()`, `arc_length()` - 弧長計算
 
-**Extension** (`curve_3d_foundation.rs` + `curve_3d_extensions.rs`)
-- `ExtensionFoundation<T>` - 基本拡張
+**Metadata / Bounds / Extension** (`curve_3d.rs` + `curve_3d_bounds.rs` + `curve_3d_extensions.rs`)
+- `PrimitiveMetadata` - 形状種別 metadata
   - `primitive_kind()` → `PrimitiveKind::NurbsCurve3D`
-  - `measure()` → 全体弧長
 - `Bounded<T>` - 境界ボックス
   - `aabb()` → 制御点ベースの境界ボックス
 - **高度な境界ボックス計算** (`curve_3d_extensions.rs`)
@@ -95,10 +93,9 @@
   - `normal_at()` - 法線ベクトル
   - `area()` - 面積計算
 
-**Extension** (`surface_3d_foundation.rs`)
-- `ExtensionFoundation<T>` - 基本拡張
+**Metadata / Bounds** (`surface_3d.rs` + `surface_3d_bounds.rs`)
+- `PrimitiveMetadata` - 形状種別 metadata
   - `primitive_kind()` → `PrimitiveKind::NurbsSurface3D`
-  - `measure()` → 面積
 - `Bounded<T>` - 境界ボックス
   - `aabb()` → 制御点ベースの境界ボックス
 
@@ -122,13 +119,12 @@ pub trait {Shape}Constructor<T: Scalar> { ... }
 pub trait {Shape}Properties<T: Scalar> { ... }
 pub trait {Shape}Measure<T: Scalar> { ... }
 
-// 2. Extension（geo_contracts/src/extension_foundation.rs）
-pub trait ExtensionFoundation<T: Scalar> {
+// 2. Metadata / Bounds（geo_contracts/src/geometry/foundation/）
+pub trait PrimitiveMetadata {
     fn primitive_kind(&self) -> PrimitiveKind;
-    fn measure(&self) -> Option<T>;
 }
 
-pub trait Bounded<T: Scalar>: ExtensionFoundation<T> {
+pub trait Bounded<T: Scalar>: PrimitiveMetadata {
     type Aabb;
     fn aabb(&self) -> Option<Self::Aabb>;
 }
@@ -143,14 +139,14 @@ pub trait AnalysisTransform3D<T: Scalar> { ... }
 ```
 geo_nurbs/src/
   ├── curve_2d.rs                    # Core Traits実装
-  ├── curve_2d_foundation.rs         # Extension実装
+  ├── curve_2d_bounds.rs             # Bounds実装
   ├── curve_2d_transform.rs          # Transform実装
   ├── curve_3d.rs                    # Core Traits実装
-  ├── curve_3d_foundation.rs         # Extension実装
+  ├── curve_3d_bounds.rs             # Bounds実装
   ├── curve_3d_extensions.rs         # 拡張機能（境界ボックスオプション等）
   ├── curve_3d_transform.rs          # Transform実装
   ├── surface_3d.rs                  # Core Traits実装
-  ├── surface_3d_foundation.rs       # Extension実装
+  ├── surface_3d_bounds.rs           # Bounds実装
   └── surface_3d_transform.rs        # Transform実装
 ```
 
@@ -158,10 +154,22 @@ geo_nurbs/src/
 
 `.vscode/settings.json`:
 ```jsonc
-"curve_2d.rs": "curve_2d_foundation.rs,curve_2d_transform.rs",
-"curve_3d.rs": "curve_3d_extensions.rs,curve_3d_foundation.rs,curve_3d_transform.rs",
-"surface_3d.rs": "surface_3d_foundation.rs,surface_3d_transform.rs"
+"curve_2d.rs": "curve_2d_bounds.rs,curve_2d_transform.rs",
+"curve_3d.rs": "curve_3d_bounds.rs,curve_3d_extensions.rs,curve_3d_transform.rs",
+"surface_3d.rs": "surface_3d_bounds.rs,surface_3d_transform.rs"
 ```
+
+## 2026-04-05 合意更新: geo_nurbs の Bounded 横展開ルール
+
+`geo_nurbs` でも `Bounded` は finite shape に対する標準 capability として扱う。
+
+合意事項:
+
+- `NurbsCurve2D`、`NurbsCurve3D`、`NurbsSurface3D` のように有限な制御点領域を持つ型は `Bounded` を実装する
+- `Bounded` 実装は本体へ混在させず、`*_bounds.rs` へ分離する
+- 将来 `geo_nurbs` に 2D/3D の同族 shape を追加する場合、`Bounded` を片側だけで止めない
+- 現在 `geo_nurbs` に `NurbsSurface2D` は存在しないため、`NurbsSurface3D` のみが bounds 対象になっているのは未整備ではなく shape 定義差である
+- 標準 `aabb()` は制御点ベースの保守的な境界ボックスとし、より高精度な境界計算は extension 側へ分離する
 
 ## レガシーコードのクリーンアップ
 
@@ -245,7 +253,7 @@ NURBS変換では重み（weights）を適切に扱う必要があります：
 ### テストカバレッジ
 
 - ✅ Core Traits全メソッド
-- ✅ Extension Traits（ExtensionFoundation, Bounded）
+- ✅ Extension Traits（PrimitiveMetadata, Bounded）
 - ✅ Transform Traits全メソッド（translate/rotate/scale/uniform_scale/matrix）
 - ✅ エラーケース（無効なパラメータ、ゼロベクトル等）
 

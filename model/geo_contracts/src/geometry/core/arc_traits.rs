@@ -112,6 +112,9 @@ pub trait Arc2DDistance<T: Scalar> {
 
 pub trait Arc2DContainment<T: Scalar> {
     fn contains_point(&self, point: (T, T)) -> bool;
+}
+
+pub trait Arc2DTrimRange<T: Scalar> {
     fn contains_angle(&self, angle: T) -> bool;
 }
 
@@ -143,6 +146,10 @@ pub trait Arc3DDistance<T: Scalar> {
 
 pub trait Arc3DContainment<T: Scalar> {
     fn contains_point(&self, point: (T, T, T)) -> bool;
+}
+
+pub trait Arc3DTrimRange<T: Scalar> {
+    fn contains_angle(&self, angle: T) -> bool;
 }
 
 pub trait Arc2DSampling<T: Scalar> {

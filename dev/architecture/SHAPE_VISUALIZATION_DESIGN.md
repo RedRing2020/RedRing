@@ -32,7 +32,7 @@ geo_primitivesで実装されている各種形状をGPU描画可能な形式に
 
 1. **統一的な変換フロー**: 全ての形状に対して一貫した変換処理を提供
 2. **MVVMアーキテクチャ遵守**: Model層への依存をViewModel層で吸収
-3. **Foundation Pattern統合**: ExtensionFoundationトレイトを活用した型判別
+3. **Foundation Pattern統合**: PrimitiveMetadata を活用した型判別
 4. **パフォーマンス**: 1000個の形状を60FPSで描画可能
 
 ## 🏗️ アーキテクチャ
@@ -241,10 +241,10 @@ segments = clamp(screen_size / 5.0, min_segments, max_segments)
 ### Foundation Patternとの統合
 
 ```rust
-use geo_contracts::{ExtensionFoundation, PrimitiveKind};
+use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
 pub fn shape_to_vertices<T: Scalar>(
-    shape: &dyn ExtensionFoundation<T>
+    shape: &dyn PrimitiveMetadata
 ) -> Vec<VertexData> {
     match shape.primitive_kind() {
         PrimitiveKind::LineSegment => {

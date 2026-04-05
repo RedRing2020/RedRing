@@ -7,8 +7,8 @@ use crate::{Circle2D, Direction2D, Point2D, Vector2D};
 use analysis::Angle;
 use geo_contracts::{
     default_angle_tolerance, default_distance_tolerance, Arc2DConstructor, Arc2DContainment,
-    Arc2DDerived, Arc2DDistance, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties,
-    Circle2DProperties, Scalar,
+    Arc2DDerived, Arc2DDistance, Arc2DEndpoint, Arc2DEvaluation, Arc2DProperties, Arc2DTrimRange,
+    Circle2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元円弧
@@ -22,6 +22,12 @@ pub struct Arc2D<T: Scalar> {
     pub(crate) start_angle: Angle<T>,
     /// 終了角度
     pub(crate) end_angle: Angle<T>,
+}
+
+impl<T: Scalar> PrimitiveMetadata for Arc2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Arc
+    }
 }
 
 impl<T: Scalar> Arc2D<T> {
@@ -356,7 +362,9 @@ impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
         let distance = <Self as Arc2DDistance<T>>::distance_to_point(self, (point.x(), point.y()));
         distance <= default_distance_tolerance::<T>() && self.contains_point_angle(point)
     }
+}
 
+impl<T: Scalar> Arc2DTrimRange<T> for Arc2D<T> {
     fn contains_angle(&self, angle: T) -> bool {
         let normalize = |mut value: T| {
             while value < T::ZERO {

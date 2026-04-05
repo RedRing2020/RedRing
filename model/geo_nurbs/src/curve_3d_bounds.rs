@@ -1,15 +1,9 @@
-//! `NurbsCurve3D` の Foundation パターン実装
+//! `NurbsCurve3D` の Bounds 実装
 
 use crate::NurbsCurve3D;
+use geo_contracts::Bounded;
 use geo_contracts::Scalar;
-use geo_contracts::{Bounded, PrimitiveMetadata};
 use geo_core::{Aabb3D, Point3D};
-
-impl<T: Scalar> PrimitiveMetadata for NurbsCurve3D<T> {
-    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
-        geo_contracts::PrimitiveKind::NurbsCurve3D
-    }
-}
 
 impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
     type Aabb = Aabb3D<T>;

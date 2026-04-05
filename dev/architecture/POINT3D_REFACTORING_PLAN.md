@@ -82,7 +82,7 @@
 - ✅ From trait 実装
 
 **関連ファイル**:
-- `point_3d_foundation.rs`: ExtensionFoundation 実装
+- `point_3d.rs`: metadata は本体側で実装する方針へ移行
 - `point_3d_extensions.rs`: 拡張機能
 - `point_3d_tests.rs`: テストスイート
 
@@ -233,7 +233,7 @@ geo_contracts = { path = "../geo_contracts" }
 #### 2-3. 既存ファイルの維持
 
 以下のファイルはそのまま維持:
-- `point_3d_foundation.rs`: ExtensionFoundation 実装
+- `point_3d.rs`: metadata は本体側で実装する方針へ移行
 - `point_3d_extensions.rs`: 拡張機能
 - `point_3d_tests.rs`: テストスイート
 
@@ -301,15 +301,15 @@ fn bounding_box(&self) -> Self::BBox {
 ```
 
 **影響ファイル**（優先順に実施）:
-1. `circle_3d_foundation.rs`
-2. `triangle_3d_foundation.rs`
-3. `arc_3d_foundation.rs`
-4. `spherical_surface_3d_foundation.rs`
-5. `spherical_solid_3d_foundation.rs`
-6. `cylindrical_surface_3d_foundation.rs`（Phase 3 で追加）
-7. `cylindrical_solid_3d_foundation.rs`（Phase 3 で追加）
-8. `conical_surface_3d_foundation.rs`（Phase 3 で追加）
-9. `conical_solid_3d_foundation.rs`（Phase 3 で追加）
+1. `circle_3d_bounds.rs`
+2. `triangle_3d_bounds.rs`
+3. `arc_3d_bounds.rs`
+4. `spherical_surface_3d_bounds.rs`（metadata は本体側へ移行済み）
+5. `spherical_solid_3d_bounds.rs`（metadata は本体側へ移行済み）
+6. `cylindrical_surface_3d_bounds.rs`（Phase 3 で追加）
+7. `cylindrical_solid_3d_bounds.rs`（Phase 3 で追加）
+8. `conical_surface_3d_bounds.rs`（metadata は本体側へ移行済み）
+9. `conical_solid_3d_bounds.rs`（Phase 3 で追加）
 10. その他（EllipseArc3D, Torus*, TriangleMesh3D, EllipsoidalSurface3D）
 
 #### 3-3. Transform ヘルパー関数の削除/修正（約20箇所）
@@ -492,7 +492,7 @@ cargo test --workspace --release
 - `*_extensions.rs`: cylindrical_surface_3d, ellipse_arc_3d, line_segment_3d, ray_3d
 
 **geo_nurbs** (2ファイル):
-- `curve_3d_foundation.rs`, `curve_3d_extensions.rs`
+- `curve_3d_bounds.rs`, `curve_3d_extensions.rs`
 
 **合計**: 23ファイル、87箇所の修正
 
