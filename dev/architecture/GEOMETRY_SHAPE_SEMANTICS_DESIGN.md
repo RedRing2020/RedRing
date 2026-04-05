@@ -45,11 +45,12 @@ Arc / EllipseArc / Circle / Triangle などを含む shape 横断の `Measure / 
 | `Arc` | 中心、半径、角度区間、始終点、parameter 評価 | `Measure` に始終点、midpoint、angle 評価、distance、containment が同居 |
 | `EllipseArc` | 中心、主軸情報、角度区間、始終点、parameter 評価 | `Measure` に始終点、midpoint、angle 評価、containment、bounding box が同居 |
 | `Circle` | 中心、半径、周回 parameter 評価、閉曲線性 | `Measure` に circumference、area、containment、distance、projection、parameter 評価が同居 |
-| `Triangle` | 3頂点、面積、周長、面内判定 | `Measure` に edge length、perimeter、containment、distance、向き/planarity 判定が同居 |
+| `Triangle` | 3頂点、面積、`perimeter`、面内判定 | `Measure` に edge length、perimeter、containment、distance、向き/planarity 判定が同居 |
 
 この棚卸しから、現状の `Measure` は単なる測度ではなく、shape ごとに次の異種 capability を束ねていることが分かる。
 
-- 測度: 単独線 shape の `length` / 閉曲線 shape の `circumference` / 複数辺境界 shape の `perimeter` / 面の `area`
+- primary quantity: 単独線 shape の `length` / 閉曲線 shape の `circumference` / 面の `area`
+- boundary quantity: 複数辺境界 shape の `perimeter` / edge length
 - 境界参照: `start_point` / `end_point` / 頂点参照 / edge length
 - 評価: `point_at_parameter` / `point_at_angle`
 - 関係判定: `contains_point`
@@ -90,7 +91,7 @@ Arc / EllipseArc / Circle / Triangle などを含む shape 横断の `Measure / 
 
 - `point_at_parameter` は定義できる
 - ただし `start` / `end` は shape の本質語彙ではない
-- 測度としては長さ系と面積系の両方を持ちうる
+- primary quantity としては `circumference` を持ち、派生 quantity として `area` も持ちうる
 
 ### 3. 面 shape
 
@@ -102,9 +103,14 @@ Arc / EllipseArc / Circle / Triangle などを含む shape 横断の `Measure / 
 
 意味論上の共通点:
 
-- 面積や周長は定義できる
+- pre-topology の単一 face primitive として扱う
+- オイラー操作を前提にしない mesh 表現とは分けて扱う
+- primary quantity として `area` を持ち、boundary quantity として `perimeter` や edge length を持ちうる
 - 頂点参照はできる
-- しかし `curve parameter` や `start/end point` を標準 capability とみなすべきではない
+- 各辺長は boundary quantity、`perimeter` は boundary 全体の派生量として扱う
+- `curve parameter` や `start/end point` を標準 capability とみなすべきではない
+- parameter evaluation を導入する場合でも curve family ではなく surface family として扱う
+- trimmed range や periodic parameter は標準 capability とみなさない
 
 ## `#558` における意味論上の一次結論
 
@@ -122,9 +128,9 @@ Circle のような閉曲線では、parameter の基準位置を便宜的に定
 
 ### `measure` は単一語で統一しない
 
-shape 横断で `measure` だけを共通語彙にすると、長さ、面積、周長、拘束点間距離が同じ名前に吸い込まれ、意味が弱くなる。
+shape 横断で `measure` だけを共通語彙にすると、長さ、面積、`perimeter`、拘束点間距離が同じ名前に吸い込まれ、意味が弱くなる。
 
-したがって本書では、shape 意味論上の主語彙は次を優先する。
+したがって本書では、shape 意味論上の primary quantity 語彙は次を優先する。
 
 - 線状 shape: `length`
 - 閉曲線: `circumference`
@@ -159,6 +165,30 @@ shape 横断で `measure` だけを共通語彙にすると、長さ、面積、
 - `point_at_parameter` が support curve 上の評価か、拘束点補間か
 
 したがって `LineSegment` は局所例外ではなく、shape semantics の横断整理を先行して具体化する最初のケースとして扱う。
+
+## 将来 shape 追加時の意味論チェックリスト草案
+
+`#558` の整理は、既存 shape の後追い整理だけでなく、将来追加する CAD shape の意味論判定基準として使う。
+
+新しい shape を導入するときは、少なくとも次を先に確認する。
+
+1. その shape は curve / surface / solid のどれか
+2. その shape は境界付きか、閉じているか、trimmed か
+3. support shape と有効領域を分離して扱う必要があるか
+4. 正本 definition parameter は何か
+5. primary quantity 語彙は `length` / `circumference` / `area` / `volume` のどれか
+6. `point_at_parameter` や `uv_to_point` のような evaluation を本質的に持つか
+7. `start/end` や vertex / edge のような boundary access を本質的に持つか
+8. containment / distance / projection を shape definition から分離すべきか
+9. orientation / normal / trim-range のような shape 固有 capability が必要か
+
+補足:
+
+- trimmed shape では、support shape 上の evaluation と trimmed domain 上の有効判定を混在させない
+- periodic shape では、parameter 基準位置を持てても、直ちに endpoint を持つとはみなさない
+- face element として使う shape では、boundary access、boundary quantity、orientation を convenience ではなく主要 capability 候補として扱う
+
+このチェックリストは、sweep surface、rotation surface、fillet surface、trimmed surface のような CAD 便宜 shape を追加するときの一次判定基準として利用する。
 
 ## LineSegment の意味論
 
@@ -299,7 +329,7 @@ topology 側の Edge 正規形は、shape 意味論を前提に、接続・向�
 - `edge_*_length` や `perimeter` も vertex/boundary 由来の派生量として扱う
 - `Triangle` には curve parameter evaluation capability を持ち込まない
 
-### 4. primary measure vocabulary は shape family ごとに固定する
+### 4. primary quantity vocabulary は shape family ごとに固定する
 
 - `LineSegment` / `Arc` / `EllipseArc` のような単独線 shape は `length` を正本語彙とする
 - `Circle` / `Ellipse` は閉曲線 shape として `circumference` を正本語彙とし、`area` は interior を伴う派生量として扱う
