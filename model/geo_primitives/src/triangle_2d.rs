@@ -4,8 +4,8 @@
 
 use crate::{Point2D, Vector2D};
 use geo_contracts::{
-    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DConstructor, Triangle2DContainment,
-    Triangle2DDerived, Triangle2DDistance, Triangle2DProperties,
+    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity,
+    Triangle2DConstructor, Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
 };
 
 /// 2次元三角形（Core実装）
@@ -314,7 +314,7 @@ impl<T: Scalar> Triangle2DConstructor<T> for Triangle2D<T> {
     }
 }
 
-impl<T: Scalar> Triangle2DProperties<T> for Triangle2D<T> {
+impl<T: Scalar> Triangle2DBoundaryAccess<T> for Triangle2D<T> {
     fn vertex_a(&self) -> (T, T) {
         let p = self.vertex_a_internal();
         (p.x(), p.y())
@@ -358,6 +358,12 @@ impl<T: Scalar> Triangle2DDerived<T> for Triangle2D<T> {
         Triangle2D::area(self)
     }
 
+    fn is_clockwise(&self) -> bool {
+        Triangle2D::is_clockwise(self)
+    }
+}
+
+impl<T: Scalar> Triangle2DBoundaryQuantity<T> for Triangle2D<T> {
     fn edge_ab_length(&self) -> T {
         Triangle2D::edge_ab(self).length()
     }
@@ -372,10 +378,6 @@ impl<T: Scalar> Triangle2DDerived<T> for Triangle2D<T> {
 
     fn perimeter(&self) -> T {
         Triangle2D::perimeter(self)
-    }
-
-    fn is_clockwise(&self) -> bool {
-        Triangle2D::is_clockwise(self)
     }
 }
 

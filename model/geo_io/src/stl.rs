@@ -4,7 +4,7 @@
 //! 自動フォーマット判定機能付き。
 
 use crate::error::StlError;
-use geo_contracts::{Scalar, Triangle3DProperties};
+use geo_contracts::{Scalar, Triangle3DBoundaryAccess};
 use geo_primitives::{Point3D, TriangleMesh3D, Vector3D};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};

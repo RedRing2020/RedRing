@@ -14,7 +14,7 @@ use crate::{
 };
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, Ellipse2DProperties, InfiniteLine2DProperties,
-    LineSegment2DProperties, Ray2DProperties, Scalar, Triangle2DProperties,
+    LineSegment2DProperties, Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
 };
 
 pub fn circle2d_point2d_intersection<T: Scalar>(

@@ -28,8 +28,8 @@ pub trait Triangle2DConstructor<T: Scalar>: Sized {
     fn reversed(&self) -> Self;
 }
 
-/// Triangle2D Properties トレイト（5+3メソッド）
-pub trait Triangle2DProperties<T: Scalar> {
+/// Triangle2D の face boundary access
+pub trait Triangle2DBoundaryAccess<T: Scalar> {
     /// 頂点A座標を取得
     fn vertex_a(&self) -> (T, T);
 
@@ -39,6 +39,9 @@ pub trait Triangle2DProperties<T: Scalar> {
     /// 頂点C座標を取得
     fn vertex_c(&self) -> (T, T);
 }
+
+/// Triangle2D の互換 Properties trait
+pub trait Triangle2DProperties<T: Scalar>: Triangle2DBoundaryAccess<T> {}
 
 pub trait Triangle2DDerived<T: Scalar> {
     /// 重心座標を取得
@@ -59,6 +62,11 @@ pub trait Triangle2DDerived<T: Scalar> {
     /// 三角形の面積を計算
     fn area(&self) -> T;
 
+    /// 三角形が時計回りか判定
+    fn is_clockwise(&self) -> bool;
+}
+
+pub trait Triangle2DBoundaryQuantity<T: Scalar> {
     /// 辺ABの長さ
     fn edge_ab_length(&self) -> T;
 
@@ -70,9 +78,6 @@ pub trait Triangle2DDerived<T: Scalar> {
 
     /// 周囲長を計算
     fn perimeter(&self) -> T;
-
-    /// 三角形が時計回りか判定
-    fn is_clockwise(&self) -> bool;
 }
 
 pub trait Triangle2DContainment<T: Scalar> {
@@ -86,7 +91,10 @@ pub trait Triangle2DDistance<T: Scalar> {
 }
 
 /// Triangle2D Core トレイト（統合インターフェース）
-pub trait Triangle2DCore<T: Scalar>: Triangle2DConstructor<T> + Triangle2DProperties<T> {}
+pub trait Triangle2DCore<T: Scalar>:
+    Triangle2DConstructor<T> + Triangle2DBoundaryAccess<T>
+{
+}
 
 /// Triangle3D Constructor トレイト（3+3メソッド）
 pub trait Triangle3DConstructor<T: Scalar>: Sized {
@@ -111,8 +119,8 @@ pub trait Triangle3DConstructor<T: Scalar>: Sized {
     fn reversed(&self) -> Self;
 }
 
-/// Triangle3D Properties トレイト（5+3メソッド）
-pub trait Triangle3DProperties<T: Scalar> {
+/// Triangle3D の face boundary access
+pub trait Triangle3DBoundaryAccess<T: Scalar> {
     /// 頂点A座標を取得
     fn vertex_a(&self) -> (T, T, T);
 
@@ -122,6 +130,9 @@ pub trait Triangle3DProperties<T: Scalar> {
     /// 頂点C座標を取得
     fn vertex_c(&self) -> (T, T, T);
 }
+
+/// Triangle3D の互換 Properties trait
+pub trait Triangle3DProperties<T: Scalar>: Triangle3DBoundaryAccess<T> {}
 
 pub trait Triangle3DDerived<T: Scalar> {
     /// 重心座標を取得
@@ -142,6 +153,11 @@ pub trait Triangle3DDerived<T: Scalar> {
     /// 三角形の面積を計算
     fn area(&self) -> T;
 
+    /// 三角形が平面上にあるか判定
+    fn is_planar(&self) -> bool;
+}
+
+pub trait Triangle3DBoundaryQuantity<T: Scalar> {
     /// 辺ABの長さ
     fn edge_ab_length(&self) -> T;
 
@@ -153,9 +169,6 @@ pub trait Triangle3DDerived<T: Scalar> {
 
     /// 周囲長を計算
     fn perimeter(&self) -> T;
-
-    /// 三角形が平面上にあるか判定
-    fn is_planar(&self) -> bool;
 }
 
 pub trait Triangle3DContainment<T: Scalar> {
@@ -169,14 +182,27 @@ pub trait Triangle3DDistance<T: Scalar> {
 }
 
 /// Triangle3D Core トレイト（統合インターフェース）
-pub trait Triangle3DCore<T: Scalar>: Triangle3DConstructor<T> + Triangle3DProperties<T> {}
+pub trait Triangle3DCore<T: Scalar>:
+    Triangle3DConstructor<T> + Triangle3DBoundaryAccess<T>
+{
+}
 
 impl<T: Scalar, Triangle> Triangle2DCore<T> for Triangle where
-    Triangle: Triangle2DConstructor<T> + Triangle2DProperties<T>
+    Triangle: Triangle2DConstructor<T> + Triangle2DBoundaryAccess<T>
 {
 }
 
 impl<T: Scalar, Triangle> Triangle3DCore<T> for Triangle where
-    Triangle: Triangle3DConstructor<T> + Triangle3DProperties<T>
+    Triangle: Triangle3DConstructor<T> + Triangle3DBoundaryAccess<T>
+{
+}
+
+impl<T: Scalar, Triangle> Triangle2DProperties<T> for Triangle where
+    Triangle: Triangle2DBoundaryAccess<T>
+{
+}
+
+impl<T: Scalar, Triangle> Triangle3DProperties<T> for Triangle where
+    Triangle: Triangle3DBoundaryAccess<T>
 {
 }

@@ -8,7 +8,7 @@ use crate::{
 };
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, InfiniteLine3DProperties, LineSegment2DProperties, Scalar,
-    SphericalSurface3DProperties, Triangle3DProperties,
+    SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 #[cfg(test)]

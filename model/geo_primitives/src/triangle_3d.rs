@@ -4,8 +4,8 @@
 
 use crate::{Point3D, Vector3D};
 use geo_contracts::{
-    Scalar, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
-    Triangle3DProperties,
+    Scalar, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity, Triangle3DConstructor,
+    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
 };
 
 /// 3次元三角形（Core実装）
@@ -353,7 +353,7 @@ impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
     }
 }
 
-impl<T: Scalar> Triangle3DProperties<T> for Triangle3D<T> {
+impl<T: Scalar> Triangle3DBoundaryAccess<T> for Triangle3D<T> {
     fn vertex_a(&self) -> (T, T, T) {
         let p = self.vertex_a_internal();
         (p.x(), p.y(), p.z())
@@ -397,6 +397,12 @@ impl<T: Scalar> Triangle3DDerived<T> for Triangle3D<T> {
         Triangle3D::area(self)
     }
 
+    fn is_planar(&self) -> bool {
+        Triangle3D::is_planar(self)
+    }
+}
+
+impl<T: Scalar> Triangle3DBoundaryQuantity<T> for Triangle3D<T> {
     fn edge_ab_length(&self) -> T {
         Triangle3D::edge_ab(self).length()
     }
@@ -411,10 +417,6 @@ impl<T: Scalar> Triangle3DDerived<T> for Triangle3D<T> {
 
     fn perimeter(&self) -> T {
         Triangle3D::perimeter(self)
-    }
-
-    fn is_planar(&self) -> bool {
-        Triangle3D::is_planar(self)
     }
 }
 

@@ -85,9 +85,11 @@ pub use geometry::core::{
     NurbsCurve2DProperties, NurbsCurve3DConstructor, NurbsCurve3DCore, NurbsCurve3DDerived,
     NurbsCurve3DEvaluation, NurbsCurve3DProperties, NurbsSurface3DConstructor, NurbsSurface3DCore,
     NurbsSurface3DDerived, NurbsSurface3DEvaluation, NurbsSurface3DProperties,
-    Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
-    Triangle2DDistance, Triangle2DProperties, Triangle3DConstructor, Triangle3DContainment,
-    Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
+    Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity, Triangle2DConstructor,
+    Triangle2DContainment, Triangle2DCore, Triangle2DDerived, Triangle2DDistance,
+    Triangle2DProperties, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity,
+    Triangle3DConstructor, Triangle3DContainment, Triangle3DCore, Triangle3DDerived,
+    Triangle3DDistance, Triangle3DProperties,
 };
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{

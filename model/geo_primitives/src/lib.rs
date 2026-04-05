@@ -159,9 +159,11 @@ pub use geo_contracts::{
     LineSegment3DProperties,
 };
 pub use geo_contracts::{
-    Triangle2DConstructor, Triangle2DContainment, Triangle2DCore, Triangle2DDerived,
-    Triangle2DDistance, Triangle2DProperties, Triangle3DConstructor, Triangle3DContainment,
-    Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
+    Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity, Triangle2DConstructor,
+    Triangle2DContainment, Triangle2DCore, Triangle2DDerived, Triangle2DDistance,
+    Triangle2DProperties, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity,
+    Triangle3DConstructor, Triangle3DContainment, Triangle3DCore, Triangle3DDerived,
+    Triangle3DDistance, Triangle3DProperties,
 };
 pub mod ellipse_2d;
 pub mod ellipse_2d_bounds;

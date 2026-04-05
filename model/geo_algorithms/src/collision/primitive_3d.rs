@@ -16,7 +16,7 @@ use geo_contracts::{
     CylindricalSolid3DProperties, CylindricalSurface3DDistance, CylindricalSurface3DProperties,
     Ellipse3DDistance, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
     SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
-    Triangle3DProperties,
+    Triangle3DBoundaryAccess,
 };
 
 // ── SphericalSolid3D ──────────────────────────────────────────────────────────
@@ -71,9 +71,9 @@ pub fn spherical_solid3d_triangle3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = Triangle3DProperties::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle);
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
     sphere.distance_to_surface(Point3D::new(ax, ay, az)) <= tolerance
         || sphere.distance_to_surface(Point3D::new(bx, by, bz)) <= tolerance
         || sphere.distance_to_surface(Point3D::new(cx, cy, cz)) <= tolerance
@@ -640,12 +640,12 @@ pub fn triangle3d_triangle3d_collides<T: Scalar>(
     triangle_b: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = Triangle3DProperties::vertex_a(triangle_a);
-    let (bx, by, bz) = Triangle3DProperties::vertex_b(triangle_a);
-    let (cx, cy, cz) = Triangle3DProperties::vertex_c(triangle_a);
-    let (ax2, ay2, az2) = Triangle3DProperties::vertex_a(triangle_b);
-    let (bx2, by2, bz2) = Triangle3DProperties::vertex_b(triangle_b);
-    let (cx2, cy2, cz2) = Triangle3DProperties::vertex_c(triangle_b);
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle_a);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle_a);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle_a);
+    let (ax2, ay2, az2) = Triangle3DBoundaryAccess::vertex_a(triangle_b);
+    let (bx2, by2, bz2) = Triangle3DBoundaryAccess::vertex_b(triangle_b);
+    let (cx2, cy2, cz2) = Triangle3DBoundaryAccess::vertex_c(triangle_b);
     triangle_b.distance_to_point(&Point3D::new(ax, ay, az)) <= tolerance
         || triangle_b.distance_to_point(&Point3D::new(bx, by, bz)) <= tolerance
         || triangle_b.distance_to_point(&Point3D::new(cx, cy, cz)) <= tolerance
