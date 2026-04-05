@@ -68,6 +68,12 @@ pub struct EllipsoidalSolid3D<T: Scalar> {
     c_radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for EllipsoidalSolid3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::EllipsoidalSolid
+    }
+}
+
 impl<T: Scalar> EllipsoidalSolid3D<T> {
     /// STEP AXIS2_PLACEMENT_3D 形式で楕円体ソリッドを作成
     ///

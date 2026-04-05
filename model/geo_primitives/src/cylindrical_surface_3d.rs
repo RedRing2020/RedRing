@@ -65,6 +65,48 @@ pub struct CylindricalSurface3D<T: Scalar> {
     radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for CylindricalSurface3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::CylindricalSurface
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for CylindricalSurface3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let center_dist_sq = self
+            .center_internal()
+            .distance_squared_to(&other.center_internal());
+        if center_dist_sq > tolerance * tolerance {
+            return false;
+        }
+
+        let axis_dx = self.axis().x() - other.axis().x();
+        let axis_dy = self.axis().y() - other.axis().y();
+        let axis_dz = self.axis().z() - other.axis().z();
+        let axis_dist_sq = axis_dx * axis_dx + axis_dy * axis_dy + axis_dz * axis_dz;
+        if axis_dist_sq > tolerance * tolerance {
+            let axis_dx_rev = self.axis().x() + other.axis().x();
+            let axis_dy_rev = self.axis().y() + other.axis().y();
+            let axis_dz_rev = self.axis().z() + other.axis().z();
+            let axis_dist_sq_rev =
+                axis_dx_rev * axis_dx_rev + axis_dy_rev * axis_dy_rev + axis_dz_rev * axis_dz_rev;
+            if axis_dist_sq_rev > tolerance * tolerance {
+                return false;
+            }
+        }
+
+        let ref_dx = self.ref_direction().x() - other.ref_direction().x();
+        let ref_dy = self.ref_direction().y() - other.ref_direction().y();
+        let ref_dz = self.ref_direction().z() - other.ref_direction().z();
+        let ref_dist_sq = ref_dx * ref_dx + ref_dy * ref_dy + ref_dz * ref_dz;
+        if ref_dist_sq > tolerance * tolerance {
+            return false;
+        }
+
+        (self.radius() - other.radius()).abs() <= tolerance
+    }
+}
+
 impl<T: Scalar> CylindricalSurface3D<T> {
     /// STEP AXIS2_PLACEMENT_3D 形式で円柱サーフェスを作成
     ///
@@ -522,5 +564,24 @@ impl<T: Scalar> std::fmt::Display for CylindricalSurface3D<T> {
             self.ref_direction().as_vector(),
             self.radius()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Point3D;
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let surface1 = CylindricalSurface3D::new_z_axis(Point3D::new(0.0, 0.0, 0.0), 5.0).unwrap();
+        let surface2 =
+            CylindricalSurface3D::new_z_axis(Point3D::new(0.0001, 0.0001, 0.0001), 5.0001).unwrap();
+        let surface3 = CylindricalSurface3D::new_z_axis(Point3D::new(10.0, 0.0, 0.0), 5.0).unwrap();
+
+        assert!(surface1.tolerant_eq(&surface2, 1e-3));
+        assert!(!surface1.tolerant_eq(&surface2, 1e-5));
+        assert!(!surface1.tolerant_eq(&surface3, 1e-3));
     }
 }

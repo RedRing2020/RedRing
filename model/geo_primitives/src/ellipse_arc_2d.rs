@@ -6,7 +6,7 @@ use crate::{Ellipse2D, Point2D, Vector2D};
 use geo_contracts::{
     default_angle_tolerance, Angle, EllipseArc2DConstructor, EllipseArc2DContainment,
     EllipseArc2DDerived, EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties,
-    Scalar,
+    EllipseArc2DTrimRange, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元楕円弧
@@ -18,6 +18,12 @@ pub struct EllipseArc2D<T: Scalar> {
     pub(crate) ellipse: Ellipse2D<T>, // 基底楕円
     pub(crate) start_angle: Angle<T>, // 開始角度
     pub(crate) end_angle: Angle<T>,   // 終了角度
+}
+
+impl<T: Scalar> PrimitiveMetadata for EllipseArc2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Arc
+    }
 }
 
 impl<T: Scalar> EllipseArc2D<T> {
@@ -486,7 +492,9 @@ impl<T: Scalar> EllipseArc2DContainment<T> for EllipseArc2D<T> {
             angle >= start - tolerance || angle <= end + tolerance
         }
     }
+}
 
+impl<T: Scalar> EllipseArc2DTrimRange<T> for EllipseArc2D<T> {
     fn contains_angle(&self, angle: T) -> bool {
         self.angle_in_range(angle)
     }

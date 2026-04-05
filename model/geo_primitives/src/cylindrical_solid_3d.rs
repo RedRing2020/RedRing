@@ -63,6 +63,34 @@ pub struct CylindricalSolid3D<T: Scalar> {
     height: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for CylindricalSolid3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::CylindricalSolid
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for CylindricalSolid3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
+        let radius_diff = (self.radius() - other.radius()).abs();
+        let height_diff = (self.height() - other.height()).abs();
+        let axis_dot = self.axis().as_vector().dot(&other.axis().as_vector()).abs();
+        let axis_similar = axis_dot >= T::from_f64(0.999);
+        let ref_dot = self
+            .ref_direction()
+            .as_vector()
+            .dot(&other.ref_direction().as_vector())
+            .abs();
+        let ref_similar = ref_dot >= T::from_f64(0.999);
+
+        center_distance <= tolerance
+            && radius_diff <= tolerance
+            && height_diff <= tolerance
+            && axis_similar
+            && ref_similar
+    }
+}
+
 impl<T: Scalar> CylindricalSolid3D<T> {
     /// STEP AXIS2_PLACEMENT_3D 形式で円柱ソリッドを作成
     ///
@@ -597,3 +625,42 @@ impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T
 /// 将来のバージョンで削除予定
 #[deprecated(since = "0.1.0", note = "Use CylindricalSolid3D instead")]
 pub type Cylinder3D<T> = CylindricalSolid3D<T>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Point3D, Vector3D};
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let ref_direction = Vector3D::new(1.0, 0.0, 0.0);
+        let solid1 = CylindricalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            ref_direction,
+            5.0,
+            10.0,
+        )
+        .unwrap();
+        let solid2 = CylindricalSolid3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            ref_direction,
+            5.0,
+            10.0,
+        )
+        .unwrap();
+        let solid3 = CylindricalSolid3D::new(
+            Point3D::new(2.0, 0.0, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            ref_direction,
+            5.0,
+            10.0,
+        )
+        .unwrap();
+
+        assert!(solid1.tolerant_eq(&solid2, 0.01));
+        assert!(!solid1.tolerant_eq(&solid3, 0.01));
+    }
+}

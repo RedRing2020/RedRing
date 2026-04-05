@@ -10,7 +10,7 @@ use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
-    Ellipse3DEvaluation, Ellipse3DProperties, Scalar,
+    Ellipse3DEvaluation, Ellipse3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -22,6 +22,12 @@ pub struct Ellipse3D<T: Scalar> {
     semi_minor_axis: T,
     normal: Direction3D<T>,         // 楕円平面の法線ベクトル（正規化済み）
     major_axis_dir: Direction3D<T>, // 長軸方向ベクトル（正規化済み）
+}
+
+impl<T: Scalar> PrimitiveMetadata for Ellipse3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Ellipse
+    }
 }
 
 impl<T: Scalar> Ellipse3D<T> {

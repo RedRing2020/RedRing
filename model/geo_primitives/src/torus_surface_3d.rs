@@ -30,6 +30,12 @@ pub struct TorusSurface3D<T: Scalar> {
     minor_radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for TorusSurface3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::TorusSurface
+    }
+}
+
 impl<T: Scalar> TorusSurface3D<T> {
     /// 新しいトーラス面を作成
     ///

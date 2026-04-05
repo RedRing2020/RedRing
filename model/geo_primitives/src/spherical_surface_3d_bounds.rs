@@ -1,19 +1,13 @@
-//! SphericalSurface3D Foundation Implementation
+//! SphericalSurface3D Bounds Implementation
 //!
-//! ExtensionFoundation トレイトによる統一インターフェースの実装
+//! `Bounded` trait への適合を提供する。
 //!
 //! **作成日: 2025年11月1日**
 //! **最終更新: 2025年11月1日**
 
 use crate::SphericalSurface3D;
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for SphericalSurface3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::SphericalSurface
-    }
-}
 
 impl<T: Scalar> Bounded<T> for SphericalSurface3D<T> {
     type Aabb = Aabb3D<T>;
@@ -27,6 +21,7 @@ impl<T: Scalar> Bounded<T> for SphericalSurface3D<T> {
 mod tests {
     use super::*;
     use crate::Point3D;
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_spherical_surface_foundation() {

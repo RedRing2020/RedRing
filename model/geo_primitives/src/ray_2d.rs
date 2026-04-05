@@ -16,8 +16,8 @@
 use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
     AngleBetween, BasicIntersection, DirectionalRelation, ParallelRelation, PointsTowards,
-    Ray2DConstructor, Ray2DContainment, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
-    Ray2DProperties, Ray2DTransform, Scalar,
+    PrimitiveKind, PrimitiveMetadata, Ray2DConstructor, Ray2DContainment, Ray2DDistance,
+    Ray2DEvaluation, Ray2DProjection, Ray2DProperties, Ray2DTransform, Scalar,
 };
 
 /// 2次元半無限直線
@@ -30,6 +30,12 @@ pub struct Ray2D<T: Scalar> {
     pub(crate) origin: Point2D<T>,
     /// 方向ベクトル（正規化済み）
     pub(crate) direction: Vector2D<T>,
+}
+
+impl<T: Scalar> PrimitiveMetadata for Ray2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Ray
+    }
 }
 
 impl<T: Scalar> Ray2D<T> {

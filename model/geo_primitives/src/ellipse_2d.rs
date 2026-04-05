@@ -7,7 +7,8 @@ use crate::{
 };
 use geo_contracts::{
     default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDerived,
-    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProperties, Scalar,
+    Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProperties, PrimitiveKind, PrimitiveMetadata,
+    Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -21,6 +22,12 @@ pub struct Ellipse2D<T: Scalar> {
     semi_major: T,      // 長半軸（a）
     semi_minor: T,      // 短半軸（b）
     rotation: T,        // 回転角（ラジアン、X軸からの回転）
+}
+
+impl<T: Scalar> PrimitiveMetadata for Ellipse2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Ellipse
+    }
 }
 
 impl<T: Scalar> Ellipse2D<T> {

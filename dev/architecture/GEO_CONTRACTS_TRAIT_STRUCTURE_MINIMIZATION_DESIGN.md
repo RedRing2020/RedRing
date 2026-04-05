@@ -217,6 +217,17 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `width` / `height` / `depth` / `area` / `volume` / `center` / `is_valid` は derived に残す
 - AABB 間や点との関係判定は unary/cross-shape relation なので core ではなく operations に置く
 
+## 2026-04-05 合意更新: Bounded の横展開ルール
+
+`Bounded` は finite shape に対して寸法次元とは独立に付与する。
+
+合意事項:
+
+- `LineSegment`、`Arc`、`Circle`、`Ellipse`、`EllipseArc`、`Triangle`、`Rectangle` のように有限範囲を持つ shape は、2D/3D の片側だけで `Bounded` を止めない
+- 無限 shape である `InfiniteLine`、`Ray`、`Plane` には `Bounded` を付与しない
+- 実装ファイル分割では、`Bounded` を本体へ混在させず `*_bounds.rs` へ分離する
+- 既存 3D shape にのみ `*_bounds.rs` がある状態を正本にせず、同族の finite 2D shape が存在する場合は同じ責務境界へ揃える
+
 ## 破壊的変更方針
 
 Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維持せず削除する。
@@ -427,8 +438,10 @@ Arc はもともと `Measure` に endpoint / evaluation / containment / distance
 | `Arc3DEvaluation::point_at_parameter` | `evaluation` |
 | `Arc2DEvaluation::point_at_angle` | `evaluation` |
 | `Arc3DEvaluation::point_at_angle` | `evaluation` |
-| `Arc2DContainment::contains_point/contains_angle` | `containment` |
+| `Arc2DContainment::contains_point` | `containment` |
 | `Arc3DContainment::contains_point` | `containment` |
+| `Arc2DTrimRange::contains_angle` | `trim-range` |
+| `Arc3DTrimRange::contains_angle` | `trim-range` |
 | `Arc2DDistance::distance_to_point` | `distance` |
 | `Arc3DDistance::distance_to_point` | `distance` |
 | `Arc2DSampling::sample_points/sample_by_arc_length` | `sampling` |
@@ -459,6 +472,8 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 | `EllipseArc3DEvaluation::point_at_parameter/point_at_angle` | `evaluation` |
 | `EllipseArc2DContainment::contains_point` | `containment` |
 | `EllipseArc3DContainment::contains_point` | `containment` |
+| `EllipseArc2DTrimRange::contains_angle` | `trim-range` |
+| `EllipseArc3DTrimRange::contains_angle` | `trim-range` |
 | `EllipseArc2DCore` / `EllipseArc3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
@@ -897,7 +912,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - `point_at_parameter` はトリム区間を `0..1` へ正規化した parameter evaluation として扱う
 - `point_at_angle` は primitive 局所角度系による angle evaluation として扱い、constraint angle や world 極角とは分ける
 - evaluation が返すのは ideal evaluation point であり、拘束端点や拘束点補間結果ではない
-- Arc / EllipseArc の `point_at_angle` はともに total な support evaluation として扱い、トリム区間判定は `contains_angle` 側へ寄せる
+- Arc / EllipseArc の `point_at_angle` はともに total な support evaluation として扱い、トリム区間判定は `*TrimRange::contains_angle` 側へ寄せる
 - containment と distance は endpoint/evaluation と同居させない
 - topology が拘束端点を必要とする場合でも、primitive の endpoint semantics は直ちに変更しない
 
@@ -1193,6 +1208,74 @@ relation 系の代表例:
 - `ExtensionFoundation` の後継を `primitive_kind` 専用に残すか廃止するか決める
 - `Aabb*Trait` の分割粒度を確定する
 - `*Core` alias を公開 API として残すか決める
+
+## 2026-04-05 合意更新: foundation 配置の採用案
+
+`#578` では、foundation 配置について次を採用案とする。
+
+- `geometry/foundation/mod.rs` は公開 facade として残す
+- foundation の実体は責務名ベースで内部分割する
+- 最小分割は `metadata.rs` と `bounds.rs` とする
+- `PrimitiveMetadata` は `metadata.rs` へ置く
+- `Bounded<T>` は `bounds.rs` へ置く
+- `ExtensionFoundation<T>` は削除する
+
+理由:
+
+- `foundation` は公開窓口としては維持できるが、実体を単一 `mod.rs` に混在させると責務が読み取りにくい
+- `PrimitiveMetadata` と `Bounded<T>` はどちらも shape 定義本体ではなく横断 capability だが、意味は異なる
+- `ExtensionFoundation<T>` は空の互換 surface に縮退しており、独立 capability として弱い
+
+設計反映:
+
+- `geometry/foundation/mod.rs` は `pub use metadata::PrimitiveMetadata` と `pub use bounds::Bounded` を行う facade に縮退する
+- `geo_contracts::lib.rs` は `PrimitiveMetadata` と `Bounded` を継続 re-export する
+- `geo_contracts::lib.rs` から `ExtensionFoundation` の re-export は削除する
+- shape 側の `*_foundation.rs` は、contract 側 taxonomy をこの形へ整理した後に吸収・再配置を判断する
+
+## 2026-04-05 実施メモ: metadata-only foundation の吸収
+
+案2の第一段として、`PrimitiveMetadata` だけを持っていた shape 側 `*_foundation.rs` は本体へ吸収する。
+
+実施対象:
+
+- `Arc2D`
+- `Ellipse2D`
+- `EllipseArc2D`
+- `InfiniteLine2D`
+- `InfiniteLine3D`
+- `Ray2D`
+- `LineSegment2D`
+- `LineSegment3D`
+- `Rect2D`
+- `Rect3D`
+- `Triangle2D`
+
+保留対象:
+
+- `Bounded` を持つもの
+- `TolerantEq` を持つもの
+
+理由:
+
+- metadata だけの foundation ファイルは責務が薄く、本体吸収による可読性低下より module 維持コストの方が大きい
+- `Bounded` / `TolerantEq` を含むものは、なお別ファイル維持の実務的意味があるため一段後ろへ回す
+
+## 2026-04-05 実施メモ: bounded-only foundation の metadata 分離
+
+案2の第二段として、`Bounded` を持つ shape 側 `*_foundation.rs` でも `PrimitiveMetadata` は本体へ戻す。
+
+この段では次を採用する。
+
+- `PrimitiveMetadata` 実装は shape 本体ファイルへ移す
+- `*_foundation.rs` は当面維持し、`Bounded` 実装とそれに密接な補助メソッドの置き場として使う
+- ファイル名を `*_bounds.rs` へ改名するのは、残存責務が境界計算へ十分に収束した単位から個別に行う
+
+理由:
+
+- `PrimitiveMetadata` は shape identity に近く、本体に置いた方が追跡しやすい
+- `Bounded` 側には境界計算補助や既存テストが混在しているものがあり、名前変更まで同時に行うと差分が不必要に大きくなる
+- まず metadata と bounds の責務分離を完了させ、その後に file rename を行う方がレビューしやすい
 
 ## 実装タスク管理
 

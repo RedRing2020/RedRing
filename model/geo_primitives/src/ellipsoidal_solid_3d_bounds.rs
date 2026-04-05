@@ -1,16 +1,10 @@
-//! EllipsoidalSolid3D Foundation Implementation
+//! EllipsoidalSolid3D Bounds Implementation
 //!
-//! ExtensionFoundation トレイトによる統一インターフェースの実装
+//! `Bounded` trait と境界計算補助を提供する。
 
 use crate::{EllipsoidalSolid3D, Point3D};
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for EllipsoidalSolid3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::EllipsoidalSolid
-    }
-}
 
 impl<T: Scalar> Bounded<T> for EllipsoidalSolid3D<T> {
     type Aabb = Aabb3D<T>;
@@ -94,6 +88,7 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
 mod tests {
     use super::*;
     use crate::Vector3D;
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_ellipsoidal_solid_foundation() {

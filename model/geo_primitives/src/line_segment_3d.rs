@@ -7,7 +7,7 @@ use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
     default_distance_tolerance, CrossDistance, LineSegment3DConstructor, LineSegment3DContainment,
     LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
-    LineSegment3DProperties, Scalar,
+    LineSegment3DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 3次元空間の線分。
@@ -20,6 +20,12 @@ pub struct LineSegment3D<T: Scalar> {
     pub(crate) end_param: T,
     pub(crate) start_point: Point3D<T>,
     pub(crate) end_point: Point3D<T>,
+}
+
+impl<T: Scalar> PrimitiveMetadata for LineSegment3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::LineSegment
+    }
 }
 
 impl<T: Scalar> LineSegment3D<T> {

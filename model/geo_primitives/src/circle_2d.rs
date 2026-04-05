@@ -7,7 +7,8 @@ use crate::{Direction2D, Point2D};
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
     Circle2DConstructor, Circle2DContainment, Circle2DDerived, Circle2DDistance,
-    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance, Scalar,
+    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance, PrimitiveKind,
+    PrimitiveMetadata, Scalar,
 };
 
 /// 2次元円
@@ -19,6 +20,12 @@ pub struct Circle2D<T: Scalar> {
     radius: T,
     /// 参照方向（STEP準拠）- 角度0度の方向を定義
     ref_direction: Direction2D<T>,
+}
+
+impl<T: Scalar> PrimitiveMetadata for Circle2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Circle
+    }
 }
 
 impl<T: Scalar> Circle2D<T> {

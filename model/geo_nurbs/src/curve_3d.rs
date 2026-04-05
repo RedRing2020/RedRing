@@ -43,6 +43,12 @@ pub struct NurbsCurve3D<T: Scalar> {
     num_points: usize,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for NurbsCurve3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::NurbsCurve3D
+    }
+}
+
 impl<T: Scalar> NurbsCurve3D<T> {
     /// 内部用コンストラクタ（クレート内専用）
     ///

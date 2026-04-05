@@ -25,6 +25,27 @@ pub struct Circle3D<T: Scalar> {
     radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for Circle3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Circle
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for Circle3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let center_distance = self.center_internal().distance_to(&other.center_internal());
+        let radius_diff = (self.radius_internal() - other.radius_internal()).abs();
+        let normal_dot = self
+            .normal_internal()
+            .as_vector()
+            .dot(&other.normal_internal().as_vector())
+            .abs();
+        let normal_similar = normal_dot >= T::from_f64(0.999);
+
+        center_distance <= tolerance && radius_diff <= tolerance && normal_similar
+    }
+}
+
 impl<T: Scalar> Circle3D<T> {
     /// 新しい円を作成（デフォルトでX軸正方向を参照方向とする）
     ///
@@ -489,5 +510,25 @@ impl<T: Scalar> CrossDistance<T, Self> for Circle3D<T> {
         } else {
             T::ZERO
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Direction3D, Point3D, Vector3D};
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+
+        let circle1 = Circle3D::new(center, normal, 5.0).unwrap();
+        let circle2 = Circle3D::new(center, normal, 5.0).unwrap();
+        let circle3 = Circle3D::new(Point3D::new(2.0, 0.0, 0.0), normal, 5.0).unwrap();
+
+        assert!(circle1.tolerant_eq(&circle2, 0.01));
+        assert!(!circle1.tolerant_eq(&circle3, 0.01));
     }
 }

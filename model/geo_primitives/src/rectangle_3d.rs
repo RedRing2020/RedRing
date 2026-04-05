@@ -2,7 +2,8 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    Rect3DConstructor, Rect3DContainment, Rect3DDerived, Rect3DEvaluation, Rect3DProperties, Scalar,
+    PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment, Rect3DDerived,
+    Rect3DEvaluation, Rect3DProperties, Scalar,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -12,6 +13,12 @@ pub struct Rect3D<T: Scalar> {
     v_axis: Direction3D<T>,
     width: T,
     height: T,
+}
+
+impl<T: Scalar> PrimitiveMetadata for Rect3D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Rectangle
+    }
 }
 
 impl<T: Scalar> Rect3D<T> {

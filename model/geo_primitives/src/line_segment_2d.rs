@@ -7,7 +7,7 @@ use crate::{InfiniteLine2D, Point2D, Vector2D};
 use geo_contracts::{
     default_distance_tolerance, CrossDistance, LineSegment2DConstructor, LineSegment2DContainment,
     LineSegment2DDerived, LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
-    LineSegment2DProperties, Scalar,
+    LineSegment2DProperties, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元平面の線分。
@@ -20,6 +20,12 @@ pub struct LineSegment2D<T: Scalar> {
     pub(crate) end_param: T,
     pub(crate) start_point: Point2D<T>,
     pub(crate) end_point: Point2D<T>,
+}
+
+impl<T: Scalar> PrimitiveMetadata for LineSegment2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::LineSegment
+    }
 }
 
 impl<T: Scalar> LineSegment2D<T> {
@@ -192,13 +198,8 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// 境界ボックスを取得
     pub fn bounding_box(&self) -> geo_core::Aabb2D<T> {
-        use geo_core::Point2D;
-        let start = self.start_point();
-        let end = self.end_point();
-        geo_core::Aabb2D::new(
-            Point2D::new(start.x(), start.y()),
-            Point2D::new(end.x(), end.y()),
-        )
+        geo_core::Aabb2D::from_points(&[self.start_point(), self.end_point()])
+            .expect("Line segment always has two endpoints")
     }
 
     /// 基盤となる無限直線を取得（Extension用）

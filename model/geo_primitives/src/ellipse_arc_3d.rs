@@ -6,7 +6,8 @@
 use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::{
     Angle, Arc3DProperties, EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, Scalar,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange,
+    Scalar,
 };
 
 /// 3次元楕円弧
@@ -18,6 +19,12 @@ pub struct EllipseArc3D<T: Scalar> {
     pub(crate) ellipse: Ellipse3D<T>, // 基底楕円
     pub(crate) start_angle: Angle<T>, // 開始角度
     pub(crate) end_angle: Angle<T>,   // 終了角度
+}
+
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for EllipseArc3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Arc
+    }
 }
 
 impl<T: Scalar> EllipseArc3D<T> {
@@ -505,7 +512,9 @@ impl<T: Scalar> EllipseArc3DContainment<T> for EllipseArc3D<T> {
             angle >= start - tolerance || angle <= end + tolerance
         }
     }
+}
 
+impl<T: Scalar> EllipseArc3DTrimRange<T> for EllipseArc3D<T> {
     fn contains_angle(&self, angle: T) -> bool {
         let normalized_angle = if angle < T::ZERO {
             angle + T::TAU

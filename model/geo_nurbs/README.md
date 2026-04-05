@@ -61,17 +61,20 @@ let length = <NurbsCurve3D<f64> as NurbsCurve3DMeasure<f64>>::arc_length_total(&
 ### Extension Traits（拡張機能）
 
 ```rust
-use geo_contracts::{Bounded, ExtensionFoundation};
+use geo_contracts::Bounded;
 
 // PrimitiveKind取得
 let kind = curve.primitive_kind(); // PrimitiveKind::NurbsCurve3D
 
-// 測度（長さ・面積）
-let measure = curve.measure(); // Some(arc_length)
-
 // 境界ボックス
 let bbox = curve.aabb()?; // Aabb3D<T>
 ```
+
+補足:
+
+- `PrimitiveMetadata` と `Bounded` は本体と `*_bounds.rs` に分離して実装する
+- 標準 `aabb()` は制御点ベースの保守的な bounds を返す
+- より高精度な bounds は `curve_3d_extensions.rs` のような extension 側へ分離する
 
 ### Transform Traits（変換操作）
 
@@ -178,6 +181,13 @@ let adaptive_bbox = curve.bounding_box_with_options(
 );
 ```
 
+## bounds 運用ルール
+
+- finite な NURBS 型には `Bounded` を付与する
+- `Bounded` 実装は `*_bounds.rs` に配置する
+- 2D/3D の同族型を追加する場合、bounds を片側だけで止めない
+- `NurbsSurface2D` は現状未定義のため、`NurbsSurface3D` だけに bounds があるのは設計上の現状であり、横展開漏れではない
+
 ## モジュール構成
 
 ```
@@ -189,16 +199,16 @@ geo_nurbs/src/
 ├── basis.rs                     # B-spline基底関数
 │
 ├── curve_2d.rs                  # NurbsCurve2D - Core Traits実装
-├── curve_2d_foundation.rs       # NurbsCurve2D - Extension実装
+├── curve_2d_bounds.rs           # NurbsCurve2D - Bounds実装
 ├── curve_2d_transform.rs        # NurbsCurve2D - Transform実装
 │
 ├── curve_3d.rs                  # NurbsCurve3D - Core Traits実装
-├── curve_3d_foundation.rs       # NurbsCurve3D - Extension実装
+├── curve_3d_bounds.rs           # NurbsCurve3D - Bounds実装
 ├── curve_3d_extensions.rs       # NurbsCurve3D - 拡張機能（境界ボックス等）
 ├── curve_3d_transform.rs        # NurbsCurve3D - Transform実装
 │
 ├── surface_3d.rs                # NurbsSurface3D - Core Traits実装
-├── surface_3d_foundation.rs     # NurbsSurface3D - Extension実装
+├── surface_3d_bounds.rs         # NurbsSurface3D - Bounds実装
 ├── surface_3d_transform.rs      # NurbsSurface3D - Transform実装
 │
 └── operations/                  # NURBS編集操作

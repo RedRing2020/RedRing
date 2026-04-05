@@ -1,14 +1,8 @@
-//! EllipseArc3D の Foundation トレイト実装
+//! EllipseArc3D の Bounds 実装
 
 use crate::EllipseArc3D;
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for EllipseArc3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::Arc
-    }
-}
 
 impl<T: Scalar> Bounded<T> for EllipseArc3D<T> {
     type Aabb = Aabb3D<T>;

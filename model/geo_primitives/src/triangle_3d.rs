@@ -16,6 +16,28 @@ pub struct Triangle3D<T: Scalar> {
     vertex_c: Point3D<T>,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for Triangle3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Triangle
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for Triangle3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let a_distance = self
+            .vertex_a_internal()
+            .distance_to(&other.vertex_a_internal());
+        let b_distance = self
+            .vertex_b_internal()
+            .distance_to(&other.vertex_b_internal());
+        let c_distance = self
+            .vertex_c_internal()
+            .distance_to(&other.vertex_c_internal());
+
+        a_distance <= tolerance && b_distance <= tolerance && c_distance <= tolerance
+    }
+}
+
 impl<T: Scalar> Triangle3D<T> {
     /// 新しい3D三角形を作成
     ///
@@ -417,5 +439,37 @@ impl<T: Scalar> std::fmt::Display for Triangle3D<T> {
             "Triangle3D(A: {:?}, B: {:?}, C: {:?})",
             self.vertex_a, self.vertex_b, self.vertex_c
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Point3D;
+    use geo_contracts::TolerantEq;
+
+    #[test]
+    fn test_tolerant_eq() {
+        let triangle1 = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let triangle2 = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let triangle3 = Triangle3D::new(
+            Point3D::new(1.0, 1.0, 1.0),
+            Point3D::new(2.0, 1.0, 1.0),
+            Point3D::new(1.0, 2.0, 1.0),
+        )
+        .unwrap();
+
+        assert!(triangle1.tolerant_eq(&triangle2, 0.01));
+        assert!(!triangle1.tolerant_eq(&triangle3, 0.01));
     }
 }

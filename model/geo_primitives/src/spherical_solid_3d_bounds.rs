@@ -1,16 +1,10 @@
-//! SphericalSolid3D の Foundation 実装
+//! SphericalSolid3D の Bounds 実装
 //!
-//! Foundation 系 trait への適合
+//! `Bounded` trait への適合を提供する。
 
 use crate::SphericalSolid3D;
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for SphericalSolid3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::SphericalSolid
-    }
-}
 
 impl<T: Scalar> Bounded<T> for SphericalSolid3D<T> {
     type Aabb = Aabb3D<T>;
@@ -24,6 +18,7 @@ impl<T: Scalar> Bounded<T> for SphericalSolid3D<T> {
 mod tests {
     use super::*;
     use crate::Point3D;
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_spherical_solid_foundation() {

@@ -4,8 +4,8 @@
 
 use crate::{Point2D, Vector2D};
 use geo_contracts::{
-    Scalar, Triangle2DConstructor, Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
-    Triangle2DProperties,
+    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DConstructor, Triangle2DContainment,
+    Triangle2DDerived, Triangle2DDistance, Triangle2DProperties,
 };
 
 /// 2次元三角形（Core実装）
@@ -14,6 +14,12 @@ pub struct Triangle2D<T: Scalar> {
     vertex_a: Point2D<T>,
     vertex_b: Point2D<T>,
     vertex_c: Point2D<T>,
+}
+
+impl<T: Scalar> PrimitiveMetadata for Triangle2D<T> {
+    fn primitive_kind(&self) -> PrimitiveKind {
+        PrimitiveKind::Triangle
+    }
 }
 
 impl<T: Scalar> Triangle2D<T> {

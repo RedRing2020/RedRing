@@ -68,6 +68,12 @@ pub struct SphericalSurface3D<T: Scalar> {
     radius: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for SphericalSurface3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::SphericalSurface
+    }
+}
+
 impl<T: Scalar> SphericalSurface3D<T> {
     /// STEP AXIS2_PLACEMENT_3D 形式で球サーフェスを作成
     ///

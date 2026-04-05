@@ -54,6 +54,8 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - 次段は source of truth の所在変更ではなく、`geo_contracts` 正本 trait 群そのものの capability 再分類である
 - この capability 再分類では `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` を互換維持せず削除する
 - 具体的な再分類方針は [GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md](GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md) を正本とする
+- `geo_contracts::geometry::foundation` は facade を維持しつつ、内部実体を `metadata.rs` と `bounds.rs` へ分割する
+- `ExtensionFoundation` は互換 surface としても維持せず削除する
 
 ## 採用方針
 

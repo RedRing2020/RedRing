@@ -69,6 +69,12 @@ pub struct ConicalSurface3D<T: Scalar> {
     semi_angle: T,
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for ConicalSurface3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::ConicalSurface
+    }
+}
+
 impl<T: Scalar> ConicalSurface3D<T> {
     /// STEP AXIS2_PLACEMENT_3D 形式で円錐サーフェスを作成
     ///

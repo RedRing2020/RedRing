@@ -174,6 +174,22 @@ impl<T: Scalar> Ray3D<T> {
     }
 }
 
+impl<T: Scalar> geo_contracts::PrimitiveMetadata for Ray3D<T> {
+    fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
+        geo_contracts::PrimitiveKind::Ray
+    }
+}
+
+impl<T: Scalar> geo_contracts::TolerantEq<T> for Ray3D<T> {
+    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
+        let origin_distance = self.origin.distance_to(&other.origin);
+        let direction_dot = self.direction.dot(&other.direction).abs();
+        let direction_similar = direction_dot >= T::from_f64(0.999);
+
+        origin_distance <= tolerance && direction_similar
+    }
+}
+
 /// Ray3DConstructor トレイト実装
 impl<T: Scalar> Ray3DConstructor<T> for Ray3D<T> {
     fn new(origin: (T, T, T), direction: (T, T, T)) -> Option<Self>
@@ -529,5 +545,33 @@ impl<T: Scalar> DirectionalRelation<Self> for Ray3D<T> {
 impl<T: Scalar> AngleBetween<T, Self> for Ray3D<T> {
     fn angle_between(&self, other: &Self) -> T {
         Ray3D::angle_between(self, other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata, TolerantEq};
+
+    #[test]
+    fn test_ray_metadata() {
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+        let direction = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let ray = Ray3D::new(origin, direction.as_vector()).unwrap();
+
+        assert_eq!(ray.primitive_kind(), PrimitiveKind::Ray);
+    }
+
+    #[test]
+    fn test_ray_tolerant_eq() {
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+        let direction = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+        let ray1 = Ray3D::new(origin, direction.as_vector()).unwrap();
+        let ray2 = Ray3D::new(origin, direction.as_vector()).unwrap();
+        let ray3 = Ray3D::new(Point3D::new(1.0, 0.0, 0.0), direction.as_vector()).unwrap();
+
+        assert!(ray1.tolerant_eq(&ray2, 0.01));
+        assert!(!ray1.tolerant_eq(&ray3, 0.01));
     }
 }

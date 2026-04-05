@@ -1,14 +1,8 @@
 //! Triangle3D の Foundation トレイト実装
 
 use crate::Triangle3D;
-use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
+use geo_contracts::{Bounded, Scalar};
 use geo_core::Aabb3D;
-
-impl<T: Scalar> PrimitiveMetadata for Triangle3D<T> {
-    fn primitive_kind(&self) -> PrimitiveKind {
-        PrimitiveKind::Triangle
-    }
-}
 
 impl<T: Scalar> Bounded<T> for Triangle3D<T> {
     type Aabb = Aabb3D<T>;
@@ -55,27 +49,11 @@ impl<T: Scalar> Bounded<T> for Triangle3D<T> {
     }
 }
 
-impl<T: Scalar> TolerantEq<T> for Triangle3D<T> {
-    fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
-        // 3つの頂点がそれぞれ許容誤差内にあるかチェック
-        let a_distance = self
-            .vertex_a_internal()
-            .distance_to(&other.vertex_a_internal());
-        let b_distance = self
-            .vertex_b_internal()
-            .distance_to(&other.vertex_b_internal());
-        let c_distance = self
-            .vertex_c_internal()
-            .distance_to(&other.vertex_c_internal());
-
-        a_distance <= tolerance && b_distance <= tolerance && c_distance <= tolerance
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Point3D;
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_extension_foundation() {
@@ -94,34 +72,5 @@ mod tests {
         assert_eq!(aabb.max().x(), 1.0);
         assert_eq!(aabb.min().y(), 0.0);
         assert_eq!(aabb.max().y(), 1.0);
-    }
-
-    #[test]
-    fn test_tolerant_eq() {
-        let triangle1 = Triangle3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        )
-        .unwrap();
-
-        let triangle2 = Triangle3D::new(
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        )
-        .unwrap();
-
-        let triangle3 = Triangle3D::new(
-            Point3D::new(1.0, 1.0, 1.0),
-            Point3D::new(2.0, 1.0, 1.0),
-            Point3D::new(1.0, 2.0, 1.0),
-        )
-        .unwrap();
-
-        let tolerance = 0.01; // スカラー値の許容誤差
-
-        assert!(triangle1.tolerant_eq(&triangle2, tolerance));
-        assert!(!triangle1.tolerant_eq(&triangle3, tolerance));
     }
 }
