@@ -5,7 +5,9 @@
 use crate::Vector2D;
 use analysis::abstract_types::{Angle, Scalar};
 use analysis::linalg::vector::Vector2;
-use geo_contracts::{Point2DConstructor, Point2DCore, Point2DMeasure, Point2DProperties};
+use geo_contracts::{
+    Point2DConstructor, Point2DCore, Point2DDistance, Point2DInterpolation, Point2DProperties,
+};
 
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -343,7 +345,7 @@ impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
     }
 }
 
-impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
+impl<T: Scalar> Point2DDistance<T> for Point2D<T> {
     fn distance_to(&self, other: &Self) -> T {
         self.distance_to(other)
     }
@@ -362,20 +364,22 @@ impl<T: Scalar> Point2DMeasure<T> for Point2D<T> {
         self.distance_squared_to(&origin)
     }
 
-    fn midpoint(&self, other: &Self) -> Self {
-        self.midpoint(other)
-    }
-
-    fn lerp(&self, other: &Self, t: T) -> Self {
-        self.lerp(other, t)
-    }
-
     fn manhattan_distance_to(&self, other: &Self) -> T {
         self.manhattan_distance_to(other)
     }
 
     fn chebyshev_distance_to(&self, other: &Self) -> T {
         self.chebyshev_distance_to(other)
+    }
+}
+
+impl<T: Scalar> Point2DInterpolation<T> for Point2D<T> {
+    fn midpoint(&self, other: &Self) -> Self {
+        self.midpoint(other)
+    }
+
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        self.lerp(other, t)
     }
 }
 

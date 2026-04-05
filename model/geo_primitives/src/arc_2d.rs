@@ -137,7 +137,7 @@ impl<T: Scalar> Arc2D<T> {
     }
 
     /// 円弧の長さを計算
-    pub fn arc_length(&self) -> T {
+    pub fn length(&self) -> T {
         self.radius_internal() * self.angular_span()
     }
 
@@ -310,8 +310,7 @@ impl<T: Scalar> Arc2DProperties<T> for Arc2D<T> {
 
 impl<T: Scalar> Arc2DDerived<T> for Arc2D<T> {
     fn length(&self) -> T {
-        // arc_length の計算を直接展開: radius * angular_span
-        self.radius_internal() * self.angular_span()
+        Arc2D::length(self)
     }
 }
 
@@ -483,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arc_length() {
+    fn test_length() {
         let center = Point2D::new(0.0, 0.0);
         let radius = 1.0;
         let start = Angle::from_degrees(0.0);
@@ -493,7 +492,7 @@ mod tests {
 
         // 90度円弧の長さ = π/2
         let expected_length = std::f64::consts::PI / 2.0;
-        assert!((arc.arc_length() - expected_length).abs() < 1e-10);
+        assert!((arc.length() - expected_length).abs() < 1e-10);
     }
 
     #[test]

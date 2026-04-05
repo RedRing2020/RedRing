@@ -1,24 +1,13 @@
 //! `NurbsCurve3D` の Foundation パターン実装
 
-use crate::{constants, NurbsCurve3D};
+use crate::NurbsCurve3D;
 use geo_contracts::Scalar;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
+use geo_contracts::{Bounded, PrimitiveMetadata};
 use geo_core::{Aabb3D, Point3D};
 
 impl<T: Scalar> PrimitiveMetadata for NurbsCurve3D<T> {
     fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
         geo_contracts::PrimitiveKind::NurbsCurve3D
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for NurbsCurve3D<T> {
-    /// 曲線の測度（曲線長）を返す
-    ///
-    /// # 注意
-    /// 近似値を返します（100分割でのサンプリング）
-    /// より精密な計算が必要な場合は `approximate_length()` を直接使用
-    fn measure(&self) -> Option<T> {
-        Some(self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS))
     }
 }
 
@@ -56,7 +45,8 @@ impl<T: Scalar> Bounded<T> for NurbsCurve3D<T> {
 mod tests {
     use super::*;
     use crate::clamped_knot_vector;
-    use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata};
+    use crate::constants;
+    use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_nurbs_curve_3d_foundation() {
@@ -90,9 +80,8 @@ mod tests {
         assert!((max.z() - 0.0).abs() < 1e-10);
 
         // 測度（曲線長）の確認
-        let length = curve.measure();
-        assert!(length.is_some());
-        assert!(length.unwrap() > 0.0);
+        let length = curve.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS);
+        assert!(length > 0.0);
     }
 
     #[test]

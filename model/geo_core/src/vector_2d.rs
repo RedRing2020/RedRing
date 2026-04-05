@@ -301,7 +301,10 @@ impl<T: Scalar> From<(T, T)> for Vector2D<T> {
 }
 
 use analysis::linalg::vector::Vector2;
-use geo_contracts::{Vector2DConstructor, Vector2DCore, Vector2DMeasure, Vector2DProperties};
+use geo_contracts::{
+    Vector2DConstructor, Vector2DCore, Vector2DMetric, Vector2DProduct, Vector2DProjection,
+    Vector2DProperties, Vector2DRelation,
+};
 
 impl<T: Scalar> Vector2DConstructor<T> for Vector2D<T> {
     fn new(x: T, y: T) -> Self {
@@ -361,7 +364,9 @@ impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
     fn to_analysis_vector(&self) -> Vector2<T> {
         Vector2::new(self.x, self.y)
     }
+}
 
+impl<T: Scalar> Vector2DMetric<T> for Vector2D<T> {
     fn length(&self) -> T {
         Vector2D::length(self)
     }
@@ -376,20 +381,6 @@ impl<T: Scalar> Vector2DProperties<T> for Vector2D<T> {
 
     fn try_normalize(&self) -> Option<Self> {
         Vector2D::try_normalize(self)
-    }
-}
-
-impl<T: Scalar> Vector2DMeasure<T> for Vector2D<T> {
-    fn dot(&self, other: &Self) -> T {
-        self.dot(other)
-    }
-
-    fn cross_2d(&self, other: &Self) -> T {
-        self.cross(other)
-    }
-
-    fn angle_to(&self, other: &Self) -> Option<T> {
-        Some(self.angle_to(other).to_radians())
     }
 
     fn distance_to(&self, other: &Self) -> T {
@@ -407,6 +398,22 @@ impl<T: Scalar> Vector2DMeasure<T> for Vector2D<T> {
     fn manhattan_distance(&self) -> T {
         self.x.abs() + self.y.abs()
     }
+}
+
+impl<T: Scalar> Vector2DProduct<T> for Vector2D<T> {
+    fn dot(&self, other: &Self) -> T {
+        self.dot(other)
+    }
+
+    fn cross_2d(&self, other: &Self) -> T {
+        self.cross(other)
+    }
+}
+
+impl<T: Scalar> Vector2DRelation<T> for Vector2D<T> {
+    fn angle_to(&self, other: &Self) -> Option<T> {
+        Some(self.angle_to(other).to_radians())
+    }
 
     fn is_parallel_to(&self, other: &Self) -> bool {
         self.is_parallel(other)
@@ -415,7 +422,9 @@ impl<T: Scalar> Vector2DMeasure<T> for Vector2D<T> {
     fn is_perpendicular_to(&self, other: &Self) -> bool {
         self.is_perpendicular(other)
     }
+}
 
+impl<T: Scalar> Vector2DProjection<T> for Vector2D<T> {
     fn project_onto(&self, other: &Self) -> Option<Self> {
         Some(self.project_onto(other))
     }

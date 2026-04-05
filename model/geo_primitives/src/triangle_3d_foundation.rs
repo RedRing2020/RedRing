@@ -1,20 +1,12 @@
 //! Triangle3D の Foundation トレイト実装
 
 use crate::Triangle3D;
-use geo_contracts::{
-    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
-};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for Triangle3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Triangle
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for Triangle3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.area())
     }
 }
 
@@ -95,8 +87,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(triangle.primitive_kind(), PrimitiveKind::Triangle);
-        assert!(triangle.measure().is_some());
-        assert_eq!(triangle.measure().unwrap(), triangle.area());
+        assert_eq!(triangle.area(), 0.5);
 
         let aabb = triangle.aabb().expect("Triangle should have an AABB");
         assert_eq!(aabb.min().x(), 0.0);

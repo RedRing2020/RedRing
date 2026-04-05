@@ -4,22 +4,12 @@
 //! ハイブリッドモデラーの分類システムとの統合
 
 use crate::CylindricalSurface3D;
-use geo_contracts::{
-    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
-};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for CylindricalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::CylindricalSurface
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for CylindricalSurface3D<T> {
-    fn measure(&self) -> Option<T> {
-        // サーフェスの測度は面積だが、無限サーフェスのため None
-        // 境界制約された場合のみ有限の面積を持つ
-        None
     }
 }
 
@@ -87,9 +77,6 @@ mod tests {
 
         let bbox = surface.aabb().expect("should have aabb");
         assert!(!bbox.is_empty());
-
-        // 無限サーフェスのため測度は None
-        assert_eq!(surface.measure(), None);
     }
 
     #[test]

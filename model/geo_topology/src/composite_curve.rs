@@ -40,7 +40,7 @@ impl<T: Scalar> CurveSegment3D<T> {
                 let vec = Vector3D::from_points(&seg.start(), &seg.end());
                 vec.magnitude()
             }
-            Self::Arc(arc) => arc.arc_length(),
+            Self::Arc(arc) => arc.length(),
         }
     }
 }

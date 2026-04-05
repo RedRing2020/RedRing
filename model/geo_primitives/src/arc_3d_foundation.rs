@@ -2,18 +2,12 @@
 
 use crate::Arc3D;
 use geo_contracts::Scalar;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for Arc3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Arc
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for Arc3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.arc_length())
     }
 }
 
@@ -81,8 +75,7 @@ mod tests {
         let arc = Arc3D::new(center, 5.0, normal, start_dir, start_angle, end_angle).unwrap();
 
         assert_eq!(arc.primitive_kind(), PrimitiveKind::Arc);
-        assert!(arc.measure().is_some());
-        assert_eq!(arc.measure().unwrap(), arc.arc_length());
+        assert_eq!(arc.length(), 5.0 * std::f64::consts::PI);
 
         let aabb = arc.aabb().expect("Arc should have an AABB");
         // 中心を含む境界ボックス

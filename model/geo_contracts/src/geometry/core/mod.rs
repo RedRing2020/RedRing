@@ -116,8 +116,8 @@ pub use plane3d_traits::{
     Plane3DEvaluation, Plane3DProjection, Plane3DProperties, Plane3DTransform,
 };
 pub use point_traits::{
-    Point2DConstructor, Point2DCore, Point2DProperties, Point3DConstructor, Point3DCore,
-    Point3DProperties,
+    Point2DConstructor, Point2DCore, Point2DDistance, Point2DInterpolation, Point2DProperties,
+    Point3DConstructor, Point3DCore, Point3DDistance, Point3DInterpolation, Point3DProperties,
 };
 pub use ray_traits::{
     Ray2DConstructor, Ray2DContainment, Ray2DCore, Ray2DDistance, Ray2DEvaluation, Ray2DProjection,
@@ -153,6 +153,7 @@ pub use triangle_traits::{
     Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
 };
 pub use vector_traits::{
-    Vector2DConstructor, Vector2DCore, Vector2DProperties, Vector3DConstructor, Vector3DCore,
-    Vector3DProperties,
+    Vector2DConstructor, Vector2DCore, Vector2DMetric, Vector2DProduct, Vector2DProjection,
+    Vector2DProperties, Vector2DRelation, Vector3DConstructor, Vector3DCore, Vector3DMetric,
+    Vector3DProduct, Vector3DProjection, Vector3DProperties, Vector3DRelation,
 };

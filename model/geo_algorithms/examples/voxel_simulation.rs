@@ -139,7 +139,7 @@ fn main() {
     println!("   残存体積: {:.1} mm³", volume_after_arc);
 
     // 円弧の長さ計算
-    let arc_length = arc.arc_length();
+    let arc_length = arc.length();
     println!("   円弧長: {:.2} mm", arc_length);
     println!();
 

@@ -106,6 +106,168 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `measure` は単一の意味語彙として新設 capability の中心に置かない
 - `*Measure` を後方互換の集約 trait として残す場合でも、新設 capability の説明単位は `length` / `circumference` / `area` のような具体語彙を優先する
 
+## 2026-04-05 合意更新: Point / Vector / AABB の標準再分類
+
+`#558` の shape 意味論整理と `#533` の source of truth 整理を踏まえ、基本型についても `Measure` を中心にした capability 集約を継続しない。
+
+2026-04-05 時点で、次を合意事項として採用する。
+
+- Point / Vector / AABB は shape 系と同じ責務分離原則に従って再分類する
+- `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` は互換維持ではなく破壊的変更で削除する
+- 新設 capability 名は `Measure` の総称ではなく、距離・補間・積・関係・射影・派生値のような具体語彙を用いる
+- AABB は既存の `Properties` / `Derived` 分離を基準形とし、relation 系は operations 側に置く
+
+補足:
+
+- 本更新は「shape と同じ名前を使う」ことを意味しない
+- Point / Vector / AABB では、それぞれの型に適した capability 語彙を採用する
+- `measure()` のような総称 API を基本型 capability の正本語彙として再導入しない
+
+## Point / Vector / AABB の採用分類
+
+ここでは、基本型の capability を `Measure` 集約から外した後の標準分類を定義する。
+
+### Point
+
+`Point` は shape の primary measure を持つ対象ではないため、`area` / `length` / `volume` のような measure 語彙を正本 capability に置かない。
+
+採用分類:
+
+- `Point2DConstructor` / `Point3DConstructor`: definition
+- `Point2DProperties` / `Point3DProperties`: definition
+- `Point2DDistance` / `Point3DDistance`: distance
+- `Point2DInterpolation` / `Point3DInterpolation`: interpolation
+
+`Point*Distance` に属する API:
+
+- `distance_to`
+- `distance_squared_to`
+- `distance_from_origin`
+- `manhattan_distance_to`
+- `chebyshev_distance_to`
+
+`Point*Interpolation` に属する API:
+
+- `midpoint`
+- `lerp`
+
+個別判定:
+
+- `norm_squared` は `distance_from_origin` と同じ計量文脈なので `Point*Distance` に含める
+- `position()` は参照 convenience として `Properties` に残してよい
+- `dimension()` は lightweight metadata として `Properties` に残してよい
+- `area()` / `length()` / `volume()` は削除対象とする
+
+### Vector
+
+`Vector` は magnitude を持つが、shape family の primary measure と同一視しない。`Vector` の capability は、計量・積演算・関係・射影へ分解する。
+
+採用分類:
+
+- `Vector2DConstructor` / `Vector3DConstructor`: definition
+- `Vector2DProperties` / `Vector3DProperties`: definition
+- `Vector2DMetric` / `Vector3DMetric`: metric
+- `Vector2DProduct` / `Vector3DProduct`: product
+- `Vector2DRelation` / `Vector3DRelation`: relation
+- `Vector2DProjection` / `Vector3DProjection`: projection
+
+`Vector*Metric` に属する API:
+
+- `magnitude`
+- `distance_to`
+- `distance_squared_to`
+- `manhattan_distance`
+
+`Vector*Product` に属する API:
+
+- `dot`
+- `cross_2d`
+- `cross_3d`
+
+`Vector*Relation` に属する API:
+
+- `angle_to`
+- `is_parallel_to`
+- `is_perpendicular_to`
+
+`Vector*Projection` に属する API:
+
+- `project_onto`
+- `project_onto_plane`
+
+個別判定:
+
+- `length()` / `length_squared()` / `normalize()` / `try_normalize()` は、単なる component 参照ではなく計量由来の派生操作なので `Properties` から外す方向を正とする
+- `is_zero()` / `is_unit()` は `length_squared()` に依存するため `Metric` 側へ移すのを正とする
+- `area()` / `length()` / `volume()` の `Option` 既定実装は削除対象とする
+
+### AABB
+
+`AABB` はすでに `Properties` / `Derived` へ分かれているため、この構造を基本型 capability 分離の基準形として採用する。
+
+採用分類:
+
+- `Aabb2DProperties` / `Aabb3DProperties`: definition
+- `Aabb2DDerived` / `Aabb3DDerived`: derived
+- `Aabb2DRelation` / `Aabb3DRelation`: operations
+
+個別判定:
+
+- `min` / `max` は definition に残す
+- `width` / `height` / `depth` / `area` / `volume` / `center` / `is_valid` は derived に残す
+- AABB 間や点との関係判定は unary/cross-shape relation なので core ではなく operations に置く
+
+## 破壊的変更方針
+
+Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維持せず削除する。
+
+理由:
+
+- `Measure` を残すと、責務分離後も曖昧な集約先として再流入しやすい
+- shape 系で進めている具体語彙中心の capability 設計と整合しない
+- `area` / `length` / `volume` のような無意味な既定実装を温存する理由がない
+
+設計反映:
+
+- `geometry/foundation/point_measure_traits.rs` は再分類後に廃止する
+- `geometry/foundation/vector_measure_traits.rs` は再分類後に廃止する
+- `geometry/foundation/mod.rs` の `pub use Point2DMeasure` などの export は削除対象とする
+- `geo_contracts::lib.rs` の `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` export は削除対象とする
+
+## 実施順序
+
+破壊的変更は次の順で進める。
+
+1. 設計文書で Point / Vector / AABB の capability 分類を固定する
+2. `geo_contracts` に新 capability trait を追加する
+3. `geo_core` concrete type 実装を新 trait 群へ切り替える
+4. `geo_primitives` / `geo_nurbs` / `geo_algorithms` の利用側を追従させる
+5. 旧 `*Measure` trait ファイルと re-export を削除する
+6. `MeasureFoundation` を削除し、shape 固有 capability へ移行する
+
+補足:
+
+- `MeasureFoundation` は `measure()` という総称 API を shape 系へ再注入するため採用しない
+- 長さ・周回長・面積・体積は各 shape の `Derived` または shape 固有 capability で表現する
+- `PrimitiveMetadata` と `Bounded` は foundation に残してよい
+
+## 2026-04-05 合意更新: `MeasureFoundation` の扱い
+
+`MeasureFoundation` は削除する。
+
+理由:
+
+- `measure()` は `#558` で退けた曖昧語彙であり、shape family ごとの primary vocabulary に逆行する
+- Point / Vector の `*Measure` を削除した後も `MeasureFoundation` を残すと、別名の集約受け皿として同じ問題を再発させる
+- 現行の `MeasureFoundation` 実装は既存の shape 固有 API への薄い委譲に留まり、独立 capability としての意味が弱い
+
+設計反映:
+
+- `geometry/foundation/mod.rs` から `MeasureFoundation` を削除する
+- `geo_contracts::lib.rs` の `MeasureFoundation` export を削除する
+- 各 `*_foundation.rs` にある `MeasureFoundation` 実装は削除する
+- `measure()` を使ったテストは、`length` / `circumference` / `area` / `volume` / `arc_length` / `surface_area` のような shape 固有 API へ置き換える
+
 ## `#558` の一次配置方針
 
 上記前提を踏まえ、`#558` では少なくとも次の capability 群を区別して扱う。

@@ -18,7 +18,7 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - `geo_contracts` 側の `Point` / `Vector` trait定義を正本とする方針は維持する
 - `geo_core::point_traits` / `geo_core::vector_traits` は duplicate trait定義ではなく、互換再エクスポート層として扱う
 - 残課題は、`geo_core` の concrete type 実装が互換再エクスポート経由で trait を参照している点であり、最小整理ではここを `geo_contracts` 直接参照へ切り替える
-- `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` 自体の capability 再設計は本書の対象外とし、別段で扱う
+- `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` 自体の capability 再設計は、2026-04-05 合意により別設計で破壊的変更として進める
 - `geo_contracts` には既に `geometry/core/aabb_traits.rs` が追加済みであり、AABB trait定義の正本は contracts 側へ移管済みである
 - AABB の残課題は、`geo_core::Aabb2D` / `Aabb3D` の concrete 実装とテストが互換再エクスポート経由で trait を参照している点であり、最小整理ではここを `geo_contracts` 直接参照へ切り替える
 
@@ -47,6 +47,13 @@ Issue #533 では、`geo_core` と `geo_contracts` にまたがって残って�
 - `Bounded` は `geo_contracts` 側に存在し、associated type `Aabb` を介して concrete type を返せる設計になっている
 
 このため、AABB も trait定義を `geo_contracts`、concrete type を `geo_core` に残す構成へ既に移行しており、残る整理は concrete 実装の参照先統一である。
+
+## 2026-04-05 時点の補足
+
+- source of truth 整理の最小段階は完了し、`geo_core` の concrete type 実装は Point / Vector / AABB とも `geo_contracts` 直接参照へ切り替え済みである
+- 次段は source of truth の所在変更ではなく、`geo_contracts` 正本 trait 群そのものの capability 再分類である
+- この capability 再分類では `Point2DMeasure` / `Point3DMeasure` / `Vector2DMeasure` / `Vector3DMeasure` を互換維持せず削除する
+- 具体的な再分類方針は [GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md](GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md) を正本とする
 
 ## 採用方針
 

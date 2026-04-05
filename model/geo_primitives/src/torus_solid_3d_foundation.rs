@@ -5,18 +5,12 @@
 // 境界ボックス計算、測度（体積）、プリミティブ種別の分類を行います。
 
 use crate::TorusSolid3D;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for TorusSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::TorusSolid
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for TorusSolid3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.volume_internal())
     }
 }
 
@@ -114,7 +108,7 @@ mod tests {
     #[test]
     fn test_volume_measure() {
         let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
-        let volume = torus.measure().unwrap();
+        let volume = torus.volume_internal();
 
         // 期待される体積: 2π²R²r = 2π² × 3² × 1 ≈ 177.65
         let expected = 2.0 * std::f64::consts::PI.powi(2) * 3.0_f64.powi(2) * 1.0;
@@ -127,7 +121,7 @@ mod tests {
 
         // CAM計算で重要な特性を検証
         assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSolid);
-        assert!(torus.measure().is_some());
+        assert!(torus.volume_internal() > 0.0);
 
         let bbox = torus.aabb().expect("should have aabb");
         let bbox_volume = (bbox.max().x() - bbox.min().x())

@@ -1,18 +1,11 @@
 //! Plane3D の Foundation トレイト実装
 
 use crate::Plane3D;
-use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
+use geo_contracts::{PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 
 impl<T: Scalar> PrimitiveMetadata for Plane3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Plane
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for Plane3D<T> {
-    fn measure(&self) -> Option<T> {
-        // 無限平面の測度（面積）は無限大なので None を返す
-        None
     }
 }
 
@@ -54,10 +47,6 @@ mod tests {
 
         // primitive_kind のテスト
         assert_eq!(plane.primitive_kind(), PrimitiveKind::Plane);
-
-        // measure のテスト（無限平面なので None）
-        let measure = plane.measure();
-        assert!(measure.is_none());
 
         // Plane3D は Bounded を実装しないため、aabb() はありません
     }

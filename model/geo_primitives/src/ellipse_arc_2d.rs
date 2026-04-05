@@ -101,7 +101,7 @@ impl<T: Scalar> EllipseArc2D<T> {
     }
 
     /// 弧長を取得（近似値）
-    pub fn arc_length(&self) -> T {
+    pub fn length(&self) -> T {
         // 簡易近似: 楕円周回長に角度比率を掛ける
         let full_circumference = self.ellipse.circumference();
         let angle_ratio = self.angle_span().to_radians().abs() / T::TAU;
@@ -366,11 +366,7 @@ impl<T: Scalar> EllipseArc2DProperties<T> for EllipseArc2D<T> {
 
 impl<T: Scalar> EllipseArc2DDerived<T> for EllipseArc2D<T> {
     fn length(&self) -> T {
-        // arc_length の計算を直接展開: 楕円周回長に角度比率を掛ける
-        let full_circumference = self.ellipse.circumference();
-        let angle_ratio =
-            (self.end_angle.to_radians() - self.start_angle.to_radians()).abs() / T::TAU;
-        full_circumference * angle_ratio
+        EllipseArc2D::length(self)
     }
 
     fn bounding_box(&self) -> ((T, T), (T, T)) {

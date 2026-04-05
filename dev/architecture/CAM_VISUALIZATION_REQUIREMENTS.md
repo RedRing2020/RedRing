@@ -577,7 +577,7 @@ impl<T: Scalar> PathSegment<T> {
     pub fn length(&self) -> T {
         match self {
             Self::Linear { segment, .. } => segment.length(),
-            Self::Arc { arc, .. } => arc.arc_length(),
+            Self::Arc { arc, .. } => arc.length(),
             Self::Rapid { segment } => segment.length(),
         }
     }

@@ -2,19 +2,13 @@
 //!
 //! Extension Traits の実装とテスト
 
-use crate::{constants, NurbsCurve2D, Scalar};
+use crate::{NurbsCurve2D, Scalar};
 use geo_contracts::NurbsCurve2DProperties;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveMetadata};
+use geo_contracts::{Bounded, PrimitiveMetadata};
 
 impl<T: Scalar> PrimitiveMetadata for NurbsCurve2D<T> {
     fn primitive_kind(&self) -> geo_contracts::PrimitiveKind {
         geo_contracts::PrimitiveKind::NurbsCurve2D
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for NurbsCurve2D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.approximate_length(constants::CURVE_LENGTH_SUBDIVISIONS))
     }
 }
 
@@ -47,11 +41,11 @@ impl<T: Scalar> Bounded<T> for NurbsCurve2D<T> {
 mod tests {
     use crate::knot::clamped_knot_vector;
     use crate::NurbsCurve2D;
-    use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata};
     use geo_contracts::{
         NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation,
         NurbsCurve2DProperties,
     };
+    use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
     fn test_core_traits_constructor_new() {
@@ -192,9 +186,7 @@ mod tests {
         assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve2D);
 
         // 測度の確認（2D曲線の場合は長さ）
-        let measure = curve.measure();
-        assert!(measure.is_some());
-        let length = measure.unwrap();
+        let length = curve.approximate_length(crate::constants::CURVE_LENGTH_SUBDIVISIONS);
         assert!(length > 0.0);
     }
 }

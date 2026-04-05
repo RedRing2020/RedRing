@@ -2,18 +2,12 @@
 
 use crate::Circle3D;
 use geo_contracts::Scalar;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, TolerantEq};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for Circle3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Circle
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for Circle3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.area())
     }
 }
 
@@ -101,8 +95,7 @@ mod tests {
         let circle = Circle3D::new(center, normal, 5.0).unwrap();
 
         assert_eq!(circle.primitive_kind(), PrimitiveKind::Circle);
-        assert!(circle.measure().is_some());
-        assert_eq!(circle.measure().unwrap(), circle.area());
+        assert_eq!(circle.area(), 25.0 * std::f64::consts::PI);
 
         let aabb = circle.aabb().expect("Circle should have an AABB");
         // XY平面の円なので、Z方向の範囲は0

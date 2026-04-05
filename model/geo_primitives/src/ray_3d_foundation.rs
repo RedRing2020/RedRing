@@ -2,18 +2,11 @@
 
 use crate::Ray3D;
 use geo_contracts::Scalar;
-use geo_contracts::{MeasureFoundation, PrimitiveKind, PrimitiveMetadata, TolerantEq};
+use geo_contracts::{PrimitiveKind, PrimitiveMetadata, TolerantEq};
 
 impl<T: Scalar> PrimitiveMetadata for Ray3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Ray
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for Ray3D<T> {
-    fn measure(&self) -> Option<T> {
-        // レイの測度は無限大（長さがない）
-        None // 無限大なので None を返す
     }
 }
 
@@ -46,7 +39,6 @@ mod tests {
         let ray = Ray3D::new(origin, direction.as_vector()).unwrap();
 
         assert_eq!(ray.primitive_kind(), PrimitiveKind::Ray);
-        assert!(ray.measure().is_none()); // 無限大
 
         // Ray3D は Bounded を実装しないため、aabb() はありません
         // 必要な場合は ray_3d_extensions.rs の bounding_box() を使用

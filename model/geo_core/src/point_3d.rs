@@ -4,7 +4,9 @@
 //! 基本機能、Foundation トレイト、Analysis 変換、演算子オーバーロードを含む。
 
 use analysis::abstract_types::Scalar;
-use geo_contracts::{Point3DConstructor, Point3DCore, Point3DMeasure, Point3DProperties};
+use geo_contracts::{
+    Point3DConstructor, Point3DCore, Point3DDistance, Point3DInterpolation, Point3DProperties,
+};
 
 /// 3次元空間の点
 ///
@@ -271,7 +273,7 @@ impl<T: Scalar> Point3DProperties<T> for Point3D<T> {
     }
 }
 
-impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
+impl<T: Scalar> Point3DDistance<T> for Point3D<T> {
     fn distance_to(&self, other: &Self) -> T {
         Point3D::distance_to(self, other)
     }
@@ -288,20 +290,22 @@ impl<T: Scalar> Point3DMeasure<T> for Point3D<T> {
         self.norm()
     }
 
-    fn midpoint(&self, other: &Self) -> Self {
-        Point3D::midpoint(self, other)
-    }
-
-    fn lerp(&self, other: &Self, t: T) -> Self {
-        Point3D::lerp(self, other, t)
-    }
-
     fn manhattan_distance_to(&self, other: &Self) -> T {
         Point3D::manhattan_distance_to(self, other)
     }
 
     fn chebyshev_distance_to(&self, other: &Self) -> T {
         Point3D::chebyshev_distance_to(self, other)
+    }
+}
+
+impl<T: Scalar> Point3DInterpolation<T> for Point3D<T> {
+    fn midpoint(&self, other: &Self) -> Self {
+        Point3D::midpoint(self, other)
+    }
+
+    fn lerp(&self, other: &Self, t: T) -> Self {
+        Point3D::lerp(self, other, t)
     }
 }
 

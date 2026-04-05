@@ -81,7 +81,7 @@ mod tests {
         assert!(span.is_equivalent_default(&expected_span));
 
         // 円弧長
-        let length = arc.arc_length();
+        let length = arc.length();
         let expected_length = 2.0 * std::f64::consts::PI; // 半円
         assert!((length - expected_length).abs() < 1e-10);
 
@@ -105,7 +105,7 @@ mod tests {
 
         assert!(full_arc.is_full_circle());
 
-        let arc_length = full_arc.arc_length();
+        let arc_length = full_arc.length();
         let expected_circumference = 2.0 * std::f64::consts::PI * 3.0;
         assert!((arc_length - expected_circumference).abs() < 1e-10);
     }
@@ -228,7 +228,7 @@ mod tests {
 
         assert_eq!(arc.radius(), 3.0f32);
 
-        let length = arc.arc_length();
+        let length = arc.length();
         let expected_length = 3.0f32 * std::f32::consts::PI;
         assert!((length - expected_length).abs() < TOLERANCE_F32);
 

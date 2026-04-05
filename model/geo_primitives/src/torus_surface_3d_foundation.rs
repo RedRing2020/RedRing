@@ -4,19 +4,13 @@
 // Foundation パターンに従い、統一されたプリミティブインターフェースを提供します。
 
 use crate::{Point3D, TorusSurface3D};
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for TorusSurface3D<T> {
     /// プリミティブの種類を返す
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::TorusSurface
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for TorusSurface3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.surface_area())
     }
 }
 
@@ -94,7 +88,7 @@ mod tests {
         let minor_radius = 1.0;
         let torus = TorusSurface3D::standard(major_radius, minor_radius).unwrap();
 
-        let measure = torus.measure().unwrap();
+        let measure = torus.surface_area();
         let expected = 4.0 * PI * PI * major_radius * minor_radius;
 
         assert!((measure - expected).abs() < 1e-10);
@@ -154,7 +148,7 @@ mod tests {
         let torus = TorusSurface3D::donut(5.0, 1.0).unwrap(); // ドーナツ型
 
         // 表面積が正の値
-        assert!(torus.measure().unwrap() > 0.0);
+        assert!(torus.surface_area() > 0.0);
 
         // 境界ボックスが有効
         let bbox = torus.aabb().expect("should have aabb");

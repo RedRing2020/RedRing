@@ -6,20 +6,12 @@
 //! **最終更新: 2025年11月1日**
 
 use crate::ConicalSolid3D;
-use geo_contracts::{
-    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
-};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for ConicalSolid3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::ConicalSolid
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for ConicalSolid3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.volume_internal())
     }
 }
 
@@ -82,9 +74,7 @@ mod tests {
         // primitive_kind のテスト
         assert_eq!(conical_solid.primitive_kind(), PrimitiveKind::ConicalSolid);
 
-        // measure (体積) のテスト
-        assert!(conical_solid.measure().is_some());
-        let volume = conical_solid.measure().unwrap();
+        let volume = conical_solid.volume_internal();
         let expected_volume = std::f64::consts::PI * 25.0 * 10.0 / 3.0; // π * r² * h / 3
         assert_relative_eq!(volume, expected_volume, epsilon = 1e-10);
 

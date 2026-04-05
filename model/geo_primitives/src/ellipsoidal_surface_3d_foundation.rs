@@ -1,18 +1,12 @@
 //! EllipsoidalSurface3D の Foundation パターン実装
 
 use crate::EllipsoidalSurface3D;
-use geo_contracts::{Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for EllipsoidalSurface3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::EllipsoidalSurface
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for EllipsoidalSurface3D<T> {
-    fn measure(&self) -> Option<T> {
-        Some(self.surface_area())
     }
 }
 
@@ -33,7 +27,7 @@ mod tests {
     fn test_ellipsoidal_surface_foundation() {
         let surface = EllipsoidalSurface3D::new_standard((1.0, 2.0, 3.0), 2.0, 3.0, 4.0).unwrap();
         assert_eq!(surface.primitive_kind(), PrimitiveKind::EllipsoidalSurface);
-        assert!(surface.measure().unwrap() > 0.0);
+        assert!(surface.surface_area() > 0.0);
 
         let bbox = surface.aabb().unwrap();
         assert!(bbox.max().x() > bbox.min().x());

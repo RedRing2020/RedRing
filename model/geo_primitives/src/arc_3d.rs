@@ -129,7 +129,7 @@ impl<T: Scalar> Arc3D<T> {
     }
 
     /// 円弧の長さを計算
-    pub fn arc_length(&self) -> T {
+    pub fn length(&self) -> T {
         self.radius * self.angle_span().to_radians()
     }
 
@@ -350,12 +350,7 @@ impl<T: Scalar> ContractsArc3DProperties<T> for Arc3D<T> {
 
 impl<T: Scalar> Arc3DDerived<T> for Arc3D<T> {
     fn length(&self) -> T {
-        // arc_length の計算を直接展開: radius * angle_span
-        let mut span = self.end_angle - self.start_angle;
-        if span.to_radians() < T::ZERO {
-            span += Angle::from_radians(T::from_f64(2.0) * T::PI);
-        }
-        self.radius * span.to_radians()
+        Arc3D::length(self)
     }
 }
 

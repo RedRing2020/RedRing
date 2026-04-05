@@ -1,38 +1,12 @@
 //! TriangleMesh3D の Foundation トレイト実装
 
 use crate::TriangleMesh3D;
-use geo_contracts::{
-    Bounded, MeasureFoundation, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq,
-};
+use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata, Scalar, TolerantEq};
 use geo_core::Aabb3D;
 
 impl<T: Scalar> PrimitiveMetadata for TriangleMesh3D<T> {
     fn primitive_kind(&self) -> PrimitiveKind {
         PrimitiveKind::Mesh
-    }
-}
-
-impl<T: Scalar> MeasureFoundation<T> for TriangleMesh3D<T> {
-    fn measure(&self) -> Option<T> {
-        // 三角形の面積の合計を計算
-        let mut total_area = T::ZERO;
-
-        for triangle_indices in self.indices() {
-            if let (Some(v0), Some(v1), Some(v2)) = (
-                self.vertices().get(triangle_indices[0]),
-                self.vertices().get(triangle_indices[1]),
-                self.vertices().get(triangle_indices[2]),
-            ) {
-                // 三角形の面積を計算（外積の半分）
-                let edge1 = crate::Vector3D::new(v1.x() - v0.x(), v1.y() - v0.y(), v1.z() - v0.z());
-                let edge2 = crate::Vector3D::new(v2.x() - v0.x(), v2.y() - v0.y(), v2.z() - v0.z());
-                let cross_product = edge1.cross(&edge2);
-                let triangle_area = cross_product.length() / T::from_f64(2.0);
-                total_area += triangle_area;
-            }
-        }
-
-        Some(total_area)
     }
 }
 
@@ -49,6 +23,26 @@ impl<T: Scalar> Bounded<T> for TriangleMesh3D<T> {
     }
 }
 
+fn total_mesh_area<T: Scalar>(mesh: &TriangleMesh3D<T>) -> T {
+    let mut total_area = T::ZERO;
+
+    for triangle_indices in mesh.indices() {
+        if let (Some(v0), Some(v1), Some(v2)) = (
+            mesh.vertices().get(triangle_indices[0]),
+            mesh.vertices().get(triangle_indices[1]),
+            mesh.vertices().get(triangle_indices[2]),
+        ) {
+            let edge1 = crate::Vector3D::new(v1.x() - v0.x(), v1.y() - v0.y(), v1.z() - v0.z());
+            let edge2 = crate::Vector3D::new(v2.x() - v0.x(), v2.y() - v0.y(), v2.z() - v0.z());
+            let cross_product = edge1.cross(&edge2);
+            let triangle_area = cross_product.length() / T::from_f64(2.0);
+            total_area += triangle_area;
+        }
+    }
+
+    total_area
+}
+
 impl<T: Scalar> TolerantEq<T> for TriangleMesh3D<T> {
     fn tolerant_eq(&self, other: &Self, tolerance: T) -> bool {
         // 頂点数と三角形数が同じかチェック
@@ -58,9 +52,8 @@ impl<T: Scalar> TolerantEq<T> for TriangleMesh3D<T> {
             return false;
         }
 
-        // 表面積の差をチェック（measure()を使用）
-        let self_area = self.measure().unwrap_or(T::ZERO);
-        let other_area = other.measure().unwrap_or(T::ZERO);
+        let self_area = total_mesh_area(self);
+        let other_area = total_mesh_area(other);
         let area_diff = (self_area - other_area).abs();
 
         // 面積の差が許容誤差内かチェック
@@ -85,8 +78,7 @@ mod tests {
         let mesh = TriangleMesh3D::new(vertices, indices).unwrap();
 
         assert_eq!(mesh.primitive_kind(), PrimitiveKind::Mesh);
-        assert!(mesh.measure().is_some());
-        // measure()はsurface_area()の代替実装
+        assert_eq!(total_mesh_area(&mesh), 0.5);
 
         if let Some(bbox) = mesh.aabb() {
             assert_eq!(bbox.min().x(), 0.0);

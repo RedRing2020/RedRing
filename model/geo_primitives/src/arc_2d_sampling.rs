@@ -37,7 +37,7 @@ impl<T: Scalar> ArcSampling<T> for Arc2D<T> {
             return vec![self.start_point()];
         }
 
-        let _total_length = self.arc_length();
+        let _total_length = self.length();
         let num_segments = 16; // 固定値として一時的に対応
 
         if num_segments <= 1 {

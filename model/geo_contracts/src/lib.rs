@@ -46,10 +46,11 @@ pub use geometry::core::{
     EllipsoidalSolid3DDistance, EllipsoidalSolid3DProjection, EllipsoidalSolid3DProperties,
     EllipsoidalSurface3DConstructor, EllipsoidalSurface3DCore, EllipsoidalSurface3DDerived,
     EllipsoidalSurface3DDistance, EllipsoidalSurface3DEvaluation, EllipsoidalSurface3DProperties,
-    Point2DConstructor, Point2DCore, Point2DProperties, Point3DConstructor, Point3DCore,
-    Point3DProperties, Rect2DConstructor, Rect2DContainment, Rect2DCore, Rect2DDerived,
-    Rect2DProperties, Rect3DConstructor, Rect3DContainment, Rect3DCore, Rect3DDerived,
-    Rect3DEvaluation, Rect3DProperties, SphericalSolid3DConstructor, SphericalSolid3DContainment,
+    Point2DConstructor, Point2DCore, Point2DDistance, Point2DInterpolation, Point2DProperties,
+    Point3DConstructor, Point3DCore, Point3DDistance, Point3DInterpolation, Point3DProperties,
+    Rect2DConstructor, Rect2DContainment, Rect2DCore, Rect2DDerived, Rect2DProperties,
+    Rect3DConstructor, Rect3DContainment, Rect3DCore, Rect3DDerived, Rect3DEvaluation,
+    Rect3DProperties, SphericalSolid3DConstructor, SphericalSolid3DContainment,
     SphericalSolid3DCore, SphericalSolid3DDerived, SphericalSolid3DDistance,
     SphericalSolid3DEvaluation, SphericalSolid3DProjection, SphericalSolid3DProperties,
     SphericalSurface3DConstructor, SphericalSurface3DCore, SphericalSurface3DDerived,
@@ -58,8 +59,9 @@ pub use geometry::core::{
     TorusSolid3DCore, TorusSolid3DDerived, TorusSolid3DDistance, TorusSolid3DEvaluation,
     TorusSolid3DProjection, TorusSolid3DProperties, TorusSurface3DConstructor, TorusSurface3DCore,
     TorusSurface3DDerived, TorusSurface3DDistance, TorusSurface3DEvaluation,
-    TorusSurface3DProperties, Vector2DConstructor, Vector2DCore, Vector2DProperties,
-    Vector3DConstructor, Vector3DCore, Vector3DProperties,
+    TorusSurface3DProperties, Vector2DConstructor, Vector2DCore, Vector2DMetric, Vector2DProduct,
+    Vector2DProjection, Vector2DProperties, Vector2DRelation, Vector3DConstructor, Vector3DCore,
+    Vector3DMetric, Vector3DProduct, Vector3DProjection, Vector3DProperties, Vector3DRelation,
 };
 pub use geometry::core::{
     InfiniteLine2DConstructor, InfiniteLine2DContainment, InfiniteLine2DCore,
@@ -85,10 +87,7 @@ pub use geometry::core::{
     Triangle2DDistance, Triangle2DProperties, Triangle3DConstructor, Triangle3DContainment,
     Triangle3DCore, Triangle3DDerived, Triangle3DDistance, Triangle3DProperties,
 };
-pub use geometry::foundation::{
-    Bounded, ExtensionFoundation, MeasureFoundation, Point2DMeasure, Point3DMeasure,
-    PrimitiveMetadata, Vector2DMeasure, Vector3DMeasure,
-};
+pub use geometry::foundation::{Bounded, ExtensionFoundation, PrimitiveMetadata};
 pub use geometry::operations::{
     Aabb2DRelation, Aabb3DRelation, AdvancedCollision, AngleBetween, AngularRelation,
     BBoxCollision, BasicCollision, BasicIntersection, ClosestPointPair, CrossDistance,
