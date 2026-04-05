@@ -92,7 +92,7 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `Triangle` の `vertex_a/b/c` や edge length は、curve endpoint capability ではなく polygon / face boundary access として扱う
 - 面 shape の boundary access は、curve endpoint と同じ trait 群へ混在させない
 
-### 5. primary measure vocabulary は shape family ごとに分ける
+### 5. primary quantity vocabulary は shape family ごとに分ける
 
 優先語彙:
 
@@ -318,6 +318,32 @@ Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維
 - relation API
 - solver / approximation / strategy oriented capability
 
+## 将来 shape 追加時の capability 配置チェックリスト草案
+
+`#558` で固める taxonomy は、将来の shape 追加時に capability をどこへ置くかを判断する基準として使う。
+
+新しい shape を trait 群へ落とし込む前に、少なくとも次を確認する。
+
+1. definition core に残す正本 parameter は何か
+2. endpoint capability を持つのか、単なる boundary access に留まるのか
+3. parameter evaluation は curve family か surface family のどちらに属するか
+4. periodic parameter と trimmed range を別 capability に分ける必要があるか
+5. shape 全体の primary quantity と boundary element の局所 quantity を分ける必要があるか
+6. centroid や circumcenter のような補助量を Derived に置けるか
+7. orientation / normal / trim-range を独立 capability にすべきか
+8. containment / distance / projection を core から外して minimal extension に置くべきか
+9. cross-shape relation を operations 側へ送るべきか
+
+個別判定の原則:
+
+- shape 全体の primary quantity は、その shape family の正本語彙で扱う
+- edge length など boundary element ひとつの局所 quantity は、shape 全体の primary quantity と混在させない
+- support shape 上の評価と trimmed domain の有効判定は別 capability とする
+- closed / periodic shape では evaluation を許容しても endpoint を自動付与しない
+- face element として使われる shape では boundary access、boundary quantity、orientation を独立候補として検討する
+
+このチェックリストにより、既存 shape の整理だけでなく、sweep surface、rotation surface、fillet surface、trimmed surface 等を追加する際の trait 配置判断を一貫させる。
+
 ## `#558` で特に分離対象とする混在
 
 現状棚卸しから、少なくとも次の混在を解く必要がある。
@@ -369,7 +395,7 @@ Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維
 
 方針:
 
-- 面 shape の primary measure
+- 面 shape の primary quantity
 - boundary / vertex access
 - derived
 - containment
@@ -521,7 +547,7 @@ Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability �
 NURBS curve は endpoint を shape 意味論の正本として持たず、parameter evaluation と length 語彙を中心に整理する。
 既存 API は 2D/3D ともに `*Measure` へ point evaluation、接線、長さ、曲率、弧長逆算が混在しているため、少なくとも evaluation と derived を分ける必要がある。
 
-本整理では、curve family の primary measure vocabulary として `length` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
+本整理では、curve family の primary quantity vocabulary として `length` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
 
 | 現行 trait / API | 再分類 |
 | --- | --- |
@@ -546,7 +572,7 @@ NURBS curve は endpoint を shape 意味論の正本として持たず、parame
 NURBS surface は curve family と異なり、UV parameter evaluation と surface area 語彙を中心に整理する。
 既存 API は `*Measure` に point evaluation、normal/tangent evaluation、surface area が混在しているため、少なくとも evaluation と derived を分ける必要がある。
 
-本整理では、surface family の primary measure vocabulary として `surface_area` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
+本整理では、surface family の primary quantity vocabulary として `surface_area` を維持し、`*Measure` は後方互換の集約 trait として後退させる。
 
 | 現行 trait / API | 再分類 |
 | --- | --- |
@@ -567,7 +593,7 @@ NURBS surface は curve family と異なり、UV parameter evaluation と surfac
 analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`SphericalSurface3D`、`TorusSurface3D`、`EllipsoidalSurface3D` を対象とする。
 これらは従来 `*Measure` に UV evaluation、表面積、距離、最近点、補助 parameter 系が混在していたが、pre-release 方針に従い旧 `*Measure` 集約 trait は保持しない。
 
-本整理では、surface family の primary measure vocabulary は `surface_area` を維持しつつ、analytic surface ごとに `evaluation`、`derived`、`distance`、必要に応じて `projection` へ分離する。
+本整理では、surface family の primary quantity vocabulary は `surface_area` を維持しつつ、analytic surface ごとに `evaluation`、`derived`、`distance`、必要に応じて `projection` へ分離する。
 
 | 現行 trait / API | 再分類 |
 | --- | --- |
@@ -603,7 +629,7 @@ analytic surface 群は `ConicalSurface3D`、`CylindricalSurface3D`、`Spherical
 solid 群は `ConicalSolid3D`、`CylindricalSolid3D`、`SphericalSolid3D`、`TorusSolid3D`、`EllipsoidalSolid3D` を対象とする。
 これらは従来 `*Measure` に体積、表面積、包含判定、距離、境界箱、最近点、parameter 評価が混在していたため、surface 群と同様に capability を分離する。
 
-本整理では、solid family では primary measure vocabulary として `volume` と `surface_area` を `derived` に置き、点包含は `containment`、距離は `distance`、parameter 評価は `evaluation`、最近点は `projection` として扱う。旧 `*Measure` 集約 trait は保持しない。
+本整理では、solid family では primary quantity vocabulary として `volume` と `surface_area` を `derived` に置き、点包含は `containment`、距離は `distance`、parameter 評価は `evaluation`、最近点は `projection` として扱う。旧 `*Measure` 集約 trait は保持しない。
 
 | 現行 trait / API | 再分類 |
 | --- | --- |
@@ -681,7 +707,11 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 補足:
 
+- Triangle は pre-topology の単一 face primitive として扱い、オイラー操作を前提にしない mesh 表現は TriangleMesh 側で扱う
 - `vertex_a/b/c` は面 shape の boundary access であり、curve endpoint capability とは別物として扱う
+- 各辺長は boundary quantity、`perimeter` は boundary 全体の derived quantity、`area` は Triangle 全体の primary quantity として分ける
+- Triangle の parameter evaluation を導入する場合は curve family ではなく surface family の evaluation として扱う
+- Triangle には trimmed range と periodic parameter を導入しない
 - `centroid` や `normal` は lightweight metadata ではなく、実質的には unary `derived` capability とみなす
 
 ## `#558` の一次結論: `Properties` に残すものと出すもの
@@ -921,7 +951,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 目的:
 
 - closed curve に endpoint capability を導入しない方針を Circle / Ellipse で揃える
-- `circumference` を閉曲線の primary measure vocabulary として固定する
+- `circumference` を閉曲線の primary quantity vocabulary として固定する
 - `measure` を互換語彙へ後退させ、`perimeter` は Circle / Ellipse の正本語彙にしない
 
 対象ファイル:
@@ -957,9 +987,11 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 実装観点:
 
 - `vertex_a/b/c` は definition 側に残す
+- Triangle は pre-topology の単一 face primitive とし、オイラー操作を前提にしない mesh 表現は TriangleMesh 側で扱う
 - `edge_*_length` / `perimeter` / `measure` / `is_clockwise` / `is_planar` は derived に置く
+- `area` は Triangle 全体の primary quantity、`edge_*_length` は boundary quantity、`perimeter` は boundary 全体の derived quantity として扱う
 - `contains_point` は containment、`distance_to_point` は distance に置く
-- curve parameter capability は導入しない
+- parameter evaluation を導入する場合は surface family の evaluation として扱い、trimmed range と periodic parameter は導入しない
 
 ### 実装単位 D: 横断 cleanup と公開面追従
 
