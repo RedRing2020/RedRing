@@ -5,12 +5,13 @@
 
 use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, default_orthogonality_dot_error_tolerance, AngularRelation,
-    BasicIntersection, ClosestPointPair, CrossDistance, InfiniteLine3DConstructor,
-    InfiniteLine3DContainment, InfiniteLine3DDistance, InfiniteLine3DEvaluation,
-    InfiniteLine3DProjection, InfiniteLine3DProperties, InfiniteLine3DTransform,
-    IntersectsRelation, OnPlaneRelation, ParallelRelation, PerpendicularRelation, PrimitiveKind,
-    PrimitiveMetadata, SameLineRelation, Scalar, SkewRelation,
+    default_distance_tolerance, default_orthogonality_dot_error_tolerance,
+    default_parallel_cross_error_tolerance, AngularRelation, BasicIntersection, ClosestPointPair,
+    CrossDistance, InfiniteLine3DConstructor, InfiniteLine3DContainment, InfiniteLine3DDistance,
+    InfiniteLine3DEvaluation, InfiniteLine3DProjection, InfiniteLine3DProperties,
+    InfiniteLine3DTransform, IntersectsRelation, OnPlaneRelation, ParallelRelation,
+    PerpendicularRelation, PrimitiveKind, PrimitiveMetadata, SameLineRelation, Scalar,
+    SkewRelation,
 };
 
 type LinePointPair3D<T> = ((T, T, T), (T, T, T));
@@ -158,7 +159,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
         let e = d2.dot(&w);
 
         let denom = a * c - b * b;
-        if denom.abs() <= T::PARALLEL_CROSS_ERROR_TOLERANCE {
+        if denom.abs() <= default_parallel_cross_error_tolerance::<T>() {
             return None;
         }
 
@@ -278,7 +279,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
         let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
         let denom = line_dir.dot(plane_normal);
 
-        if denom.abs() <= T::ORTHOGONALITY_DOT_ERROR_TOLERANCE {
+        if denom.abs() <= default_orthogonality_dot_error_tolerance::<T>() {
             return None; // 直線が平面と平行
         }
 
@@ -435,32 +436,32 @@ impl<T: Scalar> InfiniteLine3DProperties<T> for InfiniteLine3D<T> {
     }
 
     fn is_x_parallel(&self) -> bool {
-        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
+        let tolerance = default_parallel_cross_error_tolerance::<T>();
         self.direction.y().abs() <= tolerance && self.direction.z().abs() <= tolerance
     }
 
     fn is_y_parallel(&self) -> bool {
-        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
+        let tolerance = default_parallel_cross_error_tolerance::<T>();
         self.direction.x().abs() <= tolerance && self.direction.z().abs() <= tolerance
     }
 
     fn is_z_parallel(&self) -> bool {
-        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
+        let tolerance = default_parallel_cross_error_tolerance::<T>();
         self.direction.x().abs() <= tolerance && self.direction.y().abs() <= tolerance
     }
 
     fn is_xy_parallel(&self) -> bool {
-        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
+        let tolerance = default_parallel_cross_error_tolerance::<T>();
         self.direction.z().abs() <= tolerance
     }
 
     fn is_xz_parallel(&self) -> bool {
-        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
+        let tolerance = default_parallel_cross_error_tolerance::<T>();
         self.direction.y().abs() <= tolerance
     }
 
     fn is_yz_parallel(&self) -> bool {
-        let tolerance = T::PARALLEL_CROSS_ERROR_TOLERANCE;
+        let tolerance = default_parallel_cross_error_tolerance::<T>();
         self.direction.x().abs() <= tolerance
     }
 
