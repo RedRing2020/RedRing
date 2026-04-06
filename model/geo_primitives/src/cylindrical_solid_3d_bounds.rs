@@ -1,4 +1,4 @@
-//! CylindricalSolid3D の Foundation トレイト実装
+//! CylindricalSolid3D の Bounds 実装
 
 use crate::CylindricalSolid3D;
 use geo_contracts::{Bounded, Scalar};
@@ -24,7 +24,7 @@ mod tests {
     use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
-    fn test_extension_foundation() {
+    fn test_metadata_and_bounds_capabilities() {
         let center = Point3D::new(1.0, 2.0, 3.0);
         let axis = Vector3D::new(0.0, 0.0, 1.0);
         let ref_direction = Vector3D::new(1.0, 0.0, 0.0);

@@ -313,14 +313,14 @@ mod tests {
     }
 
     #[test]
-    fn test_extension_foundation() {
+    fn test_metadata_and_surface_area_capabilities() {
         let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::unit_plane();
 
         // PrimitiveKind
         let kind = <NurbsSurface3D<f64> as PrimitiveMetadata>::primitive_kind(&surface);
         assert_eq!(kind, PrimitiveKind::NurbsSurface3D);
 
-        // Measure (面積)
+        // Derived capability (面積)
         let area = <NurbsSurface3D<f64> as NurbsSurface3DDerived<f64>>::surface_area(&surface);
         assert!((area - 1.0).abs() < 0.1); // 単位平面の面積は1.0
     }

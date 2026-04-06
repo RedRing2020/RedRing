@@ -1,7 +1,6 @@
-//! CylindricalSurface3D の Foundation Pattern 実装
+//! CylindricalSurface3D の Bounds 実装
 //!
-//! ExtensionFoundation と TolerantEq トレイトの実装
-//! ハイブリッドモデラーの分類システムとの統合
+//! PrimitiveMetadata と Bounded に関わる補助実装を保持する。
 
 use crate::CylindricalSurface3D;
 use geo_contracts::{Bounded, Scalar};
@@ -24,7 +23,7 @@ mod tests {
     use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
-    fn test_extension_foundation() {
+    fn test_metadata_and_bounds_capabilities() {
         let surface = CylindricalSurface3D::new_z_axis(Point3D::new(1.0, 2.0, 3.0), 5.0).unwrap();
 
         assert_eq!(surface.primitive_kind(), PrimitiveKind::CylindricalSurface);

@@ -43,7 +43,7 @@ mod tests {
     use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
-    fn test_extension_foundation() {
+    fn test_metadata_and_bounds_capabilities() {
         let center = Point3D::new(1.0, 2.0, 3.0);
         let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
         let circle = Circle3D::new(center, normal, 5.0).unwrap();
