@@ -22,6 +22,7 @@
 
 - 現在方針では `geo_commons` は独立クレートとして維持する
 - `geo_commons` は `analysis` のみに依存する shape 非依存の幾何数値カーネル置き場とする
+- `geo_commons` は暫定退避先ではなく、低依存で再利用可能な数値 kernel 層として残存価値がある
 - 純粋な trait定義は `geo_contracts`、impl entry point は `geo_primitives` / `geo_nurbs`、cross-shape や heavy strategy は `geo_algorithms` に置く
 
 ### 1.3 geo_coreの再定義

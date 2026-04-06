@@ -1164,6 +1164,31 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - strategy の実装本体は `geo_primitives` の impl entry point または将来的な `geo_algorithms` 側 helper へ置く
 - 近似式・距離計算の数値カーネル自体は `geo_commons` に維持し、`geo_contracts` は数値閾値や比較ロジックを保持しない
 
+`#547` 時点の採用方針:
+
+- 推奨方針は、`EllipseCalculation*` の trait定義を `geo_contracts` に残しつつ、純粋数値カーネルと impl-support を分離して扱う段階整理とする
+- `geo_commons` に残す対象は、楕円周長近似、離心率、焦点距離、焦点座標、shape 型を要求しない ellipse 距離計算のような純粋数値カーネルに限定する
+- `geo_primitives` に残す対象は、`EllipseCalculation<T>` 実装を持つ自 crate 型からのみ利用される非公開 helper とし、現時点では `ellipse_calculation_strategy.rs` と `ellipse_calculation_analysis.rs` のような impl-support をここに含める
+- `geo_primitives` 内 helper は、`geo_commons` の純粋関数へ薄く委譲する構造を優先し、数値式そのものを重複実装しない
+- `geo_algorithms` へ移すのは、cross-shape 化した strategy、solver orchestration を伴う heavy strategy、または ellipse 専用 helper を超えて複数 shape family で共有される高レベル戦略に限る
+- したがって `compare_approximation_methods` のような比較分析 helper や `circumference_adaptive` のような選択ロジックは、将来的な共有需要が確認されるまでは `geo_primitives` の impl-support に留める
+- この分類は ellipse 固有の暫定例外ではなく、後続 shape でも再利用する「trait定義は contracts、純粋数値 kernel は commons、impl entry に閉じた補助は primitives、高レベル戦略は algorithms」という配置判定ルールとして扱う
+
+`#547` の curve discretization 追加方針:
+
+- 曲線を polyline や点列へ落とす離散化は、shape の topology 正規形ではなく幾何アルゴリズム責務として `geo_algorithms` に置く
+- この離散化層は `geo_topology` と同列の所有者にしない。`geo_topology` は接続・向き・trim・binding の正本を保持し、離散化はそれを消費する側として分離する
+- `geo_algorithms` 内では `curve_discretization` を独立モジュールとし、`Edge` / `Wire` / `TrimmedSurface` を直接の正本型として抱え込まない
+- 将来、trim curve、wire、trimmed surface など topology 文脈の入力を受ける必要が生じても、`curve_discretization` 配下の adapter 入口で幾何入力へ正規化してから離散化する
+- したがって topology 入力対応は「topology を離散化する」のではなく、「topology が保持する curve / parameter range / same_sense / 境界情報を離散化向け入力へ解決する補助」として扱う
+- モジュール構成の既定方針は、`curve_discretization/{shape_family}.rs` を core に据え、必要になった時点で `curve_discretization/topology_inputs/` のような補助入口を追加する形とする
+- この方針により、`CompositeCurve` / `Wire` / `TrimmedSurface` のような将来入力が増えても、topology の正本責務と離散化アルゴリズム責務を混同しない
+- shape family ごとの polyline options では、単一の弦誤差だけを正本にせず、少なくとも `chord_tolerance`、`max_angle_step`、`min_divisions`、`max_divisions` を併用できる形を既定とする
+- 既定近似は camera 非依存の world-space 指標で完結させ、screen-space 誤差や拡大率依存の制御は後段の表示専用入口で扱う
+- したがって初期段階では、表示の過剰分割抑制も camera 情報ではなく `max_divisions` 等の geometry 側制約で先に吸収する
+- 表示専用入口を設ける場合でも、UI が `geo_algorithms` の options 型を直接編集する構造にはしない。`viewmodel` / `app` 側に表示設定型を置き、そこから `CircularArcPolylineOptions` へ変換する
+- 切削シミュレーションの replay や snapshot index 整合に使う segment 列は simulation 用 discretization を維持し、表示ワイヤーフレームだけが display 設定を使う
+
 ### 11. `LineSegment3DCollisionDetection` は extension か operations か
 
 判定:

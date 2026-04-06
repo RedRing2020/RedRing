@@ -37,6 +37,7 @@ impl AppState {
         let bundle = build_demo_cam_simulation_visualization_bundle_with_tool_settings(
             &self.octree_visualization_settings,
             &self.tool_wireframe_visualization_settings,
+            &self.toolpath_visualization_settings,
             scenario,
         )
         .map_err(ToolPathBuildError::Converter)?;
@@ -209,15 +210,13 @@ impl AppState {
 
     /// サンプル表示用：カッターパスのみを表示（pキー）
     pub fn load_sample_toolpath_only(&mut self) {
-        use viewmodel::toolpath_converter::{
-            load_demo_toolpath, toolpath_to_vertices, ToolPathVisualizationSettings,
-        };
+        use viewmodel::toolpath_converter::{load_demo_toolpath, toolpath_to_vertices};
 
         tracing::info!("カッターパス表示デバッグ開始（pキー）");
 
         let toolpath = load_demo_toolpath();
-        let settings = ToolPathVisualizationSettings::default();
-        let toolpath_vertices = toolpath_to_vertices(&toolpath, &settings);
+        let toolpath_vertices =
+            toolpath_to_vertices(&toolpath, &self.toolpath_visualization_settings);
 
         let vertices: Vec<MeshVertex> = toolpath_vertices
             .vertices
