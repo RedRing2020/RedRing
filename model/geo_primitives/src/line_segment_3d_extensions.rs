@@ -50,8 +50,8 @@ impl<T: Scalar> LineSegment3D<T> {
             line: self.line,
             start_param: self.end_param,
             end_param: self.start_param,
-            start_point: self.end(),
-            end_point: self.start(),
+            start_point: self.constraint_end_point(),
+            end_point: self.constraint_start_point(),
         }
     }
 

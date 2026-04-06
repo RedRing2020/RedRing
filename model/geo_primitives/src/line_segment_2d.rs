@@ -12,7 +12,7 @@ use geo_contracts::{
 
 /// 2次元平面の線分。
 ///
-/// support line と拘束点を併せ持つ有限線形 shape を表す。
+/// support line と trim 区間を正本とし、必要に応じて拘束端点も保持できる有限線形 shape を表す。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LineSegment2D<T: Scalar> {
     pub(crate) line: InfiniteLine2D<T>,
@@ -36,7 +36,7 @@ impl<T: Scalar> LineSegment2D<T> {
         Self::from_support_line_and_constraint_points(line, start, end)
     }
 
-    /// support line と拘束点から線分を作成
+    /// support line と拘束端点から線分を作成
     pub fn from_support_line_and_constraint_points(
         line: InfiniteLine2D<T>,
         start_point: Point2D<T>,
@@ -97,14 +97,29 @@ impl<T: Scalar> LineSegment2D<T> {
         (self.end_param - self.start_param).abs()
     }
 
+    /// topology 連携用の拘束始点を取得
+    pub fn constraint_start_point(&self) -> Point2D<T> {
+        self.start_point
+    }
+
+    /// topology 連携用の拘束終点を取得
+    pub fn constraint_end_point(&self) -> Point2D<T> {
+        self.end_point
+    }
+
+    /// 拘束端点間の距離を取得
+    pub fn constraint_length(&self) -> T {
+        self.start_point.distance_to(&self.end_point)
+    }
+
     /// 始点を取得
     pub fn start_point(&self) -> Point2D<T> {
-        self.start_point
+        self.ideal_start()
     }
 
     /// 終点を取得
     pub fn end_point(&self) -> Point2D<T> {
-        self.end_point
+        self.ideal_end()
     }
 
     /// 中点を取得
@@ -117,7 +132,7 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// 線分の長さを取得
     pub fn length(&self) -> T {
-        self.start_point.distance_to(&self.end_point)
+        self.ideal_length()
     }
 
     /// 方向ベクトルを取得（正規化済み）
@@ -421,7 +436,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn support_line_and_constraint_points_are_distinct() {
+    fn public_endpoints_follow_ideal_support_line() {
         let line = InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0_f64, 0.0)).unwrap();
         let start = Point2D::new(0.0, 1.0);
         let end = Point2D::new(2.0, 1.0);
@@ -429,15 +444,18 @@ mod tests {
         let segment =
             LineSegment2D::from_support_line_and_constraint_points(line, start, end).unwrap();
 
-        assert_eq!(segment.start_point(), start);
-        assert_eq!(segment.end_point(), end);
+        assert_eq!(segment.constraint_start_point(), start);
+        assert_eq!(segment.constraint_end_point(), end);
         assert_eq!(segment.ideal_start(), Point2D::new(0.0, 0.0));
         assert_eq!(segment.ideal_end(), Point2D::new(2.0, 0.0));
+        assert_eq!(segment.start_point(), Point2D::new(0.0, 0.0));
+        assert_eq!(segment.end_point(), Point2D::new(2.0, 0.0));
         assert_eq!(
             segment.point_at_normalized_parameter(0.5),
             Point2D::new(1.0, 0.0)
         );
         assert_eq!(segment.length(), 2.0);
+        assert_eq!(segment.constraint_length(), 2.0);
         assert_eq!(segment.ideal_length(), 2.0);
     }
 }

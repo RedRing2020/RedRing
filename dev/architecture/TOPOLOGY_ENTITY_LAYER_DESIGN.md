@@ -85,7 +85,7 @@ CompositeCurve は、閉曲線であっても topology Loop の正本とはみ�
 
 topology はそれを前提に、接続・向き・トリム・共有関係を管理する層として扱う。
 
-したがって `LineSegment` の `support_line` / 拘束点 / `length()` / `point_at_parameter()` の意味は、topology 側で独自に上書きしない。
+したがって `LineSegment` の `support_line` / ideal endpoint / `length()` / `point_at_parameter()` の意味は、topology 側で独自に上書きしない。
 
 ### 2. Edge の正本は母曲線参照と位相情報の組である
 
@@ -124,20 +124,24 @@ topology で保持する vertex は、shape の拘束点と接続して扱う。
 
 ## LineSegment と topology の接続
 
-`#557` で固定した `LineSegment` semantics を前提に、topology では次を採用する。
+`#592` の設計では、LineSegment も Arc / EllipseArc と同じ bounded curve 共通ルールで扱う。したがって topology では次を採用する。
 
 - `CurveRef::Line::point_at_parameter` は support line 上の評価として扱う
-- `CurveRef::Line::start_point` / `end_point` は拘束点参照として扱う
+- `CurveRef::Line::start_point` / `end_point` は primitive の ideal endpoint を返す
 - `Edge` の `parameter_range` は support line / 母曲線上の有効区間を表す
-- `start_vertex` / `end_vertex` は拘束点との binding を表す
+- `start_vertex` / `end_vertex` は拘束端点との binding を表す
 
-このため、support line 上の ideal endpoint と vertex が一致しない場合を許容できる topology invariant が必要になる。
+したがって、LineSegment の Edge でも少なくとも次の 3 種類の点を区別する。
+
+- `constraint endpoint`: topology が binding の正本として扱う拘束端点
+- `ideal endpoint`: primitive の endpoint capability が返す support line 上の端点
+- `evaluation endpoint`: `parameter_range` の両端を母曲線評価した点
 
 補足:
 
-- この LineSegment の扱いは `#567` の最終結論ではなく、`#557` 起点の既存前提としてここに残している
-- bounded curve 全体で primitive は ideal endpoint、拘束端点は topology 管理という原則へ揃える対称化は `#592` で別途扱う
-- したがって `#567` の結論は Arc / EllipseArc と topology の責務境界固定であり、LineSegment の特別扱いをこの段階で既成事実化しない
+- `#592` 着手時点では実装に legacy な拘束点語彙が残る可能性があるが、これは移行対象であって最終設計ではない
+- bounded curve 全体で primitive は ideal endpoint、拘束端点は topology 管理という原則を LineSegment にも揃える
+- したがって LineSegment だけを topology 接続の例外として扱わない
 
 ## Arc / EllipseArc と topology の接続
 
@@ -474,17 +478,18 @@ fallback を採用する場合でも、少なくとも次を維持しなけれ�
 
 ## `#557` 時点の暫定許容範囲
 
-`#557` の段階では、topology の現行構造を直ちに変更しないことを許容する。
+`#557` では topology の現行構造を直ちに変更しないことを許容したが、`#592` ではその legacy 前提を最終設計として残さない。
 
 許容する範囲:
 
 - `CurveRef`
 - `Edge` の基本保持フィールド
-- `Wire` / `CompositeCurve` の拘束点ベース利用
+- `Wire` / `CompositeCurve` の基本構造そのもの
 
 未確定として残す範囲:
 
 - `Edge` / `Wire` / validator の具体 API 形状
+- LineSegment の endpoint を ideal endpoint として解釈した上での topology 接続語彙
 - tolerance 名と設定オブジェクトの最終配置
 - Face / Shell / PCurve へ展開したときの個別判定フロー
 

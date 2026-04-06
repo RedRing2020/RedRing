@@ -19,11 +19,15 @@ pub mod analysis_transform {
         matrix: &Matrix4x4<T>,
     ) -> LineSegment3D<T> {
         let start_vec = Vector3::new(
-            segment.start().x(),
-            segment.start().y(),
-            segment.start().z(),
+            segment.constraint_start_point().x(),
+            segment.constraint_start_point().y(),
+            segment.constraint_start_point().z(),
         );
-        let end_vec = Vector3::new(segment.end().x(), segment.end().y(), segment.end().z());
+        let end_vec = Vector3::new(
+            segment.constraint_end_point().x(),
+            segment.constraint_end_point().y(),
+            segment.constraint_end_point().z(),
+        );
 
         // Matrix4x4による一括変換
         let transformed_start = matrix.transform_point_3d(&start_vec);
@@ -368,6 +372,29 @@ mod tests {
         assert!((results[1].start().x() - 8.0).abs() < 1e-10);
         assert!((results[1].start().y() - 9.0).abs() < 1e-10);
         assert!((results[1].start().z() - 10.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_transform_preserves_constraint_points_separately_from_public_endpoints() {
+        let support_line = crate::InfiniteLine3D::new(
+            Point3D::origin(),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let segment = LineSegment3D::from_support_line_and_constraint_points(
+            support_line,
+            Point3D::new(0.0, 1.0, 0.0),
+            Point3D::new(2.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let translation = Vector3::new(1.0, 2.0, 3.0);
+        let result = segment.translate_analysis(&translation).unwrap();
+
+        assert_eq!(result.start(), Point3D::new(1.0, 2.0, 3.0));
+        assert_eq!(result.end(), Point3D::new(3.0, 2.0, 3.0));
+        assert_eq!(result.constraint_start_point(), Point3D::new(1.0, 3.0, 3.0));
+        assert_eq!(result.constraint_end_point(), Point3D::new(3.0, 3.0, 3.0));
     }
 
     #[test]

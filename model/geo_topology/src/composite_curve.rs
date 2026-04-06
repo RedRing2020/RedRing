@@ -17,7 +17,7 @@ pub enum CurveSegment3D<T: Scalar> {
 }
 
 impl<T: Scalar> CurveSegment3D<T> {
-    /// セグメント始点を返す
+    /// セグメントの ideal start endpoint を返す
     pub fn start(&self) -> Point3D<T> {
         match self {
             Self::Line(seg) => seg.start(),
@@ -25,10 +25,26 @@ impl<T: Scalar> CurveSegment3D<T> {
         }
     }
 
-    /// セグメント終点を返す
+    /// セグメントの ideal end endpoint を返す
     pub fn end(&self) -> Point3D<T> {
         match self {
             Self::Line(seg) => seg.end(),
+            Self::Arc(arc) => arc.end_point(),
+        }
+    }
+
+    /// topology 接続に使う拘束始点を返す
+    pub fn constraint_start(&self) -> Point3D<T> {
+        match self {
+            Self::Line(seg) => seg.constraint_start_point(),
+            Self::Arc(arc) => arc.start_point(),
+        }
+    }
+
+    /// topology 接続に使う拘束終点を返す
+    pub fn constraint_end(&self) -> Point3D<T> {
+        match self {
+            Self::Line(seg) => seg.constraint_end_point(),
             Self::Arc(arc) => arc.end_point(),
         }
     }
@@ -78,8 +94,8 @@ impl<T: Scalar> CompositeCurve3D<T> {
 
         // 連続性検証: N番目終点とN+1番目始点が許容差内で接続すること
         for i in 0..segments.len() - 1 {
-            let end = segments[i].end();
-            let next_start = segments[i + 1].start();
+            let end = segments[i].constraint_end();
+            let next_start = segments[i + 1].constraint_start();
 
             if !Self::points_are_connected(end, next_start, tolerance) {
                 return None;
@@ -94,14 +110,24 @@ impl<T: Scalar> CompositeCurve3D<T> {
         &self.segments
     }
 
+    /// 複合曲線全体の拘束始点を返す
+    pub fn constraint_start_point(&self) -> Point3D<T> {
+        self.segments[0].constraint_start()
+    }
+
+    /// 複合曲線全体の拘束終点を返す
+    pub fn constraint_end_point(&self) -> Point3D<T> {
+        self.segments[self.segments.len() - 1].constraint_end()
+    }
+
     /// 複合曲線全体の始点を返す
     pub fn start_point(&self) -> Point3D<T> {
-        self.segments[0].start()
+        self.constraint_start_point()
     }
 
     /// 複合曲線全体の終点を返す
     pub fn end_point(&self) -> Point3D<T> {
-        self.segments[self.segments.len() - 1].end()
+        self.constraint_end_point()
     }
 
     /// 全セグメント長の合計を返す
@@ -119,8 +145,8 @@ impl<T: Scalar> CompositeCurve3D<T> {
 
     /// 許容誤差付きで閉曲線かどうかを返す
     pub fn is_closed_with_tolerance(&self, tolerance: T) -> bool {
-        let start = self.start_point();
-        let end = self.end_point();
+        let start = self.constraint_start_point();
+        let end = self.constraint_end_point();
         Self::points_are_connected(start, end, tolerance)
     }
 }
@@ -146,6 +172,27 @@ mod tests {
         let curve_seg = CurveSegment3D::Line(seg);
 
         assert_eq!(curve_seg.length(), 5.0);
+    }
+
+    #[test]
+    fn curve_segment_line_constraint_endpoints_follow_constraint_points() {
+        let support_line = crate::TopoInfiniteLine3D::from_two_points(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let seg = TopoLineSegment3D::from_support_line_and_constraint_points(
+            support_line,
+            Point3D::new(0.0, 1.0, 0.0),
+            Point3D::new(2.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let curve_seg = CurveSegment3D::Line(seg);
+
+        assert_eq!(curve_seg.start(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(curve_seg.end(), Point3D::new(2.0, 0.0, 0.0));
+        assert_eq!(curve_seg.constraint_start(), Point3D::new(0.0, 1.0, 0.0));
+        assert_eq!(curve_seg.constraint_end(), Point3D::new(2.0, 1.0, 0.0));
     }
 
     #[test]
@@ -228,6 +275,39 @@ mod tests {
     }
 
     #[test]
+    fn composite_curve_connectivity_uses_constraint_endpoints_for_line_segments() {
+        let support_line_a = crate::TopoInfiniteLine3D::from_two_points(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let support_line_b = crate::TopoInfiniteLine3D::from_two_points(
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let seg1 = TopoLineSegment3D::from_support_line_and_constraint_points(
+            support_line_a,
+            Point3D::new(0.0, 1.0, 0.0),
+            Point3D::new(1.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let seg2 = TopoLineSegment3D::from_support_line_and_constraint_points(
+            support_line_b,
+            Point3D::new(1.0, 1.0, 0.0),
+            Point3D::new(2.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let composite =
+            CompositeCurve3D::new(vec![CurveSegment3D::Line(seg1), CurveSegment3D::Line(seg2)])
+                .unwrap();
+
+        assert_eq!(composite.start_point(), Point3D::new(0.0, 1.0, 0.0));
+        assert_eq!(composite.end_point(), Point3D::new(2.0, 1.0, 0.0));
+    }
+
+    #[test]
     fn composite_curve_empty_fails() {
         assert!(CompositeCurve3D::<f64>::new(vec![]).is_none());
     }
@@ -241,11 +321,14 @@ mod tests {
         let seg3 = TopoLineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(0.0, 0.0, 0.0))
             .unwrap();
 
-        let composite = CompositeCurve3D::new(vec![
-            CurveSegment3D::Line(seg1),
-            CurveSegment3D::Line(seg2),
-            CurveSegment3D::Line(seg3),
-        ])
+        let composite = CompositeCurve3D::new_with_tolerance(
+            vec![
+                CurveSegment3D::Line(seg1),
+                CurveSegment3D::Line(seg2),
+                CurveSegment3D::Line(seg3),
+            ],
+            1.0e-9,
+        )
         .unwrap();
 
         assert!(composite.is_closed());

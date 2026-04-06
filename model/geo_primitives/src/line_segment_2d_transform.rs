@@ -20,12 +20,12 @@ pub mod analysis_transform {
         matrix: &Matrix3x3<T>,
     ) -> Result<LineSegment2D<T>, TransformError> {
         // 始点の変換
-        let start_vec: Vector2<T> = line_segment.start_point().into();
+        let start_vec: Vector2<T> = line_segment.constraint_start_point().into();
         let transformed_start_vec = matrix.transform_point_2d(&start_vec);
         let new_start: Point2D<T> = transformed_start_vec.into();
 
         // 終点の変換
-        let end_vec: Vector2<T> = line_segment.end_point().into();
+        let end_vec: Vector2<T> = line_segment.constraint_end_point().into();
         let transformed_end_vec = matrix.transform_point_2d(&end_vec);
         let new_end: Point2D<T> = transformed_end_vec.into();
 
@@ -382,6 +382,26 @@ mod tests {
                 (result.end_point().y() - (original.end_point().y() + 5.0)).abs() < f64::EPSILON
             );
         }
+    }
+
+    #[test]
+    fn test_transform_preserves_constraint_points_separately_from_public_endpoints() {
+        let support_line = crate::InfiniteLine2D::new(Point2D::origin(), Vector2D::new(1.0, 0.0))
+            .unwrap();
+        let segment = LineSegment2D::from_support_line_and_constraint_points(
+            support_line,
+            Point2D::new(0.0, 1.0),
+            Point2D::new(2.0, 1.0),
+        )
+        .unwrap();
+
+        let translation = Vector2::new(1.0, 2.0);
+        let result = segment.translate_analysis_2d(&translation).unwrap();
+
+        assert_eq!(result.start_point(), Point2D::new(1.0, 2.0));
+        assert_eq!(result.end_point(), Point2D::new(3.0, 2.0));
+        assert_eq!(result.constraint_start_point(), Point2D::new(1.0, 3.0));
+        assert_eq!(result.constraint_end_point(), Point2D::new(3.0, 3.0));
     }
 
     /// エラーハンドリングテスト（ゼロスケール）

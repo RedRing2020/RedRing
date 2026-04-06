@@ -41,7 +41,7 @@ Arc / EllipseArc / Circle / Triangle などを含む shape 横断の `Measure / 
 
 | Shape | 現状の主な意味要素 | 現状の混在状況 |
 | --- | --- | --- |
-| `LineSegment` | support line、拘束端点、長さ、parameter 評価 | endpoint は `Properties`、evaluation / containment / distance / projection は `Measure` 系から分離済み |
+| `LineSegment` | support line、理想端点、長さ、parameter 評価 | endpoint は `Properties`、拘束端点は topology 側責務として分離対象 |
 | `Arc` | 中心、半径、角度区間、始終点、parameter 評価 | `Measure` に始終点、midpoint、angle 評価、distance、containment が同居 |
 | `EllipseArc` | 中心、主軸情報、角度区間、始終点、parameter 評価 | `Measure` に始終点、midpoint、angle 評価、containment、bounding box が同居 |
 | `Circle` | 中心、半径、周回 parameter 評価、閉曲線性 | `Measure` に circumference、area、containment、distance、projection、parameter 評価が同居 |
@@ -194,28 +194,33 @@ shape 横断で `measure` だけを共通語彙にすると、長さ、面積、
 
 ### 基本方針
 
-RedRing における `LineSegment2D/3D` は、単なる exact な有限線分ではなく、**support line を正本とし、拘束点としての始点・終点を併せ持つ tolerant な trimmed line** として扱う。
+`#592` の設計では、RedRing における `LineSegment2D/3D` を **bounded curve 共通ルールに従う exact な有限線分 primitive** として扱う。
 
-これにより、以下の意図を表現できる。
+すなわち、primitive 側では次を固定する。
 
-- 理想的には一直線上にある線分である
-- ただし始点・終点は拘束や数値誤差の結果として、理想支持線からトレランス以内でずれる可能性がある
-- topology 側では、その拘束点の一致/不一致が接続判定や編集挙動に影響する
+- support line と trim 区間が shape 定義を与える
+- `start` / `end` は support line 上の ideal endpoint を返す
+- topology 上の拘束端点は primitive ではなく `Edge` の `start_vertex` / `end_vertex` 側で管理する
+
+これにより、bounded curve 全体で「primitive は ideal endpoint、拘束端点は topology 管理」という責務分離を揃える。
 
 ### 正本と派生
 
 `LineSegment` では、概念的に次の値を区別する。
 
 - 正本: `support_line`
-- 正本: `start` / `end`（拘束点）
-- 派生: support line 上の理想トリム区間
-- 派生: ideal な端点
+- 正本: trim 区間
+- 正本 endpoint capability: `start` / `end`（ideal endpoint）
+- 派生: `midpoint`
+- 派生: `length`
 - 派生: support line 上の評価点
+- topology 管理: constraint endpoint
 
 重要:
 
 - 具体的な struct フィールド構成は実装都合で調整してよい
-- ただし API と意味論は、上記の区別を壊してはならない
+- ただし public API と意味論は、拘束端点を primitive 正本として扱わない
+- 実装移行中に補助フィールドが残っていても、最終的な公開意味論は ideal endpoint 基準で固定する
 
 ### API 意味の固定
 
@@ -223,16 +228,16 @@ RedRing における `LineSegment2D/3D` は、単なる exact な有限線分で
 
 | API | 意味 |
 | --- | --- |
-| 拘束点としての始点を返す API（現行: `start()` / `start_point()`） | 拘束点としての始点を返す |
-| 拘束点としての終点を返す API（現行: `end()` / `end_point()`） | 拘束点としての終点を返す |
-| `length()` | 拘束点間距離を返す |
+| 始点を返す API（現行: `start()` / `start_point()`） | support line と trim 区間から定まる ideal start endpoint を返す |
+| 終点を返す API（現行: `end()` / `end_point()`） | support line と trim 区間から定まる ideal end endpoint を返す |
+| `length()` | 有限線分 primitive としての長さを返す |
 | `point_at_parameter(t)` | support line 上の評価点を返す |
 | `measure()` | 主語彙にしない。互換の委譲としてのみ扱う |
 
 補足:
 
-- `start/end` と `point_at_parameter(0/1)` は一致を前提としない
-- `length()` は support line 上の ideal length を意味しない
+- `start/end` と `point_at_parameter(0/1)` は ideal endpoint / evaluation endpoint の関係として整合させる
+- 拘束端点とのずれは primitive API ではなく topology の binding で扱う
 
 ### 補助 API の扱い
 
@@ -241,9 +246,9 @@ RedRing における `LineSegment2D/3D` は、単なる exact な有限線分で
 - `support_line()`
 - `ideal_start()` / `ideal_end()`
 - `ideal_length()`
-- support line 評価と拘束点補間を分ける追加 API
+- support line 評価と topology 側拘束参照を分ける追加 API
 
-補助 API を導入する場合は、拘束点系と ideal 系を名称で明確に分離する。
+補助 API を導入する場合は、ideal 系と topology 依存語彙を名称で明確に分離する。
 
 ## geo_primitives と geo_topology の境界
 
@@ -251,31 +256,31 @@ RedRing における `LineSegment2D/3D` は、単なる exact な有限線分で
 
 一方、`geo_topology` は以下を追加で管理する。
 
-- vertex binding
+- constraint endpoint と vertex binding
 - same_sense
 - parameter range
 - edge / wire / face 文脈での接続関係
 
-したがって、topology は `LineSegment` の意味論を再定義しない。
-topology 側の Edge 正規形は、shape 意味論を前提に、接続・向き・トリムを管理する層として扱う。
+したがって、topology は `LineSegment` の endpoint semantics を上書きしない。
+topology 側の Edge 正規形は、primitive の ideal endpoint を前提に、拘束端点・接続・向き・トリムを管理する層として扱う。
 
-## `#557` における topology 未修正の暫定許容範囲
+## `#592` 着手時点の実装ギャップ
 
-`#557` では、LineSegment の shape semantics を先に固定する。
+`#592` 着手時点では、設計目標と実装が完全には一致していない可能性がある。
 
-その際、topology 側は未修正のまま次の範囲までを暫定的に許容する。
+特に確認対象は次の通りである。
 
 - `CurveRef::Line::point_at_parameter` が support line 上の評価を返すこと
-- `Edge` が `curve + parameter range + same_sense + vertex binding` を保持する現行構造を維持すること
-- `Wire` / `CompositeCurve` が拘束点ベースの端点参照を使うこと
+- `CurveRef::Line::start_point` / `end_point` が legacy な拘束点語彙を残していないか
+- `Edge` / `Wire` / `CompositeCurve` が LineSegment の endpoint を拘束端点として暗黙利用していないか
 
-一方、次の項目は `#557` の完了条件には含めず、別途 topology 側で設計確定が必要とする。
+このギャップは「現状実装の確認対象」であり、最終設計では次を満たす必要がある。
 
-- `Edge::is_vertex_binding_consistent` のように、母曲線評価端点と vertex の一致を前提にする不変条件の最終定義
-- 拘束点と ideal endpoint のずれを topology がどう許容するかという binding ルール
-- 位相専用 tolerance の正本化と運用方針
+- primitive endpoint は ideal endpoint として解釈される
+- 拘束端点とのずれは topology の binding rule で吸収する
+- 位相専用 tolerance の正本化と運用方針は topology 側で維持する
 
-したがって `#557` の段階では、「topology の現行構造を直ちに変更しないこと」は許容されるが、「現行 topology 不変条件が最終設計である」とはみなさない。
+したがって `#592` では、legacy な拘束点語彙を残したまま既成事実化せず、設計と実装の差分を埋める。
 
 ## 非目標
 
@@ -288,11 +293,11 @@ topology 側の Edge 正規形は、shape 意味論を前提に、接続・向�
 
 ## #557 での利用
 
-`#557` では、本書を前提に以下を整理する。
+`#592` では、本書を前提に以下を整理する。
 
-- `LineSegment` の API を tolerant trimmed line semantics に沿って明文化する
+- `LineSegment` の API を bounded curve 共通ルールに沿って明文化する
 - `length` と `measure` の役割分担を整理する
-- 利用側が exact finite segment と誤解しないよう contracts / primitives / topology 周辺を調整する
+- primitive と topology の endpoint 責務を混同しないよう contracts / primitives / topology 周辺を調整する
 
 ## 今後の拡張
 
