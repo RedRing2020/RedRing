@@ -975,10 +975,6 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsSurfaceCollide
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Public Distance Functions (shared with intersection module)
-// ─────────────────────────────────────────────────────────────────────────
-
 // NurbsCurve3D distance functions
 
 pub fn nurbscurve3d_point3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, point: &Point3D<T>) -> T {
