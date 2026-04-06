@@ -11,6 +11,13 @@ use crate::{CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Poin
 use geo_contracts::Scalar;
 
 /// 交差結果の幾何内容
+///
+/// `LineSegment*` を保持する variant は、#592 以降の semantics に従い
+/// bounded geometry の ideal endpoint 基準の線分を表す。
+/// topology 上の拘束端点を含意しない。
+///
+/// `CompositeCurve` は `geo_topology` の語彙をそのまま保持するため、
+/// whole-curve の public endpoint は拘束端点基準で解釈する。
 #[derive(Clone, Debug)]
 pub enum IntersectionGeometry<T: Scalar> {
     /// 交差なし
@@ -22,8 +29,13 @@ pub enum IntersectionGeometry<T: Scalar> {
     /// 無限直線（例: 非平行な平面同士の交差）
     InfiniteLine(InfiniteLine3D<T>),
     /// 線分（例: 有界な面同士の交差）
+    ///
+    /// ここで返す線分は ideal endpoint 基準の幾何線分。
     Segment(LineSegment3D<T>),
     /// 複合曲線（例: 連結した複数セグメント）
+    ///
+    /// `CompositeCurve3D` の public endpoint 語彙は `geo_topology` に従い、
+    /// 拘束端点を返す。
     CompositeCurve(CompositeCurve3D<T>),
     /// 完全一致（形状が全域で重なる）
     Coincident,
@@ -32,6 +44,8 @@ pub enum IntersectionGeometry<T: Scalar> {
     /// 複数の孤立点（2D）
     Points2D(Vec<Point2D<T>>),
     /// 部分重複区間（2D、例: コリニア線分の有限重複）
+    ///
+    /// ここで返す線分は ideal endpoint 基準の幾何線分。
     Segment2D(LineSegment2D<T>),
 }
 

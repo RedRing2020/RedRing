@@ -2,6 +2,11 @@
 //!
 //! このクレートは、衝突判定・交点計算・空間分割などの幾何アルゴリズムを提供する
 //! 設計方針と全体構成は `dev/architecture/ARCHITECTURE.md` を参照
+//!
+//! endpoint semantics に関する前提:
+//! - `LineSegment2D` / `LineSegment3D` は bounded geometry の ideal endpoint 基準
+//! - `CompositeCurve3D` / `CurveSegment3D` は `geo_topology` の語彙をそのまま再公開する
+//!   ため、whole-curve の public endpoint は拘束端点基準
 
 pub mod angle_utils;
 pub mod collision;
@@ -36,6 +41,7 @@ pub use geo_nurbs::adaptive_tessellation;
 pub use geo_nurbs::{NurbsCurve3D, NurbsSurface3D};
 
 // Topology types from geo_topology
+// `CompositeCurve3D` の public endpoint は拘束端点基準であることに注意。
 pub use geo_topology::{CompositeCurve3D, CurveSegment3D};
 
 // geo_primitives の基本型を再エクスポート（ViewModel層がgeo_primitivesに直接依存しないように）
