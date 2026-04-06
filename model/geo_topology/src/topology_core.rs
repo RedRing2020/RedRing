@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn edge_binding_ideal_and_evaluated_consistency_are_separated() {
+    fn edge_binding_is_separated_from_curve_consistency_for_offset_constraints() {
         let support_line = TopoInfiniteLine3D::from_two_points(
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(2.0, 0.0, 0.0),
@@ -344,9 +344,27 @@ mod tests {
         .unwrap();
 
         assert!(edge.is_binding_consistent(1e-9));
-        assert!(edge.is_ideal_endpoint_consistent(1e-9));
+        assert!(!edge.is_ideal_endpoint_consistent(1e-9));
         assert!(!edge.is_evaluated_endpoint_consistent(1e-9));
         assert!(edge.is_local_consistent(0.31));
         assert!(!edge.is_local_consistent(0.29));
+    }
+
+    #[test]
+    fn edge_ideal_and_evaluated_consistency_are_separated_by_parameter_range() {
+        let start = Point3D::new(0.0, 0.0, 0.0);
+        let end = Point3D::new(2.0, 0.0, 0.0);
+        let line = TopoLineSegment3D::new(start, end).unwrap();
+        let edge = Edge::new(
+            Arc::new(Vertex::new(start)),
+            Arc::new(Vertex::new(end)),
+            CurveRef::Line(line),
+            (0.1, 1.9),
+        )
+        .unwrap();
+
+        assert!(edge.is_binding_consistent(1e-9));
+        assert!(edge.is_ideal_endpoint_consistent(1e-9));
+        assert!(!edge.is_evaluated_endpoint_consistent(1e-9));
     }
 }

@@ -77,16 +77,16 @@ pub trait LineSegment3DConstructor<T: Scalar> {
 
 /// LineSegment2D基本プロパティ取得トレイト
 pub trait LineSegment2DProperties<T: Scalar> {
-    /// 拘束点としての開始点を取得
+    /// bounded curve primitive の ideal start endpoint を取得
     fn start(&self) -> (T, T);
 
-    /// 拘束点としての終了点を取得
+    /// bounded curve primitive の ideal end endpoint を取得
     fn end(&self) -> (T, T);
 
     /// 中点を取得
     fn midpoint(&self) -> (T, T);
 
-    /// 拘束点間距離としての長さを取得
+    /// bounded curve primitive としての長さを取得
     fn length(&self) -> T;
 
     /// 形状の次元数（2）
@@ -104,16 +104,16 @@ pub trait LineSegment2DProperties<T: Scalar> {
 
 /// LineSegment3D基本プロパティ取得トレイト
 pub trait LineSegment3DProperties<T: Scalar> {
-    /// 拘束点としての開始点を取得
+    /// bounded curve primitive の ideal start endpoint を取得
     fn start(&self) -> (T, T, T);
 
-    /// 拘束点としての終了点を取得
+    /// bounded curve primitive の ideal end endpoint を取得
     fn end(&self) -> (T, T, T);
 
     /// 中点を取得
     fn midpoint(&self) -> (T, T, T);
 
-    /// 拘束点間距離としての長さを取得
+    /// bounded curve primitive としての長さを取得
     fn length(&self) -> T;
 
     /// 形状の次元数（3）

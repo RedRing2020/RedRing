@@ -443,7 +443,8 @@ Point / Vector の `*Measure` は、互換 alias や非推奨 trait を長期維
 
 補足:
 
-- `LineSegment` では endpoint が shape 意味論上の正本なので、`start/end/midpoint/length` を `Properties` に残す方針を維持する
+- `LineSegment` では bounded curve の endpoint capability が shape 意味論上の正本なので、`start/end/midpoint/length` を `Properties` に残す方針を維持する
+- ただし `start/end` は拘束点ではなく ideal endpoint として扱い、拘束端点は topology 側責務とする
 - `measure` は primary vocabulary ではなく、`derived` 側の互換 API とみなす
 - 実装進捗として `LineSegment2DMeasure` / `LineSegment3DMeasure` は削除済みで、export は capability trait のみとする
 
@@ -728,7 +729,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 今回の整理で、少なくとも次を設計上の固定ルールとして扱う。
 
-- `LineSegment` の `start/end/midpoint/length` は拘束点ベースの definition 語彙として `Properties` に残す
+- `LineSegment` の `start/end/midpoint/length` は ideal endpoint ベースの bounded curve 語彙として `Properties` に残す
 - `Arc` / `EllipseArc` の endpoint capability は `start_point/end_point` のみに絞り、中間点取得は evaluation 側の明示 API へ委譲する
 - `Circle` / `Ellipse` は閉曲線 shape として endpoint capability を持たず、`ref_direction` や `rotation` は parameter 原点の基準に限定する
 - `Triangle` は curve endpoint capability を持たず、`vertex_a/b/c` と edge length は面 shape の boundary / derived 語彙として扱う
