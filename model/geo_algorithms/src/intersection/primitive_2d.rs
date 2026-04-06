@@ -17,6 +17,14 @@ use geo_contracts::{
     LineSegment2DProperties, Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
 };
 
+fn arc2d_line_segment2d_intersection_points<T: Scalar>(
+    arc: &Arc2D<T>,
+    segment: &LineSegment2D<T>,
+    tolerance: T,
+) -> Vec<Point2D<T>> {
+    line_segment2d_arc2d_intersections(segment, arc, tolerance)
+}
+
 pub fn circle2d_point2d_intersection<T: Scalar>(
     circle: &Circle2D<T>,
     point: &Point2D<T>,
@@ -99,7 +107,7 @@ pub fn line_segment2d_arc2d_intersections_algo<T: Scalar>(
     arc: &Arc2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = line_segment2d_arc2d_intersections(segment, arc, tolerance);
+    let points = arc2d_line_segment2d_intersection_points(arc, segment, tolerance);
     IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
@@ -108,7 +116,7 @@ pub fn arc2d_line_segment2d_intersections_algo<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let points = line_segment2d_arc2d_intersections(segment, arc, tolerance);
+    let points = arc2d_line_segment2d_intersection_points(arc, segment, tolerance);
     IntersectionResult::from_option_points2d(points, false, tolerance)
 }
 
