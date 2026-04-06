@@ -2,6 +2,7 @@
 //!
 //! #408 の最小導入として、Vertex/Edge/CurveRef を提供する。
 
+use crate::tolerance::ResolvedEdgeToleranceSettings;
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D};
 use geo_contracts::{
     Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
@@ -271,12 +272,19 @@ impl<T: Scalar> Edge<T> {
     }
 
     /// Edge の局所整合を確認する
-    pub fn is_local_consistent(&self, edge_tolerance: T) -> bool {
-        let third_tolerance = edge_tolerance / T::from_f64(3.0);
+    pub(crate) fn is_local_consistent_with_tolerances(
+        &self,
+        tolerances: ResolvedEdgeToleranceSettings<T>,
+    ) -> bool {
+        self.is_binding_consistent(tolerances.bind_tolerance)
+            && self.is_ideal_endpoint_consistent(tolerances.ideal_tolerance)
+            && self.is_evaluated_endpoint_consistent(tolerances.eval_tolerance)
+    }
 
-        self.is_binding_consistent(third_tolerance)
-            && self.is_ideal_endpoint_consistent(third_tolerance)
-            && self.is_evaluated_endpoint_consistent(third_tolerance)
+    pub fn is_local_consistent(&self, edge_tolerance: T) -> bool {
+        self.is_local_consistent_with_tolerances(ResolvedEdgeToleranceSettings::symmetric(
+            edge_tolerance,
+        ))
     }
 
     /// 既存呼び出し向けの互換メソッド
@@ -348,6 +356,11 @@ mod tests {
         assert!(!edge.is_evaluated_endpoint_consistent(1e-9));
         assert!(edge.is_local_consistent(0.31));
         assert!(!edge.is_local_consistent(0.29));
+        assert!(
+            edge.is_local_consistent_with_tolerances(ResolvedEdgeToleranceSettings::new(
+                0.01, 0.15, 0.15,
+            ))
+        );
     }
 
     #[test]
