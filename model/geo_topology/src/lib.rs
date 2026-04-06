@@ -2,8 +2,8 @@
 //!
 //! 交差判定・モデリングで利用する最小のトポロジー構造を提供する。
 //! 現在の提供:
-//! - CompositeCurve3D: 端点で連結された複合曲線
-//! - CurveSegment3D: 個別セグメント（Line / Arc）
+//! - CompositeCurve3D: 拘束端点で連結された複合曲線
+//! - CurveSegment3D: 個別セグメント（Line / Arc、ideal/constraint endpoint を区別）
 //!
 //! 将来拡張（#205 連携）:
 //! - Vertex: 点トポロジー
