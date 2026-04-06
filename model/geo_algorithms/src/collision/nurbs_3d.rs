@@ -10,7 +10,7 @@
 //! 外部 trait を外部型へ直接実装できないため、
 //! Newtype（NurbsCurveCollider / NurbsSurfaceCollider）経由で BasicCollision を実装します。
 //!
-//! ## 設計方針  
+//! ## 設計方針
 //!
 //! 1. サンプリング + 数値最適化で距離を評価
 //! 2. 形状ペアごとに BasicCollision を実装
@@ -39,10 +39,6 @@ const NURBS_CURVE_POINT_BOOTSTRAP_SAMPLES: usize = 20;
 const NURBS_CURVE_DISTANCE_SAMPLES: usize = 100;
 const NURBS_SURFACE_DISTANCE_SAMPLES_U: usize = 24;
 const NURBS_SURFACE_DISTANCE_SAMPLES_V: usize = 24;
-
-// ─────────────────────────────────────────────────────────────────────────
-// NurbsCurveCollider Newtype Wrapper
-// ─────────────────────────────────────────────────────────────────────────
 
 /// NURBS曲線の衝突判定アダプタ（Newtype パターン）
 ///
@@ -538,10 +534,6 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsCurveCollider<
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// NurbsSurfaceCollider Newtype Wrapper
-// ─────────────────────────────────────────────────────────────────────────
-
 #[repr(transparent)]
 #[derive(Debug, Clone)]
 pub struct NurbsSurfaceCollider<T: Scalar>(pub NurbsSurface3D<T>);
@@ -983,10 +975,6 @@ impl<T: Scalar> BasicCollision<T, CylindricalSolid3D<T>> for NurbsSurfaceCollide
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Public Distance Functions (shared with intersection module)
-// ─────────────────────────────────────────────────────────────────────────
-
 // NurbsCurve3D distance functions
 
 pub fn nurbscurve3d_point3d_distance<T: Scalar>(curve: &NurbsCurve3D<T>, point: &Point3D<T>) -> T {
@@ -1109,10 +1097,11 @@ pub fn nurbssurface3d_cylindrical_solid3d_distance<T: Scalar>(
 mod tests {
     use super::*;
     use crate::Vector3D;
+    use analysis::test_constants;
     use geo_contracts::NurbsSurface3DConstructor;
     use geo_nurbs::NurbsCurve3D;
 
-    const TEST_TOLERANCE: f64 = 1e-6;
+    const TEST_TOLERANCE: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const TEST_FAR_POINT_COORD: f64 = 10.0;
     const TEST_MIN_FAR_DISTANCE: f64 = 10.0;
 

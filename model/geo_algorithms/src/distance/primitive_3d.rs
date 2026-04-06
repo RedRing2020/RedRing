@@ -81,10 +81,10 @@ pub fn point3d_circle3d_distance<T: Scalar>(point: &Point3D<T>, circle: &Circle3
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::ToleranceSettings;
+    use analysis::test_constants;
 
     fn standard_distance_tol() -> f64 {
-        ToleranceSettings::<f64>::standard().distance_tolerance
+        test_constants::DISTANCE_TOLERANCE_F64
     }
 
     #[test]

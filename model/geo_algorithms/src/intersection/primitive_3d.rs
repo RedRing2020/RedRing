@@ -2176,10 +2176,10 @@ mod tests {
         IntersectionGeometry, IntersectionTopology, LineSegment3D, Plane3D, Point3D, Ray3D,
         SphericalSurface3D, TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
     };
-    use geo_contracts::ToleranceSettings;
+    use analysis::test_constants;
 
     fn standard_distance_tol() -> f64 {
-        ToleranceSettings::<f64>::standard().distance_tolerance
+        test_constants::DISTANCE_TOLERANCE_F64
     }
 
     #[test]

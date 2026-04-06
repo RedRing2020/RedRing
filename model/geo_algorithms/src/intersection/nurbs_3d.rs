@@ -46,10 +46,6 @@ fn representative_surface_domain_start_point<T: Scalar>(surface: &NurbsSurface3D
     Point3D::new(point.x(), point.y(), point.z())
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NurbsCurve3D × Primitives
-// ─────────────────────────────────────────────────────────────────────────────
-
 pub fn nurbscurve3d_point3d_intersection<T: Scalar>(
     curve: &NurbsCurve3D<T>,
     point: &Point3D<T>,
@@ -180,10 +176,6 @@ pub fn nurbscurve3d_cylindrical_solid3d_intersection<T: Scalar>(
         None
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NurbsSurface3D × Primitives
-// ─────────────────────────────────────────────────────────────────────────────
 
 pub fn nurbssurface3d_point3d_intersection<T: Scalar>(
     surface: &NurbsSurface3D<T>,
@@ -321,7 +313,10 @@ pub fn nurbssurface3d_cylindrical_solid3d_intersection<T: Scalar>(
 mod tests {
     use super::*;
     use crate::{Direction3D, Vector3D};
+    use analysis::test_constants;
     use geo_contracts::{NurbsCurve3DConstructor, NurbsSurface3DConstructor};
+
+    const TEST_TOLERANCE: f64 = test_constants::DISTANCE_TOLERANCE_F64;
 
     fn create_test_curve<T: Scalar>() -> NurbsCurve3D<T> {
         use analysis::linalg::vector::vector3::Vector3;
@@ -367,7 +362,7 @@ mod tests {
     fn test_nurbscurve3d_point3d_intersection_on_curve() {
         let curve = create_test_curve::<f64>();
         let point = Point3D::new(0.0, 0.0, 0.0);
-        let tolerance = 1e-6;
+        let tolerance = TEST_TOLERANCE;
 
         let result = nurbscurve3d_point3d_intersection(&curve, &point, tolerance);
         assert!(result.is_some());
@@ -377,7 +372,7 @@ mod tests {
     fn test_nurbscurve3d_point3d_no_intersection() {
         let curve = create_test_curve::<f64>();
         let point = Point3D::new(10.0, 10.0, 10.0);
-        let tolerance = 1e-6;
+        let tolerance = TEST_TOLERANCE;
 
         let result = nurbscurve3d_point3d_intersection(&curve, &point, tolerance);
         assert!(result.is_none());
@@ -409,7 +404,7 @@ mod tests {
     fn test_nurbscurve3d_ray3d_intersection() {
         let curve = create_test_curve::<f64>();
         let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-        let tolerance = 1e-6;
+        let tolerance = TEST_TOLERANCE;
 
         let result = nurbscurve3d_ray3d_intersection(&curve, &ray, tolerance);
         assert!(result.is_some());
@@ -420,7 +415,7 @@ mod tests {
         let curve = create_test_curve::<f64>();
         let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
 
-        let result = nurbscurve3d_ray3d_intersection(&curve, &ray, 1e-6);
+        let result = nurbscurve3d_ray3d_intersection(&curve, &ray, TEST_TOLERANCE);
         assert_eq!(result, Some(ray.origin()));
     }
 
@@ -435,7 +430,7 @@ mod tests {
         )
         .unwrap();
 
-        let result = nurbscurve3d_spherical_solid3d_intersection(&curve, &sphere, 1e-6);
+        let result = nurbscurve3d_spherical_solid3d_intersection(&curve, &sphere, TEST_TOLERANCE);
         assert_eq!(
             result,
             Some(representative_curve_domain_start_point(&curve))
@@ -446,7 +441,7 @@ mod tests {
     fn test_nurbssurface3d_point3d_intersection_on_surface() {
         let surface = create_test_surface::<f64>();
         let point = Point3D::new(0.5, 0.5, 0.0);
-        let result = nurbssurface3d_point3d_intersection(&surface, &point, 1e-6);
+        let result = nurbssurface3d_point3d_intersection(&surface, &point, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -454,7 +449,7 @@ mod tests {
     fn test_nurbssurface3d_plane3d_intersection_on_same_plane() {
         let surface = create_test_surface::<f64>();
         let plane = Plane3D::xy_plane(0.0);
-        let result = nurbssurface3d_plane3d_intersection(&surface, &plane, 1e-6);
+        let result = nurbssurface3d_plane3d_intersection(&surface, &plane, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -463,7 +458,7 @@ mod tests {
         let surface = create_test_surface::<f64>();
         let plane = Plane3D::xy_plane(0.0);
 
-        let result = nurbssurface3d_plane3d_intersection(&surface, &plane, 1e-6);
+        let result = nurbssurface3d_plane3d_intersection(&surface, &plane, TEST_TOLERANCE);
         assert_eq!(result, Some(plane.origin()));
     }
 
@@ -471,7 +466,7 @@ mod tests {
     fn test_nurbssurface3d_ray3d_intersection_vertical_hit() {
         let surface = create_test_surface::<f64>();
         let ray = Ray3D::new(Point3D::new(0.5, 0.5, -1.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-        let result = nurbssurface3d_ray3d_intersection(&surface, &ray, 1e-6);
+        let result = nurbssurface3d_ray3d_intersection(&surface, &ray, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -480,7 +475,7 @@ mod tests {
         let surface = create_test_surface::<f64>();
         let segment =
             LineSegment3D::new(Point3D::new(0.5, 0.5, -1.0), Point3D::new(0.5, 0.5, 1.0)).unwrap();
-        let result = nurbssurface3d_line_segment3d_intersection(&surface, &segment, 1e-6);
+        let result = nurbssurface3d_line_segment3d_intersection(&surface, &segment, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -492,7 +487,7 @@ mod tests {
             Point3D::new(0.5, 0.5, 1.0),
         )
         .unwrap();
-        let result = nurbssurface3d_infinite_line3d_intersection(&surface, &line, 1e-6);
+        let result = nurbssurface3d_infinite_line3d_intersection(&surface, &line, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -505,7 +500,7 @@ mod tests {
             0.25,
         )
         .unwrap();
-        let result = nurbssurface3d_circle3d_intersection(&surface, &circle, 1e-6);
+        let result = nurbssurface3d_circle3d_intersection(&surface, &circle, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -519,7 +514,8 @@ mod tests {
             2.0,
         )
         .unwrap();
-        let result = nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, 1e-6);
+        let result =
+            nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, TEST_TOLERANCE);
         assert!(result.is_some());
     }
 
@@ -534,7 +530,8 @@ mod tests {
         )
         .unwrap();
 
-        let result = nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, 1e-6);
+        let result =
+            nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, TEST_TOLERANCE);
         assert_eq!(
             result,
             Some(representative_surface_domain_start_point(&surface))
