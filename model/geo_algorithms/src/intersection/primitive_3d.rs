@@ -29,6 +29,15 @@ fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Opti
     }
 }
 
+fn point_matches_either_segment_endpoint<T: Scalar>(
+    point: Point3D<T>,
+    segment: &LineSegment3D<T>,
+    tolerance: T,
+) -> bool {
+    point.distance_to(&segment.start()) <= tolerance
+        || point.distance_to(&segment.end()) <= tolerance
+}
+
 fn spherical_surface_intersection_parameters<T: Scalar>(
     start: &Point3D<T>,
     direction: &crate::Vector3D<T>,
@@ -114,11 +123,9 @@ fn arc3d_line_segment3d_intersection_raw<T: Scalar>(
     if d_seg_e <= tolerance {
         return Some(segment.end());
     }
-    let d1 = crate::Vector3D::from_points(&arc_start, &segment.start()).magnitude();
-    let d2 = crate::Vector3D::from_points(&arc_end, &segment.start()).magnitude();
-    if d1 <= tolerance {
+    if point_matches_either_segment_endpoint(arc_start, segment, tolerance) {
         Some(arc_start)
-    } else if d2 <= tolerance {
+    } else if point_matches_either_segment_endpoint(arc_end, segment, tolerance) {
         Some(arc_end)
     } else {
         None
@@ -2157,12 +2164,12 @@ mod tests {
         line_segment3d_point3d_intersection, line_segment3d_ray3d_intersection,
         line_segment3d_spherical_surface3d_intersections, line_segment3d_triangle3d_intersection,
         plane3d_line_segment3d_intersection, plane3d_point3d_intersection,
-        plane3d_ray3d_intersection, ray3d_line_segment3d_intersection, ray3d_plane3d_intersection,
-        ray3d_point3d_intersection, ray3d_ray3d_intersection,
-        ray3d_spherical_surface3d_intersections, ray3d_triangle3d_intersection,
-        torus_surface3d_point3d_intersection, triangle3d_line_segment3d_intersection,
-        triangle3d_point3d_intersection, triangle3d_ray3d_intersection,
-        triangle_mesh3d_point3d_intersection,
+        plane3d_ray3d_intersection, point_matches_either_segment_endpoint,
+        ray3d_line_segment3d_intersection, ray3d_plane3d_intersection, ray3d_point3d_intersection,
+        ray3d_ray3d_intersection, ray3d_spherical_surface3d_intersections,
+        ray3d_triangle3d_intersection, torus_surface3d_point3d_intersection,
+        triangle3d_line_segment3d_intersection, triangle3d_point3d_intersection,
+        triangle3d_ray3d_intersection, triangle_mesh3d_point3d_intersection,
     };
     use crate::{
         Angle, Arc3D, Circle3D, CylindricalSurface3D, Direction3D, Ellipse3D, InfiniteLine3D,
@@ -2410,6 +2417,28 @@ mod tests {
         assert_eq!(miss_ray.topology, IntersectionTopology::Disjoint);
         assert_eq!(hit_line.topology, IntersectionTopology::Crossing);
         assert_eq!(miss_line.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn segment_endpoint_match_helper_is_symmetric() {
+        let segment =
+            LineSegment3D::new(Point3D::new(2.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0)).unwrap();
+
+        assert!(point_matches_either_segment_endpoint(
+            Point3D::new(2.0, 0.0, 0.0),
+            &segment,
+            standard_distance_tol(),
+        ));
+        assert!(point_matches_either_segment_endpoint(
+            Point3D::new(3.0, 0.0, 0.0),
+            &segment,
+            standard_distance_tol(),
+        ));
+        assert!(!point_matches_either_segment_endpoint(
+            Point3D::new(4.0, 0.0, 0.0),
+            &segment,
+            standard_distance_tol(),
+        ));
     }
 
     #[test]
