@@ -90,6 +90,57 @@ Issue #548 では、`default_parallel_cross_error_tolerance<T>()` /
 
 この時点では `Scalar` の関連定数を即座に非公開化しない。まず利用境界を固定し、`default_*` への移行が収束した後に、非公開化の可否を再評価する。
 
+## `geo_algorithms` の tolerance 入口ルール
+
+Issue #611 では、`geo_algorithms` の tolerance 入口を「明示入力中心」で固定する。
+
+前提認識は次の通り。
+
+- `geo_algorithms` の collision / intersection / distance 系 API は、すでに free function + 明示 `tolerance` 引数を中心に構成されている
+- `geo_algorithms` は `geo_primitives` と違い、`T::ORTHOGONALITY_DOT_ERROR_TOLERANCE` / `T::PARALLEL_CROSS_ERROR_TOLERANCE` の直接参照を主問題として持っていない
+- `ToleranceSettings` の利用は主に tests や `OctreeTolerance` のような用途特化派生に留まっている
+
+したがって、`geo_algorithms` で先に固定すべきなのは「どの値を使うか」より「どこで値を選ぶか」である。
+
+### 基本方針
+
+- `geo_algorithms` の正本 API は明示 `tolerance` 引数を受け取る形を維持する
+- `ToleranceSettings` からの標準値選択は呼び出し境界で行う
+- `geo_algorithms` 本体に暗黙既定値をばらまかない
+- 用途特化の派生設定は許可するが、別正本を作らない
+
+### モジュール別の運用ルール
+
+| モジュール | 入口ルール | 備考 |
+| --- | --- | --- |
+| `collision` | 明示 `tolerance` 入力を正本とする | 形状ペア free function は既存方針を維持 |
+| `intersection` | 明示 `tolerance` 入力を正本とする | `IntersectionResult` へ渡す `tolerance_used` も入力値を使う |
+| `distance` | 既定値を持ち込まない | 距離計算自体は純関数として扱い、必要なら呼び出し側で比較閾値を選ぶ |
+| `octree` | `ToleranceSettings` からの用途特化派生を許可する | `OctreeTolerance` は用途特化 wrapper として維持 |
+| tests/examples | `ToleranceSettings` を利用してよい | 公開 API の正本ではなく呼び出し例として扱う |
+
+### convenience 入口の扱い
+
+現段階では、`geo_algorithms` 本体へ `ToleranceSettings` ベースの convenience 入口を追加しない。
+
+理由は次の通り。
+
+- 既存 API は明示入力で一貫しており、責務境界が崩れていない
+- convenience 入口を早期導入すると、呼び出し境界と `geo_algorithms` 本体の責務が再び混ざりやすい
+- 必要性が実利用で確認された後でも、本体 API を変えず薄い wrapper として追加できる
+
+したがって、将来 convenience 入口が必要になった場合でも、次を条件とする。
+
+- 本体 API は明示入力のまま維持する
+- wrapper は `ToleranceSettings` から必要値を取り出して委譲するだけに留める
+- collision / intersection / distance のすべてへ一律導入せず、利用頻度の高い入口から限定導入を検討する
+
+### 実装への含意
+
+- `geo_algorithms` で新規 API を追加する場合、まず明示 `tolerance` 引数版を定義する
+- `ToleranceSettings` を直接受ける API を追加する場合は、正本 API ではなく wrapper か用途特化設定であることを明示する
+- tests や examples では `ToleranceSettings::<T>::standard()` / `relaxed()` を使ってよいが、その運用を本体 API の既定値へ逆流させない
+
 ## 呼び出し境界ルール
 
 1. API入力トレランスは呼び出し元が `ToleranceSettings` を選択して渡す。
@@ -143,6 +194,7 @@ Issue #548 では、`default_parallel_cross_error_tolerance<T>()` /
 - #455
 - #548
 - #547
+- #611
 - #541
 - #361
 - #377
