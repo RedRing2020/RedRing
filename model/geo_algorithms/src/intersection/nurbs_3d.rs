@@ -34,6 +34,18 @@ fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Opti
     }
 }
 
+fn representative_curve_domain_start_point<T: Scalar>(curve: &NurbsCurve3D<T>) -> Point3D<T> {
+    let (u_min, _) = curve.parameter_domain();
+    let point = curve.evaluate_at(u_min);
+    Point3D::new(point.x(), point.y(), point.z())
+}
+
+fn representative_surface_domain_start_point<T: Scalar>(surface: &NurbsSurface3D<T>) -> Point3D<T> {
+    let ((u_min, _), (v_min, _)) = surface.parameter_domain();
+    let point = surface.evaluate_at(u_min, v_min);
+    Point3D::new(point.x(), point.y(), point.z())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // NurbsCurve3D × Primitives
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,9 +145,7 @@ pub fn nurbscurve3d_spherical_solid3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
-        let (u_min, _) = curve.parameter_domain();
-        let vec = curve.evaluate_at(u_min);
-        Some(Point3D::new(vec.x(), vec.y(), vec.z()))
+        Some(representative_curve_domain_start_point(curve))
     } else {
         None
     }
@@ -150,9 +160,7 @@ pub fn nurbscurve3d_ellipsoidal_solid3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
-        let (u_min, _) = curve.parameter_domain();
-        let vec = curve.evaluate_at(u_min);
-        Some(Point3D::new(vec.x(), vec.y(), vec.z()))
+        Some(representative_curve_domain_start_point(curve))
     } else {
         None
     }
@@ -167,9 +175,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
-        let (u_min, _) = curve.parameter_domain();
-        let vec = curve.evaluate_at(u_min);
-        Some(Point3D::new(vec.x(), vec.y(), vec.z()))
+        Some(representative_curve_domain_start_point(curve))
     } else {
         None
     }
@@ -274,9 +280,7 @@ pub fn nurbssurface3d_spherical_solid3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
-        let ((u_min, _), (v_min, _)) = surface.parameter_domain();
-        let p = surface.evaluate_at(u_min, v_min);
-        Some(Point3D::new(p.x(), p.y(), p.z()))
+        Some(representative_surface_domain_start_point(surface))
     } else {
         None
     }
@@ -292,9 +296,7 @@ pub fn nurbssurface3d_ellipsoidal_solid3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
-        let ((u_min, _), (v_min, _)) = surface.parameter_domain();
-        let p = surface.evaluate_at(u_min, v_min);
-        Some(Point3D::new(p.x(), p.y(), p.z()))
+        Some(representative_surface_domain_start_point(surface))
     } else {
         None
     }
@@ -309,9 +311,7 @@ pub fn nurbssurface3d_cylindrical_solid3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
-        let ((u_min, _), (v_min, _)) = surface.parameter_domain();
-        let p = surface.evaluate_at(u_min, v_min);
-        Some(Point3D::new(p.x(), p.y(), p.z()))
+        Some(representative_surface_domain_start_point(surface))
     } else {
         None
     }
@@ -395,6 +395,17 @@ mod tests {
     }
 
     #[test]
+    fn test_nurbscurve3d_line_segment3d_intersection_returns_segment_start_as_representative_point()
+    {
+        let curve = create_test_curve::<f64>();
+        let segment =
+            LineSegment3D::new(Point3D::new(-0.1, 0.0, 0.0), Point3D::new(0.1, 0.0, 0.0)).unwrap();
+
+        let result = nurbscurve3d_line_segment3d_intersection(&curve, &segment, 0.1);
+        assert_eq!(result, Some(segment.start()));
+    }
+
+    #[test]
     fn test_nurbscurve3d_ray3d_intersection() {
         let curve = create_test_curve::<f64>();
         let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
@@ -402,6 +413,33 @@ mod tests {
 
         let result = nurbscurve3d_ray3d_intersection(&curve, &ray, tolerance);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbscurve3d_ray3d_intersection_returns_ray_origin_as_representative_point() {
+        let curve = create_test_curve::<f64>();
+        let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+        let result = nurbscurve3d_ray3d_intersection(&curve, &ray, 1e-6);
+        assert_eq!(result, Some(ray.origin()));
+    }
+
+    #[test]
+    fn test_nurbscurve3d_spherical_solid3d_intersection_returns_curve_domain_start_point() {
+        let curve = create_test_curve::<f64>();
+        let sphere = SphericalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+        )
+        .unwrap();
+
+        let result = nurbscurve3d_spherical_solid3d_intersection(&curve, &sphere, 1e-6);
+        assert_eq!(
+            result,
+            Some(representative_curve_domain_start_point(&curve))
+        );
     }
 
     #[test]
@@ -418,6 +456,15 @@ mod tests {
         let plane = Plane3D::xy_plane(0.0);
         let result = nurbssurface3d_plane3d_intersection(&surface, &plane, 1e-6);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_plane3d_intersection_returns_plane_origin_as_representative_point() {
+        let surface = create_test_surface::<f64>();
+        let plane = Plane3D::xy_plane(0.0);
+
+        let result = nurbssurface3d_plane3d_intersection(&surface, &plane, 1e-6);
+        assert_eq!(result, Some(plane.origin()));
     }
 
     #[test]
@@ -474,5 +521,23 @@ mod tests {
         .unwrap();
         let result = nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, 1e-6);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_nurbssurface3d_spherical_solid3d_intersection_returns_surface_domain_start_point() {
+        let surface = create_test_surface::<f64>();
+        let sphere = SphericalSolid3D::new(
+            Point3D::new(0.5, 0.5, 0.0),
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+            2.0,
+        )
+        .unwrap();
+
+        let result = nurbssurface3d_spherical_solid3d_intersection(&surface, &sphere, 1e-6);
+        assert_eq!(
+            result,
+            Some(representative_surface_domain_start_point(&surface))
+        );
     }
 }
