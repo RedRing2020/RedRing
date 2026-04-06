@@ -1,4 +1,4 @@
-//! Triangle3D の Foundation トレイト実装
+//! Triangle3D の Bounds 実装
 
 use crate::Triangle3D;
 use geo_contracts::{Bounded, Scalar};
@@ -56,7 +56,7 @@ mod tests {
     use geo_contracts::{PrimitiveKind, PrimitiveMetadata};
 
     #[test]
-    fn test_extension_foundation() {
+    fn test_metadata_and_bounds_capabilities() {
         let triangle = Triangle3D::new(
             Point3D::new(0.0, 0.0, 0.0),
             Point3D::new(1.0, 0.0, 0.0),
