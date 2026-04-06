@@ -31,7 +31,9 @@ pub use crate::linalg::solver::newton::{
     newton_inverse, newton_solve, newton_solve_bounded,
     newton_solve_with_numeric_derivative_bounded,
 };
-pub use crate::numerics::{newton_arc_length, trapezoidal_rule, NormedVector};
+pub use crate::numerics::{
+    find_span_in_non_decreasing_sequence, newton_arc_length, trapezoidal_rule, NormedVector,
+};
 
 // 単位系の再エクスポート
 pub use units::{LengthUnit, Tolerance};
