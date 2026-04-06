@@ -141,6 +141,26 @@ Issue #611 では、`geo_algorithms` の tolerance 入口を「明示入力中�
 - `ToleranceSettings` を直接受ける API を追加する場合は、正本 API ではなく wrapper か用途特化設定であることを明示する
 - tests や examples では `ToleranceSettings::<T>::standard()` / `relaxed()` を使ってよいが、その運用を本体 API の既定値へ逆流させない
 
+### tests における使い分け
+
+`geo_algorithms` の tests では、unit テストと integration テストで tolerance の扱いを分ける。
+
+- unit テスト: 原則 `analysis::test_constants` か意味付きローカル定数を使う
+- integration テスト: `ToleranceSettings` を使ってよい
+- examples / docs 相当の確認も `ToleranceSettings` を使ってよい
+
+unit テストで `ToleranceSettings` を常用しない理由は次の通り。
+
+- 失敗理由が「アルゴリズムの退行」か「標準プロファイル値の変更」かを切り分けやすくするため
+- 本体 API が明示 `tolerance` 入力を正本とする方針と整合させるため
+
+integration テストで `ToleranceSettings` を使ってよい理由は次の通り。
+
+- 呼び出し境界で `ToleranceSettings` から値を選んで渡す実利用経路の確認になるため
+- tests 側で `ToleranceSettings` 利用を完全に排除すると、公開入口との接続回帰を拾いにくくなるため
+
+したがって、`ToleranceSettings` を使う tests は「公開入口との接続確認」であることを意図として持ち、アルゴリズム本体の境界条件や数値挙動を検証する unit テストでは `analysis::test_constants` または意味付きローカル定数を優先する。
+
 ## 呼び出し境界ルール
 
 1. API入力トレランスは呼び出し元が `ToleranceSettings` を選択して渡す。
