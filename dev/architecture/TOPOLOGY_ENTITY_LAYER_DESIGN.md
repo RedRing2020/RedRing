@@ -371,6 +371,38 @@ ResolvedEdgeToleranceSettings<T>
 
 既定の対称配分が必要な場合は、`TopologyToleranceSettings<T>` の `distance_tolerance` から内部で `ResolvedEdgeToleranceSettings<T>` を導出し、`bind = ideal = eval = distance_tolerance / 3` を構成する。将来的に局所 override が必要になった場合だけ、公開 API を壊さずに内部解決 budget 側を拡張する。
 
+### `#606` の validator 入口具体化
+
+`#606` では、`Edge` / `Wire` 自身が持つ最小整合判定を残しつつ、診断や将来拡張の入口として validator を追加する。
+
+最小実装の構造は次を想定する。
+
+```text
+TopologyValidator<T>
+  - tolerances: TopologyToleranceSettings<T>
+
+ResolvedTopologyToleranceBudget<T>
+  - edge: ResolvedEdgeToleranceSettings<T>
+  - shared_tolerance
+
+EdgeValidationReport<T>
+  - binding_consistent
+  - ideal_endpoint_consistent
+  - evaluated_endpoint_consistent
+
+WireValidationReport<T>
+  - edge_reports
+  - shared_vertex_consistent
+```
+
+責務分担は次で固定する。
+
+- `Edge` / `Wire`: 最小の整合判定 API を持ってよい
+- `TopologyValidator<T>`: 公開設定から内部解決 budget を導出し、診断可能な report を返す入口とする
+- report 型: `Edge` / `Wire` のどの段が失敗したかを将来 validator で観測できる最小単位とする
+
+したがって、`Wire::is_continuous` のような bool API は残してよいが、validator はそれを置き換えるのではなく、判定理由を保持できる診断入口として追加する。
+
 用語の使い分けは次で固定する。
 
 - `shared boundary`: 2 つの位相要素が共有境界として対応しうる関係、またはその候補区間を指す一般語

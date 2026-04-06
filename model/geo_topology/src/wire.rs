@@ -1,5 +1,6 @@
 //! Wire: Edge 連続列
 
+use crate::topology_validator::TopologyValidator;
 use crate::{Edge, TopoId, TopologyToleranceSettings};
 use geo_contracts::Scalar;
 
@@ -54,25 +55,9 @@ impl<T: Scalar> Wire<T> {
             return false;
         }
 
-        let edge_tolerances = tolerances.resolve_edge_tolerances();
-
-        if !self
-            .edges
-            .iter()
-            .all(|edge| edge.is_local_consistent_with_tolerances(edge_tolerances))
-        {
-            return false;
-        }
-
-        for i in 0..self.edges.len() - 1 {
-            let end = self.edges[i].oriented_constraint_end_point();
-            let next_start = self.edges[i + 1].oriented_constraint_start_point();
-            if end.distance_to(&next_start) > tolerances.shared_tolerance {
-                return false;
-            }
-        }
-
-        true
+        TopologyValidator::new(tolerances)
+            .validate_wire(self)
+            .is_valid()
     }
 
     pub fn is_continuous_with_tolerances(&self, edge_tolerance: T, shared_tolerance: T) -> bool {

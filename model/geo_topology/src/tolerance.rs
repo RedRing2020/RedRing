@@ -32,6 +32,11 @@ impl<T: Scalar> TopologyToleranceSettings<T> {
     pub(crate) fn resolve_edge_tolerances(&self) -> ResolvedEdgeToleranceSettings<T> {
         ResolvedEdgeToleranceSettings::symmetric(self.distance_tolerance)
     }
+
+    /// 代表トレランスから validator 用の内部解決 budget を導出する。
+    pub(crate) fn resolve_validator_budget(&self) -> ResolvedTopologyToleranceBudget<T> {
+        ResolvedTopologyToleranceBudget::new(self.resolve_edge_tolerances(), self.shared_tolerance)
+    }
 }
 
 /// Edge 局所整合でのみ使う内部解決 budget。
@@ -71,9 +76,29 @@ impl<T: Scalar> ResolvedEdgeToleranceSettings<T> {
     }
 }
 
+/// validator で使う内部解決 budget。
+///
+/// 将来 `Face` / `Shell` / knit が追加された場合は、この型を拡張して扱う。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ResolvedTopologyToleranceBudget<T: Scalar> {
+    pub edge: ResolvedEdgeToleranceSettings<T>,
+    pub shared_tolerance: T,
+}
+
+impl<T: Scalar> ResolvedTopologyToleranceBudget<T> {
+    pub(crate) fn new(edge: ResolvedEdgeToleranceSettings<T>, shared_tolerance: T) -> Self {
+        Self {
+            edge,
+            shared_tolerance,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{ResolvedEdgeToleranceSettings, TopologyToleranceSettings};
+    use super::{
+        ResolvedEdgeToleranceSettings, ResolvedTopologyToleranceBudget, TopologyToleranceSettings,
+    };
 
     #[test]
     fn representative_distance_tolerance_resolves_local_budget_evenly() {
@@ -99,5 +124,19 @@ mod tests {
 
         assert!((settings.distance_tolerance - 0.3).abs() < 1.0e-12);
         assert!((settings.shared_tolerance - 1.0e-6).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn validator_budget_uses_edge_and_shared_components() {
+        let settings = TopologyToleranceSettings::new(0.3_f64, 1.0e-6);
+        let resolved = settings.resolve_validator_budget();
+
+        assert_eq!(
+            resolved,
+            ResolvedTopologyToleranceBudget::new(
+                ResolvedEdgeToleranceSettings::new(0.1, 0.1, 0.1),
+                1.0e-6,
+            )
+        );
     }
 }

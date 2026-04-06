@@ -14,12 +14,14 @@
 pub mod composite_curve;
 pub mod tolerance;
 pub mod topology_core;
+pub mod topology_validator;
 pub mod wire;
 
 pub use composite_curve::{CompositeCurve3D, CurveSegment3D};
 pub use geo_core::{Point3D, Vector3D};
 pub use tolerance::TopologyToleranceSettings;
 pub use topology_core::{CurveRef, Edge, TopoId, Vertex};
+pub use topology_validator::{EdgeValidationReport, TopologyValidator, WireValidationReport};
 pub use wire::Wire;
 
 pub type TopoArc3D<T> = geo_primitives::Arc3D<T>;
