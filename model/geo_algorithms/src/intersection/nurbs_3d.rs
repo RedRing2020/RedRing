@@ -85,6 +85,7 @@ pub fn nurbscurve3d_infinite_line3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_infinite_line3d_distance(curve, line);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として InfiniteLine の基準点を返す。
         let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
         Some(Point3D::new(px, py, pz))
     } else {
@@ -100,6 +101,7 @@ pub fn nurbscurve3d_circle3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_circle3d_distance(curve, circle);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として Circle center を返す。
         let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
         Some(Point3D::new(cx, cy, cz))
     } else {
@@ -130,7 +132,7 @@ pub fn nurbscurve3d_spherical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_spherical_solid3d_distance(curve, sphere);
 
     if distance <= tolerance {
-        // 曲線の始点を返す（Step C で改良）
+        // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
         let (u_min, _) = curve.parameter_domain();
         let vec = curve.evaluate_at(u_min);
         Some(Point3D::new(vec.x(), vec.y(), vec.z()))
@@ -147,7 +149,7 @@ pub fn nurbscurve3d_ellipsoidal_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_ellipsoidal_solid3d_distance(curve, ellipsoid);
 
     if distance <= tolerance {
-        // 曲線の始点を返す（Step C で改良）
+        // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
         let (u_min, _) = curve.parameter_domain();
         let vec = curve.evaluate_at(u_min);
         Some(Point3D::new(vec.x(), vec.y(), vec.z()))
@@ -164,7 +166,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_cylindrical_solid3d_distance(curve, cylinder);
 
     if distance <= tolerance {
-        // 曲線の始点を返す（Step C で改良）
+        // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
         let (u_min, _) = curve.parameter_domain();
         let vec = curve.evaluate_at(u_min);
         Some(Point3D::new(vec.x(), vec.y(), vec.z()))
@@ -194,6 +196,7 @@ pub fn nurbssurface3d_plane3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_plane3d_distance(surface, plane);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として Plane origin を返す。
         Some(plane.origin())
     } else {
         None
@@ -238,6 +241,7 @@ pub fn nurbssurface3d_infinite_line3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_infinite_line3d_distance(surface, line);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として InfiniteLine の基準点を返す。
         let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
         Some(Point3D::new(px, py, pz))
     } else {
@@ -253,6 +257,7 @@ pub fn nurbssurface3d_circle3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_circle3d_distance(surface, circle);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として Circle center を返す。
         let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
         Some(Point3D::new(cx, cy, cz))
     } else {
@@ -268,6 +273,7 @@ pub fn nurbssurface3d_spherical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_spherical_solid3d_distance(surface, sphere);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
         let ((u_min, _), (v_min, _)) = surface.parameter_domain();
         let p = surface.evaluate_at(u_min, v_min);
         Some(Point3D::new(p.x(), p.y(), p.z()))
@@ -285,6 +291,7 @@ pub fn nurbssurface3d_ellipsoidal_solid3d_intersection<T: Scalar>(
         crate::collision::nurbssurface3d_ellipsoidal_solid3d_distance(surface, ellipsoid);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
         let ((u_min, _), (v_min, _)) = surface.parameter_domain();
         let p = surface.evaluate_at(u_min, v_min);
         Some(Point3D::new(p.x(), p.y(), p.z()))
@@ -301,6 +308,7 @@ pub fn nurbssurface3d_cylindrical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_cylindrical_solid3d_distance(surface, cylinder);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
         let ((u_min, _), (v_min, _)) = surface.parameter_domain();
         let p = surface.evaluate_at(u_min, v_min);
         Some(Point3D::new(p.x(), p.y(), p.z()))
