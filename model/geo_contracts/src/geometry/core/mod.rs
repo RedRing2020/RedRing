@@ -152,9 +152,8 @@ pub use torus_surface_traits::{
 pub use triangle_traits::{
     Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity, Triangle2DConstructor,
     Triangle2DContainment, Triangle2DCore, Triangle2DDerived, Triangle2DDistance,
-    Triangle2DProperties, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity,
-    Triangle3DConstructor, Triangle3DContainment, Triangle3DCore, Triangle3DDerived,
-    Triangle3DDistance, Triangle3DProperties,
+    Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity, Triangle3DConstructor,
+    Triangle3DContainment, Triangle3DCore, Triangle3DDerived, Triangle3DDistance,
 };
 pub use vector_traits::{
     Vector2DConstructor, Vector2DCore, Vector2DMetric, Vector2DProduct, Vector2DProjection,

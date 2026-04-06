@@ -102,69 +102,9 @@ pub mod circle_2d;
 pub mod circle_2d_bounds;
 pub mod circle_2d_extensions;
 
-// Circle の Core trait定義 再公開
-pub use geo_contracts::{
-    Circle2DConstructor, Circle2DContainment, Circle2DCore, Circle2DDerived, Circle2DDistance,
-    Circle2DEvaluation, Circle2DProjection, Circle2DProperties,
-};
-pub use geo_contracts::{
-    Circle3DConstructor, Circle3DContainment, Circle3DCore, Circle3DDerived, Circle3DDistance,
-    Circle3DEvaluation, Circle3DProjection, Circle3DProperties,
-};
-
-// Arc の Core trait定義 再公開
-pub use geo_contracts::{
-    Arc2DConstructor, Arc2DContainment, Arc2DCore, Arc2DDerived, Arc2DDistance, Arc2DEndpoint,
-    Arc2DEvaluation, Arc2DProperties, Arc2DSampling, Arc2DTrimRange, Arc3DConstructor,
-    Arc3DContainment, Arc3DCore, Arc3DDerived, Arc3DDistance, Arc3DEndpoint, Arc3DEvaluation,
-    Arc3DProperties, Arc3DTrimRange,
-};
-
 pub mod circle_2d_metrics;
 pub mod direction_2d;
 pub mod direction_2d_extensions;
-pub use geo_contracts::{
-    Direction3DConstructor, Direction3DProperties, Direction3DRelation, Direction3DTransform,
-};
-
-// InfiniteLine の Core trait定義 再公開
-pub use geo_contracts::{
-    AngularRelation, ClosestPointPair, InfiniteLine2DConstructor, InfiniteLine2DProperties,
-    InfiniteLine3DConstructor, InfiniteLine3DProperties, IntersectsRelation, OnPlaneRelation,
-    ParallelRelation, PerpendicularRelation, SameLineRelation, SkewRelation,
-};
-
-// Ray の Core trait定義 再公開
-pub use geo_contracts::{
-    AngleBetween, DirectionalRelation, PointsTowards, Ray2DConstructor, Ray2DProperties,
-    Ray3DConstructor, Ray3DProperties,
-};
-pub use geo_contracts::{
-    Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DCore, Ellipse2DDerived, Ellipse2DDistance,
-    Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties, Ellipse3DConstructor,
-    Ellipse3DContainment, Ellipse3DCore, Ellipse3DDerived, Ellipse3DDistance, Ellipse3DEvaluation,
-    Ellipse3DProjection, Ellipse3DProperties,
-};
-pub use geo_contracts::{
-    EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DCore, EllipseArc2DDerived,
-    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange,
-    EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DCore, EllipseArc3DDerived,
-    EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange,
-};
-pub use geo_contracts::{
-    LineSegment2DConstructor, LineSegment2DContainment, LineSegment2DCore, LineSegment2DDerived,
-    LineSegment2DDistance, LineSegment2DEvaluation, LineSegment2DProjection,
-    LineSegment2DProperties, LineSegment3DConstructor, LineSegment3DContainment, LineSegment3DCore,
-    LineSegment3DDerived, LineSegment3DDistance, LineSegment3DEvaluation, LineSegment3DProjection,
-    LineSegment3DProperties,
-};
-pub use geo_contracts::{
-    Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity, Triangle2DConstructor,
-    Triangle2DContainment, Triangle2DCore, Triangle2DDerived, Triangle2DDistance,
-    Triangle2DProperties, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity,
-    Triangle3DConstructor, Triangle3DContainment, Triangle3DCore, Triangle3DDerived,
-    Triangle3DDistance, Triangle3DProperties,
-};
 pub mod ellipse_2d;
 pub mod ellipse_2d_bounds;
 pub mod ellipse_2d_transform;
@@ -197,14 +137,10 @@ mod ellipse_3d_tests;
 #[cfg(test)]
 mod foundation_tests;
 
+// capability trait は geo_contracts を正本 export とし、この crate では shape 型公開を優先する。
+
 // 基本型
 pub use geo_contracts::{Angle, Scalar};
-
-// Foundation trait定義
-pub use geo_contracts::{
-    AdvancedCollision, BBoxCollision, BasicCollision, BasicIntersection, MultipleIntersection,
-    PointDistance, SelfIntersection,
-};
 
 // 3D プリミティブ
 pub use arc_3d::Arc3D;
@@ -242,7 +178,3 @@ pub use line_segment_2d::LineSegment2D;
 pub use ray_2d::Ray2D;
 pub use rectangle_2d::Rect2D;
 pub use triangle_2d::Triangle2D;
-
-// Core trait定義
-pub use geo_contracts::{InfiniteLine2DCore, InfiniteLine3DCore};
-pub use geo_contracts::{Ray2DCore, Ray3DCore};
