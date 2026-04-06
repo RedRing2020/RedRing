@@ -5,9 +5,9 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    default_distance_tolerance, BasicIntersection, Plane3DConstructor, Plane3DContainment,
-    Plane3DDerived, Plane3DDistance, Plane3DEvaluation, Plane3DProjection, Plane3DProperties,
-    Plane3DTransform, Scalar,
+    default_distance_tolerance, default_orthogonality_dot_error_tolerance, BasicIntersection,
+    Plane3DConstructor, Plane3DContainment, Plane3DDerived, Plane3DDistance, Plane3DEvaluation,
+    Plane3DProjection, Plane3DProperties, Plane3DTransform, Scalar,
 };
 
 /// CAD用3次元平面（座標系付き）
@@ -242,7 +242,7 @@ impl<T: Scalar> Plane3D<T> {
         let dot_un = self.u_axis.as_vector().dot(&self.normal.as_vector()).abs();
         let dot_vn = self.v_axis.as_vector().dot(&self.normal.as_vector()).abs();
 
-        let tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let tolerance = default_orthogonality_dot_error_tolerance::<T>();
         dot_uv < tolerance && dot_un < tolerance && dot_vn < tolerance
     }
 }
@@ -365,7 +365,7 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     }
 
     fn is_xy_plane(&self) -> bool {
-        let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let angle_tolerance = default_orthogonality_dot_error_tolerance::<T>();
         let distance_tolerance = default_distance_tolerance::<T>();
         let z_axis = Vector3D::new(T::ZERO, T::ZERO, T::ONE);
         (self.normal.as_vector().dot(&z_axis) - T::ONE).abs() <= angle_tolerance
@@ -373,7 +373,7 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     }
 
     fn is_xz_plane(&self) -> bool {
-        let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let angle_tolerance = default_orthogonality_dot_error_tolerance::<T>();
         let distance_tolerance = default_distance_tolerance::<T>();
         let y_axis = Vector3D::new(T::ZERO, T::ONE, T::ZERO);
         (self.normal.as_vector().dot(&y_axis) - T::ONE).abs() <= angle_tolerance
@@ -381,7 +381,7 @@ impl<T: Scalar> Plane3DProperties<T> for Plane3D<T> {
     }
 
     fn is_yz_plane(&self) -> bool {
-        let angle_tolerance = T::ORTHOGONALITY_DOT_ERROR_TOLERANCE;
+        let angle_tolerance = default_orthogonality_dot_error_tolerance::<T>();
         let distance_tolerance = default_distance_tolerance::<T>();
         let x_axis = Vector3D::new(T::ONE, T::ZERO, T::ZERO);
         (self.normal.as_vector().dot(&x_axis) - T::ONE).abs() <= angle_tolerance
