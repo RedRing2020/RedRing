@@ -48,6 +48,48 @@
 | 内積誤差（直交判定補助） | `default_orthogonality_dot_error_tolerance<T>()` | 型依存閾値を使用し、用途を直交判定に限定する |
 | 数値解法の収束補助 | `foundation/analysis/src/consts.rs` | 幾何意味判定の正本としては使わない |
 
+## `default_*` と `Scalar` 関連定数の境界
+
+Issue #548 では、`default_parallel_cross_error_tolerance<T>()` /
+`default_orthogonality_dot_error_tolerance<T>()` と、`Scalar` の関連定数
+`T::PARALLEL_CROSS_ERROR_TOLERANCE` /
+`T::ORTHOGONALITY_DOT_ERROR_TOLERANCE` の責務境界を次で固定する。
+
+- 数値定数の保持層は `foundation/analysis` とする
+- geo 系の公開参照面は `geo_contracts` の `default_*` を正本とする
+- `Scalar` 関連定数は公開方針の正本ではなく、`default_*` を支える橋渡しと低レベル kernel 向けの内部表現とみなす
+- したがって、geo 実装層で「どの値を既定とするか」を決めるときは `default_*` を使い、`T::*` 直接参照を公開面の判断点にしない
+
+この整理により、`analysis` は純粋な数値定数の保持に閉じ、`geo_contracts` は geo 系 API の公開入口として振る舞う。
+
+### レイヤー別の直接参照ルール
+
+| レイヤー | `default_*` | `T::*` 直接参照 | 位置づけ |
+| --- | --- | --- | --- |
+| `foundation/analysis` | 不要 | 定義元として保持 | 数値定数の正本 |
+| `geo_contracts` | 公開する | ラッパー実装でのみ許可 | 公開境界 |
+| `geo_core` / `geo_commons` | 任意 | 低レベル kernel に限定して許可 | 数値演算の内部実装 |
+| `geo_primitives` / `geo_nurbs` | 原則こちらを使う | 公開 operations では禁止 | shape 実装入口 |
+| `geo_algorithms` | 明示入力か `default_*` | 原則禁止 | 高レベル API |
+| tests | テスト対象の公開面に合わせる | 低レベル kernel テストに限定 | 振る舞い検証 |
+
+補足:
+
+- `geo_core::Vector2D` / `Vector3D` のような基礎ベクトル演算は、低レベル kernel として `T::*` を内部で読んでよい
+- `geo_primitives` の relation / intersection / validation 系 API は、公開面の既定値選択として `default_*` を使う
+- 単に値が同じであることを理由に `geo_primitives` で `T::*` を読み続ける運用は採らない
+
+### #548 時点の移行単位
+
+`#548` 自体は設計固定 Issue とし、実装置換は後続 Phase に分ける。分割単位は次を基本とする。
+
+1. 文書正規化: `default_*` と `T::*` の責務境界を固定する
+2. `geo_primitives` / `geo_nurbs` の公開 operations から `T::*` 直接参照を除去する
+3. `geo_algorithms` の relation / intersection / validation 経路を同ルールへ揃える
+4. `geo_core` / `geo_commons` に残す `T::*` 直接参照が低レベル kernel に閉じているかを再点検する
+
+この時点では `Scalar` の関連定数を即座に非公開化しない。まず利用境界を固定し、`default_*` への移行が収束した後に、非公開化の可否を再評価する。
+
 ## 呼び出し境界ルール
 
 1. API入力トレランスは呼び出し元が `ToleranceSettings` を選択して渡す。
@@ -99,6 +141,9 @@
 ## 関連Issue
 
 - #455
+- #548
+- #547
+- #541
 - #361
 - #377
 - #318
