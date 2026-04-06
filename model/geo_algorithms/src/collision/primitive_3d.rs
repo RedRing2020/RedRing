@@ -341,7 +341,7 @@ pub fn ellipse3d_point3d_collides<T: Scalar + From<f64>>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
+    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
         ellipse,
         (point.x(), point.y(), point.z()),
     ) <= tolerance
@@ -353,7 +353,7 @@ pub fn ellipse3d_circle3d_collides<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> bool {
     let (cx, cy, cz) = circle.center();
-    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz))
+    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz))
         <= circle.radius() + tolerance
 }
 
@@ -364,7 +364,7 @@ pub fn ellipse3d_arc3d_collides<T: Scalar + From<f64>>(
 ) -> bool {
     let (cx, cy, cz) = Arc3DProperties::center(arc);
     let arc_radius = Arc3DProperties::radius(arc);
-    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz))
+    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz))
         <= arc_radius + tolerance
 }
 
@@ -375,22 +375,16 @@ pub fn ellipse3d_line_segment3d_collides<T: Scalar + From<f64>>(
 ) -> bool {
     let s = segment.start();
     let e = segment.end();
-    let dist_start = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
-        ellipse,
-        (s.x(), s.y(), s.z()),
-    );
-    let dist_end = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
-        ellipse,
-        (e.x(), e.y(), e.z()),
-    );
+    let dist_start =
+        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (s.x(), s.y(), s.z()));
+    let dist_end =
+        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (e.x(), e.y(), e.z()));
     let two = T::from_f64(2.0);
     let mid_x = (s.x() + e.x()) / two;
     let mid_y = (s.y() + e.y()) / two;
     let mid_z = (s.z() + e.z()) / two;
-    let dist_mid = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
-        ellipse,
-        (mid_x, mid_y, mid_z),
-    );
+    let dist_mid =
+        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (mid_x, mid_y, mid_z));
     dist_start <= tolerance || dist_end <= tolerance || dist_mid <= tolerance
 }
 
@@ -400,7 +394,7 @@ pub fn ellipse3d_infinite_line3d_collides<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> bool {
     let (px, py, pz) = line.point();
-    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (px, py, pz)) <= tolerance
+    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (px, py, pz)) <= tolerance
 }
 
 pub fn ellipse3d_ray3d_collides<T: Scalar + From<f64>>(
@@ -409,7 +403,7 @@ pub fn ellipse3d_ray3d_collides<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> bool {
     let o = ray.origin();
-    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (o.x(), o.y(), o.z()))
+    <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (o.x(), o.y(), o.z()))
         <= tolerance
 }
 
@@ -430,17 +424,14 @@ pub fn ellipse3d_triangle3d_collides<T: Scalar + From<f64>>(
     let (ax, ay, az) = triangle.vertex_a();
     let (bx, by, bz) = triangle.vertex_b();
     let (cx, cy, cz) = triangle.vertex_c();
-    let dist_a =
-        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (ax, ay, az));
-    let dist_b =
-        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (bx, by, bz));
-    let dist_c =
-        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
+    let dist_a = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (ax, ay, az));
+    let dist_b = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (bx, by, bz));
+    let dist_c = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz));
     let three = T::from_f64(3.0);
     let centroid_x = (ax + bx + cx) / three;
     let centroid_y = (ay + by + cy) / three;
     let centroid_z = (az + bz + cz) / three;
-    let dist_centroid = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
+    let dist_centroid = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
         ellipse,
         (centroid_x, centroid_y, centroid_z),
     );

@@ -578,7 +578,7 @@ fn ellipse3d_point3d_intersection_raw<T: Scalar + From<f64>>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
+        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
             ellipse,
             (point.x(), point.y(), point.z()),
         ) <= tolerance,
@@ -603,7 +603,7 @@ pub fn ellipse3d_circle3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz));
     let points = if dist <= Circle3DProperties::radius(circle) + tolerance {
         vec![Point3D::new(cx, cy, cz)]
     } else {
@@ -618,7 +618,7 @@ pub fn ellipse3d_arc3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (cx, cy, cz) = Arc3DProperties::center(arc);
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz));
     let points = if dist <= Arc3DProperties::radius(arc) + tolerance {
         vec![Point3D::new(cx, cy, cz)]
     } else {
@@ -635,14 +635,14 @@ pub fn ellipse3d_line_segment3d_intersections<T: Scalar + From<f64>>(
     let start = segment.start();
     let end = segment.end();
     let mut intersections = Vec::new();
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
         ellipse,
         (start.x(), start.y(), start.z()),
     ) <= tolerance
     {
         intersections.push(start);
     }
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
         ellipse,
         (end.x(), end.y(), end.z()),
     ) <= tolerance
@@ -658,7 +658,7 @@ pub fn ellipse3d_infinite_line3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (px, py, pz));
+    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (px, py, pz));
     let points = if dist <= tolerance {
         vec![Point3D::new(px, py, pz)]
     } else {
@@ -673,10 +673,8 @@ pub fn ellipse3d_ray3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let o = ray.origin();
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(
-        ellipse,
-        (o.x(), o.y(), o.z()),
-    );
+    let dist =
+        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (o.x(), o.y(), o.z()));
     let points = if dist <= tolerance {
         vec![o]
     } else {
@@ -719,18 +717,15 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
     let mut intersections = Vec::new();
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (ax, ay, az))
-        <= tolerance
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (ax, ay, az)) <= tolerance
     {
         intersections.push(Point3D::new(ax, ay, az));
     }
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (bx, by, bz))
-        <= tolerance
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (bx, by, bz)) <= tolerance
     {
         intersections.push(Point3D::new(bx, by, bz));
     }
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point_3d(ellipse, (cx, cy, cz))
-        <= tolerance
+    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz)) <= tolerance
     {
         intersections.push(Point3D::new(cx, cy, cz));
     }
