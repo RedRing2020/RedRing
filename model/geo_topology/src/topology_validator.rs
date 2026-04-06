@@ -135,7 +135,8 @@ mod tests {
         let start = Point3D::new(0.0, 0.0, 0.1);
         let end = Point3D::new(2.0, 0.0, 0.1);
         let edge = make_offset_support_edge(start, end);
-        let validator = TopologyValidator::new(crate::TopologyToleranceSettings::new(0.31, 1.0e-9));
+        let validator =
+            TopologyValidator::new(crate::TopologyToleranceSettings::new(1.0e-9, 1.0e-9));
 
         let report = validator.validate_edge(&edge);
 

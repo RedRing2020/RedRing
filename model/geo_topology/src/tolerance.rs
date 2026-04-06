@@ -96,9 +96,7 @@ impl<T: Scalar> ResolvedTopologyToleranceBudget<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ResolvedEdgeToleranceSettings, ResolvedTopologyToleranceBudget, TopologyToleranceSettings,
-    };
+    use super::{ResolvedEdgeToleranceSettings, TopologyToleranceSettings};
 
     #[test]
     fn representative_distance_tolerance_resolves_local_budget_evenly() {
@@ -131,12 +129,9 @@ mod tests {
         let settings = TopologyToleranceSettings::new(0.3_f64, 1.0e-6);
         let resolved = settings.resolve_validator_budget();
 
-        assert_eq!(
-            resolved,
-            ResolvedTopologyToleranceBudget::new(
-                ResolvedEdgeToleranceSettings::new(0.1, 0.1, 0.1),
-                1.0e-6,
-            )
-        );
+        assert!((resolved.edge.bind_tolerance - 0.1).abs() < 1.0e-12);
+        assert!((resolved.edge.ideal_tolerance - 0.1).abs() < 1.0e-12);
+        assert!((resolved.edge.eval_tolerance - 0.1).abs() < 1.0e-12);
+        assert!((resolved.shared_tolerance - 1.0e-6).abs() < 1.0e-12);
     }
 }
