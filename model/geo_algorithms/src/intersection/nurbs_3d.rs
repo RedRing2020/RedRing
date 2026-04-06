@@ -12,6 +12,8 @@
 //! - collision 実装と対称性を保つ（同一ペア数・同一形状セット）
 //! - orphan rules への対応は collision 側の Newtype パターンを参照
 //! - Phase C では最小実装（tolerance ベース交点判定）を提供
+//! - Phase C の一部 API は厳密交点ではなく代表点を返す
+//! - `LineSegment*::start/end` は ideal endpoint 基準で解釈する
 //! - 重複排除・pair_base 抽出は Step C で実施
 
 use crate::{
@@ -53,6 +55,7 @@ pub fn nurbscurve3d_line_segment3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_line_segment3d_distance(curve, segment);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として線分の ideal start endpoint を返す。
         Some(segment.start())
     } else {
         None
@@ -67,6 +70,7 @@ pub fn nurbscurve3d_ray3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_ray3d_distance(curve, ray);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として Ray origin を返す。
         Some(ray.origin())
     } else {
         None
@@ -111,6 +115,7 @@ pub fn nurbscurve3d_plane3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_plane3d_distance(curve, plane);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として Plane origin を返す。
         Some(plane.origin())
     } else {
         None
@@ -203,6 +208,7 @@ pub fn nurbssurface3d_ray3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_ray3d_distance(surface, ray);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として Ray origin を返す。
         Some(ray.origin())
     } else {
         None
@@ -217,6 +223,7 @@ pub fn nurbssurface3d_line_segment3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_line_segment3d_distance(surface, segment);
 
     if distance <= tolerance {
+        // Phase C の最小実装では代表点として線分の ideal start endpoint を返す。
         Some(segment.start())
     } else {
         None
