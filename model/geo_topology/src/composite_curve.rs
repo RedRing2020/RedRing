@@ -64,7 +64,7 @@ impl<T: Scalar> CurveSegment3D<T> {
 /// 端点で連結された複数セグメントからなる複合曲線
 ///
 /// 保持する不変条件:
-/// - 全セグメントが連続している（N番目終点 == N+1番目始点）
+/// - 全セグメントが拘束端点で連続している（N番目拘束終点 == N+1番目拘束始点）
 /// - セグメント数は1以上
 /// - セグメントは順序付き
 #[derive(Clone, Debug)]
@@ -81,7 +81,7 @@ impl<T: Scalar> CompositeCurve3D<T> {
     ///
     /// 次の場合は None を返す:
     /// - segments が空
-    /// - セグメントが連続していない（N番目終点 != N+1番目始点）
+    /// - セグメントが拘束端点で連続していない
     pub fn new(segments: Vec<CurveSegment3D<T>>) -> Option<Self> {
         Self::new_with_tolerance(segments, T::ZERO)
     }
@@ -110,6 +110,16 @@ impl<T: Scalar> CompositeCurve3D<T> {
         &self.segments
     }
 
+    /// 複合曲線全体の ideal 始点を返す
+    pub fn ideal_start_point(&self) -> Point3D<T> {
+        self.segments[0].start()
+    }
+
+    /// 複合曲線全体の ideal 終点を返す
+    pub fn ideal_end_point(&self) -> Point3D<T> {
+        self.segments[self.segments.len() - 1].end()
+    }
+
     /// 複合曲線全体の拘束始点を返す
     pub fn constraint_start_point(&self) -> Point3D<T> {
         self.segments[0].constraint_start()
@@ -121,11 +131,15 @@ impl<T: Scalar> CompositeCurve3D<T> {
     }
 
     /// 複合曲線全体の始点を返す
+    ///
+    /// CompositeCurve の public endpoint は topology 接続に使う拘束端点を正本とする。
     pub fn start_point(&self) -> Point3D<T> {
         self.constraint_start_point()
     }
 
     /// 複合曲線全体の終点を返す
+    ///
+    /// CompositeCurve の public endpoint は topology 接続に使う拘束端点を正本とする。
     pub fn end_point(&self) -> Point3D<T> {
         self.constraint_end_point()
     }
@@ -203,6 +217,8 @@ mod tests {
 
         assert_eq!(composite.start_point(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(composite.end_point(), Point3D::new(1.0, 0.0, 0.0));
+        assert_eq!(composite.ideal_start_point(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(composite.ideal_end_point(), Point3D::new(1.0, 0.0, 0.0));
         assert_eq!(composite.segments().len(), 1);
     }
 
@@ -305,6 +321,8 @@ mod tests {
 
         assert_eq!(composite.start_point(), Point3D::new(0.0, 1.0, 0.0));
         assert_eq!(composite.end_point(), Point3D::new(2.0, 1.0, 0.0));
+        assert_eq!(composite.ideal_start_point(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(composite.ideal_end_point(), Point3D::new(2.0, 0.0, 0.0));
     }
 
     #[test]

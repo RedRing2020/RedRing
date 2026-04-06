@@ -54,6 +54,15 @@ CompositeCurve は、閉曲線であっても topology Loop の正本とはみ�
 
 したがって、RedRing では「閉じた CompositeCurve をそのまま Loop と呼ぶ」ことはせず、CompositeCurve は Wire / Loop 構築前段の幾何入力または補助表現として扱う。
 
+CompositeCurve の endpoint 語彙は、少なくとも次で固定する。
+
+- `CurveSegment::start/end`: 個別セグメントの ideal endpoint
+- `CurveSegment::constraint_start/constraint_end`: topology 接続に使う拘束端点
+- `CompositeCurve::start_point/end_point`: 複合曲線全体の拘束端点を返す public endpoint
+- `CompositeCurve::ideal_start_point/ideal_end_point`: 複合曲線全体の ideal endpoint を返す補助語彙
+
+つまり CompositeCurve は、segment 単位では ideal/constraint の両方を名前で分離しつつ、複合曲線全体の public endpoint は Wire / Loop 構築前段で使う拘束端点を正本とする。
+
 ## 将来実装を見越した存在と設計確定項目
 
 未実装であっても、topology entity layer の将来対象として少なくとも次の要素は存在を明示しておく。
