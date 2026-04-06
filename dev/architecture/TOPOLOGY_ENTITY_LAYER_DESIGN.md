@@ -294,6 +294,17 @@ edge_ok = binding_ok && ideal_ok && evaluation_ok
 - 将来的な値の正本は `ToleranceSettings` 系の共通 context と接続してよい
 - ただし topology 側では、どの判定にどの tolerance を使うかという責務境界を保持する
 
+`#597` では、この責務境界を「公開設定」と「内部解決 budget」の 2 層で具体化する。
+
+- `TopologyToleranceSettings<T>`: 代表となる `distance_tolerance` と `shared_tolerance` を保持する公開入口
+- `ResolvedEdgeToleranceSettings<T>`: 単一 Edge の局所整合に使う `bind` / `ideal` / `eval` の部分予算を保持する内部解決 budget
+
+API の主語は次で固定する。
+
+- `Edge` の局所整合判定は内部で `ResolvedEdgeToleranceSettings<T>` を使う
+- `Wire` の連続性判定と生成は `TopologyToleranceSettings<T>` を受け取る
+- 将来の validator / Face / Shell 判定も、少なくとも `TopologyToleranceSettings<T>` かその拡張を入口にする
+
 ### 誤差伝搬を抑えるための局所予算と共有予算の分離
 
 vertex 一致判定では、単一の許容差をそのまま全ての段へ使い回すのではなく、少なくとも次の 2 種類の予算へ分けて扱う。
@@ -334,15 +345,122 @@ $$
 
 この考え方は `LineSegment` の binding だけに限定しない。Face 上の point-on-surface 判定、curve-on-surface 判定、ピッチ判定のような「母表現と拘束表現のずれ」を扱う場面でも、局所整合の予算と複数要素をまたぐ共有整合の予算を分離するトレラントモデリングの基本思想として再利用する。
 
-ただし、個別の tolerance 名、値の最終配置、API 形状は別設計で具体化する。
+この段階では、topology 専用 tolerance の正本はまだ `geo_topology` 側に置く。`geo_contracts::ToleranceSettings<T>` への統合は、geometry 全体の tolerance 正本設計が固まった後段で接続する。
+
+### `#597` の設定オブジェクト具体化
+
+`#597` の最小実装では、上記の責務境界を次の構造へ落とす。
+
+```text
+TopologyToleranceSettings<T>
+  - distance_tolerance
+  - shared_tolerance
+
+ResolvedEdgeToleranceSettings<T>
+  - bind_tolerance
+  - ideal_tolerance
+  - eval_tolerance
+```
+
+設計意図は次の通り。
+
+- 通常利用者には `distance_tolerance` と `shared_tolerance` だけを公開し、API を重くしすぎない
+- `bind` / `ideal` / `eval` は内部解決 budget として保持し、将来必要なら局所 override や validator で拡張できる
+- `shared_tolerance` は Edge 局所予算へ混ぜず、Wire 以上の共有整合専用 budget として独立保持する
+- `TopologyToleranceSettings<T>` を Wire の入口に据えることで、将来 validator が同じ設定を横展開しやすくする
+
+既定の対称配分が必要な場合は、`TopologyToleranceSettings<T>` の `distance_tolerance` から内部で `ResolvedEdgeToleranceSettings<T>` を導出し、`bind = ideal = eval = distance_tolerance / 3` を構成する。将来的に局所 override が必要になった場合だけ、公開 API を壊さずに内部解決 budget 側を拡張する。
+
+用語の使い分けは次で固定する。
+
+- `shared boundary`: 2 つの位相要素が共有境界として対応しうる関係、またはその候補区間を指す一般語
+- `shared edge`: `shared boundary` の候補を評価した結果、カーネルが正準化して正本として採用した位相要素を指す語
+- `shared vertex`: `shared boundary` または `shared edge` の端点側で、共通接続点として扱う `Vertex` を指す語
+
+したがって、候補探索・候補検証・方向整合・曖昧性拒否の段階では `shared boundary` を使い、一本化後の正本や生成規則を指す段階では `shared edge` を使う。`shared vertex` は、そのどちらの段階でも端点側の共通接続点を指す語として使ってよい。
+
+関係を整理すると次の通り。
+
+- `shared boundary`: 共有関係または候補区間
+- `shared edge`: `shared boundary` を評価した後に採用された正本
+- `shared vertex`: `shared boundary` または `shared edge` の端点側で共有される接続点
+
+### topology tolerance の将来実装方針
+
+現時点では `Edge` / `Wire` の最小位相整合だけを対象とするため、公開設定は `distance_tolerance` と `shared_tolerance` を中心に据える。
+
+一方で、将来の topology 実装では次の順で責務が増えることを見越しておく。
+
+1. `Edge` / `Wire`
+2. validator
+3. `Face` / `Loop` / `PCurve`
+4. `Shell` / `Solid`
+5. knit / shared boundary の一本化
+
+この拡張順に対応して、topology 専用 tolerance は次の 2 層を維持したまま段階的に広げる。
+
+- 公開設定: 通常利用者やアプリケーション層が与える代表トレランス
+- 内部解決 budget: 判定の種類ごとにカーネル内部で導出して使う budget
+
+現時点の公開設定は次を正本とする。
+
+```text
+TopologyToleranceSettings<T>
+  - distance_tolerance
+  - shared_tolerance
+```
+
+将来の拡張候補は少なくとも次とする。
+
+```text
+TopologyToleranceSettings<T>
+  - distance_tolerance
+  - shared_tolerance
+  - direction_tolerance        // 候補追跡や接線方向整合が必要になった段階で追加
+  - normal_tolerance           // Face / Shell の法線整合が必要になった段階で追加
+  - profile or recalc_policy   // 代表値変更時の再導出規則を切り替える場合に追加
+```
+
+ただし、`direction_tolerance` や `normal_tolerance` を初期段階から公開設定へ含めることはしない。これらは次の責務が実装対象になったときに初めて公開候補とする。
+
+- knit 候補の方向整合
+- shared boundary 一本化の接線整合
+- `Face` 上の point-on-surface / curve-on-surface 判定
+- `Shell` の法線整合と閉性判定
+
+したがって、現時点では topology 専用 tolerance に角度系設定を含めない。
+
+角度系 tolerance が必要になった場合でも、最初の導入段階では公開設定へ直ちに追加せず、まず内部解決 budget 側へ次のような形で導入してよい。
+
+```text
+ResolvedTopologyToleranceBudget<T>
+  - edge.bind_tolerance
+  - edge.ideal_tolerance
+  - edge.eval_tolerance
+  - shared.distance_tolerance
+  - shared.direction_tolerance
+  - face.normal_tolerance
+```
+
+この方針により、通常 API は代表トレランス中心の軽さを維持しつつ、validator / Face / Shell / knit に必要な詳細判定を内部で拡張できる。
+
+#### 段階ごとの導入基準
+
+- `Edge` / `Wire` 段階: 距離系のみでよい
+- validator 段階: 距離系を記録・報告できる budget が必要
+- `Face` / `PCurve` 段階: point-on-surface / curve-on-surface 用の局所 budget を追加してよい
+- `Shell` 段階: 法線整合が実判定になる時点で `normal_tolerance` を検討する
+- knit 段階: shared boundary の方向整合が実判定になる時点で `direction_tolerance` を検討する
+
+したがって、将来実装の基本方針は「距離系を先に固定し、角度系は責務が実装に現れた段階で内部 budget から立ち上げる」とする。
 
 ### ニット前段で固定する設計判断
 
-shared edge の一本化そのものを確定する前段として、少なくとも次を固定する。
+shared boundary の一本化そのものを確定する前段として、少なくとも次を固定する。
 
 - RedRing の通常 topology では non-manifold を受け付けない
 - ニット判定の既定対象は 2 本の境界 Edge による bilateral knit とする
-- アプリケーション層は shared edge 用の総許容差 `\delta` のみを与える
+- アプリケーション層は shared boundary 用の総許容差 `\delta` のみを与える
 - カーネル内部は bilateral knit の既定規則として各側比較に `\delta / 2` を適用する
 - この `\delta / 2` 配分規則は kernel invariant としてカプセル化し、外部 API へ露出しない
 
@@ -358,7 +476,7 @@ $$
 d(B, E_{ref}) \le \delta / 2
 $$
 
-ここで `E_{ref}` は、共有境界候補を評価するための kernel 内部基準表現を表す。一本化後の正準 shared edge を直ちに意味するとは限らない。
+ここで `E_{ref}` は、shared boundary 候補を評価するための kernel 内部基準表現を表す。一本化後の正準 shared edge を直ちに意味するとは限らない。
 
 この規則を採ることで、同一距離尺度の下では導出的に次を保証できる。
 
@@ -387,7 +505,7 @@ non-manifold を拒否する前提であっても、spike 形状や鋭角合流�
 3. 曖昧性判定
 4. 共有境界の採否決定
 
-この段階では、shared edge を最終的に 1 本化するか、どの幾何生成規則で正準化するかは未確定とする。ただし、少なくとも候補対応の安定化は上記の規則で先に固定する。
+この段階では、shared boundary を最終的に 1 本の shared edge へ正準化するか、どの幾何生成規則で正本化するかは未確定とする。ただし、少なくとも候補対応の安定化は上記の規則で先に固定する。
 
 ### shared edge 一本化の採用条件
 

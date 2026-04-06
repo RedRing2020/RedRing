@@ -12,11 +12,13 @@
 //! - HalfEdge: 隣接情報を持つ有向エッジ
 
 pub mod composite_curve;
+pub mod tolerance;
 pub mod topology_core;
 pub mod wire;
 
 pub use composite_curve::{CompositeCurve3D, CurveSegment3D};
 pub use geo_core::{Point3D, Vector3D};
+pub use tolerance::TopologyToleranceSettings;
 pub use topology_core::{CurveRef, Edge, TopoId, Vertex};
 pub use wire::Wire;
 

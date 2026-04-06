@@ -1,6 +1,6 @@
 //! Wire: Edge 連続列
 
-use crate::{Edge, TopoId};
+use crate::{Edge, TopoId, TopologyToleranceSettings};
 use geo_contracts::Scalar;
 
 /// 連続した Edge 列
@@ -12,7 +12,7 @@ pub struct Wire<T: Scalar> {
 
 impl<T: Scalar> Wire<T> {
     /// 連続性を検証した上で Wire を生成する
-    pub fn new(edges: Vec<Edge<T>>, edge_tolerance: T, shared_tolerance: T) -> Option<Self> {
+    pub fn new(edges: Vec<Edge<T>>, tolerances: TopologyToleranceSettings<T>) -> Option<Self> {
         if edges.is_empty() {
             return None;
         }
@@ -22,11 +22,22 @@ impl<T: Scalar> Wire<T> {
             edges,
         };
 
-        if wire.is_continuous(edge_tolerance, shared_tolerance) {
+        if wire.is_continuous(tolerances) {
             Some(wire)
         } else {
             None
         }
+    }
+
+    pub fn new_with_tolerances(
+        edges: Vec<Edge<T>>,
+        edge_tolerance: T,
+        shared_tolerance: T,
+    ) -> Option<Self> {
+        Self::new(
+            edges,
+            TopologyToleranceSettings::new(edge_tolerance, shared_tolerance),
+        )
     }
 
     pub fn id(&self) -> TopoId {
@@ -38,15 +49,17 @@ impl<T: Scalar> Wire<T> {
     }
 
     /// 各 Edge の局所整合と、shared vertex を介した連続性を検証
-    pub fn is_continuous(&self, edge_tolerance: T, shared_tolerance: T) -> bool {
+    pub fn is_continuous(&self, tolerances: TopologyToleranceSettings<T>) -> bool {
         if self.edges.is_empty() {
             return false;
         }
 
+        let edge_tolerances = tolerances.resolve_edge_tolerances();
+
         if !self
             .edges
             .iter()
-            .all(|edge| edge.is_local_consistent(edge_tolerance))
+            .all(|edge| edge.is_local_consistent_with_tolerances(edge_tolerances))
         {
             return false;
         }
@@ -54,7 +67,7 @@ impl<T: Scalar> Wire<T> {
         for i in 0..self.edges.len() - 1 {
             let end = self.edges[i].oriented_constraint_end_point();
             let next_start = self.edges[i + 1].oriented_constraint_start_point();
-            if end.distance_to(&next_start) > shared_tolerance {
+            if end.distance_to(&next_start) > tolerances.shared_tolerance {
                 return false;
             }
         }
@@ -62,8 +75,19 @@ impl<T: Scalar> Wire<T> {
         true
     }
 
+    pub fn is_continuous_with_tolerances(&self, edge_tolerance: T, shared_tolerance: T) -> bool {
+        self.is_continuous(TopologyToleranceSettings::new(
+            edge_tolerance,
+            shared_tolerance,
+        ))
+    }
+
     /// 閉ループかを判定
-    pub fn is_closed(&self, shared_tolerance: T) -> bool {
+    pub fn is_closed(&self, tolerances: TopologyToleranceSettings<T>) -> bool {
+        self.is_closed_with_tolerance(tolerances.shared_tolerance)
+    }
+
+    pub fn is_closed_with_tolerance(&self, shared_tolerance: T) -> bool {
         let first = self.edges.first().expect("wire has at least one edge");
         let last = self.edges.last().expect("wire has at least one edge");
         first
@@ -114,9 +138,10 @@ mod tests {
         let e1 = make_edge(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0));
         let e2 = make_edge(Point3D::new(1.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0));
 
-        let wire = Wire::new(vec![e1, e2], 1e-9, 1e-9).unwrap();
-        assert!(wire.is_continuous(1e-9, 1e-9));
-        assert!(!wire.is_closed(1e-9));
+        let tolerances = TopologyToleranceSettings::new(1e-9, 1e-9);
+        let wire = Wire::new(vec![e1, e2], tolerances).unwrap();
+        assert!(wire.is_continuous(tolerances));
+        assert!(!wire.is_closed(tolerances));
     }
 
     #[test]
@@ -124,7 +149,7 @@ mod tests {
         let e1 = make_edge(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0));
         let e2 = make_edge(Point3D::new(3.0, 0.0, 0.0), Point3D::new(4.0, 0.0, 0.0));
 
-        assert!(Wire::new(vec![e1, e2], 1e-9, 1e-9).is_none());
+        assert!(Wire::new_with_tolerances(vec![e1, e2], 1e-9, 1e-9).is_none());
     }
 
     #[test]
@@ -133,8 +158,9 @@ mod tests {
         let e2 = make_edge(Point3D::new(1.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0));
         let e3 = make_edge(Point3D::new(1.0, 1.0, 0.0), Point3D::new(0.0, 0.0, 0.0));
 
-        let wire = Wire::new(vec![e1, e2, e3], 1e-9, 1e-9).unwrap();
-        assert!(wire.is_closed(1e-9));
+        let tolerances = TopologyToleranceSettings::new(1e-9, 1e-9);
+        let wire = Wire::new(vec![e1, e2, e3], tolerances).unwrap();
+        assert!(wire.is_closed(tolerances));
     }
 
     #[test]
@@ -146,7 +172,7 @@ mod tests {
         let e1 = make_offset_support_edge(start, middle);
         let e2 = make_offset_support_edge(middle, end);
 
-        assert!(Wire::new(vec![e1.clone(), e2.clone()], 0.31, 1e-9).is_some());
-        assert!(Wire::new(vec![e1, e2], 0.29, 1e-9).is_none());
+        assert!(Wire::new_with_tolerances(vec![e1.clone(), e2.clone()], 0.31, 1e-9).is_some());
+        assert!(Wire::new_with_tolerances(vec![e1, e2], 0.29, 1e-9).is_none());
     }
 }
