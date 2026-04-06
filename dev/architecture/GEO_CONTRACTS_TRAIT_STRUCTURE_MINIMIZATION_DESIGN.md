@@ -735,6 +735,16 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - 新規責務説明では `measure` を主語彙にせず、単独線 shape には `length`、閉曲線 shape には `circumference`、複数辺境界 shape には `perimeter`、面や立体には `area` / `volume` / `surface_area` を優先する
 - `point_at_parameter` と `point_at_angle` は evaluation capability に限定し、boundary access と混在させない
 
+## 2026-04-06 合意更新: Phase4 export 面の整理
+
+`#582` では、shape ごとの capability 分離結果を crate root の export 面へ反映する。
+
+- `geo_contracts::geometry::core::mod.rs` と `geo_contracts::lib.rs` は capability trait の正本 export 面とする
+- compatibility alias は trait定義 側に残してもよいが、crate root で canonical capability と同列に再公開しない
+- Triangle では `Triangle2DBoundaryAccess` / `Triangle3DBoundaryAccess` を正本とし、`Triangle2DProperties` / `Triangle3DProperties` は互換経路へ後退させる
+- `geo_primitives::lib.rs` は shape 型と最小限の基本型公開を優先し、contract trait の再公開を正本経路として扱わない
+- downstream が capability trait を参照する場合は `geo_contracts` から直接 import する
+
 ## 現行構造の棚卸し
 
 ### `geometry/core`
