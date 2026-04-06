@@ -956,6 +956,14 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - containment と distance は endpoint/evaluation と同居させない
 - topology が拘束端点を必要とする場合でも、primitive の endpoint semantics は直ちに変更しない
 
+`#567` の設計結論としては、この方針を topology endpoint 語彙の正本とする。すなわち、contract / primitive 側では Arc / EllipseArc の `start_point` / `end_point` を ideal endpoint 語彙として維持し、拘束端点は topology 側の `constraint_*` 語彙へ分離する。
+
+補足:
+
+- `#567` は Arc / EllipseArc の primitive semantics を固定し、topology の拘束端点責務を明示するための設計整理として扱う
+- LineSegment の endpoint semantics を bounded curve 共通ルールへ対称化する作業は `#592` で扱う
+- したがって contract / primitive の endpoint 語彙は Arc / EllipseArc から先に固定し、LineSegment の対称化は別論点として切り出す
+
 ### 実装単位 B: Circle / Ellipse の closed curve vocabulary 固定
 
 目的:

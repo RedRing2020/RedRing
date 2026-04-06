@@ -46,7 +46,7 @@ impl<T: Scalar> Wire<T> {
         if !self
             .edges
             .iter()
-            .all(|edge| edge.is_vertex_binding_consistent(edge_tolerance))
+            .all(|edge| edge.is_local_consistent(edge_tolerance))
         {
             return false;
         }

@@ -109,6 +109,19 @@ topology で保持する vertex は、shape の拘束点と接続して扱う。
 
 したがって、vertex binding invariant は「母曲線評価端点と vertex が常に一致すること」ではなく、shape 意味論を前提にした binding ルールとして定義し直す。
 
+## `#567` の設計結論
+
+`#567` では、Arc / EllipseArc の endpoint semantics と topology の拘束端点責務を次のように固定する。
+
+- primitive は exact geometry を表す
+- Arc / EllipseArc の `start_point` / `end_point` は primitive の ideal endpoint として扱う
+- topology 上の拘束端点は `Edge` の `start_vertex` / `end_vertex` 側で管理する
+- `parameter_range` は evaluated endpoint を導く位相情報として扱う
+- Edge の局所整合は `binding consistency`、`ideal endpoint consistency`、`evaluation endpoint consistency` を分離して定義する
+- shared vertex を介した隣接 Edge 間の連続性整合は、Edge 単独の局所判定とは分けて `\delta_{shared}` 側で扱う
+
+このとき、`#567` のスコープは Arc / EllipseArc と topology の責務境界を固定するところまでとし、LineSegment の endpoint semantics を bounded curve 共通ルールへ対称化する作業は follow-up の `#592` で扱う。
+
 ## LineSegment と topology の接続
 
 `#557` で固定した `LineSegment` semantics を前提に、topology では次を採用する。
@@ -119,6 +132,12 @@ topology で保持する vertex は、shape の拘束点と接続して扱う。
 - `start_vertex` / `end_vertex` は拘束点との binding を表す
 
 このため、support line 上の ideal endpoint と vertex が一致しない場合を許容できる topology invariant が必要になる。
+
+補足:
+
+- この LineSegment の扱いは `#567` の最終結論ではなく、`#557` 起点の既存前提としてここに残している
+- bounded curve 全体で primitive は ideal endpoint、拘束端点は topology 管理という原則へ揃える対称化は `#592` で別途扱う
+- したがって `#567` の結論は Arc / EllipseArc と topology の責務境界固定であり、LineSegment の特別扱いをこの段階で既成事実化しない
 
 ## Arc / EllipseArc と topology の接続
 

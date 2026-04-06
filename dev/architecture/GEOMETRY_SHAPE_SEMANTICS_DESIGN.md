@@ -387,3 +387,11 @@ topology 側の Edge 正規形は、shape 意味論を前提に、接続・向�
 - Arc / EllipseArc primitive の endpoint semantics を拘束端点へ変更すること
 - `point_at_parameter(0/1)` と `start_point/end_point` の常時一致を不変条件にすること
 - Topology の trim / binding 完全仕様をこの段階で完了すること
+
+`#567` では、この実装単位 A の意味論を topology 側の拘束端点語彙と接続して固定する。すなわち、Arc / EllipseArc primitive の endpoint semantics は ideal endpoint のまま維持し、拘束端点の正本は topology 側へ置く。
+
+補足:
+
+- `#567` は Arc / EllipseArc と topology の責務境界を固定する設計 Issue として扱う
+- LineSegment を bounded curve 共通ルールへ対称化する作業は `#592` の follow-up として分離する
+- したがって `#567` では Arc / EllipseArc の primitive semantics を動かさず、topology 側の語彙整理で閉じる

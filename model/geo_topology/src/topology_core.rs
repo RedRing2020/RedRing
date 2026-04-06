@@ -271,12 +271,17 @@ impl<T: Scalar> Edge<T> {
     }
 
     /// Edge の局所整合を確認する
-    pub fn is_vertex_binding_consistent(&self, edge_tolerance: T) -> bool {
+    pub fn is_local_consistent(&self, edge_tolerance: T) -> bool {
         let third_tolerance = edge_tolerance / T::from_f64(3.0);
 
         self.is_binding_consistent(third_tolerance)
             && self.is_ideal_endpoint_consistent(third_tolerance)
             && self.is_evaluated_endpoint_consistent(third_tolerance)
+    }
+
+    /// 既存呼び出し向けの互換メソッド
+    pub fn is_vertex_binding_consistent(&self, edge_tolerance: T) -> bool {
+        self.is_local_consistent(edge_tolerance)
     }
 }
 
@@ -309,13 +314,13 @@ mod tests {
     }
 
     #[test]
-    fn edge_vertex_binding_consistency() {
+    fn edge_local_consistency() {
         let v0 = Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0)));
         let v1 = Arc::new(Vertex::new(Point3D::new(1.0, 0.0, 0.0)));
         let line = TopoLineSegment3D::new(v0.point(), v1.point()).unwrap();
         let edge = Edge::new(v0, v1, CurveRef::Line(line), (0.0, 1.0)).unwrap();
 
-        assert!(edge.is_vertex_binding_consistent(1e-9));
+        assert!(edge.is_local_consistent(1e-9));
     }
 
     #[test]
@@ -341,7 +346,7 @@ mod tests {
         assert!(edge.is_binding_consistent(1e-9));
         assert!(edge.is_ideal_endpoint_consistent(1e-9));
         assert!(!edge.is_evaluated_endpoint_consistent(1e-9));
-        assert!(edge.is_vertex_binding_consistent(0.31));
-        assert!(!edge.is_vertex_binding_consistent(0.29));
+        assert!(edge.is_local_consistent(0.31));
+        assert!(!edge.is_local_consistent(0.29));
     }
 }
