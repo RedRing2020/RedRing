@@ -28,7 +28,7 @@ pub use consts::{
 
 // 数値計算関数の再エクスポート（numericsモジュールから）
 pub use crate::linalg::solver::newton::{
-    newton_inverse, newton_inverse_generic, newton_solve, newton_solve_bounded,
+    newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d, newton_solve_bounded,
     newton_solve_bounded_generic, newton_solve_generic,
     newton_solve_with_numeric_derivative_bounded,
     newton_solve_with_numeric_derivative_bounded_generic,
