@@ -2,7 +2,7 @@
 
 **作成日**: 2026年4月7日  
 **対象Issue**: #603  
-**関連**: #596, #600
+**関連**: #596, #600, #619
 
 ## 1. 背景
 
@@ -234,6 +234,270 @@
 - 一方で 2変数 solver は Jacobian 表現、step norm、将来的な多変数一般化など 1変数 generic core とは別の設計論点を持つ
 - したがって `newton_solve_2d` は #603 の継続実装へ混在させず、follow-up Issue として切り出す判断を採る
 - follow-up では「2変数専用 API を generic 化する」のか「多変数一般 solver へ拡張する」のかを先に設計確定する
+
+### #619 に向けた設計判断（2026年4月8日）
+
+- `foundation/analysis` にはすでに `Matrix2x2<T>` と `Vector2<T>` があり、`newton_solve_2d` を `T: Scalar` 化するための基礎材料は揃っている
+- そのため、「必要になったら対応する」という扱いは、analysis クレートの機能網羅の観点では弱い
+- 特に 1変数 solver 群だけが generic 化され、2変数 solver だけが `f64` 固定で残る状態は、数値解析基盤としての API 一貫性を損ないやすい
+- よって #619 では `newton_solve_2d` の generic 化を単なる将来候補ではなく、計画された follow-up として扱う
+
+### #619 の比較案
+
+#### 案1: 2変数専用 API を維持したまま generic 化する
+
+概要:
+
+- `newton_solve_2d` の責務を 2変数連立 solver に限定したまま `T: Scalar` 化する
+- 戻り値や system 関数の構造は大きく変えず、`(T, T)` と `[[T; 2]; 2]` を基本に保つ
+
+利点:
+
+- 既存の `Matrix2x2<T>` / `Vector2<T>` 基盤にそのまま乗せやすい
+- 設計論点を 2変数 solver に閉じ込められる
+- API 変更範囲が最小で、#619 の設計スコープを保ちやすい
+
+欠点:
+
+- 多変数一般 solver への道筋は別途設計が必要
+- 将来の一般化で API 再編が発生する可能性がある
+
+評価:
+
+- #619 の第一段として最も妥当
+
+#### 案2: 2変数専用 API は維持しつつ、内部を generic core 化する
+
+概要:
+
+- outward-facing には `newton_solve_2d` を残しつつ、内部だけ generic な 2変数 core を導入する
+- 必要なら `f64` 互換ラッパーと generic 本体の二層構造を採る
+
+利点:
+
+- 将来の API 移行を段階的に行いやすい
+- 1変数 solver 群の移行パターンとある程度揃えられる
+
+欠点:
+
+- 現状の利用量に対して構造がやや重い
+- 2変数 solver 単体のために二層化すると、設計の説明コストが先に立つ
+
+評価:
+
+- 実装は可能だが、#619 の第一歩としては過剰になりやすい
+
+#### 案3: 多変数一般 Newton solver を新規追加し、2変数 API はその特殊化として扱う
+
+概要:
+
+- `newton_solve_2d` を直接 generic 化するのではなく、ベクトル residual と Jacobian を扱う多変数 solver を別 API として追加する
+- 将来的に `newton_solve_2d` はその convenience wrapper に寄せる
+
+利点:
+
+- analysis クレートの数値解析基盤としては最も理想形に近い
+- 2変数だけでなく多変数への拡張余地を最初から確保できる
+- 機能網羅の観点では最も筋が良い
+
+欠点:
+
+- Jacobian 抽象化、線形ソルバー接続、residual / step norm など論点が一気に増える
+- #619 の設計スコープを超えて、多変数 Newton 基盤設計へ膨らみやすい
+
+評価:
+
+- 長期の理想形だが、#619 の初手としては重い
+
+### #619 の推奨方針
+
+- まずは案1を採用し、`newton_solve_2d` を 2変数専用 API のまま generic 化する
+- ただし案3は「必要になったら検討する」ではなく、analysis の機能網羅を揃えるための次段計画として明示的に保持する
+- つまり #619 では「案1を実装方針とし、案3を将来理想形として設計上予約する」という二段構えを採る
+
+この方針を採る理由は次の通り。
+
+- 既存の generic 行列・ベクトル基盤を活用でき、短期の設計負荷を抑えられる
+- 2変数 solver だけが `f64` 固定で残る不整合を解消できる
+- 一方で多変数一般 solver まで一気に広げると、#619 の設計 issue としては重すぎる
+- 先に案1で機能網羅の穴を塞ぎ、その後に案3を別 API として追加する方が、段階設計として整合的である
+
+### #619 の段階方針
+
+#### Phase A: 2変数専用 generic solver の設計
+
+- `newton_solve_2d` を `T: Scalar` 化する API 形状を確定する
+- Jacobian と residual の型表現を、既存の `Matrix2x2<T>` / `Vector2<T>` と整合させる
+- 収束判定と特異行列判定の trait 要件を整理する
+
+#### Phase B: 2変数専用 generic solver の実装
+
+- `f64` 固定実装を generic 実装へ置き換えるか、必要最小限の互換ラッパを残す
+- doctest / test を generic API 中心へ切り替える
+
+#### Phase C: 多変数一般 solver の設計着手
+
+- `newton_solve_2d` を超えた多変数 Newton API の入口を別 issue で定義する
+- `newton_solve_2d` は将来的にその convenience wrapper として再位置付けできるようにする
+
+### #619 に対する提案
+
+提案:
+
+- #619 では案1を正式採用し、`newton_solve_2d` を 2変数専用 API のまま `T: Scalar` 対応へ拡張する
+- その際、戻り値と system 関数の責務は維持しつつ、内部表現は `Matrix2x2<T>` と `Vector2<T>` を利用する方向で揃える
+- 併せて、案3を別 issue の既定路線として予約し、多変数一般 Newton solver の入口を後続設計へ接続する
+
+この提案を採る理由:
+
+- analysis クレート内に generic 2D 行列・ベクトル基盤がすでにあり、機能網羅の穴を今の段階で埋める条件が揃っている
+- 1変数 solver 群だけ generic、2変数 solver だけ `f64` 固定という不整合を解消できる
+- 一方で案3を同時実施すると、#619 は 2変数 solver generic 化ではなく多変数 Newton 基盤再設計へ膨張する
+- したがって「まず穴を塞ぐ」「次に理想形を別 API で追加する」という順序が、設計負荷と機能網羅の両面で最も妥当である
+
+非採用とする判断:
+
+- 案2は、現状の利用量に対して二層化の説明コストが先に立つため、第一段の提案としては採らない
+- 案3は長期理想形として維持するが、#619 の主目的を超えるため同時採用はしない
+
+次アクション:
+
+- #619 の設計承認後、専用設計文書を分離するか、あるいは本書に Phase A の API 詳細を追記する
+- 実装前に、`newton_solve_2d` の generic API 形状、収束判定、特異行列判定、doctest/test 移行方針を確定する
+
+### #619 詳細設計
+
+#### 公開 API 方針
+
+- `newton_solve_2d` は関数名を維持したまま generic 化する
+- `f64` 専用の別名ラッパーは初手では追加しない
+- 既存の `f64` 呼び出しは型推論によりそのままコンパイルできる形を維持する
+
+想定シグネチャ:
+
+```rust
+pub fn newton_solve_2d<T, F>(
+	system: F,
+	initial: (T, T),
+	max_iter: usize,
+	tol: T,
+) -> Option<(T, T)>
+where
+	T: Scalar,
+	F: Fn(T, T) -> (T, T, [[T; 2]; 2]),
+```
+
+この形を採る理由:
+
+- 既存の doctest / test / 将来の downstream 呼び出しとの互換性が最も高い
+- Issue #619 の対象を「2変数 solver の generic 化」に限定できる
+- 内部で `Matrix2x2<T>` / `Vector2<T>` を使っても、公開 API まで同時に再設計する必要がない
+
+#### 内部表現方針
+
+- 公開 API では `(T, T)` と `[[T; 2]; 2]` を受け取る
+- 関数内部では residual を `Vector2<T>`、Jacobian を `Matrix2x2<T>` へ即時変換する
+- 更新量 `delta` も `Vector2<T>` として扱い、最終戻り値のみ `(T, T)` に戻す
+
+内部変換イメージ:
+
+```rust
+let (f1, f2, jacobian_raw) = system(x, y);
+let residual = Vector2::new(f1, f2);
+let jacobian = Matrix2x2::from(jacobian_raw);
+```
+
+この形を採る理由:
+
+- 既存の analysis 線形代数基盤と整合する
+- residual norm / step norm の表現を `Vector2<T>` に集約できる
+- 将来の多変数 solver 設計時に、ベクトル・行列表現へ段階的に寄せやすい
+
+#### 線形更新の設計
+
+- 2x2 線形更新は private helper に切り出す
+- helper は `Matrix2x2<T>` と `Vector2<T>` を受け取り、`Option<Vector2<T>>` を返す
+- 特異判定は `det.abs() < derivative_zero_threshold::<T>()` を用いる
+- `Matrix2x2::inverse()` の `is_zero()` 判定には寄せず、Newton solver 専用の閾値判定を維持する
+
+想定 helper:
+
+```rust
+fn solve_linear_2x2<T: Scalar>(
+	jacobian: Matrix2x2<T>,
+	residual: Vector2<T>,
+) -> Option<Vector2<T>>
+```
+
+この helper で行うこと:
+
+- 行列式 `det` を計算する
+- `det` がしきい値未満なら `None` を返す
+- クラメル展開または 2x2 の陽な逆行列式を使って更新量 `delta` を返す
+
+#### 収束判定方針
+
+- 既存実装と同じく residual norm と step norm の両方を使う
+- 判定式は `residual.norm() < tol && delta.norm() < tol` を基本とする
+- `tol` は `T: Scalar` の値として受け取り、`f32` / `f64` で同一 API を共有する
+
+この方針を維持する理由:
+
+- 現行 `f64` 実装の意味論を維持できる
+- residual だけ、または step だけで判定するよりも既存挙動からの乖離が少ない
+- #619 では generic 化を主目的とし、収束判定ロジックの再設計は行わない
+
+#### 特異判定と閾値方針
+
+- 1変数 generic solver と同様に `DERIVATIVE_ZERO_THRESHOLD` を `T::from_f64` で変換して利用する
+- helper 名は既存との整合を優先し、`derivative_zero_threshold::<T>()` を再利用する
+- 2変数 solver 専用の別閾値はこの段階では導入しない
+
+この方針を採る理由:
+
+- 既存 Newton solver 群との数値基準を揃えられる
+- #619 で新しい定数設計論点を増やさずに済む
+
+#### doctest / test 移行方針
+
+- 既存の `f64` doctest はそのまま維持できる形を優先する
+- `foundation/analysis` の既存 2D テストは継続利用する
+- 追加テストとして `f32` の収束ケースを導入する
+- 追加テストとして `f32` の特異 Jacobian ケースを導入する
+
+最低限追加するテスト:
+
+- `test_newton_solve_2d_circle_line_f32`
+- `test_newton_solve_2d_singular_jacobian_f32`
+
+#### 互換方針
+
+- 既存の `newton_solve_2d` 呼び出しは、関数名・引数順・戻り値タプルを維持するため source-compatible とみなす
+- doctest と既存 unit test は型注釈を `f64` のまま維持しても問題ない設計にする
+- 今回は deprecated API を新設しない
+
+#### 今回やらないこと
+
+- 境界付き 2変数 Newton solver の追加
+- 数値微分ベースの 2変数 Newton solver の追加
+- Jacobian を trait で抽象化すること
+- `Vector2<T>` / `Matrix2x2<T>` をそのまま公開 API に露出する再設計
+- 多変数一般 Newton solver の同時実装
+
+#### 実装順序案
+
+1. `newton_solve_2d` のシグネチャを `T: Scalar` 化する
+2. residual / Jacobian を `Vector2<T>` / `Matrix2x2<T>` へ変換する
+3. 2x2 線形更新 helper を導入する
+4. 収束判定を `Vector2<T>::norm()` ベースへ置き換える
+5. 既存 `f64` doctest / test を通す
+6. `f32` テストを追加する
+
+#### Phase C への接続条件
+
+- `newton_solve_2d` の generic 化が完了し、2変数 solver だけが `f64` 固定で残る不整合が解消されていること
+- その上で、多変数一般 solver は `newton_solve_2d` の置換ではなく、別入口 API として設計開始する
+- 将来的に `newton_solve_2d` を convenience wrapper に寄せる場合も、#619 の完了条件には含めない
 
 ### 外部利用者向け移行方針
 
