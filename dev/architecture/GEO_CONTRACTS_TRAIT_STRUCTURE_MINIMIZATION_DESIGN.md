@@ -103,8 +103,8 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 設計反映:
 
-- `measure` は単一の意味語彙として新設 capability の中心に置かない
-- `*Measure` を後方互換の集約 trait として残す場合でも、新設 capability の説明単位は `length` / `circumference` / `area` のような具体語彙を優先する
+- `measure` は単一の意味語彙として採用しない
+- quantity capability の説明単位は `length` / `circumference` / `area` のような具体語彙を優先する
 
 ## 2026-04-05 合意更新: Point / Vector / AABB の標準再分類
 
@@ -810,7 +810,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 この層には、単一 shape に対する追加 capability を置く。
 
-- 全 `*Measure`
+- evaluation / sampling / containment / unary distance / projection / unary derived
 - `Arc2DSampling`
 - `Arc2DContainment`
 - `Bounded<T>`
@@ -884,12 +884,12 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - 全 `*Measure` を shape definition core から分離する
 
-### 4. `contains_point` は `Properties` 側か `Measure` 側か
+### 4. `contains_point` は `Properties` 側か minimal extension 側か
 
 判定:
 
 - shape definition には置かない
-- 単一 shape capability として `Measure` 側または後継 capability trait 側へ置く
+- 単一 shape capability として minimal extension 側の後継 capability trait へ置く
 
 理由:
 
@@ -1189,6 +1189,18 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - 表示専用入口を設ける場合でも、UI が `geo_algorithms` の options 型を直接編集する構造にはしない。`viewmodel` / `app` 側に表示設定型を置き、そこから `CircularArcPolylineOptions` へ変換する
 - 切削シミュレーションの replay や snapshot index 整合に使う segment 列は simulation 用 discretization を維持し、表示ワイヤーフレームだけが display 設定を使う
 
+`#547` の曲線/曲面離散化 taxonomy:
+
+- `adaptive parameter sampling` は、parameter domain を適応分割して parameter 列または parameter grid を生成する責務を指す。現時点では NURBS evaluation に密着した補助として `geo_nurbs` 側に置く
+- `curve discretization` は、analytic curve / parametric curve を polyline や点列へ落とす上位 taxonomy を指す。shape family ごとの options と離散化入口は `geo_algorithms` 側の責務とする
+- `param-grid tessellation` は、表示や GPU 評価のために parameter grid を生成して wireframe や evaluation 入力へ渡す責務を指す。高品質 meshing と同一語として扱わない
+- `surface meshing` は、surface を三角形群や高品質要素へ落とす責務を指す。表示用の parameter grid 生成とは分離し、CAM / CAE 向け品質要件をここへ含める
+- `facade / orchestration` は、個別 shape family 実装を上位用途へ束ねる入口責務を指す。当面の `geo_algorithms` はこの役割に留め、本体実装の即時移管とは切り分ける
+
+補足:
+
+- `adaptive tessellation` という語は、当面は NURBS の `adaptive parameter sampling` 文脈に限定して使い、汎用 curve discretization の同義語としては使わない
+
 ### 11. `LineSegment3DCollisionDetection` は extension か operations か
 
 判定:
@@ -1262,9 +1274,9 @@ relation 系の代表例:
 
 ### minimal extension
 
-- `*Measure`
 - `Bounded`
 - sampling / evaluation / containment のような単一 shape capability
+- unary distance / projection / unary derived のような単一 shape capability
 - `primitive_kind()` のような lightweight metadata capability
 
 補足:
@@ -1364,7 +1376,7 @@ relation 系の代表例:
 実装 Issue は shape 単位ではなく、責務分離単位で分ける。
 
 - `definition core 縮退`
-- `measure 系 extension 分離`
+- `旧 *Measure 系 capability 分離`
 - `metadata capability 分離`
 - `operations への移送`
 - `AABB 特例整理`
@@ -1383,7 +1395,7 @@ relation 系の代表例:
 
 - [ ] `Constructor` は definition core に残すか確認した
 - [ ] `Properties` の各メソッドが参照系に残せるか確認した
-- [ ] `Measure` 系 API を definition core に残していない
+- [ ] 旧 `*Measure` 系 API を definition core に残していない
 - [ ] `contains_point` / `distance_to_point` / `point_at_parameter` / sampling 系を個別判定した
 - [ ] relation 系メソッド（平行・垂直・交差・同方向・角度・最近点対）を個別判定した
 

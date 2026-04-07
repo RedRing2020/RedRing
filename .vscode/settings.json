@@ -209,6 +209,21 @@
   "explorer.decorations.colors": true,
   "explorer.decorations.badges": true,
 
+    "workbench.colorCustomizations": {
+    "editorIndentGuide.background1": "#ff000098",
+    "editorIndentGuide.background2": "#00ff0076",
+    "editorIndentGuide.background3": "#0000ff94",
+    "editorIndentGuide.background4": "#ff00ff9f",
+    "editorIndentGuide.background5": "#00ffff9b",
+    "editorIndentGuide.background6": "#ffff0097",
+    "editorIndentGuide.activeBackground1": "#CCC",
+    "editorIndentGuide.activeBackground2": "#CCC",
+    "editorIndentGuide.activeBackground3": "#CCC",
+    "editorIndentGuide.activeBackground4": "#CCC",
+    "editorIndentGuide.activeBackground5": "#CCC",
+    "editorIndentGuide.activeBackground6": "#CCC"
+  },
+
   // === Workspace-Specific Settings ===
   "workbench.colorTheme": "PowerShell ISE",
   "workbench.iconTheme": "material-icon-theme",
