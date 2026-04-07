@@ -20,6 +20,7 @@ pub mod lu; // LU分解法
 pub mod newton; // ニュートン・ラフソン法
 
 // Newton法ソルバーの再エクスポート
+// generic API を正本とし、f64 API は互換入口として併存させる。
 pub use newton::{
     newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d,
     newton_solve_bounded_generic, newton_solve_generic,
