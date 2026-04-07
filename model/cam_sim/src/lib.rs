@@ -16,6 +16,7 @@ pub use job_adapter::CamJobExecutorAdapter;
 /// シミュレーション実行APIとスナップショット関連型。
 pub use simulator::{
     CuttingSimulator, PathPosition, SimulationSnapshot, SimulationSnapshotExport, SnapshotInterval,
+    collect_toolpath_line_segments, collect_toolpath_line_segments_with_arc_options,
 };
 /// CAM工程向けワークフロー制約ファサード。
 pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};

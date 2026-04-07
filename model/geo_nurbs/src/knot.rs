@@ -1,6 +1,7 @@
 //! ノットベクトル操作とバリデーション
 
 use crate::{NurbsError, Result};
+use analysis::find_span_in_non_decreasing_sequence;
 use geo_contracts::Scalar;
 
 /// ノットベクトルの型エイリアス
@@ -166,29 +167,7 @@ pub fn get_parameter_domain<T: Scalar>(knots: &[T], degree: usize) -> (T, T) {
 pub fn find_knot_span<T: Scalar>(t: T, knots: &[T], degree: usize) -> usize {
     let n = knots.len() - degree - 1;
 
-    // 境界値の処理
-    if t >= knots[n] {
-        return n - 1;
-    }
-
-    if t <= knots[degree] {
-        return degree;
-    }
-
-    // バイナリサーチ
-    let mut low = degree;
-    let mut high = n;
-
-    while low < high {
-        let mid = usize::midpoint(low, high);
-        if t < knots[mid] {
-            high = mid;
-        } else {
-            low = mid + 1;
-        }
-    }
-
-    low - 1
+    find_span_in_non_decreasing_sequence(t, knots, degree, n)
 }
 
 /// 開始位置での重複度を数える

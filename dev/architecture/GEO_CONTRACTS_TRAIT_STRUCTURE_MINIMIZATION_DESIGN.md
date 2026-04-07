@@ -103,8 +103,8 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 
 設計反映:
 
-- `measure` は単一の意味語彙として新設 capability の中心に置かない
-- `*Measure` を後方互換の集約 trait として残す場合でも、新設 capability の説明単位は `length` / `circumference` / `area` のような具体語彙を優先する
+- `measure` は単一の意味語彙として採用しない
+- quantity capability の説明単位は `length` / `circumference` / `area` のような具体語彙を優先する
 
 ## 2026-04-05 合意更新: Point / Vector / AABB の標準再分類
 
@@ -810,7 +810,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 この層には、単一 shape に対する追加 capability を置く。
 
-- 全 `*Measure`
+- evaluation / sampling / containment / unary distance / projection / unary derived
 - `Arc2DSampling`
 - `Arc2DContainment`
 - `Bounded<T>`
@@ -884,12 +884,12 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - 全 `*Measure` を shape definition core から分離する
 
-### 4. `contains_point` は `Properties` 側か `Measure` 側か
+### 4. `contains_point` は `Properties` 側か minimal extension 側か
 
 判定:
 
 - shape definition には置かない
-- 単一 shape capability として `Measure` 側または後継 capability trait 側へ置く
+- 単一 shape capability として minimal extension 側の後継 capability trait へ置く
 
 理由:
 
@@ -1164,6 +1164,43 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 - strategy の実装本体は `geo_primitives` の impl entry point または将来的な `geo_algorithms` 側 helper へ置く
 - 近似式・距離計算の数値カーネル自体は `geo_commons` に維持し、`geo_contracts` は数値閾値や比較ロジックを保持しない
 
+`#547` 時点の採用方針:
+
+- 推奨方針は、`EllipseCalculation*` の trait定義を `geo_contracts` に残しつつ、純粋数値カーネルと impl-support を分離して扱う段階整理とする
+- `geo_commons` に残す対象は、楕円周長近似、離心率、焦点距離、焦点座標、shape 型を要求しない ellipse 距離計算のような純粋数値カーネルに限定する
+- `geo_primitives` に残す対象は、`EllipseCalculation<T>` 実装を持つ自 crate 型からのみ利用される非公開 helper とし、現時点では `ellipse_calculation_strategy.rs` と `ellipse_calculation_analysis.rs` のような impl-support をここに含める
+- `geo_primitives` 内 helper は、`geo_commons` の純粋関数へ薄く委譲する構造を優先し、数値式そのものを重複実装しない
+- `geo_algorithms` へ移すのは、cross-shape 化した strategy、solver orchestration を伴う heavy strategy、または ellipse 専用 helper を超えて複数 shape family で共有される高レベル戦略に限る
+- したがって `compare_approximation_methods` のような比較分析 helper や `circumference_adaptive` のような選択ロジックは、将来的な共有需要が確認されるまでは `geo_primitives` の impl-support に留める
+- この分類は ellipse 固有の暫定例外ではなく、後続 shape でも再利用する「trait定義は contracts、純粋数値 kernel は commons、impl entry に閉じた補助は primitives、高レベル戦略は algorithms」という配置判定ルールとして扱う
+
+`#547` の curve discretization 追加方針:
+
+- 曲線を polyline や点列へ落とす離散化は、shape の topology 正規形ではなく幾何アルゴリズム責務として `geo_algorithms` に置く
+- この離散化層は `geo_topology` と同列の所有者にしない。`geo_topology` は接続・向き・trim・binding の正本を保持し、離散化はそれを消費する側として分離する
+- `geo_algorithms` 内では `curve_discretization` を独立モジュールとし、`Edge` / `Wire` / `TrimmedSurface` を直接の正本型として抱え込まない
+- 将来、trim curve、wire、trimmed surface など topology 文脈の入力を受ける必要が生じても、`curve_discretization` 配下の adapter 入口で幾何入力へ正規化してから離散化する
+- したがって topology 入力対応は「topology を離散化する」のではなく、「topology が保持する curve / parameter range / same_sense / 境界情報を離散化向け入力へ解決する補助」として扱う
+- モジュール構成の既定方針は、`curve_discretization/{shape_family}.rs` を core に据え、必要になった時点で `curve_discretization/topology_inputs/` のような補助入口を追加する形とする
+- この方針により、`CompositeCurve` / `Wire` / `TrimmedSurface` のような将来入力が増えても、topology の正本責務と離散化アルゴリズム責務を混同しない
+- shape family ごとの polyline options では、単一の弦誤差だけを正本にせず、少なくとも `chord_tolerance`、`max_angle_step`、`min_divisions`、`max_divisions` を併用できる形を既定とする
+- 既定近似は camera 非依存の world-space 指標で完結させ、screen-space 誤差や拡大率依存の制御は後段の表示専用入口で扱う
+- したがって初期段階では、表示の過剰分割抑制も camera 情報ではなく `max_divisions` 等の geometry 側制約で先に吸収する
+- 表示専用入口を設ける場合でも、UI が `geo_algorithms` の options 型を直接編集する構造にはしない。`viewmodel` / `app` 側に表示設定型を置き、そこから `CircularArcPolylineOptions` へ変換する
+- 切削シミュレーションの replay や snapshot index 整合に使う segment 列は simulation 用 discretization を維持し、表示ワイヤーフレームだけが display 設定を使う
+
+`#547` の曲線/曲面離散化 taxonomy:
+
+- `adaptive parameter sampling` は、parameter domain を適応分割して parameter 列または parameter grid を生成する責務を指す。現時点では NURBS evaluation に密着した補助として `geo_nurbs` 側に置く
+- `curve discretization` は、analytic curve / parametric curve を polyline や点列へ落とす上位 taxonomy を指す。shape family ごとの options と離散化入口は `geo_algorithms` 側の責務とする
+- `param-grid tessellation` は、表示や GPU 評価のために parameter grid を生成して wireframe や evaluation 入力へ渡す責務を指す。高品質 meshing と同一語として扱わない
+- `surface meshing` は、surface を三角形群や高品質要素へ落とす責務を指す。表示用の parameter grid 生成とは分離し、CAM / CAE 向け品質要件をここへ含める
+- `facade / orchestration` は、個別 shape family 実装を上位用途へ束ねる入口責務を指す。当面の `geo_algorithms` はこの役割に留め、本体実装の即時移管とは切り分ける
+
+補足:
+
+- `adaptive tessellation` という語は、当面は NURBS の `adaptive parameter sampling` 文脈に限定して使い、汎用 curve discretization の同義語としては使わない
+
 ### 11. `LineSegment3DCollisionDetection` は extension か operations か
 
 判定:
@@ -1237,9 +1274,9 @@ relation 系の代表例:
 
 ### minimal extension
 
-- `*Measure`
 - `Bounded`
 - sampling / evaluation / containment のような単一 shape capability
+- unary distance / projection / unary derived のような単一 shape capability
 - `primitive_kind()` のような lightweight metadata capability
 
 補足:
@@ -1339,7 +1376,7 @@ relation 系の代表例:
 実装 Issue は shape 単位ではなく、責務分離単位で分ける。
 
 - `definition core 縮退`
-- `measure 系 extension 分離`
+- `旧 *Measure 系 capability 分離`
 - `metadata capability 分離`
 - `operations への移送`
 - `AABB 特例整理`
@@ -1358,7 +1395,7 @@ relation 系の代表例:
 
 - [ ] `Constructor` は definition core に残すか確認した
 - [ ] `Properties` の各メソッドが参照系に残せるか確認した
-- [ ] `Measure` 系 API を definition core に残していない
+- [ ] 旧 `*Measure` 系 API を definition core に残していない
 - [ ] `contains_point` / `distance_to_point` / `point_at_parameter` / sampling 系を個別判定した
 - [ ] relation 系メソッド（平行・垂直・交差・同方向・角度・最近点対）を個別判定した
 

@@ -118,6 +118,24 @@ topology で保持する vertex は、shape の拘束点と接続して扱う。
 
 したがって、vertex binding invariant は「母曲線評価端点と vertex が常に一致すること」ではなく、shape 意味論を前提にした binding ルールとして定義し直す。
 
+### 5. curve discretization は topology の正本責務に含めない
+
+curve discretization は、curve を polyline や点列へ落とす幾何アルゴリズム責務であり、topology entity layer の正本責務としては扱わない。
+
+固定方針:
+
+- `geo_topology` は `Edge` / `Wire` / `Loop` / `Face` / `PCurve` などの接続・向き・trim・binding を保持する
+- 離散化アルゴリズムは `geo_algorithms` 側の独立モジュールが担い、topology entity layer の下位概念として配置しない
+- `Wire` や `TrimmedSurface` を入力にした離散化が必要になっても、topology 自身が polyline 生成を所有するのではなく、外部の離散化側が topology 入力を解決して利用する
+- このとき topology から離散化側へ渡す責務は、curve 参照、parameter range、same_sense、boundary 種別、必要な binding 情報の解決までとする
+- 離散化側は、その解決済み入力を受けて polyline / 点列 / パラメータ列を生成する
+
+補足:
+
+- 現時点で `geo_topology` は Edge / Wire の最小位相整合を扱うが、curve discretization 向けの topology adapter 実装を正本としては持たない
+- 将来 `TrimmedSurface` や `PCurve` を導入しても、この非対称な責務分離は維持する
+- したがって、topology 側に `*_to_polyline` のような離散化 API を増やすことは既定方針としない
+
 ## `#567` の設計結論
 
 `#567` では、Arc / EllipseArc の endpoint semantics と topology の拘束端点責務を次のように固定する。

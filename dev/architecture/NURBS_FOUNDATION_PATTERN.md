@@ -171,6 +171,17 @@ geo_nurbs/src/
 - 現在 `geo_nurbs` に `NurbsSurface2D` は存在しないため、`NurbsSurface3D` のみが bounds 対象になっているのは未整備ではなく shape 定義差である
 - 標準 `aabb()` は制御点ベースの保守的な境界ボックスとし、より高精度な境界計算は extension 側へ分離する
 
+## 2026-04-07 合意更新: knot span 探索の共通化
+
+`geo_nurbs::knot` にある knot span 探索のうち、非減少列の区間 index を返す二分探索本体は NURBS 固有責務ではない。
+
+合意事項:
+
+- 非減少列に対する span 探索は `analysis` の numerics 層へ置く
+- `geo_nurbs` 側は、degree に基づく有効範囲の決定と NURBS 用語の薄いラッパーだけを持つ
+- knot vector の妥当性検証、parameter domain、重複度など NURBS 意味論を伴う処理は引き続き `geo_nurbs::knot` に残す
+- GPU shader 側の `find_knot_span` は CPU 側 helper の呼び出し先ではなく、同一意味論を持つ別実装として維持する
+
 ## レガシーコードのクリーンアップ
 
 ### 削除されたモジュール

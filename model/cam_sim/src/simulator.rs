@@ -1,6 +1,6 @@
 use cam_core::{Tool, ToolPath};
 use geo_algorithms::octree::VoxelOctree;
-use geo_algorithms::{LineSegment3D, Scalar};
+use geo_algorithms::{DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM, LineSegment3D, Scalar};
 
 use crate::error::SimulationError;
 
@@ -10,6 +10,10 @@ mod engine;
 mod segments;
 
 use behavior::{FlatEndMillBehavior, tool_cutting_behavior};
+
+pub use segments::{
+    collect_toolpath_line_segments, collect_toolpath_line_segments_with_arc_options,
+};
 
 /// スナップショット保存間隔の指定方法。
 #[derive(Debug, Clone)]
@@ -84,7 +88,7 @@ impl<T: Scalar> CuttingSimulator<T> {
             voxel_tree,
             interval,
             snapshots: Vec::new(),
-            arc_chord_tolerance_mm: segments::DEFAULT_ARC_CHORD_TOLERANCE_MM,
+            arc_chord_tolerance_mm: DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
         }
     }
 

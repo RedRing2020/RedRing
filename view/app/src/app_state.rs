@@ -3,6 +3,7 @@ use crate::entity_manager::EntityManager;
 use crate::graphic::{init_graphic, Graphic};
 use crate::mouse_input::MouseInput;
 use crate::selection_rect::SelectionRect;
+use crate::settings_panel_ui::SettingsPanelTab;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
 use debug_snapshot_state::DebugSnapshotState;
@@ -10,7 +11,9 @@ use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::{
     CamSimulationDemoScenario, ToolWireframeVisualizationSettings,
 };
+use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
+use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
 use viewmodel_graphics::{Camera, CameraControlSensitivity};
 use winit::window::Window;
 
@@ -98,11 +101,20 @@ pub struct AppState {
     /// Toolワイヤーフレーム可視化設定
     tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings,
 
+    /// ToolPath表示設定
+    toolpath_visualization_settings: ToolPathVisualizationSettings,
+
     /// 最後に表示したCAMデモの種別
     current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
 
     /// 設定パネル表示状態
     settings_panel_open: bool,
+
+    /// 設定パネルの選択中タブ
+    settings_panel_active_tab: SettingsPanelTab,
+
+    /// 設定パネルの表示言語
+    settings_panel_locale: UiLocale,
 
     /// デバッグ用: シミュレーションスナップショット状態
     debug_snapshot: DebugSnapshotState,
@@ -143,8 +155,11 @@ impl AppState {
             snapshot_overlay_style: SnapshotOverlayStyle::default(),
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
             tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
+            toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
             current_cam_demo_scenario: None,
             settings_panel_open: false,
+            settings_panel_active_tab: SettingsPanelTab::default(),
+            settings_panel_locale: UiLocale::Ja,
             debug_snapshot: DebugSnapshotState::default(),
             snapshot_scrub_active: false,
             cursor_position: None,

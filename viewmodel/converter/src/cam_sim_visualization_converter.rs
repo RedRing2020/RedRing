@@ -11,13 +11,13 @@ use application::cam_orchestration::{
     ToolEntityManagementOrchestrator,
 };
 use cam_core::{
-    validate_toolpath_machine_constraints, ArcDirection, CamTolerance, MachineConstraint,
-    PathGeometry, Tool, ToolPath, ValidationError,
+    validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, Tool, ToolPath,
+    ValidationError,
 };
-use cam_sim::{SimulationError, SnapshotInterval};
+use cam_sim::{collect_toolpath_line_segments_with_arc_options, SimulationError, SnapshotInterval};
 use geo_algorithms::{
     octree::{VoxelOctree, VoxelState},
-    LineSegment3D, Point3D,
+    CircularArcPolylineOptions, LineSegment3D, Point3D,
 };
 use std::collections::HashMap;
 use std::f64::consts::TAU;
@@ -269,150 +269,13 @@ fn build_solid_mesh_from_voxel_tree(
     (vertices, indices)
 }
 
-fn collect_line_segments_with_flags(
+fn collect_simulation_line_segments_with_flags(
     toolpath: &ToolPath<f64>,
 ) -> Result<Vec<(LineSegment3D<f64>, bool)>, SimulationError> {
-    let mut out = Vec::new();
-
-    for segment in &toolpath.approach_segments {
-        match segment.geometry {
-            PathGeometry::Line { end } => {
-                if let Some(line_segment) = LineSegment3D::new(segment.start, end) {
-                    out.push((line_segment, false));
-                }
-            }
-            PathGeometry::Arc {
-                end,
-                center,
-                direction,
-            } => {
-                for line in arc_to_lines_f64(segment.start, end, center, direction) {
-                    out.push((line, false));
-                }
-            }
-        }
-    }
-
-    for contour in &toolpath.contour_levels {
-        for segment in &contour.segments {
-            match segment.geometry {
-                PathGeometry::Line { end } => {
-                    if let Some(line_segment) = LineSegment3D::new(segment.start, end) {
-                        out.push((line_segment, segment.is_cutting()));
-                    }
-                }
-                PathGeometry::Arc {
-                    end,
-                    center,
-                    direction,
-                } => {
-                    let is_cutting = segment.is_cutting();
-                    for line in arc_to_lines_f64(segment.start, end, center, direction) {
-                        out.push((line, is_cutting));
-                    }
-                }
-            }
-        }
-    }
-
-    for segment in &toolpath.retract_segments {
-        match segment.geometry {
-            PathGeometry::Line { end } => {
-                if let Some(line_segment) = LineSegment3D::new(segment.start, end) {
-                    out.push((line_segment, false));
-                }
-            }
-            PathGeometry::Arc {
-                end,
-                center,
-                direction,
-            } => {
-                for line in arc_to_lines_f64(segment.start, end, center, direction) {
-                    out.push((line, false));
-                }
-            }
-        }
-    }
-
-    Ok(out)
-}
-
-/// Arc を polyline 近似する（可視化側の f64 専用版）。
-///
-/// 弦誤差 0.1mm 基準、最小分割数 4。
-fn arc_to_lines_f64(
-    start: Point3D<f64>,
-    end: Point3D<f64>,
-    center: Point3D<f64>,
-    direction: ArcDirection,
-) -> Vec<LineSegment3D<f64>> {
-    const CHORD_TOLERANCE: f64 = 0.1;
-    const MIN_DIVISIONS: usize = 4;
-
-    let dx1 = start.x() - center.x();
-    let dy1 = start.y() - center.y();
-    let r = (dx1 * dx1 + dy1 * dy1).sqrt();
-    if r < f64::EPSILON {
-        return Vec::new();
-    }
-
-    let dx2 = end.x() - center.x();
-    let dy2 = end.y() - center.y();
-    let angle_start = dy1.atan2(dx1);
-    let angle_end = dy2.atan2(dx2);
-
-    let sweep = match direction {
-        ArcDirection::CounterClockwise => {
-            let mut s = angle_end - angle_start;
-            if s < f64::EPSILON {
-                s += TAU;
-            }
-            s
-        }
-        ArcDirection::Clockwise => {
-            let mut s = angle_start - angle_end;
-            if s < f64::EPSILON {
-                s += TAU;
-            }
-            s
-        }
-    };
-
-    let n = if CHORD_TOLERANCE > f64::EPSILON {
-        let cos_val = (1.0 - CHORD_TOLERANCE / r).clamp(-1.0, 1.0);
-        let half_angle = cos_val.acos();
-        let divisions = (sweep / (2.0 * half_angle)).ceil() as usize;
-        divisions.max(MIN_DIVISIONS)
-    } else {
-        MIN_DIVISIONS
-    };
-
-    let cx = center.x();
-    let cy = center.y();
-    let z_start = start.z();
-    let z_end = end.z();
-
-    let sign = match direction {
-        ArcDirection::CounterClockwise => 1.0_f64,
-        ArcDirection::Clockwise => -1.0_f64,
-    };
-    let angle_step = sign * sweep / n as f64;
-
-    let mut segments = Vec::with_capacity(n);
-    let mut prev = start;
-    for i in 1..=n {
-        let angle = angle_start + angle_step * i as f64;
-        let next = Point3D::new(
-            cx + r * angle.cos(),
-            cy + r * angle.sin(),
-            z_start + (z_end - z_start) * (i as f64 / n as f64),
-        );
-        if let Some(line) = LineSegment3D::new(prev, next) {
-            segments.push(line);
-        }
-        prev = next;
-    }
-    segments
+    Ok(collect_toolpath_line_segments_with_arc_options(
+        toolpath,
+        CircularArcPolylineOptions::default(),
+    ))
 }
 
 fn lerp_point_on_segment(segment: &LineSegment3D<f64>, t: f64) -> Point3D<f64> {
@@ -440,9 +303,11 @@ fn tool_tip_position(
     Some(lerp_point_on_segment(segment, segment_t))
 }
 
-fn create_toolpath_wireframe_vertices(toolpath: &ToolPath<f64>) -> Vec<WireframeVertex> {
-    let settings = ToolPathVisualizationSettings::default();
-    let toolpath_vertices = toolpath_to_vertices(toolpath, &settings);
+fn create_toolpath_wireframe_vertices(
+    toolpath: &ToolPath<f64>,
+    settings: &ToolPathVisualizationSettings,
+) -> Vec<WireframeVertex> {
+    let toolpath_vertices = toolpath_to_vertices(toolpath, settings);
 
     toolpath_vertices
         .vertices
@@ -789,6 +654,7 @@ pub fn build_demo_cam_simulation_visualization_bundle(
     build_demo_cam_simulation_visualization_bundle_with_tool_settings(
         settings,
         &ToolWireframeVisualizationSettings::default(),
+        &ToolPathVisualizationSettings::default(),
         scenario,
     )
 }
@@ -798,6 +664,7 @@ pub fn build_demo_cam_simulation_visualization_bundle(
 pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
     settings: &OctreeVisualizationSettings,
     tool_wireframe_settings: &ToolWireframeVisualizationSettings,
+    toolpath_settings: &ToolPathVisualizationSettings,
     scenario: CamSimulationDemoScenario,
 ) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
     let demo = build_demo_artifacts_for_cam_simulation(scenario);
@@ -816,7 +683,7 @@ pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
     let machine_constraint = MachineConstraint::empty();
     validate_toolpath_machine_constraints(&toolpath, &machine_constraint, &tolerance)?;
 
-    let segments = collect_line_segments_with_flags(&toolpath)?;
+    let segments = collect_simulation_line_segments_with_flags(&toolpath)?;
 
     let work_bounds = compute_toolpath_work_bounds(&segments, behavior.radius());
     let non_cutting_interference_count =
@@ -841,7 +708,7 @@ pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
     let snapshot_inputs = cam_snapshot_exports_to_inputs(&exports);
     let snapshot_series = cam_snapshot_inputs_to_domain_series("cam_sim", &snapshot_inputs);
 
-    let toolpath_wireframe = create_toolpath_wireframe_vertices(&toolpath);
+    let toolpath_wireframe = create_toolpath_wireframe_vertices(&toolpath, toolpath_settings);
 
     let mut replay_tree = VoxelOctree::new(work_bounds, settings.max_depth);
     let mut replay_segment_index = 0usize;

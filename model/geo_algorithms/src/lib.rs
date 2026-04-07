@@ -11,6 +11,7 @@
 pub mod angle_utils;
 pub mod collision;
 pub mod constraint_validation;
+pub mod curve_discretization;
 pub mod distance;
 pub mod intersection;
 pub mod nurbs_fixtures;
@@ -30,6 +31,10 @@ pub use constraint_validation::{
     validate_linear_speed_mm_per_min, validate_linear_travel, validate_linear_travel_mm,
     validate_rotary_acceleration_deg_per_s2, validate_rotary_angle, validate_rotary_angle_deg,
     validate_rotary_speed_deg_per_min, ConstraintViolation, ValidationResult,
+};
+pub use curve_discretization::{
+    circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions,
+    DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
 };
 
 // geo_algorithms が提供する交差結果型

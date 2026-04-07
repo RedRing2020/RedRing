@@ -35,11 +35,14 @@ impl AppState {
     pub(crate) fn prepare_settings_panel_state(&self) -> SettingsPanelUiState {
         SettingsPanelUiState {
             open: self.settings_panel_open,
+            active_tab: self.settings_panel_active_tab,
+            locale: self.settings_panel_locale,
             camera_control_sensitivity: self.viewing_operation_settings.camera_control_sensitivity,
             octree_settings: self.octree_visualization_settings.clone(),
             snapshot_overlay_style: self.snapshot_overlay_style,
             snapshot_shaded_colors: self.snapshot_shaded_color_settings,
             tool_wireframe_settings: self.tool_wireframe_visualization_settings,
+            toolpath_settings: self.toolpath_visualization_settings.clone(),
             current_demo_label: self.current_cam_demo_scenario.map(demo_scenario_label),
             reload_demo_requested: false,
         }
@@ -47,7 +50,10 @@ impl AppState {
 
     pub(crate) fn apply_settings_panel_state(&mut self, panel_state: SettingsPanelUiState) {
         self.settings_panel_open = panel_state.open;
+        self.settings_panel_active_tab = panel_state.active_tab;
+        self.settings_panel_locale = panel_state.locale;
         self.tool_wireframe_visualization_settings = panel_state.tool_wireframe_settings;
+        self.toolpath_visualization_settings = panel_state.toolpath_settings;
 
         if panel_state.reload_demo_requested {
             // 設定反映後も表示状態の整合を保つため、共通のstage復元経路で再読込する。
