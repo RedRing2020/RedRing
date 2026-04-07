@@ -220,6 +220,29 @@
 - downstream 参照が十分減った段階で、deprecated 化の要否を判断する
 - 即時廃止は行わず、互換負債と保守コストの均衡で決める
 
+### Phase 3 監査結果（2026年4月7日時点）
+
+- ワークスペース内の production 呼び出しは generic API へ移行済み
+- 旧 `f64` ラッパーの実利用は `foundation/analysis` 内の互換テストに限定される
+- doctest / モジュール例は generic API 優先へ切り替え済み
+- したがって現時点の `f64` ラッパーは「downstream 即時互換維持」のために残すが、workspace 内の正本利用経路ではない
+- 次段では deprecated 化そのものより、外部利用者向けの移行告知と `newton_solve_2d` の follow-up 分離判断を優先する
+
+### `newton_solve_2d` の扱い判断（2026年4月8日）
+
+- workspace 内監査では `newton_solve_2d` の利用は doctest と `foundation/analysis` 内テストに限定され、production 呼び出しは確認されなかった
+- 一方で 2変数 solver は Jacobian 表現、step norm、将来的な多変数一般化など 1変数 generic core とは別の設計論点を持つ
+- したがって `newton_solve_2d` は #603 の継続実装へ混在させず、follow-up Issue として切り出す判断を採る
+- follow-up では「2変数専用 API を generic 化する」のか「多変数一般 solver へ拡張する」のかを先に設計確定する
+
+### 外部利用者向け移行方針
+
+- 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する
+- 既存コードが `f64` 固定で十分な場合は旧ラッパー API を当面そのまま利用してよい
+- `T: Scalar` ベースの geometry / analysis 接続では、`T <-> f64` 変換を追加せず generic API へ直接寄せる
+- 旧ラッパー API は互換維持のため残すが、workspace 内では正本利用経路ではないため、新しい利用箇所を増やさない
+- `newton_solve_2d` は今回の generic core 移行対象外であり、2変数 solver の扱いは follow-up Issue 側で整理する
+
 ## 8. 設計上の注意
 
 - `geo_nurbs` 側に Newton 本体を再実装して責務を重複させない
