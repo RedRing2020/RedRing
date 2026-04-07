@@ -114,4 +114,35 @@ mod tests {
         let result = newton_solve_2d(system, (1.0, 1.0), 100, TOLERANCE_F64);
         assert!(result.is_none());
     }
+
+    #[test]
+    fn test_newton_solve_2d_circle_line_f32() {
+        let system = |x: f32, y: f32| {
+            let f1 = x * x + y * y - 1.0_f32;
+            let f2 = x - y;
+            let jacobian = [[2.0_f32 * x, 2.0_f32 * y], [1.0_f32, -1.0_f32]];
+            (f1, f2, jacobian)
+        };
+
+        let result = newton_solve_2d(system, (1.0_f32, 0.5_f32), 100, 1e-6_f32);
+        assert!(result.is_some());
+
+        let (x, y) = result.unwrap();
+        let expected = 1.0_f32 / 2.0_f32.sqrt();
+        assert!((x - expected).abs() < 1e-4_f32);
+        assert!((y - expected).abs() < 1e-4_f32);
+    }
+
+    #[test]
+    fn test_newton_solve_2d_singular_jacobian_f32() {
+        let system = |x: f32, y: f32| {
+            let f1 = x + y;
+            let f2 = x + y;
+            let jacobian = [[1.0_f32, 1.0_f32], [1.0_f32, 1.0_f32]];
+            (f1, f2, jacobian)
+        };
+
+        let result = newton_solve_2d(system, (1.0_f32, 1.0_f32), 100, 1e-6_f32);
+        assert!(result.is_none());
+    }
 }

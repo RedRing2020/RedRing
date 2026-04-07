@@ -3,11 +3,26 @@
 //! 非線形方程式 f(x) = 0 の求解や逆関数計算を提供する。
 //! 汎用的なニュートン法実装により、様々な数値計算問題に対応。
 
+use crate::linalg::{Matrix2x2, Vector2};
 use crate::{Scalar, DERIVATIVE_ZERO_THRESHOLD};
 
 #[inline]
 fn derivative_zero_threshold<T: Scalar>() -> T {
     T::from_f64(DERIVATIVE_ZERO_THRESHOLD)
+}
+
+#[inline]
+fn solve_linear_2x2<T: Scalar>(jacobian: Matrix2x2<T>, residual: Vector2<T>) -> Option<Vector2<T>> {
+    let det = jacobian.determinant();
+    if det.abs() < derivative_zero_threshold::<T>() {
+        return None;
+    }
+
+    let inv_det = T::ONE / det;
+    Some(Vector2::new(
+        inv_det * (jacobian.get(1, 1) * residual.x() - jacobian.get(0, 1) * residual.y()),
+        inv_det * (-jacobian.get(1, 0) * residual.x() + jacobian.get(0, 0) * residual.y()),
+    ))
 }
 
 /// generic Newton 法による方程式求解
@@ -253,7 +268,7 @@ where
     newton_inverse_generic(f, df, target, initial, max_iter, tol)
 }
 
-/// 2変数連立非線形方程式をニュートン法で解く
+/// generic 2変数連立非線形方程式をニュートン法で解く
 ///
 /// f1(x, y) = 0 と f2(x, y) = 0 を同時に満たす (x, y) を求める。
 /// ヤコビ行列を用いた多変数ニュートン法を実装。
@@ -291,41 +306,24 @@ where
 /// assert!((x - expected).abs() < 1e-6);
 /// assert!((y - expected).abs() < 1e-6);
 /// ```
-pub fn newton_solve_2d<F>(
-    system: F,
-    initial: (f64, f64),
-    max_iter: usize,
-    tol: f64,
-) -> Option<(f64, f64)>
+pub fn newton_solve_2d<T, F>(system: F, initial: (T, T), max_iter: usize, tol: T) -> Option<(T, T)>
 where
-    F: Fn(f64, f64) -> (f64, f64, [[f64; 2]; 2]),
+    T: Scalar,
+    F: Fn(T, T) -> (T, T, [[T; 2]; 2]),
 {
     let mut x = initial.0;
     let mut y = initial.1;
 
     for _ in 0..max_iter {
-        let (f1, f2, jacobian) = system(x, y);
+        let (f1, f2, jacobian_raw) = system(x, y);
+        let residual = Vector2::new(f1, f2);
+        let jacobian = Matrix2x2::from(jacobian_raw);
+        let delta = solve_linear_2x2(jacobian, residual)?;
 
-        // ヤコビ行列の行列式を計算
-        let det = jacobian[0][0] * jacobian[1][1] - jacobian[0][1] * jacobian[1][0];
+        x -= delta.x();
+        y -= delta.y();
 
-        if det.abs() < DERIVATIVE_ZERO_THRESHOLD {
-            return None; // 特異行列
-        }
-
-        // クラメルの公式で逆行列を計算して解を更新
-        let inv_det = 1.0 / det;
-        let dx = inv_det * (jacobian[1][1] * f1 - jacobian[0][1] * f2);
-        let dy = inv_det * (-jacobian[1][0] * f1 + jacobian[0][0] * f2);
-
-        x -= dx;
-        y -= dy;
-
-        // 収束判定
-        let residual = (f1 * f1 + f2 * f2).sqrt();
-        let step_size = (dx * dx + dy * dy).sqrt();
-
-        if residual < tol && step_size < tol {
+        if residual.norm() < tol && delta.norm() < tol {
             return Some((x, y));
         }
     }
