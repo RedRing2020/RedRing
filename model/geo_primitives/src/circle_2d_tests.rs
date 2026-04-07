@@ -110,23 +110,24 @@ fn test_point_at_angle() {
 fn test_point_at_parameter() {
     let circle = Circle2D::new(Point2D::new(0.0f64, 0.0f64), 1.0f64).unwrap();
 
+    // Circle core parameter は local angle domain (0..=2π)
     // t=0（開始点）
     let p0 = circle.point_at_parameter(0.0);
     assert!((p0.x() - 1.0f64).abs() < 1e-10);
     assert!((p0.y() - 0.0f64).abs() < 1e-10);
 
-    // t=0.25（90度）
-    let p25 = circle.point_at_parameter(0.25);
+    // t=π/2（90度）
+    let p25 = circle.point_at_parameter(PI / 2.0);
     assert!((p25.x() - 0.0f64).abs() < 1e-10);
     assert!((p25.y() - 1.0f64).abs() < 1e-10);
 
-    // t=0.5（180度）
-    let p50 = circle.point_at_parameter(0.5);
+    // t=π（180度）
+    let p50 = circle.point_at_parameter(PI);
     assert!((p50.x() - (-1.0f64)).abs() < 1e-10);
     assert!((p50.y() - 0.0f64).abs() < 1e-10);
 
-    // t=1.0（360度、開始点と同じ）
-    let p100 = circle.point_at_parameter(1.0);
+    // t=2π（360度、開始点と同じ）
+    let p100 = circle.point_at_parameter(TAU);
     assert!((p100.x() - 1.0f64).abs() < 1e-10);
     assert!((p100.y() - 0.0f64).abs() < 1e-10);
 }
@@ -141,8 +142,8 @@ fn test_tangent_at_parameter() {
     assert!((t0.x() - 0.0f64).abs() < 1e-10);
     assert!((t0.y() - 1.0f64).abs() < 1e-10);
 
-    // t=0.25での接線（左方向）
-    let t25 = circle.tangent_at_parameter(0.25);
+    // t=π/2での接線（左方向）
+    let t25 = circle.tangent_at_parameter(PI / 2.0);
     assert!((t25.x() - (-1.0f64)).abs() < 1e-10);
     assert!((t25.y() - 0.0f64).abs() < 1e-10);
 
@@ -279,17 +280,17 @@ fn test_geometry_foundation() {
 fn test_basic_metrics() {
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
 
-    // 長さ（円周）
-    let length = circle.circumference();
-    assert!((length - TAU * 2.0).abs() < 1e-10);
+    // 閉曲線の主語彙は circumference
+    let circumference = circle.circumference();
+    assert!((circumference - TAU * 2.0).abs() < 1e-10);
 
     // 面積
     let area = circle.area();
     assert!((area - PI * 4.0).abs() < 1e-10);
 
-    // 周長（円周と同じ）
-    let perimeter = circle.circumference();
-    assert!((perimeter - TAU * 2.0).abs() < 1e-10);
+    // perimeter は導入せず、closed curve は circumference で読む
+    let circumference_again = circle.circumference();
+    assert!((circumference_again - TAU * 2.0).abs() < 1e-10);
 }
 
 /// Foundation trait - BasicContainmentテスト
@@ -322,15 +323,15 @@ fn test_basic_containment() {
 fn test_basic_parametric() {
     let circle = Circle2D::new(Point2D::new(0.0f64, 0.0f64), 1.0f64).unwrap();
 
-    // パラメータ範囲 (旧仕様: 0-1正規化)
+    // この層でも Circle core の local angle parameter (0..=2π) を使う
     let (start, end) = circle.parameter_range();
     assert_eq!(start, 0.0);
-    assert_eq!(end, 1.0);
+    assert_eq!(end, TAU);
 
-    // パラメータでの点取得 (0-1正規化、内部でTAU倍)
-    let p0 = circle.point_at_parameter(0.0); // 0 * TAU = 0°
-    let p25 = circle.point_at_parameter(0.25); // 0.25 * TAU = 90°
-    let p50 = circle.point_at_parameter(0.5); // 0.5 * TAU = 180°
+    // local angle parameter での点取得
+    let p0 = circle.point_at_parameter(0.0);
+    let p25 = circle.point_at_parameter(PI / 2.0);
+    let p50 = circle.point_at_parameter(PI);
 
     assert!((p0.x() - 1.0f64).abs() < 1e-10);
     assert!((p25.y() - 1.0f64).abs() < 1e-10);
@@ -338,7 +339,7 @@ fn test_basic_parametric() {
 
     // 接線ベクトル取得
     let t0 = circle.tangent_at_parameter(0.0);
-    let t25 = circle.tangent_at_parameter(0.25);
+    let t25 = circle.tangent_at_parameter(PI / 2.0);
 
     assert!((t0.length() - 1.0f64).abs() < 1e-10);
     assert!((t25.length() - 1.0f64).abs() < 1e-10);
@@ -451,12 +452,12 @@ mod hierarchy_foundation_tests {
 
         // BasicMeasurement trait経由での計量
         let area = BasicMeasurement::area(&circle).expect("Circle area should be Some");
-        let perimeter =
+        let legacy_perimeter =
             BasicMeasurement::perimeter(&circle).expect("Circle perimeter should be Some");
 
         // 数学的正確性確認
         assert!((area - (PI * 9.0)).abs() < 1e-10); // π * r²
-        assert!((perimeter - (TAU * 3.0)).abs() < 1e-10); // 2π * r
+        assert!((legacy_perimeter - (TAU * 3.0)).abs() < 1e-10); // 互換 helper 上の perimeter
 
         // length は円では定義されない
         assert!(circle.length().is_none());
@@ -486,7 +487,7 @@ mod hierarchy_foundation_tests {
     fn test_basic_parametric_level() {
         let circle = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
 
-        // NewBasicParametric trait経由でのパラメトリック操作
+        // 互換 helper の NewBasicParametric は local angle domain (0..TAU) を使う
         let point_0 = NewBasicParametric::point_at_parameter(&circle, 0.0);
         let point_pi_2 = NewBasicParametric::point_at_parameter(&circle, PI / 2.0);
         let point_pi = NewBasicParametric::point_at_parameter(&circle, PI);
@@ -506,7 +507,7 @@ mod hierarchy_foundation_tests {
         assert!((tangent_0.x() - 0.0).abs() < 1e-10); // -3*sin(0) = 0
         assert!((tangent_0.y() - 3.0).abs() < 1e-10); // 3*cos(0) = 3
 
-        // パラメータ範囲
+        // helper 側の parameter_range も local angle domain を返す
         let (min_t, max_t) = NewBasicParametric::parameter_range(&circle);
         assert_eq!(min_t, 0.0);
         assert_eq!(max_t, TAU);

@@ -90,11 +90,15 @@ pub trait Circle3DProperties<T: Scalar> {
 }
 
 pub trait Circle2DDerived<T: Scalar> {
+    /// 閉曲線 shape の primary quantity としての周回長を返す
     fn circumference(&self) -> T;
+
+    /// 円が張る interior を含めた派生量を返す
     fn area(&self) -> T;
 }
 
 pub trait Circle2DEvaluation<T: Scalar> {
+    /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) に対応する円周上の点を返す
     fn point_at_parameter(&self, t: T) -> (T, T);
 }
 
@@ -112,11 +116,15 @@ pub trait Circle2DProjection<T: Scalar> {
 }
 
 pub trait Circle3DDerived<T: Scalar> {
+    /// 閉曲線 shape の primary quantity としての周回長を返す
     fn circumference(&self) -> T;
+
+    /// 円が張る interior を含めた派生量を返す
     fn area(&self) -> T;
 }
 
 pub trait Circle3DEvaluation<T: Scalar> {
+    /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) に対応する円周上の点を返す
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 

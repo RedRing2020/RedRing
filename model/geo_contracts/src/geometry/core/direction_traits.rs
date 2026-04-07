@@ -1,7 +1,7 @@
 //! Direction Core Traits - Direction形状の3つのCore機能統合
 //!
 //! Foundation ハイブリッド実装方針に基づく
-//! Core機能（Constructor/Properties/Measure）を形状別に統合
+//! Core機能（Constructor/Properties）を統合し、relation 系 capability は分離する
 //! Transform機能は共通のAnalysisTransformトレイトを使用
 
 use analysis::abstract_types::Scalar;

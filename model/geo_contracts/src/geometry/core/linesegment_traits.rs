@@ -148,7 +148,9 @@ pub trait LineSegment2DContainment<T: Scalar> {
 }
 
 pub trait LineSegment2DEvaluation<T: Scalar> {
-    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
+    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する support line 上の evaluation point を取得
+    ///
+    /// `t=0/1` は bounded curve primitive の ideal start/end endpoint と整合する。
     fn point_at_parameter(&self, t: T) -> (T, T);
 }
 
@@ -176,7 +178,9 @@ pub trait LineSegment3DContainment<T: Scalar> {
 }
 
 pub trait LineSegment3DEvaluation<T: Scalar> {
-    /// 正規化パラメータt（0<=t<=1）で support line 上の評価点を取得
+    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する support line 上の evaluation point を取得
+    ///
+    /// `t=0/1` は bounded curve primitive の ideal start/end endpoint と整合する。
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 

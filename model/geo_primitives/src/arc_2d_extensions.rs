@@ -3,11 +3,26 @@
 //! Core Foundation パターンに基づく Arc2D の拡張機能
 //! 基本機能は arc_2d.rs を参照
 
-use crate::{arc_2d::Arc2D, Circle2D, Point2D};
+use crate::{arc_2d::Arc2D, Circle2D, Point2D, Vector2D};
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Arc2D<T> {
+    /// Arc trim-local parameter `t` (`0 <= t <= 1`) で円弧上の点を計算
+    ///
+    /// 母円の local angle parameter へ線形写像して評価する。
+    pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
+        let angle = self.start_angle().to_radians() + self.angular_span() * t;
+        self.point_at_angle(angle)
+    }
+
+    /// Primitive 局所角度系の角度で円弧上の点を計算する convenience API
+    pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
+        let x = self.radius_internal() * angle.cos();
+        let y = self.radius_internal() * angle.sin();
+        self.center_internal() + Vector2D::new(x, y)
+    }
+
     /// 3点を通る円弧を作成
     ///
     /// # 引数

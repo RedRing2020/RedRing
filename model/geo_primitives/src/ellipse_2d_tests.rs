@@ -117,6 +117,7 @@ mod tests {
     fn test_point_at_parameter() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 4.0, 2.0).unwrap();
 
+        // Ellipse core parameter は local angle domain (0..2π)
         // 主軸上の点
         let point_0 = ellipse.point_at_parameter(0.0);
         assert!((point_0.x() - 4.0).abs() < 1e-10);
@@ -305,10 +306,10 @@ mod tests {
     fn test_basic_metrics() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 4.0, 3.0).unwrap();
 
-        // BasicMetrics
-        let length = ellipse.length().unwrap();
-        assert!(length > 0.0);
-        assert_eq!(length, ellipse.circumference());
+        // 互換 helper の length は closed curve の正本語彙 circumference へ委譲する
+        let legacy_length = ellipse.length().unwrap();
+        assert!(legacy_length > 0.0);
+        assert_eq!(legacy_length, ellipse.circumference());
     }
 
     #[test]
@@ -332,7 +333,7 @@ mod tests {
     fn test_basic_parametric() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 4.0, 2.0).unwrap();
 
-        // BasicParametric
+        // Ellipse の parameter_range / point_at_parameter は local angle domain を使う
         let (start, end) = ellipse.parameter_range();
         assert_eq!(start, 0.0);
         assert!((end - 2.0 * std::f64::consts::PI).abs() < 1e-10);

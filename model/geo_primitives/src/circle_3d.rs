@@ -481,10 +481,14 @@ impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
 }
 
 impl<T: Scalar> Circle3DEvaluation<T> for Circle3D<T> {
+    /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) で円周上の点を計算する
+    ///
+    /// `point_at_angle` と同じ local angle domain を使う core evaluation 入口として扱う。
+    ///
+    /// `t = 2π` は周期端として `t = 0` と同じ幾何点へ戻る。
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let angle = t * T::TAU;
-        let cos_angle = angle.cos();
-        let sin_angle = angle.sin();
+        let cos_angle = t.cos();
+        let sin_angle = t.sin();
 
         // 円周上の点を計算
         let v_axis = self.axis.as_vector();

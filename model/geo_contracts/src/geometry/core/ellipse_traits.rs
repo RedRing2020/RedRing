@@ -42,10 +42,10 @@ pub trait Ellipse2DProperties<T: Scalar> {
 
 /// Ellipse2D の派生量
 pub trait Ellipse2DDerived<T: Scalar> {
-    /// 面積を返す
+    /// 楕円が張る interior を含めた派生量を返す
     fn area(&self) -> T;
 
-    /// 閉曲線の主語彙としての周回長を返す
+    /// 閉曲線 shape の primary quantity としての周回長を返す
     fn circumference(&self) -> T;
 
     /// 離心率を返す
@@ -69,6 +69,7 @@ pub trait Ellipse2DDerived<T: Scalar> {
 
 /// Ellipse2D の評価
 pub trait Ellipse2DEvaluation<T: Scalar> {
+    /// Primitive 局所座標系の周期 angle parameter `t` (`0 <= t < 2π`) に対応する evaluation point を返す
     fn point_at_parameter(&self, t: T) -> (T, T);
 }
 
@@ -165,10 +166,10 @@ pub trait Ellipse3DProperties<T: Scalar> {
 
 /// Ellipse3D の派生量
 pub trait Ellipse3DDerived<T: Scalar> {
-    /// 面積を返す
+    /// 楕円が張る interior を含めた派生量を返す
     fn area(&self) -> T;
 
-    /// 閉曲線の主語彙としての周回長を返す
+    /// 閉曲線 shape の primary quantity としての周回長を返す
     fn circumference(&self) -> T;
 
     /// 離心率を返す
@@ -183,6 +184,7 @@ pub trait Ellipse3DDerived<T: Scalar> {
 
 /// Ellipse3D の評価
 pub trait Ellipse3DEvaluation<T: Scalar> {
+    /// Primitive 局所座標系の周期 angle parameter `t` (`0 <= t < 2π`) に対応する evaluation point を返す
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 }
 

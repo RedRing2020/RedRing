@@ -1,7 +1,7 @@
 //! Triangle Core Traits - 三角形の基本機能トレイト
 //!
 //! Foundation Pattern Phase 1 + Phase 2 実装
-//! 3-5-4 パターン: Constructor(3+3) + Properties(5+3) + Measure(4+4)
+//! face boundary access / boundary quantity / derived capability を分離する
 
 use crate::Scalar;
 
@@ -40,7 +40,7 @@ pub trait Triangle2DBoundaryAccess<T: Scalar> {
     fn vertex_c(&self) -> (T, T);
 }
 
-/// Triangle2D の互換 Properties trait
+/// Triangle2D の互換 boundary access alias
 pub trait Triangle2DProperties<T: Scalar>: Triangle2DBoundaryAccess<T> {}
 
 pub trait Triangle2DDerived<T: Scalar> {
@@ -131,7 +131,7 @@ pub trait Triangle3DBoundaryAccess<T: Scalar> {
     fn vertex_c(&self) -> (T, T, T);
 }
 
-/// Triangle3D の互換 Properties trait
+/// Triangle3D の互換 boundary access alias
 pub trait Triangle3DProperties<T: Scalar>: Triangle3DBoundaryAccess<T> {}
 
 pub trait Triangle3DDerived<T: Scalar> {

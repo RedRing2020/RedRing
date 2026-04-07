@@ -134,7 +134,10 @@ pub trait InfiniteLine3DProperties<T: Scalar> {
 }
 
 pub trait InfiniteLine2DEvaluation<T: Scalar> {
+    /// 基準点 `point()` を原点とし、正規化方向 `direction()` に沿う signed support parameter `t` の evaluation point を返す
     fn point_at_parameter(&self, t: T) -> (T, T);
+
+    /// 点を同じ signed support parameter 系へ写像する
     fn parameter_for_point(&self, point: (T, T)) -> T;
 }
 
@@ -167,7 +170,10 @@ pub trait InfiniteLine2DTransform<T: Scalar> {
 }
 
 pub trait InfiniteLine3DEvaluation<T: Scalar> {
+    /// 基準点 `point()` を原点とし、正規化方向 `direction()` に沿う signed support parameter `t` の evaluation point を返す
     fn point_at_parameter(&self, t: T) -> (T, T, T);
+
+    /// 点を同じ signed support parameter 系へ写像する
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
 }
 

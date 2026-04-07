@@ -6,6 +6,20 @@ use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
 use geo_contracts::{default_angle_tolerance, Angle, Scalar};
 
 impl<T: Scalar> EllipseArc3D<T> {
+    /// Arc trim-local parameter `t` (`0 <= t <= 1`) に対応する接線ベクトルを取得
+    ///
+    /// 基底楕円の local angle parameter へ線形写像して接線を評価する。
+    pub fn tangent_at_parameter(&self, t: T) -> Vector3D<T> {
+        let angle = self.start_angle().to_radians()
+            + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
+        self.ellipse().tangent_at_parameter(angle)
+    }
+
+    /// Primitive 局所角度系の角度で接線ベクトルを取得する convenience API
+    pub fn tangent_at_angle(&self, angle: Angle<T>) -> Vector3D<T> {
+        self.ellipse().tangent_at_parameter(angle.to_radians())
+    }
+
     /// 楕円の一部分として3D楕円弧を作成（高度構築）
     pub fn from_ellipse_sector(
         center: Point3D<T>,
@@ -108,10 +122,7 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 楕円弧上の点での接線ベクトル（平面内）
     pub fn normal_at_parameter(&self, t: T) -> Vector3D<T> {
-        // 基底楕円から接線ベクトルを取得
-        let angle = self.start_angle().to_radians()
-            + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
-        let tangent = self.ellipse().tangent_at_parameter(angle);
+        let tangent = self.tangent_at_parameter(t);
         let plane_normal = self.normal();
 
         // 平面内の法線：接線と平面法線の外積
@@ -120,9 +131,7 @@ impl<T: Scalar> EllipseArc3D<T> {
 
     /// 楕円弧上の点での双法線ベクトル
     pub fn binormal_at_parameter(&self, t: T) -> Vector3D<T> {
-        let angle = self.start_angle().to_radians()
-            + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
-        let tangent = self.ellipse().tangent_at_parameter(angle);
+        let tangent = self.tangent_at_parameter(t);
         let normal = self.normal_at_parameter(t);
 
         // 双法線：接線と法線の外積
@@ -244,9 +253,7 @@ impl<T: Scalar> EllipseArc3D<T> {
             } else {
                 T::from_f64(i as f64) / T::from_f64((num_points - 1) as f64)
             };
-            let angle = self.start_angle().to_radians()
-                + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
-            tangents.push(self.ellipse().tangent_at_parameter(angle));
+            tangents.push(self.tangent_at_parameter(t));
         }
 
         tangents

@@ -101,6 +101,11 @@ impl<T: Scalar> CurveRef<T> {
         }
     }
 
+    /// 母曲線の native parameter semantics をそのまま使って評価点を返す
+    ///
+    /// topology 側では family 横断で parameter を再正規化しない。
+    /// 現在の variant では Line / Arc / EllipseArc のいずれも bounded curve として
+    /// ideal start/end と整合する parameter domain を使う。
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         match self {
             Self::Line(line) => line.line().point_at_parameter(t),
@@ -174,6 +179,7 @@ impl<T: Scalar> Edge<T> {
         &self.curve
     }
 
+    /// 母曲線 native parameter 空間における拘束区間 `[t0, t1]` を返す
     pub fn parameter_range(&self) -> (T, T) {
         self.parameter_range
     }
@@ -229,7 +235,9 @@ impl<T: Scalar> Edge<T> {
         self.oriented_curve_points(evaluated_start, evaluated_end)
     }
 
-    /// 曲線評価（0..1 のローカルパラメータ）
+    /// Edge 局所 parameter `local_t` (`0..=1`) を母曲線 parameter_range へ写像して評価する
+    ///
+    /// `same_sense=false` の場合は拘束向きに合わせて逆向きに写像する。
     pub fn point_at(&self, local_t: T) -> Option<Point3D<T>> {
         if local_t < T::ZERO || local_t > T::ONE {
             return None;

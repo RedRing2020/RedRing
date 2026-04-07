@@ -198,7 +198,7 @@ impl<T: Scalar> Ellipse2D<T> {
         best_point
     }
 
-    /// パラメータ t での点を取得（0 <= t < 2π）
+    /// Primitive 局所座標系の angle parameter `t` (`0 <= t < 2π`) で楕円上の点を取得
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
         let cos_t = t.cos();
         let sin_t = t.sin();
@@ -218,7 +218,7 @@ impl<T: Scalar> Ellipse2D<T> {
         Point2D::new(self.center.x() + x_rotated, self.center.y() + y_rotated)
     }
 
-    /// パラメータ t での接線ベクトルを取得
+    /// `point_at_parameter` と同じ local angle domain における接線ベクトルを取得
     pub fn tangent_at_parameter(&self, t: T) -> Vector2D<T> {
         let cos_t = t.cos();
         let sin_t = t.sin();
@@ -279,7 +279,7 @@ impl<T: Scalar> Ellipse2D<T> {
         distance <= tolerance
     }
 
-    /// パラメータ範囲を取得
+    /// local angle parameter の有効範囲 `[0, 2π]` を返す
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::TAU) // 0 から 2π
     }

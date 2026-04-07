@@ -185,12 +185,13 @@ pub trait EllipseArc2DEndpoint<T: Scalar> {
 }
 
 pub trait EllipseArc2DEvaluation<T: Scalar> {
-    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
+    /// EllipseArc trim-local parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
     ///
     /// `t=0/1` は EllipseArc のトリム区間の両端を指すが、拘束端点補間を意味しない。
+    /// 評価時には母楕円の local angle parameter へ線形写像される。
     fn point_at_parameter(&self, t: T) -> (T, T);
 
-    /// Primitive 局所角度系の角度で ideal evaluation point を取得
+    /// 母楕円の native angle parameter を直接指定して ideal evaluation point を取得
     fn point_at_angle(&self, angle: T) -> (T, T);
 }
 
@@ -222,12 +223,13 @@ pub trait EllipseArc3DEndpoint<T: Scalar> {
 }
 
 pub trait EllipseArc3DEvaluation<T: Scalar> {
-    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
+    /// EllipseArc trim-local parameter `t` (`0 <= t <= 1`) に対応する ideal evaluation point を取得
     ///
     /// `t=0/1` は EllipseArc のトリム区間の両端を指すが、拘束端点補間を意味しない。
+    /// 評価時には母楕円の local angle parameter へ線形写像される。
     fn point_at_parameter(&self, t: T) -> (T, T, T);
 
-    /// Primitive 局所角度系の角度で ideal evaluation point を取得
+    /// 母楕円の native angle parameter を直接指定して ideal evaluation point を取得
     fn point_at_angle(&self, angle: T) -> (T, T, T);
 }
 

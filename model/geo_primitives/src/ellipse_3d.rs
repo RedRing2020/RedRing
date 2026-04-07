@@ -182,8 +182,7 @@ impl<T: Scalar> Ellipse3D<T> {
             None
         }
     }
-    /// パラメータ t での楕円上の点を計算
-    /// t ∈ [0, 2π]
+    /// Primitive 局所座標系の angle parameter `t` (`0 <= t <= 2π`) で楕円上の点を計算
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         let cos_t = t.cos();
         let sin_t = t.sin();
@@ -199,8 +198,7 @@ impl<T: Scalar> Ellipse3D<T> {
         )
     }
 
-    /// パラメータ t での楕円の接線ベクトルを計算
-    /// t ∈ [0, 2π]
+    /// `point_at_parameter` と同じ local angle domain における接線ベクトルを計算
     pub fn tangent_at_parameter(&self, t: T) -> Vector3D<T> {
         let cos_t = t.cos();
         let sin_t = t.sin();
@@ -217,7 +215,7 @@ impl<T: Scalar> Ellipse3D<T> {
         self.point_at_parameter(angle.to_radians())
     }
 
-    /// パラメータ範囲を取得
+    /// local angle parameter の有効範囲 `[0, 2π]` を返す
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::TAU)
     }

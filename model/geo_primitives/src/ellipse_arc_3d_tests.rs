@@ -88,6 +88,26 @@ mod tests {
     }
 
     #[test]
+    fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
+        let ellipse_arc = create_test_ellipse_arc();
+
+        let mid_from_parameter = ellipse_arc.point_at_parameter(0.5);
+        let mid_angle = Angle::from_degrees(90.0);
+        let mid_from_angle = ellipse_arc.point_at_angle(mid_angle);
+
+        let tolerance = 1e-10_f64;
+        assert!((mid_from_parameter.x() - mid_from_angle.x()).abs() < tolerance);
+        assert!((mid_from_parameter.y() - mid_from_angle.y()).abs() < tolerance);
+        assert!((mid_from_parameter.z() - mid_from_angle.z()).abs() < tolerance);
+
+        let tangent_from_parameter = ellipse_arc.tangent_at_parameter(0.5);
+        let tangent_from_angle = ellipse_arc.tangent_at_angle(mid_angle);
+        assert!((tangent_from_parameter.x() - tangent_from_angle.x()).abs() < tolerance);
+        assert!((tangent_from_parameter.y() - tangent_from_angle.y()).abs() < tolerance);
+        assert!((tangent_from_parameter.z() - tangent_from_angle.z()).abs() < tolerance);
+    }
+
+    #[test]
     fn test_basic_transforms() {
         let ellipse_arc = create_test_ellipse_arc();
 
