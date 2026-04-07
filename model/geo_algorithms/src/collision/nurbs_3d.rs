@@ -27,7 +27,7 @@ use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
     Point3D, Ray3D, SphericalSolid3D,
 };
-use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded;
+use analysis::linalg::solver::newton::newton_solve_with_numeric_derivative_bounded_generic;
 use geo_contracts::{
     BasicCollision, Circle3DProperties, CylindricalSolid3DDistance, InfiniteLine3DProperties,
     Plane3DProperties, Scalar,
@@ -75,32 +75,28 @@ impl<T: Scalar> NurbsCurveCollider<T> {
         u_min: T,
         u_max: T,
     ) -> T {
-        let objective = |u: f64| {
-            let u_t = T::from_f64(u);
-            let c = self.0.evaluate_at(u_t);
-            let dc = self.0.derivative_at(u_t);
+        let objective = |u: T| {
+            let c = self.0.evaluate_at(u);
+            let dc = self.0.derivative_at(u);
 
             let diff_x = c.x() - point.x();
             let diff_y = c.y() - point.y();
             let diff_z = c.z() - point.z();
 
-            let value_t = diff_x * dc.x() + diff_y * dc.y() + diff_z * dc.z();
-            value_t.to_f64()
+            diff_x * dc.x() + diff_y * dc.y() + diff_z * dc.z()
         };
 
-        let maybe_u = newton_solve_with_numeric_derivative_bounded(
+        let maybe_u = newton_solve_with_numeric_derivative_bounded_generic(
             objective,
-            initial_u.to_f64(),
-            u_min.to_f64(),
-            u_max.to_f64(),
+            initial_u,
+            u_min,
+            u_max,
             constants::NEWTON_MAX_ITER,
-            constants::NEWTON_TOLERANCE,
-            constants::NEWTON_DIFF_STEP,
+            T::from_f64(constants::NEWTON_TOLERANCE),
+            T::from_f64(constants::NEWTON_DIFF_STEP),
         );
 
-        maybe_u
-            .map(T::from_f64)
-            .unwrap_or_else(|| initial_u.clamp(u_min, u_max))
+        maybe_u.unwrap_or_else(|| initial_u.clamp(u_min, u_max))
     }
 }
 

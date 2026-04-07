@@ -3,7 +3,125 @@
 //! 非線形方程式 f(x) = 0 の求解や逆関数計算を提供する。
 //! 汎用的なニュートン法実装により、様々な数値計算問題に対応。
 
-use crate::DERIVATIVE_ZERO_THRESHOLD;
+use crate::{Scalar, DERIVATIVE_ZERO_THRESHOLD};
+
+#[inline]
+fn derivative_zero_threshold<T: Scalar>() -> T {
+    T::from_f64(DERIVATIVE_ZERO_THRESHOLD)
+}
+
+/// generic Newton 法による方程式求解
+pub fn newton_solve_generic<T, F, G>(f: F, df: G, initial: T, max_iter: usize, tol: T) -> Option<T>
+where
+    T: Scalar,
+    F: Fn(T) -> T,
+    G: Fn(T) -> T,
+{
+    let mut x = initial;
+    let derivative_threshold = derivative_zero_threshold::<T>();
+
+    for _ in 0..max_iter {
+        let fx = f(x);
+        let dfx = df(x);
+        if dfx.abs() < derivative_threshold {
+            return None;
+        }
+        let next = x - fx / dfx;
+        if (next - x).abs() < tol {
+            return Some(next);
+        }
+        x = next;
+    }
+    None
+}
+
+/// generic 境界付き Newton 法による方程式求解
+pub fn newton_solve_bounded_generic<T, F, G>(
+    f: F,
+    df: G,
+    initial: T,
+    min: T,
+    max: T,
+    max_iter: usize,
+    tol: T,
+) -> Option<T>
+where
+    T: Scalar,
+    F: Fn(T) -> T,
+    G: Fn(T) -> T,
+{
+    let mut x = initial.clamp(min, max);
+    let derivative_threshold = derivative_zero_threshold::<T>();
+
+    for _ in 0..max_iter {
+        let fx = f(x);
+        let dfx = df(x);
+        if dfx.abs() < derivative_threshold {
+            return None;
+        }
+
+        let next = (x - fx / dfx).clamp(min, max);
+        if (next - x).abs() < tol {
+            return Some(next);
+        }
+        x = next;
+    }
+    None
+}
+
+/// generic 数値微分（前進差分）を用いた境界付き Newton 法
+pub fn newton_solve_with_numeric_derivative_bounded_generic<T, F>(
+    f: F,
+    initial: T,
+    min: T,
+    max: T,
+    max_iter: usize,
+    tol: T,
+    diff_step: T,
+) -> Option<T>
+where
+    T: Scalar,
+    F: Fn(T) -> T,
+{
+    let derivative_threshold = derivative_zero_threshold::<T>();
+    let df = |x: T| {
+        let h = if diff_step.abs() < derivative_threshold {
+            derivative_threshold
+        } else {
+            diff_step
+        };
+        let x_plus = (x + h).min(max);
+        let fx = f(x);
+        let fx_plus = f(x_plus);
+        let effective_h = (x_plus - x).abs();
+
+        if effective_h < derivative_threshold {
+            T::ZERO
+        } else {
+            (fx_plus - fx) / effective_h
+        }
+    };
+
+    newton_solve_bounded_generic(&f, df, initial, min, max, max_iter, tol)
+}
+
+/// generic 単調関数 f(x) = y に対する逆関数 x を Newton 法で求める
+pub fn newton_inverse_generic<T, F, G>(
+    f: F,
+    df: G,
+    target: T,
+    initial: T,
+    max_iter: usize,
+    tol: T,
+) -> Option<T>
+where
+    T: Scalar,
+    F: Fn(T) -> T,
+    G: Fn(T) -> T,
+{
+    let g = |x: T| f(x) - target;
+    newton_solve_generic(g, df, initial, max_iter, tol)
+}
 
 /// ニュートン法による方程式求解
 ///
@@ -36,20 +154,7 @@ where
     F: Fn(f64) -> f64,
     G: Fn(f64) -> f64,
 {
-    let mut x = initial;
-    for _ in 0..max_iter {
-        let fx = f(x);
-        let dfx = df(x);
-        if dfx.abs() < DERIVATIVE_ZERO_THRESHOLD {
-            return None;
-        }
-        let next = x - fx / dfx;
-        if (next - x).abs() < tol {
-            return Some(next);
-        }
-        x = next;
-    }
-    None
+    newton_solve_generic(f, df, initial, max_iter, tol)
 }
 
 /// 境界付きニュートン法による方程式求解
@@ -69,21 +174,7 @@ where
     F: Fn(f64) -> f64,
     G: Fn(f64) -> f64,
 {
-    let mut x = initial.clamp(min, max);
-    for _ in 0..max_iter {
-        let fx = f(x);
-        let dfx = df(x);
-        if dfx.abs() < DERIVATIVE_ZERO_THRESHOLD {
-            return None;
-        }
-
-        let next = (x - fx / dfx).clamp(min, max);
-        if (next - x).abs() < tol {
-            return Some(next);
-        }
-        x = next;
-    }
-    None
+    newton_solve_bounded_generic(f, df, initial, min, max, max_iter, tol)
 }
 
 /// 数値微分（前進差分）を用いた境界付きニュートン法
@@ -102,25 +193,9 @@ pub fn newton_solve_with_numeric_derivative_bounded<F>(
 where
     F: Fn(f64) -> f64,
 {
-    let df = |x: f64| {
-        let h = if diff_step.abs() < DERIVATIVE_ZERO_THRESHOLD {
-            DERIVATIVE_ZERO_THRESHOLD
-        } else {
-            diff_step
-        };
-        let x_plus = (x + h).min(max);
-        let fx = f(x);
-        let fx_plus = f(x_plus);
-        let effective_h = (x_plus - x).abs();
-
-        if effective_h < DERIVATIVE_ZERO_THRESHOLD {
-            0.0
-        } else {
-            (fx_plus - fx) / effective_h
-        }
-    };
-
-    newton_solve_bounded(&f, df, initial, min, max, max_iter, tol)
+    newton_solve_with_numeric_derivative_bounded_generic(
+        f, initial, min, max, max_iter, tol, diff_step,
+    )
 }
 
 /// 単調関数 f(x) = y に対する逆関数 x をニュートン法で求める
@@ -162,8 +237,7 @@ where
     F: Fn(f64) -> f64,
     G: Fn(f64) -> f64,
 {
-    let g = |x: f64| f(x) - target;
-    newton_solve(g, df, initial, max_iter, tol)
+    newton_inverse_generic(f, df, target, initial, max_iter, tol)
 }
 
 /// 2変数連立非線形方程式をニュートン法で解く
