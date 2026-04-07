@@ -70,7 +70,7 @@ mod tests {
 
         assert!(result.is_some());
         let sqrt_2 = result.unwrap();
-        assert!(sqrt_2 >= 0.0_f32 && sqrt_2 <= 2.0_f32);
+        assert!((0.0_f32..=2.0_f32).contains(&sqrt_2));
         assert!((sqrt_2 - std::f32::consts::SQRT_2).abs() < 1e-3_f32);
     }
 
