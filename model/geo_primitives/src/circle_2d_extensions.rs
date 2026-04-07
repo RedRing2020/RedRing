@@ -46,7 +46,9 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(Point2D::new(T::ZERO, T::ZERO), T::ONE).unwrap()
     }
 
-    /// 指定角度での点を取得（ラジアン）
+    /// 指定角度での点を取得する convenience API（ラジアン）
+    ///
+    /// `point_at_parameter` と同じ local angle domain を直接渡したい場合に使う。
     pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
         let cos_a = angle.cos();
         let sin_a = angle.sin();

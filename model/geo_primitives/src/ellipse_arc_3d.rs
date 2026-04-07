@@ -102,12 +102,19 @@ impl<T: Scalar> EllipseArc3D<T> {
         self.ellipse.point_at_angle(self.end_angle)
     }
 
-    /// パラメータ値tにおける点を取得
+    /// Arc trim-local parameter `t` (`0 <= t <= 1`) で楕円弧上の点を取得
+    ///
+    /// 基底楕円の local angle parameter へ線形写像して評価する。
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         let angle_diff = self.end_angle.to_radians() - self.start_angle.to_radians();
         let current_angle = self.start_angle.to_radians() + t * angle_diff;
         self.ellipse
             .point_at_angle(Angle::from_radians(current_angle))
+    }
+
+    /// Primitive 局所角度系の角度で楕円弧上の点を取得する convenience API
+    pub fn point_at_angle(&self, angle: Angle<T>) -> Point3D<T> {
+        self.ellipse.point_at_angle(angle)
     }
 
     /// 弧の角度スパンを取得

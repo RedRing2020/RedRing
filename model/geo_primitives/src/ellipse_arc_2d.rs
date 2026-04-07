@@ -92,17 +92,31 @@ impl<T: Scalar> EllipseArc2D<T> {
         self.ellipse.point_at_parameter(self.end_angle.to_radians())
     }
 
-    /// パラメータ t での点を取得（0 <= t <= 1）
+    /// Arc trim-local parameter `t` (`0 <= t <= 1`) で楕円弧上の点を取得
+    ///
+    /// 基底楕円の local angle parameter へ線形写像して評価する。
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
         let angle = self.start_angle.to_radians()
             + (self.end_angle.to_radians() - self.start_angle.to_radians()) * t;
         self.ellipse.point_at_parameter(angle)
     }
 
-    /// パラメータ t での接線ベクトルを取得
+    /// Primitive 局所角度系の角度で楕円弧上の点を取得する convenience API
+    pub fn point_at_angle(&self, angle: T) -> Point2D<T> {
+        self.ellipse.point_at_parameter(angle)
+    }
+
+    /// Arc trim-local parameter `t` (`0 <= t <= 1`) に対応する接線ベクトルを取得
+    ///
+    /// 基底楕円の local angle parameter へ線形写像して接線を評価する。
     pub fn tangent_at_parameter(&self, t: T) -> Vector2D<T> {
         let angle = self.start_angle.to_radians()
             + (self.end_angle.to_radians() - self.start_angle.to_radians()) * t;
+        self.ellipse.tangent_at_parameter(angle)
+    }
+
+    /// Primitive 局所角度系の角度で接線ベクトルを取得する convenience API
+    pub fn tangent_at_angle(&self, angle: T) -> Vector2D<T> {
         self.ellipse.tangent_at_parameter(angle)
     }
 
@@ -199,7 +213,7 @@ impl<T: Scalar> EllipseArc2D<T> {
         self.angle_in_range(angle.to_radians())
     }
 
-    /// パラメータ範囲を取得
+    /// EllipseArc trim-local parameter の有効範囲 `[0, 1]` を返す
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::ONE)
     }
@@ -497,5 +511,43 @@ impl<T: Scalar> EllipseArc2DContainment<T> for EllipseArc2D<T> {
 impl<T: Scalar> EllipseArc2DTrimRange<T> for EllipseArc2D<T> {
     fn contains_angle(&self, angle: T) -> bool {
         self.angle_in_range(angle)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_ellipse_arc() -> EllipseArc2D<f64> {
+        let center = Point2D::new(2.0, 3.0);
+        let ellipse = Ellipse2D::new(center, 4.0, 2.0, 0.0).unwrap();
+
+        EllipseArc2D::new(ellipse, Angle::from_degrees(0.0), Angle::from_degrees(90.0))
+    }
+
+    #[test]
+    fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
+        let ellipse_arc = create_test_ellipse_arc();
+
+        let point_from_parameter = ellipse_arc.point_at_parameter(0.5);
+        let point_from_angle = ellipse_arc.point_at_angle(std::f64::consts::PI / 4.0);
+
+        assert!((point_from_parameter.x() - point_from_angle.x()).abs() < 1e-10);
+        assert!((point_from_parameter.y() - point_from_angle.y()).abs() < 1e-10);
+
+        let tangent_from_parameter = ellipse_arc.tangent_at_parameter(0.5);
+        let tangent_from_angle = ellipse_arc.tangent_at_angle(std::f64::consts::PI / 4.0);
+
+        assert!((tangent_from_parameter.x() - tangent_from_angle.x()).abs() < 1e-10);
+        assert!((tangent_from_parameter.y() - tangent_from_angle.y()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_parameter_range_is_trim_local_unit_interval() {
+        let ellipse_arc = create_test_ellipse_arc();
+        let range = ellipse_arc.parameter_range();
+
+        assert_eq!(range.0, 0.0);
+        assert_eq!(range.1, 1.0);
     }
 }

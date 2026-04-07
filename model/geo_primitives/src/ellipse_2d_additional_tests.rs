@@ -31,6 +31,7 @@ mod ellipse_2d_additional_tests {
         let center = Point2D::new(0.0, 0.0);
         let ellipse = Ellipse2D::new(center, 4.0, 2.0, 0.0).expect("楕円の作成に失敗");
 
+        // Ellipse core parameter は local angle domain (0..2π)
         // t=0での点（長軸の正の端）
         let point_0 = ellipse.point_at_parameter(0.0);
         assert!((point_0.x() - 4.0_f64).abs() < 1e-10);

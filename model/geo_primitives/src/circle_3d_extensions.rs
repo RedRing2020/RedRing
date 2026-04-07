@@ -4,7 +4,7 @@
 
 use crate::{Circle3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::default_distance_tolerance;
-use geo_contracts::Scalar;
+use geo_contracts::{Circle3DEvaluation, Scalar};
 
 impl<T: Scalar> Circle3D<T> {
     /// 円平面のU軸（基準軸）を取得
@@ -25,33 +25,18 @@ impl<T: Scalar> Circle3D<T> {
         Direction3D::from_vector(v).unwrap()
     }
 
-    /// 円上の点を角度から取得
+    /// 円上の点を角度から取得する convenience API
     ///
     /// # 引数
     /// * `angle` - 角度（ラジアン）
     ///
     /// # 戻り値
     /// 円上の点（円の平面内での極座標から3D座標に変換）
+    ///
+    /// `point_at_parameter` と同じ local angle domain を直接渡したい場合に使う。
     pub fn point_at_angle(&self, angle: T) -> Point3D<T> {
-        // 円の平面内での基準ベクトルを計算
-        // 法線ベクトルに垂直な2つのベクトルを求める
-        let (u, v) = self.get_plane_basis();
-
-        let x = angle.cos();
-        let y = angle.sin();
-
-        // 円上の点 = 中心 + radius * (x * u + y * v)
-        let offset = Vector3D::new(
-            self.radius_internal() * (x * u.x() + y * v.x()),
-            self.radius_internal() * (x * u.y() + y * v.y()),
-            self.radius_internal() * (x * u.z() + y * v.z()),
-        );
-
-        Point3D::new(
-            self.center_internal().x() + offset.x(),
-            self.center_internal().y() + offset.y(),
-            self.center_internal().z() + offset.z(),
-        )
+        let (x, y, z) = <Circle3D<T> as Circle3DEvaluation<T>>::point_at_parameter(self, angle);
+        Point3D::new(x, y, z)
     }
 
     /// 円の平面における基準ベクトル（u, v）を取得
@@ -194,24 +179,36 @@ impl<T: Scalar> Circle3D<T> {
         (normal, d)
     }
 
-    /// 指定角度での接線ベクトルを取得
+    /// 指定 local angle parameter での接線ベクトルを取得する core API
     ///
     /// # 引数
     /// * `angle` - 角度（ラジアン）
     ///
     /// # 戻り値
     /// 指定角度での接線方向ベクトル（正規化済み）
-    pub fn tangent_at_angle(&self, angle: T) -> Direction3D<T> {
-        let (u, v) = self.get_plane_basis();
+    ///
+    /// `point_at_parameter` / `point_at_angle` と同じ local angle domain を前提とする。
+    pub fn tangent_at_parameter(&self, t: T) -> Direction3D<T> {
+        let v_axis = self.axis_internal().as_vector();
+        let v_ref = self.ref_direction_internal().as_vector();
+        let v_perp = v_axis.cross(&v_ref);
 
-        // 接線ベクトル = -sin(θ) * u + cos(θ) * v
-        let tangent = Vector3D::new(
-            -angle.sin() * u.x() + angle.cos() * v.x(),
-            -angle.sin() * u.y() + angle.cos() * v.y(),
-            -angle.sin() * u.z() + angle.cos() * v.z(),
-        );
+        let tangent = v_ref * (-t.sin()) + v_perp * t.cos();
 
         Direction3D::from_vector(tangent).unwrap()
+    }
+
+    /// 指定角度での接線ベクトルを取得する convenience API
+    ///
+    /// # 引数
+    /// * `angle` - 角度（ラジアン）
+    ///
+    /// # 戻り値
+    /// 指定角度での接線方向ベクトル（正規化済み）
+    ///
+    /// `tangent_at_parameter` と同じ local angle domain を直接渡したい場合に使う。
+    pub fn tangent_at_angle(&self, angle: T) -> Direction3D<T> {
+        self.tangent_at_parameter(angle)
     }
 
     /// 点から円への最近点を取得

@@ -144,8 +144,15 @@ pub trait Ray3DProperties<T: Scalar> {
 }
 
 pub trait Ray2DEvaluation<T: Scalar> {
+    /// Ray origin を原点とし、正規化方向に沿う support parameter `t` の evaluation point を返す
+    ///
+    /// Ray の有効 domain は `t >= 0` だが、この API は support line evaluation を表し、clamp は行わない。
     fn point_at_parameter(&self, t: T) -> (T, T);
+
+    /// 点を同じ support parameter 系へ写像する
     fn parameter_for_point(&self, point: (T, T)) -> T;
+
+    /// 幾何学的距離を parameter に対応づけた evaluation point を返す
     fn point_at_distance(&self, distance: T) -> (T, T);
 }
 
@@ -174,8 +181,15 @@ pub trait Ray2DTransform<T: Scalar> {
 }
 
 pub trait Ray3DEvaluation<T: Scalar> {
+    /// Ray origin を原点とし、正規化方向に沿う support parameter `t` の evaluation point を返す
+    ///
+    /// Ray の有効 domain は `t >= 0` だが、この API は support line evaluation を表し、clamp は行わない。
     fn point_at_parameter(&self, t: T) -> (T, T, T);
+
+    /// 点を同じ support parameter 系へ写像する
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
+
+    /// 幾何学的距離を parameter に対応づけた evaluation point を返す
     fn point_at_distance(&self, distance: T) -> (T, T, T);
 }
 

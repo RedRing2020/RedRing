@@ -6,6 +6,7 @@
 mod tests {
     use crate::{Circle3D, Direction3D, Point3D, Vector3D};
     use geo_contracts::default_distance_tolerance;
+    use geo_contracts::Circle3DEvaluation;
 
     // テスト用のf64型別名
     type TestScalar = f64;
@@ -80,8 +81,10 @@ mod tests {
     fn test_point_at_angle() {
         let center = Point3D::new(0.0, 0.0, 0.0);
         let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
+        let ref_direction = Direction3D::from_vector(Vector3D::unit_x()).unwrap();
         let radius = 2.0;
-        let circle = Circle3D::new(center, normal, radius).unwrap();
+        let circle =
+            Circle3D::new_with_ref_direction(center, normal, ref_direction, radius).unwrap();
 
         // 角度0での点（X軸正方向）
         let point_0 = circle.point_at_angle(0.0);
@@ -94,6 +97,71 @@ mod tests {
         assert_approx_eq(point_90.x(), 0.0, 1e-10);
         assert_approx_eq(point_90.y(), 2.0, 1e-10);
         assert_approx_eq(point_90.z(), 0.0, 1e-10);
+
+        let point_90_from_parameter =
+            <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(
+                &circle,
+                std::f64::consts::PI / 2.0,
+            );
+        assert_approx_eq(point_90.x(), point_90_from_parameter.0, 1e-10);
+        assert_approx_eq(point_90.y(), point_90_from_parameter.1, 1e-10);
+        assert_approx_eq(point_90.z(), point_90_from_parameter.2, 1e-10);
+    }
+
+    #[test]
+    fn test_point_at_parameter_uses_local_angle_parameter() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
+        let ref_direction = Direction3D::from_vector(Vector3D::unit_x()).unwrap();
+        let radius = 2.0;
+        let circle =
+            Circle3D::new_with_ref_direction(center, normal, ref_direction, radius).unwrap();
+
+        let point_0 = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(&circle, 0.0);
+        assert_approx_eq(point_0.0, 2.0, 1e-10);
+        assert_approx_eq(point_0.1, 0.0, 1e-10);
+        assert_approx_eq(point_0.2, 0.0, 1e-10);
+
+        let point_pi_2 = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(
+            &circle,
+            std::f64::consts::PI / 2.0,
+        );
+        assert_approx_eq(point_pi_2.0, 0.0, 1e-10);
+        assert_approx_eq(point_pi_2.1, 2.0, 1e-10);
+        assert_approx_eq(point_pi_2.2, 0.0, 1e-10);
+
+        let point_tau = <Circle3D<f64> as Circle3DEvaluation<f64>>::point_at_parameter(
+            &circle,
+            std::f64::consts::TAU,
+        );
+        assert_approx_eq(point_tau.0, 2.0, 1e-10);
+        assert_approx_eq(point_tau.1, 0.0, 1e-10);
+        assert_approx_eq(point_tau.2, 0.0, 1e-10);
+    }
+
+    #[test]
+    fn test_tangent_at_angle_matches_parameter_semantics() {
+        let center = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
+        let ref_direction = Direction3D::from_vector(Vector3D::unit_x()).unwrap();
+        let radius = 2.0;
+        let circle =
+            Circle3D::new_with_ref_direction(center, normal, ref_direction, radius).unwrap();
+
+        let tangent_0 = circle.tangent_at_parameter(0.0);
+        assert_approx_eq(tangent_0.x(), 0.0, 1e-10);
+        assert_approx_eq(tangent_0.y(), 1.0, 1e-10);
+        assert_approx_eq(tangent_0.z(), 0.0, 1e-10);
+
+        let tangent_pi_2 = circle.tangent_at_parameter(std::f64::consts::PI / 2.0);
+        assert_approx_eq(tangent_pi_2.x(), -1.0, 1e-10);
+        assert_approx_eq(tangent_pi_2.y(), 0.0, 1e-10);
+        assert_approx_eq(tangent_pi_2.z(), 0.0, 1e-10);
+
+        let tangent_angle = circle.tangent_at_angle(std::f64::consts::PI / 2.0);
+        assert_approx_eq(tangent_angle.x(), tangent_pi_2.x(), 1e-10);
+        assert_approx_eq(tangent_angle.y(), tangent_pi_2.y(), 1e-10);
+        assert_approx_eq(tangent_angle.z(), tangent_pi_2.z(), 1e-10);
     }
 
     #[test]

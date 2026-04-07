@@ -171,6 +171,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
+        let center = Point2D::origin();
+        let arc = Arc2D::xy_arc(
+            center,
+            3.0_f64,
+            angle(0.0),
+            angle(std::f64::consts::PI / 2.0),
+        )
+        .unwrap();
+
+        let from_parameter = arc.point_at_parameter(0.5);
+        let from_angle = arc.point_at_angle(std::f64::consts::PI / 4.0);
+
+        assert!((from_parameter.x() - from_angle.x()).abs() < 1e-10);
+        assert!((from_parameter.y() - from_angle.y()).abs() < 1e-10);
+    }
+
+    #[test]
     fn test_angle_containment() {
         let center = Point2D::origin();
         let arc = Arc2D::xy_arc(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();

@@ -76,14 +76,15 @@ impl<T: Scalar> Arc3D<T> {
             || self.angle_span().to_radians() <= default_angle_tolerance::<T>()
     }
 
-    /// パラメータ t での円弧上の点を計算
-    /// t ∈ [0, 1] で正規化
+    /// Arc trim-local parameter `t` (`0 <= t <= 1`) で円弧上の点を計算
+    ///
+    /// 母円の local angle parameter へ線形写像して評価する。
     pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
         let angle = self.start_angle().to_radians() + self.angle_span().to_radians() * t;
         self.point_at_angle(angle)
     }
 
-    /// 角度 θ での円弧上の点を計算
+    /// Primitive 局所角度系の角度で円弧上の点を計算する convenience API
     pub fn point_at_angle(&self, angle: T) -> Point3D<T> {
         let cos_angle = angle.cos();
         let sin_angle = angle.sin();
@@ -113,7 +114,7 @@ impl<T: Scalar> Arc3D<T> {
         self.point_at_angle(self.end_angle().to_radians())
     }
 
-    /// パラメータ範囲を取得
+    /// Arc trim-local parameter の有効範囲 `[0, 1]` を返す
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::ONE)
     }

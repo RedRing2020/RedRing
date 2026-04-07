@@ -97,12 +97,13 @@ impl<T: Scalar> Circle2D<T> {
         distance_squared < self.radius * self.radius
     }
 
-    /// パラメータでの点を取得
+    /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) で円周上の点を取得
+    ///
+    /// `point_at_angle` と同じ local angle domain を使う core evaluation 入口として扱う。
     pub fn point_at_parameter(&self, t: T) -> Point2D<T> {
-        let angle = T::TAU * t;
         Point2D::new(
-            self.center.x() + self.radius * angle.cos(),
-            self.center.y() + self.radius * angle.sin(),
+            self.center.x() + self.radius * t.cos(),
+            self.center.y() + self.radius * t.sin(),
         )
     }
 
@@ -138,7 +139,7 @@ impl<T: Scalar> Circle2D<T> {
         }
     }
 
-    /// 点における円のパラメータを取得
+    /// 円周上の点を Circle core の local angle parameter (`0 <= t < 2π`) へ写像する
     pub fn parameter_at_point(&self, point: Point2D<T>) -> Option<T> {
         if !self.point_on_circumference(point) {
             return None;
@@ -148,12 +149,12 @@ impl<T: Scalar> Circle2D<T> {
         let dy = point.y() - self.center.y();
         let angle = dy.atan2(dx);
 
-        // 0-1の範囲に正規化
+        // 0-2π の local angle parameter に正規化
         let parameter = if angle < T::ZERO {
             angle + T::TAU
         } else {
             angle
-        } / T::TAU;
+        };
 
         Some(parameter)
     }

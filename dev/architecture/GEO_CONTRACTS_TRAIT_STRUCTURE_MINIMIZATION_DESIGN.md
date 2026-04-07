@@ -68,16 +68,24 @@ Issue #535 では、`geo_contracts` の trait構造を次の最小構造へ再�
 - `Triangle` のような面 shape に、curve parameter capability を横展開しない
 - surface family を扱う場合は、curve parameter と surface parameter を同一 trait に混在させない
 
+補足:
+
+- `point_at_parameter` / `point_at_angle` / `parameter_range()` の具体的な意味は `GEOMETRY_SHAPE_SEMANTICS_DESIGN.md` の「`#558` parameter semantics の正本」を参照する
+- 本書では capability の所属だけを扱い、trim-local parameter と mother curve native angle の語彙定義自体は shape semantics 側へ集約する
+
 ### 3. periodic parameter は閉曲線 shape の個別論点として扱う
 
 対象:
 
 - `Circle`
+- `Ellipse`
 
 設計反映:
 
 - 閉曲線の parameter capability は、境界付き曲線と同一視しない
 - `Circle` の parameter は評価 capability として許容するが、`start/end` を導く根拠には使わない
+- `Ellipse` も同様に評価 capability として許容するが、`start/end` を導く根拠には使わない
+- closed curve family の periodic parameter は local angle semantics へ揃える
 - periodic curve を導入する場合、endpoint capability とは別の分岐として扱う
 
 ### 4. boundary access は curve endpoint と polygon vertex を分ける
@@ -457,8 +465,8 @@ Arc はもともと `Measure` に endpoint / evaluation / containment / distance
 | `Arc2DConstructor` / `Arc3DConstructor` | `definition` |
 | `Arc2DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_semicircle` | `definition` |
 | `Arc3DProperties::center/radius/start_angle/end_angle/dimension/angle_span/is_full_circle/is_on_xy_plane` | `definition` |
-| `Arc2DDerived::measure` | `derived` |
-| `Arc3DDerived::measure` | `derived` |
+| `Arc2DDerived::length` | `derived` |
+| `Arc3DDerived::length` | `derived` |
 | `Arc2DEndpoint::start_point/end_point` | `endpoint` |
 | `Arc3DEndpoint::start_point/end_point` | `endpoint` |
 | `Arc2DEvaluation::point_at_parameter` | `evaluation` |
@@ -491,8 +499,8 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 | `EllipseArc2DConstructor` / `EllipseArc3DConstructor` | `definition` |
 | `EllipseArc2DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/rotation/sweep_angle/eccentricity` | `definition` |
 | `EllipseArc3DProperties::center/semi_major_axis/semi_minor_axis/start_angle/end_angle/normal/sweep_angle/eccentricity` | `definition` |
-| `EllipseArc2DDerived::measure/bounding_box` | `derived` |
-| `EllipseArc3DDerived::measure/bounding_box` | `derived` |
+| `EllipseArc2DDerived::length/bounding_box` | `derived` |
+| `EllipseArc3DDerived::length/bounding_box` | `derived` |
 | `EllipseArc2DEndpoint::start_point/end_point` | `endpoint` |
 | `EllipseArc3DEndpoint::start_point/end_point` | `endpoint` |
 | `EllipseArc2DEvaluation::point_at_parameter/point_at_angle` | `evaluation` |
@@ -514,10 +522,10 @@ EllipseArc も Arc と同系統だが、`bounding_box` と tolerance 付き cont
 ### Ellipse の再分類
 
 Ellipse は閉曲線 shape であり、Circle と同様に endpoint capability は持たない。
-一方で、現行 API は `perimeter` と `measure` を併存させており、閉曲線の主語彙が曖昧である。
+一方で、現行 core API 自体は `circumference` を主語彙としているが、旧補助層や一部 downstream テストには `perimeter` / `length` 由来の語彙が残っている。
 
 本整理では、Ellipse の周回長語彙は `length` へ寄せず、閉曲線 family の primary vocabulary として `circumference` を採用する。
-`perimeter` は既存 API との互換語彙、`measure` は集約互換 API として後退させる。
+`perimeter` や `length` は旧補助層の互換語彙としてのみ扱い、core / derived の正本語彙は `circumference` に揃える。
 
 | 現行 trait / API | 再分類 |
 | --- | --- |
@@ -660,24 +668,24 @@ Circle は閉曲線であり、parameter evaluation を持っても endpoint cap
 | `Circle2DConstructor` / `Circle3DConstructor` | `definition` |
 | `Circle2DProperties::center/radius/ref_direction/diameter/dimension/is_unit_circle/is_centered_at_origin/is_degenerate` | `definition` |
 | `Circle3DProperties::center/radius/axis/ref_direction/dimension/is_unit_circle/is_centered_at_origin/is_degenerate/is_on_xy_plane` | `definition` |
-| `Circle2DMeasure::circumference` | `derived` |
-| `Circle3DMeasure::circumference` | `derived` |
-| `Circle2DMeasure::area` | `derived` |
-| `Circle3DMeasure::area` | `derived` |
-| `Circle2DMeasure::point_at_parameter` | `evaluation` |
-| `Circle3DMeasure::point_at_parameter` | `evaluation` |
-| `Circle2DMeasure::contains_point/point_on_circumference` | `containment` |
-| `Circle3DMeasure::contains_point/point_on_circumference` | `containment` |
-| `Circle2DMeasure::distance_to_point` | `distance` |
-| `Circle3DMeasure::distance_to_point` | `distance` |
-| `Circle2DMeasure::closest_point_to` | `projection` |
-| `Circle3DMeasure::closest_point_to` | `projection` |
+| `Circle2DDerived::circumference/area` | `derived` |
+| `Circle3DDerived::circumference/area` | `derived` |
+| `Circle2DEvaluation::point_at_parameter` | `evaluation` |
+| `Circle3DEvaluation::point_at_parameter` | `evaluation` |
+| `Circle2DContainment::contains_point/point_on_circumference` | `containment` |
+| `Circle3DContainment::contains_point/point_on_circumference` | `containment` |
+| `Circle2DDistance::distance_to_point` | `distance` |
+| `Circle3DDistance::distance_to_point` | `distance` |
+| `Circle2DProjection::closest_point_to` | `projection` |
+| `Circle3DProjection::closest_point_to` | `projection` |
 | `Circle2DCore` / `Circle3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
 
 - `area` は閉曲線そのものの評価というより、その interior を伴う派生量として扱う
 - `ref_direction` は parameter 原点の便宜的基準として使えても、endpoint capability の根拠には使わない
+- `Circle` / `Ellipse` の `point_at_parameter` はともに局所角度 parameter を使う
+- closed curve family では `point_at_parameter` を angle domain に揃え、必要なら正規化 phase は別 API で表す
 - 実装進捗として `Circle2DMeasure` / `Circle3DMeasure` は削除済みで、capability trait のみを export する
 - 実装進捗として `Ellipse2DMeasure` / `Ellipse3DMeasure` も削除済みで、派生量・評価・包含・距離を個別 trait で公開する
 
@@ -688,22 +696,17 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 | 現行 trait / API | 再分類 |
 | --- | --- |
 | `Triangle2DConstructor` / `Triangle3DConstructor` | `definition` |
-| `Triangle2DProperties::vertex_a/vertex_b/vertex_c` | `definition` |
-| `Triangle3DProperties::vertex_a/vertex_b/vertex_c` | `definition` |
-| `Triangle2DProperties::centroid/circumcenter/incenter/circumradius/inradius` | `derived` |
-| `Triangle3DProperties::centroid/normal/circumcenter/circumradius/inradius` | `derived` |
-| `Triangle2DDerived::measure` | `derived` |
-| `Triangle3DDerived::measure` | `derived` |
-| `Triangle2DDerived::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
-| `Triangle3DDerived::edge_ab_length/edge_bc_length/edge_ca_length` | `derived` |
-| `Triangle2DDerived::perimeter` | `derived` |
-| `Triangle3DDerived::perimeter` | `derived` |
+| `Triangle2DBoundaryAccess::vertex_a/vertex_b/vertex_c` | `boundary-access` |
+| `Triangle3DBoundaryAccess::vertex_a/vertex_b/vertex_c` | `boundary-access` |
+| `Triangle2DProperties` / `Triangle3DProperties` | 互換 alias |
+| `Triangle2DDerived::centroid/circumcenter/incenter/circumradius/inradius/area/is_clockwise` | `derived` |
+| `Triangle3DDerived::centroid/normal/circumcenter/circumradius/inradius/area/is_planar` | `derived` |
+| `Triangle2DBoundaryQuantity::edge_ab_length/edge_bc_length/edge_ca_length/perimeter` | `boundary-quantity` |
+| `Triangle3DBoundaryQuantity::edge_ab_length/edge_bc_length/edge_ca_length/perimeter` | `boundary-quantity` |
 | `Triangle2DContainment::contains_point` | `containment` |
 | `Triangle3DContainment::contains_point` | `containment` |
 | `Triangle2DDistance::distance_to_point` | `distance` |
 | `Triangle3DDistance::distance_to_point` | `distance` |
-| `Triangle2DDerived::is_clockwise` | `derived` |
-| `Triangle3DDerived::is_planar` | `derived` |
 | `Triangle2DCore` / `Triangle3DCore` | `Constructor + Properties` へ縮退候補 |
 
 補足:
@@ -986,6 +989,7 @@ Triangle は面 shape であり、curve endpoint や curve parameter capability 
 
 - `ref_direction` / `rotation` は parameter 原点の基準に限定する
 - `point_at_parameter` は evaluation に置く
+- periodic parameter の具体的な規約は Circle / Ellipse とも local angle semantics に統一する
 - `circumference` / `area` は derived に置く
 - endpoint 語彙は追加しない
 
