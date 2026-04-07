@@ -6,12 +6,12 @@
 //!
 //! ## 使用例
 //! ```rust
-//! use analysis::linalg::solver::newton::{newton_solve, newton_inverse};
+//! use analysis::linalg::solver::newton::{newton_inverse_generic, newton_solve_generic};
 //!
 //! // 非線形方程式 f(x) = x^2 - 2 = 0 の解（√2を求める）
 //! let f = |x: f64| x * x - 2.0;
 //! let df = |x: f64| 2.0 * x;
-//! let result = newton_solve(f, df, 1.0, 100, 1e-10);
+//! let result = newton_solve_generic(f, df, 1.0, 100, 1e-10);
 //! assert!(result.is_some());
 //! ```
 pub mod cramer;

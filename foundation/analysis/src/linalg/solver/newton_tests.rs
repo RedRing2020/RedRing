@@ -9,7 +9,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_newton_solve_square_root() {
+    fn test_newton_solve_wrapper_square_root_f64() {
         let f = |x: f64| x * x - 2.0;
         let df = |x: f64| 2.0 * x;
         let result = newton_solve(f, df, 1.0, 100, TOLERANCE_F64);
@@ -20,7 +20,7 @@ mod tests {
     }
 
     #[test]
-    fn test_newton_inverse_cube_root() {
+    fn test_newton_inverse_wrapper_cube_root_f64() {
         let f = |x: f64| x * x * x;
         let df = |x: f64| 3.0 * x * x;
         let result = newton_inverse(f, df, 8.0, 2.0, 100, TOLERANCE_F64);
@@ -31,12 +31,23 @@ mod tests {
     }
 
     #[test]
-    fn test_newton_solve_zero_derivative() {
+    fn test_newton_solve_wrapper_zero_derivative() {
         let f = |x: f64| x * x;
         let df = |_: f64| 0.0;
         let result = newton_solve(f, df, 1.0, 100, TOLERANCE_F64);
 
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_generic_square_root_f64() {
+        let f = |x: f64| x * x - 2.0;
+        let df = |x: f64| 2.0 * x;
+        let result = newton_solve_generic(f, df, 1.0_f64, 100, TOLERANCE_F64);
+
+        assert!(result.is_some());
+        let sqrt_2 = result.unwrap();
+        assert!((sqrt_2 - std::f64::consts::SQRT_2).abs() < INTEGRATION_TOLERANCE_STRICT);
     }
 
     #[test]

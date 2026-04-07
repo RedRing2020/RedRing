@@ -141,12 +141,12 @@ where
 ///
 /// # Example
 /// ```rust
-/// use analysis::linalg::solver::newton::newton_solve;
+/// use analysis::linalg::solver::newton::newton_solve_generic;
 ///
 /// // x^2 - 2 = 0 の解を求める（√2を計算）
 /// let f = |x: f64| x * x - 2.0;
 /// let df = |x: f64| 2.0 * x;
-/// let result = newton_solve(f, df, 1.0, 100, 1e-10);
+/// let result = newton_solve_generic(f, df, 1.0, 100, 1e-10);
 /// assert!((result.unwrap() - std::f64::consts::SQRT_2).abs() < 1e-6);
 /// ```
 pub fn newton_solve<F, G>(f: F, df: G, initial: f64, max_iter: usize, tol: f64) -> Option<f64>
@@ -217,12 +217,12 @@ where
 ///
 /// # Example
 /// ```rust
-/// use analysis::linalg::solver::newton::newton_inverse;
+/// use analysis::linalg::solver::newton::newton_inverse_generic;
 ///
 /// // x^3 の逆関数（立方根）を計算
 /// let f = |x: f64| x * x * x;
 /// let df = |x: f64| 3.0 * x * x;
-/// let result = newton_inverse(f, df, 8.0, 2.0, 100, 1e-10);
+/// let result = newton_inverse_generic(f, df, 8.0, 2.0, 100, 1e-10);
 /// assert!((result.unwrap() - 2.0).abs() < 1e-6);
 /// ```
 pub fn newton_inverse<F, G>(
