@@ -791,6 +791,14 @@ where
 4. clamp 動作、shape 不整合、境界端収束のテストを追加する
 5. 必要なら follow-up で `tol` を `residual_tol` / `step_tol` に分離する
 
+#### Phase D 実装スコープ（2026年4月8日）
+
+- `foundation/analysis/src/linalg/solver/newton.rs` に `MultivariateNewtonBounds<T>` と `MultivariateNewtonOptions<T>` を追加する
+- bounded 版 API と `..._with_solver` 版を追加する
+- 反復ごとに clamp を適用し、実際に採用された更新量で step 判定を行う
+- `newton_tests.rs` に bounds 検証、初期値 clamp、境界端収束、shape 不整合、特異 Jacobian の回帰テストを追加する
+- 既存 unbounded API の署名・挙動は変更しない
+
 ### 外部利用者向け移行方針
 
 - 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する

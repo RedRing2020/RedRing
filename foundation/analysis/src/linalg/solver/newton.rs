@@ -55,6 +55,91 @@ where
     Some(Vector::new(solution.solution))
 }
 
+#[inline]
+fn validate_multivariate_system<T: Scalar>(
+    current: &Vector<T>,
+    residual: &Vector<T>,
+    jacobian: &DynamicMatrix<T>,
+) -> bool {
+    let dimension = current.len();
+    residual.len() == dimension && jacobian.shape() == (dimension, dimension)
+}
+
+/// 境界付き多変数 Newton の境界条件
+#[derive(Debug, Clone, PartialEq)]
+pub struct MultivariateNewtonBounds<T: Scalar> {
+    lower: Vector<T>,
+    upper: Vector<T>,
+}
+
+impl<T: Scalar> MultivariateNewtonBounds<T> {
+    pub fn new(lower: Vector<T>, upper: Vector<T>) -> Result<Self, String> {
+        if lower.len() != upper.len() {
+            return Err("Bounds dimension mismatch".to_string());
+        }
+
+        for index in 0..lower.len() {
+            if lower[index] > upper[index] {
+                return Err("Lower bound must be less than or equal to upper bound".to_string());
+            }
+        }
+
+        Ok(Self { lower, upper })
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.lower.len()
+    }
+
+    pub fn lower(&self) -> &Vector<T> {
+        &self.lower
+    }
+
+    pub fn upper(&self) -> &Vector<T> {
+        &self.upper
+    }
+
+    pub fn clamp(&self, point: &Vector<T>) -> Result<Vector<T>, String> {
+        if point.len() != self.dimension() {
+            return Err("Point dimension mismatch".to_string());
+        }
+
+        Ok(Vector::new(
+            point
+                .data()
+                .iter()
+                .enumerate()
+                .map(|(index, value)| value.clamp(self.lower[index], self.upper[index]))
+                .collect(),
+        ))
+    }
+
+    pub fn contains(&self, point: &Vector<T>) -> bool {
+        if point.len() != self.dimension() {
+            return false;
+        }
+
+        point
+            .data()
+            .iter()
+            .enumerate()
+            .all(|(index, value)| *value >= self.lower[index] && *value <= self.upper[index])
+    }
+}
+
+/// 境界付き多変数 Newton の反復設定
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MultivariateNewtonOptions<T: Scalar> {
+    pub max_iter: usize,
+    pub tol: T,
+}
+
+impl<T: Scalar> MultivariateNewtonOptions<T> {
+    pub fn new(max_iter: usize, tol: T) -> Self {
+        Self { max_iter, tol }
+    }
+}
+
 /// generic Newton 法による方程式求解
 pub fn newton_solve_generic<T, F, G>(f: F, df: G, initial: T, max_iter: usize, tol: T) -> Option<T>
 where
@@ -352,13 +437,7 @@ where
 
     for _ in 0..max_iter {
         let (residual, jacobian) = system(&current);
-        let dimension = current.len();
-
-        if residual.len() != dimension {
-            return None;
-        }
-
-        if jacobian.shape() != (dimension, dimension) {
+        if !validate_multivariate_system(&current, &residual, &jacobian) {
             return None;
         }
 
@@ -371,11 +450,71 @@ where
         let next = (current.clone() - step).ok()?;
 
         let (next_residual, _) = system(&next);
-        if next_residual.len() != dimension {
+        if next_residual.len() != current.len() {
             return None;
         }
 
         if next_residual.norm() < tol && step_norm < tol {
+            return Some(next);
+        }
+
+        current = next;
+    }
+
+    None
+}
+
+/// generic 境界付き多変数連立非線形方程式をニュートン法で解く
+pub fn newton_solve_multivariate_bounded<T, F>(
+    system: F,
+    initial: Vector<T>,
+    bounds: &MultivariateNewtonBounds<T>,
+    options: &MultivariateNewtonOptions<T>,
+) -> Option<Vector<T>>
+where
+    T: Scalar,
+    F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
+{
+    let solver = GaussianSolver::new(solver_tolerance(options.tol));
+    newton_solve_multivariate_bounded_with_solver(system, initial, bounds, &solver, options)
+}
+
+/// generic 境界付き多変数連立非線形方程式を、任意の線形 solver を使ってニュートン法で解く
+pub fn newton_solve_multivariate_bounded_with_solver<T, F, S>(
+    system: F,
+    initial: Vector<T>,
+    bounds: &MultivariateNewtonBounds<T>,
+    solver: &S,
+    options: &MultivariateNewtonOptions<T>,
+) -> Option<Vector<T>>
+where
+    T: Scalar,
+    F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
+    S: DynamicMatrixLinearSolver<T>,
+{
+    let mut current = bounds.clamp(&initial).ok()?;
+
+    for _ in 0..options.max_iter {
+        let (residual, jacobian) = system(&current);
+        if !validate_multivariate_system(&current, &residual, &jacobian) {
+            return None;
+        }
+
+        if residual.norm() < options.tol {
+            return Some(current);
+        }
+
+        let step = solve_linear_dynamic(&jacobian, &residual, solver)?;
+        let unclamped_next = (current.clone() - step).ok()?;
+        let next = bounds.clamp(&unclamped_next).ok()?;
+        let actual_step = (next.clone() - current.clone()).ok()?;
+
+        let (next_residual, _) = system(&next);
+        if next_residual.len() != current.len() {
+            return None;
+        }
+
+        if next_residual.norm() < options.tol && actual_step.norm() < options.tol {
             return Some(next);
         }
 
