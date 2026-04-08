@@ -650,6 +650,147 @@ fn solve_linear_2x2<T: Scalar>(
 
 - 上記を別 phase issue に分割できる状態まで落とし込む
 
+### 境界付き多変数 Newton の型設計（2026年4月8日）
+
+#### 設計対象
+
+- 既存の `newton_solve_multivariate` / `newton_solve_multivariate_with_solver` を基準に、境界拘束付きの多変数 Newton 入口を追加する
+- 初手では line search や active-set 法までは導入せず、各反復後にパラメータを境界内へ clamp する単純境界方式を採る
+- 既存 1変数 bounded Newton と同様に、「更新候補を計算して境界内へ戻す」思想を多変数へ拡張する
+
+#### 比較案
+
+案1: `lower: Vector<T>` と `upper: Vector<T>` を関数引数へ直接追加する
+
+利点:
+
+- 実装は最小
+- 既存 `newton_solve_multivariate` に近い呼び出し形を保てる
+
+欠点:
+
+- 引数が増え、shape 検証責務が API 呼び出しごとに漏れる
+- 将来 `step_tol` や damping などの設定を追加すると関数シグネチャが肥大化する
+
+評価:
+
+- 初速は出るが、長期の API 安定性では弱い
+
+案2: 境界だけを専用型へ分離する
+
+利点:
+
+- shape 検証と clamp 責務を境界型へ閉じ込められる
+- 引数増加を一定程度抑えられる
+
+欠点:
+
+- 反復設定が将来増えると別の引数肥大が起きる
+
+評価:
+
+- 実用的だが、境界と反復設定の責務分離がまだ不十分
+
+案3: 境界型と options 型を分離する
+
+利点:
+
+- 境界と反復設定の責務を分離できる
+- 将来 `residual_tol` / `step_tol` / damping / line search 追加時も破壊的変更を抑えやすい
+- builder 併用方針とも整合する
+
+欠点:
+
+- 初手の型数は増える
+
+評価:
+
+- 長期拡張性と整合性の観点で最も妥当
+
+#### 推奨案
+
+- 境界付き多変数 Newton では案3を採用する
+- つまり、`MultivariateNewtonBounds<T>` と `MultivariateNewtonOptions<T>` を分離し、bounded API はそれらを受け取る形にする
+- solver 差し替えの考え方は既存の unbounded 版に合わせ、既定 solver 版と `..._with_solver` 版を併設する
+
+#### 推奨型
+
+```rust
+pub struct MultivariateNewtonBounds<T: Scalar> {
+	lower: Vector<T>,
+	upper: Vector<T>,
+}
+
+pub struct MultivariateNewtonOptions<T: Scalar> {
+	pub max_iter: usize,
+	pub tol: T,
+}
+```
+
+補足:
+
+- `MultivariateNewtonBounds<T>` は境界の shape 検証と clamp 責務を持つ
+- `MultivariateNewtonOptions<T>` は初手では `max_iter` と `tol` のみを持ち、将来の `residual_tol` / `step_tol` 分離余地を残す
+
+#### 推奨 API 形状
+
+```rust
+pub fn newton_solve_multivariate_bounded<T, F>(
+	system: F,
+	initial: Vector<T>,
+	bounds: &MultivariateNewtonBounds<T>,
+	options: &MultivariateNewtonOptions<T>,
+) -> Option<Vector<T>>
+where
+	T: Scalar,
+	F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>);
+
+pub fn newton_solve_multivariate_bounded_with_solver<T, F, S>(
+	system: F,
+	initial: Vector<T>,
+	bounds: &MultivariateNewtonBounds<T>,
+	solver: &S,
+	options: &MultivariateNewtonOptions<T>,
+) -> Option<Vector<T>>
+where
+	T: Scalar,
+	F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
+	S: DynamicMatrixLinearSolver<T>;
+```
+
+#### `MultivariateNewtonBounds<T>` の責務
+
+- `new(lower, upper) -> Result<Self, String>`
+- `lower.len() == upper.len()` の検証
+- 各軸で `lower[i] <= upper[i]` の検証
+- `clamp(&self, point: &Vector<T>) -> Result<Vector<T>, String>`
+- `contains(&self, point: &Vector<T>) -> bool`
+
+この責務分離により、bounded Newton 本体は「候補点を計算し、境界へ clamp して次反復へ進む」ことだけに集中できる。
+
+#### 反復アルゴリズム方針
+
+- 初期値は開始時に `bounds.clamp(...)` で境界内へ正規化する
+- 各反復で residual と Jacobian を評価し、更新ステップを解く
+- `next = current - step` を計算したあと、`bounds.clamp(&next)` を適用する
+- 収束判定は unbounded 版と同様に residual norm と step norm の両方を使う
+- 初手では line search や active-set 法は導入しない
+
+#### unbounded 版との関係
+
+- unbounded 版の `system` 署名はそのまま維持する
+- bounded 版は `bounds` と `options` を追加した薄い拡張入口として位置付ける
+- 返り値は既存 Newton 群との整合を優先して `Option<Vector<T>>` のままとする
+- 失敗理由の型分離は別論点として保持し、この段階では導入しない
+
+#### 実装順序案
+
+1. `MultivariateNewtonBounds<T>` を追加する
+2. `MultivariateNewtonOptions<T>` を追加する
+3. bounded API 2 本を `newton.rs` に追加する
+4. clamp 動作、shape 不整合、境界端収束のテストを追加する
+5. 必要なら follow-up で `tol` を `residual_tol` / `step_tol` に分離する
+
 ### 外部利用者向け移行方針
 
 - 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する
