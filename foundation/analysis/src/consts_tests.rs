@@ -54,7 +54,6 @@ fn test_tolerance_constants() {
 
     assert_eq!(SOLVER_TOLERANCE_F32, 1e-6_f32);
     assert_eq!(SOLVER_TOLERANCE_F64, 1e-15_f64);
-    assert!(SOLVER_TOLERANCE_F32 > 0.0_f32);
 
     assert_eq!(super::numerical::DERIVATIVE_ZERO_THRESHOLD_F32, 1e-6_f32);
     assert_eq!(super::DERIVATIVE_ZERO_THRESHOLD, 1e-12_f64);
