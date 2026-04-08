@@ -618,6 +618,15 @@ fn solve_linear_2x2<T: Scalar>(
 - 特異判定と失敗時の返り値方針を定義する
 - `newton_solve_2d` との差分を明示し、2変数専用 convenience wrapper へ寄せる余地を残す
 
+#### Phase B 実装スコープ（2026年4月8日着手）
+
+- 新規入口として `newton_solve_multivariate` と `newton_solve_multivariate_with_solver` を追加する
+- `system` は `&Vector<T>` を受け取り、`(Vector<T>, DynamicMatrix<T>)` を返す形に統一する
+- 既定の更新ステップは `GaussianSolver<T>` + `DynamicMatrixLinearSolver<T>` adapter を使って解く
+- solver 差し替えが必要な利用者向けに `..._with_solver` を併設し、`LUSolver<T>` などを注入可能にする
+- 返り値は既存 Newton 系との整合を優先して `Option<Vector<T>>` とし、shape 不整合・特異 Jacobian・非収束は `None` で表す
+- 収束判定は residual norm と step norm の両方を使い、既存 2変数 solver より明示的な多変数収束条件を採る
+
 #### Phase C: 線形 solver 接続方針の設計
 
 - 動的 Jacobian を既存の `GaussianSolver<T>` / `LUSolver<T>` へどう接続するかを整理する
