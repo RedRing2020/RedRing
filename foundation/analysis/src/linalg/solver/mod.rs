@@ -20,13 +20,11 @@ pub mod lu; // LU分解法
 pub mod newton; // ニュートン・ラフソン法
 
 // Newton法ソルバーの再エクスポート
-// generic API を正本とし、f64 API は downstream 互換入口として併存させる。
-// workspace 内の新規実装では generic API を優先し、f64 ラッパーの利用は増やさない。
+// generic / multivariate API を正本として公開する。
 pub use newton::{
-    newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d, newton_solve_bounded,
-    newton_solve_bounded_generic, newton_solve_generic, newton_solve_multivariate,
-    newton_solve_multivariate_bounded, newton_solve_multivariate_bounded_with_solver,
-    newton_solve_multivariate_with_solver, newton_solve_with_numeric_derivative_bounded,
+    newton_inverse_generic, newton_solve_bounded_generic, newton_solve_generic,
+    newton_solve_multivariate, newton_solve_multivariate_bounded,
+    newton_solve_multivariate_bounded_with_solver, newton_solve_multivariate_with_solver,
     newton_solve_with_numeric_derivative_bounded_generic, MultivariateNewtonBounds,
     MultivariateNewtonOptions,
 };

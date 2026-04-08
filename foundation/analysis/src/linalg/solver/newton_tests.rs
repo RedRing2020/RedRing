@@ -1,9 +1,8 @@
 use super::newton::{
-    newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d, newton_solve_generic,
-    newton_solve_multivariate, newton_solve_multivariate_bounded,
-    newton_solve_multivariate_bounded_with_solver, newton_solve_multivariate_with_solver,
-    newton_solve_with_numeric_derivative_bounded_generic, MultivariateNewtonBounds,
-    MultivariateNewtonOptions,
+    newton_inverse_generic, newton_solve_generic, newton_solve_multivariate,
+    newton_solve_multivariate_bounded, newton_solve_multivariate_bounded_with_solver,
+    newton_solve_multivariate_with_solver, newton_solve_with_numeric_derivative_bounded_generic,
+    MultivariateNewtonBounds, MultivariateNewtonOptions,
 };
 use crate::consts::test_constants::{
     INTEGRATION_TOLERANCE_STRICT, SOLVER_TOLERANCE_F32, TOLERANCE_F64,
@@ -15,37 +14,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_newton_solve_wrapper_square_root_f64() {
-        let f = |x: f64| x * x - 2.0;
-        let df = |x: f64| 2.0 * x;
-        let result = newton_solve(f, df, 1.0, 100, TOLERANCE_F64);
-
-        assert!(result.is_some());
-        let sqrt_2 = result.unwrap();
-        assert!((sqrt_2 - std::f64::consts::SQRT_2).abs() < INTEGRATION_TOLERANCE_STRICT);
-    }
-
-    #[test]
-    fn test_newton_inverse_wrapper_cube_root_f64() {
-        let f = |x: f64| x * x * x;
-        let df = |x: f64| 3.0 * x * x;
-        let result = newton_inverse(f, df, 8.0, 2.0, 100, TOLERANCE_F64);
-
-        assert!(result.is_some());
-        let cube_root = result.unwrap();
-        assert!((cube_root - 2.0).abs() < INTEGRATION_TOLERANCE_STRICT);
-    }
-
-    #[test]
-    fn test_newton_solve_wrapper_zero_derivative() {
-        let f = |x: f64| x * x;
-        let df = |_: f64| 0.0;
-        let result = newton_solve(f, df, 1.0, 100, TOLERANCE_F64);
-
-        assert!(result.is_none());
-    }
-
-    #[test]
     fn test_newton_solve_generic_square_root_f64() {
         let f = |x: f64| x * x - 2.0;
         let df = |x: f64| 2.0 * x;
@@ -54,6 +22,26 @@ mod tests {
         assert!(result.is_some());
         let sqrt_2 = result.unwrap();
         assert!((sqrt_2 - std::f64::consts::SQRT_2).abs() < INTEGRATION_TOLERANCE_STRICT);
+    }
+
+    #[test]
+    fn test_newton_inverse_generic_cube_root_f64() {
+        let f = |x: f64| x * x * x;
+        let df = |x: f64| 3.0 * x * x;
+        let result = newton_inverse_generic(f, df, 8.0_f64, 2.0_f64, 100, TOLERANCE_F64);
+
+        assert!(result.is_some());
+        let cube_root = result.unwrap();
+        assert!((cube_root - 2.0).abs() < INTEGRATION_TOLERANCE_STRICT);
+    }
+
+    #[test]
+    fn test_newton_solve_generic_zero_derivative() {
+        let f = |x: f64| x * x;
+        let df = |_: f64| 0.0;
+        let result = newton_solve_generic(f, df, 1.0_f64, 100, TOLERANCE_F64);
+
+        assert!(result.is_none());
     }
 
     #[test]
@@ -91,68 +79,6 @@ mod tests {
     }
 
     #[test]
-    fn test_newton_solve_2d_circle_line() {
-        let system = |x: f64, y: f64| {
-            let f1 = x * x + y * y - 1.0;
-            let f2 = x - y;
-            let jacobian = [[2.0 * x, 2.0 * y], [1.0, -1.0]];
-            (f1, f2, jacobian)
-        };
-
-        let result = newton_solve_2d(system, (1.0, 0.5), 100, TOLERANCE_F64);
-        assert!(result.is_some());
-
-        let (x, y) = result.unwrap();
-        let expected = 1.0 / 2_f64.sqrt();
-        assert!((x - expected).abs() < INTEGRATION_TOLERANCE_STRICT);
-        assert!((y - expected).abs() < INTEGRATION_TOLERANCE_STRICT);
-    }
-
-    #[test]
-    fn test_newton_solve_2d_singular_jacobian() {
-        let system = |x: f64, y: f64| {
-            let f1 = x + y;
-            let f2 = x + y;
-            let jacobian = [[1.0, 1.0], [1.0, 1.0]];
-            (f1, f2, jacobian)
-        };
-
-        let result = newton_solve_2d(system, (1.0, 1.0), 100, TOLERANCE_F64);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_newton_solve_2d_circle_line_f32() {
-        let system = |x: f32, y: f32| {
-            let f1 = x * x + y * y - 1.0_f32;
-            let f2 = x - y;
-            let jacobian = [[2.0_f32 * x, 2.0_f32 * y], [1.0_f32, -1.0_f32]];
-            (f1, f2, jacobian)
-        };
-
-        let result = newton_solve_2d(system, (1.0_f32, 0.5_f32), 100, 1e-6_f32);
-        assert!(result.is_some());
-
-        let (x, y) = result.unwrap();
-        let expected = 1.0_f32 / 2.0_f32.sqrt();
-        assert!((x - expected).abs() < 1e-4_f32);
-        assert!((y - expected).abs() < 1e-4_f32);
-    }
-
-    #[test]
-    fn test_newton_solve_2d_singular_jacobian_f32() {
-        let system = |x: f32, y: f32| {
-            let f1 = x + y;
-            let f2 = x + y;
-            let jacobian = [[1.0_f32, 1.0_f32], [1.0_f32, 1.0_f32]];
-            (f1, f2, jacobian)
-        };
-
-        let result = newton_solve_2d(system, (1.0_f32, 1.0_f32), 100, 1e-6_f32);
-        assert!(result.is_none());
-    }
-
-    #[test]
     fn test_newton_solve_multivariate_circle_line_f64() {
         let system = |point: &Vector<f64>| {
             let x = point[0];
@@ -171,6 +97,45 @@ mod tests {
         let expected = 1.0 / 2_f64.sqrt();
         assert!((solution[0] - expected).abs() < INTEGRATION_TOLERANCE_STRICT);
         assert!((solution[1] - expected).abs() < INTEGRATION_TOLERANCE_STRICT);
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_circle_line_f32() {
+        let system = |point: &Vector<f32>| {
+            let x = point[0];
+            let y = point[1];
+            let residual = Vector::new(vec![x * x + y * y - 1.0_f32, x - y]);
+            let jacobian = DynamicMatrix::from_rows(vec![
+                vec![2.0_f32 * x, 2.0_f32 * y],
+                vec![1.0_f32, -1.0_f32],
+            ])
+            .unwrap();
+            (residual, jacobian)
+        };
+
+        let result =
+            newton_solve_multivariate(system, Vector::new(vec![1.0_f32, 0.5_f32]), 100, 1e-6_f32);
+        assert!(result.is_some());
+
+        let solution = result.unwrap();
+        let expected = 1.0_f32 / 2.0_f32.sqrt();
+        assert!((solution[0] - expected).abs() < 1e-4_f32);
+        assert!((solution[1] - expected).abs() < 1e-4_f32);
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_singular_jacobian_f32() {
+        let system = |point: &Vector<f32>| {
+            let residual = Vector::new(vec![point[0] + point[1], point[0] + point[1]]);
+            let jacobian =
+                DynamicMatrix::from_rows(vec![vec![1.0_f32, 1.0_f32], vec![1.0_f32, 1.0_f32]])
+                    .unwrap();
+            (residual, jacobian)
+        };
+
+        let result =
+            newton_solve_multivariate(system, Vector::new(vec![1.0_f32, 1.0_f32]), 100, 1e-6_f32);
+        assert!(result.is_none());
     }
 
     #[test]
