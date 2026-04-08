@@ -265,6 +265,77 @@ mod tests {
     }
 
     #[test]
+    fn test_multivariate_newton_bounds_contains_with_tolerance_accepts_near_boundary() {
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 2.0_f64]),
+        )
+        .unwrap();
+        let point = Vector::new(vec![1.0005_f64, -1.0005_f64]);
+
+        assert!(bounds.contains_with_tolerance(&point, 1e-3_f64));
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_contains_with_tolerance_rejects_outside_range() {
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 2.0_f64]),
+        )
+        .unwrap();
+        let point = Vector::new(vec![1.01_f64, -1.01_f64]);
+
+        assert!(!bounds.contains_with_tolerance(&point, 1e-3_f64));
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_contains_with_tolerance_zero_matches_strict_contains() {
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 2.0_f64]),
+        )
+        .unwrap();
+        let point = Vector::new(vec![1.0_f64, -1.0_f64]);
+        let outside = Vector::new(vec![1.0001_f64, -1.0_f64]);
+
+        assert_eq!(
+            bounds.contains(&point),
+            bounds.contains_with_tolerance(&point, 0.0_f64)
+        );
+        assert_eq!(
+            bounds.contains(&outside),
+            bounds.contains_with_tolerance(&outside, 0.0_f64)
+        );
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_contains_with_tolerance_rejects_dimension_mismatch() {
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 2.0_f64]),
+        )
+        .unwrap();
+        let point = Vector::new(vec![0.5_f64]);
+
+        assert!(!bounds.contains_with_tolerance(&point, 1e-3_f64));
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_contains_with_tolerance_clamps_negative_tolerance_to_zero() {
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 2.0_f64]),
+        )
+        .unwrap();
+        let point = Vector::new(vec![1.0001_f64, -1.0_f64]);
+
+        assert_eq!(
+            bounds.contains_with_tolerance(&point, -1e-3_f64),
+            bounds.contains_with_tolerance(&point, 0.0_f64)
+        );
+    }
+
+    #[test]
     fn test_newton_solve_multivariate_bounded_clamps_initial_point() {
         let system = |point: &Vector<f64>| {
             let residual = Vector::new(vec![point[0] - 1.0]);
