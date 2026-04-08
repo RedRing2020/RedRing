@@ -603,6 +603,14 @@ fn solve_linear_2x2<T: Scalar>(
 - 最小 API として `new`、`rows`、`cols`、`get`、`set`、行列式ではなく一般アクセスと shape 検証を優先する
 - `Vector<T>` との整合を取り、residual / step と Jacobian を同じ abstraction family へ乗せる
 
+#### Phase A 実装スコープ（2026年4月8日着手）
+
+- 初手の実装は `DynamicMatrix<T>` 単体に限定し、既存 `LinearSolver<T>` trait と `GaussianSolver<T>` / `LUSolver<T>` / `CramerSolver<T>` の受け取り型は変更しない
+- 内部表現は row-major の `Vec<T>` とし、shape は `rows` と `cols` を明示保持する
+- 初回に入れる API は `new`、`zeros`、`from_rows`、`rows`、`cols`、`shape`、`get`、`set`、`as_slice`、`to_vec2d`、`transpose`、`mul_vector` を基本とする
+- `Vec<Vec<T>>` からの完全移行は Phase C で扱い、Phase A では変換補助と `Vector<T>` 連携までに留める
+- したがって、この段階の目的は「多変数 Newton 用 Jacobian の基盤型を先に正規化すること」であり、「既存線形 solver の全面置換」ではない
+
 #### Phase B: multivariate Newton solver API の設計
 
 - residual を `Vector<T>`、Jacobian を `DynamicMatrix<T>` で受ける公開 API を定義する
