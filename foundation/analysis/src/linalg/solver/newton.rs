@@ -125,6 +125,19 @@ impl<T: Scalar> MultivariateNewtonBounds<T> {
             .enumerate()
             .all(|(index, value)| *value >= self.lower[index] && *value <= self.upper[index])
     }
+
+    pub fn contains_with_tolerance(&self, point: &Vector<T>, tol: T) -> bool {
+        if point.len() != self.dimension() {
+            return false;
+        }
+
+        let effective_tol = tol.max(T::ZERO);
+
+        point.data().iter().enumerate().all(|(index, value)| {
+            *value >= self.lower[index] - effective_tol
+                && *value <= self.upper[index] + effective_tol
+        })
+    }
 }
 
 /// 境界付き多変数 Newton の反復設定

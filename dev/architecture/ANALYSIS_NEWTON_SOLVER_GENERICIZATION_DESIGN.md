@@ -814,6 +814,15 @@ where
 - `contains` の意味を後から tolerance-aware に変えると、既存利用者にとって API 意味論が変化する
 - 必要時に `contains_with_tolerance` を追加する方が、互換性と責務分離の両面で扱いやすい
 
+#### Issue #634 実装スコープ（2026年4月8日）
+
+- `MultivariateNewtonBounds<T>` に `contains_with_tolerance(&self, point: &Vector<T>, tol: T) -> bool` を追加する
+- `contains` の既存意味は変更しない
+- `tol < 0` 相当の入力は `0` に clamp して扱う
+- 判定は各軸で `lower[i] - tol <= value <= upper[i] + tol` を満たすかで決める
+- `point.len() != self.dimension()` は `false` を返す
+- `newton_tests.rs` に tolerance 内外、`tol = 0`、次元不整合、負の tolerance の固定テストを追加する
+
 ### 外部利用者向け移行方針
 
 - 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する
