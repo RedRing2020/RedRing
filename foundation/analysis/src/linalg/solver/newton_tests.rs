@@ -336,6 +336,15 @@ mod tests {
     }
 
     #[test]
+    fn test_multivariate_newton_options_new_sets_separate_values() {
+        let options = MultivariateNewtonOptions::new(25, 1e-4_f64, 1e-8_f64);
+
+        assert_eq!(options.max_iter, 25);
+        assert_eq!(options.residual_tol, 1e-4_f64);
+        assert_eq!(options.step_tol, 1e-8_f64);
+    }
+
+    #[test]
     fn test_newton_solve_multivariate_bounded_clamps_initial_point() {
         let system = |point: &Vector<f64>| {
             let residual = Vector::new(vec![point[0] - 1.0]);
@@ -345,7 +354,7 @@ mod tests {
         let bounds =
             MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
                 .unwrap();
-        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64, TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded(
             system,
@@ -371,7 +380,7 @@ mod tests {
         let bounds =
             MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
                 .unwrap();
-        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64, TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded(
             system,
@@ -402,7 +411,7 @@ mod tests {
             Vector::new(vec![1.0_f64, 1.0_f64]),
         )
         .unwrap();
-        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64, TOLERANCE_F64);
         let solver = LUSolver::new(TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded_with_solver(
@@ -429,7 +438,7 @@ mod tests {
             Vector::new(vec![1.0_f64, 1.0_f64]),
         )
         .unwrap();
-        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64, TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded(
             system,
@@ -437,6 +446,28 @@ mod tests {
             &bounds,
             &options,
         );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_bounded_uses_separate_step_tolerance() {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![point[0] - 0.8_f64]);
+            let jacobian = DynamicMatrix::from_rows(vec![vec![1.0_f64]]).unwrap();
+            (residual, jacobian)
+        };
+        let bounds =
+            MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
+                .unwrap();
+        let options = MultivariateNewtonOptions::new(1, 0.1_f64, 0.5_f64);
+
+        let result = newton_solve_multivariate_bounded(
+            system,
+            Vector::new(vec![0.0_f64]),
+            &bounds,
+            &options,
+        );
+
         assert!(result.is_none());
     }
 }

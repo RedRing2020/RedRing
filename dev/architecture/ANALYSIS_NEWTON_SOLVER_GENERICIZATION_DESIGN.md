@@ -823,6 +823,14 @@ where
 - `point.len() != self.dimension()` は `false` を返す
 - `newton_tests.rs` に tolerance 内外、`tol = 0`、次元不整合、負の tolerance の固定テストを追加する
 
+#### Issue #636 実装スコープ（2026年4月8日）
+
+- `MultivariateNewtonOptions<T>` を `residual_tol` / `step_tol` に分離する
+- breaking change を受け入れ、`new(max_iter, residual_tol, step_tol)` に一本化する
+- bounded Newton 本体では residual 判定に `residual_tol`、step 判定に `step_tol` を使う
+- solver の既定 tolerance は `residual_tol` を元に生成する
+- `newton_tests.rs` に分離 tolerance の固定テストを追加する
+
 ### 外部利用者向け移行方針
 
 - 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する
