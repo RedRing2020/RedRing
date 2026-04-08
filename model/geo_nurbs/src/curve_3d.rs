@@ -188,7 +188,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     /// 指定パラメータでの曲線上の点を計算
     pub fn evaluate_at(&self, t: T) -> Vector3<T> {
         let span = crate::knot::find_knot_span(t, &self.knot_vector, self.degree);
-        let basis = self.compute_basis_functions(t, span);
+        let basis = crate::basis::basis_functions(span, self.degree, t, &self.knot_vector);
 
         let mut numerator_x = T::ZERO;
         let mut numerator_y = T::ZERO;
@@ -260,30 +260,6 @@ impl<T: Scalar> NurbsCurve3D<T> {
         }
 
         total_length
-    }
-
-    /// B-スプライン基底関数を計算
-    fn compute_basis_functions(&self, t: T, span: usize) -> Vec<T> {
-        let mut basis = vec![T::ZERO; self.degree + 1];
-        let mut left = vec![T::ZERO; self.degree + 1];
-        let mut right = vec![T::ZERO; self.degree + 1];
-
-        basis[0] = T::ONE;
-
-        for j in 1..=self.degree {
-            left[j] = t - self.knot_vector[span + 1 - j];
-            right[j] = self.knot_vector[span + j] - t;
-
-            let mut saved = T::ZERO;
-            for r in 0..j {
-                let temp = basis[r] / (right[r + 1] + left[j - r]);
-                basis[r] = saved + right[r + 1] * temp;
-                saved = left[j - r] * temp;
-            }
-            basis[j] = saved;
-        }
-
-        basis
     }
 }
 
