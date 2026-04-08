@@ -512,7 +512,7 @@ fn solve_linear_2x2<T: Scalar>(
 
 #### 特異判定と閾値方針
 
-- 1変数 generic solver と同様に `DERIVATIVE_ZERO_THRESHOLD` を `T::from_f64` で変換して利用する
+- `DERIVATIVE_ZERO_THRESHOLD_F32` / `DERIVATIVE_ZERO_THRESHOLD_F64` を型に応じて選択して利用する
 - helper 名は既存との整合を優先し、`derivative_zero_threshold::<T>()` を再利用する
 - 2変数 solver 専用の別閾値はこの段階では導入しない
 

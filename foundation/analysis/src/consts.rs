@@ -9,7 +9,7 @@ pub mod numerical {
     pub const DERIVATIVE_ZERO_THRESHOLD_F32: f32 = 1e-6;
 
     /// ニュートン法で微分がゼロとみなされる閾値（f64）
-    pub const DERIVATIVE_ZERO_THRESHOLD: f64 = 1e-12;
+    pub const DERIVATIVE_ZERO_THRESHOLD_F64: f64 = 1e-12;
 
     /// 線形 solver の特異判定・ピボット判定に使う既定閾値（f32）
     pub const LINEAR_SOLVER_TOLERANCE_F32: f32 = 1e-6;
@@ -181,8 +181,9 @@ impl GeometricTolerance for f64 {
     const ORTHOGONALITY_DOT_ERROR_TOLERANCE: f64 = numerical::ORTHOGONALITY_DOT_ERROR_TOLERANCE_F64;
 }
 
-// 数値計算定数の再エクスポート（後方互換性）
-pub const DERIVATIVE_ZERO_THRESHOLD: f64 = numerical::DERIVATIVE_ZERO_THRESHOLD;
+// 数値計算定数の再エクスポート
+pub const DERIVATIVE_ZERO_THRESHOLD_F32: f32 = numerical::DERIVATIVE_ZERO_THRESHOLD_F32;
+pub const DERIVATIVE_ZERO_THRESHOLD_F64: f64 = numerical::DERIVATIVE_ZERO_THRESHOLD_F64;
 
 /// テスト用の統一トレランス定数
 pub mod test_constants {

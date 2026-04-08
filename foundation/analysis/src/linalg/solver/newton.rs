@@ -6,19 +6,20 @@
 use std::any::TypeId;
 
 use crate::consts::numerical::{
-    DERIVATIVE_ZERO_THRESHOLD_F32, LINEAR_SOLVER_TOLERANCE_F32, LINEAR_SOLVER_TOLERANCE_F64,
+    DERIVATIVE_ZERO_THRESHOLD_F32, DERIVATIVE_ZERO_THRESHOLD_F64, LINEAR_SOLVER_TOLERANCE_F32,
+    LINEAR_SOLVER_TOLERANCE_F64,
 };
 use crate::linalg::{
     DynamicMatrix, DynamicMatrixLinearSolver, GaussianSolver, Matrix2x2, Vector, Vector2,
 };
-use crate::{Scalar, DERIVATIVE_ZERO_THRESHOLD};
+use crate::Scalar;
 
 #[inline]
 fn derivative_zero_threshold<T: Scalar>() -> T {
     if TypeId::of::<T>() == TypeId::of::<f32>() {
         T::from_f32(DERIVATIVE_ZERO_THRESHOLD_F32)
     } else {
-        T::from_f64(DERIVATIVE_ZERO_THRESHOLD)
+        T::from_f64(DERIVATIVE_ZERO_THRESHOLD_F64)
     }
 }
 
