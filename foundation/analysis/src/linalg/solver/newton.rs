@@ -3,12 +3,24 @@
 //! 非線形方程式 f(x) = 0 の求解や逆関数計算を提供する。
 //! 汎用的なニュートン法実装により、様々な数値計算問題に対応。
 
-use crate::linalg::{Matrix2x2, Vector2};
+use crate::linalg::{
+    DynamicMatrix, DynamicMatrixLinearSolver, GaussianSolver, Matrix2x2, Vector, Vector2,
+};
 use crate::{Scalar, DERIVATIVE_ZERO_THRESHOLD};
 
 #[inline]
 fn derivative_zero_threshold<T: Scalar>() -> T {
     T::from_f64(DERIVATIVE_ZERO_THRESHOLD)
+}
+
+#[inline]
+fn solver_tolerance<T: Scalar>(tol: T) -> T {
+    let threshold = derivative_zero_threshold::<T>();
+    if tol < threshold {
+        threshold
+    } else {
+        tol
+    }
 }
 
 #[inline]
@@ -23,6 +35,24 @@ fn solve_linear_2x2<T: Scalar>(jacobian: Matrix2x2<T>, residual: Vector2<T>) -> 
         inv_det * (jacobian.get(1, 1) * residual.x() - jacobian.get(0, 1) * residual.y()),
         inv_det * (-jacobian.get(1, 0) * residual.x() + jacobian.get(0, 0) * residual.y()),
     ))
+}
+
+#[inline]
+fn solve_linear_dynamic<T, S>(
+    jacobian: &DynamicMatrix<T>,
+    residual: &Vector<T>,
+    solver: &S,
+) -> Option<Vector<T>>
+where
+    T: Scalar,
+    S: DynamicMatrixLinearSolver<T>,
+{
+    let solution = solver.solve_dynamic(jacobian, residual).ok()?;
+    if solution.solution.len() != residual.len() {
+        return None;
+    }
+
+    Some(Vector::new(solution.solution))
 }
 
 /// generic Newton 法による方程式求解
@@ -266,6 +296,93 @@ where
     G: Fn(f64) -> f64,
 {
     newton_inverse_generic(f, df, target, initial, max_iter, tol)
+}
+
+/// generic 多変数連立非線形方程式をニュートン法で解く
+///
+/// `system` は現在の推定値 `x` を受け取り、残差ベクトルと Jacobian 行列を返す。
+/// 更新ステップの線形系は既定で `GaussianSolver<T>` を用いて解く。
+///
+/// # Example
+/// ```rust
+/// use analysis::linalg::solver::newton::newton_solve_multivariate;
+/// use analysis::linalg::{DynamicMatrix, Vector};
+///
+/// let system = |point: &Vector<f64>| {
+///     let x = point[0];
+///     let y = point[1];
+///     let residual = Vector::new(vec![x * x + y * y - 1.0, x - y]);
+///     let jacobian = DynamicMatrix::from_rows(vec![vec![2.0 * x, 2.0 * y], vec![1.0, -1.0]])
+///         .unwrap();
+///     (residual, jacobian)
+/// };
+///
+/// let initial = Vector::new(vec![1.0, 0.5]);
+/// let result = newton_solve_multivariate(system, initial, 100, 1e-10);
+/// assert!(result.is_some());
+/// ```
+pub fn newton_solve_multivariate<T, F>(
+    system: F,
+    initial: Vector<T>,
+    max_iter: usize,
+    tol: T,
+) -> Option<Vector<T>>
+where
+    T: Scalar,
+    F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
+{
+    let solver = GaussianSolver::new(solver_tolerance(tol));
+    newton_solve_multivariate_with_solver(system, initial, &solver, max_iter, tol)
+}
+
+/// generic 多変数連立非線形方程式を、任意の線形 solver を使ってニュートン法で解く
+pub fn newton_solve_multivariate_with_solver<T, F, S>(
+    system: F,
+    initial: Vector<T>,
+    solver: &S,
+    max_iter: usize,
+    tol: T,
+) -> Option<Vector<T>>
+where
+    T: Scalar,
+    F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
+    S: DynamicMatrixLinearSolver<T>,
+{
+    let mut current = initial;
+
+    for _ in 0..max_iter {
+        let (residual, jacobian) = system(&current);
+        let dimension = current.len();
+
+        if residual.len() != dimension {
+            return None;
+        }
+
+        if jacobian.shape() != (dimension, dimension) {
+            return None;
+        }
+
+        if residual.norm() < tol {
+            return Some(current);
+        }
+
+        let step = solve_linear_dynamic(&jacobian, &residual, solver)?;
+        let step_norm = step.norm();
+        let next = (current.clone() - step).ok()?;
+
+        let (next_residual, _) = system(&next);
+        if next_residual.len() != dimension {
+            return None;
+        }
+
+        if next_residual.norm() < tol && step_norm < tol {
+            return Some(next);
+        }
+
+        current = next;
+    }
+
+    None
 }
 
 /// generic 2変数連立非線形方程式をニュートン法で解く

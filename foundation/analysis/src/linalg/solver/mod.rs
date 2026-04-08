@@ -24,8 +24,8 @@ pub mod newton; // ニュートン・ラフソン法
 // workspace 内の新規実装では generic API を優先し、f64 ラッパーの利用は増やさない。
 pub use newton::{
     newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d, newton_solve_bounded,
-    newton_solve_bounded_generic, newton_solve_generic,
-    newton_solve_with_numeric_derivative_bounded,
+    newton_solve_bounded_generic, newton_solve_generic, newton_solve_multivariate,
+    newton_solve_multivariate_with_solver, newton_solve_with_numeric_derivative_bounded,
     newton_solve_with_numeric_derivative_bounded_generic,
 };
 

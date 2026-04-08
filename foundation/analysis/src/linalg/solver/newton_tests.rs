@@ -1,8 +1,10 @@
 use super::newton::{
     newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d, newton_solve_generic,
+    newton_solve_multivariate, newton_solve_multivariate_with_solver,
     newton_solve_with_numeric_derivative_bounded_generic,
 };
 use crate::consts::test_constants::{INTEGRATION_TOLERANCE_STRICT, TOLERANCE_F64};
+use crate::linalg::{DynamicMatrix, LUSolver, Vector};
 
 #[cfg(test)]
 mod tests {
@@ -143,6 +145,84 @@ mod tests {
         };
 
         let result = newton_solve_2d(system, (1.0_f32, 1.0_f32), 100, 1e-6_f32);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_circle_line_f64() {
+        let system = |point: &Vector<f64>| {
+            let x = point[0];
+            let y = point[1];
+            let residual = Vector::new(vec![x * x + y * y - 1.0, x - y]);
+            let jacobian =
+                DynamicMatrix::from_rows(vec![vec![2.0 * x, 2.0 * y], vec![1.0, -1.0]]).unwrap();
+            (residual, jacobian)
+        };
+
+        let result =
+            newton_solve_multivariate(system, Vector::new(vec![1.0, 0.5]), 100, TOLERANCE_F64);
+        assert!(result.is_some());
+
+        let solution = result.unwrap();
+        let expected = 1.0 / 2_f64.sqrt();
+        assert!((solution[0] - expected).abs() < INTEGRATION_TOLERANCE_STRICT);
+        assert!((solution[1] - expected).abs() < INTEGRATION_TOLERANCE_STRICT);
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_with_lu_solver_f32() {
+        let system = |point: &Vector<f32>| {
+            let x = point[0];
+            let y = point[1];
+            let residual = Vector::new(vec![x * x + y * y - 1.0_f32, x - y]);
+            let jacobian = DynamicMatrix::from_rows(vec![
+                vec![2.0_f32 * x, 2.0_f32 * y],
+                vec![1.0_f32, -1.0_f32],
+            ])
+            .unwrap();
+            (residual, jacobian)
+        };
+
+        let solver = LUSolver::new(1e-6_f32);
+        let result = newton_solve_multivariate_with_solver(
+            system,
+            Vector::new(vec![1.0_f32, 0.5_f32]),
+            &solver,
+            100,
+            1e-6_f32,
+        );
+        assert!(result.is_some());
+
+        let solution = result.unwrap();
+        let expected = 1.0_f32 / 2.0_f32.sqrt();
+        assert!((solution[0] - expected).abs() < 1e-4_f32);
+        assert!((solution[1] - expected).abs() < 1e-4_f32);
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_rejects_shape_mismatch() {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![point[0], point[1]]);
+            let jacobian =
+                DynamicMatrix::from_rows(vec![vec![1.0, 0.0, 0.0], vec![0.0, 1.0, 0.0]]).unwrap();
+            (residual, jacobian)
+        };
+
+        let result =
+            newton_solve_multivariate(system, Vector::new(vec![1.0, 1.0]), 10, TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_singular_jacobian() {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![point[0] + point[1], point[0] + point[1]]);
+            let jacobian = DynamicMatrix::from_rows(vec![vec![1.0, 1.0], vec![1.0, 1.0]]).unwrap();
+            (residual, jacobian)
+        };
+
+        let result =
+            newton_solve_multivariate(system, Vector::new(vec![1.0, 1.0]), 10, TOLERANCE_F64);
         assert!(result.is_none());
     }
 }
