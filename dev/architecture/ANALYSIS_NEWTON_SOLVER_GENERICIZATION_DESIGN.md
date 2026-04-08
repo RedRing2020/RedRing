@@ -508,6 +508,123 @@ fn solve_linear_2x2<T: Scalar>(
 - その上で、多変数一般 solver は `newton_solve_2d` の置換ではなく、別入口 API として設計開始する
 - 将来的に `newton_solve_2d` を convenience wrapper に寄せる場合も、#619 の完了条件には含めない
 
+### #624 の比較案
+
+#### 案1: `Vector<T>` + `Vec<Vec<T>>` で最小構成の多変数 Newton solver を設計する
+
+概要:
+
+- residual は既存の動的ベクトル `Vector<T>` を使う
+- Jacobian は既存の線形 solver 群と接続しやすい `Vec<Vec<T>>` で受ける
+- 線形更新は `GaussianSolver<T>` または `LUSolver<T>` を使って求める
+
+利点:
+
+- 既存基盤だけで設計を完結しやすい
+- `newton_solve_2d` より先に、多変数 solver の入口を比較的小さく定義できる
+- 線形 solver 群との役割分担が明確で、責務重複を避けやすい
+
+欠点:
+
+- Jacobian だけ `Vec<Vec<T>>` で、residual は `Vector<T>` という表現の非対称性が残る
+- 動的行列の型安全な抽象がないため、次元整合性チェックを API 側で丁寧に扱う必要がある
+- 長期的には理想形というより移行しやすい中間形になりやすい
+
+評価:
+
+- #624 の初手として最も現実的
+
+#### 案2: 多変数 Newton の内部 core だけ定義し、公開 API は薄く始める
+
+概要:
+
+- outward-facing には最小限の関数入口だけを置き、内部に residual / Jacobian / linear solve / convergence 判定を担う core を分離する
+- Jacobian 表現は当面 `Vec<Vec<T>>` としつつ、内部 core の責務分離を優先する
+
+利点:
+
+- 将来の境界付き版や数値微分版へ拡張しやすい
+- `newton_solve_2d` を後で convenience wrapper に寄せる導線を作りやすい
+- 公開 API の再設計コストを一度で抱え込まずに済む
+
+欠点:
+
+- #624 の設計文書としては、公開 API と内部 core の二層説明が必要になりやや重い
+- 現時点で内部 core の分割粒度を決めるには材料がまだ少ない
+
+評価:
+
+- 案1よりは重いが、中期の拡張性は高い
+
+#### 案3: 動的行列 abstraction まで先に整備してから多変数 Newton solver を設計する
+
+概要:
+
+- `Vector<T>` に加えて、動的 Jacobian を安全に表現する行列 abstraction を先に導入する
+- その上で residual / Jacobian / step を同じ抽象で扱う多変数 Newton solver を設計する
+
+利点:
+
+- 数値解析基盤としては最も整った形に近い
+- 次元情報を持ちつつ内部を 1 次元配列で保持する設計を採りやすく、メモリ効率と走査効率の両面で有利
+- residual と Jacobian の表現が揃い、長期の保守性・拡張性が高い
+- 将来の多変数最適化・反復法にも流用しやすい
+
+欠点:
+
+- #624 の設計スコープを Newton solver から行列基盤設計へ拡大してしまう
+- 先に解くべき論点が増え、短期で合意しづらい
+- `analysis` の既存 solver 群との接続も含めて検討範囲が大きくなる
+
+評価:
+
+- 初手の設計量は増えるが、数値解析基盤としての整合を優先するなら最も筋が良い
+
+### #624 の現時点の推奨案
+
+- 初手は案3を推奨する
+- つまり、多変数 Newton solver の前段として、次元情報を持ち内部を 1 次元配列で保持する `DynamicMatrix<T>` 相当の動的行列 abstraction を先に設計する
+- その上で、その abstraction を前提に multivariate Newton solver の公開 API と内部責務を定義する
+- 既存の `newton_solve_2d` は即時置換せず、将来的に convenience wrapper として接続可能な位置付けに保つ
+
+この判断を採る理由:
+
+- `Vector<T>` は既にある一方、Jacobian だけが `Vec<Vec<T>>` に留まる状態は基盤として非対称であり、多変数 solver の入口として弱い
+- 次元情報を持つ動的行列 abstraction を先に整えることで、residual / Jacobian / step の表現を同じ設計思想で揃えられる
+- 内部を 1 次元配列で持つ行列は、メモリ効率、連続配置、将来の数値計算最適化の観点で `Vec<Vec<T>>` より有利である
+- 既存の一部 solver 実装が `Vec<Vec<T>>` ベースであることは現状では成立しているが、多変数 Newton 基盤へ拡張する上では先に返すべき設計負債と位置付ける方が妥当である
+
+### #624 の段階方針
+
+#### Phase A: 動的行列 abstraction の設計
+
+- `DynamicMatrix<T>` 相当の型を定義し、行数・列数・内部 1 次元配列の保持方針を決める
+- row-major を基本にするか、列優先を採るかを決める
+- 最小 API として `new`、`rows`、`cols`、`get`、`set`、行列式ではなく一般アクセスと shape 検証を優先する
+- `Vector<T>` との整合を取り、residual / step と Jacobian を同じ abstraction family へ乗せる
+
+#### Phase B: multivariate Newton solver API の設計
+
+- residual を `Vector<T>`、Jacobian を `DynamicMatrix<T>` で受ける公開 API を定義する
+- 収束判定を residual norm / step norm の両方で行うかを定義する
+- 特異判定と失敗時の返り値方針を定義する
+- `newton_solve_2d` との差分を明示し、2変数専用 convenience wrapper へ寄せる余地を残す
+
+#### Phase C: 線形 solver 接続方針の設計
+
+- 動的 Jacobian を既存の `GaussianSolver<T>` / `LUSolver<T>` へどう接続するかを整理する
+- 既存 solver を `Vec<Vec<T>>` のまま維持するか、`DynamicMatrix<T>` 受け取りへ拡張するかを比較する
+- 多変数 Newton の更新ステップ専用 helper を設けるか、既存 solver を直接使うかを決める
+
+#### Phase D: follow-up 実装計画への分割
+
+- 動的行列 abstraction
+- multivariate Newton solver 入口
+- 線形 solver 接続整理
+- `newton_solve_2d` の convenience wrapper 再位置付け
+
+- 上記を別 phase issue に分割できる状態まで落とし込む
+
 ### 外部利用者向け移行方針
 
 - 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する
