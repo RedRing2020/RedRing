@@ -2,10 +2,14 @@
 //!
 //! Foundation統一システムに基づくTriangle3Dの必須機能のみ
 
+use std::any::TypeId;
+
 use crate::{Point3D, Vector3D};
+use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
-    Scalar, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity, Triangle3DConstructor,
-    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
+    default_kernel_numerical_zero_tolerance, Scalar, Triangle3DBoundaryAccess,
+    Triangle3DBoundaryQuantity, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived,
+    Triangle3DDistance,
 };
 
 /// 3次元三角形（Core実装）
@@ -39,6 +43,15 @@ impl<T: Scalar> geo_contracts::TolerantEq<T> for Triangle3D<T> {
 }
 
 impl<T: Scalar> Triangle3D<T> {
+    #[inline]
+    fn equilateral_height_factor() -> T {
+        if TypeId::of::<T>() == TypeId::of::<f32>() {
+            T::from_f32(SQRT_3_OVER_2_F32)
+        } else {
+            T::from_f64(SQRT_3_OVER_2_F64)
+        }
+    }
+
     /// 新しい3D三角形を作成
     ///
     /// 基本的な検証のみ実行（退化三角形チェック）
@@ -46,10 +59,11 @@ impl<T: Scalar> Triangle3D<T> {
         // 退化した三角形（3点が一直線上）を検証
         let ab = Vector3D::from_points(&vertex_a, &vertex_b);
         let ac = Vector3D::from_points(&vertex_a, &vertex_c);
+        let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
 
         // 外積の大きさが非常に小さい場合、3点が一直線上
         let cross = ab.cross(&ac);
-        if cross.length() < T::from_f64(1e-10) {
+        if cross.length() < zero_tol {
             return None;
         }
         Some(Self {
@@ -100,7 +114,7 @@ impl<T: Scalar> Triangle3D<T> {
         let ac = Vector3D::from_points(&self.vertex_a, &self.vertex_c);
 
         let cross = ab.cross(&ac);
-        if cross.length() < T::from_f64(1e-10) {
+        if cross.length() < default_kernel_numerical_zero_tolerance::<T>() {
             None
         } else {
             Some(cross.normalize())
@@ -137,7 +151,7 @@ impl<T: Scalar> Triangle3D<T> {
     /// 三角形が退化していないかチェック
     pub fn is_valid(&self) -> bool {
         let area: T = self.area();
-        let threshold = T::from_f64(1e-10);
+        let threshold = default_kernel_numerical_zero_tolerance::<T>();
         area > threshold
     }
 
@@ -164,7 +178,7 @@ impl<T: Scalar> Triangle3D<T> {
 
     /// xz平面上の単位正三角形を生成
     pub fn unit_triangle_xz() -> Self {
-        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let h = Self::equilateral_height_factor();
         Self::new(
             Point3D::new(T::ZERO, T::ZERO, T::ONE),
             Point3D::new(-h, T::ZERO, -T::ONE / (T::ONE + T::ONE)),
@@ -175,7 +189,7 @@ impl<T: Scalar> Triangle3D<T> {
 
     /// yz平面上の単位正三角形を生成
     pub fn unit_triangle_yz() -> Self {
-        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let h = Self::equilateral_height_factor();
         Self::new(
             Point3D::new(T::ZERO, T::ZERO, T::ONE),
             Point3D::new(T::ZERO, -h, -T::ONE / (T::ONE + T::ONE)),
@@ -217,7 +231,7 @@ impl<T: Scalar> Triangle3D<T> {
         let d =
             (a_2d.0 * (b_2d.1 - c_2d.1) + b_2d.0 * (c_2d.1 - a_2d.1) + c_2d.0 * (a_2d.1 - b_2d.1))
                 * (T::ONE + T::ONE);
-        if d.abs() < T::from_f64(1e-10) {
+        if d.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             return None;
         }
 
@@ -294,7 +308,7 @@ impl<T: Scalar> Triangle3D<T> {
         let to_point = Vector3D::from_points(p1, point);
 
         let edge_length_sq = edge.dot(&edge);
-        if edge_length_sq < T::from_f64(1e-10) {
+        if edge_length_sq < default_kernel_numerical_zero_tolerance::<T>() {
             return to_point.length();
         }
 
@@ -333,7 +347,7 @@ impl<T: Scalar> Triangle3DConstructor<T> for Triangle3D<T> {
     }
 
     fn unit_triangle_xy() -> Self {
-        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let h = Self::equilateral_height_factor();
         let pa = Point3D::new(T::ZERO, T::ONE, T::ZERO);
         let pb = Point3D::new(-h, -T::ONE / (T::ONE + T::ONE), T::ZERO);
         let pc = Point3D::new(h, -T::ONE / (T::ONE + T::ONE), T::ZERO);

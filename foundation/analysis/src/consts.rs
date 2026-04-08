@@ -53,6 +53,10 @@ pub mod special {
     /// 平方根 √3
     pub const SQRT_3_F64: f64 = 1.7320508075688772;
     pub const SQRT_3_F32: f32 = 1.7320508_f32;
+
+    /// 平方根 √3 の半分
+    pub const SQRT_3_OVER_2_F64: f64 = SQRT_3_F64 / 2.0;
+    pub const SQRT_3_OVER_2_F32: f32 = SQRT_3_F32 / 2.0;
 }
 
 /// 幾何計算用の定数

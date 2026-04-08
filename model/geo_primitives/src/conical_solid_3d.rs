@@ -17,7 +17,7 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 
-use geo_contracts::Scalar;
+use geo_contracts::{default_distance_tolerance, Scalar};
 
 /// 3次元円錐ソリッド（STEP準拠のCore実装）
 ///
@@ -343,9 +343,10 @@ impl<T: Scalar> ConicalSolid3D<T> {
     pub fn is_valid(&self) -> bool {
         let axis_length = self.axis.as_vector().length();
         let ref_length = self.ref_direction.as_vector().length();
+        let unit_tol = default_distance_tolerance::<T>();
 
-        (axis_length - T::ONE).abs() < T::from_f64(1e-10)
-            && (ref_length - T::ONE).abs() < T::from_f64(1e-10)
+        (axis_length - T::ONE).abs() < unit_tol
+            && (ref_length - T::ONE).abs() < unit_tol
             && self.radius > T::ZERO
             && self.height > T::ZERO
     }

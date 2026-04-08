@@ -25,6 +25,9 @@ fn test_special_constants() {
     // √3のテスト
     let sqrt_3_f64 = special::SQRT_3_F64;
     assert!((sqrt_3_f64 - 3.0_f64.sqrt()).abs() < SOLVER_TOLERANCE_F64);
+
+    let sqrt_3_over_2_f64 = special::SQRT_3_OVER_2_F64;
+    assert!((sqrt_3_over_2_f64 - (3.0_f64.sqrt() / 2.0)).abs() < SOLVER_TOLERANCE_F64);
 }
 
 #[test]
