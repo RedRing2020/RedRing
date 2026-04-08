@@ -1,5 +1,8 @@
 use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F64};
-use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
+use crate::linalg::solver::{
+    CramerSolver, DynamicMatrixLinearSolver, GaussianSolver, LUSolver, LinearSolver,
+};
+use crate::linalg::{DynamicMatrix, Vector};
 
 #[cfg(test)]
 mod tests {
@@ -106,5 +109,41 @@ mod tests {
         let loose_solver = GaussianSolver::new(1e-8);
         let result = loose_solver.solve(&matrix, &rhs).unwrap();
         assert!(result.converged);
+    }
+
+    #[test]
+    fn test_gaussian_solver_dynamic_matrix_adapter() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let rhs = Vector::new(vec![5.0, 6.0]);
+        let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
+
+        let result = solver.solve_dynamic(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_lu_solver_dynamic_matrix_adapter() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let rhs = Vector::new(vec![5.0, 6.0]);
+        let solver = LUSolver::new(SOLVER_TOLERANCE_F64);
+
+        let result = solver.solve_dynamic(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
+        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_dynamic_matrix_adapter_rejects_rhs_mismatch() {
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
+        let rhs = Vector::new(vec![5.0]);
+        let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
+
+        let error = solver.solve_dynamic(&matrix, &rhs).unwrap_err();
+        assert_eq!(error, "RHS dimension mismatch");
     }
 }

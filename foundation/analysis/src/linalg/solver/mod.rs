@@ -46,6 +46,7 @@ pub use gaussian::GaussianSolver;
 pub use lu::LUSolver;
 
 use crate::abstract_types::Scalar;
+use crate::linalg::{DynamicMatrix, Vector};
 
 /// 連立方程式の解法結果
 #[derive(Debug, Clone)]
@@ -81,4 +82,29 @@ impl<T: Scalar> SolutionInfo<T> {
 pub trait LinearSolver<T: Scalar> {
     /// 連立方程式 Ax = b を解く
     fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String>;
+}
+
+/// DynamicMatrix ベースの入力を既存 solver へ橋渡しする拡張 trait
+pub trait DynamicMatrixLinearSolver<T: Scalar>: LinearSolver<T> {
+    /// `DynamicMatrix<T>` と `Vector<T>` を受けて既存 solver を実行する
+    fn solve_dynamic(
+        &self,
+        matrix: &DynamicMatrix<T>,
+        rhs: &Vector<T>,
+    ) -> Result<SolutionInfo<T>, String> {
+        if matrix.rows() != matrix.cols() {
+            return Err("Matrix must be square".to_string());
+        }
+
+        if rhs.len() != matrix.rows() {
+            return Err("RHS dimension mismatch".to_string());
+        }
+
+        self.solve(&matrix.to_vec2d(), rhs.data())
+    }
+}
+
+impl<T: Scalar, TLinearSolver> DynamicMatrixLinearSolver<T> for TLinearSolver where
+    TLinearSolver: LinearSolver<T>
+{
 }

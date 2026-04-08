@@ -624,6 +624,14 @@ fn solve_linear_2x2<T: Scalar>(
 - 既存 solver を `Vec<Vec<T>>` のまま維持するか、`DynamicMatrix<T>` 受け取りへ拡張するかを比較する
 - 多変数 Newton の更新ステップ専用 helper を設けるか、既存 solver を直接使うかを決める
 
+#### Phase C 接続方針（2026年4月8日合意）
+
+- 初手では既存 `LinearSolver<T>` trait の `Vec<Vec<T>>` 受け取りを維持し、破壊的変更を避ける
+- その代わり、`DynamicMatrix<T>` と `Vector<T>` を既存 solver へ橋渡しする adapter 層を追加し、多変数 Newton 側からは `DynamicMatrix<T>` ベースで呼べる経路を先に整える
+- 将来の新規 generic solver は `DynamicMatrix<T>` ベースで追加し、既存 solver 群とは一定期間共存させる
+- その後、利用実績と API 安定性を見ながら `Vec<Vec<T>>` ベース solver から段階移行する
+- したがって現段階では「既存 solver を変える」のではなく、「DynamicMatrix ベースの新規利用経路を先に正本化する」を優先する
+
 #### Phase D: follow-up 実装計画への分割
 
 - 動的行列 abstraction
