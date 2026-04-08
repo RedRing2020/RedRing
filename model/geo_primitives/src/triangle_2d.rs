@@ -2,10 +2,14 @@
 //!
 //! Foundation統一システムに基づくTriangle2Dの必須機能のみ
 
+use std::any::TypeId;
+
 use crate::{Point2D, Vector2D};
+use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
-    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity,
-    Triangle2DConstructor, Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
+    default_kernel_numerical_zero_tolerance, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity, Triangle2DConstructor,
+    Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
 };
 
 /// 2次元三角形（Core実装）
@@ -23,6 +27,15 @@ impl<T: Scalar> PrimitiveMetadata for Triangle2D<T> {
 }
 
 impl<T: Scalar> Triangle2D<T> {
+    #[inline]
+    fn equilateral_height_factor() -> T {
+        if TypeId::of::<T>() == TypeId::of::<f32>() {
+            T::from_f32(SQRT_3_OVER_2_F32)
+        } else {
+            T::from_f64(SQRT_3_OVER_2_F64)
+        }
+    }
+
     /// 新しい2D三角形を作成
     ///
     /// 基本的な検証のみ実行（退化三角形チェック）
@@ -30,10 +43,11 @@ impl<T: Scalar> Triangle2D<T> {
         // 退化した三角形（3点が一直線上）を検証
         let ab = Vector2D::from_points(vertex_a, vertex_b);
         let ac = Vector2D::from_points(vertex_a, vertex_c);
+        let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
 
         // 外積（2Dでは z成分のみ）の絶対値が非常に小さい場合、3点が一直線上
         let cross_z = ab.x() * ac.y() - ab.y() * ac.x();
-        if cross_z.abs() < T::from_f64(1e-10) {
+        if cross_z.abs() < zero_tol {
             return None;
         }
 
@@ -46,7 +60,7 @@ impl<T: Scalar> Triangle2D<T> {
 
     /// 原点と単位ベクトルから正三角形を作成
     pub fn unit_triangle() -> Self {
-        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let h = Self::equilateral_height_factor();
         Self::new(
             Point2D::new(T::ZERO, T::ONE),
             Point2D::new(-h, -T::ONE / (T::ONE + T::ONE)),
@@ -57,7 +71,7 @@ impl<T: Scalar> Triangle2D<T> {
 
     /// 原点中心の正三角形を生成（辺の長さ指定）
     pub fn equilateral_at_origin(side_length: T) -> Self {
-        let h = T::from_f64(0.8660254037844387); // sqrt(3)/2
+        let h = Self::equilateral_height_factor();
         let half = side_length / (T::ONE + T::ONE);
         Self::new(
             Point2D::new(T::ZERO, side_length * h / T::from_f64(1.5)),
@@ -152,7 +166,7 @@ impl<T: Scalar> Triangle2D<T> {
 
         // 行列式計算
         let d = (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)) * (T::ONE + T::ONE);
-        if d.abs() < T::from_f64(1e-10) {
+        if d.abs() < default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 退化した三角形
         }
 
@@ -259,7 +273,7 @@ impl<T: Scalar> Triangle2D<T> {
         let to_point = Vector2D::from_points(p1, *point);
 
         let edge_length_sq = edge.dot(&edge);
-        if edge_length_sq < T::from_f64(1e-10) {
+        if edge_length_sq < default_kernel_numerical_zero_tolerance::<T>() {
             // 退化した辺の場合、点p1までの距離
             return to_point.length();
         }

@@ -5,7 +5,9 @@ use super::newton::{
     newton_solve_with_numeric_derivative_bounded_generic, MultivariateNewtonBounds,
     MultivariateNewtonOptions,
 };
-use crate::consts::test_constants::{INTEGRATION_TOLERANCE_STRICT, TOLERANCE_F64};
+use crate::consts::test_constants::{
+    INTEGRATION_TOLERANCE_STRICT, SOLVER_TOLERANCE_F32, TOLERANCE_F64,
+};
 use crate::linalg::{DynamicMatrix, LUSolver, Vector};
 
 #[cfg(test)]
@@ -185,7 +187,7 @@ mod tests {
             (residual, jacobian)
         };
 
-        let solver = LUSolver::new(1e-6_f32);
+        let solver = LUSolver::new(SOLVER_TOLERANCE_F32);
         let result = newton_solve_multivariate_with_solver(
             system,
             Vector::new(vec![1.0_f32, 0.5_f32]),
@@ -226,6 +228,21 @@ mod tests {
         let result =
             newton_solve_multivariate(system, Vector::new(vec![1.0, 1.0]), 10, TOLERANCE_F64);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_default_solver_tolerance_is_independent_from_convergence_tol()
+    {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![1e-5_f64 * point[0] - 1e-3_f64]);
+            let jacobian = DynamicMatrix::from_rows(vec![vec![1e-5_f64]]).unwrap();
+            (residual, jacobian)
+        };
+
+        let result = newton_solve_multivariate(system, Vector::new(vec![0.0_f64]), 5, 1e-4_f64);
+
+        assert!(result.is_some());
+        assert!((result.unwrap()[0] - 100.0_f64).abs() < INTEGRATION_TOLERANCE_STRICT);
     }
 
     #[test]
@@ -469,5 +486,29 @@ mod tests {
         );
 
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_bounded_default_solver_tolerance_is_independent_from_residual_tol(
+    ) {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![1e-5_f64 * point[0] - 1e-3_f64]);
+            let jacobian = DynamicMatrix::from_rows(vec![vec![1e-5_f64]]).unwrap();
+            (residual, jacobian)
+        };
+        let bounds =
+            MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![200.0_f64]))
+                .unwrap();
+        let options = MultivariateNewtonOptions::new(5, 1e-4_f64, 1e-4_f64);
+
+        let result = newton_solve_multivariate_bounded(
+            system,
+            Vector::new(vec![0.0_f64]),
+            &bounds,
+            &options,
+        );
+
+        assert!(result.is_some());
+        assert!((result.unwrap()[0] - 100.0_f64).abs() < INTEGRATION_TOLERANCE_STRICT);
     }
 }

@@ -174,6 +174,7 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 2. 固定しきい値は `foundation/analysis/src/consts.rs` に用途別の意味付き定数として定義し、暗黙の `T::EPSILON` 直書きを避ける。
 3. `ToleranceSettings::distance_tolerance` は幾何意味判定（包含、近接、一致）に限定し、数値安定化ガードの既定値に流用しない。
 4. 無次元判定（内積・外積誤差）には無次元しきい値を使用し、単位付き距離トレランスを混在させない。
+5. `f64` 専用の極小固定値を `T::from_f64(...)` で generic に流用しない。`f32`/`f64` の両対応が必要な固定しきい値は、型別定義または `default_*` wrapper を経由して選択する。
 
 ## 廃止ロードマップ
 

@@ -3,14 +3,24 @@
 //! 非線形方程式 f(x) = 0 の求解や逆関数計算を提供する。
 //! 汎用的なニュートン法実装により、様々な数値計算問題に対応。
 
+use std::any::TypeId;
+
+use crate::consts::numerical::{
+    DERIVATIVE_ZERO_THRESHOLD_F32, DERIVATIVE_ZERO_THRESHOLD_F64, LINEAR_SOLVER_TOLERANCE_F32,
+    LINEAR_SOLVER_TOLERANCE_F64,
+};
 use crate::linalg::{
     DynamicMatrix, DynamicMatrixLinearSolver, GaussianSolver, Matrix2x2, Vector, Vector2,
 };
-use crate::{Scalar, DERIVATIVE_ZERO_THRESHOLD};
+use crate::Scalar;
 
 #[inline]
 fn derivative_zero_threshold<T: Scalar>() -> T {
-    T::from_f64(DERIVATIVE_ZERO_THRESHOLD)
+    if TypeId::of::<T>() == TypeId::of::<f32>() {
+        T::from_f32(DERIVATIVE_ZERO_THRESHOLD_F32)
+    } else {
+        T::from_f64(DERIVATIVE_ZERO_THRESHOLD_F64)
+    }
 }
 
 #[inline]
@@ -21,6 +31,17 @@ fn solver_tolerance<T: Scalar>(tol: T) -> T {
     } else {
         tol
     }
+}
+
+#[inline]
+fn default_linear_solver_tolerance<T: Scalar>() -> T {
+    let tolerance = if TypeId::of::<T>() == TypeId::of::<f32>() {
+        T::from_f32(LINEAR_SOLVER_TOLERANCE_F32)
+    } else {
+        T::from_f64(LINEAR_SOLVER_TOLERANCE_F64)
+    };
+
+    solver_tolerance(tolerance)
 }
 
 #[inline]
@@ -434,7 +455,7 @@ where
     T: Scalar,
     F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
 {
-    let solver = GaussianSolver::new(solver_tolerance(tol));
+    let solver = GaussianSolver::new(default_linear_solver_tolerance());
     newton_solve_multivariate_with_solver(system, initial, &solver, max_iter, tol)
 }
 
@@ -493,7 +514,7 @@ where
     T: Scalar,
     F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
 {
-    let solver = GaussianSolver::new(solver_tolerance(options.residual_tol));
+    let solver = GaussianSolver::new(default_linear_solver_tolerance());
     newton_solve_multivariate_bounded_with_solver(system, initial, bounds, &solver, options)
 }
 

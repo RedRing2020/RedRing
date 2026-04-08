@@ -2,7 +2,50 @@
 //!
 //! geo_contracts で共有するトレランス設定。
 
+use std::any::TypeId;
+
+use analysis::consts::numerical::{
+    KERNEL_NUMERICAL_ZERO_THRESHOLD_F32, KERNEL_NUMERICAL_ZERO_THRESHOLD_F64,
+};
+
 use crate::Scalar;
+
+#[inline]
+fn is_f32_scalar<T: Scalar>() -> bool {
+    TypeId::of::<T>() == TypeId::of::<f32>()
+}
+
+#[inline]
+fn precision_distance_tolerance<T: Scalar>() -> T {
+    if is_f32_scalar::<T>() {
+        T::DISTANCE_TOLERANCE
+    } else {
+        T::from_f64(1e-12)
+    }
+}
+
+#[inline]
+fn precision_angle_tolerance<T: Scalar>() -> T {
+    if is_f32_scalar::<T>() {
+        T::ANGLE_TOLERANCE
+    } else {
+        T::from_f64(1e-10)
+    }
+}
+
+#[inline]
+fn precision_length_tolerance<T: Scalar>() -> T {
+    if is_f32_scalar::<T>() {
+        T::DISTANCE_TOLERANCE
+    } else {
+        T::from_f64(1e-12)
+    }
+}
+
+#[inline]
+fn area_tolerance_from_length<T: Scalar>(length_tolerance: T) -> T {
+    length_tolerance * length_tolerance
+}
 
 /// アプリケーション固有の許容誤差設定
 #[derive(Debug, Clone, Copy)]
@@ -13,7 +56,7 @@ pub struct ToleranceSettings<T: Scalar> {
     /// 角度計算用の許容誤差（平行・垂直判定など）
     pub angle_tolerance: T,
 
-    /// 面積計算用の許容誤差
+    /// 面積計算用の許容誤差（長さトレランスの二乗系）
     pub area_tolerance: T,
 
     /// 長さ計算用の許容誤差
@@ -23,31 +66,40 @@ pub struct ToleranceSettings<T: Scalar> {
 impl<T: Scalar> ToleranceSettings<T> {
     /// 高精度設定（CAD/精密加工用）
     pub fn precision() -> Self {
+        let distance_tolerance = precision_distance_tolerance();
+        let angle_tolerance = precision_angle_tolerance();
+        let length_tolerance = precision_length_tolerance();
         Self {
-            distance_tolerance: T::from_f64(1e-12),
-            angle_tolerance: T::from_f64(1e-10),
-            area_tolerance: T::from_f64(1e-10),
-            length_tolerance: T::from_f64(1e-12),
+            distance_tolerance,
+            angle_tolerance,
+            area_tolerance: area_tolerance_from_length(length_tolerance),
+            length_tolerance,
         }
     }
 
     /// 標準設定（一般的な工学計算用）
     pub fn standard() -> Self {
+        let distance_tolerance = T::from_f64(1e-6);
+        let angle_tolerance = T::from_f64(1e-4);
+        let length_tolerance = T::from_f64(1e-6);
         Self {
-            distance_tolerance: T::from_f64(1e-6),
-            angle_tolerance: T::from_f64(1e-4),
-            area_tolerance: T::from_f64(1e-6),
-            length_tolerance: T::from_f64(1e-6),
+            distance_tolerance,
+            angle_tolerance,
+            area_tolerance: area_tolerance_from_length(length_tolerance),
+            length_tolerance,
         }
     }
 
     /// 緩い設定（ゲーム・リアルタイム用）
     pub fn relaxed() -> Self {
+        let distance_tolerance = T::from_f64(1e-3);
+        let angle_tolerance = T::from_f64(1e-2);
+        let length_tolerance = T::from_f64(1e-3);
         Self {
-            distance_tolerance: T::from_f64(1e-3),
-            angle_tolerance: T::from_f64(1e-2),
-            area_tolerance: T::from_f64(1e-3),
-            length_tolerance: T::from_f64(1e-3),
+            distance_tolerance,
+            angle_tolerance,
+            area_tolerance: area_tolerance_from_length(length_tolerance),
+            length_tolerance,
         }
     }
 
@@ -92,7 +144,11 @@ pub fn default_orthogonality_dot_error_tolerance<T: Scalar>() -> T {
 ///
 /// `ToleranceSettings` とは独立しており、アプリケーション設定で変更しない。
 pub fn default_kernel_numerical_zero_tolerance<T: Scalar>() -> T {
-    T::from_f64(analysis::consts::numerical::KERNEL_NUMERICAL_ZERO_THRESHOLD_F64)
+    if is_f32_scalar::<T>() {
+        T::from_f32(KERNEL_NUMERICAL_ZERO_THRESHOLD_F32)
+    } else {
+        T::from_f64(KERNEL_NUMERICAL_ZERO_THRESHOLD_F64)
+    }
 }
 
 /// 幾何計算コンテキスト
@@ -126,5 +182,46 @@ impl<T: Scalar> GeometryContext<T> {
 impl<T: Scalar> Default for GeometryContext<T> {
     fn default() -> Self {
         Self::standard()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_precision_profile_is_type_aware() {
+        let f32_profile = ToleranceSettings::<f32>::precision();
+        assert_eq!(f32_profile.distance_tolerance, 1e-6_f32);
+        assert_eq!(f32_profile.angle_tolerance, 1e-6_f32);
+        assert_eq!(f32_profile.area_tolerance, 1e-12_f32);
+        assert_eq!(f32_profile.length_tolerance, 1e-6_f32);
+
+        let f64_profile = ToleranceSettings::<f64>::precision();
+        assert_eq!(f64_profile.distance_tolerance, 1e-12_f64);
+        assert_eq!(f64_profile.angle_tolerance, 1e-10_f64);
+        assert_eq!(f64_profile.area_tolerance, 1e-24_f64);
+        assert_eq!(f64_profile.length_tolerance, 1e-12_f64);
+    }
+
+    #[test]
+    fn test_standard_and_relaxed_area_tolerance_follow_length_squared() {
+        let standard = ToleranceSettings::<f64>::standard();
+        assert_eq!(
+            standard.area_tolerance,
+            standard.length_tolerance * standard.length_tolerance
+        );
+
+        let relaxed = ToleranceSettings::<f32>::relaxed();
+        assert_eq!(
+            relaxed.area_tolerance,
+            relaxed.length_tolerance * relaxed.length_tolerance
+        );
+    }
+
+    #[test]
+    fn test_default_kernel_numerical_zero_tolerance_is_type_aware() {
+        assert_eq!(default_kernel_numerical_zero_tolerance::<f32>(), 1e-6_f32);
+        assert_eq!(default_kernel_numerical_zero_tolerance::<f64>(), 1e-12_f64);
     }
 }

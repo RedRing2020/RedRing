@@ -251,6 +251,60 @@
 - 特に 1変数 solver 群だけが generic 化され、2変数 solver だけが `f64` 固定で残る状態は、数値解析基盤としての API 一貫性を損ないやすい
 - よって #619 では `newton_solve_2d` の generic 化を単なる将来候補ではなく、計画された follow-up として扱う
 
+## 追加設計判断: Newton 収束 tolerance と線形 solver tolerance の分離（2026年4月8日, #638）
+
+### 背景
+
+- `newton_solve_multivariate` は `tol` を Newton 収束判定に使う
+- `newton_solve_multivariate_bounded` は `MultivariateNewtonOptions<T>::residual_tol` と `step_tol` を停止判定に使う
+- ただし従来の既定 `GaussianSolver<T>` 生成では、これらの収束 tolerance をそのまま線形 solver tolerance へ流用していた
+
+この結合により、Newton の停止条件を緩くしたいだけの呼び出しでも、線形 solver 側の特異判定閾値まで同時に緩んでしまっていた。
+
+### 比較案
+
+#### 案1: `MultivariateNewtonOptions<T>` に線形 solver tolerance を追加する
+
+利点:
+
+- 境界付き Newton の既定経路でも責務分離が明示される
+
+欠点:
+
+- constructor 引数が増えるか builder 導入が必要になる
+- 既に存在する `*_with_solver` 系 API と責務が一部重複する
+
+#### 案2: 既定 solver 生成だけを独立定数へ分離し、override は `*_with_solver` に委ねる
+
+利点:
+
+- 最小変更で責務分離できる
+- 公開 API を再度破壊せずに済む
+- 「既定値」と「明示 override」の責務境界が明確になる
+
+欠点:
+
+- default API だけを見ると solver tolerance がフィールドとしては見えない
+
+### 採用案
+
+本 follow-up では **案2** を採用する。
+
+方針:
+
+- Newton の収束 tolerance は停止判定専用とする
+- 既定 `GaussianSolver<T>` の tolerance は収束 tolerance から導出しない
+- 既定 solver 生成には `LINEAR_SOLVER_TOLERANCE_F64` を generic 変換した独立値を使う
+- custom な線形 solver tolerance が必要な場合は `newton_solve_multivariate_with_solver` / `newton_solve_multivariate_bounded_with_solver` を使用する
+
+### 使い分け方針
+
+- `tol` / `residual_tol`: 非線形方程式の residual が十分小さいかを判定する Newton 側の収束基準
+- `step_tol`: Newton 更新量が十分小さいかを判定する停止基準
+- `LINEAR_SOLVER_TOLERANCE_F64`: Jacobian 線形系を解く際の特異判定・ピボット判定に使う既定閾値
+
+したがって、Newton の停止精度を変更したい場合に `tol` や `residual_tol` を調整しても、既定線形 solver の特異判定閾値は連動させない。
+
 ### #619 の比較案
 
 #### 案1: 2変数専用 API を維持したまま generic 化する
@@ -458,7 +512,7 @@ fn solve_linear_2x2<T: Scalar>(
 
 #### 特異判定と閾値方針
 
-- 1変数 generic solver と同様に `DERIVATIVE_ZERO_THRESHOLD` を `T::from_f64` で変換して利用する
+- `DERIVATIVE_ZERO_THRESHOLD_F32` / `DERIVATIVE_ZERO_THRESHOLD_F64` を型に応じて選択して利用する
 - helper 名は既存との整合を優先し、`derivative_zero_threshold::<T>()` を再利用する
 - 2変数 solver 専用の別閾値はこの段階では導入しない
 

@@ -1,5 +1,7 @@
 use super::{special, GeometricTolerance};
-use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F32, TOLERANCE_F64};
+use crate::consts::test_constants::{
+    SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F32, TOLERANCE_F64,
+};
 
 #[test]
 fn test_special_constants() {
@@ -23,6 +25,9 @@ fn test_special_constants() {
     // √3のテスト
     let sqrt_3_f64 = special::SQRT_3_F64;
     assert!((sqrt_3_f64 - 3.0_f64.sqrt()).abs() < SOLVER_TOLERANCE_F64);
+
+    let sqrt_3_over_2_f64 = special::SQRT_3_OVER_2_F64;
+    assert!((sqrt_3_over_2_f64 - (3.0_f64.sqrt() / 2.0)).abs() < SOLVER_TOLERANCE_F64);
 }
 
 #[test]
@@ -46,4 +51,10 @@ fn test_tolerance_constants() {
     let distance_f32 = <f32 as GeometricTolerance>::DISTANCE_TOLERANCE;
     assert_eq!(angle_f32, 1e-6);
     assert_eq!(distance_f32, 1e-6);
+
+    assert_eq!(SOLVER_TOLERANCE_F32, 1e-6_f32);
+    assert_eq!(SOLVER_TOLERANCE_F64, 1e-15_f64);
+
+    assert_eq!(super::numerical::DERIVATIVE_ZERO_THRESHOLD_F32, 1e-6_f32);
+    assert_eq!(super::numerical::DERIVATIVE_ZERO_THRESHOLD_F64, 1e-12_f64);
 }
