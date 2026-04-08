@@ -228,14 +228,12 @@
 - したがって現時点の `f64` ラッパーは「downstream 即時互換維持」のために残すが、workspace 内の正本利用経路ではない
 - 次段では deprecated 化そのものより、外部利用者向けの移行告知と `newton_solve_2d` の follow-up 分離判断を優先する
 
-### 互換ラッパー運用方針（2026年4月8日時点）
+### legacy Newton API 削除方針（2026年4月8日時点, #640）
 
-- `newton_solve` / `newton_solve_bounded` / `newton_solve_with_numeric_derivative_bounded` / `newton_inverse` は、generic API 導入後も downstream 互換維持のため公開を継続する
-- ただし、workspace 内ではこれらを正本 API と見なさず、新規の production 呼び出しを増やさない
-- `foundation/analysis` 内では互換性を検証する最小限の wrapper テストだけを維持する
-- doctest、モジュール使用例、設計文書、今後の実装は generic API を基準に記述する
-- deprecated 化は即時には行わず、外部利用状況、保守コスト、移行告知手段が揃った段階で別判断とする
-- したがって当面の整理方針は「公開は維持」「内部の新規利用は抑止」「説明責務は generic API 側へ寄せる」の3点で固定する
+- `newton_solve` / `newton_solve_bounded` / `newton_solve_with_numeric_derivative_bounded` / `newton_inverse` / `newton_solve_2d` は legacy 入口として扱い、generic / multivariate 系 API を正本とする
+- プレ版かつ downstream 利用者不在を前提に、deprecated 段階は挟まず削除まで進める
+- ただし作業順は固定し、先に workspace 内の test / doctest / module doc / 設計文書を正本 API へ寄せてから公開面を削除する
+- `newton_solve_2d` も convenience wrapper として温存せず、Newton solver API の二重入口を解消する
 
 ### `newton_solve_2d` の扱い判断（2026年4月8日）
 
