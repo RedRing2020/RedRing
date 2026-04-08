@@ -54,4 +54,17 @@ mod tests {
 
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_gaussian_2x2_f32() {
+        let matrix = vec![vec![2.0_f32, 1.0_f32], vec![1.0_f32, 3.0_f32]];
+        let rhs = vec![5.0_f32, 6.0_f32];
+
+        let solver = GaussianSolver::<f32>::new(1e-6_f32);
+        let result = solver.solve(&matrix, &rhs).unwrap();
+
+        assert!((result.solution[0] - 1.8_f32).abs() < 1e-4_f32);
+        assert!((result.solution[1] - 1.4_f32).abs() < 1e-4_f32);
+        assert!(result.converged);
+    }
 }
