@@ -27,7 +27,7 @@ pub mod quaternion_tests;
 // 主要型の再エクスポート
 pub use matrix::{DynamicMatrix, Matrix2x2, Matrix3x3, Matrix4x4};
 pub use quaternion::{Quaternion, Quaterniond, Quaternionf};
-pub use solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
+pub use solver::{CramerSolver, DynamicMatrixLinearSolver, GaussianSolver, LUSolver, LinearSolver};
 pub use vector::{Vector, Vector2, Vector3, Vector4};
 
 // 便利な型エイリアス（ベクトル）
