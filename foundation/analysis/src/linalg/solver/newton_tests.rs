@@ -1,7 +1,9 @@
 use super::newton::{
     newton_inverse, newton_inverse_generic, newton_solve, newton_solve_2d, newton_solve_generic,
-    newton_solve_multivariate, newton_solve_multivariate_with_solver,
-    newton_solve_with_numeric_derivative_bounded_generic,
+    newton_solve_multivariate, newton_solve_multivariate_bounded,
+    newton_solve_multivariate_bounded_with_solver, newton_solve_multivariate_with_solver,
+    newton_solve_with_numeric_derivative_bounded_generic, MultivariateNewtonBounds,
+    MultivariateNewtonOptions,
 };
 use crate::consts::test_constants::{INTEGRATION_TOLERANCE_STRICT, TOLERANCE_F64};
 use crate::linalg::{DynamicMatrix, LUSolver, Vector};
@@ -223,6 +225,147 @@ mod tests {
 
         let result =
             newton_solve_multivariate(system, Vector::new(vec![1.0, 1.0]), 10, TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_reject_dimension_mismatch() {
+        let result = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, 0.0_f64]),
+            Vector::new(vec![1.0_f64]),
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_reject_inverted_axis_range() {
+        let result = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, 2.0_f64]),
+            Vector::new(vec![1.0_f64, 1.0_f64]),
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_multivariate_newton_bounds_clamp_and_contains() {
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![0.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 2.0_f64]),
+        )
+        .unwrap();
+
+        let point = Vector::new(vec![1.5_f64, -2.0_f64]);
+        let clamped = bounds.clamp(&point).unwrap();
+
+        assert_eq!(clamped, Vector::new(vec![1.0_f64, -1.0_f64]));
+        assert!(bounds.contains(&clamped));
+        assert!(!bounds.contains(&point));
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_bounded_clamps_initial_point() {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![point[0] - 1.0]);
+            let jacobian = DynamicMatrix::from_rows(vec![vec![1.0_f64]]).unwrap();
+            (residual, jacobian)
+        };
+        let bounds =
+            MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
+                .unwrap();
+        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64);
+
+        let result = newton_solve_multivariate_bounded(
+            system,
+            Vector::new(vec![3.0_f64]),
+            &bounds,
+            &options,
+        );
+        assert!(result.is_some());
+
+        let solution = result.unwrap();
+        assert_eq!(solution, Vector::new(vec![1.0_f64]));
+        assert!(bounds.contains(&solution));
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_bounded_converges_on_boundary() {
+        let system = |point: &Vector<f64>| {
+            let x = point[0];
+            let residual = Vector::new(vec![x * x - 1.0]);
+            let jacobian = DynamicMatrix::from_rows(vec![vec![2.0_f64 * x]]).unwrap();
+            (residual, jacobian)
+        };
+        let bounds =
+            MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
+                .unwrap();
+        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64);
+
+        let result = newton_solve_multivariate_bounded(
+            system,
+            Vector::new(vec![0.2_f64]),
+            &bounds,
+            &options,
+        );
+        assert!(result.is_some());
+
+        let solution = result.unwrap();
+        assert!((solution[0] - 1.0_f64).abs() < INTEGRATION_TOLERANCE_STRICT);
+        assert!(bounds.contains(&solution));
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_bounded_with_solver_rejects_shape_mismatch() {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![point[0], point[1]]);
+            let jacobian = DynamicMatrix::from_rows(vec![
+                vec![1.0_f64, 0.0_f64, 0.0_f64],
+                vec![0.0_f64, 1.0_f64, 0.0_f64],
+            ])
+            .unwrap();
+            (residual, jacobian)
+        };
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![-1.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 1.0_f64]),
+        )
+        .unwrap();
+        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64);
+        let solver = LUSolver::new(TOLERANCE_F64);
+
+        let result = newton_solve_multivariate_bounded_with_solver(
+            system,
+            Vector::new(vec![0.5_f64, 0.5_f64]),
+            &bounds,
+            &solver,
+            &options,
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_newton_solve_multivariate_bounded_singular_jacobian() {
+        let system = |point: &Vector<f64>| {
+            let residual = Vector::new(vec![point[0] + point[1], point[0] + point[1]]);
+            let jacobian =
+                DynamicMatrix::from_rows(vec![vec![1.0_f64, 1.0_f64], vec![1.0_f64, 1.0_f64]])
+                    .unwrap();
+            (residual, jacobian)
+        };
+        let bounds = MultivariateNewtonBounds::new(
+            Vector::new(vec![-1.0_f64, -1.0_f64]),
+            Vector::new(vec![1.0_f64, 1.0_f64]),
+        )
+        .unwrap();
+        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64);
+
+        let result = newton_solve_multivariate_bounded(
+            system,
+            Vector::new(vec![0.5_f64, 0.5_f64]),
+            &bounds,
+            &options,
+        );
         assert!(result.is_none());
     }
 }
