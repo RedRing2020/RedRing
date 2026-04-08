@@ -262,8 +262,8 @@ impl<T: Scalar> NurbsSurface3D<T> {
         let v_span = crate::knot::find_knot_span(v, &self.v_knots, self.v_degree);
 
         // 基底関数を計算
-        let u_basis = self.compute_u_basis_functions(u, u_span);
-        let v_basis = self.compute_v_basis_functions(v, v_span);
+        let u_basis = crate::basis::basis_functions(u_span, self.u_degree, u, &self.u_knots);
+        let v_basis = crate::basis::basis_functions(v_span, self.v_degree, v, &self.v_knots);
 
         // 重み付き制御点を使用してサーフェス点を計算
         let mut numerator_x = T::ZERO;
@@ -399,54 +399,6 @@ impl<T: Scalar> NurbsSurface3D<T> {
         }
 
         total_area
-    }
-
-    /// u方向のB-スプライン基底関数を計算
-    fn compute_u_basis_functions(&self, u: T, span: usize) -> Vec<T> {
-        let mut basis = vec![T::ZERO; self.u_degree + 1];
-        let mut left = vec![T::ZERO; self.u_degree + 1];
-        let mut right = vec![T::ZERO; self.u_degree + 1];
-
-        basis[0] = T::ONE;
-
-        for j in 1..=self.u_degree {
-            left[j] = u - self.u_knots[span + 1 - j];
-            right[j] = self.u_knots[span + j] - u;
-
-            let mut saved = T::ZERO;
-            for r in 0..j {
-                let temp = basis[r] / (right[r + 1] + left[j - r]);
-                basis[r] = saved + right[r + 1] * temp;
-                saved = left[j - r] * temp;
-            }
-            basis[j] = saved;
-        }
-
-        basis
-    }
-
-    /// v方向のB-スプライン基底関数を計算
-    fn compute_v_basis_functions(&self, v: T, span: usize) -> Vec<T> {
-        let mut basis = vec![T::ZERO; self.v_degree + 1];
-        let mut left = vec![T::ZERO; self.v_degree + 1];
-        let mut right = vec![T::ZERO; self.v_degree + 1];
-
-        basis[0] = T::ONE;
-
-        for j in 1..=self.v_degree {
-            left[j] = v - self.v_knots[span + 1 - j];
-            right[j] = self.v_knots[span + j] - v;
-
-            let mut saved = T::ZERO;
-            for r in 0..j {
-                let temp = basis[r] / (right[r + 1] + left[j - r]);
-                basis[r] = saved + right[r + 1] * temp;
-                saved = left[j - r] * temp;
-            }
-            basis[j] = saved;
-        }
-
-        basis
     }
 }
 

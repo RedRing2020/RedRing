@@ -2,7 +2,6 @@
 //!
 //! Cox-de Boorの再帰公式を使用したB-スプライン基底関数とその導関数の計算を提供します。
 
-use crate::KnotVector;
 use analysis::Scalar;
 
 /// B-スプライン基底関数を計算（Cox-de Boor再帰公式）
@@ -11,11 +10,11 @@ use analysis::Scalar;
 /// * `i` - 基底関数のインデックス
 /// * `degree` - 次数
 /// * `t` - パラメータ値
-/// * `knots` - ノットベクトル
+/// * `knots` - ノット列
 ///
 /// # 戻り値
 /// B-スプライン基底関数値 N_{i,p}(t)
-pub fn basis_function<T: Scalar>(i: usize, degree: usize, t: T, knots: &KnotVector<T>) -> T {
+pub fn basis_function<T: Scalar>(i: usize, degree: usize, t: T, knots: &[T]) -> T {
     if degree == 0 {
         // 0次基底関数（特性関数）
         if i < knots.len() - 1 && t >= knots[i] && t < knots[i + 1] {
@@ -54,16 +53,11 @@ pub fn basis_function<T: Scalar>(i: usize, degree: usize, t: T, knots: &KnotVect
 /// * `span` - ノットスパン
 /// * `degree` - 次数
 /// * `t` - パラメータ値
-/// * `knots` - ノットベクトル
+/// * `knots` - ノット列
 ///
 /// # 戻り値
 /// 非ゼロ基底関数値の配列（長さ = degree + 1）
-pub fn basis_functions<T: Scalar>(
-    span: usize,
-    degree: usize,
-    t: T,
-    knots: &KnotVector<T>,
-) -> Vec<T> {
+pub fn basis_functions<T: Scalar>(span: usize, degree: usize, t: T, knots: &[T]) -> Vec<T> {
     let mut basis = vec![T::ZERO; degree + 1];
     let mut left = vec![T::ZERO; degree + 1];
     let mut right = vec![T::ZERO; degree + 1];
@@ -92,7 +86,7 @@ pub fn basis_functions<T: Scalar>(
 /// * `span` - ノットスパン
 /// * `degree` - 次数
 /// * `t` - パラメータ値
-/// * `knots` - ノットベクトル
+/// * `knots` - ノット列
 /// * `derivative_order` - 導関数の次数
 ///
 /// # 戻り値
@@ -102,7 +96,7 @@ pub fn basis_derivatives<T: Scalar>(
     span: usize,
     degree: usize,
     t: T,
-    knots: &KnotVector<T>,
+    knots: &[T],
     derivative_order: usize,
 ) -> Vec<Vec<T>> {
     let n = derivative_order;
@@ -156,7 +150,7 @@ pub fn basis_derivatives<T: Scalar>(
 /// * `span` - ノットスパン
 /// * `degree` - 次数
 /// * `t` - パラメータ値
-/// * `knots` - ノットベクトル
+/// * `knots` - ノット列
 /// * `weights` - 重み配列
 ///
 /// # 戻り値
@@ -165,7 +159,7 @@ pub fn rational_basis_functions<T: Scalar>(
     span: usize,
     degree: usize,
     t: T,
-    knots: &KnotVector<T>,
+    knots: &[T],
     weights: &[T],
 ) -> Vec<T> {
     let basis = basis_functions(span, degree, t, knots);
@@ -201,7 +195,7 @@ pub fn rational_basis_functions<T: Scalar>(
 /// * `span` - ノットスパン
 /// * `degree` - 次数
 /// * `t` - パラメータ値
-/// * `knots` - ノットベクトル
+/// * `knots` - ノット列
 /// * `weights` - 重み配列
 /// * `derivative_order` - 導関数の次数
 ///
@@ -211,7 +205,7 @@ pub fn rational_basis_derivatives<T: Scalar>(
     span: usize,
     degree: usize,
     t: T,
-    knots: &KnotVector<T>,
+    knots: &[T],
     weights: &[T],
     derivative_order: usize,
 ) -> Vec<Vec<T>> {
