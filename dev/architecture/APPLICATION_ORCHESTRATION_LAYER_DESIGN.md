@@ -212,6 +212,7 @@ Issue #335 の最小 PoC は、既存の debug snapshot / toolpath 可視化導�
 ## 10. 関連文書
 
 - `dev/architecture/ARCHITECTURE.md`
+- `dev/architecture/VIEWMODEL_MODEL_ROUTE_REDEFINITION_DESIGN.md`
 - `dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md`
 - `dev/architecture/VIEWMODEL_ARCHITECTURE_DESIGN.md`
 
