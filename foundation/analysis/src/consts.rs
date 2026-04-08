@@ -5,8 +5,17 @@
 
 /// 数値計算アルゴリズム用の閾値
 pub mod numerical {
-    /// ニュートン法で微分がゼロとみなされる閾値
+    /// ニュートン法で微分がゼロとみなされる閾値（f32）
+    pub const DERIVATIVE_ZERO_THRESHOLD_F32: f32 = 1e-6;
+
+    /// ニュートン法で微分がゼロとみなされる閾値（f64）
     pub const DERIVATIVE_ZERO_THRESHOLD: f64 = 1e-12;
+
+    /// 線形 solver の特異判定・ピボット判定に使う既定閾値（f32）
+    pub const LINEAR_SOLVER_TOLERANCE_F32: f32 = 1e-6;
+
+    /// 線形 solver の特異判定・ピボット判定に使う既定閾値
+    pub const LINEAR_SOLVER_TOLERANCE_F64: f64 = 1e-15;
 
     /// カーネル内部のゼロ判定（ゼロベクトル長・分母ゼロ近傍）用固定閾値（f64）
     pub const KERNEL_NUMERICAL_ZERO_THRESHOLD_F64: f64 = 1e-12;
@@ -195,8 +204,11 @@ pub mod test_constants {
 
     // 数値計算アルゴリズム専用の許容誤差
 
+    /// ソルバー用高精度許容誤差（f32）
+    pub const SOLVER_TOLERANCE_F32: f32 = super::numerical::LINEAR_SOLVER_TOLERANCE_F32;
+
     /// ソルバー用高精度許容誤差
-    pub const SOLVER_TOLERANCE_F64: f64 = 1e-15;
+    pub const SOLVER_TOLERANCE_F64: f64 = super::numerical::LINEAR_SOLVER_TOLERANCE_F64;
 
     /// 数値積分用許容誤差（標準精度）
     pub const INTEGRATION_TOLERANCE: f64 = 1e-4;
