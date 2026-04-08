@@ -799,6 +799,21 @@ where
 - `newton_tests.rs` に bounds 検証、初期値 clamp、境界端収束、shape 不整合、特異 Jacobian の回帰テストを追加する
 - 既存 unbounded API の署名・挙動は変更しない
 
+#### Issue #632 初期方針（2026年4月8日）
+
+- `MultivariateNewtonBounds<T>::contains` は当面、厳密比較のまま維持する
+- tolerance を含む境界判定が必要な場合でも、既存 `contains` の意味は変更しない
+- follow-up の最小案として、必要なら `contains_with_tolerance(&self, point: &Vector<T>, tol: T) -> bool` を追加する方向で検討する
+- これにより、`contains` を「幾何学的に境界内であるかの厳密判定」、`contains_with_tolerance` を「浮動小数誤差を織り込んだ補助判定」として分離できる
+- `clamp` は現在どおり境界へ射影する責務に限定し、tolerance-aware な contains 判定と混在させない
+- `MultivariateNewtonOptions<T>` はこの段階では `max_iter` と `tol` のまま維持し、`residual_tol` / `step_tol` 分離は別段で扱う
+
+理由:
+
+- 現在の bounded Newton 実装と回帰テストは厳密比較前提で安定している
+- `contains` の意味を後から tolerance-aware に変えると、既存利用者にとって API 意味論が変化する
+- 必要時に `contains_with_tolerance` を追加する方が、互換性と責務分離の両面で扱いやすい
+
 ### 外部利用者向け移行方針
 
 - 新規コードでは `newton_solve_generic` / `newton_solve_bounded_generic` / `newton_solve_with_numeric_derivative_bounded_generic` / `newton_inverse_generic` を優先する
