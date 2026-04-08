@@ -149,15 +149,7 @@ pub struct MultivariateNewtonOptions<T: Scalar> {
 }
 
 impl<T: Scalar> MultivariateNewtonOptions<T> {
-    pub fn new(max_iter: usize, tol: T) -> Self {
-        Self {
-            max_iter,
-            residual_tol: tol,
-            step_tol: tol,
-        }
-    }
-
-    pub fn with_tolerances(max_iter: usize, residual_tol: T, step_tol: T) -> Self {
+    pub fn new(max_iter: usize, residual_tol: T, step_tol: T) -> Self {
         Self {
             max_iter,
             residual_tol,

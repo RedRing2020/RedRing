@@ -336,17 +336,8 @@ mod tests {
     }
 
     #[test]
-    fn test_multivariate_newton_options_new_sets_both_tolerances() {
-        let options = MultivariateNewtonOptions::new(25, 1e-6_f64);
-
-        assert_eq!(options.max_iter, 25);
-        assert_eq!(options.residual_tol, 1e-6_f64);
-        assert_eq!(options.step_tol, 1e-6_f64);
-    }
-
-    #[test]
-    fn test_multivariate_newton_options_with_tolerances_sets_separate_values() {
-        let options = MultivariateNewtonOptions::with_tolerances(25, 1e-4_f64, 1e-8_f64);
+    fn test_multivariate_newton_options_new_sets_separate_values() {
+        let options = MultivariateNewtonOptions::new(25, 1e-4_f64, 1e-8_f64);
 
         assert_eq!(options.max_iter, 25);
         assert_eq!(options.residual_tol, 1e-4_f64);
@@ -363,7 +354,7 @@ mod tests {
         let bounds =
             MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
                 .unwrap();
-        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64, TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded(
             system,
@@ -389,7 +380,7 @@ mod tests {
         let bounds =
             MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
                 .unwrap();
-        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(20, TOLERANCE_F64, TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded(
             system,
@@ -420,7 +411,7 @@ mod tests {
             Vector::new(vec![1.0_f64, 1.0_f64]),
         )
         .unwrap();
-        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64, TOLERANCE_F64);
         let solver = LUSolver::new(TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded_with_solver(
@@ -447,7 +438,7 @@ mod tests {
             Vector::new(vec![1.0_f64, 1.0_f64]),
         )
         .unwrap();
-        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64);
+        let options = MultivariateNewtonOptions::new(10, TOLERANCE_F64, TOLERANCE_F64);
 
         let result = newton_solve_multivariate_bounded(
             system,
@@ -468,7 +459,7 @@ mod tests {
         let bounds =
             MultivariateNewtonBounds::new(Vector::new(vec![0.0_f64]), Vector::new(vec![1.0_f64]))
                 .unwrap();
-        let options = MultivariateNewtonOptions::with_tolerances(1, 0.1_f64, 0.5_f64);
+        let options = MultivariateNewtonOptions::new(1, 0.1_f64, 0.5_f64);
 
         let result = newton_solve_multivariate_bounded(
             system,

@@ -826,11 +826,10 @@ where
 #### Issue #636 実装スコープ（2026年4月8日）
 
 - `MultivariateNewtonOptions<T>` を `residual_tol` / `step_tol` に分離する
-- `new(max_iter, tol)` は互換入口として維持し、両 tolerance に同じ値を設定する
-- `with_tolerances(max_iter, residual_tol, step_tol)` を追加する
+- breaking change を受け入れ、`new(max_iter, residual_tol, step_tol)` に一本化する
 - bounded Newton 本体では residual 判定に `residual_tol`、step 判定に `step_tol` を使う
 - solver の既定 tolerance は `residual_tol` を元に生成する
-- `newton_tests.rs` に互換 constructor と分離 tolerance の固定テストを追加する
+- `newton_tests.rs` に分離 tolerance の固定テストを追加する
 
 ### 外部利用者向け移行方針
 
