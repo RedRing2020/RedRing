@@ -144,12 +144,25 @@ impl<T: Scalar> MultivariateNewtonBounds<T> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MultivariateNewtonOptions<T: Scalar> {
     pub max_iter: usize,
-    pub tol: T,
+    pub residual_tol: T,
+    pub step_tol: T,
 }
 
 impl<T: Scalar> MultivariateNewtonOptions<T> {
     pub fn new(max_iter: usize, tol: T) -> Self {
-        Self { max_iter, tol }
+        Self {
+            max_iter,
+            residual_tol: tol,
+            step_tol: tol,
+        }
+    }
+
+    pub fn with_tolerances(max_iter: usize, residual_tol: T, step_tol: T) -> Self {
+        Self {
+            max_iter,
+            residual_tol,
+            step_tol,
+        }
     }
 }
 
@@ -488,7 +501,7 @@ where
     T: Scalar,
     F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
 {
-    let solver = GaussianSolver::new(solver_tolerance(options.tol));
+    let solver = GaussianSolver::new(solver_tolerance(options.residual_tol));
     newton_solve_multivariate_bounded_with_solver(system, initial, bounds, &solver, options)
 }
 
@@ -513,7 +526,7 @@ where
             return None;
         }
 
-        if residual.norm() < options.tol {
+        if residual.norm() < options.residual_tol {
             return Some(current);
         }
 
@@ -527,7 +540,7 @@ where
             return None;
         }
 
-        if next_residual.norm() < options.tol && actual_step.norm() < options.tol {
+        if next_residual.norm() < options.residual_tol && actual_step.norm() < options.step_tol {
             return Some(next);
         }
 
