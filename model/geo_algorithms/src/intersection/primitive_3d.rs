@@ -246,7 +246,7 @@ fn circle3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        circle.distance_to_point_3d(Point3D::new(point.x(), point.y(), point.z())) <= tolerance,
+        crate::distance::circle3d_point3d_distance(circle, point) <= tolerance,
     )
 }
 
@@ -1492,10 +1492,7 @@ fn plane3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(
-        point,
-        plane.contains_point(Point3D::new(point.x(), point.y(), point.z()), tolerance),
-    )
+    point_intersection_if(point, plane.contains_point(*point, tolerance))
 }
 
 pub fn plane3d_point3d_intersection<T: Scalar>(

@@ -24,7 +24,7 @@ pub fn spherical_solid3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_surface(Point3D::new(point.x(), point.y(), point.z())) <= tolerance
+    sphere.distance_to_surface(*point) <= tolerance
 }
 
 pub fn spherical_solid3d_circle3d_collides<T: Scalar>(
@@ -674,7 +674,7 @@ pub fn circle3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    circle.distance_to_point_3d(Point3D::new(point.x(), point.y(), point.z())) <= tolerance
+    crate::distance::circle3d_point3d_distance(circle, point) <= tolerance
 }
 
 pub fn circle3d_line_segment3d_collides<T: Scalar>(
@@ -729,7 +729,7 @@ pub fn plane3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    plane.contains_point(Point3D::new(point.x(), point.y(), point.z()), tolerance)
+    plane.contains_point(*point, tolerance)
 }
 
 pub fn plane3d_line_segment3d_collides<T: Scalar>(
