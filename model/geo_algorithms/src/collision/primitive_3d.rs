@@ -12,10 +12,9 @@ use crate::{
     SphericalSurface3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DDistance, Arc3DEndpoint, Arc3DProperties, Circle3DProperties,
-    CylindricalSolid3DProperties, CylindricalSurface3DProperties, EllipsoidalSolid3DProperties,
-    InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
-    TorusSurface3DDistance, Triangle3DBoundaryAccess,
+    Arc3DEndpoint, Arc3DProperties, Circle3DProperties, CylindricalSolid3DProperties,
+    CylindricalSurface3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
+    SphericalSolid3DProperties, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 // ── SphericalSolid3D ──────────────────────────────────────────────────────────
@@ -25,7 +24,7 @@ pub fn spherical_solid3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_surface(Point3D::new(point.x(), point.y(), point.z())) <= tolerance
+    sphere.distance_to_surface(*point) <= tolerance
 }
 
 pub fn spherical_solid3d_circle3d_collides<T: Scalar>(
@@ -536,10 +535,7 @@ pub fn torus_surface3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
-        torus,
-        (point.x(), point.y(), point.z()),
-    ) <= tolerance
+    crate::distance::torus_surface3d_point3d_distance(torus, point) <= tolerance
 }
 
 // ── Triangle3D ────────────────────────────────────────────────────────────────
@@ -621,8 +617,7 @@ pub fn triangle_mesh3d_point3d_collides<T: Scalar>(
 // ── Arc3D ─────────────────────────────────────────────────────────────────────
 
 pub fn arc3d_point3d_collides<T: Scalar>(arc: &Arc3D<T>, point: &Point3D<T>, tolerance: T) -> bool {
-    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, (point.x(), point.y(), point.z()))
-        <= tolerance
+    crate::distance::arc3d_point3d_distance(arc, point) <= tolerance
         && arc.contains_point_angle(Point3D::new(point.x(), point.y(), point.z()))
 }
 
@@ -635,18 +630,8 @@ pub fn arc3d_line_segment3d_collides<T: Scalar>(
     let (ex, ey, ez) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
     let arc_start = Point3D::new(sx, sy, sz);
     let arc_end = Point3D::new(ex, ey, ez);
-    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
-        arc,
-        (
-            segment.start().x(),
-            segment.start().y(),
-            segment.start().z(),
-        ),
-    ) <= tolerance
-        || <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
-            arc,
-            (segment.end().x(), segment.end().y(), segment.end().z()),
-        ) <= tolerance
+    crate::distance::arc3d_point3d_distance(arc, &segment.start()) <= tolerance
+        || crate::distance::arc3d_point3d_distance(arc, &segment.end()) <= tolerance
         || {
             let d1 = crate::Vector3D::from_points(&arc_start, &segment.start()).magnitude();
             let d2 = crate::Vector3D::from_points(&arc_end, &segment.start()).magnitude();
@@ -655,10 +640,7 @@ pub fn arc3d_line_segment3d_collides<T: Scalar>(
 }
 
 pub fn arc3d_ray3d_collides<T: Scalar>(arc: &Arc3D<T>, ray: &Ray3D<T>, tolerance: T) -> bool {
-    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
-        arc,
-        (ray.origin().x(), ray.origin().y(), ray.origin().z()),
-    ) <= tolerance
+    crate::distance::arc3d_point3d_distance(arc, &ray.origin()) <= tolerance
 }
 
 pub fn arc3d_infinite_line3d_collides<T: Scalar>(
@@ -667,7 +649,7 @@ pub fn arc3d_infinite_line3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (px, py, pz) = line.point();
-    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, (px, py, pz)) <= tolerance
+    crate::distance::arc3d_point3d_distance(arc, &Point3D::new(px, py, pz)) <= tolerance
 }
 
 pub fn arc3d_arc3d_collides<T: Scalar>(arc_a: &Arc3D<T>, arc_b: &Arc3D<T>, tolerance: T) -> bool {
@@ -692,7 +674,7 @@ pub fn circle3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    circle.distance_to_point_3d(Point3D::new(point.x(), point.y(), point.z())) <= tolerance
+    crate::distance::circle3d_point3d_distance(circle, point) <= tolerance
 }
 
 pub fn circle3d_line_segment3d_collides<T: Scalar>(
@@ -747,7 +729,7 @@ pub fn plane3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    plane.contains_point(Point3D::new(point.x(), point.y(), point.z()), tolerance)
+    plane.contains_point(*point, tolerance)
 }
 
 pub fn plane3d_line_segment3d_collides<T: Scalar>(
