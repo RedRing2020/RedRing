@@ -545,7 +545,7 @@ pub fn triangle3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    triangle.distance_to_point(point) <= tolerance
+    crate::distance::triangle3d_point3d_distance(triangle, point) <= tolerance
 }
 
 pub fn triangle3d_line_segment3d_collides<T: Scalar>(
@@ -553,8 +553,8 @@ pub fn triangle3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    triangle.distance_to_point(&segment.start()) <= tolerance
-        || triangle.distance_to_point(&segment.end()) <= tolerance
+    crate::distance::triangle3d_point3d_distance(triangle, &segment.start()) <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle, &segment.end()) <= tolerance
 }
 
 pub fn line_segment3d_triangle3d_collides<T: Scalar>(
@@ -570,7 +570,7 @@ pub fn triangle3d_ray3d_collides<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> bool {
-    triangle.distance_to_point(&ray.origin()) <= tolerance
+    crate::distance::triangle3d_point3d_distance(triangle, &ray.origin()) <= tolerance
 }
 
 pub fn ray3d_triangle3d_collides<T: Scalar>(
@@ -592,12 +592,17 @@ pub fn triangle3d_triangle3d_collides<T: Scalar>(
     let (ax2, ay2, az2) = Triangle3DBoundaryAccess::vertex_a(triangle_b);
     let (bx2, by2, bz2) = Triangle3DBoundaryAccess::vertex_b(triangle_b);
     let (cx2, cy2, cz2) = Triangle3DBoundaryAccess::vertex_c(triangle_b);
-    triangle_b.distance_to_point(&Point3D::new(ax, ay, az)) <= tolerance
-        || triangle_b.distance_to_point(&Point3D::new(bx, by, bz)) <= tolerance
-        || triangle_b.distance_to_point(&Point3D::new(cx, cy, cz)) <= tolerance
-        || triangle_a.distance_to_point(&Point3D::new(ax2, ay2, az2)) <= tolerance
-        || triangle_a.distance_to_point(&Point3D::new(bx2, by2, bz2)) <= tolerance
-        || triangle_a.distance_to_point(&Point3D::new(cx2, cy2, cz2)) <= tolerance
+    crate::distance::triangle3d_point3d_distance(triangle_b, &Point3D::new(ax, ay, az)) <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle_b, &Point3D::new(bx, by, bz))
+            <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle_b, &Point3D::new(cx, cy, cz))
+            <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle_a, &Point3D::new(ax2, ay2, az2))
+            <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle_a, &Point3D::new(bx2, by2, bz2))
+            <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle_a, &Point3D::new(cx2, cy2, cz2))
+            <= tolerance
 }
 
 // ── TriangleMesh3D ────────────────────────────────────────────────────────────
@@ -607,11 +612,7 @@ pub fn triangle_mesh3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    (0..mesh.triangle_count()).any(|i| {
-        mesh.triangle(i)
-            .map(|tri| tri.distance_to_point(point) <= tolerance)
-            .unwrap_or(false)
-    })
+    crate::distance::triangle_mesh3d_point3d_distance(mesh, point) <= tolerance
 }
 
 // ── Arc3D ─────────────────────────────────────────────────────────────────────

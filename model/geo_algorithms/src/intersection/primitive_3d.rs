@@ -1327,7 +1327,10 @@ fn triangle3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, triangle.distance_to_point(point) <= tolerance)
+    point_intersection_if(
+        point,
+        crate::distance::triangle3d_point3d_distance(triangle, point) <= tolerance,
+    )
 }
 
 pub fn triangle3d_point3d_intersection<T: Scalar>(
@@ -1465,11 +1468,7 @@ fn triangle_mesh3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        (0..mesh.triangle_count()).any(|i| {
-            mesh.triangle(i)
-                .map(|tri| tri.distance_to_point(point) <= tolerance)
-                .unwrap_or(false)
-        }),
+        crate::distance::triangle_mesh3d_point3d_distance(mesh, point) <= tolerance,
     )
 }
 
