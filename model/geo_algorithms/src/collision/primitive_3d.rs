@@ -17,6 +17,17 @@ use geo_contracts::{
     SphericalSolid3DProperties, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
+fn triangle3d_vertex_points<T: Scalar>(triangle: &Triangle3D<T>) -> [Point3D<T>; 3] {
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
+    [
+        Point3D::new(ax, ay, az),
+        Point3D::new(bx, by, bz),
+        Point3D::new(cx, cy, cz),
+    ]
+}
+
 // ── SphericalSolid3D ──────────────────────────────────────────────────────────
 
 pub fn spherical_solid3d_point3d_collides<T: Scalar>(
@@ -69,12 +80,9 @@ pub fn spherical_solid3d_triangle3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
-    sphere.distance_to_surface(Point3D::new(ax, ay, az)) <= tolerance
-        || sphere.distance_to_surface(Point3D::new(bx, by, bz)) <= tolerance
-        || sphere.distance_to_surface(Point3D::new(cx, cy, cz)) <= tolerance
+    triangle3d_vertex_points(triangle)
+        .into_iter()
+        .any(|point| sphere.distance_to_surface(point) <= tolerance)
 }
 
 pub fn spherical_solid3d_plane3d_collides<T: Scalar>(
@@ -158,15 +166,9 @@ pub fn cylindrical_solid3d_triangle3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = triangle.vertex_a();
-    let (bx, by, bz) = triangle.vertex_b();
-    let (cx, cy, cz) = triangle.vertex_c();
-    let point_a = Point3D::new(ax, ay, az);
-    let point_b = Point3D::new(bx, by, bz);
-    let point_c = Point3D::new(cx, cy, cz);
-    crate::distance::cylindrical_solid3d_point3d_distance(cyl, &point_a) <= tolerance
-        || crate::distance::cylindrical_solid3d_point3d_distance(cyl, &point_b) <= tolerance
-        || crate::distance::cylindrical_solid3d_point3d_distance(cyl, &point_c) <= tolerance
+    triangle3d_vertex_points(triangle).into_iter().any(|point| {
+        crate::distance::cylindrical_solid3d_point3d_distance(cyl, &point) <= tolerance
+    })
 }
 
 pub fn cylindrical_solid3d_plane3d_collides<T: Scalar>(
@@ -254,15 +256,9 @@ pub fn cylindrical_surface3d_triangle3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = triangle.vertex_a();
-    let (bx, by, bz) = triangle.vertex_b();
-    let (cx, cy, cz) = triangle.vertex_c();
-    let point_a = Point3D::new(ax, ay, az);
-    let point_b = Point3D::new(bx, by, bz);
-    let point_c = Point3D::new(cx, cy, cz);
-    crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_a) <= tolerance
-        || crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_b) <= tolerance
-        || crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_c) <= tolerance
+    triangle3d_vertex_points(triangle).into_iter().any(|point| {
+        crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point) <= tolerance
+    })
 }
 
 pub fn cylindrical_surface3d_plane3d_collides<T: Scalar>(
@@ -377,20 +373,15 @@ pub fn ellipse3d_triangle3d_collides<T: Scalar + From<f64>>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    let (ax, ay, az) = triangle.vertex_a();
-    let (bx, by, bz) = triangle.vertex_b();
-    let (cx, cy, cz) = triangle.vertex_c();
-    let point_a = Point3D::new(ax, ay, az);
-    let point_b = Point3D::new(bx, by, bz);
-    let point_c = Point3D::new(cx, cy, cz);
+    let [point_a, point_b, point_c] = triangle3d_vertex_points(triangle);
     let dist_a = crate::distance::ellipse3d_point3d_distance(ellipse, &point_a);
     let dist_b = crate::distance::ellipse3d_point3d_distance(ellipse, &point_b);
     let dist_c = crate::distance::ellipse3d_point3d_distance(ellipse, &point_c);
     let three = T::from_f64(3.0);
     let centroid = Point3D::new(
-        (ax + bx + cx) / three,
-        (ay + by + cy) / three,
-        (az + bz + cz) / three,
+        (point_a.x() + point_b.x() + point_c.x()) / three,
+        (point_a.y() + point_b.y() + point_c.y()) / three,
+        (point_a.z() + point_b.z() + point_c.z()) / three,
     );
     let dist_centroid = crate::distance::ellipse3d_point3d_distance(ellipse, &centroid);
     dist_a <= tolerance || dist_b <= tolerance || dist_c <= tolerance || dist_centroid <= tolerance
