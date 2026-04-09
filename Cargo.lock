@@ -128,6 +128,10 @@ dependencies = [
  "cam_core",
  "cam_sim",
  "geo_algorithms",
+ "geo_contracts",
+ "geo_entity",
+ "geo_primitives",
+ "geo_topology",
  "job_domain",
  "job_runtime",
 ]
@@ -1083,6 +1087,7 @@ version = "0.1.0"
 dependencies = [
  "analysis",
  "geo_commons",
+ "serde",
 ]
 
 [[package]]

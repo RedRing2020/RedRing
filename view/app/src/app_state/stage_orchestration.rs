@@ -15,7 +15,7 @@ impl AppState {
             return;
         }
 
-        let vertices = self.entity_manager.line_vertices();
+        let vertices = self.entity_manager.line_list_vertices();
         if vertices.is_empty() {
             self.entity_manager.clear_dirty();
             return;

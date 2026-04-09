@@ -78,6 +78,8 @@ foundation/analysis（将来改名候補）
 - **`geo_foundation`廃止（完了）**: 形状trait定義は`geo_contracts`へ統一済み
 - **`geo_primitives` / `geo_nurbs` の役割**: 自 crate 型に対する impl entry point を担い、重い自由関数アルゴリズムは `geo_algorithms`、形状非依存の数値カーネルは `geo_commons` へ分離する
 - **依存と import の区別**: `geo_algorithms -> geo_primitives/geo_nurbs` 依存は許可だが、`geo_algorithms` 実装ファイルでの `use geo_primitives::...` 直接 import は禁止（`use crate::...` 再エクスポート経由を使用）
+- **`geo_topology` の曲線依存**: `geo_topology -> geo_primitives` は既存許可とし、curve edge の段階導入に限って `geo_topology -> geo_nurbs` 依存も許可する
+- **NURBS topology 依存の制約**: 許可するのは `geo_topology -> geo_nurbs` の片方向のみとし、`geo_nurbs -> geo_topology` の逆依存は禁止する
 - **上位責務分離**: tessellation/simulation/job managerは`geo_algorithms`より上位のapplication層へ集約
 - **Application Layer の役割**: 非同期実装詳細そのものは持たず、同期/非同期/job投入の実行方式境界だけを管理する
 - **CAM責務分離**: `cam_core` は中立データ、`cam_algorithms` は計算ロジック、`cam_sim` はCAM特化ユースケース実行として分離する

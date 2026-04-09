@@ -49,16 +49,16 @@ $ARCH_LAYERS = @{
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
 
 # Allowed dependency rules
-# Last updated: 2026-04-02 (#533 Phase 1: allow geo_core -> geo_contracts for contracts-first Vector migration)
+# Last updated: 2026-04-09 (#650: allow geo_topology -> geo_nurbs for NURBS curve edge topology, sync application allowed deps with current crate)
 # Pending update: add CAM dependency rules when `cam_algorithms` is created.
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
-    application    = @("analysis", "geo_algorithms", "cam_core", "cam_sim", "job_runtime", "job_domain")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_sim", "job_runtime", "job_domain")
     geo_contracts  = @("analysis", "geo_commons")
     geo_commons    = @("analysis")
     geo_core       = @("analysis", "geo_contracts", "geo_entity")
     geo_primitives = @("geo_contracts", "geo_commons", "geo_core", "analysis")
-    geo_topology   = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "analysis")
+    geo_topology   = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "analysis")
     geo_algorithms = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_topology", "geo_nurbs", "analysis")
     geo_nurbs      = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "analysis")
     geo_io         = @("geo_contracts", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
@@ -86,9 +86,10 @@ $ARCH_ALLOWED_DEPS = @{
 }
 
 # Forbidden dependency rules
+# Last updated: 2026-04-09 (#501/#650 sync application forbidden deps with current allowed deps)
 # Pending update: add reverse dependency guards when `cam_algorithms` is created.
 $ARCH_FORBIDDEN_DEPS = @{
-    application    = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "converter", "graphics", "render", "stage", "app")
+    application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "graphics", "render", "stage", "app")
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_contracts  = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
     geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
