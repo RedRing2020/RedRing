@@ -209,6 +209,55 @@ layers_all_visible = 所属 layer が空なら true、所属 layer があれば�
 - 表示の意味論としては layer の方が図面管理寄り、group の方が横断的な論理束ね寄りである
 - ただし初期描画実装では、どちらも cache key ではなく可視フィルタとして合成する
 
+### 3.12 visible_policy の表現方針
+
+- 初期段階の DTO / query 応答では、`entity_visible`、`groups_all_visible`、`layer_visible_or_true` のような bool 群で十分とする
+- ただし bool 群だけでは「どの条件が並列軸で、どの条件が上位/下位の優先関係か」が将来拡張しにくいため、Application/Model 側には `visible_policy` を別語彙として保持する
+- 将来的に object instance の配置と instance 構造の塊単位での表示制御を導入する前提では、instance placement / instance root / instance cluster を `visible_policy` の最上位段として扱える形にしておく
+- ここで instance placement は「実体 entity は 1 つでも、その参照配置 instance は複数持てる」ものとし、表示切替は placement ごとに独立して制御できる前提とする
+- `visible_policy` は固定数値の `order` を仕様値として持つ前提にせず、parallel / sequential の構造と node の親子関係から評価順を表現できればよい
+  1. 同順位の並列フィルタであること
+  2. 上位/下位の評価段であること
+  3. deny 優先で合成すること
+-  4. どの軸の判定結果かを追跡できること
+- 例えば `VisibilityPolicyNode::Sequential(vec![ ... ])` の配下に `VisibilityPolicyNode::Parallel(vec![ ... ])` を持つような構造で、上位/下位段と並列条件を同時に表現できる
+- source 候補は少なくとも `Entity`、`Group`、`Layer`、`InstancePlacement`、`InstanceRoot`、`InstanceCluster`、`ViewCondition` を持てるようにしておき、要素種類の扱いは「要素種類ごとに空間を分ける」を合意事項として固定する
+- instance root / instance cluster を group / layer より上位の node に置ければ、該当塊全体が非表示な時点でその配下 placement / entity の下位判定を短絡できる
+- `source` は判定由来を表し、`source_id` は単一の汎用 ID ではなく型付き enum を優先し、group_id / layer_id / instance_id / cluster_id に加えて複合文脈を保持できるようにする
+- 検討案としては `VisibilitySourceId::Entity { entity_id }`、`VisibilitySourceId::GroupContext { group_ids, entity_ids }` のような形がありうる
+- `Element` については、点・線・面などの要素種類ごとに空間を分けることだけをこの段階の合意事項とする
+- その内部表現を Entity + Geometry / Topology の type 判別で持つか、将来別の実装機構へ載せ替えるかは後続の実装選択に委ねる
+- このため現段階では `Element` を独立 source に固定せず、要素種類ごとの空間分離を前提に Entity 側または下位実装側で吸収する
+- 特に Group は単一 group_id だけでなく group_id 群と entity_id 群を束ねて持てるようにしておくと、複数 group 所属時の説明と差分再評価を崩しにくい
+- instance 内 entity 単位の表示操作は `VisibilitySourceId::InstanceElement { instance_id, element_key }` のような識別子で表し、「同一 instance 内の同一要素」には同じ表示挙動を適用し、別 instance の同名要素とは分離して扱う
+- これにより「表示ON/OFF」と「評価優先順位」を同じデータ構造から取り出せるため、enum に数値を埋め込んでビットフラグ風に扱うより加工しやすい
+- さらに `effective_visible = false` になった理由を ViewModel 側で説明可能になり、`affected_instance_ids` / `affected_entity_ids` の計算時にもどの source を起点に差分再評価すべきかを揃えやすい
+- 将来の上位層追加時も、既存 node の上に新しい親 node を挿入して整合性を保てばよく、固定 `order = 100` のような予約値運用を避けられる
+- ただし初期実装では、外部 DTO に複雑な policy 配列を露出するより、bool 群 + `visible_policy` 正本語彙の併用を優先する
+- ViewModel / DTO 境界で平坦化が必要な場合に限り、構造から導出した evaluation order を一時的に使ってよいが、その数値は永続的な契約値にしない
+
+例:
+
+```rust
+pub enum VisibilitySourceId {
+  Entity { entity_id: EntityId },
+  Group { group_id: GroupId, entity_id: EntityId },
+  GroupContext { group_ids: Vec<GroupId>, entity_ids: Vec<EntityId> },
+  Layer { layer_id: LayerId, entity_id: EntityId },
+  InstancePlacement { instance_id: InstanceId },
+  InstanceRoot { root_id: InstanceRootId },
+  InstanceCluster { cluster_id: InstanceClusterId },
+  InstanceElement { instance_id: InstanceId, element_key: PlacementElementKey },
+  ViewCondition { view_id: ViewId, condition_key: ViewConditionKey },
+}
+```
+
+- 単純な単一 ID より variant ごとの payload を持てるため、group 複数所属や instance 内 element 操作のような複合ケースを `source_id` の時点で正規化できる
+- ただし上記 enum 形はまだ Fix しておらず、現時点では「Group に group_id 群 / entity_id 群を持たせる案」を中心に検討し、`Element` は要素種類ごとの空間分離を前提に下位実装へ委ねる
+- `PlacementElementKey` は現時点の仮名であり、最終的に `entity_local_key` へ固定することはまだ決めない
+- `PlacementElementKey` は visibility 側が定義する ID ではなく、将来必要な配置系・参照系から外部供給される「instance 内で同一要素を指すキー」として扱う
+- visibility policy はその外部供給キーを参照して表示判定に使うが、配置識別子の体系そのものをここで定義しない
+
 ---
 
 ## 4. 責務境界
@@ -220,7 +269,8 @@ layers_all_visible = 所属 layer が空なら true、所属 layer があれば�
 - 2D / 3D 描画カテゴリの分類を行う
 - 2D 線種の表示可否判定に必要な View 条件を受け取り、表示条件を満たさない 2D 線種を描画要求へ昇格させない
 - `EntityDisplayProperties` / `StrokeDisplayProperties` / `PlanarStroke2DProperties<T>` のどこまでを使うかで DTO の描画カテゴリを決める
-- entity 自身の表示属性と group / layer 可視状態を合成し、有効表示フラグを描画要求へ反映する
+- Application/Model が保持する `visible_policy` と View から渡る表示条件を用いて `effective_visible` を解決し、描画要求へ反映する
+- bool 群だけで解決できる初期ケースでも、`visible_policy` が示す parallel / upper / lower の規約に加え、`source` / `source_id` による原因軸の識別を保ったまま評価順を固定する
 - 非責務:
   - geometry 生成順序の決定
   - topology 構築判断
@@ -235,6 +285,11 @@ layers_all_visible = 所属 layer が空なら true、所属 layer があれば�
 - 下位エラーを上位エラーへ正規化する
 - group 作成、entity の group 所属追加/解除、group 可視状態更新、group 単位 query の入口を持つ
 - layer 作成、entity の layer 所属追加/解除、layer 可視状態更新、layer 単位 query の入口を持つ
+- entity / group / layer の `visible` state と deny 優先の `visible_policy` を正本語彙として保持し、ViewModel が `effective_visible` を計算できる材料を返す
+- 将来の instance 配置導入を見据え、Application は instance placement / instance root / instance cluster の `visible` state と relation index も同じ正本系列へ拡張できるようにしておく
+- 初期 DTO では bool 群を返してよいが、それがどの policy 軸に対応するかは `visible_policy` 側で一意に説明できるようにする
+- `visible_policy` の各 leaf node は少なくとも `source` を持ち、必要に応じて型付き enum の `source_id` で group 文脈・layer 文脈・instance 文脈を識別できるようにする
+- 可視状態更新では `affected_instance_ids` と必要に応じて `affected_entity_ids` を返せる構造を優先し、最上位 instance cluster が非表示になった場合はその配下 placement だけを再評価対象へ絞り込めるようにする
 - 非責務:
   - 幾何計算アルゴリズム本体
   - topology データ構造の詳細実装
@@ -258,6 +313,7 @@ layers_all_visible = 所属 layer が空なら true、所属 layer があれば�
 - geometry / topology を参照可能な識別単位を提供する
 - 表示属性、メタデータ、関係管理を担う
 - `feature_id + output_index + local_key` からの決定的 ID 生成は entity 側の語彙として扱う
+- ただし placement 系で必要になる複合識別子は別の語彙として扱い、entity 単体 ID と混同しない
 - View ローカルの選択状態管理とは分離する
 - group / layer などの所属関係は entity relation として保持し、display trait へ混在させない
 
@@ -464,7 +520,7 @@ pub struct AddEntityToLayerRequest {
 pub struct AddEntityToLayerResult {
   pub entity_id: EntityId,
   pub layer_id: LayerId,
-  pub memberships: Vec<LayerMembershipDto>,
+  pub membership: LayerMembershipDto,
 }
 
 pub struct RemoveEntityFromLayerRequest {
@@ -475,7 +531,7 @@ pub struct RemoveEntityFromLayerRequest {
 pub struct RemoveEntityFromLayerResult {
   pub entity_id: EntityId,
   pub layer_id: LayerId,
-  pub memberships: Vec<LayerMembershipDto>,
+  pub removed: bool,
 }
 
 pub struct SetLayerVisibilityRequest {
@@ -494,13 +550,13 @@ pub struct ListLayersResult {
   pub layers: Vec<LayerDto>,
 }
 
-pub struct ListLayersForEntityQuery {
+pub struct GetLayerForEntityQuery {
   pub entity_id: EntityId,
 }
 
-pub struct ListLayersForEntityResult {
+pub struct GetLayerForEntityResult {
   pub entity_id: EntityId,
-  pub layers: Vec<LayerDto>,
+  pub layer: Option<LayerDto>,
 }
 
 pub struct ListEntitiesForLayerQuery {
@@ -527,6 +583,7 @@ pub struct LayerMembershipDto {
 
 - `LayerDto.visible` は layer 単位 ON/OFF の正本 state を表す
 - `AddEntityToLayerRequest` は既存 layer 所属がある場合に Application 境界で正規化エラーを返す
+- layer は単一所属前提のため、entity ごとの query も `GetLayerForEntity*` のように単数契約を優先する
 - layer は将来、既定色・既定線種の継承元になりうるが、初期 DTO にはその責務を混ぜない
 
 ### 5.9 強い group / layer ON/OFF を支える state の位置づけ

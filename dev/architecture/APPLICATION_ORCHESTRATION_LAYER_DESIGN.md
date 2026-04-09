@@ -224,6 +224,17 @@ pub struct ListGroupsForEntityResult {
 - entity が複数 group に属する前提のため、`AddEntityToGroupResult` は単一 membership 成否だけでなく更新後 membership 集合を返してよい
 - `SetGroupVisibilityResult.affected_entity_ids` を返すことで、View 側は全件再構築ではなく影響範囲ベースの再評価へ拡張しやすくなる
 - group は render batch key ではないため、Application DTO も shader/material 単位の情報は持たない
+- Application は group / layer / entity の `visible` state と deny 優先の `visible_policy` を正本として返し、最終的な `effective_visible` 解決は ViewModel 側で行う
+- 初期段階では `entity_visible` / `groups_all_visible` / `layer_visible_or_true` のような bool 群で十分だが、それらが並列軸か上位/下位段かは `visible_policy` で説明できるようにする
+- `visible_policy` の正本は固定 `order` 値ではなく、parallel / sequential の構造 node を基本とし、leaf が `visible`、`source`、必要に応じて `source_id` を持つ形を優先する
+- `source` は entity / group / layer / instance_placement / instance_root / instance_cluster などの判定由来を表し、`source_id` は型付き enum として、単一 ID だけでなく `group_id + entity_id`、`group_ids + entity_ids`、`instance_id + placement_element_key` のような複合文脈も保持できるようにする
+- 要素種類については、点・線・面などごとに空間を分けることだけを合意事項とし、`Element` を独立 source にするかは下位データ設計と実装選択に委ねる
+- instance 配置は「実体は 1 つでも placement は複数持てる」前提とし、visible state は entity 共有ではなく placement ごとに持てるようにしておく
+- entity が複数 group に属する場合、Application は group 単位の visible 判定だけでなく「どの entity に効いた group 判定か」を source_id payload から辿れるようにしておく
+- なお Group source の payload 形は未確定であり、単一 `group_id + entity_id` で十分か、`group_ids + entity_ids` をまとめた GroupContext が必要かは実装直前に再確認する
+- placement 系の識別子体系は visibility 専用に再定義せず、外部の配置機構が管理する語彙を受け取って参照する
+- 点・線・面などの要素種類で表示制御したくなった場合も、visibility 側ではまず要素種類ごとの空間を切り替える前提で扱い、実装が ECS かどうかは後付けのシステム用語として分離する
+- ViewModel へ平坦な評価順が必要な場合は、構造 node から都度導出した evaluation order を渡してよいが、その順序数値を契約として固定しない
 - `viewmodel/converter`: DTO 変換に加えて debug 実行導線が一部残存
 
 ## 8. layer relation 系 use case の扱い
@@ -279,7 +290,7 @@ pub struct AddEntityToLayerRequest {
 pub struct AddEntityToLayerResult {
    pub entity_id: EntityId,
    pub layer_id: LayerId,
-   pub memberships: Vec<LayerMembershipDto>,
+   pub membership: LayerMembershipDto,
 }
 
 pub struct SetLayerVisibilityRequest {
@@ -297,8 +308,16 @@ pub struct SetLayerVisibilityResult {
 
 - layer の `visible` は group と同様、Application query で取得可能な state とする
 - layer 所属追加では既存 layer 所属がある場合を Application 境界で正規化エラーへ変換する
+- layer は単一所属前提のため、更新後所属集合ではなく単一 `membership` または `Option<LayerDto>` を返す契約を優先する
 - layer は group より表示管理寄りだが、初期 DTO では既定色・既定線種の継承責務まで持ち込まない
 - group / layer の両方が非表示フィルタとして働くため、影響 entity 集合は両 relation から計算できる形を保つ
+- 最終表示可否そのものは ViewModel が `visible_policy` に従って `effective_visible` を解決し、Application はそのための正本 state を返す役割に留める
+- `visible_policy` の実装形は初手では軽量でよく、`VisibilityPolicyNode::Sequential` / `Parallel` と leaf の `visible` / `source` / `source_id` を組み合わせた加工しやすい構造を優先する
+- これにより multi-group 所属時でも、どの group が非表示理由になったかを ViewModel と差分更新処理で共通に扱える
+- 将来 object instance の配置を許容する場合は、instance placement / instance root / instance cluster の visible state と `cluster -> instance`、`instance -> entity` index を既存 policy tree の上位 node として追加できることを前提にする
+- この上位 node が false のときは配下 instance 群の group / layer 判定を省略でき、同一 entity を参照する別 placement は独立に表示継続できるため、表示判定の効率化と個別制御を両立できる
+- さらに instance 内で entity 単位の表示制御操作が行われた場合は、その操作を `instance_id + placement_element_key` に正規化し、同一 instance 内の同一要素へは同じ表示挙動を適用する一方、別 instance には波及させない
+- ここで `placement_element_key` は外部の配置機構が供給する「instance 内で同一要素を指す識別子」を仮置きした語であり、visibility 側が独自に生成規則を持つべきではない
 
 ### 8.5 UI ハイブリッド運用との関係
 

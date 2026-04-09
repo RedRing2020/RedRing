@@ -3,7 +3,7 @@
 //! - EntityId: エンティティ同一性ID（決定的生成対応）
 //! - AttributeCode: 属性種別コード（負=system, 正=user, 0禁止）
 //! - Attributes: 型検証付き属性コンテナ
-//! - Group/Layer 関係モデル: 所属管理（Single/Multi Layer制約）
+//! - Group/Layer 関係モデル: group 複数所属 / layer 単一所属の relation 管理
 
 pub mod attribute_code;
 pub mod attribute_value;
@@ -27,7 +27,7 @@ pub use geometric_entity::GeometricEntity;
 pub use metadata::Metadata;
 pub use relations::{
     EntityGroupMembership, EntityLayerMembership, GroupEntity, GroupId, LayerEntity, LayerId,
-    LayerMembershipPolicy, RelationStore,
+    RelationStore,
 };
 pub use system_attributes::{
     CAM_PATH_DRILL_CYCLE, CAM_PATH_DRILL_DWELL, CAM_PATH_DRILL_FEED_RATE, CAM_PATH_DRILL_PECK_STEP,
