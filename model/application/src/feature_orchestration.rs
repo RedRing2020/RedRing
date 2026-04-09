@@ -5,6 +5,7 @@ use crate::geometry_orchestration::{
     DebugShapeGeometryMutationPort, GeometryOrchestrationError, GeometryOrchestrator,
     LineGeometryMutationPort,
 };
+use crate::primitives::{Arc3D, Circle3D, LineSegment3D};
 use crate::topology_orchestration::{
     CreateArcTopologyRequest, CreateCircleTopologyRequest, CreateLineTopologyRequest,
     DebugShapeTopologyMutationPort, LineTopologyMutationPort, TopologyOrchestrationError,
@@ -16,7 +17,6 @@ use geo_contracts::{
     StrokePattern,
 };
 use geo_entity::{EntityId, GeometricEntity};
-use geo_primitives::{Arc3D, Circle3D, LineSegment3D};
 use geo_topology::{Edge as TopologyEdge, TopoId};
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};

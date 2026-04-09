@@ -1,7 +1,7 @@
 //! Topology向け orchestration 境界。
 
+use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
 use geo_contracts::{Arc3DConstructor, Circle3DProperties, Triangle3DBoundaryAccess};
-use geo_primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
 use geo_topology::{
     CurveRef, Edge, EdgeValidationReport, TopologyToleranceSettings, TopologyValidator, Vertex,
     Wire, WireValidationReport,
@@ -245,8 +245,8 @@ mod tests {
         CreateTriangleTopologyRequest, DebugShapeTopologyMutationPort, LineTopologyMutationPort,
         TopologyOrchestrator,
     };
+    use crate::primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
     use geo_contracts::Angle;
-    use geo_primitives::{Arc3D, Circle3D, LineSegment3D, Point3D, Triangle3D};
     use geo_topology::TopologyToleranceSettings;
 
     #[test]
