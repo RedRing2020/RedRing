@@ -359,10 +359,7 @@ fn cylindrical_surface3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-            cyl,
-            (point.x(), point.y(), point.z()),
-        ) <= tolerance,
+        crate::distance::cylindrical_surface3d_point3d_distance(cyl, point) <= tolerance,
     )
 }
 
@@ -384,12 +381,10 @@ fn cylindrical_surface3d_circle3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (cx, cy, cz),
-    );
+    let center = Point3D::new(cx, cy, cz);
+    let dist = crate::distance::cylindrical_surface3d_point3d_distance(cyl, &center);
     if dist <= Circle3DProperties::radius(circle) + tolerance {
-        Some(Point3D::new(cx, cy, cz))
+        Some(center)
     } else {
         None
     }
@@ -414,17 +409,9 @@ fn cylindrical_surface3d_line_segment3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let s = segment.start();
     let e = segment.end();
-    if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (s.x(), s.y(), s.z()),
-    ) <= tolerance
-    {
+    if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &s) <= tolerance {
         Some(s)
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (e.x(), e.y(), e.z()),
-    ) <= tolerance
-    {
+    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &e) <= tolerance {
         Some(e)
     } else {
         None
@@ -451,24 +438,15 @@ fn cylindrical_surface3d_triangle3d_intersection_raw<T: Scalar>(
     let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
     let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
-    if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (ax, ay, az),
-    ) <= tolerance
-    {
-        Some(Point3D::new(ax, ay, az))
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (bx, by, bz),
-    ) <= tolerance
-    {
-        Some(Point3D::new(bx, by, bz))
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (cx, cy, cz),
-    ) <= tolerance
-    {
-        Some(Point3D::new(cx, cy, cz))
+    let point_a = Point3D::new(ax, ay, az);
+    let point_b = Point3D::new(bx, by, bz);
+    let point_c = Point3D::new(cx, cy, cz);
+    if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_a) <= tolerance {
+        Some(point_a)
+    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_b) <= tolerance {
+        Some(point_b)
+    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_c) <= tolerance {
+        Some(point_c)
     } else {
         None
     }

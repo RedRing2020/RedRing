@@ -13,10 +13,9 @@ use crate::{
 };
 use geo_contracts::{
     Arc3DDistance, Arc3DEndpoint, Arc3DProperties, Circle3DProperties, CylindricalSolid3DDistance,
-    CylindricalSolid3DProperties, CylindricalSurface3DDistance, CylindricalSurface3DProperties,
-    Ellipse3DDistance, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
-    Triangle3DBoundaryAccess,
+    CylindricalSolid3DProperties, CylindricalSurface3DProperties, Ellipse3DDistance,
+    EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties,
+    SphericalSurface3DProperties, TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
 
 // ── SphericalSolid3D ──────────────────────────────────────────────────────────
@@ -224,10 +223,7 @@ pub fn cylindrical_surface3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (point.x(), point.y(), point.z()),
-    ) <= tolerance
+    crate::distance::cylindrical_surface3d_point3d_distance(cyl, point) <= tolerance
 }
 
 pub fn cylindrical_surface3d_circle3d_collides<T: Scalar>(
@@ -236,10 +232,8 @@ pub fn cylindrical_surface3d_circle3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (cx, cy, cz) = circle.center();
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (cx, cy, cz),
-    ) <= tolerance
+    let center = Point3D::new(cx, cy, cz);
+    crate::distance::cylindrical_surface3d_point3d_distance(cyl, &center) <= tolerance
 }
 
 pub fn cylindrical_surface3d_line_segment3d_collides<T: Scalar>(
@@ -249,14 +243,8 @@ pub fn cylindrical_surface3d_line_segment3d_collides<T: Scalar>(
 ) -> bool {
     let s = segment.start();
     let e = segment.end();
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (s.x(), s.y(), s.z()),
-    ) <= tolerance
-        || <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-            cyl,
-            (e.x(), e.y(), e.z()),
-        ) <= tolerance
+    crate::distance::cylindrical_surface3d_point3d_distance(cyl, &s) <= tolerance
+        || crate::distance::cylindrical_surface3d_point3d_distance(cyl, &e) <= tolerance
 }
 
 pub fn cylindrical_surface3d_ray3d_collides<T: Scalar>(
@@ -265,10 +253,7 @@ pub fn cylindrical_surface3d_ray3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let o = ray.origin();
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (o.x(), o.y(), o.z()),
-    ) <= tolerance
+    crate::distance::cylindrical_surface3d_point3d_distance(cyl, &o) <= tolerance
 }
 
 pub fn cylindrical_surface3d_infinite_line3d_collides<T: Scalar>(
@@ -277,10 +262,8 @@ pub fn cylindrical_surface3d_infinite_line3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (px, py, pz) = line.point();
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (px, py, pz),
-    ) <= tolerance
+    let point = Point3D::new(px, py, pz);
+    crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point) <= tolerance
 }
 
 pub fn cylindrical_surface3d_triangle3d_collides<T: Scalar>(
@@ -291,18 +274,12 @@ pub fn cylindrical_surface3d_triangle3d_collides<T: Scalar>(
     let (ax, ay, az) = triangle.vertex_a();
     let (bx, by, bz) = triangle.vertex_b();
     let (cx, cy, cz) = triangle.vertex_c();
-    <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (ax, ay, az),
-    ) <= tolerance
-        || <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-            cyl,
-            (bx, by, bz),
-        ) <= tolerance
-        || <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-            cyl,
-            (cx, cy, cz),
-        ) <= tolerance
+    let point_a = Point3D::new(ax, ay, az);
+    let point_b = Point3D::new(bx, by, bz);
+    let point_c = Point3D::new(cx, cy, cz);
+    crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_a) <= tolerance
+        || crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_b) <= tolerance
+        || crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_c) <= tolerance
 }
 
 pub fn cylindrical_surface3d_plane3d_collides<T: Scalar>(

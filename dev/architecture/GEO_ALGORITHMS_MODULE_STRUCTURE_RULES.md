@@ -18,8 +18,18 @@
   - 正規方向だけ計算本体を持ち、逆方向はラッパー
 - 原則4: **公開面は mod.rs で一元再エクスポート**
 - 原則5: **新規ペア追加時は coverage matrix を同時更新**
+- 原則6: **Point/Tuple 境界は Point 型を正本にする**
+  - `geo_algorithms` の公開 free-function では `Point2D<T>` / `Point3D<T>` を優先する
+  - 下位 trait定義や既存 shape method が tuple を要求する場合でも、tuple は内部 bridge に限定する
+  - 呼び出し側が tuple を都度組み立てる経路を増やさず、Point 型の入口へ寄せる
 
-### 2.1 分割軸の定義（違和感対策）
+### 2.1 Point/Tuple 境界の段階移行
+
+- 第1段では `shape-point` 系の距離 entrypoint を Point 型正本として整える
+- collision / intersection は、その Point 型 distance entrypoint を代表箇所から優先的に利用する
+- `ToPoint2D<T>` / `ToPoint3D<T>` のような一般化 helper は、複数 shape family で同型の変換需要が確認できた段階で導入する
+
+### 2.2 分割軸の定義（違和感対策）
 
 本ルールは、次の2軸で分類する。
 
@@ -43,7 +53,7 @@
 - curve/surface でアルゴリズム責務（反復・収束特性・サンプリング戦略）が異なる
 - `primitive_3d.rs` に混在させると責務過密になる
 
-### 2.2 正規命名（目標）
+### 2.3 正規命名（目標）
 
 分割軸に一致した正規命名を以下とする。
 
