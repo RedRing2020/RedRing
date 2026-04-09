@@ -15,6 +15,7 @@
 
 pub mod cam_sim_visualization_converter;
 pub mod entity_converter;
+pub mod feature_command_converter;
 pub mod job_converter;
 pub mod job_message_catalog;
 pub mod job_message_mapper;

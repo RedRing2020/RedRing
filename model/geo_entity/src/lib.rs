@@ -22,6 +22,7 @@ pub use attributes::Attributes;
 pub use display::{DisplayAttributes, LineStyle};
 pub use entity_id::EntityId;
 pub use error::{EntityError, EntityResult};
+pub use geo_contracts::StrokePattern;
 pub use geometric_entity::GeometricEntity;
 pub use metadata::Metadata;
 pub use relations::{

@@ -1,18 +1,12 @@
+use geo_contracts::StrokePattern;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum LineStyle {
-    Solid,
-    Dashed,
-    Dotted,
-    DashDot,
-    Hidden,
-}
+pub type LineStyle = StrokePattern;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayAttributes {
     pub color: [f32; 4],
-    pub line_style: LineStyle,
+    pub line_style: StrokePattern,
     pub line_width: f32,
     pub layer: String,
     pub visible: bool,
@@ -22,7 +16,7 @@ impl Default for DisplayAttributes {
     fn default() -> Self {
         Self {
             color: [1.0, 1.0, 1.0, 1.0],
-            line_style: LineStyle::Solid,
+            line_style: StrokePattern::Solid,
             line_width: 1.0,
             layer: "0".to_string(),
             visible: true,

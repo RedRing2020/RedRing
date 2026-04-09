@@ -1,9 +1,14 @@
 //! AppState のSTL/SVG形状デバッグ表示を扱うモジュール。
 
 use super::super::AppState;
+use render::vertex_3d::convert_vertex_data_to_mesh_vertices;
 use render::vertex_3d::MeshVertex;
 use stage::MeshStage;
 use std::path::Path;
+use viewmodel::feature_command_converter::{
+    create_debug_arc_vertices, create_debug_circle_vertices, create_debug_line_vertices,
+    create_debug_triangle_vertices,
+};
 
 use crate::app_asset_loader::AppAssetLoaderFacade;
 
@@ -86,14 +91,19 @@ impl AppState {
     /// デバッグ用：LineSegment3Dを表示（SVGから読み込み）
     /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_line(&mut self) {
-        tracing::info!("デバッグ形状: LineSegment3D表示（EntityManager経由）");
+        tracing::info!("デバッグ形状: LineSegment3D表示（Application経由）");
 
-        let svg_path = Path::new("tests/fixtures/shapes/line.svg");
-        let Some(vertices) = self.load_svg_vertices_for_debug(svg_path) else {
+        let Ok(vertex_data) = create_debug_line_vertices() else {
+            tracing::error!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "debug line feature command failed"
+            );
             return;
         };
 
-        let id = self.entity_manager.add_line_entity(vertices);
+        let vertices = convert_vertex_data_to_mesh_vertices(&vertex_data);
+
+        let id = self.entity_manager.add_line_list_entity(vertices);
         let _ = self.entity_manager.select(id);
 
         self.camera.reset_to_standard_cad_view();
@@ -101,16 +111,24 @@ impl AppState {
     }
 
     /// デバッグ用：Circle3Dを表示（SVGから読み込み）
-    /// 直接MeshStage経路で扱う。
+    /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_circle(&mut self) {
-        tracing::info!("デバッグ形状: Circle3D表示（SVGから）");
+        tracing::info!("デバッグ形状: Circle3D表示（Feature/Entity経由）");
 
-        let svg_path = Path::new("tests/fixtures/shapes/circle.svg");
-        let Some(vertices) = self.load_svg_vertices_for_debug(svg_path) else {
+        let Ok(vertex_data) = create_debug_circle_vertices() else {
+            tracing::error!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "debug circle feature command failed"
+            );
             return;
         };
 
-        self.apply_line_stage(vertices, true);
+        let vertices = convert_vertex_data_to_mesh_vertices(&vertex_data);
+        let id = self.entity_manager.add_line_list_entity(vertices);
+        let _ = self.entity_manager.select(id);
+
+        self.camera.reset_to_standard_cad_view();
+        self.rebuild_stage_from_entities();
     }
 
     /// デバッグ用：クリップ空間座標の単純な正方形（SVGから読み込み）
@@ -129,27 +147,39 @@ impl AppState {
     /// デバッグ用：Triangle3Dを表示（SVGから読み込み）
     /// 直接MeshStage経路で扱う。
     pub fn load_debug_triangle(&mut self) {
-        tracing::info!("デバッグ形状: Triangle3D表示（SVGから）");
+        tracing::info!("デバッグ形状: Triangle3D表示（Application経由）");
 
-        let svg_path = Path::new("tests/fixtures/shapes/triangle.svg");
-        let Some(vertices) = self.load_svg_vertices_for_debug(svg_path) else {
+        let Ok(vertex_data) = create_debug_triangle_vertices() else {
+            tracing::error!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "debug triangle geometry command failed"
+            );
             return;
         };
 
+        let vertices = convert_vertex_data_to_mesh_vertices(&vertex_data);
         let indices: Vec<u32> = vec![0, 1, 2];
         self.apply_mesh_stage(vertices, indices, true);
     }
 
     /// デバッグ用：Arc3Dを表示（SVGから読み込み）
-    /// 直接MeshStage経路で扱う。
+    /// EntityManager経由の管理対象として扱う。
     pub fn load_debug_arc(&mut self) {
-        tracing::info!("デバッグ形状: Arc3D表示（SVGから）");
+        tracing::info!("デバッグ形状: Arc3D表示（Feature/Entity経由）");
 
-        let svg_path = Path::new("tests/fixtures/shapes/arc.svg");
-        let Some(vertices) = self.load_svg_vertices_for_debug(svg_path) else {
+        let Ok(vertex_data) = create_debug_arc_vertices() else {
+            tracing::error!(
+                error_kind = logging_foundation::ERROR_KIND_APP,
+                "debug arc feature command failed"
+            );
             return;
         };
 
-        self.apply_line_stage(vertices, true);
+        let vertices = convert_vertex_data_to_mesh_vertices(&vertex_data);
+        let id = self.entity_manager.add_line_list_entity(vertices);
+        let _ = self.entity_manager.select(id);
+
+        self.camera.reset_to_standard_cad_view();
+        self.rebuild_stage_from_entities();
     }
 }

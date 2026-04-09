@@ -8,7 +8,7 @@ pub struct EntityViewId(u64);
 #[derive(Debug, Clone)]
 pub struct GeometricEntityItem {
     pub id: EntityViewId,
-    line_vertices: Vec<MeshVertex>,
+    line_list_vertices: Vec<MeshVertex>,
     visible: bool,
     color: [f32; 4],
     selected: bool,
@@ -27,12 +27,12 @@ impl EntityManager {
         Self::default()
     }
 
-    pub fn add_line_entity(&mut self, vertices: Vec<MeshVertex>) -> EntityViewId {
+    pub fn add_line_list_entity(&mut self, vertices: Vec<MeshVertex>) -> EntityViewId {
         self.next_id += 1;
         let id = EntityViewId(self.next_id);
         let entity = GeometricEntityItem {
             id,
-            line_vertices: vertices,
+            line_list_vertices: vertices,
             visible: true,
             color: [1.0, 1.0, 1.0, 1.0],
             selected: false,
@@ -105,11 +105,11 @@ impl EntityManager {
         false
     }
 
-    pub fn line_vertices(&self) -> Vec<MeshVertex> {
+    pub fn line_list_vertices(&self) -> Vec<MeshVertex> {
         let mut result = Vec::new();
         for item in self.geometric.values() {
             if item.visible {
-                result.extend(item.line_vertices.iter().copied());
+                result.extend(item.line_list_vertices.iter().copied());
             }
         }
         result
@@ -129,14 +129,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn add_select_remove_line_entity() {
+    fn add_select_remove_line_list_entity() {
         let vertices = vec![
             MeshVertex::new([0.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
             MeshVertex::new([1.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
         ];
 
         let mut manager = EntityManager::new();
-        let id = manager.add_line_entity(vertices);
+        let id = manager.add_line_list_entity(vertices);
 
         assert!(manager.select(id));
         assert_eq!(manager.selected(), Some(id));

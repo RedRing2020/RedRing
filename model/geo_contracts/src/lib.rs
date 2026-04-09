@@ -10,7 +10,10 @@ pub mod tolerance;
 
 pub use analysis::abstract_types::{Angle, Scalar, TolerantEq};
 pub use classification::{DimensionClass, GeometryPrimitive, PrimitiveKind};
-pub use entity::{EntityDisplayProperties, EntityIdentity, LineEntity3DProperties};
+pub use entity::{
+    ArcEntity3DProperties, CircleEntity3DProperties, EntityDisplayProperties, EntityIdentity,
+    LineEntity3DProperties, PlanarStroke2DProperties, StrokeDisplayProperties, StrokePattern,
+};
 pub use geometry::core::plane3d_traits::{
     Plane3DConstructor, Plane3DContainment, Plane3DCore, Plane3DDerived, Plane3DDistance,
     Plane3DEvaluation, Plane3DProjection, Plane3DProperties, Plane3DTransform,

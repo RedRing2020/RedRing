@@ -11,7 +11,11 @@ description = "Application-layer orchestration entrypoints and boundary DTO cont
 
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
+geo_contracts = { path = "../geo_contracts" }
 geo_algorithms = { path = "../geo_algorithms" }
+geo_entity = { path = "../geo_entity" }
+geo_primitives = { path = "../geo_primitives" }
+geo_topology = { path = "../geo_topology" }
 cam_core = { path = "../cam_core" }
 cam_sim = { path = "../cam_sim" }
 job_runtime = { path = "../job_runtime" }

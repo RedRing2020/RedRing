@@ -138,7 +138,173 @@ Domain / Algorithm / Runtime / Adapter
 - `job_domain`: ドメインポリシー、投入制約、WorkflowSnapshot などの domain 寄り責務
 - `job_runtime`: 実行基盤
 - `cam_sim`: CAM 特化の実行ファサードと接続アダプタが混在
+
+---
+
+## 7. group relation 系 use case の扱い
+
+group は display trait ではなく entity relation の一種として扱う。
+そのため Application Layer では、geometry 更新系 use case と分離した relation-oriented use case として入口を定義する。
+relation モデル全体としては、group / layer を親子階層ではなく並列軸で保持する。
+
+### 7.1 group orchestration の責務
+
+1. group 作成
+2. entity の group 所属追加/解除
+3. group 可視状態の更新
+4. group 一覧、entity ごとの所属 group 一覧、group 配下 entity 一覧の query
+5. group 可視状態変更時の影響 entity 集合の集約
+
+### 7.2 推奨 port 境界
+
+初期段階では以下の 2 port に分ける。
+
+1. `GroupMutationPort`
+   - group 作成
+   - group 可視状態更新
+2. `EntityGroupRelationPort`
+   - entity の group 所属追加/解除
+   - entity→group / group→entity 参照
+
+この分離により、group 自体の state と membership relation を別実装へ逃がせる。
+
+### 7.3 request / result DTO 例
+
+```rust
+pub struct GroupDto {
+   pub group_id: GroupId,
+   pub name: String,
+   pub visible: bool,
+   pub member_count: usize,
+}
+
+pub struct CreateGroupRequest {
+   pub name: String,
+   pub visible: bool,
+}
+
+pub struct CreateGroupResult {
+   pub group: GroupDto,
+}
+
+pub struct AddEntityToGroupRequest {
+   pub entity_id: EntityId,
+   pub group_id: GroupId,
+}
+
+pub struct AddEntityToGroupResult {
+   pub entity_id: EntityId,
+   pub group_id: GroupId,
+   pub memberships: Vec<GroupMembershipDto>,
+}
+
+pub struct SetGroupVisibilityRequest {
+   pub group_id: GroupId,
+   pub visible: bool,
+}
+
+pub struct SetGroupVisibilityResult {
+   pub group: GroupDto,
+   pub affected_entity_ids: Vec<EntityId>,
+}
+
+pub struct ListGroupsForEntityQuery {
+   pub entity_id: EntityId,
+}
+
+pub struct ListGroupsForEntityResult {
+   pub entity_id: EntityId,
+   pub groups: Vec<GroupDto>,
+}
+```
+
+### 7.4 設計上の注意
+
+- group の `visible` は「強い ON/OFF」を成立させるため、Application query で取得可能な state とする
+- entity が複数 group に属する前提のため、`AddEntityToGroupResult` は単一 membership 成否だけでなく更新後 membership 集合を返してよい
+- `SetGroupVisibilityResult.affected_entity_ids` を返すことで、View 側は全件再構築ではなく影響範囲ベースの再評価へ拡張しやすくなる
+- group は render batch key ではないため、Application DTO も shader/material 単位の情報は持たない
 - `viewmodel/converter`: DTO 変換に加えて debug 実行導線が一部残存
+
+## 8. layer relation 系 use case の扱い
+
+layer も group と同様に entity relation の一種として扱うが、役割は図面・表示管理の基準単位とする。
+そのため Application Layer では、group と並ぶ relation-oriented use case として layer の入口も定義する。
+
+### 8.1 layer orchestration の責務
+
+1. layer 作成
+2. entity の layer 所属追加/解除
+3. layer 可視状態の更新
+4. layer 一覧、entity ごとの所属 layer、layer 配下 entity 一覧の query
+5. layer 可視状態変更時の影響 entity 集合の集約
+
+### 8.2 推奨 port 境界
+
+初期段階では以下の 2 port に分ける。
+
+1. `LayerMutationPort`
+   - layer 作成
+   - layer 可視状態更新
+2. `EntityLayerRelationPort`
+   - entity の layer 所属追加/解除
+   - entity→layer / layer→entity 参照
+
+これにより、layer 自体の state と membership を分離できる。
+
+### 8.3 request / result DTO 例
+
+```rust
+pub struct LayerDto {
+   pub layer_id: LayerId,
+   pub name: String,
+   pub visible: bool,
+   pub member_count: usize,
+}
+
+pub struct CreateLayerRequest {
+   pub name: String,
+   pub visible: bool,
+}
+
+pub struct CreateLayerResult {
+   pub layer: LayerDto,
+}
+
+pub struct AddEntityToLayerRequest {
+   pub entity_id: EntityId,
+   pub layer_id: LayerId,
+}
+
+pub struct AddEntityToLayerResult {
+   pub entity_id: EntityId,
+   pub layer_id: LayerId,
+   pub memberships: Vec<LayerMembershipDto>,
+}
+
+pub struct SetLayerVisibilityRequest {
+   pub layer_id: LayerId,
+   pub visible: bool,
+}
+
+pub struct SetLayerVisibilityResult {
+   pub layer: LayerDto,
+   pub affected_entity_ids: Vec<EntityId>,
+}
+```
+
+### 8.4 設計上の注意
+
+- layer の `visible` は group と同様、Application query で取得可能な state とする
+- layer 所属追加では既存 layer 所属がある場合を Application 境界で正規化エラーへ変換する
+- layer は group より表示管理寄りだが、初期 DTO では既定色・既定線種の継承責務まで持ち込まない
+- group / layer の両方が非表示フィルタとして働くため、影響 entity 集合は両 relation から計算できる形を保つ
+
+### 8.5 UI ハイブリッド運用との関係
+
+- Application の request / result DTO は、UI が layer 中心ツリーを構成できるだけの情報を返してよい
+- ただし DTO 契約でも `Layer > Group` の親子制約は持ち込まない
+- UI 側の階層表示は query 結果の再構成として実現し、正本 relation は並列軸のまま維持する
 
 ### 6.2 移行方針
 

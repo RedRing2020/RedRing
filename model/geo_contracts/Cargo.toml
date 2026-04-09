@@ -8,3 +8,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 analysis = { path = "../../foundation/analysis" }
 geo_commons = { path = "../geo_commons" }
+serde = { version = "1.0", features = ["derive"] }
