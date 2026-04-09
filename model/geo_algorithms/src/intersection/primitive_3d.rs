@@ -15,9 +15,9 @@ use crate::{
 };
 use geo_contracts::{
     Arc3DEndpoint, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
-    ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
-    CylindricalSurface3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
+    ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DProperties,
+    EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties,
+    SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -276,13 +276,15 @@ pub fn circle3d_point3d_intersection<T: Scalar>(
 fn circle3d_line_segment3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     segment: &LineSegment3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    if circle.contains_point_3d(segment.start()) {
-        return Some(segment.start());
+    let start = segment.start();
+    if crate::distance::circle3d_point3d_distance(circle, &start) <= tolerance {
+        return Some(start);
     }
-    if circle.contains_point_3d(segment.end()) {
-        return Some(segment.end());
+    let end = segment.end();
+    if crate::distance::circle3d_point3d_distance(circle, &end) <= tolerance {
+        return Some(end);
     }
     None
 }
@@ -302,10 +304,10 @@ pub fn circle3d_line_segment3d_intersection<T: Scalar>(
 fn circle3d_ray3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     ray: &Ray3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let origin = ray.origin();
-    if circle.contains_point_3d(origin) {
+    if crate::distance::circle3d_point3d_distance(circle, &origin) <= tolerance {
         Some(origin)
     } else {
         None
@@ -327,11 +329,11 @@ pub fn circle3d_ray3d_intersection<T: Scalar>(
 fn circle3d_infinite_line3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let pt = Point3D::new(px, py, pz);
-    if circle.contains_point_3d(pt) {
+    if crate::distance::circle3d_point3d_distance(circle, &pt) <= tolerance {
         Some(pt)
     } else {
         None
@@ -501,14 +503,8 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
     let lhs_center = Point3D::new(lhs_center_tuple.0, lhs_center_tuple.1, lhs_center_tuple.2);
     let rhs_center = Point3D::new(rhs_center_tuple.0, rhs_center_tuple.1, rhs_center_tuple.2);
 
-    let lhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        lhs,
-        rhs_center_tuple,
-    );
-    let rhs_dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        rhs,
-        lhs_center_tuple,
-    );
+    let lhs_dist = crate::distance::cylindrical_surface3d_point3d_distance(lhs, &rhs_center);
+    let rhs_dist = crate::distance::cylindrical_surface3d_point3d_distance(rhs, &lhs_center);
 
     let lhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(lhs);
     let rhs_axis_tuple = <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::axis(rhs);

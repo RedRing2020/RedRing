@@ -301,6 +301,41 @@ mod tests {
     }
 
     #[test]
+    fn cylindrical_surface_pair_guard_keeps_intersection_on_distance_entrypoint() {
+        const CYLINDRICAL_SURFACE_DIRECT_UFCS: &str =
+            "<CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point";
+        const CYLINDRICAL_SURFACE_POINT_ENTRYPOINT: &str =
+            "crate::distance::cylindrical_surface3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_cylindrical_surface_pair_section = section(
+            intersection_source,
+            "fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw",
+            "fn ellipse3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            intersection_cylindrical_surface_pair_section.contains(CYLINDRICAL_SURFACE_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route cylindrical surface pair center checks through the distance entrypoint"
+        );
+        assert!(
+            !intersection_cylindrical_surface_pair_section.contains(CYLINDRICAL_SURFACE_DIRECT_UFCS),
+            "intersection/primitive_3d.rs must not call CylindricalSurface3DDistance::distance_to_point directly in the cylindrical surface pair section"
+        );
+    }
+
+    #[test]
     fn cylindrical_solid_point_boundary_guard_keeps_collision_on_distance_entrypoint() {
         const CYLINDRICAL_SOLID_DIRECT_UFCS: &str =
             "<CylindricalSolid3D<T> as CylindricalSolid3DDistance<T>>::distance_to_point";
@@ -427,6 +462,58 @@ mod tests {
         assert!(
             !intersection_arc_point_section.contains(ARC_DIRECT_UFCS),
             "intersection/primitive_3d.rs must not call Arc3DDistance::distance_to_point directly"
+        );
+    }
+
+    #[test]
+    fn circle_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint() {
+        const CIRCLE_DIRECT_DISTANCE: &str = "circle.distance_to_point_3d";
+        const CIRCLE_DIRECT_CONTAINS: &str = "circle.contains_point_3d";
+        const CIRCLE_POINT_ENTRYPOINT: &str = "crate::distance::circle3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_circle_point_section = section(
+            collision_source,
+            "pub fn circle3d_point3d_collides",
+            "pub fn plane3d_point3d_collides",
+        );
+        let intersection_circle_point_section = section(
+            intersection_source,
+            "fn circle3d_point3d_intersection_raw",
+            "fn cylindrical_surface3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            collision_circle_point_section.contains(CIRCLE_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route circle point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_circle_point_section.contains(CIRCLE_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route circle point checks through the distance entrypoint"
+        );
+        assert!(
+            !collision_circle_point_section.contains(CIRCLE_DIRECT_DISTANCE),
+            "collision/primitive_3d.rs must not call circle.distance_to_point_3d directly"
+        );
+        assert!(
+            !intersection_circle_point_section.contains(CIRCLE_DIRECT_DISTANCE),
+            "intersection/primitive_3d.rs must not call circle.distance_to_point_3d directly"
+        );
+        assert!(
+            !intersection_circle_point_section.contains(CIRCLE_DIRECT_CONTAINS),
+            "intersection/primitive_3d.rs must not call circle.contains_point_3d directly"
         );
     }
 
