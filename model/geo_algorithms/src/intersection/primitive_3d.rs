@@ -16,9 +16,9 @@ use crate::{
 use geo_contracts::{
     Arc3DDistance, Arc3DEndpoint, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
     ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
-    CylindricalSurface3DProperties, Ellipse3DDistance, EllipsoidalSolid3DProperties,
-    InfiniteLine3DProperties, Scalar, SphericalSolid3DProperties, SphericalSurface3DProperties,
-    TorusSurface3DDistance, Triangle3DBoundaryAccess,
+    CylindricalSurface3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
+    SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
+    Triangle3DBoundaryAccess,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -359,10 +359,7 @@ fn cylindrical_surface3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-            cyl,
-            (point.x(), point.y(), point.z()),
-        ) <= tolerance,
+        crate::distance::cylindrical_surface3d_point3d_distance(cyl, point) <= tolerance,
     )
 }
 
@@ -384,12 +381,10 @@ fn cylindrical_surface3d_circle3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let dist = <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (cx, cy, cz),
-    );
+    let center = Point3D::new(cx, cy, cz);
+    let dist = crate::distance::cylindrical_surface3d_point3d_distance(cyl, &center);
     if dist <= Circle3DProperties::radius(circle) + tolerance {
-        Some(Point3D::new(cx, cy, cz))
+        Some(center)
     } else {
         None
     }
@@ -414,17 +409,9 @@ fn cylindrical_surface3d_line_segment3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let s = segment.start();
     let e = segment.end();
-    if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (s.x(), s.y(), s.z()),
-    ) <= tolerance
-    {
+    if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &s) <= tolerance {
         Some(s)
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (e.x(), e.y(), e.z()),
-    ) <= tolerance
-    {
+    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &e) <= tolerance {
         Some(e)
     } else {
         None
@@ -451,24 +438,15 @@ fn cylindrical_surface3d_triangle3d_intersection_raw<T: Scalar>(
     let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
     let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
-    if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (ax, ay, az),
-    ) <= tolerance
-    {
-        Some(Point3D::new(ax, ay, az))
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (bx, by, bz),
-    ) <= tolerance
-    {
-        Some(Point3D::new(bx, by, bz))
-    } else if <CylindricalSurface3D<T> as CylindricalSurface3DDistance<T>>::distance_to_point(
-        cyl,
-        (cx, cy, cz),
-    ) <= tolerance
-    {
-        Some(Point3D::new(cx, cy, cz))
+    let point_a = Point3D::new(ax, ay, az);
+    let point_b = Point3D::new(bx, by, bz);
+    let point_c = Point3D::new(cx, cy, cz);
+    if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_a) <= tolerance {
+        Some(point_a)
+    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_b) <= tolerance {
+        Some(point_b)
+    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_c) <= tolerance {
+        Some(point_c)
     } else {
         None
     }
@@ -585,10 +563,7 @@ fn ellipse3d_point3d_intersection_raw<T: Scalar + From<f64>>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
-            ellipse,
-            (point.x(), point.y(), point.z()),
-        ) <= tolerance,
+        crate::distance::ellipse3d_point3d_distance(ellipse, point) <= tolerance,
     )
 }
 
@@ -610,9 +585,10 @@ pub fn ellipse3d_circle3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (cx, cy, cz) = Circle3DProperties::center(circle);
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz));
+    let center = Point3D::new(cx, cy, cz);
+    let dist = crate::distance::ellipse3d_point3d_distance(ellipse, &center);
     let points = if dist <= Circle3DProperties::radius(circle) + tolerance {
-        vec![Point3D::new(cx, cy, cz)]
+        vec![center]
     } else {
         Vec::new()
     };
@@ -625,9 +601,10 @@ pub fn ellipse3d_arc3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (cx, cy, cz) = Arc3DProperties::center(arc);
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz));
+    let center = Point3D::new(cx, cy, cz);
+    let dist = crate::distance::ellipse3d_point3d_distance(ellipse, &center);
     let points = if dist <= Arc3DProperties::radius(arc) + tolerance {
-        vec![Point3D::new(cx, cy, cz)]
+        vec![center]
     } else {
         Vec::new()
     };
@@ -642,18 +619,10 @@ pub fn ellipse3d_line_segment3d_intersections<T: Scalar + From<f64>>(
     let start = segment.start();
     let end = segment.end();
     let mut intersections = Vec::new();
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
-        ellipse,
-        (start.x(), start.y(), start.z()),
-    ) <= tolerance
-    {
+    if crate::distance::ellipse3d_point3d_distance(ellipse, &start) <= tolerance {
         intersections.push(start);
     }
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
-        ellipse,
-        (end.x(), end.y(), end.z()),
-    ) <= tolerance
-    {
+    if crate::distance::ellipse3d_point3d_distance(ellipse, &end) <= tolerance {
         intersections.push(end);
     }
     IntersectionResult::from_option_points(intersections, false, tolerance)
@@ -665,9 +634,10 @@ pub fn ellipse3d_infinite_line3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
-    let dist = <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (px, py, pz));
+    let point = Point3D::new(px, py, pz);
+    let dist = crate::distance::ellipse3d_point3d_distance(ellipse, &point);
     let points = if dist <= tolerance {
-        vec![Point3D::new(px, py, pz)]
+        vec![point]
     } else {
         Vec::new()
     };
@@ -680,8 +650,7 @@ pub fn ellipse3d_ray3d_intersections<T: Scalar + From<f64>>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let o = ray.origin();
-    let dist =
-        <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (o.x(), o.y(), o.z()));
+    let dist = crate::distance::ellipse3d_point3d_distance(ellipse, &o);
     let points = if dist <= tolerance {
         vec![o]
     } else {
@@ -724,17 +693,17 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
     let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
     let mut intersections = Vec::new();
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (ax, ay, az)) <= tolerance
-    {
-        intersections.push(Point3D::new(ax, ay, az));
+    let point_a = Point3D::new(ax, ay, az);
+    let point_b = Point3D::new(bx, by, bz);
+    let point_c = Point3D::new(cx, cy, cz);
+    if crate::distance::ellipse3d_point3d_distance(ellipse, &point_a) <= tolerance {
+        intersections.push(point_a);
     }
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (bx, by, bz)) <= tolerance
-    {
-        intersections.push(Point3D::new(bx, by, bz));
+    if crate::distance::ellipse3d_point3d_distance(ellipse, &point_b) <= tolerance {
+        intersections.push(point_b);
     }
-    if <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(ellipse, (cx, cy, cz)) <= tolerance
-    {
-        intersections.push(Point3D::new(cx, cy, cz));
+    if crate::distance::ellipse3d_point3d_distance(ellipse, &point_c) <= tolerance {
+        intersections.push(point_c);
     }
     IntersectionResult::from_option_points(intersections, false, tolerance)
 }
