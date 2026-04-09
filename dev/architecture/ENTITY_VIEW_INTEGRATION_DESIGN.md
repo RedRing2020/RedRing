@@ -245,7 +245,9 @@ effective_visible = entity.visible
 2. 既存 `load_debug_line` / `load_debug_toolpath` に「Entity経由パス」を追加
 3. `rebuild_stage_from_entities()` を新設
    - EntityManagerの可視エンティティを収集
-   - entity 自身の visible と group / layer 可視状態を合成して有効表示を判定
+   - Application/Model 正本の `visible_policy` と entity / group / layer state を ViewModel へ渡し、`effective_visible` を解決する
+   - 初期は bool 群で描画可否材料を渡してよいが、並列条件と上位/下位条件の違いは `visible_policy` の構造 node と leaf の `source` / `source_id` で補足できる前提にする
+   - 将来 object instance を導入する場合は、instance placement / instance root / instance cluster を最上位 node として先に評価し、非表示 cluster 配下の placement は下位条件を再走査しない
    - ViewModel変換
    - `MeshStage` / `ToolPathStage` へ反映
 4. キー操作（最小）
@@ -262,6 +264,15 @@ effective_visible = entity.visible
 - `geometric_entity_to_vertices` が表示色を反映する
 - 非対応形状で明示エラーを返す
 - `cam_entity_to_vertices` が `CAMEntity` 入力でも既存変換結果と一致する
+- `visible_policy` と View 条件から `effective_visible` を一貫して解決できる
+- bool 群だけの初期 DTO でも、`visible_policy` の構造 node と leaf の `source + source_id` 規約に従って同じ `effective_visible` を再現できる
+- `effective_visible = false` になった場合、少なくとも 1 件の `source` と必要に応じた `source_id` を辿って原因軸を説明できる
+- source 候補として少なくとも Entity / Group を持てるようにしておき、特に Group は `group_ids + entity_ids` を束ねる候補も含めて評価できるようにする
+- `Element` は source に固定せず、点・線・面など要素種類ごとに空間を分ける前提で ViewModel が受け取れるようにしておく
+- 同一 entity を参照する複数 instance placement がある場合でも、placement ごとの visible state に従って個別に `effective_visible` を解決できる
+- instance 内 entity 単位の表示操作が入った場合は、同一 instance 内の同一 `placement_element_key` を共有する要素が同じ表示挙動になり、別 instance の対応要素とは独立に扱われる
+- `placement_element_key` は visibility 専用 ID ではなく、外部の配置機構が供給する前提とする
+- instance cluster が最上位で false の場合、配下 placement の group / layer 条件を評価せずとも同じ `effective_visible = false` を再現できる
 
 ## 8.2 `view/app` 側
 
@@ -274,6 +285,10 @@ effective_visible = entity.visible
 - 既に layer 所属を持つ entity へ別 layer を追加しようとすると失敗する
 - 所属 layer が非表示の場合に有効表示が false になる
 - dirty時のみ `rebuild_stage_from_entities()` 実行
+- View は ViewModel が解決した `effective_visible` を消費し、独自の優先順位ロジックを持たない
+- instance cluster の表示変更時は、その cluster 配下の `affected_instance_ids` のみが一次再評価対象になり、必要に応じて表示中 entity へ反映する
+- instance 内 entity 操作時は、`affected_instance_ids` だけでなく `affected_instance_element_keys` のような粒度も扱えるようにして、同一 instance 内の同一要素だけを差分再評価できる余地を残す
+- ただしこの element key の定義は visibility ではなく外部の配置機構側で持ち、ViewModel はそれを受け取って差分再評価へ使うだけに留める
 - 2D 線種はビュー始点が定義平面に直交しない場合、非表示または実線フォールバックとなる
 
 ---
