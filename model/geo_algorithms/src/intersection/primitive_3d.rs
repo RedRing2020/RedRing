@@ -14,7 +14,7 @@ use crate::{
     Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DDistance, Arc3DEndpoint, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
+    Arc3DEndpoint, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
     ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
     CylindricalSurface3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
     SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
@@ -76,10 +76,9 @@ fn arc3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let point_tuple = (point.x(), point.y(), point.z());
     point_intersection_if(
         point,
-        <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, point_tuple) <= tolerance
+        crate::distance::arc3d_point3d_distance(arc, point) <= tolerance
             && arc.contains_point_angle(Point3D::new(point.x(), point.y(), point.z())),
     )
 }
@@ -105,18 +104,8 @@ fn arc3d_line_segment3d_intersection_raw<T: Scalar>(
     let (ex, ey, ez) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
     let arc_start = Point3D::new(sx, sy, sz);
     let arc_end = Point3D::new(ex, ey, ez);
-    let d_seg_s = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
-        arc,
-        (
-            segment.start().x(),
-            segment.start().y(),
-            segment.start().z(),
-        ),
-    );
-    let d_seg_e = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
-        arc,
-        (segment.end().x(), segment.end().y(), segment.end().z()),
-    );
+    let d_seg_s = crate::distance::arc3d_point3d_distance(arc, &segment.start());
+    let d_seg_e = crate::distance::arc3d_point3d_distance(arc, &segment.end());
     if d_seg_s <= tolerance {
         return Some(segment.start());
     }
@@ -150,10 +139,7 @@ fn arc3d_ray3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let origin = ray.origin();
-    let d = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(
-        arc,
-        (origin.x(), origin.y(), origin.z()),
-    );
+    let d = crate::distance::arc3d_point3d_distance(arc, &origin);
     if d <= tolerance {
         Some(origin)
     } else {
@@ -180,7 +166,7 @@ fn arc3d_infinite_line3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let pt = Point3D::new(px, py, pz);
-    let d = <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, (px, py, pz));
+    let d = crate::distance::arc3d_point3d_distance(arc, &pt);
     if d <= tolerance {
         Some(pt)
     } else {

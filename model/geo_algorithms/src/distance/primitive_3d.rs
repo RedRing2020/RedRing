@@ -6,11 +6,12 @@
 //! 命名規則: `{shape_a}_{shape_b}_distance`
 
 use crate::{
-    Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, InfiniteLine3D, LineSegment3D,
-    Plane3D, Point3D, Ray3D,
+    Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, InfiniteLine3D,
+    LineSegment3D, Plane3D, Point3D, Ray3D,
 };
 use geo_contracts::{
-    CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance, Scalar,
+    Arc3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
+    Scalar,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -71,6 +72,16 @@ pub fn ray3d_point3d_distance<T: Scalar>(ray: &Ray3D<T>, point: &Point3D<T>) -> 
 /// 逆向きラッパー: point-ray
 pub fn point3d_ray3d_distance<T: Scalar>(point: &Point3D<T>, ray: &Ray3D<T>) -> T {
     ray.distance_to_point(point)
+}
+
+/// Arc3D-点 間の最短距離
+pub fn arc3d_point3d_distance<T: Scalar>(arc: &Arc3D<T>, point: &Point3D<T>) -> T {
+    <Arc3D<T> as Arc3DDistance<T>>::distance_to_point(arc, (point.x(), point.y(), point.z()))
+}
+
+/// 逆向きラッパー: point-arc
+pub fn point3d_arc3d_distance<T: Scalar>(point: &Point3D<T>, arc: &Arc3D<T>) -> T {
+    arc3d_point3d_distance(arc, point)
 }
 
 /// Circle3D-点 間の最短距離（円周への3D空間での距離）
@@ -318,6 +329,53 @@ mod tests {
         assert!(
             !intersection_ellipse_point_section.contains(ELLIPSE_DIRECT_UFCS),
             "intersection/primitive_3d.rs must not call Ellipse3DDistance::distance_to_point directly"
+        );
+    }
+
+    #[test]
+    fn arc_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint() {
+        const ARC_DIRECT_UFCS: &str = "<Arc3D<T> as Arc3DDistance<T>>::distance_to_point";
+        const ARC_POINT_ENTRYPOINT: &str = "crate::distance::arc3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_arc_point_section = section(
+            collision_source,
+            "pub fn arc3d_point3d_collides",
+            "pub fn circle3d_point3d_collides",
+        );
+        let intersection_arc_point_section = section(
+            intersection_source,
+            "fn arc3d_point3d_intersection_raw",
+            "fn circle3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            collision_arc_point_section.contains(ARC_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route arc point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_arc_point_section.contains(ARC_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route arc point checks through the distance entrypoint"
+        );
+        assert!(
+            !collision_arc_point_section.contains(ARC_DIRECT_UFCS),
+            "collision/primitive_3d.rs must not call Arc3DDistance::distance_to_point directly"
+        );
+        assert!(
+            !intersection_arc_point_section.contains(ARC_DIRECT_UFCS),
+            "intersection/primitive_3d.rs must not call Arc3DDistance::distance_to_point directly"
         );
     }
 }
