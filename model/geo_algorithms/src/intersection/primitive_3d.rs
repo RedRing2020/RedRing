@@ -37,6 +37,18 @@ fn point_matches_either_segment_endpoint<T: Scalar>(
         || point.distance_to(&segment.end()) <= tolerance
 }
 
+fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
+    cone: &ConicalSolid3D<T>,
+    point: &Point3D<T>,
+    tolerance: T,
+) -> bool {
+    ConicalSolid3DContainment::contains_point_tolerance(
+        cone,
+        (point.x(), point.y(), point.z()),
+        tolerance,
+    )
+}
+
 fn spherical_surface_intersection_parameters<T: Scalar>(
     start: &Point3D<T>,
     direction: &crate::Vector3D<T>,
@@ -812,11 +824,7 @@ fn conical_solid3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        ConicalSolid3DContainment::contains_point_tolerance(
-            cone,
-            (point.x(), point.y(), point.z()),
-            tolerance,
-        ),
+        conical_solid3d_contains_point_with_tolerance(cone, point, tolerance),
     )
 }
 
@@ -841,7 +849,7 @@ fn conical_solid3d_line3d_intersection_raw<T: Scalar>(
     let point_on_line = Point3D::new(px, py, pz);
     point_intersection_if(
         &point_on_line,
-        ConicalSolid3DContainment::contains_point_tolerance(cone, (px, py, pz), tolerance),
+        conical_solid3d_contains_point_with_tolerance(cone, &point_on_line, tolerance),
     )
 }
 
@@ -865,11 +873,7 @@ fn conical_solid3d_ray3d_intersection_raw<T: Scalar>(
     let origin = ray.origin();
     point_intersection_if(
         &origin,
-        ConicalSolid3DContainment::contains_point_tolerance(
-            cone,
-            (origin.x(), origin.y(), origin.z()),
-            tolerance,
-        ),
+        conical_solid3d_contains_point_with_tolerance(cone, &origin, tolerance),
     )
 }
 
@@ -893,11 +897,7 @@ fn conical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     let start = segment.start();
     point_intersection_if(
         &start,
-        ConicalSolid3DContainment::contains_point_tolerance(
-            cone,
-            (start.x(), start.y(), start.z()),
-            tolerance,
-        ),
+        conical_solid3d_contains_point_with_tolerance(cone, &start, tolerance),
     )
 }
 
@@ -2665,5 +2665,39 @@ mod tests {
             panic!("Expected IntersectionGeometry::Point for crossing");
         }
         assert_eq!(disjoint.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn conical_solid_point_boundary_guard_keeps_intersection_on_point_helper() {
+        const CONICAL_SOLID_DIRECT_CONTAINMENT: &str =
+            "ConicalSolid3DContainment::contains_point_tolerance";
+        const CONICAL_SOLID_POINT_HELPER: &str = "conical_solid3d_contains_point_with_tolerance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let source = include_str!("primitive_3d.rs");
+        let conical_solid_point_section = section(
+            source,
+            "fn conical_solid3d_point3d_intersection_raw",
+            "fn conical_surface3d_intersect_params",
+        );
+
+        assert!(
+            conical_solid_point_section.contains(CONICAL_SOLID_POINT_HELPER),
+            "intersection/primitive_3d.rs should route conical solid point-like checks through the point helper"
+        );
+        assert!(
+            !conical_solid_point_section.contains(CONICAL_SOLID_DIRECT_CONTAINMENT),
+            "intersection/primitive_3d.rs must not call ConicalSolid3DContainment::contains_point_tolerance directly in the representative conical solid section"
+        );
     }
 }
