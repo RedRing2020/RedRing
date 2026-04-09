@@ -793,7 +793,10 @@ fn ellipsoidal_surface3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, ellipsoid.contains_point(point, tolerance))
+    point_intersection_if(
+        point,
+        crate::distance::ellipsoidal_surface3d_point3d_distance(ellipsoid, point) <= tolerance,
+    )
 }
 
 pub fn ellipsoidal_surface3d_point3d_intersection<T: Scalar>(
@@ -1125,9 +1128,12 @@ pub fn conical_surface3d_line_segment3d_intersections<T: Scalar>(
 fn spherical_solid3d_point3d_intersection_raw<T: Scalar>(
     sphere: &SphericalSolid3D<T>,
     point: &Point3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, sphere.contains_point(*point))
+    point_intersection_if(
+        point,
+        crate::distance::spherical_solid3d_point3d_distance(sphere, point) <= tolerance,
+    )
 }
 
 pub fn spherical_solid3d_point3d_intersection<T: Scalar>(
