@@ -86,9 +86,10 @@ $ARCH_ALLOWED_DEPS = @{
 }
 
 # Forbidden dependency rules
+# Last updated: 2026-04-09 (#501/#650 sync application forbidden deps with current allowed deps)
 # Pending update: add reverse dependency guards when `cam_algorithms` is created.
 $ARCH_FORBIDDEN_DEPS = @{
-    application    = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "converter", "graphics", "render", "stage", "app")
+    application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "graphics", "render", "stage", "app")
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_contracts  = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
     geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
