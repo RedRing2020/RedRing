@@ -7,11 +7,11 @@
 
 use crate::{
     Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, InfiniteLine3D,
-    LineSegment3D, Plane3D, Point3D, Ray3D,
+    LineSegment3D, Plane3D, Point3D, Ray3D, TorusSurface3D,
 };
 use geo_contracts::{
     Arc3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
-    Scalar,
+    Scalar, TorusSurface3DDistance,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -82,6 +82,25 @@ pub fn arc3d_point3d_distance<T: Scalar>(arc: &Arc3D<T>, point: &Point3D<T>) -> 
 /// 逆向きラッパー: point-arc
 pub fn point3d_arc3d_distance<T: Scalar>(point: &Point3D<T>, arc: &Arc3D<T>) -> T {
     arc3d_point3d_distance(arc, point)
+}
+
+/// TorusSurface3D-点 間の最短距離
+pub fn torus_surface3d_point3d_distance<T: Scalar>(
+    torus: &TorusSurface3D<T>,
+    point: &Point3D<T>,
+) -> T {
+    <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
+        torus,
+        (point.x(), point.y(), point.z()),
+    )
+}
+
+/// 逆向きラッパー: point-torus_surface
+pub fn point3d_torus_surface3d_distance<T: Scalar>(
+    point: &Point3D<T>,
+    torus: &TorusSurface3D<T>,
+) -> T {
+    torus_surface3d_point3d_distance(torus, point)
 }
 
 /// Circle3D-点 間の最短距離（円周への3D空間での距離）
@@ -376,6 +395,56 @@ mod tests {
         assert!(
             !intersection_arc_point_section.contains(ARC_DIRECT_UFCS),
             "intersection/primitive_3d.rs must not call Arc3DDistance::distance_to_point directly"
+        );
+    }
+
+    #[test]
+    fn torus_surface_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint()
+    {
+        const TORUS_SURFACE_DIRECT_UFCS: &str =
+            "<TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point";
+        const TORUS_SURFACE_POINT_ENTRYPOINT: &str =
+            "crate::distance::torus_surface3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_torus_surface_point_section = section(
+            collision_source,
+            "pub fn torus_surface3d_point3d_collides",
+            "pub fn triangle3d_point3d_collides",
+        );
+        let intersection_torus_surface_point_section = section(
+            intersection_source,
+            "fn torus_surface3d_point3d_intersection_raw",
+            "fn triangle3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            collision_torus_surface_point_section.contains(TORUS_SURFACE_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route torus surface point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_torus_surface_point_section.contains(TORUS_SURFACE_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route torus surface point checks through the distance entrypoint"
+        );
+        assert!(
+            !collision_torus_surface_point_section.contains(TORUS_SURFACE_DIRECT_UFCS),
+            "collision/primitive_3d.rs must not call TorusSurface3DDistance::distance_to_point directly"
+        );
+        assert!(
+            !intersection_torus_surface_point_section.contains(TORUS_SURFACE_DIRECT_UFCS),
+            "intersection/primitive_3d.rs must not call TorusSurface3DDistance::distance_to_point directly"
         );
     }
 }

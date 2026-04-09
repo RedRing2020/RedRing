@@ -14,8 +14,7 @@ use crate::{
 use geo_contracts::{
     Arc3DEndpoint, Arc3DProperties, Circle3DProperties, CylindricalSolid3DProperties,
     CylindricalSurface3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
-    Triangle3DBoundaryAccess,
+    SphericalSolid3DProperties, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 // ── SphericalSolid3D ──────────────────────────────────────────────────────────
@@ -536,10 +535,7 @@ pub fn torus_surface3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
-        torus,
-        (point.x(), point.y(), point.z()),
-    ) <= tolerance
+    crate::distance::torus_surface3d_point3d_distance(torus, point) <= tolerance
 }
 
 // ── Triangle3D ────────────────────────────────────────────────────────────────

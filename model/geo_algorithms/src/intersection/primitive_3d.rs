@@ -17,8 +17,7 @@ use geo_contracts::{
     Arc3DEndpoint, Arc3DProperties, Circle3DProperties, ConicalSolid3DContainment,
     ConicalSolid3DProperties, ConicalSurface3DProperties, CylindricalSurface3DDistance,
     CylindricalSurface3DProperties, EllipsoidalSolid3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSolid3DProperties, SphericalSurface3DProperties, TorusSurface3DDistance,
-    Triangle3DBoundaryAccess,
+    SphericalSolid3DProperties, SphericalSurface3DProperties, Triangle3DBoundaryAccess,
 };
 
 fn point_intersection_if<T: Scalar>(point: &Point3D<T>, condition: bool) -> Option<Point3D<T>> {
@@ -1305,10 +1304,7 @@ fn torus_surface3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        <TorusSurface3D<T> as TorusSurface3DDistance<T>>::distance_to_point(
-            torus,
-            (point.x(), point.y(), point.z()),
-        ) <= tolerance,
+        crate::distance::torus_surface3d_point3d_distance(torus, point) <= tolerance,
     )
 }
 
