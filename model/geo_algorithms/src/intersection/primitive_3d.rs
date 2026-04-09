@@ -705,9 +705,12 @@ pub fn ellipse3d_ellipse3d_intersections<T: Scalar>(
 fn ellipsoidal_solid3d_point3d_intersection_raw<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     point: &Point3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, ellipsoid.contains_point(point))
+    point_intersection_if(
+        point,
+        crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, point) <= tolerance,
+    )
 }
 
 pub fn ellipsoidal_solid3d_point3d_intersection<T: Scalar>(
@@ -758,7 +761,9 @@ pub fn ellipsoidal_solid3d_infinite_line3d_intersections<T: Scalar>(
 ) -> IntersectionResult<T> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let point_on_line = Point3D::new(px, py, pz);
-    let points = if ellipsoid.contains_point(&point_on_line) {
+    let points = if crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &point_on_line)
+        <= tolerance
+    {
         vec![point_on_line]
     } else {
         vec![]
@@ -772,11 +777,12 @@ pub fn ellipsoidal_solid3d_ray3d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let origin = ray.origin();
-    let points = if ellipsoid.contains_point(&origin) {
-        vec![origin]
-    } else {
-        vec![]
-    };
+    let points =
+        if crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &origin) <= tolerance {
+            vec![origin]
+        } else {
+            vec![]
+        };
     IntersectionResult::from_option_points(points, false, tolerance)
 }
 
@@ -1265,9 +1271,12 @@ pub fn spherical_solid3d_plane3d_intersection<T: Scalar>(
 fn torus_solid3d_point3d_intersection_raw<T: Scalar>(
     torus: &TorusSolid3D<T>,
     point: &Point3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, torus.contains_point(point))
+    point_intersection_if(
+        point,
+        crate::distance::torus_solid3d_point3d_distance(torus, point) <= tolerance,
+    )
 }
 
 pub fn torus_solid3d_point3d_intersection<T: Scalar>(
