@@ -404,9 +404,9 @@ pub fn ellipse3d_ellipse3d_collides<T: Scalar>(
 pub fn ellipsoidal_solid3d_point3d_collides<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
     point: &Point3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> bool {
-    ellipsoid.contains_point(point)
+    crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, point) <= tolerance
 }
 
 pub fn ellipsoidal_solid3d_line_segment3d_collides<T: Scalar>(
@@ -416,16 +416,8 @@ pub fn ellipsoidal_solid3d_line_segment3d_collides<T: Scalar>(
 ) -> bool {
     let start = segment.start();
     let end = segment.end();
-    let d1 = if ellipsoid.contains_point(&start) {
-        T::ZERO
-    } else {
-        ellipsoid.distance_to_surface(&start)
-    };
-    let d2 = if ellipsoid.contains_point(&end) {
-        T::ZERO
-    } else {
-        ellipsoid.distance_to_surface(&end)
-    };
+    let d1 = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &start);
+    let d2 = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &end);
     d1 <= tolerance || d2 <= tolerance
 }
 
@@ -435,11 +427,7 @@ pub fn ellipsoidal_solid3d_ray3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let origin = ray.origin();
-    let d = if ellipsoid.contains_point(&origin) {
-        T::ZERO
-    } else {
-        ellipsoid.distance_to_surface(&origin)
-    };
+    let d = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &origin);
     d <= tolerance
 }
 
@@ -450,11 +438,7 @@ pub fn ellipsoidal_solid3d_infinite_line3d_collides<T: Scalar>(
 ) -> bool {
     let (px, py, pz) = line.point();
     let pt = Point3D::new(px, py, pz);
-    let d = if ellipsoid.contains_point(&pt) {
-        T::ZERO
-    } else {
-        ellipsoid.distance_to_surface(&pt)
-    };
+    let d = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &pt);
     d <= tolerance
 }
 
@@ -514,9 +498,9 @@ pub fn ellipsoidal_surface3d_point3d_collides<T: Scalar>(
 pub fn torus_solid3d_point3d_collides<T: Scalar>(
     torus: &TorusSolid3D<T>,
     point: &Point3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> bool {
-    torus.contains_point(point)
+    crate::distance::torus_solid3d_point3d_distance(torus, point) <= tolerance
 }
 
 // ── TorusSurface3D ────────────────────────────────────────────────────────────
