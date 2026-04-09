@@ -674,14 +674,15 @@ pub fn circle3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let dist_start = circle.distance_to_point_3d(segment.start());
-    let dist_end = circle.distance_to_point_3d(segment.end());
+    let dist_start = crate::distance::circle3d_point3d_distance(circle, &segment.start());
+    let dist_end = crate::distance::circle3d_point3d_distance(circle, &segment.end());
     let mid_x = (segment.start().x() + segment.end().x()) / T::from_f64(2.0);
     let mid_y = (segment.start().y() + segment.end().y()) / T::from_f64(2.0);
     let mid_z = (segment.start().z() + segment.end().z()) / T::from_f64(2.0);
+    let midpoint = Point3D::new(mid_x, mid_y, mid_z);
     dist_start <= tolerance
         || dist_end <= tolerance
-        || circle.distance_to_point_3d(Point3D::new(mid_x, mid_y, mid_z)) <= tolerance
+        || crate::distance::circle3d_point3d_distance(circle, &midpoint) <= tolerance
 }
 
 pub fn circle3d_ray3d_collides<T: Scalar>(
@@ -689,7 +690,7 @@ pub fn circle3d_ray3d_collides<T: Scalar>(
     ray: &Ray3D<T>,
     tolerance: T,
 ) -> bool {
-    circle.distance_to_point_3d(ray.origin()) <= tolerance
+    crate::distance::circle3d_point3d_distance(circle, &ray.origin()) <= tolerance
 }
 
 pub fn circle3d_infinite_line3d_collides<T: Scalar>(
@@ -698,7 +699,8 @@ pub fn circle3d_infinite_line3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (px, py, pz) = line.point();
-    circle.distance_to_point_3d(Point3D::new(px, py, pz)) <= tolerance
+    let point_on_line = Point3D::new(px, py, pz);
+    crate::distance::circle3d_point3d_distance(circle, &point_on_line) <= tolerance
 }
 
 pub fn circle3d_circle3d_collides<T: Scalar>(

@@ -276,13 +276,15 @@ pub fn circle3d_point3d_intersection<T: Scalar>(
 fn circle3d_line_segment3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     segment: &LineSegment3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
-    if circle.contains_point_3d(segment.start()) {
-        return Some(segment.start());
+    let start = segment.start();
+    if crate::distance::circle3d_point3d_distance(circle, &start) <= tolerance {
+        return Some(start);
     }
-    if circle.contains_point_3d(segment.end()) {
-        return Some(segment.end());
+    let end = segment.end();
+    if crate::distance::circle3d_point3d_distance(circle, &end) <= tolerance {
+        return Some(end);
     }
     None
 }
@@ -302,10 +304,10 @@ pub fn circle3d_line_segment3d_intersection<T: Scalar>(
 fn circle3d_ray3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     ray: &Ray3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let origin = ray.origin();
-    if circle.contains_point_3d(origin) {
+    if crate::distance::circle3d_point3d_distance(circle, &origin) <= tolerance {
         Some(origin)
     } else {
         None
@@ -327,11 +329,11 @@ pub fn circle3d_ray3d_intersection<T: Scalar>(
 fn circle3d_infinite_line3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     line: &InfiniteLine3D<T>,
-    _tolerance: T,
+    tolerance: T,
 ) -> Option<Point3D<T>> {
     let (px, py, pz) = InfiniteLine3DProperties::point(line);
     let pt = Point3D::new(px, py, pz);
-    if circle.contains_point_3d(pt) {
+    if crate::distance::circle3d_point3d_distance(circle, &pt) <= tolerance {
         Some(pt)
     } else {
         None
