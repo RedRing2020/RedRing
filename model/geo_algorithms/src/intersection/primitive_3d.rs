@@ -49,6 +49,17 @@ fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(
     )
 }
 
+fn triangle3d_vertex_points<T: Scalar>(triangle: &Triangle3D<T>) -> [Point3D<T>; 3] {
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
+    [
+        Point3D::new(ax, ay, az),
+        Point3D::new(bx, by, bz),
+        Point3D::new(cx, cy, cz),
+    ]
+}
+
 fn spherical_surface_intersection_parameters<T: Scalar>(
     start: &Point3D<T>,
     direction: &crate::Vector3D<T>,
@@ -432,21 +443,11 @@ fn cylindrical_surface3d_triangle3d_intersection_raw<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
-    let point_a = Point3D::new(ax, ay, az);
-    let point_b = Point3D::new(bx, by, bz);
-    let point_c = Point3D::new(cx, cy, cz);
-    if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_a) <= tolerance {
-        Some(point_a)
-    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_b) <= tolerance {
-        Some(point_b)
-    } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &point_c) <= tolerance {
-        Some(point_c)
-    } else {
-        None
-    }
+    triangle3d_vertex_points(triangle)
+        .into_iter()
+        .find(|point| {
+            crate::distance::cylindrical_surface3d_point3d_distance(cyl, point) <= tolerance
+        })
 }
 
 pub fn cylindrical_surface3d_triangle3d_intersection<T: Scalar>(
@@ -686,21 +687,11 @@ pub fn ellipse3d_triangle3d_intersections<T: Scalar + From<f64>>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
-    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
-    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
     let mut intersections = Vec::new();
-    let point_a = Point3D::new(ax, ay, az);
-    let point_b = Point3D::new(bx, by, bz);
-    let point_c = Point3D::new(cx, cy, cz);
-    if crate::distance::ellipse3d_point3d_distance(ellipse, &point_a) <= tolerance {
-        intersections.push(point_a);
-    }
-    if crate::distance::ellipse3d_point3d_distance(ellipse, &point_b) <= tolerance {
-        intersections.push(point_b);
-    }
-    if crate::distance::ellipse3d_point3d_distance(ellipse, &point_c) <= tolerance {
-        intersections.push(point_c);
+    for point in triangle3d_vertex_points(triangle) {
+        if crate::distance::ellipse3d_point3d_distance(ellipse, &point) <= tolerance {
+            intersections.push(point);
+        }
     }
     IntersectionResult::from_option_points(intersections, false, tolerance)
 }
@@ -1327,7 +1318,10 @@ fn triangle3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, triangle.distance_to_point(point) <= tolerance)
+    point_intersection_if(
+        point,
+        crate::distance::triangle3d_point3d_distance(triangle, point) <= tolerance,
+    )
 }
 
 pub fn triangle3d_point3d_intersection<T: Scalar>(
@@ -1465,11 +1459,7 @@ fn triangle_mesh3d_point3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     point_intersection_if(
         point,
-        (0..mesh.triangle_count()).any(|i| {
-            mesh.triangle(i)
-                .map(|tri| tri.distance_to_point(point) <= tolerance)
-                .unwrap_or(false)
-        }),
+        crate::distance::triangle_mesh3d_point3d_distance(mesh, point) <= tolerance,
     )
 }
 

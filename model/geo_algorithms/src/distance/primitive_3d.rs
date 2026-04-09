@@ -7,7 +7,7 @@
 
 use crate::{
     Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, InfiniteLine3D,
-    LineSegment3D, Plane3D, Point3D, Ray3D, TorusSurface3D,
+    LineSegment3D, Plane3D, Point3D, Ray3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
     Arc3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
@@ -168,6 +168,38 @@ pub fn point3d_cylindrical_surface3d_distance<T: Scalar>(
     cyl: &CylindricalSurface3D<T>,
 ) -> T {
     cylindrical_surface3d_point3d_distance(cyl, point)
+}
+
+/// Triangle3D-点 間の最短距離
+pub fn triangle3d_point3d_distance<T: Scalar>(triangle: &Triangle3D<T>, point: &Point3D<T>) -> T {
+    triangle.distance_to_point(point)
+}
+
+/// 逆向きラッパー: point-triangle
+pub fn point3d_triangle3d_distance<T: Scalar>(point: &Point3D<T>, triangle: &Triangle3D<T>) -> T {
+    triangle3d_point3d_distance(triangle, point)
+}
+
+/// TriangleMesh3D-点 間の最短距離
+pub fn triangle_mesh3d_point3d_distance<T: Scalar>(
+    mesh: &TriangleMesh3D<T>,
+    point: &Point3D<T>,
+) -> T {
+    (0..mesh.triangle_count())
+        .filter_map(|index| {
+            mesh.triangle(index)
+                .map(|triangle| triangle.distance_to_point(point))
+        })
+        .reduce(|best, distance| best.min(distance))
+        .unwrap_or(T::INFINITY)
+}
+
+/// 逆向きラッパー: point-triangle_mesh
+pub fn point3d_triangle_mesh3d_distance<T: Scalar>(
+    point: &Point3D<T>,
+    mesh: &TriangleMesh3D<T>,
+) -> T {
+    triangle_mesh3d_point3d_distance(mesh, point)
 }
 
 #[cfg(test)]
@@ -445,6 +477,84 @@ mod tests {
         assert!(
             !intersection_torus_surface_point_section.contains(TORUS_SURFACE_DIRECT_UFCS),
             "intersection/primitive_3d.rs must not call TorusSurface3DDistance::distance_to_point directly"
+        );
+    }
+
+    #[test]
+    fn triangle_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint() {
+        const TRIANGLE_POINT_ENTRYPOINT: &str = "crate::distance::triangle3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_triangle_point_section = section(
+            collision_source,
+            "pub fn triangle3d_point3d_collides",
+            "pub fn triangle_mesh3d_point3d_collides",
+        );
+        let intersection_triangle_point_section = section(
+            intersection_source,
+            "fn triangle3d_point3d_intersection_raw",
+            "fn triangle_mesh3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            collision_triangle_point_section.contains(TRIANGLE_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route triangle point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_triangle_point_section.contains(TRIANGLE_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route triangle point checks through the distance entrypoint"
+        );
+    }
+
+    #[test]
+    fn triangle_mesh_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint()
+    {
+        const TRIANGLE_MESH_POINT_ENTRYPOINT: &str =
+            "crate::distance::triangle_mesh3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_triangle_mesh_point_section = section(
+            collision_source,
+            "pub fn triangle_mesh3d_point3d_collides",
+            "pub fn arc3d_point3d_collides",
+        );
+        let intersection_triangle_mesh_point_section = section(
+            intersection_source,
+            "fn triangle_mesh3d_point3d_intersection_raw",
+            "fn plane3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            collision_triangle_mesh_point_section.contains(TRIANGLE_MESH_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route triangle mesh point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_triangle_mesh_point_section.contains(TRIANGLE_MESH_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route triangle mesh point checks through the distance entrypoint"
         );
     }
 }
