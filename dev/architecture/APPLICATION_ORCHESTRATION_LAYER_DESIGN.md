@@ -39,6 +39,17 @@
 - `workflow` は順序制御には適するが、port/adapter の選択や境界DTOの集約まで含めるにはやや狭い
 - `orchestration` は「どこに委譲するか」「どういう順序で進めるか」「どの境界で返すか」をまとめて表現しやすい
 
+### 2.4 geometry 系命名の使い分け
+
+- `feature` は CAD 文脈で意味が揺れやすい語である。履歴再生付きの形状処理コマンドを指す場合もあれば、設計意図を持つ形状要素を指す場合もあり、CAD 製品ごとに思想差が大きい
+- そのため RedRing では、文脈ローカルな定義なしに `feature` を総称のマジックワードとして使わない
+- `feature` は「ユーザーが意味を持つ CAD 編集単位」を表す語として使い、単なる描画補助やプレビューまで含めない
+- `geometry` は座標や寸法から形状を組み立てる処理を指し、EntityID 付与や topology 保存を含意しない
+- `preview` は画面表示補助、途中経過表示、コマンド中の矢印・座標軸・一時形状など、永続化や entity 化を前提としない経路に使う
+- `entity commit` / `import` は geometry を CAD データとして管理対象へ載せる経路を指し、必要に応じて topology と EntityID を伴う
+- したがって `feature_orchestration` を preview 系の総称として使わない。preview 系は geometry / preview / display 系の語彙で分離する
+- `feature` を使う場合は、「履歴コマンドとしての feature」か「設計意図を持つ形状単位としての feature」かを文書内で明記してから使う
+
 ---
 
 ## 3. 役割定義
@@ -146,6 +157,22 @@ Domain / Algorithm / Runtime / Adapter
 - `job_runtime` の内部型は直接露出せず、ViewModel 側が扱う job DTO は `job_domain::job_view_bridge` の `CamJobRecord` / `CamJobEvent` を経由して返す
 - timeout や retry の詳細設定は初期実装では Application 内部既定値に寄せ、境界 DTO は `job_type` / `input_ref` / `parent_job_id` の最小集合から始める
 - これにより `job` が geometry / topology / entity 更新と別系統の execution mode であることを module と trait 境界で追跡できる
+
+### 6.3 geometry / topology / entity 経路の整理
+
+- Application には少なくとも `preview/display` 系と `entity commit/import` 系の 2 経路が存在する
+- `preview/display` 系は、座標軸、コマンド矢印、一時プレビュー、デバッグ表示などを対象とし、EntityID を前提にしない
+- `entity commit/import` 系は、geometry を CAD データとして保存・参照可能な形に正規化する経路であり、EntityID と必要時の topology を伴う
+- `job_orchestration` と `cam_orchestration` はこの分類とは独立した execution mode / simulation 系の経路であり、geometry 後段責務の議論には含めない
+- この分離を明示せずに `feature` へ寄せると、preview と entity commit の責務が混線し、topology が必須か optional かの議論も不安定になる
+
+### 6.4 preview 系で topology が必要になりうるケース
+
+- preview 系は原則として EntityID 非前提であり、topology も optional とする
+- ただし sheet surface のモーフィング、trim 境界付き surface の局所プレビュー、面同士の連続性を保った変形補助などでは、preview であっても topology 情報が必要になる可能性がある
+- この場合も preview を直ちに `feature` や `entity commit` と同一視しない。必要なのは「topology を参照する preview」であって、「entity 化済み feature」ではない
+- したがって設計上は `topology optional` ではなく「preview では topology 非前提だが、要求に応じて topology を参照可能」と整理する
+- つまり topology の有無だけで preview 系と entity commit 系を分けず、EntityID 付与・保存責務・CAD データ化の有無で経路を分ける
 
 ---
 
