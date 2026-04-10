@@ -6,15 +6,16 @@
 //! 命名規則: `{shape_a}_{shape_b}_distance`
 
 use crate::{
-    Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D,
-    EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
-    TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
+    Arc3D, Circle3D, ConicalSurface3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D,
+    EllipsoidalSolid3D, EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D,
+    Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
-    EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance,
-    Scalar, SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
-    TorusSolid3DDistance, TorusSurface3DDistance,
+    Arc3DDistance, ConicalSurface3DDistance, CylindricalSolid3DDistance,
+    CylindricalSurface3DDistance, Ellipse3DDistance, EllipsoidalSolid3DContainment,
+    EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance, Scalar, SphericalSolid3DContainment,
+    SphericalSolid3DDistance, TorusSolid3DContainment, TorusSolid3DDistance,
+    TorusSurface3DDistance,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -242,6 +243,25 @@ pub fn point3d_ellipsoidal_surface3d_distance<T: Scalar>(
     ellipsoid: &EllipsoidalSurface3D<T>,
 ) -> T {
     ellipsoidal_surface3d_point3d_distance(ellipsoid, point)
+}
+
+/// ConicalSurface3D-点 間の最短距離
+pub fn conical_surface3d_point3d_distance<T: Scalar>(
+    cone: &ConicalSurface3D<T>,
+    point: &Point3D<T>,
+) -> T {
+    <ConicalSurface3D<T> as ConicalSurface3DDistance<T>>::distance_to_point(
+        cone,
+        (point.x(), point.y(), point.z()),
+    )
+}
+
+/// 逆向きラッパー: point-conical_surface
+pub fn point3d_conical_surface3d_distance<T: Scalar>(
+    point: &Point3D<T>,
+    cone: &ConicalSurface3D<T>,
+) -> T {
+    conical_surface3d_point3d_distance(cone, point)
 }
 
 /// TorusSolid3D-点 間の最短距離（内部点は 0）
@@ -714,6 +734,40 @@ mod tests {
             !intersection_ellipsoidal_surface_point_section
                 .contains(ELLIPSOIDAL_SURFACE_DIRECT_CONTAINS),
             "intersection/primitive_3d.rs must not call ellipsoid.contains_point directly"
+        );
+    }
+
+    #[test]
+    fn conical_surface_point_boundary_guard_keeps_intersection_on_distance_entrypoint() {
+        const CONICAL_SURFACE_DIRECT_CONTAINS: &str = "cone.contains_point";
+        const CONICAL_SURFACE_POINT_ENTRYPOINT: &str =
+            "crate::distance::conical_surface3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_conical_surface_point_section = section(
+            intersection_source,
+            "fn conical_surface3d_point3d_intersection_raw",
+            "pub fn conical_surface3d_point3d_intersection",
+        );
+
+        assert!(
+            intersection_conical_surface_point_section.contains(CONICAL_SURFACE_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route conical surface point checks through the distance entrypoint"
+        );
+        assert!(
+            !intersection_conical_surface_point_section.contains(CONICAL_SURFACE_DIRECT_CONTAINS),
+            "intersection/primitive_3d.rs must not call cone.contains_point directly"
         );
     }
 
