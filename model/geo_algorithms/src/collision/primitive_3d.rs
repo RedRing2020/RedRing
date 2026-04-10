@@ -35,7 +35,7 @@ pub fn spherical_solid3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_surface(*point) <= tolerance
+    crate::distance::spherical_solid3d_point3d_distance(sphere, point) <= tolerance
 }
 
 pub fn spherical_solid3d_circle3d_collides<T: Scalar>(
@@ -44,7 +44,9 @@ pub fn spherical_solid3d_circle3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     let (cx, cy, cz) = circle.center();
-    sphere.distance_to_surface(Point3D::new(cx, cy, cz)) <= circle.radius() + tolerance
+    let center = Point3D::new(cx, cy, cz);
+    crate::distance::spherical_solid3d_point3d_distance(sphere, &center)
+        <= circle.radius() + tolerance
 }
 
 pub fn spherical_solid3d_line_segment3d_collides<T: Scalar>(
@@ -80,9 +82,9 @@ pub fn spherical_solid3d_triangle3d_collides<T: Scalar>(
     triangle: &Triangle3D<T>,
     tolerance: T,
 ) -> bool {
-    triangle3d_vertex_points(triangle)
-        .into_iter()
-        .any(|point| sphere.distance_to_surface(point) <= tolerance)
+    triangle3d_vertex_points(triangle).into_iter().any(|point| {
+        crate::distance::spherical_solid3d_point3d_distance(sphere, &point) <= tolerance
+    })
 }
 
 pub fn spherical_solid3d_plane3d_collides<T: Scalar>(
@@ -490,7 +492,7 @@ pub fn ellipsoidal_surface3d_point3d_collides<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> bool {
-    ellipsoid.contains_point(point, tolerance)
+    crate::distance::ellipsoidal_surface3d_point3d_distance(ellipsoid, point) <= tolerance
 }
 
 // ── TorusSolid3D ──────────────────────────────────────────────────────────────

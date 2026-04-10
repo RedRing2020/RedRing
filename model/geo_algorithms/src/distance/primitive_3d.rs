@@ -7,12 +7,13 @@
 
 use crate::{
     Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D,
-    InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, TorusSolid3D, TorusSurface3D,
-    Triangle3D, TriangleMesh3D,
+    EllipsoidalSurface3D, InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D,
+    TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
     Arc3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
-    EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance, Scalar, TorusSolid3DContainment,
+    EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance,
+    Scalar, SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
     TorusSolid3DDistance, TorusSurface3DDistance,
 };
 
@@ -64,6 +65,32 @@ pub fn plane3d_point3d_distance<T: Scalar>(plane: &Plane3D<T>, point: &Point3D<T
 /// 逆向きラッパー: point-plane
 pub fn point3d_plane3d_distance<T: Scalar>(point: &Point3D<T>, plane: &Plane3D<T>) -> T {
     plane.distance_to_point(*point)
+}
+
+/// SphericalSolid3D-点 間の最短距離（内部点は 0）
+pub fn spherical_solid3d_point3d_distance<T: Scalar>(
+    sphere: &SphericalSolid3D<T>,
+    point: &Point3D<T>,
+) -> T {
+    if <SphericalSolid3D<T> as SphericalSolid3DContainment<T>>::contains_point(
+        sphere,
+        (point.x(), point.y(), point.z()),
+    ) {
+        T::ZERO
+    } else {
+        <SphericalSolid3D<T> as SphericalSolid3DDistance<T>>::distance_to_point(
+            sphere,
+            (point.x(), point.y(), point.z()),
+        )
+    }
+}
+
+/// 逆向きラッパー: point-spherical_solid
+pub fn point3d_spherical_solid3d_distance<T: Scalar>(
+    point: &Point3D<T>,
+    sphere: &SphericalSolid3D<T>,
+) -> T {
+    spherical_solid3d_point3d_distance(sphere, point)
 }
 
 /// Ray3D-点 間の最短距離（Ray の有効範囲を考慮）
@@ -196,6 +223,25 @@ pub fn point3d_ellipsoidal_solid3d_distance<T: Scalar>(
     ellipsoid: &EllipsoidalSolid3D<T>,
 ) -> T {
     ellipsoidal_solid3d_point3d_distance(ellipsoid, point)
+}
+
+/// EllipsoidalSurface3D-点 間の最短距離
+pub fn ellipsoidal_surface3d_point3d_distance<T: Scalar>(
+    ellipsoid: &EllipsoidalSurface3D<T>,
+    point: &Point3D<T>,
+) -> T {
+    <EllipsoidalSurface3D<T> as EllipsoidalSurface3DDistance<T>>::distance_to_point(
+        ellipsoid,
+        (point.x(), point.y(), point.z()),
+    )
+}
+
+/// 逆向きラッパー: point-ellipsoidal_surface
+pub fn point3d_ellipsoidal_surface3d_distance<T: Scalar>(
+    point: &Point3D<T>,
+    ellipsoid: &EllipsoidalSurface3D<T>,
+) -> T {
+    ellipsoidal_surface3d_point3d_distance(ellipsoid, point)
 }
 
 /// TorusSolid3D-点 間の最短距離（内部点は 0）
@@ -617,6 +663,107 @@ mod tests {
             !intersection_ellipsoidal_solid_point_section
                 .contains(ELLIPSOIDAL_SOLID_DIRECT_CONTAINS),
             "intersection/primitive_3d.rs must not call ellipsoid.contains_point directly"
+        );
+    }
+
+    #[test]
+    fn ellipsoidal_surface_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint(
+    ) {
+        const ELLIPSOIDAL_SURFACE_DIRECT_CONTAINS: &str = "ellipsoid.contains_point";
+        const ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT: &str =
+            "crate::distance::ellipsoidal_surface3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_ellipsoidal_surface_point_section = section(
+            collision_source,
+            "pub fn ellipsoidal_surface3d_point3d_collides",
+            "pub fn torus_solid3d_point3d_collides",
+        );
+        let intersection_ellipsoidal_surface_point_section = section(
+            intersection_source,
+            "fn ellipsoidal_surface3d_point3d_intersection_raw",
+            "fn conical_solid3d_point3d_intersection_raw",
+        );
+
+        assert!(
+            collision_ellipsoidal_surface_point_section.contains(ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route ellipsoidal surface point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_ellipsoidal_surface_point_section.contains(ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route ellipsoidal surface point checks through the distance entrypoint"
+        );
+        assert!(
+            !collision_ellipsoidal_surface_point_section
+                .contains(ELLIPSOIDAL_SURFACE_DIRECT_CONTAINS),
+            "collision/primitive_3d.rs must not call ellipsoid.contains_point directly"
+        );
+        assert!(
+            !intersection_ellipsoidal_surface_point_section
+                .contains(ELLIPSOIDAL_SURFACE_DIRECT_CONTAINS),
+            "intersection/primitive_3d.rs must not call ellipsoid.contains_point directly"
+        );
+    }
+
+    #[test]
+    fn spherical_solid_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint(
+    ) {
+        const SPHERICAL_SOLID_DIRECT_DISTANCE: &str = "sphere.distance_to_surface";
+        const SPHERICAL_SOLID_DIRECT_CONTAINS: &str = "sphere.contains_point";
+        const SPHERICAL_SOLID_POINT_ENTRYPOINT: &str =
+            "crate::distance::spherical_solid3d_point3d_distance";
+
+        fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+            let start_index = source
+                .find(start)
+                .unwrap_or_else(|| panic!("missing start marker: {start}"));
+            let tail = &source[start_index..];
+            let end_index = tail
+                .find(end)
+                .unwrap_or_else(|| panic!("missing end marker: {end}"));
+            &tail[..end_index]
+        }
+
+        let collision_source = include_str!("../collision/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let collision_spherical_solid_point_section = section(
+            collision_source,
+            "pub fn spherical_solid3d_point3d_collides",
+            "pub fn cylindrical_solid3d_point3d_collides",
+        );
+        let intersection_spherical_solid_point_section = section(
+            intersection_source,
+            "fn spherical_solid3d_point3d_intersection_raw",
+            "fn spherical_solid3d_line3d_intersection_raw",
+        );
+
+        assert!(
+            collision_spherical_solid_point_section.contains(SPHERICAL_SOLID_POINT_ENTRYPOINT),
+            "collision/primitive_3d.rs should route spherical solid point checks through the distance entrypoint"
+        );
+        assert!(
+            intersection_spherical_solid_point_section.contains(SPHERICAL_SOLID_POINT_ENTRYPOINT),
+            "intersection/primitive_3d.rs should route spherical solid point checks through the distance entrypoint"
+        );
+        assert!(
+            !collision_spherical_solid_point_section.contains(SPHERICAL_SOLID_DIRECT_DISTANCE),
+            "collision/primitive_3d.rs must not call sphere.distance_to_surface directly"
+        );
+        assert!(
+            !intersection_spherical_solid_point_section.contains(SPHERICAL_SOLID_DIRECT_CONTAINS),
+            "intersection/primitive_3d.rs must not call sphere.contains_point directly"
         );
     }
 
