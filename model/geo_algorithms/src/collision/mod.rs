@@ -2,7 +2,7 @@
 //!
 //! 異なるクレート間の形状の衝突判定を実装します。
 //! - NURBS × Primitives
-//! - NURBS × NURBS (将来実装)
+//! - NURBS × NURBS
 
 pub mod nurbs_3d;
 pub mod pair_base;

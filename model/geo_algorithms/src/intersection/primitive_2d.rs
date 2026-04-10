@@ -1,7 +1,8 @@
 //! 2D Primitive intersection algorithms
 //!
-//! Phase C Step 1: `geo_primitives` から 2D 交差判定ロジックを
-//! `geo_algorithms` 側へ集約するための受け皿。
+//! 2D Primitive どうしの交点計算エントリポイントを提供する。
+//! 共通の基礎計算は `pair_base` を利用し、このモジュールは形状ペアごとの
+//! 公開 API をまとめる。
 
 use crate::intersection::pair_base::{
     arc2d_circle2d_intersections, circle2d_circle2d_intersections,

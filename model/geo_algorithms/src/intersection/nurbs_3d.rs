@@ -11,10 +11,10 @@
 //! - NurbsSurface3D × Primitive（9ペア）の交点計算を提供
 //! - collision 実装と対称性を保つ（同一ペア数・同一形状セット）
 //! - orphan rules への対応は collision 側の Newtype パターンを参照
-//! - Phase C では最小実装（tolerance ベース交点判定）を提供
-//! - Phase C の一部 API は厳密交点ではなく代表点を返す
+//! - 現実装では tolerance ベースの交点判定を提供する
+//! - 一部 API は厳密交点ではなく代表点を返す
 //! - `LineSegment*::start/end` は ideal endpoint 基準で解釈する
-//! - 重複排除・pair_base 抽出は Step C で実施
+//! - 共通化や抽出の余地がある処理は今後の整理対象とする
 
 use crate::{
     Circle3D, CylindricalSolid3D, EllipsoidalSolid3D, InfiniteLine3D, LineSegment3D, Plane3D,
@@ -63,7 +63,7 @@ pub fn nurbscurve3d_line_segment3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_line_segment3d_distance(curve, segment);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として線分の ideal start endpoint を返す。
+        // 現実装では代表点として線分の ideal start endpoint を返す。
         Some(segment.start())
     } else {
         None
@@ -78,7 +78,7 @@ pub fn nurbscurve3d_ray3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_ray3d_distance(curve, ray);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として Ray origin を返す。
+        // 現実装では代表点として Ray origin を返す。
         Some(ray.origin())
     } else {
         None
@@ -93,7 +93,7 @@ pub fn nurbscurve3d_infinite_line3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_infinite_line3d_distance(curve, line);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として InfiniteLine の基準点を返す。
+        // 現実装では代表点として InfiniteLine の基準点を返す。
         let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
         Some(Point3D::new(px, py, pz))
     } else {
@@ -109,7 +109,7 @@ pub fn nurbscurve3d_circle3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_circle3d_distance(curve, circle);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として Circle center を返す。
+        // 現実装では代表点として Circle center を返す。
         let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
         Some(Point3D::new(cx, cy, cz))
     } else {
@@ -125,7 +125,7 @@ pub fn nurbscurve3d_plane3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_plane3d_distance(curve, plane);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として Plane origin を返す。
+        // 現実装では代表点として Plane origin を返す。
         Some(plane.origin())
     } else {
         None
@@ -140,7 +140,7 @@ pub fn nurbscurve3d_spherical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_spherical_solid3d_distance(curve, sphere);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
+        // 現実装では代表点として NURBS curve の parameter domain 始端を返す。
         Some(representative_curve_domain_start_point(curve))
     } else {
         None
@@ -155,7 +155,7 @@ pub fn nurbscurve3d_ellipsoidal_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_ellipsoidal_solid3d_distance(curve, ellipsoid);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
+        // 現実装では代表点として NURBS curve の parameter domain 始端を返す。
         Some(representative_curve_domain_start_point(curve))
     } else {
         None
@@ -170,7 +170,7 @@ pub fn nurbscurve3d_cylindrical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbscurve3d_cylindrical_solid3d_distance(curve, cylinder);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として NURBS curve の parameter domain 始端を返す。
+        // 現実装では代表点として NURBS curve の parameter domain 始端を返す。
         Some(representative_curve_domain_start_point(curve))
     } else {
         None
@@ -194,7 +194,7 @@ pub fn nurbssurface3d_plane3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_plane3d_distance(surface, plane);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として Plane origin を返す。
+        // 現実装では代表点として Plane origin を返す。
         Some(plane.origin())
     } else {
         None
@@ -209,7 +209,7 @@ pub fn nurbssurface3d_ray3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_ray3d_distance(surface, ray);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として Ray origin を返す。
+        // 現実装では代表点として Ray origin を返す。
         Some(ray.origin())
     } else {
         None
@@ -224,7 +224,7 @@ pub fn nurbssurface3d_line_segment3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_line_segment3d_distance(surface, segment);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として線分の ideal start endpoint を返す。
+        // 現実装では代表点として線分の ideal start endpoint を返す。
         Some(segment.start())
     } else {
         None
@@ -239,7 +239,7 @@ pub fn nurbssurface3d_infinite_line3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_infinite_line3d_distance(surface, line);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として InfiniteLine の基準点を返す。
+        // 現実装では代表点として InfiniteLine の基準点を返す。
         let (px, py, pz) = geo_contracts::InfiniteLine3DProperties::point(line);
         Some(Point3D::new(px, py, pz))
     } else {
@@ -255,7 +255,7 @@ pub fn nurbssurface3d_circle3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_circle3d_distance(surface, circle);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として Circle center を返す。
+        // 現実装では代表点として Circle center を返す。
         let (cx, cy, cz) = geo_contracts::Circle3DProperties::center(circle);
         Some(Point3D::new(cx, cy, cz))
     } else {
@@ -271,7 +271,7 @@ pub fn nurbssurface3d_spherical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_spherical_solid3d_distance(surface, sphere);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
+        // 現実装では代表点として surface parameter domain の始端評価点を返す。
         Some(representative_surface_domain_start_point(surface))
     } else {
         None
@@ -287,7 +287,7 @@ pub fn nurbssurface3d_ellipsoidal_solid3d_intersection<T: Scalar>(
         crate::collision::nurbssurface3d_ellipsoidal_solid3d_distance(surface, ellipsoid);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
+        // 現実装では代表点として surface parameter domain の始端評価点を返す。
         Some(representative_surface_domain_start_point(surface))
     } else {
         None
@@ -302,7 +302,7 @@ pub fn nurbssurface3d_cylindrical_solid3d_intersection<T: Scalar>(
     let distance = crate::collision::nurbssurface3d_cylindrical_solid3d_distance(surface, cylinder);
 
     if distance <= tolerance {
-        // Phase C の最小実装では代表点として surface parameter domain の始端評価点を返す。
+        // 現実装では代表点として surface parameter domain の始端評価点を返す。
         Some(representative_surface_domain_start_point(surface))
     } else {
         None

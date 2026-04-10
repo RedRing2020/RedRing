@@ -1,6 +1,6 @@
 # geo_algorithms モジュール分割ルール
 
-最終更新: 2026-03-28
+最終更新: 2026-04-10
 適用範囲: `model/geo_algorithms/src/{collision,intersection,distance}`
 
 ## 1. 目的
@@ -98,6 +98,14 @@
 - 既存ファイル名 `primitive_nurbs.rs` / `primitive_nurbs_surface.rs` は歴史的名称。
 - 正規化後は `nurbs_curve_3d.rs` / `nurbs_surface_3d.rs` を推奨し、
   「primitive と NURBS で軸が違う」印象を無くす。
+
+### 4.1 primitive_3d 系の責務分割方針
+
+- `primitive_3d.rs` が shape family 見出しコメントに依存し始めた場合は、コメント追加ではなく module 分割を優先する。
+- 分割単位は 1 shape 1 ファイルを既定にせず、shape family または line-like / planar-like の責務単位でまとめてよい。
+- family 横断 helper は `shared` 系 module へ隔離し、各 family module に混在させない。
+- 利用側の公開面は親 `primitive_3d` module と上位 `mod.rs` で一元化し、分割詳細を外へ漏らさない。
+- コメント整理は分割後に不要になった section 見出しを落とす形で行い、コメント削除だけを先行させない。
 
 ## 5. 関数命名規約
 
