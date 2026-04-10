@@ -1040,7 +1040,10 @@ fn conical_surface3d_point3d_intersection_raw<T: Scalar>(
     point: &Point3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    point_intersection_if(point, cone.contains_point(point, tolerance))
+    point_intersection_if(
+        point,
+        crate::distance::conical_surface3d_point3d_distance(cone, point) <= tolerance,
+    )
 }
 
 pub fn conical_surface3d_point3d_intersection<T: Scalar>(
