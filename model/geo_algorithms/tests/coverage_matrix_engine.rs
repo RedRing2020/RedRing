@@ -179,6 +179,11 @@ fn known_entrypoints() -> HashSet<String> {
     let sources = [
         include_str!("../src/collision/primitive_2d.rs"),
         include_str!("../src/collision/primitive_3d.rs"),
+        include_str!("../src/collision/primitive_3d/circular_family.rs"),
+        include_str!("../src/collision/primitive_3d/cylindrical_and_conical_family.rs"),
+        include_str!("../src/collision/primitive_3d/linear_family.rs"),
+        include_str!("../src/collision/primitive_3d/planar_and_mesh_family.rs"),
+        include_str!("../src/collision/primitive_3d/spherical_and_quadric_family.rs"),
         include_str!("../src/collision/nurbs_3d.rs"),
         include_str!("../src/intersection/primitive_2d.rs"),
         include_str!("../src/intersection/primitive_3d.rs"),
