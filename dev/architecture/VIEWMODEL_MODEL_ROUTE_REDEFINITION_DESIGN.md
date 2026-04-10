@@ -607,11 +607,16 @@ pub struct LayerMembershipDto {
 - 各 UI command に近い use case 入口を持つ
 - 1つの feature 編集要求に対して geometry / topology / entity の順序を束ねる
 - 初期の ViewModel→Model 導線の主入口はここに置く
+- ただし `feature` は CAD 製品ごとに「履歴再生付きコマンド」と「設計意図を持つ形状要素」の両義性を持つため、RedRing では無定義の総称として使わない
+- ただしここでいう `feature` は CAD 編集単位を指し、座標軸・矢印・一時プレビューのような display 補助まで含める総称としては使わない
+- そのため preview 系経路を `feature_orchestration` に無理に寄せず、EntityID を持たない geometry / preview 系の導線は別語彙で整理する
 
 ### 6.2 geometry_orchestration
 
 - 単なる `operation_name` の marker ではなく、geometry 更新の adapter / port 群へ発展させる
 - ただし UI から直接叩く主入口ではなく、feature orchestration の下位協調点として使う
+- 一方で preview/display 系では、entity commit を伴わない geometry 組み立て入口として直接使う余地を残す
+- したがって `geometry_orchestration` は常に topology や entity 化へ進む前段とは限らず、preview 導線では geometry-only 結果で完結しうる
 
 ### 6.3 job_orchestration
 
@@ -628,6 +633,15 @@ pub struct LayerMembershipDto {
 - 2026-04-09 時点では、topology は geometry からの導出 / 検証責務が独立しているため `topology_orchestration` を独立 module として配置している
 - 一方で entity は専用 module をまだ追加せず、`feature_orchestration` 配下の store port として保持している
 - したがって初期段階の判断基準は module 数の抑制そのものではなく、ViewModel→Application→Model 導線の責務分割をコード上で追跡できることに置く
+
+### 6.5 preview 系と entity commit 系の読み替え
+
+- ViewModel 起点の geometry 系 command には、少なくとも `preview/display` 系と `entity commit/import` 系の 2 種類がある
+- `preview/display` 系は EntityID を前提にせず、描画のための geometry または必要最小限の topology 参照で完結する
+- `entity commit/import` 系は CAD データとして管理対象へ載せる経路であり、geometry → topology(必要時) → entity → result の順序を取る
+- triangle のように geometry 後に topology 検証を行っても、entity 化を伴わないなら `entity commit` ではなく `topology-aware preview` とみなす
+- このため「topology を通ったかどうか」だけで feature 系を定義しない。EntityID 付与、保存責務、CAD データへの反映有無まで含めて経路分類を行う
+- さらに `feature` という語だけで経路分類を語らず、必要に応じて `preview`、`entity commit`、`import`、`history command` などの具体語へ分解して記述する
 
 ---
 
@@ -701,6 +715,13 @@ pub trait PlanarStroke2DProperties<T: Scalar> {
 - topology は optional port として位置だけ固定し、対象 use case で必要なら導入する
 - result / error を ViewModel に返す
 
+### Phase 1 補足: preview 導線の位置づけ
+
+- preview 系は #501 / #646 の entity commit 導線とは別に扱う
+- preview では topology 非前提を基本とするが、sheet surface morphing や trim 境界を伴う面プレビューでは topology 参照が必要になる可能性がある
+- その場合も preview は EntityID を持つ CAD entity 化と同一視せず、`topology-aware preview` として別経路で整理する
+- これにより preview 要件の拡張が、feature/entity commit 導線の責務を曖昧にしないようにする
+
 ### Phase 2: 後続で拡張すること
 
 - job_orchestration と `job_runtime` の接続を `Application` 正本に寄せる
@@ -712,6 +733,7 @@ pub trait PlanarStroke2DProperties<T: Scalar> {
 - ViewModel 起点の最小 command 導線は `viewmodel/converter/src/feature_command_converter.rs` から `application` へ接続している
 - 現在の非ECS入口は `FeatureCommandOrchestration` であり、`FeatureOrchestrator` が line / circle / arc の geometry → topology → entity を直列実行する
 - triangle は face を導入せず、`GeometryOrchestrator` と `TopologyOrchestrator` を経由して closed wire として topology 責務だけを固定している
+- この triangle 導線は topology を参照するが、EntityID を生成して保存する経路ではないため、現時点では `entity commit` ではなく `topology-aware preview` 寄りの暫定導線とみなす
 - 通常の平面トポロジーとして triangle を Wire / Loop で扱う場合は、各辺を `LineSegment` 相当の直線 edge として表現する方針を採る
 - #256 で扱う三角形限定 topology は、工具逆オフセット法計算の前段で局所的な凸部縫合と探索効率向上を目的とする別系統の用途であり、ここでの通常 topology 表現とは分離して扱う
 - geometry の差し替え点は `LineGeometryMutationPort` と `DebugShapeGeometryMutationPort` である
