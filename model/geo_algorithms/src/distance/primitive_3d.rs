@@ -381,7 +381,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/cylindrical_and_conical_family.rs");
         let collision_cylindrical_surface_point_section = section(
             collision_source,
             "pub fn cylindrical_surface3d_point3d_collides",
@@ -432,11 +433,12 @@ mod tests {
             &tail[..end_index]
         }
 
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/cylindrical_and_conical_family.rs");
         let intersection_cylindrical_surface_pair_section = section(
             intersection_source,
             "fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw",
-            "fn ellipse3d_point3d_intersection_raw",
+            "fn conical_solid3d_point3d_intersection_raw",
         );
 
         assert!(
@@ -502,7 +504,7 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d/circular_family.rs");
         let collision_ellipse_point_section = section(
             collision_source,
             "pub fn ellipse3d_point3d_collides",
@@ -549,7 +551,7 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d/circular_family.rs");
         let collision_arc_point_section = section(
             collision_source,
             "pub fn arc3d_point3d_collides",
@@ -597,7 +599,7 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source = include_str!("../intersection/primitive_3d/circular_family.rs");
         let collision_circle_point_section = section(
             collision_source,
             "pub fn circle3d_point3d_collides",
@@ -606,7 +608,7 @@ mod tests {
         let intersection_circle_point_section = section(
             intersection_source,
             "fn circle3d_point3d_intersection_raw",
-            "fn cylindrical_surface3d_point3d_intersection_raw",
+            "fn circle3d_line_segment3d_intersection_raw",
         );
 
         assert!(
@@ -651,7 +653,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/spherical_and_quadric_family.rs");
         let collision_ellipsoidal_solid_point_section = section(
             collision_source,
             "pub fn ellipsoidal_solid3d_point3d_collides",
@@ -705,7 +708,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/spherical_and_quadric_family.rs");
         let collision_ellipsoidal_surface_point_section = section(
             collision_source,
             "pub fn ellipsoidal_surface3d_point3d_collides",
@@ -714,7 +718,7 @@ mod tests {
         let intersection_ellipsoidal_surface_point_section = section(
             intersection_source,
             "fn ellipsoidal_surface3d_point3d_intersection_raw",
-            "fn conical_solid3d_point3d_intersection_raw",
+            "fn spherical_solid3d_point3d_intersection_raw",
         );
 
         assert!(
@@ -754,7 +758,8 @@ mod tests {
             &tail[..end_index]
         }
 
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/cylindrical_and_conical_family.rs");
         let intersection_conical_surface_point_section = section(
             intersection_source,
             "fn conical_surface3d_point3d_intersection_raw",
@@ -791,7 +796,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/spherical_and_quadric_family.rs");
         let collision_spherical_solid_point_section = section(
             collision_source,
             "pub fn spherical_solid3d_point3d_collides",
@@ -839,7 +845,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/spherical_and_quadric_family.rs");
         let collision_torus_solid_point_section = section(
             collision_source,
             "pub fn torus_solid3d_point3d_collides",
@@ -889,7 +896,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/spherical_and_quadric_family.rs");
         let collision_torus_surface_point_section = section(
             collision_source,
             "pub fn torus_surface3d_point3d_collides",
@@ -898,7 +906,7 @@ mod tests {
         let intersection_torus_surface_point_section = section(
             intersection_source,
             "fn torus_surface3d_point3d_intersection_raw",
-            "fn triangle3d_point3d_intersection_raw",
+            "pub fn torus_surface3d_point3d_intersection",
         );
 
         assert!(
@@ -935,7 +943,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/planar_and_mesh_family.rs");
         let collision_triangle_point_section = section(
             collision_source,
             "pub fn triangle3d_point3d_collides",
@@ -975,7 +984,8 @@ mod tests {
         }
 
         let collision_source = include_str!("../collision/primitive_3d.rs");
-        let intersection_source = include_str!("../intersection/primitive_3d.rs");
+        let intersection_source =
+            include_str!("../intersection/primitive_3d/planar_and_mesh_family.rs");
         let collision_triangle_mesh_point_section = section(
             collision_source,
             "pub fn triangle_mesh3d_point3d_collides",

@@ -1,7 +1,7 @@
 //! 2D Primitive collision algorithms
 //!
-//! Phase C Step 1: `geo_primitives` から 2D 衝突判定ロジックを
-//! `geo_algorithms` 側へ集約するための受け皿。
+//! 2D Primitive どうしの衝突判定エントリポイントを提供する。
+//! 共通の基礎計算や交点計算を利用しつつ、形状ペアごとの公開 API をまとめる。
 //!
 //! 注意: orphan rules により、ここでは trait 実装ではなく
 //! 形状ペア関数を提供する。

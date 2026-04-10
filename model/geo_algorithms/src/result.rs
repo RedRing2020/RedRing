@@ -241,8 +241,8 @@ impl<T: Scalar> IntersectionResult<T> {
 
     /// `Option<Point3D<T>>` から変換する互換アダプタ
     ///
-    /// 既存 API（`Option<Point3D<T>>` を返す交差関数）から
-    /// `IntersectionResult<T>` へ段階移行するための変換規約。
+    /// `Option<Point3D<T>>` を返す既存の交差関数を
+    /// `IntersectionResult<T>` の形式へ正規化するための変換規約。
     ///
     /// 変換規約:
     /// - `None`    → `Disjoint`（交差なし）
@@ -269,8 +269,8 @@ impl<T: Scalar> IntersectionResult<T> {
     /// `Vec<Point3D<T>>` から変換する互換アダプタ
     ///
     /// 既存 API（複数点を返す交差関数）からの変換規約。
-    /// 段階移行期間に旧 API（`Vec<Point3D<T>>`）から新 API（`IntersectionResult<T>`）へ
-    /// 変換するために使用する。
+    /// `Vec<Point3D<T>>` を `IntersectionResult<T>` の形式へ
+    /// 正規化するために使用する。
     ///
     /// # 変換規約
     ///

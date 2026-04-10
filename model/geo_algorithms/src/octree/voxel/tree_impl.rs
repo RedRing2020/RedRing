@@ -312,7 +312,7 @@ impl<T: Scalar> VoxelOctree<T> {
     /// # Notes
     ///
     /// - 線分近似により若干の過剰除去が生じる場合があります
-    /// - より正確な円弧処理が必要な場合は、将来実装予定の正確版を検討してください
+    /// - より正確な円弧処理が必要な場合は、別方式の円弧処理を追加で検討してください
     /// - NURBS曲線など他の曲線型も同様の手法で対応可能です
     pub fn remove_material_arc_polyline(&mut self, arc: &Arc3D<T>, radius: T, num_segments: usize) {
         if num_segments == 0 {

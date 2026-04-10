@@ -1,10 +1,10 @@
 //! 3D Primitive collision algorithms
 //!
-//! Phase C Step 2: `geo_primitives` から 3D 衝突判定ロジックを
-//! `geo_algorithms` 側へ集約するための受け皿。
+//! 3D Primitive どうしの衝突判定エントリポイントを提供する。
+//! 既存の形状演算や距離・交点計算を利用しつつ、形状ペアごとの公開 API をまとめる。
 //!
 //! orphan rules により trait 実装ではなく形状ペア free-function を提供する。
-//! 各関数は既存の `BasicCollision` 実装を呼び出す薄いラッパー。
+//! 各関数は既存の衝突判定ロジックを公開面として束ねる。
 
 use crate::{
     Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Ellipse3D, EllipsoidalSolid3D,

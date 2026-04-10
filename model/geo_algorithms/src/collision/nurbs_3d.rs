@@ -125,7 +125,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
         let mut best_u = u_min;
         let mut min_dist_sq = T::INFINITY;
 
-        // Phase 1: サンプリングで初期推定
+        // 段階1: サンプリングで初期推定
         for i in 0..=num_samples {
             let u = u_min + delta_u * T::from_usize(i);
             let curve_point = self.0.evaluate_at(u);
@@ -138,7 +138,7 @@ impl<T: Scalar> BasicCollision<T, Point3D<T>> for NurbsCurveCollider<T> {
             }
         }
 
-        // Phase 2: Newton法で精密化
+        // 段階2: Newton法で精密化
         // 目的関数: f(u) = (C(u) - P) · C'(u) = 0
         // C(u)が点Pに最も近いとき、C(u)-P が C'(u) に直交する
         let refined_u = self.newton_refine_closest_point(point, best_u, u_min, u_max);
