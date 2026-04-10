@@ -618,6 +618,9 @@ pub struct LayerMembershipDto {
 - submit / status / cancel / retry の実行方式境界を担う
 - geometry / topology / entity を直接保持しない
 - 既存 `job_runtime` / `cam_sim::CamJobExecutorAdapter` との接続窓口として育てる
+- 2026-04-10 時点の最小実装では、`JobWorkflowOrchestrator` が `submit_workflow` command と `query_status` / `query_result` query を提供する
+- `job_runtime::JobEvent` は `job_domain::CamJobEvent` へ正規化し、ViewModel 側は runtime 固有 enum を直接扱わない
+- `job_runtime::JobRecord` は `job_domain::CamJobRecord` に写像して返し、Application が query 境界の正本となる
 
 ### 6.4 entity / topology orchestration の初期配置
 
@@ -746,6 +749,7 @@ pub trait PlanarStroke2DProperties<T: Scalar> {
 - 表示属性は common trait に詰め込まず、common / stroke / planar-2d に分割して露出する
 - `cam_orchestration` の `ToolEntityManagementOrchestrator` は現状では deterministic ID 組み立て PoC と位置づけ、Model ストレージ更新の完成形と見なさない
 - `job_runtime` はすでに execution 語彙を持っているため、#500 では job 独自モデルを再発明せず接続点だけ定義する
+- #647 ではこの方針に従い、job 独自の永続モデルを増やさず `job_runtime` の record/event を Application 境界 DTO に正規化して返す
 - `geo_topology` は shape 意味論の代替ではなく、接続・整合性語彙として geometry 後段に置く
 
 ---

@@ -139,6 +139,14 @@ Domain / Algorithm / Runtime / Adapter
 - `job_runtime`: 実行基盤
 - `cam_sim`: CAM 特化の実行ファサードと接続アダプタが混在
 
+### 6.2 2026-04-10 時点の job_orchestration 最小実装方針
+
+- `model/application::job_orchestration` は `JobManager` を内部保持し、`CamJobExecutorAdapter` を使って local 実行モードを提供する
+- command は `submit_workflow` のみを持ち、query は `query_status` / `query_result` に分離する
+- `job_runtime` の内部型は直接露出せず、ViewModel 側が扱う job DTO は `job_domain::job_view_bridge` の `CamJobRecord` / `CamJobEvent` を経由して返す
+- timeout や retry の詳細設定は初期実装では Application 内部既定値に寄せ、境界 DTO は `job_type` / `input_ref` / `parent_job_id` の最小集合から始める
+- これにより `job` が geometry / topology / entity 更新と別系統の execution mode であることを module と trait 境界で追跡できる
+
 ---
 
 ## 7. group relation 系 use case の扱い
