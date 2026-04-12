@@ -138,29 +138,15 @@ impl<T: Scalar> CurveRef<T> {
                 let (u_min, u_max) =
                     <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
                 let is_out_of_domain = t < u_min || t > u_max;
-                debug_assert!(
+                assert!(
                     !is_out_of_domain,
                     "CurveRef::point_at_parameter received out-of-domain NURBS parameter"
                 );
 
-                let clamped_t = if t < u_min {
-                    u_min
-                } else if t > u_max {
-                    u_max
-                } else {
-                    t
-                };
-
-                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, clamped_t)
-                    .map(|(x, y, z)| Point3D::new(x, y, z))
-                    .unwrap_or_else(|| {
-                        debug_assert!(
-                            false,
-                            "NURBS evaluation returned None even after parameter clamping"
-                        );
-                        let p = curve.evaluate_at(clamped_t);
-                        Point3D::new(p.x(), p.y(), p.z())
-                    })
+                let (x, y, z) =
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, t)
+                        .expect("NURBS evaluation returned None for an in-domain parameter");
+                Point3D::new(x, y, z)
             }
         }
     }
