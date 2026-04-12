@@ -205,12 +205,13 @@ pub struct Edge<T: Scalar> {
     /// パラメータ範囲 [t_start, t_end]
     parameter_range: (T, T),
 
-    /// 走査向きフラグ: 母曲線の自然方向と Edge の走査方向が一致するか
+    /// 走査向き relation を保持する既存フラグ: 母曲線の自然方向と Edge の走査方向が一致するか
     ///
     /// - `true` : t_start → t_end が start_vertex → end_vertex と一致
-    /// - `false`: 母曲線の幾何は逆向き（ただしトポロジー上の向きは不変）
+    /// - `false`: Edge の走査方向が母曲線の自然向きと逆
     ///
-    /// 向き反転は常にこのフラグを切り替えるだけで実現する。
+    /// 概念上は orientation_relation を表す既存 field 名であり、
+    /// Edge の向き反転は母曲線自体を反転せず、この relation を切り替えるだけで実現する。
     same_sense: bool,
 }
 
@@ -234,6 +235,8 @@ impl<T: Scalar> Edge<T> {
     /// 辺上の点を取得（パラメータ t: 0.0-1.0）
     ///
     /// `same_sense` が false の場合はパラメータを反転して評価する。
+    /// ここでの `same_sense` は topology 向きそのものではなく、
+    /// 母曲線の自然向きとの orientation_relation を表す。
     pub fn point_at(&self, t: T) -> Point3D<T> {
         let t_mapped = if self.same_sense { t } else { T::ONE - t };
         let (t0, t1) = self.parameter_range;
@@ -401,6 +404,7 @@ impl<T: Scalar> Face<T> {
     /// 面の法線ベクトル（UV 座標で評価）
     ///
     /// `same_sense` フラグに従い、必要に応じて反転する。
+    /// ここでも `same_sense` は母曲面法線と face orientation の relation を表す既存名として扱う。
     pub fn normal_at(&self, u: T, v: T) -> Vector3D<T> {
         let n = match &self.surface {
             SurfaceRef::Plane(plane) => plane.normal(),

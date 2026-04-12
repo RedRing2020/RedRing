@@ -1,4 +1,7 @@
-FROM alpine:3.20
+FROM alpine:3.21
+
+# Keep base packages at latest patched revisions in the selected Alpine branch.
+RUN apk --no-cache upgrade
 
 # Runtime-only minimal image for batch execution smoke tests.
 RUN addgroup -S -g 10001 redring \
