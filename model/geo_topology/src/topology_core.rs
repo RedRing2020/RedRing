@@ -77,6 +77,16 @@ pub enum CurveRef<T: Scalar> {
 }
 
 impl<T: Scalar> CurveRef<T> {
+    fn nurbs_parameter_tolerance() -> T {
+        let scaled_epsilon = T::EPSILON * T::from_f64(16.0);
+        let minimum_tolerance = T::from_f64(1.0e-12);
+        if scaled_epsilon > minimum_tolerance {
+            scaled_epsilon
+        } else {
+            minimum_tolerance
+        }
+    }
+
     pub fn ideal_start_point(&self) -> Point3D<T> {
         match self {
             Self::Line(line) => line.start(),
@@ -137,14 +147,25 @@ impl<T: Scalar> CurveRef<T> {
             Self::Nurbs(curve) => {
                 let (u_min, u_max) =
                     <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
-                let is_out_of_domain = t < u_min || t > u_max;
+                let tolerance = Self::nurbs_parameter_tolerance();
+                let lower_bound = u_min - tolerance;
+                let upper_bound = u_max + tolerance;
+                let is_out_of_domain = t < lower_bound || t > upper_bound;
                 assert!(
                     !is_out_of_domain,
                     "CurveRef::point_at_parameter received out-of-domain NURBS parameter"
                 );
 
+                let adjusted_t = if t < u_min {
+                    u_min
+                } else if t > u_max {
+                    u_max
+                } else {
+                    t
+                };
+
                 let (x, y, z) =
-                    <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, t)
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, adjusted_t)
                         .expect("NURBS evaluation returned None for an in-domain parameter");
                 Point3D::new(x, y, z)
             }
@@ -173,6 +194,10 @@ pub struct Edge<T: Scalar> {
 }
 
 impl<T: Scalar> Edge<T> {
+    fn nurbs_parameter_tolerance() -> T {
+        CurveRef::<T>::nurbs_parameter_tolerance()
+    }
+
     /// Edge を生成する
     pub fn new(
         start_vertex: Arc<Vertex<T>>,
@@ -180,7 +205,27 @@ impl<T: Scalar> Edge<T> {
         curve: CurveRef<T>,
         parameter_range: (T, T),
     ) -> Option<Self> {
-        if parameter_range.0 >= parameter_range.1 {
+        let mut normalized_parameter_range = parameter_range;
+        if let CurveRef::Nurbs(nurbs_curve) = &curve {
+            let (u_min, u_max) =
+                <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(nurbs_curve);
+            let tolerance = Self::nurbs_parameter_tolerance();
+
+            if normalized_parameter_range.0 < u_min - tolerance
+                || normalized_parameter_range.1 > u_max + tolerance
+            {
+                return None;
+            }
+
+            if normalized_parameter_range.0 < u_min {
+                normalized_parameter_range.0 = u_min;
+            }
+            if normalized_parameter_range.1 > u_max {
+                normalized_parameter_range.1 = u_max;
+            }
+        }
+
+        if normalized_parameter_range.0 >= normalized_parameter_range.1 {
             return None;
         }
 
@@ -189,7 +234,7 @@ impl<T: Scalar> Edge<T> {
             start_vertex,
             end_vertex,
             curve,
-            parameter_range,
+            parameter_range: normalized_parameter_range,
             same_sense: true,
         })
     }
@@ -478,5 +523,25 @@ mod tests {
         assert!((p.x() - 1.0).abs() < 1.0e-9);
         assert!((p.y() - 0.0).abs() < 1.0e-9);
         assert!((p.z() - 0.0).abs() < 1.0e-9);
+    }
+
+    #[test]
+    fn edge_new_rejects_nurbs_range_outside_native_domain() {
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
+
+        let edge = Edge::new(
+            Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0))),
+            Arc::new(Vertex::new(Point3D::new(2.0, 0.0, 0.0))),
+            CurveRef::Nurbs(curve),
+            (1.0, 2.5),
+        );
+
+        assert!(edge.is_none());
     }
 }
