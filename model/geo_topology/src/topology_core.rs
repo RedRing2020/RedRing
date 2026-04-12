@@ -8,8 +8,8 @@ use crate::{
     TOPO_NURBS_LENGTH_SUBDIVISIONS,
 };
 use geo_contracts::{
-    Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
-    EllipseArc3DEvaluation, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Scalar,
+    default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, NurbsCurve3DProperties, Scalar,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -79,7 +79,7 @@ pub enum CurveRef<T: Scalar> {
 impl<T: Scalar> CurveRef<T> {
     fn nurbs_parameter_tolerance() -> T {
         let scaled_epsilon = T::EPSILON * T::from_f64(16.0);
-        let minimum_tolerance = T::from_f64(1.0e-12);
+        let minimum_tolerance = default_kernel_numerical_zero_tolerance::<T>();
         if scaled_epsilon > minimum_tolerance {
             scaled_epsilon
         } else {
@@ -151,9 +151,15 @@ impl<T: Scalar> CurveRef<T> {
                 let lower_bound = u_min - tolerance;
                 let upper_bound = u_max + tolerance;
                 let is_out_of_domain = t < lower_bound || t > upper_bound;
-                assert!(
+                debug_assert!(
                     !is_out_of_domain,
-                    "CurveRef::point_at_parameter received out-of-domain NURBS parameter"
+                    "CurveRef::point_at_parameter received out-of-domain NURBS parameter: t={:?}, domain=[{:?}, {:?}], tolerance={:?}, accepted_bounds=[{:?}, {:?}]",
+                    t,
+                    u_min,
+                    u_max,
+                    tolerance,
+                    lower_bound,
+                    upper_bound
                 );
 
                 let adjusted_t = if t < u_min {
@@ -164,10 +170,8 @@ impl<T: Scalar> CurveRef<T> {
                     t
                 };
 
-                let (x, y, z) =
-                    <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, adjusted_t)
-                        .expect("NURBS evaluation returned None for an in-domain parameter");
-                Point3D::new(x, y, z)
+                let point = curve.evaluate_at(adjusted_t);
+                Point3D::new(point.x(), point.y(), point.z())
             }
         }
     }
@@ -199,6 +203,10 @@ impl<T: Scalar> Edge<T> {
     }
 
     /// Edge を生成する
+    ///
+    /// NURBS の場合は parameter_range を native domain に対して検証する。
+    /// 許容幅を超えて domain 外なら `None` を返し、端点近傍の微小ズレは
+    /// `[u_min, u_max]` へ吸着したうえで保持する。
     pub fn new(
         start_vertex: Arc<Vertex<T>>,
         end_vertex: Arc<Vertex<T>>,
