@@ -3,7 +3,10 @@
 //! #408 の最小導入として、Vertex/Edge/CurveRef を提供する。
 
 use crate::tolerance::ResolvedEdgeToleranceSettings;
-use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
+use crate::{
+    Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D,
+    TOPO_NURBS_LENGTH_SUBDIVISIONS,
+};
 use geo_contracts::{
     Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
     EllipseArc3DEvaluation, NurbsCurve3DEvaluation, NurbsCurve3DProperties, Scalar,
@@ -132,10 +135,30 @@ impl<T: Scalar> CurveRef<T> {
                 Point3D::new(x, y, z)
             }
             Self::Nurbs(curve) => {
-                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, t)
+                let (u_min, u_max) =
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
+                let is_out_of_domain = t < u_min || t > u_max;
+                debug_assert!(
+                    !is_out_of_domain,
+                    "CurveRef::point_at_parameter received out-of-domain NURBS parameter"
+                );
+
+                let clamped_t = if t < u_min {
+                    u_min
+                } else if t > u_max {
+                    u_max
+                } else {
+                    t
+                };
+
+                <TopoNurbsCurve3D<T> as NurbsCurve3DEvaluation<T>>::evaluate(curve, clamped_t)
                     .map(|(x, y, z)| Point3D::new(x, y, z))
                     .unwrap_or_else(|| {
-                        let p = curve.evaluate_at(t);
+                        debug_assert!(
+                            false,
+                            "NURBS evaluation returned None even after parameter clamping"
+                        );
+                        let p = curve.evaluate_at(clamped_t);
                         Point3D::new(p.x(), p.y(), p.z())
                     })
             }
@@ -147,7 +170,7 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.length(),
             Self::Arc(arc) => <TopoArc3D<T> as geo_contracts::Arc3DDerived<T>>::length(arc),
             Self::EllipseArc(arc) => <TopoEllipseArc3D<T> as EllipseArc3DDerived<T>>::length(arc),
-            Self::Nurbs(curve) => curve.approximate_length(100),
+            Self::Nurbs(curve) => curve.approximate_length(TOPO_NURBS_LENGTH_SUBDIVISIONS),
         }
     }
 }
@@ -414,9 +437,11 @@ mod tests {
 
     #[test]
     fn curve_ref_nurbs_supports_ideal_endpoints_and_native_parameter_evaluation() {
-        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
-            (0.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
         )
         .unwrap();
 
@@ -432,7 +457,7 @@ mod tests {
         assert!((end.y() - 0.0).abs() < 1.0e-12);
         assert!((end.z() - 0.0).abs() < 1.0e-12);
 
-        let mid = curve_ref.point_at_parameter(0.5);
+        let mid = curve_ref.point_at_parameter(2.5);
         assert!((mid.x() - 1.0).abs() < 1.0e-9);
         assert!((mid.y() - 0.0).abs() < 1.0e-9);
         assert!((mid.z() - 0.0).abs() < 1.0e-9);
@@ -440,23 +465,28 @@ mod tests {
 
     #[test]
     fn edge_with_nurbs_curve_uses_native_parameter_range() {
-        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
-            (0.0, 0.0, 0.0),
-            (2.0, 0.0, 0.0),
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
         )
         .unwrap();
+
+        let native_range =
+            <TopoNurbsCurve3D<f64> as NurbsCurve3DProperties<f64>>::parameter_domain(&curve);
 
         let edge = Edge::new(
             Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0))),
             Arc::new(Vertex::new(Point3D::new(2.0, 0.0, 0.0))),
             CurveRef::Nurbs(curve),
-            (0.0, 1.0),
+            native_range,
         )
         .unwrap();
 
         let (t0, t1) = edge.parameter_range();
-        assert!((t0 - 0.0).abs() < 1.0e-12);
-        assert!((t1 - 1.0).abs() < 1.0e-12);
+        assert!((t0 - 2.0).abs() < 1.0e-12);
+        assert!((t1 - 3.0).abs() < 1.0e-12);
 
         let p = edge.point_at(0.5).unwrap();
         assert!((p.x() - 1.0).abs() < 1.0e-9);
