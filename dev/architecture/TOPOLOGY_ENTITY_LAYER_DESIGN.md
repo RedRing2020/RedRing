@@ -107,10 +107,12 @@ topology はそれを前提に、接続・向き・トリム・共有関係を�
 - `end_vertex`
 
 このとき、母曲線の幾何と位相上の走査向きは分離して扱う。
+ここで `same_sense` は既存の bool field 名であり、概念上は「母曲線の自然向きと topology 走査向きの一致関係」を表す `orientation_relation` として読む。
 
 ### 3. 向き反転は `same_sense` で表現する
 
 母曲線自体を破壊的に反転せず、位相上の走査方向は `same_sense` で管理する。
+ただし設計上は、`same_sense` を topology 向きそのものではなく、geometry 側の自然向きと topology 側の走査向きの relation を保持する既存名として扱う。
 
 ### 4. vertex binding は母曲線評価そのものと同一視しない
 
@@ -127,7 +129,7 @@ curve discretization は、curve を polyline や点列へ落とす幾何アル�
 - `geo_topology` は `Edge` / `Wire` / `Loop` / `Face` / `PCurve` などの接続・向き・trim・binding を保持する
 - 離散化アルゴリズムは `geo_algorithms` 側の独立モジュールが担い、topology entity layer の下位概念として配置しない
 - `Wire` や `TrimmedSurface` を入力にした離散化が必要になっても、topology 自身が polyline 生成を所有するのではなく、外部の離散化側が topology 入力を解決して利用する
-- このとき topology から離散化側へ渡す責務は、curve 参照、parameter range、same_sense、boundary 種別、必要な binding 情報の解決までとする
+- このとき topology から離散化側へ渡す責務は、curve 参照、parameter range、`same_sense`（=`orientation_relation` を保持する既存 field）、boundary 種別、必要な binding 情報の解決までとする
 - 離散化側は、その解決済み入力を受けて polyline / 点列 / パラメータ列を生成する
 
 補足:
@@ -268,6 +270,8 @@ fallback を上書きできる判断基準は、少なくとも次とする。
 9. `same_sense` を適用し、Edge の向きに沿った evaluated endpoint 対 `(oriented_evaluated_start, oriented_evaluated_end)` を決定する。
 10. evaluated endpoint 対と拘束端点対を `\delta_{eval}` で比較し、evaluation endpoint consistency を判定する。
 11. full edge invariant は、binding consistency、ideal endpoint consistency、evaluation endpoint consistency の全てが成立したときにのみ通過とする。
+
+ここでも `same_sense` は「Edge が持つ topology 走査向き」と「母曲線の自然向き」の `orientation_relation` を表す既存 field 名として解釈する。
 
 重要:
 

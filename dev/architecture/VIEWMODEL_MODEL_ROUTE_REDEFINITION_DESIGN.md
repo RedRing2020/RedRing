@@ -744,13 +744,15 @@ pub trait PlanarStroke2DProperties<T: Scalar> {
 ### NURBS topology の段階導入方針
 
 - NURBS topology は 1 段で trimmed face まで入れず、まず curve edge のみを対象にする
-- 初手では `NurbsCurve3D` を Edge の母曲線候補として扱い、native parameter domain を `parameter_range` にそのまま写す
-- `geo_topology` は既に `geo_primitives` に依存しているため、同列 shape family である `geo_nurbs` への依存も curve edge 対応の範囲で許可する
+- ただし 2026-04-11 時点では、trimmed NURBS curve を geometry 層でどう表現するかが未整理であるため、`geo_topology` 側の NURBS edge 先行導入は blocker 解消後に再開する
+- blocker は `dev/architecture/NURBS_TRIMMED_CURVE_GEOMETRY_DESIGN.md` と #666 で扱う
+- 初手で `NurbsCurve3D` をそのまま Edge の母曲線候補へ追加する案は保留とし、trimmed curve geometry の責務を先に固定する
+- `geo_topology` は既に `geo_primitives` に依存しているため、同列 shape family である `geo_nurbs` への依存追加自体は候補として維持する
 - ただし依存は `geo_topology -> geo_nurbs` の片方向に限定し、`geo_nurbs -> geo_topology` の逆依存は許可しない
 - この段階では trim curve / Face / Loop / CoEdge / surface 上の 2D parameter curve は導入しない
 - trimmed NURBS face は別 Issue として扱い、face 語彙・loop 語彙・surface trim 境界の設計を先に固定してから実装する
-- したがって、NURBS 対応の初期スコープは `CurveRef` / `CurveSegment3D` / topology derive port の NURBS curve 対応までとする
-- `geo_nurbs` 側の split / evaluation は edge 段階でも利用可能だが、trimmed face の責務とは混同しない
+- したがって、NURBS 対応の初期スコープは、trimmed NURBS curve の geometry 表現を先に整理した後で `CurveRef` / `CurveSegment3D` / topology derive port の責務を再評価して決める
+- `geo_nurbs` 側の split / evaluation は補助機構として利用可能だが、split 済み別曲線を正本にするかどうかは #666 の設計判断に委ねる
 
 ### #501 受け入れ条件との対応
 
