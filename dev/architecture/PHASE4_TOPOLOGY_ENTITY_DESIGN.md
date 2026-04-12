@@ -208,10 +208,10 @@ pub struct Edge<T: Scalar> {
     /// 走査向き relation を保持する既存フラグ: 母曲線の自然方向と Edge の走査方向が一致するか
     ///
     /// - `true` : t_start → t_end が start_vertex → end_vertex と一致
-    /// - `false`: 母曲線の幾何は逆向き（ただしトポロジー上の向きは不変）
+    /// - `false`: Edge の走査方向が母曲線の自然向きと逆
     ///
     /// 概念上は orientation_relation を表す既存 field 名であり、
-    /// 向き反転は常にこのフラグを切り替えるだけで実現する。
+    /// Edge の向き反転は母曲線自体を反転せず、この relation を切り替えるだけで実現する。
     same_sense: bool,
 }
 

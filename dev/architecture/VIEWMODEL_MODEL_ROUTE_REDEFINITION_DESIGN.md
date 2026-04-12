@@ -744,9 +744,9 @@ pub trait PlanarStroke2DProperties<T: Scalar> {
 ### NURBS topology の段階導入方針
 
 - NURBS topology は 1 段で trimmed face まで入れず、まず curve edge のみを対象にする
-- ただし 2026-04-11 時点では、trimmed NURBS curve を geometry 層でどう表現するかが未整理であるため、`geo_topology` 側の NURBS edge 先行導入は blocker 解消後に再開する
-- blocker は `dev/architecture/NURBS_TRIMMED_CURVE_GEOMETRY_DESIGN.md` と #666 で扱う
-- 初手で `NurbsCurve3D` をそのまま Edge の母曲線候補へ追加する案は保留とし、trimmed curve geometry の責務を先に固定する
+- #666 で trimmed NURBS curve の geometry 表現と責務境界を固定済みである
+- `geo_topology` 側の NURBS edge 導入は、#666 で固定した前提に沿って #650 で再開する
+- 初手で `NurbsCurve3D` をそのまま Edge の母曲線候補へ追加する案は採らず、#666 で固定した trimmed curve geometry の責務を前提に scope を再評価する
 - `geo_topology` は既に `geo_primitives` に依存しているため、同列 shape family である `geo_nurbs` への依存追加自体は候補として維持する
 - ただし依存は `geo_topology -> geo_nurbs` の片方向に限定し、`geo_nurbs -> geo_topology` の逆依存は許可しない
 - この段階では trim curve / Face / Loop / CoEdge / surface 上の 2D parameter curve は導入しない
