@@ -1164,6 +1164,7 @@ dependencies = [
  "geo_commons",
  "geo_contracts",
  "geo_core",
+ "geo_nurbs",
  "geo_primitives",
 ]
 
