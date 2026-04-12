@@ -3,10 +3,7 @@
 //! 命名は Solidworks 系の CompositeCurve に合わせる
 //! （Rhino: PolyCurve、ISO STEP: CompositeCurve）
 
-use crate::{
-    Point3D, TopoArc3D, TopoLineSegment3D, TopoNurbsCurve3D, Vector3D,
-    TOPO_NURBS_LENGTH_SUBDIVISIONS,
-};
+use crate::{Point3D, TopoArc3D, TopoLineSegment3D, TopoNurbsCurve3D, Vector3D};
 use geo_contracts::Scalar;
 
 /// 複合曲線を構成する個別セグメント
@@ -73,7 +70,9 @@ impl<T: Scalar> CurveSegment3D<T> {
                 vec.magnitude()
             }
             Self::Arc(arc) => arc.length(),
-            Self::Nurbs(curve) => curve.approximate_length(TOPO_NURBS_LENGTH_SUBDIVISIONS),
+            Self::Nurbs(curve) => {
+                curve.approximate_length(geo_nurbs::constants::CURVE_LENGTH_SUBDIVISIONS)
+            }
         }
     }
 }

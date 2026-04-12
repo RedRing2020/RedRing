@@ -24,9 +24,6 @@ pub use topology_core::{CurveRef, Edge, TopoId, Vertex};
 pub use topology_validator::{EdgeValidationReport, TopologyValidator, WireValidationReport};
 pub use wire::Wire;
 
-pub(crate) const TOPO_NURBS_LENGTH_SUBDIVISIONS: usize =
-    geo_nurbs::constants::CURVE_LENGTH_SUBDIVISIONS;
-
 pub type TopoArc3D<T> = geo_primitives::Arc3D<T>;
 pub type TopoEllipseArc3D<T> = geo_primitives::EllipseArc3D<T>;
 pub type TopoInfiniteLine3D<T> = geo_primitives::InfiniteLine3D<T>;

@@ -3,10 +3,7 @@
 //! #408 の最小導入として、Vertex/Edge/CurveRef を提供する。
 
 use crate::tolerance::ResolvedEdgeToleranceSettings;
-use crate::{
-    Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D,
-    TOPO_NURBS_LENGTH_SUBDIVISIONS,
-};
+use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
     EllipseArc3DEndpoint, EllipseArc3DEvaluation, NurbsCurve3DProperties, Scalar,
@@ -181,7 +178,9 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.length(),
             Self::Arc(arc) => <TopoArc3D<T> as geo_contracts::Arc3DDerived<T>>::length(arc),
             Self::EllipseArc(arc) => <TopoEllipseArc3D<T> as EllipseArc3DDerived<T>>::length(arc),
-            Self::Nurbs(curve) => curve.approximate_length(TOPO_NURBS_LENGTH_SUBDIVISIONS),
+            Self::Nurbs(curve) => {
+                curve.approximate_length(geo_nurbs::constants::CURVE_LENGTH_SUBDIVISIONS)
+            }
         }
     }
 }
