@@ -74,8 +74,10 @@ pub enum CurveRef<T: Scalar> {
 }
 
 impl<T: Scalar> CurveRef<T> {
-    fn nurbs_parameter_tolerance() -> T {
-        let scaled_epsilon = T::EPSILON * T::from_f64(16.0);
+    fn nurbs_parameter_tolerance_for_domain(u_min: T, u_max: T) -> T {
+        let domain_span = (u_max - u_min).abs();
+        let magnitude = u_min.abs().max(u_max.abs()).max(domain_span).max(T::ONE);
+        let scaled_epsilon = T::EPSILON * T::from_f64(16.0) * magnitude;
         let minimum_tolerance = default_kernel_numerical_zero_tolerance::<T>();
         if scaled_epsilon > minimum_tolerance {
             scaled_epsilon
@@ -144,7 +146,7 @@ impl<T: Scalar> CurveRef<T> {
             Self::Nurbs(curve) => {
                 let (u_min, u_max) =
                     <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
-                let tolerance = Self::nurbs_parameter_tolerance();
+                let tolerance = Self::nurbs_parameter_tolerance_for_domain(u_min, u_max);
                 let lower_bound = u_min - tolerance;
                 let upper_bound = u_max + tolerance;
                 let is_out_of_domain = t < lower_bound || t > upper_bound;
@@ -197,8 +199,8 @@ pub struct Edge<T: Scalar> {
 }
 
 impl<T: Scalar> Edge<T> {
-    fn nurbs_parameter_tolerance() -> T {
-        CurveRef::<T>::nurbs_parameter_tolerance()
+    fn nurbs_parameter_tolerance_for_domain(u_min: T, u_max: T) -> T {
+        CurveRef::<T>::nurbs_parameter_tolerance_for_domain(u_min, u_max)
     }
 
     /// Edge を生成する
@@ -216,7 +218,7 @@ impl<T: Scalar> Edge<T> {
         if let CurveRef::Nurbs(nurbs_curve) = &curve {
             let (u_min, u_max) =
                 <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(nurbs_curve);
-            let tolerance = Self::nurbs_parameter_tolerance();
+            let tolerance = Self::nurbs_parameter_tolerance_for_domain(u_min, u_max);
 
             if normalized_parameter_range.0 < u_min - tolerance
                 || normalized_parameter_range.1 > u_max + tolerance
@@ -550,5 +552,31 @@ mod tests {
         );
 
         assert!(edge.is_none());
+    }
+
+    #[test]
+    fn edge_new_accepts_near_boundary_nurbs_range_on_large_domain_scale() {
+        let u_min = 1_000_000.0;
+        let u_max = 1_000_001.0;
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![u_min, u_min, u_max, u_max],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
+
+        let tolerance = CurveRef::<f64>::nurbs_parameter_tolerance_for_domain(u_min, u_max);
+        let edge = Edge::new(
+            Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0))),
+            Arc::new(Vertex::new(Point3D::new(2.0, 0.0, 0.0))),
+            CurveRef::Nurbs(curve),
+            (u_min - tolerance * 0.5, u_max + tolerance * 0.5),
+        )
+        .unwrap();
+
+        let (t0, t1) = edge.parameter_range();
+        assert!((t0 - u_min).abs() < 1.0e-12);
+        assert!((t1 - u_max).abs() < 1.0e-12);
     }
 }
