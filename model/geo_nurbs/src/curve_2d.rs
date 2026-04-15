@@ -313,6 +313,10 @@ impl<T: Scalar> NurbsCurve2DEvaluation<T> for NurbsCurve2D<T> {
     }
 
     fn point_at_checked(&self, t: T) -> Option<(T, T)> {
+        if !t.is_finite() {
+            return None;
+        }
+
         let (t_min, t_max) = self.parameter_domain();
         if t < t_min || t > t_max {
             return None;
@@ -457,5 +461,23 @@ mod tests {
 
         assert!(in_domain.is_some());
         assert!(out_of_domain.is_none());
+    }
+
+    #[test]
+    fn test_point_at_checked_returns_none_for_nan_parameter() {
+        use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DEvaluation};
+
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            &[(0.0, 0.0), (1.0, 0.0)],
+            None,
+            vec![2.0, 2.0, 3.0, 3.0],
+            1,
+        )
+        .unwrap();
+
+        let value =
+            <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, f64::NAN);
+
+        assert!(value.is_none());
     }
 }

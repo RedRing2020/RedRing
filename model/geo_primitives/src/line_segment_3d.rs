@@ -327,13 +327,13 @@ impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
     }
 
     fn point_at_parameter_checked(&self, t: T) -> Option<(T, T, T)> {
-        if t < T::ZERO || t > T::ONE {
+        if !t.is_finite() || t < T::ZERO || t > T::ONE {
             return None;
         }
 
-        let param = self.start_param + t * (self.end_param - self.start_param);
-        let p = self.line.point_at_parameter(param);
-        Some((p.x(), p.y(), p.z()))
+        Some(<Self as LineSegment3DEvaluation<T>>::point_at_parameter(
+            self, t,
+        ))
     }
 }
 
@@ -434,5 +434,22 @@ mod tests {
 
         assert!(in_range.is_some());
         assert!(out_of_range.is_none());
+    }
+
+    #[test]
+    fn checked_parameter_evaluation_rejects_nan_input() {
+        use geo_contracts::LineSegment3DEvaluation;
+
+        let segment =
+            LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
+                .expect("segment creation should succeed");
+
+        let value =
+            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter_checked(
+                &segment,
+                f64::NAN,
+            );
+
+        assert!(value.is_none());
     }
 }

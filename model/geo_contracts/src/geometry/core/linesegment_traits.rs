@@ -155,7 +155,7 @@ pub trait LineSegment2DEvaluation<T: Scalar> {
 
     /// checked 入口: 範囲外入力を失敗として扱う評価
     fn point_at_parameter_checked(&self, t: T) -> Option<(T, T)> {
-        if t < T::ZERO || t > T::ONE {
+        if !t.is_finite() || t < T::ZERO || t > T::ONE {
             None
         } else {
             Some(self.point_at_parameter(t))
@@ -194,7 +194,7 @@ pub trait LineSegment3DEvaluation<T: Scalar> {
 
     /// checked 入口: 範囲外入力を失敗として扱う評価
     fn point_at_parameter_checked(&self, t: T) -> Option<(T, T, T)> {
-        if t < T::ZERO || t > T::ONE {
+        if !t.is_finite() || t < T::ZERO || t > T::ONE {
             None
         } else {
             Some(self.point_at_parameter(t))

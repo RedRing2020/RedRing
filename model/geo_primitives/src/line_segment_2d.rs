@@ -409,7 +409,7 @@ impl<T: Scalar> LineSegment2DEvaluation<T> for LineSegment2D<T> {
     }
 
     fn point_at_parameter_checked(&self, t: T) -> Option<(T, T)> {
-        if t < T::ZERO || t > T::ONE {
+        if !t.is_finite() || t < T::ZERO || t > T::ONE {
             return None;
         }
 
@@ -485,5 +485,21 @@ mod tests {
 
         assert!(in_range.is_some());
         assert!(out_of_range.is_none());
+    }
+
+    #[test]
+    fn checked_parameter_evaluation_rejects_nan_input() {
+        use geo_contracts::LineSegment2DEvaluation;
+
+        let segment = LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0))
+            .expect("segment creation should succeed");
+
+        let value =
+            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
+                &segment,
+                f64::NAN,
+            );
+
+        assert!(value.is_none());
     }
 }

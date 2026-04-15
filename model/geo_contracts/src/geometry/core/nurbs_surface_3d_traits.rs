@@ -74,7 +74,13 @@ pub trait NurbsSurface3DEvaluation<T: Scalar> {
     /// パラメータ座標(u, v)でのサーフェス上の点を計算
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
 
-    /// checked 入口: 範囲外入力を失敗として扱う評価
+    /// checked 入口。
+    ///
+    /// このデフォルト実装は互換維持のための暫定ラッパであり、domain 判定を行わず
+    /// `Some(self.point_at_uv(u, v))` をそのまま返す。
+    ///
+    /// 範囲外入力を失敗として扱いたい実装は、このメソッドを override して
+    /// u/v の有効範囲を判定し、範囲外では `None` を返すことを想定している。
     fn point_at_uv_checked(&self, u: T, v: T) -> Option<(T, T, T)> {
         Some(self.point_at_uv(u, v))
     }

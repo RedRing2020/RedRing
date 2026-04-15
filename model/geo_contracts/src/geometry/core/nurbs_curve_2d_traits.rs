@@ -63,7 +63,13 @@ pub trait NurbsCurve2DEvaluation<T: Scalar> {
     /// パラメータ t での曲線上の点を計算
     fn point_at(&self, t: T) -> (T, T);
 
-    /// checked 入口: 範囲外入力を失敗として扱う評価
+    /// checked 入口として使うための評価メソッド。
+    ///
+    /// デフォルト実装は後方互換のため `point_at` を `Some(...)` で包む
+    /// unchecked ラッパであり、この trait定義だけでは domain 判定を行わない。
+    ///
+    /// 範囲外入力を `None` として扱う必要がある実装では、このメソッドを
+    /// override して各型の parameter domain 判定を行うこと。
     fn point_at_checked(&self, t: T) -> Option<(T, T)> {
         Some(self.point_at(t))
     }
