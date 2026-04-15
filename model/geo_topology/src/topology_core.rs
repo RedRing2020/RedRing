@@ -148,7 +148,7 @@ impl<T: Scalar> CurveRef<T> {
                 let lower_bound = u_min - tolerance;
                 let upper_bound = u_max + tolerance;
                 let is_out_of_domain = t < lower_bound || t > upper_bound;
-                debug_assert!(
+                assert!(
                     !is_out_of_domain,
                     "CurveRef::point_at_parameter received out-of-domain NURBS parameter: t={:?}, domain=[{:?}, {:?}], tolerance={:?}, accepted_bounds=[{:?}, {:?}]",
                     t,

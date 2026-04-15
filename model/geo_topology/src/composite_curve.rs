@@ -186,6 +186,22 @@ mod tests {
     use super::*;
     use geo_contracts::NurbsCurve3DConstructor;
 
+    fn assert_point_close(actual: Point3D<f64>, expected: Point3D<f64>, tolerance: f64) {
+        assert!(
+            (actual.x() - expected.x()).abs() < tolerance
+                && (actual.y() - expected.y()).abs() < tolerance
+                && (actual.z() - expected.z()).abs() < tolerance,
+            "points are not within tolerance: actual=({:?}, {:?}, {:?}), expected=({:?}, {:?}, {:?}), tol={}",
+            actual.x(),
+            actual.y(),
+            actual.z(),
+            expected.x(),
+            expected.y(),
+            expected.z(),
+            tolerance
+        );
+    }
+
     #[test]
     fn curve_segment_line_start_end() {
         let seg = TopoLineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
@@ -228,6 +244,7 @@ mod tests {
 
     #[test]
     fn curve_segment_nurbs_start_end_and_constraint_endpoints() {
+        let tolerance = 1.0e-9;
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
             (0.0, 0.0, 0.0),
             (2.0, 0.0, 0.0),
@@ -236,10 +253,18 @@ mod tests {
 
         let segment = CurveSegment3D::Nurbs(curve);
 
-        assert_eq!(segment.start(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(segment.end(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(segment.constraint_start(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(segment.constraint_end(), Point3D::new(2.0, 0.0, 0.0));
+        assert_point_close(segment.start(), Point3D::new(0.0, 0.0, 0.0), tolerance);
+        assert_point_close(segment.end(), Point3D::new(2.0, 0.0, 0.0), tolerance);
+        assert_point_close(
+            segment.constraint_start(),
+            Point3D::new(0.0, 0.0, 0.0),
+            tolerance,
+        );
+        assert_point_close(
+            segment.constraint_end(),
+            Point3D::new(2.0, 0.0, 0.0),
+            tolerance,
+        );
     }
 
     #[test]
@@ -273,6 +298,7 @@ mod tests {
 
     #[test]
     fn composite_curve_accepts_nurbs_segment() {
+        let tolerance = 1.0e-9;
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
             (0.0, 0.0, 0.0),
             (2.0, 0.0, 0.0),
@@ -281,10 +307,26 @@ mod tests {
 
         let composite = CompositeCurve3D::new(vec![CurveSegment3D::Nurbs(curve)]).unwrap();
 
-        assert_eq!(composite.ideal_start_point(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(composite.ideal_end_point(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(composite.start_point(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(composite.end_point(), Point3D::new(2.0, 0.0, 0.0));
+        assert_point_close(
+            composite.ideal_start_point(),
+            Point3D::new(0.0, 0.0, 0.0),
+            tolerance,
+        );
+        assert_point_close(
+            composite.ideal_end_point(),
+            Point3D::new(2.0, 0.0, 0.0),
+            tolerance,
+        );
+        assert_point_close(
+            composite.start_point(),
+            Point3D::new(0.0, 0.0, 0.0),
+            tolerance,
+        );
+        assert_point_close(
+            composite.end_point(),
+            Point3D::new(2.0, 0.0, 0.0),
+            tolerance,
+        );
     }
 
     #[test]
