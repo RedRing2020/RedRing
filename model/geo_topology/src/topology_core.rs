@@ -3,10 +3,10 @@
 //! #408 の最小導入として、Vertex/Edge/CurveRef を提供する。
 
 use crate::tolerance::ResolvedEdgeToleranceSettings;
-use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D};
+use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};
 use geo_contracts::{
-    Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived, EllipseArc3DEndpoint,
-    EllipseArc3DEvaluation, Scalar,
+    default_kernel_numerical_zero_tolerance, Arc3DEndpoint, Arc3DEvaluation, EllipseArc3DDerived,
+    EllipseArc3DEndpoint, EllipseArc3DEvaluation, NurbsCurve3DProperties, Scalar,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -70,9 +70,22 @@ pub enum CurveRef<T: Scalar> {
     Line(TopoLineSegment3D<T>),
     Arc(TopoArc3D<T>),
     EllipseArc(TopoEllipseArc3D<T>),
+    Nurbs(TopoNurbsCurve3D<T>),
 }
 
 impl<T: Scalar> CurveRef<T> {
+    fn nurbs_parameter_tolerance_for_domain(u_min: T, u_max: T) -> T {
+        let domain_span = (u_max - u_min).abs();
+        let magnitude = u_min.abs().max(u_max.abs()).max(domain_span).max(T::ONE);
+        let scaled_epsilon = T::EPSILON * T::from_f64(16.0) * magnitude;
+        let minimum_tolerance = default_kernel_numerical_zero_tolerance::<T>();
+        if scaled_epsilon > minimum_tolerance {
+            scaled_epsilon
+        } else {
+            minimum_tolerance
+        }
+    }
+
     pub fn ideal_start_point(&self) -> Point3D<T> {
         match self {
             Self::Line(line) => line.start(),
@@ -83,6 +96,12 @@ impl<T: Scalar> CurveRef<T> {
             Self::EllipseArc(arc) => {
                 let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::start_point(arc);
                 Point3D::new(x, y, z)
+            }
+            Self::Nurbs(curve) => {
+                let (u_min, _) =
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
+                let point = curve.evaluate_at(u_min);
+                Point3D::new(point.x(), point.y(), point.z())
             }
         }
     }
@@ -97,6 +116,12 @@ impl<T: Scalar> CurveRef<T> {
             Self::EllipseArc(arc) => {
                 let (x, y, z) = <TopoEllipseArc3D<T> as EllipseArc3DEndpoint<T>>::end_point(arc);
                 Point3D::new(x, y, z)
+            }
+            Self::Nurbs(curve) => {
+                let (_, u_max) =
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
+                let point = curve.evaluate_at(u_max);
+                Point3D::new(point.x(), point.y(), point.z())
             }
         }
     }
@@ -118,6 +143,35 @@ impl<T: Scalar> CurveRef<T> {
                     <TopoEllipseArc3D<T> as EllipseArc3DEvaluation<T>>::point_at_parameter(arc, t);
                 Point3D::new(x, y, z)
             }
+            Self::Nurbs(curve) => {
+                let (u_min, u_max) =
+                    <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(curve);
+                let tolerance = Self::nurbs_parameter_tolerance_for_domain(u_min, u_max);
+                let lower_bound = u_min - tolerance;
+                let upper_bound = u_max + tolerance;
+                let is_out_of_domain = t < lower_bound || t > upper_bound;
+                assert!(
+                    !is_out_of_domain,
+                    "CurveRef::point_at_parameter received out-of-domain NURBS parameter: t={:?}, domain=[{:?}, {:?}], tolerance={:?}, accepted_bounds=[{:?}, {:?}]",
+                    t,
+                    u_min,
+                    u_max,
+                    tolerance,
+                    lower_bound,
+                    upper_bound
+                );
+
+                let adjusted_t = if t < u_min {
+                    u_min
+                } else if t > u_max {
+                    u_max
+                } else {
+                    t
+                };
+
+                let point = curve.evaluate_at(adjusted_t);
+                Point3D::new(point.x(), point.y(), point.z())
+            }
         }
     }
 
@@ -126,6 +180,9 @@ impl<T: Scalar> CurveRef<T> {
             Self::Line(line) => line.length(),
             Self::Arc(arc) => <TopoArc3D<T> as geo_contracts::Arc3DDerived<T>>::length(arc),
             Self::EllipseArc(arc) => <TopoEllipseArc3D<T> as EllipseArc3DDerived<T>>::length(arc),
+            Self::Nurbs(curve) => {
+                curve.approximate_length(geo_nurbs::constants::CURVE_LENGTH_SUBDIVISIONS)
+            }
         }
     }
 }
@@ -142,14 +199,42 @@ pub struct Edge<T: Scalar> {
 }
 
 impl<T: Scalar> Edge<T> {
+    fn nurbs_parameter_tolerance_for_domain(u_min: T, u_max: T) -> T {
+        CurveRef::<T>::nurbs_parameter_tolerance_for_domain(u_min, u_max)
+    }
+
     /// Edge を生成する
+    ///
+    /// NURBS の場合は parameter_range を native domain に対して検証する。
+    /// 許容幅を超えて domain 外なら `None` を返し、端点近傍の微小ズレは
+    /// `[u_min, u_max]` へ吸着したうえで保持する。
     pub fn new(
         start_vertex: Arc<Vertex<T>>,
         end_vertex: Arc<Vertex<T>>,
         curve: CurveRef<T>,
         parameter_range: (T, T),
     ) -> Option<Self> {
-        if parameter_range.0 >= parameter_range.1 {
+        let mut normalized_parameter_range = parameter_range;
+        if let CurveRef::Nurbs(nurbs_curve) = &curve {
+            let (u_min, u_max) =
+                <TopoNurbsCurve3D<T> as NurbsCurve3DProperties<T>>::parameter_domain(nurbs_curve);
+            let tolerance = Self::nurbs_parameter_tolerance_for_domain(u_min, u_max);
+
+            if normalized_parameter_range.0 < u_min - tolerance
+                || normalized_parameter_range.1 > u_max + tolerance
+            {
+                return None;
+            }
+
+            if normalized_parameter_range.0 < u_min {
+                normalized_parameter_range.0 = u_min;
+            }
+            if normalized_parameter_range.1 > u_max {
+                normalized_parameter_range.1 = u_max;
+            }
+        }
+
+        if normalized_parameter_range.0 >= normalized_parameter_range.1 {
             return None;
         }
 
@@ -158,7 +243,7 @@ impl<T: Scalar> Edge<T> {
             start_vertex,
             end_vertex,
             curve,
-            parameter_range,
+            parameter_range: normalized_parameter_range,
             same_sense: true,
         })
     }
@@ -304,7 +389,8 @@ impl<T: Scalar> Edge<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TopoInfiniteLine3D;
+    use crate::{TopoInfiniteLine3D, TopoNurbsCurve3D};
+    use geo_contracts::NurbsCurve3DConstructor;
 
     #[test]
     fn edge_new_rejects_invalid_range() {
@@ -387,5 +473,110 @@ mod tests {
         assert!(edge.is_binding_consistent(1e-9));
         assert!(edge.is_ideal_endpoint_consistent(1e-9));
         assert!(!edge.is_evaluated_endpoint_consistent(1e-9));
+    }
+
+    #[test]
+    fn curve_ref_nurbs_supports_ideal_endpoints_and_native_parameter_evaluation() {
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
+
+        let curve_ref = CurveRef::Nurbs(curve);
+
+        let start = curve_ref.ideal_start_point();
+        let end = curve_ref.ideal_end_point();
+
+        assert!((start.x() - 0.0).abs() < 1.0e-12);
+        assert!((start.y() - 0.0).abs() < 1.0e-12);
+        assert!((start.z() - 0.0).abs() < 1.0e-12);
+        assert!((end.x() - 2.0).abs() < 1.0e-12);
+        assert!((end.y() - 0.0).abs() < 1.0e-12);
+        assert!((end.z() - 0.0).abs() < 1.0e-12);
+
+        let mid = curve_ref.point_at_parameter(2.5);
+        assert!((mid.x() - 1.0).abs() < 1.0e-9);
+        assert!((mid.y() - 0.0).abs() < 1.0e-9);
+        assert!((mid.z() - 0.0).abs() < 1.0e-9);
+    }
+
+    #[test]
+    fn edge_with_nurbs_curve_uses_native_parameter_range() {
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
+
+        let native_range =
+            <TopoNurbsCurve3D<f64> as NurbsCurve3DProperties<f64>>::parameter_domain(&curve);
+
+        let edge = Edge::new(
+            Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0))),
+            Arc::new(Vertex::new(Point3D::new(2.0, 0.0, 0.0))),
+            CurveRef::Nurbs(curve),
+            native_range,
+        )
+        .unwrap();
+
+        let (t0, t1) = edge.parameter_range();
+        assert!((t0 - 2.0).abs() < 1.0e-12);
+        assert!((t1 - 3.0).abs() < 1.0e-12);
+
+        let p = edge.point_at(0.5).unwrap();
+        assert!((p.x() - 1.0).abs() < 1.0e-9);
+        assert!((p.y() - 0.0).abs() < 1.0e-9);
+        assert!((p.z() - 0.0).abs() < 1.0e-9);
+    }
+
+    #[test]
+    fn edge_new_rejects_nurbs_range_outside_native_domain() {
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
+
+        let edge = Edge::new(
+            Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0))),
+            Arc::new(Vertex::new(Point3D::new(2.0, 0.0, 0.0))),
+            CurveRef::Nurbs(curve),
+            (1.0, 2.5),
+        );
+
+        assert!(edge.is_none());
+    }
+
+    #[test]
+    fn edge_new_accepts_near_boundary_nurbs_range_on_large_domain_scale() {
+        let u_min = 1_000_000.0;
+        let u_max = 1_000_001.0;
+        let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
+            1,
+            vec![u_min, u_min, u_max, u_max],
+            vec![(0.0, 0.0, 0.0), (2.0, 0.0, 0.0)],
+            None,
+        )
+        .unwrap();
+
+        let tolerance = CurveRef::<f64>::nurbs_parameter_tolerance_for_domain(u_min, u_max);
+        let edge = Edge::new(
+            Arc::new(Vertex::new(Point3D::new(0.0, 0.0, 0.0))),
+            Arc::new(Vertex::new(Point3D::new(2.0, 0.0, 0.0))),
+            CurveRef::Nurbs(curve),
+            (u_min - tolerance * 0.5, u_max + tolerance * 0.5),
+        )
+        .unwrap();
+
+        let (t0, t1) = edge.parameter_range();
+        assert!((t0 - u_min).abs() < 1.0e-12);
+        assert!((t1 - u_max).abs() < 1.0e-12);
     }
 }

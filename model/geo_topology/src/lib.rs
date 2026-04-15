@@ -3,7 +3,7 @@
 //! 交差判定・モデリングで利用する最小のトポロジー構造を提供する。
 //! 現在の提供:
 //! - CompositeCurve3D: 拘束端点で連結された複合曲線
-//! - CurveSegment3D: 個別セグメント（Line / Arc、ideal/constraint endpoint を区別）
+//! - CurveSegment3D: 個別セグメント（Line / Arc / Nurbs、ideal/constraint endpoint を区別）
 //!
 //! 将来拡張（#205 連携）:
 //! - Vertex: 点トポロジー
@@ -28,3 +28,4 @@ pub type TopoArc3D<T> = geo_primitives::Arc3D<T>;
 pub type TopoEllipseArc3D<T> = geo_primitives::EllipseArc3D<T>;
 pub type TopoInfiniteLine3D<T> = geo_primitives::InfiniteLine3D<T>;
 pub type TopoLineSegment3D<T> = geo_primitives::LineSegment3D<T>;
+pub type TopoNurbsCurve3D<T> = geo_nurbs::NurbsCurve3D<T>;
