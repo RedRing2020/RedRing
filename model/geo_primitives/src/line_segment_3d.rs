@@ -325,6 +325,16 @@ impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
         let p = self.line.point_at_parameter(param);
         (p.x(), p.y(), p.z())
     }
+
+    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T, T)> {
+        if t < T::ZERO || t > T::ONE {
+            return None;
+        }
+
+        let param = self.start_param + t * (self.end_param - self.start_param);
+        let p = self.line.point_at_parameter(param);
+        Some((p.x(), p.y(), p.z()))
+    }
 }
 
 impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
@@ -403,5 +413,26 @@ mod tests {
         assert_eq!(segment.length(), 2.0);
         assert_eq!(segment.constraint_length(), 2.0);
         assert_eq!(segment.ideal_length(), 2.0);
+    }
+
+    #[test]
+    fn checked_parameter_evaluation_rejects_out_of_range_input() {
+        use geo_contracts::LineSegment3DEvaluation;
+
+        let segment =
+            LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
+                .expect("segment creation should succeed");
+
+        let in_range =
+            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter_checked(
+                &segment, 0.5,
+            );
+        let out_of_range =
+            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter_checked(
+                &segment, 1.1,
+            );
+
+        assert!(in_range.is_some());
+        assert!(out_of_range.is_none());
     }
 }

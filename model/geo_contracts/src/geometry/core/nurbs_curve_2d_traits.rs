@@ -63,6 +63,11 @@ pub trait NurbsCurve2DEvaluation<T: Scalar> {
     /// パラメータ t での曲線上の点を計算
     fn point_at(&self, t: T) -> (T, T);
 
+    /// checked 入口: 範囲外入力を失敗として扱う評価
+    fn point_at_checked(&self, t: T) -> Option<(T, T)> {
+        Some(self.point_at(t))
+    }
+
     /// パラメータ t での接線ベクトルを計算
     fn tangent_at(&self, t: T) -> (T, T);
 }

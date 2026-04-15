@@ -312,6 +312,15 @@ impl<T: Scalar> NurbsCurve2DEvaluation<T> for NurbsCurve2D<T> {
         (point.x(), point.y())
     }
 
+    fn point_at_checked(&self, t: T) -> Option<(T, T)> {
+        let (t_min, t_max) = self.parameter_domain();
+        if t < t_min || t > t_max {
+            return None;
+        }
+
+        Some(self.point_at(t))
+    }
+
     fn tangent_at(&self, t: T) -> (T, T) {
         let derivative = self.derivative_at(t);
         let len_sq = derivative.x() * derivative.x() + derivative.y() * derivative.y();
@@ -426,5 +435,27 @@ mod tests {
 
         // 直線に近い曲線なので長さは約2.0
         assert!((length - 2.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_point_at_checked_returns_none_for_out_of_domain_parameter() {
+        use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DEvaluation};
+
+        let control_points = &[(0.0, 0.0), (1.0, 0.0)];
+        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
+            control_points,
+            None,
+            vec![2.0, 2.0, 3.0, 3.0],
+            1,
+        )
+        .unwrap();
+
+        let in_domain =
+            <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, 2.5);
+        let out_of_domain =
+            <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, 1.9);
+
+        assert!(in_domain.is_some());
+        assert!(out_of_domain.is_none());
     }
 }

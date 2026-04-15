@@ -73,6 +73,11 @@ pub trait NurbsCurve3DEvaluation<T: Scalar> {
 
     /// 指定されたパラメータ値における曲線上の点を評価
     fn evaluate(&self, u: T) -> Option<(T, T, T)>;
+
+    /// checked 入口: 範囲外入力を失敗として扱う評価
+    fn evaluate_checked(&self, u: T) -> Option<(T, T, T)> {
+        self.evaluate(u)
+    }
 }
 
 /// NurbsCurve3D の互換 Core trait

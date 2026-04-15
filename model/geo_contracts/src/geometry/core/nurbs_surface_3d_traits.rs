@@ -74,6 +74,11 @@ pub trait NurbsSurface3DEvaluation<T: Scalar> {
     /// パラメータ座標(u, v)でのサーフェス上の点を計算
     fn point_at_uv(&self, u: T, v: T) -> (T, T, T);
 
+    /// checked 入口: 範囲外入力を失敗として扱う評価
+    fn point_at_uv_checked(&self, u: T, v: T) -> Option<(T, T, T)> {
+        Some(self.point_at_uv(u, v))
+    }
+
     /// パラメータ座標(u, v)での法線ベクトルを計算
     fn normal_at(&self, u: T, v: T) -> (T, T, T);
 
