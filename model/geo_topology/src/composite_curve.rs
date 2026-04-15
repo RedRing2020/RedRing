@@ -186,6 +186,10 @@ mod tests {
     use super::*;
     use geo_contracts::NurbsCurve3DConstructor;
 
+    // テスト内で個別にトレランスを定義しないため、比較トレランスは共通定数を使う。
+    const POINT_COMPARISON_TOLERANCE_F64: f64 =
+        analysis::consts::test_constants::DISTANCE_TOLERANCE_F64;
+
     fn assert_point_close(actual: Point3D<f64>, expected: Point3D<f64>, tolerance: f64) {
         assert!(
             (actual.x() - expected.x()).abs() < tolerance
@@ -244,7 +248,6 @@ mod tests {
 
     #[test]
     fn curve_segment_nurbs_start_end_and_constraint_endpoints() {
-        let tolerance = 1.0e-9;
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
             (0.0, 0.0, 0.0),
             (2.0, 0.0, 0.0),
@@ -253,17 +256,25 @@ mod tests {
 
         let segment = CurveSegment3D::Nurbs(curve);
 
-        assert_point_close(segment.start(), Point3D::new(0.0, 0.0, 0.0), tolerance);
-        assert_point_close(segment.end(), Point3D::new(2.0, 0.0, 0.0), tolerance);
+        assert_point_close(
+            segment.start(),
+            Point3D::new(0.0, 0.0, 0.0),
+            POINT_COMPARISON_TOLERANCE_F64,
+        );
+        assert_point_close(
+            segment.end(),
+            Point3D::new(2.0, 0.0, 0.0),
+            POINT_COMPARISON_TOLERANCE_F64,
+        );
         assert_point_close(
             segment.constraint_start(),
             Point3D::new(0.0, 0.0, 0.0),
-            tolerance,
+            POINT_COMPARISON_TOLERANCE_F64,
         );
         assert_point_close(
             segment.constraint_end(),
             Point3D::new(2.0, 0.0, 0.0),
-            tolerance,
+            POINT_COMPARISON_TOLERANCE_F64,
         );
     }
 
@@ -298,7 +309,6 @@ mod tests {
 
     #[test]
     fn composite_curve_accepts_nurbs_segment() {
-        let tolerance = 1.0e-9;
         let curve = <TopoNurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
             (0.0, 0.0, 0.0),
             (2.0, 0.0, 0.0),
@@ -310,22 +320,22 @@ mod tests {
         assert_point_close(
             composite.ideal_start_point(),
             Point3D::new(0.0, 0.0, 0.0),
-            tolerance,
+            POINT_COMPARISON_TOLERANCE_F64,
         );
         assert_point_close(
             composite.ideal_end_point(),
             Point3D::new(2.0, 0.0, 0.0),
-            tolerance,
+            POINT_COMPARISON_TOLERANCE_F64,
         );
         assert_point_close(
             composite.start_point(),
             Point3D::new(0.0, 0.0, 0.0),
-            tolerance,
+            POINT_COMPARISON_TOLERANCE_F64,
         );
         assert_point_close(
             composite.end_point(),
             Point3D::new(2.0, 0.0, 0.0),
-            tolerance,
+            POINT_COMPARISON_TOLERANCE_F64,
         );
     }
 
