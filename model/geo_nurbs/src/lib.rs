@@ -60,10 +60,9 @@ pub mod constants {
     fn select_scalar_value<T: Scalar>(f32_value: f32, f64_value: f64) -> T {
         if TypeId::of::<T>() == TypeId::of::<f32>() {
             T::from_f32(f32_value)
-        } else if TypeId::of::<T>() == TypeId::of::<f64>() {
-            T::from_f64(f64_value)
         } else {
-            panic!("select_scalar_value only supports Scalar implementations for f32 and f64")
+            // f32以外はf64側へフォールバックする（geo_contractsの既定値選択と整合）。
+            T::from_f64(f64_value)
         }
     }
 
