@@ -151,6 +151,24 @@ mod tests {
     }
 
     #[test]
+    fn test_core_traits_line_segment_f32_kernel_tolerance_boundary() {
+        use geo_contracts::NurbsCurve3DConstructor;
+
+        let zero_tol = default_kernel_numerical_zero_tolerance::<f32>();
+        let start = (0.0_f32, 0.0, 0.0);
+
+        let inside = (zero_tol * 0.5, 0.0, 0.0);
+        let inside_result =
+            <NurbsCurve3D<f32> as NurbsCurve3DConstructor<f32>>::line_segment(start, inside);
+        assert!(inside_result.is_err());
+
+        let outside = (zero_tol * 2.0, 0.0, 0.0);
+        let outside_result =
+            <NurbsCurve3D<f32> as NurbsCurve3DConstructor<f32>>::line_segment(start, outside);
+        assert!(outside_result.is_ok());
+    }
+
+    #[test]
     fn test_core_traits_properties() {
         use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DProperties};
 
