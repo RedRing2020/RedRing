@@ -6,7 +6,8 @@
 use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    default_kernel_numerical_zero_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived,
+    NurbsCurve3DEvaluation, NurbsCurve3DProperties,
 };
 
 /// 重み配列の効率的管理（3D曲線用）
@@ -218,7 +219,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
 
     /// 指定パラメータでの1次導関数を計算
     pub fn derivative_at(&self, t: T) -> Vector3<T> {
-        let h = T::from_f64(constants::DERIVATIVE_STEP);
+        let h = constants::solver::derivative_step::<T>();
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
 
@@ -448,8 +449,13 @@ impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
         let segment = Vector3::new(end.0 - start.0, end.1 - start.1, end.2 - start.2);
         let distance_sq = segment.norm_squared();
 
-        if distance_sq <= T::EPSILON * T::EPSILON {
-            return Err("Start and end points must be different".to_string());
+        let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+
+        if distance_sq <= zero_tol * zero_tol {
+            return Err(
+                "Start and end points are too close and the segment degenerates within tolerance"
+                    .to_string(),
+            );
         }
 
         // 1次NURBS（線分）: 次数1、制御点2個

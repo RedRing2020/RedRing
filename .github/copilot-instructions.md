@@ -1,6 +1,6 @@
 # Copilot Instructions for RedRing
 
-## 最終更新日: 2026年2月14日
+## 最終更新日: 2026年4月17日
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
@@ -129,6 +129,22 @@ cargo fmt --all -- --check  # フォーマットチェック
 - 新規コード追加時は既存のトレイト設計と責務分離を尊重
 - `render` と `stage` は独立してビルド可能（model に依存しない）
 - PRは必ず `develop` ブランチへ（`main` への直接PRは禁止）
+
+### AI向け運用ルール参照の優先順位（見落とし防止）
+
+AIは、命名や進行管理の判断時に次の順で必ず参照すること。
+
+1. PR/ブランチ/命名運用の正本: `dev/GIT_PR_WORKFLOW_OPERATION.md`
+  - 特に「Phase と PR系列の命名を固定する」「タイトル表記フォーマットを固定する」を最優先で参照
+2. Issueラベル運用の正本: `dev/ISSUE_LABEL_OPERATION.md`
+  - 特に `phase-*` の意味（段階管理）と PR命名との対応ルールを参照
+3. 用語統一の正本: `dev/AI_TERMINOLOGY_GLOSSARY.md`
+
+補足:
+
+- `Phase` は実施段階、`PR系列` は変更単位であり、混同しない
+- PRタイトルは `issue #<番号> [Phase<番号>][<系列>-<枝番>] <対象>: <要約>` 形式を原則とする
+- PR本文先頭に「含む単位 / 含めない単位」を明記する
 
 **参照ドキュメント**:
 ---

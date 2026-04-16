@@ -60,20 +60,14 @@ impl ApplicationHandler for App {
                     button,
                     state: button_state,
                     ..
-                } => {
-                    if !settings_ui_consumed {
-                        state.handle_mouse_button(button, button_state);
-                    }
+                } if !settings_ui_consumed => {
+                    state.handle_mouse_button(button, button_state);
                 }
-                WindowEvent::CursorMoved { position, .. } => {
-                    if !settings_ui_consumed {
-                        state.handle_cursor_moved(position.x as f32, position.y as f32);
-                    }
+                WindowEvent::CursorMoved { position, .. } if !settings_ui_consumed => {
+                    state.handle_cursor_moved(position.x as f32, position.y as f32);
                 }
-                WindowEvent::MouseWheel { delta, .. } => {
-                    if !settings_ui_consumed {
-                        state.handle_mouse_wheel(delta);
-                    }
+                WindowEvent::MouseWheel { delta, .. } if !settings_ui_consumed => {
+                    state.handle_mouse_wheel(delta);
                 }
                 _ => {}
             }

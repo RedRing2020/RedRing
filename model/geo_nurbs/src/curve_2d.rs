@@ -207,7 +207,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
 
     /// 指定パラメータでの1次導関数を計算
     pub fn derivative_at(&self, t: T) -> Vector2<T> {
-        let h = T::from_f64(constants::DERIVATIVE_STEP);
+        let h = constants::solver::derivative_step::<T>();
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
 
@@ -345,7 +345,7 @@ impl<T: Scalar> NurbsCurve2DDerived<T> for NurbsCurve2D<T> {
 
     #[allow(clippy::similar_names)]
     fn curvature_at(&self, t: T) -> T {
-        let h = T::from_f64(constants::DERIVATIVE_STEP);
+        let h = constants::solver::derivative_step::<T>();
         let d1 = self.derivative_at(t);
         let d2_plus = self.derivative_at(t + h);
         let d2_minus = self.derivative_at(t - h);

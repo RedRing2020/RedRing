@@ -176,6 +176,66 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 4. 無次元判定（内積・外積誤差）には無次元しきい値を使用し、単位付き距離トレランスを混在させない。
 5. `f64` 専用の極小固定値を `T::from_f64(...)` で generic に流用しない。`f32`/`f64` の両対応が必要な固定しきい値は、型別定義または `default_*` wrapper を経由して選択する。
 
+## #671 実施準備: geo_nurbs 数値定数の型別方針
+
+### 目的
+
+- `geo_nurbs` で f64 前提値を暗黙流用せず、f32/f64 で「同じ意味の挙動」を得る参照経路を固定する。
+- 数値定数の責務を `analysis` / `geo_contracts` / `geo_nurbs` で分離し、マジックナンバーを段階置換する。
+
+### 参照入口の固定
+
+| 用途カテゴリ | 既定参照入口 | 運用ルール |
+| --- | --- | --- |
+| カーネルゼロ判定（分母ゼロ近傍、退化ガード） | `default_kernel_numerical_zero_tolerance<T>()` | `geo_nurbs` の公開経路ではこれを優先し、`T::EPSILON` を既定値にしない |
+| 幾何意味判定（距離/角度の一致・包含） | `ToleranceSettings<T>` 由来値 | 呼び出し境界で選択し、評価内部で新規既定値を作らない |
+| 数値解法・積分しきい値 | `foundation/analysis/src/consts.rs` の意味付き定数 | 幾何意味判定の既定値としては再利用しない |
+| テスト許容差（通常ケース） | `analysis::test_constants` | 生リテラルの常用を避ける |
+
+### `geo_nurbs` のリテラル置換ルール
+
+1. 実装コードの `1e-*` リテラルは、意味付き定数または `default_*` 参照へ置換する。
+2. 例外的にリテラルを残す場合は、置換不可理由をコメントで明示する。
+3. tests の境界ケースのみ、意図が明確なローカル定数を許可する。
+
+### API 一貫性ルール（NURBS）
+
+1. checked 入口は少なくとも非有限値（NaN/Inf）を fail-fast する。
+2. domain 判定を省略するデフォルト実装は、互換維持の暫定ラッパであることを doc へ明示する。
+3. checked/unchecked の責務差は trait定義コメントと実装で一致させる。
+
+### 実施順（#671）
+
+1. `geo_nurbs` の実装コードを対象に、数値リテラルと tolerance 参照の棚卸しを確定する。
+2. 参照入口の分類（カーネルゼロ判定 / 幾何意味判定 / 解法しきい値）をファイル単位で紐付ける。
+3. 置換単位を小PRへ分割し、`cargo clippy -> cargo fmt -> cargo test` を各単位で通す。
+4. 最後に docs と実装の契約整合を再確認する。
+
+### 実装コード限定の棚卸し結果（#671 Step 1 確定）
+
+対象は `model/geo_nurbs/src` 配下の実装コードのみとし、`#[cfg(test)]` 以降は除外した。
+
+| 分類 | ファイル | 該当箇所 | 現状 | 初期方針 |
+| --- | --- | --- | --- | --- |
+| カーネルゼロ判定 | `curve_2d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
+| カーネルゼロ判定 | `curve_3d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
+| カーネルゼロ判定 | `surface_3d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
+| カーネルゼロ判定 | `curve_3d_extensions.rs` | `tolerance.max(default_kernel_numerical_zero_tolerance::<T>())` | 下限ガードとして方針準拠 | 維持 |
+| 公開経路の退化判定 | `curve_3d.rs` | `distance_sq <= T::EPSILON * T::EPSILON` | 公開経路で `T::EPSILON` 直接参照 | `default_kernel_numerical_zero_tolerance<T>()` 経由へ置換 |
+| 解法しきい値（f64固定） | `lib.rs` | `DEFAULT_TOLERANCE=1e-10`, `MIN_KNOT_INTERVAL=1e-12`, `NEWTON_TOLERANCE=1e-10`, `NEWTON_DIFF_STEP=1e-7`, `DERIVATIVE_STEP=1e-8` | 型非依存の f64 固定値が集約 | 用途別に型別参照入口を導入して段階置換 |
+| 数学係数（意味付き） | `curve_2d.rs` | `powf(T::from_f64(1.5))` | 曲率式の指数係数 | 置換対象外（マジックナンバー扱いにしない） |
+| 数学係数（意味付き） | `surface_3d.rs` | `du / T::from_f64(2.0)`, `dv / T::from_f64(2.0)` | セル中心サンプリング係数 | 置換対象外（マジックナンバー扱いにしない） |
+
+### 小PR分割（#671 初期案）
+
+1. PR-A: `curve_3d.rs` の `T::EPSILON` 直接参照を `default_kernel_numerical_zero_tolerance<T>()` へ置換
+2. PR-B: `lib.rs` の f64 固定解法定数を用途別に再配置し、`geo_nurbs` 内の参照を型別入口経由へ切替
+3. PR-C: docs と tests の整合調整（置換後の意味と参照入口を固定）
+
+備考:
+
+- `curve_2d.rs` の `1.5` と `surface_3d.rs` の `2.0` は幾何式由来の係数であり、トレランス系しきい値移行とは分離して扱う。
+
 ## 廃止ロードマップ
 
 ### フェーズ1（Issue #361 / #377）
@@ -213,6 +273,7 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 ## 関連Issue
 
 - #455
+- #671
 - #548
 - #547
 - #611

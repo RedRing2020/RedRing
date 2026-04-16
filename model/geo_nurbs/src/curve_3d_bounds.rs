@@ -40,6 +40,7 @@ mod tests {
     use super::*;
     use crate::clamped_knot_vector;
     use crate::constants;
+    use geo_contracts::default_kernel_numerical_zero_tolerance;
     use geo_contracts::{Bounded, PrimitiveKind, PrimitiveMetadata};
 
     #[test]
@@ -124,6 +125,47 @@ mod tests {
 
         let curve = result.unwrap();
         assert_eq!(curve.primitive_kind(), PrimitiveKind::NurbsCurve3D);
+    }
+
+    #[test]
+    fn test_core_traits_line_segment_rejects_identical_points() {
+        use geo_contracts::NurbsCurve3DConstructor;
+
+        let start = (1.0_f64, 2.0, 3.0);
+        let end = (1.0_f64, 2.0, 3.0);
+        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, end);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_core_traits_line_segment_rejects_points_within_kernel_tolerance() {
+        use geo_contracts::NurbsCurve3DConstructor;
+
+        let zero_tol = default_kernel_numerical_zero_tolerance::<f64>();
+        let start = (0.0_f64, 0.0, 0.0);
+        let end = (zero_tol * 0.5, 0.0, 0.0);
+        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, end);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_core_traits_line_segment_f32_kernel_tolerance_boundary() {
+        use geo_contracts::NurbsCurve3DConstructor;
+
+        let zero_tol = default_kernel_numerical_zero_tolerance::<f32>();
+        let start = (0.0_f32, 0.0, 0.0);
+
+        let inside = (zero_tol * 0.5, 0.0, 0.0);
+        let inside_result =
+            <NurbsCurve3D<f32> as NurbsCurve3DConstructor<f32>>::line_segment(start, inside);
+        assert!(inside_result.is_err());
+
+        let outside = (zero_tol * 2.0, 0.0, 0.0);
+        let outside_result =
+            <NurbsCurve3D<f32> as NurbsCurve3DConstructor<f32>>::line_segment(start, outside);
+        assert!(outside_result.is_ok());
     }
 
     #[test]

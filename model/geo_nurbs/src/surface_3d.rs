@@ -307,7 +307,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     /// # 戻り値
     /// u方向接線ベクトル
     pub fn u_derivative_at(&self, u: T, v: T) -> Vector3<T> {
-        let h = T::from_f64(constants::DERIVATIVE_STEP);
+        let h = constants::solver::derivative_step::<T>();
         let p1 = self.evaluate_at(u - h, v);
         let p2 = self.evaluate_at(u + h, v);
 
@@ -323,7 +323,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     /// # 戻り値
     /// v方向接線ベクトル
     pub fn v_derivative_at(&self, u: T, v: T) -> Vector3<T> {
-        let h = T::from_f64(constants::DERIVATIVE_STEP);
+        let h = constants::solver::derivative_step::<T>();
         let p1 = self.evaluate_at(u, v - h);
         let p2 = self.evaluate_at(u, v + h);
 
@@ -545,8 +545,6 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
     }
 
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        let _h = T::from_f64(constants::DERIVATIVE_STEP);
-
         // 偏導関数を数値微分で近似
         let du = self.u_derivative_at(u, v);
         let dv = self.v_derivative_at(u, v);
