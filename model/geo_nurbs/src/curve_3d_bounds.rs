@@ -139,15 +139,20 @@ mod tests {
     }
 
     #[test]
-    fn test_core_traits_line_segment_rejects_points_within_kernel_tolerance() {
+    fn test_core_traits_line_segment_f64_kernel_tolerance_boundary() {
         use geo_contracts::NurbsCurve3DConstructor;
 
         let zero_tol = default_kernel_numerical_zero_tolerance::<f64>();
         let start = (0.0_f64, 0.0, 0.0);
-        let end = (zero_tol * 0.5, 0.0, 0.0);
-        let result = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, end);
+        let inside = (zero_tol * 0.5, 0.0, 0.0);
+        let inside_result =
+            <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, inside);
+        assert!(inside_result.is_err());
 
-        assert!(result.is_err());
+        let outside = (zero_tol * 2.0, 0.0, 0.0);
+        let outside_result =
+            <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(start, outside);
+        assert!(outside_result.is_ok());
     }
 
     #[test]

@@ -92,8 +92,8 @@ impl<T: Scalar> NurbsCurveCollider<T> {
             u_min,
             u_max,
             constants::NEWTON_MAX_ITER,
-            T::from_f64(constants::NEWTON_TOLERANCE),
-            T::from_f64(constants::NEWTON_DIFF_STEP),
+            constants::solver::newton_tolerance::<T>(),
+            constants::solver::newton_diff_step::<T>(),
         );
 
         maybe_u.unwrap_or_else(|| initial_u.clamp(u_min, u_max))
