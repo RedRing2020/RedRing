@@ -204,19 +204,49 @@ mod tests {
 
     #[test]
     fn test_typed_constant_accessors_return_expected_values() {
-        assert_eq!(constants::tolerance::default_tolerance::<f32>(), 1e-6_f32);
-        assert_eq!(constants::tolerance::default_tolerance::<f64>(), 1e-10_f64);
+        assert_eq!(
+            constants::tolerance::default_tolerance::<f32>().to_bits(),
+            1e-6_f32.to_bits()
+        );
+        assert_eq!(
+            constants::tolerance::default_tolerance::<f64>().to_bits(),
+            1e-10_f64.to_bits()
+        );
 
-        assert_eq!(constants::tolerance::min_knot_interval::<f32>(), 1e-6_f32);
-        assert_eq!(constants::tolerance::min_knot_interval::<f64>(), 1e-12_f64);
+        assert_eq!(
+            constants::tolerance::min_knot_interval::<f32>().to_bits(),
+            1e-6_f32.to_bits()
+        );
+        assert_eq!(
+            constants::tolerance::min_knot_interval::<f64>().to_bits(),
+            1e-12_f64.to_bits()
+        );
 
-        assert_eq!(constants::solver::newton_tolerance::<f32>(), 1e-6_f32);
-        assert_eq!(constants::solver::newton_tolerance::<f64>(), 1e-10_f64);
+        assert_eq!(
+            constants::solver::newton_tolerance::<f32>().to_bits(),
+            1e-6_f32.to_bits()
+        );
+        assert_eq!(
+            constants::solver::newton_tolerance::<f64>().to_bits(),
+            1e-10_f64.to_bits()
+        );
 
-        assert_eq!(constants::solver::newton_diff_step::<f32>(), 1e-4_f32);
-        assert_eq!(constants::solver::newton_diff_step::<f64>(), 1e-7_f64);
+        assert_eq!(
+            constants::solver::newton_diff_step::<f32>().to_bits(),
+            1e-4_f32.to_bits()
+        );
+        assert_eq!(
+            constants::solver::newton_diff_step::<f64>().to_bits(),
+            1e-7_f64.to_bits()
+        );
 
-        assert_eq!(constants::solver::derivative_step::<f32>(), 1e-4_f32);
-        assert_eq!(constants::solver::derivative_step::<f64>(), 1e-8_f64);
+        assert_eq!(
+            constants::solver::derivative_step::<f32>().to_bits(),
+            1e-4_f32.to_bits()
+        );
+        assert_eq!(
+            constants::solver::derivative_step::<f64>().to_bits(),
+            1e-8_f64.to_bits()
+        );
     }
 }
