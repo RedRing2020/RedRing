@@ -208,8 +208,8 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 
 1. `geo_nurbs` 実装コードの棚卸しと参照入口分類を確定した。
 2. PR-A で `curve_3d.rs` の公開経路退化判定を `default_kernel_numerical_zero_tolerance<T>()` へ統一した。
-3. PR-B で `lib.rs` に `constants::tolerance` / `constants::solver` の型別入口を導入し、`geo_nurbs` 内参照を切替した。
-4. PR-C で docs と tests の整合を固定し、型別入口と互換定数の意味を回帰で担保した。
+3. PR-B では移行段階として `lib.rs` に `constants::tolerance` / `constants::solver` の型別入口を導入し、`geo_nurbs` 内参照を段階的に切替した。
+4. PR-C で未使用だった `constants::tolerance` を削除して `constants::solver` に集約し、docs と tests の整合を固定した。現行の参照正本は `constants::solver::*` である。
 
 ### 実装コード限定の棚卸し結果（#671 Step 1 確定）
 
