@@ -430,6 +430,7 @@ parameter semantics の正本は「`#558` parameter semantics の正本」を参
 ### checked API の位置づけ
 
 - checked API は「入力 domain が有効か」を判定し、範囲外を `None` または `Result::Err` で明示する
+- ただし段階移行中の trait定義デフォルト実装は、互換維持のため domain 判定を省略した暫定ラッパを許容し、実装側 override で domain 判定へ収束させる
 - unchecked API は内部実装や互換層に限定し、新規の公開呼び出し経路では優先しない
 - これにより release ビルドでの沈黙クランプを避けつつ、既存呼び出しを即時破壊しない
 
