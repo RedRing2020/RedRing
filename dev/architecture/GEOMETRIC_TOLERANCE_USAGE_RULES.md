@@ -211,6 +211,31 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 3. 置換単位を小PRへ分割し、`cargo clippy -> cargo fmt -> cargo test` を各単位で通す。
 4. 最後に docs と実装の契約整合を再確認する。
 
+### 実装コード限定の棚卸し結果（#671 Step 1 確定）
+
+対象は `model/geo_nurbs/src` 配下の実装コードのみとし、`#[cfg(test)]` 以降は除外した。
+
+| 分類 | ファイル | 該当箇所 | 現状 | 初期方針 |
+| --- | --- | --- | --- | --- |
+| カーネルゼロ判定 | `curve_2d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
+| カーネルゼロ判定 | `curve_3d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
+| カーネルゼロ判定 | `surface_3d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
+| カーネルゼロ判定 | `curve_3d_extensions.rs` | `tolerance.max(default_kernel_numerical_zero_tolerance::<T>())` | 下限ガードとして方針準拠 | 維持 |
+| 公開経路の退化判定 | `curve_3d.rs` | `distance_sq <= T::EPSILON * T::EPSILON` | 公開経路で `T::EPSILON` 直接参照 | `default_kernel_numerical_zero_tolerance<T>()` 経由へ置換 |
+| 解法しきい値（f64固定） | `lib.rs` | `DEFAULT_TOLERANCE=1e-10`, `MIN_KNOT_INTERVAL=1e-12`, `NEWTON_TOLERANCE=1e-10`, `NEWTON_DIFF_STEP=1e-7`, `DERIVATIVE_STEP=1e-8` | 型非依存の f64 固定値が集約 | 用途別に型別参照入口を導入して段階置換 |
+| 数学係数（意味付き） | `curve_2d.rs` | `powf(T::from_f64(1.5))` | 曲率式の指数係数 | 置換対象外（マジックナンバー扱いにしない） |
+| 数学係数（意味付き） | `surface_3d.rs` | `du / T::from_f64(2.0)`, `dv / T::from_f64(2.0)` | セル中心サンプリング係数 | 置換対象外（マジックナンバー扱いにしない） |
+
+### 小PR分割（#671 初期案）
+
+1. PR-A: `curve_3d.rs` の `T::EPSILON` 直接参照を `default_kernel_numerical_zero_tolerance<T>()` へ置換
+2. PR-B: `lib.rs` の f64 固定解法定数を用途別に再配置し、`geo_nurbs` 内の参照を型別入口経由へ切替
+3. PR-C: docs と tests の整合調整（置換後の意味と参照入口を固定）
+
+備考:
+
+- `curve_2d.rs` の `1.5` と `surface_3d.rs` の `2.0` は幾何式由来の係数であり、トレランス系しきい値移行とは分離して扱う。
+
 ## 廃止ロードマップ
 
 ### フェーズ1（Issue #361 / #377）

@@ -6,7 +6,8 @@
 use crate::{constants, KnotVector, NurbsError, Result, Scalar};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
-    NurbsCurve3DConstructor, NurbsCurve3DDerived, NurbsCurve3DEvaluation, NurbsCurve3DProperties,
+    default_kernel_numerical_zero_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived,
+    NurbsCurve3DEvaluation, NurbsCurve3DProperties,
 };
 
 /// 重み配列の効率的管理（3D曲線用）
@@ -448,7 +449,9 @@ impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
         let segment = Vector3::new(end.0 - start.0, end.1 - start.1, end.2 - start.2);
         let distance_sq = segment.norm_squared();
 
-        if distance_sq <= T::EPSILON * T::EPSILON {
+        let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+
+        if distance_sq <= zero_tol * zero_tol {
             return Err("Start and end points must be different".to_string());
         }
 
