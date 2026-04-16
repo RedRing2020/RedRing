@@ -219,7 +219,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
 
     /// 指定パラメータでの1次導関数を計算
     pub fn derivative_at(&self, t: T) -> Vector3<T> {
-        let h = T::from_f64(constants::DERIVATIVE_STEP);
+        let h = constants::solver::derivative_step::<T>();
         let p1 = self.evaluate_at(t - h);
         let p2 = self.evaluate_at(t + h);
 
