@@ -171,4 +171,20 @@ mod tests {
         let point = point_opt.unwrap();
         assert!((point.0 - 1.5).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_evaluate_checked_rejects_nan_parameter() {
+        use geo_contracts::{NurbsCurve3DConstructor, NurbsCurve3DEvaluation};
+
+        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::line_segment(
+            (0.0, 0.0, 0.0),
+            (1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        let value =
+            <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(&curve, f64::NAN);
+
+        assert!(value.is_none());
+    }
 }

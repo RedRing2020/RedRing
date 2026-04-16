@@ -76,6 +76,10 @@ pub trait NurbsCurve3DEvaluation<T: Scalar> {
 
     /// checked 入口: 範囲外入力を失敗として扱う評価
     fn evaluate_checked(&self, u: T) -> Option<(T, T, T)> {
+        if !u.is_finite() {
+            return None;
+        }
+
         self.evaluate(u)
     }
 }
