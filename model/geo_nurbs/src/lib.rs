@@ -66,37 +66,6 @@ pub mod constants {
         }
     }
 
-    /// 幾何判定で使うしきい値群
-    pub mod tolerance {
-        use crate::Scalar;
-
-        use super::select_scalar_value;
-
-        /// デフォルトの数値許容誤差（f32）
-        pub const DEFAULT_TOLERANCE_F32: f32 = 1e-6;
-
-        /// デフォルトの数値許容誤差（f64）
-        pub const DEFAULT_TOLERANCE_F64: f64 = 1e-10;
-
-        /// 最小の有効なノット間隔（f32）
-        pub const MIN_KNOT_INTERVAL_F32: f32 = 1e-6;
-
-        /// 最小の有効なノット間隔（f64）
-        pub const MIN_KNOT_INTERVAL_F64: f64 = 1e-12;
-
-        /// デフォルトの数値許容誤差を型別に取得
-        #[must_use]
-        pub fn default_tolerance<T: Scalar>() -> T {
-            select_scalar_value::<T>(DEFAULT_TOLERANCE_F32, DEFAULT_TOLERANCE_F64)
-        }
-
-        /// 最小の有効なノット間隔を型別に取得
-        #[must_use]
-        pub fn min_knot_interval<T: Scalar>() -> T {
-            select_scalar_value::<T>(MIN_KNOT_INTERVAL_F32, MIN_KNOT_INTERVAL_F64)
-        }
-    }
-
     /// 数値解法で使うしきい値群
     pub mod solver {
         use crate::Scalar;
@@ -140,12 +109,6 @@ pub mod constants {
         }
     }
 
-    /// デフォルトの数値許容誤差（後方互換・f64）
-    pub const DEFAULT_TOLERANCE: f64 = tolerance::DEFAULT_TOLERANCE_F64;
-
-    /// 最小の有効なノット間隔（後方互換・f64）
-    pub const MIN_KNOT_INTERVAL: f64 = tolerance::MIN_KNOT_INTERVAL_F64;
-
     /// 最大サポート次数
     pub const MAX_DEGREE: usize = 10;
 
@@ -154,15 +117,6 @@ pub mod constants {
 
     /// NURBS最近接パラメータ探索で使う境界付きニュートン法の最大反復回数
     pub const NEWTON_MAX_ITER: usize = 20;
-
-    /// NURBS最近接パラメータ探索で使う境界付きニュートン法の収束許容誤差（後方互換・f64）
-    pub const NEWTON_TOLERANCE: f64 = solver::NEWTON_TOLERANCE_F64;
-
-    /// NURBS最近接パラメータ探索で使う数値微分ステップ幅（後方互換・f64）
-    pub const NEWTON_DIFF_STEP: f64 = solver::NEWTON_DIFF_STEP_F64;
-
-    /// NURBS導関数の中央差分近似で使う微小ステップ幅（後方互換・f64）
-    pub const DERIVATIVE_STEP: f64 = solver::DERIVATIVE_STEP_F64;
 
     /// 曲線長近似で使うデフォルト分割数
     pub const CURVE_LENGTH_SUBDIVISIONS: usize = 100;
@@ -185,42 +139,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tolerance_usage() {
-        // 実際のNURBS計算でのトレランス使用テスト（動的な値）
-        let tolerance = constants::DEFAULT_TOLERANCE;
-        let small_diff = tolerance * 0.5;
-        assert!(
-            small_diff < tolerance,
-            "Small difference should be within tolerance"
-        );
-
-        let large_diff = tolerance * 2.0;
-        assert!(
-            large_diff > tolerance,
-            "Large difference should exceed tolerance"
-        );
-    }
-
-    #[test]
-    fn test_typed_constant_accessors_return_expected_values() {
-        assert_eq!(
-            constants::tolerance::default_tolerance::<f32>().to_bits(),
-            constants::tolerance::DEFAULT_TOLERANCE_F32.to_bits()
-        );
-        assert_eq!(
-            constants::tolerance::default_tolerance::<f64>().to_bits(),
-            constants::tolerance::DEFAULT_TOLERANCE_F64.to_bits()
-        );
-
-        assert_eq!(
-            constants::tolerance::min_knot_interval::<f32>().to_bits(),
-            constants::tolerance::MIN_KNOT_INTERVAL_F32.to_bits()
-        );
-        assert_eq!(
-            constants::tolerance::min_knot_interval::<f64>().to_bits(),
-            constants::tolerance::MIN_KNOT_INTERVAL_F64.to_bits()
-        );
-
+    fn test_solver_typed_constants_return_expected_values() {
         assert_eq!(
             constants::solver::newton_tolerance::<f32>().to_bits(),
             constants::solver::NEWTON_TOLERANCE_F32.to_bits()

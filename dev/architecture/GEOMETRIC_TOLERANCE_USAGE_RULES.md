@@ -176,7 +176,7 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 4. 無次元判定（内積・外積誤差）には無次元しきい値を使用し、単位付き距離トレランスを混在させない。
 5. `f64` 専用の極小固定値を `T::from_f64(...)` で generic に流用しない。`f32`/`f64` の両対応が必要な固定しきい値は、型別定義または `default_*` wrapper を経由して選択する。
 
-## #671 実施準備: geo_nurbs 数値定数の型別方針
+## #671 実施結果: geo_nurbs 数値定数の型別方針
 
 ### 目的
 
@@ -204,33 +204,40 @@ integration テストで `ToleranceSettings` を使ってよい理由は次の�
 2. domain 判定を省略するデフォルト実装は、互換維持の暫定ラッパであることを doc へ明示する。
 3. checked/unchecked の責務差は trait定義コメントと実装で一致させる。
 
-### 実施順（#671）
+### 実施結果（#671）
 
-1. `geo_nurbs` の実装コードを対象に、数値リテラルと tolerance 参照の棚卸しを確定する。
-2. 参照入口の分類（カーネルゼロ判定 / 幾何意味判定 / 解法しきい値）をファイル単位で紐付ける。
-3. 置換単位を小PRへ分割し、`cargo clippy -> cargo fmt -> cargo test` を各単位で通す。
-4. 最後に docs と実装の契約整合を再確認する。
+1. `geo_nurbs` 実装コードの棚卸しと参照入口分類を確定した。
+2. PR-A で `curve_3d.rs` の公開経路退化判定を `default_kernel_numerical_zero_tolerance<T>()` へ統一した。
+3. PR-B で `lib.rs` に `constants::tolerance` / `constants::solver` の型別入口を導入し、`geo_nurbs` 内参照を切替した。
+4. PR-C で docs と tests の整合を固定し、型別入口と互換定数の意味を回帰で担保した。
 
 ### 実装コード限定の棚卸し結果（#671 Step 1 確定）
 
 対象は `model/geo_nurbs/src` 配下の実装コードのみとし、`#[cfg(test)]` 以降は除外した。
 
-| 分類 | ファイル | 該当箇所 | 現状 | 初期方針 |
+| 分類 | ファイル | 該当箇所 | 棚卸し時点 | 対応結果 |
 | --- | --- | --- | --- | --- |
 | カーネルゼロ判定 | `curve_2d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
 | カーネルゼロ判定 | `curve_3d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
 | カーネルゼロ判定 | `surface_3d_transform.rs` | `default_kernel_numerical_zero_tolerance::<T>()` | 参照入口は方針準拠 | 維持 |
 | カーネルゼロ判定 | `curve_3d_extensions.rs` | `tolerance.max(default_kernel_numerical_zero_tolerance::<T>())` | 下限ガードとして方針準拠 | 維持 |
-| 公開経路の退化判定 | `curve_3d.rs` | `distance_sq <= T::EPSILON * T::EPSILON` | 公開経路で `T::EPSILON` 直接参照 | `default_kernel_numerical_zero_tolerance<T>()` 経由へ置換 |
-| 解法しきい値（f64固定） | `lib.rs` | `DEFAULT_TOLERANCE=1e-10`, `MIN_KNOT_INTERVAL=1e-12`, `NEWTON_TOLERANCE=1e-10`, `NEWTON_DIFF_STEP=1e-7`, `DERIVATIVE_STEP=1e-8` | 型非依存の f64 固定値が集約 | 用途別に型別参照入口を導入して段階置換 |
+| 公開経路の退化判定 | `curve_3d.rs` | `distance_sq <= T::EPSILON * T::EPSILON` | 公開経路で `T::EPSILON` 直接参照 | `default_kernel_numerical_zero_tolerance<T>()` 経由へ置換済み |
+| 解法しきい値（f64固定） | `lib.rs` | `DEFAULT_TOLERANCE=1e-10`, `MIN_KNOT_INTERVAL=1e-12`, `NEWTON_TOLERANCE=1e-10`, `NEWTON_DIFF_STEP=1e-7`, `DERIVATIVE_STEP=1e-8` | 型非依存の f64 固定値が集約 | 実使用がある `constants::solver` の型別入口へ再配置し、旧f64互換定数と未使用入口は削除 |
 | 数学係数（意味付き） | `curve_2d.rs` | `powf(T::from_f64(1.5))` | 曲率式の指数係数 | 置換対象外（マジックナンバー扱いにしない） |
 | 数学係数（意味付き） | `surface_3d.rs` | `du / T::from_f64(2.0)`, `dv / T::from_f64(2.0)` | セル中心サンプリング係数 | 置換対象外（マジックナンバー扱いにしない） |
 
-### 小PR分割（#671 初期案）
+### 小PR分割（#671 完了記録）
 
-1. PR-A: `curve_3d.rs` の `T::EPSILON` 直接参照を `default_kernel_numerical_zero_tolerance<T>()` へ置換
-2. PR-B: `lib.rs` の f64 固定解法定数を用途別に再配置し、`geo_nurbs` 内の参照を型別入口経由へ切替
-3. PR-C: docs と tests の整合調整（置換後の意味と参照入口を固定）
+1. PR-A: `curve_3d.rs` の `T::EPSILON` 直接参照を `default_kernel_numerical_zero_tolerance<T>()` へ置換（完了）
+2. PR-B: `lib.rs` の f64 固定解法定数を用途別に再配置し、`geo_nurbs` 内の参照を型別入口経由へ切替（完了）
+3. PR-C: docs と tests の整合調整（置換後の意味と参照入口を固定）（完了）
+
+### PR-C で固定した tests 契約
+
+1. `constants::solver` の型別入口は f32/f64 それぞれで対応する定数値を返すこと。
+2. `line_segment` の退化判定は kernel tolerance に基づき、f64 だけでなく f32 でも境界ケースを満たすこと。
+3. `Err(String)` の文言に依存せず、失敗/成功の挙動を契約として検証すること。
+4. 旧f64互換定数（`DEFAULT_TOLERANCE` など）へ依存せず、実使用される `constants::solver::*` 入口を正本として検証すること。
 
 備考:
 
