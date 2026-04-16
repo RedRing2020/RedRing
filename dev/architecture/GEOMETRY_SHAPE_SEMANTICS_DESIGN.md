@@ -418,7 +418,7 @@ parameter semantics の正本は「`#558` parameter semantics の正本」を参
 
 ### 5. evaluation と boundary access は別 capability とする
 
-## `#672` 段階移行方針（fail-fast 収束）
+### 6. `#672` 段階移行方針（fail-fast 収束）
 
 `#672` では、parameter 範囲外入力の扱いを一括で破壊的変更せず、次の段階移行で収束させる。
 

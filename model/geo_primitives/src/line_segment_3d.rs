@@ -325,16 +325,6 @@ impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
         let p = self.line.point_at_parameter(param);
         (p.x(), p.y(), p.z())
     }
-
-    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T, T)> {
-        if !t.is_finite() || t < T::ZERO || t > T::ONE {
-            return None;
-        }
-
-        Some(<Self as LineSegment3DEvaluation<T>>::point_at_parameter(
-            self, t,
-        ))
-    }
 }
 
 impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {

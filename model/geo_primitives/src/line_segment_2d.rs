@@ -407,14 +407,6 @@ impl<T: Scalar> LineSegment2DEvaluation<T> for LineSegment2D<T> {
         let p = self.point_at_normalized_parameter(t);
         (p.x(), p.y())
     }
-
-    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T)> {
-        if !t.is_finite() || t < T::ZERO || t > T::ONE {
-            return None;
-        }
-
-        Some(self.point_at_parameter(t))
-    }
 }
 
 impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {

@@ -65,12 +65,17 @@ pub trait NurbsCurve2DEvaluation<T: Scalar> {
 
     /// checked 入口として使うための評価メソッド。
     ///
-    /// デフォルト実装は後方互換のため `point_at` を `Some(...)` で包む
-    /// unchecked ラッパであり、この trait定義だけでは domain 判定を行わない。
+    /// デフォルト実装は後方互換のため `point_at` を `Some(...)` で包むが、
+    /// checked 入口として最低限の fail-fast を担保するため、
+    /// 非有限値（NaN/Inf）は `None` として扱う。
     ///
     /// 範囲外入力を `None` として扱う必要がある実装では、このメソッドを
     /// override して各型の parameter domain 判定を行うこと。
     fn point_at_checked(&self, t: T) -> Option<(T, T)> {
+        if !t.is_finite() {
+            return None;
+        }
+
         Some(self.point_at(t))
     }
 

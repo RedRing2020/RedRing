@@ -76,12 +76,17 @@ pub trait NurbsSurface3DEvaluation<T: Scalar> {
 
     /// checked 入口。
     ///
-    /// このデフォルト実装は互換維持のための暫定ラッパであり、domain 判定を行わず
-    /// `Some(self.point_at_uv(u, v))` をそのまま返す。
+    /// このデフォルト実装は互換維持のための暫定ラッパであり、domain 判定は行わない。
+    /// ただし checked 入口として最低限の fail-fast を担保するため、
+    /// `u` / `v` が非有限値（NaN/Inf）の場合は `None` を返す。
     ///
     /// 範囲外入力を失敗として扱いたい実装は、このメソッドを override して
     /// u/v の有効範囲を判定し、範囲外では `None` を返すことを想定している。
     fn point_at_uv_checked(&self, u: T, v: T) -> Option<(T, T, T)> {
+        if !u.is_finite() || !v.is_finite() {
+            return None;
+        }
+
         Some(self.point_at_uv(u, v))
     }
 
