@@ -531,6 +531,19 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
         (point.x(), point.y(), point.z())
     }
 
+    fn point_at_uv_checked(&self, u: T, v: T) -> Option<(T, T, T)> {
+        if !u.is_finite() || !v.is_finite() {
+            return None;
+        }
+
+        let ((u_min, u_max), (v_min, v_max)) = self.parameter_domain();
+        if u < u_min || u > u_max || v < v_min || v > v_max {
+            return None;
+        }
+
+        Some(self.point_at_uv(u, v))
+    }
+
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
         let _h = T::from_f64(constants::DERIVATIVE_STEP);
 
@@ -658,5 +671,70 @@ mod tests {
         assert!((point.x() - 0.5).abs() < 1e-10);
         assert!((point.y() - 0.5).abs() < 1e-10);
         assert!((point.z() - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_point_at_uv_checked_returns_none_for_out_of_domain_parameter() {
+        use geo_contracts::NurbsSurface3DEvaluation;
+
+        let control_points = vec![
+            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+        ];
+        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
+            control_points,
+            Some(weights),
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![5.0, 5.0, 6.0, 6.0],
+            1,
+            1,
+        )
+        .unwrap();
+
+        let in_domain = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
+            &surface, 2.5, 5.5,
+        );
+        let out_of_domain =
+            <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
+                &surface, 1.9, 5.5,
+            );
+
+        assert!(in_domain.is_some());
+        assert!(out_of_domain.is_none());
+    }
+
+    #[test]
+    fn test_point_at_uv_checked_returns_none_for_nan_parameter() {
+        use geo_contracts::NurbsSurface3DEvaluation;
+
+        let control_points = vec![
+            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
+            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+        ];
+        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
+        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
+            control_points,
+            Some(weights),
+            vec![2.0, 2.0, 3.0, 3.0],
+            vec![5.0, 5.0, 6.0, 6.0],
+            1,
+            1,
+        )
+        .unwrap();
+
+        let nan_u = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
+            &surface,
+            f64::NAN,
+            5.5,
+        );
+        let nan_v = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
+            &surface,
+            2.5,
+            f64::NAN,
+        );
+
+        assert!(nan_u.is_none());
+        assert!(nan_v.is_none());
     }
 }

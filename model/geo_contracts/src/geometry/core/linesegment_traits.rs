@@ -152,6 +152,15 @@ pub trait LineSegment2DEvaluation<T: Scalar> {
     ///
     /// `t=0/1` は bounded curve primitive の ideal start/end endpoint と整合する。
     fn point_at_parameter(&self, t: T) -> (T, T);
+
+    /// checked 入口: 範囲外入力を失敗として扱う評価
+    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T)> {
+        if !t.is_finite() || t < T::ZERO || t > T::ONE {
+            None
+        } else {
+            Some(self.point_at_parameter(t))
+        }
+    }
 }
 
 pub trait LineSegment2DProjection<T: Scalar> {
@@ -182,6 +191,15 @@ pub trait LineSegment3DEvaluation<T: Scalar> {
     ///
     /// `t=0/1` は bounded curve primitive の ideal start/end endpoint と整合する。
     fn point_at_parameter(&self, t: T) -> (T, T, T);
+
+    /// checked 入口: 範囲外入力を失敗として扱う評価
+    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T, T)> {
+        if !t.is_finite() || t < T::ZERO || t > T::ONE {
+            None
+        } else {
+            Some(self.point_at_parameter(t))
+        }
+    }
 }
 
 pub trait LineSegment3DProjection<T: Scalar> {

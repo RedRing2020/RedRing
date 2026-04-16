@@ -418,6 +418,36 @@ parameter semantics の正本は「`#558` parameter semantics の正本」を参
 
 ### 5. evaluation と boundary access は別 capability とする
 
+### 6. `#672` 段階移行方針（fail-fast 収束）
+
+`#672` では、parameter 範囲外入力の扱いを一括で破壊的変更せず、次の段階移行で収束させる。
+
+1. checked evaluation API を追加する
+2. 既存 evaluation API は互換維持する
+3. 呼び出し側を checked API へ順次移行する
+4. 最終段で fail-fast 契約を正本として固定する
+
+### checked API の位置づけ
+
+- checked API は「入力 domain が有効か」を判定し、範囲外を `None` または `Result::Err` で明示する
+- ただし段階移行中の trait定義デフォルト実装は、互換維持のため domain 判定を省略した暫定ラッパを許容し、実装側 override で domain 判定へ収束させる
+- unchecked API は内部実装や互換層に限定し、新規の公開呼び出し経路では優先しない
+- これにより release ビルドでの沈黙クランプを避けつつ、既存呼び出しを即時破壊しない
+
+### LineSegment2D/3D の統一方針
+
+- `point_at_parameter` の既存挙動は互換維持する
+- 新規の checked 入口で `0 <= t <= 1` 判定を共通化する
+- 呼び出し側は「範囲外を失敗として扱いたい経路」から checked 入口へ移行する
+
+### NURBS 評価の統一方針
+
+- NURBS では native parameter domain を正本とする
+- checked 入口で domain 判定を明示し、範囲外は失敗として返す
+- 微分・法線など派生評価は checked 入口を利用する経路へ順次寄せる
+
+この方針により、API 互換性を維持したまま fail-fast 契約へ収束する。
+
 - `point_at_parameter` / `point_at_angle` は evaluation capability に置く
 - `start_point` / `end_point` は境界付き曲線に限って endpoint capability に置く
 - `point_at_parameter(0.5)` のような parameter midpoint は evaluation の一例であり、endpoint 語彙へ昇格させない

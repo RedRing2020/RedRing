@@ -458,4 +458,40 @@ mod tests {
         assert_eq!(segment.constraint_length(), 2.0);
         assert_eq!(segment.ideal_length(), 2.0);
     }
+
+    #[test]
+    fn checked_parameter_evaluation_rejects_out_of_range_input() {
+        use geo_contracts::LineSegment2DEvaluation;
+
+        let segment = LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0))
+            .expect("segment creation should succeed");
+
+        let in_range =
+            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
+                &segment, 0.5,
+            );
+        let out_of_range =
+            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
+                &segment, 1.1,
+            );
+
+        assert!(in_range.is_some());
+        assert!(out_of_range.is_none());
+    }
+
+    #[test]
+    fn checked_parameter_evaluation_rejects_nan_input() {
+        use geo_contracts::LineSegment2DEvaluation;
+
+        let segment = LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0))
+            .expect("segment creation should succeed");
+
+        let value =
+            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
+                &segment,
+                f64::NAN,
+            );
+
+        assert!(value.is_none());
+    }
 }
