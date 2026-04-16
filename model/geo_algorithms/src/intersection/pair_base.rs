@@ -926,8 +926,8 @@ mod tests {
         );
         assert!(p.is_some());
         let p = p.unwrap();
-        assert!((p.x() as f64).abs() < super::STANDARD_TEST_TOLERANCE_F64);
-        assert!((p.y() as f64).abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.x().abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.y().abs() < super::STANDARD_TEST_TOLERANCE_F64);
     }
 
     #[test]
@@ -1026,8 +1026,8 @@ mod tests {
         let p = ray3d_ray3d_intersection(&ray1, &ray2, super::STANDARD_TEST_TOLERANCE_F64);
         assert!(p.is_some());
         let p = p.unwrap();
-        assert!((p.x() as f64).abs() < super::STANDARD_TEST_TOLERANCE_F64);
-        assert!((p.y() as f64).abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.x().abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.y().abs() < super::STANDARD_TEST_TOLERANCE_F64);
     }
 
     #[test]
@@ -1079,7 +1079,7 @@ mod tests {
 
         let p = triangle3d_ray3d_intersection(&triangle, &ray, super::STANDARD_TEST_TOLERANCE_F64);
         assert!(p.is_some());
-        assert!((p.unwrap().z() as f64).abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.unwrap().z().abs() < super::STANDARD_TEST_TOLERANCE_F64);
     }
 
     #[test]
@@ -1111,7 +1111,7 @@ fn plane3d_line_segment3d_returns_intersection() {
         LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
     let p = plane3d_line_segment3d_intersection(&plane, &segment, STANDARD_TEST_TOLERANCE_F64);
     assert!(p.is_some());
-    assert!((p.unwrap().z() as f64).abs() < STANDARD_TEST_TOLERANCE_F64);
+    assert!(p.unwrap().z().abs() < STANDARD_TEST_TOLERANCE_F64);
 }
 
 #[test]
