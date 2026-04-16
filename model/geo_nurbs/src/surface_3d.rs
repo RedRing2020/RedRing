@@ -545,8 +545,6 @@ impl<T: Scalar> NurbsSurface3DEvaluation<T> for NurbsSurface3D<T> {
     }
 
     fn normal_at(&self, u: T, v: T) -> (T, T, T) {
-        let _h = constants::solver::derivative_step::<T>();
-
         // 偏導関数を数値微分で近似
         let du = self.u_derivative_at(u, v);
         let dv = self.v_derivative_at(u, v);

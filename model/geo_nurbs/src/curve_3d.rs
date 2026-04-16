@@ -452,7 +452,10 @@ impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
         let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
 
         if distance_sq <= zero_tol * zero_tol {
-            return Err("Start and end points must be different".to_string());
+            return Err(
+                "Start and end points are too close and the segment degenerates within tolerance"
+                    .to_string(),
+            );
         }
 
         // 1次NURBS（線分）: 次数1、制御点2個

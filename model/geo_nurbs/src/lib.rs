@@ -60,8 +60,10 @@ pub mod constants {
     fn select_scalar_value<T: Scalar>(f32_value: f32, f64_value: f64) -> T {
         if TypeId::of::<T>() == TypeId::of::<f32>() {
             T::from_f32(f32_value)
-        } else {
+        } else if TypeId::of::<T>() == TypeId::of::<f64>() {
             T::from_f64(f64_value)
+        } else {
+            panic!("select_scalar_value only supports Scalar implementations for f32 and f64")
         }
     }
 
@@ -198,5 +200,23 @@ mod tests {
             large_diff > tolerance,
             "Large difference should exceed tolerance"
         );
+    }
+
+    #[test]
+    fn test_typed_constant_accessors_return_expected_values() {
+        assert_eq!(constants::tolerance::default_tolerance::<f32>(), 1e-6_f32);
+        assert_eq!(constants::tolerance::default_tolerance::<f64>(), 1e-10_f64);
+
+        assert_eq!(constants::tolerance::min_knot_interval::<f32>(), 1e-6_f32);
+        assert_eq!(constants::tolerance::min_knot_interval::<f64>(), 1e-12_f64);
+
+        assert_eq!(constants::solver::newton_tolerance::<f32>(), 1e-6_f32);
+        assert_eq!(constants::solver::newton_tolerance::<f64>(), 1e-10_f64);
+
+        assert_eq!(constants::solver::newton_diff_step::<f32>(), 1e-4_f32);
+        assert_eq!(constants::solver::newton_diff_step::<f64>(), 1e-7_f64);
+
+        assert_eq!(constants::solver::derivative_step::<f32>(), 1e-4_f32);
+        assert_eq!(constants::solver::derivative_step::<f64>(), 1e-8_f64);
     }
 }
