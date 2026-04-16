@@ -186,5 +186,18 @@ mod tests {
             <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(&curve, f64::NAN);
 
         assert!(value.is_none());
+
+        let (u_min, u_max) = curve.parameter_domain();
+        let below_domain = <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(
+            &curve,
+            u_min - 0.1,
+        );
+        let above_domain = <NurbsCurve3D<f64> as NurbsCurve3DEvaluation<f64>>::evaluate_checked(
+            &curve,
+            u_max + 0.1,
+        );
+
+        assert!(below_domain.is_none());
+        assert!(above_domain.is_none());
     }
 }

@@ -74,7 +74,15 @@ pub trait NurbsCurve3DEvaluation<T: Scalar> {
     /// 指定されたパラメータ値における曲線上の点を評価
     fn evaluate(&self, u: T) -> Option<(T, T, T)>;
 
-    /// checked 入口: 範囲外入力を失敗として扱う評価
+    /// checked 入口として使うための評価メソッド。
+    ///
+    /// デフォルト実装は互換維持のため `evaluate` へ委譲する暫定ラッパであり、
+    /// parameter domain 判定はこの trait定義だけでは行わない。
+    /// ただし checked 入口として最低限の fail-fast を担保するため、
+    /// 非有限値（NaN/Inf）は `None` として扱う。
+    ///
+    /// 範囲外入力を `None` として扱う必要がある実装では、このメソッドを
+    /// override して各型の parameter domain 判定を行うこと。
     fn evaluate_checked(&self, u: T) -> Option<(T, T, T)> {
         if !u.is_finite() {
             return None;
