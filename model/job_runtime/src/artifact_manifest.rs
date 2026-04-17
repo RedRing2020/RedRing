@@ -163,7 +163,11 @@ where
         return Err(missing_error);
     }
 
-    if !value.starts_with(expected_scheme) {
+    let Some(suffix) = value.strip_prefix(expected_scheme) else {
+        return Err(invalid_error(value.to_string()));
+    };
+
+    if suffix.trim().is_empty() {
         return Err(invalid_error(value.to_string()));
     }
 
@@ -250,6 +254,16 @@ mod tests {
     }
 
     #[test]
+    fn validate_output_contract_rejects_empty_result_suffix() {
+        let manifest = sample_manifest();
+
+        assert!(matches!(
+            validate_output_contract("result://   ", &manifest),
+            Err(ArtifactManifestError::InvalidResultRef(_))
+        ));
+    }
+
+    #[test]
     fn validate_io_contract_rejects_missing_input_ref() {
         let manifest = sample_manifest();
 
@@ -265,6 +279,16 @@ mod tests {
 
         assert!(matches!(
             validate_io_contract("output://job-42", "result://artifact-1", &manifest, "v1"),
+            Err(ArtifactManifestError::InvalidInputRef(_))
+        ));
+    }
+
+    #[test]
+    fn validate_io_contract_rejects_empty_input_suffix() {
+        let manifest = sample_manifest();
+
+        assert!(matches!(
+            validate_io_contract("input://   ", "result://artifact-1", &manifest, "v1"),
             Err(ArtifactManifestError::InvalidInputRef(_))
         ));
     }
