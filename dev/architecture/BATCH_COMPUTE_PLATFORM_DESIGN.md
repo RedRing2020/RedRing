@@ -611,6 +611,28 @@ Digest: executed image digest
 - hash不一致は改ざんまたは破損として即失敗扱い
 - 将来のNC/CAE拡張時も同一manifest契約を再利用する
 
+PR-B（検証ルール + 互換性ポリシー）で固定する判定:
+
+| 検証項目 | 代表エラー | 判定 |
+| --- | --- | --- |
+| missing ref | `MissingInputRef` / `MissingResultRef` | reject |
+| 参照形式不正 | `InvalidInputRef` / `InvalidResultRef` | reject |
+| format version不一致 | `FormatVersionMismatch` | reject |
+| hash不一致/不正形式 | `InvalidImageDigest` / `InvalidSha256` | reject |
+
+互換性ポリシー（v1時点）:
+
+- `format_version` は厳密一致のみを互換とみなす
+- 非互換時は受理せず reject する
+- 追加フィールドは既存必須項目を壊さない限り許容する（forward-compatible）
+
+実装API（PR-B追加）:
+
+- `evaluate_format_version_compatibility(actual, expected)`
+  - v1では strict equal 判定を返す
+- `decide_contract_validation_error(error)`
+  - 検証エラーを運用上の判定（accept/reject/retry要求）へ正規化する
+
 ### 17.4 #297着手時の実施順序（推奨）
 
 1. Dockerfile作成（非root + multi-stage）
