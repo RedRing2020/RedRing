@@ -260,6 +260,16 @@ mod tests {
     }
 
     #[test]
+    fn validate_io_contract_requires_input_scheme() {
+        let manifest = sample_manifest();
+
+        assert!(matches!(
+            validate_io_contract("output://job-42", "result://artifact-1", &manifest, "v1"),
+            Err(ArtifactManifestError::InvalidInputRef(_))
+        ));
+    }
+
+    #[test]
     fn validate_io_contract_rejects_version_mismatch() {
         let mut manifest = sample_manifest();
         manifest.format_version = "v2".to_string();
