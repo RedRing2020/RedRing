@@ -9,7 +9,8 @@ pub mod manager;
 pub mod types;
 
 pub use artifact_manifest::{
-    ArtifactManifest, ArtifactManifestError, ArtifactType, validate_output_contract,
+    ArtifactManifest, ArtifactManifestError, ArtifactType, validate_io_contract,
+    validate_output_contract,
 };
 pub use events::JobEvent;
 pub use executor::{JobExecutionResult, JobExecutor};

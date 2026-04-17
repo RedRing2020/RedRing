@@ -591,9 +591,19 @@ Digest: executed image digest
 - Job Manager: メタデータ契約の検証のみを行う
   - 必須項目の欠落
   - digest/hash/size の形式検証
-  - `ResultRef` 不在時の reject
+  - `InputRef` / `ResultRef` 不在時の reject
+  - `format_version` 不一致時の reject
 - Worker / Domain: artifact本体生成と `artifact_manifest.json` 作成を担う
 - ViewModel / View: `ResultRef` / `LogRef` / manifest由来メタデータの表示に専念する
+
+実装上の最小入口:
+
+- `ArtifactManifest::validate()`
+  - manifest単体の形式検証
+- `validate_output_contract(result_ref, manifest)`
+  - `ResultRef` + manifest の最小検証
+- `validate_io_contract(input_ref, result_ref, manifest, expected_format_version)`
+  - `InputRef` / `ResultRef` / `format_version` を含む契約検証
 
 運用ルール:
 
