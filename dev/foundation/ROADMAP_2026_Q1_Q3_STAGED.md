@@ -84,8 +84,8 @@ Octree可視化 (Issue #207):
 | Tier | 領域 | 項目 | Issue | 工数 | 依存関係 |
 |------|------|------|-------|------|----------|
 | 🔴 1 | デバッグ表示 | 形状可視化完成（15形状） | [#204](https://github.com/RedRing2020/RedRing/issues/204) | 2週間 | なし（最優先） |
-| � 1 | デバッグ表示 | NURBS GPU描画実装 | [#210](https://github.com/RedRing2020/RedRing/issues/210) | 3-4週間 | #204 |
-| �🔴 1 | CAM表示 | CAM可視化基礎版 | [#203](https://github.com/RedRing2020/RedRing/issues/203) | 1週間 | #204 |
+| 🔴 1 | デバッグ表示 | NURBS GPU描画実装 | [#210](https://github.com/RedRing2020/RedRing/issues/210) | 3-4週間 | #204 |
+| 🔴 1 | CAM表示 | CAM可視化基礎版 | [#203](https://github.com/RedRing2020/RedRing/issues/203) | 1週間 | #204 |
 | 🟠 2 | 空間分割 | Octree実装 | [#206](https://github.com/RedRing2020/RedRing/issues/206) | 2週間 | #204, #203 |
 | 🟠 2 | デバッグ | Octree可視化 | [#207](https://github.com/RedRing2020/RedRing/issues/207) | 1週間 | #206 |
 | 🟠 2 | CAM | 切削シミュレーション | [#214](https://github.com/RedRing2020/RedRing/issues/214) | 4-5週間 | #206 |

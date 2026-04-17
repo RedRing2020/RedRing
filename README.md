@@ -308,7 +308,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## � License
+## License
 
 RedRing is available under a dual license:
 
@@ -321,7 +321,7 @@ This dual licensing follows the standard practice of the Rust ecosystem and prov
 
 ---
 
-## �🙏 Acknowledgments
+## 🙏 Acknowledgments
 
 We thank all contributors who have helped develop RedRing.
 
