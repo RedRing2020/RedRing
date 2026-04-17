@@ -608,7 +608,7 @@ Digest: executed image digest
 運用ルール:
 
 - `format_version` 不一致は reject（非互換）を基本方針とする
-- hash不一致は改ざんまたは破損として即失敗扱い
+- hash形式不正は即失敗扱いとする
 - 将来のNC/CAE拡張時も同一manifest契約を再利用する
 
 PR-B（検証ルール + 互換性ポリシー）で固定する判定:
@@ -618,7 +618,7 @@ PR-B（検証ルール + 互換性ポリシー）で固定する判定:
 | missing ref | `MissingInputRef` / `MissingResultRef` | reject |
 | 参照形式不正 | `InvalidInputRef` / `InvalidResultRef` | reject |
 | format version不一致 | `FormatVersionMismatch` | reject |
-| hash不一致/不正形式 | `InvalidImageDigest` / `InvalidSha256` | reject |
+| hash形式不正 | `InvalidImageDigest` / `InvalidSha256` | reject |
 
 互換性ポリシー（v1時点）:
 
@@ -632,6 +632,8 @@ PR-B（検証ルール + 互換性ポリシー）で固定する判定:
   - v1では strict equal 判定を返す
 - `decide_contract_validation_error(error)`
   - 検証エラーを運用上の判定（accept/reject/retry要求）へ正規化する
+- `decide_contract_validation_result(result)`
+  - 検証結果 `Result<(), ArtifactManifestError>` を判定へ正規化する
 
 ### 17.4 #297着手時の実施順序（推奨）
 

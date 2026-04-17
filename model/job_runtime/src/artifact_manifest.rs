@@ -195,6 +195,16 @@ pub fn decide_contract_validation_error(
     }
 }
 
+/// Job Manager責務: 検証結果を運用上の意思決定へ正規化する。
+pub fn decide_contract_validation_result(
+    result: &Result<(), ArtifactManifestError>,
+) -> ContractValidationDecision {
+    match result {
+        Ok(()) => ContractValidationDecision::Accept,
+        Err(error) => decide_contract_validation_error(error),
+    }
+}
+
 fn validate_ref<F>(
     value: &str,
     expected_scheme: &str,
@@ -245,7 +255,8 @@ mod tests {
     use super::{
         ArtifactManifest, ArtifactManifestError, ArtifactType, ContractValidationDecision,
         FormatVersionCompatibility, decide_contract_validation_error,
-        evaluate_format_version_compatibility, validate_io_contract, validate_output_contract,
+        decide_contract_validation_result, evaluate_format_version_compatibility,
+        validate_io_contract, validate_output_contract,
     };
     use crate::types::JobId;
 
@@ -400,6 +411,22 @@ mod tests {
             decide_contract_validation_error(&ArtifactManifestError::InvalidSha256(
                 "x".to_string()
             )),
+            ContractValidationDecision::Reject
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_result_for_ok_is_accept() {
+        assert_eq!(
+            decide_contract_validation_result(&Ok(())),
+            ContractValidationDecision::Accept
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_result_for_error_is_reject() {
+        assert_eq!(
+            decide_contract_validation_result(&Err(ArtifactManifestError::MissingResultRef)),
             ContractValidationDecision::Reject
         );
     }
