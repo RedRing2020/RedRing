@@ -46,6 +46,18 @@ pub enum ArtifactManifestError {
     InvalidCreatedAtUtc(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContractValidationDecision {
+    Accept,
+    Reject,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormatVersionCompatibility {
+    Compatible,
+    Incompatible,
+}
+
 impl Display for ArtifactManifestError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -140,7 +152,9 @@ pub fn validate_io_contract(
     manifest.validate()?;
 
     // 非互換なmanifest versionは受理せずrejectする。
-    if manifest.format_version != expected_format_version {
+    if evaluate_format_version_compatibility(&manifest.format_version, expected_format_version)
+        == FormatVersionCompatibility::Incompatible
+    {
         return Err(ArtifactManifestError::FormatVersionMismatch {
             expected: expected_format_version.to_string(),
             actual: manifest.format_version.clone(),
@@ -148,6 +162,46 @@ pub fn validate_io_contract(
     }
 
     Ok(())
+}
+
+/// v1時点では format_version は厳密一致のみを互換とみなす。
+pub fn evaluate_format_version_compatibility(
+    actual: &str,
+    expected: &str,
+) -> FormatVersionCompatibility {
+    if actual == expected {
+        FormatVersionCompatibility::Compatible
+    } else {
+        FormatVersionCompatibility::Incompatible
+    }
+}
+
+/// Job Manager責務: 検証エラーを運用上の意思決定へ正規化する。
+pub fn decide_contract_validation_error(
+    error: &ArtifactManifestError,
+) -> ContractValidationDecision {
+    match error {
+        ArtifactManifestError::MissingInputRef
+        | ArtifactManifestError::InvalidInputRef(_)
+        | ArtifactManifestError::MissingResultRef
+        | ArtifactManifestError::InvalidResultRef(_)
+        | ArtifactManifestError::FormatVersionMismatch { .. }
+        | ArtifactManifestError::InvalidImageDigest(_)
+        | ArtifactManifestError::InvalidSha256(_)
+        | ArtifactManifestError::EmptyFormat
+        | ArtifactManifestError::EmptyFormatVersion
+        | ArtifactManifestError::InvalidCreatedAtUtc(_) => ContractValidationDecision::Reject,
+    }
+}
+
+/// Job Manager責務: 検証結果を運用上の意思決定へ正規化する。
+pub fn decide_contract_validation_result(
+    result: Result<(), ArtifactManifestError>,
+) -> ContractValidationDecision {
+    match result {
+        Ok(()) => ContractValidationDecision::Accept,
+        Err(error) => decide_contract_validation_error(&error),
+    }
 }
 
 fn validate_ref<F>(
@@ -198,8 +252,10 @@ fn is_likely_rfc3339_utc(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        ArtifactManifest, ArtifactManifestError, ArtifactType, validate_io_contract,
-        validate_output_contract,
+        ArtifactManifest, ArtifactManifestError, ArtifactType, ContractValidationDecision,
+        FormatVersionCompatibility, decide_contract_validation_error,
+        decide_contract_validation_result, evaluate_format_version_compatibility,
+        validate_io_contract, validate_output_contract,
     };
     use crate::types::JobId;
 
@@ -314,6 +370,63 @@ mod tests {
         assert_eq!(
             validate_io_contract("input://job-42", "result://artifact-1", &manifest, "v1"),
             Ok(())
+        );
+    }
+
+    #[test]
+    fn evaluate_format_version_compatibility_requires_exact_match() {
+        assert_eq!(
+            evaluate_format_version_compatibility("v1", "v1"),
+            FormatVersionCompatibility::Compatible
+        );
+        assert_eq!(
+            evaluate_format_version_compatibility("v2", "v1"),
+            FormatVersionCompatibility::Incompatible
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_error_for_missing_ref_is_reject() {
+        assert_eq!(
+            decide_contract_validation_error(&ArtifactManifestError::MissingInputRef),
+            ContractValidationDecision::Reject
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_error_for_version_mismatch_is_reject() {
+        assert_eq!(
+            decide_contract_validation_error(&ArtifactManifestError::FormatVersionMismatch {
+                expected: "v1".to_string(),
+                actual: "v2".to_string(),
+            }),
+            ContractValidationDecision::Reject
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_error_for_invalid_hash_is_reject() {
+        assert_eq!(
+            decide_contract_validation_error(&ArtifactManifestError::InvalidSha256(
+                "x".to_string()
+            )),
+            ContractValidationDecision::Reject
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_result_for_ok_is_accept() {
+        assert_eq!(
+            decide_contract_validation_result(Ok(())),
+            ContractValidationDecision::Accept
+        );
+    }
+
+    #[test]
+    fn decide_contract_validation_result_for_error_is_reject() {
+        assert_eq!(
+            decide_contract_validation_result(Err(ArtifactManifestError::MissingResultRef)),
+            ContractValidationDecision::Reject
         );
     }
 }

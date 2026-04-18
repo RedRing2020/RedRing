@@ -9,7 +9,9 @@ pub mod manager;
 pub mod types;
 
 pub use artifact_manifest::{
-    ArtifactManifest, ArtifactManifestError, ArtifactType, validate_io_contract,
+    ArtifactManifest, ArtifactManifestError, ArtifactType, ContractValidationDecision,
+    FormatVersionCompatibility, decide_contract_validation_error,
+    decide_contract_validation_result, evaluate_format_version_compatibility, validate_io_contract,
     validate_output_contract,
 };
 pub use events::JobEvent;
