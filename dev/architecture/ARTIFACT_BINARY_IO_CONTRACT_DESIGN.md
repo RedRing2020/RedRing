@@ -30,7 +30,7 @@
 
 ## 共通ヘッダ仕様
 
-全 artifact は先頭に固定長ヘッダを持つ。
+全 artifact は先頭に固定長ヘッダ部を持ち、その直後に可変長拡張属性を持てる。
 
 - `magic: [u8; 4]`
   - `toolpath`: `RRTP`
@@ -41,8 +41,23 @@
   - 1 = Millimeter
 - `coordinate_frame: u8`
   - 1 = WorldRightHandedZUp
-- `reserved: [u8; 4]`
+- `ext_block_len: u32`
+  - ヘッダ直後に続く `ext_attributes` ブロックの総バイト長
+  - 0 の場合は拡張属性なし
 - `payload_len: u64`
+  - `ext_attributes` を含まない payload 本体の総バイト長
+  - 可変長領域全体長は `ext_block_len + payload_len`
+
+### ext_attributes (TLV)
+
+ヘッダ直後に可変長で配置される。`ext_block_len` で終端を判定する。
+
+- `tag: i16`
+  - 負値: システム属性
+  - 正値: ユーザー属性
+  - `0`: 予約値（reject）
+- `data_len: u16`
+- `data: [u8; data_len]`
 
 エンディアンは little-endian 固定とする。
 
@@ -57,6 +72,11 @@
 - `cutting_direction: u8`
   - 0 = Down
   - 1 = Up
+- `ext_attributes_count: u32`
+- `ext_attributes[]`
+  - `tag: i16` (`0` は予約値のため reject)
+  - `data_len: u16`
+  - `data: [u8; data_len]`
 - `approach_count: u32`
 - `contour_level_count: u32`
 - `retract_count: u32`
@@ -73,10 +93,15 @@
   - 4 PassRetract
 - `feed_rate: f64`
   - Rapid は `0.0`
-- `start: [f64; 3]`
+- `ext_attributes_count: u32`
+- `ext_attributes[]`
+  - `tag: i16` (`0` は予約値のため reject)
+  - `data_len: u16`
+  - `data: [u8; data_len]`
 - `geometry_type: u8`
   - 0 Line
   - 1 Arc
+- `start: [f64; 3]`
 - `line_end: [f64; 3]` (Line時のみ)
 - `arc_end: [f64; 3]` (Arc時のみ)
 - `arc_center: [f64; 3]` (Arc時のみ)
@@ -175,4 +200,5 @@ Read/Write の片側だけが変わって契約が壊れることを防ぐため
 
 - `#411` は読込導線の標準入口として本書を参照する
 - `#412` は API 名称と wire format 表記の関係整理で本書を参照する
-- `#257` / `#260` 相当の後続実装は、本書の責務境界・ヘッダ仕様・互換性ポリシーを前提にする
+- `#257` 相当の後続実装は、本書の責務境界・ヘッダ仕様・互換性ポリシーを前提にする
+- `NcPostFromCam` は本書を唯一の I/O 契約参照入口として扱う
