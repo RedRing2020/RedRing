@@ -196,11 +196,11 @@ pub fn decide_contract_validation_error(
 
 /// Job Manager責務: 検証結果を運用上の意思決定へ正規化する。
 pub fn decide_contract_validation_result(
-    result: &Result<(), ArtifactManifestError>,
+    result: Result<(), ArtifactManifestError>,
 ) -> ContractValidationDecision {
     match result {
         Ok(()) => ContractValidationDecision::Accept,
-        Err(error) => decide_contract_validation_error(error),
+        Err(error) => decide_contract_validation_error(&error),
     }
 }
 
@@ -417,7 +417,7 @@ mod tests {
     #[test]
     fn decide_contract_validation_result_for_ok_is_accept() {
         assert_eq!(
-            decide_contract_validation_result(&Ok(())),
+            decide_contract_validation_result(Ok(())),
             ContractValidationDecision::Accept
         );
     }
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn decide_contract_validation_result_for_error_is_reject() {
         assert_eq!(
-            decide_contract_validation_result(&Err(ArtifactManifestError::MissingResultRef)),
+            decide_contract_validation_result(Err(ArtifactManifestError::MissingResultRef)),
             ContractValidationDecision::Reject
         );
     }

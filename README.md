@@ -308,7 +308,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## License
+## Dual License
 
 RedRing is available under a dual license:
 
