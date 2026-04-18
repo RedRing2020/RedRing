@@ -45,6 +45,8 @@
   - ヘッダ直後に続く `ext_attributes` ブロックの総バイト長
   - 0 の場合は拡張属性なし
 - `payload_len: u64`
+  - `ext_attributes` を含まない payload 本体の総バイト長
+  - 可変長領域全体長は `ext_block_len + payload_len`
 
 ### ext_attributes (TLV)
 
