@@ -50,7 +50,6 @@ pub enum ArtifactManifestError {
 pub enum ContractValidationDecision {
     Accept,
     Reject,
-    RetryRequired,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

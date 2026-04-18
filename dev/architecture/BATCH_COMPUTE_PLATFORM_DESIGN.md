@@ -631,7 +631,7 @@ PR-B（検証ルール + 互換性ポリシー）で固定する判定:
 - `evaluate_format_version_compatibility(actual, expected)`
   - v1では strict equal 判定を返す
 - `decide_contract_validation_error(error)`
-  - 検証エラーを運用上の判定（accept/reject/retry要求）へ正規化する
+  - 検証エラーを運用上の判定（accept/reject）へ正規化する
 - `decide_contract_validation_result(result)`
   - 検証結果 `Result<(), ArtifactManifestError>` を判定へ正規化する
 
