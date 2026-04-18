@@ -30,7 +30,7 @@
 
 ## 共通ヘッダ仕様
 
-全 artifact は先頭に固定長ヘッダを持つ。
+全 artifact は先頭に固定長ヘッダ部を持ち、その直後に可変長拡張属性を持てる。
 
 - `magic: [u8; 4]`
   - `toolpath`: `RRTP`
@@ -70,6 +70,11 @@
 - `cutting_direction: u8`
   - 0 = Down
   - 1 = Up
+- `ext_attributes_count: u32`
+- `ext_attributes[]`
+  - `tag: i16` (`0` は予約値のため reject)
+  - `data_len: u16`
+  - `data: [u8; data_len]`
 - `approach_count: u32`
 - `contour_level_count: u32`
 - `retract_count: u32`
@@ -193,5 +198,5 @@ Read/Write の片側だけが変わって契約が壊れることを防ぐため
 
 - `#411` は読込導線の標準入口として本書を参照する
 - `#412` は API 名称と wire format 表記の関係整理で本書を参照する
-- `#257` / `#260` 相当の後続実装は、本書の責務境界・ヘッダ仕様・互換性ポリシーを前提にする
-- `NcPostFromCam`（#260）は本書を唯一の I/O 契約参照入口として扱う
+- `#257` 相当の後続実装は、本書の責務境界・ヘッダ仕様・互換性ポリシーを前提にする
+- `NcPostFromCam` は本書を唯一の I/O 契約参照入口として扱う
