@@ -3,6 +3,7 @@ use crate::types::{JobSubmissionRequest, WorkflowSnapshot};
 
 pub const JOB_TYPE_CAM_PROCESS: &str = "cam_process";
 pub const JOB_TYPE_CUTTING_SIMULATION: &str = "cutting_simulation";
+pub const JOB_TYPE_NC_POST_FROM_CAM: &str = "nc_post_from_cam";
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CamWorkflowPolicy;

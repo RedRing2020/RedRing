@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use job_domain::{
     CamWorkflowPolicy, DomainRuleViolation, JOB_TYPE_CAM_PROCESS, JOB_TYPE_CUTTING_SIMULATION,
-    JobDomainService, JobNode, JobSubmissionRequest, WorkflowSnapshot,
+    JOB_TYPE_NC_POST_FROM_CAM, JobDomainService, JobNode, JobSubmissionRequest, WorkflowSnapshot,
 };
 use job_runtime::{JobError, JobId, JobManager, JobRelation, JobSpec, JobType};
 
@@ -157,6 +157,7 @@ fn job_type_to_domain_name(job_type: &JobType) -> &'static str {
     match job_type {
         JobType::CamProcess => JOB_TYPE_CAM_PROCESS,
         JobType::CuttingSimulation => JOB_TYPE_CUTTING_SIMULATION,
+        JobType::NcPostFromCam => JOB_TYPE_NC_POST_FROM_CAM,
     }
 }
 
@@ -164,6 +165,7 @@ fn domain_name_to_job_type(name: &str) -> Option<JobType> {
     match name {
         JOB_TYPE_CAM_PROCESS => Some(JobType::CamProcess),
         JOB_TYPE_CUTTING_SIMULATION => Some(JobType::CuttingSimulation),
+        JOB_TYPE_NC_POST_FROM_CAM => Some(JobType::NcPostFromCam),
         _ => None,
     }
 }

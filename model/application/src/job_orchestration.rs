@@ -196,6 +196,13 @@ fn submit_to_runtime(
             let mut submitter = CamWorkflowSubmitter::new(manager);
             Ok(submitter.submit_cutting_simulation(JobId(parent_job_id), spec)?)
         }
+        (CamJobType::NcPostFromCam, None) => Err(JobOrchestrationError::InvalidRequest(
+            "nc post from cam requires parent_job_id".to_string(),
+        )),
+        (CamJobType::NcPostFromCam, Some(parent_job_id)) => {
+            let mut submitter = CamWorkflowSubmitter::new(manager);
+            Ok(submitter.submit_child_under(JobId(parent_job_id), spec)?)
+        }
         (CamJobType::CamProcess, Some(parent_job_id)) => {
             let mut submitter = CamWorkflowSubmitter::new(manager);
             Ok(submitter.submit_child_under(JobId(parent_job_id), spec)?)
@@ -207,6 +214,7 @@ fn map_job_type(job_type: CamJobType) -> JobType {
     match job_type {
         CamJobType::CamProcess => JobType::CamProcess,
         CamJobType::CuttingSimulation => JobType::CuttingSimulation,
+        CamJobType::NcPostFromCam => JobType::NcPostFromCam,
     }
 }
 
@@ -324,6 +332,23 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "cutting simulation requires parent_job_id".to_string()
+        );
+    }
+
+    #[test]
+    fn nc_post_from_cam_requires_parent_job_id() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+        let error = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::NcPostFromCam,
+                input_ref: "result://cam/1/ok".to_string(),
+                parent_job_id: None,
+            })
+            .expect_err("nc post from cam without parent should be rejected");
+
+        assert_eq!(
+            error.to_string(),
+            "nc post from cam requires parent_job_id".to_string()
         );
     }
 }

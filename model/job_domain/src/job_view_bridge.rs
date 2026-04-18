@@ -6,6 +6,7 @@ use job_runtime::{JobEvent, JobOutputValidity, JobRecord, JobStatus, JobType};
 pub enum CamJobType {
     CamProcess,
     CuttingSimulation,
+    NcPostFromCam,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,6 +95,7 @@ impl From<JobType> for CamJobType {
         match value {
             JobType::CamProcess => Self::CamProcess,
             JobType::CuttingSimulation => Self::CuttingSimulation,
+            JobType::NcPostFromCam => Self::NcPostFromCam,
         }
     }
 }
