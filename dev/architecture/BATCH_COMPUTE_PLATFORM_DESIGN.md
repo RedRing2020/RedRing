@@ -591,7 +591,8 @@ Digest: executed image digest
 - Job Manager: メタデータ契約の検証のみを行う
   - 必須項目の欠落
   - digest/hash/size の形式検証
-  - `InputRef` / `ResultRef` 不在時の reject
+  - `InputRef` 不在時の reject
+  - `Status=succeeded` で成果物返却が必須のケースにおける `ResultRef` 不在時の reject
   - `format_version` 不一致時の reject
 - Worker / Domain: artifact本体生成と `artifact_manifest.json` 作成を担う
 - ViewModel / View: `ResultRef` / `LogRef` / manifest由来メタデータの表示に専念する
@@ -615,7 +616,7 @@ PR-B（検証ルール + 互換性ポリシー）で固定する判定:
 
 | 検証項目 | 代表エラー | 判定 |
 | --- | --- | --- |
-| missing ref | `MissingInputRef` / `MissingResultRef` | reject |
+| missing ref | `MissingInputRef` / `MissingResultRef` | `MissingInputRef` は常に reject、`MissingResultRef` は `Status=succeeded` で成果物返却必須時に reject |
 | 参照形式不正 | `InvalidInputRef` / `InvalidResultRef` | reject |
 | format version不一致 | `FormatVersionMismatch` | reject |
 | hash形式不正 | `InvalidImageDigest` / `InvalidSha256` | reject |
@@ -818,3 +819,52 @@ docker run --rm \
 - すべてのジョブ結果に `image_digest` を記録する
 - ログ、結果アーティファクト、digest を同一 `job_id` に紐づける
 - digest 未記録ジョブは失敗扱いとして再投入対象にする
+
+---
+
+## 21. #684 CAMソルバー最小導線の責務接続（Option A / Step A）
+
+本章は、`JobType + InputRef -> ResultRef` 契約を維持しつつ、CAM solver 導線を最小構成で接続するための責務境界を固定する。
+
+### 21.1 Job Manager の責務（固定）
+
+- `InputRef` / `ResultRef` の存在と形式を検証する
+- 実行イメージ参照、ログ参照、manifest 参照のメタデータ整合を検証する
+- 実行状態と失敗分類（コード）を管理する
+
+非責務:
+
+- 形状データ（NURBSを含む）や ToolPath の幾何データを解釈しない
+- solver の収束判定ロジックを実装しない
+
+### 21.2 Model/CAM 側の責務（固定）
+
+- `InputRef` の実体復元（形状データ: 曲線群/面群/NURBS等）
+- solver 実行と ToolPath 生成
+- solver 失敗分類の決定
+  - `invalid_input`
+  - `no_solution`
+  - `convergence_failure`
+- `toolpath` artifact binary v0.1 と `ResultRef` の生成
+
+### 21.3 検証ルール（最小）
+
+Job Manager は以下を reject とする。
+
+- 常に reject:
+  - missing `InputRef`
+- `Status=succeeded` の場合のみ reject:
+  - missing `ResultRef`
+  - manifest の hash/digest 形式不正
+  - `format_version` 不一致
+
+補足:
+
+- ここでの `ResultRef` / manifest 検証は、`Status=succeeded` で成果物返却が必須となるケースにのみ適用する
+- solver 失敗時は失敗分類を返し、`ResultRef` を生成しない運用を許容する
+
+### 21.4 #679 / #680系との関係
+
+- #679 は本章の `ResultRef` 契約に依存して `NcPostFromCam` を実行する
+- #680-#683 は本章の責務境界を維持した上で NC post 拡張を行う
+- 本章は Option A の Step A（設計固定）に相当し、solver 高度化は後続Issueで扱う
