@@ -202,3 +202,36 @@ Read/Write の片側だけが変わって契約が壊れることを防ぐため
 - `#412` は API 名称と wire format 表記の関係整理で本書を参照する
 - `#257` 相当の後続実装は、本書の責務境界・ヘッダ仕様・互換性ポリシーを前提にする
 - `NcPostFromCam` は本書を唯一の I/O 契約参照入口として扱う
+
+---
+
+## #684 solver 出力接続ルール（Option A / Step A）
+
+### 目的
+
+CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`NcPostFromCam` で再利用可能にする。
+
+### 接続契約
+
+- solver 成功時:
+  - `toolpath` payload を本書の ToolPath Payload v0.1 で出力する
+  - `ResultRef` は上記 payload を指す不変参照を返す
+  - manifest は `artifact_type=toolpath` を必須とする
+- solver 失敗時:
+  - `ResultRef` を生成しない
+  - 失敗分類（`invalid_input` / `no_solution` / `convergence_failure`）を返す
+
+### 互換性判定
+
+- `version_major=0` かつ `version_minor=1` 以外は reject
+- `convert` は本Issueでは扱わない（strict reject）
+
+### 責務境界
+
+- Job Manager: `ResultRef`/manifest の契約検証のみ
+- Model/CAM: payload 生成・read/write・失敗分類を担当
+
+### 後続参照
+
+- #679 は本節の接続契約を前提に `NcPostFromCam` 読込導線を維持する
+- #680-#683 は本節の wire contract を変更せず NC post 拡張を行う

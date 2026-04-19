@@ -438,3 +438,72 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - variant の表現（String許容か、enum化するか）
 
 上記3点の合意を、Issue #504 の実装開始条件とする。
+
+---
+
+## 8️⃣ #684 CAMソルバー最小導線契約（Option A / Step A）
+
+本節は Issue #684 の設計固定を目的とし、実装前提となる最小契約を定義する。
+
+### 8.1 目的
+
+- 形状データ（NURBSを含む）入力から ToolPath artifact を生成し、`NcPostFromCam` へ接続可能な最小導線を固定する
+- `JobType + InputRef -> ResultRef` 契約を維持したまま、solver 導線を明文化する
+
+### 8.2 入力モデル（最小）
+
+最小入力は `SolverInputRef` が指す payload とし、以下を必須項目とする。
+
+- `geometry_kind`
+  - `nurbs_surface_set`
+  - `nurbs_curve_set`
+  - `curve_chain_2p5d`
+- `tool_id`
+- `operation_id`
+- `units`
+- `coordinate_frame`
+
+補足:
+
+- Solver は `InputRef` 参照先を解決して入力を復元する
+- `cam_sim` 側で参照解決するが、Job Manager は payload 本体を解釈しない
+
+### 8.3 solver 最小責務
+
+- 入力契約の検証
+- ToolPath 生成（最小形）
+- 失敗分類の返却
+  - `invalid_input`
+  - `no_solution`
+  - `convergence_failure`
+- 生成結果を `toolpath` artifact binary v0.1 に接続
+
+非責務（本Issueの非スコープ）:
+
+- 加工時間最小化などの高度最適化
+- コントローラ固有 post 最適化
+- UI編集機能
+
+### 8.4 最小導線シーケンス
+
+1. `JobType::CamProcess` で `InputRef` を受理
+2. `InputRef` から solver 入力を復元
+3. solver を実行して ToolPath を生成
+4. `toolpath` artifact binary v0.1 として永続化
+5. `ResultRef` を返却し、後続 `NcPostFromCam` が参照する
+
+### 8.5 失敗分類と契約境界
+
+- `invalid_input`
+  - 必須項目欠落、型不一致、units/frame 不整合
+- `no_solution`
+  - 幾何制約下で有効経路を構築できない
+- `convergence_failure`
+  - 反復解法が収束条件を満たさない
+
+いずれも Job Manager には失敗種別のみ伝達し、幾何計算の内部状態は公開しない。
+
+### 8.6 後続Issueへの接続
+
+- #679: `NcPostFromCam` の artifact 読込導線は本節の `ResultRef` 契約を前提とする
+- #680-#683: NC post 拡張系列は、本節で固定した solver->toolpath 導線を前提とする
