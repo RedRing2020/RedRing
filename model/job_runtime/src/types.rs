@@ -12,6 +12,8 @@ pub enum JobType {
     CamProcess,
     /// シミュレーションジョブ
     CuttingSimulation,
+    /// CAM成果物を入力とするNCポスト処理ジョブ
+    NcPostFromCam,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

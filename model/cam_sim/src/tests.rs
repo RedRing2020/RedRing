@@ -31,6 +31,15 @@ fn sim_spec(input: &str) -> JobSpec {
     }
 }
 
+fn nc_post_from_cam_spec(input: &str) -> JobSpec {
+    JobSpec {
+        job_type: JobType::NcPostFromCam,
+        input_ref: input.to_string(),
+        timeout_secs: 30,
+        retry_policy: RetryPolicy::default(),
+    }
+}
+
 fn roundtrip_toolpath_via_artifact(toolpath: &ToolPath<f64>) -> ToolPath<f64> {
     let mut payload_bytes = Vec::new();
     write_toolpath_payload_v1(&mut payload_bytes, toolpath).unwrap();
@@ -349,6 +358,26 @@ fn test_workflow_rejects_child_under_simulation() {
 }
 
 #[test]
+fn test_workflow_rejects_nc_post_submission_with_wrong_job_type() {
+    let mut manager = JobManager::new();
+    let mut workflow = CamWorkflowSubmitter::new(&mut manager);
+
+    let cam_id = workflow
+        .submit_cam_process(cam_spec("input://cam/for-nc-post"))
+        .unwrap();
+
+    let result = workflow.submit_nc_post_from_cam(cam_id, sim_spec("input://sim/wrong-type"));
+
+    assert!(matches!(
+        result,
+        Err(CamWorkflowError::InvalidJobType {
+            expected: JobType::NcPostFromCam,
+            actual: JobType::CuttingSimulation,
+        })
+    ));
+}
+
+#[test]
 fn test_job_adapter_rejects_invalid_input_ref() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
@@ -369,6 +398,61 @@ fn test_job_adapter_rejects_invalid_input_ref() {
             .as_deref()
             .unwrap_or_default()
             .contains("invalid input_ref")
+    );
+}
+
+#[test]
+fn test_job_adapter_runs_nc_post_from_cam_with_toolpath_artifact() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(nc_post_from_cam_spec("result://cam/42/ok"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Succeeded);
+    assert!(
+        manager
+            .active_result_ref(id)
+            .unwrap()
+            .unwrap_or_default()
+            .starts_with("result://nc-post/")
+    );
+}
+
+#[test]
+fn test_job_adapter_rejects_nc_post_from_cam_kind_mismatch() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(nc_post_from_cam_spec("result://cam/42/kind-mismatch"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("artifact kind mismatch")
+    );
+}
+
+#[test]
+fn test_job_adapter_surfaces_nc_post_from_cam_version_incompatibility() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(nc_post_from_cam_spec("result://cam/42/version-mismatch"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("failed to read artifact binary")
     );
 }
 

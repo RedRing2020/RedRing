@@ -249,6 +249,7 @@ fn job_type_key(job_type: CamJobType) -> &'static str {
     match job_type {
         CamJobType::CamProcess => "job.type.cam_process",
         CamJobType::CuttingSimulation => "job.type.cutting_simulation",
+        CamJobType::NcPostFromCam => "job.type.nc_post_from_cam",
     }
 }
 

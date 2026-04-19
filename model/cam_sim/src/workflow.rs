@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use job_domain::{
     CamWorkflowPolicy, DomainRuleViolation, JOB_TYPE_CAM_PROCESS, JOB_TYPE_CUTTING_SIMULATION,
-    JobDomainService, JobNode, JobSubmissionRequest, WorkflowSnapshot,
+    JOB_TYPE_NC_POST_FROM_CAM, JobDomainService, JobNode, JobSubmissionRequest, WorkflowSnapshot,
 };
 use job_runtime::{JobError, JobId, JobManager, JobRelation, JobSpec, JobType};
 
@@ -13,6 +13,8 @@ pub enum CamWorkflowError {
     JobRuntime(JobError),
     /// 親ジョブ未指定
     MissingParent,
+    /// 投入ジョブ種別が不正
+    InvalidJobType { expected: JobType, actual: JobType },
     /// 親ジョブ種別が不正
     InvalidParentType { expected: JobType, actual: JobType },
     /// SIM は CAM 工程ごとに 1 件のみ
@@ -26,9 +28,14 @@ impl Display for CamWorkflowError {
         match self {
             Self::JobRuntime(err) => write!(f, "job runtime error: {}", err),
             Self::MissingParent => write!(f, "parent job is required for this submission"),
+            Self::InvalidJobType { expected, actual } => write!(
+                f,
+                "invalid job type: expected={:?}, actual={:?}",
+                expected, actual
+            ),
             Self::InvalidParentType { expected, actual } => write!(
                 f,
-                "invalid parent type for cutting simulation: expected={:?}, actual={:?}",
+                "invalid parent type: expected={:?}, actual={:?}",
                 expected, actual
             ),
             Self::SimulationAlreadyExists { parent_cam_job_id } => write!(
@@ -69,7 +76,7 @@ impl<'a> CamWorkflowSubmitter<'a> {
 
     pub fn submit_cam_process(&mut self, spec: JobSpec) -> Result<JobId, CamWorkflowError> {
         if spec.job_type != JobType::CamProcess {
-            return Err(CamWorkflowError::InvalidParentType {
+            return Err(CamWorkflowError::InvalidJobType {
                 expected: JobType::CamProcess,
                 actual: spec.job_type,
             });
@@ -85,8 +92,29 @@ impl<'a> CamWorkflowSubmitter<'a> {
         spec: JobSpec,
     ) -> Result<JobId, CamWorkflowError> {
         if spec.job_type != JobType::CuttingSimulation {
-            return Err(CamWorkflowError::InvalidParentType {
+            return Err(CamWorkflowError::InvalidJobType {
                 expected: JobType::CuttingSimulation,
+                actual: spec.job_type,
+            });
+        }
+
+        self.submit_with_domain_validation(
+            spec,
+            JobRelation {
+                parent_job_id: Some(parent_cam_job_id),
+                group_id: None,
+            },
+        )
+    }
+
+    pub fn submit_nc_post_from_cam(
+        &mut self,
+        parent_cam_job_id: JobId,
+        spec: JobSpec,
+    ) -> Result<JobId, CamWorkflowError> {
+        if spec.job_type != JobType::NcPostFromCam {
+            return Err(CamWorkflowError::InvalidJobType {
+                expected: JobType::NcPostFromCam,
                 actual: spec.job_type,
             });
         }
@@ -157,6 +185,7 @@ fn job_type_to_domain_name(job_type: &JobType) -> &'static str {
     match job_type {
         JobType::CamProcess => JOB_TYPE_CAM_PROCESS,
         JobType::CuttingSimulation => JOB_TYPE_CUTTING_SIMULATION,
+        JobType::NcPostFromCam => JOB_TYPE_NC_POST_FROM_CAM,
     }
 }
 
@@ -164,6 +193,7 @@ fn domain_name_to_job_type(name: &str) -> Option<JobType> {
     match name {
         JOB_TYPE_CAM_PROCESS => Some(JobType::CamProcess),
         JOB_TYPE_CUTTING_SIMULATION => Some(JobType::CuttingSimulation),
+        JOB_TYPE_NC_POST_FROM_CAM => Some(JobType::NcPostFromCam),
         _ => None,
     }
 }

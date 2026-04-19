@@ -8,7 +8,9 @@ pub mod policy;
 pub mod service;
 pub mod types;
 
-pub use cam_policy::{CamWorkflowPolicy, JOB_TYPE_CAM_PROCESS, JOB_TYPE_CUTTING_SIMULATION};
+pub use cam_policy::{
+    CamWorkflowPolicy, JOB_TYPE_CAM_PROCESS, JOB_TYPE_CUTTING_SIMULATION, JOB_TYPE_NC_POST_FROM_CAM,
+};
 pub use job_view_bridge::{
     CamJobEvent, CamJobOutputRecord, CamJobOutputValidity, CamJobRecord, CamJobSpec, CamJobStatus,
     CamJobType,

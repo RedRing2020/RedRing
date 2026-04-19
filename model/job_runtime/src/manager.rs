@@ -540,6 +540,7 @@ mod tests {
             let result_ref = match job.spec.job_type {
                 JobType::CamProcess => Some("result://cam".to_string()),
                 JobType::CuttingSimulation => Some("result://sim".to_string()),
+                JobType::NcPostFromCam => Some("result://nc-post".to_string()),
             };
 
             if self.succeed {
