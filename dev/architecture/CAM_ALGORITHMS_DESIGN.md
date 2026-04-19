@@ -465,7 +465,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 補足:
 
-- Solver は `InputRef` 参照先を解決して入力を復元する
+- solver は `InputRef` 参照先を解決して入力を復元する
 - `cam_sim` 側で参照解決するが、Job Manager は payload 本体を解釈しない
 
 ### 8.3 solver 最小責務

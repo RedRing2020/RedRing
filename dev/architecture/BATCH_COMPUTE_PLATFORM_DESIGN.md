@@ -591,7 +591,8 @@ Digest: executed image digest
 - Job Manager: メタデータ契約の検証のみを行う
   - 必須項目の欠落
   - digest/hash/size の形式検証
-  - `InputRef` / `ResultRef` 不在時の reject
+  - `InputRef` 不在時の reject
+  - `Status=succeeded` で成果物返却が必須のケースにおける `ResultRef` 不在時の reject
   - `format_version` 不一致時の reject
 - Worker / Domain: artifact本体生成と `artifact_manifest.json` 作成を担う
 - ViewModel / View: `ResultRef` / `LogRef` / manifest由来メタデータの表示に専念する
@@ -615,7 +616,7 @@ PR-B（検証ルール + 互換性ポリシー）で固定する判定:
 
 | 検証項目 | 代表エラー | 判定 |
 | --- | --- | --- |
-| missing ref | `MissingInputRef` / `MissingResultRef` | reject |
+| missing ref | `MissingInputRef` / `MissingResultRef` | `MissingInputRef` は常に reject、`MissingResultRef` は `Status=succeeded` で成果物返却必須時に reject |
 | 参照形式不正 | `InvalidInputRef` / `InvalidResultRef` | reject |
 | format version不一致 | `FormatVersionMismatch` | reject |
 | hash形式不正 | `InvalidImageDigest` / `InvalidSha256` | reject |
@@ -852,14 +853,14 @@ Job Manager は以下を reject とする。
 
 - 常に reject:
   - missing `InputRef`
-- 成果物を返す契約が適用される場合のみ reject:
+- `Status=succeeded` の場合のみ reject:
   - missing `ResultRef`
   - manifest の hash/digest 形式不正
   - `format_version` 不一致
 
 補足:
 
-- ここでの `ResultRef` / manifest 検証は、正常終了時など「成果物を返す」ケースの契約検証に限る
+- ここでの `ResultRef` / manifest 検証は、`Status=succeeded` で成果物返却が必須となるケースにのみ適用する
 - solver 失敗時は失敗分類を返し、`ResultRef` を生成しない運用を許容する
 
 ### 21.4 #679 / #680系との関係
