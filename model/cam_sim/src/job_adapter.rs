@@ -2,11 +2,13 @@ use std::io::Cursor;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, ContourLevelPath, CuttingDirection,
-    InterferenceEvent, InterferenceKind, InterferencePayload, PathSegment, SegmentType, ToolPath,
-    read_toolpath_artifact_v1, write_interference_payload_v1, write_toolpath_payload_v1,
+    InterferenceEvent, InterferenceKind, InterferencePayload, PathSegment, SegmentType, Tool,
+    ToolPath, read_toolpath_artifact_v1, write_interference_payload_v1, write_toolpath_payload_v1,
 };
-use geo_algorithms::Point3D;
+use geo_algorithms::{Aabb3D, Point3D, octree::VoxelOctree};
 use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
+
+use crate::{CuttingSimulator, SnapshotInterval};
 
 /// cam_sim から JobManager へ接続する初期アダプタ
 #[derive(Debug, Default, Clone, Copy)]
@@ -47,6 +49,41 @@ impl CamJobExecutorAdapter {
                     "invalid input_ref for cutting simulation: {}",
                     job.spec.input_ref
                 )),
+            };
+        }
+
+        let toolpath = match read_mock_toolpath_from_sim_input_ref(&job.spec.input_ref) {
+            Ok(toolpath) => toolpath,
+            Err(message) => {
+                return JobExecutionResult {
+                    status: JobStatus::Failed,
+                    elapsed_millis: 20,
+                    result_ref: None,
+                    log_ref: Some(format!("log://sim/{}/artifact-read-failed", job.id.0)),
+                    error: Some(message),
+                };
+            }
+        };
+
+        let mut simulator = CuttingSimulator::new(
+            VoxelOctree::new(
+                Aabb3D::new(
+                    Point3D::new(0.0, 0.0, 0.0),
+                    Point3D::new(100.0, 100.0, 100.0),
+                ),
+                4,
+            ),
+            SnapshotInterval::default(),
+        );
+        let tool = Tool::flat_end_mill("sim-tool".to_string(), 10.0, 30.0);
+
+        if let Err(err) = simulator.simulate(&toolpath, &tool) {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 30,
+                result_ref: None,
+                log_ref: Some(format!("log://sim/{}/sim-failed", job.id.0)),
+                error: Some(format!("failed to run cutting simulation: {}", err)),
             };
         }
 
@@ -123,6 +160,42 @@ fn build_mock_artifact_from_result_ref(result_ref: &str) -> Result<Vec<u8>, Stri
     }
 
     make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
+}
+
+fn read_mock_toolpath_from_sim_input_ref(input_ref: &str) -> Result<ToolPath<f64>, String> {
+    let artifact_bytes = if input_ref.ends_with("/artifact-read-failed") {
+        vec![0_u8, 1, 2, 3]
+    } else if input_ref.ends_with("/sim-failure") {
+        make_empty_toolpath_artifact_bytes()?
+    } else {
+        make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)?
+    };
+
+    let mut cursor = Cursor::new(artifact_bytes);
+    let (_, toolpath) = read_toolpath_artifact_v1(&mut cursor)
+        .map_err(|err| format!("failed to read cutting simulation input artifact: {}", err))?;
+
+    Ok(toolpath)
+}
+
+fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, String> {
+    let toolpath = ToolPath::new(
+        "sim-src".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![],
+        vec![],
+    );
+
+    let mut payload = Vec::new();
+    write_toolpath_payload_v1(&mut payload, &toolpath).map_err(|err| err.to_string())?;
+
+    let header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64);
+    let mut bytes = Vec::new();
+    header.write_to(&mut bytes).map_err(|err| err.to_string())?;
+    bytes.extend_from_slice(&payload);
+
+    Ok(bytes)
 }
 
 fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, String> {
