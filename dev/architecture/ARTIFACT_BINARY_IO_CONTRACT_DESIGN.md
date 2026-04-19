@@ -235,3 +235,23 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 
 - #679 は本節の接続契約を前提に `NcPostFromCam` 読込導線を維持する
 - #680-#683 は本節の wire contract を変更せず NC post 拡張を行う
+
+---
+
+## #689 工程テンプレート由来メタデータ追跡（Step A）
+
+本節は、工程テンプレート適用結果を `Status=succeeded` の成果物で再現可能にするための最小メタデータ契約を定義する。
+
+### succeeded時に記録する項目
+
+- `tolerance_profile`（例: `press_rough` / `mold_finish`）
+- `tolerance_value_mm`
+- `machining_stage`（`rough` / `semi_finish` / `finish`）
+- `operation_type`
+- `boundary_mode`（`edge_projected_2d` / `rectangle`）
+
+### 運用ルール
+
+- `Status=succeeded` 以外では上記項目を必須化しない
+- Job Manager は値の意味を解釈せず、参照整合のみ扱う
+- Model/CAM 側が生成時に値を確定し、reader/writer 契約で保持する

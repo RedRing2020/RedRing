@@ -868,3 +868,46 @@ Job Manager は以下を reject とする。
 - #679 は本章の `ResultRef` 契約に依存して `NcPostFromCam` を実行する
 - #680-#683 は本章の責務境界を維持した上で NC post 拡張を行う
 - 本章は Option A の Step A（設計固定）に相当し、solver 高度化は後続Issueで扱う
+
+---
+
+## 22. #689 工程テンプレート適用規約（Step A）
+
+本章は、工程テンプレート由来の精度プロファイルとオペレーション指定を `JobType + InputRef -> ResultRef` 契約のまま運用するための規約を固定する。
+
+### 22.1 適用入力
+
+`InputRef` が指す payload に、以下の最小項目を含める。
+
+- `machining_stage`: `rough` / `semi_finish` / `finish`
+- `operation_type`
+- `boundary_mode`: `edge_projected_2d` / `rectangle`
+- `tolerance_profile`: `press_rough` / `mold_finish`
+- `stock_ref`（中加工で必須のオペレーション時）
+
+### 22.2 単位・トレランス変換
+
+- mm を基準単位とする
+- `press_rough = 0.001mm`、`mold_finish = 0.0001mm` を初期既定とする
+- `unit_mismatch` は reject とし、暗黙変換で継続しない
+
+### 22.3 検証条件
+
+- 常に reject:
+  - missing `InputRef`
+  - `invalid_tolerance_profile`
+  - `missing_tolerance_profile`
+- `Status=succeeded` の場合のみ reject:
+  - missing `ResultRef`
+  - manifest の hash/digest 形式不正
+  - `format_version` 不一致
+
+### 22.4 成果物追跡（succeeded時）
+
+`Status=succeeded` の成果物には、最低限以下の追跡情報を残す。
+
+- `tolerance_profile`
+- `tolerance_value_mm`
+- `operation_type`
+- `machining_stage`
+- `boundary_mode`

@@ -507,3 +507,62 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 - #679: `NcPostFromCam` の artifact 読込導線は本節の `ResultRef` 契約を前提とする
 - #680-#683: NC post 拡張系列は、本節で固定した solver->toolpath 導線を前提とする
+
+---
+
+## 9️⃣ #689 工程テンプレート精度プロファイル運用契約（Step A）
+
+本節は Issue #689 の設計固定を目的とし、加工ステージ別オペレーションと精度プロファイル適用契約を定義する。
+
+### 9.1 精度プロファイル
+
+- `press_rough`: 0.001mm
+- `mold_finish`: 0.0001mm
+
+適用優先順位:
+
+1. operation 明示指定
+2. 工程テンプレート既定値
+3. solver 既定値
+
+### 9.2 加工ステージ別オペレーション
+
+- 荒加工（rough）
+  - 等高線オフセット加工
+- 中加工（semi_finish）
+  - ストック入力あり等高線オフセット加工
+  - 等高残加工
+- 仕上げ（finish）
+  - スキャン加工
+  - 面沿い加工
+
+### 9.3 加工範囲指定方式
+
+- `edge_projected_2d`
+  - エッジ指示を加工方向へ投影した2D境界を使用
+- `rectangle`
+  - 矩形座標値（min/max）を直接指定
+
+入力契約（最小）:
+
+- `operation_type`
+- `machining_stage`
+- `boundary_mode`
+- `machining_direction`
+- `tolerance_profile`
+- `stock_ref`（中加工の該当オペレーションで必須）
+
+### 9.4 失敗分類（初期）
+
+- `invalid_tolerance_profile`
+- `missing_tolerance_profile`
+- `unit_mismatch`
+- `boundary_projection_failed`
+- `empty_projected_boundary`
+- `operation_boundary_out_of_domain`
+- `stock_required_but_missing`
+
+### 9.5 責務境界
+
+- Job Manager はテンプレート本体を解釈せず、`InputRef` / `ResultRef` 契約を維持する
+- Model/CAM 側がテンプレートを解決し、profile と operation を solver へ適用する
