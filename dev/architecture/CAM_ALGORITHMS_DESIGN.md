@@ -527,6 +527,8 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 ### 9.2 加工ステージ別オペレーション
 
+`machining_stage` は実行順序を強制するための状態ではなく、工程テンプレート上のタグ分類として扱う。
+
 - 荒加工（rough）
   - 等高線オフセット加工
 - 中加工（semi_finish）
@@ -535,6 +537,12 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - 仕上げ（finish）
   - スキャン加工
   - 面沿い加工
+  - 小径工具による等高残加工（等高中加工後の追い込み用途）
+
+補足:
+
+- 等高残加工は `semi_finish` を基本配置とするが、小径工具での追い込み時は `finish` でも許容する
+- `machining_stage` タグと `operation_type` の組み合わせで運用し、単純な前後関係だけで reject しない
 
 ### 9.3 加工範囲指定方式
 
@@ -566,3 +574,9 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 - Job Manager はテンプレート本体を解釈せず、`InputRef` / `ResultRef` 契約を維持する
 - Model/CAM 側がテンプレートを解決し、profile と operation を solver へ適用する
+
+### 9.6 工程順序ポリシー
+
+- 工程順序チェックは設定可能な警告として扱う（既定は warning、hard error にはしない）
+- 例: `finish` が `semi_finish` より先行する場合、設定有効時に警告を出す
+- 警告出力の有無はテンプレート設定で制御し、`JobType + InputRef -> ResultRef` 契約は維持する
