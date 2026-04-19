@@ -13,6 +13,8 @@ pub enum CamWorkflowError {
     JobRuntime(JobError),
     /// 親ジョブ未指定
     MissingParent,
+    /// 投入ジョブ種別が不正
+    InvalidJobType { expected: JobType, actual: JobType },
     /// 親ジョブ種別が不正
     InvalidParentType { expected: JobType, actual: JobType },
     /// SIM は CAM 工程ごとに 1 件のみ
@@ -26,9 +28,14 @@ impl Display for CamWorkflowError {
         match self {
             Self::JobRuntime(err) => write!(f, "job runtime error: {}", err),
             Self::MissingParent => write!(f, "parent job is required for this submission"),
+            Self::InvalidJobType { expected, actual } => write!(
+                f,
+                "invalid job type: expected={:?}, actual={:?}",
+                expected, actual
+            ),
             Self::InvalidParentType { expected, actual } => write!(
                 f,
-                "invalid parent type for cutting simulation: expected={:?}, actual={:?}",
+                "invalid parent type: expected={:?}, actual={:?}",
                 expected, actual
             ),
             Self::SimulationAlreadyExists { parent_cam_job_id } => write!(
@@ -69,7 +76,7 @@ impl<'a> CamWorkflowSubmitter<'a> {
 
     pub fn submit_cam_process(&mut self, spec: JobSpec) -> Result<JobId, CamWorkflowError> {
         if spec.job_type != JobType::CamProcess {
-            return Err(CamWorkflowError::InvalidParentType {
+            return Err(CamWorkflowError::InvalidJobType {
                 expected: JobType::CamProcess,
                 actual: spec.job_type,
             });
@@ -85,7 +92,7 @@ impl<'a> CamWorkflowSubmitter<'a> {
         spec: JobSpec,
     ) -> Result<JobId, CamWorkflowError> {
         if spec.job_type != JobType::CuttingSimulation {
-            return Err(CamWorkflowError::InvalidParentType {
+            return Err(CamWorkflowError::InvalidJobType {
                 expected: JobType::CuttingSimulation,
                 actual: spec.job_type,
             });
@@ -106,7 +113,7 @@ impl<'a> CamWorkflowSubmitter<'a> {
         spec: JobSpec,
     ) -> Result<JobId, CamWorkflowError> {
         if spec.job_type != JobType::NcPostFromCam {
-            return Err(CamWorkflowError::InvalidParentType {
+            return Err(CamWorkflowError::InvalidJobType {
                 expected: JobType::NcPostFromCam,
                 actual: spec.job_type,
             });

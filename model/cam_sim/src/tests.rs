@@ -358,6 +358,26 @@ fn test_workflow_rejects_child_under_simulation() {
 }
 
 #[test]
+fn test_workflow_rejects_nc_post_submission_with_wrong_job_type() {
+    let mut manager = JobManager::new();
+    let mut workflow = CamWorkflowSubmitter::new(&mut manager);
+
+    let cam_id = workflow
+        .submit_cam_process(cam_spec("input://cam/for-nc-post"))
+        .unwrap();
+
+    let result = workflow.submit_nc_post_from_cam(cam_id, sim_spec("input://sim/wrong-type"));
+
+    assert!(matches!(
+        result,
+        Err(CamWorkflowError::InvalidJobType {
+            expected: JobType::NcPostFromCam,
+            actual: JobType::CuttingSimulation,
+        })
+    ));
+}
+
+#[test]
 fn test_job_adapter_rejects_invalid_input_ref() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;

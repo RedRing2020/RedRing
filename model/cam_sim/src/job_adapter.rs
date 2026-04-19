@@ -1,9 +1,9 @@
 use std::io::Cursor;
 
 use cam_core::{
-    ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, InterferenceEvent,
-    InterferenceKind, InterferencePayload, PathSegment, SegmentType, ToolPath,
-    read_toolpath_payload_v1, write_interference_payload_v1, write_toolpath_payload_v1,
+    ArtifactHeaderV1, ArtifactKind, BinaryFormatError, ContourLevelPath, CuttingDirection,
+    InterferenceEvent, InterferenceKind, InterferencePayload, PathSegment, SegmentType, ToolPath,
+    read_toolpath_artifact_v1, write_interference_payload_v1, write_toolpath_payload_v1,
 };
 use geo_algorithms::Point3D;
 use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
@@ -87,48 +87,18 @@ impl CamJobExecutorAdapter {
         };
 
         let mut cursor = Cursor::new(artifact_bytes);
-        let header = match ArtifactHeaderV1::read_from(&mut cursor) {
-            Ok(header) => header,
-            Err(err) => {
-                return JobExecutionResult {
-                    status: JobStatus::Failed,
-                    elapsed_millis: 20,
-                    result_ref: None,
-                    log_ref: Some(format!("log://nc-post/{}/artifact-read-failed", job.id.0)),
-                    error: Some(format!("failed to read artifact binary: {}", err)),
-                };
-            }
-        };
-
-        if let Err(err) = header.ensure_acceptable_version() {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 20,
-                result_ref: None,
-                log_ref: Some(format!("log://nc-post/{}/artifact-read-failed", job.id.0)),
-                error: Some(format!("failed to read artifact binary: {}", err)),
+        if let Err(err) = read_toolpath_artifact_v1(&mut cursor) {
+            let log_ref = match err {
+                BinaryFormatError::ArtifactKindMismatch { .. } => {
+                    format!("log://nc-post/{}/kind-mismatch", job.id.0)
+                }
+                _ => format!("log://nc-post/{}/artifact-read-failed", job.id.0),
             };
-        }
-
-        if header.kind != ArtifactKind::ToolPath {
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 20,
                 result_ref: None,
-                log_ref: Some(format!("log://nc-post/{}/kind-mismatch", job.id.0)),
-                error: Some(
-                    "artifact kind mismatch: expected toolpath artifact for nc post from cam"
-                        .to_string(),
-                ),
-            };
-        }
-
-        if let Err(err) = read_toolpath_payload_v1(&mut cursor) {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 20,
-                result_ref: None,
-                log_ref: Some(format!("log://nc-post/{}/artifact-read-failed", job.id.0)),
+                log_ref: Some(log_ref),
                 error: Some(format!("failed to read artifact binary: {}", err)),
             };
         }
