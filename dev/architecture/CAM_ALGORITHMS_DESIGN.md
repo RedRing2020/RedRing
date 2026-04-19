@@ -452,7 +452,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 ### 8.2 入力モデル（最小）
 
-最小入力は `SolverInputRef` が指す payload とし、以下を必須項目とする。
+最小入力は `InputRef`（solver 入力を指す参照）が指す payload とし、以下を必須項目とする。
 
 - `geometry_kind`
   - `nurbs_surface_set`

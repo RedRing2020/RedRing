@@ -223,8 +223,8 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 
 ### 互換性判定
 
-- `version_major=0` かつ `version_minor=1` 以外は reject
-- `convert` は本Issueでは扱わない（strict reject）
+- 全体の互換性ポリシーに従う
+- 本Issue時点では `convert` は未実装のため、`version_major=0` かつ `version_minor=1` の payload のみを受理し、それ以外は reject とする
 
 ### 責務境界
 

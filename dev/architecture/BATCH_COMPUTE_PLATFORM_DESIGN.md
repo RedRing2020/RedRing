@@ -850,10 +850,17 @@ docker run --rm \
 
 Job Manager は以下を reject とする。
 
-- missing `InputRef`
-- missing `ResultRef`
-- manifest の hash/digest 形式不正
-- `format_version` 不一致
+- 常に reject:
+  - missing `InputRef`
+- 成果物を返す契約が適用される場合のみ reject:
+  - missing `ResultRef`
+  - manifest の hash/digest 形式不正
+  - `format_version` 不一致
+
+補足:
+
+- ここでの `ResultRef` / manifest 検証は、正常終了時など「成果物を返す」ケースの契約検証に限る
+- solver 失敗時は失敗分類を返し、`ResultRef` を生成しない運用を許容する
 
 ### 21.4 #679 / #680系との関係
 
