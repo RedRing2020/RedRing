@@ -1,9 +1,9 @@
 use std::io::Cursor;
 
 use cam_core::{
-    ArtifactHeaderV1, ArtifactKind, ArtifactPayload, ContourLevelPath, CuttingDirection,
-    InterferenceEvent, InterferenceKind, InterferencePayload, PathSegment, SegmentType, ToolPath,
-    read_artifact_v1, write_interference_payload_v1, write_toolpath_payload_v1,
+    ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, InterferenceEvent,
+    InterferenceKind, InterferencePayload, PathSegment, SegmentType, ToolPath,
+    read_toolpath_payload_v1, write_interference_payload_v1, write_toolpath_payload_v1,
 };
 use geo_algorithms::Point3D;
 use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
@@ -87,8 +87,8 @@ impl CamJobExecutorAdapter {
         };
 
         let mut cursor = Cursor::new(artifact_bytes);
-        let (_, payload) = match read_artifact_v1(&mut cursor) {
-            Ok(result) => result,
+        let header = match ArtifactHeaderV1::read_from(&mut cursor) {
+            Ok(header) => header,
             Err(err) => {
                 return JobExecutionResult {
                     status: JobStatus::Failed,
@@ -100,15 +100,18 @@ impl CamJobExecutorAdapter {
             }
         };
 
-        match payload {
-            ArtifactPayload::ToolPath(_) => JobExecutionResult {
-                status: JobStatus::Succeeded,
-                elapsed_millis: 240,
-                result_ref: Some(format!("result://nc-post/{}/ok", job.id.0)),
-                log_ref: Some(format!("log://nc-post/{}/ok", job.id.0)),
-                error: None,
-            },
-            ArtifactPayload::Interference(_) => JobExecutionResult {
+        if let Err(err) = header.ensure_acceptable_version() {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 20,
+                result_ref: None,
+                log_ref: Some(format!("log://nc-post/{}/artifact-read-failed", job.id.0)),
+                error: Some(format!("failed to read artifact binary: {}", err)),
+            };
+        }
+
+        if header.kind != ArtifactKind::ToolPath {
+            return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 20,
                 result_ref: None,
@@ -117,7 +120,25 @@ impl CamJobExecutorAdapter {
                     "artifact kind mismatch: expected toolpath artifact for nc post from cam"
                         .to_string(),
                 ),
-            },
+            };
+        }
+
+        if let Err(err) = read_toolpath_payload_v1(&mut cursor) {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 20,
+                result_ref: None,
+                log_ref: Some(format!("log://nc-post/{}/artifact-read-failed", job.id.0)),
+                error: Some(format!("failed to read artifact binary: {}", err)),
+            };
+        }
+
+        JobExecutionResult {
+            status: JobStatus::Succeeded,
+            elapsed_millis: 240,
+            result_ref: Some(format!("result://nc-post/{}/ok", job.id.0)),
+            log_ref: Some(format!("log://nc-post/{}/ok", job.id.0)),
+            error: None,
         }
     }
 }

@@ -100,6 +100,27 @@ impl<'a> CamWorkflowSubmitter<'a> {
         )
     }
 
+    pub fn submit_nc_post_from_cam(
+        &mut self,
+        parent_cam_job_id: JobId,
+        spec: JobSpec,
+    ) -> Result<JobId, CamWorkflowError> {
+        if spec.job_type != JobType::NcPostFromCam {
+            return Err(CamWorkflowError::InvalidParentType {
+                expected: JobType::NcPostFromCam,
+                actual: spec.job_type,
+            });
+        }
+
+        self.submit_with_domain_validation(
+            spec,
+            JobRelation {
+                parent_job_id: Some(parent_cam_job_id),
+                group_id: None,
+            },
+        )
+    }
+
     /// 末尾制約: SIM を親にする投入は禁止
     pub fn submit_child_under(
         &mut self,

@@ -201,7 +201,7 @@ fn submit_to_runtime(
         )),
         (CamJobType::NcPostFromCam, Some(parent_job_id)) => {
             let mut submitter = CamWorkflowSubmitter::new(manager);
-            Ok(submitter.submit_child_under(JobId(parent_job_id), spec)?)
+            Ok(submitter.submit_nc_post_from_cam(JobId(parent_job_id), spec)?)
         }
         (CamJobType::CamProcess, Some(parent_job_id)) => {
             let mut submitter = CamWorkflowSubmitter::new(manager);
