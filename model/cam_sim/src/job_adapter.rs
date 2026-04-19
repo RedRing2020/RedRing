@@ -82,7 +82,7 @@ impl CamJobExecutorAdapter {
                 status: JobStatus::Failed,
                 elapsed_millis: 30,
                 result_ref: None,
-                log_ref: Some(format!("log://sim/{}/sim-failed", job.id.0)),
+                log_ref: Some(format!("log://sim/{}/sim-failure", job.id.0)),
                 error: Some(format!("failed to run cutting simulation: {}", err)),
             };
         }
