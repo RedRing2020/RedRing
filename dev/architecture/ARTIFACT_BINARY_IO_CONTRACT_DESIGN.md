@@ -249,9 +249,11 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 - `machining_stage`（`rough` / `semi_finish` / `finish`）
 - `operation_type`
 - `boundary_mode`（`edge_projected_2d` / `rectangle`）
+- `machining_direction`
 
 ### 運用ルール
 
 - `Status=succeeded` 以外では上記項目を必須化しない
 - Job Manager は値の意味を解釈せず、参照整合のみ扱う
 - Model/CAM 側が生成時に値を確定し、reader/writer 契約で保持する
+- `machining_direction` は #689 の最小入力契約との再現性整合のため、succeeded 成果物でも保持する

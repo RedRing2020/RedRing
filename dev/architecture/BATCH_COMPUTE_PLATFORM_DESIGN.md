@@ -882,6 +882,7 @@ Job Manager は以下を reject とする。
 - `machining_stage`: `rough` / `semi_finish` / `finish`
 - `operation_type`
 - `boundary_mode`: `edge_projected_2d` / `rectangle`
+- `machining_direction`
 - `tolerance_profile`: `press_rough` / `mold_finish`
 - `stock_ref`（中加工で必須のオペレーション時）
 
@@ -889,15 +890,17 @@ Job Manager は以下を reject とする。
 
 - mm を基準単位とする
 - `press_rough = 0.001mm`、`mold_finish = 0.0001mm` を初期既定とする
-- `unit_mismatch` は reject とし、暗黙変換で継続しない
+- `unit_mismatch` は Model/CAM/solver 側の入力不正分類とし、暗黙変換で継続しない
 
 ### 22.3 検証条件
 
-- 常に reject:
+- Job Manager が受付時に reject:
   - missing `InputRef`
+- Model/CAM/solver が `InputRef` 解決後に失敗分類:
   - `invalid_tolerance_profile`
   - `missing_tolerance_profile`
-- `Status=succeeded` の場合のみ reject:
+  - `unit_mismatch`
+- Job Manager が `Status=succeeded` の監査時に reject:
   - missing `ResultRef`
   - manifest の hash/digest 形式不正
   - `format_version` 不一致
@@ -911,3 +914,4 @@ Job Manager は以下を reject とする。
 - `operation_type`
 - `machining_stage`
 - `boundary_mode`
+- `machining_direction`
