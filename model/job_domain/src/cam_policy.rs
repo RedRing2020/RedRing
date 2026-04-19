@@ -39,6 +39,10 @@ impl WorkflowPolicy for CamWorkflowPolicy {
                         });
                     }
                 } else if request.job_type == JOB_TYPE_NC_POST_FROM_CAM {
+                    if parent.job_type == JOB_TYPE_CUTTING_SIMULATION {
+                        return Err(DomainRuleViolation::TerminalConstraintViolation { parent_id });
+                    }
+
                     if parent.job_type != JOB_TYPE_CAM_PROCESS {
                         return Err(DomainRuleViolation::InvalidParentType {
                             expected: JOB_TYPE_CAM_PROCESS,
@@ -185,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_nc_post_under_non_cam_parent() {
+    fn rejects_nc_post_under_sim_parent_as_terminal_constraint() {
         let policy = CamWorkflowPolicy;
         let snapshot = WorkflowSnapshot {
             jobs: vec![cam_job(1, None), sim_job(2, Some(1))],
@@ -199,9 +203,28 @@ mod tests {
 
         assert_eq!(
             policy.validate_submit(&request, &snapshot),
+            Err(DomainRuleViolation::TerminalConstraintViolation { parent_id: 2 })
+        );
+    }
+
+    #[test]
+    fn rejects_nc_post_under_non_cam_non_sim_parent() {
+        let policy = CamWorkflowPolicy;
+        let snapshot = WorkflowSnapshot {
+            jobs: vec![cam_job(1, None), nc_post_job(3, Some(1))],
+        };
+        let request = JobSubmissionRequest {
+            job_type: JOB_TYPE_NC_POST_FROM_CAM.to_string(),
+            input_ref: "result://cam/3/ok".to_string(),
+            parent_job_id: Some(3),
+            group_id: None,
+        };
+
+        assert_eq!(
+            policy.validate_submit(&request, &snapshot),
             Err(DomainRuleViolation::InvalidParentType {
                 expected: JOB_TYPE_CAM_PROCESS,
-                actual: JOB_TYPE_CUTTING_SIMULATION.to_string(),
+                actual: JOB_TYPE_NC_POST_FROM_CAM.to_string(),
             })
         );
     }
