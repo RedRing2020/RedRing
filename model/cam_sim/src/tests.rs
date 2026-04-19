@@ -402,6 +402,42 @@ fn test_job_adapter_rejects_invalid_input_ref() {
 }
 
 #[test]
+fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(sim_spec("input://sim/artifact-read-failed"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("failed to read cutting simulation input artifact")
+    );
+}
+
+#[test]
+fn test_job_adapter_surfaces_cutting_sim_execution_failure() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(sim_spec("input://sim/sim-failure"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("failed to run cutting simulation")
+    );
+}
+
+#[test]
 fn test_job_adapter_runs_nc_post_from_cam_with_toolpath_artifact() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;

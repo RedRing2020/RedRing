@@ -336,6 +336,41 @@ mod tests {
     }
 
     #[test]
+    fn cutting_simulation_submit_and_result_query_work_with_cam_parent() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+
+        let cam_submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/sample".to_string(),
+                parent_job_id: None,
+            })
+            .expect("cam process should succeed");
+
+        let sim_submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CuttingSimulation,
+                input_ref: "input://sim/sample".to_string(),
+                parent_job_id: Some(cam_submit.job_id),
+            })
+            .expect("cutting simulation should succeed");
+
+        assert_eq!(sim_submit.status, CamJobStatus::Succeeded);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: sim_submit.job_id,
+            })
+            .expect("result query should succeed");
+
+        assert_eq!(result.job.status, CamJobStatus::Succeeded);
+        assert_eq!(
+            result.active_result_ref.as_deref(),
+            Some("result://sim/2/ok")
+        );
+    }
+
+    #[test]
     fn nc_post_from_cam_requires_parent_job_id() {
         let mut orchestrator = JobWorkflowOrchestrator::new();
         let error = orchestrator
