@@ -911,6 +911,7 @@ Job Manager は以下を reject とする。
 
 - `tolerance_profile`
 - `tolerance_value_mm`
+- `template_revision`
 - `operation_type`
 - `machining_stage`
 - `boundary_mode`
@@ -918,12 +919,13 @@ Job Manager は以下を reject とする。
 
 格納先と責務:
 
-- 正本の格納先は artifact binary payload の `ext_attributes` TLV とする
+- toolpath artifact の正本格納先は payload の `ext_attributes` TLV とする
+- interference artifact の正本格納先は共通ヘッダの `ext_attributes` TLV とする
 - manifest には監査・検索用の最小メタデータのみを持たせ、値の意味解釈は行わない
-- payload 内への重複保持は任意とし、必須要件は `ext_attributes` 側で満たす
+- payload またはヘッダへの重複保持は任意とし、reader は artifact 種別ごとの正本領域を優先して解釈する
 - 格納規則の詳細（tag/data 形式・reader/writer 規約）は `ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md` の #689 節に従う
 
 必須化範囲:
 
-- toolpath artifact: 上記 6 項目を必須保持する
-- interference artifact: `machining_direction` を任意とし、それ以外を必須保持する
+- toolpath artifact: 上記 7 項目を payload 側 `ext_attributes` TLV に必須保持する
+- interference artifact: `machining_direction` を任意とし、それ以外を共通ヘッダ側 `ext_attributes` TLV に必須保持する

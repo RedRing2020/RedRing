@@ -256,13 +256,13 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 
 ### 格納領域
 
-- 本節の項目は `ToolPath payload.ext_attributes` に保持する
-- 共通ヘッダ `ext_attributes` には保持しない
+- toolpath artifact は `ToolPath payload.ext_attributes` に保持する
+- interference artifact は共通ヘッダ `ext_attributes` に保持する
 - manifest には監査・検索用の最小メタデータのみを保持し、payload と同一粒度の重複保持は必須化しない
 
 ### TLV 表現
 
-`ToolPath payload.ext_attributes` の各項目は次の TLV で保持する。`tag` は `i16 little-endian`、`data_len` は `u16 little-endian`、文字列は UTF-8（NUL終端なし）とする。
+toolpath payload / interference 共通ヘッダの `ext_attributes` は同一 TLV 形式を使用する。`tag` は `i16 little-endian`、`data_len` は `u16 little-endian`、文字列は UTF-8（NUL終端なし）とする。
 
 | 項目 | TLV tag | data 形式 | 備考 |
 | --- | --- | --- | --- |
@@ -277,8 +277,8 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 ### 運用ルール
 
 - `Status=succeeded` 以外では上記項目を必須化しない
-- `Status=succeeded` の toolpath artifact では上表の全項目を必須とする
-- `Status=succeeded` の interference artifact では `machining_direction` を任意、それ以外を必須とする
+- `Status=succeeded` の toolpath artifact では上表の全項目を payload 側 `ext_attributes` に必須とする
+- `Status=succeeded` の interference artifact では `machining_direction` を任意、それ以外を共通ヘッダ側 `ext_attributes` に必須とする
 - Job Manager は値の意味を解釈せず、参照整合のみ扱う
 - Model/CAM 側が生成時に値を確定し、reader/writer は本節の TLV 契約に従って保持する
 - reader は `Status=succeeded` の場合に必須項目欠落を不正データとして扱う
