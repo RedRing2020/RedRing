@@ -256,7 +256,7 @@
   },
 
   // === Performance Settings ===
-  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "js/ts.preferences.includePackageJsonAutoImports": "off",
   "extensions.ignoreRecommendations": false,
 
   // === Testing & Development ===
