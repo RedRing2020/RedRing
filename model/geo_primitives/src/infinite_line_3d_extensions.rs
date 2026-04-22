@@ -80,7 +80,8 @@ impl<T: Scalar> InfiniteLine3D<T> {
     /// 直線が交差するかを判定
     pub fn is_intersecting(&self, other: &Self, tolerance: T) -> bool {
         let cross_product = self.cross_product_of_directions(other);
-        if cross_product.length() <= tolerance {
+        let cross_length = cross_product.length();
+        if cross_length <= tolerance {
             return false;
         }
         let to_other_point = Vector3D::new(
@@ -88,13 +89,15 @@ impl<T: Scalar> InfiniteLine3D<T> {
             other.point_internal().y() - self.point_internal().y(),
             other.point_internal().z() - self.point_internal().z(),
         );
-        to_other_point.dot(&cross_product).abs() <= tolerance
+        let shortest_distance = to_other_point.dot(&cross_product).abs() / cross_length;
+        shortest_distance <= tolerance
     }
 
     /// 直線がねじれ位置にあるかを判定
     pub fn is_skew(&self, other: &Self, tolerance: T) -> bool {
         let cross_product = self.cross_product_of_directions(other);
-        if cross_product.length() <= tolerance {
+        let cross_length = cross_product.length();
+        if cross_length <= tolerance {
             return false;
         }
         let to_other_point = Vector3D::new(
@@ -102,7 +105,8 @@ impl<T: Scalar> InfiniteLine3D<T> {
             other.point_internal().y() - self.point_internal().y(),
             other.point_internal().z() - self.point_internal().z(),
         );
-        to_other_point.dot(&cross_product).abs() > tolerance
+        let shortest_distance = to_other_point.dot(&cross_product).abs() / cross_length;
+        shortest_distance > tolerance
     }
 
     /// 直線を平行移動

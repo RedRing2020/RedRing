@@ -470,7 +470,7 @@ fn symmetric_line_segment_intersection_wrappers_match_base_functions() {
 
 #[test]
 fn spherical_surface_line_like_intersections_return_expected_points() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let sphere = SphericalSurface3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
@@ -519,7 +519,7 @@ fn spherical_surface_line_like_intersections_return_expected_points() {
 
 #[test]
 fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let sphere = SphericalSolid3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
@@ -544,7 +544,7 @@ fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn spherical_surface_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let sphere = SphericalSurface3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
@@ -572,7 +572,7 @@ fn spherical_surface_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn ellipsoidal_solid_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let ellipsoid = EllipsoidalSolid3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
@@ -602,7 +602,7 @@ fn ellipsoidal_solid_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn arc_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let arc = Arc3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         2.0,
@@ -629,7 +629,7 @@ fn arc_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn circle_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let circle = Circle3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Direction3D::new(0.0, 0.0, 1.0).unwrap(),
@@ -653,7 +653,7 @@ fn circle_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let ellipse = Ellipse3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         3.0,
@@ -682,7 +682,7 @@ fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn conical_solid_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let cone = ConicalSolid3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
@@ -708,7 +708,7 @@ fn conical_solid_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn conical_surface_ray_entrypoints_are_symmetric_wrappers() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let cone = ConicalSurface3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Vector3D::new(0.0, 0.0, 1.0),
@@ -737,7 +737,7 @@ fn conical_surface_ray_entrypoints_are_symmetric_wrappers() {
 
 #[test]
 fn ray_ray_intersection_returns_shared_point_only_for_forward_rays() {
-    let tolerance = 1e-9;
+    let tolerance = standard_distance_tol();
     let ray_a = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
     let ray_b = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
     let opposite = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
