@@ -209,7 +209,7 @@
   - `arc3d_point3d_intersection`
   - `circle3d_point3d_intersection`
 
-### 10.2.1 継続スライス（同一PR系列で拡張する範囲）
+### 11.2.1 継続スライス（同一PR系列で拡張する範囲）
 
 - point系の次は、同じ形状対の 1次元入力を対象に広げる。
   - `arc3d_line_segment3d_intersection`
@@ -239,7 +239,7 @@
 `#338` で単点関数（`Option<Point3D<T>>` → `IntersectionResult<T>`）の置換が完了した。
 次段階として、複数孤立点を返す関数（`Vec<Point3D<T>>` → `IntersectionResult<T>`）の統一を進める。
 
-### 13.2 既存 Points 実装の確認
+### 12.2 既存 Points 実装の確認
 
 `result.rs` には以下が既に実装済み:
 
@@ -276,7 +276,7 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 - 空ベクタ → `Disjoint`
 - 1点以上 → `Touching` または `Crossing`（`is_tangent` で制御）
 
-### 13.3 多点関数の対象一覧（12 個）
+### 12.3 多点関数の対象一覧（12 個）
 
 `intersection/primitive_3d.rs` で複数孤立点を返す関数:
 
@@ -298,7 +298,7 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 - L1362: `pub fn line_segment3d_spherical_surface3d_intersections`
 - L1505: `pub fn infinite_line3d_spherical_surface3d_intersections`
 
-### 13.4 Topology 分類ルール
+### 12.4 Topology 分類ルール
 
 **多点交差の position 判定基準** （参考: Ellipse3D との交差パターン）:
 
@@ -316,12 +316,12 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 3. **複数点の場合は `is_tangent` を統一**: 2 つ以上の孤立点がある場合、全て同じ `is_tangent` フラグを付与
    - 理由: Topology は形状ペア全体の関係を表すため。一部だけ接線は想定外
 
-### 13.5 実装順序（段階的移行）
+### 12.5 実装順序（段階的移行）
 
 ### 12.5.1 Phase 1: 設計固定（現在 = #466）
 
-- [ ] MultiPoint Topology ルール確定（本セクション 11.4）
-- [ ] 多点関数群の一覧表を公開（上記 11.3）
+- [ ] MultiPoint Topology ルール確定（本セクション 12.4）
+- [ ] 多点関数群の一覧表を公開（上記 12.3）
 - [ ] 変換規約テストの雛形作成（下記参照）
 - [ ] ドキュメント整備完了
 
@@ -526,7 +526,7 @@ Phase D5: 状況同期と運用固定（本タスク）
   - 本ドキュメントのステータスが実コードと一致していること
   - 次回作業開始時に「どこまで完了か」を本ドキュメント単体で判断できること
 
-### 12.6 現在ステータス（2026-03-28）
+### 13.6 現在ステータス（2026-03-28）
 
 - 現行正本: `develop`
 - 2D/3D intersection 公開 API の返り値は `IntersectionResult<T>` へ統一済み
