@@ -889,17 +889,19 @@ Job Manager は以下を reject とする。
 ### 22.2 単位・トレランス変換
 
 - mm を基準単位とする
-- `press_rough = 0.001mm`、`mold_finish = 0.0001mm` を初期既定とする
+- `press_rough = 0.001mm`、`mold_finish = 0.0001mm` を工程テンプレート定義時の初期既定とする
+- 上記初期既定はテンプレート定義の欠落補完にのみ適用し、`InputRef` 解決後の実行 payload では `tolerance_profile` を必須とする
 - `unit_mismatch` は Model/CAM/solver 側の入力不正分類とし、暗黙変換で継続しない
 
 ### 22.3 検証条件
 
 - Job Manager が受付時に reject:
   - missing `InputRef`
-- Model/CAM/solver が `InputRef` 解決後に失敗分類:
+- Model/CAM/solver が `InputRef` 解決後に失敗分類（本節では単位・トレランス関連の最低限を列挙）:
   - `invalid_tolerance_profile`
   - `missing_tolerance_profile`
   - `unit_mismatch`
+  - CAM 固有の内部分類を含む完全一覧は `CAM_ALGORITHMS_DESIGN.md` の #689 節に従う（例: `boundary_projection_failed` など）
 - Job Manager が `Status=succeeded` の監査時に reject:
   - missing `ResultRef`
   - manifest の hash/digest 形式不正

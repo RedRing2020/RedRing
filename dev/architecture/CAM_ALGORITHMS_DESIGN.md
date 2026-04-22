@@ -521,9 +521,9 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 適用優先順位:
 
-1. operation 明示指定
-2. 工程テンプレート既定値
-3. solver 既定値
+1. `operation_type` 明示指定
+2. 工程テンプレートの `operation_type` 既定値
+3. solver の `operation_type` 既定値
 
 ### 9.2 加工ステージ別オペレーション
 
@@ -574,7 +574,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
   - `x_min < x_max` かつ `y_min < y_max` を満たさない場合は失敗分類とする
 - `tolerance_profile`
   - 許容値は `press_rough` / `mold_finish` のみとする
-  - 未指定または未知値は失敗分類とする
+  - 未指定は `missing_tolerance_profile`、未知値は `invalid_tolerance_profile` として失敗分類する
 
 ### 9.4 失敗分類（初期・内部分類）
 
