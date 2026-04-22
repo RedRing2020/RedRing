@@ -194,6 +194,11 @@
     "newton.rs": "newton_tests.rs",
     "mod.rs": "mod_tests.rs",
     "angle.rs": "angle_tests.rs",
+    // cam_core クレート
+    "machine_constraint.rs": "machine_constraint_tests.rs",
+    "tool.rs": "tool_tests.rs",
+    "toolpath.rs": "toolpath_tests.rs",
+    "toolset.rs": "toolset_tests.rs",
     // その他
     "transform.rs": "transform_error.rs",
     "collision.rs": "collision_error.rs",
