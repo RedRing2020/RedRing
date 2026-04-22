@@ -273,11 +273,5 @@
 
   // === Debugging ===
   "debug.allowBreakpointsEverywhere": true,
-  "debug.showInStatusBar": "onFirstSessionStart",
-  "chat.tools.terminal.autoApprove": {
-    "/^git -C \"c:\\\\Users\\\\takat\\\\GitHub\\\\RedRing\" rev-parse HEAD$/": {
-      "approve": true,
-      "matchCommandLine": true
-    }
-  }
+  "debug.showInStatusBar": "onFirstSessionStart"
 }
