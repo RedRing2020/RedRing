@@ -507,3 +507,130 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 - #679: `NcPostFromCam` の artifact 読込導線は本節の `ResultRef` 契約を前提とする
 - #680-#683: NC post 拡張系列は、本節で固定した solver->toolpath 導線を前提とする
+
+---
+
+## 9️⃣ #689 工程テンプレート精度プロファイル運用契約（Step A）
+
+本節は Issue #689 の設計固定を目的とし、加工ステージ別オペレーションと精度プロファイル適用契約を定義する。
+
+### 9.1 精度プロファイル
+
+- `press_rough`: 0.001mm
+- `mold_finish`: 0.0001mm
+
+`tolerance_profile` の適用優先順位:
+
+1. オペレーション定義の `tolerance_profile` 明示指定
+2. 工程テンプレートの `tolerance_profile` 既定値
+3. solver の `tolerance_profile` 既定値
+
+### 9.2 `operation_type` 決定規約
+
+`operation_type` で受理する canonical token は以下に固定する。
+実装・保存・artifact 追跡では、別名や自然言語ではなくこれらの token を用いる。
+
+- `contour_offset`
+  - 等高線オフセット加工。荒加工での外周からの段階切込み、およびストック入力ありの等高線オフセット加工を含む
+- `rest_machining`
+  - 等高残加工。前工程や大径工具で残った未加工領域を小径工具などで追い込む加工
+- `scanline`
+  - スキャン加工。一定方向の往復または片方向走査で面を仕上げる加工
+- `surface_follow`
+  - 面沿い加工。対象面の法線・曲率・パラメトリック流れに追従して経路を生成する加工
+
+`operation_type` の適用優先順位:
+
+1. `operation_type` 明示指定
+2. 工程テンプレートの `operation_type` 既定値
+3. solver の `operation_type` 既定値
+
+### 9.3 加工ステージ別オペレーション
+
+`machining_stage` は実行順序を強制するための状態ではなく、工程テンプレート上のタグ分類として扱う。
+
+- 荒加工（rough）
+  - 等高線オフセット加工（`contour_offset`）
+- 中加工（semi_finish）
+  - ストック入力あり等高線オフセット加工（`contour_offset`）
+  - 等高残加工（`rest_machining`）
+- 仕上げ（finish）
+  - スキャン加工（`scanline`）
+  - 面沿い加工（`surface_follow`）
+  - 小径工具による等高残加工（`rest_machining`、等高中加工後の追い込み用途）
+
+補足:
+
+- 等高残加工は `semi_finish` を基本配置とするが、小径工具での追い込み時は `finish` でも許容する
+- `machining_stage` タグと `operation_type` の組み合わせで運用し、単純な前後関係だけで reject しない
+- `machining_stage` と `operation_type` は直交する属性とし、`finish` だから常に `surface_follow` になる、といった自動推論は行わない
+
+### 9.4 加工範囲指定方式
+
+- `edge_projected_2d`
+  - エッジ指示を加工方向へ投影した2D境界を使用
+- `rectangle`
+  - 矩形座標値（min/max）を直接指定
+
+入力契約（最小）:
+
+- `operation_type`
+- `machining_stage`
+- `boundary_mode`
+- `machining_direction`
+- `tolerance_profile`
+- `stock_ref`（`machining_stage = semi_finish` かつ `operation_type = rest_machining` の時に必須）
+
+必須フィールド制約:
+
+- `machining_direction`
+  - canonical token: `+X` / `-X` / `+Y` / `-Y` / `+Z` / `-Z`
+  - 単位なしの軸方向指定として扱い、角度値や任意ベクトルは受理しない
+- `boundary_mode = edge_projected_2d`
+  - `edge_refs`（1件以上）を必須とする
+  - `edge_refs` を `machining_direction` へ投影して2D境界を構築できない場合は失敗分類とする
+- `boundary_mode = rectangle`
+  - `rect_min=(x_min,y_min)` と `rect_max=(x_max,y_max)` を必須とする
+  - 座標系はワーク局所座標、単位は mm 固定とする
+  - `x_min < x_max` かつ `y_min < y_max` を満たさない場合は失敗分類とする
+- `tolerance_profile`
+  - 許容値は `press_rough` / `mold_finish` のみとする
+  - 未指定は `missing_tolerance_profile`、未知値は `invalid_tolerance_profile` として失敗分類する
+- `operation_type`
+  - 許容値は `contour_offset` / `rest_machining` / `scanline` / `surface_follow` のみとする
+  - 別名 token の導入は許可しない
+
+### 9.5 失敗分類（初期・内部分類）
+
+- `invalid_tolerance_profile`
+- `missing_tolerance_profile`
+- `unit_mismatch`
+- `boundary_projection_failed`
+- `empty_projected_boundary`
+- `operation_boundary_out_of_domain`
+- `stock_required_but_missing`
+
+失敗分類マッピング:
+
+- 本節の列挙はテンプレート適用段階の内部分類であり、Job Manager へ直接公開する分類コードではない
+- Job Manager へ返す失敗分類は #684 で定義済みの 3 分類（`invalid_input` / `no_solution` / `convergence_failure`）に統一する
+- #689 で追加した内部分類は以下へ集約する
+  - `invalid_tolerance_profile`
+  - `missing_tolerance_profile`
+  - `unit_mismatch`
+  - `boundary_projection_failed`
+  - `empty_projected_boundary`
+  - `operation_boundary_out_of_domain`
+  - `stock_required_but_missing`
+  - 上記はすべて `invalid_input` へマップする
+
+### 9.6 責務境界
+
+- Job Manager はテンプレート本体を解釈せず、`InputRef` / `ResultRef` 契約を維持する
+- Model/CAM 側がテンプレートを解決し、profile と operation を solver へ適用する
+
+### 9.7 工程順序ポリシー
+
+- 工程順序チェックは設定可能な警告として扱う（既定は warning、hard error にはしない）
+- 例: `finish` が `semi_finish` より先行する場合、設定有効時に警告を出す
+- 警告出力の有無はテンプレート設定で制御し、`JobType + InputRef -> ResultRef` 契約は維持する

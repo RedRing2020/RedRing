@@ -868,3 +868,68 @@ Job Manager は以下を reject とする。
 - #679 は本章の `ResultRef` 契約に依存して `NcPostFromCam` を実行する
 - #680-#683 は本章の責務境界を維持した上で NC post 拡張を行う
 - 本章は Option A の Step A（設計固定）に相当し、solver 高度化は後続Issueで扱う
+
+---
+
+## 22. #689 工程テンプレート適用規約（Step A）
+
+本章は、工程テンプレート由来の精度プロファイルとオペレーション指定を `JobType + InputRef -> ResultRef` 契約のまま運用するための規約を固定する。
+
+### 22.1 適用入力
+
+`InputRef` が指す payload に、以下の最小項目を含める。
+
+- `machining_stage`: `rough` / `semi_finish` / `finish`
+- `operation_type`: `contour_offset` / `rest_machining` / `scanline` / `surface_follow`
+- `boundary_mode`: `edge_projected_2d` / `rectangle`
+- `machining_direction`
+- `tolerance_profile`: `press_rough` / `mold_finish`
+- `stock_ref`（`machining_stage = semi_finish` かつ `operation_type = rest_machining` の時に必須）
+
+`operation_type` は本章で列挙した canonical token のみを受理し、実装側での別名 token 追加は許可しない。
+
+### 22.2 単位・トレランス変換
+
+- mm を基準単位とする
+- `press_rough = 0.001mm`、`mold_finish = 0.0001mm` を工程テンプレート定義時の初期既定とする
+- 上記初期既定はテンプレート定義の欠落補完にのみ適用し、`InputRef` 解決後の実行 payload では `tolerance_profile` を必須とする
+- `unit_mismatch` は Model/CAM/solver 側の入力不正分類とし、暗黙変換で継続しない
+
+### 22.3 検証条件
+
+- Job Manager が受付時に reject:
+  - missing `InputRef`
+- Model/CAM/solver が `InputRef` 解決後に失敗分類（本節では単位・トレランス関連の最低限を列挙）:
+  - `invalid_tolerance_profile`
+  - `missing_tolerance_profile`
+  - `unit_mismatch`
+  - CAM 固有の内部分類を含む完全一覧は `CAM_ALGORITHMS_DESIGN.md` の #689 節に従う（例: `boundary_projection_failed` など）
+- Job Manager が `Status=succeeded` の監査時に reject:
+  - missing `ResultRef`
+  - manifest の hash/digest 形式不正
+  - `format_version` 不一致
+
+### 22.4 成果物追跡（succeeded時）
+
+`Status=succeeded` の成果物には、最低限以下の追跡情報を残す。
+
+- `tolerance_profile`
+- `tolerance_value_mm`
+- `template_revision`
+- `operation_type`
+- `machining_stage`
+- `boundary_mode`
+- `machining_direction`（toolpath artifact では必須、interference artifact では任意）
+
+格納先と責務:
+
+- toolpath artifact の正本格納先は payload のファイル単位メタ側 `ext_attributes[]` TLV とする
+- interference artifact の正本格納先は共通ヘッダの `ext_attributes` TLV とする
+- manifest には監査・検索用の最小メタデータのみを持たせ、値の意味解釈は行わない
+- payload またはヘッダへの重複保持は任意とし、reader は artifact 種別ごとの正本領域（toolpath は payload のファイル単位メタ側 `ext_attributes[]`、interference は共通ヘッダ側 `ext_attributes`）を優先して解釈する
+- 格納規則の詳細（tag/data 形式・reader/writer 規約）は `ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md` の #689 節に従う
+
+必須化範囲:
+
+- toolpath artifact: 上記 7 項目を payload のファイル単位メタ側 `ext_attributes[]` TLV に必須保持する
+- interference artifact: 干渉イベント監査を主目的とするため `machining_direction` を任意とし、それ以外を共通ヘッダ側 `ext_attributes` TLV に必須保持する
