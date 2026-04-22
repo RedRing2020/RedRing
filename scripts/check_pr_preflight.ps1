@@ -1,7 +1,8 @@
 param(
     [switch]$SkipClippy,
     [switch]$SkipTests,
-    [switch]$AllowDevelop
+    [switch]$AllowDevelop,
+    [switch]$AllowDirty
 )
 
 Set-StrictMode -Version Latest
@@ -50,7 +51,11 @@ if ($branch -eq "develop" -and -not $AllowDevelop) {
 }
 
 if (-not [string]::IsNullOrWhiteSpace($statusShort)) {
-    throw "Working tree is dirty. Commit or stash changes first."
+    if ($AllowDirty) {
+        Write-Warn "Working tree is dirty (allowed by -AllowDirty):`n$statusShort"
+    } else {
+        throw "Working tree is dirty. Commit or stash changes first."
+    }
 }
 
 if ($statusBranch -match "ahead") {
