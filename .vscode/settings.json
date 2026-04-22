@@ -273,11 +273,5 @@
 
   // === Debugging ===
   "debug.allowBreakpointsEverywhere": true,
-  "debug.showInStatusBar": "onFirstSessionStart",
-  "chat.tools.terminal.autoApprove": {
-    "/^git status -sb; git branch --show-current; git remote -v \\| Select-Object -First 2$/": {
-      "approve": true,
-      "matchCommandLine": true
-    }
-  }
+  "debug.showInStatusBar": "onFirstSessionStart"
 }
