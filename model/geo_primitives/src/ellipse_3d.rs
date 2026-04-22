@@ -478,7 +478,7 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DDerived<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DDerived<T> for Ellipse3D<T> {
     fn area(&self) -> T {
         Ellipse3D::area(self)
     }
@@ -503,7 +503,7 @@ impl<T: Scalar + From<f64>> Ellipse3DDerived<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DEvaluation<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DEvaluation<T> for Ellipse3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let p = Ellipse3D::point_at_parameter(self, t);
         (p.x(), p.y(), p.z())
@@ -522,7 +522,7 @@ impl<T: Scalar> Ellipse3DDistance<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DProjection<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DProjection<T> for Ellipse3D<T> {
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
         let closest = Ellipse3D::closest_point_to(self, p);
@@ -530,7 +530,7 @@ impl<T: Scalar + From<f64>> Ellipse3DProjection<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> MultipleIntersection<T, InfiniteLine3D<T>> for Ellipse3D<T> {
+impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for Ellipse3D<T> {
     type Point = (T, T, T);
 
     fn intersections_with(&self, _other: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
@@ -538,7 +538,7 @@ impl<T: Scalar + From<f64>> MultipleIntersection<T, InfiniteLine3D<T>> for Ellip
     }
 }
 
-impl<T: Scalar + From<f64>> MultipleIntersection<T, Plane3D<T>> for Ellipse3D<T> {
+impl<T: Scalar> MultipleIntersection<T, Plane3D<T>> for Ellipse3D<T> {
     type Point = (T, T, T);
 
     fn intersections_with(&self, _other: &Plane3D<T>, _tolerance: T) -> Vec<Self::Point> {
