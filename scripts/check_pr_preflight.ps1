@@ -1,7 +1,8 @@
 param(
     [switch]$SkipClippy,
     [switch]$SkipTests,
-    [switch]$AllowDevelop
+    [switch]$AllowDevelop,
+    [switch]$AllowDirty
 )
 
 Set-StrictMode -Version Latest
@@ -38,7 +39,7 @@ function Run-Or-Throw {
 
 Write-Step "Check git status"
 $branch = (git branch --show-current).Trim()
-$statusShort = git status --short
+$statusLines = @(git status --short)
 $statusBranch = git status --short --branch | Select-Object -First 1
 
 if ([string]::IsNullOrWhiteSpace($branch)) {
@@ -49,8 +50,13 @@ if ($branch -eq "develop" -and -not $AllowDevelop) {
     throw "Running on develop is not allowed. Use a feature branch or pass -AllowDevelop."
 }
 
-if (-not [string]::IsNullOrWhiteSpace($statusShort)) {
-    throw "Working tree is dirty. Commit or stash changes first."
+if ($statusLines.Count -gt 0) {
+    if ($AllowDirty) {
+        $statusText = ($statusLines -join "`n").TrimEnd()
+        Write-Warn "Working tree is dirty (allowed by -AllowDirty):`n$statusText"
+    } else {
+        throw "Working tree is dirty. Commit or stash changes first."
+    }
 }
 
 if ($statusBranch -match "ahead") {
