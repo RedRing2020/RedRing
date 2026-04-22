@@ -11,15 +11,16 @@ use super::{
     line_segment3d_spherical_surface3d_intersections, line_segment3d_triangle3d_intersection,
     plane3d_line_segment3d_intersection, plane3d_point3d_intersection, plane3d_ray3d_intersection,
     ray3d_line_segment3d_intersection, ray3d_plane3d_intersection, ray3d_point3d_intersection,
-    ray3d_ray3d_intersection, ray3d_spherical_surface3d_intersections,
-    ray3d_triangle3d_intersection, torus_surface3d_point3d_intersection,
+    ray3d_ray3d_intersection, ray3d_spherical_solid3d_intersection,
+    ray3d_spherical_surface3d_intersections, ray3d_triangle3d_intersection,
+    spherical_solid3d_ray3d_intersection, torus_surface3d_point3d_intersection,
     triangle3d_line_segment3d_intersection, triangle3d_point3d_intersection,
     triangle3d_ray3d_intersection, triangle_mesh3d_point3d_intersection,
 };
 use crate::{
     Angle, Arc3D, Circle3D, CylindricalSurface3D, Direction3D, Ellipse3D, InfiniteLine3D,
     IntersectionGeometry, IntersectionTopology, LineSegment3D, Plane3D, Point3D, Ray3D,
-    SphericalSurface3D, TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
+    SphericalSolid3D, SphericalSurface3D, TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
 };
 use analysis::test_constants;
 
@@ -507,6 +508,31 @@ fn spherical_surface_line_like_intersections_return_expected_points() {
         assert_eq!(pts[1], Point3D::new(1.0, 0.0, 0.0));
     } else {
         panic!("Expected Points geometry");
+    }
+}
+
+#[test]
+fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
+    let tolerance = 1e-9;
+    let sphere = SphericalSolid3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Vector3D::new(0.0, 0.0, 1.0),
+        Vector3D::new(1.0, 0.0, 0.0),
+        2.0,
+    )
+    .unwrap();
+    let ray = Ray3D::new(Point3D::new(-5.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let a_to_b = spherical_solid3d_ray3d_intersection(&sphere, &ray, tolerance);
+    let b_to_a = ray3d_spherical_solid3d_intersection(&ray, &sphere, tolerance);
+
+    assert_eq!(a_to_b.topology, b_to_a.topology);
+    match (&a_to_b.geometry, &b_to_a.geometry) {
+        (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
+            assert!(a.distance_to(b) <= tolerance);
+        }
+        (IntersectionGeometry::None, IntersectionGeometry::None) => {}
+        _ => panic!("Geometry mismatch between wrapper entrypoints"),
     }
 }
 

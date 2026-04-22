@@ -200,6 +200,14 @@ pub fn spherical_solid3d_ray3d_intersection<T: Scalar>(
     )
 }
 
+pub fn ray3d_spherical_solid3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    sphere: &SphericalSolid3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    spherical_solid3d_ray3d_intersection(sphere, ray, tolerance)
+}
+
 fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     sphere: &SphericalSolid3D<T>,
     segment: &LineSegment3D<T>,
