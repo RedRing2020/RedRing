@@ -527,6 +527,18 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 ### 9.2 `operation_type` 決定規約
 
+`operation_type` で受理する canonical token は以下に固定する。
+実装・保存・artifact 追跡では、別名や自然言語ではなくこれらの token を用いる。
+
+- `contour_offset`
+  - 等高線オフセット加工。荒加工での外周からの段階切込み、およびストック入力ありの等高線オフセット加工を含む
+- `rest_machining`
+  - 等高残加工。前工程や大径工具で残った未加工領域を小径工具などで追い込む加工
+- `scanline`
+  - スキャン加工。一定方向の往復または片方向走査で面を仕上げる加工
+- `surface_follow`
+  - 面沿い加工。対象面の法線・曲率・パラメトリック流れに追従して経路を生成する加工
+
 `operation_type` の適用優先順位:
 
 1. `operation_type` 明示指定
@@ -538,19 +550,20 @@ ToolPathの複雑化抑制のため、以下を分離する。
 `machining_stage` は実行順序を強制するための状態ではなく、工程テンプレート上のタグ分類として扱う。
 
 - 荒加工（rough）
-  - 等高線オフセット加工
+  - 等高線オフセット加工（`contour_offset`）
 - 中加工（semi_finish）
-  - ストック入力あり等高線オフセット加工
-  - 等高残加工
+  - ストック入力あり等高線オフセット加工（`contour_offset`）
+  - 等高残加工（`rest_machining`）
 - 仕上げ（finish）
-  - スキャン加工
-  - 面沿い加工
-  - 小径工具による等高残加工（等高中加工後の追い込み用途）
+  - スキャン加工（`scanline`）
+  - 面沿い加工（`surface_follow`）
+  - 小径工具による等高残加工（`rest_machining`、等高中加工後の追い込み用途）
 
 補足:
 
 - 等高残加工は `semi_finish` を基本配置とするが、小径工具での追い込み時は `finish` でも許容する
 - `machining_stage` タグと `operation_type` の組み合わせで運用し、単純な前後関係だけで reject しない
+- `machining_stage` と `operation_type` は直交する属性とし、`finish` だから常に `surface_follow` になる、といった自動推論は行わない
 
 ### 9.4 加工範囲指定方式
 
@@ -566,7 +579,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - `boundary_mode`
 - `machining_direction`
 - `tolerance_profile`
-- `stock_ref`（中加工の該当オペレーションで必須）
+- `stock_ref`（`machining_stage = semi_finish` かつ `operation_type = rest_machining` の時に必須）
 
 必須フィールド制約:
 
@@ -583,6 +596,9 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - `tolerance_profile`
   - 許容値は `press_rough` / `mold_finish` のみとする
   - 未指定は `missing_tolerance_profile`、未知値は `invalid_tolerance_profile` として失敗分類する
+- `operation_type`
+  - 許容値は `contour_offset` / `rest_machining` / `scanline` / `surface_follow` のみとする
+  - 別名 token の導入は許可しない
 
 ### 9.5 失敗分類（初期・内部分類）
 

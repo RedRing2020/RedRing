@@ -880,11 +880,13 @@ Job Manager は以下を reject とする。
 `InputRef` が指す payload に、以下の最小項目を含める。
 
 - `machining_stage`: `rough` / `semi_finish` / `finish`
-- `operation_type`
+- `operation_type`: `contour_offset` / `rest_machining` / `scanline` / `surface_follow`
 - `boundary_mode`: `edge_projected_2d` / `rectangle`
 - `machining_direction`
 - `tolerance_profile`: `press_rough` / `mold_finish`
-- `stock_ref`（中加工で必須のオペレーション時）
+- `stock_ref`（`machining_stage = semi_finish` かつ `operation_type = rest_machining` の時に必須）
+
+`operation_type` は本章で列挙した canonical token のみを受理し、実装側での別名 token 追加は許可しない。
 
 ### 22.2 単位・トレランス変換
 
