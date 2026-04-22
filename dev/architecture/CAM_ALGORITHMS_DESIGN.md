@@ -519,13 +519,21 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - `press_rough`: 0.001mm
 - `mold_finish`: 0.0001mm
 
-適用優先順位:
+`tolerance_profile` の適用優先順位:
+
+1. オペレーション定義の `tolerance_profile` 明示指定
+2. 工程テンプレートの `tolerance_profile` 既定値
+3. solver の `tolerance_profile` 既定値
+
+### 9.2 `operation_type` 決定規約
+
+`operation_type` の適用優先順位:
 
 1. `operation_type` 明示指定
 2. 工程テンプレートの `operation_type` 既定値
 3. solver の `operation_type` 既定値
 
-### 9.2 加工ステージ別オペレーション
+### 9.3 加工ステージ別オペレーション
 
 `machining_stage` は実行順序を強制するための状態ではなく、工程テンプレート上のタグ分類として扱う。
 
@@ -544,7 +552,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - 等高残加工は `semi_finish` を基本配置とするが、小径工具での追い込み時は `finish` でも許容する
 - `machining_stage` タグと `operation_type` の組み合わせで運用し、単純な前後関係だけで reject しない
 
-### 9.3 加工範囲指定方式
+### 9.4 加工範囲指定方式
 
 - `edge_projected_2d`
   - エッジ指示を加工方向へ投影した2D境界を使用
@@ -576,7 +584,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
   - 許容値は `press_rough` / `mold_finish` のみとする
   - 未指定は `missing_tolerance_profile`、未知値は `invalid_tolerance_profile` として失敗分類する
 
-### 9.4 失敗分類（初期・内部分類）
+### 9.5 失敗分類（初期・内部分類）
 
 - `invalid_tolerance_profile`
 - `missing_tolerance_profile`
@@ -600,12 +608,12 @@ ToolPathの複雑化抑制のため、以下を分離する。
   - `stock_required_but_missing`
   - 上記はすべて `invalid_input` へマップする
 
-### 9.5 責務境界
+### 9.6 責務境界
 
 - Job Manager はテンプレート本体を解釈せず、`InputRef` / `ResultRef` 契約を維持する
 - Model/CAM 側がテンプレートを解決し、profile と operation を solver へ適用する
 
-### 9.6 工程順序ポリシー
+### 9.7 工程順序ポリシー
 
 - 工程順序チェックは設定可能な警告として扱う（既定は warning、hard error にはしない）
 - 例: `finish` が `semi_finish` より先行する場合、設定有効時に警告を出す
