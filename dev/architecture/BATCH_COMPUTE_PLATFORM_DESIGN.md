@@ -915,7 +915,7 @@ Job Manager は以下を reject とする。
 - `operation_type`
 - `machining_stage`
 - `boundary_mode`
-- `machining_direction`
+- `machining_direction`（toolpath artifact では必須、interference artifact では任意）
 
 格納先と責務:
 
@@ -928,4 +928,4 @@ Job Manager は以下を reject とする。
 必須化範囲:
 
 - toolpath artifact: 上記 7 項目を payload 側 `ext_attributes` TLV に必須保持する
-- interference artifact: `machining_direction` を任意とし、それ以外を共通ヘッダ側 `ext_attributes` TLV に必須保持する
+- interference artifact: 干渉イベント監査を主目的とするため `machining_direction` を任意とし、それ以外を共通ヘッダ側 `ext_attributes` TLV に必須保持する

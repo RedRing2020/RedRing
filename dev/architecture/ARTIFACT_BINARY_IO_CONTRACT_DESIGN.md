@@ -250,9 +250,9 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 - `machining_stage`（`rough` / `semi_finish` / `finish`）
 - `operation_type`
 - `boundary_mode`（`edge_projected_2d` / `rectangle`）
-- `machining_direction`
+- `machining_direction`（toolpath artifact では必須、interference artifact では任意）
 
-`template_revision` はテンプレート version 相当の追跡キーであり、`tolerance_profile` と `tolerance_value_mm` だけでは区別できない改訂差分を識別するため必須とする。
+`template_revision` はテンプレート version 相当の追跡キーであり、`tolerance_profile` と `tolerance_value_mm` だけでは区別できない改訂差分を識別するため必須とする。`machining_direction` を interference artifact で任意にするのは、同 artifact が干渉イベント監査を主目的とし、CAM 実行方向を常に再現に要求しないためである。
 
 ### 格納領域
 
@@ -266,19 +266,19 @@ toolpath payload / interference 共通ヘッダの `ext_attributes` は同一 TL
 
 | 項目 | TLV tag | data 形式 | 備考 |
 | --- | --- | --- | --- |
-| `tolerance_profile` | `+689` | UTF-8 文字列 | `press_rough` / `mold_finish` |
-| `tolerance_value_mm` | `+690` | `f64 little-endian` | 単位は mm |
-| `template_revision` | `+691` | UTF-8 文字列 | 例: `v1`, `press_rough@3` |
-| `machining_stage` | `+692` | UTF-8 文字列 | `rough` / `semi_finish` / `finish` |
-| `operation_type` | `+693` | UTF-8 文字列 | canonical token |
-| `boundary_mode` | `+694` | UTF-8 文字列 | `edge_projected_2d` / `rectangle` |
-| `machining_direction` | `+695` | UTF-8 文字列 | `+X` / `-X` / `+Y` / `-Y` / `+Z` / `-Z` |
+| `tolerance_profile` | `689` | UTF-8 文字列 | `press_rough` / `mold_finish` |
+| `tolerance_value_mm` | `690` | `f64 little-endian` | 単位は mm |
+| `template_revision` | `691` | UTF-8 文字列 | 例: `v1`, `press_rough@3` |
+| `machining_stage` | `692` | UTF-8 文字列 | `rough` / `semi_finish` / `finish` |
+| `operation_type` | `693` | UTF-8 文字列 | canonical token |
+| `boundary_mode` | `694` | UTF-8 文字列 | `edge_projected_2d` / `rectangle` |
+| `machining_direction` | `695` | UTF-8 文字列 | `+X` / `-X` / `+Y` / `-Y` / `+Z` / `-Z`。toolpath artifact では必須、interference artifact では任意 |
 
 ### 運用ルール
 
 - `Status=succeeded` 以外では上記項目を必須化しない
 - `Status=succeeded` の toolpath artifact では上表の全項目を payload 側 `ext_attributes` に必須とする
-- `Status=succeeded` の interference artifact では `machining_direction` を任意、それ以外を共通ヘッダ側 `ext_attributes` に必須とする
+- `Status=succeeded` の interference artifact では、共通ヘッダ側 `ext_attributes` に上表の各項目を記録する。このうち `machining_direction` は任意、それ以外は必須とする
 - Job Manager は値の意味を解釈せず、参照整合のみ扱う
 - Model/CAM 側が生成時に値を確定し、reader/writer は本節の TLV 契約に従って保持する
-- reader は `Status=succeeded` の場合に必須項目欠落を不正データとして扱う
+- reader は `Status=succeeded` の場合、toolpath artifact では上表の全項目、interference artifact では `machining_direction` を除く上表の項目が欠落していれば不正データとして扱う
