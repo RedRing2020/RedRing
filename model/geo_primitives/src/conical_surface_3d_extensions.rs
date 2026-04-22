@@ -147,59 +147,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         k1 * k2 // 円錐面では常に0（可展面）
     }
 
-    /// 指定された方向からのレイとの交点を計算
-    ///
-    /// # Arguments
-    /// * `ray_origin` - レイの開始点
-    /// * `ray_direction` - レイの方向（正規化済み）
-    ///
-    /// # Returns
-    /// 交点のリスト（パラメータ付き）
-    pub fn ray_intersections(
-        &self,
-        _ray_origin: &Point3D<T>,
-        _ray_direction: &Direction3D<T>,
-    ) -> Vec<(Point3D<T>, T, (T, T))> {
-        // 複雑な代数計算が必要
-        // 簡略実装として空のベクタを返す
-        // 実装は円錐の2次式とレイの1次式の連立方程式を解く
-        Vec::new()
-    }
-
-    /// 平面との交線を計算
-    ///
-    /// # Arguments
-    /// * `plane_point` - 平面上の点
-    /// * `plane_normal` - 平面の法線ベクトル
-    ///
-    /// # Returns
-    /// 交線の種類（楕円、放物線、双曲線、点、直線）
-    pub fn plane_intersection_type(
-        &self,
-        _plane_point: &Point3D<T>,
-        plane_normal: &Direction3D<T>,
-    ) -> PlaneIntersectionType {
-        // 平面と円錐軸の関係を分析
-        let axis_vec = self.axis_internal().as_vector();
-        let normal_vec = plane_normal.as_vector();
-
-        // 軸と平面法線の内積
-        let dot_product = axis_vec.x() * normal_vec.x()
-            + axis_vec.y() * normal_vec.y()
-            + axis_vec.z() * normal_vec.z();
-
-        let cos_axis_normal = dot_product.abs();
-        let cos_semi_angle = self.semi_angle_internal().cos();
-
-        if cos_axis_normal > cos_semi_angle {
-            PlaneIntersectionType::Ellipse
-        } else if cos_axis_normal == cos_semi_angle {
-            PlaneIntersectionType::Parabola
-        } else {
-            PlaneIntersectionType::Hyperbola
-        }
-    }
-
     /// 母線（generatrix）を取得
     ///
     /// # Arguments
