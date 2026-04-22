@@ -561,7 +561,7 @@ fn spherical_surface_ray_entrypoints_are_symmetric_wrappers() {
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
-            if let (Some(pa), Some(pb)) = (a.first(), b.first()) {
+            for (pa, pb) in a.iter().zip(b.iter()) {
                 assert!(pa.distance_to(pb) <= tolerance);
             }
         }
@@ -591,7 +591,7 @@ fn ellipsoidal_solid_ray_entrypoints_are_symmetric_wrappers() {
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
-            if let (Some(pa), Some(pb)) = (a.first(), b.first()) {
+            for (pa, pb) in a.iter().zip(b.iter()) {
                 assert!(pa.distance_to(pb) <= tolerance);
             }
         }
@@ -671,7 +671,7 @@ fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
-            if let (Some(pa), Some(pb)) = (a.first(), b.first()) {
+            for (pa, pb) in a.iter().zip(b.iter()) {
                 assert!(pa.distance_to(pb) <= tolerance);
             }
         }
@@ -726,7 +726,7 @@ fn conical_surface_ray_entrypoints_are_symmetric_wrappers() {
     match (&a_to_b.geometry, &b_to_a.geometry) {
         (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
             assert_eq!(a.len(), b.len());
-            if let (Some(pa), Some(pb)) = (a.first(), b.first()) {
+            for (pa, pb) in a.iter().zip(b.iter()) {
                 assert!(pa.distance_to(pb) <= tolerance);
             }
         }
