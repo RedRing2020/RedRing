@@ -3,14 +3,17 @@ use super::{
     arc3d_infinite_line3d_intersection, arc3d_line_segment3d_intersection,
     arc3d_point3d_intersection, arc3d_ray3d_intersection, circle3d_infinite_line3d_intersection,
     circle3d_line_segment3d_intersection, circle3d_point3d_intersection,
-    circle3d_ray3d_intersection, cylindrical_surface3d_point3d_intersection,
+    circle3d_ray3d_intersection, conical_solid3d_ray3d_intersection,
+    conical_surface3d_ray3d_intersections, cylindrical_surface3d_point3d_intersection,
     ellipse3d_point3d_intersection, ellipsoidal_solid3d_ray3d_intersections,
     infinite_line3d_line_segment3d_intersection, infinite_line3d_point3d_intersection,
     infinite_line3d_spherical_surface3d_intersections, line_segment3d_infinite_line3d_intersection,
     line_segment3d_plane3d_intersection, line_segment3d_point3d_intersection,
     line_segment3d_ray3d_intersection, line_segment3d_spherical_surface3d_intersections,
     line_segment3d_triangle3d_intersection, plane3d_line_segment3d_intersection,
-    plane3d_point3d_intersection, plane3d_ray3d_intersection,
+    plane3d_point3d_intersection, plane3d_ray3d_intersection, ray3d_arc3d_intersection,
+    ray3d_circle3d_intersection, ray3d_conical_solid3d_intersection,
+    ray3d_conical_surface3d_intersections, ray3d_ellipse3d_intersections,
     ray3d_ellipsoidal_solid3d_intersections, ray3d_line_segment3d_intersection,
     ray3d_plane3d_intersection, ray3d_point3d_intersection, ray3d_ray3d_intersection,
     ray3d_spherical_solid3d_intersection, ray3d_spherical_surface3d_intersections,
@@ -20,10 +23,10 @@ use super::{
     triangle_mesh3d_point3d_intersection,
 };
 use crate::{
-    Angle, Arc3D, Circle3D, CylindricalSurface3D, Direction3D, Ellipse3D, EllipsoidalSolid3D,
-    InfiniteLine3D, IntersectionGeometry, IntersectionTopology, LineSegment3D, Plane3D, Point3D,
-    Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
-    Vector3D,
+    Angle, Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSurface3D, Direction3D,
+    Ellipse3D, EllipsoidalSolid3D, InfiniteLine3D, IntersectionGeometry, IntersectionTopology,
+    LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, SphericalSurface3D, TorusSurface3D,
+    Triangle3D, TriangleMesh3D, Vector3D,
 };
 use analysis::test_constants;
 
@@ -555,6 +558,141 @@ fn ellipsoidal_solid_ray_entrypoints_are_symmetric_wrappers() {
 
     let a_to_b = ellipsoidal_solid3d_ray3d_intersections(&ellipsoid, &ray, tolerance);
     let b_to_a = ray3d_ellipsoidal_solid3d_intersections(&ray, &ellipsoid, tolerance);
+
+    assert_eq!(a_to_b.topology, b_to_a.topology);
+    match (&a_to_b.geometry, &b_to_a.geometry) {
+        (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
+            assert_eq!(a.len(), b.len());
+            if let (Some(pa), Some(pb)) = (a.first(), b.first()) {
+                assert!(pa.distance_to(pb) <= tolerance);
+            }
+        }
+        (IntersectionGeometry::None, IntersectionGeometry::None) => {}
+        _ => panic!("Geometry mismatch between wrapper entrypoints"),
+    }
+}
+
+#[test]
+fn arc_ray_entrypoints_are_symmetric_wrappers() {
+    let tolerance = 1e-9;
+    let arc = Arc3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        2.0,
+        Direction3D::new(0.0, 0.0, 1.0).unwrap(),
+        Direction3D::new(1.0, 0.0, 0.0).unwrap(),
+        Angle::from_radians(0.0),
+        Angle::from_radians(std::f64::consts::FRAC_PI_2),
+    )
+    .unwrap();
+    let ray = Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let a_to_b = arc3d_ray3d_intersection(&arc, &ray, tolerance);
+    let b_to_a = ray3d_arc3d_intersection(&ray, &arc, tolerance);
+
+    assert_eq!(a_to_b.topology, b_to_a.topology);
+    match (&a_to_b.geometry, &b_to_a.geometry) {
+        (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
+            assert!(a.distance_to(b) <= tolerance);
+        }
+        (IntersectionGeometry::None, IntersectionGeometry::None) => {}
+        _ => panic!("Geometry mismatch between wrapper entrypoints"),
+    }
+}
+
+#[test]
+fn circle_ray_entrypoints_are_symmetric_wrappers() {
+    let tolerance = 1e-9;
+    let circle = Circle3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Direction3D::new(0.0, 0.0, 1.0).unwrap(),
+        2.0,
+    )
+    .unwrap();
+    let ray = Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let a_to_b = circle3d_ray3d_intersection(&circle, &ray, tolerance);
+    let b_to_a = ray3d_circle3d_intersection(&ray, &circle, tolerance);
+
+    assert_eq!(a_to_b.topology, b_to_a.topology);
+    match (&a_to_b.geometry, &b_to_a.geometry) {
+        (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
+            assert!(a.distance_to(b) <= tolerance);
+        }
+        (IntersectionGeometry::None, IntersectionGeometry::None) => {}
+        _ => panic!("Geometry mismatch between wrapper entrypoints"),
+    }
+}
+
+#[test]
+fn ellipse_ray_entrypoints_are_symmetric_wrappers() {
+    let tolerance = 1e-9;
+    let ellipse = Ellipse3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        3.0,
+        2.0,
+        Vector3D::new(0.0, 0.0, 1.0),
+        Vector3D::new(1.0, 0.0, 0.0),
+    )
+    .unwrap();
+    let ray = Ray3D::new(Point3D::new(3.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let a_to_b = super::ellipse3d_ray3d_intersections(&ellipse, &ray, tolerance);
+    let b_to_a = ray3d_ellipse3d_intersections(&ray, &ellipse, tolerance);
+
+    assert_eq!(a_to_b.topology, b_to_a.topology);
+    match (&a_to_b.geometry, &b_to_a.geometry) {
+        (IntersectionGeometry::Points(a), IntersectionGeometry::Points(b)) => {
+            assert_eq!(a.len(), b.len());
+            if let (Some(pa), Some(pb)) = (a.first(), b.first()) {
+                assert!(pa.distance_to(pb) <= tolerance);
+            }
+        }
+        (IntersectionGeometry::None, IntersectionGeometry::None) => {}
+        _ => panic!("Geometry mismatch between wrapper entrypoints"),
+    }
+}
+
+#[test]
+fn conical_solid_ray_entrypoints_are_symmetric_wrappers() {
+    let tolerance = 1e-9;
+    let cone = ConicalSolid3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Vector3D::new(0.0, 0.0, 1.0),
+        Vector3D::new(1.0, 0.0, 0.0),
+        1.0,
+        2.0,
+    )
+    .unwrap();
+    let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let a_to_b = conical_solid3d_ray3d_intersection(&cone, &ray, tolerance);
+    let b_to_a = ray3d_conical_solid3d_intersection(&ray, &cone, tolerance);
+
+    assert_eq!(a_to_b.topology, b_to_a.topology);
+    match (&a_to_b.geometry, &b_to_a.geometry) {
+        (IntersectionGeometry::Point(a), IntersectionGeometry::Point(b)) => {
+            assert!(a.distance_to(b) <= tolerance);
+        }
+        (IntersectionGeometry::None, IntersectionGeometry::None) => {}
+        _ => panic!("Geometry mismatch between wrapper entrypoints"),
+    }
+}
+
+#[test]
+fn conical_surface_ray_entrypoints_are_symmetric_wrappers() {
+    let tolerance = 1e-9;
+    let cone = ConicalSurface3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Vector3D::new(0.0, 0.0, 1.0),
+        Vector3D::new(1.0, 0.0, 0.0),
+        1.0,
+        std::f64::consts::FRAC_PI_6,
+    )
+    .unwrap();
+    let ray = Ray3D::new(Point3D::new(0.0, 0.0, 5.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let a_to_b = conical_surface3d_ray3d_intersections(&cone, &ray, tolerance);
+    let b_to_a = ray3d_conical_surface3d_intersections(&ray, &cone, tolerance);
 
     assert_eq!(a_to_b.topology, b_to_a.topology);
     match (&a_to_b.geometry, &b_to_a.geometry) {
