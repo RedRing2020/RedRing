@@ -4,9 +4,8 @@
 
 use crate::{
     ellipse_calculation_analysis, ellipse_calculation_strategy, Angle, Circle3D, Direction3D,
-    InfiniteLine3D, Plane3D, Point3D, Vector3D,
+    Point3D, Vector3D,
 };
-use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
@@ -478,7 +477,7 @@ impl<T: Scalar> Ellipse3DProperties<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DDerived<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DDerived<T> for Ellipse3D<T> {
     fn area(&self) -> T {
         Ellipse3D::area(self)
     }
@@ -503,46 +502,30 @@ impl<T: Scalar + From<f64>> Ellipse3DDerived<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DEvaluation<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DEvaluation<T> for Ellipse3D<T> {
     fn point_at_parameter(&self, t: T) -> (T, T, T) {
         let p = Ellipse3D::point_at_parameter(self, t);
         (p.x(), p.y(), p.z())
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DContainment<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DContainment<T> for Ellipse3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DDistance<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DDistance<T> for Ellipse3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         self.distance_to_point_3d_internal(point)
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DProjection<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DProjection<T> for Ellipse3D<T> {
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
         let closest = Ellipse3D::closest_point_to(self, p);
         (closest.x(), closest.y(), closest.z())
-    }
-}
-
-impl<T: Scalar + From<f64>> MultipleIntersection<T, InfiniteLine3D<T>> for Ellipse3D<T> {
-    type Point = (T, T, T);
-
-    fn intersections_with(&self, _other: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
-        Vec::new()
-    }
-}
-
-impl<T: Scalar + From<f64>> MultipleIntersection<T, Plane3D<T>> for Ellipse3D<T> {
-    type Point = (T, T, T);
-
-    fn intersections_with(&self, _other: &Plane3D<T>, _tolerance: T) -> Vec<Self::Point> {
-        Vec::new()
     }
 }
 

@@ -1,6 +1,6 @@
 # geo_algorithms モジュール分割ルール
 
-最終更新: 2026-04-10
+最終更新: 2026-04-23
 適用範囲: `model/geo_algorithms/src/{collision,intersection,distance}`
 
 ## 1. 目的
@@ -157,25 +157,59 @@
 - ただし将来整理で `distance/nurbs_curve_3d.rs` / `distance/nurbs_surface_3d.rs` へ分離可能。
 - その際は本ルールを正として移行する。
 
-## 10. #338 再開時の戻り値移行ルール
+## 10. geo_primitives 側の交点実装に関するポリシー（Issue #697 追記）
+
+最終更新: 2026-04-23
+
+### 10.1 正本の所在
+
+**交点計算・距離計算・衝突判定の正本は `geo_algorithms` に置く。**
+
+`geo_primitives` 側のメソッド（例: `Ray2D::intersection_with_ray`、`InfiniteLine2D::intersection_with_line`）が同種の計算を行っている場合でも、それらは正本ではない。
+
+### 10.2 `geo_primitives` 側の実装を許容するケース
+
+以下の場合に限り、`geo_primitives` 側にロジックを持つことを許可する。
+
+- **プリミティブ固有の補助演算**（例: `project_point`、`contains_point`）  
+  ― 形状の定義に密接し、`geo_algorithms` へ委譲するほどではないもの。
+- **convenience エイリアス**（正本実装を内部呼び出しするラッパー）  
+  ― このケースでは「委譲先・正本 Issue を doc コメントに明記」することを必須とする。
+
+### 10.3 禁止事項
+
+- `geo_primitives` 側に、`geo_algorithms` と**並行した独立実装**を新規追加しない。
+- `Option<Point2D<T>>` など「`IntersectionResult<T>` より情報が落ちる型」で、`geo_algorithms` 正本と同等のロジックを持つ実装を残存させない。
+
+### 10.4 既存の重複実装に気づいた場合
+
+1. `geo_algorithms` 側に正本実装が既存か確認する。
+2. 既存なら、`geo_primitives` 側は Issue で棚卸し対象として記録する。
+3. 「空返し」「コインシデント非対応」など情報落ちが確認できた時点で、Issue を起票して削除・委譲化を計画する。
+
+**参照 Issue**: #697（2D交点重複の棚卸し）、#696（Ellipse3D スタブ廃止）
+
+---
+
+## 11. #338 再開時の戻り値移行ルール
 
 `#338` では、公開関数の戻り値を `IntersectionResult<T>` へ直接置換する。
 互換層として公開 API を二重化しない。
 
-### 10.1 基本方針
+### 11.1 基本方針
 
 - 既存の `*_intersection` 関数名は維持しつつ、戻り値型を `IntersectionResult<T>` に切り替える。
 - 旧 `Option<Point3D<T>>` ロジックが必要な場合は private helper へ下げ、公開面には残さない。
 - `IntersectionResult::from_option_point()` / `from_option_points()` を使用して変換規約を統一する。
 - 一度に多数ペアを移行せず、1～2ペア単位の小PRで進める。
 
-### 10.2 初期スライス（Phase C 再開の最小単位）
+### 11.2 初期スライス（Phase C 再開の最小単位）
 
 - `intersection/primitive_3d.rs` の point系ペアから開始する。
   - `arc3d_point3d_intersection`
   - `circle3d_point3d_intersection`
 
-### 10.2.1 継続スライス（同一PR系列で拡張する範囲）
+### 11.2.1 継続スライス（同一PR系列で拡張する範囲）
 
 - point系の次は、同じ形状対の 1次元入力を対象に広げる。
   - `arc3d_line_segment3d_intersection`
@@ -191,21 +225,21 @@
 - `IntersectionResult::from_option_point()` をそのまま適用できる
 - `arc` / `circle` 系で命名・テストパターンを揃えやすい
 
-### 10.3 実装順序
+### 11.3 実装順序
 
 1. 公開 `*_intersection` の戻り値を `IntersectionResult<T>` へ変更
 2. private helper 化で旧単一点ロジックを局所化
 3. 変換規約テスト追加（Disjoint / Crossing を最低限確認）
 4. 次ペアへ同じ置換を展開
 
-## 11. #466 多点関数の IntersectionResult 拡張戦略
+## 12. #466 多点関数の IntersectionResult 拡張戦略
 
-### 11.1 概要
+### 12.1 概要
 
 `#338` で単点関数（`Option<Point3D<T>>` → `IntersectionResult<T>`）の置換が完了した。
 次段階として、複数孤立点を返す関数（`Vec<Point3D<T>>` → `IntersectionResult<T>`）の統一を進める。
 
-### 11.2 既存 Points 実装の確認
+### 12.2 既存 Points 実装の確認
 
 `result.rs` には以下が既に実装済み:
 
@@ -214,7 +248,7 @@
 - `IntersectionResult::from_option_points(points, is_tangent, tolerance) -> Self`
 - topology 自動分類: `is_tangent=true` → Touching、`false` → Crossing
 
-#### 11.2.1 多点コンストラクタの仕様
+#### 12.2.1 多点コンストラクタの仕様
 
 ```rust
 pub fn points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: T) -> Self {
@@ -242,7 +276,7 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 - 空ベクタ → `Disjoint`
 - 1点以上 → `Touching` または `Crossing`（`is_tangent` で制御）
 
-### 11.3 多点関数の対象一覧（12 個）
+### 12.3 多点関数の対象一覧（12 個）
 
 `intersection/primitive_3d.rs` で複数孤立点を返す関数:
 
@@ -264,7 +298,7 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 - L1362: `pub fn line_segment3d_spherical_surface3d_intersections`
 - L1505: `pub fn infinite_line3d_spherical_surface3d_intersections`
 
-### 11.4 Topology 分類ルール
+### 12.4 Topology 分類ルール
 
 **多点交差の position 判定基準** （参考: Ellipse3D との交差パターン）:
 
@@ -282,18 +316,18 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 3. **複数点の場合は `is_tangent` を統一**: 2 つ以上の孤立点がある場合、全て同じ `is_tangent` フラグを付与
    - 理由: Topology は形状ペア全体の関係を表すため。一部だけ接線は想定外
 
-### 11.5 実装順序（段階的移行）
+### 12.5 実装順序（段階的移行）
 
-### 11.5.1 Phase 1: 設計固定（現在 = #466）
+### 12.5.1 Phase 1: 設計固定（現在 = #466）
 
-- [ ] MultiPoint Topology ルール確定（本セクション 11.4）
-- [ ] 多点関数群の一覧表を公開（上記 11.3）
+- [ ] MultiPoint Topology ルール確定（本セクション 12.4）
+- [ ] 多点関数群の一覧表を公開（上記 12.3）
 - [ ] 変換規約テストの雛形作成（下記参照）
 - [ ] ドキュメント整備完了
 
 **出力**: GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md へこれらを記載（#466 で完了）
 
-### 11.5.2 Phase 2: Ellipse3D 系実装（別 Issue 予定）
+### 12.5.2 Phase 2: Ellipse3D 系実装（別 Issue 予定）
 
 1. 関数宣言を `Vec<Point3D<T>>` → `IntersectionResult<T>` に変更
 2. 内部計算は変わらず、返却時に `IntersectionResult::from_option_points()` で変換
@@ -302,11 +336,11 @@ pub fn from_option_points(points: Vec<Point3D<T>>, is_tangent: bool, tolerance: 
 
 **対象**: 7 個関数（ellipse3d_*）
 
-### 11.5.3 Phase 3: EllipsoidalSolid3D + SphericalSurface 実装
+### 12.5.3 Phase 3: EllipsoidalSolid3D + SphericalSurface 実装
 
 同じプロセスで残り 5 個関数を置換。
 
-### 11.6 変換規約テストの例
+### 12.6 変換規約テストの例
 
 ```rust
 #[test]
@@ -342,16 +376,16 @@ fn multipoint_tangent_is_touching() {
 }
 ```
 
-### 11.7 注意点
+### 12.7 注意点
 
 1. **Topology は形状ペア全体の関係** → 複数点でも単一分類
 2. **空返却は必ず Disjoint** → 自動処理（`from_option_points()` 利用）
 3. **is_tangent は局所判定 + 統一** → 2 点以上ある場合、全て同じ値
 4. **逆向け委譲** → `{shape_b}_{shape_a}_intersections()` は `{shape_a}_{shape_b}_intersections()` へ委譲
 
-## 12. #472 2D 公開 API の Result 型統一方針
+## 13. #472 2D 公開 API の Result 型統一方針
 
-### 12.1 現状棚卸し（`intersection/primitive_2d.rs`）
+### 13.1 現状棚卸し（`intersection/primitive_2d.rs`）
 
 - `Option<Point2D<T>>` 返却: 18 関数
 - `Vec<Point2D<T>>` 返却: 14 関数
@@ -363,7 +397,7 @@ fn multipoint_tangent_is_touching() {
 - 線分/直線/ray 系: `ray2d_line_segment2d_intersection`, `infinite_line2d_ray2d_intersection` ほか
 - 円/楕円/弧 系: `circle2d_circle2d_intersections_algo`, `ellipse2d_circle2d_intersections` ほか
 
-### 12.2 型設計オプション（A/B/C）
+### 13.2 型設計オプション（A/B/C）
 
 #### Option A: 既存 `IntersectionResult<T>` を 2D に直接流用
 
@@ -405,7 +439,7 @@ fn multipoint_tangent_is_touching() {
 - 2D/3D で API が再び分岐し、統一目的が弱まる
 - 中長期で bridge trait か wrapper が必要
 
-### 12.3 #472 の推奨案
+### 13.3 #472 の推奨案
 
 推奨: **Option B（共通 Result の次元拡張）**
 
@@ -444,7 +478,7 @@ fn multipoint_tangent_is_touching() {
 - 形状全体が完全一致する場合は引き続き `Coincident` バリアントを使用する
 - `dimension()` と `description()` 実装も 3D Segment と対称に更新する
 
-### 12.4 Topology 対応ルール（2D）
+### 13.4 Topology 対応ルール（2D）
 
 - `Disjoint`: 交差なし（空集合）
 - `Touching`: 接線接触または端点接触
@@ -455,7 +489,7 @@ fn multipoint_tangent_is_touching() {
 - 2 点交差でも形状ペア全体の関係は `Crossing` として単一分類
 - `is_tangent` は 3D と同様に `Touching/Crossing` の補助判定として維持
 
-### 12.5 段階移行計画（実装反映済み）
+### 13.5 段階移行計画（実装反映済み）
 
 Phase D1: Result 型拡張の最小導入（完了）
 
@@ -492,7 +526,7 @@ Phase D5: 状況同期と運用固定（本タスク）
   - 本ドキュメントのステータスが実コードと一致していること
   - 次回作業開始時に「どこまで完了か」を本ドキュメント単体で判断できること
 
-### 12.6 現在ステータス（2026-03-28）
+### 13.6 現在ステータス（2026-03-28）
 
 - 現行正本: `develop`
 - 2D/3D intersection 公開 API の返り値は `IntersectionResult<T>` へ統一済み
