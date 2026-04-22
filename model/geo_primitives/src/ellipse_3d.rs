@@ -510,13 +510,13 @@ impl<T: Scalar + From<f64>> Ellipse3DEvaluation<T> for Ellipse3D<T> {
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DContainment<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DContainment<T> for Ellipse3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
     }
 }
 
-impl<T: Scalar + From<f64>> Ellipse3DDistance<T> for Ellipse3D<T> {
+impl<T: Scalar> Ellipse3DDistance<T> for Ellipse3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         self.distance_to_point_3d_internal(point)
     }
