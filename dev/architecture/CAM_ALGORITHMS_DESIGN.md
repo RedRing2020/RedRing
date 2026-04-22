@@ -560,7 +560,23 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - `tolerance_profile`
 - `stock_ref`（中加工の該当オペレーションで必須）
 
-### 9.4 失敗分類（初期）
+必須フィールド制約:
+
+- `machining_direction`
+  - canonical token: `+X` / `-X` / `+Y` / `-Y` / `+Z` / `-Z`
+  - 単位なしの軸方向指定として扱い、角度値や任意ベクトルは受理しない
+- `boundary_mode = edge_projected_2d`
+  - `edge_refs`（1件以上）を必須とする
+  - `edge_refs` を `machining_direction` へ投影して2D境界を構築できない場合は失敗分類とする
+- `boundary_mode = rectangle`
+  - `rect_min=(x_min,y_min)` と `rect_max=(x_max,y_max)` を必須とする
+  - 座標系はワーク局所座標、単位は mm 固定とする
+  - `x_min < x_max` かつ `y_min < y_max` を満たさない場合は失敗分類とする
+- `tolerance_profile`
+  - 許容値は `press_rough` / `mold_finish` のみとする
+  - 未指定または未知値は失敗分類とする
+
+### 9.4 失敗分類（初期・内部分類）
 
 - `invalid_tolerance_profile`
 - `missing_tolerance_profile`
@@ -569,6 +585,20 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - `empty_projected_boundary`
 - `operation_boundary_out_of_domain`
 - `stock_required_but_missing`
+
+失敗分類マッピング:
+
+- 本節の列挙はテンプレート適用段階の内部分類であり、Job Manager へ直接公開する分類コードではない
+- Job Manager へ返す失敗分類は #684 で定義済みの 3 分類（`invalid_input` / `no_solution` / `convergence_failure`）に統一する
+- #689 で追加した内部分類は以下へ集約する
+  - `invalid_tolerance_profile`
+  - `missing_tolerance_profile`
+  - `unit_mismatch`
+  - `boundary_projection_failed`
+  - `empty_projected_boundary`
+  - `operation_boundary_out_of_domain`
+  - `stock_required_but_missing`
+  - 上記はすべて `invalid_input` へマップする
 
 ### 9.5 責務境界
 

@@ -240,20 +240,45 @@ CAM solver の最小出力を `toolpath` artifact binary v0.1 へ接続し、`Nc
 
 ## #689 工程テンプレート由来メタデータ追跡（Step A）
 
-本節は、工程テンプレート適用結果を `Status=succeeded` の成果物で再現可能にするための最小メタデータ契約を定義する。
+本節は、工程テンプレート適用結果を `Status=succeeded` の成果物で再現可能にするための最小メタデータ契約を定義する。reader/writer 実装可能性を担保するため、項目名だけでなく格納領域と data 形式を固定する。
 
 ### succeeded時に記録する項目
 
 - `tolerance_profile`（例: `press_rough` / `mold_finish`）
 - `tolerance_value_mm`
+- `template_revision`
 - `machining_stage`（`rough` / `semi_finish` / `finish`）
 - `operation_type`
 - `boundary_mode`（`edge_projected_2d` / `rectangle`）
 - `machining_direction`
 
+`template_revision` はテンプレート version 相当の追跡キーであり、`tolerance_profile` と `tolerance_value_mm` だけでは区別できない改訂差分を識別するため必須とする。
+
+### 格納領域
+
+- 本節の項目は `ToolPath payload.ext_attributes` に保持する
+- 共通ヘッダ `ext_attributes` には保持しない
+- manifest には監査・検索用の最小メタデータのみを保持し、payload と同一粒度の重複保持は必須化しない
+
+### TLV 表現
+
+`ToolPath payload.ext_attributes` の各項目は次の TLV で保持する。`tag` は `i16 little-endian`、`data_len` は `u16 little-endian`、文字列は UTF-8（NUL終端なし）とする。
+
+| 項目 | TLV tag | data 形式 | 備考 |
+| --- | --- | --- | --- |
+| `tolerance_profile` | `+689` | UTF-8 文字列 | `press_rough` / `mold_finish` |
+| `tolerance_value_mm` | `+690` | `f64 little-endian` | 単位は mm |
+| `template_revision` | `+691` | UTF-8 文字列 | 例: `v1`, `press_rough@3` |
+| `machining_stage` | `+692` | UTF-8 文字列 | `rough` / `semi_finish` / `finish` |
+| `operation_type` | `+693` | UTF-8 文字列 | canonical token |
+| `boundary_mode` | `+694` | UTF-8 文字列 | `edge_projected_2d` / `rectangle` |
+| `machining_direction` | `+695` | UTF-8 文字列 | `+X` / `-X` / `+Y` / `-Y` / `+Z` / `-Z` |
+
 ### 運用ルール
 
 - `Status=succeeded` 以外では上記項目を必須化しない
+- `Status=succeeded` の toolpath artifact では上表の全項目を必須とする
+- `Status=succeeded` の interference artifact では `machining_direction` を任意、それ以外を必須とする
 - Job Manager は値の意味を解釈せず、参照整合のみ扱う
-- Model/CAM 側が生成時に値を確定し、reader/writer 契約で保持する
-- `machining_direction` は #689 の最小入力契約との再現性整合のため、succeeded 成果物でも保持する
+- Model/CAM 側が生成時に値を確定し、reader/writer は本節の TLV 契約に従って保持する
+- reader は `Status=succeeded` の場合に必須項目欠落を不正データとして扱う
