@@ -121,17 +121,6 @@ impl<T: Scalar> LineSegment3D<T> {
         }
     }
 
-    /// 線分同士の最短距離
-    pub fn distance_to_segment(&self, other: &LineSegment3D<T>) -> T {
-        // 簡易実装：各端点と他の線分との距離の最小値
-        let d1 = self.distance_to_point(&other.start());
-        let d2 = self.distance_to_point(&other.end());
-        let d3 = other.distance_to_point(&self.start());
-        let d4 = other.distance_to_point(&self.end());
-
-        d1.min(d2).min(d3).min(d4)
-    }
-
     /// 線分が平行かを判定
     pub fn is_parallel_to(&self, other: &LineSegment3D<T>, tolerance: T) -> bool {
         let cross_product = self.direction().cross(&other.direction());

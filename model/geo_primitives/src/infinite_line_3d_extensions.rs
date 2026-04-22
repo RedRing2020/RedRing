@@ -59,71 +59,43 @@ impl<T: Scalar> InfiniteLine3D<T> {
         self.is_parallel_to_axis(Vector3D::unit_z(), tolerance)
     }
 
-    /// 他の直線との関係を判定
-    pub fn relationship_with(&self, other: &Self, tolerance: T) -> LineRelationship {
-        // 方向ベクトルの平行性チェック
+    /// 直線が平行かを判定
+    pub fn is_parallel(&self, other: &Self, tolerance: T) -> bool {
         let cross_product = self
             .direction_internal()
             .as_vector()
             .cross(&other.direction_internal().as_vector());
-        let is_parallel = cross_product.length() <= tolerance;
-
-        if is_parallel {
-            // 平行な場合、同一直線かチェック
-            if self.contains_point(&other.point_internal(), tolerance) {
-                LineRelationship::Coincident
-            } else {
-                LineRelationship::Parallel
-            }
-        } else {
-            // 平行でない場合、交差か非交差かチェック
-            let to_other_point = Vector3D::new(
-                other.point_internal().x() - self.point_internal().x(),
-                other.point_internal().y() - self.point_internal().y(),
-                other.point_internal().z() - self.point_internal().z(),
-            );
-
-            // スカラ三重積でねじれ位置判定
-            let scalar_triple_product = to_other_point.dot(&cross_product);
-
-            if scalar_triple_product.abs() <= tolerance {
-                LineRelationship::Intersecting
-            } else {
-                LineRelationship::Skew
-            }
-        }
-    }
-
-    /// 直線が平行かを判定
-    pub fn is_parallel(&self, other: &Self, tolerance: T) -> bool {
-        matches!(
-            self.relationship_with(other, tolerance),
-            LineRelationship::Parallel | LineRelationship::Coincident
-        )
+        cross_product.length() <= tolerance
     }
 
     /// 直線が同一かを判定
     pub fn is_coincident(&self, other: &Self, tolerance: T) -> bool {
-        matches!(
-            self.relationship_with(other, tolerance),
-            LineRelationship::Coincident
-        )
+        self.is_parallel(other, tolerance)
+            && self.contains_point(&other.point_internal(), tolerance)
     }
 
     /// 直線が交差するかを判定
     pub fn is_intersecting(&self, other: &Self, tolerance: T) -> bool {
-        matches!(
-            self.relationship_with(other, tolerance),
-            LineRelationship::Intersecting
-        )
+        if self.is_parallel(other, tolerance) {
+            return false;
+        }
+
+        let cross_product = self
+            .direction_internal()
+            .as_vector()
+            .cross(&other.direction_internal().as_vector());
+        let to_other_point = Vector3D::new(
+            other.point_internal().x() - self.point_internal().x(),
+            other.point_internal().y() - self.point_internal().y(),
+            other.point_internal().z() - self.point_internal().z(),
+        );
+
+        to_other_point.dot(&cross_product).abs() <= tolerance
     }
 
     /// 直線がねじれ位置にあるかを判定
     pub fn is_skew(&self, other: &Self, tolerance: T) -> bool {
-        matches!(
-            self.relationship_with(other, tolerance),
-            LineRelationship::Skew
-        )
+        !self.is_parallel(other, tolerance) && !self.is_intersecting(other, tolerance)
     }
 
     /// 直線を平行移動
@@ -238,17 +210,4 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn reverse_direction(&self) -> Self {
         self.reverse()
     }
-}
-
-/// 3次元直線間の関係を表す列挙型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LineRelationship {
-    /// 同一直線
-    Coincident,
-    /// 平行
-    Parallel,
-    /// 交差
-    Intersecting,
-    /// ねじれ位置
-    Skew,
 }
