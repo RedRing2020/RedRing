@@ -91,43 +91,6 @@ impl<T: Scalar> Circle3D<T> {
         distance_to_plane <= tolerance
     }
 
-    /// 点から円の中心への距離（3D空間内）
-    ///
-    /// # 引数
-    /// * `point` - 距離を計算する点
-    ///
-    /// # 戻り値
-    /// 3D空間での直線距離
-    pub fn distance_to_center(&self, point: &Point3D<T>) -> T {
-        self.center_internal().distance_to(point)
-    }
-
-    /// 点から円への最短距離
-    ///
-    /// # 引数
-    /// * `point` - 距離を計算する点
-    ///
-    /// # 戻り値
-    /// 点から円周上の最近点への3D距離
-    pub fn distance_to_circle(&self, point: &Point3D<T>) -> T {
-        // 点を円の平面に投影
-        let center_to_point = Vector3D::from_points(&self.center_internal(), point);
-        let plane_distance = center_to_point.dot(&self.normal_internal().as_vector());
-
-        // 平面上での投影点
-        let projected_offset = Vector3D::new(
-            center_to_point.x() - plane_distance * self.normal_internal().x(),
-            center_to_point.y() - plane_distance * self.normal_internal().y(),
-            center_to_point.z() - plane_distance * self.normal_internal().z(),
-        );
-
-        let radial_distance = projected_offset.length();
-        let circle_distance = (radial_distance - self.radius_internal()).abs();
-
-        // 3D距離 = √(平面距離² + 円距離²)
-        (plane_distance * plane_distance + circle_distance * circle_distance).sqrt()
-    }
-
     /// 円周上の等間隔な点列を生成
     ///
     /// # 引数
