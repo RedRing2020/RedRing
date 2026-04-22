@@ -134,8 +134,6 @@ mod direction_2d_extensions_tests;
 mod direction_3d_extensions_tests;
 #[cfg(test)]
 mod ellipse_3d_tests;
-#[cfg(test)]
-mod foundation_tests;
 
 // capability trait は geo_contracts を正本 export とし、この crate では shape 型公開を優先する。
 

@@ -172,8 +172,10 @@
     // foundation/analysis クレート
     "consts.rs": "consts_tests.rs",
     "units.rs": "units_tests.rs",
+    "scalar.rs": "scalar_tests.rs",
     "plane3.rs": "plane3_tests.rs",
     "integration.rs": "integration_tests.rs",
+    "partition.rs": "partition_tests.rs",
     "vector_distance.rs": "vector_distance_tests.rs",
     "point2.rs": "point2_tests.rs",
     "point3.rs": "point3_tests.rs",
@@ -181,6 +183,7 @@
     "matrix2.rs": "matrix2_tests.rs",
     "matrix3.rs": "matrix3_tests.rs",
     "matrix4.rs": "matrix4_tests.rs",
+    "dynamic_matrix.rs": "dynamic_matrix_tests.rs",
     "vector.rs": "vector_tests.rs",
     "vector2.rs": "vector2_tests.rs",
     "vector3.rs": "vector3_tests.rs",
@@ -192,7 +195,6 @@
     "mod.rs": "mod_tests.rs",
     "angle.rs": "angle_tests.rs",
     // その他
-    "lib.rs": "foundation_tests.rs",
     "transform.rs": "transform_error.rs",
     "collision.rs": "collision_error.rs",
     "intersection.rs": "intersection_error.rs",
