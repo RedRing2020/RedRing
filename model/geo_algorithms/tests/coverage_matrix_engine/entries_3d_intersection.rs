@@ -192,7 +192,7 @@ pub(super) fn entries() -> Vec<MatrixEntry> {
             symmetric: false,
             cardinality: Some(Cardinality::Optional),
             entrypoint_a_to_b: Some("conical_solid3d_ray3d_intersection"),
-            entrypoint_b_to_a: None,
+            entrypoint_b_to_a: Some("ray3d_conical_solid3d_intersection"),
         },
         MatrixEntry {
             id: "3d:conical_solid-segment:intersection",
@@ -252,7 +252,7 @@ pub(super) fn entries() -> Vec<MatrixEntry> {
             symmetric: false,
             cardinality: Some(Cardinality::Multiple),
             entrypoint_a_to_b: Some("conical_surface3d_ray3d_intersections"),
-            entrypoint_b_to_a: None,
+            entrypoint_b_to_a: Some("ray3d_conical_surface3d_intersections"),
         },
         MatrixEntry {
             id: "3d:conical_surface-segment:intersection",
@@ -300,7 +300,19 @@ pub(super) fn entries() -> Vec<MatrixEntry> {
             symmetric: false,
             cardinality: Some(Cardinality::Optional),
             entrypoint_a_to_b: Some("spherical_solid3d_ray3d_intersection"),
-            entrypoint_b_to_a: None,
+            entrypoint_b_to_a: Some("ray3d_spherical_solid3d_intersection"),
+        },
+        MatrixEntry {
+            id: "3d:spherical_surface-ray:intersection",
+            dimension: Dimension::D3,
+            operation: Operation::Intersection,
+            shape_a: "SphericalSurface3D",
+            shape_b: "Ray3D",
+            required: true,
+            symmetric: false,
+            cardinality: Some(Cardinality::Multiple),
+            entrypoint_a_to_b: Some("spherical_surface3d_ray3d_intersections"),
+            entrypoint_b_to_a: Some("ray3d_spherical_surface3d_intersections"),
         },
         MatrixEntry {
             id: "3d:segment-sphere:intersection",
