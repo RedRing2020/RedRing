@@ -1,6 +1,6 @@
 # Geometric Tolerance Usage Rules
 
-最終更新: 2026-03-29
+最終更新: 2026-04-23
 
 ## 目的
 
@@ -43,6 +43,7 @@
 | 判定種別 | 既定参照元 | 運用ルール |
 | --- | --- | --- |
 | 距離しきい値（包含、近接、一致） | `ToleranceSettings::distance_tolerance` | 呼び出し境界で受け渡した値を優先する |
+| 中心点・近傍判定（magnitude / distance 比較） | `default_distance_tolerance` | 関数名に「angle」を含む場合でも、magnitude/distance と比較するなら距離トレランスを使う |
 | 角度しきい値（平行、垂直、角度比較） | `ToleranceSettings::angle_tolerance` | API呼び出し側でプロファイルを選択して渡す |
 | 外積誤差（平行判定補助） | `default_parallel_cross_error_tolerance<T>()` | 型依存閾値を使用し、関数内マジックナンバーを追加しない |
 | 内積誤差（直交判定補助） | `default_orthogonality_dot_error_tolerance<T>()` | 型依存閾値を使用し、用途を直交判定に限定する |
