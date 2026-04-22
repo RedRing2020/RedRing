@@ -238,26 +238,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn reverse_direction(&self) -> Self {
         self.reverse()
     }
-
-    /// 直線間の最短距離を計算
-    pub fn distance_between_lines(&self, other: &Self) -> T {
-        let direction_cross = self.direction_internal().cross(&other.direction_internal());
-        let cross_length = direction_cross.length();
-
-        if cross_length <= T::EPSILON {
-            // 平行線の場合
-            return self.distance_to_point(&other.point_internal());
-        }
-
-        // ねじれ位置の場合
-        let to_other_point = Vector3D::new(
-            other.point_internal().x() - self.point_internal().x(),
-            other.point_internal().y() - self.point_internal().y(),
-            other.point_internal().z() - self.point_internal().z(),
-        );
-
-        to_other_point.dot(&direction_cross).abs() / cross_length
-    }
 }
 
 /// 3次元直線間の関係を表す列挙型
