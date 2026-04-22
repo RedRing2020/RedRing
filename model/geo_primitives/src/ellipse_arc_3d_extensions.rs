@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
 use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
-use geo_contracts::{default_distance_tolerance, Angle, Ellipse3DDistance, Scalar};
+use geo_contracts::{default_distance_tolerance, Angle, Scalar};
 
 impl<T: Scalar> EllipseArc3D<T> {
     /// Arc trim-local parameter `t` (`0 <= t <= 1`) に対応する接線ベクトルを取得
@@ -179,15 +179,30 @@ impl<T: Scalar> EllipseArc3D<T> {
     }
 
     /// 点から楕円弧への最短距離
-    pub fn distance_to_point(&self, point: &Point3D<T>) -> T
-    where
-        T: From<f64>,
-    {
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         // 点が角度範囲内にある場合
         if self.point_in_angle_range(point, default_distance_tolerance::<T>()) {
-            return <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
-                self.ellipse(),
-                (point.x(), point.y(), point.z()),
+            let center = self.center();
+            let translated = Vector3D::new(
+                point.x() - center.x(),
+                point.y() - center.y(),
+                point.z() - center.z(),
+            );
+
+            let major_axis = self.major_axis_direction().as_vector();
+            let minor_axis = self.minor_axis_direction().as_vector();
+            let normal_axis = self.normal().as_vector();
+
+            let x_local = translated.dot(&major_axis);
+            let y_local = translated.dot(&minor_axis);
+            let z_local = translated.dot(&normal_axis);
+
+            return geo_commons::ellipse_3d_distance_to_point(
+                x_local,
+                y_local,
+                z_local,
+                self.semi_major(),
+                self.semi_minor(),
             );
         }
 
