@@ -3,7 +3,7 @@
 //! Extension Foundation パターンに基づく EllipseArc3D の拡張実装
 
 use crate::{Arc3D, Circle3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
-use geo_contracts::{default_angle_tolerance, Angle, Ellipse3DDistance, Scalar};
+use geo_contracts::{default_distance_tolerance, Angle, Ellipse3DDistance, Scalar};
 
 impl<T: Scalar> EllipseArc3D<T> {
     /// Arc trim-local parameter `t` (`0 <= t <= 1`) に対応する接線ベクトルを取得
@@ -184,7 +184,7 @@ impl<T: Scalar> EllipseArc3D<T> {
         T: From<f64>,
     {
         // 点が角度範囲内にある場合
-        if self.point_in_angle_range(point, default_angle_tolerance::<T>()) {
+        if self.point_in_angle_range(point, default_distance_tolerance::<T>()) {
             return <Ellipse3D<T> as Ellipse3DDistance<T>>::distance_to_point(
                 self.ellipse(),
                 (point.x(), point.y(), point.z()),

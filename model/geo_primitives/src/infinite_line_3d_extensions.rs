@@ -59,13 +59,16 @@ impl<T: Scalar> InfiniteLine3D<T> {
         self.is_parallel_to_axis(Vector3D::unit_z(), tolerance)
     }
 
+    /// 方向ベクトルの外積（内部ヘルパー）
+    fn cross_product_of_directions(&self, other: &Self) -> Vector3D<T> {
+        self.direction_internal()
+            .as_vector()
+            .cross(&other.direction_internal().as_vector())
+    }
+
     /// 直線が平行かを判定
     pub fn is_parallel(&self, other: &Self, tolerance: T) -> bool {
-        let cross_product = self
-            .direction_internal()
-            .as_vector()
-            .cross(&other.direction_internal().as_vector());
-        cross_product.length() <= tolerance
+        self.cross_product_of_directions(other).length() <= tolerance
     }
 
     /// 直線が同一かを判定
@@ -76,26 +79,30 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 直線が交差するかを判定
     pub fn is_intersecting(&self, other: &Self, tolerance: T) -> bool {
-        if self.is_parallel(other, tolerance) {
+        let cross_product = self.cross_product_of_directions(other);
+        if cross_product.length() <= tolerance {
             return false;
         }
-
-        let cross_product = self
-            .direction_internal()
-            .as_vector()
-            .cross(&other.direction_internal().as_vector());
         let to_other_point = Vector3D::new(
             other.point_internal().x() - self.point_internal().x(),
             other.point_internal().y() - self.point_internal().y(),
             other.point_internal().z() - self.point_internal().z(),
         );
-
         to_other_point.dot(&cross_product).abs() <= tolerance
     }
 
     /// 直線がねじれ位置にあるかを判定
     pub fn is_skew(&self, other: &Self, tolerance: T) -> bool {
-        !self.is_parallel(other, tolerance) && !self.is_intersecting(other, tolerance)
+        let cross_product = self.cross_product_of_directions(other);
+        if cross_product.length() <= tolerance {
+            return false;
+        }
+        let to_other_point = Vector3D::new(
+            other.point_internal().x() - self.point_internal().x(),
+            other.point_internal().y() - self.point_internal().y(),
+            other.point_internal().z() - self.point_internal().z(),
+        );
+        to_other_point.dot(&cross_product).abs() > tolerance
     }
 
     /// 直線を平行移動
