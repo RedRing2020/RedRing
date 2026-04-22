@@ -91,6 +91,14 @@ pub fn ellipsoidal_solid3d_ray3d_intersections<T: Scalar>(
     IntersectionResult::from_option_points(points, false, tolerance)
 }
 
+pub fn ray3d_ellipsoidal_solid3d_intersections<T: Scalar>(
+    ray: &Ray3D<T>,
+    ellipsoid: &EllipsoidalSolid3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    ellipsoidal_solid3d_ray3d_intersections(ellipsoid, ray, tolerance)
+}
+
 fn ellipsoidal_surface3d_point3d_intersection_raw<T: Scalar>(
     ellipsoid: &EllipsoidalSurface3D<T>,
     point: &Point3D<T>,
@@ -198,6 +206,14 @@ pub fn spherical_solid3d_ray3d_intersection<T: Scalar>(
         false,
         tolerance,
     )
+}
+
+pub fn ray3d_spherical_solid3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    sphere: &SphericalSolid3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    spherical_solid3d_ray3d_intersection(sphere, ray, tolerance)
 }
 
 fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(

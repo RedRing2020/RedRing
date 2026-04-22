@@ -97,6 +97,14 @@ pub fn arc3d_ray3d_intersection<T: Scalar>(
     )
 }
 
+pub fn ray3d_arc3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    arc: &Arc3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    arc3d_ray3d_intersection(arc, ray, tolerance)
+}
+
 fn arc3d_infinite_line3d_intersection_raw<T: Scalar>(
     arc: &Arc3D<T>,
     line: &InfiniteLine3D<T>,
@@ -240,6 +248,14 @@ pub fn circle3d_ray3d_intersection<T: Scalar>(
     )
 }
 
+pub fn ray3d_circle3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    circle: &Circle3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    circle3d_ray3d_intersection(circle, ray, tolerance)
+}
+
 fn circle3d_infinite_line3d_intersection_raw<T: Scalar>(
     circle: &Circle3D<T>,
     line: &InfiniteLine3D<T>,
@@ -375,6 +391,14 @@ pub fn ellipse3d_ray3d_intersections<T: Scalar + From<f64>>(
         Vec::new()
     };
     IntersectionResult::from_option_points(points, false, tolerance)
+}
+
+pub fn ray3d_ellipse3d_intersections<T: Scalar + From<f64>>(
+    ray: &Ray3D<T>,
+    ellipse: &Ellipse3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    ellipse3d_ray3d_intersections(ellipse, ray, tolerance)
 }
 
 fn ellipse3d_plane3d_intersection_raw<T: Scalar>(

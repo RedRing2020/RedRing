@@ -269,6 +269,14 @@ pub fn conical_solid3d_ray3d_intersection<T: Scalar>(
     )
 }
 
+pub fn ray3d_conical_solid3d_intersection<T: Scalar>(
+    ray: &Ray3D<T>,
+    cone: &ConicalSolid3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    conical_solid3d_ray3d_intersection(cone, ray, tolerance)
+}
+
 fn conical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     cone: &ConicalSolid3D<T>,
     segment: &LineSegment3D<T>,
@@ -389,6 +397,14 @@ pub fn conical_surface3d_ray3d_intersections<T: Scalar>(
         false,
         tolerance,
     )
+}
+
+pub fn ray3d_conical_surface3d_intersections<T: Scalar>(
+    ray: &Ray3D<T>,
+    cone: &ConicalSurface3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    conical_surface3d_ray3d_intersections(cone, ray, tolerance)
 }
 
 pub fn conical_surface3d_line_segment3d_intersections<T: Scalar>(

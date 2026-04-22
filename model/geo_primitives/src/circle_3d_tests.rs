@@ -165,26 +165,6 @@ mod tests {
     }
 
     #[test]
-    fn test_distance_calculations() {
-        let center = Point3D::new(0.0, 0.0, 0.0);
-        let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-        let radius = 3.0;
-        let circle = Circle3D::new(center, normal, radius).unwrap();
-
-        // 中心への距離
-        let test_point = Point3D::new(4.0, 0.0, 0.0);
-        assert_approx_eq(circle.distance_to_center(&test_point), 4.0, 1e-10);
-
-        // 円周上の点への距離（XY平面上）
-        let point_on_plane = Point3D::new(5.0, 0.0, 0.0); // 半径3の円の外側
-        assert_approx_eq(circle.distance_to_circle(&point_on_plane), 2.0, 1e-10);
-
-        // 平面外の点への距離
-        let point_above = Point3D::new(3.0, 0.0, 4.0); // 円周上のx=3の点の真上4単位
-        assert_approx_eq(circle.distance_to_circle(&point_above), 4.0, 1e-10);
-    }
-
-    #[test]
     fn test_point_on_plane() {
         let center = Point3D::new(0.0, 0.0, 5.0);
         let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
@@ -225,7 +205,7 @@ mod tests {
         assert_eq!(points.len(), 4);
 
         for point in &points {
-            let distance = circle.distance_to_center(point);
+            let distance = center.distance_to(point);
             assert_approx_eq(distance, radius, 1e-10);
         }
     }

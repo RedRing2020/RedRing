@@ -208,23 +208,4 @@ impl<T: Scalar> Ellipse3D<T> {
 
         u_normalized * u_normalized + v_normalized * v_normalized <= T::ONE
     }
-
-    /// 点から楕円への最短距離（近似）
-    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
-        // 楕円上の複数の点をサンプリングして最短距離を求める近似
-        let sample_count = 64;
-
-        // 最初のサンプル点での距離を初期値とする
-        let first_point = self.point_at_parameter(T::ZERO);
-        let mut min_distance = point.distance_to(&first_point);
-
-        for i in 1..sample_count {
-            let t = T::TAU * T::from_f64(i as f64) / T::from_f64(sample_count as f64);
-            let ellipse_point = self.point_at_parameter(t);
-            let distance = point.distance_to(&ellipse_point);
-            min_distance = min_distance.min(distance);
-        }
-
-        min_distance
-    }
 }

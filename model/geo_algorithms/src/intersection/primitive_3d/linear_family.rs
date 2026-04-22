@@ -62,6 +62,14 @@ pub fn ray3d_spherical_surface3d_intersections<T: Scalar>(
     IntersectionResult::from_option_points(intersections, false, tolerance)
 }
 
+pub fn spherical_surface3d_ray3d_intersections<T: Scalar>(
+    sphere: &SphericalSurface3D<T>,
+    ray: &Ray3D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    ray3d_spherical_surface3d_intersections(ray, sphere, tolerance)
+}
+
 fn ray3d_ray3d_intersection_raw<T: Scalar>(
     ray_a: &Ray3D<T>,
     ray_b: &Ray3D<T>,
