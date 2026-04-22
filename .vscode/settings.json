@@ -126,6 +126,11 @@
   "explorer.fileNesting.expand": true,
   "explorer.fileNesting.patterns": {
     // "*.rs": "${basename}_tests.rs,${basename}_extensions.rs,${basename}_collision.rs,${basename}_intersection.rs,${basename}_metrics.rs,${basename}_transform.rs,${basename}_sampling.rs,${basename}_containment.rs,${basename}_foundation.rs,${basename}_additional_tests.rs,${basename}_builder_tests.rs", // 無効化：具体的なパターンを優先
+    // geo_core: Point/Vector は geo_core 側実装を正本とし、実在ファイルのみをネスト対象とする
+    "point_2d.rs": "point_2d_tests.rs,point_2d_transform.rs",
+    "point_3d.rs": "point_3d_tests.rs,point_3d_transform.rs",
+    "vector_2d.rs": "vector_2d_tests.rs,vector_2d_transform.rs",
+    "vector_3d.rs": "vector_3d_tests.rs,vector_3d_transform.rs",
     // geo_primitives（Issue #691）: 実在ファイルのみをネスト対象とする
     // foundation / constructs は固定接尾辞として前提化せず、実在する場合のみ個別エントリへ追加する
     "arc_2d.rs": "arc_2d_bounds.rs,arc_2d_containment.rs,arc_2d_extensions.rs,arc_2d_sampling.rs,arc_2d_tests.rs,arc_2d_transform.rs",
@@ -164,7 +169,7 @@
     "curve_2d.rs": "curve_2d_bounds.rs,curve_2d_transform.rs",
     "curve_3d.rs": "curve_3d_bounds.rs,curve_3d_extensions.rs,curve_3d_transform.rs",
     "surface_3d.rs": "surface_3d_bounds.rs,surface_3d_extensions.rs,surface_3d_transform.rs",
-    // analysis クレート（このブランチ作業対象）
+    // foundation/analysis クレート
     "consts.rs": "consts_tests.rs",
     "units.rs": "units_tests.rs",
     "plane3.rs": "plane3_tests.rs",
