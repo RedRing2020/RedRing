@@ -4,9 +4,8 @@
 
 use crate::{
     ellipse_calculation_analysis, ellipse_calculation_strategy, Angle, Circle3D, Direction3D,
-    InfiniteLine3D, Plane3D, Point3D, Vector3D,
+    Point3D, Vector3D,
 };
-use geo_contracts::MultipleIntersection;
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
@@ -527,22 +526,6 @@ impl<T: Scalar> Ellipse3DProjection<T> for Ellipse3D<T> {
         let p = Point3D::new(point.0, point.1, point.2);
         let closest = Ellipse3D::closest_point_to(self, p);
         (closest.x(), closest.y(), closest.z())
-    }
-}
-
-impl<T: Scalar> MultipleIntersection<T, InfiniteLine3D<T>> for Ellipse3D<T> {
-    type Point = (T, T, T);
-
-    fn intersections_with(&self, _other: &InfiniteLine3D<T>, _tolerance: T) -> Vec<Self::Point> {
-        Vec::new()
-    }
-}
-
-impl<T: Scalar> MultipleIntersection<T, Plane3D<T>> for Ellipse3D<T> {
-    type Point = (T, T, T);
-
-    fn intersections_with(&self, _other: &Plane3D<T>, _tolerance: T) -> Vec<Self::Point> {
-        Vec::new()
     }
 }
 
