@@ -247,7 +247,7 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{LineSegment2D, Point2D, Ray2D, Vector2D};
+    use crate::{Circle2D, LineSegment2D, Point2D, Ray2D, Vector2D};
     use analysis::test_constants;
 
     const TOL: f64 = test_constants::DISTANCE_TOLERANCE_F64;
@@ -325,6 +325,38 @@ mod tests {
             (d - 13.0_f64.sqrt()).abs() < TOL,
             "expected sqrt(13), got {d}"
         );
+    }
+
+    // --- circle2d_circle2d_distance ---
+
+    #[test]
+    fn circle_circle_distance_external_is_positive() {
+        // 外接より外: 距離 = 中心間距離 - 半径の和
+        let c1 = Circle2D::new(Point2D::new(0.0, 0.0), 1.0).unwrap();
+        let c2 = Circle2D::new(Point2D::new(5.0, 0.0), 1.0).unwrap();
+        let d = circle2d_circle2d_distance(&c1, &c2);
+        assert!((d - 3.0).abs() < TOL, "expected 3.0, got {d}");
+    }
+
+    #[test]
+    fn circle_circle_distance_intersecting_is_zero() {
+        // 交差: 距離は 0
+        let c1 = Circle2D::new(Point2D::new(0.0, 0.0), 2.0).unwrap();
+        let c2 = Circle2D::new(Point2D::new(2.0, 0.0), 2.0).unwrap();
+        let d = circle2d_circle2d_distance(&c1, &c2);
+        assert!(
+            d < TOL,
+            "intersecting circles must have distance 0, got {d}"
+        );
+    }
+
+    #[test]
+    fn circle_circle_distance_one_inside_other_is_positive() {
+        // 内包: 距離 = 半径差 - 中心間距離
+        let c1 = Circle2D::new(Point2D::new(0.0, 0.0), 5.0).unwrap();
+        let c2 = Circle2D::new(Point2D::new(1.0, 0.0), 1.0).unwrap();
+        let d = circle2d_circle2d_distance(&c1, &c2);
+        assert!((d - 3.0).abs() < TOL, "expected 3.0, got {d}");
     }
 
     // --- triangle3d_point3d_distance は primitive_3d テストで網羅 ---

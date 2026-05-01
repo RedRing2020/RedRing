@@ -233,7 +233,7 @@ pwsh scripts/check_all_before_push.ps1
 
 This runs:
 1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
-2. `cargo clippy --workspace -- -D warnings` — Lint check
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
 3. `cargo test --workspace` — Full test suite
 
 #### 6. Generate Documentation (Optional)

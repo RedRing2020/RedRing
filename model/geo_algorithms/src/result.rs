@@ -114,7 +114,7 @@ pub enum IntersectionTopology {
     Touching,
     /// 形状が交差する（横断交差）
     Crossing,
-    /// 形状が完全に一致する
+    /// 形状が完全に重複する（部分重複を含む）
     Coincident,
 }
 
