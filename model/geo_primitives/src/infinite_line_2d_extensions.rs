@@ -174,11 +174,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
         self.project_point(point)
     }
 
-    /// 直線の交点を計算（intersection_with_line エイリアス）
-    pub fn intersection_with_line(&self, other: &Self) -> Option<Point2D<T>> {
-        self.intersection(other)
-    }
-
     /// 方向を反転（reverse_direction エイリアス）
     pub fn reverse_direction(&self) -> Self {
         self.reverse()

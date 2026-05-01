@@ -700,6 +700,111 @@ fn edge_segment_intersection<T: Scalar>(
     }
 }
 
+pub fn infinite_line2d_infinite_line2d_intersection<T: Scalar>(
+    line1: &InfiniteLine2D<T>,
+    line2: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let (px, py) = InfiniteLine2DProperties::point(line1);
+    let (dx1, dy1) = InfiniteLine2DProperties::direction(line1);
+    let (qx, qy) = InfiniteLine2DProperties::point(line2);
+    let (dx2, dy2) = InfiniteLine2DProperties::direction(line2);
+
+    // クラメルの公式: line1.point + t1 * line1.dir = line2.point + t2 * line2.dir
+    // det = dx2 * (-dy1) - dy2 * (-dx1) = -(dx2*dy1 - dy2*dx1)
+    let det = dx2 * (-dy1) - dy2 * (-dx1);
+
+    if det.abs() <= tolerance {
+        // 平行または同一直線
+        let dp_x = px - qx;
+        let dp_y = py - qy;
+        let cross = dp_x * dy2 - dp_y * dx2;
+        if cross.abs() <= tolerance {
+            return IntersectionResult::new(
+                IntersectionGeometry::Coincident,
+                IntersectionTopology::Coincident,
+                false,
+                tolerance,
+            );
+        }
+        return IntersectionResult::disjoint(tolerance);
+    }
+
+    let dp_x = px - qx;
+    let dp_y = py - qy;
+    // t1 = (dp × (-dir2)) / det
+    let t1 = (dp_x * (-dy2) - dp_y * (-dx2)) / det;
+    let point = Point2D::new(px + t1 * dx1, py + t1 * dy1);
+    IntersectionResult::from_option_point2d(Some(point), false, tolerance)
+}
+
+pub fn infinite_line2d_infinite_line2d_intersection_sym<T: Scalar>(
+    line1: &InfiniteLine2D<T>,
+    line2: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    infinite_line2d_infinite_line2d_intersection(line2, line1, tolerance)
+}
+
+pub fn ray2d_ray2d_intersection<T: Scalar>(
+    ray1: &Ray2D<T>,
+    ray2: &Ray2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let (ox1, oy1) = Ray2DProperties::origin(ray1);
+    let (dx1, dy1) = Ray2DProperties::direction(ray1);
+    let (ox2, oy2) = Ray2DProperties::origin(ray2);
+    let (dx2, dy2) = Ray2DProperties::direction(ray2);
+
+    // ray1: P = (ox1, oy1) + t1 * (dx1, dy1),  t1 >= 0
+    // ray2: Q = (ox2, oy2) + t2 * (dx2, dy2),  t2 >= 0
+    let denominator = dx1 * dy2 - dy1 * dx2;
+
+    if denominator.abs() <= tolerance {
+        // 平行または同一方向
+        let dp_x = ox2 - ox1;
+        let dp_y = oy2 - oy1;
+        let cross = dp_x * dy1 - dp_y * dx1;
+        if cross.abs() <= tolerance {
+            // コリニア: 重複区間を確認
+            let dir_sq = dx1 * dx1 + dy1 * dy1;
+            if dir_sq <= tolerance * tolerance {
+                return IntersectionResult::disjoint(tolerance);
+            }
+            let t2_start = (dp_x * dx1 + dp_y * dy1) / dir_sq;
+            if t2_start >= T::ZERO - tolerance {
+                // ray2 の起点が ray1 上にある → 交点は ray2 の起点
+                let p = Point2D::new(ox2, oy2);
+                return IntersectionResult::from_option_point2d(Some(p), true, tolerance);
+            }
+            // ray1 の起点が ray2 上にあるか確認
+            let dp2_x = ox1 - ox2;
+            let dp2_y = oy1 - oy2;
+            let dir2_sq = dx2 * dx2 + dy2 * dy2;
+            if dir2_sq > tolerance * tolerance {
+                let t1_start = (dp2_x * dx2 + dp2_y * dy2) / dir2_sq;
+                if t1_start >= T::ZERO - tolerance {
+                    let p = Point2D::new(ox1, oy1);
+                    return IntersectionResult::from_option_point2d(Some(p), true, tolerance);
+                }
+            }
+        }
+        return IntersectionResult::disjoint(tolerance);
+    }
+
+    let dp_x = ox2 - ox1;
+    let dp_y = oy2 - oy1;
+    let t1 = (dp_x * dy2 - dp_y * dx2) / denominator;
+    let t2 = (dp_x * dy1 - dp_y * dx1) / denominator;
+
+    if t1 >= T::ZERO - tolerance && t2 >= T::ZERO - tolerance {
+        let point = Point2D::new(ox1 + t1 * dx1, oy1 + t1 * dy1);
+        IntersectionResult::from_option_point2d(Some(point), false, tolerance)
+    } else {
+        IntersectionResult::disjoint(tolerance)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

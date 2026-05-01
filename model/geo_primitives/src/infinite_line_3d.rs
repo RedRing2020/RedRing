@@ -181,11 +181,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
         }
     }
 
-    /// 他の直線と交差するかを判定
-    pub fn intersects(&self, other: &Self) -> bool {
-        InfiniteLine3D::distance_to_line(self, other) <= default_distance_tolerance::<T>()
-    }
-
     /// 他の直線との角度を返す
     pub fn angle_to(&self, other: &Self) -> T {
         InfiniteLine3D::angle_with_line(self, other)
@@ -624,7 +619,7 @@ impl<T: Scalar> SameLineRelation<Self> for InfiniteLine3D<T> {
 
 impl<T: Scalar> IntersectsRelation<Self> for InfiniteLine3D<T> {
     fn intersects(&self, other: &Self) -> bool {
-        InfiniteLine3D::intersects(self, other)
+        InfiniteLine3D::distance_to_line(self, other) <= default_distance_tolerance::<T>()
     }
 }
 

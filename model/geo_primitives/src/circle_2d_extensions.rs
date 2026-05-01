@@ -77,15 +77,6 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(new_center, self.radius_internal()).unwrap()
     }
 
-    /// 他の円と交差するかを判定
-    pub fn intersects_circle(&self, other: &Self) -> bool {
-        let distance = self.center_internal().distance_to(&other.center_internal());
-        let sum_radii = self.radius_internal() + other.radius_internal();
-        let diff_radii = (self.radius_internal() - other.radius_internal()).abs();
-
-        distance <= sum_radii && distance >= diff_radii
-    }
-
     /// 他の円を完全に含むかを判定
     pub fn contains_circle(&self, other: &Self) -> bool {
         let distance = self.center_internal().distance_to(&other.center_internal());
