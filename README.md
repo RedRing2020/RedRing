@@ -296,7 +296,32 @@ We welcome contributions to the RedRing project!
 
 ### Pre-commit Format Checking
 
-Before pushing changes, ensure all Rust files are properly formatted:
+**⚠️ IMPORTANT: Before pushing changes, you MUST run the format check**
+
+This project enforces code quality through CI checks. **Committing format issues will cause CI failure and waste time.**
+
+#### Option 1: Quick Check (Recommended)
+
+Run this before every push:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux
+bash scripts/check_all_before_push.sh  # (will be added in future)
+```
+
+This script runs:
+1. `cargo fmt --all` — Format all Rust files
+2. `cargo clippy --workspace -- -D warnings` — Lint check
+3. `cargo test --workspace` — Full test suite
+
+If any check fails, the script stops immediately with error details.
+
+#### Option 2: Individual Commands
+
+If you prefer running checks separately:
 
 ```bash
 # Check formatting (does not modify files)
@@ -304,11 +329,17 @@ pwsh scripts/check_fmt.ps1
 
 # Auto-format all files
 cargo fmt --all
+
+# Run lints
+cargo clippy --workspace -- -D warnings
+
+# Run tests
+cargo test --workspace
 ```
 
-#### Optional: Automatic Pre-commit Hook
+#### Option 3: Automatic Pre-commit Hook (Optional)
 
-To prevent format issues from being committed, set up a git pre-commit hook:
+Set up a git pre-commit hook to prevent committing unformatted code:
 
 **On Windows (PowerShell):**
 ```powershell
@@ -322,6 +353,16 @@ chmod +x .git/hooks/pre-commit
 ```
 
 After setup, `git commit` will automatically check formatting before creating a commit.
+
+#### ⚠️ If you forget to check locally
+
+The CI (`feature_ci.yml`) will reject your PR with:
+```
+✗ Check formatting — FAILED
+cargo fmt --all -- --check
+```
+
+**Solution**: Run the check script locally, commit the changes, and push again.
 
 ### Community
 

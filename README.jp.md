@@ -296,7 +296,32 @@ RedRing プロジェクトへの貢献を歓迎します！
 
 ### コミット前フォーマットチェック
 
-変更をプッシュする前に、すべての Rust ファイルが正しくフォーマットされていることを確認してください：
+**⚠️ 重要：変更をプッシュする前に、必ずこのチェックを実行してください**
+
+このプロジェクトは CI でコード品質を強制しています。**フォーマット漏れでのコミットは CI 失敗を招き、膨大な手戻り時間が発生します。**
+
+#### 推奨：統合チェックスクリプト
+
+すべてのプッシュ前に以下を実行してください：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux
+bash scripts/check_all_before_push.sh  # (将来追加予定)
+```
+
+このスクリプトは以下を順番に実行します：
+1. `cargo fmt --all` — 全 Rust ファイルをフォーマット
+2. `cargo clippy --workspace -- -D warnings` — リントチェック
+3. `cargo test --workspace` — テスト実行
+
+いずれかのチェックが失敗すると、スクリプトは即座に停止し、エラー内容を表示します。
+
+#### 個別チェックコマンド
+
+各チェックを個別に実行したい場合：
 
 ```bash
 # フォーマットをチェック（ファイルは修正されません）
@@ -304,11 +329,17 @@ pwsh scripts/check_fmt.ps1
 
 # 全ファイルを自動フォーマット
 cargo fmt --all
+
+# リントチェック
+cargo clippy --workspace -- -D warnings
+
+# テスト実行
+cargo test --workspace
 ```
 
 #### オプション：自動 Pre-commit フック
 
-コミット時のフォーマット漏れを防ぐため、git pre-commit フックをセットアップできます：
+コミット時にフォーマットチェックが自動実行されるようにセットアップできます：
 
 **Windows (PowerShell):**
 ```powershell
@@ -322,6 +353,16 @@ chmod +x .git/hooks/pre-commit
 ```
 
 セットアップ後、`git commit` 実行時に自動的にフォーマットチェックが行われます。
+
+#### ⚠️ ローカルチェックを忘れた場合
+
+CI (`feature_ci.yml`) が以下のエラーで PR を拒否します：
+```
+✗ Check formatting — FAILED
+cargo fmt --all -- --check
+```
+
+**対応**: ローカルでチェックスクリプトを実行し、変更をコミット・プッシュし直してください。
 
 ### コミュニティ
 
