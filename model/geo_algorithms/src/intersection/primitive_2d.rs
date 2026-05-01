@@ -783,13 +783,32 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
             // 方向の一致・逆方向を確認
             let q = dx1 * dx2 + dy1 * dy2;
             if q >= T::ZERO {
-                // 同方向: 無限重複 → Coincident
-                return IntersectionResult::new(
-                    IntersectionGeometry::Coincident,
-                    IntersectionTopology::Coincident,
-                    false,
-                    tolerance,
-                );
+                // 同方向コリニア: 交差集合は起点が遠い方から始まる半直線
+                if t_base.abs() <= tolerance {
+                    // 起点が一致: 完全に同じ Ray → Coincident
+                    return IntersectionResult::new(
+                        IntersectionGeometry::Coincident,
+                        IntersectionTopology::Coincident,
+                        false,
+                        tolerance,
+                    );
+                } else if t_base > T::ZERO {
+                    // ray2 の起点が ray1 より前方: 交差は ray2 自身
+                    return IntersectionResult::new(
+                        IntersectionGeometry::Ray2D(ray2.clone()),
+                        IntersectionTopology::Coincident,
+                        false,
+                        tolerance,
+                    );
+                } else {
+                    // ray1 の起点が ray2 より前方: 交差は ray1 自身
+                    return IntersectionResult::new(
+                        IntersectionGeometry::Ray2D(ray1.clone()),
+                        IntersectionTopology::Coincident,
+                        false,
+                        tolerance,
+                    );
+                }
             }
             // 逆方向: 有効重複区間 [0, t_base]
             if t_base < T::ZERO - tolerance {
@@ -971,6 +990,57 @@ mod tests {
         assert!(
             !result.intersects(),
             "collinear rays pointing away from each other must be disjoint"
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_same_direction_same_origin_is_coincident() {
+        // 同方向コリニアで起点が一致: 完全に同じ Ray → Coincident
+        let ray1 = Ray2D::new(Point2D::new(1.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(1.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.intersects(), "identical rays must intersect");
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Coincident),
+            "identical rays must return Coincident geometry, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_same_direction_ray2_ahead_returns_ray2() {
+        // 同方向コリニアで ray2 の起点が ray1 より前方: 交差は ray2 自身
+        let ray1 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            result.intersects(),
+            "same-direction collinear rays must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Ray2D(_)),
+            "intersection of collinear same-direction rays (ray2 ahead) must be Ray2D, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_same_direction_ray1_ahead_returns_ray1() {
+        // 同方向コリニアで ray1 の起点が ray2 より前方: 交差は ray1 自身
+        let ray1 = Ray2D::new(Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            result.intersects(),
+            "same-direction collinear rays must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Ray2D(_)),
+            "intersection of collinear same-direction rays (ray1 ahead) must be Ray2D, got {:?}",
+            result.geometry
         );
     }
 

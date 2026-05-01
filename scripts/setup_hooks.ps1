@@ -57,7 +57,8 @@ if (Test-Path $preCommitPath) {
 
 # BOM なし UTF-8 で書き出す（shebang 行が壊れないよう BOM を避ける）
 $fullPath = [System.IO.Path]::GetFullPath($preCommitPath)
-[System.IO.File]::WriteAllText($fullPath, $preCommitContent, [System.Text.Encoding]::UTF8)
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($fullPath, $preCommitContent, $utf8NoBom)
 Write-Host "  $preCommitPath を作成しました" -ForegroundColor Green
 
 # Unix 系では実行権限が必要

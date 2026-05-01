@@ -7,7 +7,9 @@
 //! - `IntersectionTopology`: 位相的な関係
 //! - `IntersectionResult`: 幾何と位相を統合した結果
 
-use crate::{CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D};
+use crate::{
+    CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D, Ray2D,
+};
 use geo_contracts::Scalar;
 
 /// 交差結果の幾何内容
@@ -47,6 +49,8 @@ pub enum IntersectionGeometry<T: Scalar> {
     ///
     /// ここで返す線分は ideal endpoint 基準の幾何線分。
     Segment2D(LineSegment2D<T>),
+    /// 半直線（2D、例: コリニア同方向 Ray のうち起点が遠い側の交差集合）
+    Ray2D(Ray2D<T>),
 }
 
 impl<T: Scalar> IntersectionGeometry<T> {
@@ -63,6 +67,7 @@ impl<T: Scalar> IntersectionGeometry<T> {
             Self::Point2D(_) => "single point (2D)",
             Self::Points2D(_) => "multiple points (2D)",
             Self::Segment2D(_) => "line segment (2D)",
+            Self::Ray2D(_) => "ray (2D partial overlap)",
         }
     }
 
@@ -91,7 +96,8 @@ impl<T: Scalar> IntersectionGeometry<T> {
             Self::InfiniteLine(_)
             | Self::Segment(_)
             | Self::CompositeCurve(_)
-            | Self::Segment2D(_) => 1,
+            | Self::Segment2D(_)
+            | Self::Ray2D(_) => 1,
             Self::Coincident => 2,
         }
     }
