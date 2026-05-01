@@ -175,13 +175,13 @@ pub fn ray2d_ray2d_distance<T: Scalar>(ray1: &Ray2D<T>, ray2: &Ray2D<T>) -> T {
     let (ox2, oy2) = Ray2DProperties::origin(ray2);
     let (dx2, dy2) = Ray2DProperties::direction(ray2);
 
-    let denominator = dx1 * dy2 - dy1 * dx2;
-    if denominator.abs() > default_parallel_cross_error_tolerance::<T>() {
+    let denom = dx1 * dy2 - dy1 * dx2;
+    if denom.abs() > default_parallel_cross_error_tolerance::<T>() {
         // 非平行: 交点パラメータを計算
         let dp_x = ox2 - ox1;
         let dp_y = oy2 - oy1;
-        let t1 = (dp_x * dy2 - dp_y * dx2) / denominator;
-        let t2 = (dp_x * dy1 - dp_y * dx1) / denominator;
+        let t1 = (dp_x * dy2 - dp_y * dx2) / denom;
+        let t2 = (dp_x * dy1 - dp_y * dx1) / denom;
         if t1 >= T::ZERO && t2 >= T::ZERO {
             // 両Ray の有効範囲内で交差: 距離 0
             return T::ZERO;
@@ -221,16 +221,16 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
     let sdx = s2x - s1x;
     let sdy = s2y - s1y;
 
-    // denominator は単位方向 × 線分差分ベクトル（length 次元）
+    // denom は単位方向 × 線分差分ベクトル（length 次元）
     // 無次元化のため seg_len_sq を使った二乗比較を使用
     let par_tol = default_parallel_cross_error_tolerance::<T>();
     let seg_len_sq = sdx * sdx + sdy * sdy;
-    let denominator = rdx * sdy - rdy * sdx;
-    if denominator * denominator > par_tol * par_tol * seg_len_sq {
+    let denom = rdx * sdy - rdy * sdx;
+    if denom * denom > par_tol * par_tol * seg_len_sq {
         let dp_x = s1x - ox;
         let dp_y = s1y - oy;
-        let t_ray = (dp_x * sdy - dp_y * sdx) / denominator;
-        let t_seg = (dp_x * rdy - dp_y * rdx) / denominator;
+        let t_ray = (dp_x * sdy - dp_y * sdx) / denom;
+        let t_seg = (dp_x * rdy - dp_y * rdx) / denom;
         if t_ray >= T::ZERO && t_seg >= T::ZERO && t_seg <= T::ONE {
             return T::ZERO;
         }
