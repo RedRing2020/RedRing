@@ -346,7 +346,7 @@ bash scripts/check_all_before_push.sh  # (will be added in future)
 
 This runs:
 1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
-2. `cargo clippy --workspace -- -D warnings` — Lint check
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
 3. `cargo test --workspace` — Full test suite
 
 If any check fails, the script stops immediately with error details.
@@ -363,7 +363,7 @@ pwsh scripts/check_fmt.ps1
 cargo fmt --all
 
 # Run lints
-cargo clippy --workspace -- -D warnings
+cargo clippy --all-targets --all-features --workspace -- -D warnings
 
 # Run tests
 cargo test --workspace

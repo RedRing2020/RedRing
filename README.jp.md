@@ -174,7 +174,7 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. **Git Pre-commit フックのセットアップ** (必須)
+#### 2. **Git Pre-commit フックのセットアップ** (推奨)
 
 コミット前に自動的にフォーマットチェックを行い、問題を早期に検出：
 
@@ -182,8 +182,9 @@ cd RedRing
 # Windows (PowerShell)
 pwsh scripts/setup_hooks.ps1
 
-# macOS/Linux (近日提供予定)
-# bash scripts/setup_hooks.sh
+# macOS/Linux
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
 このステップの後、`git commit` 時に自動的にフォーマットチェックが実行されます。エラーが見つかった場合、コミットが拒否されるため、`cargo fmt --all` を実行して修正し、再度コミットしてください。
@@ -231,8 +232,8 @@ pwsh scripts/check_all_before_push.ps1
 ```
 
 以下を実行します：
-1. `cargo fmt --all` — 全 Rust ファイルをフォーマット
-2. `cargo clippy --workspace -- -D warnings` — リントチェック
+1. `cargo fmt --all -- --check` — フォーマットチェック（ファイルを変更しません）
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — リントチェック
 3. `cargo test --workspace` — テスト実行
 
 #### 6. ドキュメント生成 (オプション)

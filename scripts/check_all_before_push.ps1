@@ -4,7 +4,7 @@
 .DESCRIPTION
     次のチェックを順番に実行：
     1. cargo fmt --all -- --check (フォーマットチェック)
-    2. cargo clippy --all (リント)
+    2. cargo clippy --all-targets --all-features --workspace -- -D warnings (リント)
     3. cargo test --workspace (テスト)
     
     全てのチェックが通らないと、このスクリプトは失敗します。
@@ -34,7 +34,7 @@ Write-Host ""
 
 # 2. Clippy チェック
 Write-Host "[2/3] Clippy リントチェック..." -ForegroundColor Yellow
-cargo clippy --workspace -- -D warnings
+cargo clippy --all-targets --all-features --workspace -- -D warnings
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "✗ Clippy警告を検出" -ForegroundColor Red
