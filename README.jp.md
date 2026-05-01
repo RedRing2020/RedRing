@@ -174,7 +174,21 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. 依存関係の確認
+#### 2. **Git Pre-commit フックのセットアップ** (必須)
+
+コミット前に自動的にフォーマットチェックを行い、問題を早期に検出：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+
+# macOS/Linux (近日提供予定)
+# bash scripts/setup_hooks.sh
+```
+
+このステップの後、`git commit` 時に自動的にフォーマットチェックが実行されます。エラーが見つかった場合、コミットが拒否されるため、`cargo fmt --all` を実行して修正し、再度コミットしてください。
+
+#### 3. 依存関係の確認
 
 ```bash
 # Rust バージョン確認
@@ -184,7 +198,7 @@ rustc --version
 cargo --version
 ```
 
-#### 3. ビルド実行
+#### 4. ビルド実行
 
 ```bash
 # デバッグビルド (高速)
@@ -194,7 +208,7 @@ cargo build
 cargo build --release
 ```
 
-#### 4. アプリケーション実行
+#### 5. アプリケーション実行
 
 ```bash
 # GUI 環境が必要 (X11/Wayland/Windows/macOS)
@@ -204,7 +218,24 @@ cargo run
 cargo test --workspace
 ```
 
-### 🎮 実用的なキー操作（`cargo run` 実行後）
+### オプション：プッシュ前の完全チェック (推奨)
+
+変更をプッシュする前に、以下を実行して品質チェックを実施することをお勧めします：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux (近日提供予定)
+# bash scripts/check_all_before_push.sh
+```
+
+以下を実行します：
+1. `cargo fmt --all` — 全 Rust ファイルをフォーマット
+2. `cargo clippy --workspace -- -D warnings` — リントチェック
+3. `cargo test --workspace` — テスト実行
+
+#### 6. ドキュメント生成 (オプション)
 
 > 注意: `cargo run -h` は Cargo 自体のヘルプです。以下は **アプリ起動後** のキー操作です。
 
@@ -296,73 +327,41 @@ RedRing プロジェクトへの貢献を歓迎します！
 
 ### コミット前フォーマットチェック
 
-**⚠️ 重要：変更をプッシュする前に、必ずこのチェックを実行してください**
+**⚠️ 重要：Git Pre-commit フックは初期セットアップ時に設定済みです**
 
-このプロジェクトは CI でコード品質を強制しています。**フォーマット漏れでのコミットは CI 失敗を招き、膨大な手戻り時間が発生します。**
+セットアップ後は、`git commit` 時に自動的に以下を実行：
+- `cargo fmt --all --check` — フォーマットチェック
+- フォーマットエラーがある場合、コミットが拒否
 
-#### 推奨：統合チェックスクリプト
+**セットアップ後の開発フロー**:
+1. コードを編集
+2. `git add` で変更をステージ
+3. `git commit` を実行
+   - ✅ フォーマット OK → コミット成功
+   - ❌ フォーマント エラー → コミット拒否
+     - `cargo fmt --all` を実行
+     - 再度 `git commit` を実行
 
-すべてのプッシュ前に以下を実行してください：
+#### セットアップをやり直す場合
 
 ```bash
-# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+```
+
+#### 自動チェックを無効化したい場合
+
+```bash
+# フックを一時的にスキップ
+git commit --no-verify
+```
+
+#### オプション：プッシュ前の完全チェック
+
+CI での失敗を事前に防ぐため、プッシュ前に全チェックを実行することを推奨します：
+
+```bash
 pwsh scripts/check_all_before_push.ps1
-
-# macOS/Linux
-bash scripts/check_all_before_push.sh  # (将来追加予定)
 ```
-
-このスクリプトは以下を順番に実行します：
-1. `cargo fmt --all` — 全 Rust ファイルをフォーマット
-2. `cargo clippy --workspace -- -D warnings` — リントチェック
-3. `cargo test --workspace` — テスト実行
-
-いずれかのチェックが失敗すると、スクリプトは即座に停止し、エラー内容を表示します。
-
-#### 個別チェックコマンド
-
-各チェックを個別に実行したい場合：
-
-```bash
-# フォーマットをチェック（ファイルは修正されません）
-pwsh scripts/check_fmt.ps1
-
-# 全ファイルを自動フォーマット
-cargo fmt --all
-
-# リントチェック
-cargo clippy --workspace -- -D warnings
-
-# テスト実行
-cargo test --workspace
-```
-
-#### オプション：自動 Pre-commit フック
-
-コミット時にフォーマットチェックが自動実行されるようにセットアップできます：
-
-**Windows (PowerShell):**
-```powershell
-Copy-Item scripts/hooks/pre-commit.template .git/hooks/pre-commit
-```
-
-**macOS/Linux:**
-```bash
-cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
-```
-
-セットアップ後、`git commit` 実行時に自動的にフォーマットチェックが行われます。
-
-#### ⚠️ ローカルチェックを忘れた場合
-
-CI (`feature_ci.yml`) が以下のエラーで PR を拒否します：
-```
-✗ Check formatting — FAILED
-cargo fmt --all -- --check
-```
-
-**対応**: ローカルでチェックスクリプトを実行し、変更をコミット・プッシュし直してください。
 
 ### コミュニティ
 

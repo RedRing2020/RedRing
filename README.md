@@ -174,7 +174,21 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. Verify Dependencies
+#### 2. **Setup Git Pre-commit Hook** (Required)
+
+Prevent format issues by automatically checking code before commits:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+
+# macOS/Linux (coming soon)
+# bash scripts/setup_hooks.sh
+```
+
+After this step, `git commit` will automatically check formatting. If errors are found, the commit will be rejected and you'll need to run `cargo fmt --all` and retry.
+
+#### 3. Verify Dependencies
 
 ```bash
 # Check Rust version
@@ -184,7 +198,7 @@ rustc --version
 cargo --version
 ```
 
-#### 3. Build Project
+#### 4. Build Project
 
 ```bash
 # Debug build (fast compilation)
@@ -194,7 +208,7 @@ cargo build
 cargo build --release
 ```
 
-#### 4. Run Application
+#### 5. Run Application
 
 ```bash
 # Requires GUI environment (X11/Wayland/Windows/macOS)
@@ -204,7 +218,24 @@ cargo run
 cargo test --workspace
 ```
 
-### 🎮 Practical Key Bindings (after `cargo run`)
+### Optional: Comprehensive Pre-push Check (Recommended)
+
+Before pushing changes, optionally run the full quality check to catch any issues early:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux (coming soon)
+# bash scripts/check_all_before_push.sh
+```
+
+This runs:
+1. `cargo fmt --all` — Format all Rust files
+2. `cargo clippy --workspace -- -D warnings` — Lint check
+3. `cargo test --workspace` — Full test suite
+
+#### 6. Generate Documentation (Optional)
 
 > Note: `cargo run -h` shows Cargo help. The key bindings below are available **after launching the app**.
 
