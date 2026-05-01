@@ -174,7 +174,7 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. **Setup Git Pre-commit Hook** (Required)
+#### 2. **Setup Git Pre-commit Hook** (Recommended)
 
 Prevent format issues by automatically checking code before commits:
 
@@ -182,8 +182,9 @@ Prevent format issues by automatically checking code before commits:
 # Windows (PowerShell)
 pwsh scripts/setup_hooks.ps1
 
-# macOS/Linux (coming soon)
-# bash scripts/setup_hooks.sh
+# macOS/Linux
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
 After this step, `git commit` will automatically check formatting. If errors are found, the commit will be rejected and you'll need to run `cargo fmt --all` and retry.
@@ -231,7 +232,7 @@ pwsh scripts/check_all_before_push.ps1
 ```
 
 This runs:
-1. `cargo fmt --all` — Format all Rust files
+1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
 2. `cargo clippy --workspace -- -D warnings` — Lint check
 3. `cargo test --workspace` — Full test suite
 
@@ -343,8 +344,8 @@ pwsh scripts/check_all_before_push.ps1
 bash scripts/check_all_before_push.sh  # (will be added in future)
 ```
 
-This script runs:
-1. `cargo fmt --all` — Format all Rust files
+This runs:
+1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
 2. `cargo clippy --workspace -- -D warnings` — Lint check
 3. `cargo test --workspace` — Full test suite
 

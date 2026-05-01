@@ -524,15 +524,31 @@ mod tests {
     }
 
     #[test]
-    fn triangle3d_point3d_distance_degenerate_collinear_is_segment_distance() {
-        // Triangle3D::new は退化形状を拒否するためスキップ（防衛的コードの検証は不要）
-        // このテストは構造上作成不可能なので placeholder としてパスのみ確認
-        // 非退化ケースは他テストで網羅している
+    fn triangle3d_point3d_distance_degenerate_collinear_is_rejected() {
+        // 一直線上の3頂点は Triangle3D::new に拒否されることを確認
+        let result = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+        );
+        assert!(
+            result.is_none(),
+            "collinear vertices must be rejected by Triangle3D::new"
+        );
     }
 
     #[test]
-    fn triangle3d_point3d_distance_degenerate_all_same_vertex() {
-        // Triangle3D::new は退化形状を拒否するためスキップ
+    fn triangle3d_point3d_distance_degenerate_all_same_vertex_is_rejected() {
+        // 全頂点が同一の点は Triangle3D::new に拒否されることを確認
+        let result = Triangle3D::new(
+            Point3D::new(1.0, 1.0, 1.0),
+            Point3D::new(1.0, 1.0, 1.0),
+            Point3D::new(1.0, 1.0, 1.0),
+        );
+        assert!(
+            result.is_none(),
+            "all-same vertices must be rejected by Triangle3D::new"
+        );
     }
 
     #[test]

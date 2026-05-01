@@ -3,7 +3,7 @@
     Push前の完全なコード品質チェック
 .DESCRIPTION
     次のチェックを順番に実行：
-    1. cargo fmt --all (フォーマッティング)
+    1. cargo fmt --all -- --check (フォーマットチェック)
     2. cargo clippy --all (リント)
     3. cargo test --workspace (テスト)
     

@@ -787,7 +787,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
                 return IntersectionResult::new(
                     IntersectionGeometry::Coincident,
                     IntersectionTopology::Coincident,
-                    true,
+                    false,
                     tolerance,
                 );
             }
@@ -798,7 +798,12 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
             if t_base <= tolerance {
                 // 起点共有のみ
                 let p = Point2D::new(ox1, oy1);
-                return IntersectionResult::from_option_point2d(Some(p), true, tolerance);
+                return IntersectionResult::new(
+                    IntersectionGeometry::Point2D(p),
+                    IntersectionTopology::Touching,
+                    false,
+                    tolerance,
+                );
             }
             // 有限セグメント重複: O1 から O2 へ
             let p_start = Point2D::new(ox1, oy1);
@@ -807,11 +812,16 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
                 return IntersectionResult::new(
                     IntersectionGeometry::Segment2D(seg),
                     IntersectionTopology::Coincident,
-                    true,
+                    false,
                     tolerance,
                 );
             }
-            return IntersectionResult::from_option_point2d(Some(p_start), true, tolerance);
+            return IntersectionResult::new(
+                IntersectionGeometry::Point2D(p_start),
+                IntersectionTopology::Touching,
+                false,
+                tolerance,
+            );
         }
         return IntersectionResult::disjoint(tolerance);
     }

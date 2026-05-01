@@ -137,9 +137,12 @@ pub fn line_segment2d_line_segment2d_distance<T: Scalar>(
     let d2y = p2y - p1y;
 
     // 交差チェック: 線分内部で交差していれば距離 0
+    // denom は差分ベクトル同士の外積 (length^2 次元) のため、無次元化のため二乗比較を使用
     let par_tol = default_parallel_cross_error_tolerance::<T>();
+    let d1_len_sq = d1x * d1x + d1y * d1y;
+    let d2_len_sq = d2x * d2x + d2y * d2y;
     let denom = d1x * d2y - d1y * d2x;
-    if denom.abs() > par_tol {
+    if denom * denom > par_tol * par_tol * d1_len_sq * d2_len_sq {
         let dp_x = p1x - s1x;
         let dp_y = p1y - s1y;
         let t = (dp_x * d2y - dp_y * d2x) / denom;
@@ -218,8 +221,12 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
     let sdx = s2x - s1x;
     let sdy = s2y - s1y;
 
+    // denominator は単位方向 × 線分差分ベクトル（length 次元）
+    // 無次元化のため seg_len_sq を使った二乗比較を使用
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    let seg_len_sq = sdx * sdx + sdy * sdy;
     let denominator = rdx * sdy - rdy * sdx;
-    if denominator.abs() > default_parallel_cross_error_tolerance::<T>() {
+    if denominator * denominator > par_tol * par_tol * seg_len_sq {
         let dp_x = s1x - ox;
         let dp_y = s1y - oy;
         let t_ray = (dp_x * sdy - dp_y * sdx) / denominator;

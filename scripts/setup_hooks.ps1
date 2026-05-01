@@ -20,17 +20,17 @@ $preCommitContent = @'
 # Auto-generated pre-commit hook
 # This script is automatically created by scripts/setup_hooks.ps1
 
-# フォーマット﻿チェック
+# フォーマットチェック
 echo "[pre-commit] Checking formatting..."
 cargo fmt --all -- --check
 if [ $? -ne 0 ]; then
     echo ""
-    echo "✗ Format check failed."
+    echo "x Format check failed."
     echo "Run 'cargo fmt --all' to fix."
     exit 1
 fi
 
-echo "✓ Format check passed."
+echo "v Format check passed."
 exit 0
 '@
 
@@ -41,7 +41,7 @@ Write-Host ""
 
 # .git/hooks/ ディレクトリ確認
 if (!(Test-Path $hooksDir)) {
-    Write-Host "✗ エラー: .git/hooks/ が見つかりません" -ForegroundColor Red
+    Write-Host "x エラー: .git/hooks/ が見つかりません" -ForegroundColor Red
     Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
     exit 1
 }
@@ -55,16 +55,22 @@ if (Test-Path $preCommitPath) {
     Write-Host "  既存のフックを $preCommitPath.backup にバックアップしました" -ForegroundColor Yellow
 }
 
-# フック作成
-Set-Content -Path $preCommitPath -Value $preCommitContent -Encoding UTF8
+# BOM なし UTF-8 で書き出す（shebang 行が壊れないよう BOM を避ける）
+$fullPath = [System.IO.Path]::GetFullPath($preCommitPath)
+[System.IO.File]::WriteAllText($fullPath, $preCommitContent, [System.Text.Encoding]::UTF8)
 Write-Host "  $preCommitPath を作成しました" -ForegroundColor Green
 
 # Unix 系では実行権限が必要
-# (Windows では不要だが、gitが自動的に処理)
+if ($IsLinux -or $IsMacOS) {
+    chmod +x $fullPath
+    Write-Host "  実行権限を付与しました (chmod +x)" -ForegroundColor Green
+} else {
+    Write-Host "  注意: macOS/Linux 環境では 'chmod +x .git/hooks/pre-commit' が必要です" -ForegroundColor Yellow
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "✓ セットアップ完了" -ForegroundColor Green
+Write-Host "v セットアップ完了" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "以下の動作が追加されました：" -ForegroundColor Cyan
@@ -74,3 +80,4 @@ Write-Host "  - 修正後に再度 git commit を実行してください" -Fore
 Write-Host ""
 Write-Host "テスト:" -ForegroundColor Yellow
 Write-Host "  git commit -m 'test' で フック動作確認" -ForegroundColor Gray
+
