@@ -37,7 +37,7 @@ pwsh scripts/check_all_before_push.ps1
 
 このスクリプトは以下を実行します：
 - `cargo fmt --all -- --check`（フォーマットチェック）
-- `cargo clippy --workspace -- -D warnings`
+- `cargo clippy --all-targets --all-features --workspace -- -D warnings`
 - `cargo test --workspace`
 
 ---

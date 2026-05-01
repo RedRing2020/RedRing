@@ -247,7 +247,7 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{LineSegment2D, Point2D};
+    use crate::{LineSegment2D, Point2D, Ray2D, Vector2D};
     use analysis::test_constants;
 
     const TOL: f64 = test_constants::DISTANCE_TOLERANCE_F64;
@@ -283,6 +283,47 @@ mod tests {
         assert!(
             d < TOL,
             "T-shape touching segments must have distance 0, got {d}"
+        );
+    }
+
+    #[test]
+    fn ray_ray_distance_crossing_is_zero() {
+        let ray1 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(1.0, -1.0), Vector2D::new(0.0, 1.0)).unwrap();
+        let d = ray2d_ray2d_distance(&ray1, &ray2);
+        assert!(d < TOL, "crossing rays must have distance 0, got {d}");
+    }
+
+    #[test]
+    fn ray_ray_distance_non_intersecting_positive() {
+        let ray1 = Ray2D::new(Point2D::new(2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(0.0, 1.0), Vector2D::new(0.0, 1.0)).unwrap();
+        let d = ray2d_ray2d_distance(&ray1, &ray2);
+        assert!(
+            (d - 5.0_f64.sqrt()).abs() < TOL,
+            "expected sqrt(5), got {d}"
+        );
+    }
+
+    #[test]
+    fn ray_segment_distance_crossing_is_zero() {
+        let ray = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(1.0, -1.0), Point2D::new(1.0, 1.0)).unwrap();
+        let d = ray2d_line_segment2d_distance(&ray, &segment);
+        assert!(
+            d < TOL,
+            "crossing ray/segment must have distance 0, got {d}"
+        );
+    }
+
+    #[test]
+    fn ray_segment_distance_origin_to_segment() {
+        let ray = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let segment = LineSegment2D::new(Point2D::new(-2.0, 3.0), Point2D::new(-2.0, 5.0)).unwrap();
+        let d = ray2d_line_segment2d_distance(&ray, &segment);
+        assert!(
+            (d - 13.0_f64.sqrt()).abs() < TOL,
+            "expected sqrt(13), got {d}"
         );
     }
 

@@ -2,7 +2,7 @@
 .SYNOPSIS
     Rust フォーマッティングをチェック
 .DESCRIPTION
-    cargo fmt --all --check を実行してフォーマットエラーをチェック
+    cargo fmt --all -- --check を実行してフォーマットエラーをチェック
     CI や push 前の手動チェック用
 #>
 
