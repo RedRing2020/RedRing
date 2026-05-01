@@ -7,6 +7,7 @@
 
 use crate::{Circle2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D};
 use geo_contracts::{
+    default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance,
     Circle2DProperties, InfiniteLine2DProperties, LineSegment2DProperties, Ray2DProperties, Scalar,
 };
 
@@ -22,7 +23,8 @@ pub fn line_segment2d_point2d_distance<T: Scalar>(
     let dx = s2x - s1x;
     let dy = s2y - s1y;
     let len_sq = dx * dx + dy * dy;
-    if len_sq <= T::EPSILON {
+    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+    if len_sq <= zero_tol * zero_tol {
         return ((point.x() - s1x) * (point.x() - s1x) + (point.y() - s1y) * (point.y() - s1y))
             .sqrt();
     }
@@ -120,35 +122,47 @@ pub fn line_segment2d_line_segment2d_distance<T: Scalar>(
     seg1: &LineSegment2D<T>,
     seg2: &LineSegment2D<T>,
 ) -> T {
-    let d1 = line_segment2d_point2d_distance(
-        seg1,
-        &Point2D::new(
-            LineSegment2DProperties::start(seg2).0,
-            LineSegment2DProperties::start(seg2).1,
-        ),
-    );
-    let d2 = line_segment2d_point2d_distance(
-        seg1,
-        &Point2D::new(
-            LineSegment2DProperties::end(seg2).0,
-            LineSegment2DProperties::end(seg2).1,
-        ),
-    );
-    let d3 = line_segment2d_point2d_distance(
-        seg2,
-        &Point2D::new(
-            LineSegment2DProperties::start(seg1).0,
-            LineSegment2DProperties::start(seg1).1,
-        ),
-    );
-    let d4 = line_segment2d_point2d_distance(
-        seg2,
-        &Point2D::new(
-            LineSegment2DProperties::end(seg1).0,
-            LineSegment2DProperties::end(seg1).1,
-        ),
-    );
-    d1.min(d2).min(d3).min(d4)
+    let s1x = LineSegment2DProperties::start(seg1).0;
+    let s1y = LineSegment2DProperties::start(seg1).1;
+    let s2x = LineSegment2DProperties::end(seg1).0;
+    let s2y = LineSegment2DProperties::end(seg1).1;
+    let p1x = LineSegment2DProperties::start(seg2).0;
+    let p1y = LineSegment2DProperties::start(seg2).1;
+    let p2x = LineSegment2DProperties::end(seg2).0;
+    let p2y = LineSegment2DProperties::end(seg2).1;
+
+    let d1x = s2x - s1x;
+    let d1y = s2y - s1y;
+    let d2x = p2x - p1x;
+    let d2y = p2y - p1y;
+
+    // 交差チェック: 線分内部で交差していれば距離 0
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    let denom = d1x * d2y - d1y * d2x;
+    if denom.abs() > par_tol {
+        let dp_x = p1x - s1x;
+        let dp_y = p1y - s1y;
+        let t = (dp_x * d2y - dp_y * d2x) / denom;
+        let s = (dp_x * d1y - dp_y * d1x) / denom;
+        if t >= T::ZERO && t <= T::ONE && s >= T::ZERO && s <= T::ONE {
+            return T::ZERO;
+        }
+    }
+
+    // 各端点からもう一方の線分への距離の最小値
+    line_segment2d_point2d_distance(seg1, &Point2D::new(p1x, p1y))
+        .min(line_segment2d_point2d_distance(
+            seg1,
+            &Point2D::new(p2x, p2y),
+        ))
+        .min(line_segment2d_point2d_distance(
+            seg2,
+            &Point2D::new(s1x, s1y),
+        ))
+        .min(line_segment2d_point2d_distance(
+            seg2,
+            &Point2D::new(s2x, s2y),
+        ))
 }
 
 /// Ray2D-Ray2D 間の最短距離
@@ -159,7 +173,7 @@ pub fn ray2d_ray2d_distance<T: Scalar>(ray1: &Ray2D<T>, ray2: &Ray2D<T>) -> T {
     let (dx2, dy2) = Ray2DProperties::direction(ray2);
 
     let denominator = dx1 * dy2 - dy1 * dx2;
-    if denominator.abs() > T::EPSILON {
+    if denominator.abs() > default_parallel_cross_error_tolerance::<T>() {
         // 非平行: 交点パラメータを計算
         let dp_x = ox2 - ox1;
         let dp_y = oy2 - oy1;
@@ -205,7 +219,7 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
     let sdy = s2y - s1y;
 
     let denominator = rdx * sdy - rdy * sdx;
-    if denominator.abs() > T::EPSILON {
+    if denominator.abs() > default_parallel_cross_error_tolerance::<T>() {
         let dp_x = s1x - ox;
         let dp_y = s1y - oy;
         let t_ray = (dp_x * sdy - dp_y * sdx) / denominator;
@@ -221,4 +235,50 @@ pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSe
     ray2d_point2d_distance(ray, &seg_start)
         .min(ray2d_point2d_distance(ray, &seg_end))
         .min(line_segment2d_point2d_distance(segment, &ray_origin))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{LineSegment2D, Point2D};
+    use analysis::test_constants;
+
+    const TOL: f64 = test_constants::DISTANCE_TOLERANCE_F64;
+
+    // --- line_segment2d_line_segment2d_distance ---
+
+    #[test]
+    fn seg_seg_distance_crossing_is_zero() {
+        // 十字交差: 距離は 0 でなければならない
+        let seg1 = LineSegment2D::new(Point2D::new(-1.0, 0.0), Point2D::new(1.0, 0.0)).unwrap();
+        let seg2 = LineSegment2D::new(Point2D::new(0.0, -1.0), Point2D::new(0.0, 1.0)).unwrap();
+        let d = line_segment2d_line_segment2d_distance(&seg1, &seg2);
+        assert!(d < TOL, "crossing segments must have distance 0, got {d}");
+    }
+
+    #[test]
+    fn seg_seg_distance_parallel_non_touching() {
+        let seg1 = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(1.0, 0.0)).unwrap();
+        let seg2 = LineSegment2D::new(Point2D::new(0.0, 2.0), Point2D::new(1.0, 2.0)).unwrap();
+        let d = line_segment2d_line_segment2d_distance(&seg1, &seg2);
+        assert!(
+            (d - 2.0).abs() < TOL,
+            "parallel segments distance should be 2, got {d}"
+        );
+    }
+
+    #[test]
+    fn seg_seg_distance_t_shape_endpoint_touch() {
+        // seg1 の端点が seg2 の中点に触れる T 字形
+        let seg1 = LineSegment2D::new(Point2D::new(0.0, 0.0), Point2D::new(0.0, 1.0)).unwrap();
+        let seg2 = LineSegment2D::new(Point2D::new(-1.0, 1.0), Point2D::new(1.0, 1.0)).unwrap();
+        let d = line_segment2d_line_segment2d_distance(&seg1, &seg2);
+        assert!(
+            d < TOL,
+            "T-shape touching segments must have distance 0, got {d}"
+        );
+    }
+
+    // --- triangle3d_point3d_distance は primitive_3d テストで網羅 ---
+    // --- infinite_line2d_infinite_line2d_intersection / ray2d_ray2d_intersection は intersection テストで網羅 ---
 }
