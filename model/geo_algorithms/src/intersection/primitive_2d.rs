@@ -795,7 +795,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
                 } else if t_base > T::ZERO {
                     // ray2 の起点が ray1 より前方: 交差は ray2 自身
                     return IntersectionResult::new(
-                        IntersectionGeometry::Ray2D(ray2.clone()),
+                        IntersectionGeometry::Ray2D(*ray2),
                         IntersectionTopology::Coincident,
                         false,
                         tolerance,
@@ -803,7 +803,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
                 } else {
                     // ray1 の起点が ray2 より前方: 交差は ray1 自身
                     return IntersectionResult::new(
-                        IntersectionGeometry::Ray2D(ray1.clone()),
+                        IntersectionGeometry::Ray2D(*ray1),
                         IntersectionTopology::Coincident,
                         false,
                         tolerance,
