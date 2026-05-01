@@ -1,0 +1,16 @@
+#!/bin/sh
+# This is a template for .git/hooks/pre-commit
+# To activate, copy this file to .git/hooks/pre-commit and make it executable:
+#   cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+
+# Check Rust formatting
+cargo fmt --all -- --check
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "✗ Formatting issues found."
+    echo "Run 'cargo fmt --all' to fix, then stage and commit again."
+    exit 1
+fi
+
+exit 0

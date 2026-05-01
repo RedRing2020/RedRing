@@ -294,6 +294,35 @@ RedRing プロジェクトへの貢献を歓迎します！
 - **ドキュメント**: 公開 API には必ず rustdoc コメントを記載
 - **テスト**: 新機能には対応するテストを追加
 
+### コミット前フォーマットチェック
+
+変更をプッシュする前に、すべての Rust ファイルが正しくフォーマットされていることを確認してください：
+
+```bash
+# フォーマットをチェック（ファイルは修正されません）
+pwsh scripts/check_fmt.ps1
+
+# 全ファイルを自動フォーマット
+cargo fmt --all
+```
+
+#### オプション：自動 Pre-commit フック
+
+コミット時のフォーマット漏れを防ぐため、git pre-commit フックをセットアップできます：
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item scripts/hooks/pre-commit.template .git/hooks/pre-commit
+```
+
+**macOS/Linux:**
+```bash
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+セットアップ後、`git commit` 実行時に自動的にフォーマットチェックが行われます。
+
 ### コミュニティ
 
 - 🐛 **バグ報告**: [Issues](https://github.com/RedRing2020/RedRing/issues) で報告

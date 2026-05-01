@@ -294,6 +294,35 @@ We welcome contributions to the RedRing project!
 - **Documentation**: Add rustdoc comments for public APIs
 - **Testing**: Include tests for new features
 
+### Pre-commit Format Checking
+
+Before pushing changes, ensure all Rust files are properly formatted:
+
+```bash
+# Check formatting (does not modify files)
+pwsh scripts/check_fmt.ps1
+
+# Auto-format all files
+cargo fmt --all
+```
+
+#### Optional: Automatic Pre-commit Hook
+
+To prevent format issues from being committed, set up a git pre-commit hook:
+
+**On Windows (PowerShell):**
+```powershell
+Copy-Item scripts/hooks/pre-commit.template .git/hooks/pre-commit
+```
+
+**On macOS/Linux:**
+```bash
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+After setup, `git commit` will automatically check formatting before creating a commit.
+
 ### Community
 
 - 🐛 **Bug Reports**: Report via [Issues](https://github.com/RedRing2020/RedRing/issues)
