@@ -826,12 +826,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
                     tolerance,
                 );
             }
-            return IntersectionResult::new(
-                IntersectionGeometry::Point2D(p_start),
-                IntersectionTopology::Crossing,
-                false,
-                tolerance,
-            );
+            return IntersectionResult::from_option_point2d(Some(p_start), true, tolerance);
         }
         return IntersectionResult::disjoint(tolerance);
     }
