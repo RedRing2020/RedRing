@@ -46,7 +46,7 @@ pwsh scripts/check_all_before_push.ps1
 
 1. `cargo build`
 2. `cargo test --workspace`
-3. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo clippy --all-targets --all-features --workspace -- -D warnings`
 4. `cargo fmt --all -- --check`
 5. `./scripts/check_architecture_dependencies_simple.ps1`
 6. `mdbook build`

@@ -60,7 +60,7 @@ Write-Host "  $preCommitPath を作成しました" -ForegroundColor Green
 
 # Unix 系では実行権限が必要
 if ($IsLinux -or $IsMacOS) {
-    chmod +x $fullPath
+    chmod +x -- "$fullPath"
     Write-Host "  実行権限を付与しました (chmod +x)" -ForegroundColor Green
 } else {
     Write-Host "  注意: macOS/Linux 環境では 'chmod +x .git/hooks/pre-commit' が必要です" -ForegroundColor Yellow

@@ -195,10 +195,18 @@ impl<T: Scalar> IntersectionResult<T> {
     }
 
     /// 「単一点交差」結果を構築する
+    ///
+    /// - `is_tangent=false` → `Topology::Crossing`（横断交差）
+    /// - `is_tangent=true`  → `Topology::Touching`（接線接触）
     pub fn point(point: Point3D<T>, is_tangent: bool, tolerance: T) -> Self {
+        let topology = if is_tangent {
+            IntersectionTopology::Touching
+        } else {
+            IntersectionTopology::Crossing
+        };
         IntersectionResult {
             geometry: IntersectionGeometry::Point(point),
-            topology: IntersectionTopology::Crossing,
+            topology,
             is_tangent,
             tolerance_used: tolerance,
         }
