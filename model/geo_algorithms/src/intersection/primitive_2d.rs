@@ -774,12 +774,8 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
         let cross = dp_x * dy1 - dp_y * dx1;
         if cross.abs() <= tolerance {
             // コリニア: 方向・重複区間を確認
-            let dir_sq = dx1 * dx1 + dy1 * dy1;
-            if dir_sq <= par_tol {
-                return IntersectionResult::disjoint(tolerance);
-            }
-            // ray1 パラメータ系での ray2 起点位置
-            let t_base = (dp_x * dx1 + dp_y * dy1) / dir_sq;
+            // Ray2D の方向は正規化済みのため、ray1 パラメータは内積で求められる
+            let t_base = dp_x * dx1 + dp_y * dy1;
             // 方向の一致・逆方向を確認
             let q = dx1 * dx2 + dy1 * dy2;
             if q >= T::ZERO {

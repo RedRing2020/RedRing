@@ -30,7 +30,7 @@ RedRing のリリース版数を一貫して運用するための基準を定義
 
 ## 開発時の必須チェック
 
-**すべてのコミット前に実行（推奨）:**
+**すべての push 前に実行（推奨）:**
 ```bash
 pwsh scripts/check_all_before_push.ps1
 ```

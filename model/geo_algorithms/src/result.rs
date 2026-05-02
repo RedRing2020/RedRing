@@ -145,8 +145,9 @@ impl IntersectionTopology {
 /// 2. **幾何と位相の整合**:
 ///    - `Coincident`: geometry は `Self::Coincident`（完全一致）または部分重複を表す
 ///      `Self::Segment2D` / `Self::Ray2D` 等（同一直線上の有限重複区間）
-///    - `Touching`: geometry の次元は 0（点）
-///    - `Crossing`: geometry の次元は 1 以上
+///    - `Touching`: 交差はあるが接線的接触であり、`is_tangent == true` を伴う
+///    - `Crossing`: 交差はあるが接線的ではなく、`is_tangent == false` を伴う
+///      ため、geometry は点（0 次元）にも線・線分（1 次元以上）にもなりうる
 ///    - `Disjoint`: geometry は `Self::None`
 /// 3. **トレランス運用**: `tolerance_used` は呼び出し元入力と一致すること
 ///    （未指定時はシステム既定値）

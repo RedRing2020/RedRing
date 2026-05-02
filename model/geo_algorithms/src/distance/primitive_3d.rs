@@ -404,7 +404,7 @@ pub fn triangle3d_point3d_distance<T: Scalar>(triangle: &Triangle3D<T>, point: &
         return (ex * ex + ey * ey + ez * ez).sqrt();
     }
 
-    // 平面への符号付き距離
+    // 平面への距離
     let to_x = point.x() - ax;
     let to_y = point.y() - ay;
     let to_z = point.z() - az;
