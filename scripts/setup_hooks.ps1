@@ -3,7 +3,7 @@
     Git pre-commit フックをセットアップ
 .DESCRIPTION
     このスクリプトは .git/hooks/pre-commit を作成し、
-    コミット時に自動的に品質チェックが実行されるようにします。
+    コミット時に自動的にフォーマットチェックが実行されるようにします。
     
     セットアップ後、通常の git commit で自動的にチェックが走ります。
     
@@ -20,7 +20,7 @@ if (!$hooksDir -or $LASTEXITCODE -ne 0) {
     Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
     exit 1
 }
-$preCommitPath = "$hooksDir/pre-commit"
+$preCommitPath = Join-Path $hooksDir 'pre-commit'
 
 # pre-commit.template を正本として読み込む
 $templatePath = "scripts/hooks/pre-commit.template"

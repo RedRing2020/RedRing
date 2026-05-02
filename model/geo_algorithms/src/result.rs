@@ -114,7 +114,9 @@ pub enum IntersectionTopology {
     Touching,
     /// 形状が交差する（横断交差）
     Crossing,
-    /// 形状が完全に重複する（部分重複を含む）
+    /// 形状が完全に重複する（完全一致または部分重複を含む）。
+    /// geometry には `IntersectionGeometry::Coincident`（完全一致）のほか
+    /// `IntersectionGeometry::Segment2D` / `IntersectionGeometry::Ray2D` 等の重複幾何も許容する。
     Coincident,
 }
 
@@ -143,12 +145,12 @@ impl IntersectionTopology {
 ///
 /// 1. **判定優先順位**: Coincident > Crossing > Touching > Disjoint
 /// 2. **幾何と位相の整合**:
-///    - `Coincident`: geometry は `Self::Coincident`（完全一致）または部分重複を表す
-///      `Self::Segment2D` / `Self::Ray2D` 等（同一直線上の有限重複区間）
+///    - `Coincident`: geometry は `IntersectionGeometry::Coincident`（完全一致）または部分重複を表す
+///      `IntersectionGeometry::Segment2D` / `IntersectionGeometry::Ray2D` 等（同一直線上の有限重複区間）
 ///    - `Touching`: 交差はあるが接線的接触であり、`is_tangent == true` を伴う
 ///    - `Crossing`: 交差はあるが接線的ではなく、`is_tangent == false` を伴う
 ///      ため、geometry は点（0 次元）にも線・線分（1 次元以上）にもなりうる
-///    - `Disjoint`: geometry は `Self::None`
+///    - `Disjoint`: geometry は `IntersectionGeometry::None`
 /// 3. **トレランス運用**: `tolerance_used` は呼び出し元入力と一致すること
 ///    （未指定時はシステム既定値）
 #[derive(Clone, Debug)]

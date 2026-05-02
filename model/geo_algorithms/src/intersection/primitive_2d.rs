@@ -815,7 +815,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
                 let p = Point2D::new(ox1, oy1);
                 return IntersectionResult::new(
                     IntersectionGeometry::Point2D(p),
-                    IntersectionTopology::Touching,
+                    IntersectionTopology::Crossing,
                     false,
                     tolerance,
                 );
@@ -833,7 +833,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
             }
             return IntersectionResult::new(
                 IntersectionGeometry::Point2D(p_start),
-                IntersectionTopology::Touching,
+                IntersectionTopology::Crossing,
                 false,
                 tolerance,
             );
