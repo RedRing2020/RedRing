@@ -14,12 +14,13 @@
 $ErrorActionPreference = "Stop"
 
 # git rev-parse --git-path hooks でフックの実パスを解決（git worktree 対応）
-$hooksDir = (git rev-parse --git-path hooks 2>$null).Trim()
-if (!$hooksDir -or $LASTEXITCODE -ne 0) {
+$hooksDirRaw = git rev-parse --git-path hooks 2>$null
+if ($LASTEXITCODE -ne 0 -or -not $hooksDirRaw) {
     Write-Host "x エラー: git hooks ディレクトリを解決できません" -ForegroundColor Red
     Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
     exit 1
 }
+$hooksDir = $hooksDirRaw.Trim()
 $preCommitPath = Join-Path $hooksDir 'pre-commit'
 
 # pre-commit.template を正本として読み込む
