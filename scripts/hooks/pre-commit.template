@@ -6,8 +6,15 @@
 
 # Move to repository root so that `cargo fmt --all` covers the whole workspace
 # regardless of which directory `git commit` was invoked from.
-REPO_ROOT=$(git rev-parse --show-toplevel)
-cd "$REPO_ROOT" || exit 1
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$REPO_ROOT" ]; then
+    echo "[pre-commit] Failed to resolve repository root."
+    exit 1
+fi
+cd "$REPO_ROOT" || {
+    echo "[pre-commit] Failed to move to repository root: $REPO_ROOT"
+    exit 1
+}
 
 # Check Rust formatting
 cargo fmt --all -- --check

@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 $hooksDirRaw = git rev-parse --git-path hooks 2>$null
 if ($LASTEXITCODE -ne 0 -or -not $hooksDirRaw) {
     Write-Host "x エラー: git hooks ディレクトリを解決できません" -ForegroundColor Red
-    Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
+    Write-Host "   Git 管理下の作業ディレクトリ（推奨: リポジトリルート）で実行してください" -ForegroundColor Red
     exit 1
 }
 $hooksDir = $hooksDirRaw.Trim()
@@ -39,7 +39,7 @@ Write-Host ""
 # hooks ディレクトリ確認
 if (!(Test-Path $hooksDir)) {
     Write-Host "x エラー: $hooksDir が見つかりません" -ForegroundColor Red
-    Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
+    Write-Host "   Git リポジトリルートから実行しているか確認してください" -ForegroundColor Red
     exit 1
 }
 
