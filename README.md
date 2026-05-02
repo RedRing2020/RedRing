@@ -375,7 +375,7 @@ Set up a git pre-commit hook to prevent committing unformatted code:
 
 **On Windows (PowerShell):**
 ```powershell
-Copy-Item scripts/hooks/pre-commit.template .git/hooks/pre-commit
+pwsh scripts/setup_hooks.ps1
 ```
 
 **On macOS/Linux:**

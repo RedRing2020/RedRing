@@ -11,13 +11,12 @@ use crate::{
     Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance, Arc3DDistance,
-    ConicalSurface3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance,
-    Ellipse3DDistance, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
-    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DProperties,
-    Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DContainment,
-    SphericalSolid3DDistance, TorusSolid3DContainment, TorusSolid3DDistance,
-    TorusSurface3DDistance, Triangle3DBoundaryAccess,
+    default_kernel_numerical_zero_tolerance, Arc3DDistance, ConicalSurface3DDistance,
+    CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
+    EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance,
+    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
+    SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
+    TorusSolid3DDistance, TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -99,9 +98,9 @@ pub fn infinite_line3d_infinite_line3d_distance<T: Scalar>(
     let cz = dax * dby - day * dbx;
     let cross_len_sq = cx * cx + cy * cy + cz * cz;
 
-    // cross_len_sq は無次元（方向ベクトル同士の外積の二乗）→ 無次元しきい値を使用
-    let par_tol = default_parallel_cross_error_tolerance::<T>();
-    if cross_len_sq <= par_tol * par_tol {
+    // cross_len_sq が実質 0 のとき（平行または方向一致）は点-直線距離を使用
+    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+    if cross_len_sq <= zero_tol * zero_tol {
         // 平行: 点 b から直線 a への垂直距離
         let to_x = bx - ax;
         let to_y = by - ay;
@@ -486,6 +485,66 @@ mod tests {
 
     fn standard_distance_tol() -> f64 {
         test_constants::DISTANCE_TOLERANCE_F64
+    }
+
+    // --- line_segment3d_point3d_distance ---
+
+    #[test]
+    fn line_segment3d_point3d_distance_interior_projection() {
+        let seg =
+            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 0.0, 0.0)).unwrap();
+        let point = Point3D::new(2.0, 3.0, 0.0);
+        let d = line_segment3d_point3d_distance(&seg, &point);
+        assert!(
+            (d - 3.0).abs() < standard_distance_tol(),
+            "perpendicular projection: expected 3.0, got {d}"
+        );
+    }
+
+    #[test]
+    fn line_segment3d_point3d_distance_beyond_endpoint() {
+        // 端点外側: 最近点は端点 (1,0,0), 距離 = sqrt((3-1)^2 + (4-0)^2) = sqrt(20)
+        let seg =
+            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+        let point = Point3D::new(3.0, 4.0, 0.0);
+        let d = line_segment3d_point3d_distance(&seg, &point);
+        assert!(
+            (d - 20.0_f64.sqrt()).abs() < standard_distance_tol(),
+            "expected sqrt(20), got {d}"
+        );
+    }
+
+    // --- ray3d_point3d_distance ---
+
+    #[test]
+    fn ray3d_point3d_distance_side_of_ray() {
+        let ray = Ray3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            crate::Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let point = Point3D::new(2.0, 3.0, 0.0);
+        let d = ray3d_point3d_distance(&ray, &point);
+        assert!(
+            (d - 3.0).abs() < standard_distance_tol(),
+            "perpendicular distance: expected 3.0, got {d}"
+        );
+    }
+
+    #[test]
+    fn ray3d_point3d_distance_behind_origin() {
+        // 起点より後方: 起点への距離
+        let ray = Ray3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            crate::Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let point = Point3D::new(-3.0, 4.0, 0.0);
+        let d = ray3d_point3d_distance(&ray, &point);
+        assert!(
+            (d - 5.0).abs() < standard_distance_tol(),
+            "expected 5.0, got {d}"
+        );
     }
 
     // --- triangle3d_point3d_distance ---
