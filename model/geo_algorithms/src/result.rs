@@ -7,7 +7,9 @@
 //! - `IntersectionTopology`: 位相的な関係
 //! - `IntersectionResult`: 幾何と位相を統合した結果
 
-use crate::{CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D};
+use crate::{
+    CompositeCurve3D, InfiniteLine3D, LineSegment2D, LineSegment3D, Point2D, Point3D, Ray2D,
+};
 use geo_contracts::Scalar;
 
 /// 交差結果の幾何内容
@@ -47,6 +49,8 @@ pub enum IntersectionGeometry<T: Scalar> {
     ///
     /// ここで返す線分は ideal endpoint 基準の幾何線分。
     Segment2D(LineSegment2D<T>),
+    /// 半直線（2D、例: コリニア同方向 Ray のうち起点が遠い側の交差集合）
+    Ray2D(Ray2D<T>),
 }
 
 impl<T: Scalar> IntersectionGeometry<T> {
@@ -63,6 +67,7 @@ impl<T: Scalar> IntersectionGeometry<T> {
             Self::Point2D(_) => "single point (2D)",
             Self::Points2D(_) => "multiple points (2D)",
             Self::Segment2D(_) => "line segment (2D)",
+            Self::Ray2D(_) => "ray (2D partial overlap)",
         }
     }
 
@@ -91,7 +96,8 @@ impl<T: Scalar> IntersectionGeometry<T> {
             Self::InfiniteLine(_)
             | Self::Segment(_)
             | Self::CompositeCurve(_)
-            | Self::Segment2D(_) => 1,
+            | Self::Segment2D(_)
+            | Self::Ray2D(_) => 1,
             Self::Coincident => 2,
         }
     }
@@ -108,7 +114,9 @@ pub enum IntersectionTopology {
     Touching,
     /// 形状が交差する（横断交差）
     Crossing,
-    /// 形状が完全に一致する
+    /// 形状が完全に重複する（完全一致または部分重複を含む）。
+    /// geometry には `IntersectionGeometry::Coincident`（完全一致）のほか
+    /// `IntersectionGeometry::Segment2D` / `IntersectionGeometry::Ray2D` 等の重複幾何も許容する。
     Coincident,
 }
 
@@ -137,10 +145,12 @@ impl IntersectionTopology {
 ///
 /// 1. **判定優先順位**: Coincident > Crossing > Touching > Disjoint
 /// 2. **幾何と位相の整合**:
-///    - `Coincident`: geometry は `Self::Coincident`
-///    - `Touching`: geometry の次元は 0（点）
-///    - `Crossing`: geometry の次元は 1 以上
-///    - `Disjoint`: geometry は `Self::None`
+///    - `Coincident`: geometry は `IntersectionGeometry::Coincident`（完全一致）または部分重複を表す
+///      `IntersectionGeometry::Segment2D` / `IntersectionGeometry::Ray2D` 等（同一直線上の有限重複区間）
+///    - `Touching`: 交差はあるが接線的接触であり、`is_tangent == true` を伴う
+///    - `Crossing`: 交差はあるが接線的ではなく、`is_tangent == false` を伴う
+///      ため、geometry は点（0 次元）にも線・線分（1 次元以上）にもなりうる
+///    - `Disjoint`: geometry は `IntersectionGeometry::None`
 /// 3. **トレランス運用**: `tolerance_used` は呼び出し元入力と一致すること
 ///    （未指定時はシステム既定値）
 #[derive(Clone, Debug)]
@@ -185,10 +195,18 @@ impl<T: Scalar> IntersectionResult<T> {
     }
 
     /// 「単一点交差」結果を構築する
+    ///
+    /// - `is_tangent=false` → `Topology::Crossing`（横断交差）
+    /// - `is_tangent=true`  → `Topology::Touching`（接線接触）
     pub fn point(point: Point3D<T>, is_tangent: bool, tolerance: T) -> Self {
+        let topology = if is_tangent {
+            IntersectionTopology::Touching
+        } else {
+            IntersectionTopology::Crossing
+        };
         IntersectionResult {
             geometry: IntersectionGeometry::Point(point),
-            topology: IntersectionTopology::Crossing,
+            topology,
             is_tangent,
             tolerance_used: tolerance,
         }

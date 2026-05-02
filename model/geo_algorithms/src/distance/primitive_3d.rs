@@ -11,11 +11,13 @@ use crate::{
     Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    Arc3DDistance, ConicalSurface3DDistance, CylindricalSolid3DDistance,
-    CylindricalSurface3DDistance, Ellipse3DDistance, EllipsoidalSolid3DContainment,
-    EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance, Scalar, SphericalSolid3DContainment,
+    default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance, Arc3DDistance,
+    ConicalSurface3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance,
+    Ellipse3DDistance, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
+    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DProperties,
+    Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DContainment,
     SphericalSolid3DDistance, TorusSolid3DContainment, TorusSolid3DDistance,
-    TorusSurface3DDistance,
+    TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -23,7 +25,28 @@ pub fn line_segment3d_point3d_distance<T: Scalar>(
     segment: &LineSegment3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    segment.distance_to_point(point)
+    let (s1x, s1y, s1z) = LineSegment3DProperties::start(segment);
+    let (s2x, s2y, s2z) = LineSegment3DProperties::end(segment);
+    let dx = s2x - s1x;
+    let dy = s2y - s1y;
+    let dz = s2z - s1z;
+    let len_sq = dx * dx + dy * dy + dz * dz;
+    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+    if len_sq <= zero_tol * zero_tol {
+        let ex = point.x() - s1x;
+        let ey = point.y() - s1y;
+        let ez = point.z() - s1z;
+        return (ex * ex + ey * ey + ez * ez).sqrt();
+    }
+    let t = ((point.x() - s1x) * dx + (point.y() - s1y) * dy + (point.z() - s1z) * dz) / len_sq;
+    let t_clamped = t.max(T::ZERO).min(T::ONE);
+    let px = s1x + t_clamped * dx;
+    let py = s1y + t_clamped * dy;
+    let pz = s1z + t_clamped * dz;
+    let ex = point.x() - px;
+    let ey = point.y() - py;
+    let ez = point.z() - pz;
+    (ex * ex + ey * ey + ez * ez).sqrt()
 }
 
 /// 逆向きラッパー: point-segment
@@ -31,7 +54,7 @@ pub fn point3d_line_segment3d_distance<T: Scalar>(
     point: &Point3D<T>,
     segment: &LineSegment3D<T>,
 ) -> T {
-    segment.distance_to_point(point)
+    line_segment3d_point3d_distance(segment, point)
 }
 
 /// 無限直線3D-点 間の最短距離（垂直距離）
@@ -39,7 +62,17 @@ pub fn infinite_line3d_point3d_distance<T: Scalar>(
     line: &InfiniteLine3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    line.distance_to_point(point)
+    let (px, py, pz) = InfiniteLine3DProperties::point(line);
+    let (dx, dy, dz) = InfiniteLine3DProperties::direction(line);
+    let to_x = point.x() - px;
+    let to_y = point.y() - py;
+    let to_z = point.z() - pz;
+    // cross product of direction × to_point, divide by |direction|
+    // direction is unit vector, so |dir| = 1
+    let cx = dy * to_z - dz * to_y;
+    let cy = dz * to_x - dx * to_z;
+    let cz = dx * to_y - dy * to_x;
+    (cx * cx + cy * cy + cz * cz).sqrt()
 }
 
 /// 逆向きラッパー: point-line
@@ -47,7 +80,7 @@ pub fn point3d_infinite_line3d_distance<T: Scalar>(
     point: &Point3D<T>,
     line: &InfiniteLine3D<T>,
 ) -> T {
-    line.distance_to_point(point)
+    infinite_line3d_point3d_distance(line, point)
 }
 
 /// 無限直線3D-無限直線3D 間の最短距離
@@ -55,17 +88,51 @@ pub fn infinite_line3d_infinite_line3d_distance<T: Scalar>(
     line_a: &InfiniteLine3D<T>,
     line_b: &InfiniteLine3D<T>,
 ) -> T {
-    line_a.distance_to_line(line_b)
+    let (ax, ay, az) = InfiniteLine3DProperties::point(line_a);
+    let (dax, day, daz) = InfiniteLine3DProperties::direction(line_a);
+    let (bx, by, bz) = InfiniteLine3DProperties::point(line_b);
+    let (dbx, dby, dbz) = InfiniteLine3DProperties::direction(line_b);
+
+    // cross(da, db)
+    let cx = day * dbz - daz * dby;
+    let cy = daz * dbx - dax * dbz;
+    let cz = dax * dby - day * dbx;
+    let cross_len_sq = cx * cx + cy * cy + cz * cz;
+
+    // cross_len_sq は無次元量（単位方向ベクトル同士の外積長^2）
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    if cross_len_sq <= par_tol * par_tol {
+        // 平行: 点 b から直線 a への垂直距離
+        let to_x = bx - ax;
+        let to_y = by - ay;
+        let to_z = bz - az;
+        let ex = day * to_z - daz * to_y;
+        let ey = daz * to_x - dax * to_z;
+        let ez = dax * to_y - day * to_x;
+        return (ex * ex + ey * ey + ez * ez).sqrt();
+    }
+
+    // スカラー三重積 / |cross|
+    let dp_x = bx - ax;
+    let dp_y = by - ay;
+    let dp_z = bz - az;
+    let triple = dp_x * cx + dp_y * cy + dp_z * cz;
+    triple.abs() / cross_len_sq.sqrt()
 }
 
-/// Plane3D-点 間の符号付き距離（法線方向の符号を保持）
+/// Plane3D-点 間の距離（法線方向への射影の絶対値）
 pub fn plane3d_point3d_distance<T: Scalar>(plane: &Plane3D<T>, point: &Point3D<T>) -> T {
-    plane.distance_to_point(*point)
+    let (ox, oy, oz) = Plane3DProperties::origin(plane);
+    let (nx, ny, nz) = Plane3DProperties::normal(plane);
+    let dp_x = point.x() - ox;
+    let dp_y = point.y() - oy;
+    let dp_z = point.z() - oz;
+    (dp_x * nx + dp_y * ny + dp_z * nz).abs()
 }
 
 /// 逆向きラッパー: point-plane
 pub fn point3d_plane3d_distance<T: Scalar>(point: &Point3D<T>, plane: &Plane3D<T>) -> T {
-    plane.distance_to_point(*point)
+    plane3d_point3d_distance(plane, point)
 }
 
 /// SphericalSolid3D-点 間の最短距離（内部点は 0）
@@ -96,12 +163,27 @@ pub fn point3d_spherical_solid3d_distance<T: Scalar>(
 
 /// Ray3D-点 間の最短距離（Ray の有効範囲を考慮）
 pub fn ray3d_point3d_distance<T: Scalar>(ray: &Ray3D<T>, point: &Point3D<T>) -> T {
-    ray.distance_to_point(point)
+    let (ox, oy, oz) = Ray3DProperties::origin(ray);
+    let (dx, dy, dz) = Ray3DProperties::direction(ray);
+    let to_x = point.x() - ox;
+    let to_y = point.y() - oy;
+    let to_z = point.z() - oz;
+    let t = to_x * dx + to_y * dy + to_z * dz;
+    if t >= T::ZERO {
+        // 垂直距離 (cross product magnitude, dir is unit vector)
+        let cx = dy * to_z - dz * to_y;
+        let cy = dz * to_x - dx * to_z;
+        let cz = dx * to_y - dy * to_x;
+        (cx * cx + cy * cy + cz * cz).sqrt()
+    } else {
+        // 起点への距離
+        (to_x * to_x + to_y * to_y + to_z * to_z).sqrt()
+    }
 }
 
 /// 逆向きラッパー: point-ray
 pub fn point3d_ray3d_distance<T: Scalar>(point: &Point3D<T>, ray: &Ray3D<T>) -> T {
-    ray.distance_to_point(point)
+    ray3d_point3d_distance(ray, point)
 }
 
 /// Arc3D-点 間の最短距離
@@ -280,7 +362,94 @@ pub fn point3d_torus_solid3d_distance<T: Scalar>(point: &Point3D<T>, torus: &Tor
 
 /// Triangle3D-点 間の最短距離
 pub fn triangle3d_point3d_distance<T: Scalar>(triangle: &Triangle3D<T>, point: &Point3D<T>) -> T {
-    triangle.distance_to_point(point)
+    let (ax, ay, az) = Triangle3DBoundaryAccess::vertex_a(triangle);
+    let (bx, by, bz) = Triangle3DBoundaryAccess::vertex_b(triangle);
+    let (cx, cy, cz) = Triangle3DBoundaryAccess::vertex_c(triangle);
+    let pa = Point3D::new(ax, ay, az);
+    let pb = Point3D::new(bx, by, bz);
+    let pc = Point3D::new(cx, cy, cz);
+
+    // 法線ベクトルを計算
+    let ab_x = bx - ax;
+    let ab_y = by - ay;
+    let ab_z = bz - az;
+    let ac_x = cx - ax;
+    let ac_y = cy - ay;
+    let ac_z = cz - az;
+    let nx = ab_y * ac_z - ab_z * ac_y;
+    let ny = ab_z * ac_x - ab_x * ac_z;
+    let nz = ab_x * ac_y - ab_y * ac_x;
+    let normal_len_sq = nx * nx + ny * ny + nz * nz;
+
+    // normal_len_sq = |AB×AC|^2 なので長さ^4 次元。しきい値も zero_tol^4 に揃える。
+    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
+    let zero_tol_sq = zero_tol * zero_tol;
+    if normal_len_sq <= zero_tol_sq * zero_tol_sq {
+        // 退化三角形: 3辺への距離の最小値
+        let seg_ab = crate::LineSegment3D::new(pa, pb);
+        let seg_bc = crate::LineSegment3D::new(pb, pc);
+        let seg_ca = crate::LineSegment3D::new(pc, pa);
+        // None(退化線分)は T::INFINITY で無視し、全て None なら頂点距離にフォールバック
+        let d_ab = seg_ab.map_or(T::INFINITY, |s| line_segment3d_point3d_distance(&s, point));
+        let d_bc = seg_bc.map_or(T::INFINITY, |s| line_segment3d_point3d_distance(&s, point));
+        let d_ca = seg_ca.map_or(T::INFINITY, |s| line_segment3d_point3d_distance(&s, point));
+        let seg_dist = d_ab.min(d_bc).min(d_ca);
+        if seg_dist < T::INFINITY {
+            return seg_dist;
+        }
+        // 3辺全てが退化（全頂点が同一）: 頂点への距離
+        let ex = point.x() - ax;
+        let ey = point.y() - ay;
+        let ez = point.z() - az;
+        return (ex * ex + ey * ey + ez * ez).sqrt();
+    }
+
+    // 平面への距離
+    let to_x = point.x() - ax;
+    let to_y = point.y() - ay;
+    let to_z = point.z() - az;
+    let plane_dist = (to_x * nx + to_y * ny + to_z * nz).abs() / normal_len_sq.sqrt();
+
+    // 平面上の射影点
+    let normal_len = normal_len_sq.sqrt();
+    let unit_nx = nx / normal_len;
+    let unit_ny = ny / normal_len;
+    let unit_nz = nz / normal_len;
+    let signed_dist = to_x * unit_nx + to_y * unit_ny + to_z * unit_nz;
+    let proj_x = point.x() - signed_dist * unit_nx;
+    let proj_y = point.y() - signed_dist * unit_ny;
+    let proj_z = point.z() - signed_dist * unit_nz;
+
+    // 射影点が三角形内にあるか（バリセントリック座標法）
+    let ap_x = proj_x - ax;
+    let ap_y = proj_y - ay;
+    let ap_z = proj_z - az;
+    // u = (AB × AC) · (AB × AP) / |AB × AC|²
+    let ab_cross_ac_dot = normal_len_sq;
+    let ab_cross_ap_x = ab_y * ap_z - ab_z * ap_y;
+    let ab_cross_ap_y = ab_z * ap_x - ab_x * ap_z;
+    let ab_cross_ap_z = ab_x * ap_y - ab_y * ap_x;
+    let v = (ab_cross_ap_x * nx + ab_cross_ap_y * ny + ab_cross_ap_z * nz) / ab_cross_ac_dot;
+
+    let ac_cross_ap_x = ac_y * ap_z - ac_z * ap_y;
+    let ac_cross_ap_y = ac_z * ap_x - ac_x * ap_z;
+    let ac_cross_ap_z = ac_x * ap_y - ac_y * ap_x;
+    let u =
+        (ac_cross_ap_x * (-nx) + ac_cross_ap_y * (-ny) + ac_cross_ap_z * (-nz)) / ab_cross_ac_dot;
+
+    if u >= T::ZERO && v >= T::ZERO && u + v <= T::ONE {
+        // 射影点が三角形内: 平面距離がそのまま最短距離
+        plane_dist
+    } else {
+        // 射影点が外側: 3辺への距離の最小値
+        let seg_ab = crate::LineSegment3D::new(pa, pb);
+        let seg_bc = crate::LineSegment3D::new(pb, pc);
+        let seg_ca = crate::LineSegment3D::new(pc, pa);
+        let d_ab = seg_ab.map_or(T::INFINITY, |s| line_segment3d_point3d_distance(&s, point));
+        let d_bc = seg_bc.map_or(T::INFINITY, |s| line_segment3d_point3d_distance(&s, point));
+        let d_ca = seg_ca.map_or(T::INFINITY, |s| line_segment3d_point3d_distance(&s, point));
+        d_ab.min(d_bc).min(d_ca)
+    }
 }
 
 /// 逆向きラッパー: point-triangle
@@ -296,7 +465,7 @@ pub fn triangle_mesh3d_point3d_distance<T: Scalar>(
     (0..mesh.triangle_count())
         .filter_map(|index| {
             mesh.triangle(index)
-                .map(|triangle| triangle.distance_to_point(point))
+                .map(|triangle| triangle3d_point3d_distance(&triangle, point))
         })
         .reduce(|best, distance| best.min(distance))
         .unwrap_or(T::INFINITY)
@@ -317,6 +486,130 @@ mod tests {
 
     fn standard_distance_tol() -> f64 {
         test_constants::DISTANCE_TOLERANCE_F64
+    }
+
+    // --- line_segment3d_point3d_distance ---
+
+    #[test]
+    fn line_segment3d_point3d_distance_interior_projection() {
+        let seg =
+            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 0.0, 0.0)).unwrap();
+        let point = Point3D::new(2.0, 3.0, 0.0);
+        let d = line_segment3d_point3d_distance(&seg, &point);
+        assert!(
+            (d - 3.0).abs() < standard_distance_tol(),
+            "perpendicular projection: expected 3.0, got {d}"
+        );
+    }
+
+    #[test]
+    fn line_segment3d_point3d_distance_beyond_endpoint() {
+        // 端点外側: 最近点は端点 (1,0,0), 距離 = sqrt((3-1)^2 + (4-0)^2) = sqrt(20)
+        let seg =
+            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+        let point = Point3D::new(3.0, 4.0, 0.0);
+        let d = line_segment3d_point3d_distance(&seg, &point);
+        assert!(
+            (d - 20.0_f64.sqrt()).abs() < standard_distance_tol(),
+            "expected sqrt(20), got {d}"
+        );
+    }
+
+    // --- ray3d_point3d_distance ---
+
+    #[test]
+    fn ray3d_point3d_distance_side_of_ray() {
+        let ray = Ray3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            crate::Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let point = Point3D::new(2.0, 3.0, 0.0);
+        let d = ray3d_point3d_distance(&ray, &point);
+        assert!(
+            (d - 3.0).abs() < standard_distance_tol(),
+            "perpendicular distance: expected 3.0, got {d}"
+        );
+    }
+
+    #[test]
+    fn ray3d_point3d_distance_behind_origin() {
+        // 起点より後方: 起点への距離
+        let ray = Ray3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            crate::Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let point = Point3D::new(-3.0, 4.0, 0.0);
+        let d = ray3d_point3d_distance(&ray, &point);
+        assert!(
+            (d - 5.0).abs() < standard_distance_tol(),
+            "expected 5.0, got {d}"
+        );
+    }
+
+    // --- triangle3d_point3d_distance ---
+
+    #[test]
+    fn triangle3d_point3d_distance_interior_point_is_plane_distance() {
+        // 三角形 (0,0,0),(1,0,0),(0,1,0) の内部真上に点を置く
+        let tri = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let point = Point3D::new(0.2, 0.2, 3.0);
+        let d = triangle3d_point3d_distance(&tri, &point);
+        assert!(
+            (d - 3.0).abs() < standard_distance_tol(),
+            "interior projection: expected 3.0, got {d}"
+        );
+    }
+
+    #[test]
+    fn triangle3d_point3d_distance_exterior_point_is_edge_distance() {
+        // 三角形の辺 AB 方向外側に点を置く
+        let tri = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+            Point3D::new(1.0, 1.0, 0.0),
+        )
+        .unwrap();
+        let point = Point3D::new(1.0, -2.0, 0.0);
+        let d = triangle3d_point3d_distance(&tri, &point);
+        assert!(
+            (d - 2.0).abs() < standard_distance_tol(),
+            "exterior point: expected 2.0, got {d}"
+        );
+    }
+
+    #[test]
+    fn triangle3d_point3d_distance_degenerate_collinear_is_rejected() {
+        // 一直線上の3頂点は Triangle3D::new に拒否されることを確認
+        let result = Triangle3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+            Point3D::new(2.0, 0.0, 0.0),
+        );
+        assert!(
+            result.is_none(),
+            "collinear vertices must be rejected by Triangle3D::new"
+        );
+    }
+
+    #[test]
+    fn triangle3d_point3d_distance_degenerate_all_same_vertex_is_rejected() {
+        // 全頂点が同一の点は Triangle3D::new に拒否されることを確認
+        let result = Triangle3D::new(
+            Point3D::new(1.0, 1.0, 1.0),
+            Point3D::new(1.0, 1.0, 1.0),
+            Point3D::new(1.0, 1.0, 1.0),
+        );
+        assert!(
+            result.is_none(),
+            "all-same vertices must be rejected by Triangle3D::new"
+        );
     }
 
     #[test]
@@ -437,11 +730,13 @@ mod tests {
         );
 
         assert!(
-            intersection_cylindrical_surface_pair_section.contains(CYLINDRICAL_SURFACE_POINT_ENTRYPOINT),
+            intersection_cylindrical_surface_pair_section
+                .contains(CYLINDRICAL_SURFACE_POINT_ENTRYPOINT),
             "intersection/primitive_3d.rs should route cylindrical surface pair center checks through the distance entrypoint"
         );
         assert!(
-            !intersection_cylindrical_surface_pair_section.contains(CYLINDRICAL_SURFACE_DIRECT_UFCS),
+            !intersection_cylindrical_surface_pair_section
+                .contains(CYLINDRICAL_SURFACE_DIRECT_UFCS),
             "intersection/primitive_3d.rs must not call CylindricalSurface3DDistance::distance_to_point directly in the cylindrical surface pair section"
         );
     }
@@ -667,7 +962,8 @@ mod tests {
             "collision/primitive_3d.rs should route ellipsoidal solid point checks through the distance entrypoint"
         );
         assert!(
-            intersection_ellipsoidal_solid_point_section.contains(ELLIPSOIDAL_SOLID_POINT_ENTRYPOINT),
+            intersection_ellipsoidal_solid_point_section
+                .contains(ELLIPSOIDAL_SOLID_POINT_ENTRYPOINT),
             "intersection/primitive_3d.rs should route ellipsoidal solid point checks through the distance entrypoint"
         );
         assert!(
@@ -719,11 +1015,13 @@ mod tests {
         );
 
         assert!(
-            collision_ellipsoidal_surface_point_section.contains(ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT),
+            collision_ellipsoidal_surface_point_section
+                .contains(ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT),
             "collision/primitive_3d.rs should route ellipsoidal surface point checks through the distance entrypoint"
         );
         assert!(
-            intersection_ellipsoidal_surface_point_section.contains(ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT),
+            intersection_ellipsoidal_surface_point_section
+                .contains(ELLIPSOIDAL_SURFACE_POINT_ENTRYPOINT),
             "intersection/primitive_3d.rs should route ellipsoidal surface point checks through the distance entrypoint"
         );
         assert!(

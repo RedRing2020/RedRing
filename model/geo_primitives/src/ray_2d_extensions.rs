@@ -3,8 +3,8 @@
 //! Ray2D の高度な幾何演算、変換操作、特殊作成メソッドを提供
 //! Core Foundation では提供しない拡張機能のみ
 
-use crate::{Direction2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D, Vector2D};
-use geo_contracts::{default_distance_tolerance, Angle, Scalar};
+use crate::{Direction2D, LineSegment2D, Point2D, Ray2D, Vector2D};
+use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Ray2D<T> {
     /// X軸正方向の Ray を作成
@@ -34,53 +34,6 @@ impl<T: Scalar> Ray2D<T> {
     pub fn from_origin_and_angle(origin: Point2D<T>, angle: Angle<T>) -> Self {
         let direction = Vector2D::new(angle.cos(), angle.sin());
         Self::new(origin, direction).unwrap()
-    }
-
-    /// 他の Ray との交点を計算
-    pub fn intersection_with_ray(&self, other: &Self) -> Option<Point2D<T>> {
-        let line1 = self.to_infinite_line();
-        let line2 = other.to_infinite_line();
-        let line_intersection = line1.intersection_with_line(&line2)?;
-
-        let t1 = self.parameter_for_point(&line_intersection);
-        let t2 = other.parameter_for_point(&line_intersection);
-
-        if t1 >= T::ZERO && t2 >= T::ZERO {
-            Some(line_intersection)
-        } else {
-            None
-        }
-    }
-
-    /// LineSegment2D との交点を計算
-    pub fn intersection_with_segment(&self, segment: &LineSegment2D<T>) -> Option<Point2D<T>> {
-        let line_intersection = self
-            .to_infinite_line()
-            .intersection_with_line(segment.line())?;
-
-        let t_ray = self.parameter_for_point(&line_intersection);
-        if t_ray < T::ZERO {
-            return None;
-        }
-
-        let tolerance = default_distance_tolerance::<T>();
-        if segment.contains_point(&line_intersection, tolerance) {
-            Some(line_intersection)
-        } else {
-            None
-        }
-    }
-
-    /// InfiniteLine2D との交点を計算
-    pub fn intersection_with_line(&self, line: &InfiniteLine2D<T>) -> Option<Point2D<T>> {
-        let line_intersection = self.to_infinite_line().intersection_with_line(line)?;
-
-        let t = self.parameter_for_point(&line_intersection);
-        if t >= T::ZERO {
-            Some(line_intersection)
-        } else {
-            None
-        }
     }
 
     /// Ray を回転
@@ -136,30 +89,6 @@ impl<T: Scalar> Ray2D<T> {
         self.to_infinite_line()
             .is_coincident(&other.to_infinite_line())
             && self.is_parallel_to(other, tolerance)
-    }
-
-    /// 他の Ray との最短距離
-    pub fn distance_to_ray(&self, other: &Self) -> T {
-        if self.intersection_with_ray(other).is_some() {
-            return T::ZERO;
-        }
-
-        let dist1 = other.distance_to_point(&self.origin_internal());
-        let dist2 = self.distance_to_point(&other.origin_internal());
-        dist1.min(dist2)
-    }
-
-    /// LineSegment2D との最短距離
-    pub fn distance_to_segment(&self, segment: &LineSegment2D<T>) -> T {
-        if self.intersection_with_segment(segment).is_some() {
-            return T::ZERO;
-        }
-
-        let dist_to_segment = segment.distance_to_point(&self.origin_internal());
-        let dist_start_to_ray = self.distance_to_point(&segment.start_point());
-        let dist_end_to_ray = self.distance_to_point(&segment.end_point());
-
-        dist_to_segment.min(dist_start_to_ray).min(dist_end_to_ray)
     }
 
     /// Ray を指定した長さで切った時の終点を取得

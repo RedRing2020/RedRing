@@ -14,8 +14,9 @@ use crate::{
     IntersectionResult, IntersectionTopology, LineSegment2D, Point2D, Ray2D, Triangle2D, Vector2D,
 };
 use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, Ellipse2DProperties, InfiniteLine2DProperties,
-    LineSegment2DProperties, Ray2DProperties, Scalar, Triangle2DBoundaryAccess,
+    default_parallel_cross_error_tolerance, Arc2DProperties, Circle2DProperties,
+    Ellipse2DProperties, InfiniteLine2DProperties, LineSegment2DProperties, Ray2DProperties,
+    Scalar, Triangle2DBoundaryAccess,
 };
 
 fn arc2d_line_segment2d_intersection_points<T: Scalar>(
@@ -700,6 +701,149 @@ fn edge_segment_intersection<T: Scalar>(
     }
 }
 
+pub fn infinite_line2d_infinite_line2d_intersection<T: Scalar>(
+    line1: &InfiniteLine2D<T>,
+    line2: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let (px, py) = InfiniteLine2DProperties::point(line1);
+    let (dx1, dy1) = InfiniteLine2DProperties::direction(line1);
+    let (qx, qy) = InfiniteLine2DProperties::point(line2);
+    let (dx2, dy2) = InfiniteLine2DProperties::direction(line2);
+
+    // クラメルの公式: line1.point + t1 * line1.dir = line2.point + t2 * line2.dir
+    // det = dx2 * (-dy1) - dy2 * (-dx1) = -(dx2*dy1 - dy2*dx1)
+    let det = dx2 * (-dy1) - dy2 * (-dx1);
+
+    // det は無次元（方向ベクトル同士の外積）→ 無次元しきい値を使用
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    if det.abs() <= par_tol {
+        // 平行または同一直線
+        let dp_x = px - qx;
+        let dp_y = py - qy;
+        // cross は長さ次元 → 距離 tolerance で判定
+        let cross = dp_x * dy2 - dp_y * dx2;
+        if cross.abs() <= tolerance {
+            return IntersectionResult::new(
+                IntersectionGeometry::Coincident,
+                IntersectionTopology::Coincident,
+                false,
+                tolerance,
+            );
+        }
+        return IntersectionResult::disjoint(tolerance);
+    }
+
+    let dp_x = px - qx;
+    let dp_y = py - qy;
+    // t1 = (dp × (-dir2)) / det
+    let t1 = (dp_x * (-dy2) - dp_y * (-dx2)) / det;
+    let point = Point2D::new(px + t1 * dx1, py + t1 * dy1);
+    IntersectionResult::from_option_point2d(Some(point), false, tolerance)
+}
+
+pub fn infinite_line2d_infinite_line2d_intersection_sym<T: Scalar>(
+    line1: &InfiniteLine2D<T>,
+    line2: &InfiniteLine2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    infinite_line2d_infinite_line2d_intersection(line2, line1, tolerance)
+}
+
+pub fn ray2d_ray2d_intersection<T: Scalar>(
+    ray1: &Ray2D<T>,
+    ray2: &Ray2D<T>,
+    tolerance: T,
+) -> IntersectionResult<T> {
+    let (ox1, oy1) = Ray2DProperties::origin(ray1);
+    let (dx1, dy1) = Ray2DProperties::direction(ray1);
+    let (ox2, oy2) = Ray2DProperties::origin(ray2);
+    let (dx2, dy2) = Ray2DProperties::direction(ray2);
+
+    // ray1: P = (ox1, oy1) + t1 * (dx1, dy1),  t1 >= 0
+    // ray2: Q = (ox2, oy2) + t2 * (dx2, dy2),  t2 >= 0
+    let denominator = dx1 * dy2 - dy1 * dx2;
+
+    // denominator は無次元（方向ベクトル同士の外積）→ 無次元しきい値を使用
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    if denominator.abs() <= par_tol {
+        // 平行または同一方向
+        let dp_x = ox2 - ox1;
+        let dp_y = oy2 - oy1;
+        // cross は長さ次元 → 距離 tolerance で判定
+        let cross = dp_x * dy1 - dp_y * dx1;
+        if cross.abs() <= tolerance {
+            // コリニア: 方向・重複区間を確認
+            // Ray2D の方向は正規化済みのため、ray1 パラメータは内積で求められる
+            let t_base = dp_x * dx1 + dp_y * dy1;
+            // 方向の一致・逆方向を確認
+            let q = dx1 * dx2 + dy1 * dy2;
+            if q >= T::ZERO {
+                // 同方向コリニア: 交差集合は起点が遠い方から始まる半直線
+                if t_base.abs() <= tolerance {
+                    // 起点が一致: 完全に同じ Ray → Coincident
+                    return IntersectionResult::new(
+                        IntersectionGeometry::Coincident,
+                        IntersectionTopology::Coincident,
+                        false,
+                        tolerance,
+                    );
+                } else if t_base > T::ZERO {
+                    // ray2 の起点が ray1 より前方: 交差は ray2 自身
+                    return IntersectionResult::new(
+                        IntersectionGeometry::Ray2D(*ray2),
+                        IntersectionTopology::Coincident,
+                        false,
+                        tolerance,
+                    );
+                } else {
+                    // ray1 の起点が ray2 より前方: 交差は ray1 自身
+                    return IntersectionResult::new(
+                        IntersectionGeometry::Ray2D(*ray1),
+                        IntersectionTopology::Coincident,
+                        false,
+                        tolerance,
+                    );
+                }
+            }
+            // 逆方向: 有効重複区間 [0, t_base]
+            if t_base < T::ZERO - tolerance {
+                return IntersectionResult::disjoint(tolerance);
+            }
+            if t_base <= tolerance {
+                // 起点共有のみ
+                let p = Point2D::new(ox1, oy1);
+                return IntersectionResult::from_option_point2d(Some(p), true, tolerance);
+            }
+            // 有限セグメント重複: O1 から O2 へ
+            let p_start = Point2D::new(ox1, oy1);
+            let p_end = Point2D::new(ox2, oy2);
+            if let Some(seg) = LineSegment2D::new(p_start, p_end) {
+                return IntersectionResult::new(
+                    IntersectionGeometry::Segment2D(seg),
+                    IntersectionTopology::Coincident,
+                    false,
+                    tolerance,
+                );
+            }
+            return IntersectionResult::from_option_point2d(Some(p_start), true, tolerance);
+        }
+        return IntersectionResult::disjoint(tolerance);
+    }
+
+    let dp_x = ox2 - ox1;
+    let dp_y = oy2 - oy1;
+    let t1 = (dp_x * dy2 - dp_y * dx2) / denominator;
+    let t2 = (dp_x * dy1 - dp_y * dx1) / denominator;
+
+    if t1 >= T::ZERO - tolerance && t2 >= T::ZERO - tolerance {
+        let point = Point2D::new(ox1 + t1 * dx1, oy1 + t1 * dy1);
+        IntersectionResult::from_option_point2d(Some(point), false, tolerance)
+    } else {
+        IntersectionResult::disjoint(tolerance)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -711,11 +855,12 @@ mod tests {
         ellipse2d_circle2d_intersection, ellipse2d_circle2d_intersections,
         ellipse2d_point2d_intersection, ellipse_arc2d_point2d_intersection,
         infinite_line2d_circle2d_intersection, infinite_line2d_circle2d_intersections,
-        infinite_line2d_line_segment2d_intersection, infinite_line2d_point2d_intersection,
-        infinite_line2d_ray2d_intersection, line_segment2d_infinite_line2d_intersection,
+        infinite_line2d_infinite_line2d_intersection, infinite_line2d_line_segment2d_intersection,
+        infinite_line2d_point2d_intersection, infinite_line2d_ray2d_intersection,
+        line_segment2d_infinite_line2d_intersection,
         line_segment2d_line_segment2d_intersection_algo, line_segment2d_ray2d_intersection,
         ray2d_circle2d_intersections, ray2d_infinite_line2d_intersection,
-        ray2d_line_segment2d_intersection,
+        ray2d_line_segment2d_intersection, ray2d_ray2d_intersection,
     };
     use crate::{
         Angle, Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, IntersectionGeometry,
@@ -726,6 +871,184 @@ mod tests {
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
+
+    // --- infinite_line2d_infinite_line2d_intersection ---
+
+    #[test]
+    fn infinite_line2d_intersection_non_parallel_returns_point() {
+        let line1 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line2 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(0.0, 1.0)).unwrap();
+        let result = infinite_line2d_infinite_line2d_intersection(
+            &line1,
+            &line2,
+            STANDARD_TEST_TOLERANCE_F64,
+        );
+        assert!(result.intersects(), "non-parallel lines must intersect");
+        assert_eq!(result.topology, IntersectionTopology::Crossing);
+        if let IntersectionGeometry::Point2D(p) = result.geometry {
+            assert!(p.x().abs() < STANDARD_TEST_TOLERANCE_F64);
+            assert!(p.y().abs() < STANDARD_TEST_TOLERANCE_F64);
+        } else {
+            panic!("expected Point2D geometry");
+        }
+    }
+
+    #[test]
+    fn infinite_line2d_intersection_parallel_is_disjoint() {
+        let line1 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line2 = InfiniteLine2D::new(Point2D::new(0.0, 1.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = infinite_line2d_infinite_line2d_intersection(
+            &line1,
+            &line2,
+            STANDARD_TEST_TOLERANCE_F64,
+        );
+        assert!(!result.intersects(), "parallel lines must be disjoint");
+        assert_eq!(result.topology, IntersectionTopology::Disjoint);
+    }
+
+    #[test]
+    fn infinite_line2d_intersection_coincident_lines() {
+        let line1 = InfiniteLine2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let line2 = InfiniteLine2D::new(Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = infinite_line2d_infinite_line2d_intersection(
+            &line1,
+            &line2,
+            STANDARD_TEST_TOLERANCE_F64,
+        );
+        assert!(result.intersects(), "coincident lines must intersect");
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Coincident),
+            "expected Coincident geometry"
+        );
+    }
+
+    // --- ray2d_ray2d_intersection ---
+
+    #[test]
+    fn ray2d_ray2d_intersection_non_parallel_both_valid() {
+        // 両 t >= 0 で交差
+        let ray1 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(1.0, -1.0), Vector2D::new(0.0, 1.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            result.intersects(),
+            "rays crossing in valid range must intersect"
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_non_parallel_out_of_range_is_disjoint() {
+        // 交点が一方のRayの後ろ側
+        let ray1 = Ray2D::new(Point2D::new(2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(0.0, 1.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            !result.intersects(),
+            "intersection point is behind ray1: must be disjoint"
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_opposite_direction_returns_segment() {
+        // 逆向きコリニア: ray1=(0,0)+t*(1,0), ray2=(2,0)+t*(-1,0) → [0,2] の Segment2D
+        let ray1 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(2.0, 0.0), Vector2D::new(-1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            result.intersects(),
+            "collinear opposite rays with overlap must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Segment2D(_)),
+            "expected Segment2D for finite overlap, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_opposite_direction_same_origin_is_touching() {
+        // 逆向きコリニアで起点共有のみ: 交差集合は1点のみ
+        let ray1 = Ray2D::new(Point2D::new(1.0, 2.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(1.0, 2.0), Vector2D::new(-1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+
+        assert!(
+            result.intersects(),
+            "shared-origin opposite rays must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Touching);
+        assert!(result.is_tangent, "Touching must set is_tangent=true");
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Point2D(_)),
+            "expected Point2D for shared-origin opposite rays, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_pointing_away_is_disjoint() {
+        // 逆向きコリニアで反対方向を向いている: 重複なし
+        let ray1 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(-1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(2.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            !result.intersects(),
+            "collinear rays pointing away from each other must be disjoint"
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_same_direction_same_origin_is_coincident() {
+        // 同方向コリニアで起点が一致: 完全に同じ Ray → Coincident
+        let ray1 = Ray2D::new(Point2D::new(1.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(1.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.intersects(), "identical rays must intersect");
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Coincident),
+            "identical rays must return Coincident geometry, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_same_direction_ray2_ahead_returns_ray2() {
+        // 同方向コリニアで ray2 の起点が ray1 より前方: 交差は ray2 自身
+        let ray1 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            result.intersects(),
+            "same-direction collinear rays must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Ray2D(_)),
+            "intersection of collinear same-direction rays (ray2 ahead) must be Ray2D, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_same_direction_ray1_ahead_returns_ray1() {
+        // 同方向コリニアで ray1 の起点が ray2 より前方: 交差は ray1 自身
+        let ray1 = Ray2D::new(Point2D::new(3.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(0.0, 0.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(
+            result.intersects(),
+            "same-direction collinear rays must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Coincident);
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Ray2D(_)),
+            "intersection of collinear same-direction rays (ray1 ahead) must be Ray2D, got {:?}",
+            result.geometry
+        );
+    }
 
     #[test]
     fn circle_point_intersection_on_boundary_is_crossing() {

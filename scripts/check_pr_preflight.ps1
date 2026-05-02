@@ -23,7 +23,7 @@ function Write-Warn {
     Write-Host "[WARN] $Message" -ForegroundColor Yellow
 }
 
-function Run-Or-Throw {
+function Invoke-OrThrow {
     param(
         [string]$Label,
         [string]$Command
@@ -65,16 +65,16 @@ if ($statusBranch -match "ahead") {
 
 Write-Ok "Check git status"
 
-Run-Or-Throw "cargo fmt check" "cargo fmt --all -- --check"
+Invoke-OrThrow "cargo fmt check" "cargo fmt --all -- --check"
 
 if (-not $SkipClippy) {
-    Run-Or-Throw "cargo clippy" "cargo clippy --workspace --all-targets --all-features -- -D warnings"
+    Invoke-OrThrow "cargo clippy" "cargo clippy --workspace --all-targets --all-features -- -D warnings"
 } else {
     Write-Warn "Skip clippy because -SkipClippy is set"
 }
 
 if (-not $SkipTests) {
-    Run-Or-Throw "cargo test" "cargo test --workspace"
+    Invoke-OrThrow "cargo test" "cargo test --workspace"
 } else {
     Write-Warn "Skip tests because -SkipTests is set"
 }

@@ -174,7 +174,22 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. Verify Dependencies
+#### 2. **Setup Git Pre-commit Hook** (Recommended)
+
+Prevent format issues by automatically checking code before commits:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+
+# macOS/Linux
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+After this step, `git commit` will automatically check formatting. If errors are found, the commit will be rejected and you'll need to run `cargo fmt --all` and retry.
+
+#### 3. Verify Dependencies
 
 ```bash
 # Check Rust version
@@ -184,7 +199,7 @@ rustc --version
 cargo --version
 ```
 
-#### 3. Build Project
+#### 4. Build Project
 
 ```bash
 # Debug build (fast compilation)
@@ -194,7 +209,7 @@ cargo build
 cargo build --release
 ```
 
-#### 4. Run Application
+#### 5. Run Application
 
 ```bash
 # Requires GUI environment (X11/Wayland/Windows/macOS)
@@ -204,7 +219,24 @@ cargo run
 cargo test --workspace
 ```
 
-### 🎮 Practical Key Bindings (after `cargo run`)
+### Optional: Comprehensive Pre-push Check (Recommended)
+
+Before pushing changes, optionally run the full quality check to catch any issues early:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux (coming soon)
+# bash scripts/check_all_before_push.sh
+```
+
+This runs:
+1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
+3. `cargo test --workspace` — Full test suite
+
+#### 6. Generate Documentation (Optional)
 
 > Note: `cargo run -h` shows Cargo help. The key bindings below are available **after launching the app**.
 
@@ -293,6 +325,76 @@ We welcome contributions to the RedRing project!
 - **Linting**: Run `cargo clippy` for quality checks
 - **Documentation**: Add rustdoc comments for public APIs
 - **Testing**: Include tests for new features
+
+### Pre-commit Format Checking
+
+**⚠️ IMPORTANT: Before pushing changes, you MUST run the format check**
+
+This project enforces code quality through CI checks. **Committing format issues will cause CI failure and waste time.**
+
+#### Option 1: Quick Check (Recommended)
+
+Run this before every push:
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux
+bash scripts/check_all_before_push.sh  # (will be added in future)
+```
+
+This runs:
+1. `cargo fmt --all -- --check` — Check formatting (does not modify files)
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — Lint check
+3. `cargo test --workspace` — Full test suite
+
+If any check fails, the script stops immediately with error details.
+
+#### Option 2: Individual Commands
+
+If you prefer running checks separately:
+
+```bash
+# Check formatting (does not modify files)
+pwsh scripts/check_fmt.ps1
+
+# Auto-format all files
+cargo fmt --all
+
+# Run lints
+cargo clippy --all-targets --all-features --workspace -- -D warnings
+
+# Run tests
+cargo test --workspace
+```
+
+#### Option 3: Automatic Pre-commit Hook (Optional)
+
+Set up a git pre-commit hook to prevent committing unformatted code:
+
+**On Windows (PowerShell):**
+```powershell
+pwsh scripts/setup_hooks.ps1
+```
+
+**On macOS/Linux:**
+```bash
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+After setup, `git commit` will automatically check formatting before creating a commit.
+
+#### ⚠️ If you forget to check locally
+
+The CI (`feature_ci.yml`) will reject your PR with:
+```
+✗ Check formatting — FAILED
+cargo fmt --all -- --check
+```
+
+**Solution**: Run the check script locally, commit the changes, and push again.
 
 ### Community
 

@@ -28,11 +28,25 @@ RedRing のリリース版数を一貫して運用するための基準を定義
 - 変更があったクレートのみ版数更新する。
 - 変更がないクレートの一律 bump は行わない。
 
-## リリース前チェック
+## 開発時の必須チェック
+
+**すべての push 前に実行（推奨）:**
+```bash
+pwsh scripts/check_all_before_push.ps1
+```
+
+このスクリプトは以下を実行します：
+- `cargo fmt --all -- --check`（フォーマットチェック）
+- `cargo clippy --all-targets --all-features --workspace -- -D warnings`
+- `cargo test --workspace`
+
+---
+
+## リリース前チェック（リリース管理者向け）
 
 1. `cargo build`
 2. `cargo test --workspace`
-3. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo clippy --all-targets --all-features --workspace -- -D warnings`
 4. `cargo fmt --all -- --check`
 5. `./scripts/check_architecture_dependencies_simple.ps1`
 6. `mdbook build`

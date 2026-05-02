@@ -174,7 +174,22 @@ git clone https://github.com/RedRing2020/RedRing.git
 cd RedRing
 ```
 
-#### 2. 依存関係の確認
+#### 2. **Git Pre-commit フックのセットアップ** (推奨)
+
+コミット前に自動的にフォーマットチェックを行い、問題を早期に検出：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/setup_hooks.ps1
+
+# macOS/Linux
+cp scripts/hooks/pre-commit.template .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+このステップの後、`git commit` 時に自動的にフォーマットチェックが実行されます。エラーが見つかった場合、コミットが拒否されるため、`cargo fmt --all` を実行して修正し、再度コミットしてください。
+
+#### 3. 依存関係の確認
 
 ```bash
 # Rust バージョン確認
@@ -184,7 +199,7 @@ rustc --version
 cargo --version
 ```
 
-#### 3. ビルド実行
+#### 4. ビルド実行
 
 ```bash
 # デバッグビルド (高速)
@@ -194,7 +209,7 @@ cargo build
 cargo build --release
 ```
 
-#### 4. アプリケーション実行
+#### 5. アプリケーション実行
 
 ```bash
 # GUI 環境が必要 (X11/Wayland/Windows/macOS)
@@ -204,7 +219,24 @@ cargo run
 cargo test --workspace
 ```
 
-### 🎮 実用的なキー操作（`cargo run` 実行後）
+### オプション：プッシュ前の完全チェック (推奨)
+
+変更をプッシュする前に、以下を実行して品質チェックを実施することをお勧めします：
+
+```bash
+# Windows (PowerShell)
+pwsh scripts/check_all_before_push.ps1
+
+# macOS/Linux (近日提供予定)
+# bash scripts/check_all_before_push.sh
+```
+
+以下を実行します：
+1. `cargo fmt --all -- --check` — フォーマットチェック（ファイルを変更しません）
+2. `cargo clippy --all-targets --all-features --workspace -- -D warnings` — リントチェック
+3. `cargo test --workspace` — テスト実行
+
+#### 6. ドキュメント生成 (オプション)
 
 > 注意: `cargo run -h` は Cargo 自体のヘルプです。以下は **アプリ起動後** のキー操作です。
 
@@ -293,6 +325,44 @@ RedRing プロジェクトへの貢献を歓迎します！
 - **リント**: `cargo clippy` で品質チェック
 - **ドキュメント**: 公開 API には必ず rustdoc コメントを記載
 - **テスト**: 新機能には対応するテストを追加
+
+### コミット前フォーマットチェック
+
+**⚠️ 重要：Git Pre-commit フックは各開発環境で個別セットアップが必要です**
+
+`pwsh scripts/setup_hooks.ps1` を実行してセットアップすると、`git commit` 時に自動的に以下を実行：
+- `cargo fmt --all -- --check` — フォーマットチェック
+- フォーマットエラーがある場合、コミットが拒否
+
+**セットアップ後の開発フロー**:
+1. コードを編集
+2. `git add` で変更をステージ
+3. `git commit` を実行
+   - ✅ フォーマット OK → コミット成功
+   - ❌ フォーマット エラー → コミット拒否
+     - `cargo fmt --all` を実行
+     - 再度 `git commit` を実行
+
+#### セットアップをやり直す場合
+
+```bash
+pwsh scripts/setup_hooks.ps1
+```
+
+#### 自動チェックを無効化したい場合
+
+```bash
+# フックを一時的にスキップ
+git commit --no-verify
+```
+
+#### オプション：プッシュ前の完全チェック
+
+CI での失敗を事前に防ぐため、プッシュ前に全チェックを実行することを推奨します：
+
+```bash
+pwsh scripts/check_all_before_push.ps1
+```
 
 ### コミュニティ
 
