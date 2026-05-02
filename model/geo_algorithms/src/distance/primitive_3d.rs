@@ -11,12 +11,13 @@ use crate::{
     Ray3D, SphericalSolid3D, TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D,
 };
 use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, Arc3DDistance, ConicalSurface3DDistance,
-    CylindricalSolid3DDistance, CylindricalSurface3DDistance, Ellipse3DDistance,
-    EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance, EllipsoidalSurface3DDistance,
-    InfiniteLine3DProperties, LineSegment3DProperties, Plane3DProperties, Ray3DProperties, Scalar,
-    SphericalSolid3DContainment, SphericalSolid3DDistance, TorusSolid3DContainment,
-    TorusSolid3DDistance, TorusSurface3DDistance, Triangle3DBoundaryAccess,
+    default_kernel_numerical_zero_tolerance, default_parallel_cross_error_tolerance, Arc3DDistance,
+    ConicalSurface3DDistance, CylindricalSolid3DDistance, CylindricalSurface3DDistance,
+    Ellipse3DDistance, EllipsoidalSolid3DContainment, EllipsoidalSolid3DDistance,
+    EllipsoidalSurface3DDistance, InfiniteLine3DProperties, LineSegment3DProperties,
+    Plane3DProperties, Ray3DProperties, Scalar, SphericalSolid3DContainment,
+    SphericalSolid3DDistance, TorusSolid3DContainment, TorusSolid3DDistance,
+    TorusSurface3DDistance, Triangle3DBoundaryAccess,
 };
 
 /// LineSegment3D-点 間の最短距離（端点クランプあり）
@@ -98,9 +99,9 @@ pub fn infinite_line3d_infinite_line3d_distance<T: Scalar>(
     let cz = dax * dby - day * dbx;
     let cross_len_sq = cx * cx + cy * cy + cz * cz;
 
-    // cross_len_sq が実質 0 のとき（平行または方向一致）は点-直線距離を使用
-    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
-    if cross_len_sq <= zero_tol * zero_tol {
+    // cross_len_sq は無次元量（単位方向ベクトル同士の外積長^2）
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    if cross_len_sq <= par_tol * par_tol {
         // 平行: 点 b から直線 a への垂直距離
         let to_x = bx - ax;
         let to_y = by - ay;

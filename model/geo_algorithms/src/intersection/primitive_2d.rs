@@ -813,12 +813,7 @@ pub fn ray2d_ray2d_intersection<T: Scalar>(
             if t_base <= tolerance {
                 // 起点共有のみ
                 let p = Point2D::new(ox1, oy1);
-                return IntersectionResult::new(
-                    IntersectionGeometry::Point2D(p),
-                    IntersectionTopology::Crossing,
-                    false,
-                    tolerance,
-                );
+                return IntersectionResult::from_option_point2d(Some(p), true, tolerance);
             }
             // 有限セグメント重複: O1 から O2 へ
             let p_start = Point2D::new(ox1, oy1);
@@ -973,6 +968,26 @@ mod tests {
         assert!(
             matches!(result.geometry, IntersectionGeometry::Segment2D(_)),
             "expected Segment2D for finite overlap, got {:?}",
+            result.geometry
+        );
+    }
+
+    #[test]
+    fn ray2d_ray2d_intersection_collinear_opposite_direction_same_origin_is_touching() {
+        // 逆向きコリニアで起点共有のみ: 交差集合は1点のみ
+        let ray1 = Ray2D::new(Point2D::new(1.0, 2.0), Vector2D::new(1.0, 0.0)).unwrap();
+        let ray2 = Ray2D::new(Point2D::new(1.0, 2.0), Vector2D::new(-1.0, 0.0)).unwrap();
+        let result = ray2d_ray2d_intersection(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+
+        assert!(
+            result.intersects(),
+            "shared-origin opposite rays must intersect"
+        );
+        assert_eq!(result.topology, IntersectionTopology::Touching);
+        assert!(result.is_tangent, "Touching must set is_tangent=true");
+        assert!(
+            matches!(result.geometry, IntersectionGeometry::Point2D(_)),
+            "expected Point2D for shared-origin opposite rays, got {:?}",
             result.geometry
         );
     }
