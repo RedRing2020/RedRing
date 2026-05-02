@@ -137,10 +137,12 @@ pub fn line_segment2d_line_segment2d_distance<T: Scalar>(
     let d2y = p2y - p1y;
 
     // 交差チェック: 線分内部で交差していれば距離 0
-    // ゼロ除算を防ぐため絶対値がカーネルゼロ閾値を超える場合のみ t/s を計算する
+    // denom = |d1||d2|sinθ（length^2 次元）なので正規化比較 |sinθ| > par_tol を使う
     let denom = d1x * d2y - d1y * d2x;
-    let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
-    if denom.abs() > zero_tol {
+    let len1_sq = d1x * d1x + d1y * d1y;
+    let len2_sq = d2x * d2x + d2y * d2y;
+    let par_tol = default_parallel_cross_error_tolerance::<T>();
+    if denom * denom > par_tol * par_tol * len1_sq * len2_sq {
         let dp_x = p1x - s1x;
         let dp_y = p1y - s1y;
         let t = (dp_x * d2y - dp_y * d2x) / denom;
