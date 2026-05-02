@@ -13,35 +13,31 @@
 
 $ErrorActionPreference = "Stop"
 
-$hooksDir = ".git/hooks"
-$preCommitPath = "$hooksDir/pre-commit"
-$preCommitContent = @'
-#!/bin/sh
-# Auto-generated pre-commit hook
-# This script is automatically created by scripts/setup_hooks.ps1
-
-# フォーマットチェック
-echo "[pre-commit] Checking formatting..."
-cargo fmt --all -- --check
-if [ $? -ne 0 ]; then
-    echo ""
-    echo "x Format check failed."
-    echo "Run 'cargo fmt --all' to fix."
+# git rev-parse --git-path hooks でフックの実パスを解決（git worktree 対応）
+$hooksDir = (git rev-parse --git-path hooks 2>$null).Trim()
+if (!$hooksDir -or $LASTEXITCODE -ne 0) {
+    Write-Host "x エラー: git hooks ディレクトリを解決できません" -ForegroundColor Red
+    Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
     exit 1
-fi
+}
+$preCommitPath = "$hooksDir/pre-commit"
 
-echo "v Format check passed."
-exit 0
-'@
+# pre-commit.template を正本として読み込む
+$templatePath = "scripts/hooks/pre-commit.template"
+if (!(Test-Path $templatePath)) {
+    Write-Host "x エラー: $templatePath が見つかりません" -ForegroundColor Red
+    exit 1
+}
+$preCommitContent = Get-Content -Raw -Path $templatePath
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Git Pre-commit フック セットアップ" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# .git/hooks/ ディレクトリ確認
+# hooks ディレクトリ確認
 if (!(Test-Path $hooksDir)) {
-    Write-Host "x エラー: .git/hooks/ が見つかりません" -ForegroundColor Red
+    Write-Host "x エラー: $hooksDir が見つかりません" -ForegroundColor Red
     Write-Host "   このスクリプトはリポジトリルートから実行してください" -ForegroundColor Red
     exit 1
 }
@@ -55,10 +51,11 @@ if (Test-Path $preCommitPath) {
     Write-Host "  既存のフックを $preCommitPath.backup にバックアップしました" -ForegroundColor Yellow
 }
 
-# BOM なし UTF-8 で書き出す（shebang 行が壊れないよう BOM を避ける）
+# BOM なし UTF-8 / LF 改行で書き出す（shebang 行が壊れないよう BOM と CRLF を避ける）
 $fullPath = [System.IO.Path]::GetFullPath($preCommitPath)
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($fullPath, $preCommitContent, $utf8NoBom)
+$preCommitContentLf = $preCommitContent -replace "`r`n", "`n" -replace "`r", "`n"
+[System.IO.File]::WriteAllText($fullPath, $preCommitContentLf, $utf8NoBom)
 Write-Host "  $preCommitPath を作成しました" -ForegroundColor Green
 
 # Unix 系では実行権限が必要

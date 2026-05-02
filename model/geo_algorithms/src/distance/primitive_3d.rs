@@ -381,9 +381,10 @@ pub fn triangle3d_point3d_distance<T: Scalar>(triangle: &Triangle3D<T>, point: &
     let nz = ab_x * ac_y - ab_y * ac_x;
     let normal_len_sq = nx * nx + ny * ny + nz * nz;
 
-    // normal_len_sq は面積次元（長さ²）→ 長さゆらぎで zero_tol² と比較
+    // normal_len_sq = |AB×AC|^2 なので長さ^4 次元。しきい値も zero_tol^4 に揃える。
     let zero_tol = default_kernel_numerical_zero_tolerance::<T>();
-    if normal_len_sq <= zero_tol * zero_tol {
+    let zero_tol_sq = zero_tol * zero_tol;
+    if normal_len_sq <= zero_tol_sq * zero_tol_sq {
         // 退化三角形: 3辺への距離の最小値
         let seg_ab = crate::LineSegment3D::new(pa, pb);
         let seg_bc = crate::LineSegment3D::new(pb, pc);

@@ -143,7 +143,8 @@ impl IntersectionTopology {
 ///
 /// 1. **判定優先順位**: Coincident > Crossing > Touching > Disjoint
 /// 2. **幾何と位相の整合**:
-///    - `Coincident`: geometry は `Self::Coincident`
+///    - `Coincident`: geometry は `Self::Coincident`（完全一致）または部分重複を表す
+///      `Self::Segment2D` / `Self::Ray2D` 等（同一直線上の有限重複区間）
 ///    - `Touching`: geometry の次元は 0（点）
 ///    - `Crossing`: geometry の次元は 1 以上
 ///    - `Disjoint`: geometry は `Self::None`
