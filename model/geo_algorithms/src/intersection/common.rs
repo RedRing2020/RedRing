@@ -7,20 +7,22 @@ use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProper
 
 /// 2つの無限直線の交点計算（生の計算）
 ///
-/// 平行またはほぼ平行の場合は None を返す。
-/// coplanar/contains 判定は呼び出し元で行う想定。
+/// 平行またはほぼ平行の場合は `None` を返す。
+///
+/// # 戻り値の注意
+/// 非共面（スキュー）な直線に対しても `Some` を返すことがある。
+/// その場合の返却点は「交点」ではなく `line1` 上の最近接点候補であり、
+/// 真の交点かどうかは呼び出し元で `line.distance_to_point` 等により検証すること。
+///
+/// coplanar/contains の最終判定は呼び出し元の責務とする。
 ///
 /// # 注記
-/// ほぼ平行なケースで分母が極小になることを防ぐため、
-/// 無次元の平行判定閾値（`default_parallel_cross_error_tolerance`）を用いた
-/// 分母チェックを実施する。
+/// `denom_sq`（= `|d1 × d2|²`、無次元の sin²θ 相当）を
+/// `default_parallel_cross_error_tolerance` の二乗と比較して平行判定を一箇所に統一する。
 pub(crate) fn line_line_intersection_raw<T: Scalar>(
     line1: &InfiniteLine3D<T>,
     line2: &InfiniteLine3D<T>,
 ) -> Option<Point3D<T>> {
-    if line1.is_parallel_to(line2) {
-        return None;
-    }
     let (px1, py1, pz1) = InfiniteLine3DProperties::point(line1);
     let (dx1, dy1, dz1) = InfiniteLine3DProperties::direction(line1);
     let (px2, py2, pz2) = InfiniteLine3DProperties::point(line2);
@@ -33,7 +35,7 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     let cross_d1_d2 = d1.cross(&d2);
     let cross_dp_d2 = dp.cross(&d2);
 
-    // denom_sq は無次元量（sin^2(θ)相当）。無次元の平行判定閾値と比較する。
+    // denom_sq は無次元量（sin²θ 相当）。par_tol と同じ無次元軸で比較する。
     let denom_sq = cross_d1_d2.dot(&cross_d1_d2);
     let par_tol = default_parallel_cross_error_tolerance::<T>();
     if denom_sq <= par_tol * par_tol {
@@ -48,6 +50,7 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
 mod tests {
     use super::*;
     use crate::Point3D;
+    use geo_contracts::default_parallel_cross_error_tolerance;
 
     #[test]
     fn line_line_intersection_raw_交差する直線は交点を返す() {
@@ -91,8 +94,10 @@ mod tests {
 
     #[test]
     fn line_line_intersection_raw_ほぼ平行な直線はnoneを返す() {
-        // 極めて小さな角度（ほぼ平行）
-        let tiny_angle: f64 = 1e-10;
+        // 平行判定閾値の半分の角度を使用（閾値変更に対して頑健）
+        // d1 × d2 の長さ ≈ sin(θ) ≈ θ（小角度近似）なので、
+        // par_tol / 2 の角度では |d1 × d2| ≈ par_tol / 2 < par_tol となり None が期待される
+        let tiny_angle = default_parallel_cross_error_tolerance::<f64>() / 2.0;
         let line1 = InfiniteLine3D::from_two_points(
             Point3D::new(0.0_f64, 0.0, 0.0),
             Point3D::new(1.0, 0.0, 0.0),
@@ -105,14 +110,13 @@ mod tests {
         .unwrap();
 
         let result = line_line_intersection_raw(&line1, &line2);
-        // ほぼ平行の場合は分母チェックまたは is_parallel_to で None
         assert!(result.is_none());
     }
 
     #[test]
-    fn line_line_intersection_raw_スキュー線は交点を計算する() {
-        // スキュー線（非共面）：交点の有無は呼び出し元が検証する
-        // この関数は共面チェックを行わず最近接点を計算して返す
+    fn line_line_intersection_raw_スキュー線でも最近接点候補を返す() {
+        // スキュー線（非共面）：真の交点は存在しないが、この関数は
+        // line1 上の最近接点候補を返す。coplanar チェックは呼び出し元の責務。
         let line1 = InfiniteLine3D::from_two_points(
             Point3D::new(0.0_f64, 0.0, 0.0),
             Point3D::new(1.0, 0.0, 0.0),
@@ -124,7 +128,6 @@ mod tests {
         )
         .unwrap();
 
-        // スキュー線でも None ではなく Some を返す（coplanar チェックは呼び出し元の責務）
         let result = line_line_intersection_raw(&line1, &line2);
         assert!(result.is_some());
     }
