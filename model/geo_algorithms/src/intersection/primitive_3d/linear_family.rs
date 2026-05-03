@@ -1,3 +1,4 @@
+use super::super::common::line_line_intersection_raw;
 use super::planar_and_mesh_family::{
     plane3d_line_segment3d_intersection, plane3d_ray3d_intersection,
 };
@@ -126,12 +127,7 @@ fn ray3d_line_segment3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
     let segment_line = segment.line();
-
-    if ray_line.is_parallel_to(segment_line) || !ray_line.is_coplanar_with(segment_line) {
-        return None;
-    }
-
-    let point = ray_line.intersection_with_line(segment_line)?;
+    let point = line_line_intersection_raw(&ray_line, segment_line)?;
     if ray.contains_point(&point, tolerance) && segment.contains_point(&point, tolerance) {
         Some(point)
     } else {
@@ -157,13 +153,8 @@ fn ray3d_infinite_line3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
-
-    if ray_line.is_parallel_to(line) || !ray_line.is_coplanar_with(line) {
-        return None;
-    }
-
-    let point = ray_line.intersection_with_line(line)?;
-    if ray.contains_point(&point, tolerance) {
+    let point = line_line_intersection_raw(&ray_line, line)?;
+    if line.distance_to_point(&point) <= tolerance && ray.contains_point(&point, tolerance) {
         Some(point)
     } else {
         None
@@ -390,7 +381,7 @@ fn infinite_line3d_infinite_line3d_intersection_raw<T: Scalar>(
     line_b: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let point = line_a.intersection_with_line(line_b)?;
+    let point = line_line_intersection_raw(line_a, line_b)?;
     if line_b.distance_to_point(&point) <= tolerance {
         Some(point)
     } else {
@@ -416,7 +407,7 @@ fn infinite_line3d_line_segment3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let segment_line = segment.line();
-    let point = line.intersection_with_line(segment_line)?;
+    let point = line_line_intersection_raw(line, segment_line)?;
     if segment.contains_point(&point, tolerance) {
         Some(point)
     } else {
@@ -442,7 +433,7 @@ fn infinite_line3d_ray3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
-    let point = line.intersection_with_line(&ray_line)?;
+    let point = line_line_intersection_raw(line, &ray_line)?;
     if ray.contains_point(&point, tolerance) {
         Some(point)
     } else {
