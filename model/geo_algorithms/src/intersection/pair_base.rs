@@ -627,7 +627,7 @@ pub fn ray3d_infinite_line3d_intersection<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
     let point = line_line_intersection_raw(&ray_line, line)?;
-    if ray.contains_point(&point, tolerance) {
+    if line.distance_to_point(&point) <= tolerance && ray.contains_point(&point, tolerance) {
         Some(point)
     } else {
         None
