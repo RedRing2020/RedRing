@@ -49,10 +49,7 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Point3D;
-    use geo_contracts::default_parallel_cross_error_tolerance;
 
-    #[cfg(test)]
     const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
 
     #[test]
