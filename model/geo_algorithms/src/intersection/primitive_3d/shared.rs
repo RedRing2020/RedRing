@@ -9,16 +9,13 @@ use geo_contracts::{
 
 /// 2つの無限直線の交点計算（生の計算）
 ///
-/// 平行またはスキューの場合は None を返す。
-/// 呼び出し元で追加の検証（距離チェック等）を行う想定。
+/// 平行の場合は None を返す。
+/// coplanar/contains 判定は呼び出し元で行う想定。
 pub(crate) fn line_line_intersection_raw<T: Scalar>(
     line1: &InfiniteLine3D<T>,
     line2: &InfiniteLine3D<T>,
 ) -> Option<Point3D<T>> {
     if line1.is_parallel_to(line2) {
-        return None;
-    }
-    if !line1.is_coplanar_with(line2) {
         return None;
     }
     let (px1, py1, pz1) = InfiniteLine3DProperties::point(line1);
