@@ -52,6 +52,9 @@ mod tests {
     use crate::Point3D;
     use geo_contracts::default_parallel_cross_error_tolerance;
 
+    #[cfg(test)]
+    const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
+
     #[test]
     fn line_line_intersection_raw_交差する直線は交点を返す() {
         // X軸と Y軸が原点で交差
@@ -69,9 +72,9 @@ mod tests {
         let result = line_line_intersection_raw(&line1, &line2);
         assert!(result.is_some());
         let p = result.unwrap();
-        assert!(p.x().abs() < 1e-10);
-        assert!(p.y().abs() < 1e-10);
-        assert!(p.z().abs() < 1e-10);
+        assert!(p.x().abs() < STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.y().abs() < STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.z().abs() < STANDARD_TEST_TOLERANCE_F64);
     }
 
     #[test]
