@@ -1,37 +1,10 @@
 use crate::{
-    ConicalSolid3D, ConicalSurface3D, InfiniteLine3D, LineSegment3D, Point3D, SphericalSurface3D,
-    Triangle3D, Vector3D,
+    ConicalSolid3D, ConicalSurface3D, LineSegment3D, Point3D, SphericalSurface3D, Triangle3D,
 };
 use geo_contracts::{
-    ConicalSolid3DContainment, ConicalSurface3DProperties, InfiniteLine3DProperties, Scalar,
-    SphericalSurface3DProperties, Triangle3DBoundaryAccess,
+    ConicalSolid3DContainment, ConicalSurface3DProperties, Scalar, SphericalSurface3DProperties,
+    Triangle3DBoundaryAccess,
 };
-
-/// 2つの無限直線の交点計算（生の計算）
-///
-/// 平行の場合は None を返す。
-/// coplanar/contains 判定は呼び出し元で行う想定。
-pub(crate) fn line_line_intersection_raw<T: Scalar>(
-    line1: &InfiniteLine3D<T>,
-    line2: &InfiniteLine3D<T>,
-) -> Option<Point3D<T>> {
-    if line1.is_parallel_to(line2) {
-        return None;
-    }
-    let (px1, py1, pz1) = InfiniteLine3DProperties::point(line1);
-    let (dx1, dy1, dz1) = InfiniteLine3DProperties::direction(line1);
-    let (px2, py2, pz2) = InfiniteLine3DProperties::point(line2);
-    let (dx2, dy2, dz2) = InfiniteLine3DProperties::direction(line2);
-    let p1 = Point3D::new(px1, py1, pz1);
-    let d1 = Vector3D::new(dx1, dy1, dz1);
-    let p2 = Point3D::new(px2, py2, pz2);
-    let d2 = Vector3D::new(dx2, dy2, dz2);
-    let dp = Vector3D::from_points(&p1, &p2);
-    let cross_d1_d2 = d1.cross(&d2);
-    let cross_dp_d2 = dp.cross(&d2);
-    let t = cross_dp_d2.dot(&cross_d1_d2) / cross_d1_d2.dot(&cross_d1_d2);
-    Some(Point3D::new(px1 + t * dx1, py1 + t * dy1, pz1 + t * dz1))
-}
 
 pub(crate) fn point_intersection_if<T: Scalar>(
     point: &Point3D<T>,

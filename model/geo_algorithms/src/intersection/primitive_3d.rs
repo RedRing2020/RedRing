@@ -11,7 +11,6 @@ pub use circular_family::*;
 pub use cylindrical_and_conical_family::*;
 pub use linear_family::*;
 pub use planar_and_mesh_family::*;
-pub(crate) use shared::line_line_intersection_raw;
 pub use spherical_and_quadric_family::*;
 
 #[cfg(test)]

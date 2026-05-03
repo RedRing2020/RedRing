@@ -1,9 +1,8 @@
+use super::super::common::line_line_intersection_raw;
 use super::planar_and_mesh_family::{
     plane3d_line_segment3d_intersection, plane3d_ray3d_intersection,
 };
-use super::shared::{
-    line_line_intersection_raw, point_intersection_if, spherical_surface_intersection_parameters,
-};
+use super::shared::{point_intersection_if, spherical_surface_intersection_parameters};
 use crate::{
     InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D,
     Vector3D,

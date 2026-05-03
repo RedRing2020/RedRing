@@ -2,7 +2,7 @@
 //!
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
-use super::primitive_3d::line_line_intersection_raw;
+use super::common::line_line_intersection_raw;
 use crate::{
     Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,
     Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
