@@ -1,7 +1,9 @@
 use super::planar_and_mesh_family::{
     plane3d_line_segment3d_intersection, plane3d_ray3d_intersection,
 };
-use super::shared::{point_intersection_if, spherical_surface_intersection_parameters};
+use super::shared::{
+    line_line_intersection_raw, point_intersection_if, spherical_surface_intersection_parameters,
+};
 use crate::{
     InfiniteLine3D, IntersectionResult, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSurface3D,
     Vector3D,
@@ -131,7 +133,7 @@ fn ray3d_line_segment3d_intersection_raw<T: Scalar>(
         return None;
     }
 
-    let point = ray_line.intersection_with_line(segment_line)?;
+    let point = line_line_intersection_raw(&ray_line, segment_line)?;
     if ray.contains_point(&point, tolerance) && segment.contains_point(&point, tolerance) {
         Some(point)
     } else {
@@ -162,7 +164,7 @@ fn ray3d_infinite_line3d_intersection_raw<T: Scalar>(
         return None;
     }
 
-    let point = ray_line.intersection_with_line(line)?;
+    let point = line_line_intersection_raw(&ray_line, line)?;
     if ray.contains_point(&point, tolerance) {
         Some(point)
     } else {
@@ -390,7 +392,7 @@ fn infinite_line3d_infinite_line3d_intersection_raw<T: Scalar>(
     line_b: &InfiniteLine3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let point = line_a.intersection_with_line(line_b)?;
+    let point = line_line_intersection_raw(line_a, line_b)?;
     if line_b.distance_to_point(&point) <= tolerance {
         Some(point)
     } else {
@@ -416,7 +418,7 @@ fn infinite_line3d_line_segment3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let segment_line = segment.line();
-    let point = line.intersection_with_line(segment_line)?;
+    let point = line_line_intersection_raw(line, segment_line)?;
     if segment.contains_point(&point, tolerance) {
         Some(point)
     } else {
@@ -442,7 +444,7 @@ fn infinite_line3d_ray3d_intersection_raw<T: Scalar>(
     tolerance: T,
 ) -> Option<Point3D<T>> {
     let ray_line = InfiniteLine3D::new(ray.origin(), ray.direction_vector())?;
-    let point = line.intersection_with_line(&ray_line)?;
+    let point = line_line_intersection_raw(line, &ray_line)?;
     if ray.contains_point(&point, tolerance) {
         Some(point)
     } else {

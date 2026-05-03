@@ -201,34 +201,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
         scalar_triple.abs() <= default_distance_tolerance::<T>()
     }
 
-    /// 他の直線との交点を計算
-    pub fn intersection_with_line(&self, other: &Self) -> Option<Point3D<T>> {
-        if self.is_parallel_to(other) {
-            return None;
-        }
-
-        if !self.is_coplanar_with(other) {
-            return None; // スキュー線は交差しない
-        }
-
-        // パラメトリック方程式を解く
-        let p1 = self.point;
-        let d1 = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-        let p2 = other.point;
-        let d2 = Vector3D::new(
-            other.direction.x(),
-            other.direction.y(),
-            other.direction.z(),
-        );
-
-        let dp = Vector3D::from_points(&p1, &p2);
-        let cross_d1_d2 = d1.cross(&d2);
-        let cross_dp_d2 = dp.cross(&d2);
-
-        let t = cross_dp_d2.dot(&cross_d1_d2) / cross_d1_d2.dot(&cross_d1_d2);
-        Some(self.point_at_parameter(t))
-    }
-
     /// 他の直線との角度を計算（ラジアン）
     pub fn angle_with_line(&self, other: &Self) -> T {
         let d1 = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
@@ -263,24 +235,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
         }
 
         dp.dot(&cross).abs() / cross.length()
-    }
-
-    /// 平面との交点を計算
-    pub fn intersection_with_plane(
-        &self,
-        plane_point: &Point3D<T>,
-        plane_normal: &Vector3D<T>,
-    ) -> Option<Point3D<T>> {
-        let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-        let denom = line_dir.dot(plane_normal);
-
-        if denom.abs() <= default_orthogonality_dot_error_tolerance::<T>() {
-            return None; // 直線が平面と平行
-        }
-
-        let to_plane = Vector3D::from_points(&self.point, plane_point);
-        let t = to_plane.dot(plane_normal) / denom;
-        Some(self.point_at_parameter(t))
     }
 
     /// 平面への投影を計算
@@ -577,8 +531,24 @@ impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine3D<T> {
     type Point = (T, T, T);
 
     fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
-        InfiniteLine3D::intersection_with_line(self, other)
-            .map(|point| (point.x(), point.y(), point.z()))
+        if self.is_parallel_to(other) {
+            return None;
+        }
+        if !self.is_coplanar_with(other) {
+            return None;
+        }
+        let d1 = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
+        let d2 = Vector3D::new(
+            other.direction.x(),
+            other.direction.y(),
+            other.direction.z(),
+        );
+        let dp = Vector3D::from_points(&self.point, &other.point);
+        let cross_d1_d2 = d1.cross(&d2);
+        let cross_dp_d2 = dp.cross(&d2);
+        let t = cross_dp_d2.dot(&cross_d1_d2) / cross_d1_d2.dot(&cross_d1_d2);
+        let pt = self.point_at_parameter(t);
+        Some((pt.x(), pt.y(), pt.z()))
     }
 }
 
@@ -586,8 +556,17 @@ impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for InfiniteLine3D<T> {
     type Point = (T, T, T);
 
     fn intersection_with(&self, other: &Plane3D<T>, _tolerance: T) -> Option<Self::Point> {
-        InfiniteLine3D::intersection_with_plane(self, &other.origin(), &other.normal().as_vector())
-            .map(|point| (point.x(), point.y(), point.z()))
+        let plane_point = other.origin();
+        let plane_normal = other.normal().as_vector();
+        let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
+        let denom = line_dir.dot(&plane_normal);
+        if denom.abs() <= default_orthogonality_dot_error_tolerance::<T>() {
+            return None;
+        }
+        let to_plane = Vector3D::from_points(&self.point, &plane_point);
+        let t = to_plane.dot(&plane_normal) / denom;
+        let pt = self.point_at_parameter(t);
+        Some((pt.x(), pt.y(), pt.z()))
     }
 }
 
