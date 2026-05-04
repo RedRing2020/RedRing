@@ -1,4 +1,4 @@
-use super::super::common::line_line_intersection_raw;
+use super::super::common::{line_line_intersection_raw, ray_ray_intersection_raw};
 use super::planar_and_mesh_family::{
     plane3d_line_segment3d_intersection, plane3d_ray3d_intersection,
 };
@@ -76,36 +76,7 @@ fn ray3d_ray3d_intersection_raw<T: Scalar>(
     ray_b: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let origin_a = ray_a.origin();
-    let origin_b = ray_b.origin();
-    let direction_a = ray_a.direction_vector();
-    let direction_b = ray_b.direction_vector();
-    let origin_offset = Vector3D::from_points(&origin_b, &origin_a);
-
-    let a = direction_a.dot(&direction_a);
-    let b = direction_a.dot(&direction_b);
-    let c = direction_b.dot(&direction_b);
-    let d = direction_a.dot(&origin_offset);
-    let e = direction_b.dot(&origin_offset);
-
-    let denominator = a * c - b * b;
-    if denominator.abs() <= tolerance {
-        return None;
-    }
-
-    let s = (b * e - c * d) / denominator;
-    let t = (a * e - b * d) / denominator;
-    if s < T::ZERO || t < T::ZERO {
-        return None;
-    }
-
-    let point_a = ray_a.point_at_parameter(s);
-    let point_b = ray_b.point_at_parameter(t);
-    if point_a.distance_to(&point_b) <= tolerance {
-        Some(point_a)
-    } else {
-        None
-    }
+    ray_ray_intersection_raw(ray_a, ray_b, tolerance)
 }
 
 pub fn ray3d_ray3d_intersection<T: Scalar>(

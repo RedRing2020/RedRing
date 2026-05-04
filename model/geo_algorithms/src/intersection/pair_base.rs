@@ -3,9 +3,10 @@
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
 use super::common::line_line_intersection_raw;
+use super::common::ray_ray_intersection_raw;
 use crate::{
-    Arc2D, Circle2D, InfiniteLine3D, LineSegment2D, LineSegment3D, Plane3D, Point2D, Point3D,
-    Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
+    Arc2D, Circle2D, InfiniteLine3D, IntersectionResult, LineSegment2D, LineSegment3D, Plane3D,
+    Point2D, Point3D, Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
 };
 use geo_contracts::{
     Arc2DProperties, Circle2DProperties, InfiniteLine3DProperties, LineSegment2DProperties, Scalar,
@@ -569,40 +570,12 @@ pub fn ray3d_ray3d_intersection<T: Scalar>(
     ray1: &Ray3D<T>,
     ray2: &Ray3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
-    let p1 = ray1.origin();
-    let p2 = ray2.origin();
-    let d1 = ray1.direction_vector();
-    let d2 = ray2.direction_vector();
-
-    let r = Vector3D::from_points(&p2, &p1);
-
-    let a = d1.dot(&d1);
-    let b = d1.dot(&d2);
-    let c = d2.dot(&d2);
-    let d = d1.dot(&r);
-    let e = d2.dot(&r);
-
-    let denom = a * c - b * b;
-    if denom.abs() <= tolerance {
-        return None; // 平行
-    }
-
-    let s = (b * e - c * d) / denom;
-    let t = (a * e - b * d) / denom;
-
-    if s < T::ZERO || t < T::ZERO {
-        return None; // Ray 範囲外
-    }
-
-    let point1 = ray1.point_at_parameter(s);
-    let point2 = ray2.point_at_parameter(t);
-
-    if point1.distance_to(&point2) <= tolerance {
-        Some(point1)
-    } else {
-        None
-    }
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        ray_ray_intersection_raw(ray1, ray2, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn ray3d_line_segment3d_intersection<T: Scalar>(
@@ -1014,11 +987,14 @@ mod tests {
         let ray1 = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
         let ray2 = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
 
-        let p = ray3d_ray3d_intersection(&ray1, &ray2, super::STANDARD_TEST_TOLERANCE_F64);
-        assert!(p.is_some());
-        let p = p.unwrap();
-        assert!(p.x().abs() < super::STANDARD_TEST_TOLERANCE_F64);
-        assert!(p.y().abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        let result = ray3d_ray3d_intersection(&ray1, &ray2, super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.intersects());
+        if let crate::IntersectionGeometry::Point(p) = result.geometry {
+            assert!(p.x().abs() < super::STANDARD_TEST_TOLERANCE_F64);
+            assert!(p.y().abs() < super::STANDARD_TEST_TOLERANCE_F64);
+        } else {
+            panic!("Expected single point intersection");
+        }
     }
 
     #[test]
@@ -1027,8 +1003,8 @@ mod tests {
         let ray1 = Ray3D::new(Point3D::new(1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
         let ray2 = Ray3D::new(Point3D::new(0.0, 1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
 
-        let p = ray3d_ray3d_intersection(&ray1, &ray2, super::STANDARD_TEST_TOLERANCE_F64);
-        assert!(p.is_none());
+        let result = ray3d_ray3d_intersection(&ray1, &ray2, super::STANDARD_TEST_TOLERANCE_F64);
+        assert!(!result.intersects());
     }
 
     #[test]

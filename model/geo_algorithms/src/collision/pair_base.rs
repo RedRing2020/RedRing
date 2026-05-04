@@ -128,7 +128,7 @@ pub fn infinite_line3d_ray3d_collides<T: Scalar>(
 
 pub fn ray3d_ray3d_collides<T: Scalar>(ray1: &Ray3D<T>, ray2: &Ray3D<T>, tolerance: T) -> bool {
     // Ray の有効範囲（t >= 0）は intersection 側で判定済み。
-    ray3d_ray3d_intersection(ray1, ray2, tolerance).is_some()
+    ray3d_ray3d_intersection(ray1, ray2, tolerance).intersects()
 }
 
 pub fn ray3d_line_segment3d_collides<T: Scalar>(

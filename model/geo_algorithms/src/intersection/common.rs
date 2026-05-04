@@ -2,7 +2,7 @@
 //!
 //! pair_base と primitive_3d が共有する基礎計算を提供する。
 
-use crate::{InfiniteLine3D, Point3D, Vector3D};
+use crate::{InfiniteLine3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProperties, Scalar};
 
 /// 分母が有効（非ゼロ・非極小）かチェック
@@ -61,6 +61,28 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     Some(Point3D::new(px1 + t * dx1, py1 + t * dy1, pz1 + t * dz1))
 }
 
+/// 2つのRayの交点計算（生の計算）
+///
+/// `line_line_intersection_raw` を使い外積ベースで平行判定したうえで、
+/// Ray の有効範囲（t >= 0）を `contains_point` で検証する。
+///
+/// # 戻り値
+/// 両 Ray が同一点を共有する場合 `Some(point)`。平行・スキュー・Ray 範囲外は `None`。
+pub(crate) fn ray_ray_intersection_raw<T: Scalar>(
+    ray1: &Ray3D<T>,
+    ray2: &Ray3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let line1 = InfiniteLine3D::new(ray1.origin(), ray1.direction_vector())?;
+    let line2 = InfiniteLine3D::new(ray2.origin(), ray2.direction_vector())?;
+    let point = line_line_intersection_raw(&line1, &line2)?;
+    if ray1.contains_point(&point, tolerance) && ray2.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,6 +119,64 @@ mod tests {
         let tolerance_sq = par_tol * par_tol;
         let denom_sq = tolerance_sq * 2.0;
         assert!(check_denominator_validity(denom_sq, tolerance_sq));
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_交差するrayは交点を返す() {
+        use crate::Vector3D;
+        let ray1 = Ray3D::new(
+            Point3D::new(-1.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0, -1.0_f64, 0.0),
+            Vector3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_some());
+        let p = result.unwrap();
+        assert!(p.x().abs() < STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.y().abs() < STANDARD_TEST_TOLERANCE_F64);
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_平行rayはnoneを返す() {
+        use crate::Vector3D;
+        let ray1 = Ray3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0_f64, 1.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_ray範囲外はnoneを返す() {
+        use crate::Vector3D;
+        // 互いに反対方向を向いており、延長線上では交わるが Ray 範囲外
+        let ray1 = Ray3D::new(
+            Point3D::new(1.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0, 1.0_f64, 0.0),
+            Vector3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
     }
 
     #[test]
