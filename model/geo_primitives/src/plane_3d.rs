@@ -484,7 +484,7 @@ impl<T: Scalar + From<f64>> Plane3DTransform<T> for Plane3D<T> {
 impl<T: Scalar + From<f64>> BasicIntersection<T, Self> for Plane3D<T> {
     type Point = ((T, T, T), (T, T, T));
 
-    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+    fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
         let n1 = self.normal.as_vector();
         let n2 = other.normal.as_vector();
 

@@ -295,7 +295,7 @@ mod tests {
         .unwrap();
         let line = InfiniteLine3D::new(Point3D::new(-10.0, 0.0, 5.0), Vector3D::unit_x()).unwrap();
 
-        let intersection = BasicIntersection::intersection_with(&cylindrical_solid, &line, 1e-10);
+        let intersection = BasicIntersection::intersection_with(&cylindrical_solid, &line);
 
         assert!(intersection.is_none());
     }
