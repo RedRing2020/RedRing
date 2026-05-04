@@ -35,6 +35,15 @@ impl<T: Scalar> Direction3D<T> {
         }
     }
 
+    /// 正規化済みベクトルから方向を作成（再正規化なし）
+    ///
+    /// 呼び出し元が `vector` の長さが 1 であることを保証した場合のみ使用すること。
+    /// `Ray3D` や `InfiniteLine3D` の内部フィールド経由など、
+    /// 既に正規化が保証された文脈専用。
+    pub(crate) fn from_normalized(vector: Vector3D<T>) -> Self {
+        Self { vector }
+    }
+
     /// X、Y、Z成分から方向を作成
     pub fn new(x: T, y: T, z: T) -> Option<Self> {
         Self::from_vector(Vector3D::new(x, y, z))

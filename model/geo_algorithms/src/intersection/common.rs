@@ -73,9 +73,7 @@ pub(crate) fn ray_ray_intersection_raw<T: Scalar>(
     ray2: &Ray3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let line1 = InfiniteLine3D::new(ray1.origin(), ray1.direction_vector())?;
-    let line2 = InfiniteLine3D::new(ray2.origin(), ray2.direction_vector())?;
-    let point = line_line_intersection_raw(&line1, &line2)?;
+    let point = line_line_intersection_raw(&ray1.to_line(), &ray2.to_line())?;
     if ray1.contains_point(&point, tolerance) && ray2.contains_point(&point, tolerance) {
         Some(point)
     } else {
@@ -202,6 +200,27 @@ mod tests {
     }
 
     #[test]
+    fn ray_ray_intersection_raw_スキューrayはnoneを返す() {
+        use crate::Vector3D;
+        // X方向の Ray と、Z=1 平面上で Y方向に進む Ray（非共面）
+        // line_line_intersection_raw は最近接点候補を返し得るが、
+        // 交点は実際には両 Ray 上に乗らないため None になることを確認する。
+        let ray1 = Ray3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0_f64, 0.0, 1.0),
+            Vector3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
     fn line_line_intersection_raw_交差する直線は交点を返す() {
         // X軸と Y軸が原点で交差
         let line1 = InfiniteLine3D::from_two_points(
@@ -316,6 +335,27 @@ mod tests {
             .unwrap();
         let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
             .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_スキュー線分はnoneを返す() {
+        // Z=0 平面と Z=1 平面に属する非共面な線分
+        // line_line_intersection_raw は最近接点候補を返し得るが、
+        // contains_point フィルタにより両線分上に乗らないため None になることを確認する。
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(
+            Point3D::new(-1.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let seg2 = LineSegment3D::new(
+            Point3D::new(0.0_f64, -1.0, 1.0),
+            Point3D::new(0.0, 1.0, 1.0),
+        )
+        .unwrap();
 
         let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
         assert!(result.is_none());
