@@ -51,6 +51,14 @@ impl<T: Scalar> InfiniteLine3D<T> {
         })
     }
 
+    /// 正規化済み方向ベクトルから無限直線を作成（再正規化なし）
+    ///
+    /// `Direction3D` は既に正規化済みであることが型で保証されるため、
+    /// `new` と異なり sqrt を呼ばない。
+    pub fn from_direction(point: Point3D<T>, direction: Direction3D<T>) -> Self {
+        Self { point, direction }
+    }
+
     /// 2点から無限直線を作成
     pub fn from_two_points(p1: Point3D<T>, p2: Point3D<T>) -> Option<Self> {
         let direction = Vector3D::from_points(&p1, &p2);

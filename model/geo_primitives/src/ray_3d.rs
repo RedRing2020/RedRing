@@ -4,7 +4,7 @@
 //! パラメータ t は 0 ≤ t < ∞ の範囲で定義されます。
 //! Core Traits実装（Constructor, Properties, Measure）も含む
 
-use crate::{Direction3D, Point3D, Vector3D};
+use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{
     AngleBetween, CrossDistance, DirectionalRelation, ParallelRelation, PointsTowards,
     Ray3DConstructor, Ray3DContainment, Ray3DDistance, Ray3DEvaluation, Ray3DProjection,
@@ -75,6 +75,14 @@ impl<T: Scalar> Ray3D<T> {
     /// 内部方向ベクトルを取得（Vector3D型）
     pub fn direction_vector(&self) -> Vector3D<T> {
         self.direction
+    }
+
+    /// この Ray が乗る無限直線を返す（再正規化なし）
+    ///
+    /// `Ray3D` は内部で正規化済みの方向ベクトルを保持しているため、
+    /// `InfiniteLine3D::new` が行う再正規化（sqrt）を回避できる。
+    pub fn to_line(&self) -> InfiniteLine3D<T> {
+        InfiniteLine3D::from_direction(self.origin, Direction3D::from_normalized(self.direction))
     }
 
     /// パラメータ t での点を計算

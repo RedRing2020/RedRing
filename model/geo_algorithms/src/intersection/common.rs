@@ -2,8 +2,23 @@
 //!
 //! pair_base と primitive_3d が共有する基礎計算を提供する。
 
-use crate::{InfiniteLine3D, Point3D, Vector3D};
+use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProperties, Scalar};
+
+/// 分母が有効（非ゼロ・非極小）かチェック
+///
+/// 外積ベースで無次元化した分母 `denom_sq`（`|d1 × d2|²` 相当）を `tolerance_sq` と比較する。
+///
+/// # 引数
+/// - `denom_sq`: 無次元の分母（通常は外積の大きさの二乗）
+/// - `tolerance_sq`: 比較閾値の二乗（通常は `default_parallel_cross_error_tolerance()²`）
+///
+/// # 戻り値
+/// 分母が閾値より十分に大きい場合 `true`（有効）。平行またはほぼ平行の場合 `false`（無効）。
+#[inline]
+pub(crate) fn check_denominator_validity<T: Scalar>(denom_sq: T, tolerance_sq: T) -> bool {
+    denom_sq > tolerance_sq
+}
 
 /// 2つの無限直線の交点計算（生の計算）
 ///
@@ -38,7 +53,7 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     // denom_sq は無次元量（sin²θ 相当）。par_tol と同じ無次元軸で比較する。
     let denom_sq = cross_d1_d2.dot(&cross_d1_d2);
     let par_tol = default_parallel_cross_error_tolerance::<T>();
-    if denom_sq <= par_tol * par_tol {
+    if !check_denominator_validity(denom_sq, par_tol * par_tol) {
         return None;
     }
 
@@ -46,11 +61,164 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     Some(Point3D::new(px1 + t * dx1, py1 + t * dy1, pz1 + t * dz1))
 }
 
+/// 2つのRayの交点計算（生の計算）
+///
+/// `line_line_intersection_raw` を使い外積ベースで平行判定したうえで、
+/// Ray の有効範囲（t >= 0）を `contains_point` で検証する。
+///
+/// # 戻り値
+/// 両 Ray が同一点を共有する場合 `Some(point)`。平行・スキュー・Ray 範囲外は `None`。
+pub(crate) fn ray_ray_intersection_raw<T: Scalar>(
+    ray1: &Ray3D<T>,
+    ray2: &Ray3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let point = line_line_intersection_raw(&ray1.to_line(), &ray2.to_line())?;
+    if ray1.contains_point(&point, tolerance) && ray2.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+/// 2つのLineSegment3Dの交点計算（生の計算）
+///
+/// `line_line_intersection_raw` を使い外積ベースで平行判定したうえで、
+/// 両セグメントの有効範囲を `contains_point` で検証する。
+/// `LineSegment3D::line()` が返す正規化済み `InfiniteLine3D` 経由で計算するため、
+/// 外積ベース無次元化が Ray×Ray と同じ軸で一貫して機能する。
+///
+/// # 戻り値
+/// 両セグメントが同一点を共有する場合 `Some(point)`。平行・スキュー・範囲外は `None`。
+pub(crate) fn segment_segment_intersection_raw<T: Scalar>(
+    seg1: &LineSegment3D<T>,
+    seg2: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let point = line_line_intersection_raw(seg1.line(), seg2.line())?;
+    if seg1.contains_point(&point, tolerance) && seg2.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
+
+    #[test]
+    fn check_denominator_validity_ゼロ分母は無効() {
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        assert!(!check_denominator_validity(0.0_f64, tolerance_sq));
+    }
+
+    #[test]
+    fn check_denominator_validity_極小分母は無効() {
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        let denom_sq = tolerance_sq * 0.5; // 閾値の半分
+        assert!(!check_denominator_validity(denom_sq, tolerance_sq));
+    }
+
+    #[test]
+    fn check_denominator_validity_閾値と同値は無効() {
+        // check_denominator_validity は denom_sq > tolerance_sq の厳密不等号なので
+        // 閾値と等しい場合は無効（None 側）
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        assert!(!check_denominator_validity(tolerance_sq, tolerance_sq));
+    }
+
+    #[test]
+    fn check_denominator_validity_十分な分母は有効() {
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        let denom_sq = tolerance_sq * 2.0;
+        assert!(check_denominator_validity(denom_sq, tolerance_sq));
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_交差するrayは交点を返す() {
+        use crate::Vector3D;
+        let ray1 = Ray3D::new(
+            Point3D::new(-1.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0, -1.0_f64, 0.0),
+            Vector3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_some());
+        let p = result.unwrap();
+        assert!(p.x().abs() < STANDARD_TEST_TOLERANCE_F64);
+        assert!(p.y().abs() < STANDARD_TEST_TOLERANCE_F64);
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_平行rayはnoneを返す() {
+        use crate::Vector3D;
+        let ray1 = Ray3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0_f64, 1.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_ray範囲外はnoneを返す() {
+        use crate::Vector3D;
+        // 互いに反対方向を向いており、延長線上では交わるが Ray 範囲外
+        let ray1 = Ray3D::new(
+            Point3D::new(1.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0, 1.0_f64, 0.0),
+            Vector3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn ray_ray_intersection_raw_スキューrayはnoneを返す() {
+        use crate::Vector3D;
+        // X方向の Ray と、Z=1 平面上で Y方向に進む Ray（非共面）
+        // line_line_intersection_raw は最近接点候補を返し得るが、
+        // 交点は実際には両 Ray 上に乗らないため None になることを確認する。
+        let ray1 = Ray3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let ray2 = Ray3D::new(
+            Point3D::new(0.0_f64, 0.0, 1.0),
+            Vector3D::new(0.0, 1.0, 0.0),
+        )
+        .unwrap();
+
+        let result = ray_ray_intersection_raw(&ray1, &ray2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
 
     #[test]
     fn line_line_intersection_raw_交差する直線は交点を返す() {
@@ -130,5 +298,66 @@ mod tests {
 
         let result = line_line_intersection_raw(&line1, &line2);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_交差するセグメントは交点を返す() {
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
+            .unwrap();
+        let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_some());
+        let p = result.unwrap();
+        assert!((p.x() - 0.5).abs() < STANDARD_TEST_TOLERANCE_F64);
+        assert!((p.y() - 0.5).abs() < STANDARD_TEST_TOLERANCE_F64);
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_平行セグメントはnoneを返す() {
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
+            .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_セグメント範囲外はnoneを返す() {
+        // 延長線上では交わるが、どちらかのセグメント範囲外
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(Point3D::new(2.0_f64, 0.0, 0.0), Point3D::new(3.0, 1.0, 0.0))
+            .unwrap();
+        let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_スキュー線分はnoneを返す() {
+        // Z=0 平面と Z=1 平面に属する非共面な線分
+        // line_line_intersection_raw は最近接点候補を返し得るが、
+        // contains_point フィルタにより両線分上に乗らないため None になることを確認する。
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(
+            Point3D::new(-1.0_f64, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let seg2 = LineSegment3D::new(
+            Point3D::new(0.0_f64, -1.0, 1.0),
+            Point3D::new(0.0, 1.0, 1.0),
+        )
+        .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
     }
 }
