@@ -4,6 +4,7 @@
 
 use super::common::line_line_intersection_raw;
 use super::common::ray_ray_intersection_raw;
+use super::common::segment_segment_intersection_raw;
 use crate::{
     Arc2D, Circle2D, InfiniteLine3D, IntersectionResult, LineSegment2D, LineSegment3D, Plane3D,
     Point2D, Point3D, Ray3D, SphericalSurface3D, Triangle3D, Vector3D,
@@ -266,50 +267,12 @@ pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(
     seg1: &LineSegment3D<T>,
     seg2: &LineSegment3D<T>,
     tolerance: T,
-) -> Option<Point3D<T>> {
-    let p1 = seg1.start();
-    let p2 = seg1.end();
-    let p3 = seg2.start();
-    let p4 = seg2.end();
-
-    let d1 = Vector3D::from_points(&p1, &p2);
-    let d2 = Vector3D::from_points(&p3, &p4);
-    let r = Vector3D::from_points(&p3, &p1);
-
-    let a = d1.dot(&d1);
-    let b = d1.dot(&d2);
-    let c = d2.dot(&d2);
-    let d = d1.dot(&r);
-    let e = d2.dot(&r);
-
-    let denom = a * c - b * b;
-    if denom.abs() < T::EPSILON {
-        return None;
-    }
-
-    let s = (b * e - c * d) / denom;
-    let t = (a * e - b * d) / denom;
-
-    if s >= T::ZERO && s <= T::ONE && t >= T::ZERO && t <= T::ONE {
-        let point1 = Point3D::new(
-            p1.x() + s * d1.x(),
-            p1.y() + s * d1.y(),
-            p1.z() + s * d1.z(),
-        );
-        let point2 = Point3D::new(
-            p3.x() + t * d2.x(),
-            p3.y() + t * d2.y(),
-            p3.z() + t * d2.z(),
-        );
-
-        if point1.distance_to(&point2) <= tolerance {
-            Some(point1)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
+) -> IntersectionResult<T> {
+    IntersectionResult::from_option_point(
+        segment_segment_intersection_raw(seg1, seg2, tolerance),
+        false,
+        tolerance,
+    )
 }
 
 pub fn infinite_line3d_infinite_line3d_intersection<T: Scalar>(
@@ -814,12 +777,12 @@ mod tests {
         let seg2 =
             LineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
 
-        let p = line_segment3d_line_segment3d_intersection(
+        let result = line_segment3d_line_segment3d_intersection(
             &seg1,
             &seg2,
             super::STANDARD_TEST_TOLERANCE_F64,
         );
-        assert!(p.is_some());
+        assert!(result.intersects());
     }
 
     #[test]

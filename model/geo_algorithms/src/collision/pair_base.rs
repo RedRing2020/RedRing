@@ -99,7 +99,7 @@ pub fn line_segment3d_line_segment3d_collides<T: Scalar>(
     tolerance: T,
 ) -> bool {
     // 交点が一意に求まるケースを衝突ありとみなす。
-    line_segment3d_line_segment3d_intersection(segment1, segment2, tolerance).is_some()
+    line_segment3d_line_segment3d_intersection(segment1, segment2, tolerance).intersects()
 }
 
 pub fn infinite_line3d_infinite_line3d_collides<T: Scalar>(

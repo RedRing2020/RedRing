@@ -1,4 +1,6 @@
-use super::super::common::{line_line_intersection_raw, ray_ray_intersection_raw};
+use super::super::common::{
+    line_line_intersection_raw, ray_ray_intersection_raw, segment_segment_intersection_raw,
+};
 use super::planar_and_mesh_family::{
     plane3d_line_segment3d_intersection, plane3d_ray3d_intersection,
 };
@@ -212,49 +214,7 @@ fn line_segment3d_line_segment3d_intersection_raw<T: Scalar>(
     seg_b: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let p1 = seg_a.start();
-    let p2 = seg_a.end();
-    let p3 = seg_b.start();
-    let p4 = seg_b.end();
-
-    let d1 = Vector3D::from_points(&p1, &p2);
-    let d2 = Vector3D::from_points(&p3, &p4);
-    let r = Vector3D::from_points(&p3, &p1);
-
-    let a = d1.dot(&d1);
-    let b = d1.dot(&d2);
-    let c = d2.dot(&d2);
-    let d = d1.dot(&r);
-    let e = d2.dot(&r);
-
-    let denom = a * c - b * b;
-    if denom.abs() <= tolerance {
-        return None;
-    }
-
-    let s = (b * e - c * d) / denom;
-    let t = (a * e - b * d) / denom;
-
-    if s >= T::ZERO && s <= T::ONE && t >= T::ZERO && t <= T::ONE {
-        let point1 = Point3D::new(
-            p1.x() + s * d1.x(),
-            p1.y() + s * d1.y(),
-            p1.z() + s * d1.z(),
-        );
-        let point2 = Point3D::new(
-            p3.x() + t * d2.x(),
-            p3.y() + t * d2.y(),
-            p3.z() + t * d2.z(),
-        );
-
-        if point1.distance_to(&point2) <= tolerance {
-            Some(point1)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
+    segment_segment_intersection_raw(seg_a, seg_b, tolerance)
 }
 
 pub fn line_segment3d_line_segment3d_intersection<T: Scalar>(

@@ -2,7 +2,7 @@
 //!
 //! pair_base と primitive_3d が共有する基礎計算を提供する。
 
-use crate::{InfiniteLine3D, Point3D, Ray3D, Vector3D};
+use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProperties, Scalar};
 
 /// 分母が有効（非ゼロ・非極小）かチェック
@@ -77,6 +77,28 @@ pub(crate) fn ray_ray_intersection_raw<T: Scalar>(
     let line2 = InfiniteLine3D::new(ray2.origin(), ray2.direction_vector())?;
     let point = line_line_intersection_raw(&line1, &line2)?;
     if ray1.contains_point(&point, tolerance) && ray2.contains_point(&point, tolerance) {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+/// 2つのLineSegment3Dの交点計算（生の計算）
+///
+/// `line_line_intersection_raw` を使い外積ベースで平行判定したうえで、
+/// 両セグメントの有効範囲を `contains_point` で検証する。
+/// `LineSegment3D::line()` が返す正規化済み `InfiniteLine3D` 経由で計算するため、
+/// 外積ベース無次元化が Ray×Ray と同じ軸で一貫して機能する。
+///
+/// # 戻り値
+/// 両セグメントが同一点を共有する場合 `Some(point)`。平行・スキュー・範囲外は `None`。
+pub(crate) fn segment_segment_intersection_raw<T: Scalar>(
+    seg1: &LineSegment3D<T>,
+    seg2: &LineSegment3D<T>,
+    tolerance: T,
+) -> Option<Point3D<T>> {
+    let point = line_line_intersection_raw(seg1.line(), seg2.line())?;
+    if seg1.contains_point(&point, tolerance) && seg2.contains_point(&point, tolerance) {
         Some(point)
     } else {
         None
@@ -257,5 +279,45 @@ mod tests {
 
         let result = line_line_intersection_raw(&line1, &line2);
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_交差するセグメントは交点を返す() {
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
+            .unwrap();
+        let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_some());
+        let p = result.unwrap();
+        assert!((p.x() - 0.5).abs() < STANDARD_TEST_TOLERANCE_F64);
+        assert!((p.y() - 0.5).abs() < STANDARD_TEST_TOLERANCE_F64);
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_平行セグメントはnoneを返す() {
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+        let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
+            .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn segment_segment_intersection_raw_セグメント範囲外はnoneを返す() {
+        // 延長線上では交わるが、どちらかのセグメント範囲外
+        use crate::LineSegment3D;
+        let seg1 = LineSegment3D::new(Point3D::new(2.0_f64, 0.0, 0.0), Point3D::new(3.0, 1.0, 0.0))
+            .unwrap();
+        let seg2 = LineSegment3D::new(Point3D::new(0.0_f64, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+
+        let result = segment_segment_intersection_raw(&seg1, &seg2, STANDARD_TEST_TOLERANCE_F64);
+        assert!(result.is_none());
     }
 }
