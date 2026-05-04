@@ -5,6 +5,21 @@
 use crate::{InfiniteLine3D, Point3D, Vector3D};
 use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProperties, Scalar};
 
+/// 分母が有効（非ゼロ・非極小）かチェック
+///
+/// 外積ベースで無次元化した分母 `denom_sq`（`|d1 × d2|²` 相当）を `tolerance_sq` と比較する。
+///
+/// # 引数
+/// - `denom_sq`: 無次元の分母（通常は外積の大きさの二乗）
+/// - `tolerance_sq`: 比較閾値の二乗（通常は `default_parallel_cross_error_tolerance()²`）
+///
+/// # 戻り値
+/// 分母が閾値より十分に大きい場合 `true`（有効）。平行またはほぼ平行の場合 `false`（無効）。
+#[inline]
+pub(crate) fn check_denominator_validity<T: Scalar>(denom_sq: T, tolerance_sq: T) -> bool {
+    denom_sq > tolerance_sq
+}
+
 /// 2つの無限直線の交点計算（生の計算）
 ///
 /// 平行またはほぼ平行の場合は `None` を返す。
@@ -38,7 +53,7 @@ pub(crate) fn line_line_intersection_raw<T: Scalar>(
     // denom_sq は無次元量（sin²θ 相当）。par_tol と同じ無次元軸で比較する。
     let denom_sq = cross_d1_d2.dot(&cross_d1_d2);
     let par_tol = default_parallel_cross_error_tolerance::<T>();
-    if denom_sq <= par_tol * par_tol {
+    if !check_denominator_validity(denom_sq, par_tol * par_tol) {
         return None;
     }
 
@@ -51,6 +66,38 @@ mod tests {
     use super::*;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
+
+    #[test]
+    fn check_denominator_validity_ゼロ分母は無効() {
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        assert!(!check_denominator_validity(0.0_f64, tolerance_sq));
+    }
+
+    #[test]
+    fn check_denominator_validity_極小分母は無効() {
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        let denom_sq = tolerance_sq * 0.5; // 閾値の半分
+        assert!(!check_denominator_validity(denom_sq, tolerance_sq));
+    }
+
+    #[test]
+    fn check_denominator_validity_閾値と同値は無効() {
+        // check_denominator_validity は denom_sq > tolerance_sq の厳密不等号なので
+        // 閾値と等しい場合は無効（None 側）
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        assert!(!check_denominator_validity(tolerance_sq, tolerance_sq));
+    }
+
+    #[test]
+    fn check_denominator_validity_十分な分母は有効() {
+        let par_tol = default_parallel_cross_error_tolerance::<f64>();
+        let tolerance_sq = par_tol * par_tol;
+        let denom_sq = tolerance_sq * 2.0;
+        assert!(check_denominator_validity(denom_sq, tolerance_sq));
+    }
 
     #[test]
     fn line_line_intersection_raw_交差する直線は交点を返す() {
