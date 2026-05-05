@@ -657,7 +657,7 @@ fn solve_linear_2x2<T: Scalar>(
 
 #### Phase A 実装スコープ（2026年4月8日着手）
 
-- 初手の実装は `DynamicMatrix<T>` 単体に限定し、既存 `LinearSolver<T>` trait と `GaussianSolver<T>` / `LUSolver<T>` / `CramerSolver<T>` の受け取り型は変更しない
+- 初手の実装は `DynamicMatrix<T>` 単体に限定し、既存 `LinearSolver<T>` trait と `GaussianSolver<T>` / `LUSolver<T>` / `CramerSolver<T>` の受け取り型は変更しない（**Issue #704 で変更済み。現在は `DynamicMatrix<T>` を直接受け取る**）
 - 内部表現は row-major の `Vec<T>` とし、shape は `rows` と `cols` を明示保持する
 - 初回に入れる API は `new`、`zeros`、`from_rows`、`rows`、`cols`、`shape`、`get`、`set`、`as_slice`、`to_vec2d`、`transpose`、`mul_vector` を基本とする
 - `Vec<Vec<T>>` からの完全移行は Phase C で扱い、Phase A では変換補助と `Vector<T>` 連携までに留める
@@ -674,7 +674,7 @@ fn solve_linear_2x2<T: Scalar>(
 
 - 新規入口として `newton_solve_multivariate` と `newton_solve_multivariate_with_solver` を追加する
 - `system` は `&Vector<T>` を受け取り、`(Vector<T>, DynamicMatrix<T>)` を返す形に統一する
-- 既定の更新ステップは `GaussianSolver<T>` + `DynamicMatrixLinearSolver<T>` adapter を使って解く
+- 既定の更新ステップは `GaussianSolver<T>` + `LinearSolver<T>` を使って解く（`DynamicMatrixLinearSolver<T>` adapter は Issue #704 で廃止済み）
 - solver 差し替えが必要な利用者向けに `..._with_solver` を併設し、`LUSolver<T>` などを注入可能にする
 - 返り値は既存 Newton 系との整合を優先して `Option<Vector<T>>` とし、shape 不整合・特異 Jacobian・非収束は `None` で表す
 - 収束判定は residual norm と step norm の両方を使い、既存 2変数 solver より明示的な多変数収束条件を採る
@@ -685,13 +685,13 @@ fn solve_linear_2x2<T: Scalar>(
 - 既存 solver を `Vec<Vec<T>>` のまま維持するか、`DynamicMatrix<T>` 受け取りへ拡張するかを比較する
 - 多変数 Newton の更新ステップ専用 helper を設けるか、既存 solver を直接使うかを決める
 
-#### Phase C 接続方針（2026年4月8日合意）
+#### Phase C 接続方針（2026年4月8日合意・2026年5月5日 Issue #704 にて更新）
 
-- 初手では既存 `LinearSolver<T>` trait の `Vec<Vec<T>>` 受け取りを維持し、破壊的変更を避ける
-- その代わり、`DynamicMatrix<T>` と `Vector<T>` を既存 solver へ橋渡しする adapter 層を追加し、多変数 Newton 側からは `DynamicMatrix<T>` ベースで呼べる経路を先に整える
-- 将来の新規 generic solver は `DynamicMatrix<T>` ベースで追加し、既存 solver 群とは一定期間共存させる
-- その後、利用実績と API 安定性を見ながら `Vec<Vec<T>>` ベース solver から段階移行する
-- したがって現段階では「既存 solver を変える」のではなく、「DynamicMatrix ベースの新規利用経路を先に正本化する」を優先する
+- ~~初手では既存 `LinearSolver<T>` trait の `Vec<Vec<T>>` 受け取りを維持し、破壊的変更を避ける~~
+- **Issue #704 完了**: `LinearSolver<T>::solve` のシグネチャを `&DynamicMatrix<T>` 直接受け取りに変更し、`DynamicMatrixLinearSolver<T>` adapter と `to_vec2d()` 経由の変換を廃止した
+- 既存 solver（gaussian / lu / cramer）はすべて `DynamicMatrix<T>` を直接受け取るよう更新済み
+- `DynamicMatrixLinearSolver<T>` trait は削除済み。Newton 法内では `LinearSolver<T>` の型境界を直接使用する
+- `to_vec2d()` メソッドは `DynamicMatrix` のテスト用途で引き続き存在するが、solver 経路では不要
 
 #### Phase D: follow-up 実装計画への分割
 
@@ -807,7 +807,7 @@ pub fn newton_solve_multivariate_bounded_with_solver<T, F, S>(
 where
 	T: Scalar,
 	F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
-	S: DynamicMatrixLinearSolver<T>;
+	S: LinearSolver<T>;  // Issue #704: DynamicMatrixLinearSolver から変更
 ```
 
 #### `MultivariateNewtonBounds<T>` の責務

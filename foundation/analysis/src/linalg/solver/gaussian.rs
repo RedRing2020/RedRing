@@ -4,6 +4,7 @@
 //! 数値安定性を考慮した一般的な直接法
 use super::{LinearSolver, SolutionInfo};
 use crate::abstract_types::Scalar;
+use crate::linalg::DynamicMatrix;
 
 /// ガウス消去法ソルバー
 pub struct GaussianSolver<T: Scalar> {
@@ -27,12 +28,13 @@ impl<T: Scalar> GaussianSolver<T> {
     }
 
     /// 拡張行列を作成
-    fn create_augmented_matrix(&self, matrix: &[Vec<T>], rhs: &[T]) -> Vec<Vec<T>> {
-        let n = matrix.len();
+    fn create_augmented_matrix(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Vec<Vec<T>> {
+        let n = matrix.rows();
         let mut aug_matrix = Vec::with_capacity(n);
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
-            let mut row = matrix[i].clone();
+            let mut row: Vec<T> = (0..n).map(|j| matrix.get(i, j)).collect();
             row.push(rhs[i]);
             aug_matrix.push(row);
         }
@@ -117,15 +119,15 @@ impl<T: Scalar> GaussianSolver<T> {
     }
 
     /// 残差を計算
-    fn calculate_residual(&self, matrix: &[Vec<T>], rhs: &[T], solution: &[T]) -> T {
-        let n = matrix.len();
+    fn calculate_residual(&self, matrix: &DynamicMatrix<T>, rhs: &[T], solution: &[T]) -> T {
+        let n = matrix.rows();
         let mut residual = T::ZERO;
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let mut sum = T::ZERO;
-            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum += matrix[i][j] * solution[j];
+                sum += matrix.get(i, j) * solution[j];
             }
             let diff = sum - rhs[i];
             residual += diff * diff;
@@ -136,18 +138,12 @@ impl<T: Scalar> GaussianSolver<T> {
 }
 
 impl<T: Scalar> LinearSolver<T> for GaussianSolver<T> {
-    fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
-        let n = matrix.len();
+    fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
+        let n = matrix.rows();
 
         // 入力検証
-        if n == 0 || matrix[0].len() != n || rhs.len() != n {
+        if n == 0 || matrix.cols() != n || rhs.len() != n {
             return Err("Invalid matrix dimensions".to_string());
-        }
-
-        for row in matrix {
-            if row.len() != n {
-                return Err("Matrix must be square".to_string());
-            }
         }
 
         // 拡張行列を作成

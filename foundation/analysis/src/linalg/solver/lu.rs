@@ -4,6 +4,7 @@
 //! 部分ピボット選択付きで数値安定性を確保
 use super::{LinearSolver, SolutionInfo};
 use crate::abstract_types::Scalar;
+use crate::linalg::DynamicMatrix;
 
 /// LU分解ソルバー
 pub struct LUSolver<T: Scalar> {
@@ -35,22 +36,18 @@ impl<T: Scalar> LUSolver<T> {
     }
 
     /// LU分解を実行（Doolittle法）
-    pub fn decompose(&self, matrix: &[Vec<T>]) -> Result<LUDecomposition<T>, String> {
-        let n = matrix.len();
+    pub fn decompose(&self, matrix: &DynamicMatrix<T>) -> Result<LUDecomposition<T>, String> {
+        let n = matrix.rows();
 
         // 入力検証
-        if n == 0 || matrix[0].len() != n {
+        if n == 0 || matrix.cols() != n {
             return Err("Matrix must be square".to_string());
         }
 
-        for row in matrix {
-            if row.len() != n {
-                return Err("Matrix must be square".to_string());
-            }
-        }
-
         // LU行列を初期化（元の行列をコピー）
-        let mut lu_matrix = matrix.to_vec();
+        let mut lu_matrix: Vec<Vec<T>> = (0..n)
+            .map(|i| (0..n).map(|j| matrix.get(i, j)).collect())
+            .collect();
         let mut permutation: Vec<usize> = (0..n).collect();
         let mut determinant_sign = 1i32;
 
@@ -168,15 +165,15 @@ impl<T: Scalar> LUSolver<T> {
     }
 
     /// 残差を計算
-    fn calculate_residual(&self, matrix: &[Vec<T>], rhs: &[T], solution: &[T]) -> T {
-        let n = matrix.len();
+    fn calculate_residual(&self, matrix: &DynamicMatrix<T>, rhs: &[T], solution: &[T]) -> T {
+        let n = matrix.rows();
         let mut residual = T::ZERO;
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let mut sum = T::ZERO;
-            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum += matrix[i][j] * solution[j];
+                sum += matrix.get(i, j) * solution[j];
             }
             let diff = sum - rhs[i];
             residual += diff * diff;
@@ -187,7 +184,7 @@ impl<T: Scalar> LUSolver<T> {
 }
 
 impl<T: Scalar> LinearSolver<T> for LUSolver<T> {
-    fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
+    fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
         // LU分解を実行
         let lu_decomp = self.decompose(matrix)?;
 
