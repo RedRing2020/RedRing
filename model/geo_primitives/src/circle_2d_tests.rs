@@ -358,49 +358,6 @@ fn test_circle2d_f32() {
 }
 
 #[cfg(test)]
-mod foundation_tests {
-    use super::*;
-
-
-    /// Foundation Extensions統合テスト
-    #[test]
-    fn test_foundation_extensions() {
-        let circle = Circle2D::new(Point2D::new(2.0, 2.0), 3.0).unwrap();
-
-        // Foundation scale from point
-        let scaled = circle
-            .foundation_scale_from_point(Point2D::new(0.0, 0.0), 2.0)
-            .unwrap();
-        assert_eq!(scaled.center(), Point2D::new(4.0, 4.0));
-        assert_eq!(scaled.radius(), 6.0);
-    }
-
-    /// Foundation System数学的整合性テスト
-    #[test]
-    fn test_foundation_mathematical_consistency() {
-        let circle = Circle2D::new(Point2D::new(1.0, 1.0), 2.0).unwrap();
-
-        // スケール変換の数学的整合性
-        let center_point = Point2D::new(0.0, 0.0);
-        let factor = 1.5;
-        let scaled = circle
-            .foundation_scale_from_point(center_point, factor)
-            .unwrap();
-
-        // 期待値：center' = (0,0) + ((1,1) - (0,0)) * 1.5 = (1.5, 1.5)
-        assert!((scaled.center().x() - 1.5_f64).abs() < 1e-10);
-        assert!((scaled.center().y() - 1.5_f64).abs() < 1e-10);
-        assert!((scaled.radius() - 3.0_f64).abs() < 1e-10);
-
-        // Foundation transform の数学的一貫性
-        let original_area = circle.area();
-        let doubled = circle.foundation_transform("double_radius").unwrap();
-        let expected_area = PI * (doubled.radius() * doubled.radius());
-        assert!((doubled.area() - expected_area).abs() < 1e-10);
-    }
-}
-
-#[cfg(test)]
 mod hierarchy_foundation_tests {
     use super::*;
 

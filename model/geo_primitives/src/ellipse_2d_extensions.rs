@@ -167,48 +167,5 @@ impl<T: Scalar> Ellipse2D<T> {
     //     // 実装は3D楕円の実装後に追加予定
     // }
 
-    /// Foundation Transform統合での高度な楕円変換
-    pub fn foundation_scale_from_point(&self, point: Point2D<T>, factor: T) -> Option<Self> {
-        if factor <= T::ZERO {
-            return None;
-        }
-
-        // アフィン変換: center' = point + (center - point) * factor
-        let offset = Vector2D::from_points(point, self.center_internal());
-        let new_center = point + (offset * factor);
-        let new_major = self.semi_major_axis() * factor;
-        let new_minor = self.semi_minor_axis() * factor;
-
-        Self::new(new_center, new_major, new_minor, self.rotation())
-    }
-
-    /// Foundation系統での楕円の軸変換
-    pub fn foundation_swap_axes(&self) -> Option<Self> {
-        // 長軸と短軸を入れ替える（90度回転も含む）
-        Self::new(
-            self.center_internal(),
-            self.semi_minor_axis(),                      // 短軸が新しい長軸
-            self.semi_major_axis(),                      // 長軸が新しい短軸
-            self.rotation() + T::PI / (T::ONE + T::ONE), // 90度回転
-        )
-    }
-
-    /// Foundation系統での楕円の離心率調整
-    pub fn foundation_adjust_eccentricity(&self, target_eccentricity: T) -> Option<Self> {
-        if target_eccentricity < T::ZERO || target_eccentricity >= T::ONE {
-            return None; // 無効な離心率
-        }
-
-        // e = sqrt(1 - (b/a)^2) から b = a * sqrt(1 - e^2) を計算
-        let new_minor =
-            self.semi_major_axis() * (T::ONE - target_eccentricity * target_eccentricity).sqrt();
-
-        Self::new(
-            self.center_internal(),
-            self.semi_major_axis(),
-            new_minor,
-            self.rotation(),
-        )
-    }
 }
 

@@ -104,18 +104,4 @@ impl<T: Scalar> Circle2D<T> {
         )
         .unwrap()
     }
-
-    /// Foundation Transform統合での高度な変換
-    pub fn foundation_scale_from_point(&self, point: Point2D<T>, factor: T) -> Option<Self> {
-        if factor <= T::ZERO {
-            return None;
-        }
-
-        // アフィン変換: center' = point + (center - point) * factor
-        let offset = Vector2D::from_points(point, self.center_internal());
-        let new_center = point + (offset * factor);
-        let new_radius = self.radius_internal() * factor;
-
-        Self::new(new_center, new_radius)
-    }
 }
