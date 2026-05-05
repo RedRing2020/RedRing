@@ -1,27 +1,26 @@
 use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F64};
-use crate::linalg::solver::{
-    CramerSolver, DynamicMatrixLinearSolver, GaussianSolver, LUSolver, LinearSolver,
-};
-use crate::linalg::{DynamicMatrix, Vector};
+use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
+use crate::linalg::DynamicMatrix;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     /// 共通テストデータ
-    fn get_test_2x2() -> (Vec<Vec<f64>>, Vec<f64>, Vec<f64>) {
-        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
+    fn get_test_2x2() -> (DynamicMatrix<f64>, Vec<f64>, Vec<f64>) {
+        let matrix = DynamicMatrix::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
         let rhs = vec![5.0, 6.0];
         let expected = vec![1.8, 1.4];
         (matrix, rhs, expected)
     }
 
-    fn get_test_3x3() -> (Vec<Vec<f64>>, Vec<f64>, Vec<f64>) {
-        let matrix = vec![
+    fn get_test_3x3() -> (DynamicMatrix<f64>, Vec<f64>, Vec<f64>) {
+        let matrix = DynamicMatrix::from_rows(vec![
             vec![2.0, 1.0, -1.0],
             vec![-3.0, -1.0, 2.0],
             vec![-2.0, 1.0, 2.0],
-        ];
+        ])
+        .unwrap();
         let rhs = vec![8.0, -11.0, -3.0];
         let expected = vec![2.0, 3.0, -1.0];
         (matrix, rhs, expected)
@@ -89,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_singular_matrix() {
-        let matrix = vec![vec![1.0, 2.0], vec![2.0, 4.0]]; // 特異行列
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![1.0, 2.0], vec![2.0, 4.0]]).unwrap();
         let rhs = vec![3.0, 6.0];
 
         let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
@@ -112,38 +111,33 @@ mod tests {
     }
 
     #[test]
-    fn test_gaussian_solver_dynamic_matrix_adapter() {
-        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
-        let rhs = Vector::new(vec![5.0, 6.0]);
+    fn test_gaussian_solver_rejects_non_square_matrix() {
+        // 非正方行列（2x3）は Err を返す
+        let matrix =
+            DynamicMatrix::<f64>::from_rows(vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]])
+                .unwrap();
+        let rhs = vec![1.0_f64, 2.0];
         let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
 
-        let result = solver.solve_dynamic(&matrix, &rhs).unwrap();
-
-        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
-        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
-        assert!(result.converged);
+        assert!(solver.solve(&matrix, &rhs).is_err());
     }
 
     #[test]
-    fn test_lu_solver_dynamic_matrix_adapter() {
+    fn test_lu_solver_rejects_rhs_mismatch() {
+        // rhs 長さ不一致は Err を返す
         let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
-        let rhs = Vector::new(vec![5.0, 6.0]);
+        let rhs = vec![5.0_f64]; // 長さ不一致
         let solver = LUSolver::new(SOLVER_TOLERANCE_F64);
 
-        let result = solver.solve_dynamic(&matrix, &rhs).unwrap();
-
-        assert!((result.solution[0] - 1.8).abs() < TOLERANCE_F64);
-        assert!((result.solution[1] - 1.4).abs() < TOLERANCE_F64);
-        assert!(result.converged);
+        assert!(solver.solve(&matrix, &rhs).is_err());
     }
 
     #[test]
-    fn test_dynamic_matrix_adapter_rejects_rhs_mismatch() {
+    fn test_solver_rejects_rhs_mismatch() {
         let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
-        let rhs = Vector::new(vec![5.0]);
+        let rhs = vec![5.0_f64]; // 長さ不一致
         let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
 
-        let error = solver.solve_dynamic(&matrix, &rhs).unwrap_err();
-        assert_eq!(error, "RHS dimension mismatch");
+        assert!(solver.solve(&matrix, &rhs).is_err());
     }
 }

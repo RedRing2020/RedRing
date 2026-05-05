@@ -1,5 +1,6 @@
 use super::{LUSolver, LinearSolver};
 use crate::consts::test_constants::{SOLVER_TOLERANCE_F32, SOLVER_TOLERANCE_F64, TOLERANCE_F64};
+use crate::linalg::DynamicMatrix;
 
 #[cfg(test)]
 mod tests {
@@ -7,14 +8,14 @@ mod tests {
 
     #[test]
     fn test_lu_decomposition_2x2() {
-        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
         let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
 
         let decomp = solver.decompose(&matrix).unwrap();
 
-        let n = matrix.len();
+        let n = matrix.rows();
         for i in 0..n {
-            for (j, _) in matrix.iter().enumerate().take(n) {
+            for j in 0..matrix.cols() {
                 let mut reconstructed = 0.0;
                 for k in 0..n {
                     let l_ik = if i > k {
@@ -27,7 +28,7 @@ mod tests {
                     let u_kj = if k <= j { decomp.lu_matrix[k][j] } else { 0.0 };
                     reconstructed += l_ik * u_kj;
                 }
-                let original = matrix[decomp.permutation[i]][j];
+                let original = matrix.get(decomp.permutation[i], j);
                 assert!((reconstructed - original).abs() < TOLERANCE_F64);
             }
         }
@@ -35,7 +36,7 @@ mod tests {
 
     #[test]
     fn test_lu_solver_2x2() {
-        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
         let rhs = vec![5.0, 6.0];
         let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
 
@@ -47,11 +48,12 @@ mod tests {
 
     #[test]
     fn test_lu_solver_3x3() {
-        let matrix = vec![
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![
             vec![2.0, 1.0, -1.0],
             vec![-3.0, -1.0, 2.0],
             vec![-2.0, 1.0, 2.0],
-        ];
+        ])
+        .unwrap();
         let rhs = vec![8.0, -11.0, -3.0];
         let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
 
@@ -64,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_lu_determinant() {
-        let matrix = vec![vec![2.0, 1.0], vec![1.0, 3.0]];
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![2.0, 1.0], vec![1.0, 3.0]]).unwrap();
         let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
 
         let decomp = solver.decompose(&matrix).unwrap();
@@ -75,14 +77,16 @@ mod tests {
 
     #[test]
     fn test_lu_singular_matrix() {
-        let matrix = vec![vec![1.0, 2.0], vec![2.0, 4.0]];
+        let matrix = DynamicMatrix::<f64>::from_rows(vec![vec![1.0, 2.0], vec![2.0, 4.0]]).unwrap();
         let solver = LUSolver::<f64>::new(SOLVER_TOLERANCE_F64);
         assert!(solver.decompose(&matrix).is_err());
     }
 
     #[test]
     fn test_lu_solver_2x2_f32() {
-        let matrix = vec![vec![2.0_f32, 1.0_f32], vec![1.0_f32, 3.0_f32]];
+        let matrix =
+            DynamicMatrix::<f32>::from_rows(vec![vec![2.0_f32, 1.0_f32], vec![1.0_f32, 3.0_f32]])
+                .unwrap();
         let rhs = vec![5.0_f32, 6.0_f32];
         let solver = LUSolver::<f32>::new(SOLVER_TOLERANCE_F32);
 

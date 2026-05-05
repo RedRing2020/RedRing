@@ -9,7 +9,7 @@ use crate::consts::numerical::{
     DERIVATIVE_ZERO_THRESHOLD_F32, DERIVATIVE_ZERO_THRESHOLD_F64, LINEAR_SOLVER_TOLERANCE_F32,
     LINEAR_SOLVER_TOLERANCE_F64,
 };
-use crate::linalg::{DynamicMatrix, DynamicMatrixLinearSolver, GaussianSolver, Vector};
+use crate::linalg::{DynamicMatrix, GaussianSolver, LinearSolver, Vector};
 use crate::Scalar;
 
 #[inline]
@@ -50,9 +50,9 @@ fn solve_linear_dynamic<T, S>(
 ) -> Option<Vector<T>>
 where
     T: Scalar,
-    S: DynamicMatrixLinearSolver<T>,
+    S: LinearSolver<T>,
 {
-    let solution = solver.solve_dynamic(jacobian, residual).ok()?;
+    let solution = solver.solve(jacobian, residual.data()).ok()?;
     if solution.solution.len() != residual.len() {
         return None;
     }
@@ -324,7 +324,7 @@ pub fn newton_solve_multivariate_with_solver<T, F, S>(
 where
     T: Scalar,
     F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
-    S: DynamicMatrixLinearSolver<T>,
+    S: LinearSolver<T>,
 {
     let mut current = initial;
 
@@ -383,7 +383,7 @@ pub fn newton_solve_multivariate_bounded_with_solver<T, F, S>(
 where
     T: Scalar,
     F: Fn(&Vector<T>) -> (Vector<T>, DynamicMatrix<T>),
-    S: DynamicMatrixLinearSolver<T>,
+    S: LinearSolver<T>,
 {
     let mut current = bounds.clamp(&initial).ok()?;
 

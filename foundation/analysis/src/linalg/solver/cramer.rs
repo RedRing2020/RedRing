@@ -4,6 +4,7 @@
 //! 行列式を直接計算して解を求める
 use super::{LinearSolver, SolutionInfo};
 use crate::abstract_types::Scalar;
+use crate::linalg::DynamicMatrix;
 use crate::linalg::{Matrix2x2, Matrix3x3, Vector2, Vector3};
 
 /// Cramerの公式ソルバー
@@ -86,14 +87,32 @@ impl<T: Scalar> CramerSolver<T> {
 }
 
 impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
-    fn solve(&self, matrix: &[Vec<T>], rhs: &[T]) -> Result<SolutionInfo<T>, String> {
-        let n = matrix.len();
+    fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
+        let n = matrix.rows();
+        if matrix.cols() != n {
+            return Err(format!(
+                "Cramer's rule requires a square matrix, got {}x{}",
+                n,
+                matrix.cols()
+            ));
+        }
+        if rhs.len() != n {
+            return Err(format!(
+                "RHS dimension mismatch: expected {}, got {}",
+                n,
+                rhs.len()
+            ));
+        }
 
         match n {
             2 => {
                 // 2x2の場合
-                let matrix_2x2 =
-                    Matrix2x2::new(matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1]);
+                let matrix_2x2 = Matrix2x2::new(
+                    matrix.get(0, 0),
+                    matrix.get(0, 1),
+                    matrix.get(1, 0),
+                    matrix.get(1, 1),
+                );
                 let rhs_2x2 = Vector2::new(rhs[0], rhs[1]);
 
                 let solution_vec = self.solve_2x2(&matrix_2x2, &rhs_2x2)?;
@@ -106,15 +125,15 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
             3 => {
                 // 3x3の場合
                 let matrix_3x3 = Matrix3x3::new(
-                    matrix[0][0],
-                    matrix[0][1],
-                    matrix[0][2],
-                    matrix[1][0],
-                    matrix[1][1],
-                    matrix[1][2],
-                    matrix[2][0],
-                    matrix[2][1],
-                    matrix[2][2],
+                    matrix.get(0, 0),
+                    matrix.get(0, 1),
+                    matrix.get(0, 2),
+                    matrix.get(1, 0),
+                    matrix.get(1, 1),
+                    matrix.get(1, 2),
+                    matrix.get(2, 0),
+                    matrix.get(2, 1),
+                    matrix.get(2, 2),
                 );
                 let rhs_3x3 = Vector3::new(rhs[0], rhs[1], rhs[2]);
 
@@ -132,15 +151,15 @@ impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
 
 impl<T: Scalar> CramerSolver<T> {
     /// 残差を計算
-    fn calculate_residual(&self, matrix: &[Vec<T>], rhs: &[T], solution: &[T]) -> T {
-        let n = matrix.len();
+    fn calculate_residual(&self, matrix: &DynamicMatrix<T>, rhs: &[T], solution: &[T]) -> T {
+        let n = matrix.rows();
         let mut residual = T::ZERO;
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             let mut sum = T::ZERO;
-            #[allow(clippy::needless_range_loop)]
             for j in 0..n {
-                sum += matrix[i][j] * solution[j];
+                sum += matrix.get(i, j) * solution[j];
             }
             let diff = sum - rhs[i];
             residual += diff * diff;
