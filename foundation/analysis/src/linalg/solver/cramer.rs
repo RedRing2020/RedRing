@@ -89,6 +89,20 @@ impl<T: Scalar> CramerSolver<T> {
 impl<T: Scalar> LinearSolver<T> for CramerSolver<T> {
     fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String> {
         let n = matrix.rows();
+        if matrix.cols() != n {
+            return Err(format!(
+                "Cramer's rule requires a square matrix, got {}x{}",
+                n,
+                matrix.cols()
+            ));
+        }
+        if rhs.len() != n {
+            return Err(format!(
+                "RHS dimension mismatch: expected {}, got {}",
+                n,
+                rhs.len()
+            ));
+        }
 
         match n {
             2 => {

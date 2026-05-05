@@ -1,6 +1,6 @@
 use crate::consts::test_constants::{SOLVER_TOLERANCE_F64, TOLERANCE_F64};
 use crate::linalg::solver::{CramerSolver, GaussianSolver, LUSolver, LinearSolver};
-use crate::linalg::{DynamicMatrix, Vector};
+use crate::linalg::DynamicMatrix;
 
 #[cfg(test)]
 mod tests {
@@ -143,11 +143,5 @@ mod tests {
         let solver = GaussianSolver::new(SOLVER_TOLERANCE_F64);
 
         assert!(solver.solve(&matrix, &rhs).is_err());
-    }
-
-    // Vector は引き続き他の用途で使用可能
-    #[allow(dead_code)]
-    fn _uses_vector() {
-        let _v = Vector::new(vec![1.0_f64, 2.0]);
     }
 }
