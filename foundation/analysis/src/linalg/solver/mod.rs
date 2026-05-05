@@ -81,7 +81,6 @@ impl<T: Scalar> SolutionInfo<T> {
 /// ソルバーの共通トレイト
 ///
 /// 数値安定性トレランス（特異性判定など）は各実装の内部責務とする。
-/// アプリケーショントレランスが必要な場合は専用の trait を別途使用すること。
 pub trait LinearSolver<T: Scalar> {
     /// 連立方程式 Ax = b を解く
     fn solve(&self, matrix: &DynamicMatrix<T>, rhs: &[T]) -> Result<SolutionInfo<T>, String>;

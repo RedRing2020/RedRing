@@ -786,7 +786,7 @@ pub struct MultivariateNewtonOptions<T: Scalar> {
 
 #### 推奨 API 形状
 
-```rust
+```text
 pub fn newton_solve_multivariate_bounded<T, F>(
 	system: F,
 	initial: Vector<T>,
