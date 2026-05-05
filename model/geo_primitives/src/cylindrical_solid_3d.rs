@@ -616,7 +616,7 @@ impl<T: Scalar> CylindricalSolid3DProjection<T> for CylindricalSolid3D<T> {
 impl<T: Scalar> BasicIntersection<T, InfiniteLine3D<T>> for CylindricalSolid3D<T> {
     type Point = (T, T, T);
 
-    fn intersection_with(&self, _other: &InfiniteLine3D<T>, _tolerance: T) -> Option<Self::Point> {
+    fn intersection_with(&self, _other: &InfiniteLine3D<T>) -> Option<Self::Point> {
         None
     }
 }

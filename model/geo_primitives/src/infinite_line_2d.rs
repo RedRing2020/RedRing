@@ -380,7 +380,7 @@ impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
 impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine2D<T> {
     type Point = (T, T);
 
-    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+    fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
         InfiniteLine2D::intersection(self, other).map(|point| (point.x(), point.y()))
     }
 }

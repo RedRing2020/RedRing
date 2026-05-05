@@ -538,9 +538,7 @@ impl<T: Scalar> CrossDistance<T, Self> for InfiniteLine3D<T> {
 impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine3D<T> {
     type Point = (T, T, T);
 
-    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
-        // NOTE: この実装は既存挙動維持のため内部の既定トレランス判定を使用する。
-        // `_tolerance` の設計見直しは別 Issue で扱う。
+    fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
         if self.is_parallel_to(other) {
             return None;
         }
@@ -565,9 +563,7 @@ impl<T: Scalar> BasicIntersection<T, Self> for InfiniteLine3D<T> {
 impl<T: Scalar> BasicIntersection<T, Plane3D<T>> for InfiniteLine3D<T> {
     type Point = (T, T, T);
 
-    fn intersection_with(&self, other: &Plane3D<T>, _tolerance: T) -> Option<Self::Point> {
-        // NOTE: この実装は既存挙動維持のため内部の既定トレランス判定を使用する。
-        // `_tolerance` の設計見直しは別 Issue で扱う。
+    fn intersection_with(&self, other: &Plane3D<T>) -> Option<Self::Point> {
         let plane_point = other.origin();
         let plane_normal = other.normal().as_vector();
         let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());

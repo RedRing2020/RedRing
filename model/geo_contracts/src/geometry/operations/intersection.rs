@@ -13,13 +13,15 @@ pub trait BasicIntersection<T: Scalar, Other> {
 
     /// 他のオブジェクトとの交点を取得
     ///
+    /// 数値安定性（平行判定・共面判定等）のトレランスは各実装が内部既定値を使用する。
+    /// アプリケーショントレランスが必要な場合は専用 trait を別途用意する。
+    ///
     /// # 引数
     /// * `other` - 交点を計算する相手オブジェクト
-    /// * `tolerance` - 計算精度の許容誤差
     ///
     /// # 戻り値
     /// 交点が存在する場合は `Some(point)`、存在しない場合は `None`
-    fn intersection_with(&self, other: &Other, tolerance: T) -> Option<Self::Point>;
+    fn intersection_with(&self, other: &Other) -> Option<Self::Point>;
 }
 
 /// 複数交点計算トレイト

@@ -432,7 +432,7 @@ impl<T: Scalar> Ray2DTransform<T> for Ray2D<T> {
 impl<T: Scalar> BasicIntersection<T, Self> for Ray2D<T> {
     type Point = (T, T);
 
-    fn intersection_with(&self, other: &Self, _tolerance: T) -> Option<Self::Point> {
+    fn intersection_with(&self, other: &Self) -> Option<Self::Point> {
         let this_dir = Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         let other_dir = Vector2D::new(
             other.direction_internal().x(),
