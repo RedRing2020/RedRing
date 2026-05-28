@@ -22,7 +22,7 @@ pub(crate) fn projection_matrix(
             let near = (distance * 0.01).max(0.001);
             let far = (distance * 100.0).min(1000.0);
 
-            tracing::warn!("⚠️ 透視投影が使用されています！ CAM可視化では平行投影を使用すべきです");
+            tracing::info!("透視投影を使用: CAM可視化では通常は平行投影を推奨");
 
             Matrix4x4::perspective_rh_01(45.0 * PI / 180.0, aspect, near, far).to_column_major()
         }

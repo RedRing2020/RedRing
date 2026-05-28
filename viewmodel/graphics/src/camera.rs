@@ -203,7 +203,7 @@ impl Camera {
     pub fn set_projection_mode(&mut self, mode: ProjectionMode) {
         let old_mode = self.projection_mode;
         self.projection_mode = mode;
-        tracing::warn!("🔄 投影モード変更: {:?} → {:?}", old_mode, mode);
+        tracing::info!("投影モード変更: {:?} → {:?}", old_mode, mode);
     }
 
     /// 直交投影モード時の表示範囲を設定
