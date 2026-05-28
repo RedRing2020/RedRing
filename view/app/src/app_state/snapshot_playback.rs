@@ -32,31 +32,6 @@ fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64
     index
 }
 
-fn is_non_decreasing(distances: &[f64]) -> bool {
-    distances
-        .windows(2)
-        .all(|pair| pair[0] <= pair[1] || (pair[0] - pair[1]).abs() <= f64::EPSILON)
-}
-
-fn select_nearest_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
-    distances
-        .iter()
-        .enumerate()
-        .min_by(|(left_index, left), (right_index, right)| {
-            let left_diff = (*left - target_distance).abs();
-            let right_diff = (*right - target_distance).abs();
-            match left_diff
-                .partial_cmp(&right_diff)
-                .unwrap_or(std::cmp::Ordering::Equal)
-            {
-                std::cmp::Ordering::Equal => left_index.cmp(right_index),
-                order => order,
-            }
-        })
-        .map(|(index, _)| index)
-        .unwrap_or(0)
-}
-
 fn build_segment_weighted_progress_axis(
     frames: &[viewmodel::snapshot_converter::DomainSnapshotFrame<
         viewmodel::snapshot_converter::CamSimulationSnapshotInput,
@@ -125,18 +100,15 @@ impl AppState {
     pub(super) fn rebuild_snapshot_weighted_progress_axis_cache(&mut self) {
         let Some(series) = &self.debug_snapshot.series else {
             self.debug_snapshot.weighted_progress_axis = None;
-            self.debug_snapshot.weighted_progress_axis_is_non_decreasing = true;
             return;
         };
 
         if series.frames.is_empty() {
             self.debug_snapshot.weighted_progress_axis = None;
-            self.debug_snapshot.weighted_progress_axis_is_non_decreasing = true;
             return;
         }
 
         let axis = build_segment_weighted_progress_axis(&series.frames);
-        self.debug_snapshot.weighted_progress_axis_is_non_decreasing = is_non_decreasing(&axis);
         self.debug_snapshot.weighted_progress_axis = Some(axis);
     }
 
@@ -540,15 +512,7 @@ impl AppState {
         }
 
         let target_progress = progress.clamp(0.0, 1.0);
-        if self.debug_snapshot.weighted_progress_axis_is_non_decreasing {
-            return Some(select_frame_index_by_distance_target(axis, target_progress));
-        }
-
-        // Guard path: if axis is non-monotonic, lower-bound is invalid.
-        Some(select_nearest_frame_index_by_distance_target(
-            axis,
-            target_progress,
-        ))
+        Some(select_frame_index_by_distance_target(axis, target_progress))
     }
 
     fn set_snapshot_cursor_from_progress(&mut self, progress: f64, emit_log: bool) {
