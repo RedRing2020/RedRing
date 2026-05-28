@@ -9,6 +9,53 @@ const AUTO_PLAY_BASE_DURATION_SEC: f64 = 12.0;
 const PLAYBACK_SPEED_MIN: f64 = 0.1;
 const PLAYBACK_SPEED_MAX: f64 = 10.0;
 
+fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
+    if distances.len() <= 1 {
+        return 0;
+    }
+
+    // Lower-bound keeps cursor progression monotonic during auto playback.
+    let mut index = distances.partition_point(|distance| *distance < target_distance);
+    if index >= distances.len() {
+        return distances.len() - 1;
+    }
+
+    // If duplicated distances exist, pick the last duplicate to avoid visual stalls.
+    let selected_distance = distances[index];
+    while index + 1 < distances.len()
+        && (distances[index + 1] - selected_distance).abs() <= f64::EPSILON
+    {
+        index += 1;
+    }
+
+    index
+}
+
+fn is_non_decreasing(distances: &[f64]) -> bool {
+    distances
+        .windows(2)
+        .all(|pair| pair[0] <= pair[1] || (pair[0] - pair[1]).abs() <= f64::EPSILON)
+}
+
+fn select_nearest_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
+    distances
+        .iter()
+        .enumerate()
+        .min_by(|(left_index, left), (right_index, right)| {
+            let left_diff = (*left - target_distance).abs();
+            let right_diff = (*right - target_distance).abs();
+            match left_diff
+                .partial_cmp(&right_diff)
+                .unwrap_or(std::cmp::Ordering::Equal)
+            {
+                std::cmp::Ordering::Equal => left_index.cmp(right_index),
+                order => order,
+            }
+        })
+        .map(|(index, _)| index)
+        .unwrap_or(0)
+}
+
 impl AppState {
     /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
     pub fn load_debug_simulation_snapshots(&mut self) {
@@ -185,6 +232,13 @@ impl AppState {
         }
 
         if reached_end {
+            if let Some(series) = &self.debug_snapshot.series {
+                if !series.frames.is_empty() {
+                    self.debug_snapshot.cursor = series.frames.len() - 1;
+                    self.debug_snapshot.frame_update_required = true;
+                    self.sync_snapshot_visual_frame();
+                }
+            }
             self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Paused;
             self.debug_snapshot.last_playback_tick = None;
             self.refresh_snapshot_window_title();
@@ -317,12 +371,10 @@ impl AppState {
 
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {
         self.debug_snapshot.series.as_ref()?;
-        if self.debug_snapshot.playback_mode == SnapshotPlaybackMode::Manual {
-            return self
-                .snapshot_distance_progress_from_cursor()
-                .map(|p| p as f32);
-        }
-        Some(self.debug_snapshot.playback_progress as f32)
+        // Keep overlay in sync with the currently displayed frame.
+        self.snapshot_distance_progress_from_cursor()
+            .map(|p| p as f32)
+            .or(Some(self.debug_snapshot.playback_progress as f32))
     }
 
     fn snapshot_track_rect(&self) -> SelectionRect {
@@ -387,7 +439,10 @@ impl AppState {
         let (min_distance, max_distance) = self.snapshot_distance_bounds()?;
         let span = max_distance - min_distance;
         if span.abs() < f64::EPSILON {
-            return Some(1.0);
+            if series.frames.len() <= 1 {
+                return Some(1.0);
+            }
+            return Some(index as f64 / (series.frames.len() as f64 - 1.0));
         }
         Some(((distance - min_distance) / span).clamp(0.0, 1.0))
     }
@@ -410,17 +465,23 @@ impl AppState {
         }
 
         let target_distance = min_distance + span * progress.clamp(0.0, 1.0);
-        let mut best_index = 0usize;
-        let mut best_diff = f64::INFINITY;
-
-        for (index, frame) in series.frames.iter().enumerate() {
-            let diff = (frame.payload.accumulated_distance_mm - target_distance).abs();
-            if diff < best_diff {
-                best_diff = diff;
-                best_index = index;
-            }
+        let distances: Vec<f64> = series
+            .frames
+            .iter()
+            .map(|frame| frame.payload.accumulated_distance_mm)
+            .collect();
+        if is_non_decreasing(&distances) {
+            return Some(select_frame_index_by_distance_target(
+                &distances,
+                target_distance,
+            ));
         }
-        Some(best_index)
+
+        // Guard path: if distances are non-monotonic, lower-bound is invalid.
+        Some(select_nearest_frame_index_by_distance_target(
+            &distances,
+            target_distance,
+        ))
     }
 
     fn set_snapshot_cursor_from_progress(&mut self, progress: f64, emit_log: bool) {
