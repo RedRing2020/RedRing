@@ -274,7 +274,7 @@ fn collect_simulation_line_segments_with_flags(
 ) -> Result<Vec<(LineSegment3D<f64>, bool)>, SimulationError> {
     Ok(collect_toolpath_line_segments_with_arc_options(
         toolpath,
-        CircularArcPolylineOptions::default(),
+        CircularArcPolylineOptions::simulation_default(),
     ))
 }
 
