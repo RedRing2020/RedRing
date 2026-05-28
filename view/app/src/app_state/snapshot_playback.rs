@@ -8,6 +8,7 @@ use std::time::Instant;
 const AUTO_PLAY_BASE_DURATION_SEC: f64 = 12.0;
 const PLAYBACK_SPEED_MIN: f64 = 0.1;
 const PLAYBACK_SPEED_MAX: f64 = 10.0;
+const SEGMENT_WEIGHT_RATIO: f64 = 0.5;
 
 fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
     if distances.len() <= 1 {
@@ -31,38 +32,93 @@ fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64
     index
 }
 
-fn is_non_decreasing(distances: &[f64]) -> bool {
-    distances
-        .windows(2)
-        .all(|pair| pair[0] <= pair[1] || (pair[0] - pair[1]).abs() <= f64::EPSILON)
-}
+fn build_segment_weighted_progress_axis(
+    frames: &[viewmodel::snapshot_converter::DomainSnapshotFrame<
+        viewmodel::snapshot_converter::CamSimulationSnapshotInput,
+    >],
+) -> Vec<f64> {
+    if frames.is_empty() {
+        return Vec::new();
+    }
+    if frames.len() == 1 {
+        return vec![1.0];
+    }
 
-fn select_nearest_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
-    distances
-        .iter()
-        .enumerate()
-        .min_by(|(left_index, left), (right_index, right)| {
-            let left_diff = (*left - target_distance).abs();
-            let right_diff = (*right - target_distance).abs();
-            match left_diff
-                .partial_cmp(&right_diff)
-                .unwrap_or(std::cmp::Ordering::Equal)
-            {
-                std::cmp::Ordering::Equal => left_index.cmp(right_index),
-                order => order,
-            }
-        })
-        .map(|(index, _)| index)
-        .unwrap_or(0)
+    let mut distance_deltas = Vec::with_capacity(frames.len().saturating_sub(1));
+    let mut segment_deltas = Vec::with_capacity(frames.len().saturating_sub(1));
+    let mut positive_distance_sum = 0.0;
+    let mut positive_count = 0usize;
+    for pair in frames.windows(2) {
+        let prev = pair[0].payload;
+        let curr = pair[1].payload;
+
+        let distance_delta = (curr.accumulated_distance_mm - prev.accumulated_distance_mm).max(0.0);
+        if distance_delta > f64::EPSILON {
+            positive_distance_sum += distance_delta;
+            positive_count += 1;
+        }
+
+        let prev_segment_pos = prev.segment_index as f64 + prev.segment_t.clamp(0.0, 1.0);
+        let curr_segment_pos = curr.segment_index as f64 + curr.segment_t.clamp(0.0, 1.0);
+        let segment_delta = (curr_segment_pos - prev_segment_pos).max(0.0);
+
+        distance_deltas.push(distance_delta);
+        segment_deltas.push(segment_delta);
+    }
+
+    let mean_positive_distance_delta = if positive_count == 0 {
+        0.0
+    } else {
+        positive_distance_sum / positive_count as f64
+    };
+
+    let segment_weight_mm = mean_positive_distance_delta * SEGMENT_WEIGHT_RATIO;
+    let mut cumulative = Vec::with_capacity(frames.len());
+    cumulative.push(0.0);
+    let mut running = 0.0;
+
+    for (distance_delta, segment_delta) in distance_deltas.into_iter().zip(segment_deltas) {
+        // Segment progression adds a small contribution to smooth perceived speed near boundaries.
+        let weighted_delta = distance_delta + segment_weight_mm * segment_delta;
+        running += weighted_delta;
+        cumulative.push(running);
+    }
+
+    if running.abs() <= f64::EPSILON {
+        return (0..frames.len())
+            .map(|index| index as f64 / (frames.len() as f64 - 1.0))
+            .collect();
+    }
+
+    cumulative
+        .into_iter()
+        .map(|value| value / running)
+        .collect()
 }
 
 impl AppState {
+    pub(super) fn rebuild_snapshot_weighted_progress_axis_cache(&mut self) {
+        let Some(series) = &self.debug_snapshot.series else {
+            self.debug_snapshot.weighted_progress_axis = None;
+            return;
+        };
+
+        if series.frames.is_empty() {
+            self.debug_snapshot.weighted_progress_axis = None;
+            return;
+        }
+
+        let axis = build_segment_weighted_progress_axis(&series.frames);
+        self.debug_snapshot.weighted_progress_axis = Some(axis);
+    }
+
     /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
     pub fn load_debug_simulation_snapshots(&mut self) {
         match viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series() {
             Ok(series) => {
                 let frame_count = series.frames.len();
                 self.debug_snapshot.series = Some(series);
+                self.rebuild_snapshot_weighted_progress_axis_cache();
                 self.debug_snapshot.wireframes = None;
                 self.debug_snapshot.solids = None;
                 self.debug_snapshot.toolpath_lines = None;
@@ -372,7 +428,7 @@ impl AppState {
     pub(super) fn snapshot_progress_ratio(&self) -> Option<f32> {
         self.debug_snapshot.series.as_ref()?;
         // Keep overlay in sync with the currently displayed frame.
-        self.snapshot_distance_progress_from_cursor()
+        self.snapshot_weighted_progress_from_cursor()
             .map(|p| p as f32)
             .or(Some(self.debug_snapshot.playback_progress as f32))
     }
@@ -397,7 +453,7 @@ impl AppState {
         self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
         let rect = self.snapshot_track_rect();
         let progress = ((x - rect.x) / rect.width).clamp(0.0, 1.0) as f64;
-        let next_index = self.index_from_distance_progress(progress).unwrap_or(0);
+        let next_index = self.index_from_progress(progress).unwrap_or(0);
 
         if next_index != self.debug_snapshot.cursor {
             self.debug_snapshot.cursor = next_index;
@@ -419,35 +475,29 @@ impl AppState {
         }
     }
 
-    fn snapshot_distance_bounds(&self) -> Option<(f64, f64)> {
-        let series = self.debug_snapshot.series.as_ref()?;
-        let first = series.frames.first()?.payload.accumulated_distance_mm;
-        let last = series.frames.last()?.payload.accumulated_distance_mm;
-        Some((first, last))
+    fn snapshot_weighted_progress_axis(&self) -> Option<&[f64]> {
+        self.debug_snapshot.weighted_progress_axis.as_deref()
     }
 
-    fn snapshot_distance_progress_from_cursor(&self) -> Option<f64> {
+    fn snapshot_weighted_progress_from_cursor(&self) -> Option<f64> {
         let series = self.debug_snapshot.series.as_ref()?;
         if series.frames.is_empty() {
+            return None;
+        }
+        let axis = self.snapshot_weighted_progress_axis()?;
+        if axis.is_empty() {
             return None;
         }
         let index = self
             .debug_snapshot
             .cursor
             .min(series.frames.len().saturating_sub(1));
-        let distance = series.frames.get(index)?.payload.accumulated_distance_mm;
-        let (min_distance, max_distance) = self.snapshot_distance_bounds()?;
-        let span = max_distance - min_distance;
-        if span.abs() < f64::EPSILON {
-            if series.frames.len() <= 1 {
-                return Some(1.0);
-            }
-            return Some(index as f64 / (series.frames.len() as f64 - 1.0));
-        }
-        Some(((distance - min_distance) / span).clamp(0.0, 1.0))
+        axis.get(index)
+            .copied()
+            .map(|progress| progress.clamp(0.0, 1.0))
     }
 
-    fn index_from_distance_progress(&self, progress: f64) -> Option<usize> {
+    fn index_from_progress(&self, progress: f64) -> Option<usize> {
         let series = self.debug_snapshot.series.as_ref()?;
         if series.frames.is_empty() {
             return None;
@@ -456,38 +506,18 @@ impl AppState {
             return Some(0);
         }
 
-        let (min_distance, max_distance) = self.snapshot_distance_bounds()?;
-        let span = max_distance - min_distance;
-        if span.abs() < f64::EPSILON {
-            return Some(
-                (progress.clamp(0.0, 1.0) * (series.frames.len() as f64 - 1.0)).round() as usize,
-            );
+        let axis = self.snapshot_weighted_progress_axis()?;
+        if axis.is_empty() {
+            return None;
         }
 
-        let target_distance = min_distance + span * progress.clamp(0.0, 1.0);
-        let distances: Vec<f64> = series
-            .frames
-            .iter()
-            .map(|frame| frame.payload.accumulated_distance_mm)
-            .collect();
-        if is_non_decreasing(&distances) {
-            return Some(select_frame_index_by_distance_target(
-                &distances,
-                target_distance,
-            ));
-        }
-
-        // Guard path: if distances are non-monotonic, lower-bound is invalid.
-        Some(select_nearest_frame_index_by_distance_target(
-            &distances,
-            target_distance,
-        ))
+        let target_progress = progress.clamp(0.0, 1.0);
+        Some(select_frame_index_by_distance_target(axis, target_progress))
     }
 
     fn set_snapshot_cursor_from_progress(&mut self, progress: f64, emit_log: bool) {
         self.debug_snapshot.playback_progress = progress.clamp(0.0, 1.0);
-        let Some(next_index) =
-            self.index_from_distance_progress(self.debug_snapshot.playback_progress)
+        let Some(next_index) = self.index_from_progress(self.debug_snapshot.playback_progress)
         else {
             return;
         };
@@ -502,7 +532,7 @@ impl AppState {
     }
 
     fn sync_playback_progress_from_cursor(&mut self) {
-        if let Some(progress) = self.snapshot_distance_progress_from_cursor() {
+        if let Some(progress) = self.snapshot_weighted_progress_from_cursor() {
             self.debug_snapshot.playback_progress = progress;
         }
     }

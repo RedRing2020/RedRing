@@ -103,6 +103,7 @@ impl AppState {
         let stage_wireframes = data.snapshot_wireframes.clone();
 
         self.debug_snapshot.series = Some(data.snapshot_series);
+        self.rebuild_snapshot_weighted_progress_axis_cache();
         self.debug_snapshot.wireframes = Some(data.snapshot_wireframes);
         self.debug_snapshot.solids = Some(data.snapshot_solids);
         self.debug_snapshot.toolpath_lines = Some(data.toolpath_lines);
