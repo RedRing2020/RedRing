@@ -13,6 +13,8 @@ pub(super) enum SnapshotPlaybackMode {
 
 pub(super) struct DebugSnapshotState {
     pub(super) series: Option<DomainSnapshotSeries<CamSimulationSnapshotInput>>,
+    pub(super) weighted_progress_axis: Option<Vec<f64>>,
+    pub(super) weighted_progress_axis_is_non_decreasing: bool,
     pub(super) wireframes: Option<Vec<Vec<WireframeVertex>>>,
     pub(super) solids: Option<Vec<(Vec<MeshVertex>, Vec<u32>)>>,
     pub(super) toolpath_lines: Option<Vec<MeshVertex>>,
@@ -30,6 +32,8 @@ impl Default for DebugSnapshotState {
     fn default() -> Self {
         Self {
             series: None,
+            weighted_progress_axis: None,
+            weighted_progress_axis_is_non_decreasing: true,
             wireframes: None,
             solids: None,
             toolpath_lines: None,
@@ -48,6 +52,8 @@ impl Default for DebugSnapshotState {
 impl DebugSnapshotState {
     pub(super) fn clear(&mut self) {
         self.series = None;
+        self.weighted_progress_axis = None;
+        self.weighted_progress_axis_is_non_decreasing = true;
         self.wireframes = None;
         self.solids = None;
         self.toolpath_lines = None;

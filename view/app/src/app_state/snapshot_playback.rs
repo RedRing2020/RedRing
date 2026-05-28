@@ -70,24 +70,31 @@ fn build_segment_weighted_progress_axis(
     }
 
     let mut distance_deltas = Vec::with_capacity(frames.len().saturating_sub(1));
+    let mut segment_deltas = Vec::with_capacity(frames.len().saturating_sub(1));
+    let mut positive_distance_sum = 0.0;
+    let mut positive_count = 0usize;
     for pair in frames.windows(2) {
-        let prev = pair[0].payload.accumulated_distance_mm;
-        let curr = pair[1].payload.accumulated_distance_mm;
-        distance_deltas.push((curr - prev).max(0.0));
+        let prev = pair[0].payload;
+        let curr = pair[1].payload;
+
+        let distance_delta = (curr.accumulated_distance_mm - prev.accumulated_distance_mm).max(0.0);
+        if distance_delta > f64::EPSILON {
+            positive_distance_sum += distance_delta;
+            positive_count += 1;
+        }
+
+        let prev_segment_pos = prev.segment_index as f64 + prev.segment_t.clamp(0.0, 1.0);
+        let curr_segment_pos = curr.segment_index as f64 + curr.segment_t.clamp(0.0, 1.0);
+        let segment_delta = (curr_segment_pos - prev_segment_pos).max(0.0);
+
+        distance_deltas.push(distance_delta);
+        segment_deltas.push(segment_delta);
     }
 
-    let positive_count = distance_deltas
-        .iter()
-        .filter(|delta| **delta > f64::EPSILON)
-        .count();
     let mean_positive_distance_delta = if positive_count == 0 {
         0.0
     } else {
-        distance_deltas
-            .iter()
-            .filter(|delta| **delta > f64::EPSILON)
-            .sum::<f64>()
-            / positive_count as f64
+        positive_distance_sum / positive_count as f64
     };
 
     let segment_weight_mm = mean_positive_distance_delta * SEGMENT_WEIGHT_RATIO;
@@ -95,15 +102,7 @@ fn build_segment_weighted_progress_axis(
     cumulative.push(0.0);
     let mut running = 0.0;
 
-    for pair in frames.windows(2) {
-        let prev = pair[0].payload;
-        let curr = pair[1].payload;
-
-        let distance_delta = (curr.accumulated_distance_mm - prev.accumulated_distance_mm).max(0.0);
-        let prev_segment_pos = prev.segment_index as f64 + prev.segment_t.clamp(0.0, 1.0);
-        let curr_segment_pos = curr.segment_index as f64 + curr.segment_t.clamp(0.0, 1.0);
-        let segment_delta = (curr_segment_pos - prev_segment_pos).max(0.0);
-
+    for (distance_delta, segment_delta) in distance_deltas.into_iter().zip(segment_deltas) {
         // Segment progression adds a small contribution to smooth perceived speed near boundaries.
         let weighted_delta = distance_delta + segment_weight_mm * segment_delta;
         running += weighted_delta;
@@ -123,12 +122,31 @@ fn build_segment_weighted_progress_axis(
 }
 
 impl AppState {
+    pub(super) fn rebuild_snapshot_weighted_progress_axis_cache(&mut self) {
+        let Some(series) = &self.debug_snapshot.series else {
+            self.debug_snapshot.weighted_progress_axis = None;
+            self.debug_snapshot.weighted_progress_axis_is_non_decreasing = true;
+            return;
+        };
+
+        if series.frames.is_empty() {
+            self.debug_snapshot.weighted_progress_axis = None;
+            self.debug_snapshot.weighted_progress_axis_is_non_decreasing = true;
+            return;
+        }
+
+        let axis = build_segment_weighted_progress_axis(&series.frames);
+        self.debug_snapshot.weighted_progress_axis_is_non_decreasing = is_non_decreasing(&axis);
+        self.debug_snapshot.weighted_progress_axis = Some(axis);
+    }
+
     /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
     pub fn load_debug_simulation_snapshots(&mut self) {
         match viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series() {
             Ok(series) => {
                 let frame_count = series.frames.len();
                 self.debug_snapshot.series = Some(series);
+                self.rebuild_snapshot_weighted_progress_axis_cache();
                 self.debug_snapshot.wireframes = None;
                 self.debug_snapshot.solids = None;
                 self.debug_snapshot.toolpath_lines = None;
@@ -485,12 +503,8 @@ impl AppState {
         }
     }
 
-    fn snapshot_weighted_progress_axis(&self) -> Option<Vec<f64>> {
-        let series = self.debug_snapshot.series.as_ref()?;
-        if series.frames.is_empty() {
-            return None;
-        }
-        Some(build_segment_weighted_progress_axis(&series.frames))
+    fn snapshot_weighted_progress_axis(&self) -> Option<&[f64]> {
+        self.debug_snapshot.weighted_progress_axis.as_deref()
     }
 
     fn snapshot_weighted_progress_from_cursor(&self) -> Option<f64> {
@@ -526,16 +540,13 @@ impl AppState {
         }
 
         let target_progress = progress.clamp(0.0, 1.0);
-        if is_non_decreasing(&axis) {
-            return Some(select_frame_index_by_distance_target(
-                &axis,
-                target_progress,
-            ));
+        if self.debug_snapshot.weighted_progress_axis_is_non_decreasing {
+            return Some(select_frame_index_by_distance_target(axis, target_progress));
         }
 
         // Guard path: if axis is non-monotonic, lower-bound is invalid.
         Some(select_nearest_frame_index_by_distance_target(
-            &axis,
+            axis,
             target_progress,
         ))
     }
