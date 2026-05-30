@@ -4,11 +4,10 @@
 //! 可視化に必要な ViewModel データ（wireframe + snapshot）の結合を担当します。
 
 use application::cam_orchestration::{
-    build_demo_artifacts_for_cam_simulation, compute_toolpath_work_bounds,
-    count_non_cutting_interference_segments, AddToolToEntityStorageRequest, ApplicationError,
-    CamSimulationExecutionOrchestration, CamSimulationExecutionOrchestrator,
-    CamSimulationExecutionRequest, ToolEntityManagementOrchestration,
-    ToolEntityManagementOrchestrator,
+    compute_toolpath_work_bounds, count_non_cutting_interference_segments,
+    AddToolToEntityStorageRequest, ApplicationError, CamSimulationExecutionOrchestration,
+    CamSimulationExecutionOrchestrator, CamSimulationExecutionRequest,
+    ToolEntityManagementOrchestration, ToolEntityManagementOrchestrator,
 };
 use cam_core::{
     validate_toolpath_machine_constraints, CamTolerance, MachineConstraint, Tool, ToolPath,
@@ -22,6 +21,7 @@ use geo_algorithms::{
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 
+use crate::cam_sim_demo::build_demo_artifacts_for_cam_simulation;
 use crate::mesh_converter::VertexData;
 use crate::octree_converter::{
     voxel_octree_to_wireframe, OctreeVisualizationSettings, VoxelVisualizationOptions,
@@ -34,7 +34,7 @@ use crate::snapshot_converter::{
 use crate::toolpath_converter::{toolpath_to_vertices, ToolPathVisualizationSettings};
 use logging_foundation::ERROR_KIND_SIMULATION;
 
-pub use application::cam_orchestration::CamSimulationDemoScenario;
+pub use crate::cam_sim_demo::CamSimulationDemoScenario;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CamSimulationVisualizationError {

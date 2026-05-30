@@ -4,11 +4,10 @@
 //! ドメイン固有情報は `payload` に閉じ込め、CAM以外（例: プレス）にも
 //! 同じ構造で適用できることを目的とします。
 
-use application::cam_orchestration::{
-    create_demo_snapshot_exports_for_scenario, create_snapshot_series_from_exports,
-    ApplicationError, CamSimulationDemoScenario,
-};
+use application::cam_orchestration::{create_snapshot_series_from_exports, ApplicationError};
 use cam_sim::SimulationSnapshotExport;
+
+use crate::cam_sim_demo::{create_demo_snapshot_exports_for_scenario, CamSimulationDemoScenario};
 
 /// 3D姿勢情報（位置 + 任意の姿勢）
 #[derive(Debug, Clone, Copy, PartialEq)]
