@@ -147,38 +147,6 @@ impl AppState {
         self.debug_snapshot.weighted_progress_axis = Some(axis);
     }
 
-    /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
-    pub fn load_debug_simulation_snapshots(&mut self) {
-        match cam_demo::load_demo_cam_snapshot_domain_series() {
-            Ok(series) => {
-                let frame_count = series.frames.len();
-                self.debug_snapshot.series = Some(series);
-                self.rebuild_snapshot_weighted_progress_axis_cache();
-                self.debug_snapshot.wireframes = None;
-                self.debug_snapshot.solids = None;
-                self.debug_snapshot.toolpath_lines = None;
-                self.debug_snapshot.tool_lines = None;
-                self.debug_snapshot.shaded_mode = false;
-                self.debug_snapshot.cursor = 0;
-                self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
-                self.debug_snapshot.playback_progress = 0.0;
-                self.debug_snapshot.last_playback_tick = None;
-                tracing::info!(
-                    "シミュレーションスナップショット読込完了: {} フレーム",
-                    frame_count
-                );
-                self.log_current_snapshot_frame(true);
-            }
-            Err(error) => {
-                tracing::error!(
-                    error_kind = logging_foundation::ERROR_KIND_SIMULATION,
-                    "cam simulation snapshot load failed: {}",
-                    error
-                );
-            }
-        }
-    }
-
     /// デバッグ用: 次フレームへ進めて内容をログ表示
     pub fn cycle_debug_simulation_snapshot(&mut self) {
         if !self.ensure_snapshot_series_ready("k") {
