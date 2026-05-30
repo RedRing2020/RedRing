@@ -113,7 +113,7 @@ $ARCH_FORBIDDEN_DEPS = @{
         "stage",
         "app"
     );
-    cam_demo       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "job_runtime", "job_domain", "graphics", "render", "stage", "app")
+    cam_demo       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "job_runtime", "job_domain", "graphics", "render", "stage", "app")
     graphics       = @("render", "stage", "app")
     render         = @("geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
     stage          = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
