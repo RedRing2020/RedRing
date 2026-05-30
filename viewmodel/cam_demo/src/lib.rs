@@ -124,3 +124,58 @@ pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
         input,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cam_core::ToolType;
+    use geo_algorithms::octree::OctreeTolerance;
+
+    fn default_octree_settings() -> OctreeVisualizationSettings {
+        OctreeVisualizationSettings {
+            max_depth: 3,
+            gradient_start: [0.2, 1.0, 1.0],
+            gradient_end: [1.0, 0.4, 0.4],
+            octree_tolerance: OctreeTolerance::default(),
+        }
+    }
+
+    #[test]
+    fn test_build_demo_artifacts_success_scenario_mappings() {
+        let success = build_demo_artifacts_for_cam_simulation(CamSimulationDemoScenario::Success);
+        let success_flat =
+            build_demo_artifacts_for_cam_simulation(CamSimulationDemoScenario::SuccessFlatEndMill);
+        let failure_empty = build_demo_artifacts_for_cam_simulation(
+            CamSimulationDemoScenario::FailureEmptyToolpath,
+        );
+
+        assert_eq!(success.output_index, 0);
+        assert_eq!(success.tool.tool_type, ToolType::BallEndMill);
+        assert!(success.toolpath.total_segments() > 0);
+
+        assert_eq!(success_flat.output_index, 2);
+        assert_eq!(success_flat.tool.tool_type, ToolType::FlatEndMill);
+        assert!(success_flat.toolpath.total_segments() > 0);
+
+        assert_eq!(failure_empty.output_index, 1);
+        assert_eq!(failure_empty.tool.tool_type, ToolType::BallEndMill);
+        assert_eq!(failure_empty.toolpath.total_segments(), 0);
+    }
+
+    #[test]
+    fn test_build_demo_cam_simulation_visualization_bundle_failure_empty_toolpath() {
+        let result = build_demo_cam_simulation_visualization_bundle_with_tool_settings(
+            &default_octree_settings(),
+            &ToolWireframeVisualizationSettings::default(),
+            &ToolPathVisualizationSettings::default(),
+            CamSimulationDemoScenario::FailureEmptyToolpath,
+        );
+
+        assert!(matches!(
+            result,
+            Err(CamSimulationVisualizationError::Application(
+                ApplicationError::Simulation(_)
+            ))
+        ));
+    }
+}
