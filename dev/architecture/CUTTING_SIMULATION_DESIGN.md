@@ -1,9 +1,9 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年4月3日  
+**最終更新**: 2026年5月30日  
 **ステータス**: 設計・段階実装中  
-**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246)
+**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716)
 
 ---
 
@@ -131,6 +131,105 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 ---
 
 ## 実装計画
+
+### Issue #716: 本番導線の入力前提条件整理
+
+#### 目的
+
+- 切削シミュレーションを「実行してよい状態」と「実行してはいけない状態」に明確に分離する
+- 入力の出自（CAM由来 / NC由来）ではなく、切削条件の充足可否で実行判定する
+- ポスト設定で付与される加工条件の欠落を、実行前に検出して拒否できるようにする
+
+#### 前提方針
+
+- 本番導線の受理判定は、入力データの名称や由来ではなく、前提条件の充足で判定する
+- 「NC読み込み後に整備された経路」も受理対象に含めるが、切削条件が欠落していれば拒否する
+- 回避高さ、速度設定、工具系情報、機械制約など、実加工条件に関わる情報を前提条件に含める
+
+#### 実行前Preflight判定
+
+判定結果は次の3値で扱う。
+
+- `ReadyStrict`: 本番実行可（必要条件を全て満たす）
+- `NotReady`: 本番実行不可（必須条件不足）
+- `InvalidInput`: 入力契約違反（artifact契約不一致、破損など）
+
+備考: 現時点では、本番導線での警告付き実行（条件不足のまま継続）は採用しない。
+
+#### 必須受理条件（満たさない場合は実行拒否）
+
+- artifact契約が `toolpath` と一致する（kind/version/破損検証を含む）
+- ToolPathが空ではない
+- 切削セグメントが1件以上ある
+- 工具参照情報が解決可能である
+- 回避高さや速度設定など、ポスト由来の加工条件が必要項目として存在する
+- 機械制約と整合する（機械制約未設定の場合は本番導線では不許可）
+
+#### 非対象（本セクションで固定しないもの）
+
+- 高度干渉判定（工具/ホルダ/製品形状の厳密判定）
+- UI表現や操作導線の詳細
+- 5軸姿勢補間の高度制約
+
+#### 設計決定
+
+- 切削シミュレーションは「切削条件成立済みの経路のみ」を本番導線で受理する
+- 条件欠落の経路に対しては、実行して推定結果を出す運用を行わない
+- 欠落時は Preflight の失敗理由を明示して返し、設定補完後の再実行を要求する
+
+#### Phase 1着手条件（Issue #717 連携）
+
+- `job_adapter` の mock 読み取り経路を本番経路から分離する
+- 上記 Preflight 判定を `CuttingSimulation` 実行前に必ず通す
+- 失敗理由を `JobExecutionResult.error` で区別可能に返す
+- 正常系/異常系（kind mismatch, version mismatch, 条件欠落）をE2Eテストで固定する
+
+#### 詳細設計: View起点の正導線
+
+本節では、View から開始する呼び出し経路を「本番の正導線」として固定する。
+
+#### 正導線（本番）
+
+1. View はユーザー操作を受け、Job投入要求を作成する
+2. ViewModel は入力DTOを組み立て、Applicationの job orchestration に委譲する
+3. Application は workflow 制約（親子関係、重複禁止）を検証して `CuttingSimulation` を投入する
+4. cam_sim は Preflight（入力契約・切削条件充足）を通過した入力のみ実行する
+5. 実行結果は artifact として返却し、ViewModel は可視化DTOへ変換して View へ返す
+
+責務境界（固定）:
+
+- View は `cam_sim` 実装へ直接依存しない
+- View は demo用ロード関数を本番フローで使用しない
+- ViewModel は本番フローで demo fixture を生成しない
+
+#### 現行デモ導線（開発検証限定）
+
+現時点の実装には、次のデモ限定導線が存在する。
+
+- `view/app/src/app_state/input_actions.rs`
+   - `Shift+B` / `Shift+F` からデモ可視化を起動
+- `view/app/src/app_state/debug_scene/toolpath.rs`
+   - `build_demo_cam_simulation_visualization_bundle_with_tool_settings` を呼び出す
+- `view/app/src/app_state/snapshot_playback.rs`
+   - `load_demo_cam_snapshot_domain_series` を呼び出す
+
+この経路は検証目的に限定し、本番導線の正本として扱わない。
+
+#### 禁止経路（本番）
+
+- View から `viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series` を本番導線で呼び出すこと
+- View から `viewmodel::cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle_with_tool_settings` を本番導線で呼び出すこと
+- `job_adapter` 内の mock artifact 経路を本番導線に残すこと
+
+#### 分離完了条件（DoD）
+
+- View起点の切削シミュレーション実行は、本番導線1経路（View -> ViewModel -> Application -> cam_sim）に統一されている
+- デモ起動UI（Shift+B/Shift+F 等）は残してよいが、内部実行は本番導線を再利用し、デモ専用の実行経路を持たない
+- `viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series` と `viewmodel::cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle_with_tool_settings` は本番コードパスから参照されない
+- `model/cam_sim/src/job_adapter.rs` の mock artifact 読み取りは、本番実行経路から除外されている（test/debug 限定に隔離されている）
+- Preflight失敗時に、Viewで再設定すべき不足条件（例: 回避高さ、速度設定、工具条件、機械制約）が識別できるエラー情報を受け取れる
+- E2Eで次の3系統が固定されている: 本番成功、入力契約違反（kind/version/破損）、条件欠落（NotReady）
+- デモ用データ作成コードは本体機能コードから分離され、責務境界が文書化されている
 
 ### 現在地（2026年3月31日時点）
 
@@ -542,6 +641,8 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 
 | 日付 | 変更内容 | 担当 |
 |------|---------|------|
+| 2026-05-30 | Issue #716 反映: View起点の正導線（本番）とデモ限定導線、禁止経路を追記 | AI開発者 |
+| 2026-05-30 | Issue #716 反映: 本番導線の入力前提条件（ポスト由来条件を含む）を追記 | AI開発者 |
 | 2026-04-01 | 設計書内のサンプル実装コードを削除し、実装参照方針へ整理 | AI開発者 |
 | 2026-04-01 | Phase 1b 完了反映（BallEndMill対応、behavior分岐、比較検証テスト追加） | AI開発者 |
 | 2026-03-31 | Issue #503 反映（シャンク多段化、シャンク bottom 条件付き自動無効化） | AI開発者 |
