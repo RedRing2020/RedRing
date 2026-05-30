@@ -184,7 +184,8 @@ impl CamJobExecutorAdapter {
         job: &JobRecord,
         input_artifact_bytes: Option<&[u8]>,
     ) -> JobExecutionResult {
-        if !job.spec.input_ref.starts_with("result://cam/") {
+        let Some((cam_job_id_from_ref, result_suffix)) = parse_cam_result_ref(&job.spec.input_ref)
+        else {
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 10,
@@ -194,6 +195,45 @@ impl CamJobExecutorAdapter {
                 error: Some(format!(
                     "invalid input_ref for nc post from cam: {}",
                     job.spec.input_ref
+                )),
+            };
+        };
+
+        let Some(parent_job_id) = job.parent_job_id else {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 10,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                error: Some("nc post from cam requires parent_job_id".to_string()),
+            };
+        };
+
+        if parent_job_id.0 != cam_job_id_from_ref {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 10,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                error: Some(format!(
+                    "input_ref cam job id mismatch: parent_job_id={}, input_ref={}",
+                    parent_job_id.0, job.spec.input_ref
+                )),
+            };
+        }
+
+        if result_suffix != "ok" {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 10,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                error: Some(format!(
+                    "invalid cam result_ref suffix for nc post from cam: {}",
+                    result_suffix
                 )),
             };
         }

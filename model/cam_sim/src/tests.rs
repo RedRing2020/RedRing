@@ -565,6 +565,69 @@ fn test_job_adapter_surfaces_nc_post_from_cam_version_incompatibility() {
     );
 }
 
+#[test]
+fn test_job_adapter_rejects_nc_post_from_cam_parent_mismatch() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let id = manager
+        .submit_with_relation(
+            nc_post_from_cam_spec("result://cam/999/ok"),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("input_ref cam job id mismatch")
+    );
+}
+
+#[test]
+fn test_job_adapter_nc_post_can_use_superseded_cam_output_history() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let sim_id = manager
+        .submit_with_relation(
+            sim_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
+    manager.execute_with(sim_id, &adapter).unwrap();
+
+    let nc_post_id = manager
+        .submit_with_relation(
+            nc_post_from_cam_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
+    manager.execute_with(nc_post_id, &adapter).unwrap();
+
+    let job = manager.get(nc_post_id).unwrap();
+    assert_eq!(job.status, JobStatus::Succeeded);
+}
+
 // --- フラット vs ボール除去比較テスト ---
 
 /// 同一経路・同一径で、フラットとボールが異なる体積を除去することを検証する。
