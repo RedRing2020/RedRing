@@ -21,6 +21,7 @@ $ARCH_LAYER_MAPPING = @{
     job_runtime    = "model/job_runtime"
     job_domain     = "model/job_domain"
     converter      = "viewmodel/converter"
+    cam_demo       = "viewmodel/cam_demo"
     graphics       = "viewmodel/graphics"
     render         = "view/render"
     stage          = "view/stage"
@@ -32,7 +33,7 @@ $ARCH_LAYERS = @{
     Analysis  = @("analysis")
     Application = @("application")
     Model     = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_topology", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
-    ViewModel = @("converter", "graphics")
+    ViewModel = @("converter", "cam_demo", "graphics")
     View      = @("render", "stage", "app")
 }
 
@@ -79,17 +80,18 @@ $ARCH_ALLOWED_DEPS = @{
         "job_domain",
         "analysis"
     );
+    cam_demo       = @("application", "cam_core", "cam_sim", "converter", "geo_algorithms")
     graphics       = @("geo_contracts", "geo_core", "geo_primitives", "analysis")
     render         = @("analysis")
     stage          = @("render", "analysis")
-    app            = @("converter", "graphics", "render", "stage", "analysis")
+    app            = @("converter", "cam_demo", "graphics", "render", "stage", "analysis")
 }
 
 # Forbidden dependency rules
 # Last updated: 2026-04-09 (#501/#650 sync application forbidden deps with current allowed deps)
 # Pending update: add reverse dependency guards when `cam_algorithms` is created.
 $ARCH_FORBIDDEN_DEPS = @{
-    application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "graphics", "render", "stage", "app")
+    application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "cam_demo", "graphics", "render", "stage", "app")
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
     geo_contracts  = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
     geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
@@ -106,15 +108,17 @@ $ARCH_FORBIDDEN_DEPS = @{
     job_runtime    = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
     job_domain     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "converter", "graphics", "render", "stage", "app")
     converter      = @(
+        "cam_demo",
         "render",
         "stage",
         "app"
     );
+    cam_demo       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "job_runtime", "job_domain", "graphics", "render", "stage", "app")
     graphics       = @("render", "stage", "app")
-    render         = @("geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics")
-    stage          = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics")
+    render         = @("geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
+    stage          = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
     app            = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim")
-    analysis       = @("geo_foundation", "application", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "graphics", "render", "stage", "app")
+    analysis       = @("geo_foundation", "application", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "cam_demo", "graphics", "render", "stage", "app")
 }
 
 # Shared helper: extract workspace dependencies from Cargo.toml

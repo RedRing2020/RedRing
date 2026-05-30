@@ -1,5 +1,5 @@
 use super::AppState;
-use viewmodel::cam_sim_visualization_converter::CamSimulationDemoScenario;
+use cam_demo::CamSimulationDemoScenario;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CursorRestoreDecision {
@@ -116,7 +116,7 @@ impl AppState {
 
 #[cfg(test)]
 mod tests {
-    use viewmodel::cam_sim_visualization_converter::CamSimulationDemoScenario;
+    use cam_demo::CamSimulationDemoScenario;
     use viewmodel_graphics::Camera;
 
     use super::{CursorRestoreDecision, DefaultStageRestorePolicy, StageRestorePolicy};

@@ -78,6 +78,26 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 - ❌ アーキテクチャチェックスクリプトの例外追加
 - ❌ 表示の見え方だけを理由に、呼び出し経路未確認のまま transform の積順・座標変換カーネルを変更すること
 
+### CAMデモ導線の隔離ルール（Issue #717 継続）
+
+経緯の明確化:
+
+- `viewmodel/cam_demo` は Issue #717 の CAM 混在解消を目的に導入した
+- CAD を含む demo 全体設計は別タスクで扱う（同時完了していない）
+
+- `model/application` / `model/cam_sim` / `model/job_runtime` は本番導線のみを扱い、demo専用シナリオ・demo専用ロード関数を追加しない
+- demo専用の生成・再生ロジックは `view` / `viewmodel` 側に限定し、`model` 層へ逆流させない
+- CAMデモ機能の追加先は `viewmodel/cam_demo` を正本とし、demo専用ロジックを `viewmodel/converter` に再導入しない
+- CADとCAMのdemoを単一クレートへ統合しない。責務境界に沿って個別に管理する
+- `view/app` は当面別クレート化しない。`view/app` は起動トリガーと表示状態管理を担い、demoロジック本体は持たない
+- `CamSimulationDemoScenario`、`build_demo_artifacts_for_cam_simulation`、`create_demo_snapshot_exports_for_scenario` を `model/application` で再導入しない
+- demo導線の変更時は「本番導線に影響しないこと」をテストで固定する
+
+`view/app` 分離の再評価は次の場合のみ行う:
+
+- demo導線の状態管理が `view/app` 全体へ拡散し、変更影響の追跡が困難になった場合
+- 本番導線とdemo導線の変更周期が分離し、同一クレート運用が開発ボトルネックになった場合
+
 ### 実装許可が必要な作業
 
 - 新クレートの作成

@@ -1,4 +1,5 @@
-//! CAMシミュレーション向けのデバッグ/デモ専用データ生成。
+//! CAMシミュレーションのデモ導線専用クレート。
+//! 本番向け変換ロジックとは分離して、debug/demo専用の入力生成と実行を扱う。
 
 use application::cam_orchestration::{
     ApplicationError, CamSimulationExecutionOrchestration, CamSimulationExecutionOrchestrator,
@@ -10,9 +11,19 @@ use cam_core::fixtures::{
 };
 use cam_core::{Tool, ToolPath};
 use cam_sim::SnapshotInterval;
+use converter::cam_sim_visualization_converter::{
+    build_cam_simulation_visualization_bundle_with_tool_settings,
+    CamSimulationVisualizationBuildInput, CamSimulationVisualizationBundle,
+    CamSimulationVisualizationError, ToolWireframeVisualizationSettings,
+};
+use converter::octree_converter::OctreeVisualizationSettings;
+use converter::snapshot_converter::{
+    cam_snapshot_exports_to_inputs, cam_snapshot_inputs_to_domain_series,
+    CamSimulationSnapshotInput, DomainSnapshotSeries,
+};
+use converter::toolpath_converter::ToolPathVisualizationSettings;
 use geo_algorithms::{Aabb3D, Point3D};
 
-/// CAMシミュレーションのデモシナリオ。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CamSimulationDemoScenario {
     Success,
@@ -20,7 +31,6 @@ pub enum CamSimulationDemoScenario {
     FailureEmptyToolpath,
 }
 
-/// CAMシミュレーションデモで使う ToolPath/Tool と付随メタデータ。
 #[derive(Debug, Clone)]
 pub struct CamSimulationDemoArtifacts {
     pub toolpath: ToolPath<f64>,
@@ -30,7 +40,6 @@ pub struct CamSimulationDemoArtifacts {
     pub description: Option<String>,
 }
 
-/// デモシナリオに応じた ToolPath/Tool と付随メタデータを組み立てる。
 pub fn build_demo_artifacts_for_cam_simulation(
     scenario: CamSimulationDemoScenario,
 ) -> CamSimulationDemoArtifacts {
@@ -63,7 +72,6 @@ pub fn build_demo_artifacts_for_cam_simulation(
     }
 }
 
-/// デバッグ用：指定シナリオで CAM スナップショットサンプルを実行し export DTO を返す。
 pub fn create_demo_snapshot_exports_for_scenario(
     scenario: CamSimulationDemoScenario,
 ) -> Result<application::cam_orchestration::CamSimulationExecutionResult, ApplicationError> {
@@ -82,8 +90,37 @@ pub fn create_demo_snapshot_exports_for_scenario(
     CamSimulationExecutionOrchestrator.execute_simulation_snapshot_exports(request)
 }
 
-/// デバッグ用：CAMスナップショットサンプルを実行し、export DTO を返す。
-pub fn create_sample_snapshot_exports_for_demo(
-) -> Result<application::cam_orchestration::CamSimulationExecutionResult, ApplicationError> {
-    create_demo_snapshot_exports_for_scenario(CamSimulationDemoScenario::Success)
+pub fn load_demo_cam_snapshot_domain_series(
+) -> Result<DomainSnapshotSeries<CamSimulationSnapshotInput>, ApplicationError> {
+    let exports =
+        create_demo_snapshot_exports_for_scenario(CamSimulationDemoScenario::Success)?.exports;
+    let inputs = cam_snapshot_exports_to_inputs(&exports);
+
+    Ok(cam_snapshot_inputs_to_domain_series("cam_sim", &inputs))
+}
+
+pub fn build_demo_cam_simulation_visualization_bundle_with_tool_settings(
+    settings: &OctreeVisualizationSettings,
+    tool_wireframe_settings: &ToolWireframeVisualizationSettings,
+    toolpath_settings: &ToolPathVisualizationSettings,
+    scenario: CamSimulationDemoScenario,
+) -> Result<CamSimulationVisualizationBundle, CamSimulationVisualizationError> {
+    let demo = build_demo_artifacts_for_cam_simulation(scenario);
+
+    let input = CamSimulationVisualizationBuildInput {
+        toolpath: demo.toolpath,
+        tool: demo.tool,
+        feature_id: "cam_sim_visualization".to_string(),
+        output_index: demo.output_index,
+        local_key: demo.local_key,
+        description: demo.description,
+        snapshot_source: "cam_sim".to_string(),
+    };
+
+    build_cam_simulation_visualization_bundle_with_tool_settings(
+        settings,
+        tool_wireframe_settings,
+        toolpath_settings,
+        input,
+    )
 }
