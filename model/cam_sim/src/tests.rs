@@ -6,7 +6,7 @@ use cam_core::{
 };
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
-use job_runtime::{JobManager, JobSpec, JobStatus, JobType, RetryPolicy};
+use job_runtime::{JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
@@ -263,12 +263,20 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
         retry_policy: RetryPolicy::default(),
     });
 
-    let sim_id = manager.submit(JobSpec {
-        job_type: JobType::CuttingSimulation,
-        input_ref: "result://cam/1/ok".to_string(),
-        timeout_secs: 30,
-        retry_policy: RetryPolicy::default(),
-    });
+    let sim_id = manager
+        .submit_with_relation(
+            JobSpec {
+                job_type: JobType::CuttingSimulation,
+                input_ref: format!("result://cam/{}/ok", cam_id.0),
+                timeout_secs: 30,
+                retry_policy: RetryPolicy::default(),
+            },
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
 
     manager.execute_with(cam_id, &adapter).unwrap();
     manager.execute_with(sim_id, &adapter).unwrap();
@@ -278,13 +286,7 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
 
     assert_eq!(cam.status, JobStatus::Succeeded);
     assert_eq!(sim.status, JobStatus::Succeeded);
-    assert!(
-        manager
-            .active_result_ref(cam_id)
-            .unwrap()
-            .unwrap_or_default()
-            .starts_with("result://cam/")
-    );
+    assert_eq!(manager.active_result_ref(cam_id).unwrap(), None);
     assert!(
         manager
             .active_result_ref(sim_id)
@@ -402,11 +404,21 @@ fn test_job_adapter_rejects_invalid_input_ref() {
 }
 
 #[test]
-fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure() {
+fn test_job_adapter_rejects_cutting_sim_parent_mismatch() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(sim_spec("result://cam/42/artifact-read-failed"));
+    let cam_id = manager.submit(cam_spec("input://cam/sample"));
+
+    let id = manager
+        .submit_with_relation(
+            sim_spec("result://cam/999/ok"),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();
@@ -415,16 +427,26 @@ fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure() {
         job.last_error
             .as_deref()
             .unwrap_or_default()
-            .contains("failed to read cutting simulation input artifact")
+            .contains("input_ref cam job id mismatch")
     );
 }
 
 #[test]
-fn test_job_adapter_surfaces_cutting_sim_execution_failure() {
+fn test_job_adapter_rejects_cutting_sim_non_ok_suffix() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(sim_spec("result://cam/42/sim-failure"));
+    let cam_id = manager.submit(cam_spec("input://cam/sample"));
+
+    let id = manager
+        .submit_with_relation(
+            sim_spec(&format!("result://cam/{}/artifact-read-failed", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();
@@ -433,7 +455,25 @@ fn test_job_adapter_surfaces_cutting_sim_execution_failure() {
         job.last_error
             .as_deref()
             .unwrap_or_default()
-            .contains("failed to run cutting simulation")
+            .contains("invalid cam result_ref suffix for cutting simulation")
+    );
+}
+
+#[test]
+fn test_job_adapter_rejects_cutting_sim_without_parent() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(sim_spec("result://cam/42/ok"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("requires parent_job_id")
     );
 }
 

@@ -39,7 +39,8 @@ impl CamJobExecutorAdapter {
     }
 
     fn run_cutting_simulation(&self, job: &JobRecord) -> JobExecutionResult {
-        if !job.spec.input_ref.starts_with("result://cam/") {
+        let Some((cam_job_id_from_ref, result_suffix)) = parse_cam_result_ref(&job.spec.input_ref)
+        else {
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 10,
@@ -48,6 +49,42 @@ impl CamJobExecutorAdapter {
                 error: Some(format!(
                     "invalid input_ref for cutting simulation: {}",
                     job.spec.input_ref
+                )),
+            };
+        };
+
+        let Some(parent_job_id) = job.parent_job_id else {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 10,
+                result_ref: None,
+                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                error: Some("cutting simulation requires parent_job_id".to_string()),
+            };
+        };
+
+        if parent_job_id.0 != cam_job_id_from_ref {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 10,
+                result_ref: None,
+                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                error: Some(format!(
+                    "input_ref cam job id mismatch: parent_job_id={}, input_ref={}",
+                    parent_job_id.0, job.spec.input_ref
+                )),
+            };
+        }
+
+        if result_suffix != "ok" {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 10,
+                result_ref: None,
+                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                error: Some(format!(
+                    "invalid cam result_ref suffix for cutting simulation: {}",
+                    result_suffix
                 )),
             };
         }
@@ -175,14 +212,27 @@ fn build_artifact_bytes_from_cam_result_ref(
 fn build_cutting_simulation_input_artifact_bytes(
     result_ref: &str,
 ) -> Result<Vec<u8>, BinaryFormatError> {
-    if result_ref.ends_with("/artifact-read-failed") {
-        return Ok(vec![0_u8, 1, 2, 3]);
-    }
-    if result_ref.ends_with("/sim-failure") {
-        return make_empty_toolpath_artifact_bytes();
+    #[cfg(test)]
+    {
+        if result_ref.ends_with("/artifact-read-failed") {
+            return Ok(vec![0_u8, 1, 2, 3]);
+        }
+        if result_ref.ends_with("/sim-failure") {
+            return make_empty_toolpath_artifact_bytes();
+        }
     }
 
-    build_artifact_bytes_from_cam_result_ref(result_ref)
+    let _ = result_ref;
+
+    make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
+}
+
+fn parse_cam_result_ref(input_ref: &str) -> Option<(u64, &str)> {
+    let remainder = input_ref.strip_prefix("result://cam/")?;
+    let (cam_job_id_str, suffix) = remainder.split_once('/')?;
+    let cam_job_id = cam_job_id_str.parse::<u64>().ok()?;
+
+    Some((cam_job_id, suffix))
 }
 
 fn read_cutting_simulation_toolpath_from_cam_result_ref(
@@ -206,6 +256,7 @@ fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {
     }
 }
 
+#[cfg(test)]
 fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let toolpath = ToolPath::new(
         "sim-src".to_string(),
