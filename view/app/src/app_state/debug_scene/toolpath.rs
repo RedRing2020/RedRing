@@ -2,12 +2,11 @@
 
 use super::super::AppState;
 use super::camera_fit::CameraFit;
+use cam_demo::CamSimulationDemoScenario;
 use logging_foundation::{ERROR_KIND_SIMULATION, ERROR_KIND_VALIDATION};
 use render::vertex_3d::{convert_vertex_data_to_mesh_vertices, MeshVertex};
 use stage::{MeshStage, OctreeStage};
-use viewmodel::cam_sim_visualization_converter::{
-    CamSimulationDemoScenario, CamSimulationVisualizationError,
-};
+use viewmodel::cam_sim_visualization_converter::CamSimulationVisualizationError;
 use viewmodel::snapshot_converter::{CamSimulationSnapshotInput, DomainSnapshotSeries};
 
 enum ToolPathBuildError {
@@ -32,7 +31,7 @@ impl AppState {
         &self,
         scenario: CamSimulationDemoScenario,
     ) -> Result<ToolPathDebugData, ToolPathBuildError> {
-        use viewmodel::cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle_with_tool_settings;
+        use cam_demo::build_demo_cam_simulation_visualization_bundle_with_tool_settings;
 
         let bundle = build_demo_cam_simulation_visualization_bundle_with_tool_settings(
             &self.octree_visualization_settings,

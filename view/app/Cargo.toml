@@ -17,6 +17,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender = "0.2"
 viewmodel = { path = "../../viewmodel/converter" }
+cam_demo = { package = "viewmodel-cam-demo", path = "../../viewmodel/cam_demo" }
 viewmodel-graphics = { path = "../../viewmodel/graphics" }
 render = { path = "../render" }
 stage = { path = "../stage" }

@@ -18,6 +18,7 @@ members = [
   "model/job_domain", # Model層：ジョブ投入ポリシー/ユースケース抽象化
   "model/application", # Application層：orchestration受け皿（PoC段階は単一クレート）
   "viewmodel/converter",  # ViewModel層：データ変換・架け橋
+  "viewmodel/cam_demo",   # ViewModel層：CAM demo 専用導線
   "viewmodel/graphics",   # ViewModel層：グラフィックス制御（カメラ等）
   "view/render",          # View層：GPU描画基盤
   "view/stage",           # View層：レンダリングステージ管理

@@ -1,0 +1,12 @@
+[package]
+name = "viewmodel-cam-demo"
+version = "0.1.0"
+edition = "2021"
+description = "CAM demo flow assembly for debug-only visualization and snapshot playback"
+
+[dependencies]
+application = { path = "../../model/application" }
+cam_core = { path = "../../model/cam_core" }
+cam_sim = { path = "../../model/cam_sim" }
+converter = { package = "viewmodel", path = "../converter" }
+geo_algorithms = { path = "../../model/geo_algorithms" }

@@ -2848,6 +2848,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "viewmodel",
+ "viewmodel-cam-demo",
  "viewmodel-graphics",
  "wgpu",
  "winit",
@@ -3740,6 +3741,17 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "viewmodel-cam-demo"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "cam_core",
+ "cam_sim",
+ "geo_algorithms",
+ "viewmodel",
 ]
 
 [[package]]

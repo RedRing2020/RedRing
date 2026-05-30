@@ -1,6 +1,6 @@
 use super::AppState;
 use crate::settings_panel_ui::SettingsPanelUiState;
-use viewmodel::cam_sim_visualization_converter::CamSimulationDemoScenario;
+use cam_demo::CamSimulationDemoScenario;
 
 impl AppState {
     pub fn is_settings_panel_open(&self) -> bool {

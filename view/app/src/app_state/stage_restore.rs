@@ -1,5 +1,5 @@
 use super::AppState;
-use viewmodel::cam_sim_visualization_converter::CamSimulationDemoScenario;
+use cam_demo::CamSimulationDemoScenario;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CursorRestoreDecision {
@@ -41,15 +41,29 @@ pub(super) struct StageRestoreSnapshot {
     camera: viewmodel_graphics::Camera,
 }
 
+fn build_stage_restore_snapshot(
+    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
+    cursor: usize,
+    shaded_mode: bool,
+    camera: &viewmodel_graphics::Camera,
+) -> Option<StageRestoreSnapshot> {
+    let scenario = current_cam_demo_scenario?;
+    Some(StageRestoreSnapshot {
+        scenario,
+        cursor,
+        shaded_mode,
+        camera: camera.clone(),
+    })
+}
+
 impl AppState {
     pub(super) fn capture_stage_restore_snapshot(&self) -> Option<StageRestoreSnapshot> {
-        let scenario = self.current_cam_demo_scenario?;
-        Some(StageRestoreSnapshot {
-            scenario,
-            cursor: self.debug_snapshot.cursor,
-            shaded_mode: self.debug_snapshot.shaded_mode,
-            camera: self.camera.clone(),
-        })
+        build_stage_restore_snapshot(
+            self.current_cam_demo_scenario,
+            self.debug_snapshot.cursor,
+            self.debug_snapshot.shaded_mode,
+            &self.camera,
+        )
     }
 
     pub(super) fn reload_current_demo_with_stage_restore(&mut self, trigger_label: &str) {
@@ -102,6 +116,9 @@ impl AppState {
 
 #[cfg(test)]
 mod tests {
+    use cam_demo::CamSimulationDemoScenario;
+    use viewmodel_graphics::Camera;
+
     use super::{CursorRestoreDecision, DefaultStageRestorePolicy, StageRestorePolicy};
 
     #[test]
@@ -126,5 +143,32 @@ mod tests {
             DefaultStageRestorePolicy::restore_cursor(3, 0),
             CursorRestoreDecision::ResetToHead
         );
+    }
+
+    #[test]
+    fn build_stage_restore_snapshot_returns_none_when_demo_is_not_ready() {
+        let camera = Camera::new();
+
+        assert!(
+            super::build_stage_restore_snapshot(None, 3, true, &camera).is_none(),
+            "missing demo scenario should not produce a stage restore snapshot"
+        );
+    }
+
+    #[test]
+    fn build_stage_restore_snapshot_returns_snapshot_when_demo_is_ready() {
+        let camera = Camera::new();
+
+        let snapshot = super::build_stage_restore_snapshot(
+            Some(CamSimulationDemoScenario::Success),
+            3,
+            true,
+            &camera,
+        )
+        .expect("ready demo should produce a stage restore snapshot");
+
+        assert_eq!(snapshot.scenario, CamSimulationDemoScenario::Success);
+        assert_eq!(snapshot.cursor, 3);
+        assert!(snapshot.shaded_mode);
     }
 }

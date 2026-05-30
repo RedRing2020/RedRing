@@ -114,7 +114,7 @@ impl AppState {
 
     /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
     pub fn load_debug_simulation_snapshots(&mut self) {
-        match viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series() {
+        match cam_demo::load_demo_cam_snapshot_domain_series() {
             Ok(series) => {
                 let frame_count = series.frames.len();
                 self.debug_snapshot.series = Some(series);

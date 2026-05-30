@@ -6,11 +6,10 @@ use crate::selection_rect::SelectionRect;
 use crate::settings_panel_ui::SettingsPanelTab;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
+use cam_demo::CamSimulationDemoScenario;
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
-use viewmodel::cam_sim_visualization_converter::{
-    CamSimulationDemoScenario, ToolWireframeVisualizationSettings,
-};
+use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;

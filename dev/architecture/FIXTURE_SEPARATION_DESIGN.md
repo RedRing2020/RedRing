@@ -149,7 +149,8 @@ ViewModel に残る `create_sample_*` は次のいずれかに整理する。
    - owner クレートの `fixtures` へ置く
 
 2. **複数ドメイン型を組み合わせて処理を実行する**
-   - Application の demo/orchestration モジュールへ置く
+   - 本番導線は Application の orchestration モジュールへ置く
+   - demo 導線は用途別の ViewModel demo クレートへ置く（CAM は `viewmodel/cam_demo`）
 
 3. **表示用頂点や wireframe を返す**
    - sample 生成ではなく変換結果なので、入力は外から受ける
@@ -162,7 +163,7 @@ ViewModel に残る `create_sample_*` は次のいずれかに整理する。
 ### 5.2 命名ルール
 
 - owner クレートの fixture: `create_sample_*`
-- Application の demo シナリオ: `build_demo_*` または `run_demo_*`
+- ViewModel demo クレートの demo シナリオ: `build_demo_*` または `run_demo_*`
 - ViewModel の変換: `*_to_*`
 
 ViewModel に `create_sample_*` を新設しない。
@@ -176,8 +177,8 @@ ViewModel に `create_sample_*` を新設しない。
 | `toolpath_converter::load_demo_toolpath()` | 生成本体は `cam_core::fixtures` へ集約し、ViewModel は層境界用の薄い facade のみ保持 |
 | `octree_converter::create_sample_voxel_octree_wireframe*()` | sample tree 生成は `geo_algorithms::octree::fixtures` に限定し、ViewModel 側は `voxel_octree_to_wireframe*` のみ残す |
 | `nurbs_eval_loader::create_sample_nurbs_surface_eval()` | sample surface 取得は `geo_algorithms::nurbs_fixtures`、評価と変換だけ ViewModel に残す |
-| `snapshot_converter::load_demo_cam_snapshot_domain_series()` | Application 側の demo 実行モジュール経由に統一し、ViewModel は DTO 変換のみ保持 |
-| `cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle*()` | demo scenario 構築を Application 側へ分離。ViewModel converter は request/result 変換へ寄せる |
+| `snapshot_converter::load_demo_cam_snapshot_domain_series()` | CAM demo 導線を `viewmodel/cam_demo` へ移し、ViewModel converter は DTO 変換のみ保持 |
+| `cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle*()` | demo scenario 構築/実行を `viewmodel/cam_demo` へ分離。ViewModel converter は request/result 変換へ寄せる |
 | `stl_loader::create_sample_stl_mesh()` | `geo_io` または App asset 側の fixture helper へ移し、loader と分離 |
 
 ---
@@ -192,12 +193,12 @@ ViewModel に `create_sample_*` を新設しない。
 
 ### Phase 2: orchestration 混在箇所を切る
 
-- `snapshot_converter` の sample series 生成を Application へ移す
+- `snapshot_converter` の sample series 生成を ViewModel demo クレート（CAM は `viewmodel/cam_demo`）へ移す
 - `cam_sim_visualization_converter` を
   - demo scenario 構築
   - simulation 実行
   - ViewModel bundle 変換
- へ分離する
+ へ分離する（CAM は `viewmodel/cam_demo` で実装）
 
 ### Phase 3: file fixture を分離する
 
@@ -210,7 +211,7 @@ ViewModel に `create_sample_*` を新設しない。
 Issue #516 では、以下を設計方針として採用する。
 
 1. sample fixture の基本配置は **各 owner クレート内 `fixtures` モジュール** とする
-2. **複数 fixture を束ねる demo シナリオは Application 層** に置く
+2. **複数 fixture を束ねる demo シナリオは用途別の ViewModel demo クレート** に置く（CAM は `viewmodel/cam_demo`）
 3. ViewModel は **変換専用** とし、新しい `create_sample_*` を持たない
 4. `fixtures` feature flag と専用 fixture クレート新設は、現時点では採用しない
 

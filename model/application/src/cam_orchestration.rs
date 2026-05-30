@@ -1,12 +1,6 @@
 //! CAM向け orchestration 境界。
 
-use cam_core::{
-    Tool, ToolPath,
-    fixtures::{
-        create_empty_toolpath, create_sample_ball_end_mill_tool, create_sample_flat_end_mill_tool,
-        create_sample_toolpath,
-    },
-};
+use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, octree::VoxelOctree};
 
@@ -123,22 +117,6 @@ pub struct CamSimulationExecutionResult {
     pub exports: Vec<SimulationSnapshotExport>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CamSimulationDemoScenario {
-    Success,
-    SuccessFlatEndMill,
-    FailureEmptyToolpath,
-}
-
-#[derive(Debug, Clone)]
-pub struct CamSimulationDemoArtifacts {
-    pub toolpath: ToolPath<f64>,
-    pub tool: Tool<f64>,
-    pub output_index: u32,
-    pub local_key: String,
-    pub description: Option<String>,
-}
-
 /// CAMシミュレーション実行ユースケースの orchestration port。
 pub trait CamSimulationExecutionOrchestration {
     fn execute_simulation_snapshot_exports(
@@ -171,64 +149,6 @@ pub fn execute_simulation_snapshot_exports(
     Ok(CamSimulationExecutionResult {
         exports: simulator.snapshot_exports_f64(),
     })
-}
-
-/// デモシナリオに応じた ToolPath/Tool と付随メタデータを組み立てる。
-pub fn build_demo_artifacts_for_cam_simulation(
-    scenario: CamSimulationDemoScenario,
-) -> CamSimulationDemoArtifacts {
-    let toolpath = match scenario {
-        CamSimulationDemoScenario::Success | CamSimulationDemoScenario::SuccessFlatEndMill => {
-            create_sample_toolpath()
-        }
-        CamSimulationDemoScenario::FailureEmptyToolpath => create_empty_toolpath(),
-    };
-
-    let tool = match scenario {
-        CamSimulationDemoScenario::Success | CamSimulationDemoScenario::FailureEmptyToolpath => {
-            create_sample_ball_end_mill_tool()
-        }
-        CamSimulationDemoScenario::SuccessFlatEndMill => create_sample_flat_end_mill_tool(),
-    };
-
-    let output_index = match scenario {
-        CamSimulationDemoScenario::Success => 0,
-        CamSimulationDemoScenario::FailureEmptyToolpath => 1,
-        CamSimulationDemoScenario::SuccessFlatEndMill => 2,
-    };
-
-    CamSimulationDemoArtifacts {
-        toolpath,
-        tool,
-        output_index,
-        local_key: "sample_tool".to_string(),
-        description: Some("CAM simulation sample tool".to_string()),
-    }
-}
-
-/// デバッグ用：指定シナリオで CAM スナップショットサンプルを実行し export DTO を返す。
-pub fn create_demo_snapshot_exports_for_scenario(
-    scenario: CamSimulationDemoScenario,
-) -> Result<CamSimulationExecutionResult, ApplicationError> {
-    let demo = build_demo_artifacts_for_cam_simulation(scenario);
-    let request = CamSimulationExecutionRequest {
-        toolpath: demo.toolpath,
-        tool: demo.tool,
-        work_bounds: Aabb3D::new(
-            Point3D::new(-60.0, -60.0, -20.0),
-            Point3D::new(60.0, 60.0, 30.0),
-        ),
-        max_depth: 4,
-        snapshot_interval: SnapshotInterval::default(),
-    };
-
-    CamSimulationExecutionOrchestrator.execute_simulation_snapshot_exports(request)
-}
-
-/// デバッグ用：CAMスナップショットサンプルを実行し、export DTO を返す。
-pub fn create_sample_snapshot_exports_for_demo()
--> Result<CamSimulationExecutionResult, ApplicationError> {
-    create_demo_snapshot_exports_for_scenario(CamSimulationDemoScenario::Success)
 }
 
 /// Tool を Entity ストレージに追加するための入力DTO。
@@ -375,8 +295,26 @@ pub fn count_non_cutting_interference_segments(
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
     use super::*;
     use cam_core::CuttingDirection;
+
+    fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) {
+        let entries = fs::read_dir(dir).expect("source directory should be readable");
+        for entry in entries {
+            let entry = entry.expect("directory entry should be readable");
+            let path = entry.path();
+            if path.is_dir() {
+                collect_rs_files(&path, files);
+                continue;
+            }
+            if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+                files.push(path);
+            }
+        }
+    }
 
     #[test]
     fn test_create_snapshot_series_from_frames() {
@@ -469,13 +407,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_sample_snapshot_exports_for_demo() {
-        let result = create_sample_snapshot_exports_for_demo()
-            .expect("sample snapshot exports for demo should succeed");
-        assert!(!result.exports.is_empty());
-    }
-
-    #[test]
     fn test_application_error_displays_tool_entity_error() {
         let err = ApplicationError::ToolEntity("invalid tool".to_string());
         assert_eq!(err.to_string(), "invalid tool");
@@ -519,5 +450,32 @@ mod tests {
             .expect("second tool addition should succeed");
 
         assert_eq!(first.entity_id, second.entity_id);
+    }
+
+    #[test]
+    fn test_application_source_does_not_reference_demo_symbols() {
+        let src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut files = Vec::new();
+        collect_rs_files(&src_root, &mut files);
+
+        let forbidden_symbols = [
+            ["CamSimulation", "DemoScenario"].concat(),
+            ["build_demo_", "artifacts_for_cam_simulation"].concat(),
+            ["create_demo_", "snapshot_exports_for_scenario"].concat(),
+            ["create_sample_", "snapshot_exports_for_demo"].concat(),
+            ["cam_", "sim_demo"].concat(),
+        ];
+
+        for file in files {
+            let content = fs::read_to_string(&file).expect("source file should be readable");
+            for symbol in &forbidden_symbols {
+                assert!(
+                    !content.contains(symbol),
+                    "application layer must not reference demo symbol '{}' in {}",
+                    symbol,
+                    file.display()
+                );
+            }
+        }
     }
 }

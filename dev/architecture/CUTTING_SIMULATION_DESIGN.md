@@ -99,9 +99,18 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 
 ### 配置方針
 
+注記（経緯の明確化）:
+
+- 今回の `viewmodel/cam_demo` 分離は、Issue #717 で顕在化した CAM デモ導線の混在を解消するための局所対応を起点としている
+- CAD を含む demo 全体アーキテクチャは同時に完了しておらず、別タスクで設計する
+
 - `CuttingSimulator` と `SnapshotInterval` の正本実装は `model/cam_sim` に置く
 - `cam_sim` は切削シミュレーションの進行管理、スナップショット保持、工具種別分岐を担う
 - `geo_algorithms` は材料除去や距離評価などの幾何カーネルのみを保持し、CAMドメインの進行制御は持たない
+- demo専用の入力生成・再生導線は `viewmodel/cam_demo` に分離し、`viewmodel/converter` は本体変換責務に限定する
+- CAD と CAM の demo は責務境界が異なるため、単一 demo クレートへの統合方針は採らない
+- `view/app` は当面クレート分離しない。判断基準は責務境界（起動トリガー/表示状態管理）と依存方向（本番導線を `View -> ViewModel -> Application -> cam_sim` に固定）であり、`viewmodel/cam_demo` はその境界に従った CAM デモ実装先として扱う
+- `view/app` 分離は将来の再評価項目とし、再評価は「demo機能の増加で app_state 責務が肥大化した場合」または「本番導線と検証導線の変更頻度が独立した場合」にのみ行う
 
 主な配置先:
 
@@ -109,6 +118,7 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 - `model/cam_sim/src/simulator.rs`
 - `model/cam_sim/src/simulator/behavior.rs`
 - `model/geo_algorithms/src/octree/voxel.rs`
+- `viewmodel/cam_demo/src/lib.rs`（demo専用導線）
 
 ### 許可依存
 
@@ -215,21 +225,36 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 
 この経路は検証目的に限定し、本番導線の正本として扱わない。
 
+実装追加の固定ルール:
+
+- CAMデモ機能を追加する場合、データ生成・ロード・可視化bundle生成の正本は `viewmodel/cam_demo` に置く
+- CADデモ機能を追加する場合は CAM と混在させず、責務境界に沿って独立した配置先を設計してから追加する
+- `view/app` は起動トリガーと表示状態管理のみを担当し、demoロジック本体を保持しない
+- `viewmodel/converter` は本体変換責務を維持し、demo専用fixtureやdemo専用ロード関数を再導入しない
+
 #### 禁止経路（本番）
 
-- View から `viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series` を本番導線で呼び出すこと
-- View から `viewmodel::cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle_with_tool_settings` を本番導線で呼び出すこと
+- View から `cam_demo::load_demo_cam_snapshot_domain_series` を本番導線で呼び出すこと
+- View から `cam_demo::build_demo_cam_simulation_visualization_bundle_with_tool_settings` を本番導線で呼び出すこと
 - `job_adapter` 内の mock artifact 経路を本番導線に残すこと
 
 #### 分離完了条件（DoD）
 
 - View起点の切削シミュレーション実行は、本番導線1経路（View -> ViewModel -> Application -> cam_sim）に統一されている
 - デモ起動UI（Shift+B/Shift+F 等）は残してよいが、内部実行は本番導線を再利用し、デモ専用の実行経路を持たない
-- `viewmodel::snapshot_converter::load_demo_cam_snapshot_domain_series` と `viewmodel::cam_sim_visualization_converter::build_demo_cam_simulation_visualization_bundle_with_tool_settings` は本番コードパスから参照されない
+- `cam_demo::load_demo_cam_snapshot_domain_series` と `cam_demo::build_demo_cam_simulation_visualization_bundle_with_tool_settings` は本番コードパスから参照されない
 - `model/cam_sim/src/job_adapter.rs` の mock artifact 読み取りは、本番実行経路から除外されている（test/debug 限定に隔離されている）
 - Preflight失敗時に、Viewで再設定すべき不足条件（例: 回避高さ、速度設定、工具条件、機械制約）が識別できるエラー情報を受け取れる
 - E2Eで次の3系統が固定されている: 本番成功、入力契約違反（kind/version/破損）、条件欠落（NotReady）
 - デモ用データ作成コードは本体機能コードから分離され、責務境界が文書化されている
+
+#### view/app 分離の再評価基準
+
+次のいずれかを満たした時のみ、`view/app` の別クレート化を検討する。
+
+- demo導線の状態管理が `view/app` の複数モジュールへ拡散し、変更時の影響追跡が困難になった
+- 本番導線修正とdemo導線修正のリリース周期が分離し、同一クレート運用がボトルネックになった
+- 依存チェックやテスト実行時間の増加により、導線分離で明確な開発効率改善が見込める
 
 ### 実装段階の定義（設計）
 
