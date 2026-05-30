@@ -82,14 +82,14 @@ impl JobManager {
             .map(|o| o.result_ref.as_str()))
     }
 
-    fn latest_input_result_bytes(&self, id: JobId) -> Result<Option<Vec<u8>>, JobError> {
+    fn latest_input_result_bytes(&self, id: JobId) -> Result<Option<&[u8]>, JobError> {
         let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
         Ok(record
             .output_history
             .iter()
             .rev()
             .find(|o| o.validity != JobOutputValidity::InvalidatedByDependency)
-            .and_then(|o| o.artifact_bytes.clone()))
+            .and_then(|o| o.artifact_bytes.as_deref()))
     }
 
     /// 成果物履歴を新しい順で取得
@@ -431,7 +431,7 @@ impl JobManager {
             Some(parent_job_id) => self.latest_input_result_bytes(parent_job_id)?,
             None => None,
         };
-        let execution = executor.execute(&snapshot, input_artifact_bytes.as_deref());
+        let execution = executor.execute(&snapshot, input_artifact_bytes);
 
         let timeout_millis = snapshot.spec.timeout_secs.saturating_mul(1000);
         if execution.elapsed_millis > timeout_millis {
