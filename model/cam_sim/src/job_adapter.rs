@@ -29,6 +29,22 @@ impl CamJobExecutorAdapter {
             };
         }
 
+        #[cfg(not(any(test, debug_assertions)))]
+        {
+            return JobExecutionResult {
+                status: JobStatus::Failed,
+                elapsed_millis: 20,
+                result_ref: None,
+                artifact_bytes: None,
+                log_ref: Some(format!("log://cam/{}/not-ready", job.id.0)),
+                error: Some(
+                    "cam process artifact provider is not configured in production build"
+                        .to_string(),
+                ),
+            };
+        }
+
+        #[cfg(any(test, debug_assertions))]
         let artifact_bytes = match build_cam_process_artifact_bytes(&job.spec.input_ref) {
             Ok(bytes) => bytes,
             Err(err) => {
@@ -280,7 +296,7 @@ impl CamJobExecutorAdapter {
 fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFormatError> {
     let _ = input_ref;
 
-    #[cfg(test)]
+    #[cfg(any(test, debug_assertions))]
     {
         if input_ref.ends_with("/kind-mismatch") {
             return make_interference_artifact_bytes();
@@ -320,7 +336,7 @@ fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, debug_assertions))]
 #[allow(dead_code)]
 fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let toolpath = ToolPath::new(
@@ -372,7 +388,7 @@ fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, BinaryFor
     Ok(bytes)
 }
 
-#[cfg(test)]
+#[cfg(any(test, debug_assertions))]
 fn make_interference_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let interference = cam_core::InterferencePayload {
         events: vec![cam_core::InterferenceEvent {

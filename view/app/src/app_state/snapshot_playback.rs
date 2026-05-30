@@ -3,12 +3,28 @@
 use super::debug_snapshot_state::SnapshotPlaybackMode;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
+use cam_demo::CamSimulationDemoScenario;
 use std::time::Instant;
 
 const AUTO_PLAY_BASE_DURATION_SEC: f64 = 12.0;
 const PLAYBACK_SPEED_MIN: f64 = 0.1;
 const PLAYBACK_SPEED_MAX: f64 = 10.0;
 const SEGMENT_WEIGHT_RATIO: f64 = 0.5;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SnapshotLoadReadiness {
+    Ready(CamSimulationDemoScenario),
+    NotReady,
+}
+
+fn resolve_snapshot_load_readiness(
+    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
+) -> SnapshotLoadReadiness {
+    match current_cam_demo_scenario {
+        Some(scenario) => SnapshotLoadReadiness::Ready(scenario),
+        None => SnapshotLoadReadiness::NotReady,
+    }
+}
 
 fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
     if distances.len() <= 1 {
@@ -97,6 +113,25 @@ fn build_segment_weighted_progress_axis(
 }
 
 impl AppState {
+    pub(super) fn ensure_snapshot_series_ready(&mut self, trigger_label: &str) -> bool {
+        if self.debug_snapshot.series.is_some() {
+            return true;
+        }
+
+        let scenario = match resolve_snapshot_load_readiness(self.current_cam_demo_scenario) {
+            SnapshotLoadReadiness::Ready(scenario) => scenario,
+            SnapshotLoadReadiness::NotReady => {
+                tracing::warn!(
+                    "CAMシミュレーションデモが未開始です。Shift+B または Shift+F で開始してください"
+                );
+                return false;
+            }
+        };
+
+        self.load_sample_toolpath_with_scenario(scenario, trigger_label);
+        self.debug_snapshot.series.is_some()
+    }
+
     pub(super) fn rebuild_snapshot_weighted_progress_axis_cache(&mut self) {
         let Some(series) = &self.debug_snapshot.series else {
             self.debug_snapshot.weighted_progress_axis = None;
@@ -112,42 +147,13 @@ impl AppState {
         self.debug_snapshot.weighted_progress_axis = Some(axis);
     }
 
-    /// デバッグ用: cam_sim 実行結果をスナップショット系列として読み込む
-    pub fn load_debug_simulation_snapshots(&mut self) {
-        match cam_demo::load_demo_cam_snapshot_domain_series() {
-            Ok(series) => {
-                let frame_count = series.frames.len();
-                self.debug_snapshot.series = Some(series);
-                self.rebuild_snapshot_weighted_progress_axis_cache();
-                self.debug_snapshot.wireframes = None;
-                self.debug_snapshot.solids = None;
-                self.debug_snapshot.toolpath_lines = None;
-                self.debug_snapshot.tool_lines = None;
-                self.debug_snapshot.shaded_mode = false;
-                self.debug_snapshot.cursor = 0;
-                self.debug_snapshot.playback_mode = SnapshotPlaybackMode::Manual;
-                self.debug_snapshot.playback_progress = 0.0;
-                self.debug_snapshot.last_playback_tick = None;
-                tracing::info!(
-                    "シミュレーションスナップショット読込完了: {} フレーム",
-                    frame_count
-                );
-                self.log_current_snapshot_frame(true);
-            }
-            Err(error) => {
-                tracing::error!(
-                    error_kind = logging_foundation::ERROR_KIND_SIMULATION,
-                    "cam simulation snapshot load failed: {}",
-                    error
-                );
-            }
-        }
-    }
-
     /// デバッグ用: 次フレームへ進めて内容をログ表示
     pub fn cycle_debug_simulation_snapshot(&mut self) {
+        if !self.ensure_snapshot_series_ready("k") {
+            return;
+        }
+
         let Some(series) = &self.debug_snapshot.series else {
-            self.load_debug_simulation_snapshots();
             return;
         };
 
@@ -165,8 +171,11 @@ impl AppState {
 
     /// デバッグ用: 前フレームへ戻して内容をログ表示
     pub fn rewind_debug_simulation_snapshot(&mut self) {
+        if !self.ensure_snapshot_series_ready("j") {
+            return;
+        }
+
         let Some(series) = &self.debug_snapshot.series else {
-            self.load_debug_simulation_snapshots();
             return;
         };
 
@@ -187,9 +196,10 @@ impl AppState {
     }
 
     pub fn toggle_auto_snapshot_playback(&mut self) {
-        if self.debug_snapshot.series.is_none() {
-            self.load_debug_simulation_snapshots();
+        if !self.ensure_snapshot_series_ready("Space") {
+            return;
         }
+
         let Some(series) = &self.debug_snapshot.series else {
             return;
         };
@@ -218,9 +228,10 @@ impl AppState {
     }
 
     pub(crate) fn pause_auto_snapshot_playback(&mut self) {
-        if self.debug_snapshot.series.is_none() {
-            self.load_debug_simulation_snapshots();
+        if !self.ensure_snapshot_series_ready("pause") {
+            return;
         }
+
         let Some(series) = &self.debug_snapshot.series else {
             return;
         };
@@ -535,5 +546,28 @@ impl AppState {
         if let Some(progress) = self.snapshot_weighted_progress_from_cursor() {
             self.debug_snapshot.playback_progress = progress;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cam_demo::CamSimulationDemoScenario;
+
+    use super::{resolve_snapshot_load_readiness, SnapshotLoadReadiness};
+
+    #[test]
+    fn resolve_snapshot_load_readiness_returns_not_ready_when_scenario_is_absent() {
+        assert_eq!(
+            resolve_snapshot_load_readiness(None),
+            SnapshotLoadReadiness::NotReady
+        );
+    }
+
+    #[test]
+    fn resolve_snapshot_load_readiness_returns_ready_when_scenario_exists() {
+        assert_eq!(
+            resolve_snapshot_load_readiness(Some(CamSimulationDemoScenario::SuccessFlatEndMill)),
+            SnapshotLoadReadiness::Ready(CamSimulationDemoScenario::SuccessFlatEndMill)
+        );
     }
 }

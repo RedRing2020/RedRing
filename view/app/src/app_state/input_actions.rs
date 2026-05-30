@@ -159,18 +159,10 @@ impl AppState {
                     self.toggle_settings_panel();
                 }
                 "k" => {
-                    if self.debug_snapshot.series.is_some() {
-                        self.cycle_debug_simulation_snapshot();
-                    } else {
-                        self.load_debug_simulation_snapshots();
-                    }
+                    self.cycle_debug_simulation_snapshot();
                 }
                 "j" => {
-                    if self.debug_snapshot.series.is_some() {
-                        self.rewind_debug_simulation_snapshot();
-                    } else {
-                        self.load_debug_simulation_snapshots();
-                    }
+                    self.rewind_debug_simulation_snapshot();
                 }
                 "J" => {
                     self.stop_auto_snapshot_playback();
