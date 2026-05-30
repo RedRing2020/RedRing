@@ -94,6 +94,8 @@ pub enum JobOutputValidity {
 pub struct JobOutputRecord {
     /// 成果物参照
     pub result_ref: String,
+    /// 成果物バイナリ
+    pub artifact_bytes: Option<Vec<u8>>,
     /// ログ参照
     pub log_ref: Option<String>,
     /// 生成時刻

@@ -324,7 +324,7 @@ mod tests {
         let error = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
                 job_type: CamJobType::CuttingSimulation,
-                input_ref: "input://sim/sample".to_string(),
+                input_ref: "result://cam/1/ok".to_string(),
                 parent_job_id: None,
             })
             .expect_err("cutting simulation without parent should be rejected");
@@ -350,7 +350,7 @@ mod tests {
         let sim_submit = orchestrator
             .submit_workflow(JobWorkflowSubmitRequest {
                 job_type: CamJobType::CuttingSimulation,
-                input_ref: "input://sim/sample".to_string(),
+                input_ref: format!("result://cam/{}/ok", cam_submit.job_id),
                 parent_job_id: Some(cam_submit.job_id),
             })
             .expect("cutting simulation should succeed");
