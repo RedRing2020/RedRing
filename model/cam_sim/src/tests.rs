@@ -265,7 +265,7 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
 
     let sim_id = manager.submit(JobSpec {
         job_type: JobType::CuttingSimulation,
-        input_ref: "input://sim/sample".to_string(),
+        input_ref: "result://cam/1/ok".to_string(),
         timeout_secs: 30,
         retry_policy: RetryPolicy::default(),
     });
@@ -406,7 +406,7 @@ fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(sim_spec("input://sim/artifact-read-failed"));
+    let id = manager.submit(sim_spec("result://cam/42/artifact-read-failed"));
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();
@@ -424,7 +424,7 @@ fn test_job_adapter_surfaces_cutting_sim_execution_failure() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(sim_spec("input://sim/sim-failure"));
+    let id = manager.submit(sim_spec("result://cam/42/sim-failure"));
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();

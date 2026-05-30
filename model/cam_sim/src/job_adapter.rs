@@ -39,7 +39,7 @@ impl CamJobExecutorAdapter {
     }
 
     fn run_cutting_simulation(&self, job: &JobRecord) -> JobExecutionResult {
-        if !job.spec.input_ref.starts_with("input://sim/") {
+        if !job.spec.input_ref.starts_with("result://cam/") {
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 10,
@@ -52,18 +52,27 @@ impl CamJobExecutorAdapter {
             };
         }
 
-        let toolpath = match read_mock_toolpath_from_sim_input_ref(&job.spec.input_ref) {
-            Ok(toolpath) => toolpath,
-            Err(message) => {
-                return JobExecutionResult {
-                    status: JobStatus::Failed,
-                    elapsed_millis: 20,
-                    result_ref: None,
-                    log_ref: Some(format!("log://sim/{}/artifact-read-failed", job.id.0)),
-                    error: Some(message),
-                };
-            }
-        };
+        let toolpath =
+            match read_cutting_simulation_toolpath_from_cam_result_ref(&job.spec.input_ref) {
+                Ok(toolpath) => toolpath,
+                Err(err) => {
+                    let log_ref = format!(
+                        "log://sim/{}/{}",
+                        job.id.0,
+                        classify_artifact_read_error(&err)
+                    );
+                    return JobExecutionResult {
+                        status: JobStatus::Failed,
+                        elapsed_millis: 20,
+                        result_ref: None,
+                        log_ref: Some(log_ref),
+                        error: Some(format!(
+                            "failed to read cutting simulation input artifact: {}",
+                            err
+                        )),
+                    };
+                }
+            };
 
         let mut simulator = CuttingSimulator::new(
             VoxelOctree::new(
@@ -110,27 +119,26 @@ impl CamJobExecutorAdapter {
             };
         }
 
-        let artifact_bytes = match build_mock_artifact_from_result_ref(&job.spec.input_ref) {
+        let artifact_bytes = match build_artifact_bytes_from_cam_result_ref(&job.spec.input_ref) {
             Ok(bytes) => bytes,
-            Err(message) => {
+            Err(err) => {
                 return JobExecutionResult {
                     status: JobStatus::Failed,
                     elapsed_millis: 20,
                     result_ref: None,
                     log_ref: Some(format!("log://nc-post/{}/artifact-error", job.id.0)),
-                    error: Some(message),
+                    error: Some(format!("failed to build artifact bytes: {}", err)),
                 };
             }
         };
 
         let mut cursor = Cursor::new(artifact_bytes);
         if let Err(err) = read_toolpath_artifact_v1(&mut cursor) {
-            let log_ref = match err {
-                BinaryFormatError::ArtifactKindMismatch { .. } => {
-                    format!("log://nc-post/{}/kind-mismatch", job.id.0)
-                }
-                _ => format!("log://nc-post/{}/artifact-read-failed", job.id.0),
-            };
+            let log_ref = format!(
+                "log://nc-post/{}/{}",
+                job.id.0,
+                classify_artifact_read_error(&err)
+            );
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 20,
@@ -150,7 +158,9 @@ impl CamJobExecutorAdapter {
     }
 }
 
-fn build_mock_artifact_from_result_ref(result_ref: &str) -> Result<Vec<u8>, String> {
+fn build_artifact_bytes_from_cam_result_ref(
+    result_ref: &str,
+) -> Result<Vec<u8>, BinaryFormatError> {
     if result_ref.ends_with("/kind-mismatch") {
         return make_interference_artifact_bytes();
     }
@@ -162,23 +172,41 @@ fn build_mock_artifact_from_result_ref(result_ref: &str) -> Result<Vec<u8>, Stri
     make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
 }
 
-fn read_mock_toolpath_from_sim_input_ref(input_ref: &str) -> Result<ToolPath<f64>, String> {
-    let artifact_bytes = if input_ref.ends_with("/artifact-read-failed") {
-        vec![0_u8, 1, 2, 3]
-    } else if input_ref.ends_with("/sim-failure") {
-        make_empty_toolpath_artifact_bytes()?
-    } else {
-        make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)?
-    };
+fn build_cutting_simulation_input_artifact_bytes(
+    result_ref: &str,
+) -> Result<Vec<u8>, BinaryFormatError> {
+    if result_ref.ends_with("/artifact-read-failed") {
+        return Ok(vec![0_u8, 1, 2, 3]);
+    }
+    if result_ref.ends_with("/sim-failure") {
+        return make_empty_toolpath_artifact_bytes();
+    }
+
+    build_artifact_bytes_from_cam_result_ref(result_ref)
+}
+
+fn read_cutting_simulation_toolpath_from_cam_result_ref(
+    result_ref: &str,
+) -> Result<ToolPath<f64>, BinaryFormatError> {
+    let artifact_bytes = build_cutting_simulation_input_artifact_bytes(result_ref)?;
 
     let mut cursor = Cursor::new(artifact_bytes);
-    let (_, toolpath) = read_toolpath_artifact_v1(&mut cursor)
-        .map_err(|err| format!("failed to read cutting simulation input artifact: {}", err))?;
+    let (_, toolpath) = read_toolpath_artifact_v1(&mut cursor)?;
 
     Ok(toolpath)
 }
 
-fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, String> {
+fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {
+    match error {
+        BinaryFormatError::ArtifactKindMismatch { .. } => "kind-mismatch",
+        BinaryFormatError::UnsupportedMajorVersion { .. }
+        | BinaryFormatError::UnsupportedMinorVersion { .. }
+        | BinaryFormatError::ConverterRequired { .. } => "version-mismatch",
+        _ => "artifact-read-failed",
+    }
+}
+
+fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let toolpath = ToolPath::new(
         "sim-src".to_string(),
         CuttingDirection::Down,
@@ -188,17 +216,17 @@ fn make_empty_toolpath_artifact_bytes() -> Result<Vec<u8>, String> {
     );
 
     let mut payload = Vec::new();
-    write_toolpath_payload_v1(&mut payload, &toolpath).map_err(|err| err.to_string())?;
+    write_toolpath_payload_v1(&mut payload, &toolpath)?;
 
     let header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64);
     let mut bytes = Vec::new();
-    header.write_to(&mut bytes).map_err(|err| err.to_string())?;
+    header.write_to(&mut bytes)?;
     bytes.extend_from_slice(&payload);
 
     Ok(bytes)
 }
 
-fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, String> {
+fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, BinaryFormatError> {
     let toolpath = ToolPath::new(
         "nc-post-src".to_string(),
         CuttingDirection::Down,
@@ -216,19 +244,19 @@ fn make_toolpath_artifact_bytes(version_minor: u16) -> Result<Vec<u8>, String> {
     );
 
     let mut payload = Vec::new();
-    write_toolpath_payload_v1(&mut payload, &toolpath).map_err(|err| err.to_string())?;
+    write_toolpath_payload_v1(&mut payload, &toolpath)?;
 
     let mut header = ArtifactHeaderV1::new(ArtifactKind::ToolPath, payload.len() as u64);
     header.version_minor = version_minor;
 
     let mut bytes = Vec::new();
-    header.write_to(&mut bytes).map_err(|err| err.to_string())?;
+    header.write_to(&mut bytes)?;
     bytes.extend_from_slice(&payload);
 
     Ok(bytes)
 }
 
-fn make_interference_artifact_bytes() -> Result<Vec<u8>, String> {
+fn make_interference_artifact_bytes() -> Result<Vec<u8>, BinaryFormatError> {
     let interference = InterferencePayload {
         events: vec![InterferenceEvent {
             sample_index: 0,
@@ -241,11 +269,11 @@ fn make_interference_artifact_bytes() -> Result<Vec<u8>, String> {
     };
 
     let mut payload = Vec::new();
-    write_interference_payload_v1(&mut payload, &interference).map_err(|err| err.to_string())?;
+    write_interference_payload_v1(&mut payload, &interference)?;
 
     let header = ArtifactHeaderV1::new(ArtifactKind::Interference, payload.len() as u64);
     let mut bytes = Vec::new();
-    header.write_to(&mut bytes).map_err(|err| err.to_string())?;
+    header.write_to(&mut bytes)?;
     bytes.extend_from_slice(&payload);
 
     Ok(bytes)
