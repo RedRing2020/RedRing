@@ -6,7 +6,7 @@ use cam_core::{
 };
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
-use job_runtime::{JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
+use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
@@ -460,6 +460,48 @@ fn test_job_adapter_rejects_cutting_sim_non_ok_suffix() {
 }
 
 #[test]
+fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure_from_parent_artifact() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let cam_id = manager.submit(cam_spec("input://cam/artifact-read-failed"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let sim_id = manager
+        .submit_with_relation(
+            sim_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
+    manager.execute_with(sim_id, &adapter).unwrap();
+
+    let sim = manager.get(sim_id).unwrap();
+    assert_eq!(sim.status, JobStatus::Failed);
+    assert!(
+        sim.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("failed to read cutting simulation input artifact")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == sim_id && log_ref.ends_with("/artifact-read-failed")
+        )
+    }));
+}
+
+#[test]
 fn test_job_adapter_rejects_cutting_sim_without_parent() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
@@ -563,6 +605,49 @@ fn test_job_adapter_surfaces_nc_post_from_cam_version_incompatibility() {
             .unwrap_or_default()
             .contains("failed to read artifact binary")
     );
+}
+
+#[test]
+fn test_job_adapter_surfaces_nc_post_from_cam_artifact_read_failure() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let cam_id = manager.submit(cam_spec("input://cam/artifact-read-failed"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let nc_post_id = manager
+        .submit_with_relation(
+            nc_post_from_cam_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
+    manager.execute_with(nc_post_id, &adapter).unwrap();
+
+    let nc_post = manager.get(nc_post_id).unwrap();
+    assert_eq!(nc_post.status, JobStatus::Failed);
+    assert!(
+        nc_post
+            .last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("failed to read artifact binary")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == nc_post_id && log_ref.ends_with("/artifact-read-failed")
+        )
+    }));
 }
 
 #[test]
