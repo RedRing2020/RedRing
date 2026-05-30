@@ -37,8 +37,8 @@ impl AppState {
 
                 if let Some(cursor) = self.cursor_position {
                     if self.is_cursor_on_snapshot_track(cursor) {
-                        if self.debug_snapshot.series.is_none() {
-                            self.load_debug_simulation_snapshots();
+                        if !self.ensure_snapshot_series_ready("snapshot scrub") {
+                            return;
                         }
                         self.snapshot_scrub_active = true;
                         self.mouse_input.cancel_operation();
