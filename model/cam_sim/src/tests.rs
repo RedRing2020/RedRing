@@ -502,6 +502,48 @@ fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure_from_parent_artif
 }
 
 #[test]
+fn test_job_adapter_surfaces_cutting_sim_execution_failure_from_parent_artifact() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let cam_id = manager.submit(cam_spec("input://cam/sim-failure"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let sim_id = manager
+        .submit_with_relation(
+            sim_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
+    manager.execute_with(sim_id, &adapter).unwrap();
+
+    let sim = manager.get(sim_id).unwrap();
+    assert_eq!(sim.status, JobStatus::Failed);
+    assert!(
+        sim.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("failed to run cutting simulation")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == sim_id && log_ref.ends_with("/sim-failure")
+        )
+    }));
+}
+
+#[test]
 fn test_job_adapter_rejects_cutting_sim_without_parent() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;

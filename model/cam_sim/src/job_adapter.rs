@@ -293,6 +293,10 @@ fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFo
         if input_ref.ends_with("/artifact-read-failed") {
             return Ok(vec![0_u8, 1, 2, 3]);
         }
+
+        if input_ref.ends_with("/sim-failure") {
+            return make_empty_toolpath_artifact_bytes();
+        }
     }
 
     make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
