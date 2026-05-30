@@ -482,7 +482,18 @@ fn test_job_adapter_runs_nc_post_from_cam_with_toolpath_artifact() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(nc_post_from_cam_spec("result://cam/42/ok"));
+    let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let id = manager
+        .submit_with_relation(
+            nc_post_from_cam_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();
@@ -501,7 +512,18 @@ fn test_job_adapter_rejects_nc_post_from_cam_kind_mismatch() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(nc_post_from_cam_spec("result://cam/42/kind-mismatch"));
+    let cam_id = manager.submit(cam_spec("input://cam/kind-mismatch"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let id = manager
+        .submit_with_relation(
+            nc_post_from_cam_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();
@@ -519,7 +541,18 @@ fn test_job_adapter_surfaces_nc_post_from_cam_version_incompatibility() {
     let mut manager = JobManager::new();
     let adapter = CamJobExecutorAdapter;
 
-    let id = manager.submit(nc_post_from_cam_spec("result://cam/42/version-mismatch"));
+    let cam_id = manager.submit(cam_spec("input://cam/version-mismatch"));
+    manager.execute_with(cam_id, &adapter).unwrap();
+
+    let id = manager
+        .submit_with_relation(
+            nc_post_from_cam_spec(&format!("result://cam/{}/ok", cam_id.0)),
+            JobRelation {
+                parent_job_id: Some(cam_id),
+                group_id: None,
+            },
+        )
+        .unwrap();
     manager.execute_with(id, &adapter).unwrap();
 
     let job = manager.get(id).unwrap();

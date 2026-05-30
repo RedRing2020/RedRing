@@ -82,6 +82,15 @@ impl JobManager {
             .map(|o| o.result_ref.as_str()))
     }
 
+    fn active_result_bytes(&self, id: JobId) -> Result<Option<Vec<u8>>, JobError> {
+        let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
+        Ok(record
+            .output_history
+            .iter()
+            .find(|o| o.validity == JobOutputValidity::Active)
+            .and_then(|o| o.artifact_bytes.clone()))
+    }
+
     /// 成果物履歴を新しい順で取得
     pub fn output_history(&self, id: JobId) -> Result<Vec<&JobOutputRecord>, JobError> {
         let record = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?;
@@ -188,6 +197,7 @@ impl JobManager {
         &mut self,
         id: JobId,
         result_ref: Option<String>,
+        artifact_bytes: Option<Vec<u8>>,
         log_ref: Option<String>,
     ) -> Result<(), JobError> {
         self.transition(id, JobStatus::Succeeded)?;
@@ -198,6 +208,7 @@ impl JobManager {
             if let Some(record) = self.jobs.get_mut(&id) {
                 record.output_history.push(JobOutputRecord {
                     result_ref: result_ref_value.clone(),
+                    artifact_bytes,
                     log_ref: log_ref.clone(),
                     produced_at: SystemTime::now(),
                     validity: JobOutputValidity::Active,
@@ -415,7 +426,11 @@ impl JobManager {
         self.start(id)?;
 
         let snapshot = self.jobs.get(&id).ok_or(JobError::JobNotFound(id))?.clone();
-        let execution = executor.execute(&snapshot);
+        let input_artifact_bytes = match snapshot.parent_job_id {
+            Some(parent_job_id) => self.active_result_bytes(parent_job_id)?,
+            None => None,
+        };
+        let execution = executor.execute(&snapshot, input_artifact_bytes.as_deref());
 
         let timeout_millis = snapshot.spec.timeout_secs.saturating_mul(1000);
         if execution.elapsed_millis > timeout_millis {
@@ -434,7 +449,12 @@ impl JobManager {
                 if let Some(result_ref) = execution.result_ref.clone() {
                     self.emit_artifact_ready(id, result_ref);
                 }
-                self.mark_succeeded(id, execution.result_ref, execution.log_ref)
+                self.mark_succeeded(
+                    id,
+                    execution.result_ref,
+                    execution.artifact_bytes,
+                    execution.log_ref,
+                )
             }
             JobStatus::Failed => self.mark_failed(
                 id,
@@ -536,7 +556,11 @@ mod tests {
     }
 
     impl JobExecutor for StubExecutor {
-        fn execute(&self, job: &JobRecord) -> JobExecutionResult {
+        fn execute(
+            &self,
+            job: &JobRecord,
+            _input_artifact_bytes: Option<&[u8]>,
+        ) -> JobExecutionResult {
             let result_ref = match job.spec.job_type {
                 JobType::CamProcess => Some("result://cam".to_string()),
                 JobType::CuttingSimulation => Some("result://sim".to_string()),
@@ -548,6 +572,7 @@ mod tests {
                     status: JobStatus::Succeeded,
                     elapsed_millis: self.elapsed_millis,
                     result_ref,
+                    artifact_bytes: None,
                     log_ref: Some("log://ok".to_string()),
                     error: None,
                 }
@@ -556,6 +581,7 @@ mod tests {
                     status: JobStatus::Failed,
                     elapsed_millis: self.elapsed_millis,
                     result_ref: None,
+                    artifact_bytes: None,
                     log_ref: Some("log://ng".to_string()),
                     error: Some("stub failure".to_string()),
                 }
@@ -571,7 +597,7 @@ mod tests {
         assert_eq!(manager.status(id).unwrap(), JobStatus::Queued);
         manager.start(id).unwrap();
         manager
-            .mark_succeeded(id, Some("result://ok".to_string()), None)
+            .mark_succeeded(id, Some("result://ok".to_string()), None, None)
             .unwrap();
 
         let final_status = manager.status(id).unwrap();
@@ -737,7 +763,7 @@ mod tests {
 
         manager.start(id1).unwrap();
         manager
-            .mark_succeeded(id1, Some("result://ok".to_string()), None)
+            .mark_succeeded(id1, Some("result://ok".to_string()), None, None)
             .unwrap();
 
         let summary = manager.group_summary("g2").unwrap();
@@ -773,7 +799,7 @@ mod tests {
 
         manager.start(id).unwrap();
         manager
-            .mark_succeeded(id, Some("result://ok".to_string()), None)
+            .mark_succeeded(id, Some("result://ok".to_string()), None, None)
             .unwrap();
 
         let events = manager.take_events();
@@ -806,7 +832,7 @@ mod tests {
 
         manager.start(parent).unwrap();
         manager
-            .mark_succeeded(parent, Some("result://parent/v1".to_string()), None)
+            .mark_succeeded(parent, Some("result://parent/v1".to_string()), None, None)
             .unwrap();
         assert_eq!(
             manager.active_result_ref(parent).unwrap(),
@@ -815,7 +841,7 @@ mod tests {
 
         manager.start(child).unwrap();
         manager
-            .mark_succeeded(child, Some("result://child/v1".to_string()), None)
+            .mark_succeeded(child, Some("result://child/v1".to_string()), None, None)
             .unwrap();
 
         assert_eq!(manager.active_result_ref(parent).unwrap(), None);
@@ -840,12 +866,12 @@ mod tests {
 
         manager.start(root).unwrap();
         manager
-            .mark_succeeded(root, Some("result://root/v1".to_string()), None)
+            .mark_succeeded(root, Some("result://root/v1".to_string()), None, None)
             .unwrap();
 
         manager.start(child).unwrap();
         manager
-            .mark_succeeded(child, Some("result://child/v1".to_string()), None)
+            .mark_succeeded(child, Some("result://child/v1".to_string()), None, None)
             .unwrap();
         assert_eq!(
             manager.active_result_ref(child).unwrap(),
@@ -855,7 +881,7 @@ mod tests {
         manager.rerun(root).unwrap();
         manager.start(root).unwrap();
         manager
-            .mark_succeeded(root, Some("result://root/v2".to_string()), None)
+            .mark_succeeded(root, Some("result://root/v2".to_string()), None, None)
             .unwrap();
 
         assert_eq!(manager.status(child).unwrap(), JobStatus::NeedsRecompute);
