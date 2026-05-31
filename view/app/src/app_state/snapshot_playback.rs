@@ -26,6 +26,22 @@ fn resolve_snapshot_load_readiness(
     }
 }
 
+fn can_start_snapshot_ui_operation(
+    trigger_label: &str,
+    has_series: bool,
+    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
+) -> bool {
+    let _ = trigger_label;
+    if has_series {
+        return true;
+    }
+
+    matches!(
+        resolve_snapshot_load_readiness(current_cam_demo_scenario),
+        SnapshotLoadReadiness::Ready(_)
+    )
+}
+
 fn select_frame_index_by_distance_target(distances: &[f64], target_distance: f64) -> usize {
     if distances.len() <= 1 {
         return 0;
@@ -114,18 +130,25 @@ fn build_segment_weighted_progress_axis(
 
 impl AppState {
     pub(super) fn ensure_snapshot_series_ready(&mut self, trigger_label: &str) -> bool {
+        if !can_start_snapshot_ui_operation(
+            trigger_label,
+            self.debug_snapshot.series.is_some(),
+            self.current_cam_demo_scenario,
+        ) {
+            tracing::warn!(
+                "CAMシミュレーションデモが未開始です。Shift+B または Shift+F で開始してください"
+            );
+            return false;
+        }
+
         if self.debug_snapshot.series.is_some() {
             return true;
         }
 
-        let scenario = match resolve_snapshot_load_readiness(self.current_cam_demo_scenario) {
-            SnapshotLoadReadiness::Ready(scenario) => scenario,
-            SnapshotLoadReadiness::NotReady => {
-                tracing::warn!(
-                    "CAMシミュレーションデモが未開始です。Shift+B または Shift+F で開始してください"
-                );
-                return false;
-            }
+        let SnapshotLoadReadiness::Ready(scenario) =
+            resolve_snapshot_load_readiness(self.current_cam_demo_scenario)
+        else {
+            return false;
         };
 
         self.load_sample_toolpath_with_scenario(scenario, trigger_label);
@@ -553,7 +576,9 @@ impl AppState {
 mod tests {
     use cam_demo::CamSimulationDemoScenario;
 
-    use super::{resolve_snapshot_load_readiness, SnapshotLoadReadiness};
+    use super::{
+        can_start_snapshot_ui_operation, resolve_snapshot_load_readiness, SnapshotLoadReadiness,
+    };
 
     #[test]
     fn resolve_snapshot_load_readiness_returns_not_ready_when_scenario_is_absent() {
@@ -569,5 +594,34 @@ mod tests {
             resolve_snapshot_load_readiness(Some(CamSimulationDemoScenario::SuccessFlatEndMill)),
             SnapshotLoadReadiness::Ready(CamSimulationDemoScenario::SuccessFlatEndMill)
         );
+    }
+
+    #[test]
+    fn ui_snapshot_operations_are_blocked_when_demo_is_not_ready() {
+        for trigger in ["k", "j", "Space", "snapshot scrub"] {
+            assert!(
+                !can_start_snapshot_ui_operation(trigger, false, None),
+                "trigger '{}' must be blocked when demo is not ready",
+                trigger
+            );
+        }
+    }
+
+    #[test]
+    fn ui_snapshot_operations_are_allowed_when_series_is_already_loaded() {
+        for trigger in ["k", "j", "Space", "snapshot scrub"] {
+            assert!(can_start_snapshot_ui_operation(trigger, true, None));
+        }
+    }
+
+    #[test]
+    fn ui_snapshot_operations_are_allowed_when_demo_scenario_is_ready() {
+        for trigger in ["k", "j", "Space", "snapshot scrub"] {
+            assert!(can_start_snapshot_ui_operation(
+                trigger,
+                false,
+                Some(CamSimulationDemoScenario::Success)
+            ));
+        }
     }
 }
