@@ -3,6 +3,7 @@
 //! CAMドメインのシミュレーション実行責務を提供します。
 //! 幾何計算カーネルは `geo_algorithms` に委譲します。
 //! Phase 1a では 3軸固定・フラットエンドミル限定の最小実装を提供します。
+//! あわせて Issue #729 向けに、SAT-Cut PoC の ExactWork API を併存公開します。
 
 mod error;
 mod exact_work;

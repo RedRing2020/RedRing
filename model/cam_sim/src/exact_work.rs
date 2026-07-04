@@ -61,7 +61,7 @@ impl PrimitiveSetExactWork {
     }
 
     fn contains_material(&self, point: &Point3D<f64>) -> bool {
-        if !point_in_aabb(point, &self.bounds) {
+        if !self.bounds.contains(point) {
             return false;
         }
         !self
@@ -88,11 +88,7 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
                     (point_to_segment_distance(point, segment) - *radius).abs()
                 }
                 ExactToolPrimitive::Flat { segment, radius } => {
-                    let distance = point_to_flat_swept_distance(point, segment);
-                    if !distance.is_finite() {
-                        continue;
-                    }
-                    (distance - *radius).abs()
+                    point_to_flat_swept_surface_distance(point, segment, *radius)
                 }
             };
             best = best.min(surface_distance);
@@ -103,6 +99,12 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     fn estimate_remaining_volume(&self, sample_pitch: f64) -> f64 {
         if sample_pitch <= f64::EPSILON {
             return 0.0;
+        }
+
+        if self.removed_primitives.is_empty() {
+            let min = self.bounds.min();
+            let max = self.bounds.max();
+            return (max.x() - min.x()) * (max.y() - min.y()) * (max.z() - min.z());
         }
 
         let min = self.bounds.min();
@@ -135,24 +137,13 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 }
 
-fn point_in_aabb(point: &Point3D<f64>, aabb: &Aabb3D<f64>) -> bool {
-    let min = aabb.min();
-    let max = aabb.max();
-    point.x() >= min.x()
-        && point.x() <= max.x()
-        && point.y() >= min.y()
-        && point.y() <= max.y()
-        && point.z() >= min.z()
-        && point.z() <= max.z()
-}
-
 fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>) -> bool {
     match primitive {
         ExactToolPrimitive::Ball { segment, radius } => {
             point_to_segment_distance(point, segment) <= *radius
         }
         ExactToolPrimitive::Flat { segment, radius } => {
-            point_to_flat_swept_distance(point, segment) <= *radius
+            flat_swept_contains(point, segment, *radius)
         }
     }
 }
@@ -192,7 +183,11 @@ fn point_to_segment_distance(point: &Point3D<f64>, segment: &LineSegment3D<f64>)
     (dx * dx + dy * dy + dz * dz).sqrt()
 }
 
-fn point_to_flat_swept_distance(point: &Point3D<f64>, segment: &LineSegment3D<f64>) -> f64 {
+fn point_to_flat_swept_surface_distance(
+    point: &Point3D<f64>,
+    segment: &LineSegment3D<f64>,
+    radius: f64,
+) -> f64 {
     let start_x = segment.start().x();
     let start_y = segment.start().y();
     let start_z = segment.start().z();
@@ -203,28 +198,87 @@ fn point_to_flat_swept_distance(point: &Point3D<f64>, segment: &LineSegment3D<f6
     let axis_x = end_x - start_x;
     let axis_y = end_y - start_y;
     let axis_z = end_z - start_z;
-    let axis_len_sq = axis_x * axis_x + axis_y * axis_y + axis_z * axis_z;
-    if axis_len_sq <= f64::EPSILON {
+    let axis_len = (axis_x * axis_x + axis_y * axis_y + axis_z * axis_z).sqrt();
+    if axis_len <= f64::EPSILON {
         let dx = point.x() - start_x;
         let dy = point.y() - start_y;
         let dz = point.z() - start_z;
-        return (dx * dx + dy * dy + dz * dz).sqrt();
+        return ((dx * dx + dy * dy + dz * dz).sqrt() - radius).abs();
     }
 
     let point_x = point.x() - start_x;
     let point_y = point.y() - start_y;
     let point_z = point.z() - start_z;
-    let t = (point_x * axis_x + point_y * axis_y + point_z * axis_z) / axis_len_sq;
-    // PoCでは端点側も含めた有限距離を返し、境界評価が破綻しないようにする。
-    let t = t.clamp(0.0, 1.0);
+    let axis_dir_x = axis_x / axis_len;
+    let axis_dir_y = axis_y / axis_len;
+    let axis_dir_z = axis_z / axis_len;
+    let axial = point_x * axis_dir_x + point_y * axis_dir_y + point_z * axis_dir_z;
 
-    let closest_x = start_x + axis_x * t;
-    let closest_y = start_y + axis_y * t;
-    let closest_z = start_z + axis_z * t;
-    let dx = point.x() - closest_x;
-    let dy = point.y() - closest_y;
-    let dz = point.z() - closest_z;
-    (dx * dx + dy * dy + dz * dz).sqrt()
+    let proj_x = start_x + axis_dir_x * axial;
+    let proj_y = start_y + axis_dir_y * axial;
+    let proj_z = start_z + axis_dir_z * axial;
+    let radial_x = point.x() - proj_x;
+    let radial_y = point.y() - proj_y;
+    let radial_z = point.z() - proj_z;
+    let radial = (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt();
+
+    if axial < 0.0 {
+        let axial_excess = -axial;
+        if radial <= radius {
+            axial_excess
+        } else {
+            axial_excess.hypot(radial - radius)
+        }
+    } else if axial > axis_len {
+        let axial_excess = axial - axis_len;
+        if radial <= radius {
+            axial_excess
+        } else {
+            axial_excess.hypot(radial - radius)
+        }
+    } else {
+        (radial - radius).abs()
+    }
+}
+
+fn flat_swept_contains(point: &Point3D<f64>, segment: &LineSegment3D<f64>, radius: f64) -> bool {
+    let start_x = segment.start().x();
+    let start_y = segment.start().y();
+    let start_z = segment.start().z();
+    let end_x = segment.end().x();
+    let end_y = segment.end().y();
+    let end_z = segment.end().z();
+
+    let axis_x = end_x - start_x;
+    let axis_y = end_y - start_y;
+    let axis_z = end_z - start_z;
+    let axis_len = (axis_x * axis_x + axis_y * axis_y + axis_z * axis_z).sqrt();
+    if axis_len <= f64::EPSILON {
+        let dx = point.x() - start_x;
+        let dy = point.y() - start_y;
+        let dz = point.z() - start_z;
+        return (dx * dx + dy * dy + dz * dz).sqrt() <= radius;
+    }
+
+    let point_x = point.x() - start_x;
+    let point_y = point.y() - start_y;
+    let point_z = point.z() - start_z;
+    let axis_dir_x = axis_x / axis_len;
+    let axis_dir_y = axis_y / axis_len;
+    let axis_dir_z = axis_z / axis_len;
+    let axial = point_x * axis_dir_x + point_y * axis_dir_y + point_z * axis_dir_z;
+
+    if !(0.0..=axis_len).contains(&axial) {
+        return false;
+    }
+
+    let proj_x = start_x + axis_dir_x * axial;
+    let proj_y = start_y + axis_dir_y * axial;
+    let proj_z = start_z + axis_dir_z * axial;
+    let radial_x = point.x() - proj_x;
+    let radial_y = point.y() - proj_y;
+    let radial_z = point.z() - proj_z;
+    (radial_x * radial_x + radial_y * radial_y + radial_z * radial_z).sqrt() <= radius
 }
 
 #[cfg(test)]
@@ -304,5 +358,28 @@ mod tests {
         let after = work.estimate_remaining_volume(2.0);
 
         assert!(before > after, "before={} after={}", before, after);
+    }
+
+    #[test]
+    fn primitive_set_exact_work_distinguishes_flat_from_ball_on_segment_endpoint_side() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let segment = LineSegment3D::new(Point3D::new(2.0, 5.0, 5.0), Point3D::new(8.0, 5.0, 5.0))
+            .expect("segment must be valid");
+
+        let mut flat_work = PrimitiveSetExactWork::new(bounds);
+        flat_work.apply_primitive(ExactToolPrimitive::Flat {
+            segment,
+            radius: 1.0,
+        });
+
+        let mut ball_work = PrimitiveSetExactWork::new(bounds);
+        ball_work.apply_primitive(ExactToolPrimitive::Ball {
+            segment,
+            radius: 1.0,
+        });
+
+        let endpoint_side = Point3D::new(1.5, 5.0, 5.0);
+        assert!(flat_work.contains_material_at(&endpoint_side));
+        assert!(!ball_work.contains_material_at(&endpoint_side));
     }
 }
