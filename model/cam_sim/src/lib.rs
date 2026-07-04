@@ -5,12 +5,17 @@
 //! Phase 1a では 3軸固定・フラットエンドミル限定の最小実装を提供します。
 
 mod error;
+mod exact_work;
 mod job_adapter;
 mod simulator;
 mod workflow;
 
 /// シミュレーション実行時のエラー型。
 pub use error::SimulationError;
+/// SAT-Cut PoC向けのExactWork trait定義。
+pub use exact_work::{
+    ExactToolPrimitive, ExactWorkModel, ExactWorkProjectionCache, PrimitiveSetExactWork,
+};
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
 /// シミュレーション実行APIとスナップショット関連型。
