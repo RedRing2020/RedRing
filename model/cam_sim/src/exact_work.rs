@@ -1,3 +1,4 @@
+use geo_algorithms::distance::line_segment3d_point3d_distance;
 use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, Scalar};
 
 /// SAT-Cut PoCで扱う工具掃引プリミティブ。
@@ -97,39 +98,45 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 
     fn estimate_remaining_volume(&self, sample_pitch: f64) -> f64 {
+        if self.removed_primitives.is_empty() {
+            return self.bounds.volume();
+        }
+
         if sample_pitch <= f64::EPSILON {
             return 0.0;
         }
 
-        if self.removed_primitives.is_empty() {
-            let min = self.bounds.min();
-            let max = self.bounds.max();
-            return (max.x() - min.x()) * (max.y() - min.y()) * (max.z() - min.z());
-        }
-
         let min = self.bounds.min();
         let max = self.bounds.max();
-        let half = sample_pitch * 0.5;
+        let width = max.x() - min.x();
+        let height = max.y() - min.y();
+        let depth = max.z() - min.z();
+
+        let x_samples = ((width / sample_pitch).ceil() as usize).max(1);
+        let y_samples = ((height / sample_pitch).ceil() as usize).max(1);
+        let z_samples = ((depth / sample_pitch).ceil() as usize).max(1);
+
+        let dx = width / (x_samples as f64);
+        let dy = height / (y_samples as f64);
+        let dz = depth / (z_samples as f64);
 
         let mut solid_count = 0usize;
-        let mut x = min.x() + half;
-        while x < max.x() {
-            let mut y = min.y() + half;
-            while y < max.y() {
-                let mut z = min.z() + half;
-                while z < max.z() {
+        for ix in 0..x_samples {
+            let x = min.x() + ((ix as f64) + 0.5) * dx;
+            for iy in 0..y_samples {
+                let y = min.y() + ((iy as f64) + 0.5) * dy;
+                for iz in 0..z_samples {
+                    let z = min.z() + ((iz as f64) + 0.5) * dz;
                     let point = Point3D::new(x, y, z);
                     if self.contains_material(&point) {
                         solid_count += 1;
                     }
-                    z += sample_pitch;
                 }
-                y += sample_pitch;
             }
-            x += sample_pitch;
         }
 
-        (solid_count as f64) * sample_pitch.powi(3)
+        let total_samples = (x_samples * y_samples * z_samples) as f64;
+        self.bounds.volume() * ((solid_count as f64) / total_samples)
     }
 
     fn primitive_count(&self) -> usize {
@@ -149,38 +156,7 @@ fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>)
 }
 
 fn point_to_segment_distance(point: &Point3D<f64>, segment: &LineSegment3D<f64>) -> f64 {
-    let start_x = segment.start().x();
-    let start_y = segment.start().y();
-    let start_z = segment.start().z();
-    let end_x = segment.end().x();
-    let end_y = segment.end().y();
-    let end_z = segment.end().z();
-
-    let axis_x = end_x - start_x;
-    let axis_y = end_y - start_y;
-    let axis_z = end_z - start_z;
-    let axis_len_sq = axis_x * axis_x + axis_y * axis_y + axis_z * axis_z;
-
-    if axis_len_sq <= f64::EPSILON {
-        let dx = point.x() - start_x;
-        let dy = point.y() - start_y;
-        let dz = point.z() - start_z;
-        return (dx * dx + dy * dy + dz * dz).sqrt();
-    }
-
-    let point_x = point.x() - start_x;
-    let point_y = point.y() - start_y;
-    let point_z = point.z() - start_z;
-    let t =
-        ((point_x * axis_x + point_y * axis_y + point_z * axis_z) / axis_len_sq).clamp(0.0, 1.0);
-
-    let closest_x = start_x + axis_x * t;
-    let closest_y = start_y + axis_y * t;
-    let closest_z = start_z + axis_z * t;
-    let dx = point.x() - closest_x;
-    let dy = point.y() - closest_y;
-    let dz = point.z() - closest_z;
-    (dx * dx + dy * dy + dz * dz).sqrt()
+    line_segment3d_point3d_distance(segment, point)
 }
 
 fn point_to_flat_swept_surface_distance(
@@ -381,5 +357,23 @@ mod tests {
         let endpoint_side = Point3D::new(1.5, 5.0, 5.0);
         assert!(flat_work.contains_material_at(&endpoint_side));
         assert!(!ball_work.contains_material_at(&endpoint_side));
+    }
+
+    #[test]
+    fn primitive_set_exact_work_empty_returns_bounds_volume_even_with_tiny_pitch() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 20.0, 30.0));
+        let work = PrimitiveSetExactWork::new(bounds);
+
+        let volume = work.estimate_remaining_volume(f64::EPSILON);
+        assert!((volume - bounds.volume()).abs() <= 1.0e-9);
+    }
+
+    #[test]
+    fn primitive_set_exact_work_estimate_volume_never_exceeds_bounds_volume() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let work = PrimitiveSetExactWork::new(bounds);
+
+        let volume = work.estimate_remaining_volume(6.0);
+        assert!(volume <= bounds.volume());
     }
 }
