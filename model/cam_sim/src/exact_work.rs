@@ -51,7 +51,7 @@ pub struct PrimitiveSetExactWork {
 
 impl PrimitiveSetExactWork {
     pub fn new(bounds: Aabb3D<f64>) -> Self {
-        debug_assert!(
+        assert!(
             !bounds.is_empty(),
             "PrimitiveSetExactWork::new received invalid bounds (min > max)"
         );
@@ -84,8 +84,8 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
                 radius
             }
         };
-        debug_assert!(radius.is_finite(), "radius must be finite");
-        debug_assert!(radius >= 0.0, "radius must be non-negative");
+        assert!(radius.is_finite(), "radius must be finite");
+        assert!(radius >= 0.0, "radius must be non-negative");
         self.removed_primitives.push(primitive);
     }
 
@@ -118,7 +118,7 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
             return self.bounds.volume();
         }
 
-        if !sample_pitch.is_finite() || sample_pitch <= f64::EPSILON {
+        if !sample_pitch.is_finite() || sample_pitch <= 0.0 {
             return 0.0;
         }
 
@@ -163,7 +163,7 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
 const MAX_AXIS_SAMPLES: usize = 128;
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
-    if !span.is_finite() || !sample_pitch.is_finite() || sample_pitch <= f64::EPSILON {
+    if !span.is_finite() || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
         return 1;
     }
 
@@ -421,5 +421,42 @@ mod tests {
 
         assert_eq!(work.estimate_remaining_volume(f64::NAN), 0.0);
         assert_eq!(work.estimate_remaining_volume(f64::INFINITY), 0.0);
+    }
+
+    #[test]
+    fn primitive_set_exact_work_accepts_tiny_positive_pitch_with_primitives() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let mut work = PrimitiveSetExactWork::new(bounds);
+        let segment = LineSegment3D::new(Point3D::new(2.0, 5.0, 5.0), Point3D::new(8.0, 5.0, 5.0))
+            .expect("segment must be valid");
+        work.apply_primitive(ExactToolPrimitive::Ball {
+            segment,
+            radius: 1.0,
+        });
+
+        let volume = work.estimate_remaining_volume(f64::EPSILON * 0.5);
+        assert!(volume > 0.0);
+        assert!(volume <= bounds.volume());
+    }
+
+    #[test]
+    #[should_panic(expected = "PrimitiveSetExactWork::new received invalid bounds")]
+    fn primitive_set_exact_work_new_rejects_invalid_bounds() {
+        let invalid_bounds = Aabb3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 1.0));
+        let _ = PrimitiveSetExactWork::new(invalid_bounds);
+    }
+
+    #[test]
+    #[should_panic(expected = "radius must be non-negative")]
+    fn primitive_set_exact_work_apply_primitive_rejects_negative_radius() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let mut work = PrimitiveSetExactWork::new(bounds);
+        let segment = LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .expect("segment must be valid");
+
+        work.apply_primitive(ExactToolPrimitive::Flat {
+            segment,
+            radius: -1.0,
+        });
     }
 }
