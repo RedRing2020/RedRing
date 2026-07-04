@@ -126,12 +126,12 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
             return 0.0;
         }
 
-        if self.removed_primitives.is_empty() {
-            return self.bounds.volume();
-        }
-
         if !sample_pitch.is_finite() || sample_pitch <= 0.0 {
             return 0.0;
+        }
+
+        if self.removed_primitives.is_empty() {
+            return self.bounds.volume();
         }
 
         let min = self.bounds.min();
@@ -440,6 +440,15 @@ mod tests {
 
     #[test]
     fn primitive_set_exact_work_estimate_volume_rejects_non_finite_pitch() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let work = PrimitiveSetExactWork::new(bounds);
+
+        assert_eq!(work.estimate_remaining_volume(f64::NAN), 0.0);
+        assert_eq!(work.estimate_remaining_volume(f64::INFINITY), 0.0);
+    }
+
+    #[test]
+    fn primitive_set_exact_work_estimate_volume_rejects_non_finite_pitch_after_cutting() {
         let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
         let mut work = PrimitiveSetExactWork::new(bounds);
         let segment = LineSegment3D::new(Point3D::new(2.0, 5.0, 5.0), Point3D::new(8.0, 5.0, 5.0))
