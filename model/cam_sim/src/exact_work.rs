@@ -51,6 +51,7 @@ pub struct PrimitiveSetExactWork {
 
 impl PrimitiveSetExactWork {
     pub fn new(bounds: Aabb3D<f64>) -> Self {
+        assert!(aabb_is_finite(&bounds), "bounds coordinates must be finite");
         assert!(
             !bounds.is_empty(),
             "PrimitiveSetExactWork::new received invalid bounds (min > max)"
@@ -79,11 +80,14 @@ impl PrimitiveSetExactWork {
 
 impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     fn apply_primitive(&mut self, primitive: ExactToolPrimitive<f64>) {
-        let radius = match primitive {
-            ExactToolPrimitive::Flat { radius, .. } | ExactToolPrimitive::Ball { radius, .. } => {
-                radius
-            }
+        let (segment, radius) = match primitive {
+            ExactToolPrimitive::Flat { segment, radius }
+            | ExactToolPrimitive::Ball { segment, radius } => (segment, radius),
         };
+        assert!(
+            segment_is_finite(&segment),
+            "segment endpoints must be finite"
+        );
         assert!(radius.is_finite(), "radius must be finite");
         assert!(radius >= 0.0, "radius must be non-negative");
         self.removed_primitives.push(primitive);
@@ -161,6 +165,18 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
 }
 
 const MAX_AXIS_SAMPLES: usize = 128;
+
+fn point_is_finite(point: &Point3D<f64>) -> bool {
+    point.x().is_finite() && point.y().is_finite() && point.z().is_finite()
+}
+
+fn segment_is_finite(segment: &LineSegment3D<f64>) -> bool {
+    point_is_finite(&segment.start()) && point_is_finite(&segment.end())
+}
+
+fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
+    point_is_finite(&aabb.min()) && point_is_finite(&aabb.max())
+}
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     if !span.is_finite() || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
@@ -447,6 +463,16 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "bounds coordinates must be finite")]
+    fn primitive_set_exact_work_new_rejects_non_finite_bounds() {
+        let invalid_bounds = Aabb3D::new(
+            Point3D::new(f64::NAN, 0.0, 0.0),
+            Point3D::new(1.0, 1.0, 1.0),
+        );
+        let _ = PrimitiveSetExactWork::new(invalid_bounds);
+    }
+
+    #[test]
     #[should_panic(expected = "radius must be non-negative")]
     fn primitive_set_exact_work_apply_primitive_rejects_negative_radius() {
         let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
@@ -457,6 +483,23 @@ mod tests {
         work.apply_primitive(ExactToolPrimitive::Flat {
             segment,
             radius: -1.0,
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "segment endpoints must be finite")]
+    fn primitive_set_exact_work_apply_primitive_rejects_non_finite_segment() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let mut work = PrimitiveSetExactWork::new(bounds);
+        let segment = LineSegment3D::new(
+            Point3D::new(f64::INFINITY, 0.0, 0.0),
+            Point3D::new(1.0, 0.0, 0.0),
+        )
+        .expect("segment must be valid");
+
+        work.apply_primitive(ExactToolPrimitive::Flat {
+            segment,
+            radius: 1.0,
         });
     }
 }
