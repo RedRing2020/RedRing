@@ -260,7 +260,9 @@ fn point_to_flat_swept_surface_distance(
             axial_excess.hypot(radial - radius)
         }
     } else {
-        (radial - radius).abs()
+        let side_distance = (radial - radius).abs();
+        let cap_distance = axial.min(axis_len - axial);
+        side_distance.min(cap_distance)
     }
 }
 
@@ -501,5 +503,21 @@ mod tests {
             segment,
             radius: 1.0,
         });
+    }
+
+    #[test]
+    fn primitive_set_exact_work_flat_nearest_distance_uses_end_cap_when_closer() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let mut work = PrimitiveSetExactWork::new(bounds);
+        let segment = LineSegment3D::new(Point3D::new(2.0, 5.0, 5.0), Point3D::new(8.0, 5.0, 5.0))
+            .expect("segment must be valid");
+        work.apply_primitive(ExactToolPrimitive::Flat {
+            segment,
+            radius: 1.0,
+        });
+
+        let near_start_cap_axis = Point3D::new(2.1, 5.0, 5.0);
+        let distance = work.nearest_removed_surface_distance(&near_start_cap_axis);
+        assert!((distance - 0.1).abs() <= 1.0e-9, "distance={}", distance);
     }
 }
