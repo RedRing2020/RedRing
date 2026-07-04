@@ -310,7 +310,9 @@ Issue #729 の比較基盤を使って高精度方式を評価するため、ワ
 ここで `p` は工具種別ごとの解析プリミティブで表現する。
 
 - FlatEndMill: `SweptCylinder(segment, radius)`
-- BallEndMill: `Capsule(segment + z_offset(radius), radius)`
+- BallEndMill: `Capsule(segment, radius)`
+
+PoCでは参照点補正を別責務にせず、工具中心軌跡として渡された `segment` をそのまま使う。`z_offset(radius)` による補正を入れる場合は、`cam_sim` 側の工具参照点変換に責務を分離してから導入する。
 
 #### データ構造（最小）
 

@@ -215,9 +215,8 @@ fn point_to_flat_swept_distance(point: &Point3D<f64>, segment: &LineSegment3D<f6
     let point_y = point.y() - start_y;
     let point_z = point.z() - start_z;
     let t = (point_x * axis_x + point_y * axis_y + point_z * axis_z) / axis_len_sq;
-    if !(0.0..=1.0).contains(&t) {
-        return f64::INFINITY;
-    }
+    // PoCでは端点側も含めた有限距離を返し、境界評価が破綻しないようにする。
+    let t = t.clamp(0.0, 1.0);
 
     let closest_x = start_x + axis_x * t;
     let closest_y = start_y + axis_y * t;
