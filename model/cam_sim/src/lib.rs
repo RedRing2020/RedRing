@@ -13,7 +13,7 @@ mod workflow;
 
 /// シミュレーション実行時のエラー型。
 pub use error::SimulationError;
-/// SAT-Cut PoC向けのExactWork trait定義。
+/// SAT-Cut PoC向けのExactWork trait定義・プリミティブ型・PoC実装。
 pub use exact_work::{
     ExactToolPrimitive, ExactWorkModel, ExactWorkProjectionCache, PrimitiveSetExactWork,
 };

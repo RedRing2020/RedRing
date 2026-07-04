@@ -27,6 +27,7 @@ pub trait ExactWorkModel<T: Scalar> {
     fn nearest_removed_surface_distance(&self, point: &Point3D<T>) -> T;
 
     /// サンプリングで残存体積を推定する。
+    /// `sample_pitch` が非有限値または `<= 0` の場合は `0` を返す。
     fn estimate_remaining_volume(&self, sample_pitch: T) -> T;
 
     /// 正本が保持している掃引プリミティブ数を返す。
@@ -50,6 +51,13 @@ pub struct PrimitiveSetExactWork {
 }
 
 impl PrimitiveSetExactWork {
+    /// 新しい `PrimitiveSetExactWork` を生成する。
+    ///
+    /// # Panics
+    ///
+    /// 次の場合に panic する:
+    /// - `bounds` の座標に非有限値（NaN/inf）が含まれる
+    /// - `bounds` が不正（min > max）
     pub fn new(bounds: Aabb3D<f64>) -> Self {
         assert!(aabb_is_finite(&bounds), "bounds coordinates must be finite");
         assert!(
