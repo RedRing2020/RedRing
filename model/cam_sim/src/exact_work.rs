@@ -23,6 +23,7 @@ pub trait ExactWorkModel<T: Scalar> {
     fn contains_material_at(&self, point: &Point3D<T>) -> bool;
 
     /// 除去境界までの最近傍距離を返す。
+    /// 除去プリミティブが未適用の場合は `T::INFINITY` を返す。
     fn nearest_removed_surface_distance(&self, point: &Point3D<T>) -> T;
 
     /// サンプリングで残存体積を推定する。
@@ -50,6 +51,10 @@ pub struct PrimitiveSetExactWork {
 
 impl PrimitiveSetExactWork {
     pub fn new(bounds: Aabb3D<f64>) -> Self {
+        debug_assert!(
+            !bounds.is_empty(),
+            "PrimitiveSetExactWork::new received invalid bounds (min > max)"
+        );
         Self {
             bounds,
             removed_primitives: Vec::new(),
@@ -74,6 +79,13 @@ impl PrimitiveSetExactWork {
 
 impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     fn apply_primitive(&mut self, primitive: ExactToolPrimitive<f64>) {
+        let radius = match primitive {
+            ExactToolPrimitive::Flat { radius, .. } | ExactToolPrimitive::Ball { radius, .. } => {
+                radius
+            }
+        };
+        debug_assert!(radius.is_finite(), "radius must be finite");
+        debug_assert!(radius >= 0.0, "radius must be non-negative");
         self.removed_primitives.push(primitive);
     }
 
@@ -98,11 +110,15 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 
     fn estimate_remaining_volume(&self, sample_pitch: f64) -> f64 {
+        if self.bounds.is_empty() {
+            return 0.0;
+        }
+
         if self.removed_primitives.is_empty() {
             return self.bounds.volume();
         }
 
-        if sample_pitch <= f64::EPSILON {
+        if !sample_pitch.is_finite() || sample_pitch <= f64::EPSILON {
             return 0.0;
         }
 
@@ -112,9 +128,9 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
         let height = max.y() - min.y();
         let depth = max.z() - min.z();
 
-        let x_samples = ((width / sample_pitch).ceil() as usize).max(1);
-        let y_samples = ((height / sample_pitch).ceil() as usize).max(1);
-        let z_samples = ((depth / sample_pitch).ceil() as usize).max(1);
+        let x_samples = axis_sample_count(width, sample_pitch);
+        let y_samples = axis_sample_count(height, sample_pitch);
+        let z_samples = axis_sample_count(depth, sample_pitch);
 
         let dx = width / (x_samples as f64);
         let dy = height / (y_samples as f64);
@@ -142,6 +158,21 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     fn primitive_count(&self) -> usize {
         self.removed_primitives.len()
     }
+}
+
+const MAX_AXIS_SAMPLES: usize = 128;
+
+fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
+    if !span.is_finite() || !sample_pitch.is_finite() || sample_pitch <= f64::EPSILON {
+        return 1;
+    }
+
+    let raw = (span / sample_pitch).ceil();
+    if !raw.is_finite() {
+        return MAX_AXIS_SAMPLES;
+    }
+
+    raw.clamp(1.0, MAX_AXIS_SAMPLES as f64) as usize
 }
 
 fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>) -> bool {
@@ -375,5 +406,20 @@ mod tests {
 
         let volume = work.estimate_remaining_volume(6.0);
         assert!(volume <= bounds.volume());
+    }
+
+    #[test]
+    fn primitive_set_exact_work_estimate_volume_rejects_non_finite_pitch() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let mut work = PrimitiveSetExactWork::new(bounds);
+        let segment = LineSegment3D::new(Point3D::new(2.0, 5.0, 5.0), Point3D::new(8.0, 5.0, 5.0))
+            .expect("segment must be valid");
+        work.apply_primitive(ExactToolPrimitive::Ball {
+            segment,
+            radius: 1.0,
+        });
+
+        assert_eq!(work.estimate_remaining_volume(f64::NAN), 0.0);
+        assert_eq!(work.estimate_remaining_volume(f64::INFINITY), 0.0);
     }
 }
