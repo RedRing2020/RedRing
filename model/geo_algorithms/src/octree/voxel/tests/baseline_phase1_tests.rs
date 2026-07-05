@@ -26,6 +26,8 @@ struct BaselineCaseDelta {
     elapsed_micros_ratio: f64,
 }
 
+type PerfGuardCase = (&'static str, fn() -> BaselineCase, f64);
+
 const PERF_GUARD_SAMPLE_COUNT: usize = 5;
 const PERF_GUARD_MAX_RATIO: f64 = 1.20;
 const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
@@ -282,7 +284,7 @@ fn test_phase1_baseline_cases_are_deterministic() {
 
 #[test]
 fn test_phase1_performance_guard_within_20_percent() {
-    let cases: [(&str, fn() -> BaselineCase, f64); 5] = [
+    let cases: [PerfGuardCase; 5] = [
         (
             "box_partial_depth4",
             run_box_partial_case,
