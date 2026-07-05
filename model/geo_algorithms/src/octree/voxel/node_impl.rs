@@ -143,7 +143,9 @@ impl<T: Scalar> VoxelNode<T> {
                         child.remove_material_box(tool_aabb, max_depth);
                     }
                 } else {
-                    self.state = VoxelState::Empty;
+                    if self.should_remove_leaf_for_box(tool_aabb) {
+                        self.state = VoxelState::Empty;
+                    }
                 }
             }
 
@@ -459,6 +461,11 @@ impl<T: Scalar> VoxelNode<T> {
         let point = Point3D::new(px, py, pz);
         let closest = Point3D::new(closest_x, closest_y, closest_z);
         point.distance_to(&closest)
+    }
+
+    /// 最大深さ葉ノードでのAABB除去判定（中心点サンプリング）。
+    fn should_remove_leaf_for_box(&self, tool_aabb: &Aabb3D<T>) -> bool {
+        tool_aabb.contains_point(&self.bounds.center())
     }
 
     /// Z軸平行の軸付き形状に特化した高速除去を行う。

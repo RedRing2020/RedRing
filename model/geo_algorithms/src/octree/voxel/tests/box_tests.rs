@@ -112,3 +112,21 @@ fn test_no_intersection() {
 
     assert_eq!(voxel_tree.remaining_volume(), initial_volume);
 }
+
+#[test]
+fn test_remove_material_box_leaf_partial_overlap_does_not_remove_all() {
+    let bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+    let mut voxel_tree = VoxelOctree::new(bounds, 0);
+
+    let initial_volume = voxel_tree.remaining_volume();
+    let tool_aabb = Aabb3D::new(
+        Point3D::new(90.0, 90.0, 90.0),
+        Point3D::new(110.0, 110.0, 110.0),
+    );
+    voxel_tree.remove_material_box(&tool_aabb);
+
+    assert_eq!(voxel_tree.remaining_volume(), initial_volume);
+}
