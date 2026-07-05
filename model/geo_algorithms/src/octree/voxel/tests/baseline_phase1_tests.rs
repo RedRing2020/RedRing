@@ -34,8 +34,9 @@ const PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US: f64 = 50.0;
 const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
 const PERF_GUARD_MAX_ADDITIONAL_JITTER_US: f64 = 60.0;
+const PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO: f64 = 1.10;
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
-const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 0.0;
+const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 1.0;
 const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
 const Z_AXIS_BASELINE_ELAPSED_MICROS: f64 = 55.6;
 const SWEPT_BASELINE_ELAPSED_MICROS: f64 = 450.2;
@@ -384,7 +385,7 @@ fn test_phase1_performance_guard_within_20_percent() {
     let environment_slowdown_ratio = if slowdown_candidates.is_empty() {
         1.0
     } else {
-        median_f64(&slowdown_candidates)
+        median_f64(&slowdown_candidates).min(PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO)
     };
 
     eprintln!(
