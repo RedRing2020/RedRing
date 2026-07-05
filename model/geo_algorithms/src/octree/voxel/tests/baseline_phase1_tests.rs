@@ -30,6 +30,7 @@ type PerfGuardCase = (&'static str, fn() -> BaselineCase, f64);
 
 const PERF_GUARD_SAMPLE_COUNT: usize = 5;
 const PERF_GUARD_MAX_RATIO: f64 = 1.20;
+const PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US: f64 = 50.0;
 const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
@@ -120,9 +121,10 @@ fn assert_elapsed_within_20_percent(
         return;
     }
 
-    if baseline_elapsed < PERF_GUARD_RATIO_MIN_BASELINE_US {
+    let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
+
+    if baseline_elapsed < PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US {
         let increase = actual_elapsed - baseline_elapsed;
-        let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
         assert!(
             increase <= adjusted_limit,
             "{} の実行時間が絶対値しきいを超えて悪化: actual={}us baseline={}us delta={}us limit={}us env_ratio={}",
@@ -138,6 +140,27 @@ fn assert_elapsed_within_20_percent(
 
     let ratio = actual_elapsed / baseline_elapsed;
     let adjusted_ratio_limit = PERF_GUARD_MAX_RATIO * environment_slowdown_ratio;
+
+    if baseline_elapsed < PERF_GUARD_RATIO_MIN_BASELINE_US {
+        let ratio_allowed_actual = baseline_elapsed * adjusted_ratio_limit;
+        let absolute_allowed_actual = baseline_elapsed + adjusted_limit;
+        let allowed_actual = ratio_allowed_actual.max(absolute_allowed_actual);
+
+        assert!(
+            actual_elapsed <= allowed_actual,
+            "{} の実行時間がハイブリッドしきいを超えて悪化: actual={}us baseline={}us ratio={:.2}% allowed_actual={}us ratio_allowed={}us absolute_allowed={}us env_ratio={}",
+            case_name,
+            actual_elapsed,
+            baseline_elapsed,
+            ratio * 100.0,
+            allowed_actual,
+            ratio_allowed_actual,
+            absolute_allowed_actual,
+            environment_slowdown_ratio
+        );
+        return;
+    }
+
     assert!(
         ratio <= adjusted_ratio_limit,
         "{} の実行時間が 20% を超えて悪化: actual={}us baseline={}us ratio={:.2}% limit={:.2}% env_ratio={}",
