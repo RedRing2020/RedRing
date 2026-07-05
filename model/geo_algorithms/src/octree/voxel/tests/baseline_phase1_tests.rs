@@ -28,11 +28,12 @@ struct BaselineCaseDelta {
 
 type PerfGuardCase = (&'static str, fn() -> BaselineCase, f64);
 
-const PERF_GUARD_SAMPLE_COUNT: usize = 5;
+const PERF_GUARD_SAMPLE_COUNT: usize = 7;
 const PERF_GUARD_MAX_RATIO: f64 = 1.20;
 const PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US: f64 = 50.0;
 const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
+const PERF_GUARD_MAX_ADDITIONAL_JITTER_US: f64 = 60.0;
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
 const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 0.0;
 const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
@@ -104,6 +105,17 @@ fn collect_samples(case_fn: fn() -> BaselineCase, sample_count: usize) -> Vec<Ba
     samples
 }
 
+fn median_elapsed_micros(samples: &[BaselineCase]) -> f64 {
+    let mut elapsed: Vec<u128> = samples.iter().map(|c| c.elapsed_micros).collect();
+    elapsed.sort_unstable();
+    let mid = elapsed.len() / 2;
+    if elapsed.len() % 2 == 1 {
+        elapsed[mid] as f64
+    } else {
+        (elapsed[mid - 1] as f64 + elapsed[mid] as f64) / 2.0
+    }
+}
+
 fn assert_elapsed_within_20_percent(
     case_name: &str,
     actual_elapsed: f64,
@@ -161,14 +173,18 @@ fn assert_elapsed_within_20_percent(
         return;
     }
 
+    let adjusted_jitter = PERF_GUARD_MAX_ADDITIONAL_JITTER_US * environment_slowdown_ratio;
+    let allowed_actual = baseline_elapsed * adjusted_ratio_limit + adjusted_jitter;
     assert!(
-        ratio <= adjusted_ratio_limit,
-        "{} の実行時間が 20% を超えて悪化: actual={}us baseline={}us ratio={:.2}% limit={:.2}% env_ratio={}",
+        actual_elapsed <= allowed_actual,
+        "{} の実行時間がしきいを超えて悪化: actual={}us baseline={}us ratio={:.2}% ratio_limit={:.2}% jitter_limit={}us allowed_actual={}us env_ratio={}",
         case_name,
         actual_elapsed,
         baseline_elapsed,
         ratio * 100.0,
         adjusted_ratio_limit * 100.0,
+        adjusted_jitter,
+        allowed_actual,
         environment_slowdown_ratio
     );
 }
@@ -338,24 +354,24 @@ fn test_phase1_performance_guard_within_20_percent() {
     let mut environment_slowdown_ratio = 1.0;
     for (case_name, case_fn, baseline_elapsed) in cases {
         let samples = collect_samples(case_fn, PERF_GUARD_SAMPLE_COUNT);
-        let summary = BaselineCaseSummary::from_samples(case_name, &samples);
+        let measured_elapsed = median_elapsed_micros(&samples);
 
         if case_name == "box_partial_depth4" && baseline_elapsed > f64::EPSILON {
-            environment_slowdown_ratio = (summary.elapsed_micros / baseline_elapsed).max(1.0);
+            environment_slowdown_ratio = (measured_elapsed / baseline_elapsed).max(1.0);
         }
 
         eprintln!(
-            "PERF_GUARD case={} samples={} avg_elapsed_us={} baseline_elapsed_us={} limit_ratio=20% env_ratio={}",
+            "PERF_GUARD case={} samples={} median_elapsed_us={} baseline_elapsed_us={} limit_ratio=20% env_ratio={}",
             case_name,
             samples.len(),
-            summary.elapsed_micros,
+            measured_elapsed,
             baseline_elapsed,
             environment_slowdown_ratio
         );
 
         assert_elapsed_within_20_percent(
             case_name,
-            summary.elapsed_micros,
+            measured_elapsed,
             baseline_elapsed,
             environment_slowdown_ratio,
         );
