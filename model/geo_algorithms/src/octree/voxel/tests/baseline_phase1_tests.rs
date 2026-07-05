@@ -11,6 +11,78 @@ struct BaselineCase {
     elapsed_micros: u128,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct BaselineCaseSummary {
+    name: &'static str,
+    remaining_volume: f64,
+    removed_ratio: f64,
+    elapsed_micros: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct BaselineCaseDelta {
+    remaining_volume_ratio: f64,
+    removed_ratio_ratio: f64,
+    elapsed_micros_ratio: f64,
+}
+
+impl BaselineCaseSummary {
+    fn from_samples(name: &'static str, samples: &[BaselineCase]) -> Self {
+        let sample_count = samples.len() as f64;
+        Self {
+            name,
+            remaining_volume: samples.iter().map(|c| c.remaining_volume).sum::<f64>()
+                / sample_count,
+            removed_ratio: samples.iter().map(|c| c.removed_ratio).sum::<f64>() / sample_count,
+            elapsed_micros: samples.iter().map(|c| c.elapsed_micros as f64).sum::<f64>()
+                / sample_count,
+        }
+    }
+
+    fn as_case(&self) -> BaselineCase {
+        BaselineCase {
+            name: self.name,
+            remaining_volume: self.remaining_volume,
+            removed_ratio: self.removed_ratio,
+            elapsed_micros: self.elapsed_micros.round() as u128,
+        }
+    }
+}
+
+impl BaselineCaseDelta {
+    fn from_cases(before: &BaselineCase, after: &BaselineCase) -> Self {
+        Self {
+            remaining_volume_ratio: relative_change_ratio(
+                before.remaining_volume,
+                after.remaining_volume,
+            ),
+            removed_ratio_ratio: relative_change_ratio(before.removed_ratio, after.removed_ratio),
+            elapsed_micros_ratio: relative_change_ratio(
+                before.elapsed_micros as f64,
+                after.elapsed_micros as f64,
+            ),
+        }
+    }
+
+    fn format_line(&self, case_name: &str) -> String {
+        format!(
+            "CASE_DELTA case={} remaining_volume_ratio={:.6}% removed_ratio_ratio={:.6}% elapsed_us_ratio={:.6}%",
+            case_name,
+            self.remaining_volume_ratio * 100.0,
+            self.removed_ratio_ratio * 100.0,
+            self.elapsed_micros_ratio * 100.0,
+        )
+    }
+}
+
+fn relative_change_ratio(before: f64, after: f64) -> f64 {
+    if before.abs() <= f64::EPSILON {
+        0.0
+    } else {
+        (after - before) / before
+    }
+}
+
 fn work_bounds() -> Aabb3D<f64> {
     Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
@@ -116,21 +188,24 @@ fn measure_phase1_baseline_cases() {
         "capsule_basic_depth4",
         "z_axis_basic_depth4",
     ] {
-        let samples: Vec<_> = records.iter().filter(|c| c.name == case_name).collect();
-        let sample_count = samples.len() as f64;
-
-        let avg_remaining = samples.iter().map(|c| c.remaining_volume).sum::<f64>() / sample_count;
-        let avg_removed_ratio = samples.iter().map(|c| c.removed_ratio).sum::<f64>() / sample_count;
-        let avg_elapsed_micros =
-            samples.iter().map(|c| c.elapsed_micros as f64).sum::<f64>() / sample_count;
+        let samples: Vec<_> = records
+            .iter()
+            .filter(|c| c.name == case_name)
+            .copied()
+            .collect();
+        let summary = BaselineCaseSummary::from_samples(case_name, &samples);
+        let baseline = samples[0];
+        let summary_case = summary.as_case();
+        let delta = BaselineCaseDelta::from_cases(&baseline, &summary_case);
 
         eprintln!(
             "BASELINE case={} samples={} avg_remaining_volume={} avg_removed_ratio={} avg_elapsed_us={}",
             case_name,
             samples.len(),
-            avg_remaining,
-            avg_removed_ratio,
-            avg_elapsed_micros
+            summary.remaining_volume,
+            summary.removed_ratio,
+            summary.elapsed_micros
         );
+        eprintln!("{}", delta.format_line(case_name));
     }
 }
