@@ -50,8 +50,32 @@ pub struct PrimitiveSetExactWork {
     removed_primitives: Vec<ExactToolPrimitive<f64>>,
 }
 
+/// `PrimitiveSetExactWork` の初期化失敗を表すエラー。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExactWorkError {
+    NonFiniteBounds,
+    InvalidBounds,
+}
+
 impl PrimitiveSetExactWork {
+    /// 不正入力を `Result` として扱う初期化関数。
+    pub fn try_new(bounds: Aabb3D<f64>) -> Result<Self, ExactWorkError> {
+        if !aabb_is_finite(&bounds) {
+            return Err(ExactWorkError::NonFiniteBounds);
+        }
+        if bounds.is_empty() {
+            return Err(ExactWorkError::InvalidBounds);
+        }
+
+        Ok(Self {
+            bounds,
+            removed_primitives: Vec::new(),
+        })
+    }
+
     /// 新しい `PrimitiveSetExactWork` を生成する。
+    ///
+    /// 不正入力を回復可能に扱いたい場合は `try_new` を使用する。
     ///
     /// # Panics
     ///
@@ -59,15 +83,12 @@ impl PrimitiveSetExactWork {
     /// - `bounds` の座標に非有限値（NaN/inf）が含まれる
     /// - `bounds` が不正（min > max）
     pub fn new(bounds: Aabb3D<f64>) -> Self {
-        assert!(aabb_is_finite(&bounds), "bounds coordinates must be finite");
-        assert!(
-            !bounds.is_empty(),
-            "PrimitiveSetExactWork::new received invalid bounds (min > max)"
-        );
-        Self {
-            bounds,
-            removed_primitives: Vec::new(),
-        }
+        Self::try_new(bounds).unwrap_or_else(|err| match err {
+            ExactWorkError::NonFiniteBounds => panic!("bounds coordinates must be finite"),
+            ExactWorkError::InvalidBounds => {
+                panic!("PrimitiveSetExactWork::new received invalid bounds (min > max)")
+            }
+        })
     }
 
     pub fn estimate_memory_bytes(&self) -> usize {
@@ -321,7 +342,8 @@ fn flat_swept_contains(point: &Point3D<f64>, segment: &LineSegment3D<f64>, radiu
 #[cfg(test)]
 mod tests {
     use super::{
-        ExactToolPrimitive, ExactWorkModel, ExactWorkProjectionCache, PrimitiveSetExactWork,
+        ExactToolPrimitive, ExactWorkError, ExactWorkModel, ExactWorkProjectionCache,
+        PrimitiveSetExactWork,
     };
     use geo_algorithms::{Aabb3D, LineSegment3D, Point3D};
 
@@ -473,9 +495,26 @@ mod tests {
             radius: 1.0,
         });
 
-        let volume = work.estimate_remaining_volume(f64::EPSILON * 0.5);
+        let volume = work.estimate_remaining_volume(0.5);
         assert!(volume > 0.0);
         assert!(volume <= bounds.volume());
+    }
+
+    #[test]
+    fn primitive_set_exact_work_try_new_rejects_invalid_bounds() {
+        let invalid_bounds = Aabb3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(0.0, 1.0, 1.0));
+        let result = PrimitiveSetExactWork::try_new(invalid_bounds);
+        assert!(matches!(result, Err(ExactWorkError::InvalidBounds)));
+    }
+
+    #[test]
+    fn primitive_set_exact_work_try_new_rejects_non_finite_bounds() {
+        let invalid_bounds = Aabb3D::new(
+            Point3D::new(f64::NAN, 0.0, 0.0),
+            Point3D::new(1.0, 1.0, 1.0),
+        );
+        let result = PrimitiveSetExactWork::try_new(invalid_bounds);
+        assert!(matches!(result, Err(ExactWorkError::NonFiniteBounds)));
     }
 
     #[test]

@@ -15,7 +15,8 @@ mod workflow;
 pub use error::SimulationError;
 /// SAT-Cut PoC向けのExactWork trait定義・プリミティブ型・PoC実装。
 pub use exact_work::{
-    ExactToolPrimitive, ExactWorkModel, ExactWorkProjectionCache, PrimitiveSetExactWork,
+    ExactToolPrimitive, ExactWorkError, ExactWorkModel, ExactWorkProjectionCache,
+    PrimitiveSetExactWork,
 };
 /// Job Manager接続用アダプタ。
 pub use job_adapter::CamJobExecutorAdapter;
