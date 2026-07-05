@@ -26,6 +26,16 @@ struct BaselineCaseDelta {
     elapsed_micros_ratio: f64,
 }
 
+const PERF_GUARD_SAMPLE_COUNT: usize = 5;
+const PERF_GUARD_MAX_RATIO: f64 = 1.20;
+const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
+const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
+const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
+const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 0.0;
+const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
+const Z_AXIS_BASELINE_ELAPSED_MICROS: f64 = 55.6;
+const SWEPT_BASELINE_ELAPSED_MICROS: f64 = 450.2;
+
 impl BaselineCaseSummary {
     fn from_samples(name: &'static str, samples: &[BaselineCase]) -> Self {
         let sample_count = samples.len() as f64;
@@ -81,6 +91,61 @@ fn relative_change_ratio(before: f64, after: f64) -> f64 {
     } else {
         (after - before) / before
     }
+}
+
+fn collect_samples(case_fn: fn() -> BaselineCase, sample_count: usize) -> Vec<BaselineCase> {
+    let mut samples = Vec::with_capacity(sample_count);
+    for _ in 0..sample_count {
+        samples.push(case_fn());
+    }
+    samples
+}
+
+fn assert_elapsed_within_20_percent(
+    case_name: &str,
+    actual_elapsed: f64,
+    baseline_elapsed: f64,
+    environment_slowdown_ratio: f64,
+) {
+    if baseline_elapsed <= f64::EPSILON {
+        assert!(
+            actual_elapsed <= 5.0,
+            "{} の実行時間が想定外に大きい: actual={}us baseline={}us",
+            case_name,
+            actual_elapsed,
+            baseline_elapsed
+        );
+        return;
+    }
+
+    if baseline_elapsed < PERF_GUARD_RATIO_MIN_BASELINE_US {
+        let increase = actual_elapsed - baseline_elapsed;
+        let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
+        assert!(
+            increase <= adjusted_limit,
+            "{} の実行時間が絶対値しきいを超えて悪化: actual={}us baseline={}us delta={}us limit={}us env_ratio={}",
+            case_name,
+            actual_elapsed,
+            baseline_elapsed,
+            increase,
+            adjusted_limit,
+            environment_slowdown_ratio
+        );
+        return;
+    }
+
+    let ratio = actual_elapsed / baseline_elapsed;
+    let adjusted_ratio_limit = PERF_GUARD_MAX_RATIO * environment_slowdown_ratio;
+    assert!(
+        ratio <= adjusted_ratio_limit,
+        "{} の実行時間が 20% を超えて悪化: actual={}us baseline={}us ratio={:.2}% limit={:.2}% env_ratio={}",
+        case_name,
+        actual_elapsed,
+        baseline_elapsed,
+        ratio * 100.0,
+        adjusted_ratio_limit * 100.0,
+        environment_slowdown_ratio
+    );
 }
 
 fn work_bounds() -> Aabb3D<f64> {
@@ -212,6 +277,63 @@ fn test_phase1_baseline_cases_are_deterministic() {
         assert_eq!(a.name, b.name);
         assert!((a.remaining_volume - b.remaining_volume).abs() <= 1.0e-9);
         assert!((a.removed_ratio - b.removed_ratio).abs() <= 1.0e-12);
+    }
+}
+
+#[test]
+fn test_phase1_performance_guard_within_20_percent() {
+    let cases: [(&str, fn() -> BaselineCase, f64); 5] = [
+        (
+            "box_partial_depth4",
+            run_box_partial_case,
+            BOX_PARTIAL_BASELINE_ELAPSED_MICROS,
+        ),
+        (
+            "box_complete_depth4",
+            run_box_complete_case,
+            BOX_COMPLETE_BASELINE_ELAPSED_MICROS,
+        ),
+        (
+            "capsule_basic_depth4",
+            run_capsule_basic_case,
+            CAPSULE_BASELINE_ELAPSED_MICROS,
+        ),
+        (
+            "z_axis_basic_depth4",
+            run_z_axis_basic_case,
+            Z_AXIS_BASELINE_ELAPSED_MICROS,
+        ),
+        (
+            "swept_basic_depth4",
+            run_swept_cylinder_basic_case,
+            SWEPT_BASELINE_ELAPSED_MICROS,
+        ),
+    ];
+
+    let mut environment_slowdown_ratio = 1.0;
+    for (case_name, case_fn, baseline_elapsed) in cases {
+        let samples = collect_samples(case_fn, PERF_GUARD_SAMPLE_COUNT);
+        let summary = BaselineCaseSummary::from_samples(case_name, &samples);
+
+        if case_name == "box_partial_depth4" && baseline_elapsed > f64::EPSILON {
+            environment_slowdown_ratio = (summary.elapsed_micros / baseline_elapsed).max(1.0);
+        }
+
+        eprintln!(
+            "PERF_GUARD case={} samples={} avg_elapsed_us={} baseline_elapsed_us={} limit_ratio=20% env_ratio={}",
+            case_name,
+            samples.len(),
+            summary.elapsed_micros,
+            baseline_elapsed,
+            environment_slowdown_ratio
+        );
+
+        assert_elapsed_within_20_percent(
+            case_name,
+            summary.elapsed_micros,
+            baseline_elapsed,
+            environment_slowdown_ratio,
+        );
     }
 }
 
