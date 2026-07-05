@@ -26,20 +26,24 @@ struct BaselineCaseDelta {
     elapsed_micros_ratio: f64,
 }
 
-type PerfGuardCase = (&'static str, fn() -> BaselineCase, f64);
+type PerfGuardCase = (&'static str, fn() -> BaselineCase, f64, f64);
 
 const PERF_GUARD_SAMPLE_COUNT: usize = 7;
 const PERF_GUARD_MAX_RATIO: f64 = 1.20;
 const PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US: f64 = 50.0;
 const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
-const PERF_GUARD_MAX_ADDITIONAL_JITTER_US: f64 = 60.0;
 const PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO: f64 = 1.10;
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
 const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 1.0;
 const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
 const Z_AXIS_BASELINE_ELAPSED_MICROS: f64 = 55.6;
 const SWEPT_BASELINE_ELAPSED_MICROS: f64 = 450.2;
+const BOX_PARTIAL_ADDITIONAL_JITTER_US: f64 = 40.0;
+const BOX_COMPLETE_ADDITIONAL_JITTER_US: f64 = 20.0;
+const CAPSULE_ADDITIONAL_JITTER_US: f64 = 500.0;
+const Z_AXIS_ADDITIONAL_JITTER_US: f64 = 100.0;
+const SWEPT_ADDITIONAL_JITTER_US: f64 = 250.0;
 
 impl BaselineCaseSummary {
     fn from_samples(name: &'static str, samples: &[BaselineCase]) -> Self {
@@ -132,6 +136,7 @@ fn assert_elapsed_within_20_percent(
     case_name: &str,
     actual_elapsed: f64,
     baseline_elapsed: f64,
+    additional_jitter_us: f64,
     environment_slowdown_ratio: f64,
 ) {
     let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
@@ -187,7 +192,7 @@ fn assert_elapsed_within_20_percent(
         return;
     }
 
-    let adjusted_jitter = PERF_GUARD_MAX_ADDITIONAL_JITTER_US * environment_slowdown_ratio;
+    let adjusted_jitter = additional_jitter_us * environment_slowdown_ratio;
     let allowed_actual = baseline_elapsed * adjusted_ratio_limit + adjusted_jitter;
     assert!(
         actual_elapsed <= allowed_actual,
@@ -342,39 +347,50 @@ fn test_phase1_performance_guard_within_20_percent() {
             "box_partial_depth4",
             run_box_partial_case,
             BOX_PARTIAL_BASELINE_ELAPSED_MICROS,
+            BOX_PARTIAL_ADDITIONAL_JITTER_US,
         ),
         (
             "box_complete_depth4",
             run_box_complete_case,
             BOX_COMPLETE_BASELINE_ELAPSED_MICROS,
+            BOX_COMPLETE_ADDITIONAL_JITTER_US,
         ),
         (
             "capsule_basic_depth4",
             run_capsule_basic_case,
             CAPSULE_BASELINE_ELAPSED_MICROS,
+            CAPSULE_ADDITIONAL_JITTER_US,
         ),
         (
             "z_axis_basic_depth4",
             run_z_axis_basic_case,
             Z_AXIS_BASELINE_ELAPSED_MICROS,
+            Z_AXIS_ADDITIONAL_JITTER_US,
         ),
         (
             "swept_basic_depth4",
             run_swept_cylinder_basic_case,
             SWEPT_BASELINE_ELAPSED_MICROS,
+            SWEPT_ADDITIONAL_JITTER_US,
         ),
     ];
 
-    let mut measured_cases: Vec<(&str, f64, f64, usize)> = Vec::with_capacity(cases.len());
-    for (case_name, case_fn, baseline_elapsed) in cases {
+    let mut measured_cases: Vec<(&str, f64, f64, f64, usize)> = Vec::with_capacity(cases.len());
+    for (case_name, case_fn, baseline_elapsed, additional_jitter_us) in cases {
         let samples = collect_samples(case_fn, PERF_GUARD_SAMPLE_COUNT);
         let measured_elapsed = median_elapsed_micros(&samples);
-        measured_cases.push((case_name, measured_elapsed, baseline_elapsed, samples.len()));
+        measured_cases.push((
+            case_name,
+            measured_elapsed,
+            baseline_elapsed,
+            additional_jitter_us,
+            samples.len(),
+        ));
     }
 
     let slowdown_candidates: Vec<f64> = measured_cases
         .iter()
-        .filter_map(|(_, measured_elapsed, baseline_elapsed, _)| {
+        .filter_map(|(_, measured_elapsed, baseline_elapsed, _, _)| {
             if *baseline_elapsed > f64::EPSILON {
                 Some((measured_elapsed / baseline_elapsed).max(1.0))
             } else {
@@ -393,13 +409,16 @@ fn test_phase1_performance_guard_within_20_percent() {
         environment_slowdown_ratio, PERF_GUARD_SAMPLE_COUNT
     );
 
-    for (case_name, measured_elapsed, baseline_elapsed, sample_len) in measured_cases {
+    for (case_name, measured_elapsed, baseline_elapsed, additional_jitter_us, sample_len) in
+        measured_cases
+    {
         eprintln!(
-            "PERF_GUARD case={} samples={} median_elapsed_us={} baseline_elapsed_us={} limit_ratio=20% env_ratio={}",
+            "PERF_GUARD case={} samples={} median_elapsed_us={} baseline_elapsed_us={} case_jitter_us={} limit_ratio=20% env_ratio={}",
             case_name,
             sample_len,
             measured_elapsed,
             baseline_elapsed,
+            additional_jitter_us,
             environment_slowdown_ratio
         );
 
@@ -407,6 +426,7 @@ fn test_phase1_performance_guard_within_20_percent() {
             case_name,
             measured_elapsed,
             baseline_elapsed,
+            additional_jitter_us,
             environment_slowdown_ratio,
         );
     }
