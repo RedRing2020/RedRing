@@ -17,6 +17,12 @@ pub enum ExactToolPrimitive<T: Scalar> {
 /// Voxel/Octree非依存のワーク正本を扱うためのtrait定義。
 pub trait ExactWorkModel<T: Scalar> {
     /// 掃引プリミティブを正本へ適用する。
+    ///
+    /// # Panics
+    ///
+    /// 実装によっては次の場合に panic し得る:
+    /// - 線分端点が非有限値（NaN/inf）
+    /// - 工具半径が非有限値または負値
     fn apply_primitive(&mut self, primitive: ExactToolPrimitive<T>);
 
     /// 点が材料内部かどうかを返す。
@@ -127,6 +133,10 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 
     fn nearest_removed_surface_distance(&self, point: &Point3D<f64>) -> f64 {
+        if !point_is_finite(point) {
+            return f64::INFINITY;
+        }
+
         let mut best = f64::INFINITY;
         for primitive in &self.removed_primitives {
             let surface_distance = match primitive {
@@ -208,11 +218,7 @@ fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
 }
 
 fn bounds_contains_point(bounds: &Aabb3D<f64>, point: &Point3D<f64>) -> bool {
-    let min = bounds.min();
-    let max = bounds.max();
-    (min.x()..=max.x()).contains(&point.x())
-        && (min.y()..=max.y()).contains(&point.y())
-        && (min.z()..=max.z()).contains(&point.z())
+    bounds.contains_point(point)
 }
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
@@ -603,5 +609,20 @@ mod tests {
         let near_cap_but_outside = Point3D::new(2.1, 6.2, 5.0);
         let distance = work.nearest_removed_surface_distance(&near_cap_but_outside);
         assert!((distance - 0.2).abs() <= 1.0e-9, "distance={}", distance);
+    }
+
+    #[test]
+    fn primitive_set_exact_work_nearest_distance_non_finite_point_returns_infinity() {
+        let bounds = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 10.0, 10.0));
+        let mut work = PrimitiveSetExactWork::new(bounds);
+        let segment = LineSegment3D::new(Point3D::new(2.0, 5.0, 5.0), Point3D::new(8.0, 5.0, 5.0))
+            .expect("segment must be valid");
+        work.apply_primitive(ExactToolPrimitive::Ball {
+            segment,
+            radius: 1.0,
+        });
+
+        let distance = work.nearest_removed_surface_distance(&Point3D::new(f64::NAN, 5.0, 5.0));
+        assert!(distance.is_infinite());
     }
 }
