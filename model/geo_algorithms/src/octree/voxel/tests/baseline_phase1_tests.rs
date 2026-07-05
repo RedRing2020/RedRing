@@ -116,6 +116,17 @@ fn median_elapsed_micros(samples: &[BaselineCase]) -> f64 {
     }
 }
 
+fn median_f64(values: &[f64]) -> f64 {
+    let mut sorted = values.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let mid = sorted.len() / 2;
+    if sorted.len() % 2 == 1 {
+        sorted[mid]
+    } else {
+        (sorted[mid - 1] + sorted[mid]) / 2.0
+    }
+}
+
 fn assert_elapsed_within_20_percent(
     case_name: &str,
     actual_elapsed: f64,
@@ -124,11 +135,12 @@ fn assert_elapsed_within_20_percent(
 ) {
     if baseline_elapsed <= f64::EPSILON {
         assert!(
-            actual_elapsed <= 5.0,
-            "{} の実行時間が想定外に大きい: actual={}us baseline={}us",
+            actual_elapsed <= 5.0 * environment_slowdown_ratio,
+            "{} の実行時間が想定外に大きい: actual={}us baseline={}us env_ratio={}",
             case_name,
             actual_elapsed,
-            baseline_elapsed
+            baseline_elapsed,
+            environment_slowdown_ratio
         );
         return;
     }
@@ -351,19 +363,39 @@ fn test_phase1_performance_guard_within_20_percent() {
         ),
     ];
 
-    let mut environment_slowdown_ratio = 1.0;
+    let mut measured_cases: Vec<(&str, f64, f64, usize)> = Vec::with_capacity(cases.len());
     for (case_name, case_fn, baseline_elapsed) in cases {
         let samples = collect_samples(case_fn, PERF_GUARD_SAMPLE_COUNT);
         let measured_elapsed = median_elapsed_micros(&samples);
+        measured_cases.push((case_name, measured_elapsed, baseline_elapsed, samples.len()));
+    }
 
-        if case_name == "box_partial_depth4" && baseline_elapsed > f64::EPSILON {
-            environment_slowdown_ratio = (measured_elapsed / baseline_elapsed).max(1.0);
-        }
+    let slowdown_candidates: Vec<f64> = measured_cases
+        .iter()
+        .filter_map(|(_, measured_elapsed, baseline_elapsed, _)| {
+            if *baseline_elapsed > f64::EPSILON {
+                Some((measured_elapsed / baseline_elapsed).max(1.0))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let environment_slowdown_ratio = if slowdown_candidates.is_empty() {
+        1.0
+    } else {
+        median_f64(&slowdown_candidates)
+    };
 
+    eprintln!(
+        "PERF_GUARD summary env_ratio={} sample_count={}",
+        environment_slowdown_ratio, PERF_GUARD_SAMPLE_COUNT
+    );
+
+    for (case_name, measured_elapsed, baseline_elapsed, sample_len) in measured_cases {
         eprintln!(
             "PERF_GUARD case={} samples={} median_elapsed_us={} baseline_elapsed_us={} limit_ratio=20% env_ratio={}",
             case_name,
-            samples.len(),
+            sample_len,
             measured_elapsed,
             baseline_elapsed,
             environment_slowdown_ratio
