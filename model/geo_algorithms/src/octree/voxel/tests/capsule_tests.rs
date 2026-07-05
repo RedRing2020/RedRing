@@ -135,7 +135,7 @@ fn test_capsule_removal_horizontal() {
 }
 
 #[test]
-fn test_capsule_removal_coarse_leaf_partial_overlap_does_not_remove_all() {
+fn test_capsule_removal_coarse_leaf_partial_overlap_keeps_volume() {
     let bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 100.0),

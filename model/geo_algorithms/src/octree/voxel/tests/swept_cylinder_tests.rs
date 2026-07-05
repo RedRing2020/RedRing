@@ -77,7 +77,7 @@ fn test_swept_cylinder_short_segment_reduces_endpoint_overcut() {
 }
 
 #[test]
-fn test_swept_cylinder_coarse_leaf_partial_overlap_does_not_remove_all() {
+fn test_swept_cylinder_coarse_leaf_partial_overlap_keeps_volume() {
     let bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 100.0),

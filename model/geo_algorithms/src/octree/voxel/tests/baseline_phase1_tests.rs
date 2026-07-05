@@ -133,19 +133,20 @@ fn assert_elapsed_within_20_percent(
     baseline_elapsed: f64,
     environment_slowdown_ratio: f64,
 ) {
+    let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
+
     if baseline_elapsed <= f64::EPSILON {
         assert!(
-            actual_elapsed <= 5.0 * environment_slowdown_ratio,
-            "{} の実行時間が想定外に大きい: actual={}us baseline={}us env_ratio={}",
+            actual_elapsed <= adjusted_limit,
+            "{} の実行時間が想定外に大きい: actual={}us baseline={}us limit={}us env_ratio={}",
             case_name,
             actual_elapsed,
             baseline_elapsed,
+            adjusted_limit,
             environment_slowdown_ratio
         );
         return;
     }
-
-    let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
 
     if baseline_elapsed < PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US {
         let increase = actual_elapsed - baseline_elapsed;

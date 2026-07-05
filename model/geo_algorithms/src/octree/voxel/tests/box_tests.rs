@@ -114,7 +114,7 @@ fn test_no_intersection() {
 }
 
 #[test]
-fn test_remove_material_box_leaf_partial_overlap_does_not_remove_all() {
+fn test_remove_material_box_leaf_partial_overlap_keeps_volume() {
     let bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 100.0),
