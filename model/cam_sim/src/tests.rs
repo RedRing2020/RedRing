@@ -918,6 +918,7 @@ fn test_cam_sim_source_does_not_reference_demo_symbols() {
     let src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = Vec::new();
     collect_rs_files(&src_root, &mut files);
+    files.sort();
 
     let forbidden_symbols = [
         ["CamSimulation", "DemoScenario"].concat(),
