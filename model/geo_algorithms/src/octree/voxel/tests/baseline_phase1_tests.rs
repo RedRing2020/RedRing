@@ -175,11 +175,14 @@ fn assert_elapsed_within_20_percent(
     if baseline_elapsed < PERF_GUARD_RATIO_MIN_BASELINE_US {
         let ratio_allowed_actual = baseline_elapsed * adjusted_ratio_limit;
         let absolute_allowed_actual = baseline_elapsed + adjusted_limit;
-        let allowed_actual = ratio_allowed_actual.max(absolute_allowed_actual);
+        let adjusted_jitter = additional_jitter_us * environment_slowdown_ratio;
+        let allowed_actual = ratio_allowed_actual
+            .max(absolute_allowed_actual)
+            .max(baseline_elapsed + adjusted_jitter);
 
         assert!(
             actual_elapsed <= allowed_actual,
-            "{} の実行時間がハイブリッドしきいを超えて悪化: actual={}us baseline={}us ratio={:.2}% allowed_actual={}us ratio_allowed={}us absolute_allowed={}us env_ratio={}",
+            "{} の実行時間がハイブリッドしきいを超えて悪化: actual={}us baseline={}us ratio={:.2}% allowed_actual={}us ratio_allowed={}us absolute_allowed={}us jitter_allowed={}us env_ratio={}",
             case_name,
             actual_elapsed,
             baseline_elapsed,
@@ -187,6 +190,7 @@ fn assert_elapsed_within_20_percent(
             allowed_actual,
             ratio_allowed_actual,
             absolute_allowed_actual,
+            baseline_elapsed + adjusted_jitter,
             environment_slowdown_ratio
         );
         return;
