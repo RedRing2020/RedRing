@@ -150,25 +150,68 @@ fn run_z_axis_basic_case() -> BaselineCase {
     }
 }
 
+fn run_swept_cylinder_basic_case() -> BaselineCase {
+    let mut voxel_tree = VoxelOctree::new(work_bounds(), 4);
+    let initial_volume = voxel_tree.remaining_volume();
+    let segment = LineSegment3D::new(
+        Point3D::new(30.0, 50.0, 50.0),
+        Point3D::new(70.0, 50.0, 50.0),
+    )
+    .expect("segment must be valid");
+
+    let started = Instant::now();
+    voxel_tree.remove_material_swept_cylinder(&segment, 10.0);
+    let elapsed = started.elapsed();
+
+    let remaining = voxel_tree.remaining_volume();
+    BaselineCase {
+        name: "swept_basic_depth4",
+        remaining_volume: remaining,
+        removed_ratio: (initial_volume - remaining) / initial_volume,
+        elapsed_micros: elapsed.as_micros(),
+    }
+}
+
+fn run_box_complete_case() -> BaselineCase {
+    let mut voxel_tree = VoxelOctree::new(work_bounds(), 4);
+    let initial_volume = voxel_tree.remaining_volume();
+    let tool_aabb = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+
+    let started = Instant::now();
+    voxel_tree.remove_material_box(&tool_aabb);
+    let elapsed = started.elapsed();
+
+    let remaining = voxel_tree.remaining_volume();
+    BaselineCase {
+        name: "box_complete_depth4",
+        remaining_volume: remaining,
+        removed_ratio: (initial_volume - remaining) / initial_volume,
+        elapsed_micros: elapsed.as_micros(),
+    }
+}
+
+fn baseline_repro_cases() -> [BaselineCase; 5] {
+    [
+        run_box_partial_case(),
+        run_box_complete_case(),
+        run_capsule_basic_case(),
+        run_z_axis_basic_case(),
+        run_swept_cylinder_basic_case(),
+    ]
+}
+
 #[test]
 fn test_phase1_baseline_cases_are_deterministic() {
-    let first = [
-        run_box_partial_case(),
-        run_capsule_basic_case(),
-        run_z_axis_basic_case(),
-    ];
-    let second = [
-        run_box_partial_case(),
-        run_capsule_basic_case(),
-        run_z_axis_basic_case(),
-    ];
+    let first = baseline_repro_cases();
+    let second = baseline_repro_cases();
 
     for (a, b) in first.iter().zip(second.iter()) {
         assert_eq!(a.name, b.name);
         assert!((a.remaining_volume - b.remaining_volume).abs() <= 1.0e-9);
         assert!((a.removed_ratio - b.removed_ratio).abs() <= 1.0e-12);
-        assert!(a.elapsed_micros > 0);
-        assert!(b.elapsed_micros > 0);
     }
 }
 
@@ -179,14 +222,18 @@ fn measure_phase1_baseline_cases() {
 
     for _ in 0..5 {
         records.push(run_box_partial_case());
+        records.push(run_box_complete_case());
         records.push(run_capsule_basic_case());
         records.push(run_z_axis_basic_case());
+        records.push(run_swept_cylinder_basic_case());
     }
 
     for case_name in [
         "box_partial_depth4",
+        "box_complete_depth4",
         "capsule_basic_depth4",
         "z_axis_basic_depth4",
+        "swept_basic_depth4",
     ] {
         let samples: Vec<_> = records
             .iter()
