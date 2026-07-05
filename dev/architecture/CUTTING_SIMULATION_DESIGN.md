@@ -1,9 +1,9 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年5月30日  
+**最終更新**: 2026年7月4日  
 **ステータス**: 設計・段階実装中  
-**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716)
+**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716), [#726](https://github.com/RedRing2020/RedRing/issues/726), [#729](https://github.com/RedRing2020/RedRing/issues/729)
 
 ---
 
@@ -289,6 +289,72 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 
 ## 技術仕様
 
+### Issue #729 先行設計: SAT-Cut 内部表現（Voxel/Octree非正本）
+
+Issue #729 の比較基盤を使って高精度方式を評価するため、ワーク形状の正本を Voxel/Octree から分離する。
+
+#### 目的
+
+- 工具掃引による除去結果を分解能依存の離散表現から切り離す
+- 「除去計算の正本」と「表示キャッシュ」を責務分離する
+- Flat/Ball を同一演算系で扱える拡張可能な核を定義する
+
+#### 正本モデル
+
+ワーク正本は差分集合として保持する。
+
+- 初期ワーク: `W0`
+- 掃引プリミティブ集合: `P = {p1, p2, ... pn}`
+- 現在ワーク: `W = W0 \ (p1 ∪ p2 ∪ ... ∪ pn)`
+
+ここで `p` は工具種別ごとの解析プリミティブで表現する。
+
+- FlatEndMill: `SweptCylinder(segment, radius)`
+- BallEndMill: `Capsule(segment, radius)`
+
+PoCでは参照点補正を別責務にせず、工具中心軌跡として渡された `segment` をそのまま使う。`z_offset(radius)` による補正を入れる場合は、`cam_sim` 側の工具参照点変換に責務を分離してから導入する。
+
+#### データ構造（最小）
+
+- `ExactWorkCore`
+   - `base_solid`: 初期素材（AABB または解析ソリッド）
+   - `removed_primitives`: 掃引プリミティブ列（時系列）
+   - `spatial_index`: プリミティブ候補絞り込み用インデックス（BVH/Grid）
+- `ExactQueryKernel`
+   - `contains_material(point) -> bool`
+   - `nearest_removed_surface_distance(point) -> f64`
+   - `estimate_remaining_volume(sample_pitch) -> f64`
+- `DisplayProjectionCache`
+   - 表示専用の再投影キャッシュ（Octree/mesh）
+   - dirty-region 更新のみ受け持つ
+
+#### 演算フロー
+
+1. ToolPath を線分列へ正規化する
+2. 線分ごとに掃引プリミティブを生成する
+3. `removed_primitives` に追記し、`spatial_index` を更新する
+4. 問い合わせは `ExactQueryKernel` で実施する
+5. 表示が必要な場合のみ `DisplayProjectionCache` を部分更新する
+
+#### 不変条件
+
+- 体積単調減少: 切削で体積が増えない
+- 決定性: 同一入力で同一結果になる
+- 表示独立性: 表示キャッシュの有無で正本結果が変わらない
+
+#### #729 で先に固定する評価接続点
+
+- 体積差分: `ExactWorkCore` と既存方式を同一ケースで比較
+- 境界誤差: `nearest_removed_surface_distance` ベースで評価
+- 性能: `contains_material`/体積推定の計測を分離して観測
+- メモリ: `removed_primitives` と索引サイズを別々に記録
+
+#### 非目標（本節）
+
+- 厳密CSGカーネルの全面実装
+- GPU最適化
+- 表示専用キャッシュの本番切替
+
 ### セグメント長の計算
 
 距離計算ロジックは ToolPath/PathSegment 実装を正本とし、本書では「距離ベーススナップショットに必要な実距離計算が成立していること」を要件とする。
@@ -467,6 +533,7 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 
 | 日付 | 変更内容 | 担当 |
 |------|---------|------|
+| 2026-07-04 | Issue #729 先行設計: SAT-Cut 内部表現（Voxel/Octree非正本）を追記 | AI開発者 |
 | 2026-05-30 | 設計正本化: 進捗/残件/チェックリストを削減し、段階定義へ整理 | AI開発者 |
 | 2026-05-30 | Issue #716 反映: View起点の正導線（本番）とデモ限定導線、禁止経路を追記 | AI開発者 |
 | 2026-05-30 | Issue #716 反映: 本番導線の入力前提条件（ポスト由来条件を含む）を追記 | AI開発者 |

@@ -48,10 +48,15 @@ impl<T: Scalar> Aabb3D<T> {
     }
 
     /// 点がAABB内に含まれるか
-    pub fn contains(&self, p: &Point3D<T>) -> bool {
+    pub fn contains_point(&self, p: &Point3D<T>) -> bool {
         (self.min.x() <= p.x() && p.x() <= self.max.x())
             && (self.min.y() <= p.y() && p.y() <= self.max.y())
             && (self.min.z() <= p.z() && p.z() <= self.max.z())
+    }
+
+    /// 点がAABB内に含まれるか（後方互換エイリアス）
+    pub fn contains(&self, p: &Point3D<T>) -> bool {
+        self.contains_point(p)
     }
 
     /// 最小点を取得
@@ -234,6 +239,7 @@ mod tests {
         let min = Point3D::new(0.0, 0.0, 0.0);
         let max = Point3D::new(2.0, 2.0, 2.0);
         let aabb = Aabb3D::new(min, max);
+        assert!(aabb.contains_point(&Point3D::new(1.0, 1.0, 1.0)));
         assert!(aabb.contains(&Point3D::new(1.0, 1.0, 1.0)));
         assert!(aabb.contains(&Point3D::new(0.0, 0.0, 0.0)));
         assert!(aabb.contains(&Point3D::new(2.0, 2.0, 2.0)));
