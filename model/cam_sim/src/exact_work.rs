@@ -63,6 +63,17 @@ pub enum ExactWorkError {
     InvalidBounds,
 }
 
+impl std::fmt::Display for ExactWorkError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NonFiniteBounds => write!(f, "bounds coordinates must be finite"),
+            Self::InvalidBounds => write!(f, "invalid bounds (min > max)"),
+        }
+    }
+}
+
+impl std::error::Error for ExactWorkError {}
+
 impl PrimitiveSetExactWork {
     /// 不正入力を `Result` として扱う初期化関数。
     pub fn try_new(bounds: Aabb3D<f64>) -> Result<Self, ExactWorkError> {
