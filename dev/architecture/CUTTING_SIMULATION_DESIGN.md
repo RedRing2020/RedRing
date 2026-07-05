@@ -282,6 +282,9 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 - Voxel 側の境界安定化として、`remove_material_box` の最大深さ葉ノードでは
    「交差したら即 Empty」ではなく、中心点が工具AABB内にある場合のみ Empty 化する
    局所判定を導入する（過剰除去の抑制）。
+- `remove_material_capsule` / `remove_material_swept_cylinder` は段階導入として、
+   「ノードサイズが工具半径に対して十分大きい粗い葉ノード」に限定して中心点判定を適用する
+   （小半径ケースの既存挙動を維持しつつ、性能劣化を抑える）。
 
 #### Phase 3: 色分け可視化
 

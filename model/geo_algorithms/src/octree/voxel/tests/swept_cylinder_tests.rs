@@ -75,3 +75,22 @@ fn test_swept_cylinder_short_segment_reduces_endpoint_overcut() {
     assert!(removed_swept > 0.0);
     assert!(removed_capsule > removed_swept);
 }
+
+#[test]
+fn test_swept_cylinder_coarse_leaf_partial_overlap_does_not_remove_all() {
+    let bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+    let mut voxel_tree = VoxelOctree::new(bounds, 0);
+
+    let initial_volume = voxel_tree.remaining_volume();
+    let segment = LineSegment3D::new(
+        Point3D::new(90.0, 90.0, 90.0),
+        Point3D::new(120.0, 120.0, 120.0),
+    )
+    .unwrap();
+    voxel_tree.remove_material_swept_cylinder(&segment, 5.0);
+
+    assert_eq!(voxel_tree.remaining_volume(), initial_volume);
+}

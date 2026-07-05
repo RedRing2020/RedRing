@@ -198,7 +198,13 @@ impl<T: Scalar> VoxelNode<T> {
                         child.remove_material_capsule(segment, radius, max_depth);
                     }
                 } else {
-                    self.state = VoxelState::Empty;
+                    if self.should_use_adaptive_leaf_sampling(radius) {
+                        if self.should_remove_leaf_for_capsule(segment, radius) {
+                            self.state = VoxelState::Empty;
+                        }
+                    } else {
+                        self.state = VoxelState::Empty;
+                    }
                 }
             }
             VoxelState::Mixed => {
@@ -257,7 +263,13 @@ impl<T: Scalar> VoxelNode<T> {
                         child.remove_material_swept_cylinder(segment, radius, max_depth);
                     }
                 } else {
-                    self.state = VoxelState::Empty;
+                    if self.should_use_adaptive_leaf_sampling(radius) {
+                        if self.should_remove_leaf_for_swept_cylinder(segment, radius) {
+                            self.state = VoxelState::Empty;
+                        }
+                    } else {
+                        self.state = VoxelState::Empty;
+                    }
                 }
             }
             VoxelState::Mixed => {
@@ -466,6 +478,32 @@ impl<T: Scalar> VoxelNode<T> {
     /// 最大深さ葉ノードでのAABB除去判定（中心点サンプリング）。
     fn should_remove_leaf_for_box(&self, tool_aabb: &Aabb3D<T>) -> bool {
         tool_aabb.contains_point(&self.bounds.center())
+    }
+
+    /// 葉ノードの適応判定を有効化するかを返す。
+    ///
+    /// 工具半径に対してノードサイズが十分大きい場合のみ、
+    /// 中心点サンプリング判定に切り替えて過剰除去を抑える。
+    fn should_use_adaptive_leaf_sampling(&self, radius: T) -> bool {
+        let max_span = self
+            .bounds
+            .width()
+            .max(self.bounds.height())
+            .max(self.bounds.depth());
+        let coarse_threshold = radius * T::from_f64(4.0);
+        max_span > coarse_threshold
+    }
+
+    /// 最大深さ葉ノードでのカプセル除去判定（中心点サンプリング）。
+    fn should_remove_leaf_for_capsule(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
+        let center = self.bounds.center();
+        self.point_to_segment_distance((center.x(), center.y(), center.z()), segment) <= radius
+    }
+
+    /// 最大深さ葉ノードでの平端掃引円柱除去判定（中心点サンプリング）。
+    fn should_remove_leaf_for_swept_cylinder(&self, segment: &LineSegment3D<T>, radius: T) -> bool {
+        let center = self.bounds.center();
+        self.is_point_inside_swept_cylinder((center.x(), center.y(), center.z()), segment, radius)
     }
 
     /// Z軸平行の軸付き形状に特化した高速除去を行う。
