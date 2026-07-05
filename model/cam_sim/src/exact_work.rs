@@ -97,7 +97,7 @@ impl PrimitiveSetExactWork {
     }
 
     fn contains_material(&self, point: &Point3D<f64>) -> bool {
-        if !self.bounds.contains(point) {
+        if !bounds_contains_point(&self.bounds, point) {
             return false;
         }
         !self
@@ -205,6 +205,14 @@ fn segment_is_finite(segment: &LineSegment3D<f64>) -> bool {
 
 fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
     point_is_finite(&aabb.min()) && point_is_finite(&aabb.max())
+}
+
+fn bounds_contains_point(bounds: &Aabb3D<f64>, point: &Point3D<f64>) -> bool {
+    let min = bounds.min();
+    let max = bounds.max();
+    (min.x()..=max.x()).contains(&point.x())
+        && (min.y()..=max.y()).contains(&point.y())
+        && (min.z()..=max.z()).contains(&point.z())
 }
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
