@@ -58,9 +58,11 @@ fn roundtrip_toolpath_via_artifact(toolpath: &ToolPath<f64>) -> ToolPath<f64> {
 }
 
 fn collect_rs_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
-    if !dir.exists() {
-        return;
-    }
+    assert!(
+        dir.exists(),
+        "source directory does not exist: {}",
+        dir.display()
+    );
 
     for entry in fs::read_dir(dir).expect("source directory should be readable") {
         let entry = entry.expect("directory entry should be readable");
