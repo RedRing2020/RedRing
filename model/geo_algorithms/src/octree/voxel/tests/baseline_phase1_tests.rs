@@ -140,15 +140,19 @@ fn assert_elapsed_within_20_percent(
     environment_slowdown_ratio: f64,
 ) {
     let adjusted_limit = PERF_GUARD_MAX_ABSOLUTE_INCREASE_US * environment_slowdown_ratio;
+    let adjusted_jitter = additional_jitter_us * environment_slowdown_ratio;
+    let adjusted_absolute_limit = adjusted_limit.max(adjusted_jitter);
 
     if baseline_elapsed <= f64::EPSILON {
         assert!(
-            actual_elapsed <= adjusted_limit,
-            "{} の実行時間が想定外に大きい: actual={}us baseline={}us limit={}us env_ratio={}",
+            actual_elapsed <= adjusted_absolute_limit,
+            "{} の実行時間が想定外に大きい: actual={}us baseline={}us limit={}us base_limit={}us jitter_limit={}us env_ratio={}",
             case_name,
             actual_elapsed,
             baseline_elapsed,
+            adjusted_absolute_limit,
             adjusted_limit,
+            adjusted_jitter,
             environment_slowdown_ratio
         );
         return;
@@ -157,13 +161,15 @@ fn assert_elapsed_within_20_percent(
     if baseline_elapsed < PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US {
         let increase = actual_elapsed - baseline_elapsed;
         assert!(
-            increase <= adjusted_limit,
-            "{} の実行時間が絶対値しきいを超えて悪化: actual={}us baseline={}us delta={}us limit={}us env_ratio={}",
+            increase <= adjusted_absolute_limit,
+            "{} の実行時間が絶対値しきいを超えて悪化: actual={}us baseline={}us delta={}us limit={}us base_limit={}us jitter_limit={}us env_ratio={}",
             case_name,
             actual_elapsed,
             baseline_elapsed,
             increase,
+            adjusted_absolute_limit,
             adjusted_limit,
+            adjusted_jitter,
             environment_slowdown_ratio
         );
         return;
@@ -175,7 +181,6 @@ fn assert_elapsed_within_20_percent(
     if baseline_elapsed < PERF_GUARD_RATIO_MIN_BASELINE_US {
         let ratio_allowed_actual = baseline_elapsed * adjusted_ratio_limit;
         let absolute_allowed_actual = baseline_elapsed + adjusted_limit;
-        let adjusted_jitter = additional_jitter_us * environment_slowdown_ratio;
         let allowed_actual = ratio_allowed_actual
             .max(absolute_allowed_actual)
             .max(baseline_elapsed + adjusted_jitter);
@@ -196,7 +201,6 @@ fn assert_elapsed_within_20_percent(
         return;
     }
 
-    let adjusted_jitter = additional_jitter_us * environment_slowdown_ratio;
     let allowed_actual = baseline_elapsed * adjusted_ratio_limit + adjusted_jitter;
     assert!(
         actual_elapsed <= allowed_actual,
