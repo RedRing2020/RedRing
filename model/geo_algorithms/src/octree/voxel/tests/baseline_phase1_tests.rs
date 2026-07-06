@@ -34,6 +34,7 @@ const PERF_GUARD_ABSOLUTE_ONLY_MAX_BASELINE_US: f64 = 50.0;
 const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
 const PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO: f64 = 1.10;
+const PERF_GUARD_ENV_RATIO_VAR: &str = "REDRING_PERF_GUARD_ENV_RATIO";
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
 const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 1.0;
 const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
@@ -130,6 +131,12 @@ fn median_f64(values: &[f64]) -> f64 {
     } else {
         (sorted[mid - 1] + sorted[mid]) / 2.0
     }
+}
+
+fn environment_slowdown_ratio_from_env() -> Option<f64> {
+    let raw = std::env::var(PERF_GUARD_ENV_RATIO_VAR).ok()?;
+    let parsed = raw.parse::<f64>().ok()?;
+    Some(parsed.clamp(1.0, PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO))
 }
 
 fn assert_elapsed_within_20_percent(
@@ -406,15 +413,19 @@ fn test_phase1_performance_guard_within_20_percent() {
             }
         })
         .collect();
-    let environment_slowdown_ratio = if slowdown_candidates.is_empty() {
+    let measured_slowdown_ratio = if slowdown_candidates.is_empty() {
         1.0
     } else {
         median_f64(&slowdown_candidates).min(PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO)
     };
+    let environment_slowdown_ratio = environment_slowdown_ratio_from_env().unwrap_or(1.0);
 
     eprintln!(
-        "PERF_GUARD summary env_ratio={} sample_count={}",
-        environment_slowdown_ratio, PERF_GUARD_SAMPLE_COUNT
+        "PERF_GUARD summary env_ratio={} measured_env_ratio={} sample_count={} env_var={}",
+        environment_slowdown_ratio,
+        measured_slowdown_ratio,
+        PERF_GUARD_SAMPLE_COUNT,
+        PERF_GUARD_ENV_RATIO_VAR
     );
 
     for (case_name, measured_elapsed, baseline_elapsed, additional_jitter_us, sample_len) in
