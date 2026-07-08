@@ -16,8 +16,12 @@ fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) {
         dir.display()
     );
 
-    for entry in fs::read_dir(dir).expect("source directory should be readable") {
-        let entry = entry.expect("directory entry should be readable");
+    for entry in fs::read_dir(dir).unwrap_or_else(|error| {
+        panic!("source directory should be readable: {} ({})", dir.display(), error)
+    }) {
+        let entry = entry.unwrap_or_else(|error| {
+            panic!("directory entry should be readable in {}: {}", dir.display(), error)
+        });
         let path = entry.path();
         if path.is_dir() {
             collect_rs_files(&path, files);
@@ -34,7 +38,9 @@ pub fn assert_layer_does_not_reference_demo_symbols(layer_name: &str) {
     files.sort();
 
     for file in files {
-        let content = fs::read_to_string(&file).expect("source file should be readable");
+        let content = fs::read_to_string(&file).unwrap_or_else(|error| {
+            panic!("source file should be readable: {} ({})", file.display(), error)
+        });
         for symbol in FORBIDDEN_DEMO_SYMBOLS {
             assert!(
                 !content.contains(symbol),
