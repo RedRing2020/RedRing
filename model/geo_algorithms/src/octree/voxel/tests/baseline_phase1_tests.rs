@@ -42,7 +42,7 @@ const Z_AXIS_BASELINE_ELAPSED_MICROS: f64 = 55.6;
 const SWEPT_BASELINE_ELAPSED_MICROS: f64 = 450.2;
 const BOX_PARTIAL_ADDITIONAL_JITTER_US: f64 = 40.0;
 const BOX_COMPLETE_ADDITIONAL_JITTER_US: f64 = 20.0;
-const CAPSULE_ADDITIONAL_JITTER_US: f64 = 500.0;
+const CAPSULE_ADDITIONAL_JITTER_US: f64 = 560.0;
 const Z_AXIS_ADDITIONAL_JITTER_US: f64 = 100.0;
 const SWEPT_ADDITIONAL_JITTER_US: f64 = 325.0;
 
@@ -208,16 +208,20 @@ fn assert_elapsed_within_20_percent(
         return;
     }
 
-    let allowed_actual = baseline_elapsed * adjusted_ratio_limit + adjusted_jitter;
+    let ratio_allowed_actual = baseline_elapsed * adjusted_ratio_limit;
+    let jitter_allowed_actual = baseline_elapsed + adjusted_jitter;
+    let allowed_actual = ratio_allowed_actual.max(jitter_allowed_actual);
     assert!(
         actual_elapsed <= allowed_actual,
-        "{} の実行時間がしきいを超えて悪化: actual={}us baseline={}us ratio={:.2}% ratio_limit={:.2}% jitter_limit={}us allowed_actual={}us env_ratio={}",
+        "{} の実行時間がしきいを超えて悪化: actual={}us baseline={}us ratio={:.2}% ratio_limit={:.2}% ratio_allowed={}us jitter_limit={}us jitter_allowed={}us allowed_actual={}us env_ratio={}",
         case_name,
         actual_elapsed,
         baseline_elapsed,
         ratio * 100.0,
         adjusted_ratio_limit * 100.0,
+        ratio_allowed_actual,
         adjusted_jitter,
+        jitter_allowed_actual,
         allowed_actual,
         environment_slowdown_ratio
     );
@@ -476,6 +480,11 @@ fn measure_phase1_baseline_cases() {
             .filter(|c| c.name == case_name)
             .copied()
             .collect();
+        assert!(
+            !samples.is_empty(),
+            "baseline samples must not be empty for case={}",
+            case_name
+        );
         let summary = BaselineCaseSummary::from_samples(case_name, &samples);
         let baseline = samples[0];
         let summary_case = summary.as_case();
