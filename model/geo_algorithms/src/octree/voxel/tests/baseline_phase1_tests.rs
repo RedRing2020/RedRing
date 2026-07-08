@@ -136,6 +136,9 @@ fn median_f64(values: &[f64]) -> f64 {
 fn environment_slowdown_ratio_from_env() -> Option<f64> {
     let raw = std::env::var(PERF_GUARD_ENV_RATIO_VAR).ok()?;
     let parsed = raw.parse::<f64>().ok()?;
+    if !parsed.is_finite() {
+        return None;
+    }
     Some(parsed.clamp(1.0, PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO))
 }
 
