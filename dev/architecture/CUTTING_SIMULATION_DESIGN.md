@@ -1,9 +1,9 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年7月4日  
+**最終更新**: 2026年7月5日  
 **ステータス**: 設計・段階実装中  
-**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716), [#726](https://github.com/RedRing2020/RedRing/issues/726), [#729](https://github.com/RedRing2020/RedRing/issues/729)
+**関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716), [#726](https://github.com/RedRing2020/RedRing/issues/726), [#727](https://github.com/RedRing2020/RedRing/issues/727), [#729](https://github.com/RedRing2020/RedRing/issues/729)
 
 ---
 
@@ -279,6 +279,45 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 #### Phase 2: メッシュベース削り込み判定
 
 - NURBS 由来メッシュと Voxel 比較による削り残し/削り込み判定を担う
+- Voxel 側の境界安定化として、`remove_material_box` の最大深さ葉ノードでは
+   「交差したら即 Empty」ではなく、中心点が工具AABB内にある場合のみ Empty 化する
+   局所判定を導入する（過剰除去の抑制）。
+- `remove_material_capsule` / `remove_material_swept_cylinder` は段階導入として、
+   「ノードサイズが工具半径に対して十分大きい粗い葉ノード」に限定して中心点判定を適用する
+   （小半径ケースの既存挙動を維持しつつ、性能劣化を抑える）。
+
+#### Issue #727 Phase 2 完了判定（C8）
+
+本節は Issue #727 の Phase 2 に対する完了判定基準を固定する。
+
+達成済み要件（C1-C7）:
+
+- C1 評価ケース固定化: baseline ケース集合（box partial/complete, capsule, z-axis, swept）を固定
+- C2 誤差指標ヘルパー: baseline 差分率を集約する型と算出関数を導入
+- C3/C4 段階導入: capsule/swept は粗い葉ノード限定で中心点判定を適用
+- C5 再現性テスト拡張: baseline ケースの体積系指標の決定性を固定
+- C6 20%性能ガード: 中央値実行時間の劣化を自動判定（微小時間ケースは絶対増分ガードを併用）
+- C7 デモ導線確認: `model/application` `model/cam_sim` `model/job_runtime` で demo 専用シンボル非参照をテスト固定
+
+完了判定（DoD）:
+
+- `model/geo_algorithms/src/octree/voxel/tests/baseline_phase1_tests.rs` の
+   `test_phase1_baseline_cases_are_deterministic` が成功する
+- 同ファイルの `test_phase1_performance_guard_within_20_percent` が成功する
+- デモ導線隔離テスト
+   `test_application_source_does_not_reference_demo_symbols`
+   `test_cam_sim_source_does_not_reference_demo_symbols`
+   `test_job_runtime_source_does_not_reference_demo_symbols`
+   が成功する
+- `cargo clippy -p geo_algorithms -p cam_sim -p job_runtime -- -D warnings` が成功する
+
+運用ルール（再計測と更新）:
+
+- baseline 数値の再計測は
+   `cargo test -p geo_algorithms octree::voxel::tests::baseline_phase1_tests::measure_phase1_baseline_cases -- --ignored --nocapture`
+   を唯一の更新根拠とする
+- baseline 値更新時は、同一 PR で C5/C6 テスト結果と差分理由を併記する
+- ガード緩和を目的とした閾値変更のみを単独で行わない（必ず再計測値とセットで更新する）
 
 #### Phase 3: 色分け可視化
 
