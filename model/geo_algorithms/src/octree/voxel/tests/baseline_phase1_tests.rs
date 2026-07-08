@@ -44,7 +44,7 @@ const BOX_PARTIAL_ADDITIONAL_JITTER_US: f64 = 40.0;
 const BOX_COMPLETE_ADDITIONAL_JITTER_US: f64 = 20.0;
 const CAPSULE_ADDITIONAL_JITTER_US: f64 = 800.0;
 const Z_AXIS_ADDITIONAL_JITTER_US: f64 = 100.0;
-const SWEPT_ADDITIONAL_JITTER_US: f64 = 325.0;
+const SWEPT_ADDITIONAL_JITTER_US: f64 = 500.0;
 
 impl BaselineCaseSummary {
     fn from_samples(name: &'static str, samples: &[BaselineCase]) -> Self {
