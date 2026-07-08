@@ -477,6 +477,10 @@ impl<T: Scalar> VoxelNode<T> {
 
     /// 最大深さ葉ノードでのAABB除去判定（中心点サンプリング）。
     fn should_remove_leaf_for_box(&self, tool_aabb: &Aabb3D<T>) -> bool {
+        debug_assert!(
+            !tool_aabb.is_empty(),
+            "tool_aabb should not be empty in remove_material_box"
+        );
         tool_aabb.contains_point(&self.bounds.center())
     }
 
