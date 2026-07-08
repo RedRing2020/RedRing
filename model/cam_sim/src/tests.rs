@@ -58,7 +58,7 @@ fn roundtrip_toolpath_via_artifact(toolpath: &ToolPath<f64>) -> ToolPath<f64> {
 mod demo_symbol_guard {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../test_support/demo_symbol_guard.rs"
+        "/../test_helpers/demo_symbol_guard.rs"
     ));
 }
 

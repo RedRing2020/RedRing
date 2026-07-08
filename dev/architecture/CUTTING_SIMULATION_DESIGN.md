@@ -14,7 +14,7 @@
 3. [ハイブリッドスナップショット方式](#ハイブリッドスナップショット方式)
 4. [距離計算支援機能](#距離計算支援機能)
 5. [クレート配置と依存境界](#クレート配置と依存境界)
-6. [実装計画](#実装計画)
+6. [設計詳細](#設計詳細)
 7. [技術仕様](#技術仕様)
 8. [パフォーマンス目標](#パフォーマンス目標)
 
@@ -101,7 +101,7 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 
 注記（経緯の明確化）:
 
-- 今回の `viewmodel/cam_demo` 分離は、Issue #717 で顕在化した CAM デモ導線の混在を解消するための局所対応を起点としている
+- 今回の `viewmodel/cam_demo` 分離は、CAM デモ導線の混在を解消するための局所対応を起点としている
 - CAD を含む demo 全体アーキテクチャは同時に完了しておらず、別タスクで設計する
 
 - `CuttingSimulator` と `SnapshotInterval` の正本実装は `model/cam_sim` に置く
@@ -140,9 +140,9 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 
 ---
 
-## 実装計画
+## 設計詳細
 
-### Issue #716: 本番導線の入力前提条件整理
+### 本番導線の入力前提条件
 
 #### 目的
 
@@ -187,12 +187,11 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 - 条件欠落の経路に対しては、実行して推定結果を出す運用を行わない
 - 欠落時は Preflight の失敗理由を明示して返し、設定補完後の再実行を要求する
 
-#### Phase 1着手条件（Issue #717 連携）
+#### 本番導線で先に固定する前提
 
-- `job_adapter` の mock 読み取り経路を本番経路から分離する
-- 上記 Preflight 判定を `CuttingSimulation` 実行前に必ず通す
-- 失敗理由を `JobExecutionResult.error` で区別可能に返す
-- 正常系/異常系（kind mismatch, version mismatch, 条件欠落）をE2Eテストで固定する
+- `job_adapter` の mock 読み取り経路は本番経路から分離されていること
+- `CuttingSimulation` 実行前に Preflight 判定を必ず通すこと
+- 失敗理由を `JobExecutionResult.error` で区別可能に返すこと
 
 #### 詳細設計: View起点の正導線
 
@@ -238,14 +237,13 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 - View から `cam_demo::build_demo_cam_simulation_visualization_bundle_with_tool_settings` を本番導線で呼び出すこと
 - `job_adapter` 内の mock artifact 経路を本番導線に残すこと
 
-#### 分離完了条件（DoD）
+#### 本番導線の成立条件
 
 - View起点の切削シミュレーション実行は、本番導線1経路（View -> ViewModel -> Application -> cam_sim）に統一されている
 - デモ起動UI（Shift+B/Shift+F 等）は残してよいが、内部実行は本番導線を再利用し、デモ専用の実行経路を持たない
 - `cam_demo::load_demo_cam_snapshot_domain_series` と `cam_demo::build_demo_cam_simulation_visualization_bundle_with_tool_settings` は本番コードパスから参照されない
 - `model/cam_sim/src/job_adapter.rs` の mock artifact 読み取りは、本番実行経路から除外されている（test/debug 限定に隔離されている）
 - Preflight失敗時に、Viewで再設定すべき不足条件（例: 回避高さ、速度設定、工具条件、機械制約）が識別できるエラー情報を受け取れる
-- E2Eで次の3系統が固定されている: 本番成功、入力契約違反（kind/version/破損）、条件欠落（NotReady）
 - デモ用データ作成コードは本体機能コードから分離され、責務境界が文書化されている
 
 #### view/app 分離の再評価基準
@@ -256,27 +254,25 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 - 本番導線修正とdemo導線修正のリリース周期が分離し、同一クレート運用がボトルネックになった
 - 依存チェックやテスト実行時間の増加により、導線分離で明確な開発効率改善が見込める
 
-### 実装段階の定義（設計）
+### 機能段階ごとの責務
 
-進捗や完了判定は Issue / PR を正本とし、本書では段階の責務だけを定義する。
-
-#### Phase 1a: VoxelOctree + 円柱工具除去
+#### 円柱工具除去
 
 - `CuttingSimulator` と `SnapshotInterval` を用いた距離ベース記録の基礎を担う
 - 円柱工具による材料除去と、記録間隔制御の成立を責務とする
 
-#### Phase 1b: ボールエンドミル対応
+#### ボールエンドミル対応
 
 - 工具種別分岐（フラット/ボール）を `cam_sim` で統一的に扱う
 - ボール工具の参照点補正と除去モデル統合を責務とする
 - 円弧パス除去の高精度化は後続拡張として扱う
 
-#### Phase 1c: 動作シミュレーション
+#### 動作シミュレーション
 
 - スナップショット再生、スクラブ、表示切替などの操作導線を担う
 - 追加導線UIや補間などは別タスクで段階的に導入する
 
-#### Phase 2: メッシュベース削り込み判定
+#### メッシュベース削り込み判定
 
 - NURBS 由来メッシュと Voxel 比較による削り残し/削り込み判定を担う
 - Voxel 側の境界安定化として、`remove_material_box` の最大深さ葉ノードでは
@@ -286,40 +282,7 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
    「ノードサイズが工具半径に対して十分大きい粗い葉ノード」に限定して中心点判定を適用する
    （小半径ケースの既存挙動を維持しつつ、性能劣化を抑える）。
 
-#### Issue #727 Phase 2 完了判定（C8）
-
-本節は Issue #727 の Phase 2 に対する完了判定基準を固定する。
-
-達成済み要件（C1-C7）:
-
-- C1 評価ケース固定化: baseline ケース集合（box partial/complete, capsule, z-axis, swept）を固定
-- C2 誤差指標ヘルパー: baseline 差分率を集約する型と算出関数を導入
-- C3/C4 段階導入: capsule/swept は粗い葉ノード限定で中心点判定を適用
-- C5 再現性テスト拡張: baseline ケースの体積系指標の決定性を固定
-- C6 20%性能ガード: 中央値実行時間の劣化を自動判定（微小時間ケースは絶対増分ガードを併用）
-- C7 デモ導線確認: `model/application` `model/cam_sim` `model/job_runtime` で demo 専用シンボル非参照をテスト固定
-
-完了判定（DoD）:
-
-- `model/geo_algorithms/src/octree/voxel/tests/baseline_phase1_tests.rs` の
-   `test_phase1_baseline_cases_are_deterministic` が成功する
-- 同ファイルの `test_phase1_performance_guard_within_20_percent` が成功する
-- デモ導線隔離テスト
-   `test_application_source_does_not_reference_demo_symbols`
-   `test_cam_sim_source_does_not_reference_demo_symbols`
-   `test_job_runtime_source_does_not_reference_demo_symbols`
-   が成功する
-- `cargo clippy -p geo_algorithms -p cam_sim -p job_runtime -- -D warnings` が成功する
-
-運用ルール（再計測と更新）:
-
-- baseline 数値の再計測は
-   `cargo test -p geo_algorithms octree::voxel::tests::baseline_phase1_tests::measure_phase1_baseline_cases -- --ignored --nocapture`
-   を唯一の更新根拠とする
-- baseline 値更新時は、同一 PR で C5/C6 テスト結果と差分理由を併記する
-- ガード緩和を目的とした閾値変更のみを単独で行わない（必ず再計測値とセットで更新する）
-
-#### Phase 3: 色分け可視化
+#### 色分け可視化
 
 - 送り速度・警告・削り込み状態の可視化ルールを担う
 - 配色ロジック実装の正本は描画層とし、本書では区分定義のみ保持する
@@ -328,9 +291,9 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 
 ## 技術仕様
 
-### Issue #729 先行設計: SAT-Cut 内部表現（Voxel/Octree非正本）
+### SAT-Cut 内部表現（Voxel/Octree非正本）
 
-Issue #729 の比較基盤を使って高精度方式を評価するため、ワーク形状の正本を Voxel/Octree から分離する。
+高精度方式を評価するため、ワーク形状の正本を Voxel/Octree から分離する。
 
 #### 目的
 
@@ -381,7 +344,7 @@ PoCでは参照点補正を別責務にせず、工具中心軌跡として渡�
 - 決定性: 同一入力で同一結果になる
 - 表示独立性: 表示キャッシュの有無で正本結果が変わらない
 
-#### #729 で先に固定する評価接続点
+#### 評価接続点
 
 - 体積差分: `ExactWorkCore` と既存方式を同一ケースで比較
 - 境界誤差: `nearest_removed_surface_distance` ベースで評価
@@ -427,13 +390,13 @@ PoCでは参照点補正を別責務にせず、工具中心軌跡として渡�
 
 ### 処理時間目標
 
-| Phase | 処理内容 | 目標時間 | 備考 |
-|-------|---------|---------|------|
-| Phase 1a | VoxelOctree構築 + 材料除去 | < 1秒 | 1000セグメント |
-| Phase 1b | ボールエンドミル除去 | < 2秒 | 複雑判定のため遅い |
-| Phase 1c | スナップショット保存 | < 0.1秒 | 1スナップショットあたり |
-| Phase 2 | メッシュ比較 | < 5秒 | 10000三角形メッシュ |
-| Phase 3 | 色分け可視化 | リアルタイム | 60FPS維持 |
+| 機能 | 処理内容 | 目標時間 | 備考 |
+|------|---------|---------|------|
+| 円柱工具除去 | VoxelOctree構築 + 材料除去 | < 1秒 | 1000セグメント |
+| ボールエンドミル除去 | ボールエンドミル除去 | < 2秒 | 複雑判定のため遅い |
+| スナップショット保存 | スナップショット保存 | < 0.1秒 | 1スナップショットあたり |
+| メッシュ比較 | メッシュ比較 | < 5秒 | 10000三角形メッシュ |
+| 色分け可視化 | 色分け可視化 | リアルタイム | 60FPS維持 |
 
 ### スケーラビリティ
 
@@ -449,9 +412,7 @@ PoCでは参照点補正を別責務にせず、工具中心軌跡として渡�
 
 ---
 
-## Issue #246: ツールセット定義（工具 + ホルダー）
-
-関連Issue: [#246](https://github.com/RedRing2020/RedRing/issues/246), [#260](https://github.com/RedRing2020/RedRing/issues/260)
+## ツールセット定義（工具 + ホルダー）
 
 ### 目的
 
@@ -476,7 +437,7 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 - シャンク段定義（多段、円柱/テーパー）
 - シャンク干渉距離（側面/底面）
 
-### Issue #503 反映事項（2026-03）
+### シャンク干渉距離の条件付き適用
 
 - `ToolSet` は `ShankSegmentKind (Cylinder/Taper)` と `ShankSegment` を保持
 - シャンク専用干渉距離 `ShankInterferenceOffset { side, bottom }` を保持
@@ -572,14 +533,10 @@ CAM計算および切削シミュレーションで使用するツールセッ�
 
 | 日付 | 変更内容 | 担当 |
 |------|---------|------|
-| 2026-07-04 | Issue #729 先行設計: SAT-Cut 内部表現（Voxel/Octree非正本）を追記 | AI開発者 |
-| 2026-05-30 | 設計正本化: 進捗/残件/チェックリストを削減し、段階定義へ整理 | AI開発者 |
-| 2026-05-30 | Issue #716 反映: View起点の正導線（本番）とデモ限定導線、禁止経路を追記 | AI開発者 |
-| 2026-05-30 | Issue #716 反映: 本番導線の入力前提条件（ポスト由来条件を含む）を追記 | AI開発者 |
-| 2026-04-01 | 設計書内のサンプル実装コードを削除し、実装参照方針へ整理 | AI開発者 |
-| 2026-04-01 | Phase 1b 完了反映（BallEndMill対応、behavior分岐、比較検証テスト追加） | AI開発者 |
-| 2026-03-31 | Issue #503 反映（シャンク多段化、シャンク bottom 条件付き自動無効化） | AI開発者 |
-| 2026-03-26 | Issue #260 反映（shank_length 追加、shank属性の検証規約を追記） | AI開発者 |
-| 2026-02-22 | Issue #246 ツールセット定義（ホルダー多段、参照点、干渉距離）を追記 | AI開発者 |
+| 2026-07-04 | 高精度比較向け SAT-Cut 内部表現を追加 | AI開発者 |
+| 2026-05-30 | 本番導線とデモ導線の責務境界、および入力前提条件の整理を反映 | AI開発者 |
+| 2026-04-01 | 実装参照方針への整理と、BallEndMill対応後の設計更新を反映 | AI開発者 |
+| 2026-03-31 | ツールセットのシャンク干渉条件と多段化ルールを整理 | AI開発者 |
+| 2026-02-22 | ツールセット定義（ホルダー多段、参照点、干渉距離）を追加 | AI開発者 |
 | 2026-02-12 | 初版作成（距離ベーススナップショット設計） | AI開発者 |
 
