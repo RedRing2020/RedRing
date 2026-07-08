@@ -24,52 +24,15 @@ pub use types::{
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::{Path, PathBuf};
-
-    fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) {
-        assert!(
-            dir.exists(),
-            "source directory does not exist: {}",
-            dir.display()
-        );
-
-        for entry in fs::read_dir(dir).expect("source directory should be readable") {
-            let entry = entry.expect("directory entry should be readable");
-            let path = entry.path();
-            if path.is_dir() {
-                collect_rs_files(&path, files);
-            } else if path.extension().is_some_and(|ext| ext == "rs") {
-                files.push(path);
-            }
-        }
+    mod demo_symbol_guard {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../test_support/demo_symbol_guard.rs"
+        ));
     }
 
     #[test]
     fn test_job_runtime_source_does_not_reference_demo_symbols() {
-        let src_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut files = Vec::new();
-        collect_rs_files(&src_root, &mut files);
-        files.sort();
-
-        let forbidden_symbols = [
-            ["CamSimulation", "DemoScenario"].concat(),
-            ["build_demo_", "artifacts_for_cam_simulation"].concat(),
-            ["create_demo_", "snapshot_exports_for_scenario"].concat(),
-            ["create_sample_", "snapshot_exports_for_demo"].concat(),
-            ["cam_", "sim_demo"].concat(),
-        ];
-
-        for file in files {
-            let content = fs::read_to_string(&file).expect("source file should be readable");
-            for symbol in &forbidden_symbols {
-                assert!(
-                    !content.contains(symbol),
-                    "job_runtime layer must not reference demo symbol '{}' in {}",
-                    symbol,
-                    file.display()
-                );
-            }
-        }
+        demo_symbol_guard::assert_layer_does_not_reference_demo_symbols("job_runtime");
     }
 }
