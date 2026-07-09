@@ -4,6 +4,12 @@
 
 use crate::Scalar;
 
+/// 対象を包含するかを返す汎用 relation
+pub trait Contains<Target> {
+    /// 対象を包含するかを返す
+    fn contains(&self, target: &Target) -> bool;
+}
+
 /// AABB 2D relation
 pub trait Aabb2DRelation<T: Scalar> {
     /// 点型

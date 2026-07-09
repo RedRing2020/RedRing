@@ -4,7 +4,7 @@
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
 use analysis::abstract_types::Scalar;
-use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
+use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation, Contains};
 
 use crate::Point3D;
 
@@ -198,10 +198,22 @@ impl<T: Scalar> Aabb3DRelation<T> for Aabb3D<T> {
     }
 }
 
+impl<T: Scalar> Contains<Point3D<T>> for Aabb3D<T> {
+    fn contains(&self, target: &Point3D<T>) -> bool {
+        self.contains_point(target)
+    }
+}
+
+impl<T: Scalar> Contains<Aabb3D<T>> for Aabb3D<T> {
+    fn contains(&self, target: &Aabb3D<T>) -> bool {
+        self.contains_aabb(target)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
+    use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation, Contains};
 
     #[test]
     fn test_aabb3d_creation() {
@@ -285,5 +297,14 @@ mod tests {
         ));
         assert!(Aabb3DRelation::contains_bbox(&outer, &inner));
         assert!(Aabb3DRelation::intersects(&outer, &inner));
+    }
+
+    #[test]
+    fn test_contains_trait_for_point_and_aabb() {
+        let outer = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 4.0, 4.0));
+        let inner = Aabb3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 3.0, 3.0));
+
+        assert!(Contains::contains(&outer, &Point3D::new(2.0, 2.0, 2.0)));
+        assert!(Contains::contains(&outer, &inner));
     }
 }

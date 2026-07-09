@@ -5,7 +5,7 @@
 
 use crate::Point2D;
 use analysis::abstract_types::Scalar;
-use geo_contracts::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
+use geo_contracts::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation, Contains};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Aabb2D<T: Scalar> {
@@ -172,10 +172,22 @@ impl<T: Scalar> Aabb2DRelation<T> for Aabb2D<T> {
     }
 }
 
+impl<T: Scalar> Contains<Point2D<T>> for Aabb2D<T> {
+    fn contains(&self, target: &Point2D<T>) -> bool {
+        self.contains_point(target)
+    }
+}
+
+impl<T: Scalar> Contains<Aabb2D<T>> for Aabb2D<T> {
+    fn contains(&self, target: &Aabb2D<T>) -> bool {
+        self.contains_aabb(target)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation};
+    use geo_contracts::{Aabb2DDerived, Aabb2DProperties, Aabb2DRelation, Contains};
 
     #[test]
     fn test_aabb2d_creation() {
@@ -290,5 +302,14 @@ mod tests {
         ));
         assert!(Aabb2DRelation::contains_bbox(&outer, &inner));
         assert!(Aabb2DRelation::intersects(&outer, &inner));
+    }
+
+    #[test]
+    fn test_contains_trait_for_point_and_aabb() {
+        let outer = Aabb2D::new(Point2D::new(0.0, 0.0), Point2D::new(4.0, 4.0));
+        let inner = Aabb2D::new(Point2D::new(1.0, 1.0), Point2D::new(3.0, 3.0));
+
+        assert!(Contains::contains(&outer, &Point2D::new(2.0, 2.0)));
+        assert!(Contains::contains(&outer, &inner));
     }
 }
