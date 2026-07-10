@@ -27,7 +27,7 @@ pub(super) enum SnapshotLoadTrigger {
 }
 
 impl SnapshotLoadTrigger {
-    fn label(self) -> &'static str {
+    pub(super) fn label(self) -> &'static str {
         match self {
             SnapshotLoadTrigger::SnapshotScrub => "snapshot scrub",
             SnapshotLoadTrigger::Space => "Space",

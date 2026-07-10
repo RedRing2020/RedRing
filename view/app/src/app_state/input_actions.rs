@@ -246,13 +246,26 @@ mod tests {
     fn cam_demo_start_sequence_stays_not_ready_until_explicit_shift_start() {
         let mut current_cam_demo_scenario = None;
 
+        let not_ready_triggers = [
+            SnapshotLoadTrigger::SnapshotScrub,
+            SnapshotLoadTrigger::KeyK,
+            SnapshotLoadTrigger::KeyJ,
+            SnapshotLoadTrigger::Space,
+            SnapshotLoadTrigger::Pause,
+        ];
+
+        for trigger in not_ready_triggers {
+            assert_eq!(
+                resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
+                SnapshotLoadDecision::NotReady {
+                    trigger_label: trigger.label()
+                }
+            );
+        }
+
         assert_eq!(
             resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("k".into())),
             None
-        );
-        assert_eq!(
-            resolve_snapshot_load_decision(SnapshotLoadTrigger::KeyK, current_cam_demo_scenario),
-            SnapshotLoadDecision::NotReady { trigger_label: "k" }
         );
 
         assert_eq!(
@@ -262,10 +275,13 @@ mod tests {
         current_cam_demo_scenario = Some(CamSimulationDemoScenario::Success);
 
         assert_eq!(
-            resolve_snapshot_load_decision(SnapshotLoadTrigger::Space, current_cam_demo_scenario),
+            resolve_snapshot_load_decision(
+                SnapshotLoadTrigger::SnapshotScrub,
+                current_cam_demo_scenario
+            ),
             SnapshotLoadDecision::Ready {
                 scenario: CamSimulationDemoScenario::Success,
-                trigger_label: "Space"
+                trigger_label: "snapshot scrub"
             }
         );
     }
