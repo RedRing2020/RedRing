@@ -4,7 +4,7 @@
 //! geo_primitives, geo_nurbs など全クレートから共通利用されます。
 
 use analysis::abstract_types::Scalar;
-use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
+use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation, Contains};
 
 use crate::Point3D;
 
@@ -52,11 +52,6 @@ impl<T: Scalar> Aabb3D<T> {
         (self.min.x() <= p.x() && p.x() <= self.max.x())
             && (self.min.y() <= p.y() && p.y() <= self.max.y())
             && (self.min.z() <= p.z() && p.z() <= self.max.z())
-    }
-
-    /// 点がAABB内に含まれるか（後方互換エイリアス）
-    pub fn contains(&self, p: &Point3D<T>) -> bool {
-        self.contains_point(p)
     }
 
     /// 最小点を取得
@@ -198,10 +193,22 @@ impl<T: Scalar> Aabb3DRelation<T> for Aabb3D<T> {
     }
 }
 
+impl<T: Scalar> Contains<Point3D<T>> for Aabb3D<T> {
+    fn contains(&self, target: &Point3D<T>) -> bool {
+        self.contains_point(target)
+    }
+}
+
+impl<T: Scalar> Contains<Aabb3D<T>> for Aabb3D<T> {
+    fn contains(&self, target: &Aabb3D<T>) -> bool {
+        self.contains_aabb(target)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation};
+    use geo_contracts::{Aabb3DDerived, Aabb3DProperties, Aabb3DRelation, Contains};
 
     #[test]
     fn test_aabb3d_creation() {
@@ -240,10 +247,9 @@ mod tests {
         let max = Point3D::new(2.0, 2.0, 2.0);
         let aabb = Aabb3D::new(min, max);
         assert!(aabb.contains_point(&Point3D::new(1.0, 1.0, 1.0)));
-        assert!(aabb.contains(&Point3D::new(1.0, 1.0, 1.0)));
-        assert!(aabb.contains(&Point3D::new(0.0, 0.0, 0.0)));
-        assert!(aabb.contains(&Point3D::new(2.0, 2.0, 2.0)));
-        assert!(!aabb.contains(&Point3D::new(3.0, 1.0, 1.0)));
+        assert!(aabb.contains_point(&Point3D::new(0.0, 0.0, 0.0)));
+        assert!(aabb.contains_point(&Point3D::new(2.0, 2.0, 2.0)));
+        assert!(!aabb.contains_point(&Point3D::new(3.0, 1.0, 1.0)));
     }
 
     #[test]
@@ -285,5 +291,16 @@ mod tests {
         ));
         assert!(Aabb3DRelation::contains_bbox(&outer, &inner));
         assert!(Aabb3DRelation::intersects(&outer, &inner));
+    }
+
+    #[test]
+    fn test_contains_trait_for_point_and_aabb() {
+        let outer = Aabb3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(4.0, 4.0, 4.0));
+        let inner = Aabb3D::new(Point3D::new(1.0, 1.0, 1.0), Point3D::new(3.0, 3.0, 3.0));
+
+        assert!(Contains::contains(&outer, &Point3D::new(2.0, 2.0, 2.0)));
+        assert!(Contains::contains(&outer, &inner));
+        assert!(outer.contains(&Point3D::new(2.0, 2.0, 2.0)));
+        assert!(outer.contains(&inner));
     }
 }

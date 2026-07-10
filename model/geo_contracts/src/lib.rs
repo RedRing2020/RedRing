@@ -96,7 +96,7 @@ pub use geometry::core::{
 pub use geometry::foundation::{Bounded, PrimitiveMetadata};
 pub use geometry::operations::{
     Aabb2DRelation, Aabb3DRelation, AdvancedCollision, AngleBetween, AngularRelation,
-    BBoxCollision, BasicCollision, BasicIntersection, ClosestPointPair, CrossDistance,
+    BBoxCollision, BasicCollision, BasicIntersection, ClosestPointPair, Contains, CrossDistance,
     DirectionalRelation, DistanceConvergenceError, EllipseAccuracyAnalysis,
     EllipseAdaptiveCalculation, EllipseCalculation, FallibleCrossDistance, IntersectsRelation,
     MultipleIntersection, OnPlaneRelation, ParallelRelation, PerpendicularRelation, PointDistance,

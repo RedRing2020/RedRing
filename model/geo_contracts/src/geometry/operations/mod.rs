@@ -13,7 +13,7 @@ pub use ellipse_calculation::{
 };
 pub use intersection::{BasicIntersection, MultipleIntersection, SelfIntersection};
 pub use relation::{
-    Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, ClosestPointPair,
+    Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, ClosestPointPair, Contains,
     DirectionalRelation, IntersectsRelation, OnPlaneRelation, ParallelRelation,
     PerpendicularRelation, PointsTowards, SameLineRelation, SkewRelation,
 };

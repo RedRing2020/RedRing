@@ -4,6 +4,17 @@
 
 use crate::Scalar;
 
+/// 対象を包含するかを返す汎用 relation
+///
+/// 命名規約:
+/// - 統一名の `contains(...)` は、呼び出し側が対象型を抽象化したい場面で使用する
+/// - 明示名の `contains_point` / `contains_bbox` / `contains_aabb` は、対象を明示して
+///   意味を固定したい場面で使用する
+pub trait Contains<Target> {
+    /// 対象を包含するかを返す
+    fn contains(&self, target: &Target) -> bool;
+}
+
 /// AABB 2D relation
 pub trait Aabb2DRelation<T: Scalar> {
     /// 点型
