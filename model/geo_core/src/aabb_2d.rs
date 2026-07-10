@@ -311,5 +311,7 @@ mod tests {
 
         assert!(Contains::contains(&outer, &Point2D::new(2.0, 2.0)));
         assert!(Contains::contains(&outer, &inner));
+        assert!(outer.contains(&Point2D::new(2.0, 2.0)));
+        assert!(outer.contains(&inner));
     }
 }
