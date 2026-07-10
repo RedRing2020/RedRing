@@ -2,12 +2,38 @@
 
 use super::AppState;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CamDemoStartTrigger {
+    BallEndMill,
+    FlatEndMill,
+}
+
+fn resolve_cam_demo_start_trigger(key: &winit::keyboard::Key) -> Option<CamDemoStartTrigger> {
+    match key {
+        winit::keyboard::Key::Character(ch) if ch.as_str() == "B" => {
+            Some(CamDemoStartTrigger::BallEndMill)
+        }
+        winit::keyboard::Key::Character(ch) if ch.as_str() == "F" => {
+            Some(CamDemoStartTrigger::FlatEndMill)
+        }
+        _ => None,
+    }
+}
+
 impl AppState {
     /// キーボード入力を処理
     pub fn handle_keyboard_input(&mut self, key: &winit::keyboard::Key, pressed: bool) {
         self.mouse_input.update_key(key, pressed);
 
         if !pressed {
+            return;
+        }
+
+        if let Some(trigger) = resolve_cam_demo_start_trigger(key) {
+            match trigger {
+                CamDemoStartTrigger::BallEndMill => self.load_sample_toolpath_ball_end_mill(),
+                CamDemoStartTrigger::FlatEndMill => self.load_sample_toolpath_flat_end_mill(),
+            }
             return;
         }
 
@@ -149,12 +175,6 @@ impl AppState {
                 "p" => {
                     self.load_sample_toolpath_only();
                 }
-                "F" => {
-                    self.load_sample_toolpath_flat_end_mill();
-                }
-                "B" => {
-                    self.load_sample_toolpath_ball_end_mill();
-                }
                 "S" => {
                     self.toggle_settings_panel();
                 }
@@ -179,5 +199,41 @@ impl AppState {
                 _ => {}
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{resolve_cam_demo_start_trigger, CamDemoStartTrigger};
+
+    #[test]
+    fn resolve_cam_demo_start_trigger_accepts_only_shift_keys_for_demo_start() {
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("B".into())),
+            Some(CamDemoStartTrigger::BallEndMill)
+        );
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("F".into())),
+            Some(CamDemoStartTrigger::FlatEndMill)
+        );
+
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("b".into())),
+            None
+        );
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("f".into())),
+            None
+        );
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("k".into())),
+            None
+        );
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Named(
+                winit::keyboard::NamedKey::Space
+            )),
+            None
+        );
     }
 }
