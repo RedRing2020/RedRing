@@ -17,12 +17,58 @@ enum SnapshotLoadReadiness {
     NotReady,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SnapshotLoadTrigger {
+    SnapshotScrub,
+    Space,
+    KeyK,
+    KeyJ,
+    Pause,
+}
+
+impl SnapshotLoadTrigger {
+    fn label(self) -> &'static str {
+        match self {
+            SnapshotLoadTrigger::SnapshotScrub => "snapshot scrub",
+            SnapshotLoadTrigger::Space => "Space",
+            SnapshotLoadTrigger::KeyK => "k",
+            SnapshotLoadTrigger::KeyJ => "j",
+            SnapshotLoadTrigger::Pause => "pause",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SnapshotLoadDecision {
+    Ready {
+        scenario: CamSimulationDemoScenario,
+        trigger_label: &'static str,
+    },
+    NotReady {
+        trigger_label: &'static str,
+    },
+}
+
 fn resolve_snapshot_load_readiness(
     current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
 ) -> SnapshotLoadReadiness {
     match current_cam_demo_scenario {
         Some(scenario) => SnapshotLoadReadiness::Ready(scenario),
         None => SnapshotLoadReadiness::NotReady,
+    }
+}
+
+fn resolve_snapshot_load_decision(
+    trigger: SnapshotLoadTrigger,
+    current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
+) -> SnapshotLoadDecision {
+    let trigger_label = trigger.label();
+    match resolve_snapshot_load_readiness(current_cam_demo_scenario) {
+        SnapshotLoadReadiness::Ready(scenario) => SnapshotLoadDecision::Ready {
+            scenario,
+            trigger_label,
+        },
+        SnapshotLoadReadiness::NotReady => SnapshotLoadDecision::NotReady { trigger_label },
     }
 }
 
@@ -113,17 +159,23 @@ fn build_segment_weighted_progress_axis(
 }
 
 impl AppState {
-    pub(super) fn ensure_snapshot_series_ready(&mut self, trigger_label: &str) -> bool {
+    pub(super) fn ensure_snapshot_series_ready(&mut self, trigger: SnapshotLoadTrigger) -> bool {
         if self.debug_snapshot.series.is_some() {
             return true;
         }
 
-        let scenario = match resolve_snapshot_load_readiness(self.current_cam_demo_scenario) {
-            SnapshotLoadReadiness::Ready(scenario) => scenario,
-            SnapshotLoadReadiness::NotReady => {
+        let (scenario, trigger_label) = match resolve_snapshot_load_decision(
+            trigger,
+            self.current_cam_demo_scenario,
+        ) {
+            SnapshotLoadDecision::Ready {
+                scenario,
+                trigger_label,
+            } => (scenario, trigger_label),
+            SnapshotLoadDecision::NotReady { trigger_label } => {
                 tracing::warn!(
-                    "CAMシミュレーションデモが未開始です。Shift+B または Shift+F で開始してください"
-                );
+                        "CAMシミュレーションデモが未開始です。trigger={trigger_label}, Shift+B または Shift+F で開始してください"
+                    );
                 return false;
             }
         };
@@ -149,7 +201,7 @@ impl AppState {
 
     /// デバッグ用: 次フレームへ進めて内容をログ表示
     pub fn cycle_debug_simulation_snapshot(&mut self) {
-        if !self.ensure_snapshot_series_ready("k") {
+        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyK) {
             return;
         }
 
@@ -171,7 +223,7 @@ impl AppState {
 
     /// デバッグ用: 前フレームへ戻して内容をログ表示
     pub fn rewind_debug_simulation_snapshot(&mut self) {
-        if !self.ensure_snapshot_series_ready("j") {
+        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::KeyJ) {
             return;
         }
 
@@ -196,7 +248,7 @@ impl AppState {
     }
 
     pub fn toggle_auto_snapshot_playback(&mut self) {
-        if !self.ensure_snapshot_series_ready("Space") {
+        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::Space) {
             return;
         }
 
@@ -228,7 +280,7 @@ impl AppState {
     }
 
     pub(crate) fn pause_auto_snapshot_playback(&mut self) {
-        if !self.ensure_snapshot_series_ready("pause") {
+        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::Pause) {
             return;
         }
 
@@ -553,7 +605,10 @@ impl AppState {
 mod tests {
     use cam_demo::CamSimulationDemoScenario;
 
-    use super::{resolve_snapshot_load_readiness, SnapshotLoadReadiness};
+    use super::{
+        resolve_snapshot_load_decision, resolve_snapshot_load_readiness, SnapshotLoadDecision,
+        SnapshotLoadReadiness, SnapshotLoadTrigger,
+    };
 
     #[test]
     fn resolve_snapshot_load_readiness_returns_not_ready_when_scenario_is_absent() {
@@ -569,5 +624,46 @@ mod tests {
             resolve_snapshot_load_readiness(Some(CamSimulationDemoScenario::SuccessFlatEndMill)),
             SnapshotLoadReadiness::Ready(CamSimulationDemoScenario::SuccessFlatEndMill)
         );
+    }
+
+    #[test]
+    fn resolve_snapshot_load_decision_returns_not_ready_for_all_ui_triggers_without_scenario() {
+        let triggers = [
+            SnapshotLoadTrigger::SnapshotScrub,
+            SnapshotLoadTrigger::Space,
+            SnapshotLoadTrigger::KeyK,
+            SnapshotLoadTrigger::KeyJ,
+            SnapshotLoadTrigger::Pause,
+        ];
+
+        for trigger in triggers {
+            assert_eq!(
+                resolve_snapshot_load_decision(trigger, None),
+                SnapshotLoadDecision::NotReady {
+                    trigger_label: trigger.label()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_snapshot_load_decision_returns_ready_for_all_ui_triggers_with_scenario() {
+        let triggers = [
+            SnapshotLoadTrigger::SnapshotScrub,
+            SnapshotLoadTrigger::Space,
+            SnapshotLoadTrigger::KeyK,
+            SnapshotLoadTrigger::KeyJ,
+            SnapshotLoadTrigger::Pause,
+        ];
+
+        for trigger in triggers {
+            assert_eq!(
+                resolve_snapshot_load_decision(trigger, Some(CamSimulationDemoScenario::Success)),
+                SnapshotLoadDecision::Ready {
+                    scenario: CamSimulationDemoScenario::Success,
+                    trigger_label: trigger.label()
+                }
+            );
+        }
     }
 }

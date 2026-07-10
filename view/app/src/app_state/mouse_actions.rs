@@ -1,5 +1,6 @@
 //! AppState のマウス入力ハンドリングを扱うモジュール。
 
+use super::snapshot_playback::SnapshotLoadTrigger;
 use super::AppState;
 use crate::selection_rect::SelectionRect;
 
@@ -37,7 +38,7 @@ impl AppState {
 
                 if let Some(cursor) = self.cursor_position {
                     if self.is_cursor_on_snapshot_track(cursor) {
-                        if !self.ensure_snapshot_series_ready("snapshot scrub") {
+                        if !self.ensure_snapshot_series_ready(SnapshotLoadTrigger::SnapshotScrub) {
                             return;
                         }
                         self.snapshot_scrub_active = true;
