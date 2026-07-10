@@ -11,8 +11,6 @@ use crate::Scalar;
 /// - 明示名の `contains_point` / `contains_bbox` / `contains_aabb` は、対象を明示して
 ///   意味を固定したい場面で使用する
 /// - 既存の明示名メソッドは後方互換のため維持し、段階導入では `contains(...)` を追加層として扱う
-/// - 型固有メソッド `contains(...)` と衝突するケース（例: `Aabb3D::contains(&Point3D)`）で
-///   trait側の `contains` を呼ぶ場合は、`Contains::contains(&value, &target)` のUFCSを使う
 pub trait Contains<Target> {
     /// 対象を包含するかを返す
     fn contains(&self, target: &Target) -> bool;
