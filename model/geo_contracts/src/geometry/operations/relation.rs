@@ -10,9 +10,6 @@ use crate::Scalar;
 /// - 統一名の `contains(...)` は、呼び出し側が対象型を抽象化したい場面で使用する
 /// - 明示名の `contains_point` / `contains_bbox` / `contains_aabb` は、対象を明示して
 ///   意味を固定したい場面で使用する
-/// - 既存の明示名メソッドは後方互換のため維持し、段階導入では `contains(...)` を追加層として扱う
-/// - 将来、型固有メソッド `contains(...)` と衝突する場合は、
-///   `Contains::contains(&value, &target)` のUFCS呼び出しを使用する
 pub trait Contains<Target> {
     /// 対象を包含するかを返す
     fn contains(&self, target: &Target) -> bool;
