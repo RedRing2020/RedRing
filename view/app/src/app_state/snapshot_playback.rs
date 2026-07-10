@@ -164,19 +164,21 @@ impl AppState {
             return true;
         }
 
-        let (scenario, trigger_label) =
-            match resolve_snapshot_load_decision(trigger, self.current_cam_demo_scenario) {
-                SnapshotLoadDecision::Ready {
-                    scenario,
-                    trigger_label,
-                } => (scenario, trigger_label),
-                SnapshotLoadDecision::NotReady { .. } => {
-                    tracing::warn!(
-                    "CAMシミュレーションデモが未開始です。Shift+B または Shift+F で開始してください"
-                );
-                    return false;
-                }
-            };
+        let (scenario, trigger_label) = match resolve_snapshot_load_decision(
+            trigger,
+            self.current_cam_demo_scenario,
+        ) {
+            SnapshotLoadDecision::Ready {
+                scenario,
+                trigger_label,
+            } => (scenario, trigger_label),
+            SnapshotLoadDecision::NotReady { trigger_label } => {
+                tracing::warn!(
+                        "CAMシミュレーションデモが未開始です。trigger={trigger_label}, Shift+B または Shift+F で開始してください"
+                    );
+                return false;
+            }
+        };
 
         self.load_sample_toolpath_with_scenario(scenario, trigger_label);
         self.debug_snapshot.series.is_some()
