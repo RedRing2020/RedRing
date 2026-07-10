@@ -244,9 +244,7 @@ mod tests {
 
     #[test]
     fn cam_demo_start_sequence_stays_not_ready_until_explicit_shift_start() {
-        let mut current_cam_demo_scenario = None;
-
-        let not_ready_triggers = [
+        let ui_triggers = [
             SnapshotLoadTrigger::SnapshotScrub,
             SnapshotLoadTrigger::KeyK,
             SnapshotLoadTrigger::KeyJ,
@@ -254,7 +252,8 @@ mod tests {
             SnapshotLoadTrigger::Pause,
         ];
 
-        for trigger in not_ready_triggers {
+        let mut current_cam_demo_scenario = None;
+        for trigger in ui_triggers {
             assert_eq!(
                 resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
                 SnapshotLoadDecision::NotReady {
@@ -274,15 +273,30 @@ mod tests {
         );
         current_cam_demo_scenario = Some(CamSimulationDemoScenario::Success);
 
+        for trigger in ui_triggers {
+            assert_eq!(
+                resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
+                SnapshotLoadDecision::Ready {
+                    scenario: CamSimulationDemoScenario::Success,
+                    trigger_label: trigger.label()
+                }
+            );
+        }
+
         assert_eq!(
-            resolve_snapshot_load_decision(
-                SnapshotLoadTrigger::SnapshotScrub,
-                current_cam_demo_scenario
-            ),
-            SnapshotLoadDecision::Ready {
-                scenario: CamSimulationDemoScenario::Success,
-                trigger_label: "snapshot scrub"
-            }
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("F".into())),
+            Some(CamDemoStartTrigger::FlatEndMill)
         );
+        current_cam_demo_scenario = Some(CamSimulationDemoScenario::SuccessFlatEndMill);
+
+        for trigger in ui_triggers {
+            assert_eq!(
+                resolve_snapshot_load_decision(trigger, current_cam_demo_scenario),
+                SnapshotLoadDecision::Ready {
+                    scenario: CamSimulationDemoScenario::SuccessFlatEndMill,
+                    trigger_label: trigger.label()
+                }
+            );
+        }
     }
 }
