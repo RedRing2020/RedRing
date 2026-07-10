@@ -19,6 +19,8 @@ pub struct MouseInput {
     last_position: Option<(f32, f32)>,
     /// Ctrlキーが押されているか
     ctrl_pressed: bool,
+    /// Shiftキーが押されているか
+    shift_pressed: bool,
     /// 各マウスボタンの状態
     left_pressed: bool,
     middle_pressed: bool,
@@ -32,6 +34,7 @@ impl MouseInput {
             operation: MouseOperation::None,
             last_position: None,
             ctrl_pressed: false,
+            shift_pressed: false,
             left_pressed: false,
             middle_pressed: false,
             right_pressed: false,
@@ -40,18 +43,25 @@ impl MouseInput {
 
     /// キー状態を更新
     pub fn update_key(&mut self, key: &winit::keyboard::Key, pressed: bool) {
-        if let winit::keyboard::Key::Named(winit::keyboard::NamedKey::Control) = key {
-            self.ctrl_pressed = pressed;
-            if !pressed {
-                self.operation = MouseOperation::None;
-                self.last_position = None;
+        match key {
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::Control) => {
+                self.ctrl_pressed = pressed;
+                if !pressed {
+                    self.operation = MouseOperation::None;
+                    self.last_position = None;
+                }
             }
+            winit::keyboard::Key::Named(winit::keyboard::NamedKey::Shift) => {
+                self.shift_pressed = pressed;
+            }
+            _ => {}
         }
     }
 
     /// ModifiersChangedイベントからCtrl押下状態を更新
     pub fn update_modifiers(&mut self, modifiers: ModifiersState) {
         self.ctrl_pressed = modifiers.control_key();
+        self.shift_pressed = modifiers.shift_key();
         self.update_operation();
 
         if !self.ctrl_pressed {
@@ -152,6 +162,11 @@ impl MouseInput {
         self.ctrl_pressed
     }
 
+    /// Shiftキー押下状態を取得
+    pub fn is_shift_pressed(&self) -> bool {
+        self.shift_pressed
+    }
+
     /// 現在の操作を中断
     pub fn cancel_operation(&mut self) {
         self.operation = MouseOperation::None;
@@ -176,6 +191,7 @@ mod tests {
 
         assert_eq!(input.operation, MouseOperation::None);
         assert!(!input.ctrl_pressed);
+        assert!(!input.shift_pressed);
         assert!(!input.left_pressed);
         assert!(!input.middle_pressed);
         assert!(!input.right_pressed);
@@ -193,6 +209,17 @@ mod tests {
         input.update_key(&Key::Named(NamedKey::Control), false);
         assert!(!input.ctrl_pressed);
         assert_eq!(input.operation, MouseOperation::None);
+    }
+
+    #[test]
+    fn test_shift_key_handling() {
+        let mut input = MouseInput::new();
+
+        input.update_key(&Key::Named(NamedKey::Shift), true);
+        assert!(input.shift_pressed);
+
+        input.update_key(&Key::Named(NamedKey::Shift), false);
+        assert!(!input.shift_pressed);
     }
 
     #[test]
