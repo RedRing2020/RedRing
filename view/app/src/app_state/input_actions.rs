@@ -204,6 +204,11 @@ impl AppState {
 
 #[cfg(test)]
 mod tests {
+    use cam_demo::CamSimulationDemoScenario;
+
+    use super::super::snapshot_playback::{
+        resolve_snapshot_load_decision, SnapshotLoadDecision, SnapshotLoadTrigger,
+    };
     use super::{resolve_cam_demo_start_trigger, CamDemoStartTrigger};
 
     #[test]
@@ -234,6 +239,34 @@ mod tests {
                 winit::keyboard::NamedKey::Space
             )),
             None
+        );
+    }
+
+    #[test]
+    fn cam_demo_start_sequence_stays_not_ready_until_explicit_shift_start() {
+        let mut current_cam_demo_scenario = None;
+
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("k".into())),
+            None
+        );
+        assert_eq!(
+            resolve_snapshot_load_decision(SnapshotLoadTrigger::KeyK, current_cam_demo_scenario),
+            SnapshotLoadDecision::NotReady { trigger_label: "k" }
+        );
+
+        assert_eq!(
+            resolve_cam_demo_start_trigger(&winit::keyboard::Key::Character("B".into())),
+            Some(CamDemoStartTrigger::BallEndMill)
+        );
+        current_cam_demo_scenario = Some(CamSimulationDemoScenario::Success);
+
+        assert_eq!(
+            resolve_snapshot_load_decision(SnapshotLoadTrigger::Space, current_cam_demo_scenario),
+            SnapshotLoadDecision::Ready {
+                scenario: CamSimulationDemoScenario::Success,
+                trigger_label: "Space"
+            }
         );
     }
 }
