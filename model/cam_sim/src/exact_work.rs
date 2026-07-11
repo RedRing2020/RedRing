@@ -113,9 +113,16 @@ impl PrimitiveSetExactWork {
     pub fn estimate_memory_bytes(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.removed_primitives.capacity() * std::mem::size_of::<ExactToolPrimitive<f64>>()
+            + self.primitive_bounds.capacity() * std::mem::size_of::<Aabb3D<f64>>()
     }
 
     fn contains_material(&self, point: &Point3D<f64>) -> bool {
+        debug_assert_eq!(
+            self.removed_primitives.len(),
+            self.primitive_bounds.len(),
+            "invariant broken: removed_primitives and primitive_bounds lengths differ"
+        );
+
         if !bounds_contains_point(&self.bounds, point) {
             return false;
         }
@@ -151,6 +158,12 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 
     fn nearest_removed_surface_distance(&self, point: &Point3D<f64>) -> f64 {
+        debug_assert_eq!(
+            self.removed_primitives.len(),
+            self.primitive_bounds.len(),
+            "invariant broken: removed_primitives and primitive_bounds lengths differ"
+        );
+
         if !point_is_finite(point) {
             return f64::INFINITY;
         }
