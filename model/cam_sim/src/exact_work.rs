@@ -54,6 +54,7 @@ pub trait ExactWorkProjectionCache<T: Scalar> {
 pub struct PrimitiveSetExactWork {
     bounds: Aabb3D<f64>,
     removed_primitives: Vec<ExactToolPrimitive<f64>>,
+    primitive_bounds: Vec<Aabb3D<f64>>,
 }
 
 /// `PrimitiveSetExactWork` の初期化失敗を表すエラー。
@@ -87,6 +88,7 @@ impl PrimitiveSetExactWork {
         Ok(Self {
             bounds,
             removed_primitives: Vec::new(),
+            primitive_bounds: Vec::new(),
         })
     }
 
@@ -111,16 +113,27 @@ impl PrimitiveSetExactWork {
     pub fn estimate_memory_bytes(&self) -> usize {
         std::mem::size_of::<Self>()
             + self.removed_primitives.capacity() * std::mem::size_of::<ExactToolPrimitive<f64>>()
+            + self.primitive_bounds.capacity() * std::mem::size_of::<Aabb3D<f64>>()
     }
 
     fn contains_material(&self, point: &Point3D<f64>) -> bool {
+        debug_assert_eq!(
+            self.removed_primitives.len(),
+            self.primitive_bounds.len(),
+            "invariant broken: removed_primitives and primitive_bounds lengths differ"
+        );
+
         if !bounds_contains_point(&self.bounds, point) {
             return false;
         }
         !self
             .removed_primitives
             .iter()
-            .any(|primitive| primitive_contains(primitive, point))
+            .zip(self.primitive_bounds.iter())
+            .any(|(primitive, primitive_bounds)| {
+                bounds_contains_point(primitive_bounds, point)
+                    && primitive_contains(primitive, point)
+            })
     }
 }
 
@@ -136,7 +149,13 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
         );
         assert!(radius.is_finite(), "radius must be finite");
         assert!(radius >= 0.0, "radius must be non-negative");
+        self.primitive_bounds.push(primitive_bounds(&primitive));
         self.removed_primitives.push(primitive);
+        assert_eq!(
+            self.removed_primitives.len(),
+            self.primitive_bounds.len(),
+            "invariant broken after apply_primitive"
+        );
     }
 
     fn contains_material_at(&self, point: &Point3D<f64>) -> bool {
@@ -144,12 +163,27 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 
     fn nearest_removed_surface_distance(&self, point: &Point3D<f64>) -> f64 {
+        debug_assert_eq!(
+            self.removed_primitives.len(),
+            self.primitive_bounds.len(),
+            "invariant broken: removed_primitives and primitive_bounds lengths differ"
+        );
+
         if !point_is_finite(point) {
             return f64::INFINITY;
         }
 
         let mut best = f64::INFINITY;
-        for primitive in &self.removed_primitives {
+        for (primitive, primitive_bounds) in self
+            .removed_primitives
+            .iter()
+            .zip(self.primitive_bounds.iter())
+        {
+            let aabb_lower_bound = point_to_aabb_distance(point, primitive_bounds);
+            if aabb_lower_bound >= best {
+                continue;
+            }
+
             let surface_distance = match primitive {
                 ExactToolPrimitive::Ball { segment, radius } => {
                     (point_to_segment_distance(point, segment) - *radius).abs()
@@ -230,6 +264,53 @@ fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
 
 fn bounds_contains_point(bounds: &Aabb3D<f64>, point: &Point3D<f64>) -> bool {
     bounds.contains_point(point)
+}
+
+fn primitive_bounds(primitive: &ExactToolPrimitive<f64>) -> Aabb3D<f64> {
+    let (segment, radius) = match primitive {
+        ExactToolPrimitive::Flat { segment, radius }
+        | ExactToolPrimitive::Ball { segment, radius } => (segment, *radius),
+    };
+
+    let min_x = segment.start().x().min(segment.end().x()) - radius;
+    let min_y = segment.start().y().min(segment.end().y()) - radius;
+    let min_z = segment.start().z().min(segment.end().z()) - radius;
+    let max_x = segment.start().x().max(segment.end().x()) + radius;
+    let max_y = segment.start().y().max(segment.end().y()) + radius;
+    let max_z = segment.start().z().max(segment.end().z()) + radius;
+
+    Aabb3D::new(
+        Point3D::new(min_x, min_y, min_z),
+        Point3D::new(max_x, max_y, max_z),
+    )
+}
+
+fn point_to_aabb_distance(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
+    let dx = if point.x() < bounds.min().x() {
+        bounds.min().x() - point.x()
+    } else if point.x() > bounds.max().x() {
+        point.x() - bounds.max().x()
+    } else {
+        0.0
+    };
+
+    let dy = if point.y() < bounds.min().y() {
+        bounds.min().y() - point.y()
+    } else if point.y() > bounds.max().y() {
+        point.y() - bounds.max().y()
+    } else {
+        0.0
+    };
+
+    let dz = if point.z() < bounds.min().z() {
+        bounds.min().z() - point.z()
+    } else if point.z() > bounds.max().z() {
+        point.z() - bounds.max().z()
+    } else {
+        0.0
+    };
+
+    (dx * dx + dy * dy + dz * dz).sqrt()
 }
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {

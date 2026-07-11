@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::time::Instant;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
@@ -10,7 +11,8 @@ use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
-    SimulationError, SnapshotInterval,
+    ExactToolPrimitive, ExactWorkModel, PrimitiveSetExactWork, SimulationError, SnapshotInterval,
+    collect_toolpath_line_segments,
 };
 
 fn cam_spec(input: &str) -> JobSpec {
@@ -900,6 +902,223 @@ fn test_ball_end_mill_z_offset_removes_material_at_shifted_z() {
         "Z=10 の水平経路でフラット(Z=10 で円柱)とボール(Z=15 でカプセル)は除去位置が異なるはず: \
          flat={flat_remaining}, ball={ball_remaining}"
     );
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GateMetrics {
+    removed_voxel: f64,
+    removed_exact: f64,
+    gap: f64,
+    elapsed_voxel_ms: f64,
+    elapsed_exact_ms: f64,
+    elapsed_ratio: f64,
+}
+
+fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) -> GateMetrics {
+    let bounds = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+    let initial_volume = bounds.volume();
+
+    let voxel_started = Instant::now();
+    let mut simulator =
+        CuttingSimulator::new(VoxelOctree::new(bounds, 5), SnapshotInterval::default());
+    simulator
+        .simulate(toolpath, tool)
+        .expect("voxel simulation must succeed");
+    let elapsed_voxel_ms = voxel_started.elapsed().as_secs_f64() * 1000.0;
+    let removed_voxel = initial_volume - simulator.voxel_tree().remaining_volume();
+
+    let exact_started = Instant::now();
+    let mut exact_work = PrimitiveSetExactWork::new(bounds);
+    let segments = collect_toolpath_line_segments(
+        toolpath,
+        geo_algorithms::DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
+    );
+    for (segment, is_cutting) in segments {
+        if !is_cutting {
+            continue;
+        }
+
+        if tool.is_flat_end_mill() {
+            exact_work.apply_primitive(ExactToolPrimitive::Flat {
+                segment,
+                radius: tool.radius(),
+            });
+            continue;
+        }
+
+        if tool.is_ball_end_mill() {
+            let start = Point3D::new(
+                segment.start().x(),
+                segment.start().y(),
+                segment.start().z() + tool.radius(),
+            );
+            let end = Point3D::new(
+                segment.end().x(),
+                segment.end().y(),
+                segment.end().z() + tool.radius(),
+            );
+            let ball_segment =
+                LineSegment3D::new(start, end).expect("ball center segment must be valid");
+            exact_work.apply_primitive(ExactToolPrimitive::Ball {
+                segment: ball_segment,
+                radius: tool.radius(),
+            });
+            continue;
+        }
+    }
+    let removed_exact = initial_volume - exact_work.estimate_remaining_volume(sample_pitch);
+    let elapsed_exact_ms = exact_started.elapsed().as_secs_f64() * 1000.0;
+
+    let gap = if removed_voxel.abs() <= f64::EPSILON {
+        0.0
+    } else {
+        ((removed_exact - removed_voxel).abs()) / removed_voxel.abs()
+    };
+
+    GateMetrics {
+        removed_voxel,
+        removed_exact,
+        gap,
+        elapsed_voxel_ms,
+        elapsed_exact_ms,
+        elapsed_ratio: elapsed_exact_ms / elapsed_voxel_ms.max(1.0e-9),
+    }
+}
+
+fn case_plane_cut_flat() -> (ToolPath<f64>, Tool<f64>) {
+    let segment = cam_core::PathSegment::new_line(
+        Point3D::new(10.0, 50.0, 50.0),
+        Point3D::new(90.0, 50.0, 50.0),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+    let toolpath = ToolPath::new(
+        "plane-cut-flat".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 50.0, vec![segment])],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill("flat".to_string(), 10.0, 30.0);
+    (toolpath, tool)
+}
+
+fn case_step_cut_flat() -> (ToolPath<f64>, Tool<f64>) {
+    let level0 = cam_core::PathSegment::new_line(
+        Point3D::new(10.0, 30.0, 40.0),
+        Point3D::new(90.0, 30.0, 40.0),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+    let level1 = cam_core::PathSegment::new_line(
+        Point3D::new(10.0, 70.0, 60.0),
+        Point3D::new(90.0, 70.0, 60.0),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+    let toolpath = ToolPath::new(
+        "step-cut-flat".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![
+            ContourLevelPath::new(0, 40.0, vec![level0]),
+            ContourLevelPath::new(1, 60.0, vec![level1]),
+        ],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill("flat-step".to_string(), 10.0, 30.0);
+    (toolpath, tool)
+}
+
+fn case_diagonal_cut_ball() -> (ToolPath<f64>, Tool<f64>) {
+    let segment = cam_core::PathSegment::new_line(
+        Point3D::new(10.0, 10.0, 20.0),
+        Point3D::new(90.0, 90.0, 80.0),
+        SegmentType::Cutting { feed_rate: 250.0 },
+    );
+    let toolpath = ToolPath::new(
+        "diagonal-cut-ball".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 20.0, vec![segment])],
+        vec![],
+    );
+    let tool = Tool::ball_end_mill("ball".to_string(), 10.0, 30.0);
+    (toolpath, tool)
+}
+
+#[test]
+fn phase3_gate_metrics_are_measurable_for_reference_cases() {
+    let cases = [
+        case_plane_cut_flat(),
+        case_step_cut_flat(),
+        case_diagonal_cut_ball(),
+    ];
+
+    for (index, (toolpath, tool)) in cases.iter().enumerate() {
+        let metrics = run_gate_case(toolpath, tool, 2.0);
+        assert!(
+            metrics.removed_voxel.is_finite(),
+            "case[{index}] removed_voxel must be finite"
+        );
+        assert!(
+            metrics.removed_exact.is_finite(),
+            "case[{index}] removed_exact must be finite"
+        );
+        assert!(metrics.gap.is_finite(), "case[{index}] gap must be finite");
+        assert!(
+            metrics.elapsed_voxel_ms.is_finite() && metrics.elapsed_voxel_ms >= 0.0,
+            "case[{index}] elapsed_voxel_ms must be finite and non-negative"
+        );
+        assert!(
+            metrics.elapsed_exact_ms.is_finite() && metrics.elapsed_exact_ms >= 0.0,
+            "case[{index}] elapsed_exact_ms must be finite and non-negative"
+        );
+        assert!(
+            metrics.elapsed_ratio.is_finite(),
+            "case[{index}] elapsed_ratio must be finite"
+        );
+        assert!(
+            metrics.removed_voxel > 0.0,
+            "case[{index}] removed_voxel must be positive"
+        );
+        assert!(
+            metrics.removed_exact > 0.0,
+            "case[{index}] removed_exact must be positive"
+        );
+    }
+}
+
+#[test]
+fn phase3_gate_reproducibility_parallel_matches_sequential_removed_volume() {
+    let (toolpath, tool) = case_diagonal_cut_ball();
+
+    let sequential = run_gate_case(&toolpath, &tool, 2.0);
+
+    let mut workers = Vec::new();
+    for _ in 0..4 {
+        let toolpath_cloned = toolpath.clone();
+        let tool_cloned = tool.clone();
+        workers.push(std::thread::spawn(move || {
+            run_gate_case(&toolpath_cloned, &tool_cloned, 2.0)
+        }));
+    }
+
+    for worker in workers {
+        let parallel = worker.join().expect("parallel worker must finish");
+        assert!(
+            (parallel.removed_voxel - sequential.removed_voxel).abs() <= 1.0e-9,
+            "voxel removed volume mismatch: parallel={}, sequential={}",
+            parallel.removed_voxel,
+            sequential.removed_voxel
+        );
+        assert!(
+            (parallel.removed_exact - sequential.removed_exact).abs() <= 1.0e-9,
+            "exact removed volume mismatch: parallel={}, sequential={}",
+            parallel.removed_exact,
+            sequential.removed_exact
+        );
+    }
 }
 
 #[test]
