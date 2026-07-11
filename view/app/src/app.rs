@@ -45,7 +45,7 @@ impl ApplicationHandler for App {
                 WindowEvent::RedrawRequested => state.render(),
                 WindowEvent::KeyboardInput { event, .. } => {
                     let pressed = event.state == ElementState::Pressed;
-                    state.handle_keyboard_input(&event.logical_key, pressed);
+                    state.handle_keyboard_input(&event.logical_key, &event.physical_key, pressed);
 
                     // ESCキーのみここで処理（アプリ終了）
                     if pressed && matches!(event.logical_key, Key::Named(NamedKey::Escape)) {

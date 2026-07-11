@@ -27,7 +27,7 @@ pub(super) enum SnapshotLoadTrigger {
 }
 
 impl SnapshotLoadTrigger {
-    fn label(self) -> &'static str {
+    pub(super) fn label(self) -> &'static str {
         match self {
             SnapshotLoadTrigger::SnapshotScrub => "snapshot scrub",
             SnapshotLoadTrigger::Space => "Space",
@@ -39,7 +39,7 @@ impl SnapshotLoadTrigger {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SnapshotLoadDecision {
+pub(super) enum SnapshotLoadDecision {
     Ready {
         scenario: CamSimulationDemoScenario,
         trigger_label: &'static str,
@@ -58,7 +58,7 @@ fn resolve_snapshot_load_readiness(
     }
 }
 
-fn resolve_snapshot_load_decision(
+pub(super) fn resolve_snapshot_load_decision(
     trigger: SnapshotLoadTrigger,
     current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
 ) -> SnapshotLoadDecision {
@@ -174,8 +174,8 @@ impl AppState {
             } => (scenario, trigger_label),
             SnapshotLoadDecision::NotReady { trigger_label } => {
                 tracing::warn!(
-                        "CAMシミュレーションデモが未開始です。trigger={trigger_label}, Shift+B または Shift+F で開始してください"
-                    );
+                    "CAMシミュレーションデモが未開始です。trigger={trigger_label}, Shift+B または Shift+F で開始してください"
+                );
                 return false;
             }
         };
