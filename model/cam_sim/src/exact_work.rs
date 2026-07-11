@@ -454,6 +454,10 @@ fn primitive_contains_with_margin(
     point: &Point3D<f64>,
     margin: f64,
 ) -> bool {
+    if margin <= 0.0 {
+        return primitive_contains(primitive, point);
+    }
+
     match primitive {
         ExactToolPrimitive::Ball { segment, radius } => {
             point_to_segment_distance(point, segment) <= (*radius + margin)

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::time::Instant;
 
@@ -931,19 +932,74 @@ fn gate_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     ((span / sample_pitch).ceil() as usize).clamp(1, GATE_MAX_AXIS_SAMPLES)
 }
 
-fn occupancy_from_solid_bounds(solid_bounds: &[Aabb3D<f64>], point: &Point3D<f64>) -> bool {
-    solid_bounds
-        .iter()
-        .any(|bounds| bounds.contains_point(point))
+#[derive(Debug, Clone)]
+struct SolidBoundsSpatialIndex {
+    bucket_size: f64,
+    buckets: HashMap<(i32, i32, i32), Vec<usize>>,
+    solid_bounds: Vec<Aabb3D<f64>>,
+}
+
+impl SolidBoundsSpatialIndex {
+    fn from_bounds(solid_bounds: Vec<Aabb3D<f64>>, bucket_size: f64) -> Self {
+        let size = if bucket_size.is_finite() && bucket_size > 0.0 {
+            bucket_size
+        } else {
+            1.0
+        };
+
+        let mut buckets: HashMap<(i32, i32, i32), Vec<usize>> = HashMap::new();
+        for (index, bounds) in solid_bounds.iter().enumerate() {
+            let min = bounds.min();
+            let max = bounds.max();
+            let min_ix = floor_bucket(min.x(), size);
+            let min_iy = floor_bucket(min.y(), size);
+            let min_iz = floor_bucket(min.z(), size);
+            let max_ix = floor_bucket(max.x(), size);
+            let max_iy = floor_bucket(max.y(), size);
+            let max_iz = floor_bucket(max.z(), size);
+
+            for ix in min_ix..=max_ix {
+                for iy in min_iy..=max_iy {
+                    for iz in min_iz..=max_iz {
+                        buckets.entry((ix, iy, iz)).or_default().push(index);
+                    }
+                }
+            }
+        }
+
+        Self {
+            bucket_size: size,
+            buckets,
+            solid_bounds,
+        }
+    }
+
+    fn contains_material_at(&self, point: &Point3D<f64>) -> bool {
+        let key = (
+            floor_bucket(point.x(), self.bucket_size),
+            floor_bucket(point.y(), self.bucket_size),
+            floor_bucket(point.z(), self.bucket_size),
+        );
+
+        self.buckets.get(&key).is_some_and(|candidate_indexes| {
+            candidate_indexes
+                .iter()
+                .any(|&idx| self.solid_bounds[idx].contains_point(point))
+        })
+    }
+}
+
+fn floor_bucket(value: f64, bucket_size: f64) -> i32 {
+    (value / bucket_size).floor() as i32
 }
 
 fn is_voxel_boundary_point(
     bounds: &Aabb3D<f64>,
-    solid_bounds: &[Aabb3D<f64>],
+    voxel_index: &SolidBoundsSpatialIndex,
     point: &Point3D<f64>,
     probe_offset: f64,
 ) -> bool {
-    let center_state = occupancy_from_solid_bounds(solid_bounds, point);
+    let center_state = voxel_index.contains_material_at(point);
     let offsets = [
         (probe_offset, 0.0, 0.0),
         (-probe_offset, 0.0, 0.0),
@@ -955,17 +1011,17 @@ fn is_voxel_boundary_point(
 
     offsets.into_iter().any(|(dx, dy, dz)| {
         let p = Point3D::new(point.x() + dx, point.y() + dy, point.z() + dz);
-        bounds.contains_point(&p) && occupancy_from_solid_bounds(solid_bounds, &p) != center_state
+        bounds.contains_point(&p) && voxel_index.contains_material_at(&p) != center_state
     })
 }
 
-fn boundary_disagreement_rate(
+fn compute_boundary_disagreement_rate(
     bounds: &Aabb3D<f64>,
     sample_pitch: f64,
     boundary_band: f64,
     exact_conservative_margin: f64,
     exact_work: &PrimitiveSetExactWork,
-    solid_bounds: &[Aabb3D<f64>],
+    voxel_index: &SolidBoundsSpatialIndex,
 ) -> (f64, usize, usize, usize) {
     if sample_pitch <= 0.0 || !sample_pitch.is_finite() {
         return (0.0, 0, 0, 0);
@@ -999,7 +1055,7 @@ fn boundary_disagreement_rate(
                 let point = Point3D::new(x, y, z);
                 let dist = exact_work.nearest_removed_surface_distance(&point);
                 let voxel_boundary =
-                    is_voxel_boundary_point(bounds, solid_bounds, &point, probe_offset);
+                    is_voxel_boundary_point(bounds, voxel_index, &point, probe_offset);
                 if dist > boundary_band && !voxel_boundary {
                     continue;
                 }
@@ -1007,7 +1063,7 @@ fn boundary_disagreement_rate(
                 boundary_points += 1;
                 let exact_has_material =
                     exact_work.contains_material_at(&point) && dist > exact_conservative_margin;
-                let voxel_has_material = occupancy_from_solid_bounds(solid_bounds, &point);
+                let voxel_has_material = voxel_index.contains_material_at(&point);
                 if exact_has_material != voxel_has_material {
                     disagreements += 1;
                     if exact_has_material {
@@ -1051,6 +1107,7 @@ fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) 
     let boundary_band = voxel_pitch;
     let removed_voxel = initial_volume - simulator.voxel_tree().remaining_volume();
     let solid_bounds = simulator.voxel_tree().collect_solid_voxel_bounds();
+    let voxel_index = SolidBoundsSpatialIndex::from_bounds(solid_bounds, exact_sample_pitch);
 
     let exact_started = Instant::now();
     let mut exact_work = PrimitiveSetExactWork::new(bounds);
@@ -1108,24 +1165,24 @@ fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) 
     };
 
     let (
-        boundary_disagreement_rate,
+        boundary_rate,
         boundary_sample_count,
         boundary_exact_only_count,
         boundary_voxel_only_count,
-    ) = boundary_disagreement_rate(
+    ) = compute_boundary_disagreement_rate(
         &bounds,
         exact_sample_pitch,
         boundary_band,
         exact_conservative_margin,
         &exact_work,
-        &solid_bounds,
+        &voxel_index,
     );
 
     GateMetrics {
         removed_voxel,
         removed_exact,
         gap,
-        boundary_disagreement_rate,
+        boundary_disagreement_rate: boundary_rate,
         boundary_sample_count,
         boundary_exact_only_count,
         boundary_voxel_only_count,
