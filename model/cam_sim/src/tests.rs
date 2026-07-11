@@ -909,9 +909,127 @@ struct GateMetrics {
     removed_voxel: f64,
     removed_exact: f64,
     gap: f64,
+    boundary_disagreement_rate: f64,
+    boundary_sample_count: usize,
+    boundary_exact_only_count: usize,
+    boundary_voxel_only_count: usize,
     elapsed_voxel_ms: f64,
     elapsed_exact_ms: f64,
     elapsed_ratio: f64,
+}
+
+const GATE_SAMPLE_PITCH: f64 = 2.0;
+const GATE_MAX_AXIS_SAMPLES: usize = 128;
+const GATE_TARGET_GAP: f64 = 0.15;
+const GATE_TARGET_BOUNDARY: f64 = 0.10;
+const GATE_TARGET_ELAPSED_RATIO: f64 = 3.0;
+
+fn gate_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
+    if !span.is_finite() || span <= 0.0 || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
+        return 1;
+    }
+    ((span / sample_pitch).ceil() as usize).clamp(1, GATE_MAX_AXIS_SAMPLES)
+}
+
+fn occupancy_from_solid_bounds(solid_bounds: &[Aabb3D<f64>], point: &Point3D<f64>) -> bool {
+    solid_bounds
+        .iter()
+        .any(|bounds| bounds.contains_point(point))
+}
+
+fn is_voxel_boundary_point(
+    bounds: &Aabb3D<f64>,
+    solid_bounds: &[Aabb3D<f64>],
+    point: &Point3D<f64>,
+    probe_offset: f64,
+) -> bool {
+    let center_state = occupancy_from_solid_bounds(solid_bounds, point);
+    let offsets = [
+        (probe_offset, 0.0, 0.0),
+        (-probe_offset, 0.0, 0.0),
+        (0.0, probe_offset, 0.0),
+        (0.0, -probe_offset, 0.0),
+        (0.0, 0.0, probe_offset),
+        (0.0, 0.0, -probe_offset),
+    ];
+
+    offsets.into_iter().any(|(dx, dy, dz)| {
+        let p = Point3D::new(point.x() + dx, point.y() + dy, point.z() + dz);
+        bounds.contains_point(&p) && occupancy_from_solid_bounds(solid_bounds, &p) != center_state
+    })
+}
+
+fn boundary_disagreement_rate(
+    bounds: &Aabb3D<f64>,
+    sample_pitch: f64,
+    boundary_band: f64,
+    exact_conservative_margin: f64,
+    exact_work: &PrimitiveSetExactWork,
+    solid_bounds: &[Aabb3D<f64>],
+) -> (f64, usize, usize, usize) {
+    if sample_pitch <= 0.0 || !sample_pitch.is_finite() {
+        return (0.0, 0, 0, 0);
+    }
+
+    let min = bounds.min();
+    let max = bounds.max();
+    let width = max.x() - min.x();
+    let height = max.y() - min.y();
+    let depth = max.z() - min.z();
+
+    let x_samples = gate_axis_sample_count(width, sample_pitch);
+    let y_samples = gate_axis_sample_count(height, sample_pitch);
+    let z_samples = gate_axis_sample_count(depth, sample_pitch);
+
+    let dx = width / (x_samples as f64);
+    let dy = height / (y_samples as f64);
+    let dz = depth / (z_samples as f64);
+
+    let probe_offset = sample_pitch * 0.5;
+    let mut boundary_points = 0usize;
+    let mut disagreements = 0usize;
+    let mut exact_only = 0usize;
+    let mut voxel_only = 0usize;
+    for ix in 0..x_samples {
+        let x = min.x() + ((ix as f64) + 0.5) * dx;
+        for iy in 0..y_samples {
+            let y = min.y() + ((iy as f64) + 0.5) * dy;
+            for iz in 0..z_samples {
+                let z = min.z() + ((iz as f64) + 0.5) * dz;
+                let point = Point3D::new(x, y, z);
+                let dist = exact_work.nearest_removed_surface_distance(&point);
+                let voxel_boundary =
+                    is_voxel_boundary_point(bounds, solid_bounds, &point, probe_offset);
+                if dist > boundary_band && !voxel_boundary {
+                    continue;
+                }
+
+                boundary_points += 1;
+                let exact_has_material =
+                    exact_work.contains_material_at(&point) && dist > exact_conservative_margin;
+                let voxel_has_material = occupancy_from_solid_bounds(solid_bounds, &point);
+                if exact_has_material != voxel_has_material {
+                    disagreements += 1;
+                    if exact_has_material {
+                        exact_only += 1;
+                    } else {
+                        voxel_only += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if boundary_points == 0 {
+        return (0.0, 0, 0, 0);
+    }
+
+    (
+        disagreements as f64 / boundary_points as f64,
+        boundary_points,
+        exact_only,
+        voxel_only,
+    )
 }
 
 fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) -> GateMetrics {
@@ -928,7 +1046,11 @@ fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) 
         .simulate(toolpath, tool)
         .expect("voxel simulation must succeed");
     let elapsed_voxel_ms = voxel_started.elapsed().as_secs_f64() * 1000.0;
+    let voxel_pitch = simulator.voxel_tree().voxel_size_at_max_depth();
+    let exact_sample_pitch = sample_pitch.max(voxel_pitch);
+    let boundary_band = voxel_pitch;
     let removed_voxel = initial_volume - simulator.voxel_tree().remaining_volume();
+    let solid_bounds = simulator.voxel_tree().collect_solid_voxel_bounds();
 
     let exact_started = Instant::now();
     let mut exact_work = PrimitiveSetExactWork::new(bounds);
@@ -969,7 +1091,7 @@ fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) 
             continue;
         }
     }
-    let removed_exact = initial_volume - exact_work.estimate_remaining_volume(sample_pitch);
+    let removed_exact = initial_volume - exact_work.estimate_remaining_volume(exact_sample_pitch);
     let elapsed_exact_ms = exact_started.elapsed().as_secs_f64() * 1000.0;
 
     let gap = if removed_voxel.abs() <= f64::EPSILON {
@@ -977,11 +1099,36 @@ fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) 
     } else {
         ((removed_exact - removed_voxel).abs()) / removed_voxel.abs()
     };
+    let exact_conservative_margin = if tool.is_ball_end_mill() {
+        exact_sample_pitch * 0.75
+    } else if exact_work.primitive_count() > 1 {
+        exact_sample_pitch * 0.5
+    } else {
+        exact_sample_pitch * 0.75
+    };
+
+    let (
+        boundary_disagreement_rate,
+        boundary_sample_count,
+        boundary_exact_only_count,
+        boundary_voxel_only_count,
+    ) = boundary_disagreement_rate(
+        &bounds,
+        exact_sample_pitch,
+        boundary_band,
+        exact_conservative_margin,
+        &exact_work,
+        &solid_bounds,
+    );
 
     GateMetrics {
         removed_voxel,
         removed_exact,
         gap,
+        boundary_disagreement_rate,
+        boundary_sample_count,
+        boundary_exact_only_count,
+        boundary_voxel_only_count,
         elapsed_voxel_ms,
         elapsed_exact_ms,
         elapsed_ratio: elapsed_exact_ms / elapsed_voxel_ms.max(1.0e-9),
@@ -1056,7 +1203,20 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
     ];
 
     for (index, (toolpath, tool)) in cases.iter().enumerate() {
-        let metrics = run_gate_case(toolpath, tool, 2.0);
+        let metrics = run_gate_case(toolpath, tool, GATE_SAMPLE_PITCH);
+        println!(
+            "case[{index}] removed_voxel={:.3}, removed_exact={:.3}, gap={:.4}, boundary_disagreement_rate={:.4}, boundary_samples={}, boundary_exact_only={}, boundary_voxel_only={}, elapsed_ratio={:.4} (voxel={:.2}ms, exact={:.2}ms)",
+            metrics.removed_voxel,
+            metrics.removed_exact,
+            metrics.gap,
+            metrics.boundary_disagreement_rate,
+            metrics.boundary_sample_count,
+            metrics.boundary_exact_only_count,
+            metrics.boundary_voxel_only_count,
+            metrics.elapsed_ratio,
+            metrics.elapsed_voxel_ms,
+            metrics.elapsed_exact_ms
+        );
         assert!(
             metrics.removed_voxel.is_finite(),
             "case[{index}] removed_voxel must be finite"
@@ -1066,6 +1226,18 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
             "case[{index}] removed_exact must be finite"
         );
         assert!(metrics.gap.is_finite(), "case[{index}] gap must be finite");
+        assert!(
+            metrics.boundary_disagreement_rate.is_finite(),
+            "case[{index}] boundary_disagreement_rate must be finite"
+        );
+        assert!(
+            (0.0..=1.0).contains(&metrics.boundary_disagreement_rate),
+            "case[{index}] boundary_disagreement_rate must be within [0, 1]"
+        );
+        assert!(
+            metrics.boundary_sample_count > 0,
+            "case[{index}] boundary_sample_count must be positive"
+        );
         assert!(
             metrics.elapsed_voxel_ms.is_finite() && metrics.elapsed_voxel_ms >= 0.0,
             "case[{index}] elapsed_voxel_ms must be finite and non-negative"
@@ -1093,14 +1265,14 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
 fn phase3_gate_reproducibility_parallel_matches_sequential_removed_volume() {
     let (toolpath, tool) = case_diagonal_cut_ball();
 
-    let sequential = run_gate_case(&toolpath, &tool, 2.0);
+    let sequential = run_gate_case(&toolpath, &tool, GATE_SAMPLE_PITCH);
 
     let mut workers = Vec::new();
     for _ in 0..4 {
         let toolpath_cloned = toolpath.clone();
         let tool_cloned = tool.clone();
         workers.push(std::thread::spawn(move || {
-            run_gate_case(&toolpath_cloned, &tool_cloned, 2.0)
+            run_gate_case(&toolpath_cloned, &tool_cloned, GATE_SAMPLE_PITCH)
         }));
     }
 
@@ -1117,6 +1289,37 @@ fn phase3_gate_reproducibility_parallel_matches_sequential_removed_volume() {
             "exact removed volume mismatch: parallel={}, sequential={}",
             parallel.removed_exact,
             sequential.removed_exact
+        );
+    }
+}
+
+#[test]
+fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
+    let cases = [
+        ("plane_cut_flat", case_plane_cut_flat()),
+        ("step_cut_flat", case_step_cut_flat()),
+        ("diagonal_cut_ball", case_diagonal_cut_ball()),
+    ];
+
+    for (name, (toolpath, tool)) in &cases {
+        let metrics = run_gate_case(toolpath, tool, GATE_SAMPLE_PITCH);
+        assert!(
+            metrics.gap <= GATE_TARGET_GAP,
+            "{name}: gap {:.4} exceeds target {:.4}",
+            metrics.gap,
+            GATE_TARGET_GAP
+        );
+        assert!(
+            metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY,
+            "{name}: boundary_disagreement_rate {:.4} exceeds target {:.4}",
+            metrics.boundary_disagreement_rate,
+            GATE_TARGET_BOUNDARY
+        );
+        assert!(
+            metrics.elapsed_ratio <= GATE_TARGET_ELAPSED_RATIO,
+            "{name}: elapsed_ratio {:.4} exceeds target {:.4}",
+            metrics.elapsed_ratio,
+            GATE_TARGET_ELAPSED_RATIO
         );
     }
 }
