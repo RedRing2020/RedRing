@@ -117,7 +117,7 @@ impl PrimitiveSetExactWork {
     }
 
     fn contains_material(&self, point: &Point3D<f64>) -> bool {
-        debug_assert_eq!(
+        assert_eq!(
             self.removed_primitives.len(),
             self.primitive_bounds.len(),
             "invariant broken: removed_primitives and primitive_bounds lengths differ"
@@ -158,7 +158,7 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
     }
 
     fn nearest_removed_surface_distance(&self, point: &Point3D<f64>) -> f64 {
-        debug_assert_eq!(
+        assert_eq!(
             self.removed_primitives.len(),
             self.primitive_bounds.len(),
             "invariant broken: removed_primitives and primitive_bounds lengths differ"
