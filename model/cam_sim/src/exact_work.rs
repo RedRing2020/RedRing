@@ -148,12 +148,13 @@ impl PrimitiveSetExactWork {
         }
 
         let effective_margin = margin.max(0.0);
+        let effective_margin_squared = effective_margin * effective_margin;
         !self
             .removed_primitives
             .iter()
             .zip(self.primitive_bounds.iter())
             .any(|(primitive, primitive_bounds)| {
-                point_to_aabb_distance(point, primitive_bounds) <= effective_margin
+                point_to_aabb_distance_squared(point, primitive_bounds) <= effective_margin_squared
                     && primitive_contains_with_margin(primitive, point, effective_margin)
             })
     }
@@ -398,6 +399,10 @@ fn intersect_aabb(a: &Aabb3D<f64>, b: &Aabb3D<f64>) -> Option<Aabb3D<f64>> {
 }
 
 fn point_to_aabb_distance(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
+    point_to_aabb_distance_squared(point, bounds).sqrt()
+}
+
+fn point_to_aabb_distance_squared(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
     let dx = if point.x() < bounds.min().x() {
         bounds.min().x() - point.x()
     } else if point.x() > bounds.max().x() {
@@ -422,7 +427,7 @@ fn point_to_aabb_distance(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
         0.0
     };
 
-    (dx * dx + dy * dy + dz * dz).sqrt()
+    dx * dx + dy * dy + dz * dz
 }
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {

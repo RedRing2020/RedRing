@@ -1041,7 +1041,11 @@ fn compute_boundary_disagreement_rate(
     let dy = height / (y_samples as f64);
     let dz = depth / (z_samples as f64);
 
-    let probe_offset = sample_pitch * 0.5;
+    let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
+        boundary_band * 0.5
+    } else {
+        sample_pitch * 0.5
+    };
     let mut boundary_points = 0usize;
     let mut disagreements = 0usize;
     let mut exact_only = 0usize;
