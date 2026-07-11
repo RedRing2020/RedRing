@@ -997,9 +997,9 @@ fn is_voxel_boundary_point(
     bounds: &Aabb3D<f64>,
     voxel_index: &SolidBoundsSpatialIndex,
     point: &Point3D<f64>,
+    center_state: bool,
     probe_offset: f64,
 ) -> bool {
-    let center_state = voxel_index.contains_material_at(point);
     let offsets = [
         (probe_offset, 0.0, 0.0),
         (-probe_offset, 0.0, 0.0),
@@ -1054,16 +1054,24 @@ fn compute_boundary_disagreement_rate(
                 let z = min.z() + ((iz as f64) + 0.5) * dz;
                 let point = Point3D::new(x, y, z);
                 let dist = exact_work.nearest_removed_surface_distance(&point);
-                let voxel_boundary =
-                    is_voxel_boundary_point(bounds, voxel_index, &point, probe_offset);
-                if dist > boundary_band && !voxel_boundary {
+                let voxel_has_material = voxel_index.contains_material_at(&point);
+
+                // Only probe voxel boundary neighbors for points outside the exact boundary band.
+                if dist > boundary_band
+                    && !is_voxel_boundary_point(
+                        bounds,
+                        voxel_index,
+                        &point,
+                        voxel_has_material,
+                        probe_offset,
+                    )
+                {
                     continue;
                 }
 
                 boundary_points += 1;
                 let exact_has_material =
                     exact_work.contains_material_at(&point) && dist > exact_conservative_margin;
-                let voxel_has_material = voxel_index.contains_material_at(&point);
                 if exact_has_material != voxel_has_material {
                     disagreements += 1;
                     if exact_has_material {
