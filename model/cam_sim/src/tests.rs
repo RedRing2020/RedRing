@@ -1472,22 +1472,22 @@ fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
 }
 
 #[test]
-#[ignore = "探索専用: 薄肉ケースのパラメータ掃引で gap/boundary の傾向を確認する"]
-fn phase4_exploration_thin_wall_parameter_sweep_reports_metrics() {
+#[ignore = "探索専用(gap重視系): 薄肉ケースの候補を掃引して gap を優先評価する"]
+fn phase4_exploration_thin_wall_gap_priority_candidates() {
     let configs = [
-        ("thin_ref", 50.0, 48.0, 20.0, 80.0, 1.0),
-        ("thin_r1_5", 50.0, 48.0, 20.0, 80.0, 1.5),
-        ("thin_r2_0", 50.0, 48.0, 20.0, 80.0, 2.0),
-        ("thin_z50_r1_0", 50.0, 50.0, 20.0, 80.0, 1.0),
-        ("thin_long_r1_0", 50.0, 48.0, 15.0, 85.0, 1.0),
+        ("gap_ref", 50.0, 48.0, 20.0, 80.0, 1.0),
+        ("gap_long", 50.0, 48.0, 15.0, 85.0, 1.0),
+        ("gap_shallow", 50.0, 46.0, 20.0, 80.0, 1.0),
+        ("gap_mid_radius", 50.0, 48.0, 20.0, 80.0, 1.25),
     ];
 
+    let mut hit_gap_target = false;
     for (name, y, z, x_start, x_end, radius) in configs {
         let (toolpath, tool) =
             case_thin_wall_channel_flat_with_params(y, z, x_start, x_end, radius);
         let metrics = run_gate_case(&toolpath, &tool, GATE_SAMPLE_PITCH);
         println!(
-            "{name}: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}, removed_voxel={:.3}, removed_exact={:.3}",
+            "GAP[{name}]: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}, removed_voxel={:.3}, removed_exact={:.3}",
             metrics.gap,
             metrics.boundary_disagreement_rate,
             metrics.elapsed_ratio,
@@ -1503,7 +1503,56 @@ fn phase4_exploration_thin_wall_parameter_sweep_reports_metrics() {
             metrics.elapsed_ratio.is_finite(),
             "{name}: elapsed_ratio must be finite"
         );
+        hit_gap_target |= metrics.gap <= GATE_TARGET_GAP;
     }
+
+    assert!(
+        hit_gap_target,
+        "gap重視系で gap <= {:.4} を満たす候補が見つからない",
+        GATE_TARGET_GAP
+    );
+}
+
+#[test]
+#[ignore = "探索専用(boundary重視系): 薄肉ケースの候補を掃引して境界一致を優先評価する"]
+fn phase4_exploration_thin_wall_boundary_priority_candidates() {
+    let configs = [
+        ("boundary_r1_5", 50.0, 48.0, 20.0, 80.0, 1.5),
+        ("boundary_r2_0", 50.0, 48.0, 20.0, 80.0, 2.0),
+        ("boundary_z50_r1_0", 50.0, 50.0, 20.0, 80.0, 1.0),
+        ("boundary_z46_r1_5", 50.0, 46.0, 20.0, 80.0, 1.5),
+    ];
+
+    let mut hit_boundary_target = false;
+    for (name, y, z, x_start, x_end, radius) in configs {
+        let (toolpath, tool) =
+            case_thin_wall_channel_flat_with_params(y, z, x_start, x_end, radius);
+        let metrics = run_gate_case(&toolpath, &tool, GATE_SAMPLE_PITCH);
+        println!(
+            "BOUNDARY[{name}]: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}, removed_voxel={:.3}, removed_exact={:.3}",
+            metrics.gap,
+            metrics.boundary_disagreement_rate,
+            metrics.elapsed_ratio,
+            metrics.removed_voxel,
+            metrics.removed_exact
+        );
+        assert!(metrics.gap.is_finite(), "{name}: gap must be finite");
+        assert!(
+            metrics.boundary_disagreement_rate.is_finite(),
+            "{name}: boundary_disagreement_rate must be finite"
+        );
+        assert!(
+            metrics.elapsed_ratio.is_finite(),
+            "{name}: elapsed_ratio must be finite"
+        );
+        hit_boundary_target |= metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY;
+    }
+
+    assert!(
+        hit_boundary_target,
+        "boundary重視系で boundary_disagreement_rate <= {:.4} を満たす候補が見つからない",
+        GATE_TARGET_BOUNDARY
+    );
 }
 
 #[test]
