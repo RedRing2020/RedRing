@@ -425,10 +425,7 @@ fn test_phase1_performance_guard_within_20_percent() {
     } else {
         median_f64(&slowdown_candidates).min(PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO)
     };
-    let environment_slowdown_ratio = environment_slowdown_ratio_from_env()
-        .unwrap_or(1.0)
-        .max(measured_slowdown_ratio)
-        .min(PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO);
+    let environment_slowdown_ratio = environment_slowdown_ratio_from_env().unwrap_or(1.0);
 
     eprintln!(
         "PERF_GUARD summary env_ratio={} measured_env_ratio={} sample_count={} env_var={}",
