@@ -1374,7 +1374,7 @@ fn phase3_gate_reproducibility_parallel_matches_sequential_removed_volume() {
 }
 
 #[test]
-fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
+fn phase3_gate_quality_targets_are_met_for_reference_cases_elapsed_optional() {
     let cases = [
         ("plane_cut_flat", case_plane_cut_flat()),
         ("step_cut_flat", case_step_cut_flat()),

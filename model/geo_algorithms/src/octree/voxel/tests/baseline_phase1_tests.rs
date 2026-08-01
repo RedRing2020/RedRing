@@ -361,7 +361,9 @@ fn baseline_repro_cases() -> [BaselineCase; 5] {
     ]
 }
 
-fn non_empty_voxel_count_at_max_depth(tree: &VoxelOctree<f64>) -> usize {
+// Note: this is a visualization partition count (non-empty nodes collected up to max depth),
+// not a strict count of max-depth leaf cells.
+fn non_empty_visual_partition_count_up_to_max_depth(tree: &VoxelOctree<f64>) -> usize {
     tree.collect_non_empty_voxel_bounds_up_to_depth(tree.max_depth())
         .len()
 }
@@ -377,7 +379,10 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     );
     box_complete.remove_material_box(&full_box);
     assert_eq!(box_complete.solid_voxel_count(), 0);
-    assert_eq!(non_empty_voxel_count_at_max_depth(&box_complete), 0);
+    assert_eq!(
+        non_empty_visual_partition_count_up_to_max_depth(&box_complete),
+        0
+    );
 
     let capsule_segment = LineSegment3D::new(
         Point3D::new(50.0, 50.0, 0.0),
@@ -388,7 +393,7 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     let mut capsule_tree = VoxelOctree::new(bounds, 4);
     capsule_tree.remove_material_capsule(&capsule_segment, 10.0);
     let capsule_solid = capsule_tree.solid_voxel_count();
-    let capsule_non_empty = non_empty_voxel_count_at_max_depth(&capsule_tree);
+    let capsule_non_empty = non_empty_visual_partition_count_up_to_max_depth(&capsule_tree);
     assert!(capsule_non_empty > 0);
     assert!(capsule_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
     assert!(capsule_solid <= capsule_non_empty);
@@ -396,7 +401,7 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     let mut z_axis_tree = VoxelOctree::new(bounds, 4);
     z_axis_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 10.0);
     let z_axis_solid = z_axis_tree.solid_voxel_count();
-    let z_axis_non_empty = non_empty_voxel_count_at_max_depth(&z_axis_tree);
+    let z_axis_non_empty = non_empty_visual_partition_count_up_to_max_depth(&z_axis_tree);
     assert!(z_axis_non_empty > 0);
     assert!(z_axis_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
     assert!(z_axis_solid <= z_axis_non_empty);
@@ -426,7 +431,7 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     .expect("segment must be valid");
     swept_tree.remove_material_swept_cylinder(&swept_segment, 10.0);
     let swept_solid = swept_tree.solid_voxel_count();
-    let swept_non_empty = non_empty_voxel_count_at_max_depth(&swept_tree);
+    let swept_non_empty = non_empty_visual_partition_count_up_to_max_depth(&swept_tree);
     assert!(swept_non_empty > 0);
     assert!(swept_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
     assert!(swept_solid <= swept_non_empty);
@@ -434,7 +439,8 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     let mut swept_capsule_ref_tree = VoxelOctree::new(bounds, 4);
     swept_capsule_ref_tree.remove_material_capsule(&swept_segment, 10.0);
     let swept_capsule_ref_solid = swept_capsule_ref_tree.solid_voxel_count();
-    let swept_capsule_ref_non_empty = non_empty_voxel_count_at_max_depth(&swept_capsule_ref_tree);
+    let swept_capsule_ref_non_empty =
+        non_empty_visual_partition_count_up_to_max_depth(&swept_capsule_ref_tree);
     assert!(swept_capsule_ref_non_empty > 0);
     assert!(swept_capsule_ref_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
     assert!(swept_capsule_ref_solid <= swept_capsule_ref_non_empty);
@@ -448,7 +454,7 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     );
     assert_eq!(
         capsule_non_empty,
-        non_empty_voxel_count_at_max_depth(&capsule_tree_2),
+        non_empty_visual_partition_count_up_to_max_depth(&capsule_tree_2),
         "capsule non-empty proxy should be deterministic for fixed input"
     );
 
@@ -461,7 +467,7 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     );
     assert_eq!(
         z_axis_non_empty,
-        non_empty_voxel_count_at_max_depth(&z_axis_tree_2),
+        non_empty_visual_partition_count_up_to_max_depth(&z_axis_tree_2),
         "z-axis non-empty proxy should be deterministic for fixed input"
     );
 
@@ -474,7 +480,7 @@ fn test_phase1_complexity_proxy_guards_shape_matrix() {
     );
     assert_eq!(
         swept_non_empty,
-        non_empty_voxel_count_at_max_depth(&swept_tree_2),
+        non_empty_visual_partition_count_up_to_max_depth(&swept_tree_2),
         "swept non-empty proxy should be deterministic for fixed input"
     );
 }
