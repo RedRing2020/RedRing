@@ -492,7 +492,7 @@ fn test_phase1_baseline_cases_are_deterministic() {
 }
 
 #[test]
-#[ignore = "時間依存テスト: REDRING_ENABLE_PERF_GUARD=1 を設定した本番相当環境でのみ実行"]
+#[ignore = "時間依存テスト: REDRING_ENABLE_PERF_GUARD=1 を設定し、cargo test -- --ignored で本番相当環境のみ実行"]
 fn test_phase1_performance_guard_within_20_percent() {
     assert!(
         perf_guard_enabled(),
