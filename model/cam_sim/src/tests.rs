@@ -925,7 +925,7 @@ const GATE_MAX_AXIS_SAMPLES: usize = 128;
 const GATE_TARGET_GAP: f64 = 0.15;
 const GATE_TARGET_BOUNDARY: f64 = 0.10;
 const GATE_TARGET_ELAPSED_RATIO: f64 = 3.0;
-const GATE_ELAPSED_CHECK_ENABLE_VAR: &str = "REDRING_ENABLE_PERF_GUARD";
+const GATE_ELAPSED_CHECK_ENABLE_VAR: &str = "REDRING_ENABLE_CAM_SIM_ELAPSED_GUARD";
 
 fn gate_elapsed_check_enabled() -> bool {
     std::env::var(GATE_ELAPSED_CHECK_ENABLE_VAR)
@@ -1053,7 +1053,8 @@ fn compute_boundary_disagreement_rate(
     let dz = depth / (z_samples as f64);
 
     let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        boundary_band * 0.5
+        let epsilon = (boundary_band * 1.0e-6).max(f64::EPSILON);
+        boundary_band * 0.5 + epsilon
     } else {
         sample_pitch * 0.5
     };

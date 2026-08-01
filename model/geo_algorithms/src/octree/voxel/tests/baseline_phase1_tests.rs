@@ -492,14 +492,13 @@ fn test_phase1_baseline_cases_are_deterministic() {
 }
 
 #[test]
+#[ignore = "時間依存テスト: REDRING_ENABLE_PERF_GUARD=1 を設定した本番相当環境でのみ実行"]
 fn test_phase1_performance_guard_within_20_percent() {
-    if !perf_guard_enabled() {
-        eprintln!(
-            "PERF_GUARD skipped: set {}=1 to run timing guard on production-like environment",
-            PERF_GUARD_ENABLE_VAR
-        );
-        return;
-    }
+    assert!(
+        perf_guard_enabled(),
+        "set {}=1 to run timing guard on production-like environment",
+        PERF_GUARD_ENABLE_VAR
+    );
 
     let cases: [PerfGuardCase; 5] = [
         (
