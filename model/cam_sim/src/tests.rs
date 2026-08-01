@@ -1264,21 +1264,31 @@ fn case_diagonal_cut_ball() -> (ToolPath<f64>, Tool<f64>) {
     (toolpath, tool)
 }
 
-fn case_thin_wall_channel_flat() -> (ToolPath<f64>, Tool<f64>) {
+fn case_thin_wall_channel_flat_with_params(
+    y: f64,
+    z: f64,
+    x_start: f64,
+    x_end: f64,
+    radius: f64,
+) -> (ToolPath<f64>, Tool<f64>) {
     let segment = cam_core::PathSegment::new_line(
-        Point3D::new(20.0, 50.0, 48.0),
-        Point3D::new(80.0, 50.0, 48.0),
+        Point3D::new(x_start, y, z),
+        Point3D::new(x_end, y, z),
         SegmentType::Cutting { feed_rate: 300.0 },
     );
     let toolpath = ToolPath::new(
-        "thin-wall-channel-flat".to_string(),
+        format!("thin-wall-channel-flat-y{y:.1}-z{z:.1}-r{radius:.1}"),
         CuttingDirection::Down,
         vec![],
-        vec![ContourLevelPath::new(0, 48.0, vec![segment])],
+        vec![ContourLevelPath::new(0, z, vec![segment])],
         vec![],
     );
-    let tool = Tool::flat_end_mill("flat-thin-wall".to_string(), 2.0, 30.0);
+    let tool = Tool::flat_end_mill(format!("flat-thin-wall-r{radius:.1}"), radius * 2.0, 30.0);
     (toolpath, tool)
+}
+
+fn case_thin_wall_channel_flat() -> (ToolPath<f64>, Tool<f64>) {
+    case_thin_wall_channel_flat_with_params(50.0, 48.0, 20.0, 80.0, 1.0)
 }
 
 fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
@@ -1457,6 +1467,41 @@ fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
             "{name}: elapsed_ratio {:.4} exceeds target {:.4}",
             metrics.elapsed_ratio,
             GATE_TARGET_ELAPSED_RATIO
+        );
+    }
+}
+
+#[test]
+#[ignore = "探索専用: 薄肉ケースのパラメータ掃引で gap/boundary の傾向を確認する"]
+fn phase4_exploration_thin_wall_parameter_sweep_reports_metrics() {
+    let configs = [
+        ("thin_ref", 50.0, 48.0, 20.0, 80.0, 1.0),
+        ("thin_r1_5", 50.0, 48.0, 20.0, 80.0, 1.5),
+        ("thin_r2_0", 50.0, 48.0, 20.0, 80.0, 2.0),
+        ("thin_z50_r1_0", 50.0, 50.0, 20.0, 80.0, 1.0),
+        ("thin_long_r1_0", 50.0, 48.0, 15.0, 85.0, 1.0),
+    ];
+
+    for (name, y, z, x_start, x_end, radius) in configs {
+        let (toolpath, tool) =
+            case_thin_wall_channel_flat_with_params(y, z, x_start, x_end, radius);
+        let metrics = run_gate_case(&toolpath, &tool, GATE_SAMPLE_PITCH);
+        println!(
+            "{name}: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}, removed_voxel={:.3}, removed_exact={:.3}",
+            metrics.gap,
+            metrics.boundary_disagreement_rate,
+            metrics.elapsed_ratio,
+            metrics.removed_voxel,
+            metrics.removed_exact
+        );
+        assert!(metrics.gap.is_finite(), "{name}: gap must be finite");
+        assert!(
+            metrics.boundary_disagreement_rate.is_finite(),
+            "{name}: boundary_disagreement_rate must be finite"
+        );
+        assert!(
+            metrics.elapsed_ratio.is_finite(),
+            "{name}: elapsed_ratio must be finite"
         );
     }
 }
