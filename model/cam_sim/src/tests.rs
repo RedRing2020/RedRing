@@ -1291,6 +1291,14 @@ fn case_thin_wall_channel_flat() -> (ToolPath<f64>, Tool<f64>) {
     case_thin_wall_channel_flat_with_params(50.0, 48.0, 20.0, 80.0, 1.0)
 }
 
+fn case_thin_wall_gap_priority_flat() -> (ToolPath<f64>, Tool<f64>) {
+    case_thin_wall_channel_flat_with_params(50.0, 48.0, 15.0, 85.0, 1.0)
+}
+
+fn case_thin_wall_boundary_priority_flat() -> (ToolPath<f64>, Tool<f64>) {
+    case_thin_wall_channel_flat_with_params(50.0, 48.0, 20.0, 80.0, 1.5)
+}
+
 fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
     let leg_x = cam_core::PathSegment::new_line(
         Point3D::new(15.0, 20.0, 40.0),
@@ -1469,6 +1477,37 @@ fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
             GATE_TARGET_ELAPSED_RATIO
         );
     }
+}
+
+#[test]
+fn phase4_thin_wall_dual_track_representatives_are_recorded() {
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let gap_metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+    println!(
+        "thin_wall_gap_priority: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}",
+        gap_metrics.gap, gap_metrics.boundary_disagreement_rate, gap_metrics.elapsed_ratio
+    );
+    assert!(
+        gap_metrics.gap <= GATE_TARGET_GAP,
+        "gap-priority candidate must satisfy gap target: {:.4} <= {:.4}",
+        gap_metrics.gap,
+        GATE_TARGET_GAP
+    );
+
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+    println!(
+        "thin_wall_boundary_priority: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}",
+        boundary_metrics.gap,
+        boundary_metrics.boundary_disagreement_rate,
+        boundary_metrics.elapsed_ratio
+    );
+    assert!(
+        boundary_metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY,
+        "boundary-priority candidate must satisfy boundary target: {:.4} <= {:.4}",
+        boundary_metrics.boundary_disagreement_rate,
+        GATE_TARGET_BOUNDARY
+    );
 }
 
 #[test]
