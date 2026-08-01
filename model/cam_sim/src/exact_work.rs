@@ -57,6 +57,10 @@ pub struct PrimitiveSetExactWork {
     primitive_bounds: Vec<Aabb3D<f64>>,
 }
 
+pub(crate) const EXACT_WORK_SINGLE_FLAT_DIRTY_EXPAND_RATIO: f64 = 0.25;
+pub(crate) const EXACT_WORK_CONSERVATIVE_MARGIN_RATIO: f64 = 0.75;
+pub(crate) const EXACT_WORK_MARGIN_EXPANDED_BLEND_RATIO: f64 = 0.15;
+
 /// `PrimitiveSetExactWork` の初期化失敗を表すエラー。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExactWorkError {
@@ -239,49 +243,42 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
                 Some(ExactToolPrimitive::Flat { .. })
             );
         let dirty_expand = if single_flat_primitive {
-            sample_pitch * 0.25
+            exact_work_single_flat_dirty_expand(sample_pitch)
         } else {
             0.0
         };
+        let conservative_margin = exact_work_conservative_margin(sample_pitch);
+        let dirty_expand_with_margin = dirty_expand.max(conservative_margin);
 
-        let dirty_bounds =
+        let base_dirty_bounds =
             union_clamped_bounds_expanded(&self.primitive_bounds, &self.bounds, dirty_expand)
                 .unwrap_or(self.bounds);
-        let untouched_volume = (self.bounds.volume() - dirty_bounds.volume()).max(0.0);
+        let base_remaining = estimate_remaining_volume_with_dirty_bounds(
+            self,
+            &base_dirty_bounds,
+            sample_pitch,
+            conservative_margin,
+        );
 
-        let min = dirty_bounds.min();
-        let max = dirty_bounds.max();
-        let width = max.x() - min.x();
-        let height = max.y() - min.y();
-        let depth = max.z() - min.z();
-
-        let x_samples = axis_sample_count(width, sample_pitch);
-        let y_samples = axis_sample_count(height, sample_pitch);
-        let z_samples = axis_sample_count(depth, sample_pitch);
-
-        let dx = width / (x_samples as f64);
-        let dy = height / (y_samples as f64);
-        let dz = depth / (z_samples as f64);
-
-        let conservative_margin = sample_pitch * 0.75;
-        let mut solid_count = 0usize;
-        for ix in 0..x_samples {
-            let x = min.x() + ((ix as f64) + 0.5) * dx;
-            for iy in 0..y_samples {
-                let y = min.y() + ((iy as f64) + 0.5) * dy;
-                for iz in 0..z_samples {
-                    let z = min.z() + ((iz as f64) + 0.5) * dz;
-                    let point = Point3D::new(x, y, z);
-                    if self.contains_material_with_margin(&point, conservative_margin) {
-                        solid_count += 1;
-                    }
-                }
-            }
+        if dirty_expand_with_margin <= dirty_expand + f64::EPSILON {
+            return base_remaining;
         }
 
-        let total_samples = (x_samples * y_samples * z_samples) as f64;
-        let solid_ratio_in_dirty = (solid_count as f64) / total_samples;
-        untouched_volume + dirty_bounds.volume() * solid_ratio_in_dirty
+        let dirty_bounds = union_clamped_bounds_expanded(
+            &self.primitive_bounds,
+            &self.bounds,
+            dirty_expand_with_margin,
+        )
+        .unwrap_or(self.bounds);
+        let expanded_remaining = estimate_remaining_volume_with_dirty_bounds(
+            self,
+            &dirty_bounds,
+            sample_pitch,
+            conservative_margin,
+        );
+
+        let blend = EXACT_WORK_MARGIN_EXPANDED_BLEND_RATIO.clamp(0.0, 1.0);
+        base_remaining + (expanded_remaining - base_remaining) * blend
     }
 
     fn primitive_count(&self) -> usize {
@@ -477,6 +474,56 @@ fn primitive_contains_with_margin(
 
 fn point_to_segment_distance(point: &Point3D<f64>, segment: &LineSegment3D<f64>) -> f64 {
     line_segment3d_point3d_distance(segment, point)
+}
+
+pub(crate) fn exact_work_single_flat_dirty_expand(sample_pitch: f64) -> f64 {
+    sample_pitch * EXACT_WORK_SINGLE_FLAT_DIRTY_EXPAND_RATIO
+}
+
+pub(crate) fn exact_work_conservative_margin(sample_pitch: f64) -> f64 {
+    sample_pitch * EXACT_WORK_CONSERVATIVE_MARGIN_RATIO
+}
+
+fn estimate_remaining_volume_with_dirty_bounds(
+    work: &PrimitiveSetExactWork,
+    dirty_bounds: &Aabb3D<f64>,
+    sample_pitch: f64,
+    conservative_margin: f64,
+) -> f64 {
+    let untouched_volume = (work.bounds.volume() - dirty_bounds.volume()).max(0.0);
+
+    let min = dirty_bounds.min();
+    let max = dirty_bounds.max();
+    let width = max.x() - min.x();
+    let height = max.y() - min.y();
+    let depth = max.z() - min.z();
+
+    let x_samples = axis_sample_count(width, sample_pitch);
+    let y_samples = axis_sample_count(height, sample_pitch);
+    let z_samples = axis_sample_count(depth, sample_pitch);
+
+    let dx = width / (x_samples as f64);
+    let dy = height / (y_samples as f64);
+    let dz = depth / (z_samples as f64);
+
+    let mut solid_count = 0usize;
+    for ix in 0..x_samples {
+        let x = min.x() + ((ix as f64) + 0.5) * dx;
+        for iy in 0..y_samples {
+            let y = min.y() + ((iy as f64) + 0.5) * dy;
+            for iz in 0..z_samples {
+                let z = min.z() + ((iz as f64) + 0.5) * dz;
+                let point = Point3D::new(x, y, z);
+                if work.contains_material_with_margin(&point, conservative_margin) {
+                    solid_count += 1;
+                }
+            }
+        }
+    }
+
+    let total_samples = (x_samples * y_samples * z_samples) as f64;
+    let solid_ratio_in_dirty = (solid_count as f64) / total_samples;
+    untouched_volume + dirty_bounds.volume() * solid_ratio_in_dirty
 }
 
 fn point_to_flat_swept_surface_distance(

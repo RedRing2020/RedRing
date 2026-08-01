@@ -10,6 +10,7 @@ use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 
+use crate::exact_work::exact_work_conservative_margin;
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
     ExactToolPrimitive, ExactWorkModel, PrimitiveSetExactWork, SimulationError, SnapshotInterval,
@@ -1168,12 +1169,11 @@ fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) 
     } else {
         ((removed_exact - removed_voxel).abs()) / removed_voxel.abs()
     };
-    let exact_conservative_margin = if tool.is_ball_end_mill() {
-        exact_sample_pitch * 0.75
-    } else if exact_work.primitive_count() > 1 {
+    let exact_conservative_margin = if !tool.is_ball_end_mill() && exact_work.primitive_count() > 1
+    {
         exact_sample_pitch * 0.5
     } else {
-        exact_sample_pitch * 0.75
+        exact_work_conservative_margin(exact_sample_pitch)
     };
 
     let (
