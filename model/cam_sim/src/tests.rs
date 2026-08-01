@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::time::Instant;
 
+use analysis::consts::GEOMETRIC_TOLERANCE;
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
     ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
@@ -925,7 +926,6 @@ const GATE_MAX_AXIS_SAMPLES: usize = 128;
 const GATE_TARGET_GAP: f64 = 0.15;
 const GATE_TARGET_BOUNDARY: f64 = 0.10;
 const GATE_TARGET_ELAPSED_RATIO: f64 = 3.0;
-const BOUNDARY_PROBE_EPSILON_RATIO: f64 = 1.0e-6;
 const THIN_WALL_GAP_PROFILE_GAP_WEIGHT: f64 = 0.8;
 const THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT: f64 = 0.2;
 const THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT: f64 = 0.2;
@@ -1048,7 +1048,7 @@ fn compute_boundary_disagreement_rate(
     let dz = depth / (z_samples as f64);
 
     let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        let epsilon = (boundary_band * BOUNDARY_PROBE_EPSILON_RATIO).max(f64::EPSILON);
+        let epsilon = (boundary_band * GEOMETRIC_TOLERANCE).max(f64::EPSILON);
         boundary_band * 0.5 + epsilon
     } else {
         sample_pitch * 0.5
