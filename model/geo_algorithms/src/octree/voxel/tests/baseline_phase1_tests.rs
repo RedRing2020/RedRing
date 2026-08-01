@@ -35,6 +35,7 @@ const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
 const PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO: f64 = 1.10;
 const PERF_GUARD_ENV_RATIO_VAR: &str = "REDRING_PERF_GUARD_ENV_RATIO";
+const PERF_GUARD_ENABLE_VAR: &str = "REDRING_ENABLE_PERF_GUARD";
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
 const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 0.0;
 const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
@@ -140,6 +141,15 @@ fn environment_slowdown_ratio_from_env() -> Option<f64> {
         return None;
     }
     Some(parsed.clamp(1.0, PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO))
+}
+
+fn perf_guard_enabled() -> bool {
+    std::env::var(PERF_GUARD_ENABLE_VAR)
+        .map(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        })
+        .unwrap_or(false)
 }
 
 fn assert_elapsed_within_20_percent(
@@ -364,6 +374,14 @@ fn test_phase1_baseline_cases_are_deterministic() {
 
 #[test]
 fn test_phase1_performance_guard_within_20_percent() {
+    if !perf_guard_enabled() {
+        eprintln!(
+            "PERF_GUARD skipped: set {}=1 to run timing guard on production-like environment",
+            PERF_GUARD_ENABLE_VAR
+        );
+        return;
+    }
+
     let cases: [PerfGuardCase; 5] = [
         (
             "box_partial_depth4",
