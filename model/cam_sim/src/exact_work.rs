@@ -242,6 +242,10 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
                 self.removed_primitives.first(),
                 Some(ExactToolPrimitive::Flat { .. })
             );
+        let all_ball_primitives = self
+            .removed_primitives
+            .iter()
+            .all(|primitive| matches!(primitive, ExactToolPrimitive::Ball { .. }));
         let dirty_expand = if single_flat_primitive {
             exact_work_single_flat_dirty_expand(sample_pitch)
         } else {
@@ -249,6 +253,21 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
         };
         let conservative_margin = exact_work_conservative_margin(sample_pitch);
         let dirty_expand_with_margin = dirty_expand.max(conservative_margin);
+
+        if all_ball_primitives {
+            let dirty_bounds = union_clamped_bounds_expanded(
+                &self.primitive_bounds,
+                &self.bounds,
+                dirty_expand_with_margin,
+            )
+            .unwrap_or(self.bounds);
+            return estimate_remaining_volume_with_dirty_bounds(
+                self,
+                &dirty_bounds,
+                sample_pitch,
+                conservative_margin,
+            );
+        }
 
         let base_dirty_bounds =
             union_clamped_bounds_expanded(&self.primitive_bounds, &self.bounds, dirty_expand)
