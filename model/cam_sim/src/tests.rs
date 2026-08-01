@@ -1264,12 +1264,53 @@ fn case_diagonal_cut_ball() -> (ToolPath<f64>, Tool<f64>) {
     (toolpath, tool)
 }
 
+fn case_thin_wall_channel_flat() -> (ToolPath<f64>, Tool<f64>) {
+    let segment = cam_core::PathSegment::new_line(
+        Point3D::new(20.0, 50.0, 48.0),
+        Point3D::new(80.0, 50.0, 48.0),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+    let toolpath = ToolPath::new(
+        "thin-wall-channel-flat".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 48.0, vec![segment])],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill("flat-thin-wall".to_string(), 2.0, 30.0);
+    (toolpath, tool)
+}
+
+fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
+    let leg_x = cam_core::PathSegment::new_line(
+        Point3D::new(15.0, 20.0, 40.0),
+        Point3D::new(85.0, 20.0, 40.0),
+        SegmentType::Cutting { feed_rate: 280.0 },
+    );
+    let leg_y = cam_core::PathSegment::new_line(
+        Point3D::new(85.0, 20.0, 40.0),
+        Point3D::new(85.0, 85.0, 70.0),
+        SegmentType::Cutting { feed_rate: 280.0 },
+    );
+    let toolpath = ToolPath::new(
+        "steep-corner-flat".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 40.0, vec![leg_x, leg_y])],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill("flat-corner".to_string(), 8.0, 30.0);
+    (toolpath, tool)
+}
+
 #[test]
 fn phase3_gate_metrics_are_measurable_for_reference_cases() {
     let cases = [
         case_plane_cut_flat(),
         case_step_cut_flat(),
         case_diagonal_cut_ball(),
+        case_thin_wall_channel_flat(),
+        case_steep_corner_flat(),
     ];
 
     for (index, (toolpath, tool)) in cases.iter().enumerate() {
