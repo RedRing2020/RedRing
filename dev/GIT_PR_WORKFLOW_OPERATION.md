@@ -93,11 +93,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_pr_preflight
 
 - AIが編集系作業を開始する前に `scripts/ai_preflight.ps1` を必ず実行する
 - preflight は次を検証する
-	- 実行ブランチが `develop` ではないこと
-	- ルール正本3文書が存在すること
-		- `.github/copilot-instructions.md`
-		- `dev/GIT_PR_WORKFLOW_OPERATION.md`
-		- `dev/ISSUE_LABEL_OPERATION.md`
+  - 実行ブランチが `develop` ではないこと
+  - ルール正本3文書が存在すること
+    - `.github/copilot-instructions.md`
+    - `dev/GIT_PR_WORKFLOW_OPERATION.md`
+    - `dev/ISSUE_LABEL_OPERATION.md`
 - preflight は `logs/ai_preflight/` に証跡JSONを出力する
 - 判定NG時は終了コード1で停止し、編集・投稿・pushを継続しない
 
