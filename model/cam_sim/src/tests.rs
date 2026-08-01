@@ -1536,6 +1536,42 @@ fn phase4_thin_wall_dual_track_tradeoff_is_explicit() {
     );
 }
 
+fn thin_wall_weighted_score(metrics: &GateMetrics, gap_weight: f64, boundary_weight: f64) -> f64 {
+    let gap_term = metrics.gap / GATE_TARGET_GAP.max(f64::EPSILON);
+    let boundary_term = metrics.boundary_disagreement_rate / GATE_TARGET_BOUNDARY.max(f64::EPSILON);
+    (gap_term * gap_weight) + (boundary_term * boundary_weight)
+}
+
+#[test]
+fn phase4_thin_wall_dual_track_weighted_selection_profile_switches_choice() {
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let gap_metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+
+    let gap_profile_gap_case = thin_wall_weighted_score(&gap_metrics, 0.8, 0.2);
+    let gap_profile_boundary_case = thin_wall_weighted_score(&boundary_metrics, 0.8, 0.2);
+    let boundary_profile_gap_case = thin_wall_weighted_score(&gap_metrics, 0.2, 0.8);
+    let boundary_profile_boundary_case = thin_wall_weighted_score(&boundary_metrics, 0.2, 0.8);
+
+    println!(
+        "weighted-selection: gap-profile(gap_case={:.4}, boundary_case={:.4}) boundary-profile(gap_case={:.4}, boundary_case={:.4})",
+        gap_profile_gap_case,
+        gap_profile_boundary_case,
+        boundary_profile_gap_case,
+        boundary_profile_boundary_case
+    );
+
+    assert!(
+        gap_profile_gap_case < gap_profile_boundary_case,
+        "gap重視プロファイルでは gap候補のスコアが優位であるべき"
+    );
+    assert!(
+        boundary_profile_boundary_case < boundary_profile_gap_case,
+        "boundary重視プロファイルでは boundary候補のスコアが優位であるべき"
+    );
+}
+
 #[test]
 #[ignore = "探索専用(gap重視系): 薄肉ケースの候補を掃引して gap を優先評価する"]
 fn phase4_exploration_thin_wall_gap_priority_candidates() {
