@@ -1511,6 +1511,32 @@ fn phase4_thin_wall_dual_track_representatives_are_recorded() {
 }
 
 #[test]
+fn phase4_thin_wall_dual_track_tradeoff_is_explicit() {
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let gap_metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+
+    println!(
+        "dual-track-tradeoff: gap-priority(gap={:.4}, boundary={:.4}), boundary-priority(gap={:.4}, boundary={:.4})",
+        gap_metrics.gap,
+        gap_metrics.boundary_disagreement_rate,
+        boundary_metrics.gap,
+        boundary_metrics.boundary_disagreement_rate
+    );
+
+    assert!(
+        gap_metrics.gap < boundary_metrics.gap,
+        "gap-priority candidate must keep lower gap than boundary-priority candidate"
+    );
+    assert!(
+        boundary_metrics.boundary_disagreement_rate < gap_metrics.boundary_disagreement_rate,
+        "boundary-priority candidate must keep lower boundary disagreement than gap-priority candidate"
+    );
+}
+
+#[test]
 #[ignore = "探索専用(gap重視系): 薄肉ケースの候補を掃引して gap を優先評価する"]
 fn phase4_exploration_thin_wall_gap_priority_candidates() {
     let configs = [
