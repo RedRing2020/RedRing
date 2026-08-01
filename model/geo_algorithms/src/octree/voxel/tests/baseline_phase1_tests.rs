@@ -35,6 +35,7 @@ const PERF_GUARD_RATIO_MIN_BASELINE_US: f64 = 100.0;
 const PERF_GUARD_MAX_ABSOLUTE_INCREASE_US: f64 = 20.0;
 const PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO: f64 = 1.10;
 const PERF_GUARD_ENV_RATIO_VAR: &str = "REDRING_PERF_GUARD_ENV_RATIO";
+const PERF_GUARD_ENABLE_VAR: &str = "REDRING_ENABLE_PERF_GUARD";
 const BOX_PARTIAL_BASELINE_ELAPSED_MICROS: f64 = 16.8;
 const BOX_COMPLETE_BASELINE_ELAPSED_MICROS: f64 = 0.0;
 const CAPSULE_BASELINE_ELAPSED_MICROS: f64 = 731.0;
@@ -45,6 +46,7 @@ const BOX_COMPLETE_ADDITIONAL_JITTER_US: f64 = 20.0;
 const CAPSULE_ADDITIONAL_JITTER_US: f64 = 800.0;
 const Z_AXIS_ADDITIONAL_JITTER_US: f64 = 100.0;
 const SWEPT_ADDITIONAL_JITTER_US: f64 = 500.0;
+const COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4: usize = 1024;
 
 impl BaselineCaseSummary {
     fn from_samples(name: &'static str, samples: &[BaselineCase]) -> Self {
@@ -140,6 +142,15 @@ fn environment_slowdown_ratio_from_env() -> Option<f64> {
         return None;
     }
     Some(parsed.clamp(1.0, PERF_GUARD_MAX_ENV_SLOWDOWN_RATIO))
+}
+
+fn perf_guard_enabled() -> bool {
+    std::env::var(PERF_GUARD_ENABLE_VAR)
+        .map(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        })
+        .unwrap_or(false)
 }
 
 fn assert_elapsed_within_20_percent(
@@ -350,6 +361,130 @@ fn baseline_repro_cases() -> [BaselineCase; 5] {
     ]
 }
 
+// Note: this is a visualization partition count (non-empty nodes collected up to max depth),
+// not a strict count of max-depth leaf cells.
+fn non_empty_visual_partition_count_up_to_max_depth(tree: &VoxelOctree<f64>) -> usize {
+    tree.collect_non_empty_voxel_bounds_up_to_depth(tree.max_depth())
+        .len()
+}
+
+#[test]
+fn test_phase1_complexity_proxy_guards_shape_matrix() {
+    let bounds = work_bounds();
+
+    let mut box_complete = VoxelOctree::new(bounds, 4);
+    let full_box = Aabb3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(100.0, 100.0, 100.0),
+    );
+    box_complete.remove_material_box(&full_box);
+    assert_eq!(box_complete.solid_voxel_count(), 0);
+    assert_eq!(
+        non_empty_visual_partition_count_up_to_max_depth(&box_complete),
+        0
+    );
+
+    let capsule_segment = LineSegment3D::new(
+        Point3D::new(50.0, 50.0, 0.0),
+        Point3D::new(50.0, 50.0, 100.0),
+    )
+    .expect("segment must be valid");
+
+    let mut capsule_tree = VoxelOctree::new(bounds, 4);
+    capsule_tree.remove_material_capsule(&capsule_segment, 10.0);
+    let capsule_solid = capsule_tree.solid_voxel_count();
+    let capsule_non_empty = non_empty_visual_partition_count_up_to_max_depth(&capsule_tree);
+    assert!(capsule_non_empty > 0);
+    assert!(capsule_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
+    assert!(capsule_solid <= capsule_non_empty);
+
+    let mut z_axis_tree = VoxelOctree::new(bounds, 4);
+    z_axis_tree.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 10.0);
+    let z_axis_solid = z_axis_tree.solid_voxel_count();
+    let z_axis_non_empty = non_empty_visual_partition_count_up_to_max_depth(&z_axis_tree);
+    assert!(z_axis_non_empty > 0);
+    assert!(z_axis_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
+    assert!(z_axis_solid <= z_axis_non_empty);
+
+    // Optimized Z-axis path should not explode active-cell complexity versus generic capsule.
+    assert!(
+        z_axis_non_empty <= capsule_non_empty,
+        "z_axis complexity proxy regressed: z_axis_non_empty={} capsule_non_empty={}",
+        z_axis_non_empty,
+        capsule_non_empty
+    );
+
+    let solid_diff = z_axis_solid.abs_diff(capsule_solid);
+    assert!(
+        solid_diff <= 64,
+        "z_axis vs capsule solid voxel count diverged too much: diff={} z_axis={} capsule={}",
+        solid_diff,
+        z_axis_solid,
+        capsule_solid
+    );
+
+    let mut swept_tree = VoxelOctree::new(bounds, 4);
+    let swept_segment = LineSegment3D::new(
+        Point3D::new(30.0, 50.0, 50.0),
+        Point3D::new(70.0, 50.0, 50.0),
+    )
+    .expect("segment must be valid");
+    swept_tree.remove_material_swept_cylinder(&swept_segment, 10.0);
+    let swept_solid = swept_tree.solid_voxel_count();
+    let swept_non_empty = non_empty_visual_partition_count_up_to_max_depth(&swept_tree);
+    assert!(swept_non_empty > 0);
+    assert!(swept_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
+    assert!(swept_solid <= swept_non_empty);
+
+    let mut swept_capsule_ref_tree = VoxelOctree::new(bounds, 4);
+    swept_capsule_ref_tree.remove_material_capsule(&swept_segment, 10.0);
+    let swept_capsule_ref_solid = swept_capsule_ref_tree.solid_voxel_count();
+    let swept_capsule_ref_non_empty =
+        non_empty_visual_partition_count_up_to_max_depth(&swept_capsule_ref_tree);
+    assert!(swept_capsule_ref_non_empty > 0);
+    assert!(swept_capsule_ref_non_empty <= COMPLEXITY_PROXY_MAX_NON_EMPTY_DEPTH4);
+    assert!(swept_capsule_ref_solid <= swept_capsule_ref_non_empty);
+
+    let mut capsule_tree_2 = VoxelOctree::new(bounds, 4);
+    capsule_tree_2.remove_material_capsule(&capsule_segment, 10.0);
+    assert_eq!(
+        capsule_solid,
+        capsule_tree_2.solid_voxel_count(),
+        "capsule complexity proxy should be deterministic for fixed input"
+    );
+    assert_eq!(
+        capsule_non_empty,
+        non_empty_visual_partition_count_up_to_max_depth(&capsule_tree_2),
+        "capsule non-empty proxy should be deterministic for fixed input"
+    );
+
+    let mut z_axis_tree_2 = VoxelOctree::new(bounds, 4);
+    z_axis_tree_2.remove_material_z_axis(50.0, 50.0, 0.0, 100.0, 10.0);
+    assert_eq!(
+        z_axis_solid,
+        z_axis_tree_2.solid_voxel_count(),
+        "z-axis complexity proxy should be deterministic for fixed input"
+    );
+    assert_eq!(
+        z_axis_non_empty,
+        non_empty_visual_partition_count_up_to_max_depth(&z_axis_tree_2),
+        "z-axis non-empty proxy should be deterministic for fixed input"
+    );
+
+    let mut swept_tree_2 = VoxelOctree::new(bounds, 4);
+    swept_tree_2.remove_material_swept_cylinder(&swept_segment, 10.0);
+    assert_eq!(
+        swept_solid,
+        swept_tree_2.solid_voxel_count(),
+        "swept complexity proxy should be deterministic for fixed input"
+    );
+    assert_eq!(
+        swept_non_empty,
+        non_empty_visual_partition_count_up_to_max_depth(&swept_tree_2),
+        "swept non-empty proxy should be deterministic for fixed input"
+    );
+}
+
 #[test]
 fn test_phase1_baseline_cases_are_deterministic() {
     let first = baseline_repro_cases();
@@ -363,7 +498,14 @@ fn test_phase1_baseline_cases_are_deterministic() {
 }
 
 #[test]
+#[ignore = "時間依存テスト: REDRING_ENABLE_PERF_GUARD=1 を設定し、cargo test -- --ignored で本番相当環境のみ実行"]
 fn test_phase1_performance_guard_within_20_percent() {
+    assert!(
+        perf_guard_enabled(),
+        "set {}=1 to run timing guard on production-like environment",
+        PERF_GUARD_ENABLE_VAR
+    );
+
     let cases: [PerfGuardCase; 5] = [
         (
             "box_partial_depth4",

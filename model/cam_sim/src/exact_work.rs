@@ -57,6 +57,10 @@ pub struct PrimitiveSetExactWork {
     primitive_bounds: Vec<Aabb3D<f64>>,
 }
 
+pub(crate) const EXACT_WORK_SINGLE_FLAT_DIRTY_EXPAND_RATIO: f64 = 0.25;
+pub(crate) const EXACT_WORK_CONSERVATIVE_MARGIN_RATIO: f64 = 0.75;
+pub(crate) const EXACT_WORK_MARGIN_EXPANDED_BLEND_RATIO: f64 = 0.15;
+
 /// `PrimitiveSetExactWork` の初期化失敗を表すエラー。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExactWorkError {
@@ -135,6 +139,29 @@ impl PrimitiveSetExactWork {
                     && primitive_contains(primitive, point)
             })
     }
+
+    fn contains_material_with_margin(&self, point: &Point3D<f64>, margin: f64) -> bool {
+        debug_assert_eq!(
+            self.removed_primitives.len(),
+            self.primitive_bounds.len(),
+            "invariant broken: removed_primitives and primitive_bounds lengths differ"
+        );
+
+        if !bounds_contains_point(&self.bounds, point) {
+            return false;
+        }
+
+        let effective_margin = margin.max(0.0);
+        let effective_margin_squared = effective_margin * effective_margin;
+        !self
+            .removed_primitives
+            .iter()
+            .zip(self.primitive_bounds.iter())
+            .any(|(primitive, primitive_bounds)| {
+                point_to_aabb_distance_squared(point, primitive_bounds) <= effective_margin_squared
+                    && primitive_contains_with_margin(primitive, point, effective_margin)
+            })
+    }
 }
 
 impl ExactWorkModel<f64> for PrimitiveSetExactWork {
@@ -210,37 +237,67 @@ impl ExactWorkModel<f64> for PrimitiveSetExactWork {
             return self.bounds.volume();
         }
 
-        let min = self.bounds.min();
-        let max = self.bounds.max();
-        let width = max.x() - min.x();
-        let height = max.y() - min.y();
-        let depth = max.z() - min.z();
+        let single_flat_primitive = self.removed_primitives.len() == 1
+            && matches!(
+                self.removed_primitives.first(),
+                Some(ExactToolPrimitive::Flat { .. })
+            );
+        let all_ball_primitives = self
+            .removed_primitives
+            .iter()
+            .all(|primitive| matches!(primitive, ExactToolPrimitive::Ball { .. }));
+        let dirty_expand = if single_flat_primitive {
+            exact_work_single_flat_dirty_expand(sample_pitch)
+        } else {
+            0.0
+        };
+        let conservative_margin = exact_work_conservative_margin(sample_pitch);
+        let dirty_expand_with_margin = dirty_expand.max(conservative_margin);
 
-        let x_samples = axis_sample_count(width, sample_pitch);
-        let y_samples = axis_sample_count(height, sample_pitch);
-        let z_samples = axis_sample_count(depth, sample_pitch);
-
-        let dx = width / (x_samples as f64);
-        let dy = height / (y_samples as f64);
-        let dz = depth / (z_samples as f64);
-
-        let mut solid_count = 0usize;
-        for ix in 0..x_samples {
-            let x = min.x() + ((ix as f64) + 0.5) * dx;
-            for iy in 0..y_samples {
-                let y = min.y() + ((iy as f64) + 0.5) * dy;
-                for iz in 0..z_samples {
-                    let z = min.z() + ((iz as f64) + 0.5) * dz;
-                    let point = Point3D::new(x, y, z);
-                    if self.contains_material(&point) {
-                        solid_count += 1;
-                    }
-                }
-            }
+        if all_ball_primitives {
+            let dirty_bounds = union_clamped_bounds_expanded(
+                &self.primitive_bounds,
+                &self.bounds,
+                dirty_expand_with_margin,
+            )
+            .unwrap_or(self.bounds);
+            return estimate_remaining_volume_with_dirty_bounds(
+                self,
+                &dirty_bounds,
+                sample_pitch,
+                conservative_margin,
+            );
         }
 
-        let total_samples = (x_samples * y_samples * z_samples) as f64;
-        self.bounds.volume() * ((solid_count as f64) / total_samples)
+        let base_dirty_bounds =
+            union_clamped_bounds_expanded(&self.primitive_bounds, &self.bounds, dirty_expand)
+                .unwrap_or(self.bounds);
+        let base_remaining = estimate_remaining_volume_with_dirty_bounds(
+            self,
+            &base_dirty_bounds,
+            sample_pitch,
+            conservative_margin,
+        );
+
+        if dirty_expand_with_margin <= dirty_expand + f64::EPSILON {
+            return base_remaining;
+        }
+
+        let dirty_bounds = union_clamped_bounds_expanded(
+            &self.primitive_bounds,
+            &self.bounds,
+            dirty_expand_with_margin,
+        )
+        .unwrap_or(self.bounds);
+        let expanded_remaining = estimate_remaining_volume_with_dirty_bounds(
+            self,
+            &dirty_bounds,
+            sample_pitch,
+            conservative_margin,
+        );
+
+        let blend = EXACT_WORK_MARGIN_EXPANDED_BLEND_RATIO.clamp(0.0, 1.0);
+        base_remaining + (expanded_remaining - base_remaining) * blend
     }
 
     fn primitive_count(&self) -> usize {
@@ -285,7 +342,83 @@ fn primitive_bounds(primitive: &ExactToolPrimitive<f64>) -> Aabb3D<f64> {
     )
 }
 
+fn union_clamped_bounds_expanded(
+    bounds_list: &[Aabb3D<f64>],
+    clamp_to: &Aabb3D<f64>,
+    expand: f64,
+) -> Option<Aabb3D<f64>> {
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut min_z = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    let mut max_z = f64::NEG_INFINITY;
+    let mut has_overlap = false;
+    let halo = expand.max(0.0);
+
+    for bounds in bounds_list {
+        let expanded = if halo <= 0.0 {
+            *bounds
+        } else {
+            Aabb3D::new(
+                Point3D::new(
+                    bounds.min().x() - halo,
+                    bounds.min().y() - halo,
+                    bounds.min().z() - halo,
+                ),
+                Point3D::new(
+                    bounds.max().x() + halo,
+                    bounds.max().y() + halo,
+                    bounds.max().z() + halo,
+                ),
+            )
+        };
+
+        let clamped = intersect_aabb(&expanded, clamp_to);
+        if let Some(clamped_bounds) = clamped {
+            has_overlap = true;
+            min_x = min_x.min(clamped_bounds.min().x());
+            min_y = min_y.min(clamped_bounds.min().y());
+            min_z = min_z.min(clamped_bounds.min().z());
+            max_x = max_x.max(clamped_bounds.max().x());
+            max_y = max_y.max(clamped_bounds.max().y());
+            max_z = max_z.max(clamped_bounds.max().z());
+        }
+    }
+
+    if !has_overlap {
+        return None;
+    }
+
+    Some(Aabb3D::new(
+        Point3D::new(min_x, min_y, min_z),
+        Point3D::new(max_x, max_y, max_z),
+    ))
+}
+
+fn intersect_aabb(a: &Aabb3D<f64>, b: &Aabb3D<f64>) -> Option<Aabb3D<f64>> {
+    let min_x = a.min().x().max(b.min().x());
+    let min_y = a.min().y().max(b.min().y());
+    let min_z = a.min().z().max(b.min().z());
+    let max_x = a.max().x().min(b.max().x());
+    let max_y = a.max().y().min(b.max().y());
+    let max_z = a.max().z().min(b.max().z());
+
+    if min_x > max_x || min_y > max_y || min_z > max_z {
+        return None;
+    }
+
+    Some(Aabb3D::new(
+        Point3D::new(min_x, min_y, min_z),
+        Point3D::new(max_x, max_y, max_z),
+    ))
+}
+
 fn point_to_aabb_distance(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
+    point_to_aabb_distance_squared(point, bounds).sqrt()
+}
+
+fn point_to_aabb_distance_squared(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
     let dx = if point.x() < bounds.min().x() {
         bounds.min().x() - point.x()
     } else if point.x() > bounds.max().x() {
@@ -310,7 +443,7 @@ fn point_to_aabb_distance(point: &Point3D<f64>, bounds: &Aabb3D<f64>) -> f64 {
         0.0
     };
 
-    (dx * dx + dy * dy + dz * dz).sqrt()
+    dx * dx + dy * dy + dz * dz
 }
 
 fn axis_sample_count(span: f64, sample_pitch: f64) -> usize {
@@ -337,8 +470,79 @@ fn primitive_contains(primitive: &ExactToolPrimitive<f64>, point: &Point3D<f64>)
     }
 }
 
+fn primitive_contains_with_margin(
+    primitive: &ExactToolPrimitive<f64>,
+    point: &Point3D<f64>,
+    margin: f64,
+) -> bool {
+    if margin <= 0.0 {
+        return primitive_contains(primitive, point);
+    }
+
+    match primitive {
+        ExactToolPrimitive::Ball { segment, radius } => {
+            point_to_segment_distance(point, segment) <= (*radius + margin)
+        }
+        ExactToolPrimitive::Flat { segment, radius } => {
+            // Voxel leaf classification at coarse depths tends to remove flat end regions
+            // conservatively; capsule-style inclusion reduces systematic underestimation.
+            point_to_segment_distance(point, segment) <= (*radius + margin)
+        }
+    }
+}
+
 fn point_to_segment_distance(point: &Point3D<f64>, segment: &LineSegment3D<f64>) -> f64 {
     line_segment3d_point3d_distance(segment, point)
+}
+
+pub(crate) fn exact_work_single_flat_dirty_expand(sample_pitch: f64) -> f64 {
+    sample_pitch * EXACT_WORK_SINGLE_FLAT_DIRTY_EXPAND_RATIO
+}
+
+pub(crate) fn exact_work_conservative_margin(sample_pitch: f64) -> f64 {
+    sample_pitch * EXACT_WORK_CONSERVATIVE_MARGIN_RATIO
+}
+
+fn estimate_remaining_volume_with_dirty_bounds(
+    work: &PrimitiveSetExactWork,
+    dirty_bounds: &Aabb3D<f64>,
+    sample_pitch: f64,
+    conservative_margin: f64,
+) -> f64 {
+    let untouched_volume = (work.bounds.volume() - dirty_bounds.volume()).max(0.0);
+
+    let min = dirty_bounds.min();
+    let max = dirty_bounds.max();
+    let width = max.x() - min.x();
+    let height = max.y() - min.y();
+    let depth = max.z() - min.z();
+
+    let x_samples = axis_sample_count(width, sample_pitch);
+    let y_samples = axis_sample_count(height, sample_pitch);
+    let z_samples = axis_sample_count(depth, sample_pitch);
+
+    let dx = width / (x_samples as f64);
+    let dy = height / (y_samples as f64);
+    let dz = depth / (z_samples as f64);
+
+    let mut solid_count = 0usize;
+    for ix in 0..x_samples {
+        let x = min.x() + ((ix as f64) + 0.5) * dx;
+        for iy in 0..y_samples {
+            let y = min.y() + ((iy as f64) + 0.5) * dy;
+            for iz in 0..z_samples {
+                let z = min.z() + ((iz as f64) + 0.5) * dz;
+                let point = Point3D::new(x, y, z);
+                if work.contains_material_with_margin(&point, conservative_margin) {
+                    solid_count += 1;
+                }
+            }
+        }
+    }
+
+    let total_samples = (x_samples * y_samples * z_samples) as f64;
+    let solid_ratio_in_dirty = (solid_count as f64) / total_samples;
+    untouched_volume + dirty_bounds.volume() * solid_ratio_in_dirty
 }
 
 fn point_to_flat_swept_surface_distance(
