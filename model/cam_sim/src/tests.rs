@@ -925,6 +925,11 @@ const GATE_MAX_AXIS_SAMPLES: usize = 128;
 const GATE_TARGET_GAP: f64 = 0.15;
 const GATE_TARGET_BOUNDARY: f64 = 0.10;
 const GATE_TARGET_ELAPSED_RATIO: f64 = 3.0;
+const BOUNDARY_PROBE_EPSILON_RATIO: f64 = 1.0e-6;
+const THIN_WALL_GAP_PROFILE_GAP_WEIGHT: f64 = 0.8;
+const THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT: f64 = 0.2;
+const THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT: f64 = 0.2;
+const THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT: f64 = 0.8;
 
 fn gate_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     if !span.is_finite() || span <= 0.0 || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
@@ -1043,7 +1048,7 @@ fn compute_boundary_disagreement_rate(
     let dz = depth / (z_samples as f64);
 
     let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        let epsilon = (boundary_band * 1.0e-6).max(f64::EPSILON);
+        let epsilon = (boundary_band * BOUNDARY_PROBE_EPSILON_RATIO).max(f64::EPSILON);
         boundary_band * 0.5 + epsilon
     } else {
         sample_pitch * 0.5
@@ -1549,10 +1554,26 @@ fn phase4_thin_wall_dual_track_weighted_selection_profile_switches_choice() {
     let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
     let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
 
-    let gap_profile_gap_case = thin_wall_weighted_score(&gap_metrics, 0.8, 0.2);
-    let gap_profile_boundary_case = thin_wall_weighted_score(&boundary_metrics, 0.8, 0.2);
-    let boundary_profile_gap_case = thin_wall_weighted_score(&gap_metrics, 0.2, 0.8);
-    let boundary_profile_boundary_case = thin_wall_weighted_score(&boundary_metrics, 0.2, 0.8);
+    let gap_profile_gap_case = thin_wall_weighted_score(
+        &gap_metrics,
+        THIN_WALL_GAP_PROFILE_GAP_WEIGHT,
+        THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT,
+    );
+    let gap_profile_boundary_case = thin_wall_weighted_score(
+        &boundary_metrics,
+        THIN_WALL_GAP_PROFILE_GAP_WEIGHT,
+        THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT,
+    );
+    let boundary_profile_gap_case = thin_wall_weighted_score(
+        &gap_metrics,
+        THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT,
+        THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT,
+    );
+    let boundary_profile_boundary_case = thin_wall_weighted_score(
+        &boundary_metrics,
+        THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT,
+        THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT,
+    );
 
     println!(
         "weighted-selection: gap-profile(gap_case={:.4}, boundary_case={:.4}) boundary-profile(gap_case={:.4}, boundary_case={:.4})",
