@@ -10,6 +10,8 @@ pub enum SimulationError {
     UnsupportedGeometry,
     InvalidInterval,
     InvalidOctreeDepth,
+    InvalidHybridBounds,
+    InvalidSamplePitch,
 }
 
 impl Display for SimulationError {
@@ -25,6 +27,15 @@ impl Display for SimulationError {
             SimulationError::InvalidInterval => write!(f, "snapshot interval is invalid"),
             SimulationError::InvalidOctreeDepth => {
                 write!(f, "octree depth is invalid for safe voxel construction")
+            }
+            SimulationError::InvalidHybridBounds => {
+                write!(f, "hybrid gate bounds must be finite and non-empty")
+            }
+            SimulationError::InvalidSamplePitch => {
+                write!(
+                    f,
+                    "hybrid gate sample pitch must be finite and greater than zero"
+                )
             }
         }
     }

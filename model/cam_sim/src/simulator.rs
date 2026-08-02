@@ -310,7 +310,20 @@ fn validate_hybrid_config(config: &HybridGateConfig) -> Result<(), SimulationErr
     if config.octree_depth >= usize::BITS as usize {
         return Err(SimulationError::InvalidOctreeDepth);
     }
+    if !point_is_finite(&config.bounds.min()) || !point_is_finite(&config.bounds.max()) {
+        return Err(SimulationError::InvalidHybridBounds);
+    }
+    if config.bounds.is_empty() {
+        return Err(SimulationError::InvalidHybridBounds);
+    }
+    if !config.sample_pitch.is_finite() || config.sample_pitch <= 0.0 {
+        return Err(SimulationError::InvalidSamplePitch);
+    }
     Ok(())
+}
+
+fn point_is_finite(point: &Point3D<f64>) -> bool {
+    point.x().is_finite() && point.y().is_finite() && point.z().is_finite()
 }
 
 fn build_exact_work(

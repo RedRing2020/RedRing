@@ -1155,6 +1155,58 @@ fn phase3_gate_rejects_invalid_octree_depth_config() {
 }
 
 #[test]
+fn phase3_gate_rejects_invalid_bounds_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        bounds: Aabb3D::new(Point3D::new(10.0, 10.0, 10.0), Point3D::new(0.0, 0.0, 0.0)),
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidHybridBounds)));
+}
+
+#[test]
+fn phase3_gate_rejects_non_finite_bounds_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        bounds: Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(f64::NAN, 100.0, 100.0),
+        ),
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidHybridBounds)));
+}
+
+#[test]
+fn phase3_gate_rejects_invalid_sample_pitch_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+
+    let zero_pitch = HybridGateConfig {
+        sample_pitch: 0.0,
+        ..HybridGateConfig::default()
+    };
+    let zero_result = run_hybrid_gate_case_with_config(&toolpath, &tool, zero_pitch);
+    assert!(matches!(
+        zero_result,
+        Err(SimulationError::InvalidSamplePitch)
+    ));
+
+    let non_finite_pitch = HybridGateConfig {
+        sample_pitch: f64::INFINITY,
+        ..HybridGateConfig::default()
+    };
+    let non_finite_result = run_hybrid_gate_case_with_config(&toolpath, &tool, non_finite_pitch);
+    assert!(matches!(
+        non_finite_result,
+        Err(SimulationError::InvalidSamplePitch)
+    ));
+}
+
+#[test]
 fn phase3_gate_reproducibility_parallel_matches_sequential_removed_volume() {
     let (toolpath, tool) = case_diagonal_cut_ball();
 

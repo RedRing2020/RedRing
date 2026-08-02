@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::time::Instant;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, ContourLevelPath, CuttingDirection,
@@ -186,13 +187,14 @@ impl CamJobExecutorAdapter {
             sample_pitch: JOB_SIM_DEFAULT_SAMPLE_PITCH,
         };
 
+        let started = Instant::now();
         let hybrid_metrics = match run_hybrid_gate_case_with_config(&toolpath, &tool, hybrid_config)
         {
             Ok(metrics) => metrics,
             Err(err) => {
                 return JobExecutionResult {
                     status: JobStatus::Failed,
-                    elapsed_millis: 30,
+                    elapsed_millis: started.elapsed().as_millis().max(1) as u64,
                     result_ref: None,
                     artifact_bytes: None,
                     log_ref: Some(format!("log://sim/{}/sim-failure", job.id.0)),
@@ -200,12 +202,11 @@ impl CamJobExecutorAdapter {
                 };
             }
         };
+        let elapsed_millis = started.elapsed().as_millis().max(1) as u64;
 
         JobExecutionResult {
             status: JobStatus::Succeeded,
-            elapsed_millis: (hybrid_metrics.elapsed_voxel_ms + hybrid_metrics.elapsed_exact_ms)
-                .ceil()
-                .max(1.0) as u64,
+            elapsed_millis,
             result_ref: Some(format!("result://sim/{}/ok", job.id.0)),
             artifact_bytes: None,
             log_ref: Some(format_hybrid_success_log_ref(job.id.0, &hybrid_metrics)),
