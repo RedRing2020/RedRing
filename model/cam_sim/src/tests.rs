@@ -10,7 +10,8 @@ use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
-    HybridGateMetrics, SimulationError, SnapshotInterval, run_hybrid_gate_case,
+    HybridGateConfig, HybridGateMetrics, SimulationError, SnapshotInterval, run_hybrid_gate_case,
+    run_hybrid_gate_case_with_config,
 };
 
 fn cam_spec(input: &str) -> JobSpec {
@@ -1139,6 +1140,18 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
             "case[{index}] removed_exact must be positive"
         );
     }
+}
+
+#[test]
+fn phase3_gate_rejects_invalid_octree_depth_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        octree_depth: usize::BITS as usize,
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidOctreeDepth)));
 }
 
 #[test]

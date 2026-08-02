@@ -241,6 +241,8 @@ pub fn run_hybrid_gate_case_with_config(
     tool: &Tool<f64>,
     config: HybridGateConfig,
 ) -> Result<HybridGateMetrics, SimulationError> {
+    validate_hybrid_config(&config)?;
+
     let bounds = config.bounds;
     let initial_volume = bounds.volume();
 
@@ -302,6 +304,13 @@ pub fn run_hybrid_gate_case_with_config(
         elapsed_exact_ms,
         elapsed_ratio: elapsed_exact_ms / elapsed_voxel_ms.max(1.0e-9),
     })
+}
+
+fn validate_hybrid_config(config: &HybridGateConfig) -> Result<(), SimulationError> {
+    if config.octree_depth >= usize::BITS as usize {
+        return Err(SimulationError::InvalidOctreeDepth);
+    }
+    Ok(())
 }
 
 fn build_exact_work(

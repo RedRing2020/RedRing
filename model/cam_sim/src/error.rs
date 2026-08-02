@@ -9,6 +9,7 @@ pub enum SimulationError {
     UnsupportedToolType,
     UnsupportedGeometry,
     InvalidInterval,
+    InvalidOctreeDepth,
 }
 
 impl Display for SimulationError {
@@ -22,6 +23,9 @@ impl Display for SimulationError {
                 write!(f, "unsupported geometry type in toolpath")
             }
             SimulationError::InvalidInterval => write!(f, "snapshot interval is invalid"),
+            SimulationError::InvalidOctreeDepth => {
+                write!(f, "octree depth is invalid for safe voxel construction")
+            }
         }
     }
 }
