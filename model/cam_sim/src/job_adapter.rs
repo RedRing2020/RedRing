@@ -7,11 +7,19 @@ use cam_core::{
 use geo_algorithms::{Aabb3D, Point3D, octree::VoxelOctree};
 use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
 
-use crate::{CuttingSimulator, SnapshotInterval};
+use crate::{
+    CuttingSimulator, HybridGateConfig, HybridGateMetrics, SnapshotInterval,
+    run_hybrid_gate_case_with_config,
+};
 
 /// cam_sim から JobManager へ接続する初期アダプタ
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CamJobExecutorAdapter;
+
+const JOB_SIM_DEFAULT_WORK_MIN: (f64, f64, f64) = (0.0, 0.0, 0.0);
+const JOB_SIM_DEFAULT_WORK_MAX: (f64, f64, f64) = (100.0, 100.0, 100.0);
+const JOB_SIM_DEFAULT_MAX_DEPTH: usize = 4;
+const JOB_SIM_DEFAULT_SAMPLE_PITCH: f64 = 2.0;
 
 impl CamJobExecutorAdapter {
     fn run_cam_process(&self, job: &JobRecord) -> JobExecutionResult {
@@ -162,17 +170,44 @@ impl CamJobExecutorAdapter {
             }
         };
 
-        let mut simulator = CuttingSimulator::new(
-            VoxelOctree::new(
-                Aabb3D::new(
-                    Point3D::new(0.0, 0.0, 0.0),
-                    Point3D::new(100.0, 100.0, 100.0),
-                ),
-                4,
+        let work_bounds = Aabb3D::new(
+            Point3D::new(
+                JOB_SIM_DEFAULT_WORK_MIN.0,
+                JOB_SIM_DEFAULT_WORK_MIN.1,
+                JOB_SIM_DEFAULT_WORK_MIN.2,
             ),
-            SnapshotInterval::default(),
+            Point3D::new(
+                JOB_SIM_DEFAULT_WORK_MAX.0,
+                JOB_SIM_DEFAULT_WORK_MAX.1,
+                JOB_SIM_DEFAULT_WORK_MAX.2,
+            ),
         );
         let tool = Tool::flat_end_mill("sim-tool".to_string(), 10.0, 30.0);
+        let hybrid_config = HybridGateConfig {
+            bounds: work_bounds,
+            octree_depth: JOB_SIM_DEFAULT_MAX_DEPTH,
+            sample_pitch: JOB_SIM_DEFAULT_SAMPLE_PITCH,
+        };
+
+        let hybrid_metrics = match run_hybrid_gate_case_with_config(&toolpath, &tool, hybrid_config)
+        {
+            Ok(metrics) => metrics,
+            Err(err) => {
+                return JobExecutionResult {
+                    status: JobStatus::Failed,
+                    elapsed_millis: 30,
+                    result_ref: None,
+                    artifact_bytes: None,
+                    log_ref: Some(format!("log://sim/{}/sim-failure", job.id.0)),
+                    error: Some(format!("failed to run cutting simulation: {}", err)),
+                };
+            }
+        };
+
+        let mut simulator = CuttingSimulator::new(
+            VoxelOctree::new(work_bounds, JOB_SIM_DEFAULT_MAX_DEPTH),
+            SnapshotInterval::default(),
+        );
 
         if let Err(err) = simulator.simulate(&toolpath, &tool) {
             return JobExecutionResult {
@@ -187,10 +222,12 @@ impl CamJobExecutorAdapter {
 
         JobExecutionResult {
             status: JobStatus::Succeeded,
-            elapsed_millis: 300,
+            elapsed_millis: (hybrid_metrics.elapsed_voxel_ms + hybrid_metrics.elapsed_exact_ms)
+                .ceil()
+                .max(1.0) as u64,
             result_ref: Some(format!("result://sim/{}/ok", job.id.0)),
             artifact_bytes: None,
-            log_ref: Some(format!("log://sim/{}/ok", job.id.0)),
+            log_ref: Some(format_hybrid_success_log_ref(job.id.0, &hybrid_metrics)),
             error: None,
         }
     }
@@ -291,6 +328,13 @@ impl CamJobExecutorAdapter {
             error: None,
         }
     }
+}
+
+fn format_hybrid_success_log_ref(job_id: u64, metrics: &HybridGateMetrics) -> String {
+    format!(
+        "log://sim/{job_id}/ok/hybrid-gap-{:.4}-boundary-{:.4}-ratio-{:.3}",
+        metrics.gap, metrics.boundary_disagreement_rate, metrics.elapsed_ratio
+    )
 }
 
 fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFormatError> {

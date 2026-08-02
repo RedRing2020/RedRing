@@ -1,7 +1,7 @@
 # 切削シミュレーション設計書
 
 **作成日**: 2026年2月12日  
-**最終更新**: 2026年7月5日  
+**最終更新**: 2026年8月2日  
 **ステータス**: 設計・段階実装中  
 **関連Issue**: [#214](https://github.com/RedRing2020/RedRing/issues/214), [#246](https://github.com/RedRing2020/RedRing/issues/246), [#716](https://github.com/RedRing2020/RedRing/issues/716), [#726](https://github.com/RedRing2020/RedRing/issues/726), [#727](https://github.com/RedRing2020/RedRing/issues/727), [#729](https://github.com/RedRing2020/RedRing/issues/729)
 
@@ -380,6 +380,38 @@ PoCでは参照点補正を別責務にせず、工具中心軌跡として渡�
 - 境界誤差: `nearest_removed_surface_distance` ベースで評価
 - 性能: `contains_material`/体積推定の計測を分離して観測
 - メモリ: `removed_primitives` と索引サイズを別々に記録
+
+実装入口（Issue #728 B）:
+
+- `model/cam_sim/src/simulator.rs` の `run_hybrid_gate_case`
+- `model/cam_sim/src/simulator.rs` の `run_hybrid_gate_case_with_config`
+
+上記 API は、候補絞り（Voxel）と確定判定（ExactWork）を同一入力で統合実行し、
+体積差分・境界不一致率・計測時間を `HybridGateMetrics` として返す。
+
+#### ハイブリッド判定の3指標（C: 既定化判断の基準）
+
+Issue #728 の既定化判断およびロールバック判断は、次の3指標を正本とする。
+
+1. `gap`（除去体積差分の相対誤差）
+   - 定義: `|removed_exact - removed_voxel| / |removed_voxel|`
+   - 目的: 候補絞り（Voxel）に対して確定判定（ExactWork）がどれだけ乖離しているかを監視する。
+   - 判定閾値: `<= 0.15`
+
+2. `boundary_disagreement_rate`（境界近傍の不一致率）
+   - 定義: 境界サンプル点における `exact_has_material != voxel_has_material` の割合
+   - 目的: 体積総量では見えにくい局所境界の過剰除去/削り残しを監視する。
+   - 判定閾値: `<= 0.10`
+
+3. `elapsed_ratio`（高精度判定の相対コスト）
+   - 定義: `elapsed_exact_ms / elapsed_voxel_ms`
+   - 目的: 高精度判定の導入に伴う計算コスト増を監視する。
+   - 判定閾値: `<= 3.0`
+
+補足:
+
+- 上記3指標は `run_hybrid_gate_case` / `run_hybrid_gate_case_with_config` が返す `HybridGateMetrics` を評価元とする。
+- 判定閾値の更新は、`model/cam_sim/src/tests.rs` の品質ゲート定数との整合を維持して行う。
 
 #### 非目標（本節）
 
