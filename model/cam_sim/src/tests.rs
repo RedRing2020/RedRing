@@ -929,6 +929,14 @@ const THIN_WALL_GAP_PROFILE_GAP_WEIGHT: f64 = 0.8;
 const THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT: f64 = 0.2;
 const THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT: f64 = 0.2;
 const THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT: f64 = 0.8;
+const THIN_WALL_Y: f64 = 50.0;
+const THIN_WALL_Z: f64 = 48.0;
+const THIN_WALL_X_START: f64 = 20.0;
+const THIN_WALL_X_END: f64 = 80.0;
+const THIN_WALL_GAP_RADIUS: f64 = 1.0;
+const THIN_WALL_BOUNDARY_RADIUS: f64 = 1.5;
+const THIN_WALL_GAP_PRIORITY_X_START: f64 = 15.0;
+const THIN_WALL_GAP_PRIORITY_X_END: f64 = 85.0;
 
 fn gate_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     if !span.is_finite() || span <= 0.0 || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
@@ -1253,15 +1261,15 @@ fn case_step_cut_flat() -> (ToolPath<f64>, Tool<f64>) {
 
 fn case_diagonal_cut_ball() -> (ToolPath<f64>, Tool<f64>) {
     let segment = cam_core::PathSegment::new_line(
-        Point3D::new(10.0, 10.0, 20.0),
-        Point3D::new(90.0, 90.0, 80.0),
+        Point3D::new(10.0, 10.0, 50.0),
+        Point3D::new(90.0, 90.0, 50.0),
         SegmentType::Cutting { feed_rate: 250.0 },
     );
     let toolpath = ToolPath::new(
         "diagonal-cut-ball".to_string(),
         CuttingDirection::Down,
         vec![],
-        vec![ContourLevelPath::new(0, 20.0, vec![segment])],
+        vec![ContourLevelPath::new(0, 50.0, vec![segment])],
         vec![],
     );
     let tool = Tool::ball_end_mill("ball".to_string(), 10.0, 30.0);
@@ -1292,15 +1300,33 @@ fn case_thin_wall_channel_flat_with_params(
 }
 
 fn case_thin_wall_channel_flat() -> (ToolPath<f64>, Tool<f64>) {
-    case_thin_wall_channel_flat_with_params(50.0, 48.0, 20.0, 80.0, 1.0)
+    case_thin_wall_channel_flat_with_params(
+        THIN_WALL_Y,
+        THIN_WALL_Z,
+        THIN_WALL_X_START,
+        THIN_WALL_X_END,
+        THIN_WALL_GAP_RADIUS,
+    )
 }
 
 fn case_thin_wall_gap_priority_flat() -> (ToolPath<f64>, Tool<f64>) {
-    case_thin_wall_channel_flat_with_params(50.0, 48.0, 15.0, 85.0, 1.0)
+    case_thin_wall_channel_flat_with_params(
+        THIN_WALL_Y,
+        THIN_WALL_Z,
+        THIN_WALL_GAP_PRIORITY_X_START,
+        THIN_WALL_GAP_PRIORITY_X_END,
+        THIN_WALL_GAP_RADIUS,
+    )
 }
 
 fn case_thin_wall_boundary_priority_flat() -> (ToolPath<f64>, Tool<f64>) {
-    case_thin_wall_channel_flat_with_params(50.0, 48.0, 20.0, 80.0, 1.5)
+    case_thin_wall_channel_flat_with_params(
+        THIN_WALL_Y,
+        THIN_WALL_Z,
+        THIN_WALL_X_START,
+        THIN_WALL_X_END,
+        THIN_WALL_BOUNDARY_RADIUS,
+    )
 }
 
 fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
@@ -1596,10 +1622,38 @@ fn phase4_thin_wall_dual_track_weighted_selection_profile_switches_choice() {
 #[ignore = "探索専用(gap重視系): 薄肉ケースの候補を掃引して gap を優先評価する"]
 fn phase4_exploration_thin_wall_gap_priority_candidates() {
     let configs = [
-        ("gap_ref", 50.0, 48.0, 20.0, 80.0, 1.0),
-        ("gap_long", 50.0, 48.0, 15.0, 85.0, 1.0),
-        ("gap_shallow", 50.0, 46.0, 20.0, 80.0, 1.0),
-        ("gap_mid_radius", 50.0, 48.0, 20.0, 80.0, 1.25),
+        (
+            "gap_ref",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "gap_long",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_GAP_PRIORITY_X_START,
+            THIN_WALL_GAP_PRIORITY_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "gap_shallow",
+            THIN_WALL_Y,
+            46.0,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "gap_mid_radius",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            1.25,
+        ),
     ];
 
     let mut hit_gap_target = false;
@@ -1638,10 +1692,38 @@ fn phase4_exploration_thin_wall_gap_priority_candidates() {
 #[ignore = "探索専用(boundary重視系): 薄肉ケースの候補を掃引して境界一致を優先評価する"]
 fn phase4_exploration_thin_wall_boundary_priority_candidates() {
     let configs = [
-        ("boundary_r1_5", 50.0, 48.0, 20.0, 80.0, 1.5),
-        ("boundary_r2_0", 50.0, 48.0, 20.0, 80.0, 2.0),
-        ("boundary_z50_r1_0", 50.0, 50.0, 20.0, 80.0, 1.0),
-        ("boundary_z46_r1_5", 50.0, 46.0, 20.0, 80.0, 1.5),
+        (
+            "boundary_r1_5",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_BOUNDARY_RADIUS,
+        ),
+        (
+            "boundary_r2_0",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            2.0,
+        ),
+        (
+            "boundary_z50_r1_0",
+            THIN_WALL_Y,
+            50.0,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "boundary_z46_r1_5",
+            THIN_WALL_Y,
+            46.0,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_BOUNDARY_RADIUS,
+        ),
     ];
 
     let mut hit_boundary_target = false;
