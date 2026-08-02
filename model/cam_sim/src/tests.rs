@@ -1047,8 +1047,7 @@ fn compute_boundary_disagreement_rate(
     let dz = depth / (z_samples as f64);
 
     let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        let epsilon =
-            (boundary_band * default_kernel_numerical_zero_tolerance::<f64>()).max(f64::EPSILON);
+        let epsilon = default_kernel_numerical_zero_tolerance::<f64>().max(f64::EPSILON);
         boundary_band * 0.5 + epsilon
     } else {
         sample_pitch * 0.5
