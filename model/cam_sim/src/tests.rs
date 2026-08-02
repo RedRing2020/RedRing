@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::time::Instant;
 
-use analysis::consts::GEOMETRIC_TOLERANCE;
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
     ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
-use geo_algorithms::{Aabb3D, Point3D};
+use geo_algorithms::{Aabb3D, Point3D, default_kernel_numerical_zero_tolerance};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 
@@ -1048,7 +1047,8 @@ fn compute_boundary_disagreement_rate(
     let dz = depth / (z_samples as f64);
 
     let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        let epsilon = (boundary_band * GEOMETRIC_TOLERANCE).max(f64::EPSILON);
+        let epsilon =
+            (boundary_band * default_kernel_numerical_zero_tolerance::<f64>()).max(f64::EPSILON);
         boundary_band * 0.5 + epsilon
     } else {
         sample_pitch * 0.5

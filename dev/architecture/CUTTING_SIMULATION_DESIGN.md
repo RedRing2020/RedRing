@@ -126,6 +126,36 @@ UI実装コードは `view/app` を正本とし、本書は入力項目（間隔
 - `cam_sim -> geo_algorithms`
 - `cam_sim -> analysis`（数値補助が必要な範囲のみ）
 
+### CAM側トレランス運用ルール
+
+CAM では、用途を次の 3 種に分けてトレランスを選択する。
+
+本節の適用範囲は `model/cam_sim` の切削シミュレーション経路に限定する。将来 `cam_algorithms` 等で CAM 計算本体を実装する場合は、CAM 設計書を正本として統合することを優先し、本書には切削シミュレーション固有事項のみを残す方針で判断する。
+
+| 用途 | 既定参照元 | 補足 |
+| --- | --- | --- |
+| 加工品質・機械精度（閉曲線判定、クリアランス、機械精度） | `cam_core::CamTolerance` | CAM ドメイン設定として扱う |
+| 幾何意味判定（距離・角度比較） | `geo_contracts::ToleranceSettings` 由来値 | 呼び出し境界で選択して渡す |
+| カーネル数値安定化（分母ゼロ近傍、退化ガード、微小オフセット） | `geo_contracts::default_kernel_numerical_zero_tolerance` | `ToleranceSettings` と混在させない |
+
+今回の `cam_sim` 品質ゲートにおける `probe_offset` の epsilon は、境界近傍探索の数値安定化目的であり、幾何意味判定ではない。したがって `GEOMETRIC_TOLERANCE` ではなく、`default_kernel_numerical_zero_tolerance` 系を正本として扱う。
+
+依存境界上の扱いは次を原則とする。
+
+1. 値の正本は `geo_contracts::default_kernel_numerical_zero_tolerance` とする。
+2. `cam_sim` が新たに `geo_contracts` へ直接依存する変更は、依存境界変更として事前合意を必須とする。
+3. 上位層（`cam_*`）での利用は、`geo_algorithms` の再エクスポート経由で統一する。
+
+### 参照経路の決定（cam_sim）
+
+本書時点での決定は次の通り。
+
+1. 値の正本は `geo_contracts::default_kernel_numerical_zero_tolerance` とする。
+2. `cam_sim` の参照経路は `geo_algorithms` 再エクスポート経由で統一する。
+3. `cam_sim` から `geo_contracts` へ直接依存する経路は、上記合意なしでは採用しない。
+
+補足: 全体ルールは `dev/architecture/GEOMETRIC_TOLERANCE_USAGE_RULES.md` を正本とし、本節は CAM 文脈での適用規則のみを定義する。
+
 ### 禁止依存
 
 - `geo_* -> cam_sim`
