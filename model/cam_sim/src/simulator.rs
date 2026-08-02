@@ -307,7 +307,7 @@ pub fn run_hybrid_gate_case_with_config(
 }
 
 fn validate_hybrid_config(config: &HybridGateConfig) -> Result<(), SimulationError> {
-    if config.octree_depth >= usize::BITS as usize {
+    if config.octree_depth >= i32::BITS as usize {
         return Err(SimulationError::InvalidOctreeDepth);
     }
     if !point_is_finite(&config.bounds.min()) || !point_is_finite(&config.bounds.max()) {
