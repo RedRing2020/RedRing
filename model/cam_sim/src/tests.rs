@@ -1311,7 +1311,7 @@ fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
     );
     let leg_y = cam_core::PathSegment::new_line(
         Point3D::new(85.0, 20.0, 40.0),
-        Point3D::new(85.0, 85.0, 70.0),
+        Point3D::new(85.0, 85.0, 40.0),
         SegmentType::Cutting { feed_rate: 280.0 },
     );
     let toolpath = ToolPath::new(
