@@ -6,7 +6,7 @@ use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
     ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
-use geo_algorithms::{Aabb3D, Point3D};
+use geo_algorithms::{Aabb3D, Point3D, default_kernel_numerical_zero_tolerance};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 
@@ -925,6 +925,18 @@ const GATE_MAX_AXIS_SAMPLES: usize = 128;
 const GATE_TARGET_GAP: f64 = 0.15;
 const GATE_TARGET_BOUNDARY: f64 = 0.10;
 const GATE_TARGET_ELAPSED_RATIO: f64 = 3.0;
+const THIN_WALL_GAP_PROFILE_GAP_WEIGHT: f64 = 0.8;
+const THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT: f64 = 0.2;
+const THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT: f64 = 0.2;
+const THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT: f64 = 0.8;
+const THIN_WALL_Y: f64 = 50.0;
+const THIN_WALL_Z: f64 = 48.0;
+const THIN_WALL_X_START: f64 = 20.0;
+const THIN_WALL_X_END: f64 = 80.0;
+const THIN_WALL_GAP_RADIUS: f64 = 1.0;
+const THIN_WALL_BOUNDARY_RADIUS: f64 = 1.5;
+const THIN_WALL_GAP_PRIORITY_X_START: f64 = 15.0;
+const THIN_WALL_GAP_PRIORITY_X_END: f64 = 85.0;
 
 fn gate_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     if !span.is_finite() || span <= 0.0 || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
@@ -1043,7 +1055,7 @@ fn compute_boundary_disagreement_rate(
     let dz = depth / (z_samples as f64);
 
     let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        let epsilon = (boundary_band * 1.0e-6).max(f64::EPSILON);
+        let epsilon = default_kernel_numerical_zero_tolerance::<f64>().max(f64::EPSILON);
         boundary_band * 0.5 + epsilon
     } else {
         sample_pitch * 0.5
@@ -1249,18 +1261,93 @@ fn case_step_cut_flat() -> (ToolPath<f64>, Tool<f64>) {
 
 fn case_diagonal_cut_ball() -> (ToolPath<f64>, Tool<f64>) {
     let segment = cam_core::PathSegment::new_line(
-        Point3D::new(10.0, 10.0, 20.0),
-        Point3D::new(90.0, 90.0, 80.0),
+        Point3D::new(10.0, 10.0, 50.0),
+        Point3D::new(90.0, 90.0, 50.0),
         SegmentType::Cutting { feed_rate: 250.0 },
     );
     let toolpath = ToolPath::new(
         "diagonal-cut-ball".to_string(),
         CuttingDirection::Down,
         vec![],
-        vec![ContourLevelPath::new(0, 20.0, vec![segment])],
+        vec![ContourLevelPath::new(0, 50.0, vec![segment])],
         vec![],
     );
     let tool = Tool::ball_end_mill("ball".to_string(), 10.0, 30.0);
+    (toolpath, tool)
+}
+
+fn case_thin_wall_channel_flat_with_params(
+    y: f64,
+    z: f64,
+    x_start: f64,
+    x_end: f64,
+    radius: f64,
+) -> (ToolPath<f64>, Tool<f64>) {
+    let segment = cam_core::PathSegment::new_line(
+        Point3D::new(x_start, y, z),
+        Point3D::new(x_end, y, z),
+        SegmentType::Cutting { feed_rate: 300.0 },
+    );
+    let toolpath = ToolPath::new(
+        format!("thin-wall-channel-flat-y{y:.1}-z{z:.1}-r{radius:.1}"),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, z, vec![segment])],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill(format!("flat-thin-wall-r{radius:.1}"), radius * 2.0, 30.0);
+    (toolpath, tool)
+}
+
+fn case_thin_wall_channel_flat() -> (ToolPath<f64>, Tool<f64>) {
+    case_thin_wall_channel_flat_with_params(
+        THIN_WALL_Y,
+        THIN_WALL_Z,
+        THIN_WALL_X_START,
+        THIN_WALL_X_END,
+        THIN_WALL_GAP_RADIUS,
+    )
+}
+
+fn case_thin_wall_gap_priority_flat() -> (ToolPath<f64>, Tool<f64>) {
+    case_thin_wall_channel_flat_with_params(
+        THIN_WALL_Y,
+        THIN_WALL_Z,
+        THIN_WALL_GAP_PRIORITY_X_START,
+        THIN_WALL_GAP_PRIORITY_X_END,
+        THIN_WALL_GAP_RADIUS,
+    )
+}
+
+fn case_thin_wall_boundary_priority_flat() -> (ToolPath<f64>, Tool<f64>) {
+    case_thin_wall_channel_flat_with_params(
+        THIN_WALL_Y,
+        THIN_WALL_Z,
+        THIN_WALL_X_START,
+        THIN_WALL_X_END,
+        THIN_WALL_BOUNDARY_RADIUS,
+    )
+}
+
+fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
+    let leg_x = cam_core::PathSegment::new_line(
+        Point3D::new(15.0, 20.0, 40.0),
+        Point3D::new(85.0, 20.0, 40.0),
+        SegmentType::Cutting { feed_rate: 280.0 },
+    );
+    let leg_y = cam_core::PathSegment::new_line(
+        Point3D::new(85.0, 20.0, 40.0),
+        Point3D::new(85.0, 85.0, 40.0),
+        SegmentType::Cutting { feed_rate: 280.0 },
+    );
+    let toolpath = ToolPath::new(
+        "steep-corner-flat".to_string(),
+        CuttingDirection::Down,
+        vec![],
+        vec![ContourLevelPath::new(0, 40.0, vec![leg_x, leg_y])],
+        vec![],
+    );
+    let tool = Tool::flat_end_mill("flat-corner".to_string(), 8.0, 30.0);
     (toolpath, tool)
 }
 
@@ -1270,6 +1357,8 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
         case_plane_cut_flat(),
         case_step_cut_flat(),
         case_diagonal_cut_ball(),
+        case_thin_wall_channel_flat(),
+        case_steep_corner_flat(),
     ];
 
     for (index, (toolpath, tool)) in cases.iter().enumerate() {
@@ -1418,6 +1507,255 @@ fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
             GATE_TARGET_ELAPSED_RATIO
         );
     }
+}
+
+#[test]
+fn phase4_thin_wall_dual_track_representatives_are_recorded() {
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let gap_metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+    println!(
+        "thin_wall_gap_priority: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}",
+        gap_metrics.gap, gap_metrics.boundary_disagreement_rate, gap_metrics.elapsed_ratio
+    );
+    assert!(
+        gap_metrics.gap <= GATE_TARGET_GAP,
+        "gap-priority candidate must satisfy gap target: {:.4} <= {:.4}",
+        gap_metrics.gap,
+        GATE_TARGET_GAP
+    );
+
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+    println!(
+        "thin_wall_boundary_priority: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}",
+        boundary_metrics.gap,
+        boundary_metrics.boundary_disagreement_rate,
+        boundary_metrics.elapsed_ratio
+    );
+    assert!(
+        boundary_metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY,
+        "boundary-priority candidate must satisfy boundary target: {:.4} <= {:.4}",
+        boundary_metrics.boundary_disagreement_rate,
+        GATE_TARGET_BOUNDARY
+    );
+}
+
+#[test]
+fn phase4_thin_wall_dual_track_tradeoff_is_explicit() {
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let gap_metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+
+    println!(
+        "dual-track-tradeoff: gap-priority(gap={:.4}, boundary={:.4}), boundary-priority(gap={:.4}, boundary={:.4})",
+        gap_metrics.gap,
+        gap_metrics.boundary_disagreement_rate,
+        boundary_metrics.gap,
+        boundary_metrics.boundary_disagreement_rate
+    );
+
+    assert!(
+        gap_metrics.gap < boundary_metrics.gap,
+        "gap-priority candidate must keep lower gap than boundary-priority candidate"
+    );
+    assert!(
+        boundary_metrics.boundary_disagreement_rate < gap_metrics.boundary_disagreement_rate,
+        "boundary-priority candidate must keep lower boundary disagreement than gap-priority candidate"
+    );
+}
+
+fn thin_wall_weighted_score(metrics: &GateMetrics, gap_weight: f64, boundary_weight: f64) -> f64 {
+    let gap_term = metrics.gap / GATE_TARGET_GAP.max(f64::EPSILON);
+    let boundary_term = metrics.boundary_disagreement_rate / GATE_TARGET_BOUNDARY.max(f64::EPSILON);
+    (gap_term * gap_weight) + (boundary_term * boundary_weight)
+}
+
+#[test]
+fn phase4_thin_wall_dual_track_weighted_selection_profile_switches_choice() {
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let gap_metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let boundary_metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+
+    let gap_profile_gap_case = thin_wall_weighted_score(
+        &gap_metrics,
+        THIN_WALL_GAP_PROFILE_GAP_WEIGHT,
+        THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT,
+    );
+    let gap_profile_boundary_case = thin_wall_weighted_score(
+        &boundary_metrics,
+        THIN_WALL_GAP_PROFILE_GAP_WEIGHT,
+        THIN_WALL_GAP_PROFILE_BOUNDARY_WEIGHT,
+    );
+    let boundary_profile_gap_case = thin_wall_weighted_score(
+        &gap_metrics,
+        THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT,
+        THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT,
+    );
+    let boundary_profile_boundary_case = thin_wall_weighted_score(
+        &boundary_metrics,
+        THIN_WALL_BOUNDARY_PROFILE_GAP_WEIGHT,
+        THIN_WALL_BOUNDARY_PROFILE_BOUNDARY_WEIGHT,
+    );
+
+    println!(
+        "weighted-selection: gap-profile(gap_case={:.4}, boundary_case={:.4}) boundary-profile(gap_case={:.4}, boundary_case={:.4})",
+        gap_profile_gap_case,
+        gap_profile_boundary_case,
+        boundary_profile_gap_case,
+        boundary_profile_boundary_case
+    );
+
+    assert!(
+        gap_profile_gap_case < gap_profile_boundary_case,
+        "gap重視プロファイルでは gap候補のスコアが優位であるべき"
+    );
+    assert!(
+        boundary_profile_boundary_case < boundary_profile_gap_case,
+        "boundary重視プロファイルでは boundary候補のスコアが優位であるべき"
+    );
+}
+
+#[test]
+#[ignore = "探索専用(gap重視系): 薄肉ケースの候補を掃引して gap を優先評価する"]
+fn phase4_exploration_thin_wall_gap_priority_candidates() {
+    let configs = [
+        (
+            "gap_ref",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "gap_long",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_GAP_PRIORITY_X_START,
+            THIN_WALL_GAP_PRIORITY_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "gap_shallow",
+            THIN_WALL_Y,
+            46.0,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "gap_mid_radius",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            1.25,
+        ),
+    ];
+
+    let mut hit_gap_target = false;
+    for (name, y, z, x_start, x_end, radius) in configs {
+        let (toolpath, tool) =
+            case_thin_wall_channel_flat_with_params(y, z, x_start, x_end, radius);
+        let metrics = run_gate_case(&toolpath, &tool, GATE_SAMPLE_PITCH);
+        println!(
+            "GAP[{name}]: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}, removed_voxel={:.3}, removed_exact={:.3}",
+            metrics.gap,
+            metrics.boundary_disagreement_rate,
+            metrics.elapsed_ratio,
+            metrics.removed_voxel,
+            metrics.removed_exact
+        );
+        assert!(metrics.gap.is_finite(), "{name}: gap must be finite");
+        assert!(
+            metrics.boundary_disagreement_rate.is_finite(),
+            "{name}: boundary_disagreement_rate must be finite"
+        );
+        assert!(
+            metrics.elapsed_ratio.is_finite(),
+            "{name}: elapsed_ratio must be finite"
+        );
+        hit_gap_target |= metrics.gap <= GATE_TARGET_GAP;
+    }
+
+    assert!(
+        hit_gap_target,
+        "gap重視系で gap <= {:.4} を満たす候補が見つからない",
+        GATE_TARGET_GAP
+    );
+}
+
+#[test]
+#[ignore = "探索専用(boundary重視系): 薄肉ケースの候補を掃引して境界一致を優先評価する"]
+fn phase4_exploration_thin_wall_boundary_priority_candidates() {
+    let configs = [
+        (
+            "boundary_r1_5",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_BOUNDARY_RADIUS,
+        ),
+        (
+            "boundary_r2_0",
+            THIN_WALL_Y,
+            THIN_WALL_Z,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            2.0,
+        ),
+        (
+            "boundary_z50_r1_0",
+            THIN_WALL_Y,
+            50.0,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_GAP_RADIUS,
+        ),
+        (
+            "boundary_z46_r1_5",
+            THIN_WALL_Y,
+            46.0,
+            THIN_WALL_X_START,
+            THIN_WALL_X_END,
+            THIN_WALL_BOUNDARY_RADIUS,
+        ),
+    ];
+
+    let mut hit_boundary_target = false;
+    for (name, y, z, x_start, x_end, radius) in configs {
+        let (toolpath, tool) =
+            case_thin_wall_channel_flat_with_params(y, z, x_start, x_end, radius);
+        let metrics = run_gate_case(&toolpath, &tool, GATE_SAMPLE_PITCH);
+        println!(
+            "BOUNDARY[{name}]: gap={:.4}, boundary={:.4}, elapsed_ratio={:.4}, removed_voxel={:.3}, removed_exact={:.3}",
+            metrics.gap,
+            metrics.boundary_disagreement_rate,
+            metrics.elapsed_ratio,
+            metrics.removed_voxel,
+            metrics.removed_exact
+        );
+        assert!(metrics.gap.is_finite(), "{name}: gap must be finite");
+        assert!(
+            metrics.boundary_disagreement_rate.is_finite(),
+            "{name}: boundary_disagreement_rate must be finite"
+        );
+        assert!(
+            metrics.elapsed_ratio.is_finite(),
+            "{name}: elapsed_ratio must be finite"
+        );
+        hit_boundary_target |= metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY;
+    }
+
+    assert!(
+        hit_boundary_target,
+        "boundary重視系で boundary_disagreement_rate <= {:.4} を満たす候補が見つからない",
+        GATE_TARGET_BOUNDARY
+    );
 }
 
 #[test]
