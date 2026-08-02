@@ -4,13 +4,10 @@ use cam_core::{
     ArtifactHeaderV1, ArtifactKind, BinaryFormatError, ContourLevelPath, CuttingDirection,
     PathSegment, SegmentType, Tool, ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
-use geo_algorithms::{Aabb3D, Point3D, octree::VoxelOctree};
+use geo_algorithms::{Aabb3D, Point3D};
 use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
 
-use crate::{
-    CuttingSimulator, HybridGateConfig, HybridGateMetrics, SnapshotInterval,
-    run_hybrid_gate_case_with_config,
-};
+use crate::{HybridGateConfig, HybridGateMetrics, run_hybrid_gate_case_with_config};
 
 /// cam_sim から JobManager へ接続する初期アダプタ
 #[derive(Debug, Default, Clone, Copy)]
@@ -203,22 +200,6 @@ impl CamJobExecutorAdapter {
                 };
             }
         };
-
-        let mut simulator = CuttingSimulator::new(
-            VoxelOctree::new(work_bounds, JOB_SIM_DEFAULT_MAX_DEPTH),
-            SnapshotInterval::default(),
-        );
-
-        if let Err(err) = simulator.simulate(&toolpath, &tool) {
-            return JobExecutionResult {
-                status: JobStatus::Failed,
-                elapsed_millis: 30,
-                result_ref: None,
-                artifact_bytes: None,
-                log_ref: Some(format!("log://sim/{}/sim-failure", job.id.0)),
-                error: Some(format!("failed to run cutting simulation: {}", err)),
-            };
-        }
 
         JobExecutionResult {
             status: JobStatus::Succeeded,
