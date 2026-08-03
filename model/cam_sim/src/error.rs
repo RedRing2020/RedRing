@@ -29,7 +29,10 @@ impl Display for SimulationError {
                 write!(f, "octree depth is invalid for safe voxel construction")
             }
             SimulationError::InvalidHybridBounds => {
-                write!(f, "hybrid gate bounds must be finite and non-empty")
+                write!(
+                    f,
+                    "hybrid gate bounds must be finite, non-empty, and within safe bucket index range"
+                )
             }
             SimulationError::InvalidSamplePitch => {
                 write!(
