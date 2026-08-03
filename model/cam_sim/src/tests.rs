@@ -1146,7 +1146,7 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
 fn phase3_gate_rejects_invalid_octree_depth_config() {
     let (toolpath, tool) = case_plane_cut_flat();
     let config = HybridGateConfig {
-        octree_depth: i32::BITS as usize,
+        octree_depth: (i32::BITS as usize - 1),
         ..HybridGateConfig::default()
     };
 
