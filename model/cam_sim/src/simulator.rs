@@ -322,11 +322,29 @@ fn validate_hybrid_config(config: &HybridGateConfig) -> Result<(), SimulationErr
     if !config.sample_pitch.is_finite() || config.sample_pitch <= 0.0 {
         return Err(SimulationError::InvalidSamplePitch);
     }
+    if !hybrid_bounds_within_bucket_index_range(config) {
+        return Err(SimulationError::InvalidHybridBounds);
+    }
     Ok(())
 }
 
 fn point_is_finite(point: &Point3D<f64>) -> bool {
     point.x().is_finite() && point.y().is_finite() && point.z().is_finite()
+}
+
+fn hybrid_bounds_within_bucket_index_range(config: &HybridGateConfig) -> bool {
+    let min = config.bounds.min();
+    let max = config.bounds.max();
+    let max_abs = min
+        .x()
+        .abs()
+        .max(min.y().abs())
+        .max(min.z().abs())
+        .max(max.x().abs())
+        .max(max.y().abs())
+        .max(max.z().abs());
+    let max_bucket_index = max_abs / config.sample_pitch;
+    max_bucket_index.is_finite() && max_bucket_index < i32::MAX as f64
 }
 
 fn build_exact_work(
@@ -376,6 +394,7 @@ fn build_exact_work(
 }
 
 const HYBRID_MAX_AXIS_SAMPLES: usize = 128;
+// Hybrid gate timing should reflect voxel removal cost without snapshot recording overhead.
 const HYBRID_VOXEL_TIMING_INTERVAL_MM: f64 = 1.0e12;
 
 fn hybrid_axis_sample_count(span: f64, sample_pitch: f64) -> usize {

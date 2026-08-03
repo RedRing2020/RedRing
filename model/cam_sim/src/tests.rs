@@ -1182,6 +1182,22 @@ fn phase3_gate_rejects_non_finite_bounds_config() {
 }
 
 #[test]
+fn phase3_gate_rejects_out_of_bucket_range_bounds_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        bounds: Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new((i32::MAX as f64) + 10.0, 100.0, 100.0),
+        ),
+        sample_pitch: 1.0,
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidHybridBounds)));
+}
+
+#[test]
 fn phase3_gate_rejects_invalid_sample_pitch_config() {
     let (toolpath, tool) = case_plane_cut_flat();
 
