@@ -35,14 +35,14 @@ $jpPattern = '[ぁ-んァ-ヶ一-龯々ー]'
 foreach ($file in $files) {
     $relativePath = $file.FullName.Substring($repoRoot.Length + 1)
 
-
     $lines = Get-Content -Path $file.FullName
     for ($i = 0; $i -lt $lines.Length; $i++) {
         $line = $lines[$i]
 
         if ($line -match 'write!\s*\(\s*f\s*,') {
             $end = [Math]::Min($i + 4, $lines.Length - 1)
-            $window = ($lines[$i..$end] -join "`n")
+            $windowLines = $lines[$i..$end] | Where-Object { $_ -notmatch '^\s*//' }
+            $window = ($windowLines -join "`n")
             if ($window -match $jpPattern) {
                 $violations += [PSCustomObject]@{
                     Path = $relativePath
@@ -55,7 +55,8 @@ foreach ($file in $files) {
 
         if ($line -match 'tracing::(?:trace|debug|info|warn|error)!\s*\(') {
             $end = [Math]::Min($i + 4, $lines.Length - 1)
-            $window = ($lines[$i..$end] -join "`n")
+            $windowLines = $lines[$i..$end] | Where-Object { $_ -notmatch '^\s*//' }
+            $window = ($windowLines -join "`n")
             if ($window -match $jpPattern) {
                 $violations += [PSCustomObject]@{
                     Path = $relativePath

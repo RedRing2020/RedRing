@@ -57,7 +57,8 @@ Write-Host ""
 
 # 4. 実行時文言の言語ポリシーチェック
 Write-Host "[4/4] 実行時文言の言語ポリシーチェック..." -ForegroundColor Yellow
-pwsh scripts/check_message_language_policy.ps1
+$messagePolicyScript = Join-Path $PSScriptRoot "check_message_language_policy.ps1"
+pwsh -NoProfile -ExecutionPolicy Bypass -File $messagePolicyScript
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "✗ 実行時文言の言語ポリシー違反を検出" -ForegroundColor Red
