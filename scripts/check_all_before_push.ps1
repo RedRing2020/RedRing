@@ -6,6 +6,7 @@
     1. cargo fmt --all -- --check (フォーマットチェック)
     2. cargo clippy --all-targets --all-features --workspace -- -D warnings (リント)
     3. cargo test --workspace (テスト)
+    4. scripts/check_message_language_policy.ps1 (実行時文言の言語ポリシーチェック)
     
     全てのチェックが通らないと、このスクリプトは失敗します。
     
@@ -21,7 +22,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # 1. フォーマットチェック
-Write-Host "[1/3] フォーマットチェック..." -ForegroundColor Yellow
+Write-Host "[1/4] フォーマットチェック..." -ForegroundColor Yellow
 cargo fmt --all -- --check
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
@@ -33,7 +34,7 @@ Write-Host "✓ フォーマットOK" -ForegroundColor Green
 Write-Host ""
 
 # 2. Clippy チェック
-Write-Host "[2/3] Clippy リントチェック..." -ForegroundColor Yellow
+Write-Host "[2/4] Clippy リントチェック..." -ForegroundColor Yellow
 cargo clippy --all-targets --all-features --workspace -- -D warnings
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
@@ -44,7 +45,7 @@ Write-Host "✓ Clippy OK" -ForegroundColor Green
 Write-Host ""
 
 # 3. テスト実行
-Write-Host "[3/3] テスト実行..." -ForegroundColor Yellow
+Write-Host "[3/4] テスト実行..." -ForegroundColor Yellow
 cargo test --workspace
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
@@ -52,6 +53,17 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 Write-Host "✓ テスト OK" -ForegroundColor Green
+Write-Host ""
+
+# 4. 実行時文言の言語ポリシーチェック
+Write-Host "[4/4] 実行時文言の言語ポリシーチェック..." -ForegroundColor Yellow
+pwsh scripts/check_message_language_policy.ps1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "✗ 実行時文言の言語ポリシー違反を検出" -ForegroundColor Red
+    exit 1
+}
+Write-Host "✓ 言語ポリシー OK" -ForegroundColor Green
 Write-Host ""
 
 Write-Host "========================================" -ForegroundColor Green
