@@ -249,7 +249,10 @@ pub fn run_hybrid_gate_case_with_config(
     let voxel_started = Instant::now();
     let mut simulator = CuttingSimulator::new(
         VoxelOctree::new(bounds, config.octree_depth),
-        SnapshotInterval::default(),
+        SnapshotInterval::ByDistance {
+            interval_mm: HYBRID_VOXEL_TIMING_INTERVAL_MM,
+            include_segment_endpoints: false,
+        },
     );
     simulator.simulate(toolpath, tool)?;
     let elapsed_voxel_ms = voxel_started.elapsed().as_secs_f64() * 1000.0;
@@ -373,6 +376,7 @@ fn build_exact_work(
 }
 
 const HYBRID_MAX_AXIS_SAMPLES: usize = 128;
+const HYBRID_VOXEL_TIMING_INTERVAL_MM: f64 = 1.0e12;
 
 fn hybrid_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
     if !span.is_finite() || span <= 0.0 || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
