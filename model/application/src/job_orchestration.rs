@@ -368,6 +368,19 @@ mod tests {
             result.active_result_ref.as_deref(),
             Some("result://sim/2/ok")
         );
+
+        let batch = orchestrator.take_event_batch();
+        assert!(batch.events.iter().any(|event| {
+            matches!(
+                event,
+                CamJobEvent::Completed {
+                    job_id,
+                    status: CamJobStatus::Succeeded,
+                    log_ref: Some(log_ref),
+                    ..
+                } if *job_id == sim_submit.job_id && log_ref.contains("/ok/hybrid-gap-")
+            )
+        }));
     }
 
     #[test]

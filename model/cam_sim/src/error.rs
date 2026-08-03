@@ -9,6 +9,9 @@ pub enum SimulationError {
     UnsupportedToolType,
     UnsupportedGeometry,
     InvalidInterval,
+    InvalidOctreeDepth,
+    InvalidHybridBounds,
+    InvalidSamplePitch,
 }
 
 impl Display for SimulationError {
@@ -22,6 +25,21 @@ impl Display for SimulationError {
                 write!(f, "unsupported geometry type in toolpath")
             }
             SimulationError::InvalidInterval => write!(f, "snapshot interval is invalid"),
+            SimulationError::InvalidOctreeDepth => {
+                write!(f, "octree depth is invalid for safe voxel construction")
+            }
+            SimulationError::InvalidHybridBounds => {
+                write!(
+                    f,
+                    "hybrid gate bounds must be finite, non-empty, and within safe bucket index range"
+                )
+            }
+            SimulationError::InvalidSamplePitch => {
+                write!(
+                    f,
+                    "hybrid gate sample pitch must be finite and greater than zero"
+                )
+            }
         }
     }
 }

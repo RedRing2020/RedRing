@@ -1,20 +1,17 @@
-use std::collections::HashMap;
 use std::io::Cursor;
-use std::time::Instant;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
     ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
-use geo_algorithms::{Aabb3D, Point3D, default_kernel_numerical_zero_tolerance};
+use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
 
-use crate::exact_work::exact_work_conservative_margin;
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
-    ExactToolPrimitive, ExactWorkModel, PrimitiveSetExactWork, SimulationError, SnapshotInterval,
-    collect_toolpath_line_segments,
+    HybridGateConfig, HybridGateMetrics, SimulationError, SnapshotInterval, run_hybrid_gate_case,
+    run_hybrid_gate_case_with_config,
 };
 
 fn cam_spec(input: &str) -> JobSpec {
@@ -305,6 +302,19 @@ fn test_job_adapter_runs_cam_and_sim_jobs() {
             .unwrap_or_default()
             .starts_with("result://sim/")
     );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Succeeded,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == sim_id && log_ref.contains("/ok/hybrid-gap-")
+        )
+    }));
 }
 
 #[test]
@@ -906,22 +916,9 @@ fn test_ball_end_mill_z_offset_removes_material_at_shifted_z() {
     );
 }
 
-#[derive(Debug, Clone, Copy)]
-struct GateMetrics {
-    removed_voxel: f64,
-    removed_exact: f64,
-    gap: f64,
-    boundary_disagreement_rate: f64,
-    boundary_sample_count: usize,
-    boundary_exact_only_count: usize,
-    boundary_voxel_only_count: usize,
-    elapsed_voxel_ms: f64,
-    elapsed_exact_ms: f64,
-    elapsed_ratio: f64,
-}
+type GateMetrics = HybridGateMetrics;
 
 const GATE_SAMPLE_PITCH: f64 = 2.0;
-const GATE_MAX_AXIS_SAMPLES: usize = 128;
 const GATE_TARGET_GAP: f64 = 0.15;
 const GATE_TARGET_BOUNDARY: f64 = 0.10;
 const GATE_TARGET_ELAPSED_RATIO: f64 = 3.0;
@@ -938,283 +935,8 @@ const THIN_WALL_BOUNDARY_RADIUS: f64 = 1.5;
 const THIN_WALL_GAP_PRIORITY_X_START: f64 = 15.0;
 const THIN_WALL_GAP_PRIORITY_X_END: f64 = 85.0;
 
-fn gate_axis_sample_count(span: f64, sample_pitch: f64) -> usize {
-    if !span.is_finite() || span <= 0.0 || !sample_pitch.is_finite() || sample_pitch <= 0.0 {
-        return 1;
-    }
-    ((span / sample_pitch).ceil() as usize).clamp(1, GATE_MAX_AXIS_SAMPLES)
-}
-
-#[derive(Debug, Clone)]
-struct SolidBoundsSpatialIndex {
-    bucket_size: f64,
-    buckets: HashMap<(i32, i32, i32), Vec<usize>>,
-    solid_bounds: Vec<Aabb3D<f64>>,
-}
-
-impl SolidBoundsSpatialIndex {
-    fn from_bounds(solid_bounds: Vec<Aabb3D<f64>>, bucket_size: f64) -> Self {
-        let size = if bucket_size.is_finite() && bucket_size > 0.0 {
-            bucket_size
-        } else {
-            1.0
-        };
-
-        let mut buckets: HashMap<(i32, i32, i32), Vec<usize>> = HashMap::new();
-        for (index, bounds) in solid_bounds.iter().enumerate() {
-            let min = bounds.min();
-            let max = bounds.max();
-            let min_ix = floor_bucket(min.x(), size);
-            let min_iy = floor_bucket(min.y(), size);
-            let min_iz = floor_bucket(min.z(), size);
-            let max_ix = floor_bucket(max.x(), size);
-            let max_iy = floor_bucket(max.y(), size);
-            let max_iz = floor_bucket(max.z(), size);
-
-            for ix in min_ix..=max_ix {
-                for iy in min_iy..=max_iy {
-                    for iz in min_iz..=max_iz {
-                        buckets.entry((ix, iy, iz)).or_default().push(index);
-                    }
-                }
-            }
-        }
-
-        Self {
-            bucket_size: size,
-            buckets,
-            solid_bounds,
-        }
-    }
-
-    fn contains_material_at(&self, point: &Point3D<f64>) -> bool {
-        let key = (
-            floor_bucket(point.x(), self.bucket_size),
-            floor_bucket(point.y(), self.bucket_size),
-            floor_bucket(point.z(), self.bucket_size),
-        );
-
-        self.buckets.get(&key).is_some_and(|candidate_indexes| {
-            candidate_indexes
-                .iter()
-                .any(|&idx| self.solid_bounds[idx].contains_point(point))
-        })
-    }
-}
-
-fn floor_bucket(value: f64, bucket_size: f64) -> i32 {
-    (value / bucket_size).floor() as i32
-}
-
-fn is_voxel_boundary_point(
-    bounds: &Aabb3D<f64>,
-    voxel_index: &SolidBoundsSpatialIndex,
-    point: &Point3D<f64>,
-    center_state: bool,
-    probe_offset: f64,
-) -> bool {
-    let offsets = [
-        (probe_offset, 0.0, 0.0),
-        (-probe_offset, 0.0, 0.0),
-        (0.0, probe_offset, 0.0),
-        (0.0, -probe_offset, 0.0),
-        (0.0, 0.0, probe_offset),
-        (0.0, 0.0, -probe_offset),
-    ];
-
-    offsets.into_iter().any(|(dx, dy, dz)| {
-        let p = Point3D::new(point.x() + dx, point.y() + dy, point.z() + dz);
-        bounds.contains_point(&p) && voxel_index.contains_material_at(&p) != center_state
-    })
-}
-
-fn compute_boundary_disagreement_rate(
-    bounds: &Aabb3D<f64>,
-    sample_pitch: f64,
-    boundary_band: f64,
-    exact_conservative_margin: f64,
-    exact_work: &PrimitiveSetExactWork,
-    voxel_index: &SolidBoundsSpatialIndex,
-) -> (f64, usize, usize, usize) {
-    if sample_pitch <= 0.0 || !sample_pitch.is_finite() {
-        return (0.0, 0, 0, 0);
-    }
-
-    let min = bounds.min();
-    let max = bounds.max();
-    let width = max.x() - min.x();
-    let height = max.y() - min.y();
-    let depth = max.z() - min.z();
-
-    let x_samples = gate_axis_sample_count(width, sample_pitch);
-    let y_samples = gate_axis_sample_count(height, sample_pitch);
-    let z_samples = gate_axis_sample_count(depth, sample_pitch);
-
-    let dx = width / (x_samples as f64);
-    let dy = height / (y_samples as f64);
-    let dz = depth / (z_samples as f64);
-
-    let probe_offset = if boundary_band.is_finite() && boundary_band > 0.0 {
-        let epsilon = default_kernel_numerical_zero_tolerance::<f64>().max(f64::EPSILON);
-        boundary_band * 0.5 + epsilon
-    } else {
-        sample_pitch * 0.5
-    };
-    let mut boundary_points = 0usize;
-    let mut disagreements = 0usize;
-    let mut exact_only = 0usize;
-    let mut voxel_only = 0usize;
-    for ix in 0..x_samples {
-        let x = min.x() + ((ix as f64) + 0.5) * dx;
-        for iy in 0..y_samples {
-            let y = min.y() + ((iy as f64) + 0.5) * dy;
-            for iz in 0..z_samples {
-                let z = min.z() + ((iz as f64) + 0.5) * dz;
-                let point = Point3D::new(x, y, z);
-                let dist = exact_work.nearest_removed_surface_distance(&point);
-                let voxel_has_material = voxel_index.contains_material_at(&point);
-
-                // Only probe voxel boundary neighbors for points outside the exact boundary band.
-                if dist > boundary_band
-                    && !is_voxel_boundary_point(
-                        bounds,
-                        voxel_index,
-                        &point,
-                        voxel_has_material,
-                        probe_offset,
-                    )
-                {
-                    continue;
-                }
-
-                boundary_points += 1;
-                let exact_has_material =
-                    exact_work.contains_material_at(&point) && dist > exact_conservative_margin;
-                if exact_has_material != voxel_has_material {
-                    disagreements += 1;
-                    if exact_has_material {
-                        exact_only += 1;
-                    } else {
-                        voxel_only += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    if boundary_points == 0 {
-        return (0.0, 0, 0, 0);
-    }
-
-    (
-        disagreements as f64 / boundary_points as f64,
-        boundary_points,
-        exact_only,
-        voxel_only,
-    )
-}
-
 fn run_gate_case(toolpath: &ToolPath<f64>, tool: &Tool<f64>, sample_pitch: f64) -> GateMetrics {
-    let bounds = Aabb3D::new(
-        Point3D::new(0.0, 0.0, 0.0),
-        Point3D::new(100.0, 100.0, 100.0),
-    );
-    let initial_volume = bounds.volume();
-
-    let voxel_started = Instant::now();
-    let mut simulator =
-        CuttingSimulator::new(VoxelOctree::new(bounds, 5), SnapshotInterval::default());
-    simulator
-        .simulate(toolpath, tool)
-        .expect("voxel simulation must succeed");
-    let elapsed_voxel_ms = voxel_started.elapsed().as_secs_f64() * 1000.0;
-    let voxel_pitch = simulator.voxel_tree().voxel_size_at_max_depth();
-    let exact_sample_pitch = sample_pitch.max(voxel_pitch);
-    let boundary_band = voxel_pitch;
-    let removed_voxel = initial_volume - simulator.voxel_tree().remaining_volume();
-    let solid_bounds = simulator.voxel_tree().collect_solid_voxel_bounds();
-    let voxel_index = SolidBoundsSpatialIndex::from_bounds(solid_bounds, exact_sample_pitch);
-
-    let exact_started = Instant::now();
-    let mut exact_work = PrimitiveSetExactWork::new(bounds);
-    let segments = collect_toolpath_line_segments(
-        toolpath,
-        geo_algorithms::DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,
-    );
-    for (segment, is_cutting) in segments {
-        if !is_cutting {
-            continue;
-        }
-
-        if tool.is_flat_end_mill() {
-            exact_work.apply_primitive(ExactToolPrimitive::Flat {
-                segment,
-                radius: tool.radius(),
-            });
-            continue;
-        }
-
-        if tool.is_ball_end_mill() {
-            let start = Point3D::new(
-                segment.start().x(),
-                segment.start().y(),
-                segment.start().z() + tool.radius(),
-            );
-            let end = Point3D::new(
-                segment.end().x(),
-                segment.end().y(),
-                segment.end().z() + tool.radius(),
-            );
-            let ball_segment =
-                LineSegment3D::new(start, end).expect("ball center segment must be valid");
-            exact_work.apply_primitive(ExactToolPrimitive::Ball {
-                segment: ball_segment,
-                radius: tool.radius(),
-            });
-            continue;
-        }
-    }
-    let removed_exact = initial_volume - exact_work.estimate_remaining_volume(exact_sample_pitch);
-    let elapsed_exact_ms = exact_started.elapsed().as_secs_f64() * 1000.0;
-
-    let gap = if removed_voxel.abs() <= f64::EPSILON {
-        0.0
-    } else {
-        ((removed_exact - removed_voxel).abs()) / removed_voxel.abs()
-    };
-    let exact_conservative_margin = if !tool.is_ball_end_mill() && exact_work.primitive_count() > 1
-    {
-        exact_sample_pitch * 0.5
-    } else {
-        exact_work_conservative_margin(exact_sample_pitch)
-    };
-
-    let (
-        boundary_rate,
-        boundary_sample_count,
-        boundary_exact_only_count,
-        boundary_voxel_only_count,
-    ) = compute_boundary_disagreement_rate(
-        &bounds,
-        exact_sample_pitch,
-        boundary_band,
-        exact_conservative_margin,
-        &exact_work,
-        &voxel_index,
-    );
-
-    GateMetrics {
-        removed_voxel,
-        removed_exact,
-        gap,
-        boundary_disagreement_rate: boundary_rate,
-        boundary_sample_count,
-        boundary_exact_only_count,
-        boundary_voxel_only_count,
-        elapsed_voxel_ms,
-        elapsed_exact_ms,
-        elapsed_ratio: elapsed_exact_ms / elapsed_voxel_ms.max(1.0e-9),
-    }
+    run_hybrid_gate_case(toolpath, tool, sample_pitch).expect("hybrid gate case must succeed")
 }
 
 fn case_plane_cut_flat() -> (ToolPath<f64>, Tool<f64>) {
@@ -1418,6 +1140,86 @@ fn phase3_gate_metrics_are_measurable_for_reference_cases() {
             "case[{index}] removed_exact must be positive"
         );
     }
+}
+
+#[test]
+fn phase3_gate_rejects_invalid_octree_depth_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        octree_depth: (i32::BITS as usize - 1),
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidOctreeDepth)));
+}
+
+#[test]
+fn phase3_gate_rejects_invalid_bounds_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        bounds: Aabb3D::new(Point3D::new(10.0, 10.0, 10.0), Point3D::new(0.0, 0.0, 0.0)),
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidHybridBounds)));
+}
+
+#[test]
+fn phase3_gate_rejects_non_finite_bounds_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        bounds: Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new(f64::NAN, 100.0, 100.0),
+        ),
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidHybridBounds)));
+}
+
+#[test]
+fn phase3_gate_rejects_out_of_bucket_range_bounds_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+    let config = HybridGateConfig {
+        bounds: Aabb3D::new(
+            Point3D::new(0.0, 0.0, 0.0),
+            Point3D::new((i32::MAX as f64) + 10.0, 100.0, 100.0),
+        ),
+        sample_pitch: 1.0,
+        ..HybridGateConfig::default()
+    };
+
+    let result = run_hybrid_gate_case_with_config(&toolpath, &tool, config);
+    assert!(matches!(result, Err(SimulationError::InvalidHybridBounds)));
+}
+
+#[test]
+fn phase3_gate_rejects_invalid_sample_pitch_config() {
+    let (toolpath, tool) = case_plane_cut_flat();
+
+    let zero_pitch = HybridGateConfig {
+        sample_pitch: 0.0,
+        ..HybridGateConfig::default()
+    };
+    let zero_result = run_hybrid_gate_case_with_config(&toolpath, &tool, zero_pitch);
+    assert!(matches!(
+        zero_result,
+        Err(SimulationError::InvalidSamplePitch)
+    ));
+
+    let non_finite_pitch = HybridGateConfig {
+        sample_pitch: f64::INFINITY,
+        ..HybridGateConfig::default()
+    };
+    let non_finite_result = run_hybrid_gate_case_with_config(&toolpath, &tool, non_finite_pitch);
+    assert!(matches!(
+        non_finite_result,
+        Err(SimulationError::InvalidSamplePitch)
+    ));
 }
 
 #[test]

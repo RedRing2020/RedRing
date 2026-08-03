@@ -36,6 +36,6 @@ pub fn create_sample_stl_mesh(path: &Path) -> Result<(), Box<dyn std::error::Err
     let mesh = TriangleMesh3D::new(vertices, indices)?;
     stl::save_stl(&mesh, path)?;
 
-    tracing::info!("サンプルSTLファイル作成（立方体）: {:?}", path);
+    tracing::info!("Created sample STL file (cube): {:?}", path);
     Ok(())
 }
