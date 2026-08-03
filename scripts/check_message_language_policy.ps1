@@ -24,6 +24,7 @@ $files = Get-ChildItem -Path $modelRoot -Recurse -Filter *.rs -File |
     Where-Object {
         $_.FullName -notmatch "[\\/]tests[\\/]" -and
         $_.Name -notlike "*_test.rs" -and
+        $_.Name -notlike "*_tests.rs" -and
         $_.Name -ne "tests.rs"
     }
 
