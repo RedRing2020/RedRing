@@ -1069,7 +1069,7 @@ fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
         vec![ContourLevelPath::new(0, 40.0, vec![leg_x, leg_y])],
         vec![],
     );
-    let tool = Tool::flat_end_mill("flat-corner".to_string(), 8.0, 30.0);
+    let tool = Tool::flat_end_mill("flat-corner".to_string(), 12.0, 30.0);
     (toolpath, tool)
 }
 
