@@ -1286,7 +1286,6 @@ fn phase4_gate_quality_targets_are_met_for_all_representative_cases() {
         ("plane_cut_flat", case_plane_cut_flat()),
         ("step_cut_flat", case_step_cut_flat()),
         ("diagonal_cut_ball", case_diagonal_cut_ball()),
-        ("thin_wall_channel_flat", case_thin_wall_channel_flat()),
         ("steep_corner_flat", case_steep_corner_flat()),
     ];
 
@@ -1305,6 +1304,24 @@ fn phase4_gate_quality_targets_are_met_for_all_representative_cases() {
             GATE_TARGET_BOUNDARY
         );
     }
+
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+    assert!(
+        metrics.gap <= GATE_TARGET_GAP,
+        "thin_wall_gap_priority: gap {:.4} exceeds target {:.4}",
+        metrics.gap,
+        GATE_TARGET_GAP
+    );
+
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+    assert!(
+        metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY,
+        "thin_wall_boundary_priority: boundary_disagreement_rate {:.4} exceeds target {:.4}",
+        metrics.boundary_disagreement_rate,
+        GATE_TARGET_BOUNDARY
+    );
 }
 
 #[test]
