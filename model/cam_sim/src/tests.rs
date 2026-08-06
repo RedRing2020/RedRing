@@ -1280,7 +1280,7 @@ fn phase3_gate_quality_targets_are_met_for_reference_cases() {
 }
 
 #[test]
-#[ignore = "#728完了判定用: 代表ケース全体の閾値固定は残件対応で満たす"]
+#[ignore = "Phase4完了判定用: 代表ケース全体の閾値固定は残件対応で満たす"]
 fn phase4_gate_quality_targets_are_met_for_all_representative_cases() {
     let cases = [
         ("plane_cut_flat", case_plane_cut_flat()),
