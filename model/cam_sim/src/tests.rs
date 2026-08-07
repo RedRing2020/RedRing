@@ -1069,7 +1069,7 @@ fn case_steep_corner_flat() -> (ToolPath<f64>, Tool<f64>) {
         vec![ContourLevelPath::new(0, 40.0, vec![leg_x, leg_y])],
         vec![],
     );
-    let tool = Tool::flat_end_mill("flat-corner".to_string(), 8.0, 30.0);
+    let tool = Tool::flat_end_mill("flat-corner".to_string(), 12.0, 30.0);
     (toolpath, tool)
 }
 
@@ -1280,12 +1280,58 @@ fn phase3_gate_quality_targets_are_met_for_reference_cases() {
 }
 
 #[test]
+#[ignore = "Phase4完了判定用: 代表ケース全体の閾値固定は残件対応で満たす"]
+fn phase4_gate_quality_targets_are_met_for_all_representative_cases() {
+    let cases = [
+        ("plane_cut_flat", case_plane_cut_flat()),
+        ("step_cut_flat", case_step_cut_flat()),
+        ("diagonal_cut_ball", case_diagonal_cut_ball()),
+        ("steep_corner_flat", case_steep_corner_flat()),
+    ];
+
+    for (name, (toolpath, tool)) in &cases {
+        let metrics = run_gate_case(toolpath, tool, GATE_SAMPLE_PITCH);
+        assert!(
+            metrics.gap <= GATE_TARGET_GAP,
+            "{name}: gap {:.4} exceeds target {:.4}",
+            metrics.gap,
+            GATE_TARGET_GAP
+        );
+        assert!(
+            metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY,
+            "{name}: boundary_disagreement_rate {:.4} exceeds target {:.4}",
+            metrics.boundary_disagreement_rate,
+            GATE_TARGET_BOUNDARY
+        );
+    }
+
+    let (gap_toolpath, gap_tool) = case_thin_wall_gap_priority_flat();
+    let metrics = run_gate_case(&gap_toolpath, &gap_tool, GATE_SAMPLE_PITCH);
+    assert!(
+        metrics.gap <= GATE_TARGET_GAP,
+        "thin_wall_gap_priority: gap {:.4} exceeds target {:.4}",
+        metrics.gap,
+        GATE_TARGET_GAP
+    );
+
+    let (boundary_toolpath, boundary_tool) = case_thin_wall_boundary_priority_flat();
+    let metrics = run_gate_case(&boundary_toolpath, &boundary_tool, GATE_SAMPLE_PITCH);
+    assert!(
+        metrics.boundary_disagreement_rate <= GATE_TARGET_BOUNDARY,
+        "thin_wall_boundary_priority: boundary_disagreement_rate {:.4} exceeds target {:.4}",
+        metrics.boundary_disagreement_rate,
+        GATE_TARGET_BOUNDARY
+    );
+}
+
+#[test]
 #[ignore = "elapsed_ratioは実行環境性能に依存するため、基準環境で手動実行する"]
 fn phase3_gate_threshold_targets_are_met_for_reference_cases() {
     let cases = [
         ("plane_cut_flat", case_plane_cut_flat()),
         ("step_cut_flat", case_step_cut_flat()),
         ("diagonal_cut_ball", case_diagonal_cut_ball()),
+        ("steep_corner_flat", case_steep_corner_flat()),
     ];
 
     for (name, (toolpath, tool)) in &cases {
