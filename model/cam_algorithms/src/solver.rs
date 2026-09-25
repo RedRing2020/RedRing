@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter};
 use cam_core::{CoordinateFrame, LengthUnit, Tool, ToolPath};
 use geo_algorithms::{NurbsSurface3D, TriangleMesh3D};
 
-use crate::inverse_offset::BallDropCutter;
+use crate::inverse_offset::{CutterShape, DropCutter};
 use crate::scanline::generate_scanline_toolpath;
 use crate::tessellation::{TessellationLimits, tessellate_surfaces};
 
@@ -143,11 +143,7 @@ impl CamSolverInput {
         if !is_positive_finite(self.tool.radius()) {
             return Err(invalid("tool radius must be positive and finite"));
         }
-        if !self.tool.is_ball_end_mill() {
-            return Err(invalid(
-                "inverse offset solver currently supports ball end mill only",
-            ));
-        }
+        cutter_shape(&self.tool)?;
         if !is_positive_finite(self.chord_tolerance) {
             return Err(invalid("chord_tolerance must be positive and finite"));
         }
@@ -186,7 +182,7 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
         }
     };
 
-    let cutter = BallDropCutter::new(mesh, input.tool.radius())?;
+    let cutter = DropCutter::new(mesh, cutter_shape(&input.tool)?)?;
 
     match input.operation {
         OperationSpec::Scanline(params) => {
@@ -214,6 +210,20 @@ fn validate_scanline(params: &ScanlineParams, tool: &Tool<f64>) -> Result<(), Ca
         ));
     }
     Ok(())
+}
+
+/// 工具種別を逆オフセット形状へ対応付ける。未対応工具は `invalid_input`。
+fn cutter_shape(tool: &Tool<f64>) -> Result<CutterShape, CamSolverError> {
+    let radius = tool.radius();
+    if tool.is_ball_end_mill() {
+        Ok(CutterShape::Ball { radius })
+    } else if tool.is_flat_end_mill() {
+        Ok(CutterShape::Flat { radius })
+    } else {
+        Err(invalid(
+            "inverse offset solver supports ball and flat end mills only",
+        ))
+    }
 }
 
 fn is_positive_finite(value: f64) -> bool {

@@ -440,6 +440,87 @@ mod tests {
     }
 
     #[test]
+    fn registered_nurbs_input_reports_real_convergence_failure() {
+        use std::sync::Arc;
+
+        use cam_algorithms::{
+            CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
+        };
+        use cam_core::{CoordinateFrame, LengthUnit, Tool};
+        use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
+        use geo_algorithms::NurbsSurface3D;
+        use geo_contracts::NurbsSurface3DConstructor;
+        use job_runtime::JobManager;
+
+        // 曲面の弦誤差が収束しない設定（極小許容値・反復上限 1）で solver 実計算を失敗させる
+        let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let dome = NurbsSurface3D::new(
+            vec![
+                vec![(0.0, 0.0, 80.0), (0.0, 20.0, 80.0), (0.0, 40.0, 80.0)],
+                vec![(20.0, 0.0, 80.0), (20.0, 20.0, 100.0), (20.0, 40.0, 80.0)],
+                vec![(40.0, 0.0, 80.0), (40.0, 20.0, 80.0), (40.0, 40.0, 80.0)],
+            ],
+            None,
+            knots.clone(),
+            knots,
+            2,
+            2,
+        )
+        .unwrap();
+        let store = InMemoryCamSolverInputStore::new();
+        store
+            .register(
+                "input://cam/dome-unreachable-tolerance",
+                CamSolverInput {
+                    operation_id: "op-scan-1".to_string(),
+                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+                    geometry: SolverGeometry::NurbsSurfaceSet(vec![dome]),
+                    operation: OperationSpec::Scanline(ScanlineParams {
+                        stepover: 2.0,
+                        sample_pitch: 1.0,
+                        feed_rate: 1200.0,
+                        clearance_height: 5.0,
+                    }),
+                    units: LengthUnit::Millimeter,
+                    coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
+                    chord_tolerance: 1e-9,
+                    tessellation_limits: TessellationLimits {
+                        max_subdivisions: 2,
+                        max_refinement_iterations: 1,
+                        max_vertices_per_surface: 1_000_000,
+                    },
+                },
+            )
+            .unwrap();
+        let mut orchestrator = JobWorkflowOrchestrator::with_runtime(
+            JobManager::new(),
+            CamJobExecutorAdapter::with_input_provider(Arc::new(store)),
+        );
+
+        let submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/dome-unreachable-tolerance".to_string(),
+                parent_job_id: None,
+            })
+            .expect("submit should complete with failed runtime status");
+        assert_eq!(submit.status, CamJobStatus::Failed);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: submit.job_id,
+            })
+            .expect("failed job should still be queryable");
+        assert!(
+            result
+                .job
+                .last_error
+                .as_deref()
+                .is_some_and(|message| message.contains("convergence_failure"))
+        );
+    }
+
+    #[test]
     fn registered_solver_input_flows_from_cam_process_to_cutting_simulation() {
         use std::sync::Arc;
 

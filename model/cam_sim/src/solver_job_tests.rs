@@ -94,10 +94,19 @@ fn registered_input_is_solved_into_toolpath_artifact() {
 
 #[test]
 fn cam_parent_to_cutting_simulation_child_succeeds_with_solver_output() {
+    for tool in [
+        ball_tool(),
+        Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0),
+    ] {
+        assert_cam_to_simulation_succeeds(tool);
+    }
+}
+
+fn assert_cam_to_simulation_succeeds(tool: Tool<f64>) {
     let input_ref = "input://cam/pyramid";
     let adapter = adapter_with(vec![(
         input_ref,
-        scanline_input(SolverGeometry::TriangleMesh(pyramid_mesh()), ball_tool()),
+        scanline_input(SolverGeometry::TriangleMesh(pyramid_mesh()), tool),
     )]);
     let mut manager = JobManager::new();
 
@@ -153,11 +162,12 @@ fn assert_cam_failure(adapter: &CamJobExecutorAdapter, input_ref: &str, code: &s
 
 #[test]
 fn solver_invalid_input_is_reported_as_invalid_input() {
-    let input_ref = "input://cam/flat-tool";
-    let flat_tool = Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0);
+    // ラジアスエンドミルの逆オフセットは未対応（#211）
+    let input_ref = "input://cam/radius-tool";
+    let radius_tool = Tool::radius_end_mill("REM6R1".to_string(), 6.0, 1.0, 30.0);
     let adapter = adapter_with(vec![(
         input_ref,
-        scanline_input(SolverGeometry::TriangleMesh(pyramid_mesh()), flat_tool),
+        scanline_input(SolverGeometry::TriangleMesh(pyramid_mesh()), radius_tool),
     )]);
     assert_cam_failure(&adapter, input_ref, "invalid_input");
 }

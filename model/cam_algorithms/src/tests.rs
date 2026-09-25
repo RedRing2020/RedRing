@@ -4,8 +4,8 @@ use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
 use geo_contracts::{NurbsSurface3DConstructor, default_distance_tolerance};
 
 use crate::{
-    BallDropCutter, CamSolverError, CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry,
-    TessellationLimits, solve_toolpath, tessellate_surfaces,
+    CamSolverError, CamSolverInput, CutterShape, DropCutter, OperationSpec, ScanlineParams,
+    SolverGeometry, TessellationLimits, solve_toolpath, tessellate_surfaces,
 };
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
@@ -42,6 +42,21 @@ fn dome_surface() -> NurbsSurface3D<f64> {
     NurbsSurface3D::new(control_points, None, knots.clone(), knots, 2, 2).unwrap()
 }
 
+fn ball(radius: f64) -> CutterShape {
+    CutterShape::Ball { radius }
+}
+
+fn flat(radius: f64) -> CutterShape {
+    CutterShape::Flat { radius }
+}
+
+/// ボール工具中心高さ（= 先端高さ + r）
+fn ball_center(cutter: &DropCutter, x: f64, y: f64) -> Option<f64> {
+    cutter
+        .tip_height_at(x, y)
+        .map(|z| z + cutter.shape().radius())
+}
+
 fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
     CamSolverInput {
         operation_id: "op-scan-1".to_string(),
@@ -62,8 +77,8 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
 
 #[test]
 fn face_offset_places_ball_center_one_radius_above_flat_face() {
-    let cutter = BallDropCutter::new(&flat_square(0.0), 3.0).unwrap();
-    let center = cutter.center_height_at(5.0, 5.0).unwrap();
+    let cutter = DropCutter::new(&flat_square(0.0), ball(3.0)).unwrap();
+    let center = ball_center(&cutter, 5.0, 5.0).unwrap();
     assert!((center - 3.0).abs() < EPS);
     assert!(cutter.tip_point_at(5.0, 5.0).unwrap().z().abs() < EPS);
 }
@@ -82,32 +97,34 @@ fn face_offset_follows_inclined_plane() {
         &[[0, 1, 2], [0, 2, 3]],
     );
     let r = 2.0;
-    let cutter = BallDropCutter::new(&inclined, r).unwrap();
+    let cutter = DropCutter::new(&inclined, ball(r)).unwrap();
     let expected = slope * 5.0 + r * (1.0 + slope * slope).sqrt();
-    assert!((cutter.center_height_at(5.0, 5.0).unwrap() - expected).abs() < EPS);
+    assert!((ball_center(&cutter, 5.0, 5.0).unwrap() - expected).abs() < EPS);
 }
 
 #[test]
 fn edge_offset_is_cylinder_outside_face() {
     // 辺 y=0（z=0）から水平距離 b の位置: 中心高さ = sqrt(r^2 - b^2)
-    let cutter = BallDropCutter::new(&flat_square(0.0), 3.0).unwrap();
+    let cutter = DropCutter::new(&flat_square(0.0), ball(3.0)).unwrap();
     let b = 1.5;
     let expected = (9.0_f64 - b * b).sqrt();
-    assert!((cutter.center_height_at(5.0, -b).unwrap() - expected).abs() < EPS);
+    assert!((ball_center(&cutter, 5.0, -b).unwrap() - expected).abs() < EPS);
 }
 
 #[test]
 fn vertex_offset_is_sphere_outside_edges() {
-    let cutter = BallDropCutter::new(&flat_square(0.0), 3.0).unwrap();
+    let cutter = DropCutter::new(&flat_square(0.0), ball(3.0)).unwrap();
     let (dx, dy) = (-1.0, -2.0);
     let expected = (9.0_f64 - dx * dx - dy * dy).sqrt();
-    assert!((cutter.center_height_at(dx, dy).unwrap() - expected).abs() < EPS);
+    assert!((ball_center(&cutter, dx, dy).unwrap() - expected).abs() < EPS);
 }
 
 #[test]
 fn no_contact_outside_tool_radius() {
-    let cutter = BallDropCutter::new(&flat_square(0.0), 3.0).unwrap();
-    assert!(cutter.center_height_at(-3.5, 5.0).is_none());
+    for shape in [ball(3.0), flat(3.0)] {
+        let cutter = DropCutter::new(&flat_square(0.0), shape).unwrap();
+        assert!(cutter.tip_height_at(-3.5, 5.0).is_none());
+    }
 }
 
 #[test]
@@ -115,7 +132,7 @@ fn ball_center_does_not_gouge_tessellated_dome() {
     let limits = TessellationLimits::default();
     let dome = tessellate_surfaces(&[dome_surface()], 0.01, limits).unwrap();
     let r = 3.0;
-    let cutter = BallDropCutter::new(&dome, r).unwrap();
+    let cutter = DropCutter::new(&dome, ball(r)).unwrap();
 
     for &(x, y) in &[
         (20.0, 20.0),
@@ -124,7 +141,7 @@ fn ball_center_does_not_gouge_tessellated_dome() {
         (0.0, 40.0),
         (-2.0, 20.0),
     ] {
-        let center_z = cutter.center_height_at(x, y).unwrap();
+        let center_z = ball_center(&cutter, x, y).unwrap();
         let center = [x, y, center_z];
         let min_distance = dome
             .indices()
@@ -142,6 +159,121 @@ fn ball_center_does_not_gouge_tessellated_dome() {
             (min_distance - r).abs() < default_distance_tolerance::<f64>(),
             "ball at ({x}, {y}) is not tangent: distance={min_distance}"
         );
+    }
+}
+
+#[test]
+fn flat_face_contact_on_horizontal_face_is_face_height() {
+    let cutter = DropCutter::new(&flat_square(2.0), flat(3.0)).unwrap();
+    assert!((cutter.tip_height_at(5.0, 5.0).unwrap() - 2.0).abs() < EPS);
+}
+
+#[test]
+fn flat_disc_reaches_edge_outside_face() {
+    // 円板が辺 x=0 に水平距離 2 (< r=3) で掛かる
+    let cutter = DropCutter::new(&flat_square(2.0), flat(3.0)).unwrap();
+    assert!((cutter.tip_height_at(-2.0, 5.0).unwrap() - 2.0).abs() < EPS);
+}
+
+#[test]
+fn flat_face_contact_is_on_disc_rim_uphill() {
+    // z = 0.5 x の斜面: 円板の上り側円周（x + r）で接触する
+    let slope = 0.5_f64;
+    let inclined = mesh(
+        &[
+            (0.0, 0.0, 0.0),
+            (10.0, 0.0, 10.0 * slope),
+            (10.0, 10.0, 10.0 * slope),
+            (0.0, 10.0, 0.0),
+        ],
+        &[[0, 1, 2], [0, 2, 3]],
+    );
+    let cutter = DropCutter::new(&inclined, flat(2.0)).unwrap();
+    assert!((cutter.tip_height_at(5.0, 5.0).unwrap() - slope * 7.0).abs() < EPS);
+    // 形状外側 (x = -1) でも円周が斜面に掛かる
+    assert!((cutter.tip_height_at(-1.0, 5.0).unwrap() - slope * 1.0).abs() < EPS);
+}
+
+#[test]
+fn flat_edge_sweep_takes_highest_point_within_disc() {
+    // 傾斜辺 (0,0,0)-(10,0,5) から水平距離 2 の位置: 円板内区間 [5-√5, 5+√5] の上端で接触
+    let triangle = mesh(
+        &[(0.0, 0.0, 0.0), (10.0, 0.0, 5.0), (0.0, 10.0, 0.0)],
+        &[[0, 1, 2]],
+    );
+    let cutter = DropCutter::new(&triangle, flat(3.0)).unwrap();
+    let expected = 0.5 * (5.0 + 5.0_f64.sqrt());
+    assert!((cutter.tip_height_at(5.0, -2.0).unwrap() - expected).abs() < EPS);
+}
+
+#[test]
+fn flat_vertex_disc_contacts_apex() {
+    let pyramid = mesh(
+        &[
+            (0.0, 0.0, 0.0),
+            (10.0, 0.0, 0.0),
+            (10.0, 10.0, 0.0),
+            (0.0, 10.0, 0.0),
+            (5.0, 5.0, 4.0),
+        ],
+        &[[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
+    );
+    let cutter = DropCutter::new(&pyramid, flat(3.0)).unwrap();
+    assert!((cutter.tip_height_at(7.0, 5.0).unwrap() - 4.0).abs() < EPS);
+}
+
+#[test]
+fn flat_bottom_does_not_gouge_and_touches_dome() {
+    let chord_tolerance = 0.01;
+    let surface = dome_surface();
+    let dome = tessellate_surfaces(
+        std::slice::from_ref(&surface),
+        chord_tolerance,
+        TessellationLimits::default(),
+    )
+    .unwrap();
+    let r = 3.0;
+    let cutter = DropCutter::new(&dome, flat(r)).unwrap();
+
+    // 曲面を密にサンプルし、円板内の曲面最高点が先端高さに一致する
+    // （食い込みなし・接触あり）ことを弦誤差の範囲で確認する
+    let samples: Vec<[f64; 3]> = (0..=200)
+        .flat_map(|i| (0..=200).map(move |j| (i as f64 / 200.0, j as f64 / 200.0)))
+        .map(|(u, v)| {
+            let p = surface.evaluate_at(u, v);
+            [p.x(), p.y(), p.z()]
+        })
+        .collect();
+    for &(x, y) in &[(20.0, 20.0), (5.0, 7.0), (33.0, 12.0), (-2.0, 20.0)] {
+        let tip = cutter.tip_height_at(x, y).unwrap();
+        let highest = samples
+            .iter()
+            .filter(|p| (p[0] - x).powi(2) + (p[1] - y).powi(2) <= r * r)
+            .map(|p| p[2])
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert!(
+            (highest - tip).abs() <= 2.0 * chord_tolerance,
+            "flat tip at ({x}, {y}) = {tip}, highest surface point in disc = {highest}"
+        );
+    }
+}
+
+#[test]
+fn solve_toolpath_supports_flat_end_mill() {
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    input.tool = Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0);
+    let toolpath = solve_toolpath(&input).unwrap();
+
+    assert_eq!(toolpath.tool_id, "EM6");
+    assert_eq!(toolpath.level_count(), 21);
+    for level in &toolpath.contour_levels {
+        for segment in level.cutting_segments() {
+            let z = segment.end_point().z();
+            assert!(
+                (80.0 - EPS..=90.0 + EPS).contains(&z),
+                "tip z out of range: {z}"
+            );
+        }
     }
 }
 
@@ -198,7 +330,7 @@ fn tessellation_respects_chord_tolerance() {
 
     // 極小半径の drop-cutter でメッシュ高さを取り、曲面上の点との鉛直差を検証する。
     // 曲面の最大傾斜は 1 未満のため、法線方向の弦誤差 tol は鉛直差 2*tol 以内に収まる。
-    let probe = BallDropCutter::new(&dome, 1e-9).unwrap();
+    let probe = DropCutter::new(&dome, ball(1e-9)).unwrap();
     for i in 0..=20 {
         for j in 0..=20 {
             let p = surface.evaluate_at(i as f64 / 20.0, j as f64 / 20.0);
@@ -246,9 +378,9 @@ fn solve_toolpath_generates_scanline_passes_for_nurbs_surface() {
 }
 
 #[test]
-fn invalid_input_for_non_ball_tool() {
+fn invalid_input_for_radius_end_mill() {
     let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
-    input.tool = Tool::flat_end_mill("EM6".to_string(), 6.0, 30.0);
+    input.tool = Tool::radius_end_mill("REM6R1".to_string(), 6.0, 1.0, 30.0);
     let error = solve_toolpath(&input).unwrap_err();
     assert_eq!(error.code(), "invalid_input");
 }

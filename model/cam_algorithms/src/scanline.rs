@@ -7,14 +7,14 @@
 use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType, ToolPath};
 use geo_algorithms::Point3D;
 
-use crate::inverse_offset::BallDropCutter;
+use crate::inverse_offset::DropCutter;
 use crate::solver::{CamSolverError, ScanlineParams};
 
 /// drop-cutter からスキャン加工の ToolPath を生成する。
 ///
 /// 各パスは `ContourLevelPath` 1 件に対応し、`z_level` にはパス内の最高 CL 高さを格納する。
 pub fn generate_scanline_toolpath(
-    cutter: &BallDropCutter,
+    cutter: &DropCutter,
     tool_id: &str,
     params: &ScanlineParams,
 ) -> Result<ToolPath<f64>, CamSolverError> {
