@@ -1,4 +1,4 @@
-//! CamProcess ジョブの `InputRef` → solver 入力の解決境界（#684 §8.2）
+//! CamProcess ジョブの `InputRef` → solver 入力の解決境界（設計: CAM_ALGORITHMS_DESIGN.md §8.2）
 //!
 //! Job Manager は payload 本体を解釈しない。`cam_sim` の Job アダプタが
 //! 本境界を通じて `InputRef` を `CamSolverInput` へ解決する。

@@ -51,7 +51,7 @@ pub const CAM_PRESS_ROUGH_TOLERANCE_MM_F64: f64 = 0.001;
 /// 精度プロファイル `mold_finish`（小物金型仕上げ）の加工トレランス（mm）
 pub const CAM_MOLD_FINISH_TOLERANCE_MM_F64: f64 = 0.0001;
 
-/// 工程テンプレートで指定する精度プロファイル（#689）
+/// 工程テンプレートで指定する精度プロファイル
 ///
 /// solver では形状離散化の許容弦誤差として適用する。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

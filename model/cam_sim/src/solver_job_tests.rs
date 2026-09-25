@@ -1,4 +1,4 @@
-//! CamProcess solver 導線（#684 §8.7）の Job Manager 経由テスト
+//! CamProcess solver 導線（設計: CAM_ALGORITHMS_DESIGN.md §8.7）の Job Manager 経由テスト
 
 use std::io::Cursor;
 use std::sync::Arc;
@@ -163,7 +163,7 @@ fn assert_cam_failure(adapter: &CamJobExecutorAdapter, input_ref: &str, code: &s
 
 #[test]
 fn solver_invalid_input_is_reported_as_invalid_input() {
-    // ラジアスエンドミルの逆オフセットは未対応（#211）
+    // ラジアスエンドミルの逆オフセットは未対応
     let input_ref = "input://cam/radius-tool";
     let radius_tool = Tool::radius_end_mill("REM6R1".to_string(), 6.0, 1.0, 30.0);
     let adapter = adapter_with(vec![(

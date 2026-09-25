@@ -1,4 +1,4 @@
-//! CAM ソルバー入力契約と実行入口（#684 §8.2-§8.5）
+//! CAM ソルバー入力契約と実行入口（設計: CAM_ALGORITHMS_DESIGN.md §8.2-§8.5）
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};

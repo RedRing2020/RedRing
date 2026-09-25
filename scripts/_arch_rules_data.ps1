@@ -40,7 +40,7 @@ $ARCH_LAYERS = @{
     View      = @("render", "stage", "app")
 }
 
-# Issue #413 design note: `cam_algorithms` was created in #684.
+# Design note: `cam_algorithms` has been created.
 # Mapping, Model layer, allowed/forbidden dependency rules, and required crates were updated in one change set.
 
 # Required model crates
@@ -48,7 +48,7 @@ $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo
 
 # Allowed dependency rules
 # Last updated: 2026-04-09 (#650: allow geo_topology -> geo_nurbs for NURBS curve edge topology, sync application allowed deps with current crate)
-# 2026-09-25 (#684): add cam_algorithms (cam_sim/application -> cam_algorithms allowed)
+# 2026-09-25: add cam_algorithms (cam_sim/application -> cam_algorithms allowed)
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
     application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_sim", "job_runtime", "job_domain", "redring_test_support")
@@ -88,7 +88,7 @@ $ARCH_ALLOWED_DEPS = @{
 
 # Forbidden dependency rules
 # Last updated: 2026-04-09 (#501/#650 sync application forbidden deps with current allowed deps)
-# 2026-09-25 (#684): add cam_algorithms reverse dependency guards
+# 2026-09-25: add cam_algorithms reverse dependency guards
 $ARCH_FORBIDDEN_DEPS = @{
     application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "cam_demo", "graphics", "render", "stage", "app")
     geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")

@@ -536,7 +536,7 @@ fn degenerate_rectangle_in_solver_input_is_invalid_input() {
     assert!(error.reason().starts_with("invalid_rectangle_boundary"));
 }
 
-/// 精度プロファイル別の離散化・経路生成負荷の計測（#689 → #256 判断材料）
+/// 精度プロファイル別の離散化・経路生成負荷の計測（要素絞り込みによる高速化の判断材料）
 ///
 /// `cargo test -p cam_algorithms --release -- --ignored --nocapture profile_load`
 #[test]

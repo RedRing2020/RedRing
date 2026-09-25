@@ -1,4 +1,4 @@
-//! 工程テンプレートの solver 適用（#689 Step B/C）
+//! 工程テンプレートの solver 適用（設計: CAM_ALGORITHMS_DESIGN.md §9）
 //!
 //! 工程テンプレートとオペレーション定義から、精度プロファイル・オペレーション種別・
 //! 加工ステージ・加工範囲を解決し、solver 入力へ適用する。
@@ -10,7 +10,7 @@
 //! 3. solver の既定値（初期値は未設定。未設定のまま解決できなければ失敗）
 //!
 //! テンプレート適用段階の失敗は内部分類（`TemplateFailure::code`）を持ち、
-//! Job Manager へは #684 の `invalid_input` に集約して伝達する。
+//! Job Manager へは solver 失敗分類の `invalid_input` に集約して伝達する。
 
 use std::fmt::{Display, Formatter};
 
