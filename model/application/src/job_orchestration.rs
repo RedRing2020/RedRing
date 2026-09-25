@@ -291,6 +291,62 @@ mod tests {
     }
 
     #[test]
+    fn submit_failure_no_solution_is_visible_through_result_query() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+        let submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/no-solution".to_string(),
+                parent_job_id: None,
+            })
+            .expect("submit should complete with failed runtime status");
+
+        assert_eq!(submit.status, CamJobStatus::Failed);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: submit.job_id,
+            })
+            .expect("failed job should still be queryable");
+        assert_eq!(result.job.status, CamJobStatus::Failed);
+        assert!(
+            result
+                .job
+                .last_error
+                .as_deref()
+                .is_some_and(|message| message.contains("no_solution"))
+        );
+    }
+
+    #[test]
+    fn submit_failure_convergence_failure_is_visible_through_result_query() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+        let submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/convergence-failure".to_string(),
+                parent_job_id: None,
+            })
+            .expect("submit should complete with failed runtime status");
+
+        assert_eq!(submit.status, CamJobStatus::Failed);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: submit.job_id,
+            })
+            .expect("failed job should still be queryable");
+        assert_eq!(result.job.status, CamJobStatus::Failed);
+        assert!(
+            result
+                .job
+                .last_error
+                .as_deref()
+                .is_some_and(|message| message.contains("convergence_failure"))
+        );
+    }
+
+    #[test]
     fn event_batch_is_normalized_for_viewmodel_consumption() {
         let mut orchestrator = JobWorkflowOrchestrator::new();
         let submit = orchestrator
@@ -381,6 +437,165 @@ mod tests {
                 } if *job_id == sim_submit.job_id && log_ref.contains("/ok/hybrid-gap-")
             )
         }));
+    }
+
+    #[test]
+    fn registered_nurbs_input_reports_real_convergence_failure() {
+        use std::sync::Arc;
+
+        use cam_algorithms::{
+            CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
+        };
+        use cam_core::{CoordinateFrame, LengthUnit, Tool};
+        use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
+        use geo_algorithms::NurbsSurface3D;
+        use geo_contracts::NurbsSurface3DConstructor;
+        use job_runtime::JobManager;
+
+        // 曲面の弦誤差が収束しない設定（極小許容値・反復上限 1）で solver 実計算を失敗させる
+        let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let dome = NurbsSurface3D::new(
+            vec![
+                vec![(0.0, 0.0, 80.0), (0.0, 20.0, 80.0), (0.0, 40.0, 80.0)],
+                vec![(20.0, 0.0, 80.0), (20.0, 20.0, 100.0), (20.0, 40.0, 80.0)],
+                vec![(40.0, 0.0, 80.0), (40.0, 20.0, 80.0), (40.0, 40.0, 80.0)],
+            ],
+            None,
+            knots.clone(),
+            knots,
+            2,
+            2,
+        )
+        .unwrap();
+        let store = InMemoryCamSolverInputStore::new();
+        store
+            .register(
+                "input://cam/dome-unreachable-tolerance",
+                CamSolverInput {
+                    operation_id: "op-scan-1".to_string(),
+                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+                    geometry: SolverGeometry::NurbsSurfaceSet(vec![dome]),
+                    operation: OperationSpec::Scanline(ScanlineParams {
+                        stepover: 2.0,
+                        sample_pitch: 1.0,
+                        feed_rate: 1200.0,
+                        clearance_height: 5.0,
+                    }),
+                    units: LengthUnit::Millimeter,
+                    coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
+                    chord_tolerance: 1e-9,
+                    tessellation_limits: TessellationLimits {
+                        max_subdivisions: 2,
+                        max_refinement_iterations: 1,
+                        max_vertices_per_surface: 1_000_000,
+                    },
+                },
+            )
+            .unwrap();
+        let mut orchestrator = JobWorkflowOrchestrator::with_runtime(
+            JobManager::new(),
+            CamJobExecutorAdapter::with_input_provider(Arc::new(store)),
+        );
+
+        let submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/dome-unreachable-tolerance".to_string(),
+                parent_job_id: None,
+            })
+            .expect("submit should complete with failed runtime status");
+        assert_eq!(submit.status, CamJobStatus::Failed);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: submit.job_id,
+            })
+            .expect("failed job should still be queryable");
+        assert!(
+            result
+                .job
+                .last_error
+                .as_deref()
+                .is_some_and(|message| message.contains("convergence_failure"))
+        );
+    }
+
+    #[test]
+    fn registered_solver_input_flows_from_cam_process_to_cutting_simulation() {
+        use std::sync::Arc;
+
+        use cam_algorithms::{
+            CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
+        };
+        use cam_core::{CoordinateFrame, LengthUnit, Tool};
+        use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
+        use geo_algorithms::{Point3D, TriangleMesh3D};
+        use job_runtime::JobManager;
+
+        let pyramid = TriangleMesh3D::new(
+            vec![
+                Point3D::new(20.0, 20.0, 80.0),
+                Point3D::new(60.0, 20.0, 80.0),
+                Point3D::new(60.0, 60.0, 80.0),
+                Point3D::new(20.0, 60.0, 80.0),
+                Point3D::new(40.0, 40.0, 90.0),
+            ],
+            vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
+        )
+        .unwrap();
+        let store = InMemoryCamSolverInputStore::new();
+        store
+            .register(
+                "input://cam/pyramid",
+                CamSolverInput {
+                    operation_id: "op-scan-1".to_string(),
+                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+                    geometry: SolverGeometry::TriangleMesh(pyramid),
+                    operation: OperationSpec::Scanline(ScanlineParams {
+                        stepover: 4.0,
+                        sample_pitch: 2.0,
+                        feed_rate: 1200.0,
+                        clearance_height: 5.0,
+                    }),
+                    units: LengthUnit::Millimeter,
+                    coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
+                    chord_tolerance: 0.01,
+                    tessellation_limits: TessellationLimits::default(),
+                },
+            )
+            .unwrap();
+        let mut orchestrator = JobWorkflowOrchestrator::with_runtime(
+            JobManager::new(),
+            CamJobExecutorAdapter::with_input_provider(Arc::new(store)),
+        );
+
+        let cam_submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/pyramid".to_string(),
+                parent_job_id: None,
+            })
+            .expect("cam submit should succeed");
+        assert_eq!(cam_submit.status, CamJobStatus::Succeeded);
+
+        let sim_submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CuttingSimulation,
+                input_ref: format!("result://cam/{}/ok", cam_submit.job_id),
+                parent_job_id: Some(cam_submit.job_id),
+            })
+            .expect("cutting simulation submit should succeed");
+        assert_eq!(sim_submit.status, CamJobStatus::Succeeded);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: sim_submit.job_id,
+            })
+            .expect("result query should succeed");
+        assert_eq!(
+            result.active_result_ref,
+            Some(format!("result://sim/{}/ok", sim_submit.job_id))
+        );
     }
 
     #[test]

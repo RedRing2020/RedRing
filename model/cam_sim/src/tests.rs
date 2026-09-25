@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::path::Path;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
@@ -7,6 +8,7 @@ use cam_core::{
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
+use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
@@ -54,13 +56,6 @@ fn roundtrip_toolpath_via_artifact(toolpath: &ToolPath<f64>) -> ToolPath<f64> {
     let (read_header, read_toolpath) = read_toolpath_artifact_v1(&mut cursor).unwrap();
     assert_eq!(read_header.kind, ArtifactKind::ToolPath);
     read_toolpath
-}
-
-mod demo_symbol_guard {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../test_helpers/demo_symbol_guard.rs"
-    ));
 }
 
 #[test]
@@ -262,7 +257,7 @@ fn test_snapshot_exports_f64_maps_snapshot_fields() {
 #[test]
 fn test_job_adapter_runs_cam_and_sim_jobs() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(JobSpec {
         job_type: JobType::CamProcess,
@@ -403,7 +398,7 @@ fn test_workflow_rejects_nc_post_submission_with_wrong_job_type() {
 #[test]
 fn test_job_adapter_rejects_invalid_input_ref() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let id = manager.submit(JobSpec {
         job_type: JobType::CuttingSimulation,
@@ -425,9 +420,71 @@ fn test_job_adapter_rejects_invalid_input_ref() {
 }
 
 #[test]
+fn test_job_adapter_reports_no_solution_for_cam_process() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter::default();
+
+    let id = manager.submit(cam_spec("input://cam/no-solution"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("no_solution")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == id && log_ref.ends_with("/no_solution")
+        )
+    }));
+}
+
+#[test]
+fn test_job_adapter_reports_convergence_failure_for_cam_process() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter::default();
+
+    let id = manager.submit(cam_spec("input://cam/convergence-failure"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("convergence_failure")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == id && log_ref.ends_with("/convergence_failure")
+        )
+    }));
+}
+
+#[test]
 fn test_job_adapter_rejects_cutting_sim_parent_mismatch() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/sample"));
 
@@ -455,7 +512,7 @@ fn test_job_adapter_rejects_cutting_sim_parent_mismatch() {
 #[test]
 fn test_job_adapter_rejects_cutting_sim_non_ok_suffix() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/sample"));
 
@@ -483,7 +540,7 @@ fn test_job_adapter_rejects_cutting_sim_non_ok_suffix() {
 #[test]
 fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure_from_parent_artifact() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/artifact-read-failed"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -525,7 +582,7 @@ fn test_job_adapter_surfaces_cutting_sim_artifact_read_failure_from_parent_artif
 #[test]
 fn test_job_adapter_surfaces_cutting_sim_execution_failure_from_parent_artifact() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/sim-failure"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -567,7 +624,7 @@ fn test_job_adapter_surfaces_cutting_sim_execution_failure_from_parent_artifact(
 #[test]
 fn test_job_adapter_rejects_cutting_sim_without_parent() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let id = manager.submit(sim_spec("result://cam/42/ok"));
     manager.execute_with(id, &adapter).unwrap();
@@ -585,7 +642,7 @@ fn test_job_adapter_rejects_cutting_sim_without_parent() {
 #[test]
 fn test_job_adapter_runs_nc_post_from_cam_with_toolpath_artifact() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -615,7 +672,7 @@ fn test_job_adapter_runs_nc_post_from_cam_with_toolpath_artifact() {
 #[test]
 fn test_job_adapter_rejects_nc_post_from_cam_kind_mismatch() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/kind-mismatch"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -644,7 +701,7 @@ fn test_job_adapter_rejects_nc_post_from_cam_kind_mismatch() {
 #[test]
 fn test_job_adapter_surfaces_nc_post_from_cam_version_incompatibility() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/version-mismatch"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -673,7 +730,7 @@ fn test_job_adapter_surfaces_nc_post_from_cam_version_incompatibility() {
 #[test]
 fn test_job_adapter_surfaces_nc_post_from_cam_artifact_read_failure() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/artifact-read-failed"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -716,7 +773,7 @@ fn test_job_adapter_surfaces_nc_post_from_cam_artifact_read_failure() {
 #[test]
 fn test_job_adapter_rejects_nc_post_from_cam_parent_mismatch() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -745,7 +802,7 @@ fn test_job_adapter_rejects_nc_post_from_cam_parent_mismatch() {
 #[test]
 fn test_job_adapter_nc_post_can_use_superseded_cam_output_history() {
     let mut manager = JobManager::new();
-    let adapter = CamJobExecutorAdapter;
+    let adapter = CamJobExecutorAdapter::default();
 
     let cam_id = manager.submit(cam_spec("input://cam/for-nc-post"));
     manager.execute_with(cam_id, &adapter).unwrap();
@@ -1608,5 +1665,5 @@ fn phase4_exploration_thin_wall_boundary_priority_candidates() {
 
 #[test]
 fn test_cam_sim_source_does_not_reference_demo_symbols() {
-    demo_symbol_guard::assert_layer_does_not_reference_demo_symbols("cam_sim");
+    assert_layer_does_not_reference_demo_symbols_in(Path::new("src"), "cam_sim");
 }

@@ -1,8 +1,8 @@
 # CAM クレート責務設計と cam_algorithms 新設案
 
 **作成日**: 2026年3月25日
-**最終更新**: 2026年3月29日
-**ステータス**: 設計案更新中 - 依存例具体化、PoC選定、2D/2.5D方針追記済み
+**最終更新**: 2026年9月25日
+**ステータス**: cam_algorithms 新設済み（#684）- 逆オフセット法による最小 solver 導線を実装（ボール/フラットエンドミル）
 **関連Issue**: #413（親）、#426（分離）、#411、#412、#503、#504
 
 ---
@@ -55,7 +55,7 @@
 
 ---
 
-### 1.2 cam_algorithms（アルゴリズム層）✨ **新設候補**
+### 1.2 cam_algorithms（アルゴリズム層）✅ **新設済み（#684）**
 
 **責務**:
 
@@ -455,9 +455,10 @@ ToolPathの複雑化抑制のため、以下を分離する。
 最小入力は `InputRef`（solver 入力を指す参照）が指す payload とし、以下を必須項目とする。
 
 - `geometry_kind`
-  - `nurbs_surface_set`
-  - `nurbs_curve_set`
-  - `curve_chain_2p5d`
+  - `nurbs_surface_set`（#684 で実装）
+  - `triangle_mesh`（#684 で実装。離散化済みポリゴン入力、STL 等）
+  - `nurbs_curve_set`（未実装。2D/2.5D 輪郭系として #212 で扱う）
+  - `curve_chain_2p5d`（未実装。同上）
 - `tool_id`
 - `operation_id`
 - `units`
@@ -494,12 +495,16 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 ### 8.5 失敗分類と契約境界
 
-- `invalid_input`
+- 状態異常（入力契約エラー）: `invalid_input`
   - 必須項目欠落、型不一致、units/frame 不整合
-- `no_solution`
-  - 幾何制約下で有効経路を構築できない
-- `convergence_failure`
-  - 反復解法が収束条件を満たさない
+- 状態正常だが解なし: `no_solution`
+  - 入力契約は妥当だが、幾何制約下で有効経路を構築できない
+- 内部計算異常（数値解法エラー）: `convergence_failure`
+  - 入力契約は妥当だが、反復解法が収束条件を満たさない
+
+補足:
+
+- `convergence_failure` は `invalid_input` とは別分類として扱う
 
 いずれも Job Manager には失敗種別のみ伝達し、幾何計算の内部状態は公開しない。
 
@@ -508,6 +513,109 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - #679: `NcPostFromCam` の artifact 読込導線は本節の `ResultRef` 契約を前提とする
 - #680-#683: NC post 拡張系列は、本節で固定した solver->toolpath 導線を前提とする
 
+### 8.7 本番導線シナリオ（Job Manager 経由）
+
+`model/application` / `model/job_runtime` / `model/cam_sim` の本番導線を対象に、以下を最小受け入れシナリオとする。
+
+1. 正常系: CAM親ジョブ -> 切削シミュレーション子ジョブ
+  - `CamProcess` が `toolpath` artifact を生成し、`CuttingSimulation` が親 `ResultRef` を参照して成功する
+  - 成功時に `status=succeeded`、`result://sim/<id>/ok`、`log://sim/<id>/ok` を返す
+
+2. 異常系: 入力契約不正（invalid_input）
+  - 必須項目欠落、units/frame 不整合、`InputRef` 形式不正のいずれかで失敗する
+  - Job Manager へは `invalid_input` として集約した失敗分類を返す
+
+3. 異常系: 経路未生成（no_solution）
+  - 幾何制約により有効 ToolPath を構築できない入力で失敗する
+  - Job Manager へは `no_solution` として失敗分類を返す
+
+4. 異常系: 収束失敗（convergence_failure）
+  - 入力契約は妥当だが、反復解法が収束閾値を満たさない場合に失敗する
+  - Job Manager へは `convergence_failure` として失敗分類を返す
+
+5. 契約境界系: 親子制約違反
+  - `CuttingSimulation` の `parent_job_id` 欠落、または親IDと `input_ref` の不一致で reject する
+  - `JobType + InputRef -> ResultRef` 契約を壊さず、内部詳細は公開しない
+
+### 8.8 実装順序（最小）
+
+1. 入力契約モデルと失敗分類マッピングの固定
+2. CAM親ジョブから `toolpath` artifact 生成導線の最小実装
+3. 切削シミュレーション子ジョブでの `ResultRef` 参照実行
+4. 上記 8.7 の 5 シナリオをテストで固定
+
+### 8.9 実装（#684 完了時点）
+
+配置:
+
+- `model/cam_algorithms`: solver 本体（純粋計算）
+  - `solver`: 入力契約 `CamSolverInput`、失敗分類 `CamSolverError`、入口 `solve_toolpath`
+  - `tessellation`: NURBS 曲面集合 → 三角形メッシュ
+  - `inverse_offset`: 逆オフセット法による CL 算出（`DropCutter` / `CutterShape`）
+  - `scanline`: `operation_type = scanline` の経路化
+- `model/cam_sim`: Job アダプタと参照解決
+  - `CamSolverInputProvider`: `InputRef` → `CamSolverInput` の解決境界
+  - `InMemoryCamSolverInputStore`: プロセス内 provider 実装（`input://cam/<name>` のみ受理）
+  - `CamJobExecutorAdapter::with_input_provider`: provider 接続済みアダプタ
+
+3D 経路生成方式（逆オフセット法）:
+
+- 形状を三角形へ離散化し、各要素を工具形状で逆オフセットした面の上側包絡を工具中心高さとする
+- 出力は工具先端（ToolPath 座標）の高さとする
+- 凹辺のオフセットは他要素の包絡に覆われるため全辺を評価しても結果は変わらない（凸辺限定は #256 の高速化対象）
+
+工具種別ごとの要素オフセット:
+
+| 工具 | 頂点 | 辺 | 面 | 対応 |
+|------|------|----|----|------|
+| ボールエンドミル（半径 r） | 球（中心高さ − r が先端） | 円筒（円弧掃引面） | 法線方向 r オフセット平面 | #684 |
+| フラットエンドミル（半径 r） | 円板（頂点高さ） | 円板掃引（水平距離 r 以内の辺上最高点） | 底面円周接触（最大傾斜方向へ r 進んだ点） | #684 |
+| ラジアスエンドミル（半径 R・コーナー r） | トーラス | トーラス掃引（数値解法） | オフセット面 | #211 |
+
+- いずれも閉形式で解けるボール/フラットを #684 の範囲とし、辺で数値解法を要するラジアスエンドミルは #211 で扱う
+- 未対応工具（ラジアスエンドミル）は `invalid_input` を返す
+
+失敗分類の決定箇所:
+
+| 分類 | 決定条件 |
+|------|----------|
+| `invalid_input` | `InputRef` 形式/ドメイン不正、必須項目欠落、値域外（stepover > 工具径等）、未対応工具、provider 未登録（本番ビルド） |
+| `no_solution` | 非退化三角形が存在しない、全走査ラインで工具が形状に接触しない |
+| `convergence_failure` | 離散化の弦誤差が `chord_tolerance` 以内に収束しない（再分割反復上限・頂点数上限超過） |
+
+#684 完了条件:
+
+1. 入力契約（`CamSolverInput`）と失敗分類 3 種が実装され、Job Manager へ分類コードのみ伝達される
+2. ボール/フラットエンドミルの逆オフセットが要素（頂点・辺・面）単位でテストされ、曲面に対して食い込みなし・接触ありが検証される
+3. ラジアスエンドミルは `invalid_input` として明示的に拒否される
+4. §8.7 の 5 シナリオが Job Manager 経由で固定され、シナリオ 2-4 は solver 実計算で再現される
+5. 本番ビルドで固定 artifact に依存せず CAM 親ジョブ → 切削シミュレーション子ジョブが完走する
+
+テスト/デバッグビルドでは provider 未登録の `InputRef` に対して従来の固定 artifact（suffix 指定の失敗分類を含む）を返す。
+本番ビルドでは provider 未登録を `invalid_input` とし、固定 artifact は生成しない。
+
+
+### 8.10 逆オフセット包絡面のデバッグ表示
+
+逆オフセットの結果を目視確認するため、包絡面（CL 面）を表示するデバッグ機能を持つ。
+
+| 層 | 配置 | 責務 |
+|----|------|------|
+| Model | `cam_algorithms::cl_grid`（`sample_cl_grid`） | drop-cutter を等間隔格子で評価し工具先端高さを返す |
+| Application | `application::cam_inspection`（`inspect_inverse_offset`） | 形状離散化・包絡面評価を束ね、基準点高さ（ボール: 球中心、フラット: 底面中心）の格子を返す |
+| ViewModel | `viewmodel::inverse_offset_converter` | 表示モードに応じてシェーディングメッシュと重畳線分へ変換する |
+| View | `view/app` の `debug_scene::inverse_offset` | キー操作で表示・切替する |
+
+- 入力形状はサンプル NURBS 曲面（`m` キー表示と同一）、弦誤差はアプリの表示トレランスを用いる
+- 評価範囲は形状の XY 範囲を工具半径だけ広げた領域とし、外周で工具が接触する範囲も表示する
+- 表示モード
+  - 包絡面: 包絡面をシェーディング表示し、元形状を三角形エッジで重畳する
+  - 格子線: 元形状をシェーディング表示し、包絡面を一定ピッチ（評価間隔 × 格子線間隔）の格子線で重畳する
+- 接触境界（工具が形状に触れ得る範囲の外縁）
+  - Model 層で、接触あり/なしが切り替わる格子辺ごとに二分法で境界点を求める（停止条件は既定の距離トレランス）
+  - 両モードで境界を輪郭線として重畳し、境界を跨ぐ格子セル・格子線は境界点まで切り詰める
+  - 形状の角の外側では、工具が触れ得るのは角頂点のみのため、包絡面は角頂点を中心とする半径 r の 1/4 円で丸まる（欠けではなく幾何的に正しい形状）
+- キー操作: `i` 表示、`Shift+I` 工具切替（ボール/フラット）、`g` 表示モード切替
 ---
 
 ## 9️⃣ #689 工程テンプレート精度プロファイル運用契約（Step A）

@@ -7,9 +7,11 @@ use crate::settings_panel_ui::SettingsPanelTab;
 use crate::snapshot_overlay_renderer::SnapshotOverlayStyle;
 use analysis::{LengthUnit, Tolerance};
 use cam_demo::CamSimulationDemoScenario;
+use debug_scene::InverseOffsetDebugState;
 use debug_snapshot_state::DebugSnapshotState;
 use std::sync::Arc;
 use viewmodel::cam_sim_visualization_converter::ToolWireframeVisualizationSettings;
+use viewmodel::inverse_offset_converter::InverseOffsetVisualizationSettings;
 use viewmodel::message_catalog::UiLocale;
 use viewmodel::octree_converter::OctreeVisualizationSettings;
 use viewmodel::toolpath_converter::ToolPathVisualizationSettings;
@@ -103,6 +105,12 @@ pub struct AppState {
     /// ToolPath表示設定
     toolpath_visualization_settings: ToolPathVisualizationSettings,
 
+    /// 逆オフセット包絡面デバッグ表示設定
+    inverse_offset_visualization_settings: InverseOffsetVisualizationSettings,
+
+    /// 逆オフセット包絡面デバッグ表示の状態（工具種別・表示モード）
+    inverse_offset_debug: InverseOffsetDebugState,
+
     /// 最後に表示したCAMデモの種別
     current_cam_demo_scenario: Option<CamSimulationDemoScenario>,
 
@@ -155,6 +163,8 @@ impl AppState {
             snapshot_shaded_color_settings: SnapshotShadedColorSettings::default(),
             tool_wireframe_visualization_settings: ToolWireframeVisualizationSettings::default(),
             toolpath_visualization_settings: ToolPathVisualizationSettings::default(),
+            inverse_offset_visualization_settings: InverseOffsetVisualizationSettings::default(),
+            inverse_offset_debug: InverseOffsetDebugState::default(),
             current_cam_demo_scenario: None,
             settings_panel_open: false,
             settings_panel_active_tab: SettingsPanelTab::default(),

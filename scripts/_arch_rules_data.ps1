@@ -16,10 +16,12 @@ $ARCH_LAYER_MAPPING = @{
     geo_io         = "model/geo_io"
     geo_entity     = "model/geo_entity"
     cam_core       = "model/cam_core"
+    cam_algorithms = "model/cam_algorithms"
     cam_entity     = "model/cam_entity"
     cam_sim        = "model/cam_sim"
     job_runtime    = "model/job_runtime"
     job_domain     = "model/job_domain"
+    redring_test_support = "model/test_support"
     converter      = "viewmodel/converter"
     cam_demo       = "viewmodel/cam_demo"
     graphics       = "viewmodel/graphics"
@@ -32,29 +34,24 @@ $ARCH_LAYER_MAPPING = @{
 $ARCH_LAYERS = @{
     Analysis  = @("analysis")
     Application = @("application")
-    Model     = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_topology", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+    Model     = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_topology", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+    TestSupport = @("redring_test_support")
     ViewModel = @("converter", "cam_demo", "graphics")
     View      = @("render", "stage", "app")
 }
 
-# Issue #413 design note:
-# When adding `cam_algorithms`, update this file in one change set:
-# 1. Add `cam_algorithms = "model/cam_algorithms"` to ARCH_LAYER_MAPPING.
-# 2. Add `cam_algorithms` to ARCH_LAYERS.Model.
-# 3. Add ARCH_ALLOWED_DEPS entry for cam_algorithms.
-# 4. Update allowed dependencies in related crates.
-# 5. Add reverse dependency guards to ARCH_FORBIDDEN_DEPS.
-# 6. Add cam_algorithms to ARCH_REQUIRED_MODEL_CRATES only after crate creation.
+# Issue #413 design note: `cam_algorithms` was created in #684.
+# Mapping, Model layer, allowed/forbidden dependency rules, and required crates were updated in one change set.
 
 # Required model crates
-$ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity")
+$ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_algorithms")
 
 # Allowed dependency rules
 # Last updated: 2026-04-09 (#650: allow geo_topology -> geo_nurbs for NURBS curve edge topology, sync application allowed deps with current crate)
-# Pending update: add CAM dependency rules when `cam_algorithms` is created.
+# 2026-09-25 (#684): add cam_algorithms (cam_sim/application -> cam_algorithms allowed)
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_sim", "job_runtime", "job_domain")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_algorithms", "cam_sim", "job_runtime", "job_domain", "redring_test_support")
     geo_contracts  = @("analysis", "geo_commons")
     geo_commons    = @("analysis")
     geo_core       = @("analysis", "geo_contracts", "geo_entity")
@@ -65,10 +62,12 @@ $ARCH_ALLOWED_DEPS = @{
     geo_io         = @("geo_contracts", "geo_core", "geo_primitives", "geo_algorithms", "analysis")
     geo_entity     = @("geo_contracts", "geo_primitives")
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
+    cam_algorithms = @("analysis", "cam_core", "geo_contracts", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
-    cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
-    job_runtime    = @("analysis")
+    cam_sim        = @("analysis", "cam_core", "cam_algorithms", "geo_algorithms", "job_runtime", "job_domain", "redring_test_support")
+    job_runtime    = @("analysis", "redring_test_support")
     job_domain     = @("analysis", "job_runtime")
+    redring_test_support = @()
     converter      = @(
         "application",
         "geo_contracts",
@@ -89,36 +88,38 @@ $ARCH_ALLOWED_DEPS = @{
 
 # Forbidden dependency rules
 # Last updated: 2026-04-09 (#501/#650 sync application forbidden deps with current allowed deps)
-# Pending update: add reverse dependency guards when `cam_algorithms` is created.
+# 2026-09-25 (#684): add cam_algorithms reverse dependency guards
 $ARCH_FORBIDDEN_DEPS = @{
     application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "cam_demo", "graphics", "render", "stage", "app")
-    geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_contracts  = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
-    geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_topology   = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_algorithms = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_nurbs      = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_io         = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    geo_entity     = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_entity", "cam_sim", "job_runtime")
-    cam_core       = @("converter", "graphics", "render", "stage", "app", "geo_entity", "cam_sim")
-    cam_entity     = @("converter", "graphics", "render", "stage", "app", "cam_sim")
+    geo_foundation = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_contracts  = @("geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "graphics", "render", "stage", "app")
+    geo_commons    = @("converter", "graphics", "render", "stage", "app", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_core       = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_primitives = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_topology   = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_algorithms = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_nurbs      = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_io         = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    geo_entity     = @("converter", "graphics", "render", "stage", "app", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime")
+    cam_core       = @("converter", "graphics", "render", "stage", "app", "geo_entity", "cam_sim", "cam_algorithms")
+    cam_entity     = @("converter", "graphics", "render", "stage", "app", "cam_sim", "cam_algorithms")
+    cam_algorithms = @("converter", "graphics", "render", "stage", "app", "geo_entity", "cam_entity", "cam_sim", "job_runtime", "job_domain", "application", "cam_demo")
     cam_sim        = @("converter", "graphics", "render", "stage", "app", "geo_entity", "geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "cam_entity")
-    job_runtime    = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
+    job_runtime    = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
     job_domain     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "converter", "graphics", "render", "stage", "app")
+    redring_test_support = @("geo_foundation", "application", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "job_domain", "converter", "cam_demo", "graphics", "render", "stage", "app", "analysis")
     converter      = @(
         "cam_demo",
         "render",
         "stage",
         "app"
     );
-    cam_demo       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "job_runtime", "job_domain", "graphics", "render", "stage", "app")
+    cam_demo       = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "geo_entity", "cam_entity", "cam_algorithms", "job_runtime", "job_domain", "graphics", "render", "stage", "app")
     graphics       = @("render", "stage", "app")
-    render         = @("geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
-    stage          = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
-    app            = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim")
-    analysis       = @("geo_foundation", "application", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "converter", "cam_demo", "graphics", "render", "stage", "app")
+    render         = @("geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
+    stage          = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "converter", "cam_demo", "graphics")
+    app            = @("geo_foundation", "application", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim")
+    analysis       = @("geo_foundation", "application", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_algorithms", "cam_entity", "cam_sim", "job_runtime", "converter", "cam_demo", "graphics", "render", "stage", "app")
 }
 
 # Shared helper: extract workspace dependencies from Cargo.toml
@@ -133,17 +134,27 @@ function Get-CrateDependenciesShared {
     $knownCrates = $ARCH_ALLOWED_DEPS.Keys
     $dependencies = @()
     $content = Get-Content $cargoToml
+    # 依存セクション: [dependencies] / [dev-dependencies] / [build-dependencies]
+    # および [target.'cfg(...)'.dependencies] 等の target 限定形式
+    $depsSectionPattern = '^(?:target\..+\.)?(?:dev-|build-)?dependencies$'
+    # テーブル形式の単一依存: [dependencies.<name>] / [dev-dependencies.<name>] 等
+    $depsTablePattern = '^(?:target\..+\.)?(?:dev-|build-)?dependencies\.(.+)$'
     $inDepsSection = $false
 
     foreach ($line in $content) {
-        if ($line -match '^\[dependencies\]') {
-            $inDepsSection = $true
+        if ($line -match '^\s*\[(.+)\]') {
+            $sectionName = $matches[1].Trim().Replace('"', '').Replace("'", '')
+            $inDepsSection = $sectionName -match $depsSectionPattern
+            if ($sectionName -match $depsTablePattern) {
+                # テーブル内の行は依存名ではなく属性（version/path 等）なので、見出しから依存名を取る
+                $depName = $matches[1].Trim()
+                if ($knownCrates -contains $depName) {
+                    $dependencies += $depName
+                }
+            }
             continue
         }
-        if ($line -match '^\[.*\]' -and $inDepsSection) {
-            break
-        }
-        if ($inDepsSection -and $line -match '^(\w+)\s*=') {
+        if ($inDepsSection -and $line -match '^\s*([\w-]+)\s*=') {
             $depName = $matches[1]
             if ($knownCrates -contains $depName) {
                 $dependencies += $depName
@@ -151,7 +162,7 @@ function Get-CrateDependenciesShared {
         }
     }
 
-    return $dependencies
+    return $dependencies | Select-Object -Unique
 }
 
 # Shared helper: return workspace crate path map

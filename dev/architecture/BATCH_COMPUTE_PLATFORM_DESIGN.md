@@ -240,7 +240,8 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 ### 14.3 インターフェース境界
 
 - Job Manager は Model の内部実装に依存しない
-- 契約は `JobType + InputRef -> ResultRef` を基本とする
+- 契約は `JobType + input reference -> result reference` を基本とする
+- 参照は ID/パス/URI などの参照表現を許容し、境界で妥当性検証する
 - 進捗はイベントで通知（例: `ProgressUpdated`, `ArtifactReady`, `Completed`）
 - モジュール境界として、実行制御と計算ロジックを同一クレートに混在させない
 
@@ -249,15 +250,17 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - 共通実行制御は `model/job_runtime` に配置する
 - `job_runtime` は CAD/CAM/CAE の計算実装に依存しない
 - CAM/切削の実行接続は `cam_*` 側アダプタで担保する
-- 将来のNC Post/CAEジョブも同一契約へ接続できるよう、`JobType + InputRef -> ResultRef` を維持する
+- 将来のNC Post/CAEジョブも同一契約へ接続できるよう、`JobType + input reference -> result reference` を維持する
+- 参照表現の詳細規約（スキーム、命名、検証、型化方針）は全体方針として `ARCHITECTURE.md` を正本とする
 
 ### 14.5 初期接続実装方針（スタブ）
 
 - #298 の初期接続は `model/cam_sim` に `JobExecutor` アダプタを実装する
 - アダプタは `JobType::CamProcess` / `JobType::CuttingSimulation` の2系統を受け付ける
-- 初期段階では実計算を呼ばず、`InputRef` を検証して `ResultRef` を返すスタブ動作とする
+- 初期段階では実計算を呼ばず、入力参照（ID/パス/URI）の妥当性のみ検証して結果参照を返すスタブ動作とする
+- #684 で `CamProcess` は `CamSolverInputProvider` 経由で `cam_algorithms::solve_toolpath` を呼ぶ実計算へ移行した（スタブはテスト/デバッグビルドの provider 未登録時のみ残す）
 - タイムアウト/リトライ/キャンセルは `job_runtime` 側の実行制御で検証する
-- 実計算への差し替えは後続Issueで行い、同じ契約を維持したまま移行する
+- 実計算への差し替えは後続Issueで行い、同じ参照契約を維持したまま移行する
 
 ### 14.6 ジョブ階層・グループ管理拡張（#311）
 

@@ -125,6 +125,7 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "cam_algorithms",
  "cam_core",
  "cam_sim",
  "geo_algorithms",
@@ -134,6 +135,7 @@ dependencies = [
  "geo_topology",
  "job_domain",
  "job_runtime",
+ "redring_test_support",
 ]
 
 [[package]]
@@ -349,6 +351,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cam_algorithms"
+version = "0.1.0"
+dependencies = [
+ "analysis",
+ "cam_core",
+ "geo_algorithms",
+ "geo_contracts",
+]
+
+[[package]]
 name = "cam_core"
 version = "0.1.0"
 dependencies = [
@@ -370,10 +382,12 @@ name = "cam_sim"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "cam_algorithms",
  "cam_core",
  "geo_algorithms",
  "job_domain",
  "job_runtime",
+ "redring_test_support",
 ]
 
 [[package]]
@@ -1674,6 +1688,9 @@ dependencies = [
 [[package]]
 name = "job_runtime"
 version = "0.1.0"
+dependencies = [
+ "redring_test_support",
+]
 
 [[package]]
 name = "jobserver"
@@ -2855,6 +2872,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "redring_test_support"
+version = "0.1.0"
+
+[[package]]
 name = "regex"
 version = "1.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3733,8 +3754,6 @@ dependencies = [
  "geo_algorithms",
  "geo_contracts",
  "geo_io",
- "geo_nurbs",
- "geo_primitives",
  "i18n_foundation",
  "job_domain",
  "logging_foundation",

@@ -16,7 +16,11 @@ geo_algorithms = { path = "../geo_algorithms" }
 geo_entity = { path = "../geo_entity" }
 geo_primitives = { path = "../geo_primitives" }
 geo_topology = { path = "../geo_topology" }
+cam_algorithms = { path = "../cam_algorithms" }
 cam_core = { path = "../cam_core" }
 cam_sim = { path = "../cam_sim" }
 job_runtime = { path = "../job_runtime" }
 job_domain = { path = "../job_domain" }
+
+[dev-dependencies]
+redring_test_support = { path = "../test_support" }

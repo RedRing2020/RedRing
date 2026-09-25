@@ -233,9 +233,7 @@ fn deduplicate_exact_edges(vertices: Vec<WireframeVertex>) -> Vec<WireframeVerte
     let mut unique_edges: HashSet<([u32; 3], [u32; 3])> = HashSet::new();
     let mut deduped = Vec::with_capacity(vertices.len());
 
-    for edge in vertices.chunks_exact(2) {
-        let a = edge[0];
-        let b = edge[1];
+    for &[a, b] in vertices.as_chunks::<2>().0 {
         let key = canonical_edge_key(a.position, b.position);
 
         if unique_edges.insert(key) {

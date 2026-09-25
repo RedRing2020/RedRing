@@ -6,6 +6,7 @@ pub mod artifact_manifest;
 pub mod events;
 pub mod executor;
 pub mod manager;
+pub mod reference;
 pub mod types;
 
 pub use artifact_manifest::{
@@ -17,6 +18,7 @@ pub use artifact_manifest::{
 pub use events::JobEvent;
 pub use executor::{JobExecutionResult, JobExecutor};
 pub use manager::JobManager;
+pub use reference::{ParsedRef, RefFactory, RefParser, RefScheme, RefValidationError};
 pub use types::{
     JobError, JobGroupSummary, JobId, JobOutputRecord, JobOutputValidity, JobRecord, JobRelation,
     JobSpec, JobStatus, JobType, RetryPolicy,
@@ -24,15 +26,11 @@ pub use types::{
 
 #[cfg(test)]
 mod tests {
-    mod demo_symbol_guard {
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../test_helpers/demo_symbol_guard.rs"
-        ));
-    }
+    use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
+    use std::path::Path;
 
     #[test]
     fn test_job_runtime_source_does_not_reference_demo_symbols() {
-        demo_symbol_guard::assert_layer_does_not_reference_demo_symbols("job_runtime");
+        assert_layer_does_not_reference_demo_symbols_in(Path::new("src"), "job_runtime");
     }
 }
