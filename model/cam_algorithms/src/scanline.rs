@@ -1,6 +1,6 @@
 //! スキャン加工（`operation_type = scanline`）の経路化
 //!
-//! 形状の XY 範囲を Y 方向へ `stepover` 以下の等間隔で走査ラインに分け、
+//! 加工範囲（既定は形状の XY 範囲）を Y 方向へ `stepover` 以下の等間隔で走査ラインに分け、
 //! 各ライン上を X 正方向に `sample_pitch` 以下の間隔で CL を求める。
 //! 工具が形状に接触する連続区間を 1 パスとし、パス間は早送り高さを経由して移動する。
 
@@ -10,15 +10,15 @@ use geo_algorithms::Point3D;
 use crate::inverse_offset::DropCutter;
 use crate::solver::{CamSolverError, ScanlineParams};
 
-/// drop-cutter からスキャン加工の ToolPath を生成する。
+/// drop-cutter から、XY 範囲 `(min, max)` のスキャン加工 ToolPath を生成する。
 ///
 /// 各パスは `ContourLevelPath` 1 件に対応し、`z_level` にはパス内の最高 CL 高さを格納する。
 pub fn generate_scanline_toolpath(
     cutter: &DropCutter,
     tool_id: &str,
     params: &ScanlineParams,
+    (xy_min, xy_max): ([f64; 2], [f64; 2]),
 ) -> Result<ToolPath<f64>, CamSolverError> {
-    let (xy_min, xy_max) = cutter.xy_bounds();
     let ys = uniform_samples(xy_min[1], xy_max[1], params.stepover);
     let xs = uniform_samples(xy_min[0], xy_max[0], params.sample_pitch);
 

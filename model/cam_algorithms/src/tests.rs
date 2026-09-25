@@ -72,6 +72,7 @@ fn solver_input(geometry: SolverGeometry) -> CamSolverInput {
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
         chord_tolerance: 0.01,
         tessellation_limits: TessellationLimits::default(),
+        boundary: None,
     }
 }
 
@@ -480,5 +481,141 @@ fn cl_grid_boundary_points_lie_on_contact_limit() {
             "boundary ({x}, {y}) distance {distance}"
         );
         assert!(z.abs() < EPS);
+    }
+}
+
+fn rectangle(rect_min: [f64; 2], rect_max: [f64; 2]) -> Option<crate::MachiningBoundary> {
+    Some(crate::MachiningBoundary::Rectangle(
+        crate::RectangleBoundary { rect_min, rect_max },
+    ))
+}
+
+#[test]
+fn rectangle_boundary_limits_scanline_region() {
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    input.boundary = rectangle([10.0, 10.0], [20.0, 30.0]);
+    let toolpath = solve_toolpath(&input).unwrap();
+
+    // Y 10..30 を stepover 2.0 で走査 → 11 ライン
+    assert_eq!(toolpath.level_count(), 11);
+    for level in &toolpath.contour_levels {
+        for segment in level.cutting_segments() {
+            let p = segment.end_point();
+            assert!((10.0..=20.0).contains(&p.x()) && (10.0..=30.0).contains(&p.y()));
+        }
+    }
+}
+
+#[test]
+fn rectangle_within_tool_reach_outside_shape_is_accepted() {
+    // 形状外側だが工具半径以内（x = -2..0）は接触し得るため受理する
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    input.boundary = rectangle([-2.0, 0.0], [0.0, 40.0]);
+    assert!(solve_toolpath(&input).is_ok());
+}
+
+#[test]
+fn rectangle_outside_tool_reach_is_operation_boundary_out_of_domain() {
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    input.boundary = rectangle([100.0, 100.0], [110.0, 110.0]);
+    let error = solve_toolpath(&input).unwrap_err();
+    assert_eq!(error.code(), "invalid_input");
+    assert!(
+        error
+            .reason()
+            .starts_with("operation_boundary_out_of_domain")
+    );
+}
+
+#[test]
+fn degenerate_rectangle_in_solver_input_is_invalid_input() {
+    let mut input = solver_input(SolverGeometry::TriangleMesh(flat_square(0.0)));
+    input.boundary = rectangle([5.0, 5.0], [5.0, 8.0]);
+    let error = solve_toolpath(&input).unwrap_err();
+    assert_eq!(error.code(), "invalid_input");
+    assert!(error.reason().starts_with("invalid_rectangle_boundary"));
+}
+
+/// 精度プロファイル別の離散化・経路生成負荷の計測（要素絞り込みによる高速化の判断材料）
+///
+/// `cargo test -p cam_algorithms --release -- --ignored --nocapture profile_load`
+#[test]
+#[ignore]
+fn profile_load_measurement() {
+    use cam_core::ToleranceProfile;
+    use std::time::Instant;
+
+    for profile in [ToleranceProfile::PressRough, ToleranceProfile::MoldFinish] {
+        let tolerance = profile.tolerance_mm();
+        let started = Instant::now();
+        let result =
+            tessellate_surfaces(&[dome_surface()], tolerance, TessellationLimits::default());
+        let tessellation_ms = started.elapsed().as_millis();
+        match result {
+            Ok(mesh) => {
+                let mut input = solver_input(SolverGeometry::TriangleMesh(mesh.clone()));
+                input.chord_tolerance = tolerance;
+                let started = Instant::now();
+                let toolpath = solve_toolpath(&input);
+                println!(
+                    "{}: tolerance={} vertices={} triangles={} tessellation={}ms solve={}ms ok={}",
+                    profile.token(),
+                    tolerance,
+                    mesh.vertex_count(),
+                    mesh.triangle_count(),
+                    tessellation_ms,
+                    started.elapsed().as_millis(),
+                    toolpath.is_ok()
+                );
+            }
+            Err(error) => println!(
+                "{}: tolerance={} tessellation={}ms failed: {}",
+                profile.token(),
+                tolerance,
+                tessellation_ms,
+                error
+            ),
+        }
+    }
+}
+
+#[test]
+fn oversized_rectangle_is_clipped_to_tool_reach() {
+    // 形状 0..40 に対し ±1e6 の矩形: 走査は reach（-3..43）にクリップされ、点数は形状規模に収まる
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    input.boundary = rectangle([-1.0e6, -1.0e6], [1.0e6, 1.0e6]);
+    let toolpath = solve_toolpath(&input).unwrap();
+
+    let r = input.tool.radius();
+    // Y -3..43 を stepover 2.0 で走査 → 24 ライン（うち外周で非接触のラインは生成されない）
+    assert!(toolpath.level_count() <= 24);
+    for level in &toolpath.contour_levels {
+        for segment in level.cutting_segments() {
+            let p = segment.end_point();
+            assert!((-r..=40.0 + r).contains(&p.x()) && (-r..=40.0 + r).contains(&p.y()));
+        }
+    }
+}
+
+#[test]
+fn rectangle_touching_reach_is_out_of_domain_not_no_solution() {
+    // reach は形状 0..40 ± 工具半径 3 → -3..43。辺・角で接するだけの矩形は面積を持たない
+    let degenerate_cases = [
+        ([43.0, 0.0], [50.0, 40.0]),    // 右辺で接する
+        ([-10.0, -10.0], [-3.0, -3.0]), // 角で接する
+        ([0.0, 43.0], [40.0, 60.0]),    // 上辺で接する
+    ];
+    for (rect_min, rect_max) in degenerate_cases {
+        let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+        input.boundary = rectangle(rect_min, rect_max);
+        let error = solve_toolpath(&input).unwrap_err();
+        assert_eq!(error.code(), "invalid_input", "{rect_min:?}-{rect_max:?}");
+        assert!(
+            error
+                .reason()
+                .starts_with("operation_boundary_out_of_domain"),
+            "{rect_min:?}-{rect_max:?}: {}",
+            error.reason()
+        );
     }
 }

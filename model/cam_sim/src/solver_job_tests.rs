@@ -1,4 +1,4 @@
-//! CamProcess solver 導線（#684 §8.7）の Job Manager 経由テスト
+//! CamProcess solver 導線（設計: CAM_ALGORITHMS_DESIGN.md §8.7）の Job Manager 経由テスト
 
 use std::io::Cursor;
 use std::sync::Arc;
@@ -52,6 +52,7 @@ fn scanline_input(geometry: SolverGeometry, tool: Tool<f64>) -> CamSolverInput {
         coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
         chord_tolerance: 0.01,
         tessellation_limits: TessellationLimits::default(),
+        boundary: None,
     }
 }
 
@@ -162,7 +163,7 @@ fn assert_cam_failure(adapter: &CamJobExecutorAdapter, input_ref: &str, code: &s
 
 #[test]
 fn solver_invalid_input_is_reported_as_invalid_input() {
-    // ラジアスエンドミルの逆オフセットは未対応（#211）
+    // ラジアスエンドミルの逆オフセットは未対応
     let input_ref = "input://cam/radius-tool";
     let radius_tool = Tool::radius_end_mill("REM6R1".to_string(), 6.0, 1.0, 30.0);
     let adapter = adapter_with(vec![(
@@ -210,4 +211,72 @@ fn input_store_rejects_non_cam_references() {
         store.register("input://nc-post/sample", input),
         Err(RefValidationError::DomainMismatch { .. })
     ));
+}
+
+#[test]
+fn template_resolved_input_runs_and_out_of_domain_rectangle_is_invalid_input() {
+    use cam_algorithms::{
+        MachiningBoundary, OperationDefinition, ProcessTemplate, RectangleBoundary, SolverDefaults,
+        build_solver_input, resolve_operation,
+    };
+
+    let template = ProcessTemplate {
+        template_id: "tpl-finish".to_string(),
+        default_operation_type: Some("scanline".to_string()),
+        default_tolerance_profile: Some("press_rough".to_string()),
+    };
+    let build = |boundary: RectangleBoundary| {
+        let resolved = resolve_operation(
+            &template,
+            &OperationDefinition {
+                operation_id: "op-scan-1".to_string(),
+                machining_stage: "finish".to_string(),
+                operation_type: None,
+                tolerance_profile: None,
+                boundary: Some(MachiningBoundary::Rectangle(boundary)),
+            },
+            SolverDefaults::default(),
+        )
+        .unwrap();
+        build_solver_input(
+            &resolved,
+            ball_tool(),
+            SolverGeometry::TriangleMesh(pyramid_mesh()),
+            ScanlineParams {
+                stepover: 4.0,
+                sample_pitch: 2.0,
+                feed_rate: 1200.0,
+                clearance_height: 5.0,
+            },
+            TessellationLimits::default(),
+        )
+        .unwrap()
+    };
+
+    let adapter = adapter_with(vec![
+        (
+            "input://cam/pyramid-center",
+            build(RectangleBoundary {
+                rect_min: [30.0, 30.0],
+                rect_max: [50.0, 50.0],
+            }),
+        ),
+        (
+            "input://cam/pyramid-far",
+            build(RectangleBoundary {
+                rect_min: [90.0, 90.0],
+                rect_max: [95.0, 95.0],
+            }),
+        ),
+    ]);
+
+    let mut manager = JobManager::new();
+    let id = manager.submit(spec(
+        JobType::CamProcess,
+        "input://cam/pyramid-center".to_string(),
+    ));
+    manager.execute_with(id, &adapter).unwrap();
+    assert_eq!(manager.get(id).unwrap().status, JobStatus::Succeeded);
+
+    assert_cam_failure(&adapter, "input://cam/pyramid-far", "invalid_input");
 }

@@ -46,6 +46,49 @@ pub const CAM_LOW_PRECISION_TOOL_CLEARANCE_RATIO_F64: f64 = 0.2;
 pub const CAM_LOW_PRECISION_MACHINE_ACCURACY_F64: f64 = 0.1;
 pub const CAM_LOW_PRECISION_ANGLE_TOLERANCE_DEG_F64: f64 = 0.1;
 
+/// 精度プロファイル `press_rough`（大物プレス荒加工）の加工トレランス（mm）
+pub const CAM_PRESS_ROUGH_TOLERANCE_MM_F64: f64 = 0.001;
+/// 精度プロファイル `mold_finish`（小物金型仕上げ）の加工トレランス（mm）
+pub const CAM_MOLD_FINISH_TOLERANCE_MM_F64: f64 = 0.0001;
+
+/// 工程テンプレートで指定する精度プロファイル
+///
+/// solver では形状離散化の許容弦誤差として適用する。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToleranceProfile {
+    /// `press_rough`: 大物プレス荒加工（0.001mm）
+    PressRough,
+    /// `mold_finish`: 小物金型仕上げ（0.0001mm）
+    MoldFinish,
+}
+
+impl ToleranceProfile {
+    /// canonical token
+    pub fn token(self) -> &'static str {
+        match self {
+            Self::PressRough => "press_rough",
+            Self::MoldFinish => "mold_finish",
+        }
+    }
+
+    /// canonical token から解決する。別名や大文字小文字違いは受理しない。
+    pub fn from_token(token: &str) -> Option<Self> {
+        match token {
+            "press_rough" => Some(Self::PressRough),
+            "mold_finish" => Some(Self::MoldFinish),
+            _ => None,
+        }
+    }
+
+    /// 加工トレランス（mm）
+    pub fn tolerance_mm(self) -> f64 {
+        match self {
+            Self::PressRough => CAM_PRESS_ROUGH_TOLERANCE_MM_F64,
+            Self::MoldFinish => CAM_MOLD_FINISH_TOLERANCE_MM_F64,
+        }
+    }
+}
+
 /// CAM用トレランス設定
 ///
 /// CAM演算における数値誤差許容値を管理します。
