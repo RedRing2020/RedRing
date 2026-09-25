@@ -74,6 +74,30 @@ fn converge_param_grid(
     chord_tolerance: f64,
     limits: TessellationLimits,
 ) -> Result<(Vec<f64>, Vec<f64>), String> {
+    converge_param_grid_counted(surface, chord_tolerance, limits).map_err(|failure| {
+        format!(
+            "{} (after {} refinements)",
+            failure.reason, failure.refinements
+        )
+    })
+}
+
+/// 収束失敗の理由と、失敗までに行った再分割回数
+#[derive(Debug)]
+struct ConvergenceFailure {
+    reason: String,
+    refinements: u32,
+}
+
+/// 弦誤差検証と再分割を繰り返す。
+///
+/// 再分割は最大 `max_refinement_iterations` 回で、各再分割後の格子を必ず検証する。
+/// 上限回数の再分割後も許容値を満たさなければ失敗とし、それ以上は再分割しない。
+fn converge_param_grid_counted(
+    surface: &NurbsSurface3D<f64>,
+    chord_tolerance: f64,
+    limits: TessellationLimits,
+) -> Result<(Vec<f64>, Vec<f64>), ConvergenceFailure> {
     let settings = AdaptiveTessellationSettings {
         chord_error: chord_tolerance,
         max_subdivisions: limits.max_subdivisions,
@@ -84,11 +108,15 @@ fn converge_param_grid(
     let mut u_params = grid.u_params;
     let mut v_params = grid.v_params;
 
-    for _ in 0..=limits.max_refinement_iterations {
+    let mut refinements = 0;
+    loop {
         if u_params.len() * v_params.len() > limits.max_vertices_per_surface {
-            return Err(format!(
-                "vertex budget exceeded before reaching chord tolerance {chord_tolerance}"
-            ));
+            return Err(ConvergenceFailure {
+                reason: format!(
+                    "vertex budget exceeded before reaching chord tolerance {chord_tolerance}"
+                ),
+                refinements,
+            });
         }
 
         let (u_split, v_split) =
@@ -96,14 +124,21 @@ fn converge_param_grid(
         if u_split.is_empty() && v_split.is_empty() {
             return Ok((u_params, v_params));
         }
+
+        if refinements >= limits.max_refinement_iterations {
+            return Err(ConvergenceFailure {
+                reason: format!(
+                    "chord error did not converge to {chord_tolerance} within {} refinement iterations",
+                    limits.max_refinement_iterations
+                ),
+                refinements,
+            });
+        }
+
         u_params = insert_midpoints(&u_params, &u_split);
         v_params = insert_midpoints(&v_params, &v_split);
+        refinements += 1;
     }
-
-    Err(format!(
-        "chord error did not converge to {chord_tolerance} within {} refinement iterations",
-        limits.max_refinement_iterations
-    ))
 }
 
 /// 弦誤差が許容値を超えるセルの u/v 区間インデックスを返す。
@@ -183,4 +218,81 @@ fn distance(a: Point3D<f64>, b: Point3D<f64>) -> f64 {
     let dy = a.y() - b.y();
     let dz = a.z() - b.z();
     (dx * dx + dy * dy + dz * dz).sqrt()
+}
+
+#[cfg(test)]
+mod tests {
+    use geo_contracts::NurbsSurface3DConstructor;
+
+    use super::*;
+
+    const CHORD_TOLERANCE: f64 = 0.001;
+
+    fn dome() -> NurbsSurface3D<f64> {
+        let knots = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        NurbsSurface3D::new(
+            vec![
+                vec![(0.0, 0.0, 80.0), (0.0, 20.0, 80.0), (0.0, 40.0, 80.0)],
+                vec![(20.0, 0.0, 80.0), (20.0, 20.0, 100.0), (20.0, 40.0, 80.0)],
+                vec![(40.0, 0.0, 80.0), (40.0, 20.0, 80.0), (40.0, 40.0, 80.0)],
+            ],
+            None,
+            knots.clone(),
+            knots,
+            2,
+            2,
+        )
+        .unwrap()
+    }
+
+    /// 初期分割を浅くし、収束に再分割が必要な条件にする
+    fn limits(max_refinement_iterations: u32) -> TessellationLimits {
+        TessellationLimits {
+            max_subdivisions: 1,
+            max_refinement_iterations,
+            max_vertices_per_surface: 1_000_000,
+        }
+    }
+
+    /// 制限なしで収束に必要な再分割回数
+    fn required_refinements() -> u32 {
+        let required = (0..64)
+            .find(|&max| converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(max)).is_ok())
+            .expect("dome should converge within 64 refinements");
+        assert!(required >= 2, "test needs a case requiring refinement");
+        required
+    }
+
+    #[test]
+    fn converges_when_limit_equals_required_refinements() {
+        let required = required_refinements();
+        assert!(converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(required)).is_ok());
+    }
+
+    #[test]
+    fn fails_without_exceeding_limit_when_one_short() {
+        let required = required_refinements();
+        let failure = converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(required - 1))
+            .unwrap_err();
+        // 上限回数ちょうどで打ち切り、上限を超える再分割は行わない
+        assert_eq!(failure.refinements, required - 1);
+    }
+
+    #[test]
+    fn zero_limit_verifies_initial_grid_only() {
+        let failure = converge_param_grid_counted(&dome(), CHORD_TOLERANCE, limits(0)).unwrap_err();
+        assert_eq!(failure.refinements, 0);
+    }
+
+    #[test]
+    fn tessellate_surfaces_reports_convergence_failure_at_boundary() {
+        let required = required_refinements();
+        assert!(tessellate_surfaces(&[dome()], CHORD_TOLERANCE, limits(required)).is_ok());
+        assert_eq!(
+            tessellate_surfaces(&[dome()], CHORD_TOLERANCE, limits(required - 1))
+                .unwrap_err()
+                .code(),
+            "convergence_failure"
+        );
+    }
 }
