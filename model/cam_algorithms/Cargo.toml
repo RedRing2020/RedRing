@@ -11,6 +11,7 @@ categories.workspace = true
 [dependencies]
 cam_core = { path = "../cam_core" }
 geo_algorithms = { path = "../geo_algorithms" }
+geo_contracts = { path = "../geo_contracts" }
 
 [dev-dependencies]
-geo_contracts = { path = "../geo_contracts" }
+analysis = { path = "../../foundation/analysis" }

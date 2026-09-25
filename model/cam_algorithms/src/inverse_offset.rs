@@ -12,11 +12,12 @@
 //! 凹辺のオフセットは他要素の包絡に覆われるため、全辺を評価しても結果は変わらない。
 
 use geo_algorithms::{Point3D, TriangleMesh3D};
+use geo_contracts::{
+    ToleranceSettings, default_kernel_numerical_zero_tolerance,
+    default_orthogonality_dot_error_tolerance, default_parallel_cross_error_tolerance,
+};
 
 use crate::solver::CamSolverError;
-
-const PARALLEL_EPS: f64 = 1e-12;
-const BARYCENTRIC_EPS: f64 = 1e-12;
 
 /// ボールエンドミル用の逆オフセット drop-cutter
 #[derive(Debug, Clone)]
@@ -124,12 +125,13 @@ fn vertex_contact(p: [f64; 3], x: f64, y: f64, r: f64) -> Option<f64> {
 /// 辺 → 円筒（接触点が線分内にある場合のみ）
 fn edge_contact(p: [f64; 3], q: [f64; 3], x: f64, y: f64, r: f64) -> Option<f64> {
     let d = [q[0] - p[0], q[1] - p[1], q[2] - p[2]];
-    let horizontal2 = d[0] * d[0] + d[1] * d[1];
-    if horizontal2 < PARALLEL_EPS {
-        // 鉛直辺は端点の球で代表される
+    let horizontal = (d[0] * d[0] + d[1] * d[1]).sqrt();
+    let length = (horizontal * horizontal + d[2] * d[2]).sqrt();
+    // |単位辺ベクトル × Z| = horizontal / length が 0 とみなせる辺は鉛直辺。
+    // 鉛直辺は端点の球で代表される
+    if horizontal < length * default_parallel_cross_error_tolerance::<f64>() {
         return None;
     }
-    let horizontal = horizontal2.sqrt();
     let u = [d[0] / horizontal, d[1] / horizontal];
 
     // 辺の水平方向 u に沿った座標 s0 と、水平面内で u に直交する距離 b に分解する。
@@ -164,8 +166,8 @@ fn face_contact(a: [f64; 3], b: [f64; 3], c: [f64; 3], x: f64, y: f64, r: f64) -
         // 工具は上方から接近するため上向き法線側でオフセットする
         n = [-n[0], -n[1], -n[2]];
     }
-    if n[2] < PARALLEL_EPS {
-        // 鉛直面は辺・頂点のオフセットで代表される
+    if n[2] < default_orthogonality_dot_error_tolerance::<f64>() {
+        // 単位法線と Z の内積が 0 とみなせる鉛直面は辺・頂点のオフセットで代表される
         return None;
     }
 
@@ -182,19 +184,21 @@ fn face_contact(a: [f64; 3], b: [f64; 3], c: [f64; 3], x: f64, y: f64, r: f64) -
 
 fn contains_xy(a: [f64; 3], b: [f64; 3], c: [f64; 3], x: f64, y: f64) -> bool {
     let det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
-    if det.abs() < PARALLEL_EPS {
+    let zero = default_kernel_numerical_zero_tolerance::<f64>();
+    if det.abs() < zero {
         return false;
     }
     let l1 = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / det;
     let l2 = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / det;
     let l3 = 1.0 - l1 - l2;
-    l1 >= -BARYCENTRIC_EPS && l2 >= -BARYCENTRIC_EPS && l3 >= -BARYCENTRIC_EPS
+    l1 >= -zero && l2 >= -zero && l3 >= -zero
 }
 
 fn is_degenerate(vertices: &[[f64; 3]], tri: &[usize; 3]) -> bool {
     let [a, b, c] = tri.map(|vi| vertices[vi]);
     let n = cross(sub(b, a), sub(c, a));
-    n[0] * n[0] + n[1] * n[1] + n[2] * n[2] < PARALLEL_EPS * PARALLEL_EPS
+    let area = 0.5 * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+    area <= ToleranceSettings::<f64>::standard().area_tolerance
 }
 
 fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {

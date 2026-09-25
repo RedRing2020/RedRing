@@ -354,6 +354,7 @@ dependencies = [
 name = "cam_algorithms"
 version = "0.1.0"
 dependencies = [
+ "analysis",
  "cam_core",
  "geo_algorithms",
  "geo_contracts",

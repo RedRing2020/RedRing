@@ -1,13 +1,12 @@
+use analysis::consts::test_constants::TOLERANCE_F64 as EPS;
 use cam_core::{CoordinateFrame, LengthUnit, SegmentType, Tool};
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
-use geo_contracts::NurbsSurface3DConstructor;
+use geo_contracts::{NurbsSurface3DConstructor, default_distance_tolerance};
 
 use crate::{
     BallDropCutter, CamSolverError, CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry,
     TessellationLimits, solve_toolpath, tessellate_surfaces,
 };
-
-const EPS: f64 = 1e-9;
 
 fn mesh(vertices: &[(f64, f64, f64)], indices: &[[usize; 3]]) -> TriangleMesh3D<f64> {
     TriangleMesh3D::new(
@@ -140,7 +139,7 @@ fn ball_center_does_not_gouge_tessellated_dome() {
             .fold(f64::INFINITY, f64::min);
         // 球は形状に食い込まず（距離 >= r）、かつ接触している（距離 == r）
         assert!(
-            (min_distance - r).abs() < 1e-6,
+            (min_distance - r).abs() < default_distance_tolerance::<f64>(),
             "ball at ({x}, {y}) is not tangent: distance={min_distance}"
         );
     }
