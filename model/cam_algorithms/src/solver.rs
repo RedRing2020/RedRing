@@ -202,7 +202,9 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
 /// 経路生成の XY 範囲を決める。
 ///
 /// 加工範囲の指定がなければ形状の XY 範囲とする。矩形指定は、工具が形状に触れ得る範囲
-/// （形状の XY 範囲を工具半径だけ広げた領域）と重ならなければ `operation_boundary_out_of_domain`。
+/// （形状の XY 範囲を工具半径だけ広げた領域、以下 reach）と重ならなければ
+/// `operation_boundary_out_of_domain`。重なる場合は矩形を reach でクリップした範囲を走査する
+/// （reach 外は接触し得ないため、過大な矩形でもサンプル数を形状規模に抑える）。
 fn machining_region(
     cutter: &DropCutter,
     boundary: Option<MachiningBoundary>,
@@ -214,11 +216,19 @@ fn machining_region(
             let r = cutter.shape().radius();
             let reach_min = [xy_min[0] - r, xy_min[1] - r];
             let reach_max = [xy_max[0] + r, xy_max[1] + r];
-            if rectangle.overlaps(reach_min, reach_max) {
-                Ok((rectangle.rect_min, rectangle.rect_max))
-            } else {
-                Err(TemplateFailure::OperationBoundaryOutOfDomain.into())
+            if !rectangle.overlaps(reach_min, reach_max) {
+                return Err(TemplateFailure::OperationBoundaryOutOfDomain.into());
             }
+            Ok((
+                [
+                    rectangle.rect_min[0].max(reach_min[0]),
+                    rectangle.rect_min[1].max(reach_min[1]),
+                ],
+                [
+                    rectangle.rect_max[0].min(reach_max[0]),
+                    rectangle.rect_max[1].min(reach_max[1]),
+                ],
+            ))
         }
     }
 }

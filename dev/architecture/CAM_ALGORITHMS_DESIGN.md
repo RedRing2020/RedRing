@@ -770,12 +770,13 @@ ToolPathの複雑化抑制のため、以下を分離する。
 | `invalid_rectangle_boundary` | 矩形が `x_min < x_max` かつ `y_min < y_max`（有限値）を満たさない |
 | `unsupported_operation_type` | token は正しいが solver が未対応（現状 `scanline` 以外） |
 
-`invalid_input` の reason は `<内部分類>: <詳細>` の形式とし、Job Manager へは分類コード `invalid_input` のみを伝達する。
+`invalid_input` の reason は先頭を `<内部分類>` とし、詳細がある場合のみ `<内部分類>: <詳細>` とする（`missing_*` や `operation_boundary_out_of_domain` のように詳細を持たない分類もある）。判定は先頭の内部分類で行い、Job Manager へは分類コード `invalid_input` のみを伝達する。
 
 矩形加工範囲（`boundary_mode = rectangle`）:
 
-- scanline の走査範囲を矩形そのものとする（形状外でも工具半径以内なら接触し得るため、形状範囲との積は取らない）
-- 矩形が「形状の XY 範囲を工具半径だけ広げた領域」と重ならない場合は `operation_boundary_out_of_domain`
+- 「形状の XY 範囲を工具半径だけ広げた領域」（reach）を工具が形状に触れ得る範囲とする
+- 矩形が reach と重ならない場合は `operation_boundary_out_of_domain`
+- 重なる場合は矩形を reach でクリップした範囲を走査する（形状外でも工具半径以内なら接触し得るため形状範囲では切らない。reach 外は接触し得ないため、過大な矩形でもサンプル数を形状規模に抑える）
 
 後続 Step とする項目:
 

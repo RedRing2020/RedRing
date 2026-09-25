@@ -578,3 +578,21 @@ fn profile_load_measurement() {
         }
     }
 }
+
+#[test]
+fn oversized_rectangle_is_clipped_to_tool_reach() {
+    // 形状 0..40 に対し ±1e6 の矩形: 走査は reach（-3..43）にクリップされ、点数は形状規模に収まる
+    let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+    input.boundary = rectangle([-1.0e6, -1.0e6], [1.0e6, 1.0e6]);
+    let toolpath = solve_toolpath(&input).unwrap();
+
+    let r = input.tool.radius();
+    // Y -3..43 を stepover 2.0 で走査 → 24 ライン（うち外周で非接触のラインは生成されない）
+    assert!(toolpath.level_count() <= 24);
+    for level in &toolpath.contour_levels {
+        for segment in level.cutting_segments() {
+            let p = segment.end_point();
+            assert!((-r..=40.0 + r).contains(&p.x()) && (-r..=40.0 + r).contains(&p.y()));
+        }
+    }
+}
