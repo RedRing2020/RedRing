@@ -5,6 +5,10 @@
 //!
 //! - 包絡面モード: 包絡面をシェーディング表示し、元形状を三角形エッジで重畳する
 //! - 格子線モード: 元形状をシェーディング表示し、包絡面を一定ピッチの格子線で重畳する
+//!
+//! 両モードとも包絡面の接触境界（工具が形状に触れ得る範囲の外縁）を輪郭線で重畳する。
+//! 境界は格子辺上の二分法境界点（model 層で算出）を marching squares で結んで求め、
+//! 境界を跨ぐ格子セル・格子線は境界点まで切り詰めて表示する。
 
 use std::collections::HashSet;
 
@@ -61,6 +65,8 @@ pub struct InverseOffsetVisualizationSettings {
     pub source_line_color: [f32; 3],
     /// 包絡面格子線の色
     pub envelope_line_color: [f32; 3],
+    /// 包絡面の接触境界（輪郭線）の色
+    pub envelope_outline_color: [f32; 3],
 }
 
 impl Default for InverseOffsetVisualizationSettings {
@@ -73,6 +79,7 @@ impl Default for InverseOffsetVisualizationSettings {
             source_surface_color: [0.55, 0.6, 0.7, 1.0],
             source_line_color: [0.6, 0.6, 0.6],
             envelope_line_color: [1.0, 0.6, 0.1],
+            envelope_outline_color: [0.3, 0.9, 1.0],
         }
     }
 }
@@ -152,7 +159,7 @@ pub fn inverse_offset_to_visualization(
         .collect();
     let envelope_triangles = envelope_triangles(&inspection.envelope);
 
-    let (mesh_triangles, mesh_color, overlay_lines) = match mode {
+    let (mesh_triangles, mesh_color, mut overlay_lines) = match mode {
         InverseOffsetDisplayMode::EnvelopeSurface => (
             envelope_triangles.clone(),
             settings.envelope_surface_color,
@@ -172,6 +179,11 @@ pub fn inverse_offset_to_visualization(
             ),
         ),
     };
+
+    overlay_lines.extend(envelope_outline_lines(
+        &inspection.envelope,
+        settings.envelope_outline_color,
+    ));
 
     let (mesh_vertices, mesh_indices) = flat_shaded_mesh(&mesh_triangles);
     let fit_positions = source_triangles
@@ -194,34 +206,128 @@ pub fn inverse_offset_to_visualization(
     })
 }
 
-/// 4 隅すべてで接触している格子セルを 2 三角形に分割する。
-fn envelope_triangles(grid: &InverseOffsetEnvelopeGrid) -> Vec<[[f64; 3]; 3]> {
-    let point = |column: usize, row: usize| {
-        grid.height(column, row).map(|z| {
-            let [x, y] = grid.xy(column, row);
-            [x, y, z]
-        })
-    };
+/// 格子セルの 4 隅と 4 辺の境界点を、セル外周を一周する順に並べた要素
+///
+/// 順序: 隅(c,r) → 下辺 → 隅(c+1,r) → 右辺 → 隅(c+1,r+1) → 上辺 → 隅(c,r+1) → 左辺
+struct CellRing {
+    corners: [Option<[f64; 3]>; 4],
+    edges: [Option<[f64; 3]>; 4],
+}
 
+impl CellRing {
+    fn new(grid: &InverseOffsetEnvelopeGrid, column: usize, row: usize) -> Self {
+        let corner = |c: usize, r: usize| {
+            grid.height(c, r).map(|z| {
+                let [x, y] = grid.xy(c, r);
+                [x, y, z]
+            })
+        };
+        Self {
+            corners: [
+                corner(column, row),
+                corner(column + 1, row),
+                corner(column + 1, row + 1),
+                corner(column, row + 1),
+            ],
+            edges: [
+                grid.x_edge_boundary(column, row),
+                grid.y_edge_boundary(column + 1, row),
+                grid.x_edge_boundary(column, row + 1),
+                grid.y_edge_boundary(column, row),
+            ],
+        }
+    }
+
+    fn crossing_count(&self) -> usize {
+        self.edges.iter().flatten().count()
+    }
+
+    /// セル内の接触領域を三角形化する（境界を跨ぐセルは境界点で切り詰める）
+    fn triangles(&self) -> Vec<[[f64; 3]; 3]> {
+        match self.crossing_count() {
+            0 => match self.corners {
+                [Some(p0), Some(p1), Some(p2), Some(p3)] => vec![[p0, p1, p2], [p0, p2, p3]],
+                _ => Vec::new(),
+            },
+            // 鞍点セル: 接触している隅ごとに、隣接 2 辺の境界点との三角形を作る
+            4 => (0..4)
+                .filter_map(|i| {
+                    let corner = self.corners[i]?;
+                    let before = self.edges[(i + 3) % 4]?;
+                    let after = self.edges[i]?;
+                    Some([corner, after, before])
+                })
+                .collect(),
+            // 境界が 1 本の直線で横切るセル: 接触側は凸多角形なので扇形分割する
+            _ => {
+                let polygon: Vec<[f64; 3]> = (0..4)
+                    .flat_map(|i| [self.corners[i], self.edges[i]])
+                    .flatten()
+                    .collect();
+                (1..polygon.len().saturating_sub(1))
+                    .map(|i| [polygon[0], polygon[i], polygon[i + 1]])
+                    .collect()
+            }
+        }
+    }
+
+    /// セル内の接触境界線分
+    fn outline_segments(&self) -> Vec<([f64; 3], [f64; 3])> {
+        match self.crossing_count() {
+            2 => {
+                let crossings: Vec<[f64; 3]> = self.edges.iter().flatten().copied().collect();
+                vec![(crossings[0], crossings[1])]
+            }
+            4 => (0..4)
+                .filter_map(|i| {
+                    self.corners[i]?;
+                    Some((self.edges[(i + 3) % 4]?, self.edges[i]?))
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+}
+
+/// 包絡面の接触領域を三角形化する。
+fn envelope_triangles(grid: &InverseOffsetEnvelopeGrid) -> Vec<[[f64; 3]; 3]> {
     let mut triangles = Vec::new();
     for row in 0..grid.rows.saturating_sub(1) {
         for column in 0..grid.columns.saturating_sub(1) {
-            let corners = (
-                point(column, row),
-                point(column + 1, row),
-                point(column + 1, row + 1),
-                point(column, row + 1),
-            );
-            if let (Some(p00), Some(p10), Some(p11), Some(p01)) = corners {
-                triangles.push([p00, p10, p11]);
-                triangles.push([p00, p11, p01]);
-            }
+            triangles.extend(CellRing::new(grid, column, row).triangles());
         }
     }
     triangles
 }
 
-/// 包絡面の格子線（X/Y 各方向に `interval` 評価点ごと、外周を含む）
+/// 格子線上の 1 区間を、接触側の点から相手点（接触あり）または境界点まで結ぶ。
+fn clipped_segment(
+    a: Option<[f64; 3]>,
+    b: Option<[f64; 3]>,
+    boundary: Option<[f64; 3]>,
+) -> Option<([f64; 3], [f64; 3])> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some((a, b)),
+        (Some(a), None) => boundary.map(|p| (a, p)),
+        (None, Some(b)) => boundary.map(|p| (p, b)),
+        (None, None) => None,
+    }
+}
+
+fn grid_point(grid: &InverseOffsetEnvelopeGrid, column: usize, row: usize) -> Option<[f64; 3]> {
+    grid.height(column, row).map(|z| {
+        let [x, y] = grid.xy(column, row);
+        [x, y, z]
+    })
+}
+
+fn push_line(lines: &mut Vec<WireframeVertex>, (a, b): ([f64; 3], [f64; 3]), color: [f32; 3]) {
+    lines.push(WireframeVertex::new(to_f32(a), color));
+    lines.push(WireframeVertex::new(to_f32(b), color));
+}
+
+/// 包絡面の格子線（X/Y 各方向に `interval` 評価点ごと、外周を含む）。
+/// 接触境界を跨ぐ区間は境界点まで延ばす。
 fn envelope_grid_lines(
     grid: &InverseOffsetEnvelopeGrid,
     interval: usize,
@@ -229,28 +335,71 @@ fn envelope_grid_lines(
 ) -> Vec<WireframeVertex> {
     let is_grid_line =
         |index: usize, count: usize| index.is_multiple_of(interval) || index + 1 == count;
-    let point = |column: usize, row: usize| {
-        grid.height(column, row).map(|z| {
-            let [x, y] = grid.xy(column, row);
-            to_f32([x, y, z])
-        })
-    };
-    let push_segment = |lines: &mut Vec<WireframeVertex>, a, b| {
-        if let (Some(a), Some(b)) = (a, b) {
-            lines.push(WireframeVertex::new(a, color));
-            lines.push(WireframeVertex::new(b, color));
-        }
-    };
 
     let mut lines = Vec::new();
     for row in (0..grid.rows).filter(|&row| is_grid_line(row, grid.rows)) {
         for column in 0..grid.columns.saturating_sub(1) {
-            push_segment(&mut lines, point(column, row), point(column + 1, row));
+            if let Some(segment) = clipped_segment(
+                grid_point(grid, column, row),
+                grid_point(grid, column + 1, row),
+                grid.x_edge_boundary(column, row),
+            ) {
+                push_line(&mut lines, segment, color);
+            }
         }
     }
     for column in (0..grid.columns).filter(|&column| is_grid_line(column, grid.columns)) {
         for row in 0..grid.rows.saturating_sub(1) {
-            push_segment(&mut lines, point(column, row), point(column, row + 1));
+            if let Some(segment) = clipped_segment(
+                grid_point(grid, column, row),
+                grid_point(grid, column, row + 1),
+                grid.y_edge_boundary(column, row),
+            ) {
+                push_line(&mut lines, segment, color);
+            }
+        }
+    }
+    lines
+}
+
+/// 包絡面の接触境界（輪郭線）。
+///
+/// セル内部の境界は marching squares で、評価範囲の外周に達する接触領域は外周線で閉じる。
+fn envelope_outline_lines(
+    grid: &InverseOffsetEnvelopeGrid,
+    color: [f32; 3],
+) -> Vec<WireframeVertex> {
+    let mut lines = Vec::new();
+    for row in 0..grid.rows.saturating_sub(1) {
+        for column in 0..grid.columns.saturating_sub(1) {
+            for segment in CellRing::new(grid, column, row).outline_segments() {
+                push_line(&mut lines, segment, color);
+            }
+        }
+    }
+
+    let last_row = grid.rows.saturating_sub(1);
+    let last_column = grid.columns.saturating_sub(1);
+    for row in [0, last_row] {
+        for column in 0..last_column {
+            if let Some(segment) = clipped_segment(
+                grid_point(grid, column, row),
+                grid_point(grid, column + 1, row),
+                grid.x_edge_boundary(column, row),
+            ) {
+                push_line(&mut lines, segment, color);
+            }
+        }
+    }
+    for column in [0, last_column] {
+        for row in 0..last_row {
+            if let Some(segment) = clipped_segment(
+                grid_point(grid, column, row),
+                grid_point(grid, column, row + 1),
+                grid.y_edge_boundary(column, row),
+            ) {
+                push_line(&mut lines, segment, color);
+            }
         }
     }
     lines
@@ -364,16 +513,84 @@ mod tests {
         let y_values: HashSet<i64> = view
             .overlay_lines
             .chunks(2)
+            .filter(|segment| segment[0].color == settings.envelope_line_color)
             .filter(|segment| segment[0].position[1] == segment[1].position[1])
             .map(|segment| (segment[0].position[1] as f64 / settings.sample_pitch).round() as i64)
             .collect();
         assert!(!y_values.is_empty());
         assert_eq!(y_values.len(), lines_per_axis(rows));
         assert!(columns > settings.grid_line_interval);
-        assert!(view
-            .overlay_lines
+        assert!(view.overlay_lines.iter().all(|v| {
+            v.color == settings.envelope_line_color || v.color == settings.envelope_outline_color
+        }));
+    }
+
+    /// 格子の角領域（x < 0, y < 0）にある線分端点
+    fn corner_points(view: &InverseOffsetVisualization, color: [f32; 3]) -> Vec<[f32; 3]> {
+        view.overlay_lines
             .iter()
-            .all(|v| v.color == settings.envelope_line_color));
+            .filter(|v| v.color == color && v.position[0] < 0.0 && v.position[1] < 0.0)
+            .map(|v| v.position)
+            .collect()
+    }
+
+    #[test]
+    fn outline_and_grid_lines_reach_rounded_corner_boundary() {
+        // サンプル曲面の角 (0,0) 外側では、包絡面の境界は角から半径 r の円弧になる
+        let settings = InverseOffsetVisualizationSettings::default();
+        let r = settings.tool_radius as f32;
+        let tolerance = settings.sample_pitch as f32;
+        for kind in [
+            InspectionToolKind::BallEndMill,
+            InspectionToolKind::FlatEndMill,
+        ] {
+            let view = build(kind, InverseOffsetDisplayMode::EnvelopeGrid);
+
+            let outline = corner_points(&view, settings.envelope_outline_color);
+            assert!(!outline.is_empty(), "{kind:?}: corner outline is missing");
+            for [x, y, _] in &outline {
+                let distance = (x * x + y * y).sqrt();
+                assert!(
+                    (distance - r).abs() <= tolerance,
+                    "{kind:?}: outline point ({x}, {y}) is {distance} from corner"
+                );
+            }
+
+            // 格子線は円弧まで延びる（角領域内の格子線端点のうち最も遠い点が r 付近に達する）
+            let grid_far = corner_points(&view, settings.envelope_line_color)
+                .iter()
+                .map(|[x, y, _]| (x * x + y * y).sqrt())
+                .fold(0.0_f32, f32::max);
+            assert!(
+                (grid_far - r).abs() <= tolerance,
+                "{kind:?}: grid lines stop at {grid_far}"
+            );
+        }
+    }
+
+    #[test]
+    fn envelope_surface_covers_rounded_corner_up_to_boundary() {
+        let settings = InverseOffsetVisualizationSettings::default();
+        let r = settings.tool_radius as f32;
+        let view = build(
+            InspectionToolKind::FlatEndMill,
+            InverseOffsetDisplayMode::EnvelopeSurface,
+        );
+        let corner_vertices: Vec<f32> = view
+            .mesh_vertices
+            .iter()
+            .filter(|v| v.position[0] < 0.0 && v.position[1] < 0.0)
+            .map(|v| (v.position[0].powi(2) + v.position[1].powi(2)).sqrt())
+            .collect();
+        assert!(!corner_vertices.is_empty());
+        // 角領域の包絡面は円弧の内側に収まり、円弧まで達する
+        let tolerance = settings.sample_pitch as f32;
+        assert!(corner_vertices.iter().all(|&d| d <= r + tolerance));
+        let farthest = corner_vertices.iter().copied().fold(0.0_f32, f32::max);
+        assert!(
+            (farthest - r).abs() <= tolerance,
+            "surface reaches {farthest}"
+        );
     }
 
     #[test]

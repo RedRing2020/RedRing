@@ -453,3 +453,32 @@ fn cl_grid_rejects_invalid_pitch() {
         "invalid_input"
     );
 }
+
+#[test]
+fn cl_grid_boundary_points_lie_on_contact_limit() {
+    // 平面正方形の角 (0,0) 周辺: 接触境界は角頂点から水平距離 r の円弧、辺外側は距離 r の直線
+    let r = 1.0;
+    let cutter = DropCutter::new(&flat_square(0.0), flat(r)).unwrap();
+    let grid = crate::sample_cl_grid(&cutter, 0.3, r).unwrap();
+    let tolerance = default_distance_tolerance::<f64>();
+
+    let boundaries: Vec<[f64; 3]> = grid
+        .x_edge_boundaries
+        .iter()
+        .chain(grid.y_edge_boundaries.iter())
+        .flatten()
+        .copied()
+        .collect();
+    assert!(!boundaries.is_empty());
+    for [x, y, z] in boundaries {
+        // 形状 [0,10]^2 から境界点までの水平距離は r（二分法の許容誤差内）
+        let dx = (0.0 - x).max(x - 10.0).max(0.0);
+        let dy = (0.0 - y).max(y - 10.0).max(0.0);
+        let distance = (dx * dx + dy * dy).sqrt();
+        assert!(
+            (distance - r).abs() <= tolerance,
+            "boundary ({x}, {y}) distance {distance}"
+        );
+        assert!(z.abs() < EPS);
+    }
+}

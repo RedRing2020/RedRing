@@ -56,6 +56,10 @@ pub struct InverseOffsetEnvelopeGrid {
     pub columns: usize,
     pub rows: usize,
     pub heights: Vec<Option<f64>>,
+    /// X 方向格子辺 (column, row)-(column + 1, row) 上の接触境界点（`(columns - 1) * rows` 件）
+    pub x_edge_boundaries: Vec<Option<[f64; 3]>>,
+    /// Y 方向格子辺 (column, row)-(column, row + 1) 上の接触境界点（`columns * (rows - 1)` 件）
+    pub y_edge_boundaries: Vec<Option<[f64; 3]>>,
 }
 
 impl InverseOffsetEnvelopeGrid {
@@ -68,6 +72,16 @@ impl InverseOffsetEnvelopeGrid {
 
     pub fn height(&self, column: usize, row: usize) -> Option<f64> {
         self.heights[row * self.columns + column]
+    }
+
+    /// X 方向格子辺 (column, row)-(column + 1, row) 上の接触境界点
+    pub fn x_edge_boundary(&self, column: usize, row: usize) -> Option<[f64; 3]> {
+        self.x_edge_boundaries[row * (self.columns - 1) + column]
+    }
+
+    /// Y 方向格子辺 (column, row)-(column, row + 1) 上の接触境界点
+    pub fn y_edge_boundary(&self, column: usize, row: usize) -> Option<[f64; 3]> {
+        self.y_edge_boundaries[row * self.columns + column]
     }
 }
 
@@ -163,9 +177,19 @@ pub fn inspect_inverse_offset(
                 .iter()
                 .map(|height| height.map(|z| z + reference_offset))
                 .collect(),
+            x_edge_boundaries: lift_boundaries(&grid.x_edge_boundaries, reference_offset),
+            y_edge_boundaries: lift_boundaries(&grid.y_edge_boundaries, reference_offset),
         },
         reference_offset,
     })
+}
+
+/// 工具先端座標の境界点を包絡面基準点の高さへ持ち上げる。
+fn lift_boundaries(boundaries: &[Option<[f64; 3]>], offset: f64) -> Vec<Option<[f64; 3]>> {
+    boundaries
+        .iter()
+        .map(|point| point.map(|[x, y, z]| [x, y, z + offset]))
+        .collect()
 }
 
 #[cfg(test)]
@@ -222,6 +246,40 @@ mod tests {
         assert_eq!(inspection.reference_offset, 0.0);
         // 外周角は形状から r 以上離れて非接触
         assert!(inspection.envelope.height(0, 0).is_none());
+    }
+
+    #[test]
+    fn envelope_corner_is_quarter_disc_around_shape_corner() {
+        // 形状外側の角領域では、工具が触れ得るのは角頂点 (0,0) のみ。
+        // 接触あり ⇔ 角頂点から水平距離 r 以内（包絡面の角は半径 r の 1/4 円で丸まる）
+        let r = 0.1;
+        let distance_tolerance = geo_contracts::default_distance_tolerance::<f64>();
+        for kind in [
+            InspectionToolKind::BallEndMill,
+            InspectionToolKind::FlatEndMill,
+        ] {
+            let envelope = inspect_inverse_offset(&request(kind)).unwrap().envelope;
+            let mut checked = 0;
+            for row in 0..envelope.rows {
+                for column in 0..envelope.columns {
+                    let [x, y] = envelope.xy(column, row);
+                    if !(x < -distance_tolerance && y < -distance_tolerance) {
+                        continue;
+                    }
+                    let distance = (x * x + y * y).sqrt();
+                    if (distance - r).abs() <= distance_tolerance {
+                        continue;
+                    }
+                    assert_eq!(
+                        envelope.height(column, row).is_some(),
+                        distance < r,
+                        "{kind:?} at ({x}, {y}), distance to corner = {distance}"
+                    );
+                    checked += 1;
+                }
+            }
+            assert!(checked > 0);
+        }
     }
 
     #[test]
