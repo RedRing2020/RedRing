@@ -12,6 +12,7 @@ use cam_core::{ContourLevelPath, CuttingDirection, PathSegment, SegmentType};
 use geo_algorithms::{Aabb3D, Point3D};
 use job_runtime::{
     JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType, RefFactory, RefParser,
+    RefValidationError,
 };
 
 use crate::solver_input::{CamSolverInputProvider, validate_cam_input_ref};
@@ -471,22 +472,32 @@ fn parse_cam_result_ref(input_ref: &str) -> Option<(u64, String)> {
     Some((job_id, suffix))
 }
 
+/// suffix が参照契約（ASCII・空セグメント禁止等）に違反した場合に用いる固定 suffix
+const INVALID_REF_SUFFIX: &str = "invalid_ref";
+
+/// suffix を `/` 区切りのまま RefFactory に検証させて参照を生成する。
+///
+/// 検証に失敗した suffix は埋め込まず `INVALID_REF_SUFFIX` へ置き換える。
+/// domain はアダプタ内部の固定値（`cam` / `sim` / `nc-post`）のため、固定 suffix での生成は常に成功する。
+fn build_ref<F>(factory: F, suffix: &str) -> String
+where
+    F: Fn(&[&str]) -> Result<String, RefValidationError>,
+{
+    let suffix_segments: Vec<&str> = suffix.split('/').collect();
+    factory(&suffix_segments)
+        .or_else(|_| factory(&[INVALID_REF_SUFFIX]))
+        .expect("reference domain and job id are adapter-internal values and must be valid")
+}
+
 fn build_result_ref(domain: &str, job_id: u64, suffix: &str) -> String {
-    let suffix_segments = split_path_segments(suffix);
-    RefFactory::result(domain, job_id, suffix_segments.as_slice())
-        .unwrap_or_else(|_| format!("result://{}/{}/{}", domain, job_id, suffix))
+    build_ref(
+        |segments| RefFactory::result(domain, job_id, segments),
+        suffix,
+    )
 }
 
 fn build_log_ref(domain: &str, job_id: u64, suffix: &str) -> String {
-    let suffix_segments = split_path_segments(suffix);
-    RefFactory::log(domain, job_id, suffix_segments.as_slice())
-        .unwrap_or_else(|_| format!("log://{}/{}/{}", domain, job_id, suffix))
-}
-
-fn split_path_segments(path: &str) -> Vec<&str> {
-    path.split('/')
-        .filter(|segment| !segment.is_empty())
-        .collect()
+    build_ref(|segments| RefFactory::log(domain, job_id, segments), suffix)
 }
 
 fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {
@@ -581,6 +592,37 @@ impl JobExecutor for CamJobExecutorAdapter {
             JobType::CamProcess => self.run_cam_process(job),
             JobType::CuttingSimulation => self.run_cutting_simulation(job, input_artifact_bytes),
             JobType::NcPostFromCam => self.run_nc_post_from_cam(job, input_artifact_bytes),
+        }
+    }
+}
+
+#[cfg(test)]
+mod ref_builder_tests {
+    use super::{build_log_ref, build_result_ref};
+
+    #[test]
+    fn valid_suffix_is_embedded_as_segments() {
+        assert_eq!(build_result_ref("cam", 3, "ok"), "result://cam/3/ok");
+        assert_eq!(
+            build_log_ref("sim", 7, "ok/hybrid-gap-0.1000"),
+            "log://sim/7/ok/hybrid-gap-0.1000"
+        );
+    }
+
+    #[test]
+    fn invalid_suffix_is_replaced_instead_of_normalized() {
+        // 空セグメントを黙って詰めず、non-ASCII もそのまま埋め込まない
+        for suffix in ["a//b", "/ok", "ok/", "", "失敗"] {
+            assert_eq!(
+                build_log_ref("cam", 1, suffix),
+                "log://cam/1/invalid_ref",
+                "suffix={suffix:?}"
+            );
+            assert_eq!(
+                build_result_ref("cam", 1, suffix),
+                "result://cam/1/invalid_ref",
+                "suffix={suffix:?}"
+            );
         }
     }
 }

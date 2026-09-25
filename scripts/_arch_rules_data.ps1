@@ -134,16 +134,27 @@ function Get-CrateDependenciesShared {
     $knownCrates = $ARCH_ALLOWED_DEPS.Keys
     $dependencies = @()
     $content = Get-Content $cargoToml
-    $depsSections = @("dependencies", "dev-dependencies")
+    # 依存セクション: [dependencies] / [dev-dependencies] / [build-dependencies]
+    # および [target.'cfg(...)'.dependencies] 等の target 限定形式
+    $depsSectionPattern = '^(?:target\..+\.)?(?:dev-|build-)?dependencies$'
+    # テーブル形式の単一依存: [dependencies.<name>] / [dev-dependencies.<name>] 等
+    $depsTablePattern = '^(?:target\..+\.)?(?:dev-|build-)?dependencies\.(.+)$'
     $inDepsSection = $false
 
     foreach ($line in $content) {
-        if ($line -match '^\[(.+)\]') {
-            $sectionName = $matches[1].Trim().ToLowerInvariant()
-            $inDepsSection = $depsSections -contains $sectionName
+        if ($line -match '^\s*\[(.+)\]') {
+            $sectionName = $matches[1].Trim().Replace('"', '').Replace("'", '')
+            $inDepsSection = $sectionName -match $depsSectionPattern
+            if ($sectionName -match $depsTablePattern) {
+                # テーブル内の行は依存名ではなく属性（version/path 等）なので、見出しから依存名を取る
+                $depName = $matches[1].Trim()
+                if ($knownCrates -contains $depName) {
+                    $dependencies += $depName
+                }
+            }
             continue
         }
-        if ($inDepsSection -and $line -match '^(\w+)\s*=') {
+        if ($inDepsSection -and $line -match '^\s*([\w-]+)\s*=') {
             $depName = $matches[1]
             if ($knownCrates -contains $depName) {
                 $dependencies += $depName
@@ -151,7 +162,7 @@ function Get-CrateDependenciesShared {
         }
     }
 
-    return $dependencies
+    return $dependencies | Select-Object -Unique
 }
 
 # Shared helper: return workspace crate path map
