@@ -229,7 +229,7 @@ impl Display for TemplateFailure {
             }
             Self::InvalidRectangleBoundary { rect_min, rect_max } => write!(
                 f,
-                "{}: rect_min={:?} must be strictly less than rect_max={:?}",
+                "{}: rect_min={:?} and rect_max={:?} must be finite and satisfy x_min < x_max and y_min < y_max",
                 self.code(),
                 rect_min,
                 rect_max
@@ -502,6 +502,7 @@ mod tests {
             let failure =
                 resolve_operation(&template(None, None), &definition, defaults).unwrap_err();
             assert_eq!(failure.code(), "invalid_rectangle_boundary");
+            assert!(failure.to_string().contains("must be finite"), "{failure}");
         }
     }
 
