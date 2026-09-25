@@ -258,6 +258,7 @@ RedRingでも同方式は有効な代替案とし、K8s化は明確なゴール�
 - #298 の初期接続は `model/cam_sim` に `JobExecutor` アダプタを実装する
 - アダプタは `JobType::CamProcess` / `JobType::CuttingSimulation` の2系統を受け付ける
 - 初期段階では実計算を呼ばず、入力参照（ID/パス/URI）の妥当性のみ検証して結果参照を返すスタブ動作とする
+- #684 で `CamProcess` は `CamSolverInputProvider` 経由で `cam_algorithms::solve_toolpath` を呼ぶ実計算へ移行した（スタブはテスト/デバッグビルドの provider 未登録時のみ残す）
 - タイムアウト/リトライ/キャンセルは `job_runtime` 側の実行制御で検証する
 - 実計算への差し替えは後続Issueで行い、同じ参照契約を維持したまま移行する
 

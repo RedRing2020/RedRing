@@ -1,8 +1,8 @@
 # CAM クレート責務設計と cam_algorithms 新設案
 
 **作成日**: 2026年3月25日
-**最終更新**: 2026年3月29日
-**ステータス**: 設計案更新中 - 依存例具体化、PoC選定、2D/2.5D方針追記済み
+**最終更新**: 2026年9月25日
+**ステータス**: cam_algorithms 新設済み（#684）- 逆オフセット法による最小 solver 導線を実装
 **関連Issue**: #413（親）、#426（分離）、#411、#412、#503、#504
 
 ---
@@ -55,7 +55,7 @@
 
 ---
 
-### 1.2 cam_algorithms（アルゴリズム層）✨ **新設候補**
+### 1.2 cam_algorithms（アルゴリズム層）✅ **新設済み（#684）**
 
 **責務**:
 
@@ -455,9 +455,10 @@ ToolPathの複雑化抑制のため、以下を分離する。
 最小入力は `InputRef`（solver 入力を指す参照）が指す payload とし、以下を必須項目とする。
 
 - `geometry_kind`
-  - `nurbs_surface_set`
-  - `nurbs_curve_set`
-  - `curve_chain_2p5d`
+  - `nurbs_surface_set`（#684 で実装）
+  - `triangle_mesh`（#684 で実装。離散化済みポリゴン入力、STL 等）
+  - `nurbs_curve_set`（未実装。2D/2.5D 輪郭系として #212 で扱う）
+  - `curve_chain_2p5d`（未実装。同上）
 - `tool_id`
 - `operation_id`
 - `units`
@@ -542,6 +543,39 @@ ToolPathの複雑化抑制のため、以下を分離する。
 2. CAM親ジョブから `toolpath` artifact 生成導線の最小実装
 3. 切削シミュレーション子ジョブでの `ResultRef` 参照実行
 4. 上記 8.7 の 5 シナリオをテストで固定
+
+### 8.9 実装（#684 完了時点）
+
+配置:
+
+- `model/cam_algorithms`: solver 本体（純粋計算）
+  - `solver`: 入力契約 `CamSolverInput`、失敗分類 `CamSolverError`、入口 `solve_toolpath`
+  - `tessellation`: NURBS 曲面集合 → 三角形メッシュ
+  - `inverse_offset`: 逆オフセット法による CL 算出（`BallDropCutter`）
+  - `scanline`: `operation_type = scanline` の経路化
+- `model/cam_sim`: Job アダプタと参照解決
+  - `CamSolverInputProvider`: `InputRef` → `CamSolverInput` の解決境界
+  - `InMemoryCamSolverInputStore`: プロセス内 provider 実装（`input://cam/<name>` のみ受理）
+  - `CamJobExecutorAdapter::with_input_provider`: provider 接続済みアダプタ
+
+3D 経路生成方式（逆オフセット法）:
+
+- 形状を三角形へ離散化し、各要素を工具形状で逆オフセットした面の上側包絡を工具中心高さとする
+- ボールエンドミル（半径 r）: 頂点 → 球、辺 → 円筒（円弧掃引面）、面 → 法線方向 r オフセット平面
+- 工具先端（ToolPath 座標）は工具中心から r 下げた位置
+- 凹辺のオフセットは他要素の包絡に覆われるため全辺を評価しても結果は変わらない（凸辺限定は #256 の高速化対象）
+- フラット/ラジアスエンドミルの要素オフセット形状は後続対応とし、現時点では `invalid_input` を返す
+
+失敗分類の決定箇所:
+
+| 分類 | 決定条件 |
+|------|----------|
+| `invalid_input` | `InputRef` 形式/ドメイン不正、必須項目欠落、値域外（stepover > 工具径等）、未対応工具、provider 未登録（本番ビルド） |
+| `no_solution` | 非退化三角形が存在しない、全走査ラインで工具が形状に接触しない |
+| `convergence_failure` | 離散化の弦誤差が `chord_tolerance` 以内に収束しない（再分割反復上限・頂点数上限超過） |
+
+テスト/デバッグビルドでは provider 未登録の `InputRef` に対して従来の固定 artifact（suffix 指定の失敗分類を含む）を返す。
+本番ビルドでは provider 未登録を `invalid_input` とし、固定 artifact は生成しない。
 
 ---
 

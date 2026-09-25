@@ -440,6 +440,84 @@ mod tests {
     }
 
     #[test]
+    fn registered_solver_input_flows_from_cam_process_to_cutting_simulation() {
+        use std::sync::Arc;
+
+        use cam_algorithms::{
+            CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry, TessellationLimits,
+        };
+        use cam_core::{CoordinateFrame, LengthUnit, Tool};
+        use cam_sim::{CamJobExecutorAdapter, InMemoryCamSolverInputStore};
+        use geo_algorithms::{Point3D, TriangleMesh3D};
+        use job_runtime::JobManager;
+
+        let pyramid = TriangleMesh3D::new(
+            vec![
+                Point3D::new(20.0, 20.0, 80.0),
+                Point3D::new(60.0, 20.0, 80.0),
+                Point3D::new(60.0, 60.0, 80.0),
+                Point3D::new(20.0, 60.0, 80.0),
+                Point3D::new(40.0, 40.0, 90.0),
+            ],
+            vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]],
+        )
+        .unwrap();
+        let store = InMemoryCamSolverInputStore::new();
+        store
+            .register(
+                "input://cam/pyramid",
+                CamSolverInput {
+                    operation_id: "op-scan-1".to_string(),
+                    tool: Tool::ball_end_mill("BEM6".to_string(), 6.0, 30.0),
+                    geometry: SolverGeometry::TriangleMesh(pyramid),
+                    operation: OperationSpec::Scanline(ScanlineParams {
+                        stepover: 4.0,
+                        sample_pitch: 2.0,
+                        feed_rate: 1200.0,
+                        clearance_height: 5.0,
+                    }),
+                    units: LengthUnit::Millimeter,
+                    coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
+                    chord_tolerance: 0.01,
+                    tessellation_limits: TessellationLimits::default(),
+                },
+            )
+            .unwrap();
+        let mut orchestrator = JobWorkflowOrchestrator::with_runtime(
+            JobManager::new(),
+            CamJobExecutorAdapter::with_input_provider(Arc::new(store)),
+        );
+
+        let cam_submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/pyramid".to_string(),
+                parent_job_id: None,
+            })
+            .expect("cam submit should succeed");
+        assert_eq!(cam_submit.status, CamJobStatus::Succeeded);
+
+        let sim_submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CuttingSimulation,
+                input_ref: format!("result://cam/{}/ok", cam_submit.job_id),
+                parent_job_id: Some(cam_submit.job_id),
+            })
+            .expect("cutting simulation submit should succeed");
+        assert_eq!(sim_submit.status, CamJobStatus::Succeeded);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: sim_submit.job_id,
+            })
+            .expect("result query should succeed");
+        assert_eq!(
+            result.active_result_ref,
+            Some(format!("result://sim/{}/ok", sim_submit.job_id))
+        );
+    }
+
+    #[test]
     fn nc_post_from_cam_requires_parent_job_id() {
         let mut orchestrator = JobWorkflowOrchestrator::new();
         let error = orchestrator

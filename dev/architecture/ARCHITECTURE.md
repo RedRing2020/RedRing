@@ -64,7 +64,7 @@ foundation/analysis（将来改名候補）
     - 詳細方針は `dev/architecture/APPLICATION_ORCHESTRATION_LAYER_DESIGN.md` を参照
 - **`geo_io`**: ファイル I/O（STL/OBJ/PLY 等）
 - **`cam_core`**: CAM の中立データ基盤（ToolPath / Tool / artifact I/O / 最小機械制約）
-- **`cam_algorithms`（新設方針）**: CAM 固有アルゴリズム（経路生成、順序最適化、干渉回避、機械制約検証）
+- **`cam_algorithms`**: CAM 固有アルゴリズム（経路生成、順序最適化、干渉回避、機械制約検証）。#684 で新設し、逆オフセット法による ToolPath 生成を実装
 - **`cam_sim`**: CAM 特化の実行・ユースケース層（ToolPath 実行、除去量更新、結果キャッシュ）
 - **`cam_entity`**: CAM 向け表示/属性統合層
 

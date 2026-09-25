@@ -125,6 +125,7 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "cam_algorithms",
  "cam_core",
  "cam_sim",
  "geo_algorithms",
@@ -350,6 +351,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cam_algorithms"
+version = "0.1.0"
+dependencies = [
+ "cam_core",
+ "geo_algorithms",
+ "geo_contracts",
+]
+
+[[package]]
 name = "cam_core"
 version = "0.1.0"
 dependencies = [
@@ -371,6 +381,7 @@ name = "cam_sim"
 version = "0.1.0"
 dependencies = [
  "analysis",
+ "cam_algorithms",
  "cam_core",
  "geo_algorithms",
  "job_domain",

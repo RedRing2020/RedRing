@@ -22,4 +22,5 @@ job_runtime = { path = "../job_runtime" }
 job_domain = { path = "../job_domain" }
 
 [dev-dependencies]
+cam_algorithms = { path = "../cam_algorithms" }
 redring_test_support = { path = "../test_support" }

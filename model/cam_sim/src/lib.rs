@@ -9,6 +9,7 @@ mod error;
 mod exact_work;
 mod job_adapter;
 mod simulator;
+mod solver_input;
 mod workflow;
 
 /// シミュレーション実行時のエラー型。
@@ -27,8 +28,14 @@ pub use simulator::{
     collect_toolpath_line_segments_with_arc_options, run_hybrid_gate_case,
     run_hybrid_gate_case_with_config,
 };
+/// CamProcess の InputRef -> solver 入力解決境界。
+pub use solver_input::{
+    CAM_INPUT_DOMAIN, CamSolverInputProvider, InMemoryCamSolverInputStore, validate_cam_input_ref,
+};
 /// CAM工程向けワークフロー制約ファサード。
 pub use workflow::{CamWorkflowError, CamWorkflowSubmitter};
 
+#[cfg(test)]
+mod solver_job_tests;
 #[cfg(test)]
 mod tests;
