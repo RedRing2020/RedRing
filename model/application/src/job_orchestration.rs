@@ -489,6 +489,7 @@ mod tests {
                         max_refinement_iterations: 1,
                         max_vertices_per_surface: 1_000_000,
                     },
+                    boundary: None,
                 },
             )
             .unwrap();
@@ -561,6 +562,7 @@ mod tests {
                     coordinate_frame: CoordinateFrame::WorldRightHandedZUp,
                     chord_tolerance: 0.01,
                     tessellation_limits: TessellationLimits::default(),
+                    boundary: None,
                 },
             )
             .unwrap();

@@ -55,7 +55,7 @@ pub use machine_constraint::{
     LinearAccelerationLimit, LinearAxisLabel, LinearAxisLimit, LinearSpeedLimit, MachineAxisLabel,
     MachineConstraint, RotaryAccelerationLimit, RotaryAxisLabel, RotaryAxisLimit, RotarySpeedLimit,
 };
-pub use tolerance::CamTolerance;
+pub use tolerance::{CamTolerance, ToleranceProfile};
 pub use tool::{Tool, ToolType};
 pub use toolpath::{
     ArcDirection, ContourLevelPath, CuttingDirection, KinematicMode, MachineAxisKind,

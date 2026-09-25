@@ -742,3 +742,53 @@ ToolPathの複雑化抑制のため、以下を分離する。
 - 工程順序チェックは設定可能な警告として扱う（既定は warning、hard error にはしない）
 - 例: `finish` が `semi_finish` より先行する場合、設定有効時に警告を出す
 - 警告出力の有無はテンプレート設定で制御し、`JobType + InputRef -> ResultRef` 契約は維持する
+
+### 9.8 実装（Step B/C）
+
+配置:
+
+- `cam_core::tolerance`: 精度プロファイル `ToleranceProfile`（`press_rough` / `mold_finish`）と加工トレランス定数
+  - 数値カーネルの判定トレランスではなく CAM の加工精度のため、既存の CAM トレランス（`CamTolerance`）と同じ場所に置く
+- `cam_algorithms::process_template`: 工程テンプレートの解決と solver への適用
+  - `resolve_operation(template, operation, defaults)`: 優先順位に従い `tolerance_profile` / `operation_type` / `machining_stage` / 加工範囲を解決
+  - `build_solver_input(resolved, ...)`: 解決結果を `CamSolverInput` へ適用（`chord_tolerance` = プロファイルの加工トレランス）
+- `CamSolverInput.boundary`: 加工範囲（未指定なら形状の XY 範囲全体）
+
+優先順位の解決規則:
+
+- 明示指定 → 工程テンプレート既定値 → solver 既定値（`SolverDefaults`）の順に最初の指定を採用する
+- 採用した token が未知の場合は下位の既定値へ落とさずに失敗する
+- `SolverDefaults` の初期値は未設定とし、どこにも指定がなければ `missing_tolerance_profile` / `missing_operation_type` とする（精度の暗黙適用を防ぐ）
+
+内部分類の追加（§9.5 の列挙に対する実装上の追加。いずれも `invalid_input` へ集約）:
+
+| 内部分類 | 条件 |
+|----------|------|
+| `invalid_operation_type` | `operation_type` が canonical token 以外 |
+| `missing_operation_type` | `operation_type` がどこにも指定されていない |
+| `invalid_machining_stage` | `machining_stage` が `rough` / `semi_finish` / `finish` 以外 |
+| `invalid_rectangle_boundary` | 矩形が `x_min < x_max` かつ `y_min < y_max`（有限値）を満たさない |
+| `unsupported_operation_type` | token は正しいが solver が未対応（現状 `scanline` 以外） |
+
+`invalid_input` の reason は `<内部分類>: <詳細>` の形式とし、Job Manager へは分類コード `invalid_input` のみを伝達する。
+
+矩形加工範囲（`boundary_mode = rectangle`）:
+
+- scanline の走査範囲を矩形そのものとする（形状外でも工具半径以内なら接触し得るため、形状範囲との積は取らない）
+- 矩形が「形状の XY 範囲を工具半径だけ広げた領域」と重ならない場合は `operation_boundary_out_of_domain`
+
+後続 Step とする項目:
+
+- `edge_projected_2d` と `machining_direction`（投影方向の解釈を含む）
+- `stock_ref` と `stock_required_but_missing`（`rest_machining` の solver 対応と合わせる）
+- 工程順序の警告（§9.7）
+- `succeeded` 時の適用 profile / tolerance / operation_type の追跡メタデータ
+
+計測（40mm 角の双二次ドーム、ボール R3、release ビルド）:
+
+| プロファイル | 頂点数 | 三角形数 | 離散化 | 経路生成 |
+|--------------|--------|----------|--------|----------|
+| `press_rough` (0.001mm) | 28,561 | 56,448 | 80ms | 97ms |
+| `mold_finish` (0.0001mm) | 263,169 | 524,288 | 633ms | 875ms |
+
+`mold_finish` は頂点数・時間とも約 9 倍となる。経路生成は工具半径内の三角形数が支配的であり、#256（凸辺限定・要素絞り込み）の判断材料とする。計測は `profile_load_measurement`（`#[ignore]`）で再現できる。

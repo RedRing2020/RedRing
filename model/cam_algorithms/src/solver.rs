@@ -7,6 +7,7 @@ use cam_core::{CoordinateFrame, LengthUnit, Tool, ToolPath};
 use geo_algorithms::{NurbsSurface3D, TriangleMesh3D};
 
 use crate::inverse_offset::{CutterShape, DropCutter};
+use crate::process_template::{MachiningBoundary, TemplateFailure};
 use crate::scanline::generate_scanline_toolpath;
 use crate::tessellation::{TessellationLimits, tessellate_surfaces};
 
@@ -129,6 +130,8 @@ pub struct CamSolverInput {
     pub chord_tolerance: f64,
     /// 形状離散化の反復上限
     pub tessellation_limits: TessellationLimits,
+    /// 加工範囲（未指定なら形状の XY 範囲全体）
+    pub boundary: Option<MachiningBoundary>,
 }
 
 impl CamSolverInput {
@@ -150,6 +153,10 @@ impl CamSolverInput {
 
         match self.operation {
             OperationSpec::Scanline(params) => validate_scanline(&params, &self.tool)?,
+        }
+
+        if let Some(MachiningBoundary::Rectangle(rectangle)) = &self.boundary {
+            rectangle.validate()?;
         }
 
         match &self.geometry {
@@ -183,10 +190,35 @@ pub fn solve_toolpath(input: &CamSolverInput) -> Result<ToolPath<f64>, CamSolver
     };
 
     let cutter = DropCutter::new(mesh, cutter_shape(&input.tool)?)?;
+    let region = machining_region(&cutter, input.boundary)?;
 
     match input.operation {
         OperationSpec::Scanline(params) => {
-            generate_scanline_toolpath(&cutter, &input.tool.id, &params)
+            generate_scanline_toolpath(&cutter, &input.tool.id, &params, region)
+        }
+    }
+}
+
+/// 経路生成の XY 範囲を決める。
+///
+/// 加工範囲の指定がなければ形状の XY 範囲とする。矩形指定は、工具が形状に触れ得る範囲
+/// （形状の XY 範囲を工具半径だけ広げた領域）と重ならなければ `operation_boundary_out_of_domain`。
+fn machining_region(
+    cutter: &DropCutter,
+    boundary: Option<MachiningBoundary>,
+) -> Result<([f64; 2], [f64; 2]), CamSolverError> {
+    let (xy_min, xy_max) = cutter.xy_bounds();
+    match boundary {
+        None => Ok((xy_min, xy_max)),
+        Some(MachiningBoundary::Rectangle(rectangle)) => {
+            let r = cutter.shape().radius();
+            let reach_min = [xy_min[0] - r, xy_min[1] - r];
+            let reach_max = [xy_max[0] + r, xy_max[1] + r];
+            if rectangle.overlaps(reach_min, reach_max) {
+                Ok((rectangle.rect_min, rectangle.rect_max))
+            } else {
+                Err(TemplateFailure::OperationBoundaryOutOfDomain.into())
+            }
         }
     }
 }
