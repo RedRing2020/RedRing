@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::path::Path;
 
 use cam_core::{
     ArtifactHeaderV1, ArtifactKind, ContourLevelPath, CuttingDirection, SegmentType, Tool,
@@ -7,6 +8,7 @@ use cam_core::{
 use geo_algorithms::{Aabb3D, Point3D};
 use geo_algorithms::{LineSegment3D, octree::VoxelOctree};
 use job_runtime::{JobEvent, JobManager, JobRelation, JobSpec, JobStatus, JobType, RetryPolicy};
+use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 
 use crate::{
     CamJobExecutorAdapter, CamWorkflowError, CamWorkflowSubmitter, CuttingSimulator,
@@ -54,13 +56,6 @@ fn roundtrip_toolpath_via_artifact(toolpath: &ToolPath<f64>) -> ToolPath<f64> {
     let (read_header, read_toolpath) = read_toolpath_artifact_v1(&mut cursor).unwrap();
     assert_eq!(read_header.kind, ArtifactKind::ToolPath);
     read_toolpath
-}
-
-mod demo_symbol_guard {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../test_helpers/demo_symbol_guard.rs"
-    ));
 }
 
 #[test]
@@ -422,6 +417,68 @@ fn test_job_adapter_rejects_invalid_input_ref() {
             .unwrap_or_default()
             .contains("invalid input_ref")
     );
+}
+
+#[test]
+fn test_job_adapter_reports_no_solution_for_cam_process() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(cam_spec("input://cam/no-solution"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("no_solution")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == id && log_ref.ends_with("/no_solution")
+        )
+    }));
+}
+
+#[test]
+fn test_job_adapter_reports_convergence_failure_for_cam_process() {
+    let mut manager = JobManager::new();
+    let adapter = CamJobExecutorAdapter;
+
+    let id = manager.submit(cam_spec("input://cam/convergence-failure"));
+    manager.execute_with(id, &adapter).unwrap();
+
+    let job = manager.get(id).unwrap();
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(
+        job.last_error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("convergence_failure")
+    );
+
+    let events = manager.take_events();
+    assert!(events.iter().any(|event| {
+        matches!(
+            event,
+            JobEvent::Completed {
+                job_id,
+                status: JobStatus::Failed,
+                log_ref: Some(log_ref),
+                ..
+            } if *job_id == id && log_ref.ends_with("/convergence_failure")
+        )
+    }));
 }
 
 #[test]
@@ -1608,5 +1665,5 @@ fn phase4_exploration_thin_wall_boundary_priority_candidates() {
 
 #[test]
 fn test_cam_sim_source_does_not_reference_demo_symbols() {
-    demo_symbol_guard::assert_layer_does_not_reference_demo_symbols("cam_sim");
+    assert_layer_does_not_reference_demo_symbols_in(Path::new("src"), "cam_sim");
 }

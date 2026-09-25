@@ -494,12 +494,16 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 ### 8.5 失敗分類と契約境界
 
-- `invalid_input`
+- 状態異常（入力契約エラー）: `invalid_input`
   - 必須項目欠落、型不一致、units/frame 不整合
-- `no_solution`
-  - 幾何制約下で有効経路を構築できない
-- `convergence_failure`
-  - 反復解法が収束条件を満たさない
+- 状態正常だが解なし: `no_solution`
+  - 入力契約は妥当だが、幾何制約下で有効経路を構築できない
+- 内部計算異常（数値解法エラー）: `convergence_failure`
+  - 入力契約は妥当だが、反復解法が収束条件を満たさない
+
+補足:
+
+- `convergence_failure` は `invalid_input` とは別分類として扱う
 
 いずれも Job Manager には失敗種別のみ伝達し、幾何計算の内部状態は公開しない。
 
@@ -507,6 +511,37 @@ ToolPathの複雑化抑制のため、以下を分離する。
 
 - #679: `NcPostFromCam` の artifact 読込導線は本節の `ResultRef` 契約を前提とする
 - #680-#683: NC post 拡張系列は、本節で固定した solver->toolpath 導線を前提とする
+
+### 8.7 本番導線シナリオ（Job Manager 経由）
+
+`model/application` / `model/job_runtime` / `model/cam_sim` の本番導線を対象に、以下を最小受け入れシナリオとする。
+
+1. 正常系: CAM親ジョブ -> 切削シミュレーション子ジョブ
+  - `CamProcess` が `toolpath` artifact を生成し、`CuttingSimulation` が親 `ResultRef` を参照して成功する
+  - 成功時に `status=succeeded`、`result://sim/<id>/ok`、`log://sim/<id>/ok` を返す
+
+2. 異常系: 入力契約不正（invalid_input）
+  - 必須項目欠落、units/frame 不整合、`InputRef` 形式不正のいずれかで失敗する
+  - Job Manager へは `invalid_input` として集約した失敗分類を返す
+
+3. 異常系: 経路未生成（no_solution）
+  - 幾何制約により有効 ToolPath を構築できない入力で失敗する
+  - Job Manager へは `no_solution` として失敗分類を返す
+
+4. 異常系: 収束失敗（convergence_failure）
+  - 入力契約は妥当だが、反復解法が収束閾値を満たさない場合に失敗する
+  - Job Manager へは `convergence_failure` として失敗分類を返す
+
+5. 契約境界系: 親子制約違反
+  - `CuttingSimulation` の `parent_job_id` 欠落、または親IDと `input_ref` の不一致で reject する
+  - `JobType + InputRef -> ResultRef` 契約を壊さず、内部詳細は公開しない
+
+### 8.8 実装順序（最小）
+
+1. 入力契約モデルと失敗分類マッピングの固定
+2. CAM親ジョブから `toolpath` artifact 生成導線の最小実装
+3. 切削シミュレーション子ジョブでの `ResultRef` 参照実行
+4. 上記 8.7 の 5 シナリオをテストで固定
 
 ---
 

@@ -108,11 +108,11 @@ impl NurbsCurveEvalData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_contracts::NurbsCurve3DConstructor;
-    use geo_nurbs::{
+    use geo_algorithms::{
         adaptive_tessellation::{AdaptiveTessellationSettings, NurbsCurveAdaptiveTessellation},
         NurbsCurve3D,
     };
+    use geo_contracts::NurbsCurve3DConstructor;
 
     #[test]
     fn test_nurbs_curve_eval_data_from_line() {

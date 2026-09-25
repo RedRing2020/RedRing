@@ -291,6 +291,62 @@ mod tests {
     }
 
     #[test]
+    fn submit_failure_no_solution_is_visible_through_result_query() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+        let submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/no-solution".to_string(),
+                parent_job_id: None,
+            })
+            .expect("submit should complete with failed runtime status");
+
+        assert_eq!(submit.status, CamJobStatus::Failed);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: submit.job_id,
+            })
+            .expect("failed job should still be queryable");
+        assert_eq!(result.job.status, CamJobStatus::Failed);
+        assert!(
+            result
+                .job
+                .last_error
+                .as_deref()
+                .is_some_and(|message| message.contains("no_solution"))
+        );
+    }
+
+    #[test]
+    fn submit_failure_convergence_failure_is_visible_through_result_query() {
+        let mut orchestrator = JobWorkflowOrchestrator::new();
+        let submit = orchestrator
+            .submit_workflow(JobWorkflowSubmitRequest {
+                job_type: CamJobType::CamProcess,
+                input_ref: "input://cam/convergence-failure".to_string(),
+                parent_job_id: None,
+            })
+            .expect("submit should complete with failed runtime status");
+
+        assert_eq!(submit.status, CamJobStatus::Failed);
+
+        let result = orchestrator
+            .query_result(JobWorkflowResultQuery {
+                job_id: submit.job_id,
+            })
+            .expect("failed job should still be queryable");
+        assert_eq!(result.job.status, CamJobStatus::Failed);
+        assert!(
+            result
+                .job
+                .last_error
+                .as_deref()
+                .is_some_and(|message| message.contains("convergence_failure"))
+        );
+    }
+
+    #[test]
     fn event_batch_is_normalized_for_viewmodel_consumption() {
         let mut orchestrator = JobWorkflowOrchestrator::new();
         let submit = orchestrator

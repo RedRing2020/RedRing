@@ -6,7 +6,9 @@ use cam_core::{
     PathSegment, SegmentType, Tool, ToolPath, read_toolpath_artifact_v1, write_toolpath_payload_v1,
 };
 use geo_algorithms::{Aabb3D, Point3D};
-use job_runtime::{JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType};
+use job_runtime::{
+    JobExecutionResult, JobExecutor, JobRecord, JobStatus, JobType, RefFactory, RefParser,
+};
 
 use crate::{HybridGateConfig, HybridGateMetrics, run_hybrid_gate_case_with_config};
 
@@ -19,18 +21,36 @@ const JOB_SIM_DEFAULT_WORK_MAX: (f64, f64, f64) = (100.0, 100.0, 100.0);
 const JOB_SIM_DEFAULT_MAX_DEPTH: usize = 4;
 const JOB_SIM_DEFAULT_SAMPLE_PITCH: f64 = 2.0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CamProcessFailureKind {
+    InvalidInput,
+    NoSolution,
+    ConvergenceFailure,
+}
+
+impl CamProcessFailureKind {
+    fn code(self) -> &'static str {
+        match self {
+            Self::InvalidInput => "invalid_input",
+            Self::NoSolution => "no_solution",
+            Self::ConvergenceFailure => "convergence_failure",
+        }
+    }
+}
+
 impl CamJobExecutorAdapter {
     fn run_cam_process(&self, job: &JobRecord) -> JobExecutionResult {
-        if !job.spec.input_ref.starts_with("input://cam/") {
+        if let Some((failure_kind, reason)) = classify_cam_process_failure(&job.spec.input_ref) {
             return JobExecutionResult {
                 status: JobStatus::Failed,
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://cam/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("cam", job.id.0, failure_kind.code())),
                 error: Some(format!(
-                    "invalid input_ref for cam process: {}",
-                    job.spec.input_ref
+                    "cam process failed: {}: {}",
+                    failure_kind.code(),
+                    reason
                 )),
             };
         }
@@ -42,7 +62,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 20,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://cam/{}/not-ready", job.id.0)),
+                log_ref: Some(build_log_ref("cam", job.id.0, "not-ready")),
                 error: Some(
                     "cam process artifact provider is not configured in production build"
                         .to_string(),
@@ -59,7 +79,7 @@ impl CamJobExecutorAdapter {
                     elapsed_millis: 20,
                     result_ref: None,
                     artifact_bytes: None,
-                    log_ref: Some(format!("log://cam/{}/artifact-error", job.id.0)),
+                    log_ref: Some(build_log_ref("cam", job.id.0, "artifact-error")),
                     error: Some(format!("failed to build cam artifact bytes: {}", err)),
                 };
             }
@@ -68,9 +88,9 @@ impl CamJobExecutorAdapter {
         JobExecutionResult {
             status: JobStatus::Succeeded,
             elapsed_millis: 200,
-            result_ref: Some(format!("result://cam/{}/ok", job.id.0)),
+            result_ref: Some(build_result_ref("cam", job.id.0, "ok")),
             artifact_bytes: Some(artifact_bytes),
-            log_ref: Some(format!("log://cam/{}/ok", job.id.0)),
+            log_ref: Some(build_log_ref("cam", job.id.0, "ok")),
             error: None,
         }
     }
@@ -87,7 +107,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
                 error: Some(format!(
                     "invalid input_ref for cutting simulation: {}",
                     job.spec.input_ref
@@ -101,7 +121,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
                 error: Some("cutting simulation requires parent_job_id".to_string()),
             };
         };
@@ -112,7 +132,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
                 error: Some(format!(
                     "input_ref cam job id mismatch: parent_job_id={}, input_ref={}",
                     parent_job_id.0, job.spec.input_ref
@@ -126,7 +146,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://sim/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("sim", job.id.0, "invalid")),
                 error: Some(format!(
                     "invalid cam result_ref suffix for cutting simulation: {}",
                     result_suffix
@@ -140,7 +160,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://sim/{}/missing-input", job.id.0)),
+                log_ref: Some(build_log_ref("sim", job.id.0, "missing-input")),
                 error: Some("missing input artifact bytes for cutting simulation".to_string()),
             };
         };
@@ -197,7 +217,7 @@ impl CamJobExecutorAdapter {
                     elapsed_millis: started.elapsed().as_millis().max(1) as u64,
                     result_ref: None,
                     artifact_bytes: None,
-                    log_ref: Some(format!("log://sim/{}/sim-failure", job.id.0)),
+                    log_ref: Some(build_log_ref("sim", job.id.0, "sim-failure")),
                     error: Some(format!("failed to run cutting simulation: {}", err)),
                 };
             }
@@ -207,7 +227,7 @@ impl CamJobExecutorAdapter {
         JobExecutionResult {
             status: JobStatus::Succeeded,
             elapsed_millis,
-            result_ref: Some(format!("result://sim/{}/ok", job.id.0)),
+            result_ref: Some(build_result_ref("sim", job.id.0, "ok")),
             artifact_bytes: None,
             log_ref: Some(format_hybrid_success_log_ref(job.id.0, &hybrid_metrics)),
             error: None,
@@ -226,7 +246,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
                 error: Some(format!(
                     "invalid input_ref for nc post from cam: {}",
                     job.spec.input_ref
@@ -240,7 +260,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
                 error: Some("nc post from cam requires parent_job_id".to_string()),
             };
         };
@@ -251,7 +271,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
                 error: Some(format!(
                     "input_ref cam job id mismatch: parent_job_id={}, input_ref={}",
                     parent_job_id.0, job.spec.input_ref
@@ -265,7 +285,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://nc-post/{}/invalid", job.id.0)),
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "invalid")),
                 error: Some(format!(
                     "invalid cam result_ref suffix for nc post from cam: {}",
                     result_suffix
@@ -279,7 +299,7 @@ impl CamJobExecutorAdapter {
                 elapsed_millis: 10,
                 result_ref: None,
                 artifact_bytes: None,
-                log_ref: Some(format!("log://nc-post/{}/missing-input", job.id.0)),
+                log_ref: Some(build_log_ref("nc-post", job.id.0, "missing-input")),
                 error: Some("missing input artifact bytes for nc post from cam".to_string()),
             };
         };
@@ -304,18 +324,55 @@ impl CamJobExecutorAdapter {
         JobExecutionResult {
             status: JobStatus::Succeeded,
             elapsed_millis: 240,
-            result_ref: Some(format!("result://nc-post/{}/ok", job.id.0)),
+            result_ref: Some(build_result_ref("nc-post", job.id.0, "ok")),
             artifact_bytes: None,
-            log_ref: Some(format!("log://nc-post/{}/ok", job.id.0)),
+            log_ref: Some(build_log_ref("nc-post", job.id.0, "ok")),
             error: None,
         }
     }
 }
 
+fn classify_cam_process_failure(input_ref: &str) -> Option<(CamProcessFailureKind, String)> {
+    if !input_ref.starts_with("input://cam/") {
+        return Some((
+            CamProcessFailureKind::InvalidInput,
+            format!("invalid input_ref for cam process: {}", input_ref),
+        ));
+    }
+
+    if input_ref.ends_with("/invalid-input") {
+        return Some((
+            CamProcessFailureKind::InvalidInput,
+            "required input fields are missing or malformed".to_string(),
+        ));
+    }
+
+    if input_ref.ends_with("/no-solution") {
+        return Some((
+            CamProcessFailureKind::NoSolution,
+            "no feasible toolpath can be constructed under current geometry constraints"
+                .to_string(),
+        ));
+    }
+
+    if input_ref.ends_with("/convergence-failure") {
+        return Some((
+            CamProcessFailureKind::ConvergenceFailure,
+            "iterative solver did not converge within configured tolerance".to_string(),
+        ));
+    }
+
+    None
+}
+
 fn format_hybrid_success_log_ref(job_id: u64, metrics: &HybridGateMetrics) -> String {
-    format!(
-        "log://sim/{job_id}/ok/hybrid-gap-{:.4}-boundary-{:.4}-ratio-{:.3}",
-        metrics.gap, metrics.boundary_disagreement_rate, metrics.elapsed_ratio
+    build_log_ref(
+        "sim",
+        job_id,
+        &format!(
+            "ok/hybrid-gap-{:.4}-boundary-{:.4}-ratio-{:.3}",
+            metrics.gap, metrics.boundary_disagreement_rate, metrics.elapsed_ratio
+        ),
     )
 }
 
@@ -344,12 +401,27 @@ fn build_cam_process_artifact_bytes(input_ref: &str) -> Result<Vec<u8>, BinaryFo
     make_toolpath_artifact_bytes(cam_core::FORMAT_VERSION_MINOR_V1)
 }
 
-fn parse_cam_result_ref(input_ref: &str) -> Option<(u64, &str)> {
-    let remainder = input_ref.strip_prefix("result://cam/")?;
-    let (cam_job_id_str, suffix) = remainder.split_once('/')?;
-    let cam_job_id = cam_job_id_str.parse::<u64>().ok()?;
+fn parse_cam_result_ref(input_ref: &str) -> Option<(u64, String)> {
+    let (job_id, suffix) = RefParser::parse_result_job_ref(input_ref, "cam").ok()?;
+    Some((job_id, suffix))
+}
 
-    Some((cam_job_id, suffix))
+fn build_result_ref(domain: &str, job_id: u64, suffix: &str) -> String {
+    let suffix_segments = split_path_segments(suffix);
+    RefFactory::result(domain, job_id, suffix_segments.as_slice())
+        .unwrap_or_else(|_| format!("result://{}/{}/{}", domain, job_id, suffix))
+}
+
+fn build_log_ref(domain: &str, job_id: u64, suffix: &str) -> String {
+    let suffix_segments = split_path_segments(suffix);
+    RefFactory::log(domain, job_id, suffix_segments.as_slice())
+        .unwrap_or_else(|_| format!("log://{}/{}/{}", domain, job_id, suffix))
+}
+
+fn split_path_segments(path: &str) -> Vec<&str> {
+    path.split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect()
 }
 
 fn classify_artifact_read_error(error: &BinaryFormatError) -> &'static str {

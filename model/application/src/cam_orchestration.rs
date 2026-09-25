@@ -3,6 +3,8 @@
 use cam_core::{Tool, ToolPath};
 use cam_sim::{CuttingSimulator, SimulationError, SimulationSnapshotExport, SnapshotInterval};
 use geo_algorithms::{Aabb3D, LineSegment3D, Point3D, octree::VoxelOctree};
+#[cfg(test)]
+use redring_test_support::demo_symbol_guard::assert_layer_does_not_reference_demo_symbols_in;
 
 /// Application境界で返却する統一エラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -297,13 +299,7 @@ pub fn count_non_cutting_interference_segments(
 mod tests {
     use super::*;
     use cam_core::CuttingDirection;
-
-    mod demo_symbol_guard {
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../test_helpers/demo_symbol_guard.rs"
-        ));
-    }
+    use std::path::Path;
 
     #[test]
     fn test_create_snapshot_series_from_frames() {
@@ -443,6 +439,6 @@ mod tests {
 
     #[test]
     fn test_application_source_does_not_reference_demo_symbols() {
-        demo_symbol_guard::assert_layer_does_not_reference_demo_symbols("application");
+        assert_layer_does_not_reference_demo_symbols_in(Path::new("src"), "application");
     }
 }

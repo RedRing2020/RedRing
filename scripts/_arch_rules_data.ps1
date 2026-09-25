@@ -20,6 +20,7 @@ $ARCH_LAYER_MAPPING = @{
     cam_sim        = "model/cam_sim"
     job_runtime    = "model/job_runtime"
     job_domain     = "model/job_domain"
+    redring_test_support = "model/test_support"
     converter      = "viewmodel/converter"
     cam_demo       = "viewmodel/cam_demo"
     graphics       = "viewmodel/graphics"
@@ -33,6 +34,7 @@ $ARCH_LAYERS = @{
     Analysis  = @("analysis")
     Application = @("application")
     Model     = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_topology", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain")
+    TestSupport = @("redring_test_support")
     ViewModel = @("converter", "cam_demo", "graphics")
     View      = @("render", "stage", "app")
 }
@@ -54,7 +56,7 @@ $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo
 # Pending update: add CAM dependency rules when `cam_algorithms` is created.
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
-    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_sim", "job_runtime", "job_domain")
+    application    = @("analysis", "geo_contracts", "geo_algorithms", "geo_entity", "geo_primitives", "geo_topology", "cam_core", "cam_sim", "job_runtime", "job_domain", "redring_test_support")
     geo_contracts  = @("analysis", "geo_commons")
     geo_commons    = @("analysis")
     geo_core       = @("analysis", "geo_contracts", "geo_entity")
@@ -66,9 +68,10 @@ $ARCH_ALLOWED_DEPS = @{
     geo_entity     = @("geo_contracts", "geo_primitives")
     cam_core       = @("analysis", "geo_contracts", "geo_primitives", "geo_algorithms")
     cam_entity     = @("cam_core", "geo_entity")
-    cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain")
-    job_runtime    = @("analysis")
+    cam_sim        = @("analysis", "cam_core", "geo_algorithms", "job_runtime", "job_domain", "redring_test_support")
+    job_runtime    = @("analysis", "redring_test_support")
     job_domain     = @("analysis", "job_runtime")
+    redring_test_support = @()
     converter      = @(
         "application",
         "geo_contracts",
@@ -107,6 +110,7 @@ $ARCH_FORBIDDEN_DEPS = @{
     cam_sim        = @("converter", "graphics", "render", "stage", "app", "geo_entity", "geo_foundation", "geo_core", "geo_primitives", "geo_nurbs", "geo_io", "cam_entity")
     job_runtime    = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "converter", "graphics", "render", "stage", "app")
     job_domain     = @("geo_foundation", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "converter", "graphics", "render", "stage", "app")
+    redring_test_support = @("geo_foundation", "application", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_nurbs", "geo_io", "geo_entity", "cam_core", "cam_entity", "cam_sim", "job_runtime", "job_domain", "converter", "cam_demo", "graphics", "render", "stage", "app", "analysis")
     converter      = @(
         "cam_demo",
         "render",
@@ -133,15 +137,14 @@ function Get-CrateDependenciesShared {
     $knownCrates = $ARCH_ALLOWED_DEPS.Keys
     $dependencies = @()
     $content = Get-Content $cargoToml
+    $depsSections = @("dependencies", "dev-dependencies")
     $inDepsSection = $false
 
     foreach ($line in $content) {
-        if ($line -match '^\[dependencies\]') {
-            $inDepsSection = $true
+        if ($line -match '^\[(.+)\]') {
+            $sectionName = $matches[1].Trim().ToLowerInvariant()
+            $inDepsSection = $depsSections -contains $sectionName
             continue
-        }
-        if ($line -match '^\[.*\]' -and $inDepsSection) {
-            break
         }
         if ($inDepsSection -and $line -match '^(\w+)\s*=') {
             $depName = $matches[1]

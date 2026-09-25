@@ -1,5 +1,5 @@
 [package]
-name = "job_runtime"
+name = "redring_test_support"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -9,6 +9,3 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-
-[dev-dependencies]
-redring_test_support = { path = "../test_support" }

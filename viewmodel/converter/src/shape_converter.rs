@@ -2322,7 +2322,7 @@ mod tests {
 
     #[test]
     fn test_arc_radius_verification() {
-        use geo_primitives::Angle;
+        use geo_algorithms::Angle;
 
         // 円弧上の全ての点が中心からradiusの距離にあることを確認
         let center = Point3D::new(0.0, 0.0, 0.0);

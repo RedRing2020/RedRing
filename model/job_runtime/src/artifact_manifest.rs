@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
+use crate::reference::{RefParser, RefScheme};
 use crate::types::JobId;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,7 +119,7 @@ pub fn validate_output_contract(
 ) -> Result<(), ArtifactManifestError> {
     validate_ref(
         result_ref,
-        "result://",
+        RefScheme::Result,
         ArtifactManifestError::MissingResultRef,
         ArtifactManifestError::InvalidResultRef,
     )?;
@@ -137,14 +138,14 @@ pub fn validate_io_contract(
 ) -> Result<(), ArtifactManifestError> {
     validate_ref(
         input_ref,
-        "input://",
+        RefScheme::Input,
         ArtifactManifestError::MissingInputRef,
         ArtifactManifestError::InvalidInputRef,
     )?;
 
     validate_ref(
         result_ref,
-        "result://",
+        RefScheme::Result,
         ArtifactManifestError::MissingResultRef,
         ArtifactManifestError::InvalidResultRef,
     )?;
@@ -206,7 +207,7 @@ pub fn decide_contract_validation_result(
 
 fn validate_ref<F>(
     value: &str,
-    expected_scheme: &str,
+    expected_scheme: RefScheme,
     missing_error: ArtifactManifestError,
     invalid_error: F,
 ) -> Result<(), ArtifactManifestError>
@@ -217,11 +218,12 @@ where
         return Err(missing_error);
     }
 
-    let Some(suffix) = value.strip_prefix(expected_scheme) else {
-        return Err(invalid_error(value.to_string()));
+    let parse_result = match expected_scheme {
+        RefScheme::Input => RefParser::parse_input(value),
+        RefScheme::Result => RefParser::parse_result(value),
+        RefScheme::Log => RefParser::parse_log(value),
     };
-
-    if suffix.trim().is_empty() {
+    if parse_result.is_err() {
         return Err(invalid_error(value.to_string()));
     }
 
