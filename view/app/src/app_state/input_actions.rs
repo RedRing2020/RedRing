@@ -117,6 +117,9 @@ impl AppState {
                     tracing::info!("a: Arc3D表示");
                     tracing::info!("n: NurbsCurve3D表示（GPU評価）");
                     tracing::info!("m: NurbsSurface3D表示（GPU評価）");
+                    tracing::info!("i: 逆オフセット包絡面表示（サンプルNURBS曲面）");
+                    tracing::info!("I: 逆オフセット包絡面の工具切替（ボール/フラット） (Shift+I)");
+                    tracing::info!("g: 逆オフセット包絡面の表示切替（包絡面/一定ピッチ格子線）");
                     tracing::info!("o: Octree再分割表示/深さ送り（同一最終形状の粗→細）");
                     tracing::info!("Shift+O: Octree深さアニメーション再生（粗→細）");
                     tracing::info!("=== その他 ===");
@@ -156,6 +159,15 @@ impl AppState {
                 }
                 "m" => {
                     self.load_debug_nurbs_surface();
+                }
+                "i" => {
+                    self.load_debug_inverse_offset();
+                }
+                "I" => {
+                    self.toggle_debug_inverse_offset_tool();
+                }
+                "g" => {
+                    self.toggle_debug_inverse_offset_mode();
                 }
                 "o" => {
                     let mut handled = false;

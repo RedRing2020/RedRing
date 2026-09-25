@@ -426,3 +426,30 @@ fn convergence_failure_when_chord_tolerance_unreachable() {
     let error = solve_toolpath(&input).unwrap_err();
     assert_eq!(error.code(), "convergence_failure");
 }
+
+#[test]
+fn cl_grid_covers_margin_and_matches_drop_cutter() {
+    let cutter = DropCutter::new(&flat_square(0.0), ball(1.0)).unwrap();
+    let grid = crate::sample_cl_grid(&cutter, 0.5, 1.0).unwrap();
+
+    // XY 範囲 0..10 を margin 1 で拡張 → -1..11 を 0.5 間隔で 25 点
+    assert_eq!((grid.columns, grid.rows), (25, 25));
+    assert_eq!(grid.xy(0, 0), [-1.0, -1.0]);
+    for row in 0..grid.rows {
+        for column in 0..grid.columns {
+            let [x, y] = grid.xy(column, row);
+            assert_eq!(grid.tip_height(column, row), cutter.tip_height_at(x, y));
+        }
+    }
+    // 外周角 (-1, -1) は頂点 (0,0) から √2 > r で非接触
+    assert!(grid.tip_height(0, 0).is_none());
+}
+
+#[test]
+fn cl_grid_rejects_invalid_pitch() {
+    let cutter = DropCutter::new(&flat_square(0.0), flat(1.0)).unwrap();
+    assert_eq!(
+        crate::sample_cl_grid(&cutter, 0.0, 0.0).unwrap_err().code(),
+        "invalid_input"
+    );
+}

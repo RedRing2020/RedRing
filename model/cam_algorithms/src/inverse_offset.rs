@@ -41,6 +41,16 @@ impl CutterShape {
             Self::Ball { radius } | Self::Flat { radius } => radius,
         }
     }
+
+    /// 工具先端から逆オフセットの基準点までの高さ
+    ///
+    /// ボールは球中心（先端 + r）、フラットは底面中心（先端と同じ）を基準点とする。
+    pub fn reference_offset(self) -> f64 {
+        match self {
+            Self::Ball { radius } => radius,
+            Self::Flat { .. } => 0.0,
+        }
+    }
 }
 
 /// 逆オフセット法による drop-cutter

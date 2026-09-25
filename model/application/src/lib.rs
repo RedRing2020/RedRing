@@ -5,6 +5,7 @@
 
 pub extern crate geo_primitives as primitives;
 
+pub mod cam_inspection;
 pub mod cam_orchestration;
 pub mod feature_orchestration;
 pub mod geometry_orchestration;
