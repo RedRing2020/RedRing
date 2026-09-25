@@ -15,6 +15,7 @@
 use std::fmt::{Display, Formatter};
 
 use cam_core::{CoordinateFrame, LengthUnit, ToleranceProfile, Tool};
+use geo_contracts::default_distance_tolerance;
 
 use crate::solver::{
     CamSolverError, CamSolverInput, OperationSpec, ScanlineParams, SolverGeometry,
@@ -111,12 +112,17 @@ impl RectangleBoundary {
         }
     }
 
-    /// XY 範囲 [min, max] と重なるか
-    pub fn overlaps(&self, min: [f64; 2], max: [f64; 2]) -> bool {
-        self.rect_min[0] <= max[0]
-            && min[0] <= self.rect_max[0]
-            && self.rect_min[1] <= max[1]
-            && min[1] <= self.rect_max[1]
+    /// XY 範囲 [min, max] でクリップした範囲を返す。
+    ///
+    /// クリップ結果の幅・高さのいずれかが距離トレランス以下（辺や角で接するだけ、
+    /// または重ならない）の場合は、走査できる面積を持たないため `None` とする。
+    pub fn clip_to(&self, min: [f64; 2], max: [f64; 2]) -> Option<([f64; 2], [f64; 2])> {
+        let clipped_min = [self.rect_min[0].max(min[0]), self.rect_min[1].max(min[1])];
+        let clipped_max = [self.rect_max[0].min(max[0]), self.rect_max[1].min(max[1])];
+        let tolerance = default_distance_tolerance::<f64>();
+        let has_area = clipped_max[0] - clipped_min[0] > tolerance
+            && clipped_max[1] - clipped_min[1] > tolerance;
+        has_area.then_some((clipped_min, clipped_max))
     }
 }
 

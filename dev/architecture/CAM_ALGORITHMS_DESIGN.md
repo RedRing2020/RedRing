@@ -775,7 +775,7 @@ ToolPathの複雑化抑制のため、以下を分離する。
 矩形加工範囲（`boundary_mode = rectangle`）:
 
 - 「形状の XY 範囲を工具半径だけ広げた領域」（reach）を工具が形状に触れ得る範囲とする
-- 矩形が reach と重ならない場合は `operation_boundary_out_of_domain`
+- 矩形を reach でクリップした結果が面積を持たない場合（重ならない、または辺・角で接するだけ。幅・高さが距離トレランス以下）は `operation_boundary_out_of_domain`（経路生成まで進めて `no_solution` にしない）
 - 重なる場合は矩形を reach でクリップした範囲を走査する（形状外でも工具半径以内なら接触し得るため形状範囲では切らない。reach 外は接触し得ないため、過大な矩形でもサンプル数を形状規模に抑える）
 
 後続 Step とする項目:

@@ -596,3 +596,26 @@ fn oversized_rectangle_is_clipped_to_tool_reach() {
         }
     }
 }
+
+#[test]
+fn rectangle_touching_reach_is_out_of_domain_not_no_solution() {
+    // reach は形状 0..40 ± 工具半径 3 → -3..43。辺・角で接するだけの矩形は面積を持たない
+    let degenerate_cases = [
+        ([43.0, 0.0], [50.0, 40.0]),    // 右辺で接する
+        ([-10.0, -10.0], [-3.0, -3.0]), // 角で接する
+        ([0.0, 43.0], [40.0, 60.0]),    // 上辺で接する
+    ];
+    for (rect_min, rect_max) in degenerate_cases {
+        let mut input = solver_input(SolverGeometry::NurbsSurfaceSet(vec![dome_surface()]));
+        input.boundary = rectangle(rect_min, rect_max);
+        let error = solve_toolpath(&input).unwrap_err();
+        assert_eq!(error.code(), "invalid_input", "{rect_min:?}-{rect_max:?}");
+        assert!(
+            error
+                .reason()
+                .starts_with("operation_boundary_out_of_domain"),
+            "{rect_min:?}-{rect_max:?}: {}",
+            error.reason()
+        );
+    }
+}
