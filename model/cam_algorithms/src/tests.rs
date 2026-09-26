@@ -619,3 +619,132 @@ fn rectangle_touching_reach_is_out_of_domain_not_no_solution() {
         );
     }
 }
+
+/// u 方向のみ曲がる 40 x 400mm の樋形状（v 方向は直線）
+fn gutter_surface() -> NurbsSurface3D<f64> {
+    let control_points = vec![
+        vec![(0.0, 0.0, 80.0), (0.0, 400.0, 80.0)],
+        vec![(20.0, 0.0, 100.0), (20.0, 400.0, 100.0)],
+        vec![(40.0, 0.0, 80.0), (40.0, 400.0, 80.0)],
+    ];
+    NurbsSurface3D::new(
+        control_points,
+        None,
+        vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
+        2,
+        1,
+    )
+    .unwrap()
+}
+
+/// パラメータ空間を u/v 等分した参照メッシュ
+fn uniform_grid_mesh(surface: &NurbsSurface3D<f64>, nu: usize, nv: usize) -> TriangleMesh3D<f64> {
+    let mut vertices = Vec::with_capacity((nu + 1) * (nv + 1));
+    for i in 0..=nu {
+        for j in 0..=nv {
+            let p = surface.evaluate_at(i as f64 / nu as f64, j as f64 / nv as f64);
+            vertices.push(Point3D::new(p.x(), p.y(), p.z()));
+        }
+    }
+    let mut indices = Vec::with_capacity(nu * nv * 2);
+    for i in 0..nu {
+        for j in 0..nv {
+            let p00 = i * (nv + 1) + j;
+            let (p01, p10) = (p00 + 1, p00 + nv + 1);
+            indices.push([p00, p10, p10 + 1]);
+            indices.push([p00, p10 + 1, p01]);
+        }
+    }
+    TriangleMesh3D::new(vertices, indices).unwrap()
+}
+
+#[test]
+fn triangle_aspect_ratio_is_one_for_equilateral() {
+    let a = Point3D::new(0.0, 0.0, 0.0);
+    let b = Point3D::new(1.0, 0.0, 0.0);
+    let c = Point3D::new(0.5, 3.0_f64.sqrt() / 2.0, 0.0);
+    assert!((crate::triangle_aspect_ratio(a, b, c) - 1.0).abs() < EPS);
+
+    // 直角二等辺三角形: √2 / (2√3 × (2 - √2) / 2)
+    let right = crate::triangle_aspect_ratio(a, b, Point3D::new(0.0, 1.0, 0.0));
+    let expected = 2.0_f64.sqrt() / (3.0_f64.sqrt() * (2.0 - 2.0_f64.sqrt()));
+    assert!((right - expected).abs() < EPS);
+
+    let collinear = crate::triangle_aspect_ratio(a, b, Point3D::new(2.0, 0.0, 0.0));
+    assert!(collinear.is_infinite());
+}
+
+#[test]
+fn slivers_do_not_change_cutter_location() {
+    // 逆オフセットは要素ごとに厳密なため、細長三角形のメッシュでも CL は
+    // 形状の整った参照メッシュ（1mm 程度の格子）と弦誤差内で一致する
+    let chord_tolerance = 0.001;
+    let sliver = tessellate_surfaces(
+        &[gutter_surface()],
+        chord_tolerance,
+        TessellationLimits::default(),
+    )
+    .unwrap();
+    let longest_aspect = sliver
+        .indices()
+        .iter()
+        .map(|tri| {
+            let [a, b, c] = tri.map(|i| sliver.vertices()[i]);
+            crate::triangle_aspect_ratio(a, b, c)
+        })
+        .fold(0.0_f64, f64::max);
+    assert!(
+        longest_aspect > 100.0,
+        "fixture must contain slivers: {longest_aspect}"
+    );
+
+    let reference = uniform_grid_mesh(&gutter_surface(), 256, 400);
+    for shape in [ball(3.0), flat(3.0)] {
+        let a = DropCutter::new(&sliver, shape).unwrap();
+        let b = DropCutter::new(&reference, shape).unwrap();
+        for &(x, y) in &[
+            (1.0, 5.0),
+            (12.5, 100.0),
+            (20.0, 200.0),
+            (33.3, 399.0),
+            (-2.0, 50.0),
+        ] {
+            let (za, zb) = (
+                a.tip_height_at(x, y).unwrap(),
+                b.tip_height_at(x, y).unwrap(),
+            );
+            assert!(
+                (za - zb).abs() <= 2.0 * chord_tolerance,
+                "{shape:?} at ({x}, {y}): {za} vs {zb}"
+            );
+        }
+    }
+}
+
+#[test]
+fn triangle_aspect_ratio_is_stable_for_thin_triangles() {
+    // 底辺 L・高さ h の二等辺三角形の厳密値と比較する（細長いほど Heron の公式は桁落ちする）
+    for (length, height) in [(400.0_f64, 1.0e-3_f64), (400.0, 1.0e-6), (1.0e-3, 1.0e-9)] {
+        let a = Point3D::new(0.0, 0.0, 0.0);
+        let b = Point3D::new(length, 0.0, 0.0);
+        let c = Point3D::new(0.5 * length, height, 0.0);
+        let side = (0.25 * length * length + height * height).sqrt();
+        let semi_perimeter = 0.5 * (length + 2.0 * side);
+        let inradius = 0.5 * length * height / semi_perimeter;
+        let expected = length.max(side) / (2.0 * 3.0_f64.sqrt() * inradius);
+
+        let ratio = crate::triangle_aspect_ratio(a, b, c);
+        assert!(ratio.is_finite(), "L={length} h={height}");
+        assert!(
+            ((ratio - expected) / expected).abs() < 1.0e-9,
+            "L={length} h={height}: {ratio} vs {expected}"
+        );
+    }
+}
+
+#[test]
+fn triangle_aspect_ratio_is_infinite_for_coincident_points() {
+    let p = Point3D::new(1.0, 2.0, 3.0);
+    assert!(crate::triangle_aspect_ratio(p, p, p).is_infinite());
+}
