@@ -721,3 +721,30 @@ fn slivers_do_not_change_cutter_location() {
         }
     }
 }
+
+#[test]
+fn triangle_aspect_ratio_is_stable_for_thin_triangles() {
+    // 底辺 L・高さ h の二等辺三角形の厳密値と比較する（細長いほど Heron の公式は桁落ちする）
+    for (length, height) in [(400.0_f64, 1.0e-3_f64), (400.0, 1.0e-6), (1.0e-3, 1.0e-9)] {
+        let a = Point3D::new(0.0, 0.0, 0.0);
+        let b = Point3D::new(length, 0.0, 0.0);
+        let c = Point3D::new(0.5 * length, height, 0.0);
+        let side = (0.25 * length * length + height * height).sqrt();
+        let semi_perimeter = 0.5 * (length + 2.0 * side);
+        let inradius = 0.5 * length * height / semi_perimeter;
+        let expected = length.max(side) / (2.0 * 3.0_f64.sqrt() * inradius);
+
+        let ratio = crate::triangle_aspect_ratio(a, b, c);
+        assert!(ratio.is_finite(), "L={length} h={height}");
+        assert!(
+            ((ratio - expected) / expected).abs() < 1.0e-9,
+            "L={length} h={height}: {ratio} vs {expected}"
+        );
+    }
+}
+
+#[test]
+fn triangle_aspect_ratio_is_infinite_for_coincident_points() {
+    let p = Point3D::new(1.0, 2.0, 3.0);
+    assert!(crate::triangle_aspect_ratio(p, p, p).is_infinite());
+}

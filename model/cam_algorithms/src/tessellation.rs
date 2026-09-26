@@ -39,17 +39,28 @@ impl Default for TessellationLimits {
 
 /// 三角形のアスペクト比 = 最長辺 / (2√3 × 内接円半径)
 ///
-/// 正三角形で 1、細長いほど大きい。面積が数値的にゼロの三角形は `f64::INFINITY`。
+/// 正三角形で 1、細長いほど大きい。内接円半径が数値的にゼロの三角形は `f64::INFINITY`。
+///
+/// 面積は外積から求める（Heron の公式は細長三角形で桁落ちするため用いない）。
 pub fn triangle_aspect_ratio(a: Point3D<f64>, b: Point3D<f64>, c: Point3D<f64>) -> f64 {
     let (la, lb, lc) = (distance(b, c), distance(c, a), distance(a, b));
     let semi_perimeter = 0.5 * (la + lb + lc);
-    let area_squared =
-        semi_perimeter * (semi_perimeter - la) * (semi_perimeter - lb) * (semi_perimeter - lc);
-    let area = area_squared.max(0.0).sqrt();
-    if area <= default_kernel_numerical_zero_tolerance::<f64>() {
+
+    let ab = [b.x() - a.x(), b.y() - a.y(), b.z() - a.z()];
+    let ac = [c.x() - a.x(), c.y() - a.y(), c.z() - a.z()];
+    let cross = [
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    ];
+    let area = 0.5 * (cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]).sqrt();
+
+    // 退化判定は長さの次元を持つ内接円半径で行い、形状の寸法に依存させない
+    // （3 点が一致すると 0 / 0 で NaN になるため、それも退化として扱う）
+    let inradius = area / semi_perimeter;
+    if inradius.is_nan() || inradius <= default_kernel_numerical_zero_tolerance::<f64>() {
         return f64::INFINITY;
     }
-    let inradius = area / semi_perimeter;
     la.max(lb).max(lc) / (2.0 * 3.0_f64.sqrt() * inradius)
 }
 
@@ -238,7 +249,7 @@ fn uses_main_diagonal(
     p01: Point3D<f64>,
     p11: Point3D<f64>,
 ) -> bool {
-    distance(p00, p11) <= distance(p10, p01)
+    distance_squared(p00, p11) <= distance_squared(p10, p01)
 }
 
 fn evaluate(surface: &NurbsSurface3D<f64>, u: f64, v: f64) -> Point3D<f64> {
@@ -255,10 +266,14 @@ fn midpoint(a: Point3D<f64>, b: Point3D<f64>) -> Point3D<f64> {
 }
 
 fn distance(a: Point3D<f64>, b: Point3D<f64>) -> f64 {
+    distance_squared(a, b).sqrt()
+}
+
+fn distance_squared(a: Point3D<f64>, b: Point3D<f64>) -> f64 {
     let dx = a.x() - b.x();
     let dy = a.y() - b.y();
     let dz = a.z() - b.z();
-    (dx * dx + dy * dy + dz * dz).sqrt()
+    dx * dx + dy * dy + dz * dz
 }
 
 #[cfg(test)]
