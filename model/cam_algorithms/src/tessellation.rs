@@ -55,7 +55,9 @@ pub fn triangle_aspect_ratio(a: Point3D<f64>, b: Point3D<f64>, c: Point3D<f64>) 
     ];
     let area = 0.5 * (cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]).sqrt();
 
-    // 退化判定は長さの次元を持つ内接円半径で行い、形状の寸法に依存させない
+    // 退化判定は面積（長さの二乗の次元）ではなく内接円半径（長さの次元）を、固定の長さ閾値
+    // （カーネルのゼロ判定トレランス）と比較する。寸法の二乗で効く面積比較より寸法依存を抑えるが、
+    // 閾値自体は固定長のため完全なスケール非依存ではない
     // （3 点が一致すると 0 / 0 で NaN になるため、それも退化として扱う）
     let inradius = area / semi_perimeter;
     if inradius.is_nan() || inradius <= default_kernel_numerical_zero_tolerance::<f64>() {
