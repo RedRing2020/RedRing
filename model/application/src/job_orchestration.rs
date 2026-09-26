@@ -488,7 +488,6 @@ mod tests {
                         max_subdivisions: 2,
                         max_refinement_iterations: 1,
                         max_vertices_per_surface: 1_000_000,
-                        ..TessellationLimits::default()
                     },
                     boundary: None,
                 },

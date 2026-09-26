@@ -423,7 +423,6 @@ fn convergence_failure_when_chord_tolerance_unreachable() {
         max_subdivisions: 2,
         max_refinement_iterations: 1,
         max_vertices_per_surface: 1_000_000,
-        ..TessellationLimits::default()
     };
     let error = solve_toolpath(&input).unwrap_err();
     assert_eq!(error.code(), "convergence_failure");
@@ -639,73 +638,25 @@ fn gutter_surface() -> NurbsSurface3D<f64> {
     .unwrap()
 }
 
-/// メッシュのアスペクト比（中央値, 最大値）
-fn aspect_ratio_stats(mesh: &TriangleMesh3D<f64>) -> (f64, f64) {
-    let mut ratios: Vec<f64> = mesh
-        .indices()
-        .iter()
-        .map(|tri| {
-            let [a, b, c] = tri.map(|i| mesh.vertices()[i]);
-            crate::triangle_aspect_ratio(a, b, c)
-        })
-        .collect();
-    ratios.sort_by(|a, b| a.total_cmp(b));
-    (ratios[ratios.len() / 2], ratios[ratios.len() - 1])
-}
-
-/// テッセレーション品質制御の効果と負荷の計測
-///
-/// `cargo test -p cam_algorithms --release -- --ignored --nocapture tessellation_quality`
-#[test]
-#[ignore]
-fn tessellation_quality_measurement() {
-    use cam_core::ToleranceProfile;
-    use std::time::Instant;
-
-    let tool_radius = 3.0;
-    let variants: [(&str, Option<f64>, Option<f64>); 4] = [
-        ("none", None, None),
-        ("aspect<=4", Some(4.0), None),
-        ("edge<=R", None, Some(tool_radius)),
-        ("both", Some(4.0), Some(tool_radius)),
-    ];
-    for (shape, surface) in [("dome", dome_surface()), ("gutter", gutter_surface())] {
-        for profile in [ToleranceProfile::PressRough, ToleranceProfile::MoldFinish] {
-            for (label, max_aspect_ratio, max_edge_length) in variants {
-                let limits = TessellationLimits {
-                    max_aspect_ratio,
-                    max_edge_length,
-                    ..TessellationLimits::default()
-                };
-                let started = Instant::now();
-                let result = tessellate_surfaces(
-                    std::slice::from_ref(&surface),
-                    profile.tolerance_mm(),
-                    limits,
-                );
-                let tessellation_ms = started.elapsed().as_millis();
-                match result {
-                    Ok(mesh) => {
-                        let (median, max) = aspect_ratio_stats(&mesh);
-                        let mut input = solver_input(SolverGeometry::TriangleMesh(mesh.clone()));
-                        input.chord_tolerance = profile.tolerance_mm();
-                        let started = Instant::now();
-                        let solved = solve_toolpath(&input).is_ok();
-                        println!(
-                            "{shape:6} {:11} {label:9} triangles={:>9} aspect median={median:>8.2} max={max:>9.2} tessellation={tessellation_ms:>5}ms solve={:>6}ms ok={solved}",
-                            profile.token(),
-                            mesh.triangle_count(),
-                            started.elapsed().as_millis(),
-                        );
-                    }
-                    Err(error) => println!(
-                        "{shape:6} {:11} {label:9} FAILED after {tessellation_ms}ms: {error}",
-                        profile.token()
-                    ),
-                }
-            }
+/// パラメータ空間を u/v 等分した参照メッシュ
+fn uniform_grid_mesh(surface: &NurbsSurface3D<f64>, nu: usize, nv: usize) -> TriangleMesh3D<f64> {
+    let mut vertices = Vec::with_capacity((nu + 1) * (nv + 1));
+    for i in 0..=nu {
+        for j in 0..=nv {
+            let p = surface.evaluate_at(i as f64 / nu as f64, j as f64 / nv as f64);
+            vertices.push(Point3D::new(p.x(), p.y(), p.z()));
         }
     }
+    let mut indices = Vec::with_capacity(nu * nv * 2);
+    for i in 0..nu {
+        for j in 0..nv {
+            let p00 = i * (nv + 1) + j;
+            let (p01, p10) = (p00 + 1, p00 + nv + 1);
+            indices.push([p00, p10, p10 + 1]);
+            indices.push([p00, p10 + 1, p01]);
+        }
+    }
+    TriangleMesh3D::new(vertices, indices).unwrap()
 }
 
 #[test]
@@ -724,128 +675,34 @@ fn triangle_aspect_ratio_is_one_for_equilateral() {
     assert!(collinear.is_infinite());
 }
 
-fn gutter_limits(
-    max_aspect_ratio: Option<f64>,
-    max_edge_length: Option<f64>,
-) -> TessellationLimits {
-    TessellationLimits {
-        max_aspect_ratio,
-        max_edge_length,
-        ..TessellationLimits::default()
-    }
-}
-
-fn mesh_edge_lengths(mesh: &TriangleMesh3D<f64>) -> impl Iterator<Item = f64> + '_ {
-    mesh.indices().iter().flat_map(move |tri| {
-        let [a, b, c] = tri.map(|i| mesh.vertices()[i]);
-        [(a, b), (b, c), (c, a)].map(|(p, q)| {
-            ((p.x() - q.x()).powi(2) + (p.y() - q.y()).powi(2) + (p.z() - q.z()).powi(2)).sqrt()
-        })
-    })
-}
-
-#[test]
-fn aspect_ratio_limit_removes_slivers() {
-    let unlimited =
-        tessellate_surfaces(&[gutter_surface()], 0.001, gutter_limits(None, None)).unwrap();
-    assert!(
-        aspect_ratio_stats(&unlimited).1 > 100.0,
-        "fixture must contain slivers"
-    );
-
-    let limited =
-        tessellate_surfaces(&[gutter_surface()], 0.001, gutter_limits(Some(4.0), None)).unwrap();
-    let (_, max) = aspect_ratio_stats(&limited);
-    assert!(max <= 4.0, "max aspect ratio {max}");
-}
-
-#[test]
-fn edge_length_limit_bounds_every_edge() {
-    let max_length = 3.0;
-    let mesh = tessellate_surfaces(
-        &[gutter_surface()],
-        0.001,
-        gutter_limits(None, Some(max_length)),
-    )
-    .unwrap();
-    let longest = mesh_edge_lengths(&mesh).fold(0.0_f64, f64::max);
-    assert!(longest <= max_length, "longest edge {longest}");
-}
-
-#[test]
-fn quality_refinement_keeps_mesh_conforming() {
-    use std::collections::HashMap;
-
-    // 格子方式では T 字接続が生じない: 1 回しか使われない辺（境界辺）は曲面の外周上にのみある
-    let mesh = tessellate_surfaces(
-        &[gutter_surface()],
-        0.001,
-        gutter_limits(Some(4.0), Some(3.0)),
-    )
-    .unwrap();
-    let mut edge_use: HashMap<(usize, usize), usize> = HashMap::new();
-    for tri in mesh.indices() {
-        for (a, b) in [(tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])] {
-            *edge_use.entry((a.min(b), a.max(b))).or_default() += 1;
-        }
-    }
-    let on_perimeter = |i: usize| {
-        let p = mesh.vertices()[i];
-        p.x().abs() < EPS
-            || (p.x() - 40.0).abs() < EPS
-            || p.y().abs() < EPS
-            || (p.y() - 400.0).abs() < EPS
-    };
-    assert!(edge_use.values().all(|&count| count <= 2));
-    for (&(a, b), &count) in &edge_use {
-        if count == 1 {
-            assert!(
-                on_perimeter(a) && on_perimeter(b),
-                "interior boundary edge {a}-{b}"
-            );
-        }
-    }
-}
-
-#[test]
-fn unfixable_shear_is_convergence_failure() {
-    // 辺長が等しく強くせん断した平面（平行四辺形）: 等分しても三角形形状は変わらない
-    let sheared = NurbsSurface3D::new(
-        vec![
-            vec![(0.0, 0.0, 0.0), (9.9, 1.4, 0.0)],
-            vec![(10.0, 0.0, 0.0), (19.9, 1.4, 0.0)],
-        ],
-        None,
-        vec![0.0, 0.0, 1.0, 1.0],
-        vec![0.0, 0.0, 1.0, 1.0],
-        1,
-        1,
-    )
-    .unwrap();
-    let error = tessellate_surfaces(&[sheared], 0.001, gutter_limits(Some(4.0), None)).unwrap_err();
-    assert_eq!(error.code(), "convergence_failure");
-    assert!(error.reason().contains("shear"), "{}", error.reason());
-}
-
 #[test]
 fn slivers_do_not_change_cutter_location() {
-    // 逆オフセットは要素ごとに厳密なため、細長三角形でも CL は品質制御後と弦誤差内で一致する
+    // 逆オフセットは要素ごとに厳密なため、細長三角形のメッシュでも CL は
+    // 形状の整った参照メッシュ（1mm 程度の格子）と弦誤差内で一致する
     let chord_tolerance = 0.001;
     let sliver = tessellate_surfaces(
         &[gutter_surface()],
         chord_tolerance,
-        gutter_limits(None, None),
+        TessellationLimits::default(),
     )
     .unwrap();
-    let regular = tessellate_surfaces(
-        &[gutter_surface()],
-        chord_tolerance,
-        gutter_limits(Some(4.0), None),
-    )
-    .unwrap();
+    let longest_aspect = sliver
+        .indices()
+        .iter()
+        .map(|tri| {
+            let [a, b, c] = tri.map(|i| sliver.vertices()[i]);
+            crate::triangle_aspect_ratio(a, b, c)
+        })
+        .fold(0.0_f64, f64::max);
+    assert!(
+        longest_aspect > 100.0,
+        "fixture must contain slivers: {longest_aspect}"
+    );
+
+    let reference = uniform_grid_mesh(&gutter_surface(), 256, 400);
     for shape in [ball(3.0), flat(3.0)] {
         let a = DropCutter::new(&sliver, shape).unwrap();
-        let b = DropCutter::new(&regular, shape).unwrap();
+        let b = DropCutter::new(&reference, shape).unwrap();
         for &(x, y) in &[
             (1.0, 5.0),
             (12.5, 100.0),
