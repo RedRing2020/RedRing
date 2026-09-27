@@ -33,7 +33,7 @@ try {
     $patterns = @(
         # 「#」の直前が英数字（リポジトリ名付きの参照等）でも検出する（HTML 数値文字参照と URL 断片は除外）
         # 番号の後ろは \b ではなく英数字以外で判定する（日本語が続く場合も検出するため）
-        @{ Rule = "numbered reference"; Regex = '(?<![&/])#\d{1,6}(?![0-9A-Za-z_])' },
+        @{ Rule = "numbered reference"; Regex = '(?<![&/])#\d+(?![0-9A-Za-z_])' },
         @{ Rule = "Issue/PR number"; Regex = '(?i)\b(?:issue|pr|pull request)\s*#?\s*\d+' },
         @{ Rule = "GitHub issue/pull URL"; Regex = 'github\.com/[^\s/]+/[^\s/]+/(?:issues|pull)/\d+' }
     )
