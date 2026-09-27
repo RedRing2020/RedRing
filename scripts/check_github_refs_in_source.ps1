@@ -36,14 +36,15 @@ try {
         @{ Rule = "Issue/PR number"; Regex = '(?i)\b(?:issue|pr|pull request)\s*#?\s*\d+' },
         @{ Rule = "GitHub issue/pull URL"; Regex = 'github\.com/[^\s/]+/[^\s/]+/(?:issues|pull)/\d+' }
     )
-    $allowMarker = 'github-ref-check: allow'
+    # 除外マーカーは行末（末尾空白は許容）にある場合のみ有効とする
+    $allowMarkerRegex = 'github-ref-check: allow\s*$'
 
     $violations = @()
     foreach ($path in $files) {
         $lines = @(Get-Content -LiteralPath $path -Encoding UTF8)
         for ($i = 0; $i -lt $lines.Length; $i++) {
             $line = $lines[$i]
-            if ($line.Contains($allowMarker)) {
+            if ($line -match $allowMarkerRegex) {
                 continue
             }
             foreach ($pattern in $patterns) {
