@@ -5,7 +5,7 @@
 //! - CompositeCurve3D: 拘束端点で連結された複合曲線
 //! - CurveSegment3D: 個別セグメント（Line / Arc / Nurbs、ideal/constraint endpoint を区別）
 //!
-//! 将来拡張（#205 連携）:
+//! 将来拡張（トポロジー・エンティティ層との連携、設計: TOPOLOGY_ENTITY_LAYER_DESIGN.md）:
 //! - Vertex: 点トポロジー
 //! - Edge: 曲線トポロジー
 //! - Face: 面トポロジー

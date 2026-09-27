@@ -38,6 +38,10 @@ jobs:
           }
           ./scripts/check_architecture_dependencies.ps1 @args
 
+      - name: Check GitHub References in Source
+        shell: pwsh
+        run: ./scripts/check_github_refs_in_source.ps1
+
       - name: Check Core/Extension Foundation Pattern Compliance
         shell: bash
         run: |

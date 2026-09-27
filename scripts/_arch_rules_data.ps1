@@ -47,7 +47,7 @@ $ARCH_LAYERS = @{
 $ARCH_REQUIRED_MODEL_CRATES = @("geo_contracts", "geo_commons", "geo_core", "geo_primitives", "geo_algorithms", "geo_io", "geo_entity", "cam_algorithms")
 
 # Allowed dependency rules
-# Last updated: 2026-04-09 (#650: allow geo_topology -> geo_nurbs for NURBS curve edge topology, sync application allowed deps with current crate)
+# Last updated: 2026-04-09 (allow geo_topology -> geo_nurbs for NURBS curve edge topology, sync application allowed deps with current crate)
 # 2026-09-25: add cam_algorithms (cam_sim/application -> cam_algorithms allowed)
 $ARCH_ALLOWED_DEPS = @{
     analysis       = @()
@@ -87,7 +87,7 @@ $ARCH_ALLOWED_DEPS = @{
 }
 
 # Forbidden dependency rules
-# Last updated: 2026-04-09 (#501/#650 sync application forbidden deps with current allowed deps)
+# Last updated: 2026-04-09 (sync application forbidden deps with current allowed deps)
 # 2026-09-25: add cam_algorithms reverse dependency guards
 $ARCH_FORBIDDEN_DEPS = @{
     application    = @("geo_foundation", "geo_commons", "geo_core", "geo_nurbs", "geo_io", "cam_entity", "converter", "cam_demo", "graphics", "render", "stage", "app")

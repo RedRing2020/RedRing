@@ -1,9 +1,9 @@
 //! CAM batch artifact binary format (v0.1).
 //!
-//! Issue #300 の初回実装として、共通ヘッダの Reader/Writer と
-//! 互換性チェックを提供する。
+//! 共通ヘッダの Reader/Writer と互換性チェックを提供する
+//! （設計: ARTIFACT_BINARY_IO_CONTRACT_DESIGN.md）。
 //!
-//! # Multi-axis 拡張ポリシー（Issue #257 PR-3）
+//! # Multi-axis 拡張ポリシー
 //!
 //! - 本モジュールは現時点で `version_major=0, version_minor=1` の
 //!   3軸相当 payload を安定対象として扱う。
