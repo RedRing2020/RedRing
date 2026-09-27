@@ -14,7 +14,8 @@ use geo_contracts::Scalar;
 
 /// 交差結果の幾何内容
 ///
-/// `LineSegment*` を保持する variant は、#592 以降の semantics に従い
+/// `LineSegment*` を保持する variant は、有限線分 primitive の semantics
+/// （設計: GEOMETRY_SHAPE_SEMANTICS_DESIGN.md）に従い
 /// bounded geometry の ideal endpoint 基準の線分を表す。
 /// topology 上の拘束端点を含意しない。
 ///

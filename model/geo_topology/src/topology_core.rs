@@ -1,6 +1,7 @@
 //! topo正規形の最小構成要素
 //!
-//! #408 の最小導入として、Vertex/Edge/CurveRef を提供する。
+//! geo_topology の最小導入として、Vertex/Edge/CurveRef を提供する
+//! （設計: PHASE4_TOPOLOGY_ENTITY_DESIGN.md）。
 
 use crate::tolerance::ResolvedEdgeToleranceSettings;
 use crate::{Point3D, TopoArc3D, TopoEllipseArc3D, TopoLineSegment3D, TopoNurbsCurve3D};

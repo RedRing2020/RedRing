@@ -2557,7 +2557,7 @@ mod tests {
             + torus_solid_vertices.len()
             + ellipsoid_solid_vertices.len();
 
-        println!("=== Issue #204 全15形状変換テスト完了 ===");
+        println!("=== 全15形状変換テスト完了 ===");
         println!("総頂点数: {} vertices", total_vertices);
         println!(
             "基本形状: Plane({}) + Ellipse({}) + EllipseArc({}) + Ray({}) + InfiniteLine({})",

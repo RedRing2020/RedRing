@@ -291,6 +291,8 @@ foundation/analysis（将来改名候補）
 - 例外手続き: 例外を認める場合は「ユーザー明示承認 + 対応 Issue 番号」を必須とし、PR 本文へ理由を明記する
 - 例外手続きの記載先: PR 本文と `dev/architecture/` 配下の設計書に限定する
 - コード記載ルール: ソースコード本文・コメントへ GitHub 固有情報（Issue 番号、PR 番号、URL）を記載しない
+    - 検出: `scripts/check_github_refs_in_source.ps1`（`check_all_before_push.ps1` と CI のアーキテクチャチェックで実行）
+    - 経緯の参照が必要な場合は、Issue 番号ではなく設計書名と節（例: `設計: CAM_ALGORITHMS_DESIGN.md §8`）で記載する
 
 ## 🔧 修正方針
 
