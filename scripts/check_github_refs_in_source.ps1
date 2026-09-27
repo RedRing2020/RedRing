@@ -10,7 +10,7 @@
 
     検出パターン:
     - 番号付き参照: 「#」の直後に数字が続くもの（Rust 属性の「#[...]」は対象外）
-    - 「Issue」「PR」「Pull Request」の直後の番号
+    - 「Issue」「PR」「Pull Request」の直後の番号（空白・ハイフン等の区切りを含む）
     - GitHub の issues / pull の URL
 
     誤検出（数字のみの 16 進カラーコード等）は、行末に「github-ref-check: allow」を付けると除外できます。
@@ -34,7 +34,8 @@ try {
         # 「#」の直前が英数字（リポジトリ名付きの参照等）でも検出する（HTML 数値文字参照と URL 断片は除外）
         # 番号の後ろは \b ではなく英数字以外で判定する（日本語が続く場合も検出するため）
         @{ Rule = "numbered reference"; Regex = '(?<![&/])#\d+(?![0-9A-Za-z_])' },
-        @{ Rule = "Issue/PR number"; Regex = '(?i)\b(?:issue|pr|pull request)\s*#?\s*\d+' },
+        # 区切りは空白に加えてハイフン・アンダースコア・コロン（全角含む）も許容する
+        @{ Rule = "Issue/PR number"; Regex = '(?i)\b(?:issue|pr|pull[\s\-_]?request)[\s\-_:：－]*#?\s*\d+' },
         @{ Rule = "GitHub issue/pull URL"; Regex = 'github\.com/[^\s/]+/[^\s/]+/(?:issues|pull)/\d+' }
     )
     # 除外マーカーは行末（末尾空白は許容）にある場合のみ有効とする
