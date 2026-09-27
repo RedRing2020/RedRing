@@ -26,7 +26,7 @@ pub use solver::{
     CamSolverError, CamSolverInput, GeometryKind, OperationSpec, ScanlineParams, SolverGeometry,
     solve_toolpath,
 };
-pub use tessellation::{TessellationLimits, tessellate_surfaces};
+pub use tessellation::{TessellationLimits, tessellate_surfaces, triangle_aspect_ratio};
 
 #[cfg(test)]
 mod tests;

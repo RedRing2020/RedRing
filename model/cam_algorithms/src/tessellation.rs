@@ -3,11 +3,16 @@
 //! 適応パラメータ分割で初期グリッドを作り、各セルの中心・辺中点で弦誤差を検証する。
 //! 許容弦誤差を満たさないセルはパラメータ区間を二分して再検証し、
 //! 反復上限内に収束しなければ `convergence_failure` を返す。
+//!
+//! 各セルは短い方の対角線で 2 三角形に分割する。三角形の形状品質（アスペクト比）は制御しない。
+//! 逆オフセットは要素ごとに厳密に計算するため、細長三角形でも工具位置は変わらず、
+//! 経路生成時間は三角形数が支配的となる（設計: CAM_ALGORITHMS_DESIGN.md §10）。
 
 use geo_algorithms::adaptive_tessellation::{
     AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation,
 };
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
+use geo_contracts::default_kernel_numerical_zero_tolerance;
 
 use crate::solver::CamSolverError;
 
@@ -30,6 +35,35 @@ impl Default for TessellationLimits {
             max_vertices_per_surface: 1_000_000,
         }
     }
+}
+
+/// 三角形のアスペクト比 = 最長辺 / (2√3 × 内接円半径)
+///
+/// 正三角形で 1、細長いほど大きい。内接円半径が数値的にゼロの三角形は `f64::INFINITY`。
+///
+/// 面積は外積から求める（Heron の公式は細長三角形で桁落ちするため用いない）。
+pub fn triangle_aspect_ratio(a: Point3D<f64>, b: Point3D<f64>, c: Point3D<f64>) -> f64 {
+    let (la, lb, lc) = (distance(b, c), distance(c, a), distance(a, b));
+    let semi_perimeter = 0.5 * (la + lb + lc);
+
+    let ab = [b.x() - a.x(), b.y() - a.y(), b.z() - a.z()];
+    let ac = [c.x() - a.x(), c.y() - a.y(), c.z() - a.z()];
+    let cross = [
+        ab[1] * ac[2] - ab[2] * ac[1],
+        ab[2] * ac[0] - ab[0] * ac[2],
+        ab[0] * ac[1] - ab[1] * ac[0],
+    ];
+    let area = 0.5 * (cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]).sqrt();
+
+    // 退化判定は面積（長さの二乗の次元）ではなく内接円半径（長さの次元）を、固定の長さ閾値
+    // （カーネルのゼロ判定トレランス）と比較する。寸法の二乗で効く面積比較より寸法依存を抑えるが、
+    // 閾値自体は固定長のため完全なスケール非依存ではない
+    // （3 点が一致すると 0 / 0 で NaN になるため、それも退化として扱う）
+    let inradius = area / semi_perimeter;
+    if inradius.is_nan() || inradius <= default_kernel_numerical_zero_tolerance::<f64>() {
+        return f64::INFINITY;
+    }
+    la.max(lb).max(lc) / (2.0 * 3.0_f64.sqrt() * inradius)
 }
 
 /// NURBS 曲面集合を許容弦誤差内の三角形メッシュへ離散化する。
@@ -60,8 +94,13 @@ pub fn tessellate_surfaces(
                 let p01 = p00 + 1;
                 let p10 = p00 + v_count;
                 let p11 = p10 + 1;
-                indices.push([p00, p10, p11]);
-                indices.push([p00, p11, p01]);
+                if uses_main_diagonal(vertices[p00], vertices[p10], vertices[p01], vertices[p11]) {
+                    indices.push([p00, p10, p11]);
+                    indices.push([p00, p11, p01]);
+                } else {
+                    indices.push([p00, p10, p01]);
+                    indices.push([p10, p11, p01]);
+                }
             }
         }
     }
@@ -165,8 +204,13 @@ fn find_cells_over_tolerance(
 
             let u_edge_error = distance(evaluate(surface, um, v0), midpoint(p00, p10));
             let v_edge_error = distance(evaluate(surface, u0, vm), midpoint(p00, p01));
-            // セル中心は三角形分割の対角線（p00-p11）上で比較する
-            let center_error = distance(evaluate(surface, um, vm), midpoint(p00, p11));
+            // セル中心は三角形分割に用いる（短い方の）対角線上で比較する
+            let diagonal_midpoint = if uses_main_diagonal(p00, p10, p01, p11) {
+                midpoint(p00, p11)
+            } else {
+                midpoint(p10, p01)
+            };
+            let center_error = distance(evaluate(surface, um, vm), diagonal_midpoint);
 
             if u_edge_error > tolerance || center_error > tolerance {
                 u_split[i] = true;
@@ -200,6 +244,16 @@ fn insert_midpoints(params: &[f64], split: &[bool]) -> Vec<f64> {
     refined
 }
 
+/// セル（隅 p00, p10, p01, p11）を短い方の対角線で分割するとき、主対角線 p00-p11 を使うか
+fn uses_main_diagonal(
+    p00: Point3D<f64>,
+    p10: Point3D<f64>,
+    p01: Point3D<f64>,
+    p11: Point3D<f64>,
+) -> bool {
+    distance_squared(p00, p11) <= distance_squared(p10, p01)
+}
+
 fn evaluate(surface: &NurbsSurface3D<f64>, u: f64, v: f64) -> Point3D<f64> {
     let p = surface.evaluate_at(u, v);
     Point3D::new(p.x(), p.y(), p.z())
@@ -214,10 +268,14 @@ fn midpoint(a: Point3D<f64>, b: Point3D<f64>) -> Point3D<f64> {
 }
 
 fn distance(a: Point3D<f64>, b: Point3D<f64>) -> f64 {
+    distance_squared(a, b).sqrt()
+}
+
+fn distance_squared(a: Point3D<f64>, b: Point3D<f64>) -> f64 {
     let dx = a.x() - b.x();
     let dy = a.y() - b.y();
     let dz = a.z() - b.z();
-    (dx * dx + dy * dy + dz * dz).sqrt()
+    dx * dx + dy * dy + dz * dz
 }
 
 #[cfg(test)]
