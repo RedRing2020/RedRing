@@ -39,8 +39,8 @@ pub mod numerical {
 /// 特殊数学定数
 pub mod special {
     /// 黄金比 φ
-    pub const GOLDEN_RATIO_F64: f64 = 1.618033988749894;
-    pub const GOLDEN_RATIO_F32: f32 = 1.618_034_f32;
+    pub const GOLDEN_RATIO_F64: f64 = std::f64::consts::GOLDEN_RATIO;
+    pub const GOLDEN_RATIO_F32: f32 = std::f32::consts::GOLDEN_RATIO;
 
     /// 自然対数 ln(2)
     pub const LN_2_F64: f64 = std::f64::consts::LN_2;
