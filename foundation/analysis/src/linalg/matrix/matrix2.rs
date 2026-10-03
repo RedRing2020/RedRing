@@ -1,7 +1,6 @@
 //! 2x2行列（高速演算用）
 //!
 //! コンパイル時最適化に特化した固定サイズ行列
-//! グラフィックス処理とCAD計算の両方に対応
 use crate::abstract_types::Scalar;
 use crate::linalg::vector::Vector2;
 use std::ops::{Add, Index, IndexMut, Mul, Neg, Sub};

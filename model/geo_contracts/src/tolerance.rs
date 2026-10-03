@@ -64,7 +64,7 @@ pub struct ToleranceSettings<T: Scalar> {
 }
 
 impl<T: Scalar> ToleranceSettings<T> {
-    /// 高精度設定（CAD/精密加工用）
+    /// 高精度設定
     pub fn precision() -> Self {
         let distance_tolerance = precision_distance_tolerance();
         let angle_tolerance = precision_angle_tolerance();
