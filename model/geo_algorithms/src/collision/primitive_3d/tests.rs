@@ -2,18 +2,20 @@ use super::{
     arc3d_point3d_collides, circle3d_point3d_collides, cylindrical_solid3d_point3d_collides,
     cylindrical_surface3d_point3d_collides, ellipse3d_point3d_collides,
     infinite_line3d_plane3d_collides, infinite_line3d_point3d_collides,
+    infinite_line3d_ray3d_collides, line_segment3d_line_segment3d_collides,
     line_segment3d_plane3d_collides, line_segment3d_point3d_collides,
-    line_segment3d_triangle3d_collides, plane3d_infinite_line3d_collides,
-    plane3d_line_segment3d_collides, plane3d_point3d_collides, plane3d_ray3d_collides,
-    ray3d_plane3d_collides, ray3d_point3d_collides, ray3d_triangle3d_collides,
+    line_segment3d_spherical_surface3d_collides, line_segment3d_triangle3d_collides,
+    plane3d_infinite_line3d_collides, plane3d_line_segment3d_collides, plane3d_point3d_collides,
+    plane3d_ray3d_collides, ray3d_plane3d_collides, ray3d_point3d_collides, ray3d_ray3d_collides,
+    ray3d_spherical_surface3d_collides, ray3d_triangle3d_collides,
     spherical_solid3d_point3d_collides, torus_solid3d_point3d_collides,
     torus_surface3d_point3d_collides, triangle3d_line_segment3d_collides,
     triangle3d_point3d_collides, triangle3d_ray3d_collides, triangle_mesh3d_point3d_collides,
 };
 use crate::{
     Angle, Arc3D, Circle3D, CylindricalSolid3D, CylindricalSurface3D, Direction3D, Ellipse3D,
-    InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, TorusSolid3D,
-    TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
+    InfiniteLine3D, LineSegment3D, Plane3D, Point3D, Ray3D, SphericalSolid3D, SphericalSurface3D,
+    TorusSolid3D, TorusSurface3D, Triangle3D, TriangleMesh3D, Vector3D,
 };
 use analysis::test_constants;
 
@@ -308,4 +310,46 @@ fn symmetric_plane_collision_wrappers_match_base_functions() {
         infinite_line3d_plane3d_collides(&line, &plane, tol),
         plane3d_infinite_line3d_collides(&plane, &line, tol)
     );
+}
+
+#[test]
+fn linear_and_spherical_collisions_use_forward_direction_and_bounds() {
+    let tol = standard_distance_tol();
+    let sphere = SphericalSurface3D::new_standard(Point3D::origin(), 1.0).unwrap();
+    let piercing_segment =
+        LineSegment3D::new(Point3D::new(-2.0, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0)).unwrap();
+    let leaving_ray =
+        Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    assert!(line_segment3d_spherical_surface3d_collides(
+        &piercing_segment,
+        &sphere,
+        tol
+    ));
+    assert!(!ray3d_spherical_surface3d_collides(
+        &leaving_ray,
+        &sphere,
+        tol
+    ));
+
+    let x_segment =
+        LineSegment3D::new(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+    let y_segment =
+        LineSegment3D::new(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0)).unwrap();
+    assert!(line_segment3d_line_segment3d_collides(
+        &x_segment, &y_segment, tol
+    ));
+
+    let x_ray = Ray3D::new(Point3D::new(-1.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+    let y_ray = Ray3D::new(Point3D::new(0.0, -1.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+    assert!(ray3d_ray3d_collides(&x_ray, &y_ray, tol));
+
+    let x_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+    let away_ray = Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
+    assert!(!infinite_line3d_ray3d_collides(&x_axis, &away_ray, tol));
+
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let up_ray = Ray3D::new(Point3D::new(0.0, 0.0, -2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    assert!(plane3d_ray3d_collides(&plane, &up_ray, tol));
 }

@@ -5,7 +5,7 @@
 //! - NURBS × NURBS
 
 pub mod nurbs_3d;
-pub mod pair_base;
+pub(crate) mod pair_base;
 pub mod primitive_2d;
 pub mod primitive_3d;
 
