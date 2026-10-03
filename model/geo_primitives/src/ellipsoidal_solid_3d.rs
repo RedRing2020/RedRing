@@ -38,12 +38,6 @@ use geo_contracts::Scalar;
 /// - 内部判定：点の包含テスト (x/a)² + (y/b)² + (z/c)² ≤ 1
 /// - 表面積計算：Knudの近似式を使用
 /// - 境界ボックス：中心を基準とした直方体
-///
-/// ## CAD用途
-/// - パラメトリック楕円体ソリッドの基準座標系
-/// - ブーリアン演算（和・差・積）
-/// - STEPファイルとの相互変換
-/// - 体積・質量特性計算
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipsoidalSolid3D<T: Scalar> {
     /// 楕円体の中心点（STEP: location）

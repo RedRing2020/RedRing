@@ -8,9 +8,6 @@ use std::f64::consts::PI;
 
 impl<T: Scalar> TorusSurface3D<T> {
     /// 指定した点に最も近い表面上の点を探索
-    ///
-    /// 3D CAM での工具パス計算において、工具中心から表面への
-    /// 最短距離計算に使用されます。
     pub fn closest_point_to(&self, target: Point3D<T>) -> Point3D<T> {
         // トーラス表面への最近点探索は非線形最適化問題
         // 初期推定から反復計算で解を求める
@@ -64,8 +61,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 指定した点への距離を計算
-    ///
-    /// CAM での工具オフセット量の決定に使用されます。
     pub fn distance_to(&self, point: Point3D<T>) -> T {
         let closest = self.closest_point_to(point);
         let diff = Vector3D::new(
@@ -84,8 +79,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     ///
     /// # Returns
     /// (主曲率1, 主曲率2) のタプル
-    ///
-    /// CAM での工具選択と送り速度決定に重要な情報です。
     pub fn principal_curvatures(&self, _u: T, v: T) -> (T, T) {
         let cos_v = v.cos();
 
@@ -105,76 +98,15 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 平均曲率を計算
-    ///
-    /// 表面の滑らかさの指標として CAM での仕上げ条件決定に使用されます。
     pub fn mean_curvature(&self, u: T, v: T) -> T {
         let (k1, k2) = self.principal_curvatures(u, v);
         let two = T::ONE + T::ONE;
         (k1 + k2) / two
     }
 
-    /// 工具パス計算用のパラメータを取得
-    ///
-    /// 3D CAM での工具パス生成に必要な幾何学的パラメータを返します。
-    ///
-    /// # Arguments
-    /// * `u` - 主方向パラメータ
-    /// * `v` - 副方向パラメータ
-    /// * `tool_radius` - 工具半径
-    ///
-    /// # Returns
-    /// (工具中心位置, 送り方向, 法線方向, 推奨送り速度係数)
-    pub fn toolpath_parameters(
-        &self,
-        u: T,
-        v: T,
-        tool_radius: T,
-    ) -> (Point3D<T>, Direction3D<T>, Direction3D<T>, T) {
-        let surface_point = self.point_at(u, v);
-        let surface_normal = self.normal_at(u, v);
-
-        // 工具中心位置（表面から工具半径分オフセット）
-        let tool_center = Point3D::new(
-            surface_point.x() + surface_normal.x() * tool_radius,
-            surface_point.y() + surface_normal.y() * tool_radius,
-            surface_point.z() + surface_normal.z() * tool_radius,
-        );
-
-        // 送り方向（u方向の接線）
-        let du = T::from_f64(0.001); // 小さな増分
-        let u_plus = u + du;
-        let point_u_plus = self.point_at(u_plus, v);
-        let feed_direction_vec = Vector3D::new(
-            point_u_plus.x() - surface_point.x(),
-            point_u_plus.y() - surface_point.y(),
-            point_u_plus.z() - surface_point.z(),
-        );
-        let feed_direction =
-            Direction3D::from_vector(feed_direction_vec).unwrap_or(self.x_axis_internal()); // フォールバック
-
-        // 曲率に基づく送り速度係数
-        let mean_curvature = self.mean_curvature(u, v);
-        let curvature_factor = if mean_curvature.abs() > T::EPSILON {
-            let curvature_radius = T::ONE / mean_curvature.abs();
-            let normalized_radius = curvature_radius / tool_radius;
-            // 曲率が大きいほど送り速度を下げる
-            (T::ONE / (T::ONE + normalized_radius)).min(T::ONE)
-        } else {
-            T::ONE // 平坦部分では最大速度
-        };
-
-        (
-            tool_center,
-            feed_direction,
-            surface_normal,
-            curvature_factor,
-        )
-    }
-
     /// 等高線パラメータを計算
     ///
     /// 指定した Z 高さでの等高線パラメータ (u, v) を求めます。
-    /// CAM での水平加工に使用されます。
     pub fn contour_parameters_at_height(&self, z_height: T) -> Vec<(T, T)> {
         let mut contours = Vec::new();
 
@@ -244,51 +176,53 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 }
 
-/// f64 専用の高精度計算機能
-impl TorusSurface3D<f64> {
-    /// 高精度な最近点探索（Newton-Raphson法）
-    ///
-    /// CAM での高精度な工具パス計算に使用されます。
-    pub fn closest_point_precise(&self, target: Point3D<f64>) -> Point3D<f64> {
-        // より高精度な計算が必要な場合はここで Newton-Raphson 法を実装
-        // 現在は基本実装を返す
-        self.closest_point_to(target)
+#[cfg(test)]
+mod tests {
+    use crate::TorusSurface3D;
+    use analysis::test_constants::TOLERANCE_F64;
+    use std::f64::consts::{FRAC_PI_2, PI};
+
+    const MAJOR_RADIUS: f64 = 5.0;
+    const MINOR_RADIUS: f64 = 1.0;
+
+    fn torus() -> TorusSurface3D<f64> {
+        TorusSurface3D::standard(MAJOR_RADIUS, MINOR_RADIUS).unwrap()
     }
 
-    /// 工具干渉チェック
-    ///
-    /// 指定した工具が表面と干渉するかどうかをチェックします。
-    pub fn tool_interference_check(&self, tool_center: Point3D<f64>, tool_radius: f64) -> bool {
-        let distance = self.distance_to(tool_center);
-        distance < tool_radius
+    #[test]
+    fn gaussian_curvature_is_positive_on_outer_equator() {
+        // 外側赤道（v = 0）は楕円点: K = 1 / (r (R + r))
+        let expected = 1.0 / (MINOR_RADIUS * (MAJOR_RADIUS + MINOR_RADIUS));
+        let actual = torus().gaussian_curvature(0.0, 0.0);
+        assert!((actual - expected).abs() < TOLERANCE_F64);
     }
 
-    /// 推奨加工パラメータを計算
-    ///
-    /// 表面の幾何学的特性に基づいて推奨される加工パラメータを返します。
-    pub fn recommended_machining_parameters(
-        &self,
-        u: f64,
-        v: f64,
-        tool_radius: f64,
-    ) -> (f64, f64, f64) {
-        let (k1, k2) = self.principal_curvatures(u, v);
-        let mean_curvature = (k1 + k2) / 2.0;
+    #[test]
+    fn gaussian_curvature_is_negative_on_inner_equator() {
+        // 内側赤道（v = π）は双曲点: K = -1 / (r (R - r))
+        let expected = -1.0 / (MINOR_RADIUS * (MAJOR_RADIUS - MINOR_RADIUS));
+        let actual = torus().gaussian_curvature(0.0, PI);
+        assert!((actual - expected).abs() < TOLERANCE_F64);
+    }
 
-        // 推奨送り速度（曲率に基づく）
-        let feed_rate = if mean_curvature.abs() > 1e-6 {
-            let curvature_radius = 1.0 / mean_curvature.abs();
-            (tool_radius / curvature_radius).clamp(0.1, 1.0)
-        } else {
-            1.0
-        };
+    #[test]
+    fn gaussian_curvature_is_zero_on_top_and_bottom_circles() {
+        // 上下の円（v = ±π/2）は放物点: K = 0
+        let torus = torus();
+        assert!(torus.gaussian_curvature(0.0, FRAC_PI_2).abs() < TOLERANCE_F64);
+        assert!(torus.gaussian_curvature(0.0, -FRAC_PI_2).abs() < TOLERANCE_F64);
+    }
 
-        // 推奨主軸回転数（表面粗さ考慮）
-        let spindle_speed = 1000.0 / (tool_radius + 0.1);
-
-        // 推奨切込み深さ
-        let depth_of_cut = tool_radius * 0.1;
-
-        (feed_rate, spindle_speed, depth_of_cut)
+    #[test]
+    fn gaussian_curvature_is_independent_of_u_and_equals_principal_product() {
+        // 回転面のため u に依存せず、主曲率の積に一致する
+        let torus = torus();
+        let v = 0.7;
+        let reference = torus.gaussian_curvature(0.0, v);
+        for u in [0.5, 1.0, PI, 4.0] {
+            assert!((torus.gaussian_curvature(u, v) - reference).abs() < TOLERANCE_F64);
+        }
+        let (k1, k2) = torus.principal_curvatures(1.0, v);
+        assert!((reference - k1 * k2).abs() < TOLERANCE_F64);
     }
 }

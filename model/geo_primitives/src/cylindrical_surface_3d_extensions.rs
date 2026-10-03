@@ -1,7 +1,6 @@
 //! CylindricalSurface3D の拡張機能
 //!
-//! 境界操作、ISO曲線抽出、NURBS変換、メッシュ生成などの高度な操作
-//! サーフェス特有の解析機能とCAD/CAM用途の実装
+//! 境界操作、ISO曲線抽出、NURBS変換、メッシュ生成などの操作
 
 use crate::{CylindricalSurface3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
@@ -130,7 +129,7 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         mesh
     }
 
-    /// 四角形パッチのメッシュを生成（CAD/CAM用）
+    /// 四角形パッチのメッシュを生成
     pub fn to_quad_patches(
         &self,
         u_divisions: usize,

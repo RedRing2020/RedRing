@@ -41,7 +41,7 @@ impl CircularArcPolylineOptions {
         }
     }
 
-    /// CAM シミュレーションのように chord tolerance を正本とし、
+    /// chord tolerance のみを分割基準とし、
     /// 追加の角度制約や上限分割を持ち込まない既定値。
     pub const fn simulation_default() -> Self {
         Self {

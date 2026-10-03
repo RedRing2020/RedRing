@@ -1,6 +1,6 @@
-//! VoxelOctree切削シミュレーション例
+//! VoxelOctree 領域除去シミュレーション例
 //!
-//! このサンプルは、VoxelOctreeによる材料除去シミュレーションを実演します。
+//! このサンプルは、VoxelOctree による占有領域の除去と残存体積の計算を実演します。
 //!
 //! ## 実行方法
 //!
@@ -13,9 +13,9 @@ use geo_algorithms::{Angle, Arc3D, LineSegment3D};
 use geo_core::{Aabb3D, Point3D};
 
 fn main() {
-    println!("=== VoxelOctree切削シミュレーション例 ===\n");
+    println!("=== VoxelOctree 領域除去シミュレーション例 ===\n");
 
-    println!("1. ワークピース設定");
+    println!("1. 占有領域の設定");
     let work_bounds = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 50.0), // 100x100x50mm
@@ -33,9 +33,9 @@ fn main() {
     );
     println!();
 
-    println!("2. 外周切削（ボックス除去）");
+    println!("2. 直方体領域の除去");
 
-    // 外側10mmを除去
+    // 下端から高さ 10 mm の層を除去
     let outline_region = Aabb3D::new(
         Point3D::new(0.0, 0.0, 0.0),
         Point3D::new(100.0, 100.0, 10.0),
@@ -45,7 +45,7 @@ fn main() {
     let volume_after_outline = voxel_tree.remaining_volume();
     let removed_outline = initial_volume - volume_after_outline;
 
-    println!("   除去領域: 全体 x 10mm深さ");
+    println!("   除去領域: XY 全体 x 高さ 10 mm");
     println!("   除去体積: {:.1} mm³", removed_outline);
     println!("   残存体積: {:.1} mm³", volume_after_outline);
     println!(
@@ -54,9 +54,9 @@ fn main() {
     );
     println!();
 
-    println!("3. ポケット加工（Z軸工具）");
+    println!("3. Z軸方向の円柱領域の除去");
 
-    // 中央に直径20mmのポケット（深さ30mm）
+    // 中央の直径 20 mm・高さ 30 mm の円柱領域
     let pocket_center_x = 50.0;
     let pocket_center_y = 50.0;
     let pocket_radius = 10.0; // 半径10mm
@@ -75,34 +75,34 @@ fn main() {
     let removed_pocket = volume_after_outline - volume_after_pocket;
 
     println!("   位置: 中央 (50, 50)");
-    println!("   工具径: Φ{} mm", pocket_radius * 2.0);
-    println!("   深さ: {} - {} mm", pocket_z_start, pocket_z_end);
+    println!("   直径: Φ{} mm", pocket_radius * 2.0);
+    println!("   Z範囲: {} - {} mm", pocket_z_start, pocket_z_end);
     println!("   除去体積: {:.1} mm³", removed_pocket);
     println!("   残存体積: {:.1} mm³", volume_after_pocket);
     println!();
 
-    println!("4. 斜め切削（5軸加工）");
+    println!("4. 斜め方向のカプセル領域の除去");
 
     let segment = LineSegment3D::new(
         Point3D::new(20.0, 20.0, 10.0),
         Point3D::new(80.0, 80.0, 40.0),
     )
     .unwrap();
-    let tool_radius = 5.0;
+    let capsule_radius = 5.0;
 
-    voxel_tree.remove_material_capsule(&segment, tool_radius);
+    voxel_tree.remove_material_capsule(&segment, capsule_radius);
 
     let volume_after_diagonal = voxel_tree.remaining_volume();
     let removed_diagonal = volume_after_pocket - volume_after_diagonal;
 
     println!("   開始点: (20, 20, 10)");
     println!("   終了点: (80, 80, 40)");
-    println!("   工具径: Φ{} mm", tool_radius * 2.0);
+    println!("   直径: Φ{} mm", capsule_radius * 2.0);
     println!("   除去体積: {:.1} mm³", removed_diagonal);
     println!("   残存体積: {:.1} mm³", volume_after_diagonal);
     println!();
 
-    println!("4.5. 円弧補間切削（G02/G03相当）");
+    println!("4.5. 円弧に沿った掃引領域の除去");
 
     // XY平面上の90度円弧（中心: (25, 75), 半径: 15mm, Z: 15-25mm）
     let arc_center = Point3D::new(25.0, 75.0, 20.0);
@@ -112,11 +112,11 @@ fn main() {
 
     let arc = Arc3D::xy_arc(arc_center, arc_radius, arc_start_angle, arc_end_angle).unwrap();
 
-    // 16線分で近似（仕上げ加工レベル、誤差0.5%）
-    let arc_tool_radius = 4.0;
+    // 円弧を 16 線分で近似
+    let sweep_radius = 4.0;
     let num_segments = 16;
 
-    voxel_tree.remove_material_arc_polyline(&arc, arc_tool_radius, num_segments);
+    voxel_tree.remove_material_arc_polyline(&arc, sweep_radius, num_segments);
 
     let volume_after_arc = voxel_tree.remaining_volume();
     let removed_arc = volume_after_diagonal - volume_after_arc;
@@ -133,7 +133,7 @@ fn main() {
         arc_start_angle.to_degrees(),
         arc_end_angle.to_degrees()
     );
-    println!("   工具径: Φ{} mm", arc_tool_radius * 2.0);
+    println!("   直径: Φ{} mm", sweep_radius * 2.0);
     println!("   近似線分数: {}", num_segments);
     println!("   除去体積: {:.1} mm³", removed_arc);
     println!("   残存体積: {:.1} mm³", volume_after_arc);
@@ -143,9 +143,9 @@ fn main() {
     println!("   円弧長: {:.2} mm", arc_length);
     println!();
 
-    println!("5. 削り残し検出");
+    println!("5. 目的領域外の残存占有の検出");
 
-    // 目的形状: 内側80x80x30mmの領域以外は削り残し
+    // 目的領域: 内側 80x80x30 mm。これ以外に残る占有を検出する
     let target_region = Aabb3D::new(
         Point3D::new(10.0, 10.0, 10.0),
         Point3D::new(90.0, 90.0, 40.0),
@@ -154,7 +154,7 @@ fn main() {
     let undercuts = voxel_tree.detect_undercut(&target_region);
 
     println!("   目的領域: 内側80x80x30mm");
-    println!("   検出された削り残し: {} 箇所", undercuts.len());
+    println!("   検出された残存領域: {} 箇所", undercuts.len());
 
     if !undercuts.is_empty() {
         println!("   最初の5箇所:");
@@ -174,9 +174,9 @@ fn main() {
             );
         }
 
-        // 削り残し体積の概算
+        // 残存領域の体積の概算
         let undercut_volume: f64 = undercuts.iter().map(|b| b.volume()).sum();
-        println!("   削り残し総体積（概算）: {:.1} mm³", undercut_volume);
+        println!("   残存領域の総体積（概算）: {:.1} mm³", undercut_volume);
     }
     println!();
 

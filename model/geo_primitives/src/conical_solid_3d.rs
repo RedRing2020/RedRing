@@ -37,13 +37,6 @@ use geo_contracts::{default_distance_tolerance, Scalar};
 /// - 内部判定：点の包含テスト（円錐内部の判定）
 /// - 表面積計算：S = π × r × (r + √(r² + h²))
 /// - 境界ボックス：底面と頂点を包含する直方体
-///
-/// ## CAD用途
-/// - パラメトリック円錐ソリッドの基準座標系
-/// - ブーリアン演算（和・差・積）
-/// - STEPファイルとの相互変換
-/// - 体積・質量特性計算
-/// - 工業製品の円錐部品モデリング
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConicalSolid3D<T: Scalar> {
     /// 円錐の底面中心点（STEP: location）

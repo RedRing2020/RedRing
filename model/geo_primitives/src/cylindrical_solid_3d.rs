@@ -36,12 +36,6 @@ use geo_contracts::{BasicIntersection, Scalar};
 /// - 内部判定：点の包含テスト
 /// - 表面積計算：底面 + 側面 + 上面
 /// - 境界ボックス：軸方向を考慮した最小直方体
-///
-/// ## CAD用途
-/// - パラメトリック円柱ソリッドの基準座標系
-/// - ブーリアン演算（和・差・積）
-/// - STEPファイルとの相互変換
-/// - 体積・質量特性計算
 #[derive(Debug, Clone, PartialEq)]
 pub struct CylindricalSolid3D<T: Scalar> {
     /// 円柱の底面中心点（STEP: location）

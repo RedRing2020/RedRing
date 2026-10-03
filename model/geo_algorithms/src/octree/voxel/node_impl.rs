@@ -167,7 +167,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
-    /// 線分+半径（カプセル）領域との交差に基づいて材料を除去する。
+    /// 線分+半径（カプセル）領域との交差に基づいて占有を除去する。
     pub(super) fn remove_material_capsule(
         &mut self,
         segment: &LineSegment3D<T>,
@@ -225,7 +225,7 @@ impl<T: Scalar> VoxelNode<T> {
         }
     }
 
-    /// 線分端面を平端として扱う掃引円柱領域で材料を除去する。
+    /// 線分端面を平端として扱う掃引円柱領域で占有を除去する。
     pub(super) fn remove_material_swept_cylinder(
         &mut self,
         segment: &LineSegment3D<T>,
@@ -486,7 +486,7 @@ impl<T: Scalar> VoxelNode<T> {
 
     /// 葉ノードの適応判定を有効化するかを返す。
     ///
-    /// 工具半径に対してノードサイズが十分大きい場合のみ、
+    /// 除去半径に対してノードサイズが十分大きい場合のみ、
     /// 中心点サンプリング判定に切り替えて過剰除去を抑える。
     fn should_use_adaptive_leaf_sampling(&self, radius: T) -> bool {
         let max_span = self

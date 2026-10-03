@@ -47,12 +47,6 @@ use geo_contracts::Scalar;
 /// - 法線計算：各点での外向き法線ベクトル
 /// - 曲率解析：主曲率・平均曲率・ガウス曲率
 /// - 境界操作：トリム・分割・結合
-///
-/// ## CAD用途
-/// - 表面解析・品質評価
-/// - CAM工具経路生成
-/// - レンダリング・テクスチャマッピング
-/// - NURBS変換・高精度表現
 #[derive(Debug, Clone, PartialEq)]
 pub struct EllipsoidalSurface3D<T: Scalar> {
     /// 楕円体の中心点（STEP: location）

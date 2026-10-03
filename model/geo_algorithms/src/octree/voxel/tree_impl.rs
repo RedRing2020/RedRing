@@ -7,7 +7,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// # Arguments
     ///
-    /// * `bounds` - ワーク全体の境界ボックス
+    /// * `bounds` - 占有領域全体の境界ボックス
     /// * `max_depth` - 最大深さ（分割の上限）
     ///
     /// # Examples
@@ -51,11 +51,11 @@ impl<T: Scalar> VoxelOctree<T> {
     /// let mut voxel_tree = VoxelOctree::new(work_bounds, 6);
     ///
     /// // 掃引形状が通過した領域を除去
-    /// let tool_region = Aabb3D::new(
+    /// let removal_region = Aabb3D::new(
     ///     Point3D::new(10.0, 10.0, 0.0),
     ///     Point3D::new(20.0, 20.0, 50.0)
     /// );
-    /// voxel_tree.remove_material_box(&tool_region);
+    /// voxel_tree.remove_material_box(&removal_region);
     /// ```
     pub fn remove_material_box(&mut self, tool_aabb: &Aabb3D<T>) {
         self.root.remove_material_box(tool_aabb, self.max_depth);
@@ -199,7 +199,7 @@ impl<T: Scalar> VoxelOctree<T> {
     /// use geo_algorithms::octree::voxel::VoxelOctree;
     /// use geo_core::{Aabb3D, Point3D};
     ///
-    /// // ワークピース全体
+    /// // 占有領域全体
     /// let work_bounds = Aabb3D::new(
     ///     Point3D::new(0.0, 0.0, 0.0),
     ///     Point3D::new(100.0, 100.0, 100.0)
@@ -241,7 +241,7 @@ impl<T: Scalar> VoxelOctree<T> {
     ///
     /// ```rust,ignore
     /// let voxel_tree = VoxelOctree::new(work_bounds, 6);
-    /// voxel_tree.remove_material_box(&tool_region);
+    /// voxel_tree.remove_material_box(&removal_region);
     ///
     /// let solid_boxes = voxel_tree.collect_solid_voxel_bounds();
     /// println!("Solid voxels: {}", solid_boxes.len());
