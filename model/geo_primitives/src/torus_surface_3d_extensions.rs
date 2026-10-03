@@ -113,64 +113,6 @@ impl<T: Scalar> TorusSurface3D<T> {
         (k1 + k2) / two
     }
 
-    /// 工具パス計算用のパラメータを取得
-    ///
-    /// 3D CAM での工具パス生成に必要な幾何学的パラメータを返します。
-    ///
-    /// # Arguments
-    /// * `u` - 主方向パラメータ
-    /// * `v` - 副方向パラメータ
-    /// * `tool_radius` - 工具半径
-    ///
-    /// # Returns
-    /// (工具中心位置, 送り方向, 法線方向, 推奨送り速度係数)
-    pub fn toolpath_parameters(
-        &self,
-        u: T,
-        v: T,
-        tool_radius: T,
-    ) -> (Point3D<T>, Direction3D<T>, Direction3D<T>, T) {
-        let surface_point = self.point_at(u, v);
-        let surface_normal = self.normal_at(u, v);
-
-        // 工具中心位置（表面から工具半径分オフセット）
-        let tool_center = Point3D::new(
-            surface_point.x() + surface_normal.x() * tool_radius,
-            surface_point.y() + surface_normal.y() * tool_radius,
-            surface_point.z() + surface_normal.z() * tool_radius,
-        );
-
-        // 送り方向（u方向の接線）
-        let du = T::from_f64(0.001); // 小さな増分
-        let u_plus = u + du;
-        let point_u_plus = self.point_at(u_plus, v);
-        let feed_direction_vec = Vector3D::new(
-            point_u_plus.x() - surface_point.x(),
-            point_u_plus.y() - surface_point.y(),
-            point_u_plus.z() - surface_point.z(),
-        );
-        let feed_direction =
-            Direction3D::from_vector(feed_direction_vec).unwrap_or(self.x_axis_internal()); // フォールバック
-
-        // 曲率に基づく送り速度係数
-        let mean_curvature = self.mean_curvature(u, v);
-        let curvature_factor = if mean_curvature.abs() > T::EPSILON {
-            let curvature_radius = T::ONE / mean_curvature.abs();
-            let normalized_radius = curvature_radius / tool_radius;
-            // 曲率が大きいほど送り速度を下げる
-            (T::ONE / (T::ONE + normalized_radius)).min(T::ONE)
-        } else {
-            T::ONE // 平坦部分では最大速度
-        };
-
-        (
-            tool_center,
-            feed_direction,
-            surface_normal,
-            curvature_factor,
-        )
-    }
-
     /// 等高線パラメータを計算
     ///
     /// 指定した Z 高さでの等高線パラメータ (u, v) を求めます。
@@ -241,54 +183,5 @@ impl<T: Scalar> TorusSurface3D<T> {
         let v_tangent = Direction3D::from_vector(v_tangent_vec).unwrap_or(self.y_axis_internal());
 
         (u_tangent, v_tangent, normal)
-    }
-}
-
-/// f64 専用の高精度計算機能
-impl TorusSurface3D<f64> {
-    /// 高精度な最近点探索（Newton-Raphson法）
-    ///
-    /// CAM での高精度な工具パス計算に使用されます。
-    pub fn closest_point_precise(&self, target: Point3D<f64>) -> Point3D<f64> {
-        // より高精度な計算が必要な場合はここで Newton-Raphson 法を実装
-        // 現在は基本実装を返す
-        self.closest_point_to(target)
-    }
-
-    /// 工具干渉チェック
-    ///
-    /// 指定した工具が表面と干渉するかどうかをチェックします。
-    pub fn tool_interference_check(&self, tool_center: Point3D<f64>, tool_radius: f64) -> bool {
-        let distance = self.distance_to(tool_center);
-        distance < tool_radius
-    }
-
-    /// 推奨加工パラメータを計算
-    ///
-    /// 表面の幾何学的特性に基づいて推奨される加工パラメータを返します。
-    pub fn recommended_machining_parameters(
-        &self,
-        u: f64,
-        v: f64,
-        tool_radius: f64,
-    ) -> (f64, f64, f64) {
-        let (k1, k2) = self.principal_curvatures(u, v);
-        let mean_curvature = (k1 + k2) / 2.0;
-
-        // 推奨送り速度（曲率に基づく）
-        let feed_rate = if mean_curvature.abs() > 1e-6 {
-            let curvature_radius = 1.0 / mean_curvature.abs();
-            (tool_radius / curvature_radius).clamp(0.1, 1.0)
-        } else {
-            1.0
-        };
-
-        // 推奨主軸回転数（表面粗さ考慮）
-        let spindle_speed = 1000.0 / (tool_radius + 0.1);
-
-        // 推奨切込み深さ
-        let depth_of_cut = tool_radius * 0.1;
-
-        (feed_rate, spindle_speed, depth_of_cut)
     }
 }

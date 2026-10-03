@@ -116,7 +116,6 @@ pub mod infinite_line_2d_extensions;
 pub mod infinite_line_2d_transform;
 pub mod line_segment_2d;
 pub mod line_segment_2d_bounds;
-pub mod line_segment_2d_extensions;
 pub mod ray_2d;
 pub mod ray_2d_extensions;
 pub mod ray_2d_transform;

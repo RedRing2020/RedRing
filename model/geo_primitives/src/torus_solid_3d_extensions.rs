@@ -85,23 +85,6 @@ impl<T: Scalar> TorusSolid3D<T> {
         (distance <= T::ZERO, distance.abs())
     }
 
-    /// 工具経路計算用パラメータ
-    ///
-    /// CAM システムでの工具経路計算に必要な幾何学的パラメータを返します。
-    ///
-    /// # Returns
-    /// * (主半径, 副半径, 軸方向, 中心点)
-    pub fn toolpath_parameters(&self) -> (T, T, Vector3D<T>, Point3D<T>) {
-        let z_axis = self.z_axis_internal();
-        let axis_vector = Vector3D::new(z_axis.x(), z_axis.y(), z_axis.z());
-        (
-            self.major_radius_internal(),
-            self.minor_radius_internal(),
-            axis_vector,
-            *self.origin_internal(),
-        )
-    }
-
     /// 断面積計算
     ///
     /// Z軸に垂直な平面での断面積を計算します。
@@ -173,29 +156,5 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// * 各点の内部判定結果
     pub fn batch_contains(&self, points: &[Point3D<T>]) -> Vec<bool> {
         points.iter().map(|p| self.contains_point(p)).collect()
-    }
-
-    /// 工具アクセス可能性チェック
-    ///
-    /// 指定された方向からの工具アクセスが可能かを判定します。
-    ///
-    /// # Arguments
-    /// * `point` - チェック点
-    /// * `direction` - 工具アプローチ方向
-    /// * `tool_radius` - 工具半径
-    ///
-    /// # Returns
-    /// * アクセス可能性フラグ
-    pub fn tool_accessibility(
-        &self,
-        point: &Point3D<T>,
-        _direction: &Vector3D<T>,
-        tool_radius: T,
-    ) -> bool {
-        // 簡易チェック: 点が表面付近にあり、方向が外向きか
-        let distance = self.distance_to_point(point);
-        let tolerance = tool_radius * T::from_f64(0.1);
-
-        distance.abs() <= tolerance && distance >= -tool_radius
     }
 }
