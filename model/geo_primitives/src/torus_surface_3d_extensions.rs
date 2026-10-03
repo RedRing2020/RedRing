@@ -175,3 +175,54 @@ impl<T: Scalar> TorusSurface3D<T> {
         (u_tangent, v_tangent, normal)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::TorusSurface3D;
+    use analysis::test_constants::TOLERANCE_F64;
+    use std::f64::consts::{FRAC_PI_2, PI};
+
+    const MAJOR_RADIUS: f64 = 5.0;
+    const MINOR_RADIUS: f64 = 1.0;
+
+    fn torus() -> TorusSurface3D<f64> {
+        TorusSurface3D::standard(MAJOR_RADIUS, MINOR_RADIUS).unwrap()
+    }
+
+    #[test]
+    fn gaussian_curvature_is_positive_on_outer_equator() {
+        // 外側赤道（v = 0）は楕円点: K = 1 / (r (R + r))
+        let expected = 1.0 / (MINOR_RADIUS * (MAJOR_RADIUS + MINOR_RADIUS));
+        let actual = torus().gaussian_curvature(0.0, 0.0);
+        assert!((actual - expected).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn gaussian_curvature_is_negative_on_inner_equator() {
+        // 内側赤道（v = π）は双曲点: K = -1 / (r (R - r))
+        let expected = -1.0 / (MINOR_RADIUS * (MAJOR_RADIUS - MINOR_RADIUS));
+        let actual = torus().gaussian_curvature(0.0, PI);
+        assert!((actual - expected).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn gaussian_curvature_is_zero_on_top_and_bottom_circles() {
+        // 上下の円（v = ±π/2）は放物点: K = 0
+        let torus = torus();
+        assert!(torus.gaussian_curvature(0.0, FRAC_PI_2).abs() < TOLERANCE_F64);
+        assert!(torus.gaussian_curvature(0.0, -FRAC_PI_2).abs() < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn gaussian_curvature_is_independent_of_u_and_equals_principal_product() {
+        // 回転面のため u に依存せず、主曲率の積に一致する
+        let torus = torus();
+        let v = 0.7;
+        let reference = torus.gaussian_curvature(0.0, v);
+        for u in [0.5, 1.0, PI, 4.0] {
+            assert!((torus.gaussian_curvature(u, v) - reference).abs() < TOLERANCE_F64);
+        }
+        let (k1, k2) = torus.principal_curvatures(1.0, v);
+        assert!((reference - k1 * k2).abs() < TOLERANCE_F64);
+    }
+}

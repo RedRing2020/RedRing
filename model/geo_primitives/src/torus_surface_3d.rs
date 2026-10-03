@@ -239,17 +239,6 @@ impl TorusSurface3D<f64> {
         }
         Self::standard(major_radius, minor_radius)
     }
-
-    /// 角の近似値を計算（CAM での角度計算用）
-    pub fn corner_angle_at(&self, _u: f64, v: f64) -> f64 {
-        // 主曲率と副曲率から角度を近似計算
-        let principal_curvature_u = 1.0 / (self.major_radius + self.minor_radius * v.cos());
-        let principal_curvature_v = 1.0 / self.minor_radius;
-
-        // ガウス曲率から角度を近似
-        let gaussian_curvature = principal_curvature_u * principal_curvature_v;
-        gaussian_curvature.abs().sqrt()
-    }
 }
 
 use geo_contracts::{
