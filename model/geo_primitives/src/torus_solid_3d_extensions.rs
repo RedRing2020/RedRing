@@ -1,7 +1,7 @@
 // torus_solid_3d_extensions.rs
 // TorusSolid3D の拡張機能実装
 //
-// 衝突検知、距離計算、工具経路計算などの実用的な機能を含みます。
+// 距離計算、包含判定、境界球などの機能を含みます。
 
 use crate::{Point3D, TorusSolid3D, Vector3D};
 use geo_contracts::Scalar;
@@ -134,9 +134,9 @@ impl<T: Scalar> TorusSolid3D<T> {
         volume * (five_quarters * major_sq + three_quarters * minor_sq)
     }
 
-    /// CAM 工具干渉チェック用の簡易境界球
+    /// 境界球
     ///
-    /// 工具との粗い干渉判定に使用できる境界球を計算します。
+    /// トーラス固体全体を包含する球（中心は原点、半径は主半径 + 副半径）を計算します。
     ///
     /// # Returns
     /// * (中心点, 半径)

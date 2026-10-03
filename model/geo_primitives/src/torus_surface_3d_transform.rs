@@ -539,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cam_surface_properties() {
+    fn test_surface_properties_preserved_after_transform() {
         let surface = create_test_torus_surface();
         let center_surface = TorusSurface3D::standard(2.0, 0.5).unwrap();
         let scale_factor = 1.5;
@@ -548,7 +548,7 @@ mod tests {
             .uniform_scale_analysis(&center_surface, scale_factor)
             .unwrap();
 
-        // CAM工具オフセット計算に重要な軸の直交性が保持されることを確認
+        // 変換後も軸の直交性が保持されることを確認
         let z_vec = result.z_axis_internal().as_vector();
         let x_vec = result.x_axis_internal().as_vector();
         let dot_product = z_vec.dot(&x_vec);

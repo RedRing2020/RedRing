@@ -13,7 +13,6 @@ use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス面
 ///
-/// 3D CAM 工具オフセット計算における基本幾何要素として実装。
 /// 主半径（ドーナツの中心軸から管の中心までの距離）と
 /// 副半径（管の半径）により定義されます。
 #[derive(Debug, Clone, PartialEq)]
@@ -171,8 +170,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// パラメータ (u, v) での法線ベクトルを計算
-    ///
-    /// CAM 工具オフセット計算において重要な機能です。
     pub fn normal_at(&self, u: T, v: T) -> Direction3D<T> {
         let cos_u = u.cos();
         let sin_u = u.sin();

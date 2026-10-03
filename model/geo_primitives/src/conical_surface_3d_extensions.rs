@@ -1,6 +1,6 @@
 //! ConicalSurface3D の拡張機能実装
 //!
-//! 基本機能を超えた高度な幾何操作、解析機能、CAD/CAM用途に特化した機能
+//! 基本機能を超えた幾何操作・解析機能
 
 use crate::{ConicalSurface3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::Scalar;

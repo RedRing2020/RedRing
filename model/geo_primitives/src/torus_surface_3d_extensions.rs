@@ -8,9 +8,6 @@ use std::f64::consts::PI;
 
 impl<T: Scalar> TorusSurface3D<T> {
     /// 指定した点に最も近い表面上の点を探索
-    ///
-    /// 3D CAM での工具パス計算において、工具中心から表面への
-    /// 最短距離計算に使用されます。
     pub fn closest_point_to(&self, target: Point3D<T>) -> Point3D<T> {
         // トーラス表面への最近点探索は非線形最適化問題
         // 初期推定から反復計算で解を求める
@@ -64,8 +61,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 指定した点への距離を計算
-    ///
-    /// CAM での工具オフセット量の決定に使用されます。
     pub fn distance_to(&self, point: Point3D<T>) -> T {
         let closest = self.closest_point_to(point);
         let diff = Vector3D::new(
@@ -84,8 +79,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     ///
     /// # Returns
     /// (主曲率1, 主曲率2) のタプル
-    ///
-    /// CAM での工具選択と送り速度決定に重要な情報です。
     pub fn principal_curvatures(&self, _u: T, v: T) -> (T, T) {
         let cos_v = v.cos();
 
@@ -105,8 +98,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// 平均曲率を計算
-    ///
-    /// 表面の滑らかさの指標として CAM での仕上げ条件決定に使用されます。
     pub fn mean_curvature(&self, u: T, v: T) -> T {
         let (k1, k2) = self.principal_curvatures(u, v);
         let two = T::ONE + T::ONE;
@@ -116,7 +107,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     /// 等高線パラメータを計算
     ///
     /// 指定した Z 高さでの等高線パラメータ (u, v) を求めます。
-    /// CAM での水平加工に使用されます。
     pub fn contour_parameters_at_height(&self, z_height: T) -> Vec<(T, T)> {
         let mut contours = Vec::new();
 
