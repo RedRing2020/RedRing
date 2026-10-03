@@ -2,7 +2,6 @@
 
 use crate::{Point2D, Vector2D};
 use analysis::abstract_types::Angle;
-use std::f64;
 
 /// 基本作成テスト
 #[test]
