@@ -1,6 +1,6 @@
 //! 交点計算の共通ヘルパー関数
 //!
-//! pair_base と primitive_3d が共有する基礎計算を提供する。
+//! primitive_3d の交点計算が利用する基礎計算を提供する。
 
 use crate::{InfiniteLine3D, LineSegment3D, Point3D, Ray3D, Vector3D};
 use geo_contracts::{default_parallel_cross_error_tolerance, InfiniteLine3DProperties, Scalar};

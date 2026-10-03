@@ -92,6 +92,9 @@
 - `nurbs_curve_3d.rs` (または `primitive_nurbs.rs`): NurbsCurve3D を含むペア
 - `nurbs_surface_3d.rs` (または `primitive_nurbs_surface.rs`): NurbsSurface3D を含むペア
 - `pair_base.rs`: collision/intersection の共通下位ロジック
+  - `pub(crate)` の内部モジュールとし、公開エントリポイントは置かない（公開 API の正本は `primitive_*` / NURBS 系ファイル）。
+  - `primitive_*` と同名の関数を並行して持たない。公開エントリポイントが別実装へ移行した場合は、`pair_base` 側の旧実装を削除する。
+  - collision の判定は、対応する intersection の公開エントリポイントへ委譲し、交点の有無で判定することを基本とする（端点距離などの簡易判定で代替しない）。
 
 補足（命名上の見え方について）:
 

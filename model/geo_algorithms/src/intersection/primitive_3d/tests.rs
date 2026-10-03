@@ -6,21 +6,24 @@ use super::{
     circle3d_ray3d_intersection, conical_solid3d_ray3d_intersection,
     conical_surface3d_ray3d_intersections, cylindrical_surface3d_point3d_intersection,
     ellipse3d_point3d_intersection, ellipsoidal_solid3d_ray3d_intersections,
-    infinite_line3d_line_segment3d_intersection, infinite_line3d_point3d_intersection,
+    infinite_line3d_infinite_line3d_intersection, infinite_line3d_line_segment3d_intersection,
+    infinite_line3d_point3d_intersection, infinite_line3d_ray3d_intersection,
     infinite_line3d_spherical_surface3d_intersections, line_segment3d_infinite_line3d_intersection,
-    line_segment3d_plane3d_intersection, line_segment3d_point3d_intersection,
-    line_segment3d_ray3d_intersection, line_segment3d_spherical_surface3d_intersections,
-    line_segment3d_triangle3d_intersection, plane3d_line_segment3d_intersection,
+    line_segment3d_line_segment3d_intersection, line_segment3d_plane3d_intersection,
+    line_segment3d_point3d_intersection, line_segment3d_ray3d_intersection,
+    line_segment3d_spherical_surface3d_intersections, line_segment3d_triangle3d_intersection,
+    plane3d_infinite_line3d_intersection, plane3d_line_segment3d_intersection,
     plane3d_point3d_intersection, plane3d_ray3d_intersection, ray3d_arc3d_intersection,
     ray3d_circle3d_intersection, ray3d_conical_solid3d_intersection,
     ray3d_conical_surface3d_intersections, ray3d_ellipse3d_intersections,
-    ray3d_ellipsoidal_solid3d_intersections, ray3d_line_segment3d_intersection,
-    ray3d_plane3d_intersection, ray3d_point3d_intersection, ray3d_ray3d_intersection,
-    ray3d_spherical_solid3d_intersection, ray3d_spherical_surface3d_intersections,
-    ray3d_triangle3d_intersection, spherical_solid3d_ray3d_intersection,
-    spherical_surface3d_ray3d_intersections, torus_surface3d_point3d_intersection,
-    triangle3d_line_segment3d_intersection, triangle3d_point3d_intersection,
-    triangle3d_ray3d_intersection, triangle_mesh3d_point3d_intersection,
+    ray3d_ellipsoidal_solid3d_intersections, ray3d_infinite_line3d_intersection,
+    ray3d_line_segment3d_intersection, ray3d_plane3d_intersection, ray3d_point3d_intersection,
+    ray3d_ray3d_intersection, ray3d_spherical_solid3d_intersection,
+    ray3d_spherical_surface3d_intersections, ray3d_triangle3d_intersection,
+    spherical_solid3d_ray3d_intersection, spherical_surface3d_ray3d_intersections,
+    torus_surface3d_point3d_intersection, triangle3d_line_segment3d_intersection,
+    triangle3d_point3d_intersection, triangle3d_ray3d_intersection,
+    triangle_mesh3d_point3d_intersection,
 };
 use crate::{
     Angle, Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSurface3D, Direction3D,
@@ -786,4 +789,134 @@ fn conical_solid_point_boundary_guard_keeps_intersection_on_point_helper() {
         !conical_solid_point_section.contains(CONICAL_SOLID_DIRECT_CONTAINMENT),
         "intersection/primitive_3d/cylindrical_and_conical_family.rs must not call ConicalSolid3DContainment::contains_point_tolerance directly in the representative conical solid section"
     );
+}
+
+#[test]
+fn spherical_surface_line_like_intersections_handle_tangent_and_backward_ray() {
+    let tol = standard_distance_tol();
+    let sphere = SphericalSurface3D::new_standard(Point3D::origin(), 1.0).unwrap();
+    // y=1 で赤道に接する直線
+    let tangent_line =
+        InfiniteLine3D::from_two_points(Point3D::new(-2.0, 1.0, 0.0), Point3D::new(2.0, 1.0, 0.0))
+            .unwrap();
+    // 球から離れる方向の Ray
+    let backward_ray =
+        Ray3D::new(Point3D::new(2.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let tangent = infinite_line3d_spherical_surface3d_intersections(&tangent_line, &sphere, tol);
+    assert!(tangent.intersects());
+    let tangent_point = match tangent.geometry {
+        IntersectionGeometry::Point(p) => p,
+        IntersectionGeometry::Points(ref pts) if pts.len() == 1 => pts[0],
+        ref other => panic!("Expected single tangent point, got {other:?}"),
+    };
+    assert!(tangent_point.distance_to(&Point3D::new(0.0, 1.0, 0.0)) < tol);
+
+    let backward = ray3d_spherical_surface3d_intersections(&backward_ray, &sphere, tol);
+    assert_eq!(backward.topology, IntersectionTopology::Disjoint);
+}
+
+#[test]
+fn linear_pair_intersections_detect_crossing_and_reject_outside_cases() {
+    let tol = standard_distance_tol();
+    let x_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0))
+            .unwrap();
+    let y_axis =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0))
+            .unwrap();
+    let parallel_line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 1.0, 0.0), Point3D::new(1.0, 1.0, 0.0))
+            .unwrap();
+    let crossing_segment =
+        LineSegment3D::new(Point3D::new(0.0, -1.0, 0.0), Point3D::new(0.0, 1.0, 0.0)).unwrap();
+    let outside_segment =
+        LineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(0.0, 3.0, 0.0)).unwrap();
+    let forward_ray =
+        Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, 1.0, 0.0)).unwrap();
+    let backward_ray =
+        Ray3D::new(Point3D::new(0.0, -2.0, 0.0), Vector3D::new(0.0, -1.0, 0.0)).unwrap();
+    let x_segment =
+        LineSegment3D::new(Point3D::new(-1.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+    let diagonal_a =
+        LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(1.0, 1.0, 0.0)).unwrap();
+    let diagonal_b =
+        LineSegment3D::new(Point3D::new(0.0, 1.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+
+    let line_line = infinite_line3d_infinite_line3d_intersection(&x_axis, &y_axis, tol);
+    if let IntersectionGeometry::Point(p) = line_line.geometry {
+        assert!(p.distance_to(&Point3D::origin()) < tol);
+    } else {
+        panic!("Expected IntersectionGeometry::Point for line-line crossing");
+    }
+    assert!(
+        !infinite_line3d_infinite_line3d_intersection(&x_axis, &parallel_line, tol).intersects()
+    );
+
+    assert!(
+        infinite_line3d_line_segment3d_intersection(&x_axis, &crossing_segment, tol).intersects()
+    );
+    assert!(
+        !infinite_line3d_line_segment3d_intersection(&x_axis, &outside_segment, tol).intersects()
+    );
+
+    assert!(infinite_line3d_ray3d_intersection(&x_axis, &forward_ray, tol).intersects());
+    assert!(!infinite_line3d_ray3d_intersection(&x_axis, &backward_ray, tol).intersects());
+
+    assert!(ray3d_line_segment3d_intersection(&forward_ray, &x_segment, tol).intersects());
+    assert!(ray3d_infinite_line3d_intersection(&forward_ray, &x_axis, tol).intersects());
+
+    assert!(line_segment3d_line_segment3d_intersection(&diagonal_a, &diagonal_b, tol).intersects());
+}
+
+#[test]
+fn planar_intersections_detect_crossing_and_reject_parallel_or_backward_cases() {
+    let tol = standard_distance_tol();
+    let plane = Plane3D::xy_plane(0.0_f64);
+    let crossing_segment =
+        LineSegment3D::new(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0)).unwrap();
+    let parallel_segment =
+        LineSegment3D::new(Point3D::new(-1.0, 0.0, 1.0), Point3D::new(1.0, 0.0, 1.0)).unwrap();
+    let forward_ray =
+        Ray3D::new(Point3D::new(0.0, 0.0, -2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    let backward_ray =
+        Ray3D::new(Point3D::new(0.0, 0.0, 2.0), Vector3D::new(0.0, 0.0, 1.0)).unwrap();
+    let crossing_line =
+        InfiniteLine3D::from_two_points(Point3D::new(0.0, 0.0, -1.0), Point3D::new(0.0, 0.0, 1.0))
+            .unwrap();
+    let parallel_line =
+        InfiniteLine3D::from_two_points(Point3D::new(-1.0, 0.0, 1.0), Point3D::new(1.0, 0.0, 1.0))
+            .unwrap();
+
+    let plane_segment = plane3d_line_segment3d_intersection(&plane, &crossing_segment, tol);
+    if let IntersectionGeometry::Point(p) = plane_segment.geometry {
+        assert!(p.z().abs() < tol);
+    } else {
+        panic!("Expected IntersectionGeometry::Point for plane-segment crossing");
+    }
+    assert!(!plane3d_line_segment3d_intersection(&plane, &parallel_segment, tol).intersects());
+
+    assert!(plane3d_ray3d_intersection(&plane, &forward_ray, tol).intersects());
+    assert!(!plane3d_ray3d_intersection(&plane, &backward_ray, tol).intersects());
+
+    assert!(plane3d_infinite_line3d_intersection(&plane, &crossing_line, tol).intersects());
+    assert!(!plane3d_infinite_line3d_intersection(&plane, &parallel_line, tol).intersects());
+
+    let triangle = Triangle3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Point3D::new(1.0, 0.0, 0.0),
+        Point3D::new(0.0, 1.0, 0.0),
+    )
+    .unwrap();
+    let down_ray = Ray3D::new(Point3D::new(0.2, 0.2, 1.0), Vector3D::new(0.0, 0.0, -1.0)).unwrap();
+    let piercing_segment =
+        LineSegment3D::new(Point3D::new(0.2, 0.2, -1.0), Point3D::new(0.2, 0.2, 1.0)).unwrap();
+
+    let triangle_ray = triangle3d_ray3d_intersection(&triangle, &down_ray, tol);
+    if let IntersectionGeometry::Point(p) = triangle_ray.geometry {
+        assert!(p.z().abs() < tol);
+    } else {
+        panic!("Expected IntersectionGeometry::Point for triangle-ray crossing");
+    }
+    assert!(triangle3d_line_segment3d_intersection(&triangle, &piercing_segment, tol).intersects());
 }
