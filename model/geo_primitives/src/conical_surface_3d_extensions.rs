@@ -1,6 +1,6 @@
 //! ConicalSurface3D の拡張機能実装
 //!
-//! 基本機能を超えた高度な幾何操作、解析機能、CAD/CAM用途に特化した機能
+//! 基本機能を超えた幾何操作・解析機能
 
 use crate::{ConicalSurface3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
@@ -204,22 +204,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         (center, self.axis_internal(), radius)
     }
 
-    /// 工具径路生成用のパラメータ計算
-    ///
-    /// # Arguments
-    /// * `tool_radius` - 工具半径
-    /// * `step_over` - ステップオーバー
-    ///
-    /// # Returns
-    /// 加工パス用のパラメータリスト
-    pub fn toolpath_parameters(&self, tool_radius: T, step_over: T) -> ToolpathParams<T> {
-        ToolpathParams {
-            surface: self.clone(),
-            tool_radius,
-            step_over,
-        }
-    }
-
     /// 表面品質解析用のメトリクス
     ///
     /// # Returns
@@ -247,14 +231,6 @@ pub enum PlaneIntersectionType {
     Point,
     /// 直線（母線を含む場合）
     Line,
-}
-
-/// 工具径路生成用のパラメータ
-#[derive(Debug, Clone)]
-pub struct ToolpathParams<T: Scalar> {
-    pub surface: ConicalSurface3D<T>,
-    pub tool_radius: T,
-    pub step_over: T,
 }
 
 /// 表面品質メトリクス

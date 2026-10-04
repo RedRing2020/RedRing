@@ -1,6 +1,6 @@
-//! Plane3D CAD実装
+//! Plane3D 実装
 //!
-//! CAD用の座標系付き平面実装（旧Plane3DCoordinateSystem）
+//! 座標系付き平面実装（旧Plane3DCoordinateSystem）
 //! STEP AP214準拠の完全な平面座標系を提供
 
 use crate::{Direction3D, Point3D, Vector3D};
@@ -10,7 +10,7 @@ use geo_contracts::{
     Plane3DProjection, Plane3DProperties, Plane3DTransform, Scalar,
 };
 
-/// CAD用3次元平面（座標系付き）
+/// 3次元平面（座標系付き）
 ///
 /// STEP AP214の AXIS2_PLACEMENT_3D + PLANE に対応
 /// 完全な座標系情報（原点 + X軸 + Y軸 + Z軸）を持つ平面

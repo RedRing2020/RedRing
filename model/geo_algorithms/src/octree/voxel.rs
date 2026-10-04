@@ -20,7 +20,7 @@
 //! use geo_algorithms::octree::voxel::{VoxelOctree, VoxelState};
 //! use geo_core::Aabb3D;
 //!
-//! // ワーク全体を表すボクセルOctree（100x100x100mm）
+//! // 100x100x100 の占有領域を表すボクセルOctree
 //! let work_bounds = Aabb3D::new(
 //!     Point3D::new(0.0, 0.0, 0.0),
 //!     Point3D::new(100.0, 100.0, 100.0)
@@ -28,11 +28,11 @@
 //! let mut voxel_tree = VoxelOctree::new(work_bounds, 6); // 最大深さ6
 //!
 //! // 掃引形状が通過した領域を除去（AABB近似）
-//! let tool_region = Aabb3D::new(
+//! let removal_region = Aabb3D::new(
 //!     Point3D::new(10.0, 10.0, 0.0),
 //!     Point3D::new(20.0, 20.0, 50.0)
 //! );
-//! voxel_tree.remove_material_box(&tool_region);
+//! voxel_tree.remove_material_box(&removal_region);
 //!
 //! // 残存体積を計算
 //! let remaining = voxel_tree.remaining_volume();
@@ -117,7 +117,7 @@ pub struct VoxelNode<T: Scalar> {
 /// use geo_algorithms::octree::voxel::VoxelOctree;
 /// use geo_core::Aabb3D;
 ///
-/// // 100x100x100mm のワークを表すOctree
+/// // 100x100x100 の占有領域を表すOctree
 /// let bounds = Aabb3D::new(min_point, max_point);
 /// let mut voxel_tree = VoxelOctree::new(bounds, 6);
 ///

@@ -110,10 +110,9 @@ mod tests {
     }
 
     #[test]
-    fn test_cam_relevant_properties() {
+    fn test_geometric_properties() {
         let torus = TorusSolid3D::standard(2.0, 0.5).unwrap();
 
-        // CAM計算で重要な特性を検証
         assert_eq!(torus.primitive_kind(), PrimitiveKind::TorusSolid);
         assert!(torus.volume_internal() > 0.0);
 

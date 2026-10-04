@@ -13,7 +13,6 @@ use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス面
 ///
-/// 3D CAM 工具オフセット計算における基本幾何要素として実装。
 /// 主半径（ドーナツの中心軸から管の中心までの距離）と
 /// 副半径（管の半径）により定義されます。
 #[derive(Debug, Clone, PartialEq)]
@@ -171,8 +170,6 @@ impl<T: Scalar> TorusSurface3D<T> {
     }
 
     /// パラメータ (u, v) での法線ベクトルを計算
-    ///
-    /// CAM 工具オフセット計算において重要な機能です。
     pub fn normal_at(&self, u: T, v: T) -> Direction3D<T> {
         let cos_u = u.cos();
         let sin_u = u.sin();
@@ -241,17 +238,6 @@ impl TorusSurface3D<f64> {
             return None; // ドーナツ型ではない
         }
         Self::standard(major_radius, minor_radius)
-    }
-
-    /// 角の近似値を計算（CAM での角度計算用）
-    pub fn corner_angle_at(&self, _u: f64, v: f64) -> f64 {
-        // 主曲率と副曲率から角度を近似計算
-        let principal_curvature_u = 1.0 / (self.major_radius + self.minor_radius * v.cos());
-        let principal_curvature_v = 1.0 / self.minor_radius;
-
-        // ガウス曲率から角度を近似
-        let gaussian_curvature = principal_curvature_u * principal_curvature_v;
-        gaussian_curvature.abs().sqrt()
     }
 }
 

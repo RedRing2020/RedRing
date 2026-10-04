@@ -12,7 +12,7 @@ use crate::{
 ///
 /// ax + by + cz + d = 0 の形式で表現される平面
 /// または参照点と法線ベクトルで定義される平面
-/// CADの座標系を持つ Plane3D とは異なり、純粋な数値計算用
+/// 座標系を持つ geo_primitives の Plane3D とは異なり、純粋な数値計算用
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Plane3<T: Scalar> {
     /// 平面上の参照点
