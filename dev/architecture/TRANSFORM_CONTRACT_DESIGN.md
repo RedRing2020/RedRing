@@ -173,7 +173,8 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 |---|---|---|
 | Point / Vector / Direction | 対応 | `geo_core`。Direction は変換後に正規化 |
 | AABB（2D/3D） | 平行移動・一様スケールのみ | 回転を含む場合は `Unsupported`。形状の境界ボックスとして使う場合は形状側で再構築する |
-| 線分・半直線・無限直線・平面・三角形・三角形メッシュ・矩形 | 対応 | `Ray3D` は方向を `Direction3D` で保持し、`to_line` の再正規化を不要にする |
+| 軸平行の矩形（`Rect2D`） | 平行移動・一様スケールのみ | AABB と同じく、回転を含む場合は `Unsupported` |
+| 線分・半直線・無限直線・平面・三角形・三角形メッシュ・矩形（`Rect3D`） | 対応 | 線分は support line を変換し、support line 上のパラメータをスケール係数倍にする。`Ray3D` は方向を `Direction3D` で保持し、`to_line` の再正規化を不要にする。三角形メッシュの法線はベクトルとして変換して正規化する |
 | 円・円弧・楕円・楕円弧 | 対応 | 半径（長軸・短軸）にスケール係数を掛ける |
 | 球・円筒・円錐・楕円体・トーラス（面・立体） | 対応 | 同上。円錐の半頂角は不変 |
 | NURBS 曲線・曲面 | 対応 | 制御点を変換。重みは不変 |
@@ -192,8 +193,8 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 | `geo_core::SafeTransform` | 削除（未使用） |
 | `geo_core` の `point_*_transform.rs` / `vector_*_transform.rs` の行列生成ヘルパー | 変換型の構築 API に統合 |
 | `geo_contracts` の形状別個別操作（`reverse` / `rotate_90` 等の `*Transform` trait 7 種） | 行列変換ではないため対象外（現状維持） |
-| コンパイル対象の形状変換 11 ファイル（`geo_primitives` 8 / `geo_nurbs` 3） | 新契約の実装へ置き換え |
-| 未コンパイルの形状変換 24 ファイル | そのまま復活させず、新契約で書き直す。形状固有の変換処理とテストケースのみ再利用する |
+| コンパイル対象の形状変換 11 ファイル（`geo_primitives` 8 / `geo_nurbs` 3） | 新契約の実装を同じファイルに追加し、旧 API の実装は旧 API の削除時に取り除く |
+| 未コンパイルの形状変換 24 ファイル | そのまま復活させず、各形状の PR で同じファイル名のまま新契約の実装に書き直して `lib.rs` に宣言する |
 | 未コンパイルの変換以外の 11 ファイル（テスト・extensions） | 本設計と独立のため、別 PR で再利用 / 書き直し / 削除を判定する |
 
 ## 9. 実施計画（PR 系列）
@@ -206,7 +207,7 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 | 3 | 円・円弧・楕円・楕円弧 |
 | 4 | 球・円筒・円錐・楕円体・トーラス |
 | 5 | NURBS |
-| 6 | 旧 API（`AnalysisTransform*` / `SafeTransform`）と未コンパイルの形状変換 24 ファイルの削除 |
+| 6 | 旧 API（`AnalysisTransform*` / `SafeTransform`）と、コンパイル対象ファイル内の旧 API 実装の削除 |
 
 各 PR で、変換後に形状の種類・半径（スケール係数倍）・フレームの直交性が保たれること、非対応の変換が `Unsupported` になることをテストする。
 

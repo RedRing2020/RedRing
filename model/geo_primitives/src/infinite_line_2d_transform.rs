@@ -153,6 +153,24 @@ impl<T: Scalar> AnalysisTransformSupport for InfiniteLine2D<T> {
     const PERFORMANCE_OPTIMIZED: bool = true;
 }
 
+// ============================================================================
+// 相似変換（変換契約）
+//
+// 設計: TRANSFORM_CONTRACT_DESIGN.md
+// ============================================================================
+
+impl<T: Scalar> geo_contracts::SimilarityTransformable2D<T> for InfiniteLine2D<T> {
+    fn transform_similarity<X: geo_contracts::SimilarityTransform2DCore<T>>(
+        &self,
+        transform: &X,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            point: self.point.transform_similarity(transform)?,
+            direction: self.direction.transform_similarity(transform)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

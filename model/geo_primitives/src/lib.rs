@@ -50,18 +50,22 @@ pub mod infinite_line_3d;
 pub mod infinite_line_3d_extensions;
 #[cfg(test)]
 pub mod infinite_line_3d_tests;
+pub mod infinite_line_3d_transform;
 pub mod line_segment_3d;
 pub mod line_segment_3d_bounds;
 pub mod line_segment_3d_extensions;
+pub mod line_segment_3d_transform;
 pub mod plane_3d;
 pub mod plane_3d_extensions;
 #[cfg(test)]
 pub mod plane_3d_tests;
+pub mod plane_3d_transform;
 
 // Point/Vector 実装は geo_core 側を利用する。
 
 pub mod ray_3d;
 pub mod ray_3d_extensions;
+pub mod ray_3d_transform;
 pub mod rectangle_3d;
 pub mod rectangle_3d_bounds;
 pub mod rectangle_3d_transform;
@@ -79,6 +83,7 @@ pub mod torus_surface_3d_bounds;
 pub mod torus_surface_3d_extensions;
 pub mod triangle_3d;
 pub mod triangle_3d_bounds;
+pub mod triangle_3d_transform;
 pub mod triangle_mesh_3d;
 pub mod triangle_mesh_3d_bounds;
 pub mod triangle_mesh_3d_transform;
@@ -112,6 +117,7 @@ pub mod infinite_line_2d_extensions;
 pub mod infinite_line_2d_transform;
 pub mod line_segment_2d;
 pub mod line_segment_2d_bounds;
+pub mod line_segment_2d_transform;
 pub mod ray_2d;
 pub mod ray_2d_extensions;
 pub mod ray_2d_transform;
@@ -125,6 +131,8 @@ pub mod triangle_2d_transform;
 // テストモジュール
 #[cfg(test)]
 mod ellipse_3d_tests;
+#[cfg(test)]
+mod transform_linear_planar_tests;
 
 // capability trait は geo_contracts を正本 export とし、この crate では shape 型公開を優先する。
 
