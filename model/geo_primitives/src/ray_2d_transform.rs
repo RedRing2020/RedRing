@@ -155,6 +155,18 @@ impl<T: Scalar> AnalysisTransform2D<T> for Ray2D<T> {
     }
 }
 
+impl<T: Scalar> geo_contracts::SimilarityTransformable2D<T> for Ray2D<T> {
+    fn transform_similarity<X: geo_contracts::SimilarityTransform2DCore<T>>(
+        &self,
+        transform: &X,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            origin: self.origin.transform_similarity(transform)?,
+            direction: self.direction.transform_similarity(transform)?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

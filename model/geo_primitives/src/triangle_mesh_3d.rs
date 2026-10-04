@@ -89,6 +89,21 @@ impl<T: Scalar> TriangleMesh3D<T> {
         })
     }
 
+    /// 検証済みの構成要素からメッシュを組み立てる（変換結果の構築用）
+    ///
+    /// 頂点数・インデックスは変換前のメッシュと同じであることを呼び出し側が保証する。
+    pub(crate) fn from_parts(
+        vertices: Vec<Point3D<T>>,
+        indices: Vec<[usize; 3]>,
+        normals: Option<Vec<Vector3D<T>>>,
+    ) -> Self {
+        Self {
+            vertices,
+            indices,
+            normals,
+        }
+    }
+
     /// 空のメッシュを作成
     pub fn empty() -> Self {
         Self {

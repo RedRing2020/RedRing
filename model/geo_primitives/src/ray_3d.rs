@@ -19,8 +19,8 @@ use geo_contracts::{
 pub struct Ray3D<T: Scalar> {
     /// 起点（t=0での点）
     pub(crate) origin: Point3D<T>,
-    /// 方向ベクトル（正規化済み）
-    pub(crate) direction: Vector3D<T>,
+    /// 方向（単位ベクトル）
+    pub(crate) direction: Direction3D<T>,
 }
 
 impl<T: Scalar> Ray3D<T> {
@@ -33,15 +33,8 @@ impl<T: Scalar> Ray3D<T> {
     /// # 戻り値
     /// 方向ベクトルがゼロベクトルの場合は None を返す
     pub fn new(origin: Point3D<T>, direction: Vector3D<T>) -> Option<Self> {
-        if direction.is_zero() {
-            return None;
-        }
-
-        let normalized_direction = direction.normalize();
-        Some(Self {
-            origin,
-            direction: normalized_direction,
-        })
+        let direction = Direction3D::from_vector(direction)?;
+        Some(Self { origin, direction })
     }
 
     /// 2点を通る Ray3D を作成
@@ -69,12 +62,12 @@ impl<T: Scalar> Ray3D<T> {
 
     /// 方向ベクトルを取得（内部用）
     pub(crate) fn direction_internal(&self) -> Direction3D<T> {
-        Direction3D::from_vector(self.direction).expect("Ray direction should always be valid")
+        self.direction
     }
 
     /// 内部方向ベクトルを取得（Vector3D型）
     pub fn direction_vector(&self) -> Vector3D<T> {
-        self.direction
+        self.direction.as_vector()
     }
 
     /// この Ray が乗る無限直線を返す
@@ -116,14 +109,14 @@ impl<T: Scalar> Ray3D<T> {
         }
 
         // パラメータが非負であるかチェック
-        let t = self.direction.dot(&to_point);
+        let t = self.direction.as_vector().dot(&to_point);
         t >= -tolerance
     }
 
     /// 指定された点に対するパラメータを計算
     pub fn parameter_for_point(&self, point: &Point3D<T>) -> T {
         let to_point = *point - self.origin;
-        self.direction.dot(&to_point)
+        self.direction.as_vector().dot(&to_point)
     }
 
     /// Ray の逆方向を作成
@@ -408,7 +401,7 @@ impl<T: Scalar> Ray3DDistance<T> for Ray3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let target_point = Point3D::new(point.0, point.1, point.2);
         let to_point = target_point - self.origin;
-        let projection_length = self.direction.dot(&to_point);
+        let projection_length = self.direction.as_vector().dot(&to_point);
 
         if projection_length <= T::ZERO {
             self.origin.distance_to(&target_point)
@@ -447,7 +440,7 @@ impl<T: Scalar> Ray3DTransform<T> for Ray3D<T> {
         let offset_vector = Vector3D::new(offset.0, offset.1, offset.2);
         let new_origin = self.origin + offset_vector;
 
-        Ray3D::new(new_origin, self.direction).unwrap()
+        Ray3D::new(new_origin, self.direction.as_vector()).unwrap()
     }
 
     fn rotate_around_axis(&self, axis: (T, T, T), angle: T) -> Option<Self>
@@ -496,8 +489,8 @@ impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
         let a = self.direction.dot(&self.direction);
         let b = self.direction.dot(&other.direction);
         let c = other.direction.dot(&other.direction);
-        let d = self.direction.dot(&w);
-        let e = other.direction.dot(&w);
+        let d = self.direction.as_vector().dot(&w);
+        let e = other.direction.as_vector().dot(&w);
 
         let denom = a * c - b * b;
         use geo_contracts::default_kernel_numerical_zero_tolerance;
@@ -527,7 +520,7 @@ impl<T: Scalar> CrossDistance<T, Self> for Ray3D<T> {
 impl<T: Scalar> PointsTowards<(T, T, T)> for Ray3D<T> {
     fn points_towards(&self, target: (T, T, T)) -> bool {
         let target_direction = Vector3D::new(target.0, target.1, target.2);
-        self.direction.dot(&target_direction) > T::ZERO
+        self.direction.as_vector().dot(&target_direction) > T::ZERO
     }
 }
 
