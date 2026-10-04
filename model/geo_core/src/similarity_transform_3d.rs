@@ -2,7 +2,6 @@
 //!
 //! 操作を組み合わせて 1 つの 4×4 行列に合成し、形状には 1 回で適用する。
 //! 非一様スケール・ミラーリング・射影は表現できない。
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::{Aabb3D, Direction3D, Point3D, Vector3D};
 use analysis::linalg::matrix::Matrix4x4;

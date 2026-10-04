@@ -2,7 +2,6 @@
 //!
 //! support line と端点を変換し、support line 上のパラメータはスケール係数倍にする
 //! （方向が単位ベクトルのため、パラメータは support line 上の距離）。
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::LineSegment2D;
 use geo_contracts::{Scalar, SimilarityTransform2DCore, SimilarityTransformable2D, TransformError};
