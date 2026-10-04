@@ -14,10 +14,12 @@ pub use geo_core::{
 pub mod arc_3d;
 pub mod arc_3d_bounds;
 pub mod arc_3d_extensions;
+pub mod arc_3d_transform;
 pub mod circle_3d;
 pub mod circle_3d_bounds;
 pub mod circle_3d_extensions;
 pub mod circle_3d_tests;
+pub mod circle_3d_transform;
 pub mod conical_solid_3d;
 pub mod conical_solid_3d_bounds;
 pub mod conical_solid_3d_extensions;
@@ -37,10 +39,12 @@ pub mod cylindrical_surface_3d_tests;
 pub mod ellipse_3d;
 pub mod ellipse_3d_bounds;
 pub mod ellipse_3d_extensions;
+pub mod ellipse_3d_transform;
 pub mod ellipse_arc_3d;
 pub mod ellipse_arc_3d_bounds;
 pub mod ellipse_arc_3d_extensions;
 pub mod ellipse_arc_3d_tests;
+pub mod ellipse_arc_3d_transform;
 pub mod ellipsoidal_solid_3d;
 pub mod ellipsoidal_solid_3d_bounds;
 pub mod ellipsoidal_solid_3d_transform;
@@ -100,10 +104,12 @@ pub mod triangle_mesh_3d_tests;
 pub mod arc_2d;
 pub mod arc_2d_bounds;
 pub mod arc_2d_extensions;
+pub mod arc_2d_transform;
 
 pub mod circle_2d;
 pub mod circle_2d_bounds;
 pub mod circle_2d_extensions;
+pub mod circle_2d_transform;
 
 pub mod circle_2d_metrics;
 pub mod ellipse_2d;
@@ -112,6 +118,7 @@ pub mod ellipse_2d_transform;
 pub mod ellipse_arc_2d;
 pub mod ellipse_arc_2d_bounds;
 pub mod ellipse_arc_2d_extensions;
+pub mod ellipse_arc_2d_transform;
 pub mod infinite_line_2d;
 pub mod infinite_line_2d_extensions;
 pub mod infinite_line_2d_transform;
@@ -131,6 +138,8 @@ pub mod triangle_2d_transform;
 // テストモジュール
 #[cfg(test)]
 mod ellipse_3d_tests;
+#[cfg(test)]
+mod transform_circular_elliptic_tests;
 #[cfg(test)]
 mod transform_linear_planar_tests;
 
