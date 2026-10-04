@@ -114,12 +114,6 @@ impl<T: Scalar> AnalysisTransform2D<T> for Rect2D<T> {
     }
 }
 
-// ============================================================================
-// 相似変換（変換契約）
-//
-// 設計: TRANSFORM_CONTRACT_DESIGN.md
-// ============================================================================
-
 /// 軸平行の矩形のため、平行移動・一様スケールのみ受け付ける。回転を含む場合は `Unsupported`。
 impl<T: Scalar> geo_contracts::SimilarityTransformable2D<T> for Rect2D<T> {
     fn transform_similarity<X: geo_contracts::SimilarityTransform2DCore<T>>(

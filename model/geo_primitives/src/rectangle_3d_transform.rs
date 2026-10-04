@@ -173,12 +173,6 @@ impl<T: Scalar> AnalysisTransform3D<T> for Rect3D<T> {
     }
 }
 
-// ============================================================================
-// 相似変換（変換契約）
-//
-// 設計: TRANSFORM_CONTRACT_DESIGN.md
-// ============================================================================
-
 impl<T: Scalar> geo_contracts::SimilarityTransformable3D<T> for Rect3D<T> {
     fn transform_similarity<X: geo_contracts::SimilarityTransform3DCore<T>>(
         &self,

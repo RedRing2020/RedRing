@@ -169,12 +169,6 @@ impl<T: Scalar> AnalysisTransform2D<T> for Triangle2D<T> {
     }
 }
 
-// ============================================================================
-// 相似変換（変換契約）
-//
-// 設計: TRANSFORM_CONTRACT_DESIGN.md
-// ============================================================================
-
 impl<T: Scalar> geo_contracts::SimilarityTransformable2D<T> for Triangle2D<T> {
     fn transform_similarity<X: geo_contracts::SimilarityTransform2DCore<T>>(
         &self,
