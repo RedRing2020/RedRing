@@ -26,6 +26,8 @@ pub mod point_2d_transform;
 pub mod point_3d;
 pub mod point_3d_transform;
 pub mod point_traits;
+pub mod similarity_transform_2d;
+pub mod similarity_transform_3d;
 pub mod transform_error;
 pub mod transform_traits;
 pub mod vector_2d;
@@ -44,6 +46,10 @@ mod point_2d_tests;
 #[cfg(test)]
 mod point_3d_tests;
 #[cfg(test)]
+mod similarity_transform_2d_tests;
+#[cfg(test)]
+mod similarity_transform_3d_tests;
+#[cfg(test)]
 mod vector_2d_tests;
 #[cfg(test)]
 mod vector_3d_tests;
@@ -60,6 +66,8 @@ pub use direction_2d::Direction2D;
 pub use direction_3d::Direction3D;
 pub use point_2d::Point2D;
 pub use point_3d::Point3D;
+pub use similarity_transform_2d::SimilarityTransform2D;
+pub use similarity_transform_3d::SimilarityTransform3D;
 pub use transform_error::{SafeTransform, TransformError};
 pub use transform_traits::{AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport};
 pub use vector_2d::Vector2D;

@@ -159,7 +159,10 @@ pub use arc_2d::Arc2D;
 pub use circle_2d::Circle2D;
 pub use ellipse_2d::Ellipse2D;
 pub use ellipse_arc_2d::EllipseArc2D;
-pub use geo_core::{Direction2D, Direction3D, Point2D, Point3D, Vector2D, Vector3D};
+pub use geo_core::{
+    Direction2D, Direction3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D,
+    Vector2D, Vector3D,
+};
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
 pub use ray_2d::Ray2D;

@@ -51,7 +51,9 @@ pub use geo_topology::{CompositeCurve3D, CurveSegment3D};
 
 // geo_primitives の基本型を再エクスポート（ViewModel層がgeo_primitivesに直接依存しないように）
 // 基本ポイント・ベクトル型（geo_coreから）
-pub use geo_core::{Aabb3D, Point2D, Point3D, Vector2D, Vector3D};
+pub use geo_core::{
+    Aabb3D, Point2D, Point3D, SimilarityTransform2D, SimilarityTransform3D, Vector2D, Vector3D,
+};
 // 基本型（geo_primitivesから）
 pub use geo_primitives::{Angle, Direction3D};
 

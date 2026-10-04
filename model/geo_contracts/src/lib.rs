@@ -100,7 +100,9 @@ pub use geometry::operations::{
     DirectionalRelation, DistanceConvergenceError, EllipseAccuracyAnalysis,
     EllipseAdaptiveCalculation, EllipseCalculation, FallibleCrossDistance, IntersectsRelation,
     MultipleIntersection, OnPlaneRelation, ParallelRelation, PerpendicularRelation, PointDistance,
-    PointsTowards, SameLineRelation, SelfIntersection, SkewRelation,
+    PointsTowards, SameLineRelation, SelfIntersection, SimilarityTransform2DCore,
+    SimilarityTransform3DCore, SimilarityTransformable2D, SimilarityTransformable3D, SkewRelation,
+    TransformError,
 };
 pub use tolerance::{
     default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
