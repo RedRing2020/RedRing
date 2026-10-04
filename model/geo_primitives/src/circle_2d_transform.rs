@@ -1,6 +1,4 @@
 //! Circle2D の相似変換
-//!
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::Circle2D;
 use geo_contracts::{Scalar, SimilarityTransform2DCore, SimilarityTransformable2D, TransformError};

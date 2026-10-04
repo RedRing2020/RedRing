@@ -2,7 +2,6 @@
 //!
 //! 2D の円弧の角度は基底円の参照方向ではなくグローバル X 軸から測るため、
 //! 回転角を開始角・終了角に加える。
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::Arc2D;
 use geo_contracts::{

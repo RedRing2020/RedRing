@@ -1,7 +1,6 @@
 //! Plane3D の相似変換
 //!
 //! 原点・法線・U 軸を変換し、V 軸は右手系として法線 × U 軸から再構築する。
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::Plane3D;
 use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};

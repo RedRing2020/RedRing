@@ -1,6 +1,4 @@
 //! Ellipse3D の相似変換
-//!
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::Ellipse3D;
 use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};

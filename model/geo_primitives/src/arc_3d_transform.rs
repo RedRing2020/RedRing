@@ -1,7 +1,6 @@
 //! Arc3D の相似変換
 //!
 //! 角度は円弧平面の開始方向から測るため、フレームを変換すれば角度は変わらない。
-//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::Arc3D;
 use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};
