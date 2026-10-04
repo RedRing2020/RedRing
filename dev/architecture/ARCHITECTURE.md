@@ -395,6 +395,6 @@ redring ← stage ← render
 - [`GITHUB_PAGES_SETUP.md`](GITHUB_PAGES_SETUP.md) - GitHub Pages 設定ガイド
 - [`dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md`](dev/architecture/BATCH_COMPUTE_PLATFORM_DESIGN.md) - 夜間バッチ計算基盤（Dockerヘッドレス + Kubernetes）
 - [`dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md`](dev/architecture/GEO_ALGORITHMS_MODULE_STRUCTURE_RULES.md) - geo_algorithms の分割ルール（primitive_2d/3d/NURBS/pair_base の統一規約）
-- [`dev/architecture/TRANSFORM_CONTRACT_DESIGN.md`](dev/architecture/TRANSFORM_CONTRACT_DESIGN.md) - 変換の契約（geo_contracts の変換 trait、geo_core の変換型、形状ごとの扱い）
+- [`dev/architecture/TRANSFORM_TRAIT_DESIGN.md`](dev/architecture/TRANSFORM_TRAIT_DESIGN.md) - 変換の trait定義（geo_contracts の変換 trait、geo_core の変換型、形状ごとの扱い）
 - [`dev/archive/issues/issue-412-artifact-api-naming-archive-note.md`](dev/archive/issues/issue-412-artifact-api-naming-archive-note.md) - artifact API命名整理の判断記録
 

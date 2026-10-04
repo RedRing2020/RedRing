@@ -160,11 +160,10 @@ impl<T: Scalar> geo_contracts::SimilarityTransformable2D<T> for Ray2D<T> {
         &self,
         transform: &X,
     ) -> Result<Self, TransformError> {
-        Self::new(
-            self.origin.transform_similarity(transform)?,
-            self.direction.transform_similarity(transform)?,
-        )
-        .ok_or_else(|| TransformError::InvalidGeometry("degenerate ray direction".to_string()))
+        Ok(Self {
+            origin: self.origin.transform_similarity(transform)?,
+            direction: self.direction.transform_similarity(transform)?,
+        })
     }
 }
 

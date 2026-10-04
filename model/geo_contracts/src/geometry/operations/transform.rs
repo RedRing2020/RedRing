@@ -1,10 +1,10 @@
-//! 変換の契約
+//! 変換の trait定義
 //!
 //! 変換の種類を型で表し、形状はその型に対する変換 trait を実装する。
 //! 変換型の具象型は `geo_core` に置く。
 //!
 //! 初版は相似変換（回転・平行移動・正の一様スケール）のみを扱う。
-//! 設計: TRANSFORM_CONTRACT_DESIGN.md
+//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::Scalar;
 use std::fmt;
@@ -19,11 +19,11 @@ pub enum TransformError {
     InvalidGeometry(String),
     /// 変換の構築に不正な引数が渡された（0 以下のスケール、特異な行列など）
     InvalidParameter(String),
-    /// 旧変換 API 用。新しい変換契約では使用しない
+    /// 旧変換 API 用。新しい変換 trait では使用しない
     ZeroVector(String),
-    /// 旧変換 API 用。新しい変換契約では使用しない
+    /// 旧変換 API 用。新しい変換 trait では使用しない
     InvalidScaleFactor(String),
-    /// 旧変換 API 用。新しい変換契約では使用しない
+    /// 旧変換 API 用。新しい変換 trait では使用しない
     InvalidRotation(String),
 }
 

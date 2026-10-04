@@ -1,6 +1,6 @@
 //! InfiniteLine3D の相似変換
 //!
-//! 設計: TRANSFORM_CONTRACT_DESIGN.md
+//! 設計: TRANSFORM_TRAIT_DESIGN.md
 
 use crate::InfiniteLine3D;
 use geo_contracts::{Scalar, SimilarityTransform3DCore, SimilarityTransformable3D, TransformError};

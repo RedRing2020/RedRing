@@ -28,8 +28,8 @@ use geo_contracts::{
 pub struct Ray2D<T: Scalar> {
     /// 起点（t=0での点）
     pub(crate) origin: Point2D<T>,
-    /// 方向ベクトル（正規化済み）
-    pub(crate) direction: Vector2D<T>,
+    /// 方向（単位ベクトル）
+    pub(crate) direction: Direction2D<T>,
 }
 
 impl<T: Scalar> PrimitiveMetadata for Ray2D<T> {
@@ -52,11 +52,8 @@ impl<T: Scalar> Ray2D<T> {
             return None;
         }
 
-        let normalized_direction = direction.normalize();
-        Some(Self {
-            origin,
-            direction: normalized_direction,
-        })
+        let direction = Direction2D::from_vector(direction)?;
+        Some(Self { origin, direction })
     }
 
     /// 2点から Ray2D を作成
@@ -79,7 +76,7 @@ impl<T: Scalar> Ray2D<T> {
 
     /// 方向ベクトルを取得（正規化済み、内部用）
     pub(crate) fn direction_internal(&self) -> Direction2D<T> {
-        Direction2D::from_vector(self.direction).unwrap()
+        self.direction
     }
 
     /// 点が Ray 上にあるかを判定（tolerance付き）
@@ -110,7 +107,10 @@ impl<T: Scalar> Ray2D<T> {
 
     /// Ray を InfiniteLine2D に変換
     pub fn to_infinite_line(&self) -> InfiniteLine2D<T> {
-        InfiniteLine2D::new(self.origin, self.direction).unwrap()
+        InfiniteLine2D {
+            point: self.origin,
+            direction: self.direction,
+        }
     }
 
     /// 点に対するパラメータ t を取得
@@ -171,12 +171,15 @@ impl<T: Scalar> Ray2D<T> {
     /// 接線方向を取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // Ray の接線方向は一定（方向ベクトル）
-        self.direction
+        self.direction.as_vector()
     }
 
     /// 方向を反転
     pub fn reverse_direction(&self) -> Self {
-        Self::new(self.origin, -self.direction).unwrap()
+        Self {
+            origin: self.origin,
+            direction: -self.direction,
+        }
     }
 
     /// 境界上判定（Rayでは点上判定と同じ）
