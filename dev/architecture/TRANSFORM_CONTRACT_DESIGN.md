@@ -49,7 +49,7 @@
 変換の種類を型とし、呼び出し側は操作を組み合わせて変換を構築する。型の内部で 1 つの行列に合成し、形状には 1 回で適用する。
 
 ```rust
-let t = SimilarityTransform3D::rotation_about_axis(center, axis, angle)?
+let t = SimilarityTransform3D::rotation_about_axis(center, axis, angle)
     .then(&SimilarityTransform3D::translation(v))
     .then(&SimilarityTransform3D::uniform_scale_about(center, s)?);
 
@@ -142,15 +142,15 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 
 ### 6.2 構築 API
 
-| API | 内容 |
-|---|---|
-| `identity()` | 恒等変換 |
-| `translation(v)` | 平行移動 |
-| `rotation_about_axis(center, axis, angle)` | 中心点・軸（`Direction3D`）まわりの回転 |
-| `uniform_scale_about(center, s)` | 中心点まわりの一様スケール（`s` が 0 以下（`default_kernel_numerical_zero_tolerance` 以下）は `InvalidParameter`。負スケールはミラーリングのため初版では扱わない） |
-| `then(&next)` | `self` の後に `next` を適用する合成 |
-| `from_matrix(m)` | 行列から構築。射影・非一様スケール・ミラーリングは `Unsupported`、特異は `InvalidParameter` |
-| `to_matrix()` | 行列として出力 |
+| API | 戻り値 | 内容 |
+|---|---|---|
+| `identity()` | `Self` | 恒等変換 |
+| `translation(v)` | `Self` | 平行移動 |
+| `rotation_about_axis(center, axis, angle)` | `Self` | 中心点・軸（`Direction3D`）まわりの回転 |
+| `uniform_scale_about(center, s)` | `Result<Self, TransformError>` | 中心点まわりの一様スケール（`s` が 0 以下（`default_kernel_numerical_zero_tolerance` 以下）は `InvalidParameter`。負スケールはミラーリングのため初版では扱わない） |
+| `then(&next)` | `Self` | `self` の後に `next` を適用する合成 |
+| `from_matrix(m)` | `Result<Self, TransformError>` | 行列から構築。射影・非一様スケール・ミラーリングは `Unsupported`、特異は `InvalidParameter` |
+| `to_matrix()` | `Matrix4x4<T>` | 行列として出力 |
 
 2D（`SimilarityTransform2D`）は同じ構成で、回転は `rotation_about(center, angle)`（平面内の回転のため軸を取らない）、行列は `Matrix3x3` とする。
 
