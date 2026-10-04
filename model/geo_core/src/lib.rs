@@ -17,6 +17,10 @@
 //! © RedRing Project
 
 // 基本型実装
+pub mod direction_2d;
+pub mod direction_2d_extensions;
+pub mod direction_3d;
+pub mod direction_3d_extensions;
 pub mod point_2d;
 pub mod point_2d_transform;
 pub mod point_3d;
@@ -31,6 +35,10 @@ pub mod vector_3d_transform;
 pub mod vector_traits;
 
 // テストモジュール
+#[cfg(test)]
+mod direction_2d_extensions_tests;
+#[cfg(test)]
+mod direction_3d_extensions_tests;
 #[cfg(test)]
 mod point_2d_tests;
 #[cfg(test)]
@@ -48,6 +56,8 @@ pub mod aabb_traits;
 // 公開API
 pub use aabb_2d::Aabb2D;
 pub use aabb_3d::Aabb3D;
+pub use direction_2d::Direction2D;
+pub use direction_3d::Direction3D;
 pub use point_2d::Point2D;
 pub use point_3d::Point3D;
 pub use transform_error::{SafeTransform, TransformError};

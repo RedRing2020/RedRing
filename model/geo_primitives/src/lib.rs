@@ -34,8 +34,6 @@ pub mod cylindrical_surface_3d_bounds;
 pub mod cylindrical_surface_3d_extensions;
 #[cfg(test)]
 pub mod cylindrical_surface_3d_tests;
-pub mod direction_3d;
-pub mod direction_3d_extensions;
 pub mod ellipse_3d;
 pub mod ellipse_3d_bounds;
 pub mod ellipse_3d_extensions;
@@ -103,8 +101,6 @@ pub mod circle_2d_bounds;
 pub mod circle_2d_extensions;
 
 pub mod circle_2d_metrics;
-pub mod direction_2d;
-pub mod direction_2d_extensions;
 pub mod ellipse_2d;
 pub mod ellipse_2d_bounds;
 pub mod ellipse_2d_transform;
@@ -128,10 +124,6 @@ pub mod triangle_2d_transform;
 
 // テストモジュール
 #[cfg(test)]
-mod direction_2d_extensions_tests;
-#[cfg(test)]
-mod direction_3d_extensions_tests;
-#[cfg(test)]
 mod ellipse_3d_tests;
 
 // capability trait は geo_contracts を正本 export とし、この crate では shape 型公開を優先する。
@@ -146,7 +138,6 @@ pub use conical_solid_3d::{Cone3D, ConicalSolid3D};
 pub use conical_surface_3d::{ConeRim3D, ConicalSurface3D};
 pub use cylindrical_solid_3d::CylindricalSolid3D;
 pub use cylindrical_surface_3d::CylindricalSurface3D;
-pub use direction_3d::Direction3D;
 pub use ellipse_3d::Ellipse3D;
 pub use ellipse_arc_3d::EllipseArc3D;
 pub use ellipsoidal_solid_3d::EllipsoidalSolid3D;
@@ -166,10 +157,9 @@ pub use triangle_mesh_3d::TriangleMesh3D;
 // 2D プリミティブ
 pub use arc_2d::Arc2D;
 pub use circle_2d::Circle2D;
-pub use direction_2d::Direction2D;
 pub use ellipse_2d::Ellipse2D;
 pub use ellipse_arc_2d::EllipseArc2D;
-pub use geo_core::{Point2D, Point3D, Vector2D, Vector3D};
+pub use geo_core::{Direction2D, Direction3D, Point2D, Point3D, Vector2D, Vector3D};
 pub use infinite_line_2d::InfiniteLine2D;
 pub use line_segment_2d::LineSegment2D;
 pub use ray_2d::Ray2D;

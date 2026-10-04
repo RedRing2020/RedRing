@@ -77,12 +77,9 @@ impl<T: Scalar> Ray3D<T> {
         self.direction
     }
 
-    /// この Ray が乗る無限直線を返す（再正規化なし）
-    ///
-    /// `Ray3D` は内部で正規化済みの方向ベクトルを保持しているため、
-    /// `InfiniteLine3D::new` が行う再正規化（sqrt）を回避できる。
+    /// この Ray が乗る無限直線を返す
     pub fn to_line(&self) -> InfiniteLine3D<T> {
-        InfiniteLine3D::from_direction(self.origin, Direction3D::from_normalized(self.direction))
+        InfiniteLine3D::from_direction(self.origin, self.direction_internal())
     }
 
     /// パラメータ t での点を計算
