@@ -4,7 +4,9 @@
 
 use crate::{Angle, Arc3D, Direction3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
-use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
+use geo_contracts::{
+    default_angle_tolerance, default_distance_tolerance, default_kernel_numerical_zero_tolerance,
+};
 
 impl<T: Scalar> Arc3D<T> {
     /// 3点を通る円弧を作成
@@ -43,7 +45,7 @@ impl<T: Scalar> Arc3D<T> {
         let end_vec = Vector3D::from_points(&center, &end);
         let end_dir = Direction3D::from_vector(end_vec)?;
 
-        // 終了角度の計算（詳細な実装は必要）
+        // 開始点 → 中間点 → 終了点の順に、法線まわりに反時計回りとなる
         let end_angle = Self::calculate_angle_between(&start_dir, &end_dir, &normal)?;
 
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
@@ -149,30 +151,44 @@ impl<T: Scalar> Arc3D<T> {
         normalized
     }
 
-    /// 3点から円の中心を計算
+    /// 3点の外心（3点を通る円の中心）を計算
+    ///
+    /// `a = p1 - p3`、`b = p2 - p3` として
+    /// `p3 + ((|a|² b - |b|² a) × (a × b)) / (2 |a × b|²)`。
     fn calculate_circle_center(
         p1: &Point3D<T>,
         p2: &Point3D<T>,
         p3: &Point3D<T>,
     ) -> Option<Point3D<T>> {
-        // 簡略化した実装：実際にはより複雑な幾何計算が必要
-        // ここでは基本的な重心として近似
-        let center_x = (p1.x() + p2.x() + p3.x()) / T::from_f64(3.0);
-        let center_y = (p1.y() + p2.y() + p3.y()) / T::from_f64(3.0);
-        let center_z = (p1.z() + p2.z() + p3.z()) / T::from_f64(3.0);
-
-        Some(Point3D::new(center_x, center_y, center_z))
+        let a = Vector3D::from_points(p3, p1);
+        let b = Vector3D::from_points(p3, p2);
+        let a_cross_b = a.cross(&b);
+        let denominator = (T::ONE + T::ONE) * a_cross_b.length_squared();
+        if denominator <= default_kernel_numerical_zero_tolerance::<T>() {
+            return None;
+        }
+        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(&a_cross_b);
+        Some(*p3 + numerator * (T::ONE / denominator))
     }
 
-    /// 2つの方向ベクトル間の角度を計算
+    /// `dir1` から `dir2` まで、法線まわりに反時計回り（右手系の正の向き）に測った角度
+    ///
+    /// 3点から作る円弧は 180° を超えうるため、`acos` ではなく符号付きの角度で
+    /// (0, 2π] の範囲に求める。
     fn calculate_angle_between(
         dir1: &Direction3D<T>,
         dir2: &Direction3D<T>,
-        _normal: &Direction3D<T>,
+        normal: &Direction3D<T>,
     ) -> Option<Angle<T>> {
-        let dot = dir1.as_vector().dot(&dir2.as_vector());
-        let angle_rad = dot.acos();
-        Some(Angle::from_radians(angle_rad))
+        let u = dir1.as_vector();
+        let v = dir2.as_vector();
+        let sin = normal.as_vector().dot(&u.cross(&v));
+        let cos = u.dot(&v);
+        let mut angle = sin.atan2(cos);
+        if angle <= T::ZERO {
+            angle += T::TAU;
+        }
+        Some(Angle::from_radians(angle))
     }
 
     /// 円弧を等間隔でサンプリング

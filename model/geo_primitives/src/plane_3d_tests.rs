@@ -5,7 +5,8 @@ use crate::{Direction3D, Plane3D, Point3D, Vector3D};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
+    use analysis::test_constants::TOLERANCE_F64;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
 
     #[test]
     fn test_from_point_and_normal() {
@@ -204,5 +205,143 @@ mod tests {
         assert!(display_str.contains("Plane3D"));
         assert!(display_str.contains("origin"));
         assert!(display_str.contains("normal"));
+    }
+
+    #[test]
+    fn test_step_plane_creation() {
+        // XY平面をZ軸法線、X軸方向でU軸として作成
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_direction = Vector3D::new(1.0, 0.0, 0.0);
+
+        let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
+
+        // UV座標(1, 1)がワールド座標(1, 1, 0)になることを確認
+        let world_point = plane_sys.local_to_world(1.0, 1.0);
+        assert_abs_diff_eq!(world_point.x(), 1.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(world_point.y(), 1.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(world_point.z(), 0.0, epsilon = TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_three_point_construction() {
+        // 3点から平面座標系を作成
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+        let point_u = Point3D::new(1.0, 0.0, 0.0);
+        let point_v = Point3D::new(0.0, 1.0, 0.0);
+
+        let plane_sys = Plane3D::from_three_points(origin, point_u, point_v).unwrap();
+
+        // Z軸が法線になることを確認
+        let normal = plane_sys.normal();
+        assert_abs_diff_eq!(normal.x(), 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(normal.y(), 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(normal.z(), 1.0, epsilon = TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_coordinate_system_orthogonality() {
+        // 座標系の直交性検証
+        let origin = Point3D::new(1.0, 2.0, 3.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_direction = Vector3D::new(1.0, 0.0, 0.0);
+
+        let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
+
+        // U軸とV軸の直交性確認
+        let u_axis = plane_sys.u_axis;
+        let v_axis = plane_sys.v_axis;
+        let normal_axis = plane_sys.normal();
+
+        let dot_uv = u_axis.as_vector().dot(&v_axis.as_vector());
+        let dot_un = u_axis.as_vector().dot(&normal_axis.as_vector());
+        let dot_vn = v_axis.as_vector().dot(&normal_axis.as_vector());
+
+        assert_abs_diff_eq!(dot_uv, 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(dot_un, 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(dot_vn, 0.0, epsilon = TOLERANCE_F64);
+
+        // 正規化確認
+        assert_abs_diff_eq!(u_axis.as_vector().length(), 1.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(v_axis.as_vector().length(), 1.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(
+            normal_axis.as_vector().length(),
+            1.0,
+            epsilon = TOLERANCE_F64
+        );
+    }
+
+    #[test]
+    fn test_world_to_local_conversion() {
+        // ワールド座標⇔ローカル座標変換テスト
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_direction = Vector3D::new(1.0, 0.0, 0.0);
+
+        let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
+
+        // 平面上の点のテスト
+        let test_point = Point3D::new(2.0, 3.0, 0.0);
+        let (u, v, distance) = plane_sys.world_to_local(test_point);
+
+        assert_abs_diff_eq!(u, 2.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(v, 3.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(distance, 0.0, epsilon = TOLERANCE_F64);
+
+        // 逆変換の確認
+        let reconstructed = plane_sys.local_to_world(u, v);
+        assert_abs_diff_eq!(reconstructed.x(), test_point.x(), epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(reconstructed.y(), test_point.y(), epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(reconstructed.z(), test_point.z(), epsilon = TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_gram_schmidt_orthogonalization() {
+        // グラム・シュミット正規直交化のテスト（U軸が法線と平行でない場合）
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let u_direction = Vector3D::new(1.0, 1.0, 0.5); // 法線と平行でない
+
+        let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
+
+        // 結果の座標系が直交系になることを確認
+        let u_axis = plane_sys.u_axis;
+        let v_axis = plane_sys.v_axis;
+        let normal_axis = plane_sys.normal();
+
+        // 直交性確認
+        let dot_uv = u_axis.as_vector().dot(&v_axis.as_vector());
+        let dot_un = u_axis.as_vector().dot(&normal_axis.as_vector());
+        let dot_vn = v_axis.as_vector().dot(&normal_axis.as_vector());
+
+        assert_abs_diff_eq!(dot_uv, 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(dot_un, 0.0, epsilon = TOLERANCE_F64);
+        assert_abs_diff_eq!(dot_vn, 0.0, epsilon = TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_error_cases() {
+        // エラーケースのテスト
+        let origin = Point3D::new(0.0, 0.0, 0.0);
+
+        // ゼロベクトル法線
+        let zero_normal = Vector3D::new(0.0, 0.0, 0.0);
+        let u_direction = Vector3D::new(1.0, 0.0, 0.0);
+
+        let result = Plane3D::from_origin_and_axes(origin, zero_normal, u_direction);
+        assert!(result.is_none());
+
+        // ゼロベクトルU軸
+        let normal = Vector3D::new(0.0, 0.0, 1.0);
+        let zero_u = Vector3D::new(0.0, 0.0, 0.0);
+
+        let result = Plane3D::from_origin_and_axes(origin, normal, zero_u);
+        assert!(result.is_none());
+
+        // U軸が法線と平行（直交成分がゼロ）
+        let parallel_u = Vector3D::new(0.0, 0.0, 1.0);
+
+        let result = Plane3D::from_origin_and_axes(origin, normal, parallel_u);
+        assert!(result.is_none());
     }
 }

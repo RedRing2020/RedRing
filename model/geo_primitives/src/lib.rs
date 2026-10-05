@@ -143,6 +143,10 @@ pub mod triangle_2d_transform;
 
 // テストモジュール
 #[cfg(test)]
+mod arc_2d_tests;
+#[cfg(test)]
+mod arc_3d_tests;
+#[cfg(test)]
 mod ellipse_3d_tests;
 #[cfg(test)]
 mod transform_circular_elliptic_tests;
