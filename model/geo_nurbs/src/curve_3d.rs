@@ -3,21 +3,12 @@
 //! Non-Uniform Rational B-Spline 3D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{constants, KnotVector, NurbsError, Result, Scalar};
+use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived,
     NurbsCurve3DEvaluation, NurbsCurve3DProperties,
 };
-
-/// 重み配列の効率的管理（3D曲線用）
-#[derive(Debug, Clone)]
-pub enum WeightStorage<T: Scalar> {
-    /// 非有理曲線（全重み = 1.0）
-    Uniform,
-    /// 有理曲線（個別重み）
-    Individual(Vec<T>),
-}
 
 /// NURBS曲線 - 3次元（メモリ最適化版）
 ///

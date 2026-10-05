@@ -62,9 +62,7 @@ fn rational_curve_3d_maps_points_and_keeps_weights() {
         let d = Point3D::from(actual).distance_to(&Point3D::from(expected));
         assert!(d < TOLERANCE_F64, "t = {t}: {actual:?} != {expected:?}");
     }
-    for i in 0..curve.num_points() {
-        assert_eq!(moved.weight(i), curve.weight(i));
-    }
+    assert_eq!(moved.weights(), curve.weights());
     assert_eq!(moved.knot_vector(), curve.knot_vector());
     assert_eq!(moved.degree(), curve.degree());
 
@@ -95,9 +93,7 @@ fn rational_curve_2d_maps_points_and_keeps_weights() {
         let d = Point2D::new(q.x(), q.y()).distance_to(&Point2D::new(ex, ey));
         assert!(d < TOLERANCE_F64, "t = {t}");
     }
-    for i in 0..curve.num_points() {
-        assert_eq!(moved.weight(i), curve.weight(i));
-    }
+    assert_eq!(moved.weights(), curve.weights());
 }
 
 #[test]
@@ -125,9 +121,5 @@ fn rational_surface_maps_points_and_keeps_weights() {
             assert!(d < TOLERANCE_F64, "(u, v) = ({u}, {v})");
         }
     }
-    for u in 0..2 {
-        for v in 0..2 {
-            assert_eq!(moved.weight(u, v), surface.weight(u, v));
-        }
-    }
+    assert_eq!(moved.weights(), surface.weights());
 }

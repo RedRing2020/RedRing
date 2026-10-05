@@ -3,20 +3,11 @@
 //! Non-Uniform Rational B-Spline 2D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{constants, KnotVector, NurbsError, Result, Scalar};
+use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector2;
 use geo_contracts::{
     NurbsCurve2DConstructor, NurbsCurve2DDerived, NurbsCurve2DEvaluation, NurbsCurve2DProperties,
 };
-
-/// 重み配列の効率的管理（2D曲線用）
-#[derive(Debug, Clone)]
-pub enum WeightStorage<T: Scalar> {
-    /// 非有理曲線（全重み = 1.0）
-    Uniform,
-    /// 有理曲線（個別重み）
-    Individual(Vec<T>),
-}
 
 /// NURBS曲線 - 2次元（Foundation パターン準拠・ジェネリック）
 ///
