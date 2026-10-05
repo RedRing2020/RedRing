@@ -236,6 +236,16 @@ impl<T: Scalar> AnalysisTransform3D<T> for NurbsSurface3D<T> {
     }
 }
 
+/// 制御点を点として変換する。重みは相似変換で変わらないため保持する。
+impl<T: Scalar> geo_contracts::SimilarityTransformable3D<T> for NurbsSurface3D<T> {
+    fn transform_similarity<X: geo_contracts::SimilarityTransform3DCore<T>>(
+        &self,
+        transform: &X,
+    ) -> Result<Self, TransformError> {
+        Ok(self.map_control_points(|p| transform.apply_point(p)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
