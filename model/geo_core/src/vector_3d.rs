@@ -564,3 +564,15 @@ impl<T: Scalar> From<(T, T, T)> for Vector3D<T> {
         Self::new(tuple.0, tuple.1, tuple.2)
     }
 }
+
+impl<T: Scalar> From<Vector3D<T>> for analysis::linalg::vector::Vector3<T> {
+    fn from(vector: Vector3D<T>) -> Self {
+        analysis::linalg::vector::Vector3::new(vector.x(), vector.y(), vector.z())
+    }
+}
+
+impl<T: Scalar> From<analysis::linalg::vector::Vector3<T>> for Vector3D<T> {
+    fn from(vector: analysis::linalg::vector::Vector3<T>) -> Self {
+        Vector3D::new(vector.x(), vector.y(), vector.z())
+    }
+}

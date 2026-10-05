@@ -321,6 +321,18 @@ impl<T: Scalar> From<(T, T, T)> for Point3D<T> {
     }
 }
 
+impl<T: Scalar> From<Point3D<T>> for analysis::linalg::vector::Vector3<T> {
+    fn from(point: Point3D<T>) -> Self {
+        analysis::linalg::vector::Vector3::new(point.x(), point.y(), point.z())
+    }
+}
+
+impl<T: Scalar> From<analysis::linalg::vector::Vector3<T>> for Point3D<T> {
+    fn from(vector: analysis::linalg::vector::Vector3<T>) -> Self {
+        Point3D::new(vector.x(), vector.y(), vector.z())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

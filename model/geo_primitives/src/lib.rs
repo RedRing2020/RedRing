@@ -5,10 +5,7 @@
 mod ellipse_calculation_analysis;
 mod ellipse_calculation_strategy;
 
-// Transform 系は geo_core を正規参照先として再公開する。
-pub use geo_core::{
-    AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport, TransformError,
-};
+pub use geo_core::TransformError;
 
 // 3D プリミティブ
 pub mod arc_3d;

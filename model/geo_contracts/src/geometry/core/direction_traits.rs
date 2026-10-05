@@ -2,7 +2,6 @@
 //!
 //! Foundation ハイブリッド実装方針に基づく
 //! Core機能（Constructor/Properties）を統合し、relation 系 capability は分離する
-//! Transform機能は共通のAnalysisTransformトレイトを使用
 
 use analysis::abstract_types::Scalar;
 use analysis::linalg::vector::{Vector2, Vector3};
@@ -233,11 +232,9 @@ pub trait Direction3DTransform<T: Scalar> {
 }
 
 /// Direction2Dの3つのCore機能統合トレイト
-/// Transform機能はAnalysisTransform2D<T>を別途使用
 pub trait Direction2DCore<T: Scalar>: Direction2DConstructor<T> + Direction2DProperties<T> {}
 
 /// Direction3Dの3つのCore機能統合トレイト
-/// Transform機能はAnalysisTransform3D<T>を別途使用
 pub trait Direction3DCore<T: Scalar>: Direction3DConstructor<T> + Direction3DProperties<T> {}
 
 impl<T: Scalar, Direction> Direction2DCore<T> for Direction where
