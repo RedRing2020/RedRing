@@ -18,12 +18,6 @@ pub enum TransformError {
     InvalidGeometry(String),
     /// 変換の構築に不正な引数が渡された（0 以下のスケール、特異な行列など）
     InvalidParameter(String),
-    /// 旧変換 API 用。新しい変換 trait では使用しない
-    ZeroVector(String),
-    /// 旧変換 API 用。新しい変換 trait では使用しない
-    InvalidScaleFactor(String),
-    /// 旧変換 API 用。新しい変換 trait では使用しない
-    InvalidRotation(String),
 }
 
 impl fmt::Display for TransformError {
@@ -36,9 +30,6 @@ impl fmt::Display for TransformError {
             TransformError::InvalidParameter(msg) => {
                 write!(f, "invalid transform parameter: {msg}")
             }
-            TransformError::ZeroVector(msg) => write!(f, "zero vector is not allowed: {msg}"),
-            TransformError::InvalidScaleFactor(msg) => write!(f, "invalid scale factor: {msg}"),
-            TransformError::InvalidRotation(msg) => write!(f, "invalid rotation: {msg}"),
         }
     }
 }

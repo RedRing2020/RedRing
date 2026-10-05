@@ -431,3 +431,15 @@ impl<T: Scalar> Vector2DProjection<T> for Vector2D<T> {
 }
 
 impl<T: Scalar> Vector2DCore<T> for Vector2D<T> {}
+
+impl<T: Scalar> From<Vector2D<T>> for analysis::linalg::vector::Vector2<T> {
+    fn from(vector: Vector2D<T>) -> Self {
+        analysis::linalg::vector::Vector2::new(vector.x(), vector.y())
+    }
+}
+
+impl<T: Scalar> From<analysis::linalg::vector::Vector2<T>> for Vector2D<T> {
+    fn from(vector: analysis::linalg::vector::Vector2<T>) -> Self {
+        Vector2D::new(vector.x(), vector.y())
+    }
+}

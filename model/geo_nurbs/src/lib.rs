@@ -34,9 +34,7 @@ mod similarity_transform_tests;
 
 // Analysis ライブラリの Scalar トレイトを使用
 pub use analysis::Scalar;
-pub use geo_core::{
-    AnalysisTransform2D, AnalysisTransform3D, AnalysisTransformSupport, TransformError,
-};
+pub use geo_core::TransformError;
 
 // 主要な型を再エクスポート
 pub use adaptive_tessellation::{

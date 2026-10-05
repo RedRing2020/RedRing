@@ -117,7 +117,7 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 | `InvalidGeometry(String)` | 変換結果が形状として成立しない（退化した軸 等） |
 | `InvalidParameter(String)` | 構築時の不正な引数（0 以下のスケール、特異な行列 等） |
 
-`ZeroVector` / `InvalidScaleFactor` / `InvalidRotation` は旧変換 API（`AnalysisTransform*`）の実装専用で、新しい変換 trait では使用しない。旧 API の削除時にあわせて削除する。
+旧変換 API（`AnalysisTransform*`）専用だった `ZeroVector` / `InvalidScaleFactor` / `InvalidRotation` は、旧 API とあわせて削除した。
 
 ## 6. 具象型（`geo_core`）
 
@@ -177,16 +177,14 @@ pub trait SimilarityTransformable3D<T: Scalar>: Sized {
 - 解析曲面は変換後のフレーム（軸・参照方向）から法線を再計算する
 - 非一様スケールでの法線（逆転置行列）と、エンティティ・トポロジー（面の向き・`same_sense`）との整合は [#763](https://github.com/RedRing2020/RedRing/issues/763) で扱う
 
-## 8. 既存 API の扱い
+## 8. 旧変換 API の扱い
 
 | 対象 | 扱い |
 |---|---|
-| `geo_core::AnalysisTransform3D/2D` / `AnalysisTransformSupport` | すべての形状が新しい変換 trait を実装した後に削除する |
-| `geo_core::SafeTransform` | 削除する（未使用） |
-| `geo_core` の `point_*_transform.rs` / `vector_*_transform.rs` の行列生成ヘルパー | 変換型の構築 API に統合する |
+| `geo_core::AnalysisTransform3D/2D` / `AnalysisTransformSupport` と各形状の実装 | 削除した（すべての形状が新しい変換 trait を実装したため） |
+| `geo_core::SafeTransform` | 削除した（未使用） |
+| `geo_core` の `point_*_transform.rs` / `vector_*_transform.rs` の行列生成ヘルパー | 削除した。行列生成は変換型の構築 API に一本化した。`geo_core` の型と `analysis` の型の `From` 変換は各型のファイルへ移した |
 | `geo_contracts` の形状別個別操作（`reverse` / `rotate_90` 等の `*Transform` trait） | 行列変換ではないため対象外とする |
-| 旧 API の実装を持つコンパイル対象の `*_transform.rs` | 新しい trait実装を同じファイルに置き、旧 API の実装は旧 API の削除時に取り除く |
-| `lib.rs` 未宣言の `*_transform.rs` | そのまま宣言せず、同じファイル名のまま新しい trait実装に書き直して宣言する |
 | `lib.rs` 未宣言の変換以外のファイル（テスト・extensions） | 本設計と独立して、再利用 / 書き直し / 削除を判定する |
 
 ## 9. スコープ外

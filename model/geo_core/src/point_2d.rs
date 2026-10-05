@@ -384,3 +384,15 @@ impl<T: Scalar> Point2DInterpolation<T> for Point2D<T> {
 }
 
 impl<T: Scalar> Point2DCore<T> for Point2D<T> {}
+
+impl<T: Scalar> From<Point2D<T>> for analysis::linalg::vector::Vector2<T> {
+    fn from(point: Point2D<T>) -> Self {
+        analysis::linalg::vector::Vector2::new(point.x(), point.y())
+    }
+}
+
+impl<T: Scalar> From<analysis::linalg::vector::Vector2<T>> for Point2D<T> {
+    fn from(vector: analysis::linalg::vector::Vector2<T>) -> Self {
+        Point2D::new(vector.x(), vector.y())
+    }
+}

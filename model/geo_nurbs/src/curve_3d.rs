@@ -3,7 +3,7 @@
 //! Non-Uniform Rational B-Spline 3D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
-use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
+use crate::{constants, KnotVector, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
     default_kernel_numerical_zero_tolerance, NurbsCurve3DConstructor, NurbsCurve3DDerived,
@@ -42,78 +42,6 @@ impl<T: Scalar> geo_contracts::PrimitiveMetadata for NurbsCurve3D<T> {
 }
 
 impl<T: Scalar> NurbsCurve3D<T> {
-    /// 内部用コンストラクタ（クレート内専用）
-    ///
-    /// # 引数
-    /// * `control_points` - 制御点配列
-    /// * `weights` - 重み配列（Noneの場合は非有理）
-    /// * `knot_vector` - ノットベクトル
-    /// * `degree` - NURBS次数
-    ///
-    /// # Errors
-    /// * 制御点数が次数+1未満の場合
-    /// * ノットベクトルが無効な場合
-    /// * 重み配列のサイズが制御点数と一致しない場合
-    pub(crate) fn new_internal(
-        control_points: Vec<Vector3<T>>,
-        weights: Option<Vec<T>>,
-        knot_vector: KnotVector<T>,
-        degree: usize,
-    ) -> Result<Self> {
-        let num_points = control_points.len();
-
-        // 基本的なバリデーション
-        if num_points < degree + 1 {
-            return Err(NurbsError::InsufficientControlPoints {
-                actual: num_points,
-                required: degree + 1,
-                degree,
-            });
-        }
-
-        // フラット座標配列を構築
-        let mut coordinates = Vec::with_capacity(num_points * 3);
-        for point in control_points {
-            coordinates.push(point.x());
-            coordinates.push(point.y());
-            coordinates.push(point.z());
-        }
-
-        // 重み配列を処理
-        let weight_storage = if let Some(weight_vec) = weights {
-            if weight_vec.len() != num_points {
-                return Err(NurbsError::WeightCountMismatch {
-                    actual: weight_vec.len(),
-                    expected: num_points,
-                });
-            }
-
-            // 重みの検証
-            for &weight in &weight_vec {
-                if weight <= T::ZERO {
-                    return Err(NurbsError::InvalidWeight {
-                        weight: weight.to_f64(),
-                    });
-                }
-            }
-
-            WeightStorage::Individual(weight_vec)
-        } else {
-            WeightStorage::Uniform
-        };
-
-        // ノットベクトルの検証
-        crate::knot::validate_knot_vector(&knot_vector, degree, num_points)?;
-
-        Ok(NurbsCurve3D {
-            coordinates,
-            weights: weight_storage,
-            knot_vector,
-            degree,
-            num_points,
-        })
-    }
-
     /// 制御点アクセス用インデックス計算
     #[inline]
     fn control_point_index(&self, index: usize) -> usize {
