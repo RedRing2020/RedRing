@@ -3,21 +3,12 @@
 //! Non-Uniform Rational B-Spline surfaces の基本実装です。
 //! 制御点の2次元グリッド、重み、2方向のノットベクトルを使用して自由形状曲面を表現します。
 
-use crate::{constants, KnotVector, NurbsError, Result, Scalar};
+use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
     NurbsSurface3DConstructor, NurbsSurface3DDerived, NurbsSurface3DEvaluation,
     NurbsSurface3DProperties,
 };
-
-/// 重み配列の効率的管理
-#[derive(Debug, Clone)]
-pub enum WeightStorage<T: Scalar> {
-    /// 非有理サーフェス（全重み = 1.0）
-    Uniform,
-    /// 有理サーフェス（個別重み）- フラット配列
-    Individual(Vec<T>),
-}
 
 /// NURBSサーフェス - 3次元（メモリ最適化版）
 ///

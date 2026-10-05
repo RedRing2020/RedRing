@@ -3,11 +3,15 @@
 use analysis::Scalar;
 
 /// NURBS重み格納方式
-#[derive(Debug, Clone, PartialEq)]
+///
+/// 重みを指定しない非有理NURBSは `Uniform` で表し、重みは常に 1 とする（値を持たない）。
+/// 重みを指定した場合は、全重みが同じ値でも `Individual` として保持する。
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum WeightStorage<T: Scalar> {
-    /// 全ての制御点で同じ重み値を使用（非有理NURBS用）
-    Uniform(T),
-    /// 各制御点で個別の重み値を持つ（有理NURBS用）
+    /// 非有理（全重み = 1）
+    #[default]
+    Uniform,
+    /// 有理（制御点ごとの重み）
     Individual(Vec<T>),
 }
 
@@ -15,36 +19,22 @@ impl<T: Scalar> WeightStorage<T> {
     /// 指定されたインデックスの重みを取得
     pub fn get_weight(&self, index: usize) -> T {
         match self {
-            WeightStorage::Uniform(w) => *w,
+            WeightStorage::Uniform => T::ONE,
             WeightStorage::Individual(weights) => weights.get(index).copied().unwrap_or(T::ONE),
         }
     }
 
-    /// 重みの総数を取得
-    pub fn len(&self) -> usize {
-        match self {
-            WeightStorage::Uniform(_) => 1,
-            WeightStorage::Individual(weights) => weights.len(),
-        }
-    }
-
-    /// 重みストレージが空かどうか
-    pub fn is_empty(&self) -> bool {
-        match self {
-            WeightStorage::Uniform(_) => false,
-            WeightStorage::Individual(weights) => weights.is_empty(),
-        }
-    }
-
-    /// 全て同じ重み値かどうかを判定
+    /// 重みを指定しない非有理（`Uniform`）として保持しているかどうか
+    #[must_use]
     pub fn is_uniform(&self) -> bool {
-        matches!(self, WeightStorage::Uniform(_))
+        matches!(self, WeightStorage::Uniform)
     }
 
     /// 非有理（全重みが1.0）かどうか判定
+    #[must_use]
     pub fn is_non_rational(&self) -> bool {
         match self {
-            WeightStorage::Uniform(w) => *w == T::ONE,
+            WeightStorage::Uniform => true,
             WeightStorage::Individual(weights) => weights.iter().all(|&w| w == T::ONE),
         }
     }
@@ -53,14 +43,8 @@ impl<T: Scalar> WeightStorage<T> {
     #[must_use]
     pub fn to_individual(&self, num_points: usize) -> WeightStorage<T> {
         match self {
-            WeightStorage::Uniform(w) => WeightStorage::Individual(vec![*w; num_points]),
+            WeightStorage::Uniform => WeightStorage::Individual(vec![T::ONE; num_points]),
             WeightStorage::Individual(_) => self.clone(),
         }
-    }
-}
-
-impl<T: Scalar> Default for WeightStorage<T> {
-    fn default() -> Self {
-        WeightStorage::Uniform(T::ONE)
     }
 }
