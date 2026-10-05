@@ -128,6 +128,23 @@ impl<T: Scalar> NurbsCurve2D<T> {
         index * 2
     }
 
+    /// 制御点の座標のみを写像した曲線を返す（重み・ノットベクトル・次数は保持する）
+    pub(crate) fn map_control_points(&self, f: impl Fn((T, T)) -> (T, T)) -> Self {
+        let mut coordinates = Vec::with_capacity(self.coordinates.len());
+        let (points, _) = self.coordinates.as_chunks::<2>();
+        for &[x, y] in points {
+            let (x, y) = f((x, y));
+            coordinates.extend([x, y]);
+        }
+        Self {
+            coordinates,
+            weights: self.weights.clone(),
+            knot_vector: self.knot_vector.clone(),
+            degree: self.degree,
+            num_points: self.num_points,
+        }
+    }
+
     /// 制御点取得
     #[must_use]
     pub fn control_point(&self, index: usize) -> Vector2<T> {

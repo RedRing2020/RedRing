@@ -29,6 +29,9 @@ pub mod error;
 pub mod knot;
 pub mod weight_storage;
 
+#[cfg(test)]
+mod similarity_transform_tests;
+
 // Analysis ライブラリの Scalar トレイトを使用
 pub use analysis::Scalar;
 pub use geo_core::{

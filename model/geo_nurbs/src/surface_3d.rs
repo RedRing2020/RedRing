@@ -178,6 +178,26 @@ impl<T: Scalar> NurbsSurface3D<T> {
         u * self.v_count + v
     }
 
+    /// 制御点の座標のみを写像した曲面を返す（重み・ノットベクトル・次数は保持する）
+    pub(crate) fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
+        let mut coordinates = Vec::with_capacity(self.coordinates.len());
+        let (points, _) = self.coordinates.as_chunks::<3>();
+        for &[x, y, z] in points {
+            let (x, y, z) = f((x, y, z));
+            coordinates.extend([x, y, z]);
+        }
+        Self {
+            coordinates,
+            weights: self.weights.clone(),
+            u_knots: self.u_knots.clone(),
+            v_knots: self.v_knots.clone(),
+            u_degree: self.u_degree,
+            v_degree: self.v_degree,
+            u_count: self.u_count,
+            v_count: self.v_count,
+        }
+    }
+
     /// 制御点取得
     #[must_use]
     pub fn control_point(&self, u: usize, v: usize) -> Vector3<T> {
