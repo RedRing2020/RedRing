@@ -122,10 +122,9 @@ impl<T: Scalar> Arc2D<T> {
         self.point_at_angle_internal(self.end_angle.to_radians())
     }
 
-    /// 開始方向ベクトルを取得
+    /// 開始角での接線方向（反時計回りに進む向き）を取得
     pub fn start_direction(&self) -> Direction2D<T> {
         let angle = self.start_angle.to_radians();
-        // 円の接線方向（時計回り）
         let direction_vector = Vector2D::new(-angle.sin(), angle.cos());
         Direction2D::from_vector(direction_vector).expect("Direction vector should be valid")
     }

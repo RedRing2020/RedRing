@@ -9,8 +9,8 @@ use geo_contracts::Arc3DProperties;
 
 #[cfg(test)]
 mod tests {
-    use analysis::test_constants::TOLERANCE_F32;
     use super::*;
+    use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 
     // ヘルパー関数：ラジアンから Angle を作成
     fn angle(radians: f64) -> Angle<f64> {
@@ -30,8 +30,8 @@ mod tests {
         let (cx, cy, cz) = arc.center();
         assert_eq!((cx, cy, cz), (center.x(), center.y(), center.z()));
         assert_eq!(arc.radius(), 5.0);
-        assert_eq!(arc.normal(), Vector3D::unit_z());
-        assert_eq!(arc.start_direction(), Vector3D::unit_x());
+        assert_eq!(arc.normal().as_vector(), Vector3D::unit_z());
+        assert_eq!(arc.start_direction().as_vector(), Vector3D::unit_x());
         assert_eq!(arc.start_angle(), angle(0.0));
         assert_eq!(arc.end_angle(), angle(std::f64::consts::PI));
         assert_eq!(arc.start_angle(), angle(0.0));
@@ -47,6 +47,30 @@ mod tests {
     }
 
     #[test]
+    fn test_from_three_points_over_half_circle_and_offset_center() {
+        use std::f64::consts::PI;
+        let offset = Vector3D::new(1.0_f64, 2.0, 3.0);
+        // 0° → 180° → 270° の順に反時計回りに通る（掃引角 270°）
+        let start = Point3D::new(1.0_f64, 0.0, 0.0) + offset;
+        let middle = Point3D::new(-1.0_f64, 0.0, 0.0) + offset;
+        let end = Point3D::new(0.0_f64, -1.0, 0.0) + offset;
+
+        let arc = Arc3D::from_three_points(start, middle, end).unwrap();
+
+        let (cx, cy, cz) = arc.center();
+        assert!((cx - 1.0).abs() < TOLERANCE_F64);
+        assert!((cy - 2.0).abs() < TOLERANCE_F64);
+        assert!((cz - 3.0).abs() < TOLERANCE_F64);
+        assert!((arc.radius() - 1.0).abs() < TOLERANCE_F64);
+        let sweep = arc.end_angle().to_radians() - arc.start_angle().to_radians();
+        assert!((sweep - 1.5 * PI).abs() < TOLERANCE_F64);
+
+        // 中間点は 180° の位置にある
+        let (mx, my, mz) = <Arc3D<f64> as Arc3DEvaluation<f64>>::point_at_angle(&arc, PI);
+        assert!(Point3D::new(mx, my, mz).distance_to(&middle) < TOLERANCE_F64);
+    }
+
+    #[test]
     fn test_from_three_points() {
         // XY平面上の3点を通る円弧
         let start = Point3D::new(1.0_f64, 0.0_f64, 0.0_f64);
@@ -55,11 +79,12 @@ mod tests {
 
         let arc = Arc3D::from_three_points(start, middle, end).unwrap();
 
-        // 中心は原点付近のはず
-        let (cx, cy, _cz) = arc.center();
-        assert!((cx - 0.0_f64).abs() < 1e-10);
-        assert!((cy - 0.0_f64).abs() < 1e-10);
-        assert!((arc.radius() - 1.0_f64).abs() < 1e-10);
+        // 中心は原点、半径 1、反時計回りに 180°
+        let (cx, cy, cz) = arc.center();
+        assert!(cx.abs() < TOLERANCE_F64 && cy.abs() < TOLERANCE_F64 && cz.abs() < TOLERANCE_F64);
+        assert!((arc.radius() - 1.0_f64).abs() < TOLERANCE_F64);
+        let sweep = arc.end_angle().to_radians() - arc.start_angle().to_radians();
+        assert!((sweep - std::f64::consts::PI).abs() < TOLERANCE_F64);
 
         // 一直線上の点では作成不可
         let collinear_start = Point3D::new(0.0_f64, 0.0_f64, 0.0_f64);
@@ -83,7 +108,7 @@ mod tests {
         // 円弧長
         let length = arc.length();
         let expected_length = 2.0 * std::f64::consts::PI; // 半円
-        assert!((length - expected_length).abs() < 1e-10);
+        assert!((length - expected_length).abs() < TOLERANCE_F64);
 
         // 完全円判定
         assert!(!arc.is_full_circle());
@@ -107,7 +132,7 @@ mod tests {
 
         let arc_length = full_arc.length();
         let expected_circumference = 2.0 * std::f64::consts::PI * 3.0;
-        assert!((arc_length - expected_circumference).abs() < 1e-10);
+        assert!((arc_length - expected_circumference).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -131,21 +156,21 @@ mod tests {
 
         // 開始点 (t=0)
         let start = arc.point_at_parameter(0.0);
-        assert!((start.x() - 4.0_f64).abs() < 1e-10);
-        assert!((start.y() - 0.0_f64).abs() < 1e-10);
-        assert!((start.z() - 0.0_f64).abs() < 1e-10);
+        assert!((start.x() - 4.0_f64).abs() < TOLERANCE_F64);
+        assert!((start.y() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((start.z() - 0.0_f64).abs() < TOLERANCE_F64);
 
         // 中点 (t=0.5)
         let mid = arc.point_at_parameter(0.5);
-        assert!((mid.x() - 0.0_f64).abs() < 1e-10);
-        assert!((mid.y() - 4.0_f64).abs() < 1e-10);
-        assert!((mid.z() - 0.0_f64).abs() < 1e-10);
+        assert!((mid.x() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((mid.y() - 4.0_f64).abs() < TOLERANCE_F64);
+        assert!((mid.z() - 0.0_f64).abs() < TOLERANCE_F64);
 
         // 終了点 (t=1.0)
         let end = arc.point_at_parameter(1.0);
-        assert!((end.x() - (-4.0_f64)).abs() < 1e-10);
-        assert!((end.y() - 0.0_f64).abs() < 1e-10);
-        assert!((end.z() - 0.0_f64).abs() < 1e-10);
+        assert!((end.x() - (-4.0_f64)).abs() < TOLERANCE_F64);
+        assert!((end.y() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((end.z() - 0.0_f64).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -161,21 +186,21 @@ mod tests {
 
         // 開始点
         let start = arc.start_point();
-        assert!((start.x() - 3.0_f64).abs() < 1e-10);
-        assert!((start.y() - 0.0_f64).abs() < 1e-10);
+        assert!((start.x() - 3.0_f64).abs() < TOLERANCE_F64);
+        assert!((start.y() - 0.0_f64).abs() < TOLERANCE_F64);
 
         // 終了点
         let end = arc.end_point();
-        assert!((end.x() - 0.0_f64).abs() < 1e-10);
-        assert!((end.y() - 3.0_f64).abs() < 1e-10);
+        assert!((end.x() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((end.y() - 3.0_f64).abs() < TOLERANCE_F64);
 
         // 中点
         let mid = <Arc3D<f64> as Arc3DEvaluation<f64>>::point_at_parameter(&arc, 0.5);
         let expected_mid_angle = std::f64::consts::PI / 4.0;
         let expected_x = 3.0 * expected_mid_angle.cos();
         let expected_y = 3.0 * expected_mid_angle.sin();
-        assert!((mid.x() - expected_x).abs() < 1e-10);
-        assert!((mid.y() - expected_y).abs() < 1e-10);
+        assert!((mid.0 - expected_x).abs() < TOLERANCE_F64);
+        assert!((mid.1 - expected_y).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -192,9 +217,9 @@ mod tests {
         let from_parameter = arc.point_at_parameter(0.5);
         let from_angle = arc.point_at_angle(std::f64::consts::PI / 4.0);
 
-        assert!((from_parameter.x() - from_angle.x()).abs() < 1e-10);
-        assert!((from_parameter.y() - from_angle.y()).abs() < 1e-10);
-        assert!((from_parameter.z() - from_angle.z()).abs() < 1e-10);
+        assert!((from_parameter.x() - from_angle.x()).abs() < TOLERANCE_F64);
+        assert!((from_parameter.y() - from_angle.y()).abs() < TOLERANCE_F64);
+        assert!((from_parameter.z() - from_angle.z()).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -256,4 +281,3 @@ mod tests {
         assert!((start.y() - 0.0f32).abs() < TOLERANCE_F32);
     }
 }
-

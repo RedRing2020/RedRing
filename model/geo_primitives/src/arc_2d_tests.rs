@@ -9,8 +9,8 @@ use geo_contracts::Arc2DProperties;
 
 #[cfg(test)]
 mod tests {
-    use analysis::test_constants::TOLERANCE_F32;
     use super::*;
+    use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
 
     // ヘルパー関数：ラジアンから Angle を作成
     fn angle(radians: f64) -> Angle<f64> {
@@ -30,7 +30,8 @@ mod tests {
         let (cx, cy) = arc.center();
         assert_eq!((cx, cy), (center.x(), center.y()));
         assert_eq!(arc.radius(), 5.0);
-        assert_eq!(arc.start_direction(), Vector2D::unit_x());
+        // 開始角 0 での反時計回りの接線方向
+        assert!((arc.start_direction().as_vector() - Vector2D::unit_y()).length() < TOLERANCE_F64);
         assert_eq!(arc.start_angle(), angle(0.0));
         assert_eq!(arc.end_angle(), angle(std::f64::consts::PI));
 
@@ -53,9 +54,9 @@ mod tests {
 
         // 中心は原点付近のはず
         let (cx, cy) = arc.center();
-        assert!((cx - 0.0_f64).abs() < 1e-10);
-        assert!((cy - 0.0_f64).abs() < 1e-10);
-        assert!((arc.radius() - 1.0_f64).abs() < 1e-10);
+        assert!((cx - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((cy - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((arc.radius() - 1.0_f64).abs() < TOLERANCE_F64);
 
         // 一直線上の点では作成不可
         let collinear_start = Point2D::new(0.0_f64, 0.0_f64);
@@ -73,13 +74,12 @@ mod tests {
 
         // 角度範囲
         let span = arc.angle_span();
-        let expected_span = angle(std::f64::consts::PI);
-        assert!(span.is_equivalent_default(&expected_span));
+        assert!((span - std::f64::consts::PI).abs() < TOLERANCE_F64);
 
         // 円弧長
         let length = arc.length();
         let expected_length = 2.0 * std::f64::consts::PI; // 半円
-        assert!((length - expected_length).abs() < 1e-10);
+        assert!((length - expected_length).abs() < TOLERANCE_F64);
 
         // 完全円判定
         assert!(!arc.is_full_circle());
@@ -103,7 +103,7 @@ mod tests {
 
         let arc_length = full_arc.length();
         let expected_circumference = 2.0 * std::f64::consts::PI * 3.0;
-        assert!((arc_length - expected_circumference).abs() < 1e-10);
+        assert!((arc_length - expected_circumference).abs() < TOLERANCE_F64);
     }
     #[test]
     fn test_degenerate_arc() {
@@ -126,18 +126,18 @@ mod tests {
 
         // 開始点 (t=0)
         let start = arc.point_at_parameter(0.0);
-        assert!((start.x() - 4.0_f64).abs() < 1e-10);
-        assert!((start.y() - 0.0_f64).abs() < 1e-10);
+        assert!((start.x() - 4.0_f64).abs() < TOLERANCE_F64);
+        assert!((start.y() - 0.0_f64).abs() < TOLERANCE_F64);
 
         // 中点 (t=0.5)
         let mid = arc.point_at_parameter(0.5);
-        assert!((mid.x() - 0.0_f64).abs() < 1e-10);
-        assert!((mid.y() - 4.0_f64).abs() < 1e-10);
+        assert!((mid.x() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((mid.y() - 4.0_f64).abs() < TOLERANCE_F64);
 
         // 終了点 (t=1.0)
         let end = arc.point_at_parameter(1.0);
-        assert!((end.x() - (-4.0_f64)).abs() < 1e-10);
-        assert!((end.y() - 0.0_f64).abs() < 1e-10);
+        assert!((end.x() - (-4.0_f64)).abs() < TOLERANCE_F64);
+        assert!((end.y() - 0.0_f64).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -153,21 +153,21 @@ mod tests {
 
         // 開始点
         let start = arc.start_point();
-        assert!((start.x() - 3.0_f64).abs() < 1e-10);
-        assert!((start.y() - 0.0_f64).abs() < 1e-10);
+        assert!((start.x() - 3.0_f64).abs() < TOLERANCE_F64);
+        assert!((start.y() - 0.0_f64).abs() < TOLERANCE_F64);
 
         // 終了点
         let end = arc.end_point();
-        assert!((end.x() - 0.0_f64).abs() < 1e-10);
-        assert!((end.y() - 3.0_f64).abs() < 1e-10);
+        assert!((end.x() - 0.0_f64).abs() < TOLERANCE_F64);
+        assert!((end.y() - 3.0_f64).abs() < TOLERANCE_F64);
 
         // 中点
         let mid = <Arc2D<f64> as Arc2DEvaluation<f64>>::point_at_parameter(&arc, 0.5);
         let expected_mid_angle = std::f64::consts::PI / 4.0;
         let expected_x = 3.0 * expected_mid_angle.cos();
         let expected_y = 3.0 * expected_mid_angle.sin();
-        assert!((mid.x() - expected_x).abs() < 1e-10);
-        assert!((mid.y() - expected_y).abs() < 1e-10);
+        assert!((mid.0 - expected_x).abs() < TOLERANCE_F64);
+        assert!((mid.1 - expected_y).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -184,8 +184,8 @@ mod tests {
         let from_parameter = arc.point_at_parameter(0.5);
         let from_angle = arc.point_at_angle(std::f64::consts::PI / 4.0);
 
-        assert!((from_parameter.x() - from_angle.x()).abs() < 1e-10);
-        assert!((from_parameter.y() - from_angle.y()).abs() < 1e-10);
+        assert!((from_parameter.x() - from_angle.x()).abs() < TOLERANCE_F64);
+        assert!((from_parameter.y() - from_angle.y()).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -209,8 +209,7 @@ mod tests {
 
         // 正の角度範囲
         let arc1 = Arc2D::xy_arc(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
-        let expected_span1 = angle(std::f64::consts::PI);
-        assert!(arc1.angle_span().is_equivalent_default(&expected_span1));
+        assert!((arc1.angle_span() - std::f64::consts::PI).abs() < TOLERANCE_F64);
 
         // 0度をまたぐ角度範囲
         let arc2 = Arc2D::xy_arc(
@@ -220,8 +219,7 @@ mod tests {
             angle(std::f64::consts::PI / 2.0),
         )
         .unwrap();
-        let expected_span2 = angle(std::f64::consts::PI);
-        assert!(arc2.angle_span().is_equivalent_default(&expected_span2));
+        assert!((arc2.angle_span() - std::f64::consts::PI).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -271,4 +269,3 @@ mod tests {
         assert!((start.y() - 0.0f32).abs() < TOLERANCE_F32);
     }
 }
-
