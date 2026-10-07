@@ -94,14 +94,10 @@ impl<T: Scalar> LineSegment3D<T> {
         let to_point = Vector3D::from_points(&self.line().point_internal(), point);
         let t = to_point.dot(&self.line().direction_internal());
 
-        // パラメータを線分の範囲内に制限
-        let clamped_param = if t < self.start_param() {
-            self.start_param()
-        } else if t > self.end_param() {
-            self.end_param()
-        } else {
-            t
-        };
+        // パラメータを線分の範囲内に制限する。reverse した線分は start_param > end_param となるため、
+        // 小さい側・大きい側のパラメータで制限する
+        let (min_param, max_param) = self.ordered_params();
+        let clamped_param = t.max(min_param).min(max_param);
 
         self.line().point_at_parameter(clamped_param)
     }
@@ -111,14 +107,10 @@ impl<T: Scalar> LineSegment3D<T> {
         let to_point = Vector3D::from_points(&self.line().point_internal(), point);
         let line_param = to_point.dot(&self.line().direction_internal());
 
-        // 線分のパラメータ範囲に正規化
-        if line_param < self.start_param() {
-            T::ZERO
-        } else if line_param > self.end_param() {
-            T::ONE
-        } else {
-            (line_param - self.start_param()) / (self.end_param() - self.start_param())
-        }
+        // 始点 0・終点 1 に正規化してから [0, 1] に制限する。reverse した線分（start_param > end_param）でも
+        // 始点からの比率になるよう、support line のパラメータではなく正規化後の値で制限する
+        let ratio = (line_param - self.start_param()) / (self.end_param() - self.start_param());
+        ratio.max(T::ZERO).min(T::ONE)
     }
 
     /// 線分が平行かを判定

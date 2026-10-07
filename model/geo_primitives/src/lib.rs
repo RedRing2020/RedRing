@@ -149,11 +149,15 @@ mod arc_3d_tests;
 #[cfg(test)]
 mod circle_2d_tests;
 #[cfg(test)]
+mod ellipse_2d_additional_tests;
+#[cfg(test)]
 mod ellipse_2d_tests;
 #[cfg(test)]
 mod ellipse_3d_tests;
 #[cfg(test)]
 mod line_segment_2d_tests;
+#[cfg(test)]
+mod line_segment_3d_tests;
 #[cfg(test)]
 mod transform_circular_elliptic_tests;
 #[cfg(test)]
