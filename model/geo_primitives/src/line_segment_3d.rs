@@ -74,7 +74,7 @@ impl<T: Scalar> LineSegment3D<T> {
         Self::from_support_line_and_constraint_points(line, start, end)
     }
 
-    fn ordered_params(&self) -> (T, T) {
+    pub(crate) fn ordered_params(&self) -> (T, T) {
         if self.start_param <= self.end_param {
             (self.start_param, self.end_param)
         } else {

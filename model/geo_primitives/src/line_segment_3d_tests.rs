@@ -2,13 +2,11 @@
 
 use crate::{LineSegment3D, Point3D, Vector3D};
 
-// BasicTransformの実装を有効にするため
-#[allow(unused_imports)]
-use crate::line_segment_3d_transform;
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use analysis::test_constants::TOLERANCE_F64;
+    use geo_contracts::LineSegment3DDerived;
 
     #[test]
     fn test_line_segment3d_creation() {
@@ -52,20 +50,6 @@ mod tests {
     }
 
     #[test]
-    fn test_line_segment3d_axis_constructors() {
-        let start = Point3D::new(1.0, 2.0, 3.0);
-        let length = 4.0;
-
-        let x_segment = LineSegment3D::x_axis_segment(start, length).unwrap();
-        let y_segment = LineSegment3D::y_axis_segment(start, length).unwrap();
-        let z_segment = LineSegment3D::z_axis_segment(start, length).unwrap();
-
-        assert_eq!(x_segment.end(), Point3D::new(5.0, 2.0, 3.0));
-        assert_eq!(y_segment.end(), Point3D::new(1.0, 6.0, 3.0));
-        assert_eq!(z_segment.end(), Point3D::new(1.0, 2.0, 7.0));
-    }
-
-    #[test]
     fn test_line_segment3d_midpoint() {
         let segment =
             LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(4.0, 6.0, 8.0))
@@ -75,9 +59,9 @@ mod tests {
         let expected = Point3D::new(2.0, 3.0, 4.0);
 
         // 浮動小数点誤差を考慮
-        assert!((midpoint.x() - expected.x()).abs() < 1e-10);
-        assert!((midpoint.y() - expected.y()).abs() < 1e-10);
-        assert!((midpoint.z() - expected.z()).abs() < 1e-10);
+        assert!((midpoint.x() - expected.x()).abs() < TOLERANCE_F64);
+        assert!((midpoint.y() - expected.y()).abs() < TOLERANCE_F64);
+        assert!((midpoint.z() - expected.z()).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -87,11 +71,11 @@ mod tests {
                 .unwrap();
 
         let direction = segment.direction();
-        let vector = segment.vector();
+        let vector = Vector3D::from(LineSegment3DDerived::as_vector(&segment));
 
         // 方向ベクトルは正規化済み
-        assert!((direction.length() - 1.0).abs() < 1e-10);
-        assert_eq!(direction, Vector3D::new(0.6, 0.8, 0.0));
+        assert!((direction.length() - 1.0).abs() < TOLERANCE_F64);
+        assert!((direction - Vector3D::new(0.6, 0.8, 0.0)).length() < TOLERANCE_F64);
 
         // ベクトルは始点から終点へ
         assert_eq!(vector, Vector3D::new(3.0, 4.0, 0.0));
@@ -103,23 +87,16 @@ mod tests {
             LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
 
         // t=0で始点
-        let p0 = segment.point_at_normalized_parameter(0.0);
+        let p0 = segment.point_at_parameter(0.0);
         assert_eq!(p0, Point3D::new(0.0, 0.0, 0.0));
 
         // t=0.5で中点
-        let p05 = segment.point_at_normalized_parameter(0.5);
+        let p05 = segment.point_at_parameter(0.5);
         assert_eq!(p05, Point3D::new(5.0, 0.0, 0.0));
 
         // t=1で終点
-        let p1 = segment.point_at_normalized_parameter(1.0);
+        let p1 = segment.point_at_parameter(1.0);
         assert_eq!(p1, Point3D::new(10.0, 0.0, 0.0));
-
-        // 範囲外パラメータ（制限される）
-        let p_neg = segment.point_at_normalized_parameter(-0.5);
-        assert_eq!(p_neg, segment.start());
-
-        let p_over = segment.point_at_normalized_parameter(1.5);
-        assert_eq!(p_over, segment.end());
     }
 
     #[test]
@@ -129,17 +106,17 @@ mod tests {
 
         // 線分内の点への投影
         let point_above = Point3D::new(5.0, 3.0, 0.0);
-        let projected = segment.project_point_to_segment(&point_above);
+        let projected = segment.project_point(&point_above);
         assert_eq!(projected, Point3D::new(5.0, 0.0, 0.0));
 
         // 線分外の点（始点側）
         let point_before = Point3D::new(-5.0, 2.0, 0.0);
-        let projected_start = segment.project_point_to_segment(&point_before);
+        let projected_start = segment.project_point(&point_before);
         assert_eq!(projected_start, segment.start());
 
         // 線分外の点（終点側）
         let point_after = Point3D::new(15.0, 2.0, 0.0);
-        let projected_end = segment.project_point_to_segment(&point_after);
+        let projected_end = segment.project_point(&point_after);
         assert_eq!(projected_end, segment.end());
     }
 
@@ -153,15 +130,15 @@ mod tests {
 
         // 線分上の点（距離0）
         let point_on_segment = Point3D::new(5.0, 0.0, 0.0);
-        assert!(segment.distance_to_point(&point_on_segment) < 1e-10);
+        assert!(segment.distance_to_point(&point_on_segment) < TOLERANCE_F64);
 
         // 線分に垂直な点
         let point_perpendicular = Point3D::new(5.0, 3.0, 0.0);
-        assert!((segment.distance_to_point(&point_perpendicular) - 3.0).abs() < 1e-10);
+        assert!((segment.distance_to_point(&point_perpendicular) - 3.0).abs() < TOLERANCE_F64);
 
         // 線分外の点（端点への距離）
         let point_beyond = Point3D::new(15.0, 0.0, 0.0);
-        assert!((segment.distance_to_point(&point_beyond) - 5.0).abs() < 1e-10);
+        assert!((segment.distance_to_point(&point_beyond) - 5.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -169,53 +146,82 @@ mod tests {
         let segment =
             LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
 
-        assert!(segment.contains_point(&Point3D::new(5.0, 0.0, 0.0), 1e-10));
-        assert!(segment.contains_point(&segment.start(), 1e-10));
-        assert!(segment.contains_point(&segment.end(), 1e-10));
-        assert!(!segment.contains_point(&Point3D::new(15.0, 0.0, 0.0), 1e-10));
-        assert!(!segment.contains_point(&Point3D::new(5.0, 1.0, 0.0), 1e-10));
+        assert!(segment.contains_point(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE_F64));
+        assert!(segment.contains_point(&segment.start(), TOLERANCE_F64));
+        assert!(segment.contains_point(&segment.end(), TOLERANCE_F64));
+        assert!(!segment.contains_point(&Point3D::new(15.0, 0.0, 0.0), TOLERANCE_F64));
+        assert!(!segment.contains_point(&Point3D::new(5.0, 1.0, 0.0), TOLERANCE_F64));
     }
 
     #[test]
-    fn test_line_segment3d_parameter_for_point() {
-        let segment =
-            LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
+    fn test_line_segment3d_closest_parameter() {
+        let segment = LineSegment3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+        )
+        .unwrap();
 
-        assert_eq!(
-            segment.parameter_for_point(&Point3D::new(0.0, 0.0, 0.0)),
-            0.0
+        assert!(
+            segment
+                .closest_parameter(&Point3D::new(0.0, 0.0, 0.0))
+                .abs()
+                < TOLERANCE_F64
         );
-        assert_eq!(
-            segment.parameter_for_point(&Point3D::new(5.0, 0.0, 0.0)),
-            0.5
+        assert!(
+            (segment.closest_parameter(&Point3D::new(5.0, 0.0, 0.0)) - 0.5).abs() < TOLERANCE_F64
         );
-        assert_eq!(
-            segment.parameter_for_point(&Point3D::new(10.0, 0.0, 0.0)),
-            1.0
+        assert!(
+            (segment.closest_parameter(&Point3D::new(10.0, 0.0, 0.0)) - 1.0).abs() < TOLERANCE_F64
         );
-        assert_eq!(
-            segment.parameter_for_point(&Point3D::new(20.0, 0.0, 0.0)),
-            2.0
+        // 範囲外は [0, 1] に制限される
+        assert!(
+            (segment.closest_parameter(&Point3D::new(20.0, 0.0, 0.0)) - 1.0).abs() < TOLERANCE_F64
         );
     }
 
     #[test]
-    fn test_line_segment3d_transformations() {
+    fn test_line_segment3d_reversed_closest_parameter_and_projection() {
+        // reverse した線分は support line 上で start_param > end_param となる
+        let reversed = LineSegment3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+        )
+        .unwrap()
+        .reverse();
+
+        // 始点 (10, 0, 0) からの比率になる
+        let t = reversed.closest_parameter(&Point3D::new(3.0, 0.0, 0.0));
+        assert!((t - 0.7).abs() < TOLERANCE_F64);
+        assert!(
+            reversed
+                .point_at_parameter(t)
+                .distance_to(&Point3D::new(3.0, 0.0, 0.0))
+                < TOLERANCE_F64
+        );
+        assert!(
+            reversed
+                .closest_parameter(&Point3D::new(20.0, 0.0, 0.0))
+                .abs()
+                < TOLERANCE_F64
+        );
+        assert!(
+            (reversed.closest_parameter(&Point3D::new(-5.0, 0.0, 0.0)) - 1.0).abs() < TOLERANCE_F64
+        );
+
+        // 投影は線分内の点はそのまま、範囲外は近い端点に制限される
+        let projected = reversed.project_point(&Point3D::new(3.0, 2.0, 0.0));
+        assert!(projected.distance_to(&Point3D::new(3.0, 0.0, 0.0)) < TOLERANCE_F64);
+        let beyond_start = reversed.project_point(&Point3D::new(15.0, 1.0, 0.0));
+        assert!(beyond_start.distance_to(&Point3D::new(10.0, 0.0, 0.0)) < TOLERANCE_F64);
+        let beyond_end = reversed.project_point(&Point3D::new(-5.0, 1.0, 0.0));
+        assert!(beyond_end.distance_to(&Point3D::new(0.0, 0.0, 0.0)) < TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_line_segment3d_reverse() {
         let segment =
             LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
 
-        // 平行移動
-        let translated = segment.translate(&Vector3D::new(5.0, 3.0, 2.0));
-        assert_eq!(translated.start(), Point3D::new(5.0, 3.0, 2.0));
-        assert_eq!(translated.end(), Point3D::new(15.0, 3.0, 2.0));
-
-        // 拡大縮小
-        let scaled = segment.scale(2.0).unwrap();
-        assert_eq!(scaled.start(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(scaled.end(), Point3D::new(20.0, 0.0, 0.0));
-        assert_eq!(scaled.length(), 20.0);
-
-        // 方向反転
         let reversed = segment.reverse();
         assert_eq!(reversed.start(), Point3D::new(10.0, 0.0, 0.0));
         assert_eq!(reversed.end(), Point3D::new(0.0, 0.0, 0.0));
@@ -229,15 +235,16 @@ mod tests {
         )
         .unwrap();
 
-        let (first, second) = segment.split_at(0.3);
+        let first = segment.sub_segment(0.0, 0.3).unwrap();
+        let second = segment.sub_segment(0.3, 1.0).unwrap();
 
         assert_eq!(first.start(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(first.end(), Point3D::new(3.0, 0.0, 0.0));
         assert_eq!(second.start(), Point3D::new(3.0, 0.0, 0.0));
         assert_eq!(second.end(), Point3D::new(10.0, 0.0, 0.0));
 
-        assert!((first.length() - 3.0).abs() < 1e-10);
-        assert!((second.length() - 7.0).abs() < 1e-10);
+        assert!((first.length() - 3.0).abs() < TOLERANCE_F64);
+        assert!((second.length() - 7.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -266,13 +273,13 @@ mod tests {
         )
         .unwrap();
 
-        assert!(segment.contains_point(&Point3D::new(5.0, 0.0, 0.0), 1e-10));
-        assert!(!segment.contains_point(&Point3D::new(15.0, 0.0, 0.0), 1e-10));
+        assert!(segment.contains_point(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE_F64));
+        assert!(!segment.contains_point(&Point3D::new(15.0, 0.0, 0.0), TOLERANCE_F64));
 
-        assert!(segment.on_boundary(&Point3D::new(5.0, 0.0, 0.0), 1e-10));
+        assert!(segment.on_boundary(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE_F64));
 
         let distance = segment.distance_to_point(&Point3D::new(5.0, 3.0, 0.0));
-        assert!((distance - 3.0).abs() < 1e-10);
+        assert!((distance - 3.0).abs() < TOLERANCE_F64);
     }
 
     #[test]
@@ -288,8 +295,8 @@ mod tests {
         assert_eq!(point, Point3D::new(5.0, 0.0, 0.0));
 
         let tangent = segment.tangent_at_parameter(0.5);
-        // 接線ベクトルは方向ベクトル×長さ
-        assert_eq!(tangent, Vector3D::new(10.0, 0.0, 0.0));
+        // 接線は正規化された方向ベクトル（2D の線分と同じ）
+        assert!((tangent - Vector3D::new(1.0, 0.0, 0.0)).length() < TOLERANCE_F64);
     }
 
     #[test]
@@ -299,7 +306,7 @@ mod tests {
 
         assert_eq!(segment.direction(), Vector3D::unit_x());
 
-        let reversed = segment.reverse_direction();
+        let reversed = segment.reverse();
         assert_eq!(reversed.start(), Point3D::new(10.0, 0.0, 0.0));
         assert_eq!(reversed.end(), Point3D::new(0.0, 0.0, 0.0));
     }
