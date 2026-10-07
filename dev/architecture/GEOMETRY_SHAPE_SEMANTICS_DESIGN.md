@@ -211,6 +211,20 @@ topology は primitive / mother curve の native parameter semantics を保存�
 
 したがって、primitive 側の `point_at_parameter` と topology 側の edge-local parameter を同一視しない。
 
+## 包含判定の規約
+
+包含判定（`contains_point` / `contains_aabb` / `contains_angle` 等）は、**境界を含む閉集合**として判定する。
+
+| 対象 | 判定 |
+|---|---|
+| 領域・立体（AABB、矩形、三角形、円板、球、楕円体、円柱、円錐、トーラス等） | 内部または境界上なら含む。境界上の点を除外しない（`<=` / `>=` で比較する） |
+| 曲線・曲面（線分、半直線、無限直線、円弧、楕円弧、平面、曲面等） | 曲線・曲面上にあるかを許容誤差付きで判定する。端点・縁も含む |
+| 角度範囲（`contains_angle`） | 範囲の両端を含む |
+
+- 許容誤差は `analysis` の許容誤差 API（`geo_contracts::default_distance_tolerance` 等）を使う
+- 形状の公開判定ではない内部のアルゴリズム判定（ボクセル Octree の保守的な判定等）は対象外とする
+- 閉曲線（円・楕円）の `contains_point` が「領域の内部」と「曲線上」のどちらを表すかは形状間で統一されておらず、[#774](https://github.com/RedRing2020/RedRing/issues/774) で定める
+
 ## 今回の棚卸しで見えた #558 の設計対象
 
 次段では、上記の shape 横断分類を前提に、少なくとも次を trait 境界文書側で整理する必要がある。

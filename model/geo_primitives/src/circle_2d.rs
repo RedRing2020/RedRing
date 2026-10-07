@@ -91,10 +91,10 @@ impl<T: Scalar> Circle2D<T> {
         T::PI * self.radius * self.radius
     }
 
-    /// 点が円内部にあるか判定
+    /// 点が円の内部または円周上にあるか判定（境界を含む）
     pub fn contains_point(&self, point: Point2D<T>) -> bool {
         let distance_squared = point.distance_squared_to(&self.center);
-        distance_squared < self.radius * self.radius
+        distance_squared <= self.radius * self.radius
     }
 
     /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) で円周上の点を取得
