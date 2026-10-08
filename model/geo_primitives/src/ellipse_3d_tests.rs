@@ -157,4 +157,41 @@ mod tests {
         assert!(closest.1.abs() < 1e-4);
         assert!(closest.2.abs() < 1e-4);
     }
+
+    #[test]
+    fn test_distance_and_closest_point_to_curve() {
+        use analysis::test_constants::TOLERANCE_F64;
+        use geo_contracts::Ellipse3DDistance;
+
+        // XY 平面上、長半軸 2（X 軸方向）・短半軸 1 の楕円
+        let ellipse = Ellipse3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            2.0,
+            1.0,
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        // 中心から楕円までの距離は短半軸の長さ
+        let center_distance = Ellipse3DDistance::distance_to_point(&ellipse, (0.0, 0.0, 0.0));
+        assert!((center_distance - 1.0).abs() < TOLERANCE_F64);
+
+        // 平面内部の点。距離と最近点は曲線のパラメータ方程式の数値解で求めた値
+        let inside_distance = Ellipse3DDistance::distance_to_point(&ellipse, (1.0, 0.5, 0.0));
+        assert!((inside_distance - 0.349_605_694_569_673).abs() < TOLERANCE_F64);
+
+        // 平面外の点は、平面へ投影した点の最近点を最近点とする
+        let closest = ellipse.closest_point_to(Point3D::new(1.0, 0.5, 3.0));
+        assert!(
+            closest.distance_to(&Point3D::new(
+                1.110_726_977_965_884,
+                0.831_607_717_078_608,
+                0.0
+            )) < TOLERANCE_F64
+        );
+        let off_plane_distance = Ellipse3DDistance::distance_to_point(&ellipse, (1.0, 0.5, 3.0));
+        let expected = (0.349_605_694_569_673_f64.powi(2) + 9.0).sqrt();
+        assert!((off_plane_distance - expected).abs() < TOLERANCE_F64);
+    }
 }

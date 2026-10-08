@@ -130,72 +130,51 @@ impl<T: Scalar> Ellipse2D<T> {
         T::PI * (a + b) * (T::ONE + (three * h) / (ten + (four - three * h).sqrt()))
     }
 
-    /// 点が楕円内に含まれるかを判定
+    /// 点が楕円上にあるか判定（楕円までの距離が `tolerance` 以内）
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        let distance_to_boundary = self.distance_to_point(point);
-        distance_to_boundary <= tolerance
+        self.distance_to_point(point) <= tolerance
     }
 
-    /// 点から楕円境界への最短距離
+    /// 点から楕円（曲線）への最短距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        // 楕円の中心を原点とする座標系に変換
-        let translated = Point2D::new(point.x() - self.center.x(), point.y() - self.center.y());
+        let (x_local, y_local) = self.local_coordinates(point);
+        geo_commons::ellipse_2d_distance_to_point(
+            x_local,
+            y_local,
+            self.semi_major,
+            self.semi_minor,
+        )
+    }
 
-        // 回転を考慮した座標変換
+    /// 点に最も近い楕円上の点を取得
+    pub fn closest_point_to(&self, point: &Point2D<T>) -> Point2D<T> {
+        let (x_local, y_local) = self.local_coordinates(point);
+        let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
+            x_local,
+            y_local,
+            self.semi_major,
+            self.semi_minor,
+        );
+
+        let cos_theta = self.rotation.cos();
+        let sin_theta = self.rotation.sin();
+        Point2D::new(
+            self.center.x() + closest_x * cos_theta - closest_y * sin_theta,
+            self.center.y() + closest_x * sin_theta + closest_y * cos_theta,
+        )
+    }
+
+    /// 中心を原点とし、長軸を x 軸とする楕円の局所座標系での点の座標
+    fn local_coordinates(&self, point: &Point2D<T>) -> (T, T) {
+        let dx = point.x() - self.center.x();
+        let dy = point.y() - self.center.y();
         let cos_theta = self.rotation.cos();
         let sin_theta = self.rotation.sin();
 
-        let x_rot = translated.x() * cos_theta + translated.y() * sin_theta;
-        let y_rot = -translated.x() * sin_theta + translated.y() * cos_theta;
-
-        // geo_commonsの共通実装を使用
-        geo_commons::ellipse_2d_distance_to_point(x_rot, y_rot, self.semi_major, self.semi_minor)
-    }
-
-    /// 点に最も近い楕円境界上の点を取得
-    pub fn closest_point_to(&self, point: &Point2D<T>) -> Point2D<T> {
-        let mut best_parameter = T::ZERO;
-        let mut best_point = self.point_at_parameter(T::ZERO);
-        let mut best_distance_sq = point.distance_squared_to(&best_point);
-        let sample_count = 180usize;
-
-        for index in 1..sample_count {
-            let parameter =
-                T::from_f64((index as f64) * std::f64::consts::TAU / sample_count as f64);
-            let candidate = self.point_at_parameter(parameter);
-            let candidate_distance_sq = point.distance_squared_to(&candidate);
-            if candidate_distance_sq < best_distance_sq {
-                best_parameter = parameter;
-                best_point = candidate;
-                best_distance_sq = candidate_distance_sq;
-            }
-        }
-
-        let mut delta = T::TAU / T::from_f64(sample_count as f64);
-        for _ in 0..24 {
-            let prev_parameter = Self::normalize_parameter(best_parameter - delta);
-            let next_parameter = Self::normalize_parameter(best_parameter + delta);
-
-            let prev_point = self.point_at_parameter(prev_parameter);
-            let prev_distance_sq = point.distance_squared_to(&prev_point);
-            if prev_distance_sq < best_distance_sq {
-                best_parameter = prev_parameter;
-                best_point = prev_point;
-                best_distance_sq = prev_distance_sq;
-            }
-
-            let next_point = self.point_at_parameter(next_parameter);
-            let next_distance_sq = point.distance_squared_to(&next_point);
-            if next_distance_sq < best_distance_sq {
-                best_parameter = next_parameter;
-                best_point = next_point;
-                best_distance_sq = next_distance_sq;
-            }
-
-            delta /= T::from_f64(2.0);
-        }
-
-        best_point
+        (
+            dx * cos_theta + dy * sin_theta,
+            -dx * sin_theta + dy * cos_theta,
+        )
     }
 
     /// Primitive 局所座標系の angle parameter `t` (`0 <= t < 2π`) で楕円上の点を取得
@@ -292,17 +271,6 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 短軸方向の単位ベクトルを取得
     pub fn minor_axis_direction(&self) -> Vector2D<T> {
         Vector2D::new(-self.rotation.sin(), self.rotation.cos())
-    }
-
-    fn normalize_parameter(parameter: T) -> T {
-        let mut normalized = parameter;
-        while normalized < T::ZERO {
-            normalized += T::TAU;
-        }
-        while normalized >= T::TAU {
-            normalized -= T::TAU;
-        }
-        normalized
     }
 }
 

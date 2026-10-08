@@ -50,12 +50,13 @@ mod tests {
         let ellipse = Ellipse2D::new(center, 4.0, 2.0, 0.0).expect("楕円の作成に失敗");
         let tolerance = TOLERANCE_F64;
 
-        // 中心点
-        assert!(ellipse.contains_point(&center, tolerance));
+        // 楕円上の点
+        assert!(ellipse.contains_point(&Point2D::new(4.0, 0.0), tolerance));
+        assert!(ellipse.contains_point(&Point2D::new(0.0, -2.0), tolerance));
 
-        // 内部の点
-        let inside = Point2D::new(1.0, 0.5);
-        assert!(ellipse.contains_point(&inside, tolerance));
+        // 楕円が囲む領域の内部の点は楕円上にない
+        assert!(!ellipse.contains_point(&center, tolerance));
+        assert!(!ellipse.contains_point(&Point2D::new(1.0, 0.5), tolerance));
 
         // 外部の点
         let outside = Point2D::new(5.0, 3.0);
@@ -86,5 +87,33 @@ mod tests {
         let regular_ellipse = Ellipse2D::new(center, 5.0, 2.0, 0.0).expect("楕円の作成に失敗");
         assert!(regular_ellipse.to_circle().is_none());
         assert!(!regular_ellipse.is_circle(TOLERANCE_F64));
+    }
+
+    #[test]
+    fn test_ellipse_distance_and_closest_point_to_curve() {
+        // 長半軸 2・短半軸 1 の楕円を 30° 回転し、中心を (1, -1) に置く
+        let rotation = std::f64::consts::FRAC_PI_6;
+        let center = Point2D::new(1.0, -1.0);
+        let ellipse = Ellipse2D::new(center, 2.0, 1.0, rotation).expect("楕円の作成に失敗");
+        let to_world = |x: f64, y: f64| {
+            Point2D::new(
+                center.x() + x * rotation.cos() - y * rotation.sin(),
+                center.y() + x * rotation.sin() + y * rotation.cos(),
+            )
+        };
+
+        // 中心から楕円までの距離は短半軸の長さ
+        assert!((ellipse.distance_to_point(&center) - 1.0).abs() < TOLERANCE_F64);
+
+        // 局所座標 (1, 0.5) の内部の点。距離と最近点は曲線のパラメータ方程式の数値解で求めた値
+        let inside = to_world(1.0, 0.5);
+        assert!((ellipse.distance_to_point(&inside) - 0.349_605_694_569_673).abs() < TOLERANCE_F64);
+        let closest = ellipse.closest_point_to(&inside);
+        let expected = to_world(1.110_726_977_965_884, 0.831_607_717_078_608);
+        assert!(closest.distance_to(&expected) < TOLERANCE_F64);
+        assert!(
+            (closest.distance_to(&inside) - ellipse.distance_to_point(&inside)).abs()
+                < TOLERANCE_F64
+        );
     }
 }

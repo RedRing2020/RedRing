@@ -302,8 +302,8 @@ fn ellipse_point_intersection_uses_distance() {
     let outside = ellipse3d_point3d_intersection(&ellipse, &outside_plane, standard_distance_tol());
     assert_eq!(on.topology, IntersectionTopology::Crossing);
     assert!(matches!(on.geometry, IntersectionGeometry::Point(p) if p == on_ellipse));
-    assert_eq!(inside.topology, IntersectionTopology::Crossing);
-    assert!(matches!(inside.geometry, IntersectionGeometry::Point(p) if p == inside_ellipse));
+    // 楕円は曲線として扱うため、内部の点は交差しない（円と同じ）
+    assert_eq!(inside.topology, IntersectionTopology::Disjoint);
     assert_eq!(outside.topology, IntersectionTopology::Disjoint);
 }
 
