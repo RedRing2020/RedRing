@@ -221,4 +221,15 @@ mod tests {
         assert!((point.y() - 1.0).abs() < 1e-10);
         assert!((point.z() - 1.0).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_contains_point_behind_origin_uses_tolerance() {
+        let ray = Ray3D::new(Point3D::new(0.0, 0.0, 0.0), Vector3D::new(1.0, 0.0, 0.0)).unwrap();
+        let tolerance = 1e-3;
+
+        // 起点の後方も、起点までの距離が許容誤差以内なら Ray 上とする
+        assert!(ray.contains_point(&Point3D::new(-0.5 * tolerance, 0.0, 0.0), tolerance));
+        assert!(!ray.contains_point(&Point3D::new(-2.0 * tolerance, 0.0, 0.0), tolerance));
+        assert!(ray.contains_point(&Point3D::new(5.0, 0.5 * tolerance, 0.0), tolerance));
+    }
 }

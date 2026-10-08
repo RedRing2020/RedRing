@@ -2,6 +2,7 @@
 
 use crate::{Circle2D, Point2D, Vector2D};
 use analysis::test_constants::{TOLERANCE_F32, TOLERANCE_F64};
+use geo_contracts::PointClassification;
 use std::f64::consts::{PI, TAU};
 
 /// 基本作成テスト
@@ -54,9 +55,9 @@ fn test_from_three_points() {
     assert!((circle.radius_internal() - 2.5f64).abs() < TOLERANCE_F64);
 
     // 3点すべてが円上にあることを確認
-    assert!(circle.point_on_circumference(p1));
-    assert!(circle.point_on_circumference(p2));
-    assert!(circle.point_on_circumference(p3));
+    assert!(circle.contains_point(&p1, TOLERANCE_F64));
+    assert!(circle.contains_point(&p2, TOLERANCE_F64));
+    assert!(circle.contains_point(&p3, TOLERANCE_F64));
 }
 
 /// 共線点からの外接円テスト（失敗ケース）
@@ -137,18 +138,80 @@ fn test_point_at_parameter() {
 fn test_point_containment() {
     let circle = Circle2D::new(Point2D::new(2.0, 3.0), 5.0).unwrap();
 
-    // 中心点（内部）
-    assert!(circle.contains_point(Point2D::new(2.0, 3.0)));
-
-    // 円上の点
+    // contains_point は円周上にあるかを判定する
+    let center = Point2D::new(2.0, 3.0);
     let on_circle = Point2D::new(7.0, 3.0); // 右端
-    assert!(circle.point_on_circumference(on_circle));
-    assert!(circle.contains_point(on_circle));
-
-    // 外部の点
     let outside = Point2D::new(10.0, 3.0);
-    assert!(!circle.contains_point(outside));
-    assert!(!circle.point_on_circumference(outside));
+    assert!(!circle.contains_point(&center, TOLERANCE_F64));
+    assert!(circle.contains_point(&on_circle, TOLERANCE_F64));
+    assert!(!circle.contains_point(&outside, TOLERANCE_F64));
+
+    // classify_point は円が囲む領域に対して分類する
+    assert_eq!(
+        circle.classify_point(&center, TOLERANCE_F64),
+        PointClassification::Inside
+    );
+    assert_eq!(
+        circle.classify_point(&on_circle, TOLERANCE_F64),
+        PointClassification::OnBoundary
+    );
+    assert_eq!(
+        circle.classify_point(&outside, TOLERANCE_F64),
+        PointClassification::Outside
+    );
+}
+
+/// 許容誤差の境目での分類テスト
+#[test]
+fn test_point_classification_tolerance() {
+    let circle = Circle2D::new(Point2D::new(0.0, 0.0), 5.0).unwrap();
+    let tolerance = 1e-3;
+
+    // 円周までの距離が許容誤差以内なら内側・外側のどちらからでも OnBoundary
+    for x in [5.0 - 0.5 * tolerance, 5.0 + 0.5 * tolerance] {
+        let point = Point2D::new(x, 0.0);
+        assert_eq!(
+            circle.classify_point(&point, tolerance),
+            PointClassification::OnBoundary
+        );
+        assert!(circle.contains_point(&point, tolerance));
+    }
+
+    // 許容誤差を超えれば Inside / Outside
+    let inside = Point2D::new(5.0 - 2.0 * tolerance, 0.0);
+    let outside = Point2D::new(5.0 + 2.0 * tolerance, 0.0);
+    assert_eq!(
+        circle.classify_point(&inside, tolerance),
+        PointClassification::Inside
+    );
+    assert_eq!(
+        circle.classify_point(&outside, tolerance),
+        PointClassification::Outside
+    );
+    assert!(!circle.contains_point(&inside, tolerance));
+    assert!(!circle.contains_point(&outside, tolerance));
+}
+
+/// trait定義の包含判定・分類テスト
+#[test]
+fn test_containment_trait() {
+    use geo_contracts::Circle2DContainment;
+
+    let circle = Circle2D::new(Point2D::new(0.0_f64, 0.0), 1.0).unwrap();
+    assert!(Circle2DContainment::contains_point(&circle, (1.0, 0.0)));
+    assert!(!Circle2DContainment::contains_point(&circle, (0.0, 0.0)));
+    assert_eq!(
+        Circle2DContainment::classify_point(&circle, (0.0, 0.0)),
+        PointClassification::Inside
+    );
+    assert_eq!(
+        Circle2DContainment::classify_point(&circle, (0.0, 1.0)),
+        PointClassification::OnBoundary
+    );
+    assert_eq!(
+        Circle2DContainment::classify_point(&circle, (2.0, 0.0)),
+        PointClassification::Outside
+    );
 }
 
 /// 距離計算テスト
@@ -277,15 +340,24 @@ fn test_basic_containment() {
     let on_boundary = Point2D::new(3.0, 1.0); // 円上
     let outside = Point2D::new(5.0, 1.0); // 外部
 
-    // 包含判定
-    assert!(circle.contains_point(inside));
-    assert!(circle.contains_point(on_boundary));
-    assert!(!circle.contains_point(outside));
+    // 円周上の判定
+    assert!(!circle.contains_point(&inside, TOLERANCE_F64));
+    assert!(circle.contains_point(&on_boundary, TOLERANCE_F64));
+    assert!(!circle.contains_point(&outside, TOLERANCE_F64));
 
-    // 境界判定
-    assert!(!circle.point_on_circumference(inside));
-    assert!(circle.point_on_circumference(on_boundary));
-    assert!(!circle.point_on_circumference(outside));
+    // 領域に対する分類
+    assert_eq!(
+        circle.classify_point(&inside, TOLERANCE_F64),
+        PointClassification::Inside
+    );
+    assert_eq!(
+        circle.classify_point(&on_boundary, TOLERANCE_F64),
+        PointClassification::OnBoundary
+    );
+    assert_eq!(
+        circle.classify_point(&outside, TOLERANCE_F64),
+        PointClassification::Outside
+    );
 
     // 距離計算（円周までの距離のため、中心からは半径）
     assert_eq!(circle.distance_to_point(inside), 2.0);

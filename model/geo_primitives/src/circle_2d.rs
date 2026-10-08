@@ -7,8 +7,8 @@ use crate::{Direction2D, Point2D};
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
     Circle2DConstructor, Circle2DContainment, Circle2DDerived, Circle2DDistance,
-    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance, PrimitiveKind,
-    PrimitiveMetadata, Scalar,
+    Circle2DEvaluation, Circle2DProjection, Circle2DProperties, CrossDistance, PointClassification,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元円
@@ -91,10 +91,23 @@ impl<T: Scalar> Circle2D<T> {
         T::PI * self.radius * self.radius
     }
 
-    /// 点が円の内部または円周上にあるか判定（境界を含む）
-    pub fn contains_point(&self, point: Point2D<T>) -> bool {
-        let distance_squared = point.distance_squared_to(&self.center);
-        distance_squared <= self.radius * self.radius
+    /// 点が円周上にあるか判定（円周までの距離が `tolerance` 以内）
+    pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
+        self.distance_to_point(*point) <= tolerance
+    }
+
+    /// 円が囲む領域に対する点の位置を分類する
+    ///
+    /// 円周までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は中心からの距離で内側・外側に分ける。
+    pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
+        let center_distance = point.distance_to(&self.center);
+        if (center_distance - self.radius).abs() <= tolerance {
+            PointClassification::OnBoundary
+        } else if center_distance < self.radius {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// Primitive 局所座標系の local angle parameter `t` (`0 <= t <= 2π`) で円周上の点を取得
@@ -118,12 +131,6 @@ impl<T: Scalar> Circle2D<T> {
         self.radius <= default_distance_tolerance::<T>()
     }
 
-    /// 点が円周上にあるか判定
-    pub fn point_on_circumference(&self, point: Point2D<T>) -> bool {
-        let distance = point.distance_to(&self.center);
-        (distance - self.radius).abs() <= default_distance_tolerance::<T>()
-    }
-
     /// 点に最も近い円周上の点を取得
     pub fn closest_point_to(&self, point: Point2D<T>) -> Point2D<T> {
         let dx = point.x() - self.center.x();
@@ -141,7 +148,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 円周上の点を Circle core の local angle parameter (`0 <= t < 2π`) へ写像する
     pub fn parameter_at_point(&self, point: Point2D<T>) -> Option<T> {
-        if !self.point_on_circumference(point) {
+        if !self.contains_point(&point, default_distance_tolerance::<T>()) {
             return None;
         }
 
@@ -321,12 +328,12 @@ impl<T: Scalar> Circle2DDerived<T> for Circle2D<T> {
 impl<T: Scalar> Circle2DContainment<T> for Circle2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
-        Circle2D::contains_point(self, p)
+        Circle2D::contains_point(self, &p, default_distance_tolerance::<T>())
     }
 
-    fn point_on_circumference(&self, point: (T, T)) -> bool {
+    fn classify_point(&self, point: (T, T)) -> PointClassification {
         let p = Point2D::new(point.0, point.1);
-        Circle2D::point_on_circumference(self, p)
+        Circle2D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 

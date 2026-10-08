@@ -194,4 +194,54 @@ mod tests {
         let expected = (0.349_605_694_569_673_f64.powi(2) + 9.0).sqrt();
         assert!((off_plane_distance - expected).abs() < TOLERANCE_F64);
     }
+
+    #[test]
+    fn test_contains_and_classify_point() {
+        use geo_contracts::{Ellipse3DContainment, PointClassification};
+
+        // XY 平面上、長半軸 2（X 軸方向）・短半軸 1 の楕円
+        let ellipse = Ellipse3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            2.0,
+            1.0,
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let tolerance = 1e-3;
+
+        // contains_point は楕円上にあるかを判定する（同名で領域を判定するメソッドはない）
+        assert!(ellipse.contains_point(&Point3D::new(2.0, 0.0, 0.0), tolerance));
+        assert!(!ellipse.contains_point(&Point3D::new(0.0, 0.0, 0.0), tolerance));
+
+        let classify =
+            |x: f64, y: f64, z: f64| ellipse.classify_point(&Point3D::new(x, y, z), tolerance);
+        assert_eq!(classify(0.0, 0.0, 0.0), PointClassification::Inside);
+        assert_eq!(classify(0.0, 1.0, 0.0), PointClassification::OnBoundary);
+        assert_eq!(classify(0.0, 1.5, 0.0), PointClassification::Outside);
+
+        // 平面外の点
+        assert_eq!(
+            classify(2.0, 0.0, 0.5 * tolerance),
+            PointClassification::OnBoundary
+        );
+        assert_eq!(
+            classify(0.0, 0.0, 0.5 * tolerance),
+            PointClassification::Inside
+        );
+        assert_eq!(
+            classify(0.0, 0.0, 2.0 * tolerance),
+            PointClassification::Outside
+        );
+
+        // trait定義は既定の距離トレランスで判定する
+        assert!(Ellipse3DContainment::contains_point(
+            &ellipse,
+            (-2.0, 0.0, 0.0)
+        ));
+        assert_eq!(
+            Ellipse3DContainment::classify_point(&ellipse, (0.5, 0.0, 0.0)),
+            PointClassification::Inside
+        );
+    }
 }

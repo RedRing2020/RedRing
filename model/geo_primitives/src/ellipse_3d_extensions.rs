@@ -183,29 +183,4 @@ impl<T: Scalar> Ellipse3D<T> {
         let t = v_coord.atan2(u_coord);
         Some(if t < T::ZERO { t + T::TAU } else { t })
     }
-
-    /// 点が楕円の内部にあるかを判定
-    pub fn contains_point(&self, point: &Point3D<T>) -> bool {
-        let to_point = Vector3D::new(
-            point.x() - self.center_internal().x(),
-            point.y() - self.center_internal().y(),
-            point.z() - self.center_internal().z(),
-        );
-
-        // 楕円の局所座標系での座標
-        let u_coord = to_point.dot(&self.major_axis_direction());
-        let v_coord = to_point.dot(&self.minor_axis_direction());
-        let w_coord = to_point.dot(&self.normal());
-
-        // 楕円平面からの距離チェック
-        if w_coord.abs() > default_distance_tolerance::<T>() {
-            return false;
-        }
-
-        // 楕円の方程式: (u/a)² + (v/b)² <= 1
-        let u_normalized = u_coord / self.semi_major_internal();
-        let v_normalized = v_coord / self.semi_minor_internal();
-
-        u_normalized * u_normalized + v_normalized * v_normalized <= T::ONE
-    }
 }

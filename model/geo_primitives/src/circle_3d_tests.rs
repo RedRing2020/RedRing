@@ -209,4 +209,58 @@ mod tests {
             assert_approx_eq(distance, radius, 1e-10);
         }
     }
+
+    #[test]
+    fn test_contains_and_classify_point() {
+        use geo_contracts::{Circle3DContainment, PointClassification};
+
+        // XY 平面上、中心 (1, 2, 3)・半径 2 の円
+        let circle = Circle3D::new(
+            Point3D::new(1.0_f64, 2.0, 3.0),
+            Direction3D::from_vector(Vector3D::unit_z()).unwrap(),
+            2.0,
+        )
+        .unwrap();
+        let tolerance = 1e-3;
+
+        // contains_point は円周上にあるかを判定する
+        assert!(circle.contains_point(&Point3D::new(3.0, 2.0, 3.0), tolerance));
+        assert!(!circle.contains_point(&Point3D::new(1.0, 2.0, 3.0), tolerance));
+
+        let classify =
+            |x: f64, y: f64, z: f64| circle.classify_point(&Point3D::new(x, y, z), tolerance);
+        assert_eq!(classify(1.0, 2.0, 3.0), PointClassification::Inside);
+        assert_eq!(classify(3.0, 2.0, 3.0), PointClassification::OnBoundary);
+        assert_eq!(classify(4.0, 2.0, 3.0), PointClassification::Outside);
+
+        // 円周までの距離が許容誤差以内なら、平面外でも OnBoundary
+        assert_eq!(
+            classify(3.0, 2.0, 3.0 + 0.5 * tolerance),
+            PointClassification::OnBoundary
+        );
+        assert_eq!(
+            classify(3.0 - 0.5 * tolerance, 2.0, 3.0),
+            PointClassification::OnBoundary
+        );
+
+        // 平面からの距離が許容誤差を超える点は、円の内側の上方でも Outside
+        assert_eq!(
+            classify(1.0, 2.0, 3.0 + 2.0 * tolerance),
+            PointClassification::Outside
+        );
+        assert_eq!(
+            classify(1.0, 2.0, 3.0 + 0.5 * tolerance),
+            PointClassification::Inside
+        );
+
+        // trait定義は既定の距離トレランスで判定する
+        assert!(Circle3DContainment::contains_point(
+            &circle,
+            (1.0, 4.0, 3.0)
+        ));
+        assert_eq!(
+            Circle3DContainment::classify_point(&circle, (1.0, 2.0, 3.0)),
+            PointClassification::Inside
+        );
+    }
 }

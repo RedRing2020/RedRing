@@ -9,8 +9,8 @@ use crate::{
 use geo_contracts::{default_angle_tolerance, default_distance_tolerance};
 use geo_contracts::{
     Ellipse3DConstructor, Ellipse3DContainment, Ellipse3DDerived, Ellipse3DDistance,
-    Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PrimitiveKind,
-    PrimitiveMetadata, Scalar,
+    Ellipse3DEvaluation, Ellipse3DProjection, Ellipse3DProperties, PointClassification,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -230,6 +230,34 @@ impl<T: Scalar> Ellipse3D<T> {
             self.semi_major_axis,
             self.semi_minor_axis,
         )
+    }
+
+    /// 点が楕円上にあるか判定（楕円までの距離が `tolerance` 以内）
+    pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        self.distance_to_point_3d_internal((point.x(), point.y(), point.z())) <= tolerance
+    }
+
+    /// 楕円が平面上に囲む領域に対する点の位置を分類する
+    ///
+    /// 楕円までの距離が `tolerance` 以内なら `OnBoundary` とする。それ以外は、平面からの距離が
+    /// `tolerance` 以内で、平面へ投影した点が楕円の内側にあれば `Inside`、それ以外を `Outside` とする。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        if self.contains_point(point, tolerance) {
+            return PointClassification::OnBoundary;
+        }
+
+        let (x_local, y_local, z_local) = self.local_coordinates(point);
+        if z_local.abs() > tolerance {
+            return PointClassification::Outside;
+        }
+
+        let x_normalized = x_local / self.semi_major_axis;
+        let y_normalized = y_local / self.semi_minor_axis;
+        if x_normalized * x_normalized + y_normalized * y_normalized < T::ONE {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 点に最も近い楕円上の点を取得
@@ -465,6 +493,11 @@ impl<T: Scalar> Ellipse3DEvaluation<T> for Ellipse3D<T> {
 impl<T: Scalar> Ellipse3DContainment<T> for Ellipse3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         self.distance_to_point_3d_internal(point) <= default_distance_tolerance::<T>()
+    }
+
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        let p = Point3D::new(point.0, point.1, point.2);
+        Ellipse3D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 

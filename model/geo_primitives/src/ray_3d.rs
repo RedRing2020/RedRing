@@ -98,19 +98,9 @@ impl<T: Scalar> Ray3D<T> {
     /// * `tolerance` - 許容誤差
     ///
     /// # 戻り値
-    /// Ray上にある場合は true
+    /// Ray までの距離が `tolerance` 以内なら true（起点の後方も起点までの距離で判定する）
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        let to_point = *point - self.origin;
-
-        // 方向が同じかチェック
-        let cross_product = self.direction.cross(&to_point);
-        if cross_product.length() > tolerance {
-            return false;
-        }
-
-        // パラメータが非負であるかチェック
-        let t = self.direction.as_vector().dot(&to_point);
-        t >= -tolerance
+        self.distance_to_point(point) <= tolerance
     }
 
     /// 指定された点に対するパラメータを計算
