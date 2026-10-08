@@ -182,6 +182,15 @@ bounded curve family では、`point_at_parameter` は support shape 全体の n
 - `Arc` / `EllipseArc` の `point_at_angle` は母曲線の native angle parameter を直接指定する evaluation convenience として扱う
 - `contains_angle` は trim 判定の責務であり、`point_at_angle` 自体は total な support evaluation として扱う
 
+`0..=1` の範囲外の `t` の扱いは、support shape が周期的かどうかで分ける。
+
+| Shape | 範囲外の `t` | 理由 |
+| --- | --- | --- |
+| `LineSegment` | 距離トレランス分を超えたら評価できない（`None`） | support line は周期を持たないため、外挿した点は線分から際限なく離れる |
+| `Arc` / `EllipseArc` | 母曲線の angle parameter へ線形写像し、母曲線上の点を返す | 母曲線は周期的な閉曲線のため、外挿しても母曲線上にとどまる |
+
+`LineSegment` の評価範囲の詳細は「LineSegment の意味論」の「正規化パラメータの評価範囲」を参照する。
+
 ### closed curve family: `Circle` / `Ellipse`
 
 closed curve family では、`point_at_parameter` を local angle semantics に統一する。
@@ -313,13 +322,47 @@ topology は primitive / mother curve の native parameter semantics を保存�
 | 始点を返す API（現行: `start()` / `start_point()`） | support line と trim 区間から定まる ideal start endpoint を返す |
 | 終点を返す API（現行: `end()` / `end_point()`） | support line と trim 区間から定まる ideal end endpoint を返す |
 | `length()` | 有限線分 primitive としての長さを返す |
-| `point_at_parameter(t)` | support line 上の評価点を返す |
+| `point_at_parameter(t)` | 正規化パラメータ `t`（始点 0・終点 1）に対応する support line 上の評価点を返す。評価範囲外は `None` |
 | `measure()` | 主語彙にしない。互換の委譲としてのみ扱う |
 
 補足:
 
 - `start/end` と `point_at_parameter(0/1)` は ideal endpoint / evaluation endpoint の関係として整合させる
 - 拘束端点とのずれは primitive API ではなく topology の binding で扱う
+
+### 正規化パラメータの評価範囲
+
+`point_at_parameter(t)` の `t` は、`0..=1` を実際の線分上の範囲として扱う。
+
+| `t` | 結果 |
+| --- | --- |
+| `0 <= t <= 1` | 線分上の点 |
+| `0..=1` からのはみ出しが `ε` 以下 | support line 上に外挿した点 |
+| `0..=1` からのはみ出しが `ε` を超える、または有限でない | `None` |
+
+- `ε` は距離トレランス（`default_distance_tolerance`）を線分の長さで割った値とする
+- これにより、`point_at_parameter` が返す点は常に線分から距離トレランス以内にあり、同じトレランスの `contains_point` で線分上と判定される
+- 浮動小数点誤差による端点付近のわずかなはみ出し（`t = 1 + 1e-16` 等）は失敗にしない
+- 端点に制限（クランプ）しない。範囲外の入力を黙って端点に置き換えると、呼び出し側のパラメータ計算の誤りが隠れ、`parameter_for_point` の逆関数にもならないため
+- 線分の外側の点が必要な場合は、`support_line()` の評価（support line 上の距離パラメータ）を使う
+
+### 2D / 3D 共通の API
+
+`LineSegment2D` と `LineSegment3D` は、次の API を同じ名前・同じ挙動で持つ。
+
+| API | 意味 |
+| --- | --- |
+| `point_at_parameter(t)` | 正規化パラメータでの評価（前節の評価範囲に従う） |
+| `parameter_for_point(p)` | 点を support line に投影した位置の正規化パラメータ。`0..=1` に制限しない |
+| `closest_parameter(p)` | 線分上で点に最も近い点の正規化パラメータ。`0..=1` に制限する |
+| `project_point(p)` | 線分上で点に最も近い点 |
+| `reverse()` | 始点と終点を入れ替えた線分 |
+| `start_param()` / `end_param()` | 始点・終点の support line 上のパラメータ |
+
+- 正規化パラメータは常に始点 0・終点 1 とする。`reverse()` した線分（support line 上で始点のパラメータが終点より大きい線分）でも同じ
+- `point_at_parameter(closest_parameter(p))` は `project_point(p)` と一致する
+- 同じ処理の別名（比率・中心等）は置かない
+- 線分以外の曲線形状を含む API 名の統一は [#781](https://github.com/RedRing2020/RedRing/issues/781) で扱う。始点・終点を返す API 名（`start()` / `start_point()`）の統一も同 Issue で扱う
 
 ### 補助 API の扱い
 
@@ -450,9 +493,9 @@ parameter semantics の正本は「`#558` parameter semantics の正本」を参
 
 ### LineSegment2D/3D の統一方針
 
-- `point_at_parameter` の既存挙動は互換維持する
-- 新規の checked 入口で `0 <= t <= 1` 判定を共通化する
-- 呼び出し側は「範囲外を失敗として扱いたい経路」から checked 入口へ移行する
+- `LineSegment2D/3D` は段階移行の最終段（fail-fast 契約の固定）に到達している
+- `point_at_parameter` 自体が評価範囲を判定して `Option` を返すため、checked 入口は持たない
+- 評価範囲は「LineSegment の意味論」の「正規化パラメータの評価範囲」に従う
 
 ### NURBS 評価の統一方針
 

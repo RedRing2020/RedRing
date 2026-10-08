@@ -150,30 +150,44 @@ impl<T: Scalar> LineSegment2D<T> {
         Vector2D::from_points(start, end)
     }
 
-    /// 正規化されたパラメータ（0〜1）での点を取得
-    pub fn point_at_normalized_parameter(&self, t: T) -> Point2D<T> {
-        if t < T::ZERO || t > T::ONE {
-            if t < T::ZERO {
-                return self.ideal_start();
-            } else {
-                return self.ideal_end();
-            }
+    /// 正規化パラメータ `t`（始点 0・終点 1）での点を取得
+    ///
+    /// `[0, 1]` から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    /// 距離トレランス内のはみ出しは support line 上に外挿する。
+    pub fn point_at_parameter(&self, t: T) -> Option<Point2D<T>> {
+        if !self.is_parameter_in_domain(t) {
+            return None;
         }
 
         let param = self.start_param + t * (self.end_param - self.start_param);
-        self.line.point_at_parameter(param)
+        Some(self.line.point_at_parameter(param))
     }
 
-    /// 点から線分上の点へのパラメータを取得（0〜1範囲外も可能）
+    /// 正規化パラメータ `t` が評価できる範囲内かを判定
+    ///
+    /// 許容するはみ出しは距離トレランスを線分の長さで割った値とし、評価点と線分の距離が
+    /// 距離トレランス以下となるようにする。
+    fn is_parameter_in_domain(&self, t: T) -> bool {
+        if !t.is_finite() {
+            return false;
+        }
+        let margin = default_distance_tolerance::<T>() / self.length();
+        t >= -margin && t <= T::ONE + margin
+    }
+
+    /// 点を support line に投影した位置の正規化パラメータを取得
+    ///
+    /// 始点 0・終点 1 とし、`[0, 1]` に制限しない。
     pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
         let line_param = self.line.parameter_for_point(point);
-        let segment_length = self.end_param - self.start_param;
+        (line_param - self.start_param) / (self.end_param - self.start_param)
+    }
 
-        if segment_length.abs() < T::EPSILON {
-            T::ZERO // 長さゼロの線分
-        } else {
-            (line_param - self.start_param) / segment_length
-        }
+    /// 線分上で点に最も近い点の正規化パラメータを取得
+    ///
+    /// 始点 0・終点 1 とし、`[0, 1]` に制限する。
+    pub fn closest_parameter(&self, point: &Point2D<T>) -> T {
+        self.parameter_for_point(point).max(T::ZERO).min(T::ONE)
     }
 
     /// 点が線分上にあるかを判定
@@ -189,24 +203,17 @@ impl<T: Scalar> LineSegment2D<T> {
     }
 
     /// 点を線分に投影（線分内に制限）
-    pub fn project_point_to_segment(&self, point: &Point2D<T>) -> Point2D<T> {
+    pub fn project_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let projected_param = self.line.parameter_for_point(point);
         let (min_param, max_param) = self.ordered_params();
-
-        let clamped_param = if projected_param < min_param {
-            min_param
-        } else if projected_param > max_param {
-            max_param
-        } else {
-            projected_param
-        };
+        let clamped_param = projected_param.max(min_param).min(max_param);
 
         self.line.point_at_parameter(clamped_param)
     }
 
-    /// 点から境界ボックスの境界への最短距離
+    /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        let projected = self.project_point_to_segment(point);
+        let projected = self.project_point(point);
         point.distance_to(&projected)
     }
 
@@ -226,20 +233,20 @@ impl<T: Scalar> LineSegment2D<T> {
         &self.line
     }
 
-    /// 開始パラメータを取得（Extension用）
-    pub fn start_parameter(&self) -> T {
+    /// 始点の support line 上のパラメータを取得
+    pub fn start_param(&self) -> T {
         self.start_param
     }
 
-    /// 終了パラメータを取得（Extension用）
-    pub fn end_parameter(&self) -> T {
+    /// 終点の support line 上のパラメータを取得
+    pub fn end_param(&self) -> T {
         self.end_param
     }
 }
 
 impl<T: Scalar> LineSegment2D<T> {
     /// 方向を反転
-    pub fn reverse_direction(&self) -> Self {
+    pub fn reverse(&self) -> Self {
         Self {
             line: self.line,
             start_param: self.end_param,
@@ -402,25 +409,15 @@ impl<T: Scalar> LineSegment2DContainment<T> for LineSegment2D<T> {
 }
 
 impl<T: Scalar> LineSegment2DEvaluation<T> for LineSegment2D<T> {
-    fn point_at_parameter(&self, t: T) -> (T, T) {
-        let p = self.point_at_normalized_parameter(t);
-        (p.x(), p.y())
+    fn point_at_parameter(&self, t: T) -> Option<(T, T)> {
+        self.point_at_parameter(t).map(|p| (p.x(), p.y()))
     }
 }
 
 impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {
     fn closest_point_to(&self, point: (T, T)) -> (T, T) {
-        let p = Point2D::new(point.0, point.1);
-        let t = self.parameter_for_point(&p);
-        // パラメータを [0, 1] にクランプ
-        let clamped_t = if t < T::ZERO {
-            T::ZERO
-        } else if t > T::ONE {
-            T::ONE
-        } else {
-            t
-        };
-        self.point_at_parameter(clamped_t)
+        let p = self.project_point(&Point2D::new(point.0, point.1));
+        (p.x(), p.y())
     }
 }
 
@@ -450,8 +447,8 @@ mod tests {
         assert_eq!(segment.start_point(), Point2D::new(0.0, 0.0));
         assert_eq!(segment.end_point(), Point2D::new(2.0, 0.0));
         assert_eq!(
-            segment.point_at_normalized_parameter(0.5),
-            Point2D::new(1.0, 0.0)
+            segment.point_at_parameter(0.5),
+            Some(Point2D::new(1.0, 0.0))
         );
         assert_eq!(segment.length(), 2.0);
         assert_eq!(segment.constraint_length(), 2.0);
@@ -459,38 +456,19 @@ mod tests {
     }
 
     #[test]
-    fn checked_parameter_evaluation_rejects_out_of_range_input() {
+    fn trait_parameter_evaluation_rejects_out_of_domain_input() {
         use geo_contracts::LineSegment2DEvaluation;
 
         let segment = LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0))
             .expect("segment creation should succeed");
 
-        let in_range =
-            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
-                &segment, 0.5,
-            );
-        let out_of_range =
-            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
-                &segment, 1.1,
-            );
+        let evaluate = |t| {
+            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter(&segment, t)
+        };
 
-        assert!(in_range.is_some());
-        assert!(out_of_range.is_none());
-    }
-
-    #[test]
-    fn checked_parameter_evaluation_rejects_nan_input() {
-        use geo_contracts::LineSegment2DEvaluation;
-
-        let segment = LineSegment2D::new(Point2D::new(0.0_f64, 0.0), Point2D::new(2.0, 0.0))
-            .expect("segment creation should succeed");
-
-        let value =
-            <LineSegment2D<f64> as LineSegment2DEvaluation<f64>>::point_at_parameter_checked(
-                &segment,
-                f64::NAN,
-            );
-
-        assert!(value.is_none());
+        assert_eq!(evaluate(0.5), Some((1.0, 0.0)));
+        assert!(evaluate(1.1).is_none());
+        assert!(evaluate(-0.1).is_none());
+        assert!(evaluate(f64::NAN).is_none());
     }
 }

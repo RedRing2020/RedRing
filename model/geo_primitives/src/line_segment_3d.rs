@@ -170,20 +170,7 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
-        let to_point = Vector3D::from_points(&self.line.point_internal(), point);
-        let t = to_point.dot(&self.line.direction_internal());
-        let (min_param, max_param) = self.ordered_params();
-
-        let clamped_param = if t < min_param {
-            min_param
-        } else if t > max_param {
-            max_param
-        } else {
-            t
-        };
-
-        let projected = self.line.point_at_parameter(clamped_param);
-        point.distance_to(&projected)
+        point.distance_to(&self.project_point(point))
     }
 
     /// 点が線分上にあるかを判定
@@ -195,11 +182,6 @@ impl<T: Scalar> LineSegment3D<T> {
         let param = self.line.parameter_for_point(point);
         let (min_param, max_param) = self.ordered_params();
         param >= min_param - tolerance && param <= max_param + tolerance
-    }
-
-    /// 線分が退化しているか（長さが0）を判定
-    pub fn is_degenerate(&self, tolerance: T) -> bool {
-        self.length() <= tolerance
     }
 }
 
@@ -320,27 +302,15 @@ impl<T: Scalar> LineSegment3DContainment<T> for LineSegment3D<T> {
 }
 
 impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
-    fn point_at_parameter(&self, t: T) -> (T, T, T) {
-        let param = self.start_param + t * (self.end_param - self.start_param);
-        let p = self.line.point_at_parameter(param);
-        (p.x(), p.y(), p.z())
+    fn point_at_parameter(&self, t: T) -> Option<(T, T, T)> {
+        self.point_at_parameter(t).map(|p| (p.x(), p.y(), p.z()))
     }
 }
 
 impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
     fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = Point3D::new(point.0, point.1, point.2);
-        let line_param = self.line.parameter_for_point(&p);
-        let (min_param, max_param) = self.ordered_params();
-        let clamped_param = if line_param < min_param {
-            min_param
-        } else if line_param > max_param {
-            max_param
-        } else {
-            line_param
-        };
-        let result = self.line.point_at_parameter(clamped_param);
-        (result.x(), result.y(), result.z())
+        let p = self.project_point(&Point3D::new(point.0, point.1, point.2));
+        (p.x(), p.y(), p.z())
     }
 }
 
@@ -399,47 +369,30 @@ mod tests {
         assert_eq!(segment.ideal_end(), Point3D::new(2.0, 0.0, 0.0));
         assert_eq!(segment.start(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(segment.end(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(segment.point_at_parameter(0.5), Point3D::new(1.0, 0.0, 0.0));
+        assert_eq!(
+            segment.point_at_parameter(0.5),
+            Some(Point3D::new(1.0, 0.0, 0.0))
+        );
         assert_eq!(segment.length(), 2.0);
         assert_eq!(segment.constraint_length(), 2.0);
         assert_eq!(segment.ideal_length(), 2.0);
     }
 
     #[test]
-    fn checked_parameter_evaluation_rejects_out_of_range_input() {
+    fn trait_parameter_evaluation_rejects_out_of_domain_input() {
         use geo_contracts::LineSegment3DEvaluation;
 
         let segment =
             LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
                 .expect("segment creation should succeed");
 
-        let in_range =
-            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter_checked(
-                &segment, 0.5,
-            );
-        let out_of_range =
-            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter_checked(
-                &segment, 1.1,
-            );
+        let evaluate = |t| {
+            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter(&segment, t)
+        };
 
-        assert!(in_range.is_some());
-        assert!(out_of_range.is_none());
-    }
-
-    #[test]
-    fn checked_parameter_evaluation_rejects_nan_input() {
-        use geo_contracts::LineSegment3DEvaluation;
-
-        let segment =
-            LineSegment3D::new(Point3D::new(0.0_f64, 0.0, 0.0), Point3D::new(2.0, 0.0, 0.0))
-                .expect("segment creation should succeed");
-
-        let value =
-            <LineSegment3D<f64> as LineSegment3DEvaluation<f64>>::point_at_parameter_checked(
-                &segment,
-                f64::NAN,
-            );
-
-        assert!(value.is_none());
+        assert_eq!(evaluate(0.5), Some((1.0, 0.0, 0.0)));
+        assert!(evaluate(1.1).is_none());
+        assert!(evaluate(-0.1).is_none());
+        assert!(evaluate(f64::NAN).is_none());
     }
 }
