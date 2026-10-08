@@ -2,6 +2,7 @@
 //!
 //! Ellipse の trait定義を capability taxonomy に沿って分離する。
 
+use crate::PointClassification;
 use analysis::abstract_types::Scalar;
 
 /// Ellipse2D の生成 trait
@@ -75,8 +76,11 @@ pub trait Ellipse2DEvaluation<T: Scalar> {
 
 /// Ellipse2D の包含判定
 pub trait Ellipse2DContainment<T: Scalar> {
+    /// 点が楕円上にあるか（既定の距離トレランス）
     fn contains_point(&self, point: (T, T)) -> bool;
-    fn point_on_boundary(&self, point: (T, T)) -> bool;
+
+    /// 楕円が囲む領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T)) -> PointClassification;
 }
 
 /// Ellipse2D の距離計算
@@ -190,11 +194,11 @@ pub trait Ellipse3DEvaluation<T: Scalar> {
 
 /// Ellipse3D の包含判定
 pub trait Ellipse3DContainment<T: Scalar> {
+    /// 点が楕円上にあるか（既定の距離トレランス）
     fn contains_point(&self, point: (T, T, T)) -> bool;
 
-    fn contains_point_3d(&self, point: (T, T, T)) -> bool {
-        self.contains_point(point)
-    }
+    /// 楕円が囲む領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification;
 }
 
 /// Ellipse3D の距離計算

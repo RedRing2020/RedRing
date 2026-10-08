@@ -875,7 +875,7 @@ mod tests {
     #[test]
     fn circle_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint() {
         const CIRCLE_DIRECT_DISTANCE: &str = "circle.distance_to_point_3d";
-        const CIRCLE_DIRECT_CONTAINS: &str = "circle.contains_point_3d";
+        const CIRCLE_DIRECT_CONTAINS: &str = "circle.contains_point";
         const CIRCLE_POINT_ENTRYPOINT: &str = "crate::distance::circle3d_point3d_distance";
 
         fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
@@ -919,7 +919,7 @@ mod tests {
         );
         assert!(
             !intersection_circle_point_section.contains(CIRCLE_DIRECT_CONTAINS),
-            "intersection/primitive_3d.rs must not call circle.contains_point_3d directly"
+            "intersection/primitive_3d.rs must not call circle.contains_point directly"
         );
     }
 

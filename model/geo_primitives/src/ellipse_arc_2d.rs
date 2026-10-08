@@ -131,7 +131,7 @@ impl<T: Scalar> EllipseArc2D<T> {
     /// 点が楕円弧上にあるかを判定
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
         // 1. 点が基底楕円上にあるか
-        if !self.ellipse.on_boundary(point, tolerance) {
+        if !self.ellipse.contains_point(point, tolerance) {
             return false;
         }
 

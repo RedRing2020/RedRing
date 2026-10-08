@@ -1,6 +1,6 @@
 //! Circle contracts.
 
-use crate::Scalar;
+use crate::{PointClassification, Scalar};
 
 pub trait Circle2DConstructor<T: Scalar> {
     fn new(center: (T, T), radius: T) -> Option<Self>
@@ -103,8 +103,11 @@ pub trait Circle2DEvaluation<T: Scalar> {
 }
 
 pub trait Circle2DContainment<T: Scalar> {
+    /// 点が円周上にあるか（既定の距離トレランス）
     fn contains_point(&self, point: (T, T)) -> bool;
-    fn point_on_circumference(&self, point: (T, T)) -> bool;
+
+    /// 円が囲む領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T)) -> PointClassification;
 }
 
 pub trait Circle2DDistance<T: Scalar> {
@@ -129,8 +132,11 @@ pub trait Circle3DEvaluation<T: Scalar> {
 }
 
 pub trait Circle3DContainment<T: Scalar> {
+    /// 点が円周上にあるか（既定の距離トレランス）
     fn contains_point(&self, point: (T, T, T)) -> bool;
-    fn point_on_circumference(&self, point: (T, T, T)) -> bool;
+
+    /// 円が囲む領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification;
 }
 
 pub trait Circle3DDistance<T: Scalar> {

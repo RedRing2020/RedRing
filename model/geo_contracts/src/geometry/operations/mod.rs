@@ -16,7 +16,7 @@ pub use intersection::{BasicIntersection, MultipleIntersection, SelfIntersection
 pub use relation::{
     Aabb2DRelation, Aabb3DRelation, AngleBetween, AngularRelation, ClosestPointPair, Contains,
     DirectionalRelation, IntersectsRelation, OnPlaneRelation, ParallelRelation,
-    PerpendicularRelation, PointsTowards, SameLineRelation, SkewRelation,
+    PerpendicularRelation, PointClassification, PointsTowards, SameLineRelation, SkewRelation,
 };
 pub use transform::{
     SimilarityTransform2DCore, SimilarityTransform3DCore, SimilarityTransformable2D,

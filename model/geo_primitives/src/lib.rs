@@ -159,6 +159,8 @@ mod line_segment_2d_tests;
 #[cfg(test)]
 mod line_segment_3d_tests;
 #[cfg(test)]
+mod ray_2d_tests;
+#[cfg(test)]
 mod transform_circular_elliptic_tests;
 #[cfg(test)]
 mod transform_linear_planar_tests;

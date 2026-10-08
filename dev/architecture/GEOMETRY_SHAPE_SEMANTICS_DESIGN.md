@@ -226,13 +226,33 @@ topology は primitive / mother curve の native parameter semantics を保存�
 
 | 対象 | 判定 |
 |---|---|
-| 領域・立体（AABB、矩形、三角形、円板、球、楕円体、円柱、円錐、トーラス等） | 内部または境界上なら含む。境界上の点を除外しない（`<=` / `>=` で比較する） |
-| 曲線・曲面（線分、半直線、無限直線、円弧、楕円弧、平面、曲面等） | 曲線・曲面上にあるかを許容誤差付きで判定する。端点・縁も含む |
+| 領域・立体（AABB、矩形、三角形、球、楕円体、円柱、円錐、トーラス等） | 内部または境界上なら含む。境界上の点を除外しない（`<=` / `>=` で比較する） |
+| 曲線・曲面（線分、半直線、無限直線、円弧、楕円弧、円、楕円、平面、曲面等） | 曲線・曲面上にあるかを許容誤差付きで判定する。端点・縁も含む |
 | 角度範囲（`contains_angle`） | 範囲の両端を含む |
 
 - 許容誤差は `analysis` の許容誤差 API（`geo_contracts::default_distance_tolerance` 等）を使う
 - 形状の公開判定ではない内部のアルゴリズム判定（ボクセル Octree の保守的な判定等）は対象外とする
-- 閉曲線（円・楕円）の `contains_point` が「領域の内部」と「曲線上」のどちらを表すかは形状間で統一されておらず、[#774](https://github.com/RedRing2020/RedRing/issues/774) で定める
+
+### 閉曲線（円・楕円）の包含判定と分類
+
+円・楕円は閉曲線（曲線）であり、`contains_point` は他の曲線と同じく**曲線上にあるか**を判定する。曲線が囲む領域に対する判定は、点の位置の分類 `classify_point` で行う。
+
+- 3D の形状が「面」（`SphericalSurface3D` 等）と「立体」（`SphericalSolid3D` 等）を別の型に分けているのと同じく、曲線の型の `contains_point` は領域を表さない
+- 半直線は、起点の後方の点も Ray までの距離（起点までの距離）で判定する。2D と 3D で同じ
+
+`classify_point(point, tolerance)` は `PointClassification` を返す。
+
+| 結果 | 条件 |
+| --- | --- |
+| `OnBoundary` | 曲線までの距離が `tolerance` 以内 |
+| `Inside` | `OnBoundary` でなく、曲線が囲む領域の内側にある |
+| `Outside` | 上記以外 |
+
+- `contains_point(point, tolerance)` は `classify_point(point, tolerance) == OnBoundary` と一致する。同じ距離で判定するため、2 つの判定が食い違わない
+- 領域の内部（境界を含む）の判定は `classify_point(...) != Outside` とする
+- 3D の円・楕円は、平面上に囲む領域に対して分類する。曲線までの距離が `tolerance` 以内なら平面外でも `OnBoundary` とし、それ以外は、平面からの距離が `tolerance` 以内で平面へ投影した点が内側にあれば `Inside`、それ以外を `Outside` とする
+- trait定義（`Circle2DContainment` 等）の `contains_point` / `classify_point` は既定の距離トレランスで判定する
+- 領域を持つ形状（矩形・三角形・AABB・立体）への `classify_point` の展開は [#785](https://github.com/RedRing2020/RedRing/issues/785) で扱う
 
 ## 今回の棚卸しで見えた #558 の設計対象
 

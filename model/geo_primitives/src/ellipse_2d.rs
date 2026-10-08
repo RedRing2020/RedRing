@@ -8,7 +8,7 @@ use crate::{
 use geo_contracts::{
     default_distance_tolerance, Ellipse2DConstructor, Ellipse2DContainment, Ellipse2DDerived,
     Ellipse2DDistance, Ellipse2DEvaluation, Ellipse2DProjection, Ellipse2DProperties,
-    PrimitiveKind, PrimitiveMetadata, Scalar,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 use geo_contracts::{EllipseAccuracyAnalysis, EllipseAdaptiveCalculation, EllipseCalculation};
 
@@ -135,6 +135,24 @@ impl<T: Scalar> Ellipse2D<T> {
         self.distance_to_point(point) <= tolerance
     }
 
+    /// 楕円が囲む領域に対する点の位置を分類する
+    ///
+    /// 楕円までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は楕円の方程式で内側・外側に分ける。
+    pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
+        if self.contains_point(point, tolerance) {
+            return PointClassification::OnBoundary;
+        }
+
+        let (x_local, y_local) = self.local_coordinates(point);
+        let x_normalized = x_local / self.semi_major;
+        let y_normalized = y_local / self.semi_minor;
+        if x_normalized * x_normalized + y_normalized * y_normalized < T::ONE {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
+    }
+
     /// 点から楕円（曲線）への最短距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         let (x_local, y_local) = self.local_coordinates(point);
@@ -252,12 +270,6 @@ impl<T: Scalar> Ellipse2D<T> {
 }
 
 impl<T: Scalar> Ellipse2D<T> {
-    /// 境界上の点かどうかを判定
-    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        let distance = self.distance_to_point(point);
-        distance <= tolerance
-    }
-
     /// local angle parameter の有効範囲 `[0, 2π]` を返す
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::TAU) // 0 から 2π
@@ -515,11 +527,9 @@ impl<T: Scalar + From<f64>> Ellipse2DContainment<T> for Ellipse2D<T> {
         Ellipse2D::contains_point(self, &p, tolerance)
     }
 
-    fn point_on_boundary(&self, point: (T, T)) -> bool {
+    fn classify_point(&self, point: (T, T)) -> PointClassification {
         let p = Point2D::new(point.0, point.1);
-        let tolerance = default_distance_tolerance::<T>();
-        let dist = Ellipse2D::distance_to_point(self, &p);
-        dist <= tolerance
+        Ellipse2D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 

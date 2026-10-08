@@ -116,4 +116,64 @@ mod tests {
                 < TOLERANCE_F64
         );
     }
+
+    #[test]
+    fn test_ellipse_classify_point() {
+        use geo_contracts::{Ellipse2DContainment, PointClassification};
+
+        // 長半軸 4・短半軸 2 の楕円を 90° 回転（長軸が Y 軸方向）
+        let ellipse = Ellipse2D::new(
+            Point2D::new(0.0, 0.0),
+            4.0,
+            2.0,
+            std::f64::consts::FRAC_PI_2,
+        )
+        .expect("楕円の作成に失敗");
+        let tolerance = 1e-3;
+        let classify = |x: f64, y: f64| ellipse.classify_point(&Point2D::new(x, y), tolerance);
+
+        assert_eq!(classify(0.0, 0.0), PointClassification::Inside);
+        assert_eq!(classify(0.0, 4.0), PointClassification::OnBoundary);
+        assert_eq!(classify(-2.0, 0.0), PointClassification::OnBoundary);
+        assert_eq!(classify(3.0, 0.0), PointClassification::Outside);
+
+        // 許容誤差の境目
+        assert_eq!(
+            classify(0.0, 4.0 - 0.5 * tolerance),
+            PointClassification::OnBoundary
+        );
+        assert_eq!(
+            classify(0.0, 4.0 + 0.5 * tolerance),
+            PointClassification::OnBoundary
+        );
+        assert_eq!(
+            classify(0.0, 4.0 - 2.0 * tolerance),
+            PointClassification::Inside
+        );
+        assert_eq!(
+            classify(0.0, 4.0 + 2.0 * tolerance),
+            PointClassification::Outside
+        );
+
+        // classify_point が OnBoundary のときだけ contains_point が真
+        for (x, y) in [
+            (0.0, 0.0),
+            (0.0, 4.0),
+            (3.0, 0.0),
+            (0.0, 4.0 + 2.0 * tolerance),
+        ] {
+            let point = Point2D::new(x, y);
+            assert_eq!(
+                ellipse.contains_point(&point, tolerance),
+                ellipse.classify_point(&point, tolerance) == PointClassification::OnBoundary
+            );
+        }
+
+        // trait定義は既定の距離トレランスで判定する
+        assert!(Ellipse2DContainment::contains_point(&ellipse, (0.0, -4.0)));
+        assert_eq!(
+            Ellipse2DContainment::classify_point(&ellipse, (1.0, 1.0)),
+            PointClassification::Inside
+        );
+    }
 }

@@ -86,23 +86,9 @@ impl<T: Scalar> Ray2D<T> {
     /// * `tolerance` - 許容誤差
     ///
     /// # 戻り値
-    /// 点が Ray 上にある場合は true
+    /// Ray までの距離が `tolerance` 以内なら true（起点の後方も起点までの距離で判定する）
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        // 点から起点へのベクトル
-        let to_point = *point - self.origin;
-
-        // 方向ベクトルとの内積でパラメータ t を計算
-        let t = to_point.dot(&self.direction);
-
-        // t >= 0 かつ点が直線上にある
-        if t < T::ZERO {
-            return false;
-        }
-
-        // 直線上の点との距離をチェック
-        let projected_point = self.origin + self.direction * t;
-        let distance = point.distance_to(&projected_point);
-        distance <= tolerance
+        self.distance_to_point(point) <= tolerance
     }
 
     /// Ray を InfiniteLine2D に変換

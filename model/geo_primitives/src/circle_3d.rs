@@ -8,7 +8,8 @@ use geo_contracts::default_angle_tolerance;
 use geo_contracts::{default_distance_tolerance, default_kernel_numerical_zero_tolerance};
 use geo_contracts::{
     Circle3DConstructor, Circle3DContainment, Circle3DDerived, Circle3DDistance,
-    Circle3DEvaluation, Circle3DProjection, Circle3DProperties, CrossDistance, Scalar,
+    Circle3DEvaluation, Circle3DProjection, Circle3DProperties, CrossDistance, PointClassification,
+    Scalar,
 };
 
 /// 3次元空間の円
@@ -203,27 +204,32 @@ impl<T: Scalar> Circle3D<T> {
         T::PI * self.radius * self.radius
     }
 
-    /// 点が円内部にあるか判定（3D空間での判定）
-    pub fn contains_point_3d(&self, point: Point3D<T>) -> bool {
-        // 点から中心へのベクトル
-        let to_point = Vector3D::new(
-            point.x() - self.center.x(),
-            point.y() - self.center.y(),
-            point.z() - self.center.z(),
-        );
+    /// 点が円周上にあるか判定（円周までの距離が `tolerance` 以内）
+    pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        self.distance_to_point_3d(*point) <= tolerance
+    }
 
-        // 平面上にあるかチェック（法線との内積が0）
-        let axis_vec = self.axis.as_vector();
-        let dot =
-            to_point.x() * axis_vec.x() + to_point.y() * axis_vec.y() + to_point.z() * axis_vec.z();
-        if dot.abs() > default_distance_tolerance::<T>() {
-            return false; // 平面上にない
+    /// 円が平面上に囲む領域に対する点の位置を分類する
+    ///
+    /// 円周までの距離が `tolerance` 以内なら `OnBoundary` とする。それ以外は、平面からの距離が
+    /// `tolerance` 以内で、平面へ投影した点が円の内側にあれば `Inside`、それ以外を `Outside` とする。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        if self.contains_point(point, tolerance) {
+            return PointClassification::OnBoundary;
         }
 
-        // 中心からの距離をチェック
-        let distance_squared =
-            to_point.x() * to_point.x() + to_point.y() * to_point.y() + to_point.z() * to_point.z();
-        distance_squared <= self.radius * self.radius
+        let to_point = Vector3D::from_points(&self.center, point);
+        let plane_distance = to_point.dot(&self.axis.as_vector());
+        if plane_distance.abs() > tolerance {
+            return PointClassification::Outside;
+        }
+
+        let planar_distance_squared = to_point.length_squared() - plane_distance * plane_distance;
+        if planar_distance_squared < self.radius * self.radius {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 点から円周への距離（3D空間）
@@ -434,13 +440,12 @@ impl<T: Scalar> Circle3DDerived<T> for Circle3D<T> {
 impl<T: Scalar> Circle3DContainment<T> for Circle3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
-        Circle3D::contains_point_3d(self, p)
+        Circle3D::contains_point(self, &p, default_distance_tolerance::<T>())
     }
 
-    fn point_on_circumference(&self, point: (T, T, T)) -> bool {
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
         let p = Point3D::new(point.0, point.1, point.2);
-        let distance = Circle3D::distance_to_point_3d(self, p);
-        distance.abs() <= default_distance_tolerance::<T>()
+        Circle3D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 
