@@ -20,10 +20,10 @@ use super::{
     ray3d_line_segment3d_intersection, ray3d_plane3d_intersection, ray3d_point3d_intersection,
     ray3d_ray3d_intersection, ray3d_spherical_solid3d_intersection,
     ray3d_spherical_surface3d_intersections, ray3d_triangle3d_intersection,
-    spherical_solid3d_ray3d_intersection, spherical_surface3d_ray3d_intersections,
-    torus_surface3d_point3d_intersection, triangle3d_line_segment3d_intersection,
-    triangle3d_point3d_intersection, triangle3d_ray3d_intersection,
-    triangle_mesh3d_point3d_intersection,
+    spherical_solid3d_line_segment3d_intersection, spherical_solid3d_ray3d_intersection,
+    spherical_surface3d_ray3d_intersections, torus_surface3d_point3d_intersection,
+    triangle3d_line_segment3d_intersection, triangle3d_point3d_intersection,
+    triangle3d_ray3d_intersection, triangle_mesh3d_point3d_intersection,
 };
 use crate::{
     Angle, Arc3D, Circle3D, ConicalSolid3D, ConicalSurface3D, CylindricalSurface3D, Direction3D,
@@ -542,6 +542,46 @@ fn spherical_solid_ray_entrypoints_are_symmetric_wrappers() {
         }
         (IntersectionGeometry::None, IntersectionGeometry::None) => {}
         _ => panic!("Geometry mismatch between wrapper entrypoints"),
+    }
+}
+
+#[test]
+fn spherical_solid_line_segment_intersection_handles_reversed_segment() {
+    let tolerance = standard_distance_tol();
+    let sphere = SphericalSolid3D::new(
+        Point3D::new(0.0, 0.0, 0.0),
+        Vector3D::new(0.0, 0.0, 1.0),
+        Vector3D::new(1.0, 0.0, 0.0),
+        2.0,
+    )
+    .unwrap();
+    let segment =
+        LineSegment3D::new(Point3D::new(-10.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
+    let reversed = segment.reverse();
+
+    // reverse した線分（support line 上で始点のパラメータが終点より大きい）でも、
+    // 線分上で球の中心に最も近い点を交点とする
+    for target in [segment, reversed] {
+        let result = spherical_solid3d_line_segment3d_intersection(&sphere, &target, tolerance);
+        match result.geometry {
+            IntersectionGeometry::Point(point) => {
+                assert!(point.distance_to(&Point3D::new(0.0, 0.0, 0.0)) <= tolerance);
+            }
+            _ => panic!("Expected Point geometry"),
+        }
+    }
+
+    // 線分の一部だけが球と交わる場合は、球の中心に近い側の端点を交点とする
+    let partial =
+        LineSegment3D::new(Point3D::new(5.0, 0.0, 0.0), Point3D::new(1.0, 0.0, 0.0)).unwrap();
+    for target in [partial, partial.reverse()] {
+        let result = spherical_solid3d_line_segment3d_intersection(&sphere, &target, tolerance);
+        match result.geometry {
+            IntersectionGeometry::Point(point) => {
+                assert!(point.distance_to(&Point3D::new(1.0, 0.0, 0.0)) <= tolerance);
+            }
+            _ => panic!("Expected Point geometry"),
+        }
     }
 }
 

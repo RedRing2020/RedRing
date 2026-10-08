@@ -224,15 +224,7 @@ fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
     let center = Point3D::new(cx, cy, cz);
     if sphere.distance_to_line_segment(&segment.start(), &segment.end()) <= tolerance {
-        let parameter = segment.line().parameter_for_point(&center);
-        let clamped = if parameter < segment.start_param() {
-            segment.start_param()
-        } else if parameter > segment.end_param() {
-            segment.end_param()
-        } else {
-            parameter
-        };
-        Some(segment.line().point_at_parameter(clamped))
+        Some(segment.project_point(&center))
     } else {
         None
     }
