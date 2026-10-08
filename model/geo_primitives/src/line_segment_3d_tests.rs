@@ -6,7 +6,7 @@ use crate::{LineSegment3D, Point3D, Vector3D};
 mod tests {
     use super::*;
     use analysis::test_constants::TOLERANCE_F64;
-    use geo_contracts::LineSegment3DDerived;
+    use geo_contracts::{default_distance_tolerance, LineSegment3DDerived};
 
     #[test]
     fn test_line_segment3d_creation() {
@@ -88,15 +88,40 @@ mod tests {
 
         // t=0で始点
         let p0 = segment.point_at_parameter(0.0);
-        assert_eq!(p0, Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(p0, Some(Point3D::new(0.0, 0.0, 0.0)));
 
         // t=0.5で中点
         let p05 = segment.point_at_parameter(0.5);
-        assert_eq!(p05, Point3D::new(5.0, 0.0, 0.0));
+        assert_eq!(p05, Some(Point3D::new(5.0, 0.0, 0.0)));
 
         // t=1で終点
         let p1 = segment.point_at_parameter(1.0);
-        assert_eq!(p1, Point3D::new(10.0, 0.0, 0.0));
+        assert_eq!(p1, Some(Point3D::new(10.0, 0.0, 0.0)));
+    }
+
+    #[test]
+    fn test_line_segment3d_point_at_parameter_domain() {
+        let segment = LineSegment3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            Point3D::new(10.0, 0.0, 0.0),
+        )
+        .unwrap();
+        let margin = default_distance_tolerance::<f64>() / segment.length();
+
+        // 距離トレランス内のはみ出しは外挿し、評価点は線分上と判定される
+        for t in [-0.5 * margin, 1.0 + 0.5 * margin] {
+            let point = segment.point_at_parameter(t).unwrap();
+            assert!(segment.contains_point(&point, default_distance_tolerance()));
+        }
+        let beyond_end = segment.point_at_parameter(1.0 + 0.5 * margin).unwrap();
+        assert!(beyond_end.x() > 10.0);
+
+        // 距離トレランスを超えるはみ出しと有限でない値は評価できない
+        assert!(segment.point_at_parameter(1.0 + 2.0 * margin).is_none());
+        assert!(segment.point_at_parameter(-2.0 * margin).is_none());
+        assert!(segment.point_at_parameter(1.5).is_none());
+        assert!(segment.point_at_parameter(f64::NAN).is_none());
+        assert!(segment.point_at_parameter(f64::INFINITY).is_none());
     }
 
     #[test]
@@ -195,6 +220,7 @@ mod tests {
         assert!(
             reversed
                 .point_at_parameter(t)
+                .unwrap()
                 .distance_to(&Point3D::new(3.0, 0.0, 0.0))
                 < TOLERANCE_F64
         );
@@ -228,23 +254,36 @@ mod tests {
     }
 
     #[test]
-    fn test_line_segment3d_split() {
+    fn test_line_segment3d_parameter_for_point() {
         let segment = LineSegment3D::new(
             Point3D::new(0.0_f64, 0.0, 0.0),
             Point3D::new(10.0, 0.0, 0.0),
         )
         .unwrap();
 
-        let first = segment.sub_segment(0.0, 0.3).unwrap();
-        let second = segment.sub_segment(0.3, 1.0).unwrap();
+        // support line への投影位置の正規化パラメータで、[0, 1] に制限しない
+        assert!(
+            (segment.parameter_for_point(&Point3D::new(3.0, 2.0, 0.0)) - 0.3).abs() < TOLERANCE_F64
+        );
+        assert!(
+            (segment.parameter_for_point(&Point3D::new(15.0, 0.0, 0.0)) - 1.5).abs()
+                < TOLERANCE_F64
+        );
+        assert!(
+            (segment.parameter_for_point(&Point3D::new(-5.0, 0.0, 0.0)) + 0.5).abs()
+                < TOLERANCE_F64
+        );
 
-        assert_eq!(first.start(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(first.end(), Point3D::new(3.0, 0.0, 0.0));
-        assert_eq!(second.start(), Point3D::new(3.0, 0.0, 0.0));
-        assert_eq!(second.end(), Point3D::new(10.0, 0.0, 0.0));
-
-        assert!((first.length() - 3.0).abs() < TOLERANCE_F64);
-        assert!((second.length() - 7.0).abs() < TOLERANCE_F64);
+        // reverse した線分では始点 (10, 0, 0) からの比率になる
+        let reversed = segment.reverse();
+        assert!(
+            (reversed.parameter_for_point(&Point3D::new(3.0, 0.0, 0.0)) - 0.7).abs()
+                < TOLERANCE_F64
+        );
+        assert!(
+            (reversed.parameter_for_point(&Point3D::new(15.0, 0.0, 0.0)) + 0.5).abs()
+                < TOLERANCE_F64
+        );
     }
 
     #[test]
@@ -292,7 +331,7 @@ mod tests {
         assert_eq!(max_t, 1.0);
 
         let point = segment.point_at_parameter(0.5);
-        assert_eq!(point, Point3D::new(5.0, 0.0, 0.0));
+        assert_eq!(point, Some(Point3D::new(5.0, 0.0, 0.0)));
 
         let tangent = segment.tangent_at_parameter(0.5);
         // 接線は正規化された方向ベクトル（2D の線分と同じ）

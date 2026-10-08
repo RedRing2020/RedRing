@@ -4,7 +4,7 @@
 //! Core機能は line_segment_3d.rs を参照
 
 use crate::{LineSegment3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{default_distance_tolerance, Scalar};
 
 // Note: Copy trait cannot be implemented due to InfiniteLine3D field not implementing Copy
 
@@ -28,10 +28,29 @@ impl<T: Scalar> LineSegment3D<T> {
             .unwrap_or_else(|| geo_core::Aabb3D::new(start, start))
     }
 
-    /// パラメータでの点を取得
-    pub fn point_at_parameter(&self, t: T) -> Point3D<T> {
-        let param = self.start_param() + t * (self.end_param() - self.start_param());
-        self.line().point_at_parameter(param)
+    /// 正規化パラメータ `t`（始点 0・終点 1）での点を取得
+    ///
+    /// `[0, 1]` から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    /// 距離トレランス内のはみ出しは support line 上に外挿する。
+    pub fn point_at_parameter(&self, t: T) -> Option<Point3D<T>> {
+        if !self.is_parameter_in_domain(t) {
+            return None;
+        }
+
+        let param = self.start_param + t * (self.end_param - self.start_param);
+        Some(self.line.point_at_parameter(param))
+    }
+
+    /// 正規化パラメータ `t` が評価できる範囲内かを判定
+    ///
+    /// 許容するはみ出しは距離トレランスを線分の長さで割った値とし、評価点と線分の距離が
+    /// 距離トレランス以下となるようにする。
+    fn is_parameter_in_domain(&self, t: T) -> bool {
+        if !t.is_finite() {
+            return false;
+        }
+        let margin = default_distance_tolerance::<T>() / self.length();
+        t >= -margin && t <= T::ONE + margin
     }
 
     /// パラメータ範囲を取得
@@ -60,35 +79,6 @@ impl<T: Scalar> LineSegment3D<T> {
         self.contains_point(point, tolerance)
     }
 
-    /// 線分を延長
-    pub fn extend(&self, start_extension: T, end_extension: T) -> Self {
-        let direction = self.direction().normalize();
-        let start_offset = direction * start_extension;
-        let end_offset = direction * end_extension;
-        let new_start = Point3D::new(
-            self.start().x() - start_offset.x(),
-            self.start().y() - start_offset.y(),
-            self.start().z() - start_offset.z(),
-        );
-        let new_end = Point3D::new(
-            self.end().x() + end_offset.x(),
-            self.end().y() + end_offset.y(),
-            self.end().z() + end_offset.z(),
-        );
-        Self::new(new_start, new_end).expect("Extended segment should be valid")
-    }
-
-    /// 線分の一部を取得
-    pub fn sub_segment(&self, start_t: T, end_t: T) -> Option<Self> {
-        if start_t < T::ZERO || end_t > T::ONE || start_t >= end_t {
-            return None;
-        }
-
-        let start_point = self.point_at_parameter(start_t);
-        let end_point = self.point_at_parameter(end_t);
-        Self::new(start_point, end_point)
-    }
-
     /// 点を線分に投影
     pub fn project_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let to_point = Vector3D::from_points(&self.line().point_internal(), point);
@@ -102,50 +92,19 @@ impl<T: Scalar> LineSegment3D<T> {
         self.line().point_at_parameter(clamped_param)
     }
 
-    /// 線分上で点に最も近い点のパラメータを取得
+    /// 点を support line に投影した位置の正規化パラメータを取得
+    ///
+    /// 始点 0・終点 1 とし、`[0, 1]` に制限しない。
+    pub fn parameter_for_point(&self, point: &Point3D<T>) -> T {
+        let line_param = self.line.parameter_for_point(point);
+        (line_param - self.start_param) / (self.end_param - self.start_param)
+    }
+
+    /// 線分上で点に最も近い点の正規化パラメータを取得
+    ///
+    /// 始点 0・終点 1 とし、`[0, 1]` に制限する。reverse した線分（start_param > end_param）でも
+    /// 始点からの比率になるよう、support line のパラメータではなく正規化後の値で制限する。
     pub fn closest_parameter(&self, point: &Point3D<T>) -> T {
-        let to_point = Vector3D::from_points(&self.line().point_internal(), point);
-        let line_param = to_point.dot(&self.line().direction_internal());
-
-        // 始点 0・終点 1 に正規化してから [0, 1] に制限する。reverse した線分（start_param > end_param）でも
-        // 始点からの比率になるよう、support line のパラメータではなく正規化後の値で制限する
-        let ratio = (line_param - self.start_param()) / (self.end_param() - self.start_param());
-        ratio.max(T::ZERO).min(T::ONE)
-    }
-
-    /// 線分が平行かを判定
-    pub fn is_parallel_to(&self, other: &LineSegment3D<T>, tolerance: T) -> bool {
-        let cross_product = self.direction().cross(&other.direction());
-        cross_product.length() <= tolerance
-    }
-
-    /// 線分が垂直かを判定
-    pub fn is_perpendicular_to(&self, other: &LineSegment3D<T>, tolerance: T) -> bool {
-        let dot_product = self.direction().dot(&other.direction()).abs();
-        dot_product <= tolerance
-    }
-
-    /// 線分の中点を取得
-    pub fn center(&self) -> Point3D<T> {
-        self.midpoint()
-    }
-
-    /// 指定した比率での分割点を取得
-    pub fn point_at_ratio(&self, ratio: T) -> Point3D<T> {
-        self.point_at_parameter(ratio)
-    }
-
-    /// 線分を等分割する点を取得
-    pub fn subdivide(&self, segments: usize) -> Vec<Point3D<T>> {
-        if segments == 0 {
-            return vec![];
-        }
-
-        let mut points = Vec::with_capacity(segments + 1);
-        for i in 0..=segments {
-            let t = T::from_f64(i as f64 / segments as f64);
-            points.push(self.point_at_parameter(t));
-        }
-        points
+        self.parameter_for_point(point).max(T::ZERO).min(T::ONE)
     }
 }

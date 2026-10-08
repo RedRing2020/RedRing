@@ -148,19 +148,11 @@ pub trait LineSegment2DContainment<T: Scalar> {
 }
 
 pub trait LineSegment2DEvaluation<T: Scalar> {
-    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する support line 上の evaluation point を取得
+    /// 正規化 parameter `t`（始点 0・終点 1）に対応する support line 上の evaluation point を取得
     ///
     /// `t=0/1` は bounded curve primitive の ideal start/end endpoint と整合する。
-    fn point_at_parameter(&self, t: T) -> (T, T);
-
-    /// checked 入口: 範囲外入力を失敗として扱う評価
-    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T)> {
-        if !t.is_finite() || t < T::ZERO || t > T::ONE {
-            None
-        } else {
-            Some(self.point_at_parameter(t))
-        }
-    }
+    /// `[0, 1]` から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    fn point_at_parameter(&self, t: T) -> Option<(T, T)>;
 }
 
 pub trait LineSegment2DProjection<T: Scalar> {
@@ -187,19 +179,11 @@ pub trait LineSegment3DContainment<T: Scalar> {
 }
 
 pub trait LineSegment3DEvaluation<T: Scalar> {
-    /// 正規化 parameter `t` (`0 <= t <= 1`) に対応する support line 上の evaluation point を取得
+    /// 正規化 parameter `t`（始点 0・終点 1）に対応する support line 上の evaluation point を取得
     ///
     /// `t=0/1` は bounded curve primitive の ideal start/end endpoint と整合する。
-    fn point_at_parameter(&self, t: T) -> (T, T, T);
-
-    /// checked 入口: 範囲外入力を失敗として扱う評価
-    fn point_at_parameter_checked(&self, t: T) -> Option<(T, T, T)> {
-        if !t.is_finite() || t < T::ZERO || t > T::ONE {
-            None
-        } else {
-            Some(self.point_at_parameter(t))
-        }
-    }
+    /// `[0, 1]` から距離トレランス分を超えて外れる `t` と、有限でない `t` は `None` を返す。
+    fn point_at_parameter(&self, t: T) -> Option<(T, T, T)>;
 }
 
 pub trait LineSegment3DProjection<T: Scalar> {
