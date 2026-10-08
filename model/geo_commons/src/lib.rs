@@ -31,6 +31,6 @@ pub use metrics::area_volume::{
 };
 pub use metrics::distance::{
     ellipse_2d_closest_point, ellipse_2d_distance_to_point, ellipse_3d_distance_to_point,
-    line_segment_to_aabb_distance, sphere_to_infinite_line_distance,
-    sphere_to_line_segment_distance, sphere_to_ray_distance,
+    ellipsoid_closest_point, ellipsoid_distance_to_point, line_segment_to_aabb_distance,
+    sphere_to_infinite_line_distance, sphere_to_line_segment_distance, sphere_to_ray_distance,
 };

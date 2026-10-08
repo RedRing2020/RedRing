@@ -374,7 +374,7 @@ impl<T: Scalar> TorusSolid3DContainment<T> for TorusSolid3D<T> {
 impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
-        // 簡易実装: トーラス表面への最短距離の近似計算
+        // トーラスソリッド（領域）までの距離。管の中心円までの距離から管の半径を引き、内部・表面上は 0 とする
         let local = p - *self.origin_internal();
         let z_axis = self.z_axis_internal();
         let z_component = local.dot(&z_axis.as_vector());
@@ -386,7 +386,7 @@ impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
         let torus_center_distance = (radial_distance - self.major_radius_internal()).abs();
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
-        (cross_section_distance - self.minor_radius_internal()).abs()
+        (cross_section_distance - self.minor_radius_internal()).max(T::ZERO)
     }
 }
 
