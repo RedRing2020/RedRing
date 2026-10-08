@@ -219,29 +219,10 @@ impl<T: Scalar> Ellipse3D<T> {
         (T::ZERO, T::TAU)
     }
 
-    /// 3D空間での点から楕円への最短距離を計算（内部実装）
+    /// 3D空間での点から楕円（曲線）への最短距離を計算（内部実装）
     fn distance_to_point_3d_internal(&self, point: (T, T, T)) -> T {
-        let p = Point3D::new(point.0, point.1, point.2);
-
-        // 点を楕円の座標系に変換
-        let translated = Vector3D::new(
-            p.x() - self.center.x(),
-            p.y() - self.center.y(),
-            p.z() - self.center.z(),
-        );
-
-        // 楕円平面への射影
-        let u = self.major_axis_dir.as_vector();
-        let v = self.minor_axis_direction().as_vector();
-
-        let x_local = translated.dot(&u);
-        let y_local = translated.dot(&v);
-
-        // 平面外成分（法線方向）
-        let n = self.normal.as_vector();
-        let z_local = translated.dot(&n);
-
-        // geo_commonsの共通実装を使用
+        let (x_local, y_local, z_local) =
+            self.local_coordinates(&Point3D::new(point.0, point.1, point.2));
         geo_commons::ellipse_3d_distance_to_point(
             x_local,
             y_local,
@@ -251,61 +232,33 @@ impl<T: Scalar> Ellipse3D<T> {
         )
     }
 
-    /// 点に最も近い楕円境界上の点を取得
+    /// 点に最も近い楕円上の点を取得
     pub fn closest_point_to(&self, point: Point3D<T>) -> Point3D<T> {
-        let mut best_parameter = T::ZERO;
-        let mut best_point = self.point_at_parameter(T::ZERO);
-        let mut best_distance_sq = point.distance_squared_to(&best_point);
-        let sample_count = 180usize;
+        let (x_local, y_local, _) = self.local_coordinates(&point);
+        let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
+            x_local,
+            y_local,
+            self.semi_major_axis,
+            self.semi_minor_axis,
+        );
 
-        for index in 1..sample_count {
-            let parameter =
-                T::from_f64((index as f64) * std::f64::consts::TAU / sample_count as f64);
-            let candidate = self.point_at_parameter(parameter);
-            let candidate_distance_sq = point.distance_squared_to(&candidate);
-            if candidate_distance_sq < best_distance_sq {
-                best_parameter = parameter;
-                best_point = candidate;
-                best_distance_sq = candidate_distance_sq;
-            }
-        }
-
-        let mut delta = T::TAU / T::from_f64(sample_count as f64);
-        for _ in 0..24 {
-            let prev_parameter = Self::normalize_parameter(best_parameter - delta);
-            let next_parameter = Self::normalize_parameter(best_parameter + delta);
-
-            let prev_point = self.point_at_parameter(prev_parameter);
-            let prev_distance_sq = point.distance_squared_to(&prev_point);
-            if prev_distance_sq < best_distance_sq {
-                best_parameter = prev_parameter;
-                best_point = prev_point;
-                best_distance_sq = prev_distance_sq;
-            }
-
-            let next_point = self.point_at_parameter(next_parameter);
-            let next_distance_sq = point.distance_squared_to(&next_point);
-            if next_distance_sq < best_distance_sq {
-                best_parameter = next_parameter;
-                best_point = next_point;
-                best_distance_sq = next_distance_sq;
-            }
-
-            delta /= T::from_f64(2.0);
-        }
-
-        best_point
+        let u = self.major_axis_dir.as_vector();
+        let v = self.minor_axis_direction().as_vector();
+        Point3D::new(
+            self.center.x() + u.x() * closest_x + v.x() * closest_y,
+            self.center.y() + u.y() * closest_x + v.y() * closest_y,
+            self.center.z() + u.z() * closest_x + v.z() * closest_y,
+        )
     }
 
-    fn normalize_parameter(parameter: T) -> T {
-        let mut normalized = parameter;
-        while normalized < T::ZERO {
-            normalized += T::TAU;
-        }
-        while normalized >= T::TAU {
-            normalized -= T::TAU;
-        }
-        normalized
+    /// 中心を原点とし、長軸・短軸・法線を軸とする楕円の局所座標系での点の座標
+    fn local_coordinates(&self, point: &Point3D<T>) -> (T, T, T) {
+        let translated = Vector3D::from_points(&self.center, point);
+        (
+            translated.dot(&self.major_axis_dir.as_vector()),
+            translated.dot(&self.minor_axis_direction().as_vector()),
+            translated.dot(&self.normal.as_vector()),
+        )
     }
 }
 

@@ -30,6 +30,7 @@ pub use metrics::area_volume::{
     triangle_area, triangle_area_from_coords,
 };
 pub use metrics::distance::{
-    ellipse_2d_distance_to_point, ellipse_3d_distance_to_point, line_segment_to_aabb_distance,
-    sphere_to_infinite_line_distance, sphere_to_line_segment_distance, sphere_to_ray_distance,
+    ellipse_2d_closest_point, ellipse_2d_distance_to_point, ellipse_3d_distance_to_point,
+    line_segment_to_aabb_distance, sphere_to_infinite_line_distance,
+    sphere_to_line_segment_distance, sphere_to_ray_distance,
 };

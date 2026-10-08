@@ -5,61 +5,158 @@
 use analysis::linalg::vector::Vector3;
 use analysis::Scalar;
 
-/// 2D楕円上の点から任意の点への距離を計算
+/// 楕円の最近点を求める二分法の反復回数の上限
+///
+/// 二分法は区間の中点が端点と一致した時点（浮動小数点で区間をこれ以上分割できない時点）で終了する。
+/// 上限は、f64 の仮数部と指数部の範囲を区間の分割で使い切る回数を上回る値とする。
+const ELLIPSE_CLOSEST_POINT_MAX_BISECTION_ITERATIONS: usize = 1100;
+
+/// 2D楕円（曲線）上で点に最も近い点を計算
 ///
 /// # 引数
-/// * `point_x`, `point_y` - 計算対象の点の座標（楕円のローカル座標系）
-/// * `semi_major` - 長半軸の長さ
-/// * `semi_minor` - 短半軸の長さ
+/// * `point_x`, `point_y` - 計算対象の点の座標（楕円のローカル座標系。中心が原点）
+/// * `semi_major` - x 軸方向の半軸の長さ
+/// * `semi_minor` - y 軸方向の半軸の長さ
 ///
 /// # 戻り値
-/// 楕円境界からの最短距離（点が楕円内部の場合は0）
+/// 楕円上の最近点の座標（楕円のローカル座標系）
 ///
 /// # 計算アルゴリズム
-/// 1. 正規化座標系で点の位置を判定
-/// 2. 楕円内部ならば距離0
-/// 3. 楕円外部ならば境界までの近似距離を計算
+/// 1. 点を第 1 象限へ折り返し、長い半軸を x 軸に揃える
+/// 2. 最近点の条件（点と最近点を結ぶ線分が楕円の法線方向）を 1 変数の単調な方程式にし、その根を二分法で求める
+/// 3. 符号と軸の入れ替えを戻す
+///
+/// 楕円の内部・外部・軸上のいずれの点でも最近点を返す。
+pub fn ellipse_2d_closest_point<T: Scalar>(
+    point_x: T,
+    point_y: T,
+    semi_major: T,
+    semi_minor: T,
+) -> (T, T) {
+    let restore_sign = |value: T, reference: T| {
+        if reference < T::ZERO {
+            -value
+        } else {
+            value
+        }
+    };
+
+    if semi_major >= semi_minor {
+        let (x, y) = ellipse_closest_point_in_first_quadrant(
+            semi_major,
+            semi_minor,
+            point_x.abs(),
+            point_y.abs(),
+        );
+        (restore_sign(x, point_x), restore_sign(y, point_y))
+    } else {
+        let (y, x) = ellipse_closest_point_in_first_quadrant(
+            semi_minor,
+            semi_major,
+            point_y.abs(),
+            point_x.abs(),
+        );
+        (restore_sign(x, point_x), restore_sign(y, point_y))
+    }
+}
+
+/// 第 1 象限の点に対する楕円上の最近点（`e0 >= e1 > 0`、`y0 >= 0`、`y1 >= 0`）
+fn ellipse_closest_point_in_first_quadrant<T: Scalar>(e0: T, e1: T, y0: T, y1: T) -> (T, T) {
+    if y1 > T::ZERO {
+        if y0 > T::ZERO {
+            let z0 = y0 / e0;
+            let z1 = y1 / e1;
+            let g = z0 * z0 + z1 * z1 - T::ONE;
+            if g == T::ZERO {
+                return (y0, y1);
+            }
+            let r0 = (e0 / e1) * (e0 / e1);
+            let s = ellipse_closest_point_root(r0, z0, z1, g);
+            (r0 * y0 / (s + r0), y1 / (s + T::ONE))
+        } else {
+            // 短軸上の点は短軸の端点が最近点となる
+            (T::ZERO, e1)
+        }
+    } else {
+        // 長軸上の点は、中心に近い範囲では長軸から外れた点が、それ以外では長軸の端点が最近点となる
+        let numer0 = e0 * y0;
+        let denom0 = e0 * e0 - e1 * e1;
+        if numer0 < denom0 {
+            let xde0 = numer0 / denom0;
+            (e0 * xde0, e1 * (T::ONE - xde0 * xde0).sqrt())
+        } else {
+            (e0, T::ZERO)
+        }
+    }
+}
+
+/// 最近点の条件式 `(r0 z0 / (s + r0))² + (z1 / (s + 1))² - 1 = 0` の根を二分法で求める
+///
+/// 左辺は `s > -1` で単調減少し、根は `[z1 - 1, |(r0 z0, z1)| - 1]`（点が楕円の内部なら上端は 0）にある。
+fn ellipse_closest_point_root<T: Scalar>(r0: T, z0: T, z1: T, g: T) -> T {
+    let n0 = r0 * z0;
+    let mut s0 = z1 - T::ONE;
+    let mut s1 = if g < T::ZERO {
+        T::ZERO
+    } else {
+        (n0 * n0 + z1 * z1).sqrt() - T::ONE
+    };
+    let two = T::ONE + T::ONE;
+    let mut s = T::ZERO;
+    for _ in 0..ELLIPSE_CLOSEST_POINT_MAX_BISECTION_ITERATIONS {
+        s = (s0 + s1) / two;
+        if s == s0 || s == s1 {
+            break;
+        }
+        let ratio0 = n0 / (s + r0);
+        let ratio1 = z1 / (s + T::ONE);
+        let value = ratio0 * ratio0 + ratio1 * ratio1 - T::ONE;
+        if value > T::ZERO {
+            s0 = s;
+        } else if value < T::ZERO {
+            s1 = s;
+        } else {
+            break;
+        }
+    }
+    s
+}
+
+/// 2D楕円（曲線）から点への最短距離を計算
+///
+/// # 引数
+/// * `point_x`, `point_y` - 計算対象の点の座標（楕円のローカル座標系。中心が原点）
+/// * `semi_major` - x 軸方向の半軸の長さ
+/// * `semi_minor` - y 軸方向の半軸の長さ
+///
+/// # 戻り値
+/// 楕円（曲線）上の最近点までの距離。楕円の内部の点でも曲線までの距離を返す
 pub fn ellipse_2d_distance_to_point<T: Scalar>(
     point_x: T,
     point_y: T,
     semi_major: T,
     semi_minor: T,
 ) -> T {
-    // 正規化された楕円座標での距離計算
-    let x_norm = point_x / semi_major;
-    let y_norm = point_y / semi_minor;
-    let normalized_distance = (x_norm * x_norm + y_norm * y_norm).sqrt();
-
-    if normalized_distance <= T::ONE {
-        // 点が楕円内部にある場合
-        T::ZERO
-    } else {
-        // 点が楕円外部にある場合の近似距離
-        // より正確な計算には数値的手法が必要
-        let scale = T::ONE / normalized_distance;
-        let boundary_x = point_x * scale;
-        let boundary_y = point_y * scale;
-
-        ((point_x - boundary_x) * (point_x - boundary_x)
-            + (point_y - boundary_y) * (point_y - boundary_y))
-            .sqrt()
-    }
+    let (closest_x, closest_y) = ellipse_2d_closest_point(point_x, point_y, semi_major, semi_minor);
+    let dx = point_x - closest_x;
+    let dy = point_y - closest_y;
+    (dx * dx + dy * dy).sqrt()
 }
 
-/// 3D楕円平面上の点から任意の点への距離を計算
+/// 3D楕円（曲線）から点への最短距離を計算
 ///
 /// # 引数
 /// * `local_x`, `local_y` - 楕円平面内のローカル座標
 /// * `normal_distance` - 楕円平面からの法線方向距離
-/// * `semi_major` - 長半軸の長さ
-/// * `semi_minor` - 短半軸の長さ
+/// * `semi_major` - x 軸方向の半軸の長さ
+/// * `semi_minor` - y 軸方向の半軸の長さ
 ///
 /// # 戻り値
-/// 楕円境界からの3D空間での最短距離
+/// 楕円（曲線）上の最近点までの 3D 空間での距離
 ///
 /// # 計算アルゴリズム
-/// 1. 平面内距離を2D楕円距離計算で求める
-/// 2. 法線方向距離を含めた3D総距離を計算
+/// 平面上の曲線への最近点は、点を平面へ投影した点の最近点と一致するため、
+/// 平面内の距離と法線方向の距離を合成する。
 pub fn ellipse_3d_distance_to_point<T: Scalar>(
     local_x: T,
     local_y: T,
@@ -67,10 +164,7 @@ pub fn ellipse_3d_distance_to_point<T: Scalar>(
     semi_major: T,
     semi_minor: T,
 ) -> T {
-    // 平面内距離（2D楕円距離計算を再利用）
     let planar_distance = ellipse_2d_distance_to_point(local_x, local_y, semi_major, semi_minor);
-
-    // 平面外距離を含めた総距離
     (planar_distance * planar_distance + normal_distance * normal_distance).sqrt()
 }
 
@@ -419,11 +513,53 @@ mod tests {
 
     use super::*;
 
-    // 楕円テスト（既存）
+    /// 楕円上の最近点の条件（楕円上にあり、点との差が法線方向）を満たすか
+    fn assert_closest_point_on_ellipse(point: (f64, f64), semi_major: f64, semi_minor: f64) {
+        let (cx, cy) = ellipse_2d_closest_point(point.0, point.1, semi_major, semi_minor);
+        let on_ellipse = (cx / semi_major).powi(2) + (cy / semi_minor).powi(2) - 1.0;
+        assert!(on_ellipse.abs() < DISTANCE_TOLERANCE_F64);
+
+        let normal = (
+            cx / (semi_major * semi_major),
+            cy / (semi_minor * semi_minor),
+        );
+        let offset = (point.0 - cx, point.1 - cy);
+        let cross = normal.0 * offset.1 - normal.1 * offset.0;
+        assert!(cross.abs() < DISTANCE_TOLERANCE_F64);
+    }
+
     #[test]
-    fn test_ellipse_2d_distance_inside() {
-        let dist = ellipse_2d_distance_to_point(1.0_f64, 0.5, 2.0, 1.0);
-        assert!(dist < DISTANCE_TOLERANCE_F64);
+    fn test_ellipse_2d_distance_reference_values() {
+        // (点, 長半軸, 短半軸, 楕円までの距離)。距離は曲線のパラメータ方程式の数値解で求めた値
+        let cases = [
+            ((1.0, 0.5), 2.0, 1.0, 0.349_605_694_569_673),
+            ((4.0, 4.0), 4.0, 1.0, 3.484_883_349_011_337),
+            ((5.0, 2.0), 4.0, 1.0, 2.070_522_627_212_593),
+            ((-3.0, -0.2), 4.0, 1.0, 0.442_182_830_138_887),
+        ];
+        for (point, a, b, expected) in cases {
+            let dist = ellipse_2d_distance_to_point(point.0, point.1, a, b);
+            assert!((dist - expected).abs() < DISTANCE_TOLERANCE_F64);
+            assert_closest_point_on_ellipse(point, a, b);
+        }
+    }
+
+    #[test]
+    fn test_ellipse_2d_distance_inside_returns_distance_to_curve() {
+        // 中心からは短半軸の長さ
+        let dist = ellipse_2d_distance_to_point(0.0_f64, 0.0, 2.0, 1.0);
+        assert!((dist - 1.0).abs() < DISTANCE_TOLERANCE_F64);
+
+        // 長軸上の内部の点は長軸から外れた点が最近点となる（距離 √6 / 3）
+        let dist = ellipse_2d_distance_to_point(1.0_f64, 0.0, 2.0, 1.0);
+        assert!((dist - 6.0_f64.sqrt() / 3.0).abs() < DISTANCE_TOLERANCE_F64);
+        let (cx, cy) = ellipse_2d_closest_point(1.0_f64, 0.0, 2.0, 1.0);
+        assert!((cx - 4.0 / 3.0).abs() < DISTANCE_TOLERANCE_F64);
+        assert!((cy - 5.0_f64.sqrt() / 3.0).abs() < DISTANCE_TOLERANCE_F64);
+
+        // 短軸上の内部の点は短軸の端点が最近点となる
+        let dist = ellipse_2d_distance_to_point(0.0_f64, 0.5, 2.0, 1.0);
+        assert!((dist - 0.5).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -436,18 +572,39 @@ mod tests {
     fn test_ellipse_2d_distance_on_boundary() {
         let dist = ellipse_2d_distance_to_point(2.0_f64, 0.0, 2.0, 1.0);
         assert!(dist < DISTANCE_TOLERANCE_F64);
+
+        let t = 0.7_f64;
+        let dist = ellipse_2d_distance_to_point(2.0 * t.cos(), t.sin(), 2.0, 1.0);
+        assert!(dist < DISTANCE_TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_ellipse_2d_distance_with_longer_y_axis() {
+        // y 軸方向の半軸が長い場合は軸を入れ替えて計算する
+        let dist = ellipse_2d_distance_to_point(0.5_f64, 1.0, 1.0, 2.0);
+        assert!((dist - 0.349_605_694_569_673).abs() < DISTANCE_TOLERANCE_F64);
+    }
+
+    #[test]
+    fn test_ellipse_2d_distance_circle() {
+        // 半軸が等しい場合は円周までの距離
+        let dist = ellipse_2d_distance_to_point(0.3_f64, 0.4, 1.0, 1.0);
+        assert!((dist - 0.5).abs() < DISTANCE_TOLERANCE_F64);
+        let dist = ellipse_2d_distance_to_point(0.0_f64, 0.0, 1.0, 1.0);
+        assert!((dist - 1.0).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_3d_distance_on_plane() {
-        let dist = ellipse_3d_distance_to_point(1.0_f64, 0.5, 0.0, 2.0, 1.0);
+        let dist = ellipse_3d_distance_to_point(2.0_f64, 0.0, 0.0, 2.0, 1.0);
         assert!(dist < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
     fn test_ellipse_3d_distance_off_plane() {
+        // 中心の真上の点は短軸の端点までの距離
         let dist = ellipse_3d_distance_to_point(0.0_f64, 0.0, 3.0, 2.0, 1.0);
-        assert!((dist - 3.0).abs() < DISTANCE_TOLERANCE_F64);
+        assert!((dist - 10.0_f64.sqrt()).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     #[test]
@@ -460,7 +617,7 @@ mod tests {
     #[test]
     fn test_f32_compatibility() {
         let dist = ellipse_2d_distance_to_point(1.0_f32, 0.5, 2.0, 1.0);
-        assert!(dist < DISTANCE_TOLERANCE_F32);
+        assert!((dist - 0.349_605_7).abs() < DISTANCE_TOLERANCE_F32);
     }
 
     // 球と直線のテスト（新規）
