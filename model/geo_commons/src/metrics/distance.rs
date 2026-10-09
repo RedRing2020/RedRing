@@ -168,6 +168,175 @@ pub fn ellipse_3d_distance_to_point<T: Scalar>(
     (planar_distance * planar_distance + normal_distance * normal_distance).sqrt()
 }
 
+/// 楕円体（表面）上で点に最も近い点を計算
+///
+/// # 引数
+/// * `point_x`, `point_y`, `point_z` - 計算対象の点の座標（楕円体のローカル座標系。中心が原点）
+/// * `radius_x`, `radius_y`, `radius_z` - x / y / z 軸方向の半軸の長さ
+///
+/// # 戻り値
+/// 楕円体表面上の最近点の座標（楕円体のローカル座標系）
+///
+/// # 計算アルゴリズム
+/// 1. 点を第 1 象限（第 1 八分円）へ折り返し、半軸を長い順に並べ替える
+/// 2. 最近点の条件（点と最近点を結ぶ線分が表面の法線方向）を 1 変数の単調な方程式にし、その根を二分法で求める。
+///    点が座標平面上にある場合は、楕円の最近点の計算に帰着させる
+/// 3. 並べ替えと符号を戻す
+///
+/// 楕円体の内部・外部・座標平面上のいずれの点でも最近点を返す。
+pub fn ellipsoid_closest_point<T: Scalar>(
+    point_x: T,
+    point_y: T,
+    point_z: T,
+    radius_x: T,
+    radius_y: T,
+    radius_z: T,
+) -> (T, T, T) {
+    let point = [point_x, point_y, point_z];
+    let radii = [radius_x, radius_y, radius_z];
+
+    // 半軸の長い順の軸の並び
+    let mut order = [0usize, 1, 2];
+    order.sort_by(|&i, &j| {
+        radii[j]
+            .partial_cmp(&radii[i])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let sorted = ellipsoid_closest_point_in_first_octant(
+        radii[order[0]],
+        radii[order[1]],
+        radii[order[2]],
+        point[order[0]].abs(),
+        point[order[1]].abs(),
+        point[order[2]].abs(),
+    );
+
+    let mut closest = [T::ZERO; 3];
+    for (sorted_index, &axis) in order.iter().enumerate() {
+        closest[axis] = if point[axis] < T::ZERO {
+            -sorted[sorted_index]
+        } else {
+            sorted[sorted_index]
+        };
+    }
+    (closest[0], closest[1], closest[2])
+}
+
+/// 第 1 八分円の点に対する楕円体上の最近点（`e0 >= e1 >= e2 > 0`、`y0, y1, y2 >= 0`）
+fn ellipsoid_closest_point_in_first_octant<T: Scalar>(
+    e0: T,
+    e1: T,
+    e2: T,
+    y0: T,
+    y1: T,
+    y2: T,
+) -> [T; 3] {
+    if y2 > T::ZERO {
+        if y1 > T::ZERO {
+            if y0 > T::ZERO {
+                let z0 = y0 / e0;
+                let z1 = y1 / e1;
+                let z2 = y2 / e2;
+                let g = z0 * z0 + z1 * z1 + z2 * z2 - T::ONE;
+                if g == T::ZERO {
+                    return [y0, y1, y2];
+                }
+                let r0 = (e0 / e2) * (e0 / e2);
+                let r1 = (e1 / e2) * (e1 / e2);
+                let s = ellipsoid_closest_point_root(r0, r1, z0, z1, z2, g);
+                [r0 * y0 / (s + r0), r1 * y1 / (s + r1), y2 / (s + T::ONE)]
+            } else {
+                // x 軸方向の成分が 0 の点は、yz 平面の楕円の最近点となる
+                let (x1, x2) = ellipse_closest_point_in_first_quadrant(e1, e2, y1, y2);
+                [T::ZERO, x1, x2]
+            }
+        } else if y0 > T::ZERO {
+            // y 軸方向の成分が 0 の点は、xz 平面の楕円の最近点となる
+            let (x0, x2) = ellipse_closest_point_in_first_quadrant(e0, e2, y0, y2);
+            [x0, T::ZERO, x2]
+        } else {
+            // 最も短い半軸上の点は、その軸の端点が最近点となる
+            [T::ZERO, T::ZERO, e2]
+        }
+    } else {
+        // 最も短い半軸方向の成分が 0 の点は、中心に近い範囲では座標平面から外れた点が、
+        // それ以外では xy 平面の楕円の最近点が最近点となる
+        let denom0 = e0 * e0 - e2 * e2;
+        let denom1 = e1 * e1 - e2 * e2;
+        let numer0 = e0 * y0;
+        let numer1 = e1 * y1;
+        if numer0 < denom0 && numer1 < denom1 {
+            let xde0 = numer0 / denom0;
+            let xde1 = numer1 / denom1;
+            let discr = T::ONE - xde0 * xde0 - xde1 * xde1;
+            if discr > T::ZERO {
+                return [e0 * xde0, e1 * xde1, e2 * discr.sqrt()];
+            }
+        }
+        let (x0, x1) = ellipse_closest_point_in_first_quadrant(e0, e1, y0, y1);
+        [x0, x1, T::ZERO]
+    }
+}
+
+/// 最近点の条件式 `(r0 z0 / (s + r0))² + (r1 z1 / (s + r1))² + (z2 / (s + 1))² - 1 = 0` の根を二分法で求める
+///
+/// 左辺は `s > -1` で単調減少し、根は `[z2 - 1, |(r0 z0, r1 z1, z2)| - 1]`（点が楕円体の内部なら上端は 0）にある。
+fn ellipsoid_closest_point_root<T: Scalar>(r0: T, r1: T, z0: T, z1: T, z2: T, g: T) -> T {
+    let n0 = r0 * z0;
+    let n1 = r1 * z1;
+    let mut s0 = z2 - T::ONE;
+    let mut s1 = if g < T::ZERO {
+        T::ZERO
+    } else {
+        (n0 * n0 + n1 * n1 + z2 * z2).sqrt() - T::ONE
+    };
+    let two = T::ONE + T::ONE;
+    let mut s = T::ZERO;
+    for _ in 0..ELLIPSE_CLOSEST_POINT_MAX_BISECTION_ITERATIONS {
+        s = (s0 + s1) / two;
+        if s == s0 || s == s1 {
+            break;
+        }
+        let ratio0 = n0 / (s + r0);
+        let ratio1 = n1 / (s + r1);
+        let ratio2 = z2 / (s + T::ONE);
+        let value = ratio0 * ratio0 + ratio1 * ratio1 + ratio2 * ratio2 - T::ONE;
+        if value > T::ZERO {
+            s0 = s;
+        } else if value < T::ZERO {
+            s1 = s;
+        } else {
+            break;
+        }
+    }
+    s
+}
+
+/// 楕円体（表面）から点への最短距離を計算
+///
+/// # 引数
+/// * `point_x`, `point_y`, `point_z` - 計算対象の点の座標（楕円体のローカル座標系。中心が原点）
+/// * `radius_x`, `radius_y`, `radius_z` - x / y / z 軸方向の半軸の長さ
+///
+/// # 戻り値
+/// 楕円体表面上の最近点までの距離。楕円体の内部の点でも表面までの距離を返す
+pub fn ellipsoid_distance_to_point<T: Scalar>(
+    point_x: T,
+    point_y: T,
+    point_z: T,
+    radius_x: T,
+    radius_y: T,
+    radius_z: T,
+) -> T {
+    let (closest_x, closest_y, closest_z) =
+        ellipsoid_closest_point(point_x, point_y, point_z, radius_x, radius_y, radius_z);
+    let dx = point_x - closest_x;
+    let dy = point_y - closest_y;
+    let dz = point_z - closest_z;
+    (dx * dx + dy * dy + dz * dz).sqrt()
+}
+
 /// 球の中心から無限直線までの最短距離を計算
 ///
 /// # Arguments
@@ -618,6 +787,81 @@ mod tests {
     fn test_f32_compatibility() {
         let dist = ellipse_2d_distance_to_point(1.0_f32, 0.5, 2.0, 1.0);
         assert!((dist - 0.349_605_7).abs() < DISTANCE_TOLERANCE_F32);
+    }
+
+    /// 楕円体上の最近点の条件（表面上にあり、点との差が法線方向）と、表面上の標本点より近いことを確かめる
+    fn assert_closest_point_on_ellipsoid(point: (f64, f64, f64), radii: (f64, f64, f64)) {
+        let (cx, cy, cz) =
+            ellipsoid_closest_point(point.0, point.1, point.2, radii.0, radii.1, radii.2);
+        let on_surface =
+            (cx / radii.0).powi(2) + (cy / radii.1).powi(2) + (cz / radii.2).powi(2) - 1.0;
+        assert!(on_surface.abs() < DISTANCE_TOLERANCE_F64);
+
+        let normal = Vector3::new(
+            cx / (radii.0 * radii.0),
+            cy / (radii.1 * radii.1),
+            cz / (radii.2 * radii.2),
+        );
+        let offset = Vector3::new(point.0 - cx, point.1 - cy, point.2 - cz);
+        assert!(normal.cross(&offset).norm() < DISTANCE_TOLERANCE_F64);
+
+        let distance =
+            ellipsoid_distance_to_point(point.0, point.1, point.2, radii.0, radii.1, radii.2);
+        let steps = 120;
+        for i in 0..=steps {
+            let theta = std::f64::consts::PI * i as f64 / steps as f64;
+            for j in 0..(2 * steps) {
+                let phi = std::f64::consts::PI * j as f64 / steps as f64;
+                let sample = (
+                    radii.0 * theta.sin() * phi.cos(),
+                    radii.1 * theta.sin() * phi.sin(),
+                    radii.2 * theta.cos(),
+                );
+                let sample_distance = ((point.0 - sample.0).powi(2)
+                    + (point.1 - sample.1).powi(2)
+                    + (point.2 - sample.2).powi(2))
+                .sqrt();
+                assert!(distance <= sample_distance + DISTANCE_TOLERANCE_F64);
+            }
+        }
+    }
+
+    #[test]
+    fn test_ellipsoid_closest_point_general_positions() {
+        let radii = (3.0, 2.0, 1.0);
+        for point in [
+            (1.0, 0.5, 0.3),
+            (4.0, 3.0, 2.0),
+            (-2.0, 1.5, -0.5),
+            (0.5, -0.2, 0.1),
+            (1.0, 1.0, 0.0),
+            (0.0, 1.0, 0.5),
+            (2.0, 0.0, 0.5),
+        ] {
+            assert_closest_point_on_ellipsoid(point, radii);
+        }
+
+        // 半軸の順序によらない
+        assert_closest_point_on_ellipsoid((0.3, 1.0, 0.5), (1.0, 3.0, 2.0));
+    }
+
+    #[test]
+    fn test_ellipsoid_distance_special_positions() {
+        // 中心からは最も短い半軸の長さ
+        let dist = ellipsoid_distance_to_point(0.0_f64, 0.0, 0.0, 3.0, 2.0, 1.0);
+        assert!((dist - 1.0).abs() < DISTANCE_TOLERANCE_F64);
+
+        // 軸上の外部の点は軸の端点までの距離
+        let dist = ellipsoid_distance_to_point(5.0_f64, 0.0, 0.0, 3.0, 2.0, 1.0);
+        assert!((dist - 2.0).abs() < DISTANCE_TOLERANCE_F64);
+
+        // 回転楕円体の赤道面上の点は、その面の楕円までの距離（楕円の距離の参照値）
+        let dist = ellipsoid_distance_to_point(5.0_f64, 2.0, 0.0, 4.0, 1.0, 1.0);
+        assert!((dist - 2.070_522_627_212_593).abs() < DISTANCE_TOLERANCE_F64);
+
+        // 球
+        let dist = ellipsoid_distance_to_point(1.0_f64, 2.0, 2.0, 1.0, 1.0, 1.0);
+        assert!((dist - 2.0).abs() < DISTANCE_TOLERANCE_F64);
     }
 
     // 球と直線のテスト（新規）

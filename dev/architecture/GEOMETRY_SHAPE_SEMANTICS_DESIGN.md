@@ -254,6 +254,18 @@ topology は primitive / mother curve の native parameter semantics を保存�
 - trait定義（`Circle2DContainment` 等）の `contains_point` / `classify_point` は既定の距離トレランスで判定する
 - 領域を持つ形状（矩形・三角形・AABB・立体）への `classify_point` の展開は [#785](https://github.com/RedRing2020/RedRing/issues/785) で扱う
 
+## 点との距離の規約
+
+点との距離（`distance_to_point`）は、包含判定と同じく形状が表す点の集合までの最短距離とする。
+
+| 対象 | 距離 |
+| --- | --- |
+| 曲線・曲面（線分、円、楕円、円弧、平面、曲面等） | 曲線・曲面までの距離。円・楕円が囲む領域の内部の点でも、曲線までの距離を返す |
+| 領域・立体（三角形、球、円柱、円錐、トーラス等） | 領域までの距離。内部・境界上は 0 |
+
+- 符号付き距離や、立体の表面（境界）までの距離が必要な場合は、`distance_to_point` とは別の名前の API で表す（`SphericalSolid3D::distance_to_surface` の符号付き距離、`EllipsoidalSolid3D::distance_to_surface` の表面までの距離等）
+- 距離は近似ではなく最近点までの距離とする。楕円・楕円体のように閉じた式で求まらない場合も、反復解法で最近点を求める
+
 ## 今回の棚卸しで見えた #558 の設計対象
 
 次段では、上記の shape 横断分類を前提に、少なくとも次を trait 境界文書側で整理する必要がある。

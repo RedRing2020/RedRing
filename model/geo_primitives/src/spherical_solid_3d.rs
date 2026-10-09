@@ -414,8 +414,9 @@ impl<T: Scalar> SphericalSolid3DContainment<T> for SphericalSolid3D<T> {
 
 impl<T: Scalar> SphericalSolid3DDistance<T> for SphericalSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
+        // 球ソリッド（領域）までの距離。内部・表面上は 0
         let point_3d = Point3D::new(point.0, point.1, point.2);
-        self.distance_to_surface(point_3d).abs()
+        self.distance_to_surface(point_3d).max(T::ZERO)
     }
 }
 

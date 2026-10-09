@@ -294,28 +294,27 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         (sum - T::ONE).abs() < T::EPSILON * T::from_f64(10.0)
     }
 
-    /// 点と楕円体ソリッド表面との距離を計算（近似）
+    /// 点と楕円体ソリッド表面との距離を計算
     ///
     /// # Arguments
     /// * `point` - 判定する点
     ///
     /// # Returns
-    /// 表面までの距離（近似値）
+    /// 表面までの最短距離（内部の点でも表面までの距離）
     pub fn distance_to_surface(&self, point: &Point3D<T>) -> T {
         let closest = self.closest_point_on_surface(point);
         let diff = *point - closest;
         (diff.x() * diff.x() + diff.y() * diff.y() + diff.z() * diff.z()).sqrt()
     }
 
-    /// 指定点に最も近い表面上の点を取得（近似）
+    /// 指定点に最も近い表面上の点を取得
     ///
     /// # Arguments
     /// * `point` - 基準点
     ///
     /// # Returns
-    /// 表面上の最近接点（近似）
+    /// 表面上の最近接点
     pub fn closest_point_on_surface(&self, point: &Point3D<T>) -> Point3D<T> {
-        // 中心からのオフセット
         let offset = *point - self.center;
 
         // ローカル座標軸
@@ -323,28 +322,14 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         let y_axis = self.y_axis_internal().as_vector();
         let z_axis = self.axis.as_vector();
 
-        // ローカル座標に投影
-        let local_x = offset.dot(&x_axis);
-        let local_y = offset.dot(&y_axis);
-        let local_z = offset.dot(&z_axis);
-
-        // 正規化座標
-        let x_norm = local_x / self.a_radius;
-        let y_norm = local_y / self.b_radius;
-        let z_norm = local_z / self.c_radius;
-
-        // 原点からの距離
-        let dist = (x_norm * x_norm + y_norm * y_norm + z_norm * z_norm).sqrt();
-
-        if dist < T::EPSILON {
-            // 中心点の場合はX軸上の点を返す
-            return self.center + x_axis * self.a_radius;
-        }
-
-        // 表面上の点を計算（正規化ベクトルをスケール）
-        let surface_x = local_x / dist;
-        let surface_y = local_y / dist;
-        let surface_z = local_z / dist;
+        let (surface_x, surface_y, surface_z) = geo_commons::ellipsoid_closest_point(
+            offset.dot(&x_axis),
+            offset.dot(&y_axis),
+            offset.dot(&z_axis),
+            self.a_radius,
+            self.b_radius,
+            self.c_radius,
+        );
 
         // ワールド座標系に変換
         self.center + x_axis * surface_x + y_axis * surface_y + z_axis * surface_z
