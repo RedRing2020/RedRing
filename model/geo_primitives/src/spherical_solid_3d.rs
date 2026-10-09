@@ -5,7 +5,7 @@
 
 // use crate::{BBox3D, Direction3D, Plane3DCoordinateSystem, Point3D, Vector3D}; // 一時的にコメントアウト
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::{IntersectsRelation, Scalar};
+use geo_contracts::{default_distance_tolerance, IntersectsRelation, PointClassification, Scalar};
 
 /// STEP 準拠の 3 次元球ソリッド
 ///
@@ -161,6 +161,22 @@ impl<T: Scalar> SphericalSolid3D<T> {
     pub fn contains_point(&self, point: Point3D<T>) -> bool {
         let distance_squared = self.center.distance_squared_to(&point);
         distance_squared <= self.radius * self.radius
+    }
+
+    /// 球ソリッドの領域に対する点の位置を分類する
+    ///
+    /// 表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: Point3D<T>, tolerance: T) -> PointClassification {
+        let boundary_distance = self.distance_to_surface(point).abs();
+
+        if boundary_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 点から表面までの符号付き距離の返却
@@ -409,6 +425,11 @@ impl<T: Scalar> SphericalSolid3DContainment<T> for SphericalSolid3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let point_3d = Point3D::new(point.0, point.1, point.2);
         self.contains_point(point_3d)
+    }
+
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        let point_3d = Point3D::new(point.0, point.1, point.2);
+        SphericalSolid3D::classify_point(self, point_3d, default_distance_tolerance::<T>())
     }
 }
 

@@ -7,9 +7,9 @@ use std::any::TypeId;
 use crate::{Point3D, Vector3D};
 use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, Scalar, Triangle3DBoundaryAccess,
-    Triangle3DBoundaryQuantity, Triangle3DConstructor, Triangle3DContainment, Triangle3DDerived,
-    Triangle3DDistance,
+    default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
+    Scalar, Triangle3DBoundaryAccess, Triangle3DBoundaryQuantity, Triangle3DConstructor,
+    Triangle3DContainment, Triangle3DDerived, Triangle3DDistance,
 };
 
 /// 3次元三角形（Core実装）
@@ -174,6 +174,36 @@ impl<T: Scalar> Triangle3D<T> {
 
         // 三角形内部の条件
         u >= T::ZERO && v >= T::ZERO && (u + v) <= T::ONE
+    }
+
+    /// 点が三角形の内部または境界上にあるか（`classify_point` が `Outside` でない）
+    pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
+        self.classify_point(point, tolerance) != PointClassification::Outside
+    }
+
+    /// 三角形の領域に対する点の位置を分類する
+    ///
+    /// 辺までの距離が `tolerance` 以内なら、平面外でも `OnBoundary` とする。それ以外は、平面からの距離が
+    /// `tolerance` 以内で、平面へ投影した点が三角形の内側にあれば `Inside`、それ以外を `Outside` とする。
+    /// 退化した三角形（法線を持たない）は内部を持たない。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        let edge_distance = self
+            .distance_to_edge(point, &self.vertex_a, &self.vertex_b)
+            .min(self.distance_to_edge(point, &self.vertex_b, &self.vertex_c))
+            .min(self.distance_to_edge(point, &self.vertex_c, &self.vertex_a));
+        if edge_distance <= tolerance {
+            return PointClassification::OnBoundary;
+        }
+
+        let Some(normal) = self.normal() else {
+            return PointClassification::Outside;
+        };
+        let plane_distance = Vector3D::from_points(&self.vertex_a, point).dot(&normal);
+        if plane_distance.abs() <= tolerance && self.contains_point_on_plane(*point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// xz平面上の単位正三角形を生成
@@ -437,7 +467,12 @@ impl<T: Scalar> Triangle3DBoundaryQuantity<T> for Triangle3D<T> {
 impl<T: Scalar> Triangle3DContainment<T> for Triangle3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
-        Triangle3D::contains_point_on_plane(self, p)
+        Triangle3D::contains_point(self, &p, default_distance_tolerance::<T>())
+    }
+
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        let p = Point3D::new(point.0, point.1, point.2);
+        Triangle3D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 

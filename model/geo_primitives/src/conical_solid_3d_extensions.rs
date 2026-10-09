@@ -3,7 +3,7 @@
 //! 円錐ソリッドの高度な幾何計算と解析機能
 
 use crate::{ConicalSolid3D, Plane3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{PointClassification, Scalar};
 
 impl<T: Scalar> ConicalSolid3D<T> {
     /// 点が円錐ソリッド内部に含まれるかチェック
@@ -55,6 +55,40 @@ impl<T: Scalar> ConicalSolid3D<T> {
         distance_from_axis <= radius_at_height
     }
 
+    /// 円錐ソリッドの領域に対する点の位置を分類する
+    ///
+    /// 表面（側面・底面）までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    ///
+    /// 表面までの距離は、点をプロファイル面上の (軸からの距離, 底面からの高さ) に写し、
+    /// プロファイルの底辺と母線までの距離の小さい方として求める（軸上の辺は表面ではない）。
+    pub fn classify_point(&self, point: Point3D<T>, tolerance: T) -> PointClassification {
+        let (radial, axial) = self.profile_coordinates(point);
+        let radius = self.radius_internal();
+        let height = self.height_internal();
+        let boundary_distance =
+            distance_to_segment_2d((radial, axial), (T::ZERO, T::ZERO), (radius, T::ZERO)).min(
+                distance_to_segment_2d((radial, axial), (radius, T::ZERO), (T::ZERO, height)),
+            );
+
+        if boundary_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
+    }
+
+    /// プロファイル面上の点の座標（軸からの距離, 底面からの高さ）
+    fn profile_coordinates(&self, point: Point3D<T>) -> (T, T) {
+        let relative = Vector3D::from_points(&self.center_internal(), &point);
+        let axis = self.axis_internal().as_vector();
+        let axial = relative.dot(&axis);
+        let radial = (relative - axis * axial).length();
+        (radial, axial)
+    }
+
     /// 点から円錐ソリッドまでの最短距離
     ///
     /// # Arguments
@@ -64,19 +98,15 @@ impl<T: Scalar> ConicalSolid3D<T> {
     /// 円錐ソリッドまでの最短距離（内部・表面上の場合は0）
     ///
     /// # Algorithm
-    /// 円錐ソリッドは、軸を含む平面（子午面）上の三角形（軸・底面の半径・母線で囲まれた断面）を
-    /// 軸まわりに回転した形状のため、点を子午面上の (軸からの距離, 底面からの高さ) に写し、
+    /// 円錐ソリッドは、プロファイル面上の三角形（軸・底面の半径・母線で囲まれた領域）を
+    /// 軸まわりに回転した形状のため、点をプロファイル面上の (軸からの距離, 底面からの高さ) に写し、
     /// 断面の底辺と母線までの距離の小さい方を求める。外部の点に最も近い断面上の点は、底辺か母線上にある。
     pub fn distance_to_surface(&self, point: Point3D<T>) -> T {
         if self.contains_point(point) {
             return T::ZERO;
         }
 
-        let relative = Vector3D::from_points(&self.center_internal(), &point);
-        let axis = self.axis_internal().as_vector();
-        let axial = relative.dot(&axis);
-        let radial = (relative - axis * axial).length();
-
+        let (radial, axial) = self.profile_coordinates(point);
         let radius = self.radius_internal();
         let height = self.height_internal();
         let to_base =

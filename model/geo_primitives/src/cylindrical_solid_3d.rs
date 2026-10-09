@@ -16,7 +16,7 @@
 //! - height: 円柱高さ
 
 use crate::{Direction3D, InfiniteLine3D, Point3D, Vector3D};
-use geo_contracts::{BasicIntersection, Scalar};
+use geo_contracts::{default_distance_tolerance, BasicIntersection, PointClassification, Scalar};
 
 /// 3次元円柱ソリッド（STEP準拠のCore実装）
 ///
@@ -247,8 +247,31 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         )
     }
 
+    /// 円柱ソリッドの領域に対する点の位置を分類する
+    ///
+    /// 表面（側面・上下の端面）までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// trait定義の `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        let inside = self.contains_point_internal(*point);
+        let boundary_distance = if inside {
+            let to_point = Vector3D::from_points(&self.center, point);
+            let axial = to_point.dot(&self.axis.as_vector());
+            let radial = (to_point - self.axis.as_vector() * axial).length();
+            (self.radius - radial).min(axial).min(self.height - axial)
+        } else {
+            self.distance_to_surface_internal(*point)
+        };
+
+        if boundary_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if inside {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
+    }
+
     /// 点が円柱ソリッド内部に含まれるかを判定（内部使用）
-    #[allow(dead_code)]
     pub(crate) fn contains_point_internal(&self, point: Point3D<T>) -> bool {
         // 点から底面への投影を計算
         let to_point = Vector3D::new(
@@ -280,8 +303,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         radial_distance <= self.radius
     }
 
-    /// 点から円柱ソリッド表面までの距離を計算（内部使用）
-    #[allow(dead_code)]
+    /// 点から円柱ソリッドまでの距離を計算（内部使用、内部・表面上は 0）
     pub(crate) fn distance_to_surface_internal(&self, point: Point3D<T>) -> T {
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
@@ -504,6 +526,14 @@ impl<T: Scalar> CylindricalSolid3DContainment<T> for CylindricalSolid3D<T> {
         let radial_distance_sq = radial_x * radial_x + radial_y * radial_y + radial_z * radial_z;
 
         radial_distance_sq <= self.radius * self.radius
+    }
+
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        CylindricalSolid3D::classify_point(
+            self,
+            &Point3D::new(point.0, point.1, point.2),
+            default_distance_tolerance::<T>(),
+        )
     }
 }
 

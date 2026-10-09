@@ -7,9 +7,9 @@ use std::any::TypeId;
 use crate::{Point2D, Vector2D};
 use analysis::consts::special::{SQRT_3_OVER_2_F32, SQRT_3_OVER_2_F64};
 use geo_contracts::{
-    default_kernel_numerical_zero_tolerance, PrimitiveKind, PrimitiveMetadata, Scalar,
-    Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity, Triangle2DConstructor,
-    Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
+    default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
+    PrimitiveKind, PrimitiveMetadata, Scalar, Triangle2DBoundaryAccess, Triangle2DBoundaryQuantity,
+    Triangle2DConstructor, Triangle2DContainment, Triangle2DDerived, Triangle2DDistance,
 };
 
 /// 2次元三角形（Core実装）
@@ -209,10 +209,29 @@ impl<T: Scalar> Triangle2D<T> {
         (area * (T::ONE + T::ONE)) / perimeter
     }
 
-    /// 点が三角形内部にあるかの判定（重心座標使用）
+    /// 点が三角形の内部または境界上にあるかの判定（重心座標使用、境界を含む厳密な判定）
     pub fn contains_point(&self, point: &Point2D<T>) -> bool {
         let (u, v, w) = self.barycentric_coordinates(point);
         u >= T::ZERO && v >= T::ZERO && w >= T::ZERO
+    }
+
+    /// 三角形の領域に対する点の位置を分類する
+    ///
+    /// 辺までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
+        let boundary_distance = self
+            .distance_to_edge(point, self.vertex_a, self.vertex_b)
+            .min(self.distance_to_edge(point, self.vertex_b, self.vertex_c))
+            .min(self.distance_to_edge(point, self.vertex_c, self.vertex_a));
+
+        if boundary_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 重心座標計算
@@ -399,6 +418,11 @@ impl<T: Scalar> Triangle2DContainment<T> for Triangle2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         let p = Point2D::new(point.0, point.1);
         Triangle2D::contains_point(self, &p)
+    }
+
+    fn classify_point(&self, point: (T, T)) -> PointClassification {
+        let p = Point2D::new(point.0, point.1);
+        Triangle2D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 

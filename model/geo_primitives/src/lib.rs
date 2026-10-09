@@ -161,6 +161,8 @@ mod line_segment_3d_tests;
 #[cfg(test)]
 mod ray_2d_tests;
 #[cfg(test)]
+mod region_classification_tests;
+#[cfg(test)]
 mod region_distance_tests;
 #[cfg(test)]
 mod transform_circular_elliptic_tests;

@@ -34,8 +34,11 @@ pub trait Aabb2DRelation<T: Scalar> {
     /// 点型
     type Point2D;
 
-    /// 点を包含するかを返す
+    /// 点を包含するかを返す（境界を含む厳密な判定）
     fn contains_point(&self, point: &Self::Point2D) -> bool;
+
+    /// AABB の領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: &Self::Point2D) -> PointClassification;
 
     /// 他方の AABB を包含するかを返す
     fn contains_bbox(&self, other: &Self) -> bool;
@@ -49,8 +52,11 @@ pub trait Aabb3DRelation<T: Scalar> {
     /// 点型
     type Point3D;
 
-    /// 点を包含するかを返す
+    /// 点を包含するかを返す（境界を含む厳密な判定）
     fn contains_point(&self, point: &Self::Point3D) -> bool;
+
+    /// AABB の領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: &Self::Point3D) -> PointClassification;
 
     /// 他方の AABB を包含するかを返す
     fn contains_bbox(&self, other: &Self) -> bool;

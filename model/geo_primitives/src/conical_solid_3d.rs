@@ -17,7 +17,7 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 
-use geo_contracts::{default_distance_tolerance, Scalar};
+use geo_contracts::{default_distance_tolerance, PointClassification, Scalar};
 
 /// 3次元円錐ソリッド（STEP準拠のCore実装）
 ///
@@ -510,6 +510,14 @@ impl<T: Scalar> ConicalSolid3DContainment<T> for ConicalSolid3D<T> {
     fn contains_point_tolerance(&self, point: (T, T, T), tolerance: T) -> bool {
         let distance = self.distance_to_point(point);
         distance <= tolerance
+    }
+
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        ConicalSolid3D::classify_point(
+            self,
+            Point3D::new(point.0, point.1, point.2),
+            default_distance_tolerance::<T>(),
+        )
     }
 }
 

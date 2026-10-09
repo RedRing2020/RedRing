@@ -1,5 +1,6 @@
 //! CylindricalSolid trait定義を capability taxonomy に沿って分離する。
 
+use crate::PointClassification;
 use analysis::abstract_types::Scalar;
 
 pub trait CylindricalSolid3DConstructor<T: Scalar> {
@@ -57,7 +58,10 @@ pub trait CylindricalSolid3DDerived<T: Scalar> {
 }
 
 pub trait CylindricalSolid3DContainment<T: Scalar> {
+    /// 点が立体の内部または表面上にあるか（表面を含む厳密な判定）
     fn contains_point(&self, point: (T, T, T)) -> bool;
+    /// 領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification;
 }
 
 pub trait CylindricalSolid3DDistance<T: Scalar> {

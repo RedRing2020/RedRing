@@ -2,8 +2,8 @@
 
 use crate::Point2D;
 use geo_contracts::{
-    PrimitiveKind, PrimitiveMetadata, Rect2DConstructor, Rect2DContainment, Rect2DDerived,
-    Rect2DProperties, Scalar,
+    default_distance_tolerance, PointClassification, PrimitiveKind, PrimitiveMetadata,
+    Rect2DConstructor, Rect2DContainment, Rect2DDerived, Rect2DProperties, Scalar,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -78,6 +78,14 @@ impl<T: Scalar> Rect2D<T> {
             && point.y() <= max.y()
     }
 
+    /// 矩形の領域に対する点の位置を分類する
+    ///
+    /// 辺までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: &Point2D<T>, tolerance: T) -> PointClassification {
+        geo_core::Aabb2D::new(self.origin, self.max_point()).classify_point(point, tolerance)
+    }
+
     pub fn area(&self) -> T {
         self.width * self.height
     }
@@ -139,6 +147,14 @@ impl<T: Scalar> Rect2DProperties<T> for Rect2D<T> {
 impl<T: Scalar> Rect2DContainment<T> for Rect2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         Self::contains_point(self, &Point2D::new(point.0, point.1))
+    }
+
+    fn classify_point(&self, point: (T, T)) -> PointClassification {
+        Self::classify_point(
+            self,
+            &Point2D::new(point.0, point.1),
+            default_distance_tolerance::<T>(),
+        )
     }
 }
 
