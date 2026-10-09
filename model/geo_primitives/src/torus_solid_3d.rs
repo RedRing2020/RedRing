@@ -7,7 +7,10 @@
 // 固体としての体積と表面を持ちます。
 
 use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
-use geo_contracts::{default_kernel_numerical_zero_tolerance, Scalar};
+use geo_contracts::{
+    default_distance_tolerance, default_kernel_numerical_zero_tolerance, PointClassification,
+    Scalar,
+};
 use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス固体
@@ -172,6 +175,27 @@ impl<T: Scalar> TorusSolid3D<T> {
         let pi_squared = T::from_f64(PI * PI);
 
         four * pi_squared * self.major_radius * self.minor_radius
+    }
+
+    /// トーラスソリッドの領域に対する点の位置を分類する
+    ///
+    /// 管の表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        let relative = Vector3D::from_points(&self.origin, point);
+        let axial = relative.dot(&self.z_axis.as_vector());
+        let radial = (relative - self.z_axis.as_vector() * axial).length();
+        let tube_center_distance =
+            ((radial - self.major_radius) * (radial - self.major_radius) + axial * axial).sqrt();
+        let boundary_distance = (tube_center_distance - self.minor_radius).abs();
+
+        if boundary_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 点が固体内部にあるかを判定
@@ -368,6 +392,11 @@ impl<T: Scalar> TorusSolid3DContainment<T> for TorusSolid3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let p = Point3D::new(point.0, point.1, point.2);
         self.contains_point(&p)
+    }
+
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        let p = Point3D::new(point.0, point.1, point.2);
+        TorusSolid3D::classify_point(self, &p, default_distance_tolerance::<T>())
     }
 }
 

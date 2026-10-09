@@ -2,8 +2,8 @@
 
 use crate::{Direction3D, Point3D, Vector3D};
 use geo_contracts::{
-    PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment, Rect3DDerived,
-    Rect3DEvaluation, Rect3DProperties, Scalar,
+    PointClassification, PrimitiveKind, PrimitiveMetadata, Rect3DConstructor, Rect3DContainment,
+    Rect3DDerived, Rect3DEvaluation, Rect3DProperties, Scalar,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -107,25 +107,39 @@ impl<T: Scalar> Rect3D<T> {
         relative.dot(&self.normal_dir().as_vector())
     }
 
+    /// 点が矩形の内部または境界上にあるか（`classify_point` が `Outside` でない）
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        let relative = Vector3D::new(
-            point.x() - self.origin.x(),
-            point.y() - self.origin.y(),
-            point.z() - self.origin.z(),
+        self.classify_point(point, tolerance) != PointClassification::Outside
+    }
+
+    /// 矩形の領域に対する点の位置を分類する
+    ///
+    /// 辺までの距離が `tolerance` 以内なら、平面外でも `OnBoundary` とする。それ以外は、平面からの距離が
+    /// `tolerance` 以内で、平面へ投影した点が矩形の内側にあれば `Inside`、それ以外を `Outside` とする。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        let relative = Vector3D::from_points(&self.origin, point);
+        let in_plane = crate::Point2D::new(
+            relative.dot(&self.u_axis.as_vector()),
+            relative.dot(&self.v_axis.as_vector()),
         );
+        let plane_distance = relative.dot(&self.normal_dir().as_vector());
 
-        let distance = relative.dot(&self.normal_dir().as_vector()).abs();
-        if distance > tolerance {
-            return false;
+        let rectangle = geo_core::Aabb2D::new(
+            crate::Point2D::new(T::ZERO, T::ZERO),
+            crate::Point2D::new(self.width, self.height),
+        );
+        let in_plane_edge_distance = rectangle.distance_to_boundary(&in_plane);
+        let edge_distance = (in_plane_edge_distance * in_plane_edge_distance
+            + plane_distance * plane_distance)
+            .sqrt();
+
+        if edge_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if plane_distance.abs() <= tolerance && rectangle.contains_point(&in_plane) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
         }
-
-        let u = relative.dot(&self.u_axis.as_vector());
-        let v = relative.dot(&self.v_axis.as_vector());
-
-        u >= -tolerance
-            && u <= self.width + tolerance
-            && v >= -tolerance
-            && v <= self.height + tolerance
     }
 
     pub fn corners(&self) -> [Point3D<T>; 4] {
@@ -206,6 +220,10 @@ impl<T: Scalar> Rect3DProperties<T> for Rect3D<T> {
 impl<T: Scalar> Rect3DContainment<T> for Rect3D<T> {
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool {
         Self::contains_point(self, &Point3D::new(point.0, point.1, point.2), tolerance)
+    }
+
+    fn classify_point(&self, point: (T, T, T), tolerance: T) -> PointClassification {
+        Self::classify_point(self, &Point3D::new(point.0, point.1, point.2), tolerance)
     }
 }
 

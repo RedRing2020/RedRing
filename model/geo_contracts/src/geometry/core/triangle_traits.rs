@@ -3,7 +3,7 @@
 //! Foundation Pattern Phase 1 + Phase 2 実装
 //! face boundary access / boundary quantity / derived capability を分離する
 
-use crate::Scalar;
+use crate::{PointClassification, Scalar};
 
 /// Triangle2D Constructor トレイト（3+3メソッド）
 pub trait Triangle2DConstructor<T: Scalar>: Sized {
@@ -81,8 +81,10 @@ pub trait Triangle2DBoundaryQuantity<T: Scalar> {
 }
 
 pub trait Triangle2DContainment<T: Scalar> {
-    /// 点が三角形内部にあるか判定
+    /// 点が三角形の内部または境界上にあるか判定（境界を含む厳密な判定）
     fn contains_point(&self, point: (T, T)) -> bool;
+    /// 領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T)) -> PointClassification;
 }
 
 pub trait Triangle2DDistance<T: Scalar> {
@@ -172,8 +174,10 @@ pub trait Triangle3DBoundaryQuantity<T: Scalar> {
 }
 
 pub trait Triangle3DContainment<T: Scalar> {
-    /// 点が三角形内部にあるか判定（平面投影）
+    /// 点が三角形の内部または境界上にあるか判定（既定の距離トレランスで `classify_point` が `Outside` でない）
     fn contains_point(&self, point: (T, T, T)) -> bool;
+    /// 領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification;
 }
 
 pub trait Triangle3DDistance<T: Scalar> {

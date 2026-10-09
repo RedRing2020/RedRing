@@ -17,7 +17,7 @@
 //! - c_radius: Z軸方向の半径
 
 use crate::{Direction3D, Point3D, Vector3D};
-use geo_contracts::Scalar;
+use geo_contracts::{default_distance_tolerance, PointClassification, Scalar};
 
 /// 3次元楕円体ソリッド（STEP準拠のCore実装）
 ///
@@ -263,35 +263,20 @@ impl<T: Scalar> EllipsoidalSolid3D<T> {
         sum <= T::ONE
     }
 
-    /// 点が楕円体ソリッドの表面上にあるかを判定（許容誤差付き）
+    /// 楕円体ソリッドの領域に対する点の位置を分類する
     ///
-    /// # Arguments
-    /// * `point` - 判定する点
-    ///
-    /// # Returns
-    /// 表面上にある場合は `true`
-    pub fn is_on_surface(&self, point: &Point3D<T>) -> bool {
-        // 中心からのオフセット
-        let offset = *point - self.center;
+    /// 表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
+    pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
+        let boundary_distance = self.distance_to_surface(point);
 
-        // ローカル座標軸
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        // ローカル座標に投影
-        let local_x = offset.dot(&x_axis);
-        let local_y = offset.dot(&y_axis);
-        let local_z = offset.dot(&z_axis);
-
-        let x_norm = local_x / self.a_radius;
-        let y_norm = local_y / self.b_radius;
-        let z_norm = local_z / self.c_radius;
-
-        let sum = x_norm * x_norm + y_norm * y_norm + z_norm * z_norm;
-
-        // 許容誤差内で 1 に等しいかチェック
-        (sum - T::ONE).abs() < T::EPSILON * T::from_f64(10.0)
+        if boundary_distance <= tolerance {
+            PointClassification::OnBoundary
+        } else if self.contains_point(point) {
+            PointClassification::Inside
+        } else {
+            PointClassification::Outside
+        }
     }
 
     /// 点と楕円体ソリッド表面との距離を計算
@@ -489,8 +474,12 @@ impl<T: Scalar> EllipsoidalSolid3DContainment<T> for EllipsoidalSolid3D<T> {
         self.contains_point(&Point3D::new(point.0, point.1, point.2))
     }
 
-    fn is_on_surface(&self, point: (T, T, T)) -> bool {
-        self.is_on_surface(&Point3D::new(point.0, point.1, point.2))
+    fn classify_point(&self, point: (T, T, T)) -> PointClassification {
+        EllipsoidalSolid3D::classify_point(
+            self,
+            &Point3D::new(point.0, point.1, point.2),
+            default_distance_tolerance::<T>(),
+        )
     }
 }
 

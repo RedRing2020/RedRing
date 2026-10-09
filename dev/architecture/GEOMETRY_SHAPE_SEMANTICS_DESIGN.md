@@ -252,7 +252,21 @@ topology は primitive / mother curve の native parameter semantics を保存�
 - 領域の内部（境界を含む）の判定は `classify_point(...) != Outside` とする
 - 3D の円・楕円は、平面上に囲む領域に対して分類する。曲線までの距離が `tolerance` 以内なら平面外でも `OnBoundary` とし、それ以外は、平面からの距離が `tolerance` 以内で平面へ投影した点が内側にあれば `Inside`、それ以外を `Outside` とする
 - trait定義（`Circle2DContainment` 等）の `contains_point` / `classify_point` は既定の距離トレランスで判定する
-- 領域を持つ形状（矩形・三角形・AABB・立体）への `classify_point` の展開は [#785](https://github.com/RedRing2020/RedRing/issues/785) で扱う
+
+### 領域を持つ形状の分類
+
+矩形・三角形・AABB・立体も `classify_point(point, tolerance)` で同じ `PointClassification` を返す。境界は、2D の領域と 3D の平面形状では辺、立体では表面（円柱・円錐の端面・底面を含む）とする。
+
+| 結果 | 条件 |
+| --- | --- |
+| `OnBoundary` | 境界までの距離が `tolerance` 以内（内側・外側のどちらからでも） |
+| `Inside` | `OnBoundary` でなく、領域の内側にある |
+| `Outside` | 上記以外 |
+
+- 境界までの距離は、内部の点では最も近い境界までの距離、外部の点では領域までの距離とする。角・稜線の近くは角・稜線までの距離で判定する
+- `contains_point(point)`（許容誤差を受け取らない厳密な判定）は、`classify_point(point, 0)` が `Outside` でないことと一致する
+- 3D の平面形状（`Rect3D` / `Triangle3D`）は 3D の円・楕円と同じく、辺までの距離が `tolerance` 以内なら平面外でも `OnBoundary` とし、それ以外は、平面からの距離が `tolerance` 以内で平面へ投影した点が内側にあれば `Inside`、それ以外を `Outside` とする。両者の `contains_point(point, tolerance)` は `classify_point(point, tolerance) != Outside` とする（`Triangle3D` の trait定義の `contains_point` は既定の距離トレランスを使う）
+- 回転体（円錐等）の表面までの距離は、点をプロファイル面上の (軸からの距離, 軸方向の位置) に写して求める。プロファイルの軸上の辺は表面ではない
 
 ## 点との距離の規約
 

@@ -2,6 +2,7 @@
 //!
 //! Foundation Pattern Phase 1 実装
 
+use crate::PointClassification;
 use analysis::abstract_types::Scalar;
 
 pub trait Rect2DConstructor<T: Scalar>: Sized {
@@ -19,7 +20,10 @@ pub trait Rect2DProperties<T: Scalar> {
 }
 
 pub trait Rect2DContainment<T: Scalar> {
+    /// 点が矩形の内部または境界上にあるか（境界を含む厳密な判定）
     fn contains_point(&self, point: (T, T)) -> bool;
+    /// 領域に対する点の位置を分類する（既定の距離トレランス）
+    fn classify_point(&self, point: (T, T)) -> PointClassification;
 }
 
 pub trait Rect2DDerived<T: Scalar> {
@@ -52,7 +56,11 @@ pub trait Rect3DProperties<T: Scalar> {
 }
 
 pub trait Rect3DContainment<T: Scalar> {
+    /// 点が矩形の内部または境界上にあるか（`classify_point` が `Outside` でない）
     fn contains_point(&self, point: (T, T, T), tolerance: T) -> bool;
+
+    /// 矩形の領域に対する点の位置を分類する
+    fn classify_point(&self, point: (T, T, T), tolerance: T) -> PointClassification;
 }
 
 pub trait Rect3DDerived<T: Scalar> {
