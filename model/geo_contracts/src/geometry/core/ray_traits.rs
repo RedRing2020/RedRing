@@ -151,12 +151,10 @@ pub trait Ray2DEvaluation<T: Scalar> {
 
     /// 点を同じ support parameter 系へ写像する
     fn parameter_for_point(&self, point: (T, T)) -> T;
-
-    /// 幾何学的距離を parameter に対応づけた evaluation point を返す
-    fn point_at_distance(&self, distance: T) -> (T, T);
 }
 
 pub trait Ray2DProjection<T: Scalar> {
+    /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T)) -> (T, T);
 }
 
@@ -188,12 +186,10 @@ pub trait Ray3DEvaluation<T: Scalar> {
 
     /// 点を同じ support parameter 系へ写像する
     fn parameter_for_point(&self, point: (T, T, T)) -> T;
-
-    /// 幾何学的距離を parameter に対応づけた evaluation point を返す
-    fn point_at_distance(&self, distance: T) -> (T, T, T);
 }
 
 pub trait Ray3DProjection<T: Scalar> {
+    /// 点に最も近い曲線上の点を返す
     fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
 }
 

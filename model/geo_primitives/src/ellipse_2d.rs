@@ -165,7 +165,7 @@ impl<T: Scalar> Ellipse2D<T> {
     }
 
     /// 点に最も近い楕円上の点を取得
-    pub fn closest_point_to(&self, point: &Point2D<T>) -> Point2D<T> {
+    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let (x_local, y_local) = self.local_coordinates(point);
         let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
             x_local,
@@ -541,9 +541,9 @@ impl<T: Scalar + From<f64>> Ellipse2DDistance<T> for Ellipse2D<T> {
 }
 
 impl<T: Scalar + From<f64>> Ellipse2DProjection<T> for Ellipse2D<T> {
-    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
+    fn closest_point(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
-        let closest = Ellipse2D::closest_point_to(self, &p);
+        let closest = Ellipse2D::closest_point(self, &p);
         (closest.x(), closest.y())
     }
 }

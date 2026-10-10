@@ -150,7 +150,8 @@ pub trait InfiniteLine2DContainment<T: Scalar> {
 }
 
 pub trait InfiniteLine2DProjection<T: Scalar> {
-    fn project_point(&self, point: (T, T)) -> (T, T);
+    /// 点に最も近い曲線上の点を返す
+    fn closest_point(&self, point: (T, T)) -> (T, T);
     fn mirror_point(&self, point: (T, T)) -> (T, T);
 }
 
@@ -186,7 +187,8 @@ pub trait InfiniteLine3DContainment<T: Scalar> {
 }
 
 pub trait InfiniteLine3DProjection<T: Scalar> {
-    fn project_point(&self, point: (T, T, T)) -> (T, T, T);
+    /// 点に最も近い曲線上の点を返す
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T);
 }
 

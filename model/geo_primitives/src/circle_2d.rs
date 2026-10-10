@@ -93,7 +93,7 @@ impl<T: Scalar> Circle2D<T> {
 
     /// 点が円周上にあるか判定（円周までの距離が `tolerance` 以内）
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        self.distance_to_point(*point) <= tolerance
+        self.distance_to_point(point) <= tolerance
     }
 
     /// 円が囲む領域に対する点の位置を分類する
@@ -121,7 +121,7 @@ impl<T: Scalar> Circle2D<T> {
     }
 
     /// 点から円周への距離
-    pub fn distance_to_point(&self, point: Point2D<T>) -> T {
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         let center_distance = point.distance_to(&self.center);
         (center_distance - self.radius).abs()
     }
@@ -132,7 +132,7 @@ impl<T: Scalar> Circle2D<T> {
     }
 
     /// 点に最も近い円周上の点を取得
-    pub fn closest_point_to(&self, point: Point2D<T>) -> Point2D<T> {
+    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let dx = point.x() - self.center.x();
         let dy = point.y() - self.center.y();
         let distance = point.distance_to(&self.center);
@@ -146,24 +146,17 @@ impl<T: Scalar> Circle2D<T> {
         }
     }
 
-    /// 円周上の点を Circle core の local angle parameter (`0 <= t < 2π`) へ写像する
-    pub fn parameter_at_point(&self, point: Point2D<T>) -> Option<T> {
-        if !self.contains_point(&point, default_distance_tolerance::<T>()) {
-            return None;
-        }
-
-        let dx = point.x() - self.center.x();
-        let dy = point.y() - self.center.y();
-        let angle = dy.atan2(dx);
-
-        // 0-2π の local angle parameter に正規化
-        let parameter = if angle < T::ZERO {
+    /// 点に最も近い円周上の点の local angle parameter（`0 <= t < 2π`）を取得
+    ///
+    /// 中心の点は、`closest_point` と同じく角度 0 の点を最近点とする。
+    pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
+        let closest = self.closest_point(point);
+        let angle = (closest.y() - self.center.y()).atan2(closest.x() - self.center.x());
+        if angle < T::ZERO {
             angle + T::TAU
         } else {
             angle
-        };
-
-        Some(parameter)
+        }
     }
 
     /// 2つの円の距離
@@ -340,14 +333,14 @@ impl<T: Scalar> Circle2DContainment<T> for Circle2D<T> {
 impl<T: Scalar> Circle2DDistance<T> for Circle2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
         let p = Point2D::new(point.0, point.1);
-        Circle2D::distance_to_point(self, p)
+        Circle2D::distance_to_point(self, &p)
     }
 }
 
 impl<T: Scalar> Circle2DProjection<T> for Circle2D<T> {
-    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
+    fn closest_point(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
-        let closest = Circle2D::closest_point_to(self, p);
+        let closest = Circle2D::closest_point(self, &p);
         (closest.x(), closest.y())
     }
 }

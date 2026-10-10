@@ -142,12 +142,12 @@ mod tests {
 
         // 点が Ray の正の方向にある場合
         let point1 = Point3D::new(3.0, 4.0, 0.0);
-        let closest1 = ray.closest_point_on_ray(&point1);
+        let closest1 = ray.closest_point(&point1);
         assert_eq!(closest1, Point3D::new(3.0, 0.0, 0.0));
 
         // 点が Ray の後ろにある場合
         let point2 = Point3D::new(-2.0, 3.0, 0.0);
-        let closest2 = ray.closest_point_on_ray(&point2);
+        let closest2 = ray.closest_point(&point2);
         assert_eq!(closest2, Point3D::new(0.0, 0.0, 0.0)); // 起点が最も近い
     }
 
@@ -157,7 +157,7 @@ mod tests {
         let direction = Vector3D::new(1.0, 0.0, 0.0);
         let ray = Ray3D::new(origin, direction).unwrap();
 
-        let reversed = ray.reverse_direction();
+        let reversed = ray.reverse();
 
         assert_eq!(reversed.origin(), origin);
         assert_eq!(

@@ -157,7 +157,7 @@ fn spherical_solid3d_line3d_intersection_raw<T: Scalar>(
     let line_point = Point3D::new(line_point_tuple.0, line_point_tuple.1, line_point_tuple.2);
     let line_dir = Vector3D::new(line_dir_tuple.0, line_dir_tuple.1, line_dir_tuple.2);
     if sphere.distance_to_infinite_line(&line_point, &line_dir) <= tolerance {
-        Some(line.project_point(&center))
+        Some(line.closest_point(&center))
     } else {
         None
     }
@@ -224,7 +224,7 @@ fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
     let center = Point3D::new(cx, cy, cz);
     if sphere.distance_to_line_segment(&segment.start(), &segment.end()) <= tolerance {
-        Some(segment.project_point(&center))
+        Some(segment.closest_point(&center))
     } else {
         None
     }

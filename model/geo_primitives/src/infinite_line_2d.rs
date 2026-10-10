@@ -70,7 +70,7 @@ impl<T: Scalar> InfiniteLine2D<T> {
     }
 
     /// 点を直線上に投影
-    pub fn project_point(&self, point: &Point2D<T>) -> Point2D<T> {
+    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let to_point = Vector2D::from_points(self.point, *point);
         let projection_length = to_point.dot(&self.direction);
         self.point_at_parameter(projection_length)
@@ -130,11 +130,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // 直線の接線ベクトルは方向ベクトルと同じ
         *self.direction
-    }
-
-    /// 境界上判定（直線では点上判定と同じ）
-    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
     }
 }
 
@@ -308,15 +303,15 @@ impl<T: Scalar> InfiniteLine2DContainment<T> for InfiniteLine2D<T> {
 }
 
 impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
-    fn project_point(&self, point: (T, T)) -> (T, T) {
+    fn closest_point(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
-        let projected = self.project_point(&p);
+        let projected = self.closest_point(&p);
         (projected.x(), projected.y())
     }
 
     fn mirror_point(&self, point: (T, T)) -> (T, T) {
         let p = Point2D::new(point.0, point.1);
-        let projected = self.project_point(&p);
+        let projected = self.closest_point(&p);
         // 鏡面点 = 2 * 投影点 - 元の点
         let mirrored = projected + (projected - p);
         (mirrored.x(), mirrored.y())

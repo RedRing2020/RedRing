@@ -203,7 +203,7 @@ impl<T: Scalar> LineSegment2D<T> {
     }
 
     /// 点を線分に投影（線分内に制限）
-    pub fn project_point(&self, point: &Point2D<T>) -> Point2D<T> {
+    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let projected_param = self.line.parameter_for_point(point);
         let (min_param, max_param) = self.ordered_params();
         let clamped_param = projected_param.max(min_param).min(max_param);
@@ -213,7 +213,7 @@ impl<T: Scalar> LineSegment2D<T> {
 
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
-        let projected = self.project_point(point);
+        let projected = self.closest_point(point);
         point.distance_to(&projected)
     }
 
@@ -264,11 +264,6 @@ impl<T: Scalar> LineSegment2D<T> {
     /// 接線ベクトルを取得
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         self.direction()
-    }
-
-    /// 境界上判定（線分では点上判定と同じ）
-    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
     }
 
     /// 他の線分との最短距離を計算
@@ -415,8 +410,8 @@ impl<T: Scalar> LineSegment2DEvaluation<T> for LineSegment2D<T> {
 }
 
 impl<T: Scalar> LineSegment2DProjection<T> for LineSegment2D<T> {
-    fn closest_point_to(&self, point: (T, T)) -> (T, T) {
-        let p = self.project_point(&Point2D::new(point.0, point.1));
+    fn closest_point(&self, point: (T, T)) -> (T, T) {
+        let p = self.closest_point(&Point2D::new(point.0, point.1));
         (p.x(), p.y())
     }
 }

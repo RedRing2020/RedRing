@@ -145,12 +145,12 @@ mod tests {
 
         // 点の投影
         let above_point = Point2D::new(2.0, 3.0);
-        let projected = segment.project_point(&above_point);
+        let projected = segment.closest_point(&above_point);
         assert_eq!(projected, Point2D::new(2.0, 0.0));
 
         // 線分外への投影（クランプされる）
         let outside_point = Point2D::new(-1.0, 2.0);
-        let projected_outside = segment.project_point(&outside_point);
+        let projected_outside = segment.closest_point(&outside_point);
         assert_eq!(projected_outside, Point2D::new(0.0, 0.0));
 
         // 距離計算
@@ -230,8 +230,6 @@ mod tests {
         // BasicContainment
         assert!(segment.contains_point(&Point2D::new(2.0, 0.0), TOLERANCE_F64));
         assert!(!segment.contains_point(&Point2D::new(2.0, 1.0), TOLERANCE_F64));
-
-        assert!(segment.on_boundary(&Point2D::new(2.0, 0.0), TOLERANCE_F64));
 
         let distance = segment.distance_to_point(&Point2D::new(2.0, 3.0));
         assert!((distance - 3.0).abs() < TOLERANCE_F64);

@@ -111,6 +111,16 @@ impl<T: Scalar> Ray2D<T> {
         to_point.dot(&self.direction)
     }
 
+    /// Ray 上で点に最も近い点のパラメータ（起点からの距離。0 以上に制限する）を取得
+    pub fn closest_parameter(&self, point: &Point2D<T>) -> T {
+        self.parameter_for_point(point).max(T::ZERO)
+    }
+
+    /// Ray 上で点に最も近い点を取得
+    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
+        self.point_at_parameter(self.closest_parameter(point))
+    }
+
     /// 指定方向を向いているかを判定
     pub fn points_towards_direction(&self, direction: (T, T)) -> bool {
         let target_direction = Vector2D::new(direction.0, direction.1);
@@ -158,19 +168,6 @@ impl<T: Scalar> Ray2D<T> {
     pub fn tangent_at_parameter(&self, _t: T) -> Vector2D<T> {
         // Ray の接線方向は一定（方向ベクトル）
         self.direction.as_vector()
-    }
-
-    /// 方向を反転
-    pub fn reverse_direction(&self) -> Self {
-        Self {
-            origin: self.origin,
-            direction: -self.direction,
-        }
-    }
-
-    /// 境界上判定（Rayでは点上判定と同じ）
-    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
     }
 
     /// 点からの距離
@@ -338,19 +335,11 @@ impl<T: Scalar> Ray2DEvaluation<T> for Ray2D<T> {
         let target_point = Point2D::new(point.0, point.1);
         self.parameter_for_point(&target_point)
     }
-
-    fn point_at_distance(&self, distance: T) -> (T, T) {
-        let point = self.point_at_parameter(distance);
-        (point.x(), point.y())
-    }
 }
 
 impl<T: Scalar> Ray2DProjection<T> for Ray2D<T> {
     fn closest_point(&self, point: (T, T)) -> (T, T) {
-        let target_point = Point2D::new(point.0, point.1);
-        let t = self.parameter_for_point(&target_point);
-        let clamped_t = if t < T::ZERO { T::ZERO } else { t };
-        let closest = self.point_at_parameter(clamped_t);
+        let closest = Ray2D::closest_point(self, &Point2D::new(point.0, point.1));
         (closest.x(), closest.y())
     }
 }

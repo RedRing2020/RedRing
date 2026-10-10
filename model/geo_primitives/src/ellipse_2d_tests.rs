@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_closest_point_to() {
         let ellipse = Ellipse2D::axis_aligned(Point2D::origin(), 4.0, 2.0).unwrap();
-        let closest = ellipse.closest_point_to(&Point2D::new(10.0, 0.0));
+        let closest = ellipse.closest_point(&Point2D::new(10.0, 0.0));
 
         assert!((closest.x() - 4.0).abs() < TOLERANCE_F64);
         assert!(closest.y().abs() < TOLERANCE_F64);

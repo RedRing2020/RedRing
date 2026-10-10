@@ -217,12 +217,12 @@ pub fn point3d_torus_surface3d_distance<T: Scalar>(
 
 /// Circle3D-点 間の最短距離（円周への3D空間での距離）
 pub fn circle3d_point3d_distance<T: Scalar>(circle: &Circle3D<T>, point: &Point3D<T>) -> T {
-    circle.distance_to_point_3d(*point)
+    circle.distance_to_point(point)
 }
 
 /// 逆向きラッパー: point-circle
 pub fn point3d_circle3d_distance<T: Scalar>(point: &Point3D<T>, circle: &Circle3D<T>) -> T {
-    circle.distance_to_point_3d(*point)
+    circle.distance_to_point(point)
 }
 
 /// Ellipse3D-点 間の最短距離
@@ -874,7 +874,7 @@ mod tests {
 
     #[test]
     fn circle_point_boundary_guard_keeps_collision_and_intersection_on_distance_entrypoint() {
-        const CIRCLE_DIRECT_DISTANCE: &str = "circle.distance_to_point_3d";
+        const CIRCLE_DIRECT_DISTANCE: &str = "circle.distance_to_point(";
         const CIRCLE_DIRECT_CONTAINS: &str = "circle.contains_point";
         const CIRCLE_POINT_ENTRYPOINT: &str = "crate::distance::circle3d_point3d_distance";
 
@@ -911,11 +911,11 @@ mod tests {
         );
         assert!(
             !collision_circle_point_section.contains(CIRCLE_DIRECT_DISTANCE),
-            "collision/primitive_3d.rs must not call circle.distance_to_point_3d directly"
+            "collision/primitive_3d.rs must not call circle.distance_to_point directly"
         );
         assert!(
             !intersection_circle_point_section.contains(CIRCLE_DIRECT_DISTANCE),
-            "intersection/primitive_3d.rs must not call circle.distance_to_point_3d directly"
+            "intersection/primitive_3d.rs must not call circle.distance_to_point directly"
         );
         assert!(
             !intersection_circle_point_section.contains(CIRCLE_DIRECT_CONTAINS),

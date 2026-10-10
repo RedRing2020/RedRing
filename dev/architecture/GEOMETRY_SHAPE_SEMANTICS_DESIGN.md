@@ -54,7 +54,7 @@ Arc / EllipseArc / Circle / Triangle などを含む shape 横断の quantity / 
 - 境界参照: `start_point` / `end_point` / 頂点参照 / edge length
 - 評価: `point_at_parameter` / `point_at_angle`
 - 関係判定: `contains_point`
-- 距離・射影: `distance_to_point` / `closest_point_to`
+- 距離・射影: `distance_to_point` / `closest_point`
 - 形状固有派生: `direction_vector` / `bounding_box` / `is_clockwise` / `is_planar`
 - 互換経路: `Properties` alias や旧語彙をどこまで残すか
 
@@ -280,6 +280,34 @@ topology は primitive / mother curve の native parameter semantics を保存�
 - 符号付き距離や、立体の表面（境界）までの距離が必要な場合は、`distance_to_point` とは別の名前の API で表す（`SphericalSolid3D::distance_to_surface` の符号付き距離、`EllipsoidalSolid3D::distance_to_surface` の表面までの距離等）
 - 距離は近似ではなく最近点までの距離とする。楕円・楕円体のように閉じた式で求まらない場合も、反復解法で最近点を求める
 
+## 曲線形状の API 名の規約
+
+無限直線・半直線・線分・円弧・楕円弧・円・楕円は、同じ処理を同じ名前で持つ。同じ処理の別名は置かない。
+
+| 処理 | API | 意味 |
+| --- | --- | --- |
+| 最近点 | `closest_point(p)` | 曲線（形状の範囲内）上で点に最も近い点 |
+| パラメータの逆算 | `parameter_for_point(p)` | 曲線の元になる線（支持線・母円・母楕円）上で点に最も近い点のパラメータ。形状の範囲に制限しない |
+| 範囲内のパラメータ | `closest_parameter(p)` | `closest_point(p)` のパラメータ。形状の範囲に制限する。範囲を持つ形状（線分・半直線）だけが持つ |
+| パラメータでの評価 | `point_at_parameter(t)` | 形状ごとのパラメータ（下表）での点 |
+| 方向の反転 | `reverse()` | 向きを反転した形状 |
+| 距離 | `distance_to_point(p)` | 曲線までの距離（「点との距離の規約」） |
+| 包含 | `contains_point(p, tolerance)` | 曲線上にあるか（「包含判定の規約」） |
+
+形状ごとのパラメータ:
+
+| 形状 | パラメータ |
+| --- | --- |
+| 無限直線・半直線 | 基準点（起点）からの方向に沿った距離。`parameter_for_point` は起点の後方で負の値を返す |
+| 線分・円弧・楕円弧 | 始点 0・終点 1 の正規化パラメータ |
+| 円・楕円 | local angle parameter（`0 <= t < 2π`） |
+
+- 点の引数は参照（`&Point2D<T>` / `&Point3D<T>`）で受け取る
+- trait定義（`*Projection` 等）も同じ名前を使う（引数は座標のタプル）
+- 曲線の「境界」は端点であり、`contains_point` と同じ判定を `on_boundary` 等の別名で置かない
+- すべての形状がすべての API を持つわけではない（例: `parameter_for_point` は円弧・楕円弧・`Circle3D`・`Ellipse2D` に未実装）。追加する場合はこの名前と意味に従う
+- 角度範囲の判定（`contains_angle` 等）の名前は範囲判定ヘルパーの再設計（[#762](https://github.com/RedRing2020/RedRing/issues/762)）で扱う
+
 ## 今回の棚卸しで見えた #558 の設計対象
 
 次段では、上記の shape 横断分類を前提に、少なくとも次を trait 境界文書側で整理する必要がある。
@@ -401,14 +429,14 @@ topology は primitive / mother curve の native parameter semantics を保存�
 | `point_at_parameter(t)` | 正規化パラメータでの評価（前節の評価範囲に従う） |
 | `parameter_for_point(p)` | 点を support line に投影した位置の正規化パラメータ。`0..=1` に制限しない |
 | `closest_parameter(p)` | 線分上で点に最も近い点の正規化パラメータ。`0..=1` に制限する |
-| `project_point(p)` | 線分上で点に最も近い点 |
+| `closest_point(p)` | 線分上で点に最も近い点 |
 | `reverse()` | 始点と終点を入れ替えた線分 |
 | `start_param()` / `end_param()` | 始点・終点の support line 上のパラメータ |
 
 - 正規化パラメータは常に始点 0・終点 1 とする。`reverse()` した線分（support line 上で始点のパラメータが終点より大きい線分）でも同じ
-- `point_at_parameter(closest_parameter(p))` は `project_point(p)` と一致する
+- `point_at_parameter(closest_parameter(p))` は `closest_point(p)` と一致する
 - 同じ処理の別名（比率・中心等）は置かない
-- 線分以外の曲線形状を含む API 名の統一は [#781](https://github.com/RedRing2020/RedRing/issues/781) で扱う。始点・終点を返す API 名（`start()` / `start_point()`）の統一も同 Issue で扱う
+- 曲線形状に共通の API 名は「曲線形状の API 名の規約」に従う
 
 ### 補助 API の扱い
 

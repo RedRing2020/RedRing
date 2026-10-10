@@ -108,7 +108,7 @@ mod tests {
         // 局所座標 (1, 0.5) の内部の点。距離と最近点は曲線のパラメータ方程式の数値解で求めた値
         let inside = to_world(1.0, 0.5);
         assert!((ellipse.distance_to_point(&inside) - 0.349_605_694_569_673).abs() < TOLERANCE_F64);
-        let closest = ellipse.closest_point_to(&inside);
+        let closest = ellipse.closest_point(&inside);
         let expected = to_world(1.110_726_977_965_884, 0.831_607_717_078_608);
         assert!(closest.distance_to(&expected) < TOLERANCE_F64);
         assert!(

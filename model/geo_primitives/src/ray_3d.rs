@@ -110,7 +110,7 @@ impl<T: Scalar> Ray3D<T> {
     }
 
     /// Ray の逆方向を作成
-    pub fn reverse_direction(&self) -> Self {
+    pub fn reverse(&self) -> Self {
         Self {
             origin: self.origin,
             direction: -self.direction,
@@ -370,11 +370,6 @@ impl<T: Scalar> Ray3DEvaluation<T> for Ray3D<T> {
         let target_point = Point3D::new(point.0, point.1, point.2);
         self.parameter_for_point(&target_point)
     }
-
-    fn point_at_distance(&self, distance: T) -> (T, T, T) {
-        let point = self.point_at_parameter(distance);
-        (point.x(), point.y(), point.z())
-    }
 }
 
 impl<T: Scalar> Ray3DProjection<T> for Ray3D<T> {
@@ -420,7 +415,7 @@ impl<T: Scalar> Ray3DTransform<T> for Ray3D<T> {
     where
         Self: Sized,
     {
-        self.reverse_direction()
+        Ray3D::reverse(self)
     }
 
     fn translate(&self, offset: (T, T, T)) -> Self

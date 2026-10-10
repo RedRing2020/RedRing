@@ -170,7 +170,7 @@ impl<T: Scalar> LineSegment3D<T> {
 
     /// 点から線分への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
-        point.distance_to(&self.project_point(point))
+        point.distance_to(&self.closest_point(point))
     }
 
     /// 点が線分上にあるかを判定
@@ -308,8 +308,8 @@ impl<T: Scalar> LineSegment3DEvaluation<T> for LineSegment3D<T> {
 }
 
 impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
-        let p = self.project_point(&Point3D::new(point.0, point.1, point.2));
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
+        let p = self.closest_point(&Point3D::new(point.0, point.1, point.2));
         (p.x(), p.y(), p.z())
     }
 }

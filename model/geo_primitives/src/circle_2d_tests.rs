@@ -220,17 +220,17 @@ fn test_distance_calculations() {
     let circle = Circle2D::new(Point2D::new(0.0, 0.0), 3.0).unwrap();
 
     // 円周までの距離のため、中心からは半径（3）
-    assert_eq!(circle.distance_to_point(Point2D::new(0.0, 0.0)), 3.0);
+    assert_eq!(circle.distance_to_point(&Point2D::new(0.0, 0.0)), 3.0);
 
     // 円上の点からの距離（0）
-    assert_eq!(circle.distance_to_point(Point2D::new(3.0, 0.0)), 0.0);
+    assert_eq!(circle.distance_to_point(&Point2D::new(3.0, 0.0)), 0.0);
 
     // 外部の点からの距離
     let outside_point = Point2D::new(6.0, 0.0);
-    assert_eq!(circle.distance_to_point(outside_point), 3.0);
+    assert_eq!(circle.distance_to_point(&outside_point), 3.0);
 
     // 内部の点からも円周までの距離（3 - 1 = 2）
-    assert_eq!(circle.distance_to_point(Point2D::new(1.0, 0.0)), 2.0);
+    assert_eq!(circle.distance_to_point(&Point2D::new(1.0, 0.0)), 2.0);
 }
 
 /// 変形操作テスト
@@ -360,9 +360,9 @@ fn test_basic_containment() {
     );
 
     // 距離計算（円周までの距離のため、中心からは半径）
-    assert_eq!(circle.distance_to_point(inside), 2.0);
-    assert_eq!(circle.distance_to_point(on_boundary), 0.0);
-    assert_eq!(circle.distance_to_point(outside), 2.0);
+    assert_eq!(circle.distance_to_point(&inside), 2.0);
+    assert_eq!(circle.distance_to_point(&on_boundary), 0.0);
+    assert_eq!(circle.distance_to_point(&outside), 2.0);
 }
 
 /// Foundation trait - BasicParametricテスト
@@ -390,4 +390,31 @@ fn test_circle2d_f32() {
 
     let area = circle.area();
     assert!((area - (std::f32::consts::PI * 9.0f32)).abs() < TOLERANCE_F32);
+}
+
+/// 点に対応するパラメータは最近点の角度
+#[test]
+fn test_parameter_for_point_is_angle_of_closest_point() {
+    let circle = Circle2D::new(Point2D::new(1.0, 1.0), 2.0).unwrap();
+
+    // 円周上・内部・外部の点のいずれも、中心から見た方向の角度
+    for (x, y, expected) in [
+        (3.0, 1.0, 0.0),
+        (1.0, 2.0, std::f64::consts::FRAC_PI_2),
+        (-4.0, 1.0, PI),
+        (1.0, -0.5, 3.0 * std::f64::consts::FRAC_PI_2),
+    ] {
+        let point = Point2D::new(x, y);
+        let t = circle.parameter_for_point(&point);
+        assert!((t - expected).abs() < TOLERANCE_F64);
+        assert!(
+            circle
+                .point_at_parameter(t)
+                .distance_to(&circle.closest_point(&point))
+                < TOLERANCE_F64
+        );
+    }
+
+    // 中心は closest_point と同じく角度 0 の点を最近点とする
+    assert!(circle.parameter_for_point(&Point2D::new(1.0, 1.0)).abs() < TOLERANCE_F64);
 }

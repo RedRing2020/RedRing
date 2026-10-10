@@ -181,7 +181,7 @@ impl<T: Scalar> Circle3D<T> {
     ///
     /// # 戻り値
     /// 円周上の最近点
-    pub fn closest_point_on_circle(&self, point: &Point3D<T>) -> Point3D<T> {
+    pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let center_to_point = Vector3D::from_points(&self.center_internal(), point);
         let plane_distance = center_to_point.dot(&self.normal_internal().as_vector());
 

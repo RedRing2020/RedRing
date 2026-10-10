@@ -91,15 +91,6 @@ impl<T: Scalar> Ray2D<T> {
             && self.is_parallel_to(other, tolerance)
     }
 
-    /// Ray を指定した長さで切った時の終点を取得
-    pub fn point_at_distance(&self, length: T) -> Option<Point2D<T>> {
-        if length < T::ZERO {
-            return None;
-        }
-        // DerefによりVector2D<T>が得られる
-        Some(self.origin_internal() + self.direction_internal() * length)
-    }
-
     /// Ray の角度を取得（X軸正方向からの角度）
     pub fn angle(&self) -> Angle<T> {
         let dir = self.direction_internal();

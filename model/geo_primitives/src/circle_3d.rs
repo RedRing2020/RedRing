@@ -206,7 +206,7 @@ impl<T: Scalar> Circle3D<T> {
 
     /// 点が円周上にあるか判定（円周までの距離が `tolerance` 以内）
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        self.distance_to_point_3d(*point) <= tolerance
+        self.distance_to_point(point) <= tolerance
     }
 
     /// 円が平面上に囲む領域に対する点の位置を分類する
@@ -233,7 +233,7 @@ impl<T: Scalar> Circle3D<T> {
     }
 
     /// 点から円周への距離（3D空間）
-    pub fn distance_to_point_3d(&self, point: Point3D<T>) -> T {
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         // 点から中心へのベクトル
         let to_point = Vector3D::new(
             point.x() - self.center.x(),
@@ -452,12 +452,12 @@ impl<T: Scalar> Circle3DContainment<T> for Circle3D<T> {
 impl<T: Scalar> Circle3DDistance<T> for Circle3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
-        Circle3D::distance_to_point_3d(self, p)
+        Circle3D::distance_to_point(self, &p)
     }
 }
 
 impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
 
         // 点から中心へのベクトル

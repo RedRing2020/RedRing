@@ -44,11 +44,6 @@ impl<T: Scalar> Ray3D<T> {
         self.direction_vector()
     }
 
-    /// 点が境界上にあるかを判定（Ray の場合は起点のみ）
-    pub fn on_boundary(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        self.origin_internal().distance_to(point) <= tolerance
-    }
-
     /// 点までの距離を計算
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         let to_point = *point - self.origin_internal();
@@ -87,7 +82,7 @@ impl<T: Scalar> Ray3D<T> {
     }
 
     /// Ray 上で指定した点に最も近い点を取得
-    pub fn closest_point_on_ray(&self, point: &Point3D<T>) -> Point3D<T> {
+    pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let to_point = *point - self.origin_internal();
         let projection_length = self.direction_vector().dot(&to_point);
 

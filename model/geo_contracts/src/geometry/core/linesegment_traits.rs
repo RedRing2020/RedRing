@@ -157,7 +157,7 @@ pub trait LineSegment2DEvaluation<T: Scalar> {
 
 pub trait LineSegment2DProjection<T: Scalar> {
     /// 点から線分への最近点を計算
-    fn closest_point_to(&self, point: (T, T)) -> (T, T);
+    fn closest_point(&self, point: (T, T)) -> (T, T);
 }
 
 pub trait LineSegment3DDerived<T: Scalar> {
@@ -188,7 +188,7 @@ pub trait LineSegment3DEvaluation<T: Scalar> {
 
 pub trait LineSegment3DProjection<T: Scalar> {
     /// 点から線分への最近点を計算
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
 }
 
 /// LineSegment2Dの3つのCore機能統合トレイト
