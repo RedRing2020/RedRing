@@ -17,7 +17,7 @@ fn arc3d_point3d_intersection_raw<T: Scalar>(
     point_intersection_if(
         point,
         crate::distance::arc3d_point3d_distance(arc, point) <= tolerance
-            && arc.contains_point_angle(Point3D::new(point.x(), point.y(), point.z())),
+            && arc.contains_point_angle(point),
     )
 }
 

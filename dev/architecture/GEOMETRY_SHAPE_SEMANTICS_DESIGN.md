@@ -307,7 +307,19 @@ topology は primitive / mother curve の native parameter semantics を保存�
 - trait定義（`*Projection` 等）も同じ名前を使う（引数は座標のタプル）
 - 曲線の「境界」は端点であり、`contains_point` と同じ判定を `on_boundary` 等の別名で置かない
 - すべての形状がすべての API を持つわけではない（例: `parameter_for_point` は円弧・楕円弧・`Circle3D`・`Ellipse2D` に未実装）。追加する場合はこの名前と意味に従う
-- 角度範囲の判定（`contains_angle` 等）の名前は範囲判定ヘルパーの再設計（[#762](https://github.com/RedRing2020/RedRing/issues/762)）で扱う
+
+円弧・楕円弧の角度範囲の判定は、次の API で行う。
+
+| API | 意味 |
+| --- | --- |
+| `angle_range()` | 開始角から反時計回りに終了角まで進む角度範囲（`analysis::AngleRange`）。開始角と終了角が等しい場合は `None` |
+| `contains_angle(angle)` | 角度が角度範囲に含まれるか。範囲の両端を含み、既定の角度トレランスで判定する。周期の違う同じ角度・0° 跨ぎ・全周を含む |
+| `contains_point_angle(&p)` | 点の角度が角度範囲に含まれるか（点が曲線上にあるかは判定しない） |
+
+- 点の角度は、点に最も近い母曲線上の点の角度とする。楕円弧では中心から見た方向の角度ではなく、母楕円のパラメータ角（`parameter_for_point`）を使う
+- `Arc3D` の点の角度は `point_at_angle` と同じく、開始方向を角度 0、法線まわりに反時計回りを正とする
+- trait定義（`*TrimRange::contains_angle`）は角度をラジアンで受け取り、固有メソッドに委譲する
+- 開始角 > 終了角の解釈（向き）は [#794](https://github.com/RedRing2020/RedRing/issues/794) で扱う。現時点の角度範囲の判定は、反時計回りに 0° を跨ぐ範囲とする
 
 ## 今回の棚卸しで見えた #558 の設計対象
 

@@ -294,7 +294,7 @@ pub fn arc2d_point2d_intersection<T: Scalar>(
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 
-    if !arc.contains_point_angle(*point) {
+    if !arc.contains_point_angle(point) {
         return IntersectionResult::from_option_point2d(None, false, tolerance);
     }
 

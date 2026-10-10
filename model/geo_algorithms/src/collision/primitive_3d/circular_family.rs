@@ -116,7 +116,7 @@ pub fn ellipse3d_ellipse3d_collides<T: Scalar>(
 
 pub fn arc3d_point3d_collides<T: Scalar>(arc: &Arc3D<T>, point: &Point3D<T>, tolerance: T) -> bool {
     crate::distance::arc3d_point3d_distance(arc, point) <= tolerance
-        && arc.contains_point_angle(Point3D::new(point.x(), point.y(), point.z()))
+        && arc.contains_point_angle(point)
 }
 
 pub fn arc3d_line_segment3d_collides<T: Scalar>(

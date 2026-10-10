@@ -523,21 +523,31 @@ impl<T: Scalar> EllipseArc3DContainment<T> for EllipseArc3D<T> {
 
 impl<T: Scalar> EllipseArc3DTrimRange<T> for EllipseArc3D<T> {
     fn contains_angle(&self, angle: T) -> bool {
-        let normalized_angle = if angle < T::ZERO {
-            angle + T::TAU
-        } else if angle >= T::TAU {
-            angle - T::TAU
-        } else {
-            angle
-        };
+        EllipseArc3D::contains_angle(self, Angle::from_radians(angle))
+    }
+}
 
-        let start = self.start_angle.to_radians();
-        let end = self.end_angle.to_radians();
+impl<T: Scalar> EllipseArc3D<T> {
+    /// 開始角から反時計回りに終了角まで進む角度範囲
+    ///
+    /// 開始角と終了角が等しい場合は `None` を返す。
+    pub fn angle_range(&self) -> Option<analysis::AngleRange<T>> {
+        analysis::AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
+    }
 
-        if start <= end {
-            normalized_angle >= start && normalized_angle <= end
-        } else {
-            normalized_angle >= start || normalized_angle <= end
+    /// 角度が角度範囲に含まれるかを判定する（範囲の両端を含み、既定の角度トレランスで判定する）
+    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
+        let tolerance = geo_contracts::default_angle_tolerance::<T>();
+        match self.angle_range() {
+            Some(range) => range.contains(angle, tolerance),
+            None => angle.is_equivalent(&self.start_angle, tolerance),
         }
+    }
+
+    /// 点の角度が角度範囲に含まれるかを判定する
+    ///
+    /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母楕円上の点のパラメータ角とする（平面外の点は平面へ投影した点の最近点）。
+    pub fn contains_point_angle(&self, point: &Point3D<T>) -> bool {
+        self.contains_angle(Angle::from_radians(self.ellipse.parameter_for_point(point)))
     }
 }
