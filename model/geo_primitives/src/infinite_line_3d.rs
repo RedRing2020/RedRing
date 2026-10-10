@@ -86,7 +86,7 @@ impl<T: Scalar> InfiniteLine3D<T> {
     }
 
     /// 点を直線に投影
-    pub fn project_point(&self, point: &Point3D<T>) -> Point3D<T> {
+    pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let to_point = Vector3D::from_points(&self.point, point);
         let t = to_point.dot(&self.direction);
         self.point_at_parameter(t)
@@ -94,32 +94,13 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
     /// 点から直線への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
-        let projected = self.project_point(point);
+        let projected = self.closest_point(point);
         point.distance_to(&projected)
     }
 
     /// 点が直線上にあるかを判定
     pub fn contains_point(&self, point: &Point3D<T>, tolerance: T) -> bool {
         self.distance_to_point(point) <= tolerance
-    }
-
-    /// 点が直線上にあるかを判定（デフォルトトレランス）
-    pub fn contains_point_default(&self, point: &Point3D<T>) -> bool {
-        self.contains_point(point, default_distance_tolerance::<T>())
-    }
-
-    /// 点に最も近い直線上の点を取得
-    pub fn closest_point_to_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        self.project_point(point)
-    }
-
-    /// 点に対応するパラメータを取得
-    pub fn parameter_at_point(&self, point: &Point3D<T>) -> Option<T> {
-        if self.contains_point_default(point) {
-            Some(self.parameter_for_point(point))
-        } else {
-            None
-        }
     }
 
     /// 点を直線に投影した時のパラメータtを取得
@@ -467,15 +448,15 @@ impl<T: Scalar> InfiniteLine3DContainment<T> for InfiniteLine3D<T> {
 }
 
 impl<T: Scalar> InfiniteLine3DProjection<T> for InfiniteLine3D<T> {
-    fn project_point(&self, point: (T, T, T)) -> (T, T, T) {
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
-        let projected = InfiniteLine3D::project_point(self, &p);
+        let projected = InfiniteLine3D::closest_point(self, &p);
         (projected.x(), projected.y(), projected.z())
     }
 
     fn mirror_point(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
-        let projected = self.project_point(&p);
+        let projected = self.closest_point(&p);
         // 鏡面点 = 2 * 投影点 - 元の点
         let mirrored = projected + (projected - p);
         (mirrored.x(), mirrored.y(), mirrored.z())

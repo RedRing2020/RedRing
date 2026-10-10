@@ -334,7 +334,7 @@ pub fn infinite_line2d_circle2d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let center = Point2D::new(circle.center().0, circle.center().1);
-    let projected = line.project_point(&center);
+    let projected = line.closest_point(&center);
     let dist_to_center = line.distance_to_point(&center);
     let radius = circle.radius();
     if dist_to_center > radius + tolerance {

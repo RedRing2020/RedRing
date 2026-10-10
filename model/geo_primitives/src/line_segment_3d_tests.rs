@@ -131,17 +131,17 @@ mod tests {
 
         // 線分内の点への投影
         let point_above = Point3D::new(5.0, 3.0, 0.0);
-        let projected = segment.project_point(&point_above);
+        let projected = segment.closest_point(&point_above);
         assert_eq!(projected, Point3D::new(5.0, 0.0, 0.0));
 
         // 線分外の点（始点側）
         let point_before = Point3D::new(-5.0, 2.0, 0.0);
-        let projected_start = segment.project_point(&point_before);
+        let projected_start = segment.closest_point(&point_before);
         assert_eq!(projected_start, segment.start());
 
         // 線分外の点（終点側）
         let point_after = Point3D::new(15.0, 2.0, 0.0);
-        let projected_end = segment.project_point(&point_after);
+        let projected_end = segment.closest_point(&point_after);
         assert_eq!(projected_end, segment.end());
     }
 
@@ -235,11 +235,11 @@ mod tests {
         );
 
         // 投影は線分内の点はそのまま、範囲外は近い端点に制限される
-        let projected = reversed.project_point(&Point3D::new(3.0, 2.0, 0.0));
+        let projected = reversed.closest_point(&Point3D::new(3.0, 2.0, 0.0));
         assert!(projected.distance_to(&Point3D::new(3.0, 0.0, 0.0)) < TOLERANCE_F64);
-        let beyond_start = reversed.project_point(&Point3D::new(15.0, 1.0, 0.0));
+        let beyond_start = reversed.closest_point(&Point3D::new(15.0, 1.0, 0.0));
         assert!(beyond_start.distance_to(&Point3D::new(10.0, 0.0, 0.0)) < TOLERANCE_F64);
-        let beyond_end = reversed.project_point(&Point3D::new(-5.0, 1.0, 0.0));
+        let beyond_end = reversed.closest_point(&Point3D::new(-5.0, 1.0, 0.0));
         assert!(beyond_end.distance_to(&Point3D::new(0.0, 0.0, 0.0)) < TOLERANCE_F64);
     }
 
@@ -314,8 +314,6 @@ mod tests {
 
         assert!(segment.contains_point(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE_F64));
         assert!(!segment.contains_point(&Point3D::new(15.0, 0.0, 0.0), TOLERANCE_F64));
-
-        assert!(segment.on_boundary(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE_F64));
 
         let distance = segment.distance_to_point(&Point3D::new(5.0, 3.0, 0.0));
         assert!((distance - 3.0).abs() < TOLERANCE_F64);

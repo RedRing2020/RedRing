@@ -168,14 +168,4 @@ impl<T: Scalar> InfiniteLine2D<T> {
         )
         .unwrap()
     }
-
-    /// 直線上の最も近い点を取得（project_pointのエイリアス）
-    pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
-        self.project_point(point)
-    }
-
-    /// 方向を反転（reverse_direction エイリアス）
-    pub fn reverse_direction(&self) -> Self {
-        self.reverse()
-    }
 }

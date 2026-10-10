@@ -280,12 +280,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         tangents
     }
 
-    /// 楕円弧の方向を反転（拡張版）
-    pub fn reverse_advanced(&self) -> Self {
-        // 基本的な reverse と同じだが、将来的に追加処理を含む可能性
-        self.reverse()
-    }
-
     /// 楕円弧の角度を正規化
     pub fn normalize_angles(&self) -> Self {
         let mut start_rad = self.start_angle().to_radians();

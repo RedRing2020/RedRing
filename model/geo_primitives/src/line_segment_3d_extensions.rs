@@ -74,13 +74,8 @@ impl<T: Scalar> LineSegment3D<T> {
         }
     }
 
-    /// 境界上判定（線分では contains_point と同じ）
-    pub fn on_boundary(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
-    }
-
     /// 点を線分に投影
-    pub fn project_point(&self, point: &Point3D<T>) -> Point3D<T> {
+    pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
         let to_point = Vector3D::from_points(&self.line().point_internal(), point);
         let t = to_point.dot(&self.line().direction_internal());
 

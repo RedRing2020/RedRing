@@ -261,8 +261,8 @@ impl<T: Scalar> Ellipse3D<T> {
     }
 
     /// 点に最も近い楕円上の点を取得
-    pub fn closest_point_to(&self, point: Point3D<T>) -> Point3D<T> {
-        let (x_local, y_local, _) = self.local_coordinates(&point);
+    pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
+        let (x_local, y_local, _) = self.local_coordinates(point);
         let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
             x_local,
             y_local,
@@ -277,6 +277,25 @@ impl<T: Scalar> Ellipse3D<T> {
             self.center.y() + u.y() * closest_x + v.y() * closest_y,
             self.center.z() + u.z() * closest_x + v.z() * closest_y,
         )
+    }
+
+    /// 点に最も近い楕円上の点の local angle parameter（`0 <= t < 2π`）を取得
+    ///
+    /// `point_at_parameter(t)` が点の最近点となる `t` を返す。平面外の点は平面へ投影した点の最近点を使う。
+    pub fn parameter_for_point(&self, point: &Point3D<T>) -> T {
+        let (x_local, y_local, _) = self.local_coordinates(point);
+        let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
+            x_local,
+            y_local,
+            self.semi_major_axis,
+            self.semi_minor_axis,
+        );
+        let angle = (closest_y / self.semi_minor_axis).atan2(closest_x / self.semi_major_axis);
+        if angle < T::ZERO {
+            angle + T::TAU
+        } else {
+            angle
+        }
     }
 
     /// 中心を原点とし、長軸・短軸・法線を軸とする楕円の局所座標系での点の座標
@@ -508,9 +527,9 @@ impl<T: Scalar> Ellipse3DDistance<T> for Ellipse3D<T> {
 }
 
 impl<T: Scalar> Ellipse3DProjection<T> for Ellipse3D<T> {
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T) {
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T) {
         let p = Point3D::new(point.0, point.1, point.2);
-        let closest = Ellipse3D::closest_point_to(self, p);
+        let closest = Ellipse3D::closest_point(self, &p);
         (closest.x(), closest.y(), closest.z())
     }
 }

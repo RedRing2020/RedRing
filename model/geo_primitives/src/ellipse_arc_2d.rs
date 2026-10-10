@@ -217,11 +217,6 @@ impl<T: Scalar> EllipseArc2D<T> {
     pub fn parameter_range(&self) -> (T, T) {
         (T::ZERO, T::ONE)
     }
-
-    /// 境界上の点かどうかを判定
-    pub fn on_boundary(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        self.contains_point(point, tolerance)
-    }
 }
 
 impl<T: Scalar> EllipseArc2DConstructor<T> for EllipseArc2D<T> {

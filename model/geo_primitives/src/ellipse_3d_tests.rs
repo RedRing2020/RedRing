@@ -148,10 +148,8 @@ mod tests {
     #[test]
     fn test_closest_point_projection() {
         let ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 4.0, 2.0).unwrap();
-        let closest = <Ellipse3D<f64> as Ellipse3DProjection<f64>>::closest_point_to(
-            &ellipse,
-            (10.0, 0.0, 3.0),
-        );
+        let closest =
+            <Ellipse3D<f64> as Ellipse3DProjection<f64>>::closest_point(&ellipse, (10.0, 0.0, 3.0));
 
         assert!((closest.0 - 4.0).abs() < 1e-4);
         assert!(closest.1.abs() < 1e-4);
@@ -182,7 +180,7 @@ mod tests {
         assert!((inside_distance - 0.349_605_694_569_673).abs() < TOLERANCE_F64);
 
         // 平面外の点は、平面へ投影した点の最近点を最近点とする
-        let closest = ellipse.closest_point_to(Point3D::new(1.0, 0.5, 3.0));
+        let closest = ellipse.closest_point(&Point3D::new(1.0, 0.5, 3.0));
         assert!(
             closest.distance_to(&Point3D::new(
                 1.110_726_977_965_884,
@@ -243,5 +241,33 @@ mod tests {
             Ellipse3DContainment::classify_point(&ellipse, (0.5, 0.0, 0.0)),
             PointClassification::Inside
         );
+    }
+
+    #[test]
+    fn test_parameter_for_point_returns_parameter_angle_of_closest_point() {
+        use analysis::test_constants::TOLERANCE_F64;
+
+        // XY 平面上、長半軸 2（X 軸方向）・短半軸 1 の楕円
+        let ellipse = Ellipse3D::new(
+            Point3D::new(0.0_f64, 0.0, 0.0),
+            2.0,
+            1.0,
+            Vector3D::new(0.0, 0.0, 1.0),
+            Vector3D::new(1.0, 0.0, 0.0),
+        )
+        .unwrap();
+
+        // 楕円上の点は、その点を与えるパラメータ角（中心から見た方向の角度ではない）
+        let t = std::f64::consts::FRAC_PI_4;
+        let on_ellipse = ellipse.point_at_parameter(t);
+        assert!((ellipse.parameter_for_point(&on_ellipse) - t).abs() < TOLERANCE_F64);
+
+        // 楕円の内部・平面外の点は、最近点のパラメータ角
+        for point in [Point3D::new(1.0, 0.5, 0.0), Point3D::new(-1.5, -0.2, 2.0)] {
+            let parameter = ellipse.parameter_for_point(&point);
+            let closest = ellipse.closest_point(&point);
+            assert!(ellipse.point_at_parameter(parameter).distance_to(&closest) < TOLERANCE_F64);
+            assert!((0.0..std::f64::consts::TAU).contains(&parameter));
+        }
     }
 }

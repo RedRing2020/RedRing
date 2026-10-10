@@ -115,7 +115,8 @@ pub trait Circle2DDistance<T: Scalar> {
 }
 
 pub trait Circle2DProjection<T: Scalar> {
-    fn closest_point_to(&self, point: (T, T)) -> (T, T);
+    /// 点に最も近い曲線上の点を返す
+    fn closest_point(&self, point: (T, T)) -> (T, T);
 }
 
 pub trait Circle3DDerived<T: Scalar> {
@@ -144,7 +145,8 @@ pub trait Circle3DDistance<T: Scalar> {
 }
 
 pub trait Circle3DProjection<T: Scalar> {
-    fn closest_point_to(&self, point: (T, T, T)) -> (T, T, T);
+    /// 点に最も近い曲線上の点を返す
+    fn closest_point(&self, point: (T, T, T)) -> (T, T, T);
 }
 
 pub trait Circle2DCore<T: Scalar>: Circle2DConstructor<T> + Circle2DProperties<T> {}

@@ -211,14 +211,4 @@ impl<T: Scalar> InfiniteLine3D<T> {
             Vector2D::new(self.direction_internal().y(), self.direction_internal().z());
         crate::InfiniteLine2D::new(projected_point, projected_direction).unwrap()
     }
-
-    /// 直線上の最も近い点を取得（project_pointのエイリアス）
-    pub fn closest_point(&self, point: &Point3D<T>) -> Point3D<T> {
-        self.project_point(point)
-    }
-
-    /// 方向を反転（reverse_direction エイリアス）
-    pub fn reverse_direction(&self) -> Self {
-        self.reverse()
-    }
 }

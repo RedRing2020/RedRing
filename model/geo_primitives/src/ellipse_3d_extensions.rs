@@ -3,7 +3,6 @@
 //! Extension Foundation パターンに基づく Ellipse3D の拡張実装
 
 use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
-use geo_contracts::default_distance_tolerance;
 use geo_contracts::Scalar;
 
 impl<T: Scalar> Ellipse3D<T> {
@@ -159,28 +158,5 @@ impl<T: Scalar> Ellipse3D<T> {
                 .unwrap(),
             )
         }
-    }
-
-    /// 楕円上の点のパラメータを逆算（近似）
-    pub fn parameter_for_point(&self, point: &Point3D<T>) -> Option<T> {
-        // 点が楕円平面上にあるかチェック
-        let to_point = Vector3D::new(
-            point.x() - self.center_internal().x(),
-            point.y() - self.center_internal().y(),
-            point.z() - self.center_internal().z(),
-        );
-
-        let distance_to_plane = to_point.dot(&self.normal()).abs();
-        if distance_to_plane > default_distance_tolerance::<T>() {
-            return None; // 楕円平面上にない
-        }
-
-        // 楕円の局所座標系での座標を計算
-        let u_coord = to_point.dot(&self.major_axis_direction());
-        let v_coord = to_point.dot(&self.minor_axis_direction());
-
-        // パラメータを計算
-        let t = v_coord.atan2(u_coord);
-        Some(if t < T::ZERO { t + T::TAU } else { t })
     }
 }
