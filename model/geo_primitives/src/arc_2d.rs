@@ -289,18 +289,14 @@ impl<T: Scalar> Arc2DEvaluation<T> for Arc2D<T> {
 
 impl<T: Scalar> Arc2DDistance<T> for Arc2D<T> {
     fn distance_to_point(&self, point: (T, T)) -> T {
-        // 簡易実装: 円弧の中心からの距離との差分
-        let center = self.center_internal();
-        let distance_from_center = center.distance_to(&Point2D::new(point.0, point.1));
-        (distance_from_center - self.radius_internal()).abs()
+        Arc2D::distance_to_point(self, &Point2D::new(point.0, point.1))
     }
 }
 
 impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         let point = Point2D::new(point.0, point.1);
-        let distance = <Self as Arc2DDistance<T>>::distance_to_point(self, (point.x(), point.y()));
-        distance <= default_distance_tolerance::<T>() && self.contains_point_angle(&point)
+        Arc2D::distance_to_point(self, &point) <= default_distance_tolerance::<T>()
     }
 }
 
@@ -375,6 +371,19 @@ impl<T: Scalar> Arc2D<T> {
         match self.angle_range() {
             Some(range) => range.contains(angle, tolerance),
             None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    /// 点から円弧への最短距離
+    ///
+    /// 点の角度が角度範囲内なら母円までの距離、範囲外なら始点・終点までの距離の小さい方を返す。
+    pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
+        if self.contains_point_angle(point) {
+            self.circle.distance_to_point(point)
+        } else {
+            point
+                .distance_to(&self.start_point())
+                .min(point.distance_to(&self.end_point()))
         }
     }
 

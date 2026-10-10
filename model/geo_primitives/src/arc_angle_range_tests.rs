@@ -124,4 +124,34 @@ mod tests {
         assert!(arc.contains_point_angle(&point));
         assert!(arc.contains_point_angle(&Point3D::new(point.x(), point.y(), 3.0)));
     }
+
+    #[test]
+    fn arc_distance_uses_endpoints_outside_angle_range() {
+        use geo_contracts::{Arc2DContainment, Arc2DDistance, Arc3DContainment, Arc3DDistance};
+
+        // 中心 (0, 0)・半径 2・0°〜90° の円弧
+        let arc = arc2d(0.0, 90.0);
+        // 角度範囲内は母円までの距離
+        assert!(
+            (Arc2DDistance::distance_to_point(&arc, (3.0, 3.0)) - (18.0_f64.sqrt() - 2.0)).abs()
+                < 1e-12
+        );
+        // 角度範囲外は近い端点 (0, 2) までの距離
+        assert!(
+            (Arc2DDistance::distance_to_point(&arc, (-3.0, 0.0)) - 13.0_f64.sqrt()).abs() < 1e-12
+        );
+        assert!(!Arc2DContainment::contains_point(&arc, (-2.0, 0.0)));
+        assert!(Arc2DContainment::contains_point(&arc, (0.0, 2.0)));
+
+        // XY 平面上、開始方向 +X・法線 +Z・半径 2・0°〜90° の円弧
+        let arc = arc3d(0.0, 90.0);
+        // 角度範囲内の平面外の点は、平面外の距離を含めた円弧までの距離
+        assert!((Arc3DDistance::distance_to_point(&arc, (2.0, 0.0, 1.5)) - 1.5).abs() < 1e-12);
+        let expected = (1.0_f64 + 1.0).sqrt(); // 半径方向 1・平面外 1
+        assert!((Arc3DDistance::distance_to_point(&arc, (3.0, 0.0, 1.0)) - expected).abs() < 1e-12);
+        // 角度範囲外は近い端点 (2, 0, 0) までの距離
+        assert!((Arc3DDistance::distance_to_point(&arc, (2.0, -1.0, 0.0)) - 1.0).abs() < 1e-12);
+        assert!(!Arc3DContainment::contains_point(&arc, (2.0, 0.0, 0.5)));
+        assert!(Arc3DContainment::contains_point(&arc, (0.0, 2.0, 0.0)));
+    }
 }
