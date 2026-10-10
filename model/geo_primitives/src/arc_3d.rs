@@ -349,20 +349,14 @@ impl<T: Scalar> Arc3DEvaluation<T> for Arc3D<T> {
 
 impl<T: Scalar> Arc3DDistance<T> for Arc3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
-        // 簡易実装: 円弧上の最近点までの距離
-        let center_pt = self.center_internal();
-        (center_pt.distance_to(&Point3D::new(point.0, point.1, point.2)) - self.radius_internal())
-            .abs()
+        Arc3D::distance_to_point(self, &Point3D::new(point.0, point.1, point.2))
     }
 }
 
 impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
     fn contains_point(&self, point: (T, T, T)) -> bool {
         let point = Point3D::new(point.0, point.1, point.2);
-        let center_pt = self.center_internal();
-        let dist = center_pt.distance_to(&point);
-        (dist - self.radius_internal()).abs() <= default_distance_tolerance::<T>()
-            && self.contains_point_angle(&point)
+        Arc3D::distance_to_point(self, &point) <= default_distance_tolerance::<T>()
     }
 }
 
@@ -445,6 +439,24 @@ impl<T: Scalar> Arc3D<T> {
         match self.angle_range() {
             Some(range) => range.contains(angle, tolerance),
             None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    /// 点から円弧への最短距離
+    ///
+    /// 点の角度が角度範囲内なら母円までの距離（円弧平面からの距離を含む）、範囲外なら始点・終点までの
+    /// 距離の小さい方を返す。
+    pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
+        if self.contains_point_angle(point) {
+            let to_point = Vector3D::from_points(&self.center, point);
+            let normal = self.normal.as_vector();
+            let plane_distance = to_point.dot(&normal);
+            let radial_distance = (to_point - normal * plane_distance).length() - self.radius;
+            (plane_distance * plane_distance + radial_distance * radial_distance).sqrt()
+        } else {
+            point
+                .distance_to(&self.start_point())
+                .min(point.distance_to(&self.end_point()))
         }
     }
 
