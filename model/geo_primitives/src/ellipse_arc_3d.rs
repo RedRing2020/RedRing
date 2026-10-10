@@ -3,9 +3,9 @@
 //! Core Foundation パターンに基づく EllipseArc3D の必須機能のみ
 //! 拡張機能は ellipse_arc_3d_extensions.rs を参照
 
-use crate::{Arc3D, Circle3D, Direction3D, Ellipse3D, Point3D, Vector3D};
+use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::{
-    Angle, Arc3DProperties, EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DDerived,
+    Angle, EllipseArc3DConstructor, EllipseArc3DContainment, EllipseArc3DDerived,
     EllipseArc3DEndpoint, EllipseArc3DEvaluation, EllipseArc3DProperties, EllipseArc3DTrimRange,
     Scalar,
 };
@@ -35,16 +35,6 @@ impl<T: Scalar> EllipseArc3D<T> {
             start_angle,
             end_angle,
         }
-    }
-
-    /// 3D円弧から3D楕円弧を作成
-    pub fn from_arc(arc: Arc3D<T>) -> Option<Self> {
-        let (cx, cy, cz) = Arc3DProperties::center(&arc);
-        let center = Point3D::new(cx, cy, cz);
-        let radius = Arc3DProperties::radius(&arc);
-        let circle = Circle3D::new(center, arc.normal(), radius)?;
-        let ellipse = Ellipse3D::from_circle(&circle)?;
-        Some(Self::new(ellipse, arc.start_angle(), arc.end_angle()))
     }
 
     /// 基底楕円を取得
@@ -127,12 +117,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         }
     }
 
-    /// 弧が完全な楕円かどうかを判定
-    pub fn is_full_ellipse(&self) -> bool {
-        let two_pi = T::from_f64(2.0 * std::f64::consts::PI);
-        (self.angle_span() - two_pi).abs() < T::EPSILON
-    }
-
     /// 弧が円弧かどうかを判定
     pub fn is_circular(&self) -> bool {
         self.ellipse.is_circle()
@@ -160,22 +144,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         Self::new(self.ellipse, self.end_angle, self.start_angle)
     }
 
-    /// 角度範囲を変更した新しい楕円弧を作成
-    pub fn with_angles(&self, start_angle: Angle<T>, end_angle: Angle<T>) -> Self {
-        Self::new(self.ellipse, start_angle, end_angle)
-    }
-
-    /// 基底楕円を変更した新しい楕円弧を作成
-    pub fn with_ellipse(&self, ellipse: Ellipse3D<T>) -> Self {
-        Self::new(ellipse, self.start_angle, self.end_angle)
-    }
-
-    /// 原点中心の回転（Z軸回転）
-    pub fn rotate_z(&self, _angle: T) -> Option<Self> {
-        // 簡単なZ軸回転（実際の実装は拡張版で）
-        Some(Self::new(self.ellipse, self.start_angle, self.end_angle))
-    }
-
     /// 原点中心の均等スケール
     pub fn scale(&self, factor: T) -> Option<Self> {
         // スケールは基底楕円に適用
@@ -193,24 +161,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         )?;
 
         Some(Self::new(scaled_ellipse, self.start_angle, self.end_angle))
-    }
-
-    /// 部分弧を取得
-    pub fn sub_arc(&self, sub_start: Angle<T>, sub_end: Angle<T>) -> Option<Self> {
-        let start_rad = self.start_angle.to_radians();
-        let end_rad = self.end_angle.to_radians();
-        let sub_start_rad = sub_start.to_radians();
-        let sub_end_rad = sub_end.to_radians();
-
-        // 簡単な範囲チェック
-        if (sub_start_rad >= start_rad && sub_start_rad <= end_rad)
-            && (sub_end_rad >= start_rad && sub_end_rad <= end_rad)
-            && sub_start_rad <= sub_end_rad
-        {
-            Some(Self::new(self.ellipse, sub_start, sub_end))
-        } else {
-            None
-        }
     }
 
     /// バウンディングボックスを取得（近似）

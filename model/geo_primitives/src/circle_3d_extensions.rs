@@ -75,22 +75,6 @@ impl<T: Scalar> Circle3D<T> {
         (first, second)
     }
 
-    /// 点が円の平面上にあるかを判定
-    ///
-    /// # 引数
-    /// * `point` - 判定対象の点
-    /// * `tolerance` - 許容誤差
-    ///
-    /// # 戻り値
-    /// 点が円の平面上にある場合は `true`
-    pub fn point_on_plane(&self, point: &Point3D<T>, tolerance: T) -> bool {
-        let center_to_point = Vector3D::from_points(&self.center_internal(), point);
-        let distance_to_plane = center_to_point
-            .dot(&self.normal_internal().as_vector())
-            .abs();
-        distance_to_plane <= tolerance
-    }
-
     /// 円周上の等間隔な点列を生成
     ///
     /// # 引数
@@ -127,21 +111,6 @@ impl<T: Scalar> Circle3D<T> {
         points
     }
 
-    /// 円が含まれる平面の方程式を取得
-    ///
-    /// # 戻り値
-    /// 平面の方程式: (法線ベクトル, 平面上の点からの距離)
-    /// ax + by + cz + d = 0 の形で、(a, b, c) = 法線ベクトル、d = -法線·中心点
-    pub fn plane_equation(&self) -> (Vector3D<T>, T) {
-        let normal = self.normal_internal().as_vector();
-        let d = -normal.dot(&Vector3D::new(
-            self.center_internal().x(),
-            self.center_internal().y(),
-            self.center_internal().z(),
-        ));
-        (normal, d)
-    }
-
     /// 指定 local angle parameter での接線ベクトルを取得する core API
     ///
     /// # 引数
@@ -159,19 +128,6 @@ impl<T: Scalar> Circle3D<T> {
         let tangent = v_ref * (-t.sin()) + v_perp * t.cos();
 
         Direction3D::from_vector(tangent).unwrap()
-    }
-
-    /// 指定角度での接線ベクトルを取得する convenience API
-    ///
-    /// # 引数
-    /// * `angle` - 角度（ラジアン）
-    ///
-    /// # 戻り値
-    /// 指定角度での接線方向ベクトル（正規化済み）
-    ///
-    /// `tangent_at_parameter` と同じ local angle domain を直接渡したい場合に使う。
-    pub fn tangent_at_angle(&self, angle: T) -> Direction3D<T> {
-        self.tangent_at_parameter(angle)
     }
 
     /// 点から円への最近点を取得

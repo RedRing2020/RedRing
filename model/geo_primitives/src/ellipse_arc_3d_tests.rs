@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::{Arc3D, Direction3D, Ellipse3D, EllipseArc3D, Point3D, Vector3D};
+    use crate::{Ellipse3D, EllipseArc3D, Point3D, Vector3D};
     use geo_contracts::Angle;
 
     fn create_test_ellipse_arc() -> EllipseArc3D<f64> {
@@ -31,32 +31,6 @@ mod tests {
         assert!((ellipse_arc.semi_minor() - 2.0_f64).abs() < tolerance);
         assert!((ellipse_arc.start_angle().to_degrees() - 45.0).abs() < tolerance);
         assert!((ellipse_arc.end_angle().to_degrees() - 135.0).abs() < tolerance);
-    }
-
-    #[test]
-    fn test_from_arc() {
-        // Arc3D を直接作成
-        let center = Point3D::new(1.0, 2.0, 3.0);
-        let normal = Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap();
-        let start_dir = Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap();
-
-        let arc = Arc3D::new(
-            center,
-            3.0,
-            normal,
-            start_dir,
-            Angle::from_degrees(0.0),
-            Angle::from_degrees(90.0),
-        )
-        .unwrap();
-
-        let ellipse_arc = EllipseArc3D::from_arc(arc).unwrap();
-
-        let tolerance = 1e-10_f64; // 基礎レイヤーでは標準的な数値精度を使用
-        assert!((ellipse_arc.center().x() - 1.0_f64).abs() < tolerance);
-        assert!((ellipse_arc.semi_major() - 3.0_f64).abs() < tolerance);
-        assert!((ellipse_arc.semi_minor() - 3.0_f64).abs() < tolerance);
-        assert!(ellipse_arc.is_circular());
     }
 
     #[test]
@@ -132,37 +106,10 @@ mod tests {
 
         let tolerance = 1e-10_f64; // 基礎レイヤーでは標準的な数値精度を使用
 
-        // 角度変更
-        let new_arc = ellipse_arc.with_angles(Angle::from_degrees(0.0), Angle::from_degrees(180.0));
-        assert!((new_arc.start_angle().to_degrees() - 0.0_f64).abs() < tolerance);
-        assert!((new_arc.end_angle().to_degrees() - 180.0_f64).abs() < tolerance);
-
         // 向き反転
         let reversed = ellipse_arc.reverse();
         assert!((reversed.start_angle().to_degrees() - 135.0).abs() < tolerance);
         assert!((reversed.end_angle().to_degrees() - 45.0).abs() < tolerance);
-    }
-
-    #[test]
-    fn test_sub_arc() {
-        let ellipse_arc = create_test_ellipse_arc(); // 45度-135度
-
-        // 有効な部分弧
-        let sub_arc = ellipse_arc.sub_arc(Angle::from_degrees(60.0), Angle::from_degrees(120.0));
-        assert!(sub_arc.is_some());
-        let sub = sub_arc.unwrap();
-
-        // 角度比較には適切な許容誤差を使用（基礎レイヤーなので標準ライブラリ定数ベース）
-        let tolerance = 1e-10_f64; // 角度計算用の適切な許容誤差
-        assert!((sub.start_angle().to_degrees() - 60.0_f64).abs() < tolerance);
-        assert!((sub.end_angle().to_degrees() - 120.0_f64).abs() < tolerance);
-
-        // 範囲外の部分弧
-        let invalid_sub = ellipse_arc.sub_arc(
-            Angle::from_degrees(30.0), // 45度未満
-            Angle::from_degrees(120.0),
-        );
-        assert!(invalid_sub.is_none());
     }
 
     #[test]

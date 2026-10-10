@@ -41,11 +41,6 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(center, radius)
     }
 
-    /// 単位円を作成（原点中心、半径1）
-    pub fn unit_circle() -> Self {
-        Self::new(Point2D::new(T::ZERO, T::ZERO), T::ONE).unwrap()
-    }
-
     /// 指定角度での点を取得する convenience API（ラジアン）
     ///
     /// `point_at_parameter` と同じ local angle domain を直接渡したい場合に使う。
@@ -72,11 +67,6 @@ impl<T: Scalar> Circle2D<T> {
         Self::new(self.center_internal() + offset, self.radius_internal()).unwrap()
     }
 
-    /// 円を指定点に移動
-    pub fn move_to(&self, new_center: Point2D<T>) -> Self {
-        Self::new(new_center, self.radius_internal()).unwrap()
-    }
-
     /// 他の円を完全に含むかを判定
     pub fn contains_circle(&self, other: &Self) -> bool {
         let distance = self.center_internal().distance_to(&other.center_internal());
@@ -88,17 +78,6 @@ impl<T: Scalar> Circle2D<T> {
         use crate::Direction3D;
         crate::Circle3D::new(
             self.center_internal().to_3d(),
-            Direction3D::positive_z(), // Z軸法線
-            self.radius_internal(),
-        )
-        .unwrap()
-    }
-
-    /// 3次元円に拡張（指定Z値平面）
-    pub fn to_3d_at_z(&self, z: T) -> crate::Circle3D<T> {
-        use crate::Direction3D;
-        crate::Circle3D::new(
-            self.center_internal().to_3d_with_z(z),
             Direction3D::positive_z(), // Z軸法線
             self.radius_internal(),
         )

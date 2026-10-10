@@ -61,11 +61,6 @@ impl<T: Scalar> Ellipse2D<T> {
         }
     }
 
-    /// 軸に平行な楕円を作成（回転なし）
-    pub fn axis_aligned(center: Point2D<T>, semi_major: T, semi_minor: T) -> Option<Self> {
-        Self::new(center, semi_major, semi_minor, T::ZERO)
-    }
-
     /// 中心点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point2D<T> {
         self.center
@@ -84,16 +79,6 @@ impl<T: Scalar> Ellipse2D<T> {
     /// 回転角を取得（ラジアン）
     pub fn rotation(&self) -> T {
         self.rotation
-    }
-
-    /// 長軸の長さを取得
-    pub fn major_axis(&self) -> T {
-        self.semi_major * (T::ONE + T::ONE)
-    }
-
-    /// 短軸の長さを取得
-    pub fn minor_axis(&self) -> T {
-        self.semi_minor * (T::ONE + T::ONE)
     }
 
     /// 離心率を取得

@@ -225,58 +225,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
 
         dp.dot(&cross).abs() / cross.length()
     }
-
-    /// 平面への投影を計算
-    pub fn projection_on_plane(
-        &self,
-        plane_point: &Point3D<T>,
-        plane_normal: &Vector3D<T>,
-    ) -> Option<Self> {
-        let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-
-        // 直線の方向を平面に投影
-        let proj_dir = line_dir - (*plane_normal) * line_dir.dot(plane_normal);
-        if proj_dir.is_zero() {
-            return None; // 直線が平面に垂直
-        }
-
-        // 直線上の点を平面に投影
-        let proj_point = {
-            let to_plane = Vector3D::from_points(&self.point, plane_point);
-            let dist_to_plane = to_plane.dot(plane_normal) / plane_normal.dot(plane_normal);
-            Point3D::new(
-                self.point.x() + dist_to_plane * plane_normal.x(),
-                self.point.y() + dist_to_plane * plane_normal.y(),
-                self.point.z() + dist_to_plane * plane_normal.z(),
-            )
-        };
-
-        Self::new(proj_point, proj_dir)
-    }
-
-    /// 平面に対する反射を計算
-    pub fn reflection_across_plane(
-        &self,
-        plane_point: &Point3D<T>,
-        plane_normal: &Vector3D<T>,
-    ) -> Option<Self> {
-        let line_dir = Vector3D::new(self.direction.x(), self.direction.y(), self.direction.z());
-
-        // 方向ベクトルの反射
-        let two = T::ONE + T::ONE;
-        let refl_dir = line_dir - (*plane_normal) * (two * line_dir.dot(plane_normal));
-
-        // 点の反射
-        let to_plane = Vector3D::from_points(&self.point, plane_point);
-        let dist_to_plane = to_plane.dot(plane_normal) / plane_normal.dot(plane_normal);
-        let refl_point = Point3D::new(
-            self.point.x() + two * dist_to_plane * plane_normal.x(),
-            self.point.y() + two * dist_to_plane * plane_normal.y(),
-            self.point.z() + two * dist_to_plane * plane_normal.z(),
-        );
-
-        Self::new(refl_point, refl_dir)
-    }
 }
 
 impl<T: Scalar> InfiniteLine3DConstructor<T> for InfiniteLine3D<T> {

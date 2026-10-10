@@ -14,7 +14,8 @@ mod tests {
     fn test_basic_creation() {
         // XY平面上の基本的な楕円作成
         let center = Point3D::new(1.0, 2.0, 3.0);
-        let ellipse = Ellipse3D::xy_aligned(center, 5.0, 3.0).unwrap();
+        let ellipse =
+            Ellipse3D::new(center, 5.0, 3.0, Vector3D::unit_z(), Vector3D::unit_x()).unwrap();
 
         assert_eq!(ellipse.center_3d(), (center.x(), center.y(), center.z()));
         assert_eq!(ellipse.semi_major_axis(), 5.0);
@@ -29,11 +30,11 @@ mod tests {
         );
 
         // 不正な楕円（短軸が長軸より大きい）
-        let invalid = Ellipse3D::xy_aligned(center, 3.0, 5.0);
+        let invalid = Ellipse3D::new(center, 3.0, 5.0, Vector3D::unit_z(), Vector3D::unit_x());
         assert!(invalid.is_none());
 
         // 負の半軸
-        let invalid2 = Ellipse3D::xy_aligned(center, -1.0, 2.0);
+        let invalid2 = Ellipse3D::new(center, -1.0, 2.0, Vector3D::unit_z(), Vector3D::unit_x());
         assert!(invalid2.is_none());
     }
 
@@ -52,7 +53,14 @@ mod tests {
 
     #[test]
     fn test_basic_properties() {
-        let ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 5.0, 3.0).unwrap();
+        let ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            5.0,
+            3.0,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
 
         // 離心率
         let eccentricity = ellipse.eccentricity();
@@ -73,7 +81,14 @@ mod tests {
 
     #[test]
     fn test_circle_detection() {
-        let circle_ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 3.0, 3.0).unwrap();
+        let circle_ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            3.0,
+            3.0,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
         assert!(circle_ellipse.is_circle());
         assert_eq!(circle_ellipse.eccentricity(), 0.0);
 
@@ -84,13 +99,27 @@ mod tests {
 
     #[test]
     fn test_degenerate_ellipse() {
-        let tiny_ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 1e-12, 1e-12).unwrap();
+        let tiny_ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            1e-12,
+            1e-12,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
         assert!(tiny_ellipse.is_degenerate());
     }
 
     #[test]
     fn test_axis_directions() {
-        let ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 4.0, 2.0).unwrap();
+        let ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            4.0,
+            2.0,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
 
         // 長軸方向
         let major_dir = ellipse.major_axis_direction();
@@ -117,7 +146,14 @@ mod tests {
 
     #[test]
     fn test_simple_parametric() {
-        let ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 4.0, 2.0).unwrap();
+        let ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            4.0,
+            2.0,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
 
         // 基本的なパラメータでの点
         let point_0 = ellipse.point_at_parameter(0.0);
@@ -134,8 +170,14 @@ mod tests {
     #[test]
     fn test_f32_compatibility() {
         // f32での基本操作
-        let ellipse =
-            Ellipse3D::xy_aligned(Point3D::new(0.0f32, 0.0f32, 0.0f32), 3.0f32, 2.0f32).unwrap();
+        let ellipse = Ellipse3D::new(
+            Point3D::new(0.0f32, 0.0f32, 0.0f32),
+            3.0f32,
+            2.0f32,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
 
         assert_eq!(ellipse.semi_major_axis(), 3.0f32);
         assert_eq!(ellipse.semi_minor_axis(), 2.0f32);
@@ -147,7 +189,14 @@ mod tests {
 
     #[test]
     fn test_closest_point_projection() {
-        let ellipse = Ellipse3D::xy_aligned(Point3D::origin(), 4.0, 2.0).unwrap();
+        let ellipse = Ellipse3D::new(
+            Point3D::origin(),
+            4.0,
+            2.0,
+            Vector3D::unit_z(),
+            Vector3D::unit_x(),
+        )
+        .unwrap();
         let closest =
             <Ellipse3D<f64> as Ellipse3DProjection<f64>>::closest_point(&ellipse, (10.0, 0.0, 3.0));
 

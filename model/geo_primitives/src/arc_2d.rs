@@ -67,18 +67,6 @@ impl<T: Scalar> Arc2D<T> {
         Self::new(circle, start_angle, end_angle)
     }
 
-    /// XY平面円弧の便利な作成メソッド（テスト用）
-    ///
-    /// `from_center_radius` のエイリアス
-    pub fn xy_arc(
-        center: Point2D<T>,
-        radius: T,
-        start_angle: Angle<T>,
-        end_angle: Angle<T>,
-    ) -> Option<Self> {
-        Self::from_center_radius(center, radius, start_angle, end_angle)
-    }
-
     /// 基底円を取得
     pub fn circle(&self) -> &Circle2D<T> {
         &self.circle
@@ -359,16 +347,7 @@ impl<T: Scalar> Arc2D<T> {
 
     /// 角度がstart→end範囲内にあるかチェック
     fn is_angle_between(start: T, mid: T, end: T) -> bool {
-        let normalize = |angle: T| {
-            let mut a = angle;
-            while a < T::ZERO {
-                a += T::TAU;
-            }
-            while a >= T::TAU {
-                a -= T::TAU;
-            }
-            a
-        };
+        let normalize = |angle: T| Angle::from_radians(angle).normalize().to_radians();
 
         let s = normalize(start);
         let m = normalize(mid);

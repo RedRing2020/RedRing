@@ -21,42 +21,12 @@ impl<T: Scalar> InfiniteLine3D<T> {
         Self::new(point, Vector3D::unit_z()).unwrap()
     }
 
-    /// 原点を通るX軸
-    pub fn origin_x_axis() -> Self {
-        Self::x_axis(Point3D::origin())
-    }
-
-    /// 原点を通るY軸
-    pub fn origin_y_axis() -> Self {
-        Self::y_axis(Point3D::origin())
-    }
-
-    /// 原点を通るZ軸
-    pub fn origin_z_axis() -> Self {
-        Self::z_axis(Point3D::origin())
-    }
-
     /// 軸に平行かどうかを判定
     pub fn is_parallel_to_axis(&self, axis: Vector3D<T>, tolerance: T) -> bool {
         let normalized_axis =
             Direction3D::from_vector(axis.normalize()).unwrap_or(Direction3D::positive_x());
         let dot_product = self.direction_internal().dot(&normalized_axis).abs();
         (dot_product - T::ONE).abs() <= tolerance
-    }
-
-    /// X軸に平行かどうかを判定
-    pub fn is_parallel_to_x_axis(&self, tolerance: T) -> bool {
-        self.is_parallel_to_axis(Vector3D::unit_x(), tolerance)
-    }
-
-    /// Y軸に平行かどうかを判定
-    pub fn is_parallel_to_y_axis(&self, tolerance: T) -> bool {
-        self.is_parallel_to_axis(Vector3D::unit_y(), tolerance)
-    }
-
-    /// Z軸に平行かどうかを判定
-    pub fn is_parallel_to_z_axis(&self, tolerance: T) -> bool {
-        self.is_parallel_to_axis(Vector3D::unit_z(), tolerance)
     }
 
     /// 方向ベクトルの外積（内部ヘルパー）
@@ -75,38 +45,6 @@ impl<T: Scalar> InfiniteLine3D<T> {
     pub fn is_coincident(&self, other: &Self, tolerance: T) -> bool {
         self.is_parallel(other, tolerance)
             && self.contains_point(&other.point_internal(), tolerance)
-    }
-
-    /// 直線が交差するかを判定
-    pub fn is_intersecting(&self, other: &Self, tolerance: T) -> bool {
-        let cross_product = self.cross_product_of_directions(other);
-        let cross_length = cross_product.length();
-        if cross_length <= tolerance {
-            return false;
-        }
-        let to_other_point = Vector3D::new(
-            other.point_internal().x() - self.point_internal().x(),
-            other.point_internal().y() - self.point_internal().y(),
-            other.point_internal().z() - self.point_internal().z(),
-        );
-        let shortest_distance = to_other_point.dot(&cross_product).abs() / cross_length;
-        shortest_distance <= tolerance
-    }
-
-    /// 直線がねじれ位置にあるかを判定
-    pub fn is_skew(&self, other: &Self, tolerance: T) -> bool {
-        let cross_product = self.cross_product_of_directions(other);
-        let cross_length = cross_product.length();
-        if cross_length <= tolerance {
-            return false;
-        }
-        let to_other_point = Vector3D::new(
-            other.point_internal().x() - self.point_internal().x(),
-            other.point_internal().y() - self.point_internal().y(),
-            other.point_internal().z() - self.point_internal().z(),
-        );
-        let shortest_distance = to_other_point.dot(&cross_product).abs() / cross_length;
-        shortest_distance > tolerance
     }
 
     /// 直線を平行移動
@@ -189,26 +127,5 @@ impl<T: Scalar> InfiniteLine3D<T> {
         let direction_2d =
             Vector2D::new(self.direction_internal().x(), self.direction_internal().y());
         crate::InfiniteLine2D::new(point_2d, direction_2d).unwrap()
-    }
-
-    /// XY平面への投影
-    pub fn project_to_xy_plane(&self) -> crate::InfiniteLine2D<T> {
-        self.to_2d()
-    }
-
-    /// XZ平面への投影
-    pub fn project_to_xz_plane(&self) -> crate::InfiniteLine2D<T> {
-        let projected_point = Point2D::new(self.point_internal().x(), self.point_internal().z());
-        let projected_direction =
-            Vector2D::new(self.direction_internal().x(), self.direction_internal().z());
-        crate::InfiniteLine2D::new(projected_point, projected_direction).unwrap()
-    }
-
-    /// YZ平面への投影
-    pub fn project_to_yz_plane(&self) -> crate::InfiniteLine2D<T> {
-        let projected_point = Point2D::new(self.point_internal().y(), self.point_internal().z());
-        let projected_direction =
-            Vector2D::new(self.direction_internal().y(), self.direction_internal().z());
-        crate::InfiniteLine2D::new(projected_point, projected_direction).unwrap()
     }
 }

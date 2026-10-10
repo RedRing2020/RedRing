@@ -3,39 +3,10 @@
 //! Ray2D の高度な幾何演算、変換操作、特殊作成メソッドを提供
 //! Core Foundation では提供しない拡張機能のみ
 
-use crate::{Direction2D, LineSegment2D, Point2D, Ray2D, Vector2D};
+use crate::{Point2D, Ray2D, Vector2D};
 use geo_contracts::{Angle, Scalar};
 
 impl<T: Scalar> Ray2D<T> {
-    /// X軸正方向の Ray を作成
-    pub fn x_axis_ray(x: T, y: T) -> Self {
-        let direction = Direction2D::new(T::ONE, T::ZERO).unwrap();
-        Self::new(Point2D::new(x, y), direction.as_vector()).unwrap()
-    }
-
-    /// Y軸正方向の Ray を作成
-    pub fn y_axis_ray(x: T, y: T) -> Self {
-        let direction = Direction2D::new(T::ZERO, T::ONE).unwrap();
-        Self::new(Point2D::new(x, y), direction.as_vector()).unwrap()
-    }
-
-    /// 原点から指定方向の Ray を作成
-    pub fn from_origin(direction: Vector2D<T>) -> Option<Self> {
-        Self::new(Point2D::origin(), direction)
-    }
-
-    /// 角度から Ray を作成（原点から）
-    pub fn from_angle(angle: Angle<T>) -> Self {
-        let direction = Vector2D::new(angle.cos(), angle.sin());
-        Self::new(Point2D::origin(), direction).unwrap()
-    }
-
-    /// 起点と角度から Ray を作成
-    pub fn from_origin_and_angle(origin: Point2D<T>, angle: Angle<T>) -> Self {
-        let direction = Vector2D::new(angle.cos(), angle.sin());
-        Self::new(origin, direction).unwrap()
-    }
-
     /// Ray を回転
     pub fn rotate(&self, center: &Point2D<T>, angle: Angle<T>) -> Self {
         let rotated_origin = self.origin_internal().rotate_around(center, angle);
@@ -84,13 +55,6 @@ impl<T: Scalar> Ray2D<T> {
             <= tolerance
     }
 
-    /// Ray が同一の無限直線上にあるかを判定
-    pub fn is_collinear_with(&self, other: &Self, tolerance: T) -> bool {
-        self.to_infinite_line()
-            .is_coincident(&other.to_infinite_line())
-            && self.is_parallel_to(other, tolerance)
-    }
-
     /// Ray の角度を取得（X軸正方向からの角度）
     pub fn angle(&self) -> Angle<T> {
         let dir = self.direction_internal();
@@ -101,84 +65,5 @@ impl<T: Scalar> Ray2D<T> {
     pub fn translate(&self, offset: Vector2D<T>) -> Self {
         let new_origin = self.origin_internal() + offset;
         Self::new(new_origin, self.direction_internal().as_vector()).unwrap()
-    }
-
-    /// 非均一スケール
-    pub fn scale_non_uniform(&self, center: &Point2D<T>, scale_x: T, scale_y: T) -> Self {
-        let relative_origin = self.origin_internal() - *center;
-        let scaled_origin_x = relative_origin.x() * scale_x;
-        let scaled_origin_y = relative_origin.y() * scale_y;
-        let new_origin = *center + Vector2D::new(scaled_origin_x, scaled_origin_y);
-
-        // 方向ベクトルもスケールの影響を受ける
-        let dir = self.direction_internal();
-        let scaled_dir = Vector2D::new(dir.x() * scale_x, dir.y() * scale_y);
-
-        Self::new(new_origin, scaled_dir).unwrap()
-    }
-
-    /// X軸に対する反射
-    pub fn reflect_x(&self) -> Self {
-        let new_origin = Point2D::new(self.origin_internal().x(), -self.origin_internal().y());
-        let new_direction = Vector2D::new(
-            self.direction_internal().x(),
-            -self.direction_internal().y(),
-        );
-        Self::new(new_origin, new_direction).unwrap()
-    }
-
-    /// Y軸に対する反射
-    pub fn reflect_y(&self) -> Self {
-        let new_origin = Point2D::new(-self.origin_internal().x(), self.origin_internal().y());
-        let new_direction = Vector2D::new(
-            -self.direction_internal().x(),
-            self.direction_internal().y(),
-        );
-        Self::new(new_origin, new_direction).unwrap()
-    }
-
-    /// 任意の直線に対する反射
-    pub fn reflect_about_line(
-        &self,
-        line_point: &Point2D<T>,
-        line_direction: &Vector2D<T>,
-    ) -> Self {
-        let normalized_line_dir = line_direction.normalize();
-
-        // 起点の反射
-        let to_origin = self.origin_internal() - *line_point;
-        let projection_scalar = to_origin.dot(&normalized_line_dir);
-        let projection_vector = normalized_line_dir * projection_scalar;
-        let reflected_origin = *line_point + (projection_vector * (T::ONE + T::ONE)) - to_origin;
-
-        // 方向ベクトルの反射
-        let dir_projection_scalar = self
-            .direction_internal()
-            .as_vector()
-            .dot(&normalized_line_dir);
-        let dir_projection_vector = normalized_line_dir * dir_projection_scalar;
-        let reflected_direction =
-            (dir_projection_vector * (T::ONE + T::ONE)) - self.direction_internal().as_vector();
-
-        Self::new(reflected_origin, reflected_direction).unwrap()
-    }
-
-    /// Ray の方向を新しい方向に設定
-    pub fn with_direction(&self, new_direction: Vector2D<T>) -> Option<Self> {
-        Self::new(self.origin_internal(), new_direction)
-    }
-
-    /// Ray の起点を新しい点に設定
-    pub fn with_origin(&self, new_origin: Point2D<T>) -> Self {
-        Self::new(new_origin, self.direction_internal().as_vector()).unwrap()
-    }
-
-    /// 指定した長さで切断してLineSegment2Dに変換
-    pub fn to_line_segment_with_length(&self, length: T) -> Option<LineSegment2D<T>> {
-        if length <= T::ZERO {
-            return None;
-        }
-        let end_point = self.point_at_parameter(length);
-        LineSegment2D::new(self.origin_internal(), end_point)
     }
 }

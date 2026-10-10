@@ -29,16 +29,6 @@ fn test_circle2d_invalid_creation() {
     assert!(Circle2D::new(center, 0.0).is_none());
 }
 
-/// 単位円テスト
-#[test]
-fn test_unit_circle() {
-    let circle = Circle2D::<f64>::unit_circle();
-
-    assert_eq!(circle.center_internal(), Point2D::new(0.0, 0.0));
-    assert_eq!(circle.radius_internal(), 1.0);
-    assert_eq!(circle.diameter(), 2.0);
-}
-
 /// 3点からの外接円テスト
 #[test]
 fn test_from_three_points() {
@@ -252,12 +242,6 @@ fn test_transformations() {
     let translated = circle.translate(offset);
     assert_eq!(translated.center_internal(), Point2D::new(3.0, 1.0));
     assert_eq!(translated.radius_internal(), 3.0);
-
-    // 移動
-    let new_center = Point2D::new(5.0, 5.0);
-    let moved = circle.move_to(new_center);
-    assert_eq!(moved.center_internal(), new_center);
-    assert_eq!(moved.radius_internal(), 3.0);
 }
 
 /// 円同士の関係テスト
@@ -284,22 +268,6 @@ fn test_bounding_box() {
     assert_eq!(bbox.1, Point2D::new(3.5, 4.5));
     assert_eq!((bbox.1.x() - bbox.0.x()), 3.0);
     assert_eq!((bbox.1.y() - bbox.0.y()), 3.0);
-}
-
-/// 3D変換テスト
-#[test]
-fn test_to_3d() {
-    let circle2d = Circle2D::new(Point2D::new(1.0, 2.0), 3.0).unwrap();
-    let circle3d = circle2d.to_3d();
-
-    assert_eq!(circle3d.center_internal().x(), 1.0);
-    assert_eq!(circle3d.center_internal().y(), 2.0);
-    assert_eq!(circle3d.center_internal().z(), 0.0);
-    assert_eq!(circle3d.radius_internal(), 3.0);
-
-    // Z値指定での変換
-    let circle3d_z = circle2d.to_3d_at_z(5.0);
-    assert_eq!(circle3d_z.center_internal().z(), 5.0);
 }
 
 /// Foundation trait - CoreFoundationテスト
