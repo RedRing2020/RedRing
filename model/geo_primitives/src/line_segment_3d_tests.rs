@@ -14,8 +14,8 @@ mod tests {
         let end = Point3D::new(3.0, 4.0, 0.0);
 
         let segment = LineSegment3D::new(start, end).unwrap();
-        assert_eq!(segment.start(), start);
-        assert_eq!(segment.end(), end);
+        assert_eq!(segment.start_point(), start);
+        assert_eq!(segment.end_point(), end);
         assert_eq!(segment.length(), 5.0); // 3-4-5直角三角形
     }
 
@@ -44,8 +44,8 @@ mod tests {
         let length = 5.0;
 
         let segment = LineSegment3D::from_point_direction_length(start, direction, length).unwrap();
-        assert_eq!(segment.start(), start);
-        assert_eq!(segment.end(), Point3D::new(6.0, 2.0, 3.0));
+        assert_eq!(segment.start_point(), start);
+        assert_eq!(segment.end_point(), Point3D::new(6.0, 2.0, 3.0));
         assert_eq!(segment.length(), length);
     }
 
@@ -137,12 +137,12 @@ mod tests {
         // 線分外の点（始点側）
         let point_before = Point3D::new(-5.0, 2.0, 0.0);
         let projected_start = segment.closest_point(&point_before);
-        assert_eq!(projected_start, segment.start());
+        assert_eq!(projected_start, segment.start_point());
 
         // 線分外の点（終点側）
         let point_after = Point3D::new(15.0, 2.0, 0.0);
         let projected_end = segment.closest_point(&point_after);
-        assert_eq!(projected_end, segment.end());
+        assert_eq!(projected_end, segment.end_point());
     }
 
     #[test]
@@ -172,8 +172,8 @@ mod tests {
             LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
 
         assert!(segment.contains_point(&Point3D::new(5.0, 0.0, 0.0), TOLERANCE_F64));
-        assert!(segment.contains_point(&segment.start(), TOLERANCE_F64));
-        assert!(segment.contains_point(&segment.end(), TOLERANCE_F64));
+        assert!(segment.contains_point(&segment.start_point(), TOLERANCE_F64));
+        assert!(segment.contains_point(&segment.end_point(), TOLERANCE_F64));
         assert!(!segment.contains_point(&Point3D::new(15.0, 0.0, 0.0), TOLERANCE_F64));
         assert!(!segment.contains_point(&Point3D::new(5.0, 1.0, 0.0), TOLERANCE_F64));
     }
@@ -249,8 +249,8 @@ mod tests {
             LineSegment3D::new(Point3D::new(0.0, 0.0, 0.0), Point3D::new(10.0, 0.0, 0.0)).unwrap();
 
         let reversed = segment.reverse();
-        assert_eq!(reversed.start(), Point3D::new(10.0, 0.0, 0.0));
-        assert_eq!(reversed.end(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(reversed.start_point(), Point3D::new(10.0, 0.0, 0.0));
+        assert_eq!(reversed.end_point(), Point3D::new(0.0, 0.0, 0.0));
     }
 
     #[test]
@@ -344,8 +344,8 @@ mod tests {
         assert_eq!(segment.direction(), Vector3D::unit_x());
 
         let reversed = segment.reverse();
-        assert_eq!(reversed.start(), Point3D::new(10.0, 0.0, 0.0));
-        assert_eq!(reversed.end(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(reversed.start_point(), Point3D::new(10.0, 0.0, 0.0));
+        assert_eq!(reversed.end_point(), Point3D::new(0.0, 0.0, 0.0));
     }
 
     #[test]

@@ -31,8 +31,8 @@ pub fn cylindrical_solid3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let s = segment.start();
-    let e = segment.end();
+    let s = segment.start_point();
+    let e = segment.end_point();
     crate::distance::cylindrical_solid3d_point3d_distance(cyl, &s) <= tolerance
         || crate::distance::cylindrical_solid3d_point3d_distance(cyl, &e) <= tolerance
 }
@@ -119,8 +119,8 @@ pub fn cylindrical_surface3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let s = segment.start();
-    let e = segment.end();
+    let s = segment.start_point();
+    let e = segment.end_point();
     crate::distance::cylindrical_surface3d_point3d_distance(cyl, &s) <= tolerance
         || crate::distance::cylindrical_surface3d_point3d_distance(cyl, &e) <= tolerance
 }

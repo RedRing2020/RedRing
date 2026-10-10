@@ -42,13 +42,13 @@ fn arc3d_line_segment3d_intersection_raw<T: Scalar>(
     let (ex, ey, ez) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
     let arc_start = Point3D::new(sx, sy, sz);
     let arc_end = Point3D::new(ex, ey, ez);
-    let d_seg_s = crate::distance::arc3d_point3d_distance(arc, &segment.start());
-    let d_seg_e = crate::distance::arc3d_point3d_distance(arc, &segment.end());
+    let d_seg_s = crate::distance::arc3d_point3d_distance(arc, &segment.start_point());
+    let d_seg_e = crate::distance::arc3d_point3d_distance(arc, &segment.end_point());
     if d_seg_s <= tolerance {
-        return Some(segment.start());
+        return Some(segment.start_point());
     }
     if d_seg_e <= tolerance {
-        return Some(segment.end());
+        return Some(segment.end_point());
     }
     if point_matches_either_segment_endpoint(arc_start, segment, tolerance) {
         Some(arc_start)
@@ -200,11 +200,11 @@ fn circle3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let start = segment.start();
+    let start = segment.start_point();
     if crate::distance::circle3d_point3d_distance(circle, &start) <= tolerance {
         return Some(start);
     }
-    let end = segment.end();
+    let end = segment.end_point();
     if crate::distance::circle3d_point3d_distance(circle, &end) <= tolerance {
         return Some(end);
     }
@@ -350,8 +350,8 @@ pub fn ellipse3d_line_segment3d_intersections<T: Scalar + From<f64>>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
     let mut intersections = Vec::new();
     if crate::distance::ellipse3d_point3d_distance(ellipse, &start) <= tolerance {
         intersections.push(start);

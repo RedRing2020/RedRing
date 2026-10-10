@@ -56,12 +56,12 @@ fn line_segment_3d_keeps_support_line_parameters_consistent() {
         LineSegment3D::new(Point3D::new(1.0, 0.0, 0.0), Point3D::new(3.0, 0.0, 0.0)).unwrap();
     let moved = segment.transform_similarity(&transform_3d()).unwrap();
 
-    assert_point3_eq(moved.start(), map3(segment.start()));
-    assert_point3_eq(moved.end(), map3(segment.end()));
+    assert_point3_eq(moved.start_point(), map3(segment.start_point()));
+    assert_point3_eq(moved.end_point(), map3(segment.end_point()));
     assert!((moved.length() - 4.0).abs() < TOLERANCE_F64);
     // support line 上の理想端点と拘束端点が一致する
-    assert_point3_eq(moved.ideal_start(), moved.start());
-    assert_point3_eq(moved.ideal_end(), moved.end());
+    assert_point3_eq(moved.ideal_start(), moved.start_point());
+    assert_point3_eq(moved.ideal_end(), moved.end_point());
 }
 
 #[test]

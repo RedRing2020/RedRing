@@ -178,8 +178,8 @@ impl<T: Scalar> BasicCollision<T, LineSegment3D<T>> for NurbsCurveCollider<T> {
             let curve_point = self.0.evaluate_at(u);
 
             // 線分上の最近接点を計算（線分のパラメトリック表現を使用）
-            let start = segment.start();
-            let end = segment.end();
+            let start = segment.start_point();
+            let end = segment.end_point();
 
             // 線分の方向ベクトル
             let seg_dir_x = end.x() - start.x();
@@ -644,8 +644,8 @@ impl<T: Scalar> NurbsSurfaceCollider<T> {
         let du = (u_max - u_min) / T::from_usize(samples_u);
         let dv = (v_max - v_min) / T::from_usize(samples_v);
 
-        let start = segment.start();
-        let end = segment.end();
+        let start = segment.start_point();
+        let end = segment.end_point();
         let seg_dx = end.x() - start.x();
         let seg_dy = end.y() - start.y();
         let seg_dz = end.z() - start.z();

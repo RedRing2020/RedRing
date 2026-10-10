@@ -22,8 +22,8 @@ pub(crate) fn point_matches_either_segment_endpoint<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    point.distance_to(&segment.start()) <= tolerance
-        || point.distance_to(&segment.end()) <= tolerance
+    point.distance_to(&segment.start_point()) <= tolerance
+        || point.distance_to(&segment.end_point()) <= tolerance
 }
 
 pub(crate) fn conical_solid3d_contains_point_with_tolerance<T: Scalar>(

@@ -66,8 +66,8 @@ fn cylindrical_surface3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let s = segment.start();
-    let e = segment.end();
+    let s = segment.start_point();
+    let e = segment.end_point();
     if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &s) <= tolerance {
         Some(s)
     } else if crate::distance::cylindrical_surface3d_point3d_distance(cyl, &e) <= tolerance {
@@ -282,7 +282,7 @@ fn conical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let start = segment.start();
+    let start = segment.start_point();
     point_intersection_if(
         &start,
         conical_solid3d_contains_point_with_tolerance(cone, &start, tolerance),
@@ -412,8 +412,8 @@ pub fn conical_surface3d_line_segment3d_intersections<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
     let direction = Vector3D::from_points(&start, &end);
     let params = conical_surface3d_intersect_params(cone, &start, &direction, tolerance);
     IntersectionResult::from_option_points(

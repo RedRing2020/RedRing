@@ -93,8 +93,8 @@ impl LineTopologyMutationPort for TopologyOrchestrator {
         &self,
         request: CreateLineTopologyRequest,
     ) -> Result<CreateCurveTopologyResult, TopologyOrchestrationError> {
-        let start_vertex = Arc::new(Vertex::new(request.line.start()));
-        let end_vertex = Arc::new(Vertex::new(request.line.end()));
+        let start_vertex = Arc::new(Vertex::new(request.line.start_point()));
+        let end_vertex = Arc::new(Vertex::new(request.line.end_point()));
         let edge = Edge::new(
             start_vertex,
             end_vertex,

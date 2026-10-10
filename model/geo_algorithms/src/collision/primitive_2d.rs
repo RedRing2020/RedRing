@@ -17,9 +17,7 @@ use crate::{
     Arc2D, Circle2D, Ellipse2D, EllipseArc2D, InfiniteLine2D, LineSegment2D, Point2D, Ray2D,
     Triangle2D, Vector2D,
 };
-use geo_contracts::{
-    Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar, Triangle2DBoundaryAccess,
-};
+use geo_contracts::{Arc2DProperties, Circle2DProperties, Scalar, Triangle2DBoundaryAccess};
 
 pub fn circle2d_point2d_collides<T: Scalar>(
     circle: &Circle2D<T>,
@@ -50,8 +48,8 @@ pub fn line_segment2d_point2d_distance<T: Scalar>(
     segment: &LineSegment2D<T>,
     point: &Point2D<T>,
 ) -> T {
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point().to_tuple();
+    let end = segment.end_point().to_tuple();
     let start_point = Point2D::from_tuple(start);
     let end_point = Point2D::from_tuple(end);
 

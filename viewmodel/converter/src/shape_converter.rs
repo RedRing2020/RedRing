@@ -123,8 +123,8 @@ pub enum ShapeConversionError {
 /// 法線はゼロベクトルとして設定されます（線には法線が定義されないため）。
 pub fn line_segment_to_vertices(segment: &LineSegment3D<f64>) -> Vec<VertexData> {
     // 始点と終点を取得
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
 
     // 法線はゼロベクトル（線には法線が定義されない）
     let normal = [0.0f32, 0.0, 0.0];

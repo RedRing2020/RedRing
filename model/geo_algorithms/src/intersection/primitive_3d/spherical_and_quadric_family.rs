@@ -223,7 +223,7 @@ fn spherical_solid3d_line_segment3d_intersection_raw<T: Scalar>(
 ) -> Option<Point3D<T>> {
     let (cx, cy, cz) = SphericalSolid3DProperties::center(sphere);
     let center = Point3D::new(cx, cy, cz);
-    if sphere.distance_to_line_segment(&segment.start(), &segment.end()) <= tolerance {
+    if sphere.distance_to_line_segment(&segment.start_point(), &segment.end_point()) <= tolerance {
         Some(segment.closest_point(&center))
     } else {
         None

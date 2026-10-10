@@ -140,8 +140,8 @@ pub fn ray2d_line_segment2d_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let s1 = Point2D::new(segment.start().0, segment.start().1);
-    let s2 = Point2D::new(segment.end().0, segment.end().1);
+    let s1 = segment.start_point();
+    let s2 = segment.end_point();
 
     let origin_tuple = ray.origin();
     let direction_tuple = ray.direction();
@@ -379,8 +379,8 @@ pub fn infinite_line2d_line_segment2d_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     tolerance: T,
 ) -> IntersectionResult<T> {
-    let (s1x, s1y) = LineSegment2DProperties::start(segment);
-    let (s2x, s2y) = LineSegment2DProperties::end(segment);
+    let (s1x, s1y) = LineSegment2DProperties::start_point(segment);
+    let (s2x, s2y) = LineSegment2DProperties::end_point(segment);
     let (lx, ly) = InfiniteLine2DProperties::point(line);
     let (ldx, ldy) = InfiniteLine2DProperties::direction(line);
     let dx_seg = s2x - s1x;
@@ -552,10 +552,10 @@ fn collinear_segment_overlap_result<T: Scalar>(
     seg2: &LineSegment2D<T>,
     tolerance: T,
 ) -> Option<IntersectionResult<T>> {
-    let p1 = Point2D::new(seg1.start().0, seg1.start().1);
-    let p2 = Point2D::new(seg1.end().0, seg1.end().1);
-    let p3 = Point2D::new(seg2.start().0, seg2.start().1);
-    let p4 = Point2D::new(seg2.end().0, seg2.end().1);
+    let p1 = seg1.start_point();
+    let p2 = seg1.end_point();
+    let p3 = seg2.start_point();
+    let p4 = seg2.end_point();
     let d1 = Vector2D::from_points(p1, p2);
     let d2 = Vector2D::from_points(p3, p4);
 
@@ -625,8 +625,8 @@ fn collinear_ray_segment_overlap_result<T: Scalar>(
 ) -> IntersectionResult<T> {
     let origin = Point2D::new(ray.origin().0, ray.origin().1);
     let direction = Vector2D::new(ray.direction().0, ray.direction().1);
-    let s1 = Point2D::new(segment.start().0, segment.start().1);
-    let s2 = Point2D::new(segment.end().0, segment.end().1);
+    let s1 = segment.start_point();
+    let s2 = segment.end_point();
     let dir_norm = direction.length_squared();
 
     if dir_norm <= tolerance * tolerance {
@@ -680,8 +680,8 @@ fn edge_segment_intersection<T: Scalar>(
     segment: &LineSegment2D<T>,
     _tolerance: T,
 ) -> Option<Point2D<T>> {
-    let s1 = Point2D::new(segment.start().0, segment.start().1);
-    let s2 = Point2D::new(segment.end().0, segment.end().1);
+    let s1 = segment.start_point();
+    let s2 = segment.end_point();
 
     let d1 = Vector2D::from_points(s1, s2);
     let d2 = Vector2D::from_points(edge_p1, edge_p2);
@@ -867,7 +867,6 @@ mod tests {
         IntersectionTopology, LineSegment2D, Point2D, Ray2D, Vector2D,
     };
     use analysis::test_constants;
-    use geo_contracts::LineSegment2DProperties;
 
     const STANDARD_TEST_TOLERANCE_F64: f64 = test_constants::DISTANCE_TOLERANCE_F64;
     const ELLIPSE_ENTRY_TEST_TOLERANCE_F64: f64 = 1.0e-6;
@@ -1180,8 +1179,8 @@ mod tests {
         assert_eq!(result.topology, IntersectionTopology::Coincident);
         match result.geometry {
             IntersectionGeometry::Segment2D(seg) => {
-                let start = seg.start();
-                let end = seg.end();
+                let start = seg.start_point().to_tuple();
+                let end = seg.end_point().to_tuple();
                 assert!((start.0 - 1.0).abs() < STANDARD_TEST_TOLERANCE_F64);
                 assert!((end.0 - 3.0).abs() < STANDARD_TEST_TOLERANCE_F64);
             }

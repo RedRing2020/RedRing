@@ -21,7 +21,7 @@ impl<T: Scalar> CurveSegment3D<T> {
     /// セグメントの ideal start endpoint を返す
     pub fn start(&self) -> Point3D<T> {
         match self {
-            Self::Line(seg) => seg.start(),
+            Self::Line(seg) => seg.start_point(),
             Self::Arc(arc) => arc.start_point(),
             Self::Nurbs(curve) => {
                 let (u_min, _) = curve.parameter_domain();
@@ -34,7 +34,7 @@ impl<T: Scalar> CurveSegment3D<T> {
     /// セグメントの ideal end endpoint を返す
     pub fn end(&self) -> Point3D<T> {
         match self {
-            Self::Line(seg) => seg.end(),
+            Self::Line(seg) => seg.end_point(),
             Self::Arc(arc) => arc.end_point(),
             Self::Nurbs(curve) => {
                 let (_, u_max) = curve.parameter_domain();
@@ -66,7 +66,7 @@ impl<T: Scalar> CurveSegment3D<T> {
     pub fn length(&self) -> T {
         match self {
             Self::Line(seg) => {
-                let vec = Vector3D::from_points(&seg.start(), &seg.end());
+                let vec = Vector3D::from_points(&seg.start_point(), &seg.end_point());
                 vec.magnitude()
             }
             Self::Arc(arc) => arc.length(),

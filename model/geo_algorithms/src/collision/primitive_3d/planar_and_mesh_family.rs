@@ -15,8 +15,8 @@ pub fn triangle3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    crate::distance::triangle3d_point3d_distance(triangle, &segment.start()) <= tolerance
-        || crate::distance::triangle3d_point3d_distance(triangle, &segment.end()) <= tolerance
+    crate::distance::triangle3d_point3d_distance(triangle, &segment.start_point()) <= tolerance
+        || crate::distance::triangle3d_point3d_distance(triangle, &segment.end_point()) <= tolerance
 }
 
 pub fn line_segment3d_triangle3d_collides<T: Scalar>(
@@ -79,8 +79,8 @@ pub fn plane3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let start_dist = plane.distance_to_point(segment.start());
-    let end_dist = plane.distance_to_point(segment.end());
+    let start_dist = plane.distance_to_point(segment.start_point());
+    let end_dist = plane.distance_to_point(segment.end_point());
     (start_dist * end_dist <= T::ZERO)
         || (start_dist.abs() <= tolerance)
         || (end_dist.abs() <= tolerance)

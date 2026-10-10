@@ -52,14 +52,14 @@ impl<T: Scalar> ToolCuttingBehavior<T> for BallEndMillBehavior<T> {
             .into_iter()
             .filter_map(|(segment, is_cutting)| {
                 let start = Point3D::new(
-                    segment.start().x(),
-                    segment.start().y(),
-                    segment.start().z() + self.radius,
+                    segment.start_point().x(),
+                    segment.start_point().y(),
+                    segment.start_point().z() + self.radius,
                 );
                 let end = Point3D::new(
-                    segment.end().x(),
-                    segment.end().y(),
-                    segment.end().z() + self.radius,
+                    segment.end_point().x(),
+                    segment.end_point().y(),
+                    segment.end_point().z() + self.radius,
                 );
                 LineSegment3D::new(start, end).map(|line| (line, is_cutting))
             })

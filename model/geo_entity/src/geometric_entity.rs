@@ -125,12 +125,12 @@ impl<T: Scalar, G> StrokeDisplayProperties for GeometricEntity<T, G> {
 
 impl<T: Scalar> LineEntity3DProperties<T> for GeometricEntity<T, geo_primitives::LineSegment3D<T>> {
     fn line_start(&self) -> (T, T, T) {
-        let point = self.geometry.start();
+        let point = self.geometry.start_point();
         (point.x(), point.y(), point.z())
     }
 
     fn line_end(&self) -> (T, T, T) {
-        let point = self.geometry.end();
+        let point = self.geometry.end_point();
         (point.x(), point.y(), point.z())
     }
 }

@@ -32,7 +32,7 @@ pub fn spherical_solid3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    sphere.distance_to_line_segment(&segment.start(), &segment.end()) <= tolerance
+    sphere.distance_to_line_segment(&segment.start_point(), &segment.end_point()) <= tolerance
 }
 
 pub fn spherical_solid3d_ray3d_collides<T: Scalar>(
@@ -104,8 +104,8 @@ pub fn ellipsoidal_solid3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
     let d1 = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &start);
     let d2 = crate::distance::ellipsoidal_solid3d_point3d_distance(ellipsoid, &end);
     d1 <= tolerance || d2 <= tolerance
