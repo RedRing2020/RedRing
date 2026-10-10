@@ -263,4 +263,50 @@ mod tests {
             PointClassification::Inside
         );
     }
+
+    #[test]
+    fn test_from_three_points_passes_through_all_points() {
+        use geo_contracts::Circle3DConstructor;
+
+        // 中心 (0, 0, 0)・半径 1 の XY 平面上の円
+        let circle = <Circle3D<f64> as Circle3DConstructor<f64>>::from_three_points(
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (-1.0, 0.0, 0.0),
+        )
+        .unwrap();
+        assert!(
+            circle
+                .center_internal()
+                .distance_to(&Point3D::new(0.0, 0.0, 0.0))
+                < 1e-12
+        );
+        assert!((circle.radius_internal() - 1.0).abs() < 1e-12);
+
+        // 傾いた平面上の 3 点のいずれも円上にある
+        let points = [
+            Point3D::new(1.0, 2.0, 3.0),
+            Point3D::new(4.0, -1.0, 2.0),
+            Point3D::new(0.0, 5.0, -1.0),
+        ];
+        let circle = <Circle3D<f64> as Circle3DConstructor<f64>>::from_three_points(
+            (points[0].x(), points[0].y(), points[0].z()),
+            (points[1].x(), points[1].y(), points[1].z()),
+            (points[2].x(), points[2].y(), points[2].z()),
+        )
+        .unwrap();
+        for point in points {
+            assert!(circle.contains_point(&point, 1e-9));
+        }
+
+        // 一直線上の 3 点は円を作れない
+        assert!(
+            <Circle3D<f64> as Circle3DConstructor<f64>>::from_three_points(
+                (0.0, 0.0, 0.0),
+                (1.0, 1.0, 1.0),
+                (2.0, 2.0, 2.0),
+            )
+            .is_none()
+        );
+    }
 }
