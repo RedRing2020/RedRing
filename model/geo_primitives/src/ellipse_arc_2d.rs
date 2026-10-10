@@ -4,9 +4,9 @@
 
 use crate::{Ellipse2D, Point2D, Vector2D};
 use geo_contracts::{
-    default_distance_tolerance, Angle, EllipseArc2DConstructor, EllipseArc2DContainment,
-    EllipseArc2DDerived, EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties,
-    EllipseArc2DTrimRange, PrimitiveKind, PrimitiveMetadata, Scalar,
+    Angle, EllipseArc2DConstructor, EllipseArc2DContainment, EllipseArc2DDerived,
+    EllipseArc2DEndpoint, EllipseArc2DEvaluation, EllipseArc2DProperties, EllipseArc2DTrimRange,
+    PrimitiveKind, PrimitiveMetadata, Scalar,
 };
 
 /// 2次元楕円弧
@@ -136,13 +136,13 @@ impl<T: Scalar> EllipseArc2D<T> {
         }
 
         // 2. 点が角度範囲内にあるか
-        self.point_in_angle_range(point, tolerance)
+        self.contains_point_angle(point)
     }
 
     /// 点から楕円弧への最短距離
     pub fn distance_to_point(&self, point: &Point2D<T>) -> T {
         // 点が角度範囲内にある場合
-        if self.point_in_angle_range(point, default_distance_tolerance::<T>()) {
+        if self.contains_point_angle(point) {
             return self.ellipse.distance_to_point(point);
         }
 
@@ -175,7 +175,7 @@ impl<T: Scalar> EllipseArc2D<T> {
         let critical_angles = [T::ZERO, half_pi, T::PI, three_half_pi];
 
         for &angle in &critical_angles {
-            if self.angle_in_range(angle) {
+            if self.contains_angle(Angle::from_radians(angle)) {
                 let point = self.ellipse.point_at_parameter(angle);
                 min_x = min_x.min(point.x());
                 max_x = max_x.max(point.x());
@@ -185,32 +185,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         }
 
         geo_core::Aabb2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
-    }
-
-    /// 角度が楕円弧の範囲内にあるかを判定
-    pub fn angle_in_range(&self, angle: T) -> bool {
-        let start_rad = self.start_angle.to_radians();
-        let end_rad = self.end_angle.to_radians();
-
-        if start_rad <= end_rad {
-            angle >= start_rad && angle <= end_rad
-        } else {
-            // 角度が0を跨ぐ場合
-            angle >= start_rad || angle <= end_rad
-        }
-    }
-
-    /// 点が楕円弧の角度範囲内にあるかを判定
-    pub fn point_in_angle_range(&self, point: &Point2D<T>, tolerance: T) -> bool {
-        let center = self.ellipse.center_internal();
-        let to_point = Vector2D::new(point.x() - center.x(), point.y() - center.y());
-
-        if to_point.magnitude() <= tolerance {
-            return true; // 中心点の場合
-        }
-
-        let angle = to_point.angle();
-        self.angle_in_range(angle.to_radians())
     }
 
     /// EllipseArc trim-local parameter の有効範囲 `[0, 1]` を返す
@@ -505,7 +479,32 @@ impl<T: Scalar> EllipseArc2DContainment<T> for EllipseArc2D<T> {
 
 impl<T: Scalar> EllipseArc2DTrimRange<T> for EllipseArc2D<T> {
     fn contains_angle(&self, angle: T) -> bool {
-        self.angle_in_range(angle)
+        EllipseArc2D::contains_angle(self, Angle::from_radians(angle))
+    }
+}
+
+impl<T: Scalar> EllipseArc2D<T> {
+    /// 開始角から反時計回りに終了角まで進む角度範囲
+    ///
+    /// 開始角と終了角が等しい場合は `None` を返す。
+    pub fn angle_range(&self) -> Option<analysis::AngleRange<T>> {
+        analysis::AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
+    }
+
+    /// 角度が角度範囲に含まれるかを判定する（範囲の両端を含み、既定の角度トレランスで判定する）
+    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
+        let tolerance = geo_contracts::default_angle_tolerance::<T>();
+        match self.angle_range() {
+            Some(range) => range.contains(angle, tolerance),
+            None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    /// 点の角度が角度範囲に含まれるかを判定する
+    ///
+    /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母楕円上の点のパラメータ角とする。
+    pub fn contains_point_angle(&self, point: &Point2D<T>) -> bool {
+        self.contains_angle(Angle::from_radians(self.ellipse.parameter_for_point(point)))
     }
 }
 

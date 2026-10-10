@@ -80,7 +80,7 @@ pub fn arc2d_circle2d_intersections<T: Scalar>(
     if let Some(base_circle) = base_circle {
         circle2d_circle2d_intersections(&base_circle, circle, tolerance)
             .into_iter()
-            .filter(|p| arc.contains_point_angle(*p))
+            .filter(|p| arc.contains_point_angle(p))
             .collect()
     } else {
         Vec::new()
@@ -159,7 +159,7 @@ pub fn line_segment2d_arc2d_intersections<T: Scalar>(
     if let Some(base_circle) = base_circle {
         line_segment2d_circle2d_intersections(segment, &base_circle, tolerance)
             .into_iter()
-            .filter(|p| arc.contains_point_angle(*p))
+            .filter(|p| arc.contains_point_angle(p))
             .collect()
     } else {
         Vec::new()

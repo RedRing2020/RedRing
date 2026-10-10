@@ -182,6 +182,25 @@ impl<T: Scalar> Ellipse2D<T> {
         )
     }
 
+    /// 点に最も近い楕円上の点の local angle parameter（`0 <= t < 2π`）を取得
+    ///
+    /// `point_at_parameter(t)` が点の最近点となる `t` を返す。
+    pub fn parameter_for_point(&self, point: &Point2D<T>) -> T {
+        let (x_local, y_local) = self.local_coordinates(point);
+        let (closest_x, closest_y) = geo_commons::ellipse_2d_closest_point(
+            x_local,
+            y_local,
+            self.semi_major,
+            self.semi_minor,
+        );
+        let angle = (closest_y / self.semi_minor).atan2(closest_x / self.semi_major);
+        if angle < T::ZERO {
+            angle + T::TAU
+        } else {
+            angle
+        }
+    }
+
     /// 中心を原点とし、長軸を x 軸とする楕円の局所座標系での点の座標
     fn local_coordinates(&self, point: &Point2D<T>) -> (T, T) {
         let dx = point.x() - self.center.x();

@@ -121,36 +121,6 @@ impl<T: Scalar> Arc3D<T> {
         (T::ZERO, T::ONE)
     }
 
-    /// 角度が円弧の範囲内にあるかチェック
-    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
-        let normalized_angle = self.normalize_angle(angle);
-        let start = self.normalize_angle(self.start_angle());
-        let end = self.normalize_angle(self.end_angle());
-        let angle_tol = default_angle_tolerance::<T>();
-
-        if start.to_radians() <= end.to_radians() {
-            normalized_angle.to_radians() + angle_tol >= start.to_radians()
-                && normalized_angle.to_radians() <= end.to_radians() + angle_tol
-        } else {
-            // 0度をまたぐ場合
-            normalized_angle.to_radians() + angle_tol >= start.to_radians()
-                || normalized_angle.to_radians() <= end.to_radians() + angle_tol
-        }
-    }
-
-    /// 角度を [0, 2π] の範囲に正規化
-    pub fn normalize_angle(&self, angle: Angle<T>) -> Angle<T> {
-        let two_pi = Angle::from_radians(T::from_f64(2.0) * T::PI);
-        let mut normalized = angle;
-        while normalized.to_radians() < T::ZERO {
-            normalized += two_pi;
-        }
-        while normalized >= two_pi {
-            normalized -= two_pi;
-        }
-        normalized
-    }
-
     /// 3点の外心（3点を通る円の中心）を計算
     ///
     /// `a = p1 - p3`、`b = p2 - p3` として

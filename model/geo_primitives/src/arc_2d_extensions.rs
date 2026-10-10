@@ -93,20 +93,6 @@ impl<T: Scalar> Arc2D<T> {
             || self.angular_span() <= default_angle_tolerance::<T>()
     }
 
-    /// 指定角度が円弧の範囲内にあるかを判定
-    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
-        // normalize_angle 未実装のため単純比較
-        let a = angle.to_radians();
-        let start = self.start_angle().to_radians();
-        let end = self.end_angle().to_radians();
-        let angle_tol = default_angle_tolerance::<T>();
-        if start <= end {
-            a + angle_tol >= start && a <= end + angle_tol
-        } else {
-            a + angle_tol >= start || a <= end + angle_tol
-        }
-    }
-
     // normalize_angle is implemented in arc_2d_containment.rs
 
     /// Circle2D に変換（完全円の場合のみ）

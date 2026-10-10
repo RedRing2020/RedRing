@@ -163,61 +163,6 @@ impl<T: Scalar> Arc3D<T> {
         (span - two_pi).abs() < default_angle_tolerance::<T>()
     }
 
-    /// 点が円弧の角度範囲内にあるかを判定
-    ///
-    /// 点が円弧上にあるかどうかではなく、角度範囲に収まっているかのみをチェック
-    pub fn contains_point_angle(&self, point: Point3D<T>) -> bool {
-        if self.is_full_circle() {
-            return true; // 完全円の場合は全ての角度を含む
-        }
-
-        // 点から中心へのベクトルを計算
-        let to_point = point - self.center;
-
-        // 円弧平面への投影（法線に垂直な成分）
-        let normal_vec = self.normal.as_vector();
-        let projection = to_point - normal_vec * to_point.dot(&normal_vec);
-
-        // 投影ベクトルがゼロの場合（点が円弧の中心軸上にある）
-        if projection.magnitude() < default_distance_tolerance::<T>() {
-            return false;
-        }
-
-        // 開始方向ベクトルとの角度を計算
-        let start_vec = self.start_dir.as_vector();
-
-        // 内積とcross積で角度を計算
-        let cos_angle = projection.normalize().dot(&start_vec);
-        let sin_angle = normal_vec.dot(&projection.normalize().cross(&start_vec));
-        let point_angle = sin_angle.atan2(cos_angle);
-
-        // 正規化（0 から 2π の範囲に）
-        let normalize = |mut angle: T| {
-            let two_pi = T::TAU;
-            while angle < T::ZERO {
-                angle += two_pi;
-            }
-            while angle >= two_pi {
-                angle -= two_pi;
-            }
-            angle
-        };
-
-        let point_normalized = normalize(point_angle);
-        let start_normalized = normalize(self.start_angle.to_radians());
-        let end_normalized = normalize(self.end_angle.to_radians());
-        let angle_tol = default_angle_tolerance::<T>();
-
-        // 角度範囲の判定
-        if start_normalized <= end_normalized {
-            point_normalized + angle_tol >= start_normalized
-                && point_normalized <= end_normalized + angle_tol
-        } else {
-            point_normalized + angle_tol >= start_normalized
-                || point_normalized <= end_normalized + angle_tol
-        }
-    }
-
     /// 指定角度での点を取得（内部用）
     fn point_at_angle_internal(&self, angle: Angle<T>) -> Point3D<T> {
         // 開始方向ベクトルを角度分回転
@@ -417,32 +362,13 @@ impl<T: Scalar> Arc3DContainment<T> for Arc3D<T> {
         let center_pt = self.center_internal();
         let dist = center_pt.distance_to(&point);
         (dist - self.radius_internal()).abs() <= default_distance_tolerance::<T>()
-            && self.contains_point_angle(point)
+            && self.contains_point_angle(&point)
     }
 }
 
 impl<T: Scalar> Arc3DTrimRange<T> for Arc3D<T> {
     fn contains_angle(&self, angle: T) -> bool {
-        let normalize = |mut value: T| {
-            while value < T::ZERO {
-                value += T::TAU;
-            }
-            while value >= T::TAU {
-                value -= T::TAU;
-            }
-            value
-        };
-
-        let angle = normalize(angle);
-        let start = normalize(self.start_angle.to_radians());
-        let end = normalize(self.end_angle.to_radians());
-        let tolerance = default_angle_tolerance::<T>();
-
-        if start <= end {
-            angle + tolerance >= start && angle <= end + tolerance
-        } else {
-            angle + tolerance >= start || angle <= end + tolerance
-        }
+        Arc3D::contains_angle(self, Angle::from_radians(angle))
     }
 }
 
@@ -502,6 +428,35 @@ impl<T: Scalar> Arc3D<T> {
         } else {
             Angle::from_radians(angle)
         }
+    }
+}
+
+impl<T: Scalar> Arc3D<T> {
+    /// 開始角から反時計回りに終了角まで進む角度範囲
+    ///
+    /// 開始角と終了角が等しい場合は `None` を返す。
+    pub fn angle_range(&self) -> Option<analysis::AngleRange<T>> {
+        analysis::AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
+    }
+
+    /// 角度が角度範囲に含まれるかを判定する（範囲の両端を含み、既定の角度トレランスで判定する）
+    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
+        let tolerance = geo_contracts::default_angle_tolerance::<T>();
+        match self.angle_range() {
+            Some(range) => range.contains(angle, tolerance),
+            None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    /// 点の角度が角度範囲に含まれるかを判定する
+    ///
+    /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、円弧平面へ投影した点の、開始方向を角度 0 とし法線まわりに反時計回りを正とする角度（`point_at_angle` と同じ）とする。中心軸上の点は角度 0 とする。
+    pub fn contains_point_angle(&self, point: &Point3D<T>) -> bool {
+        let to_point = Vector3D::from_points(&self.center, point);
+        let u_axis = self.start_dir.as_vector();
+        let v_axis = self.normal.as_vector().cross(&u_axis);
+        let angle = to_point.dot(&v_axis).atan2(to_point.dot(&u_axis));
+        self.contains_angle(Angle::from_radians(angle))
     }
 }
 

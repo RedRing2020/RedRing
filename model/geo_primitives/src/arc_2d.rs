@@ -151,53 +151,6 @@ impl<T: Scalar> Arc2D<T> {
         let span = self.angular_span();
         (span - T::TAU).abs() <= default_angle_tolerance::<T>()
     }
-
-    /// 点が円弧の角度範囲内にあるかを判定
-    ///
-    /// 点が円弧上にあるかどうかではなく、角度範囲に収まっているかのみをチェック
-    pub fn contains_point_angle(&self, point: Point2D<T>) -> bool {
-        if self.is_full_circle() {
-            return true; // 完全円の場合は全ての角度を含む
-        }
-
-        let center = self.center_internal();
-        let dx = point.x() - center.x();
-        let dy = point.y() - center.y();
-
-        // atan2で点の角度を計算（-π から π の範囲）
-        let point_angle = dy.atan2(dx);
-
-        // 開始・終了角度をラジアンで取得
-        let start_rad = self.start_angle.to_radians();
-        let end_rad = self.end_angle.to_radians();
-
-        // 正規化（0 から 2π の範囲に）
-        let normalize = |mut angle: T| {
-            while angle < T::ZERO {
-                angle += T::TAU;
-            }
-            while angle >= T::TAU {
-                angle -= T::TAU;
-            }
-            angle
-        };
-
-        let point_normalized = normalize(point_angle);
-        let start_normalized = normalize(start_rad);
-        let end_normalized = normalize(end_rad);
-        let angle_tol = default_angle_tolerance::<T>();
-
-        // 角度範囲の判定
-        if start_normalized <= end_normalized {
-            // 通常のケース（例：30度から150度）
-            point_normalized + angle_tol >= start_normalized
-                && point_normalized <= end_normalized + angle_tol
-        } else {
-            // 0度をまたぐケース（例：330度から30度）
-            point_normalized + angle_tol >= start_normalized
-                || point_normalized <= end_normalized + angle_tol
-        }
-    }
 }
 
 impl<T: Scalar> Arc2DConstructor<T> for Arc2D<T> {
@@ -359,32 +312,13 @@ impl<T: Scalar> Arc2DContainment<T> for Arc2D<T> {
     fn contains_point(&self, point: (T, T)) -> bool {
         let point = Point2D::new(point.0, point.1);
         let distance = <Self as Arc2DDistance<T>>::distance_to_point(self, (point.x(), point.y()));
-        distance <= default_distance_tolerance::<T>() && self.contains_point_angle(point)
+        distance <= default_distance_tolerance::<T>() && self.contains_point_angle(&point)
     }
 }
 
 impl<T: Scalar> Arc2DTrimRange<T> for Arc2D<T> {
     fn contains_angle(&self, angle: T) -> bool {
-        let normalize = |mut value: T| {
-            while value < T::ZERO {
-                value += T::TAU;
-            }
-            while value >= T::TAU {
-                value -= T::TAU;
-            }
-            value
-        };
-
-        let angle = normalize(angle);
-        let start = normalize(self.start_angle.to_radians());
-        let end = normalize(self.end_angle.to_radians());
-        let tolerance = default_angle_tolerance::<T>();
-
-        if start <= end {
-            angle + tolerance >= start && angle <= end + tolerance
-        } else {
-            angle + tolerance >= start || angle <= end + tolerance
-        }
+        Arc2D::contains_angle(self, Angle::from_radians(angle))
     }
 }
 
@@ -445,6 +379,31 @@ impl<T: Scalar> Arc2D<T> {
         } else {
             s <= m || m <= e
         }
+    }
+}
+
+impl<T: Scalar> Arc2D<T> {
+    /// 開始角から反時計回りに終了角まで進む角度範囲
+    ///
+    /// 開始角と終了角が等しい場合は `None` を返す。
+    pub fn angle_range(&self) -> Option<analysis::AngleRange<T>> {
+        analysis::AngleRange::from_ccw_bounds(self.start_angle, self.end_angle)
+    }
+
+    /// 角度が角度範囲に含まれるかを判定する（範囲の両端を含み、既定の角度トレランスで判定する）
+    pub fn contains_angle(&self, angle: Angle<T>) -> bool {
+        let tolerance = geo_contracts::default_angle_tolerance::<T>();
+        match self.angle_range() {
+            Some(range) => range.contains(angle, tolerance),
+            None => angle.is_equivalent(&self.start_angle, tolerance),
+        }
+    }
+
+    /// 点の角度が角度範囲に含まれるかを判定する
+    ///
+    /// 点が曲線上にあるかではなく、角度範囲のみを判定する。点の角度は、点に最も近い母円上の点の角度（中心の点は角度 0）とする。
+    pub fn contains_point_angle(&self, point: &Point2D<T>) -> bool {
+        self.contains_angle(Angle::from_radians(self.circle.parameter_for_point(point)))
     }
 }
 

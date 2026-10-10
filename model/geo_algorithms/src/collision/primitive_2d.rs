@@ -353,7 +353,7 @@ pub fn ellipse_arc2d_circle2d_collides<T: Scalar>(
     }
 
     let center = Point2D::new(circle.center().0, circle.center().1);
-    if arc.point_in_angle_range(&center, tolerance) {
+    if arc.contains_point_angle(&center) {
         return true;
     }
 
