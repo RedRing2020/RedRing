@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn torus_solid_classify_point() {
-        // 主半径 3・管の半径 1、Z 軸まわりのトーラス
+        // 大半径 3・小半径 1、Z 軸まわりのトーラス
         let torus = TorusSolid3D::standard(3.0, 1.0).unwrap();
         let classify = |point: Point3D<f64>| torus.classify_point(&point, TOLERANCE);
 

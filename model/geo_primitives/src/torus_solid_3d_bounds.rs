@@ -24,7 +24,7 @@ impl<T: Scalar> Bounded<T> for TorusSolid3D<T> {
 
         // 主回転軸（Z軸）が標準軸の場合
         if (z_axis.z() - T::ONE).abs() < T::EPSILON {
-            // XY平面でのトーラス：Z方向は副半径のみ
+            // XY平面でのトーラス：Z方向は小半径のみ
             Some(Aabb3D::new(
                 crate::Point3D::new(
                     origin.x() - total_radius,

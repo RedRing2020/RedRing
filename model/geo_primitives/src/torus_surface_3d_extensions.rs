@@ -42,7 +42,7 @@ impl<T: Scalar> TorusSurface3D<T> {
         // 3. 主方向角度 u の初期推定
         let u_initial = local_y.atan2(local_x);
 
-        // 4. 管の中心線への投影
+        // 4. 大半径の円への投影
         let radial_distance = (local_x * local_x + local_y * local_y).sqrt();
         let projected_radius = if radial_distance > T::EPSILON {
             radial_distance

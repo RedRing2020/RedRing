@@ -1,7 +1,7 @@
 // torus_solid_3d.rs
 // STEP AP214 準拠のトーラス固体実装
 //
-// トーラス固体は主半径（major_radius）と副半径（minor_radius）を持つ回転固体です。
+// トーラス固体は大半径（major_radius）と小半径（minor_radius）を持つ回転固体です。
 //
 // STEP エンティティ: TORUS + AXIS2_PLACEMENT_3D
 // 固体としての体積と表面を持ちます。
@@ -15,19 +15,19 @@ use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス固体
 ///
-/// 主半径（ドーナツの中心軸から管の中心までの距離）と
-/// 副半径（管の半径）により定義される3次元固体です。
+/// 大半径（中心軸から断面の円の中心までの距離）と
+/// 小半径（断面の円の半径）により定義される3次元固体です。
 #[derive(Debug, Clone, PartialEq)]
 pub struct TorusSolid3D<T: Scalar> {
     /// 原点（トーラスの中心点）
     origin: Point3D<T>,
     /// Z軸方向（トーラスの軸方向）
     z_axis: Direction3D<T>,
-    /// X軸方向（主半径の基準方向）
+    /// X軸方向（大半径の基準方向）
     x_axis: Direction3D<T>,
-    /// 主半径（ドーナツの中心軸から管の中心までの距離）
+    /// 大半径（中心軸から断面の円の中心までの距離）
     major_radius: T,
-    /// 副半径（管の半径）
+    /// 小半径（断面の円の半径）
     minor_radius: T,
 }
 
@@ -43,9 +43,9 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// # Arguments
     /// * `origin` - トーラスの中心点
     /// * `z_axis` - トーラスの軸方向
-    /// * `x_axis` - 主半径の基準方向（z_axisと直交である必要があります）
-    /// * `major_radius` - 主半径（正の値である必要があります）
-    /// * `minor_radius` - 副半径（正の値である必要があります）
+    /// * `x_axis` - 大半径の基準方向（z_axisと直交である必要があります）
+    /// * `major_radius` - 大半径（正の値である必要があります）
+    /// * `minor_radius` - 小半径（正の値である必要があります）
     ///
     /// # Returns
     /// * `Some(TorusSolid3D)` - 有効なパラメータの場合
@@ -88,8 +88,8 @@ impl<T: Scalar> TorusSolid3D<T> {
     /// 標準的なトーラス固体を作成（Z軸中心、原点配置）
     ///
     /// # Arguments
-    /// * `major_radius` - 主半径
-    /// * `minor_radius` - 副半径
+    /// * `major_radius` - 大半径
+    /// * `minor_radius` - 小半径
     ///
     /// # Returns
     /// * `Some(TorusSolid3D)` - 有効なパラメータの場合
@@ -157,7 +157,7 @@ impl<T: Scalar> TorusSolid3D<T> {
 
     /// 体積を計算
     ///
-    /// トーラス固体の体積 = 2π²R²r (R=主半径, r=副半径)
+    /// トーラス固体の体積 = 2π²R²r (R=大半径, r=小半径)
     #[allow(dead_code)]
     pub(crate) fn volume_internal(&self) -> T {
         let two = T::from_f64(2.0);
@@ -168,7 +168,7 @@ impl<T: Scalar> TorusSolid3D<T> {
 
     /// 表面積を計算
     ///
-    /// トーラス固体の表面積 = 4π²Rr (R=主半径, r=副半径)
+    /// トーラス固体の表面積 = 4π²Rr (R=大半径, r=小半径)
     #[allow(dead_code)]
     pub(crate) fn surface_area_internal(&self) -> T {
         let four = T::from_f64(4.0);
@@ -179,7 +179,7 @@ impl<T: Scalar> TorusSolid3D<T> {
 
     /// トーラスソリッドの領域に対する点の位置を分類する
     ///
-    /// 管の表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
+    /// トーラスの表面までの距離が `tolerance` 以内なら `OnBoundary`、それ以外は内部・外部に分ける。
     /// `contains_point` は `classify_point(point, 0)` が `Outside` でないことと一致する。
     pub fn classify_point(&self, point: &Point3D<T>, tolerance: T) -> PointClassification {
         let relative = Vector3D::from_points(&self.origin, point);
@@ -234,7 +234,7 @@ impl<T: Scalar> TorusSolid3D<T> {
         // トーラス中心線からの距離
         let torus_center_distance = (radial_distance - self.major_radius).abs();
 
-        // 副半径内にあるかチェック
+        // 小半径内にあるかチェック
         let cross_section_distance =
             (z_component * z_component + torus_center_distance * torus_center_distance).sqrt();
 
@@ -403,7 +403,7 @@ impl<T: Scalar> TorusSolid3DContainment<T> for TorusSolid3D<T> {
 impl<T: Scalar> TorusSolid3DDistance<T> for TorusSolid3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
-        // トーラスソリッド（領域）までの距離。管の中心円までの距離から管の半径を引き、内部・表面上は 0 とする
+        // トーラスソリッド（領域）までの距離。大半径の円（断面の円の中心が描く円）までの距離から小半径を引き、内部・表面上は 0 とする
         let local = p - *self.origin_internal();
         let z_axis = self.z_axis_internal();
         let z_component = local.dot(&z_axis.as_vector());
