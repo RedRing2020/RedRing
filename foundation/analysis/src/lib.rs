@@ -11,7 +11,7 @@ pub mod numerics; // 数値計算基盤
 pub mod units; // 単位系定義とトレランス管理
 
 // 基盤型の再エクスポート
-pub use abstract_types::{Angle, AngleType, Scalar, TolerantEq};
+pub use abstract_types::{Angle, AngleRange, AngleType, Scalar, TolerantEq};
 
 // 線形代数の再エクスポート
 pub use linalg::matrix::{Matrix3x3, Matrix4x4};
@@ -36,7 +36,8 @@ pub use crate::linalg::solver::newton::{
     MultivariateNewtonOptions,
 };
 pub use crate::numerics::{
-    find_span_in_non_decreasing_sequence, newton_arc_length, trapezoidal_rule, NormedVector,
+    find_span_in_non_decreasing_sequence, is_within_closed_range, newton_arc_length,
+    trapezoidal_rule, NormedVector,
 };
 
 // 単位系の再エクスポート

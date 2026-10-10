@@ -62,6 +62,25 @@ mod tests {
         let angle4 = Angle::from_degrees(-270.0f64);
         let signed_normalized2 = angle4.normalize_signed();
         assert!((signed_normalized2.to_degrees() - 90.0).abs() < TOLERANCE_F64);
+        // 半周ちょうどは +π とする（-π < angle <= π）
+        let half = Angle::from_degrees(-180.0f64).normalize_signed();
+        assert!((half.to_degrees() - 180.0).abs() < TOLERANCE_F64);
+
+        // 大きな角度も 1 回の計算で正規化する
+        let large = Angle::from_degrees(360.0f64 * 1.0e6 + 30.0).normalize();
+        assert!((large.to_degrees() - 30.0).abs() < 1.0e-6);
+        let exact_turn = Angle::from_degrees(720.0f64).normalize();
+        assert!(exact_turn.to_degrees().abs() < TOLERANCE_F64);
+
+        // 有限でない角度でも終了し、NaN を返す
+        assert!(Angle::from_radians(f64::INFINITY)
+            .normalize()
+            .to_radians()
+            .is_nan());
+        assert!(Angle::from_radians(f64::NAN)
+            .normalize()
+            .to_radians()
+            .is_nan());
     }
 
     #[test]

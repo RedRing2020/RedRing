@@ -33,11 +33,8 @@ use crate::{
     LinearAxisLabel, MachineAxisKind, MachineAxisValue, MachineConstraint, PathSegment,
     PoseAnnotatedSegment, RotaryAxisLabel, SegmentType, ToolPath,
 };
-use analysis::Scalar;
-use geo_algorithms::{
-    Point2D, validate_linear_acceleration_mm_per_s2, validate_linear_speed_mm_per_min,
-    validate_linear_travel_mm, validate_rotary_acceleration_deg_per_s2, validate_rotary_angle_deg,
-};
+use analysis::{Angle, AngleRange, Scalar, is_within_closed_range};
+use geo_algorithms::Point2D;
 
 /// 検証エラー
 ///
@@ -337,8 +334,7 @@ pub fn validate_toolpath_machine_constraints<T: Scalar + std::iter::Sum>(
         };
 
         let feed = feed_rate.to_f64();
-        let result = validate_linear_speed_mm_per_min(feed, 0.0, max_feed, tol);
-        if !result.is_valid() {
+        if !is_within_closed_range(feed, 0.0, max_feed, tol) {
             return Err(ValidationError::FeedRateLimitExceeded {
                 segment_index,
                 feed_rate: feed,
@@ -349,39 +345,25 @@ pub fn validate_toolpath_machine_constraints<T: Scalar + std::iter::Sum>(
         if let (Some(max_linear_accel), Some(requested_linear_accel)) = (
             linear_accel_limit,
             segment.linear_acceleration_hint_mm_per_sec2(),
-        ) {
-            let result = validate_linear_acceleration_mm_per_s2(
-                requested_linear_accel,
-                0.0,
-                max_linear_accel,
-                tol,
-            );
-            if !result.is_valid() {
-                return Err(ValidationError::LinearAccelerationLimitExceeded {
-                    segment_index,
-                    acceleration_mm_per_sec2: requested_linear_accel,
-                    max_acceleration_mm_per_sec2: max_linear_accel,
-                });
-            }
+        ) && !is_within_closed_range(requested_linear_accel, 0.0, max_linear_accel, tol)
+        {
+            return Err(ValidationError::LinearAccelerationLimitExceeded {
+                segment_index,
+                acceleration_mm_per_sec2: requested_linear_accel,
+                max_acceleration_mm_per_sec2: max_linear_accel,
+            });
         }
 
         if let (Some(max_rotary_accel), Some(requested_rotary_accel)) = (
             rotary_accel_limit,
             segment.rotary_acceleration_hint_deg_per_sec2(),
-        ) {
-            let result = validate_rotary_acceleration_deg_per_s2(
-                requested_rotary_accel,
-                0.0,
-                max_rotary_accel,
-                tol,
-            );
-            if !result.is_valid() {
-                return Err(ValidationError::RotaryAccelerationLimitExceeded {
-                    segment_index,
-                    acceleration_deg_per_sec2: requested_rotary_accel,
-                    max_acceleration_deg_per_sec2: max_rotary_accel,
-                });
-            }
+        ) && !is_within_closed_range(requested_rotary_accel, 0.0, max_rotary_accel, tol)
+        {
+            return Err(ValidationError::RotaryAccelerationLimitExceeded {
+                segment_index,
+                acceleration_deg_per_sec2: requested_rotary_accel,
+                max_acceleration_deg_per_sec2: max_rotary_accel,
+            });
         }
     }
 
@@ -472,8 +454,7 @@ fn validate_axis_values<T: Scalar>(
                 let value_mm = axis.value.to_f64();
                 let min_mm = limit.min_mm.to_f64();
                 let max_mm = limit.max_mm.to_f64();
-                let result = validate_linear_travel_mm(value_mm, min_mm, max_mm, linear_tol_mm);
-                if !result.is_valid() {
+                if !is_within_closed_range(value_mm, min_mm, max_mm, linear_tol_mm) {
                     return Err(ValidationError::LinearAxisLimitExceeded {
                         segment_index,
                         pose_endpoint,
@@ -501,8 +482,7 @@ fn validate_axis_values<T: Scalar>(
                 let value_deg = axis.value.to_f64();
                 let min_deg = limit.min_deg.to_f64();
                 let max_deg = limit.max_deg.to_f64();
-                let result = validate_rotary_angle_deg(value_deg, min_deg, max_deg, rotary_tol_deg);
-                if !result.is_valid() {
+                if !is_rotary_angle_within_limit(value_deg, min_deg, max_deg, rotary_tol_deg) {
                     return Err(ValidationError::RotaryAxisLimitExceeded {
                         segment_index,
                         pose_endpoint,
@@ -538,6 +518,29 @@ fn parse_rotary_axis_label(axis_name: &str) -> Option<RotaryAxisLabel> {
         "C" => Some(RotaryAxisLabel::C),
         _ => None,
     }
+}
+
+/// 回転軸の角度（度）が可動範囲に含まれるかを判定する
+///
+/// 可動範囲は下限から反時計回りに上限まで進む範囲とし、下限 > 上限の場合は 0° を跨ぐ範囲とする。
+/// 下限と上限が許容誤差以内で同じ角度を指す場合は全周とする。
+fn is_rotary_angle_within_limit(
+    value_deg: f64,
+    min_deg: f64,
+    max_deg: f64,
+    tolerance_deg: f64,
+) -> bool {
+    if !value_deg.is_finite() || !min_deg.is_finite() || !max_deg.is_finite() {
+        return false;
+    }
+    let tolerance = tolerance_deg.abs().to_radians();
+    let min = Angle::from_degrees(min_deg);
+    let max = Angle::from_degrees(max_deg);
+    if min.is_equivalent(&max, tolerance) {
+        return true;
+    }
+    AngleRange::from_ccw_bounds(min, max)
+        .is_some_and(|range| range.contains(Angle::from_degrees(value_deg), tolerance))
 }
 
 #[cfg(test)]
@@ -937,5 +940,28 @@ mod tests {
             .message_key(),
             "validation.machine.unsupported_axis"
         );
+    }
+
+    #[test]
+    fn rotary_angle_limit_handles_wrap_full_turn_and_tolerance() {
+        // 通常の範囲（両端を含む）
+        assert!(is_rotary_angle_within_limit(45.0, 0.0, 90.0, 0.0));
+        assert!(is_rotary_angle_within_limit(90.0, 0.0, 90.0, 0.0));
+        assert!(!is_rotary_angle_within_limit(120.0, 0.0, 90.0, 0.0));
+
+        // 下限 > 上限は 0° を跨ぐ範囲
+        assert!(is_rotary_angle_within_limit(350.0, 300.0, 60.0, 0.0));
+        assert!(is_rotary_angle_within_limit(-10.0, 300.0, 60.0, 0.0));
+        assert!(!is_rotary_angle_within_limit(180.0, 300.0, 60.0, 0.0));
+
+        // 下限と上限が同じ角度を指す場合は全周
+        assert!(is_rotary_angle_within_limit(123.0, -180.0, 180.0, 0.0));
+
+        // 許容誤差
+        assert!(is_rotary_angle_within_limit(90.5, 0.0, 90.0, 1.0));
+        assert!(!is_rotary_angle_within_limit(92.0, 0.0, 90.0, 1.0));
+
+        // 有限でない値
+        assert!(!is_rotary_angle_within_limit(f64::NAN, 0.0, 90.0, 1.0));
     }
 }

@@ -1,6 +1,6 @@
 # Copilot Instructions for RedRing
 
-## 最終更新日: 2026年4月17日
+## 最終更新日: 2026年10月10日
 
 RedRing は、Rust + wgpu による CAD/CAM 研究用プラットフォームです。
 
@@ -69,6 +69,11 @@ ls model/geo_primitives/src/*_solid_3d*.rs
 - 実装順序の提案
 
 **ユーザーの明示的な承認を得るまで実装を開始しない**
+
+**範囲判定・角度処理などの汎用ヘルパーを追加・変更する場合**は、`dev/architecture/NUMERIC_HELPER_RULES.md` の「追加の判断基準」を確認する:
+- [ ] 既存のヘルパー（`analysis::is_within_closed_range` / `Angle::normalize` / `AngleRange` 等）で表現できないか
+- [ ] 既存のヘルパーを呼ぶだけのラッパー・別名になっていないか
+- [ ] 名前・doc コメントに業務用語や物理単位を含んでいないか（含む場合は利用側のクレートに置く）
 
 ### 必須確認プロセス
 

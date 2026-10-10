@@ -6,6 +6,7 @@
 
 pub mod integration;
 pub mod partition;
+pub mod range;
 pub mod vector_distance;
 
 #[cfg(test)]
@@ -13,11 +14,14 @@ pub mod integration_tests;
 #[cfg(test)]
 pub mod partition_tests;
 #[cfg(test)]
+pub mod range_tests;
+#[cfg(test)]
 pub mod vector_distance_tests;
 
 // 数値積分の再エクスポート
 pub use integration::{newton_arc_length, trapezoidal_rule, NormedVector};
 pub use partition::find_span_in_non_decreasing_sequence;
+pub use range::is_within_closed_range;
 
 // 非線形方程式ソルバーは linalg::solver::newton を使用してください
 // pub use crate::linalg::solver::newton::{newton_solve, newton_inverse};
