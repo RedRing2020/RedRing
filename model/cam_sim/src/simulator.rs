@@ -370,14 +370,14 @@ fn build_exact_work(
 
         if tool.is_ball_end_mill() {
             let start = Point3D::new(
-                segment.start().x(),
-                segment.start().y(),
-                segment.start().z() + tool.radius(),
+                segment.start_point().x(),
+                segment.start_point().y(),
+                segment.start_point().z() + tool.radius(),
             );
             let end = Point3D::new(
-                segment.end().x(),
-                segment.end().y(),
-                segment.end().z() + tool.radius(),
+                segment.end_point().x(),
+                segment.end_point().y(),
+                segment.end_point().z() + tool.radius(),
             );
             let ball_segment =
                 LineSegment3D::new(start, end).ok_or(SimulationError::UnsupportedGeometry)?;

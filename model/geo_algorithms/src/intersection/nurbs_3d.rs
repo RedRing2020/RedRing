@@ -64,7 +64,7 @@ pub fn nurbscurve3d_line_segment3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // 現実装では代表点として線分の ideal start endpoint を返す。
-        Some(segment.start())
+        Some(segment.start_point())
     } else {
         None
     }
@@ -225,7 +225,7 @@ pub fn nurbssurface3d_line_segment3d_intersection<T: Scalar>(
 
     if distance <= tolerance {
         // 現実装では代表点として線分の ideal start endpoint を返す。
-        Some(segment.start())
+        Some(segment.start_point())
     } else {
         None
     }
@@ -397,7 +397,7 @@ mod tests {
             LineSegment3D::new(Point3D::new(-0.1, 0.0, 0.0), Point3D::new(0.1, 0.0, 0.0)).unwrap();
 
         let result = nurbscurve3d_line_segment3d_intersection(&curve, &segment, 0.1);
-        assert_eq!(result, Some(segment.start()));
+        assert_eq!(result, Some(segment.start_point()));
     }
 
     #[test]

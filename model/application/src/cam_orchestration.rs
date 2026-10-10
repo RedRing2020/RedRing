@@ -226,7 +226,7 @@ pub fn compute_toolpath_work_bounds(
     let mut cutting_max_z = f64::NEG_INFINITY;
 
     for (segment, is_cutting) in segments {
-        let points = [segment.start(), segment.end()];
+        let points = [segment.start_point(), segment.end_point()];
         for point in points {
             min_x = min_x.min(point.x());
             min_y = min_y.min(point.y());
@@ -277,13 +277,13 @@ pub fn count_non_cutting_interference_segments(
         .iter()
         .filter(|(_, is_cutting)| !*is_cutting)
         .filter(|(segment, _)| {
-            let seg_min_x = segment.start().x().min(segment.end().x()) - tool_radius;
-            let seg_min_y = segment.start().y().min(segment.end().y()) - tool_radius;
-            let seg_min_z = segment.start().z().min(segment.end().z());
+            let seg_min_x = segment.start_point().x().min(segment.end_point().x()) - tool_radius;
+            let seg_min_y = segment.start_point().y().min(segment.end_point().y()) - tool_radius;
+            let seg_min_z = segment.start_point().z().min(segment.end_point().z());
 
-            let seg_max_x = segment.start().x().max(segment.end().x()) + tool_radius;
-            let seg_max_y = segment.start().y().max(segment.end().y()) + tool_radius;
-            let seg_max_z = segment.start().z().max(segment.end().z()) + 0.0001;
+            let seg_max_x = segment.start_point().x().max(segment.end_point().x()) + tool_radius;
+            let seg_max_y = segment.start_point().y().max(segment.end_point().y()) + tool_radius;
+            let seg_max_z = segment.start_point().z().max(segment.end_point().z()) + 0.0001;
 
             !(seg_max_x < stock_min.x()
                 || seg_min_x > stock_max.x()

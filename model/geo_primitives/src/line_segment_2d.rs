@@ -335,12 +335,12 @@ impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
 }
 
 impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
-    fn start(&self) -> (T, T) {
+    fn start_point(&self) -> (T, T) {
         let p = self.start_point();
         (p.x(), p.y())
     }
 
-    fn end(&self) -> (T, T) {
+    fn end_point(&self) -> (T, T) {
         let p = self.end_point();
         (p.x(), p.y())
     }
@@ -365,15 +365,15 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
     }
 
     fn is_horizontal(&self) -> bool {
-        let start = self.start();
-        let end = self.end();
-        (start.1 - end.1).abs() <= T::EPSILON
+        let start = self.start_point();
+        let end = self.end_point();
+        (start.y() - end.y()).abs() <= T::EPSILON
     }
 
     fn is_vertical(&self) -> bool {
-        let start = self.start();
-        let end = self.end();
-        (start.0 - end.0).abs() <= T::EPSILON
+        let start = self.start_point();
+        let end = self.end_point();
+        (start.x() - end.x()).abs() <= T::EPSILON
     }
 }
 

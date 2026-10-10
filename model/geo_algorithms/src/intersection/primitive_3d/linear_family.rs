@@ -180,8 +180,8 @@ pub fn line_segment3d_spherical_surface3d_intersections<T: Scalar>(
     tolerance: T,
 ) -> IntersectionResult<T> {
     let mut intersections = Vec::new();
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
     let direction = Vector3D::from_points(&start, &end);
 
     let Some((t1, t2)) =

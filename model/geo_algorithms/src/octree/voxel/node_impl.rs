@@ -318,12 +318,12 @@ impl<T: Scalar> VoxelNode<T> {
 
     /// AABBの軸方向射影が掃引区間端面の外側かを判定する。
     fn is_aabb_outside_swept_cylinder_cap_range(&self, segment: &LineSegment3D<T>) -> bool {
-        let sx = segment.start().x();
-        let sy = segment.start().y();
-        let sz = segment.start().z();
-        let ex = segment.end().x();
-        let ey = segment.end().y();
-        let ez = segment.end().z();
+        let sx = segment.start_point().x();
+        let sy = segment.start_point().y();
+        let sz = segment.start_point().z();
+        let ex = segment.end_point().x();
+        let ey = segment.end_point().y();
+        let ez = segment.end_point().z();
 
         let axis_x = ex - sx;
         let axis_y = ey - sy;
@@ -401,12 +401,12 @@ impl<T: Scalar> VoxelNode<T> {
         radius: T,
     ) -> bool {
         let (px, py, pz) = point;
-        let sx = segment.start().x();
-        let sy = segment.start().y();
-        let sz = segment.start().z();
-        let ex = segment.end().x();
-        let ey = segment.end().y();
-        let ez = segment.end().z();
+        let sx = segment.start_point().x();
+        let sy = segment.start_point().y();
+        let sz = segment.start_point().z();
+        let ex = segment.end_point().x();
+        let ey = segment.end_point().y();
+        let ez = segment.end_point().z();
 
         let axis_x = ex - sx;
         let axis_y = ey - sy;
@@ -441,12 +441,12 @@ impl<T: Scalar> VoxelNode<T> {
     /// 点と線分の最短距離を返す。
     fn point_to_segment_distance(&self, point: (T, T, T), segment: &LineSegment3D<T>) -> T {
         let (px, py, pz) = point;
-        let sx = segment.start().x();
-        let sy = segment.start().y();
-        let sz = segment.start().z();
-        let ex = segment.end().x();
-        let ey = segment.end().y();
-        let ez = segment.end().z();
+        let sx = segment.start_point().x();
+        let sy = segment.start_point().y();
+        let sz = segment.start_point().z();
+        let ex = segment.end_point().x();
+        let ey = segment.end_point().y();
+        let ez = segment.end_point().z();
 
         let dx = ex - sx;
         let dy = ey - sy;

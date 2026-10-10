@@ -288,12 +288,12 @@ fn collect_simulation_line_segments_with_flags(
 
 fn lerp_point_on_segment(segment: &LineSegment3D<f64>, t: f64) -> Point3D<f64> {
     let tt = t.clamp(0.0, 1.0);
-    let sx = segment.start().x();
-    let sy = segment.start().y();
-    let sz = segment.start().z();
-    let ex = segment.end().x();
-    let ey = segment.end().y();
-    let ez = segment.end().z();
+    let sx = segment.start_point().x();
+    let sy = segment.start_point().y();
+    let sz = segment.start_point().z();
+    let ex = segment.end_point().x();
+    let ey = segment.end_point().y();
+    let ez = segment.end_point().z();
 
     Point3D::new(
         sx + (ex - sx) * tt,

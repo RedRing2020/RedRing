@@ -113,20 +113,20 @@ impl<T: Scalar> LineSegment3D<T> {
     }
 
     /// 始点を取得
-    pub fn start(&self) -> Point3D<T> {
+    pub fn start_point(&self) -> Point3D<T> {
         self.ideal_start()
     }
 
     /// 終点を取得
-    pub fn end(&self) -> Point3D<T> {
+    pub fn end_point(&self) -> Point3D<T> {
         self.ideal_end()
     }
 
     /// 中点を取得
     pub fn midpoint(&self) -> Point3D<T> {
         let two = T::from_f64(2.0);
-        let start = self.start();
-        let end = self.end();
+        let start = self.start_point();
+        let end = self.end_point();
         Point3D::new(
             (start.x() + end.x()) / two,
             (start.y() + end.y()) / two,
@@ -232,13 +232,13 @@ impl<T: Scalar> LineSegment3DConstructor<T> for LineSegment3D<T> {
 }
 
 impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
-    fn start(&self) -> (T, T, T) {
-        let p = self.start();
+    fn start_point(&self) -> (T, T, T) {
+        let p = self.start_point();
         (p.x(), p.y(), p.z())
     }
 
-    fn end(&self) -> (T, T, T) {
-        let p = self.end();
+    fn end_point(&self) -> (T, T, T) {
+        let p = self.end_point();
         (p.x(), p.y(), p.z())
     }
 
@@ -261,14 +261,14 @@ impl<T: Scalar> LineSegment3DProperties<T> for LineSegment3D<T> {
     }
 
     fn is_on_xy_plane(&self) -> bool {
-        let start = self.start();
-        let end = self.end();
+        let start = self.start_point();
+        let end = self.end_point();
         (start.z() - end.z()).abs() <= T::EPSILON
     }
 
     fn is_on_yz_plane(&self) -> bool {
-        let start = self.start();
-        let end = self.end();
+        let start = self.start_point();
+        let end = self.end_point();
         (start.x() - end.x()).abs() <= T::EPSILON
     }
 }
@@ -280,8 +280,8 @@ impl<T: Scalar> LineSegment3DDerived<T> for LineSegment3D<T> {
     }
 
     fn as_vector(&self) -> (T, T, T) {
-        let start = self.start();
-        let end = self.end();
+        let start = self.start_point();
+        let end = self.end_point();
         let v = Vector3D::from_points(&start, &end);
         (v.x(), v.y(), v.z())
     }
@@ -316,10 +316,10 @@ impl<T: Scalar> LineSegment3DProjection<T> for LineSegment3D<T> {
 
 impl<T: Scalar> CrossDistance<T, Self> for LineSegment3D<T> {
     fn distance_to(&self, other: &Self) -> T {
-        let other_start_pt = other.start();
-        let other_end_pt = other.end();
-        let self_start_pt = self.start();
-        let self_end_pt = self.end();
+        let other_start_pt = other.start_point();
+        let other_end_pt = other.end_point();
+        let self_start_pt = self.start_point();
+        let self_end_pt = self.end_point();
 
         let d1 = self.distance_to_point(&other_start_pt);
         let d2 = self.distance_to_point(&other_end_pt);
@@ -340,8 +340,8 @@ impl<T: Scalar> CrossDistance<T, ((T, T, T), (T, T, T))> for LineSegment3D<T> {
     fn distance_to(&self, other: &((T, T, T), (T, T, T))) -> T {
         use geo_commons::line_segment_to_aabb_distance;
 
-        let start_point = self.start();
-        let end_point = self.end();
+        let start_point = self.start_point();
+        let end_point = self.end_point();
         let start = (start_point.x(), start_point.y(), start_point.z());
         let end = (end_point.x(), end_point.y(), end_point.z());
 
@@ -367,8 +367,8 @@ mod tests {
         assert_eq!(segment.constraint_end_point(), end);
         assert_eq!(segment.ideal_start(), Point3D::new(0.0, 0.0, 0.0));
         assert_eq!(segment.ideal_end(), Point3D::new(2.0, 0.0, 0.0));
-        assert_eq!(segment.start(), Point3D::new(0.0, 0.0, 0.0));
-        assert_eq!(segment.end(), Point3D::new(2.0, 0.0, 0.0));
+        assert_eq!(segment.start_point(), Point3D::new(0.0, 0.0, 0.0));
+        assert_eq!(segment.end_point(), Point3D::new(2.0, 0.0, 0.0));
         assert_eq!(
             segment.point_at_parameter(0.5),
             Some(Point3D::new(1.0, 0.0, 0.0))

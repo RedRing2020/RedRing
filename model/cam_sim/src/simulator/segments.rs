@@ -78,8 +78,8 @@ fn push_path_segment_lines<T: Scalar>(
 impl<T: Scalar> super::CuttingSimulator<T> {
     /// 線分長を `f64` で計算する（距離ベース間隔計算用）。
     pub(super) fn segment_length(&self, segment: &LineSegment3D<T>) -> f64 {
-        let start = segment.start();
-        let end = segment.end();
+        let start = segment.start_point();
+        let end = segment.end_point();
         start.distance_to(&end).to_f64()
     }
 

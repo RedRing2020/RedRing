@@ -312,7 +312,7 @@ fn point_is_finite(point: &Point3D<f64>) -> bool {
 }
 
 fn segment_is_finite(segment: &LineSegment3D<f64>) -> bool {
-    point_is_finite(&segment.start()) && point_is_finite(&segment.end())
+    point_is_finite(&segment.start_point()) && point_is_finite(&segment.end_point())
 }
 
 fn aabb_is_finite(aabb: &Aabb3D<f64>) -> bool {
@@ -329,12 +329,12 @@ fn primitive_bounds(primitive: &ExactToolPrimitive<f64>) -> Aabb3D<f64> {
         | ExactToolPrimitive::Ball { segment, radius } => (segment, *radius),
     };
 
-    let min_x = segment.start().x().min(segment.end().x()) - radius;
-    let min_y = segment.start().y().min(segment.end().y()) - radius;
-    let min_z = segment.start().z().min(segment.end().z()) - radius;
-    let max_x = segment.start().x().max(segment.end().x()) + radius;
-    let max_y = segment.start().y().max(segment.end().y()) + radius;
-    let max_z = segment.start().z().max(segment.end().z()) + radius;
+    let min_x = segment.start_point().x().min(segment.end_point().x()) - radius;
+    let min_y = segment.start_point().y().min(segment.end_point().y()) - radius;
+    let min_z = segment.start_point().z().min(segment.end_point().z()) - radius;
+    let max_x = segment.start_point().x().max(segment.end_point().x()) + radius;
+    let max_y = segment.start_point().y().max(segment.end_point().y()) + radius;
+    let max_z = segment.start_point().z().max(segment.end_point().z()) + radius;
 
     Aabb3D::new(
         Point3D::new(min_x, min_y, min_z),
@@ -550,12 +550,12 @@ fn point_to_flat_swept_surface_distance(
     segment: &LineSegment3D<f64>,
     radius: f64,
 ) -> f64 {
-    let start_x = segment.start().x();
-    let start_y = segment.start().y();
-    let start_z = segment.start().z();
-    let end_x = segment.end().x();
-    let end_y = segment.end().y();
-    let end_z = segment.end().z();
+    let start_x = segment.start_point().x();
+    let start_y = segment.start_point().y();
+    let start_z = segment.start_point().z();
+    let end_x = segment.end_point().x();
+    let end_y = segment.end_point().y();
+    let end_z = segment.end_point().z();
 
     let axis_x = end_x - start_x;
     let axis_y = end_y - start_y;
@@ -610,12 +610,12 @@ fn point_to_flat_swept_surface_distance(
 }
 
 fn flat_swept_contains(point: &Point3D<f64>, segment: &LineSegment3D<f64>, radius: f64) -> bool {
-    let start_x = segment.start().x();
-    let start_y = segment.start().y();
-    let start_z = segment.start().z();
-    let end_x = segment.end().x();
-    let end_y = segment.end().y();
-    let end_z = segment.end().z();
+    let start_x = segment.start_point().x();
+    let start_y = segment.start_point().y();
+    let start_z = segment.start_point().z();
+    let end_x = segment.end_point().x();
+    let end_y = segment.end_point().y();
+    let end_z = segment.end_point().z();
 
     let axis_x = end_x - start_x;
     let axis_y = end_y - start_y;

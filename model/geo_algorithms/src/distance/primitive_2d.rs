@@ -16,10 +16,10 @@ pub fn line_segment2d_point2d_distance<T: Scalar>(
     segment: &LineSegment2D<T>,
     point: &Point2D<T>,
 ) -> T {
-    let s1x = LineSegment2DProperties::start(segment).0;
-    let s1y = LineSegment2DProperties::start(segment).1;
-    let s2x = LineSegment2DProperties::end(segment).0;
-    let s2y = LineSegment2DProperties::end(segment).1;
+    let s1x = LineSegment2DProperties::start_point(segment).0;
+    let s1y = LineSegment2DProperties::start_point(segment).1;
+    let s2x = LineSegment2DProperties::end_point(segment).0;
+    let s2y = LineSegment2DProperties::end_point(segment).1;
     let dx = s2x - s1x;
     let dy = s2y - s1y;
     let len_sq = dx * dx + dy * dy;
@@ -122,14 +122,14 @@ pub fn line_segment2d_line_segment2d_distance<T: Scalar>(
     seg1: &LineSegment2D<T>,
     seg2: &LineSegment2D<T>,
 ) -> T {
-    let s1x = LineSegment2DProperties::start(seg1).0;
-    let s1y = LineSegment2DProperties::start(seg1).1;
-    let s2x = LineSegment2DProperties::end(seg1).0;
-    let s2y = LineSegment2DProperties::end(seg1).1;
-    let p1x = LineSegment2DProperties::start(seg2).0;
-    let p1y = LineSegment2DProperties::start(seg2).1;
-    let p2x = LineSegment2DProperties::end(seg2).0;
-    let p2y = LineSegment2DProperties::end(seg2).1;
+    let s1x = LineSegment2DProperties::start_point(seg1).0;
+    let s1y = LineSegment2DProperties::start_point(seg1).1;
+    let s2x = LineSegment2DProperties::end_point(seg1).0;
+    let s2y = LineSegment2DProperties::end_point(seg1).1;
+    let p1x = LineSegment2DProperties::start_point(seg2).0;
+    let p1y = LineSegment2DProperties::start_point(seg2).1;
+    let p2x = LineSegment2DProperties::end_point(seg2).0;
+    let p2y = LineSegment2DProperties::end_point(seg2).1;
 
     let d1x = s2x - s1x;
     let d1y = s2y - s1y;
@@ -215,10 +215,10 @@ pub fn ray2d_ray2d_distance<T: Scalar>(ray1: &Ray2D<T>, ray2: &Ray2D<T>) -> T {
 pub fn ray2d_line_segment2d_distance<T: Scalar>(ray: &Ray2D<T>, segment: &LineSegment2D<T>) -> T {
     let (ox, oy) = Ray2DProperties::origin(ray);
     let (rdx, rdy) = Ray2DProperties::direction(ray);
-    let s1x = LineSegment2DProperties::start(segment).0;
-    let s1y = LineSegment2DProperties::start(segment).1;
-    let s2x = LineSegment2DProperties::end(segment).0;
-    let s2y = LineSegment2DProperties::end(segment).1;
+    let s1x = LineSegment2DProperties::start_point(segment).0;
+    let s1y = LineSegment2DProperties::start_point(segment).1;
+    let s2x = LineSegment2DProperties::end_point(segment).0;
+    let s2y = LineSegment2DProperties::end_point(segment).1;
     let sdx = s2x - s1x;
     let sdy = s2y - s1y;
 

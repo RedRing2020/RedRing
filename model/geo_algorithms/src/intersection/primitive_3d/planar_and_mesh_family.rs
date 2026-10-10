@@ -33,8 +33,8 @@ fn triangle3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
     let dir = end - start;
     let length = dir.length();
     if length <= tolerance {
@@ -190,8 +190,8 @@ fn plane3d_line_segment3d_intersection_raw<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> Option<Point3D<T>> {
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point();
+    let end = segment.end_point();
     let direction = Vector3D::from_points(&start, &end);
 
     if direction.is_zero() {

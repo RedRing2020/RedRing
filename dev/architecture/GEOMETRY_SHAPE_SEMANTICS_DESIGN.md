@@ -291,6 +291,7 @@ topology は primitive / mother curve の native parameter semantics を保存�
 | 範囲内のパラメータ | `closest_parameter(p)` | `closest_point(p)` のパラメータ。形状の範囲に制限する。範囲を持つ形状（線分・半直線）だけが持つ |
 | パラメータでの評価 | `point_at_parameter(t)` | 形状ごとのパラメータ（下表）での点 |
 | 方向の反転 | `reverse()` | 向きを反転した形状 |
+| 端点 | `start_point()` / `end_point()` | 始点・終点。端点を持つ形状（線分・円弧・楕円弧）だけが持つ |
 | 距離 | `distance_to_point(p)` | 曲線までの距離（「点との距離の規約」） |
 | 包含 | `contains_point(p, tolerance)` | 曲線上にあるか（「包含判定の規約」） |
 
@@ -364,7 +365,7 @@ topology は primitive / mother curve の native parameter semantics を保存�
 すなわち、primitive 側では次を固定する。
 
 - support line と trim 区間が shape 定義を与える
-- `start` / `end` は support line 上の ideal endpoint を返す
+- `start_point` / `end_point` は support line 上の ideal endpoint を返す
 - topology 上の拘束端点は primitive ではなく `Edge` の `start_vertex` / `end_vertex` 側で管理する
 
 これにより、bounded curve 全体で「primitive は ideal endpoint、拘束端点は topology 管理」という責務分離を揃える。
@@ -375,7 +376,7 @@ topology は primitive / mother curve の native parameter semantics を保存�
 
 - 正本: `support_line`
 - 正本: trim 区間
-- 正本 endpoint capability: `start` / `end`（ideal endpoint）
+- 正本 endpoint capability: `start_point` / `end_point`（ideal endpoint）
 - 派生: `midpoint`
 - 派生: `length`
 - 派生: support line 上の評価点
@@ -393,8 +394,8 @@ topology は primitive / mother curve の native parameter semantics を保存�
 
 | API | 意味 |
 | --- | --- |
-| 始点を返す API（現行: `start()` / `start_point()`） | support line と trim 区間から定まる ideal start endpoint を返す |
-| 終点を返す API（現行: `end()` / `end_point()`） | support line と trim 区間から定まる ideal end endpoint を返す |
+| `start_point()` | support line と trim 区間から定まる ideal start endpoint を返す |
+| `end_point()` | support line と trim 区間から定まる ideal end endpoint を返す |
 | `length()` | 有限線分 primitive としての長さを返す |
 | `point_at_parameter(t)` | 正規化パラメータ `t`（始点 0・終点 1）に対応する support line 上の評価点を返す。評価範囲外は `None` |
 | `measure()` | 主語彙にしない。互換の委譲としてのみ扱う |

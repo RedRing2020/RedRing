@@ -41,8 +41,8 @@ pub fn ellipse3d_line_segment3d_collides<T: Scalar + From<f64>>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let s = segment.start();
-    let e = segment.end();
+    let s = segment.start_point();
+    let e = segment.end_point();
     let dist_start = crate::distance::ellipse3d_point3d_distance(ellipse, &s);
     let dist_end = crate::distance::ellipse3d_point3d_distance(ellipse, &e);
     let two = T::from_f64(2.0);
@@ -128,11 +128,11 @@ pub fn arc3d_line_segment3d_collides<T: Scalar>(
     let (ex, ey, ez) = <Arc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
     let arc_start = Point3D::new(sx, sy, sz);
     let arc_end = Point3D::new(ex, ey, ez);
-    crate::distance::arc3d_point3d_distance(arc, &segment.start()) <= tolerance
-        || crate::distance::arc3d_point3d_distance(arc, &segment.end()) <= tolerance
+    crate::distance::arc3d_point3d_distance(arc, &segment.start_point()) <= tolerance
+        || crate::distance::arc3d_point3d_distance(arc, &segment.end_point()) <= tolerance
         || {
-            let d1 = Vector3D::from_points(&arc_start, &segment.start()).magnitude();
-            let d2 = Vector3D::from_points(&arc_end, &segment.start()).magnitude();
+            let d1 = Vector3D::from_points(&arc_start, &segment.start_point()).magnitude();
+            let d2 = Vector3D::from_points(&arc_end, &segment.start_point()).magnitude();
             d1 <= tolerance || d2 <= tolerance
         }
 }
@@ -178,11 +178,11 @@ pub fn circle3d_line_segment3d_collides<T: Scalar>(
     segment: &LineSegment3D<T>,
     tolerance: T,
 ) -> bool {
-    let dist_start = crate::distance::circle3d_point3d_distance(circle, &segment.start());
-    let dist_end = crate::distance::circle3d_point3d_distance(circle, &segment.end());
-    let mid_x = (segment.start().x() + segment.end().x()) / T::from_f64(2.0);
-    let mid_y = (segment.start().y() + segment.end().y()) / T::from_f64(2.0);
-    let mid_z = (segment.start().z() + segment.end().z()) / T::from_f64(2.0);
+    let dist_start = crate::distance::circle3d_point3d_distance(circle, &segment.start_point());
+    let dist_end = crate::distance::circle3d_point3d_distance(circle, &segment.end_point());
+    let mid_x = (segment.start_point().x() + segment.end_point().x()) / T::from_f64(2.0);
+    let mid_y = (segment.start_point().y() + segment.end_point().y()) / T::from_f64(2.0);
+    let mid_z = (segment.start_point().z() + segment.end_point().z()) / T::from_f64(2.0);
     let midpoint = Point3D::new(mid_x, mid_y, mid_z);
     dist_start <= tolerance
         || dist_end <= tolerance

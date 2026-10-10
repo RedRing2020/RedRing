@@ -89,7 +89,7 @@ impl<T: Scalar> CurveRef<T> {
 
     pub fn ideal_start_point(&self) -> Point3D<T> {
         match self {
-            Self::Line(line) => line.start(),
+            Self::Line(line) => line.start_point(),
             Self::Arc(arc) => {
                 let (x, y, z) = <TopoArc3D<T> as Arc3DEndpoint<T>>::start_point(arc);
                 Point3D::new(x, y, z)
@@ -109,7 +109,7 @@ impl<T: Scalar> CurveRef<T> {
 
     pub fn ideal_end_point(&self) -> Point3D<T> {
         match self {
-            Self::Line(line) => line.end(),
+            Self::Line(line) => line.end_point(),
             Self::Arc(arc) => {
                 let (x, y, z) = <TopoArc3D<T> as Arc3DEndpoint<T>>::end_point(arc);
                 Point3D::new(x, y, z)

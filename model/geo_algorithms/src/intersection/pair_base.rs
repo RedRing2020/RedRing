@@ -3,7 +3,7 @@
 //! 型ごとの trait実装とは分離し、形状ペア単位の幾何計算を集約する。
 
 use crate::{Arc2D, Circle2D, LineSegment2D, Point2D};
-use geo_contracts::{Arc2DProperties, Circle2DProperties, LineSegment2DProperties, Scalar};
+use geo_contracts::{Arc2DProperties, Circle2DProperties, Scalar};
 
 #[cfg(test)]
 const STANDARD_TEST_TOLERANCE_F64: f64 = analysis::test_constants::DISTANCE_TOLERANCE_F64;
@@ -96,8 +96,8 @@ pub fn line_segment2d_circle2d_intersections<T: Scalar>(
 
     let center = circle.center();
     let radius = circle.radius();
-    let start = segment.start();
-    let end = segment.end();
+    let start = segment.start_point().to_tuple();
+    let end = segment.end_point().to_tuple();
 
     let dx = end.0 - start.0;
     let dy = end.1 - start.1;
@@ -171,10 +171,10 @@ pub fn line_segment2d_line_segment2d_intersection<T: Scalar>(
     seg2: &LineSegment2D<T>,
     tolerance: T,
 ) -> Option<Point2D<T>> {
-    let p1 = seg1.start();
-    let p2 = seg1.end();
-    let p3 = seg2.start();
-    let p4 = seg2.end();
+    let p1 = seg1.start_point().to_tuple();
+    let p2 = seg1.end_point().to_tuple();
+    let p3 = seg2.start_point().to_tuple();
+    let p4 = seg2.end_point().to_tuple();
 
     let d1x = p2.0 - p1.0;
     let d1y = p2.1 - p1.1;

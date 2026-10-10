@@ -25,8 +25,8 @@ pub fn line_segment3d_point3d_distance<T: Scalar>(
     segment: &LineSegment3D<T>,
     point: &Point3D<T>,
 ) -> T {
-    let (s1x, s1y, s1z) = LineSegment3DProperties::start(segment);
-    let (s2x, s2y, s2z) = LineSegment3DProperties::end(segment);
+    let (s1x, s1y, s1z) = LineSegment3DProperties::start_point(segment);
+    let (s2x, s2y, s2z) = LineSegment3DProperties::end_point(segment);
     let dx = s2x - s1x;
     let dy = s2y - s1y;
     let dz = s2z - s1z;

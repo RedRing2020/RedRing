@@ -191,8 +191,8 @@ mod tests {
             })
             .expect("line geometry creation should succeed");
 
-        assert_eq!(result.line.start().x(), 0.0);
-        assert_eq!(result.line.end().x(), 10.0);
+        assert_eq!(result.line.start_point().x(), 0.0);
+        assert_eq!(result.line.end_point().x(), 10.0);
     }
 
     #[test]
