@@ -52,19 +52,6 @@ fn test_vector2d_length() {
     assert_eq!(zero.length(), 0.0);
 }
 
-/// 単位ベクトル判定テスト
-#[test]
-fn test_is_unit() {
-    let unit = Vector2D::new(1.0, 0.0);
-    assert!(unit.is_unit(f64::EPSILON));
-
-    let non_unit = Vector2D::new(2.0, 0.0);
-    assert!(!non_unit.is_unit(f64::EPSILON));
-
-    let zero = Vector2D::<f64>::zero();
-    assert!(!zero.is_unit(f64::EPSILON));
-}
-
 /// ゼロベクトル判定テスト
 #[test]
 fn test_is_zero() {
@@ -104,18 +91,6 @@ fn test_try_normalize() {
 
     let zero = Vector2D::<f64>::zero();
     assert!(zero.try_normalize().is_none());
-}
-
-/// 長さ指定テスト
-#[test]
-fn test_with_length() {
-    let v = Vector2D::new(3.0, 4.0);
-    let scaled = v.with_length(10.0).unwrap();
-
-    assert!((scaled.length() - 10.0f64).abs() < f64::EPSILON);
-
-    let zero = Vector2D::<f64>::zero();
-    assert!(zero.with_length(5.0).is_none());
 }
 
 /// 内積テスト
@@ -176,24 +151,6 @@ fn test_angles() {
     assert!((angle.to_radians() - std::f64::consts::FRAC_PI_2).abs() < f64::EPSILON);
 }
 
-/// 角度からベクトル生成テスト
-#[test]
-fn test_from_angle() {
-    use std::f64::consts::{FRAC_PI_2, PI};
-
-    let v1 = Vector2D::from_angle(Angle::from_radians(0.0));
-    assert!((v1.x() - 1.0f64).abs() < f64::EPSILON);
-    assert!((v1.y() - 0.0f64).abs() < f64::EPSILON);
-
-    let v2 = Vector2D::from_angle(Angle::from_radians(FRAC_PI_2));
-    assert!((v2.x() - 0.0f64).abs() < f64::EPSILON);
-    assert!((v2.y() - 1.0f64).abs() < f64::EPSILON);
-
-    let v3 = Vector2D::from_angle_length(Angle::from_radians(PI), 2.0);
-    assert!((v3.x() - (-2.0f64)).abs() < f64::EPSILON);
-    assert!(v3.y().abs() < 1e-15); // sin(PI)の浮動小数点誤差を考慮
-}
-
 /// 回転テスト
 #[test]
 fn test_rotation() {
@@ -215,17 +172,6 @@ fn test_rotation() {
     let rot_neg90 = v.rotate_neg_90();
     assert!((rot_neg90.x() - 0.0_f64).abs() < f64::EPSILON);
     assert!((rot_neg90.y() - (-1.0_f64)).abs() < f64::EPSILON);
-}
-
-/// 反射テスト
-#[test]
-fn test_reflection() {
-    let v = Vector2D::new(1.0, 1.0);
-    let normal = Vector2D::new(1.0, 0.0); // X軸法線
-
-    let reflected = v.reflect(&normal);
-    assert!((reflected.x() - (-1.0f64)).abs() < f64::EPSILON);
-    assert!((reflected.y() - 1.0f64).abs() < f64::EPSILON);
 }
 
 /// 線形補間テスト
@@ -255,7 +201,7 @@ fn test_projection() {
     assert_eq!(projected.x(), 3.0);
     assert_eq!(projected.y(), 0.0);
 
-    let rejected = v.reject_from(&target);
+    let rejected = v - projected;
     assert_eq!(rejected.x(), 0.0);
     assert_eq!(rejected.y(), 4.0);
 
@@ -334,22 +280,6 @@ fn test_point_vector_operations() {
     let v2 = p2 - p;
     assert_eq!(v2.x(), 3.0);
     assert_eq!(v2.y(), 4.0);
-}
-
-/// 3D変換テスト
-#[test]
-fn test_to_3d() {
-    let v2d = Vector2D::new(3.0, 4.0);
-    let v3d = v2d.to_3d();
-
-    assert_eq!(v3d.x(), 3.0);
-    assert_eq!(v3d.y(), 4.0);
-    assert_eq!(v3d.z(), 0.0);
-
-    let v3d_z = v2d.to_3d_with_z(5.0);
-    assert_eq!(v3d_z.x(), 3.0);
-    assert_eq!(v3d_z.y(), 4.0);
-    assert_eq!(v3d_z.z(), 5.0);
 }
 
 /// f32での動作テスト

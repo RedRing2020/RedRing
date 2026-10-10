@@ -31,16 +31,15 @@ Octree（八分木）は3D空間を再帰的に8つの子領域に分割する�
 ### 2026-02-21 時点の実装状況
 
 - 基本Octree（挿入・範囲検索・最近傍探索）実装済み
-- Octree 実装は責務分離済み（`mod.rs` + `core_impl.rs` + `insert_impl.rs` + `query_impl.rs` + `nearest_impl.rs` + `parallel_impl.rs`）
+- Octree 実装は責務分離済み（`mod.rs` + `core_impl.rs` + `insert_impl.rs` + `query_impl.rs` + `nearest_impl.rs`）
 - `model/geo_algorithms/src/octree/voxel.rs` にてVoxelOctree（材料除去・体積計算・undercut検出）実装済み
 - `model/geo_algorithms/src/octree/tolerance.rs` に `OctreeTolerance<T>` 実装済み（`Octree::with_tolerance(...)` で適用）
-- `model/geo_algorithms/tests/octree_parallel_integration.rs` に逐次/並列整合テストを追加済み
 - `model/geo_algorithms/examples/octree_basic.rs` に `with_tolerance(...)` 利用例あり
 
 ### 今回ブランチ（feature/issue-206-octree-space-partition）の実施スコープ
 
 1. [x] 統合テストの追加（crate外からの利用経路確認）
-2. [x] Octreeクエリ/最近傍の並列処理API追加（安全な読み取り処理を対象）
+2. [x] Octreeクエリ/最近傍の並列処理API追加（安全な読み取り処理を対象。呼び出し元がないため [#799](https://github.com/RedRing2020/RedRing/issues/799) で削除）
 3. [x] トレランス管理を `OctreeTolerance<T>` へ分離
 4. [x] `cargo test -p geo_algorithms` による検証
 
@@ -446,7 +445,6 @@ impl<T: Scalar> VoxelNode<T> {
 - `model/geo_algorithms/src/octree/insert_impl.rs` - 挿入ロジック
 - `model/geo_algorithms/src/octree/query_impl.rs` - 範囲検索/走査ロジック
 - `model/geo_algorithms/src/octree/nearest_impl.rs` - 最近傍探索ロジック
-- `model/geo_algorithms/src/octree/parallel_impl.rs` - 並列検索API
 - `model/geo_algorithms/src/octree/tolerance.rs` - Octree専用トレランス
 
 **実装項目**:
@@ -481,7 +479,6 @@ impl<T: Scalar> VoxelNode<T> {
 
 **統合テスト**:
 - Octree単体の衝突候補削減テスト（1000要素）
-- 並列APIの逐次一致テスト（`octree_parallel_integration.rs`）
 - メモリ使用量の概算回帰テスト
 
 ---

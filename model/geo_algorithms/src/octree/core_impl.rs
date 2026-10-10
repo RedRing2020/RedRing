@@ -59,11 +59,6 @@ impl<T: Scalar, D: Clone> Octree<T, D> {
         self.max_depth
     }
 
-    /// 分割閾値を取得
-    pub fn max_items(&self) -> usize {
-        self.max_items
-    }
-
     /// 総ノード数を取得
     pub fn total_nodes(&self) -> usize {
         self.total_nodes

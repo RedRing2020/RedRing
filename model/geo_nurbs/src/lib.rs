@@ -47,7 +47,7 @@ pub use curve_3d::NurbsCurve3D;
 pub use curve_3d_extensions::AabbOptions;
 pub use error::{NurbsError, Result};
 pub use knot::{clamped_knot_vector, validate_knot_vector, KnotVector};
-pub use operations::{CurveSplitting, DegreeElevation, KnotInsertion};
+pub use operations::{DegreeElevation, KnotInsertion};
 pub use surface_3d::NurbsSurface3D;
 pub use weight_storage::WeightStorage;
 

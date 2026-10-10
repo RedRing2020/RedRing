@@ -269,7 +269,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             to_point.y() - axis_component.y(),
             to_point.z() - axis_component.z(),
         );
-        let radial_distance = radial_component.magnitude();
+        let radial_distance = radial_component.length();
 
         radial_distance <= self.radius
     }
@@ -304,7 +304,7 @@ impl<T: Scalar> CylindricalSolid3D<T> {
             to_point.y() - axis_component.y(),
             to_point.z() - axis_component.z(),
         );
-        let radial_distance = radial_component.magnitude();
+        let radial_distance = radial_component.length();
         let radial_excess = (radial_distance - self.radius).max(T::ZERO);
 
         // 軸方向と半径方向の距離を合成

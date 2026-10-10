@@ -54,11 +54,6 @@ impl<T: Scalar> NurbsCurveCollider<T> {
         Self(curve)
     }
 
-    /// 内部の NurbsCurve3D への参照を取得
-    pub fn inner(&self) -> &NurbsCurve3D<T> {
-        &self.0
-    }
-
     /// NurbsCurve3D を消費してアダプタから取り出す
     pub fn into_inner(self) -> NurbsCurve3D<T> {
         self.0

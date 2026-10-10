@@ -67,7 +67,7 @@ impl<T: Scalar> CurveSegment3D<T> {
         match self {
             Self::Line(seg) => {
                 let vec = Vector3D::from_points(&seg.start_point(), &seg.end_point());
-                vec.magnitude()
+                vec.length()
             }
             Self::Arc(arc) => arc.length(),
             Self::Nurbs(curve) => {

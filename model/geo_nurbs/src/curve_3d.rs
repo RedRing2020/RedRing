@@ -439,7 +439,7 @@ impl<T: Scalar> NurbsCurve3DProperties<T> for NurbsCurve3D<T> {
 
 impl<T: Scalar> NurbsCurve3DDerived<T> for NurbsCurve3D<T> {
     fn arc_length(&self, u_start: T, u_end: T, tolerance: T) -> T {
-        // 簡易実装：一定間隔でサンプリング
+        // パラメータ区間を一定間隔でサンプリングし、折れ線の長さで弧長を数値積分する
         let tolerance_f64 = tolerance.to_f64();
         let u_range_f64 = (u_end - u_start).to_f64();
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]

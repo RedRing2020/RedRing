@@ -167,7 +167,7 @@ fn cylindrical_surface3d_cylindrical_surface3d_intersection_raw<T: Scalar>(
         T::from_f64(1.0e-6)
     };
     let axes_parallel = (lhs_axis.dot(&rhs_axis).abs() - T::ONE).abs() <= angle_tolerance;
-    let axis_distance = center_delta.cross(&lhs_axis).magnitude();
+    let axis_distance = center_delta.cross(&lhs_axis).length();
     let radii_match = (<CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(lhs)
         - <CylindricalSurface3D<T> as CylindricalSurface3DProperties<T>>::radius(rhs))
     .abs()

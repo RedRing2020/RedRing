@@ -280,7 +280,7 @@ impl<T: Scalar> Circle3D<T> {
         );
 
         let normal = v1.cross(&v2);
-        if normal.magnitude() <= default_kernel_numerical_zero_tolerance::<T>() {
+        if normal.length() <= default_kernel_numerical_zero_tolerance::<T>() {
             return None; // 3点が一直線上
         }
         let axis = Direction3D::from_vector(normal)?;
@@ -337,7 +337,7 @@ impl<T: Scalar> Circle3DConstructor<T> for Circle3D<T> {
         let projection = to_point.dot(&axis_dir.as_vector());
         let radial = to_point - axis_dir.as_vector() * projection;
 
-        let radius = radial.magnitude();
+        let radius = radial.length();
         if radius <= T::ZERO {
             None
         } else {
@@ -459,7 +459,7 @@ impl<T: Scalar> Circle3DProjection<T> for Circle3D<T> {
         let projection = to_point.dot(&axis_vec);
         let in_plane = to_point - axis_vec * projection;
 
-        let distance = in_plane.magnitude();
+        let distance = in_plane.length();
         if distance <= default_kernel_numerical_zero_tolerance::<T>() {
             // 点が中心軸上にある場合、参照方向の点を返す
             let closest = self.center + self.ref_direction.as_vector() * self.radius;

@@ -148,7 +148,6 @@ pub mod fixtures;
 mod insert_impl;
 mod nearest_impl;
 pub mod node;
-mod parallel_impl;
 mod query_impl;
 pub mod tolerance;
 pub mod voxel;

@@ -58,11 +58,6 @@ impl<T: Scalar> Vertex<T> {
     pub fn point(&self) -> Point3D<T> {
         self.point
     }
-
-    /// 他頂点と同一点かを許容誤差付きで判定する
-    pub fn is_coincident(&self, other: &Self, tolerance: T) -> bool {
-        self.point.distance_to(&other.point) <= tolerance
-    }
 }
 
 /// Edge が参照する母曲線
@@ -379,11 +374,6 @@ impl<T: Scalar> Edge<T> {
         self.is_local_consistent_with_tolerances(ResolvedEdgeToleranceSettings::symmetric(
             edge_tolerance,
         ))
-    }
-
-    /// 既存呼び出し向けの互換メソッド
-    pub fn is_vertex_binding_consistent(&self, edge_tolerance: T) -> bool {
-        self.is_local_consistent(edge_tolerance)
     }
 }
 

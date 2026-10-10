@@ -98,11 +98,6 @@ impl<T: Scalar> Vector3D<T> {
         self.length_squared().sqrt()
     }
 
-    /// ベクトルの大きさ（lengthのエイリアス）
-    pub fn magnitude(&self) -> T {
-        self.length()
-    }
-
     /// ベクトルを正規化
     pub fn normalize(&self) -> Self {
         let len = self.length();
@@ -166,11 +161,6 @@ impl<T: Scalar> Vector3D<T> {
         Self::new(to.x() - from.x(), to.y() - from.y(), to.z() - from.z())
     }
 
-    /// ベクトルを点として解釈（原点からの位置ベクトル）
-    pub fn to_point(&self) -> Point3D<T> {
-        Point3D::new(self.x, self.y, self.z)
-    }
-
     /// ゼロベクトルかどうかを判定
     pub fn is_zero(&self) -> bool {
         self.length() <= T::EPSILON
@@ -230,16 +220,6 @@ impl<T: Scalar> Vector3D<T> {
         (dot / lengths).clamp(-T::ONE, T::ONE).acos()
     }
 
-    /// ベクトルを指定された長さにスケール
-    pub fn with_length(&self, new_length: T) -> Self {
-        let current_length = self.length();
-        if current_length <= T::ZERO {
-            *self
-        } else {
-            *self * (new_length / current_length)
-        }
-    }
-
     /// ベクトルの投影
     pub fn project_onto(&self, other: &Self) -> Self {
         let other_length_sq = other.length_squared();
@@ -249,71 +229,6 @@ impl<T: Scalar> Vector3D<T> {
             *other * (self.dot(other) / other_length_sq)
         }
     }
-
-    /// ベクトルの反射
-    pub fn reflect(&self, normal: &Self) -> Self {
-        let two = T::ONE + T::ONE;
-        *self - *normal * (two * self.dot(normal))
-    }
-
-    /// 他のベクトルとの関係性を判定
-    pub fn relationship_with(&self, other: &Self) -> VectorRelationship {
-        if self.is_parallel(other) {
-            if self.dot(other) > T::ZERO {
-                VectorRelationship::SameDirection
-            } else {
-                VectorRelationship::OppositeDirection
-            }
-        } else if self.is_perpendicular(other) {
-            VectorRelationship::Perpendicular
-        } else {
-            VectorRelationship::Oblique
-        }
-    }
-
-    /// ベクトルの符号付き体積（3つのベクトルのスカラー三重積）
-    pub fn scalar_triple_product(&self, b: &Self, c: &Self) -> T {
-        self.dot(&b.cross(c))
-    }
-
-    /// ベクトルの主要軸（最大成分）を取得
-    pub fn dominant_axis(&self) -> DominantAxis {
-        let abs_x = self.x().abs();
-        let abs_y = self.y().abs();
-        let abs_z = self.z().abs();
-
-        if abs_x >= abs_y && abs_x >= abs_z {
-            DominantAxis::X
-        } else if abs_y >= abs_z {
-            DominantAxis::Y
-        } else {
-            DominantAxis::Z
-        }
-    }
-}
-
-/// ベクトル間の関係性
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VectorRelationship {
-    /// 同じ方向
-    SameDirection,
-    /// 反対方向
-    OppositeDirection,
-    /// 垂直
-    Perpendicular,
-    /// 斜交
-    Oblique,
-}
-
-/// 主要軸
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DominantAxis {
-    /// X軸
-    X,
-    /// Y軸
-    Y,
-    /// Z軸
-    Z,
 }
 
 impl<T: Scalar> std::ops::Add for Vector3D<T> {
@@ -505,7 +420,7 @@ impl<T: Scalar> Vector3DMetric<T> for Vector3D<T> {
     }
 
     fn magnitude(&self) -> T {
-        self.magnitude()
+        Vector3D::length(self)
     }
 
     fn manhattan_distance(&self) -> T {

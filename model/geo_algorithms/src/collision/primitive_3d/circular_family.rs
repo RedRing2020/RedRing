@@ -131,8 +131,8 @@ pub fn arc3d_line_segment3d_collides<T: Scalar>(
     crate::distance::arc3d_point3d_distance(arc, &segment.start_point()) <= tolerance
         || crate::distance::arc3d_point3d_distance(arc, &segment.end_point()) <= tolerance
         || {
-            let d1 = Vector3D::from_points(&arc_start, &segment.start_point()).magnitude();
-            let d2 = Vector3D::from_points(&arc_end, &segment.start_point()).magnitude();
+            let d1 = Vector3D::from_points(&arc_start, &segment.start_point()).length();
+            let d2 = Vector3D::from_points(&arc_end, &segment.start_point()).length();
             d1 <= tolerance || d2 <= tolerance
         }
 }
@@ -159,10 +159,10 @@ pub fn arc3d_arc3d_collides<T: Scalar>(arc_a: &Arc3D<T>, arc_b: &Arc3D<T>, toler
     let pb = Point3D::new(e1x, e1y, e1z);
     let pc = Point3D::new(s2x, s2y, s2z);
     let pd = Point3D::new(e2x, e2y, e2z);
-    Vector3D::from_points(&pa, &pc).magnitude() <= tolerance
-        || Vector3D::from_points(&pa, &pd).magnitude() <= tolerance
-        || Vector3D::from_points(&pb, &pc).magnitude() <= tolerance
-        || Vector3D::from_points(&pb, &pd).magnitude() <= tolerance
+    Vector3D::from_points(&pa, &pc).length() <= tolerance
+        || Vector3D::from_points(&pa, &pd).length() <= tolerance
+        || Vector3D::from_points(&pb, &pc).length() <= tolerance
+        || Vector3D::from_points(&pb, &pd).length() <= tolerance
 }
 
 pub fn circle3d_point3d_collides<T: Scalar>(

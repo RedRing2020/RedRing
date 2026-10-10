@@ -75,13 +75,6 @@ impl<T: Scalar> Direction3D<T> {
         }
     }
 
-    /// Z軸負方向の単位ベクトル
-    pub fn negative_z() -> Self {
-        Self {
-            vector: -Vector3D::unit_z(),
-        }
-    }
-
     /// X成分を取得
     pub fn x(&self) -> T {
         self.vector.x()
@@ -128,11 +121,6 @@ impl<T: Scalar> Direction3D<T> {
     /// 正規化（既に正規化済みなのでselfを返す）
     pub fn normalize(&self) -> Self {
         *self
-    }
-
-    /// 符号反転（reverse()と同じ）
-    pub fn negate(&self) -> Self {
-        self.reverse()
     }
 
     /// 他の方向と平行かどうかを判定

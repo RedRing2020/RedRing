@@ -59,11 +59,6 @@ impl<T: Scalar> Vector2D<T> {
         self.length_squared().sqrt()
     }
 
-    /// ベクトルの大きさ（長さの別名）
-    pub fn magnitude(&self) -> T {
-        self.length()
-    }
-
     /// ベクトルを正規化（長さを1にする）
     pub fn normalize(&self) -> Self {
         let len = self.length();
@@ -84,16 +79,6 @@ impl<T: Scalar> Vector2D<T> {
         self.x * other.y - self.y * other.x
     }
 
-    /// 角度からベクトルを作成（単位ベクトル）
-    pub fn from_angle(angle: Angle<T>) -> Self {
-        Self::new(angle.cos(), angle.sin())
-    }
-
-    /// 角度と長さからベクトルを作成
-    pub fn from_angle_length(angle: Angle<T>, length: T) -> Self {
-        Self::new(angle.cos() * length, angle.sin() * length)
-    }
-
     /// 2つの点からベクトルを作成（to - from）
     pub fn from_points(from: crate::Point2D<T>, to: crate::Point2D<T>) -> Self {
         from.vector_to(&to)
@@ -102,12 +87,6 @@ impl<T: Scalar> Vector2D<T> {
     /// Point2D から Vector2D を作成（原点からのベクトルとして）
     pub fn from_point(point: &crate::Point2D<T>) -> Self {
         Self::new(point.x(), point.y())
-    }
-
-    /// ベクトルが単位ベクトルかを判定
-    pub fn is_unit(&self, tolerance: T) -> bool {
-        let len = self.length();
-        (len - T::ONE).abs() <= tolerance
     }
 
     /// ベクトルがゼロベクトルかを判定
@@ -145,11 +124,6 @@ impl<T: Scalar> Vector2D<T> {
         }
     }
 
-    /// ベクトルを指定長さにスケール
-    pub fn with_length(&self, new_length: T) -> Option<Self> {
-        self.try_normalize().map(|unit| unit * new_length)
-    }
-
     /// ベクトルを指定角度回転
     pub fn rotate(&self, angle: Angle<T>) -> Self {
         let radians = angle.to_radians();
@@ -169,13 +143,6 @@ impl<T: Scalar> Vector2D<T> {
     /// ベクトルを90度回転（時計回り）
     pub fn rotate_neg_90(&self) -> Self {
         Self::new(self.y, -self.x)
-    }
-
-    /// ベクトルを反射（指定ベクトル方向の法線で反射）
-    pub fn reflect(&self, normal: &Self) -> Self {
-        let normal_unit = normal.normalize();
-        let two = T::ONE + T::ONE;
-        *self - normal_unit * (self.dot(&normal_unit) * two)
     }
 
     /// ベクトルを反転（-selfと同じ）
@@ -213,11 +180,6 @@ impl<T: Scalar> Vector2D<T> {
         }
     }
 
-    /// 拒絶ベクトルを計算（投影の残り）
-    pub fn reject_from(&self, other: &Self) -> Self {
-        *self - self.project_onto(other)
-    }
-
     /// 成分ごとの最小値
     pub fn min(&self, other: &Self) -> Self {
         Self::new(self.x.min(other.x), self.y.min(other.y))
@@ -233,24 +195,9 @@ impl<T: Scalar> Vector2D<T> {
         Self::new(self.x.abs(), self.y.abs())
     }
 
-    /// Vector2D を Point2D に変換（ベクトルを位置として解釈）
-    pub fn to_point(&self) -> crate::Point2D<T> {
-        crate::Point2D::new(self.x, self.y)
-    }
-
-    /// 指定した点にこのベクトルを適用して新しい点を取得
-    pub fn apply_to_point(&self, point: &crate::Point2D<T>) -> crate::Point2D<T> {
-        crate::Point2D::new(point.x() + self.x, point.y() + self.y)
-    }
-
     /// 3次元ベクトルに拡張（Z=0）
     pub fn to_3d(&self) -> crate::Vector3D<T> {
         crate::Vector3D::new(self.x, self.y, T::ZERO)
-    }
-
-    /// 3次元ベクトルに拡張（指定Z値）
-    pub fn to_3d_with_z(&self, z: T) -> crate::Vector3D<T> {
-        crate::Vector3D::new(self.x, self.y, z)
     }
 }
 
@@ -392,7 +339,7 @@ impl<T: Scalar> Vector2DMetric<T> for Vector2D<T> {
     }
 
     fn magnitude(&self) -> T {
-        self.magnitude()
+        Vector2D::length(self)
     }
 
     fn manhattan_distance(&self) -> T {

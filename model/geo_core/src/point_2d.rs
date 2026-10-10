@@ -81,16 +81,6 @@ impl<T: Scalar> Point2D<T> {
         Self::new(r * theta.cos(), r * theta.sin())
     }
 
-    /// 極座標の半径成分を取得
-    pub fn polar_radius(&self) -> T {
-        self.norm()
-    }
-
-    /// 極座標の角度成分を取得（ラジアン）
-    pub fn polar_angle(&self) -> T {
-        self.y.atan2(self.x)
-    }
-
     /// 2点の中点を計算
     pub fn midpoint(&self, other: &Self) -> Self {
         Self::new(
@@ -166,11 +156,6 @@ impl<T: Scalar> Point2D<T> {
         Point2D::new(center.x + rotated_x, center.y + rotated_y)
     }
 
-    /// 指定点周りの回転（T型角度）- 後方互換性のため
-    pub fn rotate_around_radians(&self, center: &Self, angle: T) -> Self {
-        self.rotate_around(center, Angle::from_radians(angle))
-    }
-
     /// 原点周りの回転（Angle<T>型角度）
     pub fn rotate(&self, angle: Angle<T>) -> Self {
         let radians = angle.to_radians();
@@ -181,19 +166,9 @@ impl<T: Scalar> Point2D<T> {
         Point2D::new(rotated_x, rotated_y)
     }
 
-    /// 原点周りの回転（T型角度）- 後方互換性のため
-    pub fn rotate_radians(&self, angle: T) -> Self {
-        self.rotate(Angle::from_radians(angle))
-    }
-
     /// 3D点に変換（Z=0）
     pub fn to_3d(&self) -> crate::Point3D<T> {
         crate::Point3D::new(self.x, self.y, T::ZERO)
-    }
-
-    /// 3D点に変換（Z指定）
-    pub fn to_3d_with_z(&self, z: T) -> crate::Point3D<T> {
-        crate::Point3D::new(self.x, self.y, z)
     }
 
     /// Vector2Dに変換
@@ -206,31 +181,6 @@ impl<T: Scalar> Point2D<T> {
         Point2D::new(vector.x(), vector.y())
     }
 
-    /// 原点判定
-    pub fn is_origin(&self) -> bool {
-        self.x.abs() <= T::EPSILON && self.y.abs() <= T::EPSILON
-    }
-
-    /// 近似等価判定
-    pub fn is_approximately_equal(&self, other: &Self, tolerance: T) -> bool {
-        (self.x - other.x).abs() <= tolerance && (self.y - other.y).abs() <= tolerance
-    }
-
-    /// X軸反射
-    pub fn reflect_x(&self) -> Self {
-        Point2D::new(-self.x, self.y)
-    }
-
-    /// Y軸反射
-    pub fn reflect_y(&self) -> Self {
-        Point2D::new(self.x, -self.y)
-    }
-
-    /// 原点反射
-    pub fn reflect_origin(&self) -> Self {
-        Point2D::new(-self.x, -self.y)
-    }
-
     /// 平行移動
     pub fn translate(&self, vector: Vector2D<T>) -> Self {
         *self + vector
@@ -239,11 +189,6 @@ impl<T: Scalar> Point2D<T> {
     /// スケール（非均等）
     pub fn scale(&self, scale_x: T, scale_y: T) -> Self {
         Point2D::new(self.x * scale_x, self.y * scale_y)
-    }
-
-    /// 均等スケール
-    pub fn scale_uniform(&self, scale: T) -> Self {
-        self.scale(scale, scale)
     }
 }
 
@@ -341,7 +286,7 @@ impl<T: Scalar> Point2DProperties<T> for Point2D<T> {
     }
 
     fn polar_radius(&self) -> T {
-        Point2D::polar_radius(self)
+        Point2D::norm(self)
     }
 }
 
