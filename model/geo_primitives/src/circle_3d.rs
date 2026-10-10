@@ -285,26 +285,13 @@ impl<T: Scalar> Circle3D<T> {
         }
         let axis = Direction3D::from_vector(normal)?;
 
-        // 3点を通る円の中心と半径を計算（外心を求める）
-        // 簡易実装：2つの弦の垂直二等分線の交点を求める
-        let mid1 = Point3D::new(
-            (point1.x() + point2.x()) / (T::ONE + T::ONE),
-            (point1.y() + point2.y()) / (T::ONE + T::ONE),
-            (point1.z() + point2.z()) / (T::ONE + T::ONE),
-        );
-        let _mid2 = Point3D::new(
-            (point2.x() + point3.x()) / (T::ONE + T::ONE),
-            (point2.y() + point3.y()) / (T::ONE + T::ONE),
-            (point2.z() + point3.z()) / (T::ONE + T::ONE),
-        );
-
-        let _perp1 = v1.cross(&axis.as_vector());
-        let _perp2 = v2.cross(&axis.as_vector());
-
-        // パラメトリック方程式を解く
-        // mid1 + t * perp1 = mid2 + s * perp2
-        // 簡易実装：点1からの距離が等しい点を中心とする
-        let center = mid1; // 簡易的に中点を使用
+        // 外心（3 点から等距離の点）: p3 + ((|a|² b − |b|² a) × (a × b)) / (2 |a × b|²)
+        let a = Vector3D::from_points(&point3, &point1);
+        let b = Vector3D::from_points(&point3, &point2);
+        let a_cross_b = a.cross(&b);
+        let numerator = (b * a.length_squared() - a * b.length_squared()).cross(&a_cross_b);
+        let offset = numerator / ((T::ONE + T::ONE) * a_cross_b.length_squared());
+        let center = point3 + offset;
         let radius = center.distance_to(&point1);
 
         Self::new(center, axis, radius)
