@@ -85,20 +85,6 @@ mod tests {
             cylindrical_solid_z.axis(),
             Direction3D::from_vector(Vector3D::new(0.0, 0.0, 1.0)).unwrap()
         );
-
-        // Y軸円柱ソリッド
-        let cylindrical_solid_y = CylindricalSolid3D::new_y_axis(center, radius, height).unwrap();
-        assert_eq!(
-            cylindrical_solid_y.axis(),
-            Direction3D::from_vector(Vector3D::new(0.0, 1.0, 0.0)).unwrap()
-        );
-
-        // X軸円柱ソリッド
-        let cylindrical_solid_x = CylindricalSolid3D::new_x_axis(center, radius, height).unwrap();
-        assert_eq!(
-            cylindrical_solid_x.axis(),
-            Direction3D::from_vector(Vector3D::new(1.0, 0.0, 0.0)).unwrap()
-        );
     }
 
     #[test]

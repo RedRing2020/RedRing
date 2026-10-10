@@ -194,46 +194,6 @@ impl<T: Scalar> Plane3D<T> {
         )
     }
 
-    /// 平面ローカル座標をワールド座標に変換
-    pub fn local_to_world(&self, u: T, v: T) -> Point3D<T> {
-        Point3D::new(
-            self.origin.x() + u * self.u_axis.x() + v * self.v_axis.x(),
-            self.origin.y() + u * self.u_axis.y() + v * self.v_axis.y(),
-            self.origin.z() + u * self.u_axis.z() + v * self.v_axis.z(),
-        )
-    }
-
-    /// ワールド座標を平面ローカル座標に変換
-    pub fn world_to_local(&self, world_point: Point3D<T>) -> (T, T, T) {
-        let relative = Vector3D::new(
-            world_point.x() - self.origin.x(),
-            world_point.y() - self.origin.y(),
-            world_point.z() - self.origin.z(),
-        );
-
-        let u = relative.dot(&self.u_axis.as_vector());
-        let v = relative.dot(&self.v_axis.as_vector());
-        let distance = relative.dot(&self.normal.as_vector());
-
-        (u, v, distance)
-    }
-
-    /// 平面上に点を投影してUV座標を取得
-    pub fn project_to_uv(&self, world_point: Point3D<T>) -> (T, T) {
-        let (u, v, _) = self.world_to_local(world_point);
-        (u, v)
-    }
-
-    /// 平面の方程式係数を取得
-    /// Returns (a, b, c, d) where ax + by + cz + d = 0
-    pub fn equation_coefficients(&self) -> (T, T, T, T) {
-        let a = self.normal.x();
-        let b = self.normal.y();
-        let c = self.normal.z();
-        let d = -(a * self.origin.x() + b * self.origin.y() + c * self.origin.z());
-        (a, b, c, d)
-    }
-
     /// 平面座標系が有効かチェック
     pub fn is_valid(&self) -> bool {
         // 各軸がDirection3Dで正規化されていることを前提

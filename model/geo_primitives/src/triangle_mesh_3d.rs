@@ -190,17 +190,6 @@ impl<T: Scalar> TriangleMesh3D<T> {
         true
     }
 
-    /// 退化した三角形の数を取得
-    pub fn degenerate_triangle_count(&self) -> usize {
-        self.indices
-            .iter()
-            .filter(|&&indices| {
-                // 同じ頂点を参照している場合は退化
-                indices[0] == indices[1] || indices[1] == indices[2] || indices[2] == indices[0]
-            })
-            .count()
-    }
-
     /// メッシュが空かどうかを判定
     pub fn is_empty(&self) -> bool {
         self.indices.is_empty()

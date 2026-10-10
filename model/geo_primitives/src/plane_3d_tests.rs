@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_equation_coefficients() {
         let plane = Plane3D::xy_plane(3.0);
-        let (a, b, c, d) = plane.equation_coefficients();
+        let (a, b, c, d) = geo_contracts::Plane3DDerived::equation_coefficients(&plane);
 
         // z = 3 なので、0x + 0y + 1z - 3 = 0
         assert_relative_eq!(a, 0.0);
@@ -217,7 +217,9 @@ mod tests {
         let plane_sys = Plane3D::from_origin_and_axes(origin, normal, u_direction).unwrap();
 
         // UV座標(1, 1)がワールド座標(1, 1, 0)になることを確認
-        let world_point = plane_sys.local_to_world(1.0, 1.0);
+        let world_point = Point3D::from_tuple(geo_contracts::Plane3DEvaluation::uv_to_point(
+            &plane_sys, 1.0, 1.0,
+        ));
         assert_abs_diff_eq!(world_point.x(), 1.0, epsilon = TOLERANCE_F64);
         assert_abs_diff_eq!(world_point.y(), 1.0, epsilon = TOLERANCE_F64);
         assert_abs_diff_eq!(world_point.z(), 0.0, epsilon = TOLERANCE_F64);
@@ -282,14 +284,18 @@ mod tests {
 
         // 平面上の点のテスト
         let test_point = Point3D::new(2.0, 3.0, 0.0);
-        let (u, v, distance) = plane_sys.world_to_local(test_point);
+        let (u, v) = geo_contracts::Plane3DEvaluation::point_to_uv(
+            &plane_sys,
+            (test_point.x(), test_point.y(), test_point.z()),
+        );
 
         assert_abs_diff_eq!(u, 2.0, epsilon = TOLERANCE_F64);
         assert_abs_diff_eq!(v, 3.0, epsilon = TOLERANCE_F64);
-        assert_abs_diff_eq!(distance, 0.0, epsilon = TOLERANCE_F64);
 
         // 逆変換の確認
-        let reconstructed = plane_sys.local_to_world(u, v);
+        let reconstructed = Point3D::from_tuple(geo_contracts::Plane3DEvaluation::uv_to_point(
+            &plane_sys, u, v,
+        ));
         assert_abs_diff_eq!(reconstructed.x(), test_point.x(), epsilon = TOLERANCE_F64);
         assert_abs_diff_eq!(reconstructed.y(), test_point.y(), epsilon = TOLERANCE_F64);
         assert_abs_diff_eq!(reconstructed.z(), test_point.z(), epsilon = TOLERANCE_F64);

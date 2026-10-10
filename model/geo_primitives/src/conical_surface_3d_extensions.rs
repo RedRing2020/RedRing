@@ -2,7 +2,7 @@
 //!
 //! 基本機能を超えた幾何操作・解析機能
 
-use crate::{ConicalSurface3D, Direction3D, Point3D, Vector3D};
+use crate::{ConicalSurface3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 
 impl<T: Scalar> ConicalSurface3D<T> {
@@ -46,54 +46,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         let distance = self.distance_to_surface(point);
 
         (surface_point, (u, v), distance)
-    }
-
-    /// U方向の偏微分ベクトルを計算
-    ///
-    /// # Arguments
-    /// * `u` - 円周方向パラメータ
-    /// * `v` - 軸方向パラメータ
-    ///
-    /// # Returns
-    /// U方向の接線ベクトル
-    pub fn du_vector(&self, u: T, v: T) -> Vector3D<T> {
-        let sin_u = u.sin();
-        let cos_u = u.cos();
-        let r_at_v = self.radius_at_v_internal(v);
-
-        let x_axis = self.ref_direction_internal().as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-
-        Vector3D::new(
-            r_at_v * (-sin_u * x_axis.x() + cos_u * y_axis.x()),
-            r_at_v * (-sin_u * x_axis.y() + cos_u * y_axis.y()),
-            r_at_v * (-sin_u * x_axis.z() + cos_u * y_axis.z()),
-        )
-    }
-
-    /// V方向の偏微分ベクトルを計算
-    ///
-    /// # Arguments
-    /// * `u` - 円周方向パラメータ
-    /// * `v` - 軸方向パラメータ
-    ///
-    /// # Returns
-    /// V方向の接線ベクトル
-    pub fn dv_vector(&self, u: T, _v: T) -> Vector3D<T> {
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-        let tan_angle = self.semi_angle_internal().tan();
-
-        let x_axis = self.ref_direction_internal().as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-        let z_axis = self.axis_internal().as_vector();
-
-        // dP/dv = tan(角度) * (cos(u) * X + sin(u) * Y) + Z
-        Vector3D::new(
-            tan_angle * (cos_u * x_axis.x() + sin_u * y_axis.x()) + z_axis.x(),
-            tan_angle * (cos_u * x_axis.y() + sin_u * y_axis.y()) + z_axis.y(),
-            tan_angle * (cos_u * x_axis.z() + sin_u * y_axis.z()) + z_axis.z(),
-        )
     }
 
     /// 指定点での主曲率を計算
@@ -145,76 +97,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
     pub fn gaussian_curvature(&self, u: T, v: T) -> T {
         let (k1, k2) = self.principal_curvatures(u, v);
         k1 * k2 // 円錐面では常に0（可展面）
-    }
-
-    /// 母線（generatrix）を取得
-    ///
-    /// # Arguments
-    /// * `u` - 円周方向パラメータ
-    ///
-    /// # Returns
-    /// 指定角度での母線（直線）のパラメータ
-    pub fn generatrix_at_u(&self, u: T) -> (Point3D<T>, Direction3D<T>) {
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-
-        let x_axis = self.ref_direction_internal().as_vector();
-        let y_axis = self.derived_y_axis_internal().as_vector();
-        let _z_axis = self.axis_internal().as_vector();
-
-        // 基準点での放射方向
-        let radial_point = Point3D::new(
-            self.center_internal().x()
-                + self.radius_internal() * (cos_u * x_axis.x() + sin_u * y_axis.x()),
-            self.center_internal().y()
-                + self.radius_internal() * (cos_u * x_axis.y() + sin_u * y_axis.y()),
-            self.center_internal().z()
-                + self.radius_internal() * (cos_u * x_axis.z() + sin_u * y_axis.z()),
-        );
-
-        // 母線の方向：頂点に向かう方向
-        let apex = self.apex_internal();
-        let direction_vec = Vector3D::new(
-            apex.x() - radial_point.x(),
-            apex.y() - radial_point.y(),
-            apex.z() - radial_point.z(),
-        );
-
-        let direction = Direction3D::from_vector(direction_vec).expect("母線の方向は常に有効");
-
-        (radial_point, direction)
-    }
-
-    /// 指定された高さでの断面円を計算
-    ///
-    /// # Arguments
-    /// * `v` - 軸方向パラメータ（高さ）
-    ///
-    /// # Returns
-    /// (中心点, 軸方向, 半径)
-    pub fn cross_section_at_v(&self, v: T) -> (Point3D<T>, Direction3D<T>, T) {
-        let axis_vec = self.axis_internal().as_vector();
-        let center = Point3D::new(
-            self.center_internal().x() + v * axis_vec.x(),
-            self.center_internal().y() + v * axis_vec.y(),
-            self.center_internal().z() + v * axis_vec.z(),
-        );
-        let radius = self.radius_at_v_internal(v);
-
-        (center, self.axis_internal(), radius)
-    }
-
-    /// 表面品質解析用のメトリクス
-    ///
-    /// # Returns
-    /// 表面品質に関する各種メトリクス
-    pub fn surface_quality_metrics(&self) -> SurfaceQualityMetrics<T> {
-        SurfaceQualityMetrics {
-            is_smooth: true,                      // 円錐面は滑らか
-            is_developable: true,                 // 可展面
-            has_singularities: true,              // 頂点が特異点
-            gaussian_curvature_constant: T::ZERO, // 常に0
-        }
     }
 }
 

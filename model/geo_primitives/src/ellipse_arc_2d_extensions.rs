@@ -77,10 +77,4 @@ impl<T: Scalar> EllipseArc2D<T> {
 
         geo_core::Aabb2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
     }
-
-    /// 楕円弧上の点での法線ベクトル
-    pub fn normal_at_parameter(&self, t: T) -> Vector2D<T> {
-        let tangent = self.tangent_at_parameter(t);
-        Vector2D::new(-tangent.y(), tangent.x()).normalize()
-    }
 }

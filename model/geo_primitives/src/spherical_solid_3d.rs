@@ -76,19 +76,6 @@ impl<T: Scalar> SphericalSolid3D<T> {
         Self::new_standard(Point3D::new(T::ZERO, T::ZERO, T::ZERO), radius)
     }
 
-    /// 直径からの球ソリッド生成
-    pub fn from_diameter(
-        center: Point3D<T>,
-        axis: Vector3D<T>,
-        ref_direction: Vector3D<T>,
-        diameter: T,
-    ) -> Option<Self> {
-        if diameter <= T::ZERO {
-            return None;
-        }
-        Self::new(center, axis, ref_direction, diameter / T::from_f64(2.0))
-    }
-
     /// 球の中心点の取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -258,30 +245,6 @@ impl<T: Scalar> SphericalSolid3D<T> {
         } else {
             distance_from_center - self.radius
         }
-    }
-
-    /// 指定方向の表面点の返却
-    pub fn point_on_surface_in_direction(&self, direction: Vector3D<T>) -> Option<Point3D<T>> {
-        let normalized = direction.normalize();
-        if normalized == Vector3D::new(T::ZERO, T::ZERO, T::ZERO) {
-            return None;
-        }
-
-        Some(Point3D::new(
-            self.center.x() + normalized.x() * self.radius,
-            self.center.y() + normalized.y() * self.radius,
-            self.center.z() + normalized.z() * self.radius,
-        ))
-    }
-
-    /// 指定点方向の表面点の返却
-    pub fn point_on_surface_towards(&self, target: Point3D<T>) -> Option<Point3D<T>> {
-        let direction = Vector3D::new(
-            target.x() - self.center.x(),
-            target.y() - self.center.y(),
-            target.z() - self.center.z(),
-        );
-        self.point_on_surface_in_direction(direction)
     }
 }
 

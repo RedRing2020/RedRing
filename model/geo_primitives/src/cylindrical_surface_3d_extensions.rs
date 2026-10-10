@@ -51,22 +51,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         }
     }
 
-    /// 円周の一部をトリム（角度範囲で指定）
-    pub fn trim_angular(
-        &self,
-        start_angle: T,
-        end_angle: T,
-        v_min: T,
-        v_max: T,
-    ) -> BoundedCylindricalSurface3D<T> {
-        self.with_bounds(start_angle, end_angle, v_min, v_max)
-    }
-
-    /// 軸方向の一部をトリム
-    pub fn trim_axial(&self, v_min: T, v_max: T) -> BoundedCylindricalSurface3D<T> {
-        self.with_bounds(T::ZERO, T::PI * T::from_f64(2.0), v_min, v_max)
-    }
-
     /// V固定のISO曲線（円）を取得
     pub fn iso_curve_u(&self, v: T) -> IsoCurve3D<T> {
         IsoCurve3D {
@@ -87,17 +71,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     pub fn surface_area_region(&self, u_min: T, u_max: T, v_min: T, v_max: T) -> T {
         // 円柱サーフェスの面積: A = radius * (u_max - u_min) * (v_max - v_min)
         self.radius() * (u_max - u_min) * (v_max - v_min)
-    }
-
-    /// 完全な円周の表面積（単位軸長あたり）
-    pub fn surface_area_per_unit_length(&self) -> T {
-        T::from_f64(2.0) * T::PI * self.radius()
-    }
-
-    /// 指定範囲でのサーフェス品質評価（曲率偏差）
-    pub fn surface_quality_metric(&self, _u_min: T, _u_max: T, _v_min: T, _v_max: T) -> T {
-        // 円柱サーフェスは理想的な2次曲面なので品質は常に最高
-        T::ZERO
     }
 
     /// パラメトリックメッシュを生成
@@ -127,139 +100,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         }
 
         mesh
-    }
-
-    /// 四角形パッチのメッシュを生成
-    pub fn to_quad_patches(
-        &self,
-        u_divisions: usize,
-        v_divisions: usize,
-        v_min: T,
-        v_max: T,
-    ) -> Vec<QuadPatch<T>> {
-        let mut patches = Vec::new();
-
-        let du = T::from_f64(2.0 * std::f64::consts::PI / u_divisions as f64);
-        let dv = (v_max - v_min) / T::from_f64(v_divisions as f64);
-
-        for i in 0..u_divisions {
-            for j in 0..v_divisions {
-                let u1 = T::from_f64(i as f64) * du;
-                let u2 = T::from_f64((i + 1) as f64) * du;
-                let v1 = v_min + T::from_f64(j as f64) * dv;
-                let v2 = v_min + T::from_f64((j + 1) as f64) * dv;
-
-                let p00 = self.point_at_uv(u1, v1);
-                let p10 = self.point_at_uv(u2, v1);
-                let p01 = self.point_at_uv(u1, v2);
-                let p11 = self.point_at_uv(u2, v2);
-
-                patches.push(QuadPatch {
-                    corners: [p00, p10, p11, p01],
-                    u_range: (u1, u2),
-                    v_range: (v1, v2),
-                });
-            }
-        }
-
-        patches
-    }
-
-    /// NURBS表現への変換準備（制御点の計算）
-    pub fn nurbs_control_points(&self, _u_degree: usize, v_degree: usize) -> Vec<Vec<Point3D<T>>> {
-        // 円柱サーフェスの正確なNURBS表現
-        // 円周方向: 4つの制御点で正確な円を表現
-        // 軸方向: 2つの制御点で直線を表現
-
-        let mut control_points = Vec::new();
-
-        // V方向（軸方向）の制御点数
-        let v_points = v_degree + 1;
-
-        for _i in 0..v_points {
-            let mut row = Vec::new();
-
-            // U方向（円周方向）の制御点（4点で正確な円）
-            let r = self.radius();
-            let x_axis = self.ref_direction().as_vector();
-            let y_axis = self.y_axis().as_vector();
-
-            // 円の制御点（重み付きで正確な円を表現）
-            let center = self.center_internal();
-            row.push(Point3D::new(
-                center.x() + x_axis.x() * r,
-                center.y() + x_axis.y() * r,
-                center.z() + x_axis.z() * r,
-            )); // 0度
-            let y_axis_norm = (x_axis + y_axis).normalize();
-            row.push(Point3D::new(
-                center.x() + y_axis_norm.x() * r,
-                center.y() + y_axis_norm.y() * r,
-                center.z() + y_axis_norm.z() * r,
-            )); // 45度
-            row.push(Point3D::new(
-                center.x() + y_axis.x() * r,
-                center.y() + y_axis.y() * r,
-                center.z() + y_axis.z() * r,
-            )); // 90度
-            let y_axis_norm_2 = (-x_axis + y_axis).normalize();
-            row.push(Point3D::new(
-                center.x() + y_axis_norm_2.x() * r,
-                center.y() + y_axis_norm_2.y() * r,
-                center.z() + y_axis_norm_2.z() * r,
-            )); // 135度
-            row.push(Point3D::new(
-                center.x() - x_axis.x() * r,
-                center.y() - x_axis.y() * r,
-                center.z() - x_axis.z() * r,
-            )); // 180度
-            let y_axis_norm_3 = (-x_axis - y_axis).normalize();
-            row.push(Point3D::new(
-                center.x() + y_axis_norm_3.x() * r,
-                center.y() + y_axis_norm_3.y() * r,
-                center.z() + y_axis_norm_3.z() * r,
-            )); // 225度
-            row.push(Point3D::new(
-                center.x() - y_axis.x() * r,
-                center.y() - y_axis.y() * r,
-                center.z() - y_axis.z() * r,
-            )); // 270度
-            let y_axis_norm_4 = (x_axis - y_axis).normalize();
-            row.push(Point3D::new(
-                center.x() + y_axis_norm_4.x() * r,
-                center.y() + y_axis_norm_4.y() * r,
-                center.z() + y_axis_norm_4.z() * r,
-            )); // 315度
-            row.push(Point3D::new(
-                center.x() + x_axis.x() * r,
-                center.y() + x_axis.y() * r,
-                center.z() + x_axis.z() * r,
-            )); // 360度（閉曲線）
-
-            control_points.push(row);
-        }
-
-        control_points
-    }
-
-    /// NURBS重みを計算（円の正確な表現用）
-    pub fn nurbs_weights(&self) -> Vec<Vec<T>> {
-        // 円の正確なNURBS表現に必要な重み
-        let sqrt2_inv = T::ONE / T::from_f64(std::f64::consts::SQRT_2);
-        let weights_row = vec![
-            T::ONE,    // 0度
-            sqrt2_inv, // 45度
-            T::ONE,    // 90度
-            sqrt2_inv, // 135度
-            T::ONE,    // 180度
-            sqrt2_inv, // 225度
-            T::ONE,    // 270度
-            sqrt2_inv, // 315度
-            T::ONE,    // 360度
-        ];
-
-        // V方向は常に重み1
-        vec![weights_row.clone(), weights_row]
     }
 }
 

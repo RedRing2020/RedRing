@@ -35,7 +35,7 @@ mod tests {
             cylindrical_solid.primitive_kind(),
             PrimitiveKind::CylindricalSolid
         );
-        assert!(cylindrical_solid.volume_internal() > 0.0);
+        assert!(geo_contracts::CylindricalSolid3DDerived::volume(&cylindrical_solid) > 0.0);
 
         let bbox = cylindrical_solid.aabb().expect("should have aabb");
         assert_eq!(bbox.min().x(), -4.0);

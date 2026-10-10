@@ -34,15 +34,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         Some(Self::new(ellipse, start_angle, end_angle))
     }
 
-    /// 楕円弧上の点での接線ベクトル（平面内）
-    pub fn normal_at_parameter(&self, t: T) -> Vector3D<T> {
-        let tangent = self.tangent_at_parameter(t);
-        let plane_normal = self.normal();
-
-        // 平面内の法線：接線と平面法線の外積
-        tangent.cross(&plane_normal.as_vector()).normalize()
-    }
-
     /// 点から楕円弧への最短距離
     pub fn distance_to_point(&self, point: &Point3D<T>) -> T {
         // 点が角度範囲内にある場合

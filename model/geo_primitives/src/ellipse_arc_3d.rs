@@ -117,11 +117,6 @@ impl<T: Scalar> EllipseArc3D<T> {
         }
     }
 
-    /// 弧が円弧かどうかを判定
-    pub fn is_circular(&self) -> bool {
-        self.ellipse.is_circle()
-    }
-
     /// 楕円弧の有効性を検証
     pub fn is_valid(&self) -> bool {
         self.ellipse.semi_major_internal() > T::ZERO

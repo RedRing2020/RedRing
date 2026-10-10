@@ -349,7 +349,7 @@ impl<T: Scalar> TorusSurface3DEvaluation<T> for TorusSurface3D<T> {
 impl<T: Scalar> TorusSurface3DDistance<T> for TorusSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
-        // 簡易実装: トーラス表面への最短距離の近似計算
+        // 管の中心円までの距離と管の半径の差（トーラス表面までの最短距離）
         let origin = self.origin_internal();
         let local = p - origin;
         let z_axis = self.z_axis_internal();

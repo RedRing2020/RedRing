@@ -13,7 +13,7 @@
 //! - 基本トレイト実装（CoreFoundation, BasicParametric, BasicDirectional, BasicContainment）
 //! - Core Traits実装（Constructor, Properties, Measure）
 
-use crate::{Direction2D, InfiniteLine2D, Point2D, Vector2D};
+use crate::{Direction2D, Point2D, Vector2D};
 use geo_contracts::{
     AngleBetween, BasicIntersection, DirectionalRelation, ParallelRelation, PointsTowards,
     PrimitiveKind, PrimitiveMetadata, Ray2DConstructor, Ray2DContainment, Ray2DDistance,
@@ -89,14 +89,6 @@ impl<T: Scalar> Ray2D<T> {
     /// Ray までの距離が `tolerance` 以内なら true（起点の後方も起点までの距離で判定する）
     pub fn contains_point(&self, point: &Point2D<T>, tolerance: T) -> bool {
         self.distance_to_point(point) <= tolerance
-    }
-
-    /// Ray を InfiniteLine2D に変換
-    pub fn to_infinite_line(&self) -> InfiniteLine2D<T> {
-        InfiniteLine2D {
-            point: self.origin,
-            direction: self.direction,
-        }
     }
 
     /// 点に対するパラメータ t を取得

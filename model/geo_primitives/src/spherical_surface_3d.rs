@@ -129,19 +129,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         Self::new_standard(Point3D::new(T::ZERO, T::ZERO, T::ZERO), radius)
     }
 
-    /// 直径から球サーフェスを作成
-    pub fn from_diameter(
-        center: Point3D<T>,
-        axis: Vector3D<T>,
-        ref_direction: Vector3D<T>,
-        diameter: T,
-    ) -> Option<Self> {
-        if diameter <= T::ZERO {
-            return None;
-        }
-        Self::new(center, axis, ref_direction, diameter / T::from_f64(2.0))
-    }
-
     /// 球の中心点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -221,13 +208,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         let normal_vector = x_component + y_component + z_component;
         Direction3D::from_vector(normal_vector)
             .expect("Normal vector calculation should always succeed")
-    }
-
-    /// パラメトリック座標での主曲率を計算
-    /// 球面では全ての点で主曲率は 1/r
-    pub fn principal_curvatures_at(&self, _u: T, _v: T) -> (T, T) {
-        let curvature = T::ONE / self.radius;
-        (curvature, curvature)
     }
 
     /// 球サーフェスの表面積を計算
@@ -343,43 +323,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         distance_to_center - self.radius
     }
 
-    /// 点が球サーフェス上にあるかどうかを判定（許容誤差考慮）
-    pub fn point_on_surface(&self, point: Point3D<T>, tolerance: T) -> bool {
-        let distance = self.distance_to_surface(point).abs();
-        distance <= tolerance
-    }
-
-    /// パラメータ(u, v)から球サーフェス上の点を計算
-    /// u: 方位角 [0, 2π], v: 仰角 [-π/2, π/2]
-    pub fn point_at_parameters(&self, u: T, v: T) -> Point3D<T> {
-        let cos_v = v.cos();
-        let sin_v = v.sin();
-        let cos_u = u.cos();
-        let sin_u = u.sin();
-
-        // ローカル座標系での点
-        let local_x = cos_v * cos_u;
-        let local_y = cos_v * sin_u;
-        let local_z = sin_v;
-
-        // ワールド座標系に変換
-        let x_axis = self.ref_direction.as_vector();
-        let y_axis = self.y_axis_internal().as_vector();
-        let z_axis = self.axis.as_vector();
-
-        Point3D::new(
-            self.center.x()
-                + self.radius
-                    * (local_x * x_axis.x() + local_y * y_axis.x() + local_z * z_axis.x()),
-            self.center.y()
-                + self.radius
-                    * (local_x * x_axis.y() + local_y * y_axis.y() + local_z * z_axis.y()),
-            self.center.z()
-                + self.radius
-                    * (local_x * x_axis.z() + local_y * y_axis.z() + local_z * z_axis.z()),
-        )
-    }
-
     /// 球サーフェス上の点での法線ベクトルを計算（外向き）
     pub fn normal_at_point(&self, point: Point3D<T>) -> Option<Direction3D<T>> {
         let to_point = Vector3D::new(
@@ -389,31 +332,6 @@ impl<T: Scalar> SphericalSurface3D<T> {
         );
 
         Direction3D::from_vector(to_point)
-    }
-
-    /// 指定された方向ベクトルで球サーフェス上の点を取得
-    /// 方向ベクトルは正規化される
-    pub fn point_on_surface_in_direction(&self, direction: Vector3D<T>) -> Option<Point3D<T>> {
-        let normalized = direction.normalize();
-        if normalized == Vector3D::new(T::ZERO, T::ZERO, T::ZERO) {
-            return None;
-        }
-
-        Some(Point3D::new(
-            self.center.x() + normalized.x() * self.radius,
-            self.center.y() + normalized.y() * self.radius,
-            self.center.z() + normalized.z() * self.radius,
-        ))
-    }
-
-    /// 球の中心から指定された点への方向のサーフェス上の点を取得
-    pub fn point_on_surface_towards(&self, target: Point3D<T>) -> Option<Point3D<T>> {
-        let direction = Vector3D::new(
-            target.x() - self.center.x(),
-            target.y() - self.center.y(),
-            target.z() - self.center.z(),
-        );
-        self.point_on_surface_in_direction(direction)
     }
 
     /// 球サーフェスの主曲率を計算（どの点でも同じ）

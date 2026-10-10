@@ -176,19 +176,6 @@ mod tests {
     }
 
     #[test]
-    fn test_to_infinite_line() {
-        let origin = Point3D::new(1.0, 2.0, 3.0);
-        let direction = Vector3D::new(1.0, 0.0, 0.0);
-        let ray = Ray3D::new(origin, direction).unwrap();
-
-        let infinite_line = ray.to_infinite_line();
-
-        // InfiniteLine3D の基本的な特性をテスト
-        let point_on_line = infinite_line.point_at_parameter(5.0);
-        assert_eq!(point_on_line, Point3D::new(6.0, 2.0, 3.0));
-    }
-
-    #[test]
     fn test_3d_diagonal_ray() {
         let origin = Point3D::new(0.0, 0.0, 0.0);
         let direction = Vector3D::new(1.0, 1.0, 1.0);

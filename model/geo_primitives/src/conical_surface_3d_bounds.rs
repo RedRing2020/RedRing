@@ -48,15 +48,4 @@ impl<T: Scalar> ConicalSurface3D<T> {
         let two = T::ONE + T::ONE;
         (u_range / (two * pi)) * pi * (r1 + r2) * slant_height
     }
-
-    /// 最小境界ボックスを計算（Foundation パターン用）
-    ///
-    /// # Returns
-    /// 実用的な範囲での最小境界ボックス
-    pub fn minimal_bounding_box(&self) -> Aabb3D<T> {
-        // 円錐は無限に延びるため、実用的な範囲を設定
-        // 基準半径の10倍程度の範囲を使用
-        let practical_range = self.radius_internal() * T::from_f64(10.0);
-        self.bounding_box(-practical_range, practical_range)
-    }
 }

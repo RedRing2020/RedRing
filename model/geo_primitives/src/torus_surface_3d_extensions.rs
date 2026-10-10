@@ -2,9 +2,8 @@
 // TorusSurface3D の拡張機能実装
 //
 
-use crate::{Direction3D, Point3D, TorusSurface3D, Vector3D};
+use crate::{Point3D, TorusSurface3D, Vector3D};
 use geo_contracts::Scalar;
-use std::f64::consts::PI;
 
 impl<T: Scalar> TorusSurface3D<T> {
     /// 指定した点に最も近い表面上の点を探索
@@ -102,77 +101,6 @@ impl<T: Scalar> TorusSurface3D<T> {
         let (k1, k2) = self.principal_curvatures(u, v);
         let two = T::ONE + T::ONE;
         (k1 + k2) / two
-    }
-
-    /// 等高線パラメータを計算
-    ///
-    /// 指定した Z 高さでの等高線パラメータ (u, v) を求めます。
-    pub fn contour_parameters_at_height(&self, z_height: T) -> Vec<(T, T)> {
-        let mut contours = Vec::new();
-
-        // Z軸方向の成分を考慮した高さ計算
-        let origin_z = self.origin_internal().z();
-        let relative_height = z_height - origin_z;
-
-        // 局所座標での Z 高さに対応する v パラメータを求める
-        let max_z_extent = self.minor_radius_internal();
-
-        if relative_height.abs() <= max_z_extent {
-            // v パラメータを計算（近似）
-            let v_value = (relative_height / self.minor_radius_internal()).asin();
-
-            // u パラメータは 0 から 2π まで一周
-            let num_points = 64; // 分割数
-            let du = T::from_f64(2.0 * PI) / T::from_f64(num_points as f64);
-
-            for i in 0..num_points {
-                let u_value = T::from_f64(i as f64) * du;
-                contours.push((u_value, v_value));
-            }
-        }
-
-        contours
-    }
-
-    /// トーラス面のパラメータ範囲を取得
-    ///
-    /// # Returns
-    /// ((u_min, u_max), (v_min, v_max))
-    pub fn parameter_bounds(&self) -> ((T, T), (T, T)) {
-        let zero = T::ZERO;
-        let two_pi = T::from_f64(2.0 * PI);
-
-        ((zero, two_pi), (zero, two_pi))
-    }
-
-    /// 表面の局所座標系を取得
-    ///
-    /// 指定したパラメータ位置での局所座標系（接平面基底）を返します。
-    pub fn local_coordinate_system(
-        &self,
-        u: T,
-        v: T,
-    ) -> (Direction3D<T>, Direction3D<T>, Direction3D<T>) {
-        let normal = self.normal_at(u, v);
-
-        // u方向の接線ベクトル
-        let du = T::from_f64(0.001);
-        let point_current = self.point_at(u, v);
-        let point_u_plus = self.point_at(u + du, v);
-        let u_tangent_vec = Vector3D::new(
-            point_u_plus.x() - point_current.x(),
-            point_u_plus.y() - point_current.y(),
-            point_u_plus.z() - point_current.z(),
-        );
-        let u_tangent = Direction3D::from_vector(u_tangent_vec).unwrap_or(self.x_axis_internal());
-
-        // v方向の接線ベクトル（u_tangent と normal の外積）
-        let normal_vec = Vector3D::new(normal.x(), normal.y(), normal.z());
-        let u_tangent_vec_norm = Vector3D::new(u_tangent.x(), u_tangent.y(), u_tangent.z());
-        let v_tangent_vec = normal_vec.cross(&u_tangent_vec_norm);
-        let v_tangent = Direction3D::from_vector(v_tangent_vec).unwrap_or(self.y_axis_internal());
-
-        (u_tangent, v_tangent, normal)
     }
 }
 

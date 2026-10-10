@@ -3,8 +3,7 @@
 //! Extension Foundation パターンに基づく InfiniteLine2D の拡張実装
 
 use crate::{InfiniteLine2D, Point2D, Vector2D};
-use geo_contracts::default_distance_tolerance;
-use geo_contracts::{Angle, Scalar};
+use geo_contracts::Scalar;
 
 impl<T: Scalar> InfiniteLine2D<T> {
     /// X軸に平行な直線を作成（y = y0）
@@ -45,12 +44,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
             .is_parallel_to(&other.direction_internal())
     }
 
-    /// 直線が同一かを判定
-    pub fn is_coincident(&self, other: &Self) -> bool {
-        self.is_parallel(other)
-            && self.contains_point(&other.point_internal(), default_distance_tolerance::<T>())
-    }
-
     /// 直線が垂直かを判定（角度許容誤差使用）
     pub fn is_perpendicular(&self, other: &Self) -> bool {
         self.direction_internal()
@@ -72,26 +65,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
     pub fn reverse(&self) -> Self {
         Self::new(self.point_internal(), *(-self.direction_internal()))
             .expect("Negated direction should always be valid for InfiniteLine2D")
-    }
-
-    /// 原点周りの回転
-    pub fn rotate_around_origin(&self, angle: Angle<T>) -> Self {
-        let radians = angle.to_radians();
-        let cos_a = radians.cos();
-        let sin_a = radians.sin();
-
-        // 点の回転
-        let new_x = self.point_internal().x() * cos_a - self.point_internal().y() * sin_a;
-        let new_y = self.point_internal().x() * sin_a + self.point_internal().y() * cos_a;
-        let new_point = Point2D::new(new_x, new_y);
-
-        // 方向ベクトルの回転
-        let dir_x = self.direction_internal().x() * cos_a - self.direction_internal().y() * sin_a;
-        let dir_y = self.direction_internal().x() * sin_a + self.direction_internal().y() * cos_a;
-        let new_direction = Vector2D::new(dir_x, dir_y);
-
-        Self::new(new_point, new_direction)
-            .expect("Rotated direction should always be valid for InfiniteLine2D")
     }
 
     /// 3次元無限直線に拡張（Z=0平面）

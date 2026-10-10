@@ -190,8 +190,14 @@ mod tests {
         // 共線判定
         let collinear_segment =
             LineSegment2D::new(Point2D::new(3.0, 0.0), Point2D::new(5.0, 0.0)).unwrap();
-        assert!(segment1.line().is_coincident(collinear_segment.line()));
-        assert!(!segment1.line().is_coincident(segment2.line()));
+        assert!(geo_contracts::SameLineRelation::is_same_line(
+            segment1.line(),
+            collinear_segment.line()
+        ));
+        assert!(!geo_contracts::SameLineRelation::is_same_line(
+            segment1.line(),
+            segment2.line()
+        ));
     }
 
     #[test]

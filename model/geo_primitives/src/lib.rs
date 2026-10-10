@@ -181,7 +181,7 @@ pub use geo_contracts::{Angle, Scalar};
 // 3D プリミティブ
 pub use arc_3d::Arc3D;
 pub use circle_3d::Circle3D;
-pub use conical_solid_3d::{Cone3D, ConicalSolid3D};
+pub use conical_solid_3d::ConicalSolid3D;
 pub use conical_surface_3d::{ConeRim3D, ConicalSurface3D};
 pub use cylindrical_solid_3d::CylindricalSolid3D;
 pub use cylindrical_surface_3d::CylindricalSurface3D;
