@@ -3,27 +3,9 @@
 //! Extension Foundation パターンに基づく EllipseArc2D の拡張実装
 
 use crate::{Ellipse2D, EllipseArc2D, Point2D, Vector2D};
-use geo_contracts::{Angle, Scalar};
+use geo_contracts::Scalar;
 
 impl<T: Scalar> EllipseArc2D<T> {
-    /// 楕円の一部分として楕円弧を作成（高度構築）
-    pub fn from_ellipse_sector(
-        center: Point2D<T>,
-        semi_major: T,
-        semi_minor: T,
-        rotation: T,
-        start_angle: Angle<T>,
-        end_angle: Angle<T>,
-    ) -> Option<Self> {
-        let ellipse = Ellipse2D::new(center, semi_major, semi_minor, rotation)?;
-        Some(Self::new(ellipse, start_angle, end_angle))
-    }
-
-    /// 楕円弧が円弧かどうかを判定
-    pub fn is_circular_arc(&self, tolerance: T) -> bool {
-        self.ellipse().is_circle(tolerance)
-    }
-
     // 円弧への変換候補。Arc2D は trait のため具象型が確定するまで保留。
     // 一時的にコメントアウト: Arc2Dはトレイトなので具象型が必要
     // pub fn to_arc(&self) -> Option<Arc2D<T>> {
@@ -47,20 +29,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         .unwrap();
 
         Self::new(new_ellipse, self.start_angle(), self.end_angle())
-    }
-
-    /// 回転
-    pub fn rotate(&self, _angle: T, _pivot: Point2D<T>) -> Self {
-        // TODO: 楕円の回転変換を実装
-        // 現在は簡易実装
-        *self
-    }
-
-    /// スケール
-    pub fn scale(&self, _scale_x: T, _scale_y: T, _origin: Point2D<T>) -> Self {
-        // TODO: 楕円のスケール変換を実装
-        // 現在は簡易実装
-        *self
     }
 
     /// 楕円弧の方向を反転
@@ -108,29 +76,6 @@ impl<T: Scalar> EllipseArc2D<T> {
         }
 
         geo_core::Aabb2D::new(Point2D::new(min_x, min_y), Point2D::new(max_x, max_y))
-    }
-
-    /// 楕円弧の曲率を計算
-    pub fn curvature_at_parameter(&self, t: T) -> T {
-        // 楕円弧における曲率の近似計算
-        let angle = self.start_angle().to_radians()
-            + (self.end_angle().to_radians() - self.start_angle().to_radians()) * t;
-
-        let a = self.ellipse().semi_major_internal();
-        let b = self.ellipse().semi_minor_internal();
-
-        let cos_theta = angle.cos();
-        let sin_theta = angle.sin();
-
-        let numerator = a * b;
-        let denominator =
-            (a * a * sin_theta * sin_theta + b * b * cos_theta * cos_theta).powf(T::from_f64(1.5));
-
-        if denominator.abs() > T::EPSILON {
-            numerator / denominator
-        } else {
-            T::ZERO
-        }
     }
 
     /// 楕円弧上の点での法線ベクトル

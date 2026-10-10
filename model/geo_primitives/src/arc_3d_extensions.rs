@@ -51,27 +51,6 @@ impl<T: Scalar> Arc3D<T> {
         Self::new(center, radius, normal, start_dir, start_angle, end_angle)
     }
 
-    /// ベクトルから円弧を作成（後方互換性）
-    pub fn from_vectors(
-        center: Point3D<T>,
-        radius: T,
-        normal: Vector3D<T>,
-        start_dir: Vector3D<T>,
-        start_angle: Angle<T>,
-        end_angle: Angle<T>,
-    ) -> Option<Self> {
-        let normal_dir = Direction3D::from_vector(normal)?;
-        let start_dir_dir = Direction3D::from_vector(start_dir)?;
-        Self::new(
-            center,
-            radius,
-            normal_dir,
-            start_dir_dir,
-            start_angle,
-            end_angle,
-        )
-    }
-
     /// 退化した円弧かどうか判定
     pub fn is_degenerate(&self) -> bool {
         self.radius_internal() <= default_distance_tolerance::<T>()

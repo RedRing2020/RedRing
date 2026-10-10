@@ -6,63 +6,6 @@ use crate::{Direction3D, Ellipse3D, Point3D, Vector3D};
 use geo_contracts::Scalar;
 
 impl<T: Scalar> Ellipse3D<T> {
-    /// XZ平面上の軸に平行な楕円を作成
-    pub fn xz_aligned(center: Point3D<T>, semi_major_axis: T, semi_minor_axis: T) -> Option<Self> {
-        Self::new(
-            center,
-            semi_major_axis,
-            semi_minor_axis,
-            Vector3D::unit_y(),
-            Vector3D::unit_x(),
-        )
-    }
-
-    /// YZ平面上の軸に平行な楕円を作成
-    pub fn yz_aligned(center: Point3D<T>, semi_major_axis: T, semi_minor_axis: T) -> Option<Self> {
-        Self::new(
-            center,
-            semi_major_axis,
-            semi_minor_axis,
-            Vector3D::unit_x(),
-            Vector3D::unit_y(),
-        )
-    }
-
-    /// 任意の平面上に楕円を作成
-    pub fn on_plane(
-        center: Point3D<T>,
-        normal: Vector3D<T>,
-        major_axis_direction: Vector3D<T>,
-        semi_major_axis: T,
-        semi_minor_axis: T,
-    ) -> Option<Self> {
-        Self::new(
-            center,
-            semi_major_axis,
-            semi_minor_axis,
-            normal,
-            major_axis_direction,
-        )
-    }
-
-    /// 楕円上の点での曲率を計算
-    pub fn curvature_at_parameter(&self, t: T) -> T {
-        let a = self.semi_major_internal();
-        let b = self.semi_minor_internal();
-
-        let cos_t = t.cos();
-        let sin_t = t.sin();
-
-        let numerator = a * b;
-        let denominator = (a * a * sin_t * sin_t + b * b * cos_t * cos_t).powf(T::from_f64(1.5));
-
-        if denominator.abs() > T::EPSILON {
-            numerator / denominator
-        } else {
-            T::ZERO
-        }
-    }
-
     /// 楕円上の点での法線ベクトル（3D空間内）
     pub fn normal_at_parameter(&self, t: T) -> Vector3D<T> {
         let cos_t = t.cos();
@@ -122,41 +65,5 @@ impl<T: Scalar> Ellipse3D<T> {
             )
             .unwrap(), // 既存の楕円から作成するので失敗しない
         )
-    }
-
-    /// 楕円を異方スケール
-    pub fn scale_anisotropic(&self, major_scale: T, minor_scale: T) -> Option<Self> {
-        if major_scale <= T::ZERO || minor_scale <= T::ZERO {
-            return None;
-        }
-
-        let new_major = self.semi_major_internal() * major_scale;
-        let new_minor = self.semi_minor_internal() * minor_scale;
-
-        // 長軸と短軸の関係を保持
-        if new_major >= new_minor {
-            Some(
-                Self::new(
-                    self.center_internal(),
-                    new_major,
-                    new_minor,
-                    self.normal().as_vector(),
-                    self.major_axis_direction().as_vector(),
-                )
-                .unwrap(),
-            )
-        } else {
-            // 軸が逆転した場合の調整
-            Some(
-                Self::new(
-                    self.center_internal(),
-                    new_minor,
-                    new_major,
-                    self.normal().as_vector(),
-                    self.minor_axis_direction().as_vector(),
-                )
-                .unwrap(),
-            )
-        }
     }
 }

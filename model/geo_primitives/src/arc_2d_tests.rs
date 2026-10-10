@@ -25,7 +25,9 @@ mod tests {
     fn test_basic_creation() {
         // 基本的な円弧作成
         let center = Point2D::new(0.0_f64, 0.0_f64);
-        let arc = Arc2D::xy_arc(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+        let arc =
+            Arc2D::from_center_radius(center, 5.0_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
 
         let (cx, cy) = arc.center();
         assert_eq!((cx, cy), (center.x(), center.y()));
@@ -36,11 +38,13 @@ mod tests {
         assert_eq!(arc.end_angle(), angle(std::f64::consts::PI));
 
         // 不正な円弧（負の半径）
-        let invalid = Arc2D::xy_arc(center, -1.0_f64, angle(0.0), angle(std::f64::consts::PI));
+        let invalid =
+            Arc2D::from_center_radius(center, -1.0_f64, angle(0.0), angle(std::f64::consts::PI));
         assert!(invalid.is_none());
 
         // ゼロ半径
-        let invalid2 = Arc2D::xy_arc(center, 0.0_f64, angle(0.0), angle(std::f64::consts::PI));
+        let invalid2 =
+            Arc2D::from_center_radius(center, 0.0_f64, angle(0.0), angle(std::f64::consts::PI));
         assert!(invalid2.is_none());
     }
     #[test]
@@ -70,7 +74,9 @@ mod tests {
     #[test]
     fn test_basic_properties() {
         let center = Point2D::origin();
-        let arc = Arc2D::xy_arc(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+        let arc =
+            Arc2D::from_center_radius(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
 
         // 角度範囲
         let span = arc.angle_span();
@@ -91,7 +97,7 @@ mod tests {
     #[test]
     fn test_full_circle_detection() {
         let center = Point2D::origin();
-        let full_arc = Arc2D::xy_arc(
+        let full_arc = Arc2D::from_center_radius(
             center,
             3.0_f64,
             angle(0.0),
@@ -111,18 +117,22 @@ mod tests {
 
         // 非常に小さい半径
         let tiny_arc =
-            Arc2D::xy_arc(center, 1e-12_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+            Arc2D::from_center_radius(center, 1e-12_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
         assert!(tiny_arc.is_degenerate());
 
         // 非常に小さい角度範囲
-        let narrow_arc = Arc2D::xy_arc(center, 5.0_f64, angle(0.0), angle(1e-12)).unwrap();
+        let narrow_arc =
+            Arc2D::from_center_radius(center, 5.0_f64, angle(0.0), angle(1e-12)).unwrap();
         assert!(narrow_arc.is_degenerate());
     }
 
     #[test]
     fn test_parametric_points() {
         let center = Point2D::origin();
-        let arc = Arc2D::xy_arc(center, 4.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+        let arc =
+            Arc2D::from_center_radius(center, 4.0_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
 
         // 開始点 (t=0)
         let start = arc.point_at_parameter(0.0);
@@ -143,7 +153,7 @@ mod tests {
     #[test]
     fn test_endpoint_methods() {
         let center = Point2D::origin();
-        let arc = Arc2D::xy_arc(
+        let arc = Arc2D::from_center_radius(
             center,
             3.0_f64,
             angle(0.0),
@@ -173,7 +183,7 @@ mod tests {
     #[test]
     fn test_parameter_and_angle_apis_are_distinct_but_consistent() {
         let center = Point2D::origin();
-        let arc = Arc2D::xy_arc(
+        let arc = Arc2D::from_center_radius(
             center,
             3.0_f64,
             angle(0.0),
@@ -191,7 +201,9 @@ mod tests {
     #[test]
     fn test_angle_containment() {
         let center = Point2D::origin();
-        let arc = Arc2D::xy_arc(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+        let arc =
+            Arc2D::from_center_radius(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
 
         // 範囲内の角度
         assert!(arc.contains_angle(angle(std::f64::consts::PI / 2.0)));
@@ -208,11 +220,13 @@ mod tests {
         let center = Point2D::origin();
 
         // 正の角度範囲
-        let arc1 = Arc2D::xy_arc(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+        let arc1 =
+            Arc2D::from_center_radius(center, 2.0_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
         assert!((arc1.angle_span() - std::f64::consts::PI).abs() < TOLERANCE_F64);
 
         // 0度をまたぐ角度範囲
-        let arc2 = Arc2D::xy_arc(
+        let arc2 = Arc2D::from_center_radius(
             center,
             2.0_f64,
             angle(3.0 * std::f64::consts::PI / 2.0),
@@ -227,7 +241,7 @@ mod tests {
         let center = Point2D::origin();
 
         // 完全円の場合は Circle2D に変換可能
-        let full_arc = Arc2D::xy_arc(
+        let full_arc = Arc2D::from_center_radius(
             center,
             3.0_f64,
             angle(0.0),
@@ -242,7 +256,8 @@ mod tests {
 
         // 部分円弧は変換不可
         let partial_arc =
-            Arc2D::xy_arc(center, 3.0_f64, angle(0.0), angle(std::f64::consts::PI)).unwrap();
+            Arc2D::from_center_radius(center, 3.0_f64, angle(0.0), angle(std::f64::consts::PI))
+                .unwrap();
         assert!(partial_arc.to_circle().is_none());
     }
 
@@ -250,7 +265,7 @@ mod tests {
     fn test_f32_compatibility() {
         // f32での基本操作
         let center = Point2D::new(0.0f32, 0.0f32);
-        let arc = Arc2D::xy_arc(
+        let arc = Arc2D::from_center_radius(
             center,
             3.0f32,
             angle_f32(0.0f32),

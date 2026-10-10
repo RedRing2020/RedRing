@@ -19,13 +19,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
             .expect("Unit vector should always be valid for InfiniteLine2D")
     }
 
-    /// 傾きと切片からY軸形式の直線を作成（y = mx + b）
-    pub fn from_slope_intercept(slope: T, intercept: T) -> Self {
-        let direction = Vector2D::new(T::ONE, slope);
-        Self::new(Point2D::new(T::ZERO, intercept), direction)
-            .expect("Non-zero direction vector should always be valid for InfiniteLine2D")
-    }
-
     /// 傾きを取得（垂直線の場合はNone）
     pub fn slope(&self) -> Option<T> {
         if self.direction_internal().x().abs() <= T::EPSILON {
@@ -41,27 +34,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
             .map(|slope| self.point_internal().y() - slope * self.point_internal().x())
     }
 
-    /// X切片を取得（水平線の場合はNone）
-    pub fn x_intercept(&self) -> Option<T> {
-        if self.direction_internal().y().abs() <= T::EPSILON {
-            None // 水平線
-        } else {
-            // 傾きの逆数を使用
-            let inv_slope = self.direction_internal().x() / self.direction_internal().y();
-            Some(self.point_internal().x() - inv_slope * self.point_internal().y())
-        }
-    }
-
-    /// 水平線かどうかを判定
-    pub fn is_horizontal(&self, tolerance: T) -> bool {
-        self.direction_internal().y().abs() <= tolerance
-    }
-
-    /// 垂直線かどうかを判定
-    pub fn is_vertical(&self, tolerance: T) -> bool {
-        self.direction_internal().x().abs() <= tolerance
-    }
-
     /// X軸との角度を取得（ラジアン）
     pub fn angle(&self) -> T {
         self.direction_internal().angle().to_radians()
@@ -71,19 +43,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
     pub fn is_parallel(&self, other: &Self) -> bool {
         self.direction_internal()
             .is_parallel_to(&other.direction_internal())
-    }
-
-    /// 直線が平行かを判定（カスタム許容誤差）
-    pub fn is_parallel_with_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        self.direction_internal()
-            .angle_to(&other.direction_internal())
-            <= tolerance
-            || (T::PI
-                - self
-                    .direction_internal()
-                    .angle_to(&other.direction_internal()))
-            .abs()
-                <= tolerance
     }
 
     /// 直線が同一かを判定
@@ -96,17 +55,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
     pub fn is_perpendicular(&self, other: &Self) -> bool {
         self.direction_internal()
             .is_perpendicular_to(&other.direction_internal())
-    }
-
-    /// 直線が垂直かを判定（カスタム許容誤差）
-    pub fn is_perpendicular_with_tolerance(&self, other: &Self, tolerance: T) -> bool {
-        let right_angle = T::PI / (T::ONE + T::ONE);
-        (self
-            .direction_internal()
-            .angle_to(&other.direction_internal())
-            - right_angle)
-            .abs()
-            <= tolerance
     }
 
     /// 他の直線と同じ直線かを判定
@@ -146,24 +94,10 @@ impl<T: Scalar> InfiniteLine2D<T> {
             .expect("Rotated direction should always be valid for InfiniteLine2D")
     }
 
-    /// 原点周りの回転（T型ラジアン - 後方互換性）
-    pub fn rotate_around_origin_radians(&self, angle: T) -> Self {
-        self.rotate_around_origin(Angle::from_radians(angle))
-    }
-
     /// 3次元無限直線に拡張（Z=0平面）
     pub fn to_3d(&self) -> crate::InfiniteLine3D<T> {
         crate::InfiniteLine3D::new(
             self.point_internal().to_3d(),
-            self.direction_internal().to_3d(),
-        )
-        .unwrap()
-    }
-
-    /// 3次元無限直線に拡張（指定Z値平面）
-    pub fn to_3d_at_z(&self, z: T) -> crate::InfiniteLine3D<T> {
-        crate::InfiniteLine3D::new(
-            self.point_internal().to_3d_with_z(z),
             self.direction_internal().to_3d(),
         )
         .unwrap()

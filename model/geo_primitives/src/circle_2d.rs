@@ -126,11 +126,6 @@ impl<T: Scalar> Circle2D<T> {
         (center_distance - self.radius).abs()
     }
 
-    /// 点円（半径がゼロに近い）かどうか
-    pub fn is_point(&self) -> bool {
-        self.radius <= default_distance_tolerance::<T>()
-    }
-
     /// 点に最も近い円周上の点を取得
     pub fn closest_point(&self, point: &Point2D<T>) -> Point2D<T> {
         let dx = point.x() - self.center.x();

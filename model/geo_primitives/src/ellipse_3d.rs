@@ -65,17 +65,6 @@ impl<T: Scalar> Ellipse3D<T> {
         })
     }
 
-    /// XY平面上の軸に平行な楕円を作成
-    pub fn xy_aligned(center: Point3D<T>, semi_major_axis: T, semi_minor_axis: T) -> Option<Self> {
-        Self::new(
-            center,
-            semi_major_axis,
-            semi_minor_axis,
-            Vector3D::unit_z(),
-            Vector3D::unit_x(),
-        )
-    }
-
     /// 3D円から楕円を作成
     pub fn from_circle(circle: &Circle3D<T>) -> Option<Self> {
         let normal_dir = circle.normal_internal();

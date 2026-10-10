@@ -5,11 +5,8 @@
 #[cfg(test)]
 mod tests {
     use crate::{Circle3D, Direction3D, Point3D, Vector3D};
-    use geo_contracts::default_distance_tolerance;
-    use geo_contracts::Circle3DEvaluation;
 
-    // テスト用のf64型別名
-    type TestScalar = f64;
+    use geo_contracts::Circle3DEvaluation;
 
     // 近似等価性チェック用のヘルパー関数
     fn assert_approx_eq(a: f64, b: f64, epsilon: f64) {
@@ -157,29 +154,6 @@ mod tests {
         assert_approx_eq(tangent_pi_2.x(), -1.0, 1e-10);
         assert_approx_eq(tangent_pi_2.y(), 0.0, 1e-10);
         assert_approx_eq(tangent_pi_2.z(), 0.0, 1e-10);
-
-        let tangent_angle = circle.tangent_at_angle(std::f64::consts::PI / 2.0);
-        assert_approx_eq(tangent_angle.x(), tangent_pi_2.x(), 1e-10);
-        assert_approx_eq(tangent_angle.y(), tangent_pi_2.y(), 1e-10);
-        assert_approx_eq(tangent_angle.z(), tangent_pi_2.z(), 1e-10);
-    }
-
-    #[test]
-    fn test_point_on_plane() {
-        let center = Point3D::new(0.0, 0.0, 5.0);
-        let normal = Direction3D::from_vector(Vector3D::unit_z()).unwrap();
-        let radius = 2.0;
-        let circle = Circle3D::new(center, normal, radius).unwrap();
-
-        let tolerance = default_distance_tolerance::<TestScalar>();
-
-        // 平面上の点
-        let point_on_plane = Point3D::new(1.0, 1.0, 5.0);
-        assert!(circle.point_on_plane(&point_on_plane, tolerance));
-
-        // 平面外の点
-        let point_off_plane = Point3D::new(1.0, 1.0, 6.0);
-        assert!(!circle.point_on_plane(&point_off_plane, tolerance));
     }
 
     #[test]

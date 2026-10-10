@@ -100,21 +100,6 @@ mod tests {
     }
 
     #[test]
-    fn test_points_towards() {
-        let origin = Point3D::new(0.0, 0.0, 0.0);
-        let direction = Vector3D::new(1.0, 0.0, 0.0);
-        let ray = Ray3D::new(origin, direction).unwrap();
-
-        let point_ahead = Point3D::new(5.0, 0.0, 0.0);
-        let point_behind = Point3D::new(-2.0, 0.0, 0.0);
-        let point_sideways = Point3D::new(0.0, 5.0, 0.0);
-
-        assert!(ray.points_towards(&point_ahead));
-        assert!(!ray.points_towards(&point_behind));
-        assert!(!ray.points_towards(&point_sideways));
-    }
-
-    #[test]
     fn test_distance_to_point() {
         let origin = Point3D::new(0.0, 0.0, 0.0);
         let direction = Vector3D::new(1.0, 0.0, 0.0);

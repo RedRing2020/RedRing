@@ -64,21 +64,10 @@ impl<T: Scalar> Ray3D<T> {
         }
     }
 
-    /// Ray が指定した点の方向を向いているかを判定
-    pub fn points_towards(&self, target: &Point3D<T>) -> bool {
-        let to_target = *target - self.origin_internal();
-        self.direction_vector().dot(&to_target) > T::ZERO
-    }
-
     /// 点が Ray の前方にあるかを判定
     pub fn is_point_ahead(&self, point: &Point3D<T>) -> bool {
         let to_point = *point - self.origin_internal();
         self.direction_vector().dot(&to_point) > T::ZERO
-    }
-
-    /// 点が Ray の後方にあるかを判定
-    pub fn is_point_behind(&self, point: &Point3D<T>) -> bool {
-        !self.is_point_ahead(point)
     }
 
     /// Ray 上で指定した点に最も近い点を取得
@@ -116,50 +105,5 @@ impl<T: Scalar> Ray3D<T> {
             self.origin_internal().z() + offset.z(),
         );
         Self::new(new_origin, self.direction_internal().as_vector()).unwrap()
-    }
-
-    /// 均一スケール
-    pub fn scale_uniform(&self, center: &Point3D<T>, factor: T) -> Self {
-        let relative_origin = Vector3D::from_points(center, &self.origin_internal());
-        let scaled_origin = relative_origin * factor;
-        let new_origin = Point3D::new(
-            center.x() + scaled_origin.x(),
-            center.y() + scaled_origin.y(),
-            center.z() + scaled_origin.z(),
-        );
-
-        // 方向ベクトルはスケールされない（正規化済み）
-        Self::new(new_origin, self.direction_internal().as_vector()).unwrap()
-    }
-
-    /// Ray の方向を新しい方向に設定
-    pub fn with_direction(&self, new_direction: Vector3D<T>) -> Option<Self> {
-        Self::new(self.origin_internal(), new_direction)
-    }
-
-    /// Ray の起点を新しい点に設定
-    pub fn with_origin(&self, new_origin: Point3D<T>) -> Self {
-        Self::new(new_origin, self.direction_internal().as_vector()).unwrap()
-    }
-
-    /// 指定した長さで切断してLineSegment3Dに変換
-    pub fn to_line_segment(&self, length: T) -> crate::LineSegment3D<T> {
-        let end_point = self.point_at_parameter(length);
-        crate::LineSegment3D::new(self.origin_internal(), end_point).unwrap()
-    }
-
-    /// 指定範囲での境界ボックスを計算
-    ///
-    /// # 引数
-    /// * `max_parameter` - 最大パラメータ値
-    ///
-    /// # 戻り値
-    /// [0, max_parameter] 範囲での境界ボックス
-    pub fn bounding_box_for_range(&self, max_parameter: T) -> geo_core::Aabb3D<T> {
-        let start_point = self.origin_internal();
-        let end_point = self.point_at_parameter(max_parameter);
-
-        geo_core::Aabb3D::from_points(&[start_point, end_point])
-            .unwrap_or_else(|| geo_core::Aabb3D::new(start_point, start_point))
     }
 }
