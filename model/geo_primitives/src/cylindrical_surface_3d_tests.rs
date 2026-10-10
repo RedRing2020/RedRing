@@ -49,12 +49,6 @@ mod tests {
 
         let z_surface = CylindricalSurface3D::new_z_axis(center, radius).unwrap();
         assert_eq!(z_surface.axis().as_vector(), Vector3D::new(0.0, 0.0, 1.0));
-
-        let y_surface = CylindricalSurface3D::new_y_axis(center, radius).unwrap();
-        assert_eq!(y_surface.axis().as_vector(), Vector3D::new(0.0, 1.0, 0.0));
-
-        let x_surface = CylindricalSurface3D::new_x_axis(center, radius).unwrap();
-        assert_eq!(x_surface.axis().as_vector(), Vector3D::new(1.0, 0.0, 0.0));
     }
 
     #[test]
@@ -134,21 +128,6 @@ mod tests {
         assert_relative_eq!(tangent_v.x(), 0.0, epsilon = 1e-10);
         assert_relative_eq!(tangent_v.y(), 0.0, epsilon = 1e-10);
         assert_relative_eq!(tangent_v.z(), 1.0, epsilon = 1e-10);
-    }
-
-    #[test]
-    fn test_curvature_analysis() {
-        let surface = CylindricalSurface3D::new_z_axis(Point3D::origin(), 5.0).unwrap();
-
-        let (k1, k2) = surface.curvature_at_uv(0.0, 0.0);
-        assert_relative_eq!(k1, 1.0 / 5.0, epsilon = 1e-10);
-        assert_relative_eq!(k2, 0.0, epsilon = 1e-10);
-
-        let mean_curvature = surface.mean_curvature_at_uv(0.0, 0.0);
-        assert_relative_eq!(mean_curvature, 1.0 / 10.0, epsilon = 1e-10);
-
-        let gaussian_curvature = surface.gaussian_curvature_at_uv(0.0, 0.0);
-        assert_relative_eq!(gaussian_curvature, 0.0, epsilon = 1e-10);
     }
 
     #[test]

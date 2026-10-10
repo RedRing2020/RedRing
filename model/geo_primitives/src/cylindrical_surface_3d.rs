@@ -155,26 +155,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
         )
     }
 
-    /// Y軸に平行な円柱サーフェスを作成（簡易コンストラクタ）
-    pub fn new_y_axis(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Vector3D::new(T::ZERO, T::ONE, T::ZERO), // Y軸
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO), // X軸を参照方向
-            radius,
-        )
-    }
-
-    /// X軸に平行な円柱サーフェスを作成（簡易コンストラクタ）
-    pub fn new_x_axis(center: Point3D<T>, radius: T) -> Option<Self> {
-        Self::new(
-            center,
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO), // X軸
-            Vector3D::new(T::ZERO, T::ONE, T::ZERO), // Y軸を参照方向
-            radius,
-        )
-    }
-
     /// 軸上の基準点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -273,32 +253,6 @@ impl<T: Scalar> CylindricalSurface3D<T> {
     /// ∂P/∂v = Z (軸方向)
     pub fn tangent_v_at_uv(&self, _u: T, _v: T) -> Vector3D<T> {
         self.axis.as_vector()
-    }
-
-    /// パラメータ (u, v) での主曲率を計算
-    ///
-    /// 円柱サーフェスの場合：
-    /// - 円周方向曲率 κ₁ = 1/radius
-    /// - 軸方向曲率 κ₂ = 0
-    ///
-    /// # Returns
-    /// (κ₁, κ₂) - 主曲率のペア
-    pub fn curvature_at_uv(&self, _u: T, _v: T) -> (T, T) {
-        let circumferential_curvature = T::ONE / self.radius;
-        let axial_curvature = T::ZERO;
-        (circumferential_curvature, axial_curvature)
-    }
-
-    /// 平均曲率を計算（H = (κ₁ + κ₂) / 2）
-    pub fn mean_curvature_at_uv(&self, u: T, v: T) -> T {
-        let (k1, k2) = self.curvature_at_uv(u, v);
-        (k1 + k2) / T::from_f64(2.0)
-    }
-
-    /// ガウス曲率を計算（K = κ₁ * κ₂）
-    pub fn gaussian_curvature_at_uv(&self, u: T, v: T) -> T {
-        let (k1, k2) = self.curvature_at_uv(u, v);
-        k1 * k2
     }
 
     /// 円柱サーフェスの境界ボックスを計算（無限軸方向のため制限が必要）

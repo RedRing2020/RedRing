@@ -3,7 +3,7 @@
 //! Foundation統一システムに基づくRay3Dの拡張機能
 //! Core機能は ray_3d.rs を参照
 
-use crate::{InfiniteLine3D, Point3D, Ray3D, Vector3D};
+use crate::{Point3D, Ray3D, Vector3D};
 use geo_contracts::Scalar;
 
 impl<T: Scalar> std::fmt::Display for Ray3D<T> {
@@ -18,15 +18,6 @@ impl<T: Scalar> std::fmt::Display for Ray3D<T> {
 }
 
 impl<T: Scalar> Ray3D<T> {
-    /// InfiniteLine3D への変換
-    ///
-    /// # 戻り値
-    /// 同じ起点と方向を持つ無限直線
-    pub fn to_infinite_line(&self) -> InfiniteLine3D<T> {
-        InfiniteLine3D::new(self.origin_internal(), self.direction_vector())
-            .expect("Ray direction should always create valid InfiniteLine3D")
-    }
-
     /// 境界ボックスを取得（無限のため起点のみ）
     pub fn bounding_box(&self) -> geo_core::Aabb3D<T> {
         // Ray は無限に延びるため、境界ボックスは起点のみで構成
@@ -62,12 +53,6 @@ impl<T: Scalar> Ray3D<T> {
             );
             point.distance_to(&projection)
         }
-    }
-
-    /// 点が Ray の前方にあるかを判定
-    pub fn is_point_ahead(&self, point: &Point3D<T>) -> bool {
-        let to_point = *point - self.origin_internal();
-        self.direction_vector().dot(&to_point) > T::ZERO
     }
 
     /// Ray 上で指定した点に最も近い点を取得

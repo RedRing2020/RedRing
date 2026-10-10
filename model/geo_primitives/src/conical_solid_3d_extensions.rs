@@ -2,7 +2,7 @@
 //!
 //! 円錐ソリッドの高度な幾何計算と解析機能
 
-use crate::{ConicalSolid3D, Plane3D, Point3D, Vector3D};
+use crate::{ConicalSolid3D, Point3D, Vector3D};
 use geo_contracts::{PointClassification, Scalar};
 
 impl<T: Scalar> ConicalSolid3D<T> {
@@ -116,86 +116,12 @@ impl<T: Scalar> ConicalSolid3D<T> {
         to_base.min(to_slant)
     }
 
-    /// 平面による円錐の断面を計算
-    ///
-    /// # Arguments
-    /// * `plane` - 切断平面
-    ///
-    /// # Returns
-    /// 断面の形状（実装簡略化）
-    pub fn cross_section_with_plane(&self, _plane: &Plane3D<T>) -> Option<Vec<Point3D<T>>> {
-        // 実装簡略化 - 実際のプロジェクトでは楕円や円の計算が必要
-        None
-    }
-
-    /// XY平面への投影
-    ///
-    /// # Returns
-    /// 投影された形状の境界点
-    pub fn project_to_xy(&self) -> Vec<Point3D<T>> {
-        let mut points = Vec::new();
-
-        // 底面の4点（簡略化）
-        let r = self.radius_internal();
-        let center = self.center_internal();
-        points.push(Point3D::new(center.x() + r, center.y(), center.z()));
-        points.push(Point3D::new(center.x(), center.y() + r, center.z()));
-        points.push(Point3D::new(center.x() - r, center.y(), center.z()));
-        points.push(Point3D::new(center.x(), center.y() - r, center.z()));
-
-        // 頂点も追加
-        let apex = self.apex_internal();
-        points.push(apex);
-
-        points
-    }
-
-    /// XZ平面への投影
-    pub fn project_to_xz(&self) -> Vec<Point3D<T>> {
-        // XY投影と類似の実装
-        self.project_to_xy()
-    }
-
-    /// YZ平面への投影
-    pub fn project_to_yz(&self) -> Vec<Point3D<T>> {
-        // XY投影と類似の実装
-        self.project_to_xy()
-    }
-
     /// 底面の中心を取得
     ///
     /// # Returns
     /// 底面の中心座標
     pub fn base_center(&self) -> Point3D<T> {
         self.center_internal()
-    }
-
-    /// 指定した高さでの円錐半径を計算
-    ///
-    /// # Arguments
-    /// * `height_from_base` - 底面からの高さ
-    ///
-    /// # Returns
-    /// その高さでの半径（範囲外の場合は None）
-    pub fn radius_at_height(&self, height_from_base: T) -> Option<T> {
-        let height = self.height_internal();
-        if height_from_base < T::ZERO || height_from_base > height {
-            return None;
-        }
-
-        let height_ratio = height_from_base / height;
-        let radius = self.radius_internal() * (T::ONE - height_ratio);
-        Some(radius)
-    }
-
-    /// 円錐の軸線を取得
-    ///
-    /// # Returns
-    /// 底面中心から頂点への直線
-    pub fn axis_line(&self) -> (Point3D<T>, Point3D<T>) {
-        let start = self.center_internal();
-        let end = self.apex_internal();
-        (start, end)
     }
 }
 

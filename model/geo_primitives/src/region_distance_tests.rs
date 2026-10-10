@@ -47,7 +47,7 @@ mod tests {
         let distance =
             |x: f64, y: f64, z: f64| TorusSolid3DDistance::distance_to_point(&torus, (x, y, z));
 
-        // 管の内部は 0、外部は管の表面までの距離
+        // トーラスの内部は 0、外部はトーラスの表面までの距離
         assert!(distance(3.0, 0.0, 0.0).abs() < TOLERANCE_F64);
         assert!(distance(3.5, 0.0, 0.5).abs() < TOLERANCE_F64);
         assert!((distance(0.0, 0.0, 0.0) - 2.0).abs() < TOLERANCE_F64);

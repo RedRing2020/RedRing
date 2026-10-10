@@ -145,28 +145,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
         )
     }
 
-    /// Y軸に平行な円柱ソリッドを作成（簡易コンストラクタ）
-    pub fn new_y_axis(center: Point3D<T>, radius: T, height: T) -> Option<Self> {
-        Self::new(
-            center,
-            Vector3D::new(T::ZERO, T::ONE, T::ZERO),
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO),
-            radius,
-            height,
-        )
-    }
-
-    /// X軸に平行な円柱ソリッドを作成（簡易コンストラクタ）
-    pub fn new_x_axis(center: Point3D<T>, radius: T, height: T) -> Option<Self> {
-        Self::new(
-            center,
-            Vector3D::new(T::ONE, T::ZERO, T::ZERO),
-            Vector3D::new(T::ZERO, T::ONE, T::ZERO),
-            radius,
-            height,
-        )
-    }
-
     /// 底面の中心点を取得（内部使用）
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -197,13 +175,6 @@ impl<T: Scalar> CylindricalSolid3D<T> {
     /// 円柱の高さを取得
     pub fn height(&self) -> T {
         self.height
-    }
-
-    /// 円柱ソリッドの体積を計算（内部使用）
-    ///
-    /// 体積 = π × r² × h
-    pub(crate) fn volume_internal(&self) -> T {
-        T::PI * self.radius * self.radius * self.height
     }
 
     /// 円柱ソリッドの表面積を計算（内部使用）

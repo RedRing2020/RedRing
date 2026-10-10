@@ -150,24 +150,6 @@ impl<T: Scalar> ConicalSurface3D<T> {
         )
     }
 
-    /// カスタム軸系での円錐サーフェスを作成
-    ///
-    /// # Arguments
-    /// * `center` - 中心点
-    /// * `z_axis` - Z軸方向（円錐軸）
-    /// * `x_axis` - X軸方向（参照方向）
-    /// * `radius` - 基準点での半径
-    /// * `semi_angle` - 半頂角（ラジアン）
-    pub fn new_with_custom_axes(
-        center: Point3D<T>,
-        z_axis: Vector3D<T>,
-        x_axis: Vector3D<T>,
-        radius: T,
-        semi_angle: T,
-    ) -> Option<Self> {
-        Self::new(center, z_axis, x_axis, radius, semi_angle)
-    }
-
     /// 基準点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center

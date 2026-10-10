@@ -173,33 +173,6 @@ impl<T: Scalar> ConicalSolid3D<T> {
         Self::new_standard(Point3D::new(T::ZERO, T::ZERO, T::ZERO), radius, height)
     }
 
-    /// 頂点と底面から円錐ソリッドを作成
-    ///
-    /// # Arguments
-    /// * `apex` - 円錐の頂点
-    /// * `base_center` - 底面の中心点
-    /// * `ref_direction` - 参照方向ベクトル
-    /// * `radius` - 底面の半径
-    ///
-    /// # Returns
-    /// 頂点と底面から定義された円錐ソリッド
-    pub fn from_apex_and_base(
-        apex: Point3D<T>,
-        base_center: Point3D<T>,
-        ref_direction: Vector3D<T>,
-        radius: T,
-    ) -> Option<Self> {
-        // 底面から頂点への軸ベクトルを計算
-        let axis = Vector3D::new(
-            apex.x() - base_center.x(),
-            apex.y() - base_center.y(),
-            apex.z() - base_center.z(),
-        );
-        let height = axis.length();
-
-        Self::new(base_center, axis, ref_direction, radius, height)
-    }
-
     /// 円錐の底面中心点を取得
     pub(crate) fn center_internal(&self) -> Point3D<T> {
         self.center
@@ -644,10 +617,6 @@ impl<T: Scalar> std::fmt::Display for ConicalSolid3D<T> {
         )
     }
 }
-
-/// 旧名前との互換性のためのエイリアス
-/// 将来的には削除予定
-pub type Cone3D<T> = ConicalSolid3D<T>;
 
 #[cfg(test)]
 mod tests {

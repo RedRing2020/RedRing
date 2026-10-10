@@ -14,11 +14,6 @@ impl<T: Scalar> Ray2D<T> {
         Self::new(rotated_origin, rotated_direction).unwrap()
     }
 
-    /// 原点を中心に回転
-    pub fn rotate_around_origin(&self, angle: Angle<T>) -> Self {
-        self.rotate(&Point2D::origin(), angle)
-    }
-
     /// Ray をスケール
     pub fn scale(&self, center: &Point2D<T>, factor: T) -> Self {
         let scaled_origin = *center + (self.origin_internal() - *center) * factor;

@@ -1,7 +1,7 @@
 // torus_surface_3d.rs
 // STEP AP214 準拠のトーラス面実装
 //
-// トーラス面は主半径（major_radius）と副半径（minor_radius）を持つ回転面です。
+// トーラス面は大半径（major_radius）と小半径（minor_radius）を持つ回転面です。
 //
 // STEP エンティティ: TOROIDAL_SURFACE + AXIS2_PLACEMENT_3D
 // パラメータ範囲: u ∈ [0, 2π], v ∈ [0, 2π]
@@ -13,19 +13,19 @@ use std::f64::consts::PI;
 
 /// STEP AP214 準拠のトーラス面
 ///
-/// 主半径（ドーナツの中心軸から管の中心までの距離）と
-/// 副半径（管の半径）により定義されます。
+/// 大半径（中心軸から断面の円の中心までの距離）と
+/// 小半径（断面の円の半径）により定義されます。
 #[derive(Debug, Clone, PartialEq)]
 pub struct TorusSurface3D<T: Scalar> {
     /// 原点（トーラスの中心点）
     origin: Point3D<T>,
     /// Z軸方向（トーラスの軸方向）
     z_axis: Direction3D<T>,
-    /// X軸方向（主半径の基準方向）
+    /// X軸方向（大半径の基準方向）
     x_axis: Direction3D<T>,
-    /// 主半径（ドーナツの中心軸から管の中心までの距離）
+    /// 大半径（中心軸から断面の円の中心までの距離）
     major_radius: T,
-    /// 副半径（管の半径）
+    /// 小半径（断面の円の半径）
     minor_radius: T,
 }
 
@@ -41,9 +41,9 @@ impl<T: Scalar> TorusSurface3D<T> {
     /// # Arguments
     /// * `origin` - トーラスの中心点
     /// * `z_axis` - トーラスの軸方向
-    /// * `x_axis` - 主半径の基準方向（z_axisと直交である必要があります）
-    /// * `major_radius` - 主半径（正の値である必要があります）
-    /// * `minor_radius` - 副半径（正の値である必要があります）
+    /// * `x_axis` - 大半径の基準方向（z_axisと直交である必要があります）
+    /// * `major_radius` - 大半径（正の値である必要があります）
+    /// * `minor_radius` - 小半径（正の値である必要があります）
     ///
     /// # Returns
     /// * `Some(TorusSurface3D)` - 有効なパラメータの場合
@@ -81,8 +81,8 @@ impl<T: Scalar> TorusSurface3D<T> {
     /// 標準的なトーラス面を作成（XY平面上、原点中心）
     ///
     /// # Arguments
-    /// * `major_radius` - 主半径
-    /// * `minor_radius` - 副半径
+    /// * `major_radius` - 大半径
+    /// * `minor_radius` - 小半径
     pub fn standard(major_radius: T, minor_radius: T) -> Option<Self> {
         let origin = Point3D::origin();
         let z_axis = Direction3D::from_vector(Vector3D::new(T::ZERO, T::ZERO, T::ONE))?;
@@ -116,12 +116,12 @@ impl<T: Scalar> TorusSurface3D<T> {
         Direction3D::from_vector(y_vec).unwrap()
     }
 
-    /// 主半径を取得
+    /// 大半径を取得
     pub fn major_radius_internal(&self) -> T {
         self.major_radius
     }
 
-    /// 副半径を取得
+    /// 小半径を取得
     pub fn minor_radius_internal(&self) -> T {
         self.minor_radius
     }
@@ -145,7 +145,7 @@ impl<T: Scalar> TorusSurface3D<T> {
 
         let y_axis = self.y_axis_internal();
 
-        // 管の中心を計算
+        // 断面の円の中心を計算
         let radius_at_v = self.major_radius + self.minor_radius * cos_v;
 
         // 各軸成分を計算
@@ -212,8 +212,8 @@ impl<T: Scalar> TorusSurface3D<T> {
     /// トーラスが有効かどうかをチェック
     ///
     /// 有効な条件:
-    /// - 主半径 > 0
-    /// - 副半径 > 0
+    /// - 大半径 > 0
+    /// - 小半径 > 0
     /// - 軸が単位ベクトル
     /// - 軸が直交
     pub fn is_valid(&self) -> bool {
@@ -349,7 +349,7 @@ impl<T: Scalar> TorusSurface3DEvaluation<T> for TorusSurface3D<T> {
 impl<T: Scalar> TorusSurface3DDistance<T> for TorusSurface3D<T> {
     fn distance_to_point(&self, point: (T, T, T)) -> T {
         let p = Point3D::new(point.0, point.1, point.2);
-        // 簡易実装: トーラス表面への最短距離の近似計算
+        // 大半径の円（断面の円の中心が描く円）までの距離と小半径の差（トーラス表面までの最短距離）
         let origin = self.origin_internal();
         let local = p - origin;
         let z_axis = self.z_axis_internal();

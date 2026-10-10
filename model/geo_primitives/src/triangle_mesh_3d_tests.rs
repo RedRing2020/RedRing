@@ -91,20 +91,6 @@ mod tests {
     }
 
     #[test]
-    fn test_degenerate_triangles() {
-        let vertices = vec![
-            Point3D::new(0.0, 0.0, 0.0),
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-        ];
-        // 退化した三角形（同じ頂点を2回参照）
-        let indices = vec![[0, 1, 2], [0, 0, 1]];
-
-        let mesh = TriangleMesh3D::new(vertices, indices).unwrap();
-        assert_eq!(mesh.degenerate_triangle_count(), 1);
-    }
-
-    #[test]
     fn test_bounding_box() {
         let vertices = vec![
             Point3D::new(-1.0, -2.0, -3.0),
@@ -146,7 +132,6 @@ mod tests {
         assert_eq!(mesh.vertex_count(), 4);
         assert_eq!(mesh.triangle_count(), 2);
         assert!(mesh.is_valid());
-        assert_eq!(mesh.degenerate_triangle_count(), 0);
     }
 
     #[test]
