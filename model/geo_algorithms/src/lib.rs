@@ -8,9 +8,7 @@
 //! - `CompositeCurve3D` / `CurveSegment3D` は `geo_topology` の語彙をそのまま再公開する
 //!   ため、whole-curve の public endpoint は拘束端点基準
 
-pub mod angle_utils;
 pub mod collision;
-pub mod constraint_validation;
 pub mod curve_discretization;
 pub mod distance;
 pub mod intersection;
@@ -21,17 +19,6 @@ pub mod result;
 // Octree関連の公開API
 pub use octree::{Octree, OctreeNode, OctreeTolerance};
 
-pub use angle_utils::{
-    are_angles_equivalent_deg, is_equivalent_0_360, normalize_angle_deg,
-    normalize_angle_signed_deg, normalize_to_0_360, normalize_to_minus180_180, rewound_target_deg,
-    shortest_angle, shortest_angular_delta_deg, unwind_angles_deg, AngularPosition, RewindPolicy,
-};
-pub use constraint_validation::{
-    validate_acceleration, validate_feed_rate, validate_linear_acceleration_mm_per_s2,
-    validate_linear_speed_mm_per_min, validate_linear_travel, validate_linear_travel_mm,
-    validate_rotary_acceleration_deg_per_s2, validate_rotary_angle, validate_rotary_angle_deg,
-    validate_rotary_speed_deg_per_min, ConstraintViolation, ValidationResult,
-};
 pub use curve_discretization::{
     circular_arc_to_polyline, CircularArcDirection, CircularArcPolylineOptions,
     DEFAULT_CIRCULAR_ARC_CHORD_TOLERANCE_MM,

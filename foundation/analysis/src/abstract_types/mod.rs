@@ -3,8 +3,11 @@
 //! 数値解析の基盤となる抽象型とトレイトを提供
 
 pub mod angle;
+pub mod angle_range;
 pub mod scalar;
 
+#[cfg(test)]
+pub mod angle_range_tests;
 #[cfg(test)]
 pub mod angle_tests;
 #[cfg(test)]
@@ -12,6 +15,7 @@ pub mod scalar_tests;
 
 // 主要な型とトレイトを再エクスポート
 pub use angle::{Angle, AngleType};
+pub use angle_range::AngleRange;
 pub use scalar::Scalar;
 
 /// 許容誤差を考慮した等価比較トレイト

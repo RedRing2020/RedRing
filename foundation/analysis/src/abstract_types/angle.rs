@@ -95,19 +95,22 @@ impl<T: Scalar> Angle<T> {
     }
 
     /// 角度を正規化（0 <= angle < 2π）
+    ///
+    /// 有限でない角度は有限でない値（NaN）を返す。
     pub fn normalize(self) -> Self {
         let tau = T::TAU;
-        let mut rad = self.radians;
-        while rad < T::ZERO {
+        let mut rad = self.radians - tau * (self.radians / tau).floor();
+        // 丸め誤差で範囲の端を外れた場合に範囲内へ戻す
+        if rad < T::ZERO {
             rad += tau;
         }
-        while rad >= tau {
-            rad -= tau;
+        if rad >= tau {
+            rad = T::ZERO;
         }
         Self { radians: rad }
     }
 
-    /// 角度を署名付き正規化（-π <= angle < π）
+    /// 角度を符号付きで正規化（-π < angle <= π）
     pub fn normalize_signed(self) -> Self {
         let normalized = self.normalize();
         if normalized.radians > T::PI {
