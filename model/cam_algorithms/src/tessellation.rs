@@ -8,9 +8,7 @@
 //! 逆オフセットは要素ごとに厳密に計算するため、細長三角形でも工具位置は変わらず、
 //! 経路生成時間は三角形数が支配的となる（設計: CAM_ALGORITHMS_DESIGN.md §10）。
 
-use geo_algorithms::adaptive_tessellation::{
-    AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation,
-};
+use geo_algorithms::{AdaptiveTessellationSettings, NurbsSurfaceAdaptiveTessellation};
 use geo_algorithms::{NurbsSurface3D, Point3D, TriangleMesh3D};
 use geo_contracts::default_kernel_numerical_zero_tolerance;
 

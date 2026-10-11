@@ -15,8 +15,8 @@ Issue #642 では、curve tessellation に関する責務境界を次の観点�
 
 2026-04-08 時点で、既に次は成立している。
 
-- `geo_nurbs::adaptive_tessellation` は parameter 列 / parameter grid 生成を担う
-- `geo_nurbs::curve_3d_extensions` と `surface_3d_extensions` は、NURBS 評価に直接結び付いた chord error ベースの adaptive sampling を実装している
+- `geo_nurbs` の `adaptive_tessellation` は parameter 列 / parameter grid 生成を担う
+- `geo_nurbs` の `nurbs_curve_3d/extensions.rs` と `nurbs_surface_3d/extensions.rs` は、NURBS 評価に直接結び付いた chord error ベースの adaptive sampling を実装している
 - `geo_algorithms::curve_discretization` は現在 `circular_arc_to_polyline` を提供し、shape family ごとの options と離散化入口を置く層として使われ始めている
 - `GEO_CONTRACTS_TRAIT_STRUCTURE_MINIMIZATION_DESIGN.md` では、`adaptive parameter sampling` / `curve discretization` / `param-grid tessellation` / `surface meshing` の taxonomy 自体は既に定義済みである
 

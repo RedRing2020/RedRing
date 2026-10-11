@@ -3,6 +3,11 @@
 //! Non-Uniform Rational B-Spline 2D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
+mod bounds;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector2;
 use geo_contracts::{
@@ -53,7 +58,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
     /// * 制御点数が次数+1未満の場合
     /// * ノットベクトルが無効な場合
     /// * 重み配列のサイズが制御点数と一致しない場合
-    pub(crate) fn new_internal(
+    fn new_internal(
         control_points: &[Vector2<T>],
         weights: Option<Vec<T>>,
         knot_vector: KnotVector<T>,
@@ -120,7 +125,7 @@ impl<T: Scalar> NurbsCurve2D<T> {
     }
 
     /// 制御点の座標のみを写像した曲線を返す（重み・ノットベクトル・次数は保持する）
-    pub(crate) fn map_control_points(&self, f: impl Fn((T, T)) -> (T, T)) -> Self {
+    fn map_control_points(&self, f: impl Fn((T, T)) -> (T, T)) -> Self {
         let mut coordinates = Vec::with_capacity(self.coordinates.len());
         let (points, _) = self.coordinates.as_chunks::<2>();
         for &[x, y] in points {
@@ -371,121 +376,5 @@ impl<T: Scalar> NurbsCurve2DDerived<T> for NurbsCurve2D<T> {
         } else {
             numerator / denominator
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_nurbs_curve_2d_creation() {
-        use geo_contracts::NurbsCurve2DConstructor;
-        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            weights,
-            knot_vector,
-            degree,
-        );
-        assert!(curve.is_ok());
-
-        let curve = curve.unwrap();
-        assert_eq!(curve.degree(), 2);
-        assert_eq!(curve.num_points(), 3);
-    }
-
-    #[test]
-    fn test_curve_evaluation() {
-        use geo_contracts::NurbsCurve2DConstructor;
-        let control_points = &[(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            weights,
-            knot_vector,
-            degree,
-        )
-        .unwrap();
-
-        // 開始点と終了点のテスト
-        let start_point = curve.evaluate_at(0.0);
-        let end_point = curve.evaluate_at(1.0);
-
-        // 開始点は最初の制御点に近い
-        assert!((start_point.x() - 0.0).abs() < 1e-10);
-        assert!((start_point.y() - 0.0).abs() < 1e-10);
-
-        // 終了点は最後の制御点に近い
-        assert!((end_point.x() - 2.0).abs() < 1e-10);
-        assert!((end_point.y() - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_approximate_length() {
-        use geo_contracts::NurbsCurve2DConstructor;
-        let control_points = &[(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            weights,
-            knot_vector,
-            degree,
-        )
-        .unwrap();
-        let length = curve.approximate_length(100);
-
-        // 直線に近い曲線なので長さは約2.0
-        assert!((length - 2.0).abs() < 0.1);
-    }
-
-    #[test]
-    fn test_point_at_checked_returns_none_for_out_of_domain_parameter() {
-        use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DEvaluation};
-
-        let control_points = &[(0.0, 0.0), (1.0, 0.0)];
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            control_points,
-            None,
-            vec![2.0, 2.0, 3.0, 3.0],
-            1,
-        )
-        .unwrap();
-
-        let in_domain =
-            <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, 2.5);
-        let out_of_domain =
-            <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, 1.9);
-
-        assert!(in_domain.is_some());
-        assert!(out_of_domain.is_none());
-    }
-
-    #[test]
-    fn test_point_at_checked_returns_none_for_nan_parameter() {
-        use geo_contracts::{NurbsCurve2DConstructor, NurbsCurve2DEvaluation};
-
-        let curve = <NurbsCurve2D<f64> as NurbsCurve2DConstructor<f64>>::new(
-            &[(0.0, 0.0), (1.0, 0.0)],
-            None,
-            vec![2.0, 2.0, 3.0, 3.0],
-            1,
-        )
-        .unwrap();
-
-        let value =
-            <NurbsCurve2D<f64> as NurbsCurve2DEvaluation<f64>>::point_at_checked(&curve, f64::NAN);
-
-        assert!(value.is_none());
     }
 }

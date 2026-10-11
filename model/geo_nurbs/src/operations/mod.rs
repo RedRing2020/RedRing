@@ -7,9 +7,8 @@
 //! - **`knot_insertion`**: ノット挿入（曲線の形状を保ったまま制御点を増やす）
 //! - **`degree_elevation`**: 次数上昇（より滑らかな表現への変換）
 
-pub mod degree_elevation;
-pub mod knot_insertion;
+mod degree_elevation;
+mod knot_insertion;
 
-// 公開API
-pub use degree_elevation::DegreeElevation;
-pub use knot_insertion::KnotInsertion;
+pub use degree_elevation::{DegreeElevateResult2D, DegreeElevateResult3D, DegreeElevation};
+pub use knot_insertion::{KnotInsertResult2D, KnotInsertResult3D, KnotInsertion};

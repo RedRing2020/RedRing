@@ -3,6 +3,12 @@
 //! Non-Uniform Rational B-Spline surfaces の基本実装です。
 //! 制御点の2次元グリッド、重み、2方向のノットベクトルを使用して自由形状曲面を表現します。
 
+mod bounds;
+mod extensions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{constants, KnotVector, NurbsError, Result, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
@@ -61,7 +67,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     /// * 制御点と重みのサイズが一致しない場合
     /// * ノットベクトルが無効な場合
     #[allow(clippy::needless_pass_by_value)] // 制御点グリッドを所有する必要がある
-    pub(crate) fn new_internal(
+    fn new_internal(
         control_points: Vec<Vec<Vector3<T>>>,
         weights: Option<Vec<Vec<T>>>,
         u_knots: KnotVector<T>,
@@ -170,7 +176,7 @@ impl<T: Scalar> NurbsSurface3D<T> {
     }
 
     /// 制御点の座標のみを写像した曲面を返す（重み・ノットベクトル・次数は保持する）
-    pub(crate) fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
+    fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
         let mut coordinates = Vec::with_capacity(self.coordinates.len());
         let (points, _) = self.coordinates.as_chunks::<3>();
         for &[x, y, z] in points {
@@ -562,136 +568,5 @@ impl<T: Scalar> NurbsSurface3DDerived<T> for NurbsSurface3D<T> {
         }
 
         total_area
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use geo_contracts::NurbsSurface3DConstructor;
-
-    #[test]
-    fn test_nurbs_surface_creation() {
-        // 2x2 制御点グリッド
-        let control_points = vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 1.0)],
-        ];
-
-        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-
-        let u_knots = vec![0.0, 0.0, 1.0, 1.0];
-        let v_knots = vec![0.0, 0.0, 1.0, 1.0];
-
-        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-            control_points,
-            Some(weights), // 有理サーフェスとして
-            u_knots,
-            v_knots,
-            1, // u_degree
-            1, // v_degree
-        );
-
-        assert!(surface.is_ok());
-
-        let surface = surface.unwrap();
-        assert_eq!(surface.grid_size(), (2, 2));
-        assert_eq!(surface.u_degree(), 1);
-        assert_eq!(surface.v_degree(), 1);
-    }
-
-    #[test]
-    fn test_surface_evaluation() {
-        // 平面サーフェスのテスト
-        let control_points = vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-        ];
-
-        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-
-        let u_knots = vec![0.0, 0.0, 1.0, 1.0];
-        let v_knots = vec![0.0, 0.0, 1.0, 1.0];
-
-        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-            control_points,
-            Some(weights), // 有理サーフェスとして
-            u_knots,
-            v_knots,
-            1,
-            1,
-        )
-        .unwrap();
-
-        // 中央点の評価
-        let point = surface.evaluate_at(0.5, 0.5);
-        assert!((point.x() - 0.5).abs() < 1e-10);
-        assert!((point.y() - 0.5).abs() < 1e-10);
-        assert!((point.z() - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_point_at_uv_checked_returns_none_for_out_of_domain_parameter() {
-        use geo_contracts::NurbsSurface3DEvaluation;
-
-        let control_points = vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-        ];
-        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-            control_points,
-            Some(weights),
-            vec![2.0, 2.0, 3.0, 3.0],
-            vec![5.0, 5.0, 6.0, 6.0],
-            1,
-            1,
-        )
-        .unwrap();
-
-        let in_domain = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-            &surface, 2.5, 5.5,
-        );
-        let out_of_domain =
-            <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-                &surface, 1.9, 5.5,
-            );
-
-        assert!(in_domain.is_some());
-        assert!(out_of_domain.is_none());
-    }
-
-    #[test]
-    fn test_point_at_uv_checked_returns_none_for_nan_parameter() {
-        use geo_contracts::NurbsSurface3DEvaluation;
-
-        let control_points = vec![
-            vec![(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)],
-            vec![(1.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
-        ];
-        let weights = vec![vec![1.0, 1.0], vec![1.0, 1.0]];
-        let surface = <NurbsSurface3D<f64> as NurbsSurface3DConstructor<f64>>::new(
-            control_points,
-            Some(weights),
-            vec![2.0, 2.0, 3.0, 3.0],
-            vec![5.0, 5.0, 6.0, 6.0],
-            1,
-            1,
-        )
-        .unwrap();
-
-        let nan_u = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-            &surface,
-            f64::NAN,
-            5.5,
-        );
-        let nan_v = <NurbsSurface3D<f64> as NurbsSurface3DEvaluation<f64>>::point_at_uv_checked(
-            &surface,
-            2.5,
-            f64::NAN,
-        );
-
-        assert!(nan_u.is_none());
-        assert!(nan_v.is_none());
     }
 }

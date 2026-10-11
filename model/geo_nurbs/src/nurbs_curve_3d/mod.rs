@@ -3,6 +3,14 @@
 //! Non-Uniform Rational B-Spline 3D curves の基本実装です。
 //! フラット配列による高効率メモリ配置で制御点、重み、ノットベクトルを管理します。
 
+mod bounds;
+mod extensions;
+
+pub use extensions::AabbOptions;
+#[cfg(test)]
+mod tests;
+mod transform;
+
 use crate::{constants, KnotVector, Scalar, WeightStorage};
 use analysis::linalg::vector::Vector3;
 use geo_contracts::{
@@ -50,7 +58,7 @@ impl<T: Scalar> NurbsCurve3D<T> {
     }
 
     /// 制御点の座標のみを写像した曲線を返す（重み・ノットベクトル・次数は保持する）
-    pub(crate) fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
+    fn map_control_points(&self, f: impl Fn((T, T, T)) -> (T, T, T)) -> Self {
         let mut coordinates = Vec::with_capacity(self.coordinates.len());
         let (points, _) = self.coordinates.as_chunks::<3>();
         for &[x, y, z] in points {
@@ -199,108 +207,6 @@ impl<T: Scalar> NurbsCurve3D<T> {
         total_length
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_nurbs_curve_3d_creation() {
-        use geo_contracts::NurbsCurve3DConstructor;
-        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (2.0, 0.0, 1.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
-            degree,
-            knot_vector,
-            control_points,
-            weights,
-        );
-        assert!(curve.is_ok());
-
-        let curve = curve.unwrap();
-        assert_eq!(curve.degree(), 2);
-        assert_eq!(curve.num_points(), 3);
-    }
-
-    #[test]
-    fn test_curve_3d_evaluation() {
-        use geo_contracts::NurbsCurve3DConstructor;
-        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 0.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
-            degree,
-            knot_vector,
-            control_points,
-            weights,
-        )
-        .unwrap();
-
-        // 開始点と終了点のテスト
-        let start_point = curve.evaluate_at(0.0);
-        let end_point = curve.evaluate_at(1.0);
-
-        // 開始点は最初の制御点に近い
-        assert!((start_point.x() - 0.0).abs() < 1e-10);
-        assert!((start_point.y() - 0.0).abs() < 1e-10);
-        assert!((start_point.z() - 0.0).abs() < 1e-10);
-
-        // 終了点は最後の制御点に近い
-        assert!((end_point.x() - 2.0).abs() < 1e-10);
-        assert!((end_point.y() - 0.0).abs() < 1e-10);
-        assert!((end_point.z() - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_tangent_calculation() {
-        use geo_contracts::NurbsCurve3DConstructor;
-        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
-            degree,
-            knot_vector,
-            control_points,
-            weights,
-        )
-        .unwrap();
-        let tangent = curve.tangent_at(0.5);
-
-        // 直線に近い曲線なのでX軸方向の接線
-        assert!((tangent.x() - 1.0).abs() < 0.1);
-        assert!(tangent.y().abs() < 0.1);
-        assert!(tangent.z().abs() < 0.1);
-    }
-
-    #[test]
-    fn test_approximate_length_3d() {
-        use geo_contracts::NurbsCurve3DConstructor;
-        let control_points = vec![(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)];
-        let weights = Some(vec![1.0, 1.0, 1.0]);
-        let knot_vector = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        let degree = 2;
-
-        let curve = <NurbsCurve3D<f64> as NurbsCurve3DConstructor<f64>>::new(
-            degree,
-            knot_vector,
-            control_points,
-            weights,
-        )
-        .unwrap();
-        let length = curve.approximate_length(100);
-
-        // 直線に近い曲線なので長さは約2.0
-        assert!((length - 2.0).abs() < 0.1);
-    }
-}
-
 impl<T: Scalar> NurbsCurve3DConstructor<T> for NurbsCurve3D<T> {
     fn new(
         degree: usize,
