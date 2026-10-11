@@ -146,19 +146,6 @@ fn test_reverse_direction() {
 }
 
 #[test]
-fn test_axis_rays() {
-    let origin = Point3D::new(1.0, 2.0, 3.0);
-
-    let x_ray = Ray3D::along_x_axis(origin);
-    let y_ray = Ray3D::along_y_axis(origin);
-    let z_ray = Ray3D::along_z_axis(origin);
-
-    assert_eq!(x_ray.direction.as_vector(), Vector3D::unit_x());
-    assert_eq!(y_ray.direction.as_vector(), Vector3D::unit_y());
-    assert_eq!(z_ray.direction.as_vector(), Vector3D::unit_z());
-}
-
-#[test]
 fn test_parameter_range() {
     let origin = Point3D::new(0.0, 0.0, 0.0);
     let direction = Vector3D::new(1.0, 0.0, 0.0);

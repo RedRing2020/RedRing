@@ -160,44 +160,6 @@ impl<T: Scalar> InfiniteLine2DConstructor<T> for InfiniteLine2D<T> {
         let point = Point2D::new(T::ZERO, y);
         Self::new(point, Vector2D::unit_x()).unwrap()
     }
-
-    fn vertical(x: T) -> Self {
-        let point = Point2D::new(x, T::ZERO);
-        Self::new(point, Vector2D::unit_y()).unwrap()
-    }
-
-    fn x_axis() -> Self {
-        Self::horizontal(T::ZERO)
-    }
-
-    fn y_axis() -> Self {
-        Self::vertical(T::ZERO)
-    }
-
-    fn through_origin(direction: (T, T)) -> Option<Self> {
-        let origin = Point2D::new(T::ZERO, T::ZERO);
-        let direction_vec = Vector2D::new(direction.0, direction.1);
-        Self::new(origin, direction_vec)
-    }
-
-    fn from_angle(angle: T) -> Self {
-        let direction = Vector2D::new(angle.cos(), angle.sin());
-        Self::new(Point2D::origin(), direction).unwrap()
-    }
-
-    fn from_point_and_angle(point: (T, T), angle: T) -> Self {
-        let point_2d = Point2D::new(point.0, point.1);
-        let direction = Vector2D::new(angle.cos(), angle.sin());
-        Self::new(point_2d, direction).unwrap()
-    }
-
-    fn perpendicular_through(point: (T, T), other: &Self) -> Self {
-        let point_2d = Point2D::new(point.0, point.1);
-        let other_dir = other.direction_internal();
-        // 90度回転して垂直方向を取得: (x, y) -> (-y, x)
-        let perp_dir = Vector2D::new(-other_dir.y(), other_dir.x());
-        Self::new(point_2d, perp_dir).unwrap()
-    }
 }
 
 /// InfiniteLine2D Properties Trait Implementation
@@ -216,65 +178,12 @@ impl<T: Scalar> InfiniteLine2DProperties<T> for InfiniteLine2D<T> {
         (n.x(), n.y())
     }
 
-    fn slope(&self) -> Option<T> {
-        if self.direction.x().abs() <= geo_contracts::default_distance_tolerance::<T>() {
-            None // 垂直線
-        } else {
-            Some(self.direction.y() / self.direction.x())
-        }
-    }
-
-    fn y_intercept(&self) -> Option<T> {
-        self.slope()
-            .map(|slope| self.point.y() - slope * self.point.x())
-    }
-
-    fn x_intercept(&self) -> Option<T> {
-        if self.direction.y().abs() <= geo_contracts::default_distance_tolerance::<T>() {
-            None // 水平線
-        } else {
-            // x = (y - b) / m, y=0のときのx
-            if let Some(slope) = self.slope() {
-                let b = self.y_intercept().unwrap_or(T::ZERO);
-                Some(-b / slope)
-            } else {
-                Some(self.point.x()) // 垂直線のx座標
-            }
-        }
-    }
-
-    fn is_horizontal(&self) -> bool {
-        self.direction.y().abs() <= geo_contracts::default_distance_tolerance::<T>()
-    }
-
-    fn is_vertical(&self) -> bool {
-        self.direction.x().abs() <= geo_contracts::default_distance_tolerance::<T>()
-    }
-
-    fn passes_through_origin(&self) -> bool {
-        use geo_contracts::default_distance_tolerance;
-        self.contains_point(&Point2D::origin(), default_distance_tolerance::<T>())
-    }
-
     fn dimension(&self) -> u32 {
         2
     }
 
     fn angle(&self) -> T {
         self.direction.y().atan2(self.direction.x())
-    }
-
-    fn is_above(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        let vec_to_point = p - self.point;
-        let cross = self.direction.cross(&vec_to_point);
-        cross > T::ZERO
-    }
-
-    fn is_below(&self, point: (T, T)) -> bool {
-        let p = Point2D::new(point.0, point.1);
-        !self.is_above(point)
-            && !self.contains_point(&p, geo_contracts::default_distance_tolerance::<T>())
     }
 }
 
@@ -311,67 +220,11 @@ impl<T: Scalar> InfiniteLine2DProjection<T> for InfiniteLine2D<T> {
         let projected = self.closest_point(&p);
         (projected.x(), projected.y())
     }
-
-    fn mirror_point(&self, point: (T, T)) -> (T, T) {
-        let p = Point2D::new(point.0, point.1);
-        let projected = self.closest_point(&p);
-        // 鏡面点 = 2 * 投影点 - 元の点
-        let mirrored = projected + (projected - p);
-        (mirrored.x(), mirrored.y())
-    }
 }
 
 impl<T: Scalar> InfiniteLine2DTransform<T> for InfiniteLine2D<T> {
     fn reverse(&self) -> Self {
         Self::new(self.point, -(*self.direction)).unwrap()
-    }
-
-    fn offset(&self, distance: T) -> Self {
-        let normal = Direction2D::from_vector(self.direction.rotate_neg_90())
-            .expect("Rotated direction should be valid");
-        let offset_point = self.point + normal * distance;
-        Self::new(offset_point, *self.direction).unwrap()
-    }
-
-    fn rotate_around_origin(&self, angle: T) -> Self {
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-
-        // 点を回転
-        let rotated_point = Point2D::new(
-            self.point.x() * cos_a - self.point.y() * sin_a,
-            self.point.x() * sin_a + self.point.y() * cos_a,
-        );
-
-        // 方向ベクトルを回転
-        let rotated_dir = Vector2D::new(
-            self.direction.x() * cos_a - self.direction.y() * sin_a,
-            self.direction.x() * sin_a + self.direction.y() * cos_a,
-        );
-
-        Self::new(rotated_point, rotated_dir).unwrap()
-    }
-
-    fn rotate_around_point(&self, center: (T, T), angle: T) -> Self {
-        let center_pt = Point2D::new(center.0, center.1);
-        let cos_a = angle.cos();
-        let sin_a = angle.sin();
-
-        // 中心からの相対位置を計算
-        let relative = self.point - center_pt;
-        let rotated_relative = Point2D::new(
-            relative.x() * cos_a - relative.y() * sin_a,
-            relative.x() * sin_a + relative.y() * cos_a,
-        );
-        let rotated_point = center_pt + (rotated_relative - Point2D::origin());
-
-        // 方向ベクトルを回転
-        let rotated_dir = Vector2D::new(
-            self.direction.x() * cos_a - self.direction.y() * sin_a,
-            self.direction.x() * sin_a + self.direction.y() * cos_a,
-        );
-
-        Self::new(rotated_point, rotated_dir).unwrap()
     }
 }
 

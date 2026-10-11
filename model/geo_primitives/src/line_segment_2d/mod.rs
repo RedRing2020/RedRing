@@ -62,22 +62,6 @@ impl<T: Scalar> LineSegment2D<T> {
         })
     }
 
-    /// 点と方向ベクトル、長さから線分を作成
-    pub fn from_point_direction_length(
-        start: Point2D<T>,
-        direction: Vector2D<T>,
-        length: T,
-    ) -> Option<Self> {
-        if length <= T::ZERO {
-            return None;
-        }
-
-        let line = InfiniteLine2D::new(start, direction)?;
-        let end = line.point_at_parameter(length);
-
-        Self::from_support_line_and_constraint_points(line, start, end)
-    }
-
     fn ordered_params(&self) -> (T, T) {
         if self.start_param <= self.end_param {
             (self.start_param, self.end_param)
@@ -295,36 +279,10 @@ impl<T: Scalar> LineSegment2DConstructor<T> for LineSegment2D<T> {
         Self::new(start_point, end_point)
     }
 
-    fn from_point_direction_length(start: (T, T), direction: (T, T), length: T) -> Option<Self> {
-        let start_point = Point2D::new(start.0, start.1);
-        let direction_vec = Vector2D::new(direction.0, direction.1);
-        Self::from_point_direction_length(start_point, direction_vec, length)
-    }
-
     fn unit_x() -> Self {
         let start = Point2D::origin();
         let end = Point2D::new(T::ONE, T::ZERO);
         Self::new(start, end).unwrap()
-    }
-
-    fn from_midpoint_length_horizontal(midpoint: (T, T), length: T) -> Option<Self> {
-        if length <= T::ZERO {
-            return None;
-        }
-        let half_length = length / (T::ONE + T::ONE);
-        let start = Point2D::new(midpoint.0 - half_length, midpoint.1);
-        let end = Point2D::new(midpoint.0 + half_length, midpoint.1);
-        Self::new(start, end)
-    }
-
-    fn from_midpoint_length_vertical(midpoint: (T, T), length: T) -> Option<Self> {
-        if length <= T::ZERO {
-            return None;
-        }
-        let half_length = length / (T::ONE + T::ONE);
-        let start = Point2D::new(midpoint.0, midpoint.1 - half_length);
-        let end = Point2D::new(midpoint.0, midpoint.1 + half_length);
-        Self::new(start, end)
     }
 
     fn unit_y() -> Self {
@@ -359,22 +317,6 @@ impl<T: Scalar> LineSegment2DProperties<T> for LineSegment2D<T> {
     }
 
     // Phase 2: 追加プロパティ
-    fn is_unit_length(&self) -> bool {
-        let length = self.length();
-        (length - T::ONE).abs() <= T::EPSILON
-    }
-
-    fn is_horizontal(&self) -> bool {
-        let start = self.start_point();
-        let end = self.end_point();
-        (start.y() - end.y()).abs() <= T::EPSILON
-    }
-
-    fn is_vertical(&self) -> bool {
-        let start = self.start_point();
-        let end = self.end_point();
-        (start.x() - end.x()).abs() <= T::EPSILON
-    }
 }
 
 impl<T: Scalar> LineSegment2DDerived<T> for LineSegment2D<T> {

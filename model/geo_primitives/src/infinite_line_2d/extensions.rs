@@ -12,27 +12,6 @@ impl<T: Scalar> InfiniteLine2D<T> {
             .expect("Unit vector should always be valid for InfiniteLine2D")
     }
 
-    /// Y軸に平行な直線を作成（x = x0）
-    pub fn vertical(x: T) -> Self {
-        Self::new(Point2D::new(x, T::ZERO), Vector2D::unit_y())
-            .expect("Unit vector should always be valid for InfiniteLine2D")
-    }
-
-    /// 傾きを取得（垂直線の場合はNone）
-    pub fn slope(&self) -> Option<T> {
-        if self.direction_internal().x().abs() <= T::EPSILON {
-            None // 垂直線
-        } else {
-            Some(self.direction_internal().y() / self.direction_internal().x())
-        }
-    }
-
-    /// Y切片を取得（垂直線の場合はNone）
-    pub fn y_intercept(&self) -> Option<T> {
-        self.slope()
-            .map(|slope| self.point_internal().y() - slope * self.point_internal().x())
-    }
-
     /// X軸との角度を取得（ラジアン）
     pub fn angle(&self) -> T {
         self.direction_internal().angle().to_radians()

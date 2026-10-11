@@ -12,23 +12,8 @@ pub trait LineSegment2DConstructor<T: Scalar> {
     where
         Self: Sized;
 
-    /// 起点、方向、長さから線分を作成
-    fn from_point_direction_length(start: (T, T), direction: (T, T), length: T) -> Option<Self>
-    where
-        Self: Sized;
-
     /// X軸方向の単位線分（原点から(1,0)まで）
     fn unit_x() -> Self
-    where
-        Self: Sized;
-
-    /// 中点と長さから水平線分を作成
-    fn from_midpoint_length_horizontal(midpoint: (T, T), length: T) -> Option<Self>
-    where
-        Self: Sized;
-
-    /// 中点と長さから垂直線分を作成
-    fn from_midpoint_length_vertical(midpoint: (T, T), length: T) -> Option<Self>
     where
         Self: Sized;
 
@@ -45,15 +30,6 @@ pub trait LineSegment3DConstructor<T: Scalar> {
     where
         Self: Sized;
 
-    /// 起点、方向、長さから3D線分を作成
-    fn from_point_direction_length(
-        start: (T, T, T),
-        direction: (T, T, T),
-        length: T,
-    ) -> Option<Self>
-    where
-        Self: Sized;
-
     /// X軸方向の単位線分（原点から(1,0,0)まで）
     fn unit_x() -> Self
     where
@@ -66,11 +42,6 @@ pub trait LineSegment3DConstructor<T: Scalar> {
 
     /// Z軸方向の単位線分（原点から(0,0,1)まで）
     fn unit_z() -> Self
-    where
-        Self: Sized;
-
-    /// XY平面上の水平線分（Z=0）
-    fn horizontal_xy(midpoint: (T, T, T), length: T) -> Option<Self>
     where
         Self: Sized;
 }
@@ -91,15 +62,6 @@ pub trait LineSegment2DProperties<T: Scalar> {
 
     /// 形状の次元数（2）
     fn dimension(&self) -> u32;
-
-    /// 単位長さ（長さ1）の線分かどうか
-    fn is_unit_length(&self) -> bool;
-
-    /// 水平線分（Y座標が一定）かどうか
-    fn is_horizontal(&self) -> bool;
-
-    /// 垂直線分（X座標が一定）かどうか
-    fn is_vertical(&self) -> bool;
 }
 
 /// LineSegment3D基本プロパティ取得トレイト
@@ -118,15 +80,6 @@ pub trait LineSegment3DProperties<T: Scalar> {
 
     /// 形状の次元数（3）
     fn dimension(&self) -> u32;
-
-    /// 単位長さ（長さ1）の線分かどうか
-    fn is_unit_length(&self) -> bool;
-
-    /// XY平面上（Z座標が一定）の線分かどうか
-    fn is_on_xy_plane(&self) -> bool;
-
-    /// YZ平面上（X座標が一定）の線分かどうか
-    fn is_on_yz_plane(&self) -> bool;
 }
 
 pub trait LineSegment2DDerived<T: Scalar> {
